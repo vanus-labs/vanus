@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package eventfilter
+package filter
 
 import (
-	"context"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
-	"github.com/stretchr/testify/assert"
+	"github.com/smartystreets/goconvey/convey"
 	"testing"
 )
 
@@ -37,31 +36,31 @@ func makeEvent() cloudevents.Event {
 
 type passFilter struct{}
 
-func (*passFilter) Filter(ctx context.Context, event cloudevents.Event) FilterResult {
+func (*passFilter) Filter(event cloudevents.Event) FilterResult {
 	return PassFilter
 }
 
 type failFilter struct{}
 
-func (*failFilter) Filter(ctx context.Context, event cloudevents.Event) FilterResult {
+func (*failFilter) Filter(event cloudevents.Event) FilterResult {
 	return FailFilter
 }
 
 type testStruct struct {
 	filter Filter
-	except FilterResult
+	expect FilterResult
 }
 
 func TestAllFilter_Filter(t *testing.T) {
 	tests := map[string]testStruct{
-		"Empty": {filter: NewAllFilter(), except: NoFilter},
-		"Pass":  {filter: NewAllFilter(&passFilter{}), except: PassFilter},
-		"Fail":  {filter: NewAllFilter(&failFilter{}), except: FailFilter},
+		"Empty": {filter: NewAllFilter(), expect: NoFilter},
+		"Pass":  {filter: NewAllFilter(&passFilter{}), expect: PassFilter},
+		"Fail":  {filter: NewAllFilter(&failFilter{}), expect: FailFilter},
 	}
+
 	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			e := makeEvent()
-			assert.Equal(t, tc.except, tc.filter.Filter(context.TODO(), e))
+		convey.Convey(name, t, func() {
+			convey.So(tc.expect, convey.ShouldEqual, tc.filter.Filter(makeEvent()))
 		})
 	}
 }

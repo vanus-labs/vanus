@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package eventfilter
+package filter
 
 import (
-	"context"
-	"fmt"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type exactFilter struct {
@@ -26,23 +25,20 @@ type exactFilter struct {
 
 // NewExactFilter returns an event filter which passes if value exactly matches the value of the context
 // attribute in the CloudEvent.
-func NewExactFilter(attribute, value string) (Filter, error) {
-	if attribute == "" || value == "" {
-		return nil, fmt.Errorf("invalid arguments, attribute and value can't be empty")
-	}
-	return &exactFilter{
-		attribute: attribute,
-		value:     value,
-	}, nil
+func NewExactFilter(attribute, value string) Filter {
+	return &exactFilter{attribute: attribute, value: value}
 }
 
-func (filter *exactFilter) Filter(ctx context.Context, event cloudevents.Event) FilterResult {
+func (filter *exactFilter) Filter(event cloudevents.Event) FilterResult {
 	if filter == nil || filter.attribute == "" || filter.value == "" {
 		return NoFilter
 	}
+	log.Debug("exact filter ", map[string]interface{}{"filters": filter, "event": event})
 	value, ok := LookupAttribute(event, filter.attribute)
 	if !ok || value != filter.value {
 		return FailFilter
 	}
 	return PassFilter
 }
+
+var _ Filter = (*exactFilter)(nil)

@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package eventfilter
+package filter
 
 import (
-	"context"
-	"github.com/stretchr/testify/assert"
+	"github.com/smartystreets/goconvey/convey"
 	"testing"
 )
 
@@ -33,14 +32,8 @@ func TestExactFilter_Filter(t *testing.T) {
 		"Match value":    {attribute: "source", value: eventSource, expect: PassFilter},
 	}
 	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			e := makeEvent()
-			f, err := NewExactFilter(tc.attribute, tc.value)
-			if err != nil {
-				t.Errorf("error new exact filter %v", err)
-			} else {
-				assert.Equal(t, tc.expect, f.Filter(context.TODO(), e))
-			}
+		convey.Convey(name, t, func() {
+			convey.So(tc.expect, convey.ShouldEqual, NewExactFilter(tc.attribute, tc.value).Filter(makeEvent()))
 		})
 	}
 }

@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package eventfilter
+package filter
 
 import (
-	"context"
 	"fmt"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/vanus/observability/log"
 	"strings"
 )
 
@@ -27,20 +27,15 @@ type prefixFilter struct {
 
 // NewPrefixFilter returns an event filter which passes if the value of the context
 // attribute in the CloudEvent is prefixed with value.
-func NewPrefixFilter(attribute, prefix string) (Filter, error) {
-	if attribute == "" || prefix == "" {
-		return nil, fmt.Errorf("invalid arguments, attribute and value can't be empty")
-	}
-	return &prefixFilter{
-		attribute: attribute,
-		prefix:    prefix,
-	}, nil
+func NewPrefixFilter(attribute, prefix string) Filter {
+	return &prefixFilter{attribute: attribute, prefix: prefix}
 }
 
-func (filter *prefixFilter) Filter(ctx context.Context, event cloudevents.Event) FilterResult {
+func (filter *prefixFilter) Filter(event cloudevents.Event) FilterResult {
 	if filter == nil || filter.attribute == "" || filter.prefix == "" {
 		return NoFilter
 	}
+	log.Debug("prefix filter ", map[string]interface{}{"filters": filter, "event": event})
 	value, ok := LookupAttribute(event, filter.attribute)
 	if !ok {
 		return FailFilter
@@ -52,4 +47,4 @@ func (filter *prefixFilter) Filter(ctx context.Context, event cloudevents.Event)
 	return FailFilter
 }
 
-var _ Filter = &prefixFilter{}
+var _ Filter = (*prefixFilter)(nil)

@@ -12,24 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package eventfilter
+package filter
 
 import (
-	"context"
-	"github.com/stretchr/testify/assert"
+	"github.com/smartystreets/goconvey/convey"
 	"testing"
 )
 
-func TestAnyFilter_Filter(t *testing.T) {
-	tests := map[string]testStruct{
-		"Empty": {filter: NewAnyFilter(), except: NoFilter},
-		"Pass":  {filter: NewAnyFilter(&passFilter{}), except: PassFilter},
-		"Fail":  {filter: NewAnyFilter(&failFilter{}), except: FailFilter},
+func TestPrefixFilter_Filter(t *testing.T) {
+	tests := map[string]testAttributeValue{
+		"No attribute":    {attribute: "test-attribute", value: "prefix", expect: FailFilter},
+		"No Match prefix": {attribute: "source", value: "no match prefix", expect: FailFilter},
+		"Match prefix":    {attribute: "source", value: eventSource, expect: PassFilter},
 	}
 	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			e := makeEvent()
-			assert.Equal(t, tc.except, tc.filter.Filter(context.TODO(), e))
+		convey.Convey(name, t, func() {
+			convey.So(tc.expect, convey.ShouldEqual, NewPrefixFilter(tc.attribute, tc.value).Filter(makeEvent()))
 		})
 	}
 }

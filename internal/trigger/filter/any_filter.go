@@ -12,30 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package eventfilter
+package filter
 
 import (
-	"context"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/vanus/observability/log"
 )
 
-type allFilter []Filter
+type anyFilter []Filter
 
-// NewAllFilter returns an event filter which passes if all the contained filters pass
-func NewAllFilter(filters ...Filter) Filter {
-	return append(allFilter{}, filters...)
+// NewAnyFilter returns an event filter which passes if all the contained filters pass
+func NewAnyFilter(filters ...Filter) Filter {
+	return append(anyFilter{}, filters...)
 }
 
-func (filter allFilter) Filter(ctx context.Context, event cloudevents.Event) FilterResult {
+func (filter anyFilter) Filter(event cloudevents.Event) FilterResult {
 	res := NoFilter
+	log.Debug("any filter ", map[string]interface{}{"filters": filter, "event": event})
 	for _, f := range filter {
-		res = res.And(f.Filter(ctx, event))
+		res = res.Or(f.Filter(event))
 		// Short circuit to optimize it
-		if res == FailFilter {
-			return FailFilter
+		if res == PassFilter {
+			return PassFilter
 		}
 	}
 	return res
 }
 
-var _ Filter = allFilter{}
+var _ Filter = (*anyFilter)(nil)

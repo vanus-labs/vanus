@@ -12,29 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package eventfilter
+package filter
 
 import (
-	"context"
-	"github.com/stretchr/testify/assert"
+	"fmt"
+	"github.com/smartystreets/goconvey/convey"
 	"testing"
 )
 
-func TestPrefixFilter_Filter(t *testing.T) {
+func TestCeSQLFilter_Filter(t *testing.T) {
 	tests := map[string]testAttributeValue{
-		"No attribute":    {attribute: "test-attribute", value: "prefix", expect: FailFilter},
-		"No Match prefix": {attribute: "source", value: "no match prefix", expect: FailFilter},
-		"Match prefix":    {attribute: "source", value: eventSource, expect: PassFilter},
+		"NO expression": {value: "", expect: NoFilter},
+		"No Match":      {value: fmt.Sprintf("type = '%s'", "nomatch type"), expect: FailFilter},
+		"Match":         {value: fmt.Sprintf("type = '%s'", eventType), expect: PassFilter},
 	}
 	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			e := makeEvent()
-			f, err := NewPrefixFilter(tc.attribute, tc.value)
-			if err != nil {
-				t.Errorf("error new prefix filter %v", err)
-			} else {
-				assert.Equal(t, tc.expect, f.Filter(context.TODO(), e))
-			}
+		convey.Convey(name, t, func() {
+			convey.So(tc.expect, convey.ShouldEqual, NewCESQLFilter(tc.value).Filter(makeEvent()))
 		})
 	}
 }

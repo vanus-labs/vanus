@@ -12,24 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package eventfilter
+package filter
 
 import (
-	"context"
-	"github.com/stretchr/testify/assert"
+	"github.com/smartystreets/goconvey/convey"
 	"testing"
 )
 
 func TestNotFilter_Filter(t *testing.T) {
 	tests := map[string]testStruct{
-		"Empty":    {filter: &notFilter{}, except: NoFilter},
-		"Not Pass": {filter: NewNotFilter(&passFilter{}), except: FailFilter},
-		"Not Fail": {filter: NewNotFilter(&failFilter{}), except: PassFilter},
+		"Empty":    {filter: &notFilter{}, expect: NoFilter},
+		"Not Pass": {filter: NewNotFilter(&passFilter{}), expect: FailFilter},
+		"Not Fail": {filter: NewNotFilter(&failFilter{}), expect: PassFilter},
 	}
 	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			e := makeEvent()
-			assert.Equal(t, tc.except, tc.filter.Filter(context.TODO(), e))
+		convey.Convey(name, t, func() {
+			convey.So(tc.expect, convey.ShouldEqual, tc.filter.Filter(makeEvent()))
 		})
 	}
 }

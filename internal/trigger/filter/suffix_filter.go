@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package eventfilter
+package filter
 
 import (
-	"context"
 	"fmt"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/vanus/observability/log"
 	"strings"
 )
 
@@ -27,20 +27,15 @@ type suffixFilter struct {
 
 // NewSuffixFilter returns an event filter which passes if the value of the context
 // attribute in the CloudEvent ends with suffix.
-func NewSuffixFilter(attribute, suffix string) (Filter, error) {
-	if attribute == "" || suffix == "" {
-		return nil, fmt.Errorf("invalid arguments, attribute and suffix can't be empty")
-	}
-	return &suffixFilter{
-		attribute: attribute,
-		suffix:    suffix,
-	}, nil
+func NewSuffixFilter(attribute, suffix string) Filter {
+	return &suffixFilter{attribute: attribute, suffix: suffix}
 }
 
-func (filter *suffixFilter) Filter(ctx context.Context, event cloudevents.Event) FilterResult {
+func (filter *suffixFilter) Filter(event cloudevents.Event) FilterResult {
 	if filter == nil || filter.attribute == "" || filter.suffix == "" {
 		return NoFilter
 	}
+	log.Debug("suffix filter ", map[string]interface{}{"filters": filter, "event": event})
 	value, ok := LookupAttribute(event, filter.attribute)
 	if !ok {
 		return FailFilter
@@ -52,4 +47,4 @@ func (filter *suffixFilter) Filter(ctx context.Context, event cloudevents.Event)
 	return FailFilter
 }
 
-var _ Filter = &suffixFilter{}
+var _ Filter = (*suffixFilter)(nil)

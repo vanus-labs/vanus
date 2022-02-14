@@ -12,35 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package eventfilter
+package filter
 
 import (
-	"context"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/smartystreets/goconvey/convey"
+	"testing"
 )
 
-type notFilter struct {
-	filter Filter
-}
-
-// NewNotFilter returns an event filter which passes if the contained filter fails.
-func NewNotFilter(f Filter) Filter {
-	return &notFilter{
-		filter: f,
+func TestSuffixFilter_Filter(t *testing.T) {
+	tests := map[string]testAttributeValue{
+		"No attribute":    {attribute: "test-attribute", value: "no.suffix", expect: FailFilter},
+		"No Match prefix": {attribute: "source", value: "no.match.suffix", expect: FailFilter},
+		"Match prefix":    {attribute: "source", value: eventSource, expect: PassFilter},
+	}
+	for name, tc := range tests {
+		convey.Convey(name, t, func() {
+			convey.So(tc.expect, convey.ShouldEqual, NewSuffixFilter(tc.attribute, tc.value).Filter(makeEvent()))
+		})
 	}
 }
-
-func (filter *notFilter) Filter(ctx context.Context, event cloudevents.Event) FilterResult {
-	if filter == nil || filter.filter == nil {
-		return NoFilter
-	}
-	switch filter.filter.Filter(ctx, event) {
-	case FailFilter:
-		return PassFilter
-	case PassFilter:
-		return FailFilter
-	}
-	return NoFilter
-}
-
-var _ Filter = &notFilter{}
