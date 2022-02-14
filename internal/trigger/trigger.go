@@ -16,6 +16,8 @@ package trigger
 
 import (
 	"context"
+	"fmt"
+	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/google/uuid"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/ds"
@@ -23,7 +25,6 @@ import (
 	"sync"
 	"time"
 )
-import ce "github.com/cloudevents/sdk-go/v2"
 
 type TGState string
 
@@ -45,18 +46,23 @@ type Trigger struct {
 	BatchProcessSize int           `json:"batch_process_size"`
 	MaxRetryTimes    int           `json:"max_retry_times"`
 	SleepDuration    time.Duration `json:"sleep_duration"`
+	EventBus         string        `json:"event_bus"`
 
 	state      TGState
 	stateMutex sync.RWMutex
 	buffer     ds.RingBuffer
 	exit       chan struct{}
+	exitWG     sync.WaitGroup
 	lastActive time.Time
+	ackWindow  ds.SortedMap
+
 	//TODO ACK Management
 }
 
 func NewTrigger(sub primitive.Subscription) *Trigger {
 	return &Trigger{
-		ID: uuid.New().String(),
+		ID:    uuid.New().String(),
+		state: TGCreated,
 	}
 }
 
@@ -65,13 +71,14 @@ func (t *Trigger) EventArrived(ctx context.Context, events ...*ce.Event) {
 }
 
 func (t *Trigger) IsNeedFill() bool {
-	return !t.buffer.IsFull() // TODO remain size < batch size
+	return t.buffer.Capacity() - t.buffer.Length() > t.BufferSize
 }
 
 func (t *Trigger) Start(ctx context.Context) error {
 	// running task
 	go func() {
 		retryTimes := 0
+		t.exitWG.Add(1)
 	LOOP:
 		for {
 			select {
@@ -86,15 +93,29 @@ func (t *Trigger) Start(ctx context.Context) error {
 				num, err := t.process(t.BatchProcessSize)
 				if err != nil {
 					if retryTimes > t.MaxRetryTimes {
-						// TODO dead letter
 						events := make([]*ce.Event, num)
 						data := t.buffer.BatchGet(num)
 						for k := range t.buffer.BatchGet(num) {
 							events[k] = data[k].(*ce.Event)
 						}
-						t.sendToDeadLetter(events...)
+						err := t.asDeadLetter(events...)
+						if err != nil {
+							ids := make([]string, 0)
+							for idx := range events {
+								ids = append(ids, events[idx].ID())
+							}
+							log.Error("send dead event to dead letter failed", map[string]interface{}{
+								"error":  err,
+								"events": ids,
+							})
+						}
 						retryTimes = 0
-						t.buffer.RemoveFromHead(num)
+						err = t.buffer.RemoveFromHead(num)
+						if err != nil {
+							log.Warning("remove event from buffer failed", map[string]interface{}{
+								"error": err,
+							})
+						}
 						break
 					}
 					retryTimes++
@@ -102,14 +123,21 @@ func (t *Trigger) Start(ctx context.Context) error {
 					break
 				}
 				retryTimes = 0
-				t.buffer.RemoveFromHead(num)
+				err = t.buffer.RemoveFromHead(num)
+				if err != nil {
+					log.Warning("remove event from buffer failed", map[string]interface{}{
+						"error": err,
+					})
+				}
 			}
 		}
+		t.exitWG.Add(-1)
 	}()
 
 	// sleep watch
 	go func() {
 		tk := time.NewTicker(10 * time.Millisecond)
+		t.exitWG.Add(1)
 	LOOP:
 		for {
 			select {
@@ -125,7 +153,7 @@ func (t *Trigger) Start(ctx context.Context) error {
 				t.stateMutex.Lock()
 				if t.state == TGRunning {
 					if time.Now().Sub(t.lastActive) > t.SleepDuration {
-						t.state = TGRunning
+						t.state = TGSleep
 					} else {
 						t.state = TGRunning
 					}
@@ -133,7 +161,31 @@ func (t *Trigger) Start(ctx context.Context) error {
 				t.stateMutex.Unlock()
 			}
 		}
+		t.exitWG.Add(-1)
 	}()
+
+	// monitor timeout
+	go func() {
+		tk := time.NewTicker(10 * time.Millisecond)
+		t.exitWG.Add(1)
+	LOOP:
+		for {
+			select {
+			case _, ok := <-t.exit:
+				if ok {
+					log.Info("trigger monitor ack exit", map[string]interface{}{
+						"id": t.ID,
+					})
+				}
+				tk.Stop()
+				break LOOP
+			case _ = <-tk.C:
+				t.checkACKTimeout()
+			}
+		}
+		t.exitWG.Add(-1)
+	}()
+	t.state = TGRunning
 	return nil
 }
 
@@ -145,7 +197,9 @@ func (t *Trigger) GetState() TGState {
 
 func (t *Trigger) Stop(ctx context.Context) error {
 	close(t.exit)
+	t.exitWG.Wait()
 	_, err := t.process(t.buffer.Length())
+	t.state = TGStopped
 	return err
 }
 
@@ -160,6 +214,44 @@ func (t *Trigger) process(num int) (int, error) {
 	return len(events), nil
 }
 
-func (t *Trigger) sendToDeadLetter(events ...*ce.Event) error {
+func (t *Trigger) asDeadLetter(events ...*ce.Event) error {
+	fmt.Println(events)
 	return nil
+}
+
+func (t *Trigger) ack(ctx context.Context, ids ...string) error {
+	// TODO
+	for _, v := range ids {
+		t.ackWindow.Remove(v)
+	}
+	return nil
+}
+
+func (t *Trigger) checkACKTimeout() error {
+	entry := t.ackWindow.Head()
+	if entry == nil {
+		return nil
+	}
+	wa := entry.Value().(*waitACK)
+	for wa != nil && wa.timeout() {
+		t.asDeadLetter(wa.event)
+		t.ackWindow.Remove(entry.Key())
+		entry = entry.Next()
+		if entry != nil {
+			wa = entry.Value().(*waitACK)
+		} else {
+			wa = nil
+		}
+	}
+	return nil
+}
+
+type waitACK struct {
+	event       *ce.Event
+	deliverTime time.Time
+	timeoutTime time.Time
+}
+
+func (wa *waitACK) timeout() bool {
+	return time.Now().Sub(wa.timeoutTime) > 0
 }
