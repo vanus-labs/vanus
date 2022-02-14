@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trigger
+package primitive
 
-// This is a place-holder file for directory visible and can be deleted after any entity file added
+type EventBus interface {
+	Pull(int64, int64, int32)
+	GetEventLogs(string)
+}
+

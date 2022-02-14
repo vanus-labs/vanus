@@ -12,6 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package observability
+package trigger
 
-// This is a place-holder file for directory visible and can be deleted after any entity file added
+import "github.com/linkall-labs/vanus/internal/primitive"
+
+type TWorker struct {
+	Subscriptions map[string]primitive.Subscription
+
+}
+
+func (t *TWorker) Start() error {
+	return nil
+}
+
+func (t *TWorker) Stop() error {
+	return nil
+}
+
+func (t *TWorker) AddSubscription() error{
+	return nil
+}
+
+func (t *TWorker) RemoveSubscription() error{
+	return nil
+}
+
+func (t *TWorker) run() {
+	
+}
+
+func (t *TWorker) fetch()  {
+
+}
+

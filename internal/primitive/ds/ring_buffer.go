@@ -12,23 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package primitive
+package ds
 
-type TriggerState string
-
-const (
-	TriggerCreated   = "created"
-	TriggerPending   = "pending"
-	TriggerRunning   = "running"
-	TriggerSleep     = "sleep"
-	TriggerPaused    = "paused"
-	TriggerStopped   = "stopped"
-	TriggerDestroyed = "destroyed"
-)
-
-type Trigger struct {
-	ID             string       `json:"id"`
-	SubscriptionID string       `json:"subscription_id"`
-	State          TriggerState `json:"state"`
-	// other fields will be added in coding
+type RingBuffer interface {
+	BatchPut(...interface{})
+	BatchGet(int) []interface{}
+	RemoveFromHead(int) error
+	Length() int
+	Capacity() int
+	IsFull() bool
 }
