@@ -44,24 +44,31 @@ type ringBuffer struct {
 	head    int
 	tail    int
 	cap     int
+	length  int
 	rwMutex sync.RWMutex
 }
 
 func (r *ringBuffer) BatchPut(entries ...interface{}) error {
-	l := len(entries)
-	if l == 0 {
+	length := len(entries)
+	if length == 0 {
 		return nil
 	}
 	r.rwMutex.Lock()
 	defer r.rwMutex.Unlock()
-	if r.availableCap() < l {
+	if r.availableCap() < length {
 		return ErrNoCapacityLeft
 	}
 	// TODO does need deep copy?
+	offset := 0
 	for idx := range entries {
-		r.data[r.tail+idx] = entries[idx]
+		if (r.tail+idx)%r.cap == 0 {
+			r.tail = (r.tail + idx) % r.cap
+			offset = idx
+		}
+		r.data[r.tail+idx-offset] = entries[idx]
 	}
-	r.tail += l
+	r.tail = (r.tail + length) % r.cap
+	r.length += length
 	return nil
 }
 
@@ -71,30 +78,45 @@ func (r *ringBuffer) BatchGet(length int) []interface{} {
 	}
 	r.rwMutex.RLock()
 	defer r.rwMutex.RUnlock()
-	if length > r.bufferLen() {
-		length = r.bufferLen()
+	if length > r.length {
+		length = r.length
+	}
+	if length == 0 {
+		return []interface{}{}
 	}
 	data := make([]interface{}, length)
-	copy(data, r.data[r.head:r.head+length])
+	if r.head+length > r.cap {
+		remain := r.cap - r.head
+		copy(data[:remain], r.data[r.head:])
+		copy(data[remain:], r.data[0:length-remain])
+	} else {
+		copy(data, r.data[r.head:r.head+length])
+	}
 	return data
 }
 
 func (r *ringBuffer) RemoveFromHead(length int) {
+	if length == 0 {
+		return
+	}
 	r.rwMutex.Lock()
 	defer r.rwMutex.Unlock()
-	if length > r.bufferLen() {
-		length = r.bufferLen()
+	if length > r.length {
+		length = r.length
 	}
+	pos := r.head
 	for idx := 0; idx < length; idx++ {
-		r.data[idx+r.head] = nil
+		pos = (idx + r.head) % r.cap
+		r.data[pos] = nil
 	}
-	r.head += length
+	r.length -= length
+	r.head = (pos + 1) % r.cap
 }
 
 func (r *ringBuffer) Length() int {
 	r.rwMutex.RLock()
 	defer r.rwMutex.Unlock()
-	return r.bufferLen()
+	return r.length
 }
 
 func (r *ringBuffer) Capacity() int {
@@ -105,14 +127,6 @@ func (r *ringBuffer) IsFull() bool {
 	return r.Length() == r.cap
 }
 
-func (r *ringBuffer) bufferLen() int {
-	if r.tail >= r.head {
-		return r.tail - r.head + 1
-	} else {
-		return r.cap - r.head + r.tail + 1
-	}
-}
-
 func (r *ringBuffer) availableCap() int {
-	return r.Capacity() - r.Length()
+	return r.cap - r.length
 }

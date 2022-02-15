@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func TestManually(t *testing.T) {
+func Test_e2e(t *testing.T) {
 	tg := NewTrigger(&primitive.Subscription{
 		ID:               "test",
 		Source:           "human",
@@ -19,10 +19,28 @@ func TestManually(t *testing.T) {
 		Protocol:         "vanus",
 		ProtocolSettings: nil,
 	})
+	emit := 0
+	pre := 0
+	go func() {
+		for {
+			time.Sleep(time.Second)
+			cur := emit
+			t.Logf("TPS: %d", cur-pre)
+			pre = cur
+		}
+	}()
+	go func() {
+		for {
+			event := cloudevents.NewEvent()
+			event.SetSource("manual")
+			event.SetType("none")
+			event.SetData(cloudevents.ApplicationJSON, map[string]string{"hello": "world"})
+			tg.EventArrived(context.Background(), &event)
+			emit++
+		}
+	}()
 	tg.Start(context.Background())
-	event := cloudevents.NewEvent()
-	event.DataAs("hello world")
-	tg.EventArrived(context.Background(), &event)
+
 	time.Sleep(time.Hour)
 	tg.Stop(context.Background())
 }

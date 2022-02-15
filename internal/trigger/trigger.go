@@ -39,7 +39,7 @@ const (
 )
 
 const (
-	defaultBufferSize = 2 ^ 10
+	defaultBufferSize = 1 << 20
 )
 
 type Trigger struct {
@@ -62,20 +62,28 @@ type Trigger struct {
 
 func NewTrigger(sub *primitive.Subscription) *Trigger {
 	return &Trigger{
-		ID:             uuid.New().String(),
-		SubscriptionID: sub.ID,
-		BufferSize:     defaultBufferSize,
-		MaxRetryTimes:  3,
-		SleepDuration:  30 * time.Second,
-		state:          TGCreated,
-		buffer:         ds.NewRingBuffer(defaultBufferSize),
-		exit:           make(chan struct{}, 0),
-		ackWindow:      ds.NewSortedMap(),
+		ID:               uuid.New().String(),
+		SubscriptionID:   sub.ID,
+		BufferSize:       defaultBufferSize,
+		BatchProcessSize: 8,
+		MaxRetryTimes:    3,
+		SleepDuration:    30 * time.Second,
+		state:            TGCreated,
+		buffer:           ds.NewRingBuffer(defaultBufferSize),
+		exit:             make(chan struct{}, 0),
+		ackWindow:        ds.NewSortedMap(),
 	}
 }
 
 func (t *Trigger) EventArrived(ctx context.Context, events ...*ce.Event) {
-	t.buffer.BatchPut(events)
+	err := t.buffer.BatchPut(events)
+	for err != nil {
+		err = t.buffer.BatchPut(events)
+		log.Debug("buffer no left space", map[string]interface{}{
+			"error": err,
+		})
+		time.Sleep(1 * time.Millisecond)
+	}
 }
 
 func (t *Trigger) IsNeedFill() bool {
@@ -121,25 +129,18 @@ func (t *Trigger) Start(ctx context.Context) error {
 							})
 						}
 						retryTimes = 0
-						err = t.buffer.RemoveFromHead(num)
-						if err != nil {
-							log.Warning("remove event from buffer failed", map[string]interface{}{
-								"error": err,
-							})
-						}
+						t.buffer.RemoveFromHead(num)
 						break
 					}
 					retryTimes++
 					time.Sleep(3 * time.Second) // TODO 优化
 					break
 				}
-				retryTimes = 0
-				err = t.buffer.RemoveFromHead(num)
-				if err != nil {
-					log.Warning("remove event from buffer failed", map[string]interface{}{
-						"error": err,
-					})
+				if num == 0 {
+					break
 				}
+				retryTimes = 0
+				t.buffer.RemoveFromHead(num)
 			}
 		}
 		t.exitWG.Add(-1)
@@ -218,11 +219,18 @@ func (t *Trigger) Stop(ctx context.Context) error {
 func (t *Trigger) process(num int) (int, error) {
 	events := t.buffer.BatchGet(num)
 	if len(events) == 0 {
-		time.Sleep(10 * time.Millisecond)
+		//log.Debug("no more event arrived", map[string]interface{}{
+		//	"id":           t.ID,
+		//	"subscription": t.SubscriptionID,
+		//})
+		time.Sleep(1 * time.Millisecond)
 		return 0, nil
 	}
 	t.lastActive = time.Now()
-	// TODO filtering & pushing
+	for idx := range events {
+		events[idx] = events[idx]
+		// TODO filtering & pushing
+	}
 	return len(events), nil
 }
 

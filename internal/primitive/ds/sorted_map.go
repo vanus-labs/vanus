@@ -10,7 +10,7 @@ type SortedMap interface {
 	Get(string) Entry
 	Head() Entry
 	Tail() Entry
-	Remove(Entry)
+	Remove(string)
 	Size() int
 }
 
@@ -102,7 +102,8 @@ func (sm *sortedMap) Tail() Entry {
 	return sm.tail
 }
 
-func (sm *sortedMap) Remove(e Entry) {
+func (sm *sortedMap) Remove(key string) {
+	e := sm.data[key]
 	if e == nil {
 		return
 	}

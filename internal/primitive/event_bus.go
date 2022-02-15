@@ -18,4 +18,3 @@ type EventBus interface {
 	Pull(int64, int64, int32)
 	GetEventLogs(string)
 }
-

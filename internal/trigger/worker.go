@@ -18,7 +18,6 @@ import "github.com/linkall-labs/vanus/internal/primitive"
 
 type TWorker struct {
 	Subscriptions map[string]primitive.Subscription
-
 }
 
 func (t *TWorker) Start() error {
@@ -29,19 +28,18 @@ func (t *TWorker) Stop() error {
 	return nil
 }
 
-func (t *TWorker) AddSubscription() error{
+func (t *TWorker) AddSubscription() error {
 	return nil
 }
 
-func (t *TWorker) RemoveSubscription() error{
+func (t *TWorker) RemoveSubscription() error {
 	return nil
 }
 
 func (t *TWorker) run() {
-	
-}
-
-func (t *TWorker) fetch()  {
 
 }
 
+func (t *TWorker) fetch() {
+
+}
