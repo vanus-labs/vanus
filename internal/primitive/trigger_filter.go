@@ -15,49 +15,76 @@
 package primitive
 
 import (
-	cloudevents "github.com/cloudevents/sdk-go/v2"
+	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/internal/trigger/filter"
+	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type TriggerFilter struct {
-	All    []TriggerFilter   `json:"all,omitempty"`
-	Any    []TriggerFilter   `json:"any,omitempty"`
-	Not    *TriggerFilter    `json:"not,omitempty"`
 	Exact  map[string]string `json:"exact,omitempty"`
 	Prefix map[string]string `json:"prefix,omitempty"`
 	Suffix map[string]string `json:"suffix,omitempty"`
 	SQL    string            `json:"sql,omitempty"`
+	Not    *TriggerFilter    `json:"not,omitempty"`
+	All    []TriggerFilter   `json:"all,omitempty"`
+	Any    []TriggerFilter   `json:"any,omitempty"`
 }
 
 func (triggerFilter TriggerFilter) getFilter() filter.Filter {
 	if len(triggerFilter.Exact) > 0 {
 		for attribute, value := range triggerFilter.Exact {
-			return filter.NewExactFilter(attribute, value)
+			f := filter.NewExactFilter(attribute, value)
+			if f == nil {
+				log.Debug("new exact filter is nil ", map[string]interface{}{"attribute": attribute, "value": value})
+			}
+			return f
 		}
 	}
 	if len(triggerFilter.Prefix) > 0 {
 		for attribute, prefix := range triggerFilter.Prefix {
-			return filter.NewPrefixFilter(attribute, prefix)
+			f := filter.NewPrefixFilter(attribute, prefix)
+			if f == nil {
+				log.Debug("new prefix filter is nil ", map[string]interface{}{"attribute": attribute, "prefix": prefix})
+			}
+			return f
 		}
 	}
 	if len(triggerFilter.Suffix) > 0 {
 		for attribute, suffix := range triggerFilter.Suffix {
-			return filter.NewSuffixFilter(attribute, suffix)
+			f := filter.NewSuffixFilter(attribute, suffix)
+			if f == nil {
+				log.Debug("new suffix filter is nil ", map[string]interface{}{"attribute": attribute, "suffix": suffix})
+			}
+			return f
 		}
 	}
-	if len(triggerFilter.All) > 0 {
-		triggerFilters := TriggerFilters(triggerFilter.All)
-		return filter.NewAllFilter(triggerFilters.getFilters()...)
-	}
-	if len(triggerFilter.Any) > 0 {
-		triggerFilters := TriggerFilters(triggerFilter.All)
-		return filter.NewAnyFilter(triggerFilters.getFilters()...)
-	}
 	if triggerFilter.Not != nil {
-		return filter.NewNotFilter(triggerFilter.Not.getFilter())
+		f := filter.NewNotFilter(triggerFilter.Not.getFilter())
+		if f == nil {
+			log.Debug("new not filter is nil ", map[string]interface{}{"filter": triggerFilter.Not})
+		}
+		return f
 	}
 	if triggerFilter.SQL != "" {
-		return filter.NewCESQLFilter(triggerFilter.SQL)
+		f := filter.NewCESQLFilter(triggerFilter.SQL)
+		if f == nil {
+			log.Debug("new cesql filter is nil ", map[string]interface{}{"sql": triggerFilter.SQL})
+		}
+		return f
+	}
+	if len(triggerFilter.All) > 0 {
+		f := filter.NewAllFilter(TriggerFilters(triggerFilter.All).getFilters()...)
+		if f == nil {
+			log.Debug("new all filter is nil ", map[string]interface{}{"filters": triggerFilter.All})
+		}
+		return f
+	}
+	if len(triggerFilter.Any) > 0 {
+		f := filter.NewAnyFilter(TriggerFilters(triggerFilter.Any).getFilters()...)
+		if f == nil {
+			log.Debug("new any filter is nil ", map[string]interface{}{"filters": triggerFilter.Any})
+		}
+		return f
 	}
 	return nil
 }
@@ -65,13 +92,26 @@ func (triggerFilter TriggerFilter) getFilter() filter.Filter {
 type TriggerFilters []TriggerFilter
 
 func (triggerFilters TriggerFilters) getFilters() []filter.Filter {
-	filters := make([]filter.Filter, len(triggerFilters))
+	var filters []filter.Filter
 	for _, triggerFilter := range triggerFilters {
-		filters = append(filters, triggerFilter.getFilter())
+		tf := triggerFilter.getFilter()
+		if tf == nil {
+			log.Debug("get filter is nil will ignore the filter", map[string]interface{}{"filter": triggerFilter})
+			continue
+		}
+		filters = append(filters, tf)
 	}
 	return filters
 }
 
-func (triggerFilters TriggerFilters) FilterEvent(event cloudevents.Event) filter.FilterResult {
-	return filter.NewAllFilter(triggerFilters.getFilters()...).Filter(event)
+func (triggerFilters TriggerFilters) GetFilter() filter.Filter {
+	return filter.NewAllFilter(triggerFilters.getFilters()...)
+}
+
+func (triggerFilters TriggerFilters) FilterEvent(event ce.Event) filter.FilterResult {
+	return triggerFilters.GetFilter().Filter(event)
+}
+
+func FilterEvent(f filter.Filter, event ce.Event) filter.FilterResult {
+	return f.Filter(event)
 }

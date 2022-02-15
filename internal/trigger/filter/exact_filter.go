@@ -15,7 +15,7 @@
 package filter
 
 import (
-	cloudevents "github.com/cloudevents/sdk-go/v2"
+	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
@@ -23,17 +23,18 @@ type exactFilter struct {
 	attribute, value string
 }
 
-// NewExactFilter returns an event filter which passes if value exactly matches the value of the context
-// attribute in the CloudEvent.
 func NewExactFilter(attribute, value string) Filter {
+	if attribute == "" || value == "" {
+		return nil
+	}
 	return &exactFilter{attribute: attribute, value: value}
 }
 
-func (filter *exactFilter) Filter(event cloudevents.Event) FilterResult {
-	if filter == nil || filter.attribute == "" || filter.value == "" {
-		return NoFilter
+func (filter *exactFilter) Filter(event ce.Event) FilterResult {
+	if filter == nil {
+		return FailFilter
 	}
-	log.Debug("exact filter ", map[string]interface{}{"filters": filter, "event": event})
+	log.Debug("exact filter ", map[string]interface{}{"filter": filter, "event": event})
 	value, ok := LookupAttribute(event, filter.attribute)
 	if !ok || value != filter.value {
 		return FailFilter

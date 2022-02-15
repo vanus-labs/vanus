@@ -15,21 +15,23 @@
 package filter
 
 import (
-	cloudevents "github.com/cloudevents/sdk-go/v2"
+	ce "github.com/cloudevents/sdk-go/v2"
 )
 
 type notFilter struct {
 	filter Filter
 }
 
-// NewNotFilter returns an event filter which passes if the contained filter fails.
 func NewNotFilter(f Filter) Filter {
+	if f == nil {
+		return nil
+	}
 	return &notFilter{filter: f}
 }
 
-func (filter *notFilter) Filter(event cloudevents.Event) FilterResult {
-	if filter == nil || filter.filter == nil {
-		return NoFilter
+func (filter *notFilter) Filter(event ce.Event) FilterResult {
+	if filter == nil {
+		return FailFilter
 	}
 	switch filter.filter.Filter(event) {
 	case FailFilter:
@@ -37,7 +39,7 @@ func (filter *notFilter) Filter(event cloudevents.Event) FilterResult {
 	case PassFilter:
 		return FailFilter
 	}
-	return NoFilter
+	return PassFilter
 }
 
 var _ Filter = (*notFilter)(nil)

@@ -16,7 +16,7 @@ package filter
 
 import (
 	"fmt"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
+	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/observability/log"
 	"strings"
 )
@@ -25,17 +25,18 @@ type prefixFilter struct {
 	attribute, prefix string
 }
 
-// NewPrefixFilter returns an event filter which passes if the value of the context
-// attribute in the CloudEvent is prefixed with value.
 func NewPrefixFilter(attribute, prefix string) Filter {
+	if attribute == "" || prefix == "" {
+		return nil
+	}
 	return &prefixFilter{attribute: attribute, prefix: prefix}
 }
 
-func (filter *prefixFilter) Filter(event cloudevents.Event) FilterResult {
-	if filter == nil || filter.attribute == "" || filter.prefix == "" {
-		return NoFilter
+func (filter *prefixFilter) Filter(event ce.Event) FilterResult {
+	if filter == nil {
+		return FailFilter
 	}
-	log.Debug("prefix filter ", map[string]interface{}{"filters": filter, "event": event})
+	log.Debug("prefix filter ", map[string]interface{}{"filter": filter, "event": event})
 	value, ok := LookupAttribute(event, filter.attribute)
 	if !ok {
 		return FailFilter

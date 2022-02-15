@@ -14,12 +14,12 @@
 
 package filter
 
-import cloudevents "github.com/cloudevents/sdk-go/v2"
+import ce "github.com/cloudevents/sdk-go/v2"
 
-func LookupAttribute(event cloudevents.Event, attr string) (interface{}, bool) {
+func LookupAttribute(event ce.Event, attr string) (interface{}, bool) {
 	// Set standard context attributes. The attributes available may not be
 	// exactly the same as the attributes defined in the current version of the
-	// CloudEvents spec.
+	// ce spec.
 	switch attr {
 	case "specversion":
 		return event.SpecVersion(), true

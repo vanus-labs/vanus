@@ -16,7 +16,7 @@ package filter
 
 import (
 	"fmt"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
+	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/observability/log"
 	"strings"
 )
@@ -25,17 +25,18 @@ type suffixFilter struct {
 	attribute, suffix string
 }
 
-// NewSuffixFilter returns an event filter which passes if the value of the context
-// attribute in the CloudEvent ends with suffix.
 func NewSuffixFilter(attribute, suffix string) Filter {
+	if attribute == "" || suffix == "" {
+		return nil
+	}
 	return &suffixFilter{attribute: attribute, suffix: suffix}
 }
 
-func (filter *suffixFilter) Filter(event cloudevents.Event) FilterResult {
-	if filter == nil || filter.attribute == "" || filter.suffix == "" {
-		return NoFilter
+func (filter *suffixFilter) Filter(event ce.Event) FilterResult {
+	if filter == nil {
+		return FailFilter
 	}
-	log.Debug("suffix filter ", map[string]interface{}{"filters": filter, "event": event})
+	log.Debug("suffix filter ", map[string]interface{}{"filter": filter, "event": event})
 	value, ok := LookupAttribute(event, filter.attribute)
 	if !ok {
 		return FailFilter

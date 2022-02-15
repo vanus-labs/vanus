@@ -15,28 +15,28 @@
 package filter
 
 import (
-	cloudevents "github.com/cloudevents/sdk-go/v2"
+	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type allFilter []Filter
 
-// NewAllFilter returns an event filter which passes if all the contained filters pass
 func NewAllFilter(filters ...Filter) Filter {
+	if len(filters) == 0 {
+		return nil
+	}
 	return append(allFilter{}, filters...)
 }
 
-func (filter allFilter) Filter(event cloudevents.Event) FilterResult {
-	res := NoFilter
-	log.Debug("all filter ", map[string]interface{}{"filters": filter, "event": event})
+func (filter allFilter) Filter(event ce.Event) FilterResult {
+	log.Debug("all filter ", map[string]interface{}{"filter": filter, "event": event})
 	for _, f := range filter {
-		res = res.And(f.Filter(event))
-		// Short circuit to optimize it
+		res := f.Filter(event)
 		if res == FailFilter {
 			return FailFilter
 		}
 	}
-	return res
+	return PassFilter
 }
 
 var _ Filter = (*allFilter)(nil)

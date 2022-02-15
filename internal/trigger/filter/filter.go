@@ -15,49 +15,20 @@
 package filter
 
 import (
-	cloudevents "github.com/cloudevents/sdk-go/v2"
+	ce "github.com/cloudevents/sdk-go/v2"
 )
 
 // Filtering result conditions.
 const (
-	PassFilter FilterResult = "pass"
-	FailFilter FilterResult = "fail"
-	NoFilter   FilterResult = "no_filter"
+	PassFilter FilterResult = true
+	FailFilter FilterResult = false
 )
 
 // FilterResult has the result of the filtering operation.
-type FilterResult string
-
-// And implements filter's logical conjunction.
-func (x FilterResult) And(y FilterResult) FilterResult {
-	if x == NoFilter {
-		return y
-	}
-	if y == NoFilter {
-		return x
-	}
-	if x == PassFilter && y == PassFilter {
-		return PassFilter
-	}
-	return FailFilter
-}
-
-// Or implements filter's logical conjunction.
-func (x FilterResult) Or(y FilterResult) FilterResult {
-	if x == NoFilter {
-		return y
-	}
-	if y == NoFilter {
-		return x
-	}
-	if x == PassFilter || y == PassFilter {
-		return PassFilter
-	}
-	return FailFilter
-}
+type FilterResult bool
 
 // Filter is an interface representing an event filter of the trigger filter.
 type Filter interface {
 	// Filter compute the predicate on the provided event and returns the result of the matching
-	Filter(cloudevents.Event) FilterResult
+	Filter(ce.Event) FilterResult
 }

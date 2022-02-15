@@ -17,7 +17,7 @@ package filter
 import (
 	cesql "github.com/cloudevents/sdk-go/sql/v2"
 	cesqlparser "github.com/cloudevents/sdk-go/sql/v2/parser"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
+	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
@@ -26,30 +26,26 @@ type ceSQLFilter struct {
 	parsedExpression cesql.Expression
 }
 
-// NewCESQLFilter returns an event filter which passes if the provided CESQL expression
-// evaluates.
-func NewCESQLFilter(expr string) Filter {
-	var parsed cesql.Expression
-	var err error
-	if expr != "" {
-		parsed, err = cesqlparser.Parse(expr)
-		if err != nil {
-			log.Info("parse cesql filter expression error", map[string]interface{}{"expression": expr, "error": err})
-			return nil
-		}
+func NewCESQLFilter(expression string) Filter {
+	if expression == "" {
+		return nil
 	}
-	return &ceSQLFilter{rawExpression: expr, parsedExpression: parsed}
+	parsed, err := cesqlparser.Parse(expression)
+	if err != nil {
+		log.Info("parse cesql filter expression error", map[string]interface{}{"expression": expression, "error": err})
+		return nil
+	}
+	return &ceSQLFilter{rawExpression: expression, parsedExpression: parsed}
 }
 
-func (filter *ceSQLFilter) Filter(event cloudevents.Event) FilterResult {
-	if filter == nil || filter.rawExpression == "" {
-		return NoFilter
+func (filter *ceSQLFilter) Filter(event ce.Event) FilterResult {
+	if filter == nil {
+		return FailFilter
 	}
-	log.Debug("cesql filter ", map[string]interface{}{"filters": filter, "event": event})
+	log.Debug("cesql filter ", map[string]interface{}{"filter": filter, "event": event})
 	res, err := filter.parsedExpression.Evaluate(event)
-
 	if err != nil {
-		log.Debug("cesql filter evaluate error ", map[string]interface{}{"filters": filter, "event": event})
+		log.Info("cesql filter evaluate error ", map[string]interface{}{"filter": filter, "event": event})
 		return FailFilter
 	}
 
