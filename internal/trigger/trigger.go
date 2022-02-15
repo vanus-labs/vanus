@@ -38,6 +38,10 @@ const (
 	TGDestroyed = "destroyed"
 )
 
+const (
+	defaultBufferSize = 2 ^ 10
+)
+
 type Trigger struct {
 	ID               string        `json:"id"`
 	SubscriptionID   string        `json:"subscription_id"`
@@ -46,7 +50,6 @@ type Trigger struct {
 	BatchProcessSize int           `json:"batch_process_size"`
 	MaxRetryTimes    int           `json:"max_retry_times"`
 	SleepDuration    time.Duration `json:"sleep_duration"`
-	EventBus         string        `json:"event_bus"`
 
 	state      TGState
 	stateMutex sync.RWMutex
@@ -55,14 +58,19 @@ type Trigger struct {
 	exitWG     sync.WaitGroup
 	lastActive time.Time
 	ackWindow  ds.SortedMap
-
-	//TODO ACK Management
 }
 
-func NewTrigger(sub primitive.Subscription) *Trigger {
+func NewTrigger(sub *primitive.Subscription) *Trigger {
 	return &Trigger{
-		ID:    uuid.New().String(),
-		state: TGCreated,
+		ID:             uuid.New().String(),
+		SubscriptionID: sub.ID,
+		BufferSize:     defaultBufferSize,
+		MaxRetryTimes:  3,
+		SleepDuration:  30 * time.Second,
+		state:          TGCreated,
+		buffer:         ds.NewRingBuffer(defaultBufferSize),
+		exit:           make(chan struct{}, 0),
+		ackWindow:      ds.NewSortedMap(),
 	}
 }
 
@@ -71,7 +79,7 @@ func (t *Trigger) EventArrived(ctx context.Context, events ...*ce.Event) {
 }
 
 func (t *Trigger) IsNeedFill() bool {
-	return t.buffer.Capacity() - t.buffer.Length() > t.BufferSize
+	return t.buffer.Capacity()-t.buffer.Length() > t.BufferSize
 }
 
 func (t *Trigger) Start(ctx context.Context) error {
@@ -92,6 +100,9 @@ func (t *Trigger) Start(ctx context.Context) error {
 			default:
 				num, err := t.process(t.BatchProcessSize)
 				if err != nil {
+					log.Debug("process event error", map[string]interface{}{
+						"error": err,
+					})
 					if retryTimes > t.MaxRetryTimes {
 						events := make([]*ce.Event, num)
 						data := t.buffer.BatchGet(num)
@@ -186,6 +197,7 @@ func (t *Trigger) Start(ctx context.Context) error {
 		t.exitWG.Add(-1)
 	}()
 	t.state = TGRunning
+	t.lastActive = time.Now()
 	return nil
 }
 
@@ -219,8 +231,7 @@ func (t *Trigger) asDeadLetter(events ...*ce.Event) error {
 	return nil
 }
 
-func (t *Trigger) ack(ctx context.Context, ids ...string) error {
-	// TODO
+func (t *Trigger) ack(ids ...string) error {
 	for _, v := range ids {
 		t.ackWindow.Remove(v)
 	}

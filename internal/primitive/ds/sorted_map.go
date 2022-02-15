@@ -14,3 +14,7 @@ type SortedMap interface {
 	Tail() Entry
 	Remove(string) Entry
 }
+
+func NewSortedMap() SortedMap {
+	return nil
+}
