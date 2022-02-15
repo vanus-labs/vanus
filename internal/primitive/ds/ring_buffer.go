@@ -71,8 +71,8 @@ func (r *ringBuffer) BatchGet(length int) []interface{} {
 	}
 	r.rwMutex.RLock()
 	defer r.rwMutex.RUnlock()
-	if length > r.Length() {
-		length = r.Length()
+	if length > r.bufferLen() {
+		length = r.bufferLen()
 	}
 	data := make([]interface{}, length)
 	copy(data, r.data[r.head:r.head+length])
@@ -82,8 +82,8 @@ func (r *ringBuffer) BatchGet(length int) []interface{} {
 func (r *ringBuffer) RemoveFromHead(length int) {
 	r.rwMutex.Lock()
 	defer r.rwMutex.Unlock()
-	if length > r.Length() {
-		length = r.Length()
+	if length > r.bufferLen() {
+		length = r.bufferLen()
 	}
 	for idx := 0; idx < length; idx++ {
 		r.data[idx+r.head] = nil
@@ -92,11 +92,9 @@ func (r *ringBuffer) RemoveFromHead(length int) {
 }
 
 func (r *ringBuffer) Length() int {
-	if r.tail >= r.head {
-		return r.tail - r.head + 1
-	} else {
-		return r.cap - r.head + r.tail + 1
-	}
+	r.rwMutex.RLock()
+	defer r.rwMutex.Unlock()
+	return r.bufferLen()
 }
 
 func (r *ringBuffer) Capacity() int {
@@ -105,6 +103,14 @@ func (r *ringBuffer) Capacity() int {
 
 func (r *ringBuffer) IsFull() bool {
 	return r.Length() == r.cap
+}
+
+func (r *ringBuffer) bufferLen() int {
+	if r.tail >= r.head {
+		return r.tail - r.head + 1
+	} else {
+		return r.cap - r.head + r.tail + 1
+	}
 }
 
 func (r *ringBuffer) availableCap() int {
