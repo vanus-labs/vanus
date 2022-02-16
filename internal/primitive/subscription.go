@@ -17,14 +17,24 @@ package primitive
 type URI string
 
 type Subscription struct {
-	ID               string              `json:"id"`
-	Source           string              `json:"source"`
-	Types            []string            `json:"types"`
-	Config           map[string]string   `json:"config"`
-	Filters          []map[string]string `json:"filters"`
-	Sink             URI                 `json:"sink"`
-	Protocol         string              `json:"protocol"`
-	ProtocolSettings map[string]string   `json:"protocolsettings"`
+	ID               string               `json:"id"`
+	Source           string               `json:"source"`
+	Types            []string             `json:"types"`
+	Config           map[string]string    `json:"config"`
+	Filters          []SubscriptionFilter `json:"filters"`
+	Sink             URI                  `json:"sink"`
+	Protocol         string               `json:"protocol"`
+	ProtocolSettings map[string]string    `json:"protocolsettings"`
+}
+
+type SubscriptionFilter struct {
+	Exact  map[string]string    `json:"exact,omitempty"`
+	Prefix map[string]string    `json:"prefix,omitempty"`
+	Suffix map[string]string    `json:"suffix,omitempty"`
+	SQL    string               `json:"sql,omitempty"`
+	Not    *SubscriptionFilter  `json:"not,omitempty"`
+	All    []SubscriptionFilter `json:"all,omitempty"`
+	Any    []SubscriptionFilter `json:"any,omitempty"`
 }
 
 type SinkSpec struct {

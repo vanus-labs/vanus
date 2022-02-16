@@ -14,7 +14,7 @@ func Test_e2e(t *testing.T) {
 		Source:           "human",
 		Types:            []string{"aaa"},
 		Config:           map[string]string{},
-		Filters:          nil,
+		Filters:          []primitive.SubscriptionFilter{{Exact: map[string]string{"type": "testType"}}},
 		Sink:             "print",
 		Protocol:         "vanus",
 		ProtocolSettings: nil,
@@ -35,7 +35,7 @@ func Test_e2e(t *testing.T) {
 			event.SetSource("manual")
 			event.SetType("none")
 			event.SetData(cloudevents.ApplicationJSON, map[string]string{"hello": "world"})
-			tg.EventArrived(context.Background(), &event)
+			tg.EventArrived(context.Background(), event)
 			emit++
 		}
 	}()

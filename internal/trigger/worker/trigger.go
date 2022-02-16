@@ -21,6 +21,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/ds"
+	"github.com/linkall-labs/vanus/internal/trigger/filter"
 	"github.com/linkall-labs/vanus/observability/log"
 	"sync"
 	"time"
@@ -58,12 +59,20 @@ type Trigger struct {
 	exitWG     sync.WaitGroup
 	lastActive time.Time
 	ackWindow  ds.SortedMap
+
+	ceClient ce.Client
+	filter   filter.Filter
 }
 
 func NewTrigger(sub *primitive.Subscription) *Trigger {
+	ceClient, err := primitive.NewCeClient(sub.Sink)
+	if err != nil {
+		log.Error("new ceclient error", map[string]interface{}{"target": sub.Sink, "error": err.Error()})
+	}
 	return &Trigger{
 		ID:               uuid.New().String(),
 		SubscriptionID:   sub.ID,
+		Target:           sub.Sink,
 		BufferSize:       defaultBufferSize,
 		BatchProcessSize: 8,
 		MaxRetryTimes:    3,
@@ -72,10 +81,12 @@ func NewTrigger(sub *primitive.Subscription) *Trigger {
 		buffer:           ds.NewRingBuffer(defaultBufferSize),
 		exit:             make(chan struct{}, 0),
 		ackWindow:        ds.NewSortedMap(),
+		filter:           filter.GetFilter(sub.Filters),
+		ceClient:         ceClient,
 	}
 }
 
-func (t *Trigger) EventArrived(ctx context.Context, events ...*ce.Event) {
+func (t *Trigger) EventArrived(ctx context.Context, events ce.Event) {
 	err := t.buffer.BatchPut(events)
 	for err != nil {
 		err = t.buffer.BatchPut(events)
@@ -228,8 +239,14 @@ func (t *Trigger) process(num int) (int, error) {
 	}
 	t.lastActive = time.Now()
 	for idx := range events {
-		events[idx] = events[idx]
-		// TODO filtering & pushing
+		e := events[idx].(ce.Event)
+		if res := filter.FilterEvent(t.filter, e); res == filter.FailFilter {
+			continue
+		}
+		if res := t.ceClient.Send(context.Background(), e); !ce.IsACK(res) {
+			return 0, res
+		}
+		t.ackWindow.Put(e.ID(), e)
 	}
 	return len(events), nil
 }
