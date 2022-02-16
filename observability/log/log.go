@@ -21,6 +21,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const (
+	KeyError = "error"
+)
+
 type Logger interface {
 	Debug(msg string, fields map[string]interface{})
 	Info(msg string, fields map[string]interface{})

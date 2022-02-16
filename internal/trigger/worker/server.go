@@ -21,10 +21,13 @@ import (
 
 type server struct {
 	tWorker *TWorker
+	stopCallback func()
 }
 
-func NewTriggerServer() {
-
+func NewTriggerServer(stop func()) trigger.TriggerWorkerServer {
+	return &server{
+		stopCallback: stop,
+	}
 }
 
 func (s *server) Start(context.Context, *trigger.StartTriggerWorkerRequest) (*trigger.StartTriggerWorkerResponse, error) {
@@ -32,6 +35,7 @@ func (s *server) Start(context.Context, *trigger.StartTriggerWorkerRequest) (*tr
 }
 
 func (s *server) Stop(context.Context, *trigger.StopTriggerWorkerRequest) (*trigger.StopTriggerWorkerResponse, error) {
+	s.stopCallback()
 	return nil, nil
 }
 

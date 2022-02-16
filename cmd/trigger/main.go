@@ -14,6 +14,43 @@
 
 package main
 
-func main()  {
+import (
+	"fmt"
+	"github.com/linkall-labs/vanus/internal/trigger/worker"
+	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vsproto/pkg/trigger"
+	"google.golang.org/grpc"
+	"net"
+)
 
+var (
+	defaultIP = "0.0.0.0"
+	defaultPort = 2048
+)
+
+func main()  {
+	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d",defaultIP, defaultPort))
+	if err != nil {
+		log.Fatal("failed to listen", map[string]interface{}{
+			"error": listen,
+		})
+	}
+	var opts []grpc.ServerOption
+	grpcServer := grpc.NewServer(opts...)
+	exitChan := make(chan struct{}, 1)
+	stopCallback := func() {
+		grpcServer.GracefulStop()
+		exitChan <- struct{}{}
+	}
+	trigger.RegisterTriggerWorkerServer(grpcServer, worker.NewTriggerServer(stopCallback))
+	log.Info("the grpc server ready to work", nil)
+	err = grpcServer.Serve(listen)
+	if err != nil {
+		log.Error("grpc server occurred an error", map[string]interface{}{
+			log.KeyError: err,
+		})
+	} else {
+		<-exitChan
+		log.Info("the grpc server has been shutdown", nil)
+	}
 }
