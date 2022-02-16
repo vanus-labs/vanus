@@ -44,6 +44,7 @@ func (sm *sortedMap) Put(key string, val interface{}) {
 		sm.sortedKeys[0] = key
 		sm.head = e
 		sm.tail = e
+		sm.size = 1
 		return
 	}
 
@@ -103,6 +104,8 @@ func (sm *sortedMap) Tail() Entry {
 }
 
 func (sm *sortedMap) Remove(key string) {
+	sm.rwMutex.Lock()
+	defer sm.rwMutex.Unlock()
 	e := sm.data[key]
 	if e == nil {
 		return
@@ -110,8 +113,6 @@ func (sm *sortedMap) Remove(key string) {
 	if sm.size == 0 {
 		return
 	}
-	sm.rwMutex.Lock()
-	defer sm.rwMutex.Unlock()
 	delete(sm.data, e.Key())
 	_e := e.(*entry)
 

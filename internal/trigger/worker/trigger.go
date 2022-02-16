@@ -54,12 +54,12 @@ type Trigger struct {
 
 	state      TriggerState
 	stateMutex sync.RWMutex
-	buffer     ds.RingBuffer
 	exit       chan struct{}
 	exitWG     sync.WaitGroup
 	lastActive time.Time
 	ackWindow  ds.SortedMap
 
+	eventCh  chan *ce.Event
 	ceClient ce.Client
 	filter   filter.Filter
 }
@@ -78,85 +78,73 @@ func NewTrigger(sub *primitive.Subscription) *Trigger {
 		MaxRetryTimes:    3,
 		SleepDuration:    30 * time.Second,
 		state:            TriggerCreated,
-		buffer:           ds.NewRingBuffer(defaultBufferSize),
 		exit:             make(chan struct{}, 0),
 		ackWindow:        ds.NewSortedMap(),
 		filter:           filter.GetFilter(sub.Filters),
 		ceClient:         ceClient,
+		eventCh:          make(chan *ce.Event, defaultBufferSize),
 	}
 }
 
-func (t *Trigger) EventArrived(ctx context.Context, events ce.Event) {
-	err := t.buffer.BatchPut(events)
-	for err != nil {
-		err = t.buffer.BatchPut(events)
-		log.Debug("buffer no left space", map[string]interface{}{
-			"error": err,
-		})
-		time.Sleep(1 * time.Millisecond)
+func (t *Trigger) EventArrived(ctx context.Context, event *ce.Event) {
+	t.eventCh <- event
+	//t.ackWindow.Put(event.ID(), &waitACK{event: event, deliverTime: time.Now(), timeoutTime: time.Now().Add(time.Second)})
+}
+
+func (t *Trigger) processEvent(e ce.Event) error {
+	if res := filter.FilterEvent(t.filter, e); res == filter.FailFilter {
+		return nil
 	}
+	// TODO The ack here is represent http response 200, optimize to async
+	if res := t.ceClient.Send(context.Background(), e); !ce.IsACK(res) {
+		return res
+	}
+	return nil
 }
 
-func (t *Trigger) IsNeedFill() bool {
-	return t.buffer.Capacity()-t.buffer.Length() > t.BufferSize
-}
-
-func (t *Trigger) Start(ctx context.Context) error {
-	// running task
-	go func() {
-		retryTimes := 0
-		t.exitWG.Add(1)
-	LOOP:
-		for {
-			select {
-			case _, ok := <-t.exit:
-				if ok {
-					log.Info("trigger exit", map[string]interface{}{
-						"id": t.ID,
-					})
-				}
-				break LOOP
-			default:
-				num, err := t.process(t.BatchProcessSize)
-				if err != nil {
-					log.Debug("process event error", map[string]interface{}{
-						"error": err,
-					})
-					if retryTimes > t.MaxRetryTimes {
-						events := make([]*ce.Event, num)
-						data := t.buffer.BatchGet(num)
-						for k := range t.buffer.BatchGet(num) {
-							events[k] = data[k].(*ce.Event)
-						}
-						err := t.asDeadLetter(events...)
-						if err != nil {
-							ids := make([]string, 0)
-							for idx := range events {
-								ids = append(ids, events[idx].ID())
-							}
-							log.Error("send dead event to dead letter failed", map[string]interface{}{
-								"error":  err,
-								"events": ids,
-							})
-						}
-						retryTimes = 0
-						t.buffer.RemoveFromHead(num)
-						break
-					}
-					retryTimes++
-					time.Sleep(3 * time.Second) // TODO 优化
-					break
-				}
-				if num == 0 {
-					break
-				}
-				retryTimes = 0
-				t.buffer.RemoveFromHead(num)
-			}
+func (t *Trigger) retryProcessEvent(e ce.Event) error {
+	retryTimes := 0
+	for {
+		err := t.processEvent(e)
+		if err == nil {
+			return nil
 		}
-		t.exitWG.Add(-1)
-	}()
+		retryTimes++
+		if retryTimes >= t.MaxRetryTimes {
+			return err
+		}
+		log.Debug("process event error", map[string]interface{}{
+			"error": err, "retryTimes": retryTimes,
+		})
+		time.Sleep(3 * time.Second) //TODO 优化
+	}
+}
 
+func (t *Trigger) startProcessEvent(ctx context.Context) {
+	t.exitWG.Add(1)
+	defer t.exitWG.Done()
+	for event := range t.eventCh {
+		t.lastActive = time.Now()
+		err := t.retryProcessEvent(*event)
+		if err == nil {
+			//t.ack(event.ID())
+			continue
+		}
+		log.Warning("send event fail,will put to dead letter", map[string]interface{}{
+			"error": err,
+			"event": event.ID(),
+		})
+		err = t.asDeadLetter(event)
+		if err != nil {
+			log.Error("send dead event to dead letter failed", map[string]interface{}{
+				"error": err,
+				"event": event.ID(),
+			})
+		}
+	}
+}
+func (t *Trigger) Start(ctx context.Context) error {
+	go t.startProcessEvent(ctx)
 	// sleep watch
 	go func() {
 		tk := time.NewTicker(10 * time.Millisecond)
@@ -219,37 +207,11 @@ func (t *Trigger) GetState() TriggerState {
 	return t.state
 }
 
-func (t *Trigger) Stop(ctx context.Context) error {
+func (t *Trigger) Stop(ctx context.Context) {
 	close(t.exit)
+	close(t.eventCh)
 	t.exitWG.Wait()
-	_, err := t.process(t.buffer.Length())
 	t.state = TriggerStopped
-	return err
-}
-
-func (t *Trigger) process(num int) (int, error) {
-	events := t.buffer.BatchGet(num)
-	if len(events) == 0 {
-		log.Debug("no more event arrived", map[string]interface{}{
-			"id":           t.ID,
-			"subscription": t.SubscriptionID,
-		})
-		time.Sleep(1 * time.Millisecond)
-		return 0, nil
-	}
-	t.lastActive = time.Now()
-	for idx := range events {
-		e := events[idx].(ce.Event)
-		if res := filter.FilterEvent(t.filter, e); res == filter.FailFilter {
-			continue
-		}
-		// TODO The ack here is represent http response 200, optimize to async
-		if res := t.ceClient.Send(context.Background(), e); !ce.IsACK(res) {
-			return 0, res
-		}
-		t.ackWindow.Put(e.ID(), e)
-	}
-	return len(events), nil
 }
 
 func (t *Trigger) asDeadLetter(events ...*ce.Event) error {
