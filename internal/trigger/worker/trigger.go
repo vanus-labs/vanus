@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trigger
+package worker
 
 import (
 	"context"
@@ -26,16 +26,16 @@ import (
 	"time"
 )
 
-type TGState string
+type TriggerState string
 
 const (
-	TGCreated   = "created"
-	TGPending   = "pending"
-	TGRunning   = "running"
-	TGSleep     = "sleep"
-	TGPaused    = "paused"
-	TGStopped   = "stopped"
-	TGDestroyed = "destroyed"
+	TriggerCreated   = "created"
+	TriggerPending   = "pending"
+	TriggerRunning   = "running"
+	TriggerSleep     = "sleep"
+	TriggerPaused    = "paused"
+	TriggerStopped   = "stopped"
+	TriggerDestroyed = "destroyed"
 )
 
 const (
@@ -51,7 +51,7 @@ type Trigger struct {
 	MaxRetryTimes    int           `json:"max_retry_times"`
 	SleepDuration    time.Duration `json:"sleep_duration"`
 
-	state      TGState
+	state      TriggerState
 	stateMutex sync.RWMutex
 	buffer     ds.RingBuffer
 	exit       chan struct{}
@@ -68,7 +68,7 @@ func NewTrigger(sub *primitive.Subscription) *Trigger {
 		BatchProcessSize: 8,
 		MaxRetryTimes:    3,
 		SleepDuration:    30 * time.Second,
-		state:            TGCreated,
+		state:            TriggerCreated,
 		buffer:           ds.NewRingBuffer(defaultBufferSize),
 		exit:             make(chan struct{}, 0),
 		ackWindow:        ds.NewSortedMap(),
@@ -163,11 +163,11 @@ func (t *Trigger) Start(ctx context.Context) error {
 				break LOOP
 			case _ = <-tk.C:
 				t.stateMutex.Lock()
-				if t.state == TGRunning {
+				if t.state == TriggerRunning {
 					if time.Now().Sub(t.lastActive) > t.SleepDuration {
-						t.state = TGSleep
+						t.state = TriggerSleep
 					} else {
-						t.state = TGRunning
+						t.state = TriggerRunning
 					}
 				}
 				t.stateMutex.Unlock()
@@ -197,12 +197,12 @@ func (t *Trigger) Start(ctx context.Context) error {
 		}
 		t.exitWG.Add(-1)
 	}()
-	t.state = TGRunning
+	t.state = TriggerRunning
 	t.lastActive = time.Now()
 	return nil
 }
 
-func (t *Trigger) GetState() TGState {
+func (t *Trigger) GetState() TriggerState {
 	t.stateMutex.RLock()
 	defer t.stateMutex.RUnlock()
 	return t.state
@@ -212,7 +212,7 @@ func (t *Trigger) Stop(ctx context.Context) error {
 	close(t.exit)
 	t.exitWG.Wait()
 	_, err := t.process(t.buffer.Length())
-	t.state = TGStopped
+	t.state = TriggerStopped
 	return err
 }
 

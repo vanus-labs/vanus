@@ -12,34 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trigger
+package worker
 
-import "github.com/linkall-labs/vanus/internal/primitive"
+import "context"
 
-type TWorker struct {
-	Subscriptions map[string]primitive.Subscription
+type Server struct {
+
 }
 
-func (t *TWorker) Start() error {
+func Start(ctx context.Context) error  {
 	return nil
 }
 
-func (t *TWorker) Stop() error {
+func Stop(ctx context.Context) error  {
 	return nil
-}
-
-func (t *TWorker) AddSubscription() error {
-	return nil
-}
-
-func (t *TWorker) RemoveSubscription() error {
-	return nil
-}
-
-func (t *TWorker) run() {
-
-}
-
-func (t *TWorker) fetch() {
-
 }
