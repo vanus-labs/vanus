@@ -67,7 +67,7 @@ type Trigger struct {
 func NewTrigger(sub *primitive.Subscription) *Trigger {
 	ceClient, err := primitive.NewCeClient(sub.Sink)
 	if err != nil {
-		log.Error("new ceclient error", map[string]interface{}{"target": sub.Sink, "error": err.Error()})
+		log.Error("new ce-client error", map[string]interface{}{"target": sub.Sink, "error": err.Error()})
 	}
 	return &Trigger{
 		ID:               uuid.New().String(),
@@ -230,10 +230,10 @@ func (t *Trigger) Stop(ctx context.Context) error {
 func (t *Trigger) process(num int) (int, error) {
 	events := t.buffer.BatchGet(num)
 	if len(events) == 0 {
-		//log.Debug("no more event arrived", map[string]interface{}{
-		//	"id":           t.ID,
-		//	"subscription": t.SubscriptionID,
-		//})
+		log.Debug("no more event arrived", map[string]interface{}{
+			"id":           t.ID,
+			"subscription": t.SubscriptionID,
+		})
 		time.Sleep(1 * time.Millisecond)
 		return 0, nil
 	}
@@ -243,6 +243,7 @@ func (t *Trigger) process(num int) (int, error) {
 		if res := filter.FilterEvent(t.filter, e); res == filter.FailFilter {
 			continue
 		}
+		// TODO The ack here is represent http response 200, optimize to async
 		if res := t.ceClient.Send(context.Background(), e); !ce.IsACK(res) {
 			return 0, res
 		}
@@ -270,6 +271,7 @@ func (t *Trigger) checkACKTimeout() error {
 	}
 	wa := entry.Value().(*waitACK)
 	for wa != nil && wa.timeout() {
+		// TODO how to deal with timeout event?
 		t.asDeadLetter(wa.event)
 		t.ackWindow.Remove(entry.Key())
 		entry = entry.Next()

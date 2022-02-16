@@ -12,40 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package worker
+package main
 
-import (
-	"github.com/linkall-labs/vanus/internal/primitive"
-)
-
-type TWorker struct {
-	Subscriptions map[string]primitive.Subscription
-}
-
-func (t *TWorker) Start() error {
-	return nil
-}
-
-func (t *TWorker) Stop() error {
-	return nil
-}
-
-func (t *TWorker) addSubscription() error {
-	return nil
-}
-
-func (t *TWorker) pauseSubscription() error {
-	return nil
-}
-
-func (t *TWorker) removeSubscription() error {
-	return nil
-}
-
-func (t *TWorker) run() {
-
-}
-
-func (t *TWorker) fetch() {
+func main()  {
 
 }

@@ -14,16 +14,39 @@
 
 package worker
 
-import "context"
+import (
+	"context"
+	"github.com/linkall-labs/vsproto/pkg/trigger"
+)
 
-type Server struct {
+type server struct {
+	tWorker *TWorker
+}
+
+func NewTriggerServer() {
 
 }
 
-func Start(ctx context.Context) error  {
-	return nil
+func (s *server) Start(context.Context, *trigger.StartTriggerWorkerRequest) (*trigger.StartTriggerWorkerResponse, error) {
+	return nil, nil
 }
 
-func Stop(ctx context.Context) error  {
-	return nil
+func (s *server) Stop(context.Context, *trigger.StopTriggerWorkerRequest) (*trigger.StopTriggerWorkerResponse, error) {
+	return nil, nil
+}
+
+func (s *server) AddSubscription(context.Context, *trigger.AddSubscriptionRequest) (*trigger.AddSubscriptionResponse, error) {
+	return nil, nil
+}
+
+func (s *server) RemoveSubscription(context.Context, *trigger.RemoveSubscriptionRequest) (*trigger.RemoveSubscriptionResponse, error) {
+	return nil, nil
+}
+
+func (s *server) PauseSubscription(context.Context, *trigger.PauseSubscriptionRequest) (*trigger.PauseSubscriptionResponse, error) {
+	return nil, nil
+}
+
+func (s *server) ResumeSubscription(context.Context, *trigger.ResumeSubscriptionRequest) (*trigger.ResumeSubscriptionResponse, error) {
+	return nil, nil
 }
