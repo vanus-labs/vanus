@@ -24,15 +24,16 @@ import (
 )
 
 var (
-	defaultIP = "0.0.0.0"
+	defaultIP   = "0.0.0.0"
 	defaultPort = 2048
 )
 
-func main()  {
-	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d",defaultIP, defaultPort))
+func main() {
+	log.SetLogLevel("debug")
+	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", defaultIP, defaultPort))
 	if err != nil {
 		log.Fatal("failed to listen", map[string]interface{}{
-			"error": listen,
+			"error": err,
 		})
 	}
 	var opts []grpc.ServerOption

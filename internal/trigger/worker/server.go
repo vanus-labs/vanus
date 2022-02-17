@@ -16,41 +16,52 @@ package worker
 
 import (
 	"context"
+	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vsproto/pkg/trigger"
 )
 
 type server struct {
-	tWorker *TWorker
+	tWorker      *TWorker
 	stopCallback func()
 }
 
 func NewTriggerServer(stop func()) trigger.TriggerWorkerServer {
 	return &server{
 		stopCallback: stop,
+		tWorker:      &TWorker{},
 	}
 }
 
-func (s *server) Start(context.Context, *trigger.StartTriggerWorkerRequest) (*trigger.StartTriggerWorkerResponse, error) {
-	return nil, nil
+func (s *server) Start(ctx context.Context, request *trigger.StartTriggerWorkerRequest) (*trigger.StartTriggerWorkerResponse, error) {
+	log.Info("worker server start ", map[string]interface{}{"request": request})
+	err := s.tWorker.Start()
+	if err != nil {
+		return nil, err
+	}
+	return &trigger.StartTriggerWorkerResponse{}, nil
 }
 
 func (s *server) Stop(context.Context, *trigger.StopTriggerWorkerRequest) (*trigger.StopTriggerWorkerResponse, error) {
 	s.stopCallback()
-	return nil, nil
+	return &trigger.StopTriggerWorkerResponse{}, nil
 }
 
-func (s *server) AddSubscription(context.Context, *trigger.AddSubscriptionRequest) (*trigger.AddSubscriptionResponse, error) {
-	return nil, nil
+func (s *server) AddSubscription(ctx context.Context, request *trigger.AddSubscriptionRequest) (*trigger.AddSubscriptionResponse, error) {
+	log.Debug("subscription add ", map[string]interface{}{"request": request})
+	return &trigger.AddSubscriptionResponse{}, nil
 }
 
-func (s *server) RemoveSubscription(context.Context, *trigger.RemoveSubscriptionRequest) (*trigger.RemoveSubscriptionResponse, error) {
-	return nil, nil
+func (s *server) RemoveSubscription(ctx context.Context, request *trigger.RemoveSubscriptionRequest) (*trigger.RemoveSubscriptionResponse, error) {
+	log.Debug("subscription remove ", map[string]interface{}{"request": request})
+	return &trigger.RemoveSubscriptionResponse{}, nil
 }
 
-func (s *server) PauseSubscription(context.Context, *trigger.PauseSubscriptionRequest) (*trigger.PauseSubscriptionResponse, error) {
-	return nil, nil
+func (s *server) PauseSubscription(ctx context.Context, request *trigger.PauseSubscriptionRequest) (*trigger.PauseSubscriptionResponse, error) {
+	log.Debug("subscription pause ", map[string]interface{}{"request": request})
+	return &trigger.PauseSubscriptionResponse{}, nil
 }
 
-func (s *server) ResumeSubscription(context.Context, *trigger.ResumeSubscriptionRequest) (*trigger.ResumeSubscriptionResponse, error) {
-	return nil, nil
+func (s *server) ResumeSubscription(ctx context.Context, request *trigger.ResumeSubscriptionRequest) (*trigger.ResumeSubscriptionResponse, error) {
+	log.Debug("subscription resume ", map[string]interface{}{"request": request})
+	return &trigger.ResumeSubscriptionResponse{}, nil
 }
