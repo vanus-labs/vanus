@@ -2,8 +2,13 @@ package worker
 
 import (
 	"context"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
-	"github.com/google/uuid"
+	"fmt"
+	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/eventbus-go/pkg/inmemory"
+	"io/ioutil"
+
+	eb "github.com/linkall-labs/eventbus-go"
+	"github.com/linkall-labs/eventbus-go/pkg/discovery"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"net/http"
 	"testing"
@@ -31,26 +36,87 @@ func Test_e2e(t *testing.T) {
 			pre = cur
 		}
 	}()
+
+	ebVRN := "vanus+local:eventbus:example"
+	elVRN := "vanus+local:eventlog+inmemory:1?keepalive=true"
+	br := &discovery.EventBusRecord{
+		VRN: ebVRN,
+		Logs: []*discovery.EventLogRecord{
+			{
+				VRN:  elVRN,
+				Prem: 6,
+			},
+		},
+	}
+
+	ns := discovery.Find("vanus+local").(*inmemory.NameService)
+	// register metadata of eventbus
+	ns.Register(ebVRN, br)
+
 	go func() {
-		for {
-			event := cloudevents.NewEvent()
-			event.SetID(uuid.NewString())
-			event.SetSource("manual")
-			event.SetType("none")
-			event.SetData(cloudevents.ApplicationJSON, map[string]string{"hello": "world"})
-			tg.EventArrived(context.Background(), &event)
-			emit++
+		w, err := eb.Openbw(ebVRN)
+		if err != nil {
+			t.Fatal(err)
 		}
+
+		// FIXME
+		time.Sleep(10 * time.Second)
+
+		for i := 0; i < 10000000000; i++ {
+			// Create an Event.
+			event := ce.NewEvent()
+			event.SetID(fmt.Sprintf("%d", i))
+			event.SetSource("example/uri")
+			event.SetType("none")
+			event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world","type":"none"})
+
+			_, err = w.Append(&event)
+			if err != nil {
+				t.Log(err)
+			}
+		}
+
+		w.Close()
+	}()
+	go func() {
+		r, err := eb.Openlr(elVRN)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = r.Seek(0, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for {
+			events, err := r.Read(5)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(events) == 0 {
+				time.Sleep(time.Second)
+				continue
+			}
+
+			for _, e := range events {
+				tg.EventArrived(context.Background(), e)
+				emit++
+			}
+		}
+
+		r.Close()
 	}()
 	receive := 0
 	receivePre := 0
 	go http.ListenAndServe(":18080", http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
 		receive++
-		//body, err := ioutil.ReadAll(request.Body)
-		//if err != nil {
-		//	fmt.Println(err)
-		//}
-		//var _ = string(body)
+		body, err := ioutil.ReadAll(request.Body)
+		if err != nil {
+			fmt.Println(err)
+		}
+		var _ = string(body)
 	}))
 	go func() {
 		for {
