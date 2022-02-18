@@ -44,7 +44,7 @@ func Test_e2e(t *testing.T) {
 		Logs: []*discovery.EventLogRecord{
 			{
 				VRN:  elVRN,
-				Prem: 6,
+				Mode: discovery.PremWrite|discovery.PremRead,
 			},
 		},
 	}
@@ -54,7 +54,7 @@ func Test_e2e(t *testing.T) {
 	ns.Register(ebVRN, br)
 
 	go func() {
-		w, err := eb.Openbw(ebVRN)
+		w, err := eb.OpenBusWriter(ebVRN)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -79,7 +79,12 @@ func Test_e2e(t *testing.T) {
 		w.Close()
 	}()
 	go func() {
-		r, err := eb.Openlr(elVRN)
+		ls, err := eb.LookupReadableLog(ebVRN)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		r, err := eb.OpenLogReader(ls[0].VRN)
 		if err != nil {
 			t.Fatal(err)
 		}
