@@ -3,16 +3,18 @@ package worker
 import (
 	"context"
 	"fmt"
-	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/eventbus-go/pkg/inmemory"
 	"io/ioutil"
-
-	eb "github.com/linkall-labs/eventbus-go"
-	"github.com/linkall-labs/eventbus-go/pkg/discovery"
-	"github.com/linkall-labs/vanus/internal/primitive"
 	"net/http"
 	"testing"
 	"time"
+
+	ce "github.com/cloudevents/sdk-go/v2"
+
+	eb "github.com/linkall-labs/eventbus-go"
+	"github.com/linkall-labs/eventbus-go/pkg/discovery"
+	"github.com/linkall-labs/eventbus-go/pkg/discovery/record"
+	"github.com/linkall-labs/eventbus-go/pkg/inmemory"
+	"github.com/linkall-labs/vanus/internal/primitive"
 )
 
 func Test_e2e(t *testing.T) {
@@ -39,12 +41,12 @@ func Test_e2e(t *testing.T) {
 
 	ebVRN := "vanus+local:eventbus:example"
 	elVRN := "vanus+local:eventlog+inmemory:1?keepalive=true"
-	br := &discovery.EventBusRecord{
+	br := &record.EventBus{
 		VRN: ebVRN,
-		Logs: []*discovery.EventLogRecord{
+		Logs: []*record.EventLog{
 			{
 				VRN:  elVRN,
-				Mode: discovery.PremWrite|discovery.PremRead,
+				Mode: record.PremWrite | record.PremRead,
 			},
 		},
 	}
@@ -68,7 +70,7 @@ func Test_e2e(t *testing.T) {
 			event.SetID(fmt.Sprintf("%d", i))
 			event.SetSource("example/uri")
 			event.SetType("none")
-			event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world","type":"none"})
+			event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world", "type": "none"})
 
 			_, err = w.Append(&event)
 			if err != nil {
