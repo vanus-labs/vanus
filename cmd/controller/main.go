@@ -17,7 +17,7 @@ package main
 import (
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/linkall-labs/vanus/internal/manager"
+	"github.com/linkall-labs/vanus/internal/controller"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"net/url"
 	"os"
@@ -33,7 +33,7 @@ var (
 )
 
 func main() {
-	m := manager.NewTriggerProcessorManager()
+	m := controller.NewTriggerController()
 	m.Start()
 	m.AddTriggerProcessor(fmt.Sprintf("%s:%d", triggerWorkerIP, triggerWorkerPort))
 	// for test
@@ -45,7 +45,7 @@ func main() {
 				Filters: []primitive.SubscriptionFilter{{Exact: map[string]string{"type": "test"}}},
 			}
 			m.AddSubscription(sub)
-			time.Sleep(10 * time.Second)
+			time.Sleep(10 * time.Minute)
 		}
 	}()
 

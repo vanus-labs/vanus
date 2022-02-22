@@ -113,7 +113,7 @@ func (t *Trigger) retryProcessEvent(e ce.Event) error {
 		if retryTimes >= t.MaxRetryTimes {
 			return err
 		}
-		log.Debug("process event error", map[string]interface{}{
+		log.Info("process event error", map[string]interface{}{
 			"error": err, "retryTimes": retryTimes,
 		})
 		time.Sleep(3 * time.Second) //TODO 优化
@@ -124,6 +124,7 @@ func (t *Trigger) startProcessEvent(ctx context.Context) {
 	t.exitWG.Add(1)
 	defer t.exitWG.Done()
 	for event := range t.eventCh {
+		log.Debug("receive a event", map[string]interface{}{"event": event})
 		t.lastActive = time.Now()
 		err := t.retryProcessEvent(*event)
 		if err == nil {
@@ -208,6 +209,9 @@ func (t *Trigger) GetState() TriggerState {
 }
 
 func (t *Trigger) Stop(ctx context.Context) {
+	if t.state == TriggerStopped {
+		return
+	}
 	close(t.exit)
 	close(t.eventCh)
 	t.exitWG.Wait()

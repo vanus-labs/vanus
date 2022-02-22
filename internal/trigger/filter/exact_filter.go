@@ -15,6 +15,7 @@
 package filter
 
 import (
+	"fmt"
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/observability/log"
 )
@@ -40,6 +41,10 @@ func (filter *exactFilter) Filter(event ce.Event) FilterResult {
 		return FailFilter
 	}
 	return PassFilter
+}
+
+func (filter *exactFilter) String() string {
+	return fmt.Sprintf("attribute:%s,value:%s", filter.attribute, filter.value)
 }
 
 var _ Filter = (*exactFilter)(nil)

@@ -48,4 +48,8 @@ func (filter *prefixFilter) Filter(event ce.Event) FilterResult {
 	return FailFilter
 }
 
+func (filter *prefixFilter) String() string {
+	return fmt.Sprintf("attribute:%s,prefix:%s", filter.attribute, filter.prefix)
+}
+
 var _ Filter = (*prefixFilter)(nil)

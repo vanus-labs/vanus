@@ -48,4 +48,8 @@ func (filter *suffixFilter) Filter(event ce.Event) FilterResult {
 	return FailFilter
 }
 
+func (filter *suffixFilter) String() string {
+	return fmt.Sprintf("attribute:%s,suffix:%s", filter.attribute, filter.suffix)
+}
+
 var _ Filter = (*suffixFilter)(nil)

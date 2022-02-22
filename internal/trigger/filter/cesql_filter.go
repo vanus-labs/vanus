@@ -54,3 +54,7 @@ func (filter *ceSQLFilter) Filter(event ce.Event) FilterResult {
 	}
 	return PassFilter
 }
+
+func (filter *ceSQLFilter) String() string {
+	return filter.rawExpression
+}

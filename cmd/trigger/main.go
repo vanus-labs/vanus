@@ -29,7 +29,6 @@ var (
 )
 
 func main() {
-	log.SetLogLevel("debug")
 	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", defaultIP, defaultPort))
 	if err != nil {
 		log.Fatal("failed to listen", map[string]interface{}{

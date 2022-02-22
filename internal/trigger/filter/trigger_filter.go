@@ -93,7 +93,11 @@ func extractFilters(subscriptionFilters []primitive.SubscriptionFilter) []Filter
 }
 
 func GetFilter(subscriptionFilters []primitive.SubscriptionFilter) Filter {
-	return NewAllFilter(extractFilters(subscriptionFilters)...)
+	filters := extractFilters(subscriptionFilters)
+	if len(filters) == 1 {
+		return filters[0]
+	}
+	return NewAllFilter(filters...)
 }
 
 func FilterEvent(f Filter, event ce.Event) FilterResult {
