@@ -10,6 +10,7 @@ require (
 	github.com/linkall-labs/vsproto v0.0.0
 	github.com/sirupsen/logrus v1.8.1
 	google.golang.org/grpc v1.44.0
+	go.etcd.io/etcd/client/v3 v3.5.2
 )
 
 replace (
