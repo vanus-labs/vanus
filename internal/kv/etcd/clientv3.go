@@ -17,7 +17,8 @@ package etcd
 import (
 	"context"
 	"errors"
-	clientv3 "go.etcd.io/etcd/client/v3"
+	kvdef "github.com/linkall-labs/vanus/internal/kv"
+	v3client "go.etcd.io/etcd/client/v3"
 	"strings"
 	"time"
 )
@@ -29,11 +30,12 @@ var (
 )
 
 type etcdClient3 struct {
-	client *clientv3.Client
+	client    *v3client.Client
+	keyPrefix string
 }
 
-func NewEtcdClient3(endpoints []string) (*etcdClient3, error) {
-	client, err := clientv3.New(clientv3.Config{
+func NewEtcdClientV3(endpoints []string, keyPrefix string) (*etcdClient3, error) {
+		client, err := v3client.New(v3client.Config{
 		Endpoints:   endpoints,
 		DialTimeout: 5 * time.Second,
 		//DialKeepAliveTime:    1 * time.Second,
@@ -42,7 +44,7 @@ func NewEtcdClient3(endpoints []string) (*etcdClient3, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &etcdClient3{client: client}, nil
+	return &etcdClient3{client: client, keyPrefix: keyPrefix}, nil
 }
 
 func (c *etcdClient3) Get(key string) (string, error) {
@@ -58,8 +60,8 @@ func (c *etcdClient3) Get(key string) (string, error) {
 
 func (c *etcdClient3) Create(key, value string) error {
 	resp, err := c.client.Txn(context.Background()).
-		If(clientv3.Compare(clientv3.CreateRevision(key), "=", 0)).
-		Then(clientv3.OpPut(key, value)).
+		If(v3client.Compare(v3client.CreateRevision(key), "=", 0)).
+		Then(v3client.OpPut(key, value)).
 		Else().
 		Commit()
 
@@ -73,15 +75,15 @@ func (c *etcdClient3) Create(key, value string) error {
 	return nil
 }
 
-func (c *etcdClient3) Set(key, value string) error {
-	_, err := c.client.Put(context.Background(), key, value)
+func (c *etcdClient3) Set(key string, value []byte) error {
+	_, err := c.client.Put(context.Background(), key, string(value))
 	return err
 }
 
 func (c *etcdClient3) Update(key, value string) error {
 	resp, err := c.client.Txn(context.Background()).
-		If(clientv3.Compare(clientv3.CreateRevision(key), ">", 0)).
-		Then(clientv3.OpPut(key, value)).
+		If(v3client.Compare(v3client.CreateRevision(key), ">", 0)).
+		Then(v3client.OpPut(key, value)).
 		Else().
 		Commit()
 
@@ -114,7 +116,7 @@ func (c *etcdClient3) SetWithTTL(key, value string, ttl time.Duration) error {
 		return err
 	}
 	leaseID := resp.ID
-	_, err = c.client.Put(context.Background(), key, value, clientv3.WithLease(leaseID))
+	_, err = c.client.Put(context.Background(), key, value, v3client.WithLease(leaseID))
 	return err
 }
 
@@ -131,7 +133,7 @@ func (c *etcdClient3) Delete(key string) error {
 }
 
 func (c *etcdClient3) DeleteDir(path string) error {
-	resp, err := c.client.Delete(context.Background(), path, clientv3.WithPrefix())
+	resp, err := c.client.Delete(context.Background(), path, v3client.WithPrefix())
 	if err != nil {
 		return err
 	}
@@ -142,16 +144,16 @@ func (c *etcdClient3) DeleteDir(path string) error {
 	return nil
 }
 
-func (c *etcdClient3) List(path string) ([]Pair, error) {
-	resp, err := c.client.Get(context.Background(), path, clientv3.WithPrefix())
+func (c *etcdClient3) List(path string) ([]kvdef.Pair, error) {
+	resp, err := c.client.Get(context.Background(), path, v3client.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
-	pairs := make([]Pair, 0)
-	for _, kv := range resp.Kvs {
-		pairs = append(pairs, Pair{
-			Key:   string(kv.Key),
-			Value: string(kv.Value),
+	pairs := make([]kvdef.Pair, 0)
+	for _, kvdefin := range resp.Kvs {
+		pairs = append(pairs, kvdef.Pair{
+			Key:   string(kvdefin.Key),
+			Value: string(kvdefin.Value),
 		})
 	}
 	return pairs, nil
@@ -159,26 +161,26 @@ func (c *etcdClient3) List(path string) ([]Pair, error) {
 
 func (c *etcdClient3) ListKey(path string) (map[string]struct{}, error) {
 	path = strings.TrimSuffix(path, "/")
-	resp, err := c.client.Get(context.Background(), path, clientv3.WithPrefix(), clientv3.WithKeysOnly())
+	resp, err := c.client.Get(context.Background(), path, v3client.WithPrefix(), v3client.WithKeysOnly())
 	if err != nil {
 		return nil, err
 	}
 	keys := make(map[string]struct{}, 0)
-	for _, kv := range resp.Kvs {
-		keys[string(kv.Key)[len(path)+1:]] = struct{}{}
+	for _, kvdefin := range resp.Kvs {
+		keys[string(kvdefin.Key)[len(path)+1:]] = struct{}{}
 	}
 	return keys, nil
 }
 
-func (c *etcdClient3) watch(key string, stopCh <-chan struct{}, isTree bool) (chan Pair, chan error) {
-	watcher := clientv3.NewWatcher(c.client)
-	var watchC clientv3.WatchChan
+func (c *etcdClient3) watch(key string, stopCh <-chan struct{}, isTree bool) (chan kvdef.Pair, chan error) {
+	watcher := v3client.NewWatcher(c.client)
+	var watchC v3client.WatchChan
 	if isTree {
-		watchC = watcher.Watch(context.Background(), key, clientv3.WithPrefix(), clientv3.WithPrevKV())
+		watchC = watcher.Watch(context.Background(), key, v3client.WithPrefix(), v3client.WithPrevKV())
 	} else {
-		watchC = watcher.Watch(context.Background(), key, clientv3.WithPrevKV())
+		watchC = watcher.Watch(context.Background(), key, v3client.WithPrevKV())
 	}
-	pairC := make(chan Pair, 100)
+	pairC := make(chan kvdef.Pair, 100)
 	errorC := make(chan error, 10)
 	go func() {
 		for {
@@ -190,11 +192,11 @@ func (c *etcdClient3) watch(key string, stopCh <-chan struct{}, isTree bool) (ch
 					return
 				}
 				for _, e := range es.Events {
-					pair := Pair{
+					pair := kvdef.Pair{
 						Key:   string(e.Kv.Key),
 						Value: string(e.Kv.Value),
 					}
-					if e.Type == clientv3.EventTypeDelete {
+					if e.Type == v3client.EventTypeDelete {
 						if e.PrevKv != nil {
 							pair.Value = string(e.PrevKv.Value)
 						}
@@ -210,18 +212,18 @@ func (c *etcdClient3) watch(key string, stopCh <-chan struct{}, isTree bool) (ch
 	return pairC, errorC
 }
 
-func (c *etcdClient3) Watch(key string, stopCh <-chan struct{}) (chan Pair, chan error) {
+func (c *etcdClient3) Watch(key string, stopCh <-chan struct{}) (chan kvdef.Pair, chan error) {
 	return c.watch(key, stopCh, false)
 }
 
-func (c *etcdClient3) WatchTree(path string, stopCh <-chan struct{}) (chan Pair, chan error) {
+func (c *etcdClient3) WatchTree(path string, stopCh <-chan struct{}) (chan kvdef.Pair, chan error) {
 	return c.watch(path, stopCh, true)
 }
 
 func (c *etcdClient3) CompareAndSwap(key, preValue, value string) error {
 	resp, err := c.client.Txn(context.Background()).
-		If(clientv3.Compare(clientv3.Value(key), "=", preValue)).
-		Then(clientv3.OpPut(key, value)).
+		If(v3client.Compare(v3client.Value(key), "=", preValue)).
+		Then(v3client.OpPut(key, value)).
 		Else().
 		Commit()
 	if err != nil {
@@ -235,8 +237,8 @@ func (c *etcdClient3) CompareAndSwap(key, preValue, value string) error {
 
 func (c *etcdClient3) CompareAndDelete(key, preValue string) error {
 	resp, err := c.client.Txn(context.Background()).
-		If(clientv3.Compare(clientv3.Value(key), "=", preValue)).
-		Then(clientv3.OpDelete(key)).
+		If(v3client.Compare(v3client.Value(key), "=", preValue)).
+		Then(v3client.OpDelete(key)).
 		Else().
 		Commit()
 	if err != nil {

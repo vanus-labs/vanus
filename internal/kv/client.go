@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package etcd
+package kv
 
 import "time"
 
 type Client interface {
 	Get(key string) (string, error)
 	Create(key, value string) error
-	Set(key, value string) error
+	Set(key string, value []byte) error
 	Update(key, value string) error
 	Exists(key string) (bool, error)
 	SetWithTTL(key, value string, ttl time.Duration) error
