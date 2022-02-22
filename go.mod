@@ -16,6 +16,7 @@ require (
 replace (
 	github.com/linkall-labs/eventbus-go v0.0.0 => ../eventbus-go
 	github.com/linkall-labs/vsproto v0.0.0 => ../vsproto
+	cloudevents.io/genproto v1.0.2 => ../vsproto/include/cloudevents/pkg
 )
 
 require (
@@ -33,4 +34,5 @@ require (
 	golang.org/x/text v0.3.0 // indirect
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
+	cloudevents.io/genproto v1.0.2 // indirect
 )
