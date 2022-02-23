@@ -53,6 +53,7 @@ func NewSegmentController() ctrl.SegmentControllerServer {
 
 type controller struct {
 	kvStore kv.Client
+	pool *segmentPool
 }
 
 func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrl.CreateEventBusRequest) (*meta.EventBus, error) {
@@ -79,9 +80,10 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrl.CreateEven
 		}
 		eb.Logs[idx].Vrn = ctrl.generateEventLogVRN(eb.Logs[idx])
 		wg.Add(1)
+		// TODO thread safety
+		// TODO asynchronous
 		go func(i int) {
-			_err := ctrl.initializeEventLog(eb.Logs[i])
-			// TODO thread safety
+			_err := ctrl.initializeEventLog(ctx,eb.Logs[i])
 			err = errors.Chain(err, _err)
 			wg.Done()
 		}(idx)
@@ -122,7 +124,9 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrl.SegmentController_SegmentHeart
 	return nil
 }
 
-func (ctrl *controller) initializeEventLog(el *meta.EventLog) error {
+func (ctrl *controller) initializeEventLog(ctx context.Context, el *meta.EventLog) error {
+	ctrl.pool.bindSegment(ctx, el, 3) // TODO eliminate magic number
+
 	return nil
 }
 

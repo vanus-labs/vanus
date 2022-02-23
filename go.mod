@@ -5,14 +5,15 @@ go 1.17
 require (
 	github.com/cloudevents/sdk-go/sql/v2 v2.8.0
 	github.com/cloudevents/sdk-go/v2 v2.8.0
+	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.3.0
 	github.com/linkall-labs/eventbus-go v0.0.0
 	github.com/linkall-labs/vsproto v0.0.0
+	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	go.etcd.io/etcd/client/v3 v3.5.2
 	google.golang.org/grpc v1.44.0
 	google.golang.org/protobuf v1.27.1
-	github.com/golang/protobuf v1.5.2
 )
 
 replace (
@@ -27,7 +28,6 @@ require (
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/json-iterator/go v1.1.11 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
