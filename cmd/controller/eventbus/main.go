@@ -40,8 +40,8 @@ func main() {
 	ctrlSrv := eventbus.NewEventBusController(eventbus.ControllerConfig{
 		IP:               defaultIP,
 		Port:             defaultPort,
-		KVStoreEndpoints: nil,
-		KVKeyPrefix:      "",
+		KVStoreEndpoints: []string{"127.0.0.1:2379"},
+		KVKeyPrefix:      "/wenfeng/controller/",
 	})
 	if err = ctrlSrv.Start(); err != nil {
 		log.Error("start Eventbus Controller failed", map[string]interface{}{
@@ -50,7 +50,7 @@ func main() {
 		os.Exit(-1)
 	}
 	grpcServer := grpc.NewServer(opts...)
-	exitChan := make(chan struct{}, 1)
+	exitChan := make(chan struct{}, 0)
 	controller.RegisterEventBusControllerServer(grpcServer, ctrlSrv)
 	controller.RegisterEventLogControllerServer(grpcServer, ctrlSrv)
 	controller.RegisterSegmentControllerServer(grpcServer, ctrlSrv)

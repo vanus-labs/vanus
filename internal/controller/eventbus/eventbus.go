@@ -16,6 +16,7 @@ package eventbus
 
 import (
 	"context"
+	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
@@ -23,6 +24,7 @@ import (
 	ctrl "github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/linkall-labs/vsproto/pkg/meta"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"strings"
 	"sync"
 )
 
@@ -49,7 +51,7 @@ func (ctrl *controller) Start() error {
 	if err = ctrl.pool.init(); err != nil {
 		return err
 	}
-	return nil
+	return ctrl.dynamicScaleUpEventLog()
 }
 
 func (ctrl *controller) Stop() error {
@@ -60,7 +62,7 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrl.CreateEven
 	eb := &meta.EventBus{
 		Namespace: req.Namespace,
 		Name:      req.Name,
-		LogNumber: req.LogNumber,
+		LogNumber: 1, //req.LogNumber, force set to 1 temporary
 		Logs:      make([]*meta.EventLog, req.LogNumber),
 	}
 	eb.Vrn = ctrl.generateEventBusVRN(eb)
@@ -128,20 +130,27 @@ func (ctrl *controller) QuerySegmentRouteInfo(ctx context.Context, req *ctrl.Que
 }
 
 func (ctrl *controller) SegmentHeartbeat(srv ctrl.SegmentController_SegmentHeartbeatServer) error {
-
+	//srv.SendAndClose()
 	return nil
 }
 
 func (ctrl *controller) initializeEventLog(ctx context.Context, el *meta.EventLog) error {
 	ctrl.pool.bindSegment(ctx, el, 3) // TODO eliminate magic number
+	return nil
+}
 
+func (ctrl *controller) dynamicScaleUpEventLog() error {
 	return nil
 }
 
 func (ctrl *controller) generateEventBusVRN(eb *meta.EventBus) *meta.VanusResourceName {
-	return &meta.VanusResourceName{}
+	return &meta.VanusResourceName{
+		Value: strings.Join([]string{"eventbus", eb.Namespace, eb.Name}, ":"),
+	}
 }
 
-func (ctrl *controller) generateEventLogVRN(eb *meta.EventLog) *meta.VanusResourceName {
-	return &meta.VanusResourceName{}
+func (ctrl *controller) generateEventLogVRN(el *meta.EventLog) *meta.VanusResourceName {
+	return &meta.VanusResourceName{
+		Value: strings.Join([]string{el.BusVrn.Value, "eventlog", fmt.Sprintf("%d",el.EventLogId)}, ":"),
+	}
 }
