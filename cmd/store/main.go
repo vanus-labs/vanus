@@ -18,18 +18,20 @@ import (
 	"fmt"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/store/segment"
+	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	segpb "github.com/linkall-labs/vsproto/pkg/segment"
 	"google.golang.org/grpc"
 	"net"
 	"os"
+	"time"
 )
 
 var (
 	defaultIP   = "0.0.0.0"
-	defaultPort = 2048
+	defaultPort = 2248
 
-	defaultControllerAddr = "127.0.0.1:2148"
+	defaultControllerAddr = "127.0.0.1:2048"
 )
 
 func main() {
@@ -55,7 +57,11 @@ func main() {
 		os.Exit(-1)
 	}
 	go func() {
-		log.Info("the SegmentServer ready to work", nil)
+		log.Info("the SegmentServer ready to work", map[string]interface{}{
+			"listen_ip":   defaultIP,
+			"listen_port": defaultPort,
+			"time": util.FormatTime(time.Now()),
+		})
 		segpb.RegisterSegmentServerServer(grpcServer, srv)
 		if err = grpcServer.Serve(listen); err != nil {
 			log.Error("grpc server occurred an error", map[string]interface{}{

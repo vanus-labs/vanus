@@ -21,7 +21,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/primitive/errors"
-	ctrl "github.com/linkall-labs/vsproto/pkg/controller"
+	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/linkall-labs/vsproto/pkg/meta"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"strings"
@@ -58,7 +58,7 @@ func (ctrl *controller) Stop() error {
 	return nil
 }
 
-func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrl.CreateEventBusRequest) (*meta.EventBus, error) {
+func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEventBusRequest) (*meta.EventBus, error) {
 	eb := &meta.EventBus{
 		Namespace: req.Namespace,
 		Name:      req.Name,
@@ -98,38 +98,45 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrl.CreateEven
 
 	data, _ := proto.Marshal(eb)
 	ctrl.kvStore.Set(eb.Vrn.Value, data)
-	return nil, nil
+	return &meta.EventBus{}, nil
 }
 
-func (ctrl *controller) DeleteEventBus(ctx context.Context, vrn *meta.VanusResourceName) (*emptypb.Empty, error) {
-	return nil, nil
+func (ctrl *controller) DeleteEventBus(ctx context.Context,
+	vrn *meta.VanusResourceName) (*emptypb.Empty, error) {
+	return &emptypb.Empty{}, nil
 }
 
-func (ctrl *controller) GetEventBus(ctx context.Context, vrn *meta.VanusResourceName) (*meta.EventBus, error) {
-	return nil, nil
+func (ctrl *controller) GetEventBus(ctx context.Context,
+	vrn *meta.VanusResourceName) (*meta.EventBus, error) {
+	return &meta.EventBus{}, nil
 }
 
-func (ctrl *controller) UpdateEventBus(ctx context.Context, req *ctrl.UpdateEventBusRequest) (*meta.EventBus, error) {
-	return nil, nil
+func (ctrl *controller) UpdateEventBus(ctx context.Context,
+	req *ctrlpb.UpdateEventBusRequest) (*meta.EventBus, error) {
+	return &meta.EventBus{}, nil
 }
 
-func (ctrl *controller) ListSegment(ctx context.Context, vrn *meta.VanusResourceName) (*ctrl.ListSegmentResponse, error) {
-	return nil, nil
+func (ctrl *controller) ListSegment(ctx context.Context,
+	vrn *meta.VanusResourceName) (*ctrlpb.ListSegmentResponse, error) {
+	return &ctrlpb.ListSegmentResponse{}, nil
 }
 
-func (ctrl *controller) RegisterSegmentServer(ctx context.Context, req *ctrl.RegisterSegmentServerRequest) (*ctrl.RegisterSegmentServerResponse, error) {
-	return nil, nil
+func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
+	req *ctrlpb.RegisterSegmentServerRequest) (*ctrlpb.RegisterSegmentServerResponse, error) {
+	return &ctrlpb.RegisterSegmentServerResponse{}, nil
 }
 
-func (ctrl *controller) UnregisterSegmentServer(ctx context.Context, req *ctrl.UnregisterSegmentServerRequest) (*ctrl.UnregisterSegmentServerResponse, error) {
-	return nil, nil
+func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
+	req *ctrlpb.UnregisterSegmentServerRequest) (*ctrlpb.UnregisterSegmentServerResponse, error) {
+	return &ctrlpb.UnregisterSegmentServerResponse{}, nil
 }
 
-func (ctrl *controller) QuerySegmentRouteInfo(ctx context.Context, req *ctrl.QuerySegmentRouteInfoRequest) (*ctrl.QuerySegmentRouteInfoResponse, error) {
-	return nil, nil
+func (ctrl *controller) QuerySegmentRouteInfo(ctx context.Context,
+	req *ctrlpb.QuerySegmentRouteInfoRequest) (*ctrlpb.QuerySegmentRouteInfoResponse, error) {
+	return &ctrlpb.QuerySegmentRouteInfoResponse{}, nil
 }
 
-func (ctrl *controller) SegmentHeartbeat(srv ctrl.SegmentController_SegmentHeartbeatServer) error {
+func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHeartbeatServer) error {
 	//srv.SendAndClose()
 	return nil
 }

@@ -28,7 +28,7 @@ import (
 
 var (
 	triggerWorkerIP   = "0.0.0.0"
-	triggerWorkerPort = 2048
+	triggerWorkerPort = 2049
 	SinkURI           = url.URL{Scheme: "http", Host: "localhost:8080"}
 )
 

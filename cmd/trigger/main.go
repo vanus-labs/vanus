@@ -25,7 +25,7 @@ import (
 
 var (
 	defaultIP   = "0.0.0.0"
-	defaultPort = 2048
+	defaultPort = 2148
 )
 
 func main() {
