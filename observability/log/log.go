@@ -52,10 +52,13 @@ func init() {
 	default:
 		r.logger.SetLevel(logrus.InfoLevel)
 	}
-	rLog = r
+	vLog = r
+	vLog.Debug("logger level has been set", map[string]interface{}{
+		"log_level": level,
+	})
 }
 
-var rLog Logger
+var vLog Logger
 
 type defaultLogger struct {
 	logger *logrus.Logger
@@ -124,13 +127,13 @@ func (l *defaultLogger) OutputPath(path string) (err error) {
 
 // SetLogger use specified logger user customized, in general, we suggest user to replace the default logger with specified
 func SetLogger(logger Logger) {
-	rLog = logger
+	vLog = logger
 }
 func SetLogLevel(level string) {
 	if level == "" {
 		return
 	}
-	rLog.Level(level)
+	vLog.Level(level)
 }
 
 func SetOutputPath(path string) (err error) {
@@ -138,31 +141,31 @@ func SetOutputPath(path string) (err error) {
 		return
 	}
 
-	return rLog.OutputPath(path)
+	return vLog.OutputPath(path)
 }
 
 func Debug(msg string, fields map[string]interface{}) {
-	rLog.Debug(msg, fields)
+	vLog.Debug(msg, fields)
 }
 
 func Info(msg string, fields map[string]interface{}) {
 	if msg == "" && len(fields) == 0 {
 		return
 	}
-	rLog.Info(msg, fields)
+	vLog.Info(msg, fields)
 }
 
 func Warning(msg string, fields map[string]interface{}) {
 	if msg == "" && len(fields) == 0 {
 		return
 	}
-	rLog.Warning(msg, fields)
+	vLog.Warning(msg, fields)
 }
 
 func Error(msg string, fields map[string]interface{}) {
-	rLog.Error(msg, fields)
+	vLog.Error(msg, fields)
 }
 
 func Fatal(msg string, fields map[string]interface{}) {
-	rLog.Fatal(msg, fields)
+	vLog.Fatal(msg, fields)
 }

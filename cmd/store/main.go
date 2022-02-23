@@ -29,7 +29,7 @@ import (
 
 var (
 	defaultIP   = "0.0.0.0"
-	defaultPort = 2248
+	defaultPort = 11811
 
 	defaultControllerAddr = "127.0.0.1:2048"
 )
