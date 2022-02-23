@@ -18,6 +18,7 @@ import (
 	"context"
 	"github.com/golang/protobuf/proto"
 	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/primitive/errors"
 	ctrl "github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/linkall-labs/vsproto/pkg/meta"
@@ -25,35 +26,34 @@ import (
 	"sync"
 )
 
-
-func initController() {
-
-}
-
-var (
-	c  *controller
-	once sync.Once
-)
-
-// TODO error
-func NewEventBusController() ctrl.EventBusControllerServer {
-	once.Do(initController)
-	return c
-}
-
-func NewEventLogController() ctrl.EventLogControllerServer {
-	once.Do(initController)
-	return c
-}
-
-func NewSegmentController() ctrl.SegmentControllerServer {
-	once.Do(initController)
+func NewEventBusController(cfg ControllerConfig) *controller {
+	c := &controller{
+		pool: &segmentPool{},
+		cfg:  &cfg,
+	}
 	return c
 }
 
 type controller struct {
+	cfg     *ControllerConfig
 	kvStore kv.Client
-	pool *segmentPool
+	pool    *segmentPool
+}
+
+func (ctrl *controller) Start() error {
+	store, err := etcd.NewEtcdClientV3(ctrl.cfg.KVStoreEndpoints, ctrl.cfg.KVKeyPrefix)
+	if err != nil {
+		return err
+	}
+	ctrl.kvStore = store
+	if err = ctrl.pool.init(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (ctrl *controller) Stop() error {
+	return nil
 }
 
 func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrl.CreateEventBusRequest) (*meta.EventBus, error) {
@@ -83,7 +83,7 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrl.CreateEven
 		// TODO thread safety
 		// TODO asynchronous
 		go func(i int) {
-			_err := ctrl.initializeEventLog(ctx,eb.Logs[i])
+			_err := ctrl.initializeEventLog(ctx, eb.Logs[i])
 			err = errors.Chain(err, _err)
 			wg.Done()
 		}(idx)
@@ -112,6 +112,14 @@ func (ctrl *controller) UpdateEventBus(ctx context.Context, req *ctrl.UpdateEven
 }
 
 func (ctrl *controller) ListSegment(ctx context.Context, vrn *meta.VanusResourceName) (*ctrl.ListSegmentResponse, error) {
+	return nil, nil
+}
+
+func (ctrl *controller) RegisterSegmentServer(ctx context.Context, req *ctrl.RegisterSegmentServerRequest) (*ctrl.RegisterSegmentServerResponse, error) {
+	return nil, nil
+}
+
+func (ctrl *controller) UnregisterSegmentServer(ctx context.Context, req *ctrl.UnregisterSegmentServerRequest) (*ctrl.UnregisterSegmentServerResponse, error) {
 	return nil, nil
 }
 

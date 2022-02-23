@@ -35,7 +35,7 @@ type etcdClient3 struct {
 }
 
 func NewEtcdClientV3(endpoints []string, keyPrefix string) (*etcdClient3, error) {
-		client, err := v3client.New(v3client.Config{
+	client, err := v3client.New(v3client.Config{
 		Endpoints:   endpoints,
 		DialTimeout: 5 * time.Second,
 		//DialKeepAliveTime:    1 * time.Second,
@@ -47,21 +47,21 @@ func NewEtcdClientV3(endpoints []string, keyPrefix string) (*etcdClient3, error)
 	return &etcdClient3{client: client, keyPrefix: keyPrefix}, nil
 }
 
-func (c *etcdClient3) Get(key string) (string, error) {
+func (c *etcdClient3) Get(key string) ([]byte, error) {
 	resp, err := c.client.Get(context.Background(), key)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(resp.Kvs) == 0 {
-		return "", ErrorKeyNotFound
+		return nil, ErrorKeyNotFound
 	}
-	return string(resp.Kvs[0].Value), nil
+	return resp.Kvs[0].Value, nil
 }
 
-func (c *etcdClient3) Create(key, value string) error {
+func (c *etcdClient3) Create(key string, value []byte) error {
 	resp, err := c.client.Txn(context.Background()).
 		If(v3client.Compare(v3client.CreateRevision(key), "=", 0)).
-		Then(v3client.OpPut(key, value)).
+		Then(v3client.OpPut(key, string(value))).
 		Else().
 		Commit()
 
@@ -80,10 +80,10 @@ func (c *etcdClient3) Set(key string, value []byte) error {
 	return err
 }
 
-func (c *etcdClient3) Update(key, value string) error {
+func (c *etcdClient3) Update(key string, value []byte) error {
 	resp, err := c.client.Txn(context.Background()).
 		If(v3client.Compare(v3client.CreateRevision(key), ">", 0)).
-		Then(v3client.OpPut(key, value)).
+		Then(v3client.OpPut(key, string(value))).
 		Else().
 		Commit()
 
@@ -110,13 +110,13 @@ func (c *etcdClient3) Exists(key string) (bool, error) {
 	}
 }
 
-func (c *etcdClient3) SetWithTTL(key, value string, ttl time.Duration) error {
+func (c *etcdClient3) SetWithTTL(key string, value []byte, ttl time.Duration) error {
 	resp, err := c.client.Grant(context.Background(), ttl.Nanoseconds()/int64(time.Second))
 	if err != nil {
 		return err
 	}
 	leaseID := resp.ID
-	_, err = c.client.Put(context.Background(), key, value, v3client.WithLease(leaseID))
+	_, err = c.client.Put(context.Background(), key, string(value), v3client.WithLease(leaseID))
 	return err
 }
 
@@ -153,7 +153,7 @@ func (c *etcdClient3) List(path string) ([]kvdef.Pair, error) {
 	for _, kvdefin := range resp.Kvs {
 		pairs = append(pairs, kvdef.Pair{
 			Key:   string(kvdefin.Key),
-			Value: string(kvdefin.Value),
+			Value: kvdefin.Value,
 		})
 	}
 	return pairs, nil
@@ -194,11 +194,11 @@ func (c *etcdClient3) watch(key string, stopCh <-chan struct{}, isTree bool) (ch
 				for _, e := range es.Events {
 					pair := kvdef.Pair{
 						Key:   string(e.Kv.Key),
-						Value: string(e.Kv.Value),
+						Value: e.Kv.Value,
 					}
 					if e.Type == v3client.EventTypeDelete {
 						if e.PrevKv != nil {
-							pair.Value = string(e.PrevKv.Value)
+							pair.Value = e.PrevKv.Value
 						}
 					}
 					pairC <- pair
@@ -220,10 +220,10 @@ func (c *etcdClient3) WatchTree(path string, stopCh <-chan struct{}) (chan kvdef
 	return c.watch(path, stopCh, true)
 }
 
-func (c *etcdClient3) CompareAndSwap(key, preValue, value string) error {
+func (c *etcdClient3) CompareAndSwap(key string, preValue, value []byte) error {
 	resp, err := c.client.Txn(context.Background()).
-		If(v3client.Compare(v3client.Value(key), "=", preValue)).
-		Then(v3client.OpPut(key, value)).
+		If(v3client.Compare(v3client.Value(key), "=", string(preValue))).
+		Then(v3client.OpPut(key, string(value))).
 		Else().
 		Commit()
 	if err != nil {
@@ -235,9 +235,9 @@ func (c *etcdClient3) CompareAndSwap(key, preValue, value string) error {
 	return nil
 }
 
-func (c *etcdClient3) CompareAndDelete(key, preValue string) error {
+func (c *etcdClient3) CompareAndDelete(key string, preValue []byte) error {
 	resp, err := c.client.Txn(context.Background()).
-		If(v3client.Compare(v3client.Value(key), "=", preValue)).
+		If(v3client.Compare(v3client.Value(key), "=", string(preValue))).
 		Then(v3client.OpDelete(key)).
 		Else().
 		Commit()

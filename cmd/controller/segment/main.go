@@ -16,16 +16,20 @@ package main
 
 import (
 	"fmt"
+	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/store/segment"
 	"github.com/linkall-labs/vanus/observability/log"
 	segpb "github.com/linkall-labs/vsproto/pkg/segment"
 	"google.golang.org/grpc"
 	"net"
+	"os"
 )
 
 var (
 	defaultIP   = "0.0.0.0"
 	defaultPort = 2048
+
+	defaultControllerAddr = "127.0.0.1:2148"
 )
 
 func main() {
@@ -42,15 +46,31 @@ func main() {
 		grpcServer.GracefulStop()
 		exitChan <- struct{}{}
 	}
-	segpb.RegisterSegmentServerServer(grpcServer, segment.NewSegmentServer(stopCallback))
-	log.Info("the grpc server ready to work", nil)
-	err = grpcServer.Serve(listen)
+	srv := segment.NewSegmentServer(defaultControllerAddr, stopCallback)
 	if err != nil {
-		log.Error("grpc server occurred an error", map[string]interface{}{
+		stopCallback()
+		log.Error("start SegmentServer failed", map[string]interface{}{
 			log.KeyError: err,
 		})
-	} else {
-		<-exitChan
-		log.Info("the grpc server has been shutdown", nil)
+		os.Exit(-1)
 	}
+	go func() {
+		log.Info("the SegmentServer ready to work", nil)
+		segpb.RegisterSegmentServerServer(grpcServer, srv)
+		if err = grpcServer.Serve(listen); err != nil {
+			log.Error("grpc server occurred an error", map[string]interface{}{
+				log.KeyError: err,
+			})
+		}
+	}()
+	init, _ := srv.(primitive.Initializer)
+	if err = init.Initialize(); err != nil {
+		stopCallback()
+		log.Error("the SegmentServer has initialized failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-2)
+	}
+	<-exitChan
+	log.Info("the grpc server has been shutdown", nil)
 }

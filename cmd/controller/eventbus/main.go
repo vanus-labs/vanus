@@ -21,6 +21,7 @@ import (
 	"github.com/linkall-labs/vsproto/pkg/controller"
 	"google.golang.org/grpc"
 	"net"
+	"os"
 )
 
 var (
@@ -36,15 +37,23 @@ func main() {
 		})
 	}
 	var opts []grpc.ServerOption
+	ctrlSrv := eventbus.NewEventBusController(eventbus.ControllerConfig{
+		IP:               defaultIP,
+		Port:             defaultPort,
+		KVStoreEndpoints: nil,
+		KVKeyPrefix:      "",
+	})
+	if err = ctrlSrv.Start(); err != nil {
+		log.Error("start Eventbus Controller failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
 	grpcServer := grpc.NewServer(opts...)
 	exitChan := make(chan struct{}, 1)
-	//stopCallback := func() {
-	//	grpcServer.GracefulStop()
-	//	exitChan <- struct{}{}
-	//}
-	controller.RegisterEventBusControllerServer(grpcServer, eventbus.NewEventBusController())
-	controller.RegisterEventLogControllerServer(grpcServer, eventbus.NewEventLogController())
-	controller.RegisterSegmentControllerServer(grpcServer, eventbus.NewSegmentController())
+	controller.RegisterEventBusControllerServer(grpcServer, ctrlSrv)
+	controller.RegisterEventLogControllerServer(grpcServer, ctrlSrv)
+	controller.RegisterSegmentControllerServer(grpcServer, ctrlSrv)
 	log.Info("the grpc server ready to work", nil)
 	err = grpcServer.Serve(listen)
 	if err != nil {

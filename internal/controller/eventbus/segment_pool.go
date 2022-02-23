@@ -42,6 +42,7 @@ func (pool *segmentPool) bindSegment(ctx context.Context, el *meta.EventLog, num
 		}
 	}()
 	for idx := 0; idx < num; idx++ {
+		// TODO eliminate magic code
 		seg := pool.pickSegment(64 * 1024 * 1024)
 		if seg == nil {
 			// no enough segment, manually allocate and bind
