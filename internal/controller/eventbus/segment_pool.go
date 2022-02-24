@@ -16,14 +16,26 @@ package eventbus
 
 import (
 	"context"
-	"github.com/linkall-labs/vsproto/pkg/meta"
+	"fmt"
+	"github.com/google/uuid"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/selector"
+	"github.com/linkall-labs/vsproto/pkg/segment"
+)
+
+const (
+	defaultSegmentBlockSize = 64 * 1024 * 1024
 )
 
 type segmentPool struct {
+	ctrl                     *controller
+	selectorForSegmentCreate selector.SegmentServerSelector
 }
 
-func (pool *segmentPool) init() error {
-	go pool.allocateSegmentTask()
+func (pool *segmentPool) init(ctrl *controller) error {
+	pool.ctrl = ctrl
+	go pool.dynamicAllocateSegmentTask()
+	pool.selectorForSegmentCreate = selector.NewSegmentServerRoundRobinSelector(&ctrl.segmentServerInfoMap)
 	return nil
 }
 
@@ -31,8 +43,8 @@ func (pool *segmentPool) destroy() error {
 	return nil
 }
 
-func (pool *segmentPool) bindSegment(ctx context.Context, el *meta.EventLog, num int) ([]*meta.Segment, error) {
-	segArr := make([]*meta.Segment, 0)
+func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo, num int) ([]*info.SegmentBlockInfo, error) {
+	segArr := make([]*info.SegmentBlockInfo, 0)
 	var err error
 	defer func() {
 		for idx := 0; idx < num; idx++ {
@@ -42,43 +54,74 @@ func (pool *segmentPool) bindSegment(ctx context.Context, el *meta.EventLog, num
 		}
 	}()
 	for idx := 0; idx < num; idx++ {
-		// TODO eliminate magic code
-		seg := pool.pickSegment(64 * 1024 * 1024)
-		if seg == nil {
-			// no enough segment, manually allocate and bind
-			seg, err = pool.allocateAndBindImmediately(ctx, el)
-			if err != nil {
-				return nil, err
-			}
+		seg, err := pool.pickSegment(ctx, defaultSegmentBlockSize)
+		if err != nil {
+			return nil, err
+		}
+
+		// binding, assign runtime fields
+		seg.EventLogID = fmt.Sprintf("%d", el.ID)
+		if err = pool.createReplicaGroup(seg); err != nil {
+			return nil, err
+		}
+		srvInfo := pool.ctrl.segmentServerInfoMap[seg.VolumeInfo.AssignedSegmentServerID]
+		client := pool.ctrl.getSegmentServerClient(srvInfo)
+		_, err = client.ActiveSegmentBlock(ctx, &segment.ActiveSegmentBlockRequest{
+			EventLogId:     seg.EventLogID,
+			ReplicaGroupId: seg.ReplicaGroupID,
+			PeersAddress:   seg.PeersAddress,
+		})
+		if err != nil {
+			return nil, err
 		}
 		segArr[idx] = seg
 	}
-
+	// TODO persist to kv
 	return segArr, nil
 }
 
-func (pool *segmentPool) addSegmentServer(info *SegmentServerInfo) error {
-	return nil
+func (pool *segmentPool) pickSegment(ctx context.Context, size int64) (*info.SegmentBlockInfo, error) {
+	// no enough segment, manually allocate and bind
+	return pool.allocateSegmentImmediately(ctx, defaultSegmentBlockSize)
 }
 
-func (pool *segmentPool) removeSegmentServer(info *SegmentServerInfo) error {
-	return nil
+func (pool *segmentPool) allocateSegmentImmediately(ctx context.Context, size int64) (*info.SegmentBlockInfo, error) {
+	srvInfo := pool.selectorForSegmentCreate.Select(ctx, size)
+	client := pool.ctrl.getSegmentServerClient(srvInfo)
+	segmentInfo := &info.SegmentBlockInfo{
+		ID:         pool.generateSegmentBlockID(),
+		Size:       size,
+		VolumeInfo: srvInfo.Volume,
+	}
+	_, err := client.CreateSegmentBlock(ctx, &segment.CreateSegmentBlockRequest{
+		Size: segmentInfo.Size,
+		Id:   segmentInfo.ID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	// TODO persist to kv
+	return segmentInfo, nil
 }
 
-func (pool *segmentPool) pickSegment(size int64) *meta.Segment {
-	return nil
-}
-
-func (pool *segmentPool) allocateAndBindImmediately(ctx context.Context, el *meta.EventLog) (*meta.Segment, error) {
-	return nil, nil
-}
-
-func (pool *segmentPool) allocateSegmentTask() {
+func (pool *segmentPool) dynamicAllocateSegmentTask() {
 
 }
 
-func (pool *segmentPool) cancelBinding(segment *meta.Segment) {
+func (pool *segmentPool) cancelBinding(segment *info.SegmentBlockInfo) {
 	if segment == nil {
 		return
 	}
+}
+
+func (pool *segmentPool) generateSegmentBlockID() string {
+	//TODO optimize
+	return uuid.NewString()
+}
+
+func (pool *segmentPool) createReplicaGroup(segInfo *info.SegmentBlockInfo) error {
+	// TODO implement
+	segInfo.ReplicaGroupID = "group-1"
+	segInfo.PeersAddress = []string{"ip1", "ip2"}
+	return nil
 }

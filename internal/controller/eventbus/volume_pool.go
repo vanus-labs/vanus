@@ -14,17 +14,28 @@
 
 package eventbus
 
+import "github.com/linkall-labs/vanus/internal/controller/eventbus/info"
+
 type volumePool struct {
 }
 
-func (pool *volumePool) get(id string) *VolumeInfo {
+func (pool *volumePool) init() error {
 	return nil
 }
 
-func (pool *volumePool) bindSegmentServer(vInfo *VolumeInfo, sInfo *SegmentServerInfo) error {
+func (pool *volumePool) destroy() error {
 	return nil
 }
 
-func (pool *volumePool) release(vInfo *VolumeInfo) error {
+func (pool *volumePool) get(id string) *info.VolumeInfo {
+	return nil
+}
+
+func (pool *volumePool) bindSegmentServer(vInfo *info.VolumeInfo, sInfo *info.SegmentServerInfo) error {
+	vInfo.AssignedSegmentServerID = sInfo.ID()
+	return nil
+}
+
+func (pool *volumePool) release(vInfo *info.VolumeInfo) error {
 	return nil
 }

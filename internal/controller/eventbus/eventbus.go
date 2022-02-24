@@ -16,14 +16,18 @@ package eventbus
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/golang/protobuf/proto"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/primitive/errors"
 	"github.com/linkall-labs/vanus/observability"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/linkall-labs/vsproto/pkg/meta"
+	"github.com/linkall-labs/vsproto/pkg/segment"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"strings"
 	"sync"
@@ -38,12 +42,17 @@ func NewEventBusController(cfg ControllerConfig) *controller {
 }
 
 type controller struct {
-	cfg                  *ControllerConfig
-	kvStore              kv.Client
-	segmentPool          *segmentPool
-	volumePool           *volumePool
-	segmentServerInfoMap map[string]*SegmentServerInfo
-	volumeInfoMap        map[string]*VolumeInfo
+	cfg                      *ControllerConfig
+	kvStore                  kv.Client
+	segmentPool              *segmentPool
+	volumePool               *volumePool
+	eventBusMap              map[string]*info.BusInfo
+	eventLogInfo             map[string]*info.EventLogInfo
+	segmentServerCredentials credentials.TransportCredentials
+	segmentServerInfoMap     map[string]*info.SegmentServerInfo
+	segmentServerConn        map[string]*grpc.ClientConn
+	volumeInfoMap            map[string]*info.VolumeInfo
+	segmentServerClientMap   map[string]segment.SegmentServerClient
 }
 
 func (ctrl *controller) Start() error {
@@ -52,7 +61,7 @@ func (ctrl *controller) Start() error {
 		return err
 	}
 	ctrl.kvStore = store
-	if err = ctrl.segmentPool.init(); err != nil {
+	if err = ctrl.segmentPool.init(ctrl); err != nil {
 		return err
 	}
 	return ctrl.dynamicScaleUpEventLog()
@@ -63,14 +72,14 @@ func (ctrl *controller) Stop() error {
 }
 
 func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEventBusRequest) (*meta.EventBus, error) {
-	eb := &meta.EventBus{
+	eb := &info.BusInfo{
 		Namespace: req.Namespace,
 		Name:      req.Name,
 		LogNumber: 1, //req.LogNumber, force set to 1 temporary
-		Logs:      make([]*meta.EventLog, req.LogNumber),
+		EventLogs: make([]*info.EventLogInfo, req.LogNumber),
 	}
-	eb.Vrn = ctrl.generateEventBusVRN(eb)
-	exist, err := ctrl.kvStore.Exists(eb.Vrn.Value)
+	eb.VRN = ctrl.generateEventBusVRN(eb)
+	exist, err := ctrl.kvStore.Exists(eb.VRN.Value)
 	if err != nil {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "invoke kv exist failed", err)
 	}
@@ -79,17 +88,17 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 	}
 	wg := sync.WaitGroup{}
 	for idx := 0; idx < int(eb.LogNumber); idx++ {
-		eb.Logs[idx] = &meta.EventLog{
-			EventLogId:            int64(idx),
-			BusVrn:                eb.Vrn,
+		eb.EventLogs[idx] = &info.EventLogInfo{
+			ID:                    int64(idx),
+			EventBusVRN:           eb.VRN,
 			CurrentSegmentNumbers: 0,
 		}
-		eb.Logs[idx].Vrn = ctrl.generateEventLogVRN(eb.Logs[idx])
+		eb.EventLogs[idx].VRN = ctrl.generateEventLogVRN(eb.EventLogs[idx])
 		wg.Add(1)
 		// TODO thread safety
 		// TODO asynchronous
 		go func(i int) {
-			_err := ctrl.initializeEventLog(ctx, eb.Logs[i])
+			_err := ctrl.initializeEventLog(ctx, eb.EventLogs[i])
 			err = errors.Chain(err, _err)
 			wg.Done()
 		}(idx)
@@ -100,8 +109,8 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "initialized eventlog failed", err)
 	}
 
-	data, _ := proto.Marshal(eb)
-	ctrl.kvStore.Set(eb.Vrn.Value, data)
+	data, _ := json.Marshal(eb)
+	ctrl.kvStore.Set(eb.VRN.Value, data)
 	return &meta.EventBus{}, nil
 }
 
@@ -135,6 +144,7 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
 			"segment server ip address is conflicted", nil)
 	}
+	ctrl.segmentServerInfoMap[req.Address] = serverInfo
 	serverInfo.Address = req.Address
 	volumeInfo, exist := ctrl.volumeInfoMap[req.VolumeId]
 	if !exist {
@@ -150,10 +160,6 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	}
 	serverInfo.Volume = volumeInfo
 	// TODO update state in KV store
-	if err := ctrl.segmentPool.addSegmentServer(serverInfo); err != nil {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"add server to resource pool failed", err)
-	}
 	return &ctrlpb.RegisterSegmentServerResponse{
 		ServerId:      serverInfo.ID(),
 		SegmentBlocks: volumeInfo.Blocks,
@@ -170,11 +176,7 @@ func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
 			"segment server not found", nil)
 	}
 
-	if err := ctrl.segmentPool.removeSegmentServer(serverInfo); err != nil {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"remove server from resource pool failed", err)
-	}
-
+	delete(ctrl.segmentServerInfoMap, serverInfo.Address)
 	if err := ctrl.volumePool.release(serverInfo.Volume); err != nil {
 		// TODO error handle
 	}
@@ -192,7 +194,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 	return nil
 }
 
-func (ctrl *controller) initializeEventLog(ctx context.Context, el *meta.EventLog) error {
+func (ctrl *controller) initializeEventLog(ctx context.Context, el *info.EventLogInfo) error {
 	ctrl.segmentPool.bindSegment(ctx, el, 3) // TODO eliminate magic number
 	return nil
 }
@@ -201,14 +203,31 @@ func (ctrl *controller) dynamicScaleUpEventLog() error {
 	return nil
 }
 
-func (ctrl *controller) generateEventBusVRN(eb *meta.EventBus) *meta.VanusResourceName {
+func (ctrl *controller) generateEventBusVRN(eb *info.BusInfo) *meta.VanusResourceName {
 	return &meta.VanusResourceName{
 		Value: strings.Join([]string{"eventbus", eb.Namespace, eb.Name}, ":"),
 	}
 }
 
-func (ctrl *controller) generateEventLogVRN(el *meta.EventLog) *meta.VanusResourceName {
+func (ctrl *controller) generateEventLogVRN(el *info.EventLogInfo) *meta.VanusResourceName {
 	return &meta.VanusResourceName{
-		Value: strings.Join([]string{el.BusVrn.Value, "eventlog", fmt.Sprintf("%d", el.EventLogId)}, ":"),
+		Value: strings.Join([]string{el.EventBusVRN.Value, "eventlog", fmt.Sprintf("%d", el.ID)}, ":"),
 	}
+}
+
+func (ctrl *controller) getSegmentServerClient(i *info.SegmentServerInfo) segment.SegmentServerClient {
+	cli := ctrl.segmentServerClientMap[i.ID()]
+	if cli == nil {
+		var opts []grpc.DialOption
+		opts = append(opts, grpc.WithTransportCredentials(ctrl.segmentServerCredentials))
+		conn, err := grpc.Dial(i.Address, opts...)
+		if err != nil {
+			// TODO error handle
+			return nil
+		}
+		ctrl.segmentServerConn[i.Address] = conn
+		cli = segment.NewSegmentServerClient(conn)
+		ctrl.segmentServerClientMap[i.ID()] = cli
+	}
+	return cli
 }

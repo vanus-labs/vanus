@@ -12,17 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package eventbus
+package info
 
 import (
 	"crypto/sha256"
 	"fmt"
+	"github.com/linkall-labs/vsproto/pkg/meta"
 )
+
+type BusInfo struct {
+	ID        string
+	Namespace string
+	Name      string
+	LogNumber int
+	EventLogs []*EventLogInfo
+	VRN       *meta.VanusResourceName
+}
+
+type EventLogInfo struct {
+	// global unique id
+	ID                    int64
+	EventBusVRN           *meta.VanusResourceName
+	CurrentSegmentNumbers int
+	VRN                   *meta.VanusResourceName
+}
 
 type SegmentServerInfo struct {
 	id      string
 	Address string
 	Volume  *VolumeInfo
+}
+
+type SegmentBlockInfo struct {
+	ID             string
+	Size           int64
+	VolumeInfo     *VolumeInfo
+	EventLogID     string
+	ReplicaGroupID string
+	PeersAddress   []string
 }
 
 func (info *SegmentServerInfo) ID() string {
@@ -39,6 +66,7 @@ type VolumeInfo struct {
 	BlockNumbers             int
 	Blocks                   map[int64]string
 	PersistenceVolumeClaimID string
+	AssignedSegmentServerID  string
 }
 
 func (info *VolumeInfo) ID() string {
