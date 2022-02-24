@@ -30,11 +30,13 @@ var (
 )
 
 type StorageBlockWriter interface {
-	Append(context.Context, ...*StoredEntry) error
+	Append(context.Context, ...*codec.StoredEntry) error
+	CloseWrite(context.Context) error
 }
 
 type StorageBlockReader interface {
-	Read(context.Context, int, int) ([]*StoredEntry, error)
+	Read(context.Context, int, int) ([]*codec.StoredEntry, error)
+	CloseRead(context.Context) error
 }
 
 func CreateSegmentBlock(id int64, path string, capacity int64) (StorageBlockWriter, error) {
@@ -61,6 +63,9 @@ func OpenSegmentBlock(path string) (StorageBlockReader, error) {
 	if err := b.loadHeader(); err != nil {
 		return nil, err
 	}
+	if err := b.validate(); err != nil {
+		return nil, err
+	}
 	if err := b.loadIndex(); err != nil {
 		return nil, err
 	}
@@ -78,7 +83,7 @@ type block struct {
 	physicalFile *os.File
 }
 
-func (b *block) Append(ctx context.Context, entities ...*StoredEntry) error {
+func (b *block) Append(ctx context.Context, entities ...*codec.StoredEntry) error {
 	if len(entities) == 0 {
 		return nil
 	}
@@ -107,7 +112,7 @@ func (b *block) Append(ctx context.Context, entities ...*StoredEntry) error {
 	return err
 }
 
-func (b *block) Read(ctx context.Context, entityStartOffset, number int) ([]*StoredEntry, error) {
+func (b *block) Read(ctx context.Context, entityStartOffset, number int) ([]*codec.StoredEntry, error) {
 	from, to, err := b.calculateRange(entityStartOffset, number)
 	if err != nil {
 		return nil, err
@@ -122,7 +127,7 @@ func (b *block) Read(ctx context.Context, entityStartOffset, number int) ([]*Sto
 		return nil, err
 	}
 
-	ses := make([]*StoredEntry, number)
+	ses := make([]*codec.StoredEntry, number)
 	reader := bytes.NewReader(data)
 	count := 0
 	for err == nil {
@@ -134,7 +139,7 @@ func (b *block) Read(ctx context.Context, entityStartOffset, number int) ([]*Sto
 		if _, err = reader.Read(payload); err != nil {
 			break
 		}
-		se := &StoredEntry{}
+		se := &codec.StoredEntry{}
 		if err := codec.Unmarshall(data, se); err != nil {
 			break
 		}
@@ -148,7 +153,14 @@ func (b *block) Read(ctx context.Context, entityStartOffset, number int) ([]*Sto
 	return ses, nil
 }
 
-func (b *block) close(ctx context.Context) error {
+func (b *block) CloseWrite(ctx context.Context) error {
+	if err := b.physicalFile.Close(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (b *block) CloseRead(ctx context.Context) error {
 	if err := b.physicalFile.Close(); err != nil {
 		return err
 	}
@@ -160,6 +172,10 @@ func (b *block) remain() int {
 }
 
 func (b *block) loadHeader() error {
+	return nil
+}
+
+func (b *block) validate() error {
 	return nil
 }
 

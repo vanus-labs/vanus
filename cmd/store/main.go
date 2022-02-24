@@ -48,7 +48,8 @@ func main() {
 		grpcServer.GracefulStop()
 		exitChan <- struct{}{}
 	}
-	srv := segment.NewSegmentServer(defaultControllerAddr, stopCallback)
+	srv := segment.NewSegmentServer("127.0.0.1:11811", defaultControllerAddr,
+		"volume-1", stopCallback)
 	if err != nil {
 		stopCallback()
 		log.Error("start SegmentServer failed", map[string]interface{}{
@@ -60,7 +61,7 @@ func main() {
 		log.Info("the SegmentServer ready to work", map[string]interface{}{
 			"listen_ip":   defaultIP,
 			"listen_port": defaultPort,
-			"time": util.FormatTime(time.Now()),
+			"time":        util.FormatTime(time.Now()),
 		})
 		segpb.RegisterSegmentServerServer(grpcServer, srv)
 		if err = grpcServer.Serve(listen); err != nil {

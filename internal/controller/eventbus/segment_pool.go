@@ -57,12 +57,12 @@ func (pool *segmentPool) bindSegment(ctx context.Context, el *meta.EventLog, num
 	return segArr, nil
 }
 
-func (pool *segmentPool) addOrUpdateSegmentServer() error {
+func (pool *segmentPool) addSegmentServer(info *SegmentServerInfo) error {
 	return nil
 }
 
-func (pool *segmentPool) removeSegmentServer() {
-
+func (pool *segmentPool) removeSegmentServer(info *SegmentServerInfo) error {
+	return nil
 }
 
 func (pool *segmentPool) pickSegment(size int64) *meta.Segment {

@@ -14,10 +14,5 @@
 
 package codec
 
-func Marshall(entity *StoredEntry) ([]byte, error) {
-	return nil, nil
-}
-
-func Unmarshall(data []byte, v interface{}) error {
-	return nil
+type StoredEntry struct {
 }

@@ -12,12 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package codec
+package eventbus
 
-func Marshall(entity *StoredEntry) ([]byte, error) {
-	return nil, nil
+type volumePool struct {
 }
 
-func Unmarshall(data []byte, v interface{}) error {
+func (pool *volumePool) get(id string) *VolumeInfo {
+	return nil
+}
+
+func (pool *volumePool) bindSegmentServer(vInfo *VolumeInfo, sInfo *SegmentServerInfo) error {
+	return nil
+}
+
+func (pool *volumePool) release(vInfo *VolumeInfo) error {
 	return nil
 }

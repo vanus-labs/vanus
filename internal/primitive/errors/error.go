@@ -28,7 +28,7 @@ func ConvertGRPCError(code ErrorCode, notice Notice, errs ...error) error {
 	return nil
 }
 
-func Chain(errs ...error) error  {
+func Chain(errs ...error) error {
 	// TODO optimize when idx=0 is nil
 	if len(errs) == 0 {
 		return nil

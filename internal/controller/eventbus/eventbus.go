@@ -21,6 +21,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/primitive/errors"
+	"github.com/linkall-labs/vanus/observability"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/linkall-labs/vsproto/pkg/meta"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -30,16 +31,19 @@ import (
 
 func NewEventBusController(cfg ControllerConfig) *controller {
 	c := &controller{
-		pool: &segmentPool{},
-		cfg:  &cfg,
+		segmentPool: &segmentPool{},
+		cfg:         &cfg,
 	}
 	return c
 }
 
 type controller struct {
-	cfg     *ControllerConfig
-	kvStore kv.Client
-	pool    *segmentPool
+	cfg                  *ControllerConfig
+	kvStore              kv.Client
+	segmentPool          *segmentPool
+	volumePool           *volumePool
+	segmentServerInfoMap map[string]*SegmentServerInfo
+	volumeInfoMap        map[string]*VolumeInfo
 }
 
 func (ctrl *controller) Start() error {
@@ -48,7 +52,7 @@ func (ctrl *controller) Start() error {
 		return err
 	}
 	ctrl.kvStore = store
-	if err = ctrl.pool.init(); err != nil {
+	if err = ctrl.segmentPool.init(); err != nil {
 		return err
 	}
 	return ctrl.dynamicScaleUpEventLog()
@@ -123,11 +127,58 @@ func (ctrl *controller) ListSegment(ctx context.Context,
 
 func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	req *ctrlpb.RegisterSegmentServerRequest) (*ctrlpb.RegisterSegmentServerResponse, error) {
-	return &ctrlpb.RegisterSegmentServerResponse{}, nil
+	observability.EntryMark(ctx)
+	defer observability.LeaveMark(ctx)
+
+	serverInfo, exist := ctrl.segmentServerInfoMap[req.Address]
+	if exist {
+		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
+			"segment server ip address is conflicted", nil)
+	}
+	serverInfo.Address = req.Address
+	volumeInfo, exist := ctrl.volumeInfoMap[req.VolumeId]
+	if !exist {
+		volumeInfo = ctrl.volumePool.get(req.VolumeId)
+		if volumeInfo == nil {
+			return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
+				"invalid volumeID, PVC not found", nil)
+		}
+	}
+	if err := ctrl.volumePool.bindSegmentServer(volumeInfo, serverInfo); err != nil {
+		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
+			"bind volume to segment server failed", err)
+	}
+	serverInfo.Volume = volumeInfo
+	// TODO update state in KV store
+	if err := ctrl.segmentPool.addSegmentServer(serverInfo); err != nil {
+		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
+			"add server to resource pool failed", err)
+	}
+	return &ctrlpb.RegisterSegmentServerResponse{
+		ServerId:      serverInfo.ID(),
+		SegmentBlocks: volumeInfo.Blocks,
+	}, nil
 }
 
 func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
 	req *ctrlpb.UnregisterSegmentServerRequest) (*ctrlpb.UnregisterSegmentServerResponse, error) {
+	observability.EntryMark(ctx)
+	defer observability.LeaveMark(ctx)
+	serverInfo, exist := ctrl.segmentServerInfoMap[req.Address]
+	if !exist {
+		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
+			"segment server not found", nil)
+	}
+
+	if err := ctrl.segmentPool.removeSegmentServer(serverInfo); err != nil {
+		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
+			"remove server from resource pool failed", err)
+	}
+
+	if err := ctrl.volumePool.release(serverInfo.Volume); err != nil {
+		// TODO error handle
+	}
+	// TODO update state in KV store
 	return &ctrlpb.UnregisterSegmentServerResponse{}, nil
 }
 
@@ -142,7 +193,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 }
 
 func (ctrl *controller) initializeEventLog(ctx context.Context, el *meta.EventLog) error {
-	ctrl.pool.bindSegment(ctx, el, 3) // TODO eliminate magic number
+	ctrl.segmentPool.bindSegment(ctx, el, 3) // TODO eliminate magic number
 	return nil
 }
 
@@ -158,6 +209,6 @@ func (ctrl *controller) generateEventBusVRN(eb *meta.EventBus) *meta.VanusResour
 
 func (ctrl *controller) generateEventLogVRN(el *meta.EventLog) *meta.VanusResourceName {
 	return &meta.VanusResourceName{
-		Value: strings.Join([]string{el.BusVrn.Value, "eventlog", fmt.Sprintf("%d",el.EventLogId)}, ":"),
+		Value: strings.Join([]string{el.BusVrn.Value, "eventlog", fmt.Sprintf("%d", el.EventLogId)}, ":"),
 	}
 }
