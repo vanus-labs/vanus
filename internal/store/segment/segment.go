@@ -61,10 +61,7 @@ func (s *segmentServer) Initialize() error {
 	_, err = s.ctrlClient.RegisterSegmentServer(context.Background(), &ctrl.RegisterSegmentServerRequest{
 		Address: s.localAddress,
 	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (s *segmentServer) Start(ctx context.Context,
