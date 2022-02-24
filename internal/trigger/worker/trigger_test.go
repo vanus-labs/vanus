@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"github.com/linkall-labs/vanus/internal/trigger/consumer"
 	"io/ioutil"
 	"net/http"
 	"testing"
@@ -108,7 +109,9 @@ func Test_e2e(t *testing.T) {
 			}
 
 			for _, e := range events {
-				tg.EventArrived(context.Background(), e)
+				tg.EventArrived(context.Background(), &consumer.EventRecord{
+					Event: e,
+				})
 				emit++
 			}
 		}

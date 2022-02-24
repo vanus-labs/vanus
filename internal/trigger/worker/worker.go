@@ -24,6 +24,7 @@ import (
 	"github.com/linkall-labs/eventbus-go/pkg/discovery/record"
 	"github.com/linkall-labs/eventbus-go/pkg/inmemory"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/trigger/consumer"
 	"github.com/linkall-labs/vanus/observability/log"
 	"sync"
 	"time"
@@ -37,8 +38,7 @@ var (
 type Worker struct {
 	subscriptions map[string]*primitive.Subscription
 	triggers      map[string]*Trigger
-	consumers     map[string]*Consumer
-	eventBus      map[string]string
+	consumers     map[string]*consumer.Consumer
 	stopCh        chan struct{}
 	trLock        sync.RWMutex
 	started       bool
@@ -50,7 +50,7 @@ func NewWorker() *Worker {
 	return &Worker{
 		subscriptions: map[string]*primitive.Subscription{},
 		triggers:      map[string]*Trigger{},
-		consumers:     map[string]*Consumer{},
+		consumers:     map[string]*consumer.Consumer{},
 		stopCh:        make(chan struct{}),
 	}
 }
@@ -134,6 +134,10 @@ func (w *Worker) RemoveSubscription(id string) error {
 	if _, ok := w.subscriptions[id]; ok {
 		delete(w.subscriptions, id)
 	}
+	if c, ok := w.consumers[id]; ok {
+		c.Close()
+		delete(w.consumers, id)
+	}
 	if tr, ok := w.triggers[id]; ok {
 		tr.Stop(context.Background())
 		delete(w.triggers, id)
@@ -144,28 +148,22 @@ func (w *Worker) RemoveSubscription(id string) error {
 func (w *Worker) run() {
 	w.trLock.RLock()
 	defer w.trLock.RUnlock()
-	if len(w.triggers) == 0 {
+	if len(w.subscriptions) == 0 {
 		return
 	}
-	for _, tr := range w.triggers {
+	for _, sub := range w.subscriptions {
+		tr := w.triggers[sub.ID]
 		if tr.state != TriggerRunning {
 			continue
 		}
-		c, ok := w.consumers[tr.ID]
+		c, ok := w.consumers[sub.ID]
 		if !ok {
-			if curr, err := NewConsumer(ebVRN); err != nil {
-				log.Error("new consumer error", map[string]interface{}{"ebVRN": ebVRN, "error": err})
-				continue
-			} else {
-				c = curr
-				w.consumers[tr.ID] = c
-			}
-		}
-		events := c.messages(5)
-		for i := range events {
-			tr.EventArrived(context.Background(), events[i])
+			c = consumer.NewConsumer(ebVRN, sub.ID, tr.EventArrived)
+			c.Start()
+			w.consumers[sub.ID] = c
 		}
 	}
+
 }
 
 func (w *Worker) fetch() {

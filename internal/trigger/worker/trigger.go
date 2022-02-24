@@ -21,6 +21,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/ds"
+	"github.com/linkall-labs/vanus/internal/trigger/consumer"
 	"github.com/linkall-labs/vanus/internal/trigger/filter"
 	"github.com/linkall-labs/vanus/observability/log"
 	"sync"
@@ -59,7 +60,7 @@ type Trigger struct {
 	lastActive time.Time
 	ackWindow  ds.SortedMap
 
-	eventCh  chan *ce.Event
+	eventCh  chan *consumer.EventRecord
 	ceClient ce.Client
 	filter   filter.Filter
 }
@@ -82,13 +83,17 @@ func NewTrigger(sub *primitive.Subscription) *Trigger {
 		ackWindow:        ds.NewSortedMap(),
 		filter:           filter.GetFilter(sub.Filters),
 		ceClient:         ceClient,
-		eventCh:          make(chan *ce.Event, defaultBufferSize),
+		eventCh:          make(chan *consumer.EventRecord, defaultBufferSize),
 	}
 }
 
-func (t *Trigger) EventArrived(ctx context.Context, event *ce.Event) {
-	t.eventCh <- event
-	//t.ackWindow.Put(event.ID(), &waitACK{event: event, deliverTime: time.Now(), timeoutTime: time.Now().Add(time.Second)})
+func (t *Trigger) EventArrived(ctx context.Context, event *consumer.EventRecord) error {
+	select {
+	case t.eventCh <- event:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (t *Trigger) processEvent(e ce.Event) error {
@@ -126,21 +131,23 @@ func (t *Trigger) startProcessEvent(ctx context.Context) {
 	for event := range t.eventCh {
 		log.Debug("receive a event", map[string]interface{}{"event": event})
 		t.lastActive = time.Now()
-		err := t.retryProcessEvent(*event)
+		err := t.retryProcessEvent(*event.Event)
 		if err == nil {
-			//t.ack(event.ID())
+			consumer.GetEventLogOffset(t.SubscriptionID).EventCommit(event)
 			continue
 		}
 		log.Warning("send event fail,will put to dead letter", map[string]interface{}{
 			"error": err,
-			"event": event.ID(),
+			"event": event,
 		})
 		err = t.asDeadLetter(event)
 		if err != nil {
 			log.Error("send dead event to dead letter failed", map[string]interface{}{
 				"error": err,
-				"event": event.ID(),
+				"event": event,
 			})
+		} else {
+			consumer.GetEventLogOffset(t.SubscriptionID).EventCommit(event)
 		}
 	}
 }
@@ -218,7 +225,7 @@ func (t *Trigger) Stop(ctx context.Context) {
 	t.state = TriggerStopped
 }
 
-func (t *Trigger) asDeadLetter(events ...*ce.Event) error {
+func (t *Trigger) asDeadLetter(events ...*consumer.EventRecord) error {
 	fmt.Println(events)
 	return nil
 }
@@ -251,7 +258,7 @@ func (t *Trigger) checkACKTimeout() error {
 }
 
 type waitACK struct {
-	event       *ce.Event
+	event       *consumer.EventRecord
 	deliverTime time.Time
 	timeoutTime time.Time
 }
