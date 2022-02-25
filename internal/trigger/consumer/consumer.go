@@ -16,12 +16,12 @@ package consumer
 
 import (
 	"context"
-	"errors"
 	ce "github.com/cloudevents/sdk-go/v2"
 	eb "github.com/linkall-labs/eventbus-go"
 	"github.com/linkall-labs/eventbus-go/pkg/discovery/record"
 	"github.com/linkall-labs/eventbus-go/pkg/eventlog"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/pkg/errors"
 	"io"
 	"sync"
 	"time"
@@ -62,7 +62,7 @@ func (c *Consumer) Close() {
 func (c *Consumer) Start() error {
 	els, err := eb.LookupReadableLog(c.ebVrn)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "eb")
 	}
 	c.start(els)
 	go func() {
@@ -83,11 +83,20 @@ func (c *Consumer) Start() error {
 func (c *Consumer) checkEventLogChange() {
 	els, err := eb.LookupReadableLog(c.ebVrn)
 	if err != nil {
-		log.Error("lookup Readable log error", map[string]interface{}{"ebVrn": c.ebVrn, "error": err})
+		log.Error("eventbus lookup Readable log error", map[string]interface{}{
+			"ebVrn":      c.ebVrn,
+			log.KeyError: err,
+		})
 		return
 	}
 	if len(els) != len(c.elConsumer) {
+		log.Info("event log change,will restart event log consumer", map[string]interface{}{
+			"ebVrn": c.ebVrn,
+		})
 		c.start(els)
+		log.Info("event log change,restart event log consumer success", map[string]interface{}{
+			"ebVrn": c.ebVrn,
+		})
 	}
 }
 
@@ -128,28 +137,37 @@ type EventLogConsumer struct {
 
 func (lc *EventLogConsumer) run() {
 	for {
-		select {
-		case <-lc.ctx.Done():
-			log.Info("event log consumer stop", nil)
-			return
-		default:
-		}
 		lr, offset, err := lc.init()
 		if err != nil {
-			log.Warning("event log consumer init error", map[string]interface{}{"elVrn": lc.elVrn, "error": err})
+			log.Warning("event log consumer init error,will retry", map[string]interface{}{
+				"sub":        lc.sub,
+				"elVrn":      lc.elVrn,
+				log.KeyError: err,
+			})
 			time.Sleep(time.Second * 10)
 			continue
 		}
 		for {
 			select {
 			case <-lc.ctx.Done():
-				log.Info("event log consumer stop", nil)
+				log.Info("event log consumer stop", map[string]interface{}{
+					"sub":    lc.sub,
+					"elVrn":  lc.elVrn,
+					"offset": offset,
+				})
+				lr.Close()
 				return
 			default:
 			}
 			events, err := lr.Read(2)
 			if err != nil {
-				log.Warning("read error", map[string]interface{}{"error": err})
+				log.Warning("read error", map[string]interface{}{
+					"sub":        lc.sub,
+					"elVrn":      lc.elVrn,
+					"offset":     offset,
+					log.KeyError: err,
+				})
+				continue
 			}
 			if len(events) == 0 {
 				time.Sleep(time.Millisecond * 100)
@@ -165,21 +183,18 @@ func (lc *EventLogConsumer) run() {
 func (lc *EventLogConsumer) init() (eventlog.LogReader, int64, error) {
 	lr, err := eb.OpenLogReader(lc.elVrn)
 	if err != nil {
-		log.Info("open log reader error", map[string]interface{}{"error": err})
-		return nil, 0, errors.New("open log reader error")
+		return nil, 0, errors.Wrapf(err, "sub %s el %s open log reader error", lc.sub, lc.elVrn)
 	}
 	offset, err := GetEventLogOffset(lc.sub).RegisterEventLog(lc.elVrn)
 	if err != nil {
 		lr.Close()
-		log.Info("offset register event log error", map[string]interface{}{"error": err})
-		return nil, 0, errors.New("offset register event log error")
+		return nil, 0, errors.Wrapf(err, "sub %s el %s offset register event log error", lc.sub, lc.elVrn)
 	}
 	lc.offset = offset
 	newOffset, err := lr.Seek(offset, io.SeekStart)
 	if err != nil {
 		lr.Close()
-		log.Info("log reader seek error", map[string]interface{}{"error": err})
-		return nil, 0, errors.New("log reader seek error")
+		return nil, 0, errors.Wrapf(err, "sub %s el %s seek offset %d error", lc.sub, lc.elVrn, offset)
 	}
 	return lr, newOffset, nil
 }

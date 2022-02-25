@@ -16,7 +16,6 @@ package worker
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	ce "github.com/cloudevents/sdk-go/v2"
 	eb "github.com/linkall-labs/eventbus-go"
@@ -26,6 +25,9 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger/consumer"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/pkg/errors"
+	"io/ioutil"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -199,11 +201,11 @@ func testSend() {
 	go func() {
 		i := 1
 		t := "none"
-		for ; i < 1000; i++ {
-			if i%10 == 0 {
+		for ; i < 10000; i++ {
+			if i%3 == 0 {
 				t = "test"
 			}
-			if i%6 == 0 {
+			if i%2 == 0 {
 				time.Sleep(10 * time.Second)
 				t = "none"
 			}
@@ -212,7 +214,7 @@ func testSend() {
 			event.SetID(fmt.Sprintf("%d", i))
 			event.SetSource("example/uri")
 			event.SetType(t)
-			event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world", "type": "none"})
+			event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world", "type": t})
 
 			_, err = w.Append(&event)
 			if err != nil {
@@ -220,4 +222,13 @@ func testSend() {
 			}
 		}
 	}()
+	go http.ListenAndServe(":18080", http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		body, err := ioutil.ReadAll(request.Body)
+		if err != nil {
+			fmt.Println(err)
+		}
+		log.Info("sink receive event", map[string]interface{}{
+			"event": string(body),
+		})
+	}))
 }

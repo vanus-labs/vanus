@@ -16,24 +16,37 @@ package worker
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive/errors"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/linkall-labs/vsproto/pkg/trigger"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+	"time"
 )
 
 type server struct {
 	worker       *Worker
 	stopCallback func()
+	twAddr       string
+	tcAddr       string
+	tcCc         *grpc.ClientConn
+	tcClient     controller.TriggerControllerClient
+	cancel       context.CancelFunc
+	ctx          context.Context
 }
 
-func NewTriggerServer(stop func()) trigger.TriggerWorkerServer {
+func NewTriggerServer(tcAddr, twAddr string, stop func()) trigger.TriggerWorkerServer {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &server{
+		twAddr:       twAddr,
+		tcAddr:       tcAddr,
 		stopCallback: stop,
 		worker:       NewWorker(),
+		cancel:       cancel,
+		ctx:          ctx,
 	}
 }
 
@@ -43,30 +56,23 @@ func (s *server) Start(ctx context.Context, request *trigger.StartTriggerWorkerR
 	if err != nil {
 		return nil, err
 	}
+	err = s.startHeartbeat()
+	if err != nil {
+		s.worker.Stop()
+		return nil, err
+	}
 	return &trigger.StartTriggerWorkerResponse{}, nil
 }
 
 func (s *server) Stop(ctx context.Context, request *trigger.StopTriggerWorkerRequest) (*trigger.StopTriggerWorkerResponse, error) {
 	log.Info("worker server stop ", map[string]interface{}{"request": request})
-	s.stopCallback()
-	s.worker.Stop()
+	s.stop()
 	return &trigger.StopTriggerWorkerResponse{}, nil
 }
 
 func (s *server) AddSubscription(ctx context.Context, request *trigger.AddSubscriptionRequest) (*trigger.AddSubscriptionResponse, error) {
 	log.Info("subscription add ", map[string]interface{}{"request": request})
-	sub, err := func(request *trigger.AddSubscriptionRequest) (*primitive.Subscription, error) {
-		b, err := json.Marshal(request.Subscription)
-		if err != nil {
-			return nil, fmt.Errorf("json marshal error %v", err)
-		}
-		sub := &primitive.Subscription{}
-		err = json.Unmarshal(b, sub)
-		if err != nil {
-			return nil, fmt.Errorf("json unmarshal error %s %v", string(b), err)
-		}
-		return sub, nil
-	}(request)
+	sub, err := convert.MetaSubToInnerSub(request.Subscription)
 	if err != nil {
 		log.Info("trigger subscription request to subscription error", map[string]interface{}{"error": err})
 		return nil, err
@@ -94,4 +100,86 @@ func (s *server) PauseSubscription(ctx context.Context, request *trigger.PauseSu
 func (s *server) ResumeSubscription(ctx context.Context, request *trigger.ResumeSubscriptionRequest) (*trigger.ResumeSubscriptionResponse, error) {
 	log.Debug("subscription resume ", map[string]interface{}{"request": request})
 	return &trigger.ResumeSubscriptionResponse{}, nil
+}
+
+func (s *server) Initialize() error {
+	var opts []grpc.DialOption
+	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	cc, err := grpc.Dial(s.tcAddr, opts...)
+	if err != nil {
+		return err
+	}
+	s.tcCc = cc
+	s.tcClient = controller.NewTriggerControllerClient(cc)
+	_, err = s.tcClient.RegisterTriggerWorker(context.Background(), &controller.RegisterTriggerWorkerRequest{
+		Address: s.twAddr,
+	})
+	if err != nil {
+		log.Error("register trigger worker error", map[string]interface{}{
+			"tcAddr":     s.tcAddr,
+			log.KeyError: err,
+		})
+		cc.Close()
+		return err
+	}
+	return nil
+}
+
+func (s *server) stop() {
+	s.worker.Stop()
+	s.cancel()
+	s.stopCallback()
+}
+func (s *server) beforeStop() error {
+	_, err := s.tcClient.UnregisterTriggerWorker(context.Background(), &controller.UnregisterTriggerWorkerRequest{
+		Address: s.twAddr,
+	})
+	if err != nil {
+		log.Error("unregister trigger worker failed", map[string]interface{}{
+			"addr":       s.tcAddr,
+			log.KeyError: err,
+		})
+		return err
+	}
+	log.Info("unregister trigger worker success", nil)
+	return nil
+}
+func (s *server) Close() error {
+	s.stop()
+	err := s.beforeStop()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *server) startHeartbeat() error {
+	stream, err := s.tcClient.TriggerWorkerHeartbeat(s.ctx)
+	if err != nil {
+		log.Warning("heartbeat error", map[string]interface{}{"addr": s.tcAddr, "error": err})
+		return err
+	}
+	go func() {
+		tk := time.NewTicker(time.Second * 100)
+		defer tk.Stop()
+	sendLoop:
+		for {
+			select {
+			case <-s.ctx.Done():
+				break sendLoop
+			case <-tk.C:
+				err = stream.Send(&controller.TriggerWorkerHeartbeatRequest{
+					Address: s.twAddr,
+				})
+				if err != nil {
+					log.Warning("heartbeat send request error", map[string]interface{}{
+						"addr":       s.tcAddr,
+						log.KeyError: err,
+					})
+				}
+			}
+		}
+	}()
+
+	return nil
 }

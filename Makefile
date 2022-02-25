@@ -25,3 +25,6 @@ store-api-test:
            --import-path=${VSPROTO_ROOT}/proto \
            --plaintext \
            --proto=segment.proto 127.0.0.1:11811
+
+trigger-start:
+	go run ${VANUS_ROOT}/cmd/trigger/main.go

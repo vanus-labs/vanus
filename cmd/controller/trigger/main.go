@@ -16,10 +16,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/linkall-labs/vanus/internal/controller"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"net/url"
+	"github.com/linkall-labs/vanus/internal/controller/trigger"
+	"github.com/linkall-labs/vanus/internal/util"
+	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vsproto/pkg/controller"
+	"google.golang.org/grpc"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -27,30 +29,39 @@ import (
 )
 
 var (
-	triggerWorkerIP   = "0.0.0.0"
-	triggerWorkerPort = 2049
-	SinkURI           = url.URL{Scheme: "http", Host: "localhost:8080"}
+	defaultIP   = "0.0.0.0"
+	defaultPort = 2048
 )
 
 func main() {
-	m := controller.NewTriggerController()
-	m.Start()
-	m.AddTriggerProcessor(fmt.Sprintf("%s:%d", triggerWorkerIP, triggerWorkerPort))
-	// for test
+	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", defaultIP, defaultPort))
+	if err != nil {
+		log.Fatal("failed to listen", map[string]interface{}{
+			"error": err,
+		})
+	}
+	srv := trigger.NewTriggerController()
+	srv.Start()
+	var opts []grpc.ServerOption
+	grpcServer := grpc.NewServer(opts...)
+	controller.RegisterTriggerControllerServer(grpcServer, srv)
 	go func() {
-		for {
-			sub := &primitive.Subscription{
-				ID:      uuid.NewString(),
-				Sink:    primitive.URI(SinkURI.String()),
-				Filters: []primitive.SubscriptionFilter{{Exact: map[string]string{"type": "test"}}},
-			}
-			m.AddSubscription(sub)
-			time.Sleep(10 * time.Minute)
+		log.Info("the TriggerControlServer ready to work", map[string]interface{}{
+			"listen_ip":   defaultIP,
+			"listen_port": defaultPort,
+			"time":        util.FormatTime(time.Now()),
+		})
+		if err = grpcServer.Serve(listen); err != nil {
+			log.Error("grpc server occurred an error", map[string]interface{}{
+				log.KeyError: err,
+			})
 		}
 	}()
-
 	exitCh := make(chan os.Signal)
 	signal.Notify(exitCh, os.Interrupt, syscall.SIGTERM)
 	<-exitCh
-	m.Stop()
+	log.Info("triggerController begin stop", nil)
+	grpcServer.GracefulStop()
+	srv.Close()
+	log.Info("triggerController stopped", nil)
 }

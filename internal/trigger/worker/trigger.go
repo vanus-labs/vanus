@@ -129,7 +129,6 @@ func (t *Trigger) startProcessEvent(ctx context.Context) {
 	t.exitWG.Add(1)
 	defer t.exitWG.Done()
 	for event := range t.eventCh {
-		log.Debug("receive a event", map[string]interface{}{"event": event})
 		t.lastActive = time.Now()
 		err := t.retryProcessEvent(*event.Event)
 		if err == nil {
