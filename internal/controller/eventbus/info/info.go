@@ -29,6 +29,21 @@ type BusInfo struct {
 	VRN       *meta.VanusResourceName
 }
 
+func Convert2ProtoEventBus(ins ...*BusInfo) []*meta.EventBus {
+	pebs := make([]*meta.EventBus, len(ins))
+	for idx := 0; idx < len(ins); idx++ {
+		eb := ins[idx]
+		pebs[idx] = &meta.EventBus{
+			Namespace: eb.Namespace,
+			Name:      eb.Name,
+			LogNumber: int32(eb.LogNumber),
+			Logs:      Convert2ProtoEventLog(eb.EventLogs...),
+			Vrn:       eb.VRN,
+		}
+	}
+	return pebs
+}
+
 type EventLogInfo struct {
 	// global unique id
 	ID                    int64
@@ -52,19 +67,35 @@ func Convert2ProtoEventLog(ins ...*EventLogInfo) []*meta.EventLog {
 	return pels
 }
 
-type SegmentServerInfo struct {
-	id      string
-	Address string
-	Volume  *VolumeInfo
-}
-
 type SegmentBlockInfo struct {
 	ID             string
+	Capacity       int64
 	Size           int64
 	VolumeInfo     *VolumeInfo
 	EventLogID     string
 	ReplicaGroupID string
 	PeersAddress   []string
+}
+
+func Convert2ProtoSegment(ins ...*SegmentBlockInfo) []*meta.Segment {
+	segs := make([]*meta.Segment, len(ins))
+	for idx := 0; idx < len(ins); idx++ {
+		seg := ins[idx]
+		segs[idx] = &meta.Segment{
+			Id: seg.ID,
+			// TODO RENAME
+			StorageUri: seg.VolumeInfo.AssignedSegmentServer.Address,
+			Size:       seg.Size,
+			Capacity:   seg.Capacity,
+		}
+	}
+	return segs
+}
+
+type SegmentServerInfo struct {
+	id      string
+	Address string
+	Volume  *VolumeInfo
 }
 
 func (in *SegmentServerInfo) ID() string {
@@ -80,7 +111,7 @@ type VolumeInfo struct {
 	BlockNumbers             int
 	Blocks                   map[string]string
 	PersistenceVolumeClaimID string
-	AssignedSegmentServerID  string
+	AssignedSegmentServer    *SegmentServerInfo
 }
 
 func (in *VolumeInfo) ID() string {
@@ -88,11 +119,11 @@ func (in *VolumeInfo) ID() string {
 }
 
 func (in *VolumeInfo) AddBlock(bi *SegmentBlockInfo) {
-	in.Used += bi.Size
+	in.Used += bi.Capacity
 	in.Blocks[bi.ID] = bi.EventLogID
 }
 
 func (in *VolumeInfo) RemoveBlock(bi *SegmentBlockInfo) {
-	in.Used -= bi.Size
+	in.Used -= bi.Capacity
 	delete(in.Blocks, bi.ID)
 }

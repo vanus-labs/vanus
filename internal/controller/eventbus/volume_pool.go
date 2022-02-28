@@ -45,7 +45,7 @@ func (pool *volumePool) get(id string) *info.VolumeInfo {
 }
 
 func (pool *volumePool) bindSegmentServer(vInfo *info.VolumeInfo, sInfo *info.SegmentServerInfo) error {
-	vInfo.AssignedSegmentServerID = sInfo.ID()
+	vInfo.AssignedSegmentServer = sInfo
 	return nil
 }
 

@@ -64,7 +64,7 @@ func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo,
 		if err = pool.createSegmentBlockReplicaGroup(seg); err != nil {
 			return nil, err
 		}
-		srvInfo := pool.ctrl.segmentServerInfoMap[seg.VolumeInfo.AssignedSegmentServerID]
+		srvInfo := pool.ctrl.segmentServerInfoMap[seg.VolumeInfo.AssignedSegmentServer.ID()]
 		client := pool.ctrl.getSegmentServerClient(srvInfo)
 		_, err = client.ActiveSegmentBlock(ctx, &segment.ActiveSegmentBlockRequest{
 			EventLogId:     seg.EventLogID,
@@ -90,11 +90,11 @@ func (pool *segmentPool) allocateSegmentImmediately(ctx context.Context, size in
 	client := pool.ctrl.getSegmentServerClient(srvInfo)
 	segmentInfo := &info.SegmentBlockInfo{
 		ID:         pool.generateSegmentBlockID(),
-		Size:       size,
+		Capacity:   size,
 		VolumeInfo: srvInfo.Volume,
 	}
 	_, err := client.CreateSegmentBlock(ctx, &segment.CreateSegmentBlockRequest{
-		Size: segmentInfo.Size,
+		Size: segmentInfo.Capacity,
 		Id:   segmentInfo.ID,
 	})
 	if err != nil {

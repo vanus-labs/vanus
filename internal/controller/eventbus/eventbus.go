@@ -23,8 +23,8 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/errors"
 	"github.com/linkall-labs/vanus/observability"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
-	"github.com/linkall-labs/vsproto/pkg/meta"
-	"github.com/linkall-labs/vsproto/pkg/segment"
+	metapb "github.com/linkall-labs/vsproto/pkg/meta"
+	segpb "github.com/linkall-labs/vsproto/pkg/segment"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -39,12 +39,12 @@ func NewEventBusController(cfg ControllerConfig) *controller {
 		segmentPool:              &segmentPool{},
 		volumePool:               &volumePool{},
 		eventBusMap:              map[string]*info.BusInfo{},
-		eventLogInfo:             map[string]*info.EventLogInfo{},
+		eventLogInfoMap:          map[string]*info.EventLogInfo{},
 		segmentServerCredentials: insecure.NewCredentials(),
 		segmentServerInfoMap:     map[string]*info.SegmentServerInfo{},
 		segmentServerConn:        map[string]*grpc.ClientConn{},
 		volumeInfoMap:            map[string]*info.VolumeInfo{},
-		segmentServerClientMap:   map[string]segment.SegmentServerClient{},
+		segmentServerClientMap:   map[string]segpb.SegmentServerClient{},
 	}
 	return c
 }
@@ -55,12 +55,12 @@ type controller struct {
 	segmentPool              *segmentPool
 	volumePool               *volumePool
 	eventBusMap              map[string]*info.BusInfo
-	eventLogInfo             map[string]*info.EventLogInfo
+	eventLogInfoMap          map[string]*info.EventLogInfo
 	segmentServerCredentials credentials.TransportCredentials
 	segmentServerInfoMap     map[string]*info.SegmentServerInfo
 	segmentServerConn        map[string]*grpc.ClientConn
 	volumeInfoMap            map[string]*info.VolumeInfo
-	segmentServerClientMap   map[string]segment.SegmentServerClient
+	segmentServerClientMap   map[string]segpb.SegmentServerClient
 }
 
 func (ctrl *controller) Start() error {
@@ -82,12 +82,18 @@ func (ctrl *controller) Stop() error {
 	return nil
 }
 
-func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEventBusRequest) (*meta.EventBus, error) {
+func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEventBusRequest) (*metapb.EventBus, error) {
+	observability.EntryMark(ctx)
+	defer observability.LeaveMark(ctx)
+	if req.LogNumber == 0 {
+		req.LogNumber = 1
+	}
+	elNum := 1 // temporary
 	eb := &info.BusInfo{
 		Namespace: req.Namespace,
 		Name:      req.Name,
-		LogNumber: 1, //req.LogNumber, force set to 1 temporary
-		EventLogs: make([]*info.EventLogInfo, req.LogNumber),
+		LogNumber: elNum, //req.LogNumber, force set to 1 temporary
+		EventLogs: make([]*info.EventLogInfo, elNum),
 	}
 	eb.VRN = ctrl.generateEventBusVRN(eb)
 	exist, err := ctrl.kvStore.Exists(eb.VRN.Value)
@@ -120,9 +126,15 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "initialized eventlog failed", err)
 	}
 
+	for idx := 0; idx < len(eb.EventLogs); idx++ {
+		ctrl.eventLogInfoMap[eb.EventLogs[idx].VRN.Value] = eb.EventLogs[idx]
+	}
+
 	//data, _ := json.Marshal(eb)
 	//ctrl.kvStore.Set(eb.VRN.Value, data)
-	return &meta.EventBus{
+	// TODO reconsider valuable of VRN, it maybe cause some chaos
+	ctrl.eventBusMap[eb.VRN.Value] = eb
+	return &metapb.EventBus{
 		Namespace: eb.Namespace,
 		Name:      eb.Name,
 		LogNumber: int32(eb.LogNumber),
@@ -132,23 +144,43 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 }
 
 func (ctrl *controller) DeleteEventBus(ctx context.Context,
-	vrn *meta.VanusResourceName) (*emptypb.Empty, error) {
+	vrn *metapb.VanusResourceName) (*emptypb.Empty, error) {
+	observability.EntryMark(ctx)
+	defer observability.LeaveMark(ctx)
 	return &emptypb.Empty{}, nil
 }
 
 func (ctrl *controller) GetEventBus(ctx context.Context,
-	vrn *meta.VanusResourceName) (*meta.EventBus, error) {
-	return &meta.EventBus{}, nil
+	vrn *metapb.VanusResourceName) (*metapb.EventBus, error) {
+	observability.EntryMark(ctx)
+	defer observability.LeaveMark(ctx)
+	eb, exist := ctrl.eventBusMap[vrn.Value]
+	if !exist {
+		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "eventbus not found")
+	}
+	return info.Convert2ProtoEventBus(eb)[0], nil
 }
 
 func (ctrl *controller) UpdateEventBus(ctx context.Context,
-	req *ctrlpb.UpdateEventBusRequest) (*meta.EventBus, error) {
-	return &meta.EventBus{}, nil
+	req *ctrlpb.UpdateEventBusRequest) (*metapb.EventBus, error) {
+	observability.EntryMark(ctx)
+	defer observability.LeaveMark(ctx)
+	return &metapb.EventBus{}, nil
 }
 
 func (ctrl *controller) ListSegment(ctx context.Context,
-	vrn *meta.VanusResourceName) (*ctrlpb.ListSegmentResponse, error) {
-	return &ctrlpb.ListSegmentResponse{}, nil
+	req *ctrlpb.ListSegmentRequest) (*ctrlpb.ListSegmentResponse, error) {
+	observability.EntryMark(ctx)
+	defer observability.LeaveMark(ctx)
+
+	el, exist := ctrl.eventLogInfoMap[req.Vrn.Value]
+	if !exist {
+		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "eventlog not found")
+	}
+
+	return &ctrlpb.ListSegmentResponse{
+		Segments: info.Convert2ProtoSegment(el.SegmentList...),
+	}, nil
 }
 
 func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
@@ -160,7 +192,7 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	_, exist := ctrl.segmentServerInfoMap[serverInfo.ID()]
 	if exist {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"segment server ip address is conflicted", nil)
+			"segpb server ip address is conflicted", nil)
 	}
 	volumeInfo, exist := ctrl.volumeInfoMap[req.VolumeId]
 	if !exist {
@@ -172,7 +204,7 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	}
 	if err := ctrl.volumePool.bindSegmentServer(volumeInfo, serverInfo); err != nil {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"bind volume to segment server failed", err)
+			"bind volume to segpb server failed", err)
 	}
 	serverInfo.Volume = volumeInfo
 	ctrl.segmentServerInfoMap[serverInfo.ID()] = serverInfo
@@ -190,7 +222,7 @@ func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
 	serverInfo, exist := ctrl.segmentServerInfoMap[req.Address]
 	if !exist {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"segment server not found", nil)
+			"segpb server not found", nil)
 	}
 
 	delete(ctrl.segmentServerInfoMap, serverInfo.Address)
@@ -225,19 +257,19 @@ func (ctrl *controller) dynamicScaleUpEventLog() error {
 	return nil
 }
 
-func (ctrl *controller) generateEventBusVRN(eb *info.BusInfo) *meta.VanusResourceName {
-	return &meta.VanusResourceName{
+func (ctrl *controller) generateEventBusVRN(eb *info.BusInfo) *metapb.VanusResourceName {
+	return &metapb.VanusResourceName{
 		Value: strings.Join([]string{"eventbus", eb.Namespace, eb.Name}, ":"),
 	}
 }
 
-func (ctrl *controller) generateEventLogVRN(el *info.EventLogInfo) *meta.VanusResourceName {
-	return &meta.VanusResourceName{
+func (ctrl *controller) generateEventLogVRN(el *info.EventLogInfo) *metapb.VanusResourceName {
+	return &metapb.VanusResourceName{
 		Value: strings.Join([]string{el.EventBusVRN.Value, "eventlog", fmt.Sprintf("%d", el.ID)}, ":"),
 	}
 }
 
-func (ctrl *controller) getSegmentServerClient(i *info.SegmentServerInfo) segment.SegmentServerClient {
+func (ctrl *controller) getSegmentServerClient(i *info.SegmentServerInfo) segpb.SegmentServerClient {
 	cli := ctrl.segmentServerClientMap[i.ID()]
 	if cli == nil {
 		var opts []grpc.DialOption
@@ -248,7 +280,7 @@ func (ctrl *controller) getSegmentServerClient(i *info.SegmentServerInfo) segmen
 			return nil
 		}
 		ctrl.segmentServerConn[i.Address] = conn
-		cli = segment.NewSegmentServerClient(conn)
+		cli = segpb.NewSegmentServerClient(conn)
 		ctrl.segmentServerClientMap[i.ID()] = cli
 	}
 	return cli
