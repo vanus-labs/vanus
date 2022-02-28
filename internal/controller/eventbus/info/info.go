@@ -35,6 +35,21 @@ type EventLogInfo struct {
 	EventBusVRN           *meta.VanusResourceName
 	CurrentSegmentNumbers int
 	VRN                   *meta.VanusResourceName
+	SegmentList           []*SegmentBlockInfo
+}
+
+func Convert2ProtoEventLog(ins ...*EventLogInfo) []*meta.EventLog {
+	pels := make([]*meta.EventLog, len(ins))
+	for idx := 0; idx < len(ins); idx++ {
+		eli := ins[idx]
+		pels[idx] = &meta.EventLog{
+			EventLogId:            eli.ID,
+			BusVrn:                eli.EventBusVRN,
+			CurrentSegmentNumbers: int32(eli.CurrentSegmentNumbers),
+			Vrn:                   eli.VRN,
+		}
+	}
+	return pels
 }
 
 type SegmentServerInfo struct {
@@ -52,23 +67,32 @@ type SegmentBlockInfo struct {
 	PeersAddress   []string
 }
 
-func (info *SegmentServerInfo) ID() string {
-	if info.id == "" {
-		info.id = fmt.Sprintf("%x", sha256.Sum256([]byte(info.Address)))
-
+func (in *SegmentServerInfo) ID() string {
+	if in.id == "" {
+		in.id = fmt.Sprintf("%x", sha256.Sum256([]byte(in.Address)))
 	}
-	return info.id
+	return in.id
 }
 
 type VolumeInfo struct {
 	Capacity                 int64
 	Used                     int64
 	BlockNumbers             int
-	Blocks                   map[int64]string
+	Blocks                   map[string]string
 	PersistenceVolumeClaimID string
 	AssignedSegmentServerID  string
 }
 
-func (info *VolumeInfo) ID() string {
-	return info.PersistenceVolumeClaimID
+func (in *VolumeInfo) ID() string {
+	return in.PersistenceVolumeClaimID
+}
+
+func (in *VolumeInfo) AddBlock(bi *SegmentBlockInfo) {
+	in.Used += bi.Size
+	in.Blocks[bi.ID] = bi.EventLogID
+}
+
+func (in *VolumeInfo) RemoveBlock(bi *SegmentBlockInfo) {
+	in.Used -= bi.Size
+	delete(in.Blocks, bi.ID)
 }

@@ -71,6 +71,7 @@ func main() {
 		}
 	}()
 	init, _ := srv.(primitive.Initializer)
+	// TODO panic
 	if err = init.Initialize(); err != nil {
 		stopCallback()
 		log.Error("the SegmentServer has initialized failed", map[string]interface{}{

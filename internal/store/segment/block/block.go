@@ -39,7 +39,7 @@ type StorageBlockReader interface {
 	CloseRead(context.Context) error
 }
 
-func CreateSegmentBlock(id int64, path string, capacity int64) (StorageBlockWriter, error) {
+func CreateSegmentBlock(ctx context.Context, id string, path string, capacity int64) (StorageBlockWriter, error) {
 	b := &block{
 		id:       id,
 		path:     path,
@@ -47,6 +47,9 @@ func CreateSegmentBlock(id int64, path string, capacity int64) (StorageBlockWrit
 	}
 	f, err := os.Create(path)
 	if err != nil {
+		return nil, err
+	}
+	if err = f.Truncate(capacity); err != nil {
 		return nil, err
 	}
 	b.physicalFile = f
@@ -73,7 +76,7 @@ func OpenSegmentBlock(path string) (StorageBlockReader, error) {
 }
 
 type block struct {
-	id           int64
+	id           string
 	path         string
 	capacity     int64
 	length       int64

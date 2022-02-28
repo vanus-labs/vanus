@@ -27,18 +27,22 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"path/filepath"
 	"time"
 )
 
 func NewSegmentServer(localAddr, ctrlAddr, volumeId string, stop func()) segment.SegmentServerServer {
 	return &segmentServer{
-		localAddress: localAddr,
-		ctrlAddress:  ctrlAddr,
-		volumeId:     volumeId,
-		credentials:  insecure.NewCredentials(),
-		stopCallback: stop,
-		closeCh:      make(chan struct{}, 0),
-		events:       make([]*v1.CloudEvent, 0),
+		volumeId:            volumeId,
+		ctrlAddress:         ctrlAddr,
+		localAddress:        localAddr,
+		stopCallback:        stop,
+		closeCh:             make(chan struct{}, 0),
+		events:              make([]*v1.CloudEvent, 0),
+		credentials:         insecure.NewCredentials(),
+		segmentBlockMap:     map[string]string{},
+		segmentBlockWriter:  map[string]block.StorageBlockWriter{},
+		segmentBlockReaders: map[string]block.StorageBlockReader{},
 	}
 }
 
@@ -50,12 +54,12 @@ type segmentServer struct {
 	stopCallback        func()
 	closeCh             chan struct{}
 	events              []*v1.CloudEvent
-	grpcConn            *grpc.ClientConn
+	ctrlGrpcConn        *grpc.ClientConn
 	ctrlClient          ctrl.SegmentControllerClient
 	credentials         credentials.TransportCredentials
-	segmentBlockMap     map[int64]string
-	segmentBlockWriter  map[int64]block.StorageBlockWriter
-	segmentBlockReaders map[int64]block.StorageBlockReader
+	segmentBlockMap     map[string]string
+	segmentBlockWriter  map[string]block.StorageBlockWriter
+	segmentBlockReaders map[string]block.StorageBlockReader
 }
 
 func (s *segmentServer) Initialize() error {
@@ -65,7 +69,7 @@ func (s *segmentServer) Initialize() error {
 	if err != nil {
 		return err
 	}
-	s.grpcConn = conn
+	s.ctrlGrpcConn = conn
 	s.ctrlClient = ctrl.NewSegmentControllerClient(conn)
 	res, err := s.ctrlClient.RegisterSegmentServer(context.Background(), &ctrl.RegisterSegmentServerRequest{
 		Address:  s.localAddress,
@@ -75,7 +79,9 @@ func (s *segmentServer) Initialize() error {
 		return err
 	}
 	s.id = res.ServerId
-	s.segmentBlockMap = res.SegmentBlocks
+	if len(res.SegmentBlocks) > 0 {
+		s.segmentBlockMap = res.SegmentBlocks
+	}
 	return err
 }
 
@@ -95,7 +101,7 @@ func (s *segmentServer) Stop(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	err := s.grpcConn.Close()
+	err := s.ctrlGrpcConn.Close()
 	if err != nil {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "close grpc conn failed", err)
 	}
@@ -107,7 +113,21 @@ func (s *segmentServer) CreateSegmentBlock(ctx context.Context,
 	req *segment.CreateSegmentBlockRequest) (*segment.CreateSegmentBlockResponse, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
-	return nil, nil
+	_, exist := s.segmentBlockMap[req.Id]
+	if exist {
+		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
+			"the segment has already exist")
+	}
+	path := s.generateNewSegmentBlockPath(req.Id)
+	writer, err := block.CreateSegmentBlock(ctx, req.Id, path, req.Size)
+	if err != nil {
+		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
+			"create segment block failed", err)
+	}
+
+	s.segmentBlockMap[req.Id] = path
+	s.segmentBlockWriter[req.Id] = writer
+	return &segment.CreateSegmentBlockResponse{}, nil
 }
 
 func (s *segmentServer) RemoveSegmentBlock(ctx context.Context,
@@ -194,4 +214,8 @@ func (s *segmentServer) startHeartBeatTask() error {
 		ticker.Stop()
 	}()
 	return nil
+}
+
+func (s *segmentServer) generateNewSegmentBlockPath(id string) string {
+	return filepath.Join("/Users/wenfeng/tmp/data/vanus/volume-1", id)
 }

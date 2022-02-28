@@ -44,7 +44,7 @@ func (pool *segmentPool) destroy() error {
 }
 
 func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo, num int) ([]*info.SegmentBlockInfo, error) {
-	segArr := make([]*info.SegmentBlockInfo, 0)
+	segArr := make([]*info.SegmentBlockInfo, num)
 	var err error
 	defer func() {
 		for idx := 0; idx < num; idx++ {
@@ -61,7 +61,7 @@ func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo,
 
 		// binding, assign runtime fields
 		seg.EventLogID = fmt.Sprintf("%d", el.ID)
-		if err = pool.createReplicaGroup(seg); err != nil {
+		if err = pool.createSegmentBlockReplicaGroup(seg); err != nil {
 			return nil, err
 		}
 		srvInfo := pool.ctrl.segmentServerInfoMap[seg.VolumeInfo.AssignedSegmentServerID]
@@ -101,6 +101,7 @@ func (pool *segmentPool) allocateSegmentImmediately(ctx context.Context, size in
 		return nil, err
 	}
 	// TODO persist to kv
+	srvInfo.Volume.AddBlock(segmentInfo)
 	return segmentInfo, nil
 }
 
@@ -119,9 +120,10 @@ func (pool *segmentPool) generateSegmentBlockID() string {
 	return uuid.NewString()
 }
 
-func (pool *segmentPool) createReplicaGroup(segInfo *info.SegmentBlockInfo) error {
+func (pool *segmentPool) createSegmentBlockReplicaGroup(segInfo *info.SegmentBlockInfo) error {
 	// TODO implement
 	segInfo.ReplicaGroupID = "group-1"
 	segInfo.PeersAddress = []string{"ip1", "ip2"}
+	// pick 2 segments with same capacity
 	return nil
 }

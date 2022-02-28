@@ -8,7 +8,7 @@ see the project for understanding well vanus' codebase.
 
 ## Development
 ### gRPC API Testing
-1. install[grpcui](https://github.com/fullstorydev/grpcui)
+1. install [grpcui](https://github.com/fullstorydev/grpcui)
 ```bash
 go install github.com/fullstorydev/grpcui/cmd/grpcui@latest
 ```

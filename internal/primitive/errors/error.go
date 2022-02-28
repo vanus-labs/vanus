@@ -14,7 +14,10 @@
 
 package errors
 
-import "github.com/pkg/errors"
+import (
+	"fmt"
+	"github.com/pkg/errors"
+)
 
 type ErrorCode int
 
@@ -25,7 +28,7 @@ const (
 type Notice string
 
 func ConvertGRPCError(code ErrorCode, notice Notice, errs ...error) error {
-	return nil
+	return fmt.Errorf("code: %d, notice: %s, error:%s", code, notice, errs)
 }
 
 func Chain(errs ...error) error {
@@ -33,9 +36,19 @@ func Chain(errs ...error) error {
 	if len(errs) == 0 {
 		return nil
 	}
-	newErr := errs[0]
-	for idx := 1; idx < len(errs); idx++ {
-		newErr = errors.Wrap(newErr, errs[idx].Error())
+	var err error
+	var idx = 0
+	for ; idx < len(errs); idx++ {
+		if errs[idx] != nil {
+			err = errs[idx]
+			break
+		}
 	}
-	return newErr
+	for _idx := idx + 1; _idx < len(errs); _idx++ {
+		if errs[_idx] == nil {
+			continue
+		}
+		err = errors.Wrap(err, errs[_idx].Error())
+	}
+	return err
 }

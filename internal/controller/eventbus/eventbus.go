@@ -16,7 +16,6 @@ package eventbus
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
 	"github.com/linkall-labs/vanus/internal/kv"
@@ -28,6 +27,7 @@ import (
 	"github.com/linkall-labs/vsproto/pkg/segment"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"strings"
 	"sync"
@@ -35,8 +35,16 @@ import (
 
 func NewEventBusController(cfg ControllerConfig) *controller {
 	c := &controller{
-		segmentPool: &segmentPool{},
-		cfg:         &cfg,
+		cfg:                      &cfg,
+		segmentPool:              &segmentPool{},
+		volumePool:               &volumePool{},
+		eventBusMap:              map[string]*info.BusInfo{},
+		eventLogInfo:             map[string]*info.EventLogInfo{},
+		segmentServerCredentials: insecure.NewCredentials(),
+		segmentServerInfoMap:     map[string]*info.SegmentServerInfo{},
+		segmentServerConn:        map[string]*grpc.ClientConn{},
+		volumeInfoMap:            map[string]*info.VolumeInfo{},
+		segmentServerClientMap:   map[string]segment.SegmentServerClient{},
 	}
 	return c
 }
@@ -64,6 +72,9 @@ func (ctrl *controller) Start() error {
 	if err = ctrl.segmentPool.init(ctrl); err != nil {
 		return err
 	}
+	if err = ctrl.volumePool.init(ctrl); err != nil {
+		return err
+	}
 	return ctrl.dynamicScaleUpEventLog()
 }
 
@@ -87,7 +98,7 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "eventbus resource name conflicted")
 	}
 	wg := sync.WaitGroup{}
-	for idx := 0; idx < int(eb.LogNumber); idx++ {
+	for idx := 0; idx < eb.LogNumber; idx++ {
 		eb.EventLogs[idx] = &info.EventLogInfo{
 			ID:                    int64(idx),
 			EventBusVRN:           eb.VRN,
@@ -109,9 +120,15 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "initialized eventlog failed", err)
 	}
 
-	data, _ := json.Marshal(eb)
-	ctrl.kvStore.Set(eb.VRN.Value, data)
-	return &meta.EventBus{}, nil
+	//data, _ := json.Marshal(eb)
+	//ctrl.kvStore.Set(eb.VRN.Value, data)
+	return &meta.EventBus{
+		Namespace: eb.Namespace,
+		Name:      eb.Name,
+		LogNumber: int32(eb.LogNumber),
+		Logs:      info.Convert2ProtoEventLog(eb.EventLogs...),
+		Vrn:       nil,
+	}, nil
 }
 
 func (ctrl *controller) DeleteEventBus(ctx context.Context,
@@ -138,14 +155,13 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	req *ctrlpb.RegisterSegmentServerRequest) (*ctrlpb.RegisterSegmentServerResponse, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
-
-	serverInfo, exist := ctrl.segmentServerInfoMap[req.Address]
+	serverInfo := &info.SegmentServerInfo{}
+	serverInfo.Address = req.Address
+	_, exist := ctrl.segmentServerInfoMap[serverInfo.ID()]
 	if exist {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
 			"segment server ip address is conflicted", nil)
 	}
-	ctrl.segmentServerInfoMap[req.Address] = serverInfo
-	serverInfo.Address = req.Address
 	volumeInfo, exist := ctrl.volumeInfoMap[req.VolumeId]
 	if !exist {
 		volumeInfo = ctrl.volumePool.get(req.VolumeId)
@@ -159,6 +175,7 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 			"bind volume to segment server failed", err)
 	}
 	serverInfo.Volume = volumeInfo
+	ctrl.segmentServerInfoMap[serverInfo.ID()] = serverInfo
 	// TODO update state in KV store
 	return &ctrlpb.RegisterSegmentServerResponse{
 		ServerId:      serverInfo.ID(),
@@ -195,7 +212,12 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 }
 
 func (ctrl *controller) initializeEventLog(ctx context.Context, el *info.EventLogInfo) error {
-	ctrl.segmentPool.bindSegment(ctx, el, 3) // TODO eliminate magic number
+	// TODO eliminate magic number
+	segments, err := ctrl.segmentPool.bindSegment(ctx, el, 3)
+	if err != nil {
+		return err
+	}
+	el.SegmentList = append(el.SegmentList, segments...)
 	return nil
 }
 

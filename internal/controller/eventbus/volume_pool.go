@@ -17,9 +17,22 @@ package eventbus
 import "github.com/linkall-labs/vanus/internal/controller/eventbus/info"
 
 type volumePool struct {
+	ctrl          *controller
+	volumeInfoMap map[string]*info.VolumeInfo
 }
 
-func (pool *volumePool) init() error {
+func (pool *volumePool) init(ctrl *controller) error {
+	pool.ctrl = ctrl
+	pool.volumeInfoMap = make(map[string]*info.VolumeInfo, 0)
+
+	// temporary data for testing, delete later
+	pool.volumeInfoMap["volume-1"] = &info.VolumeInfo{
+		Capacity:                 1024 * 1024 * 1024,
+		Used:                     0,
+		BlockNumbers:             0,
+		Blocks:                   map[string]string{},
+		PersistenceVolumeClaimID: "volume-1",
+	}
 	return nil
 }
 
@@ -28,7 +41,7 @@ func (pool *volumePool) destroy() error {
 }
 
 func (pool *volumePool) get(id string) *info.VolumeInfo {
-	return nil
+	return pool.volumeInfoMap[id]
 }
 
 func (pool *volumePool) bindSegmentServer(vInfo *info.VolumeInfo, sInfo *info.SegmentServerInfo) error {
