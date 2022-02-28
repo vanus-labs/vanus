@@ -15,4 +15,6 @@
 package codec
 
 type StoredEntry struct {
+	Length  int32
+	Payload []byte
 }

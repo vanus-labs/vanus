@@ -17,8 +17,10 @@ package segment
 import (
 	v1 "cloudevents.io/genproto/v1"
 	"context"
+	"github.com/golang/protobuf/proto"
 	"github.com/linkall-labs/vanus/internal/primitive/errors"
 	"github.com/linkall-labs/vanus/internal/store/segment/block"
+	"github.com/linkall-labs/vanus/internal/store/segment/codec"
 	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrl "github.com/linkall-labs/vsproto/pkg/controller"
@@ -119,14 +121,15 @@ func (s *segmentServer) CreateSegmentBlock(ctx context.Context,
 			"the segment has already exist")
 	}
 	path := s.generateNewSegmentBlockPath(req.Id)
-	writer, err := block.CreateSegmentBlock(ctx, req.Id, path, req.Size)
+	readWriter, err := block.CreateSegmentBlock(ctx, req.Id, path, req.Size)
 	if err != nil {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
 			"create segment block failed", err)
 	}
 
 	s.segmentBlockMap[req.Id] = path
-	s.segmentBlockWriter[req.Id] = writer
+	s.segmentBlockWriter[req.Id] = readWriter
+	s.segmentBlockReaders[req.Id] = readWriter
 	return &segment.CreateSegmentBlockResponse{}, nil
 }
 
@@ -164,7 +167,19 @@ func (s *segmentServer) AppendToSegment(ctx context.Context,
 	req *segment.AppendToSegmentRequest) (*emptypb.Empty, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
+
+	if req.Events == nil || len(req.Events.Events) == 0 {
+		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "event list is empty")
+	}
+
 	events := req.GetEvents().Events
+	writer := s.segmentBlockWriter[req.SegmentId]
+	if writer == nil {
+		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
+			"the segment doesn't exist or has been wrote full")
+	}
+
+	entities := make([]*codec.StoredEntry, len(events))
 	for idx := range events {
 		evt := events[idx]
 		log.Debug("received a event", map[string]interface{}{
@@ -174,15 +189,68 @@ func (s *segmentServer) AppendToSegment(ctx context.Context,
 			"attrs":  evt.Attributes,
 			"data":   evt.Data,
 		})
-		s.events = append(s.events, evt)
+		payload, err := proto.Marshal(evt)
+		if err != nil {
+			return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "marshall event failed", err)
+		}
+		entities[idx] = &codec.StoredEntry{
+			Length:  int32(len(payload)),
+			Payload: payload,
+		}
+	}
+	if err := writer.Append(ctx, entities...); err != nil {
+		if err == block.ErrNoEnoughCapacity {
+			// TODO optimize this to async from sync
+			if err = s.markSegmentCanNotBeWrote(req.SegmentId); err != nil {
+				return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
+					"mark segment to can not be wrote failed", err)
+			}
+			return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "segment no space left", nil)
+		}
+		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "write to storage failed", err)
 	}
 	return &emptypb.Empty{}, nil
 }
 
 func (s *segmentServer) ReadFromSegment(ctx context.Context,
 	req *segment.ReadFromSegmentRequest) (*segment.ReadFromSegmentResponse, error) {
+	observability.EntryMark(ctx)
+	defer observability.LeaveMark(ctx)
+
+	segPath, exist := s.segmentBlockMap[req.SegmentId]
+	if !exist {
+		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
+			"the segment doesn't exist on this server")
+	}
+
+	reader := s.segmentBlockReaders[req.SegmentId]
+	if reader == nil {
+		_reader, err := block.OpenSegmentBlock(ctx, segPath)
+		if err != nil {
+			return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
+				"open segment failed", err)
+		}
+		reader = _reader
+		s.segmentBlockReaders[req.SegmentId] = reader
+	}
+	entities, err := reader.Read(ctx, int(req.Offset), int(req.Number))
+	if err != nil {
+		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
+			"read data from segment failed", err)
+	}
+
+	events := make([]*v1.CloudEvent, len(entities))
+	for idx := range entities {
+		v := &v1.CloudEvent{}
+		if err := proto.Unmarshal(entities[idx].Payload, v); err != nil {
+			return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
+				"unmarshall data to event failed", err)
+		}
+		events[idx] = v
+	}
+
 	return &segment.ReadFromSegmentResponse{
-		Events: &v1.CloudEventBatch{Events: s.events},
+		Events: &v1.CloudEventBatch{Events: events},
 	}, nil
 }
 
@@ -218,4 +286,8 @@ func (s *segmentServer) startHeartBeatTask() error {
 
 func (s *segmentServer) generateNewSegmentBlockPath(id string) string {
 	return filepath.Join("/Users/wenfeng/tmp/data/vanus/volume-1", id)
+}
+
+func (s *segmentServer) markSegmentCanNotBeWrote(id string) error {
+	return nil
 }

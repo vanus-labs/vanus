@@ -14,10 +14,37 @@
 
 package codec
 
+import (
+	"bytes"
+	"encoding/binary"
+	"errors"
+)
+
+var (
+	ErrInvalidDataType = errors.New("invalid data type, *StoredEntry expected")
+)
+
 func Marshall(entity *StoredEntry) ([]byte, error) {
-	return nil, nil
+	d := make([]byte, 4+len(entity.Payload))
+	buffer := bytes.NewBuffer(make([]byte, 0))
+	if err := binary.Write(buffer, binary.BigEndian, entity.Length); err != nil {
+		return nil, err
+	}
+	v := buffer.Bytes()
+	copy(d[0:4], v)
+	copy(d[4:], entity.Payload)
+	return d, nil
 }
 
 func Unmarshall(data []byte, v interface{}) error {
+	se, ok := v.(*StoredEntry)
+	if !ok {
+		return ErrInvalidDataType
+	}
+	reader := bytes.NewReader(data[0:4])
+	if err := binary.Read(reader, binary.BigEndian, &(se.Length)); err != nil {
+		return err
+	}
+	se.Payload = data[4:]
 	return nil
 }
