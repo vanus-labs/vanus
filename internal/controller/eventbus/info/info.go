@@ -26,7 +26,6 @@ type BusInfo struct {
 	Name      string
 	LogNumber int
 	EventLogs []*EventLogInfo
-	VRN       *meta.VanusResourceName
 }
 
 func Convert2ProtoEventBus(ins ...*BusInfo) []*meta.EventBus {
@@ -38,7 +37,6 @@ func Convert2ProtoEventBus(ins ...*BusInfo) []*meta.EventBus {
 			Name:      eb.Name,
 			LogNumber: int32(eb.LogNumber),
 			Logs:      Convert2ProtoEventLog(eb.EventLogs...),
-			Vrn:       eb.VRN,
 		}
 	}
 	return pebs
@@ -46,10 +44,9 @@ func Convert2ProtoEventBus(ins ...*BusInfo) []*meta.EventBus {
 
 type EventLogInfo struct {
 	// global unique id
-	ID                    int64
-	EventBusVRN           *meta.VanusResourceName
+	ID                    string
+	EventBusName          string
 	CurrentSegmentNumbers int
-	VRN                   *meta.VanusResourceName
 	SegmentList           []*SegmentBlockInfo
 }
 
@@ -58,10 +55,9 @@ func Convert2ProtoEventLog(ins ...*EventLogInfo) []*meta.EventLog {
 	for idx := 0; idx < len(ins); idx++ {
 		eli := ins[idx]
 		pels[idx] = &meta.EventLog{
+			EventBusName:          eli.EventBusName,
 			EventLogId:            eli.ID,
-			BusVrn:                eli.EventBusVRN,
 			CurrentSegmentNumbers: int32(eli.CurrentSegmentNumbers),
-			Vrn:                   eli.VRN,
 		}
 	}
 	return pels

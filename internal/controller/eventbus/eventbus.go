@@ -95,8 +95,7 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 		LogNumber: elNum, //req.LogNumber, force set to 1 temporary
 		EventLogs: make([]*info.EventLogInfo, elNum),
 	}
-	eb.VRN = ctrl.generateEventBusVRN(eb)
-	exist, err := ctrl.kvStore.Exists(eb.VRN.Value)
+	exist, err := ctrl.kvStore.Exists(eb.Name)
 	if err != nil {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "invoke kv exist failed", err)
 	}
@@ -106,11 +105,9 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 	wg := sync.WaitGroup{}
 	for idx := 0; idx < eb.LogNumber; idx++ {
 		eb.EventLogs[idx] = &info.EventLogInfo{
-			ID:                    int64(idx),
-			EventBusVRN:           eb.VRN,
-			CurrentSegmentNumbers: 0,
+			ID:           fmt.Sprintf("%s-%d", eb.Name, idx),
+			EventBusName: eb.Name,
 		}
-		eb.EventLogs[idx].VRN = ctrl.generateEventLogVRN(eb.EventLogs[idx])
 		wg.Add(1)
 		// TODO thread safety
 		// TODO asynchronous
@@ -127,38 +124,37 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 	}
 
 	for idx := 0; idx < len(eb.EventLogs); idx++ {
-		ctrl.eventLogInfoMap[eb.EventLogs[idx].VRN.Value] = eb.EventLogs[idx]
+		ctrl.eventLogInfoMap[eb.EventLogs[idx].ID] = eb.EventLogs[idx]
 	}
 
 	//data, _ := json.Marshal(eb)
 	//ctrl.kvStore.Set(eb.VRN.Value, data)
 	// TODO reconsider valuable of VRN, it maybe cause some chaos
-	ctrl.eventBusMap[eb.VRN.Value] = eb
+	ctrl.eventBusMap[eb.Name] = eb
 	return &metapb.EventBus{
 		Namespace: eb.Namespace,
 		Name:      eb.Name,
 		LogNumber: int32(eb.LogNumber),
 		Logs:      info.Convert2ProtoEventLog(eb.EventLogs...),
-		Vrn:       nil,
 	}, nil
 }
 
 func (ctrl *controller) DeleteEventBus(ctx context.Context,
-	vrn *metapb.VanusResourceName) (*emptypb.Empty, error) {
+	eb *metapb.EventBus) (*emptypb.Empty, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 	return &emptypb.Empty{}, nil
 }
 
 func (ctrl *controller) GetEventBus(ctx context.Context,
-	vrn *metapb.VanusResourceName) (*metapb.EventBus, error) {
+	eb *metapb.EventBus) (*metapb.EventBus, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
-	eb, exist := ctrl.eventBusMap[vrn.Value]
+	_eb, exist := ctrl.eventBusMap[eb.Name]
 	if !exist {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "eventbus not found")
 	}
-	return info.Convert2ProtoEventBus(eb)[0], nil
+	return info.Convert2ProtoEventBus(_eb)[0], nil
 }
 
 func (ctrl *controller) UpdateEventBus(ctx context.Context,
@@ -173,7 +169,7 @@ func (ctrl *controller) ListSegment(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	el, exist := ctrl.eventLogInfoMap[req.Vrn.Value]
+	el, exist := ctrl.eventLogInfoMap[req.EventBusId]
 	if !exist {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "eventlog not found")
 	}
@@ -265,7 +261,7 @@ func (ctrl *controller) generateEventBusVRN(eb *info.BusInfo) *metapb.VanusResou
 
 func (ctrl *controller) generateEventLogVRN(el *info.EventLogInfo) *metapb.VanusResourceName {
 	return &metapb.VanusResourceName{
-		Value: strings.Join([]string{el.EventBusVRN.Value, "eventlog", fmt.Sprintf("%d", el.ID)}, ":"),
+		Value: strings.Join([]string{el.EventBusName, "eventlog", fmt.Sprintf("%d", el.ID)}, ":"),
 	}
 }
 
