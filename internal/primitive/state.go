@@ -12,6 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test
+package primitive
 
-// This is a place-holder file for directory visible and can be deleted after any entity file added
+type ServerState string
+
+const (
+	ServerStateCreated = "created"
+	ServerStateStarted = "started"
+	ServerStateRunning = "running"
+	ServerStateStopped = "stopped"
+)

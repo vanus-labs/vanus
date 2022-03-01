@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger/worker"
@@ -59,8 +60,9 @@ func main() {
 			})
 		}
 	}()
+	ctx := context.Background()
 	init := srv.(primitive.Initializer)
-	if err = init.Initialize(); err != nil {
+	if err = init.Initialize(ctx); err != nil {
 		stopCallback()
 		log.Fatal("the trigger worker has initialized failed", map[string]interface{}{
 			log.KeyError: err,
@@ -76,5 +78,4 @@ func main() {
 		})
 	}
 	log.Info("the grpc server has been shutdown", nil)
-
 }

@@ -1,7 +1,9 @@
 package primitive
 
+import "context"
+
 type Initializer interface {
-	Initialize() error
+	Initialize(context.Context) error
 }
 
 type Closer interface {

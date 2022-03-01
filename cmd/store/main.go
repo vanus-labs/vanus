@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/store/segment"
@@ -70,9 +71,10 @@ func main() {
 			})
 		}
 	}()
+	ctx := context.Background()
 	init, _ := srv.(primitive.Initializer)
 	// TODO panic
-	if err = init.Initialize(); err != nil {
+	if err = init.Initialize(ctx); err != nil {
 		stopCallback()
 		log.Error("the SegmentServer has initialized failed", map[string]interface{}{
 			log.KeyError: err,
