@@ -28,10 +28,6 @@ var (
 	ErrOffsetExceeded   = errors.New("the offset exceeded")
 )
 
-const (
-	segmentHeaderSize = 4096
-)
-
 type SegmentBlockWriter interface {
 	Append(context.Context, ...*codec.StoredEntry) error
 	CloseWrite(context.Context) error
@@ -64,8 +60,8 @@ func CreateFileSegmentBlock(ctx context.Context, id string, path string, capacit
 		id:          id,
 		path:        path,
 		capacity:    capacity,
-		writeOffset: segmentHeaderSize,
-		readOffset:  segmentHeaderSize,
+		writeOffset: fileSegmentBlockHeaderCapacity,
+		readOffset:  fileSegmentBlockHeaderCapacity,
 	}
 	f, err := os.Create(path)
 	if err != nil {
@@ -74,7 +70,7 @@ func CreateFileSegmentBlock(ctx context.Context, id string, path string, capacit
 	if err = f.Truncate(capacity); err != nil {
 		return nil, err
 	}
-	if _, err = f.Seek(segmentHeaderSize, 0); err != nil {
+	if _, err = f.Seek(fileSegmentBlockHeaderCapacity, 0); err != nil {
 		return nil, err
 	}
 	b.physicalFile = f
@@ -86,7 +82,7 @@ func OpenFileSegmentBlock(ctx context.Context, path string) (SegmentBlock, error
 	defer observability.LeaveMark(ctx)
 
 	b := &fileBlock{
-		readOffset: segmentHeaderSize,
+		readOffset: fileSegmentBlockHeaderCapacity,
 		id:         filepath.Base(path),
 	}
 	f, err := os.Open(path)
