@@ -223,8 +223,13 @@ func (b *fileBlock) remain(sizeNeedServed int64) int {
 }
 
 func (b *fileBlock) persistHeader(ctx context.Context) error {
+	observability.EntryMark(ctx)
 	b.appendMutex.Lock()
-	defer b.appendMutex.Unlock()
+	defer func() {
+		b.appendMutex.Unlock()
+		observability.LeaveMark(ctx)
+	}()
+
 	buf := bytes.NewBuffer(make([]byte, 0))
 
 	if err := binary.Write(buf, binary.BigEndian, b.version); err != nil {
@@ -248,6 +253,9 @@ func (b *fileBlock) persistHeader(ctx context.Context) error {
 }
 
 func (b *fileBlock) loadHeader(ctx context.Context) error {
+	observability.EntryMark(ctx)
+	defer observability.LeaveMark(ctx)
+
 	hd := make([]byte, v1FileSegmentBlockHeaderLength)
 	if _, err := b.physicalFile.ReadAt(hd, 0); err != nil {
 		return err
@@ -270,6 +278,8 @@ func (b *fileBlock) loadHeader(ctx context.Context) error {
 }
 
 func (b *fileBlock) persistIndex(ctx context.Context) error {
+	observability.EntryMark(ctx)
+	defer observability.LeaveMark(ctx)
 	if !b.IsFull() {
 		return nil
 	}
@@ -289,6 +299,9 @@ func (b *fileBlock) persistIndex(ctx context.Context) error {
 }
 
 func (b *fileBlock) loadIndex(ctx context.Context) error {
+	observability.EntryMark(ctx)
+	defer observability.LeaveMark(ctx)
+
 	b.indexes = make([]blockIndex, b.number)
 	if b.IsFull() {
 		// read index directly
@@ -327,6 +340,9 @@ func (b *fileBlock) loadIndex(ctx context.Context) error {
 }
 
 func (b *fileBlock) validate(ctx context.Context) error {
+	observability.EntryMark(ctx)
+	defer observability.LeaveMark(ctx)
+
 	return nil
 }
 
