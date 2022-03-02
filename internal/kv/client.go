@@ -30,6 +30,7 @@ type Client interface {
 	WatchTree(path string, stopCh <-chan struct{}) (chan Pair, chan error)
 	CompareAndSwap(key string, preValue, value []byte) error
 	CompareAndDelete(key string, preValue []byte) error
+	Close() error
 }
 
 type Pair struct {

@@ -18,13 +18,14 @@ type URI string
 
 type Subscription struct {
 	ID               string               `json:"id"`
-	Source           string               `json:"source"`
-	Types            []string             `json:"types"`
-	Config           map[string]string    `json:"config"`
+	Source           string               `json:"source,omitempty"`
+	Types            []string             `json:"types,omitempty"`
+	Config           map[string]string    `json:"config,omitempty"`
 	Filters          []SubscriptionFilter `json:"filters"`
 	Sink             URI                  `json:"sink"`
-	Protocol         string               `json:"protocol"`
-	ProtocolSettings map[string]string    `json:"protocolsettings"`
+	Protocol         string               `json:"protocol,omitempty"`
+	ProtocolSettings map[string]string    `json:"protocolsettings,omitempty"`
+	EventBus         string               `json:"eventBus"`
 }
 
 type SubscriptionFilter struct {

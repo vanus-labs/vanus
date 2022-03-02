@@ -18,12 +18,16 @@ import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive/errors"
+	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/linkall-labs/vsproto/pkg/trigger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+	"io"
+	"os"
+	"sync"
 	"time"
 )
 
@@ -34,8 +38,9 @@ type server struct {
 	tcAddr       string
 	tcCc         *grpc.ClientConn
 	tcClient     controller.TriggerControllerClient
-	cancel       context.CancelFunc
 	ctx          context.Context
+	cancel       context.CancelFunc
+	wg           sync.WaitGroup
 }
 
 func NewTriggerServer(tcAddr, twAddr string, stop func()) trigger.TriggerWorkerServer {
@@ -45,8 +50,8 @@ func NewTriggerServer(tcAddr, twAddr string, stop func()) trigger.TriggerWorkerS
 		tcAddr:       tcAddr,
 		stopCallback: stop,
 		worker:       NewWorker(),
-		cancel:       cancel,
 		ctx:          ctx,
+		cancel:       cancel,
 	}
 }
 
@@ -56,17 +61,14 @@ func (s *server) Start(ctx context.Context, request *trigger.StartTriggerWorkerR
 	if err != nil {
 		return nil, err
 	}
-	err = s.startHeartbeat()
-	if err != nil {
-		s.worker.Stop()
-		return nil, err
-	}
+	s.startHeartbeat()
 	return &trigger.StartTriggerWorkerResponse{}, nil
 }
 
 func (s *server) Stop(ctx context.Context, request *trigger.StopTriggerWorkerRequest) (*trigger.StopTriggerWorkerResponse, error) {
 	log.Info("worker server stop ", map[string]interface{}{"request": request})
 	s.stop()
+	s.tcCc.Close()
 	return &trigger.StopTriggerWorkerResponse{}, nil
 }
 
@@ -79,15 +81,27 @@ func (s *server) AddSubscription(ctx context.Context, request *trigger.AddSubscr
 	}
 	err = s.worker.AddSubscription(sub)
 	if err != nil {
-		log.Warning("worker add subscription error ", map[string]interface{}{"subscription": sub, "error": err})
-		return nil, status.Error(errors.WorkerNotStart, err.Error())
+		if err == SubExist {
+			log.Info("add subscription bus sub exist", map[string]interface{}{
+				"id": sub.ID,
+			})
+		} else {
+			log.Warning("worker add subscription error ", map[string]interface{}{"subscription": sub, "error": err})
+			return nil, status.Error(errors.WorkerNotStart, err.Error())
+		}
 	}
 	return &trigger.AddSubscriptionResponse{}, nil
 }
 
 func (s *server) RemoveSubscription(ctx context.Context, request *trigger.RemoveSubscriptionRequest) (*trigger.RemoveSubscriptionResponse, error) {
 	log.Info("subscription remove ", map[string]interface{}{"request": request})
-	s.worker.RemoveSubscription(request.Id)
+	err := s.worker.RemoveSubscription(request.Id)
+	if err != nil {
+		log.Info("remove subscription error", map[string]interface{}{
+			"id":         request.Id,
+			log.KeyError: err,
+		})
+	}
 	return &trigger.RemoveSubscriptionResponse{}, nil
 }
 
@@ -119,7 +133,7 @@ func (s *server) Initialize() error {
 			"tcAddr":     s.tcAddr,
 			log.KeyError: err,
 		})
-		cc.Close()
+		s.tcCc.Close()
 		return err
 	}
 	return nil
@@ -128,9 +142,12 @@ func (s *server) Initialize() error {
 func (s *server) stop() {
 	s.worker.Stop()
 	s.cancel()
-	s.stopCallback()
+	s.wg.Wait()
 }
-func (s *server) beforeStop() error {
+
+func (s *server) Close() error {
+	s.stopCallback()
+	s.stop()
 	_, err := s.tcClient.UnregisterTriggerWorker(context.Background(), &controller.UnregisterTriggerWorkerRequest{
 		Address: s.twAddr,
 	})
@@ -139,47 +156,78 @@ func (s *server) beforeStop() error {
 			"addr":       s.tcAddr,
 			log.KeyError: err,
 		})
-		return err
+	} else {
+		log.Info("unregister trigger worker success", nil)
 	}
-	log.Info("unregister trigger worker success", nil)
-	return nil
-}
-func (s *server) Close() error {
-	s.stop()
-	err := s.beforeStop()
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.tcCc.Close()
 }
 
-func (s *server) startHeartbeat() error {
-	stream, err := s.tcClient.TriggerWorkerHeartbeat(s.ctx)
-	if err != nil {
-		log.Warning("heartbeat error", map[string]interface{}{"addr": s.tcAddr, "error": err})
-		return err
-	}
+const (
+	heartbeatMaxConnTime = time.Minute
+)
+
+func (s *server) startHeartbeat() {
+	s.wg.Add(1)
 	go func() {
-		tk := time.NewTicker(time.Second * 100)
-		defer tk.Stop()
-	sendLoop:
+		defer s.wg.Done()
+		var stream controller.TriggerController_TriggerWorkerHeartbeatClient
+		var err error
+		beginConnTime := time.Now()
+		lastSendTime := time.Now()
 		for {
-			select {
-			case <-s.ctx.Done():
-				break sendLoop
-			case <-tk.C:
-				err = stream.Send(&controller.TriggerWorkerHeartbeatRequest{
-					Address: s.twAddr,
+			stream, err = s.tcClient.TriggerWorkerHeartbeat(context.Background())
+			if err != nil {
+				log.Info("heartbeat error", map[string]interface{}{
+					"addr":       s.tcAddr,
+					log.KeyError: err,
 				})
-				if err != nil {
-					log.Warning("heartbeat send request error", map[string]interface{}{
+				if time.Now().Sub(beginConnTime) > heartbeatMaxConnTime {
+					log.Error("heartbeat exit", map[string]interface{}{
 						"addr":       s.tcAddr,
 						log.KeyError: err,
 					})
+					//todo now exit trigger worker, maybe only stop trigger
+					os.Exit(1)
+				}
+				if !util.Sleep(s.ctx, time.Second*2) {
+					return
+				}
+				continue
+			}
+		sendLoop:
+			for {
+				subs := s.worker.ListSubscription()
+				var ids []string
+				for _, sub := range subs {
+					ids = append(ids, sub.ID)
+				}
+				err = stream.Send(&controller.TriggerWorkerHeartbeatRequest{
+					Address: s.twAddr,
+					SubIds:  ids,
+				})
+				if err != nil {
+					if err == io.EOF || time.Now().Sub(lastSendTime) > 5*time.Second {
+						stream.CloseSend()
+						log.Warning("heartbeat send request receive fail,will retry", map[string]interface{}{
+							"time": time.Now(),
+							"addr": s.tcAddr,
+						})
+						beginConnTime = time.Now()
+						break sendLoop
+					}
+					log.Info("heartbeat send request error", map[string]interface{}{
+						"time":       time.Now(),
+						"addr":       s.tcAddr,
+						log.KeyError: err,
+					})
+				} else {
+					lastSendTime = time.Now()
+				}
+				if !util.Sleep(s.ctx, time.Second) {
+					stream.CloseSend()
+					return
 				}
 			}
 		}
 	}()
-
-	return nil
 }

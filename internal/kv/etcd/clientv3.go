@@ -19,6 +19,7 @@ import (
 	"errors"
 	kvdef "github.com/linkall-labs/vanus/internal/kv"
 	v3client "go.etcd.io/etcd/client/v3"
+	"path"
 	"strings"
 	"time"
 )
@@ -48,6 +49,7 @@ func NewEtcdClientV3(endpoints []string, keyPrefix string) (*etcdClient3, error)
 }
 
 func (c *etcdClient3) Get(key string) ([]byte, error) {
+	key = path.Join(c.keyPrefix, key)
 	resp, err := c.client.Get(context.Background(), key)
 	if err != nil {
 		return nil, err
@@ -59,6 +61,7 @@ func (c *etcdClient3) Get(key string) ([]byte, error) {
 }
 
 func (c *etcdClient3) Create(key string, value []byte) error {
+	key = path.Join(c.keyPrefix, key)
 	resp, err := c.client.Txn(context.Background()).
 		If(v3client.Compare(v3client.CreateRevision(key), "=", 0)).
 		Then(v3client.OpPut(key, string(value))).
@@ -76,11 +79,13 @@ func (c *etcdClient3) Create(key string, value []byte) error {
 }
 
 func (c *etcdClient3) Set(key string, value []byte) error {
+	key = path.Join(c.keyPrefix, key)
 	_, err := c.client.Put(context.Background(), key, string(value))
 	return err
 }
 
 func (c *etcdClient3) Update(key string, value []byte) error {
+	key = path.Join(c.keyPrefix, key)
 	resp, err := c.client.Txn(context.Background()).
 		If(v3client.Compare(v3client.CreateRevision(key), ">", 0)).
 		Then(v3client.OpPut(key, string(value))).
@@ -99,6 +104,7 @@ func (c *etcdClient3) Update(key string, value []byte) error {
 }
 
 func (c *etcdClient3) Exists(key string) (bool, error) {
+	key = path.Join(c.keyPrefix, key)
 	resp, err := c.client.Get(context.Background(), key)
 	if err != nil {
 		return false, err
@@ -111,6 +117,7 @@ func (c *etcdClient3) Exists(key string) (bool, error) {
 }
 
 func (c *etcdClient3) SetWithTTL(key string, value []byte, ttl time.Duration) error {
+	key = path.Join(c.keyPrefix, key)
 	resp, err := c.client.Grant(context.Background(), ttl.Nanoseconds()/int64(time.Second))
 	if err != nil {
 		return err
@@ -121,6 +128,7 @@ func (c *etcdClient3) SetWithTTL(key string, value []byte, ttl time.Duration) er
 }
 
 func (c *etcdClient3) Delete(key string) error {
+	key = path.Join(c.keyPrefix, key)
 	resp, err := c.client.Delete(context.Background(), key)
 	if err != nil {
 		return err
@@ -132,8 +140,9 @@ func (c *etcdClient3) Delete(key string) error {
 	return nil
 }
 
-func (c *etcdClient3) DeleteDir(path string) error {
-	resp, err := c.client.Delete(context.Background(), path, v3client.WithPrefix())
+func (c *etcdClient3) DeleteDir(key string) error {
+	key = path.Join(c.keyPrefix, key)
+	resp, err := c.client.Delete(context.Background(), key, v3client.WithPrefix())
 	if err != nil {
 		return err
 	}
@@ -144,8 +153,9 @@ func (c *etcdClient3) DeleteDir(path string) error {
 	return nil
 }
 
-func (c *etcdClient3) List(path string) ([]kvdef.Pair, error) {
-	resp, err := c.client.Get(context.Background(), path, v3client.WithPrefix())
+func (c *etcdClient3) List(key string) ([]kvdef.Pair, error) {
+	key = path.Join(c.keyPrefix, key)
+	resp, err := c.client.Get(context.Background(), key, v3client.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
@@ -213,14 +223,17 @@ func (c *etcdClient3) watch(key string, stopCh <-chan struct{}, isTree bool) (ch
 }
 
 func (c *etcdClient3) Watch(key string, stopCh <-chan struct{}) (chan kvdef.Pair, chan error) {
+	key = path.Join(c.keyPrefix, key)
 	return c.watch(key, stopCh, false)
 }
 
-func (c *etcdClient3) WatchTree(path string, stopCh <-chan struct{}) (chan kvdef.Pair, chan error) {
-	return c.watch(path, stopCh, true)
+func (c *etcdClient3) WatchTree(key string, stopCh <-chan struct{}) (chan kvdef.Pair, chan error) {
+	key = path.Join(c.keyPrefix, key)
+	return c.watch(key, stopCh, true)
 }
 
 func (c *etcdClient3) CompareAndSwap(key string, preValue, value []byte) error {
+	key = path.Join(c.keyPrefix, key)
 	resp, err := c.client.Txn(context.Background()).
 		If(v3client.Compare(v3client.Value(key), "=", string(preValue))).
 		Then(v3client.OpPut(key, string(value))).
@@ -236,6 +249,7 @@ func (c *etcdClient3) CompareAndSwap(key string, preValue, value []byte) error {
 }
 
 func (c *etcdClient3) CompareAndDelete(key string, preValue []byte) error {
+	key = path.Join(c.keyPrefix, key)
 	resp, err := c.client.Txn(context.Background()).
 		If(v3client.Compare(v3client.Value(key), "=", string(preValue))).
 		Then(v3client.OpDelete(key)).
@@ -250,6 +264,6 @@ func (c *etcdClient3) CompareAndDelete(key string, preValue []byte) error {
 	return nil
 }
 
-func (c *etcdClient3) Close() {
-	c.client.Close()
+func (c *etcdClient3) Close() error {
+	return c.client.Close()
 }

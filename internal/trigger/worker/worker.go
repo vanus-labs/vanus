@@ -35,6 +35,7 @@ import (
 var (
 	ebVRN                 = "vanus+local:eventbus:example"
 	TriggerWorkerNotStart = errors.New("worker not start")
+	SubExist              = errors.New("sub exist")
 )
 
 type Worker struct {
@@ -42,7 +43,7 @@ type Worker struct {
 	triggers      map[string]*Trigger
 	consumers     map[string]*consumer.Consumer
 	stopCh        chan struct{}
-	trLock        sync.RWMutex
+	lock          sync.RWMutex
 	started       bool
 	startedLock   sync.Mutex
 	wg            sync.WaitGroup
@@ -65,10 +66,11 @@ func (w *Worker) Start() error {
 	}
 	go func() {
 		tk := time.NewTicker(10 * time.Millisecond)
+		defer tk.Stop()
 		for {
 			select {
 			case <-w.stopCh:
-				log.Info("worker stop", nil)
+				return
 			case <-tk.C:
 				w.run()
 			}
@@ -86,25 +88,63 @@ func (w *Worker) Stop() error {
 		return nil
 	}
 	close(w.stopCh)
-	w.trLock.Lock()
-	defer w.trLock.Unlock()
-	for id, tr := range w.triggers {
-		tr.Stop(context.Background())
-		delete(w.triggers, id)
-		delete(w.subscriptions, id)
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for id := range w.subscriptions {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				w.stopSub(id)
+			}()
+		}
+	}()
+	wg.Wait()
+	for id := range w.subscriptions {
+		w.cleanSub(id)
 	}
 	w.started = false
 	return nil
 }
 
+func (w *Worker) stopSub(id string) {
+	if c, exist := w.consumers[id]; exist {
+		c.Close()
+	}
+	if tr, exist := w.triggers[id]; exist {
+		tr.Stop(context.Background())
+	}
+}
+
+func (w *Worker) cleanSub(id string) {
+	delete(w.consumers, id)
+	delete(w.triggers, id)
+	delete(w.subscriptions, id)
+}
+
+func (w *Worker) ListSubscription() []*primitive.Subscription {
+	w.lock.RLock()
+	w.lock.RUnlock()
+	var list []*primitive.Subscription
+	for _, sub := range w.subscriptions {
+		list = append(list, sub)
+	}
+	return list
+}
 func (w *Worker) AddSubscription(sub *primitive.Subscription) error {
 	w.startedLock.Lock()
 	defer w.startedLock.Unlock()
 	if !w.started {
 		return TriggerWorkerNotStart
 	}
-	w.trLock.Lock()
-	defer w.trLock.Unlock()
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	if _, exist := w.subscriptions[sub.ID]; exist {
+		return SubExist
+	}
 	w.subscriptions[sub.ID] = sub
 	tr := NewTrigger(sub)
 	w.triggers[sub.ID] = tr
@@ -117,11 +157,9 @@ func (w *Worker) PauseSubscription(id string) error {
 	if !w.started {
 		return TriggerWorkerNotStart
 	}
-	w.trLock.RLock()
-	defer w.trLock.RUnlock()
-	if tr, ok := w.triggers[id]; ok {
-		tr.Stop(context.Background())
-	}
+	w.lock.RLock()
+	defer w.lock.RUnlock()
+	w.stopSub(id)
 	return nil
 }
 
@@ -131,25 +169,19 @@ func (w *Worker) RemoveSubscription(id string) error {
 	if !w.started {
 		return TriggerWorkerNotStart
 	}
-	w.trLock.Lock()
-	defer w.trLock.Unlock()
-	if _, ok := w.subscriptions[id]; ok {
-		delete(w.subscriptions, id)
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	if _, exist := w.subscriptions[id]; !exist {
+		return nil
 	}
-	if c, ok := w.consumers[id]; ok {
-		c.Close()
-		delete(w.consumers, id)
-	}
-	if tr, ok := w.triggers[id]; ok {
-		tr.Stop(context.Background())
-		delete(w.triggers, id)
-	}
+	w.stopSub(id)
+	w.cleanSub(id)
 	return nil
 }
 
 func (w *Worker) run() {
-	w.trLock.RLock()
-	defer w.trLock.RUnlock()
+	w.lock.RLock()
+	defer w.lock.RUnlock()
 	if len(w.subscriptions) == 0 {
 		return
 	}

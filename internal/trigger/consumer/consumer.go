@@ -20,6 +20,7 @@ import (
 	eb "github.com/linkall-labs/eventbus-go"
 	"github.com/linkall-labs/eventbus-go/pkg/discovery/record"
 	"github.com/linkall-labs/eventbus-go/pkg/eventlog"
+	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/pkg/errors"
 	"io"
@@ -144,7 +145,9 @@ func (lc *EventLogConsumer) run() {
 				"elVrn":      lc.elVrn,
 				log.KeyError: err,
 			})
-			time.Sleep(time.Second * 10)
+			if !util.Sleep(lc.ctx, time.Second*2) {
+				return
+			}
 			continue
 		}
 		for {

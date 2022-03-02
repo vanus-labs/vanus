@@ -53,7 +53,7 @@ func (tw *triggerWorker) Stop() error {
 	return tw.Close()
 }
 
-func (tw *triggerWorker) Start() error {
+func (tw *triggerWorker) Start(started bool) error {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	cc, err := grpc.Dial(tw.twAddr, opts...)
@@ -62,6 +62,9 @@ func (tw *triggerWorker) Start() error {
 	}
 	tw.twCc = cc
 	tw.twClient = trigger.NewTriggerWorkerClient(cc)
+	if started {
+		return nil
+	}
 	err = tw.startTriggerWorker()
 	if err != nil {
 		tw.twCc.Close()
@@ -86,6 +89,11 @@ func (tw *triggerWorker) stopTriggerWorker() error {
 	return nil
 }
 
+func (tw *triggerWorker) addSubscription(sub *primitive.Subscription) {
+	tw.subLock.Lock()
+	defer tw.subLock.Unlock()
+	tw.subscriptions[sub.ID] = sub
+}
 func (tw *triggerWorker) AddSubscription(sub *primitive.Subscription) error {
 	if sub == nil {
 		return nil

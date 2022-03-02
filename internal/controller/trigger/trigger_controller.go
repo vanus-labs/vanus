@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/google/uuid"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -36,8 +37,25 @@ type subscriptionTrigger struct {
 	tWorker *triggerWorker
 }
 
+var (
+	serverNotReady     = errors.New("server not ready，is starting")
+	triggerWorkerExist = errors.New("trigger worker exist")
+)
+
+type controllerState string
+
+const (
+	controllerInit     controllerState = "init"
+	controllerStarting controllerState = "starting"
+	controllerRunning  controllerState = "running"
+	controllerStopping controllerState = "stopping"
+	controllerStopped  controllerState = "stopped"
+)
+
 //triggerController allocate subscription to trigger processor
 type triggerController struct {
+	config               Config
+	storage              storage.SubscriptionStorage
 	heartbeats           map[string]time.Time
 	triggerWorkers       map[string]*triggerWorker
 	subscriptions        map[string]*subscriptionTrigger
@@ -45,22 +63,26 @@ type triggerController struct {
 	pendingSubMutex      sync.Mutex
 	subMutex             sync.Mutex
 	twMutex              sync.RWMutex
-	ctx                  context.Context
-	cancel               context.CancelFunc
+	stopCh               chan struct{}
+	state                controllerState
 }
 
-func NewTriggerController() *triggerController {
-	ctx, cancel := context.WithCancel(context.Background())
+func NewTriggerController(config Config) *triggerController {
 	return &triggerController{
+		heartbeats:           map[string]time.Time{},
 		pendingSubscriptions: map[string]*primitive.Subscription{},
 		triggerWorkers:       map[string]*triggerWorker{},
 		subscriptions:        map[string]*subscriptionTrigger{},
-		ctx:                  ctx,
-		cancel:               cancel,
+		stopCh:               make(chan struct{}),
+		config:               config,
+		state:                controllerInit,
 	}
 }
 
 func (ctrl *triggerController) CreateSubscription(ctx context.Context, request *ctrlpb.CreateSubscriptionRequest) (*meta.Subscription, error) {
+	if ctrl.state != controllerRunning {
+		return nil, serverNotReady
+	}
 	sub, err := func(request *ctrlpb.CreateSubscriptionRequest) (*primitive.Subscription, error) {
 		b, err := json.Marshal(request)
 		if err != nil {
@@ -77,7 +99,11 @@ func (ctrl *triggerController) CreateSubscription(ctx context.Context, request *
 		return nil, err
 	}
 	sub.ID = uuid.NewString()
-	err = ctrl.addSubscription(sub)
+	err = ctrl.storage.CreateSubscription(sub)
+	if err != nil {
+		return nil, errors.Wrap(err, "save subscription error")
+	}
+	err = ctrl.addSubToPending(sub)
 	if err != nil {
 		return nil, err
 	}
@@ -88,6 +114,9 @@ func (ctrl *triggerController) CreateSubscription(ctx context.Context, request *
 	return resp, nil
 }
 func (ctrl *triggerController) DeleteSubscription(ctx context.Context, request *ctrlpb.DeleteSubscriptionRequest) (*emptypb.Empty, error) {
+	if ctrl.state != controllerRunning {
+		return nil, serverNotReady
+	}
 	err := ctrl.deleteSubscription(request.Id)
 	if err != nil {
 		log.Error("delete subscription failed", map[string]interface{}{
@@ -99,6 +128,9 @@ func (ctrl *triggerController) DeleteSubscription(ctx context.Context, request *
 	return &emptypb.Empty{}, nil
 }
 func (ctrl *triggerController) GetSubscription(ctx context.Context, request *ctrlpb.GetSubscriptionRequest) (*meta.Subscription, error) {
+	if ctrl.state != controllerRunning {
+		return nil, serverNotReady
+	}
 	sub := ctrl.getSubscription(request.Id)
 	resp, _ := convert.InnerSubToMetaSub(sub)
 	return resp, nil
@@ -106,11 +138,39 @@ func (ctrl *triggerController) GetSubscription(ctx context.Context, request *ctr
 func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerController_TriggerWorkerHeartbeatServer) error {
 	for {
 		req, err := heartbeat.Recv()
-		if err != nil {
+		if err == nil {
+			if ctrl.state == controllerStarting {
+				if _, exist := ctrl.triggerWorkers[req.Address]; !exist {
+					tWorker, err := ctrl.addTriggerWorker(req.Address, true)
+					if err == nil {
+						ctrl.pendingSubMutex.Lock()
+						for _, id := range req.SubIds {
+							if sub, exist := ctrl.pendingSubscriptions[id]; exist {
+								tWorker.addSubscription(sub)
+								delete(ctrl.pendingSubscriptions, id)
+							} else {
+								//不应该出现这样的情况
+								log.Error("trigger worker has sub,but pending sub not exist", map[string]interface{}{
+									"id": id,
+								})
+							}
+						}
+						ctrl.pendingSubMutex.Unlock()
+					} else {
+						if err != triggerWorkerExist {
+							log.Error("heartbeat add trigger worker failed", map[string]interface{}{
+								"addr":       req.Address,
+								log.KeyError: err,
+							})
+							continue
+						}
+					}
+				}
+			}
 			ctrl.heartbeats[req.Address] = time.Now()
 		} else {
 			if err == io.EOF {
-				log.Info("heartbeat receive close", nil)
+				//client close,will remove trigger worker then receive unregister
 				return nil
 			}
 			log.Info("heartbeat recv error", map[string]interface{}{log.KeyError: err})
@@ -120,8 +180,8 @@ func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerCo
 }
 
 func (ctrl *triggerController) RegisterTriggerWorker(ctx context.Context, request *ctrlpb.RegisterTriggerWorkerRequest) (*ctrlpb.RegisterTriggerWorkerResponse, error) {
-	err := ctrl.addTriggerWorker(request.Address)
-	if err != nil {
+	_, err := ctrl.addTriggerWorker(request.Address, false)
+	if err != nil && err != triggerWorkerExist {
 		log.Error("add trigger worker failed", map[string]interface{}{
 			"addr":       request.Address,
 			log.KeyError: err,
@@ -132,14 +192,16 @@ func (ctrl *triggerController) RegisterTriggerWorker(ctx context.Context, reques
 }
 
 func (ctrl *triggerController) UnregisterTriggerWorker(ctx context.Context, request *ctrlpb.UnregisterTriggerWorkerRequest) (*ctrlpb.UnregisterTriggerWorkerResponse, error) {
-	ctrl.removeTriggerWorker(request.Address)
+	ctrl.removeTriggerWorker(request.Address, "client api")
 	return &ctrlpb.UnregisterTriggerWorkerResponse{}, nil
 }
 
-func (ctrl *triggerController) addSubscription(sub *primitive.Subscription) error {
+func (ctrl *triggerController) addSubToPending(subs ...*primitive.Subscription) error {
 	ctrl.pendingSubMutex.Lock()
 	ctrl.pendingSubMutex.Unlock()
-	ctrl.pendingSubscriptions[sub.ID] = sub
+	for _, sub := range subs {
+		ctrl.pendingSubscriptions[sub.ID] = sub
+	}
 	return nil
 }
 
@@ -179,21 +241,28 @@ func (ctrl *triggerController) getSubscription(id string) *primitive.Subscriptio
 	return st.Sub
 }
 
-func (ctrl *triggerController) addTriggerWorker(addr string) error {
+func (ctrl *triggerController) addTriggerWorker(addr string, started bool) (*triggerWorker, error) {
 	ctrl.twMutex.Lock()
 	ctrl.twMutex.Unlock()
-	tWorker := NewTriggerWorker(addr)
-	err := tWorker.Start()
-	if err != nil {
-		return errors.Wrapf(err, "trigger worker %s start error", addr)
+	if _, exist := ctrl.triggerWorkers[addr]; exist {
+		log.Info("repeat add trigger worker,ignore", map[string]interface{}{
+			"addr": addr,
+		})
+		return nil, triggerWorkerExist
 	}
+	tWorker := NewTriggerWorker(addr)
+	err := tWorker.Start(started)
+	if err != nil {
+		return nil, errors.Wrapf(err, "trigger worker %s start error", addr)
+	}
+	ctrl.heartbeats[addr] = time.Now()
 	ctrl.triggerWorkers[addr] = tWorker
 	log.Info("add a trigger worker", map[string]interface{}{"twAddr": addr})
-	return nil
+	return tWorker, nil
 }
 
-//receive trigger worker stop signal
-func (ctrl *triggerController) removeTriggerWorker(addr string) {
+//removeTriggerWorker trigger worker has stop
+func (ctrl *triggerController) removeTriggerWorker(addr, reason string) {
 	ctrl.twMutex.Lock()
 	defer ctrl.twMutex.Unlock()
 	tWorker, ok := ctrl.triggerWorkers[addr]
@@ -203,24 +272,58 @@ func (ctrl *triggerController) removeTriggerWorker(addr string) {
 		})
 		return
 	}
-	ctrl.pendingSubMutex.Lock()
-	defer ctrl.pendingSubMutex.Unlock()
 	//rejoin pending sub
-	for id, sub := range tWorker.subscriptions {
-		ctrl.pendingSubscriptions[id] = sub
+	for _, sub := range tWorker.subscriptions {
+		ctrl.addSubToPending(sub)
 	}
 	delete(ctrl.triggerWorkers, addr)
+	delete(ctrl.heartbeats, addr)
 	tWorker.Close()
-	log.Info("remove a trigger worker", map[string]interface{}{"twAddr": addr})
+	log.Info("remove a trigger worker", map[string]interface{}{"twAddr": addr, "reason": reason})
 }
 
-func (ctrl *triggerController) Start() {
+func (ctrl *triggerController) Start() error {
+	s, err := storage.NewSubscriptionStorage(ctrl.config.Storage)
+	if err != nil {
+		return err
+	}
+	ctrl.storage = s
+
+	//TODO page list
+	subList, err := s.ListSubscription()
+	if err != nil {
+		s.Close()
+		return errors.Wrap(err, "list subscription error")
+	}
+	log.Info("triggerController subscription size", map[string]interface{}{
+		"size": len(subList),
+	})
+	for _, sub := range subList {
+		ctrl.addSubToPending(sub)
+	}
+	ctrl.state = controllerStarting
+	//wait triggerWorker heartbeat
+	time.Sleep(time.Second * 10)
+	ctrl.run()
+	ctrl.state = controllerRunning
+	return nil
+}
+
+func (ctrl *triggerController) Close() error {
+	ctrl.state = controllerStopping
+	close(ctrl.stopCh)
+	ctrl.storage.Close()
+	ctrl.state = controllerStopped
+	return nil
+}
+
+func (ctrl *triggerController) run() {
 	go func() {
 		tk := time.NewTicker(10 * time.Millisecond)
 		defer tk.Stop()
 		for {
 			select {
-			case <-ctrl.ctx.Done():
+			case <-ctrl.stopCh:
 				return
 			case <-tk.C:
 				ctrl.processSubscriptions()
@@ -232,20 +335,25 @@ func (ctrl *triggerController) Start() {
 		defer tk.Stop()
 		for {
 			select {
-			case <-ctrl.ctx.Done():
+			case <-ctrl.stopCh:
 				return
 			case <-tk.C:
-				//TODO heartbeat check
+				now := time.Now()
+				for twAddr := range ctrl.triggerWorkers {
+					if last, exist := ctrl.heartbeats[twAddr]; exist {
+						if now.Sub(last) < 5*time.Second {
+							continue
+						}
+					}
+					//remove trigger workers
+					go func() {
+						ctrl.removeTriggerWorker(twAddr, "heartbeat check")
+					}()
+				}
 			}
 		}
 	}()
 }
-
-func (ctrl *triggerController) Close() error {
-	ctrl.cancel()
-	return nil
-}
-
 func (ctrl *triggerController) processSubscriptions() {
 	ctrl.pendingSubMutex.Lock()
 	defer ctrl.pendingSubMutex.Unlock()

@@ -68,6 +68,7 @@ func main() {
 			log.KeyError: err,
 		})
 	}
+	log.Info("trigger worker started", nil)
 	exitCh := make(chan os.Signal)
 	signal.Notify(exitCh, os.Interrupt, syscall.SIGTERM)
 	<-exitCh

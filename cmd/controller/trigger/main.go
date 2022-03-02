@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"github.com/linkall-labs/vanus/internal/controller/trigger"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vsproto/pkg/controller"
@@ -40,8 +41,12 @@ func main() {
 			"error": err,
 		})
 	}
-	srv := trigger.NewTriggerController()
-	srv.Start()
+	srv := trigger.NewTriggerController(trigger.Config{
+		Storage: storage.Config{
+			ServerList: []string{"127.0.0.1:2379"},
+			KeyPrefix:  "/xdl/trigger",
+		},
+	})
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
 	controller.RegisterTriggerControllerServer(grpcServer, srv)
@@ -57,6 +62,12 @@ func main() {
 			})
 		}
 	}()
+	if err = srv.Start(); err != nil {
+		log.Fatal("trigger controler start fail", map[string]interface{}{
+			log.KeyError: err,
+		})
+	}
+	log.Info("triggerController started", nil)
 	exitCh := make(chan os.Signal)
 	signal.Notify(exitCh, os.Interrupt, syscall.SIGTERM)
 	<-exitCh
