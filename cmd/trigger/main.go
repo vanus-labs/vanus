@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/linkall-labs/vanus/config"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger/worker"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -49,7 +50,10 @@ func main() {
 	stopCallback := func() {
 		grpcServer.GracefulStop()
 	}
-	srv := worker.NewTriggerServer(trControllerAddr, trWorkerAddr, stopCallback)
+	srv := worker.NewTriggerServer(trControllerAddr, trWorkerAddr, worker.Config{Storage: config.KvStorageConfig{
+		ServerList: []string{"127.0.0.1:2379"},
+		KeyPrefix:  "/xdl/offset",
+	}}, stopCallback)
 	trigger.RegisterTriggerWorkerServer(grpcServer, srv)
 	go func() {
 		log.Info("the grpc server ready to work", nil)

@@ -16,6 +16,7 @@ package storage
 
 import (
 	"encoding/json"
+	"github.com/linkall-labs/vanus/config"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/primitive"
@@ -34,7 +35,7 @@ type subscriptionStorage struct {
 	client kv.Client
 }
 
-func NewSubscriptionStorage(config Config) (SubscriptionStorage, error) {
+func NewSubscriptionStorage(config config.KvStorageConfig) (SubscriptionStorage, error) {
 	client, err := etcd.NewEtcdClientV3(config.ServerList, config.KeyPrefix)
 	if err != nil {
 		return nil, errors.Wrap(err, "new etcd client has error")

@@ -16,18 +16,11 @@ package etcd
 
 import (
 	"context"
-	"errors"
 	kvdef "github.com/linkall-labs/vanus/internal/kv"
 	v3client "go.etcd.io/etcd/client/v3"
 	"path"
 	"strings"
 	"time"
-)
-
-var (
-	ErrorKeyNotFound = errors.New("key not found")
-	ErrorNodeExist   = errors.New("node exist")
-	ErrorSetFailed   = errors.New("set failed")
 )
 
 type etcdClient3 struct {
@@ -55,7 +48,7 @@ func (c *etcdClient3) Get(key string) ([]byte, error) {
 		return nil, err
 	}
 	if len(resp.Kvs) == 0 {
-		return nil, ErrorKeyNotFound
+		return nil, kvdef.ErrorKeyNotFound
 	}
 	return resp.Kvs[0].Value, nil
 }
@@ -73,7 +66,7 @@ func (c *etcdClient3) Create(key string, value []byte) error {
 	}
 
 	if !resp.Succeeded {
-		return ErrorNodeExist
+		return kvdef.ErrorNodeExist
 	}
 	return nil
 }
@@ -97,7 +90,7 @@ func (c *etcdClient3) Update(key string, value []byte) error {
 	}
 
 	if !resp.Succeeded {
-		return ErrorKeyNotFound
+		return kvdef.ErrorKeyNotFound
 	}
 
 	return nil
@@ -243,7 +236,7 @@ func (c *etcdClient3) CompareAndSwap(key string, preValue, value []byte) error {
 		return err
 	}
 	if !resp.Succeeded {
-		return ErrorSetFailed
+		return kvdef.ErrorSetFailed
 	}
 	return nil
 }
@@ -259,7 +252,7 @@ func (c *etcdClient3) CompareAndDelete(key string, preValue []byte) error {
 		return err
 	}
 	if !resp.Succeeded {
-		return ErrorSetFailed
+		return kvdef.ErrorSetFailed
 	}
 	return nil
 }

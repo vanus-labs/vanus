@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trigger
+package worker
 
-import (
-	"github.com/linkall-labs/vanus/config"
-)
+import "github.com/linkall-labs/vanus/config"
 
 type Config struct {
-	Storage config.KvStorageConfig `yaml:"storage"`
+	Storage config.KvStorageConfig `yaml:"storage" json:"storage"`
 }

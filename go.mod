@@ -8,6 +8,7 @@ require (
 	github.com/cloudevents/sdk-go/v2 v2.8.0
 	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.3.0
+	github.com/huandu/skiplist v1.2.0
 	github.com/linkall-labs/eventbus-go v0.0.0
 	github.com/linkall-labs/vsproto v0.0.0
 	github.com/pkg/errors v0.9.1

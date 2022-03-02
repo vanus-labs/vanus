@@ -20,48 +20,45 @@ import (
 	"sync"
 	"time"
 
-	ce "github.com/cloudevents/sdk-go/v2"
 	eb "github.com/linkall-labs/eventbus-go"
 	"github.com/linkall-labs/eventbus-go/pkg/discovery/record"
 	"github.com/linkall-labs/eventbus-go/pkg/eventlog"
+	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/pkg/errors"
 )
 
 type Consumer struct {
-	ebVrn      string
-	sub        string
-	elConsumer map[string]EventLogConsumer
-	handler    EventHandler
-	cancel     context.CancelFunc
-	stop       context.CancelFunc
-	ctx        context.Context
-	wg         sync.WaitGroup
-	lock       sync.Mutex
+	ebVrn         string
+	sub           string
+	offsetManager *EventLogOffset
+	elConsumer    map[string]EventLogConsumer
+	handler       EventHandler
+	cancel        context.CancelFunc
+	stop          context.CancelFunc
+	wg            sync.WaitGroup
+	lock          sync.Mutex
 }
 
-func NewConsumer(ebVRN, sub string, handler EventHandler) *Consumer {
-	ctx, cancel := context.WithCancel(context.Background())
-	offset := NewEventLogOffset(ctx, sub)
-	AddEventLogOffset(sub, offset)
+func NewConsumer(ebVRN, sub string, offsetManager *EventLogOffset, handler EventHandler) *Consumer {
 	return &Consumer{
-		ebVrn:      ebVRN,
-		sub:        sub,
-		handler:    handler,
-		elConsumer: map[string]EventLogConsumer{},
-		stop:       cancel,
-		ctx:        ctx,
+		ebVrn:         ebVRN,
+		sub:           sub,
+		offsetManager: offsetManager,
+		handler:       handler,
+		elConsumer:    map[string]EventLogConsumer{},
 	}
 }
 
 func (c *Consumer) Close() {
-	c.cancel()
 	c.stop()
-	RemoveEventLogOffset(c.sub)
+	c.cancel()
 	c.wg.Wait()
 }
-func (c *Consumer) Start() error {
+func (c *Consumer) Start(parent context.Context) error {
+	ctx, cancel := context.WithCancel(parent)
+	c.stop = cancel
 	els, err := eb.LookupReadableLogs(c.ebVrn)
 	if err != nil {
 		return errors.Wrapf(err, "eb")
@@ -72,7 +69,7 @@ func (c *Consumer) Start() error {
 		defer tk.Stop()
 		for {
 			select {
-			case <-c.ctx.Done():
+			case <-ctx.Done():
 				return
 			case <-tk.C:
 				c.checkEventLogChange()
@@ -113,31 +110,31 @@ func (c *Consumer) start(els []*record.EventLog) {
 	}
 	for _, el := range els {
 		elc := EventLogConsumer{
-			elVrn:   el.VRN,
-			sub:     c.sub,
-			ctx:     ctx,
-			handler: c.handler,
+			elVrn:         el.VRN,
+			sub:           c.sub,
+			offsetManager: c.offsetManager,
+			handler:       c.handler,
 		}
 		c.elConsumer[el.VRN] = elc
 		c.wg.Add(1)
 		go func() {
 			defer c.wg.Done()
-			elc.run()
+			elc.run(ctx)
 		}()
 	}
 }
 
-type EventHandler func(context.Context, *EventRecord) error
+type EventHandler func(context.Context, *info.EventRecord) error
 
 type EventLogConsumer struct {
-	elVrn   string
-	sub     string
-	ctx     context.Context
-	handler EventHandler
-	offset  int64
+	elVrn         string
+	sub           string
+	offsetManager *EventLogOffset
+	handler       EventHandler
+	offset        int64
 }
 
-func (lc *EventLogConsumer) run() {
+func (lc *EventLogConsumer) run(ctx context.Context) {
 	for {
 		lr, offset, err := lc.init()
 		if err != nil {
@@ -146,14 +143,14 @@ func (lc *EventLogConsumer) run() {
 				"elVrn":      lc.elVrn,
 				log.KeyError: err,
 			})
-			if !util.Sleep(lc.ctx, time.Second*2) {
+			if !util.Sleep(ctx, time.Second*2) {
 				return
 			}
 			continue
 		}
 		for {
 			select {
-			case <-lc.ctx.Done():
+			case <-ctx.Done():
 				log.Info("event log consumer stop", map[string]interface{}{
 					"sub":    lc.sub,
 					"elVrn":  lc.elVrn,
@@ -178,7 +175,7 @@ func (lc *EventLogConsumer) run() {
 			}
 			for i := range events {
 				offset++
-				lc.handler(context.Background(), &EventRecord{Event: events[i], EventLog: lc.elVrn, Offset: offset})
+				lc.handler(context.Background(), &info.EventRecord{Event: events[i], EventLog: lc.elVrn, Offset: offset})
 			}
 		}
 	}
@@ -189,7 +186,7 @@ func (lc *EventLogConsumer) init() (eventlog.LogReader, int64, error) {
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "sub %s el %s open log reader error", lc.sub, lc.elVrn)
 	}
-	offset, err := GetEventLogOffset(lc.sub).RegisterEventLog(lc.elVrn)
+	offset, err := lc.offsetManager.RegisterEventLog(lc.elVrn, 0)
 	if err != nil {
 		lr.Close()
 		return nil, 0, errors.Wrapf(err, "sub %s el %s offset register event log error", lc.sub, lc.elVrn)
@@ -201,10 +198,4 @@ func (lc *EventLogConsumer) init() (eventlog.LogReader, int64, error) {
 		return nil, 0, errors.Wrapf(err, "sub %s el %s seek offset %d error", lc.sub, lc.elVrn, offset)
 	}
 	return lr, newOffset, nil
-}
-
-type EventRecord struct {
-	Event    *ce.Event
-	EventLog string
-	Offset   int64
 }

@@ -16,8 +16,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/linkall-labs/vanus/config"
 	"github.com/linkall-labs/vanus/internal/controller/trigger"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vsproto/pkg/controller"
@@ -42,7 +42,7 @@ func main() {
 		})
 	}
 	srv := trigger.NewTriggerController(trigger.Config{
-		Storage: storage.Config{
+		Storage: config.KvStorageConfig{
 			ServerList: []string{"127.0.0.1:2379"},
 			KeyPrefix:  "/xdl/trigger",
 		},

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package config
 
-type Config struct {
-	KeyPrefix  string   `yaml:"keyPrefix"`
-	ServerList []string `yaml:"serverList"`
+type KvStorageConfig struct {
+	KeyPrefix  string   `yaml:"keyPrefix" json:"keyPrefix"`
+	ServerList []string `yaml:"serverList" json:"serverList"`
 }

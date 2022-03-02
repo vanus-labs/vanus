@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"github.com/linkall-labs/vanus/config"
 	"github.com/linkall-labs/vanus/internal/primitive"
 )
 
@@ -22,7 +23,7 @@ type fake struct {
 	subs map[string]*primitive.Subscription
 }
 
-func NewFakeStorage(config Config) (SubscriptionStorage, error) {
+func NewFakeStorage(config config.KvStorageConfig) (SubscriptionStorage, error) {
 	s := &fake{
 		subs: map[string]*primitive.Subscription{},
 	}

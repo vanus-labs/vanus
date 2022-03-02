@@ -12,12 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trigger
+package info
 
-import (
-	"github.com/linkall-labs/vanus/config"
-)
+import ce "github.com/cloudevents/sdk-go/v2"
 
-type Config struct {
-	Storage config.KvStorageConfig `yaml:"storage"`
+type EventRecord struct {
+	Event    *ce.Event
+	EventLog string
+	Offset   int64
+}
+
+type OffsetInfo struct {
+	SubId    string `json:"subId"`
+	EventLog string `json:"eventLog"`
+	Offset   int64  `json:"offset"`
 }

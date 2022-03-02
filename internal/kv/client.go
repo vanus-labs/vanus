@@ -14,7 +14,16 @@
 
 package kv
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+var (
+	ErrorKeyNotFound = errors.New("key not found")
+	ErrorNodeExist   = errors.New("node exist")
+	ErrorSetFailed   = errors.New("set failed")
+)
 
 type Client interface {
 	Get(key string) ([]byte, error)

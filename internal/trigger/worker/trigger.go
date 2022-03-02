@@ -23,6 +23,8 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/ds"
 	"github.com/linkall-labs/vanus/internal/trigger/consumer"
 	"github.com/linkall-labs/vanus/internal/trigger/filter"
+	"github.com/linkall-labs/vanus/internal/trigger/info"
+	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"sync"
 	"time"
@@ -41,7 +43,7 @@ const (
 )
 
 const (
-	defaultBufferSize = 1 << 20
+	defaultBufferSize = 1 << 15
 )
 
 type Trigger struct {
@@ -55,17 +57,21 @@ type Trigger struct {
 
 	state      TriggerState
 	stateMutex sync.RWMutex
-	exit       chan struct{}
-	exitWG     sync.WaitGroup
 	lastActive time.Time
 	ackWindow  ds.SortedMap
 
-	eventCh  chan *consumer.EventRecord
-	ceClient ce.Client
-	filter   filter.Filter
+	offsetManager *consumer.EventLogOffset
+	stop          context.CancelFunc
+	eventCh       chan *info.EventRecord
+	sendCh        chan *info.EventRecord
+	deadLetterCh  chan *info.EventRecord
+	ceClient      ce.Client
+	filter        filter.Filter
+
+	wg util.Group
 }
 
-func NewTrigger(sub *primitive.Subscription) *Trigger {
+func NewTrigger(sub *primitive.Subscription, offsetManager *consumer.EventLogOffset) *Trigger {
 	ceClient, err := primitive.NewCeClient(sub.Sink)
 	if err != nil {
 		log.Error("new ce-client error", map[string]interface{}{"target": sub.Sink, "error": err.Error()})
@@ -75,137 +81,156 @@ func NewTrigger(sub *primitive.Subscription) *Trigger {
 		SubscriptionID:   sub.ID,
 		Target:           sub.Sink,
 		BufferSize:       defaultBufferSize,
-		BatchProcessSize: 8,
+		BatchProcessSize: 2,
 		MaxRetryTimes:    3,
 		SleepDuration:    30 * time.Second,
 		state:            TriggerCreated,
-		exit:             make(chan struct{}, 0),
 		ackWindow:        ds.NewSortedMap(),
 		filter:           filter.GetFilter(sub.Filters),
 		ceClient:         ceClient,
-		eventCh:          make(chan *consumer.EventRecord, defaultBufferSize),
+		eventCh:          make(chan *info.EventRecord, defaultBufferSize),
+		sendCh:           make(chan *info.EventRecord, 20),
+		deadLetterCh:     make(chan *info.EventRecord, defaultBufferSize),
+		offsetManager:    offsetManager,
 	}
 }
 
-func (t *Trigger) EventArrived(ctx context.Context, event *consumer.EventRecord) error {
+func (t *Trigger) EventArrived(ctx context.Context, event *info.EventRecord) error {
 	select {
 	case t.eventCh <- event:
+		t.offsetManager.EventReceive(event)
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	}
 }
 
-func (t *Trigger) processEvent(e ce.Event) error {
-	if res := filter.FilterEvent(t.filter, e); res == filter.FailFilter {
-		return nil
-	}
-	// TODO The ack here is represent http response 200, optimize to async
-	if res := t.ceClient.Send(context.Background(), e); !ce.IsACK(res) {
-		return res
-	}
-	return nil
-}
-
-func (t *Trigger) retryProcessEvent(e ce.Event) error {
+func (t *Trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 	retryTimes := 0
 	for {
-		err := t.processEvent(e)
-		if err == nil {
+		if res := t.ceClient.Send(ctx, *e); !ce.IsACK(res) {
+			retryTimes++
+			if retryTimes >= t.MaxRetryTimes {
+				return res
+			}
+			log.Debug("process event error", map[string]interface{}{
+				"error": res, "retryTimes": retryTimes,
+			})
+			time.Sleep(3 * time.Second) //TODO 优化
+		} else {
 			return nil
 		}
-		retryTimes++
-		if retryTimes >= t.MaxRetryTimes {
-			return err
-		}
-		log.Info("process event error", map[string]interface{}{
-			"error": err, "retryTimes": retryTimes,
-		})
-		time.Sleep(3 * time.Second) //TODO 优化
 	}
 }
 
-func (t *Trigger) startProcessEvent(ctx context.Context) {
-	t.exitWG.Add(1)
-	defer t.exitWG.Done()
-	for event := range t.eventCh {
-		t.lastActive = time.Now()
-		err := t.retryProcessEvent(*event.Event)
-		if err == nil {
-			consumer.GetEventLogOffset(t.SubscriptionID).EventCommit(event)
-			continue
-		}
-		log.Warning("send event fail,will put to dead letter", map[string]interface{}{
-			"error": err,
-			"event": event,
-		})
-		err = t.asDeadLetter(event)
-		if err != nil {
-			log.Error("send dead event to dead letter failed", map[string]interface{}{
-				"error": err,
-				"event": event,
-			})
-		} else {
-			consumer.GetEventLogOffset(t.SubscriptionID).EventCommit(event)
+func (t *Trigger) runEventProcess(ctx context.Context) {
+	for {
+		select {
+		//TODO  是否立即停止，还是等待eventCh处理完
+		case <-ctx.Done():
+			return
+		case event := <-t.eventCh:
+			if res := filter.FilterEvent(t.filter, *event.Event); res == filter.FailFilter {
+				t.offsetManager.EventCommit(event)
+				continue
+			}
+			t.sendCh <- event
 		}
 	}
 }
-func (t *Trigger) Start(ctx context.Context) error {
-	go t.startProcessEvent(ctx)
-	// sleep watch
-	go func() {
-		tk := time.NewTicker(10 * time.Millisecond)
-		t.exitWG.Add(1)
-	LOOP:
-		for {
-			select {
-			case _, ok := <-t.exit:
-				if ok {
-					log.Info("trigger sleep exit", map[string]interface{}{
-						"id": t.ID,
-					})
-				}
-				tk.Stop()
-				break LOOP
-			case _ = <-tk.C:
-				t.stateMutex.Lock()
-				if t.state == TriggerRunning {
-					if time.Now().Sub(t.lastActive) > t.SleepDuration {
-						t.state = TriggerSleep
-					} else {
-						t.state = TriggerRunning
-					}
-				}
-				t.stateMutex.Unlock()
-			}
-		}
-		t.exitWG.Add(-1)
-	}()
 
-	// monitor timeout
-	go func() {
-		tk := time.NewTicker(10 * time.Millisecond)
-		t.exitWG.Add(1)
-	LOOP:
-		for {
-			select {
-			case _, ok := <-t.exit:
-				if ok {
-					log.Info("trigger monitor ack exit", map[string]interface{}{
-						"id": t.ID,
-					})
-				}
-				tk.Stop()
-				break LOOP
-			case _ = <-tk.C:
-				t.checkACKTimeout()
+func (t *Trigger) runEventSend(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event := <-t.sendCh:
+			err := t.retrySendEvent(ctx, event.Event)
+			if err != nil {
+				t.deadLetterCh <- event
+			} else {
+				t.offsetManager.EventCommit(event)
 			}
 		}
-		t.exitWG.Add(-1)
-	}()
+	}
+}
+
+func (t *Trigger) runDeadLetterProcess(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event := <-t.deadLetterCh:
+			err := t.asDeadLetter(event)
+			if err != nil {
+				log.Error("send dead event to dead letter failed", map[string]interface{}{
+					"error": err,
+					"event": event,
+				})
+			}
+			t.offsetManager.EventCommit(event)
+		}
+	}
+}
+
+func (t *Trigger) runSleepWatch(ctx context.Context) {
+	tk := time.NewTicker(10 * time.Millisecond)
+	defer tk.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tk.C:
+			t.stateMutex.Lock()
+			if t.state == TriggerRunning {
+				if time.Now().Sub(t.lastActive) > t.SleepDuration {
+					t.state = TriggerSleep
+				} else {
+					t.state = TriggerRunning
+				}
+			}
+			t.stateMutex.Unlock()
+		}
+	}
+}
+func (t *Trigger) runMonitorACK(ctx context.Context) {
+	tk := time.NewTicker(10 * time.Millisecond)
+	defer tk.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tk.C:
+			t.checkACKTimeout()
+		}
+	}
+}
+
+func (t *Trigger) Start(parent context.Context) {
+	ctx, cancel := context.WithCancel(parent)
+	t.stop = cancel
+	for i := 0; i < t.BatchProcessSize; i++ {
+		t.wg.StartWithContext(ctx, t.runEventProcess)
+		t.wg.StartWithContext(ctx, t.runEventSend)
+		t.wg.StartWithContext(ctx, t.runDeadLetterProcess)
+	}
+	t.wg.StartWithContext(ctx, t.runSleepWatch)
+	t.wg.StartWithContext(ctx, t.runMonitorACK)
+
 	t.state = TriggerRunning
 	t.lastActive = time.Now()
-	return nil
+}
+
+func (t *Trigger) Stop() {
+	if t.state == TriggerStopped {
+		return
+	}
+	close(t.eventCh)
+	close(t.sendCh)
+	close(t.deadLetterCh)
+	t.stop()
+	t.wg.Wait()
+	t.state = TriggerStopped
 }
 
 func (t *Trigger) GetState() TriggerState {
@@ -214,17 +239,7 @@ func (t *Trigger) GetState() TriggerState {
 	return t.state
 }
 
-func (t *Trigger) Stop(ctx context.Context) {
-	if t.state == TriggerStopped {
-		return
-	}
-	close(t.exit)
-	close(t.eventCh)
-	t.exitWG.Wait()
-	t.state = TriggerStopped
-}
-
-func (t *Trigger) asDeadLetter(events ...*consumer.EventRecord) error {
+func (t *Trigger) asDeadLetter(events ...*info.EventRecord) error {
 	fmt.Println(events)
 	return nil
 }
@@ -257,7 +272,7 @@ func (t *Trigger) checkACKTimeout() error {
 }
 
 type waitACK struct {
-	event       *consumer.EventRecord
+	event       *info.EventRecord
 	deliverTime time.Time
 	timeoutTime time.Time
 }

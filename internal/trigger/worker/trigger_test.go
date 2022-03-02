@@ -3,6 +3,9 @@ package worker
 import (
 	"context"
 	"fmt"
+	"github.com/linkall-labs/vanus/internal/trigger/consumer"
+	"github.com/linkall-labs/vanus/internal/trigger/info"
+	"github.com/linkall-labs/vanus/internal/trigger/storage"
 	"io/ioutil"
 	"net/http"
 	"testing"
@@ -15,7 +18,6 @@ import (
 	"github.com/linkall-labs/eventbus-go/pkg/discovery/record"
 	"github.com/linkall-labs/eventbus-go/pkg/inmemory"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/trigger/consumer"
 )
 
 func Test_e2e(t *testing.T) {
@@ -28,7 +30,7 @@ func Test_e2e(t *testing.T) {
 		Sink:             "http://localhost:18080",
 		Protocol:         "vanus",
 		ProtocolSettings: nil,
-	})
+	}, consumer.NewEventLogOffset("test", storage.NewFakeStorage()))
 	emit := 0
 	pre := 0
 	go func() {
@@ -113,7 +115,7 @@ func Test_e2e(t *testing.T) {
 			}
 
 			for _, e := range events {
-				tg.EventArrived(context.Background(), &consumer.EventRecord{
+				tg.EventArrived(context.Background(), &info.EventRecord{
 					Event: e,
 				})
 				emit++
@@ -143,5 +145,5 @@ func Test_e2e(t *testing.T) {
 	tg.Start(context.Background())
 
 	time.Sleep(time.Hour)
-	tg.Stop(context.Background())
+	tg.Stop()
 }

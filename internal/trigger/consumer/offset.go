@@ -16,77 +16,89 @@ package consumer
 
 import (
 	"context"
-	"github.com/linkall-labs/vanus/internal/util"
+	"github.com/huandu/skiplist"
+	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/linkall-labs/vanus/internal/trigger/info"
+	"github.com/linkall-labs/vanus/internal/trigger/storage"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/pkg/errors"
 	"sync"
 	"time"
 )
 
-var (
-	eventLogOffsets = make(map[string]*EventLogOffset)
-)
-
-func AddEventLogOffset(sub string, offset *EventLogOffset) {
-	eventLogOffsets[sub] = offset
-}
-
-func RemoveEventLogOffset(sub string) {
-	delete(eventLogOffsets, sub)
-}
-
-func GetEventLogOffset(sub string) *EventLogOffset {
-	return eventLogOffsets[sub]
-}
-
 type EventLogOffset struct {
 	sub      string
-	ctx      context.Context
 	eventLog map[string]*offsetTracker
+	storage  storage.OffsetStorage
+	stop     context.CancelFunc
 	mutex    sync.Mutex
 }
 
-func NewEventLogOffset(ctx context.Context, sub string) *EventLogOffset {
-	context.Background()
+func NewEventLogOffset(sub string, storage storage.OffsetStorage) *EventLogOffset {
 	elo := &EventLogOffset{
 		sub:      sub,
+		storage:  storage,
 		eventLog: map[string]*offsetTracker{},
-		ctx:      ctx,
 	}
-	go elo.run()
 	return elo
 }
 
-func (offset *EventLogOffset) run() {
-	tk := time.NewTicker(time.Millisecond)
-	defer tk.Stop()
-	for {
-		select {
-		case <-offset.ctx.Done():
-			return
-		case <-tk.C:
-			offset.commit()
+func (offset *EventLogOffset) Start(parent context.Context) {
+	ctx, cancel := context.WithCancel(parent)
+	offset.stop = cancel
+	go func() {
+		tk := time.NewTicker(time.Millisecond)
+		for {
+			select {
+			case <-ctx.Done():
+				tk.Stop()
+				offset.commit()
+				return
+			case <-tk.C:
+				offset.commit()
+			}
 		}
-	}
+	}()
 }
 
-func (offset *EventLogOffset) RegisterEventLog(el string) (int64, error) {
+func (offset *EventLogOffset) Close() {
+	offset.stop()
+}
+
+func (offset *EventLogOffset) RegisterEventLog(el string, beginOffset int64) (int64, error) {
 	offset.mutex.Lock()
-	offset.mutex.Unlock()
-	//TODO get offset from etcd
-	var offsetV int64
+	defer offset.mutex.Unlock()
+	offsetV, err := offset.storage.GetOffset(&info.OffsetInfo{
+		SubId:    offset.sub,
+		EventLog: el,
+	})
+	if err != nil {
+		if err == kv.ErrorKeyNotFound {
+			offsetV = beginOffset
+			if err = offset.storage.CreateOffset(&info.OffsetInfo{
+				SubId:    offset.sub,
+				EventLog: el,
+				Offset:   beginOffset,
+			}); err != nil {
+				return 0, errors.Wrapf(err, "sub %s el %s create offset error", offset.sub, el)
+			}
+		} else {
+			return 0, errors.Wrapf(err, "sub %s el %s get offset error", offset.sub, el)
+		}
+	}
 	offset.eventLog[el] = initOffset(offsetV)
 	return offsetV, nil
 }
 
-func (offset *EventLogOffset) EventReceive(record *EventRecord) {
+func (offset *EventLogOffset) EventReceive(record *info.EventRecord) {
 	if r, ok := offset.eventLog[record.EventLog]; !ok {
 		return
 	} else {
-		r.commitOffset(record.Offset)
+		r.putOffset(record.Offset)
 	}
 }
 
-func (offset *EventLogOffset) EventCommit(record *EventRecord) {
+func (offset *EventLogOffset) EventCommit(record *info.EventRecord) {
 	if r, ok := offset.eventLog[record.EventLog]; !ok {
 		return
 	} else {
@@ -96,59 +108,77 @@ func (offset *EventLogOffset) EventCommit(record *EventRecord) {
 
 func (offset *EventLogOffset) commit() {
 	offset.mutex.Lock()
-	offset.mutex.Unlock()
+	defer offset.mutex.Unlock()
 	for k, o := range offset.eventLog {
 		c := o.offsetToCommit()
-		if c <= o.commit {
+		if c <= o.getCommit() {
 			continue
 		}
 		o.setCommit(c)
 		log.Debug("commit offset", map[string]interface{}{"sub": offset.sub, "el": k, "offset": c})
-		//TODO commit to store
+		err := offset.storage.UpdateOffset(&info.OffsetInfo{
+			SubId:    offset.sub,
+			EventLog: k,
+			Offset:   c,
+		})
+		if err != nil {
+			log.Error("commit offset failed", map[string]interface{}{
+				"sub": offset.sub, "el": k, "offset": c, "error": err,
+			})
+		}
 	}
 }
 
 type offsetTracker struct {
-	initOffset int64
-	commit     int64
-	commitSet  *util.BitSet
-	mutex      sync.Mutex
+	mutex     sync.Mutex
+	commit    int64
+	maxOffset int64
+	list      *skiplist.SkipList
 }
 
 func initOffset(initOffset int64) *offsetTracker {
 	return &offsetTracker{
-		initOffset: initOffset,
-		commit:     initOffset,
-		commitSet:  util.NewBitSet(),
+		commit:    initOffset,
+		maxOffset: initOffset,
+		list: skiplist.New(skiplist.GreaterThanFunc(func(lhs, rhs interface{}) int {
+			v1 := lhs.(int64)
+			v2 := rhs.(int64)
+			if v1 > v2 {
+				return 1
+			} else if v1 < v2 {
+				return -1
+			}
+			return 0
+		})),
 	}
+}
+
+func (o *offsetTracker) putOffset(offset int64) {
+	o.mutex.Lock()
+	defer o.mutex.Unlock()
+	o.list.Set(offset, offset)
+	o.maxOffset = o.list.Back().Key().(int64)
 }
 
 func (o *offsetTracker) commitOffset(offset int64) {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
-	bitSetOffset := int(offset - o.initOffset)
-	o.commitSet.Set(bitSetOffset)
-	o.reset(bitSetOffset)
+	o.list.Remove(offset)
 }
 
 func (o *offsetTracker) setCommit(commit int64) {
-	o.mutex.Lock()
-	defer o.mutex.Unlock()
 	o.commit = commit
+}
+
+func (o *offsetTracker) getCommit() int64 {
+	return o.commit
 }
 
 func (o *offsetTracker) offsetToCommit() int64 {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
-	return o.initOffset + int64(o.commitSet.NextClearBit(int(o.commit-o.initOffset)))
-}
-
-func (o *offsetTracker) reset(offset int) {
-	if offset <= 100000 {
-		return
+	if o.list.Len() == 0 {
+		return o.maxOffset
 	}
-	relativeOffset := o.commit - o.initOffset
-	wordOfCommit := (int)(relativeOffset / 64)
-	o.commitSet = o.commitSet.Clear(wordOfCommit)
-	o.initOffset = o.commit
+	return o.list.Front().Key().(int64)
 }

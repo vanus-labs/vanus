@@ -43,13 +43,13 @@ type server struct {
 	wg           sync.WaitGroup
 }
 
-func NewTriggerServer(tcAddr, twAddr string, stop func()) trigger.TriggerWorkerServer {
+func NewTriggerServer(tcAddr, twAddr string, config Config, stop func()) trigger.TriggerWorkerServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &server{
 		twAddr:       twAddr,
 		tcAddr:       tcAddr,
 		stopCallback: stop,
-		worker:       NewWorker(),
+		worker:       NewWorker(config),
 		ctx:          ctx,
 		cancel:       cancel,
 	}
@@ -116,7 +116,7 @@ func (s *server) ResumeSubscription(ctx context.Context, request *trigger.Resume
 	return &trigger.ResumeSubscriptionResponse{}, nil
 }
 
-func (s *server) Initialize() error {
+func (s *server) Initialize(ctx context.Context) error {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	cc, err := grpc.Dial(s.tcAddr, opts...)
@@ -125,7 +125,7 @@ func (s *server) Initialize() error {
 	}
 	s.tcCc = cc
 	s.tcClient = controller.NewTriggerControllerClient(cc)
-	_, err = s.tcClient.RegisterTriggerWorker(context.Background(), &controller.RegisterTriggerWorkerRequest{
+	_, err = s.tcClient.RegisterTriggerWorker(ctx, &controller.RegisterTriggerWorkerRequest{
 		Address: s.twAddr,
 	})
 	if err != nil {

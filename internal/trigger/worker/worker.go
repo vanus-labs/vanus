@@ -29,6 +29,7 @@ import (
 	"github.com/linkall-labs/eventbus-go/pkg/inmemory"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger/consumer"
+	"github.com/linkall-labs/vanus/internal/trigger/storage"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/pkg/errors"
 )
@@ -40,22 +41,31 @@ var (
 )
 
 type Worker struct {
-	subscriptions map[string]*primitive.Subscription
-	triggers      map[string]*Trigger
-	consumers     map[string]*consumer.Consumer
-	stopCh        chan struct{}
+	subscriptions map[string]*subscriptionInfo
 	lock          sync.RWMutex
 	started       bool
 	startedLock   sync.Mutex
 	wg            sync.WaitGroup
+	ctx           context.Context
+	cancel        context.CancelFunc
+	config        Config
+	storage       storage.OffsetStorage
 }
 
-func NewWorker() *Worker {
+type subscriptionInfo struct {
+	sub           *primitive.Subscription
+	trigger       *Trigger
+	consumer      *consumer.Consumer
+	offsetManager *consumer.EventLogOffset
+}
+
+func NewWorker(config Config) *Worker {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Worker{
-		subscriptions: map[string]*primitive.Subscription{},
-		triggers:      map[string]*Trigger{},
-		consumers:     map[string]*consumer.Consumer{},
-		stopCh:        make(chan struct{}),
+		subscriptions: map[string]*subscriptionInfo{},
+		ctx:           ctx,
+		cancel:        cancel,
+		config:        config,
 	}
 }
 
@@ -65,19 +75,12 @@ func (w *Worker) Start() error {
 	if w.started {
 		return nil
 	}
-	go func() {
-		tk := time.NewTicker(10 * time.Millisecond)
-		defer tk.Stop()
-		for {
-			select {
-			case <-w.stopCh:
-				return
-			case <-tk.C:
-				w.run()
-			}
-		}
-	}()
-	testSend()
+	s, err := storage.NewOffsetStorage(w.config.Storage)
+	if err != nil {
+		return err
+	}
+	w.storage = s
+	w.testSend()
 	w.started = true
 	return nil
 }
@@ -88,22 +91,19 @@ func (w *Worker) Stop() error {
 	if !w.started {
 		return nil
 	}
-	close(w.stopCh)
 	w.lock.Lock()
 	defer w.lock.Unlock()
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for id := range w.subscriptions {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				w.stopSub(id)
-			}()
-		}
-	}()
+	for id := range w.subscriptions {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			w.stopSub(id)
+		}()
+	}
 	wg.Wait()
+	w.cancel()
+	w.storage.Close()
 	for id := range w.subscriptions {
 		w.cleanSub(id)
 	}
@@ -112,26 +112,23 @@ func (w *Worker) Stop() error {
 }
 
 func (w *Worker) stopSub(id string) {
-	if c, exist := w.consumers[id]; exist {
-		c.Close()
-	}
-	if tr, exist := w.triggers[id]; exist {
-		tr.Stop(context.Background())
+	if info, exist := w.subscriptions[id]; exist {
+		info.consumer.Close()
+		info.trigger.Stop()
+		info.offsetManager.Close()
 	}
 }
 
 func (w *Worker) cleanSub(id string) {
-	delete(w.consumers, id)
-	delete(w.triggers, id)
 	delete(w.subscriptions, id)
 }
 
 func (w *Worker) ListSubscription() []*primitive.Subscription {
 	w.lock.RLock()
-	w.lock.RUnlock()
+	defer w.lock.RUnlock()
 	var list []*primitive.Subscription
 	for _, sub := range w.subscriptions {
-		list = append(list, sub)
+		list = append(list, sub.sub)
 	}
 	return list
 }
@@ -146,10 +143,23 @@ func (w *Worker) AddSubscription(sub *primitive.Subscription) error {
 	if _, exist := w.subscriptions[sub.ID]; exist {
 		return SubExist
 	}
-	w.subscriptions[sub.ID] = sub
-	tr := NewTrigger(sub)
-	w.triggers[sub.ID] = tr
-	return tr.Start(context.Background())
+	offsetManager := consumer.NewEventLogOffset(sub.ID, w.storage)
+	offsetManager.Start(w.ctx)
+	tr := NewTrigger(sub, offsetManager)
+	c := consumer.NewConsumer(ebVRN, sub.ID, offsetManager, tr.EventArrived)
+	err := c.Start(w.ctx)
+	if err != nil {
+		offsetManager.Close()
+		return err
+	}
+	tr.Start(w.ctx)
+	w.subscriptions[sub.ID] = &subscriptionInfo{
+		sub:           sub,
+		trigger:       tr,
+		consumer:      c,
+		offsetManager: offsetManager,
+	}
+	return nil
 }
 
 func (w *Worker) PauseSubscription(id string) error {
@@ -180,33 +190,7 @@ func (w *Worker) RemoveSubscription(id string) error {
 	return nil
 }
 
-func (w *Worker) run() {
-	w.lock.RLock()
-	defer w.lock.RUnlock()
-	if len(w.subscriptions) == 0 {
-		return
-	}
-	for _, sub := range w.subscriptions {
-		tr := w.triggers[sub.ID]
-		if tr.state != TriggerRunning {
-			continue
-		}
-		c, ok := w.consumers[sub.ID]
-		if !ok {
-			c = consumer.NewConsumer(ebVRN, sub.ID, tr.EventArrived)
-			c.Start()
-			w.consumers[sub.ID] = c
-		}
-	}
-
-}
-
-func (w *Worker) fetch() {
-
-}
-
-func testSend() {
-
+func (w *Worker) testSend() {
 	elVRN := "vanus+local:eventlog+inmemory:1?keepalive=true"
 	elVRN2 := "vanus+local:eventlog+inmemory:2?keepalive=true"
 	br := &record.EventBus{
@@ -230,7 +214,7 @@ func testSend() {
 		log.Fatal("parse eventbus vrn error", map[string]interface{}{"error": err})
 	}
 	ns.Register(vrn, br)
-	w, err := eb.OpenBusWriter(ebVRN)
+	bw, err := eb.OpenBusWriter(ebVRN)
 	if err != nil {
 		log.Fatal("open bus writer error", map[string]interface{}{"error": err})
 	}
@@ -253,7 +237,7 @@ func testSend() {
 			event.SetType(t)
 			event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world", "type": t})
 
-			_, err = w.Append(&event)
+			_, err = bw.Append(&event)
 			if err != nil {
 				log.Error("append event error", map[string]interface{}{"error": err})
 			}
