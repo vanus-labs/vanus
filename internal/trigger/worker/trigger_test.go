@@ -3,7 +3,6 @@ package worker
 import (
 	"context"
 	"fmt"
-	"github.com/linkall-labs/vanus/internal/trigger/consumer"
 	"io/ioutil"
 	"net/http"
 	"testing"
@@ -16,6 +15,7 @@ import (
 	"github.com/linkall-labs/eventbus-go/pkg/discovery/record"
 	"github.com/linkall-labs/eventbus-go/pkg/inmemory"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/trigger/consumer"
 )
 
 func Test_e2e(t *testing.T) {
@@ -54,7 +54,11 @@ func Test_e2e(t *testing.T) {
 
 	ns := discovery.Find("vanus+local").(*inmemory.NameService)
 	// register metadata of eventbus
-	ns.Register(ebVRN, br)
+	vrn, err := discovery.ParseVRN(ebVRN)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	ns.Register(vrn, br)
 
 	go func() {
 		w, err := eb.OpenBusWriter(ebVRN)
@@ -82,7 +86,7 @@ func Test_e2e(t *testing.T) {
 		w.Close()
 	}()
 	go func() {
-		ls, err := eb.LookupReadableLog(ebVRN)
+		ls, err := eb.LookupReadableLogs(ebVRN)
 		if err != nil {
 			t.Fatal(err)
 		}

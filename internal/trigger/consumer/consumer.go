@@ -16,6 +16,10 @@ package consumer
 
 import (
 	"context"
+	"io"
+	"sync"
+	"time"
+
 	ce "github.com/cloudevents/sdk-go/v2"
 	eb "github.com/linkall-labs/eventbus-go"
 	"github.com/linkall-labs/eventbus-go/pkg/discovery/record"
@@ -23,9 +27,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/pkg/errors"
-	"io"
-	"sync"
-	"time"
 )
 
 type Consumer struct {
@@ -61,7 +62,7 @@ func (c *Consumer) Close() {
 	c.wg.Wait()
 }
 func (c *Consumer) Start() error {
-	els, err := eb.LookupReadableLog(c.ebVrn)
+	els, err := eb.LookupReadableLogs(c.ebVrn)
 	if err != nil {
 		return errors.Wrapf(err, "eb")
 	}
@@ -82,7 +83,7 @@ func (c *Consumer) Start() error {
 }
 
 func (c *Consumer) checkEventLogChange() {
-	els, err := eb.LookupReadableLog(c.ebVrn)
+	els, err := eb.LookupReadableLogs(c.ebVrn)
 	if err != nil {
 		log.Error("eventbus lookup Readable log error", map[string]interface{}{
 			"ebVrn":      c.ebVrn,

@@ -17,6 +17,11 @@ package worker
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"sync"
+	"time"
+
 	ce "github.com/cloudevents/sdk-go/v2"
 	eb "github.com/linkall-labs/eventbus-go"
 	"github.com/linkall-labs/eventbus-go/pkg/discovery"
@@ -26,10 +31,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/consumer"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/pkg/errors"
-	"io/ioutil"
-	"net/http"
-	"sync"
-	"time"
 )
 
 var (
@@ -224,7 +225,11 @@ func testSend() {
 
 	ns := discovery.Find("vanus+local").(*inmemory.NameService)
 	// register metadata of eventbus
-	ns.Register(ebVRN, br)
+	vrn, err := discovery.ParseVRN(ebVRN)
+	if err != nil {
+		log.Fatal("parse eventbus vrn error", map[string]interface{}{"error": err})
+	}
+	ns.Register(vrn, br)
 	w, err := eb.OpenBusWriter(ebVRN)
 	if err != nil {
 		log.Fatal("open bus writer error", map[string]interface{}{"error": err})
