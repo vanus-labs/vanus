@@ -1,10 +1,11 @@
 package block
 
 import (
+	"testing"
+
 	v1 "cloudevents.io/genproto/v1"
 	"github.com/golang/protobuf/proto"
 	. "github.com/smartystreets/goconvey/convey"
-	"testing"
 )
 
 func TestCloudEventMarshallAndUnmarshall(t *testing.T) {
@@ -14,9 +15,9 @@ func TestCloudEventMarshallAndUnmarshall(t *testing.T) {
 			Source:      "bbbbb",
 			SpecVersion: "ccccc",
 			Type:        "ddddd",
-			Attributes: map[string]*v1.CloudEvent_CloudEventAttributeValue{
+			Attributes: map[string]*v1.CloudEventAttributeValue{
 				"aaa": {
-					Attr: &v1.CloudEvent_CloudEventAttributeValue_CeBoolean{
+					Attr: &v1.CloudEventAttributeValue_CeBoolean{
 						CeBoolean: false,
 					},
 				},
