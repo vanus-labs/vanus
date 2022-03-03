@@ -14,6 +14,17 @@
 
 package config
 
+type StorageKeyPrefix string
+
+func (s StorageKeyPrefix) String() string {
+	return string(s)
+}
+
+const (
+	StorageOffset       StorageKeyPrefix = "offsets"
+	StorageSubscription StorageKeyPrefix = "subscriptions"
+)
+
 type KvStorageConfig struct {
 	KeyPrefix  string   `yaml:"keyPrefix" json:"keyPrefix"`
 	ServerList []string `yaml:"serverList" json:"serverList"`

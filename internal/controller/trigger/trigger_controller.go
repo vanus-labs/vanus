@@ -55,7 +55,7 @@ const (
 //triggerController allocate subscription to trigger processor
 type triggerController struct {
 	config               Config
-	storage              storage.SubscriptionStorage
+	storage              storage.Storage
 	heartbeats           map[string]time.Time
 	triggerWorkers       map[string]*triggerWorker
 	subscriptions        map[string]*subscriptionTrigger
@@ -107,7 +107,7 @@ func (ctrl *triggerController) CreateSubscription(ctx context.Context, request *
 	if err != nil {
 		return nil, err
 	}
-	resp, err := convert.InnerSubToMetaSub(sub)
+	resp, err := convert.ToPbSubscription(sub)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (ctrl *triggerController) GetSubscription(ctx context.Context, request *ctr
 		return nil, serverNotReady
 	}
 	sub := ctrl.getSubscription(request.Id)
-	resp, _ := convert.InnerSubToMetaSub(sub)
+	resp, _ := convert.ToPbSubscription(sub)
 	return resp, nil
 }
 func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerController_TriggerWorkerHeartbeatServer) error {
@@ -222,6 +222,8 @@ func (ctrl *triggerController) deleteSubscription(id string) error {
 		return errors.Wrapf(err, "trigger worker remove sub %s error", id)
 	}
 	delete(ctrl.subscriptions, id)
+	ctrl.storage.DeleteOffset(id)
+	ctrl.storage.DeleteSubscription(id)
 	return nil
 }
 

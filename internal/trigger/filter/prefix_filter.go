@@ -22,14 +22,20 @@ import (
 )
 
 type prefixFilter struct {
-	attribute, prefix string
+	prefix map[string]string
 }
 
-func NewPrefixFilter(attribute, prefix string) Filter {
-	if attribute == "" || prefix == "" {
-		return nil
+func NewPrefixFilter(prefix map[string]string) Filter {
+	for attr, v := range prefix {
+		if attr == "" || v == "" {
+			log.Info("new prefix filter but has empty ", map[string]interface{}{
+				"attr":  attr,
+				"value": v,
+			})
+			return nil
+		}
 	}
-	return &prefixFilter{attribute: attribute, prefix: prefix}
+	return &prefixFilter{prefix: prefix}
 }
 
 func (filter *prefixFilter) Filter(event ce.Event) FilterResult {
@@ -37,19 +43,21 @@ func (filter *prefixFilter) Filter(event ce.Event) FilterResult {
 		return FailFilter
 	}
 	log.Debug("prefix filter ", map[string]interface{}{"filter": filter, "event": event})
-	value, ok := LookupAttribute(event, filter.attribute)
-	if !ok {
-		return FailFilter
-	}
+	for attr, prefix := range filter.prefix {
+		value, ok := LookupAttribute(event, attr)
+		if !ok {
+			return FailFilter
+		}
 
-	if strings.HasPrefix(fmt.Sprintf("%v", value), filter.prefix) {
-		return PassFilter
+		if !strings.HasPrefix(fmt.Sprintf("%v", value), prefix) {
+			return FailFilter
+		}
 	}
-	return FailFilter
+	return PassFilter
 }
 
 func (filter *prefixFilter) String() string {
-	return fmt.Sprintf("attribute:%s,prefix:%s", filter.attribute, filter.prefix)
+	return fmt.Sprintf("prefix:%v", filter.prefix)
 }
 
 var _ Filter = (*prefixFilter)(nil)

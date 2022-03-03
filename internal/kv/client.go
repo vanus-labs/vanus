@@ -43,6 +43,15 @@ type Client interface {
 }
 
 type Pair struct {
-	Key   string
-	Value []byte
+	Key    string
+	Value  []byte
+	Action Action
 }
+
+type Action string
+
+const (
+	Create Action = "create"
+	Delete Action = "delete"
+	Update Action = "update"
+)

@@ -200,8 +200,12 @@ func (c *etcdClient3) watch(key string, stopCh <-chan struct{}, isTree bool) (ch
 						Value: e.Kv.Value,
 					}
 					if e.Type == v3client.EventTypeDelete {
-						if e.PrevKv != nil {
-							pair.Value = e.PrevKv.Value
+						pair.Action = kvdef.Delete
+					} else {
+						if e.IsCreate() {
+							pair.Action = kvdef.Create
+						} else {
+							pair.Action = kvdef.Update
 						}
 					}
 					pairC <- pair

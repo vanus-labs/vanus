@@ -52,18 +52,18 @@ func (s *offsetStorage) Close() error {
 }
 
 func (s *offsetStorage) CreateOffset(info *info.OffsetInfo) error {
-	key := path.Join(info.SubId, info.EventLog)
+	key := path.Join(config.StorageOffset.String(), info.SubId, info.EventLog)
 	v := []byte(fmt.Sprintf("%d", info.Offset))
 	return s.client.Create(key, v)
 }
 
 func (s *offsetStorage) UpdateOffset(info *info.OffsetInfo) error {
-	key := path.Join(info.SubId, info.EventLog)
+	key := path.Join(config.StorageOffset.String(), info.SubId, info.EventLog)
 	return s.client.Update(key, []byte(fmt.Sprintf("%d", info.Offset)))
 }
 
 func (s *offsetStorage) GetOffset(info *info.OffsetInfo) (int64, error) {
-	key := path.Join(info.SubId, info.EventLog)
+	key := path.Join(config.StorageOffset.String(), info.SubId, info.EventLog)
 	v, err := s.client.Get(key)
 	if err != nil {
 		return 0, err
@@ -76,7 +76,8 @@ func (s *offsetStorage) GetOffset(info *info.OffsetInfo) (int64, error) {
 }
 
 func (s *offsetStorage) ListOffset(subId string) ([]*info.OffsetInfo, error) {
-	l, err := s.client.List(subId + "/")
+	key := path.Join(config.StorageOffset.String(), subId, "/")
+	l, err := s.client.List(key)
 	if err != nil {
 		return nil, err
 	}

@@ -52,7 +52,7 @@ func main() {
 	}
 	srv := worker.NewTriggerServer(trControllerAddr, trWorkerAddr, worker.Config{Storage: config.KvStorageConfig{
 		ServerList: []string{"127.0.0.1:2379"},
-		KeyPrefix:  "/xdl/offset",
+		KeyPrefix:  "/xdl/trigger",
 	}}, stopCallback)
 	trigger.RegisterTriggerWorkerServer(grpcServer, srv)
 	go func() {

@@ -74,7 +74,7 @@ func (s *server) Stop(ctx context.Context, request *trigger.StopTriggerWorkerReq
 
 func (s *server) AddSubscription(ctx context.Context, request *trigger.AddSubscriptionRequest) (*trigger.AddSubscriptionResponse, error) {
 	log.Info("subscription add ", map[string]interface{}{"request": request})
-	sub, err := convert.MetaSubToInnerSub(request.Subscription)
+	sub, err := convert.FromPbSubscription(request.Subscription)
 	if err != nil {
 		log.Info("trigger subscription request to subscription error", map[string]interface{}{"error": err})
 		return nil, err

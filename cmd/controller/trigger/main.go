@@ -63,7 +63,7 @@ func main() {
 		}
 	}()
 	if err = srv.Start(); err != nil {
-		log.Fatal("trigger controler start fail", map[string]interface{}{
+		log.Fatal("trigger controller start fail", map[string]interface{}{
 			log.KeyError: err,
 		})
 	}

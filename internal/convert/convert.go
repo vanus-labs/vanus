@@ -15,35 +15,104 @@
 package convert
 
 import (
-	"encoding/json"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vsproto/pkg/meta"
-	"github.com/pkg/errors"
+	pb "github.com/linkall-labs/vsproto/pkg/meta"
 )
 
-func MetaSubToInnerSub(sub *meta.Subscription) (*primitive.Subscription, error) {
-	b, err := json.Marshal(sub)
-	if err != nil {
-		return nil, errors.Wrap(err, "marshal error")
+func FromPbSubscription(sub *pb.Subscription) (*primitive.Subscription, error) {
+	to := &primitive.Subscription{
+		ID:               sub.Id,
+		Source:           sub.Source,
+		Types:            sub.Types,
+		Config:           sub.Config,
+		Sink:             primitive.URI(sub.Sink),
+		Protocol:         sub.Protocol,
+		ProtocolSettings: sub.ProtocolSettings,
 	}
-	to := &primitive.Subscription{}
-	err = json.Unmarshal(b, to)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unmarshal error, json %s", string(b))
+	if len(sub.Filters) != 0 {
+		to.Filters = fromPbFilters(sub.Filters)
 	}
 	return to, nil
 }
 
-func InnerSubToMetaSub(sub *primitive.Subscription) (*meta.Subscription, error) {
-	b, err := json.Marshal(sub)
-	if err != nil {
-		return nil, errors.Wrap(err, "marshal error")
+func ToPbSubscription(sub *primitive.Subscription) (*pb.Subscription, error) {
+	to := &pb.Subscription{
+		Id:               sub.ID,
+		Source:           sub.Source,
+		Types:            sub.Types,
+		Config:           sub.Config,
+		Sink:             string(sub.Sink),
+		Protocol:         sub.Protocol,
+		ProtocolSettings: sub.ProtocolSettings,
 	}
-	to := &meta.Subscription{}
-	err = json.Unmarshal(b, to)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unmarshal error, json %s", string(b))
+	if len(sub.Filters) != 0 {
+		to.Filters = toPbFilters(sub.Filters)
 	}
-
 	return to, nil
+}
+
+func fromPbFilters(filters []*pb.Filter) []*primitive.SubscriptionFilter {
+	var tos []*primitive.SubscriptionFilter
+	for _, filter := range filters {
+		tos = append(tos, fromPbFilter(filter))
+	}
+	return tos
+}
+
+func fromPbFilter(filter *pb.Filter) *primitive.SubscriptionFilter {
+	if len(filter.Exact) != 0 {
+		return &primitive.SubscriptionFilter{Exact: filter.Exact}
+	}
+	if len(filter.Suffix) != 0 {
+		return &primitive.SubscriptionFilter{Suffix: filter.Suffix}
+	}
+	if len(filter.Prefix) != 0 {
+		return &primitive.SubscriptionFilter{Prefix: filter.Prefix}
+	}
+	if filter.Not != nil {
+		return &primitive.SubscriptionFilter{Not: fromPbFilter(filter.Not)}
+	}
+	if filter.Sql != "" {
+		return &primitive.SubscriptionFilter{SQL: filter.Sql}
+	}
+	if len(filter.All) > 0 {
+		return &primitive.SubscriptionFilter{All: fromPbFilters(filter.All)}
+	}
+	if len(filter.Any) > 0 {
+		return &primitive.SubscriptionFilter{Any: fromPbFilters(filter.Any)}
+	}
+	return nil
+}
+
+func toPbFilters(filters []*primitive.SubscriptionFilter) []*pb.Filter {
+	var tos []*pb.Filter
+	for _, filter := range filters {
+		tos = append(tos, toPbFilter(filter))
+	}
+	return tos
+}
+
+func toPbFilter(filter *primitive.SubscriptionFilter) *pb.Filter {
+	if len(filter.Exact) != 0 {
+		return &pb.Filter{Exact: filter.Exact}
+	}
+	if len(filter.Suffix) != 0 {
+		return &pb.Filter{Suffix: filter.Suffix}
+	}
+	if len(filter.Prefix) != 0 {
+		return &pb.Filter{Prefix: filter.Prefix}
+	}
+	if filter.Not != nil {
+		return &pb.Filter{Not: toPbFilter(filter.Not)}
+	}
+	if filter.SQL != "" {
+		return &pb.Filter{Sql: filter.SQL}
+	}
+	if len(filter.All) > 0 {
+		return &pb.Filter{All: toPbFilters(filter.All)}
+	}
+	if len(filter.Any) > 0 {
+		return &pb.Filter{Any: toPbFilters(filter.Any)}
+	}
+	return nil
 }

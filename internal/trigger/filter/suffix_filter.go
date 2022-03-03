@@ -22,14 +22,20 @@ import (
 )
 
 type suffixFilter struct {
-	attribute, suffix string
+	suffix map[string]string
 }
 
-func NewSuffixFilter(attribute, suffix string) Filter {
-	if attribute == "" || suffix == "" {
-		return nil
+func NewSuffixFilter(suffix map[string]string) Filter {
+	for attr, v := range suffix {
+		if attr == "" || v == "" {
+			log.Info("new suffix filter but has empty ", map[string]interface{}{
+				"attr":  attr,
+				"value": v,
+			})
+			return nil
+		}
 	}
-	return &suffixFilter{attribute: attribute, suffix: suffix}
+	return &suffixFilter{suffix: suffix}
 }
 
 func (filter *suffixFilter) Filter(event ce.Event) FilterResult {
@@ -37,19 +43,20 @@ func (filter *suffixFilter) Filter(event ce.Event) FilterResult {
 		return FailFilter
 	}
 	log.Debug("suffix filter ", map[string]interface{}{"filter": filter, "event": event})
-	value, ok := LookupAttribute(event, filter.attribute)
-	if !ok {
-		return FailFilter
+	for attr, suffix := range filter.suffix {
+		value, ok := LookupAttribute(event, attr)
+		if !ok {
+			return FailFilter
+		}
+		if !strings.HasSuffix(fmt.Sprintf("%v", value), suffix) {
+			return FailFilter
+		}
 	}
-
-	if strings.HasSuffix(fmt.Sprintf("%v", value), filter.suffix) {
-		return PassFilter
-	}
-	return FailFilter
+	return PassFilter
 }
 
 func (filter *suffixFilter) String() string {
-	return fmt.Sprintf("attribute:%s,suffix:%s", filter.attribute, filter.suffix)
+	return fmt.Sprintf("suffix:%v", filter.suffix)
 }
 
 var _ Filter = (*suffixFilter)(nil)

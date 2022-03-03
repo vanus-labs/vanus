@@ -23,7 +23,7 @@ type fake struct {
 	subs map[string]*primitive.Subscription
 }
 
-func NewFakeStorage(config config.KvStorageConfig) (SubscriptionStorage, error) {
+func NewFakeStorage(config config.KvStorageConfig) (Storage, error) {
 	s := &fake{
 		subs: map[string]*primitive.Subscription{},
 	}
@@ -54,4 +54,8 @@ func (f *fake) ListSubscription() ([]*primitive.Subscription, error) {
 		list = append(list, sub)
 	}
 	return list, nil
+}
+
+func (f *fake) DeleteOffset(id string) error {
+	return nil
 }

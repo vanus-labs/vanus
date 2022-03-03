@@ -26,7 +26,7 @@ func Test_e2e(t *testing.T) {
 		Source:           "human",
 		Types:            []string{"aaa"},
 		Config:           map[string]string{},
-		Filters:          []primitive.SubscriptionFilter{{Exact: map[string]string{"type": "none"}}},
+		Filters:          []*primitive.SubscriptionFilter{{Exact: map[string]string{"type": "none"}}},
 		Sink:             "http://localhost:18080",
 		Protocol:         "vanus",
 		ProtocolSettings: nil,

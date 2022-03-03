@@ -21,14 +21,20 @@ import (
 )
 
 type exactFilter struct {
-	attribute, value string
+	exact map[string]string
 }
 
-func NewExactFilter(attribute, value string) Filter {
-	if attribute == "" || value == "" {
-		return nil
+func NewExactFilter(exact map[string]string) Filter {
+	for attr, v := range exact {
+		if attr == "" || v == "" {
+			log.Info("new exact filter but has empty ", map[string]interface{}{
+				"attr":  attr,
+				"value": v,
+			})
+			return nil
+		}
 	}
-	return &exactFilter{attribute: attribute, value: value}
+	return &exactFilter{exact: exact}
 }
 
 func (filter *exactFilter) Filter(event ce.Event) FilterResult {
@@ -36,15 +42,17 @@ func (filter *exactFilter) Filter(event ce.Event) FilterResult {
 		return FailFilter
 	}
 	log.Debug("exact filter ", map[string]interface{}{"filter": filter, "event": event})
-	value, ok := LookupAttribute(event, filter.attribute)
-	if !ok || value != filter.value {
-		return FailFilter
+	for attr, v := range filter.exact {
+		value, ok := LookupAttribute(event, attr)
+		if !ok || value != v {
+			return FailFilter
+		}
 	}
 	return PassFilter
 }
 
 func (filter *exactFilter) String() string {
-	return fmt.Sprintf("attribute:%s,value:%s", filter.attribute, filter.value)
+	return fmt.Sprintf("exact:%v", filter.exact)
 }
 
 var _ Filter = (*exactFilter)(nil)

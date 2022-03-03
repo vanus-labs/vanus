@@ -20,36 +20,18 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
-func extractFilter(subscriptionFilter primitive.SubscriptionFilter) Filter {
+func extractFilter(subscriptionFilter *primitive.SubscriptionFilter) Filter {
 	if len(subscriptionFilter.Exact) > 0 {
-		for attribute, value := range subscriptionFilter.Exact {
-			f := NewExactFilter(attribute, value)
-			if f == nil {
-				log.Debug("new exact filter is nil ", map[string]interface{}{"attribute": attribute, "value": value})
-			}
-			return f
-		}
+		return NewExactFilter(subscriptionFilter.Exact)
 	}
 	if len(subscriptionFilter.Prefix) > 0 {
-		for attribute, prefix := range subscriptionFilter.Prefix {
-			f := NewPrefixFilter(attribute, prefix)
-			if f == nil {
-				log.Debug("new prefix filter is nil ", map[string]interface{}{"attribute": attribute, "prefix": prefix})
-			}
-			return f
-		}
+		return NewPrefixFilter(subscriptionFilter.Prefix)
 	}
 	if len(subscriptionFilter.Suffix) > 0 {
-		for attribute, suffix := range subscriptionFilter.Suffix {
-			f := NewSuffixFilter(attribute, suffix)
-			if f == nil {
-				log.Debug("new suffix filter is nil ", map[string]interface{}{"attribute": attribute, "suffix": suffix})
-			}
-			return f
-		}
+		return NewSuffixFilter(subscriptionFilter.Suffix)
 	}
 	if subscriptionFilter.Not != nil {
-		f := NewNotFilter(extractFilter(*subscriptionFilter.Not))
+		f := NewNotFilter(extractFilter(subscriptionFilter.Not))
 		if f == nil {
 			log.Debug("new not filter is nil ", map[string]interface{}{"filter": subscriptionFilter.Not})
 		}
@@ -79,7 +61,7 @@ func extractFilter(subscriptionFilter primitive.SubscriptionFilter) Filter {
 	return nil
 }
 
-func extractFilters(subscriptionFilters []primitive.SubscriptionFilter) []Filter {
+func extractFilters(subscriptionFilters []*primitive.SubscriptionFilter) []Filter {
 	var filters []Filter
 	for _, subscriptionFilter := range subscriptionFilters {
 		tf := extractFilter(subscriptionFilter)
@@ -92,7 +74,7 @@ func extractFilters(subscriptionFilters []primitive.SubscriptionFilter) []Filter
 	return filters
 }
 
-func GetFilter(subscriptionFilters []primitive.SubscriptionFilter) Filter {
+func GetFilter(subscriptionFilters []*primitive.SubscriptionFilter) Filter {
 	filters := extractFilters(subscriptionFilters)
 	if len(filters) == 1 {
 		return filters[0]

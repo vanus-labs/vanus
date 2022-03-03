@@ -101,7 +101,7 @@ func (tw *triggerWorker) AddSubscription(sub *primitive.Subscription) error {
 	tw.subLock.Lock()
 	defer tw.subLock.Unlock()
 	ctx := context.Background()
-	to, err := convert.InnerSubToMetaSub(sub)
+	to, err := convert.ToPbSubscription(sub)
 	if err != nil {
 		return errors.Wrap(err, "add subscription model convert error")
 	}
