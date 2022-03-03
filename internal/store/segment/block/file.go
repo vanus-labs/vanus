@@ -59,11 +59,19 @@ func (b *fileBlock) Initialize(ctx context.Context) error {
 		return err
 	}
 
+	if b.fullFlag.Load().(bool) {
+		b.appendable.Store(false)
+	}
+
 	if err := b.loadIndex(ctx); err != nil {
 		return err
 	}
 
 	if err := b.validate(ctx); err != nil {
+		return err
+	}
+	b.writeOffset = fileSegmentBlockHeaderCapacity + b.length
+	if _, err := b.physicalFile.Seek(b.writeOffset, 0); err != nil {
 		return err
 	}
 	return nil
@@ -167,9 +175,10 @@ func (b *fileBlock) CloseWrite(ctx context.Context) error {
 	if err := b.persistHeader(ctx); err != nil {
 		return err
 	}
-
-	if err := b.persistIndex(ctx); err != nil {
-		return err
+	if b.IsFull() {
+		if err := b.persistIndex(ctx); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -219,7 +228,9 @@ func (b *fileBlock) SegmentBlockID() string {
 }
 
 func (b *fileBlock) remain(sizeNeedServed int64) int {
-	return int(b.capacity-b.length-int64(b.number*v1IndexLength)-sizeNeedServed) - fileSegmentBlockHeaderCapacity
+	// capacity - headerCapacity - dataLength - indexDataLength - currentRequestDataLength
+	return int(b.capacity - fileSegmentBlockHeaderCapacity - b.length -
+		int64(b.number*v1IndexLength) - sizeNeedServed)
 }
 
 func (b *fileBlock) persistHeader(ctx context.Context) error {
@@ -231,7 +242,6 @@ func (b *fileBlock) persistHeader(ctx context.Context) error {
 	}()
 
 	buf := bytes.NewBuffer(make([]byte, 0))
-
 	if err := binary.Write(buf, binary.BigEndian, b.version); err != nil {
 		return err
 	}
@@ -273,7 +283,7 @@ func (b *fileBlock) loadHeader(ctx context.Context) error {
 	if err := binary.Read(reader, binary.BigEndian, &b.number); err != nil {
 		return err
 	}
-	b.writeOffset = v1FileSegmentBlockHeaderLength + b.length
+
 	return nil
 }
 
@@ -284,6 +294,7 @@ func (b *fileBlock) persistIndex(ctx context.Context) error {
 		return nil
 	}
 	buf := bytes.NewBuffer(make([]byte, 0))
+
 	for idx := range b.indexes {
 		if err := binary.Write(buf, binary.BigEndian, b.indexes[idx].startOffset); err != nil {
 			return err
@@ -311,6 +322,7 @@ func (b *fileBlock) loadIndex(ctx context.Context) error {
 		}
 		reader := bytes.NewReader(idxData)
 		for idx := range b.indexes {
+			b.indexes[idx] = blockIndex{}
 			if err := binary.Read(reader, binary.BigEndian, &b.indexes[idx].startOffset); err != nil {
 				return err
 			}
@@ -322,7 +334,8 @@ func (b *fileBlock) loadIndex(ctx context.Context) error {
 		// rebuild index
 		off := int64(fileSegmentBlockHeaderCapacity)
 		ld := make([]byte, 4)
-		for idx := 0; idx < int(b.number); idx++ {
+		count := 0
+		for {
 			if _, err := b.physicalFile.ReadAt(ld, off); err != nil {
 				return err
 			}
@@ -331,9 +344,19 @@ func (b *fileBlock) loadIndex(ctx context.Context) error {
 			if err := binary.Read(reader, binary.BigEndian, &entityLen); err != nil {
 				return err
 			}
-			b.indexes[idx].startOffset = off
-			b.indexes[idx].length = entityLen
+			if entityLen == 0 {
+				break
+			}
+			b.indexes = append(b.indexes, blockIndex{
+				startOffset: off,
+				length:      entityLen,
+			})
 			off += 4 + int64(entityLen)
+			count++
+		}
+		b.number = int32(count)
+		if count > 0 {
+			b.length = b.indexes[count-1].startOffset + int64(b.indexes[count-1].length)
 		}
 	}
 	return nil

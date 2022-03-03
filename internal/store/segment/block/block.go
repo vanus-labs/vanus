@@ -73,7 +73,14 @@ func CreateFileSegmentBlock(ctx context.Context, id string, path string, capacit
 	if _, err = f.Seek(fileSegmentBlockHeaderCapacity, 0); err != nil {
 		return nil, err
 	}
+	b.appendable.Store(true)
+	b.readable.Store(true)
+	b.fullFlag.Store(false)
 	b.physicalFile = f
+	if err = b.persistHeader(ctx); err != nil {
+		return nil, err
+	}
+
 	return b, nil
 }
 
@@ -82,10 +89,14 @@ func OpenFileSegmentBlock(ctx context.Context, path string) (SegmentBlock, error
 	defer observability.LeaveMark(ctx)
 
 	b := &fileBlock{
-		readOffset: fileSegmentBlockHeaderCapacity,
 		id:         filepath.Base(path),
+		path:       path,
+		readOffset: fileSegmentBlockHeaderCapacity,
 	}
-	f, err := os.Open(path)
+	b.appendable.Store(true)
+	b.readable.Store(true)
+	b.fullFlag.Store(false)
+	f, err := os.OpenFile(path, os.O_RDWR, 0666)
 	if err != nil {
 		return nil, err
 	}

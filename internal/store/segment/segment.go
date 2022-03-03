@@ -44,18 +44,16 @@ const (
 
 func NewSegmentServer(localAddr, ctrlAddr, volumeId string, stop func()) segment.SegmentServerServer {
 	return &segmentServer{
-		volumeId:            volumeId,
-		volumeDir:           "/Users/wenfeng/tmp/data/vanus/volume-1",
-		ctrlAddress:         ctrlAddr,
-		localAddress:        localAddr,
-		stopCallback:        stop,
-		closeCh:             make(chan struct{}, 0),
-		state:               primitive.ServerStateCreated,
-		events:              make([]*v1.CloudEvent, 0),
-		credentials:         insecure.NewCredentials(),
-		segmentBlockMap:     map[string]block.SegmentBlock{},
-		segmentBlockWriters: map[string]block.SegmentBlockWriter{},
-		segmentBlockReaders: map[string]block.SegmentBlockReader{},
+		volumeId:        volumeId,
+		volumeDir:       "/Users/wenfeng/tmp/data/vanus/volume-1",
+		ctrlAddress:     ctrlAddr,
+		localAddress:    localAddr,
+		stopCallback:    stop,
+		closeCh:         make(chan struct{}, 0),
+		state:           primitive.ServerStateCreated,
+		events:          make([]*v1.CloudEvent, 0),
+		credentials:     insecure.NewCredentials(),
+		segmentBlockMap: map[string]block.SegmentBlock{},
 	}
 }
 
@@ -73,8 +71,8 @@ type segmentServer struct {
 	ctrlClient          ctrl.SegmentControllerClient
 	credentials         credentials.TransportCredentials
 	segmentBlockMap     map[string]block.SegmentBlock
-	segmentBlockWriters map[string]block.SegmentBlockWriter
-	segmentBlockReaders map[string]block.SegmentBlockReader
+	segmentBlockWriters sync.Map
+	segmentBlockReaders sync.Map
 }
 
 func (s *segmentServer) Initialize(ctx context.Context) error {
@@ -162,7 +160,7 @@ func (s *segmentServer) CreateSegmentBlock(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if s.isServerReadyToWork() {
+	if !s.isServerReadyToWork() {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
 			errors.Notice(fmt.Sprintf("the server isn't ready to work, current state:%s", s.state)))
 	}
@@ -180,8 +178,8 @@ func (s *segmentServer) CreateSegmentBlock(ctx context.Context,
 	}
 
 	s.segmentBlockMap[req.Id] = segmentBlock
-	s.segmentBlockWriters[req.Id] = segmentBlock
-	s.segmentBlockReaders[req.Id] = segmentBlock
+	s.segmentBlockWriters.Store(req.Id, segmentBlock)
+	s.segmentBlockReaders.Store(req.Id, segmentBlock)
 	return &segment.CreateSegmentBlockResponse{}, nil
 }
 
@@ -190,7 +188,7 @@ func (s *segmentServer) RemoveSegmentBlock(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if s.isServerReadyToWork() {
+	if !s.isServerReadyToWork() {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
 			errors.Notice(fmt.Sprintf("the server isn't ready to work, current state:%s", s.state)))
 	}
@@ -204,7 +202,7 @@ func (s *segmentServer) ActiveSegmentBlock(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if s.isServerReadyToWork() {
+	if !s.isServerReadyToWork() {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
 			errors.Notice(fmt.Sprintf("the server isn't ready to work, current state:%s", s.state)))
 	}
@@ -218,7 +216,7 @@ func (s *segmentServer) InactiveSegmentBlock(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if s.isServerReadyToWork() {
+	if !s.isServerReadyToWork() {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
 			errors.Notice(fmt.Sprintf("the server isn't ready to work, current state:%s", s.state)))
 	}
@@ -231,7 +229,7 @@ func (s *segmentServer) GetSegmentBlockInfo(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if s.isServerReadyToWork() {
+	if !s.isServerReadyToWork() {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
 			errors.Notice(fmt.Sprintf("the server isn't ready to work, current state:%s", s.state)))
 	}
@@ -243,7 +241,7 @@ func (s *segmentServer) AppendToSegment(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if s.isServerReadyToWork() {
+	if !s.isServerReadyToWork() {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
 			errors.Notice(fmt.Sprintf("the server isn't ready to work, current state:%s", s.state)))
 	}
@@ -253,13 +251,14 @@ func (s *segmentServer) AppendToSegment(ctx context.Context,
 	}
 
 	events := req.GetEvents().Events
-	writer := s.segmentBlockWriters[req.SegmentId]
-	if writer == nil {
+	v, exist := s.segmentBlockWriters.Load(req.SegmentId)
+	if !exist {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
 			"the segment doesn't exist")
 	}
 
-	if writer.IsAppendable() {
+	writer := v.(block.SegmentBlockWriter)
+	if !writer.IsAppendable() {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
 			errors.Notice(fmt.Sprintf("the segment can not be appended, isFull: %v",
 				writer.(block.SegmentBlock).IsFull())))
@@ -303,7 +302,7 @@ func (s *segmentServer) ReadFromSegment(ctx context.Context,
 	req *segment.ReadFromSegmentRequest) (*segment.ReadFromSegmentResponse, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
-	if s.isServerReadyToWork() {
+	if !s.isServerReadyToWork() {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
 			errors.Notice(fmt.Sprintf("the server isn't ready to work, current state:%s", s.state)))
 	}
@@ -314,15 +313,18 @@ func (s *segmentServer) ReadFromSegment(ctx context.Context,
 			"the segment doesn't exist on this server")
 	}
 
-	reader := s.segmentBlockReaders[req.SegmentId]
-	if reader == nil {
+	v, exist := s.segmentBlockReaders.Load(req.SegmentId)
+	var reader block.SegmentBlockReader
+	if !exist {
 		_reader, err := block.OpenFileSegmentBlock(ctx, segBlock.Path())
 		if err != nil {
 			return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
 				"open segment failed", err)
 		}
 		reader = _reader
-		s.segmentBlockReaders[req.SegmentId] = reader
+		s.segmentBlockReaders.Store(req.SegmentId, reader)
+	} else {
+		reader = v.(block.SegmentBlockReader)
 	}
 	entities, err := reader.Read(ctx, int(req.Offset), int(req.Number))
 	if err != nil {
@@ -389,16 +391,16 @@ func (s *segmentServer) start(ctx context.Context) error {
 			if _err := segBlock.Initialize(ctx); err != nil {
 				err = errors.Chain(err, _err)
 			}
-			s.segmentBlockWriters[segBlock.SegmentBlockID()] = segBlock
-			s.segmentBlockReaders[segBlock.SegmentBlockID()] = segBlock
+			s.segmentBlockWriters.Store(segBlock.SegmentBlockID(), segBlock)
+			s.segmentBlockReaders.Store(segBlock.SegmentBlockID(), segBlock)
 			wg.Done()
 		}(s.segmentBlockMap[id])
 	}
 	wg.Wait()
 
-	if err := s.startHeartBeatTask(); err != nil {
-		return err
-	}
+	//if err := s.startHeartBeatTask(); err != nil {
+	//	return err
+	//}
 	return nil
 }
 
@@ -416,11 +418,13 @@ func (s *segmentServer) stop(ctx context.Context) error {
 		wg.Add(1)
 		go func() {
 			s.waitAllAppendRequestCompleted(ctx)
-			for idx := range s.segmentBlockWriters {
-				if _err := s.segmentBlockWriters[idx].CloseWrite(ctx); err != nil {
+			s.segmentBlockWriters.Range(func(key, value interface{}) bool {
+				writer := value.(block.SegmentBlockWriter)
+				if _err := writer.CloseWrite(ctx); err != nil {
 					err = errors.Chain(err, _err)
 				}
-			}
+				return true
+			})
 			wg.Done()
 		}()
 	}
@@ -429,11 +433,13 @@ func (s *segmentServer) stop(ctx context.Context) error {
 		wg.Add(1)
 		go func() {
 			s.waitAllReadRequestCompleted(ctx)
-			for idx := range s.segmentBlockReaders {
-				if _err := s.segmentBlockReaders[idx].CloseRead(ctx); err != nil {
+			s.segmentBlockReaders.Range(func(key, value interface{}) bool {
+				reader := value.(block.SegmentBlockReader)
+				if _err := reader.CloseRead(ctx); err != nil {
 					err = errors.Chain(err, _err)
 				}
-			}
+				return true
+			})
 			wg.Done()
 		}()
 	}
