@@ -26,6 +26,7 @@ import (
 	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrl "github.com/linkall-labs/vsproto/pkg/controller"
+	"github.com/linkall-labs/vsproto/pkg/meta"
 	"github.com/linkall-labs/vsproto/pkg/segment"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -44,16 +45,15 @@ const (
 
 func NewSegmentServer(localAddr, ctrlAddr, volumeId string, stop func()) segment.SegmentServerServer {
 	return &segmentServer{
-		volumeId:        volumeId,
-		volumeDir:       "/Users/wenfeng/tmp/data/vanus/volume-1",
-		ctrlAddress:     ctrlAddr,
-		localAddress:    localAddr,
-		stopCallback:    stop,
-		closeCh:         make(chan struct{}, 0),
-		state:           primitive.ServerStateCreated,
-		events:          make([]*v1.CloudEvent, 0),
-		credentials:     insecure.NewCredentials(),
-		segmentBlockMap: map[string]block.SegmentBlock{},
+		volumeId:     volumeId,
+		volumeDir:    "/Users/wenfeng/tmp/data/vanus/volume-1",
+		ctrlAddress:  ctrlAddr,
+		localAddress: localAddr,
+		stopCallback: stop,
+		closeCh:      make(chan struct{}, 0),
+		state:        primitive.ServerStateCreated,
+		events:       make([]*v1.CloudEvent, 0),
+		credentials:  insecure.NewCredentials(),
 	}
 }
 
@@ -70,9 +70,10 @@ type segmentServer struct {
 	ctrlGrpcConn        *grpc.ClientConn
 	ctrlClient          ctrl.SegmentControllerClient
 	credentials         credentials.TransportCredentials
-	segmentBlockMap     map[string]block.SegmentBlock
+	segmentBlockMap     sync.Map
 	segmentBlockWriters sync.Map
 	segmentBlockReaders sync.Map
+	isDebugMode         bool
 }
 
 func (s *segmentServer) Initialize(ctx context.Context) error {
@@ -104,6 +105,7 @@ func (s *segmentServer) Initialize(ctx context.Context) error {
 	} else {
 		log.Info("the segment server debug mode enabled", nil)
 		s.id = "test-server-1"
+		s.isDebugMode = true
 		_files, err := filepath.Glob(filepath.Join(s.volumeDir, "*"))
 		if err != nil {
 			return err
@@ -165,7 +167,7 @@ func (s *segmentServer) CreateSegmentBlock(ctx context.Context,
 			errors.Notice(fmt.Sprintf("the server isn't ready to work, current state:%s", s.state)))
 	}
 
-	_, exist := s.segmentBlockMap[req.Id]
+	_, exist := s.segmentBlockMap.Load(req.Id)
 	if exist {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
 			"the segment has already exist")
@@ -177,7 +179,7 @@ func (s *segmentServer) CreateSegmentBlock(ctx context.Context,
 			"create segment block failed", err)
 	}
 
-	s.segmentBlockMap[req.Id] = segmentBlock
+	s.segmentBlockMap.Store(req.Id, segmentBlock)
 	s.segmentBlockWriters.Store(req.Id, segmentBlock)
 	s.segmentBlockReaders.Store(req.Id, segmentBlock)
 	return &segment.CreateSegmentBlockResponse{}, nil
@@ -307,12 +309,13 @@ func (s *segmentServer) ReadFromSegment(ctx context.Context,
 			errors.Notice(fmt.Sprintf("the server isn't ready to work, current state:%s", s.state)))
 	}
 
-	segBlock, exist := s.segmentBlockMap[req.SegmentId]
+	segV, exist := s.segmentBlockMap.Load(req.SegmentId)
 	if !exist {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
 			"the segment doesn't exist on this server")
 	}
 
+	segBlock := segV.(block.SegmentBlock)
 	v, exist := s.segmentBlockReaders.Load(req.SegmentId)
 	var reader block.SegmentBlockReader
 	if !exist {
@@ -348,6 +351,9 @@ func (s *segmentServer) ReadFromSegment(ctx context.Context,
 }
 
 func (s *segmentServer) startHeartBeatTask() error {
+	if s.isDebugMode {
+		return nil
+	}
 	stream, err := s.ctrlClient.SegmentHeartbeat(context.Background())
 	if err != nil {
 		return err
@@ -360,7 +366,17 @@ func (s *segmentServer) startHeartBeatTask() error {
 			case <-s.closeCh:
 				break LOOP
 			case <-ticker.C:
-				if err = stream.Send(&ctrl.SegmentHeartbeatRequest{}); err != nil {
+				infos := make([]*meta.SegmentHealthInfo, 0)
+				s.segmentBlockMap.Range(func(key, value interface{}) bool {
+					infos = append(infos, value.(block.SegmentBlock).HealthInfo())
+					return true
+				})
+				if err = stream.Send(&ctrl.SegmentHeartbeatRequest{
+					ServerId:         s.id,
+					VolumeId:         s.volumeId,
+					HealthInfo:       infos,
+					ReportTimeInNano: time.Now().UnixNano(),
+				}); err != nil {
 					log.Warning("send heartbeat to controller error", map[string]interface{}{
 						log.KeyError: err,
 					})
@@ -385,7 +401,7 @@ func (s *segmentServer) start(ctx context.Context) error {
 	wg := sync.WaitGroup{}
 
 	var err error
-	for id := range s.segmentBlockMap {
+	s.segmentBlockMap.Range(func(key, value interface{}) bool {
 		wg.Add(1)
 		go func(segBlock block.SegmentBlock) {
 			if _err := segBlock.Initialize(ctx); err != nil {
@@ -394,13 +410,14 @@ func (s *segmentServer) start(ctx context.Context) error {
 			s.segmentBlockWriters.Store(segBlock.SegmentBlockID(), segBlock)
 			s.segmentBlockReaders.Store(segBlock.SegmentBlockID(), segBlock)
 			wg.Done()
-		}(s.segmentBlockMap[id])
-	}
+		}(value.(block.SegmentBlock))
+		return true
+	})
 	wg.Wait()
 
-	//if err := s.startHeartBeatTask(); err != nil {
-	//	return err
-	//}
+	if err := s.startHeartBeatTask(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -449,13 +466,13 @@ func (s *segmentServer) stop(ctx context.Context) error {
 }
 
 func (s *segmentServer) markSegmentIsFull(ctx context.Context, segId string) error {
-	bl := s.segmentBlockMap[segId]
-	if bl == nil {
+	bl, exist := s.segmentBlockWriters.Load(segId)
+	if !exist {
 		return fmt.Errorf("the SegmentBlock does not exist")
 	}
 
 	// TODO report to Controller
-	return bl.CloseWrite(ctx)
+	return bl.(block.SegmentBlockWriter).CloseWrite(ctx)
 }
 
 func (s *segmentServer) isServerReadyToWork() bool {
@@ -472,7 +489,7 @@ func (s *segmentServer) initSegmentBlock(ctx context.Context, files []string) er
 		if err != nil {
 			return err
 		}
-		s.segmentBlockMap[sb.SegmentBlockID()] = sb
+		s.segmentBlockMap.Store(sb.SegmentBlockID(), sb)
 	}
 	return nil
 }

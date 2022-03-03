@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"github.com/linkall-labs/vanus/internal/store/segment/codec"
 	"github.com/linkall-labs/vanus/observability"
+	"github.com/linkall-labs/vsproto/pkg/meta"
 	"io"
 	"os"
 	"sync"
@@ -30,7 +31,7 @@ import (
 const (
 	fileSegmentBlockHeaderCapacity = 1024
 
-	// version + capacity + length + number
+	// version + capacity + size + number
 	v1FileSegmentBlockHeaderLength = 4 + 8 + 4 + 8
 	v1IndexLength                  = 12
 )
@@ -40,7 +41,7 @@ type fileBlock struct {
 	id                            string
 	path                          string
 	capacity                      int64
-	length                        int64
+	size                          int64
 	number                        int32
 	writeOffset                   int64
 	readOffset                    int64
@@ -70,7 +71,7 @@ func (b *fileBlock) Initialize(ctx context.Context) error {
 	if err := b.validate(ctx); err != nil {
 		return err
 	}
-	b.writeOffset = fileSegmentBlockHeaderCapacity + b.length
+	b.writeOffset = fileSegmentBlockHeaderCapacity + b.size
 	if _, err := b.physicalFile.Seek(b.writeOffset, 0); err != nil {
 		return err
 	}
@@ -212,7 +213,7 @@ func (b *fileBlock) IsReadable() bool {
 }
 
 func (b *fileBlock) IsEmpty() bool {
-	return b.length == fileSegmentBlockHeaderCapacity
+	return b.size == fileSegmentBlockHeaderCapacity
 }
 
 func (b *fileBlock) IsFull() bool {
@@ -227,9 +228,19 @@ func (b *fileBlock) SegmentBlockID() string {
 	return b.id
 }
 
+func (b *fileBlock) HealthInfo() *meta.SegmentHealthInfo {
+	return &meta.SegmentHealthInfo{
+		Id:                   b.id,
+		Capacity:             b.capacity,
+		Size:                 b.size,
+		EventNumber:          b.number,
+		SerializationVersion: b.version,
+	}
+}
+
 func (b *fileBlock) remain(sizeNeedServed int64) int {
 	// capacity - headerCapacity - dataLength - indexDataLength - currentRequestDataLength
-	return int(b.capacity - fileSegmentBlockHeaderCapacity - b.length -
+	return int(b.capacity - fileSegmentBlockHeaderCapacity - b.size -
 		int64(b.number*v1IndexLength) - sizeNeedServed)
 }
 
@@ -248,7 +259,7 @@ func (b *fileBlock) persistHeader(ctx context.Context) error {
 	if err := binary.Write(buf, binary.BigEndian, b.capacity); err != nil {
 		return err
 	}
-	if err := binary.Write(buf, binary.BigEndian, b.length); err != nil {
+	if err := binary.Write(buf, binary.BigEndian, b.size); err != nil {
 		return err
 	}
 	if err := binary.Write(buf, binary.BigEndian, b.number); err != nil {
@@ -277,7 +288,7 @@ func (b *fileBlock) loadHeader(ctx context.Context) error {
 	if err := binary.Read(reader, binary.BigEndian, &b.capacity); err != nil {
 		return err
 	}
-	if err := binary.Read(reader, binary.BigEndian, &b.length); err != nil {
+	if err := binary.Read(reader, binary.BigEndian, &b.size); err != nil {
 		return err
 	}
 	if err := binary.Read(reader, binary.BigEndian, &b.number); err != nil {
@@ -356,7 +367,7 @@ func (b *fileBlock) loadIndex(ctx context.Context) error {
 		}
 		b.number = int32(count)
 		if count > 0 {
-			b.length = b.indexes[count-1].startOffset + int64(b.indexes[count-1].length)
+			b.size = b.indexes[count-1].startOffset + int64(b.indexes[count-1].length)
 		}
 	}
 	return nil

@@ -19,6 +19,7 @@ import (
 	"errors"
 	"github.com/linkall-labs/vanus/internal/store/segment/codec"
 	"github.com/linkall-labs/vanus/observability"
+	"github.com/linkall-labs/vsproto/pkg/meta"
 	"os"
 	"path/filepath"
 )
@@ -50,6 +51,7 @@ type SegmentBlock interface {
 	SegmentBlockID() string
 	Close(context.Context) error
 	Initialize(context.Context) error
+	HealthInfo() *meta.SegmentHealthInfo
 }
 
 func CreateFileSegmentBlock(ctx context.Context, id string, path string, capacity int64) (SegmentBlock, error) {
