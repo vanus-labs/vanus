@@ -269,13 +269,6 @@ func (s *segmentServer) AppendToSegment(ctx context.Context,
 	entities := make([]*codec.StoredEntry, len(events))
 	for idx := range events {
 		evt := events[idx]
-		log.Debug("received a event", map[string]interface{}{
-			"source": evt.Source,
-			"id":     evt.Id,
-			"type":   evt.Type,
-			"attrs":  evt.Attributes,
-			"data":   evt.Data,
-		})
 		payload, err := proto.Marshal(evt)
 		if err != nil {
 			return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "marshall event failed", err)
@@ -466,13 +459,25 @@ func (s *segmentServer) stop(ctx context.Context) error {
 }
 
 func (s *segmentServer) markSegmentIsFull(ctx context.Context, segId string) error {
-	bl, exist := s.segmentBlockWriters.Load(segId)
+	bl, exist := s.segmentBlockMap.Load(segId)
 	if !exist {
 		return fmt.Errorf("the SegmentBlock does not exist")
 	}
 
-	// TODO report to Controller
-	return bl.(block.SegmentBlockWriter).CloseWrite(ctx)
+	if err := bl.(block.SegmentBlockWriter).CloseWrite(ctx); err != nil {
+		return err
+	}
+
+	// report to controller immediately
+	_, err := s.ctrlClient.ReportSegmentBlockIsFull(ctx, &ctrl.SegmentHeartbeatRequest{
+		ServerId: s.id,
+		VolumeId: s.volumeId,
+		HealthInfo: []*meta.SegmentHealthInfo{
+			bl.(block.SegmentBlock).HealthInfo(),
+		},
+		ReportTimeInNano: time.Now().UnixNano(),
+	})
+	return err
 }
 
 func (s *segmentServer) isServerReadyToWork() bool {

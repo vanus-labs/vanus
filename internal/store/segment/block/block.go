@@ -63,7 +63,6 @@ func CreateFileSegmentBlock(ctx context.Context, id string, path string, capacit
 		path:        path,
 		capacity:    capacity,
 		writeOffset: fileSegmentBlockHeaderCapacity,
-		readOffset:  fileSegmentBlockHeaderCapacity,
 	}
 	f, err := os.Create(path)
 	if err != nil {
@@ -91,9 +90,8 @@ func OpenFileSegmentBlock(ctx context.Context, path string) (SegmentBlock, error
 	defer observability.LeaveMark(ctx)
 
 	b := &fileBlock{
-		id:         filepath.Base(path),
-		path:       path,
-		readOffset: fileSegmentBlockHeaderCapacity,
+		id:   filepath.Base(path),
+		path: path,
 	}
 	b.appendable.Store(true)
 	b.readable.Store(true)

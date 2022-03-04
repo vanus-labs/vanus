@@ -32,7 +32,7 @@ var (
 	defaultIP   = "0.0.0.0"
 	defaultPort = 11811
 
-	defaultControllerAddr = "127.0.0.1:2048"
+	defaultControllerAddr = "192.168.1.111:2048"
 )
 
 func main() {
@@ -49,7 +49,7 @@ func main() {
 		grpcServer.GracefulStop()
 		exitChan <- struct{}{}
 	}
-	srv := segment.NewSegmentServer("127.0.0.1:11811", defaultControllerAddr,
+	srv := segment.NewSegmentServer("192.168.1.111:11811", defaultControllerAddr,
 		"volume-1", stopCallback)
 	if err != nil {
 		stopCallback()

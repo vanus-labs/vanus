@@ -36,6 +36,9 @@ func NewSegmentServerRoundRobinSelector(m *map[string]*info.SegmentServerInfo) S
 }
 
 func (s *segmentServerRoundRobinSelector) Select(ctx context.Context, size int64) *info.SegmentServerInfo {
+	if len(*s.m) == 0 {
+		return nil
+	}
 	// TODO optimize
 	keys := make([]string, 0)
 	for k := range *s.m {

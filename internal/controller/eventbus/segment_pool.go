@@ -17,19 +17,30 @@ package eventbus
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
+	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/selector"
+	"github.com/linkall-labs/vanus/observability/log"
+	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/linkall-labs/vsproto/pkg/segment"
+	"github.com/pkg/errors"
+	"sync"
+	"time"
 )
 
 const (
 	defaultSegmentBlockSize = 64 * 1024 * 1024
 )
 
+var (
+	ErrEventLogNotFound = errors.New("eventlog not found")
+)
+
 type segmentPool struct {
 	ctrl                     *controller
 	selectorForSegmentCreate selector.SegmentServerSelector
+	eventLogSegment          map[string]*skiplist.SkipList
+	segmentMap               sync.Map
 }
 
 func (pool *segmentPool) init(ctrl *controller) error {
@@ -60,7 +71,7 @@ func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo,
 		}
 
 		// binding, assign runtime fields
-		seg.EventLogID = fmt.Sprintf("%d", el.ID)
+		seg.EventLogID = el.ID
 		if err = pool.createSegmentBlockReplicaGroup(seg); err != nil {
 			return nil, err
 		}
@@ -77,6 +88,15 @@ func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo,
 		segArr[idx] = seg
 	}
 	// TODO persist to kv
+	sl, exist := pool.eventLogSegment[el.ID]
+	if !exist {
+		sl = skiplist.New(skiplist.String)
+		pool.eventLogSegment[el.ID] = sl
+	}
+	for idx := range segArr {
+		sl.Set(segArr[idx].ID, segArr[idx])
+		pool.segmentMap.Store(segArr[idx].ID, segArr[idx])
+	}
 	return segArr, nil
 }
 
@@ -117,7 +137,7 @@ func (pool *segmentPool) cancelBinding(segment *info.SegmentBlockInfo) {
 
 func (pool *segmentPool) generateSegmentBlockID() string {
 	//TODO optimize
-	return uuid.NewString()
+	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
 
 func (pool *segmentPool) createSegmentBlockReplicaGroup(segInfo *info.SegmentBlockInfo) error {
@@ -126,4 +146,72 @@ func (pool *segmentPool) createSegmentBlockReplicaGroup(segInfo *info.SegmentBlo
 	segInfo.PeersAddress = []string{"ip1", "ip2"}
 	// pick 2 segments with same capacity
 	return nil
+}
+
+func (pool *segmentPool) getAppendableSegment(ctx context.Context,
+	eli *info.EventLogInfo, num int) ([]*info.SegmentBlockInfo, error) {
+	sl, exist := pool.eventLogSegment[eli.ID]
+	if !exist {
+		return nil, ErrEventLogNotFound
+	}
+	arr := make([]*info.SegmentBlockInfo, 0)
+	next := sl.Front()
+	hint := 0
+	for hint < num && next != nil {
+		sbi := next.Value.(*info.SegmentBlockInfo)
+		next = next.Next()
+		if sbi.IsFull {
+			continue
+		}
+		hint++
+		arr = append(arr, sbi)
+	}
+
+	if len(arr) == 0 {
+		return pool.bindSegment(ctx, eli, 1)
+	}
+	return arr, nil
+}
+
+func (pool *segmentPool) updateSegment(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error {
+	for idx := range req.HealthInfo {
+		hInfo := req.HealthInfo[idx]
+		// TODO there is problem in data structure design
+		//el, exist := pool.eventLogSegment[hInfo.EventLogId]
+		//if !exist {
+		//	log.Warning("the eventlog not found when heartbeat", map[string]interface{}{
+		//		"event_log_id": hInfo.EventLogId,
+		//	})
+		//	continue
+		//}
+		//in := el.Get(hInfo.Id).Value.(*info.SegmentBlockInfo)
+		v, exist := pool.segmentMap.Load(hInfo.Id)
+		if !exist {
+			log.Warning("the segment not found when heartbeat", map[string]interface{}{
+				"segment_id": hInfo.Id,
+			})
+			continue
+		}
+		in := v.(*info.SegmentBlockInfo)
+		if hInfo.IsFull {
+			in.IsFull = true
+		}
+		in.Size = hInfo.Size
+		in.Number = hInfo.EventNumber
+	}
+	return nil
+}
+
+func (pool *segmentPool) getEventLogSegmentList(elID string) []*info.SegmentBlockInfo {
+	el, exist := pool.eventLogSegment[elID]
+	if !exist {
+		return nil
+	}
+	var arr []*info.SegmentBlockInfo
+	next := el.Front()
+	for next != nil {
+		arr = append(arr, next.Value.(*info.SegmentBlockInfo))
+		next = next.Next()
+	}
+	return arr
 }

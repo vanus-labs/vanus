@@ -26,7 +26,7 @@ import (
 func main() {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	conn, err := grpc.Dial("localhost:11811", opts...)
+	conn, err := grpc.Dial("192.168.1.111:11811", opts...)
 	if err != nil {
 		log.Fatal(err.Error(), nil)
 	}
@@ -36,22 +36,10 @@ func main() {
 }
 
 func TestAppend(cli segment.SegmentServerClient) {
-	id := "1231sss23123"
-	_, err := cli.Start(context.Background(), &segment.StartSegmentServerRequest{
-		Config:          nil,
-		SegmentServerId: "human-1",
-	})
-	if err != nil {
-		//panic(err)
-	}
-	_, err = cli.CreateSegmentBlock(context.Background(), &segment.CreateSegmentBlockRequest{
-		Id:   id,
-		Size: 64 * 1024 * 1024,
-	})
-	if err != nil {
-		//log.Fatal(err.Error(), nil)
-	}
-	for idx := 0; idx < 100; idx++ {
+	id := "1646365657626669000"
+	cnt := 0
+	for idx := 0; idx < 50000; idx++ {
+		cnt++
 		_, err := cli.AppendToSegment(context.Background(), &segment.AppendToSegmentRequest{
 			SegmentId: id,
 			Events: &v1.CloudEventBatch{
@@ -62,13 +50,30 @@ func TestAppend(cli segment.SegmentServerClient) {
 						SpecVersion: "asdsadsadasdsadsadasdsadsad",
 						Type:        "asdsadsadasdsadsadasdsadsad",
 						Attributes:  nil,
-						Data:        &v1.CloudEvent_TextData{TextData: "asdsdasdasdsdasdasdsdasdasdsdasd"},
+						Data: &v1.CloudEvent_TextData{TextData: "asdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsda" +
+							"sdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsda" +
+							"sdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdas" +
+							"dasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasd" +
+							"asdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasda" +
+							"sdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdas" +
+							"dsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasd" +
+							"sdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasds" +
+							"dasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsd" +
+							"asdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsda" +
+							"sdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdas" +
+							"dasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasd" +
+							"asdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasda" +
+							"sdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdas" +
+							"dsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasd" +
+							"sdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasds"},
 					},
 				},
 			},
 		})
 		if err != nil {
-			log.Fatal(err.Error(), nil)
+			log.Fatal(err.Error(), map[string]interface{}{
+				"sent": cnt,
+			})
 		}
 	}
 }

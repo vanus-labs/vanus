@@ -17,11 +17,14 @@ package eventbus
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/primitive/errors"
 	"github.com/linkall-labs/vanus/observability"
+	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	metapb "github.com/linkall-labs/vsproto/pkg/meta"
 	segpb "github.com/linkall-labs/vsproto/pkg/segment"
@@ -29,14 +32,18 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"io"
 	"strings"
 	"sync"
+	"time"
 )
 
 func NewEventBusController(cfg ControllerConfig) *controller {
 	c := &controller{
-		cfg:                      &cfg,
-		segmentPool:              &segmentPool{},
+		cfg: &cfg,
+		segmentPool: &segmentPool{
+			eventLogSegment: map[string]*skiplist.SkipList{},
+		},
 		volumePool:               &volumePool{},
 		eventBusMap:              map[string]*info.BusInfo{},
 		eventLogInfoMap:          map[string]*info.EventLogInfo{},
@@ -169,13 +176,13 @@ func (ctrl *controller) ListSegment(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	el, exist := ctrl.eventLogInfoMap[req.EventBusId]
+	el, exist := ctrl.eventLogInfoMap[req.EventLogId]
 	if !exist {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "eventlog not found")
 	}
 
 	return &ctrlpb.ListSegmentResponse{
-		Segments: info.Convert2ProtoSegment(el.SegmentList...),
+		Segments: info.Convert2ProtoSegment(ctrl.segmentPool.getEventLogSegmentList(el.ID)...),
 	}, nil
 }
 
@@ -205,6 +212,7 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	serverInfo.Volume = volumeInfo
 	ctrl.segmentServerInfoMap[serverInfo.ID()] = serverInfo
 	// TODO update state in KV store
+	go ctrl.readyToStartSegmentServer(context.Background(), serverInfo)
 	return &ctrlpb.RegisterSegmentServerResponse{
 		ServerId:      serverInfo.ID(),
 		SegmentBlocks: volumeInfo.Blocks,
@@ -235,17 +243,80 @@ func (ctrl *controller) QuerySegmentRouteInfo(ctx context.Context,
 }
 
 func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHeartbeatServer) error {
-	//srv.SendAndClose()
+	var err error
+	var req *ctrlpb.SegmentHeartbeatRequest
+	for {
+		req, err = srv.Recv()
+		if err != nil {
+			break
+		}
+		log.Debug("received heartbeat from segment server", map[string]interface{}{
+			"server_id": req.ServerId,
+			"volume_id": req.VolumeId,
+			"time":      time.Unix(req.ReportTimeInNano/10e9, req.ReportTimeInNano-req.ReportTimeInNano/10e9),
+		})
+		if _err := ctrl.segmentPool.updateSegment(context.Background(), req); _err != nil {
+			log.Warning("update segment when received segment server heartbeat", map[string]interface{}{
+				log.KeyError: err,
+			})
+		}
+		// TODO srv.SendAndClose()
+	}
+
+	if err != nil && err != io.EOF {
+		log.Error("segment server heartbeat error", map[string]interface{}{
+			log.KeyError: err,
+		})
+	}
 	return nil
+}
+
+func (ctrl *controller) GetAppendableSegment(ctx context.Context,
+	req *ctrlpb.GetAppendableSegmentRequest) (*ctrlpb.GetAppendableSegmentResponse, error) {
+	eli := ctrl.eventLogInfoMap[req.EventLogId]
+	if eli == nil {
+		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "eventlog not found")
+	}
+	num := int(req.Limited)
+	if num == 0 {
+		num = 1
+	}
+	segInfos, err := ctrl.segmentPool.getAppendableSegment(ctx, eli, num)
+	if err != nil {
+		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "get segment error")
+	}
+	segs := make([]*metapb.Segment, 0)
+	for idx := 0; idx < len(segInfos); idx++ {
+		seg := segInfos[idx]
+		segs = append(segs, &metapb.Segment{
+			Id:                seg.ID,
+			PreviousSegmentId: seg.PreviousSegmentId,
+			NextSegmentId:     seg.NextSegmentId,
+			EventLogId:        seg.EventLogID,
+			Tier:              metapb.StorageTier_SSD,
+			StorageUri:        seg.VolumeInfo.AssignedSegmentServer.Address,
+			StartOffsetInLog:  seg.StartOffsetInLog,
+			EndOffsetInLog:    seg.StartOffsetInLog + int64(seg.Number),
+			Size:              seg.Size,
+			Capacity:          seg.Capacity,
+			NumberEventStored: seg.Number,
+			Compressed:        metapb.CompressAlgorithm_NONE,
+		})
+	}
+	return &ctrlpb.GetAppendableSegmentResponse{Segments: segs}, nil
+}
+
+func (ctrl *controller) ReportSegmentBlockIsFull(ctx context.Context,
+	req *ctrlpb.SegmentHeartbeatRequest) (*emptypb.Empty, error) {
+	return &emptypb.Empty{}, ctrl.segmentPool.updateSegment(ctx, req)
 }
 
 func (ctrl *controller) initializeEventLog(ctx context.Context, el *info.EventLogInfo) error {
 	// TODO eliminate magic number
-	segments, err := ctrl.segmentPool.bindSegment(ctx, el, 3)
+	_, err := ctrl.segmentPool.bindSegment(ctx, el, 3)
 	if err != nil {
 		return err
 	}
-	el.SegmentList = append(el.SegmentList, segments...)
 	return nil
 }
 
@@ -280,4 +351,17 @@ func (ctrl *controller) getSegmentServerClient(i *info.SegmentServerInfo) segpb.
 		ctrl.segmentServerClientMap[i.ID()] = cli
 	}
 	return cli
+}
+
+func (ctrl *controller) readyToStartSegmentServer(ctx context.Context, serverInfo *info.SegmentServerInfo) {
+	conn := ctrl.getSegmentServerClient(serverInfo)
+	_, err := conn.Start(ctx, &segpb.StartSegmentServerRequest{
+		SegmentServerId: uuid.NewString(),
+	})
+	if err != nil {
+		log.Warning("start segment server failed", map[string]interface{}{
+			log.KeyError: err,
+			"address":    serverInfo.Address,
+		})
+	}
 }

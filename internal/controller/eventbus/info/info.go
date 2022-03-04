@@ -47,7 +47,6 @@ type EventLogInfo struct {
 	ID                    string
 	EventBusName          string
 	CurrentSegmentNumbers int
-	SegmentList           []*SegmentBlockInfo
 }
 
 func Convert2ProtoEventLog(ins ...*EventLogInfo) []*meta.EventLog {
@@ -58,31 +57,40 @@ func Convert2ProtoEventLog(ins ...*EventLogInfo) []*meta.EventLog {
 			EventBusName:          eli.EventBusName,
 			EventLogId:            eli.ID,
 			CurrentSegmentNumbers: int32(eli.CurrentSegmentNumbers),
+			ServerAddress:         "192.168.1.111:2048",
 		}
 	}
 	return pels
 }
 
 type SegmentBlockInfo struct {
-	ID             string
-	Capacity       int64
-	Size           int64
-	VolumeInfo     *VolumeInfo
-	EventLogID     string
-	ReplicaGroupID string
-	PeersAddress   []string
+	ID                string
+	Capacity          int64
+	Size              int64
+	VolumeInfo        *VolumeInfo
+	EventLogID        string
+	ReplicaGroupID    string
+	PeersAddress      []string
+	Number            int32
+	PreviousSegmentId string
+	NextSegmentId     string
+	StartOffsetInLog  int64
+	IsFull            bool
 }
 
 func Convert2ProtoSegment(ins ...*SegmentBlockInfo) []*meta.Segment {
 	segs := make([]*meta.Segment, len(ins))
 	for idx := 0; idx < len(ins); idx++ {
 		seg := ins[idx]
+		// TODO optimize reported info
 		segs[idx] = &meta.Segment{
-			Id: seg.ID,
-			// TODO RENAME
-			StorageUri: seg.VolumeInfo.AssignedSegmentServer.Address,
-			Size:       seg.Size,
-			Capacity:   seg.Capacity,
+			Id:                seg.ID,
+			StorageUri:        seg.VolumeInfo.AssignedSegmentServer.Address,
+			StartOffsetInLog:  seg.StartOffsetInLog,
+			EndOffsetInLog:    seg.StartOffsetInLog + int64(seg.Number),
+			Size:              seg.Size,
+			Capacity:          seg.Capacity,
+			NumberEventStored: seg.Number,
 		}
 	}
 	return segs

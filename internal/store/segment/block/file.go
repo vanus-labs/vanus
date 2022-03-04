@@ -41,12 +41,11 @@ type fileBlock struct {
 	id                            string
 	path                          string
 	capacity                      int64
+	appendMutex                   sync.Mutex
+	physicalFile                  *os.File
 	size                          int64
 	number                        int32
 	writeOffset                   int64
-	readOffset                    int64
-	appendMutex                   sync.Mutex
-	physicalFile                  *os.File
 	indexes                       []blockIndex
 	readable                      atomic.Value
 	appendable                    atomic.Value
@@ -112,12 +111,14 @@ func (b *fileBlock) Append(ctx context.Context, entities ...*codec.StoredEntry) 
 	// TODO optimize this
 	// if the file has been left many space, but received a large request, the remain space will be wasted
 	if length > b.remain(int64(length+v1IndexLength*len(idxes))) {
+		b.fullFlag.Store(true)
 		return ErrNoEnoughCapacity
 	}
 	n, err := b.physicalFile.Write(buf.Bytes())
 	b.indexes = append(b.indexes, idxes...)
 	atomic.AddInt32(&b.number, int32(len(idxes)))
 	atomic.AddInt64(&b.writeOffset, int64(n))
+	atomic.AddInt64(&b.size, int64(n))
 	return err
 }
 
@@ -231,10 +232,11 @@ func (b *fileBlock) SegmentBlockID() string {
 func (b *fileBlock) HealthInfo() *meta.SegmentHealthInfo {
 	return &meta.SegmentHealthInfo{
 		Id:                   b.id,
-		Capacity:             b.capacity,
+		EventLogId:           b.SegmentBlockID(),
 		Size:                 b.size,
 		EventNumber:          b.number,
 		SerializationVersion: b.version,
+		IsFull:               b.IsFull(),
 	}
 }
 
