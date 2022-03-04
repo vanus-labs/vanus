@@ -28,6 +28,7 @@ func FromPbSubscription(sub *pb.Subscription) (*primitive.Subscription, error) {
 		Sink:             primitive.URI(sub.Sink),
 		Protocol:         sub.Protocol,
 		ProtocolSettings: sub.ProtocolSettings,
+		EventBus:         sub.EventBus,
 	}
 	if len(sub.Filters) != 0 {
 		to.Filters = fromPbFilters(sub.Filters)
@@ -44,6 +45,7 @@ func ToPbSubscription(sub *primitive.Subscription) (*pb.Subscription, error) {
 		Sink:             string(sub.Sink),
 		Protocol:         sub.Protocol,
 		ProtocolSettings: sub.ProtocolSettings,
+		EventBus:         sub.EventBus,
 	}
 	if len(sub.Filters) != 0 {
 		to.Filters = toPbFilters(sub.Filters)

@@ -31,6 +31,7 @@ type EventLogOffset struct {
 	eventLog map[string]*offsetTracker
 	storage  storage.OffsetStorage
 	stop     context.CancelFunc
+	wg       sync.WaitGroup
 	mutex    sync.Mutex
 }
 
@@ -46,7 +47,9 @@ func NewEventLogOffset(sub string, storage storage.OffsetStorage) *EventLogOffse
 func (offset *EventLogOffset) Start(parent context.Context) {
 	ctx, cancel := context.WithCancel(parent)
 	offset.stop = cancel
+	offset.wg.Add(1)
 	go func() {
+		defer offset.wg.Done()
 		tk := time.NewTicker(time.Millisecond)
 		for {
 			select {
@@ -63,6 +66,7 @@ func (offset *EventLogOffset) Start(parent context.Context) {
 
 func (offset *EventLogOffset) Close() {
 	offset.stop()
+	offset.wg.Wait()
 }
 
 func (offset *EventLogOffset) RegisterEventLog(el string, beginOffset int64) (int64, error) {

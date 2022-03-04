@@ -43,7 +43,7 @@ const (
 )
 
 const (
-	defaultBufferSize = 1 << 15
+	defaultBufferSize = 1 << 10
 )
 
 type Trigger struct {
@@ -129,7 +129,10 @@ func (t *Trigger) runEventProcess(ctx context.Context) {
 		//TODO  是否立即停止，还是等待eventCh处理完
 		case <-ctx.Done():
 			return
-		case event := <-t.eventCh:
+		case event, ok := <-t.eventCh:
+			if !ok {
+				return
+			}
 			if res := filter.FilterEvent(t.filter, *event.Event); res == filter.FailFilter {
 				t.offsetManager.EventCommit(event)
 				continue
@@ -144,7 +147,10 @@ func (t *Trigger) runEventSend(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case event := <-t.sendCh:
+		case event, ok := <-t.sendCh:
+			if !ok {
+				return
+			}
 			err := t.retrySendEvent(ctx, event.Event)
 			if err != nil {
 				t.deadLetterCh <- event
@@ -160,7 +166,10 @@ func (t *Trigger) runDeadLetterProcess(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case event := <-t.deadLetterCh:
+		case event, ok := <-t.deadLetterCh:
+			if !ok {
+				return
+			}
 			err := t.asDeadLetter(event)
 			if err != nil {
 				log.Error("send dead event to dead letter failed", map[string]interface{}{

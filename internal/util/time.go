@@ -29,7 +29,7 @@ func FormatTime(t time.Time) string {
 }
 
 func Backoff(attempt int, max time.Duration) time.Duration {
-	d := time.Duration(1 << attempt)
+	d := time.Duration(1 << attempt * 100 * time.Millisecond)
 	if d > max {
 		d = max
 	}

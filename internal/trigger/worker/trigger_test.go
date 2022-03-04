@@ -53,12 +53,12 @@ func Test_e2e(t *testing.T) {
 			},
 		},
 	}
-
-	ns := discovery.Find("vanus+local").(*inmemory.NameService)
+	inmemory.UseInMemoryLog("inmemory")
+	ns := inmemory.UseNameService("vanus+local")
 	// register metadata of eventbus
 	vrn, err := discovery.ParseVRN(ebVRN)
 	if err != nil {
-		t.Fatal(err.Error())
+		panic(err.Error())
 	}
 	ns.Register(vrn, br)
 

@@ -16,26 +16,15 @@ package worker
 
 import (
 	"context"
-	"fmt"
-	"io/ioutil"
-	"net/http"
-	"sync"
-	"time"
-
-	ce "github.com/cloudevents/sdk-go/v2"
-	eb "github.com/linkall-labs/eventbus-go"
-	"github.com/linkall-labs/eventbus-go/pkg/discovery"
-	"github.com/linkall-labs/eventbus-go/pkg/discovery/record"
-	"github.com/linkall-labs/eventbus-go/pkg/inmemory"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger/consumer"
 	"github.com/linkall-labs/vanus/internal/trigger/storage"
-	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/pkg/errors"
+	"sync"
 )
 
 var (
-	ebVRN                 = "vanus+local:eventbus:example"
+	defaultEbVRN          = "vanus://192.168.1.111:2048/eventbus/wwf-0304-1?namespace=vanus"
 	TriggerWorkerNotStart = errors.New("worker not start")
 	SubExist              = errors.New("sub exist")
 )
@@ -80,7 +69,6 @@ func (w *Worker) Start() error {
 		return err
 	}
 	w.storage = s
-	w.testSend()
 	w.started = true
 	return nil
 }
@@ -146,7 +134,11 @@ func (w *Worker) AddSubscription(sub *primitive.Subscription) error {
 	offsetManager := consumer.NewEventLogOffset(sub.ID, w.storage)
 	offsetManager.Start(w.ctx)
 	tr := NewTrigger(sub, offsetManager)
-	c := consumer.NewConsumer(ebVRN, sub.ID, offsetManager, tr.EventArrived)
+	ebVrn := sub.EventBus
+	if ebVrn == "" {
+		ebVrn = defaultEbVRN
+	}
+	c := consumer.NewConsumer(ebVrn, sub.ID, offsetManager, tr.EventArrived)
 	err := c.Start(w.ctx)
 	if err != nil {
 		offsetManager.Close()
@@ -188,68 +180,4 @@ func (w *Worker) RemoveSubscription(id string) error {
 	w.stopSub(id)
 	w.cleanSub(id)
 	return nil
-}
-
-func (w *Worker) testSend() {
-	elVRN := "vanus+local:eventlog+inmemory:1?keepalive=true"
-	elVRN2 := "vanus+local:eventlog+inmemory:2?keepalive=true"
-	br := &record.EventBus{
-		VRN: ebVRN,
-		Logs: []*record.EventLog{
-			{
-				VRN:  elVRN,
-				Mode: record.PremWrite | record.PremRead,
-			},
-			{
-				VRN:  elVRN2,
-				Mode: record.PremWrite | record.PremRead,
-			},
-		},
-	}
-
-	ns := discovery.Find("vanus+local").(*inmemory.NameService)
-	// register metadata of eventbus
-	vrn, err := discovery.ParseVRN(ebVRN)
-	if err != nil {
-		log.Fatal("parse eventbus vrn error", map[string]interface{}{"error": err})
-	}
-	ns.Register(vrn, br)
-	bw, err := eb.OpenBusWriter(ebVRN)
-	if err != nil {
-		log.Fatal("open bus writer error", map[string]interface{}{"error": err})
-	}
-
-	go func() {
-		i := 1
-		t := "none"
-		for ; i < 10000; i++ {
-			if i%3 == 0 {
-				t = "test"
-			}
-			if i%2 == 0 {
-				time.Sleep(10 * time.Second)
-				t = "none"
-			}
-			// Create an Event.
-			event := ce.NewEvent()
-			event.SetID(fmt.Sprintf("%d", i))
-			event.SetSource("example/uri")
-			event.SetType(t)
-			event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world", "type": t})
-
-			_, err = bw.Append(&event)
-			if err != nil {
-				log.Error("append event error", map[string]interface{}{"error": err})
-			}
-		}
-	}()
-	go http.ListenAndServe(":18080", http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
-		body, err := ioutil.ReadAll(request.Body)
-		if err != nil {
-			fmt.Println(err)
-		}
-		log.Info("sink receive event", map[string]interface{}{
-			"event": string(body),
-		})
-	}))
 }

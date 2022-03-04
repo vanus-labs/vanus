@@ -205,25 +205,34 @@ func (ctrl *triggerController) addSubToPending(subs ...*primitive.Subscription) 
 	return nil
 }
 
-func (ctrl *triggerController) deleteSubscription(id string) error {
-	ctrl.pendingSubMutex.Lock()
-	if _, ok := ctrl.pendingSubscriptions[id]; ok {
-		delete(ctrl.pendingSubscriptions, id)
-	}
-	ctrl.pendingSubMutex.Unlock()
+func (ctrl *triggerController) deleteSubscription(id string) (err error) {
+	defer func() {
+		if err == nil {
+			//clean storage
+			err = ctrl.storage.DeleteOffset(id)
+			err = ctrl.storage.DeleteSubscription(id)
+		}
+	}()
+	func() {
+		ctrl.pendingSubMutex.Lock()
+		defer ctrl.pendingSubMutex.Unlock()
+		if _, ok := ctrl.pendingSubscriptions[id]; ok {
+			delete(ctrl.pendingSubscriptions, id)
+		}
+	}()
 	ctrl.subMutex.Lock()
 	defer ctrl.subMutex.Unlock()
 	st, ok := ctrl.subscriptions[id]
 	if !ok {
-		return nil
+		return
 	}
-	err := st.tWorker.RemoveSubscriptions(id)
+	err = st.tWorker.RemoveSubscriptions(id)
 	if err != nil {
-		return errors.Wrapf(err, "trigger worker remove sub %s error", id)
+		err = errors.Wrapf(err, "trigger worker remove sub %s error", id)
+		return
 	}
 	delete(ctrl.subscriptions, id)
-	ctrl.storage.DeleteOffset(id)
-	ctrl.storage.DeleteSubscription(id)
+	log.Info("delete subscription success", map[string]interface{}{"subId": id})
 	return nil
 }
 

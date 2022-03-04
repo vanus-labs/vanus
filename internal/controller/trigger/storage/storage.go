@@ -107,5 +107,5 @@ func (s *storage) ListSubscription() ([]*primitive.Subscription, error) {
 
 func (s *storage) DeleteOffset(subId string) error {
 	key := path.Join(config.StorageOffset.String(), subId)
-	return s.client.Delete(key)
+	return s.client.DeleteDir(key)
 }

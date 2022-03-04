@@ -148,6 +148,7 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 			}
 			continue
 		}
+		sleepCnt := 0
 		for {
 			select {
 			case <-ctx.Done():
@@ -160,23 +161,29 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 				return
 			default:
 			}
-			events, err := lr.Read(2)
-			if err != nil {
+			events, err := lr.Read(5)
+			if err == nil {
+				if len(events) > 0 {
+					for i := range events {
+						offset++
+						lc.handler(context.Background(), &info.EventRecord{Event: events[i], EventLog: lc.elVrn, Offset: offset})
+					}
+					sleepCnt = 0
+					continue
+				}
+			} else {
 				log.Warning("read error", map[string]interface{}{
 					"sub":        lc.sub,
 					"elVrn":      lc.elVrn,
 					"offset":     offset,
 					log.KeyError: err,
 				})
-				continue
 			}
-			if len(events) == 0 {
-				time.Sleep(time.Millisecond * 100)
+			if !util.Sleep(ctx, util.Backoff(sleepCnt, time.Second)) {
+				lr.Close()
+				return
 			}
-			for i := range events {
-				offset++
-				lc.handler(context.Background(), &info.EventRecord{Event: events[i], EventLog: lc.elVrn, Offset: offset})
-			}
+			sleepCnt++
 		}
 	}
 }

@@ -36,8 +36,10 @@ type Logger interface {
 }
 
 func init() {
+	logger := logrus.New()
+	logger.Formatter = &logrus.TextFormatter{TimestampFormat: "2006-01-02T15:04:05Z07:00", FullTimestamp: true}
 	r := &defaultLogger{
-		logger: logrus.New(),
+		logger: logger,
 	}
 	level := os.Getenv("VANUS_LOG_LEVEL")
 	switch strings.ToLower(level) {
