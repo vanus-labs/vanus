@@ -16,15 +16,23 @@ package worker
 
 import (
 	"context"
+	"fmt"
+	ce "github.com/cloudevents/sdk-go/v2"
+	eb "github.com/linkall-labs/eventbus-go"
+	"github.com/linkall-labs/eventbus-go/pkg/discovery"
+	"github.com/linkall-labs/eventbus-go/pkg/discovery/record"
+	"github.com/linkall-labs/eventbus-go/pkg/inmemory"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger/consumer"
 	"github.com/linkall-labs/vanus/internal/trigger/storage"
+	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/pkg/errors"
 	"sync"
+	"time"
 )
 
 var (
-	defaultEbVRN          = "vanus://192.168.1.111:2048/eventbus/wwf-0304-1?namespace=vanus"
+	defaultEbVRN          = "vanus+local:eventbus:example"
 	TriggerWorkerNotStart = errors.New("worker not start")
 	SubExist              = errors.New("sub exist")
 )
@@ -70,6 +78,7 @@ func (w *Worker) Start() error {
 	}
 	w.storage = s
 	w.started = true
+	testSend()
 	return nil
 }
 
@@ -180,4 +189,61 @@ func (w *Worker) RemoveSubscription(id string) error {
 	w.stopSub(id)
 	w.cleanSub(id)
 	return nil
+}
+
+func testSend() {
+	ebVRN := "vanus+local:eventbus:example"
+	elVRN := "vanus+inmemory:eventlog:1"
+	elVRN2 := "vanus+inmemory:eventlog:2"
+	br := &record.EventBus{
+		VRN: ebVRN,
+		Logs: []*record.EventLog{
+			{
+				VRN:  elVRN,
+				Mode: record.PremWrite | record.PremRead,
+			},
+			{
+				VRN:  elVRN2,
+				Mode: record.PremWrite | record.PremRead,
+			},
+		},
+	}
+
+	inmemory.UseInMemoryLog("vanus+inmemory")
+	ns := inmemory.UseNameService("vanus+local")
+	// register metadata of eventbus
+	vrn, err := discovery.ParseVRN(ebVRN)
+	if err != nil {
+		panic(err.Error())
+	}
+	ns.Register(vrn, br)
+	bw, err := eb.OpenBusWriter(ebVRN)
+	if err != nil {
+		log.Fatal("open bus writer error", map[string]interface{}{"error": err})
+	}
+
+	go func() {
+		i := 1
+		tp := "none"
+		for ; i < 10000; i++ {
+			if i%3 == 0 {
+				tp = "test"
+			}
+			if i%2 == 0 {
+				time.Sleep(10 * time.Second)
+				tp = "none"
+			}
+			// Create an Event.
+			event := ce.NewEvent()
+			event.SetID(fmt.Sprintf("%d", i))
+			event.SetSource("example/uri")
+			event.SetType(tp)
+			event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world", "type": tp})
+
+			_, err = bw.Append(&event)
+			if err != nil {
+				log.Error("append event error", map[string]interface{}{"error": err})
+			}
+		}
+	}()
 }

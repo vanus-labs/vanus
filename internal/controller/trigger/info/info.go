@@ -12,26 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package worker
+package info
 
-import (
-	"github.com/linkall-labs/vanus/observability/log"
-	"io/ioutil"
-	"net/http"
-	"testing"
-	"time"
-)
+import "time"
 
-func TestEventBusWrite(t *testing.T) {
-	go http.ListenAndServe(":18080", http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
-		body, err := ioutil.ReadAll(request.Body)
-		if err != nil {
-			log.Error("receive error", map[string]interface{}{"error": err})
-		} else {
-			log.Info("sink receive event", map[string]interface{}{
-				"event": string(body),
-			})
-		}
-	}))
-	time.Sleep(time.Hour)
+type TriggerWorkerInfo struct {
+	Addr          string
+	Started       bool
+	SubIds        []string
+	HeartbeatTime time.Time
+	IsStarting    bool
 }

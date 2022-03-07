@@ -17,14 +17,12 @@ package worker
 import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/convert"
-	"github.com/linkall-labs/vanus/internal/primitive/errors"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/linkall-labs/vsproto/pkg/trigger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
 	"io"
 	"os"
 	"sync"
@@ -87,7 +85,7 @@ func (s *server) AddSubscription(ctx context.Context, request *trigger.AddSubscr
 			})
 		} else {
 			log.Warning("worker add subscription error ", map[string]interface{}{"subscription": sub, "error": err})
-			return nil, status.Error(errors.WorkerNotStart, err.Error())
+			return nil, err
 		}
 	}
 	return &trigger.AddSubscriptionResponse{}, nil
@@ -163,7 +161,7 @@ func (s *server) Close() error {
 }
 
 const (
-	heartbeatMaxConnTime = time.Minute
+	heartbeatMaxConnTime = 5 * time.Minute
 )
 
 func (s *server) startHeartbeat() {
@@ -202,6 +200,7 @@ func (s *server) startHeartbeat() {
 					ids = append(ids, sub.ID)
 				}
 				err = stream.Send(&controller.TriggerWorkerHeartbeatRequest{
+					Started: s.worker.started,
 					Address: s.twAddr,
 					SubIds:  ids,
 				})
