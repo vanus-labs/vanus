@@ -38,6 +38,10 @@ import (
 	"time"
 )
 
+const (
+	defaultAutoCreatedSegmentNumber = 3
+)
+
 func NewEventBusController(cfg ControllerConfig) *controller {
 	c := &controller{
 		cfg: &cfg,
@@ -312,8 +316,7 @@ func (ctrl *controller) ReportSegmentBlockIsFull(ctx context.Context,
 }
 
 func (ctrl *controller) initializeEventLog(ctx context.Context, el *info.EventLogInfo) error {
-	// TODO eliminate magic number
-	_, err := ctrl.segmentPool.bindSegment(ctx, el, 3)
+	_, err := ctrl.segmentPool.bindSegment(ctx, el, defaultAutoCreatedSegmentNumber)
 	if err != nil {
 		return err
 	}

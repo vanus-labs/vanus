@@ -17,6 +17,7 @@ package main
 import (
 	v1 "cloudevents.io/genproto/v1"
 	"context"
+	"fmt"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vsproto/pkg/segment"
 	"google.golang.org/grpc"
@@ -36,9 +37,9 @@ func main() {
 }
 
 func TestAppend(cli segment.SegmentServerClient) {
-	id := "1646365657626669000"
+	id := "1646395026565839000"
 	cnt := 0
-	for idx := 0; idx < 50000; idx++ {
+	for idx := 0; idx < 10; idx++ {
 		cnt++
 		_, err := cli.AppendToSegment(context.Background(), &segment.AppendToSegmentRequest{
 			SegmentId: id,
@@ -47,25 +48,10 @@ func TestAppend(cli segment.SegmentServerClient) {
 					{
 						Id:          "asdsadsadasdsadsadasdsadsad",
 						Source:      "asdsadsadasdsadsadasdsadsad",
-						SpecVersion: "asdsadsadasdsadsadasdsadsad",
-						Type:        "asdsadsadasdsadsadasdsadsad",
+						SpecVersion: "1.0",
+						Type:        "test1",
 						Attributes:  nil,
-						Data: &v1.CloudEvent_TextData{TextData: "asdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsda" +
-							"sdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsda" +
-							"sdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdas" +
-							"dasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasd" +
-							"asdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasda" +
-							"sdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdas" +
-							"dsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasd" +
-							"sdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasds" +
-							"dasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsd" +
-							"asdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsda" +
-							"sdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdas" +
-							"dasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasd" +
-							"asdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasda" +
-							"sdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdas" +
-							"dsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasd" +
-							"sdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasdsdasdasds"},
+						Data:        &v1.CloudEvent_TextData{TextData: fmt.Sprintf("Hello DingJie %d", idx)},
 					},
 				},
 			},

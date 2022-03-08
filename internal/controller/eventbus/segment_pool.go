@@ -156,14 +156,14 @@ func (pool *segmentPool) getAppendableSegment(ctx context.Context,
 	}
 	arr := make([]*info.SegmentBlockInfo, 0)
 	next := sl.Front()
-	hint := 0
-	for hint < num && next != nil {
+	hit := 0
+	for hit < num && next != nil {
 		sbi := next.Value.(*info.SegmentBlockInfo)
 		next = next.Next()
 		if sbi.IsFull {
 			continue
 		}
-		hint++
+		hit++
 		arr = append(arr, sbi)
 	}
 
@@ -176,15 +176,8 @@ func (pool *segmentPool) getAppendableSegment(ctx context.Context,
 func (pool *segmentPool) updateSegment(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error {
 	for idx := range req.HealthInfo {
 		hInfo := req.HealthInfo[idx]
-		// TODO there is problem in data structure design
-		//el, exist := pool.eventLogSegment[hInfo.EventLogId]
-		//if !exist {
-		//	log.Warning("the eventlog not found when heartbeat", map[string]interface{}{
-		//		"event_log_id": hInfo.EventLogId,
-		//	})
-		//	continue
-		//}
-		//in := el.Get(hInfo.Id).Value.(*info.SegmentBlockInfo)
+
+		// TODO there is problem in data structure design OPTIMIZE
 		v, exist := pool.segmentMap.Load(hInfo.Id)
 		if !exist {
 			log.Warning("the segment not found when heartbeat", map[string]interface{}{
