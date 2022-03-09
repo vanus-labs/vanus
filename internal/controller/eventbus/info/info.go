@@ -21,11 +21,10 @@ import (
 )
 
 type BusInfo struct {
-	ID        string
-	Namespace string
-	Name      string
-	LogNumber int
-	EventLogs []*EventLogInfo
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`
+	LogNumber int             `json:"log_number"`
+	EventLogs []*EventLogInfo `json:"event_logs"`
 }
 
 func Convert2ProtoEventBus(ins ...*BusInfo) []*meta.EventBus {
@@ -33,7 +32,6 @@ func Convert2ProtoEventBus(ins ...*BusInfo) []*meta.EventBus {
 	for idx := 0; idx < len(ins); idx++ {
 		eb := ins[idx]
 		pebs[idx] = &meta.EventBus{
-			Namespace: eb.Namespace,
 			Name:      eb.Name,
 			LogNumber: int32(eb.LogNumber),
 			Logs:      Convert2ProtoEventLog(eb.EventLogs...),
@@ -44,9 +42,10 @@ func Convert2ProtoEventBus(ins ...*BusInfo) []*meta.EventBus {
 
 type EventLogInfo struct {
 	// global unique id
-	ID                    string
-	EventBusName          string
-	CurrentSegmentNumbers int
+	ID                    string   `json:"id"`
+	EventBusName          string   `json:"eventbus_name"`
+	CurrentSegmentNumbers int      `json:"current_segment_numbers"`
+	SegmentList           []string `json:"segment_list"`
 }
 
 func Convert2ProtoEventLog(ins ...*EventLogInfo) []*meta.EventLog {

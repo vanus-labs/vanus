@@ -43,10 +43,16 @@ type segmentPool struct {
 	segmentMap               sync.Map
 }
 
-func (pool *segmentPool) init(ctrl *controller) error {
-	pool.ctrl = ctrl
+func newSegmentPool(ctrl *controller) *segmentPool {
+	return &segmentPool{
+		ctrl:            ctrl,
+		eventLogSegment: map[string]*skiplist.SkipList{},
+	}
+}
+
+func (pool *segmentPool) init() error {
 	go pool.dynamicAllocateSegmentTask()
-	pool.selectorForSegmentCreate = selector.NewSegmentServerRoundRobinSelector(&ctrl.segmentServerInfoMap)
+	pool.selectorForSegmentCreate = selector.NewSegmentServerRoundRobinSelector(&(pool.ctrl.segmentServerInfoMap))
 	return nil
 }
 

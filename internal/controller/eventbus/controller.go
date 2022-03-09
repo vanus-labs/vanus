@@ -16,9 +16,8 @@ package eventbus
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"github.com/google/uuid"
-	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
@@ -34,23 +33,19 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"io"
 	"strings"
-	"sync"
 	"time"
 )
 
 const (
 	defaultAutoCreatedSegmentNumber = 3
+	eventbusKeyPrefixInKVStore      = "/vanus/internal/resource/eventbus"
 )
 
 func NewEventBusController(cfg ControllerConfig) *controller {
 	c := &controller{
-		cfg: &cfg,
-		segmentPool: &segmentPool{
-			eventLogSegment: map[string]*skiplist.SkipList{},
-		},
+		cfg:                      &cfg,
 		volumePool:               &volumePool{},
 		eventBusMap:              map[string]*info.BusInfo{},
-		eventLogInfoMap:          map[string]*info.EventLogInfo{},
 		segmentServerCredentials: insecure.NewCredentials(),
 		segmentServerInfoMap:     map[string]*info.SegmentServerInfo{},
 		segmentServerConn:        map[string]*grpc.ClientConn{},
@@ -63,15 +58,14 @@ func NewEventBusController(cfg ControllerConfig) *controller {
 type controller struct {
 	cfg                      *ControllerConfig
 	kvStore                  kv.Client
-	segmentPool              *segmentPool
 	volumePool               *volumePool
 	eventBusMap              map[string]*info.BusInfo
-	eventLogInfoMap          map[string]*info.EventLogInfo
 	segmentServerCredentials credentials.TransportCredentials
 	segmentServerInfoMap     map[string]*info.SegmentServerInfo
 	segmentServerConn        map[string]*grpc.ClientConn
 	volumeInfoMap            map[string]*info.VolumeInfo
 	segmentServerClientMap   map[string]segpb.SegmentServerClient
+	eventLogMgr              *eventlogManager
 }
 
 func (ctrl *controller) Start() error {
@@ -80,13 +74,15 @@ func (ctrl *controller) Start() error {
 		return err
 	}
 	ctrl.kvStore = store
-	if err = ctrl.segmentPool.init(ctrl); err != nil {
+	ctrl.eventLogMgr = newEventlogManager(ctrl)
+	if err = ctrl.eventLogMgr.start(); err != nil {
 		return err
 	}
+
 	if err = ctrl.volumePool.init(ctrl); err != nil {
 		return err
 	}
-	return ctrl.dynamicScaleUpEventLog()
+	return nil
 }
 
 func (ctrl *controller) Stop() error {
@@ -99,11 +95,11 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 	if req.LogNumber == 0 {
 		req.LogNumber = 1
 	}
-	elNum := 1 // temporary
+	elNum := 1 // force set to 1 temporary
 	eb := &info.BusInfo{
-		Namespace: req.Namespace,
+		ID:        uuid.NewString(), // TODO use another id generator
 		Name:      req.Name,
-		LogNumber: elNum, //req.LogNumber, force set to 1 temporary
+		LogNumber: elNum,
 		EventLogs: make([]*info.EventLogInfo, elNum),
 	}
 	exist, err := ctrl.kvStore.Exists(eb.Name)
@@ -113,37 +109,27 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 	if exist {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "eventbus resource name conflicted")
 	}
-	wg := sync.WaitGroup{}
 	for idx := 0; idx < eb.LogNumber; idx++ {
-		eb.EventLogs[idx] = &info.EventLogInfo{
-			ID:           fmt.Sprintf("%s-%d", eb.Name, idx),
-			EventBusName: eb.Name,
+		el, err := ctrl.eventLogMgr.acquireEventLog(ctx)
+		if err != nil {
+			return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "binding eventlog failed", err)
 		}
-		wg.Add(1)
-		// TODO thread safety
-		// TODO asynchronous
-		go func(i int) {
-			_err := ctrl.initializeEventLog(ctx, eb.EventLogs[i])
-			err = errors.Chain(err, _err)
-			wg.Done()
-		}(idx)
+		eb.EventLogs[idx] = el
+		el.EventBusName = eb.Name
 	}
-	wg.Wait()
-
-	if err != nil {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "initialized eventlog failed", err)
-	}
-
-	for idx := 0; idx < len(eb.EventLogs); idx++ {
-		ctrl.eventLogInfoMap[eb.EventLogs[idx].ID] = eb.EventLogs[idx]
-	}
-
-	//data, _ := json.Marshal(eb)
-	//ctrl.kvStore.Set(eb.VRN.Value, data)
-	// TODO reconsider valuable of VRN, it maybe cause some chaos
 	ctrl.eventBusMap[eb.Name] = eb
+
+	// TODO add rollback handler when persist data to kv failed
+	{
+		data, _ := json.Marshal(eb)
+		if err := ctrl.kvStore.Set(ctrl.getEventBusKeyInKVStore(eb.Name), data); err != nil {
+			return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "insert meta to kv store failed", err)
+		}
+		if err := ctrl.eventLogMgr.updateEventLog(ctx, eb.EventLogs...); err != nil {
+			return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "update eventlog in kv store failed", err)
+		}
+	}
 	return &metapb.EventBus{
-		Namespace: eb.Namespace,
 		Name:      eb.Name,
 		LogNumber: int32(eb.LogNumber),
 		Logs:      info.Convert2ProtoEventLog(eb.EventLogs...),
@@ -180,13 +166,13 @@ func (ctrl *controller) ListSegment(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	el, exist := ctrl.eventLogInfoMap[req.EventLogId]
-	if !exist {
+	el := ctrl.eventLogMgr.getEventLog(ctx, req.EventLogId)
+	if el == nil {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "eventlog not found")
 	}
 
 	return &ctrlpb.ListSegmentResponse{
-		Segments: info.Convert2ProtoSegment(ctrl.segmentPool.getEventLogSegmentList(el.ID)...),
+		Segments: info.Convert2ProtoSegment(ctrl.eventLogMgr.getEventLogSegmentList(el.ID)...),
 	}, nil
 }
 
@@ -259,7 +245,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 			"volume_id": req.VolumeId,
 			"time":      time.Unix(req.ReportTimeInNano/10e9, req.ReportTimeInNano-req.ReportTimeInNano/10e9),
 		})
-		if _err := ctrl.segmentPool.updateSegment(context.Background(), req); _err != nil {
+		if _err := ctrl.eventLogMgr.updateSegment(context.Background(), req); _err != nil {
 			log.Warning("update segment when received segment server heartbeat", map[string]interface{}{
 				log.KeyError: err,
 			})
@@ -277,7 +263,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 
 func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 	req *ctrlpb.GetAppendableSegmentRequest) (*ctrlpb.GetAppendableSegmentResponse, error) {
-	eli := ctrl.eventLogInfoMap[req.EventLogId]
+	eli := ctrl.eventLogMgr.getEventLog(ctx, req.EventLogId)
 	if eli == nil {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "eventlog not found")
 	}
@@ -285,7 +271,7 @@ func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 	if num == 0 {
 		num = 1
 	}
-	segInfos, err := ctrl.segmentPool.getAppendableSegment(ctx, eli, num)
+	segInfos, err := ctrl.eventLogMgr.getAppendableSegment(ctx, eli, num)
 	if err != nil {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "get segment error")
 	}
@@ -312,31 +298,7 @@ func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 
 func (ctrl *controller) ReportSegmentBlockIsFull(ctx context.Context,
 	req *ctrlpb.SegmentHeartbeatRequest) (*emptypb.Empty, error) {
-	return &emptypb.Empty{}, ctrl.segmentPool.updateSegment(ctx, req)
-}
-
-func (ctrl *controller) initializeEventLog(ctx context.Context, el *info.EventLogInfo) error {
-	_, err := ctrl.segmentPool.bindSegment(ctx, el, defaultAutoCreatedSegmentNumber)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (ctrl *controller) dynamicScaleUpEventLog() error {
-	return nil
-}
-
-func (ctrl *controller) generateEventBusVRN(eb *info.BusInfo) *metapb.VanusResourceName {
-	return &metapb.VanusResourceName{
-		Value: strings.Join([]string{"eventbus", eb.Namespace, eb.Name}, ":"),
-	}
-}
-
-func (ctrl *controller) generateEventLogVRN(el *info.EventLogInfo) *metapb.VanusResourceName {
-	return &metapb.VanusResourceName{
-		Value: strings.Join([]string{el.EventBusName, "eventlog", fmt.Sprintf("%d", el.ID)}, ":"),
-	}
+	return &emptypb.Empty{}, ctrl.eventLogMgr.updateSegment(ctx, req)
 }
 
 func (ctrl *controller) getSegmentServerClient(i *info.SegmentServerInfo) segpb.SegmentServerClient {
@@ -367,4 +329,8 @@ func (ctrl *controller) readyToStartSegmentServer(ctx context.Context, serverInf
 			"address":    serverInfo.Address,
 		})
 	}
+}
+
+func (ctrl *controller) getEventBusKeyInKVStore(ebName string) string {
+	return strings.Join([]string{eventbusKeyPrefixInKVStore, ebName}, "/")
 }
