@@ -15,6 +15,7 @@
 package kv
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -26,19 +27,19 @@ var (
 )
 
 type Client interface {
-	Get(key string) ([]byte, error)
-	Create(key string, value []byte) error
-	Set(key string, value []byte) error
-	Update(key string, value []byte) error
-	Exists(key string) (bool, error)
-	SetWithTTL(key string, value []byte, ttl time.Duration) error
-	Delete(key string) error
-	DeleteDir(path string) error
-	List(path string) ([]Pair, error)
-	Watch(key string, stopCh <-chan struct{}) (chan Pair, chan error)
-	WatchTree(path string, stopCh <-chan struct{}) (chan Pair, chan error)
-	CompareAndSwap(key string, preValue, value []byte) error
-	CompareAndDelete(key string, preValue []byte) error
+	Get(ctx context.Context, key string) ([]byte, error)
+	Create(ctx context.Context, key string, value []byte) error
+	Set(ctx context.Context, key string, value []byte) error
+	Update(ctx context.Context, key string, value []byte) error
+	Exists(ctx context.Context, key string) (bool, error)
+	SetWithTTL(ctx context.Context, key string, value []byte, ttl time.Duration) error
+	Delete(ctx context.Context, key string) error
+	DeleteDir(ctx context.Context, path string) error
+	List(ctx context.Context, path string) ([]Pair, error)
+	Watch(ctx context.Context, key string, stopCh <-chan struct{}) (chan Pair, chan error)
+	WatchTree(ctx context.Context, path string, stopCh <-chan struct{}) (chan Pair, chan error)
+	CompareAndSwap(ctx context.Context, key string, preValue, value []byte) error
+	CompareAndDelete(ctx context.Context, key string, preValue []byte) error
 	Close() error
 }
 

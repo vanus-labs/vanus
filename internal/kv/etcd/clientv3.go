@@ -41,9 +41,9 @@ func NewEtcdClientV3(endpoints []string, keyPrefix string) (*etcdClient3, error)
 	return &etcdClient3{client: client, keyPrefix: keyPrefix}, nil
 }
 
-func (c *etcdClient3) Get(key string) ([]byte, error) {
+func (c *etcdClient3) Get(ctx context.Context, key string) ([]byte, error) {
 	key = path.Join(c.keyPrefix, key)
-	resp, err := c.client.Get(context.Background(), key)
+	resp, err := c.client.Get(ctx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -53,9 +53,9 @@ func (c *etcdClient3) Get(key string) ([]byte, error) {
 	return resp.Kvs[0].Value, nil
 }
 
-func (c *etcdClient3) Create(key string, value []byte) error {
+func (c *etcdClient3) Create(ctx context.Context, key string, value []byte) error {
 	key = path.Join(c.keyPrefix, key)
-	resp, err := c.client.Txn(context.Background()).
+	resp, err := c.client.Txn(ctx).
 		If(v3client.Compare(v3client.CreateRevision(key), "=", 0)).
 		Then(v3client.OpPut(key, string(value))).
 		Else().
@@ -71,15 +71,15 @@ func (c *etcdClient3) Create(key string, value []byte) error {
 	return nil
 }
 
-func (c *etcdClient3) Set(key string, value []byte) error {
+func (c *etcdClient3) Set(ctx context.Context, key string, value []byte) error {
 	key = path.Join(c.keyPrefix, key)
-	_, err := c.client.Put(context.Background(), key, string(value))
+	_, err := c.client.Put(ctx, key, string(value))
 	return err
 }
 
-func (c *etcdClient3) Update(key string, value []byte) error {
+func (c *etcdClient3) Update(ctx context.Context, key string, value []byte) error {
 	key = path.Join(c.keyPrefix, key)
-	resp, err := c.client.Txn(context.Background()).
+	resp, err := c.client.Txn(ctx).
 		If(v3client.Compare(v3client.CreateRevision(key), ">", 0)).
 		Then(v3client.OpPut(key, string(value))).
 		Else().
@@ -96,9 +96,9 @@ func (c *etcdClient3) Update(key string, value []byte) error {
 	return nil
 }
 
-func (c *etcdClient3) Exists(key string) (bool, error) {
+func (c *etcdClient3) Exists(ctx context.Context, key string) (bool, error) {
 	key = path.Join(c.keyPrefix, key)
-	resp, err := c.client.Get(context.Background(), key)
+	resp, err := c.client.Get(ctx, key)
 	if err != nil {
 		return false, err
 	}
@@ -109,20 +109,20 @@ func (c *etcdClient3) Exists(key string) (bool, error) {
 	}
 }
 
-func (c *etcdClient3) SetWithTTL(key string, value []byte, ttl time.Duration) error {
+func (c *etcdClient3) SetWithTTL(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	key = path.Join(c.keyPrefix, key)
-	resp, err := c.client.Grant(context.Background(), ttl.Nanoseconds()/int64(time.Second))
+	resp, err := c.client.Grant(ctx, ttl.Nanoseconds()/int64(time.Second))
 	if err != nil {
 		return err
 	}
 	leaseID := resp.ID
-	_, err = c.client.Put(context.Background(), key, string(value), v3client.WithLease(leaseID))
+	_, err = c.client.Put(ctx, key, string(value), v3client.WithLease(leaseID))
 	return err
 }
 
-func (c *etcdClient3) Delete(key string) error {
+func (c *etcdClient3) Delete(ctx context.Context, key string) error {
 	key = path.Join(c.keyPrefix, key)
-	resp, err := c.client.Delete(context.Background(), key)
+	resp, err := c.client.Delete(ctx, key)
 	if err != nil {
 		return err
 	}
@@ -133,9 +133,9 @@ func (c *etcdClient3) Delete(key string) error {
 	return nil
 }
 
-func (c *etcdClient3) DeleteDir(key string) error {
+func (c *etcdClient3) DeleteDir(ctx context.Context, key string) error {
 	key = path.Join(c.keyPrefix, key)
-	resp, err := c.client.Delete(context.Background(), key, v3client.WithPrefix())
+	resp, err := c.client.Delete(ctx, key, v3client.WithPrefix())
 	if err != nil {
 		return err
 	}
@@ -146,9 +146,9 @@ func (c *etcdClient3) DeleteDir(key string) error {
 	return nil
 }
 
-func (c *etcdClient3) List(key string) ([]kvdef.Pair, error) {
+func (c *etcdClient3) List(ctx context.Context, key string) ([]kvdef.Pair, error) {
 	key = path.Join(c.keyPrefix, key)
-	resp, err := c.client.Get(context.Background(), key, v3client.WithPrefix())
+	resp, err := c.client.Get(ctx, key, v3client.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
@@ -162,9 +162,9 @@ func (c *etcdClient3) List(key string) ([]kvdef.Pair, error) {
 	return pairs, nil
 }
 
-func (c *etcdClient3) ListKey(path string) (map[string]struct{}, error) {
+func (c *etcdClient3) ListKey(ctx context.Context, path string) (map[string]struct{}, error) {
 	path = strings.TrimSuffix(path, "/")
-	resp, err := c.client.Get(context.Background(), path, v3client.WithPrefix(), v3client.WithKeysOnly())
+	resp, err := c.client.Get(ctx, path, v3client.WithPrefix(), v3client.WithKeysOnly())
 	if err != nil {
 		return nil, err
 	}
@@ -175,13 +175,13 @@ func (c *etcdClient3) ListKey(path string) (map[string]struct{}, error) {
 	return keys, nil
 }
 
-func (c *etcdClient3) watch(key string, stopCh <-chan struct{}, isTree bool) (chan kvdef.Pair, chan error) {
+func (c *etcdClient3) watch(ctx context.Context, key string, stopCh <-chan struct{}, isTree bool) (chan kvdef.Pair, chan error) {
 	watcher := v3client.NewWatcher(c.client)
 	var watchC v3client.WatchChan
 	if isTree {
-		watchC = watcher.Watch(context.Background(), key, v3client.WithPrefix(), v3client.WithPrevKV())
+		watchC = watcher.Watch(ctx, key, v3client.WithPrefix(), v3client.WithPrevKV())
 	} else {
-		watchC = watcher.Watch(context.Background(), key, v3client.WithPrevKV())
+		watchC = watcher.Watch(ctx, key, v3client.WithPrevKV())
 	}
 	pairC := make(chan kvdef.Pair, 100)
 	errorC := make(chan error, 10)
@@ -219,19 +219,19 @@ func (c *etcdClient3) watch(key string, stopCh <-chan struct{}, isTree bool) (ch
 	return pairC, errorC
 }
 
-func (c *etcdClient3) Watch(key string, stopCh <-chan struct{}) (chan kvdef.Pair, chan error) {
+func (c *etcdClient3) Watch(ctx context.Context, key string, stopCh <-chan struct{}) (chan kvdef.Pair, chan error) {
 	key = path.Join(c.keyPrefix, key)
-	return c.watch(key, stopCh, false)
+	return c.watch(ctx, key, stopCh, false)
 }
 
-func (c *etcdClient3) WatchTree(key string, stopCh <-chan struct{}) (chan kvdef.Pair, chan error) {
+func (c *etcdClient3) WatchTree(ctx context.Context, key string, stopCh <-chan struct{}) (chan kvdef.Pair, chan error) {
 	key = path.Join(c.keyPrefix, key)
-	return c.watch(key, stopCh, true)
+	return c.watch(ctx, key, stopCh, true)
 }
 
-func (c *etcdClient3) CompareAndSwap(key string, preValue, value []byte) error {
+func (c *etcdClient3) CompareAndSwap(ctx context.Context, key string, preValue, value []byte) error {
 	key = path.Join(c.keyPrefix, key)
-	resp, err := c.client.Txn(context.Background()).
+	resp, err := c.client.Txn(ctx).
 		If(v3client.Compare(v3client.Value(key), "=", string(preValue))).
 		Then(v3client.OpPut(key, string(value))).
 		Else().
@@ -245,9 +245,9 @@ func (c *etcdClient3) CompareAndSwap(key string, preValue, value []byte) error {
 	return nil
 }
 
-func (c *etcdClient3) CompareAndDelete(key string, preValue []byte) error {
+func (c *etcdClient3) CompareAndDelete(ctx context.Context, key string, preValue []byte) error {
 	key = path.Join(c.keyPrefix, key)
-	resp, err := c.client.Txn(context.Background()).
+	resp, err := c.client.Txn(ctx).
 		If(v3client.Compare(v3client.Value(key), "=", string(preValue))).
 		Then(v3client.OpDelete(key)).
 		Else().

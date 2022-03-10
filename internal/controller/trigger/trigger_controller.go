@@ -96,7 +96,7 @@ func (ctrl *triggerController) CreateSubscription(ctx context.Context, request *
 		return nil, err
 	}
 	sub.ID = uuid.NewString()
-	err = ctrl.storage.CreateSubscription(sub)
+	err = ctrl.storage.CreateSubscription(ctx, sub)
 	if err != nil {
 		return nil, errors.Wrap(err, "save subscription error")
 	}
@@ -111,7 +111,7 @@ func (ctrl *triggerController) DeleteSubscription(ctx context.Context, request *
 	if ctrl.state != controllerRunning {
 		return nil, serverNotReady
 	}
-	err := ctrl.deleteSubscription(request.Id)
+	err := ctrl.deleteSubscription(ctx, request.Id)
 	if err != nil {
 		log.Error("delete subscription failed", map[string]interface{}{
 			"subId":      request.Id,
@@ -202,13 +202,13 @@ func (ctrl *triggerController) getTriggerWorker(addr string) *triggerWorker {
 	return ctrl.triggerWorkers[addr]
 }
 
-func (ctrl *triggerController) deleteSubscription(id string) error {
+func (ctrl *triggerController) deleteSubscription(ctx context.Context, id string) error {
 	var err error
 	defer func() {
 		if err == nil {
 			//clean storage
-			err = ctrl.storage.DeleteOffset(id)
-			err = ctrl.storage.DeleteSubscription(id)
+			err = ctrl.storage.DeleteOffset(ctx, id)
+			err = ctrl.storage.DeleteSubscription(ctx, id)
 		}
 	}()
 	ctrl.subMutex.Lock()
@@ -234,7 +234,7 @@ func (ctrl *triggerController) deleteSubscription(id string) error {
 }
 
 func (ctrl *triggerController) getSubscription(id string) (*primitive.Subscription, error) {
-	return ctrl.storage.GetSubscription(id)
+	return ctrl.storage.GetSubscription(context.Background(), id)
 }
 
 func (ctrl *triggerController) addSubscription(subId, addr string) {
@@ -300,7 +300,7 @@ func (ctrl *triggerController) Start() error {
 	ctrl.storage = s
 
 	//TODO page list
-	subList, err := s.ListSubscription()
+	subList, err := s.ListSubscription(context.Background())
 	if err != nil {
 		s.Close()
 		return errors.Wrap(err, "list subscription error")

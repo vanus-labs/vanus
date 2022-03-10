@@ -26,6 +26,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/pkg/errors"
 	"sync"
 	"time"
 )
@@ -72,10 +73,6 @@ type Trigger struct {
 }
 
 func NewTrigger(sub *primitive.Subscription, offsetManager *consumer.EventLogOffset) *Trigger {
-	ceClient, err := primitive.NewCeClient(sub.Sink)
-	if err != nil {
-		log.Error("new ce-client error", map[string]interface{}{"target": sub.Sink, "error": err.Error()})
-	}
 	return &Trigger{
 		ID:               uuid.New().String(),
 		SubscriptionID:   sub.ID,
@@ -87,7 +84,6 @@ func NewTrigger(sub *primitive.Subscription, offsetManager *consumer.EventLogOff
 		state:            TriggerCreated,
 		ackWindow:        ds.NewSortedMap(),
 		filter:           filter.GetFilter(sub.Filters),
-		ceClient:         ceClient,
 		eventCh:          make(chan *info.EventRecord, defaultBufferSize),
 		sendCh:           make(chan *info.EventRecord, 20),
 		deadLetterCh:     make(chan *info.EventRecord, defaultBufferSize),
@@ -215,7 +211,12 @@ func (t *Trigger) runMonitorACK(ctx context.Context) {
 	}
 }
 
-func (t *Trigger) Start(parent context.Context) {
+func (t *Trigger) Start(parent context.Context) error {
+	ceClient, err := primitive.NewCeClient(t.Target)
+	if err != nil {
+		return errors.Wrapf(err, "new ce-client %s has error", t.Target)
+	}
+	t.ceClient = ceClient
 	ctx, cancel := context.WithCancel(parent)
 	t.stop = cancel
 	for i := 0; i < t.BatchProcessSize; i++ {
@@ -228,6 +229,7 @@ func (t *Trigger) Start(parent context.Context) {
 
 	t.state = TriggerRunning
 	t.lastActive = time.Now()
+	return nil
 }
 
 func (t *Trigger) Stop() {

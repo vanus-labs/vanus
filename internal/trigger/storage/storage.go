@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"github.com/linkall-labs/vanus/config"
 	"github.com/linkall-labs/vanus/internal/kv"
@@ -26,10 +27,10 @@ import (
 )
 
 type OffsetStorage interface {
-	CreateOffset(info *info.OffsetInfo) error
-	UpdateOffset(info *info.OffsetInfo) error
-	GetOffset(info *info.OffsetInfo) (int64, error)
-	ListOffset(subId string) ([]*info.OffsetInfo, error)
+	CreateOffset(ctx context.Context, info *info.OffsetInfo) error
+	UpdateOffset(ctx context.Context, info *info.OffsetInfo) error
+	GetOffset(ctx context.Context, info *info.OffsetInfo) (int64, error)
+	ListOffset(ctx context.Context, subId string) ([]*info.OffsetInfo, error)
 	Close() error
 }
 
@@ -51,20 +52,20 @@ func (s *offsetStorage) Close() error {
 	return s.client.Close()
 }
 
-func (s *offsetStorage) CreateOffset(info *info.OffsetInfo) error {
+func (s *offsetStorage) CreateOffset(ctx context.Context, info *info.OffsetInfo) error {
 	key := path.Join(config.StorageOffset.String(), info.SubId, info.EventLog)
 	v := []byte(fmt.Sprintf("%d", info.Offset))
-	return s.client.Create(key, v)
+	return s.client.Create(ctx, key, v)
 }
 
-func (s *offsetStorage) UpdateOffset(info *info.OffsetInfo) error {
+func (s *offsetStorage) UpdateOffset(ctx context.Context, info *info.OffsetInfo) error {
 	key := path.Join(config.StorageOffset.String(), info.SubId, info.EventLog)
-	return s.client.Update(key, []byte(fmt.Sprintf("%d", info.Offset)))
+	return s.client.Update(ctx, key, []byte(fmt.Sprintf("%d", info.Offset)))
 }
 
-func (s *offsetStorage) GetOffset(info *info.OffsetInfo) (int64, error) {
+func (s *offsetStorage) GetOffset(ctx context.Context, info *info.OffsetInfo) (int64, error) {
 	key := path.Join(config.StorageOffset.String(), info.SubId, info.EventLog)
-	v, err := s.client.Get(key)
+	v, err := s.client.Get(ctx, key)
 	if err != nil {
 		return 0, err
 	}
@@ -75,9 +76,9 @@ func (s *offsetStorage) GetOffset(info *info.OffsetInfo) (int64, error) {
 	return intV, nil
 }
 
-func (s *offsetStorage) ListOffset(subId string) ([]*info.OffsetInfo, error) {
+func (s *offsetStorage) ListOffset(ctx context.Context, subId string) ([]*info.OffsetInfo, error) {
 	key := path.Join(config.StorageOffset.String(), subId, "/")
-	l, err := s.client.List(key)
+	l, err := s.client.List(ctx, key)
 	if err != nil {
 		return nil, err
 	}

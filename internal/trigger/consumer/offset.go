@@ -72,14 +72,15 @@ func (offset *EventLogOffset) Close() {
 func (offset *EventLogOffset) RegisterEventLog(el string, beginOffset int64) (int64, error) {
 	offset.mutex.Lock()
 	defer offset.mutex.Unlock()
-	offsetV, err := offset.storage.GetOffset(&info.OffsetInfo{
+	ctx := context.Background()
+	offsetV, err := offset.storage.GetOffset(ctx, &info.OffsetInfo{
 		SubId:    offset.sub,
 		EventLog: el,
 	})
 	if err != nil {
 		if err == kv.ErrorKeyNotFound {
 			offsetV = beginOffset
-			if err = offset.storage.CreateOffset(&info.OffsetInfo{
+			if err = offset.storage.CreateOffset(ctx, &info.OffsetInfo{
 				SubId:    offset.sub,
 				EventLog: el,
 				Offset:   beginOffset,
@@ -120,7 +121,7 @@ func (offset *EventLogOffset) commit() {
 		}
 		o.setCommit(c)
 		log.Debug("commit offset", map[string]interface{}{"sub": offset.sub, "el": k, "offset": c})
-		err := offset.storage.UpdateOffset(&info.OffsetInfo{
+		err := offset.storage.UpdateOffset(context.Background(), &info.OffsetInfo{
 			SubId:    offset.sub,
 			EventLog: k,
 			Offset:   c,

@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/linkall-labs/vanus/config"
 	"github.com/linkall-labs/vanus/internal/kv"
@@ -25,11 +26,11 @@ import (
 )
 
 type Storage interface {
-	CreateSubscription(sub *primitive.Subscription) error
-	DeleteSubscription(subId string) error
-	GetSubscription(subId string) (*primitive.Subscription, error)
-	ListSubscription() ([]*primitive.Subscription, error)
-	DeleteOffset(subId string) error
+	CreateSubscription(ctx context.Context, sub *primitive.Subscription) error
+	DeleteSubscription(ctx context.Context, subId string) error
+	GetSubscription(ctx context.Context, subId string) (*primitive.Subscription, error)
+	ListSubscription(ctx context.Context) ([]*primitive.Subscription, error)
+	DeleteOffset(ctx context.Context, subId string) error
 	Close() error
 }
 
@@ -51,31 +52,31 @@ func (s *storage) Close() error {
 	return s.client.Close()
 }
 
-func (s *storage) CreateSubscription(sub *primitive.Subscription) error {
+func (s *storage) CreateSubscription(ctx context.Context, sub *primitive.Subscription) error {
 	v, err := json.Marshal(sub)
 	if err != nil {
 		return errors.Wrap(err, "json marshal error")
 	}
 	key := path.Join(config.StorageSubscription.String(), sub.ID)
-	err = s.client.Create(key, v)
+	err = s.client.Create(ctx, key, v)
 	if err != nil {
 		return errors.Wrap(err, "etcd create error")
 	}
 	return nil
 }
 
-func (s *storage) DeleteSubscription(subId string) error {
+func (s *storage) DeleteSubscription(ctx context.Context, subId string) error {
 	key := path.Join(config.StorageSubscription.String(), subId)
-	err := s.client.Delete(key)
+	err := s.client.Delete(ctx, key)
 	if err != nil {
 		return errors.Wrap(err, "etcd delete error")
 	}
 	return nil
 }
 
-func (s *storage) GetSubscription(subId string) (*primitive.Subscription, error) {
+func (s *storage) GetSubscription(ctx context.Context, subId string) (*primitive.Subscription, error) {
 	key := path.Join(config.StorageSubscription.String(), subId)
-	v, err := s.client.Get(key)
+	v, err := s.client.Get(ctx, key)
 	if err != nil {
 		return nil, errors.Wrap(err, "etcd get error")
 	}
@@ -87,9 +88,9 @@ func (s *storage) GetSubscription(subId string) (*primitive.Subscription, error)
 	return sub, nil
 }
 
-func (s *storage) ListSubscription() ([]*primitive.Subscription, error) {
+func (s *storage) ListSubscription(ctx context.Context) ([]*primitive.Subscription, error) {
 	key := path.Join(config.StorageSubscription.String(), "/")
-	l, err := s.client.List(key)
+	l, err := s.client.List(ctx, key)
 	if err != nil {
 		return nil, errors.Wrap(err, "etcd list error")
 	}
@@ -105,7 +106,7 @@ func (s *storage) ListSubscription() ([]*primitive.Subscription, error) {
 	return list, nil
 }
 
-func (s *storage) DeleteOffset(subId string) error {
+func (s *storage) DeleteOffset(ctx context.Context, subId string) error {
 	key := path.Join(config.StorageOffset.String(), subId)
-	return s.client.DeleteDir(key)
+	return s.client.DeleteDir(ctx, key)
 }

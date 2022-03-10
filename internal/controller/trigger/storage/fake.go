@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"context"
 	"github.com/linkall-labs/vanus/config"
 	"github.com/linkall-labs/vanus/internal/primitive"
 )
@@ -34,21 +35,21 @@ func (f *fake) Close() error {
 	return nil
 }
 
-func (f *fake) CreateSubscription(sub *primitive.Subscription) error {
+func (f *fake) CreateSubscription(ctx context.Context, sub *primitive.Subscription) error {
 	f.subs[sub.ID] = sub
 	return nil
 }
 
-func (f *fake) DeleteSubscription(id string) error {
+func (f *fake) DeleteSubscription(ctx context.Context, id string) error {
 	delete(f.subs, id)
 	return nil
 }
 
-func (f *fake) GetSubscription(id string) (*primitive.Subscription, error) {
+func (f *fake) GetSubscription(ctx context.Context, id string) (*primitive.Subscription, error) {
 	return f.subs[id], nil
 }
 
-func (f *fake) ListSubscription() ([]*primitive.Subscription, error) {
+func (f *fake) ListSubscription(ctx context.Context) ([]*primitive.Subscription, error) {
 	var list []*primitive.Subscription
 	for _, sub := range f.subs {
 		list = append(list, sub)
@@ -56,6 +57,6 @@ func (f *fake) ListSubscription() ([]*primitive.Subscription, error) {
 	return list, nil
 }
 
-func (f *fake) DeleteOffset(id string) error {
+func (f *fake) DeleteOffset(ctx context.Context, id string) error {
 	return nil
 }
