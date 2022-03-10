@@ -39,6 +39,7 @@ import (
 const (
 	defaultAutoCreatedSegmentNumber = 3
 	eventbusKeyPrefixInKVStore      = "/vanus/internal/resource/eventbus"
+	eventlogKeyPrefixInKVStore      = "/vanus/internal/resource/eventlog"
 )
 
 func NewEventBusController(cfg ControllerConfig) *controller {

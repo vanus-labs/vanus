@@ -214,3 +214,12 @@ func (pool *segmentPool) getEventLogSegmentList(elID string) []*info.SegmentBloc
 	}
 	return arr
 }
+
+func (pool *segmentPool) getSegmentBlockID(ctx context.Context, id string) *info.SegmentBlockInfo {
+	v, exist := pool.segmentMap.Load(id)
+	if !exist {
+		return nil
+	}
+
+	return v.(*info.SegmentBlockInfo)
+}
