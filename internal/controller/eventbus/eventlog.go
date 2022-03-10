@@ -67,6 +67,20 @@ func (mgr *eventlogManager) start() error {
 	return nil
 }
 
+func (mgr *eventlogManager) initVolumeInfo(pool *volumePool) error {
+	var err error
+	mgr.eventLogMap.Range(func(key, value interface{}) bool {
+		elInfo := value.(*info.EventLogInfo)
+		sbList := mgr.segmentPool.getEventLogSegmentList(elInfo.ID)
+		for idx := 0; idx < len(sbList); idx++ {
+			sb := sbList[idx]
+			sb.VolumeInfo = pool.get(sb.VolumeID)
+		}
+		return true
+	})
+	return err
+}
+
 func (mgr *eventlogManager) stop() error {
 	return nil
 }
@@ -93,9 +107,7 @@ func (mgr *eventlogManager) acquireEventLog(ctx context.Context) (*info.EventLog
 func (mgr *eventlogManager) createEventLog(ctx context.Context) (*info.EventLogInfo, error) {
 	el := &info.EventLogInfo{
 		// TODO use new uuid generator
-		ID:                    uuid.NewString(),
-		CurrentSegmentNumbers: 0,
-		SegmentList:           []string{},
+		ID: uuid.NewString(),
 	}
 	data, _ := json.Marshal(el)
 	mgr.kvMutex.Lock()
@@ -151,6 +163,7 @@ func (mgr *eventlogManager) updateSegment(ctx context.Context, req *ctrlpb.Segme
 
 func (mgr *eventlogManager) getAppendableSegment(ctx context.Context,
 	eli *info.EventLogInfo, num int) ([]*info.SegmentBlockInfo, error) {
+	// TODO the HA of segment can't be guaranteed before segment support multiple replicas
 	return mgr.segmentPool.getAppendableSegment(ctx, eli, num)
 }
 

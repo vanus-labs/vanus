@@ -23,6 +23,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/errors"
 	"github.com/linkall-labs/vanus/internal/store/segment/block"
 	"github.com/linkall-labs/vanus/internal/store/segment/codec"
+	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrl "github.com/linkall-labs/vsproto/pkg/controller"
@@ -32,6 +33,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -368,14 +370,31 @@ func (s *segmentServer) startHeartBeatTask() error {
 					return true
 				})
 				if err = stream.Send(&ctrl.SegmentHeartbeatRequest{
-					ServerId:         s.id,
-					VolumeId:         s.volumeId,
-					HealthInfo:       infos,
-					ReportTimeInNano: time.Now().UnixNano(),
+					ServerId:   s.id,
+					VolumeId:   s.volumeId,
+					HealthInfo: infos,
+					ReportTime: util.FormatTime(time.Now()),
+					ServerAddr: s.localAddress,
 				}); err != nil {
-					log.Warning("send heartbeat to controller error", map[string]interface{}{
-						log.KeyError: err,
-					})
+					if err == io.EOF {
+						log.Warning("send heartbeat to controller failed, connection lost. try to reconnecting",
+							nil)
+					} else {
+						log.Warning("send heartbeat to controller failed, try to reconnecting", map[string]interface{}{
+							log.KeyError: err,
+						})
+					}
+
+					for err != nil {
+						stream, err = s.ctrlClient.SegmentHeartbeat(context.Background())
+						if err != nil {
+							log.Error("reconnect to controller failed, retry after 3s", map[string]interface{}{
+								log.KeyError: err,
+							})
+						}
+						time.Sleep(3 * time.Second)
+					}
+					log.Info("reconnected to controller", nil)
 				}
 			}
 		}
@@ -478,7 +497,7 @@ func (s *segmentServer) markSegmentIsFull(ctx context.Context, segId string) err
 		HealthInfo: []*meta.SegmentHealthInfo{
 			bl.(block.SegmentBlock).HealthInfo(),
 		},
-		ReportTimeInNano: time.Now().UnixNano(),
+		ReportTime: util.FormatTime(time.Now()),
 	})
 	return err
 }

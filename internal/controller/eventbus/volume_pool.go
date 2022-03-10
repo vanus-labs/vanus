@@ -14,11 +14,16 @@
 
 package eventbus
 
-import "github.com/linkall-labs/vanus/internal/controller/eventbus/info"
+import (
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
+	"github.com/linkall-labs/vanus/observability/log"
+	"time"
+)
 
 type volumePool struct {
 	ctrl          *controller
 	volumeInfoMap map[string]*info.VolumeInfo
+	exitCh        chan struct{}
 }
 
 func (pool *volumePool) init(ctrl *controller) error {
@@ -33,6 +38,7 @@ func (pool *volumePool) init(ctrl *controller) error {
 		Blocks:                   map[string]string{},
 		PersistenceVolumeClaimID: "volume-1",
 	}
+	go pool.volumeHealthWatch()
 	return nil
 }
 
@@ -44,11 +50,35 @@ func (pool *volumePool) get(id string) *info.VolumeInfo {
 	return pool.volumeInfoMap[id]
 }
 
-func (pool *volumePool) bindSegmentServer(vInfo *info.VolumeInfo, sInfo *info.SegmentServerInfo) error {
-	vInfo.AssignedSegmentServer = sInfo
+func (pool *volumePool) ActivateVolume(vInfo *info.VolumeInfo, sInfo *info.SegmentServerInfo) error {
+	// TODO update state in KV store
+	vInfo.Activate(sInfo)
 	return nil
 }
 
-func (pool *volumePool) release(vInfo *info.VolumeInfo) error {
+func (pool *volumePool) InactivateVolume(vInfo *info.VolumeInfo) error {
+	// TODO update state in KV store
+	vInfo.Inactivate()
 	return nil
+}
+
+func (pool *volumePool) volumeHealthWatch() {
+	tick := time.NewTicker(time.Second)
+	for {
+		select {
+		case <-pool.exitCh:
+			log.Info("volume health watcher exist", nil)
+		case <-tick.C:
+			for k, v := range pool.volumeInfoMap {
+				if v.IsActivity() {
+					if !v.IsOnline() {
+						v.Inactivate()
+						log.Info("the volume has changed to inactive", map[string]interface{}{
+							"volume_id": k,
+						})
+					}
+				}
+			}
+		}
+	}
 }

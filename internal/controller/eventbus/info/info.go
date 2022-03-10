@@ -18,6 +18,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"github.com/linkall-labs/vsproto/pkg/meta"
+	"time"
 )
 
 type BusInfo struct {
@@ -42,10 +43,8 @@ func Convert2ProtoEventBus(ins ...*BusInfo) []*meta.EventBus {
 
 type EventLogInfo struct {
 	// global unique id
-	ID                    string   `json:"id"`
-	EventBusName          string   `json:"eventbus_name"`
-	CurrentSegmentNumbers int      `json:"current_segment_numbers"`
-	SegmentList           []string `json:"segment_list"`
+	ID           string `json:"id"`
+	EventBusName string `json:"eventbus_name"`
 }
 
 func Convert2ProtoEventLog(ins ...*EventLogInfo) []*meta.EventLog {
@@ -53,10 +52,9 @@ func Convert2ProtoEventLog(ins ...*EventLogInfo) []*meta.EventLog {
 	for idx := 0; idx < len(ins); idx++ {
 		eli := ins[idx]
 		pels[idx] = &meta.EventLog{
-			EventBusName:          eli.EventBusName,
-			EventLogId:            eli.ID,
-			CurrentSegmentNumbers: int32(eli.CurrentSegmentNumbers),
-			ServerAddress:         "127.0.0.1:2048",
+			EventBusName:  eli.EventBusName,
+			EventLogId:    eli.ID,
+			ServerAddress: "127.0.0.1:2048",
 		}
 	}
 	return pels
@@ -66,7 +64,8 @@ type SegmentBlockInfo struct {
 	ID                string      `json:"id"`
 	Capacity          int64       `json:"capacity"`
 	Size              int64       `json:"size"`
-	VolumeInfo        *VolumeInfo `json:"volume_info"`
+	VolumeID          string      `json:"volume_id"`
+	VolumeInfo        *VolumeInfo `json:"-"`
 	EventLogID        string      `json:"event_log_id"`
 	ReplicaGroupID    string      `json:"replica_group_id"`
 	PeersAddress      []string    `json:"peers_address"`
@@ -90,8 +89,8 @@ func Convert2ProtoSegment(ins ...*SegmentBlockInfo) []*meta.Segment {
 			Capacity:          seg.Capacity,
 			NumberEventStored: seg.Number,
 		}
-		if seg.VolumeInfo != nil && seg.VolumeInfo.AssignedSegmentServer != nil {
-			segs[idx].StorageUri = seg.VolumeInfo.AssignedSegmentServer.Address
+		if seg.VolumeInfo != nil && seg.VolumeInfo.assignedSegmentServer != nil {
+			segs[idx].StorageUri = seg.VolumeInfo.assignedSegmentServer.Address
 		}
 
 	}
@@ -99,9 +98,11 @@ func Convert2ProtoSegment(ins ...*SegmentBlockInfo) []*meta.Segment {
 }
 
 type SegmentServerInfo struct {
-	id      string
-	Address string
-	Volume  *VolumeInfo
+	id                string
+	Address           string
+	Volume            *VolumeInfo
+	StartedAt         time.Time
+	LastHeartbeatTime time.Time
 }
 
 func (in *SegmentServerInfo) ID() string {
@@ -111,13 +112,18 @@ func (in *SegmentServerInfo) ID() string {
 	return in.id
 }
 
+const (
+	volumeAliveInterval = 5 * time.Second
+)
+
 type VolumeInfo struct {
 	Capacity                 int64              `json:"capacity"`
 	Used                     int64              `json:"used"`
 	BlockNumbers             int                `json:"block_numbers"`
 	Blocks                   map[string]string  `json:"blocks"`
 	PersistenceVolumeClaimID string             `json:"persistence_volume_claim_id"`
-	AssignedSegmentServer    *SegmentServerInfo `json:"-"`
+	assignedSegmentServer    *SegmentServerInfo `json:"-"`
+	isActive                 bool
 }
 
 func (in *VolumeInfo) ID() string {
@@ -132,4 +138,30 @@ func (in *VolumeInfo) AddBlock(bi *SegmentBlockInfo) {
 func (in *VolumeInfo) RemoveBlock(bi *SegmentBlockInfo) {
 	in.Used -= bi.Capacity
 	delete(in.Blocks, bi.ID)
+}
+
+func (in *VolumeInfo) IsOnline() bool {
+	return in.assignedSegmentServer != nil && time.Now().Sub(in.assignedSegmentServer.LastHeartbeatTime) < volumeAliveInterval
+}
+
+func (in *VolumeInfo) IsActivity() bool {
+	return in.isActive
+}
+
+func (in *VolumeInfo) Activate(serverInfo *SegmentServerInfo) {
+	in.isActive = true
+	in.assignedSegmentServer = serverInfo
+	serverInfo.Volume = in
+}
+
+func (in *VolumeInfo) Inactivate() {
+	in.isActive = false
+	in.assignedSegmentServer = nil
+}
+
+func (in *VolumeInfo) GetAccessEndpoint() string {
+	if !in.isActive {
+		return ""
+	}
+	return in.assignedSegmentServer.Address
 }

@@ -28,6 +28,10 @@ func FormatTime(t time.Time) string {
 	return t.Format(vanusTimeLayout)
 }
 
+func ParseTime(str string) (time.Time, error) {
+	return time.Parse(vanusTimeLayout, str)
+}
+
 func Backoff(attempt int, max time.Duration) time.Duration {
 	d := time.Duration(1 << attempt * 100 * time.Millisecond)
 	if d > max {

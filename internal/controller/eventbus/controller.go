@@ -22,6 +22,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/primitive/errors"
+	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
@@ -42,6 +43,7 @@ const (
 	eventbusKeyPrefixInKVStore      = "/vanus/internal/resource/eventbus"
 	eventlogKeyPrefixInKVStore      = "/vanus/internal/resource/eventlog"
 	segmentBlockKeyPrefixInKVStore  = "/vanus/internal/resource/segmentBlock"
+	volumeKeyPrefixInKVStore        = "/vanus/internal/resource/volume"
 )
 
 func NewEventBusController(cfg ControllerConfig) *controller {
@@ -92,14 +94,19 @@ func (ctrl *controller) Start() error {
 		ctrl.eventBusMap[filepath.Base(pair.Key)] = busInfo
 	}
 
+	if err = ctrl.volumePool.init(ctrl); err != nil {
+		return err
+	}
+
 	ctrl.eventLogMgr = newEventlogManager(ctrl)
 	if err = ctrl.eventLogMgr.start(); err != nil {
 		return err
 	}
 
-	if err = ctrl.volumePool.init(ctrl); err != nil {
+	if err := ctrl.eventLogMgr.initVolumeInfo(ctrl.volumePool); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -198,13 +205,14 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	req *ctrlpb.RegisterSegmentServerRequest) (*ctrlpb.RegisterSegmentServerResponse, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
-	serverInfo := &info.SegmentServerInfo{}
-	serverInfo.Address = req.Address
-	_, exist := ctrl.segmentServerInfoMap[serverInfo.ID()]
-	if exist {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"segpb server ip address is conflicted", nil)
+
+	serverInfo := &info.SegmentServerInfo{
+		Address:           req.Address,
+		Volume:            nil,
+		StartedAt:         time.Now(),
+		LastHeartbeatTime: time.Now(),
 	}
+
 	volumeInfo, exist := ctrl.volumeInfoMap[req.VolumeId]
 	if !exist {
 		volumeInfo = ctrl.volumePool.get(req.VolumeId)
@@ -213,12 +221,25 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 				"invalid volumeID, PVC not found", nil)
 		}
 	}
-	if err := ctrl.volumePool.bindSegmentServer(volumeInfo, serverInfo); err != nil {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"bind volume to segpb server failed", err)
+	// TODO clean server info when server disconnected
+	_, exist = ctrl.segmentServerInfoMap[serverInfo.Address]
+	if exist {
+		if volumeInfo.GetAccessEndpoint() == "" {
+			log.Info("the segment server reconnected", map[string]interface{}{
+				"server_address": req.Address,
+				"volume_id":      req.VolumeId,
+			})
+		} else if volumeInfo.GetAccessEndpoint() != volumeInfo.GetAccessEndpoint() {
+			return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
+				"segpb server ip address is conflicted", nil)
+		}
 	}
-	serverInfo.Volume = volumeInfo
-	ctrl.segmentServerInfoMap[serverInfo.ID()] = serverInfo
+
+	if err := ctrl.volumePool.ActivateVolume(volumeInfo, serverInfo); err != nil {
+		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
+			"bind volume to segment server failed", err)
+	}
+	ctrl.segmentServerInfoMap[serverInfo.Address] = serverInfo
 	// TODO update state in KV store
 	go ctrl.readyToStartSegmentServer(context.Background(), serverInfo)
 	return &ctrlpb.RegisterSegmentServerResponse{
@@ -234,14 +255,11 @@ func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
 	serverInfo, exist := ctrl.segmentServerInfoMap[req.Address]
 	if !exist {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"segpb server not found", nil)
+			"segment server not found", nil)
 	}
 
 	delete(ctrl.segmentServerInfoMap, serverInfo.Address)
-	if err := ctrl.volumePool.release(serverInfo.Volume); err != nil {
-		// TODO error handle
-	}
-	// TODO update state in KV store
+	ctrl.volumePool.InactivateVolume(serverInfo.Volume)
 	return &ctrlpb.UnregisterSegmentServerResponse{}, nil
 }
 
@@ -258,14 +276,50 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 		if err != nil {
 			break
 		}
+		t, err := util.ParseTime(req.ReportTime)
+		if err != nil {
+			log.Error("parse heartbeat report time failed", map[string]interface{}{
+				"volume_id":  req.VolumeId,
+				"server_id":  req.ServerId,
+				log.KeyError: err,
+			})
+			continue
+		}
 		log.Debug("received heartbeat from segment server", map[string]interface{}{
 			"server_id": req.ServerId,
 			"volume_id": req.VolumeId,
-			"time":      time.Unix(req.ReportTimeInNano/10e9, req.ReportTimeInNano-req.ReportTimeInNano/10e9),
+			"time":      t,
 		})
+		vInfo := ctrl.volumePool.get(req.VolumeId)
+		if vInfo == nil {
+			log.Error("received a heartbeat request, but volume not found", map[string]interface{}{
+				"volume_id": req.VolumeId,
+				"server_id": req.ServerId,
+			})
+			continue
+		}
+		serverInfo := ctrl.segmentServerInfoMap[req.ServerAddr]
+		if serverInfo == nil {
+			// TODO refactor here and register
+			serverInfo = &info.SegmentServerInfo{
+				Address:   req.ServerAddr,
+				Volume:    vInfo,
+				StartedAt: time.Now(),
+			}
+			ctrl.segmentServerInfoMap[req.ServerAddr] = serverInfo
+			ctrl.volumePool.ActivateVolume(vInfo, serverInfo)
+			//log.Error("received a heartbeat request, but server info not found", map[string]interface{}{
+			//	"volume_id": req.VolumeId,
+			//	"server_id": req.ServerId,
+			//})
+		}
+
+		serverInfo.LastHeartbeatTime = t
 		if _err := ctrl.eventLogMgr.updateSegment(context.Background(), req); _err != nil {
 			log.Warning("update segment when received segment server heartbeat", map[string]interface{}{
 				log.KeyError: err,
+				"volume_id":  req.VolumeId,
+				"server_id":  req.ServerId,
 			})
 		}
 		// TODO srv.SendAndClose()
@@ -309,8 +363,8 @@ func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 			NumberEventStored: seg.Number,
 			Compressed:        metapb.CompressAlgorithm_NONE,
 		}
-		if seg.VolumeInfo != nil && seg.VolumeInfo.AssignedSegmentServer != nil {
-			pbSeg.StorageUri = seg.VolumeInfo.AssignedSegmentServer.Address
+		if seg.VolumeInfo != nil {
+			pbSeg.StorageUri = seg.VolumeInfo.GetAccessEndpoint()
 		}
 		segs = append(segs, pbSeg)
 	}
