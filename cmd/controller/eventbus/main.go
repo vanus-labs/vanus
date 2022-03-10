@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -43,7 +44,8 @@ func main() {
 		KVStoreEndpoints: []string{"127.0.0.1:2379"},
 		KVKeyPrefix:      "/wenfeng",
 	})
-	if err = ctrlSrv.Start(); err != nil {
+	ctx := context.Background()
+	if err = ctrlSrv.Start(ctx); err != nil {
 		log.Error("start Eventbus Controller failed", map[string]interface{}{
 			log.KeyError: err,
 		})

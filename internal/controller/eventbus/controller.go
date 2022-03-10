@@ -73,14 +73,14 @@ type controller struct {
 	eventLogMgr              *eventlogManager
 }
 
-func (ctrl *controller) Start() error {
+func (ctrl *controller) Start(ctx context.Context) error {
 	store, err := etcd.NewEtcdClientV3(ctrl.cfg.KVStoreEndpoints, ctrl.cfg.KVKeyPrefix)
 	if err != nil {
 		return err
 	}
 	ctrl.kvStore = store
 
-	pairs, err := store.List(eventbusKeyPrefixInKVStore)
+	pairs, err := store.List(ctx, eventbusKeyPrefixInKVStore)
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func (ctrl *controller) Start() error {
 	}
 
 	ctrl.eventLogMgr = newEventlogManager(ctrl)
-	if err = ctrl.eventLogMgr.start(); err != nil {
+	if err = ctrl.eventLogMgr.start(ctx); err != nil {
 		return err
 	}
 
@@ -127,7 +127,7 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 		LogNumber: elNum,
 		EventLogs: make([]*info.EventLogInfo, elNum),
 	}
-	exist, err := ctrl.kvStore.Exists(eb.Name)
+	exist, err := ctrl.kvStore.Exists(ctx, eb.Name)
 	if err != nil {
 		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "invoke kv exist failed", err)
 	}
@@ -147,7 +147,7 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 	// TODO add rollback handler when persist data to kv failed
 	{
 		data, _ := json.Marshal(eb)
-		if err := ctrl.kvStore.Set(ctrl.getEventBusKeyInKVStore(eb.Name), data); err != nil {
+		if err := ctrl.kvStore.Set(ctx, ctrl.getEventBusKeyInKVStore(eb.Name), data); err != nil {
 			return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "insert meta to kv store failed", err)
 		}
 		if err := ctrl.eventLogMgr.updateEventLog(ctx, eb.EventLogs...); err != nil {

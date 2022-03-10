@@ -55,10 +55,10 @@ func newSegmentPool(ctrl *controller) *segmentPool {
 	}
 }
 
-func (pool *segmentPool) init() error {
+func (pool *segmentPool) init(ctx context.Context) error {
 	go pool.dynamicAllocateSegmentTask()
 	pool.selectorForSegmentCreate = selector.NewSegmentServerRoundRobinSelector(&(pool.ctrl.segmentServerInfoMap))
-	pairs, err := pool.kvStore.List(segmentBlockKeyPrefixInKVStore)
+	pairs, err := pool.kvStore.List(ctx, segmentBlockKeyPrefixInKVStore)
 	if err != nil {
 		return err
 	}
@@ -271,5 +271,5 @@ func (pool *segmentPool) updateSegmentBlockInKV(ctx context.Context, segment *in
 	if err != nil {
 		return err
 	}
-	return pool.kvStore.Set(pool.getSegmentBlockKeyInKVStore(segment.ID), data)
+	return pool.kvStore.Set(ctx, pool.getSegmentBlockKeyInKVStore(segment.ID), data)
 }

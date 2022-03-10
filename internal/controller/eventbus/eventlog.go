@@ -46,12 +46,12 @@ func newEventlogManager(ctrl *controller) *eventlogManager {
 	}
 }
 
-func (mgr *eventlogManager) start() error {
+func (mgr *eventlogManager) start(ctx context.Context) error {
 	mgr.segmentPool = newSegmentPool(mgr.ctrl)
-	if err := mgr.segmentPool.init(); err != nil {
+	if err := mgr.segmentPool.init(ctx); err != nil {
 		return err
 	}
-	pairs, err := mgr.kvStore.List(eventlogKeyPrefixInKVStore)
+	pairs, err := mgr.kvStore.List(ctx, eventlogKeyPrefixInKVStore)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func (mgr *eventlogManager) createEventLog(ctx context.Context) (*info.EventLogI
 	data, _ := json.Marshal(el)
 	mgr.kvMutex.Lock()
 	defer mgr.kvMutex.Unlock()
-	if err := mgr.kvStore.Set(mgr.getEventLogKeyInKVStore(el.ID), data); err != nil {
+	if err := mgr.kvStore.Set(ctx, mgr.getEventLogKeyInKVStore(el.ID), data); err != nil {
 		return nil, err
 	}
 	mgr.eventLogMap.Store(el.ID, el)
@@ -134,7 +134,7 @@ func (mgr *eventlogManager) updateEventLog(ctx context.Context, els ...*info.Eve
 	for idx := range els {
 		el := els[idx]
 		data, _ := json.Marshal(el)
-		if err := mgr.kvStore.Set(mgr.getEventLogKeyInKVStore(el.ID), data); err != nil {
+		if err := mgr.kvStore.Set(ctx, mgr.getEventLogKeyInKVStore(el.ID), data); err != nil {
 			return err
 		}
 	}
