@@ -27,7 +27,7 @@ import (
 func main() {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	conn, err := grpc.Dial("192.168.1.111:11811", opts...)
+	conn, err := grpc.Dial("127.0.0.1:11811", opts...)
 	if err != nil {
 		log.Fatal(err.Error(), nil)
 	}

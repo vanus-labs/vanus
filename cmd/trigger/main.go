@@ -30,9 +30,9 @@ import (
 )
 
 var (
-	defaultIP        = "0.0.0.0"
+	defaultIP        = "127.0.0.1"
 	defaultPort      = 2148
-	trControllerIP   = "0.0.0.0"
+	trControllerIP   = "127.0.0.1"
 	trControllerPort = 2048
 )
 

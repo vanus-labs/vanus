@@ -93,6 +93,9 @@ func (s *segmentServer) Initialize(ctx context.Context) error {
 			Address:  s.localAddress,
 			VolumeId: s.volumeId,
 		})
+		if err != nil {
+			return err
+		}
 		s.id = res.ServerId
 		if len(res.SegmentBlocks) > 0 {
 			for idx := range res.SegmentBlocks {

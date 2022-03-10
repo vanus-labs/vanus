@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	defaultIP   = "192.168.1.111"
+	defaultIP   = "127.0.0.1"
 	defaultPort = 2048
 )
 
@@ -41,7 +41,7 @@ func main() {
 		IP:               defaultIP,
 		Port:             defaultPort,
 		KVStoreEndpoints: []string{"127.0.0.1:2379"},
-		KVKeyPrefix:      "/wenfeng/controller/",
+		KVKeyPrefix:      "/wenfeng",
 	})
 	if err = ctrlSrv.Start(); err != nil {
 		log.Error("start Eventbus Controller failed", map[string]interface{}{

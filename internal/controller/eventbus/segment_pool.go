@@ -16,14 +16,17 @@ package eventbus
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/selector"
+	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/linkall-labs/vsproto/pkg/segment"
 	"github.com/pkg/errors"
+	"strings"
 	"sync"
 	"time"
 )
@@ -41,18 +44,40 @@ type segmentPool struct {
 	selectorForSegmentCreate selector.SegmentServerSelector
 	eventLogSegment          map[string]*skiplist.SkipList
 	segmentMap               sync.Map
+	kvStore                  kv.Client
 }
 
 func newSegmentPool(ctrl *controller) *segmentPool {
 	return &segmentPool{
 		ctrl:            ctrl,
 		eventLogSegment: map[string]*skiplist.SkipList{},
+		kvStore:         ctrl.kvStore,
 	}
 }
 
 func (pool *segmentPool) init() error {
 	go pool.dynamicAllocateSegmentTask()
 	pool.selectorForSegmentCreate = selector.NewSegmentServerRoundRobinSelector(&(pool.ctrl.segmentServerInfoMap))
+	pairs, err := pool.kvStore.List(segmentBlockKeyPrefixInKVStore)
+	if err != nil {
+		return err
+	}
+	// TODO unassigned -> assigned
+	for idx := range pairs {
+		pair := pairs[idx]
+		sbInfo := &info.SegmentBlockInfo{}
+		err := json.Unmarshal(pair.Value, sbInfo)
+		if err != nil {
+			return err
+		}
+		l, exist := pool.eventLogSegment[sbInfo.EventLogID]
+		if !exist {
+			l = skiplist.New(skiplist.String)
+			pool.eventLogSegment[sbInfo.EventLogID] = l
+		}
+		l.Set(sbInfo.ID, sbInfo)
+		pool.segmentMap.Store(sbInfo.ID, sbInfo)
+	}
 	return nil
 }
 
@@ -66,7 +91,14 @@ func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo,
 	defer func() {
 		for idx := 0; idx < num; idx++ {
 			if err != nil && segArr[idx] != nil {
-				pool.cancelBinding(segArr[idx])
+				segArr[idx].EventLogID = ""
+				segArr[idx].ReplicaGroupID = ""
+				segArr[idx].PeersAddress = nil
+				if _err := pool.updateSegmentBlockInKV(ctx, segArr[idx]); _err != nil {
+					log.Error("update segment info in kv store failed when cancel binding", map[string]interface{}{
+						log.KeyError: _err,
+					})
+				}
 			}
 		}
 	}()
@@ -93,7 +125,7 @@ func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo,
 		}
 		segArr[idx] = seg
 	}
-	// TODO persist to kv
+
 	sl, exist := pool.eventLogSegment[el.ID]
 	if !exist {
 		sl = skiplist.New(skiplist.String)
@@ -101,7 +133,9 @@ func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo,
 	}
 	for idx := range segArr {
 		sl.Set(segArr[idx].ID, segArr[idx])
-		pool.segmentMap.Store(segArr[idx].ID, segArr[idx])
+		if err = pool.updateSegmentBlockInKV(ctx, segArr[idx]); err != nil {
+			return nil, err
+		}
 	}
 	return segArr, nil
 }
@@ -126,19 +160,16 @@ func (pool *segmentPool) allocateSegmentImmediately(ctx context.Context, size in
 	if err != nil {
 		return nil, err
 	}
-	// TODO persist to kv
 	srvInfo.Volume.AddBlock(segmentInfo)
+	pool.segmentMap.Store(segmentInfo.ID, segmentInfo)
+	if err = pool.updateSegmentBlockInKV(ctx, segmentInfo); err != nil {
+		return nil, err
+	}
 	return segmentInfo, nil
 }
 
 func (pool *segmentPool) dynamicAllocateSegmentTask() {
-
-}
-
-func (pool *segmentPool) cancelBinding(segment *info.SegmentBlockInfo) {
-	if segment == nil {
-		return
-	}
+	//TODO
 }
 
 func (pool *segmentPool) generateSegmentBlockID() string {
@@ -222,4 +253,19 @@ func (pool *segmentPool) getSegmentBlockID(ctx context.Context, id string) *info
 	}
 
 	return v.(*info.SegmentBlockInfo)
+}
+
+func (pool *segmentPool) getSegmentBlockKeyInKVStore(sbID string) string {
+	return strings.Join([]string{segmentBlockKeyPrefixInKVStore, sbID}, "/")
+}
+
+func (pool *segmentPool) updateSegmentBlockInKV(ctx context.Context, segment *info.SegmentBlockInfo) error {
+	if segment == nil {
+		return nil
+	}
+	data, err := json.Marshal(segment)
+	if err != nil {
+		return err
+	}
+	return pool.kvStore.Set(pool.getSegmentBlockKeyInKVStore(segment.ID), data)
 }

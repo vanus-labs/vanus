@@ -32,6 +32,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"io"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -40,6 +41,7 @@ const (
 	defaultAutoCreatedSegmentNumber = 3
 	eventbusKeyPrefixInKVStore      = "/vanus/internal/resource/eventbus"
 	eventlogKeyPrefixInKVStore      = "/vanus/internal/resource/eventlog"
+	segmentBlockKeyPrefixInKVStore  = "/vanus/internal/resource/segmentBlock"
 )
 
 func NewEventBusController(cfg ControllerConfig) *controller {
@@ -75,6 +77,21 @@ func (ctrl *controller) Start() error {
 		return err
 	}
 	ctrl.kvStore = store
+
+	pairs, err := store.List(eventbusKeyPrefixInKVStore)
+	if err != nil {
+		return err
+	}
+	for idx := range pairs {
+		pair := pairs[idx]
+		busInfo := &info.BusInfo{}
+		err := json.Unmarshal(pair.Value, busInfo)
+		if err != nil {
+			return err
+		}
+		ctrl.eventBusMap[filepath.Base(pair.Key)] = busInfo
+	}
+
 	ctrl.eventLogMgr = newEventlogManager(ctrl)
 	if err = ctrl.eventLogMgr.start(); err != nil {
 		return err
@@ -173,7 +190,7 @@ func (ctrl *controller) ListSegment(ctx context.Context,
 	}
 
 	return &ctrlpb.ListSegmentResponse{
-		Segments: info.Convert2ProtoSegment(ctrl.eventLogMgr.getEventLogSegmentList(el.ID)...),
+		Segments: info.Convert2ProtoSegment(ctrl.eventLogMgr.getEventLogSegmentList(ctx, el.ID)...),
 	}, nil
 }
 
@@ -279,20 +296,23 @@ func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 	segs := make([]*metapb.Segment, 0)
 	for idx := 0; idx < len(segInfos); idx++ {
 		seg := segInfos[idx]
-		segs = append(segs, &metapb.Segment{
+		pbSeg := &metapb.Segment{
 			Id:                seg.ID,
 			PreviousSegmentId: seg.PreviousSegmentId,
 			NextSegmentId:     seg.NextSegmentId,
 			EventLogId:        seg.EventLogID,
 			Tier:              metapb.StorageTier_SSD,
-			StorageUri:        seg.VolumeInfo.AssignedSegmentServer.Address,
 			StartOffsetInLog:  seg.StartOffsetInLog,
 			EndOffsetInLog:    seg.StartOffsetInLog + int64(seg.Number),
 			Size:              seg.Size,
 			Capacity:          seg.Capacity,
 			NumberEventStored: seg.Number,
 			Compressed:        metapb.CompressAlgorithm_NONE,
-		})
+		}
+		if seg.VolumeInfo != nil && seg.VolumeInfo.AssignedSegmentServer != nil {
+			pbSeg.StorageUri = seg.VolumeInfo.AssignedSegmentServer.Address
+		}
+		segs = append(segs, pbSeg)
 	}
 	return &ctrlpb.GetAppendableSegmentResponse{Segments: segs}, nil
 }

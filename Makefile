@@ -15,7 +15,7 @@ controller-api-test:
 	grpcui --import-path=${VSPROTO_ROOT}/include \
            --import-path=${VSPROTO_ROOT}/proto \
            --plaintext \
-           --proto=controller.proto 192.168.1.111:2048
+           --proto=controller.proto 127.0.0.1:2048
 
 store-start:
 	go run ${VANUS_ROOT}/cmd/store/main.go
@@ -24,7 +24,7 @@ store-api-test:
 	grpcui --import-path=${VSPROTO_ROOT}/include \
            --import-path=${VSPROTO_ROOT}/proto \
            --plaintext \
-           --proto=segment.proto 0.0.0.0:11811
+           --proto=segment.proto 127.0.0.1:11811
 
 trigger-start:
 	go run ${VANUS_ROOT}/cmd/trigger/main.go

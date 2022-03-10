@@ -22,6 +22,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
 	"github.com/linkall-labs/vanus/internal/kv"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
+	"path/filepath"
 	"strings"
 	"sync"
 )
@@ -39,8 +40,9 @@ type eventlogManager struct {
 
 func newEventlogManager(ctrl *controller) *eventlogManager {
 	return &eventlogManager{
-		ctrl:    ctrl,
-		kvStore: ctrl.kvStore,
+		ctrl:            ctrl,
+		kvStore:         ctrl.kvStore,
+		freeEventLogMap: skiplist.New(skiplist.String),
 	}
 }
 
@@ -48,6 +50,19 @@ func (mgr *eventlogManager) start() error {
 	mgr.segmentPool = newSegmentPool(mgr.ctrl)
 	if err := mgr.segmentPool.init(); err != nil {
 		return err
+	}
+	pairs, err := mgr.kvStore.List(eventlogKeyPrefixInKVStore)
+	if err != nil {
+		return err
+	}
+	for idx := range pairs {
+		pair := pairs[idx]
+		elInfo := &info.EventLogInfo{}
+		err := json.Unmarshal(pair.Value, elInfo)
+		if err != nil {
+			return err
+		}
+		mgr.eventLogMap.Store(filepath.Base(pair.Key), elInfo)
 	}
 	return nil
 }
@@ -65,9 +80,13 @@ func (mgr *eventlogManager) acquireEventLog(ctx context.Context) (*info.EventLog
 			return nil, err
 		}
 		el = _el
+	} else {
+		el = ele.Value.(*info.EventLogInfo)
 	}
-	el = ele.Value.(*info.EventLogInfo)
 	mgr.boundEventLogMap.Store(el.ID, el)
+	if err := mgr.initializeEventLog(ctx, el); err != nil {
+		return nil, err
+	}
 	return el, nil
 }
 
@@ -123,17 +142,7 @@ func (mgr *eventlogManager) dynamicScaleUpEventLog() error {
 }
 
 func (mgr *eventlogManager) getEventLogSegmentList(ctx context.Context, elID string) []*info.SegmentBlockInfo {
-	v, exist := mgr.eventLogMap.Load(elID)
-	if !exist {
-		return []*info.SegmentBlockInfo{}
-	}
-	el := v.(*info.EventLogInfo)
-	sbList := make([]*info.SegmentBlockInfo, len(el.SegmentList))
-	for idx := range el.SegmentList {
-		sbList[idx] = mgr.segmentPool.getSegmentBlockID(ctx, elID)
-	}
-
-	return sbList
+	return mgr.segmentPool.getEventLogSegmentList(elID)
 }
 
 func (mgr *eventlogManager) updateSegment(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error {

@@ -56,25 +56,25 @@ func Convert2ProtoEventLog(ins ...*EventLogInfo) []*meta.EventLog {
 			EventBusName:          eli.EventBusName,
 			EventLogId:            eli.ID,
 			CurrentSegmentNumbers: int32(eli.CurrentSegmentNumbers),
-			ServerAddress:         "192.168.1.111:2048",
+			ServerAddress:         "127.0.0.1:2048",
 		}
 	}
 	return pels
 }
 
 type SegmentBlockInfo struct {
-	ID                string
-	Capacity          int64
-	Size              int64
-	VolumeInfo        *VolumeInfo
-	EventLogID        string
-	ReplicaGroupID    string
-	PeersAddress      []string
-	Number            int32
-	PreviousSegmentId string
-	NextSegmentId     string
-	StartOffsetInLog  int64
-	IsFull            bool
+	ID                string      `json:"id"`
+	Capacity          int64       `json:"capacity"`
+	Size              int64       `json:"size"`
+	VolumeInfo        *VolumeInfo `json:"volume_info"`
+	EventLogID        string      `json:"event_log_id"`
+	ReplicaGroupID    string      `json:"replica_group_id"`
+	PeersAddress      []string    `json:"peers_address"`
+	Number            int32       `json:"number"`
+	PreviousSegmentId string      `json:"previous_segment_id"`
+	NextSegmentId     string      `json:"next_segment_id"`
+	StartOffsetInLog  int64       `json:"start_offset_in_log"`
+	IsFull            bool        `json:"is_full"`
 }
 
 func Convert2ProtoSegment(ins ...*SegmentBlockInfo) []*meta.Segment {
@@ -84,13 +84,16 @@ func Convert2ProtoSegment(ins ...*SegmentBlockInfo) []*meta.Segment {
 		// TODO optimize reported info
 		segs[idx] = &meta.Segment{
 			Id:                seg.ID,
-			StorageUri:        seg.VolumeInfo.AssignedSegmentServer.Address,
 			StartOffsetInLog:  seg.StartOffsetInLog,
 			EndOffsetInLog:    seg.StartOffsetInLog + int64(seg.Number),
 			Size:              seg.Size,
 			Capacity:          seg.Capacity,
 			NumberEventStored: seg.Number,
 		}
+		if seg.VolumeInfo != nil && seg.VolumeInfo.AssignedSegmentServer != nil {
+			segs[idx].StorageUri = seg.VolumeInfo.AssignedSegmentServer.Address
+		}
+
 	}
 	return segs
 }
@@ -109,12 +112,12 @@ func (in *SegmentServerInfo) ID() string {
 }
 
 type VolumeInfo struct {
-	Capacity                 int64
-	Used                     int64
-	BlockNumbers             int
-	Blocks                   map[string]string
-	PersistenceVolumeClaimID string
-	AssignedSegmentServer    *SegmentServerInfo
+	Capacity                 int64              `json:"capacity"`
+	Used                     int64              `json:"used"`
+	BlockNumbers             int                `json:"block_numbers"`
+	Blocks                   map[string]string  `json:"blocks"`
+	PersistenceVolumeClaimID string             `json:"persistence_volume_claim_id"`
+	AssignedSegmentServer    *SegmentServerInfo `json:"-"`
 }
 
 func (in *VolumeInfo) ID() string {

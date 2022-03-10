@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	defaultIP   = "0.0.0.0"
+	defaultIP   = "127.0.0.1"
 	defaultPort = 2048
 )
 
