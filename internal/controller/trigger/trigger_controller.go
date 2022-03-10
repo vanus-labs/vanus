@@ -138,32 +138,24 @@ func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerCo
 		if err == nil {
 			tWorker := ctrl.getTriggerWorker(req.Address)
 			if tWorker == nil {
-				tWorker, err = NewTriggerWorker(req.Address, &info.TriggerWorkerInfo{
+				err := ctrl.addTriggerWorker(&info.TriggerWorkerInfo{
 					Addr:          req.Address,
 					Started:       req.Started,
 					SubIds:        req.SubIds,
 					HeartbeatTime: time.Now(),
 				})
 				if err != nil {
-					log.Error("heartbeat new trigger worker failed", map[string]interface{}{
+					log.Error("heartbeat add trigger worker failed", map[string]interface{}{
 						"addr":       req.Address,
 						log.KeyError: err,
 					})
+					return nil
 				}
-				ctrl.addTriggerWorker(tWorker)
-				if len(tWorker.twInfo.SubIds) > 0 {
-					for _, subId := range tWorker.twInfo.SubIds {
-						log.Debug("heartbeat set sub addr", map[string]interface{}{
-							"subId": subId,
-							"addr":  req.Address,
-						})
-						ctrl.addSubscription(subId, req.Address)
-					}
-				}
+			} else {
+				tWorker.twInfo.Started = req.Started
+				tWorker.twInfo.HeartbeatTime = time.Now()
+				tWorker.twInfo.SubIds = req.SubIds
 			}
-			tWorker.twInfo.HeartbeatTime = time.Now()
-			tWorker.twInfo.SubIds = req.SubIds
-			tWorker.twInfo.Started = req.Started
 		} else {
 			if err == io.EOF {
 				//client close,will remove trigger worker then receive unregister
@@ -176,7 +168,7 @@ func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerCo
 }
 
 func (ctrl *triggerController) RegisterTriggerWorker(ctx context.Context, request *ctrlpb.RegisterTriggerWorkerRequest) (*ctrlpb.RegisterTriggerWorkerResponse, error) {
-	tWorker, err := NewTriggerWorker(request.Address, &info.TriggerWorkerInfo{
+	err := ctrl.addTriggerWorker(&info.TriggerWorkerInfo{
 		Addr:    request.Address,
 		Started: false,
 	})
@@ -187,7 +179,6 @@ func (ctrl *triggerController) RegisterTriggerWorker(ctx context.Context, reques
 		})
 		return nil, err
 	}
-	ctrl.addTriggerWorker(tWorker)
 	return &ctrlpb.RegisterTriggerWorkerResponse{}, nil
 }
 
@@ -252,24 +243,48 @@ func (ctrl *triggerController) addSubToQueue(subId, reason string) {
 	})
 }
 
-func (ctrl *triggerController) addTriggerWorker(newWorker *triggerWorker) {
+func (ctrl *triggerController) addTriggerWorker(twInfo *info.TriggerWorkerInfo) error {
 	ctrl.twMutex.Lock()
 	defer ctrl.twMutex.Unlock()
-	if tw, exist := ctrl.triggerWorkers[newWorker.twAddr]; exist {
+	addr := twInfo.Addr
+	if tWorker, exist := ctrl.triggerWorkers[addr]; exist {
 		log.Info("repeat add trigger worker", map[string]interface{}{
-			"addr":    newWorker.twAddr,
-			"started": map[string]bool{"now": tw.twInfo.Started, "new": newWorker.twInfo.Started},
+			"addr": addr,
+			"now":  tWorker.twInfo,
+			"new":  twInfo,
 		})
-		if tw.twInfo.Started && !newWorker.twInfo.Started {
-			//restarting,rejoin pending sub
-			for sub := range tw.subs {
-				ctrl.addSubToQueue(sub, fmt.Sprintf("add trigger worker %s", newWorker.twAddr))
+		if tWorker.twInfo.Started && !twInfo.Started && len(tWorker.twInfo.SubIds) > 0 {
+			//triggerWorker restarting,reprocess sub
+			for _, subId := range tWorker.twInfo.SubIds {
+				ctrl.addSubToQueue(subId, fmt.Sprintf("trigger worker restart %s", addr))
 			}
 		}
-		tw.Close()
+		tWorker.twInfo = twInfo
+		return nil
 	}
-	ctrl.triggerWorkers[newWorker.twAddr] = newWorker
-	log.Info("add a trigger worker", map[string]interface{}{"twAddr": newWorker.twAddr})
+	tWorker, err := NewTriggerWorker(addr, twInfo)
+	if err != nil {
+		return err
+	}
+	if len(tWorker.twInfo.SubIds) > 0 {
+		if ctrl.state == controllerRunning {
+			//controller 启动完成了，才上报心跳，上报的慢了,则把triggerWorker给停了
+			tWorker.Stop()
+			return nil
+		} else if ctrl.state == controllerStarting {
+			//triggerController重启了，tWorker上报心跳，收集trigger正在运行的sub
+			for _, subId := range tWorker.twInfo.SubIds {
+				log.Debug("add trigger worker set sub addr", map[string]interface{}{
+					"subId": subId,
+					"addr":  addr,
+				})
+				ctrl.addSubscription(subId, addr)
+			}
+		}
+	}
+	ctrl.triggerWorkers[addr] = tWorker
+	log.Info("add a trigger worker", map[string]interface{}{"twAddr": addr})
+	return nil
 }
 
 //removeTriggerWorker trigger worker has stop

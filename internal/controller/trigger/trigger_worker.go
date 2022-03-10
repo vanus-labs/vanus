@@ -23,7 +23,6 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 //triggerWorker send Subscription to trigger worker
@@ -31,7 +30,6 @@ type triggerWorker struct {
 	twAddr   string
 	twCc     *grpc.ClientConn
 	twClient trigger.TriggerWorkerClient
-	subs     sets.String
 	twInfo   *info.TriggerWorkerInfo
 }
 
@@ -39,7 +37,6 @@ func NewTriggerWorker(addr string, twInfo *info.TriggerWorkerInfo) (*triggerWork
 	tw := &triggerWorker{
 		twAddr: addr,
 		twInfo: twInfo,
-		subs:   sets.NewString(),
 	}
 	err := tw.Init()
 	if err != nil {
@@ -115,7 +112,6 @@ func (tw *triggerWorker) AddSubscription(sub *primitive.Subscription) error {
 	if err != nil {
 		return errors.Wrap(err, "twClient add subscription error")
 	}
-	tw.subs.Insert(sub.ID)
 	return nil
 }
 
@@ -125,7 +121,6 @@ func (tw *triggerWorker) RemoveSubscriptions(id string) error {
 	if err != nil {
 		return errors.Wrapf(err, "twClient %s remove subscription %s error", tw.twAddr, id)
 	}
-	tw.subs.Delete(id)
 	return nil
 }
 

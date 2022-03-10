@@ -14,7 +14,10 @@
 
 package info
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type TriggerWorkerInfo struct {
 	Addr          string
@@ -22,4 +25,8 @@ type TriggerWorkerInfo struct {
 	SubIds        []string
 	HeartbeatTime time.Time
 	IsStarting    bool
+}
+
+func (tw *TriggerWorkerInfo) String() string {
+	return fmt.Sprintf("addr:%s,started:%v,subIds:%v", tw.Addr, tw.Started, tw.SubIds)
 }
