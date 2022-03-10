@@ -3,16 +3,17 @@ package gateway
 import (
 	"context"
 	"fmt"
-	"github.com/cloudevents/sdk-go/v2"
+	"net"
+	"strings"
+	"sync"
+
+	v2 "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/client"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	eb "github.com/linkall-labs/eventbus-go"
 	"github.com/linkall-labs/eventbus-go/pkg/eventbus"
 	"github.com/linkall-labs/vanus/observability/log"
-	"net"
-	"strings"
-	"sync"
 )
 
 const (
@@ -61,7 +62,12 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) protocol.Resul
 		if err != nil {
 			return protocol.Result(err)
 		}
-		v = writer
+
+		var loaded bool
+		v, loaded = ga.busWriter.LoadOrStore(vrn, writer)
+		if loaded {
+			writer.Close()
+		}
 	}
 	event.SetExtension(xceVanusEventbus, ebName)
 	writer := v.(eventbus.BusWriter)
