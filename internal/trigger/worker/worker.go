@@ -153,7 +153,11 @@ func (w *Worker) AddSubscription(sub *primitive.Subscription) error {
 		offsetManager.Close()
 		return err
 	}
-	tr.Start(w.ctx)
+	err = tr.Start(w.ctx)
+	if err != nil {
+		c.Close()
+		offsetManager.Close()
+	}
 	w.subscriptions[sub.ID] = &subscriptionInfo{
 		sub:           sub,
 		trigger:       tr,

@@ -12,31 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package worker
+package filter
 
 import (
-	"context"
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/cloudevents/sdk-go/v2/client"
-	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
-	"github.com/linkall-labs/vanus/observability/log"
-	"net"
-	"testing"
 )
 
-func TestEventBusWrite(t *testing.T) {
-	ls, err := net.Listen("tcp4", "localhost:18080")
-	if err != nil {
-		panic(err)
-	}
-
-	c, err := client.NewHTTP(cehttp.WithListener(ls), cehttp.WithRequestDataAtContextMiddleware())
-	if err != nil {
-		panic(err)
-	}
-	c.StartReceiver(context.Background(), func(e ce.Event) {
-		log.Info("receive event", map[string]interface{}{
-			"event": e,
-		})
-	})
+type noFilter struct {
 }
+
+func NewNoFilter() Filter {
+	return &noFilter{}
+}
+
+func (filter *noFilter) Filter(event ce.Event) FilterResult {
+	return PassFilter
+}
+
+var _ Filter = (*noFilter)(nil)

@@ -16,6 +16,7 @@ package util
 
 import (
 	"context"
+	"math"
 	"time"
 )
 
@@ -33,7 +34,8 @@ func ParseTime(str string) (time.Time, error) {
 }
 
 func Backoff(attempt int, max time.Duration) time.Duration {
-	d := time.Duration(1 << attempt * 100 * time.Millisecond)
+	backoff := float64(100*time.Millisecond) * math.Pow(2, float64(attempt))
+	d := time.Duration(backoff)
 	if d > max {
 		d = max
 	}

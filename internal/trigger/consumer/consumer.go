@@ -22,6 +22,7 @@ import (
 
 	eb "github.com/linkall-labs/eventbus-go"
 	"github.com/linkall-labs/eventbus-go/pkg/discovery/record"
+	eberrors "github.com/linkall-labs/eventbus-go/pkg/errors"
 	"github.com/linkall-labs/eventbus-go/pkg/eventlog"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/util"
@@ -119,6 +120,10 @@ func (c *Consumer) start(els []*record.EventLog) {
 		c.wg.Add(1)
 		go func() {
 			defer c.wg.Done()
+			log.Info("event log consumer start", map[string]interface{}{
+				"sub":   elc.sub,
+				"elVrn": elc.elVrn,
+			})
 			elc.run(ctx)
 		}()
 	}
@@ -172,14 +177,16 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 					continue
 				}
 			} else {
-				log.Warning("read error", map[string]interface{}{
-					"sub":        lc.sub,
-					"elVrn":      lc.elVrn,
-					"offset":     offset,
-					log.KeyError: err,
-				})
+				if err != eberrors.ErrOverflow {
+					log.Warning("read error", map[string]interface{}{
+						"sub":        lc.sub,
+						"elVrn":      lc.elVrn,
+						"offset":     offset,
+						log.KeyError: err,
+					})
+				}
 			}
-			if !util.Sleep(ctx, util.Backoff(sleepCnt, time.Second)) {
+			if !util.Sleep(ctx, util.Backoff(sleepCnt, 2*time.Second)) {
 				lr.Close()
 				return
 			}

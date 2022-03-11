@@ -114,6 +114,9 @@ func (t *Trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 			})
 			time.Sleep(3 * time.Second) //TODO 优化
 		} else {
+			log.Debug("send ce event success", map[string]interface{}{
+				"event": e,
+			})
 			return nil
 		}
 	}
