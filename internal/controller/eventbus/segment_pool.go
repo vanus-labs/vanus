@@ -165,6 +165,10 @@ func (pool *segmentPool) allocateSegmentImmediately(ctx context.Context, size in
 		return nil, err
 	}
 	srvInfo.Volume.AddBlock(segmentInfo)
+	if err = pool.ctrl.volumePool.updateVolumeInKV(ctx, srvInfo.Volume); err != nil {
+		return nil, err
+	}
+
 	pool.segmentMap.Store(segmentInfo.ID, segmentInfo)
 	if err = pool.updateSegmentBlockInKV(ctx, segmentInfo); err != nil {
 		return nil, err

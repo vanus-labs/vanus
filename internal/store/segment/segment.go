@@ -100,8 +100,8 @@ func (s *segmentServer) Initialize(ctx context.Context) error {
 		}
 		s.id = res.ServerId
 		if len(res.SegmentBlocks) > 0 {
-			for idx := range res.SegmentBlocks {
-				files = append(files, res.SegmentBlocks[idx])
+			for k := range res.SegmentBlocks {
+				files = append(files, filepath.Join(s.volumeDir, k))
 			}
 		}
 		if err != nil {
@@ -119,7 +119,7 @@ func (s *segmentServer) Initialize(ctx context.Context) error {
 	}
 
 	if err = s.initSegmentBlock(ctx, files); err != nil {
-		return errors.Chain(fmt.Errorf("repair segment blocks failed under debug mode"), err)
+		return errors.Chain(fmt.Errorf("repair segment blocks failed"), err)
 	}
 	s.state = primitive.ServerStateStarted
 	return err

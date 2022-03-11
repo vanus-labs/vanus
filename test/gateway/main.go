@@ -1,15 +1,14 @@
-package gateway
+package main
 
 import (
 	"context"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"log"
-	"testing"
 )
 
-func TestCeGateway_StartReceive(t *testing.T) {
-	ctx := cloudevents.ContextWithTarget(context.Background(), "http://localhost:8080/gateway/test")
+func main() {
+	ctx := cloudevents.ContextWithTarget(context.Background(), "http://localhost:8080/gateway/wwf-0310-1")
 
 	p, err := cloudevents.NewHTTP()
 	if err != nil {

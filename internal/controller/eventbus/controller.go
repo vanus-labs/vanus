@@ -94,7 +94,7 @@ func (ctrl *controller) Start(ctx context.Context) error {
 		ctrl.eventBusMap[filepath.Base(pair.Key)] = busInfo
 	}
 
-	if err = ctrl.volumePool.init(ctrl); err != nil {
+	if err = ctrl.volumePool.init(ctx, ctrl); err != nil {
 		return err
 	}
 

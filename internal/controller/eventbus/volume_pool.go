@@ -15,8 +15,12 @@
 package eventbus
 
 import (
+	"context"
+	"encoding/json"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
+	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/observability/log"
+	"strings"
 	"time"
 )
 
@@ -24,11 +28,17 @@ type volumePool struct {
 	ctrl          *controller
 	volumeInfoMap map[string]*info.VolumeInfo
 	exitCh        chan struct{}
+	kvStore       kv.Client
 }
 
-func (pool *volumePool) init(ctrl *controller) error {
+func newVolumePool() {
+
+}
+
+func (pool *volumePool) init(ctx context.Context, ctrl *controller) error {
 	pool.ctrl = ctrl
 	pool.volumeInfoMap = make(map[string]*info.VolumeInfo, 0)
+	pool.kvStore = ctrl.kvStore
 
 	// temporary data for testing, delete later
 	pool.volumeInfoMap["volume-1"] = &info.VolumeInfo{
@@ -37,6 +47,18 @@ func (pool *volumePool) init(ctrl *controller) error {
 		BlockNumbers:             0,
 		Blocks:                   map[string]string{},
 		PersistenceVolumeClaimID: "volume-1",
+	}
+	pairs, err := pool.kvStore.List(ctx, volumeKeyPrefixInKVStore)
+	if err != nil {
+		return err
+	}
+	for _, v := range pairs {
+		vI := &info.VolumeInfo{}
+
+		if err := json.Unmarshal(v.Value, vI); err != nil {
+			return err
+		}
+		pool.volumeInfoMap[vI.PersistenceVolumeClaimID] = vI
 	}
 	go pool.volumeHealthWatch()
 	return nil
@@ -81,4 +103,13 @@ func (pool *volumePool) volumeHealthWatch() {
 			}
 		}
 	}
+}
+
+func (pool *volumePool) updateVolumeInKV(ctx context.Context, volume *info.VolumeInfo) error {
+	data, _ := json.Marshal(volume)
+	return pool.kvStore.Set(ctx, pool.getVolumeKeyInKVStore(volume.ID()), data)
+}
+
+func (pool *volumePool) getVolumeKeyInKVStore(volumeID string) string {
+	return strings.Join([]string{volumeKeyPrefixInKVStore, volumeID}, "/")
 }

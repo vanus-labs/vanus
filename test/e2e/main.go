@@ -37,7 +37,7 @@ func main() {
 }
 
 func TestAppend(cli segment.SegmentServerClient) {
-	id := "1646395026565839000"
+	id := "1646964749779930000"
 	cnt := 0
 	for idx := 0; idx < 10; idx++ {
 		cnt++
