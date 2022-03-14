@@ -16,13 +16,13 @@ package consumer
 
 import (
 	"context"
+	eberrors "github.com/linkall-labs/eventbus-go/pkg/errors"
 	"io"
 	"sync"
 	"time"
 
 	eb "github.com/linkall-labs/eventbus-go"
 	"github.com/linkall-labs/eventbus-go/pkg/discovery/record"
-	eberrors "github.com/linkall-labs/eventbus-go/pkg/errors"
 	"github.com/linkall-labs/eventbus-go/pkg/eventlog"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/util"
@@ -38,6 +38,7 @@ type Consumer struct {
 	handler       EventHandler
 	cancel        context.CancelFunc
 	stop          context.CancelFunc
+	stctx         context.Context
 	wg            sync.WaitGroup
 	lock          sync.Mutex
 }
@@ -58,8 +59,7 @@ func (c *Consumer) Close() {
 	c.wg.Wait()
 }
 func (c *Consumer) Start(parent context.Context) error {
-	ctx, cancel := context.WithCancel(parent)
-	c.stop = cancel
+	c.stctx, c.stop = context.WithCancel(parent)
 	els, err := eb.LookupReadableLogs(c.ebVrn)
 	if err != nil {
 		return errors.Wrapf(err, "eb")
@@ -70,7 +70,7 @@ func (c *Consumer) Start(parent context.Context) error {
 		defer tk.Stop()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-c.stctx.Done():
 				return
 			case <-tk.C:
 				c.checkEventLogChange()
@@ -141,7 +141,7 @@ type EventLogConsumer struct {
 
 func (lc *EventLogConsumer) run(ctx context.Context) {
 	for {
-		lr, offset, err := lc.init()
+		lr, offset, err := lc.init(ctx)
 		if err != nil {
 			log.Warning("event log consumer init error,will retry", map[string]interface{}{
 				"sub":        lc.sub,
@@ -167,35 +167,40 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 			default:
 			}
 			events, err := lr.Read(context.Background(), 5)
-			if err == nil {
-				if len(events) > 0 {
-					for i := range events {
-						offset++
-						lc.handler(context.Background(), &info.EventRecord{Event: events[i], EventLog: lc.elVrn, Offset: offset})
-					}
-					sleepCnt = 0
-					continue
+			switch err {
+			case nil:
+				for i := range events {
+					offset++
+					lc.handler(ctx, &info.EventRecord{Event: events[i], EventLog: lc.elVrn, Offset: offset})
 				}
-			} else {
-				if err != eberrors.ErrOnEnd {
-					log.Warning("read error", map[string]interface{}{
-						"sub":        lc.sub,
-						"elVrn":      lc.elVrn,
-						"offset":     offset,
-						log.KeyError: err,
-					})
-				}
+				sleepCnt = 0
+				continue
+			case io.EOF:
+				sleepCnt = 0
+				continue
+			case context.Canceled:
+				lr.Close()
+				return
+			case eberrors.ErrOnEnd:
+			default:
+				//other error
+				log.Warning("read error", map[string]interface{}{
+					"sub":        lc.sub,
+					"elVrn":      lc.elVrn,
+					"offset":     offset,
+					log.KeyError: err,
+				})
 			}
+			sleepCnt++
 			if !util.Sleep(ctx, util.Backoff(sleepCnt, 2*time.Second)) {
 				lr.Close()
 				return
 			}
-			sleepCnt++
 		}
 	}
 }
 
-func (lc *EventLogConsumer) init() (eventlog.LogReader, int64, error) {
+func (lc *EventLogConsumer) init(ctx context.Context) (eventlog.LogReader, int64, error) {
 	lr, err := eb.OpenLogReader(lc.elVrn)
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "sub %s el %s open log reader error", lc.sub, lc.elVrn)

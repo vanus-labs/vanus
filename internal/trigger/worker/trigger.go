@@ -103,14 +103,17 @@ func (t *Trigger) EventArrived(ctx context.Context, event *info.EventRecord) err
 
 func (t *Trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 	retryTimes := 0
-	for {
-		if res := t.ceClient.Send(ctx, *e); !ce.IsACK(res) {
-			retryTimes++
-			if retryTimes >= t.MaxRetryTimes {
-				return res
-			}
+	doFunc := func() error {
+		timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		return t.ceClient.Send(timeout, *e)
+	}
+	var err error
+	for retryTimes < t.MaxRetryTimes {
+		retryTimes++
+		if err = doFunc(); !ce.IsACK(err) {
 			log.Debug("process event error", map[string]interface{}{
-				"error": res, "retryTimes": retryTimes,
+				"error": err, "retryTimes": retryTimes,
 			})
 			time.Sleep(3 * time.Second) //TODO 优化
 		} else {
@@ -120,6 +123,7 @@ func (t *Trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 			return nil
 		}
 	}
+	return err
 }
 
 func (t *Trigger) runEventProcess(ctx context.Context) {
@@ -239,11 +243,11 @@ func (t *Trigger) Stop() {
 	if t.state == TriggerStopped {
 		return
 	}
+	t.stop()
+	t.wg.Wait()
 	close(t.eventCh)
 	close(t.sendCh)
 	close(t.deadLetterCh)
-	t.stop()
-	t.wg.Wait()
 	t.state = TriggerStopped
 }
 

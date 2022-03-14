@@ -58,13 +58,12 @@ type subscriptionInfo struct {
 }
 
 func NewWorker(config Config) *Worker {
-	ctx, cancel := context.WithCancel(context.Background())
-	return &Worker{
+	w := &Worker{
 		subscriptions: map[string]*subscriptionInfo{},
-		ctx:           ctx,
-		cancel:        cancel,
 		config:        config,
 	}
+	w.ctx, w.cancel = context.WithCancel(context.Background())
+	return w
 }
 
 func (w *Worker) Start() error {

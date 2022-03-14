@@ -50,7 +50,7 @@ func (offset *EventLogOffset) Start(parent context.Context) {
 	offset.wg.Add(1)
 	go func() {
 		defer offset.wg.Done()
-		tk := time.NewTicker(time.Millisecond)
+		tk := time.NewTicker(100 * time.Millisecond)
 		for {
 			select {
 			case <-ctx.Done():

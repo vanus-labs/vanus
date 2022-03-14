@@ -56,7 +56,11 @@ func ToPbSubscription(sub *primitive.Subscription) (*pb.Subscription, error) {
 func fromPbFilters(filters []*pb.Filter) []*primitive.SubscriptionFilter {
 	var tos []*primitive.SubscriptionFilter
 	for _, filter := range filters {
-		tos = append(tos, fromPbFilter(filter))
+		f := fromPbFilter(filter)
+		if f == nil {
+			continue
+		}
+		tos = append(tos, f)
 	}
 	return tos
 }

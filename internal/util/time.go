@@ -34,6 +34,9 @@ func ParseTime(str string) (time.Time, error) {
 }
 
 func Backoff(attempt int, max time.Duration) time.Duration {
+	if attempt == 0 {
+		return 0
+	}
 	backoff := float64(100*time.Millisecond) * math.Pow(2, float64(attempt))
 	d := time.Duration(backoff)
 	if d > max {
