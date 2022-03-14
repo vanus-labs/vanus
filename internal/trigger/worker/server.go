@@ -206,7 +206,7 @@ func (s *server) startHeartbeat() {
 				})
 				if err != nil {
 					if err == io.EOF || time.Now().Sub(lastSendTime) > 5*time.Second {
-						stream.CloseSend()
+						err = stream.CloseSend()
 						log.Warning("heartbeat send request receive fail,will retry", map[string]interface{}{
 							"time": time.Now(),
 							"addr": s.tcAddr,

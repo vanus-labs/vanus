@@ -94,7 +94,7 @@ func Test_e2e(t *testing.T) {
 		w.Close()
 	}()
 	go func() {
-		ls, err := eb.LookupReadableLogs(ebVRN)
+		ls, err := eb.LookupReadableLogs(context.Background(), ebVRN)
 		if err != nil {
 			t.Fatal(err)
 		}

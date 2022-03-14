@@ -16,8 +16,25 @@ package convert
 
 import (
 	"github.com/linkall-labs/vanus/internal/primitive"
+	ctrl "github.com/linkall-labs/vsproto/pkg/controller"
 	pb "github.com/linkall-labs/vsproto/pkg/meta"
 )
+
+func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) (*primitive.Subscription, error) {
+	to := &primitive.Subscription{
+		Source:           sub.Source,
+		Types:            sub.Types,
+		Config:           sub.Config,
+		Sink:             primitive.URI(sub.Sink),
+		Protocol:         sub.Protocol,
+		ProtocolSettings: sub.ProtocolSettings,
+		EventBus:         sub.EventBus,
+	}
+	if len(sub.Filters) != 0 {
+		to.Filters = fromPbFilters(sub.Filters)
+	}
+	return to, nil
+}
 
 func FromPbSubscription(sub *pb.Subscription) (*primitive.Subscription, error) {
 	to := &primitive.Subscription{

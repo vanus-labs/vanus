@@ -16,7 +16,6 @@ package trigger
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
@@ -80,18 +79,7 @@ func (ctrl *triggerController) CreateSubscription(ctx context.Context, request *
 	if ctrl.state != controllerRunning {
 		return nil, serverNotReady
 	}
-	sub, err := func(request *ctrlpb.CreateSubscriptionRequest) (*primitive.Subscription, error) {
-		b, err := json.Marshal(request)
-		if err != nil {
-			return nil, errors.Wrap(err, "marshal error")
-		}
-		sub := &primitive.Subscription{}
-		err = json.Unmarshal(b, sub)
-		if err != nil {
-			return nil, errors.Wrapf(err, "unmarshal error, json %s", string(b))
-		}
-		return sub, nil
-	}(request)
+	sub, err := convert.FromPbCreateSubscription(request)
 	if err != nil {
 		return nil, err
 	}

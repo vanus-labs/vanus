@@ -16,6 +16,7 @@ package consumer
 
 import (
 	"context"
+	ce "github.com/cloudevents/sdk-go/v2"
 	eberrors "github.com/linkall-labs/eventbus-go/pkg/errors"
 	"io"
 	"sync"
@@ -60,11 +61,6 @@ func (c *Consumer) Close() {
 }
 func (c *Consumer) Start(parent context.Context) error {
 	c.stctx, c.stop = context.WithCancel(parent)
-	els, err := eb.LookupReadableLogs(c.ebVrn)
-	if err != nil {
-		return errors.Wrapf(err, "eb")
-	}
-	c.start(els)
 	go func() {
 		tk := time.NewTicker(time.Second)
 		defer tk.Stop()
@@ -81,7 +77,9 @@ func (c *Consumer) Start(parent context.Context) error {
 }
 
 func (c *Consumer) checkEventLogChange() {
-	els, err := eb.LookupReadableLogs(c.ebVrn)
+	ctx, cancel := context.WithTimeout(c.stctx, 5*time.Second)
+	defer cancel()
+	els, err := eb.LookupReadableLogs(ctx, c.ebVrn)
 	if err != nil {
 		log.Error("eventbus lookup Readable log error", map[string]interface{}{
 			"ebVrn":      c.ebVrn,
@@ -166,7 +164,7 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 				return
 			default:
 			}
-			events, err := lr.Read(context.Background(), 5)
+			events, err := readEvents(ctx, lr)
 			switch err {
 			case nil:
 				for i := range events {
@@ -181,10 +179,12 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 			case context.Canceled:
 				lr.Close()
 				return
+			case context.DeadlineExceeded:
+				continue
 			case eberrors.ErrOnEnd:
 			default:
 				//other error
-				log.Warning("read error", map[string]interface{}{
+				log.Warning("readEvents error", map[string]interface{}{
 					"sub":        lc.sub,
 					"elVrn":      lc.elVrn,
 					"offset":     offset,
@@ -200,6 +200,12 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 	}
 }
 
+func readEvents(ctx context.Context, lr eventlog.LogReader) ([]*ce.Event, error) {
+	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return lr.Read(timeout, 5)
+}
+
 func (lc *EventLogConsumer) init(ctx context.Context) (eventlog.LogReader, int64, error) {
 	lr, err := eb.OpenLogReader(lc.elVrn)
 	if err != nil {
@@ -211,7 +217,9 @@ func (lc *EventLogConsumer) init(ctx context.Context) (eventlog.LogReader, int64
 		return nil, 0, errors.Wrapf(err, "sub %s el %s offset register event log error", lc.sub, lc.elVrn)
 	}
 	lc.offset = offset
-	newOffset, err := lr.Seek(context.Background(), offset, io.SeekStart)
+	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	newOffset, err := lr.Seek(timeout, offset, io.SeekStart)
 	if err != nil {
 		lr.Close()
 		return nil, 0, errors.Wrapf(err, "sub %s el %s seek offset %d error", lc.sub, lc.elVrn, offset)
