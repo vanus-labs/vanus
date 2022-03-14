@@ -48,7 +48,7 @@ const (
 func NewSegmentServer(localAddr, ctrlAddr, volumeId string, stop func()) segment.SegmentServerServer {
 	return &segmentServer{
 		volumeId:     volumeId,
-		volumeDir:    "/Users/wenfeng/tmp/data/vanus/volume-1",
+		volumeDir:    "/Users/dingjie/tmp/data/vanus/volume-1",
 		ctrlAddress:  ctrlAddr,
 		localAddress: localAddr,
 		stopCallback: stop,
