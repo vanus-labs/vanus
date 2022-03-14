@@ -17,7 +17,7 @@ package info
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/linkall-labs/vsproto/pkg/meta"
+	meta "github.com/linkall-labs/vsproto/pkg/meta"
 	"time"
 )
 
@@ -83,11 +83,18 @@ func Convert2ProtoSegment(ins ...*SegmentBlockInfo) []*meta.Segment {
 		// TODO optimize reported info
 		segs[idx] = &meta.Segment{
 			Id:                seg.ID,
+			PreviousSegmentId: seg.PreviousSegmentId,
+			NextSegmentId:     seg.NextSegmentId,
+			EventLogId:        seg.EventLogID,
 			StartOffsetInLog:  seg.StartOffsetInLog,
-			EndOffsetInLog:    seg.StartOffsetInLog + int64(seg.Number),
+			EndOffsetInLog:    seg.StartOffsetInLog + int64(seg.Number) - 1,
 			Size:              seg.Size,
 			Capacity:          seg.Capacity,
 			NumberEventStored: seg.Number,
+			Tier:              meta.StorageTier_SSD,
+		}
+		if segs[idx].NumberEventStored == 0 {
+			segs[idx].EndOffsetInLog = -1
 		}
 		if seg.VolumeInfo != nil && seg.VolumeInfo.assignedSegmentServer != nil {
 			segs[idx].StorageUri = seg.VolumeInfo.assignedSegmentServer.Address

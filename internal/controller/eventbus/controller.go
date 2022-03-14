@@ -307,11 +307,18 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 				StartedAt: time.Now(),
 			}
 			ctrl.segmentServerInfoMap[req.ServerAddr] = serverInfo
-			ctrl.volumePool.ActivateVolume(vInfo, serverInfo)
 			//log.Error("received a heartbeat request, but server info not found", map[string]interface{}{
 			//	"volume_id": req.VolumeId,
 			//	"server_id": req.ServerId,
 			//})
+		}
+
+		if !vInfo.IsActivity() || !vInfo.IsOnline() {
+			ctrl.volumePool.ActivateVolume(vInfo, serverInfo)
+			log.Info("the volume has been activated", map[string]interface{}{
+				"volume_id":   vInfo.ID(),
+				"server_addr": serverInfo.Address,
+			})
 		}
 
 		serverInfo.LastHeartbeatTime = t
@@ -350,23 +357,7 @@ func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 	segs := make([]*metapb.Segment, 0)
 	for idx := 0; idx < len(segInfos); idx++ {
 		seg := segInfos[idx]
-		pbSeg := &metapb.Segment{
-			Id:                seg.ID,
-			PreviousSegmentId: seg.PreviousSegmentId,
-			NextSegmentId:     seg.NextSegmentId,
-			EventLogId:        seg.EventLogID,
-			Tier:              metapb.StorageTier_SSD,
-			StartOffsetInLog:  seg.StartOffsetInLog,
-			EndOffsetInLog:    seg.StartOffsetInLog + int64(seg.Number),
-			Size:              seg.Size,
-			Capacity:          seg.Capacity,
-			NumberEventStored: seg.Number,
-			Compressed:        metapb.CompressAlgorithm_NONE,
-		}
-		if seg.VolumeInfo != nil {
-			pbSeg.StorageUri = seg.VolumeInfo.GetAccessEndpoint()
-		}
-		segs = append(segs, pbSeg)
+		segs = append(segs, info.Convert2ProtoSegment(seg)...)
 	}
 	return &ctrlpb.GetAppendableSegmentResponse{Segments: segs}, nil
 }

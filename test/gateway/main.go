@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	ctx := cloudevents.ContextWithTarget(context.Background(), "http://localhost:8080/gateway/wwf-0311-1")
+	ctx := cloudevents.ContextWithTarget(context.Background(), "http://localhost:8080/gateway/wwf-0314-3")
 
 	p, err := cloudevents.NewHTTP()
 	if err != nil {
@@ -20,7 +20,14 @@ func main() {
 		log.Fatalf("failed to create client, %v", err)
 	}
 
-	for i := 0; i < 10; i++ {
+	data := func() string {
+		str := ""
+		for idx := 0; idx < 40960; idx++ {
+			str += "a"
+		}
+		return str
+	}()
+	for i := 0; i < 1600; i++ {
 		e := cloudevents.NewEvent()
 		e.SetType("com.cloudevents.sample.sent")
 		e.SetSource("https://github.com/cloudevents/sdk-go/v2/samples/httpb/sender")
@@ -30,6 +37,7 @@ func main() {
 		_ = e.SetData(cloudevents.ApplicationJSON, map[string]interface{}{
 			"id":      i,
 			"message": "Hello, World!",
+			"data":    data,
 		})
 
 		res := c.Send(ctx, e)

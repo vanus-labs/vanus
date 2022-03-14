@@ -113,7 +113,7 @@ func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo,
 	}()
 
 	segArr[0] = pool.getLastSegmentOfEventLog(el)
-	for idx := 1; idx < num; idx++ {
+	for idx := 1; idx < len(segArr); idx++ {
 		seg, err := pool.pickSegment(ctx, defaultSegmentBlockSize)
 		if err != nil {
 			return nil, err
@@ -150,6 +150,9 @@ func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo,
 		pool.eventLogSegment[el.ID] = sl
 	}
 	for idx := range segArr {
+		if segArr[idx] == nil {
+			continue
+		}
 		sl.Set(segArr[idx].ID, segArr[idx])
 		if err = pool.updateSegmentBlockInKV(ctx, segArr[idx]); err != nil {
 			return nil, err
@@ -250,14 +253,16 @@ func (pool *segmentPool) updateSegment(ctx context.Context, req *ctrlpb.SegmentH
 			in.IsFull = true
 
 			next := pool.getSegmentBlockByID(ctx, in.NextSegmentId)
-			next.StartOffsetInLog = in.StartOffsetInLog + int64(in.Number)
-			if err := pool.updateSegmentBlockInKV(ctx, next); err != nil {
-				log.Warning("update the segment's start_offset failed ", map[string]interface{}{
-					"segment_id":   hInfo.Id,
-					"next_segment": next.ID,
-					log.KeyError:   err,
-				})
-				return err
+			if next != nil {
+				next.StartOffsetInLog = in.StartOffsetInLog + int64(in.Number)
+				if err := pool.updateSegmentBlockInKV(ctx, next); err != nil {
+					log.Warning("update the segment's start_offset failed ", map[string]interface{}{
+						"segment_id":   hInfo.Id,
+						"next_segment": next.ID,
+						log.KeyError:   err,
+					})
+					return err
+				}
 			}
 		}
 		in.Size = hInfo.Size
