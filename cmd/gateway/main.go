@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	ga := gateway.NewGateway("localhost")
+	ga := gateway.NewGateway("localhost:8080")
 	err := ga.StartReceive(context.Background())
 	if err != nil {
 		log.Fatal("start CloudEvents gateway failed", map[string]interface{}{

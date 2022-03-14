@@ -31,9 +31,9 @@ import (
 
 var (
 	defaultIP        = "127.0.0.1"
-	defaultPort      = 2148
+	defaultPort      = 2149
 	trControllerIP   = "127.0.0.1"
-	trControllerPort = 2048
+	trControllerPort = 2049
 )
 
 func main() {
