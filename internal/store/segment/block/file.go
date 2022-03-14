@@ -115,11 +115,17 @@ func (b *fileBlock) Append(ctx context.Context, entities ...*codec.StoredEntry) 
 		return ErrNoEnoughCapacity
 	}
 	n, err := b.physicalFile.Write(buf.Bytes())
+	if err != nil {
+		return err
+	}
 	b.indexes = append(b.indexes, idxes...)
 	atomic.AddInt32(&b.number, int32(len(idxes)))
 	atomic.AddInt64(&b.writeOffset, int64(n))
 	atomic.AddInt64(&b.size, int64(n))
-	return err
+	//if err = b.physicalFile.Sync(); err != nil {
+	//	return err
+	//}
+	return nil
 }
 
 // Read date from file

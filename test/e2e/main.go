@@ -37,9 +37,9 @@ func main() {
 }
 
 func TestAppend(cli segment.SegmentServerClient) {
-	id := "1646964749779930000"
+	id := "1646980924864482000"
 	cnt := 0
-	for idx := 0; idx < 10; idx++ {
+	for idx := 0; idx < 100; idx++ {
 		cnt++
 		_, err := cli.AppendToSegment(context.Background(), &segment.AppendToSegmentRequest{
 			SegmentId: id,

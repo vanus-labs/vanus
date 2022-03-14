@@ -96,7 +96,8 @@ func OpenFileSegmentBlock(ctx context.Context, path string) (SegmentBlock, error
 	b.appendable.Store(true)
 	b.readable.Store(true)
 	b.fullFlag.Store(false)
-	f, err := os.OpenFile(path, os.O_RDWR, 0666)
+	// TODO use direct IO
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_SYNC, 0666)
 	if err != nil {
 		return nil, err
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	ctx := cloudevents.ContextWithTarget(context.Background(), "http://localhost:8080/gateway/wwf-0310-1")
+	ctx := cloudevents.ContextWithTarget(context.Background(), "http://localhost:8080/gateway/wwf-0311-1")
 
 	p, err := cloudevents.NewHTTP()
 	if err != nil {

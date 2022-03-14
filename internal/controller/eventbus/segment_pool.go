@@ -86,14 +86,23 @@ func (pool *segmentPool) destroy() error {
 }
 
 func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo, num int) ([]*info.SegmentBlockInfo, error) {
-	segArr := make([]*info.SegmentBlockInfo, num)
+	segArr := make([]*info.SegmentBlockInfo, num+1)
 	var err error
 	defer func() {
+		if err == nil {
+			return
+		}
 		for idx := 0; idx < num; idx++ {
-			if err != nil && segArr[idx] != nil {
+			if idx == 0 && segArr[idx] != nil {
+				segArr[idx].NextSegmentId = ""
+			} else {
 				segArr[idx].EventLogID = ""
 				segArr[idx].ReplicaGroupID = ""
 				segArr[idx].PeersAddress = nil
+			}
+		}
+		for idx := 0; idx < num; idx++ {
+			if segArr[idx] != nil {
 				if _err := pool.updateSegmentBlockInKV(ctx, segArr[idx]); _err != nil {
 					log.Error("update segment info in kv store failed when cancel binding", map[string]interface{}{
 						log.KeyError: _err,
@@ -102,7 +111,9 @@ func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo,
 			}
 		}
 	}()
-	for idx := 0; idx < num; idx++ {
+
+	segArr[0] = pool.getLastSegmentOfEventLog(el)
+	for idx := 1; idx < num; idx++ {
 		seg, err := pool.pickSegment(ctx, defaultSegmentBlockSize)
 		if err != nil {
 			return nil, err
@@ -125,6 +136,10 @@ func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo,
 		})
 		if err != nil {
 			return nil, err
+		}
+		if segArr[idx-1] != nil {
+			segArr[idx-1].NextSegmentId = seg.ID
+			seg.PreviousSegmentId = segArr[idx-1].ID
 		}
 		segArr[idx] = seg
 	}
@@ -233,9 +248,27 @@ func (pool *segmentPool) updateSegment(ctx context.Context, req *ctrlpb.SegmentH
 		in := v.(*info.SegmentBlockInfo)
 		if hInfo.IsFull {
 			in.IsFull = true
+
+			next := pool.getSegmentBlockByID(ctx, in.NextSegmentId)
+			next.StartOffsetInLog = in.StartOffsetInLog + int64(in.Number)
+			if err := pool.updateSegmentBlockInKV(ctx, next); err != nil {
+				log.Warning("update the segment's start_offset failed ", map[string]interface{}{
+					"segment_id":   hInfo.Id,
+					"next_segment": next.ID,
+					log.KeyError:   err,
+				})
+				return err
+			}
 		}
 		in.Size = hInfo.Size
 		in.Number = hInfo.EventNumber
+		if err := pool.updateSegmentBlockInKV(ctx, in); err != nil {
+			log.Warning("update the segment failed ", map[string]interface{}{
+				"segment_id": hInfo.Id,
+				log.KeyError: err,
+			})
+			return err
+		}
 	}
 	return nil
 }
@@ -254,7 +287,7 @@ func (pool *segmentPool) getEventLogSegmentList(elID string) []*info.SegmentBloc
 	return arr
 }
 
-func (pool *segmentPool) getSegmentBlockID(ctx context.Context, id string) *info.SegmentBlockInfo {
+func (pool *segmentPool) getSegmentBlockByID(ctx context.Context, id string) *info.SegmentBlockInfo {
 	v, exist := pool.segmentMap.Load(id)
 	if !exist {
 		return nil
@@ -276,4 +309,16 @@ func (pool *segmentPool) updateSegmentBlockInKV(ctx context.Context, segment *in
 		return err
 	}
 	return pool.kvStore.Set(ctx, pool.getSegmentBlockKeyInKVStore(segment.ID), data)
+}
+
+func (pool *segmentPool) getLastSegmentOfEventLog(el *info.EventLogInfo) *info.SegmentBlockInfo {
+	sl := pool.eventLogSegment[el.ID]
+	if sl == nil {
+		return nil
+	}
+	val := sl.Back().Value
+	if val == nil {
+		return nil
+	}
+	return val.(*info.SegmentBlockInfo)
 }
