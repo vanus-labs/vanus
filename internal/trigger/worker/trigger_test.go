@@ -1,23 +1,29 @@
 package worker
 
 import (
+	// standard libraries
 	"context"
 	"fmt"
-	"github.com/linkall-labs/vanus/internal/trigger/consumer"
-	"github.com/linkall-labs/vanus/internal/trigger/info"
-	"github.com/linkall-labs/vanus/internal/trigger/storage"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"testing"
 	"time"
 
+	// third-party libraries
 	ce "github.com/cloudevents/sdk-go/v2"
 
+	// first-party libraries
 	eb "github.com/linkall-labs/eventbus-go"
 	"github.com/linkall-labs/eventbus-go/pkg/discovery"
 	"github.com/linkall-labs/eventbus-go/pkg/discovery/record"
 	"github.com/linkall-labs/eventbus-go/pkg/inmemory"
+
+	// this project
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/trigger/consumer"
+	"github.com/linkall-labs/vanus/internal/trigger/info"
+	"github.com/linkall-labs/vanus/internal/trigger/storage"
 )
 
 func Test_e2e(t *testing.T) {
@@ -79,7 +85,7 @@ func Test_e2e(t *testing.T) {
 			event.SetType("none")
 			event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world", "type": "none"})
 
-			_, err = w.Append(&event)
+			_, err = w.Append(context.Background(), &event)
 			if err != nil {
 				t.Log(err)
 			}
@@ -98,13 +104,13 @@ func Test_e2e(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		_, err = r.Seek(0, 0)
+		_, err = r.Seek(context.Background(), 0, io.SeekStart)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		for {
-			events, err := r.Read(5)
+			events, err := r.Read(context.Background(), 5)
 			if err != nil {
 				t.Fatal(err)
 			}

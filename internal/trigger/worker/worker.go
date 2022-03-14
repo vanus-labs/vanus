@@ -17,6 +17,9 @@ package worker
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
+
 	ce "github.com/cloudevents/sdk-go/v2"
 	eb "github.com/linkall-labs/eventbus-go"
 	"github.com/linkall-labs/eventbus-go/pkg/discovery"
@@ -27,8 +30,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/storage"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/pkg/errors"
-	"sync"
-	"time"
 )
 
 var (
@@ -244,7 +245,7 @@ func testSend() {
 			event.SetType(tp)
 			event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world", "type": tp})
 
-			_, err = bw.Append(&event)
+			_, err = bw.Append(context.Background(), &event)
 			if err != nil {
 				log.Error("append event error", map[string]interface{}{"error": err})
 			}

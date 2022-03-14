@@ -166,7 +166,7 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 				return
 			default:
 			}
-			events, err := lr.Read(5)
+			events, err := lr.Read(context.Background(), 5)
 			if err == nil {
 				if len(events) > 0 {
 					for i := range events {
@@ -177,7 +177,7 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 					continue
 				}
 			} else {
-				if err != eberrors.ErrOverflow {
+				if err != eberrors.ErrOnEnd {
 					log.Warning("read error", map[string]interface{}{
 						"sub":        lc.sub,
 						"elVrn":      lc.elVrn,
@@ -206,7 +206,7 @@ func (lc *EventLogConsumer) init() (eventlog.LogReader, int64, error) {
 		return nil, 0, errors.Wrapf(err, "sub %s el %s offset register event log error", lc.sub, lc.elVrn)
 	}
 	lc.offset = offset
-	newOffset, err := lr.Seek(offset, io.SeekStart)
+	newOffset, err := lr.Seek(context.Background(), offset, io.SeekStart)
 	if err != nil {
 		lr.Close()
 		return nil, 0, errors.Wrapf(err, "sub %s el %s seek offset %d error", lc.sub, lc.elVrn, offset)

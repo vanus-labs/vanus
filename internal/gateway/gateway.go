@@ -71,7 +71,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) protocol.Resul
 	}
 	event.SetExtension(xceVanusEventbus, ebName)
 	writer := v.(eventbus.BusWriter)
-	_, err := writer.Append(&event)
+	_, err := writer.Append(context.Background(), &event)
 	return protocol.Result(err)
 }
 
