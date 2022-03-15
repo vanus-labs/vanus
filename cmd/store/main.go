@@ -58,6 +58,16 @@ func main() {
 		})
 		os.Exit(-1)
 	}
+	ctx := context.Background()
+	init, _ := srv.(primitive.Initializer)
+	// TODO panic
+	if err = init.Initialize(ctx); err != nil {
+		stopCallback()
+		log.Error("the SegmentServer has initialized failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-2)
+	}
 	go func() {
 		log.Info("the SegmentServer ready to work", map[string]interface{}{
 			"listen_ip":   defaultIP,
@@ -71,16 +81,7 @@ func main() {
 			})
 		}
 	}()
-	ctx := context.Background()
-	init, _ := srv.(primitive.Initializer)
-	// TODO panic
-	if err = init.Initialize(ctx); err != nil {
-		stopCallback()
-		log.Error("the SegmentServer has initialized failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(-2)
-	}
+
 	<-exitChan
 	log.Info("the grpc server has been shutdown", nil)
 }

@@ -32,8 +32,8 @@ import (
 const (
 	fileSegmentBlockHeaderCapacity = 1024
 
-	// version + capacity + size + number
-	v1FileSegmentBlockHeaderLength = 4 + 8 + 4 + 8
+	// version + capacity + size + number + fullFlag
+	v1FileSegmentBlockHeaderLength = 4 + 8 + 4 + 8 + 1
 	v1IndexLength                  = 12
 )
 
@@ -59,9 +59,14 @@ func (b *fileBlock) Initialize(ctx context.Context) error {
 	if err := b.loadHeader(ctx); err != nil {
 		return err
 	}
+	b.writeOffset = fileSegmentBlockHeaderCapacity + b.size
 
 	if b.fullFlag.Load().(bool) {
 		b.appendable.Store(false)
+	} else {
+		if _, err := b.physicalFile.Seek(b.writeOffset, 0); err != nil {
+			return err
+		}
 	}
 
 	if err := b.loadIndex(ctx); err != nil {
@@ -71,10 +76,7 @@ func (b *fileBlock) Initialize(ctx context.Context) error {
 	if err := b.validate(ctx); err != nil {
 		return err
 	}
-	b.writeOffset = fileSegmentBlockHeaderCapacity + b.size
-	if _, err := b.physicalFile.Seek(b.writeOffset, 0); err != nil {
-		return err
-	}
+
 	return nil
 }
 
@@ -274,6 +276,9 @@ func (b *fileBlock) persistHeader(ctx context.Context) error {
 	if err := binary.Write(buf, binary.BigEndian, b.number); err != nil {
 		return err
 	}
+	if err := binary.Write(buf, binary.BigEndian, b.fullFlag.Load().(bool)); err != nil {
+		return err
+	}
 
 	// TODO does it safe when concurrent write and append?
 	if _, err := b.physicalFile.WriteAt(buf.Bytes(), 0); err != nil {
@@ -303,7 +308,11 @@ func (b *fileBlock) loadHeader(ctx context.Context) error {
 	if err := binary.Read(reader, binary.BigEndian, &b.number); err != nil {
 		return err
 	}
-
+	var isFull bool
+	if err := binary.Read(reader, binary.BigEndian, &isFull); err != nil {
+		return err
+	}
+	b.fullFlag.Store(isFull)
 	return nil
 }
 
@@ -375,9 +384,7 @@ func (b *fileBlock) loadIndex(ctx context.Context) error {
 			count++
 		}
 		b.number = int32(count)
-		if count > 0 {
-			b.size = b.indexes[count-1].startOffset + int64(b.indexes[count-1].length)
-		}
+		b.size = off
 	}
 	return nil
 }

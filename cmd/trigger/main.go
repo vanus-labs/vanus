@@ -54,6 +54,14 @@ func main() {
 		ServerList: []string{"127.0.0.1:2379"},
 		KeyPrefix:  "/xdl/trigger",
 	}}, stopCallback)
+	ctx := context.Background()
+	init := srv.(primitive.Initializer)
+	if err = init.Initialize(ctx); err != nil {
+		stopCallback()
+		log.Fatal("the trigger worker has initialized failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+	}
 	trigger.RegisterTriggerWorkerServer(grpcServer, srv)
 	go func() {
 		log.Info("the grpc server ready to work", nil)
@@ -64,14 +72,7 @@ func main() {
 			})
 		}
 	}()
-	ctx := context.Background()
-	init := srv.(primitive.Initializer)
-	if err = init.Initialize(ctx); err != nil {
-		stopCallback()
-		log.Fatal("the trigger worker has initialized failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-	}
+
 	log.Info("trigger worker started", nil)
 	exitCh := make(chan os.Signal)
 	signal.Notify(exitCh, os.Interrupt, syscall.SIGTERM)

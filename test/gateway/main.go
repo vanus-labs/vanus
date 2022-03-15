@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	ctx := cloudevents.ContextWithTarget(context.Background(), "http://localhost:8080/gateway/wwf-0314-3")
+	ctx := cloudevents.ContextWithTarget(context.Background(), "http://localhost:8080/gateway/wwf-0315-4")
 
 	p, err := cloudevents.NewHTTP()
 	if err != nil {
@@ -27,7 +27,7 @@ func main() {
 		}
 		return str
 	}()
-	for i := 0; i < 1600; i++ {
+	for i := 0; i < 5000; i++ {
 		e := cloudevents.NewEvent()
 		e.SetType("com.cloudevents.sample.sent")
 		e.SetSource("https://github.com/cloudevents/sdk-go/v2/samples/httpb/sender")

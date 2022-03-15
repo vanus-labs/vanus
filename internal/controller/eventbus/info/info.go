@@ -92,6 +92,7 @@ func Convert2ProtoSegment(ins ...*SegmentBlockInfo) []*meta.Segment {
 			Capacity:          seg.Capacity,
 			NumberEventStored: seg.Number,
 			Tier:              meta.StorageTier_SSD,
+			IsFull:            seg.IsFull,
 		}
 		if segs[idx].NumberEventStored == 0 {
 			segs[idx].EndOffsetInLog = -1

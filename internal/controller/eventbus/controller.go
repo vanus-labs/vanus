@@ -321,7 +321,8 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 			})
 		}
 
-		serverInfo.LastHeartbeatTime = t
+		// use local time to avoiding time shift
+		serverInfo.LastHeartbeatTime = time.Now()
 		if _err := ctrl.eventLogMgr.updateSegment(context.Background(), req); _err != nil {
 			log.Warning("update segment when received segment server heartbeat", map[string]interface{}{
 				log.KeyError: err,
@@ -368,6 +369,9 @@ func (ctrl *controller) ReportSegmentBlockIsFull(ctx context.Context,
 }
 
 func (ctrl *controller) getSegmentServerClient(i *info.SegmentServerInfo) segpb.SegmentServerClient {
+	if i == nil {
+		return nil
+	}
 	cli := ctrl.segmentServerClientMap[i.ID()]
 	if cli == nil {
 		var opts []grpc.DialOption
@@ -386,6 +390,9 @@ func (ctrl *controller) getSegmentServerClient(i *info.SegmentServerInfo) segpb.
 
 func (ctrl *controller) readyToStartSegmentServer(ctx context.Context, serverInfo *info.SegmentServerInfo) {
 	conn := ctrl.getSegmentServerClient(serverInfo)
+	if conn == nil {
+		return
+	}
 	_, err := conn.Start(ctx, &segpb.StartSegmentServerRequest{
 		SegmentServerId: uuid.NewString(),
 	})
