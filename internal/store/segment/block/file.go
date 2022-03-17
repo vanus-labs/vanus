@@ -18,14 +18,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"github.com/linkall-labs/vanus/internal/store/segment/codec"
-	"github.com/linkall-labs/vanus/observability"
-	"github.com/linkall-labs/vsproto/pkg/meta"
 	"io"
 	"os"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/linkall-labs/vanus/internal/store/segment/codec"
+	"github.com/linkall-labs/vanus/observability"
+	"github.com/linkall-labs/vsproto/pkg/meta"
 )
 
 const (
@@ -390,6 +391,9 @@ func (b *fileBlock) validate(ctx context.Context) error {
 
 func (b *fileBlock) calculateRange(start, num int) (int64, int64, error) {
 	if start >= len(b.indexes) {
+		if !b.IsFull() && start == len(b.indexes) {
+			return -1, -1, ErrOffsetOnEnd
+		}
 		return -1, -1, ErrOffsetExceeded
 	}
 	startPos := b.indexes[start].startOffset

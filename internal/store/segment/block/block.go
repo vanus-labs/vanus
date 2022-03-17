@@ -17,16 +17,18 @@ package block
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
+
 	"github.com/linkall-labs/vanus/internal/store/segment/codec"
 	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vsproto/pkg/meta"
-	"os"
-	"path/filepath"
 )
 
 var (
 	ErrNoEnoughCapacity = errors.New("no enough capacity")
 	ErrOffsetExceeded   = errors.New("the offset exceeded")
+	ErrOffsetOnEnd      = errors.New("the offset on end")
 )
 
 type SegmentBlockWriter interface {
