@@ -15,6 +15,7 @@
 package filter
 
 import (
+	"context"
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/observability/log"
 )
@@ -29,7 +30,7 @@ func NewAllFilter(filters ...Filter) Filter {
 }
 
 func (filter allFilter) Filter(event ce.Event) FilterResult {
-	log.Debug("all filter ", map[string]interface{}{"filter": filter, "event": event})
+	log.Debug(context.Background(), "all filter ", map[string]interface{}{"filter": filter, "event": event})
 	for _, f := range filter {
 		res := f.Filter(event)
 		if res == FailFilter {

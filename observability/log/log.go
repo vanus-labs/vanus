@@ -15,6 +15,8 @@
 package log
 
 import (
+	"context"
+	"io"
 	"os"
 	"strings"
 
@@ -26,13 +28,13 @@ const (
 )
 
 type Logger interface {
-	Debug(msg string, fields map[string]interface{})
-	Info(msg string, fields map[string]interface{})
-	Warning(msg string, fields map[string]interface{})
-	Error(msg string, fields map[string]interface{})
-	Fatal(msg string, fields map[string]interface{})
-	Level(level string)
-	OutputPath(path string) (err error)
+	Debug(ctx context.Context, msg string, fields map[string]interface{})
+	Info(ctx context.Context, msg string, fields map[string]interface{})
+	Warning(ctx context.Context, msg string, fields map[string]interface{})
+	Error(ctx context.Context, msg string, fields map[string]interface{})
+	Fatal(ctx context.Context, msg string, fields map[string]interface{})
+	SetLevel(level string)
+	SetLogWriter(writer io.Writer)
 }
 
 func init() {
@@ -55,7 +57,7 @@ func init() {
 		r.logger.SetLevel(logrus.InfoLevel)
 	}
 	vLog = r
-	vLog.Debug("logger level has been set", map[string]interface{}{
+	vLog.Debug(context.Background(), "logger level has been set", map[string]interface{}{
 		"log_level": level,
 	})
 }
@@ -66,42 +68,42 @@ type defaultLogger struct {
 	logger *logrus.Logger
 }
 
-func (l *defaultLogger) Debug(msg string, fields map[string]interface{}) {
+func (l *defaultLogger) Debug(ctx context.Context, msg string, fields map[string]interface{}) {
 	if msg == "" && len(fields) == 0 {
 		return
 	}
 	l.logger.WithFields(fields).Debug(msg)
 }
 
-func (l *defaultLogger) Info(msg string, fields map[string]interface{}) {
+func (l *defaultLogger) Info(ctx context.Context, msg string, fields map[string]interface{}) {
 	if msg == "" && len(fields) == 0 {
 		return
 	}
 	l.logger.WithFields(fields).Info(msg)
 }
 
-func (l *defaultLogger) Warning(msg string, fields map[string]interface{}) {
+func (l *defaultLogger) Warning(ctx context.Context, msg string, fields map[string]interface{}) {
 	if msg == "" && len(fields) == 0 {
 		return
 	}
 	l.logger.WithFields(fields).Warning(msg)
 }
 
-func (l *defaultLogger) Error(msg string, fields map[string]interface{}) {
+func (l *defaultLogger) Error(ctx context.Context, msg string, fields map[string]interface{}) {
 	if msg == "" && len(fields) == 0 {
 		return
 	}
 	l.logger.WithFields(fields).WithFields(fields).Error(msg)
 }
 
-func (l *defaultLogger) Fatal(msg string, fields map[string]interface{}) {
+func (l *defaultLogger) Fatal(ctx context.Context, msg string, fields map[string]interface{}) {
 	if msg == "" && len(fields) == 0 {
 		return
 	}
 	l.logger.WithFields(fields).Fatal(msg)
 }
 
-func (l *defaultLogger) Level(level string) {
+func (l *defaultLogger) SetLevel(level string) {
 	switch strings.ToLower(level) {
 	case "debug":
 		l.logger.SetLevel(logrus.DebugLevel)
@@ -116,14 +118,8 @@ func (l *defaultLogger) Level(level string) {
 	}
 }
 
-func (l *defaultLogger) OutputPath(path string) (err error) {
-	var file *os.File
-	file, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
-		return
-	}
-
-	l.logger.Out = file
+func (l *defaultLogger) SetLogWriter(writer io.Writer) {
+	l.logger.Out = writer
 	return
 }
 
@@ -135,39 +131,39 @@ func SetLogLevel(level string) {
 	if level == "" {
 		return
 	}
-	vLog.Level(level)
+	vLog.SetLevel(level)
 }
 
-func SetOutputPath(path string) (err error) {
-	if "" == path {
+func SetLogWriter(writer io.Writer) {
+	if writer == nil {
 		return
 	}
-
-	return vLog.OutputPath(path)
+	vLog.SetLogWriter(writer)
 }
 
-func Debug(msg string, fields map[string]interface{}) {
-	vLog.Debug(msg, fields)
+func Debug(ctx context.Context, msg string, fields map[string]interface{}) {
+	vLog.Debug(ctx, msg, fields)
 }
 
-func Info(msg string, fields map[string]interface{}) {
+func Info(ctx context.Context, msg string, fields map[string]interface{}) {
 	if msg == "" && len(fields) == 0 {
 		return
 	}
-	vLog.Info(msg, fields)
+	vLog.Info(ctx, msg, fields)
 }
 
-func Warning(msg string, fields map[string]interface{}) {
+func Warning(ctx context.Context, msg string, fields map[string]interface{}) {
 	if msg == "" && len(fields) == 0 {
 		return
 	}
-	vLog.Warning(msg, fields)
+	vLog.Warning(ctx, msg, fields)
 }
 
-func Error(msg string, fields map[string]interface{}) {
-	vLog.Error(msg, fields)
+func Error(ctx context.Context, msg string, fields map[string]interface{}) {
+	vLog.Error(ctx, msg, fields)
 }
 
-func Fatal(msg string, fields map[string]interface{}) {
-	vLog.Fatal(msg, fields)
-}
+//
+//func Fatal(ctx context.Context, msg string, fields map[string]interface{}) {
+//	vLog.Fatal(ctx, msg, fields)
+//}

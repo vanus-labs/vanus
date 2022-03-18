@@ -104,7 +104,7 @@ func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo,
 		for idx := 0; idx < num; idx++ {
 			if segArr[idx] != nil {
 				if _err := pool.updateSegmentBlockInKV(ctx, segArr[idx]); _err != nil {
-					log.Error("update segment info in kv store failed when cancel binding", map[string]interface{}{
+					log.Error(ctx, "update segment info in kv store failed when cancel binding", map[string]interface{}{
 						log.KeyError: _err,
 					})
 				}
@@ -243,7 +243,7 @@ func (pool *segmentPool) updateSegment(ctx context.Context, req *ctrlpb.SegmentH
 		// TODO there is problem in data structure design OPTIMIZE
 		v, exist := pool.segmentMap.Load(hInfo.Id)
 		if !exist {
-			log.Warning("the segment not found when heartbeat", map[string]interface{}{
+			log.Warning(ctx, "the segment not found when heartbeat", map[string]interface{}{
 				"segment_id": hInfo.Id,
 			})
 			continue
@@ -256,7 +256,7 @@ func (pool *segmentPool) updateSegment(ctx context.Context, req *ctrlpb.SegmentH
 			if next != nil {
 				next.StartOffsetInLog = in.StartOffsetInLog + int64(in.Number)
 				if err := pool.updateSegmentBlockInKV(ctx, next); err != nil {
-					log.Warning("update the segment's start_offset failed ", map[string]interface{}{
+					log.Warning(ctx, "update the segment's start_offset failed ", map[string]interface{}{
 						"segment_id":   hInfo.Id,
 						"next_segment": next.ID,
 						log.KeyError:   err,
@@ -268,7 +268,7 @@ func (pool *segmentPool) updateSegment(ctx context.Context, req *ctrlpb.SegmentH
 		in.Size = hInfo.Size
 		in.Number = hInfo.EventNumber
 		if err := pool.updateSegmentBlockInKV(ctx, in); err != nil {
-			log.Warning("update the segment failed ", map[string]interface{}{
+			log.Warning(ctx, "update the segment failed ", map[string]interface{}{
 				"segment_id": hInfo.Id,
 				log.KeyError: err,
 			})

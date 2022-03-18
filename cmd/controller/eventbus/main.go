@@ -33,9 +33,10 @@ var (
 func main() {
 	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", defaultIP, defaultPort))
 	if err != nil {
-		log.Fatal("failed to listen", map[string]interface{}{
+		log.Info(context.Background(), "failed to listen", map[string]interface{}{
 			"error": err,
 		})
+		os.Exit(0)
 	}
 	var opts []grpc.ServerOption
 	ctrlSrv := eventbus.NewEventBusController(eventbus.ControllerConfig{
@@ -46,7 +47,7 @@ func main() {
 	})
 	ctx := context.Background()
 	if err = ctrlSrv.Start(ctx); err != nil {
-		log.Error("start Eventbus Controller failed", map[string]interface{}{
+		log.Error(ctx, "start Eventbus Controller failed", map[string]interface{}{
 			log.KeyError: err,
 		})
 		os.Exit(-1)
@@ -56,14 +57,14 @@ func main() {
 	controller.RegisterEventBusControllerServer(grpcServer, ctrlSrv)
 	controller.RegisterEventLogControllerServer(grpcServer, ctrlSrv)
 	controller.RegisterSegmentControllerServer(grpcServer, ctrlSrv)
-	log.Info("the grpc server ready to work", nil)
+	log.Info(ctx, "the grpc server ready to work", nil)
 	err = grpcServer.Serve(listen)
 	if err != nil {
-		log.Error("grpc server occurred an error", map[string]interface{}{
+		log.Error(ctx, "grpc server occurred an error", map[string]interface{}{
 			log.KeyError: err,
 		})
 	} else {
 		<-exitChan
-		log.Info("the grpc server has been shutdown", nil)
+		log.Info(ctx, "the grpc server has been shutdown", nil)
 	}
 }

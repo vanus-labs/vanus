@@ -108,7 +108,7 @@ func (s *segmentServer) Initialize(ctx context.Context) error {
 			return err
 		}
 	} else {
-		log.Info("the segment server debug mode enabled", nil)
+		log.Info(ctx, "the segment server debug mode enabled", nil)
 		s.id = "test-server-1"
 		s.isDebugMode = true
 		_files, err := filepath.Glob(filepath.Join(s.volumeDir, "*"))
@@ -358,6 +358,7 @@ func (s *segmentServer) startHeartBeatTask() error {
 	}
 	go func() {
 		ticker := time.NewTicker(time.Second)
+		ctx := context.Background()
 	LOOP:
 		for {
 			select {
@@ -377,10 +378,10 @@ func (s *segmentServer) startHeartBeatTask() error {
 					ServerAddr: s.localAddress,
 				}); err != nil {
 					if err == io.EOF {
-						log.Warning("send heartbeat to controller failed, connection lost. try to reconnecting",
+						log.Warning(ctx, "send heartbeat to controller failed, connection lost. try to reconnecting",
 							nil)
 					} else {
-						log.Warning("send heartbeat to controller failed, try to reconnecting", map[string]interface{}{
+						log.Warning(ctx, "send heartbeat to controller failed, try to reconnecting", map[string]interface{}{
 							log.KeyError: err,
 						})
 					}
@@ -388,18 +389,18 @@ func (s *segmentServer) startHeartBeatTask() error {
 					for err != nil {
 						stream, err = s.ctrlClient.SegmentHeartbeat(context.Background())
 						if err != nil {
-							log.Error("reconnect to controller failed, retry after 3s", map[string]interface{}{
+							log.Error(ctx, "reconnect to controller failed, retry after 3s", map[string]interface{}{
 								log.KeyError: err,
 							})
 						}
 						time.Sleep(3 * time.Second)
 					}
-					log.Info("reconnected to controller", nil)
+					log.Info(ctx, "reconnected to controller", nil)
 				}
 			}
 		}
 		if _, err = stream.CloseAndRecv(); err != nil {
-			log.Warning("close gRPC stream error", map[string]interface{}{
+			log.Warning(ctx, "close gRPC stream error", map[string]interface{}{
 				log.KeyError: err,
 			})
 		}
@@ -439,7 +440,7 @@ func (s *segmentServer) start(ctx context.Context) error {
 func (s *segmentServer) stop(ctx context.Context) error {
 	err := s.ctrlGrpcConn.Close()
 	if err != nil {
-		log.Warning("close gRPC connection of controller failed", map[string]interface{}{
+		log.Warning(ctx, "close gRPC connection of controller failed", map[string]interface{}{
 			log.KeyError: err,
 		})
 	}

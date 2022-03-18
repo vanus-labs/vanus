@@ -35,7 +35,7 @@ func NewGateway(ebCtrlEndpoint string) *ceGateway {
 }
 
 func (ga *ceGateway) StartReceive(ctx context.Context) error {
-	ls, err := net.Listen("tcp4", "localhost:8080")
+	ls, err := net.Listen("tcp4", "127.0.0.1:8080")
 	if err != nil {
 		return err
 	}
@@ -48,7 +48,7 @@ func (ga *ceGateway) StartReceive(ctx context.Context) error {
 }
 
 func (ga *ceGateway) receive(ctx context.Context, event v2.Event) protocol.Result {
-	log.Info(fmt.Sprintf("%v", event), nil)
+	log.Info(ctx, fmt.Sprintf("%v", event), nil)
 	ebName := getEventBusFromPath(cehttp.RequestDataFromContext(ctx))
 
 	if ebName == "" {

@@ -101,7 +101,7 @@ func (ctrl *triggerController) DeleteSubscription(ctx context.Context, request *
 	}
 	err := ctrl.deleteSubscription(ctx, request.Id)
 	if err != nil {
-		log.Error("delete subscription failed", map[string]interface{}{
+		log.Error(ctx, "delete subscription failed", map[string]interface{}{
 			"subId":      request.Id,
 			log.KeyError: err,
 		})
@@ -133,7 +133,7 @@ func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerCo
 					HeartbeatTime: time.Now(),
 				})
 				if err != nil {
-					log.Error("heartbeat add trigger worker failed", map[string]interface{}{
+					log.Error(ctx, "heartbeat add trigger worker failed", map[string]interface{}{
 						"addr":       req.Address,
 						log.KeyError: err,
 					})
@@ -149,7 +149,7 @@ func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerCo
 				//client close,will remove trigger worker then receive unregister
 				return nil
 			}
-			log.Info("heartbeat recv error", map[string]interface{}{log.KeyError: err})
+			log.Info(ctx, "heartbeat recv error", map[string]interface{}{log.KeyError: err})
 			return err
 		}
 	}
@@ -161,7 +161,7 @@ func (ctrl *triggerController) RegisterTriggerWorker(ctx context.Context, reques
 		Started: false,
 	})
 	if err != nil {
-		log.Error("register new trigger worker failed", map[string]interface{}{
+		log.Error(ctx, "register new trigger worker failed", map[string]interface{}{
 			"addr":       request.Address,
 			log.KeyError: err,
 		})
@@ -206,7 +206,7 @@ func (ctrl *triggerController) deleteSubscription(ctx context.Context, id string
 			return err
 		}
 		delete(ctrl.subscriptions, id)
-		log.Info("delete subscription success", map[string]interface{}{"subId": id})
+		log.Info(ctx, "delete subscription success", map[string]interface{}{"subId": id})
 		return nil
 	}
 
@@ -224,7 +224,7 @@ func (ctrl *triggerController) addSubscription(subId, addr string) {
 
 func (ctrl *triggerController) addSubToQueue(subId, reason string) {
 	ctrl.subQueue.Add(subId)
-	log.Debug("add a sub to queue", map[string]interface{}{
+	log.Debug(ctx, "add a sub to queue", map[string]interface{}{
 		"subId":  subId,
 		"reason": reason,
 		"size":   ctrl.subQueue.Len(),
@@ -236,7 +236,7 @@ func (ctrl *triggerController) addTriggerWorker(twInfo *info.TriggerWorkerInfo) 
 	defer ctrl.twMutex.Unlock()
 	addr := twInfo.Addr
 	if tWorker, exist := ctrl.triggerWorkers[addr]; exist {
-		log.Info("repeat add trigger worker", map[string]interface{}{
+		log.Info(ctx, "repeat add trigger worker", map[string]interface{}{
 			"addr": addr,
 			"now":  tWorker.twInfo,
 			"new":  twInfo,
@@ -262,7 +262,7 @@ func (ctrl *triggerController) addTriggerWorker(twInfo *info.TriggerWorkerInfo) 
 		} else if ctrl.state == controllerStarting {
 			//triggerController重启了，tWorker上报心跳，收集trigger正在运行的sub
 			for _, subId := range tWorker.twInfo.SubIds {
-				log.Debug("add trigger worker set sub addr", map[string]interface{}{
+				log.Debug(ctx, "add trigger worker set sub addr", map[string]interface{}{
 					"subId": subId,
 					"addr":  addr,
 				})
@@ -271,7 +271,7 @@ func (ctrl *triggerController) addTriggerWorker(twInfo *info.TriggerWorkerInfo) 
 		}
 	}
 	ctrl.triggerWorkers[addr] = tWorker
-	log.Info("add a trigger worker", map[string]interface{}{"twAddr": addr})
+	log.Info(ctx, "add a trigger worker", map[string]interface{}{"twAddr": addr})
 	return nil
 }
 
@@ -281,7 +281,7 @@ func (ctrl *triggerController) removeTriggerWorker(addr, reason string) {
 	defer ctrl.twMutex.Unlock()
 	tWorker, ok := ctrl.triggerWorkers[addr]
 	if !ok {
-		log.Info("remove trigger worker but trigger worker not exist", map[string]interface{}{"" +
+		log.Info(ctx, "remove trigger worker but trigger worker not exist", map[string]interface{}{"" +
 			"twAddr": addr,
 		})
 		return
@@ -292,7 +292,7 @@ func (ctrl *triggerController) removeTriggerWorker(addr, reason string) {
 	}
 	delete(ctrl.triggerWorkers, addr)
 	tWorker.Close()
-	log.Info("remove a trigger worker", map[string]interface{}{"twAddr": addr, "reason": reason})
+	log.Info(ctx, "remove a trigger worker", map[string]interface{}{"twAddr": addr, "reason": reason})
 }
 
 func (ctrl *triggerController) Start() error {
@@ -308,7 +308,7 @@ func (ctrl *triggerController) Start() error {
 		s.Close()
 		return errors.Wrap(err, "list subscription error")
 	}
-	log.Info("triggerController subscription size", map[string]interface{}{
+	log.Info(ctx, "triggerController subscription size", map[string]interface{}{
 		"size": len(subList),
 	})
 	ctrl.state = controllerStarting
@@ -346,12 +346,12 @@ func (ctrl *triggerController) run() {
 				ctrl.subQueue.Done(subId)
 				ctrl.subQueue.ClearFailNum(subId)
 			} else {
-				log.Debug("reAdd a sub to queue", map[string]interface{}{
+				log.Debug(ctx, "reAdd a sub to queue", map[string]interface{}{
 					"subId": subId,
 				})
 				ctrl.subQueue.ReAdd(subId)
 				if ctrl.subQueue.GetFailNum(subId)%ctrl.maxRetryPrintLog == 0 {
-					log.Error("process subscription error", map[string]interface{}{
+					log.Error(ctx, "process subscription error", map[string]interface{}{
 						"subId":      subId,
 						log.KeyError: err,
 					})
@@ -397,12 +397,12 @@ func (ctrl *triggerController) checkTriggerWorker() {
 				}()
 				err := tWorker.Start()
 				if err != nil {
-					log.Info("start trigger worker has error", map[string]interface{}{
+					log.Info(ctx, "start trigger worker has error", map[string]interface{}{
 						"addr":       addr,
 						log.KeyError: err,
 					})
 				} else {
-					log.Info("start trigger worker success", map[string]interface{}{
+					log.Info(ctx, "start trigger worker success", map[string]interface{}{
 						"addr": addr,
 					})
 				}
@@ -430,7 +430,7 @@ func (ctrl *triggerController) processSubscription(subId string) error {
 				return errors.New("find trigger timeout")
 			}
 			if findTime%10 == 0 {
-				log.Debug("process subscriptions no found trigger processor", nil)
+				log.Debug(ctx, "process subscriptions no found trigger processor", nil)
 			}
 			time.Sleep(time.Second * 5)
 			continue
@@ -441,7 +441,7 @@ func (ctrl *triggerController) processSubscription(subId string) error {
 	if err != nil {
 		return errors.Wrap(err, "tWorker add subscription error")
 	}
-	log.Info("allocate a sub to triggerWorker", map[string]interface{}{
+	log.Info(ctx, "allocate a sub to triggerWorker", map[string]interface{}{
 		"subId":  subId,
 		"twAddr": tWorker.twAddr,
 	})

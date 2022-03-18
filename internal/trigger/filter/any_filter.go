@@ -29,7 +29,7 @@ func NewAnyFilter(filters ...Filter) Filter {
 }
 
 func (filter anyFilter) Filter(event ce.Event) FilterResult {
-	log.Debug("any filter ", map[string]interface{}{"filter": filter, "event": event})
+	log.Debug(ctx, "any filter ", map[string]interface{}{"filter": filter, "event": event})
 	for _, f := range filter {
 		res := f.Filter(event)
 		if res == PassFilter {

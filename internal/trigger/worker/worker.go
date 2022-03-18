@@ -246,7 +246,7 @@ func testSend() {
 
 			_, err = bw.Append(context.Background(), &event)
 			if err != nil {
-				log.Error("append event error", map[string]interface{}{"error": err})
+				log.Error(ctx, "append event error", map[string]interface{}{"error": err})
 			}
 		}
 	}()

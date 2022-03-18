@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/linkall-labs/vanus/config"
 	"github.com/linkall-labs/vanus/internal/controller/trigger"
@@ -36,10 +37,13 @@ var (
 
 func main() {
 	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", defaultIP, defaultPort))
+	ctx := context.Background()
+
 	if err != nil {
-		log.Fatal("failed to listen", map[string]interface{}{
+		log.Error(ctx, "failed to listen", map[string]interface{}{
 			"error": err,
 		})
+		os.Exit(-1)
 	}
 	srv := trigger.NewTriggerController(trigger.Config{
 		Storage: config.KvStorageConfig{
@@ -51,28 +55,29 @@ func main() {
 	grpcServer := grpc.NewServer(opts...)
 	controller.RegisterTriggerControllerServer(grpcServer, srv)
 	go func() {
-		log.Info("the TriggerControlServer ready to work", map[string]interface{}{
+		log.Info(ctx, "the TriggerControlServer ready to work", map[string]interface{}{
 			"listen_ip":   defaultIP,
 			"listen_port": defaultPort,
 			"time":        util.FormatTime(time.Now()),
 		})
 		if err = grpcServer.Serve(listen); err != nil {
-			log.Error("grpc server occurred an error", map[string]interface{}{
+			log.Error(ctx, "grpc server occurred an error", map[string]interface{}{
 				log.KeyError: err,
 			})
 		}
 	}()
 	if err = srv.Start(); err != nil {
-		log.Fatal("trigger controller start fail", map[string]interface{}{
+		log.Error(context.Background(), "trigger controller start fail", map[string]interface{}{
 			log.KeyError: err,
 		})
+		os.Exit(-1)
 	}
-	log.Info("triggerController started", nil)
+	log.Info(ctx, "triggerController started", nil)
 	exitCh := make(chan os.Signal)
 	signal.Notify(exitCh, os.Interrupt, syscall.SIGTERM)
 	<-exitCh
-	log.Info("triggerController begin stop", nil)
+	log.Info(ctx, "triggerController begin stop", nil)
 	grpcServer.GracefulStop()
 	srv.Close()
-	log.Info("triggerController stopped", nil)
+	log.Info(ctx, "triggerController stopped", nil)
 }

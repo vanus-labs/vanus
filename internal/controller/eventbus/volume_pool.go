@@ -86,16 +86,17 @@ func (pool *volumePool) InactivateVolume(vInfo *info.VolumeInfo) error {
 
 func (pool *volumePool) volumeHealthWatch() {
 	tick := time.NewTicker(time.Second)
+	ctx := context.Background()
 	for {
 		select {
 		case <-pool.exitCh:
-			log.Info("volume health watcher exist", nil)
+			log.Info(ctx, "volume health watcher exist", nil)
 		case <-tick.C:
 			for k, v := range pool.volumeInfoMap {
 				if v.IsActivity() {
 					if !v.IsOnline() {
 						v.Inactivate()
-						log.Info("the volume has changed to inactive", map[string]interface{}{
+						log.Info(ctx, "the volume has changed to inactive", map[string]interface{}{
 							"volume_id": k,
 						})
 					}

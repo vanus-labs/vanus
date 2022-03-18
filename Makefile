@@ -15,7 +15,7 @@ controller-api-test:
 	grpcui --import-path=${VSPROTO_ROOT}/include \
            --import-path=${VSPROTO_ROOT}/proto \
            --plaintext \
-           --proto=controller.proto 127.0.0.1:2048
+           --proto=controller.proto127.0.0.1:2048
 
 trigger-controller-api-test:
 	grpcui --import-path=${VSPROTO_ROOT}/include \

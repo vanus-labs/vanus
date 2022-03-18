@@ -7,13 +7,13 @@ import (
 )
 
 func main() {
-	vrn := fmt.Sprintf("vanus://%s/eventlog/%s?namespace=vanus", "127.0.0.1:2048", "eb947f55-567c-4e1a-b0e3-a905a0a6276d")
+	vrn := fmt.Sprintf("vanus://%s/eventlog/%s?namespace=vanus", "127.0.0.1:2048", "df5aff09-9242-4b47-b9df-cf07c5868e3a")
 	r, err := eventbus.OpenLogReader(vrn)
 	if err != nil {
 		panic(err)
 	}
-	_, _ = r.Seek(context.Background(), 3300, 0)
-	es, er := r.Read(context.Background(), 10)
+	_, _ = r.Seek(context.Background(), 20, 0)
+	es, er := r.Read(context.Background(), 100)
 	if err != nil {
 		panic(er)
 	}

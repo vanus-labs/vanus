@@ -38,9 +38,10 @@ var (
 func main() {
 	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", defaultIP, defaultPort))
 	if err != nil {
-		log.Fatal("failed to listen", map[string]interface{}{
+		log.Error(context.Background(), "failed to listen", map[string]interface{}{
 			"error": err,
 		})
+		os.Exit(-1)
 	}
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
@@ -53,7 +54,7 @@ func main() {
 		"volume-1", stopCallback)
 	if err != nil {
 		stopCallback()
-		log.Error("start SegmentServer failed", map[string]interface{}{
+		log.Error(context.Background(), "start SegmentServer failed", map[string]interface{}{
 			log.KeyError: err,
 		})
 		os.Exit(-1)
@@ -63,25 +64,25 @@ func main() {
 	// TODO panic
 	if err = init.Initialize(ctx); err != nil {
 		stopCallback()
-		log.Error("the SegmentServer has initialized failed", map[string]interface{}{
+		log.Error(ctx, "the SegmentServer has initialized failed", map[string]interface{}{
 			log.KeyError: err,
 		})
 		os.Exit(-2)
 	}
 	go func() {
-		log.Info("the SegmentServer ready to work", map[string]interface{}{
+		log.Info(ctx, "the SegmentServer ready to work", map[string]interface{}{
 			"listen_ip":   defaultIP,
 			"listen_port": defaultPort,
 			"time":        util.FormatTime(time.Now()),
 		})
 		segpb.RegisterSegmentServerServer(grpcServer, srv)
 		if err = grpcServer.Serve(listen); err != nil {
-			log.Error("grpc server occurred an error", map[string]interface{}{
+			log.Error(ctx, "grpc server occurred an error", map[string]interface{}{
 				log.KeyError: err,
 			})
 		}
 	}()
 
 	<-exitChan
-	log.Info("the grpc server has been shutdown", nil)
+	log.Info(ctx, "the grpc server has been shutdown", nil)
 }

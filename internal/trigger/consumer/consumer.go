@@ -81,18 +81,18 @@ func (c *Consumer) checkEventLogChange() {
 	defer cancel()
 	els, err := eb.LookupReadableLogs(ctx, c.ebVrn)
 	if err != nil {
-		log.Error("eventbus lookup Readable log error", map[string]interface{}{
+		log.Error(ctx, "eventbus lookup Readable log error", map[string]interface{}{
 			"ebVrn":      c.ebVrn,
 			log.KeyError: err,
 		})
 		return
 	}
 	if len(els) != len(c.elConsumer) {
-		log.Info("event log change,will restart event log consumer", map[string]interface{}{
+		log.Info(ctx, "event log change,will restart event log consumer", map[string]interface{}{
 			"ebVrn": c.ebVrn,
 		})
 		c.start(els)
-		log.Info("event log change,restart event log consumer success", map[string]interface{}{
+		log.Info(ctx, "event log change,restart event log consumer success", map[string]interface{}{
 			"ebVrn": c.ebVrn,
 		})
 	}
@@ -118,7 +118,7 @@ func (c *Consumer) start(els []*record.EventLog) {
 		c.wg.Add(1)
 		go func() {
 			defer c.wg.Done()
-			log.Info("event log consumer start", map[string]interface{}{
+			log.Info(ctx, "event log consumer start", map[string]interface{}{
 				"sub":   elc.sub,
 				"elVrn": elc.elVrn,
 			})
@@ -141,7 +141,7 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 	for {
 		lr, offset, err := lc.init(ctx)
 		if err != nil {
-			log.Warning("event log consumer init error,will retry", map[string]interface{}{
+			log.Warning(ctx, "event log consumer init error,will retry", map[string]interface{}{
 				"sub":        lc.sub,
 				"elVrn":      lc.elVrn,
 				log.KeyError: err,
@@ -155,7 +155,7 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Info("event log consumer stop", map[string]interface{}{
+				log.Info(ctx, "event log consumer stop", map[string]interface{}{
 					"sub":    lc.sub,
 					"elVrn":  lc.elVrn,
 					"offset": offset,
@@ -184,7 +184,8 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 			case eberrors.ErrOnEnd:
 			default:
 				//other error
-				log.Warning("readEvents error", map[string]interface{}{
+
+				log.Warning(ctx, "read event error", map[string]interface{}{
 					"sub":        lc.sub,
 					"elVrn":      lc.elVrn,
 					"offset":     offset,

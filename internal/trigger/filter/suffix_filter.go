@@ -28,7 +28,7 @@ type suffixFilter struct {
 func NewSuffixFilter(suffix map[string]string) Filter {
 	for attr, v := range suffix {
 		if attr == "" || v == "" {
-			log.Info("new suffix filter but has empty ", map[string]interface{}{
+			log.Info(nil, "new suffix filter but has empty ", map[string]interface{}{
 				"attr":  attr,
 				"value": v,
 			})
@@ -42,7 +42,7 @@ func (filter *suffixFilter) Filter(event ce.Event) FilterResult {
 	if filter == nil {
 		return FailFilter
 	}
-	log.Debug("suffix filter ", map[string]interface{}{"filter": filter, "event": event})
+	log.Debug(nil, "suffix filter ", map[string]interface{}{"filter": filter, "event": event})
 	for attr, suffix := range filter.suffix {
 		value, ok := LookupAttribute(event, attr)
 		if !ok {

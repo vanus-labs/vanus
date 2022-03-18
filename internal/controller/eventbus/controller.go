@@ -225,7 +225,7 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	_, exist = ctrl.segmentServerInfoMap[serverInfo.Address]
 	if exist {
 		if volumeInfo.GetAccessEndpoint() == "" {
-			log.Info("the segment server reconnected", map[string]interface{}{
+			log.Info(ctx, "the segment server reconnected", map[string]interface{}{
 				"server_address": req.Address,
 				"volume_id":      req.VolumeId,
 			})
@@ -271,6 +271,7 @@ func (ctrl *controller) QuerySegmentRouteInfo(ctx context.Context,
 func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHeartbeatServer) error {
 	var err error
 	var req *ctrlpb.SegmentHeartbeatRequest
+	ctx := context.Background()
 	for {
 		req, err = srv.Recv()
 		if err != nil {
@@ -278,21 +279,21 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 		}
 		t, err := util.ParseTime(req.ReportTime)
 		if err != nil {
-			log.Error("parse heartbeat report time failed", map[string]interface{}{
+			log.Error(ctx, "parse heartbeat report time failed", map[string]interface{}{
 				"volume_id":  req.VolumeId,
 				"server_id":  req.ServerId,
 				log.KeyError: err,
 			})
 			continue
 		}
-		log.Debug("received heartbeat from segment server", map[string]interface{}{
+		log.Debug(ctx, "received heartbeat from segment server", map[string]interface{}{
 			"server_id": req.ServerId,
 			"volume_id": req.VolumeId,
 			"time":      t,
 		})
 		vInfo := ctrl.volumePool.get(req.VolumeId)
 		if vInfo == nil {
-			log.Error("received a heartbeat request, but volume not found", map[string]interface{}{
+			log.Error(ctx, "received a heartbeat request, but volume not found", map[string]interface{}{
 				"volume_id": req.VolumeId,
 				"server_id": req.ServerId,
 			})
@@ -307,7 +308,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 				StartedAt: time.Now(),
 			}
 			ctrl.segmentServerInfoMap[req.ServerAddr] = serverInfo
-			//log.Error("received a heartbeat request, but server info not found", map[string]interface{}{
+			//log.Error(ctx, "received a heartbeat request, but server info not found", map[string]interface{}{
 			//	"volume_id": req.VolumeId,
 			//	"server_id": req.ServerId,
 			//})
@@ -315,7 +316,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 
 		if !vInfo.IsActivity() || !vInfo.IsOnline() {
 			ctrl.volumePool.ActivateVolume(vInfo, serverInfo)
-			log.Info("the volume has been activated", map[string]interface{}{
+			log.Info(ctx, "the volume has been activated", map[string]interface{}{
 				"volume_id":   vInfo.ID(),
 				"server_addr": serverInfo.Address,
 			})
@@ -324,7 +325,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 		// use local time to avoiding time shift
 		serverInfo.LastHeartbeatTime = time.Now()
 		if _err := ctrl.eventLogMgr.updateSegment(context.Background(), req); _err != nil {
-			log.Warning("update segment when received segment server heartbeat", map[string]interface{}{
+			log.Warning(ctx, "update segment when received segment server heartbeat", map[string]interface{}{
 				log.KeyError: err,
 				"volume_id":  req.VolumeId,
 				"server_id":  req.ServerId,
@@ -334,7 +335,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 	}
 
 	if err != nil && err != io.EOF {
-		log.Error("segment server heartbeat error", map[string]interface{}{
+		log.Error(ctx, "segment server heartbeat error", map[string]interface{}{
 			log.KeyError: err,
 		})
 	}
@@ -397,7 +398,7 @@ func (ctrl *controller) readyToStartSegmentServer(ctx context.Context, serverInf
 		SegmentServerId: uuid.NewString(),
 	})
 	if err != nil {
-		log.Warning("start segment server failed", map[string]interface{}{
+		log.Warning(ctx, "start segment server failed", map[string]interface{}{
 			log.KeyError: err,
 			"address":    serverInfo.Address,
 		})

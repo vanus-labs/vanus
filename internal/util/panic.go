@@ -15,6 +15,7 @@
 package util
 
 import (
+	"context"
 	"github.com/linkall-labs/vanus/observability/log"
 	"runtime"
 )
@@ -32,5 +33,5 @@ func logPanic(r interface{}) {
 	size := 1 << 10
 	stacktrace := make([]byte, size)
 	stacktrace = stacktrace[:runtime.Stack(stacktrace, false)]
-	log.Error("get a panic", map[string]interface{}{"recover": r, "stacktrace": string(stacktrace)})
+	log.Error(context.Background(), "get a panic", map[string]interface{}{"recover": r, "stacktrace": string(stacktrace)})
 }

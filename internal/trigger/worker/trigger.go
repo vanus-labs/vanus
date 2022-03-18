@@ -112,12 +112,12 @@ func (t *Trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 	for retryTimes < t.MaxRetryTimes {
 		retryTimes++
 		if err = doFunc(); !ce.IsACK(err) {
-			log.Debug("process event error", map[string]interface{}{
+			log.Debug(ctx, "process event error", map[string]interface{}{
 				"error": err, "retryTimes": retryTimes,
 			})
 			time.Sleep(3 * time.Second) //TODO 优化
 		} else {
-			log.Debug("send ce event success", map[string]interface{}{
+			log.Debug(ctx, "send ce event success", map[string]interface{}{
 				"event": e,
 			})
 			return nil
@@ -175,7 +175,7 @@ func (t *Trigger) runDeadLetterProcess(ctx context.Context) {
 			}
 			err := t.asDeadLetter(event)
 			if err != nil {
-				log.Error("send dead event to dead letter failed", map[string]interface{}{
+				log.Error(ctx, "send dead event to dead letter failed", map[string]interface{}{
 					"error": err,
 					"event": event,
 				})

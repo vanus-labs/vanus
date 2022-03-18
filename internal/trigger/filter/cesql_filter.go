@@ -32,7 +32,7 @@ func NewCESQLFilter(expression string) Filter {
 	}
 	parsed, err := cesqlparser.Parse(expression)
 	if err != nil {
-		log.Info("parse cesql filter expression error", map[string]interface{}{"expression": expression, "error": err})
+		log.Info(ctx, "parse cesql filter expression error", map[string]interface{}{"expression": expression, "error": err})
 		return nil
 	}
 	return &ceSQLFilter{rawExpression: expression, parsedExpression: parsed}
@@ -42,10 +42,10 @@ func (filter *ceSQLFilter) Filter(event ce.Event) FilterResult {
 	if filter == nil {
 		return FailFilter
 	}
-	log.Debug("cesql filter ", map[string]interface{}{"filter": filter, "event": event})
+	log.Debug(ctx, "cesql filter ", map[string]interface{}{"filter": filter, "event": event})
 	res, err := filter.parsedExpression.Evaluate(event)
 	if err != nil {
-		log.Info("cesql filter evaluate error ", map[string]interface{}{"filter": filter, "event": event})
+		log.Info(ctx, "cesql filter evaluate error ", map[string]interface{}{"filter": filter, "event": event})
 		return FailFilter
 	}
 

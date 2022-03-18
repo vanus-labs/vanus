@@ -64,24 +64,24 @@ func main() {
 	}
 	trigger.RegisterTriggerWorkerServer(grpcServer, srv)
 	go func() {
-		log.Info("the grpc server ready to work", nil)
+		log.Info(ctx, "the grpc server ready to work", nil)
 		err = grpcServer.Serve(listen)
 		if err != nil {
-			log.Error("grpc server occurred an error", map[string]interface{}{
+			log.Error(ctx, "grpc server occurred an error", map[string]interface{}{
 				log.KeyError: err,
 			})
 		}
 	}()
 
-	log.Info("trigger worker started", nil)
+	log.Info(ctx, "trigger worker started", nil)
 	exitCh := make(chan os.Signal)
 	signal.Notify(exitCh, os.Interrupt, syscall.SIGTERM)
 	<-exitCh
 	c := srv.(primitive.Closer)
 	if err := c.Close(); err != nil {
-		log.Error("the trigger worker close failed", map[string]interface{}{
+		log.Error(ctx, "the trigger worker close failed", map[string]interface{}{
 			log.KeyError: err,
 		})
 	}
-	log.Info("the grpc server has been shutdown", nil)
+	log.Info(ctx, "the grpc server has been shutdown", nil)
 }
