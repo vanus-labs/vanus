@@ -16,15 +16,12 @@ package log
 
 import (
 	"context"
+	"github.com/linkall-labs/vanus/internal/util"
 	"io"
 	"os"
 	"strings"
 
 	"github.com/sirupsen/logrus"
-)
-
-const (
-	KeyError = "error"
 )
 
 type Logger interface {
@@ -39,7 +36,7 @@ type Logger interface {
 
 func init() {
 	logger := logrus.New()
-	logger.Formatter = &logrus.TextFormatter{TimestampFormat: "2006-01-02T15:04:05Z07:00", FullTimestamp: true}
+	logger.Formatter = &logrus.TextFormatter{TimestampFormat: util.GetTimeLayout(), FullTimestamp: true}
 	r := &defaultLogger{
 		logger: logger,
 	}

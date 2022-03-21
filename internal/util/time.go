@@ -25,6 +25,10 @@ const (
 	vanusTimeLayout = "2006-01-02T15:04:05Z07:00"
 )
 
+func GetTimeLayout() string {
+	return vanusTimeLayout
+}
+
 func FormatTime(t time.Time) string {
 	return t.Format(vanusTimeLayout)
 }

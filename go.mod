@@ -14,6 +14,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/smartystreets/goconvey v1.7.2
+	github.com/tidwall/gjson v1.14.0
 	go.etcd.io/etcd/client/v3 v3.5.2
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 	google.golang.org/grpc v1.44.0
@@ -41,6 +42,8 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/scylladb/go-set v1.0.2 // indirect
 	github.com/smartystreets/assertions v1.2.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.2 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.2 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
