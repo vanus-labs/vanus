@@ -75,7 +75,7 @@ func (e *errorCode) Wrap(err error) {
 	e.underlayErrors = append(e.underlayErrors, err)
 }
 
-// Error return readable error message by string
+// Error return readable error message by JSON format
 func (e errorCode) Error() string {
 	str := fmt.Sprintf("{\"code\":%d, \"message\": \"%s\"", e.code, e.message)
 	if e.explanation != "" {
@@ -103,17 +103,16 @@ func ConvertGRPCError(code errorCode, notice Notice, errs ...error) error {
 	return fmt.Errorf("code: %d, notice: %s, error:%s", code.code, notice, errs)
 }
 
-// Chain method can group many errors as a single error. this is a helpful method there are many errors
+// Chain method can group many errors as a single error. this is a helpful method if there are many errors
 // will be occurred in one method.
 //
 // Example: if we have a loop in one method, and each iterator create a goroutine, each goroutine may
-// an error occurred, but we have to wait all goroutine done, in this situation, wo can use this method
+// an error occurred, but we have to wait all goroutine done, in this situation, we can use this method
 // to collect all errors occurred in different goroutine.
 //
 // Notice: this method is not CONCURRENCY SAFETY. you can see somewhere call this function to know more
 // details about how to use this method.
 func Chain(errs ...error) error {
-	// TODO optimize when idx=0 is nil
 	if len(errs) == 0 {
 		return nil
 	}
