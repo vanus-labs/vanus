@@ -31,14 +31,12 @@ import (
 )
 
 var (
-	defaultIP   = "127.0.0.1"
 	defaultPort = 2049
 )
 
 func main() {
-	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", defaultIP, defaultPort))
+	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", defaultPort))
 	ctx := context.Background()
-
 	if err != nil {
 		log.Error(ctx, "failed to listen", map[string]interface{}{
 			"error": err,
@@ -56,7 +54,6 @@ func main() {
 	controller.RegisterTriggerControllerServer(grpcServer, srv)
 	go func() {
 		log.Info(ctx, "the TriggerControlServer ready to work", map[string]interface{}{
-			"listen_ip":   defaultIP,
 			"listen_port": defaultPort,
 			"time":        util.FormatTime(time.Now()),
 		})

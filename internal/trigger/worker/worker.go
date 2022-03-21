@@ -17,6 +17,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -223,7 +224,8 @@ func testSend() {
 	ns.Register(vrn, br)
 	bw, err := eb.OpenBusWriter(ebVRN)
 	if err != nil {
-		log.Fatal("open bus writer error", map[string]interface{}{"error": err})
+		log.Error(context.Background(), "open bus writer error", map[string]interface{}{"error": err})
+		os.Exit(1)
 	}
 
 	go func() {
@@ -246,7 +248,7 @@ func testSend() {
 
 			_, err = bw.Append(context.Background(), &event)
 			if err != nil {
-				log.Error(ctx, "append event error", map[string]interface{}{"error": err})
+				log.Error(context.Background(), "append event error", map[string]interface{}{"error": err})
 			}
 		}
 	}()

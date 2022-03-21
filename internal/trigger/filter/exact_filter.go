@@ -15,6 +15,7 @@
 package filter
 
 import (
+	"context"
 	"fmt"
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -27,7 +28,7 @@ type exactFilter struct {
 func NewExactFilter(exact map[string]string) Filter {
 	for attr, v := range exact {
 		if attr == "" || v == "" {
-			log.Info(ctx, "new exact filter but has empty ", map[string]interface{}{
+			log.Info(context.Background(), "new exact filter but has empty ", map[string]interface{}{
 				"attr":  attr,
 				"value": v,
 			})
@@ -41,7 +42,7 @@ func (filter *exactFilter) Filter(event ce.Event) FilterResult {
 	if filter == nil {
 		return FailFilter
 	}
-	log.Debug(ctx, "exact filter ", map[string]interface{}{"filter": filter, "event": event})
+	log.Debug(context.Background(), "exact filter ", map[string]interface{}{"filter": filter, "event": event})
 	for attr, v := range filter.exact {
 		value, ok := LookupAttribute(event, attr)
 		if !ok || value != v {

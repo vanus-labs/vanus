@@ -12,32 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package filter
+package util
 
 import (
-	"context"
-	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/vanus/observability/log"
+	"net"
 )
 
-type anyFilter []Filter
+var LocalIp = getInternalIp()
 
-func NewAnyFilter(filters ...Filter) Filter {
-	if len(filters) == 0 {
-		return nil
+func getInternalIp() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		panic(err)
 	}
-	return append(anyFilter{}, filters...)
-}
-
-func (filter anyFilter) Filter(event ce.Event) FilterResult {
-	log.Debug(context.Background(), "any filter ", map[string]interface{}{"filter": filter, "event": event})
-	for _, f := range filter {
-		res := f.Filter(event)
-		if res == PassFilter {
-			return PassFilter
+	for _, addr := range addrs {
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String()
+			}
 		}
 	}
-	return FailFilter
+	return ""
 }
-
-var _ Filter = (*anyFilter)(nil)

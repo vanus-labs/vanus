@@ -15,6 +15,7 @@
 package filter
 
 import (
+	"context"
 	"fmt"
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -28,7 +29,7 @@ type prefixFilter struct {
 func NewPrefixFilter(prefix map[string]string) Filter {
 	for attr, v := range prefix {
 		if attr == "" || v == "" {
-			log.Info(ctx, "new prefix filter but has empty ", map[string]interface{}{
+			log.Info(context.Background(), "new prefix filter but has empty ", map[string]interface{}{
 				"attr":  attr,
 				"value": v,
 			})
@@ -42,7 +43,7 @@ func (filter *prefixFilter) Filter(event ce.Event) FilterResult {
 	if filter == nil {
 		return FailFilter
 	}
-	log.Debug(ctx, "prefix filter ", map[string]interface{}{"filter": filter, "event": event})
+	log.Debug(context.Background(), "prefix filter ", map[string]interface{}{"filter": filter, "event": event})
 	for attr, prefix := range filter.prefix {
 		value, ok := LookupAttribute(event, attr)
 		if !ok {

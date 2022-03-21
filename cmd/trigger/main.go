@@ -20,6 +20,7 @@ import (
 	"github.com/linkall-labs/vanus/config"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger/worker"
+	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vsproto/pkg/trigger"
 	"google.golang.org/grpc"
@@ -30,20 +31,23 @@ import (
 )
 
 var (
-	defaultIP        = "127.0.0.1"
 	defaultPort      = 2149
-	trControllerIP   = "127.0.0.1"
+	trControllerIP   = ""
 	trControllerPort = 2049
 )
 
 func main() {
+	if trControllerIP == "" {
+		trControllerIP = util.LocalIp
+	}
 	trControllerAddr := fmt.Sprintf("%s:%d", trControllerIP, trControllerPort)
-	trWorkerAddr := fmt.Sprintf("%s:%d", defaultIP, defaultPort)
-	listen, err := net.Listen("tcp", trWorkerAddr)
+	trWorkerAddr := fmt.Sprintf("%s:%d", util.LocalIp, defaultPort)
+	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", defaultPort))
 	if err != nil {
-		log.Fatal("failed to listen", map[string]interface{}{
+		log.Error(context.Background(), "failed to listen", map[string]interface{}{
 			"error": err,
 		})
+		os.Exit(-1)
 	}
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
@@ -58,9 +62,10 @@ func main() {
 	init := srv.(primitive.Initializer)
 	if err = init.Initialize(ctx); err != nil {
 		stopCallback()
-		log.Fatal("the trigger worker has initialized failed", map[string]interface{}{
+		log.Error(ctx, "the trigger worker has initialized failed", map[string]interface{}{
 			log.KeyError: err,
 		})
+		os.Exit(1)
 	}
 	trigger.RegisterTriggerWorkerServer(grpcServer, srv)
 	go func() {

@@ -35,7 +35,7 @@ func TestEventBusWrite(t *testing.T) {
 		panic(err)
 	}
 	c.StartReceiver(context.Background(), func(e ce.Event) {
-		log.Info(ctx, "receive event", map[string]interface{}{
+		log.Info(context.Background(), "receive event", map[string]interface{}{
 			"event": e,
 		})
 	})

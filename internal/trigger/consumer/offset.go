@@ -120,6 +120,7 @@ func (offset *EventLogOffset) commit() {
 			continue
 		}
 		o.setCommit(c)
+		ctx := context.Background()
 		log.Debug(ctx, "commit offset", map[string]interface{}{"sub": offset.sub, "el": k, "offset": c})
 		err := offset.storage.UpdateOffset(context.Background(), &info.OffsetInfo{
 			SubId:    offset.sub,

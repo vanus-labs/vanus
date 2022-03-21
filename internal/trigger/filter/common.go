@@ -41,9 +41,6 @@ func LookupAttribute(event ce.Event, attr string) (interface{}, bool) {
 		return event.DataContentType(), true
 	case "datamediatype":
 		return event.DataMediaType(), true
-	case "datacontentencoding":
-		// TODO: use data_base64 when SDK supports it.
-		return event.DeprecatedDataContentEncoding(), true
 	default:
 		val, ok := event.Extensions()[attr]
 		return val, ok

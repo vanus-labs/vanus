@@ -180,8 +180,15 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 				lr.Close()
 				return
 			case context.DeadlineExceeded:
+				log.Warning(ctx, "readEvents error", map[string]interface{}{
+					"sub":        lc.sub,
+					"elVrn":      lc.elVrn,
+					"offset":     offset,
+					log.KeyError: err,
+				})
 				continue
 			case eberrors.ErrOnEnd:
+			case eberrors.ErrUnderflow:
 			default:
 				//other error
 
