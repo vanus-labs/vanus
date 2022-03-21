@@ -82,7 +82,8 @@ func (tw *triggerWorker) Start() error {
 }
 
 func (tw *triggerWorker) startTriggerWorker() error {
-	_, err := tw.twClient.Start(context.Background(), &trigger.StartTriggerWorkerRequest{})
+	ctx := context.Background()
+	_, err := tw.twClient.Start(ctx, &trigger.StartTriggerWorkerRequest{})
 	if err != nil {
 		return errors.Wrap(err, "twClient start triggerWorker error")
 	}
@@ -90,7 +91,8 @@ func (tw *triggerWorker) startTriggerWorker() error {
 }
 
 func (tw *triggerWorker) stopTriggerWorker() error {
-	_, err := tw.twClient.Stop(context.Background(), &trigger.StopTriggerWorkerRequest{})
+	ctx := context.Background()
+	_, err := tw.twClient.Stop(ctx, &trigger.StopTriggerWorkerRequest{})
 	if err != nil {
 		return errors.Wrap(err, "twClient stop triggerWorker error")
 	}

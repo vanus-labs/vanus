@@ -94,10 +94,10 @@ func (w *Worker) Stop() error {
 	var wg sync.WaitGroup
 	for id := range w.subscriptions {
 		wg.Add(1)
-		go func() {
+		go func(id string) {
 			defer wg.Done()
 			w.stopSub(id)
-		}()
+		}(id)
 	}
 	wg.Wait()
 	w.cancel()
@@ -111,9 +111,15 @@ func (w *Worker) Stop() error {
 
 func (w *Worker) stopSub(id string) {
 	if info, exist := w.subscriptions[id]; exist {
+		log.Info(w.ctx, "worker begin stop subscription", map[string]interface{}{
+			"subId": id,
+		})
 		info.consumer.Close()
 		info.trigger.Stop()
 		info.offsetManager.Close()
+		log.Info(w.ctx, "worker success stop subscription", map[string]interface{}{
+			"subId": id,
+		})
 	}
 }
 
@@ -199,16 +205,11 @@ func (w *Worker) RemoveSubscription(id string) error {
 func testSend() {
 	ebVRN := "vanus+local:eventbus:example"
 	elVRN := "vanus+inmemory:eventlog:1"
-	elVRN2 := "vanus+inmemory:eventlog:2"
 	br := &record.EventBus{
 		VRN: ebVRN,
 		Logs: []*record.EventLog{
 			{
 				VRN:  elVRN,
-				Mode: record.PremWrite | record.PremRead,
-			},
-			{
-				VRN:  elVRN2,
 				Mode: record.PremWrite | record.PremRead,
 			},
 		},

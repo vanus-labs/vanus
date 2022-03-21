@@ -55,9 +55,17 @@ func NewConsumer(ebVRN, sub string, offsetManager *EventLogOffset, handler Event
 }
 
 func (c *Consumer) Close() {
+	log.Info(c.stctx, "consumer stop...", map[string]interface{}{
+		"subId": c.sub,
+	})
+	if c.cancel != nil {
+		c.cancel()
+	}
 	c.stop()
-	c.cancel()
 	c.wg.Wait()
+	log.Info(c.stctx, "consumer stop", map[string]interface{}{
+		"subId": c.sub,
+	})
 }
 func (c *Consumer) Start(parent context.Context) error {
 	c.stctx, c.stop = context.WithCancel(parent)
@@ -81,8 +89,12 @@ func (c *Consumer) checkEventLogChange() {
 	defer cancel()
 	els, err := eb.LookupReadableLogs(ctx, c.ebVrn)
 	if err != nil {
+		if err == context.Canceled {
+			return
+		}
 		log.Error(ctx, "eventbus lookup Readable log error", map[string]interface{}{
 			"ebVrn":      c.ebVrn,
+			"subId":      c.sub,
 			log.KeyError: err,
 		})
 		return

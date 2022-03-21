@@ -30,10 +30,10 @@ type etcdClient3 struct {
 
 func NewEtcdClientV3(endpoints []string, keyPrefix string) (*etcdClient3, error) {
 	client, err := v3client.New(v3client.Config{
-		Endpoints:   endpoints,
-		DialTimeout: 5 * time.Second,
-		//DialKeepAliveTime:    1 * time.Second,
-		//DialKeepAliveTimeout: 3 * time.Second,
+		Endpoints:            endpoints,
+		DialTimeout:          5 * time.Second,
+		DialKeepAliveTime:    1 * time.Second,
+		DialKeepAliveTimeout: 3 * time.Second,
 	})
 	if err != nil {
 		return nil, err

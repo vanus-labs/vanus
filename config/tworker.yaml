@@ -1,0 +1,5 @@
+port: 2149
+triggerCtrlAddr : "127.0.0.1:2049"
+storage:
+  keyPrefix: "/xdl/trigger"
+  serverList: ["127.0.0.1:2379"]

@@ -240,15 +240,20 @@ func (t *Trigger) Start(parent context.Context) error {
 }
 
 func (t *Trigger) Stop() {
+	ctx := context.Background()
+	log.Info(ctx, "trigger stop...", map[string]interface{}{
+		"subId": t.SubscriptionID,
+	})
 	if t.state == TriggerStopped {
 		return
 	}
 	t.stop()
 	t.wg.Wait()
-	close(t.eventCh)
-	close(t.sendCh)
-	close(t.deadLetterCh)
+
 	t.state = TriggerStopped
+	log.Info(ctx, "trigger stopped", map[string]interface{}{
+		"subId": t.SubscriptionID,
+	})
 }
 
 func (t *Trigger) GetState() TriggerState {

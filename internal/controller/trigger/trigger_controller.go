@@ -260,6 +260,9 @@ func (ctrl *triggerController) addTriggerWorker(twInfo *info.TriggerWorkerInfo) 
 		if ctrl.state == controllerRunning {
 			//controller 启动完成了，才上报心跳，上报的慢了,则把triggerWorker给停了
 			tWorker.Stop()
+			log.Info(ctrl.ctx, "stop trigger worker success", map[string]interface{}{
+				"twAddr": addr,
+			})
 			return nil
 		} else if ctrl.state == controllerStarting {
 			//triggerController重启了，tWorker上报心跳，收集trigger正在运行的sub
@@ -298,32 +301,37 @@ func (ctrl *triggerController) removeTriggerWorker(ctx context.Context, addr, re
 }
 
 func (ctrl *triggerController) Start() error {
+	log.Info(ctrl.ctx, "trigger controller start...", nil)
 	s, err := storage.NewSubscriptionStorage(ctrl.config.Storage)
 	if err != nil {
 		return err
 	}
 	ctrl.storage = s
-
 	//TODO page list
 	subList, err := s.ListSubscription(context.Background())
 	if err != nil {
 		s.Close()
 		return errors.Wrap(err, "list subscription error")
 	}
-	log.Info(context.Background(), "triggerController subscription size", map[string]interface{}{
+	log.Info(ctrl.ctx, "triggerController subscription size", map[string]interface{}{
 		"size": len(subList),
 	})
 	ctrl.state = controllerStarting
-	//wait all triggerWorker heartbeat,todo 优化
-	time.Sleep(time.Second * 10)
-	for _, sub := range subList {
-		//left is no trigger worker heartbeat
-		if _, exist := ctrl.subscriptions[sub.ID]; !exist {
-			ctrl.addSubToQueue(sub.ID, "controller start")
+	go func() {
+		log.Info(ctrl.ctx, "trigger controller init", nil)
+		//wait all triggerWorker heartbeat,todo 优化
+		time.Sleep(time.Second * time.Duration(ctrl.config.WaitTriggerTime))
+		for _, sub := range subList {
+			//left is no trigger worker heartbeat
+			if _, exist := ctrl.subscriptions[sub.ID]; !exist {
+				ctrl.addSubToQueue(sub.ID, "controller start")
+			}
 		}
-	}
-	ctrl.run()
-	ctrl.state = controllerRunning
+		ctrl.run()
+		ctrl.state = controllerRunning
+		log.Info(ctrl.ctx, "trigger controller init complete", nil)
+	}()
+	log.Info(ctrl.ctx, "trigger controller started", nil)
 	return nil
 }
 

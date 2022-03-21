@@ -12,7 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package primitive
+
+import (
+	"gopkg.in/yaml.v3"
+	"io/ioutil"
+)
 
 type StorageKeyPrefix string
 
@@ -28,4 +33,16 @@ const (
 type KvStorageConfig struct {
 	KeyPrefix  string   `yaml:"keyPrefix" json:"keyPrefix"`
 	ServerList []string `yaml:"serverList" json:"serverList"`
+}
+
+func LoadConfig(filename string, config interface{}) error {
+	b, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	err = yaml.Unmarshal(b, config)
+	if err != nil {
+		return err
+	}
+	return nil
 }

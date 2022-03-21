@@ -17,9 +17,9 @@ package storage
 import (
 	"context"
 	"fmt"
-	"github.com/linkall-labs/vanus/config"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
+	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/pkg/errors"
 	"path"
@@ -38,7 +38,7 @@ type offsetStorage struct {
 	client kv.Client
 }
 
-func NewOffsetStorage(config config.KvStorageConfig) (OffsetStorage, error) {
+func NewOffsetStorage(config primitive.KvStorageConfig) (OffsetStorage, error) {
 	client, err := etcd.NewEtcdClientV3(config.ServerList, config.KeyPrefix)
 	if err != nil {
 		return nil, errors.Wrap(err, "new etcd client has error")
@@ -53,18 +53,18 @@ func (s *offsetStorage) Close() error {
 }
 
 func (s *offsetStorage) CreateOffset(ctx context.Context, info *info.OffsetInfo) error {
-	key := path.Join(config.StorageOffset.String(), info.SubId, info.EventLog)
+	key := path.Join(primitive.StorageOffset.String(), info.SubId, info.EventLog)
 	v := []byte(fmt.Sprintf("%d", info.Offset))
 	return s.client.Create(ctx, key, v)
 }
 
 func (s *offsetStorage) UpdateOffset(ctx context.Context, info *info.OffsetInfo) error {
-	key := path.Join(config.StorageOffset.String(), info.SubId, info.EventLog)
+	key := path.Join(primitive.StorageOffset.String(), info.SubId, info.EventLog)
 	return s.client.Update(ctx, key, []byte(fmt.Sprintf("%d", info.Offset)))
 }
 
 func (s *offsetStorage) GetOffset(ctx context.Context, info *info.OffsetInfo) (int64, error) {
-	key := path.Join(config.StorageOffset.String(), info.SubId, info.EventLog)
+	key := path.Join(primitive.StorageOffset.String(), info.SubId, info.EventLog)
 	v, err := s.client.Get(ctx, key)
 	if err != nil {
 		return 0, err
@@ -77,7 +77,7 @@ func (s *offsetStorage) GetOffset(ctx context.Context, info *info.OffsetInfo) (i
 }
 
 func (s *offsetStorage) ListOffset(ctx context.Context, subId string) ([]*info.OffsetInfo, error) {
-	key := path.Join(config.StorageOffset.String(), subId, "/")
+	key := path.Join(primitive.StorageOffset.String(), subId, "/")
 	l, err := s.client.List(ctx, key)
 	if err != nil {
 		return nil, err

@@ -12,6 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package trigger
 
-// This is a place-holder file for directory visible and can be deleted after any entity file added
+import (
+	"github.com/linkall-labs/vanus/internal/primitive"
+)
+
+type Config struct {
+	Port            int                       `yaml:"port"`
+	Storage         primitive.KvStorageConfig `yaml:"storage"`
+	TriggerCtrlAddr string                    `yaml:"triggerCtrlAddr"`
+}
+
+func Init(filename string) (*Config, error) {
+	c := new(Config)
+	err := primitive.LoadConfig(filename, c)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}

@@ -14,8 +14,12 @@
 
 package worker
 
-import "github.com/linkall-labs/vanus/config"
+import (
+	"github.com/linkall-labs/vanus/internal/primitive"
+)
 
 type Config struct {
-	Storage config.KvStorageConfig `yaml:"storage" json:"storage"`
+	Storage         primitive.KvStorageConfig
+	TriggerCtrlAddr string
+	TriggerAddr     string
 }

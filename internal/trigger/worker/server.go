@@ -20,7 +20,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vsproto/pkg/controller"
-	"github.com/linkall-labs/vsproto/pkg/trigger"
+	pbtrigger "github.com/linkall-labs/vsproto/pkg/trigger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"io"
@@ -30,47 +30,42 @@ import (
 )
 
 type server struct {
-	worker       *Worker
-	stopCallback func()
-	twAddr       string
-	tcAddr       string
-	tcCc         *grpc.ClientConn
-	tcClient     controller.TriggerControllerClient
-	ctx          context.Context
-	cancel       context.CancelFunc
-	wg           sync.WaitGroup
+	worker   *Worker
+	config   Config
+	tcCc     *grpc.ClientConn
+	tcClient controller.TriggerControllerClient
+	ctx      context.Context
+	cancel   context.CancelFunc
+	wg       sync.WaitGroup
+	stopped  bool
 }
 
-func NewTriggerServer(tcAddr, twAddr string, config Config, stop func()) trigger.TriggerWorkerServer {
-	ctx, cancel := context.WithCancel(context.Background())
-	return &server{
-		twAddr:       twAddr,
-		tcAddr:       tcAddr,
-		stopCallback: stop,
-		worker:       NewWorker(config),
-		ctx:          ctx,
-		cancel:       cancel,
+func NewTriggerServer(config Config) pbtrigger.TriggerWorkerServer {
+	s := &server{
+		config: config,
+		worker: NewWorker(config),
 	}
+	return s
 }
 
-func (s *server) Start(ctx context.Context, request *trigger.StartTriggerWorkerRequest) (*trigger.StartTriggerWorkerResponse, error) {
+func (s *server) Start(ctx context.Context, request *pbtrigger.StartTriggerWorkerRequest) (*pbtrigger.StartTriggerWorkerResponse, error) {
 	log.Info(ctx, "worker server start ", map[string]interface{}{"request": request})
 	err := s.worker.Start()
 	if err != nil {
 		return nil, err
 	}
 	s.startHeartbeat()
-	return &trigger.StartTriggerWorkerResponse{}, nil
+	return &pbtrigger.StartTriggerWorkerResponse{}, nil
 }
 
-func (s *server) Stop(ctx context.Context, request *trigger.StopTriggerWorkerRequest) (*trigger.StopTriggerWorkerResponse, error) {
+func (s *server) Stop(ctx context.Context, request *pbtrigger.StopTriggerWorkerRequest) (*pbtrigger.StopTriggerWorkerResponse, error) {
 	log.Info(ctx, "worker server stop ", map[string]interface{}{"request": request})
-	s.stop()
-	s.tcCc.Close()
-	return &trigger.StopTriggerWorkerResponse{}, nil
+	s.stop(false)
+	os.Exit(1)
+	return &pbtrigger.StopTriggerWorkerResponse{}, nil
 }
 
-func (s *server) AddSubscription(ctx context.Context, request *trigger.AddSubscriptionRequest) (*trigger.AddSubscriptionResponse, error) {
+func (s *server) AddSubscription(ctx context.Context, request *pbtrigger.AddSubscriptionRequest) (*pbtrigger.AddSubscriptionResponse, error) {
 	log.Info(ctx, "subscription add ", map[string]interface{}{"request": request})
 	sub, err := convert.FromPbSubscription(request.Subscription)
 	if err != nil {
@@ -88,10 +83,10 @@ func (s *server) AddSubscription(ctx context.Context, request *trigger.AddSubscr
 			return nil, err
 		}
 	}
-	return &trigger.AddSubscriptionResponse{}, nil
+	return &pbtrigger.AddSubscriptionResponse{}, nil
 }
 
-func (s *server) RemoveSubscription(ctx context.Context, request *trigger.RemoveSubscriptionRequest) (*trigger.RemoveSubscriptionResponse, error) {
+func (s *server) RemoveSubscription(ctx context.Context, request *pbtrigger.RemoveSubscriptionRequest) (*pbtrigger.RemoveSubscriptionResponse, error) {
 	log.Info(ctx, "subscription remove ", map[string]interface{}{"request": request})
 	err := s.worker.RemoveSubscription(request.Id)
 	if err != nil {
@@ -100,65 +95,78 @@ func (s *server) RemoveSubscription(ctx context.Context, request *trigger.Remove
 			log.KeyError: err,
 		})
 	}
-	return &trigger.RemoveSubscriptionResponse{}, nil
+	return &pbtrigger.RemoveSubscriptionResponse{}, nil
 }
 
-func (s *server) PauseSubscription(ctx context.Context, request *trigger.PauseSubscriptionRequest) (*trigger.PauseSubscriptionResponse, error) {
+func (s *server) PauseSubscription(ctx context.Context, request *pbtrigger.PauseSubscriptionRequest) (*pbtrigger.PauseSubscriptionResponse, error) {
 	log.Info(ctx, "subscription pause ", map[string]interface{}{"request": request})
 	s.worker.PauseSubscription(request.Id)
-	return &trigger.PauseSubscriptionResponse{}, nil
+	return &pbtrigger.PauseSubscriptionResponse{}, nil
 }
 
-func (s *server) ResumeSubscription(ctx context.Context, request *trigger.ResumeSubscriptionRequest) (*trigger.ResumeSubscriptionResponse, error) {
+func (s *server) ResumeSubscription(ctx context.Context, request *pbtrigger.ResumeSubscriptionRequest) (*pbtrigger.ResumeSubscriptionResponse, error) {
 	log.Debug(ctx, "subscription resume ", map[string]interface{}{"request": request})
-	return &trigger.ResumeSubscriptionResponse{}, nil
+	return &pbtrigger.ResumeSubscriptionResponse{}, nil
 }
 
 func (s *server) Initialize(ctx context.Context) error {
+	s.ctx, s.cancel = context.WithCancel(ctx)
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	cc, err := grpc.Dial(s.tcAddr, opts...)
+	timeCtx, cancel := context.WithTimeout(s.ctx, time.Second*10)
+	defer cancel()
+	cc, err := grpc.DialContext(timeCtx, s.config.TriggerCtrlAddr, opts...)
 	if err != nil {
 		return err
 	}
 	s.tcCc = cc
 	s.tcClient = controller.NewTriggerControllerClient(cc)
 	_, err = s.tcClient.RegisterTriggerWorker(ctx, &controller.RegisterTriggerWorkerRequest{
-		Address: s.twAddr,
+		Address: s.config.TriggerAddr,
 	})
 	if err != nil {
 		log.Error(ctx, "register trigger worker error", map[string]interface{}{
-			"tcAddr":     s.tcAddr,
+			"tcAddr":     s.config.TriggerCtrlAddr,
 			log.KeyError: err,
 		})
 		s.tcCc.Close()
 		return err
 	}
+	log.Info(ctx, "trigger worker register success", map[string]interface{}{
+		"triggerCtrlAddr":   s.config.TriggerCtrlAddr,
+		"triggerWorkerAddr": s.config.TriggerAddr,
+	})
+	go func() {
+		<-ctx.Done()
+		log.Info(ctx, "trigger worker server stop...", nil)
+		s.stop(true)
+		log.Info(ctx, "trigger worker server stopped", nil)
+	}()
 	return nil
 }
 
-func (s *server) stop() {
-	s.worker.Stop()
-	s.cancel()
-	s.wg.Wait()
-}
-
-func (s *server) Close() error {
-	s.stopCallback()
-	s.stop()
-	_, err := s.tcClient.UnregisterTriggerWorker(context.Background(), &controller.UnregisterTriggerWorkerRequest{
-		Address: s.twAddr,
-	})
-	ctx := context.Background()
-	if err != nil {
-		log.Error(ctx, "unregister trigger worker failed", map[string]interface{}{
-			"addr":       s.tcAddr,
-			log.KeyError: err,
-		})
-	} else {
-		log.Info(ctx, "unregister trigger worker success", nil)
+func (s *server) stop(sendUnregister bool) {
+	if s.stopped {
+		return
 	}
-	return s.tcCc.Close()
+	s.cancel()
+	s.worker.Stop()
+	if sendUnregister {
+		_, err := s.tcClient.UnregisterTriggerWorker(context.Background(), &controller.UnregisterTriggerWorkerRequest{
+			Address: s.config.TriggerAddr,
+		})
+		if err != nil {
+			log.Error(s.ctx, "unregister trigger worker error", map[string]interface{}{
+				"addr":       s.config.TriggerCtrlAddr,
+				log.KeyError: err,
+			})
+		} else {
+			log.Info(s.ctx, "unregister trigger worker success", nil)
+		}
+	}
+	s.wg.Wait()
+	s.tcCc.Close()
+	s.stopped = true
 }
 
 const (
@@ -178,12 +186,12 @@ func (s *server) startHeartbeat() {
 			stream, err = s.tcClient.TriggerWorkerHeartbeat(context.Background())
 			if err != nil {
 				log.Info(ctx, "heartbeat error", map[string]interface{}{
-					"addr":       s.tcAddr,
+					"addr":       s.config.TriggerCtrlAddr,
 					log.KeyError: err,
 				})
 				if time.Now().Sub(beginConnTime) > heartbeatMaxConnTime {
 					log.Error(ctx, "heartbeat exit", map[string]interface{}{
-						"addr":       s.tcAddr,
+						"addr":       s.config.TriggerCtrlAddr,
 						log.KeyError: err,
 					})
 					//todo now exit trigger worker, maybe only stop trigger
@@ -203,7 +211,7 @@ func (s *server) startHeartbeat() {
 				}
 				err = stream.Send(&controller.TriggerWorkerHeartbeatRequest{
 					Started: s.worker.started,
-					Address: s.twAddr,
+					Address: s.config.TriggerAddr,
 					SubIds:  ids,
 				})
 				if err != nil {
@@ -211,14 +219,14 @@ func (s *server) startHeartbeat() {
 						err = stream.CloseSend()
 						log.Warning(ctx, "heartbeat send request receive fail,will retry", map[string]interface{}{
 							"time": time.Now(),
-							"addr": s.tcAddr,
+							"addr": s.config.TriggerCtrlAddr,
 						})
 						beginConnTime = time.Now()
 						break sendLoop
 					}
 					log.Info(ctx, "heartbeat send request error", map[string]interface{}{
 						"time":       time.Now(),
-						"addr":       s.tcAddr,
+						"addr":       s.config.TriggerCtrlAddr,
 						log.KeyError: err,
 					})
 				} else {

@@ -15,9 +15,24 @@
 package trigger
 
 import (
-	"github.com/linkall-labs/vanus/config"
+	"github.com/linkall-labs/vanus/internal/primitive"
 )
 
 type Config struct {
-	Storage config.KvStorageConfig `yaml:"storage"`
+	//grpc server config
+	Port int `yaml:"port"`
+	//start trigger control wait time for trigger heartbeat ,then trigger controller can collect running trigger worker
+	//unit second
+	WaitTriggerTime int `yaml:"waitTriggerTime"`
+	// etcd storage config
+	Storage primitive.KvStorageConfig `yaml:"storage"`
+}
+
+func Init(filename string) (*Config, error) {
+	c := new(Config)
+	err := primitive.LoadConfig(filename, c)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
 }

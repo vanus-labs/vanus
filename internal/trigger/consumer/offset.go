@@ -51,10 +51,10 @@ func (offset *EventLogOffset) Start(parent context.Context) {
 	go func() {
 		defer offset.wg.Done()
 		tk := time.NewTicker(100 * time.Millisecond)
+		defer tk.Stop()
 		for {
 			select {
 			case <-ctx.Done():
-				tk.Stop()
 				offset.commit()
 				return
 			case <-tk.C:
@@ -114,15 +114,16 @@ func (offset *EventLogOffset) EventCommit(record *info.EventRecord) {
 func (offset *EventLogOffset) commit() {
 	offset.mutex.Lock()
 	defer offset.mutex.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 	for k, o := range offset.eventLog {
 		c := o.offsetToCommit()
 		if c <= o.getCommit() {
 			continue
 		}
 		o.setCommit(c)
-		ctx := context.Background()
 		log.Debug(ctx, "commit offset", map[string]interface{}{"sub": offset.sub, "el": k, "offset": c})
-		err := offset.storage.UpdateOffset(context.Background(), &info.OffsetInfo{
+		err := offset.storage.UpdateOffset(ctx, &info.OffsetInfo{
 			SubId:    offset.sub,
 			EventLog: k,
 			Offset:   c,
