@@ -8,7 +8,7 @@ import (
 )
 
 func TestErrorCodeAllMethods(t *testing.T) {
-	Convey("test errorCode.Equals", t, func() {
+	Convey("test errorCode", t, func() {
 		err1 := ErrCreateEventbus
 		err2 := ErrAllocateSegment
 		Convey("equals testing", func() {
@@ -84,5 +84,20 @@ func TestErrorCodeAllMethods(t *testing.T) {
 }
 
 func TestChain(t *testing.T) {
+	Convey("test chain method", t, func() {
+		err := Chain()
+		So(err, ShouldBeNil)
 
+		err = Chain(nil)
+		So(err, ShouldBeNil)
+
+		err = Chain(nil, errors.New("err1"))
+		So(err, ShouldResemble, Chain(nil, errors.New("err1")))
+
+		err = Chain(err, errors.New("err2"))
+		So(errors.Unwrap(err).Error(), ShouldResemble, "err2: err1")
+
+		err = Chain(err, errors.New("err3"), nil, errors.New("err4"))
+		So(errors.Unwrap(err).Error(), ShouldResemble, "err4: err3: err2: err1")
+	})
 }
