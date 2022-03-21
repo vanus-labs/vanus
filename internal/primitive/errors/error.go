@@ -40,7 +40,7 @@ var (
 )
 
 type errorCode struct {
-	code           int `json:"code"`
+	code           int
 	message        string
 	explanation    string
 	underlayErrors []error
