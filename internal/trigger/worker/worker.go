@@ -17,6 +17,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"github.com/linkall-labs/vanus/internal/trigger/offset"
 	"os"
 	"sync"
 	"time"
@@ -28,7 +29,6 @@ import (
 	"github.com/linkall-labs/eventbus-go/pkg/inmemory"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger/consumer"
-	"github.com/linkall-labs/vanus/internal/trigger/storage"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/pkg/errors"
 )
@@ -41,6 +41,7 @@ var (
 
 type Worker struct {
 	subscriptions map[string]*subscriptionInfo
+	offsetManager *offset.Manager
 	lock          sync.RWMutex
 	started       bool
 	startedLock   sync.Mutex
@@ -48,19 +49,18 @@ type Worker struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 	config        Config
-	storage       storage.OffsetStorage
 }
 
 type subscriptionInfo struct {
-	sub           *primitive.Subscription
-	trigger       *Trigger
-	consumer      *consumer.Consumer
-	offsetManager *consumer.EventLogOffset
+	sub      *primitive.Subscription
+	trigger  *Trigger
+	consumer *consumer.Consumer
 }
 
 func NewWorker(config Config) *Worker {
 	w := &Worker{
 		subscriptions: map[string]*subscriptionInfo{},
+		offsetManager: offset.NewOffsetManager(),
 		config:        config,
 	}
 	w.ctx, w.cancel = context.WithCancel(context.Background())
@@ -73,11 +73,6 @@ func (w *Worker) Start() error {
 	if w.started {
 		return nil
 	}
-	s, err := storage.NewOffsetStorage(w.config.Storage)
-	if err != nil {
-		return err
-	}
-	w.storage = s
 	w.started = true
 	testSend()
 	return nil
@@ -101,7 +96,6 @@ func (w *Worker) Stop() error {
 	}
 	wg.Wait()
 	w.cancel()
-	w.storage.Close()
 	for id := range w.subscriptions {
 		w.cleanSub(id)
 	}
@@ -116,7 +110,6 @@ func (w *Worker) stopSub(id string) {
 		})
 		info.consumer.Close()
 		info.trigger.Stop()
-		info.offsetManager.Close()
 		log.Info(w.ctx, "worker success stop subscription", map[string]interface{}{
 			"subId": id,
 		})
@@ -147,29 +140,26 @@ func (w *Worker) AddSubscription(sub *primitive.Subscription) error {
 	if _, exist := w.subscriptions[sub.ID]; exist {
 		return SubExist
 	}
-	offsetManager := consumer.NewEventLogOffset(sub.ID, w.storage)
-	offsetManager.Start(w.ctx)
-	tr := NewTrigger(sub, offsetManager)
-	ebVrn := sub.EventBus
-	if ebVrn == "" {
-		ebVrn = defaultEbVRN
-	}
-	c := consumer.NewConsumer(ebVrn, sub.ID, offsetManager, tr.EventArrived)
+	subOffset := w.offsetManager.RegisterSubscription(sub.ID)
+	tr := NewTrigger(sub, subOffset)
+	consumerConfig := getConsumerConfig(sub)
+	offset := w.getOffset(sub.ID)
+	c := consumer.NewConsumer(consumerConfig, offset, subOffset, tr.GetEventCh())
 	err := c.Start(w.ctx)
 	if err != nil {
-		offsetManager.Close()
+		w.offsetManager.RemoveSubscription(sub.ID)
 		return err
 	}
 	err = tr.Start(w.ctx)
 	if err != nil {
 		c.Close()
-		offsetManager.Close()
+		w.offsetManager.RemoveSubscription(sub.ID)
+		return err
 	}
 	w.subscriptions[sub.ID] = &subscriptionInfo{
-		sub:           sub,
-		trigger:       tr,
-		consumer:      c,
-		offsetManager: offsetManager,
+		sub:      sub,
+		trigger:  tr,
+		consumer: c,
 	}
 	return nil
 }
@@ -200,6 +190,21 @@ func (w *Worker) RemoveSubscription(id string) error {
 	w.stopSub(id)
 	w.cleanSub(id)
 	return nil
+}
+
+func getConsumerConfig(sub *primitive.Subscription) consumer.Config {
+	ebVrn := sub.EventBus
+	if ebVrn == "" {
+		ebVrn = defaultEbVRN
+	}
+	return consumer.Config{
+		EventBus: ebVrn,
+		SubId:    sub.ID,
+	}
+}
+
+func (w *Worker) getOffset(subId string) map[string]int64 {
+	return map[string]int64{}
 }
 
 func testSend() {

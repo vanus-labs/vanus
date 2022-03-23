@@ -18,6 +18,7 @@ import (
 	"context"
 	ce "github.com/cloudevents/sdk-go/v2"
 	eberrors "github.com/linkall-labs/eventbus-go/pkg/errors"
+	"github.com/linkall-labs/vanus/internal/trigger/offset"
 	"io"
 	"sync"
 	"time"
@@ -31,12 +32,18 @@ import (
 	"github.com/pkg/errors"
 )
 
+type Config struct {
+	EventBus        string
+	SubId           string
+	TriggerCtrlAddr string
+}
+
 type Consumer struct {
-	ebVrn         string
-	sub           string
-	offsetManager *EventLogOffset
-	elConsumer    map[string]EventLogConsumer
-	handler       EventHandler
+	config        Config
+	offsetManager *offset.SubscriptionOffset
+	elConsumer    map[string]*EventLogConsumer
+	events        chan<- *info.EventRecord
+	offset        map[string]int64
 	cancel        context.CancelFunc
 	stop          context.CancelFunc
 	stctx         context.Context
@@ -44,31 +51,29 @@ type Consumer struct {
 	lock          sync.Mutex
 }
 
-func NewConsumer(ebVRN, sub string, offsetManager *EventLogOffset, handler EventHandler) *Consumer {
-	return &Consumer{
-		ebVrn:         ebVRN,
-		sub:           sub,
+func NewConsumer(config Config, offset map[string]int64, offsetManager *offset.SubscriptionOffset, events chan<- *info.EventRecord) *Consumer {
+	c := &Consumer{
+		config:        config,
+		offset:        offset,
 		offsetManager: offsetManager,
-		handler:       handler,
-		elConsumer:    map[string]EventLogConsumer{},
+		events:        events,
+		elConsumer:    map[string]*EventLogConsumer{},
+		cancel:        func() {},
 	}
+	c.stctx, c.stop = context.WithCancel(context.Background())
+	return c
 }
 
 func (c *Consumer) Close() {
-	log.Info(c.stctx, "consumer stop...", map[string]interface{}{
-		"subId": c.sub,
-	})
-	if c.cancel != nil {
-		c.cancel()
-	}
+	c.cancel()
 	c.stop()
 	c.wg.Wait()
-	log.Info(c.stctx, "consumer stop", map[string]interface{}{
-		"subId": c.sub,
+	log.Info(c.stctx, "consumer closed", map[string]interface{}{
+		log.KeyEventbusName:   c.config.EventBus,
+		log.KeySubscriptionID: c.config.SubId,
 	})
 }
 func (c *Consumer) Start(parent context.Context) error {
-	c.stctx, c.stop = context.WithCancel(parent)
 	go func() {
 		tk := time.NewTicker(time.Second)
 		defer tk.Stop()
@@ -87,76 +92,88 @@ func (c *Consumer) Start(parent context.Context) error {
 func (c *Consumer) checkEventLogChange() {
 	ctx, cancel := context.WithTimeout(c.stctx, 5*time.Second)
 	defer cancel()
-	els, err := eb.LookupReadableLogs(ctx, c.ebVrn)
+	els, err := eb.LookupReadableLogs(ctx, c.config.SubId)
 	if err != nil {
 		if err == context.Canceled {
 			return
 		}
-		log.Error(ctx, "eventbus lookup Readable log error", map[string]interface{}{
-			"ebVrn":      c.ebVrn,
-			"subId":      c.sub,
-			log.KeyError: err,
+		log.Warning(ctx, "eventbus lookup Readable log error", map[string]interface{}{
+			log.KeyEventbusName:   c.config.EventBus,
+			log.KeySubscriptionID: c.config.SubId,
+			log.KeyError:          err,
 		})
 		return
 	}
 	if len(els) != len(c.elConsumer) {
 		log.Info(ctx, "event log change,will restart event log consumer", map[string]interface{}{
-			"ebVrn": c.ebVrn,
+			log.KeyEventbusName: c.config.EventBus,
 		})
 		c.start(els)
 		log.Info(ctx, "event log change,restart event log consumer success", map[string]interface{}{
-			"ebVrn": c.ebVrn,
+			log.KeyEventbusName: c.config.EventBus,
 		})
 	}
 }
 
+func (c *Consumer) getOffset(el string) int64 {
+	offset, exist := c.offset[el]
+	if !exist {
+		offset = 0
+	}
+	return offset
+}
+
 func (c *Consumer) start(els []*record.EventLog) {
 	ctx, cancel := context.WithCancel(context.Background())
-	if c.cancel != nil {
-		c.cancel()
-	}
+	c.cancel()
 	c.cancel = cancel
 	for k := range c.elConsumer {
 		delete(c.elConsumer, k)
 	}
 	for _, el := range els {
-		elc := EventLogConsumer{
-			elVrn:         el.VRN,
-			sub:           c.sub,
+		elc := &EventLogConsumer{
+			config:        c.config,
+			eventLog:      el.VRN,
+			events:        c.events,
+			offset:        c.getOffset(el.VRN),
 			offsetManager: c.offsetManager,
-			handler:       c.handler,
 		}
 		c.elConsumer[el.VRN] = elc
 		c.wg.Add(1)
 		go func() {
-			defer c.wg.Done()
+			defer func() {
+				c.wg.Done()
+				log.Info(ctx, "event log consumer stop", map[string]interface{}{
+					log.KeySubscriptionID: elc.config.SubId,
+					log.KeyEventlogID:     elc.eventLog,
+				})
+			}()
 			log.Info(ctx, "event log consumer start", map[string]interface{}{
-				"sub":   elc.sub,
-				"elVrn": elc.elVrn,
+				log.KeySubscriptionID: elc.config.SubId,
+				log.KeyEventlogID:     elc.eventLog,
 			})
 			elc.run(ctx)
+			c.offset[elc.eventLog] = elc.offset
 		}()
 	}
 }
 
-type EventHandler func(context.Context, *info.EventRecord) error
-
 type EventLogConsumer struct {
-	elVrn         string
-	sub           string
-	offsetManager *EventLogOffset
-	handler       EventHandler
+	config        Config
+	eventLog      string
+	events        chan<- *info.EventRecord
+	offsetManager *offset.SubscriptionOffset
 	offset        int64
 }
 
 func (lc *EventLogConsumer) run(ctx context.Context) {
 	for {
-		lr, offset, err := lc.init(ctx)
+		lr, _, err := lc.init(ctx)
 		if err != nil {
 			log.Warning(ctx, "event log consumer init error,will retry", map[string]interface{}{
-				"sub":        lc.sub,
-				"elVrn":      lc.elVrn,
-				log.KeyError: err,
+				log.KeyEventbusName:   lc.config.EventBus,
+				log.KeySubscriptionID: lc.config.SubId,
+				log.KeyError:          err,
 			})
 			if !util.Sleep(ctx, time.Second*2) {
 				return
@@ -167,11 +184,6 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Info(ctx, "event log consumer stop", map[string]interface{}{
-					"sub":    lc.sub,
-					"elVrn":  lc.elVrn,
-					"offset": offset,
-				})
 				lr.Close()
 				return
 			default:
@@ -180,8 +192,8 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 			switch err {
 			case nil:
 				for i := range events {
-					offset++
-					lc.handler(ctx, &info.EventRecord{Event: events[i], EventLog: lc.elVrn, Offset: offset})
+					lc.offset++
+					lc.sendEvent(ctx, &info.EventRecord{Event: events[i], OffsetInfo: info.OffsetInfo{EventLog: lc.eventLog, Offset: lc.offset}})
 				}
 				sleepCnt = 0
 				continue
@@ -193,10 +205,10 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 				return
 			case context.DeadlineExceeded:
 				log.Warning(ctx, "readEvents error", map[string]interface{}{
-					"sub":        lc.sub,
-					"elVrn":      lc.elVrn,
-					"offset":     offset,
-					log.KeyError: err,
+					log.KeySubscriptionID: lc.config.SubId,
+					log.KeyEventlogID:     lc.eventLog,
+					"offset":              lc.offset,
+					log.KeyError:          err,
 				})
 				continue
 			case eberrors.ErrOnEnd:
@@ -205,10 +217,10 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 				//other error
 
 				log.Warning(ctx, "read event error", map[string]interface{}{
-					"sub":        lc.sub,
-					"elVrn":      lc.elVrn,
-					"offset":     offset,
-					log.KeyError: err,
+					log.KeySubscriptionID: lc.config.SubId,
+					log.KeyEventlogID:     lc.eventLog,
+					"offset":              lc.offset,
+					log.KeyError:          err,
 				})
 			}
 			sleepCnt++
@@ -220,6 +232,15 @@ func (lc *EventLogConsumer) run(ctx context.Context) {
 	}
 }
 
+func (el *EventLogConsumer) sendEvent(ctx context.Context, event *info.EventRecord) {
+	select {
+	case el.events <- event:
+		return
+	case <-ctx.Done():
+		return
+	}
+}
+
 func readEvents(ctx context.Context, lr eventlog.LogReader) ([]*ce.Event, error) {
 	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -227,22 +248,18 @@ func readEvents(ctx context.Context, lr eventlog.LogReader) ([]*ce.Event, error)
 }
 
 func (lc *EventLogConsumer) init(ctx context.Context) (eventlog.LogReader, int64, error) {
-	lr, err := eb.OpenLogReader(lc.elVrn)
+	lr, err := eb.OpenLogReader(lc.eventLog)
 	if err != nil {
-		return nil, 0, errors.Wrapf(err, "sub %s el %s open log reader error", lc.sub, lc.elVrn)
+		return nil, 0, errors.Wrap(err, "open log reader error")
 	}
-	offset, err := lc.offsetManager.RegisterEventLog(lc.elVrn, 0)
-	if err != nil {
-		lr.Close()
-		return nil, 0, errors.Wrapf(err, "sub %s el %s offset register event log error", lc.sub, lc.elVrn)
-	}
-	lc.offset = offset
+	lc.offsetManager.RegisterEventLog(lc.eventLog, lc.offset)
 	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	newOffset, err := lr.Seek(timeout, offset, io.SeekStart)
+	newOffset, err := lr.Seek(timeout, lc.offset, io.SeekStart)
 	if err != nil {
+		//todo overflow need reset offset
 		lr.Close()
-		return nil, 0, errors.Wrapf(err, "sub %s el %s seek offset %d error", lc.sub, lc.elVrn, offset)
+		return nil, 0, errors.Wrapf(err, "seek error offset %d", lc.offset)
 	}
 	return lr, newOffset, nil
 }

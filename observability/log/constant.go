@@ -24,4 +24,5 @@ const (
 	KeyEventlogID      = "eventlog_id"
 	KeyEventbusName    = "eventbus_name"
 	KeyOffsetInLog     = "offset_in_log"
+	KeySubscriptionID  = "subscription_id"
 )

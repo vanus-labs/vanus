@@ -19,9 +19,8 @@ import (
 )
 
 type Config struct {
-	Port            int                       `yaml:"port"`
-	Storage         primitive.KvStorageConfig `yaml:"storage"`
-	TriggerCtrlAddr string                    `yaml:"triggerCtrlAddr"`
+	Port            int    `yaml:"port"`
+	TriggerCtrlAddr string `yaml:"triggerCtrlAddr"`
 }
 
 func Init(filename string) (*Config, error) {

@@ -302,7 +302,7 @@ func (ctrl *triggerController) removeTriggerWorker(ctx context.Context, addr, re
 
 func (ctrl *triggerController) Start() error {
 	log.Info(ctrl.ctx, "trigger controller start...", nil)
-	s, err := storage.NewSubscriptionStorage(ctrl.config.Storage)
+	s, err := storage.NewStorage(ctrl.config.Storage)
 	if err != nil {
 		return err
 	}

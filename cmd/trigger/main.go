@@ -51,7 +51,6 @@ func main() {
 	srv := worker.NewTriggerServer(worker.Config{
 		TriggerCtrlAddr: c.TriggerCtrlAddr,
 		TriggerAddr:     fmt.Sprintf("%s:%d", util.LocalIp, c.Port),
-		Storage:         c.Storage,
 	})
 	init := srv.(primitive.Initializer)
 	if err = init.Initialize(ctx); err != nil {

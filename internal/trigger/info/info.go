@@ -17,9 +17,8 @@ package info
 import ce "github.com/cloudevents/sdk-go/v2"
 
 type EventRecord struct {
-	Event    *ce.Event
-	EventLog string
-	Offset   int64
+	Event *ce.Event
+	OffsetInfo
 }
 
 type OffsetInfo struct {

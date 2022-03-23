@@ -17,10 +17,9 @@ package storage
 import (
 	"context"
 	"fmt"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/pkg/errors"
 	"path"
 	"strconv"
@@ -31,21 +30,17 @@ type OffsetStorage interface {
 	UpdateOffset(ctx context.Context, info *info.OffsetInfo) error
 	GetOffset(ctx context.Context, info *info.OffsetInfo) (int64, error)
 	ListOffset(ctx context.Context, subId string) ([]*info.OffsetInfo, error)
-	Close() error
+	DeleteOffset(ctx context.Context, subId string) error
 }
 
 type offsetStorage struct {
 	client kv.Client
 }
 
-func NewOffsetStorage(config primitive.KvStorageConfig) (OffsetStorage, error) {
-	client, err := etcd.NewEtcdClientV3(config.ServerList, config.KeyPrefix)
-	if err != nil {
-		return nil, errors.Wrap(err, "new etcd client has error")
-	}
+func NewOffsetStorage(client kv.Client) OffsetStorage {
 	return &offsetStorage{
 		client: client,
-	}, nil
+	}
 }
 
 func (s *offsetStorage) Close() error {
@@ -95,4 +90,9 @@ func (s *offsetStorage) ListOffset(ctx context.Context, subId string) ([]*info.O
 		})
 	}
 	return list, nil
+}
+
+func (s *offsetStorage) DeleteOffset(ctx context.Context, subId string) error {
+	key := path.Join(primitive.StorageOffset.String(), subId)
+	return s.client.DeleteDir(ctx, key)
 }

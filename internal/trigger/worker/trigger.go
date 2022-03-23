@@ -21,9 +21,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/ds"
-	"github.com/linkall-labs/vanus/internal/trigger/consumer"
 	"github.com/linkall-labs/vanus/internal/trigger/filter"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
+	"github.com/linkall-labs/vanus/internal/trigger/offset"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/pkg/errors"
@@ -61,7 +61,7 @@ type Trigger struct {
 	lastActive time.Time
 	ackWindow  ds.SortedMap
 
-	offsetManager *consumer.EventLogOffset
+	offsetManager *offset.SubscriptionOffset
 	stop          context.CancelFunc
 	eventCh       chan *info.EventRecord
 	sendCh        chan *info.EventRecord
@@ -72,7 +72,7 @@ type Trigger struct {
 	wg util.Group
 }
 
-func NewTrigger(sub *primitive.Subscription, offsetManager *consumer.EventLogOffset) *Trigger {
+func NewTrigger(sub *primitive.Subscription, offsetManager *offset.SubscriptionOffset) *Trigger {
 	return &Trigger{
 		ID:               uuid.New().String(),
 		SubscriptionID:   sub.ID,
@@ -91,10 +91,14 @@ func NewTrigger(sub *primitive.Subscription, offsetManager *consumer.EventLogOff
 	}
 }
 
+func (t *Trigger) GetEventCh() chan *info.EventRecord {
+	return t.eventCh
+}
+
 func (t *Trigger) EventArrived(ctx context.Context, event *info.EventRecord) error {
 	select {
 	case t.eventCh <- event:
-		t.offsetManager.EventReceive(event)
+		t.offsetManager.EventReceive(event.OffsetInfo)
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -137,7 +141,7 @@ func (t *Trigger) runEventProcess(ctx context.Context) {
 				return
 			}
 			if res := filter.FilterEvent(t.filter, *event.Event); res == filter.FailFilter {
-				t.offsetManager.EventCommit(event)
+				t.offsetManager.EventCommit(event.OffsetInfo)
 				continue
 			}
 			t.sendCh <- event
@@ -158,7 +162,7 @@ func (t *Trigger) runEventSend(ctx context.Context) {
 			if err != nil {
 				t.deadLetterCh <- event
 			} else {
-				t.offsetManager.EventCommit(event)
+				t.offsetManager.EventCommit(event.OffsetInfo)
 			}
 		}
 	}
@@ -180,7 +184,7 @@ func (t *Trigger) runDeadLetterProcess(ctx context.Context) {
 					"event": event,
 				})
 			}
-			t.offsetManager.EventCommit(event)
+			t.offsetManager.EventCommit(event.OffsetInfo)
 		}
 	}
 }

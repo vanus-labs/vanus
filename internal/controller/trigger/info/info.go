@@ -30,3 +30,9 @@ type TriggerWorkerInfo struct {
 func (tw *TriggerWorkerInfo) String() string {
 	return fmt.Sprintf("addr:%s,started:%v,subIds:%v", tw.Addr, tw.Started, tw.SubIds)
 }
+
+type OffsetInfo struct {
+	SubId    string `json:"subId"`
+	EventLog string `json:"eventLog"`
+	Offset   int64  `json:"offset"`
+}
