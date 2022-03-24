@@ -18,10 +18,10 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/google/uuid"
+	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
-	"github.com/linkall-labs/vanus/internal/primitive/errors"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -129,15 +129,15 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 	}
 	exist, err := ctrl.kvStore.Exists(ctx, eb.Name)
 	if err != nil {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "invoke kv exist failed", err)
+		return nil, err
 	}
 	if exist {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "eventbus resource name conflicted")
+		return nil, errors.ErrResourceAlreadyExist.WithMessage("already exist")
 	}
 	for idx := 0; idx < eb.LogNumber; idx++ {
 		el, err := ctrl.eventLogMgr.acquireEventLog(ctx)
 		if err != nil {
-			return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "binding eventlog failed", err)
+			return nil, err
 		}
 		eb.EventLogs[idx] = el
 		el.EventBusName = eb.Name
@@ -148,10 +148,10 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 	{
 		data, _ := json.Marshal(eb)
 		if err := ctrl.kvStore.Set(ctx, ctrl.getEventBusKeyInKVStore(eb.Name), data); err != nil {
-			return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "insert meta to kv store failed", err)
+			return nil, err
 		}
 		if err := ctrl.eventLogMgr.updateEventLog(ctx, eb.EventLogs...); err != nil {
-			return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "update eventlog in kv store failed", err)
+			return nil, err
 		}
 	}
 	return &metapb.EventBus{
@@ -174,7 +174,7 @@ func (ctrl *controller) GetEventBus(ctx context.Context,
 	defer observability.LeaveMark(ctx)
 	_eb, exist := ctrl.eventBusMap[eb.Name]
 	if !exist {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "eventbus not found")
+		return nil, errors.ErrResourceNotFound.WithMessage("eventbus not found")
 	}
 	return info.Convert2ProtoEventBus(_eb)[0], nil
 }
@@ -193,7 +193,7 @@ func (ctrl *controller) ListSegment(ctx context.Context,
 
 	el := ctrl.eventLogMgr.getEventLog(ctx, req.EventLogId)
 	if el == nil {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "eventlog not found")
+		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
 	}
 
 	return &ctrlpb.ListSegmentResponse{
@@ -217,8 +217,7 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	if !exist {
 		volumeInfo = ctrl.volumePool.get(req.VolumeId)
 		if volumeInfo == nil {
-			return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-				"invalid volumeID, PVC not found", nil)
+			return nil, errors.ErrResourceNotFound.WithMessage("invalid volumeID, PVC not found")
 		}
 	}
 	// TODO clean server info when server disconnected
@@ -230,14 +229,12 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 				"volume_id":      req.VolumeId,
 			})
 		} else if volumeInfo.GetAccessEndpoint() != volumeInfo.GetAccessEndpoint() {
-			return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-				"segpb server ip address is conflicted", nil)
+			return nil, errors.ErrInvalidRequest.WithMessage("segment server ip address is conflicted")
 		}
 	}
 
 	if err := ctrl.volumePool.ActivateVolume(volumeInfo, serverInfo); err != nil {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"bind volume to segment server failed", err)
+		return nil, err
 	}
 	ctrl.segmentServerInfoMap[serverInfo.Address] = serverInfo
 	// TODO update state in KV store
@@ -254,12 +251,13 @@ func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
 	defer observability.LeaveMark(ctx)
 	serverInfo, exist := ctrl.segmentServerInfoMap[req.Address]
 	if !exist {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"segment server not found", nil)
+		return nil, errors.ErrResourceNotFound.WithMessage("segment server not found")
 	}
 
 	delete(ctrl.segmentServerInfoMap, serverInfo.Address)
-	ctrl.volumePool.InactivateVolume(serverInfo.Volume)
+	if err := ctrl.volumePool.InactivateVolume(serverInfo.Volume); err != nil {
+		return nil, err
+	}
 	return &ctrlpb.UnregisterSegmentServerResponse{}, nil
 }
 
@@ -346,7 +344,7 @@ func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 	req *ctrlpb.GetAppendableSegmentRequest) (*ctrlpb.GetAppendableSegmentResponse, error) {
 	eli := ctrl.eventLogMgr.getEventLog(ctx, req.EventLogId)
 	if eli == nil {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "eventlog not found")
+		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
 	}
 	num := int(req.Limited)
 	if num == 0 {
@@ -354,7 +352,7 @@ func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 	}
 	segInfos, err := ctrl.eventLogMgr.getAppendableSegment(ctx, eli, num)
 	if err != nil {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "get segment error")
+		return nil, err
 	}
 	segs := make([]*metapb.Segment, 0)
 	for idx := 0; idx < len(segInfos); idx++ {

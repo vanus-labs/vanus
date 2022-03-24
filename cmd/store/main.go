@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/interceptor"
 	"github.com/linkall-labs/vanus/internal/store/segment"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -44,6 +45,7 @@ func main() {
 		os.Exit(-1)
 	}
 	var opts []grpc.ServerOption
+	opts = append(opts, interceptor.GRPCErrorServerOutboundInterceptor()...)
 	grpcServer := grpc.NewServer(opts...)
 	exitChan := make(chan struct{}, 1)
 	stopCallback := func() {

@@ -18,7 +18,6 @@ import (
 	v1 "cloudevents.io/genproto/v1"
 	"context"
 	"fmt"
-	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vsproto/pkg/segment"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -29,7 +28,7 @@ func main() {
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	conn, err := grpc.Dial("127.0.0.1:11811", opts...)
 	if err != nil {
-		log.Fatal(err.Error(), nil)
+		//log.Fatal(err.Error(), nil)
 	}
 	cli := segment.NewSegmentServerClient(conn)
 	TestAppend(cli)
@@ -57,9 +56,9 @@ func TestAppend(cli segment.SegmentServerClient) {
 			},
 		})
 		if err != nil {
-			log.Fatal(err.Error(), map[string]interface{}{
-				"sent": cnt,
-			})
+			//log.Fatal(err.Error(), map[string]interface{}{
+			//	"sent": cnt,
+			//})
 		}
 	}
 }

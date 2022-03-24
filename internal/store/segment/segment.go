@@ -20,10 +20,11 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/errors"
 	"github.com/linkall-labs/vanus/internal/store/segment/block"
 	"github.com/linkall-labs/vanus/internal/store/segment/codec"
+	"github.com/linkall-labs/vanus/internal/store/segment/errors"
 	"github.com/linkall-labs/vanus/internal/util"
+	errutil "github.com/linkall-labs/vanus/internal/util/errors"
 	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrl "github.com/linkall-labs/vsproto/pkg/controller"
@@ -119,7 +120,7 @@ func (s *segmentServer) Initialize(ctx context.Context) error {
 	}
 
 	if err = s.initSegmentBlock(ctx, files); err != nil {
-		return errors.Chain(fmt.Errorf("repair segment blocks failed"), err)
+		return err
 	}
 	s.state = primitive.ServerStateStarted
 	return err
@@ -131,12 +132,10 @@ func (s *segmentServer) Start(ctx context.Context,
 	defer observability.LeaveMark(ctx)
 
 	if s.state != primitive.ServerStateStarted {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"start failed, server state is not created")
+		return nil, errors.ErrServiceState.WithMessage("start failed, server state is not created")
 	}
 	if err := s.start(ctx); err != nil {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"start heartbeat task failed", err)
+		return nil, errors.ErrInternal.WithMessage("start heartbeat task failed")
 	}
 	s.state = primitive.ServerStateRunning
 	return &segment.StartSegmentServerResponse{}, nil
@@ -148,14 +147,13 @@ func (s *segmentServer) Stop(ctx context.Context,
 	defer observability.LeaveMark(ctx)
 
 	if s.state != primitive.ServerStateRunning {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			errors.Notice(fmt.Sprintf("the server isn't ready to work, current state:%s", s.state)))
+		return nil, errors.ErrServiceState.WithMessage(fmt.Sprintf(
+			"the server isn't running, current state:%s", s.state))
 	}
 
 	s.state = primitive.ServerStateStopped
 	if err := s.stop(ctx); err != nil {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"stop server failed", err)
+		return nil, errors.ErrInternal.WithMessage("stop server failed")
 	}
 
 	s.stopCallback()
@@ -167,21 +165,18 @@ func (s *segmentServer) CreateSegmentBlock(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if !s.isServerReadyToWork() {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			errors.Notice(fmt.Sprintf("the server isn't ready to work, current state:%s", s.state)))
+	if err := s.checkoutState(); err != nil {
+		return nil, err
 	}
 
 	_, exist := s.segmentBlockMap.Load(req.Id)
 	if exist {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"the segment has already exist")
+		return nil, errors.ErrResourceAlreadyExist.WithMessage("the segment has already exist")
 	}
 	path := s.generateNewSegmentBlockPath(req.Id)
 	segmentBlock, err := block.CreateFileSegmentBlock(ctx, req.Id, path, req.Size)
 	if err != nil {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"create segment block failed", err)
+		return nil, err
 	}
 
 	s.segmentBlockMap.Store(req.Id, segmentBlock)
@@ -195,9 +190,8 @@ func (s *segmentServer) RemoveSegmentBlock(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if !s.isServerReadyToWork() {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			errors.Notice(fmt.Sprintf("the server isn't ready to work, current state:%s", s.state)))
+	if err := s.checkoutState(); err != nil {
+		return nil, err
 	}
 
 	return &segment.RemoveSegmentBlockResponse{}, nil
@@ -209,9 +203,8 @@ func (s *segmentServer) ActiveSegmentBlock(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if !s.isServerReadyToWork() {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			errors.Notice(fmt.Sprintf("the server isn't ready to work, current state:%s", s.state)))
+	if err := s.checkoutState(); err != nil {
+		return nil, err
 	}
 
 	return &segment.ActiveSegmentBlockResponse{}, nil
@@ -223,9 +216,8 @@ func (s *segmentServer) InactiveSegmentBlock(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if !s.isServerReadyToWork() {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			errors.Notice(fmt.Sprintf("the server isn't ready to work, current state:%s", s.state)))
+	if err := s.checkoutState(); err != nil {
+		return nil, err
 	}
 
 	return &segment.InactiveSegmentBlockResponse{}, nil
@@ -236,10 +228,10 @@ func (s *segmentServer) GetSegmentBlockInfo(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if !s.isServerReadyToWork() {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			errors.Notice(fmt.Sprintf("the server isn't ready to work, current state:%s", s.state)))
+	if err := s.checkoutState(); err != nil {
+		return nil, err
 	}
+
 	return &segment.GetSegmentBlockInfoResponse{}, nil
 }
 
@@ -248,27 +240,26 @@ func (s *segmentServer) AppendToSegment(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if !s.isServerReadyToWork() {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			errors.Notice(fmt.Sprintf("the server isn't ready to work, current state:%s", s.state)))
+	if err := s.checkoutState(); err != nil {
+		return nil, err
 	}
 
 	if req.Events == nil || len(req.Events.Events) == 0 {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "event list is empty")
+		return nil, errors.ErrInvalidRequest.WithMessage("event list is empty")
 	}
 
 	events := req.GetEvents().Events
 	v, exist := s.segmentBlockWriters.Load(req.SegmentId)
 	if !exist {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"the segment doesn't exist")
+		return nil, errors.ErrResourceNotFound.WithMessage("the segment doesn't exist")
 	}
 
 	writer := v.(block.SegmentBlockWriter)
 	if !writer.IsAppendable() {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			errors.Notice(fmt.Sprintf("the segment can not be appended, isFull: %v",
-				writer.(block.SegmentBlock).IsFull())))
+		if writer.(block.SegmentBlock).IsFull() {
+			return nil, errors.ErrSegmentNoEnoughCapacity
+		}
+		return nil, errors.ErrInternal.WithMessage("the segment can not be appended")
 	}
 
 	entities := make([]*codec.StoredEntry, len(events))
@@ -276,7 +267,7 @@ func (s *segmentServer) AppendToSegment(ctx context.Context,
 		evt := events[idx]
 		payload, err := proto.Marshal(evt)
 		if err != nil {
-			return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "marshall event failed", err)
+			return nil, errors.ErrInternal.WithMessage("marshall event failed").Wrap(err)
 		}
 		entities[idx] = &codec.StoredEntry{
 			Length:  int32(len(payload)),
@@ -288,12 +279,11 @@ func (s *segmentServer) AppendToSegment(ctx context.Context,
 		if err == block.ErrNoEnoughCapacity {
 			// TODO optimize this to async from sync
 			if err = s.markSegmentIsFull(ctx, req.SegmentId); err != nil {
-				return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-					"mark segment to can not be wrote failed", err)
+				return nil, err
 			}
-			return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "segment no space left", nil)
+			return nil, errors.ErrSegmentNoEnoughCapacity
 		}
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified, "write to storage failed", err)
+		return nil, errors.ErrInternal.WithMessage("write to storage failed")
 	}
 	return &emptypb.Empty{}, nil
 }
@@ -302,15 +292,13 @@ func (s *segmentServer) ReadFromSegment(ctx context.Context,
 	req *segment.ReadFromSegmentRequest) (*segment.ReadFromSegmentResponse, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
-	if !s.isServerReadyToWork() {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			errors.Notice(fmt.Sprintf("the server isn't ready to work, current state:%s", s.state)))
+	if err := s.checkoutState(); err != nil {
+		return nil, err
 	}
 
 	segV, exist := s.segmentBlockMap.Load(req.SegmentId)
 	if !exist {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"the segment doesn't exist on this server")
+		return nil, errors.ErrResourceNotFound.WithMessage("the segment doesn't exist on this server")
 	}
 
 	segBlock := segV.(block.SegmentBlock)
@@ -319,8 +307,7 @@ func (s *segmentServer) ReadFromSegment(ctx context.Context,
 	if !exist {
 		_reader, err := block.OpenFileSegmentBlock(ctx, segBlock.Path())
 		if err != nil {
-			return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-				"open segment failed", err)
+			return nil, err
 		}
 		reader = _reader
 		s.segmentBlockReaders.Store(req.SegmentId, reader)
@@ -329,16 +316,14 @@ func (s *segmentServer) ReadFromSegment(ctx context.Context,
 	}
 	entities, err := reader.Read(ctx, int(req.Offset), int(req.Number))
 	if err != nil {
-		return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-			"read data from segment failed", err)
+		return nil, err
 	}
 
 	events := make([]*v1.CloudEvent, len(entities))
 	for idx := range entities {
 		v := &v1.CloudEvent{}
 		if err := proto.Unmarshal(entities[idx].Payload, v); err != nil {
-			return nil, errors.ConvertGRPCError(errors.NotBeenClassified,
-				"unmarshall data to event failed", err)
+			return nil, errors.ErrInternal.WithMessage("unmarshall data to event failed").Wrap(err)
 		}
 		events[idx] = v
 	}
@@ -421,7 +406,7 @@ func (s *segmentServer) start(ctx context.Context) error {
 		wg.Add(1)
 		go func(segBlock block.SegmentBlock) {
 			if _err := segBlock.Initialize(ctx); err != nil {
-				err = errors.Chain(err, _err)
+				err = errutil.Chain(err, _err)
 			}
 			s.segmentBlockWriters.Store(segBlock.SegmentBlockID(), segBlock)
 			s.segmentBlockReaders.Store(segBlock.SegmentBlockID(), segBlock)
@@ -454,7 +439,7 @@ func (s *segmentServer) stop(ctx context.Context) error {
 			s.segmentBlockWriters.Range(func(key, value interface{}) bool {
 				writer := value.(block.SegmentBlockWriter)
 				if _err := writer.CloseWrite(ctx); err != nil {
-					err = errors.Chain(err, _err)
+					err = errutil.Chain(err, _err)
 				}
 				return true
 			})
@@ -469,7 +454,7 @@ func (s *segmentServer) stop(ctx context.Context) error {
 			s.segmentBlockReaders.Range(func(key, value interface{}) bool {
 				reader := value.(block.SegmentBlockReader)
 				if _err := reader.CloseRead(ctx); err != nil {
-					err = errors.Chain(err, _err)
+					err = errutil.Chain(err, _err)
 				}
 				return true
 			})
@@ -503,10 +488,6 @@ func (s *segmentServer) markSegmentIsFull(ctx context.Context, segId string) err
 	return err
 }
 
-func (s *segmentServer) isServerReadyToWork() bool {
-	return s.state == primitive.ServerStateRunning
-}
-
 func (s *segmentServer) waitAllAppendRequestCompleted(ctx context.Context) {}
 
 func (s *segmentServer) waitAllReadRequestCompleted(ctx context.Context) {}
@@ -518,6 +499,14 @@ func (s *segmentServer) initSegmentBlock(ctx context.Context, files []string) er
 			return err
 		}
 		s.segmentBlockMap.Store(sb.SegmentBlockID(), sb)
+	}
+	return nil
+}
+
+func (s *segmentServer) checkoutState() error {
+	if s.state == primitive.ServerStateRunning {
+		return errors.ErrServiceState.WithMessage(fmt.Sprintf(
+			"the server isn't ready to work, current state:%s", s.state))
 	}
 	return nil
 }

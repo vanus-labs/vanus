@@ -14,8 +14,27 @@
 
 package errors
 
-import "google.golang.org/grpc/codes"
-
-const (
-	WorkerNotStart codes.Code = 100
+import (
+	"errors"
+	. "github.com/smartystreets/goconvey/convey"
+	"testing"
 )
+
+func TestChain(t *testing.T) {
+	Convey("test chain method", t, func() {
+		err := Chain()
+		So(err, ShouldBeNil)
+
+		err = Chain(nil)
+		So(err, ShouldBeNil)
+
+		err = Chain(nil, errors.New("err1"))
+		So(err, ShouldResemble, Chain(nil, errors.New("err1")))
+
+		err = Chain(err, errors.New("err2"))
+		So(errors.Unwrap(err).Error(), ShouldResemble, "err2: err1")
+
+		err = Chain(err, errors.New("err3"), nil, errors.New("err4"))
+		So(errors.Unwrap(err).Error(), ShouldResemble, "err4: err3: err2: err1")
+	})
+}

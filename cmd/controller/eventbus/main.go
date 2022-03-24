@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
+	"github.com/linkall-labs/vanus/internal/primitive/interceptor"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vsproto/pkg/controller"
 	"google.golang.org/grpc"
@@ -39,6 +40,7 @@ func main() {
 		os.Exit(0)
 	}
 	var opts []grpc.ServerOption
+	opts = append(opts, interceptor.GRPCErrorServerOutboundInterceptor()...)
 	ctrlSrv := eventbus.NewEventBusController(eventbus.ControllerConfig{
 		IP:               defaultIP,
 		Port:             defaultPort,
