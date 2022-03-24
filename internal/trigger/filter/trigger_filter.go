@@ -39,10 +39,10 @@ func extractFilter(subscriptionFilter *primitive.SubscriptionFilter) Filter {
 		}
 		return f
 	}
-	if subscriptionFilter.SQL != "" {
-		f := NewCESQLFilter(subscriptionFilter.SQL)
+	if subscriptionFilter.CeSQL != "" {
+		f := NewCESQLFilter(subscriptionFilter.CeSQL)
 		if f == nil {
-			log.Debug(ctx, "new cesql filter is nil ", map[string]interface{}{"sql": subscriptionFilter.SQL})
+			log.Debug(ctx, "new cesql filter is nil ", map[string]interface{}{"sql": subscriptionFilter.CeSQL})
 		}
 		return f
 	}

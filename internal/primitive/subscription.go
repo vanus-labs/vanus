@@ -21,18 +21,19 @@ type Subscription struct {
 	Source           string                `json:"source,omitempty"`
 	Types            []string              `json:"types,omitempty"`
 	Config           map[string]string     `json:"config,omitempty"`
-	Filters          []*SubscriptionFilter `json:"filters"`
-	Sink             URI                   `json:"sink"`
+	Filters          []*SubscriptionFilter `json:"filters,omitempty"`
+	Sink             URI                   `json:"sink,omitempty"`
 	Protocol         string                `json:"protocol,omitempty"`
-	ProtocolSettings map[string]string     `json:"protocolsettings,omitempty"`
+	ProtocolSettings map[string]string     `json:"protocolSettings,omitempty"`
 	EventBus         string                `json:"eventBus"`
+	Enable           bool                  `json:"enable"`
 }
 
 type SubscriptionFilter struct {
 	Exact  map[string]string     `json:"exact,omitempty"`
 	Prefix map[string]string     `json:"prefix,omitempty"`
 	Suffix map[string]string     `json:"suffix,omitempty"`
-	SQL    string                `json:"sql,omitempty"`
+	CeSQL  string                `json:"ceSql,omitempty"`
 	Not    *SubscriptionFilter   `json:"not,omitempty"`
 	All    []*SubscriptionFilter `json:"all,omitempty"`
 	Any    []*SubscriptionFilter `json:"any,omitempty"`

@@ -4,6 +4,7 @@ import (
 	// standard libraries
 	"context"
 	"fmt"
+	"github.com/linkall-labs/vanus/internal/trigger/offset"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -21,9 +22,7 @@ import (
 
 	// this project
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/trigger/consumer"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
-	"github.com/linkall-labs/vanus/internal/trigger/storage"
 )
 
 func Test_e2e(t *testing.T) {
@@ -36,7 +35,7 @@ func Test_e2e(t *testing.T) {
 		Sink:             "http://localhost:18080",
 		Protocol:         "vanus",
 		ProtocolSettings: nil,
-	}, consumer.NewEventLogOffset("test", storage.NewFakeStorage()))
+	}, offset.NewOffsetManager().RegisterSubscription("test"))
 	emit := 0
 	pre := 0
 	go func() {
