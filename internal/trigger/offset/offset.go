@@ -16,7 +16,7 @@ package offset
 
 import (
 	"github.com/huandu/skiplist"
-	"github.com/linkall-labs/vanus/internal/trigger/info"
+	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/observability/log"
 	"sync"
 )
@@ -46,16 +46,24 @@ func (m *Manager) RegisterSubscription(subId string) *SubscriptionOffset {
 	return sub
 }
 
+func (m *Manager) GetSubscription(subId string) *SubscriptionOffset {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return m.subOffset[subId]
+}
+
 func (m *Manager) RemoveSubscription(subId string) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	delete(m.subOffset, subId)
 }
 
-func (m *Manager) getCommit() map[string][]info.OffsetInfo {
+func (m *Manager) GetCommit() map[string][]info.OffsetInfo {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	commit := make(map[string][]info.OffsetInfo, len(m.subOffset))
 	for subId, offset := range m.subOffset {
-		commit[subId] = offset.getCommit()
+		commit[subId] = offset.GetCommit()
 	}
 	return commit
 }
@@ -94,11 +102,19 @@ func (offset *SubscriptionOffset) getOffsetTracker(el string) *offsetTracker {
 	return offset.elOffset[el]
 }
 
-func (offset *SubscriptionOffset) EventReceive(record info.OffsetInfo) {
-	r := offset.getOffsetTracker(record.EventLog)
-	if r == nil {
-		return
+func (offset *SubscriptionOffset) getOrSetOffsetTracker(record info.OffsetInfo) *offsetTracker {
+	offset.lock.Lock()
+	defer offset.lock.Unlock()
+	o, exist := offset.elOffset[record.EventLog]
+	if !exist {
+		o = initOffset(record.Offset)
+		offset.elOffset[record.EventLog] = o
 	}
+	return o
+}
+
+func (offset *SubscriptionOffset) EventReceive(record info.OffsetInfo) {
+	r := offset.getOrSetOffsetTracker(record)
 	r.putOffset(record.Offset)
 }
 
@@ -110,7 +126,7 @@ func (offset *SubscriptionOffset) EventCommit(record info.OffsetInfo) {
 	r.commitOffset(record.Offset)
 }
 
-func (offset *SubscriptionOffset) getCommit() []info.OffsetInfo {
+func (offset *SubscriptionOffset) GetCommit() []info.OffsetInfo {
 	commit := make([]info.OffsetInfo, len(offset.elOffset))
 	for el, tracker := range offset.elOffset {
 		commit = append(commit, info.OffsetInfo{
@@ -148,6 +164,9 @@ func initOffset(initOffset int64) *offsetTracker {
 func (o *offsetTracker) putOffset(offset int64) {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
+	if offset < o.commit {
+		return
+	}
 	o.list.Set(offset, offset)
 	o.maxOffset = o.list.Back().Key().(int64)
 }

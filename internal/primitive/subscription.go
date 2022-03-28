@@ -14,6 +14,8 @@
 
 package primitive
 
+import "github.com/linkall-labs/vanus/internal/primitive/info"
+
 type URI string
 
 type Subscription struct {
@@ -27,6 +29,11 @@ type Subscription struct {
 	ProtocolSettings map[string]string     `json:"protocolSettings,omitempty"`
 	EventBus         string                `json:"eventBus"`
 	Enable           bool                  `json:"enable"`
+}
+
+type SubscriptionInfo struct {
+	Subscription
+	Offsets info.ListOffsetInfo `json:"offsets"`
 }
 
 type SubscriptionFilter struct {

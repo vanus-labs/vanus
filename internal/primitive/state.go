@@ -17,8 +17,9 @@ package primitive
 type ServerState string
 
 const (
-	ServerStateCreated = "created"
-	ServerStateStarted = "started"
-	ServerStateRunning = "running"
-	ServerStateStopped = "stopped"
+	ServerStateCreated  = "created"
+	ServerStateStarted  = "started"
+	ServerStateRunning  = "running"
+	ServerStateStopping = "stopping"
+	ServerStateStopped  = "stopped"
 )

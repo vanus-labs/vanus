@@ -63,16 +63,16 @@ type Trigger struct {
 
 	offsetManager *offset.SubscriptionOffset
 	stop          context.CancelFunc
-	eventCh       chan *info.EventRecord
-	sendCh        chan *info.EventRecord
-	deadLetterCh  chan *info.EventRecord
+	eventCh       chan info.EventRecord
+	sendCh        chan info.EventRecord
+	deadLetterCh  chan info.EventRecord
 	ceClient      ce.Client
 	filter        filter.Filter
 
 	wg util.Group
 }
 
-func NewTrigger(sub *primitive.Subscription, offsetManager *offset.SubscriptionOffset) *Trigger {
+func NewTrigger(sub *primitive.SubscriptionInfo, offsetManager *offset.SubscriptionOffset) *Trigger {
 	return &Trigger{
 		ID:               uuid.New().String(),
 		SubscriptionID:   sub.ID,
@@ -84,18 +84,14 @@ func NewTrigger(sub *primitive.Subscription, offsetManager *offset.SubscriptionO
 		state:            TriggerCreated,
 		ackWindow:        ds.NewSortedMap(),
 		filter:           filter.GetFilter(sub.Filters),
-		eventCh:          make(chan *info.EventRecord, defaultBufferSize),
-		sendCh:           make(chan *info.EventRecord, 20),
-		deadLetterCh:     make(chan *info.EventRecord, defaultBufferSize),
+		eventCh:          make(chan info.EventRecord, defaultBufferSize),
+		sendCh:           make(chan info.EventRecord, 20),
+		deadLetterCh:     make(chan info.EventRecord, defaultBufferSize),
 		offsetManager:    offsetManager,
 	}
 }
 
-func (t *Trigger) GetEventCh() chan *info.EventRecord {
-	return t.eventCh
-}
-
-func (t *Trigger) EventArrived(ctx context.Context, event *info.EventRecord) error {
+func (t *Trigger) EventArrived(ctx context.Context, event info.EventRecord) error {
 	select {
 	case t.eventCh <- event:
 		t.offsetManager.EventReceive(event.OffsetInfo)
@@ -266,7 +262,7 @@ func (t *Trigger) GetState() TriggerState {
 	return t.state
 }
 
-func (t *Trigger) asDeadLetter(events ...*info.EventRecord) error {
+func (t *Trigger) asDeadLetter(events ...info.EventRecord) error {
 	fmt.Println(events)
 	return nil
 }
@@ -286,7 +282,7 @@ func (t *Trigger) checkACKTimeout() error {
 	wa := entry.Value().(*waitACK)
 	for wa != nil && wa.timeout() {
 		// TODO how to deal with timeout event?
-		t.asDeadLetter(wa.event)
+		t.asDeadLetter(*wa.event)
 		t.ackWindow.Remove(entry.Key())
 		entry = entry.Next()
 		if entry != nil {

@@ -18,29 +18,31 @@ import (
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/pkg/errors"
 )
 
 type Storage interface {
 	SubscriptionStorage
 	OffsetStorage
+	TriggerWorkerStorage
 	Close()
 }
 
 type storage struct {
 	SubscriptionStorage
 	OffsetStorage
+	TriggerWorkerStorage
 	client kv.Client
 }
 
 func NewStorage(config primitive.KvStorageConfig) (Storage, error) {
 	client, err := etcd.NewEtcdClientV3(config.ServerList, config.KeyPrefix)
 	if err != nil {
-		return nil, errors.Wrap(err, "new etcd client has error")
+		return nil, err
 	}
 	s := &storage{client: client}
 	s.SubscriptionStorage = NewSubscriptionStorage(client)
 	s.OffsetStorage = NewOffsetStorage(client)
+	s.TriggerWorkerStorage = NewTriggerWorkerStorage(client)
 	return s, nil
 }
 

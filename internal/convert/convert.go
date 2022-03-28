@@ -16,11 +16,13 @@ package convert
 
 import (
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/info"
 	ctrl "github.com/linkall-labs/vsproto/pkg/controller"
 	pb "github.com/linkall-labs/vsproto/pkg/meta"
+	pbtrigger "github.com/linkall-labs/vsproto/pkg/trigger"
 )
 
-func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) (*primitive.Subscription, error) {
+func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *primitive.Subscription {
 	to := &primitive.Subscription{
 		Source:           sub.Source,
 		Types:            sub.Types,
@@ -33,10 +35,47 @@ func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) (*primitive.S
 	if len(sub.Filters) != 0 {
 		to.Filters = fromPbFilters(sub.Filters)
 	}
-	return to, nil
+	return to
 }
 
-func FromPbSubscription(sub *pb.Subscription) (*primitive.Subscription, error) {
+func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.SubscriptionInfo {
+	to := &primitive.SubscriptionInfo{
+		Subscription: primitive.Subscription{
+			Source:           sub.Source,
+			Types:            sub.Types,
+			Config:           sub.Config,
+			Sink:             primitive.URI(sub.Sink),
+			Protocol:         sub.Protocol,
+			ProtocolSettings: sub.ProtocolSettings,
+			EventBus:         sub.EventBus,
+		},
+		Offsets: FromOffsetInfos(sub.Offsets...),
+	}
+	if len(sub.Filters) != 0 {
+		to.Filters = fromPbFilters(sub.Filters)
+	}
+	return to
+}
+
+func ToPbAddSubscription(sub *primitive.SubscriptionInfo) *pbtrigger.AddSubscriptionRequest {
+	to := &pbtrigger.AddSubscriptionRequest{
+		Id:               sub.ID,
+		Source:           sub.Source,
+		Types:            sub.Types,
+		Config:           sub.Config,
+		Sink:             string(sub.Sink),
+		Protocol:         sub.Protocol,
+		ProtocolSettings: sub.ProtocolSettings,
+		EventBus:         sub.EventBus,
+		Offsets:          ToOffsetInfos(sub.Offsets...),
+	}
+	if len(sub.Filters) != 0 {
+		to.Filters = toPbFilters(sub.Filters)
+	}
+	return to
+}
+
+func FromPbSubscription(sub *pb.Subscription) *primitive.Subscription {
 	to := &primitive.Subscription{
 		ID:               sub.Id,
 		Source:           sub.Source,
@@ -50,10 +89,10 @@ func FromPbSubscription(sub *pb.Subscription) (*primitive.Subscription, error) {
 	if len(sub.Filters) != 0 {
 		to.Filters = fromPbFilters(sub.Filters)
 	}
-	return to, nil
+	return to
 }
 
-func ToPbSubscription(sub *primitive.Subscription) (*pb.Subscription, error) {
+func ToPbSubscription(sub *primitive.Subscription) *pb.Subscription {
 	to := &pb.Subscription{
 		Id:               sub.ID,
 		Source:           sub.Source,
@@ -67,7 +106,7 @@ func ToPbSubscription(sub *primitive.Subscription) (*pb.Subscription, error) {
 	if len(sub.Filters) != 0 {
 		to.Filters = toPbFilters(sub.Filters)
 	}
-	return to, nil
+	return to
 }
 
 func fromPbFilters(filters []*pb.Filter) []*primitive.SubscriptionFilter {
@@ -138,4 +177,51 @@ func toPbFilter(filter *primitive.SubscriptionFilter) *pb.Filter {
 		return &pb.Filter{Any: toPbFilters(filter.Any)}
 	}
 	return nil
+}
+
+func FromPbSubscriptionInfo(sub *pb.SubscriptionInfo) *info.SubscriptionInfo {
+	to := &info.SubscriptionInfo{
+		SubId:   sub.SubscriptionId,
+		Offsets: FromOffsetInfos(sub.Offsets...),
+	}
+	return to
+}
+
+func FromOffsetInfos(offsets ...*pb.OffsetInfo) []info.OffsetInfo {
+	to := make([]info.OffsetInfo, len(offsets))
+	for _, offset := range offsets {
+		to = append(to, FromOffsetInfo(offset))
+	}
+	return to
+}
+
+func FromOffsetInfo(offset *pb.OffsetInfo) info.OffsetInfo {
+	return info.OffsetInfo{
+		EventLog: offset.EventLog,
+		Offset:   offset.Offset,
+	}
+}
+
+func ToPbSubscriptionInfo(sub info.SubscriptionInfo) *pb.SubscriptionInfo {
+	to := &pb.SubscriptionInfo{
+		SubscriptionId: sub.SubId,
+		Offsets:        ToOffsetInfos(sub.Offsets...),
+	}
+
+	return to
+}
+
+func ToOffsetInfos(offsets ...info.OffsetInfo) []*pb.OffsetInfo {
+	to := make([]*pb.OffsetInfo, len(offsets))
+	for _, offset := range offsets {
+		to = append(to, ToOffsetInfo(offset))
+	}
+	return to
+}
+
+func ToOffsetInfo(offset info.OffsetInfo) *pb.OffsetInfo {
+	return &pb.OffsetInfo{
+		EventLog: offset.EventLog,
+		Offset:   offset.Offset,
+	}
 }

@@ -12,18 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package info
+package errors
 
-import (
-	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
+import rpcerr "github.com/linkall-labs/vsproto/pkg/errors"
+
+var (
+	ErrInvalidRequest       = rpcerr.New("invalid request").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
+	ErrResourceNotFound     = rpcerr.New("resource not found").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_NOT_FOUND)
+	ErrResourceAlreadyExist = rpcerr.New("no enough capacity").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_EXIST)
+	ErrWorkerNotStart       = rpcerr.New("worker not start").WithGRPCCode(rpcerr.ErrorCode_SERVICE_NOT_RUNNING)
 )
-
-type EventRecord struct {
-	EventLogOffset
-}
-
-type EventLogOffset struct {
-	Event *ce.Event
-	info.OffsetInfo
-}

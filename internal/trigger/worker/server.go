@@ -17,9 +17,11 @@ package worker
 import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/convert"
+	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vsproto/pkg/controller"
+	"github.com/linkall-labs/vsproto/pkg/meta"
 	pbtrigger "github.com/linkall-labs/vsproto/pkg/trigger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -67,14 +69,10 @@ func (s *server) Stop(ctx context.Context, request *pbtrigger.StopTriggerWorkerR
 
 func (s *server) AddSubscription(ctx context.Context, request *pbtrigger.AddSubscriptionRequest) (*pbtrigger.AddSubscriptionResponse, error) {
 	log.Info(ctx, "subscription add ", map[string]interface{}{"request": request})
-	sub, err := convert.FromPbSubscription(request.Subscription)
+	sub := convert.FromPbAddSubscription(request)
+	err := s.worker.AddSubscription(sub)
 	if err != nil {
-		log.Info(ctx, "trigger subscription request to subscription error", map[string]interface{}{"error": err})
-		return nil, err
-	}
-	err = s.worker.AddSubscription(sub)
-	if err != nil {
-		if err == SubExist {
+		if err == errors.ErrResourceAlreadyExist {
 			log.Info(ctx, "add subscription bus sub exist", map[string]interface{}{
 				"id": sub.ID,
 			})
@@ -204,15 +202,15 @@ func (s *server) startHeartbeat() {
 			}
 		sendLoop:
 			for {
-				subs := s.worker.ListSubscription()
-				var ids []string
-				for _, sub := range subs {
-					ids = append(ids, sub.ID)
+				workerSub := s.worker.ListSubInfos()
+				var subInfos []*meta.SubscriptionInfo
+				for _, sub := range workerSub {
+					subInfos = append(subInfos, convert.ToPbSubscriptionInfo(sub))
 				}
 				err = stream.Send(&controller.TriggerWorkerHeartbeatRequest{
-					Started: s.worker.started,
-					Address: s.config.TriggerAddr,
-					SubIds:  ids,
+					Started:  s.worker.started,
+					Address:  s.config.TriggerAddr,
+					SubInfos: subInfos,
 				})
 				if err != nil {
 					if err == io.EOF || time.Now().Sub(lastSendTime) > 5*time.Second {

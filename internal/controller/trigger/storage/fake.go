@@ -17,19 +17,21 @@ package storage
 import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
-	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	iInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 )
 
 type fake struct {
-	subs   map[string]*primitive.Subscription
-	offset map[string]map[string]int64
+	subs     map[string]*primitive.Subscription
+	offset   map[string][]iInfo.OffsetInfo
+	tWorkers map[string]*info.TriggerWorkerInfo
 }
 
 func NewFakeStorage(config primitive.KvStorageConfig) (Storage, error) {
 	s := &fake{
-		subs:   map[string]*primitive.Subscription{},
-		offset: map[string]map[string]int64{},
+		subs:     map[string]*primitive.Subscription{},
+		offset:   map[string][]iInfo.OffsetInfo{},
+		tWorkers: map[string]*info.TriggerWorkerInfo{},
 	}
 	return s, nil
 }
@@ -60,39 +62,38 @@ func (f *fake) ListSubscription(ctx context.Context) ([]*primitive.Subscription,
 	return list, nil
 }
 
-func (f *fake) CreateOffset(ctx context.Context, info *info.OffsetInfo) error {
-	v, exist := f.offset[info.SubId]
-	if !exist {
-		v = map[string]int64{}
-		f.offset[info.SubId] = v
-	}
-	v[info.EventLog] = info.Offset
+func (f *fake) CreateOffset(ctx context.Context, subId string, info iInfo.ListOffsetInfo) error {
+	f.offset[subId] = info
 	return nil
 }
-func (f *fake) UpdateOffset(ctx context.Context, info *info.OffsetInfo) error {
-	v, exist := f.offset[info.SubId]
-	if !exist {
-		v = map[string]int64{}
-		f.offset[info.SubId] = v
-	}
-	v[info.EventLog] = info.Offset
+func (f *fake) UpdateOffset(ctx context.Context, subId string, info iInfo.ListOffsetInfo) error {
+	f.offset[subId] = info
 	return nil
 }
-func (f *fake) GetOffset(ctx context.Context, info *info.OffsetInfo) (int64, error) {
-	v, exist := f.offset[info.SubId]
-	if !exist {
-		return 0, kv.ErrorKeyNotFound
-	}
-	o, exist := v[info.EventLog]
-	if !exist {
-		return 0, kv.ErrorKeyNotFound
-	}
-	return o, nil
-}
-func (f *fake) ListOffset(ctx context.Context, subId string) ([]*info.OffsetInfo, error) {
-	return nil, nil
+func (f *fake) GetOffset(ctx context.Context, subId string) (iInfo.ListOffsetInfo, error) {
+	return f.offset[subId], nil
 }
 
-func (f *fake) DeleteOffset(ctx context.Context, id string) error {
+func (f *fake) DeleteOffset(ctx context.Context, subId string) error {
+	delete(f.offset, subId)
 	return nil
+}
+
+func (f *fake) SaveTriggerWorker(ctx context.Context, info info.TriggerWorkerInfo) error {
+	f.tWorkers[info.Id] = &info
+	return nil
+}
+func (f *fake) GetTriggerWorker(ctx context.Context, id string) (*info.TriggerWorkerInfo, error) {
+	return f.tWorkers[id], nil
+}
+func (f *fake) DeleteTriggerWorker(ctx context.Context, id string) error {
+	delete(f.tWorkers, id)
+	return nil
+}
+func (f *fake) ListTriggerWorker(ctx context.Context) ([]*info.TriggerWorkerInfo, error) {
+	var list []*info.TriggerWorkerInfo
+	for _, data := range f.tWorkers {
+		list = append(list, data)
+	}
+	return list, nil
 }

@@ -14,16 +14,15 @@
 
 package info
 
-import (
-	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-)
-
-type EventRecord struct {
-	EventLogOffset
+type SubscriptionInfo struct {
+	SubId   string         `json:"subId"`
+	Offsets ListOffsetInfo `json:"offsetInfos"`
 }
 
-type EventLogOffset struct {
-	Event *ce.Event
-	info.OffsetInfo
+type OffsetInfo struct {
+	SubId    string `json:"subId"`
+	EventLog string `json:"eventLog"`
+	Offset   int64  `json:"offset"`
 }
+
+type ListOffsetInfo []OffsetInfo

@@ -15,24 +15,32 @@
 package info
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"time"
 )
 
 type TriggerWorkerInfo struct {
-	Addr          string
-	Started       bool
-	SubIds        []string
-	HeartbeatTime time.Time
-	IsStarting    bool
+	Id            string                            `json:"Id"`
+	Addr          string                            `json:"addr"`
+	Started       bool                              `json:"started"`
+	SubInfos      map[string]*info.SubscriptionInfo `json:"-"`
+	HeartbeatTime time.Time                         `json:"-"`
+	IsStarting    bool                              `json:"-"`
+}
+
+func NewTriggerWorkerInfo(addr string) *TriggerWorkerInfo {
+	return &TriggerWorkerInfo{
+		Addr: addr,
+		Id:   GetIdByAddr(addr),
+	}
+}
+
+func GetIdByAddr(addr string) string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(addr)))
 }
 
 func (tw *TriggerWorkerInfo) String() string {
-	return fmt.Sprintf("addr:%s,started:%v,subIds:%v", tw.Addr, tw.Started, tw.SubIds)
-}
-
-type OffsetInfo struct {
-	SubId    string `json:"subId"`
-	EventLog string `json:"eventLog"`
-	Offset   int64  `json:"offset"`
+	return fmt.Sprintf("addr:%s,started:%v", tw.Addr, tw.Started)
 }

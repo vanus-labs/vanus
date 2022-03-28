@@ -99,18 +99,13 @@ func (tw *triggerWorker) stopTriggerWorker() error {
 	return nil
 }
 
-func (tw *triggerWorker) AddSubscription(sub *primitive.Subscription) error {
+func (tw *triggerWorker) AddSubscription(sub *primitive.SubscriptionInfo) error {
 	if sub == nil {
 		return nil
 	}
 	ctx := context.Background()
-	to, err := convert.ToPbSubscription(sub)
-	if err != nil {
-		return errors.Wrap(err, "add subscription model convert error")
-	}
-	_, err = tw.twClient.AddSubscription(ctx, &trigger.AddSubscriptionRequest{
-		Subscription: to,
-	})
+	request := convert.ToPbAddSubscription(sub)
+	_, err := tw.twClient.AddSubscription(ctx, request)
 	if err != nil {
 		return errors.Wrap(err, "twClient add subscription error")
 	}
