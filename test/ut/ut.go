@@ -10,3 +10,7 @@ type Foo interface {
 func SUT(f Foo) {
 	fmt.Println(f.Bar(99))
 }
+
+var doubleInt = func(int int) int {
+	return int * 2
+}

@@ -2,6 +2,8 @@ package ut
 
 import (
 	"github.com/golang/mock/gomock"
+	"github.com/prashantv/gostub"
+	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 	"time"
 )
@@ -49,4 +51,21 @@ func TestFoo(t *testing.T) {
 		AnyTimes()
 
 	SUT(m)
+}
+
+func TestStub1(t *testing.T) {
+	Convey("test function stub", t, func() {
+		Convey("cases", func() {
+			So(doubleInt(2), ShouldEqual, 4)
+			stubs := gostub.Stub(&doubleInt, func(i int) int {
+				return i * 3
+			})
+			defer stubs.Reset()
+			So(doubleInt(2), ShouldNotEqual, 4)
+			So(doubleInt(2), ShouldEqual, 6)
+			gostub.StubFunc(&doubleInt, 10)
+			So(doubleInt(2), ShouldNotEqual, 6)
+			So(doubleInt(2), ShouldEqual, 10)
+		})
+	})
 }
