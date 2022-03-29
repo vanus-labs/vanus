@@ -19,5 +19,5 @@ import rpcerr "github.com/linkall-labs/vsproto/pkg/errors"
 var (
 	ErrInvalidRequest       = rpcerr.New("invalid request").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
 	ErrResourceNotFound     = rpcerr.New("resource not found").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_NOT_FOUND)
-	ErrResourceAlreadyExist = rpcerr.New("no enough capacity").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_EXIST)
+	ErrResourceAlreadyExist = rpcerr.New("resource already exist").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_EXIST)
 )

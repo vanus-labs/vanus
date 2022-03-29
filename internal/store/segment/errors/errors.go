@@ -22,5 +22,5 @@ var (
 	ErrServiceState            = rpcerr.New("service state error").WithGRPCCode(rpcerr.ErrorCode_SERVICE_NOT_RUNNING)
 	ErrSegmentNoEnoughCapacity = rpcerr.New("no enough capacity").WithGRPCCode(rpcerr.ErrorCode_SEGMENT_FULL)
 	ErrResourceNotFound        = rpcerr.New("resource not found").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_NOT_FOUND)
-	ErrResourceAlreadyExist    = rpcerr.New("no enough capacity").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_EXIST)
+	ErrResourceAlreadyExist    = rpcerr.New("resource already exist").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_EXIST)
 )
