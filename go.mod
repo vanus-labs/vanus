@@ -17,6 +17,10 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/smartystreets/goconvey v1.7.2
 	go.etcd.io/etcd/client/v3 v3.5.2
+	go.opentelemetry.io/otel v1.6.1
+	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.6.1
+	go.opentelemetry.io/otel/metric v0.28.0
+	go.opentelemetry.io/otel/sdk v1.6.1
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 	google.golang.org/grpc v1.44.0
 	google.golang.org/protobuf v1.27.1
@@ -34,7 +38,8 @@ require (
 	github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20211221011931-643d94fcab96 // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
-	github.com/go-logr/logr v1.2.0 // indirect
+	github.com/go-logr/logr v1.2.3 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20181017120253-0766667cb4d1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -45,6 +50,7 @@ require (
 	github.com/smartystreets/assertions v1.2.0 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.2 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.2 // indirect
+	go.opentelemetry.io/otel/trace v1.6.1 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.17.0 // indirect
