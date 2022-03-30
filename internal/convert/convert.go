@@ -22,8 +22,8 @@ import (
 	pbtrigger "github.com/linkall-labs/vsproto/pkg/trigger"
 )
 
-func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *primitive.Subscription {
-	to := &primitive.Subscription{
+func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *primitive.SubscriptionApi {
+	to := &primitive.SubscriptionApi{
 		Source:           sub.Source,
 		Types:            sub.Types,
 		Config:           sub.Config,
@@ -38,18 +38,12 @@ func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *primitive.Su
 	return to
 }
 
-func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.SubscriptionInfo {
-	to := &primitive.SubscriptionInfo{
-		Subscription: primitive.Subscription{
-			Source:           sub.Source,
-			Types:            sub.Types,
-			Config:           sub.Config,
-			Sink:             primitive.URI(sub.Sink),
-			Protocol:         sub.Protocol,
-			ProtocolSettings: sub.ProtocolSettings,
-			EventBus:         sub.EventBus,
-		},
-		Offsets: FromOffsetInfos(sub.Offsets...),
+func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Subscription {
+	to := &primitive.Subscription{
+		ID:       sub.Id,
+		Sink:     primitive.URI(sub.Sink),
+		EventBus: sub.EventBus,
+		Offsets:  FromOffsetInfos(sub.Offsets...),
 	}
 	if len(sub.Filters) != 0 {
 		to.Filters = fromPbFilters(sub.Filters)
@@ -57,17 +51,12 @@ func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Sub
 	return to
 }
 
-func ToPbAddSubscription(sub *primitive.SubscriptionInfo) *pbtrigger.AddSubscriptionRequest {
+func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscriptionRequest {
 	to := &pbtrigger.AddSubscriptionRequest{
-		Id:               sub.ID,
-		Source:           sub.Source,
-		Types:            sub.Types,
-		Config:           sub.Config,
-		Sink:             string(sub.Sink),
-		Protocol:         sub.Protocol,
-		ProtocolSettings: sub.ProtocolSettings,
-		EventBus:         sub.EventBus,
-		Offsets:          ToOffsetInfos(sub.Offsets...),
+		Id:       sub.ID,
+		Sink:     string(sub.Sink),
+		EventBus: sub.EventBus,
+		Offsets:  ToOffsetInfos(sub.Offsets...),
 	}
 	if len(sub.Filters) != 0 {
 		to.Filters = toPbFilters(sub.Filters)
@@ -75,8 +64,8 @@ func ToPbAddSubscription(sub *primitive.SubscriptionInfo) *pbtrigger.AddSubscrip
 	return to
 }
 
-func FromPbSubscription(sub *pb.Subscription) *primitive.Subscription {
-	to := &primitive.Subscription{
+func FromPbSubscription(sub *pb.Subscription) *primitive.SubscriptionApi {
+	to := &primitive.SubscriptionApi{
 		ID:               sub.Id,
 		Source:           sub.Source,
 		Types:            sub.Types,
@@ -92,7 +81,7 @@ func FromPbSubscription(sub *pb.Subscription) *primitive.Subscription {
 	return to
 }
 
-func ToPbSubscription(sub *primitive.Subscription) *pb.Subscription {
+func ToPbSubscription(sub *primitive.SubscriptionApi) *pb.Subscription {
 	to := &pb.Subscription{
 		Id:               sub.ID,
 		Source:           sub.Source,
@@ -188,7 +177,7 @@ func FromPbSubscriptionInfo(sub *pb.SubscriptionInfo) *info.SubscriptionInfo {
 }
 
 func FromOffsetInfos(offsets ...*pb.OffsetInfo) []info.OffsetInfo {
-	to := make([]info.OffsetInfo, len(offsets))
+	var to []info.OffsetInfo
 	for _, offset := range offsets {
 		to = append(to, FromOffsetInfo(offset))
 	}
@@ -212,7 +201,7 @@ func ToPbSubscriptionInfo(sub info.SubscriptionInfo) *pb.SubscriptionInfo {
 }
 
 func ToOffsetInfos(offsets ...info.OffsetInfo) []*pb.OffsetInfo {
-	to := make([]*pb.OffsetInfo, len(offsets))
+	var to []*pb.OffsetInfo
 	for _, offset := range offsets {
 		to = append(to, ToOffsetInfo(offset))
 	}

@@ -24,10 +24,10 @@ import (
 )
 
 type SubscriptionStorage interface {
-	CreateSubscription(ctx context.Context, sub *primitive.Subscription) error
+	CreateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error
 	DeleteSubscription(ctx context.Context, subId string) error
-	GetSubscription(ctx context.Context, subId string) (*primitive.Subscription, error)
-	ListSubscription(ctx context.Context) ([]*primitive.Subscription, error)
+	GetSubscription(ctx context.Context, subId string) (*primitive.SubscriptionApi, error)
+	ListSubscription(ctx context.Context) ([]*primitive.SubscriptionApi, error)
 }
 
 type subscriptionStorage struct {
@@ -44,7 +44,7 @@ func (s *subscriptionStorage) Close() error {
 	return s.client.Close()
 }
 
-func (s *subscriptionStorage) CreateSubscription(ctx context.Context, sub *primitive.Subscription) error {
+func (s *subscriptionStorage) CreateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error {
 	v, err := json.Marshal(sub)
 	if err != nil {
 		return errors.Wrap(err, "json marshal error")
@@ -66,13 +66,13 @@ func (s *subscriptionStorage) DeleteSubscription(ctx context.Context, subId stri
 	return nil
 }
 
-func (s *subscriptionStorage) GetSubscription(ctx context.Context, subId string) (*primitive.Subscription, error) {
+func (s *subscriptionStorage) GetSubscription(ctx context.Context, subId string) (*primitive.SubscriptionApi, error) {
 	key := path.Join(primitive.StorageSubscription.String(), subId)
 	v, err := s.client.Get(ctx, key)
 	if err != nil {
 		return nil, errors.Wrap(err, "etcd get error")
 	}
-	sub := &primitive.Subscription{}
+	sub := &primitive.SubscriptionApi{}
 	err = json.Unmarshal(v, sub)
 	if err != nil {
 		return nil, errors.Wrapf(err, "%s json unmarshal error", string(v))
@@ -80,15 +80,15 @@ func (s *subscriptionStorage) GetSubscription(ctx context.Context, subId string)
 	return sub, nil
 }
 
-func (s *subscriptionStorage) ListSubscription(ctx context.Context) ([]*primitive.Subscription, error) {
+func (s *subscriptionStorage) ListSubscription(ctx context.Context) ([]*primitive.SubscriptionApi, error) {
 	key := path.Join(primitive.StorageSubscription.String(), "/")
 	l, err := s.client.List(ctx, key)
 	if err != nil {
 		return nil, errors.Wrap(err, "etcd list error")
 	}
-	var list []*primitive.Subscription
+	var list []*primitive.SubscriptionApi
 	for _, v := range l {
-		sub := &primitive.Subscription{}
+		sub := &primitive.SubscriptionApi{}
 		err = json.Unmarshal(v.Value, sub)
 		if err != nil {
 			return nil, errors.Wrapf(err, "%s json unmarshal error", string(v.Value))

@@ -18,7 +18,7 @@ import "github.com/linkall-labs/vanus/internal/primitive/info"
 
 type URI string
 
-type Subscription struct {
+type SubscriptionApi struct {
 	ID               string                `json:"id"`
 	Source           string                `json:"source,omitempty"`
 	Types            []string              `json:"types,omitempty"`
@@ -31,9 +31,12 @@ type Subscription struct {
 	Enable           bool                  `json:"enable"`
 }
 
-type SubscriptionInfo struct {
-	Subscription
-	Offsets info.ListOffsetInfo `json:"offsets"`
+type Subscription struct {
+	ID       string                `json:"id"`
+	Filters  []*SubscriptionFilter `json:"filters,omitempty"`
+	Sink     URI                   `json:"sink,omitempty"`
+	EventBus string                `json:"eventBus"`
+	Offsets  info.ListOffsetInfo   `json:"offsets"`
 }
 
 type SubscriptionFilter struct {

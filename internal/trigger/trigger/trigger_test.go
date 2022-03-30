@@ -1,10 +1,9 @@
-package worker
+package trigger
 
 import (
 	// standard libraries
 	"context"
 	"fmt"
-	"github.com/linkall-labs/vanus/internal/trigger/offset"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -22,19 +21,16 @@ import (
 
 	// this project
 	"github.com/linkall-labs/vanus/internal/primitive"
+	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
+	"github.com/linkall-labs/vanus/internal/trigger/offset"
 )
 
 func Test_e2e(t *testing.T) {
-	tg := NewTrigger(&primitive.Subscription{
-		ID:               "test",
-		Source:           "human",
-		Types:            []string{"aaa"},
-		Config:           map[string]string{},
-		Filters:          []*primitive.SubscriptionFilter{{Exact: map[string]string{"type": "none"}}},
-		Sink:             "http://localhost:18080",
-		Protocol:         "vanus",
-		ProtocolSettings: nil,
+	tg := NewTrigger(nil, &primitive.Subscription{
+		ID:      "test",
+		Filters: []*primitive.SubscriptionFilter{{Exact: map[string]string{"type": "none"}}},
+		Sink:    "http://localhost:18080",
 	}, offset.NewOffsetManager().RegisterSubscription("test"))
 	emit := 0
 	pre := 0
@@ -107,7 +103,7 @@ func Test_e2e(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-
+		var offset int64
 		for {
 			events, err := r.Read(context.Background(), 5)
 			if err != nil {
@@ -120,8 +116,14 @@ func Test_e2e(t *testing.T) {
 			}
 
 			for _, e := range events {
-				tg.EventArrived(context.Background(), &info.EventRecord{
-					Event: e,
+				tg.EventArrived(context.Background(), info.EventRecord{
+					EventOffset: info.EventOffset{
+						Event: e,
+						OffsetInfo: pInfo.OffsetInfo{
+							Offset:   offset,
+							EventLog: ls[0].VRN,
+						},
+					},
 				})
 				emit++
 			}
@@ -147,7 +149,7 @@ func Test_e2e(t *testing.T) {
 			receivePre = cur
 		}
 	}()
-	tg.Start(context.Background())
+	tg.Start()
 
 	time.Sleep(time.Hour)
 	tg.Stop()

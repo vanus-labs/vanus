@@ -18,14 +18,15 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/errors"
+	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/offset"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	iInfo "github.com/linkall-labs/vanus/internal/primitive/info"
+	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/queue"
+	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/linkall-labs/vsproto/pkg/meta"
@@ -117,13 +118,13 @@ func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerCo
 			}
 			tWorker.twInfo.Started = req.Started
 			tWorker.twInfo.HeartbeatTime = time.Now()
-			subInfos := make(map[string]*iInfo.SubscriptionInfo, len(req.SubInfos))
+			subInfos := make(map[string]*pInfo.SubscriptionInfo, len(req.SubInfos))
 			for _, sub := range req.SubInfos {
 				if ctrl.state == primitive.ServerStateStarted {
 					ctrl.addSubscription(sub.SubscriptionId, req.Address)
 				}
 				subInfo := convert.FromPbSubscriptionInfo(sub)
-				ctrl.offsetManager.Offset(*subInfo)
+				ctrl.offsetManager.Offset(ctrl.ctx, *subInfo)
 				subInfos[sub.SubscriptionId] = subInfo
 			}
 			tWorker.twInfo.SubInfos = subInfos
@@ -198,7 +199,7 @@ func (ctrl *triggerController) deleteSubscription(ctx context.Context, id string
 
 }
 
-func (ctrl *triggerController) getSubscription(id string) (*primitive.Subscription, error) {
+func (ctrl *triggerController) getSubscription(id string) (*primitive.SubscriptionApi, error) {
 	return ctrl.storage.GetSubscription(context.Background(), id)
 }
 
@@ -260,7 +261,7 @@ func (ctrl *triggerController) removeTriggerWorker(ctx context.Context, addr, re
 		})
 		return nil
 	}
-	err := ctrl.storage.DeleteTriggerWorker(ctx, info.GetIdByAddr(addr))
+	err := ctrl.storage.DeleteTriggerWorker(ctx, util.GetIdByAddr(addr))
 	if err != nil {
 		return err
 	}
@@ -423,15 +424,13 @@ func (ctrl *triggerController) checkTriggerWorker() {
 	}
 }
 func (ctrl *triggerController) processSubscription(subId string) error {
-	sub, err := ctrl.getSubscription(subId)
+	subApi, err := ctrl.getSubscription(subId)
 	if err != nil {
 		return err
 	}
 	var tWorker *triggerWorker
-	findTime := 0
 	beginTime := time.Now()
 	for {
-		findTime++
 		tWorker = ctrl.findTriggerWorker()
 		if tWorker == nil {
 			if ctrl.subQueue.IsShutDown() {
@@ -439,9 +438,6 @@ func (ctrl *triggerController) processSubscription(subId string) error {
 			}
 			if time.Now().Sub(beginTime) > 2*time.Minute {
 				return errors.ErrFindTriggerWorkerTimeout
-			}
-			if findTime%10 == 0 {
-				log.Debug(ctrl.ctx, "process subscriptions no found trigger processor", nil)
 			}
 			time.Sleep(time.Second * 5)
 			continue
@@ -452,7 +448,14 @@ func (ctrl *triggerController) processSubscription(subId string) error {
 	if err != nil {
 		return err
 	}
-	err = tWorker.AddSubscription(&primitive.SubscriptionInfo{Subscription: *sub, Offsets: offsets})
+	sub := &primitive.Subscription{
+		ID:       subApi.ID,
+		Filters:  subApi.Filters,
+		Sink:     subApi.Sink,
+		EventBus: subApi.EventBus,
+		Offsets:  offsets,
+	}
+	err = tWorker.AddSubscription(sub)
 	if err != nil {
 		return err
 	}

@@ -39,32 +39,61 @@ func NewOffsetManager(storage storage.OffsetStorage) *Manager {
 }
 
 func (m *Manager) GetOffset(ctx context.Context, subId string) (info.ListOffsetInfo, error) {
-	offsets, err := m.storage.GetOffset(ctx, subId)
+	subOffset, err := m.getSubscriptionOffset(ctx, subId)
 	if err != nil {
-		if err == kv.ErrorKeyNotFound {
-			return info.ListOffsetInfo{}, nil
-		}
 		return nil, err
 	}
-	return offsets, nil
+	return subOffset.getOffsets(), nil
 }
 
-func (m *Manager) Offset(subInfo info.SubscriptionInfo) {
-	subOffset := m.getSubscription(subInfo.SubId)
+func (m *Manager) Offset(ctx context.Context, subInfo info.SubscriptionInfo) error {
+	subOffset, err := m.getSubscriptionOffset(ctx, subInfo.SubId)
+	if err != nil {
+		return err
+	}
 	subOffset.offset(subInfo.Offsets)
+	return nil
 }
 
-func (m *Manager) getSubscription(subId string) *subscriptionOffset {
+func (m *Manager) getSubscriptionOffset(ctx context.Context, subId string) (*subscriptionOffset, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	sub, exist := m.subOffset[subId]
 	if !exist {
-		sub = &subscriptionOffset{
-			subId: subId,
+		var err error
+		sub, err = m.initSubscriptionOffset(ctx, subId)
+		if err != nil {
+			return nil, err
 		}
 		m.subOffset[subId] = sub
 	}
-	return sub
+	return sub, nil
+}
+
+func (m *Manager) initSubscriptionOffset(ctx context.Context, subId string) (*subscriptionOffset, error) {
+	list, err := m.storage.GetOffset(ctx, subId)
+	if err != nil {
+		if err == kv.ErrorKeyNotFound {
+			err = m.storage.CreateOffset(ctx, subId, info.ListOffsetInfo{})
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
+	}
+	offsets := make(map[string]*info.OffsetInfo, len(list))
+	for _, o := range list {
+		offsets[o.EventLog] = &info.OffsetInfo{
+			EventLog: o.EventLog,
+			Offset:   o.Offset,
+		}
+	}
+	return &subscriptionOffset{
+		subId:   subId,
+		offsets: offsets,
+	}, nil
+
 }
 
 func (m *Manager) RemoveRegisterSubscription(subId string) {
@@ -97,60 +126,60 @@ func (m *Manager) commit(ctx context.Context) {
 			log.Warning(ctx, "commit offset error", map[string]interface{}{
 				log.KeyError:          err,
 				log.KeySubscriptionID: sub.subId,
-				"offset":              sub.infos,
+				"offset":              sub.offsets,
 			})
 		}
 	}
 }
 
 type subscriptionOffset struct {
-	subId string
-	infos info.ListOffsetInfo
-	exist bool
-	lock  sync.Mutex
+	subId   string
+	offsets map[string]*info.OffsetInfo
+	change  bool
+	lock    sync.Mutex
 }
 
 func (o *subscriptionOffset) offset(infos info.ListOffsetInfo) {
 	o.lock.Lock()
 	o.lock.Unlock()
-	o.infos = infos
+	for _, info := range infos {
+		now, exist := o.offsets[info.EventLog]
+		if !exist || now.Offset != info.Offset {
+			o.offsets[info.EventLog] = &info
+			o.change = true
+		}
+	}
 }
 
-func (o *subscriptionOffset) getOffsetInfo() info.ListOffsetInfo {
-	o.lock.Lock()
-	o.lock.Unlock()
-	return o.infos
+func (o *subscriptionOffset) getOffsets() info.ListOffsetInfo {
+	var offsets info.ListOffsetInfo
+	for _, v := range o.offsets {
+		offsets = append(offsets, info.OffsetInfo{
+			EventLog: v.EventLog,
+			Offset:   v.Offset,
+		})
+	}
+	return offsets
 }
 
 func (o *subscriptionOffset) commitOffset(ctx context.Context, storage storage.OffsetStorage) error {
-	offsets := o.getOffsetInfo()
-	if len(offsets) == 0 {
+	o.lock.Lock()
+	o.lock.Unlock()
+	if !o.change {
 		return nil
 	}
-	//todo check no change no need to commit
-	if !o.exist {
-		_, err := storage.GetOffset(ctx, o.subId)
-		if err != nil {
-			if err == kv.ErrorKeyNotFound {
-				err = storage.CreateOffset(ctx, o.subId, offsets)
-				if err != nil {
-					o.exist = true
-					return nil
-				}
-				return err
-			} else {
-				return err
-			}
-		}
-		o.exist = true
+	offsets := o.getOffsets()
+	if len(offsets) == 0 {
+		return nil
 	}
 	err := storage.UpdateOffset(ctx, o.subId, offsets)
 	if err != nil {
 		return err
 	}
+	o.change = false
 	log.Debug(ctx, "update offset", map[string]interface{}{
-		log.KeyError: err,
-		"offset":     offsets,
+		log.KeySubscriptionID: o.subId,
+		"offset":              offsets,
 	})
 	return nil
 }

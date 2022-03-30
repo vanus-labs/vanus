@@ -18,19 +18,19 @@ import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	iInfo "github.com/linkall-labs/vanus/internal/primitive/info"
+	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 )
 
 type fake struct {
-	subs     map[string]*primitive.Subscription
-	offset   map[string][]iInfo.OffsetInfo
+	subs     map[string]*primitive.SubscriptionApi
+	offset   map[string][]pInfo.OffsetInfo
 	tWorkers map[string]*info.TriggerWorkerInfo
 }
 
 func NewFakeStorage(config primitive.KvStorageConfig) (Storage, error) {
 	s := &fake{
-		subs:     map[string]*primitive.Subscription{},
-		offset:   map[string][]iInfo.OffsetInfo{},
+		subs:     map[string]*primitive.SubscriptionApi{},
+		offset:   map[string][]pInfo.OffsetInfo{},
 		tWorkers: map[string]*info.TriggerWorkerInfo{},
 	}
 	return s, nil
@@ -40,7 +40,7 @@ func (f *fake) Close() {
 
 }
 
-func (f *fake) CreateSubscription(ctx context.Context, sub *primitive.Subscription) error {
+func (f *fake) CreateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error {
 	f.subs[sub.ID] = sub
 	return nil
 }
@@ -50,27 +50,27 @@ func (f *fake) DeleteSubscription(ctx context.Context, id string) error {
 	return nil
 }
 
-func (f *fake) GetSubscription(ctx context.Context, id string) (*primitive.Subscription, error) {
+func (f *fake) GetSubscription(ctx context.Context, id string) (*primitive.SubscriptionApi, error) {
 	return f.subs[id], nil
 }
 
-func (f *fake) ListSubscription(ctx context.Context) ([]*primitive.Subscription, error) {
-	var list []*primitive.Subscription
+func (f *fake) ListSubscription(ctx context.Context) ([]*primitive.SubscriptionApi, error) {
+	var list []*primitive.SubscriptionApi
 	for _, sub := range f.subs {
 		list = append(list, sub)
 	}
 	return list, nil
 }
 
-func (f *fake) CreateOffset(ctx context.Context, subId string, info iInfo.ListOffsetInfo) error {
+func (f *fake) CreateOffset(ctx context.Context, subId string, info pInfo.ListOffsetInfo) error {
 	f.offset[subId] = info
 	return nil
 }
-func (f *fake) UpdateOffset(ctx context.Context, subId string, info iInfo.ListOffsetInfo) error {
+func (f *fake) UpdateOffset(ctx context.Context, subId string, info pInfo.ListOffsetInfo) error {
 	f.offset[subId] = info
 	return nil
 }
-func (f *fake) GetOffset(ctx context.Context, subId string) (iInfo.ListOffsetInfo, error) {
+func (f *fake) GetOffset(ctx context.Context, subId string) (pInfo.ListOffsetInfo, error) {
 	return f.offset[subId], nil
 }
 

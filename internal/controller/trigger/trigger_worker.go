@@ -25,7 +25,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-//triggerWorker send Subscription to trigger worker
+//triggerWorker send SubscriptionApi to trigger worker
 type triggerWorker struct {
 	twAddr   string
 	twCc     *grpc.ClientConn
@@ -75,7 +75,6 @@ func (tw *triggerWorker) Init() error {
 func (tw *triggerWorker) Start() error {
 	err := tw.startTriggerWorker()
 	if err != nil {
-		tw.twCc.Close()
 		return errors.Wrapf(err, "start trigger worker %s error", tw.twAddr)
 	}
 	return nil
@@ -99,7 +98,7 @@ func (tw *triggerWorker) stopTriggerWorker() error {
 	return nil
 }
 
-func (tw *triggerWorker) AddSubscription(sub *primitive.SubscriptionInfo) error {
+func (tw *triggerWorker) AddSubscription(sub *primitive.Subscription) error {
 	if sub == nil {
 		return nil
 	}

@@ -25,7 +25,7 @@ import (
 	eb "github.com/linkall-labs/eventbus-go"
 	"github.com/linkall-labs/eventbus-go/pkg/discovery/record"
 	"github.com/linkall-labs/eventbus-go/pkg/eventlog"
-	iInfo "github.com/linkall-labs/vanus/internal/primitive/info"
+	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -33,13 +33,14 @@ import (
 
 type Config struct {
 	EventBus string
+	SubId    string
 }
 type EventLogOffset map[string]int64
 
 type Reader struct {
 	config   Config
 	elReader map[string]struct{}
-	events   chan<- info.EventLogOffset
+	events   chan<- info.EventOffset
 	offset   EventLogOffset
 	stop     context.CancelFunc
 	stctx    context.Context
@@ -47,7 +48,7 @@ type Reader struct {
 	lock     sync.Mutex
 }
 
-func NewReader(config Config, offset EventLogOffset, events chan<- info.EventLogOffset) *Reader {
+func NewReader(config Config, offset EventLogOffset, events chan<- info.EventOffset) *Reader {
 	r := &Reader{
 		config:   config,
 		offset:   offset,
@@ -65,7 +66,7 @@ func (r *Reader) Close() {
 		log.KeyEventbusName: r.config.EventBus,
 	})
 }
-func (r *Reader) Start(ctx context.Context) error {
+func (r *Reader) Start() error {
 	go func() {
 		tk := time.NewTicker(time.Second)
 		defer tk.Stop()
@@ -146,7 +147,7 @@ func (r *Reader) start(els []*record.EventLog) {
 type eventLogReader struct {
 	config   Config
 	eventLog string
-	events   chan<- info.EventLogOffset
+	events   chan<- info.EventOffset
 	offset   int64
 }
 
@@ -170,7 +171,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 					log.KeyError:        err,
 				})
 			}
-			if !util.Sleep(ctx, time.Second*2) {
+			if !util.SleepWithContext(ctx, time.Second*2) {
 				return
 			}
 			continue
@@ -183,7 +184,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 			case nil:
 				for i := range events {
 					elReader.offset++
-					elReader.sendEvent(ctx, info.EventLogOffset{Event: events[i], OffsetInfo: iInfo.OffsetInfo{EventLog: elReader.eventLog, Offset: elReader.offset}})
+					elReader.sendEvent(ctx, info.EventOffset{Event: events[i], OffsetInfo: pInfo.OffsetInfo{EventLog: elReader.eventLog, Offset: elReader.offset}})
 				}
 				sleepCnt = 0
 				continue
@@ -206,7 +207,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 				})
 			}
 			sleepCnt++
-			if !util.Sleep(ctx, util.Backoff(sleepCnt, 2*time.Second)) {
+			if !util.SleepWithContext(ctx, util.Backoff(sleepCnt, 2*time.Second)) {
 				lr.Close()
 				return
 			}
@@ -214,7 +215,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 	}
 }
 
-func (elReader *eventLogReader) sendEvent(ctx context.Context, event info.EventLogOffset) {
+func (elReader *eventLogReader) sendEvent(ctx context.Context, event info.EventOffset) {
 	select {
 	case elReader.events <- event:
 		return

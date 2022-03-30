@@ -195,14 +195,14 @@ func (s *server) startHeartbeat() {
 					//todo now exit trigger worker, maybe only stop trigger
 					os.Exit(1)
 				}
-				if !util.Sleep(s.ctx, time.Second*2) {
+				if !util.SleepWithContext(s.ctx, time.Second*2) {
 					return
 				}
 				continue
 			}
 		sendLoop:
 			for {
-				workerSub := s.worker.ListSubInfos()
+				workerSub, doFunc := s.worker.ListSubInfos()
 				var subInfos []*meta.SubscriptionInfo
 				for _, sub := range workerSub {
 					subInfos = append(subInfos, convert.ToPbSubscriptionInfo(sub))
@@ -216,21 +216,20 @@ func (s *server) startHeartbeat() {
 					if err == io.EOF || time.Now().Sub(lastSendTime) > 5*time.Second {
 						err = stream.CloseSend()
 						log.Warning(ctx, "heartbeat send request receive fail,will retry", map[string]interface{}{
-							"time": time.Now(),
 							"addr": s.config.TriggerCtrlAddr,
 						})
 						beginConnTime = time.Now()
 						break sendLoop
 					}
-					log.Info(ctx, "heartbeat send request error", map[string]interface{}{
-						"time":       time.Now(),
+					log.Warning(ctx, "heartbeat send request error", map[string]interface{}{
 						"addr":       s.config.TriggerCtrlAddr,
 						log.KeyError: err,
 					})
 				} else {
+					doFunc()
 					lastSendTime = time.Now()
 				}
-				if !util.Sleep(s.ctx, time.Second) {
+				if !util.SleepWithContext(s.ctx, time.Second) {
 					stream.CloseSend()
 					return
 				}

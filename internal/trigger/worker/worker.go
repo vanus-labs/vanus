@@ -17,10 +17,11 @@ package worker
 import (
 	"context"
 	"fmt"
-	iInfo "github.com/linkall-labs/vanus/internal/primitive/info"
+	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
+	"github.com/linkall-labs/vanus/internal/trigger/trigger"
 	"os"
 	"sync"
 	"time"
@@ -51,38 +52,40 @@ type Worker struct {
 }
 
 type subscriptionWorker struct {
-	sub     *primitive.SubscriptionInfo
-	trigger *Trigger
-	events  chan info.EventLogOffset
-	reader  *reader.Reader
+	sub      *primitive.Subscription
+	trigger  *trigger.Trigger
+	events   chan info.EventOffset
+	reader   *reader.Reader
+	stopTime time.Time
 }
 
-func NewSubWorker(sub *primitive.SubscriptionInfo, subOffset *offset.SubscriptionOffset) *subscriptionWorker {
+func NewSubWorker(sub *primitive.Subscription, subOffset *offset.SubscriptionOffset) *subscriptionWorker {
 	w := &subscriptionWorker{
-		events: make(chan info.EventLogOffset, 2048),
+		events: make(chan info.EventOffset, 2048),
 		sub:    sub,
 	}
-	w.trigger = NewTrigger(sub, subOffset)
 	offset := make(map[string]int64)
 	for _, o := range sub.Offsets {
 		offset[o.EventLog] = o.Offset
 	}
 	w.reader = reader.NewReader(getReaderConfig(sub), offset, w.events)
+	triggerConf := &trigger.Config{}
+	w.trigger = trigger.NewTrigger(triggerConf, sub, subOffset)
 	return w
 }
 
 func (w *subscriptionWorker) Run(ctx context.Context) error {
-	err := w.reader.Start(ctx)
+	err := w.reader.Start()
 	if err != nil {
 		return err
 	}
-	err = w.trigger.Start(ctx)
+	err = w.trigger.Start()
 	if err != nil {
 		return err
 	}
 	go func() {
 		for event := range w.events {
-			w.trigger.EventArrived(ctx, info.EventRecord{EventLogOffset: event})
+			w.trigger.EventArrived(ctx, info.EventRecord{EventOffset: event})
 		}
 	}()
 	return nil
@@ -136,33 +139,53 @@ func (w *Worker) stopSub(id string) {
 			"subId": id,
 		})
 		info.reader.Close()
-		info.trigger.Stop()
 		close(info.events)
+		info.trigger.Stop()
 		log.Info(w.ctx, "worker success stop subscription", map[string]interface{}{
 			"subId": id,
 		})
+		info.stopTime = time.Now()
 	}
 }
 
 func (w *Worker) cleanSub(id string) {
+	//wait offset commit or timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+loop:
+	for {
+		select {
+		case <-ctx.Done():
+			break loop
+		case <-ticker.C:
+			info, exist := w.subscriptions[id]
+			if !exist || info.stopTime.Before(w.offsetManager.GetLastCommitTime()) {
+				break loop
+			}
+		}
+	}
 	w.offsetManager.RemoveSubscription(id)
 	delete(w.subscriptions, id)
 }
 
-func (w *Worker) ListSubInfos() []iInfo.SubscriptionInfo {
+func (w *Worker) ListSubInfos() ([]pInfo.SubscriptionInfo, func()) {
 	w.lock.RLock()
 	defer w.lock.RUnlock()
-	var list []iInfo.SubscriptionInfo
+	var list []pInfo.SubscriptionInfo
 	for id := range w.subscriptions {
-		list = append(list, iInfo.SubscriptionInfo{
+		list = append(list, pInfo.SubscriptionInfo{
 			SubId:   id,
 			Offsets: w.offsetManager.GetSubscription(id).GetCommit(),
 		})
 	}
-	return list
+	return list, func() {
+		w.offsetManager.SetLastCommitTime()
+	}
 }
 
-func (w *Worker) AddSubscription(sub *primitive.SubscriptionInfo) error {
+func (w *Worker) AddSubscription(sub *primitive.Subscription) error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 	if !w.started {
@@ -206,13 +229,14 @@ func (w *Worker) RemoveSubscription(id string) error {
 	return nil
 }
 
-func getReaderConfig(sub *primitive.SubscriptionInfo) reader.Config {
+func getReaderConfig(sub *primitive.Subscription) reader.Config {
 	ebVrn := sub.EventBus
 	if ebVrn == "" {
 		ebVrn = defaultEbVRN
 	}
 	return reader.Config{
 		EventBus: ebVrn,
+		SubId:    sub.ID,
 	}
 }
 

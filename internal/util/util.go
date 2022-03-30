@@ -12,16 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package info
+package util
 
-type SubscriptionInfo struct {
-	SubId   string         `json:"subId"`
-	Offsets ListOffsetInfo `json:"offsetInfos"`
+import (
+	"crypto/md5"
+	"fmt"
+)
+
+func GetIdByAddr(addr string) string {
+	return fmt.Sprintf("%x", md5.Sum([]byte(addr)))
 }
-
-type OffsetInfo struct {
-	EventLog string `json:"eventLog"`
-	Offset   int64  `json:"offset"`
-}
-
-type ListOffsetInfo []OffsetInfo

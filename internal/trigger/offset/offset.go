@@ -17,13 +17,14 @@ package offset
 import (
 	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/observability/log"
 	"sync"
+	"time"
 )
 
 type Manager struct {
-	subOffset map[string]*SubscriptionOffset
-	lock      sync.Mutex
+	subOffset      map[string]*SubscriptionOffset
+	lock           sync.Mutex
+	lastCommitTime time.Time
 }
 
 func NewOffsetManager() *Manager {
@@ -58,14 +59,12 @@ func (m *Manager) RemoveSubscription(subId string) {
 	delete(m.subOffset, subId)
 }
 
-func (m *Manager) GetCommit() map[string][]info.OffsetInfo {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	commit := make(map[string][]info.OffsetInfo, len(m.subOffset))
-	for subId, offset := range m.subOffset {
-		commit[subId] = offset.GetCommit()
-	}
-	return commit
+func (m *Manager) SetLastCommitTime() {
+	m.lastCommitTime = time.Now()
+}
+
+func (m *Manager) GetLastCommitTime() time.Time {
+	return m.lastCommitTime
 }
 
 type SubscriptionOffset struct {
@@ -74,26 +73,10 @@ type SubscriptionOffset struct {
 	lock     sync.RWMutex
 }
 
-func (offset *SubscriptionOffset) RegisterEventLog(el string, currOffset int64) {
-	offset.lock.Lock()
-	defer offset.lock.Unlock()
-	if _, exist := offset.elOffset[el]; !exist {
-		offset.elOffset[el] = initOffset(currOffset)
-	}
-}
-
-func (offset *SubscriptionOffset) ResetOffset(el string, currOffset int64) {
-	offset.lock.Lock()
-	defer offset.lock.Unlock()
-	if o, exist := offset.elOffset[el]; exist {
-		log.Info(nil, "offset reset", map[string]interface{}{
-			log.KeySubscriptionID: offset.subId,
-			log.KeyEventlogID:     el,
-			"old":                 o.offsetToCommit(),
-			"new":                 currOffset,
-		})
-	}
-	offset.elOffset[el] = initOffset(currOffset)
+func (offset *SubscriptionOffset) getElOffset() map[string]*offsetTracker {
+	offset.lock.RLock()
+	defer offset.lock.RUnlock()
+	return offset.elOffset
 }
 
 func (offset *SubscriptionOffset) getOffsetTracker(el string) *offsetTracker {
@@ -102,33 +85,37 @@ func (offset *SubscriptionOffset) getOffsetTracker(el string) *offsetTracker {
 	return offset.elOffset[el]
 }
 
-func (offset *SubscriptionOffset) getOrSetOffsetTracker(record info.OffsetInfo) *offsetTracker {
+func (offset *SubscriptionOffset) initOffsetTracker(info info.OffsetInfo) *offsetTracker {
 	offset.lock.Lock()
 	defer offset.lock.Unlock()
-	o, exist := offset.elOffset[record.EventLog]
+	o, exist := offset.elOffset[info.EventLog]
 	if !exist {
-		o = initOffset(record.Offset)
-		offset.elOffset[record.EventLog] = o
+		o = initOffset(info.Offset)
+		offset.elOffset[info.EventLog] = o
 	}
 	return o
 }
 
-func (offset *SubscriptionOffset) EventReceive(record info.OffsetInfo) {
-	r := offset.getOrSetOffsetTracker(record)
-	r.putOffset(record.Offset)
+func (offset *SubscriptionOffset) EventReceive(info info.OffsetInfo) {
+	r := offset.getOffsetTracker(info.EventLog)
+	if r == nil {
+		r = offset.initOffsetTracker(info)
+	}
+	r.putOffset(info.Offset)
 }
 
-func (offset *SubscriptionOffset) EventCommit(record info.OffsetInfo) {
-	r := offset.getOffsetTracker(record.EventLog)
+func (offset *SubscriptionOffset) EventCommit(info info.OffsetInfo) {
+	r := offset.getOffsetTracker(info.EventLog)
 	if r == nil {
 		return
 	}
-	r.commitOffset(record.Offset)
+	r.commitOffset(info.Offset)
 }
 
 func (offset *SubscriptionOffset) GetCommit() []info.OffsetInfo {
-	commit := make([]info.OffsetInfo, len(offset.elOffset))
-	for el, tracker := range offset.elOffset {
+	var commit []info.OffsetInfo
+	elOffset := offset.getElOffset()
+	for el, tracker := range elOffset {
 		commit = append(commit, info.OffsetInfo{
 			EventLog: el,
 			Offset:   tracker.offsetToCommit(),
@@ -139,14 +126,12 @@ func (offset *SubscriptionOffset) GetCommit() []info.OffsetInfo {
 
 type offsetTracker struct {
 	mutex     sync.Mutex
-	commit    int64
 	maxOffset int64
 	list      *skiplist.SkipList
 }
 
 func initOffset(initOffset int64) *offsetTracker {
 	return &offsetTracker{
-		commit:    initOffset,
 		maxOffset: initOffset,
 		list: skiplist.New(skiplist.GreaterThanFunc(func(lhs, rhs interface{}) int {
 			v1 := lhs.(int64)
@@ -164,9 +149,6 @@ func initOffset(initOffset int64) *offsetTracker {
 func (o *offsetTracker) putOffset(offset int64) {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
-	if offset < o.commit {
-		return
-	}
 	o.list.Set(offset, offset)
 	o.maxOffset = o.list.Back().Key().(int64)
 }
@@ -175,14 +157,6 @@ func (o *offsetTracker) commitOffset(offset int64) {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 	o.list.Remove(offset)
-}
-
-func (o *offsetTracker) setCommit(commit int64) {
-	o.commit = commit
-}
-
-func (o *offsetTracker) getCommit() int64 {
-	return o.commit
 }
 
 func (o *offsetTracker) offsetToCommit() int64 {

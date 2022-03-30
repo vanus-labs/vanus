@@ -20,10 +20,10 @@ import (
 )
 
 type EventRecord struct {
-	EventLogOffset
+	EventOffset
 }
 
-type EventLogOffset struct {
+type EventOffset struct {
 	Event *ce.Event
 	info.OffsetInfo
 }

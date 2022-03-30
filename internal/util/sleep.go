@@ -12,16 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package info
+package util
 
-type SubscriptionInfo struct {
-	SubId   string         `json:"subId"`
-	Offsets ListOffsetInfo `json:"offsetInfos"`
+import (
+	"context"
+	"time"
+)
+
+func SleepWithContext(ctx context.Context, duration time.Duration) bool {
+	if duration == 0 {
+		select {
+		default:
+			return true
+		case <-ctx.Done():
+			return false
+		}
+	}
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return true
+	case <-ctx.Done():
+		return false
+	}
 }
-
-type OffsetInfo struct {
-	EventLog string `json:"eventLog"`
-	Offset   int64  `json:"offset"`
-}
-
-type ListOffsetInfo []OffsetInfo

@@ -17,7 +17,7 @@ package storage
 import (
 	"context"
 	"encoding/json"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/errors"
+	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
@@ -48,7 +48,7 @@ func (s *offsetStorage) getKey(subId string) string {
 func (s *offsetStorage) CreateOffset(ctx context.Context, subId string, info info.ListOffsetInfo) error {
 	v, err := json.Marshal(info)
 	if err != nil {
-		return errors.ErrInternal.Wrap(err)
+		return errors.ErrJsonMarshal.Wrap(err)
 	}
 	return s.client.Create(ctx, s.getKey(subId), v)
 }
@@ -56,7 +56,7 @@ func (s *offsetStorage) CreateOffset(ctx context.Context, subId string, info inf
 func (s *offsetStorage) UpdateOffset(ctx context.Context, subId string, info info.ListOffsetInfo) error {
 	v, err := json.Marshal(info)
 	if err != nil {
-		return errors.ErrInternal.Wrap(err)
+		return errors.ErrJsonMarshal.Wrap(err)
 	}
 	return s.client.Update(ctx, s.getKey(subId), v)
 }
@@ -69,7 +69,7 @@ func (s *offsetStorage) GetOffset(ctx context.Context, subId string) (info.ListO
 	var infos []info.OffsetInfo
 	err = json.Unmarshal(v, &infos)
 	if err != nil {
-		return nil, errors.ErrInternal.Wrap(err)
+		return nil, errors.ErrJsonUnMarshal.Wrap(err)
 	}
 
 	return infos, nil

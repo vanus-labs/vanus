@@ -17,7 +17,7 @@ package storage
 import (
 	"context"
 	"encoding/json"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/errors"
+	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive"
@@ -53,7 +53,7 @@ func (s *triggerWorkerStorage) SaveTriggerWorker(ctx context.Context, info info.
 	}
 	v, err := json.Marshal(info)
 	if err != nil {
-		return errors.ErrInternal.Wrap(err)
+		return errors.ErrJsonMarshal.Wrap(err)
 	}
 	if !exist {
 		return s.client.Create(ctx, key, v)
@@ -68,7 +68,7 @@ func (s *triggerWorkerStorage) GetTriggerWorker(ctx context.Context, id string) 
 	var tWorker info.TriggerWorkerInfo
 	err = json.Unmarshal(v, &tWorker)
 	if err != nil {
-		return nil, errors.ErrInternal.Wrap(err)
+		return nil, errors.ErrJsonUnMarshal.Wrap(err)
 	}
 	return &tWorker, nil
 }
@@ -87,7 +87,7 @@ func (s *triggerWorkerStorage) ListTriggerWorker(ctx context.Context) ([]*info.T
 		var tWorker info.TriggerWorkerInfo
 		err = json.Unmarshal(v.Value, &tWorker)
 		if err != nil {
-			return nil, errors.ErrInternal.Wrap(err)
+			return nil, errors.ErrJsonUnMarshal.Wrap(err)
 		}
 		tWorker.Id = v.Key
 		list = append(list, &tWorker)

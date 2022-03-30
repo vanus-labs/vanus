@@ -15,7 +15,6 @@
 package util
 
 import (
-	"context"
 	"math"
 	"time"
 )
@@ -47,23 +46,4 @@ func Backoff(attempt int, max time.Duration) time.Duration {
 		d = max
 	}
 	return d
-}
-
-func Sleep(ctx context.Context, duration time.Duration) bool {
-	if duration == 0 {
-		select {
-		default:
-			return true
-		case <-ctx.Done():
-			return false
-		}
-	}
-	timer := time.NewTimer(duration)
-	defer timer.Stop()
-	select {
-	case <-timer.C:
-		return true
-	case <-ctx.Done():
-		return false
-	}
 }
