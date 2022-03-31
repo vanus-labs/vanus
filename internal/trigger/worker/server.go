@@ -107,18 +107,29 @@ func (s *server) ResumeSubscription(ctx context.Context, request *pbtrigger.Resu
 	return &pbtrigger.ResumeSubscriptionResponse{}, nil
 }
 
-func (s *server) Initialize(ctx context.Context) error {
-	s.ctx, s.cancel = context.WithCancel(ctx)
+func (s *server) init(ctx context.Context) error {
+	if s.tcCc != nil {
+		return nil
+	}
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	timeCtx, cancel := context.WithTimeout(s.ctx, time.Second*10)
+	timeout, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
-	cc, err := grpc.DialContext(timeCtx, s.config.TriggerCtrlAddr, opts...)
+	cc, err := grpc.DialContext(timeout, s.config.TriggerCtrlAddr, opts...)
 	if err != nil {
 		return err
 	}
 	s.tcCc = cc
 	s.tcClient = controller.NewTriggerControllerClient(cc)
+	return nil
+}
+
+func (s *server) Initialize(ctx context.Context) error {
+	s.ctx, s.cancel = context.WithCancel(ctx)
+	err := s.init(s.ctx)
+	if err != nil {
+		return err
+	}
 	_, err = s.tcClient.RegisterTriggerWorker(ctx, &controller.RegisterTriggerWorkerRequest{
 		Address: s.config.TriggerAddr,
 	})
@@ -171,38 +182,53 @@ const (
 	heartbeatMaxConnTime = 5 * time.Minute
 )
 
+func (s *server) initHeartbeat(ctx context.Context) (controller.TriggerController_TriggerWorkerHeartbeatClient, error) {
+	err := s.init(ctx)
+	if err != nil {
+		return nil, err
+	}
+	stream, err := s.tcClient.TriggerWorkerHeartbeat(s.ctx)
+	if err != nil {
+		return nil, err
+	}
+	return stream, nil
+}
+
 func (s *server) startHeartbeat() {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		var stream controller.TriggerController_TriggerWorkerHeartbeatClient
-		var err error
 		beginConnTime := time.Now()
 		lastSendTime := time.Now()
-		ctx := context.Background()
 		for {
-			stream, err = s.tcClient.TriggerWorkerHeartbeat(context.Background())
+			stream, err := s.initHeartbeat(s.ctx)
 			if err != nil {
-				log.Info(ctx, "heartbeat error", map[string]interface{}{
-					"addr":       s.config.TriggerCtrlAddr,
-					log.KeyError: err,
-				})
-				if time.Now().Sub(beginConnTime) > heartbeatMaxConnTime {
-					log.Error(ctx, "heartbeat exit", map[string]interface{}{
+				switch err {
+				case context.Canceled:
+					return
+				default:
+					log.Warning(s.ctx, "heartbeat error", map[string]interface{}{
 						"addr":       s.config.TriggerCtrlAddr,
 						log.KeyError: err,
 					})
-					//todo now exit trigger worker, maybe only stop trigger
-					os.Exit(1)
+					if time.Now().Sub(beginConnTime) > heartbeatMaxConnTime {
+						log.Error(s.ctx, "heartbeat exit", map[string]interface{}{
+							"addr":       s.config.TriggerCtrlAddr,
+							log.KeyError: err,
+						})
+						//todo now exit trigger worker, maybe only stop trigger
+						os.Exit(1)
+					}
+					if !util.SleepWithContext(s.ctx, time.Second*2) {
+						return
+					}
+					continue
 				}
-				if !util.SleepWithContext(s.ctx, time.Second*2) {
-					return
-				}
-				continue
+
 			}
 		sendLoop:
 			for {
-				workerSub, doFunc := s.worker.ListSubInfos()
+				workerSub, callback := s.worker.ListSubInfos()
 				var subInfos []*meta.SubscriptionInfo
 				for _, sub := range workerSub {
 					subInfos = append(subInfos, convert.ToPbSubscriptionInfo(sub))
@@ -214,19 +240,19 @@ func (s *server) startHeartbeat() {
 				})
 				if err != nil {
 					if err == io.EOF || time.Now().Sub(lastSendTime) > 5*time.Second {
-						err = stream.CloseSend()
-						log.Warning(ctx, "heartbeat send request receive fail,will retry", map[string]interface{}{
+						stream.CloseSend()
+						log.Warning(s.ctx, "heartbeat send request receive fail,will retry", map[string]interface{}{
 							"addr": s.config.TriggerCtrlAddr,
 						})
 						beginConnTime = time.Now()
 						break sendLoop
 					}
-					log.Warning(ctx, "heartbeat send request error", map[string]interface{}{
+					log.Warning(s.ctx, "heartbeat send request error", map[string]interface{}{
 						"addr":       s.config.TriggerCtrlAddr,
 						log.KeyError: err,
 					})
 				} else {
-					doFunc()
+					callback()
 					lastSendTime = time.Now()
 				}
 				if !util.SleepWithContext(s.ctx, time.Second) {

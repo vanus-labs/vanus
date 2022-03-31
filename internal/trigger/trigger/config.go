@@ -19,7 +19,7 @@ import "time"
 const (
 	defaultBufferSize        = 1 << 10
 	defaultFilterProcessSize = 2
-	defaultSendProcessSize   = 1
+	defaultSendProcessSize   = 2
 	defaultMaxRetryTimes     = 3
 	defaultRetryPeriod       = 3 * time.Second
 	defaultSendTimeout       = 5 * time.Second

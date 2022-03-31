@@ -22,41 +22,32 @@ import (
 )
 
 type Manager struct {
-	subOffset      map[string]*SubscriptionOffset
-	lock           sync.Mutex
+	subOffset      sync.Map
 	lastCommitTime time.Time
 }
 
 func NewOffsetManager() *Manager {
-	return &Manager{
-		subOffset: map[string]*SubscriptionOffset{},
-	}
+	return &Manager{}
 }
 
 func (m *Manager) RegisterSubscription(subId string) *SubscriptionOffset {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	sub, exist := m.subOffset[subId]
+	subOffset, exist := m.subOffset.Load(subId)
 	if !exist {
-		sub = &SubscriptionOffset{
-			subId:    subId,
-			elOffset: map[string]*offsetTracker{},
+		sub := &SubscriptionOffset{
+			subId: subId,
 		}
-		m.subOffset[subId] = sub
+		subOffset, _ = m.subOffset.LoadOrStore(subId, sub)
 	}
-	return sub
+	return subOffset.(*SubscriptionOffset)
 }
 
 func (m *Manager) GetSubscription(subId string) *SubscriptionOffset {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	return m.subOffset[subId]
+	sub, _ := m.subOffset.Load(subId)
+	return sub.(*SubscriptionOffset)
 }
 
 func (m *Manager) RemoveSubscription(subId string) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	delete(m.subOffset, subId)
+	m.subOffset.Delete(subId)
 }
 
 func (m *Manager) SetLastCommitTime() {
@@ -69,58 +60,43 @@ func (m *Manager) GetLastCommitTime() time.Time {
 
 type SubscriptionOffset struct {
 	subId    string
-	elOffset map[string]*offsetTracker
-	lock     sync.RWMutex
-}
-
-func (offset *SubscriptionOffset) getElOffset() map[string]*offsetTracker {
-	offset.lock.RLock()
-	defer offset.lock.RUnlock()
-	return offset.elOffset
-}
-
-func (offset *SubscriptionOffset) getOffsetTracker(el string) *offsetTracker {
-	offset.lock.RLock()
-	defer offset.lock.RUnlock()
-	return offset.elOffset[el]
+	elOffset sync.Map
 }
 
 func (offset *SubscriptionOffset) initOffsetTracker(info info.OffsetInfo) *offsetTracker {
-	offset.lock.Lock()
-	defer offset.lock.Unlock()
-	o, exist := offset.elOffset[info.EventLog]
+	o, exist := offset.elOffset.Load(info.EventLog)
 	if !exist {
-		o = initOffset(info.Offset)
-		offset.elOffset[info.EventLog] = o
+		o, _ = offset.elOffset.LoadOrStore(info.EventLog, initOffset(info.Offset))
 	}
-	return o
+	return o.(*offsetTracker)
 }
 
 func (offset *SubscriptionOffset) EventReceive(info info.OffsetInfo) {
-	r := offset.getOffsetTracker(info.EventLog)
-	if r == nil {
-		r = offset.initOffsetTracker(info)
+	o, exist := offset.elOffset.Load(info.EventLog)
+	if !exist {
+		o, _ = offset.elOffset.LoadOrStore(info.EventLog, initOffset(info.Offset))
 	}
-	r.putOffset(info.Offset)
+	o.(*offsetTracker).putOffset(info.Offset)
 }
 
 func (offset *SubscriptionOffset) EventCommit(info info.OffsetInfo) {
-	r := offset.getOffsetTracker(info.EventLog)
-	if r == nil {
+	o, exist := offset.elOffset.Load(info.EventLog)
+	if !exist {
 		return
 	}
-	r.commitOffset(info.Offset)
+	o.(*offsetTracker).commitOffset(info.Offset)
 }
 
 func (offset *SubscriptionOffset) GetCommit() []info.OffsetInfo {
 	var commit []info.OffsetInfo
-	elOffset := offset.getElOffset()
-	for el, tracker := range elOffset {
+	offset.elOffset.Range(func(key, value interface{}) bool {
+		tracker := value.(*offsetTracker)
 		commit = append(commit, info.OffsetInfo{
-			EventLog: el,
+			EventLog: key.(string),
 			Offset:   tracker.offsetToCommit(),
 		})
-	}
+		return true
+	})
 	return commit
 }
 

@@ -18,6 +18,7 @@ import (
 	"context"
 	ce "github.com/cloudevents/sdk-go/v2"
 	eberrors "github.com/linkall-labs/eventbus-go/pkg/errors"
+	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"io"
 	"sync"
 	"time"
@@ -68,7 +69,8 @@ func (r *Reader) Close() {
 }
 func (r *Reader) Start() error {
 	go func() {
-		tk := time.NewTicker(time.Second)
+		r.checkEventLogChange()
+		tk := time.NewTicker(30 * time.Second)
 		defer tk.Stop()
 		for {
 			select {
@@ -116,17 +118,20 @@ func (r *Reader) getOffset(el string) int64 {
 }
 
 func (r *Reader) start(els []*record.EventLog) {
+	r.lock.Lock()
+	r.lock.Unlock()
 	for _, el := range els {
-		if _, exist := r.elReader[el.VRN]; exist {
+		eventLog := el.VRN
+		if _, exist := r.elReader[eventLog]; exist {
 			continue
 		}
 		elc := &eventLogReader{
 			config:   r.config,
-			eventLog: el.VRN,
+			eventLog: eventLog,
 			events:   r.events,
-			offset:   r.getOffset(el.VRN),
+			offset:   r.getOffset(eventLog),
 		}
-		r.elReader[el.VRN] = struct{}{}
+		r.elReader[eventLog] = struct{}{}
 		r.wg.Add(1)
 		go func() {
 			defer func() {
@@ -152,7 +157,6 @@ type eventLogReader struct {
 }
 
 func (elReader *eventLogReader) run(ctx context.Context) {
-	printLogCount := 3
 	for attempt := 0; ; attempt++ {
 		lr, err := elReader.init(ctx)
 		switch err {
@@ -165,27 +169,20 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 			})
 			continue
 		default:
-			if attempt%printLogCount == 0 {
-				log.Info(ctx, "event log reader init error,will retry", map[string]interface{}{
-					log.KeyEventbusName: elReader.config.EventBus,
-					log.KeyError:        err,
-				})
-			}
-			if !util.SleepWithContext(ctx, time.Second*2) {
+			log.Info(ctx, "event log reader init error,will retry", map[string]interface{}{
+				log.KeyEventbusName: elReader.config.EventBus,
+				log.KeyError:        err,
+			})
+			if !util.SleepWithContext(ctx, time.Second*5) {
 				return
 			}
 			continue
 		}
-		printLogCount = 0
 		sleepCnt := 0
 		for {
-			events, err := readEvents(ctx, lr)
+			err = elReader.readEvent(ctx, lr)
 			switch err {
 			case nil:
-				for i := range events {
-					elReader.offset++
-					elReader.sendEvent(ctx, info.EventOffset{Event: events[i], OffsetInfo: pInfo.OffsetInfo{EventLog: elReader.eventLog, Offset: elReader.offset}})
-				}
 				sleepCnt = 0
 				continue
 			case context.Canceled:
@@ -197,6 +194,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 					"offset":          elReader.offset,
 				})
 				continue
+			case errors.ErrReadNoEvent:
 			case eberrors.ErrOnEnd:
 			case eberrors.ErrUnderflow:
 			default:
@@ -215,12 +213,29 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 	}
 }
 
-func (elReader *eventLogReader) sendEvent(ctx context.Context, event info.EventOffset) {
+func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventlog.LogReader) error {
+	events, err := readEvents(ctx, lr)
+	if err != nil {
+		return err
+	}
+	if len(events) == 0 {
+		return errors.ErrReadNoEvent
+	}
+	for i := range events {
+		elReader.offset++
+		e := info.EventOffset{Event: events[i], OffsetInfo: pInfo.OffsetInfo{EventLog: elReader.eventLog, Offset: elReader.offset}}
+		if err = elReader.sendEvent(ctx, e); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (elReader *eventLogReader) sendEvent(ctx context.Context, event info.EventOffset) error {
 	select {
 	case elReader.events <- event:
-		return
+		return nil
 	case <-ctx.Done():
-		return
+		return ctx.Err()
 	}
 }
 

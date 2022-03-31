@@ -16,18 +16,18 @@ package storage
 
 import (
 	"context"
-	"encoding/json"
-	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"path"
+	"path/filepath"
+	"strconv"
 )
 
 type OffsetStorage interface {
-	CreateOffset(ctx context.Context, subId string, info info.ListOffsetInfo) error
-	UpdateOffset(ctx context.Context, subId string, info info.ListOffsetInfo) error
-	GetOffset(ctx context.Context, subId string) (info.ListOffsetInfo, error)
+	CreateOffset(ctx context.Context, subId string, info info.OffsetInfo) error
+	UpdateOffset(ctx context.Context, subId string, info info.OffsetInfo) error
+	GetOffsets(ctx context.Context, subId string) (info.ListOffsetInfo, error)
 	DeleteOffset(ctx context.Context, subId string) error
 }
 
@@ -41,40 +41,49 @@ func NewOffsetStorage(client kv.Client) OffsetStorage {
 	}
 }
 
-func (s *offsetStorage) getKey(subId string) string {
+func (s *offsetStorage) getKey(subId, eventLog string) string {
+	return path.Join(primitive.StorageOffset.String(), subId, eventLog)
+}
+
+func (s *offsetStorage) getSubKey(subId string) string {
 	return path.Join(primitive.StorageOffset.String(), subId)
 }
 
-func (s *offsetStorage) CreateOffset(ctx context.Context, subId string, info info.ListOffsetInfo) error {
-	v, err := json.Marshal(info)
-	if err != nil {
-		return errors.ErrJsonMarshal.Wrap(err)
-	}
-	return s.client.Create(ctx, s.getKey(subId), v)
+func (s *offsetStorage) int64ToByteArr(v int64) []byte {
+	//b := make([]byte, 8)
+	//binary.LittleEndian.PutUint64(b, uint64(v))
+	//return b
+	str := strconv.FormatInt(v, 10)
+	return []byte(str)
 }
 
-func (s *offsetStorage) UpdateOffset(ctx context.Context, subId string, info info.ListOffsetInfo) error {
-	v, err := json.Marshal(info)
-	if err != nil {
-		return errors.ErrJsonMarshal.Wrap(err)
-	}
-	return s.client.Update(ctx, s.getKey(subId), v)
+func (s *offsetStorage) byteArr2Int64(b []byte) int64 {
+	//v := binary.LittleEndian.Uint64(b)
+	//return int64(v)
+	v, _ := strconv.ParseInt(string(b), 10, 64)
+	return v
 }
 
-func (s *offsetStorage) GetOffset(ctx context.Context, subId string) (info.ListOffsetInfo, error) {
-	v, err := s.client.Get(ctx, s.getKey(subId))
+func (s *offsetStorage) CreateOffset(ctx context.Context, subId string, info info.OffsetInfo) error {
+	return s.client.Create(ctx, s.getKey(subId, info.EventLog), s.int64ToByteArr(info.Offset))
+}
+
+func (s *offsetStorage) UpdateOffset(ctx context.Context, subId string, info info.OffsetInfo) error {
+	return s.client.Update(ctx, s.getKey(subId, info.EventLog), s.int64ToByteArr(info.Offset))
+}
+
+func (s *offsetStorage) GetOffsets(ctx context.Context, subId string) (info.ListOffsetInfo, error) {
+	l, err := s.client.List(ctx, s.getSubKey(subId))
 	if err != nil {
 		return nil, err
 	}
-	var infos []info.OffsetInfo
-	err = json.Unmarshal(v, &infos)
-	if err != nil {
-		return nil, errors.ErrJsonUnMarshal.Wrap(err)
+	var infos info.ListOffsetInfo
+	for _, v := range l {
+		infos = append(infos, info.OffsetInfo{EventLog: filepath.Base(v.Key), Offset: s.byteArr2Int64(v.Value)})
 	}
-
 	return infos, nil
 }
 
 func (s *offsetStorage) DeleteOffset(ctx context.Context, subId string) error {
-	return s.client.Delete(ctx, s.getKey(subId))
+	return s.client.DeleteDir(ctx, s.getSubKey(subId))
 }

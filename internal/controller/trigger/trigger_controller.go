@@ -300,7 +300,7 @@ func (ctrl *triggerController) Start() error {
 	}
 	ctrl.storage = s
 	ctrl.offsetManager = offset.NewOffsetManager(s)
-	ctrl.offsetManager.Start(ctrl.ctx)
+	ctrl.offsetManager.Start()
 	err = ctrl.initTriggerWorker()
 	if err != nil {
 		s.Close()
@@ -337,6 +337,7 @@ func (ctrl *triggerController) Close() error {
 	ctrl.state = primitive.ServerStateStopping
 	ctrl.stop()
 	ctrl.subQueue.ShutDown()
+	ctrl.offsetManager.Stop()
 	ctrl.storage.Close()
 	ctrl.state = primitive.ServerStateStopped
 	return nil

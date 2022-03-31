@@ -17,14 +17,15 @@ package storage
 import (
 	"context"
 	"encoding/json"
+	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/pkg/errors"
 	"path"
 )
 
 type SubscriptionStorage interface {
 	CreateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error
+	UpdateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error
 	DeleteSubscription(ctx context.Context, subId string) error
 	GetSubscription(ctx context.Context, subId string) (*primitive.SubscriptionApi, error)
 	ListSubscription(ctx context.Context) ([]*primitive.SubscriptionApi, error)
@@ -44,54 +45,62 @@ func (s *subscriptionStorage) Close() error {
 	return s.client.Close()
 }
 
+func (s *subscriptionStorage) getKey(id string) string {
+	return path.Join(primitive.StorageSubscription.String(), id)
+}
+
 func (s *subscriptionStorage) CreateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error {
 	v, err := json.Marshal(sub)
 	if err != nil {
-		return errors.Wrap(err, "json marshal error")
+		return errors.ErrJsonMarshal
 	}
-	key := path.Join(primitive.StorageSubscription.String(), sub.ID)
-	err = s.client.Create(ctx, key, v)
+	err = s.client.Create(ctx, s.getKey(sub.ID), v)
 	if err != nil {
-		return errors.Wrap(err, "etcd create error")
+		return err
+	}
+	return nil
+}
+
+func (s *subscriptionStorage) UpdateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error {
+	v, err := json.Marshal(sub)
+	if err != nil {
+		return errors.ErrJsonMarshal
+	}
+	err = s.client.Update(ctx, s.getKey(sub.ID), v)
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
 func (s *subscriptionStorage) DeleteSubscription(ctx context.Context, subId string) error {
-	key := path.Join(primitive.StorageSubscription.String(), subId)
-	err := s.client.Delete(ctx, key)
-	if err != nil {
-		return errors.Wrap(err, "etcd delete error")
-	}
-	return nil
+	return s.client.Delete(ctx, s.getKey(subId))
 }
 
 func (s *subscriptionStorage) GetSubscription(ctx context.Context, subId string) (*primitive.SubscriptionApi, error) {
-	key := path.Join(primitive.StorageSubscription.String(), subId)
-	v, err := s.client.Get(ctx, key)
+	v, err := s.client.Get(ctx, s.getKey(subId))
 	if err != nil {
-		return nil, errors.Wrap(err, "etcd get error")
+		return nil, err
 	}
 	sub := &primitive.SubscriptionApi{}
 	err = json.Unmarshal(v, sub)
 	if err != nil {
-		return nil, errors.Wrapf(err, "%s json unmarshal error", string(v))
+		return nil, errors.ErrJsonUnMarshal
 	}
 	return sub, nil
 }
 
 func (s *subscriptionStorage) ListSubscription(ctx context.Context) ([]*primitive.SubscriptionApi, error) {
-	key := path.Join(primitive.StorageSubscription.String(), "/")
-	l, err := s.client.List(ctx, key)
+	l, err := s.client.List(ctx, s.getKey("/"))
 	if err != nil {
-		return nil, errors.Wrap(err, "etcd list error")
+		return nil, err
 	}
 	var list []*primitive.SubscriptionApi
 	for _, v := range l {
 		sub := &primitive.SubscriptionApi{}
 		err = json.Unmarshal(v.Value, sub)
 		if err != nil {
-			return nil, errors.Wrapf(err, "%s json unmarshal error", string(v.Value))
+			return nil, errors.ErrJsonUnMarshal
 		}
 		list = append(list, sub)
 	}

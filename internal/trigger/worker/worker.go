@@ -166,8 +166,8 @@ loop:
 			}
 		}
 	}
-	w.offsetManager.RemoveSubscription(id)
 	delete(w.subscriptions, id)
+	w.offsetManager.RemoveSubscription(id)
 }
 
 func (w *Worker) ListSubInfos() ([]pInfo.SubscriptionInfo, func()) {
@@ -175,9 +175,13 @@ func (w *Worker) ListSubInfos() ([]pInfo.SubscriptionInfo, func()) {
 	defer w.lock.RUnlock()
 	var list []pInfo.SubscriptionInfo
 	for id := range w.subscriptions {
+		subOffset := w.offsetManager.GetSubscription(id)
+		if subOffset == nil {
+			continue
+		}
 		list = append(list, pInfo.SubscriptionInfo{
 			SubId:   id,
-			Offsets: w.offsetManager.GetSubscription(id).GetCommit(),
+			Offsets: subOffset.GetCommit(),
 		})
 	}
 	return list, func() {

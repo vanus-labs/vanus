@@ -17,7 +17,6 @@ package offset
 import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
-	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/observability/log"
 	"sync"
@@ -25,17 +24,22 @@ import (
 )
 
 type Manager struct {
-	subOffset map[string]*subscriptionOffset
+	subOffset sync.Map
 	storage   storage.OffsetStorage
-	lock      sync.Mutex
+	ctx       context.Context
+	stop      context.CancelFunc
 }
 
 func NewOffsetManager(storage storage.OffsetStorage) *Manager {
 	m := &Manager{
-		subOffset: map[string]*subscriptionOffset{},
-		storage:   storage,
+		storage: storage,
 	}
+	m.ctx, m.stop = context.WithCancel(context.Background())
 	return m
+}
+
+func (m *Manager) Stop() {
+	m.stop()
 }
 
 func (m *Manager) GetOffset(ctx context.Context, subId string) (info.ListOffsetInfo, error) {
@@ -56,130 +60,169 @@ func (m *Manager) Offset(ctx context.Context, subInfo info.SubscriptionInfo) err
 }
 
 func (m *Manager) getSubscriptionOffset(ctx context.Context, subId string) (*subscriptionOffset, error) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	sub, exist := m.subOffset[subId]
+	subOffset, exist := m.subOffset.Load(subId)
 	if !exist {
-		var err error
-		sub, err = m.initSubscriptionOffset(ctx, subId)
+		sub, err := m.initSubscriptionOffset(ctx, subId)
 		if err != nil {
 			return nil, err
 		}
-		m.subOffset[subId] = sub
+		subOffset, _ = m.subOffset.LoadOrStore(subId, sub)
 	}
-	return sub, nil
+	return subOffset.(*subscriptionOffset), nil
 }
 
 func (m *Manager) initSubscriptionOffset(ctx context.Context, subId string) (*subscriptionOffset, error) {
-	list, err := m.storage.GetOffset(ctx, subId)
+	list, err := m.storage.GetOffsets(ctx, subId)
 	if err != nil {
-		if err == kv.ErrorKeyNotFound {
-			err = m.storage.CreateOffset(ctx, subId, info.ListOffsetInfo{})
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, err
-		}
+		return nil, err
 	}
-	offsets := make(map[string]*info.OffsetInfo, len(list))
+	subOffset := &subscriptionOffset{
+		subId: subId,
+	}
 	for _, o := range list {
-		offsets[o.EventLog] = &info.OffsetInfo{
-			EventLog: o.EventLog,
-			Offset:   o.Offset,
-		}
+		subOffset.offsets.Store(o.EventLog, &eventLogOffset{
+			subId:      subId,
+			eventLog:   o.EventLog,
+			offset:     o.Offset,
+			commit:     o.Offset,
+			checkExist: true,
+		})
 	}
-	return &subscriptionOffset{
-		subId:   subId,
-		offsets: offsets,
-	}, nil
+	return subOffset, nil
 
 }
 
 func (m *Manager) RemoveRegisterSubscription(subId string) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	delete(m.subOffset, subId)
+	m.subOffset.Delete(subId)
 }
 
-func (m *Manager) Start(ctx context.Context) {
+func (m *Manager) Start() {
 	go func() {
 		ticker := time.NewTicker(100 * time.Millisecond)
 		defer ticker.Stop()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-m.ctx.Done():
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				m.commit(ctx)
+				cancel()
 				return
 			case <-ticker.C:
-				m.commit(ctx)
+				m.commit(m.ctx)
 			}
 		}
 	}()
 }
 
 func (m *Manager) commit(ctx context.Context) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	for _, sub := range m.subOffset {
-		err := sub.commitOffset(ctx, m.storage)
-		if err != nil {
-			log.Warning(ctx, "commit offset error", map[string]interface{}{
-				log.KeyError:          err,
-				log.KeySubscriptionID: sub.subId,
-				"offset":              sub.offsets,
-			})
-		}
-	}
+	var wg sync.WaitGroup
+	m.subOffset.Range(func(key, value interface{}) bool {
+		sub := value.(*subscriptionOffset)
+		wg.Add(1)
+		go func(sub *subscriptionOffset) {
+			wg.Done()
+			sub.commitOffset(ctx, m.storage)
+		}(sub)
+		return true
+	})
+	wg.Wait()
 }
 
 type subscriptionOffset struct {
 	subId   string
-	offsets map[string]*info.OffsetInfo
-	change  bool
-	lock    sync.Mutex
+	offsets sync.Map
+}
+
+func (o *subscriptionOffset) getSetEventLogOffset(info info.OffsetInfo) *eventLogOffset {
+	elOffset, exist := o.offsets.Load(info.EventLog)
+	if !exist {
+		elOffset = &eventLogOffset{
+			subId:    o.subId,
+			eventLog: info.EventLog,
+			offset:   info.Offset,
+		}
+		elOffset, _ = o.offsets.LoadOrStore(info.EventLog, elOffset)
+	}
+	return elOffset.(*eventLogOffset)
 }
 
 func (o *subscriptionOffset) offset(infos info.ListOffsetInfo) {
-	o.lock.Lock()
-	o.lock.Unlock()
-	for _, info := range infos {
-		now, exist := o.offsets[info.EventLog]
-		if !exist || now.Offset != info.Offset {
-			o.offsets[info.EventLog] = &info
-			o.change = true
-		}
+	for _, offset := range infos {
+		elOffset := o.getSetEventLogOffset(offset)
+		elOffset.setOffset(offset.Offset)
 	}
 }
 
 func (o *subscriptionOffset) getOffsets() info.ListOffsetInfo {
 	var offsets info.ListOffsetInfo
-	for _, v := range o.offsets {
+	o.offsets.Range(func(key, value interface{}) bool {
+		elOffset := value.(*eventLogOffset)
 		offsets = append(offsets, info.OffsetInfo{
-			EventLog: v.EventLog,
-			Offset:   v.Offset,
+			EventLog: elOffset.eventLog,
+			Offset:   elOffset.offset,
 		})
-	}
+		return true
+	})
 	return offsets
 }
 
-func (o *subscriptionOffset) commitOffset(ctx context.Context, storage storage.OffsetStorage) error {
-	o.lock.Lock()
-	o.lock.Unlock()
-	if !o.change {
+func (o *subscriptionOffset) commitOffset(ctx context.Context, storage storage.OffsetStorage) {
+	o.offsets.Range(func(key, value interface{}) bool {
+		elOffset := value.(*eventLogOffset)
+		err := elOffset.commitOffset(ctx, storage)
+		if err != nil {
+			log.Warning(ctx, "commit offset fail", map[string]interface{}{
+				log.KeySubscriptionID: o.subId,
+				log.KeyEventlogID:     elOffset.eventLog,
+				"offset":              elOffset.offset,
+				log.KeyError:          err,
+			})
+		}
+		return true
+	})
+}
+
+type eventLogOffset struct {
+	subId      string
+	eventLog   string
+	offset     int64
+	commit     int64
+	checkExist bool
+}
+
+func (o *eventLogOffset) setOffset(offset int64) {
+	o.offset = offset
+}
+
+func (o *eventLogOffset) commitOffset(ctx context.Context, storage storage.OffsetStorage) error {
+	offset := o.offset
+	if !o.checkExist {
+		err := storage.CreateOffset(ctx, o.subId, info.OffsetInfo{
+			EventLog: o.eventLog,
+			Offset:   offset,
+		})
+		if err != nil {
+			return err
+		}
+		log.Debug(ctx, "create offset", map[string]interface{}{
+			log.KeySubscriptionID: o.subId,
+			log.KeyEventlogID:     o.eventLog,
+			"offset":              offset,
+		})
+		o.checkExist = true
+		o.commit = offset
 		return nil
 	}
-	offsets := o.getOffsets()
-	if len(offsets) == 0 {
+	if o.commit == offset {
 		return nil
 	}
-	err := storage.UpdateOffset(ctx, o.subId, offsets)
+	err := storage.UpdateOffset(ctx, o.subId, info.OffsetInfo{
+		EventLog: o.eventLog,
+		Offset:   offset,
+	})
 	if err != nil {
 		return err
 	}
-	o.change = false
-	log.Debug(ctx, "update offset", map[string]interface{}{
-		log.KeySubscriptionID: o.subId,
-		"offset":              offsets,
-	})
+	o.commit = offset
 	return nil
 }
