@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/linkall-labs/vanus/internal/controller/trigger"
+	"github.com/linkall-labs/vanus/internal/primitive/interceptor"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/internal/util/signal"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -53,6 +54,7 @@ func main() {
 		os.Exit(-1)
 	}
 	var opts []grpc.ServerOption
+	opts = append(opts, interceptor.GRPCErrorServerOutboundInterceptor()...)
 	grpcServer := grpc.NewServer(opts...)
 	controller.RegisterTriggerControllerServer(grpcServer, srv)
 	log.Info(ctx, "the TriggerControlServer ready to work", map[string]interface{}{

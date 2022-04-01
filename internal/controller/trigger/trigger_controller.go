@@ -22,6 +22,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/offset"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/validation"
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
@@ -70,9 +71,13 @@ func (ctrl *triggerController) CreateSubscription(ctx context.Context, request *
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
+	err := validation.ConvertCreateSubscriptionRequest(request).Validate(ctx)
+	if err != nil {
+		return nil, err
+	}
 	sub := convert.FromPbCreateSubscription(request)
 	sub.ID = uuid.NewString()
-	err := ctrl.storage.CreateSubscription(ctx, sub)
+	err = ctrl.storage.CreateSubscription(ctx, sub)
 	if err != nil {
 		return nil, err
 	}

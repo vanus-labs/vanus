@@ -52,7 +52,7 @@ func GRPCErrorServerOutboundInterceptor() []grpc.ServerOption {
 
 // convertToGRPCError convert an internal error to an exported error defined in gRPC
 func convertToGRPCError(err error) error {
-	if err != nil {
+	if err == nil {
 		return nil
 	}
 	grpcErr := &errors.Error{}

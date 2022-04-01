@@ -42,7 +42,10 @@ func (m *Manager) RegisterSubscription(subId string) *SubscriptionOffset {
 }
 
 func (m *Manager) GetSubscription(subId string) *SubscriptionOffset {
-	sub, _ := m.subOffset.Load(subId)
+	sub, exist := m.subOffset.Load(subId)
+	if !exist {
+		return nil
+	}
 	return sub.(*SubscriptionOffset)
 }
 
@@ -63,14 +66,6 @@ type SubscriptionOffset struct {
 	elOffset sync.Map
 }
 
-func (offset *SubscriptionOffset) initOffsetTracker(info info.OffsetInfo) *offsetTracker {
-	o, exist := offset.elOffset.Load(info.EventLog)
-	if !exist {
-		o, _ = offset.elOffset.LoadOrStore(info.EventLog, initOffset(info.Offset))
-	}
-	return o.(*offsetTracker)
-}
-
 func (offset *SubscriptionOffset) EventReceive(info info.OffsetInfo) {
 	o, exist := offset.elOffset.Load(info.EventLog)
 	if !exist {
@@ -87,8 +82,8 @@ func (offset *SubscriptionOffset) EventCommit(info info.OffsetInfo) {
 	o.(*offsetTracker).commitOffset(info.Offset)
 }
 
-func (offset *SubscriptionOffset) GetCommit() []info.OffsetInfo {
-	var commit []info.OffsetInfo
+func (offset *SubscriptionOffset) GetCommit() info.ListOffsetInfo {
+	var commit info.ListOffsetInfo
 	offset.elOffset.Range(func(key, value interface{}) bool {
 		tracker := value.(*offsetTracker)
 		commit = append(commit, info.OffsetInfo{
@@ -141,5 +136,5 @@ func (o *offsetTracker) offsetToCommit() int64 {
 	if o.list.Len() == 0 {
 		return o.maxOffset
 	}
-	return o.list.Front().Key().(int64)
+	return o.list.Front().Key().(int64) - 1
 }

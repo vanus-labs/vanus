@@ -26,4 +26,8 @@ var (
 	ErrJsonUnMarshal  = rpcerr.New("json unmarshal").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
 
 	ErrFindTriggerWorkerTimeout = rpcerr.New("find trigger worker timeout")
+
+	ErrCeSqlExpression        = rpcerr.New("ce sql expression invalid").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
+	ErrFilterAttributeIsEmpty = rpcerr.New("filter dialect attribute is empty").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
+	ErrFilterMultiple         = rpcerr.New("filter multiple dialects found").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
 )
