@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
 	"github.com/linkall-labs/vanus/internal/primitive/interceptor"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -34,20 +35,37 @@ var (
 func main() {
 	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", defaultIP, defaultPort))
 	if err != nil {
-		log.Info(context.Background(), "failed to listen", map[string]interface{}{
+		log.Error(context.Background(), "failed to listen", map[string]interface{}{
 			"error": err,
 		})
-		os.Exit(0)
+		os.Exit(-1)
 	}
-	var opts []grpc.ServerOption
-	opts = append(opts, interceptor.GRPCErrorServerOutboundInterceptor()...)
-	ctrlSrv := eventbus.NewEventBusController(eventbus.ControllerConfig{
+	cfg := eventbus.ControllerConfig{
 		IP:               defaultIP,
 		Port:             defaultPort,
 		KVStoreEndpoints: []string{"127.0.0.1:2379"},
 		KVKeyPrefix:      "/wenfeng",
-	})
+	}
+
+	etcd := embedetcd.New()
 	ctx := context.Background()
+
+	if err = etcd.Init(ctx, fillEtcdConfig(cfg)); err != nil {
+		log.Error(ctx, "failed to init etcd", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+	if _, err := etcd.Start(ctx); err != nil {
+		log.Error(ctx, "failed to start etcd", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+	var opts []grpc.ServerOption
+	opts = append(opts, interceptor.GRPCErrorServerOutboundInterceptor()...)
+	opts = append(opts, interceptor.CheckLeadershipInterceptor(etcd, cfg.Clusters)...)
+	ctrlSrv := eventbus.NewEventBusController(cfg, etcd)
 	if err = ctrlSrv.Start(ctx); err != nil {
 		log.Error(ctx, "start Eventbus Controller failed", map[string]interface{}{
 			log.KeyError: err,
@@ -69,4 +87,16 @@ func main() {
 		<-exitChan
 		log.Info(ctx, "the grpc server has been shutdown", nil)
 	}
+}
+
+func fillEtcdConfig(config eventbus.ControllerConfig) embedetcd.Config {
+	// TODO
+	config.EtcdConfig = embedetcd.Config{
+		Name:       "etcd-1",
+		DataDir:    "/Users/wenfeng/tmp/embed_etcd/node1",
+		ClientAddr: "localhost:2379",
+		PeerAddr:   "localhost:2380",
+		Clusters:   []string{"etcd-1=http://localhost:12380"},
+	}
+	return config.EtcdConfig
 }

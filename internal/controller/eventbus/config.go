@@ -14,9 +14,13 @@
 
 package eventbus
 
+import embedetcd "github.com/linkall-labs/embed-etcd"
+
 type ControllerConfig struct {
-	IP               string   `yaml:"ip"`
-	Port             int      `yaml:"port"`
-	KVStoreEndpoints []string `yaml:"kv_store_endpoints"`
-	KVKeyPrefix      string   `yaml:"kv_key_prefix"`
+	IP               string            `yaml:"ip"`
+	Port             int               `yaml:"port"`
+	KVStoreEndpoints []string          `yaml:"kv_store_endpoints"`
+	KVKeyPrefix      string            `yaml:"kv_key_prefix"`
+	EtcdConfig       embedetcd.Config  `yaml:"etcd"`
+	Clusters         map[string]string `yaml:"clusters"`
 }

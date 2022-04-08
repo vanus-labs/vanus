@@ -26,12 +26,14 @@ require (
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	k8s.io/client-go v0.23.4
+	github.com/linkall-labs/embed-etcd v0.0.0
 )
 
 replace (
 	cloudevents.io/genproto v1.0.2 => ../vsproto/include/cloudevents/pkg
 	github.com/linkall-labs/eventbus-go v0.0.0 => ../eventbus-go
 	github.com/linkall-labs/vsproto v0.0.0 => ../vsproto
+	github.com/linkall-labs/embed-etcd v0.0.0 => ../embed-etcd
 )
 
 require (

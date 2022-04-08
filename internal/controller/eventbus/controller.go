@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/google/uuid"
+	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
 	"github.com/linkall-labs/vanus/internal/kv"
@@ -46,7 +47,7 @@ const (
 	volumeKeyPrefixInKVStore        = "/vanus/internal/resource/volume"
 )
 
-func NewEventBusController(cfg ControllerConfig) *controller {
+func NewEventBusController(cfg ControllerConfig, member embedetcd.Member) *controller {
 	c := &controller{
 		cfg:                      &cfg,
 		volumePool:               &volumePool{},
@@ -56,6 +57,7 @@ func NewEventBusController(cfg ControllerConfig) *controller {
 		segmentServerConn:        map[string]*grpc.ClientConn{},
 		volumeInfoMap:            map[string]*info.VolumeInfo{},
 		segmentServerClientMap:   map[string]segpb.SegmentServerClient{},
+		member:                   member,
 	}
 	return c
 }
@@ -71,6 +73,7 @@ type controller struct {
 	volumeInfoMap            map[string]*info.VolumeInfo
 	segmentServerClientMap   map[string]segpb.SegmentServerClient
 	eventLogMgr              *eventlogManager
+	member                   embedetcd.Member
 }
 
 func (ctrl *controller) Start(ctx context.Context) error {
