@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger"
-	"github.com/linkall-labs/vanus/internal/trigger/worker"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/internal/util/signal"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -46,12 +45,10 @@ func main() {
 		})
 		os.Exit(-1)
 	}
+	c.TriggerAddr = fmt.Sprintf("%s:%d", util.LocalIp, c.Port)
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
-	srv := worker.NewTriggerServer(worker.Config{
-		TriggerCtrlAddr: c.TriggerCtrlAddr,
-		TriggerAddr:     fmt.Sprintf("%s:%d", util.LocalIp, c.Port),
-	})
+	srv := trigger.NewTriggerServer(*c)
 	init := srv.(primitive.Initializer)
 	if err = init.Initialize(ctx); err != nil {
 		log.Error(ctx, "the trigger worker has initialized failed", map[string]interface{}{

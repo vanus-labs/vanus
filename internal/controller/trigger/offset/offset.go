@@ -92,8 +92,9 @@ func (m *Manager) initSubscriptionOffset(ctx context.Context, subId string) (*su
 
 }
 
-func (m *Manager) RemoveRegisterSubscription(subId string) {
+func (m *Manager) RemoveRegisterSubscription(ctx context.Context, subId string) error {
 	m.subOffset.Delete(subId)
+	return m.storage.DeleteOffset(ctx, subId)
 }
 
 func (m *Manager) Start() {

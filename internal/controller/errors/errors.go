@@ -25,6 +25,7 @@ var (
 	ErrJsonMarshal    = rpcerr.New("json marshal").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
 	ErrJsonUnMarshal  = rpcerr.New("json unmarshal").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
 
+	ErrTriggerWorker            = rpcerr.New("trigger worker error").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
 	ErrFindTriggerWorkerTimeout = rpcerr.New("find trigger worker timeout")
 
 	ErrCeSqlExpression        = rpcerr.New("ce sql expression invalid").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)

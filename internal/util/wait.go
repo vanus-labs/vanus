@@ -17,6 +17,7 @@ package util
 import (
 	"context"
 	"sync"
+	"time"
 )
 
 type Group struct {
@@ -50,4 +51,17 @@ func (g *Group) Start(f func()) {
 		defer g.wg.Done()
 		f()
 	}()
+}
+
+func UntilWithContext(ctx context.Context, f func(context.Context), period time.Duration) {
+	tk := time.NewTicker(period)
+	defer tk.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tk.C:
+			f(ctx)
+		}
+	}
 }

@@ -32,13 +32,13 @@ func TestManager_Offset(t *testing.T) {
 		eventLog := "el"
 		offset := int64(1)
 		Convey("get offset is empty", func() {
-			m.RemoveRegisterSubscription(subId)
+			m.RemoveRegisterSubscription(nil, subId)
 			offsets, _ := m.GetOffset(nil, subId)
 			So(len(offsets), ShouldEqual, 0)
 		})
 
 		Convey("get offset", func() {
-			m.RemoveRegisterSubscription(subId)
+			m.RemoveRegisterSubscription(nil, subId)
 			storage.CreateOffset(nil, subId, info.OffsetInfo{
 				EventLog: eventLog,
 				Offset:   offset,
@@ -50,7 +50,7 @@ func TestManager_Offset(t *testing.T) {
 		})
 
 		Convey("offset", func() {
-			m.RemoveRegisterSubscription(subId)
+			m.RemoveRegisterSubscription(nil, subId)
 			m.Offset(nil, info.SubscriptionInfo{
 				SubId:   subId,
 				Offsets: []info.OffsetInfo{{EventLog: eventLog, Offset: offset}},
@@ -61,7 +61,7 @@ func TestManager_Offset(t *testing.T) {
 		})
 
 		Convey("commit", func() {
-			m.RemoveRegisterSubscription(subId)
+			m.RemoveRegisterSubscription(nil, subId)
 			m.Offset(nil, info.SubscriptionInfo{
 				SubId:   subId,
 				Offsets: []info.OffsetInfo{{EventLog: eventLog, Offset: offset}},

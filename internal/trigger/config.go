@@ -21,6 +21,7 @@ import (
 type Config struct {
 	Port            int    `yaml:"port"`
 	TriggerCtrlAddr string `yaml:"triggerCtrlAddr"`
+	TriggerAddr     string
 }
 
 func Init(filename string) (*Config, error) {

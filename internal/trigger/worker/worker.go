@@ -44,7 +44,6 @@ type Worker struct {
 	subscriptions map[string]*subscriptionWorker
 	offsetManager *offset.Manager
 	lock          sync.RWMutex
-	started       bool
 	wg            sync.WaitGroup
 	ctx           context.Context
 	stop          context.CancelFunc
@@ -91,11 +90,10 @@ func (w *subscriptionWorker) Run(ctx context.Context) error {
 	return nil
 }
 
-func NewWorker(config Config) *Worker {
+func NewWorker() *Worker {
 	w := &Worker{
 		subscriptions: map[string]*subscriptionWorker{},
 		offsetManager: offset.NewOffsetManager(),
-		config:        config,
 	}
 	w.ctx, w.stop = context.WithCancel(context.Background())
 	return w
@@ -104,10 +102,6 @@ func NewWorker(config Config) *Worker {
 func (w *Worker) Start() error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
-	if w.started {
-		return nil
-	}
-	w.started = true
 	testSend()
 	return nil
 }
@@ -115,9 +109,6 @@ func (w *Worker) Start() error {
 func (w *Worker) Stop() error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
-	if !w.started {
-		return nil
-	}
 	var wg sync.WaitGroup
 	for id := range w.subscriptions {
 		wg.Add(1)
@@ -129,7 +120,6 @@ func (w *Worker) Stop() error {
 	}
 	wg.Wait()
 	w.stop()
-	w.started = false
 	return nil
 }
 
@@ -192,9 +182,6 @@ func (w *Worker) ListSubInfos() ([]pInfo.SubscriptionInfo, func()) {
 func (w *Worker) AddSubscription(sub *primitive.Subscription) error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
-	if !w.started {
-		return errors.ErrWorkerNotStart
-	}
 	if _, exist := w.subscriptions[sub.ID]; exist {
 		return errors.ErrResourceAlreadyExist
 	}
@@ -212,9 +199,6 @@ func (w *Worker) AddSubscription(sub *primitive.Subscription) error {
 func (w *Worker) PauseSubscription(id string) error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
-	if !w.started {
-		return errors.ErrWorkerNotStart
-	}
 	w.stopSub(id)
 	return nil
 }
@@ -222,9 +206,6 @@ func (w *Worker) PauseSubscription(id string) error {
 func (w *Worker) RemoveSubscription(id string) error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
-	if !w.started {
-		return errors.ErrWorkerNotStart
-	}
 	if _, exist := w.subscriptions[id]; !exist {
 		return nil
 	}

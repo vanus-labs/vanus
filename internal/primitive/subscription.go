@@ -14,9 +14,21 @@
 
 package primitive
 
-import "github.com/linkall-labs/vanus/internal/primitive/info"
+import (
+	"github.com/linkall-labs/vanus/internal/primitive/info"
+)
 
 type URI string
+
+type SubscriptionPhase string
+
+const (
+	SubscriptionPhaseCreated  = "created"
+	SubscriptionPhasePending  = "pending"
+	SubscriptionPhaseRunning  = "running"
+	SubscriptionPhasePause    = "pause"
+	SubscriptionPhaseToDelete = "toDelete"
+)
 
 type SubscriptionApi struct {
 	ID               string                `json:"id"`
@@ -28,7 +40,8 @@ type SubscriptionApi struct {
 	Protocol         string                `json:"protocol,omitempty"`
 	ProtocolSettings map[string]string     `json:"protocolSettings,omitempty"`
 	EventBus         string                `json:"eventBus"`
-	Enable           bool                  `json:"enable"`
+	Phase            SubscriptionPhase     `json:"phase"`
+	TriggerWorker    string                `json:"triggerWorker"`
 }
 
 type Subscription struct {

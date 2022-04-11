@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package worker
+package trigger
 
 import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/convert"
+	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger/errors"
+	"github.com/linkall-labs/vanus/internal/trigger/worker"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vsproto/pkg/controller"
@@ -32,20 +34,21 @@ import (
 )
 
 type server struct {
-	worker   *Worker
+	worker   *worker.Worker
 	config   Config
 	tcCc     *grpc.ClientConn
 	tcClient controller.TriggerControllerClient
 	ctx      context.Context
 	cancel   context.CancelFunc
 	wg       sync.WaitGroup
-	stopped  bool
+	state    primitive.ServerState
 }
 
 func NewTriggerServer(config Config) pbtrigger.TriggerWorkerServer {
 	s := &server{
 		config: config,
-		worker: NewWorker(config),
+		worker: worker.NewWorker(),
+		state:  primitive.ServerStateCreated,
 	}
 	return s
 }
@@ -56,7 +59,11 @@ func (s *server) Start(ctx context.Context, request *pbtrigger.StartTriggerWorke
 	if err != nil {
 		return nil, err
 	}
+	if s.state == primitive.ServerStateRunning {
+		return &pbtrigger.StartTriggerWorkerResponse{}, nil
+	}
 	s.startHeartbeat()
+	s.state = primitive.ServerStateRunning
 	return &pbtrigger.StartTriggerWorkerResponse{}, nil
 }
 
@@ -69,6 +76,9 @@ func (s *server) Stop(ctx context.Context, request *pbtrigger.StopTriggerWorkerR
 
 func (s *server) AddSubscription(ctx context.Context, request *pbtrigger.AddSubscriptionRequest) (*pbtrigger.AddSubscriptionResponse, error) {
 	log.Info(ctx, "subscription add ", map[string]interface{}{"request": request})
+	if s.state != primitive.ServerStateRunning {
+		return nil, errors.ErrWorkerNotStart
+	}
 	sub := convert.FromPbAddSubscription(request)
 	err := s.worker.AddSubscription(sub)
 	if err != nil {
@@ -86,6 +96,9 @@ func (s *server) AddSubscription(ctx context.Context, request *pbtrigger.AddSubs
 
 func (s *server) RemoveSubscription(ctx context.Context, request *pbtrigger.RemoveSubscriptionRequest) (*pbtrigger.RemoveSubscriptionResponse, error) {
 	log.Info(ctx, "subscription remove ", map[string]interface{}{"request": request})
+	if s.state != primitive.ServerStateRunning {
+		return nil, errors.ErrWorkerNotStart
+	}
 	err := s.worker.RemoveSubscription(request.Id)
 	if err != nil {
 		log.Info(ctx, "remove subscription error", map[string]interface{}{
@@ -98,12 +111,18 @@ func (s *server) RemoveSubscription(ctx context.Context, request *pbtrigger.Remo
 
 func (s *server) PauseSubscription(ctx context.Context, request *pbtrigger.PauseSubscriptionRequest) (*pbtrigger.PauseSubscriptionResponse, error) {
 	log.Info(ctx, "subscription pause ", map[string]interface{}{"request": request})
+	if s.state != primitive.ServerStateRunning {
+		return nil, errors.ErrWorkerNotStart
+	}
 	s.worker.PauseSubscription(request.Id)
 	return &pbtrigger.PauseSubscriptionResponse{}, nil
 }
 
 func (s *server) ResumeSubscription(ctx context.Context, request *pbtrigger.ResumeSubscriptionRequest) (*pbtrigger.ResumeSubscriptionResponse, error) {
-	log.Debug(ctx, "subscription resume ", map[string]interface{}{"request": request})
+	log.Info(ctx, "subscription resume ", map[string]interface{}{"request": request})
+	if s.state != primitive.ServerStateRunning {
+		return nil, errors.ErrWorkerNotStart
+	}
 	return &pbtrigger.ResumeSubscriptionResponse{}, nil
 }
 
@@ -151,11 +170,12 @@ func (s *server) Initialize(ctx context.Context) error {
 		s.stop(true)
 		log.Info(ctx, "trigger worker server stopped", nil)
 	}()
+	s.state = primitive.ServerStateStarted
 	return nil
 }
 
 func (s *server) stop(sendUnregister bool) {
-	if s.stopped {
+	if s.state == primitive.ServerStateStopped {
 		return
 	}
 	s.cancel()
@@ -175,7 +195,7 @@ func (s *server) stop(sendUnregister bool) {
 	}
 	s.wg.Wait()
 	s.tcCc.Close()
-	s.stopped = true
+	s.state = primitive.ServerStateStopped
 }
 
 const (
@@ -234,7 +254,6 @@ func (s *server) startHeartbeat() {
 					subInfos = append(subInfos, convert.ToPbSubscriptionInfo(sub))
 				}
 				err = stream.Send(&controller.TriggerWorkerHeartbeatRequest{
-					Started:  s.worker.started,
 					Address:  s.config.TriggerAddr,
 					SubInfos: subInfos,
 				})
