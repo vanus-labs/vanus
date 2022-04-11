@@ -1,3 +1,9 @@
+
+# configuration file
+./config/*.json
+./config/*.yaml
+./config/*.toml
+
 # macOS
 .DS_Store
 

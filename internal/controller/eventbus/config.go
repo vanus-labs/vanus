@@ -16,7 +16,7 @@ package eventbus
 
 import embedetcd "github.com/linkall-labs/embed-etcd"
 
-type ControllerConfig struct {
+type Config struct {
 	IP               string            `yaml:"ip"`
 	Port             int               `yaml:"port"`
 	KVStoreEndpoints []string          `yaml:"kv_store_endpoints"`

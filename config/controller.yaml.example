@@ -1,0 +1,13 @@
+name: "test-1"
+storage:
+  data_dir: ""
+clusters:
+  "test-1": "127.0.0.1:2048"
+network:
+  listen_client_ip: "127.0.0.1"
+  listen_client_port: 2379
+  peer_ip: "127.0.0.1"
+  peer_port: 2380
+trigger:
+
+eventbus:

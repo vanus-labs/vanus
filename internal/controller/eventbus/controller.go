@@ -47,7 +47,7 @@ const (
 	volumeKeyPrefixInKVStore        = "/vanus/internal/resource/volume"
 )
 
-func NewEventBusController(cfg ControllerConfig, member embedetcd.Member) *controller {
+func NewEventBusController(cfg Config, member embedetcd.Member) *controller {
 	c := &controller{
 		cfg:                      &cfg,
 		volumePool:               &volumePool{},
@@ -63,7 +63,7 @@ func NewEventBusController(cfg ControllerConfig, member embedetcd.Member) *contr
 }
 
 type controller struct {
-	cfg                      *ControllerConfig
+	cfg                      *Config
 	kvStore                  kv.Client
 	volumePool               *volumePool
 	eventBusMap              map[string]*info.BusInfo
@@ -82,7 +82,6 @@ func (ctrl *controller) Start(ctx context.Context) error {
 		return err
 	}
 	ctrl.kvStore = store
-
 	pairs, err := store.List(ctx, eventbusKeyPrefixInKVStore)
 	if err != nil {
 		return err
