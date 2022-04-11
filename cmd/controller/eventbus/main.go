@@ -18,8 +18,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	embedetcd "github.com/linkall-labs/embed-etcd"
+	"io"
+	"net"
+	"os"
+
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
-	"github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
 	"github.com/linkall-labs/vanus/internal/primitive/interceptor/grpc_error"
@@ -28,9 +32,6 @@ import (
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"google.golang.org/grpc"
 	"gopkg.in/yaml.v3"
-	"io"
-	"net"
-	"os"
 )
 
 var (
