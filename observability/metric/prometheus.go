@@ -22,7 +22,8 @@ import (
 // use prometheus as the backend of metrics
 // TODO: implement
 
-type promCounter struct{}
+type promCounter struct {
+}
 
 func (pc *promCounter) IncrInt(n int64, attrs ...attribute.KeyValue) {}
 

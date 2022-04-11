@@ -18,26 +18,29 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
-	"github.com/linkall-labs/vanus/internal/primitive/interceptor"
+	"github.com/linkall-labs/vanus/internal/primitive/interceptor/grpc_error"
+	"github.com/linkall-labs/vanus/internal/primitive/interceptor/grpc_member"
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"google.golang.org/grpc"
+	"gopkg.in/yaml.v3"
 	"io"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"net"
 	"os"
 )
 
 var (
-	configPath = ""
+	configPath        = ""
+	defaultConfigPath = "./config/controller.yaml"
 )
 
 func main() {
 	flag.Parse()
-	flag.StringVar(&configPath, "config-file", "", "the configuration file of controller")
+	flag.StringVar(&configPath, "config-file", defaultConfigPath, "the configuration file of controller")
 
 	f, err := os.Open(configPath)
 	if err != nil {
@@ -62,15 +65,6 @@ func main() {
 		os.Exit(-1)
 	}
 
-	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
-		cfg.NetworkConfig.ListenClientIP, cfg.NetworkConfig.ListenClientPort))
-	if err != nil {
-		log.Error(context.Background(), "failed to listen", map[string]interface{}{
-			"error": err,
-		})
-		os.Exit(-1)
-	}
-
 	etcd := embedetcd.New()
 	ctx := context.Background()
 
@@ -87,9 +81,8 @@ func main() {
 		})
 		os.Exit(-1)
 	}
-	var opts []grpc.ServerOption
-	opts = append(opts, interceptor.GRPCErrorServerOutboundInterceptor()...)
-	opts = append(opts, interceptor.CheckLeadershipInterceptor(etcd, cfg.Clusters)...)
+
+	// TODO wait server ready
 	ctrlSrv := eventbus.NewEventBusController(cfg.GetEventbusCtrlConfig(), etcd)
 	if err = ctrlSrv.Start(ctx); err != nil {
 		log.Error(ctx, "start Eventbus Controller failed", map[string]interface{}{
@@ -97,7 +90,27 @@ func main() {
 		})
 		os.Exit(-1)
 	}
-	grpcServer := grpc.NewServer(opts...)
+
+	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", cfg.IP, cfg.Port))
+	if err != nil {
+		log.Error(context.Background(), "failed to listen", map[string]interface{}{
+			"error": err,
+		})
+		os.Exit(-1)
+	}
+
+	grpcServer := grpc.NewServer(
+		grpc.ChainStreamInterceptor(
+			grpc_error.StreamServerInterceptor(),
+			grpc_member.StreamServerInterceptor(etcd, cfg.Topology),
+			recovery.StreamServerInterceptor(),
+		),
+		grpc.ChainUnaryInterceptor(
+			grpc_error.UnaryServerInterceptor(),
+			grpc_member.UnaryServerInterceptor(etcd, cfg.Topology),
+			recovery.UnaryServerInterceptor(),
+		),
+	)
 	exitChan := make(chan struct{}, 0)
 	ctrlpb.RegisterEventBusControllerServer(grpcServer, ctrlSrv)
 	ctrlpb.RegisterEventLogControllerServer(grpcServer, ctrlSrv)
@@ -113,11 +126,3 @@ func main() {
 		log.Info(ctx, "the grpc server has been shutdown", nil)
 	}
 }
-
-//config.EtcdConfig = embedetcd.Config{
-//	Name:       "etcd-1",
-//	DataDir:    "/Users/wenfeng/tmp/embed_etcd/node1",
-//	ClientAddr: "localhost:2379",
-//	PeerAddr:   "localhost:2380",
-//	Clusters:   []string{"etcd-1=http://localhost:12380"},
-//}

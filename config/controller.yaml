@@ -7,12 +7,13 @@ data_dir: "/Users/wenfeng/tmp/data/vanus"
 topology:
   service_a: "127.0.0.1:2048"
 metadata:
-  - key_prefix: "/wenfeng"
+  key_prefix: "/wenfeng"
 embed_etcd:
   name: "etcd-1"
   # relative path to ${data_dir} above
   data_dir: "etcd/node1"
-  "client": "127.0.0.1:2379"
-  "peer_addr": "127.0.0.1:2380"
-  "clusters": "etcd-1=http://localhost:12380"
+  client_addr: "127.0.0.1:2379"
+  peer_addr: "127.0.0.1:2380"
+  clusters:
+    - "etcd-1=http://127.0.0.1:2380"
 #eventbus:

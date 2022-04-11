@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package interceptor
+package grpc_error
 
 import (
 	"context"
@@ -36,18 +36,27 @@ func GRPCErrorClientInboundInterceptor(f GRPCErrorTranslatorFunc) []grpc.DialOpt
 	return opts
 }
 
-func GRPCErrorServerOutboundInterceptor() []grpc.ServerOption {
-	opts := make([]grpc.ServerOption, 0)
-	opts = append(opts, grpc.UnaryInterceptor(func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo,
+func StreamServerInterceptor() grpc.StreamServerInterceptor {
+	return func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo,
+		handler grpc.StreamHandler) error {
+		err := handler(srv, stream)
+		if err != nil {
+			err = convertToGRPCError(err)
+		}
+		return err
+	}
+}
+
+func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler) (interface{}, error) {
 		res, err := handler(ctx, req)
 		if err != nil {
 			err = convertToGRPCError(err)
 		}
 		return res, err
-	}))
+	}
 	// TODO add stream interceptor
-	return opts
 }
 
 // convertToGRPCError convert an internal error to an exported error defined in gRPC

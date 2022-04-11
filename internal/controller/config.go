@@ -15,60 +15,36 @@
 package controller
 
 import (
-	"fmt"
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
 	"github.com/linkall-labs/vanus/internal/controller/trigger"
 )
 
 type Config struct {
-	Name          string
-	Clusters      map[string]string `yaml:"clusters"`
-	NetworkConfig NetworkConfig     `yaml:"network"`
-	TriggerConfig trigger.Config    `yaml:"trigger"`
-	StorageConfig StorageConfig     `yaml:"storage"`
-	KVConfig      KVConfig          `yaml:"kv"`
+	Name           string            `yaml:"name"`
+	IP             string            `yaml:"ip"`
+	Port           int               `yaml:"port"`
+	EtcdEndpoints  []string          `yaml:"etcd"`
+	DataDir        string            `yaml:"data_dir"`
+	Topology       map[string]string `yaml:"topology"`
+	MetadataConfig MetadataConfig    `yaml:"metadata"`
+	EtcdConfig     embedetcd.Config  `yaml:"embed_etcd"`
+	TriggerConfig  trigger.Config    `yaml:"trigger"`
 }
 
 func (c *Config) GetEtcdConfig() embedetcd.Config {
-	return embedetcd.Config{
-		Name:       c.Name,
-		DataDir:    c.StorageConfig.DataDir,
-		ClientAddr: fmt.Sprintf("%s:%d", c.NetworkConfig.ListenClientIP, c.NetworkConfig.ListenClientPort),
-		PeerAddr:   fmt.Sprintf("%s:%d", c.NetworkConfig.PeerIP, c.NetworkConfig.PeerPort),
-		Clusters:   c.GetEmbedClusters(),
-	}
+	return c.EtcdConfig
 }
 
 func (c *Config) GetEventbusCtrlConfig() eventbus.Config {
 	return eventbus.Config{
-		IP:               c.NetworkConfig.ListenClientIP,
-		Port:             c.NetworkConfig.ListenClientPort,
-		KVStoreEndpoints: c.KVConfig.Endpoints,
-		KVKeyPrefix:      c.KVConfig.MetaDataKeyPrefix,
+		IP:               c.IP,
+		Port:             c.Port,
+		KVStoreEndpoints: c.EtcdEndpoints,
+		KVKeyPrefix:      c.MetadataConfig.KeyPrefix,
 	}
 }
 
-func (c *Config) GetEmbedClusters() []string {
-	cluster := make([]string, 0)
-	for k, v := range c.Clusters {
-		cluster = append(cluster, fmt.Sprintf("%s=%s", k, v))
-	}
-	return cluster
-}
-
-type KVConfig struct {
-	Endpoints         []string `yaml:"endpoints"`
-	MetaDataKeyPrefix string   `yaml:"key_prefix"`
-}
-
-type StorageConfig struct {
-	DataDir string `yaml:"data_dir"`
-}
-
-type NetworkConfig struct {
-	ListenClientIP   string `yaml:"listen_client_ip"`
-	ListenClientPort int    `json:"listen_client_port"`
-	PeerIP           string `yaml:"peer_ip"`
-	PeerPort         int    `yaml:"peer_port"`
+type MetadataConfig struct {
+	KeyPrefix string `yaml:"key_prefix"`
 }
