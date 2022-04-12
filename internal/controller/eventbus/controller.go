@@ -28,15 +28,11 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	metapb "github.com/linkall-labs/vsproto/pkg/meta"
-	segpb "github.com/linkall-labs/vsproto/pkg/segment"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"io"
 	"path/filepath"
 	"strings"
-	"time"
+	"sync"
 )
 
 const (
@@ -49,31 +45,32 @@ const (
 
 func NewEventBusController(cfg Config, member embedetcd.Member) *controller {
 	c := &controller{
-		cfg:                      &cfg,
-		volumePool:               &volumePool{},
-		eventBusMap:              map[string]*info.BusInfo{},
-		segmentServerCredentials: insecure.NewCredentials(),
-		segmentServerInfoMap:     map[string]*info.SegmentServerInfo{},
-		segmentServerConn:        map[string]*grpc.ClientConn{},
-		volumeInfoMap:            map[string]*info.VolumeInfo{},
-		segmentServerClientMap:   map[string]segpb.SegmentServerClient{},
-		member:                   member,
+		cfg:         &cfg,
+		eventLogMgr: nil,
+		volumeMgr:   new(volumeMgr),
+		eventBusMap: map[string]*info.BusInfo{},
+		member:      member,
+		isLeader:    false,
+		readyNotify: make(chan struct{}, 1),
+		stopNotify:  make(chan error, 1),
 	}
 	return c
 }
 
 type controller struct {
-	cfg                      *Config
-	kvStore                  kv.Client
-	volumePool               *volumePool
-	eventBusMap              map[string]*info.BusInfo
-	segmentServerCredentials credentials.TransportCredentials
-	segmentServerInfoMap     map[string]*info.SegmentServerInfo
-	segmentServerConn        map[string]*grpc.ClientConn
-	volumeInfoMap            map[string]*info.VolumeInfo
-	segmentServerClientMap   map[string]segpb.SegmentServerClient
-	eventLogMgr              *eventlogManager
-	member                   embedetcd.Member
+	cfg             *Config
+	kvStore         kv.Client
+	eventLogMgr     *eventlogManager
+	volumeMgr       *volumeMgr
+	ssMgr           *segmentServerManager
+	eventBusMap     map[string]*info.BusInfo
+	member          embedetcd.Member
+	cancelCtx       context.Context
+	cancelFunc      context.CancelFunc
+	membershipMutex sync.Mutex
+	isLeader        bool
+	readyNotify     chan<- struct{}
+	stopNotify      chan<- error
 }
 
 func (ctrl *controller) Start(ctx context.Context) error {
@@ -81,22 +78,12 @@ func (ctrl *controller) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	ctrl.kvStore = store
-	pairs, err := store.List(ctx, eventbusKeyPrefixInKVStore)
-	if err != nil {
-		return err
-	}
-	for idx := range pairs {
-		pair := pairs[idx]
-		busInfo := &info.BusInfo{}
-		err := json.Unmarshal(pair.Value, busInfo)
-		if err != nil {
-			return err
-		}
-		ctrl.eventBusMap[filepath.Base(pair.Key)] = busInfo
-	}
+	ctrl.cancelCtx, ctrl.cancelFunc = context.WithCancel(context.Background())
+	ctrl.member.RegisterMembershipChangedProcessor(ctrl.cancelCtx, ctrl.membershipChangedProcessor)
 
-	if err = ctrl.volumePool.init(ctx, ctrl); err != nil {
+	ctrl.kvStore = store
+
+	if err = ctrl.volumeMgr.init(ctx, ctrl); err != nil {
 		return err
 	}
 
@@ -105,7 +92,7 @@ func (ctrl *controller) Start(ctx context.Context) error {
 		return err
 	}
 
-	if err := ctrl.eventLogMgr.initVolumeInfo(ctrl.volumePool); err != nil {
+	if err := ctrl.eventLogMgr.initVolumeInfo(ctrl.volumeMgr); err != nil {
 		return err
 	}
 
@@ -208,39 +195,19 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	serverInfo := &info.SegmentServerInfo{
-		Address:           req.Address,
-		Volume:            nil,
-		StartedAt:         time.Now(),
-		LastHeartbeatTime: time.Now(),
-	}
-
-	volumeInfo, exist := ctrl.volumeInfoMap[req.VolumeId]
-	if !exist {
-		volumeInfo = ctrl.volumePool.get(req.VolumeId)
-		if volumeInfo == nil {
-			return nil, errors.ErrResourceNotFound.WithMessage("invalid volumeID, PVC not found")
-		}
-	}
-	// TODO clean server info when server disconnected
-	_, exist = ctrl.segmentServerInfoMap[serverInfo.Address]
-	if exist {
-		if volumeInfo.GetAccessEndpoint() == "" {
-			log.Info(ctx, "the segment server reconnected", map[string]interface{}{
-				"server_address": req.Address,
-				"volume_id":      req.VolumeId,
-			})
-		} else if volumeInfo.GetAccessEndpoint() != volumeInfo.GetAccessEndpoint() {
-			return nil, errors.ErrInvalidRequest.WithMessage("segment server ip address is conflicted")
-		}
-	}
-
-	if err := ctrl.volumePool.ActivateVolume(volumeInfo, serverInfo); err != nil {
+	volumeInfo, err := ctrl.volumeMgr.registerVolume(ctx, req.VolumeId)
+	if err != nil {
 		return nil, err
 	}
-	ctrl.segmentServerInfoMap[serverInfo.Address] = serverInfo
-	// TODO update state in KV store
-	go ctrl.readyToStartSegmentServer(context.Background(), serverInfo)
+
+	serverInfo, err := ctrl.ssMgr.AddServer(ctx, req.Address)
+	if err != nil {
+		return nil, err
+	}
+
+	ctrl.volumeMgr.refreshRoutingInfo(volumeInfo.ID(), serverInfo)
+
+	go ctrl.ssMgr.remoteStartServer(serverInfo)
 	return &ctrlpb.RegisterSegmentServerResponse{
 		ServerId:      serverInfo.ID(),
 		SegmentBlocks: volumeInfo.Blocks,
@@ -251,15 +218,19 @@ func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
 	req *ctrlpb.UnregisterSegmentServerRequest) (*ctrlpb.UnregisterSegmentServerResponse, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
-	serverInfo, exist := ctrl.segmentServerInfoMap[req.Address]
-	if !exist {
+
+	serverInfo := ctrl.ssMgr.GetServerInfoByAddress(req.Address)
+
+	if serverInfo == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("segment server not found")
 	}
 
-	delete(ctrl.segmentServerInfoMap, serverInfo.Address)
-	if err := ctrl.volumePool.InactivateVolume(serverInfo.Volume); err != nil {
-		return nil, err
+	if err := ctrl.ssMgr.RemoveServer(ctx, serverInfo); err != nil {
+		log.Warning(ctx, "remove server from segmentServerManager error", map[string]interface{}{
+			log.KeyError: err,
+		})
 	}
+	ctrl.volumeMgr.refreshRoutingInfo(req.VolumeId, nil)
 	return &ctrlpb.UnregisterSegmentServerResponse{}, nil
 }
 
@@ -273,6 +244,13 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 	var req *ctrlpb.SegmentHeartbeatRequest
 	ctx := context.Background()
 	for {
+		select {
+		case <-ctrl.cancelCtx.Done():
+			log.Info(ctx, "exit to heartbeat processing due to server stopped", nil)
+			_ = srv.SendAndClose(&ctrlpb.SegmentHeartbeatResponse{})
+			return nil
+		default:
+		}
 		req, err = srv.Recv()
 		if err != nil {
 			break
@@ -291,47 +269,15 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 			"volume_id": req.VolumeId,
 			"time":      t,
 		})
-		vInfo := ctrl.volumePool.get(req.VolumeId)
-		if vInfo == nil {
-			log.Error(ctx, "received a heartbeat request, but volume not found", map[string]interface{}{
+
+		serverInfo := ctrl.ssMgr.GetServerInfoByServerID(req.ServerId)
+		if serverInfo == nil {
+			log.Warning(ctx, "received a heartbeat request, but server info not found", map[string]interface{}{
 				"volume_id": req.VolumeId,
 				"server_id": req.ServerId,
 			})
-			continue
 		}
-		serverInfo := ctrl.segmentServerInfoMap[req.ServerAddr]
-		if serverInfo == nil {
-			// TODO refactor here and register
-			serverInfo = &info.SegmentServerInfo{
-				Address:   req.ServerAddr,
-				Volume:    vInfo,
-				StartedAt: time.Now(),
-			}
-			ctrl.segmentServerInfoMap[req.ServerAddr] = serverInfo
-			//log.Error(ctx, "received a heartbeat request, but server info not found", map[string]interface{}{
-			//	"volume_id": req.VolumeId,
-			//	"server_id": req.ServerId,
-			//})
-		}
-
-		if !vInfo.IsActivity() || !vInfo.IsOnline() {
-			ctrl.volumePool.ActivateVolume(vInfo, serverInfo)
-			log.Info(ctx, "the volume has been activated", map[string]interface{}{
-				"volume_id":   vInfo.ID(),
-				"server_addr": serverInfo.Address,
-			})
-		}
-
-		// use local time to avoiding time shift
-		serverInfo.LastHeartbeatTime = time.Now()
-		if _err := ctrl.eventLogMgr.updateSegment(context.Background(), req); _err != nil {
-			log.Warning(ctx, "update segment when received segment server heartbeat", map[string]interface{}{
-				log.KeyError: err,
-				"volume_id":  req.VolumeId,
-				"server_id":  req.ServerId,
-			})
-		}
-		// TODO srv.SendAndClose()
+		ctrl.ssMgr.polish(serverInfo)
 	}
 
 	if err != nil && err != io.EOF {
@@ -369,42 +315,81 @@ func (ctrl *controller) ReportSegmentBlockIsFull(ctx context.Context,
 	return &emptypb.Empty{}, ctrl.eventLogMgr.updateSegment(ctx, req)
 }
 
-func (ctrl *controller) getSegmentServerClient(i *info.SegmentServerInfo) segpb.SegmentServerClient {
-	if i == nil {
-		return nil
-	}
-	cli := ctrl.segmentServerClientMap[i.ID()]
-	if cli == nil {
-		var opts []grpc.DialOption
-		opts = append(opts, grpc.WithTransportCredentials(ctrl.segmentServerCredentials))
-		conn, err := grpc.Dial(i.Address, opts...)
-		if err != nil {
-			// TODO error handle
-			return nil
-		}
-		ctrl.segmentServerConn[i.Address] = conn
-		cli = segpb.NewSegmentServerClient(conn)
-		ctrl.segmentServerClientMap[i.ID()] = cli
-	}
-	return cli
-}
-
-func (ctrl *controller) readyToStartSegmentServer(ctx context.Context, serverInfo *info.SegmentServerInfo) {
-	conn := ctrl.getSegmentServerClient(serverInfo)
-	if conn == nil {
-		return
-	}
-	_, err := conn.Start(ctx, &segpb.StartSegmentServerRequest{
-		SegmentServerId: uuid.NewString(),
-	})
-	if err != nil {
-		log.Warning(ctx, "start segment server failed", map[string]interface{}{
-			log.KeyError: err,
-			"address":    serverInfo.Address,
-		})
-	}
-}
-
 func (ctrl *controller) getEventBusKeyInKVStore(ebName string) string {
 	return strings.Join([]string{eventbusKeyPrefixInKVStore, ebName}, "/")
+}
+
+func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event embedetcd.MembershipChangedEvent) error {
+	ctrl.membershipMutex.Lock()
+	defer ctrl.membershipMutex.Unlock()
+
+	switch event.Type {
+	case embedetcd.EventBecomeLeader:
+		if ctrl.isLeader {
+			return nil
+		}
+		ctrl.isLeader = true
+		if err := ctrl.loadAllMetadata(ctx); err != nil {
+			ctrl.stop(ctx, err)
+			return err
+		}
+
+		if err := ctrl.volumeMgr.init(ctx, ctrl); err != nil {
+			ctrl.stop(ctx, err)
+			return err
+		}
+
+		if err := ctrl.eventLogMgr.start(ctx); err != nil {
+			ctrl.stop(ctx, err)
+			return err
+		}
+
+		if err := ctrl.ssMgr.start(ctx); err != nil {
+			ctrl.stop(ctx, err)
+			return err
+		}
+	case embedetcd.EventBecomeFollower:
+		if !ctrl.isLeader {
+			return nil
+		}
+		ctrl.isLeader = false
+		ctrl.volumeMgr.destroy(ctx)
+		ctrl.eventLogMgr.stop(ctx)
+		ctrl.ssMgr.stop(ctx)
+	}
+	return nil
+}
+
+func (ctrl *controller) loadAllMetadata(ctx context.Context) error {
+	// load eventbus info
+	pairs, err := ctrl.kvStore.List(ctx, eventbusKeyPrefixInKVStore)
+	if err != nil {
+		return err
+	}
+	for idx := range pairs {
+		pair := pairs[idx]
+		busInfo := &info.BusInfo{}
+		err := json.Unmarshal(pair.Value, busInfo)
+		if err != nil {
+			return err
+		}
+		ctrl.eventBusMap[filepath.Base(pair.Key)] = busInfo
+	}
+	return nil
+}
+
+func (ctrl *controller) stop(ctx context.Context, err error) {
+	ctrl.member.ResignIfLeader(ctx)
+	ctrl.cancelFunc()
+	ctrl.stopNotify <- err
+	ctrl.volumeMgr.destroy(ctx)
+	ctrl.eventLogMgr.stop(ctx)
+	ctrl.ssMgr.stop(ctx)
+	if err := ctrl.kvStore.Close(); err != nil {
+		log.Warning(ctx, "close kv client error", map[string]interface{}{
+			log.KeyError: err,
+		})
+	}
+	close(ctrl.readyNotify)
+	close(ctrl.stopNotify)
 }

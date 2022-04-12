@@ -67,7 +67,7 @@ func (mgr *eventlogManager) start(ctx context.Context) error {
 	return nil
 }
 
-func (mgr *eventlogManager) initVolumeInfo(pool *volumePool) error {
+func (mgr *eventlogManager) initVolumeInfo(pool *volumeMgr) error {
 	var err error
 	mgr.eventLogMap.Range(func(key, value interface{}) bool {
 		elInfo := value.(*info.EventLogInfo)
@@ -81,8 +81,7 @@ func (mgr *eventlogManager) initVolumeInfo(pool *volumePool) error {
 	return err
 }
 
-func (mgr *eventlogManager) stop() error {
-	return nil
+func (mgr *eventlogManager) stop(ctx context.Context) {
 }
 
 func (mgr *eventlogManager) acquireEventLog(ctx context.Context) (*info.EventLogInfo, error) {

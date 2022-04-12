@@ -17,6 +17,7 @@ package selector
 import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
+	"sort"
 )
 
 type SegmentServerSelector interface {
@@ -24,27 +25,31 @@ type SegmentServerSelector interface {
 }
 
 type segmentServerRoundRobinSelector struct {
-	count int64
-	m     *map[string]*info.SegmentServerInfo
+	count                int64
+	getSegmentServerInfo func() []*info.SegmentServerInfo
 }
 
-func NewSegmentServerRoundRobinSelector(m *map[string]*info.SegmentServerInfo) SegmentServerSelector {
+func NewSegmentServerRoundRobinSelector(f func() []*info.SegmentServerInfo) SegmentServerSelector {
 	return &segmentServerRoundRobinSelector{
-		count: 0,
-		m:     m,
+		count:                0,
+		getSegmentServerInfo: f,
 	}
 }
 
 func (s *segmentServerRoundRobinSelector) Select(ctx context.Context, size int64) *info.SegmentServerInfo {
-	if len(*s.m) == 0 {
+	infos := s.getSegmentServerInfo()
+	if len(infos) == 0 {
 		return nil
 	}
 	// TODO optimize
 	keys := make([]string, 0)
-	for k := range *s.m {
-		keys = append(keys, k)
+	m := make(map[string]*info.SegmentServerInfo)
+	for _, v := range infos {
+		keys = append(keys, v.Address)
+		m[v.Address] = v
 	}
-	ssi := (*s.m)[keys[s.count%int64(len(keys))]]
+	sort.Strings(keys)
+	ssi := m[keys[s.count%int64(len(keys))]]
 	s.count += 1
 	return ssi
 }

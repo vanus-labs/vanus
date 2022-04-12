@@ -97,10 +97,9 @@ func Convert2ProtoSegment(ins ...*SegmentBlockInfo) []*meta.Segment {
 		if segs[idx].NumberEventStored == 0 {
 			segs[idx].EndOffsetInLog = -1
 		}
-		if seg.VolumeInfo != nil && seg.VolumeInfo.assignedSegmentServer != nil {
-			segs[idx].StorageUri = seg.VolumeInfo.assignedSegmentServer.Address
-		}
-
+		//if seg.VolumeInfo != nil && seg.VolumeInfo.assignedSegmentServer != nil {
+		//	segs[idx].StorageUri = seg.VolumeInfo.assignedSegmentServer.Address
+		//}
 	}
 	return segs
 }
@@ -108,7 +107,6 @@ func Convert2ProtoSegment(ins ...*SegmentBlockInfo) []*meta.Segment {
 type SegmentServerInfo struct {
 	id                string
 	Address           string
-	Volume            *VolumeInfo
 	StartedAt         time.Time
 	LastHeartbeatTime time.Time
 }
@@ -125,13 +123,12 @@ const (
 )
 
 type VolumeInfo struct {
-	Capacity                 int64              `json:"capacity"`
-	Used                     int64              `json:"used"`
-	BlockNumbers             int                `json:"block_numbers"`
-	Blocks                   map[string]string  `json:"blocks"`
-	PersistenceVolumeClaimID string             `json:"persistence_volume_claim_id"`
-	assignedSegmentServer    *SegmentServerInfo `json:"-"`
-	isActive                 bool
+	Capacity                 int64             `json:"capacity"`
+	Used                     int64             `json:"used"`
+	BlockNumbers             int               `json:"block_numbers"`
+	Blocks                   map[string]string `json:"blocks"`
+	PersistenceVolumeClaimID string            `json:"persistence_volume_claim_id"`
+	SegmentServerID          string
 }
 
 func (in *VolumeInfo) ID() string {
@@ -148,28 +145,29 @@ func (in *VolumeInfo) RemoveBlock(bi *SegmentBlockInfo) {
 	delete(in.Blocks, bi.ID)
 }
 
-func (in *VolumeInfo) IsOnline() bool {
-	return in.assignedSegmentServer != nil && time.Now().Sub(in.assignedSegmentServer.LastHeartbeatTime) < volumeAliveInterval
-}
-
-func (in *VolumeInfo) IsActivity() bool {
-	return in.isActive
-}
-
-func (in *VolumeInfo) Activate(serverInfo *SegmentServerInfo) {
-	in.isActive = true
-	in.assignedSegmentServer = serverInfo
-	serverInfo.Volume = in
-}
-
-func (in *VolumeInfo) Inactivate() {
-	in.isActive = false
-	in.assignedSegmentServer = nil
-}
-
-func (in *VolumeInfo) GetAccessEndpoint() string {
-	if !in.isActive {
-		return ""
-	}
-	return in.assignedSegmentServer.Address
-}
+//
+//func (in *VolumeInfo) IsOnline() bool {
+//	return in.assignedSegmentServer != nil && time.Now().Sub(in.assignedSegmentServer.LastHeartbeatTime) < volumeAliveInterval
+//}
+//
+//func (in *VolumeInfo) IsActivity() bool {
+//	return in.isActive
+//}
+//
+//func (in *VolumeInfo) Activate(serverInfo *SegmentServerInfo) {
+//	in.isActive = true
+//	in.assignedSegmentServer = serverInfo
+//	//serverInfo.Volume = in
+//}
+//
+//func (in *VolumeInfo) Inactivate() {
+//	in.isActive = false
+//	in.assignedSegmentServer = nil
+//}
+//
+//func (in *VolumeInfo) GetAccessEndpoint() string {
+//	if !in.isActive {
+//		return ""
+//	}
+//	return in.assignedSegmentServer.Address
+//}
