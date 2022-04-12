@@ -69,7 +69,7 @@ func TestManager_Offset(t *testing.T) {
 			offsets, _ := m.GetOffset(nil, subId)
 			So(len(offsets), ShouldEqual, 1)
 			So(offsets[0].Offset, ShouldEqual, offset)
-			m.Start()
+			m.Run()
 
 			m.Stop()
 		})
@@ -93,7 +93,7 @@ func TestManager_Start(t *testing.T) {
 			So(offsets[0].Offset, ShouldEqual, offset)
 			offsets, _ = storage.GetOffsets(nil, subId)
 			So(len(offsets), ShouldEqual, 0)
-			m.Start()
+			m.Run()
 			time.Sleep(time.Second)
 			offsets, _ = storage.GetOffsets(nil, subId)
 			So(len(offsets), ShouldEqual, 1)

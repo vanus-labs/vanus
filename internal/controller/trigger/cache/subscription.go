@@ -16,23 +16,39 @@ package cache
 
 import (
 	"context"
-	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"sync"
 )
 
 type SubscriptionCache struct {
-	lock         sync.Mutex
+	lock         sync.RWMutex
 	storage      storage.SubscriptionStorage
 	subscription map[string]*primitive.SubscriptionApi
 }
 
-func NewSubscriptionCache(storage storage.SubscriptionStorage, subscription map[string]*primitive.SubscriptionApi) *SubscriptionCache {
+func NewSubscriptionCache(storage storage.SubscriptionStorage) *SubscriptionCache {
 	return &SubscriptionCache{
 		storage:      storage,
-		subscription: subscription,
+		subscription: map[string]*primitive.SubscriptionApi{},
 	}
+}
+
+func (c *SubscriptionCache) InitSubscription(ctx context.Context) error {
+	subList, err := c.storage.ListSubscription(ctx)
+	if err != nil {
+		return err
+	}
+	for i := range subList {
+		sub := subList[i]
+		c.subscription[sub.ID] = sub
+	}
+	return nil
+}
+func (c *SubscriptionCache) ListSubscription(ctx context.Context) map[string]*primitive.SubscriptionApi {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	return c.subscription
 }
 
 func (c *SubscriptionCache) AddSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error {
@@ -57,12 +73,14 @@ func (c *SubscriptionCache) UpdateSubscription(ctx context.Context, sub *primiti
 	return nil
 }
 
-func (c *SubscriptionCache) GetSubscription(ctx context.Context, subId string) (*primitive.SubscriptionApi, error) {
+func (c *SubscriptionCache) GetSubscription(ctx context.Context, subId string) *primitive.SubscriptionApi {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 	sub, exist := c.subscription[subId]
 	if !exist || sub.Phase == primitive.SubscriptionPhaseToDelete {
-		return nil, errors.ErrResourceNotFound
+		return nil
 	}
-	return sub, nil
+	return sub
 }
 
 func (c *SubscriptionCache) RemoveSubscription(ctx context.Context, subId string) error {

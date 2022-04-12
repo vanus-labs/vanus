@@ -16,13 +16,9 @@ package trigger
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/cache"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/offset"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/validation"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/worker"
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/util"
@@ -39,10 +35,9 @@ import (
 type triggerController struct {
 	config               Config
 	storage              storage.Storage
-	offsetManager        *offset.Manager
-	triggerWorkerManager *worker.TriggerWorkerManager
-	scheduler            *worker.SubscriptionScheduler
-	subscriptionCache    *cache.SubscriptionCache
+	subscriptionManager  *SubscriptionManager
+	triggerWorkerManager *TriggerWorkerManager
+	scheduler            *SubscriptionScheduler
 	needCleanSubIds      map[string]string
 	lock                 sync.Mutex
 	ctx                  context.Context
@@ -70,10 +65,11 @@ func (ctrl *triggerController) CreateSubscription(ctx context.Context, request *
 		return nil, err
 	}
 	sub := convert.FromPbCreateSubscription(request)
-	err = ctrl.addSubscription(ctx, sub)
+	err = ctrl.subscriptionManager.AddSubscription(ctx, sub)
 	if err != nil {
 		return nil, err
 	}
+	ctrl.scheduler.EnqueueNormalSub(sub.ID)
 	resp := convert.ToPbSubscription(sub)
 	return resp, nil
 }
@@ -82,9 +78,21 @@ func (ctrl *triggerController) DeleteSubscription(ctx context.Context, request *
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
-	err := ctrl.deleteSubscription(ctx, request.Id)
-	if err != nil {
-		return nil, err
+	subData := ctrl.subscriptionManager.GetSubscription(ctx, request.Id)
+	if subData != nil {
+		subData.Phase = primitive.SubscriptionPhaseToDelete
+		err := ctrl.subscriptionManager.UpdateSubscription(ctx, subData)
+		if err != nil {
+			return nil, err
+		}
+		go func(subId, addr string) {
+			err := ctrl.gcSubscription(ctx, subId, addr)
+			if err != nil {
+				ctrl.lock.Lock()
+				defer ctrl.lock.Unlock()
+				ctrl.needCleanSubIds[subId] = addr
+			}
+		}(request.Id, subData.TriggerWorker)
 	}
 	return &emptypb.Empty{}, nil
 }
@@ -93,9 +101,9 @@ func (ctrl *triggerController) GetSubscription(ctx context.Context, request *ctr
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
-	sub, err := ctrl.subscriptionCache.GetSubscription(ctx, request.Id)
-	if err != nil {
-		return nil, err
+	sub := ctrl.subscriptionManager.GetSubscription(ctx, request.Id)
+	if sub == nil {
+		return nil, errors.ErrResourceNotFound.WithMessage("subscription not exist")
 	}
 	resp := convert.ToPbSubscription(sub)
 	return resp, nil
@@ -103,6 +111,12 @@ func (ctrl *triggerController) GetSubscription(ctx context.Context, request *ctr
 
 func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerController_TriggerWorkerHeartbeatServer) error {
 	for {
+		select {
+		case <-ctrl.ctx.Done():
+			heartbeat.SendAndClose(&ctrlpb.TriggerWorkerHeartbeatResponse{})
+			return nil
+		default:
+		}
 		req, err := heartbeat.Recv()
 		if err == nil {
 			subIds := make(map[string]struct{}, len(req.SubInfos))
@@ -118,7 +132,7 @@ func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerCo
 			}
 			for _, sub := range req.SubInfos {
 				subInfo := convert.FromPbSubscriptionInfo(sub)
-				err = ctrl.offsetManager.Offset(ctrl.ctx, *subInfo)
+				err = ctrl.subscriptionManager.Offset(ctrl.ctx, *subInfo)
 				if err != nil {
 					log.Warning(ctrl.ctx, "heartbeat commit offset error", map[string]interface{}{
 						log.KeyError:          err,
@@ -160,54 +174,35 @@ func (ctrl *triggerController) UnregisterTriggerWorker(ctx context.Context, requ
 	return &ctrlpb.UnregisterTriggerWorkerResponse{}, err
 }
 
-func (ctrl *triggerController) addSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error {
-	sub.ID = uuid.NewString()
-	sub.Phase = primitive.SubscriptionPhaseCreated
-	err := ctrl.subscriptionCache.AddSubscription(ctx, sub)
+//gcSubscription before delete subscription,need
+//
+//1.trigger worker remove subscription
+//2.delete offset
+//3.delete subscription
+func (ctrl *triggerController) gcSubscription(ctx context.Context, subId, addr string) error {
+	err := ctrl.triggerWorkerManager.RemoveSubscription(ctx, addr, subId)
 	if err != nil {
 		return err
 	}
-	ctrl.scheduler.EnqueueNormalSub(sub.ID)
+	err = ctrl.subscriptionManager.DeleteSubscription(ctx, subId)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func (ctrl *triggerController) deleteSubscription(ctx context.Context, subId string) error {
-	subData, err := ctrl.subscriptionCache.GetSubscription(ctx, subId)
-	if err != nil {
-		if err == errors.ErrResourceNotFound {
-			return nil
-		}
+func (ctrl *triggerController) triggerWorkerRemoveSubscription(ctx context.Context, subId, addr string) error {
+	subData := ctrl.subscriptionManager.GetSubscription(ctx, subId)
+	if subData == nil {
+		return nil
 	}
-	subData.Phase = primitive.SubscriptionPhaseToDelete
-	err = ctrl.subscriptionCache.UpdateSubscription(ctx, subData)
-	if err != nil {
-		return err
-	}
-	go func(addr string) {
-		err = ctrl.cleanSubscription(ctrl.ctx, subId, addr)
-		if err != nil {
-			ctrl.lock.Lock()
-			defer ctrl.lock.Unlock()
-			ctrl.needCleanSubIds[subId] = addr
-		}
-	}(subData.TriggerWorker)
-	return nil
-}
-
-func (ctrl *triggerController) triggerWorkerSubRemove(ctx context.Context, subId, addr string) error {
-	subData, err := ctrl.subscriptionCache.GetSubscription(ctx, subId)
-	if err != nil {
-		if err == errors.ErrResourceNotFound {
-			return nil
-		}
-		return err
-	}
-	if subData.TriggerWorker != addr {
+	if subData.TriggerWorker == "" || subData.TriggerWorker != addr {
+		//数据不一致了，不应该出现这种情况
 		return nil
 	}
 	subData.TriggerWorker = ""
 	subData.Phase = primitive.SubscriptionPhasePending
-	err = ctrl.subscriptionCache.UpdateSubscription(ctx, subData)
+	err := ctrl.subscriptionManager.UpdateSubscription(ctx, subData)
 	if err != nil {
 		return err
 	}
@@ -216,26 +211,19 @@ func (ctrl *triggerController) triggerWorkerSubRemove(ctx context.Context, subId
 }
 
 func (ctrl *triggerController) init(ctx context.Context) error {
-	subList, err := ctrl.storage.ListSubscription(ctx)
+	ctrl.subscriptionManager = NewSubscriptionManager(ctrl.storage)
+	ctrl.triggerWorkerManager = NewTriggerWorkerManager(ctrl.storage, ctrl.subscriptionManager, ctrl.triggerWorkerRemoveSubscription)
+	ctrl.scheduler = NewSubscriptionScheduler(ctrl.triggerWorkerManager, ctrl.subscriptionManager)
+	err := ctrl.subscriptionManager.Init(ctx)
 	if err != nil {
 		return err
 	}
-	subMap := make(map[string]*primitive.SubscriptionApi, len(subList))
-	for i := range subList {
-		sub := subList[i]
-		subMap[sub.ID] = sub
-	}
-	ctrl.subscriptionCache = cache.NewSubscriptionCache(ctrl.storage, subMap)
-	ctrl.offsetManager = offset.NewOffsetManager(ctrl.storage)
-	ctrl.triggerWorkerManager = worker.NewTriggerWorkerManager(ctrl.storage, ctrl.offsetManager, ctrl.triggerWorkerSubRemove)
-	ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.triggerWorkerManager, ctrl.subscriptionCache)
-	err = ctrl.triggerWorkerManager.Run(ctx)
+	err = ctrl.triggerWorkerManager.Init(ctx)
 	if err != nil {
 		return err
 	}
-	ctrl.scheduler.Run(ctx)
-	//restart,need redo
-	for subId, sub := range subMap {
+	//restart,need reschedule
+	for subId, sub := range ctrl.subscriptionManager.ListSubscription(ctx) {
 		switch sub.Phase {
 		case primitive.SubscriptionPhaseCreated:
 			ctrl.scheduler.EnqueueNormalSub(subId)
@@ -246,38 +234,6 @@ func (ctrl *triggerController) init(ctx context.Context) error {
 		}
 	}
 	return nil
-}
-
-//cleanSubscription before delete subscription,need
-//
-//1.trigger worker remove subscription
-//2.delete offset
-//3.delete subscription
-func (ctrl *triggerController) cleanSubscription(ctx context.Context, subId, addr string) error {
-	err := ctrl.triggerWorkerManager.RemoveSubscription(ctx, addr, subId)
-	if err != nil {
-		return err
-	}
-	err = ctrl.offsetManager.RemoveRegisterSubscription(ctx, subId)
-	if err != nil {
-		return err
-	}
-	err = ctrl.subscriptionCache.RemoveSubscription(ctx, subId)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (ctrl *triggerController) cleanSubscriptions(ctx context.Context) {
-	ctrl.lock.Lock()
-	defer ctrl.lock.Unlock()
-	for subId, addr := range ctrl.needCleanSubIds {
-		err := ctrl.cleanSubscription(ctx, subId, addr)
-		if err != nil {
-			delete(ctrl.needCleanSubIds, subId)
-		}
-	}
 }
 
 func (ctrl *triggerController) Start() error {
@@ -293,11 +249,22 @@ func (ctrl *triggerController) Start() error {
 		ctrl.storage.Close()
 		return err
 	}
-	ctrl.offsetManager.Start()
 	go func() {
-		ctrl.cleanSubscriptions(ctx)
-		util.UntilWithContext(ctx, ctrl.cleanSubscriptions, time.Second*30)
+		ctrl.triggerWorkerManager.Run(ctx)
+		ctrl.subscriptionManager.Run()
+		ctrl.scheduler.Run()
 	}()
+
+	go util.UntilWithContext(ctx, func(ctx context.Context) {
+		ctrl.lock.Lock()
+		defer ctrl.lock.Unlock()
+		for subId, addr := range ctrl.needCleanSubIds {
+			err := ctrl.gcSubscription(ctx, subId, addr)
+			if err != nil {
+				delete(ctrl.needCleanSubIds, subId)
+			}
+		}
+	}, time.Second*10)
 	ctrl.state = primitive.ServerStateRunning
 	return nil
 }
@@ -305,7 +272,8 @@ func (ctrl *triggerController) Start() error {
 func (ctrl *triggerController) Close() error {
 	ctrl.state = primitive.ServerStateStopping
 	ctrl.stop()
-	ctrl.offsetManager.Stop()
+	ctrl.scheduler.Stop()
+	ctrl.subscriptionManager.Stop()
 	ctrl.storage.Close()
 	ctrl.state = primitive.ServerStateStopped
 	return nil

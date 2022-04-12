@@ -17,7 +17,6 @@ package info
 import (
 	"fmt"
 	"github.com/linkall-labs/vanus/internal/util"
-	"sync"
 	"time"
 )
 
@@ -34,10 +33,9 @@ type TriggerWorkerInfo struct {
 	Id            string              `json:"-"`
 	Addr          string              `json:"addr"`
 	Phase         TriggerWorkerPhase  `json:"phase"`
-	SubIds        map[string]struct{} `json:"subIds,omitempty"`
+	SubIds        map[string]struct{} `json:"-"`
 	ReportSubIds  map[string]struct{} `json:"-"`
 	HeartbeatTime time.Time           `json:"-"`
-	lock          sync.Mutex
 }
 
 func NewTriggerWorkerInfo(addr string) *TriggerWorkerInfo {
@@ -48,42 +46,6 @@ func NewTriggerWorkerInfo(addr string) *TriggerWorkerInfo {
 		HeartbeatTime: time.Now(),
 		ReportSubIds:  map[string]struct{}{},
 	}
-}
-
-func (tw *TriggerWorkerInfo) SetReportSubId(subIds map[string]struct{}) {
-	tw.lock.Lock()
-	defer tw.lock.Unlock()
-	tw.ReportSubIds = subIds
-}
-
-func (tw *TriggerWorkerInfo) GetReportSubId() map[string]struct{} {
-	tw.lock.Lock()
-	defer tw.lock.Unlock()
-	return tw.ReportSubIds
-}
-
-func (tw *TriggerWorkerInfo) AddSub(subId string) {
-	tw.lock.Lock()
-	defer tw.lock.Unlock()
-	tw.SubIds[subId] = struct{}{}
-}
-
-func (tw *TriggerWorkerInfo) RemoveSub(subId string) {
-	tw.lock.Lock()
-	defer tw.lock.Unlock()
-	delete(tw.SubIds, subId)
-}
-
-func (tw *TriggerWorkerInfo) CleanSub() {
-	tw.lock.Lock()
-	defer tw.lock.Unlock()
-	tw.SubIds = map[string]struct{}{}
-}
-
-func (tw *TriggerWorkerInfo) GetSubIds() map[string]struct{} {
-	tw.lock.Lock()
-	defer tw.lock.Unlock()
-	return tw.SubIds
 }
 
 func (tw *TriggerWorkerInfo) String() string {

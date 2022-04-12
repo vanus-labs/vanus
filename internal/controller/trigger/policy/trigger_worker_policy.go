@@ -31,9 +31,6 @@ type RoundRobinPolicy struct {
 
 func (rr *RoundRobinPolicy) Acquire(ctx context.Context, workers []info.TriggerWorkerInfo) info.TriggerWorkerInfo {
 	length := uint64(len(workers))
-	if length == 0 {
-		return info.TriggerWorkerInfo{}
-	}
 	idx := atomic.AddUint64(&rr.idx, 1) - 1
 	return workers[idx%length]
 }
@@ -43,4 +40,20 @@ type RandomPolicy struct {
 
 func (r *RandomPolicy) Acquire(ctx context.Context, workers []info.TriggerWorkerInfo) info.TriggerWorkerInfo {
 	return workers[rand.Intn(len(workers))]
+}
+
+type TriggerSizePolicy struct {
+}
+
+func (r *TriggerSizePolicy) Acquire(ctx context.Context, workers []info.TriggerWorkerInfo) info.TriggerWorkerInfo {
+	var idx int
+	minTriggerSize := 10000
+	for i, twInfo := range workers {
+		size := len(twInfo.GetSubIds())
+		if size < minTriggerSize {
+			idx = i
+			minTriggerSize = size
+		}
+	}
+	return workers[idx]
 }

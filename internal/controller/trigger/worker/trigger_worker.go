@@ -28,7 +28,7 @@ import (
 
 //TriggerWorker send SubscriptionApi to trigger worker server
 type TriggerWorker struct {
-	twInfo  *info.TriggerWorkerInfo
+	Info    *info.TriggerWorkerInfo
 	cc      *grpc.ClientConn
 	client  trigger.TriggerWorkerClient
 	hasInit bool
@@ -37,9 +37,45 @@ type TriggerWorker struct {
 
 func NewTriggerWorker(twInfo *info.TriggerWorkerInfo) *TriggerWorker {
 	tw := &TriggerWorker{
-		twInfo: twInfo,
+		Info: twInfo,
 	}
 	return tw
+}
+
+func (tw *TriggerWorker) ResetReportSubId() {
+	tw.lock.Lock()
+	defer tw.lock.Unlock()
+	tw.Info.ReportSubIds = map[string]struct{}{}
+}
+
+func (tw *TriggerWorker) SetReportSubId(subIds map[string]struct{}) {
+	tw.lock.Lock()
+	defer tw.lock.Unlock()
+	tw.Info.ReportSubIds = subIds
+}
+
+func (tw *TriggerWorker) GetReportSubId() map[string]struct{} {
+	tw.lock.Lock()
+	defer tw.lock.Unlock()
+	return tw.Info.ReportSubIds
+}
+
+func (tw *TriggerWorker) AddSub(subId string) {
+	tw.lock.Lock()
+	defer tw.lock.Unlock()
+	tw.Info.SubIds[subId] = struct{}{}
+}
+
+func (tw *TriggerWorker) RemoveSub(subId string) {
+	tw.lock.Lock()
+	defer tw.lock.Unlock()
+	delete(tw.Info.SubIds, subId)
+}
+
+func (tw *TriggerWorker) GetSubIds() map[string]struct{} {
+	tw.lock.Lock()
+	defer tw.lock.Unlock()
+	return tw.Info.SubIds
 }
 
 func (tw *TriggerWorker) init(ctx context.Context) error {
@@ -48,7 +84,7 @@ func (tw *TriggerWorker) init(ctx context.Context) error {
 	}
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	cc, err := grpc.DialContext(ctx, tw.twInfo.Addr, opts...)
+	cc, err := grpc.DialContext(ctx, tw.Info.Addr, opts...)
 	if err != nil {
 		return errors.ErrTriggerWorker.WithMessage("grpc dial error").Wrap(err)
 	}

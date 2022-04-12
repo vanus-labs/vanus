@@ -97,7 +97,7 @@ func (m *Manager) RemoveRegisterSubscription(ctx context.Context, subId string) 
 	return m.storage.DeleteOffset(ctx, subId)
 }
 
-func (m *Manager) Start() {
+func (m *Manager) Run() {
 	go func() {
 		ticker := time.NewTicker(100 * time.Millisecond)
 		defer ticker.Stop()
