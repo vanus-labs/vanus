@@ -26,12 +26,13 @@ const (
 )
 
 type Manager interface {
+	Init(ctx context.Context, kvClient kv.Client) error
+	GetAllVolume() []Instance
 	RegisterVolume(ctx context.Context, md *Metadata) (Instance, error)
 	RefreshRoutingInfo(ins Instance, srv Server)
-	Init(ctx context.Context, kvClient kv.Client) error
-	GetVolumeByID(id string) Instance
-	LookupVolumeByServerID(id string) Instance
-	GetAllVolume() []Instance
+	GetVolumeByID(id uint64) Instance
+	LookupVolumeByServerID(id uint64) Instance
+	Destroy() error
 }
 
 func NewVolumeManager() Manager {
@@ -40,7 +41,6 @@ func NewVolumeManager() Manager {
 
 type volumeMgr struct {
 	volInstanceMap map[string]Instance
-	exitCh         chan struct{}
 	kvCli          kv.Client
 }
 
@@ -70,15 +70,20 @@ func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 	return nil
 }
 
-func (mgr *volumeMgr) GetVolumeByID(id string) Instance {
-	return mgr.volInstanceMap[id]
+func (mgr *volumeMgr) GetVolumeByID(id uint64) Instance {
+	//return mgr.volInstanceMap[id]
+	return nil
 }
 
-func (mgr *volumeMgr) LookupVolumeByServerID(id string) Instance {
+func (mgr *volumeMgr) LookupVolumeByServerID(id uint64) Instance {
 	return nil
 }
 
 func (mgr *volumeMgr) GetAllVolume() []Instance {
+	return nil
+}
+
+func (mgr *volumeMgr) Destroy() error {
 	return nil
 }
 
@@ -89,8 +94,4 @@ func (mgr *volumeMgr) updateVolumeInKV(ctx context.Context, md *Metadata) error 
 
 func (mgr *volumeMgr) getVolumeKeyInKVStore(volumeID string) string {
 	return strings.Join([]string{volumeKeyPrefixInKVStore, volumeID}, "/")
-}
-
-func (mgr *volumeMgr) getVolumeInfos() []Instance {
-	return nil
 }

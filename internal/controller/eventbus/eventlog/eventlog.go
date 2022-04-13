@@ -20,9 +20,8 @@ import (
 	"errors"
 	"github.com/google/uuid"
 	"github.com/huandu/skiplist"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/allocator"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/segment"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/selector"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/linkall-labs/vanus/internal/kv"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
@@ -45,15 +44,15 @@ type Manager interface {
 	AcquireEventLog(ctx context.Context) (*info.EventLogInfo, error)
 	UpdateEventLog(ctx context.Context, els ...*info.EventLogInfo) error
 	GetEventLog(ctx context.Context, id string) *info.EventLogInfo
-	GetEventLogSegmentList(elID string) []*segment.Segment
+	GetEventLogSegmentList(elID string) []*allocator.Block
 	GetAppendableSegment(ctx context.Context, eli *info.EventLogInfo,
-		num int) ([]*segment.Segment, error)
+		num int) ([]*allocator.Block, error)
 	UpdateSegment(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error
 }
 
 type eventlogManager struct {
 	kvStore          kv.Client
-	segmentAllocator segment.Allocator
+	segmentAllocator allocator.Allocator
 	// string, *info.EventLogInfo
 	eventLogMap      sync.Map
 	boundEventLogMap sync.Map
@@ -73,7 +72,7 @@ func NewManager(volMgr volume.Manager) Manager {
 
 func (mgr *eventlogManager) Init(ctx context.Context, kvClient kv.Client) error {
 	mgr.kvClient = kvClient
-	mgr.segmentAllocator = segment.NewAllocator(mgr.volMgr, selector.NewVolumeRoundRobin(mgr.volMgr.GetAllVolume))
+	mgr.segmentAllocator = allocator.NewAllocator(mgr.volMgr, allocator.NewVolumeRoundRobin(mgr.volMgr.GetAllVolume))
 	if err := mgr.segmentAllocator.Init(ctx, mgr.kvStore); err != nil {
 		return err
 	}
@@ -184,17 +183,17 @@ func (mgr *eventlogManager) getEventLogKeyInKVStore(elName string) string {
 }
 
 func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
-	eli *info.EventLogInfo, num int) ([]*segment.Segment, error) {
-	// TODO the HA of segment can't be guaranteed before segment support multiple replicas
+	eli *info.EventLogInfo, num int) ([]*allocator.Block, error) {
+	// TODO the HA of allocator can't be guaranteed before allocator support multiple replicas
 	sl := mgr.logMap[eli.ID]
 	if sl == nil {
 		return nil, ErrEventLogNotFound
 	}
-	arr := make([]*segment.Segment, 0)
+	arr := make([]*allocator.Block, 0)
 	next := sl.Front()
 	hit := 0
 	for hit < num && next != nil {
-		sbi := next.Value.(*segment.Segment)
+		sbi := next.Value.(*allocator.Block)
 		next = next.Next()
 		if sbi.IsFull {
 			continue
@@ -217,12 +216,12 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, req *ctrlpb.Segme
 	//// TODO there is problem in data structure design OPTIMIZE
 	//v, exist := mgr.segmentMap.Load(hInfo.Id)
 	//if !exist {
-	//	log.Warning(ctx, "the segment not found when heartbeat", map[string]interface{}{
+	//	log.Warning(ctx, "the allocator not found when heartbeat", map[string]interface{}{
 	//		"segment_id": hInfo.Id,
 	//	})
 	//	continue
 	//}
-	//in := v.(*segment.Segment)
+	//in := v.(*allocator.Segment)
 	//if hInfo.IsFull {
 	//	in.IsFull = true
 	//
@@ -230,7 +229,7 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, req *ctrlpb.Segme
 	//	if next != nil {
 	//		next.StartOffsetInLog = in.StartOffsetInLog + int64(in.Number)
 	//		if err := mgr.updateSegmentBlockInKV(ctx, next); err != nil {
-	//			log.Warning(ctx, "update the segment's start_offset failed ", map[string]interface{}{
+	//			log.Warning(ctx, "update the allocator's start_offset failed ", map[string]interface{}{
 	//				"segment_id":   hInfo.Id,
 	//				"next_segment": next.ID,
 	//				log.KeyError:   err,
@@ -242,7 +241,7 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, req *ctrlpb.Segme
 	//in.Size = hInfo.Size
 	//in.Number = hInfo.EventNumber
 	//if err := mgr.updateSegmentBlockInKV(ctx, in); err != nil {
-	//	log.Warning(ctx, "update the segment failed ", map[string]interface{}{
+	//	log.Warning(ctx, "update the allocator failed ", map[string]interface{}{
 	//		"segment_id": hInfo.Id,
 	//		log.KeyError: err,
 	//	})
@@ -252,15 +251,15 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, req *ctrlpb.Segme
 	return nil
 }
 
-func (mgr *eventlogManager) GetEventLogSegmentList(elID string) []*segment.Segment {
+func (mgr *eventlogManager) GetEventLogSegmentList(elID string) []*allocator.Block {
 	el := mgr.logMap[elID]
 	if el == nil {
 		return nil
 	}
-	var arr []*segment.Segment
+	var arr []*allocator.Block
 	next := el.Front()
 	for next != nil {
-		arr = append(arr, next.Value.(*segment.Segment))
+		arr = append(arr, next.Value.(*allocator.Block))
 		next = next.Next()
 	}
 	return arr

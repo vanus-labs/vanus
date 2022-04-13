@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package acclocator
+package allocator
 
 import (
 	"context"
@@ -21,7 +21,7 @@ import (
 )
 
 type VolumeSelector interface {
-	Select(context.Context, int64) volume.Instance
+	Select(context.Context, int, int64) []volume.Instance
 }
 
 type volumeRoundRobinSelector struct {
@@ -36,20 +36,25 @@ func NewVolumeRoundRobin(f func() []volume.Instance) VolumeSelector {
 	}
 }
 
-func (s *volumeRoundRobinSelector) Select(ctx context.Context, size int64) volume.Instance {
-	infos := s.getVolumes()
-	if len(infos) == 0 {
+func (s *volumeRoundRobinSelector) Select(ctx context.Context, num int, size int64) []volume.Instance {
+	instances := make([]volume.Instance, num)
+	if num == 0 || size == 0 {
+		return instances
+	}
+
+	volumes := s.getVolumes()
+	if len(volumes) == 0 {
 		return nil
 	}
-	// TODO optimize
 	keys := make([]string, 0)
 	m := make(map[string]volume.Instance)
-	for _, v := range infos {
+	for _, v := range volumes {
 		keys = append(keys, v.GetMeta().ID)
 		m[v.GetMeta().ID] = v
 	}
 	sort.Strings(keys)
-	ssi := m[keys[s.count%int64(len(keys))]]
-	s.count += 1
-	return ssi
+	for idx := 0; idx < num; idx++ {
+		instances[idx] = m[keys[(s.count+int64(idx))%int64(len(keys))]]
+	}
+	return instances
 }

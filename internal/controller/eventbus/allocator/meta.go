@@ -1,4 +1,4 @@
-package acclocator
+package allocator
 
 import (
 	"time"
