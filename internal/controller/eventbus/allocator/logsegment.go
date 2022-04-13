@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package segment
+package acclocator
 
 import (
 	"context"
 	"encoding/json"
 	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/selector"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -33,7 +32,7 @@ const (
 	segmentBlockKeyPrefixInKVStore = "/vanus/internal/resource/segmentBlock"
 )
 
-type Segment struct {
+type LogSegment struct {
 	ID                string   `json:"id"`
 	Capacity          int64    `json:"capacity"`
 	Size              int64    `json:"size"`
@@ -50,11 +49,11 @@ type Segment struct {
 
 type Allocator interface {
 	Init(ctx context.Context, kvCli kv.Client) error
-	Pick(ctx context.Context, num int, size int64) ([]*Segment, error)
-	Remove(ctx context.Context, seg *Segment) error
+	Pick(ctx context.Context, num int, size int64) ([]*LogSegment, error)
+	Remove(ctx context.Context, seg *LogSegment) error
 }
 
-func NewAllocator(volMgr volume.Manager, selector selector.VolumeSelector) Allocator {
+func NewAllocator(volMgr volume.Manager, selector VolumeSelector) Allocator {
 	return &allocator{
 		selectorForSegmentCreate: selector,
 		volumeMgr:                volMgr,
@@ -62,7 +61,7 @@ func NewAllocator(volMgr volume.Manager, selector selector.VolumeSelector) Alloc
 }
 
 type allocator struct {
-	selectorForSegmentCreate selector.VolumeSelector
+	selectorForSegmentCreate VolumeSelector
 	eventLogSegment          map[string]*skiplist.SkipList
 	segmentMap               sync.Map
 	kvClient                 kv.Client
@@ -72,7 +71,7 @@ type allocator struct {
 func (mgr *allocator) Init(ctx context.Context, kvCli kv.Client) error {
 	mgr.kvClient = kvCli
 	go mgr.dynamicAllocateSegmentTask()
-	mgr.selectorForSegmentCreate = selector.NewVolumeRoundRobin(mgr.volumeMgr.GetAllVolume)
+	mgr.selectorForSegmentCreate = NewVolumeRoundRobin(mgr.volumeMgr.GetAllVolume)
 	pairs, err := mgr.kvClient.List(ctx, segmentBlockKeyPrefixInKVStore)
 	if err != nil {
 		return err
@@ -96,8 +95,8 @@ func (mgr *allocator) Init(ctx context.Context, kvCli kv.Client) error {
 	return nil
 }
 
-func (mgr *allocator) Pick(ctx context.Context, num int, size int64) ([]*Segment, error) {
-	segArr := make([]*Segment, num+1)
+func (mgr *allocator) Pick(ctx context.Context, num int, size int64) ([]*LogSegment, error) {
+	segArr := make([]*LogSegment, num+1)
 	var err error
 	defer func() {
 		if err == nil {
@@ -115,7 +114,7 @@ func (mgr *allocator) Pick(ctx context.Context, num int, size int64) ([]*Segment
 		for idx := 0; idx < num; idx++ {
 			if segArr[idx] != nil {
 				if _err := mgr.updateSegmentBlockInKV(ctx, segArr[idx]); _err != nil {
-					log.Error(ctx, "update segment info in kv store failed when cancel binding", map[string]interface{}{
+					log.Error(ctx, "update acclocator info in kv store failed when cancel binding", map[string]interface{}{
 						log.KeyError: _err,
 					})
 				}
@@ -163,12 +162,12 @@ func (mgr *allocator) Pick(ctx context.Context, num int, size int64) ([]*Segment
 	return segArr, nil
 }
 
-func (mgr *allocator) Remove(ctx context.Context, seg *Segment) error {
+func (mgr *allocator) Remove(ctx context.Context, seg *LogSegment) error {
 	return nil
 }
 
 func (mgr *allocator) pickSegment(ctx context.Context, size int64) (*volume.SegmentBlock, error) {
-	// no enough segment, manually allocate and bind
+	// no enough acclocator, manually allocate and bind
 	return mgr.allocateSegmentImmediately(ctx, defaultSegmentBlockSize)
 }
 
@@ -213,7 +212,7 @@ func (mgr *allocator) getSegmentBlockKeyInKVStore(sbID string) string {
 	return strings.Join([]string{segmentBlockKeyPrefixInKVStore, sbID}, "/")
 }
 
-func (mgr *allocator) updateSegmentBlockInKV(ctx context.Context, segment *Segment) error {
+func (mgr *allocator) updateSegmentBlockInKV(ctx context.Context, segment *LogSegment) error {
 	if segment == nil {
 		return nil
 	}
