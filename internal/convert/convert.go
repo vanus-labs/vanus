@@ -186,8 +186,8 @@ func FromOffsetInfos(offsets ...*pb.OffsetInfo) []info.OffsetInfo {
 
 func FromOffsetInfo(offset *pb.OffsetInfo) info.OffsetInfo {
 	return info.OffsetInfo{
-		EventLog: offset.EventLog,
-		Offset:   offset.Offset,
+		EventLogId: offset.EventLogId,
+		Offset:     offset.Offset,
 	}
 }
 
@@ -210,7 +210,7 @@ func ToOffsetInfos(offsets ...info.OffsetInfo) []*pb.OffsetInfo {
 
 func ToOffsetInfo(offset info.OffsetInfo) *pb.OffsetInfo {
 	return &pb.OffsetInfo{
-		EventLog: offset.EventLog,
-		Offset:   offset.Offset,
+		EventLogId: offset.EventLogId,
+		Offset:     offset.Offset,
 	}
 }

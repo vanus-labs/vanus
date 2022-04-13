@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trigger
+package worker
 
 import (
 	"context"
 	"errors"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/policy"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/queue"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -31,17 +32,17 @@ type SubscriptionScheduler struct {
 	normalQueue          queue.Queue
 	maxRetryPrintLog     int
 	policy               policy.TriggerWorkerPolicy
-	triggerWorkerManager *TriggerWorkerManager
-	subscriptionManager  *SubscriptionManager
+	triggerWorkerManager Manager
+	subscriptionManager  subscription.Manager
 	ctx                  context.Context
 	stop                 context.CancelFunc
 }
 
-func NewSubscriptionScheduler(triggerWorkerManager *TriggerWorkerManager, subscriptionManager *SubscriptionManager) *SubscriptionScheduler {
+func NewSubscriptionScheduler(triggerWorkerManager Manager, subscriptionManager subscription.Manager) *SubscriptionScheduler {
 	s := &SubscriptionScheduler{
 		normalQueue:          queue.New(),
 		maxRetryPrintLog:     5,
-		policy:               &policy.RoundRobinPolicy{},
+		policy:               &policy.TriggerSizePolicy{},
 		triggerWorkerManager: triggerWorkerManager,
 		subscriptionManager:  subscriptionManager,
 	}
@@ -69,19 +70,17 @@ func (s *SubscriptionScheduler) Run() {
 			if stop {
 				break
 			}
-			go func(subId string) {
-				err := s.handler(ctx, subId)
-				if err == nil {
-					s.normalQueue.Done(subId)
-					s.normalQueue.ClearFailNum(subId)
-				} else {
-					s.normalQueue.ReAdd(subId)
-					log.Warning(ctx, "scheduler handler subscription has error", map[string]interface{}{
-						log.KeyError:          err,
-						log.KeySubscriptionID: subId,
-					})
-				}
-			}(subId)
+			err := s.handler(ctx, subId)
+			if err == nil {
+				s.normalQueue.Done(subId)
+				s.normalQueue.ClearFailNum(subId)
+			} else {
+				s.normalQueue.ReAdd(subId)
+				log.Warning(ctx, "scheduler handler subscription has error", map[string]interface{}{
+					log.KeyError:          err,
+					log.KeySubscriptionID: subId,
+				})
+			}
 		}
 	}()
 }
@@ -96,10 +95,10 @@ func (s *SubscriptionScheduler) handler(ctx context.Context, subId string) error
 	if subData == nil {
 		return nil
 	}
-	if subData.Phase != primitive.SubscriptionPhaseCreated || subData.Phase != primitive.SubscriptionPhasePending {
+	if subData.Phase != primitive.SubscriptionPhaseCreated && subData.Phase != primitive.SubscriptionPhasePending {
 		return nil
 	}
-	err := s.triggerWorkerManager.AddSubscription(ctx, twInfo, subId)
+	err := s.triggerWorkerManager.AssignSubscription(ctx, twInfo, subId)
 	if err != nil {
 		return err
 	}

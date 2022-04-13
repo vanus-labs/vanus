@@ -75,15 +75,15 @@ func TestSubscriptionOffset(t *testing.T) {
 		offsetEnd := int64(100)
 		for offset := offsetBegin; offset <= offsetEnd; offset++ {
 			subOffset.EventReceive(info.OffsetInfo{
-				EventLog: "eventLog",
-				Offset:   offset,
+				EventLogId: "eventLog",
+				Offset:     offset,
 			})
 		}
 		commitEnd := offsetBegin + 10
 		for offset := offsetBegin; offset <= commitEnd; offset++ {
 			subOffset.EventCommit(info.OffsetInfo{
-				EventLog: "eventLog",
-				Offset:   offset,
+				EventLogId: "eventLog",
+				Offset:     offset,
 			})
 		}
 		commits := subOffset.GetCommit()
@@ -93,8 +93,8 @@ func TestSubscriptionOffset(t *testing.T) {
 		commitEnd = offsetEnd
 		for offset := offsetBegin; offset <= commitEnd; offset++ {
 			subOffset.EventCommit(info.OffsetInfo{
-				EventLog: "eventLog",
-				Offset:   offset,
+				EventLogId: "eventLog",
+				Offset:     offset,
 			})
 		}
 		commits = subOffset.GetCommit()

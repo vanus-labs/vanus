@@ -223,7 +223,7 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventlog.LogRe
 	}
 	for i := range events {
 		elReader.offset++
-		e := info.EventOffset{Event: events[i], OffsetInfo: pInfo.OffsetInfo{EventLog: elReader.eventLog, Offset: elReader.offset}}
+		e := info.EventOffset{Event: events[i], OffsetInfo: pInfo.OffsetInfo{EventLogId: elReader.eventLog, Offset: elReader.offset}}
 		if err = elReader.sendEvent(ctx, e); err != nil {
 			return err
 		}

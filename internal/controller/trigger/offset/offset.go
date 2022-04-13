@@ -80,9 +80,9 @@ func (m *Manager) initSubscriptionOffset(ctx context.Context, subId string) (*su
 		subId: subId,
 	}
 	for _, o := range list {
-		subOffset.offsets.Store(o.EventLog, &eventLogOffset{
+		subOffset.offsets.Store(o.EventLogId, &eventLogOffset{
 			subId:      subId,
-			eventLog:   o.EventLog,
+			eventLog:   o.EventLogId,
 			offset:     o.Offset,
 			commit:     o.Offset,
 			checkExist: true,
@@ -135,14 +135,14 @@ type subscriptionOffset struct {
 }
 
 func (o *subscriptionOffset) getSetEventLogOffset(info info.OffsetInfo) *eventLogOffset {
-	elOffset, exist := o.offsets.Load(info.EventLog)
+	elOffset, exist := o.offsets.Load(info.EventLogId)
 	if !exist {
 		elOffset = &eventLogOffset{
 			subId:    o.subId,
-			eventLog: info.EventLog,
+			eventLog: info.EventLogId,
 			offset:   info.Offset,
 		}
-		elOffset, _ = o.offsets.LoadOrStore(info.EventLog, elOffset)
+		elOffset, _ = o.offsets.LoadOrStore(info.EventLogId, elOffset)
 	}
 	return elOffset.(*eventLogOffset)
 }
@@ -159,8 +159,8 @@ func (o *subscriptionOffset) getOffsets() info.ListOffsetInfo {
 	o.offsets.Range(func(key, value interface{}) bool {
 		elOffset := value.(*eventLogOffset)
 		offsets = append(offsets, info.OffsetInfo{
-			EventLog: elOffset.eventLog,
-			Offset:   elOffset.offset,
+			EventLogId: elOffset.eventLog,
+			Offset:     elOffset.offset,
 		})
 		return true
 	})
@@ -199,8 +199,8 @@ func (o *eventLogOffset) commitOffset(ctx context.Context, storage storage.Offse
 	offset := o.offset
 	if !o.checkExist {
 		err := storage.CreateOffset(ctx, o.subId, info.OffsetInfo{
-			EventLog: o.eventLog,
-			Offset:   offset,
+			EventLogId: o.eventLog,
+			Offset:     offset,
 		})
 		if err != nil {
 			return err
@@ -218,8 +218,8 @@ func (o *eventLogOffset) commitOffset(ctx context.Context, storage storage.Offse
 		return nil
 	}
 	err := storage.UpdateOffset(ctx, o.subId, info.OffsetInfo{
-		EventLog: o.eventLog,
-		Offset:   offset,
+		EventLogId: o.eventLog,
+		Offset:     offset,
 	})
 	if err != nil {
 		return err

@@ -22,6 +22,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"path"
+	"path/filepath"
 )
 
 type TriggerWorkerStorage interface {
@@ -89,7 +90,7 @@ func (s *triggerWorkerStorage) ListTriggerWorker(ctx context.Context) ([]*info.T
 		if err != nil {
 			return nil, errors.ErrJsonUnMarshal.Wrap(err)
 		}
-		tWorker.Id = v.Key
+		tWorker.Id = filepath.Base(v.Key)
 		list = append(list, &tWorker)
 	}
 	return list, nil

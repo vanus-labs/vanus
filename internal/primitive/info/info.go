@@ -20,8 +20,8 @@ type SubscriptionInfo struct {
 }
 
 type OffsetInfo struct {
-	EventLog string `json:"eventLog"`
-	Offset   int64  `json:"offset"`
+	EventLogId string `json:"eventLog"`
+	Offset     int64  `json:"offset"`
 }
 
 type ListOffsetInfo []OffsetInfo

@@ -120,8 +120,8 @@ func Test_e2e(t *testing.T) {
 					EventOffset: info.EventOffset{
 						Event: e,
 						OffsetInfo: pInfo.OffsetInfo{
-							Offset:   offset,
-							EventLog: ls[0].VRN,
+							Offset:     offset,
+							EventLogId: ls[0].VRN,
 						},
 					},
 				})

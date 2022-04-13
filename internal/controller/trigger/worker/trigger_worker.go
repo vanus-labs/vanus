@@ -24,6 +24,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"sync"
+	"time"
 )
 
 //TriggerWorker send SubscriptionApi to trigger worker server
@@ -32,7 +33,7 @@ type TriggerWorker struct {
 	cc      *grpc.ClientConn
 	client  trigger.TriggerWorkerClient
 	hasInit bool
-	lock    sync.Mutex
+	lock    sync.RWMutex
 }
 
 func NewTriggerWorker(twInfo *info.TriggerWorkerInfo) *TriggerWorker {
@@ -55,27 +56,31 @@ func (tw *TriggerWorker) SetReportSubId(subIds map[string]struct{}) {
 }
 
 func (tw *TriggerWorker) GetReportSubId() map[string]struct{} {
-	tw.lock.Lock()
-	defer tw.lock.Unlock()
+	tw.lock.RLock()
+	defer tw.lock.RUnlock()
 	return tw.Info.ReportSubIds
 }
 
-func (tw *TriggerWorker) AddSub(subId string) {
+func (tw *TriggerWorker) AddAssignSub(subId string) {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	tw.Info.SubIds[subId] = struct{}{}
+	tw.Info.AssignSubIds[subId] = time.Now()
 }
 
-func (tw *TriggerWorker) RemoveSub(subId string) {
+func (tw *TriggerWorker) RemoveAssignSub(subId string) {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	delete(tw.Info.SubIds, subId)
+	delete(tw.Info.AssignSubIds, subId)
 }
 
-func (tw *TriggerWorker) GetSubIds() map[string]struct{} {
-	tw.lock.Lock()
-	defer tw.lock.Unlock()
-	return tw.Info.SubIds
+func (tw *TriggerWorker) GetAssignSubIds() map[string]time.Time {
+	tw.lock.RLock()
+	defer tw.lock.RUnlock()
+	newMap := make(map[string]time.Time, len(tw.Info.AssignSubIds))
+	for subId, t := range tw.Info.AssignSubIds {
+		newMap[subId] = t
+	}
+	return newMap
 }
 
 func (tw *TriggerWorker) init(ctx context.Context) error {
@@ -159,7 +164,7 @@ func (tw *TriggerWorker) RemoveSubscriptions(ctx context.Context, id string) err
 	if err != nil {
 		return err
 	}
-	request := &trigger.RemoveSubscriptionRequest{Id: id}
+	request := &trigger.RemoveSubscriptionRequest{SubscriptionId: id}
 	_, err = tw.client.RemoveSubscription(ctx, request)
 	if err != nil {
 		return errors.ErrTriggerWorker.WithMessage("remove subscription error").Wrap(err)

@@ -65,7 +65,7 @@ func NewSubWorker(sub *primitive.Subscription, subOffset *offset.SubscriptionOff
 	}
 	offset := make(map[string]int64)
 	for _, o := range sub.Offsets {
-		offset[o.EventLog] = o.Offset
+		offset[o.EventLogId] = o.Offset
 	}
 	w.reader = reader.NewReader(getReaderConfig(sub), offset, w.events)
 	triggerConf := &trigger.Config{}

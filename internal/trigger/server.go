@@ -99,10 +99,10 @@ func (s *server) RemoveSubscription(ctx context.Context, request *pbtrigger.Remo
 	if s.state != primitive.ServerStateRunning {
 		return nil, errors.ErrWorkerNotStart
 	}
-	err := s.worker.RemoveSubscription(request.Id)
+	err := s.worker.RemoveSubscription(request.SubscriptionId)
 	if err != nil {
 		log.Info(ctx, "remove subscription error", map[string]interface{}{
-			"id":         request.Id,
+			"id":         request.SubscriptionId,
 			log.KeyError: err,
 		})
 	}
@@ -114,7 +114,7 @@ func (s *server) PauseSubscription(ctx context.Context, request *pbtrigger.Pause
 	if s.state != primitive.ServerStateRunning {
 		return nil, errors.ErrWorkerNotStart
 	}
-	s.worker.PauseSubscription(request.Id)
+	s.worker.PauseSubscription(request.SubscriptionId)
 	return &pbtrigger.PauseSubscriptionResponse{}, nil
 }
 

@@ -18,7 +18,9 @@ import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/validation"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/worker"
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/util"
@@ -35,9 +37,9 @@ import (
 type triggerController struct {
 	config               Config
 	storage              storage.Storage
-	subscriptionManager  *SubscriptionManager
-	triggerWorkerManager *TriggerWorkerManager
-	scheduler            *SubscriptionScheduler
+	subscriptionManager  subscription.Manager
+	triggerWorkerManager worker.Manager
+	scheduler            *worker.SubscriptionScheduler
 	needCleanSubIds      map[string]string
 	lock                 sync.Mutex
 	ctx                  context.Context
@@ -164,14 +166,8 @@ func (ctrl *triggerController) RegisterTriggerWorker(ctx context.Context, reques
 }
 
 func (ctrl *triggerController) UnregisterTriggerWorker(ctx context.Context, request *ctrlpb.UnregisterTriggerWorkerRequest) (*ctrlpb.UnregisterTriggerWorkerResponse, error) {
-	err := ctrl.triggerWorkerManager.RemoveTriggerWorker(ctx, request.Address)
-	if err != nil {
-		log.Error(ctx, "unregister trigger worker error", map[string]interface{}{
-			log.KeyError: err,
-			"addr":       request.Address,
-		})
-	}
-	return &ctrlpb.UnregisterTriggerWorkerResponse{}, err
+	ctrl.triggerWorkerManager.RemoveTriggerWorker(ctrl.ctx, request.Address)
+	return &ctrlpb.UnregisterTriggerWorkerResponse{}, nil
 }
 
 //gcSubscription before delete subscription,need
@@ -180,7 +176,7 @@ func (ctrl *triggerController) UnregisterTriggerWorker(ctx context.Context, requ
 //2.delete offset
 //3.delete subscription
 func (ctrl *triggerController) gcSubscription(ctx context.Context, subId, addr string) error {
-	err := ctrl.triggerWorkerManager.RemoveSubscription(ctx, addr, subId)
+	err := ctrl.triggerWorkerManager.UnAssignSubscription(ctx, addr, subId)
 	if err != nil {
 		return err
 	}
@@ -211,9 +207,9 @@ func (ctrl *triggerController) triggerWorkerRemoveSubscription(ctx context.Conte
 }
 
 func (ctrl *triggerController) init(ctx context.Context) error {
-	ctrl.subscriptionManager = NewSubscriptionManager(ctrl.storage)
-	ctrl.triggerWorkerManager = NewTriggerWorkerManager(ctrl.storage, ctrl.subscriptionManager, ctrl.triggerWorkerRemoveSubscription)
-	ctrl.scheduler = NewSubscriptionScheduler(ctrl.triggerWorkerManager, ctrl.subscriptionManager)
+	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage)
+	ctrl.triggerWorkerManager = worker.NewTriggerWorkerManager(ctrl.storage, ctrl.subscriptionManager, ctrl.triggerWorkerRemoveSubscription)
+	ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.triggerWorkerManager, ctrl.subscriptionManager)
 	err := ctrl.subscriptionManager.Init(ctx)
 	if err != nil {
 		return err
@@ -249,11 +245,9 @@ func (ctrl *triggerController) Start() error {
 		ctrl.storage.Close()
 		return err
 	}
-	go func() {
-		ctrl.triggerWorkerManager.Run(ctx)
-		ctrl.subscriptionManager.Run()
-		ctrl.scheduler.Run()
-	}()
+	ctrl.triggerWorkerManager.Start()
+	ctrl.subscriptionManager.Start()
+	ctrl.scheduler.Run()
 
 	go util.UntilWithContext(ctx, func(ctx context.Context) {
 		ctrl.lock.Lock()
@@ -273,6 +267,7 @@ func (ctrl *triggerController) Close() error {
 	ctrl.state = primitive.ServerStateStopping
 	ctrl.stop()
 	ctrl.scheduler.Stop()
+	ctrl.triggerWorkerManager.Stop()
 	ctrl.subscriptionManager.Stop()
 	ctrl.storage.Close()
 	ctrl.state = primitive.ServerStateStopped

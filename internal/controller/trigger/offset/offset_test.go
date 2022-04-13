@@ -16,7 +16,6 @@ package offset
 
 import (
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
-	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
@@ -24,7 +23,7 @@ import (
 )
 
 func TestManager_Offset(t *testing.T) {
-	storage, _ := storage.NewFakeStorage(primitive.KvStorageConfig{})
+	storage := storage.NewFakeStorage()
 	m := NewOffsetManager(storage)
 
 	Convey("offset", t, func() {
@@ -40,8 +39,8 @@ func TestManager_Offset(t *testing.T) {
 		Convey("get offset", func() {
 			m.RemoveRegisterSubscription(nil, subId)
 			storage.CreateOffset(nil, subId, info.OffsetInfo{
-				EventLog: eventLog,
-				Offset:   offset,
+				EventLogId: eventLog,
+				Offset:     offset,
 			})
 			offsets, _ := m.GetOffset(nil, subId)
 			So(len(offsets), ShouldEqual, 1)
@@ -53,7 +52,7 @@ func TestManager_Offset(t *testing.T) {
 			m.RemoveRegisterSubscription(nil, subId)
 			m.Offset(nil, info.SubscriptionInfo{
 				SubId:   subId,
-				Offsets: []info.OffsetInfo{{EventLog: eventLog, Offset: offset}},
+				Offsets: []info.OffsetInfo{{EventLogId: eventLog, Offset: offset}},
 			})
 			offsets, _ := m.GetOffset(nil, subId)
 			So(len(offsets), ShouldEqual, 1)
@@ -64,7 +63,7 @@ func TestManager_Offset(t *testing.T) {
 			m.RemoveRegisterSubscription(nil, subId)
 			m.Offset(nil, info.SubscriptionInfo{
 				SubId:   subId,
-				Offsets: []info.OffsetInfo{{EventLog: eventLog, Offset: offset}},
+				Offsets: []info.OffsetInfo{{EventLogId: eventLog, Offset: offset}},
 			})
 			offsets, _ := m.GetOffset(nil, subId)
 			So(len(offsets), ShouldEqual, 1)
@@ -77,7 +76,7 @@ func TestManager_Offset(t *testing.T) {
 }
 
 func TestManager_Start(t *testing.T) {
-	storage, _ := storage.NewFakeStorage(primitive.KvStorageConfig{})
+	storage := storage.NewFakeStorage()
 	m := NewOffsetManager(storage)
 	Convey("commit", t, func() {
 		subId := "subId"
@@ -86,7 +85,7 @@ func TestManager_Start(t *testing.T) {
 		Convey("commit", func() {
 			m.Offset(nil, info.SubscriptionInfo{
 				SubId:   subId,
-				Offsets: []info.OffsetInfo{{EventLog: eventLog, Offset: offset}},
+				Offsets: []info.OffsetInfo{{EventLogId: eventLog, Offset: offset}},
 			})
 			offsets, _ := m.GetOffset(nil, subId)
 			So(len(offsets), ShouldEqual, 1)

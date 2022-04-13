@@ -28,13 +28,13 @@ type fake struct {
 	tWorkers map[string]*info.TriggerWorkerInfo
 }
 
-func NewFakeStorage(config primitive.KvStorageConfig) (Storage, error) {
+func NewFakeStorage() Storage {
 	s := &fake{
 		subs:     map[string]*primitive.SubscriptionApi{},
 		offset:   map[string]map[string]pInfo.OffsetInfo{},
 		tWorkers: map[string]*info.TriggerWorkerInfo{},
 	}
-	return s, nil
+	return s
 }
 
 func (f *fake) Close() {
@@ -74,7 +74,7 @@ func (f *fake) CreateOffset(ctx context.Context, subId string, info pInfo.Offset
 		sub = map[string]pInfo.OffsetInfo{}
 		f.offset[subId] = sub
 	}
-	sub[info.EventLog] = info
+	sub[info.EventLogId] = info
 	return nil
 }
 func (f *fake) UpdateOffset(ctx context.Context, subId string, info pInfo.OffsetInfo) error {
@@ -82,7 +82,7 @@ func (f *fake) UpdateOffset(ctx context.Context, subId string, info pInfo.Offset
 	if !exist {
 		return kv.ErrorKeyNotFound
 	}
-	sub[info.EventLog] = info
+	sub[info.EventLogId] = info
 	return nil
 }
 func (f *fake) GetOffsets(ctx context.Context, subId string) (pInfo.ListOffsetInfo, error) {

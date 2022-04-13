@@ -67,15 +67,15 @@ type SubscriptionOffset struct {
 }
 
 func (offset *SubscriptionOffset) EventReceive(info info.OffsetInfo) {
-	o, exist := offset.elOffset.Load(info.EventLog)
+	o, exist := offset.elOffset.Load(info.EventLogId)
 	if !exist {
-		o, _ = offset.elOffset.LoadOrStore(info.EventLog, initOffset(info.Offset))
+		o, _ = offset.elOffset.LoadOrStore(info.EventLogId, initOffset(info.Offset))
 	}
 	o.(*offsetTracker).putOffset(info.Offset)
 }
 
 func (offset *SubscriptionOffset) EventCommit(info info.OffsetInfo) {
-	o, exist := offset.elOffset.Load(info.EventLog)
+	o, exist := offset.elOffset.Load(info.EventLogId)
 	if !exist {
 		return
 	}
@@ -87,8 +87,8 @@ func (offset *SubscriptionOffset) GetCommit() info.ListOffsetInfo {
 	offset.elOffset.Range(func(key, value interface{}) bool {
 		tracker := value.(*offsetTracker)
 		commit = append(commit, info.OffsetInfo{
-			EventLog: key.(string),
-			Offset:   tracker.offsetToCommit(),
+			EventLogId: key.(string),
+			Offset:     tracker.offsetToCommit(),
 		})
 		return true
 	})

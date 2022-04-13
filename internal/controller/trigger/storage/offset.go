@@ -65,11 +65,11 @@ func (s *offsetStorage) byteArr2Int64(b []byte) int64 {
 }
 
 func (s *offsetStorage) CreateOffset(ctx context.Context, subId string, info info.OffsetInfo) error {
-	return s.client.Create(ctx, s.getKey(subId, info.EventLog), s.int64ToByteArr(info.Offset))
+	return s.client.Create(ctx, s.getKey(subId, info.EventLogId), s.int64ToByteArr(info.Offset))
 }
 
 func (s *offsetStorage) UpdateOffset(ctx context.Context, subId string, info info.OffsetInfo) error {
-	return s.client.Update(ctx, s.getKey(subId, info.EventLog), s.int64ToByteArr(info.Offset))
+	return s.client.Update(ctx, s.getKey(subId, info.EventLogId), s.int64ToByteArr(info.Offset))
 }
 
 func (s *offsetStorage) GetOffsets(ctx context.Context, subId string) (info.ListOffsetInfo, error) {
@@ -79,7 +79,7 @@ func (s *offsetStorage) GetOffsets(ctx context.Context, subId string) (info.List
 	}
 	var infos info.ListOffsetInfo
 	for _, v := range l {
-		infos = append(infos, info.OffsetInfo{EventLog: filepath.Base(v.Key), Offset: s.byteArr2Int64(v.Value)})
+		infos = append(infos, info.OffsetInfo{EventLogId: filepath.Base(v.Key), Offset: s.byteArr2Int64(v.Value)})
 	}
 	return infos, nil
 }

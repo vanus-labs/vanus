@@ -30,26 +30,34 @@ const (
 )
 
 type TriggerWorkerInfo struct {
-	Id            string              `json:"-"`
-	Addr          string              `json:"addr"`
-	Phase         TriggerWorkerPhase  `json:"phase"`
-	SubIds        map[string]struct{} `json:"-"`
-	ReportSubIds  map[string]struct{} `json:"-"`
-	HeartbeatTime time.Time           `json:"-"`
+	Id              string               `json:"-"`
+	Addr            string               `json:"addr"`
+	Phase           TriggerWorkerPhase   `json:"phase"`
+	AssignSubIds    map[string]time.Time `json:"-"`
+	ReportSubIds    map[string]struct{}  `json:"-"`
+	HeartbeatTime   time.Time            `json:"-"`
+	HeartbeatPeriod time.Duration        `json:"-"`
 }
 
 func NewTriggerWorkerInfo(addr string) *TriggerWorkerInfo {
-	return &TriggerWorkerInfo{
-		Addr:          addr,
-		Id:            util.GetIdByAddr(addr),
-		Phase:         TriggerWorkerPhasePending,
-		HeartbeatTime: time.Now(),
-		ReportSubIds:  map[string]struct{}{},
+	twInfo := &TriggerWorkerInfo{
+		Addr:  addr,
+		Id:    util.GetIdByAddr(addr),
+		Phase: TriggerWorkerPhasePending,
 	}
+	twInfo.Init()
+	return twInfo
+}
+
+func (tw *TriggerWorkerInfo) Init() {
+	tw.HeartbeatTime = time.Now()
+	tw.ReportSubIds = map[string]struct{}{}
+	tw.AssignSubIds = map[string]time.Time{}
+	tw.HeartbeatPeriod = 5 * time.Second
 }
 
 func (tw *TriggerWorkerInfo) String() string {
-	return fmt.Sprintf("addr:%s,phase:%v,subIds:%v", tw.Addr, tw.Phase, tw.SubIds)
+	return fmt.Sprintf("addr:%s,phase:%v,subIds:%v", tw.Addr, tw.Phase, tw.AssignSubIds)
 }
 
 type SubscriptionHeartbeat struct {

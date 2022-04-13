@@ -49,7 +49,7 @@ func (r *TriggerSizePolicy) Acquire(ctx context.Context, workers []info.TriggerW
 	var idx int
 	minTriggerSize := 10000
 	for i, twInfo := range workers {
-		size := len(twInfo.GetSubIds())
+		size := len(twInfo.AssignSubIds)
 		if size < minTriggerSize {
 			idx = i
 			minTriggerSize = size
