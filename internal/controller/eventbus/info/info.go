@@ -15,10 +15,7 @@
 package info
 
 import (
-	"crypto/sha256"
-	"fmt"
 	meta "github.com/linkall-labs/vsproto/pkg/meta"
-	"time"
 )
 
 type BusInfo struct {
@@ -59,48 +56,3 @@ func Convert2ProtoEventLog(ins ...*EventLogInfo) []*meta.EventLog {
 	}
 	return pels
 }
-
-type SegmentServerInfo struct {
-	id                string
-	Address           string
-	StartedAt         time.Time
-	LastHeartbeatTime time.Time
-}
-
-func (in *SegmentServerInfo) ID() string {
-	if in.id == "" {
-		in.id = fmt.Sprintf("%x", sha256.Sum256([]byte(in.Address)))
-	}
-	return in.id
-}
-
-const (
-	volumeAliveInterval = 5 * time.Second
-)
-
-//
-//func (in *Metadata) IsOnline() bool {
-//	return in.assignedSegmentServer != nil && time.Now().Sub(in.assignedSegmentServer.LastHeartbeatTime) < volumeAliveInterval
-//}
-//
-//func (in *Metadata) IsActivity() bool {
-//	return in.isActive
-//}
-//
-//func (in *Metadata) Activate(serverInfo *SegmentServerInfo) {
-//	in.isActive = true
-//	in.assignedSegmentServer = serverInfo
-//	//serverInfo.Volume = in
-//}
-//
-//func (in *Metadata) Inactivate() {
-//	in.isActive = false
-//	in.assignedSegmentServer = nil
-//}
-//
-//func (in *Metadata) GetAccessEndpoint() string {
-//	if !in.isActive {
-//		return ""
-//	}
-//	return in.assignedSegmentServer.Address
-//}

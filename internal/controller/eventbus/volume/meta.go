@@ -1,6 +1,8 @@
 package volume
 
-import "github.com/linkall-labs/vsproto/pkg/meta"
+import (
+	"github.com/linkall-labs/vsproto/pkg/meta"
+)
 
 type Metadata struct {
 	ID           string            `json:"id""`
@@ -23,7 +25,6 @@ type SegmentBlock struct {
 	NextSegmentId     string   `json:"next_segment_id"`
 	StartOffsetInLog  int64    `json:"start_offset_in_log"`
 	IsFull            bool     `json:"is_full"`
-	VolumeMeta        Metadata `json:"-"`
 }
 
 func Convert2ProtoSegment(ins ...*SegmentBlock) []*meta.Segment {

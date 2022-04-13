@@ -20,6 +20,7 @@ import (
 	"github.com/google/uuid"
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/eventlog"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/linkall-labs/vanus/internal/kv"
@@ -37,10 +38,7 @@ import (
 )
 
 const (
-	defaultAutoCreatedSegmentNumber = 3
-	eventbusKeyPrefixInKVStore      = "/vanus/internal/resource/eventbus"
-	eventlogKeyPrefixInKVStore      = "/vanus/internal/resource/eventlog"
-	segmentBlockKeyPrefixInKVStore  = "/vanus/internal/resource/segmentBlock"
+	eventbusKeyPrefixInKVStore = "/vanus/internal/resource/eventbus"
 )
 
 func NewEventBusController(cfg Config, member embedetcd.Member) *controller {
@@ -60,9 +58,9 @@ func NewEventBusController(cfg Config, member embedetcd.Member) *controller {
 type controller struct {
 	cfg             *Config
 	kvStore         kv.Client
-	eventLogMgr     *eventlogManager
+	eventLogMgr     eventlog.Manager
 	volumeMgr       volume.Manager
-	ssMgr           *segmentServerManager
+	ssMgr           volume.ServerManager
 	eventBusMap     map[string]*info.BusInfo
 	member          embedetcd.Member
 	cancelCtx       context.Context
@@ -87,20 +85,15 @@ func (ctrl *controller) Start(ctx context.Context) error {
 		return err
 	}
 
-	ctrl.eventLogMgr = newEventlogManager(ctrl)
-	if err = ctrl.eventLogMgr.start(ctx); err != nil {
+	ctrl.eventLogMgr = eventlog.NewManager(ctrl.volumeMgr)
+	if err = ctrl.eventLogMgr.Init(ctx, ctrl.kvStore); err != nil {
 		return err
 	}
-
-	if err := ctrl.eventLogMgr.initVolumeInfo(ctrl.volumeMgr); err != nil {
-		return err
-	}
-
 	return nil
 }
 
-func (ctrl *controller) Stop() error {
-	return nil
+func (ctrl *controller) Stop() {
+	ctrl.stop(context.Background(), nil)
 }
 
 func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEventBusRequest) (*metapb.EventBus, error) {
@@ -124,7 +117,7 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 		return nil, errors.ErrResourceAlreadyExist.WithMessage("already exist")
 	}
 	for idx := 0; idx < eb.LogNumber; idx++ {
-		el, err := ctrl.eventLogMgr.acquireEventLog(ctx)
+		el, err := ctrl.eventLogMgr.AcquireEventLog(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -139,7 +132,7 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 		if err := ctrl.kvStore.Set(ctx, ctrl.getEventBusKeyInKVStore(eb.Name), data); err != nil {
 			return nil, err
 		}
-		if err := ctrl.eventLogMgr.updateEventLog(ctx, eb.EventLogs...); err != nil {
+		if err := ctrl.eventLogMgr.UpdateEventLog(ctx, eb.EventLogs...); err != nil {
 			return nil, err
 		}
 	}
@@ -180,13 +173,14 @@ func (ctrl *controller) ListSegment(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	el := ctrl.eventLogMgr.getEventLog(ctx, req.EventLogId)
+	el := ctrl.eventLogMgr.GetEventLog(ctx, req.EventLogId)
 	if el == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
 	}
 
 	return &ctrlpb.ListSegmentResponse{
-		Segments: volume.Convert2ProtoSegment(ctrl.eventLogMgr.getEventLogSegmentList(ctx, el.ID)...),
+		//TODO
+		//Segments: volume.Convert2ProtoSegment(ctrl.eventLogMgr.GetEventLogSegmentList(ctx, el.ID)...),
 	}, nil
 }
 
@@ -195,13 +189,13 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	serverInfo, err := ctrl.ssMgr.AddServer(ctx, req.Address)
+	srv, err := ctrl.ssMgr.AddServer(ctx, req.Address)
 	if err != nil {
 		return nil, err
 	}
 
 	var volInstance volume.Instance
-	// need to compare metadata if exist?
+	// need to compare metadata if existd?
 	volInstance = ctrl.volumeMgr.GetVolumeByID(req.VolumeId)
 	if volInstance == nil {
 		volMD := &volume.Metadata{ID: req.VolumeId}
@@ -212,10 +206,10 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 		volInstance = _volInstance
 	}
 
-	ctrl.volumeMgr.RefreshRoutingInfo(volInstance, serverInfo)
-	go ctrl.ssMgr.remoteStartServer(serverInfo)
+	ctrl.volumeMgr.RefreshRoutingInfo(volInstance, srv)
+	go srv.RemoteStart(ctx)
 	return &ctrlpb.RegisterSegmentServerResponse{
-		ServerId:      serverInfo.ID(),
+		ServerId:      srv.ID(),
 		SegmentBlocks: volInstance.GetMeta().Blocks,
 	}, nil
 }
@@ -284,7 +278,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 				"server_id": req.ServerId,
 			})
 		}
-		ctrl.ssMgr.polish(serverInfo)
+		ctrl.ssMgr.Polish(serverInfo)
 	}
 
 	if err != nil && err != io.EOF {
@@ -297,7 +291,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 
 func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 	req *ctrlpb.GetAppendableSegmentRequest) (*ctrlpb.GetAppendableSegmentResponse, error) {
-	eli := ctrl.eventLogMgr.getEventLog(ctx, req.EventLogId)
+	eli := ctrl.eventLogMgr.GetEventLog(ctx, req.EventLogId)
 	if eli == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
 	}
@@ -305,21 +299,22 @@ func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 	if num == 0 {
 		num = 1
 	}
-	segInfos, err := ctrl.eventLogMgr.getAppendableSegment(ctx, eli, num)
+	segInfos, err := ctrl.eventLogMgr.GetAppendableSegment(ctx, eli, num)
 	if err != nil {
 		return nil, err
 	}
 	segs := make([]*metapb.Segment, 0)
 	for idx := 0; idx < len(segInfos); idx++ {
-		seg := segInfos[idx]
-		segs = append(segs, volume.Convert2ProtoSegment(seg)...)
+		// TODO
+		//seg := segInfos[idx]
+		//segs = append(segs, volume.Convert2ProtoSegment(seg)...)
 	}
 	return &ctrlpb.GetAppendableSegmentResponse{Segments: segs}, nil
 }
 
 func (ctrl *controller) ReportSegmentBlockIsFull(ctx context.Context,
 	req *ctrlpb.SegmentHeartbeatRequest) (*emptypb.Empty, error) {
-	return &emptypb.Empty{}, ctrl.eventLogMgr.updateSegment(ctx, req)
+	return &emptypb.Empty{}, ctrl.eventLogMgr.UpdateSegment(ctx, req)
 }
 
 func (ctrl *controller) getEventBusKeyInKVStore(ebName string) string {
@@ -346,12 +341,12 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event em
 			return err
 		}
 
-		if err := ctrl.eventLogMgr.start(ctx); err != nil {
+		if err := ctrl.eventLogMgr.Init(ctx, ctrl.kvStore); err != nil {
 			ctrl.stop(ctx, err)
 			return err
 		}
 
-		if err := ctrl.ssMgr.start(ctx); err != nil {
+		if err := ctrl.ssMgr.Init(ctx, ctrl.kvStore); err != nil {
 			ctrl.stop(ctx, err)
 			return err
 		}
@@ -360,8 +355,8 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event em
 			return nil
 		}
 		ctrl.isLeader = false
-		ctrl.eventLogMgr.stop(ctx)
-		ctrl.ssMgr.stop(ctx)
+		//ctrl.eventLogMgr.stop(ctx)
+		//ctrl.ssMgr.stop(ctx)
 	}
 	return nil
 }
@@ -388,8 +383,8 @@ func (ctrl *controller) stop(ctx context.Context, err error) {
 	ctrl.member.ResignIfLeader(ctx)
 	ctrl.cancelFunc()
 	ctrl.stopNotify <- err
-	ctrl.eventLogMgr.stop(ctx)
-	ctrl.ssMgr.stop(ctx)
+	//ctrl.eventLogMgr.stop(ctx)
+	//ctrl.ssMgr.stop(ctx)
 	if err := ctrl.kvStore.Close(); err != nil {
 		log.Warning(ctx, "close kv client error", map[string]interface{}{
 			log.KeyError: err,

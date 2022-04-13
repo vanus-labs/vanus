@@ -2,7 +2,9 @@ package volume
 
 import (
 	"context"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
+	"fmt"
+	"github.com/linkall-labs/vsproto/pkg/segment"
+	"time"
 )
 
 type Instance interface {
@@ -10,7 +12,7 @@ type Instance interface {
 	CreateSegment(context.Context, int64) (*SegmentBlock, error)
 	DeleteSegment(context.Context, uint64) error
 	ActivateSegment(context.Context, *SegmentBlock) error
-	UpdateSegmentServer(*info.SegmentServerInfo)
+	//UpdateSegmentServer(*info.SegmentServerInfo)
 }
 
 func newInstance(md *Metadata) Instance {
@@ -18,60 +20,49 @@ func newInstance(md *Metadata) Instance {
 }
 
 type instance struct {
-	md         *Metadata
-	serverInfo *info.SegmentServerInfo
+	md     *Metadata
+	srv    Server
+	client segment.SegmentServerClient
 }
 
 func (ins *instance) GetMeta() *Metadata {
 	return ins.md
 }
 
-func (ins *instance) CreateSegment(context.Context, int64) (*SegmentBlock, error) {
-	//client := pool.segmentServerMgr.getSegmentServerClient(srvInfo)
-	//volume := pool.volumeMgr.lookupVolumeByServerID(srvInfo.ID())
-	//segmentInfo := &info.SegmentBlock{
-	//	ID:         pool.generateSegmentBlockID(),
-	//	Capacity:   size,
-	//	VolumeID:   volume.ID(),
-	//	VolumeInfo: volume,
-	//}
-	//_, err := client.CreateSegmentBlock(ctx, &segment.CreateSegmentBlockRequest{
-	//	Size: segmentInfo.Capacity,
-	//	Id:   segmentInfo.ID,
-	//})
-	//if err != nil {
-	//	return nil, err
-	//}
-	//volume.AddBlock(segmentInfo)
-	//if err = pool.volumeMgr.updateVolumeInKV(ctx, volume); err != nil {
-	//	return nil, err
-	//}
-	//
-	//pool.segmentMap.Store(segmentInfo.ID, segmentInfo)
-	//if err = pool.updateSegmentBlockInKV(ctx, segmentInfo); err != nil {
-	//	return nil, err
-	//}
-	return nil, nil
+func (ins *instance) CreateSegment(ctx context.Context, cap int64) (*SegmentBlock, error) {
+	block := &SegmentBlock{
+		ID:       ins.generateSegmentBlockID(),
+		Capacity: cap,
+	}
+	_, err := ins.client.CreateSegmentBlock(ctx, &segment.CreateSegmentBlockRequest{
+		Size: block.Capacity,
+		Id:   block.ID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return block, nil
 }
 
 func (ins *instance) DeleteSegment(context.Context, uint64) error {
 	return nil
 }
 
-func (ins *instance) UpdateSegmentServer(inf *info.SegmentServerInfo) {
-	ins.serverInfo = inf
+func (ins *instance) UpdateSegmentServer(srv Server) {
+	ins.srv = srv
 }
 
-func (ins *instance) ActivateSegment(context.Context, *SegmentBlock) error {
-	//srvInfo := pool.segmentServerMgr.GetServerInfoByServerID(seg.VolumeInfo.SegmentServerID)
-	//client := pool.segmentServerMgr.getSegmentServerClient(srvInfo)
-	//if client == nil {
-	//	return nil, errors.New("the segment server client not found")
-	//}
-	//_, err = client.ActiveSegmentBlock(ctx, &segment.ActiveSegmentBlockRequest{
-	//	EventLogId:     seg.EventLogID,
-	//	ReplicaGroupId: seg.ReplicaGroupID,
-	//	PeersAddress:   seg.PeersAddress,
-	//})
-	return nil
+func (ins *instance) ActivateSegment(ctx context.Context, block *SegmentBlock) error {
+	_, err := ins.client.ActiveSegmentBlock(ctx, &segment.ActiveSegmentBlockRequest{
+		EventLogId:     block.EventLogID,
+		ReplicaGroupId: block.ReplicaGroupID,
+		PeersAddress:   block.PeersAddress,
+	})
+	return err
+}
+
+func (ins *instance) generateSegmentBlockID() string {
+	//TODO optimize
+	return fmt.Sprintf("%d", time.Now().UnixNano())
 }

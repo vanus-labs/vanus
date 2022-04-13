@@ -17,7 +17,6 @@ package volume
 import (
 	"context"
 	"encoding/json"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"strings"
 )
@@ -28,7 +27,7 @@ const (
 
 type Manager interface {
 	RegisterVolume(ctx context.Context, md *Metadata) (Instance, error)
-	RefreshRoutingInfo(ins Instance, serverInfo *info.SegmentServerInfo)
+	RefreshRoutingInfo(ins Instance, srv Server)
 	Init(ctx context.Context, kvClient kv.Client) error
 	GetVolumeByID(id string) Instance
 	LookupVolumeByServerID(id string) Instance
@@ -49,7 +48,7 @@ func (mgr *volumeMgr) RegisterVolume(ctx context.Context, md *Metadata) (Instanc
 	return nil, nil
 }
 
-func (mgr *volumeMgr) RefreshRoutingInfo(ins Instance, serverInfo *info.SegmentServerInfo) {
+func (mgr *volumeMgr) RefreshRoutingInfo(ins Instance, srv Server) {
 
 }
 

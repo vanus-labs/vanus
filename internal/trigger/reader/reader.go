@@ -92,18 +92,18 @@ func (r *Reader) checkEventLogChange() {
 		if err == context.Canceled {
 			return
 		}
-		log.Warning(ctx, "eventbus lookup Readable log error", map[string]interface{}{
+		log.Warning(ctx, "eventbus lookup Readable eventlog error", map[string]interface{}{
 			log.KeyEventbusName: r.config.EventBus,
 			log.KeyError:        err,
 		})
 		return
 	}
 	if len(els) != len(r.elReader) {
-		log.Info(ctx, "event log change,will restart event log reader", map[string]interface{}{
+		log.Info(ctx, "event eventlog change,will restart event eventlog reader", map[string]interface{}{
 			log.KeyEventbusName: r.config.EventBus,
 		})
 		r.start(els)
-		log.Info(ctx, "event log change,restart event log reader success", map[string]interface{}{
+		log.Info(ctx, "event eventlog change,restart event eventlog reader success", map[string]interface{}{
 			log.KeyEventbusName: r.config.EventBus,
 		})
 	}
@@ -136,11 +136,11 @@ func (r *Reader) start(els []*record.EventLog) {
 		go func() {
 			defer func() {
 				r.wg.Done()
-				log.Info(r.stctx, "event log reader stop", map[string]interface{}{
+				log.Info(r.stctx, "event eventlog reader stop", map[string]interface{}{
 					log.KeyEventlogID: elc.eventLog,
 				})
 			}()
-			log.Info(r.stctx, "event log reader start", map[string]interface{}{
+			log.Info(r.stctx, "event eventlog reader start", map[string]interface{}{
 				log.KeyEventlogID: elc.eventLog,
 			})
 			elc.run(r.stctx)
@@ -164,12 +164,12 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 		case context.Canceled:
 			return
 		case context.DeadlineExceeded:
-			log.Warning(ctx, "event log reader init timeout", map[string]interface{}{
+			log.Warning(ctx, "event eventlog reader init timeout", map[string]interface{}{
 				log.KeyEventlogID: elReader.eventLog,
 			})
 			continue
 		default:
-			log.Info(ctx, "event log reader init error,will retry", map[string]interface{}{
+			log.Info(ctx, "event eventlog reader init error,will retry", map[string]interface{}{
 				log.KeyEventbusName: elReader.config.EventBus,
 				log.KeyError:        err,
 			})
