@@ -20,6 +20,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/linkall-labs/vanus/internal/kv"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"path/filepath"
@@ -28,9 +29,9 @@ import (
 )
 
 type eventlogManager struct {
-	kvStore     kv.Client
-	ctrl        *controller
-	segmentPool *segmentPool
+	kvStore    kv.Client
+	ctrl       *controller
+	segmentMgr *segmentManager
 	// string, *info.EventLogInfo
 	eventLogMap      sync.Map
 	boundEventLogMap sync.Map
@@ -47,8 +48,8 @@ func newEventlogManager(ctrl *controller) *eventlogManager {
 }
 
 func (mgr *eventlogManager) start(ctx context.Context) error {
-	mgr.segmentPool = newSegmentPool(mgr.ctrl)
-	if err := mgr.segmentPool.init(ctx); err != nil {
+	mgr.segmentMgr = newSegmentMgr(mgr.ctrl)
+	if err := mgr.segmentMgr.init(ctx); err != nil {
 		return err
 	}
 	pairs, err := mgr.kvStore.List(ctx, eventlogKeyPrefixInKVStore)
@@ -67,14 +68,14 @@ func (mgr *eventlogManager) start(ctx context.Context) error {
 	return nil
 }
 
-func (mgr *eventlogManager) initVolumeInfo(pool *volumeMgr) error {
+func (mgr *eventlogManager) initVolumeInfo(volumeMgr volume.Manager) error {
 	var err error
 	mgr.eventLogMap.Range(func(key, value interface{}) bool {
 		elInfo := value.(*info.EventLogInfo)
-		sbList := mgr.segmentPool.getEventLogSegmentList(elInfo.ID)
+		sbList := mgr.segmentMgr.getEventLogSegmentList(elInfo.ID)
 		for idx := 0; idx < len(sbList); idx++ {
 			sb := sbList[idx]
-			sb.VolumeInfo = pool.get(sb.VolumeID)
+			sb.VolumeMeta = *(volumeMgr.GetVolumeByID(sb.VolumeID).GetMeta())
 		}
 		return true
 	})
@@ -141,7 +142,7 @@ func (mgr *eventlogManager) updateEventLog(ctx context.Context, els ...*info.Eve
 }
 
 func (mgr *eventlogManager) initializeEventLog(ctx context.Context, el *info.EventLogInfo) error {
-	_, err := mgr.segmentPool.bindSegment(ctx, el, defaultAutoCreatedSegmentNumber)
+	_, err := mgr.segmentMgr.bindSegment(ctx, el, defaultAutoCreatedSegmentNumber)
 	if err != nil {
 		return err
 	}
@@ -152,18 +153,18 @@ func (mgr *eventlogManager) dynamicScaleUpEventLog() error {
 	return nil
 }
 
-func (mgr *eventlogManager) getEventLogSegmentList(ctx context.Context, elID string) []*info.SegmentBlockInfo {
-	return mgr.segmentPool.getEventLogSegmentList(elID)
+func (mgr *eventlogManager) getEventLogSegmentList(ctx context.Context, elID string) []*volume.SegmentBlock {
+	return mgr.segmentMgr.getEventLogSegmentList(elID)
 }
 
 func (mgr *eventlogManager) updateSegment(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error {
-	return mgr.segmentPool.updateSegment(ctx, req)
+	return mgr.segmentMgr.updateSegment(ctx, req)
 }
 
 func (mgr *eventlogManager) getAppendableSegment(ctx context.Context,
-	eli *info.EventLogInfo, num int) ([]*info.SegmentBlockInfo, error) {
+	eli *info.EventLogInfo, num int) ([]*volume.SegmentBlock, error) {
 	// TODO the HA of segment can't be guaranteed before segment support multiple replicas
-	return mgr.segmentPool.getAppendableSegment(ctx, eli, num)
+	return mgr.segmentMgr.getAppendableSegment(ctx, eli, num)
 }
 
 func (mgr *eventlogManager) getEventLogKeyInKVStore(elName string) string {

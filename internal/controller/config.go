@@ -18,6 +18,7 @@ import (
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
 	"github.com/linkall-labs/vanus/internal/controller/trigger"
+	"path/filepath"
 )
 
 type Config struct {
@@ -33,6 +34,7 @@ type Config struct {
 }
 
 func (c *Config) GetEtcdConfig() embedetcd.Config {
+	c.EtcdConfig.DataDir = filepath.Join(c.DataDir, c.EtcdConfig.DataDir)
 	return c.EtcdConfig
 }
 

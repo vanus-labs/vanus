@@ -18,4 +18,5 @@
 # JetBrains
 .idea/
 
+# data dir of etcd
 etcd

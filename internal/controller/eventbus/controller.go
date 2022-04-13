@@ -21,6 +21,7 @@ import (
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/util"
@@ -40,14 +41,13 @@ const (
 	eventbusKeyPrefixInKVStore      = "/vanus/internal/resource/eventbus"
 	eventlogKeyPrefixInKVStore      = "/vanus/internal/resource/eventlog"
 	segmentBlockKeyPrefixInKVStore  = "/vanus/internal/resource/segmentBlock"
-	volumeKeyPrefixInKVStore        = "/vanus/internal/resource/volume"
 )
 
 func NewEventBusController(cfg Config, member embedetcd.Member) *controller {
 	c := &controller{
 		cfg:         &cfg,
 		eventLogMgr: nil,
-		volumeMgr:   new(volumeMgr),
+		volumeMgr:   volume.NewVolumeManager(),
 		eventBusMap: map[string]*info.BusInfo{},
 		member:      member,
 		isLeader:    false,
@@ -61,7 +61,7 @@ type controller struct {
 	cfg             *Config
 	kvStore         kv.Client
 	eventLogMgr     *eventlogManager
-	volumeMgr       *volumeMgr
+	volumeMgr       volume.Manager
 	ssMgr           *segmentServerManager
 	eventBusMap     map[string]*info.BusInfo
 	member          embedetcd.Member
@@ -83,7 +83,7 @@ func (ctrl *controller) Start(ctx context.Context) error {
 
 	ctrl.kvStore = store
 
-	if err = ctrl.volumeMgr.init(ctx, ctrl); err != nil {
+	if err = ctrl.volumeMgr.Init(ctx, ctrl.kvStore); err != nil {
 		return err
 	}
 
@@ -186,7 +186,7 @@ func (ctrl *controller) ListSegment(ctx context.Context,
 	}
 
 	return &ctrlpb.ListSegmentResponse{
-		Segments: info.Convert2ProtoSegment(ctrl.eventLogMgr.getEventLogSegmentList(ctx, el.ID)...),
+		Segments: volume.Convert2ProtoSegment(ctrl.eventLogMgr.getEventLogSegmentList(ctx, el.ID)...),
 	}, nil
 }
 
@@ -195,22 +195,28 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	volumeInfo, err := ctrl.volumeMgr.registerVolume(ctx, req.VolumeId)
-	if err != nil {
-		return nil, err
-	}
-
 	serverInfo, err := ctrl.ssMgr.AddServer(ctx, req.Address)
 	if err != nil {
 		return nil, err
 	}
 
-	ctrl.volumeMgr.refreshRoutingInfo(volumeInfo.ID(), serverInfo)
+	var volInstance volume.Instance
+	// need to compare metadata if exist?
+	volInstance = ctrl.volumeMgr.GetVolumeByID(req.VolumeId)
+	if volInstance == nil {
+		volMD := &volume.Metadata{ID: req.VolumeId}
+		_volInstance, err := ctrl.volumeMgr.RegisterVolume(ctx, volMD)
+		if err != nil {
+			return nil, err
+		}
+		volInstance = _volInstance
+	}
 
+	ctrl.volumeMgr.RefreshRoutingInfo(volInstance, serverInfo)
 	go ctrl.ssMgr.remoteStartServer(serverInfo)
 	return &ctrlpb.RegisterSegmentServerResponse{
 		ServerId:      serverInfo.ID(),
-		SegmentBlocks: volumeInfo.Blocks,
+		SegmentBlocks: volInstance.GetMeta().Blocks,
 	}, nil
 }
 
@@ -230,7 +236,8 @@ func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
 			log.KeyError: err,
 		})
 	}
-	ctrl.volumeMgr.refreshRoutingInfo(req.VolumeId, nil)
+
+	ctrl.volumeMgr.RefreshRoutingInfo(ctrl.volumeMgr.GetVolumeByID(req.VolumeId), nil)
 	return &ctrlpb.UnregisterSegmentServerResponse{}, nil
 }
 
@@ -305,7 +312,7 @@ func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 	segs := make([]*metapb.Segment, 0)
 	for idx := 0; idx < len(segInfos); idx++ {
 		seg := segInfos[idx]
-		segs = append(segs, info.Convert2ProtoSegment(seg)...)
+		segs = append(segs, volume.Convert2ProtoSegment(seg)...)
 	}
 	return &ctrlpb.GetAppendableSegmentResponse{Segments: segs}, nil
 }
@@ -334,7 +341,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event em
 			return err
 		}
 
-		if err := ctrl.volumeMgr.init(ctx, ctrl); err != nil {
+		if err := ctrl.volumeMgr.Init(ctx, ctrl.kvStore); err != nil {
 			ctrl.stop(ctx, err)
 			return err
 		}
@@ -353,7 +360,6 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event em
 			return nil
 		}
 		ctrl.isLeader = false
-		ctrl.volumeMgr.destroy(ctx)
 		ctrl.eventLogMgr.stop(ctx)
 		ctrl.ssMgr.stop(ctx)
 	}
@@ -382,7 +388,6 @@ func (ctrl *controller) stop(ctx context.Context, err error) {
 	ctrl.member.ResignIfLeader(ctx)
 	ctrl.cancelFunc()
 	ctrl.stopNotify <- err
-	ctrl.volumeMgr.destroy(ctx)
 	ctrl.eventLogMgr.stop(ctx)
 	ctrl.ssMgr.stop(ctx)
 	if err := ctrl.kvStore.Close(); err != nil {

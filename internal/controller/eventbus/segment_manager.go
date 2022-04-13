@@ -21,10 +21,10 @@ import (
 	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/selector"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
-	"github.com/linkall-labs/vsproto/pkg/segment"
 	"github.com/pkg/errors"
 	"strings"
 	"sync"
@@ -39,25 +39,25 @@ var (
 	ErrEventLogNotFound = errors.New("eventlog not found")
 )
 
-type segmentPool struct {
-	ctrl                     *controller
-	selectorForSegmentCreate selector.SegmentServerSelector
+type segmentManager struct {
+	selectorForSegmentCreate selector.VolumeSelector
 	eventLogSegment          map[string]*skiplist.SkipList
 	segmentMap               sync.Map
 	kvStore                  kv.Client
+	volumeMgr                volume.Manager
 }
 
-func newSegmentPool(ctrl *controller) *segmentPool {
-	return &segmentPool{
-		ctrl:            ctrl,
+func newSegmentMgr(ctrl *controller) *segmentManager {
+	return &segmentManager{
 		eventLogSegment: map[string]*skiplist.SkipList{},
 		kvStore:         ctrl.kvStore,
+		volumeMgr:       ctrl.volumeMgr,
 	}
 }
 
-func (pool *segmentPool) init(ctx context.Context) error {
+func (pool *segmentManager) init(ctx context.Context) error {
 	go pool.dynamicAllocateSegmentTask()
-	pool.selectorForSegmentCreate = selector.NewSegmentServerRoundRobinSelector(pool.ctrl.ssMgr.getServerInfos)
+	pool.selectorForSegmentCreate = selector.NewVolumeRoundRobin(pool.volumeMgr.GetAllVolume)
 	pairs, err := pool.kvStore.List(ctx, segmentBlockKeyPrefixInKVStore)
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func (pool *segmentPool) init(ctx context.Context) error {
 	// TODO unassigned -> assigned
 	for idx := range pairs {
 		pair := pairs[idx]
-		sbInfo := &info.SegmentBlockInfo{}
+		sbInfo := &volume.SegmentBlock{}
 		err := json.Unmarshal(pair.Value, sbInfo)
 		if err != nil {
 			return err
@@ -81,12 +81,12 @@ func (pool *segmentPool) init(ctx context.Context) error {
 	return nil
 }
 
-func (pool *segmentPool) destroy() error {
+func (pool *segmentManager) destroy() error {
 	return nil
 }
 
-func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo, num int) ([]*info.SegmentBlockInfo, error) {
-	segArr := make([]*info.SegmentBlockInfo, num+1)
+func (pool *segmentManager) bindSegment(ctx context.Context, el *info.EventLogInfo, num int) ([]*volume.SegmentBlock, error) {
+	segArr := make([]*volume.SegmentBlock, num+1)
 	var err error
 	defer func() {
 		if err == nil {
@@ -121,21 +121,11 @@ func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo,
 
 		// binding, assign runtime fields
 		seg.EventLogID = el.ID
+		// TODO use replica structure to replace here
 		if err = pool.createSegmentBlockReplicaGroup(seg); err != nil {
 			return nil, err
 		}
-
-		srvInfo := pool.ctrl.ssMgr.GetServerInfoByServerID(seg.VolumeInfo.SegmentServerID)
-		client := pool.ctrl.ssMgr.getSegmentServerClient(srvInfo)
-		if client == nil {
-			return nil, errors.New("the segment server client not found")
-		}
-		_, err = client.ActiveSegmentBlock(ctx, &segment.ActiveSegmentBlockRequest{
-			EventLogId:     seg.EventLogID,
-			ReplicaGroupId: seg.ReplicaGroupID,
-			PeersAddress:   seg.PeersAddress,
-		})
-		if err != nil {
+		if err = pool.volumeMgr.GetVolumeByID(seg.VolumeID).ActivateSegment(ctx, seg); err != nil {
 			return nil, err
 		}
 		if segArr[idx-1] != nil {
@@ -162,50 +152,33 @@ func (pool *segmentPool) bindSegment(ctx context.Context, el *info.EventLogInfo,
 	return segArr, nil
 }
 
-func (pool *segmentPool) pickSegment(ctx context.Context, size int64) (*info.SegmentBlockInfo, error) {
+func (pool *segmentManager) pickSegment(ctx context.Context, size int64) (*volume.SegmentBlock, error) {
 	// no enough segment, manually allocate and bind
 	return pool.allocateSegmentImmediately(ctx, defaultSegmentBlockSize)
 }
 
-func (pool *segmentPool) allocateSegmentImmediately(ctx context.Context, size int64) (*info.SegmentBlockInfo, error) {
-	srvInfo := pool.selectorForSegmentCreate.Select(ctx, size)
-	client := pool.ctrl.ssMgr.getSegmentServerClient(srvInfo)
-	volume := pool.ctrl.volumeMgr.lookupVolumeByServerID(srvInfo.ID())
-	segmentInfo := &info.SegmentBlockInfo{
-		ID:         pool.generateSegmentBlockID(),
-		Capacity:   size,
-		VolumeID:   volume.ID(),
-		VolumeInfo: volume,
+func (pool *segmentManager) allocateSegmentImmediately(ctx context.Context, size int64) (*volume.SegmentBlock, error) {
+	volIns := pool.selectorForSegmentCreate.Select(ctx, size)
+	if volIns == nil {
+		return nil, errors.New("no volume available")
 	}
-	_, err := client.CreateSegmentBlock(ctx, &segment.CreateSegmentBlockRequest{
-		Size: segmentInfo.Capacity,
-		Id:   segmentInfo.ID,
-	})
+	segmentInfo, err := volIns.CreateSegment(ctx, size)
 	if err != nil {
-		return nil, err
-	}
-	volume.AddBlock(segmentInfo)
-	if err = pool.ctrl.volumeMgr.updateVolumeInKV(ctx, volume); err != nil {
-		return nil, err
-	}
-
-	pool.segmentMap.Store(segmentInfo.ID, segmentInfo)
-	if err = pool.updateSegmentBlockInKV(ctx, segmentInfo); err != nil {
 		return nil, err
 	}
 	return segmentInfo, nil
 }
 
-func (pool *segmentPool) dynamicAllocateSegmentTask() {
+func (pool *segmentManager) dynamicAllocateSegmentTask() {
 	//TODO
 }
 
-func (pool *segmentPool) generateSegmentBlockID() string {
+func (pool *segmentManager) generateSegmentBlockID() string {
 	//TODO optimize
 	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
 
-func (pool *segmentPool) createSegmentBlockReplicaGroup(segInfo *info.SegmentBlockInfo) error {
+func (pool *segmentManager) createSegmentBlockReplicaGroup(segInfo *volume.SegmentBlock) error {
 	// TODO implement
 	segInfo.ReplicaGroupID = "group-1"
 	segInfo.PeersAddress = []string{"ip1", "ip2"}
@@ -213,17 +186,17 @@ func (pool *segmentPool) createSegmentBlockReplicaGroup(segInfo *info.SegmentBlo
 	return nil
 }
 
-func (pool *segmentPool) getAppendableSegment(ctx context.Context,
-	eli *info.EventLogInfo, num int) ([]*info.SegmentBlockInfo, error) {
+func (pool *segmentManager) getAppendableSegment(ctx context.Context,
+	eli *info.EventLogInfo, num int) ([]*volume.SegmentBlock, error) {
 	sl, exist := pool.eventLogSegment[eli.ID]
 	if !exist {
 		return nil, ErrEventLogNotFound
 	}
-	arr := make([]*info.SegmentBlockInfo, 0)
+	arr := make([]*volume.SegmentBlock, 0)
 	next := sl.Front()
 	hit := 0
 	for hit < num && next != nil {
-		sbi := next.Value.(*info.SegmentBlockInfo)
+		sbi := next.Value.(*volume.SegmentBlock)
 		next = next.Next()
 		if sbi.IsFull {
 			continue
@@ -238,7 +211,7 @@ func (pool *segmentPool) getAppendableSegment(ctx context.Context,
 	return arr, nil
 }
 
-func (pool *segmentPool) updateSegment(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error {
+func (pool *segmentManager) updateSegment(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error {
 	for idx := range req.HealthInfo {
 		hInfo := req.HealthInfo[idx]
 
@@ -250,7 +223,7 @@ func (pool *segmentPool) updateSegment(ctx context.Context, req *ctrlpb.SegmentH
 			})
 			continue
 		}
-		in := v.(*info.SegmentBlockInfo)
+		in := v.(*volume.SegmentBlock)
 		if hInfo.IsFull {
 			in.IsFull = true
 
@@ -280,34 +253,34 @@ func (pool *segmentPool) updateSegment(ctx context.Context, req *ctrlpb.SegmentH
 	return nil
 }
 
-func (pool *segmentPool) getEventLogSegmentList(elID string) []*info.SegmentBlockInfo {
+func (pool *segmentManager) getEventLogSegmentList(elID string) []*volume.SegmentBlock {
 	el, exist := pool.eventLogSegment[elID]
 	if !exist {
 		return nil
 	}
-	var arr []*info.SegmentBlockInfo
+	var arr []*volume.SegmentBlock
 	next := el.Front()
 	for next != nil {
-		arr = append(arr, next.Value.(*info.SegmentBlockInfo))
+		arr = append(arr, next.Value.(*volume.SegmentBlock))
 		next = next.Next()
 	}
 	return arr
 }
 
-func (pool *segmentPool) getSegmentBlockByID(ctx context.Context, id string) *info.SegmentBlockInfo {
+func (pool *segmentManager) getSegmentBlockByID(ctx context.Context, id string) *volume.SegmentBlock {
 	v, exist := pool.segmentMap.Load(id)
 	if !exist {
 		return nil
 	}
 
-	return v.(*info.SegmentBlockInfo)
+	return v.(*volume.SegmentBlock)
 }
 
-func (pool *segmentPool) getSegmentBlockKeyInKVStore(sbID string) string {
+func (pool *segmentManager) getSegmentBlockKeyInKVStore(sbID string) string {
 	return strings.Join([]string{segmentBlockKeyPrefixInKVStore, sbID}, "/")
 }
 
-func (pool *segmentPool) updateSegmentBlockInKV(ctx context.Context, segment *info.SegmentBlockInfo) error {
+func (pool *segmentManager) updateSegmentBlockInKV(ctx context.Context, segment *volume.SegmentBlock) error {
 	if segment == nil {
 		return nil
 	}
@@ -318,7 +291,7 @@ func (pool *segmentPool) updateSegmentBlockInKV(ctx context.Context, segment *in
 	return pool.kvStore.Set(ctx, pool.getSegmentBlockKeyInKVStore(segment.ID), data)
 }
 
-func (pool *segmentPool) getLastSegmentOfEventLog(el *info.EventLogInfo) *info.SegmentBlockInfo {
+func (pool *segmentManager) getLastSegmentOfEventLog(el *info.EventLogInfo) *volume.SegmentBlock {
 	sl := pool.eventLogSegment[el.ID]
 	if sl == nil {
 		return nil
@@ -327,5 +300,5 @@ func (pool *segmentPool) getLastSegmentOfEventLog(el *info.EventLogInfo) *info.S
 	if val == nil {
 		return nil
 	}
-	return val.(*info.SegmentBlockInfo)
+	return val.(*volume.SegmentBlock)
 }

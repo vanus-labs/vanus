@@ -16,37 +16,37 @@ package selector
 
 import (
 	"context"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"sort"
 )
 
-type SegmentServerSelector interface {
-	Select(context.Context, int64) *info.SegmentServerInfo
+type VolumeSelector interface {
+	Select(context.Context, int64) volume.Instance
 }
 
-type segmentServerRoundRobinSelector struct {
-	count                int64
-	getSegmentServerInfo func() []*info.SegmentServerInfo
+type volumeRoundRobinSelector struct {
+	count      int64
+	getVolumes func() []volume.Instance
 }
 
-func NewSegmentServerRoundRobinSelector(f func() []*info.SegmentServerInfo) SegmentServerSelector {
-	return &segmentServerRoundRobinSelector{
-		count:                0,
-		getSegmentServerInfo: f,
+func NewVolumeRoundRobin(f func() []volume.Instance) VolumeSelector {
+	return &volumeRoundRobinSelector{
+		count:      0,
+		getVolumes: f,
 	}
 }
 
-func (s *segmentServerRoundRobinSelector) Select(ctx context.Context, size int64) *info.SegmentServerInfo {
-	infos := s.getSegmentServerInfo()
+func (s *volumeRoundRobinSelector) Select(ctx context.Context, size int64) volume.Instance {
+	infos := s.getVolumes()
 	if len(infos) == 0 {
 		return nil
 	}
 	// TODO optimize
 	keys := make([]string, 0)
-	m := make(map[string]*info.SegmentServerInfo)
+	m := make(map[string]volume.Instance)
 	for _, v := range infos {
-		keys = append(keys, v.Address)
-		m[v.Address] = v
+		keys = append(keys, v.GetMeta().ID)
+		m[v.GetMeta().ID] = v
 	}
 	sort.Strings(keys)
 	ssi := m[keys[s.count%int64(len(keys))]]
