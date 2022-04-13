@@ -18,8 +18,8 @@ package subscription
 import (
 	"context"
 	"github.com/google/uuid"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/offset"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription/offset"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	iInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"sync"
@@ -40,7 +40,7 @@ type Manager interface {
 
 type manager struct {
 	storage       storage.Storage
-	offsetManager *offset.Manager
+	offsetManager offset.Manager
 	ctx           context.Context
 	stop          context.CancelFunc
 	lock          sync.RWMutex
@@ -145,5 +145,5 @@ func (m *manager) Init(ctx context.Context) error {
 }
 
 func (m *manager) Start() {
-	m.offsetManager.Run()
+	m.offsetManager.Start()
 }

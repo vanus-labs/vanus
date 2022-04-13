@@ -23,26 +23,30 @@ import (
 	"time"
 )
 
-type Manager struct {
+type Manager interface {
+	GetOffset(ctx context.Context, subId string) (info.ListOffsetInfo, error)
+	Offset(ctx context.Context, subInfo info.SubscriptionInfo) error
+	RemoveRegisterSubscription(ctx context.Context, subId string) error
+	Start()
+	Stop()
+}
+
+type manager struct {
 	subOffset sync.Map
 	storage   storage.OffsetStorage
 	ctx       context.Context
 	stop      context.CancelFunc
 }
 
-func NewOffsetManager(storage storage.OffsetStorage) *Manager {
-	m := &Manager{
+func NewOffsetManager(storage storage.OffsetStorage) Manager {
+	m := &manager{
 		storage: storage,
 	}
 	m.ctx, m.stop = context.WithCancel(context.Background())
 	return m
 }
 
-func (m *Manager) Stop() {
-	m.stop()
-}
-
-func (m *Manager) GetOffset(ctx context.Context, subId string) (info.ListOffsetInfo, error) {
+func (m *manager) GetOffset(ctx context.Context, subId string) (info.ListOffsetInfo, error) {
 	subOffset, err := m.getSubscriptionOffset(ctx, subId)
 	if err != nil {
 		return nil, err
@@ -50,7 +54,7 @@ func (m *Manager) GetOffset(ctx context.Context, subId string) (info.ListOffsetI
 	return subOffset.getOffsets(), nil
 }
 
-func (m *Manager) Offset(ctx context.Context, subInfo info.SubscriptionInfo) error {
+func (m *manager) Offset(ctx context.Context, subInfo info.SubscriptionInfo) error {
 	subOffset, err := m.getSubscriptionOffset(ctx, subInfo.SubId)
 	if err != nil {
 		return err
@@ -59,7 +63,7 @@ func (m *Manager) Offset(ctx context.Context, subInfo info.SubscriptionInfo) err
 	return nil
 }
 
-func (m *Manager) getSubscriptionOffset(ctx context.Context, subId string) (*subscriptionOffset, error) {
+func (m *manager) getSubscriptionOffset(ctx context.Context, subId string) (*subscriptionOffset, error) {
 	subOffset, exist := m.subOffset.Load(subId)
 	if !exist {
 		sub, err := m.initSubscriptionOffset(ctx, subId)
@@ -71,7 +75,7 @@ func (m *Manager) getSubscriptionOffset(ctx context.Context, subId string) (*sub
 	return subOffset.(*subscriptionOffset), nil
 }
 
-func (m *Manager) initSubscriptionOffset(ctx context.Context, subId string) (*subscriptionOffset, error) {
+func (m *manager) initSubscriptionOffset(ctx context.Context, subId string) (*subscriptionOffset, error) {
 	list, err := m.storage.GetOffsets(ctx, subId)
 	if err != nil {
 		return nil, err
@@ -89,15 +93,18 @@ func (m *Manager) initSubscriptionOffset(ctx context.Context, subId string) (*su
 		})
 	}
 	return subOffset, nil
-
 }
 
-func (m *Manager) RemoveRegisterSubscription(ctx context.Context, subId string) error {
+func (m *manager) RemoveRegisterSubscription(ctx context.Context, subId string) error {
 	m.subOffset.Delete(subId)
 	return m.storage.DeleteOffset(ctx, subId)
 }
 
-func (m *Manager) Run() {
+func (m *manager) Stop() {
+	m.stop()
+}
+
+func (m *manager) Start() {
 	go func() {
 		ticker := time.NewTicker(100 * time.Millisecond)
 		defer ticker.Stop()
@@ -115,7 +122,7 @@ func (m *Manager) Run() {
 	}()
 }
 
-func (m *Manager) commit(ctx context.Context) {
+func (m *manager) commit(ctx context.Context) {
 	var wg sync.WaitGroup
 	m.subOffset.Range(func(key, value interface{}) bool {
 		sub := value.(*subscriptionOffset)

@@ -132,7 +132,8 @@ func (m *manager) AddTriggerWorker(ctx context.Context, addr string) error {
 	} else {
 		m.lock.Unlock()
 		log.Info(ctx, "repeat add trigger worker", map[string]interface{}{
-			"triggerWorker": tWorker.Info,
+			log.KeyTriggerWorkerAddr: tWorker.Info.Addr,
+			"subIds":                 tWorker.GetAssignSubIds(),
 		})
 		if tWorker.Info.Phase == info.TriggerWorkerPhasePaused {
 			return errors.ErrResourceAlreadyExist
@@ -161,7 +162,6 @@ func (m *manager) AddTriggerWorker(ctx context.Context, addr string) error {
 	}(m.ctx)
 	log.Info(ctx, "add trigger worker", map[string]interface{}{
 		log.KeyTriggerWorkerAddr: tWorker.Info.Addr,
-		"subIds":                 tWorker.GetAssignSubIds(),
 	})
 	return nil
 }

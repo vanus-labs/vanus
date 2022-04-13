@@ -18,11 +18,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/golang/mock/gomock"
-	"github.com/google/uuid"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	subscriptiontest "github.com/linkall-labs/vanus/internal/controller/trigger/subscription/testing"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	iInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/util"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
@@ -30,7 +30,8 @@ import (
 
 func getTestSubscription() *primitive.SubscriptionApi {
 	return &primitive.SubscriptionApi{
-		ID: uuid.NewString(),
+		ID:    "1234",
+		Phase: primitive.SubscriptionPhaseCreated,
 	}
 }
 
@@ -56,11 +57,12 @@ func TestInit(t *testing.T) {
 	subManager.EXPECT().ListSubscription(ctx).Return(map[string]*primitive.SubscriptionApi{
 		sub.ID: sub,
 	})
-	twManager := NewTriggerWorkerManager(storage, subManager, getTestTriggerWorkerRemoveSubscription()).(*manager)
-	twManager.Init(context.Background())
+	twManager := NewTriggerWorkerManager(storage, subManager, nil).(*manager)
 	Convey("test init", t, func() {
-		So(len(twManager.triggerWorkers), ShouldEqual, 1)
-		tWorker, exist := twManager.triggerWorkers[addr]
+		twManager.Init(ctx)
+		triggerWorkers := twManager.triggerWorkers
+		So(len(triggerWorkers), ShouldEqual, 1)
+		tWorker, exist := triggerWorkers[addr]
 		So(exist, ShouldBeTrue)
 		So(tWorker, ShouldNotBeNil)
 		subIds := tWorker.GetAssignSubIds()
@@ -73,18 +75,20 @@ func TestAddTriggerWorker(t *testing.T) {
 	ctx := context.Background()
 	addr := "test"
 	storage := storage.NewFakeStorage()
-	twManager := NewTriggerWorkerManager(storage, nil, getTestTriggerWorkerRemoveSubscription()).(*manager)
+	twManager := NewTriggerWorkerManager(storage, nil, nil).(*manager)
 
 	Convey("test add", t, func() {
 		twManager.AddTriggerWorker(ctx, addr)
-		So(len(twManager.triggerWorkers), ShouldEqual, 1)
-		tWorker, exist := twManager.triggerWorkers[addr]
+		triggerWorkers := twManager.triggerWorkers
+		So(len(triggerWorkers), ShouldEqual, 1)
+		tWorker, exist := triggerWorkers[addr]
 		So(exist, ShouldBeTrue)
 		So(tWorker, ShouldNotBeNil)
 		Convey("test repeat add", func() {
 			twManager.AddTriggerWorker(ctx, addr)
-			So(len(twManager.triggerWorkers), ShouldEqual, 1)
-			tWorker, exist = twManager.triggerWorkers[addr]
+			triggerWorkers = twManager.triggerWorkers
+			So(len(triggerWorkers), ShouldEqual, 1)
+			tWorker, exist = triggerWorkers[addr]
 			So(exist, ShouldBeTrue)
 			So(tWorker, ShouldNotBeNil)
 		})
@@ -95,16 +99,47 @@ func TestRemoveTriggerWorker(t *testing.T) {
 	ctx := context.Background()
 	addr := "test"
 	storage := storage.NewFakeStorage()
+	sub := getTestSubscription()
 	twManager := NewTriggerWorkerManager(storage, nil, getTestTriggerWorkerRemoveSubscription()).(*manager)
 	Convey("test remove not exist", t, func() {
 		twManager.RemoveTriggerWorker(ctx, addr)
-		So(len(twManager.triggerWorkers), ShouldEqual, 0)
+		triggerWorkers := twManager.triggerWorkers
+		So(len(triggerWorkers), ShouldEqual, 0)
 		Convey("test remove", func() {
-			tWorker := NewTriggerWorker(info.NewTriggerWorkerInfo(addr))
-			twManager.triggerWorkers[addr] = tWorker
+			twManager.AddTriggerWorker(ctx, addr)
+			triggerWorkers = twManager.triggerWorkers
+			tWorker := triggerWorkers[addr]
+			tWorker.AddAssignSub(sub.ID)
 			twManager.RemoveTriggerWorker(ctx, addr)
+			triggerWorkers = twManager.triggerWorkers
+			So(len(triggerWorkers), ShouldEqual, 0)
 			So(len(tWorker.GetAssignSubIds()), ShouldEqual, 0)
-			So(len(twManager.triggerWorkers), ShouldEqual, 0)
 		})
+	})
+}
+
+func TestAssignSubscription(t *testing.T) {
+	ctx := context.Background()
+	addr := "test"
+	storage := storage.NewFakeStorage()
+	sub := getTestSubscription()
+	ctrl := gomock.NewController(t)
+	subManager := subscriptiontest.NewMockManager(ctrl)
+	sub.TriggerWorker = addr
+	twManager := NewTriggerWorkerManager(storage, subManager, getTestTriggerWorkerRemoveSubscription()).(*manager)
+	Convey("assign subscription", t, func() {
+		twManager.AddTriggerWorker(ctx, addr)
+		twManager.UpdateTriggerWorkerInfo(ctx, addr, map[string]struct{}{sub.ID: {}})
+		//triggerWorkers := twManager.triggerWorkers
+		//tWorker := triggerWorkers[addr]
+		//f := tWorker.AddSubscription
+		//todo gostub support method?
+		//gostub.StubFunc(&f, nil)
+		subManager.EXPECT().GetSubscription(ctx, sub.ID).Return(sub)
+		subManager.EXPECT().GetOffset(ctx, sub.ID).Return(iInfo.ListOffsetInfo{}, nil)
+		twManager.AssignSubscription(ctx, *info.NewTriggerWorkerInfo(addr), sub.ID)
+		//So(err, ShouldBeNil)
+		//So(len(tWorker.GetAssignSubIds()), ShouldEqual, 1)
+		//So(tWorker.GetAssignSubIds(), ShouldContain, sub.ID)
 	})
 }

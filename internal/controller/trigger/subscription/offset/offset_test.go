@@ -15,6 +15,7 @@
 package offset
 
 import (
+	"context"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	. "github.com/smartystreets/goconvey/convey"
@@ -22,60 +23,60 @@ import (
 	"time"
 )
 
-func TestManager_Offset(t *testing.T) {
+func TestOffset(t *testing.T) {
 	storage := storage.NewFakeStorage()
 	m := NewOffsetManager(storage)
-
+	ctx := context.Background()
 	Convey("offset", t, func() {
 		subId := "subId"
 		eventLog := "el"
 		offset := int64(1)
 		Convey("get offset is empty", func() {
-			m.RemoveRegisterSubscription(nil, subId)
-			offsets, _ := m.GetOffset(nil, subId)
+			m.RemoveRegisterSubscription(ctx, subId)
+			offsets, _ := m.GetOffset(ctx, subId)
 			So(len(offsets), ShouldEqual, 0)
 		})
 
 		Convey("get offset", func() {
-			m.RemoveRegisterSubscription(nil, subId)
-			storage.CreateOffset(nil, subId, info.OffsetInfo{
+			m.RemoveRegisterSubscription(ctx, subId)
+			storage.CreateOffset(ctx, subId, info.OffsetInfo{
 				EventLogId: eventLog,
 				Offset:     offset,
 			})
-			offsets, _ := m.GetOffset(nil, subId)
+			offsets, _ := m.GetOffset(ctx, subId)
 			So(len(offsets), ShouldEqual, 1)
 			So(offsets[0].Offset, ShouldEqual, offset)
 
 		})
 
 		Convey("offset", func() {
-			m.RemoveRegisterSubscription(nil, subId)
-			m.Offset(nil, info.SubscriptionInfo{
+			m.RemoveRegisterSubscription(ctx, subId)
+			m.Offset(ctx, info.SubscriptionInfo{
 				SubId:   subId,
 				Offsets: []info.OffsetInfo{{EventLogId: eventLog, Offset: offset}},
 			})
-			offsets, _ := m.GetOffset(nil, subId)
+			offsets, _ := m.GetOffset(ctx, subId)
 			So(len(offsets), ShouldEqual, 1)
 			So(offsets[0].Offset, ShouldEqual, offset)
 		})
 
 		Convey("commit", func() {
-			m.RemoveRegisterSubscription(nil, subId)
-			m.Offset(nil, info.SubscriptionInfo{
+			m.RemoveRegisterSubscription(ctx, subId)
+			m.Offset(ctx, info.SubscriptionInfo{
 				SubId:   subId,
 				Offsets: []info.OffsetInfo{{EventLogId: eventLog, Offset: offset}},
 			})
-			offsets, _ := m.GetOffset(nil, subId)
+			offsets, _ := m.GetOffset(ctx, subId)
 			So(len(offsets), ShouldEqual, 1)
 			So(offsets[0].Offset, ShouldEqual, offset)
-			m.Run()
-
+			m.Start()
 			m.Stop()
 		})
 	})
 }
 
-func TestManager_Start(t *testing.T) {
+func TestStart(t *testing.T) {
+	ctx := context.Background()
 	storage := storage.NewFakeStorage()
 	m := NewOffsetManager(storage)
 	Convey("commit", t, func() {
@@ -83,18 +84,18 @@ func TestManager_Start(t *testing.T) {
 		eventLog := "el"
 		offset := int64(1)
 		Convey("commit", func() {
-			m.Offset(nil, info.SubscriptionInfo{
+			m.Offset(ctx, info.SubscriptionInfo{
 				SubId:   subId,
 				Offsets: []info.OffsetInfo{{EventLogId: eventLog, Offset: offset}},
 			})
-			offsets, _ := m.GetOffset(nil, subId)
+			offsets, _ := m.GetOffset(ctx, subId)
 			So(len(offsets), ShouldEqual, 1)
 			So(offsets[0].Offset, ShouldEqual, offset)
-			offsets, _ = storage.GetOffsets(nil, subId)
+			offsets, _ = storage.GetOffsets(ctx, subId)
 			So(len(offsets), ShouldEqual, 0)
-			m.Run()
+			m.Start()
 			time.Sleep(time.Second)
-			offsets, _ = storage.GetOffsets(nil, subId)
+			offsets, _ = storage.GetOffsets(ctx, subId)
 			So(len(offsets), ShouldEqual, 1)
 			So(offsets[0].Offset, ShouldEqual, offset)
 			m.Stop()

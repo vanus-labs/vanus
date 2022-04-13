@@ -21,9 +21,6 @@ import (
 type Config struct {
 	//grpc server config
 	Port int `yaml:"port"`
-	//start trigger control wait time for trigger heartbeat ,then trigger controller can collect running trigger worker
-	//unit second
-	WaitTriggerTime int `yaml:"waitTriggerTime"`
 	// etcd storage config
 	Storage primitive.KvStorageConfig `yaml:"storage"`
 }

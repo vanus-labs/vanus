@@ -21,7 +21,7 @@ import (
 	"testing"
 )
 
-func TestTriggerWorker_ReportSubId(t *testing.T) {
+func TestReportSubId(t *testing.T) {
 	tWorker := NewTriggerWorker(info.NewTriggerWorkerInfo("test"))
 	map1 := map[string]struct{}{
 		"a": {}, "b": {},
@@ -37,7 +37,7 @@ func TestTriggerWorker_ReportSubId(t *testing.T) {
 	})
 }
 
-func TestTriggerWorker_AssignSubId(t *testing.T) {
+func TestAssignSubId(t *testing.T) {
 	tWorker := NewTriggerWorker(info.NewTriggerWorkerInfo("test"))
 	subIds := []string{"sub1", "sub2"}
 	for _, subId := range subIds {
