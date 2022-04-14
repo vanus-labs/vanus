@@ -20,14 +20,15 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"path"
 )
 
 type SubscriptionStorage interface {
 	CreateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error
 	UpdateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error
-	DeleteSubscription(ctx context.Context, subId string) error
-	GetSubscription(ctx context.Context, subId string) (*primitive.SubscriptionApi, error)
+	DeleteSubscription(ctx context.Context, subId vanus.ID) error
+	GetSubscription(ctx context.Context, subId vanus.ID) (*primitive.SubscriptionApi, error)
 	ListSubscription(ctx context.Context) ([]*primitive.SubscriptionApi, error)
 }
 
@@ -45,8 +46,8 @@ func (s *subscriptionStorage) Close() error {
 	return s.client.Close()
 }
 
-func (s *subscriptionStorage) getKey(id string) string {
-	return path.Join(primitive.StorageSubscription.String(), id)
+func (s *subscriptionStorage) getKey(subID vanus.ID) string {
+	return path.Join(primitive.StorageSubscription.String(), subID.String())
 }
 
 func (s *subscriptionStorage) CreateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error {
@@ -73,11 +74,11 @@ func (s *subscriptionStorage) UpdateSubscription(ctx context.Context, sub *primi
 	return nil
 }
 
-func (s *subscriptionStorage) DeleteSubscription(ctx context.Context, subId string) error {
+func (s *subscriptionStorage) DeleteSubscription(ctx context.Context, subId vanus.ID) error {
 	return s.client.Delete(ctx, s.getKey(subId))
 }
 
-func (s *subscriptionStorage) GetSubscription(ctx context.Context, subId string) (*primitive.SubscriptionApi, error) {
+func (s *subscriptionStorage) GetSubscription(ctx context.Context, subId vanus.ID) (*primitive.SubscriptionApi, error) {
 	v, err := s.client.Get(ctx, s.getKey(subId))
 	if err != nil {
 		return nil, err
@@ -91,7 +92,7 @@ func (s *subscriptionStorage) GetSubscription(ctx context.Context, subId string)
 }
 
 func (s *subscriptionStorage) ListSubscription(ctx context.Context) ([]*primitive.SubscriptionApi, error) {
-	l, err := s.client.List(ctx, s.getKey("/"))
+	l, err := s.client.List(ctx, primitive.StorageSubscription.String())
 	if err != nil {
 		return nil, err
 	}

@@ -16,6 +16,8 @@ package primitive
 
 import (
 	"github.com/linkall-labs/vanus/internal/primitive/info"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"time"
 )
 
 type URI string
@@ -23,15 +25,15 @@ type URI string
 type SubscriptionPhase string
 
 const (
-	SubscriptionPhaseCreated  = "created"
-	SubscriptionPhasePending  = "pending"
-	SubscriptionPhaseRunning  = "running"
-	SubscriptionPhasePause    = "pause"
-	SubscriptionPhaseToDelete = "toDelete"
+	SubscriptionPhaseCreated   = "created"
+	SubscriptionPhasePending   = "pending"
+	SubscriptionPhaseScheduled = "scheduled"
+	SubscriptionPhaseRunning   = "running"
+	SubscriptionPhaseToDelete  = "toDelete"
 )
 
 type SubscriptionApi struct {
-	ID               string                `json:"id"`
+	ID               vanus.ID              `json:"id"`
 	Source           string                `json:"source,omitempty"`
 	Types            []string              `json:"types,omitempty"`
 	Config           map[string]string     `json:"config,omitempty"`
@@ -42,10 +44,11 @@ type SubscriptionApi struct {
 	EventBus         string                `json:"eventBus"`
 	Phase            SubscriptionPhase     `json:"phase"`
 	TriggerWorker    string                `json:"triggerWorker"`
+	HeartbeatTime    time.Time             `json:"-"`
 }
 
 type Subscription struct {
-	ID       string                `json:"id"`
+	ID       vanus.ID              `json:"id"`
 	Filters  []*SubscriptionFilter `json:"filters,omitempty"`
 	Sink     URI                   `json:"sink,omitempty"`
 	EventBus string                `json:"eventBus"`

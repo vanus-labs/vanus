@@ -26,9 +26,9 @@ func (s StorageKeyPrefix) String() string {
 }
 
 const (
-	StorageOffset        StorageKeyPrefix = "offsets"
-	StorageSubscription  StorageKeyPrefix = "subscriptions"
-	StorageTriggerWorker StorageKeyPrefix = "triggerWorkers"
+	StorageOffset        StorageKeyPrefix = "/trigger/offsets/"
+	StorageSubscription  StorageKeyPrefix = "/trigger/subscriptions/"
+	StorageTriggerWorker StorageKeyPrefix = "/trigger/triggerWorkers/"
 )
 
 type KvStorageConfig struct {

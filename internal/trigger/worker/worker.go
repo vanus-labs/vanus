@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
@@ -37,11 +38,11 @@ import (
 )
 
 var (
-	defaultEbVRN = "vanus+local:eventbus:example"
+	defaultEbVRN = "vanus+local:eventbus:1"
 )
 
 type Worker struct {
-	subscriptions map[string]*subscriptionWorker
+	subscriptions map[vanus.ID]*subscriptionWorker
 	offsetManager *offset.Manager
 	lock          sync.RWMutex
 	wg            sync.WaitGroup
@@ -63,9 +64,9 @@ func NewSubWorker(sub *primitive.Subscription, subOffset *offset.SubscriptionOff
 		events: make(chan info.EventOffset, 2048),
 		sub:    sub,
 	}
-	offset := make(map[string]int64)
+	offset := make(map[vanus.ID]uint64)
 	for _, o := range sub.Offsets {
-		offset[o.EventLogId] = o.Offset
+		offset[o.EventLogID] = o.Offset
 	}
 	w.reader = reader.NewReader(getReaderConfig(sub), offset, w.events)
 	triggerConf := &trigger.Config{}
@@ -92,7 +93,7 @@ func (w *subscriptionWorker) Run(ctx context.Context) error {
 
 func NewWorker() *Worker {
 	w := &Worker{
-		subscriptions: map[string]*subscriptionWorker{},
+		subscriptions: map[vanus.ID]*subscriptionWorker{},
 		offsetManager: offset.NewOffsetManager(),
 	}
 	w.ctx, w.stop = context.WithCancel(context.Background())
@@ -112,7 +113,7 @@ func (w *Worker) Stop() error {
 	var wg sync.WaitGroup
 	for id := range w.subscriptions {
 		wg.Add(1)
-		go func(id string) {
+		go func(id vanus.ID) {
 			defer wg.Done()
 			w.stopSub(id)
 			w.cleanSub(id)
@@ -123,7 +124,7 @@ func (w *Worker) Stop() error {
 	return nil
 }
 
-func (w *Worker) stopSub(id string) {
+func (w *Worker) stopSub(id vanus.ID) {
 	if info, exist := w.subscriptions[id]; exist {
 		log.Info(w.ctx, "worker begin stop subscription", map[string]interface{}{
 			"subId": id,
@@ -138,7 +139,7 @@ func (w *Worker) stopSub(id string) {
 	}
 }
 
-func (w *Worker) cleanSub(id string) {
+func (w *Worker) cleanSub(id vanus.ID) {
 	//wait offset commit or timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -170,8 +171,8 @@ func (w *Worker) ListSubInfos() ([]pInfo.SubscriptionInfo, func()) {
 			continue
 		}
 		list = append(list, pInfo.SubscriptionInfo{
-			SubId:   id,
-			Offsets: subOffset.GetCommit(),
+			SubscriptionID: id,
+			Offsets:        subOffset.GetCommit(),
 		})
 	}
 	return list, func() {
@@ -196,14 +197,14 @@ func (w *Worker) AddSubscription(sub *primitive.Subscription) error {
 	return nil
 }
 
-func (w *Worker) PauseSubscription(id string) error {
+func (w *Worker) PauseSubscription(id vanus.ID) error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 	w.stopSub(id)
 	return nil
 }
 
-func (w *Worker) RemoveSubscription(id string) error {
+func (w *Worker) RemoveSubscription(id vanus.ID) error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 	if _, exist := w.subscriptions[id]; !exist {
@@ -226,13 +227,18 @@ func getReaderConfig(sub *primitive.Subscription) reader.Config {
 }
 
 func testSend() {
-	ebVRN := "vanus+local:eventbus:example"
-	elVRN := "vanus+inmemory:eventlog:1"
+	ebVRN := "vanus+local:///eventbus/1"
+	elVRN := "vanus+inmemory:///eventlog/1?eventbus=1&keepalive=true"
+	elVRN2 := "vanus+inmemory:///eventlog/2?eventbus=1&keepalive=true"
 	br := &record.EventBus{
 		VRN: ebVRN,
 		Logs: []*record.EventLog{
 			{
 				VRN:  elVRN,
+				Mode: record.PremWrite | record.PremRead,
+			},
+			{
+				VRN:  elVRN2,
 				Mode: record.PremWrite | record.PremRead,
 			},
 		},

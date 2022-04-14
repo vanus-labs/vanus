@@ -18,15 +18,16 @@ import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	"sync"
 	"time"
 )
 
 type Manager interface {
-	GetOffset(ctx context.Context, subId string) (info.ListOffsetInfo, error)
-	Offset(ctx context.Context, subInfo info.SubscriptionInfo) error
-	RemoveRegisterSubscription(ctx context.Context, subId string) error
+	GetOffset(ctx context.Context, subId vanus.ID) (info.ListOffsetInfo, error)
+	Offset(ctx context.Context, subId vanus.ID, offsets info.ListOffsetInfo) error
+	RemoveRegisterSubscription(ctx context.Context, subId vanus.ID) error
 	Start()
 	Stop()
 }
@@ -46,7 +47,7 @@ func NewOffsetManager(storage storage.OffsetStorage) Manager {
 	return m
 }
 
-func (m *manager) GetOffset(ctx context.Context, subId string) (info.ListOffsetInfo, error) {
+func (m *manager) GetOffset(ctx context.Context, subId vanus.ID) (info.ListOffsetInfo, error) {
 	subOffset, err := m.getSubscriptionOffset(ctx, subId)
 	if err != nil {
 		return nil, err
@@ -54,16 +55,16 @@ func (m *manager) GetOffset(ctx context.Context, subId string) (info.ListOffsetI
 	return subOffset.getOffsets(), nil
 }
 
-func (m *manager) Offset(ctx context.Context, subInfo info.SubscriptionInfo) error {
-	subOffset, err := m.getSubscriptionOffset(ctx, subInfo.SubId)
+func (m *manager) Offset(ctx context.Context, subId vanus.ID, offsets info.ListOffsetInfo) error {
+	subOffset, err := m.getSubscriptionOffset(ctx, subId)
 	if err != nil {
 		return err
 	}
-	subOffset.offset(subInfo.Offsets)
+	subOffset.offset(offsets)
 	return nil
 }
 
-func (m *manager) getSubscriptionOffset(ctx context.Context, subId string) (*subscriptionOffset, error) {
+func (m *manager) getSubscriptionOffset(ctx context.Context, subId vanus.ID) (*subscriptionOffset, error) {
 	subOffset, exist := m.subOffset.Load(subId)
 	if !exist {
 		sub, err := m.initSubscriptionOffset(ctx, subId)
@@ -75,7 +76,7 @@ func (m *manager) getSubscriptionOffset(ctx context.Context, subId string) (*sub
 	return subOffset.(*subscriptionOffset), nil
 }
 
-func (m *manager) initSubscriptionOffset(ctx context.Context, subId string) (*subscriptionOffset, error) {
+func (m *manager) initSubscriptionOffset(ctx context.Context, subId vanus.ID) (*subscriptionOffset, error) {
 	list, err := m.storage.GetOffsets(ctx, subId)
 	if err != nil {
 		return nil, err
@@ -84,9 +85,9 @@ func (m *manager) initSubscriptionOffset(ctx context.Context, subId string) (*su
 		subId: subId,
 	}
 	for _, o := range list {
-		subOffset.offsets.Store(o.EventLogId, &eventLogOffset{
+		subOffset.offsets.Store(o.EventLogID, &eventLogOffset{
 			subId:      subId,
-			eventLog:   o.EventLogId,
+			eventLog:   o.EventLogID,
 			offset:     o.Offset,
 			commit:     o.Offset,
 			checkExist: true,
@@ -95,7 +96,7 @@ func (m *manager) initSubscriptionOffset(ctx context.Context, subId string) (*su
 	return subOffset, nil
 }
 
-func (m *manager) RemoveRegisterSubscription(ctx context.Context, subId string) error {
+func (m *manager) RemoveRegisterSubscription(ctx context.Context, subId vanus.ID) error {
 	m.subOffset.Delete(subId)
 	return m.storage.DeleteOffset(ctx, subId)
 }
@@ -137,19 +138,19 @@ func (m *manager) commit(ctx context.Context) {
 }
 
 type subscriptionOffset struct {
-	subId   string
+	subId   vanus.ID
 	offsets sync.Map
 }
 
 func (o *subscriptionOffset) getSetEventLogOffset(info info.OffsetInfo) *eventLogOffset {
-	elOffset, exist := o.offsets.Load(info.EventLogId)
+	elOffset, exist := o.offsets.Load(info.EventLogID)
 	if !exist {
 		elOffset = &eventLogOffset{
 			subId:    o.subId,
-			eventLog: info.EventLogId,
+			eventLog: info.EventLogID,
 			offset:   info.Offset,
 		}
-		elOffset, _ = o.offsets.LoadOrStore(info.EventLogId, elOffset)
+		elOffset, _ = o.offsets.LoadOrStore(info.EventLogID, elOffset)
 	}
 	return elOffset.(*eventLogOffset)
 }
@@ -166,7 +167,7 @@ func (o *subscriptionOffset) getOffsets() info.ListOffsetInfo {
 	o.offsets.Range(func(key, value interface{}) bool {
 		elOffset := value.(*eventLogOffset)
 		offsets = append(offsets, info.OffsetInfo{
-			EventLogId: elOffset.eventLog,
+			EventLogID: elOffset.eventLog,
 			Offset:     elOffset.offset,
 		})
 		return true
@@ -191,14 +192,14 @@ func (o *subscriptionOffset) commitOffset(ctx context.Context, storage storage.O
 }
 
 type eventLogOffset struct {
-	subId      string
-	eventLog   string
-	offset     int64
-	commit     int64
+	subId      vanus.ID
+	eventLog   vanus.ID
+	offset     uint64
+	commit     uint64
 	checkExist bool
 }
 
-func (o *eventLogOffset) setOffset(offset int64) {
+func (o *eventLogOffset) setOffset(offset uint64) {
 	o.offset = offset
 }
 
@@ -206,7 +207,7 @@ func (o *eventLogOffset) commitOffset(ctx context.Context, storage storage.Offse
 	offset := o.offset
 	if !o.checkExist {
 		err := storage.CreateOffset(ctx, o.subId, info.OffsetInfo{
-			EventLogId: o.eventLog,
+			EventLogID: o.eventLog,
 			Offset:     offset,
 		})
 		if err != nil {
@@ -225,7 +226,7 @@ func (o *eventLogOffset) commitOffset(ctx context.Context, storage storage.Offse
 		return nil
 	}
 	err := storage.UpdateOffset(ctx, o.subId, info.OffsetInfo{
-		EventLogId: o.eventLog,
+		EventLogID: o.eventLog,
 		Offset:     offset,
 	})
 	if err != nil {

@@ -17,11 +17,12 @@ package worker
 
 import (
 	"context"
+	"fmt"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
-	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"sync"
@@ -35,18 +36,23 @@ const (
 )
 
 type Manager interface {
-	AssignSubscription(ctx context.Context, twInfo info.TriggerWorkerInfo, subId string) error
-	UnAssignSubscription(ctx context.Context, addr string, subId string) error
+	AssignSubscription(ctx context.Context, tWorker *TriggerWorker, subId vanus.ID)
+	UnAssignSubscription(ctx context.Context, addr string, subId vanus.ID) error
 	AddTriggerWorker(ctx context.Context, addr string) error
+	GetTriggerWorker(ctx context.Context, addr string) *TriggerWorker
 	RemoveTriggerWorker(ctx context.Context, addr string)
-	UpdateTriggerWorkerInfo(ctx context.Context, addr string, subIds map[string]struct{}) bool
+	UpdateTriggerWorkerInfo(ctx context.Context, addr string, subIds map[vanus.ID]struct{}) error
 	GetRunningTriggerWorker() []info.TriggerWorkerInfo
 	Init(ctx context.Context) error
 	Start()
 	Stop()
 }
 
-type OnTriggerWorkerRemoveSubscription func(ctx context.Context, subId, addr string) error
+var (
+	ErrTriggerWorkerNotFound = fmt.Errorf("trigger worker not found")
+)
+
+type OnTriggerWorkerRemoveSubscription func(ctx context.Context, subId vanus.ID, addr string) error
 
 type manager struct {
 	triggerWorkers       map[string]*TriggerWorker
@@ -69,42 +75,44 @@ func NewTriggerWorkerManager(storage storage.TriggerWorkerStorage, subscriptionM
 	return m
 }
 
-func (m *manager) AssignSubscription(ctx context.Context, twInfo info.TriggerWorkerInfo, subId string) error {
-	tWorker := m.getTriggerWorker(twInfo.Addr)
-	if tWorker == nil || tWorker.Info.Phase != info.TriggerWorkerPhaseRunning {
-		return errors.ErrResourceNotFound
+func (m *manager) AssignSubscription(ctx context.Context, tWorker *TriggerWorker, subId vanus.ID) {
+	tWorker.AddAssignSub(subId)
+	log.Info(ctx, "trigger worker assign a subscription", map[string]interface{}{
+		log.KeyTriggerWorkerAddr: tWorker.Info.Addr,
+		log.KeySubscriptionID:    subId,
+		"subIds":                 tWorker.GetAssignSubIds(),
+	})
+	err := m.startSubscription(ctx, tWorker, subId)
+	if err != nil {
+		//wait check start again
+		log.Warning(ctx, "assign subscription but start subscription error", map[string]interface{}{
+			log.KeyError:             err,
+			log.KeyTriggerWorkerAddr: tWorker.Info.Addr,
+			log.KeySubscriptionID:    subId,
+		})
+	} else {
+		log.Info(ctx, "assign a subscription start subscription success", map[string]interface{}{
+			log.KeyTriggerWorkerAddr: tWorker.Info.Addr,
+			log.KeySubscriptionID:    subId,
+		})
 	}
-	subData := m.subscriptionManager.GetSubscription(ctx, subId)
-	if subData == nil {
-		return errors.ErrResourceNotFound
-	}
-	offsets, err := m.subscriptionManager.GetOffset(ctx, subId)
+}
+
+func (m *manager) startSubscription(ctx context.Context, tWorker *TriggerWorker, subId vanus.ID) error {
+	sub, err := m.subscriptionManager.GetSubscription(ctx, subId)
 	if err != nil {
 		return err
-	}
-	sub := &primitive.Subscription{
-		ID:       subData.ID,
-		Filters:  subData.Filters,
-		Sink:     subData.Sink,
-		EventBus: subData.EventBus,
-		Offsets:  offsets,
 	}
 	err = tWorker.AddSubscription(ctx, sub)
 	if err != nil {
 		return err
 	}
-	tWorker.AddAssignSub(sub.ID)
-	log.Info(ctx, "trigger worker add a subscription", map[string]interface{}{
-		log.KeyTriggerWorkerAddr: tWorker.Info.Addr,
-		log.KeySubscriptionID:    subId,
-		"subIds":                 tWorker.GetAssignSubIds(),
-	})
 	return nil
 }
 
-func (m *manager) UnAssignSubscription(ctx context.Context, addr string, subId string) error {
-	tWorker := m.getTriggerWorker(addr)
-	if tWorker == nil || tWorker.Info.Phase == info.TriggerWorkerPhasePaused {
+func (m *manager) UnAssignSubscription(ctx context.Context, addr string, subId vanus.ID) error {
+	tWorker := m.GetTriggerWorker(ctx, addr)
+	if tWorker == nil {
 		return nil
 	}
 	if tWorker.Info.Phase == info.TriggerWorkerPhaseRunning {
@@ -122,6 +130,16 @@ func (m *manager) UnAssignSubscription(ctx context.Context, addr string, subId s
 	return nil
 }
 
+func (m *manager) GetTriggerWorker(ctx context.Context, addr string) *TriggerWorker {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	tWorker, exist := m.triggerWorkers[addr]
+	if !exist || tWorker.Info.Phase == info.TriggerWorkerPhasePaused {
+		return nil
+	}
+	return tWorker
+}
+
 func (m *manager) AddTriggerWorker(ctx context.Context, addr string) error {
 	m.lock.Lock()
 	tWorker, exist := m.triggerWorkers[addr]
@@ -131,35 +149,23 @@ func (m *manager) AddTriggerWorker(ctx context.Context, addr string) error {
 		m.lock.Unlock()
 	} else {
 		m.lock.Unlock()
+		if tWorker.Info.Phase == info.TriggerWorkerPhasePaused {
+			//wait clean
+			return errors.ErrResourceAlreadyExist
+		}
 		log.Info(ctx, "repeat add trigger worker", map[string]interface{}{
 			log.KeyTriggerWorkerAddr: tWorker.Info.Addr,
 			"subIds":                 tWorker.GetAssignSubIds(),
 		})
-		if tWorker.Info.Phase == info.TriggerWorkerPhasePaused {
-			return errors.ErrResourceAlreadyExist
+		if tWorker.Info.Phase == info.TriggerWorkerPhasePending {
+			return nil
 		}
 		tWorker.ResetReportSubId()
-		tWorker.Info.Phase = info.TriggerWorkerPhasePending
 	}
 	err := m.storage.SaveTriggerWorker(ctx, *tWorker.Info)
 	if err != nil {
 		return err
 	}
-	go func(ctx context.Context) {
-		//wait trigger worker start
-		time.Sleep(2 * time.Second)
-		err := tWorker.Start(ctx)
-		if err != nil {
-			log.Warning(ctx, "trigger worker start error", map[string]interface{}{
-				log.KeyError:             err,
-				log.KeyTriggerWorkerAddr: tWorker.Info.Addr,
-			})
-		} else {
-			log.Info(ctx, "trigger worker start success", map[string]interface{}{
-				log.KeyTriggerWorkerAddr: tWorker.Info.Addr,
-			})
-		}
-	}(m.ctx)
 	log.Info(ctx, "add trigger worker", map[string]interface{}{
 		log.KeyTriggerWorkerAddr: tWorker.Info.Addr,
 	})
@@ -167,8 +173,8 @@ func (m *manager) AddTriggerWorker(ctx context.Context, addr string) error {
 }
 
 func (m *manager) RemoveTriggerWorker(ctx context.Context, addr string) {
-	tWorker := m.getTriggerWorker(addr)
-	if tWorker == nil || tWorker.Info.Phase == info.TriggerWorkerPhasePaused {
+	tWorker := m.GetTriggerWorker(ctx, addr)
+	if tWorker == nil {
 		log.Info(ctx, "remove trigger worker not exist or phase is paused", map[string]interface{}{
 			log.KeyTriggerWorkerAddr: addr,
 		})
@@ -186,33 +192,27 @@ func (m *manager) RemoveTriggerWorker(ctx context.Context, addr string) {
 	m.cleanTriggerWorker(ctx, tWorker)
 }
 
-func (m *manager) UpdateTriggerWorkerInfo(ctx context.Context, addr string, subIds map[string]struct{}) bool {
-	tWorker := m.getTriggerWorker(addr)
-	if tWorker == nil || tWorker.Info.Phase == info.TriggerWorkerPhasePaused {
-		return false
+func (m *manager) UpdateTriggerWorkerInfo(ctx context.Context, addr string, subIds map[vanus.ID]struct{}) error {
+	tWorker := m.GetTriggerWorker(ctx, addr)
+	if tWorker == nil {
+		return ErrTriggerWorkerNotFound
 	}
-	phase := tWorker.Info.Phase
-	if phase != info.TriggerWorkerPhaseRunning {
+	if tWorker.Info.Phase != info.TriggerWorkerPhaseRunning {
 		tWorker.Info.Phase = info.TriggerWorkerPhaseRunning
 		err := m.storage.SaveTriggerWorker(ctx, *tWorker.Info)
 		if err != nil {
-			log.Warning(ctx, "save trigger worker phase to running error", map[string]interface{}{
-				log.KeyError: err,
-				"phase":      phase,
+			log.Warning(ctx, "storage save trigger worker phase to running error", map[string]interface{}{
+				log.KeyError:             err,
+				log.KeyTriggerWorkerAddr: addr,
 			})
-			//save fail then modify memory to original,then last will save too
-			tWorker.Info.Phase = phase
 		} else {
 			log.Info(ctx, "trigger worker phase to running", map[string]interface{}{
 				log.KeyTriggerWorkerAddr: tWorker.Info.Addr,
 			})
 		}
-	} else {
-		tWorker.Info.HeartbeatPeriod = time.Now().Sub(tWorker.Info.HeartbeatTime)
 	}
-	tWorker.Info.HeartbeatTime = time.Now()
 	tWorker.SetReportSubId(subIds)
-	return true
+	return nil
 }
 
 func (m *manager) cleanTriggerWorker(ctx context.Context, tWorker *TriggerWorker) {
@@ -226,7 +226,7 @@ func (m *manager) cleanTriggerWorker(ctx context.Context, tWorker *TriggerWorker
 	}
 	err := m.storage.DeleteTriggerWorker(ctx, tWorker.Info.Id)
 	if err != nil {
-		log.Warning(ctx, "delete trigger worker error", map[string]interface{}{
+		log.Warning(ctx, "storage delete trigger worker error", map[string]interface{}{
 			log.KeyError:             err,
 			log.KeyTriggerWorkerAddr: tWorker.Info.Addr,
 		})
@@ -274,20 +274,14 @@ func (m *manager) GetRunningTriggerWorker() []info.TriggerWorkerInfo {
 	return runningTriggerWorker
 }
 
-func (m *manager) getTriggerWorkers() map[string]*TriggerWorker {
+func (m *manager) getTriggerWorkers() []*TriggerWorker {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	return m.triggerWorkers
-}
-
-func (m *manager) getTriggerWorker(addr string) *TriggerWorker {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	tWorker, exist := m.triggerWorkers[addr]
-	if !exist {
-		return nil
+	var tWorkers []*TriggerWorker
+	for _, tWorker := range m.triggerWorkers {
+		tWorkers = append(tWorkers, tWorker)
 	}
-	return tWorker
+	return tWorkers
 }
 
 func (m *manager) deleteTriggerWorker(addr string) {
@@ -314,12 +308,6 @@ func (m *manager) Init(ctx context.Context) error {
 			tWorker, exist := m.triggerWorkers[subData.TriggerWorker]
 			if exist {
 				tWorker.AddAssignSub(subId)
-			} else {
-				//不应该出现这种情况
-				log.Error(ctx, "init trigger worker subscription no found trigger worker", map[string]interface{}{
-					log.KeySubscriptionID:    subId,
-					log.KeyTriggerWorkerAddr: subData.TriggerWorker,
-				})
 			}
 		}
 	}
@@ -369,28 +357,18 @@ func (m *manager) check(ctx context.Context) {
 func (m *manager) pendingTriggerWorkerHandler(ctx context.Context, tWorker *TriggerWorker) {
 	now := time.Now()
 	twInfo := tWorker.Info
-	if now.Sub(twInfo.HeartbeatTime) > defaultHeartbeatTimeout {
+	if now.Sub(twInfo.HeartbeatTime) > 60*time.Second {
 		twInfo.Phase = info.TriggerWorkerPhasePaused
-		err := m.storage.SaveTriggerWorker(ctx, *twInfo)
-		if err != nil {
-			log.Warning(ctx, "pending trigger worker heartbeat timeout save error", map[string]interface{}{
-				log.KeyError:    err,
-				"triggerWorker": twInfo,
-			})
-		} else {
-			log.Info(ctx, "pending trigger worker heartbeat timeout", map[string]interface{}{
-				"triggerWorker": twInfo,
-			})
-		}
+		log.Info(ctx, "pending trigger worker heartbeat timeout change phase to paused", map[string]interface{}{
+			"triggerWorker": twInfo,
+		})
+		m.cleanTriggerWorker(ctx, tWorker)
 	} else {
-		if now.Sub(twInfo.HeartbeatTime) < 30*time.Second {
-			return
-		}
 		err := tWorker.Start(ctx)
 		if err != nil {
 			log.Warning(ctx, "trigger worker start error", map[string]interface{}{
 				log.KeyError:             err,
-				log.KeyTriggerWorkerAddr: twInfo.Addr,
+				log.KeyTriggerWorkerAddr: tWorker.Info.Addr,
 			})
 		} else {
 			log.Info(ctx, "trigger worker start success", map[string]interface{}{
@@ -421,15 +399,32 @@ func (m *manager) runningTriggerWorkerHandler(ctx context.Context, tWorker *Trig
 		return
 	}
 	reportSubIds := tWorker.GetReportSubId()
+	for subId := range reportSubIds {
+		m.subscriptionManager.Heartbeat(ctx, subId, twInfo.Addr)
+	}
 	subIds := tWorker.GetAssignSubIds()
 	for subId, t := range subIds {
-		if _, exist := reportSubIds[subId]; !exist && twInfo.HeartbeatTime.Sub(t) > 2*twInfo.HeartbeatPeriod {
-			//trigger worker need but report is no,need add
-			err := m.AssignSubscription(ctx, *tWorker.Info, subId)
+		if _, exist := reportSubIds[subId]; !exist && twInfo.HeartbeatTime.Sub(t) > 30*time.Second {
+			//trigger worker assign but report is no, need start
+			err := m.startSubscription(ctx, tWorker, subId)
 			if err != nil {
-				log.Warning(ctx, "compare trigger worker subscription add subscription error", map[string]interface{}{
-					log.KeyError:          err,
-					log.KeySubscriptionID: subId,
+				if err == subscription.ErrSubscriptionNotExist {
+					log.Info(ctx, "check trigger worker assign subscription not exist,remove assign subscription", map[string]interface{}{
+						log.KeyTriggerWorkerAddr: twInfo.Addr,
+						log.KeySubscriptionID:    subId,
+					})
+					tWorker.RemoveAssignSub(subId)
+					continue
+				}
+				log.Warning(ctx, "check trigger worker start subscription error", map[string]interface{}{
+					log.KeyError:             err,
+					log.KeyTriggerWorkerAddr: twInfo.Addr,
+					log.KeySubscriptionID:    subId,
+				})
+			} else {
+				log.Info(ctx, "check trigger worker start subscription success", map[string]interface{}{
+					log.KeyTriggerWorkerAddr: twInfo.Addr,
+					log.KeySubscriptionID:    subId,
 				})
 			}
 		}

@@ -10,6 +10,8 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	info "github.com/linkall-labs/vanus/internal/controller/trigger/info"
+	worker "github.com/linkall-labs/vanus/internal/controller/trigger/worker"
+	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
 // MockManager is a mock of Manager interface.
@@ -50,17 +52,15 @@ func (mr *MockManagerMockRecorder) AddTriggerWorker(ctx, addr interface{}) *gomo
 }
 
 // AssignSubscription mocks base method.
-func (m *MockManager) AssignSubscription(ctx context.Context, twInfo info.TriggerWorkerInfo, subId string) error {
+func (m *MockManager) AssignSubscription(ctx context.Context, tWorker *worker.TriggerWorker, subId vanus.ID) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AssignSubscription", ctx, twInfo, subId)
-	ret0, _ := ret[0].(error)
-	return ret0
+	m.ctrl.Call(m, "AssignSubscription", ctx, tWorker, subId)
 }
 
 // AssignSubscription indicates an expected call of AssignSubscription.
-func (mr *MockManagerMockRecorder) AssignSubscription(ctx, twInfo, subId interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) AssignSubscription(ctx, tWorker, subId interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssignSubscription", reflect.TypeOf((*MockManager)(nil).AssignSubscription), ctx, twInfo, subId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssignSubscription", reflect.TypeOf((*MockManager)(nil).AssignSubscription), ctx, tWorker, subId)
 }
 
 // GetRunningTriggerWorker mocks base method.
@@ -75,6 +75,20 @@ func (m *MockManager) GetRunningTriggerWorker() []info.TriggerWorkerInfo {
 func (mr *MockManagerMockRecorder) GetRunningTriggerWorker() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRunningTriggerWorker", reflect.TypeOf((*MockManager)(nil).GetRunningTriggerWorker))
+}
+
+// GetTriggerWorker mocks base method.
+func (m *MockManager) GetTriggerWorker(ctx context.Context, addr string) *worker.TriggerWorker {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTriggerWorker", ctx, addr)
+	ret0, _ := ret[0].(*worker.TriggerWorker)
+	return ret0
+}
+
+// GetTriggerWorker indicates an expected call of GetTriggerWorker.
+func (mr *MockManagerMockRecorder) GetTriggerWorker(ctx, addr interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTriggerWorker", reflect.TypeOf((*MockManager)(nil).GetTriggerWorker), ctx, addr)
 }
 
 // Init mocks base method.
@@ -128,7 +142,7 @@ func (mr *MockManagerMockRecorder) Stop() *gomock.Call {
 }
 
 // UnAssignSubscription mocks base method.
-func (m *MockManager) UnAssignSubscription(ctx context.Context, addr, subId string) error {
+func (m *MockManager) UnAssignSubscription(ctx context.Context, addr string, subId vanus.ID) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UnAssignSubscription", ctx, addr, subId)
 	ret0, _ := ret[0].(error)
@@ -142,10 +156,10 @@ func (mr *MockManagerMockRecorder) UnAssignSubscription(ctx, addr, subId interfa
 }
 
 // UpdateTriggerWorkerInfo mocks base method.
-func (m *MockManager) UpdateTriggerWorkerInfo(ctx context.Context, addr string, subIds map[string]struct{}) bool {
+func (m *MockManager) UpdateTriggerWorkerInfo(ctx context.Context, addr string, subIds map[vanus.ID]struct{}) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateTriggerWorkerInfo", ctx, addr, subIds)
-	ret0, _ := ret[0].(bool)
+	ret0, _ := ret[0].(error)
 	return ret0
 }
 

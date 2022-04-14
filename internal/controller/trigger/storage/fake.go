@@ -20,18 +20,19 @@ import (
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
 type fake struct {
-	subs     map[string]*primitive.SubscriptionApi
-	offset   map[string]map[string]pInfo.OffsetInfo
+	subs     map[vanus.ID]*primitive.SubscriptionApi
+	offset   map[vanus.ID]map[vanus.ID]pInfo.OffsetInfo
 	tWorkers map[string]*info.TriggerWorkerInfo
 }
 
 func NewFakeStorage() Storage {
 	s := &fake{
-		subs:     map[string]*primitive.SubscriptionApi{},
-		offset:   map[string]map[string]pInfo.OffsetInfo{},
+		subs:     map[vanus.ID]*primitive.SubscriptionApi{},
+		offset:   map[vanus.ID]map[vanus.ID]pInfo.OffsetInfo{},
 		tWorkers: map[string]*info.TriggerWorkerInfo{},
 	}
 	return s
@@ -51,12 +52,12 @@ func (f *fake) UpdateSubscription(ctx context.Context, sub *primitive.Subscripti
 	return nil
 }
 
-func (f *fake) DeleteSubscription(ctx context.Context, id string) error {
+func (f *fake) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 	delete(f.subs, id)
 	return nil
 }
 
-func (f *fake) GetSubscription(ctx context.Context, id string) (*primitive.SubscriptionApi, error) {
+func (f *fake) GetSubscription(ctx context.Context, id vanus.ID) (*primitive.SubscriptionApi, error) {
 	return f.subs[id], nil
 }
 
@@ -68,24 +69,24 @@ func (f *fake) ListSubscription(ctx context.Context) ([]*primitive.SubscriptionA
 	return list, nil
 }
 
-func (f *fake) CreateOffset(ctx context.Context, subId string, info pInfo.OffsetInfo) error {
+func (f *fake) CreateOffset(ctx context.Context, subId vanus.ID, info pInfo.OffsetInfo) error {
 	sub, exist := f.offset[subId]
 	if !exist {
-		sub = map[string]pInfo.OffsetInfo{}
+		sub = map[vanus.ID]pInfo.OffsetInfo{}
 		f.offset[subId] = sub
 	}
-	sub[info.EventLogId] = info
+	sub[info.EventLogID] = info
 	return nil
 }
-func (f *fake) UpdateOffset(ctx context.Context, subId string, info pInfo.OffsetInfo) error {
+func (f *fake) UpdateOffset(ctx context.Context, subId vanus.ID, info pInfo.OffsetInfo) error {
 	sub, exist := f.offset[subId]
 	if !exist {
 		return kv.ErrorKeyNotFound
 	}
-	sub[info.EventLogId] = info
+	sub[info.EventLogID] = info
 	return nil
 }
-func (f *fake) GetOffsets(ctx context.Context, subId string) (pInfo.ListOffsetInfo, error) {
+func (f *fake) GetOffsets(ctx context.Context, subId vanus.ID) (pInfo.ListOffsetInfo, error) {
 	sub, exist := f.offset[subId]
 	if !exist {
 		return nil, nil
@@ -97,7 +98,7 @@ func (f *fake) GetOffsets(ctx context.Context, subId string) (pInfo.ListOffsetIn
 	return infos, nil
 }
 
-func (f *fake) DeleteOffset(ctx context.Context, subId string) error {
+func (f *fake) DeleteOffset(ctx context.Context, subId vanus.ID) error {
 	delete(f.offset, subId)
 	return nil
 }

@@ -17,8 +17,8 @@ package trigger
 import (
 	"context"
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/google/uuid"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/filter"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
@@ -41,8 +41,8 @@ const (
 )
 
 type Trigger struct {
-	ID             string        `json:"id"`
-	SubscriptionID string        `json:"subscription_id"`
+	ID             vanus.ID      `json:"id"`
+	SubscriptionID vanus.ID      `json:"subscription_id"`
 	Target         primitive.URI `json:"target"`
 	SleepDuration  time.Duration `json:"sleep_duration"`
 
@@ -68,7 +68,7 @@ func NewTrigger(config *Config, sub *primitive.Subscription, offsetManager *offs
 	config.initConfig()
 	return &Trigger{
 		config:         *config,
-		ID:             uuid.New().String(),
+		ID:             vanus.GenerateID(),
 		SubscriptionID: sub.ID,
 		Target:         sub.Sink,
 		SleepDuration:  30 * time.Second,

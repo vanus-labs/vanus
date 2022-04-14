@@ -17,6 +17,7 @@ package convert
 import (
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	ctrl "github.com/linkall-labs/vsproto/pkg/controller"
 	pb "github.com/linkall-labs/vsproto/pkg/meta"
 	pbtrigger "github.com/linkall-labs/vsproto/pkg/trigger"
@@ -40,10 +41,10 @@ func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *primitive.Su
 
 func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Subscription {
 	to := &primitive.Subscription{
-		ID:       sub.Id,
+		ID:       vanus.ID(sub.Id),
 		Sink:     primitive.URI(sub.Sink),
 		EventBus: sub.EventBus,
-		Offsets:  FromOffsetInfos(sub.Offsets...),
+		Offsets:  FromPbOffsetInfos(sub.Offsets),
 	}
 	if len(sub.Filters) != 0 {
 		to.Filters = fromPbFilters(sub.Filters)
@@ -53,10 +54,10 @@ func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Sub
 
 func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscriptionRequest {
 	to := &pbtrigger.AddSubscriptionRequest{
-		Id:       sub.ID,
+		Id:       uint64(sub.ID),
 		Sink:     string(sub.Sink),
 		EventBus: sub.EventBus,
-		Offsets:  ToOffsetInfos(sub.Offsets...),
+		Offsets:  ToPbOffsetInfos(sub.Offsets),
 	}
 	if len(sub.Filters) != 0 {
 		to.Filters = toPbFilters(sub.Filters)
@@ -66,7 +67,7 @@ func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscription
 
 func FromPbSubscription(sub *pb.Subscription) *primitive.SubscriptionApi {
 	to := &primitive.SubscriptionApi{
-		ID:               sub.Id,
+		ID:               vanus.ID(sub.Id),
 		Source:           sub.Source,
 		Types:            sub.Types,
 		Config:           sub.Config,
@@ -83,7 +84,7 @@ func FromPbSubscription(sub *pb.Subscription) *primitive.SubscriptionApi {
 
 func ToPbSubscription(sub *primitive.SubscriptionApi) *pb.Subscription {
 	to := &pb.Subscription{
-		Id:               sub.ID,
+		Id:               uint64(sub.ID),
 		Source:           sub.Source,
 		Types:            sub.Types,
 		Config:           sub.Config,
@@ -168,49 +169,41 @@ func toPbFilter(filter *primitive.SubscriptionFilter) *pb.Filter {
 	return nil
 }
 
-func FromPbSubscriptionInfo(sub *pb.SubscriptionInfo) *info.SubscriptionInfo {
-	to := &info.SubscriptionInfo{
-		SubId:   sub.SubscriptionId,
-		Offsets: FromOffsetInfos(sub.Offsets...),
-	}
-	return to
-}
-
-func FromOffsetInfos(offsets ...*pb.OffsetInfo) []info.OffsetInfo {
-	var to []info.OffsetInfo
+func FromPbOffsetInfos(offsets []*pb.OffsetInfo) info.ListOffsetInfo {
+	var to info.ListOffsetInfo
 	for _, offset := range offsets {
-		to = append(to, FromOffsetInfo(offset))
+		to = append(to, FromPbOffsetInfo(offset))
 	}
 	return to
 }
 
-func FromOffsetInfo(offset *pb.OffsetInfo) info.OffsetInfo {
+func FromPbOffsetInfo(offset *pb.OffsetInfo) info.OffsetInfo {
 	return info.OffsetInfo{
-		EventLogId: offset.EventLogId,
+		EventLogID: vanus.ID(offset.EventLogId),
 		Offset:     offset.Offset,
 	}
 }
 
 func ToPbSubscriptionInfo(sub info.SubscriptionInfo) *pb.SubscriptionInfo {
 	to := &pb.SubscriptionInfo{
-		SubscriptionId: sub.SubId,
-		Offsets:        ToOffsetInfos(sub.Offsets...),
+		SubscriptionId: uint64(sub.SubscriptionID),
+		Offsets:        ToPbOffsetInfos(sub.Offsets),
 	}
 
 	return to
 }
 
-func ToOffsetInfos(offsets ...info.OffsetInfo) []*pb.OffsetInfo {
+func ToPbOffsetInfos(offsets info.ListOffsetInfo) []*pb.OffsetInfo {
 	var to []*pb.OffsetInfo
 	for _, offset := range offsets {
-		to = append(to, ToOffsetInfo(offset))
+		to = append(to, ToPbOffsetInfo(offset))
 	}
 	return to
 }
 
-func ToOffsetInfo(offset info.OffsetInfo) *pb.OffsetInfo {
+func ToPbOffsetInfo(offset info.OffsetInfo) *pb.OffsetInfo {
 	return &pb.OffsetInfo{
-		EventLogId: offset.EventLogId,
+		EventLogId: uint64(offset.EventLogID),
 		Offset:     offset.Offset,
 	}
 }

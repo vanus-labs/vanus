@@ -12,18 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package info
+package vanus
 
-import "github.com/linkall-labs/vanus/internal/primitive/vanus"
+import (
+	"strconv"
+	"time"
+)
 
-type SubscriptionInfo struct {
-	SubscriptionID vanus.ID       `json:"subscriptionID"`
-	Offsets        ListOffsetInfo `json:"offsetInfos"`
+type ID uint64
+
+func StringToID(str string) (ID, error) {
+	id, err := strconv.ParseUint(str, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return ID(id), nil
 }
 
-type OffsetInfo struct {
-	EventLogID vanus.ID `json:"eventLogID"`
-	Offset     uint64   `json:"offset"`
+func (id ID) String() string {
+	return strconv.FormatUint(uint64(id), 10)
 }
 
-type ListOffsetInfo []OffsetInfo
+func GenerateID() ID {
+	return ID(time.Now().UnixNano())
+}

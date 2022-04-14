@@ -11,6 +11,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	primitive "github.com/linkall-labs/vanus/internal/primitive"
 	info "github.com/linkall-labs/vanus/internal/primitive/info"
+	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
 // MockManager is a mock of Manager interface.
@@ -51,7 +52,7 @@ func (mr *MockManagerMockRecorder) AddSubscription(ctx, sub interface{}) *gomock
 }
 
 // DeleteSubscription mocks base method.
-func (m *MockManager) DeleteSubscription(ctx context.Context, subId string) error {
+func (m *MockManager) DeleteSubscription(ctx context.Context, subId vanus.ID) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteSubscription", ctx, subId)
 	ret0, _ := ret[0].(error)
@@ -65,7 +66,7 @@ func (mr *MockManagerMockRecorder) DeleteSubscription(ctx, subId interface{}) *g
 }
 
 // GetOffset mocks base method.
-func (m *MockManager) GetOffset(ctx context.Context, subId string) (info.ListOffsetInfo, error) {
+func (m *MockManager) GetOffset(ctx context.Context, subId vanus.ID) (info.ListOffsetInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOffset", ctx, subId)
 	ret0, _ := ret[0].(info.ListOffsetInfo)
@@ -80,17 +81,46 @@ func (mr *MockManagerMockRecorder) GetOffset(ctx, subId interface{}) *gomock.Cal
 }
 
 // GetSubscription mocks base method.
-func (m *MockManager) GetSubscription(ctx context.Context, subId string) *primitive.SubscriptionApi {
+func (m *MockManager) GetSubscription(ctx context.Context, subId vanus.ID) (*primitive.Subscription, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSubscription", ctx, subId)
-	ret0, _ := ret[0].(*primitive.SubscriptionApi)
-	return ret0
+	ret0, _ := ret[0].(*primitive.Subscription)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetSubscription indicates an expected call of GetSubscription.
 func (mr *MockManagerMockRecorder) GetSubscription(ctx, subId interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscription", reflect.TypeOf((*MockManager)(nil).GetSubscription), ctx, subId)
+}
+
+// GetSubscriptionData mocks base method.
+func (m *MockManager) GetSubscriptionData(ctx context.Context, subId vanus.ID) *primitive.SubscriptionApi {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSubscriptionData", ctx, subId)
+	ret0, _ := ret[0].(*primitive.SubscriptionApi)
+	return ret0
+}
+
+// GetSubscriptionData indicates an expected call of GetSubscriptionData.
+func (mr *MockManagerMockRecorder) GetSubscriptionData(ctx, subId interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscriptionData", reflect.TypeOf((*MockManager)(nil).GetSubscriptionData), ctx, subId)
+}
+
+// Heartbeat mocks base method.
+func (m *MockManager) Heartbeat(ctx context.Context, subId vanus.ID, addr string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Heartbeat", ctx, subId, addr)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Heartbeat indicates an expected call of Heartbeat.
+func (mr *MockManagerMockRecorder) Heartbeat(ctx, subId, addr interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Heartbeat", reflect.TypeOf((*MockManager)(nil).Heartbeat), ctx, subId, addr)
 }
 
 // Init mocks base method.
@@ -108,10 +138,10 @@ func (mr *MockManagerMockRecorder) Init(ctx interface{}) *gomock.Call {
 }
 
 // ListSubscription mocks base method.
-func (m *MockManager) ListSubscription(ctx context.Context) map[string]*primitive.SubscriptionApi {
+func (m *MockManager) ListSubscription(ctx context.Context) map[vanus.ID]*primitive.SubscriptionApi {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListSubscription", ctx)
-	ret0, _ := ret[0].(map[string]*primitive.SubscriptionApi)
+	ret0, _ := ret[0].(map[vanus.ID]*primitive.SubscriptionApi)
 	return ret0
 }
 
@@ -122,17 +152,17 @@ func (mr *MockManagerMockRecorder) ListSubscription(ctx interface{}) *gomock.Cal
 }
 
 // Offset mocks base method.
-func (m *MockManager) Offset(ctx context.Context, subInfo info.SubscriptionInfo) error {
+func (m *MockManager) Offset(ctx context.Context, subId vanus.ID, offsets info.ListOffsetInfo) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Offset", ctx, subInfo)
+	ret := m.ctrl.Call(m, "Offset", ctx, subId, offsets)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Offset indicates an expected call of Offset.
-func (mr *MockManagerMockRecorder) Offset(ctx, subInfo interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) Offset(ctx, subId, offsets interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Offset", reflect.TypeOf((*MockManager)(nil).Offset), ctx, subInfo)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Offset", reflect.TypeOf((*MockManager)(nil).Offset), ctx, subId, offsets)
 }
 
 // Start mocks base method.

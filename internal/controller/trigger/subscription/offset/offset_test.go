@@ -40,7 +40,7 @@ func TestOffset(t *testing.T) {
 		Convey("get offset", func() {
 			m.RemoveRegisterSubscription(ctx, subId)
 			storage.CreateOffset(ctx, subId, info.OffsetInfo{
-				EventLogId: eventLog,
+				EventLogID: eventLog,
 				Offset:     offset,
 			})
 			offsets, _ := m.GetOffset(ctx, subId)
@@ -51,10 +51,7 @@ func TestOffset(t *testing.T) {
 
 		Convey("offset", func() {
 			m.RemoveRegisterSubscription(ctx, subId)
-			m.Offset(ctx, info.SubscriptionInfo{
-				SubId:   subId,
-				Offsets: []info.OffsetInfo{{EventLogId: eventLog, Offset: offset}},
-			})
+			m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLog, Offset: offset}})
 			offsets, _ := m.GetOffset(ctx, subId)
 			So(len(offsets), ShouldEqual, 1)
 			So(offsets[0].Offset, ShouldEqual, offset)
@@ -62,10 +59,7 @@ func TestOffset(t *testing.T) {
 
 		Convey("commit", func() {
 			m.RemoveRegisterSubscription(ctx, subId)
-			m.Offset(ctx, info.SubscriptionInfo{
-				SubId:   subId,
-				Offsets: []info.OffsetInfo{{EventLogId: eventLog, Offset: offset}},
-			})
+			m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLog, Offset: offset}})
 			offsets, _ := m.GetOffset(ctx, subId)
 			So(len(offsets), ShouldEqual, 1)
 			So(offsets[0].Offset, ShouldEqual, offset)
@@ -84,10 +78,7 @@ func TestStart(t *testing.T) {
 		eventLog := "el"
 		offset := int64(1)
 		Convey("commit", func() {
-			m.Offset(ctx, info.SubscriptionInfo{
-				SubId:   subId,
-				Offsets: []info.OffsetInfo{{EventLogId: eventLog, Offset: offset}},
-			})
+			m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLog, Offset: offset}})
 			offsets, _ := m.GetOffset(ctx, subId)
 			So(len(offsets), ShouldEqual, 1)
 			So(offsets[0].Offset, ShouldEqual, offset)

@@ -16,6 +16,7 @@ package info
 
 import (
 	"fmt"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/util"
 	"time"
 )
@@ -30,13 +31,12 @@ const (
 )
 
 type TriggerWorkerInfo struct {
-	Id              string               `json:"-"`
-	Addr            string               `json:"addr"`
-	Phase           TriggerWorkerPhase   `json:"phase"`
-	AssignSubIds    map[string]time.Time `json:"-"`
-	ReportSubIds    map[string]struct{}  `json:"-"`
-	HeartbeatTime   time.Time            `json:"-"`
-	HeartbeatPeriod time.Duration        `json:"-"`
+	Id            string                 `json:"-"`
+	Addr          string                 `json:"addr"`
+	Phase         TriggerWorkerPhase     `json:"phase"`
+	AssignSubIds  map[vanus.ID]time.Time `json:"-"`
+	ReportSubIds  map[vanus.ID]struct{}  `json:"-"`
+	HeartbeatTime time.Time              `json:"-"`
 }
 
 func NewTriggerWorkerInfo(addr string) *TriggerWorkerInfo {
@@ -51,9 +51,8 @@ func NewTriggerWorkerInfo(addr string) *TriggerWorkerInfo {
 
 func (tw *TriggerWorkerInfo) Init() {
 	tw.HeartbeatTime = time.Now()
-	tw.ReportSubIds = map[string]struct{}{}
-	tw.AssignSubIds = map[string]time.Time{}
-	tw.HeartbeatPeriod = 5 * time.Second
+	tw.ReportSubIds = map[vanus.ID]struct{}{}
+	tw.AssignSubIds = map[vanus.ID]time.Time{}
 }
 
 func (tw *TriggerWorkerInfo) String() string {

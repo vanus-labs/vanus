@@ -22,7 +22,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	subscriptiontest "github.com/linkall-labs/vanus/internal/controller/trigger/subscription/testing"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	iInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/util"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
@@ -58,7 +57,7 @@ func TestInit(t *testing.T) {
 		sub.ID: sub,
 	})
 	twManager := NewTriggerWorkerManager(storage, subManager, nil).(*manager)
-	Convey("test init", t, func() {
+	Convey("test Init", t, func() {
 		twManager.Init(ctx)
 		triggerWorkers := twManager.triggerWorkers
 		So(len(triggerWorkers), ShouldEqual, 1)
@@ -130,16 +129,16 @@ func TestAssignSubscription(t *testing.T) {
 	Convey("assign subscription", t, func() {
 		twManager.AddTriggerWorker(ctx, addr)
 		twManager.UpdateTriggerWorkerInfo(ctx, addr, map[string]struct{}{sub.ID: {}})
-		//triggerWorkers := twManager.triggerWorkers
-		//tWorker := triggerWorkers[addr]
+		tWorker := twManager.GetTriggerWorker(ctx, addr)
 		//f := tWorker.AddSubscription
 		//todo gostub support method?
 		//gostub.StubFunc(&f, nil)
-		subManager.EXPECT().GetSubscription(ctx, sub.ID).Return(sub)
-		subManager.EXPECT().GetOffset(ctx, sub.ID).Return(iInfo.ListOffsetInfo{}, nil)
-		twManager.AssignSubscription(ctx, *info.NewTriggerWorkerInfo(addr), sub.ID)
-		//So(err, ShouldBeNil)
-		//So(len(tWorker.GetAssignSubIds()), ShouldEqual, 1)
-		//So(tWorker.GetAssignSubIds(), ShouldContain, sub.ID)
+		subManager.EXPECT().GetSubscription(ctx, sub.ID).Return(&primitive.Subscription{
+			ID: sub.ID,
+		}, nil)
+		twManager.AssignSubscription(ctx, tWorker, sub.ID)
+		So(len(tWorker.GetAssignSubIds()), ShouldEqual, 1)
+		_, exist := tWorker.GetAssignSubIds()[sub.ID]
+		So(exist, ShouldBeTrue)
 	})
 }

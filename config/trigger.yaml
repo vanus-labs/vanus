@@ -1,5 +1,5 @@
 port: 2049
 waitTriggerTime: 10
 storage:
-  keyPrefix: "/xdl/trigger"
+  keyPrefix: "/xdl"
   serverList: [ "127.0.0.1:2379" ]

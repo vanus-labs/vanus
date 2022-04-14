@@ -17,7 +17,9 @@ package reader
 import (
 	"context"
 	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/eventbus-go/pkg/discovery"
 	eberrors "github.com/linkall-labs/eventbus-go/pkg/errors"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"io"
 	"sync"
@@ -34,13 +36,13 @@ import (
 
 type Config struct {
 	EventBus string
-	SubId    string
+	SubId    vanus.ID
 }
-type EventLogOffset map[string]int64
+type EventLogOffset map[vanus.ID]uint64
 
 type Reader struct {
 	config   Config
-	elReader map[string]struct{}
+	elReader map[vanus.ID]struct{}
 	events   chan<- info.EventOffset
 	offset   EventLogOffset
 	stop     context.CancelFunc
@@ -54,7 +56,7 @@ func NewReader(config Config, offset EventLogOffset, events chan<- info.EventOff
 		config:   config,
 		offset:   offset,
 		events:   events,
-		elReader: map[string]struct{}{},
+		elReader: map[vanus.ID]struct{}{},
 	}
 	r.stctx, r.stop = context.WithCancel(context.Background())
 	return r
@@ -109,8 +111,8 @@ func (r *Reader) checkEventLogChange() {
 	}
 }
 
-func (r *Reader) getOffset(el string) int64 {
-	offset, exist := r.offset[el]
+func (r *Reader) getOffset(eventLogID vanus.ID) uint64 {
+	offset, exist := r.offset[eventLogID]
 	if !exist {
 		offset = 0
 	}
@@ -121,39 +123,49 @@ func (r *Reader) start(els []*record.EventLog) {
 	r.lock.Lock()
 	r.lock.Unlock()
 	for _, el := range els {
-		eventLog := el.VRN
-		if _, exist := r.elReader[eventLog]; exist {
+		vrn, err := discovery.ParseVRN(el.VRN)
+		if err != nil {
+			log.Error(r.stctx, "event log vrn prase error", map[string]interface{}{
+				log.KeyError: err,
+			})
 			continue
 		}
-		elc := &eventLogReader{
-			config:   r.config,
-			eventLog: eventLog,
-			events:   r.events,
-			offset:   r.getOffset(eventLog),
+
+		eventLogID := vanus.ID(vrn.ID)
+		if _, exist := r.elReader[eventLogID]; exist {
+			continue
 		}
-		r.elReader[eventLog] = struct{}{}
+
+		elc := &eventLogReader{
+			config:      r.config,
+			eventLogVrn: el.VRN,
+			events:      r.events,
+			offset:      r.getOffset(eventLogID),
+		}
+		r.elReader[elc.eventLogID] = struct{}{}
 		r.wg.Add(1)
 		go func() {
 			defer func() {
 				r.wg.Done()
 				log.Info(r.stctx, "event eventlog reader stop", map[string]interface{}{
-					log.KeyEventlogID: elc.eventLog,
+					log.KeyEventlogID: elc.eventLogVrn,
 				})
 			}()
 			log.Info(r.stctx, "event eventlog reader start", map[string]interface{}{
-				log.KeyEventlogID: elc.eventLog,
+				log.KeyEventlogID: elc.eventLogVrn,
 			})
 			elc.run(r.stctx)
-			r.offset[elc.eventLog] = elc.offset
+			r.offset[elc.eventLogID] = elc.offset
 		}()
 	}
 }
 
 type eventLogReader struct {
-	config   Config
-	eventLog string
-	events   chan<- info.EventOffset
-	offset   int64
+	config      Config
+	eventLogID  vanus.ID
+	eventLogVrn string
+	events      chan<- info.EventOffset
+	offset      uint64
 }
 
 func (elReader *eventLogReader) run(ctx context.Context) {
@@ -165,7 +177,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 			return
 		case context.DeadlineExceeded:
 			log.Warning(ctx, "event eventlog reader init timeout", map[string]interface{}{
-				log.KeyEventlogID: elReader.eventLog,
+				log.KeyEventlogID: elReader.eventLogVrn,
 			})
 			continue
 		default:
@@ -190,7 +202,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 				return
 			case context.DeadlineExceeded:
 				log.Warning(ctx, "readEvents timeout", map[string]interface{}{
-					log.KeyEventlogID: elReader.eventLog,
+					log.KeyEventlogID: elReader.eventLogVrn,
 					"offset":          elReader.offset,
 				})
 				continue
@@ -199,7 +211,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 			case eberrors.ErrUnderflow:
 			default:
 				log.Warning(ctx, "read event error", map[string]interface{}{
-					log.KeyEventlogID: elReader.eventLog,
+					log.KeyEventlogID: elReader.eventLogVrn,
 					"offset":          elReader.offset,
 					log.KeyError:      err,
 				})
@@ -223,7 +235,7 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventlog.LogRe
 	}
 	for i := range events {
 		elReader.offset++
-		e := info.EventOffset{Event: events[i], OffsetInfo: pInfo.OffsetInfo{EventLogId: elReader.eventLog, Offset: elReader.offset}}
+		e := info.EventOffset{Event: events[i], OffsetInfo: pInfo.OffsetInfo{EventLogID: elReader.eventLogID, Offset: elReader.offset}}
 		if err = elReader.sendEvent(ctx, e); err != nil {
 			return err
 		}
@@ -246,13 +258,13 @@ func readEvents(ctx context.Context, lr eventlog.LogReader) ([]*ce.Event, error)
 }
 
 func (elReader *eventLogReader) init(ctx context.Context) (eventlog.LogReader, error) {
-	lr, err := eb.OpenLogReader(elReader.eventLog)
+	lr, err := eb.OpenLogReader(elReader.eventLogVrn)
 	if err != nil {
 		return nil, err
 	}
 	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	_, err = lr.Seek(timeout, elReader.offset, io.SeekStart)
+	_, err = lr.Seek(timeout, int64(elReader.offset), io.SeekStart)
 	if err != nil {
 		//todo overflow need reset offset
 		lr.Close()

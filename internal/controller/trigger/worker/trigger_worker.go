@@ -20,6 +20,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vsproto/pkg/trigger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -43,47 +44,51 @@ func NewTriggerWorker(twInfo *info.TriggerWorkerInfo) *TriggerWorker {
 	return tw
 }
 
+//ResetReportSubId trigger worker restart
 func (tw *TriggerWorker) ResetReportSubId() {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	tw.Info.ReportSubIds = map[string]struct{}{}
+	tw.Info.ReportSubIds = map[vanus.ID]struct{}{}
+	tw.Info.Phase = info.TriggerWorkerPhasePending
 }
 
-func (tw *TriggerWorker) SetReportSubId(subIds map[string]struct{}) {
+//SetReportSubId trigger worker heartbeat running subscription
+func (tw *TriggerWorker) SetReportSubId(subIds map[vanus.ID]struct{}) {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
 	tw.Info.ReportSubIds = subIds
+	tw.Info.HeartbeatTime = time.Now()
 }
 
-func (tw *TriggerWorker) GetReportSubId() map[string]struct{} {
+func (tw *TriggerWorker) GetReportSubId() map[vanus.ID]struct{} {
 	tw.lock.RLock()
 	defer tw.lock.RUnlock()
 	return tw.Info.ReportSubIds
 }
 
-func (tw *TriggerWorker) AddAssignSub(subId string) {
+func (tw *TriggerWorker) AddAssignSub(subId vanus.ID) {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
 	tw.Info.AssignSubIds[subId] = time.Now()
 }
 
-func (tw *TriggerWorker) RemoveAssignSub(subId string) {
+func (tw *TriggerWorker) RemoveAssignSub(subId vanus.ID) {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
 	delete(tw.Info.AssignSubIds, subId)
 }
 
-func (tw *TriggerWorker) GetAssignSubIds() map[string]time.Time {
+func (tw *TriggerWorker) GetAssignSubIds() map[vanus.ID]time.Time {
 	tw.lock.RLock()
 	defer tw.lock.RUnlock()
-	newMap := make(map[string]time.Time, len(tw.Info.AssignSubIds))
+	newMap := make(map[vanus.ID]time.Time, len(tw.Info.AssignSubIds))
 	for subId, t := range tw.Info.AssignSubIds {
 		newMap[subId] = t
 	}
 	return newMap
 }
 
-func (tw *TriggerWorker) init(ctx context.Context) error {
+func (tw *TriggerWorker) Init(ctx context.Context) error {
 	if tw.hasInit {
 		return nil
 	}
@@ -114,7 +119,7 @@ func (tw *TriggerWorker) Close() error {
 func (tw *TriggerWorker) Stop(ctx context.Context) error {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	err := tw.init(ctx)
+	err := tw.Init(ctx)
 	if err != nil {
 		return err
 	}
@@ -128,7 +133,7 @@ func (tw *TriggerWorker) Stop(ctx context.Context) error {
 func (tw *TriggerWorker) Start(ctx context.Context) error {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	err := tw.init(ctx)
+	err := tw.Init(ctx)
 	if err != nil {
 		return err
 	}
@@ -145,7 +150,7 @@ func (tw *TriggerWorker) AddSubscription(ctx context.Context, sub *primitive.Sub
 	}
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	err := tw.init(ctx)
+	err := tw.Init(ctx)
 	if err != nil {
 		return err
 	}
@@ -157,14 +162,14 @@ func (tw *TriggerWorker) AddSubscription(ctx context.Context, sub *primitive.Sub
 	return nil
 }
 
-func (tw *TriggerWorker) RemoveSubscriptions(ctx context.Context, id string) error {
+func (tw *TriggerWorker) RemoveSubscriptions(ctx context.Context, id vanus.ID) error {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	err := tw.init(ctx)
+	err := tw.Init(ctx)
 	if err != nil {
 		return err
 	}
-	request := &trigger.RemoveSubscriptionRequest{SubscriptionId: id}
+	request := &trigger.RemoveSubscriptionRequest{SubscriptionId: uint64(id)}
 	_, err = tw.client.RemoveSubscription(ctx, request)
 	if err != nil {
 		return errors.ErrTriggerWorker.WithMessage("remove subscription error").Wrap(err)

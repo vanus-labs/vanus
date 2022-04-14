@@ -18,6 +18,7 @@ import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"github.com/linkall-labs/vanus/internal/trigger/worker"
 	"github.com/linkall-labs/vanus/internal/util"
@@ -34,14 +35,15 @@ import (
 )
 
 type server struct {
-	worker   *worker.Worker
-	config   Config
-	tcCc     *grpc.ClientConn
-	tcClient controller.TriggerControllerClient
-	ctx      context.Context
-	cancel   context.CancelFunc
-	wg       sync.WaitGroup
-	state    primitive.ServerState
+	worker    *worker.Worker
+	config    Config
+	tcCc      *grpc.ClientConn
+	tcClient  controller.TriggerControllerClient
+	ctx       context.Context
+	cancel    context.CancelFunc
+	wg        sync.WaitGroup
+	state     primitive.ServerState
+	startTime time.Time
 }
 
 func NewTriggerServer(config Config) pbtrigger.TriggerWorkerServer {
@@ -55,12 +57,12 @@ func NewTriggerServer(config Config) pbtrigger.TriggerWorkerServer {
 
 func (s *server) Start(ctx context.Context, request *pbtrigger.StartTriggerWorkerRequest) (*pbtrigger.StartTriggerWorkerResponse, error) {
 	log.Info(ctx, "worker server start ", map[string]interface{}{"request": request})
+	if s.state == primitive.ServerStateRunning {
+		return &pbtrigger.StartTriggerWorkerResponse{}, nil
+	}
 	err := s.worker.Start()
 	if err != nil {
 		return nil, err
-	}
-	if s.state == primitive.ServerStateRunning {
-		return &pbtrigger.StartTriggerWorkerResponse{}, nil
 	}
 	s.startHeartbeat()
 	s.state = primitive.ServerStateRunning
@@ -99,11 +101,11 @@ func (s *server) RemoveSubscription(ctx context.Context, request *pbtrigger.Remo
 	if s.state != primitive.ServerStateRunning {
 		return nil, errors.ErrWorkerNotStart
 	}
-	err := s.worker.RemoveSubscription(request.SubscriptionId)
+	err := s.worker.RemoveSubscription(vanus.ID(request.SubscriptionId))
 	if err != nil {
 		log.Info(ctx, "remove subscription error", map[string]interface{}{
-			"id":         request.SubscriptionId,
-			log.KeyError: err,
+			log.KeySubscriptionID: request.SubscriptionId,
+			log.KeyError:          err,
 		})
 	}
 	return &pbtrigger.RemoveSubscriptionResponse{}, nil
@@ -114,7 +116,7 @@ func (s *server) PauseSubscription(ctx context.Context, request *pbtrigger.Pause
 	if s.state != primitive.ServerStateRunning {
 		return nil, errors.ErrWorkerNotStart
 	}
-	s.worker.PauseSubscription(request.SubscriptionId)
+	s.worker.PauseSubscription(vanus.ID(request.SubscriptionId))
 	return &pbtrigger.PauseSubscriptionResponse{}, nil
 }
 
@@ -171,15 +173,23 @@ func (s *server) Initialize(ctx context.Context) error {
 		log.Info(ctx, "trigger worker server stopped", nil)
 	}()
 	s.state = primitive.ServerStateStarted
+	s.startTime = time.Now()
+	go func() {
+		time.Sleep(60 * time.Second)
+		//启动30s后还没有收到start，则退出
+		if s.state != primitive.ServerStateRunning {
+			os.Exit(1)
+		}
+	}()
 	return nil
 }
 
 func (s *server) stop(sendUnregister bool) {
-	if s.state == primitive.ServerStateStopped {
+	if s.state != primitive.ServerStateRunning {
 		return
 	}
-	s.cancel()
 	s.worker.Stop()
+	s.cancel()
 	if sendUnregister {
 		_, err := s.tcClient.UnregisterTriggerWorker(context.Background(), &controller.UnregisterTriggerWorkerRequest{
 			Address: s.config.TriggerAddr,

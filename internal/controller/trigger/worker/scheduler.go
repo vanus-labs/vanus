@@ -16,22 +16,18 @@ package worker
 
 import (
 	"context"
-	"errors"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/policy"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/queue"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
-)
-
-var (
-	notFoundTriggerWorker = errors.New("not found trigger worker")
+	"time"
 )
 
 type SubscriptionScheduler struct {
 	normalQueue          queue.Queue
 	maxRetryPrintLog     int
-	policy               policy.TriggerWorkerPolicy
+	policy               TriggerWorkerPolicy
 	triggerWorkerManager Manager
 	subscriptionManager  subscription.Manager
 	ctx                  context.Context
@@ -42,7 +38,7 @@ func NewSubscriptionScheduler(triggerWorkerManager Manager, subscriptionManager 
 	s := &SubscriptionScheduler{
 		normalQueue:          queue.New(),
 		maxRetryPrintLog:     5,
-		policy:               &policy.TriggerSizePolicy{},
+		policy:               &TriggerSizePolicy{},
 		triggerWorkerManager: triggerWorkerManager,
 		subscriptionManager:  subscriptionManager,
 	}
@@ -50,12 +46,12 @@ func NewSubscriptionScheduler(triggerWorkerManager Manager, subscriptionManager 
 	return s
 }
 
-func (s *SubscriptionScheduler) EnqueueSub(subId string) {
-	s.normalQueue.Add(subId)
+func (s *SubscriptionScheduler) EnqueueSub(subId vanus.ID) {
+	s.normalQueue.Add(subId.String())
 }
 
-func (s *SubscriptionScheduler) EnqueueNormalSub(subId string) {
-	s.normalQueue.Add(subId)
+func (s *SubscriptionScheduler) EnqueueNormalSub(subId vanus.ID) {
+	s.normalQueue.Add(subId.String())
 }
 
 func (s *SubscriptionScheduler) Stop() {
@@ -85,28 +81,39 @@ func (s *SubscriptionScheduler) Run() {
 	}()
 }
 
-func (s *SubscriptionScheduler) handler(ctx context.Context, subId string) error {
-	twInfos := s.triggerWorkerManager.GetRunningTriggerWorker()
-	if len(twInfos) == 0 {
-		return notFoundTriggerWorker
-	}
-	twInfo := s.policy.Acquire(ctx, twInfos)
-	subData := s.subscriptionManager.GetSubscription(ctx, subId)
-	if subData == nil {
+func (s *SubscriptionScheduler) handler(ctx context.Context, subIdStr string) error {
+	subID, _ := vanus.StringToID(subIdStr)
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
+		twInfos := s.triggerWorkerManager.GetRunningTriggerWorker()
+		if len(twInfos) == 0 {
+			time.Sleep(time.Second)
+			continue
+		}
+		twInfo := s.policy.Acquire(ctx, twInfos)
+		subData := s.subscriptionManager.GetSubscriptionData(ctx, subID)
+		if subData == nil {
+			return nil
+		}
+		if subData.Phase != primitive.SubscriptionPhaseCreated && subData.Phase != primitive.SubscriptionPhasePending {
+			return nil
+		}
+		tWorker := s.triggerWorkerManager.GetTriggerWorker(ctx, twInfo.Addr)
+		if tWorker == nil {
+			continue
+		}
+		subData.TriggerWorker = twInfo.Addr
+		subData.Phase = primitive.SubscriptionPhaseScheduled
+		subData.HeartbeatTime = time.Now()
+		err := s.subscriptionManager.UpdateSubscription(ctx, subData)
+		if err != nil {
+			return err
+		}
+		s.triggerWorkerManager.AssignSubscription(ctx, tWorker, subID)
 		return nil
 	}
-	if subData.Phase != primitive.SubscriptionPhaseCreated && subData.Phase != primitive.SubscriptionPhasePending {
-		return nil
-	}
-	err := s.triggerWorkerManager.AssignSubscription(ctx, twInfo, subId)
-	if err != nil {
-		return err
-	}
-	subData.TriggerWorker = twInfo.Addr
-	subData.Phase = primitive.SubscriptionPhaseRunning
-	err = s.subscriptionManager.UpdateSubscription(ctx, subData)
-	if err != nil {
-		return err
-	}
-	return nil
 }

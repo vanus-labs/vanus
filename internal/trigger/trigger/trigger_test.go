@@ -28,10 +28,10 @@ import (
 
 func Test_e2e(t *testing.T) {
 	tg := NewTrigger(nil, &primitive.Subscription{
-		ID:      "test",
+		ID:      1,
 		Filters: []*primitive.SubscriptionFilter{{Exact: map[string]string{"type": "none"}}},
 		Sink:    "http://localhost:18080",
-	}, offset.NewOffsetManager().RegisterSubscription("test"))
+	}, offset.NewOffsetManager().RegisterSubscription(1))
 	emit := 0
 	pre := 0
 	go func() {
@@ -43,8 +43,8 @@ func Test_e2e(t *testing.T) {
 		}
 	}()
 
-	ebVRN := "vanus+local:eventbus:example"
-	elVRN := "vanus+local:eventlog+inmemory:1?keepalive=true"
+	ebVRN := "vanus+local:///eventbus/1"
+	elVRN := "vanus+inmemory:///eventlog/1?eventbus=1&keepalive=true"
 	br := &record.EventBus{
 		VRN: ebVRN,
 		Logs: []*record.EventLog{
@@ -54,7 +54,7 @@ func Test_e2e(t *testing.T) {
 			},
 		},
 	}
-	inmemory.UseInMemoryLog("inmemory")
+	inmemory.UseInMemoryLog("vanus+inmemory")
 	ns := inmemory.UseNameService("vanus+local")
 	// register metadata of eventbus
 	vrn, err := discovery.ParseVRN(ebVRN)
@@ -103,7 +103,7 @@ func Test_e2e(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		var offset int64
+		var offset uint64
 		for {
 			events, err := r.Read(context.Background(), 5)
 			if err != nil {
@@ -121,7 +121,7 @@ func Test_e2e(t *testing.T) {
 						Event: e,
 						OffsetInfo: pInfo.OffsetInfo{
 							Offset:     offset,
-							EventLogId: ls[0].VRN,
+							EventLogID: 1,
 						},
 					},
 				})

@@ -17,6 +17,7 @@ package offset
 import (
 	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"sync"
 	"time"
 )
@@ -30,7 +31,7 @@ func NewOffsetManager() *Manager {
 	return &Manager{}
 }
 
-func (m *Manager) RegisterSubscription(subId string) *SubscriptionOffset {
+func (m *Manager) RegisterSubscription(subId vanus.ID) *SubscriptionOffset {
 	subOffset, exist := m.subOffset.Load(subId)
 	if !exist {
 		sub := &SubscriptionOffset{
@@ -41,7 +42,7 @@ func (m *Manager) RegisterSubscription(subId string) *SubscriptionOffset {
 	return subOffset.(*SubscriptionOffset)
 }
 
-func (m *Manager) GetSubscription(subId string) *SubscriptionOffset {
+func (m *Manager) GetSubscription(subId vanus.ID) *SubscriptionOffset {
 	sub, exist := m.subOffset.Load(subId)
 	if !exist {
 		return nil
@@ -49,7 +50,7 @@ func (m *Manager) GetSubscription(subId string) *SubscriptionOffset {
 	return sub.(*SubscriptionOffset)
 }
 
-func (m *Manager) RemoveSubscription(subId string) {
+func (m *Manager) RemoveSubscription(subId vanus.ID) {
 	m.subOffset.Delete(subId)
 }
 
@@ -62,20 +63,20 @@ func (m *Manager) GetLastCommitTime() time.Time {
 }
 
 type SubscriptionOffset struct {
-	subId    string
+	subId    vanus.ID
 	elOffset sync.Map
 }
 
 func (offset *SubscriptionOffset) EventReceive(info info.OffsetInfo) {
-	o, exist := offset.elOffset.Load(info.EventLogId)
+	o, exist := offset.elOffset.Load(info.EventLogID)
 	if !exist {
-		o, _ = offset.elOffset.LoadOrStore(info.EventLogId, initOffset(info.Offset))
+		o, _ = offset.elOffset.LoadOrStore(info.EventLogID, initOffset(info.Offset))
 	}
 	o.(*offsetTracker).putOffset(info.Offset)
 }
 
 func (offset *SubscriptionOffset) EventCommit(info info.OffsetInfo) {
-	o, exist := offset.elOffset.Load(info.EventLogId)
+	o, exist := offset.elOffset.Load(info.EventLogID)
 	if !exist {
 		return
 	}
@@ -87,7 +88,7 @@ func (offset *SubscriptionOffset) GetCommit() info.ListOffsetInfo {
 	offset.elOffset.Range(func(key, value interface{}) bool {
 		tracker := value.(*offsetTracker)
 		commit = append(commit, info.OffsetInfo{
-			EventLogId: key.(string),
+			EventLogID: key.(vanus.ID),
 			Offset:     tracker.offsetToCommit(),
 		})
 		return true
@@ -97,16 +98,16 @@ func (offset *SubscriptionOffset) GetCommit() info.ListOffsetInfo {
 
 type offsetTracker struct {
 	mutex     sync.Mutex
-	maxOffset int64
+	maxOffset uint64
 	list      *skiplist.SkipList
 }
 
-func initOffset(initOffset int64) *offsetTracker {
+func initOffset(initOffset uint64) *offsetTracker {
 	return &offsetTracker{
 		maxOffset: initOffset,
 		list: skiplist.New(skiplist.GreaterThanFunc(func(lhs, rhs interface{}) int {
-			v1 := lhs.(int64)
-			v2 := rhs.(int64)
+			v1 := lhs.(uint64)
+			v2 := rhs.(uint64)
 			if v1 > v2 {
 				return 1
 			} else if v1 < v2 {
@@ -117,24 +118,24 @@ func initOffset(initOffset int64) *offsetTracker {
 	}
 }
 
-func (o *offsetTracker) putOffset(offset int64) {
+func (o *offsetTracker) putOffset(offset uint64) {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 	o.list.Set(offset, offset)
-	o.maxOffset = o.list.Back().Key().(int64)
+	o.maxOffset = o.list.Back().Key().(uint64)
 }
 
-func (o *offsetTracker) commitOffset(offset int64) {
+func (o *offsetTracker) commitOffset(offset uint64) {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 	o.list.Remove(offset)
 }
 
-func (o *offsetTracker) offsetToCommit() int64 {
+func (o *offsetTracker) offsetToCommit() uint64 {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 	if o.list.Len() == 0 {
 		return o.maxOffset
 	}
-	return o.list.Front().Key().(int64) - 1
+	return o.list.Front().Key().(uint64) - 1
 }

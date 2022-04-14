@@ -17,26 +17,35 @@ package subscription
 
 import (
 	"context"
-	"github.com/google/uuid"
+	"fmt"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription/offset"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	iInfo "github.com/linkall-labs/vanus/internal/primitive/info"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/observability/log"
 	"sync"
+	"time"
 )
 
 type Manager interface {
-	Offset(ctx context.Context, subInfo iInfo.SubscriptionInfo) error
-	GetOffset(ctx context.Context, subId string) (iInfo.ListOffsetInfo, error)
-	ListSubscription(ctx context.Context) map[string]*primitive.SubscriptionApi
-	GetSubscription(ctx context.Context, subId string) *primitive.SubscriptionApi
+	Offset(ctx context.Context, subId vanus.ID, offsets iInfo.ListOffsetInfo) error
+	GetOffset(ctx context.Context, subId vanus.ID) (iInfo.ListOffsetInfo, error)
+	ListSubscription(ctx context.Context) map[vanus.ID]*primitive.SubscriptionApi
+	GetSubscriptionData(ctx context.Context, subId vanus.ID) *primitive.SubscriptionApi
+	GetSubscription(ctx context.Context, subId vanus.ID) (*primitive.Subscription, error)
 	AddSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error
 	UpdateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error
-	DeleteSubscription(ctx context.Context, subId string) error
+	Heartbeat(ctx context.Context, subId vanus.ID, addr string) error
+	DeleteSubscription(ctx context.Context, subId vanus.ID) error
 	Init(ctx context.Context) error
 	Start()
 	Stop()
 }
+
+var (
+	ErrSubscriptionNotExist = fmt.Errorf("subscription not exist")
+)
 
 type manager struct {
 	storage       storage.Storage
@@ -44,33 +53,33 @@ type manager struct {
 	ctx           context.Context
 	stop          context.CancelFunc
 	lock          sync.RWMutex
-	subscription  map[string]*primitive.SubscriptionApi
+	subscription  map[vanus.ID]*primitive.SubscriptionApi
 }
 
 func NewSubscriptionManager(storage storage.Storage) Manager {
 	m := &manager{
 		storage:      storage,
-		subscription: map[string]*primitive.SubscriptionApi{},
+		subscription: map[vanus.ID]*primitive.SubscriptionApi{},
 	}
 	m.ctx, m.stop = context.WithCancel(context.Background())
 	return m
 }
 
-func (m *manager) Offset(ctx context.Context, subInfo iInfo.SubscriptionInfo) error {
-	return m.offsetManager.Offset(ctx, subInfo)
+func (m *manager) Offset(ctx context.Context, subId vanus.ID, offsets iInfo.ListOffsetInfo) error {
+	return m.offsetManager.Offset(ctx, subId, offsets)
 }
 
-func (m *manager) GetOffset(ctx context.Context, subId string) (iInfo.ListOffsetInfo, error) {
+func (m *manager) GetOffset(ctx context.Context, subId vanus.ID) (iInfo.ListOffsetInfo, error) {
 	return m.offsetManager.GetOffset(ctx, subId)
 }
 
-func (m *manager) ListSubscription(ctx context.Context) map[string]*primitive.SubscriptionApi {
+func (m *manager) ListSubscription(ctx context.Context) map[vanus.ID]*primitive.SubscriptionApi {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	return m.subscription
 }
 
-func (m *manager) GetSubscription(ctx context.Context, subId string) *primitive.SubscriptionApi {
+func (m *manager) GetSubscriptionData(ctx context.Context, subId vanus.ID) *primitive.SubscriptionApi {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	sub, exist := m.subscription[subId]
@@ -80,10 +89,31 @@ func (m *manager) GetSubscription(ctx context.Context, subId string) *primitive.
 	return sub
 }
 
+func (m *manager) GetSubscription(ctx context.Context, subId vanus.ID) (*primitive.Subscription, error) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	subData, exist := m.subscription[subId]
+	if !exist || subData.Phase == primitive.SubscriptionPhaseToDelete {
+		return nil, ErrSubscriptionNotExist
+	}
+	offsets, err := m.offsetManager.GetOffset(ctx, subId)
+	if err != nil {
+		return nil, err
+	}
+	sub := &primitive.Subscription{
+		ID:       subData.ID,
+		Filters:  subData.Filters,
+		Sink:     subData.Sink,
+		EventBus: subData.EventBus,
+		Offsets:  offsets,
+	}
+	return sub, nil
+}
+
 func (m *manager) AddSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	sub.ID = uuid.NewString()
+	sub.ID = vanus.GenerateID()
 	sub.Phase = primitive.SubscriptionPhaseCreated
 	err := m.storage.CreateSubscription(ctx, sub)
 	if err != nil {
@@ -107,7 +137,7 @@ func (m *manager) UpdateSubscription(ctx context.Context, sub *primitive.Subscri
 //DeleteSubscription will do
 //1.delete offset
 //2.delete subscription
-func (m *manager) DeleteSubscription(ctx context.Context, subId string) error {
+func (m *manager) DeleteSubscription(ctx context.Context, subId vanus.ID) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	_, exist := m.subscription[subId]
@@ -123,6 +153,35 @@ func (m *manager) DeleteSubscription(ctx context.Context, subId string) error {
 		return err
 	}
 	delete(m.subscription, subId)
+	return nil
+}
+
+func (m *manager) Heartbeat(ctx context.Context, subId vanus.ID, addr string) error {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	subData, exist := m.subscription[subId]
+	if !exist || subData.Phase == primitive.SubscriptionPhaseToDelete {
+		return ErrSubscriptionNotExist
+	}
+	if subData.TriggerWorker != addr {
+		//数据不一致了，有bug了
+		log.Error(ctx, "subscription trigger worker invalid", map[string]interface{}{
+			log.KeySubscriptionID:    subId,
+			log.KeyTriggerWorkerAddr: subData.TriggerWorker,
+			"running_addr":           addr,
+		})
+	}
+	if subData.Phase != primitive.SubscriptionPhaseRunning {
+		subData.Phase = primitive.SubscriptionPhaseRunning
+		err := m.storage.UpdateSubscription(ctx, subData)
+		if err != nil {
+			log.Error(ctx, "storage save subscription phase to running error", map[string]interface{}{
+				log.KeyError:          err,
+				log.KeySubscriptionID: subId,
+			})
+		}
+	}
+	subData.HeartbeatTime = time.Now()
 	return nil
 }
 
