@@ -18,17 +18,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/google/uuid"
+	"fmt"
 	"github.com/huandu/skiplist"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/segment"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/selector"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/block"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/linkall-labs/vanus/internal/kv"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 var (
@@ -42,26 +42,28 @@ const (
 
 type Manager interface {
 	Init(ctx context.Context, kvClient kv.Client) error
-	AcquireEventLog(ctx context.Context) (*info.EventLogInfo, error)
-	UpdateEventLog(ctx context.Context, els ...*info.EventLogInfo) error
-	GetEventLog(ctx context.Context, id string) *info.EventLogInfo
-	GetEventLogSegmentList(elID string) []*segment.Segment
-	GetAppendableSegment(ctx context.Context, eli *info.EventLogInfo,
-		num int) ([]*segment.Segment, error)
+	AcquireEventLog(ctx context.Context) (*metadata.Eventlog, error)
+	UpdateEventLog(ctx context.Context, els ...*metadata.Eventlog) error
+	GetEventLog(ctx context.Context, id uint64) *metadata.Eventlog
+	GetEventLogSegmentList(elID uint64) []*volume.Segment
+	GetAppendableSegment(ctx context.Context, eli *metadata.Eventlog,
+		num int) ([]*volume.Segment, error)
 	UpdateSegment(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error
 }
 
 type eventlogManager struct {
 	kvStore          kv.Client
-	segmentAllocator segment.Allocator
-	// string, *info.EventLogInfo
+	segmentAllocator block.Allocator
+	// string, *metadata.Eventlog
 	eventLogMap      sync.Map
 	boundEventLogMap sync.Map
-	freeEventLogMap  *skiplist.SkipList
-	kvMutex          sync.Mutex
-	volMgr           volume.Manager
-	kvClient         kv.Client
-	logMap           map[string]*skiplist.SkipList
+
+	freeEventLogMap *skiplist.SkipList
+	kvMutex         sync.Mutex
+	volMgr          volume.Manager
+	kvClient        kv.Client
+	// key: EventlogID, value is a skiplist, the id of it is Segment.ID and value if *Segment
+	logMap map[uint64]*skiplist.SkipList
 }
 
 func NewManager(volMgr volume.Manager) Manager {
@@ -73,7 +75,7 @@ func NewManager(volMgr volume.Manager) Manager {
 
 func (mgr *eventlogManager) Init(ctx context.Context, kvClient kv.Client) error {
 	mgr.kvClient = kvClient
-	mgr.segmentAllocator = segment.NewAllocator(mgr.volMgr, selector.NewVolumeRoundRobin(mgr.volMgr.GetAllVolume))
+	mgr.segmentAllocator = block.NewAllocator(block.NewVolumeRoundRobin(mgr.volMgr.GetAllVolume))
 	if err := mgr.segmentAllocator.Init(ctx, mgr.kvStore); err != nil {
 		return err
 	}
@@ -83,7 +85,7 @@ func (mgr *eventlogManager) Init(ctx context.Context, kvClient kv.Client) error 
 	}
 	for idx := range pairs {
 		pair := pairs[idx]
-		elInfo := &info.EventLogInfo{}
+		elInfo := &metadata.Eventlog{}
 		err := json.Unmarshal(pair.Value, elInfo)
 		if err != nil {
 			return err
@@ -97,11 +99,11 @@ func (mgr *eventlogManager) initVolumeInfo(ctx context.Context) error {
 	var err error
 	//ctx := context.Background()
 	mgr.eventLogMap.Range(func(key, value interface{}) bool {
-		elInfo := value.(*info.EventLogInfo)
+		elInfo := value.(*metadata.Eventlog)
 		sbList := mgr.GetEventLogSegmentList(elInfo.ID)
 		for idx := 0; idx < len(sbList); idx++ {
 			//sb := sbList[idx]
-			//sb.VolumeMeta = *(volumeMgr.GetVolumeByID(sb.VolumeID).GetMeta())
+			//sb.VolumeMeta = *(volumeMgr.GetVolumeInstanceByID(sb.VolumeID).GetMeta())
 		}
 		return true
 	})
@@ -111,9 +113,9 @@ func (mgr *eventlogManager) initVolumeInfo(ctx context.Context) error {
 func (mgr *eventlogManager) stop(ctx context.Context) {
 }
 
-func (mgr *eventlogManager) AcquireEventLog(ctx context.Context) (*info.EventLogInfo, error) {
+func (mgr *eventlogManager) AcquireEventLog(ctx context.Context) (*metadata.Eventlog, error) {
 	ele := mgr.freeEventLogMap.Front()
-	var el *info.EventLogInfo
+	var el *metadata.Eventlog
 	if ele == nil {
 		_el, err := mgr.createEventLog(ctx)
 		if err != nil {
@@ -121,7 +123,7 @@ func (mgr *eventlogManager) AcquireEventLog(ctx context.Context) (*info.EventLog
 		}
 		el = _el
 	} else {
-		el = ele.Value.(*info.EventLogInfo)
+		el = ele.Value.(*metadata.Eventlog)
 	}
 	mgr.boundEventLogMap.Store(el.ID, el)
 	if err := mgr.initializeEventLog(ctx, el); err != nil {
@@ -130,10 +132,10 @@ func (mgr *eventlogManager) AcquireEventLog(ctx context.Context) (*info.EventLog
 	return el, nil
 }
 
-func (mgr *eventlogManager) createEventLog(ctx context.Context) (*info.EventLogInfo, error) {
-	el := &info.EventLogInfo{
+func (mgr *eventlogManager) createEventLog(ctx context.Context) (*metadata.Eventlog, error) {
+	el := &metadata.Eventlog{
 		// TODO use new uuid generator
-		ID: uuid.NewString(),
+		ID: uint64(time.Now().UnixNano()),
 	}
 	data, _ := json.Marshal(el)
 	mgr.kvMutex.Lock()
@@ -145,16 +147,16 @@ func (mgr *eventlogManager) createEventLog(ctx context.Context) (*info.EventLogI
 	return el, nil
 }
 
-func (mgr *eventlogManager) GetEventLog(ctx context.Context, id string) *info.EventLogInfo {
+func (mgr *eventlogManager) GetEventLog(ctx context.Context, id uint64) *metadata.Eventlog {
 	v, exist := mgr.eventLogMap.Load(id)
 
 	if exist {
-		return v.(*info.EventLogInfo)
+		return v.(*metadata.Eventlog)
 	}
 	return nil
 }
 
-func (mgr *eventlogManager) UpdateEventLog(ctx context.Context, els ...*info.EventLogInfo) error {
+func (mgr *eventlogManager) UpdateEventLog(ctx context.Context, els ...*metadata.Eventlog) error {
 	mgr.kvMutex.Lock()
 	defer mgr.kvMutex.Unlock()
 	for idx := range els {
@@ -167,7 +169,7 @@ func (mgr *eventlogManager) UpdateEventLog(ctx context.Context, els ...*info.Eve
 	return nil
 }
 
-func (mgr *eventlogManager) initializeEventLog(ctx context.Context, el *info.EventLogInfo) error {
+func (mgr *eventlogManager) initializeEventLog(ctx context.Context, el *metadata.Eventlog) error {
 	_, err := mgr.segmentAllocator.Pick(ctx, defaultAutoCreatedSegmentNumber, 64*1024*1024)
 	if err != nil {
 		return err
@@ -179,24 +181,24 @@ func (mgr *eventlogManager) dynamicScaleUpEventLog() error {
 	return nil
 }
 
-func (mgr *eventlogManager) getEventLogKeyInKVStore(elName string) string {
-	return strings.Join([]string{eventlogKeyPrefixInKVStore, elName}, "/")
+func (mgr *eventlogManager) getEventLogKeyInKVStore(elID uint64) string {
+	return strings.Join([]string{eventlogKeyPrefixInKVStore, fmt.Sprintf("%d", elID)}, "/")
 }
 
 func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
-	eli *info.EventLogInfo, num int) ([]*segment.Segment, error) {
-	// TODO the HA of segment can't be guaranteed before segment support multiple replicas
+	eli *metadata.Eventlog, num int) ([]*volume.Segment, error) {
+	// TODO the HA of block can't be guaranteed before block support multiple replicas
 	sl := mgr.logMap[eli.ID]
 	if sl == nil {
 		return nil, ErrEventLogNotFound
 	}
-	arr := make([]*segment.Segment, 0)
+	arr := make([]*volume.Segment, 0)
 	next := sl.Front()
 	hit := 0
 	for hit < num && next != nil {
-		sbi := next.Value.(*segment.Segment)
+		sbi := next.Value.(*volume.Segment)
 		next = next.Next()
-		if sbi.IsFull {
+		if sbi.IsAppendable() {
 			continue
 		}
 		hit++
@@ -217,12 +219,12 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, req *ctrlpb.Segme
 	//// TODO there is problem in data structure design OPTIMIZE
 	//v, exist := mgr.segmentMap.Load(hInfo.Id)
 	//if !exist {
-	//	log.Warning(ctx, "the segment not found when heartbeat", map[string]interface{}{
+	//	log.Warning(ctx, "the block not found when heartbeat", map[string]interface{}{
 	//		"segment_id": hInfo.Id,
 	//	})
 	//	continue
 	//}
-	//in := v.(*segment.Segment)
+	//in := v.(*block.Segment)
 	//if hInfo.IsFull {
 	//	in.IsFull = true
 	//
@@ -230,7 +232,7 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, req *ctrlpb.Segme
 	//	if next != nil {
 	//		next.StartOffsetInLog = in.StartOffsetInLog + int64(in.Number)
 	//		if err := mgr.updateSegmentBlockInKV(ctx, next); err != nil {
-	//			log.Warning(ctx, "update the segment's start_offset failed ", map[string]interface{}{
+	//			log.Warning(ctx, "update the block's start_offset failed ", map[string]interface{}{
 	//				"segment_id":   hInfo.Id,
 	//				"next_segment": next.ID,
 	//				log.KeyError:   err,
@@ -242,7 +244,7 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, req *ctrlpb.Segme
 	//in.Size = hInfo.Size
 	//in.Number = hInfo.EventNumber
 	//if err := mgr.updateSegmentBlockInKV(ctx, in); err != nil {
-	//	log.Warning(ctx, "update the segment failed ", map[string]interface{}{
+	//	log.Warning(ctx, "update the block failed ", map[string]interface{}{
 	//		"segment_id": hInfo.Id,
 	//		log.KeyError: err,
 	//	})
@@ -252,15 +254,15 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, req *ctrlpb.Segme
 	return nil
 }
 
-func (mgr *eventlogManager) GetEventLogSegmentList(elID string) []*segment.Segment {
+func (mgr *eventlogManager) GetEventLogSegmentList(elID uint64) []*volume.Segment {
 	el := mgr.logMap[elID]
 	if el == nil {
 		return nil
 	}
-	var arr []*segment.Segment
+	var arr []*volume.Segment
 	next := el.Front()
 	for next != nil {
-		arr = append(arr, next.Value.(*segment.Segment))
+		arr = append(arr, next.Value.(*volume.Segment))
 		next = next.Next()
 	}
 	return arr

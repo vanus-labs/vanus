@@ -21,7 +21,8 @@ import (
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/eventlog"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
@@ -46,7 +47,7 @@ func NewEventBusController(cfg Config, member embedetcd.Member) *controller {
 		cfg:         &cfg,
 		eventLogMgr: nil,
 		volumeMgr:   volume.NewVolumeManager(),
-		eventBusMap: map[string]*info.BusInfo{},
+		eventBusMap: map[string]*metadata.Eventbus{},
 		member:      member,
 		isLeader:    false,
 		readyNotify: make(chan struct{}, 1),
@@ -60,8 +61,8 @@ type controller struct {
 	kvStore         kv.Client
 	eventLogMgr     eventlog.Manager
 	volumeMgr       volume.Manager
-	ssMgr           volume.ServerManager
-	eventBusMap     map[string]*info.BusInfo
+	ssMgr           server.Manager
+	eventBusMap     map[string]*metadata.Eventbus
 	member          embedetcd.Member
 	cancelCtx       context.Context
 	cancelFunc      context.CancelFunc
@@ -103,11 +104,11 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 		req.LogNumber = 1
 	}
 	elNum := 1 // force set to 1 temporary
-	eb := &info.BusInfo{
+	eb := &metadata.Eventbus{
 		ID:        uuid.NewString(), // TODO use another id generator
 		Name:      req.Name,
 		LogNumber: elNum,
-		EventLogs: make([]*info.EventLogInfo, elNum),
+		EventLogs: make([]*metadata.Eventlog, elNum),
 	}
 	exist, err := ctrl.kvStore.Exists(ctx, eb.Name)
 	if err != nil {
@@ -139,7 +140,7 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 	return &metapb.EventBus{
 		Name:      eb.Name,
 		LogNumber: int32(eb.LogNumber),
-		Logs:      info.Convert2ProtoEventLog(eb.EventLogs...),
+		Logs:      metadata.Convert2ProtoEventLog(eb.EventLogs...),
 	}, nil
 }
 
@@ -158,7 +159,7 @@ func (ctrl *controller) GetEventBus(ctx context.Context,
 	if !exist {
 		return nil, errors.ErrResourceNotFound.WithMessage("eventbus not found")
 	}
-	return info.Convert2ProtoEventBus(_eb)[0], nil
+	return metadata.Convert2ProtoEventBus(_eb)[0], nil
 }
 
 func (ctrl *controller) UpdateEventBus(ctx context.Context,
@@ -194,11 +195,11 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 		return nil, err
 	}
 
-	var volInstance volume.Instance
-	// need to compare metadata if existd?
-	volInstance = ctrl.volumeMgr.GetVolumeByID(req.VolumeId)
+	var volInstance server.Instance
+	// need to compare metadata if existed?
+	volInstance = ctrl.volumeMgr.GetVolumeInstanceByID(req.VolumeId)
 	if volInstance == nil {
-		volMD := &volume.Metadata{ID: req.VolumeId}
+		volMD := &metadata.VolumeMetadata{ID: req.VolumeId}
 		_volInstance, err := ctrl.volumeMgr.RegisterVolume(ctx, volMD)
 		if err != nil {
 			return nil, err
@@ -222,7 +223,7 @@ func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
 	serverInfo := ctrl.ssMgr.GetServerInfoByAddress(req.Address)
 
 	if serverInfo == nil {
-		return nil, errors.ErrResourceNotFound.WithMessage("segment server not found")
+		return nil, errors.ErrResourceNotFound.WithMessage("block server not found")
 	}
 
 	if err := ctrl.ssMgr.RemoveServer(ctx, serverInfo); err != nil {
@@ -231,7 +232,7 @@ func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
 		})
 	}
 
-	ctrl.volumeMgr.RefreshRoutingInfo(ctrl.volumeMgr.GetVolumeByID(req.VolumeId), nil)
+	ctrl.volumeMgr.RefreshRoutingInfo(ctrl.volumeMgr.GetVolumeInstanceByID(req.VolumeId), nil)
 	return &ctrlpb.UnregisterSegmentServerResponse{}, nil
 }
 
@@ -265,7 +266,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 			})
 			continue
 		}
-		log.Debug(ctx, "received heartbeat from segment server", map[string]interface{}{
+		log.Debug(ctx, "received heartbeat from block server", map[string]interface{}{
 			"server_id": req.ServerId,
 			"volume_id": req.VolumeId,
 			"time":      t,
@@ -273,7 +274,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 
 		serverInfo := ctrl.ssMgr.GetServerInfoByServerID(req.ServerId)
 		if serverInfo == nil {
-			log.Warning(ctx, "received a heartbeat request, but server info not found", map[string]interface{}{
+			log.Warning(ctx, "received a heartbeat request, but server metadata not found", map[string]interface{}{
 				"volume_id": req.VolumeId,
 				"server_id": req.ServerId,
 			})
@@ -282,7 +283,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 	}
 
 	if err != nil && err != io.EOF {
-		log.Error(ctx, "segment server heartbeat error", map[string]interface{}{
+		log.Error(ctx, "block server heartbeat error", map[string]interface{}{
 			log.KeyError: err,
 		})
 	}
@@ -362,14 +363,14 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event em
 }
 
 func (ctrl *controller) loadAllMetadata(ctx context.Context) error {
-	// load eventbus info
+	// load eventbus metadata
 	pairs, err := ctrl.kvStore.List(ctx, eventbusKeyPrefixInKVStore)
 	if err != nil {
 		return err
 	}
 	for idx := range pairs {
 		pair := pairs[idx]
-		busInfo := &info.BusInfo{}
+		busInfo := &metadata.Eventbus{}
 		err := json.Unmarshal(pair.Value, busInfo)
 		if err != nil {
 			return err

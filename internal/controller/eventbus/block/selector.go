@@ -12,44 +12,51 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package acclocator
+package block
 
 import (
 	"context"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"sort"
 )
 
 type VolumeSelector interface {
-	Select(context.Context, int64) volume.Instance
+	Select(context.Context, int, int64) []server.Instance
 }
 
 type volumeRoundRobinSelector struct {
 	count      int64
-	getVolumes func() []volume.Instance
+	getVolumes func() []server.Instance
 }
 
-func NewVolumeRoundRobin(f func() []volume.Instance) VolumeSelector {
+func NewVolumeRoundRobin(f func() []server.Instance) VolumeSelector {
 	return &volumeRoundRobinSelector{
 		count:      0,
 		getVolumes: f,
 	}
 }
 
-func (s *volumeRoundRobinSelector) Select(ctx context.Context, size int64) volume.Instance {
-	infos := s.getVolumes()
-	if len(infos) == 0 {
+func (s *volumeRoundRobinSelector) Select(ctx context.Context, num int, size int64) []server.Instance {
+	instances := make([]server.Instance, num)
+	if num == 0 || size == 0 {
+		return instances
+	}
+
+	volumes := s.getVolumes()
+	if len(volumes) == 0 {
 		return nil
 	}
-	// TODO optimize
-	keys := make([]string, 0)
-	m := make(map[string]volume.Instance)
-	for _, v := range infos {
+	keys := make([]uint64, 0)
+	m := make(map[uint64]server.Instance)
+	for _, v := range volumes {
 		keys = append(keys, v.GetMeta().ID)
 		m[v.GetMeta().ID] = v
 	}
-	sort.Strings(keys)
-	ssi := m[keys[s.count%int64(len(keys))]]
-	s.count += 1
-	return ssi
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+	for idx := 0; idx < num; idx++ {
+		instances[idx] = m[keys[(s.count+int64(idx))%int64(len(keys))]]
+	}
+	return instances
 }
