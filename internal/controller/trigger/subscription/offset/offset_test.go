@@ -18,6 +18,7 @@ import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 	"time"
@@ -28,9 +29,9 @@ func TestOffset(t *testing.T) {
 	m := NewOffsetManager(storage)
 	ctx := context.Background()
 	Convey("offset", t, func() {
-		subId := "subId"
-		eventLog := "el"
-		offset := int64(1)
+		subId := vanus.ID(1)
+		eventLogID := vanus.ID(1)
+		offset := uint64(1)
 		Convey("get offset is empty", func() {
 			m.RemoveRegisterSubscription(ctx, subId)
 			offsets, _ := m.GetOffset(ctx, subId)
@@ -40,7 +41,7 @@ func TestOffset(t *testing.T) {
 		Convey("get offset", func() {
 			m.RemoveRegisterSubscription(ctx, subId)
 			storage.CreateOffset(ctx, subId, info.OffsetInfo{
-				EventLogID: eventLog,
+				EventLogID: eventLogID,
 				Offset:     offset,
 			})
 			offsets, _ := m.GetOffset(ctx, subId)
@@ -51,7 +52,7 @@ func TestOffset(t *testing.T) {
 
 		Convey("offset", func() {
 			m.RemoveRegisterSubscription(ctx, subId)
-			m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLog, Offset: offset}})
+			m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
 			offsets, _ := m.GetOffset(ctx, subId)
 			So(len(offsets), ShouldEqual, 1)
 			So(offsets[0].Offset, ShouldEqual, offset)
@@ -59,7 +60,7 @@ func TestOffset(t *testing.T) {
 
 		Convey("commit", func() {
 			m.RemoveRegisterSubscription(ctx, subId)
-			m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLog, Offset: offset}})
+			m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
 			offsets, _ := m.GetOffset(ctx, subId)
 			So(len(offsets), ShouldEqual, 1)
 			So(offsets[0].Offset, ShouldEqual, offset)
@@ -74,11 +75,11 @@ func TestStart(t *testing.T) {
 	storage := storage.NewFakeStorage()
 	m := NewOffsetManager(storage)
 	Convey("commit", t, func() {
-		subId := "subId"
-		eventLog := "el"
-		offset := int64(1)
+		subId := vanus.ID(1)
+		eventLogID := vanus.ID(1)
+		offset := uint64(1)
 		Convey("commit", func() {
-			m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLog, Offset: offset}})
+			m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
 			offsets, _ := m.GetOffset(ctx, subId)
 			So(len(offsets), ShouldEqual, 1)
 			So(offsets[0].Offset, ShouldEqual, offset)

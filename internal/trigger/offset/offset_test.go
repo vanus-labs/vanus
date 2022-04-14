@@ -16,28 +16,29 @@ package offset
 
 import (
 	"github.com/linkall-labs/vanus/internal/primitive/info"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 )
 
-func TestManager_RegisterSubscription(t *testing.T) {
+func TestRegisterSubscription(t *testing.T) {
 	m := NewOffsetManager()
 	Convey("register subscription", t, func() {
 		Convey("subscription offset same", func() {
-			subId := "subId"
+			subId := vanus.ID(1)
 			So(m.RegisterSubscription(subId), ShouldEqual, m.RegisterSubscription(subId))
 		})
 		Convey("subId not equals subscription offset not same", func() {
-			So(m.RegisterSubscription("subId1"), ShouldNotEqual, m.RegisterSubscription("subId2"))
+			So(m.RegisterSubscription(1), ShouldNotEqual, m.RegisterSubscription(2))
 		})
 	})
 
 }
 
-func TestManager_GetSubscription(t *testing.T) {
+func TestGetSubscription(t *testing.T) {
 	m := NewOffsetManager()
 	Convey("get subscription", t, func() {
-		subId := "subId"
+		subId := vanus.ID(1)
 		Convey("get subscription nil", func() {
 			So(m.GetSubscription(subId), ShouldBeNil)
 		})
@@ -54,10 +55,10 @@ func TestManager_GetSubscription(t *testing.T) {
 	})
 }
 
-func TestManager_RemoveSubscription(t *testing.T) {
+func TestRemoveSubscription(t *testing.T) {
 	m := NewOffsetManager()
 	Convey("remove subscription", t, func() {
-		subId := "subId"
+		subId := vanus.ID(1)
 		m.RegisterSubscription(subId)
 		Convey("multi remove register subscription", func() {
 			So(m.GetSubscription(subId), ShouldNotBeNil)
@@ -69,20 +70,21 @@ func TestManager_RemoveSubscription(t *testing.T) {
 }
 
 func TestSubscriptionOffset(t *testing.T) {
-	subOffset := &SubscriptionOffset{subId: "subId"}
+	eventLogID := vanus.ID(1)
+	subOffset := &SubscriptionOffset{subId: 1}
 	Convey("subscription offset", t, func() {
-		offsetBegin := int64(1)
-		offsetEnd := int64(100)
+		offsetBegin := uint64(1)
+		offsetEnd := uint64(100)
 		for offset := offsetBegin; offset <= offsetEnd; offset++ {
 			subOffset.EventReceive(info.OffsetInfo{
-				EventLogID: "eventLog",
+				EventLogID: 1,
 				Offset:     offset,
 			})
 		}
 		commitEnd := offsetBegin + 10
 		for offset := offsetBegin; offset <= commitEnd; offset++ {
 			subOffset.EventCommit(info.OffsetInfo{
-				EventLogID: "eventLog",
+				EventLogID: eventLogID,
 				Offset:     offset,
 			})
 		}
@@ -93,7 +95,7 @@ func TestSubscriptionOffset(t *testing.T) {
 		commitEnd = offsetEnd
 		for offset := offsetBegin; offset <= commitEnd; offset++ {
 			subOffset.EventCommit(info.OffsetInfo{
-				EventLogID: "eventLog",
+				EventLogID: eventLogID,
 				Offset:     offset,
 			})
 		}

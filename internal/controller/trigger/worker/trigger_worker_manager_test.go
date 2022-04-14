@@ -22,6 +22,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	subscriptiontest "github.com/linkall-labs/vanus/internal/controller/trigger/subscription/testing"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/util"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
@@ -29,13 +30,13 @@ import (
 
 func getTestSubscription() *primitive.SubscriptionApi {
 	return &primitive.SubscriptionApi{
-		ID:    "1234",
+		ID:    1,
 		Phase: primitive.SubscriptionPhaseCreated,
 	}
 }
 
 func getTestTriggerWorkerRemoveSubscription() OnTriggerWorkerRemoveSubscription {
-	return func(ctx context.Context, subId, addr string) error {
+	return func(ctx context.Context, subId vanus.ID, addr string) error {
 		fmt.Println(fmt.Sprintf("trigger worker leave remove subscription %s", subId))
 		return nil
 	}
@@ -53,7 +54,7 @@ func TestInit(t *testing.T) {
 	subManager := subscriptiontest.NewMockManager(ctrl)
 	sub := getTestSubscription()
 	sub.TriggerWorker = addr
-	subManager.EXPECT().ListSubscription(ctx).Return(map[string]*primitive.SubscriptionApi{
+	subManager.EXPECT().ListSubscription(ctx).Return(map[vanus.ID]*primitive.SubscriptionApi{
 		sub.ID: sub,
 	})
 	twManager := NewTriggerWorkerManager(storage, subManager, nil).(*manager)
@@ -128,11 +129,8 @@ func TestAssignSubscription(t *testing.T) {
 	twManager := NewTriggerWorkerManager(storage, subManager, getTestTriggerWorkerRemoveSubscription()).(*manager)
 	Convey("assign subscription", t, func() {
 		twManager.AddTriggerWorker(ctx, addr)
-		twManager.UpdateTriggerWorkerInfo(ctx, addr, map[string]struct{}{sub.ID: {}})
+		twManager.UpdateTriggerWorkerInfo(ctx, addr, map[vanus.ID]struct{}{sub.ID: {}})
 		tWorker := twManager.GetTriggerWorker(ctx, addr)
-		//f := tWorker.AddSubscription
-		//todo gostub support method?
-		//gostub.StubFunc(&f, nil)
 		subManager.EXPECT().GetSubscription(ctx, sub.ID).Return(&primitive.Subscription{
 			ID: sub.ID,
 		}, nil)
