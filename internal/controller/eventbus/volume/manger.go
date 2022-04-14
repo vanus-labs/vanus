@@ -17,6 +17,7 @@ package volume
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"strings"
 )
@@ -30,17 +31,21 @@ type Manager interface {
 	GetAllVolume() []Instance
 	RegisterVolume(ctx context.Context, md *Metadata) (Instance, error)
 	RefreshRoutingInfo(ins Instance, srv Server)
-	GetVolumeByID(id uint64) Instance
+	GetVolumeInstanceByID(id uint64) Instance
 	LookupVolumeByServerID(id uint64) Instance
 	Destroy() error
 }
 
+var (
+	mgr = &volumeMgr{}
+)
+
 func NewVolumeManager() Manager {
-	return &volumeMgr{}
+	return mgr
 }
 
 type volumeMgr struct {
-	volInstanceMap map[string]Instance
+	volInstanceMap map[uint64]Instance
 	kvCli          kv.Client
 }
 
@@ -53,7 +58,7 @@ func (mgr *volumeMgr) RefreshRoutingInfo(ins Instance, srv Server) {
 }
 
 func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
-	mgr.volInstanceMap = make(map[string]Instance, 0)
+	mgr.volInstanceMap = make(map[uint64]Instance, 0)
 	mgr.kvCli = kvClient
 
 	pairs, err := mgr.kvCli.List(ctx, volumeKeyPrefixInKVStore)
@@ -70,7 +75,7 @@ func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 	return nil
 }
 
-func (mgr *volumeMgr) GetVolumeByID(id uint64) Instance {
+func (mgr *volumeMgr) GetVolumeInstanceByID(id uint64) Instance {
 	//return mgr.volInstanceMap[id]
 	return nil
 }
@@ -92,6 +97,6 @@ func (mgr *volumeMgr) updateVolumeInKV(ctx context.Context, md *Metadata) error 
 	return mgr.kvCli.Set(ctx, mgr.getVolumeKeyInKVStore(md.ID), data)
 }
 
-func (mgr *volumeMgr) getVolumeKeyInKVStore(volumeID string) string {
-	return strings.Join([]string{volumeKeyPrefixInKVStore, volumeID}, "/")
+func (mgr *volumeMgr) getVolumeKeyInKVStore(volumeID uint64) string {
+	return strings.Join([]string{volumeKeyPrefixInKVStore, fmt.Sprintf("%d", volumeID)}, "/")
 }

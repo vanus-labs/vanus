@@ -79,6 +79,6 @@ type Server interface {
 	RemoteStart(ctx context.Context) error
 	RemoteStop(ctx context.Context) error
 	GetClient() segpb.SegmentServerClient
-	ID() string
+	ID() uint64
 	Address() string
 }

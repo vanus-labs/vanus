@@ -40,7 +40,7 @@ func Convert2ProtoEventBus(ins ...*BusInfo) []*meta.EventBus {
 
 type EventLogInfo struct {
 	// global unique id
-	ID           string `json:"id"`
+	ID           uint64 `json:"id"`
 	EventBusName string `json:"eventbus_name"`
 }
 

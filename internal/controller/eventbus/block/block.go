@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package allocator
+package block
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/huandu/skiplist"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/pkg/errors"
@@ -29,7 +28,7 @@ import (
 
 const (
 	defaultBlockSize        = 64 * 1024 * 1024
-	BlockKeyPrefixInKVStore = "/vanus/internal/resource/Block"
+	blockKeyPrefixInKVStore = "/vanus/internal/resource/Block"
 )
 
 var (
@@ -50,10 +49,9 @@ type Allocator interface {
 	Remove(ctx context.Context, seg *Block) error
 }
 
-func NewAllocator(volMgr volume.Manager, selector VolumeSelector) Allocator {
+func NewAllocator(selector VolumeSelector) Allocator {
 	return &allocator{
-		selector:  selector,
-		volumeMgr: volMgr,
+		selector: selector,
 	}
 }
 
@@ -63,7 +61,6 @@ type allocator struct {
 	volumeBlockBuffer map[uint64]*skiplist.SkipList
 	segmentMap        sync.Map
 	kvClient          kv.Client
-	volumeMgr         volume.Manager
 	mutex             sync.Mutex
 	// key: blockID, value: block
 	inflightBlocks sync.Map
@@ -72,8 +69,8 @@ type allocator struct {
 func (mgr *allocator) Init(ctx context.Context, kvCli kv.Client) error {
 	mgr.kvClient = kvCli
 	go mgr.dynamicAllocateSegmentTask()
-	mgr.selector = NewVolumeRoundRobin(mgr.volumeMgr.GetAllVolume)
-	pairs, err := mgr.kvClient.List(ctx, BlockKeyPrefixInKVStore)
+	//mgr.primitive = NewVolumeRoundRobin(mgr.volumeMgr.GetAllVolume)
+	pairs, err := mgr.kvClient.List(ctx, blockKeyPrefixInKVStore)
 	if err != nil {
 		return err
 	}
@@ -145,10 +142,10 @@ func (mgr *allocator) Pick(ctx context.Context, num int, size int64) ([]*Block, 
 }
 
 func (mgr *allocator) Remove(ctx context.Context, block *Block) error {
-	ins := mgr.volumeMgr.GetVolumeByID(block.VolumeID)
-	if ins == nil {
-		return ErrVolumeNotFound
-	}
+	//ins := mgr.volumeMgr.GetVolumeInstanceByID(block.VolumeID)
+	//if ins == nil {
+	//	return ErrVolumeNotFound
+	//}
 	//TODO
 	return nil
 }
@@ -162,7 +159,7 @@ func (mgr *allocator) dynamicAllocateSegmentTask() {
 }
 
 func (mgr *allocator) getBlockKeyInKVStore(blockID uint64) string {
-	return strings.Join([]string{BlockKeyPrefixInKVStore, fmt.Sprintf("%d", blockID)}, "/")
+	return strings.Join([]string{blockKeyPrefixInKVStore, fmt.Sprintf("%d", blockID)}, "/")
 }
 
 func (mgr *allocator) updateBlockInKV(ctx context.Context, block *Block) error {

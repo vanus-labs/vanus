@@ -196,7 +196,7 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 
 	var volInstance volume.Instance
 	// need to compare metadata if existd?
-	volInstance = ctrl.volumeMgr.GetVolumeByID(req.VolumeId)
+	volInstance = ctrl.volumeMgr.GetVolumeInstanceByID(req.VolumeId)
 	if volInstance == nil {
 		volMD := &volume.Metadata{ID: req.VolumeId}
 		_volInstance, err := ctrl.volumeMgr.RegisterVolume(ctx, volMD)
@@ -222,7 +222,7 @@ func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
 	serverInfo := ctrl.ssMgr.GetServerInfoByAddress(req.Address)
 
 	if serverInfo == nil {
-		return nil, errors.ErrResourceNotFound.WithMessage("allocator server not found")
+		return nil, errors.ErrResourceNotFound.WithMessage("block server not found")
 	}
 
 	if err := ctrl.ssMgr.RemoveServer(ctx, serverInfo); err != nil {
@@ -231,7 +231,7 @@ func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
 		})
 	}
 
-	ctrl.volumeMgr.RefreshRoutingInfo(ctrl.volumeMgr.GetVolumeByID(req.VolumeId), nil)
+	ctrl.volumeMgr.RefreshRoutingInfo(ctrl.volumeMgr.GetVolumeInstanceByID(req.VolumeId), nil)
 	return &ctrlpb.UnregisterSegmentServerResponse{}, nil
 }
 
@@ -265,7 +265,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 			})
 			continue
 		}
-		log.Debug(ctx, "received heartbeat from allocator server", map[string]interface{}{
+		log.Debug(ctx, "received heartbeat from block server", map[string]interface{}{
 			"server_id": req.ServerId,
 			"volume_id": req.VolumeId,
 			"time":      t,
@@ -282,7 +282,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 	}
 
 	if err != nil && err != io.EOF {
-		log.Error(ctx, "allocator server heartbeat error", map[string]interface{}{
+		log.Error(ctx, "block server heartbeat error", map[string]interface{}{
 			log.KeyError: err,
 		})
 	}

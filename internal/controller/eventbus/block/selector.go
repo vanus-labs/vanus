@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package allocator
+package block
 
 import (
 	"context"
@@ -46,13 +46,15 @@ func (s *volumeRoundRobinSelector) Select(ctx context.Context, num int, size int
 	if len(volumes) == 0 {
 		return nil
 	}
-	keys := make([]string, 0)
-	m := make(map[string]volume.Instance)
+	keys := make([]uint64, 0)
+	m := make(map[uint64]volume.Instance)
 	for _, v := range volumes {
 		keys = append(keys, v.GetMeta().ID)
 		m[v.GetMeta().ID] = v
 	}
-	sort.Strings(keys)
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
 	for idx := 0; idx < num; idx++ {
 		instances[idx] = m[keys[(s.count+int64(idx))%int64(len(keys))]]
 	}
