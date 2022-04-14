@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/huandu/skiplist"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/pkg/errors"
@@ -35,18 +36,10 @@ var (
 	ErrVolumeNotFound = errors.New("volume not found")
 )
 
-type Block struct {
-	ID        uint64 `json:"id"`
-	Capacity  int64  `json:"capacity"`
-	Size      int64  `json:"size"`
-	VolumeID  uint64 `json:"volume_id"`
-	SegmentID uint64 `json:"event_log_id"`
-}
-
 type Allocator interface {
 	Init(ctx context.Context, kvCli kv.Client) error
-	Pick(ctx context.Context, num int, size int64) ([]*Block, error)
-	Remove(ctx context.Context, seg *Block) error
+	Pick(ctx context.Context, num int, size int64) ([]*metadata.Block, error)
+	Remove(ctx context.Context, seg *metadata.Block) error
 }
 
 func NewAllocator(selector VolumeSelector) Allocator {
@@ -57,7 +50,7 @@ func NewAllocator(selector VolumeSelector) Allocator {
 
 type allocator struct {
 	selector VolumeSelector
-	// key: volumeID, value: SkipList of *Block
+	// key: volumeID, value: SkipList of *metadata.Block
 	volumeBlockBuffer map[uint64]*skiplist.SkipList
 	segmentMap        sync.Map
 	kvClient          kv.Client
@@ -77,7 +70,7 @@ func (mgr *allocator) Init(ctx context.Context, kvCli kv.Client) error {
 	// TODO unassigned -> assigned
 	for idx := range pairs {
 		pair := pairs[idx]
-		bl := &Block{}
+		bl := &metadata.Block{}
 		err := json.Unmarshal(pair.Value, bl)
 		if err != nil {
 			return err
@@ -93,10 +86,10 @@ func (mgr *allocator) Init(ctx context.Context, kvCli kv.Client) error {
 	return nil
 }
 
-func (mgr *allocator) Pick(ctx context.Context, num int, size int64) ([]*Block, error) {
+func (mgr *allocator) Pick(ctx context.Context, num int, size int64) ([]*metadata.Block, error) {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
-	blockArr := make([]*Block, num)
+	blockArr := make([]*metadata.Block, num)
 
 	instances := mgr.selector.Select(ctx, 3, size)
 	if len(instances) == 0 {
@@ -110,7 +103,7 @@ func (mgr *allocator) Pick(ctx context.Context, num int, size int64) ([]*Block, 
 			mgr.volumeBlockBuffer[instances[idx].ID()] = list
 		}
 		var err error
-		var block *Block
+		var block *metadata.Block
 		if list.Len() == 0 {
 			block, err = ins.CreateBlock(ctx, size)
 			if err != nil {
@@ -125,7 +118,7 @@ func (mgr *allocator) Pick(ctx context.Context, num int, size int64) ([]*Block, 
 			}
 		} else {
 			val := list.RemoveFront()
-			block = val.Value.(*Block)
+			block = val.Value.(*metadata.Block)
 		}
 		blockArr = append(blockArr, block)
 	}
@@ -141,7 +134,7 @@ func (mgr *allocator) Pick(ctx context.Context, num int, size int64) ([]*Block, 
 	return blockArr, nil
 }
 
-func (mgr *allocator) Remove(ctx context.Context, block *Block) error {
+func (mgr *allocator) Remove(ctx context.Context, block *metadata.Block) error {
 	//ins := mgr.volumeMgr.GetVolumeInstanceByID(block.VolumeID)
 	//if ins == nil {
 	//	return ErrVolumeNotFound
@@ -162,7 +155,7 @@ func (mgr *allocator) getBlockKeyInKVStore(blockID uint64) string {
 	return strings.Join([]string{blockKeyPrefixInKVStore, fmt.Sprintf("%d", blockID)}, "/")
 }
 
-func (mgr *allocator) updateBlockInKV(ctx context.Context, block *Block) error {
+func (mgr *allocator) updateBlockInKV(ctx context.Context, block *metadata.Block) error {
 	if block == nil {
 		return nil
 	}
@@ -173,7 +166,7 @@ func (mgr *allocator) updateBlockInKV(ctx context.Context, block *Block) error {
 	return mgr.kvClient.Set(ctx, mgr.getBlockKeyInKVStore(block.ID), data)
 }
 
-func (mgr *allocator) addToInflightBlock(blocks ...*Block) error {
+func (mgr *allocator) addToInflightBlock(blocks ...*metadata.Block) error {
 	//mgr.inflightBlocks.Store(block.ID, block)
 	// TODO update to etcd
 	return nil

@@ -12,43 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package volume
+package server
 
 import (
 	"context"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/block"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vsproto/pkg/segment"
 	"google.golang.org/grpc"
 	"time"
 )
 
 type Instance interface {
-	GetMeta() *Metadata
-	ID() uint64
-	Address() string
-	CreateBlock(context.Context, int64) (*block.Block, error)
+	Server
+	GetMeta() *metadata.VolumeMetadata
+	CreateBlock(context.Context, int64) (*metadata.Block, error)
 	DeleteBlock(context.Context, uint64) error
-	ActivateSegment(context.Context, *Segment) error
-	Close() error
 }
 
-func newInstance(md *Metadata) Instance {
+func NewInstance(md *metadata.VolumeMetadata) Instance {
 	return nil
 }
 
 type instance struct {
-	md       *Metadata
+	md       *metadata.VolumeMetadata
 	srv      Server
 	grpcConn *grpc.ClientConn
 	client   segment.SegmentServerClient
 }
 
-func (ins *instance) GetMeta() *Metadata {
+func (ins *instance) GetMeta() *metadata.VolumeMetadata {
 	return ins.md
 }
 
-func (ins *instance) CreateBlock(ctx context.Context, cap int64) (*block.Block, error) {
-	blk := &block.Block{
+func (ins *instance) CreateBlock(ctx context.Context, cap int64) (*metadata.Block, error) {
+	blk := &metadata.Block{
 		ID:       ins.generateBlockID(),
 		Capacity: cap,
 	}
@@ -69,15 +66,6 @@ func (ins *instance) DeleteBlock(context.Context, uint64) error {
 
 func (ins *instance) UpdateSegmentServer(srv Server) {
 	ins.srv = srv
-}
-
-func (ins *instance) ActivateSegment(ctx context.Context, seg *Segment) error {
-	_, err := ins.client.ActivateSegment(ctx, &segment.ActivateSegmentRequest{
-		EventLogId:     seg.EventLogID,
-		ReplicaGroupId: seg.Replicas.ID,
-		PeersAddress:   seg.Replicas.Peers(),
-	})
-	return err
 }
 
 func (ins *instance) Address() string {

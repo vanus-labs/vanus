@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/block"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/info"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/linkall-labs/vanus/internal/kv"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
@@ -42,11 +42,11 @@ const (
 
 type Manager interface {
 	Init(ctx context.Context, kvClient kv.Client) error
-	AcquireEventLog(ctx context.Context) (*info.EventLogInfo, error)
-	UpdateEventLog(ctx context.Context, els ...*info.EventLogInfo) error
-	GetEventLog(ctx context.Context, id uint64) *info.EventLogInfo
+	AcquireEventLog(ctx context.Context) (*metadata.Eventlog, error)
+	UpdateEventLog(ctx context.Context, els ...*metadata.Eventlog) error
+	GetEventLog(ctx context.Context, id uint64) *metadata.Eventlog
 	GetEventLogSegmentList(elID uint64) []*volume.Segment
-	GetAppendableSegment(ctx context.Context, eli *info.EventLogInfo,
+	GetAppendableSegment(ctx context.Context, eli *metadata.Eventlog,
 		num int) ([]*volume.Segment, error)
 	UpdateSegment(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error
 }
@@ -54,7 +54,7 @@ type Manager interface {
 type eventlogManager struct {
 	kvStore          kv.Client
 	segmentAllocator block.Allocator
-	// string, *info.EventLogInfo
+	// string, *metadata.Eventlog
 	eventLogMap      sync.Map
 	boundEventLogMap sync.Map
 
@@ -85,7 +85,7 @@ func (mgr *eventlogManager) Init(ctx context.Context, kvClient kv.Client) error 
 	}
 	for idx := range pairs {
 		pair := pairs[idx]
-		elInfo := &info.EventLogInfo{}
+		elInfo := &metadata.Eventlog{}
 		err := json.Unmarshal(pair.Value, elInfo)
 		if err != nil {
 			return err
@@ -99,7 +99,7 @@ func (mgr *eventlogManager) initVolumeInfo(ctx context.Context) error {
 	var err error
 	//ctx := context.Background()
 	mgr.eventLogMap.Range(func(key, value interface{}) bool {
-		elInfo := value.(*info.EventLogInfo)
+		elInfo := value.(*metadata.Eventlog)
 		sbList := mgr.GetEventLogSegmentList(elInfo.ID)
 		for idx := 0; idx < len(sbList); idx++ {
 			//sb := sbList[idx]
@@ -113,9 +113,9 @@ func (mgr *eventlogManager) initVolumeInfo(ctx context.Context) error {
 func (mgr *eventlogManager) stop(ctx context.Context) {
 }
 
-func (mgr *eventlogManager) AcquireEventLog(ctx context.Context) (*info.EventLogInfo, error) {
+func (mgr *eventlogManager) AcquireEventLog(ctx context.Context) (*metadata.Eventlog, error) {
 	ele := mgr.freeEventLogMap.Front()
-	var el *info.EventLogInfo
+	var el *metadata.Eventlog
 	if ele == nil {
 		_el, err := mgr.createEventLog(ctx)
 		if err != nil {
@@ -123,7 +123,7 @@ func (mgr *eventlogManager) AcquireEventLog(ctx context.Context) (*info.EventLog
 		}
 		el = _el
 	} else {
-		el = ele.Value.(*info.EventLogInfo)
+		el = ele.Value.(*metadata.Eventlog)
 	}
 	mgr.boundEventLogMap.Store(el.ID, el)
 	if err := mgr.initializeEventLog(ctx, el); err != nil {
@@ -132,8 +132,8 @@ func (mgr *eventlogManager) AcquireEventLog(ctx context.Context) (*info.EventLog
 	return el, nil
 }
 
-func (mgr *eventlogManager) createEventLog(ctx context.Context) (*info.EventLogInfo, error) {
-	el := &info.EventLogInfo{
+func (mgr *eventlogManager) createEventLog(ctx context.Context) (*metadata.Eventlog, error) {
+	el := &metadata.Eventlog{
 		// TODO use new uuid generator
 		ID: uint64(time.Now().UnixNano()),
 	}
@@ -147,16 +147,16 @@ func (mgr *eventlogManager) createEventLog(ctx context.Context) (*info.EventLogI
 	return el, nil
 }
 
-func (mgr *eventlogManager) GetEventLog(ctx context.Context, id uint64) *info.EventLogInfo {
+func (mgr *eventlogManager) GetEventLog(ctx context.Context, id uint64) *metadata.Eventlog {
 	v, exist := mgr.eventLogMap.Load(id)
 
 	if exist {
-		return v.(*info.EventLogInfo)
+		return v.(*metadata.Eventlog)
 	}
 	return nil
 }
 
-func (mgr *eventlogManager) UpdateEventLog(ctx context.Context, els ...*info.EventLogInfo) error {
+func (mgr *eventlogManager) UpdateEventLog(ctx context.Context, els ...*metadata.Eventlog) error {
 	mgr.kvMutex.Lock()
 	defer mgr.kvMutex.Unlock()
 	for idx := range els {
@@ -169,7 +169,7 @@ func (mgr *eventlogManager) UpdateEventLog(ctx context.Context, els ...*info.Eve
 	return nil
 }
 
-func (mgr *eventlogManager) initializeEventLog(ctx context.Context, el *info.EventLogInfo) error {
+func (mgr *eventlogManager) initializeEventLog(ctx context.Context, el *metadata.Eventlog) error {
 	_, err := mgr.segmentAllocator.Pick(ctx, defaultAutoCreatedSegmentNumber, 64*1024*1024)
 	if err != nil {
 		return err
@@ -186,7 +186,7 @@ func (mgr *eventlogManager) getEventLogKeyInKVStore(elID uint64) string {
 }
 
 func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
-	eli *info.EventLogInfo, num int) ([]*volume.Segment, error) {
+	eli *metadata.Eventlog, num int) ([]*volume.Segment, error) {
 	// TODO the HA of block can't be guaranteed before block support multiple replicas
 	sl := mgr.logMap[eli.ID]
 	if sl == nil {

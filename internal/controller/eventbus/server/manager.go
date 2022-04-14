@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package volume
+package server
 
 import (
 	"context"
@@ -22,7 +22,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type ServerManager interface {
+type Manager interface {
 	AddServer(ctx context.Context, address string) (Server, error)
 	RemoveServer(ctx context.Context, srv Server) error
 	GetServerInfoByAddress(addr string) Server
@@ -81,4 +81,5 @@ type Server interface {
 	GetClient() segpb.SegmentServerClient
 	ID() uint64
 	Address() string
+	Close() error
 }

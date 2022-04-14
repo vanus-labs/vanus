@@ -16,28 +16,28 @@ package block
 
 import (
 	"context"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"sort"
 )
 
 type VolumeSelector interface {
-	Select(context.Context, int, int64) []volume.Instance
+	Select(context.Context, int, int64) []server.Instance
 }
 
 type volumeRoundRobinSelector struct {
 	count      int64
-	getVolumes func() []volume.Instance
+	getVolumes func() []server.Instance
 }
 
-func NewVolumeRoundRobin(f func() []volume.Instance) VolumeSelector {
+func NewVolumeRoundRobin(f func() []server.Instance) VolumeSelector {
 	return &volumeRoundRobinSelector{
 		count:      0,
 		getVolumes: f,
 	}
 }
 
-func (s *volumeRoundRobinSelector) Select(ctx context.Context, num int, size int64) []volume.Instance {
-	instances := make([]volume.Instance, num)
+func (s *volumeRoundRobinSelector) Select(ctx context.Context, num int, size int64) []server.Instance {
+	instances := make([]server.Instance, num)
 	if num == 0 || size == 0 {
 		return instances
 	}
@@ -47,7 +47,7 @@ func (s *volumeRoundRobinSelector) Select(ctx context.Context, num int, size int
 		return nil
 	}
 	keys := make([]uint64, 0)
-	m := make(map[uint64]volume.Instance)
+	m := make(map[uint64]server.Instance)
 	for _, v := range volumes {
 		keys = append(keys, v.GetMeta().ID)
 		m[v.GetMeta().ID] = v

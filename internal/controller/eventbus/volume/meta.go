@@ -15,18 +15,10 @@
 package volume
 
 import (
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/block"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vsproto/pkg/meta"
 	"time"
 )
-
-type Metadata struct {
-	ID           uint64            `json:"id"`
-	Capacity     int64             `json:"capacity"`
-	Used         int64             `json:"used"`
-	BlockNumbers int               `json:"block_numbers"`
-	Blocks       map[string]string `json:"blocks"`
-}
 
 type SegmentState string
 
@@ -56,11 +48,18 @@ func (seg *Segment) IsAppendable() bool {
 	return seg.isReady() && seg.State == StateWorking
 }
 
-func (seg *Segment) GetLeaderAddress() string {
+func (seg *Segment) GetServerAddressOfLeader() string {
 	if !seg.isReady() {
 		return ""
 	}
 	return mgr.GetVolumeInstanceByID(seg.Replicas.LeaderID).Address()
+}
+
+func (seg *Segment) GetServerIDOfLeader() uint64 {
+	if !seg.isReady() {
+		return 0
+	}
+	return seg.Replicas.LeaderID
 }
 
 func (seg *Segment) isReady() bool {
@@ -68,12 +67,12 @@ func (seg *Segment) isReady() bool {
 }
 
 type ReplicaGroup struct {
-	ID           uint64                  `json:"id"`
-	PeersAddress []string                `json:"peers_address"`
-	LeaderID     uint64                  `json:"leader_id"`
-	Blocks       map[uint64]*block.Block `json:"blocks"`
-	CreateAt     time.Time               `json:"create_at"`
-	DestroyAt    time.Time               `json:"destroy_at"`
+	ID           uint64                     `json:"id"`
+	PeersAddress []string                   `json:"peers_address"`
+	LeaderID     uint64                     `json:"leader_id"`
+	Blocks       map[uint64]*metadata.Block `json:"blocks"`
+	CreateAt     time.Time                  `json:"create_at"`
+	DestroyAt    time.Time                  `json:"destroy_at"`
 }
 
 func (rg *ReplicaGroup) Peers() []string {
@@ -92,7 +91,7 @@ func Convert2ProtoSegment(ins ...*Segment) []*meta.Segment {
 	segs := make([]*meta.Segment, len(ins))
 	for idx := 0; idx < len(ins); idx++ {
 		seg := ins[idx]
-		// TODO optimize reported info
+		// TODO optimize reported metadata
 		segs[idx] = &meta.Segment{
 			Id:                seg.ID,
 			PreviousSegmentId: seg.PreviousSegmentId,
@@ -105,7 +104,7 @@ func Convert2ProtoSegment(ins ...*Segment) []*meta.Segment {
 			NumberEventStored: seg.Number,
 			State:             string(seg.State),
 			ReplicaId:         seg.ID,
-			LeaderAddr:        seg.GetLeaderAddress(),
+			LeaderAddr:        seg.GetServerAddressOfLeader(),
 		}
 		if segs[idx].NumberEventStored == 0 {
 			segs[idx].EndOffsetInLog = -1
