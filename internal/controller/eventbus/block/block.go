@@ -23,22 +23,24 @@ import (
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/pkg/errors"
+	rpcerr "github.com/linkall-labs/vsproto/pkg/errors"
 	"strings"
 	"sync"
 )
 
 const (
-	defaultBlockSize        = 64 * 1024 * 1024
-	blockKeyPrefixInKVStore = "/vanus/internal/resource/Block"
+	defaultBlockSize                = 64 * 1024 * 1024
+	defaultBlockBufferSizePerVolume = 8
+	blockKeyPrefixInKVStore         = "/vanus/internal/resource/block"
 )
 
 var (
-	ErrVolumeNotFound = errors.New("volume not found")
+	ErrVolumeNotFound = rpcerr.New("volume not found").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_NOT_FOUND)
 )
 
 type Allocator interface {
-	Init(ctx context.Context, kvCli kv.Client) error
+	Run(ctx context.Context, kvCli kv.Client) error
+	Stop()
 	Pick(ctx context.Context, num int, size int64) ([]*metadata.Block, error)
 	Remove(ctx context.Context, seg *metadata.Block) error
 }
@@ -56,13 +58,13 @@ type allocator struct {
 	segmentMap        sync.Map
 	kvClient          kv.Client
 	mutex             sync.Mutex
-	// key: blockID, value: block
-	inflightBlocks sync.Map
+	inflightBlocks    sync.Map
+	cancel            func()
+	cancelCtx         context.Context
 }
 
-func (mgr *allocator) Init(ctx context.Context, kvCli kv.Client) error {
+func (mgr *allocator) Run(ctx context.Context, kvCli kv.Client) error {
 	mgr.kvClient = kvCli
-	go mgr.dynamicAllocateSegmentTask()
 	//mgr.primitive = NewVolumeRoundRobin(mgr.volumeMgr.GetAllVolume)
 	pairs, err := mgr.kvClient.List(ctx, blockKeyPrefixInKVStore)
 	if err != nil {
@@ -84,6 +86,8 @@ func (mgr *allocator) Init(ctx context.Context, kvCli kv.Client) error {
 		l.Set(bl.ID, bl)
 		mgr.segmentMap.Store(bl.ID, bl)
 	}
+	mgr.cancelCtx, mgr.cancel = context.WithCancel(context.Background())
+	go mgr.dynamicAllocateBlockTask()
 	return nil
 }
 
@@ -136,20 +140,54 @@ func (mgr *allocator) Pick(ctx context.Context, num int, size int64) ([]*metadat
 }
 
 func (mgr *allocator) Remove(ctx context.Context, block *metadata.Block) error {
-	//ins := mgr.volumeMgr.GetVolumeInstanceByID(block.VolumeID)
-	//if ins == nil {
-	//	return ErrVolumeNotFound
-	//}
-	//TODO
+	mgr.inflightBlocks.Delete(block.ID)
 	return nil
 }
 
-func (mgr *allocator) destroy() error {
-	return nil
+func (mgr *allocator) Stop() {
+	mgr.cancel()
 }
 
-func (mgr *allocator) dynamicAllocateSegmentTask() {
-	//TODO
+func (mgr *allocator) dynamicAllocateBlockTask() {
+	ctx := context.Background()
+	for {
+		select {
+		case <-mgr.cancelCtx.Done():
+			log.Info(ctx, "the dynamic-allocate task exit", nil)
+			return
+		default:
+		}
+		for k, v := range mgr.volumeBlockBuffer {
+			instance := mgr.selector.SelectByID(ctx, k)
+			if instance == nil {
+				log.Warning(ctx, "need to allocate block, but no volume instance founded", map[string]interface{}{
+					"volume_id": k,
+				})
+				continue
+			}
+
+			for v.Len() < defaultBlockBufferSizePerVolume {
+				block, err := instance.CreateBlock(ctx, defaultBlockSize)
+				if err != nil {
+					log.Warning(ctx, "create block failed", map[string]interface{}{
+						"volume_id":   k,
+						"buffer_size": v.Len(),
+					})
+					break
+				}
+				if err = mgr.updateBlockInKV(ctx, block); err != nil {
+					log.Warning(ctx, "insert block medata to etcd failed", map[string]interface{}{
+						"volume_id":   k,
+						"block_id":    block.ID,
+						log.KeyError:  err,
+						"buffer_size": v.Len(),
+					})
+					break
+				}
+				v.Set(block.ID, block)
+			}
+		}
+	}
 }
 
 func (mgr *allocator) getBlockKeyInKVStore(blockID vanus.ID) string {

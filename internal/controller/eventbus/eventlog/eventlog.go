@@ -26,6 +26,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
+	"github.com/linkall-labs/vsproto/pkg/segment"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -42,19 +43,22 @@ const (
 )
 
 type Manager interface {
-	Init(ctx context.Context, kvClient kv.Client) error
+	Run(ctx context.Context, kvClient kv.Client) error
+	Stop()
 	AcquireEventLog(ctx context.Context) (*metadata.Eventlog, error)
 	UpdateEventLog(ctx context.Context, els ...*metadata.Eventlog) error
 	GetEventLog(ctx context.Context, id vanus.ID) *metadata.Eventlog
-	GetEventLogSegmentList(elID vanus.ID) []*volume.Segment
+	GetEventLogSegmentList(elID vanus.ID) []*Segment
 	GetAppendableSegment(ctx context.Context, eli *metadata.Eventlog,
-		num int) ([]*volume.Segment, error)
+		num int) ([]*Segment, error)
 	UpdateSegment(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error
 }
 
+var mgr = &eventlogManager{}
+
 type eventlogManager struct {
-	kvStore          kv.Client
-	segmentAllocator block.Allocator
+	kvStore   kv.Client
+	allocator block.Allocator
 	// string, *metadata.Eventlog
 	eventLogMap      sync.Map
 	boundEventLogMap sync.Map
@@ -68,16 +72,16 @@ type eventlogManager struct {
 }
 
 func NewManager(volMgr volume.Manager) Manager {
-	return &eventlogManager{
-		volMgr:          volMgr,
-		freeEventLogMap: skiplist.New(skiplist.String),
-	}
+	mgr.volMgr = volMgr
+	mgr.logMap = map[vanus.ID]*skiplist.SkipList{}
+	mgr.freeEventLogMap = skiplist.New(skiplist.Uint64)
+	return mgr
 }
 
-func (mgr *eventlogManager) Init(ctx context.Context, kvClient kv.Client) error {
+func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client) error {
 	mgr.kvClient = kvClient
-	mgr.segmentAllocator = block.NewAllocator(block.NewVolumeRoundRobin(mgr.volMgr.GetAllVolume))
-	if err := mgr.segmentAllocator.Init(ctx, mgr.kvStore); err != nil {
+	mgr.allocator = block.NewAllocator(block.NewVolumeRoundRobin(mgr.volMgr.GetAllVolume))
+	if err := mgr.allocator.Run(ctx, mgr.kvStore); err != nil {
 		return err
 	}
 	pairs, err := mgr.kvStore.List(ctx, eventlogKeyPrefixInKVStore)
@@ -95,7 +99,9 @@ func (mgr *eventlogManager) Init(ctx context.Context, kvClient kv.Client) error 
 	}
 	return mgr.initVolumeInfo(ctx)
 }
-
+func (mgr *eventlogManager) Stop() {
+	mgr.allocator.Stop()
+}
 func (mgr *eventlogManager) initVolumeInfo(ctx context.Context) error {
 	var err error
 	//ctx := context.Background()
@@ -170,8 +176,19 @@ func (mgr *eventlogManager) UpdateEventLog(ctx context.Context, els ...*metadata
 	return nil
 }
 
+func (mgr *eventlogManager) activateSegment(ctx context.Context, seg *Segment) error {
+	ins := mgr.volMgr.LookupVolumeByServerID(seg.GetServerIDOfLeader())
+
+	_, err := ins.GetClient().ActivateSegment(ctx, &segment.ActivateSegmentRequest{
+		EventLogId:     seg.EventLogID.Uint64(),
+		ReplicaGroupId: seg.Replicas.ID.Uint64(),
+		PeersAddress:   seg.Replicas.Peers(),
+	})
+	return err
+}
+
 func (mgr *eventlogManager) initializeEventLog(ctx context.Context, el *metadata.Eventlog) error {
-	_, err := mgr.segmentAllocator.Pick(ctx, defaultAutoCreatedSegmentNumber, 64*1024*1024)
+	_, err := mgr.allocator.Pick(ctx, defaultAutoCreatedSegmentNumber, 64*1024*1024)
 	if err != nil {
 		return err
 	}
@@ -187,17 +204,17 @@ func (mgr *eventlogManager) getEventLogKeyInKVStore(elID vanus.ID) string {
 }
 
 func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
-	eli *metadata.Eventlog, num int) ([]*volume.Segment, error) {
+	eli *metadata.Eventlog, num int) ([]*Segment, error) {
 	// TODO the HA of block can't be guaranteed before block support multiple replicas
 	sl := mgr.logMap[eli.ID]
 	if sl == nil {
 		return nil, ErrEventLogNotFound
 	}
-	arr := make([]*volume.Segment, 0)
+	arr := make([]*Segment, 0)
 	next := sl.Front()
 	hit := 0
 	for hit < num && next != nil {
-		sbi := next.Value.(*volume.Segment)
+		sbi := next.Value.(*Segment)
 		next = next.Next()
 		if sbi.IsAppendable() {
 			continue
@@ -255,15 +272,15 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, req *ctrlpb.Segme
 	return nil
 }
 
-func (mgr *eventlogManager) GetEventLogSegmentList(elID vanus.ID) []*volume.Segment {
+func (mgr *eventlogManager) GetEventLogSegmentList(elID vanus.ID) []*Segment {
 	el := mgr.logMap[elID]
 	if el == nil {
 		return nil
 	}
-	var arr []*volume.Segment
+	var arr []*Segment
 	next := el.Front()
 	for next != nil {
-		arr = append(arr, next.Value.(*volume.Segment))
+		arr = append(arr, next.Value.(*Segment))
 		next = next.Next()
 	}
 	return arr

@@ -88,7 +88,7 @@ func (ctrl *controller) Start(ctx context.Context) error {
 	}
 
 	ctrl.eventLogMgr = eventlog.NewManager(ctrl.volumeMgr)
-	if err = ctrl.eventLogMgr.Init(ctx, ctrl.kvStore); err != nil {
+	if err = ctrl.eventLogMgr.Run(ctx, ctrl.kvStore); err != nil {
 		return err
 	}
 	return nil
@@ -343,7 +343,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event em
 			return err
 		}
 
-		if err := ctrl.eventLogMgr.Init(ctx, ctrl.kvStore); err != nil {
+		if err := ctrl.eventLogMgr.Run(ctx, ctrl.kvStore); err != nil {
 			ctrl.stop(ctx, err)
 			return err
 		}

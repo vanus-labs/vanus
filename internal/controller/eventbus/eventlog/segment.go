@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package volume
+package eventlog
 
 import (
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
@@ -53,7 +53,7 @@ func (seg *Segment) GetServerAddressOfLeader() string {
 	if !seg.isReady() {
 		return ""
 	}
-	return mgr.GetVolumeInstanceByID(seg.Replicas.LeaderID).Address()
+	return mgr.volMgr.GetVolumeInstanceByID(seg.Replicas.LeaderID).Address()
 }
 
 func (seg *Segment) GetServerIDOfLeader() vanus.ID {
@@ -79,7 +79,7 @@ type ReplicaGroup struct {
 func (rg *ReplicaGroup) Peers() []string {
 	peers := make([]string, 0)
 	for _, v := range rg.Blocks {
-		ins := mgr.GetVolumeInstanceByID(v.VolumeID)
+		ins := mgr.volMgr.GetVolumeInstanceByID(v.VolumeID)
 		if ins == nil {
 			continue
 		}

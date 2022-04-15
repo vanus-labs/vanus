@@ -23,6 +23,7 @@ import (
 
 type VolumeSelector interface {
 	Select(context.Context, int, int64) []server.Instance
+	SelectByID(ctx context.Context, id vanus.ID) server.Instance
 }
 
 type volumeRoundRobinSelector struct {
@@ -60,4 +61,14 @@ func (s *volumeRoundRobinSelector) Select(ctx context.Context, num int, size int
 		instances[idx] = m[keys[(s.count+int64(idx))%int64(len(keys))]]
 	}
 	return instances
+}
+
+func (s *volumeRoundRobinSelector) SelectByID(ctx context.Context, id vanus.ID) server.Instance {
+	volumes := s.getVolumes()
+	for idx := range volumes {
+		if volumes[idx].ID() == id {
+			return volumes[idx]
+		}
+	}
+	return nil
 }

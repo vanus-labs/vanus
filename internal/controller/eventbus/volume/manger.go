@@ -21,7 +21,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vsproto/pkg/segment"
 	"strings"
 )
 
@@ -89,17 +88,6 @@ func (mgr *volumeMgr) LookupVolumeByServerID(id vanus.ID) server.Instance {
 
 func (mgr *volumeMgr) GetAllVolume() []server.Instance {
 	return nil
-}
-
-func (mgr *volumeMgr) activateSegment(ctx context.Context, seg *Segment) error {
-	ins := mgr.LookupVolumeByServerID(seg.GetServerIDOfLeader())
-
-	_, err := ins.GetClient().ActivateSegment(ctx, &segment.ActivateSegmentRequest{
-		EventLogId:     seg.EventLogID.Uint64(),
-		ReplicaGroupId: seg.Replicas.ID.Uint64(),
-		PeersAddress:   seg.Replicas.Peers(),
-	})
-	return err
 }
 
 func (mgr *volumeMgr) Destroy() error {
