@@ -17,7 +17,6 @@ package eventbus
 import (
 	"context"
 	"encoding/json"
-	"github.com/google/uuid"
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/eventlog"
@@ -78,10 +77,10 @@ func (ctrl *controller) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	ctrl.kvStore = store
+
 	ctrl.cancelCtx, ctrl.cancelFunc = context.WithCancel(context.Background())
 	ctrl.member.RegisterMembershipChangedProcessor(ctrl.cancelCtx, ctrl.membershipChangedProcessor)
-
-	ctrl.kvStore = store
 
 	if err = ctrl.volumeMgr.Init(ctx, ctrl.kvStore); err != nil {
 		return err
@@ -106,7 +105,7 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 	}
 	elNum := 1 // force set to 1 temporary
 	eb := &metadata.Eventbus{
-		ID:        uuid.NewString(), // TODO use another id generator
+		ID:        vanus.NewID(), // TODO use another id generator
 		Name:      req.Name,
 		LogNumber: elNum,
 		EventLogs: make([]*metadata.Eventlog, elNum),
@@ -119,12 +118,11 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 		return nil, errors.ErrResourceAlreadyExist.WithMessage("already exist")
 	}
 	for idx := 0; idx < eb.LogNumber; idx++ {
-		el, err := ctrl.eventLogMgr.AcquireEventLog(ctx)
+		el, err := ctrl.eventLogMgr.AcquireEventLog(ctx, eb.ID)
 		if err != nil {
 			return nil, err
 		}
 		eb.EventLogs[idx] = el
-		el.EventBusName = eb.Name
 	}
 	ctrl.eventBusMap[eb.Name] = eb
 
@@ -132,9 +130,6 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 	{
 		data, _ := json.Marshal(eb)
 		if err := ctrl.kvStore.Set(ctx, ctrl.getEventBusKeyInKVStore(eb.Name), data); err != nil {
-			return nil, err
-		}
-		if err := ctrl.eventLogMgr.UpdateEventLog(ctx, eb.EventLogs...); err != nil {
 			return nil, err
 		}
 	}
@@ -316,7 +311,8 @@ func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 
 func (ctrl *controller) ReportSegmentBlockIsFull(ctx context.Context,
 	req *ctrlpb.SegmentHeartbeatRequest) (*emptypb.Empty, error) {
-	return &emptypb.Empty{}, ctrl.eventLogMgr.UpdateSegment(ctx, req)
+	// TODO
+	return &emptypb.Empty{}, nil
 }
 
 func (ctrl *controller) getEventBusKeyInKVStore(ebName string) string {

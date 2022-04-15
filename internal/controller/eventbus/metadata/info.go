@@ -20,7 +20,7 @@ import (
 )
 
 type Eventbus struct {
-	ID        string      `json:"id"`
+	ID        vanus.ID    `json:"id"`
 	Name      string      `json:"name"`
 	LogNumber int         `json:"log_number"`
 	EventLogs []*Eventlog `json:"event_logs"`
@@ -41,8 +41,8 @@ func Convert2ProtoEventBus(ins ...*Eventbus) []*meta.EventBus {
 
 type Eventlog struct {
 	// global unique id
-	ID           vanus.ID `json:"id"`
-	EventBusName string   `json:"eventbus_name"`
+	ID         vanus.ID `json:"id"`
+	EventbusID vanus.ID `json:"eventbus_id"`
 }
 
 func Convert2ProtoEventLog(ins ...*Eventlog) []*meta.EventLog {
@@ -50,7 +50,7 @@ func Convert2ProtoEventLog(ins ...*Eventlog) []*meta.EventLog {
 	for idx := 0; idx < len(ins); idx++ {
 		eli := ins[idx]
 		pels[idx] = &meta.EventLog{
-			EventBusName:  eli.EventBusName,
+			//EventBusName:  eli.EventBusName,
 			EventLogId:    eli.ID.Uint64(),
 			ServerAddress: "127.0.0.1:2048",
 		}

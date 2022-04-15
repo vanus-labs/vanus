@@ -15,6 +15,7 @@
 package eventlog
 
 import (
+	"encoding/json"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vsproto/pkg/meta"
@@ -32,60 +33,68 @@ const (
 )
 
 type Segment struct {
-	ID                vanus.ID      `json:"id"`
-	State             SegmentState  `json:"state"`
-	Capacity          int64         `json:"capacity"`
-	Size              int64         `json:"size"`
-	VolumeID          vanus.ID      `json:"volume_id"`
-	EventLogID        vanus.ID      `json:"event_log_id"`
-	Number            int32         `json:"number"`
-	PreviousSegmentId vanus.ID      `json:"previous_segment_id"`
-	NextSegmentId     vanus.ID      `json:"next_segment_id"`
-	StartOffsetInLog  int64         `json:"start_offset_in_log"`
-	Replicas          *ReplicaGroup `json:"replicas"`
+	ID                vanus.ID      `json:"id,omitempty"`
+	Capacity          int64         `json:"capacity,omitempty"`
+	EventLogID        vanus.ID      `json:"event_log_id,omitempty"`
+	PreviousSegmentId vanus.ID      `json:"previous_segment_id,omitempty"`
+	NextSegmentId     vanus.ID      `json:"next_segment_id,omitempty"`
+	StartOffsetInLog  int64         `json:"start_offset_in_log,omitempty"`
+	Replicas          *ReplicaGroup `json:"replicas,omitempty"`
+	State             SegmentState  `json:"state,omitempty"`
+	Size              int64         `json:"size,omitempty"`
+	Number            int32         `json:"number,omitempty"`
 }
 
 func (seg *Segment) IsAppendable() bool {
 	return seg.isReady() && seg.State == StateWorking
 }
 
-func (seg *Segment) GetServerAddressOfLeader() string {
+func (seg *Segment) GetLeaderBlock() *metadata.Block {
 	if !seg.isReady() {
-		return ""
+		return nil
 	}
-	return mgr.volMgr.GetVolumeInstanceByID(seg.Replicas.LeaderID).Address()
+	return seg.Replicas.Peers[seg.Replicas.Leader]
 }
 
-func (seg *Segment) GetServerIDOfLeader() vanus.ID {
-	if !seg.isReady() {
-		return 0
+func (seg *Segment) String() string {
+	data, _ := json.Marshal(seg)
+	return string(data)
+}
+
+func (seg *Segment) isNeedUpdate(newSeg Segment) bool {
+	if seg.ID != newSeg.ID {
+		return false
 	}
-	return seg.Replicas.LeaderID
+	needed := false
+	if seg.Size != newSeg.Size {
+		seg.Size = newSeg.Size
+		needed = true
+	}
+	if seg.Number != newSeg.Number {
+		seg.Number = newSeg.Number
+		needed = true
+	}
+	if seg.State != newSeg.State {
+		seg.State = newSeg.State
+		needed = true
+	}
+	return needed
 }
 
 func (seg *Segment) isReady() bool {
-	return seg.Replicas != nil && seg.Replicas.LeaderID > 0
+	return seg.Replicas != nil && seg.Replicas.Leader > 0
+}
+
+func (seg *Segment) changeLeaderAddr(id int) {
+	seg.Replicas.Leader = id
 }
 
 type ReplicaGroup struct {
-	ID           vanus.ID                     `json:"id"`
-	PeersAddress []string                     `json:"peers_address"`
-	LeaderID     vanus.ID                     `json:"leader_id"`
-	Blocks       map[vanus.ID]*metadata.Block `json:"blocks"`
-	CreateAt     time.Time                    `json:"create_at"`
-	DestroyAt    time.Time                    `json:"destroy_at"`
-}
-
-func (rg *ReplicaGroup) Peers() []string {
-	peers := make([]string, 0)
-	for _, v := range rg.Blocks {
-		ins := mgr.volMgr.GetVolumeInstanceByID(v.VolumeID)
-		if ins == nil {
-			continue
-		}
-		peers = append(peers, ins.Address())
-	}
-	return peers
+	ID        vanus.ID                `json:"id"`
+	Leader    int                     `json:"leader"`
+	Peers     map[int]*metadata.Block `json:"blocks"`
+	CreateAt  time.Time               `json:"create_at"`
+	DestroyAt time.Time               `json:"destroy_at"`
 }
 
 func Convert2ProtoSegment(ins ...*Segment) []*meta.Segment {
@@ -105,7 +114,7 @@ func Convert2ProtoSegment(ins ...*Segment) []*meta.Segment {
 			NumberEventStored: seg.Number,
 			State:             string(seg.State),
 			ReplicaId:         seg.ID.Uint64(),
-			LeaderAddr:        seg.GetServerAddressOfLeader(),
+			LeaderAddr:        mgr.getSegmentAddress(seg)[0],
 		}
 		if segs[idx].NumberEventStored == 0 {
 			segs[idx].EndOffsetInLog = -1

@@ -41,8 +41,8 @@ var (
 type Allocator interface {
 	Run(ctx context.Context, kvCli kv.Client) error
 	Stop()
-	Pick(ctx context.Context, num int, size int64) ([]*metadata.Block, error)
-	Remove(ctx context.Context, seg *metadata.Block) error
+	Pick(ctx context.Context, num int) ([]*metadata.Block, error)
+	Clean(ctx context.Context, blocks ...*metadata.Block)
 }
 
 func NewAllocator(selector VolumeSelector) Allocator {
@@ -91,12 +91,12 @@ func (mgr *allocator) Run(ctx context.Context, kvCli kv.Client) error {
 	return nil
 }
 
-func (mgr *allocator) Pick(ctx context.Context, num int, size int64) ([]*metadata.Block, error) {
+func (mgr *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, error) {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 	blockArr := make([]*metadata.Block, num)
 
-	instances := mgr.selector.Select(ctx, 3, size)
+	instances := mgr.selector.Select(ctx, 3, defaultBlockSize)
 	if len(instances) == 0 {
 		return nil, ErrVolumeNotFound
 	}
@@ -110,7 +110,7 @@ func (mgr *allocator) Pick(ctx context.Context, num int, size int64) ([]*metadat
 		var err error
 		var block *metadata.Block
 		if list.Len() == 0 {
-			block, err = ins.CreateBlock(ctx, size)
+			block, err = ins.CreateBlock(ctx, defaultBlockSize)
 			if err != nil {
 				return nil, err
 			}
@@ -139,9 +139,9 @@ func (mgr *allocator) Pick(ctx context.Context, num int, size int64) ([]*metadat
 	return blockArr, nil
 }
 
-func (mgr *allocator) Remove(ctx context.Context, block *metadata.Block) error {
-	mgr.inflightBlocks.Delete(block.ID)
-	return nil
+func (mgr *allocator) Clean(ctx context.Context, blocks ...*metadata.Block) {
+	// mgr.inflightBlocks.Delete(block.ID)
+	// TODO
 }
 
 func (mgr *allocator) Stop() {

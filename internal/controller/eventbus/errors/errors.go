@@ -12,46 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vanus
+package errors
 
-import (
-	"strconv"
-	"time"
-)
-
-type ID uint64
+import rpcerr "github.com/linkall-labs/vsproto/pkg/errors"
 
 var (
-	emptyID = ID(0)
+	ErrEventLogNotFound       = rpcerr.New("eventlog not found").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_NOT_FOUND)
+	ErrUnmarshall             = rpcerr.New("unmarshall data failed").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
+	ErrNoAvailableEventLog    = rpcerr.New("no eventlog available").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_EXHAUSTED)
+	ErrVolumeInstanceNotFound = rpcerr.New("volume instance not found").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_NOT_FOUND)
 )
-
-func EmptyID() ID {
-	return emptyID
-}
-func NewID() ID {
-	return ID(time.Now().UnixNano())
-}
-
-func NewIDFromUint64(id uint64) ID {
-	return ID(id)
-}
-
-func (id ID) String() string {
-	return strconv.FormatUint(uint64(id), 10)
-}
-
-func (id ID) Uint64() uint64 {
-	return uint64(id)
-}
-
-func GenerateID() ID {
-	return ID(time.Now().UnixNano())
-}
-
-func StringToID(str string) (ID, error) {
-	id, err := strconv.ParseUint(str, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return ID(id), nil
-}
