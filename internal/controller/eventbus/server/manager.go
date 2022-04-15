@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	segpb "github.com/linkall-labs/vsproto/pkg/segment"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -79,7 +80,7 @@ type Server interface {
 	RemoteStart(ctx context.Context) error
 	RemoteStop(ctx context.Context) error
 	GetClient() segpb.SegmentServerClient
-	ID() uint64
+	ID() vanus.ID
 	Address() string
 	Close() error
 }

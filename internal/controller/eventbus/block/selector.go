@@ -17,6 +17,7 @@ package block
 import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"sort"
 )
 
@@ -46,8 +47,8 @@ func (s *volumeRoundRobinSelector) Select(ctx context.Context, num int, size int
 	if len(volumes) == 0 {
 		return nil
 	}
-	keys := make([]uint64, 0)
-	m := make(map[uint64]server.Instance)
+	keys := make([]vanus.ID, 0)
+	m := make(map[vanus.ID]server.Instance)
 	for _, v := range volumes {
 		keys = append(keys, v.GetMeta().ID)
 		m[v.GetMeta().ID] = v

@@ -24,6 +24,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"path/filepath"
 	"strings"
@@ -44,8 +45,8 @@ type Manager interface {
 	Init(ctx context.Context, kvClient kv.Client) error
 	AcquireEventLog(ctx context.Context) (*metadata.Eventlog, error)
 	UpdateEventLog(ctx context.Context, els ...*metadata.Eventlog) error
-	GetEventLog(ctx context.Context, id uint64) *metadata.Eventlog
-	GetEventLogSegmentList(elID uint64) []*volume.Segment
+	GetEventLog(ctx context.Context, id vanus.ID) *metadata.Eventlog
+	GetEventLogSegmentList(elID vanus.ID) []*volume.Segment
 	GetAppendableSegment(ctx context.Context, eli *metadata.Eventlog,
 		num int) ([]*volume.Segment, error)
 	UpdateSegment(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error
@@ -63,7 +64,7 @@ type eventlogManager struct {
 	volMgr          volume.Manager
 	kvClient        kv.Client
 	// key: EventlogID, value is a skiplist, the id of it is Segment.ID and value if *Segment
-	logMap map[uint64]*skiplist.SkipList
+	logMap map[vanus.ID]*skiplist.SkipList
 }
 
 func NewManager(volMgr volume.Manager) Manager {
@@ -135,7 +136,7 @@ func (mgr *eventlogManager) AcquireEventLog(ctx context.Context) (*metadata.Even
 func (mgr *eventlogManager) createEventLog(ctx context.Context) (*metadata.Eventlog, error) {
 	el := &metadata.Eventlog{
 		// TODO use new uuid generator
-		ID: uint64(time.Now().UnixNano()),
+		ID: vanus.ID(time.Now().UnixNano()),
 	}
 	data, _ := json.Marshal(el)
 	mgr.kvMutex.Lock()
@@ -147,7 +148,7 @@ func (mgr *eventlogManager) createEventLog(ctx context.Context) (*metadata.Event
 	return el, nil
 }
 
-func (mgr *eventlogManager) GetEventLog(ctx context.Context, id uint64) *metadata.Eventlog {
+func (mgr *eventlogManager) GetEventLog(ctx context.Context, id vanus.ID) *metadata.Eventlog {
 	v, exist := mgr.eventLogMap.Load(id)
 
 	if exist {
@@ -181,7 +182,7 @@ func (mgr *eventlogManager) dynamicScaleUpEventLog() error {
 	return nil
 }
 
-func (mgr *eventlogManager) getEventLogKeyInKVStore(elID uint64) string {
+func (mgr *eventlogManager) getEventLogKeyInKVStore(elID vanus.ID) string {
 	return strings.Join([]string{eventlogKeyPrefixInKVStore, fmt.Sprintf("%d", elID)}, "/")
 }
 
@@ -254,7 +255,7 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, req *ctrlpb.Segme
 	return nil
 }
 
-func (mgr *eventlogManager) GetEventLogSegmentList(elID uint64) []*volume.Segment {
+func (mgr *eventlogManager) GetEventLogSegmentList(elID vanus.ID) []*volume.Segment {
 	el := mgr.logMap[elID]
 	if el == nil {
 		return nil

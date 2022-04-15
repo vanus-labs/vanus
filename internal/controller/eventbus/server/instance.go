@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vsproto/pkg/segment"
 	"google.golang.org/grpc"
 	"time"
@@ -26,7 +27,7 @@ type Instance interface {
 	Server
 	GetMeta() *metadata.VolumeMetadata
 	CreateBlock(context.Context, int64) (*metadata.Block, error)
-	DeleteBlock(context.Context, uint64) error
+	DeleteBlock(context.Context, vanus.ID) error
 }
 
 func NewInstance(md *metadata.VolumeMetadata) Instance {
@@ -51,7 +52,7 @@ func (ins *instance) CreateBlock(ctx context.Context, cap int64) (*metadata.Bloc
 	}
 	_, err := ins.client.CreateBlock(ctx, &segment.CreateBlockRequest{
 		Size: blk.Capacity,
-		Id:   blk.ID,
+		Id:   blk.ID.Uint64(),
 	})
 	if err != nil {
 		return nil, err
@@ -60,7 +61,7 @@ func (ins *instance) CreateBlock(ctx context.Context, cap int64) (*metadata.Bloc
 	return blk, nil
 }
 
-func (ins *instance) DeleteBlock(context.Context, uint64) error {
+func (ins *instance) DeleteBlock(context.Context, vanus.ID) error {
 	return nil
 }
 
@@ -79,7 +80,7 @@ func (ins *instance) Close() error {
 	return ins.grpcConn.Close()
 }
 
-func (ins *instance) generateBlockID() uint64 {
+func (ins *instance) generateBlockID() vanus.ID {
 	//TODO optimize
-	return uint64(time.Now().UnixNano())
+	return vanus.ID(time.Now().UnixNano())
 }

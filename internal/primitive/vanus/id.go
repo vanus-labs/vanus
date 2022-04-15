@@ -21,18 +21,30 @@ import (
 
 type ID uint64
 
-func StringToID(str string) (ID, error) {
-	id, err := strconv.ParseUint(str, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return ID(id), nil
+func NewID() ID {
+	return ID(time.Now().UnixNano())
+}
+
+func NewIDFromUint64(id uint64) ID {
+	return ID(id)
 }
 
 func (id ID) String() string {
 	return strconv.FormatUint(uint64(id), 10)
 }
 
+func (id ID) Uint64() uint64 {
+	return uint64(id)
+}
+
 func GenerateID() ID {
 	return ID(time.Now().UnixNano())
+}
+
+func StringToID(str string) (ID, error) {
+	id, err := strconv.ParseUint(str, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return ID(id), nil
 }

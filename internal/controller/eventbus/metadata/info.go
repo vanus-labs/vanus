@@ -15,6 +15,7 @@
 package metadata
 
 import (
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	meta "github.com/linkall-labs/vsproto/pkg/meta"
 )
 
@@ -40,8 +41,8 @@ func Convert2ProtoEventBus(ins ...*Eventbus) []*meta.EventBus {
 
 type Eventlog struct {
 	// global unique id
-	ID           uint64 `json:"id"`
-	EventBusName string `json:"eventbus_name"`
+	ID           vanus.ID `json:"id"`
+	EventBusName string   `json:"eventbus_name"`
 }
 
 func Convert2ProtoEventLog(ins ...*Eventlog) []*meta.EventLog {
@@ -50,7 +51,7 @@ func Convert2ProtoEventLog(ins ...*Eventlog) []*meta.EventLog {
 		eli := ins[idx]
 		pels[idx] = &meta.EventLog{
 			EventBusName:  eli.EventBusName,
-			EventLogId:    eli.ID,
+			EventLogId:    eli.ID.Uint64(),
 			ServerAddress: "127.0.0.1:2048",
 		}
 	}
@@ -58,7 +59,7 @@ func Convert2ProtoEventLog(ins ...*Eventlog) []*meta.EventLog {
 }
 
 type VolumeMetadata struct {
-	ID           uint64            `json:"id"`
+	ID           vanus.ID          `json:"id"`
 	Capacity     int64             `json:"capacity"`
 	Used         int64             `json:"used"`
 	BlockNumbers int               `json:"block_numbers"`
@@ -66,9 +67,9 @@ type VolumeMetadata struct {
 }
 
 type Block struct {
-	ID        uint64 `json:"id"`
-	Capacity  int64  `json:"capacity"`
-	Size      int64  `json:"size"`
-	VolumeID  uint64 `json:"volume_id"`
-	SegmentID uint64 `json:"event_log_id"`
+	ID        vanus.ID `json:"id"`
+	Capacity  int64    `json:"capacity"`
+	Size      int64    `json:"size"`
+	VolumeID  vanus.ID `json:"volume_id"`
+	SegmentID vanus.ID `json:"event_log_id"`
 }

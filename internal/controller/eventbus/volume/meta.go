@@ -16,6 +16,7 @@ package volume
 
 import (
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vsproto/pkg/meta"
 	"time"
 )
@@ -31,15 +32,15 @@ const (
 )
 
 type Segment struct {
-	ID                uint64        `json:"id"`
+	ID                vanus.ID      `json:"id"`
 	State             SegmentState  `json:"state"`
 	Capacity          int64         `json:"capacity"`
 	Size              int64         `json:"size"`
-	VolumeID          uint64        `json:"volume_id"`
-	EventLogID        uint64        `json:"event_log_id"`
+	VolumeID          vanus.ID      `json:"volume_id"`
+	EventLogID        vanus.ID      `json:"event_log_id"`
 	Number            int32         `json:"number"`
-	PreviousSegmentId uint64        `json:"previous_segment_id"`
-	NextSegmentId     uint64        `json:"next_segment_id"`
+	PreviousSegmentId vanus.ID      `json:"previous_segment_id"`
+	NextSegmentId     vanus.ID      `json:"next_segment_id"`
 	StartOffsetInLog  int64         `json:"start_offset_in_log"`
 	Replicas          *ReplicaGroup `json:"replicas"`
 }
@@ -55,7 +56,7 @@ func (seg *Segment) GetServerAddressOfLeader() string {
 	return mgr.GetVolumeInstanceByID(seg.Replicas.LeaderID).Address()
 }
 
-func (seg *Segment) GetServerIDOfLeader() uint64 {
+func (seg *Segment) GetServerIDOfLeader() vanus.ID {
 	if !seg.isReady() {
 		return 0
 	}
@@ -67,12 +68,12 @@ func (seg *Segment) isReady() bool {
 }
 
 type ReplicaGroup struct {
-	ID           uint64                     `json:"id"`
-	PeersAddress []string                   `json:"peers_address"`
-	LeaderID     uint64                     `json:"leader_id"`
-	Blocks       map[uint64]*metadata.Block `json:"blocks"`
-	CreateAt     time.Time                  `json:"create_at"`
-	DestroyAt    time.Time                  `json:"destroy_at"`
+	ID           vanus.ID                     `json:"id"`
+	PeersAddress []string                     `json:"peers_address"`
+	LeaderID     vanus.ID                     `json:"leader_id"`
+	Blocks       map[vanus.ID]*metadata.Block `json:"blocks"`
+	CreateAt     time.Time                    `json:"create_at"`
+	DestroyAt    time.Time                    `json:"destroy_at"`
 }
 
 func (rg *ReplicaGroup) Peers() []string {
@@ -93,17 +94,17 @@ func Convert2ProtoSegment(ins ...*Segment) []*meta.Segment {
 		seg := ins[idx]
 		// TODO optimize reported metadata
 		segs[idx] = &meta.Segment{
-			Id:                seg.ID,
-			PreviousSegmentId: seg.PreviousSegmentId,
-			NextSegmentId:     seg.NextSegmentId,
-			EventLogId:        seg.EventLogID,
+			Id:                seg.ID.Uint64(),
+			PreviousSegmentId: seg.PreviousSegmentId.Uint64(),
+			NextSegmentId:     seg.NextSegmentId.Uint64(),
+			EventLogId:        seg.EventLogID.Uint64(),
 			StartOffsetInLog:  seg.StartOffsetInLog,
 			EndOffsetInLog:    seg.StartOffsetInLog + int64(seg.Number) - 1,
 			Size:              seg.Size,
 			Capacity:          seg.Capacity,
 			NumberEventStored: seg.Number,
 			State:             string(seg.State),
-			ReplicaId:         seg.ID,
+			ReplicaId:         seg.ID.Uint64(),
 			LeaderAddr:        seg.GetServerAddressOfLeader(),
 		}
 		if segs[idx].NumberEventStored == 0 {

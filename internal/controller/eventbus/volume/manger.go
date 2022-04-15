@@ -17,10 +17,10 @@ package volume
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vsproto/pkg/segment"
 	"strings"
 )
@@ -34,8 +34,8 @@ type Manager interface {
 	GetAllVolume() []server.Instance
 	RegisterVolume(ctx context.Context, md *metadata.VolumeMetadata) (server.Instance, error)
 	RefreshRoutingInfo(ins server.Instance, srv server.Server)
-	GetVolumeInstanceByID(id uint64) server.Instance
-	LookupVolumeByServerID(id uint64) server.Instance
+	GetVolumeInstanceByID(id vanus.ID) server.Instance
+	LookupVolumeByServerID(id vanus.ID) server.Instance
 	Destroy() error
 }
 
@@ -48,7 +48,7 @@ func NewVolumeManager() Manager {
 }
 
 type volumeMgr struct {
-	volInstanceMap map[uint64]server.Instance
+	volInstanceMap map[vanus.ID]server.Instance
 	kvCli          kv.Client
 }
 
@@ -61,7 +61,7 @@ func (mgr *volumeMgr) RefreshRoutingInfo(ins server.Instance, srv server.Server)
 }
 
 func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
-	mgr.volInstanceMap = make(map[uint64]server.Instance, 0)
+	mgr.volInstanceMap = make(map[vanus.ID]server.Instance, 0)
 	mgr.kvCli = kvClient
 
 	pairs, err := mgr.kvCli.List(ctx, volumeKeyPrefixInKVStore)
@@ -78,12 +78,12 @@ func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 	return nil
 }
 
-func (mgr *volumeMgr) GetVolumeInstanceByID(id uint64) server.Instance {
+func (mgr *volumeMgr) GetVolumeInstanceByID(id vanus.ID) server.Instance {
 	//return mgr.volInstanceMap[id]
 	return nil
 }
 
-func (mgr *volumeMgr) LookupVolumeByServerID(id uint64) server.Instance {
+func (mgr *volumeMgr) LookupVolumeByServerID(id vanus.ID) server.Instance {
 	return nil
 }
 
@@ -95,8 +95,8 @@ func (mgr *volumeMgr) activateSegment(ctx context.Context, seg *Segment) error {
 	ins := mgr.LookupVolumeByServerID(seg.GetServerIDOfLeader())
 
 	_, err := ins.GetClient().ActivateSegment(ctx, &segment.ActivateSegmentRequest{
-		EventLogId:     seg.EventLogID,
-		ReplicaGroupId: seg.Replicas.ID,
+		EventLogId:     seg.EventLogID.Uint64(),
+		ReplicaGroupId: seg.Replicas.ID.Uint64(),
 		PeersAddress:   seg.Replicas.Peers(),
 	})
 	return err
@@ -111,6 +111,6 @@ func (mgr *volumeMgr) updateVolumeInKV(ctx context.Context, md *metadata.VolumeM
 	return mgr.kvCli.Set(ctx, mgr.getVolumeKeyInKVStore(md.ID), data)
 }
 
-func (mgr *volumeMgr) getVolumeKeyInKVStore(volumeID uint64) string {
-	return strings.Join([]string{volumeKeyPrefixInKVStore, fmt.Sprintf("%d", volumeID)}, "/")
+func (mgr *volumeMgr) getVolumeKeyInKVStore(id vanus.ID) string {
+	return strings.Join([]string{volumeKeyPrefixInKVStore, id.String()}, "/")
 }

@@ -26,6 +26,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -174,7 +175,7 @@ func (ctrl *controller) ListSegment(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	el := ctrl.eventLogMgr.GetEventLog(ctx, req.EventLogId)
+	el := ctrl.eventLogMgr.GetEventLog(ctx, vanus.NewIDFromUint64(req.EventLogId))
 	if el == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
 	}
@@ -197,9 +198,9 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 
 	var volInstance server.Instance
 	// need to compare metadata if existed?
-	volInstance = ctrl.volumeMgr.GetVolumeInstanceByID(req.VolumeId)
+	volInstance = ctrl.volumeMgr.GetVolumeInstanceByID(vanus.NewIDFromUint64(req.VolumeId))
 	if volInstance == nil {
-		volMD := &metadata.VolumeMetadata{ID: req.VolumeId}
+		volMD := &metadata.VolumeMetadata{ID: vanus.NewIDFromUint64(req.VolumeId)}
 		_volInstance, err := ctrl.volumeMgr.RegisterVolume(ctx, volMD)
 		if err != nil {
 			return nil, err
@@ -210,7 +211,7 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	ctrl.volumeMgr.RefreshRoutingInfo(volInstance, srv)
 	go srv.RemoteStart(ctx)
 	return &ctrlpb.RegisterSegmentServerResponse{
-		ServerId:      srv.ID(),
+		ServerId:      srv.ID().Uint64(),
 		SegmentBlocks: volInstance.GetMeta().Blocks,
 	}, nil
 }
@@ -232,7 +233,7 @@ func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
 		})
 	}
 
-	ctrl.volumeMgr.RefreshRoutingInfo(ctrl.volumeMgr.GetVolumeInstanceByID(req.VolumeId), nil)
+	ctrl.volumeMgr.RefreshRoutingInfo(ctrl.volumeMgr.GetVolumeInstanceByID(vanus.NewIDFromUint64(req.VolumeId)), nil)
 	return &ctrlpb.UnregisterSegmentServerResponse{}, nil
 }
 
@@ -292,7 +293,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 
 func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 	req *ctrlpb.GetAppendableSegmentRequest) (*ctrlpb.GetAppendableSegmentResponse, error) {
-	eli := ctrl.eventLogMgr.GetEventLog(ctx, req.EventLogId)
+	eli := ctrl.eventLogMgr.GetEventLog(ctx, vanus.NewIDFromUint64(req.EventLogId))
 	if eli == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
 	}

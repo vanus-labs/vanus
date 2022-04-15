@@ -21,6 +21,7 @@ import (
 	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/pkg/errors"
 	"strings"
@@ -51,7 +52,7 @@ func NewAllocator(selector VolumeSelector) Allocator {
 type allocator struct {
 	selector VolumeSelector
 	// key: volumeID, value: SkipList of *metadata.Block
-	volumeBlockBuffer map[uint64]*skiplist.SkipList
+	volumeBlockBuffer map[vanus.ID]*skiplist.SkipList
 	segmentMap        sync.Map
 	kvClient          kv.Client
 	mutex             sync.Mutex
@@ -151,7 +152,7 @@ func (mgr *allocator) dynamicAllocateSegmentTask() {
 	//TODO
 }
 
-func (mgr *allocator) getBlockKeyInKVStore(blockID uint64) string {
+func (mgr *allocator) getBlockKeyInKVStore(blockID vanus.ID) string {
 	return strings.Join([]string{blockKeyPrefixInKVStore, fmt.Sprintf("%d", blockID)}, "/")
 }
 
