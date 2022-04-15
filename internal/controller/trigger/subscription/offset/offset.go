@@ -33,15 +33,21 @@ type Manager interface {
 }
 
 type manager struct {
-	subOffset sync.Map
-	storage   storage.OffsetStorage
-	ctx       context.Context
-	stop      context.CancelFunc
+	subOffset      sync.Map
+	storage        storage.OffsetStorage
+	commitInterval time.Duration
+	ctx            context.Context
+	stop           context.CancelFunc
+	wg             sync.WaitGroup
 }
 
-func NewOffsetManager(storage storage.OffsetStorage) Manager {
+func NewOffsetManager(storage storage.OffsetStorage, commitInterval time.Duration) Manager {
+	if commitInterval <= 0 {
+		commitInterval = time.Second
+	}
 	m := &manager{
-		storage: storage,
+		storage:        storage,
+		commitInterval: commitInterval,
 	}
 	m.ctx, m.stop = context.WithCancel(context.Background())
 	return m
@@ -67,7 +73,7 @@ func (m *manager) Offset(ctx context.Context, subId vanus.ID, offsets info.ListO
 func (m *manager) getSubscriptionOffset(ctx context.Context, subId vanus.ID) (*subscriptionOffset, error) {
 	subOffset, exist := m.subOffset.Load(subId)
 	if !exist {
-		sub, err := m.initSubscriptionOffset(ctx, subId)
+		sub, err := initSubscriptionOffset(ctx, m.storage, subId)
 		if err != nil {
 			return nil, err
 		}
@@ -76,43 +82,31 @@ func (m *manager) getSubscriptionOffset(ctx context.Context, subId vanus.ID) (*s
 	return subOffset.(*subscriptionOffset), nil
 }
 
-func (m *manager) initSubscriptionOffset(ctx context.Context, subId vanus.ID) (*subscriptionOffset, error) {
-	list, err := m.storage.GetOffsets(ctx, subId)
-	if err != nil {
-		return nil, err
-	}
-	subOffset := &subscriptionOffset{
-		subId: subId,
-	}
-	for _, o := range list {
-		subOffset.offsets.Store(o.EventLogID, &eventLogOffset{
-			subId:      subId,
-			eventLog:   o.EventLogID,
-			offset:     o.Offset,
-			commit:     o.Offset,
-			checkExist: true,
-		})
-	}
-	return subOffset, nil
-}
-
 func (m *manager) RemoveRegisterSubscription(ctx context.Context, subId vanus.ID) error {
-	m.subOffset.Delete(subId)
+	subOffset, exist := m.subOffset.Load(subId)
+	if exist {
+		//stop commit
+		subOffset.(*subscriptionOffset).stop()
+		m.subOffset.Delete(subId)
+	}
 	return m.storage.DeleteOffset(ctx, subId)
 }
 
 func (m *manager) Stop() {
 	m.stop()
+	m.wg.Wait()
 }
 
 func (m *manager) Start() {
+	m.wg.Add(1)
 	go func() {
-		ticker := time.NewTicker(100 * time.Millisecond)
+		defer m.wg.Done()
+		ticker := time.NewTicker(m.commitInterval)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-m.ctx.Done():
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 				m.commit(ctx)
 				cancel()
 				return
@@ -140,9 +134,32 @@ func (m *manager) commit(ctx context.Context) {
 type subscriptionOffset struct {
 	subId   vanus.ID
 	offsets sync.Map
+	stopped bool
+	lock    sync.Mutex
 }
 
-func (o *subscriptionOffset) getSetEventLogOffset(info info.OffsetInfo) *eventLogOffset {
+func initSubscriptionOffset(ctx context.Context, storage storage.OffsetStorage, subId vanus.ID) (*subscriptionOffset, error) {
+	list, err := storage.GetOffsets(ctx, subId)
+	if err != nil {
+		return nil, err
+	}
+	subOffset := &subscriptionOffset{
+		subId: subId,
+	}
+	for _, o := range list {
+		subOffset.offsets.Store(o.EventLogID, &eventLogOffset{
+			subId:      subId,
+			eventLog:   o.EventLogID,
+			offset:     o.Offset,
+			commit:     o.Offset,
+			checkExist: true,
+		})
+	}
+	return subOffset, nil
+}
+
+//getEventLogOffset if not exist create
+func (o *subscriptionOffset) getEventLogOffset(info info.OffsetInfo) *eventLogOffset {
 	elOffset, exist := o.offsets.Load(info.EventLogID)
 	if !exist {
 		elOffset = &eventLogOffset{
@@ -157,7 +174,7 @@ func (o *subscriptionOffset) getSetEventLogOffset(info info.OffsetInfo) *eventLo
 
 func (o *subscriptionOffset) offset(infos info.ListOffsetInfo) {
 	for _, offset := range infos {
-		elOffset := o.getSetEventLogOffset(offset)
+		elOffset := o.getEventLogOffset(offset)
 		elOffset.setOffset(offset.Offset)
 	}
 }
@@ -175,8 +192,19 @@ func (o *subscriptionOffset) getOffsets() info.ListOffsetInfo {
 	return offsets
 }
 
+func (o *subscriptionOffset) stop() {
+	o.lock.Lock()
+	defer o.lock.Unlock()
+	o.stopped = true
+}
+
 func (o *subscriptionOffset) commitOffset(ctx context.Context, storage storage.OffsetStorage) {
 	o.offsets.Range(func(key, value interface{}) bool {
+		o.lock.Lock()
+		defer o.lock.Unlock()
+		if o.stopped {
+			return false
+		}
 		elOffset := value.(*eventLogOffset)
 		err := elOffset.commitOffset(ctx, storage)
 		if err != nil {

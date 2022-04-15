@@ -28,18 +28,18 @@ import (
 	"time"
 )
 
-//TriggerWorker send SubscriptionApi to trigger worker server
+//TriggerWorker send SubscriptionData to trigger worker server
 type TriggerWorker struct {
-	Info    *info.TriggerWorkerInfo
-	cc      *grpc.ClientConn
-	client  trigger.TriggerWorkerClient
-	hasInit bool
-	lock    sync.RWMutex
+	info     *info.TriggerWorkerInfo
+	cc       *grpc.ClientConn
+	client   trigger.TriggerWorkerClient
+	initOnce sync.Once
+	lock     sync.RWMutex
 }
 
 func NewTriggerWorker(twInfo *info.TriggerWorkerInfo) *TriggerWorker {
 	tw := &TriggerWorker{
-		Info: twInfo,
+		info: twInfo,
 	}
 	return tw
 }
@@ -48,69 +48,86 @@ func NewTriggerWorker(twInfo *info.TriggerWorkerInfo) *TriggerWorker {
 func (tw *TriggerWorker) ResetReportSubId() {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	tw.Info.ReportSubIds = map[vanus.ID]struct{}{}
-	tw.Info.Phase = info.TriggerWorkerPhasePending
+	tw.info.ReportSubIds = map[vanus.ID]struct{}{}
+	tw.info.Phase = info.TriggerWorkerPhasePending
+	tw.info.PendingTime = time.Now()
 }
 
 //SetReportSubId trigger worker heartbeat running subscription
 func (tw *TriggerWorker) SetReportSubId(subIds map[vanus.ID]struct{}) {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	tw.Info.ReportSubIds = subIds
-	tw.Info.HeartbeatTime = time.Now()
+	tw.info.ReportSubIds = subIds
+	now := time.Now()
+	tw.info.HeartbeatTime = &now
 }
 
 func (tw *TriggerWorker) GetReportSubId() map[vanus.ID]struct{} {
 	tw.lock.RLock()
 	defer tw.lock.RUnlock()
-	return tw.Info.ReportSubIds
+	return tw.info.ReportSubIds
 }
 
 func (tw *TriggerWorker) AddAssignSub(subId vanus.ID) {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	tw.Info.AssignSubIds[subId] = time.Now()
+	tw.info.AssignSubIds[subId] = time.Now()
 }
 
 func (tw *TriggerWorker) RemoveAssignSub(subId vanus.ID) {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	delete(tw.Info.AssignSubIds, subId)
+	delete(tw.info.AssignSubIds, subId)
 }
 
 func (tw *TriggerWorker) GetAssignSubIds() map[vanus.ID]time.Time {
 	tw.lock.RLock()
 	defer tw.lock.RUnlock()
-	newMap := make(map[vanus.ID]time.Time, len(tw.Info.AssignSubIds))
-	for subId, t := range tw.Info.AssignSubIds {
+	newMap := make(map[vanus.ID]time.Time, len(tw.info.AssignSubIds))
+	for subId, t := range tw.info.AssignSubIds {
 		newMap[subId] = t
 	}
 	return newMap
 }
 
-func (tw *TriggerWorker) Init(ctx context.Context) error {
-	if tw.hasInit {
-		return nil
+func (tw *TriggerWorker) GetLastHeartbeatTime() time.Time {
+	tw.lock.RLock()
+	defer tw.lock.RUnlock()
+	if tw.info.HeartbeatTime != nil {
+		return *tw.info.HeartbeatTime
 	}
-	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	cc, err := grpc.DialContext(ctx, tw.Info.Addr, opts...)
-	if err != nil {
-		return errors.ErrTriggerWorker.WithMessage("grpc dial error").Wrap(err)
-	}
-	tw.cc = cc
-	tw.client = trigger.NewTriggerWorkerClient(cc)
-	tw.hasInit = true
-	return nil
+	return tw.info.PendingTime
+}
+
+func (tw *TriggerWorker) SetPhase(phase info.TriggerWorkerPhase) {
+	tw.lock.Lock()
+	defer tw.lock.Unlock()
+	tw.info.Phase = phase
+}
+
+func (tw *TriggerWorker) GetPhase() info.TriggerWorkerPhase {
+	tw.lock.RLock()
+	defer tw.lock.RUnlock()
+	return tw.info.Phase
+}
+
+func (tw *TriggerWorker) init(ctx context.Context) error {
+	var err error
+	tw.initOnce.Do(func() {
+		var opts []grpc.DialOption
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		tw.cc, err = grpc.DialContext(ctx, tw.info.Addr, opts...)
+		if err != nil {
+			err = errors.ErrTriggerWorker.WithMessage("grpc dial error").Wrap(err)
+		}
+		tw.client = trigger.NewTriggerWorkerClient(tw.cc)
+	})
+	return err
 }
 func (tw *TriggerWorker) Close() error {
 	if tw.cc != nil {
 		tw.lock.Lock()
 		defer tw.lock.Unlock()
-		if !tw.hasInit {
-			return nil
-		}
-		tw.hasInit = false
 		return tw.cc.Close()
 	}
 	return nil
@@ -119,7 +136,7 @@ func (tw *TriggerWorker) Close() error {
 func (tw *TriggerWorker) Stop(ctx context.Context) error {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	err := tw.Init(ctx)
+	err := tw.init(ctx)
 	if err != nil {
 		return err
 	}
@@ -133,7 +150,7 @@ func (tw *TriggerWorker) Stop(ctx context.Context) error {
 func (tw *TriggerWorker) Start(ctx context.Context) error {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	err := tw.Init(ctx)
+	err := tw.init(ctx)
 	if err != nil {
 		return err
 	}
@@ -150,7 +167,7 @@ func (tw *TriggerWorker) AddSubscription(ctx context.Context, sub *primitive.Sub
 	}
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	err := tw.Init(ctx)
+	err := tw.init(ctx)
 	if err != nil {
 		return err
 	}
@@ -165,7 +182,7 @@ func (tw *TriggerWorker) AddSubscription(ctx context.Context, sub *primitive.Sub
 func (tw *TriggerWorker) RemoveSubscriptions(ctx context.Context, id vanus.ID) error {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	err := tw.Init(ctx)
+	err := tw.init(ctx)
 	if err != nil {
 		return err
 	}

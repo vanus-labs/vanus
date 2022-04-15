@@ -63,18 +63,18 @@ func (mr *MockManagerMockRecorder) AssignSubscription(ctx, tWorker, subId interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssignSubscription", reflect.TypeOf((*MockManager)(nil).AssignSubscription), ctx, tWorker, subId)
 }
 
-// GetRunningTriggerWorker mocks base method.
-func (m *MockManager) GetRunningTriggerWorker() []info.TriggerWorkerInfo {
+// GetActiveRunningTriggerWorker mocks base method.
+func (m *MockManager) GetActiveRunningTriggerWorker() []info.TriggerWorkerInfo {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRunningTriggerWorker")
+	ret := m.ctrl.Call(m, "GetActiveRunningTriggerWorker")
 	ret0, _ := ret[0].([]info.TriggerWorkerInfo)
 	return ret0
 }
 
-// GetRunningTriggerWorker indicates an expected call of GetRunningTriggerWorker.
-func (mr *MockManagerMockRecorder) GetRunningTriggerWorker() *gomock.Call {
+// GetActiveRunningTriggerWorker indicates an expected call of GetActiveRunningTriggerWorker.
+func (mr *MockManagerMockRecorder) GetActiveRunningTriggerWorker() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRunningTriggerWorker", reflect.TypeOf((*MockManager)(nil).GetRunningTriggerWorker))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetActiveRunningTriggerWorker", reflect.TypeOf((*MockManager)(nil).GetActiveRunningTriggerWorker))
 }
 
 // GetTriggerWorker mocks base method.

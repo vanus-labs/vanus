@@ -32,7 +32,7 @@ const (
 	SubscriptionPhaseToDelete  = "toDelete"
 )
 
-type SubscriptionApi struct {
+type SubscriptionData struct {
 	ID               vanus.ID              `json:"id"`
 	Source           string                `json:"source,omitempty"`
 	Types            []string              `json:"types,omitempty"`

@@ -23,8 +23,8 @@ import (
 	pbtrigger "github.com/linkall-labs/vsproto/pkg/trigger"
 )
 
-func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *primitive.SubscriptionApi {
-	to := &primitive.SubscriptionApi{
+func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *primitive.SubscriptionData {
+	to := &primitive.SubscriptionData{
 		Source:           sub.Source,
 		Types:            sub.Types,
 		Config:           sub.Config,
@@ -65,8 +65,8 @@ func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscription
 	return to
 }
 
-func FromPbSubscription(sub *pb.Subscription) *primitive.SubscriptionApi {
-	to := &primitive.SubscriptionApi{
+func FromPbSubscription(sub *pb.Subscription) *primitive.SubscriptionData {
+	to := &primitive.SubscriptionData{
 		ID:               vanus.ID(sub.Id),
 		Source:           sub.Source,
 		Types:            sub.Types,
@@ -82,7 +82,7 @@ func FromPbSubscription(sub *pb.Subscription) *primitive.SubscriptionApi {
 	return to
 }
 
-func ToPbSubscription(sub *primitive.SubscriptionApi) *pb.Subscription {
+func ToPbSubscription(sub *primitive.SubscriptionData) *pb.Subscription {
 	to := &pb.Subscription{
 		Id:               uint64(sub.ID),
 		Source:           sub.Source,

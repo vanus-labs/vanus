@@ -89,7 +89,7 @@ func (s *SubscriptionScheduler) handler(ctx context.Context, subIdStr string) er
 			return nil
 		default:
 		}
-		twInfos := s.triggerWorkerManager.GetRunningTriggerWorker()
+		twInfos := s.triggerWorkerManager.GetActiveRunningTriggerWorker()
 		if len(twInfos) == 0 {
 			time.Sleep(time.Second)
 			continue

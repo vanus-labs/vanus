@@ -90,7 +90,7 @@ func (ctrl *triggerController) DeleteSubscription(ctx context.Context, request *
 			return nil, err
 		}
 		go func(subID vanus.ID, addr string) {
-			err := ctrl.gcSubscription(ctx, subID, addr)
+			err := ctrl.gcSubscription(ctrl.ctx, subID, addr)
 			if err != nil {
 				ctrl.lock.Lock()
 				defer ctrl.lock.Unlock()
@@ -114,9 +114,10 @@ func (ctrl *triggerController) GetSubscription(ctx context.Context, request *ctr
 }
 
 func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerController_TriggerWorkerHeartbeatServer) error {
+	ctx := ctrl.ctx
 	for {
 		select {
-		case <-ctrl.ctx.Done():
+		case <-ctx.Done():
 			heartbeat.SendAndClose(&ctrlpb.TriggerWorkerHeartbeatResponse{})
 			return nil
 		default:
@@ -127,7 +128,7 @@ func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerCo
 			for _, sub := range req.SubInfos {
 				subIds[vanus.ID(sub.SubscriptionId)] = struct{}{}
 			}
-			err = ctrl.triggerWorkerManager.UpdateTriggerWorkerInfo(ctrl.ctx, req.Address, subIds)
+			err = ctrl.triggerWorkerManager.UpdateTriggerWorkerInfo(ctx, req.Address, subIds)
 			if err != nil {
 				log.Info(context.Background(), "unknown trigger worker", map[string]interface{}{
 					"addr": req.Address,
@@ -136,9 +137,9 @@ func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerCo
 			}
 			for _, sub := range req.SubInfos {
 				offsets := convert.FromPbOffsetInfos(sub.Offsets)
-				err = ctrl.subscriptionManager.Offset(ctrl.ctx, vanus.ID(sub.SubscriptionId), offsets)
+				err = ctrl.subscriptionManager.Offset(ctx, vanus.ID(sub.SubscriptionId), offsets)
 				if err != nil {
-					log.Warning(ctrl.ctx, "heartbeat commit offset error", map[string]interface{}{
+					log.Warning(ctx, "heartbeat commit offset error", map[string]interface{}{
 						log.KeyError:          err,
 						log.KeySubscriptionID: sub.SubscriptionId,
 					})
@@ -149,7 +150,7 @@ func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerCo
 				//client close,will remove trigger worker then receive unregister
 				return nil
 			}
-			log.Info(ctrl.ctx, "heartbeat recv error", map[string]interface{}{log.KeyError: err})
+			log.Info(ctx, "heartbeat recv error", map[string]interface{}{log.KeyError: err})
 			return err
 		}
 	}
@@ -214,7 +215,7 @@ func (ctrl *triggerController) requeueSubscription(ctx context.Context, subId va
 
 func (ctrl *triggerController) init(ctx context.Context) error {
 	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage)
-	ctrl.triggerWorkerManager = worker.NewTriggerWorkerManager(ctrl.storage, ctrl.subscriptionManager, ctrl.requeueSubscription)
+	ctrl.triggerWorkerManager = worker.NewTriggerWorkerManager(worker.Config{}, ctrl.storage, ctrl.subscriptionManager, ctrl.requeueSubscription)
 	ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.triggerWorkerManager, ctrl.subscriptionManager)
 	err := ctrl.subscriptionManager.Init(ctx)
 	if err != nil {
@@ -260,7 +261,7 @@ func (ctrl *triggerController) Start() error {
 		defer ctrl.lock.Unlock()
 		for subId, addr := range ctrl.needCleanSubIds {
 			err := ctrl.gcSubscription(ctx, subId, addr)
-			if err != nil {
+			if err == nil {
 				delete(ctrl.needCleanSubIds, subId)
 			}
 		}

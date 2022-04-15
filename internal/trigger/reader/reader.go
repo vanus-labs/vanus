@@ -139,6 +139,7 @@ func (r *Reader) start(els []*record.EventLog) {
 		elc := &eventLogReader{
 			config:      r.config,
 			eventLogVrn: el.VRN,
+			eventLogID:  eventLogID,
 			events:      r.events,
 			offset:      r.getOffset(eventLogID),
 		}

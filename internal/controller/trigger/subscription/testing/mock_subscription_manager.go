@@ -7,6 +7,7 @@ package testing
 import (
 	context "context"
 	reflect "reflect"
+	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 	primitive "github.com/linkall-labs/vanus/internal/primitive"
@@ -38,7 +39,7 @@ func (m *MockManager) EXPECT() *MockManagerMockRecorder {
 }
 
 // AddSubscription mocks base method.
-func (m *MockManager) AddSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error {
+func (m *MockManager) AddSubscription(ctx context.Context, sub *primitive.SubscriptionData) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddSubscription", ctx, sub)
 	ret0, _ := ret[0].(error)
@@ -96,10 +97,10 @@ func (mr *MockManagerMockRecorder) GetSubscription(ctx, subId interface{}) *gomo
 }
 
 // GetSubscriptionData mocks base method.
-func (m *MockManager) GetSubscriptionData(ctx context.Context, subId vanus.ID) *primitive.SubscriptionApi {
+func (m *MockManager) GetSubscriptionData(ctx context.Context, subId vanus.ID) *primitive.SubscriptionData {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSubscriptionData", ctx, subId)
-	ret0, _ := ret[0].(*primitive.SubscriptionApi)
+	ret0, _ := ret[0].(*primitive.SubscriptionData)
 	return ret0
 }
 
@@ -110,17 +111,17 @@ func (mr *MockManagerMockRecorder) GetSubscriptionData(ctx, subId interface{}) *
 }
 
 // Heartbeat mocks base method.
-func (m *MockManager) Heartbeat(ctx context.Context, subId vanus.ID, addr string) error {
+func (m *MockManager) Heartbeat(ctx context.Context, subId vanus.ID, addr string, time time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Heartbeat", ctx, subId, addr)
+	ret := m.ctrl.Call(m, "Heartbeat", ctx, subId, addr, time)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Heartbeat indicates an expected call of Heartbeat.
-func (mr *MockManagerMockRecorder) Heartbeat(ctx, subId, addr interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) Heartbeat(ctx, subId, addr, time interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Heartbeat", reflect.TypeOf((*MockManager)(nil).Heartbeat), ctx, subId, addr)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Heartbeat", reflect.TypeOf((*MockManager)(nil).Heartbeat), ctx, subId, addr, time)
 }
 
 // Init mocks base method.
@@ -138,10 +139,10 @@ func (mr *MockManagerMockRecorder) Init(ctx interface{}) *gomock.Call {
 }
 
 // ListSubscription mocks base method.
-func (m *MockManager) ListSubscription(ctx context.Context) map[vanus.ID]*primitive.SubscriptionApi {
+func (m *MockManager) ListSubscription(ctx context.Context) map[vanus.ID]*primitive.SubscriptionData {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListSubscription", ctx)
-	ret0, _ := ret[0].(map[vanus.ID]*primitive.SubscriptionApi)
+	ret0, _ := ret[0].(map[vanus.ID]*primitive.SubscriptionData)
 	return ret0
 }
 
@@ -190,7 +191,7 @@ func (mr *MockManagerMockRecorder) Stop() *gomock.Call {
 }
 
 // UpdateSubscription mocks base method.
-func (m *MockManager) UpdateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error {
+func (m *MockManager) UpdateSubscription(ctx context.Context, sub *primitive.SubscriptionData) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateSubscription", ctx, sub)
 	ret0, _ := ret[0].(error)

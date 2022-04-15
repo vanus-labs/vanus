@@ -26,7 +26,7 @@ import (
 
 func TestOffset(t *testing.T) {
 	storage := storage.NewFakeStorage()
-	m := NewOffsetManager(storage)
+	m := NewOffsetManager(storage, 10*time.Microsecond)
 	ctx := context.Background()
 	Convey("offset", t, func() {
 		subId := vanus.ID(1)
@@ -73,24 +73,42 @@ func TestOffset(t *testing.T) {
 func TestStart(t *testing.T) {
 	ctx := context.Background()
 	storage := storage.NewFakeStorage()
-	m := NewOffsetManager(storage)
+	commitInterval := 10 * time.Millisecond
+	m := NewOffsetManager(storage, commitInterval)
 	Convey("commit", t, func() {
 		subId := vanus.ID(1)
 		eventLogID := vanus.ID(1)
 		offset := uint64(1)
-		Convey("commit", func() {
-			m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
+		m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
+		Convey("commit storage created", func() {
 			offsets, _ := m.GetOffset(ctx, subId)
 			So(len(offsets), ShouldEqual, 1)
 			So(offsets[0].Offset, ShouldEqual, offset)
 			offsets, _ = storage.GetOffsets(ctx, subId)
 			So(len(offsets), ShouldEqual, 0)
 			m.Start()
-			time.Sleep(time.Second)
+			time.Sleep(2 * commitInterval)
+			m.Stop()
 			offsets, _ = storage.GetOffsets(ctx, subId)
 			So(len(offsets), ShouldEqual, 1)
 			So(offsets[0].Offset, ShouldEqual, offset)
-			m.Stop()
+
+			offset++
+			m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
+			Convey("commit storage update", func() {
+				offsets, _ = m.GetOffset(ctx, subId)
+				So(len(offsets), ShouldEqual, 1)
+				So(offsets[0].Offset, ShouldEqual, offset)
+				offsets, _ = storage.GetOffsets(ctx, subId)
+				So(len(offsets), ShouldEqual, 1)
+				m.Start()
+				time.Sleep(2 * commitInterval)
+				m.Stop()
+				offsets, _ = storage.GetOffsets(ctx, subId)
+				So(len(offsets), ShouldEqual, 1)
+				So(offsets[0].Offset, ShouldEqual, offset)
+			})
 		})
+
 	})
 }

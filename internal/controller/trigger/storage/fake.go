@@ -24,14 +24,14 @@ import (
 )
 
 type fake struct {
-	subs     map[vanus.ID]*primitive.SubscriptionApi
+	subs     map[vanus.ID]*primitive.SubscriptionData
 	offset   map[vanus.ID]map[vanus.ID]pInfo.OffsetInfo
 	tWorkers map[string]*info.TriggerWorkerInfo
 }
 
 func NewFakeStorage() Storage {
 	s := &fake{
-		subs:     map[vanus.ID]*primitive.SubscriptionApi{},
+		subs:     map[vanus.ID]*primitive.SubscriptionData{},
 		offset:   map[vanus.ID]map[vanus.ID]pInfo.OffsetInfo{},
 		tWorkers: map[string]*info.TriggerWorkerInfo{},
 	}
@@ -42,12 +42,12 @@ func (f *fake) Close() {
 
 }
 
-func (f *fake) CreateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error {
+func (f *fake) CreateSubscription(ctx context.Context, sub *primitive.SubscriptionData) error {
 	f.subs[sub.ID] = sub
 	return nil
 }
 
-func (f *fake) UpdateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error {
+func (f *fake) UpdateSubscription(ctx context.Context, sub *primitive.SubscriptionData) error {
 	f.subs[sub.ID] = sub
 	return nil
 }
@@ -57,12 +57,12 @@ func (f *fake) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 	return nil
 }
 
-func (f *fake) GetSubscription(ctx context.Context, id vanus.ID) (*primitive.SubscriptionApi, error) {
+func (f *fake) GetSubscription(ctx context.Context, id vanus.ID) (*primitive.SubscriptionData, error) {
 	return f.subs[id], nil
 }
 
-func (f *fake) ListSubscription(ctx context.Context) ([]*primitive.SubscriptionApi, error) {
-	var list []*primitive.SubscriptionApi
+func (f *fake) ListSubscription(ctx context.Context) ([]*primitive.SubscriptionData, error) {
+	var list []*primitive.SubscriptionData
 	for _, sub := range f.subs {
 		list = append(list, sub)
 	}

@@ -36,7 +36,8 @@ type TriggerWorkerInfo struct {
 	Phase         TriggerWorkerPhase     `json:"phase"`
 	AssignSubIds  map[vanus.ID]time.Time `json:"-"`
 	ReportSubIds  map[vanus.ID]struct{}  `json:"-"`
-	HeartbeatTime time.Time              `json:"-"`
+	PendingTime   time.Time              `json:"-"`
+	HeartbeatTime *time.Time             `json:"-"`
 }
 
 func NewTriggerWorkerInfo(addr string) *TriggerWorkerInfo {
@@ -50,17 +51,11 @@ func NewTriggerWorkerInfo(addr string) *TriggerWorkerInfo {
 }
 
 func (tw *TriggerWorkerInfo) Init() {
-	tw.HeartbeatTime = time.Now()
+	tw.PendingTime = time.Now()
 	tw.ReportSubIds = map[vanus.ID]struct{}{}
 	tw.AssignSubIds = map[vanus.ID]time.Time{}
 }
 
 func (tw *TriggerWorkerInfo) String() string {
 	return fmt.Sprintf("addr:%s,phase:%v,subIds:%v", tw.Addr, tw.Phase, tw.AssignSubIds)
-}
-
-type SubscriptionHeartbeat struct {
-	SubId         string
-	HeartbeatTime time.Time
-	TriggerWorker string
 }

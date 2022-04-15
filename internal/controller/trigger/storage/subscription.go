@@ -25,11 +25,11 @@ import (
 )
 
 type SubscriptionStorage interface {
-	CreateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error
-	UpdateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error
+	CreateSubscription(ctx context.Context, sub *primitive.SubscriptionData) error
+	UpdateSubscription(ctx context.Context, sub *primitive.SubscriptionData) error
 	DeleteSubscription(ctx context.Context, subId vanus.ID) error
-	GetSubscription(ctx context.Context, subId vanus.ID) (*primitive.SubscriptionApi, error)
-	ListSubscription(ctx context.Context) ([]*primitive.SubscriptionApi, error)
+	GetSubscription(ctx context.Context, subId vanus.ID) (*primitive.SubscriptionData, error)
+	ListSubscription(ctx context.Context) ([]*primitive.SubscriptionData, error)
 }
 
 type subscriptionStorage struct {
@@ -50,7 +50,7 @@ func (s *subscriptionStorage) getKey(subID vanus.ID) string {
 	return path.Join(primitive.StorageSubscription.String(), subID.String())
 }
 
-func (s *subscriptionStorage) CreateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error {
+func (s *subscriptionStorage) CreateSubscription(ctx context.Context, sub *primitive.SubscriptionData) error {
 	v, err := json.Marshal(sub)
 	if err != nil {
 		return errors.ErrJsonMarshal
@@ -62,7 +62,7 @@ func (s *subscriptionStorage) CreateSubscription(ctx context.Context, sub *primi
 	return nil
 }
 
-func (s *subscriptionStorage) UpdateSubscription(ctx context.Context, sub *primitive.SubscriptionApi) error {
+func (s *subscriptionStorage) UpdateSubscription(ctx context.Context, sub *primitive.SubscriptionData) error {
 	v, err := json.Marshal(sub)
 	if err != nil {
 		return errors.ErrJsonMarshal
@@ -78,12 +78,12 @@ func (s *subscriptionStorage) DeleteSubscription(ctx context.Context, subId vanu
 	return s.client.Delete(ctx, s.getKey(subId))
 }
 
-func (s *subscriptionStorage) GetSubscription(ctx context.Context, subId vanus.ID) (*primitive.SubscriptionApi, error) {
+func (s *subscriptionStorage) GetSubscription(ctx context.Context, subId vanus.ID) (*primitive.SubscriptionData, error) {
 	v, err := s.client.Get(ctx, s.getKey(subId))
 	if err != nil {
 		return nil, err
 	}
-	sub := &primitive.SubscriptionApi{}
+	sub := &primitive.SubscriptionData{}
 	err = json.Unmarshal(v, sub)
 	if err != nil {
 		return nil, errors.ErrJsonUnMarshal
@@ -91,14 +91,14 @@ func (s *subscriptionStorage) GetSubscription(ctx context.Context, subId vanus.I
 	return sub, nil
 }
 
-func (s *subscriptionStorage) ListSubscription(ctx context.Context) ([]*primitive.SubscriptionApi, error) {
+func (s *subscriptionStorage) ListSubscription(ctx context.Context) ([]*primitive.SubscriptionData, error) {
 	l, err := s.client.List(ctx, primitive.StorageSubscription.String())
 	if err != nil {
 		return nil, err
 	}
-	var list []*primitive.SubscriptionApi
+	var list []*primitive.SubscriptionData
 	for _, v := range l {
-		sub := &primitive.SubscriptionApi{}
+		sub := &primitive.SubscriptionData{}
 		err = json.Unmarshal(v.Value, sub)
 		if err != nil {
 			return nil, errors.ErrJsonUnMarshal

@@ -28,8 +28,8 @@ import (
 	"testing"
 )
 
-func getTestSubscription() *primitive.SubscriptionApi {
-	return &primitive.SubscriptionApi{
+func getTestSubscription() *primitive.SubscriptionData {
+	return &primitive.SubscriptionData{
 		ID:    1,
 		Phase: primitive.SubscriptionPhaseCreated,
 	}
@@ -54,11 +54,11 @@ func TestInit(t *testing.T) {
 	subManager := subscriptiontest.NewMockManager(ctrl)
 	sub := getTestSubscription()
 	sub.TriggerWorker = addr
-	subManager.EXPECT().ListSubscription(ctx).Return(map[vanus.ID]*primitive.SubscriptionApi{
+	subManager.EXPECT().ListSubscription(ctx).Return(map[vanus.ID]*primitive.SubscriptionData{
 		sub.ID: sub,
 	})
-	twManager := NewTriggerWorkerManager(storage, subManager, nil).(*manager)
-	Convey("test Init", t, func() {
+	twManager := NewTriggerWorkerManager(Config{}, storage, subManager, nil).(*manager)
+	Convey("test init", t, func() {
 		twManager.Init(ctx)
 		triggerWorkers := twManager.triggerWorkers
 		So(len(triggerWorkers), ShouldEqual, 1)
@@ -75,7 +75,7 @@ func TestAddTriggerWorker(t *testing.T) {
 	ctx := context.Background()
 	addr := "test"
 	storage := storage.NewFakeStorage()
-	twManager := NewTriggerWorkerManager(storage, nil, nil).(*manager)
+	twManager := NewTriggerWorkerManager(Config{}, storage, nil, nil).(*manager)
 
 	Convey("test add", t, func() {
 		twManager.AddTriggerWorker(ctx, addr)
@@ -100,7 +100,7 @@ func TestRemoveTriggerWorker(t *testing.T) {
 	addr := "test"
 	storage := storage.NewFakeStorage()
 	sub := getTestSubscription()
-	twManager := NewTriggerWorkerManager(storage, nil, getTestTriggerWorkerRemoveSubscription()).(*manager)
+	twManager := NewTriggerWorkerManager(Config{}, storage, nil, getTestTriggerWorkerRemoveSubscription()).(*manager)
 	Convey("test remove not exist", t, func() {
 		twManager.RemoveTriggerWorker(ctx, addr)
 		triggerWorkers := twManager.triggerWorkers
@@ -126,7 +126,7 @@ func TestAssignSubscription(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	subManager := subscriptiontest.NewMockManager(ctrl)
 	sub.TriggerWorker = addr
-	twManager := NewTriggerWorkerManager(storage, subManager, getTestTriggerWorkerRemoveSubscription()).(*manager)
+	twManager := NewTriggerWorkerManager(Config{}, storage, subManager, getTestTriggerWorkerRemoveSubscription()).(*manager)
 	Convey("assign subscription", t, func() {
 		twManager.AddTriggerWorker(ctx, addr)
 		twManager.UpdateTriggerWorkerInfo(ctx, addr, map[vanus.ID]struct{}{sub.ID: {}})
