@@ -99,7 +99,7 @@ func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client) error {
 		if err != nil {
 			return err
 		}
-		mgr.eventLogMap.Store(elMD.ID, el)
+		mgr.eventLogMap.Store(elMD.ID.Key(), el)
 	}
 	go mgr.dynamicScaleUpEventLog()
 	go mgr.cleanAbnormalSegment()
@@ -132,13 +132,13 @@ func (mgr *eventlogManager) AcquireEventLog(ctx context.Context, eventbusID vanu
 		elMD.EventbusID = vanus.EmptyID()
 		return nil, err
 	}
-	mgr.eventLogMap.Store(el.md.ID, el)
+	mgr.eventLogMap.Store(el.md.ID.Key(), el)
 	mgr.availableLog.Remove(ele)
 	return elMD, nil
 }
 
 func (mgr *eventlogManager) GetEventLog(ctx context.Context, id vanus.ID) *metadata.Eventlog {
-	v, exist := mgr.eventLogMap.Load(id)
+	v, exist := mgr.eventLogMap.Load(id.Key())
 
 	if exist {
 		return v.(*metadata.Eventlog)
@@ -166,7 +166,7 @@ func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
 	if eli == nil || num == 0 {
 		return result, nil
 	}
-	v, exist := mgr.eventLogMap.Load(eli.ID)
+	v, exist := mgr.eventLogMap.Load(eli.ID.Key())
 	if !exist {
 		return nil, errors.ErrEventLogNotFound
 	}
@@ -186,7 +186,7 @@ func (mgr *eventlogManager) getEventLogKeyInKVStore(elID vanus.ID) string {
 
 func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[vanus.ID][]Segment) {
 	for id, segments := range m {
-		v, exist := mgr.eventLogMap.Load(id)
+		v, exist := mgr.eventLogMap.Load(id.Key())
 		if !exist {
 			segmentIDs := make([]string, 0)
 			for idx := range segments {
@@ -224,7 +224,7 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[vanus.ID][]
 
 func (mgr *eventlogManager) GetEventLogSegmentList(elID vanus.ID) []*Segment {
 	result := make([]*Segment, 0)
-	v, exist := mgr.eventLogMap.Load(elID)
+	v, exist := mgr.eventLogMap.Load(elID.Key())
 	if !exist {
 		return result
 	}
@@ -294,7 +294,7 @@ func (mgr *eventlogManager) initializeEventLog(ctx context.Context, md *metadata
 	if err != nil {
 		return nil, err
 	}
-	mgr.eventLogMap.Store(md.ID, el)
+	mgr.eventLogMap.Store(md.ID.Key(), el)
 	for idx := 0; idx < defaultAppendableSegmentNumber; idx++ {
 		seg, err := mgr.createSegment(ctx, el)
 		if err != nil {
@@ -307,7 +307,7 @@ func (mgr *eventlogManager) initializeEventLog(ctx context.Context, md *metadata
 				log.KeyError:  err,
 				"eventlog_id": el.md.ID,
 			})
-			mgr.segmentNeedBeClean.Store(seg.ID, seg)
+			mgr.segmentNeedBeClean.Store(seg.ID.Key(), seg)
 			return nil, err
 		}
 	}
@@ -348,14 +348,14 @@ func (mgr *eventlogManager) dynamicScaleUpEventLog() {
 						log.KeyError:  err,
 						"eventlog_id": el.md.ID,
 					})
-					mgr.segmentNeedBeClean.Store(seg.ID, seg)
+					mgr.segmentNeedBeClean.Store(seg.ID.Key(), seg)
 					return true
 				}
 				count++
 			}
 			return true
 		})
-		log.Info(ctx, "scale task completed", map[string]interface{}{
+		log.Debug(ctx, "scale task completed", map[string]interface{}{
 			"segment_created": count,
 		})
 		time.Sleep(10 * time.Second)
@@ -387,7 +387,7 @@ func (mgr *eventlogManager) cleanAbnormalSegment() {
 			count++
 			return true
 		})
-		log.Info(ctx, "clean segment task completed", map[string]interface{}{
+		log.Debug(ctx, "clean segment task completed", map[string]interface{}{
 			"segment_cleaned": count,
 		})
 		time.Sleep(time.Minute)
@@ -427,7 +427,7 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 			"segment":    seg.String(),
 		})
 		// preparing to cleaning
-		mgr.segmentNeedBeClean.Store(seg.ID, seg)
+		mgr.segmentNeedBeClean.Store(seg.ID.Key(), seg)
 		return nil, err
 	}
 

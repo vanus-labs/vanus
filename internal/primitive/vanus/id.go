@@ -37,7 +37,7 @@ func NewIDFromUint64(id uint64) ID {
 }
 
 func NewIDFromString(id string) (ID, error) {
-	i, err := strconv.ParseUint(id, 64, 10)
+	i, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
 		return emptyID, err
 	}
@@ -50,6 +50,10 @@ func (id ID) String() string {
 
 func (id ID) Uint64() uint64 {
 	return uint64(id)
+}
+
+func (id ID) Key() string {
+	return id.String()
 }
 
 func GenerateID() ID {

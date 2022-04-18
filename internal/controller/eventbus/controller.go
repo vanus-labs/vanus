@@ -206,8 +206,9 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	}
 
 	go func() {
-		if err := srv.RemoteStart(ctx); err == nil {
-			ctrl.volumeMgr.UpdateRouting(ctx, volInstance, srv)
+		newCtx := context.Background()
+		if err := srv.RemoteStart(newCtx); err == nil {
+			ctrl.volumeMgr.UpdateRouting(newCtx, volInstance, srv)
 		}
 	}()
 	return &ctrlpb.RegisterSegmentServerResponse{

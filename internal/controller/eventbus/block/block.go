@@ -83,8 +83,8 @@ func (mgr *allocator) Run(ctx context.Context, kvCli kv.Client) error {
 			l = skiplist.New(skiplist.String)
 			mgr.volumeBlockBuffer[bl.VolumeID] = l
 		}
-		l.Set(bl.ID, bl)
-		mgr.segmentMap.Store(bl.ID, bl)
+		l.Set(bl.ID.Key(), bl)
+		mgr.segmentMap.Store(bl.ID.Key(), bl)
 	}
 	mgr.cancelCtx, mgr.cancel = context.WithCancel(context.Background())
 	go mgr.dynamicAllocateBlockTask()

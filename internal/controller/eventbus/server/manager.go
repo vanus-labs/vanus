@@ -56,7 +56,10 @@ func (mgr *segmentServerManager) AddServer(ctx context.Context, srv Server) erro
 		return nil
 	}
 	mgr.segmentServerMapByIP.Store(srv.Address(), srv)
-	mgr.segmentServerMapByID.Store(srv.ID(), srv)
+	mgr.segmentServerMapByID.Store(srv.ID().Key(), srv)
+	log.Info(ctx, "the segment server added", map[string]interface{}{
+		"server_id": srv.ID(),
+	})
 	return nil
 }
 
@@ -79,7 +82,7 @@ func (mgr *segmentServerManager) GetServerByAddress(addr string) Server {
 }
 
 func (mgr *segmentServerManager) GetServerByServerID(id vanus.ID) Server {
-	v, exist := mgr.segmentServerMapByID.Load(id)
+	v, exist := mgr.segmentServerMapByID.Load(id.Key())
 	if exist {
 		return v.(Server)
 	}
@@ -165,12 +168,22 @@ type segmentServer struct {
 	lastHeartbeatTime time.Time
 }
 
+func NewSegmentServerWithID(id vanus.ID, addr string) (Server, error) {
+	srv, err := NewSegmentServer(addr)
+	if err != nil {
+		return nil, err
+	}
+	srv.(*segmentServer).id = id
+	return srv, nil
+}
+
 func NewSegmentServer(addr string) (Server, error) {
 	srv := &segmentServer{
 		addr: addr,
 		id:   vanus.NewID(),
 	}
 	var opts []grpc.DialOption
+	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	conn, err := grpc.Dial(addr, opts...)
 	if err != nil {
 		return nil, err

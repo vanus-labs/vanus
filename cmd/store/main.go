@@ -68,7 +68,7 @@ func main() {
 	raftpb.RegisterRaftServerServer(grpcServer, raftSrv)
 
 	srv := segment.NewSegmentServer("127.0.0.1:11811", defaultControllerAddr,
-		"volume-1", stopCallback)
+		uint64(1), stopCallback)
 	if err != nil {
 		stopCallback()
 		log.Error(context.Background(), "start SegmentServer failed", map[string]interface{}{

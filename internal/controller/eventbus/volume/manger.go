@@ -60,17 +60,23 @@ type volumeMgr struct {
 }
 
 func (mgr *volumeMgr) RegisterVolume(ctx context.Context, md *metadata.VolumeMetadata) (server.Instance, error) {
-	if v, exist := mgr.volInstanceMap.Load(md.ID); exist {
+	if v, exist := mgr.volInstanceMap.Load(md.ID.Key()); exist {
 		return v.(server.Instance), nil
 	}
 	ins := server.NewInstance(md)
-	mgr.volInstanceMap.Store(md.ID, ins)
+	data, _ := json.Marshal(md)
+	key := filepath.Join(volumeKeyPrefixInKVStore, md.ID.String())
+	if err := mgr.kvCli.Set(ctx, key, data); err != nil {
+		return nil, err
+	}
+	mgr.volInstanceMap.Store(md.ID.Key(), ins)
 	return ins, nil
 }
 
 func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 	mgr.kvCli = kvClient
 
+	// TODO add volume when register
 	pairs, err := mgr.kvCli.List(ctx, volumeKeyPrefixInKVStore)
 	if err != nil {
 		return err
@@ -81,7 +87,7 @@ func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 			return err
 		}
 		ins := server.NewInstance(md)
-		mgr.volInstanceMap.Store(md.ID, ins)
+		mgr.volInstanceMap.Store(md.ID.Key(), ins)
 	}
 	pairs, err = mgr.kvCli.List(ctx, volumeInstanceKeyPrefixInKVStore)
 	if err != nil {
@@ -89,7 +95,8 @@ func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 	}
 	for _, v := range pairs {
 		obj := new(struct {
-			Address string `json:"address"`
+			Address  string   `json:"address"`
+			ServerID vanus.ID `json:"server_id"`
 		})
 		if err = json.Unmarshal(v.Value, obj); err != nil {
 			log.Warning(ctx, "unmarshal volume instance runtime info failed", map[string]interface{}{
@@ -99,7 +106,7 @@ func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 			continue
 		}
 
-		srv, err := server.NewSegmentServer(obj.Address)
+		srv, err := server.NewSegmentServerWithID(obj.ServerID, obj.Address)
 		if err != nil {
 			log.Warning(ctx, "create segment server failed failed", map[string]interface{}{
 				log.KeyError: err,
@@ -108,8 +115,8 @@ func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 			})
 			continue
 		}
-		id, _ := vanus.NewIDFromString(v.Key)
-		ins, exist := mgr.volInstanceMap.Load(id)
+		id, _ := vanus.NewIDFromString(filepath.Base(v.Key))
+		ins, exist := mgr.volInstanceMap.Load(id.Key())
 		if exist {
 			mgr.UpdateRouting(ctx, ins.(server.Instance), srv)
 			if err = mgr.serverMgr.AddServer(ctx, srv); err != nil {
@@ -125,7 +132,7 @@ func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 }
 
 func (mgr *volumeMgr) GetVolumeInstanceByID(id vanus.ID) server.Instance {
-	v, exist := mgr.volInstanceMap.Load(id)
+	v, exist := mgr.volInstanceMap.Load(id.Key())
 	if !exist {
 		return nil
 	}
@@ -133,7 +140,7 @@ func (mgr *volumeMgr) GetVolumeInstanceByID(id vanus.ID) server.Instance {
 }
 
 func (mgr *volumeMgr) LookupVolumeByServerID(id vanus.ID) server.Instance {
-	v, exist := mgr.volInstanceMapByServerID.Load(id)
+	v, exist := mgr.volInstanceMapByServerID.Load(id.Key())
 	if !exist {
 		return nil
 	}
@@ -151,11 +158,14 @@ func (mgr *volumeMgr) GetAllVolume() []server.Instance {
 
 func (mgr *volumeMgr) UpdateRouting(ctx context.Context, ins server.Instance, srv server.Server) {
 	key := filepath.Join(volumeInstanceKeyPrefixInKVStore, ins.ID().String())
-	if srv == nil {
-		mgr.volInstanceMapByServerID.Delete(ins.GetServer().ID())
+	if srv != nil {
+		mgr.volInstanceMapByServerID.Store(srv.ID().Key(), ins)
 		v := new(struct {
-			Address string `json:"address"`
+			Address  string   `json:"address"`
+			ServerID vanus.ID `json:"server_id"`
 		})
+		v.Address = srv.Address()
+		v.ServerID = srv.ID()
 		data, _ := json.Marshal(v)
 		if err := mgr.kvCli.Set(ctx, key, data); err != nil {
 			log.Warning(ctx, "save runtime info of volume instance to kv failed", map[string]interface{}{
@@ -166,15 +176,16 @@ func (mgr *volumeMgr) UpdateRouting(ctx context.Context, ins server.Instance, sr
 			})
 		}
 	} else {
-		mgr.volInstanceMapByServerID.Store(srv.ID(), ins)
+		mgr.volInstanceMapByServerID.Delete(ins.GetServer().ID())
 		if err := mgr.kvCli.Delete(ctx, key); err != nil {
 			log.Warning(ctx, "delete runtime info of volume instance to kv failed", map[string]interface{}{
-				"volume_id": ins.ID(),
+				"volume_id":  ins.ID(),
+				log.KeyError: err,
 			})
 		}
 	}
 	ins.SetServer(srv)
-	mgr.volInstanceMap.Store(ins.ID(), ins)
+	mgr.volInstanceMap.Store(ins.ID().Key(), ins)
 
 }
 
