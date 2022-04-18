@@ -101,7 +101,6 @@ func Convert2ProtoSegment(ins ...*Segment) []*meta.Segment {
 	segs := make([]*meta.Segment, len(ins))
 	for idx := 0; idx < len(ins); idx++ {
 		seg := ins[idx]
-		// TODO optimize reported metadata
 		segs[idx] = &meta.Segment{
 			Id:                seg.ID.Uint64(),
 			PreviousSegmentId: seg.PreviousSegmentId.Uint64(),

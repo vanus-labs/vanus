@@ -54,7 +54,6 @@ type Manager interface {
 var mgr = &eventlogManager{}
 
 type eventlogManager struct {
-	kvStore   kv.Client
 	allocator block.Allocator
 
 	// string, *eventlog
@@ -82,10 +81,10 @@ func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client) error {
 	mgr.cancelCtx, mgr.cancel = context.WithCancel(ctx)
 	mgr.availableLog = skiplist.New(skiplist.Uint64)
 	mgr.allocator = block.NewAllocator(block.NewVolumeRoundRobin(mgr.volMgr.GetAllVolume))
-	if err := mgr.allocator.Run(ctx, mgr.kvStore); err != nil {
+	if err := mgr.allocator.Run(ctx, mgr.kvClient); err != nil {
 		return err
 	}
-	pairs, err := mgr.kvStore.List(ctx, eventlogKeyPrefixInKVStore)
+	pairs, err := mgr.kvClient.List(ctx, eventlogKeyPrefixInKVStore)
 	if err != nil {
 		return err
 	}
@@ -153,7 +152,7 @@ func (mgr *eventlogManager) UpdateEventLog(ctx context.Context, els ...*metadata
 	for idx := range els {
 		el := els[idx]
 		data, _ := json.Marshal(el)
-		if err := mgr.kvStore.Set(ctx, mgr.getEventLogKeyInKVStore(el.ID), data); err != nil {
+		if err := mgr.kvClient.Set(ctx, mgr.getEventLogKeyInKVStore(el.ID), data); err != nil {
 			return err
 		}
 	}
@@ -270,7 +269,7 @@ func (mgr *eventlogManager) createEventLog(ctx context.Context) error {
 	data, _ := json.Marshal(el)
 	mgr.kvMutex.Lock()
 	defer mgr.kvMutex.Unlock()
-	if err := mgr.kvStore.Set(ctx, mgr.getEventLogKeyInKVStore(el.ID), data); err != nil {
+	if err := mgr.kvClient.Set(ctx, mgr.getEventLogKeyInKVStore(el.ID), data); err != nil {
 		return err
 	}
 	mgr.availableLog.Set(el.ID, el)

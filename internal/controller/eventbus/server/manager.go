@@ -35,7 +35,7 @@ type Manager interface {
 	Stop(ctx context.Context)
 }
 
-func newSegmentServerManager() Manager {
+func NewServerManager() Manager {
 	return &segmentServerManager{
 		segmentServerCredentials: insecure.NewCredentials(),
 	}
@@ -55,7 +55,6 @@ func (mgr *segmentServerManager) AddServer(ctx context.Context, srv Server) erro
 	if srv == nil {
 		return nil
 	}
-
 	mgr.segmentServerMapByIP.Store(srv.Address(), srv)
 	mgr.segmentServerMapByID.Store(srv.ID(), srv)
 	return nil
@@ -89,6 +88,7 @@ func (mgr *segmentServerManager) GetServerByServerID(id vanus.ID) Server {
 
 func (mgr *segmentServerManager) Run(ctx context.Context) error {
 	newCtx := context.Background()
+	mgr.cancelCtx, mgr.cancel = context.WithCancel(newCtx)
 	for {
 		select {
 		case <-mgr.cancelCtx.Done():
@@ -145,7 +145,7 @@ func (mgr *segmentServerManager) Stop(ctx context.Context) {
 
 type Server interface {
 	RemoteStart(ctx context.Context) error
-	RemoteStop(ctx context.Context) error
+	RemoteStop(ctx context.Context)
 	GetClient() segpb.SegmentServerClient
 	ID() vanus.ID
 	Address() string
@@ -153,6 +153,7 @@ type Server interface {
 	Polish()
 	IsActive() bool
 	Uptime() time.Time
+	Ready() bool
 }
 
 type segmentServer struct {
@@ -180,11 +181,27 @@ func NewSegmentServer(addr string) (Server, error) {
 }
 
 func (ss *segmentServer) RemoteStart(ctx context.Context) error {
+	_, err := ss.client.Start(ctx, &segpb.StartSegmentServerRequest{
+		ServerId: ss.id.Uint64(),
+	})
+	if err != nil {
+		log.Warning(ctx, "start server failed", map[string]interface{}{
+			log.KeyError: err,
+			"server_id":  ss.id,
+		})
+		return err
+	}
 	return nil
 }
 
-func (ss *segmentServer) RemoteStop(ctx context.Context) error {
-	return nil
+func (ss *segmentServer) RemoteStop(ctx context.Context) {
+	_, err := ss.client.Stop(ctx, &segpb.StopSegmentServerRequest{})
+	if err != nil {
+		log.Warning(ctx, "stop server failed", map[string]interface{}{
+			log.KeyError: err,
+			"server_id":  ss.id,
+		})
+	}
 }
 
 func (ss *segmentServer) GetClient() segpb.SegmentServerClient {
@@ -214,4 +231,8 @@ func (ss *segmentServer) IsActive() bool {
 
 func (ss *segmentServer) Uptime() time.Time {
 	return ss.uptime
+}
+
+func (ss *segmentServer) Ready() bool {
+	return false
 }
