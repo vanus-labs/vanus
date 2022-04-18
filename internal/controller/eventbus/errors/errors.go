@@ -21,4 +21,5 @@ var (
 	ErrUnmarshall             = rpcerr.New("unmarshall data failed").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
 	ErrNoAvailableEventLog    = rpcerr.New("no eventlog available").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_EXHAUSTED)
 	ErrVolumeInstanceNotFound = rpcerr.New("volume instance not found").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_NOT_FOUND)
+	ErrVolumeInstanceNoServer = rpcerr.New("no segment server was bound to volume instance").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
 )

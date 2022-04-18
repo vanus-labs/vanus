@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"io"
 	"os"
 	"sync"
@@ -39,7 +40,7 @@ const (
 
 type fileBlock struct {
 	version                       int32
-	id                            string
+	id                            vanus.ID
 	path                          string
 	capacity                      int64
 	appendMutex                   sync.Mutex
@@ -234,14 +235,14 @@ func (b *fileBlock) Path() string {
 	return b.path
 }
 
-func (b *fileBlock) SegmentBlockID() string {
+func (b *fileBlock) SegmentBlockID() vanus.ID {
 	return b.id
 }
 
 func (b *fileBlock) HealthInfo() *meta.SegmentHealthInfo {
 	return &meta.SegmentHealthInfo{
-		Id:                   b.id,
-		EventLogId:           b.SegmentBlockID(),
+		Id:                   b.id.Uint64(),
+		EventLogId:           b.SegmentBlockID().Uint64(),
 		Size:                 b.size,
 		EventNumber:          b.number,
 		SerializationVersion: b.version,

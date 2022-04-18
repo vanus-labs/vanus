@@ -405,7 +405,11 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 	for i := 1; i <= 3; i++ {
 		seg.Replicas.Leader = i
 		ins := mgr.volMgr.GetVolumeInstanceByID(seg.GetLeaderBlock().VolumeID)
-		_, err := ins.GetClient().ActivateSegment(ctx, &segment.ActivateSegmentRequest{
+		srv := ins.GetServer()
+		if srv == nil {
+			return nil, errors.ErrVolumeInstanceNoServer
+		}
+		_, err := srv.GetClient().ActivateSegment(ctx, &segment.ActivateSegmentRequest{
 			EventLogId:     seg.EventLogID.Uint64(),
 			ReplicaGroupId: seg.Replicas.ID.Uint64(),
 			PeersAddress:   mgr.getSegmentAddress(seg),

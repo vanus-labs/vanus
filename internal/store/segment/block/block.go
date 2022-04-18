@@ -17,6 +17,7 @@ package block
 import (
 	"context"
 	"errors"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"os"
 	"path/filepath"
 
@@ -50,13 +51,13 @@ type SegmentBlock interface {
 	Path() string
 	IsFull() bool
 	IsEmpty() bool
-	SegmentBlockID() string
+	SegmentBlockID() vanus.ID
 	Close(context.Context) error
 	Initialize(context.Context) error
 	HealthInfo() *meta.SegmentHealthInfo
 }
 
-func CreateFileSegmentBlock(ctx context.Context, id string, path string, capacity int64) (SegmentBlock, error) {
+func CreateFileSegmentBlock(ctx context.Context, id vanus.ID, path string, capacity int64) (SegmentBlock, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
@@ -90,9 +91,12 @@ func CreateFileSegmentBlock(ctx context.Context, id string, path string, capacit
 func OpenFileSegmentBlock(ctx context.Context, path string) (SegmentBlock, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
-
+	id, err := vanus.NewIDFromString(filepath.Base(path))
+	if err != nil {
+		return nil, err
+	}
 	b := &fileBlock{
-		id:   filepath.Base(path),
+		id:   id,
 		path: path,
 	}
 	b.appendable.Store(true)

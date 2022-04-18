@@ -36,6 +36,14 @@ func NewIDFromUint64(id uint64) ID {
 	return ID(id)
 }
 
+func NewIDFromString(id string) (ID, error) {
+	i, err := strconv.ParseUint(id, 64, 10)
+	if err != nil {
+		return emptyID, err
+	}
+	return ID(i), nil
+}
+
 func (id ID) String() string {
 	return strconv.FormatUint(uint64(id), 10)
 }

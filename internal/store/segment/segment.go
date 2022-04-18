@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store/segment/block"
 	"github.com/linkall-labs/vanus/internal/store/segment/codec"
 	"github.com/linkall-labs/vanus/internal/store/segment/errors"
@@ -46,9 +47,9 @@ const (
 	segmentServerDebugModeFlagENV = "SEGMENT_SERVER_DEBUG_MODE"
 )
 
-func NewSegmentServer(localAddr, ctrlAddr, volumeId string, stop func()) segment.SegmentServerServer {
+func NewSegmentServer(localAddr, ctrlAddr string, volumeId uint64, stop func()) segment.SegmentServerServer {
 	return &segmentServer{
-		volumeId:     volumeId,
+		volumeId:     vanus.NewIDFromUint64(volumeId),
 		volumeDir:    "/Users/wenfeng/tmp/data/vanus/volume-1",
 		ctrlAddress:  ctrlAddr,
 		localAddress: localAddr,
@@ -61,8 +62,8 @@ func NewSegmentServer(localAddr, ctrlAddr, volumeId string, stop func()) segment
 }
 
 type segmentServer struct {
-	id                  string
-	volumeId            string
+	id                  vanus.ID
+	volumeId            vanus.ID
 	volumeDir           string
 	ctrlAddress         string
 	localAddress        string
@@ -94,12 +95,12 @@ func (s *segmentServer) Initialize(ctx context.Context) error {
 		s.ctrlClient = ctrl.NewSegmentControllerClient(conn)
 		res, err := s.ctrlClient.RegisterSegmentServer(context.Background(), &ctrl.RegisterSegmentServerRequest{
 			Address:  s.localAddress,
-			VolumeId: s.volumeId,
+			VolumeId: s.volumeId.Uint64(),
 		})
 		if err != nil {
 			return err
 		}
-		s.id = res.ServerId
+		s.id = vanus.NewIDFromUint64(res.ServerId)
 		if len(res.SegmentBlocks) > 0 {
 			for k := range res.SegmentBlocks {
 				files = append(files, filepath.Join(s.volumeDir, k))
@@ -110,7 +111,7 @@ func (s *segmentServer) Initialize(ctx context.Context) error {
 		}
 	} else {
 		log.Info(ctx, "the segment server debug mode enabled", nil)
-		s.id = "test-server-1"
+		s.id = vanus.NewID()
 		s.isDebugMode = true
 		_files, err := filepath.Glob(filepath.Join(s.volumeDir, "*"))
 		if err != nil {
@@ -160,8 +161,8 @@ func (s *segmentServer) Stop(ctx context.Context,
 	return &segment.StopSegmentServerResponse{}, nil
 }
 
-func (s *segmentServer) CreateSegmentBlock(ctx context.Context,
-	req *segment.CreateSegmentBlockRequest) (*segment.CreateSegmentBlockResponse, error) {
+func (s *segmentServer) CreateBlock(ctx context.Context,
+	req *segment.CreateBlockRequest) (*emptypb.Empty, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
@@ -173,8 +174,8 @@ func (s *segmentServer) CreateSegmentBlock(ctx context.Context,
 	if exist {
 		return nil, errors.ErrResourceAlreadyExist.WithMessage("the segment has already exist")
 	}
-	path := s.generateNewSegmentBlockPath(req.Id)
-	segmentBlock, err := block.CreateFileSegmentBlock(ctx, req.Id, path, req.Size)
+	path := s.generateNewSegmentBlockPath(vanus.NewIDFromUint64(req.Id))
+	segmentBlock, err := block.CreateFileSegmentBlock(ctx, vanus.NewIDFromUint64(req.Id), path, req.Size)
 	if err != nil {
 		return nil, err
 	}
@@ -182,11 +183,11 @@ func (s *segmentServer) CreateSegmentBlock(ctx context.Context,
 	s.segmentBlockMap.Store(req.Id, segmentBlock)
 	s.segmentBlockWriters.Store(req.Id, segmentBlock)
 	s.segmentBlockReaders.Store(req.Id, segmentBlock)
-	return &segment.CreateSegmentBlockResponse{}, nil
+	return &emptypb.Empty{}, nil
 }
 
-func (s *segmentServer) RemoveSegmentBlock(ctx context.Context,
-	req *segment.RemoveSegmentBlockRequest) (*segment.RemoveSegmentBlockResponse, error) {
+func (s *segmentServer) RemoveBlock(ctx context.Context,
+	req *segment.RemoveBlockRequest) (*emptypb.Empty, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
@@ -194,12 +195,12 @@ func (s *segmentServer) RemoveSegmentBlock(ctx context.Context,
 		return nil, err
 	}
 
-	return &segment.RemoveSegmentBlockResponse{}, nil
+	return &emptypb.Empty{}, nil
 }
 
-// ActiveSegmentBlock mark a block ready to using and preparing to initializing a replica group
-func (s *segmentServer) ActiveSegmentBlock(ctx context.Context,
-	req *segment.ActiveSegmentBlockRequest) (*segment.ActiveSegmentBlockResponse, error) {
+// ActivateSegment mark a block ready to using and preparing to initializing a replica group
+func (s *segmentServer) ActivateSegment(ctx context.Context,
+	req *segment.ActivateSegmentRequest) (*segment.ActivateSegmentResponse, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
@@ -207,12 +208,12 @@ func (s *segmentServer) ActiveSegmentBlock(ctx context.Context,
 		return nil, err
 	}
 
-	return &segment.ActiveSegmentBlockResponse{}, nil
+	return &segment.ActivateSegmentResponse{}, nil
 }
 
-// InactiveSegmentBlock mark a block ready to be removed
-func (s *segmentServer) InactiveSegmentBlock(ctx context.Context,
-	req *segment.InactiveSegmentBlockRequest) (*segment.InactiveSegmentBlockResponse, error) {
+// InactivateSegment mark a block ready to be removed
+func (s *segmentServer) InactivateSegment(ctx context.Context,
+	req *segment.InactivateSegmentRequest) (*segment.InactivateSegmentResponse, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
@@ -220,11 +221,11 @@ func (s *segmentServer) InactiveSegmentBlock(ctx context.Context,
 		return nil, err
 	}
 
-	return &segment.InactiveSegmentBlockResponse{}, nil
+	return &segment.InactivateSegmentResponse{}, nil
 }
 
-func (s *segmentServer) GetSegmentBlockInfo(ctx context.Context,
-	req *segment.GetSegmentBlockInfoRequest) (*segment.GetSegmentBlockInfoResponse, error) {
+func (s *segmentServer) GetBlockInfo(ctx context.Context,
+	req *segment.GetBlockInfoRequest) (*segment.GetBlockInfoResponse, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
@@ -232,10 +233,10 @@ func (s *segmentServer) GetSegmentBlockInfo(ctx context.Context,
 		return nil, err
 	}
 
-	return &segment.GetSegmentBlockInfoResponse{}, nil
+	return &segment.GetBlockInfoResponse{}, nil
 }
 
-func (s *segmentServer) AppendToSegment(ctx context.Context,
+func (s *segmentServer) AppendToBlock(ctx context.Context,
 	req *segment.AppendToSegmentRequest) (*emptypb.Empty, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
@@ -278,7 +279,7 @@ func (s *segmentServer) AppendToSegment(ctx context.Context,
 	if err := writer.Append(ctx, entities...); err != nil {
 		if err == block.ErrNoEnoughCapacity {
 			// TODO optimize this to async from sync
-			if err = s.markSegmentIsFull(ctx, req.SegmentId); err != nil {
+			if err = s.markSegmentIsFull(ctx, vanus.NewIDFromUint64(req.SegmentId)); err != nil {
 				return nil, err
 			}
 			return nil, errors.ErrSegmentNoEnoughCapacity
@@ -288,7 +289,7 @@ func (s *segmentServer) AppendToSegment(ctx context.Context,
 	return &emptypb.Empty{}, nil
 }
 
-func (s *segmentServer) ReadFromSegment(ctx context.Context,
+func (s *segmentServer) ReadFromBlock(ctx context.Context,
 	req *segment.ReadFromSegmentRequest) (*segment.ReadFromSegmentResponse, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
@@ -356,8 +357,8 @@ func (s *segmentServer) startHeartBeatTask() error {
 					return true
 				})
 				if err = stream.Send(&ctrl.SegmentHeartbeatRequest{
-					ServerId:   s.id,
-					VolumeId:   s.volumeId,
+					ServerId:   s.id.Uint64(),
+					VolumeId:   s.volumeId.Uint64(),
 					HealthInfo: infos,
 					ReportTime: util.FormatTime(time.Now()),
 					ServerAddr: s.localAddress,
@@ -394,8 +395,8 @@ func (s *segmentServer) startHeartBeatTask() error {
 	return nil
 }
 
-func (s *segmentServer) generateNewSegmentBlockPath(id string) string {
-	return filepath.Join(s.volumeDir, id)
+func (s *segmentServer) generateNewSegmentBlockPath(id vanus.ID) string {
+	return filepath.Join(s.volumeDir, id.String())
 }
 
 func (s *segmentServer) start(ctx context.Context) error {
@@ -466,7 +467,7 @@ func (s *segmentServer) stop(ctx context.Context) error {
 	return err
 }
 
-func (s *segmentServer) markSegmentIsFull(ctx context.Context, segId string) error {
+func (s *segmentServer) markSegmentIsFull(ctx context.Context, segId vanus.ID) error {
 	bl, exist := s.segmentBlockMap.Load(segId)
 	if !exist {
 		return fmt.Errorf("the SegmentBlock does not exist")
@@ -478,8 +479,8 @@ func (s *segmentServer) markSegmentIsFull(ctx context.Context, segId string) err
 
 	// report to controller immediately
 	_, err := s.ctrlClient.ReportSegmentBlockIsFull(ctx, &ctrl.SegmentHeartbeatRequest{
-		ServerId: s.id,
-		VolumeId: s.volumeId,
+		ServerId: s.id.Uint64(),
+		VolumeId: s.volumeId.Uint64(),
 		HealthInfo: []*meta.SegmentHealthInfo{
 			bl.(block.SegmentBlock).HealthInfo(),
 		},

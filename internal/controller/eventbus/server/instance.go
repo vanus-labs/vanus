@@ -16,41 +16,49 @@ package server
 
 import (
 	"context"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/errors"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vsproto/pkg/segment"
-	"google.golang.org/grpc"
-	"time"
+	segpb "github.com/linkall-labs/vsproto/pkg/segment"
+	"sync"
 )
 
 type Instance interface {
-	Server
+	ID() vanus.ID
+	Address() string
+	Close() error
 	GetMeta() *metadata.VolumeMetadata
 	CreateBlock(context.Context, int64) (*metadata.Block, error)
 	DeleteBlock(context.Context, vanus.ID) error
+	GetServer() Server
+	SetServer(Server)
 }
 
 func NewInstance(md *metadata.VolumeMetadata) Instance {
-	return nil
+	return &volumeInstance{
+		md: md,
+	}
 }
 
-type instance struct {
-	md       *metadata.VolumeMetadata
-	srv      Server
-	grpcConn *grpc.ClientConn
-	client   segment.SegmentServerClient
+type volumeInstance struct {
+	md      *metadata.VolumeMetadata
+	srv     Server
+	rwMutex sync.RWMutex
 }
 
-func (ins *instance) GetMeta() *metadata.VolumeMetadata {
+func (ins *volumeInstance) GetMeta() *metadata.VolumeMetadata {
 	return ins.md
 }
 
-func (ins *instance) CreateBlock(ctx context.Context, cap int64) (*metadata.Block, error) {
+func (ins *volumeInstance) CreateBlock(ctx context.Context, cap int64) (*metadata.Block, error) {
 	blk := &metadata.Block{
-		ID:       ins.generateBlockID(),
+		ID:       vanus.NewID(),
 		Capacity: cap,
 	}
-	_, err := ins.client.CreateBlock(ctx, &segment.CreateBlockRequest{
+	if ins.srv == nil {
+		return nil, errors.ErrVolumeInstanceNoServer
+	}
+	_, err := ins.srv.GetClient().CreateBlock(ctx, &segpb.CreateBlockRequest{
 		Size: blk.Capacity,
 		Id:   blk.ID.Uint64(),
 	})
@@ -61,26 +69,47 @@ func (ins *instance) CreateBlock(ctx context.Context, cap int64) (*metadata.Bloc
 	return blk, nil
 }
 
-func (ins *instance) DeleteBlock(context.Context, vanus.ID) error {
+func (ins *volumeInstance) DeleteBlock(ctx context.Context, id vanus.ID) error {
+	if ins.srv == nil {
+		return errors.ErrVolumeInstanceNoServer
+	}
+	_, err := ins.srv.GetClient().RemoveBlock(ctx, &segpb.RemoveBlockRequest{Id: id.Uint64()})
+	return err
+}
+
+func (ins *volumeInstance) ID() vanus.ID {
+	return ins.md.ID
+}
+
+func (ins *volumeInstance) Address() string {
+	ins.rwMutex.RLock()
+	defer ins.rwMutex.RUnlock()
+
+	if ins.srv != nil {
+		return ins.srv.Address()
+	}
+	return ""
+}
+
+func (ins *volumeInstance) Close() error {
+	ins.rwMutex.RLock()
+	defer ins.rwMutex.RUnlock()
+
+	if ins.srv != nil {
+		return ins.srv.Close()
+	}
 	return nil
 }
 
-func (ins *instance) UpdateSegmentServer(srv Server) {
+func (ins *volumeInstance) SetServer(srv Server) {
+	ins.rwMutex.Lock()
+	defer ins.rwMutex.Unlock()
 	ins.srv = srv
 }
 
-func (ins *instance) Address() string {
-	if ins.srv == nil {
-		return ""
-	}
-	return ins.srv.Address()
-}
+func (ins *volumeInstance) GetServer() Server {
+	ins.rwMutex.RLock()
+	defer ins.rwMutex.RUnlock()
 
-func (ins *instance) Close() error {
-	return ins.grpcConn.Close()
-}
-
-func (ins *instance) generateBlockID() vanus.ID {
-	//TODO optimize
-	return vanus.ID(time.Now().UnixNano())
+	return ins.srv
 }

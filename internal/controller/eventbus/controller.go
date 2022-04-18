@@ -186,8 +186,12 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	srv, err := ctrl.ssMgr.AddServer(ctx, req.Address)
+	srv, err := server.NewSegmentServer(req.Address)
 	if err != nil {
+		return nil, err
+	}
+
+	if err = ctrl.ssMgr.AddServer(ctx, srv); err != nil {
 		return nil, err
 	}
 
@@ -216,7 +220,7 @@ func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	serverInfo := ctrl.ssMgr.GetServerInfoByAddress(req.Address)
+	serverInfo := ctrl.ssMgr.GetServerByAddress(req.Address)
 
 	if serverInfo == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("block server not found")
@@ -268,14 +272,14 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 			"time":      t,
 		})
 
-		serverInfo := ctrl.ssMgr.GetServerInfoByServerID(req.ServerId)
+		serverInfo := ctrl.ssMgr.GetServerByServerID(vanus.NewIDFromUint64(req.ServerId))
 		if serverInfo == nil {
 			log.Warning(ctx, "received a heartbeat request, but server metadata not found", map[string]interface{}{
 				"volume_id": req.VolumeId,
 				"server_id": req.ServerId,
 			})
 		}
-		ctrl.ssMgr.Polish(serverInfo)
+		serverInfo.Polish()
 	}
 
 	if err != nil && err != io.EOF {
@@ -344,7 +348,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event em
 			return err
 		}
 
-		if err := ctrl.ssMgr.Init(ctx, ctrl.kvStore); err != nil {
+		if err := ctrl.ssMgr.Run(ctx); err != nil {
 			ctrl.stop(ctx, err)
 			return err
 		}
@@ -353,8 +357,9 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event em
 			return nil
 		}
 		ctrl.isLeader = false
-		//ctrl.eventLogMgr.stop(ctx)
-		//ctrl.ssMgr.stop(ctx)
+		ctrl.volumeMgr.Destroy()
+		ctrl.eventLogMgr.Stop()
+		ctrl.ssMgr.Stop(ctx)
 	}
 	return nil
 }
