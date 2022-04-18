@@ -17,3 +17,7 @@ embed_etcd:
   clusters:
     - "etcd-1=http://127.0.0.1:2380"
 #eventbus:
+trigger:
+  storage:
+    keyPrefix: "/xdl"
+    serverList: [ "127.0.0.1:2379" ]

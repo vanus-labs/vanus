@@ -1,5 +1,2 @@
-port: 2049
-waitTriggerTime: 10
-storage:
-  keyPrefix: "/xdl"
-  serverList: [ "127.0.0.1:2379" ]
+port: 2149
+triggerCtrlAddr: "127.0.0.1:2049"

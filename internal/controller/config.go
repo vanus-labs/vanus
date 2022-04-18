@@ -18,6 +18,7 @@ import (
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
 	"github.com/linkall-labs/vanus/internal/controller/trigger"
+	"github.com/linkall-labs/vanus/internal/primitive"
 	"path/filepath"
 )
 
@@ -49,4 +50,13 @@ func (c *Config) GetEventbusCtrlConfig() eventbus.Config {
 
 type MetadataConfig struct {
 	KeyPrefix string `yaml:"key_prefix"`
+}
+
+func Init(filename string) (*Config, error) {
+	c := new(Config)
+	err := primitive.LoadConfig(filename, c)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
 }

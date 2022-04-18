@@ -31,7 +31,7 @@ import (
 
 func main() {
 	ctx := signal.SetupSignalContext()
-	f := flag.String("conf", "./config/tworker.yaml", "trigger worker config file path")
+	f := flag.String("conf", "./config/trigger.yaml", "trigger worker config file path")
 	flag.Parse()
 	c, err := trigger.Init(*f)
 	if err != nil {
