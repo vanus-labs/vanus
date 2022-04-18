@@ -15,17 +15,26 @@
 package main
 
 import (
+	// standard libraries.
 	"context"
 	"fmt"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/store/segment"
-	"github.com/linkall-labs/vanus/internal/util"
-	"github.com/linkall-labs/vanus/observability/log"
-	segpb "github.com/linkall-labs/vsproto/pkg/segment"
-	"google.golang.org/grpc"
 	"net"
 	"os"
 	"time"
+
+	// third-party libraries.
+	"google.golang.org/grpc"
+
+	// first-party libraries.
+	raftpb "github.com/linkall-labs/vsproto/pkg/raft"
+	segpb "github.com/linkall-labs/vsproto/pkg/segment"
+
+	// this project.
+	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/raft/transport"
+	"github.com/linkall-labs/vanus/internal/store/segment"
+	"github.com/linkall-labs/vanus/internal/util"
+	"github.com/linkall-labs/vanus/observability/log"
 )
 
 var (
@@ -51,6 +60,13 @@ func main() {
 		grpcServer.GracefulStop()
 		exitChan <- struct{}{}
 	}
+
+	// setup raft
+	reslover := transport.NewSimpleResolver()
+	host := transport.NewHost(reslover)
+	raftSrv := transport.NewRaftServer(context.TODO(), host)
+	raftpb.RegisterRaftServerServer(grpcServer, raftSrv)
+
 	srv := segment.NewSegmentServer("127.0.0.1:11811", defaultControllerAddr,
 		"volume-1", stopCallback)
 	if err != nil {
@@ -60,6 +76,8 @@ func main() {
 		})
 		os.Exit(-1)
 	}
+	segpb.RegisterSegmentServerServer(grpcServer, srv)
+
 	ctx := context.Background()
 	init, _ := srv.(primitive.Initializer)
 	// TODO panic
@@ -70,17 +88,18 @@ func main() {
 		})
 		os.Exit(-2)
 	}
+
 	go func() {
 		log.Info(ctx, "the SegmentServer ready to work", map[string]interface{}{
 			"listen_ip":   defaultIP,
 			"listen_port": defaultPort,
 			"time":        util.FormatTime(time.Now()),
 		})
-		segpb.RegisterSegmentServerServer(grpcServer, srv)
 		if err = grpcServer.Serve(listen); err != nil {
 			log.Error(ctx, "grpc server occurred an error", map[string]interface{}{
 				log.KeyError: err,
 			})
+			return
 		}
 	}()
 

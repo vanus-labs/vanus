@@ -12,4 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package replica
+package transport
+
+import (
+	// standard libraries
+	"context"
+
+	// third-party libraries
+	"github.com/linkall-labs/raft/raftpb"
+)
+
+type Multiplexer interface {
+	Send(msg *raftpb.Message)
+	Sendv(msg []*raftpb.Message)
+}
+
+type Demultiplexer interface {
+	Receive(ctx context.Context, msg *raftpb.Message) error
+}

@@ -13,6 +13,7 @@ require (
 	github.com/huandu/skiplist v1.2.0
 	github.com/linkall-labs/embed-etcd v0.0.0
 	github.com/linkall-labs/eventbus-go v0.0.0
+	github.com/linkall-labs/raft v0.0.0
 	github.com/linkall-labs/vsproto v0.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/prashantv/gostub v1.1.0
@@ -31,6 +32,7 @@ replace (
 	cloudevents.io/genproto v1.0.2 => ../vsproto/include/cloudevents/pkg
 	github.com/linkall-labs/embed-etcd v0.0.0 => ../embed-etcd
 	github.com/linkall-labs/eventbus-go v0.0.0 => ../eventbus-go
+	github.com/linkall-labs/raft v0.0.0 => ../raft
 	github.com/linkall-labs/vsproto v0.0.0 => ../vsproto
 )
 
@@ -67,7 +69,7 @@ require (
 	github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 // indirect
 	go.etcd.io/bbolt v1.3.6 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.2 // indirect
-	go.etcd.io/etcd/client/pkg/v3 v3.5.2 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.6.0-alpha.0 // indirect
 	go.etcd.io/etcd/client/v2 v2.305.2 // indirect
 	go.etcd.io/etcd/pkg/v3 v3.5.2 // indirect
 	go.etcd.io/etcd/raft/v3 v3.5.2 // indirect
