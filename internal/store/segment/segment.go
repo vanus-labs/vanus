@@ -505,7 +505,7 @@ func (s *segmentServer) initSegmentBlock(ctx context.Context, files []string) er
 }
 
 func (s *segmentServer) checkoutState() error {
-	if s.state == primitive.ServerStateRunning {
+	if s.state != primitive.ServerStateRunning {
 		return errors.ErrServiceState.WithMessage(fmt.Sprintf(
 			"the server isn't ready to work, current state:%s", s.state))
 	}

@@ -26,6 +26,7 @@ import (
 	rpcerr "github.com/linkall-labs/vsproto/pkg/errors"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -47,14 +48,15 @@ type Allocator interface {
 
 func NewAllocator(selector VolumeSelector) Allocator {
 	return &allocator{
-		selector: selector,
+		selector:          selector,
+		volumeBlockBuffer: make(map[string]*skiplist.SkipList, 0),
 	}
 }
 
 type allocator struct {
 	selector VolumeSelector
 	// key: volumeID, value: SkipList of *metadata.Block
-	volumeBlockBuffer map[vanus.ID]*skiplist.SkipList
+	volumeBlockBuffer map[string]*skiplist.SkipList
 	segmentMap        sync.Map
 	kvClient          kv.Client
 	mutex             sync.Mutex
@@ -65,12 +67,10 @@ type allocator struct {
 
 func (mgr *allocator) Run(ctx context.Context, kvCli kv.Client) error {
 	mgr.kvClient = kvCli
-	//mgr.primitive = NewVolumeRoundRobin(mgr.volumeMgr.GetAllVolume)
 	pairs, err := mgr.kvClient.List(ctx, blockKeyPrefixInKVStore)
 	if err != nil {
 		return err
 	}
-	// TODO unassigned -> assigned
 	for idx := range pairs {
 		pair := pairs[idx]
 		bl := &metadata.Block{}
@@ -78,10 +78,10 @@ func (mgr *allocator) Run(ctx context.Context, kvCli kv.Client) error {
 		if err != nil {
 			return err
 		}
-		l, exist := mgr.volumeBlockBuffer[bl.VolumeID]
+		l, exist := mgr.volumeBlockBuffer[bl.VolumeID.Key()]
 		if !exist {
 			l = skiplist.New(skiplist.String)
-			mgr.volumeBlockBuffer[bl.VolumeID] = l
+			mgr.volumeBlockBuffer[bl.VolumeID.Key()] = l
 		}
 		l.Set(bl.ID.Key(), bl)
 		mgr.segmentMap.Store(bl.ID.Key(), bl)
@@ -102,10 +102,10 @@ func (mgr *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, err
 	}
 	for idx := 0; idx < num; idx++ {
 		ins := instances[idx]
-		list := mgr.volumeBlockBuffer[instances[idx].ID()]
+		list := mgr.volumeBlockBuffer[instances[idx].ID().Key()]
 		if list == nil {
-			list = skiplist.New(skiplist.Uint64)
-			mgr.volumeBlockBuffer[instances[idx].ID()] = list
+			list = skiplist.New(skiplist.String)
+			mgr.volumeBlockBuffer[instances[idx].ID().Key()] = list
 		}
 		var err error
 		var block *metadata.Block
@@ -125,13 +125,13 @@ func (mgr *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, err
 			val := list.RemoveFront()
 			block = val.Value.(*metadata.Block)
 		}
-		blockArr = append(blockArr, block)
+		blockArr[idx] = block
 	}
 	if err := mgr.addToInflightBlock(blockArr...); err != nil {
 		// put Block back to buffer
 		for idx := range blockArr {
 			block := blockArr[idx]
-			list := mgr.volumeBlockBuffer[block.VolumeID]
+			list := mgr.volumeBlockBuffer[block.VolumeID.Key()]
 			list.Set(block.ID, block)
 		}
 		return nil, err
@@ -158,7 +158,8 @@ func (mgr *allocator) dynamicAllocateBlockTask() {
 		default:
 		}
 		for k, v := range mgr.volumeBlockBuffer {
-			instance := mgr.selector.SelectByID(ctx, k)
+			volumeID, _ := vanus.NewIDFromString(k)
+			instance := mgr.selector.SelectByID(ctx, volumeID)
 			if instance == nil {
 				log.Warning(ctx, "need to allocate block, but no volume instance founded", map[string]interface{}{
 					"volume_id": k,
@@ -184,9 +185,10 @@ func (mgr *allocator) dynamicAllocateBlockTask() {
 					})
 					break
 				}
-				v.Set(block.ID, block)
+				v.Set(block.ID.Key(), block)
 			}
 		}
+		time.Sleep(time.Second)
 	}
 }
 

@@ -33,7 +33,6 @@ func Convert2ProtoEventBus(ins ...*Eventbus) []*meta.EventBus {
 		pebs[idx] = &meta.EventBus{
 			Name:      eb.Name,
 			LogNumber: int32(eb.LogNumber),
-			Logs:      Convert2ProtoEventLog(eb.EventLogs...),
 		}
 	}
 	return pebs
@@ -43,19 +42,6 @@ type Eventlog struct {
 	// global unique id
 	ID         vanus.ID `json:"id"`
 	EventbusID vanus.ID `json:"eventbus_id"`
-}
-
-func Convert2ProtoEventLog(ins ...*Eventlog) []*meta.EventLog {
-	pels := make([]*meta.EventLog, len(ins))
-	for idx := 0; idx < len(ins); idx++ {
-		eli := ins[idx]
-		pels[idx] = &meta.EventLog{
-			//EventBusName:  eli.EventBusName,
-			EventLogId:    eli.ID.Uint64(),
-			ServerAddress: "127.0.0.1:2048",
-		}
-	}
-	return pels
 }
 
 type VolumeMetadata struct {

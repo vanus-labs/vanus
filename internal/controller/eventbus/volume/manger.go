@@ -23,7 +23,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	"path/filepath"
-	"strings"
 	"sync"
 )
 
@@ -186,14 +185,4 @@ func (mgr *volumeMgr) UpdateRouting(ctx context.Context, ins server.Instance, sr
 	}
 	ins.SetServer(srv)
 	mgr.volInstanceMap.Store(ins.ID().Key(), ins)
-
-}
-
-func (mgr *volumeMgr) updateVolumeInKV(ctx context.Context, md *metadata.VolumeMetadata) error {
-	data, _ := json.Marshal(md)
-	return mgr.kvCli.Set(ctx, mgr.getVolumeKeyInKVStore(md.ID), data)
-}
-
-func (mgr *volumeMgr) getVolumeKeyInKVStore(id vanus.ID) string {
-	return strings.Join([]string{volumeKeyPrefixInKVStore, id.String()}, "/")
 }

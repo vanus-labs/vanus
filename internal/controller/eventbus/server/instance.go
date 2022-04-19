@@ -54,6 +54,7 @@ func (ins *volumeInstance) CreateBlock(ctx context.Context, cap int64) (*metadat
 	blk := &metadata.Block{
 		ID:       vanus.NewID(),
 		Capacity: cap,
+		VolumeID: ins.md.ID,
 	}
 	if ins.srv == nil {
 		return nil, errors.ErrVolumeInstanceNoServer

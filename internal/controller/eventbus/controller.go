@@ -100,6 +100,7 @@ func (ctrl *controller) StopNotify() <-chan error {
 func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEventBusRequest) (*metapb.EventBus, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
+
 	if req.LogNumber == 0 {
 		req.LogNumber = 1
 	}
@@ -135,7 +136,8 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 	return &metapb.EventBus{
 		Name:      eb.Name,
 		LogNumber: int32(eb.LogNumber),
-		Logs:      metadata.Convert2ProtoEventLog(eb.EventLogs...),
+		Logs:      eventlog.Convert2ProtoEventLog(eb.EventLogs...),
+		Id:        eb.ID.Uint64(),
 	}, nil
 }
 
@@ -154,7 +156,10 @@ func (ctrl *controller) GetEventBus(ctx context.Context,
 	if !exist {
 		return nil, errors.ErrResourceNotFound.WithMessage("eventbus not found")
 	}
-	return metadata.Convert2ProtoEventBus(_eb)[0], nil
+
+	ebMD := metadata.Convert2ProtoEventBus(_eb)[0]
+	ebMD.Logs = eventlog.Convert2ProtoEventLog(_eb.EventLogs...)
+	return ebMD, nil
 }
 
 func (ctrl *controller) UpdateEventBus(ctx context.Context,

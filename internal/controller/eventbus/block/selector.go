@@ -48,11 +48,11 @@ func (s *volumeRoundRobinSelector) Select(ctx context.Context, num int, size int
 	if len(volumes) == 0 {
 		return nil
 	}
-	keys := make([]vanus.ID, 0)
-	m := make(map[vanus.ID]server.Instance)
+	keys := make([]string, 0)
+	m := make(map[string]server.Instance)
 	for _, v := range volumes {
-		keys = append(keys, v.GetMeta().ID)
-		m[v.GetMeta().ID] = v
+		keys = append(keys, v.GetMeta().ID.Key())
+		m[v.GetMeta().ID.Key()] = v
 	}
 	sort.Slice(keys, func(i, j int) bool {
 		return keys[i] < keys[j]

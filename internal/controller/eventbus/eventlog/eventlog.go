@@ -17,7 +17,6 @@ package eventlog
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/block"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/errors"
@@ -26,6 +25,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vsproto/pkg/meta"
 	"github.com/linkall-labs/vsproto/pkg/segment"
 	"path/filepath"
 	"strings"
@@ -37,7 +37,7 @@ const (
 	defaultAppendableSegmentNumber     = 2
 	eventlogKeyPrefixInKVStore         = "/vanus/internal/resource/eventlog"
 	segmentKeyPrefixInKVStore          = "/vanus/internal/resource/segment"
-	eventlogSegmentsKeyPrefixInKVStore = "/vanus/internal/resource/eventlog_segments"
+	eventlogSegmentsKeyPrefixInKVStore = "/vanus/internal/resource/segs_of_eventlog"
 )
 
 type Manager interface {
@@ -79,7 +79,7 @@ func NewManager(volMgr volume.Manager) Manager {
 func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client) error {
 	mgr.kvClient = kvClient
 	mgr.cancelCtx, mgr.cancel = context.WithCancel(ctx)
-	mgr.availableLog = skiplist.New(skiplist.Uint64)
+	mgr.availableLog = skiplist.New(skiplist.String)
 	mgr.allocator = block.NewAllocator(block.NewVolumeRoundRobin(mgr.volMgr.GetAllVolume))
 	if err := mgr.allocator.Run(ctx, mgr.kvClient); err != nil {
 		return err
@@ -120,8 +120,8 @@ func (mgr *eventlogManager) AcquireEventLog(ctx context.Context, eventbusID vanu
 		if err := mgr.createEventLog(ctx); err != nil {
 			return nil, err
 		}
+		ele = mgr.availableLog.Front()
 	}
-	ele = mgr.availableLog.Front()
 	if ele == nil {
 		return nil, errors.ErrNoAvailableEventLog
 	}
@@ -132,16 +132,24 @@ func (mgr *eventlogManager) AcquireEventLog(ctx context.Context, eventbusID vanu
 		elMD.EventbusID = vanus.EmptyID()
 		return nil, err
 	}
-	mgr.eventLogMap.Store(el.md.ID.Key(), el)
-	mgr.availableLog.Remove(ele)
+	// TODO optimize in-flight
+	mgr.availableLog.Remove(el.md.ID.Key())
 	return elMD, nil
 }
 
 func (mgr *eventlogManager) GetEventLog(ctx context.Context, id vanus.ID) *metadata.Eventlog {
+	el := mgr.getEventLog(ctx, id)
+	if el != nil {
+		return el.md
+	}
+	return nil
+}
+
+func (mgr *eventlogManager) getEventLog(ctx context.Context, id vanus.ID) *eventlog {
 	v, exist := mgr.eventLogMap.Load(id.Key())
 
 	if exist {
-		return v.(*metadata.Eventlog)
+		return v.(*eventlog)
 	}
 	return nil
 }
@@ -181,7 +189,7 @@ func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
 }
 
 func (mgr *eventlogManager) getEventLogKeyInKVStore(elID vanus.ID) string {
-	return strings.Join([]string{eventlogKeyPrefixInKVStore, fmt.Sprintf("%d", elID)}, "/")
+	return strings.Join([]string{eventlogKeyPrefixInKVStore, elID.String()}, "/")
 }
 
 func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[vanus.ID][]Segment) {
@@ -272,7 +280,7 @@ func (mgr *eventlogManager) createEventLog(ctx context.Context) error {
 	if err := mgr.kvClient.Set(ctx, mgr.getEventLogKeyInKVStore(el.ID), data); err != nil {
 		return err
 	}
-	mgr.availableLog.Set(el.ID, el)
+	mgr.availableLog.Set(el.ID.Key(), el)
 	return nil
 }
 
@@ -326,7 +334,7 @@ func (mgr *eventlogManager) dynamicScaleUpEventLog() {
 		count := 0
 		mgr.eventLogMap.Range(func(key, value interface{}) bool {
 			el, ok := value.(*eventlog)
-			if ok {
+			if !ok {
 				log.Error(ctx, "assert failed in dynamicScaleUpEventLog", map[string]interface{}{
 					"key": key,
 				})
@@ -442,7 +450,7 @@ func (mgr *eventlogManager) generateSegment(ctx context.Context) (*Segment, erro
 	}
 	blockMap := make(map[int]*metadata.Block)
 	for idx, v := range blocks {
-		blockMap[idx] = v
+		blockMap[idx+1] = v
 	}
 	seg = &Segment{
 		ID:       vanus.NewID(),
@@ -457,7 +465,7 @@ func (mgr *eventlogManager) generateSegment(ctx context.Context) (*Segment, erro
 	}
 
 	data, _ := json.Marshal(seg)
-	if err = mgr.kvClient.Set(ctx, seg.ID.String(), data); err != nil {
+	if err = mgr.kvClient.Set(ctx, filepath.Join(segmentKeyPrefixInKVStore, seg.ID.String()), data); err != nil {
 		log.Error(ctx, "save segment's data to kv store failed", map[string]interface{}{
 			log.KeyError: err,
 			"segment":    seg.String(),
@@ -482,7 +490,7 @@ type eventlog struct {
 func newEventlog(ctx context.Context, md *metadata.Eventlog, kvClient kv.Client, needLoad bool) (*eventlog, error) {
 	el := &eventlog{
 		segmentList: skiplist.New(skiplist.Uint64),
-		md:          &metadata.Eventlog{},
+		md:          md,
 		kvClient:    kvClient,
 		segments:    []vanus.ID{},
 	}
@@ -511,6 +519,17 @@ func newEventlog(ctx context.Context, md *metadata.Eventlog, kvClient kv.Client,
 		segmentIDs = append(segmentIDs, id.SegmentID)
 	}
 	el.segments = segmentIDs
+	for _, v := range el.segments {
+		data, err := kvClient.Get(ctx, filepath.Join(segmentKeyPrefixInKVStore, v.String()))
+		if err != nil {
+			return nil, err
+		}
+		seg := &Segment{}
+		if err = json.Unmarshal(data, seg); err != nil {
+			return nil, err
+		}
+		el.segmentList.Set(seg.ID.Uint64(), seg)
+	}
 	return el, nil
 }
 
@@ -523,22 +542,21 @@ func (el *eventlog) get(id vanus.ID) *Segment {
 }
 
 func (el *eventlog) appendableSegmentNumber() int {
-	el.mutex.RLock()
-	defer el.mutex.Unlock()
-	if el.writePtr == nil {
+	head := el.currentAppendableSegment()
+	if head == nil {
 		return 0
 	}
-	head := el.writePtr
 	count := 0
 	for head != nil {
 		count++
+		head = el.nextOf(head)
 	}
 	return count
 }
 
 func (el *eventlog) currentAppendableSegment() *Segment {
 	el.mutex.RLock()
-	defer el.mutex.Unlock()
+	defer el.mutex.RUnlock()
 	if el.size() == 0 {
 		return nil
 	}
@@ -573,6 +591,7 @@ func (el *eventlog) add(ctx context.Context, seg *Segment) error {
 	s.SegmentID = seg.ID
 	data, _ := json.Marshal(s)
 	key := filepath.Join(eventlogSegmentsKeyPrefixInKVStore, el.md.ID.String(), seg.ID.String())
+	// TODO update previous segment
 	if err := el.kvClient.Set(ctx, key, data); err != nil {
 		last.NextSegmentId = vanus.EmptyID()
 		seg.PreviousSegmentId = vanus.EmptyID()
@@ -580,13 +599,13 @@ func (el *eventlog) add(ctx context.Context, seg *Segment) error {
 	}
 
 	el.segments = append(el.segments, seg.ID)
-	el.segmentList.Set(seg.ID.Uint64(), el)
+	el.segmentList.Set(seg.ID.Uint64(), seg)
 	return nil
 }
 
 func (el *eventlog) head() *Segment {
 	el.mutex.RLock()
-	defer el.mutex.Unlock()
+	defer el.mutex.RUnlock()
 
 	if el.size() == 0 {
 		return nil
@@ -596,9 +615,6 @@ func (el *eventlog) head() *Segment {
 }
 
 func (el *eventlog) tail() *Segment {
-	el.mutex.RLock()
-	defer el.mutex.Unlock()
-
 	if el.size() == 0 {
 		return nil
 	}
@@ -608,7 +624,7 @@ func (el *eventlog) tail() *Segment {
 
 func (el *eventlog) indexAt(idx int) *Segment {
 	el.mutex.RLock()
-	defer el.mutex.Unlock()
+	defer el.mutex.RUnlock()
 
 	if el.size() < idx {
 		return nil
@@ -621,9 +637,6 @@ func (el *eventlog) indexAt(idx int) *Segment {
 }
 
 func (el *eventlog) size() int {
-	el.mutex.RLock()
-	defer el.mutex.Unlock()
-
 	return el.segmentList.Len()
 }
 
@@ -632,7 +645,7 @@ func (el *eventlog) nextOf(seg *Segment) *Segment {
 		return nil
 	}
 	el.mutex.RLock()
-	defer el.mutex.Unlock()
+	defer el.mutex.RUnlock()
 
 	node := el.segmentList.Get(seg.ID)
 	next := node.Next()
@@ -647,7 +660,7 @@ func (el *eventlog) previousOf(seg *Segment) *Segment {
 		return nil
 	}
 	el.mutex.RLock()
-	defer el.mutex.Unlock()
+	defer el.mutex.RUnlock()
 
 	node := el.segmentList.Get(seg.ID)
 	prev := node.Prev()
@@ -655,4 +668,19 @@ func (el *eventlog) previousOf(seg *Segment) *Segment {
 		return nil
 	}
 	return prev.Value.(*Segment)
+}
+
+func Convert2ProtoEventLog(ins ...*metadata.Eventlog) []*meta.EventLog {
+	pels := make([]*meta.EventLog, len(ins))
+	for idx := 0; idx < len(ins); idx++ {
+		eli := ins[idx]
+
+		elObj := mgr.getEventLog(context.Background(), eli.ID)
+		pels[idx] = &meta.EventLog{
+			EventLogId:            eli.ID.Uint64(),
+			CurrentSegmentNumbers: int32(elObj.size()),
+			ServerAddress:         "127.0.0.1:2048",
+		}
+	}
+	return pels
 }
