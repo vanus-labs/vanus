@@ -19,18 +19,22 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"sort"
+	"sync"
 )
 
+// VolumeSelector selector for Block creating. The implementation based on different algorithm, typical
+// is Round-Robin
 type VolumeSelector interface {
-	Select(context.Context, int, int64) []server.Instance
+	// Select return #{num} server.Instance as an array, #{size} tell selector how large Block
+	// will be created. The same server.Instance maybe placed in different index of returned array
+	// in order to make sure that length of returned array equals with #{num}
+	Select(ctx context.Context, num int, size int64) []server.Instance
+	// SelectByID return a specified server.Instance with ServerID
 	SelectByID(ctx context.Context, id vanus.ID) server.Instance
 }
 
-type volumeRoundRobinSelector struct {
-	count      int64
-	getVolumes func() []server.Instance
-}
-
+// NewVolumeRoundRobin an implementation of round-robin algorithm. Which need a callback function
+// for getting all server.Instance in the current cluster.
 func NewVolumeRoundRobin(f func() []server.Instance) VolumeSelector {
 	return &volumeRoundRobinSelector{
 		count:      0,
@@ -38,15 +42,30 @@ func NewVolumeRoundRobin(f func() []server.Instance) VolumeSelector {
 	}
 }
 
+type volumeRoundRobinSelector struct {
+	count      int64
+	getVolumes func() []server.Instance
+	mutex      sync.Mutex
+}
+
+// Select get #{num} instances. each invoking will increase volumeRoundRobinSelector.count ONLY 1
+// whatever #{num} is. Because the Segment usually has three replicas, one leader and two follower,
+// we should guarantee each segmentServer has a consistent number of Block leader.
+//
+// round-rubin is a naive algorithm, so that it can't guarantee completely balancing in the cluster, it
+// just does best effort of its. There is another advanced algorithm implementation such as
+//runtime-statistic-based-algorithm.
 func (s *volumeRoundRobinSelector) Select(ctx context.Context, num int, size int64) []server.Instance {
-	instances := make([]server.Instance, num)
+	instances := make([]server.Instance, 0)
 	if num == 0 || size == 0 {
 		return instances
 	}
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	volumes := s.getVolumes()
 	if len(volumes) == 0 {
-		return nil
+		return instances
 	}
 	keys := make([]string, 0)
 	m := make(map[string]server.Instance)
@@ -58,12 +77,16 @@ func (s *volumeRoundRobinSelector) Select(ctx context.Context, num int, size int
 		return keys[i] < keys[j]
 	})
 	for idx := 0; idx < num; idx++ {
-		instances[idx] = m[keys[(s.count+int64(idx))%int64(len(keys))]]
+		instances = append(instances, m[keys[(s.count+int64(idx))%int64(len(keys))]])
 	}
+	s.count++
 	return instances
 }
 
 func (s *volumeRoundRobinSelector) SelectByID(ctx context.Context, id vanus.ID) server.Instance {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	volumes := s.getVolumes()
 	for idx := range volumes {
 		if volumes[idx].ID() == id {
