@@ -12,16 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trigger
+package gateway
 
-import (
-	"github.com/linkall-labs/vanus/internal/primitive"
-)
+import "github.com/linkall-labs/vanus/internal/primitive"
 
 type Config struct {
 	Port           int    `yaml:"port"`
 	ControllerAddr string `yaml:"controller_addr"`
-	TriggerAddr    string
 }
 
 func Init(filename string) (*Config, error) {

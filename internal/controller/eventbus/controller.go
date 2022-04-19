@@ -81,7 +81,7 @@ func (ctrl *controller) Start(ctx context.Context) error {
 	ctrl.kvStore = store
 
 	ctrl.cancelCtx, ctrl.cancelFunc = context.WithCancel(context.Background())
-	ctrl.member.RegisterMembershipChangedProcessor(ctrl.cancelCtx, ctrl.membershipChangedProcessor)
+	go ctrl.member.RegisterMembershipChangedProcessor(ctrl.cancelCtx, ctrl.membershipChangedProcessor)
 	return nil
 }
 

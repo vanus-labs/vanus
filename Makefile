@@ -6,49 +6,53 @@ export VANUS_LOG_LEVEL=debug
 DOCKER_REGISTRY ?= linkall.cloud
 DOCKER_REPO ?= ${DOCKER_REGISTRY}/vanus
 IMAGE_TAG ?= latest
-
-GOOS ?=darwin
-GOARCH ?=arm64
+#os linux or darwin
+GOOS ?= linux
+#arch amd64 or arm64
+GOARCH ?= amd64
 
 GO_BUILD= GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -trimpath
-check-module-env:
-ifndef module
-	$(error module is undefined)
-
-endif
-
-docker-build: docker-build-controller docker-build-trigger
+DOCKER_BUILD_ARG= --build-arg=TARGETARCH=$(GOARCH) --build-arg=TARGETOS=$(GOOS)
 
 clean :
 	rm -rf bin
-build: build-controller build-trigger
+
+docker-build: docker-build-controller docker-build-trigger docker-build-gateway docker-build-store
+
+build: build-controller build-trigger build-gateway build-store
+
+docker-build-store:
+	docker build -t ${DOCKER_REPO}/store:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/store/Dockerfile ../
+
+build-store:
+	$(GO_BUILD)  -o bin/store cmd/store/main.go
+
+docker-build-gateway:
+	docker build -t ${DOCKER_REPO}/gateway:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/gateway/Dockerfile ../
+
+build-gateway:
+	$(GO_BUILD)  -o bin/gateway cmd/gateway/main.go
 
 docker-build-controller:
-	docker build -t ${DOCKER_REPO}/controller:${IMAGE_TAG} -f build/images/controller/Dockerfile ../
+	docker build -t ${DOCKER_REPO}/controller:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/controller/Dockerfile ../
 
 build-controller:
-	$(GO_BUILD)  -o bin/controller cmd/controller/main.go
+	$(GO_BUILD) -o bin/controller cmd/controller/main.go
 
 docker-build-trigger:
-	docker build -t ${DOCKER_REPO}/trigger:${IMAGE_TAG} -f build/images/trigger/Dockerfile ../
+	docker build -t ${DOCKER_REPO}/trigger:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/trigger/Dockerfile ../
 
 build-trigger:
 	$(GO_BUILD)  -o bin/trigger cmd/trigger/main.go
 
-controller-start: check-module-env
-	go run ${VANUS_ROOT}/cmd/controller/${module}/main.go
+controller-start:
+	go run ${VANUS_ROOT}/cmd/controller/main.go
 
 controller-api-test:
 	grpcui --import-path=${VSPROTO_ROOT}/include \
            --import-path=${VSPROTO_ROOT}/proto \
            --plaintext \
            --proto=controller.proto 127.0.0.1:2048
-
-trigger-controller-api-test:
-	grpcui --import-path=${VSPROTO_ROOT}/include \
-           --import-path=${VSPROTO_ROOT}/proto \
-           --plaintext \
-           --proto=controller.proto 127.0.0.1:2049
 
 store-start:
 	go run ${VANUS_ROOT}/cmd/store/main.go

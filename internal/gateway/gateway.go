@@ -22,20 +22,19 @@ const (
 )
 
 type ceGateway struct {
-	ceClient             v2.Client
-	busWriter            sync.Map
-	eventbusCtrlEndpoint string
+	ceClient  v2.Client
+	busWriter sync.Map
+	config    Config
 }
 
-func NewGateway(ebCtrlEndpoint string) *ceGateway {
+func NewGateway(config Config) *ceGateway {
 	return &ceGateway{
-		eventbusCtrlEndpoint: ebCtrlEndpoint,
-		//ceClient:             c,
+		config: config,
 	}
 }
 
 func (ga *ceGateway) StartReceive(ctx context.Context) error {
-	ls, err := net.Listen("tcp4", "127.0.0.1:8080")
+	ls, err := net.Listen("tcp", fmt.Sprintf(":%d", ga.config.Port))
 	if err != nil {
 		return err
 	}
@@ -55,7 +54,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) protocol.Resul
 		return fmt.Errorf("invalid eventbus name")
 	}
 
-	vrn := fmt.Sprintf("vanus://%s/eventbus/%s?namespace=vanus", ga.eventbusCtrlEndpoint, ebName)
+	vrn := fmt.Sprintf("vanus://%s/eventbus/%s?namespace=vanus", ga.config.ControllerAddr, ebName)
 	v, exist := ga.busWriter.Load(vrn)
 	if !exist {
 		writer, err := eb.OpenBusWriter(vrn)

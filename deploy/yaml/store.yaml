@@ -1,0 +1,73 @@
+# Copyright 2022 Linkall Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http:www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: v1
+kind: Service
+metadata:
+  name: vanus-store
+  namespace: vanus
+spec:
+  selector:
+    app: vanus-store
+  clusterIP: none
+  ports:
+    - port: 11811
+      targetPort: 11811
+      name: vanus-store
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-store
+  namespace: vanus
+data:
+  port: 11811
+  controller_addr: "127.0.0.1:2049"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vanus-store
+  namespace: vanus
+  labels:
+    app.kubernetes.io/name: vanus-store
+spec:
+  selector:
+    matchLabels:
+      app: vanus-store
+  template:
+    metadata:
+      labels:
+        app: vanus-store
+        app.kubernetes.io/name: vanus-store
+    spec:
+      containers:
+        - name: store
+          image: linkall.com/vanus/store:latest
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          ports:
+            - name: http
+              containerPort: 11811
+          volumeMounts:
+            - name: config-store
+              mountPath: /server/config/store.yaml
+              subPath: store.yaml
+      volumes:
+        - name: config-store
+          configMap:
+            name: config-store

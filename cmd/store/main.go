@@ -17,6 +17,7 @@ package main
 import (
 	// standard libraries.
 	"context"
+	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -37,15 +38,15 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
-var (
-	defaultIP   = "127.0.0.1"
-	defaultPort = 11811
-
-	defaultControllerAddr = "127.0.0.1:2048"
-)
-
 func main() {
-	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", defaultIP, defaultPort))
+	f := flag.String("config", "./config/gateway.yaml", "gateway config file path")
+	flag.Parse()
+	cfg, err := segment.Init(*f)
+	if err != nil {
+		log.Error(nil, "init config error", map[string]interface{}{log.KeyError: err})
+		os.Exit(-1)
+	}
+	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
 		log.Error(context.Background(), "failed to listen", map[string]interface{}{
 			"error": err,
@@ -67,7 +68,7 @@ func main() {
 	raftSrv := transport.NewRaftServer(context.TODO(), host)
 	raftpb.RegisterRaftServerServer(grpcServer, raftSrv)
 
-	srv := segment.NewSegmentServer("127.0.0.1:11811", defaultControllerAddr,
+	srv := segment.NewSegmentServer(fmt.Sprintf("%s:%d", util.LocalIp, cfg.Port), cfg.ControllerAddr,
 		uint64(1), stopCallback)
 	if err != nil {
 		stopCallback()
@@ -91,9 +92,7 @@ func main() {
 
 	go func() {
 		log.Info(ctx, "the SegmentServer ready to work", map[string]interface{}{
-			"listen_ip":   defaultIP,
-			"listen_port": defaultPort,
-			"time":        util.FormatTime(time.Now()),
+			"time": util.FormatTime(time.Now()),
 		})
 		if err = grpcServer.Serve(listen); err != nil {
 			log.Error(ctx, "grpc server occurred an error", map[string]interface{}{

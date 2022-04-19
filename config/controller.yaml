@@ -3,7 +3,7 @@ ip: "127.0.0.1"
 port: 2048
 etcd:
   - "127.0.0.1:2379"
-data_dir: "/Users/wenfeng/tmp/data/vanus"
+data_dir: "~/tmp/data/vanus"
 topology:
   service_a: "127.0.0.1:2048"
 metadata:

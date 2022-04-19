@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.17 as builder
+FROM golang:1.17 as builder
 WORKDIR /workspace
 
 COPY vanus/ vanus/
@@ -10,9 +10,9 @@ ARG TARGETOS
 ARG TARGETARCH
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-controller
 
-
+FROM centos:8.4.2105
 RUN mkdir -p /server
 COPY --from=builder /workspace/vanus/bin/controller /server/bin/controller
 WORKDIR /server
-ENTRYPOINT ["bin/controller","--conf=config/controller.yaml"]
+ENTRYPOINT ["bin/controller","--config=config/controller.yaml"]
 

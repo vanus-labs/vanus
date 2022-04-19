@@ -34,7 +34,7 @@ import (
 
 func main() {
 	ctx := signal.SetupSignalContext()
-	f := flag.String("conf", "./config/controller.yaml", "controller config file path")
+	f := flag.String("config", "./config/controller.yaml", "controller config file path")
 	flag.Parse()
 	cfg, err := controller.Init(*f)
 	if err != nil {

@@ -1,0 +1,227 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vanus
+---
+apiVersion: v1
+data:
+  port: 2049
+kind: ConfigMap
+metadata:
+  name: config-controller
+  namespace: vanus
+---
+apiVersion: v1
+data:
+  controller_addr: 127.0.0.1:2049
+  port: 8080
+kind: ConfigMap
+metadata:
+  name: config-gateway
+  namespace: vanus
+---
+apiVersion: v1
+data:
+  controller_addr: 127.0.0.1:2049
+  port: 11811
+kind: ConfigMap
+metadata:
+  name: config-store
+  namespace: vanus
+---
+apiVersion: v1
+data:
+  controller_addr: 127.0.0.1:2049
+  port: 2149
+kind: ConfigMap
+metadata:
+  name: config-trigger
+  namespace: vanus
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-gateway
+  namespace: vanus
+spec:
+  ports:
+  - name: vanus-gateway
+    nodePort: 30001
+    port: 8080
+    targetPort: 8080
+  selector:
+    app: vanus-gateway
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vanus-store
+  namespace: vanus
+spec:
+  clusterIP: none
+  ports:
+  - name: vanus-store
+    port: 11811
+    targetPort: 11811
+  selector:
+    app: vanus-store
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: vanus-controller
+  name: vanus-controller
+spec:
+  clusterIP: None
+  ports:
+  - name: vanus-controller
+    port: 2049
+    targetPort: 2049
+  selector:
+    app: vanus-controller
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: vanus-controller
+  name: vanus-controller
+  namespace: vanus
+spec:
+  selector:
+    matchLabels:
+      app: vanus-controller
+  template:
+    metadata:
+      labels:
+        app: vanus-controller
+        app.kubernetes.io/name: vanus-controller
+    spec:
+      containers:
+      - image: linkall.cloud/vanus/controller:latest
+        name: controller
+        ports:
+        - containerPort: 2049
+          name: grpc
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+        - mountPath: /server/config/controller.yaml
+          name: config-controller
+          subPath: controller.yaml
+      volumes:
+      - configMap:
+          name: config-controller
+        name: config-controller
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: vanus-gateway
+  name: vanus-gateway
+  namespace: vanus
+spec:
+  selector:
+    matchLabels:
+      app: vanus-gateway
+  template:
+    metadata:
+      labels:
+        app: vanus-gateway
+        app.kubernetes.io/name: vanus-gateway
+    spec:
+      containers:
+      - image: linkall.com/vanus/gateway:latest
+        name: gateway
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+        - mountPath: /server/config/gateway.yaml
+          name: config-gateway
+          subPath: gateway.yaml
+      volumes:
+      - configMap:
+          name: config-gateway
+        name: config-gateway
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: vanus-store
+  name: vanus-store
+  namespace: vanus
+spec:
+  selector:
+    matchLabels:
+      app: vanus-store
+  template:
+    metadata:
+      labels:
+        app: vanus-store
+        app.kubernetes.io/name: vanus-store
+    spec:
+      containers:
+      - image: linkall.com/vanus/store:latest
+        name: store
+        ports:
+        - containerPort: 11811
+          name: http
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+        - mountPath: /server/config/store.yaml
+          name: config-store
+          subPath: store.yaml
+      volumes:
+      - configMap:
+          name: config-store
+        name: config-store
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: vanus-trigger
+  name: vanus-trigger
+  namespace: vanus
+spec:
+  selector:
+    matchLabels:
+      app: vanus-trigger
+  template:
+    metadata:
+      labels:
+        app: vanus-trigger
+        app.kubernetes.io/name: vanus-trigger
+    spec:
+      containers:
+      - image: linkall.com/vanus/trigger:latest
+        name: trigger
+        ports:
+        - containerPort: 2149
+          name: grpc
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+        - mountPath: /server/config/trigger.yaml
+          name: config-trigger
+          subPath: trigger.yaml
+      volumes:
+      - configMap:
+          name: config-trigger
+        name: config-trigger

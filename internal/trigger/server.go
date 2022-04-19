@@ -136,7 +136,7 @@ func (s *server) init(ctx context.Context) error {
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	timeout, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
-	cc, err := grpc.DialContext(timeout, s.config.TriggerCtrlAddr, opts...)
+	cc, err := grpc.DialContext(timeout, s.config.ControllerAddr, opts...)
 	if err != nil {
 		return err
 	}
@@ -156,14 +156,14 @@ func (s *server) Initialize(ctx context.Context) error {
 	})
 	if err != nil {
 		log.Error(ctx, "register trigger worker error", map[string]interface{}{
-			"tcAddr":     s.config.TriggerCtrlAddr,
+			"tcAddr":     s.config.ControllerAddr,
 			log.KeyError: err,
 		})
 		s.tcCc.Close()
 		return err
 	}
 	log.Info(ctx, "trigger worker register success", map[string]interface{}{
-		"triggerCtrlAddr":   s.config.TriggerCtrlAddr,
+		"triggerCtrlAddr":   s.config.ControllerAddr,
 		"triggerWorkerAddr": s.config.TriggerAddr,
 	})
 	go func() {
@@ -176,7 +176,7 @@ func (s *server) Initialize(ctx context.Context) error {
 	s.startTime = time.Now()
 	go func() {
 		time.Sleep(60 * time.Second)
-		//启动30s后还没有收到start，则退出
+		//启动60s后还没有收到start，则退出
 		if s.state != primitive.ServerStateRunning {
 			os.Exit(1)
 		}
@@ -196,7 +196,7 @@ func (s *server) stop(sendUnregister bool) {
 		})
 		if err != nil {
 			log.Error(s.ctx, "unregister trigger worker error", map[string]interface{}{
-				"addr":       s.config.TriggerCtrlAddr,
+				"addr":       s.config.ControllerAddr,
 				log.KeyError: err,
 			})
 		} else {
@@ -238,12 +238,12 @@ func (s *server) startHeartbeat() {
 					return
 				default:
 					log.Warning(s.ctx, "heartbeat error", map[string]interface{}{
-						"addr":       s.config.TriggerCtrlAddr,
+						"addr":       s.config.ControllerAddr,
 						log.KeyError: err,
 					})
 					if time.Now().Sub(beginConnTime) > heartbeatMaxConnTime {
 						log.Error(s.ctx, "heartbeat exit", map[string]interface{}{
-							"addr":       s.config.TriggerCtrlAddr,
+							"addr":       s.config.ControllerAddr,
 							log.KeyError: err,
 						})
 						//todo now exit trigger worker, maybe only stop trigger
@@ -271,13 +271,13 @@ func (s *server) startHeartbeat() {
 					if err == io.EOF || time.Now().Sub(lastSendTime) > 5*time.Second {
 						stream.CloseSend()
 						log.Warning(s.ctx, "heartbeat send request receive fail,will retry", map[string]interface{}{
-							"addr": s.config.TriggerCtrlAddr,
+							"addr": s.config.ControllerAddr,
 						})
 						beginConnTime = time.Now()
 						break sendLoop
 					}
 					log.Warning(s.ctx, "heartbeat send request error", map[string]interface{}{
-						"addr":       s.config.TriggerCtrlAddr,
+						"addr":       s.config.ControllerAddr,
 						log.KeyError: err,
 					})
 				} else {
