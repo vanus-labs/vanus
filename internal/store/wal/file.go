@@ -14,10 +14,22 @@
 
 package wal
 
+import (
+	"io"
+)
+
 var dummyWriter = noopWriter{}
 
 type noopWriter struct{}
 
-func (noopWriter) Write(p []byte) (int, error) {
+var _ io.WriterAt = (*noopWriter)(nil)
+
+func (noopWriter) WriteAt(p []byte, off int64) (int, error) {
 	return len(p), nil
+}
+
+type logFile struct {
+	so   int64
+	size int64
+	path string
 }

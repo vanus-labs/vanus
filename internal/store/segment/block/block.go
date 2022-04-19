@@ -15,31 +15,39 @@
 package block
 
 import (
+	// standard libraries
 	"context"
 	"errors"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"os"
 	"path/filepath"
 
-	"github.com/linkall-labs/vanus/internal/store/segment/codec"
-	"github.com/linkall-labs/vanus/observability"
+	// third-party libraries
+	"go.uber.org/atomic"
+
+	// first-party libraries
 	"github.com/linkall-labs/vsproto/pkg/meta"
+
+	// this project
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/observability"
 )
 
 var (
 	ErrNoEnoughCapacity = errors.New("no enough capacity")
+	ErrFull             = errors.New("full")
+	ErrNotLeader        = errors.New("not leader")
 	ErrOffsetExceeded   = errors.New("the offset exceeded")
 	ErrOffsetOnEnd      = errors.New("the offset on end")
 )
 
 type SegmentBlockWriter interface {
-	Append(context.Context, ...*codec.StoredEntry) error
+	Append(context.Context, ...Entry) error
 	CloseWrite(context.Context) error
 	IsAppendable() bool
 }
 
 type SegmentBlockReader interface {
-	Read(context.Context, int, int) ([]*codec.StoredEntry, error)
+	Read(context.Context, int, int) ([]Entry, error)
 	CloseRead(context.Context) error
 	IsReadable() bool
 }
@@ -62,11 +70,12 @@ func CreateFileSegmentBlock(ctx context.Context, id vanus.ID, path string, capac
 	defer observability.LeaveMark(ctx)
 
 	b := &fileBlock{
-		id:          id,
-		path:        path,
-		capacity:    capacity,
-		writeOffset: fileSegmentBlockHeaderCapacity,
+		id:   id,
+		path: path,
+		cap:  capacity,
+		wo:   *atomic.NewInt64(fileBlockHeaderSize),
 	}
+
 	f, err := os.Create(path)
 	if err != nil {
 		return nil, err
@@ -74,13 +83,13 @@ func CreateFileSegmentBlock(ctx context.Context, id vanus.ID, path string, capac
 	if err = f.Truncate(capacity); err != nil {
 		return nil, err
 	}
-	if _, err = f.Seek(fileSegmentBlockHeaderCapacity, 0); err != nil {
+	if _, err = f.Seek(fileBlockHeaderSize, 0); err != nil {
 		return nil, err
 	}
 	b.appendable.Store(true)
 	b.readable.Store(true)
-	b.fullFlag.Store(false)
-	b.physicalFile = f
+	b.full.Store(false)
+	b.f = f
 	if err = b.persistHeader(ctx); err != nil {
 		return nil, err
 	}
@@ -101,12 +110,12 @@ func OpenFileSegmentBlock(ctx context.Context, path string) (SegmentBlock, error
 	}
 	b.appendable.Store(true)
 	b.readable.Store(true)
-	b.fullFlag.Store(false)
-	// TODO use direct IO
+	b.full.Store(false)
+	// TODO: use direct IO
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_SYNC, 0666)
 	if err != nil {
 		return nil, err
 	}
-	b.physicalFile = f
+	b.f = f
 	return b, nil
 }

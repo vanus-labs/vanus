@@ -14,8 +14,6 @@
 
 package record
 
-const RecordHeaderSize = 7
-
 func Pack(entry []byte, firstSize, otherSize int) []Record {
 	num := calPacketNum(entry, firstSize, otherSize)
 	if num == 1 {
@@ -25,12 +23,12 @@ func Pack(entry []byte, firstSize, otherSize int) []Record {
 	packets := make([]Record, 0, num)
 
 	// first packet
-	packets = append(packets, makePacket(First, entry[:firstSize-RecordHeaderSize]))
+	packets = append(packets, makePacket(First, entry[:firstSize-HeaderSize]))
 
 	// middle packet(s)
-	fo := firstSize - RecordHeaderSize
+	fo := firstSize - HeaderSize
 	for i := 0; i < num-2; i++ {
-		eo := fo + otherSize - RecordHeaderSize
+		eo := fo + otherSize - HeaderSize
 		packets = append(packets, makePacket(Middle, entry[fo:eo]))
 		fo = eo
 	}
@@ -43,11 +41,11 @@ func Pack(entry []byte, firstSize, otherSize int) []Record {
 
 func calPacketNum(entry []byte, firstSize, otherSize int) int {
 	payload := len(entry)
-	if payload <= firstSize-RecordHeaderSize {
+	if payload <= firstSize-HeaderSize {
 		return 1
 	}
 	// 1 + (payload-(firstSize-RecordHeaderSize)+(otherSize-RecordHeaderSize)-1)/(otherSize-RecordHeaderSize)
-	return 1 + (payload-firstSize+otherSize-1)/(otherSize-RecordHeaderSize)
+	return 1 + (payload-firstSize+otherSize-1)/(otherSize-HeaderSize)
 }
 
 func makePacket(t Type, payload []byte) Record {

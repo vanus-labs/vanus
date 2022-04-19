@@ -51,6 +51,7 @@ type callbackWithOffset struct {
 	offset   int64
 }
 
+// WAL is write-ahead log.
 type WAL struct {
 	pool      sync.Pool
 	wb        *blockWithSo
@@ -64,7 +65,7 @@ type WAL struct {
 }
 
 func NewWAL(ctx context.Context) *WAL {
-	// TODO
+	// TODO(james.yin): log file
 	w := &WAL{
 		pool: sync.Pool{
 			New: func() interface{} {
@@ -150,7 +151,7 @@ func (w *WAL) runAppend() {
 			// timeout, flush
 			w.flushc <- blockWithArgs{
 				block: w.wb,
-				// TODO: Align to 4KB.
+				// TODO(james.yin): Align to 4KB.
 				offset: w.wb.Size(),
 				own:    false,
 			}
@@ -208,10 +209,11 @@ func (w *WAL) doAppend(entries [][]byte, callback chan<- error) (bool, bool) {
 }
 
 func (w *WAL) runFlush() {
+	// TODO(james.yin): parallelizing
 	for ba := range w.flushc {
 		err := w.doFlush(ba.block, ba.offset)
 		if err != nil {
-			// TODO
+			// TODO(james.yin): handle flush error
 		}
 		if ba.own {
 			w.freeBlock(ba.block)
@@ -221,9 +223,9 @@ func (w *WAL) runFlush() {
 }
 
 func (w *WAL) doFlush(fb *blockWithSo, offset int) error {
-	writer := w.logFileWriter()
+	writer := w.logWriter(fb.so)
 
-	n, err := fb.Flush(writer, offset)
+	n, err := fb.Flush(writer, offset, fb.so)
 	if err != nil {
 		return err
 	}
@@ -261,14 +263,14 @@ func (w *WAL) nextCallback() (chan<- error, int64) {
 	}
 }
 
-func (w *WAL) logFileWriter() io.Writer {
-	// TODO: log file writer
+func (w *WAL) logWriter(offset int64) io.WriterAt {
+	// TODO(james.yin): log file writer
 	return dummyWriter
 }
 
 func (w *WAL) allocateBlock() *blockWithSo {
 	b := w.pool.Get().(*blockWithSo)
-	// FIXME: set b.so
+	// FIXME(james.yin): set b.so
 	b.so = w.wboff
 	w.wboff += blockSize
 	return b

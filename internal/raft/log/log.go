@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package raft
+package log
 
 import (
 	// standard libraries.
@@ -24,7 +24,8 @@ import (
 	"github.com/linkall-labs/raft/raftpb"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/wal"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	walog "github.com/linkall-labs/vanus/internal/store/wal"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
@@ -34,7 +35,7 @@ type Log struct {
 	// goroutine.
 	sync.RWMutex
 
-	nodeID uint64
+	nodeID vanus.ID
 
 	hardState raftpb.HardState
 	confState raftpb.ConfState
@@ -42,14 +43,14 @@ type Log struct {
 	// ents[0] is a dummy entry, which record compact information.
 	// ents[i] has raft log position i+snapshot.Metadata.Index.
 	ents []raftpb.Entry
-	wal  *wal.WAL
+	wal  *walog.WAL
 }
 
 // Make sure Log implements raft.Storage.
 var _ raft.Storage = (*Log)(nil)
 
 // NewLog creates an empty Log.
-func NewLog(nodeID uint64, wal *wal.WAL, peers []uint64) *Log {
+func NewLog(nodeID vanus.ID, wal *walog.WAL, peers []uint64) *Log {
 	return &Log{
 		nodeID: nodeID,
 		confState: raftpb.ConfState{
@@ -180,7 +181,7 @@ func (l *Log) length() uint64 {
 // so raft state machine could know that Storage needs some time to prepare
 // snapshot and call Snapshot later.
 func (l *Log) Snapshot() (raftpb.Snapshot, error) {
-	// TODO(james.yin):
+	// TODO(james.yin): snapshot
 	//l.RLock()
 	//defer l.RUnlock()
 	return raftpb.Snapshot{}, raft.ErrSnapshotTemporarilyUnavailable
@@ -343,7 +344,7 @@ func (l *Log) appendToWAL(entries []raftpb.Entry) error {
 	ents := make([][]byte, len(entries))
 	for i, entry := range entries {
 		// reset node ID.
-		entry.NodeId = l.nodeID
+		entry.NodeId = l.nodeID.Uint64()
 		ent, err := entry.Marshal()
 		if err != nil {
 			return err
@@ -351,4 +352,38 @@ func (l *Log) appendToWAL(entries []raftpb.Entry) error {
 		ents[i] = ent
 	}
 	return l.wal.Append(ents)
+}
+
+func (l *Log) appendInRecovery(entry raftpb.Entry) error {
+	firstInLog := l.firstIndex()
+	expectedToAppend := l.lastIndex() + 1
+	index := entry.Index
+
+	if expectedToAppend < index {
+		log.Error(context.Background(), "missing log entries", map[string]interface{}{
+			"lastIndex":     expectedToAppend - 1,
+			"appendedIndex": index,
+		})
+		// FIXME(james.yin): correct error
+		return raft.ErrUnavailable
+	}
+
+	// write to cache
+	if index == expectedToAppend {
+		// append
+		l.ents = append(l.ents, entry)
+	} else if index < firstInLog {
+		// reset
+		l.ents = []raftpb.Entry{{
+			Index: entry.Index - 1,
+			// TODO(james.yin): set Term
+		}, entry}
+	} else {
+		// truncate then append
+		offset := index - firstInLog
+		l.ents = append([]raftpb.Entry{}, l.ents[:offset]...)
+		l.ents = append(l.ents, entry)
+	}
+
+	return nil
 }

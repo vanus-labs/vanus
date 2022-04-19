@@ -19,11 +19,11 @@ import (
 	"context"
 
 	// third-party libraries.
-	"github.com/linkall-labs/raft/raftpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	// first-party libraries.
+	"github.com/linkall-labs/raft/raftpb"
 	vsraftpb "github.com/linkall-labs/vsproto/pkg/raft"
 )
 
@@ -37,7 +37,7 @@ type peer struct {
 // Make sure peer implements Multiplexer.
 var _ Multiplexer = (*peer)(nil)
 
-func newPeer(ctx context.Context, endpoint string) *peer {
+func newPeer(ctx context.Context, endpoint string, callback string) *peer {
 	ctx, cancel := context.WithCancel(ctx)
 
 	p := &peer{
@@ -47,16 +47,17 @@ func newPeer(ctx context.Context, endpoint string) *peer {
 		cancel: cancel,
 	}
 
-	go p.run()
+	go p.run(callback)
 
 	return p
 }
 
-func (p *peer) run() {
+func (p *peer) run(callback string) {
 	opts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials())}
 
-	var conn grpc.ClientConnInterface
-	var client vsraftpb.RaftServerClient
+	preface := raftpb.Message{
+		Context: []byte(callback),
+	}
 	var stream vsraftpb.RaftServer_SendMsssageClient
 
 loop:
@@ -65,19 +66,17 @@ loop:
 		select {
 		case msg := <-p.msgc:
 			// TODO(james.yin): reconnect
-			if conn == nil {
-				conn, err = grpc.DialContext(context.TODO(), p.addr, opts...)
-				if err != nil {
+			if stream == nil {
+				if stream, err = p.connect(opts...); err != nil {
 					break
 				}
-				client = vsraftpb.NewRaftServerClient(conn)
-				stream, err = client.SendMsssage(context.TODO())
-				if err != nil {
-					break
+				if err = stream.Send(&preface); err != nil {
+					// TODO(james.yin): handle err
 				}
 			}
 			err = stream.Send(msg)
 			if err != nil {
+				// TODO(james.yin): handle error
 				break
 			}
 		case <-p.ctx.Done():
@@ -106,4 +105,17 @@ func (p *peer) Sendv(msgs []*raftpb.Message) {
 	for _, msg := range msgs {
 		p.Send(msg)
 	}
+}
+
+func (p *peer) connect(opts ...grpc.DialOption) (vsraftpb.RaftServer_SendMsssageClient, error) {
+	conn, err := grpc.DialContext(context.TODO(), p.addr, opts...)
+	if err != nil {
+		return nil, err
+	}
+	client := vsraftpb.NewRaftServerClient(conn)
+	stream, err := client.SendMsssage(context.TODO())
+	if err != nil {
+		return nil, err
+	}
+	return stream, nil
 }

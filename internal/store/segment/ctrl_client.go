@@ -15,12 +15,13 @@
 package segment
 
 import (
+	// standard libraries
 	"context"
-	"github.com/linkall-labs/vanus/internal/store/segment/errors"
-	"github.com/linkall-labs/vanus/internal/util"
-	"github.com/linkall-labs/vanus/observability/log"
-	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
-	errpb "github.com/linkall-labs/vsproto/pkg/errors"
+	"io"
+	"sync"
+	"time"
+
+	// third-party libraries
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
@@ -28,11 +29,15 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"io"
-	"sync"
-	"time"
-)
 
+	// first-party libraries
+	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
+	errpb "github.com/linkall-labs/vsproto/pkg/errors"
+
+	// this project
+	"github.com/linkall-labs/vanus/internal/store/segment/errors"
+	"github.com/linkall-labs/vanus/observability/log"
+)
 
 type ctrlClient struct {
 	ctrlAddrs       []string
@@ -186,12 +191,8 @@ func (cli *ctrlClient) makeSureClient(renew bool) ctrlpb.SegmentControllerClient
 			leader = res.LeaderAddr
 			break
 		}
-<<<<<<< HEAD
 		//todo check leader is invalid
 		if leader == "" {
-=======
-		if !util.IsValidIPV4Address(leader) {
->>>>>>> ffd01a7 (fix: bug of segment heartbeat maybe panic)
 			return nil
 		}
 		conn := cli.getGRPCConn(leader)

@@ -43,6 +43,13 @@ func NewRaftServer(ctx context.Context, dmx Demultiplexer) raftpb.RaftServerServ
 
 // SendMessage implements raftpb.RaftServerServer
 func (s *server) SendMsssage(stream raftpb.RaftServer_SendMsssageServer) error {
+	preface, err := stream.Recv()
+	if err != nil {
+		return err
+	}
+
+	callback := string(preface.Context)
+
 	for {
 		msg, err := stream.Recv()
 		if err != nil {
@@ -53,7 +60,7 @@ func (s *server) SendMsssage(stream raftpb.RaftServer_SendMsssageServer) error {
 			return err
 		}
 
-		err = s.dmx.Receive(s.ctx, msg)
+		err = s.dmx.Receive(s.ctx, msg, callback)
 		if err != nil {
 			// server is closed
 			if err == context.Canceled {
