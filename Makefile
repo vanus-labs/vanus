@@ -48,6 +48,12 @@ build-trigger:
 controller-start:
 	go run ${VANUS_ROOT}/cmd/controller/main.go
 
+build-ctrl-bin:
+	$(GO_BUILD) -o bin/ctrl cmd/controller/eventbus/main.go
+
+controller-start: check-module-env
+	go run ${VANUS_ROOT}/cmd/controller/${module}/main.go
+
 controller-api-test:
 	grpcui --import-path=${VSPROTO_ROOT}/include \
            --import-path=${VSPROTO_ROOT}/proto \

@@ -106,7 +106,7 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 	}
 	elNum := 1 // force set to 1 temporary
 	eb := &metadata.Eventbus{
-		ID:        vanus.NewID(), // TODO use another id generator
+		ID:        vanus.NewID(),
 		Name:      req.Name,
 		LogNumber: elNum,
 		EventLogs: make([]*metadata.Eventlog, elNum),
@@ -158,6 +158,7 @@ func (ctrl *controller) GetEventBus(ctx context.Context,
 	}
 
 	ebMD := metadata.Convert2ProtoEventBus(_eb)[0]
+	ebMD.Name = eb.Name
 	ebMD.Logs = eventlog.Convert2ProtoEventLog(_eb.EventLogs...)
 	return ebMD, nil
 }

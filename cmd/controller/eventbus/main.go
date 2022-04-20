@@ -35,15 +35,13 @@ import (
 )
 
 var (
-	configPath        = ""
-	defaultConfigPath = "./config/controller.yaml"
+	configPath = flag.String("config-file", "./config/controller.yaml", "the configuration file of controller")
 )
 
 func main() {
 	flag.Parse()
-	flag.StringVar(&configPath, "config-file", defaultConfigPath, "the configuration file of controller")
 
-	f, err := os.Open(configPath)
+	f, err := os.Open(*configPath)
 	if err != nil {
 		log.Error(nil, "open configuration file failed", map[string]interface{}{
 			log.KeyError: err,
@@ -103,12 +101,12 @@ func main() {
 	grpcServer := grpc.NewServer(
 		grpc.ChainStreamInterceptor(
 			grpc_error.StreamServerInterceptor(),
-			grpc_member.StreamServerInterceptor(etcd, cfg.Topology),
+			grpc_member.StreamServerInterceptor(etcd),
 			recovery.StreamServerInterceptor(),
 		),
 		grpc.ChainUnaryInterceptor(
 			grpc_error.UnaryServerInterceptor(),
-			grpc_member.UnaryServerInterceptor(etcd, cfg.Topology),
+			grpc_member.UnaryServerInterceptor(etcd),
 			recovery.UnaryServerInterceptor(),
 		),
 	)
