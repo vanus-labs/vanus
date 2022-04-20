@@ -17,6 +17,7 @@ package primitive
 import (
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	"os"
 )
 
 type StorageKeyPrefix string
@@ -41,7 +42,8 @@ func LoadConfig(filename string, config interface{}) error {
 	if err != nil {
 		return err
 	}
-	err = yaml.Unmarshal(b, config)
+	str := os.ExpandEnv(string(b))
+	err = yaml.Unmarshal([]byte(str), config)
 	if err != nil {
 		return err
 	}

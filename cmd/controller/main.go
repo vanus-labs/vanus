@@ -75,7 +75,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", cfg.IP, cfg.Port))
+	listen, err := net.Listen("tcp", fmt.Sprintf("%d", cfg.Port))
 	if err != nil {
 		log.Error(ctx, "failed to listen", map[string]interface{}{
 			"error": err,

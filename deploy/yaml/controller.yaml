@@ -18,26 +18,30 @@ metadata:
   namespace: vanus
 data:
   controller.yaml: |-
-    name: "test-1"
-    ip: "127.0.0.1"
+    name: ${POD_NAME}
+    ip: ${POD_IP}
     port: 2049
     etcd:
-      - "127.0.0.1:2379"
-    data_dir: "/data/vanus"
-    topology:
-      service_a: "127.0.0.1:2049"
+      - "vanus-controller-0.vanus-controller.vanus.svc.cluster.local:2379"
+      - "vanus-controller-1.vanus-controller.vanus.svc.cluster.local:2379"
+      - "vanus-controller-2.vanus-controller.vanus.svc.cluster.local:2379"
+    data_dir: "/data"
     metadata:
-      key_prefix: "/wenfeng"
+      key_prefix: "/vanus"
     embed_etcd:
-      name: "etcd-1"
-      data_dir: "etcd/node1"
+      name: ${POD_NAME}
+      # relative path to ${data_dir} above
+      data_dir: "etcd/data"
       client_addr: "127.0.0.1:2379"
       peer_addr: "127.0.0.1:2380"
       clusters:
-        - "etcd-1=http://127.0.0.1:2380"
+        - vanus-controller-0=http://vanus-controller-0.vanus-controller.vanus.svc.cluster.local:2380
+        - vanus-controller-1=http://vanus-controller-1.vanus-controller.vanus.svc.cluster.local:2380
+        - vanus-controller-2=http://vanus-controller-2.vanus-controller.vanus.svc.cluster.local:2380
+    #eventbus:
     trigger:
       storage:
-        keyPrefix: "/xdl"
+        keyPrefix: "/vanus"
         serverList: [ "127.0.0.1:2379" ]
 
 ---
@@ -54,7 +58,6 @@ spec:
   clusterIP: None
   ports:
     - port: 2049
-      targetPort: 2049
       name: vanus-controller
 ---
 apiVersion: apps/v1
@@ -100,6 +103,15 @@ spec:
               containerPort: 2379
             - name: etcd-peer
               containerPort: 2380
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           volumeMounts:
             - name: config-controller
               mountPath: /server/config

@@ -10,7 +10,7 @@ ARG TARGETOS
 ARG TARGETARCH
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-controller
 
-FROM alpine:3.15.4
+FROM centos:8.4.2105
 RUN mkdir -p /server
 COPY --from=builder /workspace/vanus/bin/controller /server/bin/controller
 WORKDIR /server

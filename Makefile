@@ -12,7 +12,7 @@ GOOS ?= linux
 GOARCH ?= amd64
 
 GO_BUILD= GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -trimpath
-DOCKER_BUILD_ARG= --build-arg=TARGETARCH=$(GOARCH) --build-arg=TARGETOS=$(GOOS)
+DOCKER_BUILD_ARG= --build-arg TARGETARCH=$(GOARCH) --build-arg TARGETOS=$(GOOS)
 
 clean :
 	rm -rf bin
@@ -51,7 +51,7 @@ controller-start:
 build-ctrl-bin:
 	$(GO_BUILD) -o bin/ctrl cmd/controller/eventbus/main.go
 
-controller-start: check-module-env
+controller-start:
 	go run ${VANUS_ROOT}/cmd/controller/${module}/main.go
 
 controller-api-test:
