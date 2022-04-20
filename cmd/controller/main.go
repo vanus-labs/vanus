@@ -87,12 +87,12 @@ func main() {
 		grpc.ChainStreamInterceptor(
 			grpc_error.StreamServerInterceptor(),
 			recovery.StreamServerInterceptor(),
-			grpc_member.StreamServerInterceptor(etcd, cfg.Topology),
+			grpc_member.StreamServerInterceptor(etcd),
 		),
 		grpc.ChainUnaryInterceptor(
 			grpc_error.UnaryServerInterceptor(),
 			recovery.UnaryServerInterceptor(),
-			grpc_member.UnaryServerInterceptor(etcd, cfg.Topology),
+			grpc_member.UnaryServerInterceptor(etcd),
 		),
 	)
 	ctrlpb.RegisterEventBusControllerServer(grpcServer, segmentCtrl)
