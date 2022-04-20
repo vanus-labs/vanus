@@ -30,6 +30,7 @@ import (
 	"google.golang.org/grpc"
 	"net"
 	"os"
+	"sync"
 )
 
 func main() {
@@ -57,8 +58,8 @@ func main() {
 	}
 
 	// TODO wait server ready
-	ctrlSrv := eventbus.NewEventBusController(cfg.GetEventbusCtrlConfig(), etcd)
-	if err = ctrlSrv.Start(ctx); err != nil {
+	segmentCtrl := eventbus.NewEventBusController(cfg.GetEventbusCtrlConfig(), etcd)
+	if err = segmentCtrl.Start(ctx); err != nil {
 		log.Error(ctx, "start Eventbus Controller failed", map[string]interface{}{
 			log.KeyError: err,
 		})
@@ -85,29 +86,35 @@ func main() {
 	grpcServer := grpc.NewServer(
 		grpc.ChainStreamInterceptor(
 			grpc_error.StreamServerInterceptor(),
-			grpc_member.StreamServerInterceptor(etcd, cfg.Topology),
 			recovery.StreamServerInterceptor(),
+			grpc_member.StreamServerInterceptor(etcd, cfg.Topology),
 		),
 		grpc.ChainUnaryInterceptor(
 			grpc_error.UnaryServerInterceptor(),
-			grpc_member.UnaryServerInterceptor(etcd, cfg.Topology),
 			recovery.UnaryServerInterceptor(),
+			grpc_member.UnaryServerInterceptor(etcd, cfg.Topology),
 		),
 	)
-	ctrlpb.RegisterEventBusControllerServer(grpcServer, ctrlSrv)
-	ctrlpb.RegisterEventLogControllerServer(grpcServer, ctrlSrv)
-	ctrlpb.RegisterSegmentControllerServer(grpcServer, ctrlSrv)
+	ctrlpb.RegisterEventBusControllerServer(grpcServer, segmentCtrl)
+	ctrlpb.RegisterEventLogControllerServer(grpcServer, segmentCtrl)
+	ctrlpb.RegisterSegmentControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterTriggerControllerServer(grpcServer, triggerCtrlStv)
 	log.Info(ctx, "the grpc server ready to work", nil)
-	err = grpcServer.Serve(listen)
-	if err != nil {
-		log.Error(ctx, "grpc server occurred an error", map[string]interface{}{
-			log.KeyError: err,
-		})
-	} else {
-		<-ctx.Done()
-		grpcServer.GracefulStop()
-		triggerCtrlStv.Close()
-		log.Info(ctx, "the grpc server has been shutdown", nil)
-	}
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		err = grpcServer.Serve(listen)
+		if err != nil {
+			log.Error(ctx, "grpc server occurred an error", map[string]interface{}{
+				log.KeyError: err,
+			})
+		}
+		wg.Done()
+	}()
+	<-ctx.Done()
+	grpcServer.GracefulStop()
+	triggerCtrlStv.Close()
+	segmentCtrl.Stop()
+	wg.Wait()
+	log.Info(ctx, "the grpc server has been shutdown", nil)
 }

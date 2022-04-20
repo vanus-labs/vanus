@@ -4,6 +4,8 @@
 ./config/*.yaml
 ./config/*.toml
 
+*.yaml
+
 # macOS
 .DS_Store
 

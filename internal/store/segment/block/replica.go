@@ -89,11 +89,11 @@ func (r *replica) Stop() {
 
 func (r *replica) Bootstrap() {
 	// TODO
-	peers := []raft.Peer{}
-	err := r.node.Bootstrap(peers)
-	if err != nil {
-		// TODO
-	}
+	//peers := []raft.Peer{}
+	//err := r.node.Bootstrap(peers)
+	//if err != nil {
+	//	//TODO
+	//}
 }
 
 func (r *replica) run() {

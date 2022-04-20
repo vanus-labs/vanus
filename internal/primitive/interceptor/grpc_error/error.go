@@ -73,8 +73,8 @@ func convertToGRPCError(err error) error {
 		grpcErr.Message = err.Error()
 	}
 
-	data, _ := proto.Marshal(grpcErr)
-	return errors.New(hex.EncodeToString(data))
+	//data, _ := proto.Marshal(grpcErr)
+	return errors.New(e.JSON())
 }
 
 func getGRPCError(err error) *errors.Error {
