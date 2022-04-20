@@ -16,6 +16,7 @@ package trigger
 
 import (
 	"context"
+	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
@@ -37,24 +38,28 @@ import (
 //triggerController allocate subscription to trigger worker
 type triggerController struct {
 	config               Config
+	member               embedetcd.Member
 	storage              storage.Storage
 	subscriptionManager  subscription.Manager
 	triggerWorkerManager worker.Manager
 	scheduler            *worker.SubscriptionScheduler
 	needCleanSubIds      map[vanus.ID]string
 	lock                 sync.Mutex
+	membershipMutex      sync.Mutex
+	isLeader             bool
 	ctx                  context.Context
-	stop                 context.CancelFunc
+	stopFunc             context.CancelFunc
 	state                primitive.ServerState
 }
 
-func NewTriggerController(config Config) *triggerController {
+func NewTriggerController(config Config, member embedetcd.Member) *triggerController {
 	ctrl := &triggerController{
 		config:          config,
+		member:          member,
 		needCleanSubIds: map[vanus.ID]string{},
 		state:           primitive.ServerStateCreated,
 	}
-	ctrl.ctx, ctrl.stop = context.WithCancel(context.Background())
+	ctrl.ctx, ctrl.stopFunc = context.WithCancel(context.Background())
 	return ctrl
 }
 
@@ -190,6 +195,19 @@ func (ctrl *triggerController) gcSubscription(ctx context.Context, subId vanus.I
 	return nil
 }
 
+func (ctrl *triggerController) gcSubscriptions(ctx context.Context) {
+	util.UntilWithContext(ctx, func(ctx context.Context) {
+		ctrl.lock.Lock()
+		defer ctrl.lock.Unlock()
+		for subId, addr := range ctrl.needCleanSubIds {
+			err := ctrl.gcSubscription(ctx, subId, addr)
+			if err == nil {
+				delete(ctrl.needCleanSubIds, subId)
+			}
+		}
+	}, time.Second*10)
+}
+
 func (ctrl *triggerController) requeueSubscription(ctx context.Context, subId vanus.ID, addr string) error {
 	subData := ctrl.subscriptionManager.GetSubscriptionData(ctx, subId)
 	if subData == nil {
@@ -239,44 +257,61 @@ func (ctrl *triggerController) init(ctx context.Context) error {
 	return nil
 }
 
-func (ctrl *triggerController) Start() error {
-	ctx := ctrl.ctx
-	log.Info(ctrl.ctx, "trigger controller start...", nil)
-	s, err := storage.NewStorage(ctrl.config.Storage)
-	if err != nil {
-		return err
-	}
-	ctrl.storage = s
-	err = ctrl.init(ctx)
-	if err != nil {
-		ctrl.storage.Close()
-		return err
-	}
-	ctrl.triggerWorkerManager.Start()
-	ctrl.subscriptionManager.Start()
-	ctrl.scheduler.Run()
-
-	go util.UntilWithContext(ctx, func(ctx context.Context) {
-		ctrl.lock.Lock()
-		defer ctrl.lock.Unlock()
-		for subId, addr := range ctrl.needCleanSubIds {
-			err := ctrl.gcSubscription(ctx, subId, addr)
-			if err == nil {
-				delete(ctrl.needCleanSubIds, subId)
-			}
+func (ctrl *triggerController) membershipChangedProcessor(ctx context.Context, event embedetcd.MembershipChangedEvent) error {
+	ctrl.membershipMutex.Lock()
+	defer ctrl.membershipMutex.Unlock()
+	switch event.Type {
+	case embedetcd.EventBecomeLeader:
+		if ctrl.isLeader {
+			return nil
 		}
-	}, time.Second*10)
-	ctrl.state = primitive.ServerStateRunning
+		log.Info(ctrl.ctx, "become leader", nil)
+		err := ctrl.init(ctx)
+		if err != nil {
+			ctrl.stop(ctx)
+			return err
+		}
+		ctrl.triggerWorkerManager.Start()
+		ctrl.subscriptionManager.Start()
+		ctrl.scheduler.Run()
+		go ctrl.gcSubscriptions(ctx)
+		ctrl.state = primitive.ServerStateRunning
+		ctrl.isLeader = true
+	case embedetcd.EventBecomeFollower:
+		if !ctrl.isLeader {
+			return nil
+		}
+		log.Info(ctrl.ctx, "become flower", nil)
+		ctrl.stop(ctx)
+		ctrl.isLeader = false
+	}
 	return nil
 }
 
-func (ctrl *triggerController) Close() error {
+func (ctrl *triggerController) stop(ctx context.Context) error {
+	ctrl.member.ResignIfLeader(ctx)
 	ctrl.state = primitive.ServerStateStopping
-	ctrl.stop()
+	ctrl.stopFunc()
 	ctrl.scheduler.Stop()
 	ctrl.triggerWorkerManager.Stop()
 	ctrl.subscriptionManager.Stop()
 	ctrl.storage.Close()
 	ctrl.state = primitive.ServerStateStopped
+	return nil
+}
+
+func (ctrl *triggerController) Start() error {
+	ctx := ctrl.ctx
+	s, err := storage.NewStorage(ctrl.config.Storage)
+	if err != nil {
+		return err
+	}
+	ctrl.storage = s
+	go ctrl.member.RegisterMembershipChangedProcessor(ctx, ctrl.membershipChangedProcessor)
+	return nil
+}
+
+func (ctrl *triggerController) Stop() error {
+	ctrl.stop(ctrl.ctx)
 	return nil
 }

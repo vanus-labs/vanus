@@ -37,7 +37,7 @@ func main() {
 	ctx := signal.SetupSignalContext()
 	f := flag.String("config", "./config/controller.yaml", "controller config file path")
 	flag.Parse()
-	cfg, err := controller.Init(*f)
+	cfg, err := controller.InitConfig(*f)
 	if err != nil {
 		log.Error(ctx, "init config error", map[string]interface{}{log.KeyError: err})
 		os.Exit(-1)
@@ -67,7 +67,7 @@ func main() {
 	}
 
 	//trigger controller
-	triggerCtrlStv := trigger.NewTriggerController(cfg.TriggerConfig)
+	triggerCtrlStv := trigger.NewTriggerController(cfg.GetTriggerConfig(), etcd)
 	if err = triggerCtrlStv.Start(); err != nil {
 		log.Error(ctx, "start trigger controller fail", map[string]interface{}{
 			log.KeyError: err,
@@ -75,7 +75,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	listen, err := net.Listen("tcp", fmt.Sprintf("%d", cfg.Port))
+	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
 		log.Error(ctx, "failed to listen", map[string]interface{}{
 			"error": err,
@@ -113,7 +113,7 @@ func main() {
 	}()
 	<-ctx.Done()
 	grpcServer.GracefulStop()
-	triggerCtrlStv.Close()
+	triggerCtrlStv.Stop()
 	segmentCtrl.Stop()
 	wg.Wait()
 	log.Info(ctx, "the grpc server has been shutdown", nil)

@@ -51,7 +51,16 @@ type MetadataConfig struct {
 	KeyPrefix string `yaml:"key_prefix"`
 }
 
-func Init(filename string) (*Config, error) {
+func (c *Config) GetTriggerConfig() trigger.Config {
+	return trigger.Config{
+		Storage: primitive.KvStorageConfig{
+			KeyPrefix:  c.MetadataConfig.KeyPrefix,
+			ServerList: c.EtcdEndpoints,
+		},
+	}
+}
+
+func InitConfig(filename string) (*Config, error) {
 	c := new(Config)
 	err := primitive.LoadConfig(filename, c)
 	if err != nil {

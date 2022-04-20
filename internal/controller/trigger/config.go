@@ -19,8 +19,6 @@ import (
 )
 
 type Config struct {
-	//grpc server config
-	Port int `yaml:"port"`
 	// etcd storage config
 	Storage primitive.KvStorageConfig `yaml:"storage"`
 }

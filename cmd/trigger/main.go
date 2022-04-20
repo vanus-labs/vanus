@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc"
 	"net"
 	"os"
+	"sync"
 )
 
 func main() {
@@ -57,17 +58,21 @@ func main() {
 		os.Exit(1)
 	}
 	pbtrigger.RegisterTriggerWorkerServer(grpcServer, srv)
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
-		<-ctx.Done()
-		grpcServer.GracefulStop()
+		defer wg.Done()
+		log.Info(ctx, "the grpc server ready to work", nil)
+		err = grpcServer.Serve(listen)
+		if err != nil {
+			log.Error(ctx, "grpc server occurred an error", map[string]interface{}{
+				log.KeyError: err,
+			})
+			os.Exit(1)
+		}
 	}()
-	log.Info(ctx, "the grpc server ready to work", nil)
-	err = grpcServer.Serve(listen)
-	if err != nil {
-		log.Error(ctx, "grpc server occurred an error", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(1)
-	}
+	<-ctx.Done()
+	grpcServer.GracefulStop()
+	wg.Wait()
 	log.Info(ctx, "trigger worker stopped", nil)
 }

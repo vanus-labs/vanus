@@ -33,8 +33,8 @@ const (
 )
 
 type KvStorageConfig struct {
-	KeyPrefix  string   `yaml:"keyPrefix" json:"keyPrefix"`
-	ServerList []string `yaml:"serverList" json:"serverList"`
+	KeyPrefix  string   `yaml:"key_prefix" json:"keyPrefix"`
+	ServerList []string `yaml:"server_list" json:"serverList"`
 }
 
 func LoadConfig(filename string, config interface{}) error {
