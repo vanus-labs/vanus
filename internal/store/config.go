@@ -14,7 +14,10 @@
 
 package store
 
-import "github.com/linkall-labs/vanus/internal/primitive/vanus"
+import (
+	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+)
 
 type Config struct {
 	ControllerAddresses []string   `json:"controllers"`
@@ -27,4 +30,13 @@ type VolumeInfo struct {
 	ID       vanus.ID `json:"id"`
 	Dir      string   `json:"dir"`
 	Capacity uint64   `json:"capacity"`
+}
+
+func InitConfig(filename string) (*Config, error) {
+	c := new(Config)
+	err := primitive.LoadConfig(filename, c)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
 }

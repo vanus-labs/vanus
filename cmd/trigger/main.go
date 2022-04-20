@@ -33,7 +33,7 @@ func main() {
 	ctx := signal.SetupSignalContext()
 	f := flag.String("config", "./config/trigger.yaml", "trigger worker config file path")
 	flag.Parse()
-	c, err := trigger.Init(*f)
+	c, err := trigger.InitConfig(*f)
 	if err != nil {
 		log.Error(nil, "init config error", map[string]interface{}{log.KeyError: err})
 		os.Exit(-1)

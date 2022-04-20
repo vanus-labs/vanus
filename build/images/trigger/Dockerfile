@@ -10,7 +10,7 @@ ARG TARGETOS
 ARG TARGETARCH
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-trigger
 
-FROM centos:8.4.2105
+FROM alpine:3.15.4
 RUN mkdir -p /server
 COPY --from=builder /workspace/vanus/bin/trigger /server/bin/trigger
 WORKDIR /server

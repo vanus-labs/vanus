@@ -17,8 +17,12 @@ metadata:
   name: config-trigger
   namespace: vanus
 data:
-  port: 2149
-  controller_addr: "127.0.0.1:2049"
+  trigger.yaml: |-
+    port: 2149
+    controller: 
+      - "vanus-controller-0.vanus-controller.vanus.svc.cluster.local:2049"
+      - "vanus-controller-1.vanus-controller.vanus.svc.cluster.local:2049"
+      - "vanus-controller-2.vanus-controller.vanus.svc.cluster.local:2049"
 
 ---
 apiVersion: apps/v1
@@ -40,7 +44,8 @@ spec:
     spec:
       containers:
         - name: trigger
-          image: linkall.com/vanus/trigger:latest
+          image: public.ecr.aws/t8a4l2d7/trigger:latest
+          imagePullPolicy: Always
           resources:
             requests:
               cpu: 100m
@@ -50,8 +55,7 @@ spec:
               containerPort: 2149
           volumeMounts:
             - name: config-trigger
-              mountPath: /server/config/trigger.yaml
-              subPath: trigger.yaml
+              mountPath: /server/config
       volumes:
         - name: config-trigger
           configMap:

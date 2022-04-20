@@ -20,12 +20,8 @@ import (
 	"flag"
 	"fmt"
 	"github.com/linkall-labs/vanus/internal/store"
-	"gopkg.in/yaml.v3"
-	"io"
 	"net"
 	"os"
-	"time"
-
 	// third-party libraries.
 	"google.golang.org/grpc"
 
@@ -37,53 +33,18 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/raft/transport"
 	"github.com/linkall-labs/vanus/internal/store/segment"
-	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
-<<<<<<< HEAD
 func main() {
 	f := flag.String("config", "./config/gateway.yaml", "gateway config file path")
 	flag.Parse()
-	cfg, err := segment.Init(*f)
+	cfg, err := store.InitConfig(*f)
 	if err != nil {
 		log.Error(nil, "init config error", map[string]interface{}{log.KeyError: err})
 		os.Exit(-1)
 	}
 	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
-=======
-var (
-	configPath = flag.String("config-file", "./config/store.yaml", "the configuration file of controller")
-)
-
-func main() {
-	flag.Parse()
-
-	f, err := os.Open(*configPath)
-	if err != nil {
-		log.Error(nil, "open configuration file failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(-1)
-	}
-	data, err := io.ReadAll(f)
-	if err != nil {
-		log.Error(nil, "read configuration file failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(-1)
-	}
-
-	cfg := store.Config{}
-	if err = yaml.Unmarshal(data, &cfg); err != nil {
-		log.Error(nil, "unmarshall configuration file failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(-1)
-	}
-
-	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", cfg.IP, cfg.Port))
->>>>>>> 14516ae (feat: add store.Config)
 	if err != nil {
 		log.Error(context.Background(), "failed to listen", map[string]interface{}{
 			"error": err,
@@ -104,13 +65,7 @@ func main() {
 	host := transport.NewHost(reslover)
 	raftSrv := transport.NewRaftServer(context.TODO(), host)
 	raftpb.RegisterRaftServerServer(grpcServer, raftSrv)
-
-<<<<<<< HEAD
-	srv := segment.NewSegmentServer(fmt.Sprintf("%s:%d", util.LocalIp, cfg.Port), cfg.ControllerAddr,
-		uint64(1), stopCallback)
-=======
-	srv := segment.NewSegmentServer(cfg, stopCallback)
->>>>>>> 14516ae (feat: add store.Config)
+	srv := segment.NewSegmentServer(*cfg, stopCallback)
 	if err != nil {
 		stopCallback()
 		log.Error(context.Background(), "start SegmentServer failed", map[string]interface{}{
@@ -133,13 +88,8 @@ func main() {
 
 	go func() {
 		log.Info(ctx, "the SegmentServer ready to work", map[string]interface{}{
-<<<<<<< HEAD
-			"time": util.FormatTime(time.Now()),
-=======
 			"listen_ip":   cfg.IP,
 			"listen_port": cfg.Port,
-			"time":        util.FormatTime(time.Now()),
->>>>>>> 14516ae (feat: add store.Config)
 		})
 		if err = grpcServer.Serve(listen); err != nil {
 			log.Error(ctx, "grpc server occurred an error", map[string]interface{}{

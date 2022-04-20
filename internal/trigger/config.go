@@ -19,12 +19,12 @@ import (
 )
 
 type Config struct {
-	Port           int    `yaml:"port"`
-	ControllerAddr string `yaml:"controller_addr"`
+	Port           int      `yaml:"port"`
+	ControllerAddr []string `yaml:"controller"`
 	TriggerAddr    string
 }
 
-func Init(filename string) (*Config, error) {
+func InitConfig(filename string) (*Config, error) {
 	c := new(Config)
 	err := primitive.LoadConfig(filename, c)
 	if err != nil {

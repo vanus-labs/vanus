@@ -3,8 +3,8 @@ VSPROTO_ROOT=$(VANUS_ROOT)/../vsproto
 
 export VANUS_LOG_LEVEL=debug
 
-DOCKER_REGISTRY ?= linkall.cloud
-DOCKER_REPO ?= ${DOCKER_REGISTRY}/vanus
+DOCKER_REGISTRY ?= public.ecr.aws
+DOCKER_REPO ?= ${DOCKER_REGISTRY}/t8a4l2d7
 IMAGE_TAG ?= latest
 #os linux or darwin
 GOOS ?= linux

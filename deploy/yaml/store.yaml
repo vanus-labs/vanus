@@ -32,8 +32,9 @@ metadata:
   name: config-store
   namespace: vanus
 data:
-  port: 11811
-  controller_addr: "127.0.0.1:2049"
+  store.yaml: |-
+    port: 11811
+    controller_addr: "127.0.0.1:2049"
 
 ---
 apiVersion: apps/v1
@@ -65,8 +66,7 @@ spec:
               containerPort: 11811
           volumeMounts:
             - name: config-store
-              mountPath: /server/config/store.yaml
-              subPath: store.yaml
+              mountPath: /server/config
       volumes:
         - name: config-store
           configMap:

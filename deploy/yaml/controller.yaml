@@ -17,13 +17,35 @@ metadata:
   name: config-controller
   namespace: vanus
 data:
-  port: 2049
+  controller.yaml: |-
+    name: "test-1"
+    ip: "127.0.0.1"
+    port: 2049
+    etcd:
+      - "127.0.0.1:2379"
+    data_dir: "/data/vanus"
+    topology:
+      service_a: "127.0.0.1:2049"
+    metadata:
+      key_prefix: "/wenfeng"
+    embed_etcd:
+      name: "etcd-1"
+      data_dir: "etcd/node1"
+      client_addr: "127.0.0.1:2379"
+      peer_addr: "127.0.0.1:2380"
+      clusters:
+        - "etcd-1=http://127.0.0.1:2380"
+    trigger:
+      storage:
+        keyPrefix: "/xdl"
+        serverList: [ "127.0.0.1:2379" ]
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: vanus-controller
+  namespace: vanus
   labels:
     app: vanus-controller
 spec:
@@ -36,25 +58,37 @@ spec:
       name: vanus-controller
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: vanus-controller
   namespace: vanus
   labels:
-    app.kubernetes.io/name: vanus-controller
+    app: vanus-controller
 spec:
   selector:
     matchLabels:
       app: vanus-controller
+  replicas: 3
+  serviceName: vanus-controller
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app: vanus-controller
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
   template:
     metadata:
       labels:
         app: vanus-controller
-        app.kubernetes.io/name: vanus-controller
     spec:
       containers:
         - name: controller
-          image: linkall.cloud/vanus/controller:latest
+          image: public.ecr.aws/t8a4l2d7/controller:latest
           resources:
             requests:
               cpu: 100m
@@ -62,10 +96,15 @@ spec:
           ports:
             - name: grpc
               containerPort: 2049
+            - name: etcd-client
+              containerPort: 2379
+            - name: etcd-peer
+              containerPort: 2380
           volumeMounts:
             - name: config-controller
-              mountPath: /server/config/controller.yaml
-              subPath: controller.yaml
+              mountPath: /server/config
+            - name: data
+              mountPath: /data
       volumes:
         - name: config-controller
           configMap:

@@ -33,8 +33,9 @@ metadata:
   name: config-gateway
   namespace: vanus
 data:
-  port: 8080
-  controller_addr: "127.0.0.1:2049"
+  gateway.yaml: |-
+    port: 8080
+    controller_addr: "127.0.0.1:2049"
 
 ---
 apiVersion: apps/v1
@@ -66,8 +67,7 @@ spec:
               containerPort: 8080
           volumeMounts:
             - name: config-gateway
-              mountPath: /server/config/gateway.yaml
-              subPath: gateway.yaml
+              mountPath: /server/config
       volumes:
         - name: config-gateway
           configMap:

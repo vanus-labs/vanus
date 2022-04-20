@@ -136,7 +136,7 @@ func (s *server) init(ctx context.Context) error {
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	timeout, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
-	cc, err := grpc.DialContext(timeout, s.config.ControllerAddr, opts...)
+	cc, err := grpc.DialContext(timeout, s.config.ControllerAddr[0], opts...)
 	if err != nil {
 		return err
 	}
