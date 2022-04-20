@@ -79,6 +79,7 @@ type segmentServer struct {
 	segmentBlockWriters sync.Map
 	segmentBlockReaders sync.Map
 	isDebugMode         bool
+	cfg                 store.Config
 }
 
 func (s *segmentServer) Initialize(ctx context.Context) error {
@@ -94,9 +95,10 @@ func (s *segmentServer) Initialize(ctx context.Context) error {
 	var files []string
 	if strings.ToLower(os.Getenv(segmentServerDebugModeFlagENV)) != "true" {
 		s.ctrlClient = ctrl.NewSegmentControllerClient(conn)
-		res, err := s.ctrlClient.RegisterSegmentServer(context.Background(), &ctrl.RegisterSegmentServerRequest{
+		res, err := s.ctrlClient.RegisterSegmentServer(ctx, &ctrl.RegisterSegmentServerRequest{
 			Address:  s.localAddress,
 			VolumeId: s.volumeId.Uint64(),
+			Capacity: s.cfg.Volume.Capacity,
 		})
 		if err != nil {
 			return err

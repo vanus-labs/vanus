@@ -53,7 +53,7 @@ func main() {
 	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 =======
 var (
-	configPath = flag.String("config-file", "./config/controller.yaml", "the configuration file of controller")
+	configPath = flag.String("config-file", "./config/store.yaml", "the configuration file of controller")
 )
 
 func main() {

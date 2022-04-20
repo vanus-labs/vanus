@@ -23,4 +23,5 @@ var (
 	ErrSegmentNoEnoughCapacity = rpcerr.New("no enough capacity").WithGRPCCode(rpcerr.ErrorCode_SEGMENT_FULL)
 	ErrResourceNotFound        = rpcerr.New("resource not found").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_NOT_FOUND)
 	ErrResourceAlreadyExist    = rpcerr.New("resource already exist").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_EXIST)
+	ErrNoControllerLeader      = rpcerr.New("no leader controller found").WithGRPCCode(rpcerr.ErrorCode_NOT_LEADER)
 )
