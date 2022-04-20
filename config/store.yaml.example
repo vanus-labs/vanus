@@ -1,0 +1,11 @@
+controllers:
+  - 127.0.0.1:2048
+  - 127.0.0.1:3048
+  - 127.0.0.1:4048
+ip: 127.0.0.1
+port: 2148
+volume:
+  id: 123456
+  dir: /Users/wenfeng/tmp/data/vanus/segment_server/123456
+  # 128G
+  capacity: 137975824384

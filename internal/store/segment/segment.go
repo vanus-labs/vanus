@@ -21,6 +21,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/store"
 	"github.com/linkall-labs/vanus/internal/store/segment/block"
 	"github.com/linkall-labs/vanus/internal/store/segment/codec"
 	"github.com/linkall-labs/vanus/internal/store/segment/errors"
@@ -47,12 +48,12 @@ const (
 	segmentServerDebugModeFlagENV = "SEGMENT_SERVER_DEBUG_MODE"
 )
 
-func NewSegmentServer(localAddr, ctrlAddr string, volumeId uint64, stop func()) segment.SegmentServerServer {
+func NewSegmentServer(cfg store.Config, stop func()) segment.SegmentServerServer {
 	return &segmentServer{
-		volumeId:     vanus.NewIDFromUint64(volumeId),
-		volumeDir:    "/Users/wenfeng/tmp/data/vanus/volume-1",
-		ctrlAddress:  ctrlAddr,
-		localAddress: localAddr,
+		volumeId:     cfg.Volume.ID,
+		volumeDir:    cfg.Volume.Dir,
+		ctrlAddress:  cfg.ControllerAddresses,
+		localAddress: fmt.Sprintf("%s:%d", cfg.IP, cfg.Port),
 		stopCallback: stop,
 		closeCh:      make(chan struct{}, 0),
 		state:        primitive.ServerStateCreated,
@@ -65,7 +66,7 @@ type segmentServer struct {
 	id                  vanus.ID
 	volumeId            vanus.ID
 	volumeDir           string
-	ctrlAddress         string
+	ctrlAddress         []string
 	localAddress        string
 	stopCallback        func()
 	closeCh             chan struct{}
@@ -83,7 +84,7 @@ type segmentServer struct {
 func (s *segmentServer) Initialize(ctx context.Context) error {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(s.credentials))
-	conn, err := grpc.Dial(s.ctrlAddress, opts...)
+	conn, err := grpc.Dial(s.ctrlAddress[0], opts...)
 	if err != nil {
 		return err
 	}
