@@ -32,7 +32,6 @@ import (
 	ctrl "github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/linkall-labs/vsproto/pkg/meta"
 	"github.com/linkall-labs/vsproto/pkg/segment"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -53,6 +52,7 @@ func NewSegmentServer(cfg store.Config, stop func()) segment.SegmentServerServer
 		volumeId:     cfg.Volume.ID,
 		volumeDir:    cfg.Volume.Dir,
 		ctrlAddress:  cfg.ControllerAddresses,
+		cc:           NewClient(cfg.ControllerAddresses),
 		localAddress: fmt.Sprintf("%s:%d", cfg.IP, cfg.Port),
 		stopCallback: stop,
 		closeCh:      make(chan struct{}, 0),
@@ -72,30 +72,21 @@ type segmentServer struct {
 	closeCh             chan struct{}
 	state               primitive.ServerState
 	events              []*v1.CloudEvent
-	ctrlGrpcConn        *grpc.ClientConn
-	ctrlClient          ctrl.SegmentControllerClient
 	credentials         credentials.TransportCredentials
 	segmentBlockMap     sync.Map
 	segmentBlockWriters sync.Map
 	segmentBlockReaders sync.Map
 	isDebugMode         bool
 	cfg                 store.Config
+	cc                  *ctrlClient
 }
 
 func (s *segmentServer) Initialize(ctx context.Context) error {
-	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithTransportCredentials(s.credentials))
-	conn, err := grpc.Dial(s.ctrlAddress[0], opts...)
-	if err != nil {
-		return err
-	}
-	s.ctrlGrpcConn = conn
-
 	// TODO optimize this, because the implementation assumes under storage is linux file system
 	var files []string
+	var err error
 	if strings.ToLower(os.Getenv(segmentServerDebugModeFlagENV)) != "true" {
-		s.ctrlClient = ctrl.NewSegmentControllerClient(conn)
-		res, err := s.ctrlClient.RegisterSegmentServer(ctx, &ctrl.RegisterSegmentServerRequest{
+		res, err := s.cc.registerSegmentServer(ctx, &ctrl.RegisterSegmentServerRequest{
 			Address:  s.localAddress,
 			VolumeId: s.volumeId.Uint64(),
 			Capacity: s.cfg.Volume.Capacity,
@@ -341,7 +332,7 @@ func (s *segmentServer) startHeartBeatTask() error {
 	if s.isDebugMode {
 		return nil
 	}
-	stream, err := s.ctrlClient.SegmentHeartbeat(context.Background())
+	stream, err := s.cc.heartbeat(context.Background())
 	if err != nil {
 		return err
 	}
@@ -376,7 +367,7 @@ func (s *segmentServer) startHeartBeatTask() error {
 					}
 
 					for err != nil {
-						stream, err = s.ctrlClient.SegmentHeartbeat(context.Background())
+						stream, err = s.cc.heartbeat(context.Background())
 						if err != nil {
 							log.Error(ctx, "reconnect to controller failed, retry after 3s", map[string]interface{}{
 								log.KeyError: err,
@@ -427,15 +418,9 @@ func (s *segmentServer) start(ctx context.Context) error {
 }
 
 func (s *segmentServer) stop(ctx context.Context) error {
-	err := s.ctrlGrpcConn.Close()
-	if err != nil {
-		log.Warning(ctx, "close gRPC connection of controller failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-	}
-
+	s.cc.Close(ctx)
 	wg := sync.WaitGroup{}
-
+	var err error
 	{
 		wg.Add(1)
 		go func() {
@@ -481,7 +466,7 @@ func (s *segmentServer) markSegmentIsFull(ctx context.Context, segId vanus.ID) e
 	}
 
 	// report to controller immediately
-	_, err := s.ctrlClient.ReportSegmentBlockIsFull(ctx, &ctrl.SegmentHeartbeatRequest{
+	_, err := s.cc.reportSegmentBlockIsFull(ctx, &ctrl.SegmentHeartbeatRequest{
 		ServerId: s.id.Uint64(),
 		VolumeId: s.volumeId.Uint64(),
 		HealthInfo: []*meta.SegmentHealthInfo{
