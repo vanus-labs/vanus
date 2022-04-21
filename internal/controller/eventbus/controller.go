@@ -268,6 +268,10 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 		if err != nil {
 			break
 		}
+		if !ctrl.member.IsLeader() {
+			err = srv.SendAndClose(&ctrlpb.SegmentHeartbeatResponse{})
+			break
+		}
 		t, err := util.ParseTime(req.ReportTime)
 		if err != nil {
 			log.Error(ctx, "parse heartbeat report time failed", map[string]interface{}{

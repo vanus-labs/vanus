@@ -17,10 +17,12 @@ package segment
 import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/store/segment/errors"
+	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	errpb "github.com/linkall-labs/vsproto/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -134,7 +136,19 @@ func (cli *ctrlClient) heartbeat(ctx context.Context, req *ctrlpb.SegmentHeartbe
 		}
 		cli.heartBeatClient, err = client.SegmentHeartbeat(ctx)
 		if err != nil {
-			return err
+			sts := status.Convert(err)
+			if sts.Code() == codes.Unavailable {
+				client = cli.makeSureClient(true)
+				if client == nil {
+					return errors.ErrNoControllerLeader
+				}
+				cli.heartBeatClient, err = client.SegmentHeartbeat(ctx)
+				if err != nil {
+					return err
+				}
+			} else {
+				return err
+			}
 		}
 	}
 	err = cli.heartBeatClient.Send(req)
@@ -171,11 +185,14 @@ func (cli *ctrlClient) makeSureClient(renew bool) ctrlpb.SegmentControllerClient
 			leader = res.LeaderAddr
 			break
 		}
-		if leader == "" {
+		if !util.IsValidIPV4Address(leader) {
+			return nil
+		}
+		conn := cli.getGRPCConn(leader)
+		if conn == nil {
 			return nil
 		}
 		cli.leader = leader
-		conn := cli.getGRPCConn(leader)
 		cli.leaderClient = ctrlpb.NewSegmentControllerClient(conn)
 	}
 	return cli.leaderClient
