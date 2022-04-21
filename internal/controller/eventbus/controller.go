@@ -81,7 +81,7 @@ func (ctrl *controller) Start(ctx context.Context) error {
 	ctrl.kvStore = store
 
 	ctrl.cancelCtx, ctrl.cancelFunc = context.WithCancel(context.Background())
-	go ctrl.member.RegisterMembershipChangedProcessor(ctrl.cancelCtx, ctrl.membershipChangedProcessor)
+	go ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
 	return nil
 }
 
@@ -324,6 +324,12 @@ func (ctrl *controller) ReportSegmentBlockIsFull(ctx context.Context,
 	return &emptypb.Empty{}, nil
 }
 
+func (ctrl *controller) Ping(ctx context.Context, empty *emptypb.Empty) (*ctrlpb.PingResponse, error) {
+	return &ctrlpb.PingResponse{
+		LeaderAddr: ctrl.member.GetLeaderAddr(),
+	}, nil
+}
+
 func (ctrl *controller) getEventBusKeyInKVStore(ebName string) string {
 	return strings.Join([]string{eventbusKeyPrefixInKVStore, ebName}, "/")
 }
@@ -387,7 +393,7 @@ func (ctrl *controller) loadEventbus(ctx context.Context) error {
 }
 
 func (ctrl *controller) stop(ctx context.Context, err error) {
-	ctrl.member.ResignIfLeader(ctx)
+	ctrl.member.ResignIfLeader()
 	ctrl.cancelFunc()
 	ctrl.stopNotify <- err
 	if err := ctrl.kvStore.Close(); err != nil {

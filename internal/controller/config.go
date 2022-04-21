@@ -23,19 +23,21 @@ import (
 )
 
 type Config struct {
-	Name                 string           `yaml:"name"`
-	IP                   string           `yaml:"ip"`
-	Port                 int              `yaml:"port"`
-	GRPCReflectionEnable bool             `yaml:"grpc_reflection_enable"`
-	EtcdEndpoints        []string         `yaml:"etcd"`
-	DataDir              string           `yaml:"data_dir"`
-	MetadataConfig       MetadataConfig   `yaml:"metadata"`
-	EtcdConfig           embedetcd.Config `yaml:"embed_etcd"`
-	TriggerConfig        trigger.Config   `yaml:"trigger"`
+	Name                 string            `yaml:"name"`
+	IP                   string            `yaml:"ip"`
+	Port                 int               `yaml:"port"`
+	GRPCReflectionEnable bool              `yaml:"grpc_reflection_enable"`
+	EtcdEndpoints        []string          `yaml:"etcd"`
+	DataDir              string            `yaml:"data_dir"`
+	MetadataConfig       MetadataConfig    `yaml:"metadata"`
+	EtcdConfig           embedetcd.Config  `yaml:"embed_etcd"`
+	TriggerConfig        trigger.Config    `yaml:"trigger"`
+	Topology             map[string]string `yaml:"topology"`
 }
 
 func (c *Config) GetEtcdConfig() embedetcd.Config {
 	c.EtcdConfig.DataDir = filepath.Join(c.DataDir, c.EtcdConfig.DataDir)
+	c.EtcdConfig.Name = c.Name
 	return c.EtcdConfig
 }
 

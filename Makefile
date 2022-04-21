@@ -49,7 +49,7 @@ controller-start:
 	go run ${VANUS_ROOT}/cmd/controller/main.go
 
 build-ctrl-bin:
-	$(GO_BUILD) -o bin/ctrl cmd/controller/eventbus/main.go
+	$(GO_BUILD) -o bin/ctrl cmd/controller/main.go
 
 controller-start:
 	go run ${VANUS_ROOT}/cmd/controller/${module}/main.go

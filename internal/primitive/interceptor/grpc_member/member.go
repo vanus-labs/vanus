@@ -22,7 +22,8 @@ func StreamServerInterceptor(member embedetcd.Member) grpc.StreamServerIntercept
 func UnaryServerInterceptor(member embedetcd.Member) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler) (interface{}, error) {
-		if !member.IsLeader() {
+		if info.FullMethod != "/linkall.vanus.controller.PingServer/Ping" &&
+			!member.IsLeader() {
 			// TODO  read-only request bypass
 			return nil, rpcerr.New(fmt.Sprintf("i'm not leader, please connect to: %s",
 				member.GetLeaderAddr())).WithGRPCCode(rpcerr.ErrorCode_NOT_LEADER)
