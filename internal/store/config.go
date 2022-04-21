@@ -20,10 +20,10 @@ import (
 )
 
 type Config struct {
-	ControllerAddresses []string   `json:"controllers"`
-	IP                  string     `json:"ip"`
-	Port                int        `json:"port"`
-	Volume              VolumeInfo `json:"volume"`
+	ControllerAddresses []string   `yaml:"controllers"`
+	IP                  string     `yaml:"ip"`
+	Port                int        `yaml:"port"`
+	Volume              VolumeInfo `yaml:"volume"`
 }
 
 type VolumeInfo struct {

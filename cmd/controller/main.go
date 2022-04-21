@@ -40,14 +40,14 @@ var (
 
 func main() {
 	flag.Parse()
-	cfg, err := controller.InitConfig(*configPath)
-
 	ctx := signal.SetupSignalContext()
+	cfg, err := controller.InitConfig(*configPath)
 	if err != nil {
 		log.Error(ctx, "init config error", map[string]interface{}{log.KeyError: err})
 		os.Exit(-1)
 	}
-	etcd := embedetcd.New()
+
+	etcd := embedetcd.New(cfg.Topology)
 	if err = etcd.Init(ctx, cfg.GetEtcdConfig()); err != nil {
 		log.Error(ctx, "failed to init etcd", map[string]interface{}{
 			log.KeyError: err,
@@ -110,6 +110,7 @@ func main() {
 	ctrlpb.RegisterEventBusControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterEventLogControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterSegmentControllerServer(grpcServer, segmentCtrl)
+	ctrlpb.RegisterPingServerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterTriggerControllerServer(grpcServer, triggerCtrlStv)
 	log.Info(ctx, "the grpc server ready to work", nil)
 	wg := sync.WaitGroup{}

@@ -179,8 +179,10 @@ func NewSegmentServerWithID(id vanus.ID, addr string) (Server, error) {
 
 func NewSegmentServer(addr string) (Server, error) {
 	srv := &segmentServer{
-		addr: addr,
-		id:   vanus.NewID(),
+		id:                vanus.NewID(),
+		addr:              addr,
+		uptime:            time.Now(),
+		lastHeartbeatTime: time.Now(),
 	}
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))

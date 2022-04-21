@@ -36,8 +36,11 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
+var (
+	f = flag.String("config", "./config/store.yaml", "gateway config file path")
+)
+
 func main() {
-	f := flag.String("config", "./config/gateway.yaml", "gateway config file path")
 	flag.Parse()
 	cfg, err := store.InitConfig(*f)
 	if err != nil {

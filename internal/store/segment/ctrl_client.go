@@ -17,26 +17,32 @@ package segment
 import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/store/segment/errors"
+	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	errpb "github.com/linkall-labs/vsproto/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"net"
-	"strconv"
-	"strings"
+	"io"
 	"sync"
+	"time"
 )
 
 type ctrlClient struct {
-	ctrlAddrs   []string
-	grpcConn    map[string]*grpc.ClientConn
-	ctrlClients map[string]ctrlpb.SegmentControllerClient
-	mutex       sync.Mutex
-	leader      string
-	credentials credentials.TransportCredentials
+	ctrlAddrs       []string
+	grpcConn        map[string]*grpc.ClientConn
+	ctrlClients     map[string]ctrlpb.SegmentControllerClient
+	mutex           sync.Mutex
+	leader          string
+	leaderClient    ctrlpb.SegmentControllerClient
+	credentials     credentials.TransportCredentials
+	heartBeatClient ctrlpb.SegmentController_SegmentHeartbeatClient
+	pingClient      ctrlpb.PingServerClient
 }
 
 func NewClient(ctrlAddrs []string) *ctrlClient {
@@ -52,6 +58,11 @@ func (cli *ctrlClient) Close(ctx context.Context) {
 	if len(cli.grpcConn) == 0 {
 		return
 	}
+	if _, err := cli.heartBeatClient.CloseAndRecv(); err != nil {
+		log.Warning(ctx, "close gRPC stream error", map[string]interface{}{
+			log.KeyError: err,
+		})
+	}
 	for ip, conn := range cli.grpcConn {
 		if err := conn.Close(); err != nil {
 			log.Warning(ctx, "close grpc connection failed", map[string]interface{}{
@@ -64,10 +75,13 @@ func (cli *ctrlClient) Close(ctx context.Context) {
 
 func (cli *ctrlClient) registerSegmentServer(ctx context.Context,
 	req *ctrlpb.RegisterSegmentServerRequest) (*ctrlpb.RegisterSegmentServerResponse, error) {
-	var res *ctrlpb.RegisterSegmentServerResponse
-	var err = error(errors.ErrNoControllerLeader)
-	for cli.isNeedRetry(err) {
-		client := cli.makeSureClient()
+	client := cli.makeSureClient(false)
+	if client == nil {
+		return nil, errors.ErrNoControllerLeader
+	}
+	res, err := client.RegisterSegmentServer(ctx, req)
+	if cli.isNeedRetry(err) {
+		client = cli.makeSureClient(true)
 		if client == nil {
 			return nil, errors.ErrNoControllerLeader
 		}
@@ -78,10 +92,13 @@ func (cli *ctrlClient) registerSegmentServer(ctx context.Context,
 
 func (cli *ctrlClient) unregisterSegmentServer(ctx context.Context,
 	req *ctrlpb.UnregisterSegmentServerRequest) (*ctrlpb.UnregisterSegmentServerResponse, error) {
-	var res *ctrlpb.UnregisterSegmentServerResponse
-	var err = error(errors.ErrNoControllerLeader)
-	for cli.isNeedRetry(err) {
-		client := cli.makeSureClient()
+	client := cli.makeSureClient(false)
+	if client == nil {
+		return nil, errors.ErrNoControllerLeader
+	}
+	res, err := client.UnregisterSegmentServer(ctx, req)
+	if cli.isNeedRetry(err) {
+		client = cli.makeSureClient(true)
 		if client == nil {
 			return nil, errors.ErrNoControllerLeader
 		}
@@ -92,10 +109,13 @@ func (cli *ctrlClient) unregisterSegmentServer(ctx context.Context,
 
 func (cli *ctrlClient) reportSegmentBlockIsFull(ctx context.Context,
 	req *ctrlpb.SegmentHeartbeatRequest) (*emptypb.Empty, error) {
-	var res *emptypb.Empty
-	var err = error(errors.ErrNoControllerLeader)
-	for cli.isNeedRetry(err) {
-		client := cli.makeSureClient()
+	client := cli.makeSureClient(false)
+	if client == nil {
+		return nil, errors.ErrNoControllerLeader
+	}
+	res, err := client.ReportSegmentBlockIsFull(ctx, req)
+	if cli.isNeedRetry(err) {
+		client = cli.makeSureClient(true)
 		if client == nil {
 			return nil, errors.ErrNoControllerLeader
 		}
@@ -104,77 +124,142 @@ func (cli *ctrlClient) reportSegmentBlockIsFull(ctx context.Context,
 	return res, err
 }
 
-func (cli *ctrlClient) heartbeat(ctx context.Context) (ctrlpb.SegmentController_SegmentHeartbeatClient, error) {
-	var res ctrlpb.SegmentController_SegmentHeartbeatClient
-	var err = error(errors.ErrNoControllerLeader)
-	for cli.isNeedRetry(err) {
-		client := cli.makeSureClient()
+func (cli *ctrlClient) heartbeat(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error {
+	log.Info(nil, "heartbeat", map[string]interface{}{
+		"leader": cli.leader,
+	})
+	var err error
+	if cli.heartBeatClient == nil {
+		client := cli.makeSureClient(false)
 		if client == nil {
-			return nil, errors.ErrNoControllerLeader
+			return errors.ErrNoControllerLeader
 		}
-		res, err = client.SegmentHeartbeat(ctx)
+		cli.heartBeatClient, err = client.SegmentHeartbeat(ctx)
+		if err != nil {
+			sts := status.Convert(err)
+			if sts.Code() == codes.Unavailable {
+				client = cli.makeSureClient(true)
+				if client == nil {
+					return errors.ErrNoControllerLeader
+				}
+				cli.heartBeatClient, err = client.SegmentHeartbeat(ctx)
+				if err != nil {
+					return err
+				}
+			} else {
+				return err
+			}
+		}
 	}
-	return res, err
+	err = cli.heartBeatClient.Send(req)
+	if err == io.EOF || cli.isNeedRetry(err) {
+		client := cli.makeSureClient(true)
+		if client == nil {
+			return errors.ErrNoControllerLeader
+		}
+		cli.heartBeatClient, err = client.SegmentHeartbeat(ctx)
+		if err != nil {
+			return err
+		}
+		err = cli.heartBeatClient.Send(req)
+	}
+
+	return err
 }
 
-func (cli *ctrlClient) makeSureClient() ctrlpb.SegmentControllerClient {
+func (cli *ctrlClient) makeSureClient(renew bool) ctrlpb.SegmentControllerClient {
 	cli.mutex.Lock()
 	defer cli.mutex.Unlock()
-
-	if len(cli.ctrlClients) == 0 || cli.leader == "" {
-		return nil
-	}
-
-	client := cli.ctrlClients[cli.leader]
-	if client == nil {
-		var opts []grpc.DialOption
-		opts = append(opts, grpc.WithTransportCredentials(cli.credentials))
-		conn, err := grpc.Dial(cli.leader, opts...)
-		if err != nil {
+	if cli.leaderClient == nil || renew {
+		leader := ""
+		for _, v := range cli.ctrlAddrs {
+			conn := cli.getGRPCConn(v)
+			if conn == nil {
+				continue
+			}
+			pingClient := ctrlpb.NewPingServerClient(conn)
+			res, err := pingClient.Ping(context.Background(), &emptypb.Empty{})
+			if err != nil {
+				return nil
+			}
+			leader = res.LeaderAddr
+			break
+		}
+		if !util.IsValidIPV4Address(leader) {
 			return nil
 		}
-		cli.grpcConn[cli.leader] = conn
-		client = ctrlpb.NewSegmentControllerClient(conn)
-		cli.ctrlClients[cli.leader] = client
+		conn := cli.getGRPCConn(leader)
+		if conn == nil {
+			return nil
+		}
+		cli.leader = leader
+		cli.leaderClient = ctrlpb.NewSegmentControllerClient(conn)
 	}
+	return cli.leaderClient
+}
 
-	return client
+func (cli *ctrlClient) getGRPCConn(addr string) *grpc.ClientConn {
+	ctx := context.Background()
+	var err error
+	conn := cli.grpcConn[addr]
+	if isConnectionOK(conn) {
+		return conn
+	}
+	var opts []grpc.DialOption
+	opts = append(opts, grpc.WithTransportCredentials(cli.credentials))
+	opts = append(opts, grpc.WithBlock())
+	ctx, cancel := context.WithCancel(ctx)
+	timeout := false
+	go func() {
+		ticker := time.Tick(time.Second)
+		select {
+		case <-ctx.Done():
+		case <-ticker:
+			cancel()
+			timeout = true
+		}
+	}()
+	conn, err = grpc.DialContext(ctx, addr, opts...)
+	cancel()
+	if timeout {
+		log.Warning(ctx, "dial to controller timeout", map[string]interface{}{
+			"ip": addr,
+		})
+	} else if err != nil {
+		log.Warning(ctx, "dial to controller failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+	} else {
+		cli.grpcConn[addr] = conn
+		return conn
+	}
+	return nil
 }
 
 func (cli *ctrlClient) isNeedRetry(err error) bool {
+	if err == nil {
+		return false
+	}
 	if err == errors.ErrNoControllerLeader {
 		return true
 	}
-
-	errType, ok := errpb.Convert(err)
+	sts := status.Convert(err)
+	if sts == nil {
+		return false
+	}
+	errType, ok := errpb.Convert(sts.Message())
 	if !ok {
 		return false
 	}
-
 	if errType.Code == errpb.ErrorCode_NOT_LEADER {
-		subStr := "please connect to:"
-		idx := strings.Index(errType.Description, subStr)
-		if idx < 0 {
-			return false
-		}
-		leaderAddress := strings.Trim(errType.Description[idx+len(subStr):], " ")
-		ipInfo := strings.Split(leaderAddress, ":")
-		if len(ipInfo) != 2 {
-			return false
-		}
-		ip := net.ParseIP(ipInfo[0])
-		if ip != nil {
-			cli.leader = ip.String()
-		} else {
-			cli.leader = ""
-			return false
-		}
-		i, err := strconv.Atoi(ipInfo[1])
-		if err != nil || i < 2000 || i > 10000 {
-			return false
-		}
-		cli.leader = leaderAddress
 		return true
 	}
 	return false
+}
+
+func isConnectionOK(conn *grpc.ClientConn) bool {
+	if conn == nil {
+		return false
+	}
+	return conn.GetState() == connectivity.Idle || conn.GetState() == connectivity.Ready
 }

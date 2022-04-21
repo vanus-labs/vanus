@@ -16,6 +16,8 @@ package util
 
 import (
 	"net"
+	"strconv"
+	"strings"
 )
 
 var LocalIp = getInternalIp()
@@ -33,4 +35,22 @@ func getInternalIp() string {
 		}
 	}
 	return ""
+}
+
+func IsValidIPV4Address(str string) bool {
+	strs := strings.Split(str, ":")
+	if len(strs) > 2 {
+		return false
+	}
+	ip := net.ParseIP(strs[0])
+	if ip == nil {
+		return false
+	}
+	if len(strs) == 2 {
+		_, err := strconv.Atoi(strs[1])
+		if err != nil {
+			return false
+		}
+	}
+	return true
 }

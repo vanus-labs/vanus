@@ -35,7 +35,6 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -332,10 +331,6 @@ func (s *segmentServer) startHeartBeatTask() error {
 	if s.isDebugMode {
 		return nil
 	}
-	stream, err := s.cc.heartbeat(context.Background())
-	if err != nil {
-		return err
-	}
 	go func() {
 		ticker := time.NewTicker(time.Second)
 		ctx := context.Background()
@@ -350,39 +345,19 @@ func (s *segmentServer) startHeartBeatTask() error {
 					infos = append(infos, value.(block.SegmentBlock).HealthInfo())
 					return true
 				})
-				if err = stream.Send(&ctrl.SegmentHeartbeatRequest{
+				req := &ctrl.SegmentHeartbeatRequest{
 					ServerId:   s.id.Uint64(),
 					VolumeId:   s.volumeId.Uint64(),
 					HealthInfo: infos,
 					ReportTime: util.FormatTime(time.Now()),
 					ServerAddr: s.localAddress,
-				}); err != nil {
-					if err == io.EOF {
-						log.Warning(ctx, "send heartbeat to controller failed, connection lost. try to reconnecting",
-							nil)
-					} else {
-						log.Warning(ctx, "send heartbeat to controller failed, try to reconnecting", map[string]interface{}{
-							log.KeyError: err,
-						})
-					}
-
-					for err != nil {
-						stream, err = s.cc.heartbeat(context.Background())
-						if err != nil {
-							log.Error(ctx, "reconnect to controller failed, retry after 3s", map[string]interface{}{
-								log.KeyError: err,
-							})
-						}
-						time.Sleep(3 * time.Second)
-					}
-					log.Info(ctx, "reconnected to controller", nil)
+				}
+				if err := s.cc.heartbeat(context.Background(), req); err != nil {
+					log.Warning(ctx, "send heartbeat to controller failed, connection lost. try to reconnecting", map[string]interface{}{
+						log.KeyError: err,
+					})
 				}
 			}
-		}
-		if _, err = stream.CloseAndRecv(); err != nil {
-			log.Warning(ctx, "close gRPC stream error", map[string]interface{}{
-				log.KeyError: err,
-			})
 		}
 		ticker.Stop()
 	}()

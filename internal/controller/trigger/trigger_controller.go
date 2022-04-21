@@ -289,7 +289,7 @@ func (ctrl *triggerController) membershipChangedProcessor(ctx context.Context, e
 }
 
 func (ctrl *triggerController) stop(ctx context.Context) error {
-	ctrl.member.ResignIfLeader(ctx)
+	ctrl.member.ResignIfLeader()
 	ctrl.state = primitive.ServerStateStopping
 	ctrl.stopFunc()
 	ctrl.scheduler.Stop()
@@ -301,13 +301,12 @@ func (ctrl *triggerController) stop(ctx context.Context) error {
 }
 
 func (ctrl *triggerController) Start() error {
-	ctx := ctrl.ctx
 	s, err := storage.NewStorage(ctrl.config.Storage)
 	if err != nil {
 		return err
 	}
 	ctrl.storage = s
-	go ctrl.member.RegisterMembershipChangedProcessor(ctx, ctrl.membershipChangedProcessor)
+	go ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
 	return nil
 }
 

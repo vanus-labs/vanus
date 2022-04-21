@@ -16,25 +16,11 @@ package grpc_error
 
 import (
 	"context"
-	"encoding/hex"
-	"github.com/golang/protobuf/proto"
-	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vsproto/pkg/errors"
 	"google.golang.org/grpc"
 )
 
 type GRPCErrorTranslatorFunc func(*errors.Error) error
-
-func GRPCErrorClientInboundInterceptor(f GRPCErrorTranslatorFunc) []grpc.DialOption {
-	opts := make([]grpc.DialOption, 0)
-	opts = append(opts, grpc.WithUnaryInterceptor(func(ctx context.Context, method string, req, reply interface{},
-		cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		err := invoker(ctx, method, req, reply, cc, opts...)
-		return f(getGRPCError(err))
-	}))
-	// TODO add stream interceptor
-	return opts
-}
 
 func StreamServerInterceptor() grpc.StreamServerInterceptor {
 	return func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo,
@@ -56,7 +42,6 @@ func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 		}
 		return res, err
 	}
-	// TODO add stream interceptor
 }
 
 // convertToGRPCError convert an internal error to an exported error defined in gRPC
@@ -73,39 +58,5 @@ func convertToGRPCError(err error) error {
 		grpcErr.Message = err.Error()
 	}
 
-	//data, _ := proto.Marshal(grpcErr)
-	return errors.New(e.JSON())
-}
-
-func getGRPCError(err error) *errors.Error {
-	if err == nil {
-		return nil
-	}
-
-	data, err := hex.DecodeString(err.Error())
-	if err != nil {
-		msg := "invalid hex format, received a unrecognized error"
-		log.Warning(nil, msg, map[string]interface{}{
-			log.KeyError: err,
-		})
-		return &errors.Error{
-			Message: msg,
-			Code:    0,
-		}
-	}
-
-	grpcErr := &errors.Error{}
-	err = proto.Unmarshal(data, grpcErr)
-	if err != nil {
-		msg := "invalid hex format, received a unrecognized error"
-		log.Warning(nil, msg, map[string]interface{}{
-			log.KeyError: err,
-		})
-		return &errors.Error{
-			Message: msg,
-			Code:    0,
-		}
-	}
-
-	return grpcErr
+	return e
 }
