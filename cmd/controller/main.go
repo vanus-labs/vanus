@@ -28,16 +28,21 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 	"net"
 	"os"
 	"sync"
 )
 
+var (
+	configPath = flag.String("config-file", "./config/controller.yaml", "the configuration file of controller")
+)
+
 func main() {
-	ctx := signal.SetupSignalContext()
-	f := flag.String("config", "./config/controller.yaml", "controller config file path")
 	flag.Parse()
-	cfg, err := controller.InitConfig(*f)
+	cfg, err := controller.InitConfig(*configPath)
+
+	ctx := signal.SetupSignalContext()
 	if err != nil {
 		log.Error(ctx, "init config error", map[string]interface{}{log.KeyError: err})
 		os.Exit(-1)
@@ -45,13 +50,6 @@ func main() {
 	etcd := embedetcd.New()
 	if err = etcd.Init(ctx, cfg.GetEtcdConfig()); err != nil {
 		log.Error(ctx, "failed to init etcd", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(-1)
-	}
-
-	if _, err := etcd.Start(ctx); err != nil {
-		log.Error(ctx, "failed to start etcd", map[string]interface{}{
 			log.KeyError: err,
 		})
 		os.Exit(-1)
@@ -75,6 +73,14 @@ func main() {
 		os.Exit(-1)
 	}
 
+	etcdStopCh, err := etcd.Start(ctx)
+	if err != nil {
+		log.Error(ctx, "failed to start etcd", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+
 	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
 		log.Error(ctx, "failed to listen", map[string]interface{}{
@@ -86,15 +92,21 @@ func main() {
 	grpcServer := grpc.NewServer(
 		grpc.ChainStreamInterceptor(
 			grpc_error.StreamServerInterceptor(),
-			recovery.StreamServerInterceptor(),
 			grpc_member.StreamServerInterceptor(etcd),
+			recovery.StreamServerInterceptor(),
 		),
 		grpc.ChainUnaryInterceptor(
 			grpc_error.UnaryServerInterceptor(),
-			recovery.UnaryServerInterceptor(),
 			grpc_member.UnaryServerInterceptor(etcd),
+			recovery.UnaryServerInterceptor(),
 		),
 	)
+
+	// for debug in developing stage
+	if cfg.GRPCReflectionEnable {
+		reflection.Register(grpcServer)
+	}
+
 	ctrlpb.RegisterEventBusControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterEventLogControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterSegmentControllerServer(grpcServer, segmentCtrl)
@@ -111,10 +123,18 @@ func main() {
 		}
 		wg.Done()
 	}()
-	<-ctx.Done()
+	select {
+	case <-etcdStopCh:
+		log.Info(ctx, "received etcd ready to stop, preparing exit", nil)
+	case <-ctx.Done():
+		log.Info(ctx, "received system signal, preparing exit", nil)
+	case <-segmentCtrl.StopNotify():
+		log.Info(ctx, "received segment controller ready to stop, preparing exit", nil)
+	}
 	grpcServer.GracefulStop()
 	triggerCtrlStv.Stop()
 	segmentCtrl.Stop()
+	etcd.Stop(ctx)
 	wg.Wait()
-	log.Info(ctx, "the grpc server has been shutdown", nil)
+	log.Info(ctx, "the controller has been shutdown gracefully", nil)
 }

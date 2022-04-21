@@ -1,11 +1,10 @@
 name: "test-1"
 ip: "127.0.0.1"
 port: 2048
+grpc_reflection_enable: true
 etcd:
   - "127.0.0.1:2379"
 data_dir: "~/tmp/data/vanus"
-topology:
-  service_a: "127.0.0.1:2048"
 metadata:
   key_prefix: "/wenfeng"
 embed_etcd:
