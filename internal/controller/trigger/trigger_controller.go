@@ -311,7 +311,10 @@ func (ctrl *triggerController) Start() error {
 	return nil
 }
 
-func (ctrl *triggerController) Stop() error {
-	ctrl.stop(ctrl.ctx)
-	return nil
+func (ctrl *triggerController) Stop(ctx context.Context) {
+	if err := ctrl.stop(ctrl.ctx); err != nil {
+		log.Warning(ctx, "stop trigger controller error", map[string]interface{}{
+			log.KeyError: err,
+		})
+	}
 }

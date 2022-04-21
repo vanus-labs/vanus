@@ -132,7 +132,7 @@ func main() {
 		log.Info(ctx, "received segment controller ready to stop, preparing exit", nil)
 	}
 	grpcServer.GracefulStop()
-	triggerCtrlStv.Stop()
+	triggerCtrlStv.Stop(ctx)
 	segmentCtrl.Stop()
 	etcd.Stop(ctx)
 	wg.Wait()
