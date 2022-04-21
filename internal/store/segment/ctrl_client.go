@@ -17,6 +17,7 @@ package segment
 import (
 	"context"
 	"github.com/linkall-labs/vanus/internal/store/segment/errors"
+	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	errpb "github.com/linkall-labs/vsproto/pkg/errors"
@@ -31,6 +32,7 @@ import (
 	"sync"
 	"time"
 )
+
 
 type ctrlClient struct {
 	ctrlAddrs       []string
@@ -184,8 +186,12 @@ func (cli *ctrlClient) makeSureClient(renew bool) ctrlpb.SegmentControllerClient
 			leader = res.LeaderAddr
 			break
 		}
+<<<<<<< HEAD
 		//todo check leader is invalid
 		if leader == "" {
+=======
+		if !util.IsValidIPV4Address(leader) {
+>>>>>>> ffd01a7 (fix: bug of segment heartbeat maybe panic)
 			return nil
 		}
 		conn := cli.getGRPCConn(leader)
