@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package segment
+package trigger
 
 import (
 	"context"
-	"github.com/linkall-labs/vanus/internal/store/segment/errors"
+	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	errpb "github.com/linkall-labs/vsproto/pkg/errors"
@@ -35,12 +35,12 @@ import (
 type ctrlClient struct {
 	ctrlAddrs       []string
 	grpcConn        map[string]*grpc.ClientConn
-	ctrlClients     map[string]ctrlpb.SegmentControllerClient
+	ctrlClients     map[string]ctrlpb.TriggerControllerClient
 	mutex           sync.Mutex
 	leader          string
-	leaderClient    ctrlpb.SegmentControllerClient
+	leaderClient    ctrlpb.TriggerControllerClient
 	credentials     credentials.TransportCredentials
-	heartBeatClient ctrlpb.SegmentController_SegmentHeartbeatClient
+	heartBeatClient ctrlpb.TriggerController_TriggerWorkerHeartbeatClient
 	pingClient      ctrlpb.PingServerClient
 }
 
@@ -48,7 +48,7 @@ func NewClient(ctrlAddrs []string) *ctrlClient {
 	return &ctrlClient{
 		ctrlAddrs:   ctrlAddrs,
 		grpcConn:    map[string]*grpc.ClientConn{},
-		ctrlClients: map[string]ctrlpb.SegmentControllerClient{},
+		ctrlClients: map[string]ctrlpb.TriggerControllerClient{},
 		credentials: insecure.NewCredentials(),
 	}
 }
@@ -57,10 +57,12 @@ func (cli *ctrlClient) Close(ctx context.Context) {
 	if len(cli.grpcConn) == 0 {
 		return
 	}
-	if _, err := cli.heartBeatClient.CloseAndRecv(); err != nil {
-		log.Warning(ctx, "close gRPC stream error", map[string]interface{}{
-			log.KeyError: err,
-		})
+	if cli.heartBeatClient != nil {
+		if _, err := cli.heartBeatClient.CloseAndRecv(); err != nil {
+			log.Warning(ctx, "close gRPC stream error", map[string]interface{}{
+				log.KeyError: err,
+			})
+		}
 	}
 	for ip, conn := range cli.grpcConn {
 		if err := conn.Close(); err != nil {
@@ -72,58 +74,41 @@ func (cli *ctrlClient) Close(ctx context.Context) {
 	}
 }
 
-func (cli *ctrlClient) registerSegmentServer(ctx context.Context,
-	req *ctrlpb.RegisterSegmentServerRequest) (*ctrlpb.RegisterSegmentServerResponse, error) {
+func (cli *ctrlClient) registerTriggerWorker(ctx context.Context,
+	req *ctrlpb.RegisterTriggerWorkerRequest) (*ctrlpb.RegisterTriggerWorkerResponse, error) {
 	client := cli.makeSureClient(false)
 	if client == nil {
 		return nil, errors.ErrNoControllerLeader
 	}
-	res, err := client.RegisterSegmentServer(ctx, req)
+	res, err := client.RegisterTriggerWorker(ctx, req)
 	if cli.isNeedRetry(err) {
 		client = cli.makeSureClient(true)
 		if client == nil {
 			return nil, errors.ErrNoControllerLeader
 		}
-		res, err = client.RegisterSegmentServer(ctx, req)
+		res, err = client.RegisterTriggerWorker(ctx, req)
 	}
 	return res, err
 }
 
-func (cli *ctrlClient) unregisterSegmentServer(ctx context.Context,
-	req *ctrlpb.UnregisterSegmentServerRequest) (*ctrlpb.UnregisterSegmentServerResponse, error) {
+func (cli *ctrlClient) unregisterTriggerWorker(ctx context.Context,
+	req *ctrlpb.UnregisterTriggerWorkerRequest) (*ctrlpb.UnregisterTriggerWorkerResponse, error) {
 	client := cli.makeSureClient(false)
 	if client == nil {
 		return nil, errors.ErrNoControllerLeader
 	}
-	res, err := client.UnregisterSegmentServer(ctx, req)
+	res, err := client.UnregisterTriggerWorker(ctx, req)
 	if cli.isNeedRetry(err) {
 		client = cli.makeSureClient(true)
 		if client == nil {
 			return nil, errors.ErrNoControllerLeader
 		}
-		res, err = client.UnregisterSegmentServer(ctx, req)
+		res, err = client.UnregisterTriggerWorker(ctx, req)
 	}
 	return res, err
 }
 
-func (cli *ctrlClient) reportSegmentBlockIsFull(ctx context.Context,
-	req *ctrlpb.SegmentHeartbeatRequest) (*emptypb.Empty, error) {
-	client := cli.makeSureClient(false)
-	if client == nil {
-		return nil, errors.ErrNoControllerLeader
-	}
-	res, err := client.ReportSegmentBlockIsFull(ctx, req)
-	if cli.isNeedRetry(err) {
-		client = cli.makeSureClient(true)
-		if client == nil {
-			return nil, errors.ErrNoControllerLeader
-		}
-		res, err = client.ReportSegmentBlockIsFull(ctx, req)
-	}
-	return res, err
-}
-
-func (cli *ctrlClient) heartbeat(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error {
+func (cli *ctrlClient) heartbeat(ctx context.Context, req *ctrlpb.TriggerWorkerHeartbeatRequest) error {
 	log.Info(nil, "heartbeat", map[string]interface{}{
 		"leader": cli.leader,
 	})
@@ -133,7 +118,7 @@ func (cli *ctrlClient) heartbeat(ctx context.Context, req *ctrlpb.SegmentHeartbe
 		if client == nil {
 			return errors.ErrNoControllerLeader
 		}
-		cli.heartBeatClient, err = client.SegmentHeartbeat(ctx)
+		cli.heartBeatClient, err = client.TriggerWorkerHeartbeat(ctx)
 		if err != nil {
 			sts := status.Convert(err)
 			if sts.Code() == codes.Unavailable {
@@ -141,7 +126,7 @@ func (cli *ctrlClient) heartbeat(ctx context.Context, req *ctrlpb.SegmentHeartbe
 				if client == nil {
 					return errors.ErrNoControllerLeader
 				}
-				cli.heartBeatClient, err = client.SegmentHeartbeat(ctx)
+				cli.heartBeatClient, err = client.TriggerWorkerHeartbeat(ctx)
 				if err != nil {
 					return err
 				}
@@ -156,7 +141,7 @@ func (cli *ctrlClient) heartbeat(ctx context.Context, req *ctrlpb.SegmentHeartbe
 		if client == nil {
 			return errors.ErrNoControllerLeader
 		}
-		cli.heartBeatClient, err = client.SegmentHeartbeat(ctx)
+		cli.heartBeatClient, err = client.TriggerWorkerHeartbeat(ctx)
 		if err != nil {
 			return err
 		}
@@ -166,7 +151,7 @@ func (cli *ctrlClient) heartbeat(ctx context.Context, req *ctrlpb.SegmentHeartbe
 	return err
 }
 
-func (cli *ctrlClient) makeSureClient(renew bool) ctrlpb.SegmentControllerClient {
+func (cli *ctrlClient) makeSureClient(renew bool) ctrlpb.TriggerControllerClient {
 	cli.mutex.Lock()
 	defer cli.mutex.Unlock()
 	if cli.leaderClient == nil || renew {
@@ -193,7 +178,7 @@ func (cli *ctrlClient) makeSureClient(renew bool) ctrlpb.SegmentControllerClient
 			return nil
 		}
 		cli.leader = leader
-		cli.leaderClient = ctrlpb.NewSegmentControllerClient(conn)
+		cli.leaderClient = ctrlpb.NewTriggerControllerClient(conn)
 	}
 	return cli.leaderClient
 }

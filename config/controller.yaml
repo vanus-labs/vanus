@@ -7,14 +7,15 @@ etcd:
 data_dir: "~/tmp/data/vanus"
 metadata:
   key_prefix: "/wenfeng"
+topology:
+  test-1: 127.0.0.1:2048
 embed_etcd:
-  name: "etcd-1"
   # relative path to ${data_dir} above
   data_dir: "etcd/node1"
   client_addr: "127.0.0.1:2379"
   peer_addr: "127.0.0.1:2380"
   clusters:
-    - "etcd-1=http://127.0.0.1:2380"
+    - "test-1=http://127.0.0.1:2380"
 #eventbus:
 trigger:
   storage:

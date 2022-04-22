@@ -15,11 +15,14 @@
 package trigger
 
 import (
+	"fmt"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/util"
 )
 
 type Config struct {
 	Port           int      `yaml:"port"`
+	Ip             string   `yaml:"ip"`
 	ControllerAddr []string `yaml:"controller"`
 	TriggerAddr    string
 }
@@ -30,5 +33,9 @@ func InitConfig(filename string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	if c.Ip == "" {
+		c.Ip = util.LocalIp
+	}
+	c.TriggerAddr = fmt.Sprintf("%s:%d", c.Ip, c.Port)
 	return c, nil
 }

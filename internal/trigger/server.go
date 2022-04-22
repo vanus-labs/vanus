@@ -21,14 +21,10 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"github.com/linkall-labs/vanus/internal/trigger/worker"
-	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/linkall-labs/vsproto/pkg/meta"
 	pbtrigger "github.com/linkall-labs/vsproto/pkg/trigger"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"io"
 	"os"
 	"sync"
 	"time"
@@ -37,8 +33,7 @@ import (
 type server struct {
 	worker    *worker.Worker
 	config    Config
-	tcCc      *grpc.ClientConn
-	tcClient  controller.TriggerControllerClient
+	client    *ctrlClient
 	ctx       context.Context
 	cancel    context.CancelFunc
 	wg        sync.WaitGroup
@@ -50,6 +45,7 @@ func NewTriggerServer(config Config) pbtrigger.TriggerWorkerServer {
 	s := &server{
 		config: config,
 		worker: worker.NewWorker(),
+		client: NewClient(config.ControllerAddr),
 		state:  primitive.ServerStateCreated,
 	}
 	return s
@@ -128,30 +124,9 @@ func (s *server) ResumeSubscription(ctx context.Context, request *pbtrigger.Resu
 	return &pbtrigger.ResumeSubscriptionResponse{}, nil
 }
 
-func (s *server) init(ctx context.Context) error {
-	if s.tcCc != nil {
-		return nil
-	}
-	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	timeout, cancel := context.WithTimeout(ctx, time.Second*10)
-	defer cancel()
-	cc, err := grpc.DialContext(timeout, s.config.ControllerAddr[0], opts...)
-	if err != nil {
-		return err
-	}
-	s.tcCc = cc
-	s.tcClient = controller.NewTriggerControllerClient(cc)
-	return nil
-}
-
 func (s *server) Initialize(ctx context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(ctx)
-	err := s.init(s.ctx)
-	if err != nil {
-		return err
-	}
-	_, err = s.tcClient.RegisterTriggerWorker(ctx, &controller.RegisterTriggerWorkerRequest{
+	_, err := s.client.registerTriggerWorker(ctx, &controller.RegisterTriggerWorkerRequest{
 		Address: s.config.TriggerAddr,
 	})
 	if err != nil {
@@ -159,7 +134,7 @@ func (s *server) Initialize(ctx context.Context) error {
 			"tcAddr":     s.config.ControllerAddr,
 			log.KeyError: err,
 		})
-		s.tcCc.Close()
+		s.client.Close(ctx)
 		return err
 	}
 	log.Info(ctx, "trigger worker register success", map[string]interface{}{
@@ -190,8 +165,9 @@ func (s *server) stop(sendUnregister bool) {
 	}
 	s.worker.Stop()
 	s.cancel()
+	s.wg.Wait()
 	if sendUnregister {
-		_, err := s.tcClient.UnregisterTriggerWorker(context.Background(), &controller.UnregisterTriggerWorkerRequest{
+		_, err := s.client.unregisterTriggerWorker(context.Background(), &controller.UnregisterTriggerWorkerRequest{
 			Address: s.config.TriggerAddr,
 		})
 		if err != nil {
@@ -203,91 +179,36 @@ func (s *server) stop(sendUnregister bool) {
 			log.Info(s.ctx, "unregister trigger worker success", nil)
 		}
 	}
-	s.wg.Wait()
-	s.tcCc.Close()
+	s.client.Close(context.Background())
 	s.state = primitive.ServerStateStopped
-}
-
-const (
-	heartbeatMaxConnTime = 5 * time.Minute
-)
-
-func (s *server) initHeartbeat(ctx context.Context) (controller.TriggerController_TriggerWorkerHeartbeatClient, error) {
-	err := s.init(ctx)
-	if err != nil {
-		return nil, err
-	}
-	stream, err := s.tcClient.TriggerWorkerHeartbeat(s.ctx)
-	if err != nil {
-		return nil, err
-	}
-	return stream, nil
 }
 
 func (s *server) startHeartbeat() {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		beginConnTime := time.Now()
-		lastSendTime := time.Now()
+		ticker := time.NewTicker(time.Second * 3)
+		defer ticker.Stop()
 		for {
-			stream, err := s.initHeartbeat(s.ctx)
-			if err != nil {
-				switch err {
-				case context.Canceled:
-					return
-				default:
-					log.Warning(s.ctx, "heartbeat error", map[string]interface{}{
-						"addr":       s.config.ControllerAddr,
-						log.KeyError: err,
-					})
-					if time.Now().Sub(beginConnTime) > heartbeatMaxConnTime {
-						log.Error(s.ctx, "heartbeat exit", map[string]interface{}{
-							"addr":       s.config.ControllerAddr,
-							log.KeyError: err,
-						})
-						//todo now exit trigger worker, maybe only stop trigger
-						os.Exit(1)
-					}
-					if !util.SleepWithContext(s.ctx, time.Second*2) {
-						return
-					}
-					continue
-				}
-
-			}
-		sendLoop:
-			for {
+			select {
+			case <-s.ctx.Done():
+				return
+			case <-ticker.C:
 				workerSub, callback := s.worker.ListSubInfos()
 				var subInfos []*meta.SubscriptionInfo
 				for _, sub := range workerSub {
 					subInfos = append(subInfos, convert.ToPbSubscriptionInfo(sub))
 				}
-				err = stream.Send(&controller.TriggerWorkerHeartbeatRequest{
+				err := s.client.heartbeat(s.ctx, &controller.TriggerWorkerHeartbeatRequest{
 					Address:  s.config.TriggerAddr,
 					SubInfos: subInfos,
 				})
 				if err != nil {
-					if err == io.EOF || time.Now().Sub(lastSendTime) > 5*time.Second {
-						stream.CloseSend()
-						log.Warning(s.ctx, "heartbeat send request receive fail,will retry", map[string]interface{}{
-							"addr": s.config.ControllerAddr,
-						})
-						beginConnTime = time.Now()
-						break sendLoop
-					}
-					log.Warning(s.ctx, "heartbeat send request error", map[string]interface{}{
-						"addr":       s.config.ControllerAddr,
+					log.Warning(s.ctx, "send heartbeat to controller failed, connection lost. try to reconnecting", map[string]interface{}{
 						log.KeyError: err,
 					})
-				} else {
-					callback()
-					lastSendTime = time.Now()
 				}
-				if !util.SleepWithContext(s.ctx, time.Second) {
-					stream.CloseSend()
-					return
-				}
+				callback()
 			}
 		}
 	}()

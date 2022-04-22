@@ -127,6 +127,10 @@ func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerCo
 			return nil
 		default:
 		}
+		if !ctrl.member.IsLeader() {
+			heartbeat.SendAndClose(&ctrlpb.TriggerWorkerHeartbeatResponse{})
+			return nil
+		}
 		req, err := heartbeat.Recv()
 		if err == nil {
 			subIds := make(map[vanus.ID]struct{}, len(req.SubInfos))
@@ -151,12 +155,10 @@ func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerCo
 				}
 			}
 		} else {
-			if err == io.EOF {
-				//client close,will remove trigger worker then receive unregister
-				return nil
+			if err != io.EOF {
+				log.Warning(ctx, "heartbeat recv error", map[string]interface{}{log.KeyError: err})
 			}
-			log.Info(ctx, "heartbeat recv error", map[string]interface{}{log.KeyError: err})
-			return err
+			return nil
 		}
 	}
 }

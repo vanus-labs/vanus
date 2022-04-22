@@ -23,4 +23,6 @@ var (
 	ErrWorkerNotStart       = rpcerr.New("worker not start").WithGRPCCode(rpcerr.ErrorCode_SERVICE_NOT_RUNNING)
 
 	ErrReadNoEvent = rpcerr.New("read no event")
+
+	ErrNoControllerLeader = rpcerr.New("no leader controller found").WithGRPCCode(rpcerr.ErrorCode_NOT_LEADER)
 )

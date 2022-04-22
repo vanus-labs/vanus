@@ -92,30 +92,33 @@ func (mgr *segmentServerManager) GetServerByServerID(id vanus.ID) Server {
 func (mgr *segmentServerManager) Run(ctx context.Context) error {
 	newCtx := context.Background()
 	mgr.cancelCtx, mgr.cancel = context.WithCancel(newCtx)
-	for {
-		select {
-		case <-mgr.cancelCtx.Done():
-			return nil
-		default:
+	go func() {
+		for {
+			select {
+			case <-mgr.cancelCtx.Done():
+				return
+			default:
+			}
+			mgr.segmentServerMapByIP.Range(func(key, value interface{}) bool {
+				srv, ok := value.(Server)
+				if !ok {
+					mgr.segmentServerMapByIP.Delete(key)
+				}
+				if !srv.IsActive() {
+					mgr.segmentServerMapByIP.Delete(srv.Address())
+					mgr.segmentServerMapByID.Delete(srv.ID())
+					log.Info(newCtx, "the server isn't active", map[string]interface{}{
+						"id":      srv.ID(),
+						"address": srv.Address(),
+						"up_time": srv.Uptime(),
+					})
+				}
+				return true
+			})
+			time.Sleep(time.Second)
 		}
-		mgr.segmentServerMapByIP.Range(func(key, value interface{}) bool {
-			srv, ok := value.(Server)
-			if !ok {
-				mgr.segmentServerMapByIP.Delete(key)
-			}
-			if !srv.IsActive() {
-				mgr.segmentServerMapByIP.Delete(srv.Address())
-				mgr.segmentServerMapByID.Delete(srv.ID())
-				log.Info(newCtx, "the server isn't active", map[string]interface{}{
-					"id":      srv.ID(),
-					"address": srv.Address(),
-					"up_time": srv.Uptime(),
-				})
-			}
-			return true
-		})
-		time.Sleep(time.Second)
-	}
+	}()
+	return nil
 }
 
 func (mgr *segmentServerManager) Stop(ctx context.Context) {
