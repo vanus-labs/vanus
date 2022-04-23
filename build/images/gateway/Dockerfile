@@ -14,5 +14,5 @@ FROM alpine:3.15.4
 RUN mkdir -p /server
 COPY --from=builder /workspace/vanus/bin/gateway /server/bin/gateway
 WORKDIR /server
-ENTRYPOINT ["bin/gateway","--config=config/gateway.yaml"]
+ENTRYPOINT ["bin/gateway"]
 

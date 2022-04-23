@@ -4,7 +4,7 @@ port: 2048
 grpc_reflection_enable: true
 etcd:
   - "127.0.0.1:2379"
-data_dir: "~/tmp/data/vanus"
+data_dir: "/tmp/data/vanus"
 metadata:
   key_prefix: "/wenfeng"
 topology:
@@ -16,8 +16,3 @@ embed_etcd:
   peer_addr: "127.0.0.1:2380"
   clusters:
     - "test-1=http://127.0.0.1:2380"
-#eventbus:
-trigger:
-  storage:
-    keyPrefix: "/xdl"
-    serverList: [ "127.0.0.1:2379" ]

@@ -14,5 +14,5 @@ FROM alpine:3.15.4
 RUN mkdir -p /server
 COPY --from=builder /workspace/vanus/bin/store /server/bin/store
 WORKDIR /server
-ENTRYPOINT ["bin/store","--config=config/store.yaml"]
+ENTRYPOINT ["bin/store"]
 

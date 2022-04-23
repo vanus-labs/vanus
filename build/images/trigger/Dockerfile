@@ -14,5 +14,5 @@ FROM alpine:3.15.4
 RUN mkdir -p /server
 COPY --from=builder /workspace/vanus/bin/trigger /server/bin/trigger
 WORKDIR /server
-ENTRYPOINT ["bin/trigger","--config=config/trigger.yaml"]
+ENTRYPOINT ["bin/trigger"]
 

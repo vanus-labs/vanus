@@ -205,6 +205,9 @@ func (m *manager) Init(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	log.Info(ctx, "subscription size", map[string]interface{}{
+		"size": len(subList),
+	})
 	for i := range subList {
 		sub := subList[i]
 		m.subscription[sub.ID] = sub
