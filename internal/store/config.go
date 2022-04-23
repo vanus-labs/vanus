@@ -17,6 +17,7 @@ package store
 import (
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/util"
 )
 
 type Config struct {
@@ -37,6 +38,9 @@ func InitConfig(filename string) (*Config, error) {
 	err := primitive.LoadConfig(filename, c)
 	if err != nil {
 		return nil, err
+	}
+	if c.IP == "" {
+		c.IP = util.LocalIp
 	}
 	return c, nil
 }

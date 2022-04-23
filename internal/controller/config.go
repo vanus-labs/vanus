@@ -31,7 +31,6 @@ type Config struct {
 	DataDir              string            `yaml:"data_dir"`
 	MetadataConfig       MetadataConfig    `yaml:"metadata"`
 	EtcdConfig           embedetcd.Config  `yaml:"embed_etcd"`
-	TriggerConfig        trigger.Config    `yaml:"trigger"`
 	Topology             map[string]string `yaml:"topology"`
 }
 

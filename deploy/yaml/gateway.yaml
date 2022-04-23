@@ -35,7 +35,10 @@ metadata:
 data:
   gateway.yaml: |-
     port: 8080
-    controller_addr: "127.0.0.1:2049"
+    controller:
+      - vanus-controller-0.vanus-controller.vanus.svc:2048
+      - vanus-controller-1.vanus-controller.vanus.svc:2048
+      - vanus-controller-2.vanus-controller.vanus.svc:2048
 
 ---
 apiVersion: apps/v1
@@ -44,7 +47,7 @@ metadata:
   name: vanus-gateway
   namespace: vanus
   labels:
-    app.kubernetes.io/name: vanus-gateway
+    app: vanus-gateway
 spec:
   selector:
     matchLabels:
@@ -53,11 +56,11 @@ spec:
     metadata:
       labels:
         app: vanus-gateway
-        app.kubernetes.io/name: vanus-gateway
     spec:
       containers:
         - name: gateway
-          image: linkall.com/vanus/gateway:latest
+          image: public.ecr.aws/t8a4l2d7/gateway:latest
+          imagePullPolicy: Always
           resources:
             requests:
               cpu: 100m

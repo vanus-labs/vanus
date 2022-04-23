@@ -5,7 +5,30 @@ metadata:
 ---
 apiVersion: v1
 data:
-  port: 2049
+  controller.yaml: |-
+    name: ${POD_NAME}
+    ip: ${POD_IP}
+    port: 2048
+    etcd:
+      - vanus-controller-0.vanus-controller.vanus.svc:2379
+      - vanus-controller-1.vanus-controller.vanus.svc:2379
+      - vanus-controller-2.vanus-controller.vanus.svc:2379
+    data_dir: /data
+    metadata:
+      key_prefix: /vanus
+    topology:
+      vanus-controller-0: vanus-controller-0.vanus-controller.vanus.svc:2048
+      vanus-controller-1: vanus-controller-1.vanus-controller.vanus.svc:2048
+      vanus-controller-2: vanus-controller-2.vanus-controller.vanus.svc:2048
+    embed_etcd:
+      # relative path to ${data_dir} above
+      data_dir: etcd/data
+      client_addr: ${POD_IP}:2379
+      peer_addr: ${POD_IP}:2380
+      clusters:
+        - vanus-controller-0=http://vanus-controller-0.vanus-controller.vanus.svc:2380
+        - vanus-controller-1=http://vanus-controller-1.vanus-controller.vanus.svc:2380
+        - vanus-controller-2=http://vanus-controller-2.vanus-controller.vanus.svc:2380
 kind: ConfigMap
 metadata:
   name: config-controller
@@ -13,8 +36,12 @@ metadata:
 ---
 apiVersion: v1
 data:
-  controller_addr: 127.0.0.1:2049
-  port: 8080
+  gateway.yaml: |-
+    port: 8080
+    controller:
+      - vanus-controller-0.vanus-controller.vanus.svc:2048
+      - vanus-controller-1.vanus-controller.vanus.svc:2048
+      - vanus-controller-2.vanus-controller.vanus.svc:2048
 kind: ConfigMap
 metadata:
   name: config-gateway
@@ -22,8 +49,17 @@ metadata:
 ---
 apiVersion: v1
 data:
-  controller_addr: 127.0.0.1:2049
-  port: 11811
+  store.yaml: |-
+    port: 11811
+    ip : ${POD_IP}
+    controller:
+      - vanus-controller-0.vanus-controller.vanus.svc:2048
+      - vanus-controller-1.vanus-controller.vanus.svc:2048
+      - vanus-controller-2.vanus-controller.vanus.svc:2048
+    volume:
+      id: 123456
+      dir: /data
+      capacity: 1073741824
 kind: ConfigMap
 metadata:
   name: config-store
@@ -31,8 +67,9 @@ metadata:
 ---
 apiVersion: v1
 data:
-  controller_addr: 127.0.0.1:2049
-  port: 2149
+  trigger.yaml: "port: 2148\nip : ${POD_IP}\ncontroller:\n  - vanus-controller-0.vanus-controller.vanus.svc:2048\n
+    \ - vanus-controller-1.vanus-controller.vanus.svc:2048\n  - vanus-controller-2.vanus-controller.vanus.svc:2048\n
+    \ "
 kind: ConfigMap
 metadata:
   name: config-trigger
@@ -41,7 +78,22 @@ metadata:
 apiVersion: v1
 kind: Service
 metadata:
-  name: config-gateway
+  labels:
+    app: vanus-controller
+  name: vanus-controller
+  namespace: vanus
+spec:
+  clusterIP: None
+  ports:
+  - name: vanus-controller
+    port: 2048
+  selector:
+    app: vanus-controller
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vanus-gateway
   namespace: vanus
 spec:
   ports:
@@ -53,76 +105,11 @@ spec:
     app: vanus-gateway
   type: NodePort
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: vanus-store
-  namespace: vanus
-spec:
-  clusterIP: none
-  ports:
-  - name: vanus-store
-    port: 11811
-    targetPort: 11811
-  selector:
-    app: vanus-store
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: vanus-controller
-  name: vanus-controller
-spec:
-  clusterIP: None
-  ports:
-  - name: vanus-controller
-    port: 2049
-    targetPort: 2049
-  selector:
-    app: vanus-controller
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app.kubernetes.io/name: vanus-controller
-  name: vanus-controller
-  namespace: vanus
-spec:
-  selector:
-    matchLabels:
-      app: vanus-controller
-  template:
-    metadata:
-      labels:
-        app: vanus-controller
-        app.kubernetes.io/name: vanus-controller
-    spec:
-      containers:
-      - image: linkall.cloud/vanus/controller:latest
-        name: controller
-        ports:
-        - containerPort: 2049
-          name: grpc
-        resources:
-          requests:
-            cpu: 100m
-            memory: 100Mi
-        volumeMounts:
-        - mountPath: /server/config/controller.yaml
-          name: config-controller
-          subPath: controller.yaml
-      volumes:
-      - configMap:
-          name: config-controller
-        name: config-controller
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app.kubernetes.io/name: vanus-gateway
+    app: vanus-gateway
   name: vanus-gateway
   namespace: vanus
 spec:
@@ -133,10 +120,10 @@ spec:
     metadata:
       labels:
         app: vanus-gateway
-        app.kubernetes.io/name: vanus-gateway
     spec:
       containers:
-      - image: linkall.com/vanus/gateway:latest
+      - image: public.ecr.aws/t8a4l2d7/gateway:latest
+        imagePullPolicy: Always
         name: gateway
         ports:
         - containerPort: 8080
@@ -146,9 +133,8 @@ spec:
             cpu: 100m
             memory: 100Mi
         volumeMounts:
-        - mountPath: /server/config/gateway.yaml
+        - mountPath: /server/config
           name: config-gateway
-          subPath: gateway.yaml
       volumes:
       - configMap:
           name: config-gateway
@@ -158,43 +144,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app.kubernetes.io/name: vanus-store
-  name: vanus-store
-  namespace: vanus
-spec:
-  selector:
-    matchLabels:
-      app: vanus-store
-  template:
-    metadata:
-      labels:
-        app: vanus-store
-        app.kubernetes.io/name: vanus-store
-    spec:
-      containers:
-      - image: linkall.com/vanus/store:latest
-        name: store
-        ports:
-        - containerPort: 11811
-          name: http
-        resources:
-          requests:
-            cpu: 100m
-            memory: 100Mi
-        volumeMounts:
-        - mountPath: /server/config/store.yaml
-          name: config-store
-          subPath: store.yaml
-      volumes:
-      - configMap:
-          name: config-store
-        name: config-store
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app.kubernetes.io/name: vanus-trigger
+    app: vanus-trigger
   name: vanus-trigger
   namespace: vanus
 spec:
@@ -205,23 +155,145 @@ spec:
     metadata:
       labels:
         app: vanus-trigger
-        app.kubernetes.io/name: vanus-trigger
     spec:
       containers:
-      - image: linkall.com/vanus/trigger:latest
+      - env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        image: public.ecr.aws/t8a4l2d7/trigger:latest
+        imagePullPolicy: Always
         name: trigger
         ports:
-        - containerPort: 2149
+        - containerPort: 2148
           name: grpc
         resources:
           requests:
             cpu: 100m
             memory: 100Mi
         volumeMounts:
-        - mountPath: /server/config/trigger.yaml
+        - mountPath: /server/config
           name: config-trigger
-          subPath: trigger.yaml
       volumes:
       - configMap:
           name: config-trigger
         name: config-trigger
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: vanus-controller
+  name: vanus-controller
+  namespace: vanus
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: vanus-controller
+  serviceName: vanus-controller
+  template:
+    metadata:
+      labels:
+        app: vanus-controller
+    spec:
+      containers:
+      - env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        image: public.ecr.aws/t8a4l2d7/controller:latest
+        imagePullPolicy: Always
+        name: controller
+        ports:
+        - containerPort: 2048
+          name: grpc
+        - containerPort: 2379
+          name: etcd-client
+        - containerPort: 2380
+          name: etcd-peer
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+        - mountPath: /server/config
+          name: config-controller
+        - mountPath: /data
+          name: data
+      volumes:
+      - configMap:
+          name: config-controller
+        name: config-controller
+  volumeClaimTemplates:
+  - metadata:
+      labels:
+        app: vanus-controller
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: vanus-store
+  name: vanus-store
+  namespace: vanus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vanus-store
+  serviceName: vanus-store
+  template:
+    metadata:
+      labels:
+        app: vanus-store
+    spec:
+      containers:
+      - env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        image: public.ecr.aws/t8a4l2d7/store:latest
+        imagePullPolicy: Always
+        name: store
+        ports:
+        - containerPort: 11811
+          name: http
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+        - mountPath: /server/config
+          name: config-store
+        - mountPath: /data
+          name: data
+      volumes:
+      - configMap:
+          name: config-store
+        name: config-store
+  volumeClaimTemplates:
+  - metadata:
+      labels:
+        app: vanus-controller
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi

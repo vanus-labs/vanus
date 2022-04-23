@@ -18,12 +18,13 @@ metadata:
   namespace: vanus
 data:
   trigger.yaml: |-
-    port: 2149
-    controller: 
-      - "vanus-controller-0.vanus-controller.vanus.svc.cluster.local:2049"
-      - "vanus-controller-1.vanus-controller.vanus.svc.cluster.local:2049"
-      - "vanus-controller-2.vanus-controller.vanus.svc.cluster.local:2049"
-
+    port: 2148
+    ip : ${POD_IP}
+    controller:
+      - vanus-controller-0.vanus-controller.vanus.svc:2048
+      - vanus-controller-1.vanus-controller.vanus.svc:2048
+      - vanus-controller-2.vanus-controller.vanus.svc:2048
+      
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -31,7 +32,7 @@ metadata:
   name: vanus-trigger
   namespace: vanus
   labels:
-    app.kubernetes.io/name: vanus-trigger
+    app: vanus-trigger
 spec:
   selector:
     matchLabels:
@@ -40,7 +41,6 @@ spec:
     metadata:
       labels:
         app: vanus-trigger
-        app.kubernetes.io/name: vanus-trigger
     spec:
       containers:
         - name: trigger
@@ -52,7 +52,14 @@ spec:
               memory: 100Mi
           ports:
             - name: grpc
-              containerPort: 2149
+              containerPort: 2148
+          env:
+            - name: VANUS_LOG_LEVEL
+              value: DEBUG
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           volumeMounts:
             - name: config-trigger
               mountPath: /server/config
