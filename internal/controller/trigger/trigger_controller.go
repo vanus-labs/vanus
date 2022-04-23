@@ -31,6 +31,7 @@ import (
 	"github.com/linkall-labs/vsproto/pkg/meta"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"io"
+	"os"
 	"sync"
 	"time"
 )
@@ -284,8 +285,7 @@ func (ctrl *triggerController) membershipChangedProcessor(ctx context.Context, e
 			return nil
 		}
 		log.Info(ctrl.ctx, "become flower", nil)
-		ctrl.stop(ctx)
-		ctrl.isLeader = false
+		os.Exit(1)
 	}
 	return nil
 }
