@@ -67,8 +67,13 @@ spec:
             requests:
               cpu: 100m
               memory: 100Mi
+          livenessProbe:
+            grpc:
+              port: 11811
+            failureThreshold: 3
+            periodSeconds: 2
           ports:
-            - name: http
+            - name: grpc
               containerPort: 11811
           env:
             - name: VANUS_LOG_LEVEL

@@ -96,6 +96,11 @@ spec:
             requests:
               cpu: 100m
               memory: 100Mi
+          livenessProbe:
+            grpc:
+              port: 2048
+            failureThreshold: 3
+            periodSeconds: 2
           ports:
             - name: grpc
               containerPort: 2048

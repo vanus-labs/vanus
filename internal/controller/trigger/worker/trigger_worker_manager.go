@@ -31,8 +31,9 @@ import (
 
 const (
 	defaultCheckInterval       = 5 * time.Second
-	defaultHeartbeatTimeout    = 5 * time.Minute
-	defaultDisconnectCleanTime = 30 * time.Minute
+	defaultLostHeartbeatTime   = 30 * time.Second
+	defaultHeartbeatTimeout    = 60 * time.Second
+	defaultDisconnectCleanTime = 120 * time.Second
 )
 
 type Manager interface {
@@ -56,6 +57,7 @@ type OnTriggerWorkerRemoveSubscription func(ctx context.Context, subId vanus.ID,
 
 type Config struct {
 	CheckInterval       time.Duration
+	LostHeartbeatTime   time.Duration
 	HeartbeatTimeout    time.Duration
 	DisconnectCleanTime time.Duration
 	WaitRunningTimeout  time.Duration
@@ -64,6 +66,9 @@ type Config struct {
 func (c *Config) init() {
 	if c.CheckInterval <= 0 {
 		c.CheckInterval = defaultCheckInterval
+	}
+	if c.LostHeartbeatTime <= 0 {
+		c.LostHeartbeatTime = defaultLostHeartbeatTime
 	}
 	if c.HeartbeatTimeout <= 0 {
 		c.HeartbeatTimeout = defaultHeartbeatTimeout
@@ -427,7 +432,7 @@ func (m *manager) runningTriggerWorkerHandler(ctx context.Context, tWorker *Trig
 		}
 		return
 	}
-	if d > 30*time.Second {
+	if d > m.config.LostHeartbeatTime {
 		log.Warning(ctx, "trigger worker lost heartbeat", map[string]interface{}{
 			log.KeyTriggerWorkerAddr: twInfo.Addr,
 			"assign_subscription":    assignSub,
@@ -447,7 +452,7 @@ func (m *manager) runningTriggerWorkerHandler(ctx context.Context, tWorker *Trig
 		if _, exist := reportSubIds[subId]; exist {
 			continue
 		}
-		if tWorker.GetLastHeartbeatTime().Sub(t) < 30*time.Second {
+		if tWorker.GetLastHeartbeatTime().Sub(t) < 15*time.Second {
 			continue
 		}
 		//trigger worker assign but report is no, need start
