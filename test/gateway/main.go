@@ -17,6 +17,12 @@ var (
 )
 
 func main() {
+	flag.Parse()
+	fmt.Printf("params: %s=%s", "addr", *addr)
+	fmt.Printf("params: %s=%s", "eb", *eb)
+	fmt.Printf("params: %s=%d", "num", *num)
+	fmt.Printf("params: %s=%d", "size", *size)
+
 	ctx := cloudevents.ContextWithTarget(context.Background(), fmt.Sprintf("http://%s/gateway/%s", *addr, *eb))
 
 	p, err := cloudevents.NewHTTP()
