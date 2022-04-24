@@ -15,57 +15,66 @@
 package block
 
 import (
+	// standard libraries
 	"bytes"
 	"context"
 	"encoding/binary"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"io"
 	"os"
 	"sync"
-	"sync/atomic"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/store/segment/codec"
-	"github.com/linkall-labs/vanus/observability"
+	// third-party libraries
+	"go.uber.org/atomic"
+
+	// first-party libraries
 	"github.com/linkall-labs/vsproto/pkg/meta"
+
+	// this project
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/observability"
 )
 
 const (
-	fileSegmentBlockHeaderCapacity = 1024
+	fileBlockHeaderSize = 4 * 1024
 
-	// version + capacity + size + number + fullFlag
-	v1FileSegmentBlockHeaderLength = 4 + 8 + 4 + 8 + 1
-	v1IndexLength                  = 12
+	// version + capacity + size + number + full
+	v1FileBlockHeaderLength = 4 + 8 + 4 + 8 + 1
 )
 
 type fileBlock struct {
-	version                       int32
-	id                            vanus.ID
-	path                          string
-	capacity                      int64
-	appendMutex                   sync.Mutex
-	physicalFile                  *os.File
-	size                          int64
-	number                        int32
-	writeOffset                   int64
-	indexes                       []blockIndex
-	readable                      atomic.Value
-	appendable                    atomic.Value
-	fullFlag                      atomic.Value
-	uncompletedReadRequestCount   int32
-	uncompletedAppendRequestCount int32
+	version int32
+	id      vanus.ID
+	path    string
+
+	cap  int64
+	size atomic.Int64
+	num  atomic.Int32
+	wo   atomic.Int64
+
+	mux sync.Mutex
+
+	f *os.File
+
+	indexes []index
+
+	readable   atomic.Bool
+	appendable atomic.Bool
+	full       atomic.Bool
+
+	uncompletedReadRequestCount   atomic.Int32
+	uncompletedAppendRequestCount atomic.Int32
 }
 
 func (b *fileBlock) Initialize(ctx context.Context) error {
 	if err := b.loadHeader(ctx); err != nil {
 		return err
 	}
-	b.writeOffset = fileSegmentBlockHeaderCapacity + b.size
+	b.wo.Store(fileBlockHeaderSize + b.size.Load())
 
-	if b.fullFlag.Load().(bool) {
+	if b.full.Load() {
 		b.appendable.Store(false)
 	} else {
-		if _, err := b.physicalFile.Seek(b.writeOffset, 0); err != nil {
+		if _, err := b.f.Seek(b.wo.Load(), 0); err != nil {
 			return err
 		}
 	}
@@ -81,98 +90,95 @@ func (b *fileBlock) Initialize(ctx context.Context) error {
 	return nil
 }
 
-func (b *fileBlock) Append(ctx context.Context, entities ...*codec.StoredEntry) error {
+func (b *fileBlock) Append(ctx context.Context, entities ...Entry) error {
 	observability.EntryMark(ctx)
-	b.appendMutex.Lock()
-	atomic.AddInt32(&(b.uncompletedAppendRequestCount), 1)
+	// TODO: optimize lock.
+	b.mux.Lock()
+	b.uncompletedAppendRequestCount.Add(1)
 	defer func() {
 		observability.LeaveMark(ctx)
-		b.appendMutex.Unlock()
-		atomic.AddInt32(&(b.uncompletedAppendRequestCount), -1)
+		b.mux.Unlock()
+		b.uncompletedAppendRequestCount.Sub(1)
 	}()
 
 	if len(entities) == 0 {
 		return nil
 	}
-	buf := bytes.NewBuffer(make([]byte, 0))
+
 	length := 0
-	idxes := make([]blockIndex, 0)
-	for idx := range entities {
-		data, err := codec.Marshall(entities[idx])
-		if err != nil {
-			return err
-		}
-		bi := blockIndex{
-			startOffset: b.writeOffset + int64(length),
-		}
-		if _, err = buf.Write(data); err != nil {
-			return err
-		}
-		length += len(data)
-		bi.length = int32(len(data))
-		idxes = append(idxes, bi)
+	for _, entry := range entities {
+		length += entry.Size()
 	}
-	// TODO optimize this
-	// if the file has been left many space, but received a large request, the remain space will be wasted
-	if length > b.remain(int64(length+v1IndexLength*len(idxes))) {
-		b.fullFlag.Store(true)
+
+	if length+v1IndexLength*len(entities) > b.remaining() {
+		b.full.Store(true)
 		return ErrNoEnoughCapacity
 	}
-	n, err := b.physicalFile.Write(buf.Bytes())
+
+	var so, wo int64 = 0, b.wo.Load()
+	buf := make([]byte, length)
+	indexs := make([]index, 0, len(entities))
+	for _, entry := range entities {
+		n, _ := entry.MarshalTo(buf[so:])
+		bi := index{
+			offset: wo + so,
+			length: int32(n),
+		}
+		indexs = append(indexs, bi)
+		so += int64(n)
+	}
+
+	n, err := b.f.Write(buf)
 	if err != nil {
 		return err
 	}
-	b.indexes = append(b.indexes, idxes...)
-	atomic.AddInt32(&b.number, int32(len(idxes)))
-	atomic.AddInt64(&b.writeOffset, int64(n))
-	atomic.AddInt64(&b.size, int64(n))
+
+	b.indexes = append(b.indexes, indexs...)
+
+	b.num.Add(int32(len(indexs)))
+	b.wo.Add(int64(n))
+	b.size.Add(int64(n))
+
 	//if err = b.physicalFile.Sync(); err != nil {
 	//	return err
 	//}
+
 	return nil
 }
 
 // Read date from file
-func (b *fileBlock) Read(ctx context.Context, entityStartOffset, number int) ([]*codec.StoredEntry, error) {
+func (b *fileBlock) Read(ctx context.Context, entityStartOffset, number int) ([]Entry, error) {
 	observability.EntryMark(ctx)
-	atomic.AddInt32(&(b.uncompletedReadRequestCount), 1)
+	b.uncompletedReadRequestCount.Add(1)
 	defer func() {
 		observability.LeaveMark(ctx)
-		atomic.AddInt32(&(b.uncompletedReadRequestCount), -1)
+		b.uncompletedReadRequestCount.Sub(1)
 	}()
 
-	from, to, err := b.calculateRange(entityStartOffset, number)
+	from, to, num, err := b.calculateRange(entityStartOffset, number)
 	if err != nil {
 		return nil, err
 	}
 
 	data := make([]byte, to-from)
-	if _, err := b.physicalFile.ReadAt(data, from); err != nil {
+	if _, err := b.f.ReadAt(data, from); err != nil {
 		return nil, err
 	}
 
-	ses := make([]*codec.StoredEntry, 0)
-	reader := bytes.NewReader(data)
-	for err == nil {
-		size := int32(0)
-		if err = binary.Read(reader, binary.BigEndian, &size); err != nil {
-			break
+	entries := make([]Entry, num)
+	so := uint32(0)
+	for i := 0; i < num; i++ {
+		length := binary.BigEndian.Uint32(data[so : so+4])
+		eo := so + 4 + length
+		if int64(eo) > to {
+			// TODO
 		}
-		payload := make([]byte, int(size))
-		if _, err = reader.Read(payload); err != nil {
-			break
-		}
-		se := &codec.StoredEntry{
-			Length:  size,
-			Payload: payload,
-		}
-		ses = append(ses, se)
-	}
-	if err != io.EOF {
-		return nil, err
+		entries[i].Offset = uint32(from) + so
+		entries[i].Payload = data[so+4 : eo]
+		so = eo
 	}
 
-	return ses, nil
+	return entries, nil
 }
 
 func (b *fileBlock) CloseWrite(ctx context.Context) error {
@@ -180,7 +186,7 @@ func (b *fileBlock) CloseWrite(ctx context.Context) error {
 	defer observability.LeaveMark(ctx)
 
 	b.appendable.Store(false)
-	for b.uncompletedAppendRequestCount != 0 {
+	for b.uncompletedAppendRequestCount.Load() != 0 {
 		time.Sleep(time.Millisecond)
 	}
 
@@ -196,14 +202,14 @@ func (b *fileBlock) CloseWrite(ctx context.Context) error {
 }
 
 func (b *fileBlock) CloseRead(ctx context.Context) error {
-	if err := b.physicalFile.Close(); err != nil {
+	if err := b.f.Close(); err != nil {
 		return err
 	}
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
 	b.readable.Store(false)
-	for b.uncompletedReadRequestCount != 0 {
+	for b.uncompletedReadRequestCount.Load() != 0 {
 		time.Sleep(time.Millisecond)
 	}
 	return nil
@@ -212,23 +218,23 @@ func (b *fileBlock) CloseRead(ctx context.Context) error {
 func (b *fileBlock) Close(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
-	return b.physicalFile.Close()
+	return b.f.Close()
 }
 
 func (b *fileBlock) IsAppendable() bool {
-	return b.appendable.Load().(bool) && !b.IsFull()
+	return b.appendable.Load() && !b.IsFull()
 }
 
 func (b *fileBlock) IsReadable() bool {
-	return b.appendable.Load().(bool) && !b.IsEmpty()
+	return b.appendable.Load() && !b.IsEmpty()
 }
 
 func (b *fileBlock) IsEmpty() bool {
-	return b.size == fileSegmentBlockHeaderCapacity
+	return b.size.Load() == fileBlockHeaderSize
 }
 
 func (b *fileBlock) IsFull() bool {
-	return b.fullFlag.Load().(bool)
+	return b.full.Load()
 }
 
 func (b *fileBlock) Path() string {
@@ -243,48 +249,41 @@ func (b *fileBlock) HealthInfo() *meta.SegmentHealthInfo {
 	return &meta.SegmentHealthInfo{
 		Id:                   b.id.Uint64(),
 		EventLogId:           b.SegmentBlockID().Uint64(),
-		Size:                 b.size,
-		EventNumber:          b.number,
+		Size:                 b.size.Load(),
+		EventNumber:          b.num.Load(),
 		SerializationVersion: b.version,
 		IsFull:               b.IsFull(),
 	}
 }
 
-func (b *fileBlock) remain(sizeNeedServed int64) int {
+func (b *fileBlock) remaining() int {
 	// capacity - headerCapacity - dataLength - indexDataLength - currentRequestDataLength
-	return int(b.capacity - fileSegmentBlockHeaderCapacity - b.size -
-		int64(b.number*v1IndexLength) - sizeNeedServed)
+	return int(b.cap - fileBlockHeaderSize - b.size.Load() -
+		int64(b.num.Load()*v1IndexLength))
 }
 
 func (b *fileBlock) persistHeader(ctx context.Context) error {
 	observability.EntryMark(ctx)
-	b.appendMutex.Lock()
+	b.mux.Lock()
 	defer func() {
-		b.appendMutex.Unlock()
+		b.mux.Unlock()
 		observability.LeaveMark(ctx)
 	}()
 
-	buf := bytes.NewBuffer(make([]byte, 0))
-	if err := binary.Write(buf, binary.BigEndian, b.version); err != nil {
-		return err
+	buf := make([]byte, v1FileBlockHeaderLength)
+	binary.BigEndian.PutUint32(buf[0:4], uint32(b.version))
+	binary.BigEndian.PutUint64(buf[4:12], uint64(b.cap))
+	binary.BigEndian.PutUint64(buf[12:20], uint64(b.size.Load()))
+	binary.BigEndian.PutUint32(buf[20:24], uint32(b.num.Load()))
+	if b.full.Load() {
+		buf[24] = 1
 	}
-	if err := binary.Write(buf, binary.BigEndian, b.capacity); err != nil {
-		return err
-	}
-	if err := binary.Write(buf, binary.BigEndian, b.size); err != nil {
-		return err
-	}
-	if err := binary.Write(buf, binary.BigEndian, b.number); err != nil {
-		return err
-	}
-	if err := binary.Write(buf, binary.BigEndian, b.fullFlag.Load().(bool)); err != nil {
+
+	// TODO: does it safe when concurrent write and append?
+	if _, err := b.f.WriteAt(buf, 0); err != nil {
 		return err
 	}
 
-	// TODO does it safe when concurrent write and append?
-	if _, err := b.physicalFile.WriteAt(buf.Bytes(), 0); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -292,48 +291,37 @@ func (b *fileBlock) loadHeader(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	hd := make([]byte, v1FileSegmentBlockHeaderLength)
-	if _, err := b.physicalFile.ReadAt(hd, 0); err != nil {
+	buf := make([]byte, v1FileBlockHeaderLength)
+	if _, err := b.f.ReadAt(buf, 0); err != nil {
 		return err
 	}
-	reader := bytes.NewReader(hd)
-	if err := binary.Read(reader, binary.BigEndian, &b.version); err != nil {
-		return err
-	}
-	if err := binary.Read(reader, binary.BigEndian, &b.capacity); err != nil {
-		return err
-	}
-	if err := binary.Read(reader, binary.BigEndian, &b.size); err != nil {
-		return err
-	}
-	if err := binary.Read(reader, binary.BigEndian, &b.number); err != nil {
-		return err
-	}
-	var isFull bool
-	if err := binary.Read(reader, binary.BigEndian, &isFull); err != nil {
-		return err
-	}
-	b.fullFlag.Store(isFull)
+
+	b.version = int32(binary.BigEndian.Uint32(buf[0:4]))
+	b.cap = int64(binary.BigEndian.Uint64(buf[4:12]))
+	b.size.Store(int64(binary.BigEndian.Uint64(buf[12:20])))
+	b.num.Store(int32(binary.BigEndian.Uint32(buf[20:24])))
+	b.full.Store(buf[24] != 0)
+
 	return nil
 }
 
 func (b *fileBlock) persistIndex(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
+
 	if !b.IsFull() {
 		return nil
 	}
-	buf := bytes.NewBuffer(make([]byte, 0))
 
-	for idx := range b.indexes {
-		if err := binary.Write(buf, binary.BigEndian, b.indexes[idx].startOffset); err != nil {
-			return err
-		}
-		if err := binary.Write(buf, binary.BigEndian, b.indexes[idx].length); err != nil {
-			return err
-		}
+	length := v1IndexLength * len(b.indexes)
+	buf := make([]byte, length)
+	for i, index := range b.indexes {
+		off := length - i*v1IndexLength
+		binary.BigEndian.PutUint64(buf[off:off+8], uint64(index.offset))
+		binary.BigEndian.PutUint32(buf[off+8:off+12], uint32(index.length))
 	}
-	if _, err := b.physicalFile.WriteAt(buf.Bytes(), b.writeOffset); err != nil {
+
+	if _, err := b.f.WriteAt(buf, b.cap-int64(length)); err != nil {
 		return err
 	}
 	return nil
@@ -343,17 +331,17 @@ func (b *fileBlock) loadIndex(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	b.indexes = make([]blockIndex, b.number)
+	b.indexes = make([]index, b.num.Load())
 	if b.IsFull() {
 		// read index directly
-		idxData := make([]byte, b.number*v1IndexLength)
-		if _, err := b.physicalFile.ReadAt(idxData, b.writeOffset); err != nil {
+		idxData := make([]byte, b.num.Load()*v1IndexLength)
+		if _, err := b.f.ReadAt(idxData, b.wo.Load()); err != nil {
 			return err
 		}
 		reader := bytes.NewReader(idxData)
 		for idx := range b.indexes {
-			b.indexes[idx] = blockIndex{}
-			if err := binary.Read(reader, binary.BigEndian, &b.indexes[idx].startOffset); err != nil {
+			b.indexes[idx] = index{}
+			if err := binary.Read(reader, binary.BigEndian, &b.indexes[idx].offset); err != nil {
 				return err
 			}
 			if err := binary.Read(reader, binary.BigEndian, &b.indexes[idx].length); err != nil {
@@ -362,11 +350,11 @@ func (b *fileBlock) loadIndex(ctx context.Context) error {
 		}
 	} else {
 		// rebuild index
-		off := int64(fileSegmentBlockHeaderCapacity)
+		off := int64(fileBlockHeaderSize)
 		ld := make([]byte, 4)
 		count := 0
 		for {
-			if _, err := b.physicalFile.ReadAt(ld, off); err != nil {
+			if _, err := b.f.ReadAt(ld, off); err != nil {
 				return err
 			}
 			reader := bytes.NewReader(ld)
@@ -377,15 +365,15 @@ func (b *fileBlock) loadIndex(ctx context.Context) error {
 			if entityLen == 0 {
 				break
 			}
-			b.indexes = append(b.indexes, blockIndex{
-				startOffset: off,
-				length:      entityLen,
+			b.indexes = append(b.indexes, index{
+				offset: off,
+				length: entityLen,
 			})
 			off += 4 + int64(entityLen)
 			count++
 		}
-		b.number = int32(count)
-		b.size = off
+		b.num.Store(int32(count))
+		b.size.Store(off)
 	}
 	return nil
 }
@@ -397,25 +385,20 @@ func (b *fileBlock) validate(ctx context.Context) error {
 	return nil
 }
 
-func (b *fileBlock) calculateRange(start, num int) (int64, int64, error) {
-	if start >= len(b.indexes) {
-		if !b.IsFull() && start == len(b.indexes) {
-			return -1, -1, ErrOffsetOnEnd
+func (b *fileBlock) calculateRange(start, num int) (int64, int64, int, error) {
+	indexes := b.indexes
+	if start >= len(indexes) {
+		if !b.IsFull() && start == len(indexes) {
+			return -1, -1, 0, ErrOffsetOnEnd
 		}
-		return -1, -1, ErrOffsetExceeded
+		return -1, -1, 0, ErrOffsetExceeded
 	}
-	startPos := b.indexes[start].startOffset
-	var endPos int64
-	offset := start + num - 1
-	if b.number < int32(offset+1) {
-		endPos = b.indexes[b.number-1].startOffset + int64(b.indexes[b.number-1].length)
-	} else {
-		endPos = b.indexes[offset].startOffset + int64(b.indexes[offset].length)
-	}
-	return startPos, endPos, nil
-}
 
-type blockIndex struct {
-	startOffset int64
-	length      int32
+	so := indexes[start].offset
+	end := start + num - 1
+	if end >= len(indexes) {
+		end = len(indexes) - 1
+	}
+	eo := indexes[end].offset + int64(indexes[end].length)
+	return so, eo, end - start + 1, nil
 }

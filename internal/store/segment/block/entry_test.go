@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package codec
+package block
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestMarshallEntity(t *testing.T) {
+func TestMarshal(t *testing.T) {
 	Convey("v0.0.1 serialization testing", t, func() {
-		e := &StoredEntry{
-			Length: 128,
+		e := &Entry{
 			Payload: []byte{
 				0x0a, 0x10, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x6c, 0x65, 0x72, 0x2e, 0x70, 0x72, 0x6f,
 				0x74, 0x6f, 0x12, 0x18, 0x6c, 0x69, 0x6e, 0x6b, 0x61, 0x6c, 0x6c, 0x2e, 0x76, 0x61, 0x6e, 0x75,
@@ -38,9 +38,11 @@ func TestMarshallEntity(t *testing.T) {
 				0x20, 0x01, 0x28, 0x05, 0x52, 0x09, 0x6c, 0x6f, 0x67, 0x4e, 0x75, 0x6d, 0x62, 0x65, 0x72, 0x22,
 			},
 		}
-		data, err := Marshall(e)
+		data := make([]byte, 4+192)
+		n, err := e.MarshalTo(data)
 		So(err, ShouldBeNil)
-		So(data[0:4], ShouldResemble, []byte{0x0, 0x0, 0x0, 0x80})
-		So(len(data), ShouldEqual, 4+len(e.Payload))
+		So(n, ShouldEqual, 4+192)
+		So(data[:4], ShouldResemble, []byte{0x0, 0x0, 0x0, 0xc0})
+		So(data[4:], ShouldResemble, e.Payload)
 	})
 }

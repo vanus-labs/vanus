@@ -28,5 +28,5 @@ type Multiplexer interface {
 }
 
 type Demultiplexer interface {
-	Receive(ctx context.Context, msg *raftpb.Message) error
+	Receive(ctx context.Context, msg *raftpb.Message, endpoint string) error
 }

@@ -47,11 +47,11 @@ func (b *block) remaining(offset int) int {
 }
 
 func (b *block) Full() bool {
-	return b.Remaining() < record.RecordHeaderSize
+	return b.Remaining() < record.HeaderSize
 }
 
 func (b *block) full(off int) bool {
-	return b.remaining(off) < record.RecordHeaderSize
+	return b.remaining(off) < record.HeaderSize
 }
 
 func (b *block) Append(r record.Record) (int, error) {
@@ -63,13 +63,13 @@ func (b *block) Append(r record.Record) (int, error) {
 	return b.wp, nil
 }
 
-func (b *block) Flush(writer io.Writer, offset int) (int, error) {
+func (b *block) Flush(writer io.WriterAt, offset int, base int64) (int, error) {
 	// Already flushed, skip.
 	if b.fp >= offset {
 		return b.fp, nil
 	}
 
-	n, err := writer.Write(b.buf[b.fp:offset])
+	n, err := writer.WriteAt(b.buf[b.fp:offset], base+int64(b.fp))
 	if err != nil {
 		return n, err
 	}

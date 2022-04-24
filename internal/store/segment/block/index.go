@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package codec
+package block
 
-type StoredEntry struct {
-	Length  int32
-	Payload []byte
+const (
+	v1IndexLength = 8 + 4
+)
+
+type index struct {
+	offset int64
+	length int32
 }

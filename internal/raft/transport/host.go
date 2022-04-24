@@ -15,6 +15,7 @@
 package transport
 
 import (
+	// standard libraries
 	"context"
 	"sync"
 
@@ -30,46 +31,47 @@ type Host interface {
 }
 
 type host struct {
-	resolver  Resolver
 	peers     sync.Map
 	receivers sync.Map
+	resolver  Resolver
+	callback  string
 }
 
 // Make sure host implements Host.
 var _ Host = (*host)(nil)
 
-func NewHost(resolver Resolver) Host {
-	// TODO
+func NewHost(resolver Resolver, callback string) Host {
 	h := &host{
 		resolver: resolver,
+		callback: callback,
 	}
 	return h
 }
 
-func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64) {
-	mux := h.resolveMultiplexer(ctx, to)
+func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoint string) {
+	mux := h.resolveMultiplexer(ctx, to, endpoint)
 	if mux == nil {
 		return
 	}
 	mux.Send(msg)
 }
 
-func (h *host) Sendv(ctx context.Context, msgs []*raftpb.Message, to uint64) {
-	mux := h.resolveMultiplexer(ctx, to)
+func (h *host) Sendv(ctx context.Context, msgs []*raftpb.Message, to uint64, endpoint string) {
+	mux := h.resolveMultiplexer(ctx, to, endpoint)
 	if mux == nil {
 		return
 	}
-	for _, msg := range msgs {
-		mux.Send(msg)
-	}
+	mux.Sendv(msgs)
 }
 
-func (h *host) resolveMultiplexer(ctx context.Context, to uint64) Multiplexer {
-	endpoint := h.resolver.Resolve(to)
+func (h *host) resolveMultiplexer(ctx context.Context, to uint64, endpoint string) Multiplexer {
+	if endpoint == "" {
+		endpoint = h.resolver.Resolve(to)
+	}
 	if mux, ok := h.peers.Load(endpoint); ok {
 		return mux.(*peer)
 	}
-	p := newPeer(context.TODO(), endpoint)
+	p := newPeer(context.TODO(), endpoint, h.callback)
 	if mux, loaded := h.peers.LoadOrStore(endpoint, p); loaded {
 		defer p.Close()
 		return mux.(*peer)
@@ -78,9 +80,9 @@ func (h *host) resolveMultiplexer(ctx context.Context, to uint64) Multiplexer {
 }
 
 // Receive implements Demultiplexer
-func (h *host) Receive(ctx context.Context, msg *raftpb.Message) error {
-	if receiver, ok := h.receivers.Load(msg.From); ok {
-		receiver.(Receiver).Receive(ctx, msg, msg.From)
+func (h *host) Receive(ctx context.Context, msg *raftpb.Message, endpoint string) error {
+	if receiver, ok := h.receivers.Load(msg.To); ok {
+		receiver.(Receiver).Receive(ctx, msg, msg.From, endpoint)
 	}
 	return nil
 }

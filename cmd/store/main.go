@@ -19,9 +19,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/linkall-labs/vanus/internal/store"
 	"net"
 	"os"
+
 	// third-party libraries.
 	"google.golang.org/grpc"
 
@@ -31,22 +31,24 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/raft/transport"
+	"github.com/linkall-labs/vanus/internal/store"
 	"github.com/linkall-labs/vanus/internal/store/segment"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
 var (
-	f = flag.String("config", "./config/store.yaml", "gateway config file path")
+	f = flag.String("config", "./config/store.yaml", "store config file path")
 )
 
 func main() {
 	flag.Parse()
+
 	cfg, err := store.InitConfig(*f)
 	if err != nil {
 		log.Error(nil, "init config error", map[string]interface{}{log.KeyError: err})
 		os.Exit(-1)
 	}
+
 	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
 		log.Error(context.Background(), "failed to listen", map[string]interface{}{
@@ -63,12 +65,7 @@ func main() {
 		exitChan <- struct{}{}
 	}
 
-	// setup raft
-	reslover := transport.NewSimpleResolver()
-	host := transport.NewHost(reslover)
-	raftSrv := transport.NewRaftServer(context.TODO(), host)
-	raftpb.RegisterRaftServerServer(grpcServer, raftSrv)
-	srv := segment.NewSegmentServer(*cfg, stopCallback)
+	srv, raftSrv := segment.NewSegmentServer(*cfg, stopCallback)
 	if err != nil {
 		stopCallback()
 		log.Error(context.Background(), "start SegmentServer failed", map[string]interface{}{
@@ -77,6 +74,7 @@ func main() {
 		os.Exit(-1)
 	}
 	segpb.RegisterSegmentServerServer(grpcServer, srv)
+	raftpb.RegisterRaftServerServer(grpcServer, raftSrv)
 
 	ctx := context.Background()
 	init, _ := srv.(primitive.Initializer)

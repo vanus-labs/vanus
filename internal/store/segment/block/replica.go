@@ -17,124 +17,175 @@ package block
 import (
 	// standard libraries.
 	"context"
+	"sync"
 	"time"
 
-	// third-party libraries.
+	// first-party libraries.
 	"github.com/linkall-labs/raft"
 	"github.com/linkall-labs/raft/raftpb"
 
 	// this project.
-	vsraft "github.com/linkall-labs/vanus/internal/raft"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	raftlog "github.com/linkall-labs/vanus/internal/raft/log"
 	"github.com/linkall-labs/vanus/internal/raft/transport"
-	"github.com/linkall-labs/vanus/internal/store/segment/codec"
-	"github.com/linkall-labs/vanus/internal/store/wal"
+	"github.com/linkall-labs/vanus/internal/store/segment/errors"
 )
 
-type replica struct {
-	block  SegmentBlock
+type idAndEndpoint struct {
+	id       uint64
+	endpoint string
+}
+
+type Replica struct {
+	num  int
+	wo   int
+	full bool
+	mu   sync.Mutex
+
+	block *fileBlock
+
+	isLeader bool
+	leaderID vanus.ID
+
 	node   raft.Node
-	log    *vsraft.Log
+	log    *raftlog.Log
 	sender transport.Sender
+
+	endpoints []idAndEndpoint
+	epMu      sync.RWMutex
 
 	ctx    context.Context
 	cancel context.CancelFunc
 	donec  chan struct{}
 }
 
-// Make sure replica implements SegmentBlock, raft.Receiver.
-// var _ *SegmentBlock = (*replica)(nil)
-var _ transport.Receiver = (*replica)(nil)
+// Make sure replica implements SegmentBlockWriter and transport.Receiver.
+var _ SegmentBlockWriter = (*Replica)(nil)
+var _ transport.Receiver = (*Replica)(nil)
 
-func newReplica(ctx context.Context, b SegmentBlock, w *wal.WAL, s transport.Sender) *replica {
-	var blockID uint64 = 1
-
-	// TODO: set peers
-	log := vsraft.NewLog(blockID, w, []uint64{})
+func NewReplica(ctx context.Context, block SegmentBlock, raftLog *raftlog.Log, sender transport.Sender) *Replica {
+	blockID := block.SegmentBlockID()
 
 	// TODO(james.yin): Recover the in-memory storage from persistent snapshot, state and entries.
 	// log.ApplySnapshot(snapshot)
 	// log.SetHardState(state)
-	// log.Append(entries)
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	r := &replica{
-		block:  b,
-		log:    log,
-		sender: s,
-		ctx:    ctx,
-		cancel: cancel,
-		donec:  make(chan struct{}),
+	r := &Replica{
+		block:     block.(*fileBlock),
+		log:       raftLog,
+		sender:    sender,
+		endpoints: make([]idAndEndpoint, 0, 2),
+		ctx:       ctx,
+		cancel:    cancel,
+		donec:     make(chan struct{}),
 	}
+	r.num = int(r.block.num.Load())
+	r.wo = int(r.block.wo.Load())
+	r.full = r.block.full.Load()
 
-	// FIXME(james.yin): ID
 	c := &raft.Config{
-		ID:              blockID,
-		ElectionTick:    10,
-		HeartbeatTick:   1,
-		Storage:         log,
-		MaxSizePerMsg:   4096,
-		MaxInflightMsgs: 256,
+		ID:                        blockID.Uint64(),
+		ElectionTick:              10,
+		HeartbeatTick:             3,
+		Storage:                   raftLog,
+		MaxSizePerMsg:             4096,
+		MaxInflightMsgs:           256,
+		DisableProposalForwarding: true,
 	}
 	r.node = raft.RestartNode(c)
+	go r.run()
 
 	return r
 }
 
-func (r *replica) Stop() {
+func (r *Replica) Stop() {
 	r.cancel()
 	// Block until the stop has been acknowledged.
 	<-r.donec
 }
 
-func (r *replica) Bootstrap() {
-	// TODO
-	//peers := []raft.Peer{}
-	//err := r.node.Bootstrap(peers)
-	//if err != nil {
-	//	//TODO
-	//}
+func (r *Replica) Bootstrap(blocks []vanus.ID) error {
+	peers := make([]raft.Peer, 0, len(blocks))
+	for _, blockID := range blocks {
+		peers = append(peers, raft.Peer{
+			ID: blockID.Uint64(),
+		})
+	}
+	return r.node.Bootstrap(peers)
 }
 
-func (r *replica) run() {
+func (r *Replica) run() {
 	// TODO(james.yin): reduce Ticker
 	t := time.NewTicker(100 * time.Millisecond)
 	defer t.Stop()
 
+	var hardState raftpb.HardState
 	for {
 		select {
 		case <-t.C:
 			r.node.Tick()
 		case rd := <-r.node.Ready():
-			// TODO(james.yin): hard state, snapshot
+			// TODO(james.yin): hard state
+			if !raft.IsEmptyHardState(rd.HardState) {
+				hardState = rd.HardState
+			}
+
 			r.log.Append(rd.Entries)
+
+			if rd.SoftState != nil {
+				r.leaderID = vanus.NewIDFromUint64(rd.SoftState.Lead)
+				isLeader := rd.SoftState.RaftState == raft.StateLeader
+				// reset when become leader
+				if isLeader {
+					off := hardState.Commit
+					// TODO(james.yin): no normal entry
+					for off > 0 {
+						entrypbs, err := r.log.Entries(off, off+1, 0)
+						if err != nil {
+						}
+						entrypb := entrypbs[0]
+						if entrypb.Type == raftpb.EntryNormal && len(entrypb.Data) > 0 {
+							entry := UnmarshalWithOffsetAndIndex(entrypb.Data)
+							r.reset(entry)
+							break
+						}
+						off -= 1
+					}
+				}
+				r.isLeader = isLeader
+			}
 
 			// NOTE: Messages to be sent AFTER HardState and Entries
 			// are committed to stable storage.
 			r.send(rd.Messages)
 
 			// TODO(james.yin): snapshot
-			// if !raft.IsEmptySnap(rd.Snapshot) {
-			// 	processSnapshot(rd.Snapshot)
-			// }
+			if !raft.IsEmptySnap(rd.Snapshot) {
+				// processSnapshot(rd.Snapshot)
+			}
 
-			for _, entry := range rd.CommittedEntries {
-				if entry.Type == raftpb.EntryNormal {
-					r.doAppend(entry)
+			for _, entrypb := range rd.CommittedEntries {
+				if entrypb.Type == raftpb.EntryNormal {
+					// Skip empty entry(raft heartbeat).
+					if len(entrypb.Data) > 0 {
+						r.doAppend(entrypb)
+					}
 					continue
 				}
 
 				// change membership
 				var cci raftpb.ConfChangeI
-				if entry.Type == raftpb.EntryConfChange {
+				if entrypb.Type == raftpb.EntryConfChange {
 					var cc raftpb.ConfChange
-					if err := cc.Unmarshal(entry.Data); err != nil {
+					if err := cc.Unmarshal(entrypb.Data); err != nil {
 						panic(err)
 					}
 					cci = cc
 				} else {
 					var cc raftpb.ConfChangeV2
-					if err := cc.Unmarshal(entry.Data); err != nil {
+					if err := cc.Unmarshal(entrypb.Data); err != nil {
 						panic(nil)
 					}
 					cci = cc
@@ -145,43 +196,106 @@ func (r *replica) run() {
 			r.node.Advance()
 		case <-r.ctx.Done():
 			r.node.Stop()
+			close(r.donec)
 			return
 		}
 	}
 }
 
-func (r *replica) Append(ctx context.Context, entries ...*codec.StoredEntry) error {
-	if len(entries) != 1 {
-		// TODO
-		return nil
+func (r *Replica) reset(entry Entry) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.num = int(entry.Index + 1)
+	r.wo = int(entry.Offset) + len(entry.Payload)
+	r.full = len(entry.Payload) == 0
+}
+
+// Append implements SegmentBlockWriter.
+func (r *Replica) Append(ctx context.Context, entries ...Entry) error {
+	if !r.isLeader {
+		return ErrNotLeader
 	}
 
-	// FIXME
-	err := r.node.Propose(ctx, entries[0].Payload)
-	if err != nil {
+	// TODO(james.yin): support batch
+	if len(entries) != 1 {
+		return errors.ErrInvalidRequest
+	}
+
+	if err := r.preAppend(ctx, entries); err != nil {
 		return err
 	}
 
-	// TODO: wait committed
+	// FIXME(james.yin): batch propose
+	data := entries[0].MarshalWithOffsetAndIndex()
+	if err := r.node.Propose(ctx, data); err != nil {
+		return err
+	}
+
+	// TODO(james.yin): wait committed
 
 	return nil
 }
 
-func (r *replica) doAppend(entry raftpb.Entry) {
-	// FIXME
-	r.block.Append(context.Background(), &codec.StoredEntry{
-		Payload: entry.Data,
-	})
+func (r *Replica) preAppend(ctx context.Context, entries []Entry) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.full {
+		return ErrFull
+	}
+
+	var size int
+	for i := range entries {
+		entry := &entries[i]
+		entry.Offset = uint32(r.wo + size)
+		entry.Index = uint32(r.num + i)
+		size += entry.Size()
+	}
+
+	// TODO(james.yin): full
+	if int64(r.wo+size+v1IndexLength*(r.num+len(entries))) > r.block.cap {
+		fullEntry := Entry{
+			Offset: uint32(r.wo),
+			Index:  uint32(r.num),
+		}
+		data := fullEntry.MarshalWithOffsetAndIndex()
+		if err := r.node.Propose(ctx, data); err != nil {
+			return err
+		}
+		r.full = true
+		return ErrNoEnoughCapacity
+	}
+
+	r.wo += size
+	r.num += len(entries)
+
+	return nil
 }
 
-func (r *replica) send(msgs []raftpb.Message) {
+func (r *Replica) doAppend(entrypb raftpb.Entry) {
+	entry := UnmarshalWithOffsetAndIndex(entrypb.Data)
+
+	// TODO(james.yin): full
+	if len(entry.Payload) <= 0 {
+		r.full = true
+		r.block.full.Store(true)
+		return
+	}
+
+	// FIXME(james.yin): context
+	r.block.Append(context.Background(), entry)
+}
+
+func (r *Replica) send(msgs []raftpb.Message) {
 	if len(msgs) == 0 {
 		return
 	}
 
 	if len(msgs) == 1 {
 		msg := &msgs[0]
-		r.sender.Send(r.ctx, msg, msg.To)
+		endpoint := r.endpointHint(msg.To)
+		r.sender.Send(r.ctx, msg, msg.To, endpoint)
 		return
 	}
 
@@ -199,7 +313,8 @@ func (r *replica) send(msgs []raftpb.Message) {
 		for i := 0; i < len(msgs); i++ {
 			ma[i] = &msgs[i]
 		}
-		r.sender.Sendv(r.ctx, ma, to)
+		endpoint := r.endpointHint(to)
+		r.sender.Sendv(r.ctx, ma, to, endpoint)
 		return
 	}
 
@@ -208,13 +323,63 @@ func (r *replica) send(msgs []raftpb.Message) {
 		msg := &msgs[i]
 		mm[msg.To] = append(mm[msg.To], msg)
 	}
-	for to := range mm {
-		r.sender.Sendv(r.ctx, mm[to], to)
+	for to, msgs := range mm {
+		endpoint := r.endpointHint(to)
+		r.sender.Sendv(r.ctx, msgs, to, endpoint)
 	}
 }
 
+func (r *Replica) endpointHint(to uint64) string {
+	r.epMu.RLock()
+	defer r.epMu.RUnlock()
+	for i := range r.endpoints {
+		ep := &r.endpoints[i]
+		if ep.id == to {
+			return ep.endpoint
+		}
+	}
+	return ""
+}
+
 // Receive implements transport.Receiver.
-func (r *replica) Receive(ctx context.Context, msg *raftpb.Message, from uint64) {
-	// TODO: check ctx.Done().
+func (r *Replica) Receive(ctx context.Context, msg *raftpb.Message, from uint64, endpoint string) {
+	if endpoint != "" {
+		r.hintEndpoint(from, endpoint)
+	}
+
+	// TODO(james.yin): check ctx.Done().
 	r.node.Step(r.ctx, *msg)
+}
+
+func (r *Replica) hintEndpoint(from uint64, endpoint string) {
+	// TODO(james.yin): optimize lock
+	r.epMu.Lock()
+	defer r.epMu.Unlock()
+	ep := func() *idAndEndpoint {
+		for i := range r.endpoints {
+			ep := &r.endpoints[i]
+			if ep.id == from {
+				return ep
+			}
+		}
+		return nil
+	}()
+	if ep == nil {
+		r.endpoints = append(r.endpoints, idAndEndpoint{
+			id:       from,
+			endpoint: endpoint,
+		})
+	} else if ep.endpoint != endpoint {
+		ep.endpoint = endpoint
+	}
+}
+
+// CloseWrite implements SegmentBlockWriter.
+func (r *Replica) CloseWrite(ctx context.Context) error {
+	return r.block.CloseWrite(ctx)
+}
+
+// IsAppendable implements SegmentBlockWriter.
+func (r *Replica) IsAppendable() bool {
+	return !r.full
 }

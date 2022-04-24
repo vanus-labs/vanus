@@ -21,6 +21,8 @@ import (
 	"hash/crc32"
 )
 
+const HeaderSize = 7
+
 var crc32q = crc32.MakeTable(crc32.Castagnoli)
 
 type Type uint8
@@ -32,6 +34,14 @@ const (
 	Last
 	Middle
 )
+
+func (t Type) IsTerminal() bool {
+	return t == Last || t == Full
+}
+
+func (t Type) IsNonTerminal() bool {
+	return t == Middle || t == Last
+}
 
 type Record struct {
 	// CRC is crc32c of Type and Data
@@ -46,12 +56,10 @@ func (r *Record) Size() int {
 	return 4 + 2 + 1 + len(r.Data)
 }
 
-func (r *Record) Marshal() ([]byte, error) {
+func (r *Record) Marshal() []byte {
 	data := make([]byte, r.Size())
-	if _, err := r.MarshalTo(data); err != nil {
-		return nil, err
-	}
-	return data, nil
+	r.MarshalTo(data)
+	return data
 }
 
 func (r *Record) MarshalTo(data []byte) (int, error) {
@@ -72,4 +80,19 @@ func (r *Record) MarshalTo(data []byte) (int, error) {
 	}
 	binary.BigEndian.PutUint32(data[0:4], r.CRC)
 	return sz, nil
+}
+
+func Unmashal(data []byte) (record Record, err error) {
+	if len(data) < HeaderSize {
+		// return empty record
+		return record, nil
+	}
+	record.CRC = binary.BigEndian.Uint32(data[0:4])
+	record.Length = binary.BigEndian.Uint16(data[4:6])
+	record.Type = Type(data[6])
+	if len(data) < int(record.Length)+HeaderSize {
+		// TODO: return error
+	}
+	record.Data = data[7 : 7+record.Length]
+	return record, nil
 }
