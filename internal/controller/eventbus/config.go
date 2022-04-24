@@ -22,4 +22,5 @@ type Config struct {
 	KVStoreEndpoints []string         `yaml:"kv_store_endpoints"`
 	KVKeyPrefix      string           `yaml:"kv_key_prefix"`
 	EtcdConfig       embedetcd.Config `yaml:"etcd"`
+	replicas         uint             `yaml:"replicas"`
 }

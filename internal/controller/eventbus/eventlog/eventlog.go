@@ -50,7 +50,9 @@ type Manager interface {
 	GetBlock(id vanus.ID) *metadata.Block
 }
 
-var mgr = &eventlogManager{}
+var mgr = &eventlogManager{
+	segmentReplicaNum: 3,
+}
 
 type eventlogManager struct {
 	allocator block.Allocator
@@ -71,10 +73,14 @@ type eventlogManager struct {
 	mutex        sync.Mutex
 	// vanus.ID *Segment
 	segmentNeedBeClean sync.Map
+	segmentReplicaNum  uint
 }
 
-func NewManager(volMgr volume.Manager) Manager {
+func NewManager(volMgr volume.Manager, replicaNum uint) Manager {
 	mgr.volMgr = volMgr
+	if replicaNum > 0 {
+		mgr.segmentReplicaNum = replicaNum
+	}
 	return mgr
 }
 
