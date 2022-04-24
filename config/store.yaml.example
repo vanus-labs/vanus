@@ -4,7 +4,6 @@ controllers:
   - 127.0.0.1:4048
 ip: 127.0.0.1
 port: 2148
-replicas: 1
 volume:
   id: 123456
   dir: /Users/wenfeng/tmp/data/vanus/segment_server/123456

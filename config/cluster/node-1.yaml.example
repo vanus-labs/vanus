@@ -6,6 +6,7 @@ etcd:
   - "127.0.0.1:3379"
   - "127.0.0.1:4379"
 data_dir: "/Users/wenfeng/tmp/data/vanus/cluster"
+replicas: 1
 topology:
   test-1: 127.0.0.1:2048
   test-2: 127.0.0.1:3048

@@ -10,6 +10,7 @@ topology:
   test-2: 127.0.0.1:3048
   test-3: 127.0.0.1:4048
 data_dir: "/Users/wenfeng/tmp/data/vanus/cluster"
+replicas: 1
 metadata:
   key_prefix: "/wenfeng"
 embed_etcd:

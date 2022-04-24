@@ -51,7 +51,7 @@ func NewEventBusController(cfg Config, member embedetcd.Member) *controller {
 		stopNotify:  make(chan error, 1),
 	}
 	c.volumeMgr = volume.NewVolumeManager(c.ssMgr)
-	c.eventLogMgr = eventlog.NewManager(c.volumeMgr, cfg.replicas)
+	c.eventLogMgr = eventlog.NewManager(c.volumeMgr, cfg.Replicas)
 	return c
 }
 

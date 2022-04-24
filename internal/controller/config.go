@@ -32,6 +32,7 @@ type Config struct {
 	MetadataConfig       MetadataConfig    `yaml:"metadata"`
 	EtcdConfig           embedetcd.Config  `yaml:"embed_etcd"`
 	Topology             map[string]string `yaml:"topology"`
+	Replicas             uint              `yaml:"replicas"`
 }
 
 func (c *Config) GetEtcdConfig() embedetcd.Config {
@@ -46,6 +47,7 @@ func (c *Config) GetEventbusCtrlConfig() eventbus.Config {
 		Port:             c.Port,
 		KVStoreEndpoints: c.EtcdEndpoints,
 		KVKeyPrefix:      c.MetadataConfig.KeyPrefix,
+		Replicas:         c.Replicas,
 	}
 }
 

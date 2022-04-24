@@ -7,6 +7,7 @@ etcd:
   # - "127.0.0.1:3379"
   # - "127.0.0.1:4379"
 data_dir: "/Users/wenfeng/tmp/data/vanus/cluster"
+replicas: 1
 metadata:
   key_prefix: "/wenfeng"
 embed_etcd:
@@ -20,7 +21,3 @@ embed_etcd:
     # if deploy controller in cluster
     # - etcd-2=http://127.0.0.1:3380
     # - etcd-3=http://127.0.0.1:4380
-trigger:
-  storage:
-    keyPrefix: "/xdl"
-    serverList: [ "127.0.0.1:2379" ]
