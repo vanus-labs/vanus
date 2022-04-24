@@ -53,16 +53,19 @@ func NewClient(ctrlAddrs []string) *ctrlClient {
 	}
 }
 
+func (cli *ctrlClient) closeHeartBeat(ctx context.Context) {
+	if cli.heartBeatClient == nil {
+		return
+	}
+	if err := cli.heartBeatClient.CloseSend(); err != nil {
+		log.Warning(ctx, "close gRPC stream error", map[string]interface{}{
+			log.KeyError: err,
+		})
+	}
+}
 func (cli *ctrlClient) Close(ctx context.Context) {
 	if len(cli.grpcConn) == 0 {
 		return
-	}
-	if cli.heartBeatClient != nil {
-		if _, err := cli.heartBeatClient.CloseAndRecv(); err != nil {
-			log.Warning(ctx, "close gRPC stream error", map[string]interface{}{
-				log.KeyError: err,
-			})
-		}
 	}
 	for ip, conn := range cli.grpcConn {
 		if err := conn.Close(); err != nil {

@@ -132,10 +132,10 @@ func main() {
 	case <-segmentCtrl.StopNotify():
 		log.Info(ctx, "received segment controller ready to stop, preparing exit", nil)
 	}
-	grpcServer.GracefulStop()
 	triggerCtrlStv.Stop(ctx)
 	segmentCtrl.Stop()
 	etcd.Stop(ctx)
+	grpcServer.GracefulStop()
 	wg.Wait()
 	log.Info(ctx, "the controller has been shutdown gracefully", nil)
 }

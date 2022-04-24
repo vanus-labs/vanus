@@ -59,7 +59,7 @@ func (s *triggerWorkerStorage) SaveTriggerWorker(ctx context.Context, info info.
 	if !exist {
 		return s.client.Create(ctx, key, v)
 	}
-	return s.client.Update(ctx, s.getKey(info.Id), v)
+	return s.client.Update(ctx, key, v)
 }
 func (s *triggerWorkerStorage) GetTriggerWorker(ctx context.Context, id string) (*info.TriggerWorkerInfo, error) {
 	v, err := s.client.Get(ctx, s.getKey(id))

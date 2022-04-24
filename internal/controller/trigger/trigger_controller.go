@@ -134,6 +134,10 @@ func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerCo
 		}
 		req, err := heartbeat.Recv()
 		if err == nil {
+			log.Debug(ctx, "heartbeat", map[string]interface{}{
+				log.KeyTriggerWorkerAddr: req.Address,
+				"subs":                   req.SubInfos,
+			})
 			subIds := make(map[vanus.ID]struct{}, len(req.SubInfos))
 			for _, sub := range req.SubInfos {
 				subIds[vanus.ID(sub.SubscriptionId)] = struct{}{}
@@ -141,7 +145,7 @@ func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerCo
 			err = ctrl.triggerWorkerManager.UpdateTriggerWorkerInfo(ctx, req.Address, subIds)
 			if err != nil {
 				log.Info(context.Background(), "unknown trigger worker", map[string]interface{}{
-					"addr": req.Address,
+					log.KeyTriggerWorkerAddr: req.Address,
 				})
 				return errors.ErrResourceNotFound.WithMessage("unknown trigger worker")
 			}
@@ -159,12 +163,16 @@ func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerCo
 			if err != io.EOF {
 				log.Warning(ctx, "heartbeat recv error", map[string]interface{}{log.KeyError: err})
 			}
+			log.Info(ctx, "heartbeat close", nil)
 			return nil
 		}
 	}
 }
 
 func (ctrl *triggerController) RegisterTriggerWorker(ctx context.Context, request *ctrlpb.RegisterTriggerWorkerRequest) (*ctrlpb.RegisterTriggerWorkerResponse, error) {
+	log.Info(ctx, "register trigger worker", map[string]interface{}{
+		log.KeyTriggerWorkerAddr: request.Address,
+	})
 	err := ctrl.triggerWorkerManager.AddTriggerWorker(ctx, request.Address)
 	if err != nil {
 		log.Warning(ctx, "register trigger worker error", map[string]interface{}{
@@ -177,6 +185,9 @@ func (ctrl *triggerController) RegisterTriggerWorker(ctx context.Context, reques
 }
 
 func (ctrl *triggerController) UnregisterTriggerWorker(ctx context.Context, request *ctrlpb.UnregisterTriggerWorkerRequest) (*ctrlpb.UnregisterTriggerWorkerResponse, error) {
+	log.Info(ctx, "unregister trigger worker", map[string]interface{}{
+		log.KeyTriggerWorkerAddr: request.Address,
+	})
 	ctrl.triggerWorkerManager.RemoveTriggerWorker(ctrl.ctx, request.Address)
 	return &ctrlpb.UnregisterTriggerWorkerResponse{}, nil
 }
@@ -227,7 +238,6 @@ func (ctrl *triggerController) requeueSubscription(ctx context.Context, subId va
 	subData.Phase = primitive.SubscriptionPhasePending
 	err := ctrl.subscriptionManager.UpdateSubscription(ctx, subData)
 	if err != nil {
-
 		return err
 	}
 	ctrl.scheduler.EnqueueSub(subId)

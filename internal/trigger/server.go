@@ -143,12 +143,6 @@ func (s *server) Initialize(ctx context.Context) error {
 		"triggerCtrlAddr":   s.config.ControllerAddr,
 		"triggerWorkerAddr": s.config.TriggerAddr,
 	})
-	go func() {
-		<-ctx.Done()
-		log.Info(ctx, "trigger worker server stop...", nil)
-		s.stop(true)
-		log.Info(ctx, "trigger worker server stopped", nil)
-	}()
 	s.state = primitive.ServerStateStarted
 	s.startTime = time.Now()
 	go func() {
@@ -161,6 +155,13 @@ func (s *server) Initialize(ctx context.Context) error {
 	return nil
 }
 
+func (s *server) Close(ctx context.Context) error {
+	log.Info(ctx, "trigger worker server stop...", nil)
+	s.stop(true)
+	log.Info(ctx, "trigger worker server stopped", nil)
+	return nil
+}
+
 func (s *server) stop(sendUnregister bool) {
 	if s.state != primitive.ServerStateRunning {
 		return
@@ -168,20 +169,21 @@ func (s *server) stop(sendUnregister bool) {
 	s.worker.Stop()
 	s.cancel()
 	s.wg.Wait()
+	ctx := context.Background()
 	if sendUnregister {
-		_, err := s.client.unregisterTriggerWorker(context.Background(), &controller.UnregisterTriggerWorkerRequest{
+		_, err := s.client.unregisterTriggerWorker(ctx, &controller.UnregisterTriggerWorkerRequest{
 			Address: s.config.TriggerAddr,
 		})
 		if err != nil {
-			log.Error(s.ctx, "unregister trigger worker error", map[string]interface{}{
+			log.Error(ctx, "unregister trigger worker error", map[string]interface{}{
 				"addr":       s.config.ControllerAddr,
 				log.KeyError: err,
 			})
 		} else {
-			log.Info(s.ctx, "unregister trigger worker success", nil)
+			log.Info(ctx, "unregister trigger worker success", nil)
 		}
 	}
-	s.client.Close(context.Background())
+	s.client.Close(ctx)
 	s.state = primitive.ServerStateStopped
 }
 
@@ -191,9 +193,11 @@ func (s *server) startHeartbeat() {
 		defer s.wg.Done()
 		ticker := time.NewTicker(time.Second * 3)
 		defer ticker.Stop()
+		ctx := context.Background()
 		for {
 			select {
 			case <-s.ctx.Done():
+				s.client.closeHeartBeat(ctx)
 				return
 			case <-ticker.C:
 				workerSub, callback := s.worker.ListSubInfos()
@@ -201,12 +205,12 @@ func (s *server) startHeartbeat() {
 				for _, sub := range workerSub {
 					subInfos = append(subInfos, convert.ToPbSubscriptionInfo(sub))
 				}
-				err := s.client.heartbeat(s.ctx, &controller.TriggerWorkerHeartbeatRequest{
+				err := s.client.heartbeat(ctx, &controller.TriggerWorkerHeartbeatRequest{
 					Address:  s.config.TriggerAddr,
 					SubInfos: subInfos,
 				})
 				if err != nil {
-					log.Warning(s.ctx, "send heartbeat to controller failed, connection lost. try to reconnecting", map[string]interface{}{
+					log.Warning(ctx, "send heartbeat to controller failed, connection lost. try to reconnecting", map[string]interface{}{
 						log.KeyError: err,
 					})
 				}

@@ -172,7 +172,7 @@ func (m *manager) GetTriggerWorker(ctx context.Context, addr string) *TriggerWor
 
 func (m *manager) AddTriggerWorker(ctx context.Context, addr string) error {
 	m.lock.Lock()
-	m.lock.Unlock()
+	defer m.lock.Unlock()
 	tWorker, exist := m.triggerWorkers[addr]
 	if !exist {
 		tWorker = NewTriggerWorker(info.NewTriggerWorkerInfo(addr))
@@ -187,9 +187,6 @@ func (m *manager) AddTriggerWorker(ctx context.Context, addr string) error {
 			"subIds":                 tWorker.GetAssignSubIds(),
 		})
 		tWorker.ResetReportSubId()
-		if phase == info.TriggerWorkerPhasePending {
-			return nil
-		}
 	}
 	err := m.storage.SaveTriggerWorker(ctx, *tWorker.info)
 	if err != nil {
@@ -198,6 +195,10 @@ func (m *manager) AddTriggerWorker(ctx context.Context, addr string) error {
 	if !exist {
 		m.triggerWorkers[addr] = tWorker
 	}
+	go func(tWorker *TriggerWorker) {
+		time.Sleep(time.Second)
+		m.startTriggerWorker(m.ctx, tWorker)
+	}(tWorker)
 	log.Info(ctx, "add trigger worker", map[string]interface{}{
 		log.KeyTriggerWorkerAddr: tWorker.info.Addr,
 	})
@@ -247,6 +248,19 @@ func (m *manager) UpdateTriggerWorkerInfo(ctx context.Context, addr string, subI
 	return nil
 }
 
+func (m *manager) startTriggerWorker(ctx context.Context, tWorker *TriggerWorker) {
+	err := tWorker.Start(ctx)
+	if err != nil {
+		log.Warning(ctx, "trigger worker start error", map[string]interface{}{
+			log.KeyError:             err,
+			log.KeyTriggerWorkerAddr: tWorker.info.Addr,
+		})
+	} else {
+		log.Info(ctx, "trigger worker start success", map[string]interface{}{
+			log.KeyTriggerWorkerAddr: tWorker.info.Addr,
+		})
+	}
+}
 func (m *manager) cleanTriggerWorker(ctx context.Context, tWorker *TriggerWorker) {
 	hasFail := m.doTriggerWorkerLeave(ctx, tWorker)
 	if hasFail {
@@ -256,6 +270,9 @@ func (m *manager) cleanTriggerWorker(ctx context.Context, tWorker *TriggerWorker
 		})
 		return
 	}
+	log.Info(ctx, "do trigger worker leave success", map[string]interface{}{
+		log.KeyTriggerWorkerAddr: tWorker.info.Addr,
+	})
 	err := m.storage.DeleteTriggerWorker(ctx, tWorker.info.Id)
 	if err != nil {
 		log.Warning(ctx, "storage delete trigger worker error", map[string]interface{}{
@@ -319,6 +336,9 @@ func (m *manager) getTriggerWorkers() []*TriggerWorker {
 func (m *manager) deleteTriggerWorker(addr string) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
+	log.Info(m.ctx, "clean trigger worker", map[string]interface{}{
+		log.KeyTriggerWorkerAddr: addr,
+	})
 	delete(m.triggerWorkers, addr)
 }
 
@@ -389,24 +409,15 @@ func (m *manager) check(ctx context.Context) {
 func (m *manager) pendingTriggerWorkerHandler(ctx context.Context, tWorker *TriggerWorker) {
 	now := time.Now()
 	twInfo := tWorker.info
-	if now.Sub(twInfo.PendingTime) > m.config.WaitRunningTimeout {
+	d := now.Sub(twInfo.PendingTime)
+	if d > m.config.WaitRunningTimeout {
 		tWorker.SetPhase(info.TriggerWorkerPhasePaused)
 		log.Info(ctx, "pending trigger worker heartbeat timeout change phase to paused", map[string]interface{}{
 			"triggerWorker": twInfo,
 		})
 		m.cleanTriggerWorker(ctx, tWorker)
-	} else {
-		err := tWorker.Start(ctx)
-		if err != nil {
-			log.Warning(ctx, "trigger worker start error", map[string]interface{}{
-				log.KeyError:             err,
-				log.KeyTriggerWorkerAddr: tWorker.info.Addr,
-			})
-		} else {
-			log.Info(ctx, "trigger worker start success", map[string]interface{}{
-				log.KeyTriggerWorkerAddr: tWorker.info.Addr,
-			})
-		}
+	} else if d > 10*time.Second {
+		m.startTriggerWorker(ctx, tWorker)
 	}
 }
 

@@ -30,11 +30,10 @@ import (
 
 //TriggerWorker send SubscriptionData to trigger worker server
 type TriggerWorker struct {
-	info     *info.TriggerWorkerInfo
-	cc       *grpc.ClientConn
-	client   trigger.TriggerWorkerClient
-	initOnce sync.Once
-	lock     sync.RWMutex
+	info   *info.TriggerWorkerInfo
+	cc     *grpc.ClientConn
+	client trigger.TriggerWorkerClient
+	lock   sync.RWMutex
 }
 
 func NewTriggerWorker(twInfo *info.TriggerWorkerInfo) *TriggerWorker {
@@ -112,17 +111,18 @@ func (tw *TriggerWorker) GetPhase() info.TriggerWorkerPhase {
 }
 
 func (tw *TriggerWorker) init(ctx context.Context) error {
+	if tw.cc != nil {
+		return nil
+	}
 	var err error
-	tw.initOnce.Do(func() {
-		var opts []grpc.DialOption
-		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		tw.cc, err = grpc.DialContext(ctx, tw.info.Addr, opts...)
-		if err != nil {
-			err = errors.ErrTriggerWorker.WithMessage("grpc dial error").Wrap(err)
-		}
-		tw.client = trigger.NewTriggerWorkerClient(tw.cc)
-	})
-	return err
+	var opts []grpc.DialOption
+	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	tw.cc, err = grpc.DialContext(ctx, tw.info.Addr, opts...)
+	if err != nil {
+		return errors.ErrTriggerWorker.WithMessage("grpc dial error").Wrap(err)
+	}
+	tw.client = trigger.NewTriggerWorkerClient(tw.cc)
+	return nil
 }
 func (tw *TriggerWorker) Close() error {
 	if tw.cc != nil {

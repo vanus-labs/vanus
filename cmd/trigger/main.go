@@ -69,6 +69,8 @@ func main() {
 		os.Exit(1)
 	}
 	<-ctx.Done()
+	closer := srv.(primitive.Closer)
+	closer.Close(ctx)
 	grpcServer.GracefulStop()
 	wg.Wait()
 	log.Info(ctx, "trigger worker stopped", nil)
