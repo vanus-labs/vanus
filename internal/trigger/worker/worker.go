@@ -219,10 +219,10 @@ func (w *Worker) RemoveSubscription(id vanus.ID) error {
 
 func (w *Worker) getReaderConfig(sub *primitive.Subscription) reader.Config {
 	var ebVrn string
-	if ebVrn == "" {
+	if sub.EventBus == "" {
 		ebVrn = defaultEbVRN
 	} else {
-		ebVrn = fmt.Sprintf("vanus://%s/eventbus?%s?controllers=%s",
+		ebVrn = fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s",
 			w.config.Controllers[0], sub.EventBus,
 			strings.Join(w.config.Controllers, ","))
 	}
