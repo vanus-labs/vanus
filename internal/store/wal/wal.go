@@ -270,6 +270,9 @@ func (w *WAL) logWriter(offset int64) io.WriterAt {
 
 func (w *WAL) allocateBlock() *blockWithSo {
 	b := w.pool.Get().(*blockWithSo)
+	// reset block
+	b.wp = 0
+	b.fp = 0
 	// FIXME(james.yin): set b.so
 	b.so = w.wboff
 	w.wboff += blockSize
