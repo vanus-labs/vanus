@@ -36,12 +36,12 @@ func main() {
 }
 
 func TestAppend(cli segment.SegmentServerClient) {
-	id := "1646980924864482000"
+	id := uint64(1646980924864482000)
 	cnt := 0
 	for idx := 0; idx < 100; idx++ {
 		cnt++
-		_, err := cli.AppendToSegment(context.Background(), &segment.AppendToSegmentRequest{
-			SegmentId: id,
+		_, err := cli.AppendToBlock(context.Background(), &segment.AppendToBlockRequest{
+			BlockId: id,
 			Events: &v1.CloudEventBatch{
 				Events: []*v1.CloudEvent{
 					{

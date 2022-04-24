@@ -248,7 +248,6 @@ func (b *fileBlock) SegmentBlockID() vanus.ID {
 func (b *fileBlock) HealthInfo() *meta.SegmentHealthInfo {
 	return &meta.SegmentHealthInfo{
 		Id:                   b.id.Uint64(),
-		EventLogId:           b.SegmentBlockID().Uint64(),
 		Size:                 b.size.Load(),
 		EventNumber:          b.num.Load(),
 		SerializationVersion: b.version,
