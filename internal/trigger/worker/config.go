@@ -15,6 +15,5 @@
 package worker
 
 type Config struct {
-	TriggerCtrlAddr string
-	TriggerAddr     string
+	Controllers []string
 }

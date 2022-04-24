@@ -44,7 +44,9 @@ type server struct {
 func NewTriggerServer(config Config) pbtrigger.TriggerWorkerServer {
 	s := &server{
 		config: config,
-		worker: worker.NewWorker(),
+		worker: worker.NewWorker(worker.Config{
+			Controllers: config.ControllerAddr,
+		}),
 		client: NewClient(config.ControllerAddr),
 		state:  primitive.ServerStateCreated,
 	}

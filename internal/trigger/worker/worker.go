@@ -24,6 +24,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
 	"github.com/linkall-labs/vanus/internal/trigger/trigger"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -59,7 +60,7 @@ type subscriptionWorker struct {
 	stopTime time.Time
 }
 
-func NewSubWorker(sub *primitive.Subscription, subOffset *offset.SubscriptionOffset) *subscriptionWorker {
+func (wk *Worker) NewSubWorker(sub *primitive.Subscription, subOffset *offset.SubscriptionOffset) *subscriptionWorker {
 	w := &subscriptionWorker{
 		events: make(chan info.EventOffset, 2048),
 		sub:    sub,
@@ -68,7 +69,7 @@ func NewSubWorker(sub *primitive.Subscription, subOffset *offset.SubscriptionOff
 	for _, o := range sub.Offsets {
 		offset[o.EventLogID] = o.Offset
 	}
-	w.reader = reader.NewReader(getReaderConfig(sub), offset, w.events)
+	w.reader = reader.NewReader(wk.getReaderConfig(sub), offset, w.events)
 	triggerConf := &trigger.Config{}
 	w.trigger = trigger.NewTrigger(triggerConf, sub, subOffset)
 	return w
@@ -91,10 +92,11 @@ func (w *subscriptionWorker) Run(ctx context.Context) error {
 	return nil
 }
 
-func NewWorker() *Worker {
+func NewWorker(config Config) *Worker {
 	w := &Worker{
 		subscriptions: map[vanus.ID]*subscriptionWorker{},
 		offsetManager: offset.NewOffsetManager(),
+		config:        config,
 	}
 	w.ctx, w.stop = context.WithCancel(context.Background())
 	return w
@@ -187,7 +189,7 @@ func (w *Worker) AddSubscription(sub *primitive.Subscription) error {
 		return errors.ErrResourceAlreadyExist
 	}
 	subOffset := w.offsetManager.RegisterSubscription(sub.ID)
-	subWorker := NewSubWorker(sub, subOffset)
+	subWorker := w.NewSubWorker(sub, subOffset)
 	err := subWorker.Run(w.ctx)
 	if err != nil {
 		w.offsetManager.RemoveSubscription(sub.ID)
@@ -215,14 +217,19 @@ func (w *Worker) RemoveSubscription(id vanus.ID) error {
 	return nil
 }
 
-func getReaderConfig(sub *primitive.Subscription) reader.Config {
-	ebVrn := sub.EventBus
+func (w *Worker) getReaderConfig(sub *primitive.Subscription) reader.Config {
+	var ebVrn string
 	if ebVrn == "" {
 		ebVrn = defaultEbVRN
+	} else {
+		ebVrn = fmt.Sprintf("vanus://%s/eventbus?%s?controllers=%s",
+			w.config.Controllers[0], sub.EventBus,
+			strings.Join(w.config.Controllers, ","))
 	}
 	return reader.Config{
-		EventBus: ebVrn,
-		SubId:    sub.ID,
+		EventBusName: sub.EventBus,
+		EventBusVRN:  ebVrn,
+		SubId:        sub.ID,
 	}
 }
 

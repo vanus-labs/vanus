@@ -35,8 +35,9 @@ import (
 )
 
 type Config struct {
-	EventBus string
-	SubId    vanus.ID
+	EventBusName string
+	EventBusVRN  string
+	SubId        vanus.ID
 }
 type EventLogOffset map[vanus.ID]uint64
 
@@ -66,7 +67,7 @@ func (r *Reader) Close() {
 	r.stop()
 	r.wg.Wait()
 	log.Info(r.stctx, "reader closed", map[string]interface{}{
-		log.KeyEventbusName: r.config.EventBus,
+		log.KeyEventbusName: r.config.EventBusName,
 	})
 }
 func (r *Reader) Start() error {
@@ -89,24 +90,24 @@ func (r *Reader) Start() error {
 func (r *Reader) checkEventLogChange() {
 	ctx, cancel := context.WithTimeout(r.stctx, 5*time.Second)
 	defer cancel()
-	els, err := eb.LookupReadableLogs(ctx, r.config.EventBus)
+	els, err := eb.LookupReadableLogs(ctx, r.config.EventBusVRN)
 	if err != nil {
 		if err == context.Canceled {
 			return
 		}
 		log.Warning(ctx, "eventbus lookup Readable eventlog error", map[string]interface{}{
-			log.KeyEventbusName: r.config.EventBus,
+			log.KeyEventbusName: r.config.EventBusName,
 			log.KeyError:        err,
 		})
 		return
 	}
 	if len(els) != len(r.elReader) {
 		log.Info(ctx, "event eventlog change,will restart event eventlog reader", map[string]interface{}{
-			log.KeyEventbusName: r.config.EventBus,
+			log.KeyEventbusName: r.config.EventBusName,
 		})
 		r.start(els)
 		log.Info(ctx, "event eventlog change,restart event eventlog reader success", map[string]interface{}{
-			log.KeyEventbusName: r.config.EventBus,
+			log.KeyEventbusName: r.config.EventBusName,
 		})
 	}
 }
@@ -178,13 +179,13 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 			return
 		case context.DeadlineExceeded:
 			log.Warning(ctx, "eventlog reader init timeout", map[string]interface{}{
-				log.KeyEventbusName: elReader.config.EventBus,
+				log.KeyEventbusName: elReader.config.EventBusName,
 				log.KeyEventlogID:   elReader.eventLogVrn,
 			})
 			continue
 		default:
 			log.Info(ctx, "eventlog reader init error,will retry", map[string]interface{}{
-				log.KeyEventbusName: elReader.config.EventBus,
+				log.KeyEventbusName: elReader.config.EventBusName,
 				log.KeyEventlogID:   elReader.eventLogID,
 				log.KeyError:        err,
 			})
@@ -194,7 +195,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 			continue
 		}
 		log.Info(ctx, "eventlog reader init success", map[string]interface{}{
-			log.KeyEventbusName: elReader.config.EventBus,
+			log.KeyEventbusName: elReader.config.EventBusName,
 			log.KeyEventlogID:   elReader.eventLogID,
 			"offset":            elReader.offset,
 		})
