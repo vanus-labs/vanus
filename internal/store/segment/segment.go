@@ -126,7 +126,6 @@ func (s *segmentServer) Initialize(ctx context.Context) error {
 	}
 
 	if err = s.recoverBlocks(ctx, blockPeers, raftLogs); err != nil {
-		println(err)
 		return err
 	}
 
@@ -306,10 +305,7 @@ func (s *segmentServer) AppendToBlock(ctx context.Context,
 	}
 
 	blockID := vanus.NewIDFromUint64(req.BlockId)
-	s.blockWriters.Range(func(key, value interface{}) bool {
-		println(fmt.Sprintf("%v", key))
-		return true
-	})
+
 	v, exist := s.blockWriters.Load(blockID)
 	if !exist {
 		return nil, errors.ErrResourceNotFound.WithMessage("the segment doesn't exist")
@@ -343,7 +339,7 @@ func (s *segmentServer) AppendToBlock(ctx context.Context,
 			}
 			return nil, errors.ErrSegmentNoEnoughCapacity
 		}
-		return nil, errors.ErrInternal.WithMessage("write to storage failed")
+		return nil, errors.ErrInternal.WithMessage("write to storage failed").Wrap(err)
 	}
 	return &emptypb.Empty{}, nil
 }

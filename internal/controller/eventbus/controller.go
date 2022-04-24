@@ -40,8 +40,6 @@ import (
 	"sync"
 )
 
-const ()
-
 func NewEventBusController(cfg Config, member embedetcd.Member) *controller {
 	c := &controller{
 		cfg:         &cfg,
@@ -315,6 +313,33 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 		} else {
 			srv.Polish()
 		}
+		segments := make(map[string][]eventlog.Segment)
+		for _, info := range req.HealthInfo {
+			blockID := vanus.NewIDFromUint64(info.Id)
+			block := ctrl.eventLogMgr.GetBlock(blockID)
+			if block == nil {
+				continue
+			}
+			logArr, exist := segments[block.EventlogID.Key()]
+			if !exist {
+				logArr = make([]eventlog.Segment, 0)
+				segments[block.EventlogID.Key()] = logArr
+			}
+
+			seg := eventlog.Segment{
+				ID:         block.SegmentID,
+				Capacity:   info.Capacity,
+				EventLogID: block.EventlogID,
+				Size:       info.Size,
+				Number:     info.EventNumber,
+			}
+			if info.IsFull {
+				seg.State = eventlog.StateFrozen
+			}
+			logArr = append(logArr, seg)
+			segments[block.EventlogID.Key()] = logArr
+		}
+		//ctrl.eventLogMgr.UpdateSegment(ctx, segments)
 	}
 
 	if err != nil && err != io.EOF {

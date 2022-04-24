@@ -15,6 +15,7 @@
 package metadata
 
 import (
+	"encoding/json"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	meta "github.com/linkall-labs/vsproto/pkg/meta"
 )
@@ -59,4 +60,9 @@ type Block struct {
 	VolumeID   vanus.ID `json:"volume_id"`
 	EventlogID vanus.ID `json:"eventlog_id"`
 	SegmentID  vanus.ID `json:"segment_id"`
+}
+
+func (bl *Block) String() string {
+	data, _ := json.Marshal(bl)
+	return string(data)
 }
