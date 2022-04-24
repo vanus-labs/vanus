@@ -11,7 +11,7 @@ import (
 func main() {
 	f := flag.String("config", "./config/gateway.yaml", "gateway config file path")
 	flag.Parse()
-	cfg, err := gateway.Init(*f)
+	cfg, err := gateway.InitConfig(*f)
 	if err != nil {
 		log.Error(nil, "init config error", map[string]interface{}{log.KeyError: err})
 		os.Exit(-1)

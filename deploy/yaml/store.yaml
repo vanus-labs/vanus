@@ -20,12 +20,12 @@ data:
   store.yaml: |-
     port: 11811
     ip : ${POD_IP}
-    controller:
+    controllers:
       - vanus-controller-0.vanus-controller.vanus.svc:2048
       - vanus-controller-1.vanus-controller.vanus.svc:2048
       - vanus-controller-2.vanus-controller.vanus.svc:2048
     volume:
-      id: 123456
+      id: ${VOLUME_ID}
       dir: /data
       capacity: 1073741824
 
@@ -41,7 +41,7 @@ spec:
   selector:
     matchLabels:
       app: vanus-store
-  replicas: 1
+  replicas: 3
   serviceName: vanus-store
   volumeClaimTemplates:
     - metadata:
@@ -63,6 +63,7 @@ spec:
         - name: store
           image: public.ecr.aws/t8a4l2d7/store:latest
           imagePullPolicy: Always
+          command: ["/bin/sh", "-c", "export VOLUME_ID=${HOSTNAME##*-}; /server/bin/store"]
           resources:
             requests:
               cpu: 100m

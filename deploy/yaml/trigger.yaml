@@ -20,7 +20,7 @@ data:
   trigger.yaml: |-
     port: 2148
     ip : ${POD_IP}
-    controller:
+    controllers:
       - vanus-controller-0.vanus-controller.vanus.svc:2048
       - vanus-controller-1.vanus-controller.vanus.svc:2048
       - vanus-controller-2.vanus-controller.vanus.svc:2048
@@ -37,6 +37,7 @@ spec:
   selector:
     matchLabels:
       app: vanus-trigger
+  replicas: 1
   template:
     metadata:
       labels:

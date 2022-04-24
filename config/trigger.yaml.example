@@ -1,4 +1,4 @@
 port: 2148
 ip: ""
-controller:
+controllers:
   - 127.0.0.1:2048

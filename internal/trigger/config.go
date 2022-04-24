@@ -23,7 +23,7 @@ import (
 type Config struct {
 	Port           int      `yaml:"port"`
 	Ip             string   `yaml:"ip"`
-	ControllerAddr []string `yaml:"controller"`
+	ControllerAddr []string `yaml:"controllers"`
 	TriggerAddr    string
 }
 

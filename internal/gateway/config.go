@@ -17,11 +17,11 @@ package gateway
 import "github.com/linkall-labs/vanus/internal/primitive"
 
 type Config struct {
-	Port           int    `yaml:"port"`
-	ControllerAddr string `yaml:"controller_addr"`
+	Port           int      `yaml:"port"`
+	ControllerAddr []string `yaml:"controller"`
 }
 
-func Init(filename string) (*Config, error) {
+func InitConfig(filename string) (*Config, error) {
 	c := new(Config)
 	err := primitive.LoadConfig(filename, c)
 	if err != nil {
