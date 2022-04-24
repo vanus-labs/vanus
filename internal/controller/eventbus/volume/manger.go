@@ -26,10 +26,7 @@ import (
 	"sync"
 )
 
-const (
-	volumeKeyPrefixInKVStore         = "/vanus/internal/resource/volume/metadata"
-	volumeInstanceKeyPrefixInKVStore = "/vanus/internal/resource/volume/instance"
-)
+const ()
 
 type Manager interface {
 	Init(ctx context.Context, kvClient kv.Client) error
@@ -64,7 +61,7 @@ func (mgr *volumeMgr) RegisterVolume(ctx context.Context, md *metadata.VolumeMet
 	}
 	ins := server.NewInstance(md)
 	data, _ := json.Marshal(md)
-	key := filepath.Join(volumeKeyPrefixInKVStore, md.ID.String())
+	key := filepath.Join(metadata.VolumeKeyPrefixInKVStore, md.ID.String())
 	if err := mgr.kvCli.Set(ctx, key, data); err != nil {
 		return nil, err
 	}
@@ -75,8 +72,7 @@ func (mgr *volumeMgr) RegisterVolume(ctx context.Context, md *metadata.VolumeMet
 func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 	mgr.kvCli = kvClient
 
-	// TODO add volume when register
-	pairs, err := mgr.kvCli.List(ctx, volumeKeyPrefixInKVStore)
+	pairs, err := mgr.kvCli.List(ctx, metadata.VolumeKeyPrefixInKVStore)
 	if err != nil {
 		return err
 	}
@@ -85,10 +81,26 @@ func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 		if err := json.Unmarshal(v.Value, md); err != nil {
 			return err
 		}
+		// load block meta in this volume
+		blockPairs, err := mgr.kvCli.List(ctx, filepath.Join(metadata.BlockKeyPrefixInKVStore, md.ID.Key()))
+		if err != nil {
+			return err
+		}
+		if md.Blocks == nil {
+			md.Blocks = map[uint64]*metadata.Block{}
+		}
+		for _, vv := range blockPairs {
+			bl := &metadata.Block{}
+			if err := json.Unmarshal(vv.Value, bl); err != nil {
+				return err
+			}
+			md.Blocks[bl.ID.Uint64()] = bl
+		}
+
 		ins := server.NewInstance(md)
 		mgr.volInstanceMap.Store(md.ID.Key(), ins)
 	}
-	pairs, err = mgr.kvCli.List(ctx, volumeInstanceKeyPrefixInKVStore)
+	pairs, err = mgr.kvCli.List(ctx, metadata.VolumeInstanceKeyPrefixInKVStore)
 	if err != nil {
 		return err
 	}
@@ -116,6 +128,9 @@ func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 		}
 		id, _ := vanus.NewIDFromString(filepath.Base(v.Key))
 		ins, exist := mgr.volInstanceMap.Load(id.Key())
+		if !srv.IsActive(ctx) {
+			srv = nil
+		}
 		if exist {
 			mgr.UpdateRouting(ctx, ins.(server.Instance), srv)
 			if err = mgr.serverMgr.AddServer(ctx, srv); err != nil {
@@ -149,14 +164,17 @@ func (mgr *volumeMgr) LookupVolumeByServerID(id vanus.ID) server.Instance {
 func (mgr *volumeMgr) GetAllVolume() []server.Instance {
 	results := make([]server.Instance, 0)
 	mgr.volInstanceMap.Range(func(key, value interface{}) bool {
-		results = append(results, value.(server.Instance))
+		srv := value.(server.Instance)
+		if srv.GetServer() != nil && srv.GetServer().IsActive(context.Background()) {
+			results = append(results, srv)
+		}
 		return true
 	})
 	return results
 }
 
 func (mgr *volumeMgr) UpdateRouting(ctx context.Context, ins server.Instance, srv server.Server) {
-	key := filepath.Join(volumeInstanceKeyPrefixInKVStore, ins.ID().String())
+	key := filepath.Join(metadata.VolumeInstanceKeyPrefixInKVStore, ins.ID().String())
 	if srv != nil {
 		mgr.volInstanceMapByServerID.Store(srv.ID().Key(), ins)
 		v := new(struct {
@@ -175,7 +193,6 @@ func (mgr *volumeMgr) UpdateRouting(ctx context.Context, ins server.Instance, sr
 			})
 		}
 	} else {
-		mgr.volInstanceMapByServerID.Delete(ins.GetServer().ID())
 		if err := mgr.kvCli.Delete(ctx, key); err != nil {
 			log.Warning(ctx, "delete runtime info of volume instance to kv failed", map[string]interface{}{
 				"volume_id":  ins.ID(),

@@ -19,6 +19,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/errors"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/observability/log"
 	segpb "github.com/linkall-labs/vsproto/pkg/segment"
 	"sync"
 )
@@ -105,12 +106,26 @@ func (ins *volumeInstance) Close() error {
 func (ins *volumeInstance) SetServer(srv Server) {
 	ins.rwMutex.Lock()
 	defer ins.rwMutex.Unlock()
+	if srv == nil {
+		return
+	}
+	log.Info(nil, "update server of volume", map[string]interface{}{
+		"srv":     srv.ID(),
+		"address": srv.Address(),
+		"uptime":  srv.Uptime(),
+	})
 	ins.srv = srv
 }
 
 func (ins *volumeInstance) GetServer() Server {
-	ins.rwMutex.RLock()
-	defer ins.rwMutex.RUnlock()
-
+	ins.rwMutex.Lock()
+	defer ins.rwMutex.Unlock()
+	if ins.srv == nil {
+		return nil
+	}
+	if !ins.srv.IsActive(context.Background()) {
+		ins.srv = nil
+		return nil
+	}
 	return ins.srv
 }

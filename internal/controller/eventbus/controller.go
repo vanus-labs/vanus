@@ -31,6 +31,8 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	metapb "github.com/linkall-labs/vsproto/pkg/meta"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"io"
 	"path/filepath"
@@ -38,9 +40,7 @@ import (
 	"sync"
 )
 
-const (
-	eventbusKeyPrefixInKVStore = "/vanus/internal/resource/eventbus"
-)
+const ()
 
 func NewEventBusController(cfg Config, member embedetcd.Member) *controller {
 	c := &controller{
@@ -203,12 +203,30 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	// need to compare metadata if existed?
 	volInstance = ctrl.volumeMgr.GetVolumeInstanceByID(vanus.NewIDFromUint64(req.VolumeId))
 	if volInstance == nil {
-		volMD := &metadata.VolumeMetadata{ID: vanus.NewIDFromUint64(req.VolumeId)}
+		volMD := &metadata.VolumeMetadata{
+			ID:     vanus.NewIDFromUint64(req.VolumeId),
+			Blocks: map[uint64]*metadata.Block{},
+		}
 		_volInstance, err := ctrl.volumeMgr.RegisterVolume(ctx, volMD)
 		if err != nil {
 			return nil, err
 		}
 		volInstance = _volInstance
+	}
+
+	segments := make(map[uint64]*metapb.Segment)
+	for _, v := range volInstance.GetMeta().Blocks {
+		// TODO
+		// 1. 创建的时候Segment信息进内存
+		// 2. 空闲的block处理
+		if v.EventlogID == vanus.EmptyID() {
+			continue
+		}
+		seg, err := ctrl.eventLogMgr.GetSegmentByBlockID(v)
+		if err != nil {
+			return nil, err
+		}
+		segments[seg.ID.Uint64()] = eventlog.Convert2ProtoSegment(seg)[0]
 	}
 
 	go func() {
@@ -217,9 +235,10 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 			ctrl.volumeMgr.UpdateRouting(newCtx, volInstance, srv)
 		}
 	}()
+
 	return &ctrlpb.RegisterSegmentServerResponse{
-		ServerId:      srv.ID().Uint64(),
-		SegmentBlocks: volInstance.GetMeta().Blocks,
+		ServerId: srv.ID().Uint64(),
+		Segments: segments,
 	}, nil
 }
 
@@ -293,14 +312,18 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 				"volume_id": req.VolumeId,
 				"server_id": req.ServerId,
 			})
+		} else {
+			srv.Polish()
 		}
-		srv.Polish()
 	}
 
 	if err != nil && err != io.EOF {
-		log.Error(ctx, "block server heartbeat error", map[string]interface{}{
-			log.KeyError: err,
-		})
+		sts := status.Convert(err)
+		if sts != nil && sts.Code() != codes.Canceled {
+			log.Warning(ctx, "block server heartbeat error", map[string]interface{}{
+				log.KeyError: err,
+			})
+		}
 	}
 	return nil
 }
@@ -335,7 +358,7 @@ func (ctrl *controller) Ping(ctx context.Context, empty *emptypb.Empty) (*ctrlpb
 }
 
 func (ctrl *controller) getEventBusKeyInKVStore(ebName string) string {
-	return strings.Join([]string{eventbusKeyPrefixInKVStore, ebName}, "/")
+	return strings.Join([]string{metadata.EventbusKeyPrefixInKVStore, ebName}, "/")
 }
 
 func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event embedetcd.MembershipChangedEvent) error {
@@ -380,7 +403,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event em
 
 func (ctrl *controller) loadEventbus(ctx context.Context) error {
 	// load eventbus metadata
-	pairs, err := ctrl.kvStore.List(ctx, eventbusKeyPrefixInKVStore)
+	pairs, err := ctrl.kvStore.List(ctx, metadata.EventbusKeyPrefixInKVStore)
 	if err != nil {
 		return err
 	}

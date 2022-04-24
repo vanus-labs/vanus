@@ -16,6 +16,7 @@ package server
 
 import (
 	"context"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	segpb "github.com/linkall-labs/vsproto/pkg/segment"
@@ -104,7 +105,7 @@ func (mgr *segmentServerManager) Run(ctx context.Context) error {
 				if !ok {
 					mgr.segmentServerMapByIP.Delete(key)
 				}
-				if !srv.IsActive() {
+				if !srv.IsActive(ctx) {
 					mgr.segmentServerMapByIP.Delete(srv.Address())
 					mgr.segmentServerMapByID.Delete(srv.ID())
 					log.Info(newCtx, "the server isn't active", map[string]interface{}{
@@ -157,7 +158,7 @@ type Server interface {
 	Address() string
 	Close() error
 	Polish()
-	IsActive() bool
+	IsActive(ctx context.Context) bool
 	Uptime() time.Time
 	Ready() bool
 }
@@ -239,12 +240,26 @@ func (ss *segmentServer) Close() error {
 }
 
 func (ss *segmentServer) Polish() {
+	log.Info(nil, "polish server", map[string]interface{}{
+		"address": ss.addr,
+	})
 	ss.lastHeartbeatTime = time.Now()
 }
 
-func (ss *segmentServer) IsActive() bool {
+func (ss *segmentServer) IsActive(ctx context.Context) bool {
+	res, err := ss.client.Status(ctx, &empty.Empty{})
+	if err != nil {
+		log.Warning(ctx, "ping segment server failed", map[string]interface{}{
+			log.KeyError: err,
+			"address":    ss.addr,
+		})
+		return false
+	}
+
 	// maximum heartbeat interval is 1 minute
-	return time.Now().Sub(ss.lastHeartbeatTime) > time.Minute
+	//return time.Now().Sub(ss.lastHeartbeatTime) > time.Minute
+	// TODO optimize here
+	return res.Status == "running"
 }
 
 func (ss *segmentServer) Uptime() time.Time {

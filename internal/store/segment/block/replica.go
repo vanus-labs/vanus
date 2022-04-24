@@ -113,7 +113,8 @@ func (r *Replica) Bootstrap(blocks []vanus.ID) error {
 			ID: blockID.Uint64(),
 		})
 	}
-	return r.node.Bootstrap(peers)
+	//return r.node.Bootstrap(peers)
+	return nil
 }
 
 func (r *Replica) run() {

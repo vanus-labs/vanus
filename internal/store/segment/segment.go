@@ -126,6 +126,7 @@ func (s *segmentServer) Initialize(ctx context.Context) error {
 	}
 
 	if err = s.recoverBlocks(ctx, blockPeers, raftLogs); err != nil {
+		println(err)
 		return err
 	}
 
@@ -165,6 +166,10 @@ func (s *segmentServer) Stop(ctx context.Context,
 
 	s.stopCallback()
 	return &segpb.StopSegmentServerResponse{}, nil
+}
+func (s *segmentServer) Status(ctx context.Context,
+	req *emptypb.Empty) (*segpb.StatusResponse, error) {
+	return &segpb.StatusResponse{Status: string(s.state)}, nil
 }
 
 func (s *segmentServer) CreateBlock(ctx context.Context,
@@ -286,7 +291,7 @@ func (s *segmentServer) GetBlockInfo(ctx context.Context,
 	return &segpb.GetBlockInfoResponse{}, nil
 }
 
-// AppendToBack implements segpb.SegmentServerServer.
+// AppendToBlock implements segpb.SegmentServerServer.
 func (s *segmentServer) AppendToBlock(ctx context.Context,
 	req *segpb.AppendToBlockRequest) (*emptypb.Empty, error) {
 	observability.EntryMark(ctx)
@@ -301,6 +306,10 @@ func (s *segmentServer) AppendToBlock(ctx context.Context,
 	}
 
 	blockID := vanus.NewIDFromUint64(req.BlockId)
+	s.blockWriters.Range(func(key, value interface{}) bool {
+		println(fmt.Sprintf("%v", key))
+		return true
+	})
 	v, exist := s.blockWriters.Load(blockID)
 	if !exist {
 		return nil, errors.ErrResourceNotFound.WithMessage("the segment doesn't exist")
@@ -551,7 +560,8 @@ func (s *segmentServer) registerSelf(ctx context.Context) (map[vanus.ID][]uint64
 		peers := make([]uint64, 0, len(segmentpb.Replicas))
 		for blockID, blockpb := range segmentpb.Replicas {
 			peers = append(peers, blockID)
-			if blockpb.Endpoint == s.localAddress {
+			// Don't use address to compare
+			if blockpb.VolumeID == s.volumeId.Uint64() {
 				if myID != 0 {
 					// FIXME(james.yin): multiple blocks of same segment in this server.
 				}
@@ -608,7 +618,9 @@ func (s *segmentServer) recoverBlocks(ctx context.Context, blockPeers map[vanus.
 		if err != nil {
 			return err
 		}
-
+		log.Info(ctx, "the block was loaded", map[string]interface{}{
+			"id": b.SegmentBlockID().String(),
+		})
 		// TODO(james.yin): initialize block
 
 		s.blocks.Store(blockID, b)

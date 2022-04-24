@@ -49,13 +49,14 @@ type VolumeMetadata struct {
 	Capacity     int64             `json:"capacity"`
 	Used         int64             `json:"used"`
 	BlockNumbers int               `json:"block_numbers"`
-	Blocks       map[string]string `json:"blocks"`
+	Blocks       map[uint64]*Block `json:"blocks"`
 }
 
 type Block struct {
-	ID        vanus.ID `json:"id"`
-	Capacity  int64    `json:"capacity"`
-	Size      int64    `json:"size"`
-	VolumeID  vanus.ID `json:"volume_id"`
-	SegmentID vanus.ID `json:"event_log_id"`
+	ID         vanus.ID `json:"id"`
+	Capacity   int64    `json:"capacity"`
+	Size       int64    `json:"size"`
+	VolumeID   vanus.ID `json:"volume_id"`
+	EventlogID vanus.ID `json:"eventlog_id"`
+	SegmentID  vanus.ID `json:"segment_id"`
 }

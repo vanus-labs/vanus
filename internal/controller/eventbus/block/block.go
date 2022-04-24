@@ -17,7 +17,6 @@ package block
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/kv"
@@ -32,7 +31,6 @@ import (
 const (
 	defaultBlockSize                = 64 * 1024 * 1024
 	defaultBlockBufferSizePerVolume = 8
-	blockKeyPrefixInKVStore         = "/vanus/internal/resource/block"
 )
 
 var (
@@ -67,7 +65,7 @@ type allocator struct {
 
 func (mgr *allocator) Run(ctx context.Context, kvCli kv.Client) error {
 	mgr.kvClient = kvCli
-	pairs, err := mgr.kvClient.List(ctx, blockKeyPrefixInKVStore)
+	pairs, err := mgr.kvClient.List(ctx, metadata.BlockKeyPrefixInKVStore)
 	if err != nil {
 		return err
 	}
@@ -114,7 +112,7 @@ func (mgr *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, err
 			if err != nil {
 				return nil, err
 			}
-			if err = mgr.updateBlockInKV(ctx, block); err != nil {
+			if err = mgr.updateBlockInKV(ctx, ins.ID(), block); err != nil {
 				log.Error(ctx, "save block metadata to kv failed after creating", map[string]interface{}{
 					log.KeyError: err,
 					"block":      block,
@@ -176,7 +174,7 @@ func (mgr *allocator) dynamicAllocateBlockTask() {
 					})
 					break
 				}
-				if err = mgr.updateBlockInKV(ctx, block); err != nil {
+				if err = mgr.updateBlockInKV(ctx, instance.ID(), block); err != nil {
 					log.Warning(ctx, "insert block medata to etcd failed", map[string]interface{}{
 						"volume_id":   k,
 						"block_id":    block.ID,
@@ -192,11 +190,7 @@ func (mgr *allocator) dynamicAllocateBlockTask() {
 	}
 }
 
-func (mgr *allocator) getBlockKeyInKVStore(blockID vanus.ID) string {
-	return strings.Join([]string{blockKeyPrefixInKVStore, fmt.Sprintf("%d", blockID)}, "/")
-}
-
-func (mgr *allocator) updateBlockInKV(ctx context.Context, block *metadata.Block) error {
+func (mgr *allocator) updateBlockInKV(ctx context.Context, volumeID vanus.ID, block *metadata.Block) error {
 	if block == nil {
 		return nil
 	}
@@ -204,7 +198,8 @@ func (mgr *allocator) updateBlockInKV(ctx context.Context, block *metadata.Block
 	if err != nil {
 		return err
 	}
-	return mgr.kvClient.Set(ctx, mgr.getBlockKeyInKVStore(block.ID), data)
+	key := strings.Join([]string{metadata.BlockKeyPrefixInKVStore, volumeID.Key(), block.ID.Key()}, "/")
+	return mgr.kvClient.Set(ctx, key, data)
 }
 
 func (mgr *allocator) addToInflightBlock(blocks ...*metadata.Block) error {

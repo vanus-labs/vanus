@@ -18,7 +18,7 @@ import (
 	"encoding/json"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vsproto/pkg/meta"
+	metapb "github.com/linkall-labs/vsproto/pkg/meta"
 	"time"
 )
 
@@ -97,11 +97,20 @@ type ReplicaGroup struct {
 	DestroyAt time.Time               `json:"destroy_at"`
 }
 
-func Convert2ProtoSegment(ins ...*Segment) []*meta.Segment {
-	segs := make([]*meta.Segment, len(ins))
+func Convert2ProtoSegment(ins ...*Segment) []*metapb.Segment {
+	segs := make([]*metapb.Segment, len(ins))
 	for idx := 0; idx < len(ins); idx++ {
 		seg := ins[idx]
-		segs[idx] = &meta.Segment{
+		blocks := map[uint64]*metapb.Block{}
+		topo := mgr.getSegmentTopology(seg)
+		for _, v := range seg.Replicas.Peers {
+			blocks[v.ID.Uint64()] = &metapb.Block{
+				Id:       v.ID.Uint64(),
+				Endpoint: topo[v.ID.Uint64()],
+				VolumeID: v.VolumeID.Uint64(),
+			}
+		}
+		segs[idx] = &metapb.Segment{
 			Id:                seg.ID.Uint64(),
 			PreviousSegmentId: seg.PreviousSegmentId.Uint64(),
 			NextSegmentId:     seg.NextSegmentId.Uint64(),
@@ -111,10 +120,11 @@ func Convert2ProtoSegment(ins ...*Segment) []*meta.Segment {
 			Size:              seg.Size,
 			Capacity:          seg.Capacity,
 			NumberEventStored: seg.Number,
+			Replicas:          blocks,
 			State:             string(seg.State),
-			ReplicaId:         seg.ID.Uint64(),
-			LeaderAddr:        mgr.getSegmentAddress(seg)[0],
+			LeaderBlockId:     seg.GetLeaderBlock().ID.Uint64(),
 		}
+
 		if segs[idx].NumberEventStored == 0 {
 			segs[idx].EndOffsetInLog = -1
 		}

@@ -21,6 +21,14 @@ import (
 	"sync"
 	"time"
 
+	// this project
+	"github.com/linkall-labs/vanus/internal/store/segment/errors"
+	"github.com/linkall-labs/vanus/observability/log"
+
+	// first-party libraries
+	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
+	errpb "github.com/linkall-labs/vsproto/pkg/errors"
+
 	// third-party libraries
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -29,14 +37,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
-
-	// first-party libraries
-	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
-	errpb "github.com/linkall-labs/vsproto/pkg/errors"
-
-	// this project
-	"github.com/linkall-labs/vanus/internal/store/segment/errors"
-	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type ctrlClient struct {
@@ -197,11 +197,7 @@ func (cli *ctrlClient) makeSureClient(renew bool) ctrlpb.SegmentControllerClient
 			leader = res.LeaderAddr
 			break
 		}
-		//todo check leader is invalid
-		if leader == "" {
-			log.Info(context.Background(), "leader is empty", nil)
-			return nil
-		}
+
 		conn := cli.getGRPCConn(leader)
 		if conn == nil {
 			return nil
