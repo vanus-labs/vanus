@@ -121,7 +121,7 @@ func (r *Reader) getOffset(eventLogID vanus.ID) uint64 {
 
 func (r *Reader) start(els []*record.EventLog) {
 	r.lock.Lock()
-	r.lock.Unlock()
+	defer r.lock.Unlock()
 	for _, el := range els {
 		vrn, err := discovery.ParseVRN(el.VRN)
 		if err != nil {
@@ -177,13 +177,15 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 		case context.Canceled:
 			return
 		case context.DeadlineExceeded:
-			log.Warning(ctx, "event eventlog reader init timeout", map[string]interface{}{
-				log.KeyEventlogID: elReader.eventLogVrn,
+			log.Warning(ctx, "eventlog reader init timeout", map[string]interface{}{
+				log.KeyEventbusName: elReader.config.EventBus,
+				log.KeyEventlogID:   elReader.eventLogVrn,
 			})
 			continue
 		default:
-			log.Info(ctx, "event eventlog reader init error,will retry", map[string]interface{}{
+			log.Info(ctx, "eventlog reader init error,will retry", map[string]interface{}{
 				log.KeyEventbusName: elReader.config.EventBus,
+				log.KeyEventlogID:   elReader.eventLogID,
 				log.KeyError:        err,
 			})
 			if !util.SleepWithContext(ctx, time.Second*5) {
@@ -191,6 +193,11 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 			}
 			continue
 		}
+		log.Info(ctx, "eventlog reader init success", map[string]interface{}{
+			log.KeyEventbusName: elReader.config.EventBus,
+			log.KeyEventlogID:   elReader.eventLogID,
+			"offset":            elReader.offset,
+		})
 		sleepCnt := 0
 		for {
 			err = elReader.readEvent(ctx, lr)

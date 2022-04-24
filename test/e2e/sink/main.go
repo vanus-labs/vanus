@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package worker
+package main
 
 import (
 	"context"
@@ -21,19 +21,18 @@ import (
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"github.com/linkall-labs/vanus/observability/log"
 	"net"
-	"testing"
 )
 
-func TestEventBusWrite(t *testing.T) {
-	ls, err := net.Listen("tcp4", "localhost:18080")
+func main() {
+	ls, err := net.Listen("tcp4", ":18080")
 	if err != nil {
 		panic(err)
 	}
-
 	c, err := client.NewHTTP(cehttp.WithListener(ls), cehttp.WithRequestDataAtContextMiddleware())
 	if err != nil {
 		panic(err)
 	}
+	log.Info(context.Background(), "start success", nil)
 	c.StartReceiver(context.Background(), func(e ce.Event) {
 		log.Info(context.Background(), "receive event", map[string]interface{}{
 			"event": e,

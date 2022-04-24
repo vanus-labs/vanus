@@ -1,5 +1,6 @@
 # create subscription
-grpcurl -d @ -plaintext 127.0.0.1:2048  linkall.vanus.controller.TriggerController.CreateSubscription <<EOF
+server=127.0.0.1:2048
+grpcurl -d @ -plaintext $server  linkall.vanus.controller.TriggerController.CreateSubscription <<EOF
 {
   "filters": [
       {
@@ -13,7 +14,7 @@ grpcurl -d @ -plaintext 127.0.0.1:2048  linkall.vanus.controller.TriggerControll
 }
 EOF
 # delete subscription
-grpcurl -d @ -plaintext 127.0.0.1:2048  linkall.vanus.controller.TriggerController.DeleteSubscription <<EOF
+grpcurl -d @ -plaintext $server  linkall.vanus.controller.TriggerController.DeleteSubscription <<EOF
 {
   "id": 123
 }

@@ -109,7 +109,7 @@ func (cli *ctrlClient) unregisterTriggerWorker(ctx context.Context,
 }
 
 func (cli *ctrlClient) heartbeat(ctx context.Context, req *ctrlpb.TriggerWorkerHeartbeatRequest) error {
-	log.Info(nil, "heartbeat", map[string]interface{}{
+	log.Debug(ctx, "heartbeat", map[string]interface{}{
 		"leader": cli.leader,
 	})
 	var err error
@@ -164,13 +164,18 @@ func (cli *ctrlClient) makeSureClient(renew bool) ctrlpb.TriggerControllerClient
 			pingClient := ctrlpb.NewPingServerClient(conn)
 			res, err := pingClient.Ping(context.Background(), &emptypb.Empty{})
 			if err != nil {
-				return nil
+				log.Info(context.Background(), "ping has error", map[string]interface{}{
+					log.KeyError: err,
+					"addr":       v,
+				})
+				continue
 			}
 			leader = res.LeaderAddr
 			break
 		}
 		//todo check leader is invalid
 		if leader == "" {
+			log.Info(context.Background(), "leader is empty", nil)
 			return nil
 		}
 		conn := cli.getGRPCConn(leader)

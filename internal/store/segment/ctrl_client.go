@@ -64,10 +64,12 @@ func (cli *ctrlClient) Close(ctx context.Context) {
 	if len(cli.grpcConn) == 0 {
 		return
 	}
-	if _, err := cli.heartBeatClient.CloseAndRecv(); err != nil {
-		log.Warning(ctx, "close gRPC stream error", map[string]interface{}{
-			log.KeyError: err,
-		})
+	if cli.heartBeatClient != nil {
+		if _, err := cli.heartBeatClient.CloseAndRecv(); err != nil {
+			log.Warning(ctx, "close gRPC stream error", map[string]interface{}{
+				log.KeyError: err,
+			})
+		}
 	}
 	for ip, conn := range cli.grpcConn {
 		if err := conn.Close(); err != nil {
@@ -131,7 +133,7 @@ func (cli *ctrlClient) reportSegmentBlockIsFull(ctx context.Context,
 }
 
 func (cli *ctrlClient) heartbeat(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error {
-	log.Info(nil, "heartbeat", map[string]interface{}{
+	log.Debug(ctx, "heartbeat", map[string]interface{}{
 		"leader": cli.leader,
 	})
 	var err error
@@ -186,13 +188,18 @@ func (cli *ctrlClient) makeSureClient(renew bool) ctrlpb.SegmentControllerClient
 			pingClient := ctrlpb.NewPingServerClient(conn)
 			res, err := pingClient.Ping(context.Background(), &emptypb.Empty{})
 			if err != nil {
-				return nil
+				log.Info(context.Background(), "ping has error", map[string]interface{}{
+					log.KeyError: err,
+					"addr":       v,
+				})
+				continue
 			}
 			leader = res.LeaderAddr
 			break
 		}
 		//todo check leader is invalid
 		if leader == "" {
+			log.Info(context.Background(), "leader is empty", nil)
 			return nil
 		}
 		conn := cli.getGRPCConn(leader)
