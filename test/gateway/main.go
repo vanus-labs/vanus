@@ -2,13 +2,22 @@ package main
 
 import (
 	"context"
+	"flag"
+	"fmt"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"log"
 )
 
+var (
+	addr = flag.String("addr", "127.0.0.1:8080", "")
+	eb   = flag.String("eb", "test", "")
+	num  = flag.Int("num", 100, "")
+	size = flag.Int("size", 64, "")
+)
+
 func main() {
-	ctx := cloudevents.ContextWithTarget(context.Background(), "http://127.0.0.1:8080/gateway/dj-eventbus")
+	ctx := cloudevents.ContextWithTarget(context.Background(), fmt.Sprintf("http://%s/gateway/%s", *addr, *eb))
 
 	p, err := cloudevents.NewHTTP()
 	if err != nil {
@@ -22,12 +31,12 @@ func main() {
 
 	data := func() string {
 		str := ""
-		for idx := 0; idx < 40960; idx++ {
+		for idx := 0; idx < *size; idx++ {
 			str += "a"
 		}
 		return str
 	}()
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < *num; i++ {
 		e := cloudevents.NewEvent()
 		e.SetType("com.cloudevents.sample.sent")
 		e.SetSource("https://github.com/cloudevents/sdk-go/v2/samples/httpb/sender")
