@@ -66,11 +66,14 @@ func (h *host) Sendv(ctx context.Context, msgs []*raftpb.Message, to uint64, end
 
 func (h *host) resolveMultiplexer(ctx context.Context, to uint64, endpoint string) Multiplexer {
 	if endpoint == "" {
-		endpoint = h.resolver.Resolve(to)
+		if endpoint = h.resolver.Resolve(to); endpoint == "" {
+			return nil
+		}
 	}
 	if mux, ok := h.peers.Load(endpoint); ok {
 		return mux.(*peer)
 	}
+	// TODO(james.yin): clean unused peer
 	p := newPeer(context.TODO(), endpoint, h.callback)
 	if mux, loaded := h.peers.LoadOrStore(endpoint, p); loaded {
 		defer p.Close()

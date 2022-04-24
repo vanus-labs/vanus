@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -166,6 +165,7 @@ func (s *segmentServer) Stop(ctx context.Context,
 	s.stopCallback()
 	return &segpb.StopSegmentServerResponse{}, nil
 }
+
 func (s *segmentServer) Status(ctx context.Context,
 	req *emptypb.Empty) (*segpb.StatusResponse, error) {
 	return &segpb.StatusResponse{Status: string(s.state)}, nil
@@ -231,10 +231,13 @@ func (s *segmentServer) ActivateSegment(ctx context.Context,
 	// bootstrap replica
 	if len(req.Replicas) > 0 {
 		var myID vanus.ID
-		var peers []vanus.ID
+		var peers []block.IDAndEndpoint
 		for blockID, endpoint := range req.Replicas {
 			peer := vanus.NewIDFromUint64(blockID)
-			peers = append(peers, peer)
+			peers = append(peers, block.IDAndEndpoint{
+				ID:       peer,
+				Endpoint: endpoint,
+			})
 			if endpoint == s.localAddress {
 				myID = peer
 			} else {
@@ -250,11 +253,6 @@ func (s *segmentServer) ActivateSegment(ctx context.Context,
 		if !exist {
 			return nil, errors.ErrResourceNotFound.WithMessage("the segment doesn't exist")
 		}
-
-		// sort peers
-		sort.Slice(peers, func(a, b int) bool {
-			return peers[a] < peers[b]
-		})
 
 		replica := v.(*block.Replica)
 		if err := replica.Bootstrap(peers); err != nil {

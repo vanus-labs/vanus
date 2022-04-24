@@ -17,6 +17,7 @@ package block
 import (
 	// standard libraries.
 	"context"
+	"sort"
 	"sync"
 	"time"
 
@@ -30,6 +31,11 @@ import (
 	"github.com/linkall-labs/vanus/internal/raft/transport"
 	"github.com/linkall-labs/vanus/internal/store/segment/errors"
 )
+
+type IDAndEndpoint struct {
+	ID       vanus.ID
+	Endpoint string
+}
 
 type idAndEndpoint struct {
 	id       uint64
@@ -106,13 +112,18 @@ func (r *Replica) Stop() {
 	<-r.donec
 }
 
-func (r *Replica) Bootstrap(blocks []vanus.ID) error {
+func (r *Replica) Bootstrap(blocks []IDAndEndpoint) error {
 	peers := make([]raft.Peer, 0, len(blocks))
-	for _, blockID := range blocks {
+	for _, ep := range blocks {
 		peers = append(peers, raft.Peer{
-			ID: blockID.Uint64(),
+			ID:      ep.ID.Uint64(),
+			Context: []byte(ep.Endpoint),
 		})
 	}
+	// sort peers
+	sort.Slice(peers, func(a, b int) bool {
+		return peers[a].ID < peers[b].ID
+	})
 	return r.node.Bootstrap(peers)
 }
 
@@ -139,7 +150,10 @@ func (r *Replica) run() {
 				isLeader := rd.SoftState.RaftState == raft.StateLeader
 				// reset when become leader
 				if isLeader {
-					off := hardState.Commit
+					off, err := r.log.LastIndex()
+					if err != nil {
+						off = hardState.Commit
+					}
 					// TODO(james.yin): no normal entry
 					for off > 0 {
 						entrypbs, err := r.log.Entries(off, off+1, 0)
@@ -182,11 +196,17 @@ func (r *Replica) run() {
 					if err := cc.Unmarshal(entrypb.Data); err != nil {
 						panic(err)
 					}
+					// TODO(james.yin): non-add
+					r.hintEndpoint(cc.NodeID, string(cc.Context))
 					cci = cc
 				} else {
 					var cc raftpb.ConfChangeV2
 					if err := cc.Unmarshal(entrypb.Data); err != nil {
 						panic(nil)
+					}
+					// TODO(james.yin): non-add
+					for _, ccs := range cc.Changes {
+						r.hintEndpoint(ccs.NodeID, string(cc.Context))
 					}
 					cci = cc
 				}
@@ -352,6 +372,10 @@ func (r *Replica) Receive(ctx context.Context, msg *raftpb.Message, from uint64,
 }
 
 func (r *Replica) hintEndpoint(from uint64, endpoint string) {
+	if endpoint == "" {
+		return
+	}
+
 	// TODO(james.yin): optimize lock
 	r.epMu.Lock()
 	defer r.epMu.Unlock()
