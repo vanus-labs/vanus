@@ -50,6 +50,9 @@ func main() {
 		})
 
 		res := c.Send(ctx, e)
+		if res.Error() != "" {
+			panic(fmt.Sprintf("send event failed: %s", res.Error()))
+		}
 		if cloudevents.IsUndelivered(res) {
 			log.Printf("Failed to send: %v", res)
 		} else {
