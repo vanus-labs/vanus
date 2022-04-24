@@ -222,12 +222,6 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[string][]Se
 				continue
 			}
 			if seg.isNeedUpdate(newSeg) {
-				seg.Size = newSeg.Size
-				seg.Number = newSeg.Number
-				if newSeg.State == StateFrozen {
-					seg.State = StateFrozen
-				}
-
 				data, _ := json.Marshal(seg)
 				println(string(data))
 				key := filepath.Join(metadata.SegmentKeyPrefixInKVStore, seg.ID.String())

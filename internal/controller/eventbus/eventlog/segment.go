@@ -61,6 +61,7 @@ func (seg *Segment) String() string {
 	return string(data)
 }
 
+// TODO Don't update field in here
 func (seg *Segment) isNeedUpdate(newSeg Segment) bool {
 	if seg.ID != newSeg.ID {
 		return false
@@ -74,7 +75,7 @@ func (seg *Segment) isNeedUpdate(newSeg Segment) bool {
 		seg.Number = newSeg.Number
 		needed = true
 	}
-	if seg.State != newSeg.State {
+	if newSeg.State != "" && seg.State != newSeg.State {
 		seg.State = newSeg.State
 		needed = true
 	}

@@ -339,7 +339,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 			logArr = append(logArr, seg)
 			segments[block.EventlogID.Key()] = logArr
 		}
-		//ctrl.eventLogMgr.UpdateSegment(ctx, segments)
+		ctrl.eventLogMgr.UpdateSegment(ctx, segments)
 	}
 
 	if err != nil && err != io.EOF {
