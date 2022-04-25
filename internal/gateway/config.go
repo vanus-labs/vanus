@@ -18,7 +18,7 @@ import "github.com/linkall-labs/vanus/internal/primitive"
 
 type Config struct {
 	Port           int      `yaml:"port"`
-	ControllerAddr []string `yaml:"controller"`
+	ControllerAddr []string `yaml:"controllers"`
 }
 
 func InitConfig(filename string) (*Config, error) {

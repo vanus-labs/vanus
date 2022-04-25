@@ -18,10 +18,10 @@ var (
 
 func main() {
 	flag.Parse()
-	fmt.Printf("params: %s=%s", "addr", *addr)
-	fmt.Printf("params: %s=%s", "eb", *eb)
-	fmt.Printf("params: %s=%d", "num", *num)
-	fmt.Printf("params: %s=%d", "size", *size)
+	fmt.Printf("params: %s=%s\n", "addr", *addr)
+	fmt.Printf("params: %s=%s\n", "eb", *eb)
+	fmt.Printf("params: %s=%d\n", "num", *num)
+	fmt.Printf("params: %s=%d\n", "size", *size)
 
 	ctx := cloudevents.ContextWithTarget(context.Background(), fmt.Sprintf("http://%s/gateway/%s", *addr, *eb))
 
@@ -56,15 +56,12 @@ func main() {
 		})
 
 		res := c.Send(ctx, e)
-		if res.Error() != "" {
-			panic(fmt.Sprintf("send event failed: %s", res.Error()))
-		}
 		if cloudevents.IsUndelivered(res) {
 			log.Printf("Failed to send: %v", res)
 		} else {
 			var httpResult *cehttp.Result
 			cloudevents.ResultAs(res, &httpResult)
-			log.Printf("Sent %d with status code %d", i, httpResult.StatusCode)
+			log.Printf("Sent %d with status code %d, body: %s", i, httpResult.StatusCode, httpResult.Error())
 		}
 	}
 }

@@ -55,7 +55,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) protocol.Resul
 	}
 
 	vrn := fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s", ga.config.ControllerAddr[0],
-		strings.Join(ga.config.ControllerAddr, ","), ebName)
+		ebName, strings.Join(ga.config.ControllerAddr, ","))
 	v, exist := ga.busWriter.Load(vrn)
 	if !exist {
 		writer, err := eb.OpenBusWriter(vrn)
