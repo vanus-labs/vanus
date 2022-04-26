@@ -17,6 +17,11 @@ package eventbus
 import (
 	"context"
 	"encoding/json"
+	"io"
+	"path/filepath"
+	"strings"
+	"sync"
+
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/eventlog"
@@ -34,10 +39,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"io"
-	"path/filepath"
-	"strings"
-	"sync"
 )
 
 func NewEventBusController(cfg Config, member embedetcd.Member) *controller {
