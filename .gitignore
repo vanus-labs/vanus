@@ -23,7 +23,7 @@
 # data dir of etcd
 etcd
 bin
-
+ø
 *.xml
 
 *coverage*

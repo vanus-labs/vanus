@@ -18,9 +18,9 @@ jobs:
       - uses: actions/setup-go@v2
       - uses: actions/checkout@v2
       - name: Generate coverage report
-        timeout-minutes: 5
+        timeout-minutes: 2
         run: |
-          go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+          go test -race -coverprofile=coverage.txt -covermode=atomic ./internal/controller/...
       - uses: codecov/codecov-action@v2
         with:
           token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
