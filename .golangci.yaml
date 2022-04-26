@@ -253,7 +253,7 @@ linters:
     - ineffassign
     - staticcheck
     - structcheck
-    - typecheck
+#    - typecheck
     - unused
     - varcheck
     ## disabled by default

@@ -20,3 +20,4 @@ jobs:
         with:
           log: info
           config: .github/workflow/licenserc.yml
+          mode: fix

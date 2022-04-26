@@ -4,13 +4,14 @@ header:
     copyright-owner: Linkall Inc.
 
   paths-ignore:
+    - build/
+    - .github/
     - 'docs/'
-    - 'bu'
     - '.gitignore'
     - '.gitattributes'
     - '.golangci.yml'
     - '.golangci_br.yml'
-    - 'LICENSES/'
+    - 'LICENSES'
     - '**/*.md'
     - '**/*.json'
     - '**/*.test'
@@ -20,7 +21,4 @@ header:
     - '**/go.mod'
     - '**/go.sum'
     - 'LICENSE'
-    - '.github/'
-    - 'parser/'
-    - 'dumpling/'
   comment: on-failure
