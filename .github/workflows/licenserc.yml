@@ -7,6 +7,7 @@ header:
     - build/
     - .github/
     - 'docs/'
+    - 'config/'
     - '.gitignore'
     - '.gitattributes'
     - '.golangci.yml'
