@@ -290,57 +290,8 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 			err = srv.SendAndClose(&ctrlpb.SegmentHeartbeatResponse{})
 			break
 		}
-		t, err := util.ParseTime(req.ReportTime)
-		if err != nil {
-			log.Error(ctx, "parse heartbeat report time failed", map[string]interface{}{
-				"volume_id":  req.VolumeId,
-				"server_id":  req.ServerId,
-				log.KeyError: err,
-			})
-			continue
-		}
-		log.Debug(ctx, "received heartbeat from segment server", map[string]interface{}{
-			"server_id": req.ServerId,
-			"volume_id": req.VolumeId,
-			"time":      t,
-		})
 
-		srv := ctrl.ssMgr.GetServerByServerID(vanus.NewIDFromUint64(req.ServerId))
-		if srv == nil {
-			log.Warning(ctx, "received a heartbeat request, but server metadata not found", map[string]interface{}{
-				"volume_id": req.VolumeId,
-				"server_id": req.ServerId,
-			})
-		} else {
-			srv.Polish()
-		}
-		segments := make(map[string][]eventlog.Segment)
-		for _, info := range req.HealthInfo {
-			blockID := vanus.NewIDFromUint64(info.Id)
-			block := ctrl.eventLogMgr.GetBlock(blockID)
-			if block == nil {
-				continue
-			}
-			logArr, exist := segments[block.EventlogID.Key()]
-			if !exist {
-				logArr = make([]eventlog.Segment, 0)
-				segments[block.EventlogID.Key()] = logArr
-			}
-
-			seg := eventlog.Segment{
-				ID:         block.SegmentID,
-				Capacity:   info.Capacity,
-				EventLogID: block.EventlogID,
-				Size:       info.Size,
-				Number:     info.EventNumber,
-			}
-			if info.IsFull {
-				seg.State = eventlog.StateFrozen
-			}
-			logArr = append(logArr, seg)
-			segments[block.EventlogID.Key()] = logArr
-		}
-		ctrl.eventLogMgr.UpdateSegment(ctx, segments)
+		_ = ctrl.processHeartbeat(ctx, req)
 	}
 
 	if err != nil && err != io.EOF {
@@ -351,6 +302,64 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 			})
 		}
 	}
+	return nil
+}
+func (ctrl *controller) processHeartbeat(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error {
+	if !ctrl.member.IsLeader() {
+		return errors.ErrNotLeader
+	}
+
+	t, err := util.ParseTime(req.ReportTime)
+	if err != nil {
+		log.Error(ctx, "parse heartbeat report time failed", map[string]interface{}{
+			"volume_id":  req.VolumeId,
+			"server_id":  req.ServerId,
+			log.KeyError: err,
+		})
+		return err
+	}
+	log.Debug(ctx, "received heartbeat from segment server", map[string]interface{}{
+		"server_id": req.ServerId,
+		"volume_id": req.VolumeId,
+		"time":      t,
+	})
+
+	srv := ctrl.ssMgr.GetServerByServerID(vanus.NewIDFromUint64(req.ServerId))
+	if srv == nil {
+		log.Warning(ctx, "received a heartbeat request, but server metadata not found", map[string]interface{}{
+			"volume_id": req.VolumeId,
+			"server_id": req.ServerId,
+		})
+	} else {
+		srv.Polish()
+	}
+	segments := make(map[string][]eventlog.Segment)
+	for _, info := range req.HealthInfo {
+		blockID := vanus.NewIDFromUint64(info.Id)
+		block := ctrl.eventLogMgr.GetBlock(blockID)
+		if block == nil {
+			continue
+		}
+		logArr, exist := segments[block.EventlogID.Key()]
+		if !exist {
+			logArr = make([]eventlog.Segment, 0)
+			segments[block.EventlogID.Key()] = logArr
+		}
+
+		seg := eventlog.Segment{
+			ID:         block.SegmentID,
+			Capacity:   info.Capacity,
+			EventLogID: block.EventlogID,
+			Size:       info.Size,
+			Number:     info.EventNumber,
+		}
+		if info.IsFull {
+			seg.State = eventlog.StateFrozen
+		}
+		logArr = append(logArr, seg)
+		segments[block.EventlogID.Key()] = logArr
+	}
+	ctrl.eventLogMgr.UpdateSegment(ctx, segments)
 	return nil
 }
 
@@ -373,7 +382,9 @@ func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 
 func (ctrl *controller) ReportSegmentBlockIsFull(ctx context.Context,
 	req *ctrlpb.SegmentHeartbeatRequest) (*emptypb.Empty, error) {
-	// TODO
+	if err := ctrl.processHeartbeat(ctx, req); err != nil {
+		return nil, err
+	}
 	return &emptypb.Empty{}, nil
 }
 
