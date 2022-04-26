@@ -1,4 +1,4 @@
-name: golangci-lint
+name: codecov
 on:
   push:
     branches:
@@ -9,15 +9,11 @@ on:
 permissions:
   contents: read
   # Optional: allow read access to pull request. Use with `only-new-issues` option.
-  # pull-requests: read
+  # pull-requests: read-
 jobs:
-  golangci:
-    strategy:
-      matrix:
-        go-version: [1.17.x]
-        os: [ubuntu-latest]
-    name: lint
-    runs-on: ${{ matrix.os }}
+  codecov:
+    name: codecov
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v2
       - name: checkout-vsproto
@@ -50,16 +46,19 @@ jobs:
           repository: linkall-labs/vanus
           token: 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 # `GH_PAT` is a secret that contains your PAT
           path: vanus
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3.1.0
+      - name: Generate coverage report
+        timeout-minutes: 2
+        run: |
+          cd vanus && go test -race -coverprofile=coverage.txt -covermode=atomic ./internal/controller/eventbus/...
+      - name: debug
+        timeout-minutes: 2
+        run: |
+          export&&pwd&&ls -alh ./vanus && ls -alh ../
+      - uses: codecov/codecov-action@v2
         with:
-          # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
-          version: v1.45
-          # Optional: working directory, useful for monorepos
+          token: 931ae77e-a303-4e84-9c9f-33083aceaef2 # not required for public repos
           working-directory: vanus
-
-          # Optional: golangci-lint command line arguments.
-          # args: --issues-exit-code=0
-
-          # Optional: show only new issues if it's a pull request. The default value is `false`.
-          # only-new-issues: true
+          files: ./coverage.txt # optional
+          name: codecov-umbrella # optional
+          fail_ci_if_error: true # optional (default = false)
+          verbose: true # optional (default = false)
