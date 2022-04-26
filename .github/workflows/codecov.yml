@@ -1,0 +1,30 @@
+name: workflow
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: read
+  # Optional: allow read access to pull request. Use with `only-new-issues` option.
+  # pull-requests: read-
+jobs:
+  codecov:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v2
+      - uses: actions/checkout@v2
+      - name: Generate coverage report
+        timeout-minutes: 5
+        run: |
+          go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+      - uses: codecov/codecov-action@v2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
+          files: ./coverage.txt # optional
+          name: codecov-umbrella # optional
+          fail_ci_if_error: true # optional (default = false)
+          verbose: true # optional (default = false)

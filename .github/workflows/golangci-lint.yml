@@ -1,7 +1,6 @@
 name: golangci-lint
 on:
   push:
-    tags:
     branches:
       - main
   pull_request:

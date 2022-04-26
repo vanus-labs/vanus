@@ -25,3 +25,5 @@ etcd
 bin
 
 *.xml
+
+*coverage*
