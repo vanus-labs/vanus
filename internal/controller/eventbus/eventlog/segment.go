@@ -63,6 +63,9 @@ func (seg *Segment) String() string {
 
 // TODO Don't update field in here
 func (seg *Segment) isNeedUpdate(newSeg Segment) bool {
+	if seg.isFull() {
+		return false
+	}
 	if seg.ID != newSeg.ID {
 		return false
 	}
@@ -80,6 +83,10 @@ func (seg *Segment) isNeedUpdate(newSeg Segment) bool {
 		needed = true
 	}
 	return needed
+}
+
+func (seg *Segment) isFull() bool {
+	return seg.State == StateFrozen
 }
 
 func (seg *Segment) isReady() bool {
@@ -103,12 +110,14 @@ func Convert2ProtoSegment(ins ...*Segment) []*metapb.Segment {
 	for idx := 0; idx < len(ins); idx++ {
 		seg := ins[idx]
 		blocks := map[uint64]*metapb.Block{}
-		topo := mgr.getSegmentTopology(seg)
-		for _, v := range seg.Replicas.Peers {
-			blocks[v.ID.Uint64()] = &metapb.Block{
-				Id:       v.ID.Uint64(),
-				Endpoint: topo[v.ID.Uint64()],
-				VolumeID: v.VolumeID.Uint64(),
+		if seg.isReady() {
+			topo := mgr.getSegmentTopology(seg)
+			for _, v := range seg.Replicas.Peers {
+				blocks[v.ID.Uint64()] = &metapb.Block{
+					Id:       v.ID.Uint64(),
+					Endpoint: topo[v.ID.Uint64()],
+					VolumeID: v.VolumeID.Uint64(),
+				}
 			}
 		}
 		segs[idx] = &metapb.Segment{
@@ -123,7 +132,9 @@ func Convert2ProtoSegment(ins ...*Segment) []*metapb.Segment {
 			NumberEventStored: seg.Number,
 			Replicas:          blocks,
 			State:             string(seg.State),
-			LeaderBlockId:     seg.GetLeaderBlock().ID.Uint64(),
+		}
+		if seg.GetLeaderBlock() != nil {
+			segs[idx].LeaderBlockId = seg.GetLeaderBlock().ID.Uint64()
 		}
 
 		if segs[idx].NumberEventStored == 0 {

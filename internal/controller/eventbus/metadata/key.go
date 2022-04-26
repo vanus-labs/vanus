@@ -21,7 +21,8 @@ const (
 
 	EventbusKeyPrefixInKVStore = "/vanus/internal/resource/eventbus"
 	EventlogKeyPrefixInKVStore = "/vanus/internal/resource/eventlog"
-	SegmentKeyPrefixInKVStore  = "/vanus/internal/resource/segment"
+	// SegmentKeyPrefixInKVStore restrain kv operator in one?
+	SegmentKeyPrefixInKVStore = "/vanus/internal/resource/segment"
 
 	EventlogSegmentsKeyPrefixInKVStore = "/vanus/internal/resource/segs_of_eventlog"
 )

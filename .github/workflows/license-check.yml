@@ -19,5 +19,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           log: info
-          config: .github/workflows/licenserc.yml
+          config: .github/licenserc.yml
           mode: fix

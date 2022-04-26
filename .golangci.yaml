@@ -6,7 +6,11 @@
 
 run:
   timeout: 1m # default 1m
-
+  skip-dirs:
+    - embed-etcd
+    - eventbus-go
+    - raft
+    - vsproto
 linters-settings:
   errcheck:
     disable-default-exclusions: false # disable built-in exclude list # default: false

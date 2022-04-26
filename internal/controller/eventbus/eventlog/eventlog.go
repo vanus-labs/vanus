@@ -227,15 +227,20 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[string][]Se
 				})
 				continue
 			}
+			// TODO Don't update state in isNeedUpdate
+			// TODO TXN
 			if seg.isNeedUpdate(newSeg) {
 				data, _ := json.Marshal(seg)
-				println(string(data))
+				// TODO update block info at the same time
 				key := filepath.Join(metadata.SegmentKeyPrefixInKVStore, seg.ID.String())
 				if err := mgr.kvClient.Set(ctx, key, data); err != nil {
 					log.Warning(ctx, "update segment's metadata failed", map[string]interface{}{
 						log.KeyError: err,
 						"segment":    seg.String(),
 					})
+				}
+				if seg.isFull() {
+					el.markSegmentIsFull(ctx, seg)
 				}
 			}
 		}
@@ -315,6 +320,9 @@ func (mgr *eventlogManager) createEventLog(ctx context.Context) error {
 
 func (mgr *eventlogManager) getSegmentTopology(seg *Segment) map[uint64]string {
 	var addrs = map[uint64]string{}
+	if !seg.isReady() {
+		return addrs
+	}
 	for _, v := range seg.Replicas.Peers {
 		ins := mgr.volMgr.GetVolumeInstanceByID(v.VolumeID)
 		if ins == nil {
@@ -541,7 +549,8 @@ type eventlog struct {
 	writePtr    *Segment
 	kvClient    kv.Client
 	mutex       sync.RWMutex
-	segments    []vanus.ID
+	// Why
+	segments []vanus.ID
 }
 
 // newEventlog create an object in memory. if needLoad is true, there will read metadata
@@ -630,6 +639,9 @@ func (el *eventlog) currentAppendableSegment() *Segment {
 			head = head.Next()
 		}
 	}
+	if el.writePtr != nil && !el.writePtr.IsAppendable() {
+		el.writePtr = el.nextOf(el.writePtr)
+	}
 	return el.writePtr
 }
 
@@ -638,7 +650,9 @@ func (el *eventlog) currentAppendableSegment() *Segment {
 func (el *eventlog) add(ctx context.Context, seg *Segment) error {
 	el.mutex.Lock()
 	defer el.mutex.Unlock()
-
+	if !seg.isReady() {
+		return errors.ErrInvalidSegment
+	}
 	last := el.tail()
 	if last != nil {
 		last.NextSegmentId = seg.ID
@@ -650,16 +664,43 @@ func (el *eventlog) add(ctx context.Context, seg *Segment) error {
 	s.SegmentID = seg.ID
 	data, _ := json.Marshal(s)
 	key := filepath.Join(metadata.EventlogSegmentsKeyPrefixInKVStore, el.md.ID.String(), seg.ID.String())
-	// TODO update previous segment
 	if err := el.kvClient.Set(ctx, key, data); err != nil {
 		last.NextSegmentId = vanus.EmptyID()
 		seg.PreviousSegmentId = vanus.EmptyID()
 		return err
 	}
 
+	if last != nil {
+		data, _ = json.Marshal(s)
+		key = filepath.Join(metadata.SegmentKeyPrefixInKVStore, last.ID.String())
+		if err := el.kvClient.Set(ctx, key, data); err != nil {
+			// TODO clean when failed
+			last.NextSegmentId = vanus.EmptyID()
+			seg.PreviousSegmentId = vanus.EmptyID()
+			return err
+		}
+	}
+
 	el.segments = append(el.segments, seg.ID)
 	el.segmentList.Set(seg.ID.Uint64(), seg)
 	return nil
+}
+
+func (el *eventlog) markSegmentIsFull(ctx context.Context, seg *Segment) {
+	next := el.nextOf(seg)
+	if next == nil {
+		return
+	}
+	next.StartOffsetInLog = seg.StartOffsetInLog + int64(seg.Number)
+	data, _ := json.Marshal(next)
+	// TODO update block info at the same time
+	key := filepath.Join(metadata.SegmentKeyPrefixInKVStore, next.ID.String())
+	if err := mgr.kvClient.Set(ctx, key, data); err != nil {
+		log.Warning(ctx, "update segment's metadata failed", map[string]interface{}{
+			log.KeyError: err,
+			"segment":    next.String(),
+		})
+	}
 }
 
 func (el *eventlog) head() *Segment {
