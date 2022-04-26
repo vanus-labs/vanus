@@ -27,7 +27,6 @@ import (
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	eb "github.com/linkall-labs/eventbus-go"
 	"github.com/linkall-labs/eventbus-go/pkg/eventbus"
-	"github.com/linkall-labs/vanus/observability/log"
 )
 
 const (
@@ -61,7 +60,6 @@ func (ga *ceGateway) StartReceive(ctx context.Context) error {
 }
 
 func (ga *ceGateway) receive(ctx context.Context, event v2.Event) protocol.Result {
-	log.Info(ctx, fmt.Sprintf("%v", event), nil)
 	ebName := getEventBusFromPath(cehttp.RequestDataFromContext(ctx))
 
 	if ebName == "" {
