@@ -1,4 +1,4 @@
-name: workflow
+name: codecov
 on:
   push:
     branches:
@@ -12,18 +12,47 @@ permissions:
   # pull-requests: read-
 jobs:
   codecov:
-    name: lint
+    name: codecov
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v2
-      - uses: actions/checkout@v2
+      - name: checkout-vsproto
+        uses: actions/checkout@v3
+        with:
+          repository: linkall-labs/vsproto
+          token: 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 # `GH_PAT` is a secret that contains your PAT
+          path: vsproto
+      - name: checkout-etcd
+        uses: actions/checkout@v3
+        with:
+          repository: linkall-labs/embed-etcd
+          token: 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 # `GH_PAT` is a secret that contains your PAT
+          path: embed-etcd
+      - name: checkout-raft
+        uses: actions/checkout@v3
+        with:
+          repository: linkall-labs/raft
+          token: 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 # `GH_PAT` is a secret that contains your PAT
+          path: raft
+      - name: checkout-eventbus-go
+        uses: actions/checkout@v3
+        with:
+          repository: linkall-labs/eventbus-go
+          token: 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 # `GH_PAT` is a secret that contains your PAT
+          path: eventbus-go
+      - name: checkout-eventbus-go
+        uses: actions/checkout@v3
+        with:
+          repository: linkall-labs/vanus
+          token: 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 # `GH_PAT` is a secret that contains your PAT
+          path: vanus
       - name: Generate coverage report
         timeout-minutes: 2
         run: |
-          go test -race -coverprofile=coverage.txt -covermode=atomic ./internal/controller/...
+          cd vanus && go test -race -coverprofile=coverage.txt -covermode=atomic ./internal/controller/eventbus/...
       - uses: codecov/codecov-action@v2
         with:
-          token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
+          token: 931ae77e-a303-4e84-9c9f-33083aceaef2 # not required for public repos
           files: ./coverage.txt # optional
           name: codecov-umbrella # optional
           fail_ci_if_error: true # optional (default = false)
