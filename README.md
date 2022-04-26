@@ -1,6 +1,6 @@
 # Vanus
 
-[![LICENSE](https://img.shields.io/github/license/pingcap/tidb.svg)](https://github.com/linkall-labs/vanus/blob/main/LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://github.com/linkall-labs/vanus/blob/main/LICENSE)
 [![Language](https://img.shields.io/badge/Language-Go-blue.svg)](https://golang.org/)
 [![codecov](https://codecov.io/gh/linkall-labs/vanus/branch/main/graph/badge.svg?token=RSXSIMEY4V)](https://codecov.io/gh/linkall-labs/vanus)
 
