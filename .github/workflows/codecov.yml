@@ -40,7 +40,7 @@ jobs:
           repository: linkall-labs/eventbus-go
           token: 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 # `GH_PAT` is a secret that contains your PAT
           path: eventbus-go
-      - name: checkout-eventbus-go
+      - name: checkout-vanus
         uses: actions/checkout@v3
         with:
           repository: linkall-labs/vanus
@@ -50,9 +50,14 @@ jobs:
         timeout-minutes: 2
         run: |
           cd vanus && go test -race -coverprofile=coverage.txt -covermode=atomic ./internal/controller/eventbus/...
+      - name: debug
+        timeout-minutes: 2
+        run: |
+          export&&pwd&&ls -alh ./vanus && ls -alh ../
       - uses: codecov/codecov-action@v2
         with:
           token: 931ae77e-a303-4e84-9c9f-33083aceaef2 # not required for public repos
+          working-directory: vanus
           files: ./coverage.txt # optional
           name: codecov-umbrella # optional
           fail_ci_if_error: true # optional (default = false)

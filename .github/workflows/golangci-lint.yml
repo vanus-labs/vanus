@@ -44,7 +44,7 @@ jobs:
           repository: linkall-labs/eventbus-go
           token: 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 # `GH_PAT` is a secret that contains your PAT
           path: eventbus-go
-      - name: checkout-eventbus-go
+      - name: checkout-vanus
         uses: actions/checkout@v3
         with:
           repository: linkall-labs/vanus
@@ -56,7 +56,7 @@ jobs:
           # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
           version: v1.45
           # Optional: working directory, useful for monorepos
-          # working-directory: somedir
+          working-directory: vanus
 
           # Optional: golangci-lint command line arguments.
           # args: --issues-exit-code=0
