@@ -44,7 +44,7 @@ func calPacketNum(entry []byte, firstSize, otherSize int) int {
 	if payload <= firstSize-HeaderSize {
 		return 1
 	}
-	// 1 + (payload-(firstSize-RecordHeaderSize)+(otherSize-RecordHeaderSize)-1)/(otherSize-RecordHeaderSize)
+	// 1 + ((payload-(firstSize-HeaderSize))+((otherSize-HeaderSize)-1))/(otherSize-HeaderSize)
 	return 1 + (payload-firstSize+otherSize-1)/(otherSize-HeaderSize)
 }
 
