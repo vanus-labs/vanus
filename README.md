@@ -4,6 +4,7 @@
 [![Language](https://img.shields.io/badge/Language-Go-blue.svg)](https://golang.org/)
 [![codecov](https://codecov.io/gh/linkall-labs/vanus/branch/main/graph/badge.svg?token=RSXSIMEY4V)](https://codecov.io/gh/linkall-labs/vanus)
 
+
 Vanus is a Serverless Event Platform for Event-driven Architecture
 
 ## Project Layout
