@@ -46,7 +46,7 @@ type Replica struct {
 	num  int
 	wo   int
 	full bool
-	mu   sync.Mutex
+	mu   sync.RWMutex
 
 	block *fileBlock
 
@@ -87,9 +87,7 @@ func NewReplica(ctx context.Context, block SegmentBlock, raftLog *raftlog.Log, s
 		cancel:    cancel,
 		donec:     make(chan struct{}),
 	}
-	r.num = int(r.block.num.Load())
-	r.wo = int(r.block.wo.Load())
-	r.full = r.block.full.Load()
+	r.resetByBlock()
 
 	c := &raft.Config{
 		ID:                        blockID.Uint64(),
@@ -143,30 +141,16 @@ func (r *Replica) run() {
 				hardState = rd.HardState
 			}
 
-			r.log.Append(rd.Entries)
+			if err := r.log.Append(rd.Entries); err != nil {
+				panic(err)
+			}
 
 			if rd.SoftState != nil {
 				r.leaderID = vanus.NewIDFromUint64(rd.SoftState.Lead)
 				isLeader := rd.SoftState.RaftState == raft.StateLeader
 				// reset when become leader
 				if isLeader {
-					off, err := r.log.LastIndex()
-					if err != nil {
-						off = hardState.Commit
-					}
-					// TODO(james.yin): no normal entry
-					for off > 0 {
-						entrypbs, err := r.log.Entries(off, off+1, 0)
-						if err != nil {
-						}
-						entrypb := entrypbs[0]
-						if entrypb.Type == raftpb.EntryNormal && len(entrypb.Data) > 0 {
-							entry := UnmarshalWithOffsetAndIndex(entrypb.Data)
-							r.reset(entry)
-							break
-						}
-						off -= 1
-					}
+					r.reset(hardState)
 				}
 				r.isLeader = isLeader
 			}
@@ -222,13 +206,53 @@ func (r *Replica) run() {
 	}
 }
 
-func (r *Replica) reset(entry Entry) {
+func (r *Replica) reset(hardState raftpb.HardState) {
+	off, err := r.log.LastIndex()
+	if err != nil {
+		off = hardState.Commit
+	}
+
+	for off > 0 {
+		entrypbs, err := r.log.Entries(off, off+1, 0)
+
+		// compacted
+		if err != nil {
+			r.resetByBlock()
+			break
+		}
+
+		entrypb := entrypbs[0]
+		if entrypb.Type == raftpb.EntryNormal && len(entrypb.Data) > 0 {
+			entry := UnmarshalWithOffsetAndIndex(entrypb.Data)
+			r.resetByEntry(entry)
+			break
+		}
+
+		off -= 1
+	}
+
+	// no normal entry
+	if off == 0 {
+		r.resetByBlock()
+	}
+}
+
+func (r *Replica) resetByEntry(entry Entry) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	r.num = int(entry.Index + 1)
 	r.wo = int(entry.Offset) + len(entry.Payload)
 	r.full = len(entry.Payload) == 0
+}
+
+func (r *Replica) resetByBlock() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.num = int(r.block.num.Load())
+	r.wo = int(r.block.wo.Load())
+	r.full = r.block.full.Load()
 }
 
 // Append implements SegmentBlockWriter.
@@ -241,6 +265,9 @@ func (r *Replica) Append(ctx context.Context, entries ...Entry) error {
 	if len(entries) != 1 {
 		return errors.ErrInvalidRequest
 	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	if err := r.preAppend(ctx, entries); err != nil {
 		return err
@@ -258,9 +285,6 @@ func (r *Replica) Append(ctx context.Context, entries ...Entry) error {
 }
 
 func (r *Replica) preAppend(ctx context.Context, entries []Entry) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	if r.full {
 		return ErrFull
 	}
@@ -405,5 +429,7 @@ func (r *Replica) CloseWrite(ctx context.Context) error {
 
 // IsAppendable implements SegmentBlockWriter.
 func (r *Replica) IsAppendable() bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	return !r.full
 }

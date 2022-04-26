@@ -309,12 +309,9 @@ func (s *segmentServer) AppendToBlock(ctx context.Context,
 		return nil, errors.ErrResourceNotFound.WithMessage("the segment doesn't exist")
 	}
 
-	writer := v.(block.SegmentBlockWriter)
+	writer, _ := v.(block.SegmentBlockWriter)
 	if !writer.IsAppendable() {
-		if writer.(block.SegmentBlock).IsFull() {
-			return nil, errors.ErrSegmentNoEnoughCapacity
-		}
-		return nil, errors.ErrInternal.WithMessage("the segment can not be appended")
+		return nil, errors.ErrSegmentNoEnoughCapacity
 	}
 
 	events := req.GetEvents().Events
