@@ -1,165 +1,362 @@
-service:
-  # When updating this, also update bin/linters.sh accordingly
-  golangci-lint-version: 1.45.x # use the fixed version to not introduce new linters unexpectedly
+## Golden config for golangci-lint v1.45.2
+#
+# This is the best config for golangci-lint based on my experience and opinion.
+# It is very strict, but not extremely strict.
+# Feel free to adopt and change it for your needs.
+
 run:
-  # timeout for analysis, e.g. 30s, 5m, default is 1m
-  deadline: 20m
-
-  # which dirs to skip: they won't be analyzed;
-  # can use regexp here: generated.*, regexp is applied on full path;
-  # default value is empty list, but next dirs are always skipped independently
-  # from this option's value:
-  #   	vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
-
-linters:
-  enable-all: true
-  disable:
-    - depguard
-    - dupl
-    - gochecknoglobals
-    - gochecknoinits
-    - goconst
-    - gocyclo
-    - gosec
-    - nakedret
-    - prealloc
-    - scopelint
-  fast: false
+  timeout: 1m # default 1m
 
 linters-settings:
   errcheck:
-    # report about not checking of errors in type assetions: `a := b.(MyStruct)`;
-    # default is false: such cases aren't reported by default.
-    check-type-assertions: false
-
-    # report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`;
-    # default is false: such cases aren't reported by default.
-    check-blank: false
+    disable-default-exclusions: false # disable built-in exclude list # default: false
+    check-type-assertions: true # default false
+    check-blank: false # default false
+    ignore: "fmt:.*" # default fmt:.*
+    exclude-functions: [] # see https://github.com/kisielk/errcheck#excluding-functions for details # default []
+  gosimple:
+    go: "1.16" # default 1.13
+    checks: [ "*" ] # https://staticcheck.io/docs/options#checks # default ["*"]
   govet:
-    # report about shadowed variables
-    check-shadowing: false
-  gofmt:
-    # simplify code: gofmt with `-s` option, true by default
-    simplify: true
-  goimports:
-    # put imports beginning with prefix after 3rd-party packages;
-    # it's a comma-separated list of prefixes
-    local-prefixes: istio.io/
-  misspell:
-    # Correct spellings using locale preferences for US or UK.
-    # Default is to use a neutral variety of English.
-    # Setting locale to US will correct the British spelling of 'colour' to 'color'.
-    locale: US
-  lll:
-    # max line length, lines longer will be reported. Default is 120.
-    # '\t' is counted as 1 character by default, and can be changed with the tab-width option
-    line-length: 160
-    # tab width in spaces. Default to 1.
-    tab-width: 1
+    enable-all: true
+    disable:
+      - fieldalignment # too strict
+    settings:
+      shadow:
+        strict: true # default false
+  staticcheck:
+    go: "1.17" # default 1.13
+    checks: [ "*" ] # https://staticcheck.io/docs/options#checks # default ["*"]
+  structcheck:
+    exported-fields: false # default false
   unused:
-    # treat code as a program (not a library) and report unused exported identifiers; default is false.
-    # XXX: if you enable this setting, unused will report a lot of false-positives in text editors:
-    # if it's called for subdir of a project it can't find funcs usages. All text editor integrations
-    # with golangci-lint call it on a directory with the changed file.
-    check-exported: false
-  unparam:
-    # call graph construction algorithm (cha, rta). In general, use cha for libraries,
-    # and rta for programs with main packages. Default is cha.
-    algo: cha
+    check-exported: false # default false # TODO: enable after fixing false positives
+  varcheck:
+    exported-fields: false # default false # TODO: enable after fixing false positives
 
-    # Inspect exported functions, default is false. Set to true if no external program/library imports your code.
-    # XXX: if you enable this setting, unparam will report a lot of false-positives in text editors:
-    # if it's called for subdir of a project it can't find external interfaces. All text editor integrations
-    # with golangci-lint call it on a directory with the changed file.
-    check-exported: false
+  bidichk:
+    # The following configurations check for all mentioned invisible unicode runes.
+    # All runes are enabled by default.
+    left-to-right-embedding: true # default true
+    right-to-left-embedding: true # default true
+    pop-directional-formatting: true # default true
+    left-to-right-override: true # default true
+    right-to-left-override: true # default true
+    left-to-right-isolate: true # default true
+    right-to-left-isolate: true # default true
+    first-strong-isolate: true # default true
+    pop-directional-isolate: true # default true
+  cyclop:
+    max-complexity: 30 # the maximal code complexity to report # default 10
+    package-average: 10.0 # the maximal average package complexity. If it's higher than 0.0 (float) the check is enabled # default 0.0
+    skip-tests: false # should ignore tests # default false
+  dupl:
+    threshold: 150 # default 150
+  errorlint:
+    # Check whether fmt.Errorf uses the %w verb for formatting errors. See the readme for caveats
+    errorf: true # default true
+    # Check for plain type assertions and type switches
+    asserts: true # default true
+    # Check for plain error comparisons
+    comparison: true # default true
+  exhaustive:
+    check-generated: false # indicates whether to check switch statements in generated Go source files # default false
+    default-signifies-exhaustive: false # if true, presence of "default" case in switch statements satisfies exhaustiveness, even if all enum members are not listed # default false
+    ignore-enum-members: "" # enum members matching the supplied regex do not have to be listed in switch statements to satisfy exhaustiveness # default ""
+    package-scope-only: false # consider enums only in package scopes, not in inner scopes # default false
+  forbidigo:
+    forbid: # forbid the following identifiers # default ^(fmt\.Print(|f|ln)|print|println)$
+      - ^(fmt\.Print(|f|ln)|print|println)$
+    exclude-godoc-examples: true # exclude godoc examples from forbidigo checks # default is true
+  funlen:
+    lines: 100 # default 60
+    statements: 50 # default 40
+  gocognit:
+    min-complexity: 20 # minimal code complexity to report, 30 by default (but we recommend 10-20)
+  goconst:
+    match-constant: true # look for existing constants matching the values # default true
+    min-len: 3 # minimal length of string constant # default 3
+    min-occurrences: 3 # minimum occurrences of constant string count to trigger issue # default 3
+    numbers: true # search also for duplicated numbers # default false
+    min: 3 # minimum value, only works with goconst.numbers # default 3
+    max: 3 # maximum value, only works with goconst.numbers # default 3
+    ignore-calls: true # ignore when constant is not used as function argument # default true
+    ignore-tests: false # ignore test files # default false
   gocritic:
-    enabled-checks:
-      - appendCombine
-      - argOrder
-      - assignOp
-      - badCond
-      - boolExprSimplify
-      - builtinShadow
-      - captLocal
-      - caseOrder
-      - codegenComment
-      - commentedOutCode
-      - commentedOutImport
-      - defaultCaseOrder
-      - deprecatedComment
-      - docStub
-      - dupArg
-      - dupBranchBody
-      - dupCase
-      - dupSubExpr
-      - elseif
-      - emptyFallthrough
-      - equalFold
-      - flagDeref
-      - flagName
-      - hexLiteral
-      - indexAlloc
-      - initClause
-      - methodExprCall
-      - nilValReturn
-      - octalLiteral
-      - offBy1
-      - rangeExprCopy
-      - regexpMust
-      - sloppyLen
-      - stringXbytes
-      - switchTrue
-      - typeAssertChain
-      - typeSwitchVar
-      - typeUnparen
-      - underef
-      - unlambda
-      - unnecessaryBlock
-      - unslice
-      - valSwap
-      - weakCond
-      - yodaStyleExpr
+    settings:
+      captLocal:
+        paramsOnly: false # whether to restrict checker to params only # default true
+      elseif:
+        skipBalanced: false # whether to skip balanced if-else pairs # default true
+      #hugeParam: # disabled by default
+      #  sizeThreshold: 80 # size in bytes that makes the warning trigger # default 80
+      #nestingReduce: # disabled by default
+      #  bodyWidth: 5 # min number of statements inside a branch to trigger a warning # default 5
+      #rangeExprCopy: # disabled by default
+      #  sizeThreshold: 512 # size in bytes that makes the warning trigger # default 512
+      #  skipTestFuncs: true # whether to check test functions # default true
+      #rangeValCopy: # disabled by default
+      #  sizeThreshold: 128 # size in bytes that makes the warning trigger # default 128
+      #  skipTestFuncs: true # whether to check test functions # default true
+      #ruleguard: # disabled by default
+      #  rules: "" # path to a gorules file # default ""
+      #tooManyResultsChecker: # disabled by default
+      #  maxResults: 5 # maximum number of results # default 5
+      #truncateCmp: # disabled by default
+      #  skipArchDependent: true # whether to skip int/uint/uintptr types # default true
+      underef:
+        skipRecvDeref: false # whether to skip (*x).method() calls where x is a pointer receiver # default true
+      #unnamedResult: # disabled by default
+      #  checkExported: false # whether to check exported functions # default false
+  gocyclo:
+    min-complexity: 30 # default 30
+  godot:
+    scope: declarations # comments to be checked: `declarations` (default), `toplevel`, or `all`
+    exclude: [] # list of regexps for excluding particular comment lines from check # default []
+    capital: false # check that each sentence starts with a capital letter # default false
+    period: true # check that each sentence ends with a period # default true
+  gomnd:
+    # List of enabled checks, see https://github.com/tommy-muehle/go-mnd/#checks for description.
+    checks: # default argument,case,condition,operation,return,assign
+      - argument
+      - case
+      - condition
+      - operation
+      - return
+      - assign
+    # List of numbers to exclude from analysis. The numbers should be written as string.
+    # Following values always ignored: "1", "1.0", "0" and "0.0"
+    ignored-numbers: [] # default []
+    # List of file patterns to exclude from analysis.
+    # Following values always ignored: `.+_test.go`
+    ignored-files: [] # default []
+    # List of function patterns to exclude from analysis.
+    # Following functions always ignored: `time.Date`
+    ignored-functions: [] # default []
+  gomoddirectives:
+    replace-allow-list: [] # list of allowed `replace` directives # default []
+    replace-local: false # allow local `replace` directives # default false
+    exclude-forbidden: false # forbid the use of `exclude` directives # default false
+    retract-allow-no-explanation: false # allow to use `retract` directives without explanation # default false
+  gomodguard:
+    allowed:
+      modules: [] # default []
+      domains: [] # default []
+    blocked:
+      modules:
+        - github.com/golang/protobuf:
+            recommendations:
+              - google.golang.org/protobuf
+            reason: "see https://developers.google.com/protocol-buffers/docs/reference/go/faq#modules"
+        - github.com/satori/go.uuid:
+            recommendations:
+              - github.com/google/uuid
+            reason: "satori's package is not maintained"
+        - github.com/gofrs/uuid:
+            recommendations:
+              - github.com/google/uuid
+            reason: "see recommendation from dev-infra team: https://confluence.gtforge.com/x/gQI6Aw"
+      versions: [] # default []
+      local_replace_directives: true # default false
+  lll:
+    line-length: 120 # default 120
+  makezero:
+    always: false # default false
+  maligned:
+    suggest-new: true # default false
+  misspell:
+    locale: us
+    ignore-words: "" # default: ""
+  nakedret:
+    max-func-lines: 0 # default 30
+  nestif:
+    min-complexity: 4 # default 5
+  nilnil:
+    checked-types: # default [ptr, func, iface, map, chan]
+      - ptr
+      - func
+      - iface
+      - map
+      - chan
+  nolintlint:
+    allow-unused: false # default false
+    allow-leading-space: true # default true
+    allow-no-explanation: [funlen, gocognit, lll] # default []
+    require-explanation: true # default false
+    require-specific: true # default false
+  prealloc:
+    simple: false # default true
+    range-loops: true # default true
+    for-loops: false # default false
+  predeclared:
+    ignore: "" # comma-separated list of predeclared identifiers to not report on # default ""
+    q: false # include method names and field names (i.e., qualified names) in checks # default false
+  promlinter:
+    # Promlinter cannot infer all metrics name in static analysis.
+    # Enable strict mode will also include the errors caused by failing to parse the args.
+    strict: false # default false
+    # Please refer to https://github.com/yeya24/promlinter#usage for detailed usage.
+    disabled-linters:
+    #  - "Help"
+    #  - "MetricUnits"
+    #  - "Counter"
+    #  - "HistogramSummaryReserved"
+    #  - "MetricTypeInName"
+    #  - "ReservedChars"
+    #  - "CamelCase"
+    #  - "lintUnitAbbreviations"
+  revive: # default rules are ignored if any of following settings is defined
+  #max-open-files: 0 # maximum number of open files at the same time # defaults 0 - unlimited
+  #ignore-generated-header: false # when set to false, ignores files with "GENERATED" header, similar to golint # default false
+  #confidence: 0.3 # default failure confidence, this means that linting errors with less than X confidence will be ignored # default 0.8
+  #severity: "warning" # minimal rule severity to fail {"error", "warning"} # default "warning"
+  #enable-all-rules: false # default false
+  # There is a list of default rules, but it can be redefined, see https://github.com/mgechev/revive#available-rules
+  #rules:
+  #  - name: "xxx"
+  #    disabled: false
+  #    arguments: []
+  #    severity: "xxx"
+  # allows to redefine rule severity (without changing default rules list)
+  #directives:
+  #  - name: "xxx"
+  #    severity: "xxx"
+  rowserrcheck:
+    packages:
+      - database/sql
+      - github.com/jmoiron/sqlx
+  stylecheck:
+    go: "1.16" # default 1.13
+    checks: [ "*" ] # https://staticcheck.io/docs/options#checks # default ["*"]
+    dot-import-whitelist: [] # https://staticcheck.io/docs/options#dot_import_whitelist  # default []
+    initialisms: [ "ACL", "API", "ASCII", "CPU", "CSS", "DNS", "EOF", "GUID", "HTML", "HTTP", "HTTPS", "ID", "IP", "JSON", "QPS", "RAM", "RPC", "SLA", "SMTP", "SQL", "SSH", "TCP", "TLS", "TTL", "UDP", "UI", "GID", "UID", "UUID", "URI", "URL", "UTF8", "VM", "XML", "XMPP", "XSRF", "XSS" ] # https://staticcheck.io/docs/options#initialisms
+    http-status-code-whitelist: [ "200", "400", "404", "500" ] # https://staticcheck.io/docs/options#http_status_code_whitelist
+  tenv:
+    all: true # check all functions in _test.go, not only test functions # default false
+  testpackage:
+    skip-regexp: (export|internal)_test\.go # default (export|internal)_test\.go
+  unparam:
+    check-exported: true # default false
+  wrapcheck:
+    ignoreSigs: [] # specifies substrings of signatures to ignore. Overrides default https://github.com/tomarrell/wrapcheck#configuration # default []
+    ignoreSigRegexps: [] # this is similar to the ignoreSigs, but gives slightly more flexibility # default []
+    ignorePackageGlobs: [] # see https://github.com/tomarrell/wrapcheck#configuration # default []
 
-      # Unused
-      # - appendAssign
-      # - commentFormatting
-      # - emptyStringTest
-      # - exitAfterDefer
-      # - ifElseChain
-      # - hugeParam
-      # - importShadow
-      # - nestingReduce
-      # - paramTypeCombine
-      # - ptrToRefParam
-      # - rangeValCopy
-      # - singleCaseSwitch
-      # - sloppyReassign
-      # - unlabelStmt
-      # - unnamedResult
-      # - wrapperFunc
+linters:
+  disable-all: true
+  enable:
+    ## enabled by default
+    - deadcode
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - structcheck
+#    - typecheck
+    - unused
+    - varcheck
+    ## disabled by default
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - contextcheck
+    - cyclop
+    - dupl
+    - durationcheck
+    - errname
+    - errorlint
+    - exhaustive
+    - exportloopref
+    - funlen
+    - forbidigo
+    - gochecknoglobals
+    - gochecknoinits
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - goimports
+    - gomnd
+    - gomoddirectives
+    - gomodguard
+    - goprintffuncname
+    - gosec
+    - lll
+    - makezero
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnil
+    - noctx
+    - nolintlint
+    - prealloc
+    - predeclared
+    - promlinter
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - stylecheck
+    - tenv
+    - testpackage
+    - tparallel
+    - unconvert
+    - unparam
+    - wastedassign
+    - whitespace
+    ## disabled
+    #- containedctx # is not used - linter that detects struct contained context.Context field
+    #- decorder # is not used - a declaration order and number linter for golang
+    #- depguard # replaced with gomodguard
+    #- dogsled # is not used - сhecks assignments with too many blank identifiers (e.g. x, _, _, _, := f())
+    #- errchkjson # is not used - checks types that are json encoded - reports unsupported types and unnecessary error checks
+    #- exhaustivestruct # too strict - finds structs that have uninitialized fields # TODO: maybe enable for some packages?
+    #- forcetypeassert # errcheck is used instead
+    #- gci # is not used - sorts imports
+    #- godox # is not used - complains about TODOs in comments
+    #- goerr113 # too strict - checks the errors handling expressions
+    #- gofmt # replaced with goimports
+    #- gofumpt # replaced with goimports, gofumports is not available yet
+    #- goheader # is not used - checks that each file has the licence at the beginning
+    #- golint # deprecated - revive is used instead
+    #- grouper # is not used - analyze expression groups, require 'import' declaration groups
+    #- ifshort # is not used - checks that your code uses short syntax for if-statements whenever possible
+    #- importas # is not used - enforces consistent import aliases
+    #- interfacer # deprecated and has false positives
+    #- ireturn # good, but too strict - accept interfaces, return concrete types
+    #- maintidx # is not used - measures the maintainability index of each function
+    #- maligned # deprecated
+    #- misspell # useless - correct commonly misspelled English words... quickly
+    #- nlreturn # too strict - requires a new line before return and branch statements
+    #- paralleltest # too many false positives
+    #- scopelint # deprecated
+    #- tagliatelle # is not used - checks the struct tags
+    #- thelper # is not used - requires to use t.Helper()
+    #- wrapcheck # too strict - requires wrapping errors from external packages (even from the same repo) and interfaces
+    #- varnamelen # great idea, but too many false positives - checking length of variable's name matches its usage scope
+    #- wsl # too strict - enforces empty lines at the right places
+
+output:
+  uniq-by-line: false # default true
 
 issues:
-  # List of regexps of issue texts to exclude, empty list by default.
-  # But independently from this option we use default exclude patterns,
-  # it can be disabled by `exclude-use-default: false`. To list all
-  # excluded by default patterns execute `golangci-lint run --help`
-  exclude:
-    - composite literal uses unkeyed fields
-
-  exclude-rules:
-    # Exclude some linters from running on test files.
-    - path: _test\.go$|^tests/|^samples/
-      linters:
-        - errcheck
-
-  # Independently from option `exclude` we use default exclude patterns,
-  # it can be disabled by this option. To list all
-  # excluded by default patterns execute `golangci-lint run --help`.
-  # Default value for this option is true.
-  exclude-use-default: true
-
-  # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
-  max-per-linter: 0
-
-  # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
+  max-issues-per-linter: 0
   max-same-issues: 0
+  exclude-rules:
+    - source: "^//\\s*go:generate\\s"
+      linters: lll
+    - source: "(noinspection|TODO)"
+      linters: godot
+    - source: "//noinspection"
+      linters: gocritic
+    - source: "^\\s+if _, ok := err\\.\\([^.]+\\.InternalError\\); ok {"
+      linters: errorlint
+    - path: "_test\\.go"
+      linters:
+        - bodyclose
+        - dupl
+        - funlen
+        - goconst
+        - noctx
+        - wrapcheck
