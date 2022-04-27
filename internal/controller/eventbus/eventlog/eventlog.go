@@ -511,7 +511,7 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 func (mgr *eventlogManager) generateSegment(ctx context.Context) (*Segment, error) {
 	var seg *Segment
 	//blocks, err := mgr.allocator.Pick(ctx, 3)
-	blocks, err := mgr.allocator.Pick(ctx, 1)
+	blocks, err := mgr.allocator.Pick(ctx, int(mgr.segmentReplicaNum))
 	if err != nil {
 		return nil, err
 	}
