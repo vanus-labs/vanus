@@ -159,6 +159,9 @@ func (ctrl *controller) GetEventBus(ctx context.Context,
 	ebMD := metadata.Convert2ProtoEventBus(_eb)[0]
 	ebMD.Name = eb.Name
 	ebMD.Logs = eventlog.Convert2ProtoEventLog(_eb.EventLogs...)
+	for _, v := range ebMD.Logs {
+		v.ServerAddress = ctrl.member.GetLeaderAddr()
+	}
 	return ebMD, nil
 }
 
