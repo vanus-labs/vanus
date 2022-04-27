@@ -48,6 +48,7 @@ func (c *Config) GetEventbusCtrlConfig() eventbus.Config {
 		KVStoreEndpoints: c.EtcdEndpoints,
 		KVKeyPrefix:      c.MetadataConfig.KeyPrefix,
 		Replicas:         c.Replicas,
+		Topology:         c.Topology,
 	}
 }
 

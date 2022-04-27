@@ -23,4 +23,5 @@ type Config struct {
 	KVKeyPrefix      string           `yaml:"kv_key_prefix"`
 	EtcdConfig       embedetcd.Config `yaml:"etcd"`
 	Replicas         uint             `yaml:"replicas"`
+	Topology         map[string]string
 }

@@ -159,8 +159,12 @@ func (ctrl *controller) GetEventBus(ctx context.Context,
 	ebMD := metadata.Convert2ProtoEventBus(_eb)[0]
 	ebMD.Name = eb.Name
 	ebMD.Logs = eventlog.Convert2ProtoEventLog(_eb.EventLogs...)
+	addrs := make([]string, 0)
+	for _, v := range ctrl.cfg.Topology {
+		addrs = append(addrs, v)
+	}
 	for _, v := range ebMD.Logs {
-		v.ServerAddress = ctrl.member.GetLeaderAddr()
+		v.ServerAddress = addrs
 	}
 	return ebMD, nil
 }
