@@ -20,23 +20,36 @@ import (
 	"fmt"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
+	"github.com/linkall-labs/eventbus-go"
+	"io"
 	"log"
 )
 
 var (
-	addr = flag.String("addr", "127.0.0.1:8080", "")
-	eb   = flag.String("eb", "test", "")
-	num  = flag.Int("num", 100, "")
-	size = flag.Int("size", 64, "")
+	mode   = flag.String("mode", "send", "")
+	addr   = flag.String("addr", "127.0.0.1:8080", "")
+	eb     = flag.String("eb", "test", "")
+	num    = flag.Int("num", 100, "")
+	size   = flag.Int("size", 64, "")
+	offset = flag.Int("offset", 0, "")
 )
 
 func main() {
 	flag.Parse()
+	fmt.Printf("params: %s=%s\n", "mode", *mode)
 	fmt.Printf("params: %s=%s\n", "addr", *addr)
 	fmt.Printf("params: %s=%s\n", "eb", *eb)
 	fmt.Printf("params: %s=%d\n", "num", *num)
 	fmt.Printf("params: %s=%d\n", "size", *size)
+	fmt.Printf("params: %s=%d\n", "offset", *offset)
+	if *mode == "send" {
+		sender()
+	} else if *mode == "receive" {
+		receiver()
+	}
+}
 
+func sender() {
 	ctx := cloudevents.ContextWithTarget(context.Background(), fmt.Sprintf("http://%s/gateway/%s", *addr, *eb))
 
 	p, err := cloudevents.NewHTTP()
@@ -78,4 +91,38 @@ func main() {
 			log.Printf("Sent %d with status code %d, body: %s", i, httpResult.StatusCode, httpResult.Error())
 		}
 	}
+}
+
+func receiver() {
+	vrn := fmt.Sprintf("vanus://%s/eventbus/%s", *addr, *eb)
+	ls, err := eventbus.LookupReadableLogs(context.Background(), vrn)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	r, err := eventbus.OpenLogReader(ls[0].VRN)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = r.Seek(context.Background(), int64(*offset), io.SeekStart)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	events, err := r.Read(context.Background(), int16(*num))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(events) == 0 {
+		log.Printf("no event\n")
+		return
+	}
+
+	for i, e := range events {
+		log.Printf("event %d: \n%s", i, e)
+	}
+
+	r.Close()
 }
