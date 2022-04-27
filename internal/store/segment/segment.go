@@ -306,7 +306,7 @@ func (s *segmentServer) AppendToBlock(ctx context.Context,
 
 	v, exist := s.blockWriters.Load(blockID)
 	if !exist {
-		return nil, errors.ErrResourceNotFound.WithMessage("the segment doesn't exist")
+		return nil, errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
 	}
 
 	writer, _ := v.(block.SegmentBlockWriter)

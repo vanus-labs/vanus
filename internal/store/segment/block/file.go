@@ -315,7 +315,7 @@ func (b *fileBlock) persistIndex(ctx context.Context) error {
 	length := v1IndexLength * len(b.indexes)
 	buf := make([]byte, length)
 	for i, index := range b.indexes {
-		off := length - i*v1IndexLength
+		off := length - (i+1)*v1IndexLength
 		binary.BigEndian.PutUint64(buf[off:off+8], uint64(index.offset))
 		binary.BigEndian.PutUint32(buf[off+8:off+12], uint32(index.length))
 	}

@@ -55,6 +55,9 @@ controller-start:
 build-ctrl-bin:
 	$(GO_BUILD) -o bin/ctrl cmd/controller/main.go
 
+build-gw-util:
+	go build -o bin/gw-util test/gateway/main.go
+
 controller-start:
 	go run ${VANUS_ROOT}/cmd/controller/${module}/main.go
 
