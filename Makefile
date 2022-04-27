@@ -65,7 +65,7 @@ controller-api-test:
 	grpcui --import-path=${VSPROTO_ROOT}/include \
            --import-path=${VSPROTO_ROOT}/proto \
            --plaintext \
-           --proto=controller.proto 192.168.1.108:2048
+           --proto=controller.proto 192.168.1.120:2048
 
 store-start:
 	go run ${VANUS_ROOT}/cmd/store/main.go
