@@ -348,6 +348,9 @@ func (ctrl *controller) processHeartbeat(ctx context.Context, req *ctrlpb.Segmen
 		if block == nil {
 			continue
 		}
+		if info.EventLogId == 0 {
+			continue
+		}
 		logArr, exist := segments[block.EventlogID.Key()]
 		if !exist {
 			logArr = make([]eventlog.Segment, 0)

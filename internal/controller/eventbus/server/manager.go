@@ -240,9 +240,6 @@ func (ss *segmentServer) Close() error {
 }
 
 func (ss *segmentServer) Polish() {
-	log.Info(nil, "polish server", map[string]interface{}{
-		"address": ss.addr,
-	})
 	ss.lastHeartbeatTime = time.Now()
 }
 
