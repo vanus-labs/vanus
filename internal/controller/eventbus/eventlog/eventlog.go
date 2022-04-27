@@ -779,7 +779,7 @@ func Convert2ProtoEventLog(ins ...*metadata.Eventlog) []*meta.EventLog {
 		pels[idx] = &meta.EventLog{
 			EventLogId:            eli.ID.Uint64(),
 			CurrentSegmentNumbers: int32(elObj.size()),
-			ServerAddress:         "127.0.0.1:2048",
+			//ServerAddress:         "127.0.0.1:2048",
 		}
 	}
 	return pels
