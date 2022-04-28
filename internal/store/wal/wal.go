@@ -27,6 +27,7 @@ import (
 
 const (
 	blockSize = 32 * 1024
+	fileSize  = 128 * 1024 * 1024
 )
 
 type blockWithSo struct {
@@ -53,29 +54,40 @@ type callbackWithOffset struct {
 
 // WAL is write-ahead log.
 type WAL struct {
-	pool      sync.Pool
-	wb        *blockWithSo
-	wboff     int64
+	// pool of block
+	pool sync.Pool
+
+	// wb is the block currently being written to.
+	wb *blockWithSo
+	// wboff is the start offset of next wb used in allocateBlock()
+	wboff int64
+
+	stream *logStream
+
 	appendc   chan entriesWithResult
 	callbackc chan callbackWithOffset
 	flushc    chan blockWithArgs
 	weakupc   chan int64
-	donec     chan struct{}
-	ctx       context.Context
+
+	donec chan struct{}
+	ctx   context.Context
 }
 
-func NewWAL(ctx context.Context) *WAL {
-	// TODO(james.yin): log file
+func newBlock() interface{} {
+	return &blockWithSo{
+		block: block{
+			buf: make([]byte, blockSize),
+		},
+	}
+}
+
+func newWAL(ctx context.Context, stream *logStream, pos int64) (*WAL, error) {
 	w := &WAL{
 		pool: sync.Pool{
-			New: func() interface{} {
-				return &blockWithSo{
-					block: block{
-						buf: make([]byte, blockSize),
-					},
-				}
-			},
+			New: newBlock,
 		},
+		stream: stream,
+		// TODO(james.yin): don't use magic numbers.
 		appendc:   make(chan entriesWithResult, 64),
 		callbackc: make(chan callbackWithOffset, 64),
 		flushc:    make(chan blockWithArgs, 1024),
@@ -83,11 +95,31 @@ func NewWAL(ctx context.Context) *WAL {
 		donec:     make(chan struct{}),
 		ctx:       ctx,
 	}
+
+	w.wboff = pos
+	w.wboff -= pos % blockSize
+
 	w.wb = w.allocateBlock()
+
+	// recover write block
+	if pos > 0 {
+		f := stream.selectFile(w.wb.so)
+		n, err := f.f.ReadAt(w.wb.buf, w.wb.so-f.so)
+		if err != nil {
+			return nil, err
+		}
+		// TODO(james.yin): incomplete block
+		if n != blockSize {
+		}
+		w.wb.wp = int(pos - w.wb.so)
+		w.wb.fp = w.wb.wp
+	}
+
 	go w.runCallback()
 	go w.runFlush()
 	go w.runAppend()
-	return w
+
+	return w, nil
 }
 
 func (w *WAL) Wait() {
@@ -137,15 +169,13 @@ func (w *WAL) runAppend() {
 					timer.Reset(period)
 					waiting = true
 				}
-			} else {
-				if waiting {
-					// stop timer
-					if !timer.Stop() {
-						// drain channel
-						<-timer.C
-					}
-					waiting = false
+			} else if waiting {
+				// stop timer
+				if !timer.Stop() {
+					// drain channel
+					<-timer.C
 				}
+				waiting = false
 			}
 		case <-timer.C:
 			// timeout, flush
@@ -209,11 +239,12 @@ func (w *WAL) doAppend(entries [][]byte, callback chan<- error) (bool, bool) {
 }
 
 func (w *WAL) runFlush() {
-	// TODO(james.yin): parallelizing
+	// TODO(james.yin): parallelizing, or batching
 	for ba := range w.flushc {
 		err := w.doFlush(ba.block, ba.offset)
 		if err != nil {
 			// TODO(james.yin): handle flush error
+			panic(err)
 		}
 		if ba.own {
 			w.freeBlock(ba.block)
@@ -264,16 +295,14 @@ func (w *WAL) nextCallback() (chan<- error, int64) {
 }
 
 func (w *WAL) logWriter(offset int64) io.WriterAt {
-	// TODO(james.yin): log file writer
-	return dummyWriter
+	return w.stream.selectFile(offset)
 }
 
 func (w *WAL) allocateBlock() *blockWithSo {
-	b := w.pool.Get().(*blockWithSo)
+	b, _ := w.pool.Get().(*blockWithSo)
 	// reset block
 	b.wp = 0
 	b.fp = 0
-	// FIXME(james.yin): set b.so
 	b.so = w.wboff
 	w.wboff += blockSize
 	return b

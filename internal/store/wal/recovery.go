@@ -20,11 +20,18 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+
+	// this project.
+	"github.com/linkall-labs/vanus/observability/log"
+)
+
+const (
+	defaultDirPerm = 0755
 )
 
 func RecoverWithVisitor(walDir string, visitor WalkFunc) (*WAL, error) {
 	// Make sure the WAL directory exists.
-	if err := os.MkdirAll(walDir, 0755); err != nil {
+	if err := os.MkdirAll(walDir, defaultDirPerm); err != nil {
 		return nil, err
 	}
 
@@ -34,46 +41,65 @@ func RecoverWithVisitor(walDir string, visitor WalkFunc) (*WAL, error) {
 	}
 	files = filterRegular(files)
 
-	var stream logStream
-	for i, file := range files {
-		so, err := strconv.ParseInt(file.Name(), 10, 64)
-		if err != nil {
-			return nil, err
+	s := &logStream{
+		dir: walDir,
+	}
+	for _, file := range files {
+		so, err2 := strconv.ParseInt(file.Name(), 10, 64)
+		if err2 != nil {
+			return nil, err2
 		}
 
-		if i > 0 {
-			f := stream.lastFile()
-			if so != f.so+f.size {
-				// TODO(james.yin): discontinuous log file
+		if f := s.lastFile(); f != nil {
+			eo := f.so + f.size
+			// discontinuous log file
+			if so != eo {
+				log.Warning(context.TODO(), "Discontinuous log file, discard before.",
+					map[string]interface{}{
+						"lastEnd":   eo,
+						"nextStart": so,
+					})
+				s.stream = nil
 			}
 		}
 
-		info, err := file.Info()
-		if err != nil {
-			return nil, err
+		info, err2 := file.Info()
+		if err2 != nil {
+			return nil, err2
 		}
 
-		stream = append(stream, logFile{
+		path := filepath.Join(walDir, file.Name())
+		size := info.Size()
+		if size%blockSize != 0 {
+			truncated := size - size%blockSize
+			log.Warning(context.TODO(), "The size of log file is not a multiple of blockSize, truncate it.",
+				map[string]interface{}{
+					"file":       path,
+					"originSize": size,
+					"newSize":    truncated,
+				})
+			size = truncated
+		}
+
+		s.stream = append(s.stream, &logFile{
 			so:   so,
-			size: info.Size(),
-			path: filepath.Join(walDir, file.Name()),
+			size: size,
+			path: path,
 		})
 	}
 
-	err = stream.Visit(visitor)
+	// TODO(james.yin): visit from compacted offset
+	eo, err := s.Visit(visitor, 0)
 	if err != nil {
 		return nil, err
 	}
 
 	// Make WAL.
-	wal := NewWAL(context.TODO())
-	// TODO(james.yin): recover write block
-
-	return wal, nil
+	return newWAL(context.TODO(), s, eo)
 }
 
 func filterRegular(entries []os.DirEntry) []os.DirEntry {
-	if len(entries) <= 0 {
+	if len(entries) == 0 {
 		return entries
 	}
 

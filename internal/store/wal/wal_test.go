@@ -16,24 +16,39 @@ package wal
 
 import (
 	// standard libraries.
+	"bytes"
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 
 	// third-party libraries.
 	. "github.com/smartystreets/goconvey/convey"
+
+	// this project.
+	"github.com/linkall-labs/vanus/internal/store/wal/record"
 )
 
 func doAppend(wal *WAL, entry []byte, wg *sync.WaitGroup) {
 	entries := [][]byte{entry}
-	_ = wal.Append(entries)
-	// So(err, ShouldBeNil)
+	err := wal.Append(entries)
+	if err != nil {
+		panic(err)
+	}
 	wg.Done()
 }
 
 func TestWAL_Append(t *testing.T) {
+	walDir, err := os.MkdirTemp("", "wal-*")
+	if err != nil {
+		panic(err)
+	}
+	defer os.Remove(walDir)
+
 	ctx, cancel := context.WithCancel(context.Background())
-	wal := NewWAL(ctx)
+	wal, _ := newWAL(ctx, &logStream{dir: walDir}, 0)
 
 	Convey("wal append testing", t, func() {
 		wg := sync.WaitGroup{}
@@ -46,6 +61,20 @@ func TestWAL_Append(t *testing.T) {
 
 		So(wal.wb.wp, ShouldEqual, 21)
 		So(wal.wb.fp, ShouldEqual, 21)
+
+		filePath := filepath.Join(walDir, fmt.Sprintf("%020d", 0))
+		data, err2 := os.ReadFile(filePath)
+		So(err2, ShouldBeNil)
+
+		So(bytes.Equal(data[:21+record.HeaderSize], []byte{
+			0x52, 0x74, 0x2F, 0x51, 0x00, 0x04, 0x01, 0x44, 0x45, 0x46, 0x47,
+			0x7D, 0x7F, 0xEB, 0x7A, 0x00, 0x03, 0x01, 0x41, 0x42, 0x43,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		}) || bytes.Equal(data[:21+record.HeaderSize], []byte{
+			0x7D, 0x7F, 0xEB, 0x7A, 0x00, 0x03, 0x01, 0x41, 0x42, 0x43,
+			0x52, 0x74, 0x2F, 0x51, 0x00, 0x04, 0x01, 0x44, 0x45, 0x46, 0x47,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		}), ShouldBeTrue)
 	})
 
 	cancel()

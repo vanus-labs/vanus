@@ -58,7 +58,7 @@ func (r *Record) Size() int {
 
 func (r *Record) Marshal() []byte {
 	data := make([]byte, r.Size())
-	r.MarshalTo(data)
+	_, _ = r.MarshalTo(data)
 	return data
 }
 
@@ -91,7 +91,8 @@ func Unmashal(data []byte) (record Record, err error) {
 	record.Length = binary.BigEndian.Uint16(data[4:6])
 	record.Type = Type(data[6])
 	if len(data) < int(record.Length)+HeaderSize {
-		// TODO: return error
+		// TODO(james.yin): correct error
+		return record, bytes.ErrTooLarge
 	}
 	record.Data = data[7 : 7+record.Length]
 	return record, nil
