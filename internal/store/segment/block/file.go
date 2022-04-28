@@ -330,27 +330,25 @@ func (b *fileBlock) loadIndex(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	num := b.num.Load()
-	b.indexes = make([]index, num)
 	if b.IsFull() {
 		// read index directly
+		num := int(b.num.Load())
+		b.indexes = make([]index, num)
 		length := num * v1IndexLength
 		idxData := make([]byte, length)
 		if _, err := b.f.ReadAt(idxData, b.cap-int64(length)); err != nil {
 			return err
 		}
-		reader := bytes.NewReader(idxData)
 		for idx := range b.indexes {
-			b.indexes[idx] = index{}
-			if err := binary.Read(reader, binary.BigEndian, &b.indexes[idx].offset); err != nil {
-				return err
-			}
-			if err := binary.Read(reader, binary.BigEndian, &b.indexes[idx].length); err != nil {
-				return err
+			off := length - (idx+1)*v1IndexLength
+			b.indexes[idx] = index{
+				offset: int64(binary.BigEndian.Uint64(idxData[off : off+8])),
+				length: int32(binary.BigEndian.Uint32(idxData[off+8 : off+12])),
 			}
 		}
 	} else {
 		// rebuild index
+		b.indexes = make([]index, 0, b.num.Load())
 		off := int64(fileBlockHeaderSize)
 		ld := make([]byte, 4)
 		count := 0
@@ -374,7 +372,8 @@ func (b *fileBlock) loadIndex(ctx context.Context) error {
 			count++
 		}
 		b.num.Store(int32(count))
-		b.size.Store(off)
+		b.size.Store(off - fileBlockHeaderSize)
+		b.wo.Store(off)
 	}
 	return nil
 }
