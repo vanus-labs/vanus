@@ -104,12 +104,8 @@ func newWAL(ctx context.Context, stream *logStream, pos int64) (*WAL, error) {
 	// recover write block
 	if pos > 0 {
 		f := stream.selectFile(w.wb.so)
-		n, err := f.f.ReadAt(w.wb.buf, w.wb.so-f.so)
-		if err != nil {
+		if _, err := f.f.ReadAt(w.wb.buf, w.wb.so-f.so); err != nil {
 			return nil, err
-		}
-		// TODO(james.yin): incomplete block
-		if n != blockSize {
 		}
 		w.wb.wp = int(pos - w.wb.so)
 		w.wb.fp = w.wb.wp

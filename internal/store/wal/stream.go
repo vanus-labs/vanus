@@ -106,13 +106,8 @@ func (s *logStream) Visit(visitor WalkFunc, compacted int64) (int64, error) {
 		}
 
 		for at := firstBlockOffset(f.so, compacted); at < f.size; {
-			n, err := f.f.ReadAt(buf, at)
-			if err != nil {
+			if _, err := f.f.ReadAt(buf, at); err != nil {
 				return -1, err
-			}
-			if n != blockSize {
-				// TODO(james.yin): incomplete block
-				panic("WAL: incomplete block")
 			}
 
 			for so := 0; so <= blockSize-record.HeaderSize; {
@@ -183,7 +178,7 @@ func (s *logStream) Visit(visitor WalkFunc, compacted int64) (int64, error) {
 				}
 			}
 
-			at += int64(n)
+			at += blockSize
 		}
 
 		// TODO(james.yin): close log file
