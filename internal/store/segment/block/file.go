@@ -16,7 +16,6 @@ package block
 
 import (
 	// standard libraries
-	"bytes"
 	"context"
 	"encoding/binary"
 	"os"
@@ -39,6 +38,7 @@ const (
 
 	// version + capacity + size + number + full
 	v1FileBlockHeaderLength = 4 + 8 + 4 + 8 + 1
+	entryLengthSize         = 4
 )
 
 type fileBlock struct {
@@ -330,52 +330,66 @@ func (b *fileBlock) loadIndex(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	num := b.num.Load()
+	// rebuild index
+	if !b.IsFull() {
+		return b.rebuildIndex()
+	}
+
+	// read index directly
+	return b.loadIndexFromFile()
+}
+
+func (b *fileBlock) loadIndexFromFile() error {
+	num := int(b.num.Load())
+	length := num * v1IndexLength
+
+	// Read index data from file.
+	data := make([]byte, length)
+	if _, err := b.f.ReadAt(data, b.cap-int64(length)); err != nil {
+		return err
+	}
+
+	// Decode indexes.
 	b.indexes = make([]index, num)
-	if b.IsFull() {
-		// read index directly
-		length := num * v1IndexLength
-		idxData := make([]byte, length)
-		if _, err := b.f.ReadAt(idxData, b.cap-int64(length)); err != nil {
+	for i := range b.indexes {
+		off := length - (i+1)*v1IndexLength
+		b.indexes[i] = index{
+			offset: int64(binary.BigEndian.Uint64(data[off : off+8])),
+			length: int32(binary.BigEndian.Uint32(data[off+8 : off+12])),
+		}
+	}
+
+	return nil
+}
+
+func (b *fileBlock) rebuildIndex() error {
+	num := b.num.Load()
+	b.indexes = make([]index, 0, num)
+
+	num = 0
+	buf := make([]byte, entryLengthSize)
+	off := int64(fileBlockHeaderSize)
+	for {
+		if _, err := b.f.ReadAt(buf, off); err != nil {
 			return err
 		}
-		reader := bytes.NewReader(idxData)
-		for idx := range b.indexes {
-			b.indexes[idx] = index{}
-			if err := binary.Read(reader, binary.BigEndian, &b.indexes[idx].offset); err != nil {
-				return err
-			}
-			if err := binary.Read(reader, binary.BigEndian, &b.indexes[idx].length); err != nil {
-				return err
-			}
+		length := binary.BigEndian.Uint32(buf)
+		if length == 0 {
+			break
 		}
-	} else {
-		// rebuild index
-		off := int64(fileBlockHeaderSize)
-		ld := make([]byte, 4)
-		count := 0
-		for {
-			if _, err := b.f.ReadAt(ld, off); err != nil {
-				return err
-			}
-			reader := bytes.NewReader(ld)
-			var entityLen int32
-			if err := binary.Read(reader, binary.BigEndian, &entityLen); err != nil {
-				return err
-			}
-			if entityLen == 0 {
-				break
-			}
-			b.indexes = append(b.indexes, index{
-				offset: off,
-				length: entityLen,
-			})
-			off += 4 + int64(entityLen)
-			count++
-		}
-		b.num.Store(int32(count))
-		b.size.Store(off)
+		b.indexes = append(b.indexes, index{
+			offset: off,
+			length: int32(length),
+		})
+		off += int64(entryLengthSize + length)
+		num++
 	}
+
+	// Reset meta data.
+	b.size.Store(off - fileBlockHeaderSize)
+	b.num.Store(num)
+	b.wo.Store(off)
+
 	return nil
 }
 
