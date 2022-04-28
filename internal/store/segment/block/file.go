@@ -330,11 +330,13 @@ func (b *fileBlock) loadIndex(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	b.indexes = make([]index, b.num.Load())
+	num := b.num.Load()
+	b.indexes = make([]index, num)
 	if b.IsFull() {
 		// read index directly
-		idxData := make([]byte, b.num.Load()*v1IndexLength)
-		if _, err := b.f.ReadAt(idxData, b.wo.Load()); err != nil {
+		length := num * v1IndexLength
+		idxData := make([]byte, length)
+		if _, err := b.f.ReadAt(idxData, b.cap-int64(length)); err != nil {
 			return err
 		}
 		reader := bytes.NewReader(idxData)
