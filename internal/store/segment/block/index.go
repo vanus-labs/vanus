@@ -14,6 +14,11 @@
 
 package block
 
+import (
+	"bytes"
+	"encoding/binary"
+)
+
 const (
 	v1IndexLength = 8 + 4
 )
@@ -21,4 +26,26 @@ const (
 type index struct {
 	offset int64
 	length int32
+}
+
+func (i index) MarshalTo(data []byte) (int, error) {
+	if len(data) < v1IndexLength {
+		// TODO(james.yin): correct error.
+		return 0, bytes.ErrTooLarge
+	}
+	binary.BigEndian.PutUint64(data[0:8], uint64(i.offset))
+	binary.BigEndian.PutUint32(data[8:12], uint32(i.length))
+	return v1IndexLength, nil
+}
+
+func unmashalIndex(data []byte) (index, error) {
+	if len(data) < v1IndexLength {
+		// TODO(james.yin): correct error.
+		return index{}, bytes.ErrTooLarge
+	}
+	i := index{
+		offset: int64(binary.BigEndian.Uint64(data[0:8])),
+		length: int32(binary.BigEndian.Uint32(data[8:12])),
+	}
+	return i, nil
 }

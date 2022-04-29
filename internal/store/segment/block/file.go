@@ -431,8 +431,7 @@ func (b *FileBlock) persistIndex(ctx context.Context) error {
 	buf := make([]byte, length)
 	for i, index := range b.indexes {
 		off := length - (i+1)*v1IndexLength
-		binary.BigEndian.PutUint64(buf[off:off+8], uint64(index.offset))
-		binary.BigEndian.PutUint32(buf[off+8:off+12], uint32(index.length))
+		_, _ = index.MarshalTo(buf[off : off+v1IndexLength])
 	}
 
 	if _, err := b.f.WriteAt(buf, b.cap-int64(length)); err != nil {
@@ -468,10 +467,7 @@ func (b *FileBlock) loadIndexFromFile() error {
 	b.indexes = make([]index, num)
 	for i := range b.indexes {
 		off := length - (i+1)*v1IndexLength
-		b.indexes[i] = index{
-			offset: int64(binary.BigEndian.Uint64(data[off : off+8])),
-			length: int32(binary.BigEndian.Uint32(data[off+8 : off+12])),
-		}
+		b.indexes[i], _ = unmashalIndex(data[off : off+v1IndexLength])
 	}
 
 	return nil
