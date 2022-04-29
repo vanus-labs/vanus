@@ -43,7 +43,10 @@ type Log struct {
 	// ents[0] is a dummy entry, which record compact information.
 	// ents[i] has raft log position i+snapshot.Metadata.Index.
 	ents []raftpb.Entry
-	wal  *walog.WAL
+	// offs[i] is the offset of ents[i] in WAL.
+	offs []int64
+
+	wal *walog.WAL
 }
 
 // Make sure Log implements raft.Storage.
@@ -58,6 +61,7 @@ func NewLog(nodeID vanus.ID, wal *walog.WAL, peers []uint64) *Log {
 		},
 		// When starting from scratch populate the list with a dummy entry at term zero.
 		ents: make([]raftpb.Entry, 1),
+		offs: make([]int64, 1),
 		wal:  wal,
 	}
 }
@@ -309,45 +313,49 @@ func (l *Log) Append(entries []raftpb.Entry) error {
 
 	lastToAppend := firstToAppend + uint64(len(entries)) - 1 // entries[len(entries)-1].Index
 
-	// shortcut if there is no new entry.
+	// Shortcut if there is no new entry.
 	if lastToAppend < firstInLog {
 		return nil
 	}
 
-	// truncate compacted entries
+	// Truncate compacted entries.
 	if firstToAppend < firstInLog {
 		entries = entries[firstInLog-firstToAppend:]
 		firstToAppend = entries[0].Index
 	}
 
-	// append to WAL
-	if err := l.appendToWAL(entries); err != nil {
+	// Append to WAL.
+	offsets, err := l.appendToWAL(entries)
+	if err != nil {
 		// FIXME(james.yin): correct error
 		return err
 	}
 
-	// write to cache
+	// Write to cache, and record offset in WAL.
 	if firstToAppend == expectedToAppend {
 		// append
 		l.ents = append(l.ents, entries...)
+		l.offs = append(l.offs, offsets...)
 	} else {
 		// truncate then append: firstToAppend < expectedToAppend
 		offset := firstToAppend - firstInLog
 		l.ents = append([]raftpb.Entry{}, l.ents[:offset]...)
 		l.ents = append(l.ents, entries...)
+		l.offs = append([]int64{}, l.offs[:offset]...)
+		l.offs = append(l.offs, offsets...)
 	}
 
 	return nil
 }
 
-func (l *Log) appendToWAL(entries []raftpb.Entry) error {
+func (l *Log) appendToWAL(entries []raftpb.Entry) ([]int64, error) {
 	ents := make([][]byte, len(entries))
 	for i, entry := range entries {
 		// reset node ID.
 		entry.NodeId = l.nodeID.Uint64()
 		ent, err := entry.Marshal()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		ents[i] = ent
 	}

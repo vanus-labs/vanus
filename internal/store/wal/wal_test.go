@@ -33,7 +33,7 @@ import (
 
 func doAppend(wal *WAL, entry []byte, wg *sync.WaitGroup) {
 	entries := [][]byte{entry}
-	err := wal.Append(entries)
+	_, err := wal.Append(entries)
 	if err != nil {
 		panic(err)
 	}
