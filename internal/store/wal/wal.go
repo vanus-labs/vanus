@@ -36,9 +36,14 @@ type blockWithSo struct {
 	so int64
 }
 
-type entriesWithResult struct {
-	entries [][]byte
-	result  chan<- error
+type resultOrError struct {
+	result []int64
+	err    error
+}
+
+type entriesWithCallback struct {
+	entries  [][]byte
+	callback chan<- resultOrError
 }
 
 type blockWithArgs struct {
@@ -47,9 +52,10 @@ type blockWithArgs struct {
 	own    bool
 }
 
-type callbackWithOffset struct {
-	callback chan<- error
-	offset   int64
+type callbackWithThreshold struct {
+	callback  chan<- resultOrError
+	result    []int64
+	threshold int64
 }
 
 // WAL is write-ahead log.
@@ -64,8 +70,8 @@ type WAL struct {
 
 	stream *logStream
 
-	appendc   chan entriesWithResult
-	callbackc chan callbackWithOffset
+	appendc   chan entriesWithCallback
+	callbackc chan callbackWithThreshold
 	flushc    chan blockWithArgs
 	weakupc   chan int64
 
@@ -88,8 +94,8 @@ func newWAL(ctx context.Context, stream *logStream, pos int64) (*WAL, error) {
 		},
 		stream: stream,
 		// TODO(james.yin): don't use magic numbers.
-		appendc:   make(chan entriesWithResult, 64),
-		callbackc: make(chan callbackWithOffset, 64),
+		appendc:   make(chan entriesWithCallback, 64),
+		callbackc: make(chan callbackWithThreshold, 64),
 		flushc:    make(chan blockWithArgs, 1024),
 		weakupc:   make(chan int64, 1024),
 		donec:     make(chan struct{}),
@@ -123,18 +129,19 @@ func (w *WAL) Wait() {
 }
 
 // Append appends entries to WAL. It blocks until all entries are persisted.
-func (w *WAL) Append(entries [][]byte) error {
-	ch := make(chan error, 1)
-	er := entriesWithResult{
-		entries: entries,
-		result:  ch,
+func (w *WAL) Append(entries [][]byte) ([]int64, error) {
+	ch := make(chan resultOrError, 1)
+	er := entriesWithCallback{
+		entries:  entries,
+		callback: ch,
 	}
 	select {
 	case <-w.ctx.Done():
-		return w.ctx.Err()
+		return nil, w.ctx.Err()
 	case w.appendc <- er:
 	}
-	return <-ch
+	result := <-ch
+	return result.result, result.err
 }
 
 func (w *WAL) runAppend() {
@@ -150,7 +157,7 @@ func (w *WAL) runAppend() {
 	for {
 		select {
 		case er := <-w.appendc:
-			full, goahead := w.doAppend(er.entries, er.result)
+			full, goahead := w.doAppend(er.entries, er.callback)
 			if !full {
 				if goahead {
 					// reset timer
@@ -201,21 +208,27 @@ func (w *WAL) runAppend() {
 // doAppend write entries to block(s). And return two flags: full and goahead.
 // The full flag indicate last written block is full, and the
 // goahead flag indicate switching to a new block.
-func (w *WAL) doAppend(entries [][]byte, callback chan<- error) (bool, bool) {
+func (w *WAL) doAppend(entries [][]byte, callback chan<- resultOrError) (bool, bool) {
 	var full, goahead bool
+	offsets := make([]int64, len(entries))
 	for i, entry := range entries {
 		records := record.Pack(entry, w.wb.Remaining(), blockSize)
 		for j, record := range records {
 			n, err := w.wb.Append(record)
 			if err != nil {
-				callback <- err
+				callback <- resultOrError{nil, err}
 				return full, goahead
 			}
-			if i == len(entries)-1 && j == len(records)-1 {
-				// register callback
-				w.callbackc <- callbackWithOffset{
-					callback: callback,
-					offset:   w.wb.so + int64(n),
+			if j == len(records)-1 {
+				offset := w.wb.so + int64(n)
+				offsets[i] = offset
+				if i == len(entries)-1 {
+					// register callback
+					w.callbackc <- callbackWithThreshold{
+						callback:  callback,
+						result:    offsets,
+						threshold: offset,
+					}
 				}
 			}
 			if full = w.wb.full(n); full {
@@ -264,29 +277,33 @@ func (w *WAL) doFlush(fb *blockWithSo, offset int) error {
 }
 
 func (w *WAL) runCallback() {
-	var cb chan<- error
-	var cboff int64
+	var cb chan<- resultOrError
+	var re []int64
+	var th int64
 	for offset := range w.weakupc {
+		// NOTE: write cb to callbackc before writing offset to weakupc.
 		if cb == nil {
-			cb, cboff = w.nextCallback()
+			cb, re, th = w.nextCallback()
 		}
 		for cb != nil {
-			if cboff > offset {
+			if th > offset {
 				break
 			}
-			close(cb)
-			cb, cboff = w.nextCallback()
+			cb <- resultOrError{
+				result: re,
+			}
+			cb, re, th = w.nextCallback()
 		}
 	}
 	close(w.donec)
 }
 
-func (w *WAL) nextCallback() (chan<- error, int64) {
+func (w *WAL) nextCallback() (chan<- resultOrError, []int64, int64) {
 	select {
-	case co := <-w.callbackc:
-		return co.callback, co.offset
+	case c := <-w.callbackc:
+		return c.callback, c.result, c.threshold
 	default:
-		return nil, 0
+		return nil, nil, 0
 	}
 }
 
