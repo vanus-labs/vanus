@@ -17,6 +17,7 @@ package filter
 import (
 	"fmt"
 	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/vanus/internal/trigger/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"strings"
 )
@@ -44,7 +45,7 @@ func (filter *suffixFilter) Filter(event ce.Event) FilterResult {
 	}
 	log.Debug(nil, "suffix filter ", map[string]interface{}{"filter": filter, "event": event})
 	for attr, suffix := range filter.suffix {
-		value, ok := LookupAttribute(event, attr)
+		value, ok := util.LookupAttribute(event, attr)
 		if !ok {
 			return FailFilter
 		}

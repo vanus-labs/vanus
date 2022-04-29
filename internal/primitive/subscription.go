@@ -43,7 +43,8 @@ type SubscriptionData struct {
 	ProtocolSettings map[string]string     `json:"protocolSettings,omitempty"`
 	EventBus         string                `json:"eventBus"`
 	Phase            SubscriptionPhase     `json:"phase"`
-	TriggerWorker    string                `json:"triggerWorker"`
+	TriggerWorker    string                `json:"triggerWorker,omitempty"`
+	InputTransformer *InputTransformer     `json:"inputTransformer,omitempty"`
 	HeartbeatTime    time.Time             `json:"-"`
 }
 
@@ -63,6 +64,11 @@ type SubscriptionFilter struct {
 	Not    *SubscriptionFilter   `json:"not,omitempty"`
 	All    []*SubscriptionFilter `json:"all,omitempty"`
 	Any    []*SubscriptionFilter `json:"any,omitempty"`
+}
+
+type InputTransformer struct {
+	InputPath     map[string]string `json:"inputPath,omitempty"`
+	InputTemplate string            `json:"inputTemplate,omitempty"`
 }
 
 type SinkSpec struct {
