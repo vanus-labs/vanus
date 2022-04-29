@@ -338,10 +338,10 @@ func (l *Log) Append(entries []raftpb.Entry) error {
 		l.offs = append(l.offs, offsets...)
 	} else {
 		// truncate then append: firstToAppend < expectedToAppend
-		offset := firstToAppend - firstInLog
-		l.ents = append([]raftpb.Entry{}, l.ents[:offset]...)
+		si := firstToAppend - firstInLog
+		l.ents = append([]raftpb.Entry{}, l.ents[:si]...)
 		l.ents = append(l.ents, entries...)
-		l.offs = append([]int64{}, l.offs[:offset]...)
+		l.offs = append([]int64{}, l.offs[:si]...)
 		l.offs = append(l.offs, offsets...)
 	}
 
@@ -362,7 +362,7 @@ func (l *Log) appendToWAL(entries []raftpb.Entry) ([]int64, error) {
 	return l.wal.Append(ents)
 }
 
-func (l *Log) appendInRecovery(entry raftpb.Entry) error {
+func (l *Log) appendInRecovery(entry raftpb.Entry, offset int64) error {
 	firstInLog := l.firstIndex()
 	expectedToAppend := l.lastIndex() + 1
 	index := entry.Index
@@ -380,17 +380,21 @@ func (l *Log) appendInRecovery(entry raftpb.Entry) error {
 	if index == expectedToAppend {
 		// append
 		l.ents = append(l.ents, entry)
+		l.offs = append(l.offs, offset)
 	} else if index < firstInLog {
 		// reset
 		l.ents = []raftpb.Entry{{
 			Index: entry.Index - 1,
 			// TODO(james.yin): set Term
 		}, entry}
+		l.offs = []int64{0}
 	} else {
 		// truncate then append
-		offset := index - firstInLog
-		l.ents = append([]raftpb.Entry{}, l.ents[:offset]...)
+		si := index - firstInLog
+		l.ents = append([]raftpb.Entry{}, l.ents[:si]...)
 		l.ents = append(l.ents, entry)
+		l.offs = append([]int64{}, l.offs[:si]...)
+		l.offs = append(l.offs, offset)
 	}
 
 	return nil
