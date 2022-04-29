@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/vanus/internal/trigger/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"strings"
 )
@@ -45,7 +46,7 @@ func (filter *prefixFilter) Filter(event ce.Event) FilterResult {
 	}
 	log.Debug(context.Background(), "prefix filter ", map[string]interface{}{"filter": filter, "event": event})
 	for attr, prefix := range filter.prefix {
-		value, ok := LookupAttribute(event, attr)
+		value, ok := util.LookupAttribute(event, attr)
 		if !ok {
 			return FailFilter
 		}

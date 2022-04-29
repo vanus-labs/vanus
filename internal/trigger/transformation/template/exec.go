@@ -12,17 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package template
 
 import (
-	"crypto/md5"
-	"fmt"
+	"strings"
 )
 
-func GetIdByAddr(addr string) string {
-	return fmt.Sprintf("%x", md5.Sum([]byte(addr)))
-}
-
-func IsSpace(c byte) bool {
-	return c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+func (p *Parser) Execute(data map[string][]byte) string {
+	var sb strings.Builder
+	for _, node := range p.GetNodes() {
+		switch node.Type() {
+		case Constant:
+			sb.WriteString(node.Value())
+		case Variable:
+			v, exist := data[node.Value()]
+			if !exist || len(v) == 0 {
+				if p.OutputType == JSON {
+					sb.WriteString("null")
+				}
+			} else {
+				sb.Write(v)
+			}
+		case StringVariable:
+			v, exist := data[node.Value()]
+			if !exist || len(v) == 0 {
+				continue
+			}
+			sb.Write(v)
+		}
+	}
+	return sb.String()
 }
