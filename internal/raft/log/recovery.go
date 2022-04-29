@@ -25,7 +25,7 @@ import (
 
 func RecoverLogsAndWAL(walDir string) (map[vanus.ID]*Log, *walog.WAL, error) {
 	raftLogs := make(map[uint64]*Log)
-	wal, err := walog.RecoverWithVisitor(walDir, func(data []byte) error {
+	wal, err := walog.RecoverWithVisitor(walDir, func(data []byte, offset int64) error {
 		var entry raftpb.Entry
 		err := entry.Unmarshal(data)
 		if err != nil {
@@ -42,7 +42,7 @@ func RecoverLogsAndWAL(walDir string) (map[vanus.ID]*Log, *walog.WAL, error) {
 			raftLogs[entry.NodeId] = raftLog
 		}
 
-		return raftLog.appendInRecovery(entry)
+		return raftLog.appendInRecovery(entry, offset)
 	})
 	if err != nil {
 		return nil, nil, err

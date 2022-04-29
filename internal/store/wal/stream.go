@@ -25,7 +25,7 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
-type WalkFunc func(entry []byte) error
+type WalkFunc func(entry []byte, offset int64) error
 
 type logStream struct {
 	stream []*logFile
@@ -142,7 +142,8 @@ func (s *logStream) Visit(visitor WalkFunc, compacted int64) (int64, error) {
 						// TODO(james.yin): unexcepted state
 						panic("WAL: unexcepted state")
 					}
-					if err3 := visitor(r.Data); err3 != nil {
+					offset := f.so + at + int64(so+r.Size())
+					if err3 := visitor(r.Data, offset); err3 != nil {
 						return -1, err3
 					}
 				case record.First:
@@ -163,7 +164,8 @@ func (s *logStream) Visit(visitor WalkFunc, compacted int64) (int64, error) {
 						panic("WAL: unexcepted state")
 					}
 					buffer.Write(r.Data)
-					if err3 := visitor(buffer.Bytes()); err3 != nil {
+					offset := f.so + at + int64(so+r.Size())
+					if err3 := visitor(buffer.Bytes(), offset); err3 != nil {
 						return -1, err3
 					}
 					buffer.Reset()
