@@ -129,6 +129,22 @@ func (w *WAL) Wait() {
 	<-w.donec
 }
 
+func (w *WAL) AppendOne(entry []byte) (int64, error) {
+	return w.appendOne(entry, true)
+}
+
+func (w *WAL) AppendOneWithoutBatching(entry []byte) (int64, error) {
+	return w.appendOne(entry, false)
+}
+
+func (w *WAL) appendOne(entry []byte, batching bool) (int64, error) {
+	offs, err := w.append([][]byte{entry}, batching)
+	if err != nil {
+		return 0, err
+	}
+	return offs[0], nil
+}
+
 // Append appends entries to WAL. It blocks until all entries are persisted.
 func (w *WAL) Append(entries [][]byte) ([]int64, error) {
 	return w.append(entries, true)
