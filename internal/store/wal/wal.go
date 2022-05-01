@@ -182,26 +182,25 @@ func (w *WAL) runAppend() {
 			}
 		case <-timer.C:
 			// timeout, flush
-			w.flushc <- blockWithArgs{
-				block: w.wb,
-				// TODO(james.yin): Align to 4KB.
-				offset: w.wb.Size(),
-				own:    false,
-			}
+			w.flushWritableBlock()
 			waiting = false
 		case <-w.ctx.Done():
 			if waiting {
 				timer.Stop()
 			}
 			// flush, then stop
-			w.flushc <- blockWithArgs{
-				block:  w.wb,
-				offset: w.wb.Size(),
-				own:    false,
-			}
+			w.flushWritableBlock()
 			close(w.flushc)
 			return
 		}
+	}
+}
+
+func (w *WAL) flushWritableBlock() {
+	w.flushc <- blockWithArgs{
+		block:  w.wb,
+		offset: w.wb.Size(),
+		own:    false,
 	}
 }
 
