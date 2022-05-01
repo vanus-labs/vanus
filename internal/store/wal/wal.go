@@ -196,8 +196,8 @@ func (w *WAL) runAppend() {
 			// flush, then stop
 			w.flushc <- blockWithArgs{
 				block:  w.wb,
-				offset: w.wb.Capacity(),
-				own:    true,
+				offset: w.wb.Size(),
+				own:    false,
 			}
 			close(w.flushc)
 			return
