@@ -43,6 +43,7 @@ type resultOrError struct {
 
 type entriesWithCallback struct {
 	entries  [][]byte
+	batching bool
 	callback chan<- resultOrError
 }
 
@@ -130,9 +131,18 @@ func (w *WAL) Wait() {
 
 // Append appends entries to WAL. It blocks until all entries are persisted.
 func (w *WAL) Append(entries [][]byte) ([]int64, error) {
+	return w.append(entries, true)
+}
+
+func (w *WAL) AppendWithoutBatching(entries [][]byte) ([]int64, error) {
+	return w.append(entries, false)
+}
+
+func (w *WAL) append(entries [][]byte, batching bool) ([]int64, error) {
 	ch := make(chan resultOrError, 1)
 	er := entriesWithCallback{
 		entries:  entries,
+		batching: batching,
 		callback: ch,
 	}
 	select {
@@ -158,27 +168,30 @@ func (w *WAL) runAppend() {
 		select {
 		case er := <-w.appendc:
 			full, goahead := w.doAppend(er.entries, er.callback)
-			if !full {
-				if goahead {
-					// reset timer
-					if waiting && !timer.Stop() {
+			if full || !er.batching {
+				if !full {
+					w.flushWritableBlock()
+				}
+				if waiting {
+					// stop timer
+					if !timer.Stop() {
 						// drain channel
 						<-timer.C
 					}
-					timer.Reset(period)
-					waiting = true
-				} else if !waiting {
-					// start timer
-					timer.Reset(period)
-					waiting = true
+					waiting = false
 				}
-			} else if waiting {
-				// stop timer
-				if !timer.Stop() {
+			} else if goahead {
+				// reset timer
+				if waiting && !timer.Stop() {
 					// drain channel
 					<-timer.C
 				}
-				waiting = false
+				timer.Reset(period)
+				waiting = true
+			} else if !waiting {
+				// start timer
+				timer.Reset(period)
+				waiting = true
 			}
 		case <-timer.C:
 			// timeout, flush
