@@ -62,7 +62,7 @@ func TestWAL_Append(t *testing.T) {
 		So(wal.wb.wp, ShouldEqual, 21)
 		So(wal.wb.fp, ShouldEqual, 21)
 
-		filePath := filepath.Join(walDir, fmt.Sprintf("%020d", 0))
+		filePath := filepath.Join(walDir, fmt.Sprintf("%020d.log", 0))
 		data, err2 := os.ReadFile(filePath)
 		So(err2, ShouldBeNil)
 
