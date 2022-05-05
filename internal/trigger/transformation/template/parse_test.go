@@ -12,52 +12,54 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package template
+package template_test
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+
+	"github.com/linkall-labs/vanus/internal/trigger/transformation/template"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestParse(t *testing.T) {
 	Convey("parse constants", t, func() {
-		p := NewParser()
+		p := template.NewParser()
 		p.Parse("constants")
 		So(len(p.GetNodes()), ShouldEqual, 1)
 		n := p.GetNodes()[0]
-		So(n.Type(), ShouldEqual, Constant)
+		So(n.Type(), ShouldEqual, template.Constant)
 	})
 	Convey("parse variable", t, func() {
-		p := NewParser()
+		p := template.NewParser()
 		p.Parse("${str}")
 		So(len(p.GetNodes()), ShouldEqual, 1)
 		n := p.GetNodes()[0]
-		So(n.Type(), ShouldEqual, Variable)
+		So(n.Type(), ShouldEqual, template.Variable)
 		So(n.Value(), ShouldEqual, "str")
 	})
 
 	Convey("parse text", t, func() {
-		p := NewParser()
+		p := template.NewParser()
 		p.Parse("begin ${str} end")
 		So(len(p.GetNodes()), ShouldEqual, 3)
 		n := p.GetNodes()[1]
-		So(n.Type(), ShouldEqual, Variable)
+		So(n.Type(), ShouldEqual, template.Variable)
 		So(n.Value(), ShouldEqual, "str")
 	})
 
 	Convey("parse json", t, func() {
-		p := NewParser()
+		p := template.NewParser()
 		p.Parse(`{"key":"${str}","key2":${str2}}`)
 		So(len(p.GetNodes()), ShouldEqual, 5)
 		n := p.GetNodes()[1]
-		So(n.Type(), ShouldEqual, StringVariable)
+		So(n.Type(), ShouldEqual, template.StringVariable)
 		So(n.Value(), ShouldEqual, "str")
 		n = p.GetNodes()[2]
-		So(n.Type(), ShouldEqual, Constant)
+		So(n.Type(), ShouldEqual, template.Constant)
 		So(n.Value(), ShouldEqual, `","key2":`)
 		n = p.GetNodes()[3]
-		So(n.Type(), ShouldEqual, Variable)
+		So(n.Type(), ShouldEqual, template.Variable)
 		So(n.Value(), ShouldEqual, "str2")
 	})
-
 }

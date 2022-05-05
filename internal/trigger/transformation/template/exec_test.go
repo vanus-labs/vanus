@@ -12,131 +12,132 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package template
+package template_test
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+
+	"github.com/linkall-labs/vanus/internal/trigger/transformation/template"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestExecuteJsonString(t *testing.T) {
-	p := NewParser()
+	p := template.NewParser()
 	p.Parse(`{"key":"${str}"}`)
 	Convey("no data", t, func() {
-		m := make(map[string]Data)
+		m := make(map[string]template.Data)
 		v := p.Execute(m)
 		So(v, ShouldEqual, `{"key":""}`)
 	})
 	Convey("null", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewNullData()
+		m := make(map[string]template.Data)
+		m["str"] = template.NewNullData()
 		v := p.Execute(m)
 		So(v, ShouldEqual, `{"key":""}`)
 	})
 	Convey("no exist", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewNoExistData()
+		m := make(map[string]template.Data)
+		m["str"] = template.NewNoExistData()
 		v := p.Execute(m)
 		So(v, ShouldEqual, `{"key":""}`)
 	})
 	Convey("string", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewTextData([]byte("str"))
+		m := make(map[string]template.Data)
+		m["str"] = template.NewTextData([]byte("str"))
 		v := p.Execute(m)
 		So(v, ShouldEqual, `{"key":"str"}`)
 	})
 	Convey("other num", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewOtherData([]byte("123"))
+		m := make(map[string]template.Data)
+		m["str"] = template.NewOtherData([]byte("123"))
 		v := p.Execute(m)
 		So(v, ShouldEqual, `{"key":"123"}`)
 	})
 }
 
 func TestExecuteJsonValue(t *testing.T) {
-	p := NewParser()
+	p := template.NewParser()
 	p.Parse(`{"key":${str}}`)
 	Convey("no data", t, func() {
-		m := make(map[string]Data)
+		m := make(map[string]template.Data)
 		v := p.Execute(m)
 		So(v, ShouldEqual, `{"key":null}`)
 	})
 	Convey("null", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewNullData()
+		m := make(map[string]template.Data)
+		m["str"] = template.NewNullData()
 		v := p.Execute(m)
 		So(v, ShouldEqual, `{"key":null}`)
 	})
 	Convey("no exist", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewNoExistData()
+		m := make(map[string]template.Data)
+		m["str"] = template.NewNoExistData()
 		v := p.Execute(m)
 		So(v, ShouldEqual, `{"key":null}`)
 	})
 	Convey("string", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewTextData([]byte("str"))
+		m := make(map[string]template.Data)
+		m["str"] = template.NewTextData([]byte("str"))
 		v := p.Execute(m)
 		So(v, ShouldEqual, `{"key":"str"}`)
 	})
 	Convey("other num", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewOtherData([]byte("123"))
+		m := make(map[string]template.Data)
+		m["str"] = template.NewOtherData([]byte("123"))
 		v := p.Execute(m)
 		So(v, ShouldEqual, `{"key":123}`)
 	})
 	Convey("other bool", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewOtherData([]byte("true"))
+		m := make(map[string]template.Data)
+		m["str"] = template.NewOtherData([]byte("true"))
 		v := p.Execute(m)
 		So(v, ShouldEqual, `{"key":true}`)
 	})
 
 	Convey("other obj", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewOtherData([]byte(`{"k":"v"}`))
+		m := make(map[string]template.Data)
+		m["str"] = template.NewOtherData([]byte(`{"k":"v"}`))
 		v := p.Execute(m)
 		So(v, ShouldEqual, `{"key":{"k":"v"}}`)
 	})
 }
 
 func TestExecuteText(t *testing.T) {
-	p := NewParser()
+	p := template.NewParser()
 	p.Parse(`abc ${str}`)
 	Convey("no data", t, func() {
-		m := make(map[string]Data)
+		m := make(map[string]template.Data)
 		v := p.Execute(m)
 		So(v, ShouldEqual, `abc `)
 	})
 	Convey("null", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewNullData()
+		m := make(map[string]template.Data)
+		m["str"] = template.NewNullData()
 		v := p.Execute(m)
 		So(v, ShouldEqual, `abc `)
 	})
 	Convey("no exist", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewNoExistData()
+		m := make(map[string]template.Data)
+		m["str"] = template.NewNoExistData()
 		v := p.Execute(m)
 		So(v, ShouldEqual, `abc `)
 	})
 	Convey("string", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewTextData([]byte("str"))
+		m := make(map[string]template.Data)
+		m["str"] = template.NewTextData([]byte("str"))
 		v := p.Execute(m)
 		So(v, ShouldEqual, `abc str`)
 	})
 	Convey("other num", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewOtherData([]byte("123"))
+		m := make(map[string]template.Data)
+		m["str"] = template.NewOtherData([]byte("123"))
 		v := p.Execute(m)
 		So(v, ShouldEqual, `abc 123`)
 	})
 	Convey("other bool", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewOtherData([]byte("true"))
+		m := make(map[string]template.Data)
+		m["str"] = template.NewOtherData([]byte("true"))
 		v := p.Execute(m)
 		So(v, ShouldEqual, `abc true`)
 	})
-
 }
