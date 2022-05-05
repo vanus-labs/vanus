@@ -26,10 +26,12 @@ import (
 )
 
 var (
-	eventID     = ""
-	eventSource = ""
-	eventType   = ""
-	eventBody   = ""
+	eventID           = ""
+	eventSource       = ""
+	eventType         = ""
+	eventBody         = ""
+	dataFile          = ""
+	printDataTemplate bool
 )
 
 func NewEventCommand() *cobra.Command {
@@ -47,6 +49,12 @@ func putEventCommand() *cobra.Command {
 		Use:   "put <eventbus-name> ",
 		Short: "send a event to eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
+			if printDataTemplate {
+				fmt.Println("id1,source1,type1,data1")
+				fmt.Println("id2,,,data2")
+				fmt.Println(",,,data3")
+				os.Exit(0)
+			}
 			eps, err := endpointsFromCmd(cmd)
 			if err != nil {
 				fmt.Printf("parse endpoints error: %s\n", err)
@@ -87,6 +95,9 @@ func putEventCommand() *cobra.Command {
 	cmd.Flags().StringVar(&eventSource, "source", "cmd", "event source of CloudEvent")
 	cmd.Flags().StringVar(&eventType, "type", "cmd", "event type of CloudEvent")
 	cmd.Flags().StringVar(&eventBody, "body", "", "event body of CloudEvent")
+	cmd.Flags().StringVar(&dataFile, "data", "", "the data file to send, each line represent a event "+
+		"and like [id],[source],[type],<body>")
+	cmd.Flags().BoolVar(&printDataTemplate, "print-template", false, "print data template file")
 	return cmd
 }
 
