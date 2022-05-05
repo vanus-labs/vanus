@@ -36,6 +36,9 @@ func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *primitive.Su
 	if len(sub.Filters) != 0 {
 		to.Filters = fromPbFilters(sub.Filters)
 	}
+	if sub.InputTransformer != nil {
+		to.InputTransformer = fromPbInputTransformer(sub.InputTransformer)
+	}
 	return to
 }
 
@@ -49,6 +52,9 @@ func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Sub
 	if len(sub.Filters) != 0 {
 		to.Filters = fromPbFilters(sub.Filters)
 	}
+	if sub.InputTransformer != nil {
+		to.InputTransformer = fromPbInputTransformer(sub.InputTransformer)
+	}
 	return to
 }
 
@@ -61,6 +67,9 @@ func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscription
 	}
 	if len(sub.Filters) != 0 {
 		to.Filters = toPbFilters(sub.Filters)
+	}
+	if sub.InputTransformer != nil {
+		to.InputTransformer = toPbInputTransformer(sub.InputTransformer)
 	}
 	return to
 }
@@ -196,14 +205,27 @@ func ToPbSubscriptionInfo(sub info.SubscriptionInfo) *pb.SubscriptionInfo {
 func ToPbOffsetInfos(offsets info.ListOffsetInfo) []*pb.OffsetInfo {
 	var to []*pb.OffsetInfo
 	for _, offset := range offsets {
-		to = append(to, ToPbOffsetInfo(offset))
+		to = append(to, toPbOffsetInfo(offset))
 	}
 	return to
 }
 
-func ToPbOffsetInfo(offset info.OffsetInfo) *pb.OffsetInfo {
+func toPbOffsetInfo(offset info.OffsetInfo) *pb.OffsetInfo {
 	return &pb.OffsetInfo{
 		EventLogId: uint64(offset.EventLogID),
 		Offset:     offset.Offset,
+	}
+}
+func fromPbInputTransformer(inputTransformer *pb.InputTransformer) *primitive.InputTransformer {
+	return &primitive.InputTransformer{
+		InputPath:     inputTransformer.InputPath,
+		InputTemplate: inputTransformer.InputTemplate,
+	}
+}
+
+func toPbInputTransformer(inputTransformer *primitive.InputTransformer) *pb.InputTransformer {
+	return &pb.InputTransformer{
+		InputPath:     inputTransformer.InputPath,
+		InputTemplate: inputTransformer.InputTemplate,
 	}
 }

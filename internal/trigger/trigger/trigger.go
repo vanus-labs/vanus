@@ -22,6 +22,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/filter"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
+	"github.com/linkall-labs/vanus/internal/trigger/transformation"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"sync"
@@ -56,7 +57,9 @@ type Trigger struct {
 	sendCh        chan info.EventRecord
 	ceClient      ce.Client
 	filter        filter.Filter
-	config        Config
+
+	inputTransformer *transformation.InputTransformer
+	config           Config
 
 	wg util.Group
 }
@@ -66,7 +69,7 @@ func NewTrigger(config *Config, sub *primitive.Subscription, offsetManager *offs
 		config = &Config{}
 	}
 	config.initConfig()
-	return &Trigger{
+	t := &Trigger{
 		config:         *config,
 		ID:             vanus.GenerateID(),
 		SubscriptionID: sub.ID,
@@ -78,6 +81,10 @@ func NewTrigger(config *Config, sub *primitive.Subscription, offsetManager *offs
 		sendCh:         make(chan info.EventRecord, config.BufferSize),
 		offsetManager:  offsetManager,
 	}
+	if sub.InputTransformer != nil {
+		t.inputTransformer = transformation.NewInputTransformer(sub.InputTransformer)
+	}
+	return t
 }
 
 func (t *Trigger) EventArrived(ctx context.Context, event info.EventRecord) error {
@@ -98,6 +105,12 @@ func (t *Trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 		return t.ceClient.Send(timeout, *e)
 	}
 	var err error
+	if t.inputTransformer != nil {
+		err = t.inputTransformer.Execute(e)
+		if err != nil {
+			return err
+		}
+	}
 	for retryTimes < t.config.MaxRetryTimes {
 		retryTimes++
 		if err = doFunc(); !ce.IsACK(err) {

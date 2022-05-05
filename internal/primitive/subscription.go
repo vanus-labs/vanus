@@ -49,11 +49,12 @@ type SubscriptionData struct {
 }
 
 type Subscription struct {
-	ID       vanus.ID              `json:"id"`
-	Filters  []*SubscriptionFilter `json:"filters,omitempty"`
-	Sink     URI                   `json:"sink,omitempty"`
-	EventBus string                `json:"eventBus"`
-	Offsets  info.ListOffsetInfo   `json:"offsets"`
+	ID               vanus.ID              `json:"id"`
+	Filters          []*SubscriptionFilter `json:"filters,omitempty"`
+	Sink             URI                   `json:"sink,omitempty"`
+	EventBus         string                `json:"eventBus"`
+	Offsets          info.ListOffsetInfo   `json:"offsets"`
+	InputTransformer *InputTransformer     `json:"inputTransformer,omitempty"`
 }
 
 type SubscriptionFilter struct {

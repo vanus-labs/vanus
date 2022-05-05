@@ -24,13 +24,13 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/util"
 )
 
-type Transformation struct {
+type InputTransformer struct {
 	InputParser *input.Parser
 	Template    *template.Parser
 }
 
-func NewTransformation(inputTransformer primitive.InputTransformer) *Transformation {
-	tf := &Transformation{
+func NewInputTransformer(inputTransformer *primitive.InputTransformer) *InputTransformer {
+	tf := &InputTransformer{
 		InputParser: input.NewParse(),
 		Template:    template.NewParser(),
 	}
@@ -39,7 +39,7 @@ func NewTransformation(inputTransformer primitive.InputTransformer) *Transformat
 	return tf
 }
 
-func (tf *Transformation) Execute(event *ce.Event) error {
+func (tf *InputTransformer) Execute(event *ce.Event) error {
 	dataMap, err := tf.parseData(event)
 	if err != nil {
 		return err
@@ -49,7 +49,7 @@ func (tf *Transformation) Execute(event *ce.Event) error {
 	return nil
 }
 
-func (tf *Transformation) parseData(event *ce.Event) (map[string][]byte, error) {
+func (tf *InputTransformer) parseData(event *ce.Event) (map[string]template.Data, error) {
 	var results map[string]vjson.Result
 	var err error
 	if tf.InputParser.HasDataVariable() {
@@ -58,45 +58,51 @@ func (tf *Transformation) parseData(event *ce.Event) (map[string][]byte, error) 
 			return nil, err
 		}
 	}
-	dataMap := make(map[string][]byte)
+	dataMap := make(map[string]template.Data)
 	for k, n := range tf.InputParser.GetNodes() {
 		switch n.Type {
 		case input.Constant:
-			dataMap[k] = []byte(n.Value[0])
+			dataMap[k] = template.NewTextData([]byte(n.Value[0]))
 		case input.ContextVariable:
-			v, exist := util.LookupAttribute(*event, k)
+			v, exist := util.LookupAttribute(*event, n.Value[0])
 			if !exist {
-				dataMap[k] = []byte{}
+				dataMap[k] = template.NewNoExistData()
 				continue
 			}
 			s, _ := types.Format(v)
-			dataMap[k] = []byte(s)
+			dataMap[k] = template.NewTextData([]byte(s))
 		case input.DataVariable:
 			if len(n.Value) == 0 {
-				dataMap[k] = event.Data()
+				dataMap[k] = template.NewOtherData(event.Data())
 			} else {
-				rs := results
-				var v []byte
-				length := len(n.Value)
-				for i := 0; i < length; i++ {
-					r, exist := rs[n.Value[i]]
-					if !exist {
-						break
-					}
-					if i == length-1 {
-						if r.Type != vjson.Null {
-							v = r.Raw
-						}
-						break
-					}
-					rs = r.Result
-					if len(rs) == 0 {
-						break
-					}
-				}
-				dataMap[k] = v
+				dataMap[k] = parseDataVariable(results, n.Value)
 			}
 		}
 	}
 	return dataMap, nil
+}
+
+func parseDataVariable(rs map[string]vjson.Result, keys []string) template.Data {
+	length := len(keys)
+	for i := 0; i < length; i++ {
+		if len(rs) == 0 {
+			break
+		}
+		r, exist := rs[keys[i]]
+		if !exist {
+			break
+		}
+		if i == length-1 {
+			if r.Type == vjson.String {
+				return template.NewTextData(r.Raw)
+			} else if r.Type == vjson.Null {
+				return template.NewNullData()
+			} else {
+				return template.NewOtherData(r.Raw)
+			}
+			break
+		}
+		rs = r.Result
+	}
+	return template.NewNoExistData()
 }

@@ -109,11 +109,12 @@ func (m *manager) GetSubscription(ctx context.Context, subId vanus.ID) (*primiti
 		return nil, err
 	}
 	sub := &primitive.Subscription{
-		ID:       subData.ID,
-		Filters:  subData.Filters,
-		Sink:     subData.Sink,
-		EventBus: subData.EventBus,
-		Offsets:  offsets,
+		ID:               subData.ID,
+		Filters:          subData.Filters,
+		Sink:             subData.Sink,
+		EventBus:         subData.EventBus,
+		Offsets:          offsets,
+		InputTransformer: subData.InputTransformer,
 	}
 	return sub, nil
 }
