@@ -12,13 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metric
+package metrics
 
 import (
 	"context"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel/attribute"
 	"sync"
 )
+
+const (
+	namespace = "vanus"
+)
+
+func RegisterControllerMetrics() {
+	prometheus.MustRegister(EventbusGauge)
+	prometheus.MustRegister(EventlogGaugeVec)
+	prometheus.MustRegister(SegmentCounterVec)
+	prometheus.MustRegister(BlockCounterVec)
+}
 
 type Config struct {
 	ModuleName string

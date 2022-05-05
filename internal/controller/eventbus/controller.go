@@ -17,6 +17,7 @@ package eventbus
 import (
 	"context"
 	"encoding/json"
+	"github.com/linkall-labs/vanus/observability/metrics"
 	"io"
 	"path/filepath"
 	"strings"
@@ -132,6 +133,7 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 			return nil, err
 		}
 	}
+	metrics.EventbusGauge.Set(float64(len(ctrl.eventBusMap)))
 	return &metapb.EventBus{
 		Name:      eb.Name,
 		LogNumber: int32(eb.LogNumber),
@@ -144,6 +146,7 @@ func (ctrl *controller) DeleteEventBus(ctx context.Context,
 	eb *metapb.EventBus) (*emptypb.Empty, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
+	metrics.EventbusGauge.Set(float64(len(ctrl.eventBusMap)))
 	return &emptypb.Empty{}, nil
 }
 

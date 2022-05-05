@@ -26,10 +26,13 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/interceptor/grpc_member"
 	"github.com/linkall-labs/vanus/internal/util/signal"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"net"
+	"net/http"
 	"os"
 	"sync"
 )
@@ -47,6 +50,7 @@ func main() {
 		os.Exit(-1)
 	}
 
+	go startMetrics()
 	etcd := embedetcd.New(cfg.Topology)
 	if err = etcd.Init(ctx, cfg.GetEtcdConfig()); err != nil {
 		log.Error(ctx, "failed to init etcd", map[string]interface{}{
@@ -91,14 +95,14 @@ func main() {
 
 	grpcServer := grpc.NewServer(
 		grpc.ChainStreamInterceptor(
+			recovery.StreamServerInterceptor(),
 			grpc_error.StreamServerInterceptor(),
 			grpc_member.StreamServerInterceptor(etcd),
-			recovery.StreamServerInterceptor(),
 		),
 		grpc.ChainUnaryInterceptor(
+			recovery.UnaryServerInterceptor(),
 			grpc_error.UnaryServerInterceptor(),
 			grpc_member.UnaryServerInterceptor(etcd),
-			recovery.UnaryServerInterceptor(),
 		),
 	)
 
@@ -138,4 +142,11 @@ func main() {
 	grpcServer.GracefulStop()
 	wg.Wait()
 	log.Info(ctx, "the controller has been shutdown gracefully", nil)
+}
+
+func startMetrics() {
+	metrics.RegisterControllerMetrics()
+
+	http.Handle("/metrics", promhttp.Handler())
+	http.ListenAndServe(":2112", nil)
 }

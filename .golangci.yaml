@@ -274,7 +274,7 @@ linters:
     - exportloopref
     - funlen
     - forbidigo
-    - gochecknoglobals
+#    - gochecknoglobals
     - gochecknoinits
     - gocognit
     - goconst
