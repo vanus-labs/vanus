@@ -27,7 +27,7 @@ const (
 
 func RegisterControllerMetrics() {
 	prometheus.MustRegister(EventbusGauge)
-	prometheus.MustRegister(EventlogGauge)
+	prometheus.MustRegister(EventlogGaugeVec)
 	prometheus.MustRegister(SegmentCounterVec)
 	prometheus.MustRegister(BlockCounterVec)
 }

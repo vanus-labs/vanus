@@ -133,7 +133,7 @@ func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEv
 			return nil, err
 		}
 	}
-	metrics.EventlogGauge.Set(float64(len(ctrl.eventBusMap)))
+	metrics.EventbusGauge.Set(float64(len(ctrl.eventBusMap)))
 	return &metapb.EventBus{
 		Name:      eb.Name,
 		LogNumber: int32(eb.LogNumber),

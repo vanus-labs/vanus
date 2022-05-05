@@ -145,7 +145,7 @@ func (mgr *eventlogManager) AcquireEventLog(ctx context.Context, eventbusID vanu
 		"key": elMD.ID.Key(),
 		"id":  elMD.EventbusID.Key(),
 	})
-	metrics.EventlogGauge.Set(float64(len(mgr.eventLogRecord)))
+	metrics.EventlogGaugeVec.WithLabelValues(elMD.ID.String()).Inc()
 	return elMD, nil
 }
 

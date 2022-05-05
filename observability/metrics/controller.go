@@ -26,7 +26,7 @@ var (
 		Help:      "The number of Eventbus.",
 	})
 
-	EventlogGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	EventlogGaugeVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfController,
 		Name:      "eventlog_number",
