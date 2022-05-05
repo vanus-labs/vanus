@@ -19,7 +19,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/util"
 )
 
-//Type is json raw type
+//Type is json raw type.
 type Type int
 
 const (
@@ -177,7 +177,6 @@ func (s *scanner) parseBeginKey() error {
 			return nil
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
 			start = s.pos
-
 		}
 		if '0' <= c && c <= '9' {
 			start = s.pos

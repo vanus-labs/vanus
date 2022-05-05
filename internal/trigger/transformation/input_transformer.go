@@ -15,13 +15,14 @@
 package transformation
 
 import (
-	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/cloudevents/sdk-go/v2/types"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger/transformation/input"
 	"github.com/linkall-labs/vanus/internal/trigger/transformation/template"
 	"github.com/linkall-labs/vanus/internal/trigger/transformation/vjson"
 	"github.com/linkall-labs/vanus/internal/trigger/util"
+
+	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/cloudevents/sdk-go/v2/types"
 )
 
 type InputTransformer struct {
@@ -40,7 +41,7 @@ func NewInputTransformer(inputTransformer *primitive.InputTransformer) *InputTra
 }
 
 func (tf *InputTransformer) Execute(event *ce.Event) error {
-	dataMap, err := tf.parseData(event)
+	dataMap, err := tf.ParseData(event)
 	if err != nil {
 		return err
 	}
@@ -49,7 +50,7 @@ func (tf *InputTransformer) Execute(event *ce.Event) error {
 	return nil
 }
 
-func (tf *InputTransformer) parseData(event *ce.Event) (map[string]template.Data, error) {
+func (tf *InputTransformer) ParseData(event *ce.Event) (map[string]template.Data, error) {
 	var results map[string]vjson.Result
 	var err error
 	if tf.InputParser.HasDataVariable() {
@@ -75,14 +76,14 @@ func (tf *InputTransformer) parseData(event *ce.Event) (map[string]template.Data
 			if len(n.Value) == 0 {
 				dataMap[k] = template.NewOtherData(event.Data())
 			} else {
-				dataMap[k] = parseDataVariable(results, n.Value)
+				dataMap[k] = ParseDataVariable(results, n.Value)
 			}
 		}
 	}
 	return dataMap, nil
 }
 
-func parseDataVariable(rs map[string]vjson.Result, keys []string) template.Data {
+func ParseDataVariable(rs map[string]vjson.Result, keys []string) template.Data {
 	length := len(keys)
 	for i := 0; i < length; i++ {
 		if len(rs) == 0 {
@@ -93,14 +94,14 @@ func parseDataVariable(rs map[string]vjson.Result, keys []string) template.Data 
 			break
 		}
 		if i == length-1 {
-			if r.Type == vjson.String {
+			switch r.Type {
+			case vjson.String:
 				return template.NewTextData(r.Raw)
-			} else if r.Type == vjson.Null {
+			case vjson.Null:
 				return template.NewNullData()
-			} else {
+			default:
 				return template.NewOtherData(r.Raw)
 			}
-			break
 		}
 		rs = r.Result
 	}

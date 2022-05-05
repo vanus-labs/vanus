@@ -15,8 +15,9 @@
 package template
 
 import (
-	"github.com/linkall-labs/vanus/internal/util"
 	"strings"
+
+	"github.com/linkall-labs/vanus/internal/util"
 )
 
 type OutputType int
