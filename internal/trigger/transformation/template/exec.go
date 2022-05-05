@@ -18,7 +18,41 @@ import (
 	"strings"
 )
 
-func (p *Parser) Execute(data map[string][]byte) string {
+type DataType int
+
+const (
+	NoExist = iota
+	Null
+	Text
+	Other
+)
+
+type Data struct {
+	DataType
+	Raw []byte
+}
+
+func (d Data) String() string {
+	return string(d.Raw)
+}
+
+func NewNoExistData() Data {
+	return Data{DataType: NoExist}
+}
+
+func NewNullData() Data {
+	return Data{DataType: Null}
+}
+
+func NewTextData(d []byte) Data {
+	return Data{Text, d}
+}
+
+func NewOtherData(d []byte) Data {
+	return Data{Other, d}
+}
+
+func (p *Parser) executeJson(data map[string]Data) string {
 	var sb strings.Builder
 	for _, node := range p.GetNodes() {
 		switch node.Type() {
@@ -26,20 +60,50 @@ func (p *Parser) Execute(data map[string][]byte) string {
 			sb.WriteString(node.Value())
 		case Variable:
 			v, exist := data[node.Value()]
-			if !exist || len(v) == 0 {
-				if p.OutputType == JSON {
-					sb.WriteString("null")
-				}
-			} else {
-				sb.Write(v)
+			if !exist || v.DataType == Null || v.DataType == NoExist {
+				sb.WriteString("null")
+			}
+			if v.DataType == Text {
+				sb.WriteString("\"")
+			}
+			sb.Write(v.Raw)
+			if v.DataType == Text {
+				sb.WriteString("\"")
 			}
 		case StringVariable:
 			v, exist := data[node.Value()]
-			if !exist || len(v) == 0 {
+			if !exist || v.DataType == Null || v.DataType == NoExist {
 				continue
 			}
-			sb.Write(v)
+			sb.Write(v.Raw)
 		}
 	}
 	return sb.String()
+}
+
+func (p *Parser) executeText(data map[string]Data) string {
+	var sb strings.Builder
+	for _, node := range p.GetNodes() {
+		switch node.Type() {
+		case Constant:
+			sb.WriteString(node.Value())
+		case Variable, StringVariable:
+			v, exist := data[node.Value()]
+			if !exist || v.DataType == Null || v.DataType == NoExist {
+				continue
+			}
+			sb.Write(v.Raw)
+		}
+	}
+	return sb.String()
+}
+
+func (p *Parser) Execute(data map[string]Data) string {
+	switch p.OutputType {
+	case TEXT:
+		return p.executeText(data)
+	case JSON:
+		return p.executeJson(data)
+	}
+	return ""
 }
