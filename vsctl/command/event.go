@@ -52,6 +52,14 @@ func putEventCommand() *cobra.Command {
 				fmt.Printf("parse endpoints error: %s\n", err)
 				os.Exit(-1)
 			}
+			if len(args) == 0 {
+				fmt.Println("eventbus name can't be empty")
+				fmt.Println()
+				fmt.Printf("============ see below for right usage ============\n")
+				fmt.Println()
+				_ = cmd.Help()
+				os.Exit(-1)
+			}
 			vrn := fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s", "", args[0],
 				strings.Join(eps, ","))
 			writer, err := eb.OpenBusWriter(vrn)
