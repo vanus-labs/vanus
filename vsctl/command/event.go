@@ -14,7 +14,23 @@
 
 package command
 
-import "github.com/spf13/cobra"
+import (
+	"context"
+	"fmt"
+	"os"
+	"strings"
+
+	ce "github.com/cloudevents/sdk-go/v2"
+	eb "github.com/linkall-labs/eventbus-go"
+	"github.com/spf13/cobra"
+)
+
+var (
+	eventID     = ""
+	eventSource = ""
+	eventType   = ""
+	eventBody   = ""
+)
 
 func NewEventCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -31,11 +47,38 @@ func putEventCommand() *cobra.Command {
 		Use:   "put <eventbus-name> ",
 		Short: "send a event to eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-			println("put event")
+			eps, err := endpointsFromCmd(cmd)
+			if err != nil {
+				fmt.Printf("parse endpoints error: %s\n", err)
+				os.Exit(-1)
+			}
+			vrn := fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s", "", args[0],
+				strings.Join(eps, ","))
+			writer, err := eb.OpenBusWriter(vrn)
+			defer writer.Close()
+			if err != nil {
+				fmt.Printf("open eventbus writer error: %s\n", err)
+				os.Exit(-1)
+			}
+			ctx := context.Background()
+			event := ce.NewEvent()
+			event.SetID(eventID)
+			event.SetSource(eventSource)
+			event.SetType(eventType)
+			err = event.SetData(ce.ApplicationJSON, eventBody)
+			_, err = writer.Append(ctx, &event)
+			if err != nil {
+				fmt.Printf("send event to eventbus error: %s\n", err)
+				os.Exit(-1)
+			} else {
+				fmt.Println("send event to eventbus success")
+			}
 		},
 	}
-	cmd.Flags().String("eventlog", "", "specified eventlog id send to")
-	cmd.Flags().String("body", "", "json formatted data to send")
+	cmd.Flags().StringVar(&eventID, "id", "cmd", "event id of CloudEvent")
+	cmd.Flags().StringVar(&eventSource, "source", "cmd", "event source of CloudEvent")
+	cmd.Flags().StringVar(&eventType, "type", "cmd", "event type of CloudEvent")
+	cmd.Flags().StringVar(&eventBody, "body", "", "event body of CloudEvent")
 	return cmd
 }
 
@@ -47,7 +90,7 @@ func getEventCommand() *cobra.Command {
 			println("get event")
 		},
 	}
-	cmd.Flags().String("eventlog", "", "specified eventlog id get from")
+	//cmd.Flags().String("eventlog", "", "specified eventlog id get from")
 	cmd.Flags().Int64("offset", -1, "which position you want to start get")
 	cmd.Flags().Int16("number", 1, "the number of event you want to get")
 	return cmd

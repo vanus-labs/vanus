@@ -16,7 +16,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"github.com/linkall-labs/vanus/vsctl/command"
 	"github.com/spf13/cobra"
@@ -25,11 +24,12 @@ import (
 
 const (
 	cliName        = "vsctl"
-	cliDescription = "the command-line tool for vanus"
+	cliDescription = "the command-line application for vanus"
 )
 
 var (
-	rootCmd = &cobra.Command{
+	globalFlags = command.GlobalFlags{}
+	rootCmd     = &cobra.Command{
 		Use:        cliName,
 		Short:      cliDescription,
 		SuggestFor: []string{"vsctl"},
@@ -38,25 +38,29 @@ var (
 
 func init() {
 	cobra.EnablePrefixMatching = true
+	cobra.EnableCommandSorting = false
+
+	rootCmd.PersistentFlags().StringSliceVar(&globalFlags.Endpoints, "endpoints",
+		[]string{"127.0.0.1:2379"}, "the endpoints of vanus controller")
+	rootCmd.PersistentFlags().StringVarP(&globalFlags.ConfigFile, "config", "C",
+		"~/.vanus/vanus.yml", "the config file of vsctl")
+	rootCmd.PersistentFlags().BoolVarP(&globalFlags.Debug, "debug", "D", false,
+		"is debug mode enable")
 
 	rootCmd.AddCommand(
-		command.NewSubscriptionCommand(),
-		command.NewEventbusCommand(),
 		command.NewEventCommand(),
+		command.NewEventbusCommand(),
+		command.NewSubscriptionCommand(),
 	)
+
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }
 
 func main() {
 	MustStart()
 }
 
-func usageFunc(c *cobra.Command) error {
-	return errors.New("vsctl")
-}
-
 func Start() error {
-	rootCmd.SetUsageFunc(usageFunc)
-	rootCmd.SetHelpTemplate("vsctl help\n")
 	return rootCmd.Execute()
 }
 
