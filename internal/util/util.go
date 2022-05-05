@@ -22,3 +22,7 @@ import (
 func GetIdByAddr(addr string) string {
 	return fmt.Sprintf("%x", md5.Sum([]byte(addr)))
 }
+
+func IsSpace(c byte) bool {
+	return c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+}

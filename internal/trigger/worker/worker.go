@@ -267,13 +267,10 @@ func testSend() {
 
 	go func() {
 		i := 1
-		tp := "none"
-		for ; i < 10000; i++ {
-			if i%3 == 0 {
-				tp = "test"
-			}
+		for ; ; i++ {
+			tp := "test"
 			if i%2 == 0 {
-				time.Sleep(10 * time.Second)
+				time.Sleep(1 * time.Second)
 				tp = "none"
 			}
 			// Create an Event.
@@ -281,7 +278,8 @@ func testSend() {
 			event.SetID(fmt.Sprintf("%d", i))
 			event.SetSource("example/uri")
 			event.SetType(tp)
-			event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world", "type": tp})
+			event.SetExtension("vanus", fmt.Sprintf("value%d", i))
+			event.SetData(ce.ApplicationJSON, map[string]string{"hello": fmt.Sprintf("world %d", i), "type": tp})
 
 			_, err = bw.Append(context.Background(), &event)
 			if err != nil {

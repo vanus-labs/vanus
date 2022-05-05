@@ -22,7 +22,9 @@ var (
 	ErrResourceAlreadyExist = rpcerr.New("resource already exist").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_EXIST)
 	ErrWorkerNotStart       = rpcerr.New("worker not start").WithGRPCCode(rpcerr.ErrorCode_SERVICE_NOT_RUNNING)
 
-	ErrReadNoEvent = rpcerr.New("read no event")
+	ErrReadNoEvent         = rpcerr.New("read no event")
+	ErrVanusJsonParse      = rpcerr.New("invalid json").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
+	ErrTransformInputParse = rpcerr.New("transform input invalid").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
 
 	ErrNoControllerLeader = rpcerr.New("no leader controller found").WithGRPCCode(rpcerr.ErrorCode_NOT_LEADER)
 )

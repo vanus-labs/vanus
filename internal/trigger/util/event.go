@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package filter
+package util
 
 import ce "github.com/cloudevents/sdk-go/v2"
 
@@ -35,12 +35,8 @@ func LookupAttribute(event ce.Event, attr string) (interface{}, bool) {
 		return event.Time().String(), true
 	case "dataschema":
 		return event.DataSchema(), true
-	case "schemaurl":
-		return event.DataSchema(), true
 	case "datacontenttype":
 		return event.DataContentType(), true
-	case "datamediatype":
-		return event.DataMediaType(), true
 	default:
 		val, ok := event.Extensions()[attr]
 		return val, ok
