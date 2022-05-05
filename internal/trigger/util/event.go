@@ -33,12 +33,10 @@ func LookupAttribute(event ce.Event, attr string) (interface{}, bool) {
 		return event.ID(), true
 	case "time":
 		return event.Time().String(), true
-	case "dataschema", "schemaurl":
+	case "dataschema":
 		return event.DataSchema(), true
 	case "datacontenttype":
 		return event.DataContentType(), true
-	case "datamediatype":
-		return event.DataMediaType(), true
 	default:
 		val, ok := event.Extensions()[attr]
 		return val, ok
