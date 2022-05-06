@@ -17,8 +17,10 @@ package command
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 
@@ -35,6 +37,8 @@ var (
 	eventBody         = ""
 	dataFile          = ""
 	printDataTemplate bool
+	offset            int64
+	number            int16
 )
 
 func NewEventCommand() *cobra.Command {
@@ -172,11 +176,41 @@ func getEventCommand() *cobra.Command {
 		Use:   "get <eventbus-name> ",
 		Short: "get a event from specified eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-			println("get event")
+			endpoint, err := endpointsFromCmd(cmd)
+			if err != nil {
+				cmdFailed("parse endpoints error: %s\n\n", err)
+			}
+			if len(args) == 0 {
+				color.White("eventbus name can't be empty\n")
+				color.Cyan("\n============ see below for right usage ============\n\n")
+				_ = cmd.Help()
+				os.Exit(-1)
+			}
+			if !strings.HasPrefix(endpoint, "http://") {
+				endpoint = "http://" + endpoint
+			}
+			res, err := newHttpRequest().Get(fmt.Sprintf("%s/getEvents?eventbus=%s&offset=%d&number=%d",
+				endpoint, args[0], offset, number))
+			if err != nil {
+				cmdFailed("send request to gateway failed: %s", err)
+			}
+			if res.StatusCode() != http.StatusOK {
+				cmdFailed("got response, but no 200 OK: %d", res.StatusCode())
+			}
+			data := new(struct {
+				Events []ce.Event
+			})
+			err = json.Unmarshal(res.Body(), data)
+			if err != nil {
+				cmdFailed("unmarshal http response data failed: %s", err)
+			}
+			for idx := range data.Events {
+				color.Yellow("event: %d, %s\n", idx, data.Events[idx].String())
+			}
 		},
 	}
 	//cmd.Flags().String("eventlog", "", "specified eventlog id get from")
-	cmd.Flags().Int64("offset", -1, "which position you want to start get")
-	cmd.Flags().Int16("number", 1, "the number of event you want to get")
+	cmd.Flags().Int64Var(&offset, "offset", -1, "which position you want to start get")
+	cmd.Flags().Int16Var(&number, "number", 1, "the number of event you want to get")
 	return cmd
 }

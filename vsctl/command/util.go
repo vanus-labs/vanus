@@ -15,12 +15,21 @@
 package command
 
 import (
+	"github.com/go-resty/resty/v2"
 	"os"
 
 	"github.com/fatih/color"
 )
 
+var (
+	httpClient = resty.New()
+)
+
 func cmdFailed(format string, a ...interface{}) {
 	color.Red(format, a)
 	os.Exit(-1)
+}
+
+func newHttpRequest() *resty.Request {
+	return httpClient.NewRequest()
 }
