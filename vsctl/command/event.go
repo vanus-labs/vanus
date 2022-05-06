@@ -18,12 +18,14 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	ce "github.com/cloudevents/sdk-go/v2"
-	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
-	"github.com/spf13/cobra"
 	"io"
 	"os"
 	"strings"
+
+	ce "github.com/cloudevents/sdk-go/v2"
+	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
+	"github.com/fatih/color"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -51,34 +53,29 @@ func putEventCommand() *cobra.Command {
 		Short: "send a event to eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
 			if printDataTemplate {
-				fmt.Println("id1,source1,type1,data1")
-				fmt.Println("id2,,,data2")
-				fmt.Println(",,,data3")
+				color.White("id1,source1,type1,data1")
+				color.White("id2,,,data2")
+				color.White(",,,data3")
 				os.Exit(0)
 			}
 			endpoint, err := endpointsFromCmd(cmd)
 			if err != nil {
-				fmt.Printf("parse endpoints error: %s\n", err)
-				os.Exit(-1)
+				cmdFailed("parse endpoints error: %s\n\n", err)
 			}
 			if len(args) == 0 {
-				fmt.Println("eventbus name can't be empty")
-				fmt.Println()
-				fmt.Printf("============ see below for right usage ============\n")
-				fmt.Println()
+				color.White("eventbus name can't be empty\n")
+				color.Cyan("\n============ see below for right usage ============\n\n")
 				_ = cmd.Help()
 				os.Exit(-1)
 			}
 
 			p, err := ce.NewHTTP()
 			if err != nil {
-				fmt.Printf("init ce protocol error: %s\n", err)
-				os.Exit(-1)
+				cmdFailed("init ce protocol error: %s\n", err)
 			}
 			c, err := ce.NewClient(p, ce.WithTimeNow(), ce.WithUUIDs())
 			if err != nil {
-				fmt.Printf("create ce client error: %s\n", err)
-				os.Exit(-1)
+				cmdFailed("create ce client error: %s\n", err)
 			}
 			ctx := ce.ContextWithTarget(context.Background(), fmt.Sprintf("http://%s/gateway/%s", endpoint, args[0]))
 
@@ -106,17 +103,15 @@ func sendOne(ctx context.Context, ceClient ce.Client) {
 	event.SetType(eventType)
 	err := event.SetData(ce.ApplicationJSON, eventBody)
 	if err != nil {
-		fmt.Printf("set data failed: %s\n", err)
-		os.Exit(-1)
+		cmdFailed("set data failed: %s\n", err)
 	}
 	res := ceClient.Send(ctx, event)
 	if ce.IsUndelivered(res) {
-		fmt.Printf("failed to send: %s\n", res.Error())
-		os.Exit(-1)
+		cmdFailed("failed to send: %s\n", res.Error())
 	} else {
 		var httpResult *cehttp.Result
 		ce.ResultAs(res, &httpResult)
-		fmt.Printf("send %d \n", httpResult.StatusCode)
+		color.Green("send %d \n", httpResult.StatusCode)
 	}
 }
 
@@ -126,8 +121,7 @@ func sendFile(ctx context.Context, ceClient ce.Client) {
 		_ = f.Close()
 	}()
 	if err != nil {
-		fmt.Printf("open data file failed: %s\n", err)
-		os.Exit(-1)
+		cmdFailed("open data file failed: %s\n", err)
 	}
 	events := make([][]string, 0)
 	reader := bufio.NewReader(f)
@@ -137,23 +131,19 @@ func sendFile(ctx context.Context, ceClient ce.Client) {
 			if err == io.EOF {
 				break
 			}
-			fmt.Printf("read data file failed: %s\n", err)
-			os.Exit(-1)
+			cmdFailed("read data file failed: %s\n", err)
 		}
 		for isPrx {
 			var _data []byte
 			_data, isPrx, err = reader.ReadLine()
 			if err != nil {
-				fmt.Printf("read data file failed: %s\n", err)
-				os.Exit(-1)
+				cmdFailed("read data file failed: %s\n", err)
 			}
 			data = append(_data, _data...)
 		}
 		arr := strings.Split(string(data), ",")
 		if len(arr) != 4 {
-			fmt.Printf("invalid data file: %s, please see vsctl event put --print-template", string(data))
-
-			os.Exit(-1)
+			cmdFailed("invalid data file: %s, please see vsctl event put --print-template", string(data))
 		}
 		events = append(events, arr)
 	}
@@ -164,17 +154,15 @@ func sendFile(ctx context.Context, ceClient ce.Client) {
 		event.SetType(v[2])
 		err := event.SetData(ce.ApplicationJSON, v[3])
 		if err != nil {
-			fmt.Printf("set data failed: %s\n", err)
-			os.Exit(-1)
+			cmdFailed("set data failed: %s\n", err)
 		}
 		res := ceClient.Send(ctx, event)
 		if ce.IsUndelivered(res) {
-			fmt.Printf("failed to send: %s\n", res.Error())
-			os.Exit(-1)
+			cmdFailed("failed to send: %s\n", res.Error())
 		} else {
 			var httpResult *cehttp.Result
 			ce.ResultAs(res, &httpResult)
-			fmt.Printf("%dth sent %d \n", idx, httpResult.StatusCode)
+			cmdFailed("%dth sent %d \n", idx, httpResult.StatusCode)
 		}
 	}
 }
