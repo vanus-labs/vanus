@@ -143,7 +143,7 @@ func sendFile(ctx context.Context, ceClient ce.Client) {
 			if err != nil {
 				cmdFailed("read data file failed: %s\n", err)
 			}
-			data = append(_data, _data...)
+			data = append(data, _data...)
 		}
 		arr := strings.Split(string(data), ",")
 		if len(arr) != 4 {
@@ -189,7 +189,7 @@ func getEventCommand() *cobra.Command {
 			if !strings.HasPrefix(endpoint, "http://") {
 				endpoint = "http://" + endpoint
 			}
-			res, err := newHttpRequest().Get(fmt.Sprintf("%s/getEvents?eventbus=%s&offset=%d&number=%d",
+			res, err := newHTTPRequest().Get(fmt.Sprintf("%s/getEvents?eventbus=%s&offset=%d&number=%d",
 				endpoint, args[0], offset, number))
 			if err != nil {
 				cmdFailed("send request to gateway failed: %s", err)
@@ -209,7 +209,9 @@ func getEventCommand() *cobra.Command {
 			}
 		},
 	}
+
 	//cmd.Flags().String("eventlog", "", "specified eventlog id get from")
+
 	cmd.Flags().Int64Var(&offset, "offset", -1, "which position you want to start get")
 	cmd.Flags().Int16Var(&number, "number", 1, "the number of event you want to get")
 	return cmd

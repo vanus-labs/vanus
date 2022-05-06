@@ -31,7 +31,7 @@ func createSubscriptionCommand() *cobra.Command {
 		Use:   "create <subscription-name> ",
 		Short: "create a subscription",
 		Run: func(cmd *cobra.Command, args []string) {
-			println("subscription create")
+			// TODO
 		},
 	}
 	cmd.Flags().String("filter", "{}", "")
@@ -44,7 +44,7 @@ func deleteSubscriptionCommand() *cobra.Command {
 		Use:   "delete <subscription-name> ",
 		Short: "delete a subscription",
 		Run: func(cmd *cobra.Command, args []string) {
-			println("subscription delete")
+			// TODO
 		},
 	}
 	cmd.Flags().String("id", "", "subscription id to deleting")

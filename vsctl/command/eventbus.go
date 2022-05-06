@@ -31,7 +31,7 @@ func createEventbusCommand() *cobra.Command {
 		Use:   "create <eventbus-name> ",
 		Short: "create a eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-			println("eventbus create")
+			// TODO
 		},
 	}
 	cmd.Flags().String("name", "", "eventbus name to creating")
@@ -43,7 +43,7 @@ func deleteEventbusCommand() *cobra.Command {
 		Use:   "delete <eventbus-name> ",
 		Short: "delete a eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-			println("eventbus delete")
+			// TODO
 		},
 	}
 	cmd.Flags().String("name", "", "eventbus name to deleting")

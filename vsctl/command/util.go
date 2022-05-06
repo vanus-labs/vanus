@@ -15,10 +15,10 @@
 package command
 
 import (
-	"github.com/go-resty/resty/v2"
 	"os"
 
 	"github.com/fatih/color"
+	"github.com/go-resty/resty/v2"
 )
 
 var (
@@ -30,6 +30,6 @@ func cmdFailed(format string, a ...interface{}) {
 	os.Exit(-1)
 }
 
-func newHttpRequest() *resty.Request {
+func newHTTPRequest() *resty.Request {
 	return httpClient.NewRequest()
 }

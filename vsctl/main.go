@@ -16,10 +16,11 @@
 package main
 
 import (
-	"fmt"
+	"github.com/fatih/color"
+	"os"
+
 	"github.com/linkall-labs/vanus/vsctl/command"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 const (
@@ -66,7 +67,7 @@ func Start() error {
 
 func MustStart() {
 	if err := Start(); err != nil {
-		fmt.Printf("vsctl error: %s", err)
+		color.Red("vsctl error: %s", err)
 		os.Exit(-1)
 	}
 }
