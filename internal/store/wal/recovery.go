@@ -29,7 +29,7 @@ const (
 	defaultDirPerm = 0755
 )
 
-func RecoverWithVisitor(walDir string, visitor WalkFunc) (*WAL, error) {
+func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc) (*WAL, error) {
 	// Make sure the WAL directory exists.
 	if err := os.MkdirAll(walDir, defaultDirPerm); err != nil {
 		return nil, err
@@ -89,8 +89,7 @@ func RecoverWithVisitor(walDir string, visitor WalkFunc) (*WAL, error) {
 		})
 	}
 
-	// TODO(james.yin): visit from compacted offset
-	eo, err := s.Visit(visitor, 0)
+	eo, err := s.Visit(visitor, compacted)
 	if err != nil {
 		return nil, err
 	}
