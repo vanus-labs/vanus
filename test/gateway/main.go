@@ -26,12 +26,13 @@ import (
 )
 
 var (
-	mode   = flag.String("mode", "send", "")
-	addr   = flag.String("addr", "127.0.0.1:8080", "")
-	eb     = flag.String("eb", "test", "")
-	num    = flag.Int("num", 100, "")
-	size   = flag.Int("size", 64, "")
-	offset = flag.Int("offset", 0, "")
+	mode      = flag.String("mode", "send", "")
+	addr      = flag.String("addr", "127.0.0.1:8080", "")
+	eb        = flag.String("eb", "test", "")
+	eventType = flag.String("type", "a", "")
+	num       = flag.Int("num", 100, "")
+	size      = flag.Int("size", 64, "")
+	offset    = flag.Int("offset", 0, "")
 )
 
 func main() {
@@ -71,11 +72,8 @@ func sender() {
 	}()
 	for i := 0; i < *num; i++ {
 		e := cloudevents.NewEvent()
-		e.SetType("com.cloudevents.sample.sent")
-		e.SetSource("https://github.com/cloudevents/sdk-go/v2/samples/httpb/sender")
-		if err != nil {
-			log.Fatalln("")
-		}
+		e.SetType(*eventType)
+		e.SetSource("gw-util")
 		_ = e.SetData(cloudevents.ApplicationJSON, map[string]interface{}{
 			"id":      i,
 			"message": "Hello, World!",

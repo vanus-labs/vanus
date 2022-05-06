@@ -257,7 +257,7 @@ linters:
     - ineffassign
     - staticcheck
     - structcheck
-#    - typecheck
+    - typecheck
     - unused
     - varcheck
     ## disabled by default
@@ -275,7 +275,7 @@ linters:
     - funlen
     - forbidigo
 #    - gochecknoglobals
-    - gochecknoinits
+#    - gochecknoinits
     - gocognit
     - goconst
     - gocritic
