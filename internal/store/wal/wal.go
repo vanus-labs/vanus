@@ -36,15 +36,17 @@ type blockWithSo struct {
 	so int64
 }
 
-type resultOrError struct {
-	result []int64
-	err    error
+type ResultOrError struct {
+	Result []int64
+	Err    error
 }
+
+type AppendCallback func(ResultOrError)
 
 type entriesWithCallback struct {
 	entries  [][]byte
 	batching bool
-	callback chan<- resultOrError
+	callback AppendCallback
 }
 
 type blockWithArgs struct {
@@ -54,7 +56,7 @@ type blockWithArgs struct {
 }
 
 type callbackWithThreshold struct {
-	callback  chan<- resultOrError
+	callback  AppendCallback
 	result    []int64
 	threshold int64
 }
@@ -159,19 +161,33 @@ func (w *WAL) AppendWithoutBatching(entries [][]byte) ([]int64, error) {
 }
 
 func (w *WAL) append(entries [][]byte, batching bool) ([]int64, error) {
-	ch := make(chan resultOrError, 1)
+	ch := make(chan ResultOrError, 1)
+	cb := func(re ResultOrError) {
+		ch <- re
+	}
+	w.appendWithCallback(entries, batching, cb)
+	result := <-ch
+	return result.Result, result.Err
+}
+
+func (w *WAL) AppendOneWithCallback(entry []byte, callback AppendCallback) {
+	w.appendWithCallback([][]byte{entry}, true, callback)
+}
+
+func (w *WAL) appendWithCallback(entries [][]byte, batching bool, callback AppendCallback) {
 	er := entriesWithCallback{
 		entries:  entries,
 		batching: batching,
-		callback: ch,
+		callback: callback,
 	}
 	select {
 	case <-w.ctx.Done():
-		return nil, w.ctx.Err()
+		callback(ResultOrError{
+			Result: nil,
+			Err:    w.ctx.Err(),
+		})
 	case w.appendc <- er:
 	}
-	result := <-ch
-	return result.result, result.err
 }
 
 func (w *WAL) runAppend() {
@@ -240,7 +256,7 @@ func (w *WAL) flushWritableBlock() {
 // doAppend write entries to block(s). And return two flags: full and goahead.
 // The full flag indicate last written block is full, and the
 // goahead flag indicate switching to a new block.
-func (w *WAL) doAppend(entries [][]byte, callback chan<- resultOrError) (bool, bool) {
+func (w *WAL) doAppend(entries [][]byte, callback AppendCallback) (bool, bool) {
 	var full, goahead bool
 	offsets := make([]int64, len(entries))
 	for i, entry := range entries {
@@ -248,7 +264,7 @@ func (w *WAL) doAppend(entries [][]byte, callback chan<- resultOrError) (bool, b
 		for j, record := range records {
 			n, err := w.wb.Append(record)
 			if err != nil {
-				callback <- resultOrError{nil, err}
+				callback(ResultOrError{nil, err})
 				return full, goahead
 			}
 			if j == len(records)-1 {
@@ -309,7 +325,7 @@ func (w *WAL) doFlush(fb *blockWithSo, offset int) error {
 }
 
 func (w *WAL) runCallback() {
-	var cb chan<- resultOrError
+	var cb AppendCallback
 	var re []int64
 	var th int64
 	for offset := range w.weakupc {
@@ -321,16 +337,16 @@ func (w *WAL) runCallback() {
 			if th > offset {
 				break
 			}
-			cb <- resultOrError{
-				result: re,
-			}
+			cb(ResultOrError{
+				Result: re,
+			})
 			cb, re, th = w.nextCallback()
 		}
 	}
 	close(w.donec)
 }
 
-func (w *WAL) nextCallback() (chan<- resultOrError, []int64, int64) {
+func (w *WAL) nextCallback() (AppendCallback, []int64, int64) {
 	select {
 	case c := <-w.callbackc:
 		return c.callback, c.result, c.threshold
