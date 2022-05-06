@@ -151,7 +151,8 @@ func sendFile(ctx context.Context, ceClient ce.Client) {
 		}
 		arr := strings.Split(string(data), ",")
 		if len(arr) != 4 {
-			fmt.Printf("invalid data file: %s, the each line must be [id],[source],[type],<body>", string(data))
+			fmt.Printf("invalid data file: %s, please see vsctl event put --print-template", string(data))
+
 			os.Exit(-1)
 		}
 		events = append(events, arr)

@@ -40,8 +40,8 @@ func init() {
 	cobra.EnablePrefixMatching = true
 	cobra.EnableCommandSorting = false
 
-	rootCmd.PersistentFlags().StringSliceVar(&globalFlags.Endpoints, "endpoints",
-		[]string{"127.0.0.1:2379"}, "the endpoints of vanus gateway")
+	rootCmd.PersistentFlags().StringVar(&globalFlags.Endpoint, "endpoints",
+		"127.0.0.1:8080", "the endpoints of vanus gateway")
 	rootCmd.PersistentFlags().StringVarP(&globalFlags.ConfigFile, "config", "C",
 		"~/.vanus/vanus.yml", "the config file of vsctl")
 	rootCmd.PersistentFlags().BoolVarP(&globalFlags.Debug, "debug", "D", false,

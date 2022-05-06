@@ -30,6 +30,9 @@ func main() {
 		log.Error(nil, "init config error", map[string]interface{}{log.KeyError: err})
 		os.Exit(-1)
 	}
+
+	go gateway.MustStartHTTP(*cfg)
+
 	ga := gateway.NewGateway(*cfg)
 	err = ga.StartReceive(context.Background())
 	if err != nil {
