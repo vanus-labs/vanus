@@ -16,21 +16,15 @@ package command
 
 import (
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 type GlobalFlags struct {
-	Endpoints  []string
+	Endpoint   string
 	Debug      bool
 	ConfigFile string
 }
 
-func endpointsFromCmd(cmd *cobra.Command) ([]string, error) {
-	eps, err := cmd.Flags().GetStringSlice("endpoints")
-	if err == nil {
-		for i, ip := range eps {
-			eps[i] = strings.TrimSpace(ip)
-		}
-	}
+func endpointsFromCmd(cmd *cobra.Command) (string, error) {
+	eps, err := cmd.Flags().GetString("endpoint")
 	return eps, err
 }

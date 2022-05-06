@@ -41,7 +41,7 @@ func init() {
 	cobra.EnableCommandSorting = false
 
 	rootCmd.PersistentFlags().StringSliceVar(&globalFlags.Endpoints, "endpoints",
-		[]string{"127.0.0.1:2379"}, "the endpoints of vanus controller")
+		[]string{"127.0.0.1:2379"}, "the endpoints of vanus gateway")
 	rootCmd.PersistentFlags().StringVarP(&globalFlags.ConfigFile, "config", "C",
 		"~/.vanus/vanus.yml", "the config file of vsctl")
 	rootCmd.PersistentFlags().BoolVarP(&globalFlags.Debug, "debug", "D", false,

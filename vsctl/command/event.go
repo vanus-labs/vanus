@@ -15,14 +15,15 @@
 package command
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	ce "github.com/cloudevents/sdk-go/v2"
+	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
+	"github.com/spf13/cobra"
+	"io"
 	"os"
 	"strings"
-
-	ce "github.com/cloudevents/sdk-go/v2"
-	eb "github.com/linkall-labs/eventbus-go"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -55,7 +56,7 @@ func putEventCommand() *cobra.Command {
 				fmt.Println(",,,data3")
 				os.Exit(0)
 			}
-			eps, err := endpointsFromCmd(cmd)
+			endpoint, err := endpointsFromCmd(cmd)
 			if err != nil {
 				fmt.Printf("parse endpoints error: %s\n", err)
 				os.Exit(-1)
@@ -68,26 +69,23 @@ func putEventCommand() *cobra.Command {
 				_ = cmd.Help()
 				os.Exit(-1)
 			}
-			vrn := fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s", "", args[0],
-				strings.Join(eps, ","))
-			writer, err := eb.OpenBusWriter(vrn)
-			defer writer.Close()
+
+			p, err := ce.NewHTTP()
 			if err != nil {
-				fmt.Printf("open eventbus writer error: %s\n", err)
+				fmt.Printf("init ce protocol error: %s\n", err)
 				os.Exit(-1)
 			}
-			ctx := context.Background()
-			event := ce.NewEvent()
-			event.SetID(eventID)
-			event.SetSource(eventSource)
-			event.SetType(eventType)
-			err = event.SetData(ce.ApplicationJSON, eventBody)
-			_, err = writer.Append(ctx, &event)
+			c, err := ce.NewClient(p, ce.WithTimeNow(), ce.WithUUIDs())
 			if err != nil {
-				fmt.Printf("send event to eventbus error: %s\n", err)
+				fmt.Printf("create ce client error: %s\n", err)
 				os.Exit(-1)
+			}
+			ctx := ce.ContextWithTarget(context.Background(), fmt.Sprintf("http://%s/gateway/%s", endpoint, args[0]))
+
+			if dataFile == "" {
+				sendOne(ctx, c)
 			} else {
-				fmt.Println("send event to eventbus success")
+				sendFile(ctx, c)
 			}
 		},
 	}
@@ -99,6 +97,85 @@ func putEventCommand() *cobra.Command {
 		"and like [id],[source],[type],<body>")
 	cmd.Flags().BoolVar(&printDataTemplate, "print-template", false, "print data template file")
 	return cmd
+}
+
+func sendOne(ctx context.Context, ceClient ce.Client) {
+	event := ce.NewEvent()
+	event.SetID(eventID)
+	event.SetSource(eventSource)
+	event.SetType(eventType)
+	err := event.SetData(ce.ApplicationJSON, eventBody)
+	if err != nil {
+		fmt.Printf("set data failed: %s\n", err)
+		os.Exit(-1)
+	}
+	res := ceClient.Send(ctx, event)
+	if ce.IsUndelivered(res) {
+		fmt.Printf("failed to send: %s\n", res.Error())
+		os.Exit(-1)
+	} else {
+		var httpResult *cehttp.Result
+		ce.ResultAs(res, &httpResult)
+		fmt.Printf("send %d \n", httpResult.StatusCode)
+	}
+}
+
+func sendFile(ctx context.Context, ceClient ce.Client) {
+	f, err := os.Open(dataFile)
+	defer func() {
+		_ = f.Close()
+	}()
+	if err != nil {
+		fmt.Printf("open data file failed: %s\n", err)
+		os.Exit(-1)
+	}
+	events := make([][]string, 0)
+	reader := bufio.NewReader(f)
+	for {
+		data, isPrx, err := reader.ReadLine()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			fmt.Printf("read data file failed: %s\n", err)
+			os.Exit(-1)
+		}
+		for isPrx {
+			var _data []byte
+			_data, isPrx, err = reader.ReadLine()
+			if err != nil {
+				fmt.Printf("read data file failed: %s\n", err)
+				os.Exit(-1)
+			}
+			data = append(_data, _data...)
+		}
+		arr := strings.Split(string(data), ",")
+		if len(arr) != 4 {
+			fmt.Printf("invalid data file: %s, the each line must be [id],[source],[type],<body>", string(data))
+			os.Exit(-1)
+		}
+		events = append(events, arr)
+	}
+	for idx, v := range events {
+		event := ce.NewEvent()
+		event.SetID(v[0])
+		event.SetSource(v[1])
+		event.SetType(v[2])
+		err := event.SetData(ce.ApplicationJSON, v[3])
+		if err != nil {
+			fmt.Printf("set data failed: %s\n", err)
+			os.Exit(-1)
+		}
+		res := ceClient.Send(ctx, event)
+		if ce.IsUndelivered(res) {
+			fmt.Printf("failed to send: %s\n", res.Error())
+			os.Exit(-1)
+		} else {
+			var httpResult *cehttp.Result
+			ce.ResultAs(res, &httpResult)
+			fmt.Printf("%dth sent %d \n", idx, httpResult.StatusCode)
+		}
+	}
 }
 
 func getEventCommand() *cobra.Command {
