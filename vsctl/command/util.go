@@ -25,7 +25,7 @@ var (
 	httpClient = resty.New()
 )
 
-func cmdFailed(format string, a ...interface{}) {
+func cmdFailedf(format string, a ...interface{}) {
 	color.Red(format, a)
 	os.Exit(-1)
 }

@@ -16,9 +16,9 @@
 package main
 
 import (
-	"github.com/fatih/color"
 	"os"
 
+	"github.com/fatih/color"
 	"github.com/linkall-labs/vanus/vsctl/command"
 	"github.com/spf13/cobra"
 )

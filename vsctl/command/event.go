@@ -30,6 +30,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	cloudEventDataRowLength = 4
+)
+
 var (
 	eventID           = ""
 	eventSource       = ""
@@ -64,7 +68,7 @@ func putEventCommand() *cobra.Command {
 			}
 			endpoint, err := endpointsFromCmd(cmd)
 			if err != nil {
-				cmdFailed("parse endpoints error: %s\n\n", err)
+				cmdFailedf("parse endpoints error: %s\n\n", err)
 			}
 			if len(args) == 0 {
 				color.White("eventbus name can't be empty\n")
@@ -75,11 +79,11 @@ func putEventCommand() *cobra.Command {
 
 			p, err := ce.NewHTTP()
 			if err != nil {
-				cmdFailed("init ce protocol error: %s\n", err)
+				cmdFailedf("init ce protocol error: %s\n", err)
 			}
 			c, err := ce.NewClient(p, ce.WithTimeNow(), ce.WithUUIDs())
 			if err != nil {
-				cmdFailed("create ce client error: %s\n", err)
+				cmdFailedf("create ce client error: %s\n", err)
 			}
 			ctx := ce.ContextWithTarget(context.Background(), fmt.Sprintf("http://%s/gateway/%s", endpoint, args[0]))
 
@@ -107,11 +111,11 @@ func sendOne(ctx context.Context, ceClient ce.Client) {
 	event.SetType(eventType)
 	err := event.SetData(ce.ApplicationJSON, eventBody)
 	if err != nil {
-		cmdFailed("set data failed: %s\n", err)
+		cmdFailedf("set data failed: %s\n", err)
 	}
 	res := ceClient.Send(ctx, event)
 	if ce.IsUndelivered(res) {
-		cmdFailed("failed to send: %s\n", res.Error())
+		cmdFailedf("failed to send: %s\n", res.Error())
 	} else {
 		var httpResult *cehttp.Result
 		ce.ResultAs(res, &httpResult)
@@ -125,29 +129,29 @@ func sendFile(ctx context.Context, ceClient ce.Client) {
 		_ = f.Close()
 	}()
 	if err != nil {
-		cmdFailed("open data file failed: %s\n", err)
+		cmdFailedf("open data file failed: %s\n", err)
 	}
 	events := make([][]string, 0)
 	reader := bufio.NewReader(f)
 	for {
-		data, isPrx, err := reader.ReadLine()
-		if err != nil {
-			if err == io.EOF {
+		data, isPrx, _err := reader.ReadLine()
+		if _err != nil {
+			if _err == io.EOF {
 				break
 			}
-			cmdFailed("read data file failed: %s\n", err)
+			cmdFailedf("read data file failed: %s\n", _err)
 		}
 		for isPrx {
 			var _data []byte
 			_data, isPrx, err = reader.ReadLine()
 			if err != nil {
-				cmdFailed("read data file failed: %s\n", err)
+				cmdFailedf("read data file failed: %s\n", err)
 			}
 			data = append(data, _data...)
 		}
 		arr := strings.Split(string(data), ",")
-		if len(arr) != 4 {
-			cmdFailed("invalid data file: %s, please see vsctl event put --print-template", string(data))
+		if len(arr) != cloudEventDataRowLength {
+			cmdFailedf("invalid data file: %s, please see vsctl event put --print-template", string(data))
 		}
 		events = append(events, arr)
 	}
@@ -156,17 +160,17 @@ func sendFile(ctx context.Context, ceClient ce.Client) {
 		event.SetID(v[0])
 		event.SetSource(v[1])
 		event.SetType(v[2])
-		err := event.SetData(ce.ApplicationJSON, v[3])
+		err = event.SetData(ce.ApplicationJSON, v[3])
 		if err != nil {
-			cmdFailed("set data failed: %s\n", err)
+			cmdFailedf("set data failed: %s\n", err)
 		}
 		res := ceClient.Send(ctx, event)
 		if ce.IsUndelivered(res) {
-			cmdFailed("failed to send: %s\n", res.Error())
+			cmdFailedf("failed to send: %s\n", res.Error())
 		} else {
 			var httpResult *cehttp.Result
 			ce.ResultAs(res, &httpResult)
-			cmdFailed("%dth sent %d \n", idx, httpResult.StatusCode)
+			cmdFailedf("%dth sent %d \n", idx, httpResult.StatusCode)
 		}
 	}
 }
@@ -178,7 +182,7 @@ func getEventCommand() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			endpoint, err := endpointsFromCmd(cmd)
 			if err != nil {
-				cmdFailed("parse endpoints error: %s\n\n", err)
+				cmdFailedf("parse endpoints error: %s\n\n", err)
 			}
 			if len(args) == 0 {
 				color.White("eventbus name can't be empty\n")
@@ -192,17 +196,17 @@ func getEventCommand() *cobra.Command {
 			res, err := newHTTPRequest().Get(fmt.Sprintf("%s/getEvents?eventbus=%s&offset=%d&number=%d",
 				endpoint, args[0], offset, number))
 			if err != nil {
-				cmdFailed("send request to gateway failed: %s", err)
+				cmdFailedf("send request to gateway failed: %s", err)
 			}
 			if res.StatusCode() != http.StatusOK {
-				cmdFailed("got response, but no 200 OK: %d", res.StatusCode())
+				cmdFailedf("got response, but no 200 OK: %d", res.StatusCode())
 			}
 			data := new(struct {
 				Events []ce.Event
 			})
 			err = json.Unmarshal(res.Body(), data)
 			if err != nil {
-				cmdFailed("unmarshal http response data failed: %s", err)
+				cmdFailedf("unmarshal http response data failed: %s", err)
 			}
 			for idx := range data.Events {
 				color.Yellow("event: %d, %s\n", idx, data.Events[idx].String())
@@ -210,7 +214,7 @@ func getEventCommand() *cobra.Command {
 		},
 	}
 
-	//cmd.Flags().String("eventlog", "", "specified eventlog id get from")
+	// TODO cmd.Flags().String("eventlog", "", "specified eventlog id get from")
 
 	cmd.Flags().Int64Var(&offset, "offset", -1, "which position you want to start get")
 	cmd.Flags().Int16Var(&number, "number", 1, "the number of event you want to get")
