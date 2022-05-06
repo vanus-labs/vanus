@@ -125,6 +125,10 @@ func newWAL(ctx context.Context, stream *logStream, pos int64) (*WAL, error) {
 	return w, nil
 }
 
+func (w *WAL) Dir() string {
+	return w.stream.dir
+}
+
 func (w *WAL) Wait() {
 	<-w.donec
 }
