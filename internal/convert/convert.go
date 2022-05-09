@@ -218,14 +218,14 @@ func toPbOffsetInfo(offset info.OffsetInfo) *pb.OffsetInfo {
 }
 func fromPbInputTransformer(inputTransformer *pb.InputTransformer) *primitive.InputTransformer {
 	return &primitive.InputTransformer{
-		Define:   inputTransformer.InputPath,
-		Template: inputTransformer.InputTemplate,
+		Define:   inputTransformer.Define,
+		Template: inputTransformer.Template,
 	}
 }
 
 func toPbInputTransformer(inputTransformer *primitive.InputTransformer) *pb.InputTransformer {
 	return &pb.InputTransformer{
-		InputPath:     inputTransformer.Define,
-		InputTemplate: inputTransformer.Template,
+		Define:   inputTransformer.Define,
+		Template: inputTransformer.Template,
 	}
 }
