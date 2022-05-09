@@ -15,52 +15,171 @@
 package log
 
 import (
-	// first-party libraries
+	// standard libraries.
+	"context"
+	"encoding/binary"
+	"fmt"
+
+	// first-party libraries.
+	"github.com/linkall-labs/raft"
 	"github.com/linkall-labs/raft/raftpb"
 
-	// this project
+	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/store/meta"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
+	"github.com/linkall-labs/vanus/observability/log"
 )
 
-func RecoverLogsAndWAL(walDir string) (map[vanus.ID]*Log, *walog.WAL, error) {
-	raftLogs := make(map[uint64]*Log)
-	// TODO(james.yin): visit from compacted offset
-	wal, err := walog.RecoverWithVisitor(walDir, 0, func(data []byte, offset int64) error {
+func RecoverLogsAndWAL(walDir string, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore) (map[vanus.ID]*Log, *walog.WAL, error) {
+	var compacted int64
+	// TODO(james.yin): use AsyncStore?
+	if v, exist := metaStore.Load([]byte("wal/compacted")); exist {
+		var ok bool
+		if compacted, ok = v.(int64); !ok {
+			panic("raftLog: compacted is not int64")
+		}
+	}
+
+	logs := make(map[uint64]*Log)
+	wal, err := walog.RecoverWithVisitor(walDir, compacted, func(data []byte, offset int64) error {
 		var entry raftpb.Entry
 		err := entry.Unmarshal(data)
 		if err != nil {
 			return err
 		}
 
-		raftLog := raftLogs[entry.NodeId]
-		if raftLog == nil {
-			// TODO(james.yin): peers
-			raftLog = NewLog(vanus.NewIDFromUint64(entry.NodeId), nil, nil)
-
-			dummy := &raftLog.ents[0]
-			dummy.Index = entry.Index - 1
-			if entry.PrevTerm != 0 {
-				dummy.Term = entry.PrevTerm
-			} else if entry.Index > 1 {
-				dummy.Term = entry.Term
-			}
-
-			raftLogs[entry.NodeId] = raftLog
+		l := logs[entry.NodeId]
+		if l == nil {
+			l = RecoverLog(vanus.NewIDFromUint64(entry.NodeId), nil, metaStore, offsetStore)
+			logs[entry.NodeId] = l
 		}
 
-		return raftLog.appendInRecovery(entry, offset)
+		return l.appendInRecovery(entry, offset)
 	})
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// convert raftLogs, and set wal
-	raftLogs2 := make(map[vanus.ID]*Log, len(raftLogs))
-	for nodeID, raftLog := range raftLogs {
+	logs2 := make(map[vanus.ID]*Log, len(logs))
+	for nodeID, raftLog := range logs {
 		raftLog.wal = wal
-		raftLogs2[vanus.NewIDFromUint64(nodeID)] = raftLog
+		logs2[vanus.NewIDFromUint64(nodeID)] = raftLog
 	}
 
-	return raftLogs2, wal, nil
+	return logs2, wal, nil
+}
+
+func RecoverLog(blockID vanus.ID, wal *walog.WAL, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore) *Log {
+	l := NewLog(blockID, wal, metaStore, offsetStore)
+	l.recoverCompactionInfo()
+	return l
+}
+
+func (l *Log) recoverHardState() (raftpb.HardState, error) {
+	var hs raftpb.HardState
+	if v, exist := l.metaStore.Load(l.hsKey); exist {
+		b, ok := v.([]byte)
+		if !ok {
+			panic("raftLog: hardState is not []byte")
+		}
+		if err := hs.Unmarshal(b); err != nil {
+			return raftpb.HardState{}, err
+		}
+	}
+	if v, exist := l.offsetStore.Load(l.offKey); exist {
+		c, ok := v.(uint64)
+		if !ok {
+			panic("raftLog: commit is not uint64")
+		}
+		if c > hs.Commit {
+			hs.Commit = c
+		}
+	}
+	return hs, nil
+}
+
+func (l *Log) recoverConfState() (raftpb.ConfState, error) {
+	var cs raftpb.ConfState
+	if v, exist := l.metaStore.Load(l.csKey); exist {
+		b, ok := v.([]byte)
+		if !ok {
+			panic("raftLog: confState is not []byte")
+		}
+		if err := cs.Unmarshal(b); err != nil {
+			return raftpb.ConfState{}, err
+		}
+	}
+	return cs, nil
+}
+
+func (l *Log) recoverApplied() uint64 {
+	if v, exist := l.offsetStore.Load(l.appKey); exist {
+		app, ok := v.(uint64)
+		if !ok {
+			panic("raftLog: applied is not uint64")
+		}
+		return app
+	}
+	return 0
+}
+
+func (l *Log) recoverCompactionInfo() {
+	key := fmt.Sprintf("block/%020d/compact", l.nodeID.Uint64())
+	if v, ok := l.metaStore.Load([]byte(key)); ok {
+		if buf, ok2 := v.([]byte); ok2 {
+			dummy := &l.ents[0]
+			dummy.Index = binary.BigEndian.Uint64(buf[0:8])
+			dummy.Term = binary.BigEndian.Uint64(buf[8:16])
+		} else {
+			panic("raftLog: compact is not []byte")
+		}
+	}
+}
+
+func (l *Log) appendInRecovery(entry raftpb.Entry, offset int64) error {
+	firstInLog := l.firstIndex()
+	expectedToAppend := l.lastIndex() + 1
+	index := entry.Index
+
+	if expectedToAppend < index {
+		log.Error(context.Background(), "missing log entries", map[string]interface{}{
+			"lastIndex":     expectedToAppend - 1,
+			"appendedIndex": index,
+		})
+		// FIXME(james.yin): correct error
+		return raft.ErrUnavailable
+	}
+
+	// Write to cache.
+	switch {
+	case index < firstInLog:
+		// Compacted entry, discard.
+	case index == firstInLog:
+		// First entry, reset compaction info.
+		if offset > l.offs[0] {
+			l.ents = []raftpb.Entry{{
+				Index: index - 1,
+				Term:  entry.Term,
+			}, entry}
+			if entry.PrevTerm != 0 {
+				l.ents[0].Term = entry.PrevTerm
+			}
+			l.offs = []int64{offset, offset}
+		}
+	case index == expectedToAppend:
+		// Append entry.
+		l.ents = append(l.ents, entry)
+		l.offs = append(l.offs, offset)
+	default:
+		// Truncate then append entry.
+		si := index - firstInLog + 1
+		l.ents = append([]raftpb.Entry{}, l.ents[:si]...)
+		l.ents = append(l.ents, entry)
+		l.offs = append([]int64{}, l.offs[:si]...)
+		l.offs = append(l.offs, offset)
+	}
+
+	return nil
 }

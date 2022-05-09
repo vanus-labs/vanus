@@ -17,14 +17,16 @@ package log
 import (
 	// standard libraries.
 	"context"
+	"fmt"
 	"sync"
 
-	// third-party libraries.
+	// first-party libraries.
 	"github.com/linkall-labs/raft"
 	"github.com/linkall-labs/raft/raftpb"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/store/meta"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
 	"github.com/linkall-labs/vanus/observability/log"
 )
@@ -37,9 +39,6 @@ type Log struct {
 
 	nodeID vanus.ID
 
-	hardState raftpb.HardState
-	confState raftpb.ConfState
-
 	// ents[0] is a dummy entry, which record compact information.
 	// ents[i] has raft log position i+snapshot.Metadata.Index.
 	ents []raftpb.Entry
@@ -47,38 +46,92 @@ type Log struct {
 	offs []int64
 
 	wal *walog.WAL
+
+	metaStore   *meta.SyncStore
+	offsetStore *meta.AsyncStore
+
+	prevHardSt raftpb.HardState
+
+	hsKey  []byte
+	offKey []byte
+	csKey  []byte
+	appKey []byte
 }
 
 // Make sure Log implements raft.Storage.
 var _ raft.Storage = (*Log)(nil)
 
 // NewLog creates an empty Log.
-func NewLog(nodeID vanus.ID, wal *walog.WAL, peers []uint64) *Log {
+func NewLog(nodeID vanus.ID, wal *walog.WAL, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore) *Log {
 	return &Log{
 		nodeID: nodeID,
-		confState: raftpb.ConfState{
-			Voters: peers,
-		},
 		// When starting from scratch populate the list with a dummy entry at term zero.
-		ents: make([]raftpb.Entry, 1),
-		offs: make([]int64, 1),
-		wal:  wal,
+		ents:        make([]raftpb.Entry, 1),
+		offs:        make([]int64, 1),
+		wal:         wal,
+		metaStore:   metaStore,
+		offsetStore: offsetStore,
+		hsKey:       []byte(fmt.Sprintf("block/%020d/hardState", nodeID.Uint64())),
+		offKey:      []byte(fmt.Sprintf("block/%020d/commit", nodeID.Uint64())),
+		csKey:       []byte(fmt.Sprintf("block/%020d/confState", nodeID.Uint64())),
+		appKey:      []byte(fmt.Sprintf("block/%020d/applied", nodeID.Uint64())),
 	}
 }
 
 // InitialState returns the saved HardState and ConfState information.
 func (l *Log) InitialState() (raftpb.HardState, raftpb.ConfState, error) {
-	l.RLock()
-	defer l.RUnlock()
-	return l.hardState, l.confState, nil
+	hs, err := l.recoverHardState()
+	if err != nil {
+		return raftpb.HardState{}, raftpb.ConfState{}, err
+	}
+	l.prevHardSt = hs
+
+	cs, err := l.recoverConfState()
+	if err != nil {
+		return raftpb.HardState{}, raftpb.ConfState{}, err
+	}
+
+	return hs, cs, nil
+}
+
+// HardState returns the saved HardState.
+//
+// NOTE: This method is not thread-safty, it must be used in goroutine which call SetHardState!!!
+func (l *Log) HardState() raftpb.HardState {
+	return l.prevHardSt
 }
 
 // SetHardState saves the current HardState.
-func (l *Log) SetHardState(st raftpb.HardState) error {
-	l.Lock()
-	defer l.Unlock()
-	l.hardState = st
+func (l *Log) SetHardState(hs raftpb.HardState) (err error) {
+	if hs.Term != l.prevHardSt.Term || hs.Vote != l.prevHardSt.Vote {
+		var data []byte
+		if data, err = hs.Marshal(); err != nil {
+			return err
+		}
+		l.metaStore.Store(l.hsKey, data)
+		l.prevHardSt = hs
+	} else {
+		l.offsetStore.Store(l.offKey, hs.Commit)
+		l.prevHardSt.Commit = hs.Commit
+	}
 	return nil
+}
+
+func (l *Log) SetConfState(cs raftpb.ConfState) error {
+	data, err := cs.Marshal()
+	if err != nil {
+		return err
+	}
+	l.metaStore.Store(l.csKey, data)
+	return nil
+}
+
+func (l *Log) Applied() uint64 {
+	return l.recoverApplied()
+}
+
+func (l *Log) SetApplied(app uint64) {
+	l.offsetStore.Store(l.appKey, app)
 }
 
 // Entries returns a slice of log entries in the range [lo,hi).
@@ -368,45 +421,4 @@ func (l *Log) appendToWAL(entries []raftpb.Entry) ([]int64, error) {
 		ents[i] = ent
 	}
 	return l.wal.Append(ents)
-}
-
-func (l *Log) appendInRecovery(entry raftpb.Entry, offset int64) error {
-	firstInLog := l.firstIndex()
-	expectedToAppend := l.lastIndex() + 1
-	index := entry.Index
-
-	if expectedToAppend < index {
-		log.Error(context.Background(), "missing log entries", map[string]interface{}{
-			"lastIndex":     expectedToAppend - 1,
-			"appendedIndex": index,
-		})
-		// FIXME(james.yin): correct error
-		return raft.ErrUnavailable
-	}
-
-	// write to cache
-	if index == expectedToAppend {
-		// append
-		l.ents = append(l.ents, entry)
-		l.offs = append(l.offs, offset)
-	} else if index < firstInLog {
-		// reset
-		l.ents = []raftpb.Entry{{
-			Index: entry.Index - 1,
-			Term:  entry.Term,
-		}, entry}
-		if entry.PrevTerm != 0 {
-			l.ents[0].Term = entry.PrevTerm
-		}
-		l.offs = []int64{0}
-	} else {
-		// truncate then append
-		si := index - firstInLog + 1
-		l.ents = append([]raftpb.Entry{}, l.ents[:si]...)
-		l.ents = append(l.ents, entry)
-		l.offs = append([]int64{}, l.offs[:si]...)
-		l.offs = append(l.offs, offset)
-	}
-
-	return nil
 }

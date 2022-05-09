@@ -72,10 +72,6 @@ var _ transport.Receiver = (*Replica)(nil)
 func NewReplica(ctx context.Context, block SegmentBlock, raftLog *raftlog.Log, sender transport.Sender) *Replica {
 	blockID := block.SegmentBlockID()
 
-	// TODO(james.yin): Recover the in-memory storage from persistent snapshot, state and entries.
-	// log.ApplySnapshot(snapshot)
-	// log.SetHardState(state)
-
 	ctx, cancel := context.WithCancel(ctx)
 
 	r := &Replica{
@@ -94,8 +90,10 @@ func NewReplica(ctx context.Context, block SegmentBlock, raftLog *raftlog.Log, s
 		ElectionTick:              10,
 		HeartbeatTick:             3,
 		Storage:                   raftLog,
+		Applied:                   raftLog.Applied(),
 		MaxSizePerMsg:             4096,
 		MaxInflightMsgs:           256,
+		PreVote:                   true,
 		DisableProposalForwarding: true,
 	}
 	r.node = raft.RestartNode(c)
@@ -130,15 +128,15 @@ func (r *Replica) run() {
 	t := time.NewTicker(100 * time.Millisecond)
 	defer t.Stop()
 
-	var hardState raftpb.HardState
 	for {
 		select {
 		case <-t.C:
 			r.node.Tick()
 		case rd := <-r.node.Ready():
-			// TODO(james.yin): hard state
 			if !raft.IsEmptyHardState(rd.HardState) {
-				hardState = rd.HardState
+				if err := r.log.SetHardState(rd.HardState); err != nil {
+					panic(err)
+				}
 			}
 
 			if err := r.log.Append(rd.Entries); err != nil {
@@ -150,7 +148,7 @@ func (r *Replica) run() {
 				isLeader := rd.SoftState.RaftState == raft.StateLeader
 				// reset when become leader
 				if isLeader {
-					r.reset(hardState)
+					r.reset()
 				}
 				r.isLeader = isLeader
 			}
@@ -159,12 +157,18 @@ func (r *Replica) run() {
 			// are committed to stable storage.
 			r.send(rd.Messages)
 
+			var applied uint64
+
 			// TODO(james.yin): snapshot
 			if !raft.IsEmptySnap(rd.Snapshot) {
 				// processSnapshot(rd.Snapshot)
+				// applied = rd.Snapshot.Metadata.Index
 			}
 
+			var cs *raftpb.ConfState
 			for _, entrypb := range rd.CommittedEntries {
+				applied = entrypb.Index
+
 				if entrypb.Type == raftpb.EntryNormal {
 					// Skip empty entry(raft heartbeat).
 					if len(entrypb.Data) > 0 {
@@ -186,7 +190,7 @@ func (r *Replica) run() {
 				} else {
 					var cc raftpb.ConfChangeV2
 					if err := cc.Unmarshal(entrypb.Data); err != nil {
-						panic(nil)
+						panic(err)
 					}
 					// TODO(james.yin): non-add
 					for _, ccs := range cc.Changes {
@@ -194,7 +198,18 @@ func (r *Replica) run() {
 					}
 					cci = cc
 				}
-				r.node.ApplyConfChange(cci)
+				cs = r.node.ApplyConfChange(cci)
+			}
+
+			// ConfState is changed.
+			if cs != nil {
+				if err := r.log.SetConfState(*cs); err != nil {
+					panic(err)
+				}
+			}
+
+			if applied > 0 {
+				r.log.SetApplied(applied)
 			}
 
 			r.node.Advance()
@@ -206,10 +221,10 @@ func (r *Replica) run() {
 	}
 }
 
-func (r *Replica) reset(hardState raftpb.HardState) {
+func (r *Replica) reset() {
 	off, err := r.log.LastIndex()
 	if err != nil {
-		off = hardState.Commit
+		off = r.log.HardState().Commit
 	}
 
 	for off > 0 {
@@ -228,7 +243,7 @@ func (r *Replica) reset(hardState raftpb.HardState) {
 			break
 		}
 
-		off -= 1
+		off--
 	}
 
 	// no normal entry

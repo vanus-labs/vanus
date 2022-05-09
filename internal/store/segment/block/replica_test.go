@@ -15,10 +15,10 @@
 package block
 
 import (
-	// standard libraries
+	// standard libraries.
 	"testing"
 
-	// third-party libraries
+	// third-party libraries.
 	. "github.com/smartystreets/goconvey/convey"
 )
 
