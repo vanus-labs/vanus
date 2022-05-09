@@ -68,8 +68,8 @@ type SubscriptionFilter struct {
 }
 
 type InputTransformer struct {
-	InputPath     map[string]string `json:"inputPath,omitempty"`
-	InputTemplate string            `json:"inputTemplate,omitempty"`
+	Define   map[string]string `json:"define,omitempty"`
+	Template string            `json:"template,omitempty"`
 }
 
 type SinkSpec struct {
