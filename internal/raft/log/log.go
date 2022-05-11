@@ -293,6 +293,9 @@ func (l *Log) Append(entries []raftpb.Entry) error {
 			// FIXME(james.yin): error
 			return raft.ErrUnavailable
 		}
+		if entries[i].Term != entries[i-1].Term {
+			entries[i].PrevTerm = entries[i-1].PrevTerm
+		}
 	}
 
 	l.Lock()
@@ -324,6 +327,11 @@ func (l *Log) Append(entries []raftpb.Entry) error {
 		firstToAppend = entries[0].Index
 	}
 
+	pi := firstToAppend - firstInLog
+	if entries[0].Term != l.ents[pi].Term {
+		entries[0].PrevTerm = l.ents[pi].Term
+	}
+
 	// Append to WAL.
 	offsets, err := l.appendToWAL(entries)
 	if err != nil {
@@ -338,7 +346,7 @@ func (l *Log) Append(entries []raftpb.Entry) error {
 		l.offs = append(l.offs, offsets...)
 	} else {
 		// truncate then append: firstToAppend < expectedToAppend
-		si := firstToAppend - firstInLog + 1
+		si := pi + 1
 		l.ents = append([]raftpb.Entry{}, l.ents[:si]...)
 		l.ents = append(l.ents, entries...)
 		l.offs = append([]int64{}, l.offs[:si]...)
@@ -385,8 +393,11 @@ func (l *Log) appendInRecovery(entry raftpb.Entry, offset int64) error {
 		// reset
 		l.ents = []raftpb.Entry{{
 			Index: entry.Index - 1,
-			// TODO(james.yin): set Term
+			Term:  entry.Term,
 		}, entry}
+		if entry.PrevTerm != 0 {
+			l.ents[0].Term = entry.PrevTerm
+		}
 		l.offs = []int64{0}
 	} else {
 		// truncate then append

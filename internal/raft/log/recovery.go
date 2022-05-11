@@ -37,9 +37,15 @@ func RecoverLogsAndWAL(walDir string) (map[vanus.ID]*Log, *walog.WAL, error) {
 		if raftLog == nil {
 			// TODO(james.yin): peers
 			raftLog = NewLog(vanus.NewIDFromUint64(entry.NodeId), nil, nil)
+
 			dummy := &raftLog.ents[0]
 			dummy.Index = entry.Index - 1
-			// TODO(james.yin): set Term
+			if entry.PrevTerm != 0 {
+				dummy.Term = entry.PrevTerm
+			} else if entry.Index > 1 {
+				dummy.Term = entry.Term
+			}
+
 			raftLogs[entry.NodeId] = raftLog
 		}
 
