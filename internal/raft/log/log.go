@@ -338,7 +338,7 @@ func (l *Log) Append(entries []raftpb.Entry) error {
 		l.offs = append(l.offs, offsets...)
 	} else {
 		// truncate then append: firstToAppend < expectedToAppend
-		si := firstToAppend - firstInLog
+		si := firstToAppend - firstInLog + 1
 		l.ents = append([]raftpb.Entry{}, l.ents[:si]...)
 		l.ents = append(l.ents, entries...)
 		l.offs = append([]int64{}, l.offs[:si]...)
@@ -390,7 +390,7 @@ func (l *Log) appendInRecovery(entry raftpb.Entry, offset int64) error {
 		l.offs = []int64{0}
 	} else {
 		// truncate then append
-		si := index - firstInLog
+		si := index - firstInLog + 1
 		l.ents = append([]raftpb.Entry{}, l.ents[:si]...)
 		l.ents = append(l.ents, entry)
 		l.offs = append([]int64{}, l.offs[:si]...)
