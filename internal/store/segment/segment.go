@@ -47,7 +47,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/meta"
 	"github.com/linkall-labs/vanus/internal/store/segment/block"
 	"github.com/linkall-labs/vanus/internal/store/segment/errors"
-	walog "github.com/linkall-labs/vanus/internal/store/wal"
 	"github.com/linkall-labs/vanus/internal/util"
 	errutil "github.com/linkall-labs/vanus/internal/util/errors"
 	"github.com/linkall-labs/vanus/observability"
@@ -62,7 +61,7 @@ type segmentServer struct {
 	blocks       sync.Map
 	blockWriters sync.Map
 	blockReaders sync.Map
-	wal          *walog.WAL
+	wal          *raftlog.WAL
 	metaStore    *meta.SyncStore
 	offsetStore  *meta.AsyncStore
 

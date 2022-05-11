@@ -31,10 +31,9 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
-func RecoverLogsAndWAL(walDir string, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore) (map[vanus.ID]*Log, *walog.WAL, error) {
+func RecoverLogsAndWAL(walDir string, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore) (map[vanus.ID]*Log, *WAL, error) {
 	var compacted int64
-	// TODO(james.yin): use AsyncStore?
-	if v, exist := metaStore.Load([]byte("wal/compacted")); exist {
+	if v, exist := metaStore.Load(walCompactKey); exist {
 		var ok bool
 		if compacted, ok = v.(int64); !ok {
 			panic("raftLog: compacted is not int64")
@@ -60,18 +59,23 @@ func RecoverLogsAndWAL(walDir string, metaStore *meta.SyncStore, offsetStore *me
 	if err != nil {
 		return nil, nil, err
 	}
+	wal2 := newWAL(wal, metaStore)
 
 	// convert raftLogs, and set wal
 	logs2 := make(map[vanus.ID]*Log, len(logs))
 	for nodeID, raftLog := range logs {
-		raftLog.wal = wal
+		raftLog.wal = wal2
+		// TODO(james.yin): move to compaction.go
+		if offset := raftLog.offs[0]; offset != 0 {
+			wal2.barrier.Set(offset, emptyMark)
+		}
 		logs2[vanus.NewIDFromUint64(nodeID)] = raftLog
 	}
 
-	return logs2, wal, nil
+	return logs2, wal2, nil
 }
 
-func RecoverLog(blockID vanus.ID, wal *walog.WAL, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore) *Log {
+func RecoverLog(blockID vanus.ID, wal *WAL, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore) *Log {
 	l := NewLog(blockID, wal, metaStore, offsetStore)
 	l.recoverCompactionInfo()
 	return l

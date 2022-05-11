@@ -91,6 +91,7 @@ func NewReplica(ctx context.Context, block SegmentBlock, raftLog *raftlog.Log, s
 		HeartbeatTick:             3,
 		Storage:                   raftLog,
 		Applied:                   raftLog.Applied(),
+		Compacted:                 raftLog.Compacted(),
 		MaxSizePerMsg:             4096,
 		MaxInflightMsgs:           256,
 		PreVote:                   true,
@@ -210,6 +211,10 @@ func (r *Replica) run() {
 
 			if applied > 0 {
 				r.log.SetApplied(applied)
+			}
+
+			if rd.Compact != 0 {
+				_ = r.log.Compact(rd.Compact)
 			}
 
 			r.node.Advance()
