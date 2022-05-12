@@ -16,8 +16,6 @@ package command
 
 import (
 	"context"
-	"os"
-
 	"github.com/fatih/color"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	metapb "github.com/linkall-labs/vsproto/pkg/meta"
@@ -39,11 +37,8 @@ func createEventbusCommand() *cobra.Command {
 		Use:   "create <eventbus-name> ",
 		Short: "create a eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-			if len(args) == 0 {
-				color.White("eventbus name can't be empty\n")
-				color.Cyan("\n============ see below for right usage ============\n\n")
-				_ = cmd.Help()
-				os.Exit(-1)
+			if eventbus == "" {
+				cmdFailedf("the --name flag MUST> be set")
 			}
 			ctx := context.Background()
 			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
@@ -61,7 +56,7 @@ func createEventbusCommand() *cobra.Command {
 			color.Green("create eventbus: %s success\n", args[0])
 		},
 	}
-	cmd.Flags().String("name", "", "eventbus name to creating")
+	cmd.Flags().StringVar(&eventbus, "name", "", "eventbus name to deleting")
 	return cmd
 }
 
@@ -70,11 +65,8 @@ func deleteEventbusCommand() *cobra.Command {
 		Use:   "delete <eventbus-name> ",
 		Short: "delete a eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-			if len(args) == 0 {
-				color.White("eventbus name can't be empty\n")
-				color.Cyan("\n============ see below for right usage ============\n\n")
-				_ = cmd.Help()
-				os.Exit(-1)
+			if eventbus == "" {
+				cmdFailedf("the --name flag MUST> be set")
 			}
 			ctx := context.Background()
 			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
@@ -90,6 +82,6 @@ func deleteEventbusCommand() *cobra.Command {
 			color.Green("delete eventbus: %s success\n", args[0])
 		},
 	}
-	cmd.Flags().String("name", "", "eventbus name to deleting")
+	cmd.Flags().StringVar(&eventbus, "name", "", "eventbus name to deleting")
 	return cmd
 }

@@ -24,14 +24,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	eventbus       string
-	source         string
-	sink           string
-	filters        string
-	subscriptionID uint64
-)
-
 func NewSubscriptionCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "subscription sub-command ",
@@ -110,6 +102,6 @@ func deleteSubscriptionCommand() *cobra.Command {
 			color.Green("delete subscription: %s success\n", args[0])
 		},
 	}
-	cmd.Flags().Uint64VarP(&subscriptionID, "subscription-id", "sid", 0, "subscription id to deleting")
+	cmd.Flags().Uint64Var(&subscriptionID, "id", 0, "subscription id to deleting")
 	return cmd
 }

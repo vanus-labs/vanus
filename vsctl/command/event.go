@@ -36,17 +36,6 @@ const (
 	cloudEventDataRowLength = 4
 )
 
-var (
-	eventID           = ""
-	eventSource       = ""
-	eventType         = ""
-	eventBody         = ""
-	dataFile          = ""
-	printDataTemplate bool
-	offset            int64
-	number            int16
-)
-
 func NewEventCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "event sub-command ",
