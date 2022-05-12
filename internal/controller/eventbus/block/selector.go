@@ -53,8 +53,8 @@ type volumeRoundRobinSelector struct {
 // we should guarantee each segmentServer has a consistent number of Block leader.
 //
 // round-rubin is a naive algorithm, so that it can't guarantee completely balancing in the cluster, it
-// just does best effort of its. There is another advanced algorithm implementation such as
-//runtime-statistic-based-algorithm.
+// just does best effort of it. There is another advanced algorithm implementation such as
+// runtime-statistic-based-algorithm in the future.
 func (s *volumeRoundRobinSelector) Select(ctx context.Context, num int, size int64) []server.Instance {
 	instances := make([]server.Instance, 0)
 	if num == 0 || size == 0 {
