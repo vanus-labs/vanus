@@ -27,7 +27,7 @@ import (
 )
 
 var (
-	ExpressionInvalid = fmt.Errorf("expression is invalid,format is: $json_path.(type)")
+	ErrInvalidExpression = fmt.Errorf("expression is invalid,format is: $json_path.(type)")
 )
 
 type Expression struct {
@@ -74,13 +74,13 @@ func parseExpression(expression string) (string, map[string]Variable, error) {
 
 		typeStartPos := strings.Index(expression[pos:], ".(")
 		if typeStartPos == -1 {
-			return "", nil, ExpressionInvalid
+			return "", nil, ErrInvalidExpression
 		}
 		typeStartPos += pos
 
 		typeEndPos := strings.Index(expression[pos:], ")")
 		if typeEndPos == -1 {
-			return "", nil, ExpressionInvalid
+			return "", nil, ErrInvalidExpression
 		}
 		typeEndPos += pos
 
@@ -93,7 +93,7 @@ func parseExpression(expression string) (string, map[string]Variable, error) {
 		safeCELName = "vanus_" + safeCELName
 
 		if pos+1 > typeStartPos || typeStartPos+2 > typeEndPos {
-			return "", nil, ExpressionInvalid
+			return "", nil, ErrInvalidExpression
 		}
 
 		varMap[safeCELName] = Variable{
@@ -107,7 +107,7 @@ func parseExpression(expression string) (string, map[string]Variable, error) {
 }
 
 func newCelProgram(expr string, vars map[string]Variable) (cel.Program, error) {
-	var declVars []*exprpb.Decl
+	declVars := make([]*exprpb.Decl, 0)
 	var pType *exprpb.Type
 	for _, variable := range vars {
 		switch variable.Type {

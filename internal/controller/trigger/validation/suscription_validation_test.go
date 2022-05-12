@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package validation
+package validation_test
 
 import (
 	"testing"
 
+	"github.com/linkall-labs/vanus/internal/controller/trigger/validation"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	metapb "github.com/linkall-labs/vsproto/pkg/meta"
 
@@ -25,7 +26,7 @@ import (
 
 func TestCreateSubscriptionRequestValidator(t *testing.T) {
 	Convey("multiple dialect", t, func() {
-		request := ConvertCreateSubscriptionRequest(&ctrlpb.CreateSubscriptionRequest{
+		request := validation.ConvertCreateSubscriptionRequest(&ctrlpb.CreateSubscriptionRequest{
 			Filters: []*metapb.Filter{{
 				Exact: map[string]string{
 					"key1": "value1",
@@ -38,7 +39,7 @@ func TestCreateSubscriptionRequestValidator(t *testing.T) {
 		So(request.Validate(nil), ShouldNotBeNil)
 	})
 	Convey("cel", t, func() {
-		request := ConvertCreateSubscriptionRequest(&ctrlpb.CreateSubscriptionRequest{
+		request := validation.ConvertCreateSubscriptionRequest(&ctrlpb.CreateSubscriptionRequest{
 			Filters: []*metapb.Filter{{
 				Cel: "$type.(string) =='test'",
 			}},
