@@ -19,6 +19,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/golang/protobuf/ptypes/empty"
+	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"io"
 	"net/http"
 	"os"
@@ -32,17 +34,6 @@ import (
 
 const (
 	cloudEventDataRowLength = 4
-)
-
-var (
-	eventID           = ""
-	eventSource       = ""
-	eventType         = ""
-	eventBody         = ""
-	dataFile          = ""
-	printDataTemplate bool
-	offset            int64
-	number            int16
 )
 
 func NewEventCommand() *cobra.Command {
@@ -66,17 +57,13 @@ func putEventCommand() *cobra.Command {
 				color.White(",,,data3")
 				os.Exit(0)
 			}
-			endpoint, err := endpointsFromCmd(cmd)
-			if err != nil {
-				cmdFailedf("parse endpoints error: %s\n\n", err)
-			}
 			if len(args) == 0 {
 				color.White("eventbus name can't be empty\n")
 				color.Cyan("\n============ see below for right usage ============\n\n")
 				_ = cmd.Help()
 				os.Exit(-1)
 			}
-
+			endpoint := mustGetGatewayEndpoint(cmd)
 			p, err := ce.NewHTTP()
 			if err != nil {
 				cmdFailedf("init ce protocol error: %s\n", err)
@@ -102,6 +89,20 @@ func putEventCommand() *cobra.Command {
 		"and like [id],[source],[type],<body>")
 	cmd.Flags().BoolVar(&printDataTemplate, "print-template", false, "print data template file")
 	return cmd
+}
+
+func mustGetGatewayEndpoint(cmd *cobra.Command) string {
+	ctx := context.Background()
+	grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
+	defer func() {
+		_ = grpcConn.Close()
+	}()
+	cli := ctrlpb.NewPingServerClient(grpcConn)
+	res, err := cli.Ping(ctx, &empty.Empty{})
+	if err != nil {
+		cmdFailedf("get Gateway endpoint from controller failed: %s", err)
+	}
+	return res.GatewayAddr
 }
 
 func sendOne(ctx context.Context, ceClient ce.Client) {
@@ -180,16 +181,14 @@ func getEventCommand() *cobra.Command {
 		Use:   "get <eventbus-name> ",
 		Short: "get a event from specified eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-			endpoint, err := endpointsFromCmd(cmd)
-			if err != nil {
-				cmdFailedf("parse endpoints error: %s\n\n", err)
-			}
+
 			if len(args) == 0 {
 				color.White("eventbus name can't be empty\n")
 				color.Cyan("\n============ see below for right usage ============\n\n")
 				_ = cmd.Help()
 				os.Exit(-1)
 			}
+			endpoint := mustGetGatewayEndpoint(cmd)
 			if !strings.HasPrefix(endpoint, "http://") {
 				endpoint = "http://" + endpoint
 			}

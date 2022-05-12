@@ -17,11 +17,12 @@ package eventbus
 import embedetcd "github.com/linkall-labs/embed-etcd"
 
 type Config struct {
-	IP               string           `yaml:"ip"`
-	Port             int              `yaml:"port"`
-	KVStoreEndpoints []string         `yaml:"kv_store_endpoints"`
-	KVKeyPrefix      string           `yaml:"kv_key_prefix"`
-	EtcdConfig       embedetcd.Config `yaml:"etcd"`
-	Replicas         uint             `yaml:"replicas"`
-	Topology         map[string]string
+	IP               string            `yaml:"ip"`
+	Port             int               `yaml:"port"`
+	KVStoreEndpoints []string          `yaml:"kv_store_endpoints"`
+	KVKeyPrefix      string            `yaml:"kv_key_prefix"`
+	EtcdConfig       embedetcd.Config  `yaml:"etcd"`
+	Replicas         uint              `yaml:"replicas"`
+	Topology         map[string]string `yaml:"topology"`
+	GatewayEndpoint  string            `yaml:"gateway_endpoint"`
 }

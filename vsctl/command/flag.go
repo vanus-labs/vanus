@@ -14,27 +14,21 @@
 
 package command
 
-import (
-	"strings"
+var (
+	// for vsctl event
+	eventID           string
+	eventSource       string
+	eventType         string
+	eventBody         string
+	dataFile          string
+	printDataTemplate bool
+	offset            int64
+	number            int16
 
-	"github.com/spf13/cobra"
+	// for vsctl eventbus and subscription
+	eventbus       string
+	source         string
+	sink           string
+	filters        string
+	subscriptionID uint64
 )
-
-type GlobalFlags struct {
-	Endpoints  []string
-	Debug      bool
-	ConfigFile string
-}
-
-func mustEndpointsFromCmd(cmd *cobra.Command) []string {
-	eps, err := cmd.Flags().GetStringSlice("endpoints")
-	if err != nil {
-		cmdFailedf("get controller endpoints failed: %s", err)
-	}
-	if err == nil {
-		for i, ip := range eps {
-			eps[i] = strings.TrimSpace(ip)
-		}
-	}
-	return eps
-}

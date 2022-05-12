@@ -14,7 +14,14 @@
 
 package command
 
-import "github.com/spf13/cobra"
+import (
+	"context"
+
+	"github.com/fatih/color"
+	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
+	metapb "github.com/linkall-labs/vsproto/pkg/meta"
+	"github.com/spf13/cobra"
+)
 
 func NewEventbusCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -31,10 +38,26 @@ func createEventbusCommand() *cobra.Command {
 		Use:   "create <eventbus-name> ",
 		Short: "create a eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-			// TODO
+			if eventbus == "" {
+				cmdFailedf("the --name flag MUST> be set")
+			}
+			ctx := context.Background()
+			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
+			defer func() {
+				_ = grpcConn.Close()
+			}()
+
+			cli := ctrlpb.NewEventBusControllerClient(grpcConn)
+			_, err := cli.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
+				Name: args[0],
+			})
+			if err != nil {
+				cmdFailedf("create eventbus failed: %s", err)
+			}
+			color.Green("create eventbus: %s success\n", args[0])
 		},
 	}
-	cmd.Flags().String("name", "", "eventbus name to creating")
+	cmd.Flags().StringVar(&eventbus, "name", "", "eventbus name to deleting")
 	return cmd
 }
 
@@ -43,9 +66,23 @@ func deleteEventbusCommand() *cobra.Command {
 		Use:   "delete <eventbus-name> ",
 		Short: "delete a eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-			// TODO
+			if eventbus == "" {
+				cmdFailedf("the --name flag MUST> be set")
+			}
+			ctx := context.Background()
+			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
+			defer func() {
+				_ = grpcConn.Close()
+			}()
+
+			cli := ctrlpb.NewEventBusControllerClient(grpcConn)
+			_, err := cli.DeleteEventBus(ctx, &metapb.EventBus{Name: args[0]})
+			if err != nil {
+				cmdFailedf("delete eventbus failed: %s", err)
+			}
+			color.Green("delete eventbus: %s success\n", args[0])
 		},
 	}
-	cmd.Flags().String("name", "", "eventbus name to deleting")
+	cmd.Flags().StringVar(&eventbus, "name", "", "eventbus name to deleting")
 	return cmd
 }

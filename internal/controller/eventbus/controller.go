@@ -404,7 +404,8 @@ func (ctrl *controller) ReportSegmentBlockIsFull(ctx context.Context,
 
 func (ctrl *controller) Ping(ctx context.Context, empty *emptypb.Empty) (*ctrlpb.PingResponse, error) {
 	return &ctrlpb.PingResponse{
-		LeaderAddr: ctrl.member.GetLeaderAddr(),
+		LeaderAddr:  ctrl.member.GetLeaderAddr(),
+		GatewayAddr: ctrl.cfg.GatewayEndpoint,
 	}, nil
 }
 
