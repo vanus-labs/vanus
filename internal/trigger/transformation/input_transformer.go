@@ -16,7 +16,7 @@ package transformation
 
 import (
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/trigger/transformation/input"
+	"github.com/linkall-labs/vanus/internal/trigger/transformation/define"
 	"github.com/linkall-labs/vanus/internal/trigger/transformation/template"
 	"github.com/linkall-labs/vanus/internal/trigger/transformation/vjson"
 	"github.com/linkall-labs/vanus/internal/trigger/util"
@@ -26,17 +26,17 @@ import (
 )
 
 type InputTransformer struct {
-	InputParser *input.Parser
-	Template    *template.Parser
+	define   *define.Parser
+	template *template.Parser
 }
 
 func NewInputTransformer(inputTransformer *primitive.InputTransformer) *InputTransformer {
 	tf := &InputTransformer{
-		InputParser: input.NewParse(),
-		Template:    template.NewParser(),
+		define:   define.NewParse(),
+		template: template.NewParser(),
 	}
-	tf.InputParser.Parse(inputTransformer.InputPath)
-	tf.Template.Parse(inputTransformer.InputTemplate)
+	tf.define.Parse(inputTransformer.Define)
+	tf.template.Parse(inputTransformer.Template)
 	return tf
 }
 
@@ -45,7 +45,7 @@ func (tf *InputTransformer) Execute(event *ce.Event) error {
 	if err != nil {
 		return err
 	}
-	newData := tf.Template.Execute(dataMap)
+	newData := tf.template.Execute(dataMap)
 	event.DataEncoded = []byte(newData)
 	return nil
 }
@@ -53,18 +53,18 @@ func (tf *InputTransformer) Execute(event *ce.Event) error {
 func (tf *InputTransformer) ParseData(event *ce.Event) (map[string]template.Data, error) {
 	var results map[string]vjson.Result
 	var err error
-	if tf.InputParser.HasDataVariable() {
+	if tf.define.HasDataVariable() {
 		results, err = vjson.Decode(event.Data())
 		if err != nil {
 			return nil, err
 		}
 	}
 	dataMap := make(map[string]template.Data)
-	for k, n := range tf.InputParser.GetNodes() {
+	for k, n := range tf.define.GetNodes() {
 		switch n.Type {
-		case input.Constant:
+		case define.Constant:
 			dataMap[k] = template.NewTextData([]byte(n.Value[0]))
-		case input.ContextVariable:
+		case define.ContextVariable:
 			v, exist := util.LookupAttribute(*event, n.Value[0])
 			if !exist {
 				dataMap[k] = template.NewNoExistData()
@@ -72,7 +72,7 @@ func (tf *InputTransformer) ParseData(event *ce.Event) (map[string]template.Data
 			}
 			s, _ := types.Format(v)
 			dataMap[k] = template.NewTextData([]byte(s))
-		case input.DataVariable:
+		case define.DataVariable:
 			if len(n.Value) == 0 {
 				dataMap[k] = template.NewOtherData(event.Data())
 			} else {

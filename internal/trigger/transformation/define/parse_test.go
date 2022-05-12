@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package input_test
+package define_test
 
 import (
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/trigger/transformation/input"
+	"github.com/linkall-labs/vanus/internal/trigger/transformation/define"
 
 	// third-party.
 	. "github.com/smartystreets/goconvey/convey"
@@ -25,55 +25,55 @@ import (
 
 func TestParse(t *testing.T) {
 	Convey("value is black", t, func() {
-		p := input.NewParse()
+		p := define.NewParse()
 		p.Parse(map[string]string{"k": "  "})
 		n, exist := p.GetNode("k")
 		So(exist, ShouldBeTrue)
-		So(n.Type, ShouldEqual, input.Constant)
+		So(n.Type, ShouldEqual, define.Constant)
 	})
 	Convey("value is constant", t, func() {
-		p := input.NewParse()
+		p := define.NewParse()
 		p.Parse(map[string]string{"k": "ctx"})
 		n, exist := p.GetNode("k")
 		So(exist, ShouldBeTrue)
-		So(n.Type, ShouldEqual, input.Constant)
+		So(n.Type, ShouldEqual, define.Constant)
 		So(n.Value[0], ShouldEqual, "ctx")
 	})
 
 	Convey("value is context", t, func() {
-		p := input.NewParse()
+		p := define.NewParse()
 		p.Parse(map[string]string{"k": "$.ctx"})
 		n, exist := p.GetNode("k")
 		So(exist, ShouldBeTrue)
-		So(n.Type, ShouldEqual, input.ContextVariable)
+		So(n.Type, ShouldEqual, define.ContextVariable)
 		So(n.Value[0], ShouldEqual, "ctx")
 	})
 
 	Convey("value is data", t, func() {
-		p := input.NewParse()
+		p := define.NewParse()
 		p.Parse(map[string]string{"k": "$.data"})
 		n, exist := p.GetNode("k")
 		So(exist, ShouldBeTrue)
-		So(n.Type, ShouldEqual, input.DataVariable)
+		So(n.Type, ShouldEqual, define.DataVariable)
 		So(len(n.Value), ShouldEqual, 0)
 	})
 
 	Convey("value is data one", t, func() {
-		p := input.NewParse()
+		p := define.NewParse()
 		p.Parse(map[string]string{"k": "$.data.one"})
 		n, exist := p.GetNode("k")
 		So(exist, ShouldBeTrue)
-		So(n.Type, ShouldEqual, input.DataVariable)
+		So(n.Type, ShouldEqual, define.DataVariable)
 		So(len(n.Value), ShouldEqual, 1)
 		So(n.Value[0], ShouldEqual, "one")
 	})
 
 	Convey("value is data two", t, func() {
-		p := input.NewParse()
+		p := define.NewParse()
 		p.Parse(map[string]string{"k": "$.data.one.two"})
 		n, exist := p.GetNode("k")
 		So(exist, ShouldBeTrue)
-		So(n.Type, ShouldEqual, input.DataVariable)
+		So(n.Type, ShouldEqual, define.DataVariable)
 		So(len(n.Value), ShouldEqual, 2)
 		So(n.Value[0], ShouldEqual, "one")
 		So(n.Value[1], ShouldEqual, "two")

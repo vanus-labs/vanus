@@ -83,14 +83,14 @@ func TestParseData(t *testing.T) {
 		"key1": "value1",
 	})
 	input := &primitive.InputTransformer{
-		InputPath: map[string]string{
+		Define: map[string]string{
 			"keyTest": "keyValue",
 			"ctxId":   "$.id",
 			"ctxKey":  "$.vanuskey",
 			"data":    "$.data",
 			"dataKey": "$.data.key",
 		},
-		InputTemplate: "test ${keyTest} Id ${ctxId} type ${ctxType} data ${data} key ${dateKey}",
+		Template: "test ${keyTest} Id ${ctxId} type ${ctxType} data ${data} key ${dateKey}",
 	}
 
 	Convey("test", t, func() {
