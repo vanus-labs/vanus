@@ -46,6 +46,13 @@ func extractFilter(subscriptionFilter *primitive.SubscriptionFilter) Filter {
 		}
 		return f
 	}
+	if subscriptionFilter.CEL != "" {
+		f := NewCELFilter(subscriptionFilter.CEL)
+		if f == nil {
+			log.Debug(ctx, "new cel filter is nil ", map[string]interface{}{"cel-expression": subscriptionFilter.CEL})
+		}
+		return f
+	}
 	if len(subscriptionFilter.All) > 0 {
 		f := NewAllFilter(extractFilters(subscriptionFilter.All)...)
 		if f == nil {

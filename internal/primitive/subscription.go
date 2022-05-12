@@ -65,6 +65,7 @@ type SubscriptionFilter struct {
 	Not    *SubscriptionFilter   `json:"not,omitempty"`
 	All    []*SubscriptionFilter `json:"all,omitempty"`
 	Any    []*SubscriptionFilter `json:"any,omitempty"`
+	CEL    string                `json:"CEL,omitempty"`
 }
 
 type InputTransformer struct {

@@ -15,13 +15,15 @@
 package validation
 
 import (
+	"testing"
+
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	metapb "github.com/linkall-labs/vsproto/pkg/meta"
+
 	. "github.com/smartystreets/goconvey/convey"
-	"testing"
 )
 
-func TestCreateSubscriptionRequestValidator_Validate(t *testing.T) {
+func TestCreateSubscriptionRequestValidator(t *testing.T) {
 	Convey("multiple dialect", t, func() {
 		request := ConvertCreateSubscriptionRequest(&ctrlpb.CreateSubscriptionRequest{
 			Filters: []*metapb.Filter{{
@@ -34,5 +36,14 @@ func TestCreateSubscriptionRequestValidator_Validate(t *testing.T) {
 			}},
 		})
 		So(request.Validate(nil), ShouldNotBeNil)
+	})
+	Convey("cel", t, func() {
+		request := ConvertCreateSubscriptionRequest(&ctrlpb.CreateSubscriptionRequest{
+			Filters: []*metapb.Filter{{
+				Cel: "$type.(string) =='test'",
+			}},
+			Sink: "http",
+		})
+		So(request.Validate(nil), ShouldBeNil)
 	})
 }
