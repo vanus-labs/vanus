@@ -113,7 +113,7 @@ func NewSegmentServer(cfg store.Config, stop func()) (segpb.SegmentServerServer,
 
 func (s *segmentServer) Initialize(ctx context.Context) error {
 	// recover wal and raft log
-	raftLogs, wal, err := raftlog.RecoverLogsAndWAL(filepath.Join(s.volumeDir, "wal"))
+	raftLogs, wal, err := raftlog.RecoverLogsAndWAL(filepath.Join(s.volumeDir, "raft"))
 	if err != nil {
 		return err
 	}

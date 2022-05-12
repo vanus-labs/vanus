@@ -31,8 +31,8 @@ const (
 	Zero Type = iota
 	Full
 	First
-	Last
 	Middle
+	Last
 )
 
 func (t Type) IsTerminal() bool {

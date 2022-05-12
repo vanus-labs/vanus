@@ -27,6 +27,7 @@ import (
 
 const (
 	defaultFilePerm = 0644
+	logFileExt      = ".log"
 )
 
 type logFile struct {
@@ -73,7 +74,7 @@ func (l *logFile) WriteAt(p []byte, off int64) (int, error) {
 }
 
 func createLogFile(dir string, so, size int64, sync bool) (*logFile, error) {
-	path := filepath.Join(dir, fmt.Sprintf("%020d", so))
+	path := filepath.Join(dir, fmt.Sprintf("%020d%s", so, logFileExt))
 	f, err := createFile(path, size, true, sync)
 	if err != nil {
 		return nil, err
