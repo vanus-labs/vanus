@@ -16,10 +16,13 @@ package validation
 
 import (
 	"context"
-	cesqlparser "github.com/cloudevents/sdk-go/sql/v2/parser"
+
 	"github.com/linkall-labs/vanus/internal/controller/errors"
+	"github.com/linkall-labs/vanus/internal/primitive/cel"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	metapb "github.com/linkall-labs/vsproto/pkg/meta"
+
+	cesqlparser "github.com/cloudevents/sdk-go/sql/v2/parser"
 )
 
 type createSubscriptionRequestValidator ctrlpb.CreateSubscriptionRequest
@@ -91,6 +94,12 @@ func (f filterValidator) Validate(ctx context.Context) error {
 			return err
 		}
 	}
+	if f.Cel != "" {
+		err = validateCel(ctx, f.Cel)
+		if err != nil {
+			return err
+		}
+	}
 	if f.Not != nil {
 		err = convertFilterValidation(f.Not).Validate(ctx)
 		if err != nil {
@@ -104,6 +113,18 @@ func (f filterValidator) Validate(ctx context.Context) error {
 	err = filterListValidator(f.Any).Validate(ctx)
 	if err != nil {
 		return errors.ErrInvalidRequest.WithMessage("any filter dialect invalid").Wrap(err)
+	}
+	return nil
+}
+
+func validateCel(ctx context.Context, expression string) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.ErrCelExpression.WithMessage(expression)
+		}
+	}()
+	if _, err := cel.Parse(expression); err != nil {
+		return errors.ErrCelExpression.WithMessage(expression).Wrap(err)
 	}
 	return nil
 }

@@ -28,6 +28,7 @@ var (
 	ErrTriggerWorker = rpcerr.New("trigger worker error").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
 
 	ErrCeSqlExpression        = rpcerr.New("ce sql expression invalid").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
+	ErrCelExpression          = rpcerr.New("cel expression invalid").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
 	ErrFilterAttributeIsEmpty = rpcerr.New("filter dialect attribute is empty").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
 	ErrFilterMultiple         = rpcerr.New("filter multiple dialects found").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
 

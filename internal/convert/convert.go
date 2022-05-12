@@ -136,6 +136,9 @@ func fromPbFilter(filter *pb.Filter) *primitive.SubscriptionFilter {
 	if filter.Sql != "" {
 		return &primitive.SubscriptionFilter{CeSQL: filter.Sql}
 	}
+	if filter.Cel != "" {
+		return &primitive.SubscriptionFilter{CEL: filter.Cel}
+	}
 	if len(filter.All) > 0 {
 		return &primitive.SubscriptionFilter{All: fromPbFilters(filter.All)}
 	}
@@ -168,6 +171,9 @@ func toPbFilter(filter *primitive.SubscriptionFilter) *pb.Filter {
 	}
 	if filter.CeSQL != "" {
 		return &pb.Filter{Sql: filter.CeSQL}
+	}
+	if filter.CEL != "" {
+		return &pb.Filter{Cel: filter.CEL}
 	}
 	if len(filter.All) > 0 {
 		return &pb.Filter{All: toPbFilters(filter.All)}
