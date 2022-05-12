@@ -19,6 +19,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/golang/protobuf/ptypes/empty"
+	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"io"
 	"net/http"
 	"os"
@@ -101,9 +103,17 @@ func putEventCommand() *cobra.Command {
 }
 
 func mustGetGatewayEndpoint(cmd *cobra.Command) string {
-	// TODO
-	_ = mustEndpointsFromCmd(cmd)
-	return ""
+	ctx := context.Background()
+	grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
+	defer func() {
+		_ = grpcConn.Close()
+	}()
+	cli := ctrlpb.NewPingServerClient(grpcConn)
+	res, err := cli.Ping(ctx, &empty.Empty{})
+	if err != nil {
+		cmdFailedf("get Gateway endpoint from controller failed: %s", err)
+	}
+	return res.GatewayAddr
 }
 
 func sendOne(ctx context.Context, ceClient ce.Client) {

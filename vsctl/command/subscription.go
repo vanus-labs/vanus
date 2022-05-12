@@ -54,7 +54,7 @@ func createSubscriptionCommand() *cobra.Command {
 				os.Exit(-1)
 			}
 			ctx := context.Background()
-			grpcConn := mustGetGRPCConn(ctx, cmd)
+			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
 			defer func() {
 				_ = grpcConn.Close()
 			}()
@@ -95,7 +95,7 @@ func deleteSubscriptionCommand() *cobra.Command {
 				os.Exit(-1)
 			}
 			ctx := context.Background()
-			grpcConn := mustGetGRPCConn(ctx, cmd)
+			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
 			defer func() {
 				_ = grpcConn.Close()
 			}()

@@ -26,14 +26,14 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-func mustGetGRPCConn(ctx context.Context,
+func mustGetLeaderControllerGRPCConn(ctx context.Context,
 	cmd *cobra.Command) *grpc.ClientConn {
 	endpoints := mustEndpointsFromCmd(cmd)
-	connMap := make(map[string]*grpc.ClientConn, 0)
 	var leaderAddr string
+	var leaderConn *grpc.ClientConn
+	tryConnectLeaderOnce := false
 	for idx := range endpoints {
 		conn := createGRPCConn(ctx, endpoints[idx])
-		connMap[endpoints[idx]] = nil
 		if conn == nil {
 			continue
 		}
@@ -44,20 +44,25 @@ func mustGetGRPCConn(ctx context.Context,
 			continue
 		}
 		leaderAddr = res.LeaderAddr
+		if leaderAddr == endpoints[idx] {
+			leaderConn = conn
+			tryConnectLeaderOnce = false
+		} else {
+			_ = conn.Close()
+		}
 		break
 	}
-	conn, exist := connMap[leaderAddr]
-	if exist {
-		if conn == nil {
-			cmdFailedf("connect to leader:%s failed", leaderAddr)
-		}
-		return conn
+
+	if leaderConn != nil {
+		return leaderConn
+	} else if !tryConnectLeaderOnce {
+		leaderConn = createGRPCConn(ctx, leaderAddr)
 	}
-	conn = createGRPCConn(ctx, leaderAddr)
-	if conn == nil {
-		cmdFailedf("connect to leader:%s failed", leaderAddr)
+
+	if leaderConn == nil {
+		cmdFailedf("connect to leader: %s failed", leaderAddr)
 	}
-	return conn
+	return leaderConn
 }
 
 func createGRPCConn(ctx context.Context, addr string) *grpc.ClientConn {
