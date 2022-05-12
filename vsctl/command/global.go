@@ -15,16 +15,26 @@
 package command
 
 import (
+	"strings"
+
 	"github.com/spf13/cobra"
 )
 
 type GlobalFlags struct {
-	Endpoint   string
+	Endpoints  []string
 	Debug      bool
 	ConfigFile string
 }
 
-func endpointsFromCmd(cmd *cobra.Command) (string, error) {
-	eps, err := cmd.Flags().GetString("endpoint")
-	return eps, err
+func mustEndpointsFromCmd(cmd *cobra.Command) []string {
+	eps, err := cmd.Flags().GetStringSlice("endpoints")
+	if err != nil {
+		cmdFailedf("get controller endpoints failed: %s", err)
+	}
+	if err == nil {
+		for i, ip := range eps {
+			eps[i] = strings.TrimSpace(ip)
+		}
+	}
+	return eps
 }

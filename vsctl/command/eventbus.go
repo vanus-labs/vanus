@@ -14,7 +14,15 @@
 
 package command
 
-import "github.com/spf13/cobra"
+import (
+	"context"
+	"os"
+
+	"github.com/fatih/color"
+	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
+	metapb "github.com/linkall-labs/vsproto/pkg/meta"
+	"github.com/spf13/cobra"
+)
 
 func NewEventbusCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -31,7 +39,26 @@ func createEventbusCommand() *cobra.Command {
 		Use:   "create <eventbus-name> ",
 		Short: "create a eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-			// TODO
+			if len(args) == 0 {
+				color.White("eventbus name can't be empty\n")
+				color.Cyan("\n============ see below for right usage ============\n\n")
+				_ = cmd.Help()
+				os.Exit(-1)
+			}
+			ctx := context.Background()
+			grpcConn := mustGetGRPCConn(ctx, cmd)
+			defer func() {
+				_ = grpcConn.Close()
+			}()
+
+			cli := ctrlpb.NewEventBusControllerClient(grpcConn)
+			_, err := cli.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
+				Name: args[0],
+			})
+			if err != nil {
+				cmdFailedf("create eventbus failed: %s", err)
+			}
+			color.Green("create eventbus: %s success\n", args[0])
 		},
 	}
 	cmd.Flags().String("name", "", "eventbus name to creating")
@@ -43,7 +70,24 @@ func deleteEventbusCommand() *cobra.Command {
 		Use:   "delete <eventbus-name> ",
 		Short: "delete a eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-			// TODO
+			if len(args) == 0 {
+				color.White("eventbus name can't be empty\n")
+				color.Cyan("\n============ see below for right usage ============\n\n")
+				_ = cmd.Help()
+				os.Exit(-1)
+			}
+			ctx := context.Background()
+			grpcConn := mustGetGRPCConn(ctx, cmd)
+			defer func() {
+				_ = grpcConn.Close()
+			}()
+
+			cli := ctrlpb.NewEventBusControllerClient(grpcConn)
+			_, err := cli.DeleteEventBus(ctx, &metapb.EventBus{Name: args[0]})
+			if err != nil {
+				cmdFailedf("delete eventbus failed: %s", err)
+			}
+			color.Green("delete eventbus: %s success\n", args[0])
 		},
 	}
 	cmd.Flags().String("name", "", "eventbus name to deleting")

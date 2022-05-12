@@ -14,7 +14,23 @@
 
 package command
 
-import "github.com/spf13/cobra"
+import (
+	"context"
+	"encoding/json"
+	"os"
+
+	"github.com/fatih/color"
+	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
+	"github.com/spf13/cobra"
+)
+
+var (
+	eventbus       string
+	source         string
+	sink           string
+	filters        string
+	subscriptionID uint64
+)
 
 func NewSubscriptionCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -31,11 +47,39 @@ func createSubscriptionCommand() *cobra.Command {
 		Use:   "create <subscription-name> ",
 		Short: "create a subscription",
 		Run: func(cmd *cobra.Command, args []string) {
-			// TODO
+			if len(args) == 0 {
+				color.White("eventbus name can't be empty\n")
+				color.Cyan("\n============ see below for right usage ============\n\n")
+				_ = cmd.Help()
+				os.Exit(-1)
+			}
+			ctx := context.Background()
+			grpcConn := mustGetGRPCConn(ctx, cmd)
+			defer func() {
+				_ = grpcConn.Close()
+			}()
+			filterObj := make(map[string]interface{}, 0)
+			err := json.Unmarshal([]byte(filters), filterObj)
+			if err != nil {
+				cmdFailedf("the filter invalid: %s", err)
+			}
+			cli := ctrlpb.NewTriggerControllerClient(grpcConn)
+			_, err = cli.CreateSubscription(ctx, &ctrlpb.CreateSubscriptionRequest{
+				Source:   source,
+				Filters:  nil,
+				Sink:     sink,
+				EventBus: eventbus,
+			})
+			if err != nil {
+				cmdFailedf("create subscription failed: %s", err)
+			}
+			color.Green("create subscription: %s success\n", args[0])
 		},
 	}
-	cmd.Flags().String("filter", "{}", "")
-	cmd.Flags().String("eventbus", "", "eventbus name to consuming")
+	cmd.Flags().StringVar(&eventbus, "eventbus", "", "eventbus name to consuming")
+	cmd.Flags().StringVar(&source, "source", "", "the event from which source")
+	cmd.Flags().StringVar(&sink, "sink", "", "the event you want to send to")
+	cmd.Flags().StringVar(&filters, "filters", "", "filter event you interested, JSON format required")
 	return cmd
 }
 
@@ -44,9 +88,28 @@ func deleteSubscriptionCommand() *cobra.Command {
 		Use:   "delete <subscription-name> ",
 		Short: "delete a subscription",
 		Run: func(cmd *cobra.Command, args []string) {
-			// TODO
+			if len(args) == 0 {
+				color.White("eventbus name can't be empty\n")
+				color.Cyan("\n============ see below for right usage ============\n\n")
+				_ = cmd.Help()
+				os.Exit(-1)
+			}
+			ctx := context.Background()
+			grpcConn := mustGetGRPCConn(ctx, cmd)
+			defer func() {
+				_ = grpcConn.Close()
+			}()
+
+			cli := ctrlpb.NewTriggerControllerClient(grpcConn)
+			_, err := cli.DeleteSubscription(ctx, &ctrlpb.DeleteSubscriptionRequest{
+				Id: subscriptionID,
+			})
+			if err != nil {
+				cmdFailedf("delete subscription failed: %s", err)
+			}
+			color.Green("delete subscription: %s success\n", args[0])
 		},
 	}
-	cmd.Flags().String("id", "", "subscription id to deleting")
+	cmd.Flags().Uint64VarP(&subscriptionID, "subscription-id", "sid", 0, "subscription id to deleting")
 	return cmd
 }
