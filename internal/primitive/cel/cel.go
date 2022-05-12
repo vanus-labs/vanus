@@ -16,14 +16,14 @@ package cel
 
 import (
 	"fmt"
-	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/tidwall/gjson"
-	"google.golang.org/protobuf/proto"
 	"strings"
 
+	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/checker/decls"
+	"github.com/tidwall/gjson"
 	exprpb "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
