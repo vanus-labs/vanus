@@ -123,7 +123,7 @@ func (m *manager) commit(ctx context.Context) {
 		sub := value.(*subscriptionOffset)
 		wg.Add(1)
 		go func(sub *subscriptionOffset) {
-			wg.Done()
+			defer wg.Done()
 			sub.commitOffset(ctx, m.storage)
 		}(sub)
 		return true
