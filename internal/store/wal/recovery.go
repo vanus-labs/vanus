@@ -29,7 +29,7 @@ const (
 	defaultDirPerm = 0755
 )
 
-func RecoverWithVisitor(walDir string, visitor WalkFunc) (*WAL, error) {
+func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc) (*WAL, error) {
 	// Make sure the WAL directory exists.
 	if err := os.MkdirAll(walDir, defaultDirPerm); err != nil {
 		return nil, err
@@ -39,13 +39,14 @@ func RecoverWithVisitor(walDir string, visitor WalkFunc) (*WAL, error) {
 	if err != nil {
 		return nil, err
 	}
-	files = filterRegular(files)
+	files = filterRegularLog(files)
 
 	s := &logStream{
 		dir: walDir,
 	}
 	for _, file := range files {
-		so, err2 := strconv.ParseInt(file.Name(), 10, 64)
+		filename := file.Name()
+		so, err2 := strconv.ParseInt(filename[:len(filename)-len(logFileExt)-1], 10, 64)
 		if err2 != nil {
 			return nil, err2
 		}
@@ -68,7 +69,7 @@ func RecoverWithVisitor(walDir string, visitor WalkFunc) (*WAL, error) {
 			return nil, err2
 		}
 
-		path := filepath.Join(walDir, file.Name())
+		path := filepath.Join(walDir, filename)
 		size := info.Size()
 		if size%blockSize != 0 {
 			truncated := size - size%blockSize
@@ -88,8 +89,7 @@ func RecoverWithVisitor(walDir string, visitor WalkFunc) (*WAL, error) {
 		})
 	}
 
-	// TODO(james.yin): visit from compacted offset
-	eo, err := s.Visit(visitor, 0)
+	eo, err := s.Visit(visitor, compacted)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func RecoverWithVisitor(walDir string, visitor WalkFunc) (*WAL, error) {
 	return newWAL(context.TODO(), s, eo)
 }
 
-func filterRegular(entries []os.DirEntry) []os.DirEntry {
+func filterRegularLog(entries []os.DirEntry) []os.DirEntry {
 	if len(entries) == 0 {
 		return entries
 	}
@@ -106,6 +106,9 @@ func filterRegular(entries []os.DirEntry) []os.DirEntry {
 	n := 0
 	for _, entry := range entries {
 		if !entry.Type().IsRegular() {
+			continue
+		}
+		if filepath.Ext(entry.Name()) != logFileExt {
 			continue
 		}
 		entries[n] = entry

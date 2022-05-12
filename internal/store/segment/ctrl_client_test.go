@@ -40,18 +40,6 @@ func TestCtrlClientIsNeedRetry(t *testing.T) {
 			err = errpb.New("xxxxx: 1111111111 ")
 			So(cli.isNeedRetry(err), ShouldBeFalse)
 
-			err = errpb.New("xxxxx: 1111111111 ").WithGRPCCode(errpb.ErrorCode_NOT_LEADER)
-			So(cli.isNeedRetry(err), ShouldBeFalse)
-
-			err = errpb.New("xxxxx, please connect to: 1111111111 ").WithGRPCCode(errpb.ErrorCode_NOT_LEADER)
-			So(cli.isNeedRetry(err), ShouldBeFalse)
-
-			err = errpb.New("xxxxx, please connect to: 1111111111:2048 ").WithGRPCCode(errpb.ErrorCode_NOT_LEADER)
-			So(cli.isNeedRetry(err), ShouldBeFalse)
-
-			err = errpb.New("balabala, please connect to: 127.0.0.1:20480 ").WithGRPCCode(errpb.ErrorCode_NOT_LEADER)
-			So(cli.isNeedRetry(err), ShouldBeFalse)
-
 			err = errpb.New("balabala, please connect to: 127.0.0.1:2048 ").WithGRPCCode(errpb.ErrorCode_NOT_LEADER)
 			So(cli.isNeedRetry(err), ShouldBeTrue)
 		})
