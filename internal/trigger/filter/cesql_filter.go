@@ -36,7 +36,7 @@ func NewCESQLFilter(expression string) Filter {
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			size := 1 << 10
+			size := 1024
 			stacktrace := make([]byte, size)
 			stacktrace = stacktrace[:runtime.Stack(stacktrace, false)]
 			log.Info(context.Background(), "parse cesql filter expression panic", map[string]interface{}{
