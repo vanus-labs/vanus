@@ -180,6 +180,11 @@ func (s *segmentServer) CreateBlock(ctx context.Context,
 		return nil, err
 	}
 
+	if req.Id == 0 {
+		log.Warning(ctx, "Can not create block without id.", nil)
+		return nil, errors.ErrInvalidRequest.WithMessage("can not create block without id.")
+	}
+
 	blockID := vanus.NewIDFromUint64(req.Id)
 
 	_, exist := s.blocks.Load(blockID)
