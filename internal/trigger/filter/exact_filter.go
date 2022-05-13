@@ -17,9 +17,11 @@ package filter
 import (
 	"context"
 	"fmt"
-	ce "github.com/cloudevents/sdk-go/v2"
+
 	"github.com/linkall-labs/vanus/internal/trigger/util"
 	"github.com/linkall-labs/vanus/observability/log"
+
+	ce "github.com/cloudevents/sdk-go/v2"
 )
 
 type exactFilter struct {

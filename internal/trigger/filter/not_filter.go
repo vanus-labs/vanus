@@ -16,6 +16,7 @@ package filter
 
 import (
 	"fmt"
+
 	ce "github.com/cloudevents/sdk-go/v2"
 )
 

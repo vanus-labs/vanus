@@ -16,9 +16,11 @@ package filter
 
 import (
 	"context"
-	ce "github.com/cloudevents/sdk-go/v2"
+
 	"github.com/linkall-labs/vanus/internal/primitive/cel"
 	"github.com/linkall-labs/vanus/observability/log"
+
+	ce "github.com/cloudevents/sdk-go/v2"
 )
 
 type CELFilter struct {
@@ -45,7 +47,7 @@ func (filter *CELFilter) Filter(event ce.Event) FilterResult {
 	log.Debug(context.Background(), "cel filter ", map[string]interface{}{"filter": filter, "event": event})
 	result, err := filter.parsedExpression.Eval(event)
 	if err != nil {
-		log.Warning(context.Background(), "cek evak errir", map[string]interface{}{
+		log.Warning(context.Background(), "cek eval error", map[string]interface{}{
 			log.KeyError: err,
 		})
 		return FailFilter

@@ -16,10 +16,12 @@ package filter
 
 import (
 	"fmt"
-	ce "github.com/cloudevents/sdk-go/v2"
+	"strings"
+
 	"github.com/linkall-labs/vanus/internal/trigger/util"
 	"github.com/linkall-labs/vanus/observability/log"
-	"strings"
+
+	ce "github.com/cloudevents/sdk-go/v2"
 )
 
 type suffixFilter struct {

@@ -12,34 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package filter
+package filter_test
 
 import (
-	"context"
+	"testing"
 
-	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/internal/trigger/filter"
 
 	ce "github.com/cloudevents/sdk-go/v2"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-type anyFilter []Filter
+func TestExactFilter(t *testing.T) {
+	event := ce.NewEvent()
+	event.SetID("testID")
+	event.SetSource("testSource")
 
-func NewAnyFilter(filters ...Filter) Filter {
-	if len(filters) == 0 {
-		return nil
-	}
-	return append(anyFilter{}, filters...)
+	Convey("exact filter pass", t, func() {
+		f := filter.NewExactFilter(map[string]string{
+			"id": "testID",
+		})
+		result := f.Filter(event)
+		So(result, ShouldEqual, filter.PassFilter)
+	})
+	Convey("exact filter pass", t, func() {
+		f := filter.NewExactFilter(map[string]string{
+			"id": "un",
+		})
+		result := f.Filter(event)
+		So(result, ShouldEqual, filter.FailFilter)
+	})
 }
-
-func (filter anyFilter) Filter(event ce.Event) FilterResult {
-	log.Debug(context.Background(), "any filter ", map[string]interface{}{"filter": filter, "event": event})
-	for _, f := range filter {
-		res := f.Filter(event)
-		if res == PassFilter {
-			return PassFilter
-		}
-	}
-	return FailFilter
-}
-
-var _ Filter = (*anyFilter)(nil)

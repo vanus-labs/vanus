@@ -12,9 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package primitive
+package cel_test
 
-type EventBus interface {
-	Pull(int64, int64, int32)
-	GetEventLogs(string)
+import (
+	"testing"
+
+	"github.com/linkall-labs/vanus/internal/primitive/cel"
+
+	ce "github.com/cloudevents/sdk-go/v2"
+	. "github.com/smartystreets/goconvey/convey"
+)
+
+func TestParse(t *testing.T) {
+	event := ce.NewEvent()
+	_ = event.SetData(ce.ApplicationJSON, map[string]interface{}{
+		"key": "test",
+	})
+	Convey("cel parse", t, func() {
+		p, err := cel.Parse("$key.(string) == 'test'")
+		So(err, ShouldBeNil)
+		b, err := p.Eval(event)
+		So(err, ShouldBeNil)
+		So(b, ShouldBeTrue)
+	})
 }
