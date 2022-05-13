@@ -110,7 +110,7 @@ func (s *logStream) Visit(visitor WalkFunc, compacted int64) (int64, error) {
 				return -1, err
 			}
 
-			for so := 0; so <= blockSize-record.HeaderSize; {
+			for so := firstRecordOffset(f.so, compacted); so <= blockSize-record.HeaderSize; {
 				r, err2 := record.Unmashal(buf[so:])
 				if err2 != nil {
 					// TODO(james.yin): handle parse error
@@ -194,6 +194,13 @@ func firstBlockOffset(so, compacted int64) int64 {
 		off := compacted - so
 		off -= off % blockSize
 		return off
+	}
+	return 0
+}
+
+func firstRecordOffset(so, compacted int64) int {
+	if so < compacted {
+		return int(compacted % blockSize)
 	}
 	return 0
 }
