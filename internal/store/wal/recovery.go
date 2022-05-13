@@ -46,7 +46,7 @@ func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc) (*WAL,
 	}
 	for _, file := range files {
 		filename := file.Name()
-		so, err2 := strconv.ParseInt(filename[:len(filename)-len(logFileExt)-1], 10, 64)
+		so, err2 := strconv.ParseInt(filename[:len(filename)-len(logFileExt)], 10, 64)
 		if err2 != nil {
 			return nil, err2
 		}
