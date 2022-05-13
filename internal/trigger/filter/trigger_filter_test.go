@@ -28,7 +28,7 @@ func TestGetFilter(t *testing.T) {
 	event := ce.NewEvent()
 	event.SetID("testID")
 	event.SetSource("testSource")
-	event.SetData(ce.ApplicationJSON, map[string]interface{}{
+	_ = event.SetData(ce.ApplicationJSON, map[string]interface{}{
 		"key": "value",
 		"num": 10,
 	})
@@ -79,7 +79,6 @@ func TestGetFilter(t *testing.T) {
 			},
 		},
 	})
-
 	Convey("suffix filter pass", t, func() {
 		f := filter.GetFilter(filters)
 		So(f, ShouldNotBeNil)

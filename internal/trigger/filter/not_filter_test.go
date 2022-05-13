@@ -37,7 +37,6 @@ func TestNotFilter(t *testing.T) {
 		result := f.Filter(event)
 		So(result, ShouldEqual, filter.FailFilter)
 	})
-
 	Convey("not filter pass", t, func() {
 		f1 := filter.NewPrefixFilter(map[string]string{
 			"id":     "un",
@@ -47,5 +46,4 @@ func TestNotFilter(t *testing.T) {
 		result := f.Filter(event)
 		So(result, ShouldEqual, filter.PassFilter)
 	})
-
 }

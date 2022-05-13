@@ -27,7 +27,7 @@ func TestCELFilter(t *testing.T) {
 	event := ce.NewEvent()
 	event.SetID("testID")
 	event.SetSource("testSource")
-	event.SetData(ce.ApplicationJSON, map[string]interface{}{
+	_ = event.SetData(ce.ApplicationJSON, map[string]interface{}{
 		"key": "value",
 		"num": 10,
 	})

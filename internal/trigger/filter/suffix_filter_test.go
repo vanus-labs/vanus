@@ -45,5 +45,4 @@ func TestSuffixFilter(t *testing.T) {
 		result := f.Filter(event)
 		So(result, ShouldEqual, filter.FailFilter)
 	})
-
 }

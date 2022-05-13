@@ -25,7 +25,7 @@ import (
 
 func TestParse(t *testing.T) {
 	event := ce.NewEvent()
-	event.SetData(ce.ApplicationJSON, map[string]interface{}{
+	_ = event.SetData(ce.ApplicationJSON, map[string]interface{}{
 		"key": "test",
 	})
 	Convey("cel parse", t, func() {

@@ -36,12 +36,12 @@ func TestAllFilter(t *testing.T) {
 	f3 := filter.NewPrefixFilter(map[string]string{
 		"source": "un",
 	})
+
 	Convey("all filter pass", t, func() {
 		f := filter.NewAllFilter(f1, f2)
 		result := f.Filter(event)
 		So(result, ShouldEqual, filter.PassFilter)
 	})
-
 	Convey("all filter fail", t, func() {
 		f := filter.NewAllFilter(f1, f3)
 		result := f.Filter(event)

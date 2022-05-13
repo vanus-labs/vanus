@@ -35,7 +35,6 @@ func TestExactFilter(t *testing.T) {
 		result := f.Filter(event)
 		So(result, ShouldEqual, filter.PassFilter)
 	})
-
 	Convey("exact filter pass", t, func() {
 		f := filter.NewExactFilter(map[string]string{
 			"id": "un",
@@ -43,5 +42,4 @@ func TestExactFilter(t *testing.T) {
 		result := f.Filter(event)
 		So(result, ShouldEqual, filter.FailFilter)
 	})
-
 }

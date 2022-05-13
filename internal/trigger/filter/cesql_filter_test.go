@@ -27,7 +27,7 @@ func TestCeSQLFilter(t *testing.T) {
 	event := ce.NewEvent()
 	event.SetID("testID")
 	event.SetSource("testSource")
-	event.SetData(ce.ApplicationJSON, map[string]interface{}{
+	_ = event.SetData(ce.ApplicationJSON, map[string]interface{}{
 		"key": "value",
 		"num": 10,
 	})
@@ -36,7 +36,6 @@ func TestCeSQLFilter(t *testing.T) {
 		result := f.Filter(event)
 		So(result, ShouldEqual, filter.PassFilter)
 	})
-
 	Convey("cesql filter fail", t, func() {
 		f := filter.NewCESQLFilter("source = 'test'")
 		result := f.Filter(event)

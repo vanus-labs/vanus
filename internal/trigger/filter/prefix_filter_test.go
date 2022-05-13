@@ -36,7 +36,6 @@ func TestPrefixFilter(t *testing.T) {
 		result := f.Filter(event)
 		So(result, ShouldEqual, filter.PassFilter)
 	})
-
 	Convey("prefix filter pass", t, func() {
 		f := filter.NewPrefixFilter(map[string]string{
 			"id":     "un",
@@ -45,5 +44,4 @@ func TestPrefixFilter(t *testing.T) {
 		result := f.Filter(event)
 		So(result, ShouldEqual, filter.FailFilter)
 	})
-
 }
