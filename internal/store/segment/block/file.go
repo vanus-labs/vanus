@@ -18,7 +18,9 @@ import (
 	// standard libraries.
 	"context"
 	"encoding/binary"
+	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -36,12 +38,17 @@ import (
 )
 
 const (
+	blockExt            = ".block"
 	fileBlockHeaderSize = 4 * 1024
 
 	// version + capacity + size + number + full
 	v1FileBlockHeaderLength = 4 + 8 + 4 + 8 + 1
 	entryLengthSize         = 4
 )
+
+func resolvePath(blockDir string, id vanus.ID) string {
+	return filepath.Join(blockDir, fmt.Sprintf("%020d%s", id.Uint64(), blockExt))
+}
 
 type fileBlock struct {
 	version int32

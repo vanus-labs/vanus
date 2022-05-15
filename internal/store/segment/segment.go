@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -114,31 +113,11 @@ func NewSegmentServer(cfg store.Config, stop func()) (segpb.SegmentServerServer,
 }
 
 func (s *segmentServer) Initialize(ctx context.Context) error {
-	metaStore, err := meta.RecoverSyncStore(filepath.Join(s.volumeDir, "meta"))
-	if err != nil {
-		return err
-	}
-	s.metaStore = metaStore
-
-	offsetStore, err := meta.RecoverAsyncStore(filepath.Join(s.volumeDir, "offset"))
-	if err != nil {
-		return err
-	}
-	s.offsetStore = offsetStore
-
-	// Recover wal and raft log.
-	raftLogs, wal, err := raftlog.RecoverLogsAndWAL(filepath.Join(s.volumeDir, "raft"), metaStore, offsetStore)
-	if err != nil {
-		return err
-	}
-	s.wal = wal
-
-	blockPeers, err := s.registerSelf(ctx)
-	if err != nil {
+	if err := s.recover(ctx); err != nil {
 		return err
 	}
 
-	if err = s.recoverBlocks(ctx, blockPeers, raftLogs); err != nil {
+	if err := s.registerSelf(ctx); err != nil {
 		return err
 	}
 
@@ -213,8 +192,7 @@ func (s *segmentServer) CreateBlock(ctx context.Context,
 	}
 
 	// create block
-	path := s.generateNewBlockPath(blockID)
-	b, err := block.CreateFileSegmentBlock(ctx, blockID, path, req.Size)
+	b, err := block.CreateFileSegmentBlock(ctx, filepath.Join(s.volumeDir, "block"), blockID, req.Size)
 	if err != nil {
 		return nil, err
 	}
@@ -253,48 +231,56 @@ func (s *segmentServer) ActivateSegment(ctx context.Context,
 		return nil, err
 	}
 
-	log.Info(ctx, "activate segment", map[string]interface{}{
+	if len(req.Replicas) == 0 {
+		log.Warning(ctx, "Replicas can not be empty.", map[string]interface{}{
+			"eventLogID":     req.EventLogId,
+			"replicaGroupID": req.ReplicaGroupId,
+		})
+		return &segpb.ActivateSegmentResponse{}, nil
+	}
+
+	log.Info(ctx, "Activate segment.", map[string]interface{}{
 		"eventLogID":     req.EventLogId,
 		"replicaGroupID": req.ReplicaGroupId,
 		"replicas":       req.Replicas,
 	})
 
-	// bootstrap replica
-	if len(req.Replicas) > 0 {
-		var myID vanus.ID
-		var peers []block.IDAndEndpoint
-		for blockID, endpoint := range req.Replicas {
-			peer := vanus.NewIDFromUint64(blockID)
-			peers = append(peers, block.IDAndEndpoint{
-				ID:       peer,
-				Endpoint: endpoint,
-			})
-			if endpoint == s.localAddress {
-				myID = peer
-			} else {
-				// FIXME(james.yin): bad request
-				// register peer
-				s.resolver.Register(blockID, endpoint)
-			}
-		}
-
-		if myID == 0 {
-			return nil, errors.ErrResourceNotFound.WithMessage("the segment doesn't exist")
-		}
-		v, exist := s.blockWriters.Load(myID)
-		if !exist {
-			return nil, errors.ErrResourceNotFound.WithMessage("the segment doesn't exist")
-		}
-
-		log.Info(ctx, "bootstrap replica", map[string]interface{}{
-			"blockID": myID,
-			"peers":   peers,
+	var myID vanus.ID
+	peers := make([]block.IDAndEndpoint, 0, len(req.Replicas)-1)
+	for blockID, endpoint := range req.Replicas {
+		peer := vanus.NewIDFromUint64(blockID)
+		peers = append(peers, block.IDAndEndpoint{
+			ID:       peer,
+			Endpoint: endpoint,
 		})
-
-		replica, _ := v.(*block.Replica)
-		if err := replica.Bootstrap(peers); err != nil {
-			return nil, err
+		if endpoint == s.localAddress {
+			myID = peer
 		}
+	}
+
+	if myID == 0 {
+		return nil, errors.ErrResourceNotFound.WithMessage("the segment doesn't exist")
+	}
+	v, exist := s.blockWriters.Load(myID)
+	if !exist {
+		return nil, errors.ErrResourceNotFound.WithMessage("the segment doesn't exist")
+	}
+
+	// Register peers.
+	for i := range peers {
+		peer := &peers[i]
+		s.resolver.Register(peer.ID.Uint64(), peer.Endpoint)
+	}
+
+	log.Info(ctx, "Bootstrap replica.", map[string]interface{}{
+		"blockID": myID,
+		"peers":   peers,
+	})
+
+	// Bootstrap replica.
+	replica, _ := v.(*block.Replica)
+	if err := replica.Bootstrap(peers); err != nil {
+		return nil, err
 	}
 
 	return &segpb.ActivateSegmentResponse{}, nil
@@ -423,7 +409,7 @@ func (s *segmentServer) ReadFromBlock(ctx context.Context,
 	}, nil
 }
 
-func (s *segmentServer) startHeartbeatTask() error {
+func (s *segmentServer) startHeartbeatTask(ctx context.Context) error {
 	if s.isDebugMode {
 		return nil
 	}
@@ -431,7 +417,6 @@ func (s *segmentServer) startHeartbeatTask() error {
 	go func() {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
-		ctx := context.Background()
 
 	LOOP:
 		for {
@@ -464,33 +449,11 @@ func (s *segmentServer) startHeartbeatTask() error {
 	return nil
 }
 
-func (s *segmentServer) generateNewBlockPath(id vanus.ID) string {
-	return filepath.Join(s.volumeDir, "block", id.String())
-}
-
 func (s *segmentServer) start(ctx context.Context) error {
-	wg := sync.WaitGroup{}
-
-	var err error
-	s.blocks.Range(func(key, value interface{}) bool {
-		wg.Add(1)
-		b, _ := value.(block.SegmentBlock)
-		go func(segBlock block.SegmentBlock) {
-			if err2 := segBlock.Initialize(ctx); err2 != nil {
-				err = errutil.Chain(err, err2)
-			}
-			// s.blockWriters.Store(segBlock.SegmentBlockID(), segBlock)
-			s.blockReaders.Store(segBlock.SegmentBlockID(), segBlock)
-			wg.Done()
-		}(b)
-		return true
-	})
-	wg.Wait()
-
-	if err := s.startHeartbeatTask(); err != nil {
+	log.Info(ctx, "Start SegmentServer.", nil)
+	if err := s.startHeartbeatTask(ctx); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -559,7 +522,7 @@ func (s *segmentServer) waitAllAppendRequestCompleted(ctx context.Context) {}
 
 func (s *segmentServer) waitAllReadRequestCompleted(ctx context.Context) {}
 
-func (s *segmentServer) registerSelf(ctx context.Context) (map[vanus.ID][]uint64, error) {
+func (s *segmentServer) registerSelf(ctx context.Context) error {
 	if strings.ToLower(os.Getenv(segmentServerDebugModeFlagENV)) == "true" {
 		return s.registerSelfInDebug(ctx)
 	}
@@ -570,7 +533,7 @@ func (s *segmentServer) registerSelf(ctx context.Context) (map[vanus.ID][]uint64
 		Capacity: s.cfg.Volume.Capacity,
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	s.id = vanus.NewIDFromUint64(res.ServerId)
@@ -578,108 +541,55 @@ func (s *segmentServer) registerSelf(ctx context.Context) (map[vanus.ID][]uint64
 	// FIXME(james.yin): some blocks may not be bound to segment.
 
 	// No block in the volume of this server.
-	if len(res.Segments) <= 0 {
-		return map[vanus.ID][]uint64{}, nil
+	if len(res.Segments) == 0 {
+		return nil
 	}
 
-	blockPeers := make(map[vanus.ID][]uint64)
 	for _, segmentpb := range res.Segments {
-		if len(segmentpb.Replicas) <= 0 {
+		if len(segmentpb.Replicas) == 0 {
 			continue
 		}
 		var myID vanus.ID
-		peers := make([]uint64, 0, len(segmentpb.Replicas))
 		for blockID, blockpb := range segmentpb.Replicas {
-			peers = append(peers, blockID)
 			// Don't use address to compare
 			if blockpb.VolumeID == s.volumeID.Uint64() {
 				if myID != 0 {
 					// FIXME(james.yin): multiple blocks of same segment in this server.
 				}
 				myID = vanus.NewIDFromUint64(blockID)
-			} else {
-				// register peer
-				s.resolver.Register(blockID, blockpb.Endpoint)
 			}
 		}
 		if myID == 0 {
 			// TODO(james.yin): no my block
 			continue
 		}
-		blockPeers[myID] = peers
+		// Register peers.
+		for blockID, blockpb := range segmentpb.Replicas {
+			if blockpb.Endpoint == "" {
+				if blockpb.VolumeID == s.volumeID.Uint64() {
+					blockpb.Endpoint = s.localAddress
+				} else {
+					log.Warning(ctx, "Block is offline.", map[string]interface{}{
+						"blockID":    blockID,
+						"volumeID":   blockpb.VolumeID,
+						"segmentID":  segmentpb.Id,
+						"eventlogID": segmentpb.EventLogId,
+					})
+					continue
+				}
+			}
+			s.resolver.Register(blockID, blockpb.Endpoint)
+		}
 	}
-	return blockPeers, nil
+
+	return nil
 }
 
-func (s *segmentServer) registerSelfInDebug(ctx context.Context) (map[vanus.ID][]uint64, error) {
+func (s *segmentServer) registerSelfInDebug(ctx context.Context) error {
 	log.Info(ctx, "the segment server debug mode enabled", nil)
 
 	s.id = vanus.NewID()
 	s.isDebugMode = true
-
-	files, err := filepath.Glob(filepath.Join(s.volumeDir, "block", "*"))
-	if err != nil {
-		return nil, err
-	}
-
-	blockPeers := make(map[vanus.ID][]uint64)
-	for _, file := range files {
-		blockID, err := strconv.ParseUint(filepath.Base(file), 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		// TODO(james.yin): multiple peers
-		blockPeers[vanus.NewIDFromUint64(blockID)] = []uint64{blockID}
-	}
-	return blockPeers, nil
-}
-
-func (s *segmentServer) recoverBlocks(ctx context.Context, blockPeers map[vanus.ID][]uint64, raftLogs map[vanus.ID]*raftlog.Log) error {
-	blockDir := filepath.Join(s.volumeDir, "block")
-
-	// Make sure the block directory exists.
-	if err := os.MkdirAll(blockDir, 0755); err != nil {
-		return err
-	}
-
-	// TODO: optimize this, because the implementation assumes under storage is linux file system
-	for blockID, peers := range blockPeers {
-		blockPath := filepath.Join(blockDir, blockID.String())
-		b, err := block.OpenFileSegmentBlock(ctx, blockPath)
-		if err != nil {
-			return err
-		}
-		log.Info(ctx, "the block was loaded", map[string]interface{}{
-			"id": b.SegmentBlockID().String(),
-		})
-		// TODO(james.yin): initialize block
-
-		s.blocks.Store(blockID, b)
-
-		// recover replica
-		if b.IsAppendable() {
-			raftLog := raftLogs[blockID]
-			// raft log has been compacted
-			if raftLog == nil {
-				raftLog = raftlog.RecoverLog(blockID, s.wal, s.metaStore, s.offsetStore)
-			}
-			// TODO(james.yin): peers
-			_ = peers
-			replica := s.makeReplicaWithRaftLog(context.TODO(), b, raftLog)
-			s.blockWriters.Store(b.SegmentBlockID(), replica)
-		}
-	}
-
-	for blockID, raftLog := range raftLogs {
-		b, ok := s.blocks.Load(blockID)
-		if !ok {
-			// TODO(james.yin): no block for raft log, compact
-		}
-		if _, ok = b.(*block.Replica); !ok {
-			// TODO(james.yin): block is not appendable, compact
-		}
-		_ = raftLog
-	}
 
 	return nil
 }

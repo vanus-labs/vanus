@@ -15,19 +15,20 @@
 package block
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 
-	// third-party libraries
+	// third-party libraries.
 	"go.uber.org/atomic"
 
-	// first-party libraries
+	// first-party libraries.
 	"github.com/linkall-labs/vsproto/pkg/meta"
 
-	// this project
+	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability"
 )
@@ -65,10 +66,11 @@ type SegmentBlock interface {
 	HealthInfo() *meta.SegmentHealthInfo
 }
 
-func CreateFileSegmentBlock(ctx context.Context, id vanus.ID, path string, capacity int64) (SegmentBlock, error) {
+func CreateFileSegmentBlock(ctx context.Context, blockDir string, id vanus.ID, capacity int64) (SegmentBlock, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
+	path := resolvePath(blockDir, id)
 	b := &fileBlock{
 		id:   id,
 		path: path,
@@ -83,7 +85,7 @@ func CreateFileSegmentBlock(ctx context.Context, id vanus.ID, path string, capac
 	if err = f.Truncate(capacity); err != nil {
 		return nil, err
 	}
-	if _, err = f.Seek(fileBlockHeaderSize, 0); err != nil {
+	if _, err = f.Seek(fileBlockHeaderSize, io.SeekStart); err != nil {
 		return nil, err
 	}
 	b.appendable.Store(true)
@@ -100,7 +102,9 @@ func CreateFileSegmentBlock(ctx context.Context, id vanus.ID, path string, capac
 func OpenFileSegmentBlock(ctx context.Context, path string) (SegmentBlock, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
-	id, err := vanus.NewIDFromString(filepath.Base(path))
+
+	filename := filepath.Base(path)
+	id, err := vanus.NewIDFromString(filename[:len(filename)-len(blockExt)])
 	if err != nil {
 		return nil, err
 	}
