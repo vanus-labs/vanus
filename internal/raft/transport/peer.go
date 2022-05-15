@@ -17,6 +17,8 @@ package transport
 import (
 	// standard libraries.
 	"context"
+	"errors"
+	"io"
 
 	// third-party libraries.
 	"google.golang.org/grpc"
@@ -30,6 +32,7 @@ import (
 type peer struct {
 	addr   string
 	msgc   chan *raftpb.Message
+	stream vsraftpb.RaftServer_SendMsssageClient
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -58,25 +61,26 @@ func (p *peer) run(callback string) {
 	preface := raftpb.Message{
 		Context: []byte(callback),
 	}
-	var stream vsraftpb.RaftServer_SendMsssageClient
 
 loop:
 	for {
 		var err error
 		select {
 		case msg := <-p.msgc:
-			// TODO(james.yin): reconnect
+			stream := p.stream
 			if stream == nil {
 				if stream, err = p.connect(opts...); err != nil {
+					p.processSendError(err)
 					break
 				}
+				p.stream = stream
 				if err = stream.Send(&preface); err != nil {
-					// TODO(james.yin): handle err
+					p.processSendError(err)
+					break
 				}
 			}
-			err = stream.Send(msg)
-			if err != nil {
-				// TODO(james.yin): handle error
+			if err = stream.Send(msg); err != nil {
+				p.processSendError(err)
 				break
 			}
 		case <-p.ctx.Done():
@@ -84,8 +88,16 @@ loop:
 		}
 	}
 
-	if stream != nil {
-		stream.CloseAndRecv()
+	if p.stream != nil {
+		_, _ = p.stream.CloseAndRecv()
+	}
+}
+
+func (p *peer) processSendError(err error) {
+	// TODO(james.yin): report MsgUnreachable, backoff
+	if errors.Is(err, io.EOF) {
+		_, _ = p.stream.CloseAndRecv()
+		p.stream = nil
 	}
 }
 
