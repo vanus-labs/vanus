@@ -14,5 +14,4 @@ FROM centos:8.4.2105
 RUN mkdir -p /server
 COPY --from=builder /workspace/vanus/bin/vsctl /server/bin/vsctl
 WORKDIR /server
-ENTRYPOINT ["sleep 10000000"]
 
