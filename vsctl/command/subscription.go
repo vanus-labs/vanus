@@ -15,12 +15,13 @@
 package command
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
-	"os"
-
 	"github.com/fatih/color"
+	"github.com/golang/protobuf/ptypes/empty"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
+	"github.com/linkall-labs/vsproto/pkg/meta"
 	"github.com/spf13/cobra"
 )
 
@@ -31,41 +32,47 @@ func NewSubscriptionCommand() *cobra.Command {
 	}
 	cmd.AddCommand(createSubscriptionCommand())
 	cmd.AddCommand(deleteSubscriptionCommand())
+	cmd.AddCommand(getSubscriptionCommand())
+	cmd.AddCommand(listSubscriptionCommand())
 	return cmd
 }
 
 func createSubscriptionCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create <subscription-name> ",
+		Use:   "create",
 		Short: "create a subscription",
 		Run: func(cmd *cobra.Command, args []string) {
-			if len(args) == 0 {
-				color.White("eventbus name can't be empty\n")
-				color.Cyan("\n============ see below for right usage ============\n\n")
-				_ = cmd.Help()
-				os.Exit(-1)
+			if eventbus == "" {
+				cmdFailedWithHelpNotice(cmd, "eventbus name can't be empty\n")
+			}
+			if sink == "" {
+				cmdFailedWithHelpNotice(cmd, "sink name can't be empty\n")
 			}
 			ctx := context.Background()
 			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
 			defer func() {
 				_ = grpcConn.Close()
 			}()
-			filterObj := make(map[string]interface{}, 0)
-			err := json.Unmarshal([]byte(filters), filterObj)
-			if err != nil {
-				cmdFailedf("the filter invalid: %s", err)
+			var filter []*meta.Filter
+			if filters != "" {
+				err := json.Unmarshal([]byte(filters), &filter)
+				if err != nil {
+					cmdFailedf("the filter invalid: %s", err)
+				}
 			}
+
 			cli := ctrlpb.NewTriggerControllerClient(grpcConn)
-			_, err = cli.CreateSubscription(ctx, &ctrlpb.CreateSubscriptionRequest{
+			res, err := cli.CreateSubscription(ctx, &ctrlpb.CreateSubscriptionRequest{
 				Source:   source,
-				Filters:  nil,
+				Filters:  filter,
 				Sink:     sink,
 				EventBus: eventbus,
 			})
 			if err != nil {
 				cmdFailedf("create subscription failed: %s", err)
 			}
-			color.Green("create subscription: %s success\n", args[0])
+
+			color.Green("create subscription: %d success\n", res.Id)
 		},
 	}
 	cmd.Flags().StringVar(&eventbus, "eventbus", "", "eventbus name to consuming")
@@ -77,14 +84,11 @@ func createSubscriptionCommand() *cobra.Command {
 
 func deleteSubscriptionCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <subscription-name> ",
+		Use:   "delete",
 		Short: "delete a subscription",
 		Run: func(cmd *cobra.Command, args []string) {
-			if len(args) == 0 {
-				color.White("eventbus name can't be empty\n")
-				color.Cyan("\n============ see below for right usage ============\n\n")
-				_ = cmd.Help()
-				os.Exit(-1)
+			if subscriptionID == 0 {
+				cmdFailedWithHelpNotice(cmd, "subscriptionID name can't be empty\n")
 			}
 			ctx := context.Background()
 			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
@@ -100,6 +104,63 @@ func deleteSubscriptionCommand() *cobra.Command {
 				cmdFailedf("delete subscription failed: %s", err)
 			}
 			color.Green("delete subscription: %s success\n", args[0])
+		},
+	}
+	cmd.Flags().Uint64Var(&subscriptionID, "id", 0, "subscription id to deleting")
+	return cmd
+}
+
+func getSubscriptionCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "info",
+		Short: "get the subscription info ",
+		Run: func(cmd *cobra.Command, args []string) {
+			if subscriptionID == 0 {
+				cmdFailedWithHelpNotice(cmd, "subscriptionID name can't be empty\n")
+			}
+			ctx := context.Background()
+			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
+			defer func() {
+				_ = grpcConn.Close()
+			}()
+
+			cli := ctrlpb.NewTriggerControllerClient(grpcConn)
+			res, err := cli.GetSubscription(ctx, &ctrlpb.GetSubscriptionRequest{
+				Id: subscriptionID,
+			})
+			if err != nil {
+				cmdFailedf("get subscription info failed: %s", err)
+			}
+			data, _ := json.Marshal(res)
+			var out bytes.Buffer
+			_ = json.Indent(&out, data, "", "\t")
+			color.Green("%s", out.String())
+		},
+	}
+	cmd.Flags().Uint64Var(&subscriptionID, "id", 0, "subscription id to deleting")
+	return cmd
+}
+
+func listSubscriptionCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "list the subscription ",
+		Run: func(cmd *cobra.Command, args []string) {
+			ctx := context.Background()
+			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
+			defer func() {
+				_ = grpcConn.Close()
+			}()
+
+			cli := ctrlpb.NewTriggerControllerClient(grpcConn)
+			res, err := cli.ListSubscription(ctx, &empty.Empty{})
+			if err != nil {
+				cmdFailedf("list subscription failed: %s", err)
+			}
+			data, _ := json.Marshal(res)
+			var out bytes.Buffer
+			_ = json.Indent(&out, data, "", "\t")
+			color.Green("%s", out.String())
 		},
 	}
 	cmd.Flags().Uint64Var(&subscriptionID, "id", 0, "subscription id to deleting")

@@ -173,6 +173,15 @@ func (ctrl *controller) GetEventBus(ctx context.Context,
 	return ebMD, nil
 }
 
+func (ctrl *controller) ListEventBus(ctx context.Context, _ *emptypb.Empty) (*ctrlpb.ListEventbusResponse, error) {
+	eventbusList := make([]*metapb.EventBus, 0)
+	for _, v := range ctrl.eventBusMap {
+		ebMD := metadata.Convert2ProtoEventBus(v)[0]
+		eventbusList = append(eventbusList, ebMD)
+	}
+	return &ctrlpb.ListEventbusResponse{Eventbus: eventbusList}, nil
+}
+
 func (ctrl *controller) UpdateEventBus(ctx context.Context,
 	req *ctrlpb.UpdateEventBusRequest) (*metapb.EventBus, error) {
 	observability.EntryMark(ctx)
