@@ -12,17 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package block
+package transport
 
 import (
 	// standard libraries.
-	"testing"
+	"context"
 
-	// third-party libraries.
-	. "github.com/smartystreets/goconvey/convey"
+	// first-party libraries.
+	"github.com/linkall-labs/raft/raftpb"
 )
 
-func TestReplica(t *testing.T) {
-	Convey("test cloud event marshall and unmarshall", t, func() {
-	})
+type loopback struct {
+	addr string
+	dmu  Demultiplexer
+}
+
+var _ Multiplexer = (*loopback)(nil)
+
+func (lo *loopback) Send(msg *raftpb.Message) {
+	_ = lo.dmu.Receive(context.TODO(), msg, lo.addr)
+}
+
+func (lo *loopback) Sendv(msgs []*raftpb.Message) {
+	for _, msg := range msgs {
+		_ = lo.dmu.Receive(context.TODO(), msg, lo.addr)
+	}
 }

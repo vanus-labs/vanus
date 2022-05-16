@@ -72,10 +72,6 @@ var _ transport.Receiver = (*Replica)(nil)
 func NewReplica(ctx context.Context, block SegmentBlock, raftLog *raftlog.Log, sender transport.Sender) *Replica {
 	blockID := block.SegmentBlockID()
 
-	// TODO(james.yin): Recover the in-memory storage from persistent snapshot, state and entries.
-	// log.ApplySnapshot(snapshot)
-	// log.SetHardState(state)
-
 	ctx, cancel := context.WithCancel(ctx)
 
 	r := &Replica{
@@ -94,8 +90,11 @@ func NewReplica(ctx context.Context, block SegmentBlock, raftLog *raftlog.Log, s
 		ElectionTick:              10,
 		HeartbeatTick:             3,
 		Storage:                   raftLog,
+		Applied:                   raftLog.Applied(),
+		Compacted:                 raftLog.Compacted(),
 		MaxSizePerMsg:             4096,
 		MaxInflightMsgs:           256,
+		PreVote:                   true,
 		DisableProposalForwarding: true,
 	}
 	r.node = raft.RestartNode(c)
@@ -130,15 +129,15 @@ func (r *Replica) run() {
 	t := time.NewTicker(100 * time.Millisecond)
 	defer t.Stop()
 
-	var hardState raftpb.HardState
 	for {
 		select {
 		case <-t.C:
 			r.node.Tick()
 		case rd := <-r.node.Ready():
-			// TODO(james.yin): hard state
 			if !raft.IsEmptyHardState(rd.HardState) {
-				hardState = rd.HardState
+				if err := r.log.SetHardState(rd.HardState); err != nil {
+					panic(err)
+				}
 			}
 
 			if err := r.log.Append(rd.Entries); err != nil {
@@ -150,7 +149,7 @@ func (r *Replica) run() {
 				isLeader := rd.SoftState.RaftState == raft.StateLeader
 				// reset when become leader
 				if isLeader {
-					r.reset(hardState)
+					r.reset()
 				}
 				r.isLeader = isLeader
 			}
@@ -159,42 +158,54 @@ func (r *Replica) run() {
 			// are committed to stable storage.
 			r.send(rd.Messages)
 
+			var applied uint64
+
 			// TODO(james.yin): snapshot
 			if !raft.IsEmptySnap(rd.Snapshot) {
 				// processSnapshot(rd.Snapshot)
+				// applied = rd.Snapshot.Metadata.Index
 			}
 
-			for _, entrypb := range rd.CommittedEntries {
-				if entrypb.Type == raftpb.EntryNormal {
-					// Skip empty entry(raft heartbeat).
-					if len(entrypb.Data) > 0 {
-						r.doAppend(entrypb)
+			if num := len(rd.CommittedEntries); num != 0 {
+				var cs *raftpb.ConfState
+
+				entries := make([]Entry, 0, num)
+				for i := range rd.CommittedEntries {
+					entrypb := &rd.CommittedEntries[i]
+
+					if entrypb.Type == raftpb.EntryNormal {
+						// Skip empty entry(raft heartbeat).
+						if len(entrypb.Data) > 0 {
+							entry := UnmarshalWithOffsetAndIndex(entrypb.Data)
+							entries = append(entries, entry)
+						}
+						continue
 					}
-					continue
+
+					// Change membership.
+					cs = r.applyConfChange(entrypb)
 				}
 
-				// change membership
-				var cci raftpb.ConfChangeI
-				if entrypb.Type == raftpb.EntryConfChange {
-					var cc raftpb.ConfChange
-					if err := cc.Unmarshal(entrypb.Data); err != nil {
+				if len(entries) > 0 {
+					r.doAppend(entries...)
+				}
+
+				// ConfState is changed.
+				if cs != nil {
+					if err := r.log.SetConfState(*cs); err != nil {
 						panic(err)
 					}
-					// TODO(james.yin): non-add
-					r.hintEndpoint(cc.NodeID, string(cc.Context))
-					cci = cc
-				} else {
-					var cc raftpb.ConfChangeV2
-					if err := cc.Unmarshal(entrypb.Data); err != nil {
-						panic(nil)
-					}
-					// TODO(james.yin): non-add
-					for _, ccs := range cc.Changes {
-						r.hintEndpoint(ccs.NodeID, string(cc.Context))
-					}
-					cci = cc
 				}
-				r.node.ApplyConfChange(cci)
+
+				applied = rd.CommittedEntries[len(rd.CommittedEntries)-1].Index
+			}
+
+			if applied != 0 {
+				r.log.SetApplied(applied)
+			}
+
+			if rd.Compact != 0 {
+				_ = r.log.Compact(rd.Compact)
 			}
 
 			r.node.Advance()
@@ -206,10 +217,39 @@ func (r *Replica) run() {
 	}
 }
 
-func (r *Replica) reset(hardState raftpb.HardState) {
+func (r *Replica) applyConfChange(entrypb *raftpb.Entry) *raftpb.ConfState {
+	if entrypb.Type == raftpb.EntryNormal {
+		// TODO(james.yin): return error
+		return nil
+	}
+
+	var cci raftpb.ConfChangeI
+	if entrypb.Type == raftpb.EntryConfChange {
+		var cc raftpb.ConfChange
+		if err := cc.Unmarshal(entrypb.Data); err != nil {
+			panic(err)
+		}
+		// TODO(james.yin): non-add
+		r.hintEndpoint(cc.NodeID, string(cc.Context))
+		cci = cc
+	} else {
+		var cc raftpb.ConfChangeV2
+		if err := cc.Unmarshal(entrypb.Data); err != nil {
+			panic(err)
+		}
+		// TODO(james.yin): non-add
+		for _, ccs := range cc.Changes {
+			r.hintEndpoint(ccs.NodeID, string(cc.Context))
+		}
+		cci = cc
+	}
+	return r.node.ApplyConfChange(cci)
+}
+
+func (r *Replica) reset() {
 	off, err := r.log.LastIndex()
 	if err != nil {
-		off = hardState.Commit
+		off = r.log.HardState().Commit
 	}
 
 	for off > 0 {
@@ -228,7 +268,7 @@ func (r *Replica) reset(hardState raftpb.HardState) {
 			break
 		}
 
-		off -= 1
+		off--
 	}
 
 	// no normal entry
@@ -317,18 +357,27 @@ func (r *Replica) preAppend(ctx context.Context, entries []Entry) error {
 	return nil
 }
 
-func (r *Replica) doAppend(entrypb raftpb.Entry) {
-	entry := UnmarshalWithOffsetAndIndex(entrypb.Data)
-
-	// TODO(james.yin): full
-	if len(entry.Payload) <= 0 {
-		r.full = true
-		r.block.full.Store(true)
+func (r *Replica) doAppend(entries ...Entry) {
+	num := len(entries)
+	if num == 0 {
 		return
 	}
 
+	last := &entries[num-1]
+	if len(last.Payload) == 0 {
+		entries = entries[:num-1]
+	} else {
+		last = nil
+	}
+
 	// FIXME(james.yin): context
-	r.block.Append(context.Background(), entry)
+	r.block.appendWithOffset(context.TODO(), entries...)
+
+	// Mark full.
+	if last != nil {
+		r.full = true
+		r.block.full.Store(true)
+	}
 }
 
 func (r *Replica) send(msgs []raftpb.Message) {

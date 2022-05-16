@@ -15,31 +15,40 @@
 package block
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	"encoding/binary"
+	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
-	// third-party libraries
+	// third-party libraries.
 	"go.uber.org/atomic"
 
-	// first-party libraries
+	// first-party libraries.
 	"github.com/linkall-labs/vsproto/pkg/meta"
 
-	// this project
+	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/store/segment/errors"
 	"github.com/linkall-labs/vanus/observability"
+	"github.com/linkall-labs/vanus/observability/log"
 )
 
 const (
+	blockExt            = ".block"
 	fileBlockHeaderSize = 4 * 1024
 
 	// version + capacity + size + number + full
 	v1FileBlockHeaderLength = 4 + 8 + 4 + 8 + 1
 	entryLengthSize         = 4
 )
+
+func resolvePath(blockDir string, id vanus.ID) string {
+	return filepath.Join(blockDir, fmt.Sprintf("%020d%s", id.Uint64(), blockExt))
+}
 
 type fileBlock struct {
 	version int32
@@ -146,7 +155,102 @@ func (b *fileBlock) Append(ctx context.Context, entities ...Entry) error {
 	return nil
 }
 
-// Read date from file
+func (b *fileBlock) appendWithOffset(ctx context.Context, entries ...Entry) error {
+	if len(entries) == 0 {
+		return nil
+	}
+
+	num := uint32(b.num.Load())
+	for i := 0; i < len(entries); i++ {
+		switch entry := &entries[i]; {
+		case entry.Index < num:
+			log.Warning(ctx, "block: entry index less than block num, skip this entry.", map[string]interface{}{
+				"index": entry.Index,
+				"num":   num,
+			})
+			continue
+		case entry.Index > num:
+			log.Error(ctx, "block: entry index greater than block num.", map[string]interface{}{
+				"index": entry.Index,
+				"num":   num,
+			})
+			return errors.ErrInternal
+		}
+		if i != 0 {
+			entries = entries[i:]
+		}
+		break
+	}
+	if len(entries) == 0 {
+		return nil
+	}
+
+	wo := uint32(b.wo.Load())
+	offset := entries[0].Offset
+	if offset != wo {
+		log.Error(ctx, "block: entry offset is not equal than block wo.", map[string]interface{}{
+			"offset": offset,
+			"wo":     wo,
+		})
+		return errors.ErrInternal
+	}
+
+	for i := 1; i < len(entries); i++ {
+		entry := &entries[i]
+		prev := &entries[i-1]
+		if prev.Index+1 != entry.Index {
+			log.Error(ctx, "block: entry index is discontinuous.", map[string]interface{}{
+				"index": entry.Index,
+				"prev":  prev.Index,
+			})
+			return errors.ErrInternal
+		}
+		if prev.Offset+uint32(prev.Size()) != entry.Offset {
+			log.Error(ctx, "block: entry offset is discontinuous.", map[string]interface{}{
+				"offset": entry.Offset,
+				"prev":   prev.Offset,
+			})
+			return errors.ErrInternal
+		}
+	}
+
+	last := &entries[len(entries)-1]
+	length := int(last.Offset-offset) + last.Size()
+
+	// Check free space.
+	if length+v1IndexLength*len(entries) > b.remaining() {
+		b.full.Store(true)
+		return ErrNoEnoughCapacity
+	}
+
+	buf := make([]byte, length)
+	indexs := make([]index, 0, len(entries))
+	for _, entry := range entries {
+		n, _ := entry.MarshalTo(buf[entry.Offset-offset:])
+		indexs = append(indexs, index{
+			offset: int64(entry.Offset),
+			length: int32(n),
+		})
+	}
+
+	n, err := b.f.WriteAt(buf, int64(offset))
+	if err != nil {
+		return err
+	}
+
+	b.indexes = append(b.indexes, indexs...)
+
+	b.num.Add(int32(len(entries)))
+	b.wo.Add(int64(n))
+	b.size.Add(int64(n))
+
+	//if err = b.physicalFile.Sync(); err != nil {
+	//	return err
+	//}
+
+	return nil
+}
+
 func (b *fileBlock) Read(ctx context.Context, entityStartOffset, number int) ([]Entry, error) {
 	observability.EntryMark(ctx)
 	b.uncompletedReadRequestCount.Add(1)

@@ -17,28 +17,26 @@ package log
 import (
 	// standard libraries.
 	"context"
+	"fmt"
 	"sync"
 
-	// third-party libraries.
+	// first-party libraries.
 	"github.com/linkall-labs/raft"
 	"github.com/linkall-labs/raft/raftpb"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	walog "github.com/linkall-labs/vanus/internal/store/wal"
+	"github.com/linkall-labs/vanus/internal/store/meta"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type Log struct {
 	// Protects access to all fields. Most methods of Log are
-	// run on the raft goroutine, but Append() is run on an application
-	// goroutine.
+	// run on the raft goroutine, but Append() and Compact() is run on an
+	// application goroutine.
 	sync.RWMutex
 
 	nodeID vanus.ID
-
-	hardState raftpb.HardState
-	confState raftpb.ConfState
 
 	// ents[0] is a dummy entry, which record compact information.
 	// ents[i] has raft log position i+snapshot.Metadata.Index.
@@ -46,39 +44,104 @@ type Log struct {
 	// offs[i] is the offset of ents[i] in WAL.
 	offs []int64
 
-	wal *walog.WAL
+	wal *WAL
+
+	metaStore   *meta.SyncStore
+	offsetStore *meta.AsyncStore
+
+	prevHardSt raftpb.HardState
+
+	hsKey  []byte
+	offKey []byte
+	csKey  []byte
+	appKey []byte
 }
 
 // Make sure Log implements raft.Storage.
 var _ raft.Storage = (*Log)(nil)
 
 // NewLog creates an empty Log.
-func NewLog(nodeID vanus.ID, wal *walog.WAL, peers []uint64) *Log {
+func NewLog(nodeID vanus.ID, wal *WAL, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore) *Log {
 	return &Log{
 		nodeID: nodeID,
-		confState: raftpb.ConfState{
-			Voters: peers,
-		},
 		// When starting from scratch populate the list with a dummy entry at term zero.
-		ents: make([]raftpb.Entry, 1),
-		offs: make([]int64, 1),
-		wal:  wal,
+		ents:        make([]raftpb.Entry, 1),
+		offs:        make([]int64, 1),
+		wal:         wal,
+		metaStore:   metaStore,
+		offsetStore: offsetStore,
+		hsKey:       []byte(fmt.Sprintf("block/%020d/hardState", nodeID.Uint64())),
+		offKey:      []byte(fmt.Sprintf("block/%020d/commit", nodeID.Uint64())),
+		csKey:       []byte(fmt.Sprintf("block/%020d/confState", nodeID.Uint64())),
+		appKey:      []byte(fmt.Sprintf("block/%020d/applied", nodeID.Uint64())),
 	}
 }
 
 // InitialState returns the saved HardState and ConfState information.
 func (l *Log) InitialState() (raftpb.HardState, raftpb.ConfState, error) {
-	l.RLock()
-	defer l.RUnlock()
-	return l.hardState, l.confState, nil
+	hs, err := l.recoverHardState()
+	if err != nil {
+		return raftpb.HardState{}, raftpb.ConfState{}, err
+	}
+	if compacted := l.Compacted(); hs.Commit < compacted {
+		hs.Commit = compacted
+	}
+	l.prevHardSt = hs
+
+	cs, err := l.recoverConfState()
+	if err != nil {
+		return raftpb.HardState{}, raftpb.ConfState{}, err
+	}
+
+	return hs, cs, nil
+}
+
+// HardState returns the saved HardState.
+//
+// NOTE: This method is not thread-safty, it must be used in goroutine which call SetHardState!!!
+func (l *Log) HardState() raftpb.HardState {
+	return l.prevHardSt
 }
 
 // SetHardState saves the current HardState.
-func (l *Log) SetHardState(st raftpb.HardState) error {
-	l.Lock()
-	defer l.Unlock()
-	l.hardState = st
+func (l *Log) SetHardState(hs raftpb.HardState) (err error) {
+	if hs.Term != l.prevHardSt.Term || hs.Vote != l.prevHardSt.Vote {
+		var data []byte
+		if data, err = hs.Marshal(); err != nil {
+			return err
+		}
+		l.metaStore.Store(l.hsKey, data)
+		l.prevHardSt = hs
+	} else {
+		l.offsetStore.Store(l.offKey, hs.Commit)
+		l.prevHardSt.Commit = hs.Commit
+	}
 	return nil
+}
+
+func (l *Log) SetConfState(cs raftpb.ConfState) error {
+	data, err := cs.Marshal()
+	if err != nil {
+		return err
+	}
+	l.metaStore.Store(l.csKey, data)
+	return nil
+}
+
+func (l *Log) Applied() uint64 {
+	applied := l.recoverApplied()
+	if compacted := l.Compacted(); applied < compacted {
+		return compacted
+	}
+	return applied
+}
+
+func (l *Log) SetApplied(app uint64) {
+	l.offsetStore.Store(l.appKey, app)
+}
+
+func (l *Log) Compacted() uint64 {
+	return l.ents[0].Index
 }
 
 // Entries returns a slice of log entries in the range [lo,hi).
@@ -208,78 +271,6 @@ func (l *Log) ApplySnapshot(snap raftpb.Snapshot) error {
 	return nil
 }
 
-// CreateSnapshot makes a snapshot which can be retrieved with Snapshot() and
-// can be used to reconstruct the state at that point.
-// If any configuration changes have been made since the last compaction,
-// the result of the last ApplyConfChange must be passed in.
-func (l *Log) CreateSnapshot(i uint64, cs *raftpb.ConfState, data []byte) (raftpb.Snapshot, error) {
-	l.Lock()
-	defer l.Unlock()
-
-	//if i <= l.snapshot.Metadata.Index {
-	//	log.Warning(context.Background(), "snapshot is out of date", map[string]interface{}{})
-	//	return raftpb.Snapshot{}, raft.ErrSnapOutOfDate
-	//}
-
-	//if i > l.lastIndex() {
-	//	log.Error(context.Background(), "snampshotIndex is out of bound lastIndex", map[string]interface{}{
-	//		"snapshotIndex": i,
-	//		"lastIndex":     l.lastIndex(),
-	//	})
-	//	// FIXME(james.yin): error
-	//	return raftpb.Snapshot{}, raft.ErrSnapOutOfDate
-	//}
-
-	//l.snapshot.Metadata.Index = i
-	//l.snapshot.Metadata.Term = l.ents[i-l.compactedIndex()].Term
-	//if cs != nil {
-	//	l.snapshot.Metadata.ConfState = *cs
-	//}
-	//l.snapshot.Data = data
-	//return l.snapshot, nil
-
-	return raftpb.Snapshot{}, raft.ErrSnapshotTemporarilyUnavailable
-}
-
-// Compact discards all log entries prior to compactIndex.
-// It is the application's responsibility to not attempt to compact an index
-// greater than raftLog.applied.
-func (l *Log) Compact(i uint64) error {
-	l.Lock()
-	defer l.Unlock()
-
-	ci := l.compactedIndex()
-	if i <= ci {
-		log.Warning(context.Background(), "raft log has been compacted", map[string]interface{}{})
-		return raft.ErrCompacted
-	}
-	if i > l.lastIndex() {
-		log.Error(context.Background(), "conpactedIndex is out of bound lastIndex", map[string]interface{}{
-			"compactedIndex": i,
-			"lastIndex":      l.lastIndex(),
-		})
-		// FIXME(james.yin): error
-		return raft.ErrCompacted
-	}
-
-	sz := i - ci
-	ents := make([]raftpb.Entry, 1, 1+l.length()-sz)
-
-	// save compact information to dummy entry
-	ents[0].Index = l.ents[sz].Index
-	ents[0].Term = l.ents[sz].Term
-
-	// copy remained entries
-	if sz < l.length() {
-		ents = append(ents, l.ents[sz+1:]...)
-	}
-
-	// reset log entries
-	l.ents = ents
-
-	return nil
-}
-
 // Append the new entries to storage.
 func (l *Log) Append(entries []raftpb.Entry) error {
 	if len(entries) == 0 {
@@ -292,6 +283,9 @@ func (l *Log) Append(entries []raftpb.Entry) error {
 			log.Warning(context.Background(), "entries to append are discontinuous", map[string]interface{}{})
 			// FIXME(james.yin): error
 			return raft.ErrUnavailable
+		}
+		if entries[i].Term != entries[i-1].Term {
+			entries[i].PrevTerm = entries[i-1].PrevTerm
 		}
 	}
 
@@ -324,8 +318,35 @@ func (l *Log) Append(entries []raftpb.Entry) error {
 		firstToAppend = entries[0].Index
 	}
 
+	pi := firstToAppend - firstInLog
+	if entries[0].Term != l.ents[pi].Term {
+		entries[0].PrevTerm = l.ents[pi].Term
+	}
+
 	// Append to WAL.
-	offsets, err := l.appendToWAL(entries)
+	var err error
+	var offsets []int64
+	func() {
+		l.Unlock()
+		defer l.Lock()
+
+		if firstToAppend == firstInLog {
+			if l.wal.suppressCompact(func() (compactTask, error) {
+				if offsets, err = l.appendToWAL(entries); err != nil {
+					return compactTask{}, err
+				}
+				return compactTask{
+					offset: offsets[0],
+					last:   l.offs[0],
+				}, nil
+			}) == nil {
+				// Record offset of first entry in WAL.
+				l.offs[0] = offsets[0]
+			}
+		} else {
+			offsets, err = l.appendToWAL(entries)
+		}
+	}()
 	if err != nil {
 		// FIXME(james.yin): correct error
 		return err
@@ -338,7 +359,7 @@ func (l *Log) Append(entries []raftpb.Entry) error {
 		l.offs = append(l.offs, offsets...)
 	} else {
 		// truncate then append: firstToAppend < expectedToAppend
-		si := firstToAppend - firstInLog
+		si := pi + 1
 		l.ents = append([]raftpb.Entry{}, l.ents[:si]...)
 		l.ents = append(l.ents, entries...)
 		l.offs = append([]int64{}, l.offs[:si]...)
@@ -360,42 +381,4 @@ func (l *Log) appendToWAL(entries []raftpb.Entry) ([]int64, error) {
 		ents[i] = ent
 	}
 	return l.wal.Append(ents)
-}
-
-func (l *Log) appendInRecovery(entry raftpb.Entry, offset int64) error {
-	firstInLog := l.firstIndex()
-	expectedToAppend := l.lastIndex() + 1
-	index := entry.Index
-
-	if expectedToAppend < index {
-		log.Error(context.Background(), "missing log entries", map[string]interface{}{
-			"lastIndex":     expectedToAppend - 1,
-			"appendedIndex": index,
-		})
-		// FIXME(james.yin): correct error
-		return raft.ErrUnavailable
-	}
-
-	// write to cache
-	if index == expectedToAppend {
-		// append
-		l.ents = append(l.ents, entry)
-		l.offs = append(l.offs, offset)
-	} else if index < firstInLog {
-		// reset
-		l.ents = []raftpb.Entry{{
-			Index: entry.Index - 1,
-			// TODO(james.yin): set Term
-		}, entry}
-		l.offs = []int64{0}
-	} else {
-		// truncate then append
-		si := index - firstInLog
-		l.ents = append([]raftpb.Entry{}, l.ents[:si]...)
-		l.ents = append(l.ents, entry)
-		l.offs = append([]int64{}, l.offs[:si]...)
-		l.offs = append(l.offs, offset)
-	}
-
-	return nil
 }

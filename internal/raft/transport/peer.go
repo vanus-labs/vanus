@@ -17,6 +17,9 @@ package transport
 import (
 	// standard libraries.
 	"context"
+	"errors"
+	"io"
+	"time"
 
 	// third-party libraries.
 	"google.golang.org/grpc"
@@ -27,9 +30,15 @@ import (
 	vsraftpb "github.com/linkall-labs/vsproto/pkg/raft"
 )
 
+const (
+	defaultTimeoutMilliseconds = 300
+	defaultMessageChainSize    = 32
+)
+
 type peer struct {
 	addr   string
 	msgc   chan *raftpb.Message
+	stream vsraftpb.RaftServer_SendMsssageClient
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -42,7 +51,7 @@ func newPeer(ctx context.Context, endpoint string, callback string) *peer {
 
 	p := &peer{
 		addr:   endpoint,
-		msgc:   make(chan *raftpb.Message),
+		msgc:   make(chan *raftpb.Message, defaultMessageChainSize),
 		ctx:    ctx,
 		cancel: cancel,
 	}
@@ -53,30 +62,34 @@ func newPeer(ctx context.Context, endpoint string, callback string) *peer {
 }
 
 func (p *peer) run(callback string) {
-	opts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials())}
+	opts := []grpc.DialOption{
+		grpc.WithBlock(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
 
 	preface := raftpb.Message{
 		Context: []byte(callback),
 	}
-	var stream vsraftpb.RaftServer_SendMsssageClient
 
 loop:
 	for {
 		var err error
 		select {
 		case msg := <-p.msgc:
-			// TODO(james.yin): reconnect
+			stream := p.stream
 			if stream == nil {
 				if stream, err = p.connect(opts...); err != nil {
+					p.processSendError(err)
 					break
 				}
+				p.stream = stream
 				if err = stream.Send(&preface); err != nil {
-					// TODO(james.yin): handle err
+					p.processSendError(err)
+					break
 				}
 			}
-			err = stream.Send(msg)
-			if err != nil {
-				// TODO(james.yin): handle error
+			if err = stream.Send(msg); err != nil {
+				p.processSendError(err)
 				break
 			}
 		case <-p.ctx.Done():
@@ -84,8 +97,16 @@ loop:
 		}
 	}
 
-	if stream != nil {
-		stream.CloseAndRecv()
+	if p.stream != nil {
+		_, _ = p.stream.CloseAndRecv()
+	}
+}
+
+func (p *peer) processSendError(err error) {
+	// TODO(james.yin): report MsgUnreachable, backoff
+	if errors.Is(err, io.EOF) {
+		_, _ = p.stream.CloseAndRecv()
+		p.stream = nil
 	}
 }
 
@@ -96,8 +117,9 @@ func (p *peer) Close() {
 func (p *peer) Send(msg *raftpb.Message) {
 	// TODO(james.yin):
 	select {
-	case p.msgc <- msg:
 	case <-p.ctx.Done():
+		return
+	case p.msgc <- msg:
 	}
 }
 
@@ -108,10 +130,15 @@ func (p *peer) Sendv(msgs []*raftpb.Message) {
 }
 
 func (p *peer) connect(opts ...grpc.DialOption) (vsraftpb.RaftServer_SendMsssageClient, error) {
-	conn, err := grpc.DialContext(context.TODO(), p.addr, opts...)
+	timeout := defaultTimeoutMilliseconds * time.Millisecond
+	ctx, cancel := context.WithTimeout(p.ctx, timeout)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, p.addr, opts...)
 	if err != nil {
 		return nil, err
 	}
+
 	client := vsraftpb.NewRaftServerClient(conn)
 	stream, err := client.SendMsssage(context.TODO())
 	if err != nil {

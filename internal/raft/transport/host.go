@@ -15,11 +15,11 @@
 package transport
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	"sync"
 
-	// third-party libraries
+	// third-party libraries.
 	"github.com/linkall-labs/raft/raftpb"
 )
 
@@ -35,6 +35,7 @@ type host struct {
 	receivers sync.Map
 	resolver  Resolver
 	callback  string
+	lo        Multiplexer
 }
 
 // Make sure host implements Host.
@@ -44,6 +45,10 @@ func NewHost(resolver Resolver, callback string) Host {
 	h := &host{
 		resolver: resolver,
 		callback: callback,
+	}
+	h.lo = &loopback{
+		addr: callback,
+		dmu:  h,
 	}
 	return h
 }
@@ -70,6 +75,11 @@ func (h *host) resolveMultiplexer(ctx context.Context, to uint64, endpoint strin
 			return nil
 		}
 	}
+
+	if endpoint == h.callback {
+		return h.lo
+	}
+
 	if mux, ok := h.peers.Load(endpoint); ok {
 		return mux.(*peer)
 	}
