@@ -1,11 +1,12 @@
 VANUS_ROOT=$(shell pwd)
 VSPROTO_ROOT=$(VANUS_ROOT)/../vsproto
+GIT_COMMIT=$(shell git log -1 --format='%h' | awk '{print $0}')
 
 export VANUS_LOG_LEVEL=debug
 
 DOCKER_REGISTRY ?= public.ecr.aws
 DOCKER_REPO ?= ${DOCKER_REGISTRY}/t8a4l2d7
-IMAGE_TAG ?= latest
+IMAGE_TAG ?= ${GIT_COMMIT}
 #os linux or darwin
 GOOS ?= linux
 #arch amd64 or arm64
@@ -34,6 +35,13 @@ docker-build-gateway:
 	docker build -t ${DOCKER_REPO}/gateway:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/gateway/Dockerfile ../
 build-gateway:
 	$(GO_BUILD)  -o bin/gateway cmd/gateway/main.go
+
+docker-push-cmd: docker-build-cmd
+	docker push ${DOCKER_REPO}/vsctl:${IMAGE_TAG}
+docker-build-cmd:
+	docker build -t ${DOCKER_REPO}/vsctl:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/vsctl/Dockerfile ../
+build-cmd:
+	$(GO_BUILD)  -o bin/vsctl vsctl/main.go
 
 docker-push-controller: docker-build-controller
 	docker push ${DOCKER_REPO}/controller:${IMAGE_TAG}
