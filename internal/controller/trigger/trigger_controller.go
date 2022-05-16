@@ -193,8 +193,11 @@ func (ctrl *triggerController) UnregisterTriggerWorker(ctx context.Context, requ
 }
 
 func (ctrl *triggerController) ListSubscription(ctx context.Context, _ *emptypb.Empty) (*ctrlpb.ListSubscriptionResponse, error) {
-	// TODO
-	return &ctrlpb.ListSubscriptionResponse{}, nil
+	subscriptionList := make([]*meta.Subscription, 0)
+	for _, sub := range ctrl.subscriptionManager.ListSubscription(ctx) {
+		subscriptionList = append(subscriptionList, convert.ToPbSubscription(sub))
+	}
+	return &ctrlpb.ListSubscriptionResponse{Subscription: subscriptionList}, nil
 }
 
 //gcSubscription before delete subscription,need

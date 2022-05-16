@@ -26,9 +26,10 @@ var (
 	number            int16
 
 	// for vsctl eventbus and subscription
-	eventbus       string
-	source         string
-	sink           string
-	filters        string
-	subscriptionID uint64
+	eventbus         string
+	source           string
+	sink             string
+	filters          string
+	inputTransformer string
+	subscriptionID   uint64
 )

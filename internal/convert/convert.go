@@ -32,44 +32,32 @@ func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *primitive.Su
 		Protocol:         sub.Protocol,
 		ProtocolSettings: sub.ProtocolSettings,
 		EventBus:         sub.EventBus,
-	}
-	if len(sub.Filters) != 0 {
-		to.Filters = fromPbFilters(sub.Filters)
-	}
-	if sub.InputTransformer != nil {
-		to.InputTransformer = fromPbInputTransformer(sub.InputTransformer)
+		Filters:          fromPbFilters(sub.Filters),
+		InputTransformer: fromPbInputTransformer(sub.InputTransformer),
 	}
 	return to
 }
 
 func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Subscription {
 	to := &primitive.Subscription{
-		ID:       vanus.ID(sub.Id),
-		Sink:     primitive.URI(sub.Sink),
-		EventBus: sub.EventBus,
-		Offsets:  FromPbOffsetInfos(sub.Offsets),
-	}
-	if len(sub.Filters) != 0 {
-		to.Filters = fromPbFilters(sub.Filters)
-	}
-	if sub.InputTransformer != nil {
-		to.InputTransformer = fromPbInputTransformer(sub.InputTransformer)
+		ID:               vanus.ID(sub.Id),
+		Sink:             primitive.URI(sub.Sink),
+		EventBus:         sub.EventBus,
+		Offsets:          FromPbOffsetInfos(sub.Offsets),
+		Filters:          fromPbFilters(sub.Filters),
+		InputTransformer: fromPbInputTransformer(sub.InputTransformer),
 	}
 	return to
 }
 
 func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscriptionRequest {
 	to := &pbtrigger.AddSubscriptionRequest{
-		Id:       uint64(sub.ID),
-		Sink:     string(sub.Sink),
-		EventBus: sub.EventBus,
-		Offsets:  ToPbOffsetInfos(sub.Offsets),
-	}
-	if len(sub.Filters) != 0 {
-		to.Filters = toPbFilters(sub.Filters)
-	}
-	if sub.InputTransformer != nil {
-		to.InputTransformer = toPbInputTransformer(sub.InputTransformer)
+		Id:               uint64(sub.ID),
+		Sink:             string(sub.Sink),
+		EventBus:         sub.EventBus,
+		Offsets:          ToPbOffsetInfos(sub.Offsets),
+		Filters:          toPbFilters(sub.Filters),
+		InputTransformer: toPbInputTransformer(sub.InputTransformer),
 	}
 	return to
 }
@@ -84,9 +72,8 @@ func FromPbSubscription(sub *pb.Subscription) *primitive.SubscriptionData {
 		Protocol:         sub.Protocol,
 		ProtocolSettings: sub.ProtocolSettings,
 		EventBus:         sub.EventBus,
-	}
-	if len(sub.Filters) != 0 {
-		to.Filters = fromPbFilters(sub.Filters)
+		Filters:          fromPbFilters(sub.Filters),
+		InputTransformer: fromPbInputTransformer(sub.InputTransformer),
 	}
 	return to
 }
@@ -101,14 +88,16 @@ func ToPbSubscription(sub *primitive.SubscriptionData) *pb.Subscription {
 		Protocol:         sub.Protocol,
 		ProtocolSettings: sub.ProtocolSettings,
 		EventBus:         sub.EventBus,
-	}
-	if len(sub.Filters) != 0 {
-		to.Filters = toPbFilters(sub.Filters)
+		Filters:          toPbFilters(sub.Filters),
+		InputTransformer: toPbInputTransformer(sub.InputTransformer),
 	}
 	return to
 }
 
 func fromPbFilters(filters []*pb.Filter) []*primitive.SubscriptionFilter {
+	if len(filters) == 0 {
+		return nil
+	}
 	var tos []*primitive.SubscriptionFilter
 	for _, filter := range filters {
 		f := fromPbFilter(filter)
@@ -223,6 +212,9 @@ func toPbOffsetInfo(offset info.OffsetInfo) *pb.OffsetInfo {
 	}
 }
 func fromPbInputTransformer(inputTransformer *pb.InputTransformer) *primitive.InputTransformer {
+	if inputTransformer == nil {
+		return nil
+	}
 	return &primitive.InputTransformer{
 		Define:   inputTransformer.Define,
 		Template: inputTransformer.Template,
@@ -230,6 +222,9 @@ func fromPbInputTransformer(inputTransformer *pb.InputTransformer) *primitive.In
 }
 
 func toPbInputTransformer(inputTransformer *primitive.InputTransformer) *pb.InputTransformer {
+	if inputTransformer == nil {
+		return nil
+	}
 	return &pb.InputTransformer{
 		Define:   inputTransformer.Define,
 		Template: inputTransformer.Template,
