@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vanus-vsctl
+  namespace: vanus
+  labels:
+    app: vanus-vsctl
+spec:
+  selector:
+    matchLabels:
+      app: vanus-vsctl
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: vanus-vsctl
+    spec:
+      containers:
+        - name: vsctl
+          image: public.ecr.aws/t8a4l2d7/vsctl:e254db3
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: config-vsctl
+              mountPath: /server/config
+      volumes:
+        - name: config-vsctl
+          configMap:
+            name: config-vsctl
