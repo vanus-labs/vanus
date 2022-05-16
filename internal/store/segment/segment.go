@@ -414,39 +414,42 @@ func (s *segmentServer) startHeartbeatTask(ctx context.Context) error {
 		return nil
 	}
 
-	go func() {
-		ticker := time.NewTicker(time.Second)
-		defer ticker.Stop()
+	go s.runHeartbeat(ctx)
+	return nil
+}
 
-	LOOP:
-		for {
-			select {
-			case <-s.closeCh:
-				break LOOP
-			case <-ticker.C:
-				infos := make([]*metapb.SegmentHealthInfo, 0)
-				s.blocks.Range(func(key, value interface{}) bool {
-					b, _ := value.(block.SegmentBlock)
-					infos = append(infos, b.HealthInfo())
-					return true
-				})
-				req := &ctrlpb.SegmentHeartbeatRequest{
-					ServerId:   s.id.Uint64(),
-					VolumeId:   s.volumeID.Uint64(),
-					HealthInfo: infos,
-					ReportTime: util.FormatTime(time.Now()),
-					ServerAddr: s.localAddress,
-				}
-				if err := s.cc.heartbeat(context.Background(), req); err != nil {
-					log.Warning(ctx, "send heartbeat to controller failed, connection lost. try to reconnecting", map[string]interface{}{
+func (s *segmentServer) runHeartbeat(ctx context.Context) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.closeCh:
+			return
+		case <-ticker.C:
+			infos := make([]*metapb.SegmentHealthInfo, 0)
+			s.blocks.Range(func(key, value interface{}) bool {
+				b, _ := value.(block.SegmentBlock)
+				infos = append(infos, b.HealthInfo())
+				return true
+			})
+			req := &ctrlpb.SegmentHeartbeatRequest{
+				ServerId:   s.id.Uint64(),
+				VolumeId:   s.volumeID.Uint64(),
+				HealthInfo: infos,
+				ReportTime: util.FormatTime(time.Now()),
+				ServerAddr: s.localAddress,
+			}
+			if err := s.cc.heartbeat(context.Background(), req); err != nil {
+				log.Warning(
+					ctx,
+					"Send heartbeat to controller failed, connection lost. try to reconnecting",
+					map[string]interface{}{
 						log.KeyError: err,
 					})
-				}
 			}
 		}
-		ticker.Stop()
-	}()
-	return nil
+	}
 }
 
 func (s *segmentServer) start(ctx context.Context) error {
