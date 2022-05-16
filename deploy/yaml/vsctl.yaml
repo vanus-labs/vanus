@@ -20,13 +20,3 @@ spec:
           image: public.ecr.aws/t8a4l2d7/vsctl:e254db3
           imagePullPolicy: Always
           command: ['sh', '-c', 'sleep 360000']
-          ports:
-            - name: http
-              containerPort: 8080
-          volumeMounts:
-            - name: config-vsctl
-              mountPath: /server/config
-      volumes:
-        - name: config-vsctl
-          configMap:
-            name: config-vsctl
