@@ -69,6 +69,7 @@ func putEventCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf("create ce client error: %s\n", err)
 			}
+			fmt.Printf("endpoint: %s\n", endpoint)
 			ctx := ce.ContextWithTarget(context.Background(), fmt.Sprintf("http://%s/gateway/%s", endpoint, args[0]))
 
 			if dataFile == "" {
