@@ -101,7 +101,7 @@ metadata:
   name: vanus-grafana
   namespace: vanus
 spec:
-  clusterIP: None
+  type: NodePort
   ports:
     - name: vanus-grafana
       nodePort: 3000
