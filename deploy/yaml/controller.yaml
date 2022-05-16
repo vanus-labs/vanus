@@ -93,10 +93,6 @@ spec:
         - name: controller
           image: public.ecr.aws/t8a4l2d7/controller:latest
           imagePullPolicy: Always
-          resources:
-            requests:
-              cpu: 100m
-              memory: 100Mi
           livenessProbe:
             grpc:
               port: 2048

@@ -20,10 +20,6 @@ spec:
           image: public.ecr.aws/t8a4l2d7/vsctl:e254db3
           imagePullPolicy: Always
           command: ['sh', '-c', 'sleep 360000']
-          resources:
-            requests:
-              cpu: 100m
-              memory: 100Mi
           ports:
             - name: http
               containerPort: 8080

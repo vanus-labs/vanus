@@ -116,10 +116,6 @@ spec:
         ports:
         - containerPort: 8080
           name: http
-        resources:
-          requests:
-            cpu: 100m
-            memory: 100Mi
         volumeMounts:
         - mountPath: /server/config
           name: config-gateway
@@ -164,10 +160,6 @@ spec:
         ports:
         - containerPort: 2148
           name: grpc
-        resources:
-          requests:
-            cpu: 100m
-            memory: 100Mi
         volumeMounts:
         - mountPath: /server/config
           name: config-trigger
@@ -221,10 +213,6 @@ spec:
           name: etcd-client
         - containerPort: 2380
           name: etcd-peer
-        resources:
-          requests:
-            cpu: 100m
-            memory: 100Mi
         volumeMounts:
         - mountPath: /server/config
           name: config-controller
@@ -287,10 +275,6 @@ spec:
         ports:
         - containerPort: 11811
           name: grpc
-        resources:
-          requests:
-            cpu: 100m
-            memory: 100Mi
         volumeMounts:
         - mountPath: /server/config
           name: config-store
