@@ -38,7 +38,7 @@ var (
 		Subsystem: moduleOfController,
 		Name:      "segment_number",
 		Help:      "The number of Segment.",
-	}, []string{LabelType, LabelEventlog})
+	}, []string{LabelType})
 
 	// BlockCounterVec move to store module?
 	BlockCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{

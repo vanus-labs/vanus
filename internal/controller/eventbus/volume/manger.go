@@ -17,16 +17,16 @@ package volume
 import (
 	"context"
 	"encoding/json"
+	"path/filepath"
+	"strings"
+	"sync"
+
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
-	"path/filepath"
-	"sync"
 )
-
-const ()
 
 type Manager interface {
 	Init(ctx context.Context, kvClient kv.Client) error
@@ -35,6 +35,7 @@ type Manager interface {
 	UpdateRouting(ctx context.Context, ins server.Instance, srv server.Server)
 	GetVolumeInstanceByID(id vanus.ID) server.Instance
 	LookupVolumeByServerID(id vanus.ID) server.Instance
+	GetBlocksOfVolume(ctx context.Context, instance server.Instance) (map[uint64]*metadata.Block, error)
 }
 
 var (
@@ -202,4 +203,23 @@ func (mgr *volumeMgr) UpdateRouting(ctx context.Context, ins server.Instance, sr
 	}
 	ins.SetServer(srv)
 	mgr.volInstanceMap.Store(ins.ID().Key(), ins)
+}
+
+func (mgr *volumeMgr) GetBlocksOfVolume(ctx context.Context, instance server.Instance) (map[uint64]*metadata.Block, error) {
+	pairs, err := mgr.kvCli.List(ctx, strings.Join([]string{metadata.BlockKeyPrefixInKVStore,
+		instance.ID().String()}, "/"))
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[uint64]*metadata.Block, 0)
+	for idx := range pairs {
+		pair := pairs[idx]
+		bl := &metadata.Block{}
+		err := json.Unmarshal(pair.Value, bl)
+		if err != nil {
+			return nil, err
+		}
+		result[bl.ID.Uint64()] = bl
+	}
+	return result, nil
 }

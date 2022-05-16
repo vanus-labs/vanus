@@ -225,10 +225,11 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	}
 
 	segments := make(map[uint64]*metapb.Segment)
-	for _, v := range volInstance.GetMeta().Blocks {
-		// TODO
-		// 1. 创建的时候Segment信息进内存
-		// 2. 空闲的block处理
+	blocks, err := ctrl.volumeMgr.GetBlocksOfVolume(ctx, volInstance)
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range blocks {
 		if v.EventlogID == vanus.EmptyID() {
 			continue
 		}
