@@ -58,10 +58,7 @@ func putEventCommand() *cobra.Command {
 				os.Exit(0)
 			}
 			if len(args) == 0 {
-				color.White("eventbus name can't be empty\n")
-				color.Cyan("\n============ see below for right usage ============\n\n")
-				_ = cmd.Help()
-				os.Exit(-1)
+				cmdFailedWithHelpNotice(cmd, "eventbus name can't be empty\n")
 			}
 			endpoint := mustGetGatewayEndpoint(cmd)
 			p, err := ce.NewHTTP()
@@ -183,10 +180,7 @@ func getEventCommand() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 
 			if len(args) == 0 {
-				color.White("eventbus name can't be empty\n")
-				color.Cyan("\n============ see below for right usage ============\n\n")
-				_ = cmd.Help()
-				os.Exit(-1)
+				cmdFailedWithHelpNotice(cmd, "eventbus name can't be empty\n")
 			}
 			endpoint := mustGetGatewayEndpoint(cmd)
 			if !strings.HasPrefix(endpoint, "http://") {

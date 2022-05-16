@@ -15,6 +15,7 @@
 package command
 
 import (
+	"github.com/spf13/cobra"
 	"os"
 
 	"github.com/fatih/color"
@@ -27,6 +28,13 @@ var (
 
 func cmdFailedf(format string, a ...interface{}) {
 	color.Red(format, a)
+	os.Exit(-1)
+}
+
+func cmdFailedWithHelpNotice(cmd *cobra.Command, format string) {
+	color.White(format)
+	color.Cyan("\n============ see below for right usage ============\n\n")
+	_ = cmd.Help()
 	os.Exit(-1)
 }
 

@@ -192,6 +192,11 @@ func (ctrl *triggerController) UnregisterTriggerWorker(ctx context.Context, requ
 	return &ctrlpb.UnregisterTriggerWorkerResponse{}, nil
 }
 
+func (ctrl *triggerController) ListSubscription(ctx context.Context, _ *emptypb.Empty) (*ctrlpb.ListSubscriptionResponse, error) {
+	// TODO
+	return &ctrlpb.ListSubscriptionResponse{}, nil
+}
+
 //gcSubscription before delete subscription,need
 //
 //1.trigger worker remove subscription
