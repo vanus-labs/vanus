@@ -48,6 +48,9 @@ metadata:
   namespace: vanus
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: vanus-prometheus
   template:
     spec:
       containers:
