@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"time"
 
 	// third-party libraries.
 	"google.golang.org/grpc"
@@ -27,6 +28,10 @@ import (
 	// first-party libraries.
 	"github.com/linkall-labs/raft/raftpb"
 	vsraftpb "github.com/linkall-labs/vsproto/pkg/raft"
+)
+
+const (
+	defaultTimeoutMilliseconds = 300
 )
 
 type peer struct {
@@ -56,7 +61,10 @@ func newPeer(ctx context.Context, endpoint string, callback string) *peer {
 }
 
 func (p *peer) run(callback string) {
-	opts := []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials())}
+	opts := []grpc.DialOption{
+		grpc.WithBlock(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
 
 	preface := raftpb.Message{
 		Context: []byte(callback),
@@ -120,10 +128,15 @@ func (p *peer) Sendv(msgs []*raftpb.Message) {
 }
 
 func (p *peer) connect(opts ...grpc.DialOption) (vsraftpb.RaftServer_SendMsssageClient, error) {
-	conn, err := grpc.DialContext(context.TODO(), p.addr, opts...)
+	timeout := defaultTimeoutMilliseconds * time.Millisecond
+	ctx, cancel := context.WithTimeout(p.ctx, timeout)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, p.addr, opts...)
 	if err != nil {
 		return nil, err
 	}
+
 	client := vsraftpb.NewRaftServerClient(conn)
 	stream, err := client.SendMsssage(context.TODO())
 	if err != nil {
