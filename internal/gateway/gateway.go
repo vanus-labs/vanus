@@ -17,6 +17,7 @@ package gateway
 import (
 	"context"
 	"fmt"
+	"github.com/linkall-labs/vanus/observability/log"
 	"net"
 	"strings"
 	"sync"
@@ -84,6 +85,12 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) protocol.Resul
 	event.SetExtension(xceVanusEventbus, ebName)
 	writer := v.(eventbus.BusWriter)
 	_, err := writer.Append(ctx, &event)
+	if err != nil {
+		log.Warning(ctx, "append to failed", map[string]interface{}{
+			log.KeyError: err,
+			"vrn":        vrn,
+		})
+	}
 	return protocol.Result(err)
 }
 
