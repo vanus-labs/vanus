@@ -251,6 +251,7 @@ func (b *fileBlock) appendWithOffset(ctx context.Context, entries ...Entry) erro
 	return nil
 }
 
+// Read date from file.
 func (b *fileBlock) Read(ctx context.Context, entityStartOffset, number int) ([]Entry, error) {
 	observability.EntryMark(ctx)
 	b.uncompletedReadRequestCount.Add(1)
@@ -264,21 +265,23 @@ func (b *fileBlock) Read(ctx context.Context, entityStartOffset, number int) ([]
 		return nil, err
 	}
 
-	data := make([]byte, to-from)
-	if _, err := b.f.ReadAt(data, from); err != nil {
-		return nil, err
+	size := uint32(to - from)
+	data := make([]byte, size)
+	if _, err2 := b.f.ReadAt(data, from); err2 != nil {
+		return nil, err2
 	}
 
 	entries := make([]Entry, num)
 	so := uint32(0)
+	from2 := uint32(from)
 	for i := 0; i < num; i++ {
 		length := binary.BigEndian.Uint32(data[so : so+4])
-		eo := so + 4 + length
-		if int64(eo) > to {
+		eo := so + entryLengthSize + length
+		if eo > size {
 			// TODO
 		}
-		entries[i].Offset = uint32(from) + so
-		entries[i].Payload = data[so+4 : eo]
+		entries[i].Offset = from2 + so
+		entries[i].Payload = data[so+entryLengthSize : eo]
 		so = eo
 	}
 
@@ -518,6 +521,6 @@ func (b *fileBlock) calculateRange(start, num int) (int64, int64, int, error) {
 	if end >= len(indexes) {
 		end = len(indexes) - 1
 	}
-	eo := indexes[end].offset + int64(indexes[end].length)
+	eo := indexes[end].offset + int64(indexes[end].length) + entryLengthSize
 	return so, eo, end - start + 1, nil
 }
