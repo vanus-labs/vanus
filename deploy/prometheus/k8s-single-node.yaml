@@ -52,6 +52,9 @@ spec:
     matchLabels:
       app: vanus-prometheus
   template:
+    metadata:
+      labels:
+        app: vanus-prometheus
     spec:
       containers:
       - image: prom/prometheus
