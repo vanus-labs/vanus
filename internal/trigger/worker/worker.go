@@ -86,7 +86,7 @@ func (w *subscriptionWorker) Run(ctx context.Context) error {
 	}
 	go func() {
 		for event := range w.events {
-			w.trigger.EventArrived(ctx, info.EventRecord{EventOffset: event})
+			_ = w.trigger.EventArrived(ctx, info.EventRecord{EventOffset: event})
 		}
 	}()
 	return nil
@@ -279,7 +279,7 @@ func testSend() {
 			event.SetSource("example/uri")
 			event.SetType(tp)
 			event.SetExtension("vanus", fmt.Sprintf("value%d", i))
-			event.SetData(ce.ApplicationJSON, map[string]string{"hello": fmt.Sprintf("world %d", i), "type": tp})
+			_ = event.SetData(ce.ApplicationJSON, map[string]string{"hello": fmt.Sprintf("world %d", i), "type": tp})
 
 			_, err = bw.Append(context.Background(), &event)
 			if err != nil {

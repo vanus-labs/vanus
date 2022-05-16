@@ -16,8 +16,10 @@ package filter
 
 import (
 	"context"
-	ce "github.com/cloudevents/sdk-go/v2"
+
 	"github.com/linkall-labs/vanus/observability/log"
+
+	ce "github.com/cloudevents/sdk-go/v2"
 )
 
 type allFilter []Filter

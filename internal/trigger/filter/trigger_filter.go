@@ -16,9 +16,11 @@ package filter
 
 import (
 	"context"
-	ce "github.com/cloudevents/sdk-go/v2"
+
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/observability/log"
+
+	ce "github.com/cloudevents/sdk-go/v2"
 )
 
 func extractFilter(subscriptionFilter *primitive.SubscriptionFilter) Filter {

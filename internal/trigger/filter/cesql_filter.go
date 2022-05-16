@@ -16,10 +16,13 @@ package filter
 
 import (
 	"context"
+	"runtime"
+
+	"github.com/linkall-labs/vanus/observability/log"
+
 	cesql "github.com/cloudevents/sdk-go/sql/v2"
 	cesqlparser "github.com/cloudevents/sdk-go/sql/v2/parser"
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type ceSQLFilter struct {
@@ -31,6 +34,17 @@ func NewCESQLFilter(expression string) Filter {
 	if expression == "" {
 		return nil
 	}
+	defer func() {
+		if r := recover(); r != nil {
+			size := 1024
+			stacktrace := make([]byte, size)
+			stacktrace = stacktrace[:runtime.Stack(stacktrace, false)]
+			log.Info(context.Background(), "parse cesql filter expression panic", map[string]interface{}{
+				"expression": expression,
+				"panic":      string(stacktrace),
+			})
+		}
+	}()
 	parsed, err := cesqlparser.Parse(expression)
 	if err != nil {
 		log.Info(context.Background(), "parse cesql filter expression error", map[string]interface{}{"expression": expression, "error": err})

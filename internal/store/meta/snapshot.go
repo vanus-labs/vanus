@@ -85,7 +85,7 @@ func recoverLatestSnopshot(dir string, unmashaler Unmarshaler) (*skiplist.SkipLi
 	}
 
 	filename := file.Name()
-	snapshot, err := strconv.ParseInt(filename[:len(filename)-len(snapshotExt)-1], 10, 64)
+	snapshot, err := strconv.ParseInt(filename[:len(filename)-len(snapshotExt)], 10, 64)
 	if err != nil {
 		return nil, 0, err
 	}
