@@ -32,6 +32,7 @@ import (
 
 const (
 	defaultTimeoutMilliseconds = 300
+	defaultMessageChainSize    = 32
 )
 
 type peer struct {
@@ -50,7 +51,7 @@ func newPeer(ctx context.Context, endpoint string, callback string) *peer {
 
 	p := &peer{
 		addr:   endpoint,
-		msgc:   make(chan *raftpb.Message),
+		msgc:   make(chan *raftpb.Message, defaultMessageChainSize),
 		ctx:    ctx,
 		cancel: cancel,
 	}
@@ -116,8 +117,9 @@ func (p *peer) Close() {
 func (p *peer) Send(msg *raftpb.Message) {
 	// TODO(james.yin):
 	select {
-	case p.msgc <- msg:
 	case <-p.ctx.Done():
+		return
+	case p.msgc <- msg:
 	}
 }
 
