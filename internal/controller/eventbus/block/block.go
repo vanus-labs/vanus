@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	defaultBlockSize                = 64 * 1024 * 1024
+	defaultBlockSize                = int64(64 * 1024 * 1024)
 	defaultBlockBufferSizePerVolume = 8
 )
 
@@ -64,9 +64,9 @@ type allocator struct {
 	cancelCtx         context.Context
 }
 
-func (mgr *allocator) Run(ctx context.Context, kvCli kv.Client) error {
-	mgr.kvClient = kvCli
-	pairs, err := mgr.kvClient.List(ctx, metadata.BlockKeyPrefixInKVStore)
+func (al *allocator) Run(ctx context.Context, kvCli kv.Client) error {
+	al.kvClient = kvCli
+	pairs, err := al.kvClient.List(ctx, metadata.BlockKeyPrefixInKVStore)
 	if err != nil {
 		return err
 	}
@@ -77,34 +77,34 @@ func (mgr *allocator) Run(ctx context.Context, kvCli kv.Client) error {
 		if err != nil {
 			return err
 		}
-		l, exist := mgr.volumeBlockBuffer[bl.VolumeID.Key()]
+		l, exist := al.volumeBlockBuffer[bl.VolumeID.Key()]
 		if !exist {
 			l = skiplist.New(skiplist.String)
-			mgr.volumeBlockBuffer[bl.VolumeID.Key()] = l
+			al.volumeBlockBuffer[bl.VolumeID.Key()] = l
 		}
 		l.Set(bl.ID.Key(), bl)
-		mgr.segmentMap.Store(bl.ID.Key(), bl)
+		al.segmentMap.Store(bl.ID.Key(), bl)
 	}
-	mgr.cancelCtx, mgr.cancel = context.WithCancel(context.Background())
-	go mgr.dynamicAllocateBlockTask()
+	al.cancelCtx, al.cancel = context.WithCancel(context.Background())
+	go al.dynamicAllocateBlockTask()
 	return nil
 }
 
-func (mgr *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, error) {
-	mgr.mutex.Lock()
-	defer mgr.mutex.Unlock()
+func (al *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, error) {
+	al.mutex.Lock()
+	defer al.mutex.Unlock()
 	blockArr := make([]*metadata.Block, num)
 
-	instances := mgr.selector.Select(ctx, 3, defaultBlockSize)
+	instances := al.selector.Select(ctx, 3, defaultBlockSize)
 	if len(instances) == 0 {
 		return nil, ErrVolumeNotFound
 	}
 	for idx := 0; idx < num; idx++ {
 		ins := instances[idx]
-		list := mgr.volumeBlockBuffer[instances[idx].ID().Key()]
+		list := al.volumeBlockBuffer[instances[idx].ID().Key()]
 		if list == nil {
 			list = skiplist.New(skiplist.String)
-			mgr.volumeBlockBuffer[instances[idx].ID().Key()] = list
+			al.volumeBlockBuffer[instances[idx].ID().Key()] = list
 		}
 		var err error
 		var block *metadata.Block
@@ -113,7 +113,7 @@ func (mgr *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, err
 			if err != nil {
 				return nil, err
 			}
-			if err = mgr.updateBlockInKV(ctx, ins.ID(), block); err != nil {
+			if err = al.updateBlockInKV(ctx, ins.ID(), block); err != nil {
 				log.Error(ctx, "save block metadata to kv failed after creating", map[string]interface{}{
 					log.KeyError: err,
 					"block":      block,
@@ -127,11 +127,11 @@ func (mgr *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, err
 		}
 		blockArr[idx] = block
 	}
-	if err := mgr.addToInflightBlock(blockArr...); err != nil {
+	if err := al.addToInflightBlock(blockArr...); err != nil {
 		// put Block back to buffer
 		for idx := range blockArr {
 			block := blockArr[idx]
-			list := mgr.volumeBlockBuffer[block.VolumeID.Key()]
+			list := al.volumeBlockBuffer[block.VolumeID.Key()]
 			list.Set(block.ID, block)
 		}
 		return nil, err
@@ -139,27 +139,27 @@ func (mgr *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, err
 	return blockArr, nil
 }
 
-func (mgr *allocator) Clean(ctx context.Context, blocks ...*metadata.Block) {
-	// mgr.inflightBlocks.Delete(block.ID)
+func (al *allocator) Clean(ctx context.Context, blocks ...*metadata.Block) {
+	// al.inflightBlocks.Delete(block.ID)
 	// TODO
 }
 
-func (mgr *allocator) Stop() {
-	mgr.cancel()
+func (al *allocator) Stop() {
+	al.cancel()
 }
 
-func (mgr *allocator) dynamicAllocateBlockTask() {
+func (al *allocator) dynamicAllocateBlockTask() {
 	ctx := context.Background()
 	for {
 		select {
-		case <-mgr.cancelCtx.Done():
+		case <-al.cancelCtx.Done():
 			log.Info(ctx, "the dynamic-allocate task exit", nil)
 			return
 		default:
 		}
-		for k, v := range mgr.volumeBlockBuffer {
+		for k, v := range al.volumeBlockBuffer {
 			volumeID, _ := vanus.NewIDFromString(k)
-			instance := mgr.selector.SelectByID(ctx, volumeID)
+			instance := al.selector.SelectByID(ctx, volumeID)
 			if instance == nil {
 				log.Warning(ctx, "need to allocate block, but no volume instance founded", map[string]interface{}{
 					"volume_id": k,
@@ -176,7 +176,7 @@ func (mgr *allocator) dynamicAllocateBlockTask() {
 					})
 					break
 				}
-				if err = mgr.updateBlockInKV(ctx, instance.ID(), block); err != nil {
+				if err = al.updateBlockInKV(ctx, instance.ID(), block); err != nil {
 					log.Warning(ctx, "insert block medata to etcd failed", map[string]interface{}{
 						"volume_id":   k,
 						"block_id":    block.ID,
@@ -193,7 +193,7 @@ func (mgr *allocator) dynamicAllocateBlockTask() {
 	}
 }
 
-func (mgr *allocator) updateBlockInKV(ctx context.Context, volumeID vanus.ID, block *metadata.Block) error {
+func (al *allocator) updateBlockInKV(ctx context.Context, volumeID vanus.ID, block *metadata.Block) error {
 	if block == nil {
 		return nil
 	}
@@ -202,11 +202,11 @@ func (mgr *allocator) updateBlockInKV(ctx context.Context, volumeID vanus.ID, bl
 		return err
 	}
 	key := strings.Join([]string{metadata.BlockKeyPrefixInKVStore, volumeID.Key(), block.ID.Key()}, "/")
-	return mgr.kvClient.Set(ctx, key, data)
+	return al.kvClient.Set(ctx, key, data)
 }
 
-func (mgr *allocator) addToInflightBlock(blocks ...*metadata.Block) error {
-	//mgr.inflightBlocks.Store(block.ID, block)
+func (al *allocator) addToInflightBlock(blocks ...*metadata.Block) error {
+	//al.inflightBlocks.Store(block.ID, block)
 	// TODO update to etcd
 	return nil
 }
