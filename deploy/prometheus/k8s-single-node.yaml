@@ -37,7 +37,7 @@ data:
     
       - job_name: 'vanus'
         static_configs:
-          - targets: ['localhost:2112']
+          - targets: ['vanus-controller-0:2112','vanus-controller-1:2112','vanus-controller-2:2112']
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -60,9 +60,6 @@ spec:
       - image: prom/prometheus
         imagePullPolicy: Always
         name: prometheus
-        ports:
-          - containerPort: 8090
-            name: prometheus
         volumeMounts:
           - mountPath: /etc/prometheus
             name: config-prometheus
@@ -71,17 +68,44 @@ spec:
             name: config-prometheus
           name: config-prometheus
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: vanus-grafana
+  name: vanus-grafana
+  namespace: vanus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vanus-grafana
+  template:
+    metadata:
+      labels:
+        app: vanus-grafana
+    spec:
+      containers:
+        - image: grafana/grafana
+          imagePullPolicy: Always
+          name: grafana
+          ports:
+          - containerPort: 3000
+            name: grafana
+---
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: vanus-prometheus
-  name: vanus-prometheus
+    app: vanus-grafana
+  name: vanus-grafana
   namespace: vanus
 spec:
   clusterIP: None
   ports:
-    - name: vanus-prometheus
+    - name: vanus-grafana
+      nodePort: 3000
       port: 3000
+      targetPort: 3000
   selector:
-    app: vanus-prometheus
+    app: vanus-grafana
