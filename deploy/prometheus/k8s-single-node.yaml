@@ -33,7 +33,7 @@ data:
         # scheme defaults to 'http'.
     
         static_configs:
-          - targets: ['localhost:8090']
+          - targets: ['localhost:9090']
     
       - job_name: 'vanus'
         static_configs:
@@ -60,6 +60,9 @@ spec:
       - image: prom/prometheus
         imagePullPolicy: Always
         name: prometheus
+        ports:
+          - containerPort: 9090
+            name: prometheus
         volumeMounts:
           - mountPath: /etc/prometheus
             name: config-prometheus
@@ -67,6 +70,21 @@ spec:
         - configMap:
             name: config-prometheus
           name: config-prometheus
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: vanus-prometheus
+  name: vanus-prometheus
+  namespace: vanus
+spec:
+  clusterIP: None
+  ports:
+  - name: vanus-prometheus
+    port: 9090
+  selector:
+    app: vanus-prometheus
 ---
 apiVersion: apps/v1
 kind: Deployment
