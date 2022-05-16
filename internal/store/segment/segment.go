@@ -170,7 +170,7 @@ func (s *segmentServer) CreateBlock(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if err := s.checkoutState(); err != nil {
+	if err := s.checkState(); err != nil {
 		return nil, err
 	}
 
@@ -212,7 +212,7 @@ func (s *segmentServer) RemoveBlock(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if err := s.checkoutState(); err != nil {
+	if err := s.checkState(); err != nil {
 		return nil, err
 	}
 
@@ -227,7 +227,7 @@ func (s *segmentServer) ActivateSegment(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if err := s.checkoutState(); err != nil {
+	if err := s.checkState(); err != nil {
 		return nil, err
 	}
 
@@ -292,7 +292,7 @@ func (s *segmentServer) InactivateSegment(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if err := s.checkoutState(); err != nil {
+	if err := s.checkState(); err != nil {
 		return nil, err
 	}
 
@@ -304,7 +304,7 @@ func (s *segmentServer) GetBlockInfo(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if err := s.checkoutState(); err != nil {
+	if err := s.checkState(); err != nil {
 		return nil, err
 	}
 
@@ -317,7 +317,7 @@ func (s *segmentServer) AppendToBlock(ctx context.Context,
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if err := s.checkoutState(); err != nil {
+	if err := s.checkState(); err != nil {
 		return nil, err
 	}
 
@@ -367,7 +367,7 @@ func (s *segmentServer) ReadFromBlock(ctx context.Context,
 	req *segpb.ReadFromBlockRequest) (*segpb.ReadFromBlockResponse, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
-	if err := s.checkoutState(); err != nil {
+	if err := s.checkState(); err != nil {
 		return nil, err
 	}
 
@@ -605,7 +605,7 @@ func (s *segmentServer) makeReplicaWithRaftLog(ctx context.Context, b block.Segm
 	return replica
 }
 
-func (s *segmentServer) checkoutState() error {
+func (s *segmentServer) checkState() error {
 	if s.state != primitive.ServerStateRunning {
 		return errors.ErrServiceState.WithMessage(fmt.Sprintf(
 			"the server isn't ready to work, current state:%s", s.state))
