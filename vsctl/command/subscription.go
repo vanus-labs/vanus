@@ -61,12 +61,21 @@ func createSubscriptionCommand() *cobra.Command {
 				}
 			}
 
+			var inputTrans *meta.InputTransformer
+			if inputTransformer != "" {
+				err := json.Unmarshal([]byte(inputTransformer), &inputTrans)
+				if err != nil {
+					cmdFailedf("the inputTransformer invalid: %s", err)
+				}
+			}
+
 			cli := ctrlpb.NewTriggerControllerClient(grpcConn)
 			res, err := cli.CreateSubscription(ctx, &ctrlpb.CreateSubscriptionRequest{
-				Source:   source,
-				Filters:  filter,
-				Sink:     sink,
-				EventBus: eventbus,
+				Source:           source,
+				Filters:          filter,
+				Sink:             sink,
+				EventBus:         eventbus,
+				InputTransformer: inputTrans,
 			})
 			if err != nil {
 				cmdFailedf("create subscription failed: %s", err)
@@ -79,6 +88,7 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&source, "source", "", "the event from which source")
 	cmd.Flags().StringVar(&sink, "sink", "", "the event you want to send to")
 	cmd.Flags().StringVar(&filters, "filters", "", "filter event you interested, JSON format required")
+	cmd.Flags().StringVar(&inputTransformer, "input-transformer", "", "input transformer, JSON format required")
 	return cmd
 }
 
@@ -163,6 +173,5 @@ func listSubscriptionCommand() *cobra.Command {
 			color.Green("%s", out.String())
 		},
 	}
-	cmd.Flags().Uint64Var(&subscriptionID, "id", 0, "subscription id to deleting")
 	return cmd
 }
