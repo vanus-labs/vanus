@@ -1,3 +1,4 @@
+apiVersion: apps/v1
 kind: ConfigMap
 metadata:
   name: config-prometheus
@@ -64,7 +65,7 @@ spec:
             name: config-prometheus
           name: config-prometheus
 ---
-apiVersion: v1
+apiVersion: apps/v1
 kind: Service
 metadata:
   labels:
