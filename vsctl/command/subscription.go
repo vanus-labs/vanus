@@ -113,7 +113,7 @@ func deleteSubscriptionCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf("delete subscription failed: %s", err)
 			}
-			color.Green("delete subscription: %s success\n", args[0])
+			color.Green("delete subscription: %s success\n", subscriptionID)
 		},
 	}
 	cmd.Flags().Uint64Var(&subscriptionID, "id", 0, "subscription id to deleting")
