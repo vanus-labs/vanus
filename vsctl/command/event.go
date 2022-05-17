@@ -119,6 +119,7 @@ func sendOne(ctx context.Context, ceClient ce.Client) {
 	} else {
 		var httpResult *cehttp.Result
 		ce.ResultAs(res, &httpResult)
+		println(res.Error())
 		color.Green("send %d \n", httpResult.StatusCode)
 	}
 }
