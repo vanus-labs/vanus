@@ -61,7 +61,7 @@ spec:
     spec:
       containers:
         - name: store
-          image: public.ecr.aws/t8a4l2d7/store:latest
+          image: public.ecr.aws/vanus/store:5952928
           imagePullPolicy: Always
           command: ["/bin/sh", "-c", "export VOLUME_ID=${HOSTNAME##*-}; /server/bin/store"]
           livenessProbe:

@@ -5,7 +5,7 @@ GIT_COMMIT=$(shell git log -1 --format='%h' | awk '{print $0}')
 export VANUS_LOG_LEVEL=debug
 
 DOCKER_REGISTRY ?= public.ecr.aws
-DOCKER_REPO ?= ${DOCKER_REGISTRY}/t8a4l2d7
+DOCKER_REPO ?= ${DOCKER_REGISTRY}/vanus
 IMAGE_TAG ?= ${GIT_COMMIT}
 #os linux or darwin
 GOOS ?= linux

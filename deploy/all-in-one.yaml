@@ -10,7 +10,7 @@ data:
     ip: ${POD_IP}
     port: 2048
     grpc_reflection_enable: true
-    gateway_endpoint: "vanus-gateway:8080"
+    gateway_endpoint: http://192.168.49.2:30001
     etcd:
       - vanus-controller-0.vanus-controller.vanus.svc:2379
       - vanus-controller-1.vanus-controller.vanus.svc:2379
@@ -81,8 +81,6 @@ metadata:
 apiVersion: v1
 kind: Service
 metadata:
-  labels:
-    app: vanus-controller
   name: vanus-controller
   namespace: vanus
 spec:
@@ -92,6 +90,48 @@ spec:
     port: 2048
   selector:
     app: vanus-controller
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vanus-controller-0
+  namespace: vanus
+spec:
+  ports:
+  - name: controller-grpc
+    nodePort: 32000
+    port: 2048
+  selector:
+    statefulset.kubernetes.io/pod-name: vanus-controller-0
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vanus-controller-1
+  namespace: vanus
+spec:
+  ports:
+  - name: controller-grpc
+    nodePort: 32100
+    port: 2048
+  selector:
+    statefulset.kubernetes.io/pod-name: vanus-controller-1
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vanus-controller-2
+  namespace: vanus
+spec:
+  ports:
+  - name: controller-grpc
+    nodePort: 32200
+    port: 2048
+  selector:
+    statefulset.kubernetes.io/pod-name: vanus-controller-2
+  type: NodePort
 ---
 apiVersion: v1
 kind: Service
@@ -126,7 +166,7 @@ spec:
         app: vanus-gateway
     spec:
       containers:
-      - image: public.ecr.aws/t8a4l2d7/gateway:v0.0.2
+      - image: public.ecr.aws/vanus/gateway:5952928
         imagePullPolicy: Always
         name: gateway
         ports:
@@ -165,7 +205,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/t8a4l2d7/trigger:v0.0.2
+        image: public.ecr.aws/vanus/trigger:5952928
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -214,7 +254,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/t8a4l2d7/controller:v0.0.2
+        image: public.ecr.aws/vanus/controller:5952928
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -280,7 +320,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/t8a4l2d7/store:v0.0.2
+        image: public.ecr.aws/vanus/store:5952928
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
