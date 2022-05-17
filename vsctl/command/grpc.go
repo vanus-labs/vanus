@@ -16,6 +16,7 @@ package command
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
@@ -53,6 +54,10 @@ func mustGetLeaderControllerGRPCConn(ctx context.Context,
 		break
 	}
 
+	if leaderAddr == "" {
+		cmdFailedf("the leader controller not found")
+	}
+
 	if leaderConn != nil {
 		return leaderConn
 	} else if !tryConnectLeaderOnce {
@@ -66,6 +71,10 @@ func mustGetLeaderControllerGRPCConn(ctx context.Context,
 }
 
 func createGRPCConn(ctx context.Context, addr string) *grpc.ClientConn {
+	if addr == "" {
+		return nil
+	}
+	addr = strings.TrimPrefix(addr, "http://")
 	var err error
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
