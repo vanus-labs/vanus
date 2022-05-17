@@ -24,7 +24,11 @@ spec:
     - port: 8080
       targetPort: 8080
       nodePort: 30001
-      name: vanus-gateway
+      name: put
+    - port: 8081
+      targetPort: 8081
+      nodePort: 30002
+      name: get
 
 ---
 apiVersion: v1
@@ -63,8 +67,10 @@ spec:
           image: public.ecr.aws/vanus/gateway:5952928
           imagePullPolicy: Always
           ports:
-            - name: http
+            - name: httpput
               containerPort: 8080
+            - name: httpget
+              containerPort: 8081
           volumeMounts:
             - name: config-gateway
               mountPath: /server/config
