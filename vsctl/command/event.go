@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     httpPrefixwww.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -35,6 +35,7 @@ import (
 
 const (
 	cloudEventDataRowLength = 4
+	httpPrefix              = "http://"
 )
 
 func NewEventCommand() *cobra.Command {
@@ -70,8 +71,14 @@ func putEventCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf("create ce client error: %s\n", err)
 			}
+			var target string
+			if strings.HasPrefix(endpoint, httpPrefix) {
+				target = fmt.Sprintf("%s/gateway/%s", endpoint, args[0])
+			} else {
+				target = fmt.Sprintf("%s%s/gateway/%s", httpPrefix, endpoint, args[0])
+			}
 			fmt.Printf("endpoint: %s\n", endpoint)
-			ctx := ce.ContextWithTarget(context.Background(), fmt.Sprintf("http://%s/gateway/%s", endpoint, args[0]))
+			ctx := ce.ContextWithTarget(context.Background(), target)
 
 			if dataFile == "" {
 				sendOne(ctx, c)
@@ -119,8 +126,12 @@ func sendOne(ctx context.Context, ceClient ce.Client) {
 	} else {
 		var httpResult *cehttp.Result
 		ce.ResultAs(res, &httpResult)
+		if httpResult == nil {
+			cmdFailedf("failed to send: %s\n", res.Error())
+		} else {
+			color.Green("send %d \n", httpResult.StatusCode)
+		}
 		println(res.Error())
-		color.Green("send %d \n", httpResult.StatusCode)
 	}
 }
 
@@ -186,8 +197,8 @@ func getEventCommand() *cobra.Command {
 				cmdFailedWithHelpNotice(cmd, "eventbus name can't be empty\n")
 			}
 			endpoint := mustGetGatewayEndpoint(cmd)
-			if !strings.HasPrefix(endpoint, "http://") {
-				endpoint = "http://" + endpoint
+			if !strings.HasPrefix(endpoint, httpPrefix) {
+				endpoint = httpPrefix + endpoint
 			}
 			idx := strings.LastIndex(endpoint, ":")
 			port, err := strconv.Atoi(endpoint[idx+1:])
