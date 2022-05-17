@@ -61,7 +61,7 @@ func mustGetLeaderControllerGRPCConn(ctx context.Context,
 	if leaderConn != nil {
 		return leaderConn
 	} else if !tryConnectLeaderOnce {
-		leaderConn = createGRPCConn(ctx, leaderAddr)
+		leaderConn = createGRPCConn(ctx, mappingLeaderAddr(leaderAddr))
 	}
 
 	if leaderConn == nil {
@@ -100,4 +100,12 @@ func createGRPCConn(ctx context.Context, addr string) *grpc.ClientConn {
 		return nil
 	}
 	return conn
+}
+
+func mappingLeaderAddr(addr string) string {
+	m := map[string]string{
+		"vanus-controller-0.vanus-controller.vanus.svc:2048": "192.168.49.2:32000",
+		"vanus-controller-1.vanus-controller.vanus.svc:2048": "192.168.49.2:32100",
+		"vanus-controller-2.vanus-controller.vanus.svc:2048": "192.168.49.2:32200"}
+	return m[addr]
 }
