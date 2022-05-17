@@ -88,6 +88,7 @@ func putEventCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&eventID, "id", "cmd", "event id of CloudEvent")
+	cmd.Flags().StringVar(&dataFormat, "data-format", "json", "the format of event body, JSON or plain")
 	cmd.Flags().StringVar(&eventSource, "source", "cmd", "event source of CloudEvent")
 	cmd.Flags().StringVar(&eventType, "type", "cmd", "event type of CloudEvent")
 	cmd.Flags().StringVar(&eventBody, "body", "", "event body of CloudEvent")
@@ -116,7 +117,17 @@ func sendOne(ctx context.Context, ceClient ce.Client) {
 	event.SetID(eventID)
 	event.SetSource(eventSource)
 	event.SetType(eventType)
-	err := event.SetData(ce.ApplicationJSON, eventBody)
+	var err error
+	if strings.ToLower(dataFormat) == "json" {
+		m := make(map[string]interface{})
+		if err := json.Unmarshal([]byte(eventBody), &m); err != nil {
+			cmdFailedf("invalid format of data body: %s", err)
+		}
+		err = event.SetData(ce.ApplicationJSON, m)
+	} else {
+		err = event.SetData(ce.TextPlain, eventBody)
+	}
+
 	if err != nil {
 		cmdFailedf("set data failed: %s\n", err)
 	}
@@ -129,9 +140,8 @@ func sendOne(ctx context.Context, ceClient ce.Client) {
 		if httpResult == nil {
 			cmdFailedf("failed to send: %s\n", res.Error())
 		} else {
-			color.Green("send %d \n", httpResult.StatusCode)
+			color.Green("sent %d \n", httpResult.StatusCode)
 		}
-		println(res.Error())
 	}
 }
 
