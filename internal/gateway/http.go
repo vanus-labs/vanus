@@ -77,6 +77,9 @@ func (srv *httpServer) getEvents(c echo.Context) error {
 				"error": fmt.Sprintf("invalid offset: %s", err),
 			})
 		}
+		if offset < 0 {
+			offset = 0
+		}
 	} else {
 		offset = 0 // TODO use latest
 	}
@@ -124,7 +127,7 @@ func (srv *httpServer) getEvents(c echo.Context) error {
 	events, err := r.Read(context.Background(), int16(num))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": fmt.Sprintf("seek offset failed: %s", err),
+			"error": fmt.Sprintf("read event failed: %s", err),
 		})
 	}
 

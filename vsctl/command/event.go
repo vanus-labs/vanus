@@ -24,6 +24,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	ce "github.com/cloudevents/sdk-go/v2"
@@ -69,6 +70,7 @@ func putEventCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf("create ce client error: %s\n", err)
 			}
+			fmt.Printf("endpoint: %s\n", endpoint)
 			ctx := ce.ContextWithTarget(context.Background(), fmt.Sprintf("http://%s/gateway/%s", endpoint, args[0]))
 
 			if dataFile == "" {
@@ -186,6 +188,12 @@ func getEventCommand() *cobra.Command {
 			if !strings.HasPrefix(endpoint, "http://") {
 				endpoint = "http://" + endpoint
 			}
+			idx := strings.LastIndex(endpoint, ":")
+			port, err := strconv.Atoi(endpoint[idx+1:])
+			if err != nil {
+				cmdFailedf("parse gateway port failed: %s, endpoint: %s", err, endpoint)
+			}
+			endpoint = fmt.Sprintf("%s:%d", endpoint[:idx], port+1)
 			res, err := newHTTPRequest().Get(fmt.Sprintf("%s/getEvents?eventbus=%s&offset=%d&number=%d",
 				endpoint, args[0], offset, number))
 			if err != nil {
@@ -209,7 +217,7 @@ func getEventCommand() *cobra.Command {
 
 	// TODO cmd.Flags().String("eventlog", "", "specified eventlog id get from")
 
-	cmd.Flags().Int64Var(&offset, "offset", -1, "which position you want to start get")
+	cmd.Flags().Int64Var(&offset, "offset", 0, "which position you want to start get")
 	cmd.Flags().Int16Var(&number, "number", 1, "the number of event you want to get")
 	return cmd
 }
