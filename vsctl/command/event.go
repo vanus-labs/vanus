@@ -35,6 +35,7 @@ import (
 
 const (
 	cloudEventDataRowLength = 4
+	httpPrefix              = "http://"
 )
 
 func NewEventCommand() *cobra.Command {
@@ -70,8 +71,14 @@ func putEventCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf("create ce client error: %s\n", err)
 			}
+			var target string
+			if strings.HasPrefix(endpoint, httpPrefix) {
+				target = fmt.Sprintf("%s/gateway/%s", endpoint, args[0])
+			} else {
+				target = fmt.Sprintf("%s%s/gateway/%s", httpPrefix, endpoint, args[0])
+			}
 			fmt.Printf("endpoint: %s\n", endpoint)
-			ctx := ce.ContextWithTarget(context.Background(), fmt.Sprintf("http://%s/gateway/%s", endpoint, args[0]))
+			ctx := ce.ContextWithTarget(context.Background(), target)
 
 			if dataFile == "" {
 				sendOne(ctx, c)
@@ -81,6 +88,7 @@ func putEventCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&eventID, "id", "cmd", "event id of CloudEvent")
+	cmd.Flags().StringVar(&dataFormat, "data-format", "json", "the format of event body, JSON or plain")
 	cmd.Flags().StringVar(&eventSource, "source", "cmd", "event source of CloudEvent")
 	cmd.Flags().StringVar(&eventType, "type", "cmd", "event type of CloudEvent")
 	cmd.Flags().StringVar(&eventBody, "body", "", "event body of CloudEvent")
@@ -109,7 +117,17 @@ func sendOne(ctx context.Context, ceClient ce.Client) {
 	event.SetID(eventID)
 	event.SetSource(eventSource)
 	event.SetType(eventType)
-	err := event.SetData(ce.ApplicationJSON, eventBody)
+	var err error
+	if strings.ToLower(dataFormat) == "json" {
+		m := make(map[string]interface{})
+		if err := json.Unmarshal([]byte(eventBody), &m); err != nil {
+			cmdFailedf("invalid format of data body: %s", err)
+		}
+		err = event.SetData(ce.ApplicationJSON, m)
+	} else {
+		err = event.SetData(ce.TextPlain, eventBody)
+	}
+
 	if err != nil {
 		cmdFailedf("set data failed: %s\n", err)
 	}
@@ -119,7 +137,11 @@ func sendOne(ctx context.Context, ceClient ce.Client) {
 	} else {
 		var httpResult *cehttp.Result
 		ce.ResultAs(res, &httpResult)
-		color.Green("send %d \n", httpResult.StatusCode)
+		if httpResult == nil {
+			cmdFailedf("failed to send: %s\n", res.Error())
+		} else {
+			color.Green("sent %d \n", httpResult.StatusCode)
+		}
 	}
 }
 
@@ -185,8 +207,8 @@ func getEventCommand() *cobra.Command {
 				cmdFailedWithHelpNotice(cmd, "eventbus name can't be empty\n")
 			}
 			endpoint := mustGetGatewayEndpoint(cmd)
-			if !strings.HasPrefix(endpoint, "http://") {
-				endpoint = "http://" + endpoint
+			if !strings.HasPrefix(endpoint, httpPrefix) {
+				endpoint = httpPrefix + endpoint
 			}
 			idx := strings.LastIndex(endpoint, ":")
 			port, err := strconv.Atoi(endpoint[idx+1:])
