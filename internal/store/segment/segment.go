@@ -57,6 +57,11 @@ const (
 	segmentServerDebugModeFlagENV = "SEGMENT_SERVER_DEBUG_MODE"
 )
 
+type leaderInfo struct {
+	leader vanus.ID
+	term   uint64
+}
+
 type segmentServer struct {
 	blocks       sync.Map
 	blockWriters sync.Map
@@ -80,6 +85,7 @@ type segmentServer struct {
 	ctrlAddress []string
 	credentials credentials.TransportCredentials
 	cc          *ctrlClient
+	leaderc     chan leaderInfo
 
 	stopCallback func()
 	closeCh      chan struct{}
@@ -108,6 +114,7 @@ func NewSegmentServer(cfg store.Config, stop func()) (segpb.SegmentServerServer,
 		ctrlAddress:  cfg.ControllerAddresses,
 		credentials:  insecure.NewCredentials(),
 		cc:           NewClient(cfg.ControllerAddresses),
+		leaderc:      make(chan leaderInfo, 256),
 		stopCallback: stop,
 		closeCh:      make(chan struct{}),
 	}, raftSrv
@@ -456,6 +463,32 @@ func (s *segmentServer) runHeartbeat(ctx context.Context) {
 						log.KeyError: err,
 					})
 			}
+		case info := <-s.leaderc:
+			req := &ctrlpb.ReportSegmentLeaderRequest{
+				LeaderId: info.leader.Uint64(),
+				Term:     info.term,
+			}
+			if err := s.cc.reportSegmentLeader(context.Background(), req); err != nil {
+				log.Debug(ctx, "Report segment leader to controller failed.", map[string]interface{}{
+					"leader":     info.leader,
+					"term":       info.term,
+					log.KeyError: err,
+				})
+			}
+		}
+	}
+}
+
+func (s *segmentServer) leaderChanged(blockID, leaderID vanus.ID, term uint64) {
+	if blockID == leaderID {
+		info := leaderInfo{
+			leader: leaderID,
+			term:   term,
+		}
+
+		select {
+		case s.leaderc <- info:
+		default:
 		}
 	}
 }
@@ -626,7 +659,7 @@ func (s *segmentServer) makeReplica(ctx context.Context, b block.SegmentBlock) *
 func (s *segmentServer) makeReplicaWithRaftLog(
 	ctx context.Context, b block.SegmentBlock, raftLog *raftlog.Log,
 ) *block.Replica {
-	replica := block.NewReplica(ctx, b, raftLog, s.host)
+	replica := block.NewReplica(ctx, b, raftLog, s.host, s.leaderChanged)
 	s.host.Register(b.SegmentBlockID().Uint64(), replica)
 	return replica
 }

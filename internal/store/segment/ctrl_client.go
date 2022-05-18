@@ -15,21 +15,13 @@
 package segment
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	"io"
 	"sync"
 	"time"
 
-	// this project
-	"github.com/linkall-labs/vanus/internal/store/segment/errors"
-	"github.com/linkall-labs/vanus/observability/log"
-
-	// first-party libraries
-	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
-	errpb "github.com/linkall-labs/vsproto/pkg/errors"
-
-	// third-party libraries
+	// third-party libraries.
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
@@ -37,6 +29,14 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	// first-party libraries.
+	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
+	errpb "github.com/linkall-labs/vsproto/pkg/errors"
+
+	// this project.
+	"github.com/linkall-labs/vanus/internal/store/segment/errors"
+	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type ctrlClient struct {
@@ -82,7 +82,8 @@ func (cli *ctrlClient) Close(ctx context.Context) {
 }
 
 func (cli *ctrlClient) registerSegmentServer(ctx context.Context,
-	req *ctrlpb.RegisterSegmentServerRequest) (*ctrlpb.RegisterSegmentServerResponse, error) {
+	req *ctrlpb.RegisterSegmentServerRequest,
+) (*ctrlpb.RegisterSegmentServerResponse, error) {
 	client := cli.makeSureClient(false)
 	if client == nil {
 		return nil, errors.ErrNoControllerLeader
@@ -99,7 +100,8 @@ func (cli *ctrlClient) registerSegmentServer(ctx context.Context,
 }
 
 func (cli *ctrlClient) unregisterSegmentServer(ctx context.Context,
-	req *ctrlpb.UnregisterSegmentServerRequest) (*ctrlpb.UnregisterSegmentServerResponse, error) {
+	req *ctrlpb.UnregisterSegmentServerRequest,
+) (*ctrlpb.UnregisterSegmentServerResponse, error) {
 	client := cli.makeSureClient(false)
 	if client == nil {
 		return nil, errors.ErrNoControllerLeader
@@ -116,7 +118,8 @@ func (cli *ctrlClient) unregisterSegmentServer(ctx context.Context,
 }
 
 func (cli *ctrlClient) reportSegmentBlockIsFull(ctx context.Context,
-	req *ctrlpb.SegmentHeartbeatRequest) (*emptypb.Empty, error) {
+	req *ctrlpb.SegmentHeartbeatRequest,
+) (*emptypb.Empty, error) {
 	client := cli.makeSureClient(false)
 	if client == nil {
 		return nil, errors.ErrNoControllerLeader
@@ -130,6 +133,22 @@ func (cli *ctrlClient) reportSegmentBlockIsFull(ctx context.Context,
 		res, err = client.ReportSegmentBlockIsFull(ctx, req)
 	}
 	return res, err
+}
+
+func (cli *ctrlClient) reportSegmentLeader(ctx context.Context, req *ctrlpb.ReportSegmentLeaderRequest) error {
+	client := cli.makeSureClient(false)
+	if client == nil {
+		return errors.ErrNoControllerLeader
+	}
+	_, err := client.ReportSegmentLeader(ctx, req)
+	if cli.isNeedRetry(err) {
+		client = cli.makeSureClient(true)
+		if client == nil {
+			return errors.ErrNoControllerLeader
+		}
+		_, err = client.ReportSegmentLeader(ctx, req)
+	}
+	return err
 }
 
 func (cli *ctrlClient) heartbeat(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error {

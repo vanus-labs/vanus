@@ -42,6 +42,8 @@ type idAndEndpoint struct {
 	endpoint string
 }
 
+type LeaderChangedListener func(block, leader vanus.ID, term uint64)
+
 type Replica struct {
 	num  int
 	wo   int
@@ -50,8 +52,8 @@ type Replica struct {
 
 	block *fileBlock
 
-	isLeader bool
 	leaderID vanus.ID
+	listener LeaderChangedListener
 
 	node   raft.Node
 	log    *raftlog.Log
@@ -69,13 +71,16 @@ type Replica struct {
 var _ SegmentBlockWriter = (*Replica)(nil)
 var _ transport.Receiver = (*Replica)(nil)
 
-func NewReplica(ctx context.Context, block SegmentBlock, raftLog *raftlog.Log, sender transport.Sender) *Replica {
+func NewReplica(ctx context.Context, block SegmentBlock, raftLog *raftlog.Log,
+	sender transport.Sender, listener LeaderChangedListener,
+) *Replica {
 	blockID := block.SegmentBlockID()
 
 	ctx, cancel := context.WithCancel(ctx)
 
 	r := &Replica{
 		block:     block.(*fileBlock),
+		listener:  listener,
 		log:       raftLog,
 		sender:    sender,
 		endpoints: make([]idAndEndpoint, 0, 2),
@@ -146,12 +151,9 @@ func (r *Replica) run() {
 
 			if rd.SoftState != nil {
 				r.leaderID = vanus.NewIDFromUint64(rd.SoftState.Lead)
-				isLeader := rd.SoftState.RaftState == raft.StateLeader
-				// reset when become leader
-				if isLeader {
-					r.reset()
+				if rd.SoftState.RaftState == raft.StateLeader {
+					r.becomeLeader()
 				}
-				r.isLeader = isLeader
 			}
 
 			// NOTE: Messages to be sent AFTER HardState and Entries
@@ -217,6 +219,22 @@ func (r *Replica) run() {
 	}
 }
 
+func (r *Replica) becomeLeader() {
+	// Reset when become leader.
+	r.reset()
+
+	r.leaderChanged()
+}
+
+func (r *Replica) leaderChanged() {
+	if r.listener == nil {
+		return
+	}
+
+	st := r.log.HardState()
+	r.listener(r.block.SegmentBlockID(), r.leaderID, st.Term)
+}
+
 func (r *Replica) applyConfChange(entrypb *raftpb.Entry) *raftpb.ConfState {
 	if entrypb.Type == raftpb.EntryNormal {
 		// TODO(james.yin): return error
@@ -253,10 +271,10 @@ func (r *Replica) reset() {
 	}
 
 	for off > 0 {
-		entrypbs, err := r.log.Entries(off, off+1, 0)
+		entrypbs, err2 := r.log.Entries(off, off+1, 0)
 
-		// compacted
-		if err != nil {
+		// Entry has been compacted.
+		if err2 != nil {
 			r.resetByBlock()
 			break
 		}
@@ -297,7 +315,7 @@ func (r *Replica) resetByBlock() {
 
 // Append implements SegmentBlockWriter.
 func (r *Replica) Append(ctx context.Context, entries ...Entry) error {
-	if !r.isLeader {
+	if !r.isLeader() {
 		return ErrNotLeader
 	}
 
@@ -418,7 +436,11 @@ func (r *Replica) send(msgs []raftpb.Message) {
 	}
 	for to, msgs := range mm {
 		endpoint := r.endpointHint(to)
-		r.sender.Sendv(r.ctx, msgs, to, endpoint)
+		if len(msgs) == 1 {
+			r.sender.Send(r.ctx, msgs[0], to, endpoint)
+		} else {
+			r.sender.Sendv(r.ctx, msgs, to, endpoint)
+		}
 	}
 }
 
@@ -441,7 +463,7 @@ func (r *Replica) Receive(ctx context.Context, msg *raftpb.Message, from uint64,
 	}
 
 	// TODO(james.yin): check ctx.Done().
-	r.node.Step(r.ctx, *msg)
+	_ = r.node.Step(r.ctx, *msg)
 }
 
 func (r *Replica) hintEndpoint(from uint64, endpoint string) {
@@ -481,4 +503,8 @@ func (r *Replica) IsAppendable() bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return !r.full
+}
+
+func (r *Replica) isLeader() bool {
+	return r.leaderID == r.block.SegmentBlockID()
 }
