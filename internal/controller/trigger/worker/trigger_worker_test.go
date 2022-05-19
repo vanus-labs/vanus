@@ -15,11 +15,12 @@
 package worker
 
 import (
+	"sort"
+	"testing"
+
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
-	"sort"
-	"testing"
 )
 
 func TestReportSubId(t *testing.T) {

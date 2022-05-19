@@ -16,7 +16,9 @@ package trigger
 
 import (
 	"context"
-	ce "github.com/cloudevents/sdk-go/v2"
+	"sync"
+	"time"
+
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/filter"
@@ -25,8 +27,8 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/transformation"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
-	"sync"
-	"time"
+
+	ce "github.com/cloudevents/sdk-go/v2"
 )
 
 type TriggerState string
@@ -190,7 +192,7 @@ func (t *Trigger) runSleepWatch(ctx context.Context) {
 }
 
 func (t *Trigger) Start() error {
-	ceClient, err := primitive.NewCeClient(t.Target)
+	ceClient, err := NewCeClient(t.Target)
 	if err != nil {
 		return err
 	}
@@ -203,10 +205,11 @@ func (t *Trigger) Start() error {
 	for i := 0; i < t.config.SendProcessSize; i++ {
 		t.wg.StartWithContext(ctx, t.runEventSend)
 	}
-	t.wg.StartWithContext(ctx, t.runSleepWatch)
-
 	t.state = TriggerRunning
 	t.lastActive = time.Now()
+
+	t.wg.StartWithContext(ctx, t.runSleepWatch)
+
 	return nil
 }
 
@@ -215,14 +218,14 @@ func (t *Trigger) Stop() {
 	log.Info(ctx, "trigger stop...", map[string]interface{}{
 		"subId": t.SubscriptionID,
 	})
-	if t.state == TriggerStopped {
+	if t.GetState() == TriggerStopped {
 		return
 	}
 	t.stop()
 	t.wg.Wait()
 	close(t.eventCh)
 	close(t.sendCh)
-	t.state = TriggerStopped
+	t.SetState(TriggerStopped)
 	log.Info(ctx, "trigger stopped", map[string]interface{}{
 		"subId": t.SubscriptionID,
 	})
@@ -232,4 +235,10 @@ func (t *Trigger) GetState() TriggerState {
 	t.stateMutex.RLock()
 	defer t.stateMutex.RUnlock()
 	return t.state
+}
+
+func (t *Trigger) SetState(state TriggerState) {
+	t.stateMutex.Lock()
+	defer t.stateMutex.Unlock()
+	t.state = state
 }

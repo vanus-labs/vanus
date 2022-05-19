@@ -16,6 +16,10 @@ package trigger
 
 import (
 	"context"
+	"os"
+	"sync"
+	"time"
+
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -25,9 +29,6 @@ import (
 	"github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/linkall-labs/vsproto/pkg/meta"
 	pbtrigger "github.com/linkall-labs/vsproto/pkg/trigger"
-	"os"
-	"sync"
-	"time"
 )
 
 type server struct {

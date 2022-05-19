@@ -16,12 +16,13 @@ package offset
 
 import (
 	"context"
+	"sync"
+	"time"
+
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
-	"sync"
-	"time"
 )
 
 type Manager interface {

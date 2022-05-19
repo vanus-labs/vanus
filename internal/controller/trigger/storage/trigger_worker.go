@@ -17,12 +17,12 @@ package storage
 import (
 	"context"
 	"encoding/json"
+	"path"
+	"path/filepath"
+
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"path"
-	"path/filepath"
 )
 
 type TriggerWorkerStorage interface {
@@ -43,7 +43,7 @@ func NewTriggerWorkerStorage(client kv.Client) TriggerWorkerStorage {
 }
 
 func (s *triggerWorkerStorage) getKey(id string) string {
-	return path.Join(primitive.StorageTriggerWorker.String(), id)
+	return path.Join(StorageTriggerWorker.String(), id)
 }
 
 func (s *triggerWorkerStorage) SaveTriggerWorker(ctx context.Context, info info.TriggerWorkerInfo) error {
