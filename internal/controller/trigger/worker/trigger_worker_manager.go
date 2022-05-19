@@ -18,6 +18,9 @@ package worker
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
@@ -25,8 +28,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
-	"sync"
-	"time"
 )
 
 const (

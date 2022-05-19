@@ -15,10 +15,11 @@
 package offset
 
 import (
+	"testing"
+
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
-	"testing"
 )
 
 func TestRegisterSubscription(t *testing.T) {

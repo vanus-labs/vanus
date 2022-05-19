@@ -16,16 +16,18 @@ package worker
 
 import (
 	"context"
+	"sync"
+	"time"
+
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vsproto/pkg/trigger"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"sync"
-	"time"
 )
 
 //TriggerWorker send SubscriptionData to trigger worker server

@@ -16,13 +16,13 @@ package storage
 
 import (
 	"context"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"path"
 	"path/filepath"
 	"strconv"
+
+	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/linkall-labs/vanus/internal/primitive/info"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
 type OffsetStorage interface {
@@ -43,11 +43,11 @@ func NewOffsetStorage(client kv.Client) OffsetStorage {
 }
 
 func (s *offsetStorage) getKey(subID, eventLogID vanus.ID) string {
-	return path.Join(primitive.StorageOffset.String(), subID.String(), eventLogID.String())
+	return path.Join(StorageOffset.String(), subID.String(), eventLogID.String())
 }
 
 func (s *offsetStorage) getSubKey(subID vanus.ID) string {
-	return path.Join(primitive.StorageOffset.String(), subID.String())
+	return path.Join(StorageOffset.String(), subID.String())
 }
 
 func (s *offsetStorage) int64ToByteArr(v uint64) []byte {

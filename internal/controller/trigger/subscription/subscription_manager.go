@@ -18,14 +18,15 @@ package subscription
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription/offset"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	iInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
-	"sync"
-	"time"
 )
 
 type Manager interface {

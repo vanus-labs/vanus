@@ -12,28 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package primitive
+package storage
 
-import (
-	"gopkg.in/yaml.v3"
-	"io/ioutil"
-	"os"
+type StorageKeyPrefix string
+
+func (s StorageKeyPrefix) String() string {
+	return string(s)
+}
+
+const (
+	StorageOffset        StorageKeyPrefix = "/trigger/offsets/"
+	StorageSubscription  StorageKeyPrefix = "/trigger/subscriptions/"
+	StorageTriggerWorker StorageKeyPrefix = "/trigger/triggerWorkers/"
 )
-
-type KvStorageConfig struct {
-	KeyPrefix  string   `yaml:"key_prefix" json:"keyPrefix"`
-	ServerList []string `yaml:"server_list" json:"serverList"`
-}
-
-func LoadConfig(filename string, config interface{}) error {
-	b, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return err
-	}
-	str := os.ExpandEnv(string(b))
-	err = yaml.Unmarshal([]byte(str), config)
-	if err != nil {
-		return err
-	}
-	return nil
-}

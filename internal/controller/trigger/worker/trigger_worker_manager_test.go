@@ -17,6 +17,8 @@ package worker
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
@@ -25,7 +27,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/util"
 	. "github.com/smartystreets/goconvey/convey"
-	"testing"
 )
 
 func getTestSubscription() *primitive.SubscriptionData {

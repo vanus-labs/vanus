@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package primitive
+package trigger
 
 import (
 	"context"
@@ -20,6 +20,7 @@ import (
 	"github.com/cloudevents/sdk-go/v2/event"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	"github.com/cloudevents/sdk-go/v2/protocol/http"
+	"github.com/linkall-labs/vanus/internal/primitive"
 )
 
 type client struct {
@@ -40,7 +41,7 @@ func (c *client) StartReceiver(ctx context.Context, fn interface{}) error {
 	return c.ceClient.StartReceiver(ctx, fn)
 }
 
-func NewCeClient(target URI) (ce.Client, error) {
+func NewCeClient(target primitive.URI) (ce.Client, error) {
 	opts := make([]http.Option, 0)
 	if target != "" {
 		opts = append(opts, ce.WithTarget(string(target)))

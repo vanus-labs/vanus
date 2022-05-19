@@ -16,6 +16,11 @@ package trigger
 
 import (
 	"context"
+	"io"
+	"os"
+	"sync"
+	"time"
+
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
@@ -29,11 +34,8 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/linkall-labs/vsproto/pkg/meta"
+
 	"google.golang.org/protobuf/types/known/emptypb"
-	"io"
-	"os"
-	"sync"
-	"time"
 )
 
 //triggerController allocate subscription to trigger worker

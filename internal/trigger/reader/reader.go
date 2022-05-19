@@ -16,22 +16,23 @@ package reader
 
 import (
 	"context"
-	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/eventbus-go/pkg/discovery"
-	eberrors "github.com/linkall-labs/eventbus-go/pkg/errors"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"io"
 	"sync"
 	"time"
 
-	eb "github.com/linkall-labs/eventbus-go"
+	"github.com/linkall-labs/eventbus-go/pkg/discovery"
 	"github.com/linkall-labs/eventbus-go/pkg/discovery/record"
+	eberrors "github.com/linkall-labs/eventbus-go/pkg/errors"
 	"github.com/linkall-labs/eventbus-go/pkg/eventlog"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
+
+	ce "github.com/cloudevents/sdk-go/v2"
+	eb "github.com/linkall-labs/eventbus-go"
 )
 
 type Config struct {
@@ -41,7 +42,12 @@ type Config struct {
 }
 type EventLogOffset map[vanus.ID]uint64
 
-type Reader struct {
+type Reader interface {
+	Start() error
+	Close()
+}
+
+type reader struct {
 	config   Config
 	elReader map[vanus.ID]struct{}
 	events   chan<- info.EventOffset
@@ -52,8 +58,8 @@ type Reader struct {
 	lock     sync.Mutex
 }
 
-func NewReader(config Config, offset EventLogOffset, events chan<- info.EventOffset) *Reader {
-	r := &Reader{
+func NewReader(config Config, offset EventLogOffset, events chan<- info.EventOffset) Reader {
+	r := &reader{
 		config:   config,
 		offset:   offset,
 		events:   events,
@@ -63,14 +69,14 @@ func NewReader(config Config, offset EventLogOffset, events chan<- info.EventOff
 	return r
 }
 
-func (r *Reader) Close() {
+func (r *reader) Close() {
 	r.stop()
 	r.wg.Wait()
 	log.Info(r.stctx, "reader closed", map[string]interface{}{
 		log.KeyEventbusName: r.config.EventBusName,
 	})
 }
-func (r *Reader) Start() error {
+func (r *reader) Start() error {
 	go func() {
 		r.checkEventLogChange()
 		tk := time.NewTicker(30 * time.Second)
@@ -87,7 +93,7 @@ func (r *Reader) Start() error {
 	return nil
 }
 
-func (r *Reader) checkEventLogChange() {
+func (r *reader) checkEventLogChange() {
 	ctx, cancel := context.WithTimeout(r.stctx, 5*time.Second)
 	defer cancel()
 	els, err := eb.LookupReadableLogs(ctx, r.config.EventBusVRN)
@@ -112,7 +118,7 @@ func (r *Reader) checkEventLogChange() {
 	}
 }
 
-func (r *Reader) getOffset(eventLogID vanus.ID) uint64 {
+func (r *reader) getOffset(eventLogID vanus.ID) uint64 {
 	offset, exist := r.offset[eventLogID]
 	if !exist {
 		offset = 0
@@ -120,7 +126,7 @@ func (r *Reader) getOffset(eventLogID vanus.ID) uint64 {
 	return offset
 }
 
-func (r *Reader) start(els []*record.EventLog) {
+func (r *reader) start(els []*record.EventLog) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	for _, el := range els {

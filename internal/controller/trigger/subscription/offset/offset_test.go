@@ -16,12 +16,14 @@ package offset
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+
 	. "github.com/smartystreets/goconvey/convey"
-	"testing"
-	"time"
 )
 
 func TestOffset(t *testing.T) {
