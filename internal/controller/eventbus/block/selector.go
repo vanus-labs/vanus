@@ -101,5 +101,7 @@ func (s *volumeRoundRobinSelector) SelectByID(id vanus.ID) server.Instance {
 }
 
 func (s *volumeRoundRobinSelector) GetAllVolume() []server.Instance {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	return s.getVolumes()
 }
