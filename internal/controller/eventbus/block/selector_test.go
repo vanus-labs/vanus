@@ -15,13 +15,13 @@
 package block
 
 import (
-	stdCtx "context"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
-	"testing"
 )
 
 func TestNewVolumeRoundRobin(t *testing.T) {
@@ -42,20 +42,20 @@ func TestNewVolumeRoundRobin(t *testing.T) {
 			return srvs
 		})
 		Convey("test select", func() {
-			instances := selector.Select(stdCtx.Background(), 1, 64*1024*1024)
+			instances := selector.Select(1, 64*1024*1024)
 			So(instances, ShouldHaveLength, 1)
 			So(instances[0].GetMeta().ID.Uint64(), ShouldEqual, uint64(1))
 
-			instances = selector.Select(stdCtx.Background(), 1, 640*1024*1024)
+			instances = selector.Select(1, 640*1024*1024)
 			So(instances[0].GetMeta().ID.Uint64(), ShouldEqual, uint64(2))
 			So(selector.(*volumeRoundRobinSelector).count, ShouldEqual, 2)
 
-			instances = selector.Select(stdCtx.Background(), 2, 64*1024*1024)
+			instances = selector.Select(2, 64*1024*1024)
 			So(instances, ShouldHaveLength, 2)
 			So(instances[0].GetMeta().ID.Uint64(), ShouldEqual, uint64(1))
 			So(selector.(*volumeRoundRobinSelector).count, ShouldEqual, 3)
 
-			instances = selector.Select(stdCtx.Background(), 3, 64*1024*1024)
+			instances = selector.Select(3, 64*1024*1024)
 			So(instances, ShouldHaveLength, 3)
 
 			So(instances[0].GetMeta().ID.Uint64(), ShouldEqual, uint64(2))
@@ -67,24 +67,24 @@ func TestNewVolumeRoundRobin(t *testing.T) {
 		srv1.EXPECT().ID().Return(vanus.NewIDFromUint64(1)).AnyTimes()
 		srv2.EXPECT().ID().Return(vanus.NewIDFromUint64(2)).AnyTimes()
 		Convey("test select instance by id", func() {
-			ins := selector.SelectByID(stdCtx.Background(), vanus.NewIDFromUint64(1))
+			ins := selector.SelectByID(vanus.NewIDFromUint64(1))
 			So(ins, ShouldNotBeNil)
 			So(ins.GetMeta().ID.Uint64(), ShouldEqual, uint64(1))
 
-			ins = selector.SelectByID(stdCtx.Background(), vanus.NewIDFromUint64(2))
+			ins = selector.SelectByID(vanus.NewIDFromUint64(2))
 			So(ins, ShouldNotBeNil)
 			So(ins.GetMeta().ID.Uint64(), ShouldEqual, uint64(2))
 
-			ins = selector.SelectByID(stdCtx.Background(), vanus.NewIDFromUint64(3))
+			ins = selector.SelectByID(vanus.NewIDFromUint64(3))
 			So(ins, ShouldBeNil)
 		})
 
 		Convey("test invalid arguments", func() {
-			instances := selector.Select(stdCtx.Background(), 0, 64*1024*1024)
+			instances := selector.Select(0, 64*1024*1024)
 			So(instances, ShouldNotBeNil)
 			So(instances, ShouldHaveLength, 0)
 
-			instances = selector.Select(stdCtx.Background(), 2, 0)
+			instances = selector.Select(2, 0)
 			So(instances, ShouldNotBeNil)
 			So(instances, ShouldHaveLength, 0)
 		})
@@ -96,7 +96,7 @@ func TestNewVolumeRoundRobinAbnormal(t *testing.T) {
 		selector := NewVolumeRoundRobin(func() []server.Instance {
 			return []server.Instance{}
 		})
-		instances := selector.Select(stdCtx.Background(), 3, 64*1024*1024)
+		instances := selector.Select(3, 64*1024*1024)
 		So(instances, ShouldNotBeNil)
 		So(instances, ShouldHaveLength, 0)
 	})

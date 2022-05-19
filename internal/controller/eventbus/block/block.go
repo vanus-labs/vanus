@@ -17,6 +17,10 @@ package block
 import (
 	"context"
 	"encoding/json"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/kv"
@@ -24,9 +28,6 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
 	rpcerr "github.com/linkall-labs/vsproto/pkg/errors"
-	"strings"
-	"sync"
-	"time"
 )
 
 const (
@@ -39,32 +40,29 @@ var (
 )
 
 type Allocator interface {
-	Run(ctx context.Context, kvCli kv.Client) error
-	Stop()
+	Run(ctx context.Context, kvCli kv.Client, dynamicAllocate bool) error
 	Pick(ctx context.Context, num int) ([]*metadata.Block, error)
-	Clean(ctx context.Context, blocks ...*metadata.Block)
+	Stop()
 }
 
 func NewAllocator(selector VolumeSelector) Allocator {
 	return &allocator{
-		selector:          selector,
-		volumeBlockBuffer: make(map[string]*skiplist.SkipList, 0),
+		selector: selector,
 	}
 }
 
 type allocator struct {
 	selector VolumeSelector
 	// key: volumeID, value: SkipList of *metadata.Block
-	volumeBlockBuffer map[string]*skiplist.SkipList
-	segmentMap        sync.Map
+	volumeBlockBuffer sync.Map
 	kvClient          kv.Client
 	mutex             sync.Mutex
-	inflightBlocks    sync.Map
 	cancel            func()
 	cancelCtx         context.Context
+	allocateTicker    *time.Ticker
 }
 
-func (al *allocator) Run(ctx context.Context, kvCli kv.Client) error {
+func (al *allocator) Run(ctx context.Context, kvCli kv.Client, startDynamicAllocate bool) error {
 	al.kvClient = kvCli
 	pairs, err := al.kvClient.List(ctx, metadata.BlockKeyPrefixInKVStore)
 	if err != nil {
@@ -77,16 +75,20 @@ func (al *allocator) Run(ctx context.Context, kvCli kv.Client) error {
 		if err != nil {
 			return err
 		}
-		l, exist := al.volumeBlockBuffer[bl.VolumeID.Key()]
+		v, exist := al.volumeBlockBuffer.Load(bl.VolumeID.Key())
 		if !exist {
-			l = skiplist.New(skiplist.String)
-			al.volumeBlockBuffer[bl.VolumeID.Key()] = l
+			v = skiplist.New(skiplist.String)
+			al.volumeBlockBuffer.Store(bl.VolumeID.Key(), v)
 		}
-		l.Set(bl.ID.Key(), bl)
-		al.segmentMap.Store(bl.ID.Key(), bl)
+		l := v.(*skiplist.SkipList)
+		if bl.SegmentID == vanus.EmptyID() {
+			l.Set(bl.ID.Key(), bl)
+		}
 	}
-	al.cancelCtx, al.cancel = context.WithCancel(context.Background())
-	go al.dynamicAllocateBlockTask()
+	if startDynamicAllocate {
+		al.cancelCtx, al.cancel = context.WithCancel(context.Background())
+		go al.dynamicAllocateBlockTask()
+	}
 	return nil
 }
 
@@ -95,25 +97,26 @@ func (al *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, erro
 	defer al.mutex.Unlock()
 	blockArr := make([]*metadata.Block, num)
 
-	instances := al.selector.Select(ctx, 3, defaultBlockSize)
+	instances := al.selector.Select(num, defaultBlockSize)
 	if len(instances) == 0 {
 		return nil, ErrVolumeNotFound
 	}
 	for idx := 0; idx < num; idx++ {
 		ins := instances[idx]
-		list := al.volumeBlockBuffer[instances[idx].ID().Key()]
-		if list == nil {
-			list = skiplist.New(skiplist.String)
-			al.volumeBlockBuffer[instances[idx].ID().Key()] = list
-		}
+		var skipList *skiplist.SkipList
+		v, exist := al.volumeBlockBuffer.Load(ins.GetMeta().ID.Key())
 		var err error
 		var block *metadata.Block
-		if list.Len() == 0 {
+		if exist {
+			skipList = v.(*skiplist.SkipList)
+		}
+
+		if !exist || skipList.Len() == 0 {
 			block, err = ins.CreateBlock(ctx, defaultBlockSize)
 			if err != nil {
 				return nil, err
 			}
-			if err = al.updateBlockInKV(ctx, ins.ID(), block); err != nil {
+			if err = al.updateBlockInKV(ctx, block); err != nil {
 				log.Error(ctx, "save block metadata to kv failed after creating", map[string]interface{}{
 					log.KeyError: err,
 					"block":      block,
@@ -122,26 +125,12 @@ func (al *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, erro
 			}
 			metrics.BlockCounterVec.WithLabelValues(metrics.LabelValueResourceManualCreate).Inc()
 		} else {
-			val := list.RemoveFront()
+			val := skipList.RemoveFront()
 			block = val.Value.(*metadata.Block)
 		}
 		blockArr[idx] = block
 	}
-	if err := al.addToInflightBlock(blockArr...); err != nil {
-		// put Block back to buffer
-		for idx := range blockArr {
-			block := blockArr[idx]
-			list := al.volumeBlockBuffer[block.VolumeID.Key()]
-			list.Set(block.ID, block)
-		}
-		return nil, err
-	}
 	return blockArr, nil
-}
-
-func (al *allocator) Clean(ctx context.Context, blocks ...*metadata.Block) {
-	// al.inflightBlocks.Delete(block.ID)
-	// TODO
 }
 
 func (al *allocator) Stop() {
@@ -155,45 +144,48 @@ func (al *allocator) dynamicAllocateBlockTask() {
 		case <-al.cancelCtx.Done():
 			log.Info(ctx, "the dynamic-allocate task exit", nil)
 			return
-		default:
-		}
-		for k, v := range al.volumeBlockBuffer {
-			volumeID, _ := vanus.NewIDFromString(k)
-			instance := al.selector.SelectByID(ctx, volumeID)
-			if instance == nil {
-				log.Warning(ctx, "need to allocate block, but no volume instance founded", map[string]interface{}{
-					"volume_id": k,
-				})
-				continue
-			}
+		case <-al.allocateTicker.C:
+			instances := al.selector.GetAllVolume()
+			for _, instance := range instances {
+				var skipList *skiplist.SkipList
+				v, exist := al.volumeBlockBuffer.Load(instance.GetMeta().ID.Key())
+				if !exist {
+					v = skiplist.New(skiplist.String)
+					al.volumeBlockBuffer.Store(instance.GetMeta().ID.Key(), v)
+				}
+				skipList = v.(*skiplist.SkipList)
+				for skipList.Len() < defaultBlockBufferSizePerVolume {
 
-			for v.Len() < defaultBlockBufferSizePerVolume {
-				block, err := instance.CreateBlock(ctx, defaultBlockSize)
-				if err != nil {
-					log.Warning(ctx, "create block failed", map[string]interface{}{
-						"volume_id":   k,
-						"buffer_size": v.Len(),
+					block, err := instance.CreateBlock(ctx, defaultBlockSize)
+					if err != nil {
+						log.Warning(ctx, "create block failed", map[string]interface{}{
+							"volume_id":   instance.GetMeta().ID,
+							"buffer_size": skipList.Len(),
+						})
+						break
+					}
+					if err = al.updateBlockInKV(ctx, block); err != nil {
+						log.Warning(ctx, "insert block medata to etcd failed", map[string]interface{}{
+							"volume_id":   instance.GetMeta().ID,
+							"block_id":    block.ID,
+							log.KeyError:  err,
+							"buffer_size": skipList.Len(),
+						})
+						break
+					}
+					log.Info(ctx, "a new block created", map[string]interface{}{
+						"volume_id": instance.GetMeta().ID,
+						"block_id":  block.ID,
 					})
-					break
+					metrics.BlockCounterVec.WithLabelValues(metrics.LabelValueResourceDynamicCreate).Inc()
+					skipList.Set(block.ID.Key(), block)
 				}
-				if err = al.updateBlockInKV(ctx, instance.ID(), block); err != nil {
-					log.Warning(ctx, "insert block medata to etcd failed", map[string]interface{}{
-						"volume_id":   k,
-						"block_id":    block.ID,
-						log.KeyError:  err,
-						"buffer_size": v.Len(),
-					})
-					break
-				}
-				metrics.BlockCounterVec.WithLabelValues(metrics.LabelValueResourceDynamicCreate).Inc()
-				v.Set(block.ID.Key(), block)
 			}
 		}
-		time.Sleep(time.Second)
 	}
 }
 
-func (al *allocator) updateBlockInKV(ctx context.Context, volumeID vanus.ID, block *metadata.Block) error {
+func (al *allocator) updateBlockInKV(ctx context.Context, block *metadata.Block) error {
 	if block == nil {
 		return nil
 	}
@@ -201,12 +193,6 @@ func (al *allocator) updateBlockInKV(ctx context.Context, volumeID vanus.ID, blo
 	if err != nil {
 		return err
 	}
-	key := strings.Join([]string{metadata.BlockKeyPrefixInKVStore, volumeID.Key(), block.ID.Key()}, "/")
+	key := strings.Join([]string{metadata.BlockKeyPrefixInKVStore, block.VolumeID.Key(), block.ID.Key()}, "/")
 	return al.kvClient.Set(ctx, key, data)
-}
-
-func (al *allocator) addToInflightBlock(blocks ...*metadata.Block) error {
-	//al.inflightBlocks.Store(block.ID, block)
-	// TODO update to etcd
-	return nil
 }
