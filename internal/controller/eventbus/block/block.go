@@ -54,13 +54,12 @@ func NewAllocator(selector VolumeSelector) Allocator {
 type allocator struct {
 	selector VolumeSelector
 	// key: volumeID, value: SkipList of *metadata.Block
-	volumeBlockBuffer sync.Map //map[string]*skiplist.SkipList
-	//blockMap          sync.Map
-	kvClient       kv.Client
-	mutex          sync.Mutex
-	cancel         func()
-	cancelCtx      context.Context
-	allocateTicker *time.Ticker
+	volumeBlockBuffer sync.Map
+	kvClient          kv.Client
+	mutex             sync.Mutex
+	cancel            func()
+	cancelCtx         context.Context
+	allocateTicker    *time.Ticker
 }
 
 func (al *allocator) Run(ctx context.Context, kvCli kv.Client, startDynamicAllocate bool) error {
