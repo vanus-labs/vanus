@@ -16,20 +16,22 @@ package trigger_test
 
 import (
 	"context"
-	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/cloudevents/sdk-go/v2/client"
-	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
-	"github.com/google/uuid"
+	"net"
+	"testing"
+	"time"
+
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
 	"github.com/linkall-labs/vanus/internal/trigger/trigger"
 	"github.com/linkall-labs/vanus/observability/log"
+
+	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/cloudevents/sdk-go/v2/client"
+	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
+	"github.com/google/uuid"
 	. "github.com/smartystreets/goconvey/convey"
-	"net"
-	"testing"
-	"time"
 )
 
 func TestTrigger(t *testing.T) {
@@ -56,7 +58,7 @@ func startSink(ctx context.Context) {
 	if err != nil {
 		panic(err)
 	}
-	c, err := client.NewHTTP(cehttp.WithListener(ls), cehttp.WithRequestDataAtContextMiddleware())
+	c, err := client.NewHTTP(cehttp.WithListener(ls))
 	if err != nil {
 		panic(err)
 	}

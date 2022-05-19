@@ -17,6 +17,11 @@ package reader_test
 import (
 	"context"
 	"fmt"
+	"os"
+	"sync"
+	"testing"
+	"time"
+
 	ce "github.com/cloudevents/sdk-go/v2"
 	eb "github.com/linkall-labs/eventbus-go"
 	"github.com/linkall-labs/eventbus-go/pkg/discovery"
@@ -27,10 +32,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/reader"
 	"github.com/linkall-labs/vanus/observability/log"
 	. "github.com/smartystreets/goconvey/convey"
-	"os"
-	"sync"
-	"testing"
-	"time"
 )
 
 func TestReader(t *testing.T) {

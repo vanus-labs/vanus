@@ -17,11 +17,12 @@ package storage
 import (
 	"context"
 	"encoding/json"
+	"path"
+	"path/filepath"
+
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/kv"
-	"path"
-	"path/filepath"
 )
 
 type TriggerWorkerStorage interface {

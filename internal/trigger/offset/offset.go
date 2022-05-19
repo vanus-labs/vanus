@@ -15,11 +15,13 @@
 package offset
 
 import (
-	"github.com/huandu/skiplist"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"sync"
 	"time"
+
+	"github.com/linkall-labs/vanus/internal/primitive/info"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+
+	"github.com/huandu/skiplist"
 )
 
 type Manager struct {

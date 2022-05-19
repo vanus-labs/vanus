@@ -16,12 +16,13 @@ package storage
 
 import (
 	"context"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"path"
 	"path/filepath"
 	"strconv"
+
+	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/linkall-labs/vanus/internal/primitive/info"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
 type OffsetStorage interface {
