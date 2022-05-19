@@ -90,7 +90,7 @@ func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client) error {
 	mgr.kvClient = kvClient
 	mgr.cancelCtx, mgr.cancel = context.WithCancel(ctx)
 	mgr.allocator = block.NewAllocator(block.NewVolumeRoundRobin(mgr.volMgr.GetAllVolume))
-	if err := mgr.allocator.Run(ctx, mgr.kvClient); err != nil {
+	if err := mgr.allocator.Run(ctx, mgr.kvClient, true); err != nil {
 		return err
 	}
 	pairs, err := mgr.kvClient.List(ctx, metadata.EventlogKeyPrefixInKVStore)
@@ -542,7 +542,7 @@ func (mgr *eventlogManager) generateSegment(ctx context.Context) (*Segment, erro
 			log.KeyError: err,
 			"segment":    seg.String(),
 		})
-		mgr.allocator.Clean(ctx, blocks...)
+		//mgr.allocator.Clean(ctx, blocks...)
 		return nil, err
 	}
 	return seg, nil

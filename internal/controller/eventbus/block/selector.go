@@ -15,11 +15,11 @@
 package block
 
 import (
-	"context"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"sort"
 	"sync"
+
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
 // VolumeSelector selector for Block creating. The implementation based on different algorithm, typical
@@ -28,9 +28,13 @@ type VolumeSelector interface {
 	// Select return #{num} server.Instance as an array, #{size} tell selector how large Block
 	// will be created. The same server.Instance maybe placed in different index of returned array
 	// in order to make sure that length of returned array equals with #{num}
-	Select(ctx context.Context, num int, size int64) []server.Instance
+	Select(num int, size int64) []server.Instance
+
 	// SelectByID return a specified server.Instance with ServerID
-	SelectByID(ctx context.Context, id vanus.ID) server.Instance
+	SelectByID(id vanus.ID) server.Instance
+
+	// GetAllVolume get all volumes
+	GetAllVolume() []server.Instance
 }
 
 // NewVolumeRoundRobin an implementation of round-robin algorithm. Which need a callback function
@@ -55,7 +59,7 @@ type volumeRoundRobinSelector struct {
 // round-rubin is a naive algorithm, so that it can't guarantee completely balancing in the cluster, it
 // just does best effort of it. There is another advanced algorithm implementation such as
 // runtime-statistic-based-algorithm in the future.
-func (s *volumeRoundRobinSelector) Select(ctx context.Context, num int, size int64) []server.Instance {
+func (s *volumeRoundRobinSelector) Select(num int, size int64) []server.Instance {
 	instances := make([]server.Instance, 0)
 	if num == 0 || size == 0 {
 		return instances
@@ -83,7 +87,7 @@ func (s *volumeRoundRobinSelector) Select(ctx context.Context, num int, size int
 	return instances
 }
 
-func (s *volumeRoundRobinSelector) SelectByID(ctx context.Context, id vanus.ID) server.Instance {
+func (s *volumeRoundRobinSelector) SelectByID(id vanus.ID) server.Instance {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -94,4 +98,8 @@ func (s *volumeRoundRobinSelector) SelectByID(ctx context.Context, id vanus.ID) 
 		}
 	}
 	return nil
+}
+
+func (s *volumeRoundRobinSelector) GetAllVolume() []server.Instance {
+	return s.getVolumes()
 }

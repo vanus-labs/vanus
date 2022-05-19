@@ -29,6 +29,8 @@ func EmptyID() ID {
 	return emptyID
 }
 func NewID() ID {
+	// avoiding same id
+	time.Sleep(time.Microsecond)
 	return ID(time.Now().UnixNano())
 }
 
