@@ -17,29 +17,19 @@ package worker
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
-	"github.com/linkall-labs/vanus/internal/trigger/trigger"
-	"os"
-	"strings"
-	"sync"
-	"time"
-
-	ce "github.com/cloudevents/sdk-go/v2"
-	eb "github.com/linkall-labs/eventbus-go"
-	"github.com/linkall-labs/eventbus-go/pkg/discovery"
-	"github.com/linkall-labs/eventbus-go/pkg/discovery/record"
-	"github.com/linkall-labs/eventbus-go/pkg/inmemory"
-	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger/reader"
+	"github.com/linkall-labs/vanus/internal/trigger/trigger"
 	"github.com/linkall-labs/vanus/observability/log"
-)
-
-var (
-	defaultEbVRN = "vanus+local:eventbus:1"
 )
 
 type Worker struct {
@@ -56,7 +46,7 @@ type subscriptionWorker struct {
 	sub      *primitive.Subscription
 	trigger  *trigger.Trigger
 	events   chan info.EventOffset
-	reader   *reader.Reader
+	reader   reader.Reader
 	stopTime time.Time
 }
 
@@ -105,7 +95,6 @@ func NewWorker(config Config) *Worker {
 func (w *Worker) Start() error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
-	testSend()
 	return nil
 }
 
@@ -218,73 +207,12 @@ func (w *Worker) RemoveSubscription(id vanus.ID) error {
 }
 
 func (w *Worker) getReaderConfig(sub *primitive.Subscription) reader.Config {
-	var ebVrn string
-	if sub.EventBus == "" {
-		ebVrn = defaultEbVRN
-	} else {
-		ebVrn = fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s",
-			w.config.Controllers[0], sub.EventBus,
-			strings.Join(w.config.Controllers, ","))
-	}
+	ebVrn := fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s",
+		w.config.Controllers[0], sub.EventBus,
+		strings.Join(w.config.Controllers, ","))
 	return reader.Config{
 		EventBusName: sub.EventBus,
 		EventBusVRN:  ebVrn,
 		SubId:        sub.ID,
 	}
-}
-
-func testSend() {
-	ebVRN := "vanus+local:///eventbus/1"
-	elVRN := "vanus+inmemory:///eventlog/1?eventbus=1&keepalive=true"
-	elVRN2 := "vanus+inmemory:///eventlog/2?eventbus=1&keepalive=true"
-	br := &record.EventBus{
-		VRN: ebVRN,
-		Logs: []*record.EventLog{
-			{
-				VRN:  elVRN,
-				Mode: record.PremWrite | record.PremRead,
-			},
-			{
-				VRN:  elVRN2,
-				Mode: record.PremWrite | record.PremRead,
-			},
-		},
-	}
-
-	inmemory.UseInMemoryLog("vanus+inmemory")
-	ns := inmemory.UseNameService("vanus+local")
-	// register metadata of eventbus
-	vrn, err := discovery.ParseVRN(ebVRN)
-	if err != nil {
-		panic(err.Error())
-	}
-	ns.Register(vrn, br)
-	bw, err := eb.OpenBusWriter(ebVRN)
-	if err != nil {
-		log.Error(context.Background(), "open bus writer error", map[string]interface{}{"error": err})
-		os.Exit(1)
-	}
-
-	go func() {
-		i := 1
-		for ; ; i++ {
-			tp := "test"
-			if i%2 == 0 {
-				time.Sleep(1 * time.Second)
-				tp = "none"
-			}
-			// Create an Event.
-			event := ce.NewEvent()
-			event.SetID(fmt.Sprintf("%d", i))
-			event.SetSource("example/uri")
-			event.SetType(tp)
-			event.SetExtension("vanus", fmt.Sprintf("value%d", i))
-			_ = event.SetData(ce.ApplicationJSON, map[string]string{"hello": fmt.Sprintf("world %d", i), "type": tp})
-
-			_, err = bw.Append(context.Background(), &event)
-			if err != nil {
-				log.Error(context.Background(), "append event error", map[string]interface{}{"error": err})
-			}
-		}
-	}()
 }

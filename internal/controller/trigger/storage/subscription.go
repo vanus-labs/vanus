@@ -47,7 +47,7 @@ func (s *subscriptionStorage) Close() error {
 }
 
 func (s *subscriptionStorage) getKey(subID vanus.ID) string {
-	return path.Join(primitive.StorageSubscription.String(), subID.String())
+	return path.Join(StorageSubscription.String(), subID.String())
 }
 
 func (s *subscriptionStorage) CreateSubscription(ctx context.Context, sub *primitive.SubscriptionData) error {
@@ -92,7 +92,7 @@ func (s *subscriptionStorage) GetSubscription(ctx context.Context, subId vanus.I
 }
 
 func (s *subscriptionStorage) ListSubscription(ctx context.Context) ([]*primitive.SubscriptionData, error) {
-	l, err := s.client.List(ctx, primitive.StorageSubscription.String())
+	l, err := s.client.List(ctx, StorageSubscription.String())
 	if err != nil {
 		return nil, err
 	}
