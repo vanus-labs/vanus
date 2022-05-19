@@ -164,15 +164,64 @@ func TestAllocator_RunWithoutDynamic(t *testing.T) {
 func TestAllocator_RunWithDynamic(t *testing.T) {
 	Convey("test run without dynamic allocate block", t, func() {
 		ctrl := gomock.NewController(t)
-		alloc := getAllocator(ctrl)
+		srv1 := server.NewMockInstance(ctrl)
+		srv1.EXPECT().GetMeta().AnyTimes().Return(&metadata.VolumeMetadata{
+			ID:       vanus.NewIDFromUint64(1),
+			Capacity: 64 * 1024 * 1024,
+		})
+		srv1.EXPECT().ID().AnyTimes().Return(vanus.NewIDFromUint64(uint64(time.Now().UnixNano())))
+		srv1.EXPECT().CreateBlock(gomock.Any(), defaultBlockSize).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
+			size int64) (*metadata.Block, error) {
+			return &metadata.Block{
+				ID:       vanus.NewID(),
+				Capacity: size,
+				VolumeID: vanus.NewIDFromUint64(1),
+			}, nil
+		})
+
+		srv2 := server.NewMockInstance(ctrl)
+		srv2.EXPECT().GetMeta().AnyTimes().Return(&metadata.VolumeMetadata{
+			ID:       vanus.NewIDFromUint64(2),
+			Capacity: 64 * 1024 * 1024,
+		})
+		srv2.EXPECT().ID().AnyTimes().Return(vanus.NewIDFromUint64(uint64(time.Now().UnixNano())))
+		srv2.EXPECT().CreateBlock(gomock.Any(), defaultBlockSize).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
+			size int64) (*metadata.Block, error) {
+			return &metadata.Block{
+				ID:       vanus.NewID(),
+				Capacity: size,
+				VolumeID: vanus.NewIDFromUint64(2),
+			}, nil
+		})
+
+		srv3 := server.NewMockInstance(ctrl)
+		srv3.EXPECT().GetMeta().AnyTimes().Return(&metadata.VolumeMetadata{
+			ID:       vanus.NewIDFromUint64(3),
+			Capacity: 64 * 1024 * 1024,
+		})
+		srv3.EXPECT().ID().AnyTimes().Return(vanus.NewIDFromUint64(uint64(time.Now().UnixNano())))
+		srv3.EXPECT().CreateBlock(gomock.Any(), defaultBlockSize).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
+			size int64) (*metadata.Block, error) {
+			return &metadata.Block{
+				ID:       vanus.NewID(),
+				Capacity: size,
+				VolumeID: vanus.NewIDFromUint64(3),
+			}, nil
+		})
+
+		mutex := sync.Mutex{}
+		var instanceList []server.Instance
+		alloc := NewAllocator(NewVolumeRoundRobin(func() []server.Instance {
+			mutex.Lock()
+			defer mutex.Unlock()
+			return instanceList
+		})).(*allocator)
 		kvMock := kv.NewMockClient(ctrl)
 		alloc.kvClient = kvMock
 
 		ctx := stdCtx.Background()
 		kvMock.EXPECT().List(ctx, metadata.BlockKeyPrefixInKVStore).Return(nil, nil)
 
-		localList := instanceList
-		instanceList = []server.Instance{}
 		alloc.allocateTicker = time.NewTicker(10 * time.Millisecond)
 		kvMock.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Times(24)
 		err := alloc.Run(ctx, kvMock, true)
@@ -184,7 +233,7 @@ func TestAllocator_RunWithDynamic(t *testing.T) {
 		})
 		So(count, ShouldBeZeroValue)
 		mutex.Lock()
-		instanceList = localList
+		instanceList = []server.Instance{srv1, srv2, srv3}
 		mutex.Unlock()
 		time.Sleep(time.Second)
 		v, exist := alloc.volumeBlockBuffer.Load("1")
@@ -222,11 +271,6 @@ func TestAllocator_UpdateBlock(t *testing.T) {
 		So(err, ShouldBeNil)
 	})
 }
-
-var (
-	instanceList []server.Instance
-	mutex        sync.Mutex
-)
 
 func getAllocator(ctrl *gomock.Controller) *allocator {
 	srv1 := server.NewMockInstance(ctrl)
@@ -274,11 +318,8 @@ func getAllocator(ctrl *gomock.Controller) *allocator {
 		}, nil
 	})
 
-	instanceList = []server.Instance{srv1, srv2, srv3}
 	alloc := NewAllocator(NewVolumeRoundRobin(func() []server.Instance {
-		mutex.Lock()
-		mutex.Unlock()
-		return instanceList
+		return []server.Instance{srv1, srv2, srv3}
 	}))
 	return alloc.(*allocator)
 }
