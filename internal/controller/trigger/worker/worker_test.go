@@ -15,11 +15,17 @@
 package worker
 
 import (
+	"context"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
+	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	pbtrigger "github.com/linkall-labs/vsproto/pkg/trigger"
+
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -30,12 +36,16 @@ func TestReportSubId(t *testing.T) {
 	}
 	tWorker.SetReportSubId(map1)
 	getMap := tWorker.GetReportSubId()
+	now := time.Now()
+	time.Sleep(time.Millisecond)
 	tWorker.SetReportSubId(map[vanus.ID]struct{}{
 		11: {},
 	})
 	Convey("test", t, func() {
 		So(len(getMap), ShouldEqual, 2)
 		So(getMap, ShouldResemble, map1)
+		b := tWorker.GetLastHeartbeatTime().After(now)
+		So(b, ShouldBeTrue)
 	})
 }
 
@@ -77,5 +87,65 @@ func TestAssignSubId(t *testing.T) {
 			return expect[i] > expect[j]
 		})
 		So(keys, ShouldResemble, expect)
+	})
+}
+
+func TestTriggerWorkerStart(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	tWorker := NewTriggerWorker(info.NewTriggerWorkerInfo("test"))
+	_ = tWorker.init(ctx)
+	client := pbtrigger.NewMockTriggerWorkerClient(ctrl)
+	tWorker.client = client
+	Convey("start", t, func() {
+		client.EXPECT().Start(ctx, gomock.Any()).Return(nil, nil)
+		err := tWorker.Start(ctx)
+		So(err, ShouldBeNil)
+	})
+}
+
+func TestTriggerWorkerStop(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	tWorker := NewTriggerWorker(info.NewTriggerWorkerInfo("test"))
+	_ = tWorker.init(ctx)
+	client := pbtrigger.NewMockTriggerWorkerClient(ctrl)
+	tWorker.client = client
+	Convey("start", t, func() {
+		client.EXPECT().Stop(ctx, gomock.Any()).Return(nil, nil)
+		err := tWorker.Stop(ctx)
+		So(err, ShouldBeNil)
+	})
+}
+
+func TestTriggerWorkerAddSubscription(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	tWorker := NewTriggerWorker(info.NewTriggerWorkerInfo("test"))
+	_ = tWorker.init(ctx)
+	client := pbtrigger.NewMockTriggerWorkerClient(ctrl)
+	tWorker.client = client
+	Convey("start", t, func() {
+		client.EXPECT().AddSubscription(ctx, gomock.Any()).Return(nil, nil)
+		err := tWorker.AddSubscription(ctx, &primitive.Subscription{})
+		So(err, ShouldBeNil)
+	})
+}
+
+func TestTriggerWorkerRemoveSubscription(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	tWorker := NewTriggerWorker(info.NewTriggerWorkerInfo("test"))
+	_ = tWorker.init(ctx)
+	client := pbtrigger.NewMockTriggerWorkerClient(ctrl)
+	tWorker.client = client
+	Convey("start", t, func() {
+		client.EXPECT().RemoveSubscription(ctx, gomock.Any()).Return(nil, nil)
+		err := tWorker.RemoveSubscriptions(ctx, 1)
+		So(err, ShouldBeNil)
 	})
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=subscription_manager.go  -destination=mock_subscription_manager.go -package=subscription
+//go:generate mockgen -source=subscription.go  -destination=mock_subscription.go -package=subscription
 package subscription
 
 import (
