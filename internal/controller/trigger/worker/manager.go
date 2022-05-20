@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=trigger_worker_manager.go  -destination=mock_trigger_worker_manager.go -package=worker
+//go:generate mockgen -source=manager.go  -destination=mock_manager.go -package=worker
 package worker
 
 import (
