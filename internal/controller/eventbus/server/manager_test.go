@@ -17,6 +17,7 @@ package server
 import (
 	stdCtx "context"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -135,14 +136,19 @@ func TestSegmentServerManager_Run(t *testing.T) {
 		_ss1.client = mockSSCli1
 		_ss2.client = mockSSCli2
 
+		mutex := sync.Mutex{}
 		status1 := "running"
 		status2 := "running"
 		f1 := func(ctx stdCtx.Context, empty *empty.Empty, opts ...grpc.CallOption) (*segpb.StatusResponse, error) {
+			mutex.Lock()
+			defer mutex.Unlock()
 			return &segpb.StatusResponse{
 				Status: status1,
 			}, nil
 		}
 		f2 := func(ctx stdCtx.Context, empty *empty.Empty, opts ...grpc.CallOption) (*segpb.StatusResponse, error) {
+			mutex.Lock()
+			defer mutex.Unlock()
 			return &segpb.StatusResponse{
 				Status: status2,
 			}, nil
@@ -155,14 +161,17 @@ func TestSegmentServerManager_Run(t *testing.T) {
 		So(util.MapLen(&ssm.segmentServerMapByID), ShouldEqual, 2)
 		So(util.MapLen(&ssm.segmentServerMapByIP), ShouldEqual, 2)
 
+		mutex.Lock()
 		status1 = "stopped"
+		mutex.Unlock()
 		time.Sleep(200 * time.Millisecond)
 		So(util.MapLen(&ssm.segmentServerMapByID), ShouldEqual, 1)
 		So(util.MapLen(&ssm.segmentServerMapByIP), ShouldEqual, 1)
 
 		mgr.Stop(stdCtx.Background())
-		mockSSCli2.EXPECT().Status(stdCtx.Background(), gomock.Any()).AnyTimes().Return(
-			&segpb.StatusResponse{Status: "stopped"}, nil)
+		mutex.Lock()
+		status2 = "stopped"
+		mutex.Unlock()
 		time.Sleep(200 * time.Millisecond)
 		So(util.MapLen(&ssm.segmentServerMapByID), ShouldEqual, 1)
 	})
