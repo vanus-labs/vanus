@@ -17,6 +17,7 @@ parsers:
 ignore:
   - "**/mock*.go"
   - "**/fake*.go"
+  - "**/fake.go"
 
 comment:
   layout: "reach,diff,flags,files,footer"
