@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=trigger_worker_manager.go  -destination=testing/mock_trigger_worker_manager.go -package=testing
+//go:generate mockgen -source=trigger_worker_manager.go  -destination=mock_trigger_worker_manager.go -package=worker
 package worker
 
 import (
@@ -274,7 +274,7 @@ func (m *manager) cleanTriggerWorker(ctx context.Context, tWorker *TriggerWorker
 	log.Info(ctx, "do trigger worker leave success", map[string]interface{}{
 		log.KeyTriggerWorkerAddr: tWorker.info.Addr,
 	})
-	err := m.storage.DeleteTriggerWorker(ctx, tWorker.info.Id)
+	err := m.storage.DeleteTriggerWorker(ctx, tWorker.info.ID)
 	if err != nil {
 		log.Warning(ctx, "storage delete trigger worker error", map[string]interface{}{
 			log.KeyError:             err,

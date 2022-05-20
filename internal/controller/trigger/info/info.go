@@ -31,7 +31,7 @@ const (
 )
 
 type TriggerWorkerInfo struct {
-	Id            string                 `json:"-"`
+	ID            string                 `json:"-"`
 	Addr          string                 `json:"addr"`
 	Phase         TriggerWorkerPhase     `json:"phase"`
 	AssignSubIds  map[vanus.ID]time.Time `json:"-"`
@@ -43,7 +43,7 @@ type TriggerWorkerInfo struct {
 func NewTriggerWorkerInfo(addr string) *TriggerWorkerInfo {
 	twInfo := &TriggerWorkerInfo{
 		Addr:  addr,
-		Id:    util.GetIdByAddr(addr),
+		ID:    util.GetIdByAddr(addr),
 		Phase: TriggerWorkerPhasePending,
 	}
 	twInfo.Init()

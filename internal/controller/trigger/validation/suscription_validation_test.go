@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package validation_test
+package validation
 
 import (
+	"context"
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/validation"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	metapb "github.com/linkall-labs/vsproto/pkg/meta"
 
@@ -25,26 +25,165 @@ import (
 )
 
 func TestCreateSubscriptionRequestValidator(t *testing.T) {
+	ctx := context.Background()
 	Convey("multiple dialect", t, func() {
-		request := validation.ConvertCreateSubscriptionRequest(&ctrlpb.CreateSubscriptionRequest{
+		request := &ctrlpb.CreateSubscriptionRequest{
 			Filters: []*metapb.Filter{{
 				Exact: map[string]string{
 					"key1": "value1",
 				},
-				Suffix: map[string]string{
-					"key2": "values2",
-				},
-			}},
-		})
-		So(request.Validate(nil), ShouldNotBeNil)
-	})
-	Convey("cel", t, func() {
-		request := validation.ConvertCreateSubscriptionRequest(&ctrlpb.CreateSubscriptionRequest{
-			Filters: []*metapb.Filter{{
 				Cel: "$type.(string) =='test'",
 			}},
-			Sink: "http",
-		})
-		So(request.Validate(nil), ShouldBeNil)
+		}
+		So(ValidateCreateSubscription(ctx, request), ShouldNotBeNil)
+	})
+	Convey("sink empty", t, func() {
+		request := &ctrlpb.CreateSubscriptionRequest{
+			Sink:     "",
+			EventBus: "bus",
+		}
+		So(ValidateCreateSubscription(ctx, request), ShouldNotBeNil)
+	})
+	Convey("eventBus empty", t, func() {
+		request := &ctrlpb.CreateSubscriptionRequest{
+			Sink:     "sink",
+			EventBus: "",
+		}
+		So(ValidateCreateSubscription(ctx, request), ShouldNotBeNil)
+	})
+
+}
+
+func TestValidateFilter(t *testing.T) {
+	ctx := context.Background()
+	Convey("exact key empty", t, func() {
+		f := &metapb.Filter{
+			Exact: map[string]string{
+				"": "value",
+			},
+		}
+		So(ValidateFilter(ctx, f), ShouldNotBeNil)
+	})
+	Convey("exact value empty", t, func() {
+		f := &metapb.Filter{
+			Exact: map[string]string{
+				"key": "",
+			},
+		}
+		So(ValidateFilter(ctx, f), ShouldNotBeNil)
+	})
+	Convey("suffix key empty", t, func() {
+		f := &metapb.Filter{
+			Suffix: map[string]string{
+				"": "value",
+			},
+		}
+		So(ValidateFilter(ctx, f), ShouldNotBeNil)
+	})
+	Convey("suffix value empty", t, func() {
+		f := &metapb.Filter{
+			Suffix: map[string]string{
+				"key": "",
+			},
+		}
+		So(ValidateFilter(ctx, f), ShouldNotBeNil)
+	})
+	Convey("prefix key empty", t, func() {
+		f := &metapb.Filter{
+			Prefix: map[string]string{
+				"": "value",
+			},
+		}
+		So(ValidateFilter(ctx, f), ShouldNotBeNil)
+	})
+	Convey("prefix value empty", t, func() {
+		f := &metapb.Filter{
+			Prefix: map[string]string{
+				"key": "",
+			},
+		}
+		So(ValidateFilter(ctx, f), ShouldNotBeNil)
+	})
+	Convey("sql", t, func() {
+		f := &metapb.Filter{
+			Sql: "source = 'test'",
+		}
+		So(ValidateFilter(ctx, f), ShouldBeNil)
+	})
+	Convey("sql invalid", t, func() {
+		f := &metapb.Filter{
+			Sql: "source == 'test'",
+		}
+		So(ValidateFilter(ctx, f), ShouldNotBeNil)
+	})
+	Convey("cel", t, func() {
+		f := &metapb.Filter{
+			Cel: "$type.(string) =='test'",
+		}
+		So(ValidateFilter(ctx, f), ShouldBeNil)
+	})
+	Convey("cel invalid", t, func() {
+		f := &metapb.Filter{
+			Cel: "$type.(string) ==test",
+		}
+		So(ValidateFilter(ctx, f), ShouldNotBeNil)
+	})
+	Convey("not", t, func() {
+		f := &metapb.Filter{
+			Exact: map[string]string{
+				"key": "value",
+			},
+		}
+		So(ValidateFilter(ctx, f), ShouldBeNil)
+	})
+	filters := []*metapb.Filter{
+		{
+			Exact: map[string]string{
+				"key": "value",
+			},
+		}, {
+			Suffix: map[string]string{
+				"key": "value",
+			},
+		},
+	}
+	filtersInvalid := []*metapb.Filter{
+		{
+			Exact: map[string]string{
+				"": "value",
+			},
+		}, {
+			Suffix: map[string]string{
+				"key": "value",
+			},
+		},
+	}
+	Convey("filter list", t, func() {
+		So(ValidateFilterList(ctx, filters), ShouldBeNil)
+		So(ValidateFilterList(ctx, filtersInvalid), ShouldNotBeNil)
+	})
+	Convey("all", t, func() {
+		f := &metapb.Filter{
+			All: filters,
+		}
+		So(ValidateFilter(ctx, f), ShouldBeNil)
+	})
+	Convey("all invalid", t, func() {
+		f := &metapb.Filter{
+			All: filtersInvalid,
+		}
+		So(ValidateFilter(ctx, f), ShouldNotBeNil)
+	})
+	Convey("any", t, func() {
+		f := &metapb.Filter{
+			Any: filters,
+		}
+		So(ValidateFilter(ctx, f), ShouldBeNil)
+	})
+	Convey("any invalid", t, func() {
+		f := &metapb.Filter{
+			Any: filtersInvalid,
+		}
+		So(ValidateFilter(ctx, f), ShouldNotBeNil)
 	})
 }

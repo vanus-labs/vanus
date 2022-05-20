@@ -19,13 +19,14 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
-	subscriptiontest "github.com/linkall-labs/vanus/internal/controller/trigger/subscription/testing"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/util"
+
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -48,11 +49,11 @@ func TestInit(t *testing.T) {
 	addr := "test"
 	storage := storage.NewFakeStorage()
 	storage.SaveTriggerWorker(ctx, info.TriggerWorkerInfo{
-		Id:   util.GetIdByAddr(addr),
+		ID:   util.GetIdByAddr(addr),
 		Addr: addr,
 	})
 	ctrl := gomock.NewController(t)
-	subManager := subscriptiontest.NewMockManager(ctrl)
+	subManager := subscription.NewMockManager(ctrl)
 	sub := getTestSubscription()
 	sub.TriggerWorker = addr
 	subManager.EXPECT().ListSubscription(ctx).Return(map[vanus.ID]*primitive.SubscriptionData{
@@ -125,7 +126,7 @@ func TestAssignSubscription(t *testing.T) {
 	storage := storage.NewFakeStorage()
 	sub := getTestSubscription()
 	ctrl := gomock.NewController(t)
-	subManager := subscriptiontest.NewMockManager(ctrl)
+	subManager := subscription.NewMockManager(ctrl)
 	sub.TriggerWorker = addr
 	twManager := NewTriggerWorkerManager(Config{}, storage, subManager, getTestTriggerWorkerRemoveSubscription()).(*manager)
 	Convey("assign subscription", t, func() {

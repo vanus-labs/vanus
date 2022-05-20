@@ -23,53 +23,95 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestOffset(t *testing.T) {
-	storage := storage.NewFakeStorage()
-	m := NewOffsetManager(storage, 10*time.Microsecond)
+func TestGetOffset(t *testing.T) {
 	ctx := context.Background()
-	Convey("offset", t, func() {
-		subId := vanus.ID(1)
-		eventLogID := vanus.ID(1)
-		offset := uint64(1)
-		Convey("get offset is empty", func() {
-			m.RemoveRegisterSubscription(ctx, subId)
-			offsets, _ := m.GetOffset(ctx, subId)
-			So(len(offsets), ShouldEqual, 0)
-		})
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	storage := storage.NewMockOffsetStorage(ctrl)
+	storage.EXPECT().DeleteOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+	m := NewOffsetManager(storage, 10*time.Microsecond).(*manager)
+	subId := vanus.ID(1)
+	eventLogID := vanus.ID(1)
+	offset := uint64(1)
 
-		Convey("get offset", func() {
-			m.RemoveRegisterSubscription(ctx, subId)
-			storage.CreateOffset(ctx, subId, info.OffsetInfo{
-				EventLogID: eventLogID,
-				Offset:     offset,
+	Convey("get offset storage is empty", t, func() {
+		storage.EXPECT().GetOffsets(gomock.Any(), subId).Return(info.ListOffsetInfo{}, nil)
+		offsets, _ := m.GetOffset(ctx, subId)
+		So(len(offsets), ShouldEqual, 0)
+		subOffset, exist := m.subOffset.Load(subId)
+		So(exist, ShouldBeTrue)
+		So(subOffset, ShouldNotBeNil)
+		m.RemoveRegisterSubscription(ctx, subId)
+	})
+
+	Convey("get offset storage has", t, func() {
+		storage.EXPECT().GetOffsets(gomock.Any(), subId).Return(info.ListOffsetInfo{info.OffsetInfo{
+			EventLogID: eventLogID,
+			Offset:     offset,
+		}}, nil)
+		offsets, _ := m.GetOffset(ctx, subId)
+		So(len(offsets), ShouldEqual, 1)
+		So(offsets[0].Offset, ShouldEqual, offset)
+		subOffset, exist := m.subOffset.Load(subId)
+		So(exist, ShouldBeTrue)
+		So(subOffset, ShouldNotBeNil)
+	})
+}
+
+func TestSetOffset(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	storage := storage.NewMockOffsetStorage(ctrl)
+	storage.EXPECT().DeleteOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+	m := NewOffsetManager(storage, 10*time.Microsecond)
+	subId := vanus.ID(1)
+	eventLogID := vanus.ID(1)
+	offset := uint64(1)
+
+	Convey("set offset", t, func() {
+		storage.EXPECT().GetOffsets(gomock.Any(), subId).Return(info.ListOffsetInfo{}, nil)
+		m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
+		offsets, _ := m.GetOffset(ctx, subId)
+		So(len(offsets), ShouldEqual, 1)
+		So(offsets[0].Offset, ShouldEqual, offset)
+		m.RemoveRegisterSubscription(ctx, subId)
+	})
+}
+
+func TestCommit(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	storage := storage.NewMockOffsetStorage(ctrl)
+	storage.EXPECT().DeleteOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+	m := NewOffsetManager(storage, 10*time.Microsecond).(*manager)
+	subId := vanus.ID(1)
+	eventLogID := vanus.ID(1)
+	offset := uint64(1)
+
+	Convey("commit", t, func() {
+		Convey("commit with storage create", func() {
+			storage.EXPECT().GetOffsets(gomock.Any(), subId).Return(info.ListOffsetInfo{}, nil)
+			storage.EXPECT().CreateOffset(gomock.Any(), subId, gomock.Any()).Return(nil)
+			m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
+			offsets, _ := m.GetOffset(ctx, subId)
+			So(len(offsets), ShouldEqual, 1)
+			So(offsets[0].Offset, ShouldEqual, offset)
+			m.commit(ctx)
+			Convey("commit with storage update", func() {
+				offset++
+				m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
+				storage.EXPECT().UpdateOffset(gomock.Any(), subId, gomock.Any()).Return(nil)
+				m.commit(ctx)
 			})
-			offsets, _ := m.GetOffset(ctx, subId)
-			So(len(offsets), ShouldEqual, 1)
-			So(offsets[0].Offset, ShouldEqual, offset)
-
-		})
-
-		Convey("offset", func() {
-			m.RemoveRegisterSubscription(ctx, subId)
-			m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
-			offsets, _ := m.GetOffset(ctx, subId)
-			So(len(offsets), ShouldEqual, 1)
-			So(offsets[0].Offset, ShouldEqual, offset)
-		})
-
-		Convey("commit", func() {
-			m.RemoveRegisterSubscription(ctx, subId)
-			m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
-			offsets, _ := m.GetOffset(ctx, subId)
-			So(len(offsets), ShouldEqual, 1)
-			So(offsets[0].Offset, ShouldEqual, offset)
-			m.Start()
-			m.Stop()
 		})
 	})
+
 }
 
 func TestStart(t *testing.T) {
