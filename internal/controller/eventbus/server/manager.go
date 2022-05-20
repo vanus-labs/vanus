@@ -123,7 +123,7 @@ func (mgr *segmentServerManager) Run(ctx context.Context) error {
 					}
 					if !srv.IsActive(ctx) {
 						mgr.segmentServerMapByIP.Delete(srv.Address())
-						mgr.segmentServerMapByID.Delete(srv.ID())
+						mgr.segmentServerMapByID.Delete(srv.ID().Key())
 						log.Info(newCtx, "the server isn't active", map[string]interface{}{
 							"id":      srv.ID(),
 							"address": srv.Address(),
@@ -176,7 +176,6 @@ type Server interface {
 	Polish()
 	IsActive(ctx context.Context) bool
 	Uptime() time.Time
-	Ready() bool
 }
 
 type segmentServer struct {
@@ -277,8 +276,4 @@ func (ss *segmentServer) IsActive(ctx context.Context) bool {
 
 func (ss *segmentServer) Uptime() time.Time {
 	return ss.uptime
-}
-
-func (ss *segmentServer) Ready() bool {
-	return false
 }

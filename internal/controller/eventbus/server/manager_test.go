@@ -17,7 +17,9 @@ package server
 import (
 	stdCtx "context"
 	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/errors"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/util"
 	segmentpb "github.com/linkall-labs/vsproto/pkg/segment"
 	. "github.com/smartystreets/goconvey/convey"
@@ -132,25 +134,81 @@ func TestSegmentServerManager_Run(t *testing.T) {
 		_ss1.client = mockSSCli1
 		_ss2.client = mockSSCli2
 
-		mockSSCli1.EXPECT().Status(stdCtx.Background(), gomock.Any()).AnyTimes().Return(
-			&segmentpb.StatusResponse{Status: "running"}, nil)
-		mockSSCli2.EXPECT().Status(stdCtx.Background(), gomock.Any()).AnyTimes().Return(
-			&segmentpb.StatusResponse{Status: "running"}, nil)
+		status1 := "running"
+		status2 := "running"
+		f1 := func(ctx stdCtx.Context, empty *empty.Empty, opts ...grpc.CallOption) (*segmentpb.StatusResponse, error) {
+			return &segmentpb.StatusResponse{
+				Status: status1,
+			}, nil
+		}
+		f2 := func(ctx stdCtx.Context, empty *empty.Empty, opts ...grpc.CallOption) (*segmentpb.StatusResponse, error) {
+			return &segmentpb.StatusResponse{
+				Status: status2,
+			}, nil
+		}
+		mockSSCli1.EXPECT().Status(stdCtx.Background(), gomock.Any()).AnyTimes().DoAndReturn(f1)
+		mockSSCli2.EXPECT().Status(stdCtx.Background(), gomock.Any()).AnyTimes().DoAndReturn(f2)
 		err = ssm.Run(stdCtx.Background())
 		So(err, ShouldBeNil)
 		time.Sleep(200 * time.Millisecond)
-		mockSSCli1.EXPECT().Status().After()
-		mockSSCli1.EXPECT().Status(stdCtx.Background(), gomock.Any())
-		mockSSCli1.EXPECT().Status(stdCtx.Background(), gomock.Any()).AnyTimes().Return(
-			&segmentpb.StatusResponse{Status: "stopped"}, nil)
+		So(util.MapLen(&ssm.segmentServerMapByID), ShouldEqual, 2)
+		So(util.MapLen(&ssm.segmentServerMapByIP), ShouldEqual, 2)
+
+		status1 = "stopped"
 		time.Sleep(200 * time.Millisecond)
 		So(util.MapLen(&ssm.segmentServerMapByID), ShouldEqual, 1)
+		So(util.MapLen(&ssm.segmentServerMapByIP), ShouldEqual, 1)
 
 		mgr.Stop(stdCtx.Background())
 		mockSSCli2.EXPECT().Status(stdCtx.Background(), gomock.Any()).AnyTimes().Return(
 			&segmentpb.StatusResponse{Status: "stopped"}, nil)
 		time.Sleep(200 * time.Millisecond)
 		So(util.MapLen(&ssm.segmentServerMapByID), ShouldEqual, 1)
+	})
+}
+
+func TestSegmentServer(t *testing.T) {
+	Convey("test Manager run and stop", t, func() {
+		srv1 := runGRPCServer("127.0.0.1:10001")
+		defer srv1.GracefulStop()
+		ss1, err := NewSegmentServer("127.0.0.1:10001")
+		So(err, ShouldBeNil)
+
+		ctrl := gomock.NewController(t)
+		_ss1 := ss1.(*segmentServer)
+		mockSSCli1 := segmentpb.NewMockSegmentServerClient(ctrl)
+		_ss1.client = mockSSCli1
+
+		So(ss1.Address(), ShouldEqual, "127.0.0.1:10001")
+		So(ss1.GetClient(), ShouldEqual, mockSSCli1)
+
+		status1 := "running"
+		f1 := func(ctx stdCtx.Context, empty *empty.Empty, opts ...grpc.CallOption) (*segmentpb.StatusResponse, error) {
+			return &segmentpb.StatusResponse{
+				Status: status1,
+			}, nil
+		}
+		ctx := stdCtx.Background()
+		mockSSCli1.EXPECT().Status(stdCtx.Background(), gomock.Any()).AnyTimes().DoAndReturn(f1)
+		So(ss1.IsActive(ctx), ShouldBeTrue)
+		status1 = "stopped"
+		So(ss1.IsActive(ctx), ShouldBeFalse)
+
+		mockSSCli1.EXPECT().Start(ctx, gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
+			func(ctx stdCtx.Context, req *segmentpb.StartSegmentServerRequest, opts ...grpc.CallOption) (*segmentpb.StartSegmentServerResponse, error) {
+				So(req.ServerId, ShouldEqual, ss1.ID())
+				return nil, nil
+			})
+		So(ss1.RemoteStart(ctx), ShouldBeNil)
+
+		mockSSCli1.EXPECT().Stop(ctx, gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
+		ss1.RemoteStop(ctx)
+
+		So(ss1.Close(), ShouldBeNil)
+
+		ss2, err := NewSegmentServerWithID(vanus.NewIDFromUint64(1024), "127.0.0.1:10001")
+		So(err, ShouldBeNil)
+		So(ss2.ID(), ShouldEqual, vanus.NewIDFromUint64(1024))
 	})
 }
 
