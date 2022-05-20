@@ -58,6 +58,10 @@ func (id ID) Key() string {
 	return id.String()
 }
 
+func (id ID) Equals(cID ID) bool {
+	return id.Uint64() == cID.Uint64()
+}
+
 func GenerateID() ID {
 	return ID(time.Now().UnixNano())
 }

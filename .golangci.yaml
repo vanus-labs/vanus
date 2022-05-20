@@ -303,7 +303,7 @@ linters:
     - sqlclosecheck
     - stylecheck
     - tenv
-    - testpackage
+#    - testpackage
     - tparallel
     - unconvert
     - unparam
