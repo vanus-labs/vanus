@@ -104,7 +104,7 @@ func (f *fake) DeleteOffset(ctx context.Context, subId vanus.ID) error {
 }
 
 func (f *fake) SaveTriggerWorker(ctx context.Context, info info.TriggerWorkerInfo) error {
-	f.tWorkers[info.Id] = &info
+	f.tWorkers[info.ID] = &info
 	return nil
 }
 func (f *fake) GetTriggerWorker(ctx context.Context, id string) (*info.TriggerWorkerInfo, error) {

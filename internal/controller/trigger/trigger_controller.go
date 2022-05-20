@@ -71,7 +71,7 @@ func (ctrl *triggerController) CreateSubscription(ctx context.Context, request *
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
-	err := validation.ConvertCreateSubscriptionRequest(request).Validate(ctx)
+	err := validation.ValidateCreateSubscription(ctx, request)
 	if err != nil {
 		return nil, err
 	}

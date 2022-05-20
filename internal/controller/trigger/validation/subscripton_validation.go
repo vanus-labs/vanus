@@ -25,29 +25,21 @@ import (
 	cesqlparser "github.com/cloudevents/sdk-go/sql/v2/parser"
 )
 
-type createSubscriptionRequestValidator ctrlpb.CreateSubscriptionRequest
-
-func ConvertCreateSubscriptionRequest(request *ctrlpb.CreateSubscriptionRequest) createSubscriptionRequestValidator {
-	if request == nil {
-		return createSubscriptionRequestValidator{}
-	}
-	return createSubscriptionRequestValidator(*request)
-}
-
-func (request createSubscriptionRequestValidator) Validate(ctx context.Context) error {
-	err := filterListValidator(request.Filters).Validate(ctx)
+func ValidateCreateSubscription(ctx context.Context, request *ctrlpb.CreateSubscriptionRequest) error {
+	err := ValidateFilterList(ctx, request.Filters)
 	if err != nil {
 		return errors.ErrInvalidRequest.WithMessage("filters is invalid").Wrap(err)
 	}
 	if request.Sink == "" {
 		return errors.ErrInvalidRequest.WithMessage("sink is empty")
 	}
+	if request.EventBus == "" {
+		return errors.ErrInvalidRequest.WithMessage("eventBus is empty")
+	}
 	return nil
 }
 
-type filterListValidator []*metapb.Filter
-
-func (filters filterListValidator) Validate(ctx context.Context) error {
+func ValidateFilterList(ctx context.Context, filters []*metapb.Filter) error {
 	if len(filters) == 0 {
 		return nil
 	}
@@ -55,7 +47,7 @@ func (filters filterListValidator) Validate(ctx context.Context) error {
 		if f == nil {
 			continue
 		}
-		err := convertFilterValidation(f).Validate(ctx)
+		err := ValidateFilter(ctx, f)
 		if err != nil {
 			return err
 		}
@@ -63,17 +55,8 @@ func (filters filterListValidator) Validate(ctx context.Context) error {
 	return nil
 }
 
-type filterValidator metapb.Filter
-
-func convertFilterValidation(f *metapb.Filter) filterValidator {
-	if f == nil {
-		return filterValidator{}
-	}
-	return filterValidator(*f)
-}
-
-func (f filterValidator) Validate(ctx context.Context) error {
-	if f.hasMultipleDialects() {
+func ValidateFilter(ctx context.Context, f *metapb.Filter) error {
+	if hasMultipleDialects(f) {
 		return errors.ErrFilterMultiple.WithMessage("filters can have only one dialect")
 	}
 	err := validateAttributeMap("exact", f.Exact)
@@ -101,16 +84,16 @@ func (f filterValidator) Validate(ctx context.Context) error {
 		}
 	}
 	if f.Not != nil {
-		err = convertFilterValidation(f.Not).Validate(ctx)
+		err = ValidateFilter(ctx, f.Not)
 		if err != nil {
 			return errors.ErrInvalidRequest.WithMessage("not filter dialect invalid").Wrap(err)
 		}
 	}
-	err = filterListValidator(f.All).Validate(ctx)
+	err = ValidateFilterList(ctx, f.All)
 	if err != nil {
 		return errors.ErrInvalidRequest.WithMessage("all filter dialect invalid").Wrap(err)
 	}
-	err = filterListValidator(f.Any).Validate(ctx)
+	err = ValidateFilterList(ctx, f.Any)
 	if err != nil {
 		return errors.ErrInvalidRequest.WithMessage("any filter dialect invalid").Wrap(err)
 	}
@@ -156,7 +139,7 @@ func validateAttributeMap(attributeName string, attribute map[string]string) err
 	return nil
 }
 
-func (f filterValidator) hasMultipleDialects() bool {
+func hasMultipleDialects(f *metapb.Filter) bool {
 	dialectFound := false
 	if len(f.Exact) > 0 {
 		dialectFound = true
@@ -196,7 +179,14 @@ func (f filterValidator) hasMultipleDialects() bool {
 			dialectFound = true
 		}
 	}
-	if f.Sql != "" && dialectFound {
+	if f.Sql != "" {
+		if dialectFound {
+			return true
+		} else {
+			dialectFound = true
+		}
+	}
+	if f.Cel != "" && dialectFound {
 		return true
 	}
 	return false
