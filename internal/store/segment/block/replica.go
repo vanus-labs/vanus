@@ -24,6 +24,7 @@ import (
 	// first-party libraries.
 	"github.com/linkall-labs/raft"
 	"github.com/linkall-labs/raft/raftpb"
+	metapb "github.com/linkall-labs/vsproto/pkg/meta"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -50,7 +51,7 @@ type Replica struct {
 	full bool
 	mu   sync.RWMutex
 
-	block *fileBlock
+	block *FileBlock
 
 	leaderID vanus.ID
 	listener LeaderChangedListener
@@ -67,9 +68,12 @@ type Replica struct {
 	donec  chan struct{}
 }
 
-// Make sure replica implements SegmentBlockWriter and transport.Receiver.
-var _ SegmentBlockWriter = (*Replica)(nil)
-var _ transport.Receiver = (*Replica)(nil)
+// Make sure replica implements SegmentBlockWriter, ClusterInfoSource and transport.Receiver.
+var (
+	_ SegmentBlockWriter = (*Replica)(nil)
+	_ ClusterInfoSource  = (*Replica)(nil)
+	_ transport.Receiver = (*Replica)(nil)
+)
 
 func NewReplica(ctx context.Context, block SegmentBlock, raftLog *raftlog.Log,
 	sender transport.Sender, listener LeaderChangedListener,
@@ -79,7 +83,7 @@ func NewReplica(ctx context.Context, block SegmentBlock, raftLog *raftlog.Log,
 	ctx, cancel := context.WithCancel(ctx)
 
 	r := &Replica{
-		block:     block.(*fileBlock),
+		block:     block.(*FileBlock),
 		listener:  listener,
 		log:       raftLog,
 		sender:    sender,
@@ -231,8 +235,8 @@ func (r *Replica) leaderChanged() {
 		return
 	}
 
-	st := r.log.HardState()
-	r.listener(r.block.SegmentBlockID(), r.leaderID, st.Term)
+	leader, term := r.leaderInfo()
+	r.listener(r.block.SegmentBlockID(), leader, term)
 }
 
 func (r *Replica) applyConfChange(entrypb *raftpb.Entry) *raftpb.ConfState {
@@ -491,6 +495,16 @@ func (r *Replica) hintEndpoint(from uint64, endpoint string) {
 	} else if ep.endpoint != endpoint {
 		ep.endpoint = endpoint
 	}
+}
+
+func (r *Replica) FillClusterInfo(info *metapb.SegmentHealthInfo) {
+	leader, term := r.leaderInfo()
+	info.Leader = leader.Uint64()
+	info.Term = term
+}
+
+func (r *Replica) leaderInfo() (vanus.ID, uint64) {
+	return r.leaderID, r.log.HardState().Term
 }
 
 // CloseWrite implements SegmentBlockWriter.

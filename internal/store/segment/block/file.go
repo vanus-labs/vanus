@@ -50,7 +50,7 @@ func resolvePath(blockDir string, id vanus.ID) string {
 	return filepath.Join(blockDir, fmt.Sprintf("%020d%s", id.Uint64(), blockExt))
 }
 
-type fileBlock struct {
+type FileBlock struct {
 	version int32
 	id      vanus.ID
 	path    string
@@ -64,6 +64,7 @@ type fileBlock struct {
 
 	f *os.File
 
+	cis     ClusterInfoSource
 	indexes []index
 
 	readable   atomic.Bool
@@ -74,7 +75,7 @@ type fileBlock struct {
 	uncompletedAppendRequestCount atomic.Int32
 }
 
-func (b *fileBlock) Initialize(ctx context.Context) error {
+func (b *FileBlock) Initialize(ctx context.Context) error {
 	if err := b.loadHeader(ctx); err != nil {
 		return err
 	}
@@ -99,7 +100,7 @@ func (b *fileBlock) Initialize(ctx context.Context) error {
 	return nil
 }
 
-func (b *fileBlock) Append(ctx context.Context, entities ...Entry) error {
+func (b *FileBlock) Append(ctx context.Context, entities ...Entry) error {
 	observability.EntryMark(ctx)
 	// TODO: optimize lock.
 	b.mux.Lock()
@@ -155,7 +156,7 @@ func (b *fileBlock) Append(ctx context.Context, entities ...Entry) error {
 	return nil
 }
 
-func (b *fileBlock) appendWithOffset(ctx context.Context, entries ...Entry) error {
+func (b *FileBlock) appendWithOffset(ctx context.Context, entries ...Entry) error {
 	if len(entries) == 0 {
 		return nil
 	}
@@ -252,7 +253,7 @@ func (b *fileBlock) appendWithOffset(ctx context.Context, entries ...Entry) erro
 }
 
 // Read date from file.
-func (b *fileBlock) Read(ctx context.Context, entityStartOffset, number int) ([]Entry, error) {
+func (b *FileBlock) Read(ctx context.Context, entityStartOffset, number int) ([]Entry, error) {
 	observability.EntryMark(ctx)
 	b.uncompletedReadRequestCount.Add(1)
 	defer func() {
@@ -288,7 +289,7 @@ func (b *fileBlock) Read(ctx context.Context, entityStartOffset, number int) ([]
 	return entries, nil
 }
 
-func (b *fileBlock) CloseWrite(ctx context.Context) error {
+func (b *FileBlock) CloseWrite(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
@@ -308,7 +309,7 @@ func (b *fileBlock) CloseWrite(ctx context.Context) error {
 	return nil
 }
 
-func (b *fileBlock) CloseRead(ctx context.Context) error {
+func (b *FileBlock) CloseRead(ctx context.Context) error {
 	if err := b.f.Close(); err != nil {
 		return err
 	}
@@ -322,53 +323,60 @@ func (b *fileBlock) CloseRead(ctx context.Context) error {
 	return nil
 }
 
-func (b *fileBlock) Close(ctx context.Context) error {
+func (b *FileBlock) Close(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 	return b.f.Close()
 }
 
-func (b *fileBlock) IsAppendable() bool {
+func (b *FileBlock) IsAppendable() bool {
 	return b.appendable.Load() && !b.IsFull()
 }
 
-func (b *fileBlock) IsReadable() bool {
+func (b *FileBlock) IsReadable() bool {
 	return b.appendable.Load() && !b.IsEmpty()
 }
 
-func (b *fileBlock) IsEmpty() bool {
+func (b *FileBlock) IsEmpty() bool {
 	return b.size.Load() == fileBlockHeaderSize
 }
 
-func (b *fileBlock) IsFull() bool {
+func (b *FileBlock) IsFull() bool {
 	return b.full.Load()
 }
 
-func (b *fileBlock) Path() string {
+func (b *FileBlock) Path() string {
 	return b.path
 }
 
-func (b *fileBlock) SegmentBlockID() vanus.ID {
+func (b *FileBlock) SegmentBlockID() vanus.ID {
 	return b.id
 }
 
-func (b *fileBlock) HealthInfo() *meta.SegmentHealthInfo {
-	return &meta.SegmentHealthInfo{
+func (b *FileBlock) HealthInfo() *meta.SegmentHealthInfo {
+	info := &meta.SegmentHealthInfo{
 		Id:                   b.id.Uint64(),
 		Size:                 b.size.Load(),
 		EventNumber:          b.num.Load(),
 		SerializationVersion: b.version,
 		IsFull:               b.IsFull(),
 	}
+
+	// Fill cluster information.
+	if cis := b.cis; cis != nil {
+		cis.FillClusterInfo(info)
+	}
+
+	return info
 }
 
-func (b *fileBlock) remaining() int {
+func (b *FileBlock) remaining() int {
 	// capacity - headerCapacity - dataLength - indexDataLength - currentRequestDataLength
 	return int(b.cap - fileBlockHeaderSize - b.size.Load() -
 		int64(b.num.Load()*v1IndexLength))
 }
 
-func (b *fileBlock) persistHeader(ctx context.Context) error {
+func (b *FileBlock) persistHeader(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	b.mux.Lock()
 	defer func() {
@@ -393,7 +401,7 @@ func (b *fileBlock) persistHeader(ctx context.Context) error {
 	return nil
 }
 
-func (b *fileBlock) loadHeader(ctx context.Context) error {
+func (b *FileBlock) loadHeader(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
@@ -411,7 +419,7 @@ func (b *fileBlock) loadHeader(ctx context.Context) error {
 	return nil
 }
 
-func (b *fileBlock) persistIndex(ctx context.Context) error {
+func (b *FileBlock) persistIndex(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
@@ -433,7 +441,7 @@ func (b *fileBlock) persistIndex(ctx context.Context) error {
 	return nil
 }
 
-func (b *fileBlock) loadIndex(ctx context.Context) error {
+func (b *FileBlock) loadIndex(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
@@ -446,7 +454,7 @@ func (b *fileBlock) loadIndex(ctx context.Context) error {
 	return b.loadIndexFromFile()
 }
 
-func (b *fileBlock) loadIndexFromFile() error {
+func (b *FileBlock) loadIndexFromFile() error {
 	num := int(b.num.Load())
 	length := num * v1IndexLength
 
@@ -469,7 +477,7 @@ func (b *fileBlock) loadIndexFromFile() error {
 	return nil
 }
 
-func (b *fileBlock) rebuildIndex() error {
+func (b *FileBlock) rebuildIndex() error {
 	num := b.num.Load()
 	b.indexes = make([]index, 0, num)
 
@@ -500,14 +508,14 @@ func (b *fileBlock) rebuildIndex() error {
 	return nil
 }
 
-func (b *fileBlock) validate(ctx context.Context) error {
+func (b *FileBlock) validate(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
 	return nil
 }
 
-func (b *fileBlock) calculateRange(start, num int) (int64, int64, int, error) {
+func (b *FileBlock) calculateRange(start, num int) (int64, int64, int, error) {
 	indexes := b.indexes
 	if start >= len(indexes) {
 		if !b.IsFull() && start == len(indexes) {
@@ -523,4 +531,8 @@ func (b *fileBlock) calculateRange(start, num int) (int64, int64, int, error) {
 	}
 	eo := indexes[end].offset + int64(indexes[end].length) + entryLengthSize
 	return so, eo, end - start + 1, nil
+}
+
+func (b *FileBlock) SetClusterInfoSource(cis ClusterInfoSource) {
+	b.cis = cis
 }

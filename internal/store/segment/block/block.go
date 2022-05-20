@@ -26,7 +26,7 @@ import (
 	"go.uber.org/atomic"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vsproto/pkg/meta"
+	metapb "github.com/linkall-labs/vsproto/pkg/meta"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -63,15 +63,19 @@ type SegmentBlock interface {
 	SegmentBlockID() vanus.ID
 	Close(context.Context) error
 	Initialize(context.Context) error
-	HealthInfo() *meta.SegmentHealthInfo
+	HealthInfo() *metapb.SegmentHealthInfo
 }
 
-func CreateFileSegmentBlock(ctx context.Context, blockDir string, id vanus.ID, capacity int64) (SegmentBlock, error) {
+type ClusterInfoSource interface {
+	FillClusterInfo(info *metapb.SegmentHealthInfo)
+}
+
+func CreateFileSegmentBlock(ctx context.Context, blockDir string, id vanus.ID, capacity int64) (*FileBlock, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
 	path := resolvePath(blockDir, id)
-	b := &fileBlock{
+	b := &FileBlock{
 		id:   id,
 		path: path,
 		cap:  capacity,
@@ -99,7 +103,7 @@ func CreateFileSegmentBlock(ctx context.Context, blockDir string, id vanus.ID, c
 	return b, nil
 }
 
-func OpenFileSegmentBlock(ctx context.Context, path string) (SegmentBlock, error) {
+func OpenFileSegmentBlock(ctx context.Context, path string) (*FileBlock, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
@@ -108,7 +112,7 @@ func OpenFileSegmentBlock(ctx context.Context, path string) (SegmentBlock, error
 	if err != nil {
 		return nil, err
 	}
-	b := &fileBlock{
+	b := &FileBlock{
 		id:   id,
 		path: path,
 	}
@@ -116,7 +120,7 @@ func OpenFileSegmentBlock(ctx context.Context, path string) (SegmentBlock, error
 	b.readable.Store(true)
 	b.full.Store(false)
 	// TODO: use direct IO
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_SYNC, 0666)
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_SYNC, 0o666)
 	if err != nil {
 		return nil, err
 	}

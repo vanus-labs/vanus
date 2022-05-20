@@ -208,6 +208,7 @@ func (s *segmentServer) CreateBlock(ctx context.Context, req *segpb.CreateBlockR
 
 	// create replica
 	replica := s.makeReplica(context.TODO(), b)
+	b.SetClusterInfoSource(replica)
 
 	s.blocks.Store(blockID, b)
 	s.blockWriters.Store(blockID, replica)

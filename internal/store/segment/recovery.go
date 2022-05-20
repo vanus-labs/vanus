@@ -85,6 +85,7 @@ func (s *segmentServer) recoverBlocks(ctx context.Context, raftLogs map[vanus.ID
 				raftLog = raftlog.RecoverLog(blockID, s.wal, s.metaStore, s.offsetStore)
 			}
 			replica := s.makeReplicaWithRaftLog(context.TODO(), b, raftLog)
+			b.SetClusterInfoSource(replica)
 			s.blockWriters.Store(b.SegmentBlockID(), replica)
 		}
 		s.blockReaders.Store(b.SegmentBlockID(), b)
