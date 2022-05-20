@@ -46,11 +46,10 @@ type Eventlog struct {
 }
 
 type VolumeMetadata struct {
-	ID           vanus.ID          `json:"id"`
-	Capacity     int64             `json:"capacity"`
-	Used         int64             `json:"used"`
-	BlockNumbers int               `json:"block_numbers"`
-	Blocks       map[uint64]*Block `json:"blocks"`
+	ID       vanus.ID          `json:"id"`
+	Capacity int64             `json:"capacity"`
+	Used     int64             `json:"used"`
+	Blocks   map[uint64]*Block `json:"blocks"`
 }
 
 type Block struct {
