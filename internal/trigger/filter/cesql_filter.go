@@ -16,9 +16,8 @@ package filter
 
 import (
 	"context"
-	"runtime"
-
 	"github.com/linkall-labs/vanus/observability/log"
+	"runtime"
 
 	cesql "github.com/cloudevents/sdk-go/sql/v2"
 	cesqlparser "github.com/cloudevents/sdk-go/sql/v2/parser"
