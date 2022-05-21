@@ -32,15 +32,27 @@ import (
 
 //TriggerWorker send SubscriptionData to trigger worker server
 type TriggerWorker struct {
-	info   *info.TriggerWorkerInfo
-	cc     *grpc.ClientConn
-	client trigger.TriggerWorkerClient
-	lock   sync.RWMutex
+	info          *info.TriggerWorkerInfo
+	cc            *grpc.ClientConn
+	client        trigger.TriggerWorkerClient
+	lock          sync.RWMutex
+	AssignSubIds  map[vanus.ID]time.Time
+	ReportSubIds  map[vanus.ID]struct{}
+	PendingTime   time.Time
+	HeartbeatTime *time.Time
+}
+
+func NewTriggerWorkerByAddr(Addr string) *TriggerWorker {
+	tw := NewTriggerWorker(info.NewTriggerWorkerInfo(Addr))
+	return tw
 }
 
 func NewTriggerWorker(twInfo *info.TriggerWorkerInfo) *TriggerWorker {
 	tw := &TriggerWorker{
-		info: twInfo,
+		info:         twInfo,
+		PendingTime:  time.Now(),
+		AssignSubIds: map[vanus.ID]time.Time{},
+		ReportSubIds: map[vanus.ID]struct{}{},
 	}
 	return tw
 }
@@ -49,55 +61,68 @@ func NewTriggerWorker(twInfo *info.TriggerWorkerInfo) *TriggerWorker {
 func (tw *TriggerWorker) ResetReportSubId() {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	tw.info.ReportSubIds = map[vanus.ID]struct{}{}
+	tw.ReportSubIds = map[vanus.ID]struct{}{}
 	tw.info.Phase = info.TriggerWorkerPhasePending
-	tw.info.PendingTime = time.Now()
+	tw.PendingTime = time.Now()
 }
 
 //SetReportSubId trigger worker heartbeat running subscription
 func (tw *TriggerWorker) SetReportSubId(subIds map[vanus.ID]struct{}) {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	tw.info.ReportSubIds = subIds
+	tw.ReportSubIds = subIds
 	now := time.Now()
-	tw.info.HeartbeatTime = &now
+	tw.HeartbeatTime = &now
 }
 
 func (tw *TriggerWorker) GetReportSubId() map[vanus.ID]struct{} {
 	tw.lock.RLock()
 	defer tw.lock.RUnlock()
-	return tw.info.ReportSubIds
+	return tw.ReportSubIds
 }
 
 func (tw *TriggerWorker) AddAssignSub(subId vanus.ID) {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	tw.info.AssignSubIds[subId] = time.Now()
+	tw.AssignSubIds[subId] = time.Now()
 }
 
 func (tw *TriggerWorker) RemoveAssignSub(subId vanus.ID) {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	delete(tw.info.AssignSubIds, subId)
+	delete(tw.AssignSubIds, subId)
 }
 
 func (tw *TriggerWorker) GetAssignSubIds() map[vanus.ID]time.Time {
 	tw.lock.RLock()
 	defer tw.lock.RUnlock()
-	newMap := make(map[vanus.ID]time.Time, len(tw.info.AssignSubIds))
-	for subId, t := range tw.info.AssignSubIds {
+	newMap := make(map[vanus.ID]time.Time, len(tw.AssignSubIds))
+	for subId, t := range tw.AssignSubIds {
 		newMap[subId] = t
 	}
 	return newMap
 }
 
+func (tw *TriggerWorker) GetPendingTime() time.Time {
+	return tw.PendingTime
+}
+
+func (tw *TriggerWorker) HasHeartbeat() bool {
+	tw.lock.RLock()
+	defer tw.lock.RUnlock()
+	if tw.HeartbeatTime == nil {
+		return false
+	}
+	return true
+}
+
 func (tw *TriggerWorker) GetLastHeartbeatTime() time.Time {
 	tw.lock.RLock()
 	defer tw.lock.RUnlock()
-	if tw.info.HeartbeatTime != nil {
-		return *tw.info.HeartbeatTime
+	if tw.HeartbeatTime != nil {
+		return *tw.HeartbeatTime
 	}
-	return tw.info.PendingTime
+	return tw.PendingTime
 }
 
 func (tw *TriggerWorker) SetPhase(phase info.TriggerWorkerPhase) {

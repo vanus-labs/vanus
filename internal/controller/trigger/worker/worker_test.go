@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	pbtrigger "github.com/linkall-labs/vsproto/pkg/trigger"
@@ -30,7 +29,7 @@ import (
 )
 
 func TestReportSubId(t *testing.T) {
-	tWorker := NewTriggerWorker(info.NewTriggerWorkerInfo("test"))
+	tWorker := NewTriggerWorkerByAddr("test")
 	map1 := map[vanus.ID]struct{}{
 		1: {}, 2: {},
 	}
@@ -50,7 +49,7 @@ func TestReportSubId(t *testing.T) {
 }
 
 func TestAssignSubId(t *testing.T) {
-	tWorker := NewTriggerWorker(info.NewTriggerWorkerInfo("test"))
+	tWorker := NewTriggerWorkerByAddr("test")
 	subIds := []vanus.ID{1, 2}
 	for _, subId := range subIds {
 		tWorker.AddAssignSub(subId)
@@ -94,7 +93,7 @@ func TestTriggerWorkerStart(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	tWorker := NewTriggerWorker(info.NewTriggerWorkerInfo("test"))
+	tWorker := NewTriggerWorkerByAddr("test")
 	_ = tWorker.init(ctx)
 	client := pbtrigger.NewMockTriggerWorkerClient(ctrl)
 	tWorker.client = client
@@ -109,7 +108,7 @@ func TestTriggerWorkerStop(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	tWorker := NewTriggerWorker(info.NewTriggerWorkerInfo("test"))
+	tWorker := NewTriggerWorkerByAddr("test")
 	_ = tWorker.init(ctx)
 	client := pbtrigger.NewMockTriggerWorkerClient(ctrl)
 	tWorker.client = client
@@ -124,7 +123,7 @@ func TestTriggerWorkerAddSubscription(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	tWorker := NewTriggerWorker(info.NewTriggerWorkerInfo("test"))
+	tWorker := NewTriggerWorkerByAddr("test")
 	_ = tWorker.init(ctx)
 	client := pbtrigger.NewMockTriggerWorkerClient(ctrl)
 	tWorker.client = client
@@ -139,7 +138,7 @@ func TestTriggerWorkerRemoveSubscription(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	tWorker := NewTriggerWorker(info.NewTriggerWorkerInfo("test"))
+	tWorker := NewTriggerWorkerByAddr("test")
 	_ = tWorker.init(ctx)
 	client := pbtrigger.NewMockTriggerWorkerClient(ctrl)
 	tWorker.client = client

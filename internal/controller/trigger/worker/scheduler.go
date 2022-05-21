@@ -39,7 +39,7 @@ func NewSubscriptionScheduler(triggerWorkerManager Manager, subscriptionManager 
 	s := &SubscriptionScheduler{
 		normalQueue:          queue.New(),
 		maxRetryPrintLog:     5,
-		policy:               &TriggerSizePolicy{},
+		policy:               &RoundRobinPolicy{},
 		triggerWorkerManager: triggerWorkerManager,
 		subscriptionManager:  subscriptionManager,
 	}

@@ -18,10 +18,8 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -50,28 +48,12 @@ func TestRoundRobinPolicy(t *testing.T) {
 	})
 }
 
-func TestTriggerSizePolicy(t *testing.T) {
-	ctx := context.Background()
-	Convey("", t, func() {
-		p := &TriggerSizePolicy{}
-		tWorkers := getTriggerWorker(10)
-		worker := p.Acquire(ctx, tWorkers)
-		So(worker.ID, ShouldEqual, fmt.Sprintf("%d", 0))
-		worker = p.Acquire(ctx, tWorkers)
-		So(worker.ID, ShouldEqual, fmt.Sprintf("%d", 0))
-	})
-}
-
 func getTriggerWorker(size int) []info.TriggerWorkerInfo {
 	var list []info.TriggerWorkerInfo
 	for i := 0; i < size; i++ {
-		subIds := make(map[vanus.ID]time.Time)
-		for j := i; j < i; j++ {
-			subIds[vanus.ID(j)] = time.Now()
-		}
 		list = append(list, info.TriggerWorkerInfo{
-			ID:           fmt.Sprintf("%d", i),
-			AssignSubIds: subIds,
+			ID:   fmt.Sprintf("%d", i),
+			Addr: fmt.Sprintf("addr%d", i),
 		})
 	}
 	return list
