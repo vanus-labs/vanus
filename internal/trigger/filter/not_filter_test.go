@@ -27,7 +27,10 @@ func TestNotFilter(t *testing.T) {
 	event := ce.NewEvent()
 	event.SetID("testID")
 	event.SetSource("testSource")
-
+	Convey("not filter nil", t, func() {
+		f := filter.NewNotFilter(nil)
+		So(f, ShouldBeNil)
+	})
 	Convey("not filter pass", t, func() {
 		f1 := filter.NewPrefixFilter(map[string]string{
 			"id":     "test",

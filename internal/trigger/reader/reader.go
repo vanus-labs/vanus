@@ -39,6 +39,8 @@ type Config struct {
 	EventBusName string
 	EventBusVRN  string
 	SubId        vanus.ID
+
+	CheckEventLogDuration time.Duration
 }
 type EventLogOffset map[vanus.ID]uint64
 
@@ -59,6 +61,9 @@ type reader struct {
 }
 
 func NewReader(config Config, offset EventLogOffset, events chan<- info.EventOffset) Reader {
+	if config.CheckEventLogDuration <= 0 {
+		config.CheckEventLogDuration = 30 * time.Second
+	}
 	r := &reader{
 		config:   config,
 		offset:   offset,
@@ -79,7 +84,7 @@ func (r *reader) Close() {
 func (r *reader) Start() error {
 	go func() {
 		r.checkEventLogChange()
-		tk := time.NewTicker(30 * time.Second)
+		tk := time.NewTicker(r.config.CheckEventLogDuration)
 		defer tk.Stop()
 		for {
 			select {

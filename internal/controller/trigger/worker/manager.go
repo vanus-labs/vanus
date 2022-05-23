@@ -62,6 +62,9 @@ type Config struct {
 	HeartbeatTimeout    time.Duration
 	DisconnectCleanTime time.Duration
 	WaitRunningTimeout  time.Duration
+
+	StartWorkerDuration       time.Duration
+	StartSubscriptionDuration time.Duration
 }
 
 func (c *Config) init() {
@@ -79,6 +82,12 @@ func (c *Config) init() {
 	}
 	if c.WaitRunningTimeout <= 0 {
 		c.WaitRunningTimeout = 30 * time.Second
+	}
+	if c.StartWorkerDuration <= 0 {
+		c.StartWorkerDuration = 10 * time.Second
+	}
+	if c.StartSubscriptionDuration <= 0 {
+		c.StartSubscriptionDuration = 15 * time.Second
 	}
 }
 
@@ -176,7 +185,7 @@ func (m *manager) AddTriggerWorker(ctx context.Context, addr string) error {
 	defer m.lock.Unlock()
 	tWorker, exist := m.triggerWorkers[addr]
 	if !exist {
-		tWorker = NewTriggerWorker(info.NewTriggerWorkerInfo(addr))
+		tWorker = NewTriggerWorkerByAddr(addr)
 	} else {
 		phase := tWorker.GetPhase()
 		if phase == info.TriggerWorkerPhasePaused {
@@ -316,7 +325,7 @@ func (m *manager) GetActiveRunningTriggerWorker() []info.TriggerWorkerInfo {
 	now := time.Now()
 	var runningTriggerWorker []info.TriggerWorkerInfo
 	for _, tWorker := range m.triggerWorkers {
-		if tWorker.GetPhase() != info.TriggerWorkerPhaseRunning || tWorker.info.HeartbeatTime == nil || now.Sub(tWorker.GetLastHeartbeatTime()) > 10*time.Second {
+		if tWorker.GetPhase() != info.TriggerWorkerPhaseRunning || !tWorker.HasHeartbeat() || now.Sub(tWorker.GetLastHeartbeatTime()) > 10*time.Second {
 			continue
 		}
 		runningTriggerWorker = append(runningTriggerWorker, *tWorker.info)
@@ -351,7 +360,6 @@ func (m *manager) Init(ctx context.Context) error {
 	log.Info(ctx, "trigger worker size", map[string]interface{}{"size": len(tWorkerInfos)})
 	for i := range tWorkerInfos {
 		twInfo := tWorkerInfos[i]
-		twInfo.Init()
 		tWorker := NewTriggerWorker(twInfo)
 		m.triggerWorkers[twInfo.Addr] = tWorker
 	}
@@ -410,14 +418,14 @@ func (m *manager) check(ctx context.Context) {
 func (m *manager) pendingTriggerWorkerHandler(ctx context.Context, tWorker *TriggerWorker) {
 	now := time.Now()
 	twInfo := tWorker.info
-	d := now.Sub(twInfo.PendingTime)
+	d := now.Sub(tWorker.GetPendingTime())
 	if d > m.config.WaitRunningTimeout {
 		tWorker.SetPhase(info.TriggerWorkerPhasePaused)
 		log.Info(ctx, "pending trigger worker heartbeat timeout change phase to paused", map[string]interface{}{
 			"triggerWorker": twInfo,
 		})
 		m.cleanTriggerWorker(ctx, tWorker)
-	} else if d > 10*time.Second {
+	} else if d > m.config.StartWorkerDuration {
 		m.startTriggerWorker(ctx, tWorker)
 	}
 }
@@ -452,7 +460,7 @@ func (m *manager) runningTriggerWorkerHandler(ctx context.Context, tWorker *Trig
 		})
 		return
 	}
-	if tWorker.info.HeartbeatTime == nil {
+	if !tWorker.HasHeartbeat() {
 		return
 	}
 
@@ -464,7 +472,7 @@ func (m *manager) runningTriggerWorkerHandler(ctx context.Context, tWorker *Trig
 		if _, exist := reportSubIds[subId]; exist {
 			continue
 		}
-		if tWorker.GetLastHeartbeatTime().Sub(t) < 15*time.Second {
+		if tWorker.GetLastHeartbeatTime().Sub(t) < m.config.StartSubscriptionDuration {
 			continue
 		}
 		//trigger worker assign but report is no, need start
