@@ -35,7 +35,7 @@ func TestParse(t *testing.T) {
 		p.Parse("${str}")
 		So(len(p.GetNodes()), ShouldEqual, 1)
 		n := p.GetNodes()[0]
-		So(n.Type(), ShouldEqual, template.Variable)
+		So(n.Type(), ShouldEqual, template.StringVariable)
 		So(n.Value(), ShouldEqual, "str")
 	})
 
@@ -44,7 +44,7 @@ func TestParse(t *testing.T) {
 		p.Parse("begin ${str} end")
 		So(len(p.GetNodes()), ShouldEqual, 3)
 		n := p.GetNodes()[1]
-		So(n.Type(), ShouldEqual, template.Variable)
+		So(n.Type(), ShouldEqual, template.StringVariable)
 		So(n.Value(), ShouldEqual, "str")
 	})
 

@@ -87,7 +87,7 @@ func (p *Parser) executeText(data map[string]Data) string {
 		switch node.Type() {
 		case Constant:
 			sb.WriteString(node.Value())
-		case Variable, StringVariable:
+		default:
 			v, exist := data[node.Value()]
 			if !exist || v.DataType == Null || v.DataType == NoExist {
 				continue

@@ -93,7 +93,7 @@ func TestParseData(t *testing.T) {
 		Template: "test ${keyTest} Id ${ctxId} type ${ctxType} data ${data} key ${dateKey}",
 	}
 
-	Convey("test", t, func() {
+	Convey("test parse data", t, func() {
 		it := transformation.NewInputTransformer(input)
 		m, err := it.ParseData(&e)
 		So(err, ShouldBeNil)
@@ -102,4 +102,54 @@ func TestParseData(t *testing.T) {
 		So(m["ctxKey"].String(), ShouldEqual, "vanusValue")
 		So(m["dataKey"].String(), ShouldEqual, "value")
 	})
+}
+
+func TestExecute(t *testing.T) {
+	Convey("test execute", t, func() {
+		e := ce.NewEvent()
+		e.SetType("testType")
+		e.SetSource("testSource")
+		e.SetID("testId")
+		e.SetExtension("vanusKey", "vanusValue")
+		input := &primitive.InputTransformer{
+			Define: map[string]string{
+				"keyTest": "keyValue",
+				"ctxId":   "$.id",
+				"ctxKey":  "$.vanuskey",
+				"data":    "$.data",
+				"dataKey": "$.data.key",
+			},
+		}
+		Convey("test execute text", func() {
+			_ = e.SetData(ce.ApplicationJSON, map[string]interface{}{
+				"key":  "value",
+				"key1": "value1",
+			})
+			input.Template = "${keyTest} ${ctxId} ${ctxType} ${data} ${dataKey}"
+			it := transformation.NewInputTransformer(input)
+			it.Execute(&e)
+			So(string(e.Data()), ShouldEqual, `keyValue testId  {"key":"value","key1":"value1"} value`)
+		})
+		Convey("test execute json", func() {
+			_ = e.SetData(ce.ApplicationJSON, map[string]interface{}{
+				"key":  "value",
+				"key1": "value1",
+			})
+			input.Template = "{\"body\": {\"data\": \"source is ${dataKey}\"}}"
+			it := transformation.NewInputTransformer(input)
+			it.Execute(&e)
+			So(string(e.Data()), ShouldEqual, `{"body": {"data": "source is value"}}`)
+		})
+		Convey("test execute json with quota", func() {
+			_ = e.SetData(ce.ApplicationJSON, map[string]interface{}{
+				"key":  "value",
+				"key1": "value1",
+			})
+			input.Template = "{\"body\": {\"data\": \"source is \"${dataKey}\"\"}}"
+			it := transformation.NewInputTransformer(input)
+			it.Execute(&e)
+			So(string(e.Data()), ShouldEqual, `{"body": {"data": "source is "value""}}`)
+		})
+	})
+
 }
