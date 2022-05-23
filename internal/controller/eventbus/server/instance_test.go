@@ -43,7 +43,6 @@ func TestVolumeInstance(t *testing.T) {
 		So(ins.GetServer(), ShouldBeNil)
 
 		ctrl := gomock.NewController(t)
-
 		srv := NewMockServer(ctrl)
 
 		srv.EXPECT().IsActive(stdCtx.Background()).Times(1).Return(false)

@@ -14,7 +14,10 @@
 
 package util
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 func MapLen(m *sync.Map) int {
 	if m == nil {
@@ -26,4 +29,18 @@ func MapLen(m *sync.Map) int {
 		return true
 	})
 	return c
+}
+
+func PrintMap(m *sync.Map) {
+	if m == nil {
+		return
+	}
+	m.Range(func(key, value interface{}) bool {
+		str, ok := key.(string)
+		if !ok {
+			return false
+		}
+		fmt.Printf("sync.Map: %s, %v", str, value)
+		return true
+	})
 }

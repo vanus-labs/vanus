@@ -89,7 +89,7 @@ func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client) error {
 	mgr.eventLogRecord = map[string]*eventlog{}
 	mgr.kvClient = kvClient
 	mgr.cancelCtx, mgr.cancel = context.WithCancel(ctx)
-	mgr.allocator = block.NewAllocator(block.NewVolumeRoundRobin(mgr.volMgr.GetAllVolume))
+	mgr.allocator = block.NewAllocator(block.NewVolumeRoundRobin(mgr.volMgr.GetAllActiveVolumes))
 	if err := mgr.allocator.Run(ctx, mgr.kvClient, true); err != nil {
 		return err
 	}

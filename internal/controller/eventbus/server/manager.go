@@ -187,7 +187,30 @@ type segmentServer struct {
 	lastHeartbeatTime time.Time
 }
 
+type Getter func(id vanus.ID, addr string) (Server, error)
+
+var (
+	getter Getter = newSegmentServerWithID
+	mutex  sync.Mutex
+)
+
 func NewSegmentServerWithID(id vanus.ID, addr string) (Server, error) {
+	return getter(id, addr)
+}
+
+func MockServerGetter(gt Getter) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	getter = gt
+}
+
+func MockReset() {
+	mutex.Lock()
+	defer mutex.Unlock()
+	getter = newSegmentServerWithID
+}
+
+func newSegmentServerWithID(id vanus.ID, addr string) (Server, error) {
 	srv, err := NewSegmentServer(addr)
 	if err != nil {
 		return nil, err
