@@ -83,7 +83,7 @@ func (s *SubscriptionScheduler) Run() {
 }
 
 func (s *SubscriptionScheduler) handler(ctx context.Context, subIdStr string) error {
-	subID, _ := vanus.StringToID(subIdStr)
+	subscriptionID, _ := vanus.StringToID(subIdStr)
 	for {
 		select {
 		case <-ctx.Done():
@@ -96,7 +96,7 @@ func (s *SubscriptionScheduler) handler(ctx context.Context, subIdStr string) er
 			continue
 		}
 		twInfo := s.policy.Acquire(ctx, twInfos)
-		subData := s.subscriptionManager.GetSubscriptionData(ctx, subID)
+		subData := s.subscriptionManager.GetSubscriptionData(ctx, subscriptionID)
 		if subData == nil {
 			return nil
 		}
@@ -114,7 +114,7 @@ func (s *SubscriptionScheduler) handler(ctx context.Context, subIdStr string) er
 		if err != nil {
 			return err
 		}
-		s.triggerWorkerManager.AssignSubscription(ctx, tWorker, subID)
+		s.triggerWorkerManager.AssignSubscription(ctx, tWorker, subscriptionID)
 		return nil
 	}
 }
