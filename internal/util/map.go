@@ -14,7 +14,9 @@
 
 package util
 
-import "sync"
+import (
+	"sync"
+)
 
 func MapLen(m *sync.Map) int {
 	if m == nil {
