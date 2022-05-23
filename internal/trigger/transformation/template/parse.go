@@ -79,20 +79,22 @@ func (p *Parser) Parse(text string) {
 			ldp := pos + x + leftDelimLen
 			y := strings.Index(text[ldp:], p.rightDelim)
 			if y >= 0 {
-				var isString bool
+				var isString, isColon bool
 				for i := ldp - leftDelimLen - 1; i > 0; i-- {
 					if util.IsSpace(text[i]) {
 						continue
 					}
 					if text[i] == '"' {
 						isString = true
+					} else if text[i] == ':' {
+						isColon = true
 					}
 					break
 				}
 				if x > 0 {
 					p.addNode(p.newConstant(text[pos : pos+x]))
 				}
-				if isString {
+				if isString || !isColon {
 					p.addNode(p.newStringVariable(text[ldp : ldp+y]))
 				} else {
 					p.addNode(p.newVariable(text[ldp : ldp+y]))
