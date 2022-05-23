@@ -23,34 +23,13 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestPrefixFilter(t *testing.T) {
+func TestNoFilter(t *testing.T) {
 	event := ce.NewEvent()
 	event.SetID("testID")
 	event.SetSource("testSource")
-	Convey("prefix filter nil", t, func() {
-		f := filter.NewPrefixFilter(map[string]string{
-			"": "testID",
-		})
-		So(f, ShouldBeNil)
-		f = filter.NewPrefixFilter(map[string]string{
-			"k": "",
-		})
-		So(f, ShouldBeNil)
-	})
-	Convey("prefix filter pass", t, func() {
-		f := filter.NewPrefixFilter(map[string]string{
-			"id":     "test",
-			"source": "test",
-		})
+	Convey("no filter pass", t, func() {
+		f := filter.NewNoFilter()
 		result := f.Filter(event)
 		So(result, ShouldEqual, filter.PassFilter)
-	})
-	Convey("prefix filter fail", t, func() {
-		f := filter.NewPrefixFilter(map[string]string{
-			"id":     "un",
-			"source": "test",
-		})
-		result := f.Filter(event)
-		So(result, ShouldEqual, filter.FailFilter)
 	})
 }

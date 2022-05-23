@@ -27,7 +27,16 @@ func TestSuffixFilter(t *testing.T) {
 	event := ce.NewEvent()
 	event.SetID("testID")
 	event.SetSource("testSource")
-
+	Convey("suffix filter nil", t, func() {
+		f := filter.NewSuffixFilter(map[string]string{
+			"": "testID",
+		})
+		So(f, ShouldBeNil)
+		f = filter.NewSuffixFilter(map[string]string{
+			"k": "",
+		})
+		So(f, ShouldBeNil)
+	})
 	Convey("suffix filter pass", t, func() {
 		f := filter.NewSuffixFilter(map[string]string{
 			"id":     "ID",
@@ -37,7 +46,7 @@ func TestSuffixFilter(t *testing.T) {
 		So(result, ShouldEqual, filter.PassFilter)
 	})
 
-	Convey("suffix filter pass", t, func() {
+	Convey("suffix filter fail", t, func() {
 		f := filter.NewPrefixFilter(map[string]string{
 			"id":     "un",
 			"source": "test",

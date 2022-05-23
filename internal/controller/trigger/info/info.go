@@ -16,9 +16,7 @@ package info
 
 import (
 	"fmt"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/util"
-	"time"
 )
 
 type TriggerWorkerPhase string
@@ -31,31 +29,20 @@ const (
 )
 
 type TriggerWorkerInfo struct {
-	Id            string                 `json:"-"`
-	Addr          string                 `json:"addr"`
-	Phase         TriggerWorkerPhase     `json:"phase"`
-	AssignSubIds  map[vanus.ID]time.Time `json:"-"`
-	ReportSubIds  map[vanus.ID]struct{}  `json:"-"`
-	PendingTime   time.Time              `json:"-"`
-	HeartbeatTime *time.Time             `json:"-"`
+	ID    string             `json:"-"`
+	Addr  string             `json:"addr"`
+	Phase TriggerWorkerPhase `json:"phase"`
 }
 
 func NewTriggerWorkerInfo(addr string) *TriggerWorkerInfo {
 	twInfo := &TriggerWorkerInfo{
 		Addr:  addr,
-		Id:    util.GetIdByAddr(addr),
+		ID:    util.GetIdByAddr(addr),
 		Phase: TriggerWorkerPhasePending,
 	}
-	twInfo.Init()
 	return twInfo
 }
 
-func (tw *TriggerWorkerInfo) Init() {
-	tw.PendingTime = time.Now()
-	tw.ReportSubIds = map[vanus.ID]struct{}{}
-	tw.AssignSubIds = map[vanus.ID]time.Time{}
-}
-
 func (tw *TriggerWorkerInfo) String() string {
-	return fmt.Sprintf("addr:%s,phase:%v,subIds:%v", tw.Addr, tw.Phase, tw.AssignSubIds)
+	return fmt.Sprintf("addr:%s,phase:%v", tw.Addr, tw.Phase)
 }

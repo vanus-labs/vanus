@@ -32,7 +32,11 @@ func TestCELFilter(t *testing.T) {
 		"num": 10,
 	})
 	Convey("cel filter pass", t, func() {
-		f := filter.NewCELFilter("$key.(string) == 'value' && $num.(uint64) == 10u")
+		f := filter.NewCELFilter("")
+		So(f, ShouldBeNil)
+		f = filter.NewCELFilter("$key")
+		So(f, ShouldBeNil)
+		f = filter.NewCELFilter("$key.(string) == 'value' && $num.(uint64) == 10u")
 		result := f.Filter(event)
 		So(result, ShouldEqual, filter.PassFilter)
 	})

@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/errors"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	segpb "github.com/linkall-labs/vsproto/pkg/segment"
@@ -38,28 +39,43 @@ type Manager interface {
 
 func NewServerManager() Manager {
 	return &segmentServerManager{
+		ticker:                   time.NewTicker(time.Second),
 		segmentServerCredentials: insecure.NewCredentials(),
 	}
 }
 
 type segmentServerManager struct {
 	segmentServerCredentials credentials.TransportCredentials
+	mutex                    sync.Mutex
 	// map[string]Server
 	segmentServerMapByIP sync.Map
 	// map[vanus.ID]Server
 	segmentServerMapByID sync.Map
 	cancelCtx            context.Context
 	cancel               func()
+	ticker               *time.Ticker
 }
 
 func (mgr *segmentServerManager) AddServer(ctx context.Context, srv Server) error {
 	if srv == nil {
 		return nil
 	}
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
+
+	v, exist := mgr.segmentServerMapByIP.Load(srv.Address())
+	if exist {
+		srvOld := v.(Server)
+		if srv.ID().Equals(srvOld.ID()) {
+			return nil
+		}
+		return errors.ErrSegmentServerHasBeenAdded
+	}
 	mgr.segmentServerMapByIP.Store(srv.Address(), srv)
 	mgr.segmentServerMapByID.Store(srv.ID().Key(), srv)
 	log.Info(ctx, "the segment server added", map[string]interface{}{
 		"server_id": srv.ID(),
+		"addr":      srv.Address(),
 	})
 	return nil
 }
@@ -68,9 +84,10 @@ func (mgr *segmentServerManager) RemoveServer(ctx context.Context, srv Server) e
 	if srv == nil {
 		return nil
 	}
-
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
 	mgr.segmentServerMapByIP.Delete(srv.Address())
-	mgr.segmentServerMapByID.Delete(srv.ID())
+	mgr.segmentServerMapByID.Delete(srv.ID().Key())
 	return nil
 }
 
@@ -98,25 +115,24 @@ func (mgr *segmentServerManager) Run(ctx context.Context) error {
 			select {
 			case <-mgr.cancelCtx.Done():
 				return
-			default:
+			case <-mgr.ticker.C:
+				mgr.segmentServerMapByIP.Range(func(key, value interface{}) bool {
+					srv, ok := value.(Server)
+					if !ok {
+						mgr.segmentServerMapByIP.Delete(key)
+					}
+					if !srv.IsActive(ctx) {
+						mgr.segmentServerMapByIP.Delete(srv.Address())
+						mgr.segmentServerMapByID.Delete(srv.ID().Key())
+						log.Info(newCtx, "the server isn't active", map[string]interface{}{
+							"id":      srv.ID(),
+							"address": srv.Address(),
+							"up_time": srv.Uptime(),
+						})
+					}
+					return true
+				})
 			}
-			mgr.segmentServerMapByIP.Range(func(key, value interface{}) bool {
-				srv, ok := value.(Server)
-				if !ok {
-					mgr.segmentServerMapByIP.Delete(key)
-				}
-				if !srv.IsActive(ctx) {
-					mgr.segmentServerMapByIP.Delete(srv.Address())
-					mgr.segmentServerMapByID.Delete(srv.ID())
-					log.Info(newCtx, "the server isn't active", map[string]interface{}{
-						"id":      srv.ID(),
-						"address": srv.Address(),
-						"up_time": srv.Uptime(),
-					})
-				}
-				return true
-			})
-			time.Sleep(time.Second)
 		}
 	}()
 	return nil
@@ -160,7 +176,6 @@ type Server interface {
 	Polish()
 	IsActive(ctx context.Context) bool
 	Uptime() time.Time
-	Ready() bool
 }
 
 type segmentServer struct {
@@ -172,7 +187,30 @@ type segmentServer struct {
 	lastHeartbeatTime time.Time
 }
 
+type Getter func(id vanus.ID, addr string) (Server, error)
+
+var (
+	getter Getter = newSegmentServerWithID
+	mutex  sync.Mutex
+)
+
 func NewSegmentServerWithID(id vanus.ID, addr string) (Server, error) {
+	return getter(id, addr)
+}
+
+func MockServerGetter(gt Getter) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	getter = gt
+}
+
+func MockReset() {
+	mutex.Lock()
+	defer mutex.Unlock()
+	getter = newSegmentServerWithID
+}
+
+func newSegmentServerWithID(id vanus.ID, addr string) (Server, error) {
 	srv, err := NewSegmentServer(addr)
 	if err != nil {
 		return nil, err
@@ -261,8 +299,4 @@ func (ss *segmentServer) IsActive(ctx context.Context) bool {
 
 func (ss *segmentServer) Uptime() time.Time {
 	return ss.uptime
-}
-
-func (ss *segmentServer) Ready() bool {
-	return false
 }

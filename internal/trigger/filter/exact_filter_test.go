@@ -27,17 +27,27 @@ func TestExactFilter(t *testing.T) {
 	event := ce.NewEvent()
 	event.SetID("testID")
 	event.SetSource("testSource")
-
+	event.SetExtension("key", "value")
+	Convey("exact filter nil", t, func() {
+		f := filter.NewExactFilter(map[string]string{
+			"": "testID",
+		})
+		So(f, ShouldBeNil)
+		f = filter.NewExactFilter(map[string]string{
+			"k": "",
+		})
+		So(f, ShouldBeNil)
+	})
 	Convey("exact filter pass", t, func() {
 		f := filter.NewExactFilter(map[string]string{
-			"id": "testID",
+			"key": "value",
 		})
 		result := f.Filter(event)
 		So(result, ShouldEqual, filter.PassFilter)
 	})
-	Convey("exact filter pass", t, func() {
+	Convey("exact filter fail", t, func() {
 		f := filter.NewExactFilter(map[string]string{
-			"id": "un",
+			"key": "unknown",
 		})
 		result := f.Filter(event)
 		So(result, ShouldEqual, filter.FailFilter)

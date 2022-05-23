@@ -32,7 +32,11 @@ func TestCeSQLFilter(t *testing.T) {
 		"num": 10,
 	})
 	Convey("cesql filter pass", t, func() {
-		f := filter.NewCESQLFilter("source = 'testSource'")
+		f := filter.NewCESQLFilter("")
+		So(f, ShouldBeNil)
+		f = filter.NewCESQLFilter("Type ==")
+		So(f, ShouldBeNil)
+		f = filter.NewCESQLFilter("source = 'testSource'")
 		result := f.Filter(event)
 		So(result, ShouldEqual, filter.PassFilter)
 	})

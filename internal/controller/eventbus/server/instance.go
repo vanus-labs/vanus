@@ -42,9 +42,10 @@ func NewInstance(md *metadata.VolumeMetadata) Instance {
 }
 
 type volumeInstance struct {
-	md      *metadata.VolumeMetadata
-	srv     Server
-	rwMutex sync.RWMutex
+	md        *metadata.VolumeMetadata
+	metaMutex sync.Mutex
+	srv       Server
+	rwMutex   sync.RWMutex
 }
 
 func (ins *volumeInstance) GetMeta() *metadata.VolumeMetadata {
@@ -68,6 +69,10 @@ func (ins *volumeInstance) CreateBlock(ctx context.Context, cap int64) (*metadat
 		return nil, err
 	}
 
+	ins.metaMutex.Lock()
+	defer ins.metaMutex.Unlock()
+	ins.md.Used += cap
+	ins.md.Blocks[blk.ID.Uint64()] = blk
 	return blk, nil
 }
 
@@ -75,8 +80,23 @@ func (ins *volumeInstance) DeleteBlock(ctx context.Context, id vanus.ID) error {
 	if ins.srv == nil {
 		return errors.ErrVolumeInstanceNoServer
 	}
+	blk := ins.md.Blocks[id.Uint64()]
+	if blk == nil {
+		return nil
+	}
+	if ins.srv == nil {
+		return nil
+	}
 	_, err := ins.srv.GetClient().RemoveBlock(ctx, &segpb.RemoveBlockRequest{Id: id.Uint64()})
-	return err
+	if err != nil {
+		return err
+	}
+	ins.metaMutex.Lock()
+	defer ins.metaMutex.Unlock()
+
+	ins.md.Used -= blk.Capacity
+	delete(ins.md.Blocks, blk.ID.Uint64())
+	return nil
 }
 
 func (ins *volumeInstance) ID() vanus.ID {
@@ -106,7 +126,7 @@ func (ins *volumeInstance) Close() error {
 func (ins *volumeInstance) SetServer(srv Server) {
 	ins.rwMutex.Lock()
 	defer ins.rwMutex.Unlock()
-	if srv == nil {
+	if srv == nil || !srv.IsActive(context.Background()) {
 		return
 	}
 	log.Info(nil, "update server of volume", map[string]interface{}{

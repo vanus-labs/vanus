@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=trigger_worker.go  -destination=mock_trigger_worker.go -package=storage
 package storage
 
 import (
@@ -47,7 +48,7 @@ func (s *triggerWorkerStorage) getKey(id string) string {
 }
 
 func (s *triggerWorkerStorage) SaveTriggerWorker(ctx context.Context, info info.TriggerWorkerInfo) error {
-	key := s.getKey(info.Id)
+	key := s.getKey(info.ID)
 	exist, err := s.client.Exists(ctx, key)
 	if err != nil {
 		return err
@@ -90,7 +91,7 @@ func (s *triggerWorkerStorage) ListTriggerWorker(ctx context.Context) ([]*info.T
 		if err != nil {
 			return nil, errors.ErrJsonUnMarshal.Wrap(err)
 		}
-		tWorker.Id = filepath.Base(v.Key)
+		tWorker.ID = filepath.Base(v.Key)
 		list = append(list, &tWorker)
 	}
 	return list, nil

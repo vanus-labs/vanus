@@ -41,7 +41,10 @@ func TestAnyFilter(t *testing.T) {
 	})
 
 	Convey("any filter all pass", t, func() {
-		f := filter.NewAnyFilter(f1, f2)
+		f := filter.NewAnyFilter()
+		So(f, ShouldBeNil)
+		f = filter.NewAnyFilter(f1, f2)
+		So(f, ShouldNotBeNil)
 		result := f.Filter(event)
 		So(result, ShouldEqual, filter.PassFilter)
 	})
