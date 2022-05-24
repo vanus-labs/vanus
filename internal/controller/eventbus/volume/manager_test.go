@@ -16,7 +16,12 @@ package volume
 
 import (
 	stdCtx "context"
-	stdjson "encoding/json"
+	stdJson "encoding/json"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
@@ -25,10 +30,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vsproto/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
-	"path/filepath"
-	"strings"
-	"testing"
-	"time"
 )
 
 func TestVolumeMgr_Init(t *testing.T) {
@@ -54,9 +55,9 @@ func TestVolumeMgr_Init(t *testing.T) {
 				Capacity: 64 * 1024 * 1024 * 1024,
 				Used:     0,
 			}
-			data1, _ := stdjson.Marshal(volume1)
-			data2, _ := stdjson.Marshal(volume2)
-			data3, _ := stdjson.Marshal(volume3)
+			data1, _ := stdJson.Marshal(volume1)
+			data2, _ := stdJson.Marshal(volume2)
+			data3, _ := stdJson.Marshal(volume3)
 			kvCli.EXPECT().List(gomock.Any(), gomock.Eq(metadata.VolumeKeyPrefixInKVStore)).Times(1).Return([]kv.Pair{
 				{
 					Key:   filepath.Join(metadata.VolumeKeyPrefixInKVStore, volume1.ID.String()),
@@ -91,10 +92,10 @@ func TestVolumeMgr_Init(t *testing.T) {
 				Capacity: 64 * 1024 * 1024,
 				VolumeID: volume1.ID,
 			}
-			data1, _ = stdjson.Marshal(block1)
-			data2, _ = stdjson.Marshal(block2)
-			data3, _ = stdjson.Marshal(block3)
-			data4, _ := stdjson.Marshal(block4)
+			data1, _ = stdJson.Marshal(block1)
+			data2, _ = stdJson.Marshal(block2)
+			data3, _ = stdJson.Marshal(block3)
+			data4, _ := stdJson.Marshal(block4)
 			kvCli.EXPECT().List(gomock.Any(),
 				filepath.Join(metadata.BlockKeyPrefixInKVStore, volume1.ID.Key())).Times(1).Return([]kv.Pair{
 				{
@@ -129,9 +130,9 @@ func TestVolumeMgr_Init(t *testing.T) {
 				Capacity: 64 * 1024 * 1024,
 				VolumeID: volume2.ID,
 			}
-			data1, _ = stdjson.Marshal(block1)
-			data2, _ = stdjson.Marshal(block2)
-			data3, _ = stdjson.Marshal(block3)
+			data1, _ = stdJson.Marshal(block1)
+			data2, _ = stdJson.Marshal(block2)
+			data3, _ = stdJson.Marshal(block3)
 
 			kvCli.EXPECT().List(gomock.Any(),
 				filepath.Join(metadata.BlockKeyPrefixInKVStore, volume2.ID.Key())).Times(1).Return([]kv.Pair{
@@ -190,8 +191,8 @@ func TestVolumeMgr_Init(t *testing.T) {
 				Used:     3 * 64 * 1024 * 1024,
 				Blocks:   map[uint64]*metadata.Block{},
 			}
-			data1, _ := stdjson.Marshal(volume1)
-			data2, _ := stdjson.Marshal(volume2)
+			data1, _ := stdJson.Marshal(volume1)
+			data2, _ := stdJson.Marshal(volume2)
 			kvCli.EXPECT().List(gomock.Any(), gomock.Eq(metadata.VolumeKeyPrefixInKVStore)).Times(1).Return([]kv.Pair{
 				{
 					Key:   filepath.Join(metadata.VolumeKeyPrefixInKVStore, volume1.ID.String()),
@@ -232,9 +233,9 @@ func TestVolumeMgr_Init(t *testing.T) {
 			o4.Address = "127.0.0.1:10004"
 			o3.ServerID = vanus.NewID()
 
-			data1, _ = stdjson.Marshal(o1)
-			data2, _ = stdjson.Marshal(o2)
-			data3, _ := stdjson.Marshal(o3)
+			data1, _ = stdJson.Marshal(o1)
+			data2, _ = stdJson.Marshal(o2)
+			data3, _ := stdJson.Marshal(o3)
 
 			kvCli.EXPECT().List(gomock.Any(), metadata.VolumeInstanceKeyPrefixInKVStore).Times(1).Return([]kv.Pair{
 				{
@@ -320,7 +321,7 @@ func TestVolumeMgr_RegisterVolume(t *testing.T) {
 				Capacity: 64 * 1024 * 1024 * 1024,
 				Used:     4 * 64 * 1024 * 1024,
 			}
-			data, _ := stdjson.Marshal(volume)
+			data, _ := stdJson.Marshal(volume)
 			key := filepath.Join(metadata.VolumeKeyPrefixInKVStore, volume.ID.String())
 			ctx := stdCtx.Background()
 			kvCli.EXPECT().Set(ctx, key, data).Times(1).Return(nil)
@@ -443,10 +444,10 @@ func TestVolumeMgr_GetBlocksOfVolume(t *testing.T) {
 			Capacity: 64 * 1024 * 1024,
 			VolumeID: vID,
 		}
-		data1, _ := stdjson.Marshal(block1)
-		data2, _ := stdjson.Marshal(block2)
-		data3, _ := stdjson.Marshal(block3)
-		data4, _ := stdjson.Marshal(block4)
+		data1, _ := stdJson.Marshal(block1)
+		data2, _ := stdJson.Marshal(block2)
+		data3, _ := stdJson.Marshal(block3)
+		data4, _ := stdJson.Marshal(block4)
 
 		kvCli.EXPECT().List(gomock.Any(), key).Times(1).Return([]kv.Pair{
 			{

@@ -62,8 +62,6 @@ type eventlogManager struct {
 
 	// string, *eventlog
 	eventLogMap sync.Map
-	// add here just for get length
-	eventLogRecord map[string]*eventlog
 
 	// blockID, *metadata.Block
 	globalBlockMap sync.Map
@@ -91,7 +89,6 @@ func NewManager(volMgr volume.Manager, replicaNum uint) Manager {
 }
 
 func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client) error {
-	mgr.eventLogRecord = map[string]*eventlog{}
 	mgr.kvClient = kvClient
 	mgr.cancelCtx, mgr.cancel = context.WithCancel(ctx)
 	mgr.allocator = block.NewAllocator(block.NewVolumeRoundRobin(mgr.volMgr.GetAllActiveVolumes))
@@ -145,7 +142,6 @@ func (mgr *eventlogManager) AcquireEventLog(ctx context.Context, eventbusID vanu
 	}
 
 	mgr.eventLogMap.Store(el.md.ID.Key(), el)
-	mgr.eventLogRecord[el.md.ID.Key()] = el
 	log.Info(ctx, "an eventlog created", map[string]interface{}{
 		"key": elMD.ID.Key(),
 		"id":  elMD.EventbusID.Key(),
@@ -294,7 +290,6 @@ func (mgr *eventlogManager) GetSegment(id vanus.ID) *Segment {
 	if !exist {
 		return nil
 	}
-
 	return v.(*Segment)
 }
 
@@ -304,7 +299,7 @@ func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, segID van
 		return errors.ErrSegmentNotFound
 	}
 
-	if seg.Replicas.Term <= term {
+	if seg.Replicas.Term >= term {
 		return nil
 	}
 
@@ -358,12 +353,14 @@ func (mgr *eventlogManager) loadSegments(ctx context.Context) error {
 
 func (mgr *eventlogManager) getSegmentTopology(seg *Segment) map[uint64]string {
 	var addrs = map[uint64]string{}
-	if !seg.isReady() {
-		return addrs
-	}
 	for _, v := range seg.Replicas.Peers {
 		ins := mgr.volMgr.GetVolumeInstanceByID(v.VolumeID)
 		if ins == nil {
+			log.Error(nil, "the volume of block not found", map[string]interface{}{
+				"segment_id": seg.ID,
+				"block_id":   v.ID,
+				"volume_id":  v.VolumeID,
+			})
 			return map[uint64]string{}
 		}
 		addrs[v.ID.Uint64()] = ins.Address()
@@ -545,7 +542,6 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 
 func (mgr *eventlogManager) generateSegment(ctx context.Context) (*Segment, error) {
 	var seg *Segment
-	//blocks, err := mgr.allocator.Pick(ctx, 3)
 	blocks, err := mgr.allocator.Pick(ctx, int(mgr.segmentReplicaNum))
 	if err != nil {
 		return nil, err
@@ -734,10 +730,10 @@ func (el *eventlog) markSegmentIsFull(ctx context.Context, seg *Segment) {
 	data, _ := json.Marshal(next)
 	// TODO update block info at the same time
 	key := filepath.Join(metadata.SegmentKeyPrefixInKVStore, next.ID.String())
-	log.Error(nil, "segment is full", map[string]interface{}{
+	log.Debug(nil, "segment is full", map[string]interface{}{
 		"data": string(data),
 	})
-	if err := mgr.kvClient.Set(ctx, key, data); err != nil {
+	if err := el.kvClient.Set(ctx, key, data); err != nil {
 		log.Warning(ctx, "update segment's metadata failed", map[string]interface{}{
 			log.KeyError: err,
 			"segment":    next.String(),

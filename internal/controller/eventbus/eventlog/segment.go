@@ -70,14 +70,15 @@ func (seg *Segment) isNeedUpdate(newSeg Segment) bool {
 		return false
 	}
 	needed := false
-	if seg.Size != newSeg.Size {
+	if seg.Size < newSeg.Size {
 		seg.Size = newSeg.Size
 		needed = true
 	}
-	if seg.Number != newSeg.Number {
+	if seg.Number < newSeg.Number {
 		seg.Number = newSeg.Number
 		needed = true
 	}
+	// TODO(wenfeng): follow state shift
 	if newSeg.State != "" && seg.State != newSeg.State {
 		seg.State = newSeg.State
 		needed = true
