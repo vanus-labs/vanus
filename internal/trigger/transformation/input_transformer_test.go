@@ -73,18 +73,20 @@ func TestParseData(t *testing.T) {
 			"ctxKey":  "$.vanuskey",
 			"data":    "$.data",
 			"dataKey": "$.data.key",
+			"noExist": "$.noExist",
 		},
-		Template: "test ${keyTest} Id ${ctxId} type ${ctxType} data ${data} key ${dateKey}",
+		Template: "test ${keyTest} Id ${ctxId} type ${ctxType} data ${data} key ${noExist}",
 	}
 
 	Convey("test parse data", t, func() {
 		it := NewInputTransformer(input)
-		m, err := it.parseData(&e)
-		So(err, ShouldBeNil)
+		m := it.parseData(&e)
 		So(m["keyTest"].String(), ShouldEqual, "keyValue")
 		So(m["ctxId"].String(), ShouldEqual, e.ID())
 		So(m["ctxKey"].String(), ShouldEqual, "vanusValue")
 		So(m["dataKey"].String(), ShouldEqual, "value")
+		So(m["data"].String(), ShouldEqual, `{"key":"value","key1":"value1"}`)
+		So(m["noExist"].String(), ShouldEqual, `null`)
 	})
 }
 

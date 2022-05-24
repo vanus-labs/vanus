@@ -41,16 +41,13 @@ func NewInputTransformer(inputTransformer *primitive.InputTransformer) *InputTra
 }
 
 func (tf *InputTransformer) Execute(event *ce.Event) error {
-	dataMap, err := tf.parseData(event)
-	if err != nil {
-		return err
-	}
+	dataMap := tf.parseData(event)
 	newData := tf.template.Execute(dataMap)
 	event.DataEncoded = []byte(newData)
 	return nil
 }
 
-func (tf *InputTransformer) parseData(event *ce.Event) (map[string]template.Data, error) {
+func (tf *InputTransformer) parseData(event *ce.Event) map[string]template.Data {
 	dataMap := make(map[string]template.Data)
 	for k, n := range tf.define.GetNodes() {
 		switch n.Type {
@@ -72,7 +69,7 @@ func (tf *InputTransformer) parseData(event *ce.Event) (map[string]template.Data
 			}
 		}
 	}
-	return dataMap, nil
+	return dataMap
 }
 
 func parseDataVariable(json []byte, path string) template.Data {
