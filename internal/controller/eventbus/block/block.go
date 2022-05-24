@@ -139,6 +139,7 @@ func (al *allocator) Stop() {
 
 func (al *allocator) dynamicAllocateBlockTask() {
 	ctx := context.Background()
+	al.allocateTicker = time.NewTicker(time.Second)
 	for {
 		select {
 		case <-al.cancelCtx.Done():
