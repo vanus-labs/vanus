@@ -354,9 +354,6 @@ func (mgr *eventlogManager) loadSegments(ctx context.Context) error {
 
 func (mgr *eventlogManager) getSegmentTopology(seg *Segment) map[uint64]string {
 	var addrs = map[uint64]string{}
-	if !seg.isReady() {
-		return addrs
-	}
 	for _, v := range seg.Replicas.Peers {
 		ins := mgr.volMgr.GetVolumeInstanceByID(v.VolumeID)
 		if ins == nil {
@@ -546,7 +543,6 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 
 func (mgr *eventlogManager) generateSegment(ctx context.Context) (*Segment, error) {
 	var seg *Segment
-	//blocks, err := mgr.allocator.Pick(ctx, 3)
 	blocks, err := mgr.allocator.Pick(ctx, int(mgr.segmentReplicaNum))
 	if err != nil {
 		return nil, err
