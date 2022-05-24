@@ -141,10 +141,10 @@ func TestExecute(t *testing.T) {
 				"key":  "value",
 				"key1": "value1",
 			})
-			input.Template = `{"body": {"data": ":${dataKey}","data2": "\":${dataKey}\"","data3": "::${dataKey}"}}`
+			input.Template = `{"body": {"data": ":${dataKey}","data2": "\":${dataKey}\"","data3": "::${dataKey} other:${ctxId}"}}`
 			it := NewInputTransformer(input)
 			it.Execute(&e)
-			So(string(e.Data()), ShouldEqual, `{"body": {"data": ":value","data2": "\":value\"","data3": "::value"}}`)
+			So(string(e.Data()), ShouldEqual, `{"body": {"data": ":value","data2": "\":value\"","data3": "::value other:testId"}}`)
 		})
 		Convey("test execute json with a part of value has quota", func() {
 			_ = e.SetData(ce.ApplicationJSON, map[string]interface{}{

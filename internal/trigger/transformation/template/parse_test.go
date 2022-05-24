@@ -60,7 +60,6 @@ func TestParse(t *testing.T) {
 		So(n.Type(), ShouldEqual, Variable)
 		So(n.Value(), ShouldEqual, "str2")
 	})
-
 	Convey("parse json with special symbol 1", t, func() {
 		p := NewParser()
 		p.Parse(` {"key": ":${str}"}`)
@@ -68,7 +67,6 @@ func TestParse(t *testing.T) {
 		So(n.Type(), ShouldEqual, StringVariable)
 		So(n.Value(), ShouldEqual, "str")
 	})
-
 	Convey("parse json with special symbol 2", t, func() {
 		p := NewParser()
 		p.Parse(` {"key": "abc:${str}"}`)
@@ -76,7 +74,6 @@ func TestParse(t *testing.T) {
 		So(n.Type(), ShouldEqual, StringVariable)
 		So(n.Value(), ShouldEqual, "str")
 	})
-
 	Convey("parse json with special symbol 3", t, func() {
 		p := NewParser()
 		p.Parse(` {"key": "\":${str}"}`)
@@ -84,8 +81,7 @@ func TestParse(t *testing.T) {
 		So(n.Type(), ShouldEqual, StringVariable)
 		So(n.Value(), ShouldEqual, "str")
 	})
-
-	Convey("parse json with special symbol 3", t, func() {
+	Convey("parse json with special symbol 4", t, func() {
 		p := NewParser()
 		p.Parse(` {"key": "\":${str} sdf: ${str2}"}`)
 		n := p.GetNodes()[1]
@@ -94,6 +90,5 @@ func TestParse(t *testing.T) {
 		n = p.GetNodes()[3]
 		So(n.Type(), ShouldEqual, StringVariable)
 		So(n.Value(), ShouldEqual, "str2")
-
 	})
 }
