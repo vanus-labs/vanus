@@ -34,12 +34,6 @@ func TestExecuteJsonString(t *testing.T) {
 		v := p.Execute(m)
 		So(v, ShouldEqual, `{"key":""}`)
 	})
-	Convey("no exist", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewNoExistData()
-		v := p.Execute(m)
-		So(v, ShouldEqual, `{"key":""}`)
-	})
 	Convey("string", t, func() {
 		m := make(map[string]Data)
 		m["str"] = NewTextData([]byte("str"))
@@ -65,12 +59,6 @@ func TestExecuteJsonValue(t *testing.T) {
 	Convey("null", t, func() {
 		m := make(map[string]Data)
 		m["str"] = NewNullData()
-		v := p.Execute(m)
-		So(v, ShouldEqual, `{"key":null}`)
-	})
-	Convey("no exist", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewNoExistData()
 		v := p.Execute(m)
 		So(v, ShouldEqual, `{"key":null}`)
 	})
@@ -112,12 +100,6 @@ func TestExecuteText(t *testing.T) {
 	Convey("null", t, func() {
 		m := make(map[string]Data)
 		m["str"] = NewNullData()
-		v := p.Execute(m)
-		So(v, ShouldEqual, `abc `)
-	})
-	Convey("no exist", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewNoExistData()
 		v := p.Execute(m)
 		So(v, ShouldEqual, `abc `)
 	})

@@ -15,27 +15,12 @@
 package template
 
 import (
-	"fmt"
-	"github.com/tidwall/gjson"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestParse(t *testing.T) {
-	str := `{"num":1,"str":"str","float":3.14,"null":null,"object":{"k":"v"}}`
-	v := gjson.Get(str, "num")
-	fmt.Println(v.Raw)
-	v = gjson.Get(str, "str")
-	fmt.Println(v.Raw)
-	v = gjson.Get(str, "float")
-	fmt.Println(v.Raw)
-	v = gjson.Get(str, "null")
-	fmt.Println(v.Raw)
-	v = gjson.Get(str, "no")
-	fmt.Println(v.Raw)
-	v = gjson.Get(str, "object")
-	fmt.Println(v.Raw)
 	Convey("parse constants", t, func() {
 		p := NewParser()
 		p.Parse("constants")

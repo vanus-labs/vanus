@@ -21,8 +21,7 @@ import (
 type DataType int
 
 const (
-	NoExist = iota
-	Null
+	Null = iota
 	Text
 	Other
 )
@@ -34,15 +33,11 @@ type Data struct {
 
 func (d Data) String() string {
 	switch d.DataType {
-	case Null, NoExist:
+	case Null:
 		return "null"
 	default:
 		return string(d.Raw)
 	}
-}
-
-func NewNoExistData() Data {
-	return Data{DataType: NoExist}
 }
 
 func NewNullData() Data {
@@ -65,7 +60,7 @@ func (p *Parser) executeJson(data map[string]Data) string {
 			sb.WriteString(node.Value())
 		case Variable:
 			v, exist := data[node.Value()]
-			if !exist || v.DataType == Null || v.DataType == NoExist {
+			if !exist || v.DataType == Null {
 				sb.WriteString("null")
 			}
 			if v.DataType == Text {
@@ -77,7 +72,7 @@ func (p *Parser) executeJson(data map[string]Data) string {
 			}
 		case StringVariable:
 			v, exist := data[node.Value()]
-			if !exist || v.DataType == Null || v.DataType == NoExist {
+			if !exist || v.DataType == Null {
 				continue
 			}
 			sb.Write(v.Raw)
@@ -94,7 +89,7 @@ func (p *Parser) executeText(data map[string]Data) string {
 			sb.WriteString(node.Value())
 		default:
 			v, exist := data[node.Value()]
-			if !exist || v.DataType == Null || v.DataType == NoExist {
+			if !exist || v.DataType == Null {
 				continue
 			}
 			sb.Write(v.Raw)

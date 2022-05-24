@@ -41,7 +41,7 @@ func NewInputTransformer(inputTransformer *primitive.InputTransformer) *InputTra
 }
 
 func (tf *InputTransformer) Execute(event *ce.Event) error {
-	dataMap, err := tf.ParseData(event)
+	dataMap, err := tf.parseData(event)
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func (tf *InputTransformer) Execute(event *ce.Event) error {
 	return nil
 }
 
-func (tf *InputTransformer) ParseData(event *ce.Event) (map[string]template.Data, error) {
+func (tf *InputTransformer) parseData(event *ce.Event) (map[string]template.Data, error) {
 	dataMap := make(map[string]template.Data)
 	for k, n := range tf.define.GetNodes() {
 		switch n.Type {
@@ -59,23 +59,23 @@ func (tf *InputTransformer) ParseData(event *ce.Event) (map[string]template.Data
 		case define.ContextVariable:
 			v, exist := util.LookupAttribute(*event, n.Value)
 			if !exist {
-				dataMap[k] = template.NewNoExistData()
+				dataMap[k] = template.NewNullData()
 				continue
 			}
 			s, _ := types.Format(v)
 			dataMap[k] = template.NewTextData([]byte(s))
 		case define.DataVariable:
-			if len(n.Value) == 0 {
+			if n.Value == "" {
 				dataMap[k] = template.NewOtherData(event.Data())
 			} else {
-				dataMap[k] = ParseDataVariable(event.Data(), n.Value)
+				dataMap[k] = parseDataVariable(event.Data(), n.Value)
 			}
 		}
 	}
 	return dataMap, nil
 }
 
-func ParseDataVariable(json []byte, path string) template.Data {
+func parseDataVariable(json []byte, path string) template.Data {
 	r := gjson.GetBytes(json, path)
 	switch r.Type {
 	case gjson.Null:

@@ -68,12 +68,12 @@ func (p *Parser) parseType(text string) {
 	}
 }
 
-//isJsonKeyColon check colon is key end colon,maybe:
+// isJSONKeyColon check colon is key end colon,maybe:
 // "key": ${v}
 // "key": ":${v}"
 // "key": "other:${v}"
 // "key": "\":${v}" .
-func isJsonKeyColon(text string, pos, begin int) bool {
+func isJSONKeyColon(text string, pos, begin int) bool {
 	var hasQuota bool
 	for i := pos; i >= begin; i-- {
 		c := text[i]
@@ -107,8 +107,8 @@ func isStringVar(text string, pos, begin int) bool {
 		case '"':
 			return true
 		case ':':
-			//是否是json key后面的冒号
-			b := isJsonKeyColon(text, i-1, begin)
+			// 是否是json key后面的冒号
+			b := isJSONKeyColon(text, i-1, begin)
 			return !b
 		}
 	}

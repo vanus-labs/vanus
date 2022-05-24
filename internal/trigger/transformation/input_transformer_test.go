@@ -12,62 +12,49 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package transformation_test
+package transformation
 
 import (
+	"github.com/linkall-labs/vanus/internal/trigger/transformation/template"
+	"github.com/linkall-labs/vanus/internal/trigger/transformation/vjson"
 	"testing"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/trigger/transformation"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-//func TestParseDataVariable(t *testing.T) {
-//	keys := "key"
-//	Convey("test parse data nil", t, func() {
-//		d := transformation.ParseDataVariable(nil, keys)
-//		So(d.DataType, ShouldEqual, template.NoExist)
-//	})
-//
-//	Convey("test parse data no exist", t, func() {
-//		rs := make(map[string]vjson.Result)
-//		rs["key2"] = vjson.Result{Key: "key"}
-//		d := transformation.ParseDataVariable(rs, keys)
-//		So(d.DataType, ShouldEqual, template.NoExist)
-//	})
-//
-//	Convey("test parse data value nil", t, func() {
-//		rs := make(map[string]vjson.Result)
-//		rs["key"] = vjson.Result{Key: "key", Type: vjson.Null}
-//		d := transformation.ParseDataVariable(rs, keys)
-//		So(d.DataType, ShouldEqual, template.Null)
-//	})
-//
-//	Convey("test parse data value string", t, func() {
-//		rs := make(map[string]vjson.Result)
-//		rs["key"] = vjson.Result{Key: "key", Type: vjson.String}
-//		d := transformation.ParseDataVariable(rs, keys)
-//		So(d.DataType, ShouldEqual, template.Text)
-//	})
-//
-//	Convey("test parse data value other", t, func() {
-//		rs := make(map[string]vjson.Result)
-//		rs["key"] = vjson.Result{Key: "key", Type: vjson.Array}
-//		d := transformation.ParseDataVariable(rs, keys)
-//		So(d.DataType, ShouldEqual, template.Other)
-//	})
-//
-//	Convey("test parse data value many nest", t, func() {
-//		rs := make(map[string]vjson.Result)
-//		rs["key1"] = vjson.Result{Key: "key1", Type: vjson.Object, Result: map[string]vjson.Result{
-//			"key2": {Key: "key2", Type: vjson.String},
-//		}}
-//		keys = []string{"key1", "key2"}
-//		d := transformation.ParseDataVariable(rs, keys)
-//		So(d.DataType, ShouldEqual, template.Text)
-//	})
-//}
+func TestParseDataVariable(t *testing.T) {
+	key := "key"
+	Convey("test parse data nil", t, func() {
+		d := parseDataVariable(nil, key)
+		So(d.DataType, ShouldEqual, template.Null)
+	})
+
+	Convey("test parse data no exist", t, func() {
+		d := parseDataVariable([]byte(`{"ke":"value"}`), key)
+		So(d.DataType, ShouldEqual, template.Null)
+	})
+
+	Convey("test parse data value nil", t, func() {
+		d := parseDataVariable([]byte(`{"key":null}`), key)
+		So(d.DataType, ShouldEqual, template.Null)
+	})
+
+	Convey("test parse data value string", t, func() {
+		d := parseDataVariable([]byte(`{"key":"value"}`), key)
+		So(d.DataType, ShouldEqual, template.Text)
+		So(d.String(), ShouldEqual, "value")
+	})
+
+	Convey("test parse data value other", t, func() {
+		rs := make(map[string]vjson.Result)
+		rs["key"] = vjson.Result{Key: "key", Type: vjson.Array}
+		d := parseDataVariable([]byte(`{"key": {"k":"v"}}`), key)
+		So(d.DataType, ShouldEqual, template.Other)
+		So(d.String(), ShouldEqual, `{"k":"v"}`)
+	})
+}
 
 func TestParseData(t *testing.T) {
 	e := ce.NewEvent()
@@ -91,8 +78,8 @@ func TestParseData(t *testing.T) {
 	}
 
 	Convey("test parse data", t, func() {
-		it := transformation.NewInputTransformer(input)
-		m, err := it.ParseData(&e)
+		it := NewInputTransformer(input)
+		m, err := it.parseData(&e)
 		So(err, ShouldBeNil)
 		So(m["keyTest"].String(), ShouldEqual, "keyValue")
 		So(m["ctxId"].String(), ShouldEqual, e.ID())
@@ -123,7 +110,7 @@ func TestExecute(t *testing.T) {
 				"key1": "value1",
 			})
 			input.Template = "${keyTest} ${ctxId} ${ctxType} ${data} ${dataKey}"
-			it := transformation.NewInputTransformer(input)
+			it := NewInputTransformer(input)
 			it.Execute(&e)
 			So(string(e.Data()), ShouldEqual, `keyValue testId  {"key":"value","key1":"value1"} value`)
 		})
@@ -133,7 +120,7 @@ func TestExecute(t *testing.T) {
 				"key1": "value1",
 			})
 			input.Template = `{"body": {"data": ${dataKey},"data2": "${dataKey}","data3": ${noExist},"data4": "${noExist}"}}`
-			it := transformation.NewInputTransformer(input)
+			it := NewInputTransformer(input)
 			it.Execute(&e)
 			So(string(e.Data()), ShouldEqual, `{"body": {"data": "value","data2": "value","data3": null,"data4": ""}}`)
 		})
@@ -143,7 +130,7 @@ func TestExecute(t *testing.T) {
 				"key1": "value1",
 			})
 			input.Template = ` {"body": {"data": "source is ${dataKey}","data2": "source is ${noExist}"}}`
-			it := transformation.NewInputTransformer(input)
+			it := NewInputTransformer(input)
 			it.Execute(&e)
 			So(string(e.Data()), ShouldEqual, ` {"body": {"data": "source is value","data2": "source is "}}`)
 		})
@@ -153,7 +140,7 @@ func TestExecute(t *testing.T) {
 				"key1": "value1",
 			})
 			input.Template = `{"body": {"data": ":${dataKey}","data2": "\":${dataKey}\"","data3": "::${dataKey}"}}`
-			it := transformation.NewInputTransformer(input)
+			it := NewInputTransformer(input)
 			it.Execute(&e)
 			So(string(e.Data()), ShouldEqual, `{"body": {"data": ":value","data2": "\":value\"","data3": "::value"}}`)
 		})
@@ -163,7 +150,7 @@ func TestExecute(t *testing.T) {
 				"key1": "value1",
 			})
 			input.Template = `{"body": {"data": "source is \"${dataKey}\"","data2": "source is \"${noExist}\""}}`
-			it := transformation.NewInputTransformer(input)
+			it := NewInputTransformer(input)
 			it.Execute(&e)
 			So(string(e.Data()), ShouldEqual, `{"body": {"data": "source is \"value\"","data2": "source is \"\""}}`)
 		})
