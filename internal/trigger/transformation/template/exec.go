@@ -100,10 +100,9 @@ func (p *Parser) executeText(data map[string]Data) string {
 
 func (p *Parser) Execute(data map[string]Data) string {
 	switch p.OutputType {
-	case TEXT:
-		return p.executeText(data)
 	case JSON:
 		return p.executeJson(data)
+	default:
+		return p.executeText(data)
 	}
-	return ""
 }

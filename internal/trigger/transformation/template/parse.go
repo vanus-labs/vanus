@@ -73,32 +73,29 @@ func (p *Parser) parseType(text string) {
 // "key": ":${v}"
 // "key": "other:${v}"
 // "key": "\":${v}" .
-func isJSONKeyColon(text string, pos, begin int) bool {
+func isJSONKeyColon(text string, pos int) bool {
 	var hasQuota bool
-	for i := pos; i >= begin; i-- {
+	for i := pos; i >= 0; i-- {
 		c := text[i]
 		if util.IsSpace(c) {
 			continue
 		}
-		if c == '"' {
+		switch c {
+		case '"':
 			if hasQuota {
 				return false
 			}
 			hasQuota = true
-		} else {
-			if !hasQuota {
-				return false
-			}
-			if c == '\\' || c == ':' {
-				return false
-			}
-			return true
+		case '\\', ':':
+			return false
+		default:
+			return hasQuota
 		}
 	}
 	return false
 }
-func isStringVar(text string, pos, begin int) bool {
-	for i := pos; i >= begin; i-- {
+func isStringVar(text string, pos int) bool {
+	for i := pos; i >= 0; i-- {
 		c := text[i]
 		if util.IsSpace(c) {
 			continue
@@ -108,7 +105,7 @@ func isStringVar(text string, pos, begin int) bool {
 			return true
 		case ':':
 			// 是否是json key后面的冒号
-			b := isJSONKeyColon(text, i-1, begin)
+			b := isJSONKeyColon(text, i-1)
 			return !b
 		}
 	}
@@ -128,7 +125,7 @@ func (p *Parser) Parse(text string) {
 			if y >= 0 {
 				var stringVar bool
 				if p.OutputType == JSON {
-					stringVar = isStringVar(text, pos+x-1, pos)
+					stringVar = isStringVar(text, pos+x-1)
 				}
 				if x > 0 {
 					p.addNode(p.newConstant(text[pos : pos+x]))

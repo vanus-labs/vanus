@@ -91,6 +91,10 @@ func TestExecuteJsonValue(t *testing.T) {
 
 func TestExecuteText(t *testing.T) {
 	p := NewParser()
+	Convey("no parse", t, func() {
+		v := p.Execute(nil)
+		So(v, ShouldEqual, "")
+	})
 	p.Parse(`abc ${str}`)
 	Convey("no data", t, func() {
 		m := make(map[string]Data)
@@ -120,5 +124,12 @@ func TestExecuteText(t *testing.T) {
 		m["str"] = NewOtherData([]byte("true"))
 		v := p.Execute(m)
 		So(v, ShouldEqual, `abc true`)
+	})
+}
+
+func TestDataString(t *testing.T) {
+	Convey("test string", t, func() {
+		So(NewNullData().String(), ShouldEqual, "null")
+		So(NewOtherData([]byte("str")).String(), ShouldEqual, "str")
 	})
 }
