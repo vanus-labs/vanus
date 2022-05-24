@@ -43,6 +43,7 @@ func TestEventlogManager_CreateEventLog(t *testing.T) {
 		kvCli := kv.NewMockClient(ctrl)
 		utMgr.kvClient = kvCli
 
+		kvCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
 		eventbusID := vanus.NewID()
 		logMD, err := utMgr.AcquireEventLog(stdCtx.Background(), eventbusID)
 		Convey("validate metadata", func() {
@@ -84,5 +85,9 @@ func TestEventlogManager_GetSegment(t *testing.T) {
 }
 
 func TestEventlogManager_UpdateSegmentReplicas(t *testing.T) {
+
+}
+
+func TestEventlog(t *testing.T) {
 
 }
