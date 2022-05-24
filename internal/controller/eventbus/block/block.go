@@ -47,7 +47,8 @@ type Allocator interface {
 
 func NewAllocator(selector VolumeSelector) Allocator {
 	return &allocator{
-		selector: selector,
+		selector:       selector,
+		allocateTicker: time.NewTicker(time.Second),
 	}
 }
 
@@ -139,7 +140,6 @@ func (al *allocator) Stop() {
 
 func (al *allocator) dynamicAllocateBlockTask() {
 	ctx := context.Background()
-	al.allocateTicker = time.NewTicker(time.Second)
 	for {
 		select {
 		case <-al.cancelCtx.Done():
