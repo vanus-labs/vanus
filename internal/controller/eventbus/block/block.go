@@ -47,7 +47,8 @@ type Allocator interface {
 
 func NewAllocator(selector VolumeSelector) Allocator {
 	return &allocator{
-		selector: selector,
+		selector:       selector,
+		allocateTicker: time.NewTicker(time.Second),
 	}
 }
 
