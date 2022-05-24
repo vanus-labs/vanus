@@ -18,6 +18,7 @@ import (
 	stdCtx "context"
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/block"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/errors"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
@@ -25,6 +26,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	segpb "github.com/linkall-labs/vsproto/pkg/segment"
 	. "github.com/smartystreets/goconvey/convey"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -130,7 +132,7 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 }
 
 func TestEventlogManager_UpdateSegment(t *testing.T) {
-	Convey("test AcquireEventLog", t, func() {
+	Convey("test UpdateSegment", t, func() {
 		utMgr := &eventlogManager{segmentReplicaNum: 3}
 		ctrl := gomock.NewController(t)
 		volMgr := volume.NewMockManager(ctrl)
@@ -209,11 +211,29 @@ func TestEventlogManager_UpdateSegment(t *testing.T) {
 	})
 }
 
-func TestEventlogManager_markSegmentIsFull(t *testing.T) {
-
-}
-
 func TestEventlogManager_UpdateSegmentReplicas(t *testing.T) {
+	Convey("test UpdateSegmentReplicas", t, func() {
+		utMgr := &eventlogManager{segmentReplicaNum: 3}
+		ctrl := gomock.NewController(t)
+		kvCli := kv.NewMockClient(ctrl)
+		utMgr.kvClient = kvCli
+
+		seg := createTestSegment()
+		seg.Replicas.Term = 3
+		utMgr.globalSegmentMap.Store(seg.ID.Key(), seg)
+		ctx := stdCtx.Background()
+		kvCli.EXPECT().Set(ctx, filepath.Join(metadata.SegmentKeyPrefixInKVStore, seg.ID.String()),
+			gomock.Any()).Times(1).Return(nil)
+
+		err := utMgr.UpdateSegmentReplicas(ctx, vanus.NewID(), 3)
+		So(err, ShouldEqual, errors.ErrSegmentNotFound)
+
+		err = utMgr.UpdateSegmentReplicas(ctx, seg.ID, 3)
+		So(err, ShouldBeNil)
+
+		err = utMgr.UpdateSegmentReplicas(ctx, seg.ID, 4)
+		So(err, ShouldBeNil)
+	})
 
 }
 

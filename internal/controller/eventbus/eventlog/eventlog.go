@@ -290,7 +290,6 @@ func (mgr *eventlogManager) GetSegment(id vanus.ID) *Segment {
 	if !exist {
 		return nil
 	}
-
 	return v.(*Segment)
 }
 
@@ -300,7 +299,7 @@ func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, segID van
 		return errors.ErrSegmentNotFound
 	}
 
-	if seg.Replicas.Term <= term {
+	if seg.Replicas.Term >= term {
 		return nil
 	}
 
