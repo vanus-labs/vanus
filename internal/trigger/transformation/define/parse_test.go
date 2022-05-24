@@ -24,6 +24,12 @@ import (
 )
 
 func TestParse(t *testing.T) {
+	Convey("value is empty", t, func() {
+		p := define.NewParse()
+		p.Parse(map[string]string{})
+		n := p.GetNodes()
+		So(len(n), ShouldEqual, 0)
+	})
 	Convey("value is black", t, func() {
 		p := define.NewParse()
 		p.Parse(map[string]string{"k": "  "})
@@ -37,7 +43,7 @@ func TestParse(t *testing.T) {
 		n, exist := p.GetNode("k")
 		So(exist, ShouldBeTrue)
 		So(n.Type, ShouldEqual, define.Constant)
-		So(n.Value[0], ShouldEqual, "ctx")
+		So(n.Value, ShouldEqual, "ctx")
 	})
 
 	Convey("value is context", t, func() {
@@ -46,7 +52,7 @@ func TestParse(t *testing.T) {
 		n, exist := p.GetNode("k")
 		So(exist, ShouldBeTrue)
 		So(n.Type, ShouldEqual, define.ContextVariable)
-		So(n.Value[0], ShouldEqual, "ctx")
+		So(n.Value, ShouldEqual, "ctx")
 	})
 
 	Convey("value is data", t, func() {
@@ -55,7 +61,7 @@ func TestParse(t *testing.T) {
 		n, exist := p.GetNode("k")
 		So(exist, ShouldBeTrue)
 		So(n.Type, ShouldEqual, define.DataVariable)
-		So(len(n.Value), ShouldEqual, 0)
+		So(n.Value, ShouldEqual, "")
 	})
 
 	Convey("value is data one", t, func() {
@@ -64,8 +70,7 @@ func TestParse(t *testing.T) {
 		n, exist := p.GetNode("k")
 		So(exist, ShouldBeTrue)
 		So(n.Type, ShouldEqual, define.DataVariable)
-		So(len(n.Value), ShouldEqual, 1)
-		So(n.Value[0], ShouldEqual, "one")
+		So(n.Value, ShouldEqual, "one")
 	})
 
 	Convey("value is data two", t, func() {
@@ -74,8 +79,6 @@ func TestParse(t *testing.T) {
 		n, exist := p.GetNode("k")
 		So(exist, ShouldBeTrue)
 		So(n.Type, ShouldEqual, define.DataVariable)
-		So(len(n.Value), ShouldEqual, 2)
-		So(n.Value[0], ShouldEqual, "one")
-		So(n.Value[1], ShouldEqual, "two")
+		So(n.Value, ShouldEqual, "one.two")
 	})
 }

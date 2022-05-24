@@ -33,7 +33,12 @@ type Data struct {
 }
 
 func (d Data) String() string {
-	return string(d.Raw)
+	switch d.DataType {
+	case Null, NoExist:
+		return "null"
+	default:
+		return string(d.Raw)
+	}
 }
 
 func NewNoExistData() Data {
