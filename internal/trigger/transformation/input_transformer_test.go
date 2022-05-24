@@ -12,63 +12,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package transformation_test
+package transformation
 
 import (
-	"testing"
-
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/trigger/transformation"
 	"github.com/linkall-labs/vanus/internal/trigger/transformation/template"
 	"github.com/linkall-labs/vanus/internal/trigger/transformation/vjson"
+	"testing"
 
 	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/vanus/internal/primitive"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestParseDataVariable(t *testing.T) {
-	keys := []string{"key"}
+	key := "key"
 	Convey("test parse data nil", t, func() {
-		d := transformation.ParseDataVariable(nil, keys)
-		So(d.DataType, ShouldEqual, template.NoExist)
+		d := parseDataVariable(nil, key)
+		So(d.DataType, ShouldEqual, template.Null)
 	})
 
 	Convey("test parse data no exist", t, func() {
-		rs := make(map[string]vjson.Result)
-		rs["key2"] = vjson.Result{Key: "key"}
-		d := transformation.ParseDataVariable(rs, keys)
-		So(d.DataType, ShouldEqual, template.NoExist)
+		d := parseDataVariable([]byte(`{"ke":"value"}`), key)
+		So(d.DataType, ShouldEqual, template.Null)
 	})
 
 	Convey("test parse data value nil", t, func() {
-		rs := make(map[string]vjson.Result)
-		rs["key"] = vjson.Result{Key: "key", Type: vjson.Null}
-		d := transformation.ParseDataVariable(rs, keys)
+		d := parseDataVariable([]byte(`{"key":null}`), key)
 		So(d.DataType, ShouldEqual, template.Null)
 	})
 
 	Convey("test parse data value string", t, func() {
-		rs := make(map[string]vjson.Result)
-		rs["key"] = vjson.Result{Key: "key", Type: vjson.String}
-		d := transformation.ParseDataVariable(rs, keys)
+		d := parseDataVariable([]byte(`{"key":"value"}`), key)
 		So(d.DataType, ShouldEqual, template.Text)
+		So(d.String(), ShouldEqual, "value")
 	})
 
 	Convey("test parse data value other", t, func() {
 		rs := make(map[string]vjson.Result)
 		rs["key"] = vjson.Result{Key: "key", Type: vjson.Array}
-		d := transformation.ParseDataVariable(rs, keys)
+		d := parseDataVariable([]byte(`{"key": {"k":"v"}}`), key)
 		So(d.DataType, ShouldEqual, template.Other)
-	})
-
-	Convey("test parse data value many nest", t, func() {
-		rs := make(map[string]vjson.Result)
-		rs["key1"] = vjson.Result{Key: "key1", Type: vjson.Object, Result: map[string]vjson.Result{
-			"key2": {Key: "key2", Type: vjson.String},
-		}}
-		keys = []string{"key1", "key2"}
-		d := transformation.ParseDataVariable(rs, keys)
-		So(d.DataType, ShouldEqual, template.Text)
+		So(d.String(), ShouldEqual, `{"k":"v"}`)
 	})
 }
 
@@ -89,18 +73,20 @@ func TestParseData(t *testing.T) {
 			"ctxKey":  "$.vanuskey",
 			"data":    "$.data",
 			"dataKey": "$.data.key",
+			"noExist": "$.noExist",
 		},
-		Template: "test ${keyTest} Id ${ctxId} type ${ctxType} data ${data} key ${dateKey}",
+		Template: "test ${keyTest} Id ${ctxId} type ${ctxType} data ${data} key ${noExist}",
 	}
 
 	Convey("test parse data", t, func() {
-		it := transformation.NewInputTransformer(input)
-		m, err := it.ParseData(&e)
-		So(err, ShouldBeNil)
+		it := NewInputTransformer(input)
+		m := it.parseData(&e)
 		So(m["keyTest"].String(), ShouldEqual, "keyValue")
 		So(m["ctxId"].String(), ShouldEqual, e.ID())
 		So(m["ctxKey"].String(), ShouldEqual, "vanusValue")
 		So(m["dataKey"].String(), ShouldEqual, "value")
+		So(m["data"].String(), ShouldEqual, `{"key":"value","key1":"value1"}`)
+		So(m["noExist"].String(), ShouldEqual, `null`)
 	})
 }
 
@@ -126,29 +112,49 @@ func TestExecute(t *testing.T) {
 				"key1": "value1",
 			})
 			input.Template = "${keyTest} ${ctxId} ${ctxType} ${data} ${dataKey}"
-			it := transformation.NewInputTransformer(input)
+			it := NewInputTransformer(input)
 			it.Execute(&e)
 			So(string(e.Data()), ShouldEqual, `keyValue testId  {"key":"value","key1":"value1"} value`)
 		})
-		Convey("test execute json", func() {
+		Convey("test execute json signal value", func() {
 			_ = e.SetData(ce.ApplicationJSON, map[string]interface{}{
 				"key":  "value",
 				"key1": "value1",
 			})
-			input.Template = "{\"body\": {\"data\": \"source is ${dataKey}\"}}"
-			it := transformation.NewInputTransformer(input)
+			input.Template = `{"body": {"data": ${dataKey},"data2": "${dataKey}","data3": ${noExist},"data4": "${noExist}"}}`
+			it := NewInputTransformer(input)
 			it.Execute(&e)
-			So(string(e.Data()), ShouldEqual, `{"body": {"data": "source is value"}}`)
+			So(string(e.Data()), ShouldEqual, `{"body": {"data": "value","data2": "value","data3": null,"data4": ""}}`)
 		})
-		Convey("test execute json with quota", func() {
+		Convey("test execute json with a part of value", func() {
 			_ = e.SetData(ce.ApplicationJSON, map[string]interface{}{
 				"key":  "value",
 				"key1": "value1",
 			})
-			input.Template = "{\"body\": {\"data\": \"source is \"${dataKey}\"\"}}"
-			it := transformation.NewInputTransformer(input)
+			input.Template = ` {"body": {"data": "source is ${dataKey}","data2": "source is ${noExist}"}}`
+			it := NewInputTransformer(input)
 			it.Execute(&e)
-			So(string(e.Data()), ShouldEqual, `{"body": {"data": "source is "value""}}`)
+			So(string(e.Data()), ShouldEqual, ` {"body": {"data": "source is value","data2": "source is "}}`)
+		})
+		Convey("test execute json with a part of value has colon", func() {
+			_ = e.SetData(ce.ApplicationJSON, map[string]interface{}{
+				"key":  "value",
+				"key1": "value1",
+			})
+			input.Template = `{"body": {"data": ":${dataKey}","data2": "\":${dataKey}\"","data3": "::${dataKey} other:${ctxId}"}}`
+			it := NewInputTransformer(input)
+			it.Execute(&e)
+			So(string(e.Data()), ShouldEqual, `{"body": {"data": ":value","data2": "\":value\"","data3": "::value other:testId"}}`)
+		})
+		Convey("test execute json with a part of value has quota", func() {
+			_ = e.SetData(ce.ApplicationJSON, map[string]interface{}{
+				"key":  "value",
+				"key1": "value1",
+			})
+			input.Template = `{"body": {"data": "source is \"${dataKey}\"","data2": "source is \"${noExist}\""}}`
+			it := NewInputTransformer(input)
+			it.Execute(&e)
+			So(string(e.Data()), ShouldEqual, `{"body": {"data": "source is \"value\"","data2": "source is \"\""}}`)
 		})
 	})
 

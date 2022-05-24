@@ -68,6 +68,50 @@ func (p *Parser) parseType(text string) {
 	}
 }
 
+// isJSONKeyColon check colon is key end colon,maybe:
+// "key": ${v}
+// "key": ":${v}"
+// "key": "other:${v}"
+// "key": "\":${v}" .
+func isJSONKeyColon(text string, pos int) bool {
+	var hasQuota bool
+	for i := pos; i >= 0; i-- {
+		c := text[i]
+		if util.IsSpace(c) {
+			continue
+		}
+		switch c {
+		case '"':
+			if hasQuota {
+				return false
+			}
+			hasQuota = true
+		case '\\', ':':
+			return false
+		default:
+			return hasQuota
+		}
+	}
+	return false
+}
+func isStringVar(text string, pos int) bool {
+	for i := pos; i >= 0; i-- {
+		c := text[i]
+		if util.IsSpace(c) {
+			continue
+		}
+		switch c {
+		case '"':
+			return true
+		case ':':
+			// 是否是json key后面的冒号
+			b := isJSONKeyColon(text, i-1)
+			return !b
+		}
+	}
+	return false
+}
+
 func (p *Parser) Parse(text string) {
 	p.parseType(text)
 	var pos int
@@ -79,22 +123,14 @@ func (p *Parser) Parse(text string) {
 			ldp := pos + x + leftDelimLen
 			y := strings.Index(text[ldp:], p.rightDelim)
 			if y >= 0 {
-				var isString, isColon bool
-				for i := ldp - leftDelimLen - 1; i > 0; i-- {
-					if util.IsSpace(text[i]) {
-						continue
-					}
-					if text[i] == '"' {
-						isString = true
-					} else if text[i] == ':' {
-						isColon = true
-					}
-					break
+				var stringVar bool
+				if p.OutputType == JSON {
+					stringVar = isStringVar(text, pos+x-1)
 				}
 				if x > 0 {
 					p.addNode(p.newConstant(text[pos : pos+x]))
 				}
-				if isString || !isColon {
+				if stringVar {
 					p.addNode(p.newStringVariable(text[ldp : ldp+y]))
 				} else {
 					p.addNode(p.newVariable(text[ldp : ldp+y]))

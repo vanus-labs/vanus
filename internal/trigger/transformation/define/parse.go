@@ -29,7 +29,7 @@ const (
 type Node struct {
 	Type  Type
 	Key   string
-	Value []string
+	Value string
 }
 
 type Parser struct {
@@ -63,19 +63,20 @@ func (p *Parser) Parse(input map[string]string) {
 	nodeMap := make(map[string]Node, len(input))
 	for k, v := range input {
 		if len(v) <= 2 || v[:2] != "$." {
-			nodeMap[k] = Node{Type: Constant, Key: k, Value: []string{v}}
+			nodeMap[k] = Node{Type: Constant, Key: k, Value: v}
 			continue
 		}
+
 		keys := strings.Split(v[2:], ".")
 		if keys[0] == "data" {
 			if len(keys) == 1 {
 				nodeMap[k] = Node{Type: DataVariable, Key: k}
 			} else {
 				p.hasDataVariable = true
-				nodeMap[k] = Node{Type: DataVariable, Key: k, Value: keys[1:]}
+				nodeMap[k] = Node{Type: DataVariable, Key: k, Value: v[7:]}
 			}
 		} else {
-			nodeMap[k] = Node{Type: ContextVariable, Key: k, Value: keys}
+			nodeMap[k] = Node{Type: ContextVariable, Key: k, Value: v[2:]}
 		}
 	}
 	p.nodes = nodeMap
