@@ -36,23 +36,6 @@ func (m *MockAllocator) EXPECT() *MockAllocatorMockRecorder {
 	return m.recorder
 }
 
-// Clean mocks base method.
-func (m *MockAllocator) Clean(ctx context.Context, blocks ...*metadata.Block) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{ctx}
-	for _, a := range blocks {
-		varargs = append(varargs, a)
-	}
-	m.ctrl.Call(m, "Clean", varargs...)
-}
-
-// Clean indicates an expected call of Clean.
-func (mr *MockAllocatorMockRecorder) Clean(ctx interface{}, blocks ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{ctx}, blocks...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Clean", reflect.TypeOf((*MockAllocator)(nil).Clean), varargs...)
-}
-
 // Pick mocks base method.
 func (m *MockAllocator) Pick(ctx context.Context, num int) ([]*metadata.Block, error) {
 	m.ctrl.T.Helper()
@@ -69,17 +52,17 @@ func (mr *MockAllocatorMockRecorder) Pick(ctx, num interface{}) *gomock.Call {
 }
 
 // Run mocks base method.
-func (m *MockAllocator) Run(ctx context.Context, kvCli kv.Client) error {
+func (m *MockAllocator) Run(ctx context.Context, kvCli kv.Client, dynamicAllocate bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Run", ctx, kvCli)
+	ret := m.ctrl.Call(m, "Run", ctx, kvCli, dynamicAllocate)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Run indicates an expected call of Run.
-func (mr *MockAllocatorMockRecorder) Run(ctx, kvCli interface{}) *gomock.Call {
+func (mr *MockAllocatorMockRecorder) Run(ctx, kvCli, dynamicAllocate interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockAllocator)(nil).Run), ctx, kvCli)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockAllocator)(nil).Run), ctx, kvCli, dynamicAllocate)
 }
 
 // Stop mocks base method.
