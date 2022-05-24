@@ -364,6 +364,11 @@ func (mgr *eventlogManager) getSegmentTopology(seg *Segment) map[uint64]string {
 	for _, v := range seg.Replicas.Peers {
 		ins := mgr.volMgr.GetVolumeInstanceByID(v.VolumeID)
 		if ins == nil {
+			log.Error(nil, "the volume of block not found", map[string]interface{}{
+				"segment_id": seg.ID,
+				"block_id":   v.ID,
+				"volume_id":  v.VolumeID,
+			})
 			return map[uint64]string{}
 		}
 		addrs[v.ID.Uint64()] = ins.Address()
