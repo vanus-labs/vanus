@@ -731,10 +731,10 @@ func (el *eventlog) markSegmentIsFull(ctx context.Context, seg *Segment) {
 	data, _ := json.Marshal(next)
 	// TODO update block info at the same time
 	key := filepath.Join(metadata.SegmentKeyPrefixInKVStore, next.ID.String())
-	log.Error(nil, "segment is full", map[string]interface{}{
+	log.Debug(nil, "segment is full", map[string]interface{}{
 		"data": string(data),
 	})
-	if err := mgr.kvClient.Set(ctx, key, data); err != nil {
+	if err := el.kvClient.Set(ctx, key, data); err != nil {
 		log.Warning(ctx, "update segment's metadata failed", map[string]interface{}{
 			log.KeyError: err,
 			"segment":    next.String(),

@@ -26,6 +26,7 @@ import (
 	segpb "github.com/linkall-labs/vsproto/pkg/segment"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+	"time"
 )
 
 func TestEventlogManager_Run(t *testing.T) {
@@ -129,6 +130,86 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 }
 
 func TestEventlogManager_UpdateSegment(t *testing.T) {
+	Convey("test AcquireEventLog", t, func() {
+		utMgr := &eventlogManager{segmentReplicaNum: 3}
+		ctrl := gomock.NewController(t)
+		volMgr := volume.NewMockManager(ctrl)
+		utMgr.volMgr = volMgr
+		kvCli := kv.NewMockClient(ctrl)
+		utMgr.kvClient = kvCli
+
+		ctx := stdCtx.Background()
+		Convey("case: the eventlog doesn't exist", func() {
+			utMgr.UpdateSegment(ctx, map[string][]Segment{
+				"dont_exist": {
+					{
+						ID: vanus.NewID(),
+					},
+					{
+						ID: vanus.NewID(),
+					},
+				},
+			})
+		})
+		md := &metadata.Eventlog{
+			ID:         vanus.NewID(),
+			EventbusID: vanus.NewID(),
+		}
+		elog, err := newEventlog(ctx, md, kvCli, false)
+		So(err, ShouldBeNil)
+		Convey("case: test segment to be updated", func() {
+			seg := createTestSegment()
+			kvCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).Times(6).Return(nil)
+			err := elog.add(ctx, seg)
+			So(err, ShouldBeNil)
+			utMgr.eventLogMap.Store(md.ID.Key(), elog)
+			// segment doesn't exist
+			utMgr.UpdateSegment(ctx, map[string][]Segment{
+				md.ID.String(): {
+					{
+						ID: vanus.NewID(),
+					},
+				},
+			})
+			// segment doesn't need to be updated
+			utMgr.UpdateSegment(ctx, map[string][]Segment{
+				md.ID.String(): {
+					{
+						ID: seg.ID,
+					},
+				},
+			})
+
+			// segment need to be updated
+			utMgr.UpdateSegment(ctx, map[string][]Segment{
+				md.ID.String(): {
+					{
+						ID:     seg.ID,
+						Size:   1024,
+						Number: 16,
+						State:  StateWorking,
+					},
+				},
+			})
+
+			// mark is full
+			_seg := createTestSegment()
+			err = elog.add(ctx, _seg)
+			So(err, ShouldBeNil)
+			utMgr.UpdateSegment(ctx, map[string][]Segment{
+				md.ID.String(): {
+					{
+						ID:    seg.ID,
+						State: StateFrozen,
+					},
+				},
+			})
+
+		})
+	})
+}
+
+func TestEventlogManager_markSegmentIsFull(t *testing.T) {
 
 }
 
@@ -138,4 +219,30 @@ func TestEventlogManager_UpdateSegmentReplicas(t *testing.T) {
 
 func TestEventlog(t *testing.T) {
 
+}
+
+func createTestSegment() *Segment {
+	leader := vanus.NewID()
+	fo1 := vanus.NewID()
+	fo2 := vanus.NewID()
+	return &Segment{
+		ID: vanus.NewID(),
+		Replicas: &ReplicaGroup{
+			ID:     vanus.NewID(),
+			Leader: leader.Uint64(),
+			Peers: map[uint64]*metadata.Block{
+				leader.Uint64(): {
+					ID: leader,
+				},
+				fo1.Uint64(): {
+					ID: fo1,
+				},
+				fo2.Uint64(): {
+					ID: fo2,
+				},
+			},
+			Term:     0,
+			CreateAt: time.Now(),
+		},
+	}
 }
