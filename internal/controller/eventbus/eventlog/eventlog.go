@@ -62,8 +62,6 @@ type eventlogManager struct {
 
 	// string, *eventlog
 	eventLogMap sync.Map
-	// add here just for get length
-	eventLogRecord map[string]*eventlog
 
 	// blockID, *metadata.Block
 	globalBlockMap sync.Map
@@ -91,7 +89,6 @@ func NewManager(volMgr volume.Manager, replicaNum uint) Manager {
 }
 
 func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client) error {
-	mgr.eventLogRecord = map[string]*eventlog{}
 	mgr.kvClient = kvClient
 	mgr.cancelCtx, mgr.cancel = context.WithCancel(ctx)
 	mgr.allocator = block.NewAllocator(block.NewVolumeRoundRobin(mgr.volMgr.GetAllActiveVolumes))
@@ -145,7 +142,6 @@ func (mgr *eventlogManager) AcquireEventLog(ctx context.Context, eventbusID vanu
 	}
 
 	mgr.eventLogMap.Store(el.md.ID.Key(), el)
-	mgr.eventLogRecord[el.md.ID.Key()] = el
 	log.Info(ctx, "an eventlog created", map[string]interface{}{
 		"key": elMD.ID.Key(),
 		"id":  elMD.EventbusID.Key(),

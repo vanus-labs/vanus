@@ -15,14 +15,15 @@
 package eventlog
 
 import (
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
-	"testing"
-	"time"
 )
 
 func TestConvert2ProtoSegment(t *testing.T) {
