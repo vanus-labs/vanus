@@ -49,6 +49,8 @@ type Manager interface {
 	UpdateSegment(ctx context.Context, m map[string][]Segment)
 	GetSegmentByBlockID(block *metadata.Block) (*Segment, error)
 	GetBlock(id vanus.ID) *metadata.Block
+	GetSegment(id vanus.ID) *Segment
+	UpdateSegmentReplicas(ctx context.Context, segID vanus.ID, term uint64) error
 }
 
 var mgr = &eventlogManager{
@@ -65,6 +67,9 @@ type eventlogManager struct {
 
 	// blockID, *metadata.Block
 	globalBlockMap sync.Map
+
+	// segmentID, *segment
+	globalSegmentMap sync.Map
 
 	kvMutex   sync.Mutex
 	volMgr    volume.Manager
@@ -247,9 +252,6 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[string][]Se
 				data, _ := json.Marshal(seg)
 				// TODO update block info at the same time
 				key := filepath.Join(metadata.SegmentKeyPrefixInKVStore, seg.ID.String())
-				log.Error(nil, "segment", map[string]interface{}{
-					"data": string(data),
-				})
 				if err := mgr.kvClient.Set(ctx, key, data); err != nil {
 					log.Warning(ctx, "update segment's metadata failed", map[string]interface{}{
 						log.KeyError: err,
@@ -285,6 +287,39 @@ func (mgr *eventlogManager) GetBlock(id vanus.ID) *metadata.Block {
 		return nil
 	}
 	return v.(*metadata.Block)
+}
+
+func (mgr *eventlogManager) GetSegment(id vanus.ID) *Segment {
+	v, exist := mgr.globalSegmentMap.Load(id.Key())
+	if !exist {
+		return nil
+	}
+
+	return v.(*Segment)
+}
+
+func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, segID vanus.ID, term uint64) error {
+	seg := mgr.GetSegment(segID)
+	if seg == nil {
+		return errors.ErrSegmentNotFound
+	}
+
+	if seg.Replicas.Term <= term {
+		return nil
+	}
+
+	seg.Replicas.Leader = segID.Uint64()
+	seg.Replicas.Term = term
+	data, _ := json.Marshal(seg)
+	key := filepath.Join(metadata.SegmentKeyPrefixInKVStore, seg.ID.String())
+	if err := mgr.kvClient.Set(ctx, key, data); err != nil {
+		log.Warning(ctx, "update segment's metadata failed", map[string]interface{}{
+			log.KeyError: err,
+			"segment":    seg.String(),
+		})
+		return errors.ErrInvalidSegment.WithMessage("update segment to etcd error").Wrap(err)
+	}
+	return nil
 }
 
 func (mgr *eventlogManager) GetSegmentByBlockID(block *metadata.Block) (*Segment, error) {
@@ -462,7 +497,7 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 	}
 	seg.EventLogID = el.md.ID
 
-	for i := 1; i <= len(seg.Replicas.Peers); i++ {
+	for i := range seg.Replicas.Peers {
 		seg.Replicas.Leader = i
 		ins := mgr.volMgr.GetVolumeInstanceByID(seg.GetLeaderBlock().VolumeID)
 		srv := ins.GetServer()
@@ -496,9 +531,6 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 	seg.State = StateWorking
 	data, _ := json.Marshal(seg)
 	key := filepath.Join(metadata.SegmentKeyPrefixInKVStore, seg.ID.String())
-	log.Debug(nil, "create segment", map[string]interface{}{
-		"data": string(data),
-	})
 	if err = mgr.kvClient.Set(ctx, key, data); err != nil {
 		log.Error(ctx, "update segment's metadata failed", map[string]interface{}{
 			log.KeyError: err,
@@ -507,6 +539,7 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 		return nil, err
 	}
 
+	mgr.globalSegmentMap.Store(seg.ID.Key(), seg)
 	return seg, nil
 }
 
@@ -517,9 +550,9 @@ func (mgr *eventlogManager) generateSegment(ctx context.Context) (*Segment, erro
 	if err != nil {
 		return nil, err
 	}
-	blockMap := make(map[int]*metadata.Block)
-	for idx, v := range blocks {
-		blockMap[idx+1] = v
+	blockMap := make(map[uint64]*metadata.Block)
+	for _, v := range blocks {
+		blockMap[v.ID.Uint64()] = v
 	}
 	seg = &Segment{
 		ID:       vanus.NewID(),
@@ -598,9 +631,7 @@ func newEventlog(ctx context.Context, md *metadata.Eventlog, kvClient kv.Client,
 			return nil, err
 		}
 		seg := &Segment{}
-		log.Debug(nil, "load when new segment", map[string]interface{}{
-			"data": string(data),
-		})
+
 		if err = json.Unmarshal(data, seg); err != nil {
 			return nil, err
 		}
@@ -680,9 +711,6 @@ func (el *eventlog) add(ctx context.Context, seg *Segment) error {
 
 	if last != nil {
 		data, _ = json.Marshal(last)
-		log.Debug(nil, "update last segment", map[string]interface{}{
-			"data": string(data),
-		})
 		key = filepath.Join(metadata.SegmentKeyPrefixInKVStore, last.ID.String())
 		if err := el.kvClient.Set(ctx, key, data); err != nil {
 			// TODO clean when failed

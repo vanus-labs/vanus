@@ -23,6 +23,7 @@ var (
 	ErrVolumeInstanceNotFound = rpcerr.New("volume instance not found").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_NOT_FOUND)
 	ErrVolumeInstanceNoServer = rpcerr.New("no segment server was bound to volume instance").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
 	ErrInvalidSegment         = rpcerr.New("invalid segment").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
+	ErrSegmentNotFound        = rpcerr.New("segment not found").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_NOT_FOUND)
 
 	ErrSegmentServerHasBeenAdded = rpcerr.New("the segment server has been added").WithGRPCCode(rpcerr.ErrorCode_SERVICE_NOT_RUNNING)
 )
