@@ -26,3 +26,5 @@ bin
 *.xml
 
 *coverage*
+
+.run

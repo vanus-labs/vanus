@@ -419,6 +419,14 @@ func (ctrl *controller) Ping(ctx context.Context, empty *emptypb.Empty) (*ctrlpb
 	}, nil
 }
 
+func (ctrl *controller) ReportSegmentLeader(ctx context.Context, req *ctrlpb.ReportSegmentLeaderRequest) (*emptypb.Empty, error) {
+	err := ctrl.eventLogMgr.UpdateSegmentReplicas(ctx, vanus.NewIDFromUint64(req.LeaderId), req.Term)
+	if err != nil {
+		return nil, err
+	}
+	return &emptypb.Empty{}, nil
+}
+
 func (ctrl *controller) getEventBusKeyInKVStore(ebName string) string {
 	return strings.Join([]string{metadata.EventbusKeyPrefixInKVStore, ebName}, "/")
 }

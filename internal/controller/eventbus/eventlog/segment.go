@@ -93,16 +93,13 @@ func (seg *Segment) isReady() bool {
 	return seg.Replicas != nil && seg.Replicas.Leader > 0
 }
 
-func (seg *Segment) changeLeaderAddr(id int) {
-	seg.Replicas.Leader = id
-}
-
 type ReplicaGroup struct {
-	ID        vanus.ID                `json:"id"`
-	Leader    int                     `json:"leader"`
-	Peers     map[int]*metadata.Block `json:"blocks"`
-	CreateAt  time.Time               `json:"create_at"`
-	DestroyAt time.Time               `json:"destroy_at"`
+	ID        vanus.ID                   `json:"id"`
+	Leader    uint64                     `json:"leader"`
+	Peers     map[uint64]*metadata.Block `json:"blocks"`
+	Term      uint64                     `json:"term"`
+	CreateAt  time.Time                  `json:"create_at"`
+	DestroyAt time.Time                  `json:"destroy_at"`
 }
 
 func Convert2ProtoSegment(ins ...*Segment) []*metapb.Segment {
