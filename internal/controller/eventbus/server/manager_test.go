@@ -16,7 +16,6 @@ package server
 
 import (
 	stdCtx "context"
-	"net"
 	"sync"
 	"testing"
 	"time"
@@ -34,23 +33,17 @@ import (
 func TestSegmentServerManager_AddAndRemoveServer(t *testing.T) {
 	Convey("test add and remove server", t, func() {
 		mgr := NewServerManager()
-		srv1 := runGRPCServer("127.0.0.1:10001")
-		defer srv1.GracefulStop()
 		ss1, err := NewSegmentServer("127.0.0.1:10001")
 		So(err, ShouldBeNil)
 		err = mgr.AddServer(stdCtx.Background(), ss1)
 		So(err, ShouldBeNil)
 		ssm := mgr.(*segmentServerManager)
 
-		srv2 := runGRPCServer("127.0.0.1:10002")
-		defer srv2.GracefulStop()
 		ss2, err := NewSegmentServer("127.0.0.1:10002")
 		So(err, ShouldBeNil)
 		err = mgr.AddServer(stdCtx.Background(), ss2)
 		So(err, ShouldBeNil)
 
-		srv3 := runGRPCServer("127.0.0.1:10003")
-		defer srv3.GracefulStop()
 		ss3, err := NewSegmentServer("127.0.0.1:10003")
 		So(err, ShouldBeNil)
 		err = mgr.AddServer(stdCtx.Background(), ss3)
@@ -110,16 +103,12 @@ func TestSegmentServerManager_AddAndRemoveServer(t *testing.T) {
 func TestSegmentServerManager_Run(t *testing.T) {
 	Convey("test Manager run and stop", t, func() {
 		mgr := NewServerManager()
-		srv1 := runGRPCServer("127.0.0.1:10001")
-		defer srv1.GracefulStop()
 		ss1, err := NewSegmentServer("127.0.0.1:10001")
 		So(err, ShouldBeNil)
 		err = mgr.AddServer(stdCtx.Background(), ss1)
 		So(err, ShouldBeNil)
 		ssm := mgr.(*segmentServerManager)
 
-		srv2 := runGRPCServer("127.0.0.1:10002")
-		defer srv2.GracefulStop()
 		ss2, err := NewSegmentServer("127.0.0.1:10002")
 		So(err, ShouldBeNil)
 		err = mgr.AddServer(stdCtx.Background(), ss2)
@@ -179,8 +168,6 @@ func TestSegmentServerManager_Run(t *testing.T) {
 
 func TestSegmentServer(t *testing.T) {
 	Convey("test Manager run and stop", t, func() {
-		srv1 := runGRPCServer("127.0.0.1:10001")
-		defer srv1.GracefulStop()
 		ss1, err := NewSegmentServer("127.0.0.1:10001")
 		So(err, ShouldBeNil)
 
@@ -220,19 +207,4 @@ func TestSegmentServer(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(ss2.ID(), ShouldEqual, vanus.NewIDFromUint64(1024))
 	})
-}
-
-func runGRPCServer(addr string) *grpc.Server {
-	var opts []grpc.ServerOption
-	grpcServer := grpc.NewServer(opts...)
-	listen, err := net.Listen("tcp", addr)
-	if err != nil {
-		return nil
-	}
-	go func() {
-		if err = grpcServer.Serve(listen); err != nil {
-			panic("listen failed: " + err.Error())
-		}
-	}()
-	return grpcServer
 }
