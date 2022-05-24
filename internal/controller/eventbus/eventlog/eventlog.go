@@ -293,8 +293,13 @@ func (mgr *eventlogManager) GetSegment(id vanus.ID) *Segment {
 	return v.(*Segment)
 }
 
-func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, segID vanus.ID, term uint64) error {
-	seg := mgr.GetSegment(segID)
+func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, leaderID vanus.ID, term uint64) error {
+	blk := mgr.GetBlock(leaderID)
+	if blk == nil {
+		return errors.ErrBlockNotFound
+	}
+
+	seg := mgr.GetSegment(blk.SegmentID)
 	if seg == nil {
 		return errors.ErrSegmentNotFound
 	}
@@ -303,7 +308,7 @@ func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, segID van
 		return nil
 	}
 
-	seg.Replicas.Leader = segID.Uint64()
+	seg.Replicas.Leader = leaderID.Uint64()
 	seg.Replicas.Term = term
 	data, _ := json.Marshal(seg)
 	key := filepath.Join(metadata.SegmentKeyPrefixInKVStore, seg.ID.String())

@@ -218,20 +218,31 @@ func TestEventlogManager_UpdateSegmentReplicas(t *testing.T) {
 		kvCli := kv.NewMockClient(ctrl)
 		utMgr.kvClient = kvCli
 
+		blk := &metadata.Block{
+			ID:        vanus.NewID(),
+			Capacity:  64 * 1024 * 1024,
+			SegmentID: 0,
+		}
 		seg := createTestSegment()
 		seg.Replicas.Term = 3
 		utMgr.globalSegmentMap.Store(seg.ID.Key(), seg)
+		utMgr.globalBlockMap.Store(blk.ID.Key(), blk)
+
 		ctx := stdCtx.Background()
 		kvCli.EXPECT().Set(ctx, filepath.Join(metadata.SegmentKeyPrefixInKVStore, seg.ID.String()),
 			gomock.Any()).Times(1).Return(nil)
 
 		err := utMgr.UpdateSegmentReplicas(ctx, vanus.NewID(), 3)
+		So(err, ShouldEqual, errors.ErrBlockNotFound)
+
+		err = utMgr.UpdateSegmentReplicas(ctx, blk.ID, 3)
 		So(err, ShouldEqual, errors.ErrSegmentNotFound)
 
-		err = utMgr.UpdateSegmentReplicas(ctx, seg.ID, 3)
+		blk.SegmentID = seg.ID
+		err = utMgr.UpdateSegmentReplicas(ctx, blk.ID, 3)
 		So(err, ShouldBeNil)
 
-		err = utMgr.UpdateSegmentReplicas(ctx, seg.ID, 4)
+		err = utMgr.UpdateSegmentReplicas(ctx, blk.ID, 4)
 		So(err, ShouldBeNil)
 	})
 
