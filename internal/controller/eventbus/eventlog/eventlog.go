@@ -39,7 +39,7 @@ const (
 )
 
 type Manager interface {
-	Run(ctx context.Context, kvClient kv.Client) error
+	Run(ctx context.Context, kvClient kv.Client, startTask bool) error
 	Stop()
 	AcquireEventLog(ctx context.Context, eventbusID vanus.ID) (*metadata.Eventlog, error)
 	GetEventLog(ctx context.Context, id vanus.ID) *metadata.Eventlog
@@ -55,6 +55,8 @@ type Manager interface {
 
 var mgr = &eventlogManager{
 	segmentReplicaNum: 3,
+	scaleTick:         time.NewTicker(time.Second),
+	cleanTick:         time.NewTicker(time.Minute),
 }
 
 type eventlogManager struct {
@@ -78,6 +80,8 @@ type eventlogManager struct {
 	// vanus.ID *Segment
 	segmentNeedBeClean sync.Map
 	segmentReplicaNum  uint
+	scaleTick          *time.Ticker
+	cleanTick          *time.Ticker
 }
 
 func NewManager(volMgr volume.Manager, replicaNum uint) Manager {
@@ -85,13 +89,13 @@ func NewManager(volMgr volume.Manager, replicaNum uint) Manager {
 	if replicaNum > 0 {
 		mgr.segmentReplicaNum = replicaNum
 	}
+	mgr.allocator = block.NewAllocator(block.NewVolumeRoundRobin(mgr.volMgr.GetAllActiveVolumes))
 	return mgr
 }
 
-func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client) error {
+func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client, startTask bool) error {
 	mgr.kvClient = kvClient
 	mgr.cancelCtx, mgr.cancel = context.WithCancel(ctx)
-	mgr.allocator = block.NewAllocator(block.NewVolumeRoundRobin(mgr.volMgr.GetAllActiveVolumes))
 	if err := mgr.allocator.Run(ctx, mgr.kvClient, true); err != nil {
 		return err
 	}
@@ -111,10 +115,23 @@ func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client) error {
 			return err
 		}
 		mgr.eventLogMap.Store(elMD.ID.Key(), el)
+		ptr := el.segmentList.Front()
+		if ptr != nil {
+			seg := ptr.Value.(*Segment)
+			for seg != nil {
+				mgr.globalSegmentMap.Store(seg.ID.Key(), seg)
+				for _, v := range seg.Replicas.Peers {
+					mgr.globalBlockMap.Store(v.ID.Key(), v)
+				}
+				seg = el.nextOf(seg)
+			}
+		}
 	}
-	go mgr.dynamicScaleUpEventLog()
-	go mgr.cleanAbnormalSegment()
-	return mgr.loadSegments(ctx)
+	if startTask {
+		go mgr.dynamicScaleUpEventLog()
+		go mgr.cleanAbnormalSegment()
+	}
+	return nil
 }
 
 func (mgr *eventlogManager) Stop() {
@@ -335,27 +352,6 @@ func (mgr *eventlogManager) stop() {
 	mgr.cancel()
 }
 
-func (mgr *eventlogManager) loadSegments(ctx context.Context) error {
-	var err error
-	mgr.eventLogMap.Range(func(key, value interface{}) bool {
-		el := value.(*eventlog)
-		var data []byte
-		for _, v := range el.segments {
-			data, err = mgr.kvClient.Get(ctx, filepath.Join(metadata.SegmentKeyPrefixInKVStore, v.String()))
-			if err != nil {
-				return false
-			}
-			seg := &Segment{}
-			if err = json.Unmarshal(data, seg); err != nil {
-				err = errors.ErrUnmarshall.Wrap(err)
-				return false
-			}
-		}
-		return true
-	})
-	return err
-}
-
 func (mgr *eventlogManager) getSegmentTopology(seg *Segment) map[uint64]string {
 	var addrs = map[uint64]string{}
 	for _, v := range seg.Replicas.Peers {
@@ -407,48 +403,48 @@ func (mgr *eventlogManager) dynamicScaleUpEventLog() {
 		case <-mgr.cancelCtx.Done():
 			log.Info(ctx, "the task of dynamic-scale stopped", nil)
 			return
-		default:
-		}
-		count := 0
-		mgr.eventLogMap.Range(func(key, value interface{}) bool {
-			el, ok := value.(*eventlog)
-			if !ok {
-				log.Error(ctx, "assert failed in dynamicScaleUpEventLog", map[string]interface{}{
-					"key": key,
-				})
-				return true
-			}
-			if el.appendableSegmentNumber() < defaultAppendableSegmentNumber {
-				seg, err := mgr.createSegment(ctx, el)
-				if err != nil {
-					log.Warning(ctx, "create new segment failed", map[string]interface{}{
-						log.KeyError:  err,
-						"eventlog_id": el.md.ID,
+		case <-mgr.scaleTick.C:
+			count := 0
+			mgr.eventLogMap.Range(func(key, value interface{}) bool {
+				el, ok := value.(*eventlog)
+				if !ok {
+					log.Error(ctx, "assert failed in dynamicScaleUpEventLog", map[string]interface{}{
+						"key": key,
 					})
 					return true
 				}
+				if el.appendableSegmentNumber() < defaultAppendableSegmentNumber {
+					seg, err := mgr.createSegment(ctx, el)
+					if err != nil {
+						log.Warning(ctx, "create new segment failed", map[string]interface{}{
+							log.KeyError:  err,
+							"eventlog_id": el.md.ID,
+						})
+						return true
+					}
 
-				if err = el.add(ctx, seg); err != nil {
-					// preparing to cleaning
-					log.Warning(ctx, "add new segment to eventlog failed when scale", map[string]interface{}{
-						log.KeyError:  err,
-						"eventlog_id": el.md.ID,
+					if err = el.add(ctx, seg); err != nil {
+						// preparing to cleaning
+						log.Warning(ctx, "add new segment to eventlog failed when scale", map[string]interface{}{
+							log.KeyError:  err,
+							"eventlog_id": el.md.ID,
+						})
+						mgr.segmentNeedBeClean.Store(seg.ID.Key(), seg)
+						return true
+					}
+					metrics.SegmentCounterVec.WithLabelValues(metrics.LabelValueResourceDynamicCreate).Inc()
+					for _, v := range seg.Replicas.Peers {
+						mgr.globalBlockMap.Store(v.ID.Key(), v)
+					}
+					count++
+
+					log.Debug(ctx, "scale task completed", map[string]interface{}{
+						"segment_created": count,
 					})
-					mgr.segmentNeedBeClean.Store(seg.ID.Key(), seg)
-					return true
 				}
-				metrics.SegmentCounterVec.WithLabelValues(metrics.LabelValueResourceDynamicCreate).Inc()
-				for _, v := range seg.Replicas.Peers {
-					mgr.globalBlockMap.Store(v.ID.Key(), v)
-				}
-				count++
-			}
-			return true
-		})
-		log.Debug(ctx, "scale task completed", map[string]interface{}{
-			"segment_created": count,
-		})
-		time.Sleep(10 * time.Second)
+				return true
+			})
+		}
 	}
 }
 
@@ -459,28 +455,30 @@ func (mgr *eventlogManager) cleanAbnormalSegment() {
 		case <-mgr.cancelCtx.Done():
 			log.Info(ctx, "the task of clean-abnormal-segment stopped", nil)
 			return
+		case <-mgr.cleanTick.C:
+			count := 0
+			mgr.segmentNeedBeClean.Range(func(key, value interface{}) bool {
+				v, ok := value.(*Segment)
+				if !ok {
+					return true
+				}
+				deleteKey := filepath.Join(metadata.SegmentKeyPrefixInKVStore, v.ID.String())
+				if err := mgr.kvClient.Delete(ctx, deleteKey); err != nil {
+					log.Warning(ctx, "clean segment data in KV failed", map[string]interface{}{
+						log.KeyError: deleteKey,
+						"segment":    v.String(),
+					})
+				}
+				mgr.segmentNeedBeClean.Delete(key)
+				count++
+				// TODO(wenfeng): remove other relative resources
+				return true
+			})
+			log.Debug(ctx, "clean segment task completed", map[string]interface{}{
+				"segment_cleaned": count,
+			})
 		default:
 		}
-		count := 0
-		mgr.segmentNeedBeClean.Range(func(key, value interface{}) bool {
-			v, ok := value.(*Segment)
-			if !ok {
-				return true
-			}
-			deleteKey := filepath.Join(metadata.SegmentKeyPrefixInKVStore, v.ID.String())
-			if err := mgr.kvClient.Delete(ctx, deleteKey); err != nil {
-				log.Warning(ctx, "clean segment data in KV failed", map[string]interface{}{
-					log.KeyError: deleteKey,
-					"segment":    v.String(),
-				})
-			}
-			count++
-			return true
-		})
-		log.Debug(ctx, "clean segment task completed", map[string]interface{}{
-			"segment_cleaned": count,
-		})
-		time.Sleep(time.Minute)
 	}
 }
 
@@ -604,13 +602,7 @@ func newEventlog(ctx context.Context, md *metadata.Eventlog, kvClient kv.Client,
 	if !needLoad {
 		return el, nil
 	}
-	data, err := kvClient.Get(ctx, filepath.Join(metadata.EventlogKeyPrefixInKVStore, md.ID.String()))
-	if err != nil {
-		return nil, err
-	}
-	if err = json.Unmarshal(data, el.md); err != nil {
-		return nil, errors.ErrUnmarshall.Wrap(err)
-	}
+
 	pairs, err := kvClient.List(ctx, filepath.Join(metadata.EventlogSegmentsKeyPrefixInKVStore, md.ID.String()))
 	if err != nil {
 		return nil, err
@@ -642,7 +634,7 @@ func newEventlog(ctx context.Context, md *metadata.Eventlog, kvClient kv.Client,
 }
 
 func (el *eventlog) get(segId vanus.ID) *Segment {
-	v := el.segmentList.Get(segId)
+	v := el.segmentList.Get(segId.Uint64())
 	if v == nil {
 		return nil
 	}
@@ -692,6 +684,9 @@ func (el *eventlog) add(ctx context.Context, seg *Segment) error {
 	defer el.mutex.Unlock()
 	if !seg.isReady() {
 		return errors.ErrInvalidSegment
+	}
+	if el.get(seg.ID) != nil {
+		return nil
 	}
 	last := el.tail()
 	if last != nil {
@@ -774,7 +769,13 @@ func (el *eventlog) indexAt(idx int) *Segment {
 	}
 	ptr := el.segmentList.Front()
 	for i := 0; i < idx; i++ {
+		if ptr == nil {
+			return nil
+		}
 		ptr = ptr.Next()
+	}
+	if ptr == nil {
+		return nil
 	}
 	return ptr.Value.(*Segment)
 }
@@ -790,7 +791,7 @@ func (el *eventlog) nextOf(seg *Segment) *Segment {
 	el.mutex.RLock()
 	defer el.mutex.RUnlock()
 
-	node := el.segmentList.Get(seg.ID)
+	node := el.segmentList.Get(seg.ID.Uint64())
 	next := node.Next()
 	if next == nil {
 		return nil
@@ -805,7 +806,7 @@ func (el *eventlog) previousOf(seg *Segment) *Segment {
 	el.mutex.RLock()
 	defer el.mutex.RUnlock()
 
-	node := el.segmentList.Get(seg.ID)
+	node := el.segmentList.Get(seg.ID.Uint64())
 	prev := node.Prev()
 	if prev == nil {
 		return nil

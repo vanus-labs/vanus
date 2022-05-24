@@ -16,6 +16,7 @@ package eventlog
 
 import (
 	stdCtx "context"
+	stdJson "encoding/json"
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/block"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/errors"
@@ -24,6 +25,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/util"
 	segpb "github.com/linkall-labs/vsproto/pkg/segment"
 	. "github.com/smartystreets/goconvey/convey"
 	"path/filepath"
@@ -31,12 +33,230 @@ import (
 	"time"
 )
 
-func TestEventlogManager_Run(t *testing.T) {
-	Convey("", t, func() {
-		//STOP
+func TestEventlogManager_RunWithoutTask(t *testing.T) {
+	Convey("test run", t, func() {
+		utMgr := &eventlogManager{segmentReplicaNum: 3}
+		ctrl := gomock.NewController(t)
+		volMgr := volume.NewMockManager(ctrl)
+		utMgr.volMgr = volMgr
+		kvCli := kv.NewMockClient(ctrl)
+		utMgr.kvClient = kvCli
+		alloc := block.NewMockAllocator(ctrl)
+		utMgr.allocator = alloc
+
+		Convey("case: run without start", func() {
+			alloc.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
+
+			el1 := metadata.Eventlog{
+				ID:         vanus.NewID(),
+				EventbusID: vanus.NewID(),
+			}
+			data1, _ := stdJson.Marshal(el1)
+			el2 := metadata.Eventlog{
+				ID:         vanus.NewID(),
+				EventbusID: vanus.NewID(),
+			}
+			data2, _ := stdJson.Marshal(el2)
+			el3 := metadata.Eventlog{
+				ID:         vanus.NewID(),
+				EventbusID: vanus.NewID(),
+			}
+			data3, _ := stdJson.Marshal(el3)
+
+			elPairs := []kv.Pair{
+				{
+					Key:   filepath.Join(metadata.EventlogKeyPrefixInKVStore, el1.ID.String()),
+					Value: data1,
+				},
+				{
+					Key:   filepath.Join(metadata.EventlogKeyPrefixInKVStore, el2.ID.String()),
+					Value: data2,
+				},
+				{
+					Key:   filepath.Join(metadata.EventlogKeyPrefixInKVStore, el3.ID.String()),
+					Value: data3,
+				},
+			}
+
+			seg1 := new(struct {
+				SegmentID vanus.ID `json:"segment_id"`
+			})
+			seg1.SegmentID = vanus.NewID()
+			segData1, _ := stdJson.Marshal(seg1)
+
+			seg2 := new(struct {
+				SegmentID vanus.ID `json:"segment_id"`
+			})
+			seg2.SegmentID = vanus.NewID()
+			segData2, _ := stdJson.Marshal(seg2)
+
+			seg3 := new(struct {
+				SegmentID vanus.ID `json:"segment_id"`
+			})
+			seg3.SegmentID = vanus.NewID()
+			segData3, _ := stdJson.Marshal(seg3)
+			segPairs := []kv.Pair{
+				{
+					Key:   filepath.Join(metadata.EventlogSegmentsKeyPrefixInKVStore, el3.ID.String(), seg1.SegmentID.Key()),
+					Value: segData1,
+				},
+				{
+					Key:   filepath.Join(metadata.EventlogSegmentsKeyPrefixInKVStore, el3.ID.String(), seg1.SegmentID.Key()),
+					Value: segData2,
+				},
+				{
+					Key:   filepath.Join(metadata.EventlogSegmentsKeyPrefixInKVStore, el3.ID.String(), seg1.SegmentID.Key()),
+					Value: segData3,
+				},
+			}
+
+			kvCli.EXPECT().List(gomock.Any(), gomock.Any()).Times(4).DoAndReturn(func(
+				ctx stdCtx.Context, path string) ([]kv.Pair, error) {
+				if path == metadata.EventlogKeyPrefixInKVStore {
+					return elPairs, nil
+				}
+				if path == filepath.Join(metadata.EventlogSegmentsKeyPrefixInKVStore, el3.ID.String()) {
+					return segPairs, nil
+				}
+				return []kv.Pair{}, nil
+			})
+
+			segment1 := createTestSegment()
+			segment1.ID = seg1.SegmentID
+			_data1, _ := stdJson.Marshal(segment1)
+
+			segment2 := createTestSegment()
+			segment2.ID = seg2.SegmentID
+			_data2, _ := stdJson.Marshal(segment2)
+
+			segment3 := createTestSegment()
+			segment3.ID = seg3.SegmentID
+			_data3, _ := stdJson.Marshal(segment3)
+
+			kvCli.EXPECT().Get(gomock.Any(), gomock.Any()).Times(3).DoAndReturn(func(
+				ctx stdCtx.Context, path string) ([]byte, error) {
+				if path == filepath.Join(metadata.SegmentKeyPrefixInKVStore, segment1.ID.String()) {
+					return _data1, nil
+				}
+				if path == filepath.Join(metadata.SegmentKeyPrefixInKVStore, segment2.ID.String()) {
+					return _data2, nil
+				}
+				if path == filepath.Join(metadata.SegmentKeyPrefixInKVStore, segment3.ID.String()) {
+					return _data3, nil
+				}
+				return nil, nil
+			})
+			err := utMgr.Run(stdCtx.Background(), kvCli, false)
+			So(err, ShouldBeNil)
+			So(util.MapLen(&utMgr.eventLogMap), ShouldEqual, 3)
+			v, exist := utMgr.eventLogMap.Load(el1.ID.Key())
+			So(exist, ShouldBeTrue)
+			So(v.(*eventlog).size(), ShouldEqual, 0)
+
+			v, exist = utMgr.eventLogMap.Load(el2.ID.Key())
+			So(exist, ShouldBeTrue)
+			So(v.(*eventlog).size(), ShouldEqual, 0)
+
+			v, exist = utMgr.eventLogMap.Load(el3.ID.Key())
+			So(exist, ShouldBeTrue)
+			So(v.(*eventlog).size(), ShouldEqual, 3)
+
+			So(util.MapLen(&utMgr.globalBlockMap), ShouldEqual, 9)
+		})
 	})
 }
 
+func TestEventlogManager_RunWithTask(t *testing.T) {
+	Convey("case: run with start", t, func() {
+		utMgr := &eventlogManager{segmentReplicaNum: 3}
+		ctrl := gomock.NewController(t)
+		volMgr := volume.NewMockManager(ctrl)
+		utMgr.volMgr = volMgr
+		kvCli := kv.NewMockClient(ctrl)
+		utMgr.kvClient = kvCli
+
+		ctx := stdCtx.Background()
+		kvCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+		alloc := block.NewMockAllocator(ctrl)
+		utMgr.allocator = alloc
+		vol1 := metadata.VolumeMetadata{
+			ID:       vanus.NewID(),
+			Capacity: 64 * 1024 * 1024 * 1024,
+		}
+		alloc.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
+		alloc.EXPECT().Pick(ctx, 3).AnyTimes().DoAndReturn(func(ctx stdCtx.Context, num int) ([]*metadata.Block, error) {
+			return []*metadata.Block{
+				{
+					ID:       vanus.NewID(),
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: vol1.ID,
+				},
+				{
+					ID:       vanus.NewID(),
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: vol1.ID,
+				},
+				{
+					ID:       vanus.NewID(),
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: vol1.ID,
+				},
+			}, nil
+		})
+
+		volIns := server.NewMockInstance(ctrl)
+		volMgr.EXPECT().GetVolumeInstanceByID(vol1.ID).AnyTimes().Return(volIns)
+		srv := server.NewMockServer(ctrl)
+		volIns.EXPECT().GetServer().AnyTimes().Return(srv)
+		volIns.EXPECT().Address().AnyTimes().Return("127.0.0.1:10001")
+		grpcCli := segpb.NewMockSegmentServerClient(ctrl)
+		srv.EXPECT().GetClient().AnyTimes().Return(grpcCli)
+		grpcCli.EXPECT().ActivateSegment(ctx, gomock.Any()).AnyTimes().Return(nil, nil)
+
+		utMgr.scaleTick = time.NewTicker(20 * time.Millisecond)
+		utMgr.cleanTick = time.NewTicker(20 * time.Millisecond)
+		kvCli.EXPECT().List(gomock.Any(), gomock.Any()).Times(1).Return([]kv.Pair{}, nil)
+		kvCli.EXPECT().Delete(gomock.Any(), gomock.Any()).Times(2).Return(nil)
+		err := utMgr.Run(ctx, kvCli, true)
+		So(err, ShouldBeNil)
+		md := &metadata.Eventlog{
+			ID:         vanus.NewID(),
+			EventbusID: vanus.NewID(),
+		}
+
+		el, err := newEventlog(ctx, md, kvCli, false)
+		So(err, ShouldBeNil)
+		So(el.size(), ShouldEqual, 0)
+		utMgr.eventLogMap.Store(el.md.ID.Key(), el)
+		seg1 := createTestSegment()
+		utMgr.segmentNeedBeClean.Store(seg1.ID.Key(), seg1)
+		time.Sleep(100 * time.Millisecond)
+		So(el.size(), ShouldEqual, 2)
+
+		el2, err := newEventlog(ctx, md, kvCli, false)
+		So(err, ShouldBeNil)
+		So(el2.size(), ShouldEqual, 0)
+		utMgr.eventLogMap.Store(el2.md.ID.Key(), el2)
+		seg2 := createTestSegment()
+		utMgr.segmentNeedBeClean.Store(seg2.ID.Key(), seg2)
+		time.Sleep(100 * time.Millisecond)
+		So(el.size(), ShouldEqual, 2)
+		So(el2.size(), ShouldEqual, 2)
+
+		utMgr.stop()
+		el3, err := newEventlog(ctx, md, kvCli, false)
+		So(err, ShouldBeNil)
+		So(el3.size(), ShouldEqual, 0)
+		utMgr.eventLogMap.Store(el3.md.ID.Key(), el3)
+		seg3 := createTestSegment()
+		utMgr.segmentNeedBeClean.Store(seg1.ID.Key(), seg3)
+		time.Sleep(100 * time.Millisecond)
+		So(el.size(), ShouldEqual, 2)
+		So(el2.size(), ShouldEqual, 2)
+		So(el3.size(), ShouldEqual, 0)
+	})
+	//STOP
+}
 func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 	Convey("test AcquireEventLog", t, func() {
 		utMgr := &eventlogManager{segmentReplicaNum: 3}
@@ -47,10 +267,7 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 		utMgr.kvClient = kvCli
 
 		ctx := stdCtx.Background()
-		kvCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Times(14).DoAndReturn(func(ctx stdCtx.Context,
-			key string, value []byte) error {
-			return nil
-		})
+		kvCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Times(14).Return(nil)
 		alloc := block.NewMockAllocator(ctrl)
 		utMgr.allocator = alloc
 		vol1 := metadata.VolumeMetadata{
@@ -127,6 +344,68 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 			segAnother, err := utMgr.GetSegmentByBlockID(blockObj)
 			So(err, ShouldBeNil)
 			So(segAnother, ShouldEqual, seg)
+		})
+
+	})
+}
+
+func TestEventlogManager_GetAppendableSegment(t *testing.T) {
+	Convey("test GetAppendableSegment", t, func() {
+		ctrl := gomock.NewController(t)
+		volMgr := volume.NewMockManager(ctrl)
+		mgr.volMgr = volMgr
+		kvCli := kv.NewMockClient(ctrl)
+		mgr.kvClient = kvCli
+
+		ctx := stdCtx.Background()
+		kvCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Times(6).Return(nil)
+		alloc := block.NewMockAllocator(ctrl)
+		mgr.allocator = alloc
+		vol1 := metadata.VolumeMetadata{
+			ID:       vanus.NewID(),
+			Capacity: 64 * 1024 * 1024 * 1024,
+		}
+		alloc.EXPECT().Pick(ctx, 3).Times(1).DoAndReturn(func(ctx stdCtx.Context, num int) ([]*metadata.Block, error) {
+			return []*metadata.Block{
+				{
+					ID:       vanus.NewID(),
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: vol1.ID,
+				},
+				{
+					ID:       vanus.NewID(),
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: vol1.ID,
+				},
+				{
+					ID:       vanus.NewID(),
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: vol1.ID,
+				},
+			}, nil
+		})
+
+		volIns := server.NewMockInstance(ctrl)
+		volMgr.EXPECT().GetVolumeInstanceByID(vol1.ID).Times(4).Return(volIns)
+		srv := server.NewMockServer(ctrl)
+		volIns.EXPECT().GetServer().Times(1).Return(srv)
+		volIns.EXPECT().Address().Times(3).Return("127.0.0.1:10001")
+		grpcCli := segpb.NewMockSegmentServerClient(ctrl)
+		srv.EXPECT().GetClient().Times(1).Return(grpcCli)
+		grpcCli.EXPECT().ActivateSegment(ctx, gomock.Any()).Times(1).Return(nil, nil)
+
+		Convey("case: no segment", func() {
+			md := &metadata.Eventlog{
+				ID:         vanus.NewID(),
+				EventbusID: vanus.NewID(),
+			}
+
+			el, err := newEventlog(ctx, md, kvCli, false)
+			So(err, ShouldBeNil)
+			mgr.eventLogMap.Store(md.ID.Key(), el)
+			segs, err := mgr.GetAppendableSegment(ctx, md, 1)
+			So(err, ShouldBeNil)
+			So(segs, ShouldHaveLength, 1)
 		})
 	})
 }
@@ -249,7 +528,73 @@ func TestEventlogManager_UpdateSegmentReplicas(t *testing.T) {
 }
 
 func TestEventlog(t *testing.T) {
+	Convey("test eventlog operation", t, func() {
+		ctrl := gomock.NewController(t)
+		kvCli := kv.NewMockClient(ctrl)
+		ctx := stdCtx.Background()
+		md := &metadata.Eventlog{
+			ID:         vanus.NewID(),
+			EventbusID: vanus.NewID(),
+		}
+		el, _ := newEventlog(ctx, md, kvCli, false)
 
+		seg1 := createTestSegment()
+		seg2 := createTestSegment()
+		seg3 := createTestSegment()
+		seg4 := createTestSegment()
+
+		kvCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).Times(7).Return(nil)
+		_ = el.add(ctx, seg1)
+		_ = el.add(ctx, seg2)
+		_ = el.add(ctx, seg3)
+		_ = el.add(ctx, seg4)
+		_ = el.add(ctx, seg1)
+		seg1.Number = 1000
+		seg1.State = StateFrozen
+		seg2.Number = 1000
+		seg2.State = StateFrozen
+		seg3.Number = 900
+		seg3.State = StateWorking
+		seg4.Number = 0
+		seg4.State = StateWorking
+
+		Convey("case: add segments", func() {
+			So(el.size(), ShouldEqual, 4)
+		})
+
+		Convey("case: get segment", func() {
+			_seg := el.get(seg1.ID)
+			So(_seg, ShouldEqual, seg1)
+		})
+
+		Convey("case: appendable segments related", func() {
+			curSeg := el.currentAppendableSegment()
+			So(curSeg, ShouldEqual, seg3)
+			So(el.appendableSegmentNumber(), ShouldEqual, 2)
+		})
+		Convey("case: instructions", func() {
+			So(el.head(), ShouldEqual, seg1)
+			So(el.tail(), ShouldEqual, seg4)
+
+			So(el.indexAt(0), ShouldEqual, seg1)
+			So(el.indexAt(1), ShouldEqual, seg2)
+			So(el.indexAt(2), ShouldEqual, seg3)
+			So(el.indexAt(3), ShouldEqual, seg4)
+			So(el.indexAt(4), ShouldBeNil)
+			So(el.indexAt(999), ShouldBeNil)
+
+			So(el.nextOf(el.indexAt(0)), ShouldEqual, seg2)
+			So(el.nextOf(el.indexAt(1)), ShouldEqual, seg3)
+			So(el.nextOf(el.indexAt(2)), ShouldEqual, seg4)
+			So(el.nextOf(el.indexAt(3)), ShouldBeNil)
+
+			So(el.previousOf(el.indexAt(0)), ShouldBeNil)
+			So(el.previousOf(el.indexAt(1)), ShouldEqual, seg1)
+			So(el.previousOf(el.indexAt(2)), ShouldEqual, seg2)
+			So(el.previousOf(el.indexAt(3)), ShouldEqual, seg3)
+		})
+
+	})
 }
 
 func createTestSegment() *Segment {

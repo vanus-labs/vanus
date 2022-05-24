@@ -451,7 +451,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event em
 			return err
 		}
 
-		if err := ctrl.eventLogMgr.Run(ctx, ctrl.kvStore); err != nil {
+		if err := ctrl.eventLogMgr.Run(ctx, ctrl.kvStore, true); err != nil {
 			ctrl.stop(ctx, err)
 			return err
 		}
