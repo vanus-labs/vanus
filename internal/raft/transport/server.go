@@ -15,14 +15,15 @@
 package transport
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
+	"errors"
 	"io"
 
-	// third-party libraries
+	// third-party libraries.
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 
-	// first-party libraries
+	// first-party libraries.
 	raftpb "github.com/linkall-labs/vsproto/pkg/raft"
 )
 
@@ -41,7 +42,7 @@ func NewRaftServer(ctx context.Context, dmx Demultiplexer) raftpb.RaftServerServ
 	}
 }
 
-// SendMessage implements raftpb.RaftServerServer
+// SendMessage implements raftpb.RaftServerServer.
 func (s *server) SendMsssage(stream raftpb.RaftServer_SendMsssageServer) error {
 	preface, err := stream.Recv()
 	if err != nil {
@@ -51,23 +52,23 @@ func (s *server) SendMsssage(stream raftpb.RaftServer_SendMsssageServer) error {
 	callback := string(preface.Context)
 
 	for {
-		msg, err := stream.Recv()
-		if err != nil {
+		msg, err2 := stream.Recv()
+		if err2 != nil {
 			// close by client
-			if err == io.EOF {
+			if errors.Is(err2, io.EOF) {
 				return s.closeStream(stream)
 			}
-			return err
+			return err2
 		}
 
-		err = s.dmx.Receive(s.ctx, msg, callback)
-		if err != nil {
+		err2 = s.dmx.Receive(s.ctx, msg, callback)
+		if err2 != nil {
 			// server is closed
-			if err == context.Canceled {
+			if errors.Is(err2, context.Canceled) {
 				return s.closeStream(stream)
 			}
 
-			return err
+			return err2
 		}
 	}
 }

@@ -204,7 +204,8 @@ func (w *WAL) runAppend() {
 		select {
 		case er := <-w.appendc:
 			full, goahead := w.doAppend(er.entries, er.callback)
-			if full || !er.batching {
+			switch {
+			case full || !er.batching:
 				if !full {
 					w.flushWritableBlock()
 				}
@@ -216,7 +217,7 @@ func (w *WAL) runAppend() {
 					}
 					waiting = false
 				}
-			} else if goahead {
+			case goahead:
 				// reset timer
 				if waiting && !timer.Stop() {
 					// drain channel
@@ -224,7 +225,7 @@ func (w *WAL) runAppend() {
 				}
 				timer.Reset(period)
 				waiting = true
-			} else if !waiting {
+			case !waiting:
 				// start timer
 				timer.Reset(period)
 				waiting = true

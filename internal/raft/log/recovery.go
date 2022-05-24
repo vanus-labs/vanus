@@ -31,7 +31,9 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
-func RecoverLogsAndWAL(walDir string, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore) (map[vanus.ID]*Log, *WAL, error) {
+func RecoverLogsAndWAL(
+	walDir string, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore,
+) (map[vanus.ID]*Log, *WAL, error) {
 	var compacted int64
 	if v, exist := metaStore.Load(walCompactKey); exist {
 		var ok bool

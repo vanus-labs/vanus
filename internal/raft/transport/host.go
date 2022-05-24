@@ -56,6 +56,7 @@ func NewHost(resolver Resolver, callback string) Host {
 func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoint string) {
 	mux := h.resolveMultiplexer(ctx, to, endpoint)
 	if mux == nil {
+		// TODO(james.yin): report MsgUnreachable.
 		return
 	}
 	mux.Send(msg)
@@ -64,6 +65,7 @@ func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoin
 func (h *host) Sendv(ctx context.Context, msgs []*raftpb.Message, to uint64, endpoint string) {
 	mux := h.resolveMultiplexer(ctx, to, endpoint)
 	if mux == nil {
+		// TODO(james.yin): report MsgUnreachable.
 		return
 	}
 	mux.Sendv(msgs)
@@ -81,21 +83,24 @@ func (h *host) resolveMultiplexer(ctx context.Context, to uint64, endpoint strin
 	}
 
 	if mux, ok := h.peers.Load(endpoint); ok {
-		return mux.(*peer)
+		p, _ := mux.(*peer)
+		return p
 	}
 	// TODO(james.yin): clean unused peer
 	p := newPeer(context.TODO(), endpoint, h.callback)
 	if mux, loaded := h.peers.LoadOrStore(endpoint, p); loaded {
 		defer p.Close()
-		return mux.(*peer)
+		p2, _ := mux.(*peer)
+		return p2
 	}
 	return p
 }
 
-// Receive implements Demultiplexer
+// Receive implements Demultiplexer.
 func (h *host) Receive(ctx context.Context, msg *raftpb.Message, endpoint string) error {
 	if receiver, ok := h.receivers.Load(msg.To); ok {
-		receiver.(Receiver).Receive(ctx, msg, msg.From, endpoint)
+		r, _ := receiver.(Receiver)
+		r.Receive(ctx, msg, msg.From, endpoint)
 	}
 	return nil
 }

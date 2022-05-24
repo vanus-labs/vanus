@@ -17,6 +17,8 @@ package transport
 import (
 	// standard libraries
 	"sync"
+
+	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type Resolver interface {
@@ -41,6 +43,11 @@ func (r *SimpleResolver) Resolve(node uint64) string {
 }
 
 func (r *SimpleResolver) Register(node uint64, endpoint string) {
+	log.Info(nil, "Register raft node route.", map[string]interface{}{
+		"nodeID":   node,
+		"endpoint": endpoint,
+	})
+
 	r.Lock()
 	defer r.Unlock()
 	r.nodes[node] = endpoint

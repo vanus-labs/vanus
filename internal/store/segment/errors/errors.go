@@ -17,11 +17,12 @@ package errors
 import rpcerr "github.com/linkall-labs/vsproto/pkg/errors"
 
 var (
-	ErrInternal                = rpcerr.New("internal error").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
-	ErrInvalidRequest          = rpcerr.New("invalid request").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
-	ErrServiceState            = rpcerr.New("service state error").WithGRPCCode(rpcerr.ErrorCode_SERVICE_NOT_RUNNING)
-	ErrSegmentNoEnoughCapacity = rpcerr.New("no enough capacity").WithGRPCCode(rpcerr.ErrorCode_SEGMENT_FULL)
-	ErrResourceNotFound        = rpcerr.New("resource not found").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_NOT_FOUND)
-	ErrResourceAlreadyExist    = rpcerr.New("resource already exist").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_EXIST)
-	ErrNoControllerLeader      = rpcerr.New("no leader controller found").WithGRPCCode(rpcerr.ErrorCode_NOT_LEADER)
+	ErrInternal              = rpcerr.New("internal error").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
+	ErrInvalidRequest        = rpcerr.New("invalid request").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
+	ErrServiceState          = rpcerr.New("service state error").WithGRPCCode(rpcerr.ErrorCode_SERVICE_NOT_RUNNING)
+	ErrSegmentNotEnoughSpace = rpcerr.New("not enough space").WithGRPCCode(rpcerr.ErrorCode_SEGMENT_FULL)
+	ErrSegmentFull           = rpcerr.New("full").WithGRPCCode(rpcerr.ErrorCode_SEGMENT_FULL)
+	ErrResourceNotFound      = rpcerr.New("resource not found").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_NOT_FOUND)
+	ErrResourceAlreadyExist  = rpcerr.New("resource already exist").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_EXIST)
+	ErrNoControllerLeader    = rpcerr.New("no leader controller found").WithGRPCCode(rpcerr.ErrorCode_NOT_LEADER)
 )

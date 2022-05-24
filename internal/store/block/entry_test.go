@@ -20,7 +20,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestMarshal(t *testing.T) {
+func TestEntry_MarshalTo(t *testing.T) {
 	Convey("v0.0.1 serialization testing", t, func() {
 		e := &Entry{
 			Payload: []byte{

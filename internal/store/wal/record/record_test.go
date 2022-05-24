@@ -13,3 +13,90 @@
 // limitations under the License.
 
 package record
+
+import (
+	// standard libraries.
+	"testing"
+
+	// third-party libraries.
+	. "github.com/smartystreets/goconvey/convey"
+)
+
+var (
+	rawData = []byte{
+		0x01, 0x02, 0x03,
+	}
+	encodedData = []byte{
+		0x04, 0x76, 0xb0, 0x1b, 0x00, 0x03, 0x01, 0x01, 0x02, 0x03,
+	}
+	encodedData2 = []byte{
+		0x00, 0x00, 0x00, 0x01, 0x00, 0x03, 0x01, 0x01, 0x02, 0x03,
+	}
+)
+
+func TestRecord_Size(t *testing.T) {
+	Convey("size", t, func() {
+		r := Record{
+			Data: rawData,
+		}
+		So(r.Size(), ShouldEqual, 4+2+1+len(rawData))
+	})
+}
+
+func TestRecord_MashalTo(t *testing.T) {
+	Convey("mashal record to buffer", t, func() {
+		r := Record{
+			Length: uint16(len(rawData)),
+			Type:   Full,
+			Data:   rawData,
+		}
+		data := make([]byte, r.Size())
+		n, err := r.MarshalTo(data)
+		So(err, ShouldBeNil)
+		So(n, ShouldEqual, r.Size())
+		So(data, ShouldResemble, encodedData)
+	})
+	Convey("mashal record to buffer that don't have enough space", t, func() {
+		r := Record{
+			Length: uint16(len(rawData)),
+			Type:   Full,
+			Data:   rawData,
+		}
+		data := make([]byte, r.Size()-1)
+		_, err := r.MarshalTo(data)
+		So(err, ShouldNotBeNil)
+	})
+}
+
+func TestRecord_Mashal(t *testing.T) {
+	Convey("mashal record", t, func() {
+		r := Record{
+			Length: uint16(len(rawData)),
+			Type:   Full,
+			Data:   rawData,
+		}
+		data := r.Marshal()
+		So(data, ShouldResemble, encodedData)
+	})
+	Convey("mashal record with CRC", t, func() {
+		r := Record{
+			CRC:    0x00000001,
+			Length: uint16(len(rawData)),
+			Type:   Full,
+			Data:   rawData,
+		}
+		data := r.Marshal()
+		So(data, ShouldResemble, encodedData2)
+	})
+}
+
+func TestRecord_Unmashal(t *testing.T) {
+	Convey("unmashal record", t, func() {
+		r, err := Unmashal(encodedData)
+		So(err, ShouldBeNil)
+		So(r.CRC, ShouldEqual, 0x0476b01b)
+		So(r.Length, ShouldEqual, 3)
+		So(r.Type, ShouldEqual, Full)
+		So(r.Data, ShouldResemble, rawData)
+	})
+}

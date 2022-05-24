@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package block
+package file
 
 import (
+	// standard libraries.
 	"bytes"
 	"encoding/binary"
 )
 
 const (
-	v1IndexLength = 8 + 4
+	v1IndexSize = 8 + 4
 )
 
 type index struct {
@@ -28,18 +29,26 @@ type index struct {
 	length int32
 }
 
+func (i index) StartOffset() int64 {
+	return i.offset
+}
+
+func (i index) EndOffset() int64 {
+	return i.offset + int64(i.length)
+}
+
 func (i index) MarshalTo(data []byte) (int, error) {
-	if len(data) < v1IndexLength {
+	if len(data) < v1IndexSize {
 		// TODO(james.yin): correct error.
 		return 0, bytes.ErrTooLarge
 	}
 	binary.BigEndian.PutUint64(data[0:8], uint64(i.offset))
 	binary.BigEndian.PutUint32(data[8:12], uint32(i.length))
-	return v1IndexLength, nil
+	return v1IndexSize, nil
 }
 
 func unmashalIndex(data []byte) (index, error) {
-	if len(data) < v1IndexLength {
+	if len(data) < v1IndexSize {
 		// TODO(james.yin): correct error.
 		return index{}, bytes.ErrTooLarge
 	}

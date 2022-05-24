@@ -13,20 +13,3 @@
 // limitations under the License.
 
 package transport
-
-import (
-	// standard libraries.
-	"context"
-
-	// first-party libraries.
-	"github.com/linkall-labs/raft/raftpb"
-)
-
-type Multiplexer interface {
-	Send(msg *raftpb.Message)
-	Sendv(msgs []*raftpb.Message)
-}
-
-type Demultiplexer interface {
-	Receive(ctx context.Context, msg *raftpb.Message, endpoint string) error
-}

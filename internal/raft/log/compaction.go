@@ -83,9 +83,9 @@ func (l *Log) Compact(i uint64) error {
 	return nil
 }
 
-func (w *WAL) suppressCompact(cb exeCallback) error {
+func (w *WAL) suppressCompact(cb executeCallback) error {
 	result := make(chan error, 1)
-	w.exec <- exeTask{
+	w.executec <- executeTask{
 		cb:     cb,
 		result: result,
 	}
@@ -93,7 +93,7 @@ func (w *WAL) suppressCompact(cb exeCallback) error {
 }
 
 func (w *WAL) tryCompact(offset, last int64, nodeID vanus.ID, index, term uint64) {
-	w.exec <- exeTask{
+	w.executec <- executeTask{
 		cb: func() (compactTask, error) {
 			return compactTask{
 				offset: offset,
@@ -147,7 +147,7 @@ func (m *compactMeta) Range(cb meta.RangeCallback) error {
 var emptyMark = struct{}{}
 
 func (w WAL) run() {
-	for task := range w.exec {
+	for task := range w.executec {
 		ct, err := task.cb()
 		if task.result != nil {
 			if err != nil {
@@ -163,8 +163,8 @@ func (w WAL) run() {
 }
 
 func (w *WAL) runCompact() {
-	peroid := 30 * time.Second
-	ticker := time.NewTicker(peroid)
+	period := 30 * time.Second
+	ticker := time.NewTicker(period)
 	defer ticker.Stop()
 
 	var compacted int64
