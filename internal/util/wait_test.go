@@ -16,6 +16,7 @@ package util
 
 import (
 	"context"
+	"github.com/linkall-labs/vanus/observability/log"
 	"testing"
 	"time"
 
@@ -31,6 +32,7 @@ func TestWaitStartWithContext(t *testing.T) {
 				select {
 				case <-ctx.Done():
 					return
+				default:
 				}
 				time.Sleep(time.Millisecond)
 			}
@@ -50,6 +52,7 @@ func TestWaitStartWithChannel(t *testing.T) {
 				select {
 				case <-stopCh:
 					return
+				default:
 				}
 				time.Sleep(time.Millisecond)
 			}
@@ -64,6 +67,7 @@ func TestUntilWithContext(t *testing.T) {
 	Convey("util with context", t, func() {
 		ctx, cancel := context.WithCancel(context.Background())
 		go UntilWithContext(ctx, func(ctx context.Context) {
+			log.Info(ctx, "entrance", nil)
 			time.Sleep(time.Millisecond)
 		}, time.Millisecond*2)
 		time.Sleep(time.Millisecond * 10)

@@ -41,5 +41,4 @@ func TestSleepWithContext(t *testing.T) {
 		wg.Wait()
 		So(b, ShouldBeFalse)
 	})
-
 }
