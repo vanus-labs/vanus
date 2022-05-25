@@ -15,12 +15,13 @@
 package transformation
 
 import (
-	"github.com/linkall-labs/vanus/internal/trigger/transformation/template"
-	"github.com/linkall-labs/vanus/internal/trigger/transformation/vjson"
 	"testing"
 
-	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/trigger/transformation/template"
+	"github.com/linkall-labs/vanus/internal/trigger/transformation/vjson"
+
+	ce "github.com/cloudevents/sdk-go/v2"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
