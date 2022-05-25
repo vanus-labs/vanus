@@ -77,7 +77,7 @@ func putEventCommand() *cobra.Command {
 			} else {
 				target = fmt.Sprintf("%s%s/gateway/%s", httpPrefix, endpoint, args[0])
 			}
-			fmt.Printf("endpoint: %s\n", endpoint)
+
 			ctx := ce.ContextWithTarget(context.Background(), target)
 
 			if dataFile == "" {
@@ -121,7 +121,7 @@ func sendOne(ctx context.Context, ceClient ce.Client) {
 	if strings.ToLower(dataFormat) == "json" {
 		m := make(map[string]interface{})
 		if err := json.Unmarshal([]byte(eventBody), &m); err != nil {
-			cmdFailedf("invalid format of data body: %s", err)
+			cmdFailedf("invalid format of data body: %s, err: %s", string(eventBody), err)
 		}
 		err = event.SetData(ce.ApplicationJSON, m)
 	} else {
