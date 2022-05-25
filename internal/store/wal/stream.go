@@ -105,12 +105,12 @@ func (s *logStream) Visit(visitor WalkFunc, compacted int64) (int64, error) {
 			return -1, err
 		}
 
-		for at := firstBlockOffset(f.so, compacted); at < f.size; {
+		for at := firstBlockOffset(f.so, f.size, compacted); at < f.size; at += blockSize {
 			if _, err := f.f.ReadAt(buf, at); err != nil {
 				return -1, err
 			}
 
-			for so := firstRecordOffset(f.so, compacted); so <= blockSize-record.HeaderSize; {
+			for so := firstRecordOffset(f.so+at, compacted); so <= blockSize-record.HeaderSize; {
 				r, err2 := record.Unmashal(buf[so:])
 				if err2 != nil {
 					// TODO(james.yin): handle parse error
@@ -179,8 +179,6 @@ func (s *logStream) Visit(visitor WalkFunc, compacted int64) (int64, error) {
 					nextStart = f.so + at + int64(so)
 				}
 			}
-
-			at += blockSize
 		}
 
 		// TODO(james.yin): close log file
@@ -189,8 +187,11 @@ func (s *logStream) Visit(visitor WalkFunc, compacted int64) (int64, error) {
 	panic("WAL: no zero record, the WAL is incomplete.")
 }
 
-func firstBlockOffset(so, compacted int64) int64 {
+func firstBlockOffset(so, size, compacted int64) int64 {
 	if so < compacted {
+		if so+size <= compacted {
+			panic("WAL: so is out of range.")
+		}
 		off := compacted - so
 		off -= off % blockSize
 		return off
@@ -200,6 +201,9 @@ func firstBlockOffset(so, compacted int64) int64 {
 
 func firstRecordOffset(so, compacted int64) int {
 	if so < compacted {
+		if compacted-so >= blockSize {
+			panic("WAL: so is out of range.")
+		}
 		return int(compacted % blockSize)
 	}
 	return 0
