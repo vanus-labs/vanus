@@ -692,6 +692,9 @@ func (el *eventlog) add(ctx context.Context, seg *Segment) error {
 	if last != nil {
 		last.NextSegmentId = seg.ID
 		seg.PreviousSegmentId = last.ID
+		if last.State == StateFrozen {
+			seg.StartOffsetInLog = last.StartOffsetInLog + int64(last.Number)
+		}
 	}
 	s := new(struct {
 		SegmentID vanus.ID `json:"segment_id"`
