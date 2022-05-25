@@ -40,7 +40,7 @@ func (t Type) IsTerminal() bool {
 }
 
 func (t Type) IsNonTerminal() bool {
-	return t == Middle || t == Last
+	return t == Middle || t == First
 }
 
 type Record struct {
