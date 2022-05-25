@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/google/uuid"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"io"
 	"net/http"
@@ -87,7 +88,7 @@ func putEventCommand() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringVar(&eventID, "id", "cmd", "event id of CloudEvent")
+	cmd.Flags().StringVar(&eventID, "id", "", "event id of CloudEvent")
 	cmd.Flags().StringVar(&dataFormat, "data-format", "json", "the format of event body, JSON or plain")
 	cmd.Flags().StringVar(&eventSource, "source", "cmd", "event source of CloudEvent")
 	cmd.Flags().StringVar(&eventType, "type", "cmd", "event type of CloudEvent")
@@ -114,6 +115,9 @@ func mustGetGatewayEndpoint(cmd *cobra.Command) string {
 
 func sendOne(ctx context.Context, ceClient ce.Client) {
 	event := ce.NewEvent()
+	if eventID == "" {
+		eventID = uuid.NewString()
+	}
 	event.SetID(eventID)
 	event.SetSource(eventSource)
 	event.SetType(eventType)
