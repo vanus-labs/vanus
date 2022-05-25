@@ -16,10 +16,10 @@ package util
 
 import (
 	"context"
-	"github.com/linkall-labs/vanus/observability/log"
 	"testing"
 	"time"
 
+	"github.com/linkall-labs/vanus/observability/log"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
