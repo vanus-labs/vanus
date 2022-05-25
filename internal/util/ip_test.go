@@ -15,20 +15,22 @@
 package util
 
 import (
-	"context"
-	"time"
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-func SleepWithContext(ctx context.Context, duration time.Duration) bool {
-	if duration == 0 {
-		return true
-	}
-	timer := time.NewTimer(duration)
-	defer timer.Stop()
-	select {
-	case <-timer.C:
-		return true
-	case <-ctx.Done():
-		return false
-	}
+func TestIsValidIPV4Address(t *testing.T) {
+	Convey("test is valid ipv4 address", t, func() {
+		valid := IsValidIPV4Address("192.168.1.10:8080")
+		So(valid, ShouldBeTrue)
+		valid = IsValidIPV4Address("192.168.1.10")
+		So(valid, ShouldBeTrue)
+		valid = IsValidIPV4Address("192.168.1.abc:8080")
+		So(valid, ShouldBeFalse)
+		valid = IsValidIPV4Address("192.168.1.10:80:8080")
+		So(valid, ShouldBeFalse)
+		valid = IsValidIPV4Address("192.168.1.10:abc")
+		So(valid, ShouldBeFalse)
+	})
 }

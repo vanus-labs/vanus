@@ -15,20 +15,23 @@
 package util
 
 import (
-	"context"
-	"time"
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-func SleepWithContext(ctx context.Context, duration time.Duration) bool {
-	if duration == 0 {
-		return true
-	}
-	timer := time.NewTimer(duration)
-	defer timer.Stop()
-	select {
-	case <-timer.C:
-		return true
-	case <-ctx.Done():
-		return false
-	}
+func TestIsSpace(t *testing.T) {
+	Convey("test is space", t, func() {
+		So(IsSpace(' '), ShouldBeTrue)
+		So(IsSpace('\t'), ShouldBeTrue)
+		So(IsSpace('\n'), ShouldBeTrue)
+		So(IsSpace('\r'), ShouldBeTrue)
+		So(IsSpace('\\'), ShouldBeFalse)
+	})
+}
+
+func TestGetIdByAddr(t *testing.T) {
+	Convey("test get id by addr", t, func() {
+		So(GetIdByAddr("test"), ShouldEqual, "098f6bcd4621d373cade4e832627b4f6")
+	})
 }

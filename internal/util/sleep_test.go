@@ -16,19 +16,30 @@ package util
 
 import (
 	"context"
+	"sync"
+	"testing"
 	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-func SleepWithContext(ctx context.Context, duration time.Duration) bool {
-	if duration == 0 {
-		return true
-	}
-	timer := time.NewTimer(duration)
-	defer timer.Stop()
-	select {
-	case <-timer.C:
-		return true
-	case <-ctx.Done():
-		return false
-	}
+func TestSleepWithContext(t *testing.T) {
+	Convey("sleep with context", t, func() {
+		ctx := context.Background()
+		b := SleepWithContext(ctx, 0)
+		So(b, ShouldBeTrue)
+		b = SleepWithContext(ctx, time.Millisecond)
+		So(b, ShouldBeTrue)
+		ctx, cancel := context.WithCancel(ctx)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			b = SleepWithContext(ctx, time.Minute)
+		}()
+		cancel()
+		wg.Wait()
+		So(b, ShouldBeFalse)
+	})
+
 }

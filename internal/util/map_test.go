@@ -16,18 +16,20 @@ package util
 
 import (
 	"fmt"
+	"sync"
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestBitSet_NextClearBit(t *testing.T) {
-	n := 100001
-	s := NewBitSet()
-	for i := 0; i < n; i++ {
-		s.Set(i)
-	}
-	v := s.NextClearBit(0)
-	fmt.Println(v)
-	ns := s.Clear(n / 64)
-	v = ns.NextClearBit(0)
-	fmt.Println(v)
+func TestMapLen(t *testing.T) {
+	Convey("test map len", t, func() {
+		So(MapLen(nil), ShouldEqual, 0)
+		m := &sync.Map{}
+		So(MapLen(m), ShouldEqual, 0)
+		for i := 0; i < 10; i++ {
+			m.Store(fmt.Sprintf("k%d", i), "v")
+			So(MapLen(m), ShouldEqual, i+1)
+		}
+	})
 }
