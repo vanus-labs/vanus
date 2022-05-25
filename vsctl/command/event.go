@@ -121,6 +121,7 @@ func sendOne(ctx context.Context, ceClient ce.Client) {
 	if strings.ToLower(dataFormat) == "json" {
 		m := make(map[string]interface{})
 		if err := json.Unmarshal([]byte(eventBody), &m); err != nil {
+			color.White(eventBody)
 			cmdFailedf("invalid format of data body: %s, err: %s", eventBody, err.Error())
 		}
 		err = event.SetData(ce.ApplicationJSON, m)

@@ -15,7 +15,6 @@
 package command
 
 import (
-	"fmt"
 	"github.com/spf13/cobra"
 	"os"
 
@@ -28,7 +27,7 @@ var (
 )
 
 func cmdFailedf(format string, a ...interface{}) {
-	color.Red(fmt.Sprintf(format, a))
+	color.Red(format, a)
 	os.Exit(-1)
 }
 
