@@ -71,7 +71,7 @@ func (r *Record) MarshalTo(data []byte) (int, error) {
 	binary.BigEndian.PutUint16(data[4:6], r.Length)
 	data[6] = byte(r.Type)
 	ds := len(r.Data)
-	if ds > 0 {
+	if ds != 0 {
 		copy(data[7:7+ds], r.Data)
 	}
 	// calculate CRC

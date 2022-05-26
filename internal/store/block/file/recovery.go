@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package block
+package file
 
 import (
 	// standard libraries.
+	"context"
 	"os"
 	"path/filepath"
 
@@ -24,10 +25,10 @@ import (
 )
 
 const (
-	defaultDirPerm = 0755
+	defaultDirPerm = 0o755
 )
 
-func RecoverBlocks(blockDir string) (map[vanus.ID]string, error) {
+func Recover(blockDir string) (map[vanus.ID]string, error) {
 	// Make sure the block directory exists.
 	if err := os.MkdirAll(blockDir, defaultDirPerm); err != nil {
 		return nil, err
@@ -71,4 +72,20 @@ func filterRegularBlock(entries []os.DirEntry) []os.DirEntry {
 	}
 	entries = entries[:n]
 	return entries
+}
+
+func (b *Block) Recover(ctx context.Context) error {
+	if err := b.loadHeader(ctx); err != nil {
+		return err
+	}
+
+	if err := b.loadIndex(ctx); err != nil {
+		return err
+	}
+
+	if err := b.validate(ctx); err != nil {
+		return err
+	}
+
+	return nil
 }

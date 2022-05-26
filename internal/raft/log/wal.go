@@ -24,9 +24,12 @@ import (
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
 )
 
-var (
-	walCompactKey = []byte("wal/compact")
+const (
+	defaultExecuteTaskBufferSize = 256
+	defaultCompactTaskBufferSize = 256
 )
+
+var walCompactKey = []byte("wal/compact")
 
 type compactInfo struct {
 	index, term uint64
@@ -38,10 +41,10 @@ type compactTask struct {
 	info         compactInfo
 }
 
-type exeCallback func() (compactTask, error)
+type executeCallback func() (compactTask, error)
 
-type exeTask struct {
-	cb     exeCallback
+type executeTask struct {
+	cb     executeCallback
 	result chan error
 }
 
@@ -51,7 +54,7 @@ type WAL struct {
 	metaStore *meta.SyncStore
 
 	barrier  *skiplist.SkipList
-	exec     chan exeTask
+	executec chan executeTask
 	compactc chan compactTask
 }
 
@@ -60,8 +63,8 @@ func newWAL(wal *walog.WAL, metaStore *meta.SyncStore) *WAL {
 		WAL:       wal,
 		metaStore: metaStore,
 		barrier:   skiplist.New(skiplist.Int64),
-		exec:      make(chan exeTask, 256),
-		compactc:  make(chan compactTask, 256),
+		executec:  make(chan executeTask, defaultExecuteTaskBufferSize),
+		compactc:  make(chan compactTask, defaultCompactTaskBufferSize),
 	}
 
 	go w.run()

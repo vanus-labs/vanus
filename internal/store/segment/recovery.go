@@ -22,12 +22,12 @@ import (
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	raftlog "github.com/linkall-labs/vanus/internal/raft/log"
+	"github.com/linkall-labs/vanus/internal/store/block/file"
 	"github.com/linkall-labs/vanus/internal/store/meta"
-	"github.com/linkall-labs/vanus/internal/store/segment/block"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
-func (s *segmentServer) recover(ctx context.Context) error {
+func (s *server) recover(ctx context.Context) error {
 	metaStore, err := meta.RecoverSyncStore(filepath.Join(s.volumeDir, "meta"))
 	if err != nil {
 		return err
@@ -54,60 +54,66 @@ func (s *segmentServer) recover(ctx context.Context) error {
 	return nil
 }
 
-func (s *segmentServer) recoverBlocks(ctx context.Context, raftLogs map[vanus.ID]*raftlog.Log) error {
-	blocks, err := block.RecoverBlocks(filepath.Join(s.volumeDir, "block"))
+func (s *server) recoverBlocks(ctx context.Context, raftLogs map[vanus.ID]*raftlog.Log) error {
+	blocks, err := file.Recover(filepath.Join(s.volumeDir, "block"))
 	if err != nil {
 		return err
 	}
 
 	// TODO: optimize this, because the implementation assumes under storage is linux file system
 	for blockID, path := range blocks {
-		b, err := block.OpenFileSegmentBlock(ctx, path)
-		if err != nil {
-			return err
+		b, err2 := file.Open(ctx, path)
+		if err2 != nil {
+			return err2
 		}
 
 		log.Info(ctx, "The block was loaded.", map[string]interface{}{
 			"blockID": blockID,
 		})
-		// TODO(james.yin): initialize block
-		if err = b.Initialize(ctx); err != nil {
-			return err
+		if err2 = b.Recover(ctx); err2 != nil {
+			return err2
 		}
 
 		s.blocks.Store(blockID, b)
 
 		// recover replica
-		if b.IsAppendable() {
+		if b.Appendable() {
 			raftLog := raftLogs[blockID]
-			// raft log has been compacted
+			// Raft log has been compacted.
 			if raftLog == nil {
 				raftLog = raftlog.RecoverLog(blockID, s.wal, s.metaStore, s.offsetStore)
 			}
-			replica := s.makeReplicaWithRaftLog(context.TODO(), b, raftLog)
-			b.SetClusterInfoSource(replica)
-			s.blockWriters.Store(b.SegmentBlockID(), replica)
+			r := s.makeReplicaWithRaftLog(context.TODO(), b.ID(), b, raftLog)
+			b.SetClusterInfoSource(r)
+			s.writers.Store(b.ID(), r)
 		}
-		s.blockReaders.Store(b.SegmentBlockID(), b)
+		s.readers.Store(b.ID(), b)
 	}
 
 	for nodeID, raftLog := range raftLogs {
-		b, ok := s.blocks.Load(nodeID)
-		if !ok {
-			// TODO(james.yin): no block for raft log, compact
+		var b *file.Block
+		if v, ok := s.blocks.Load(nodeID); ok {
+			b, _ = v.(*file.Block)
+		}
+
+		switch {
+		case b == nil:
 			log.Debug(ctx, "Not found block, so discard the raft log.", map[string]interface{}{
 				"nodeID": nodeID,
 			})
-			continue
-		}
-		if _, ok = b.(*block.Replica); !ok {
-			// TODO(james.yin): block is not appendable, compact
+		case !b.Appendable():
 			log.Debug(ctx, "Block is not appendable, so discard the raft log.", map[string]interface{}{
 				"nodeID": nodeID,
 			})
+		default:
 			continue
 		}
-		_ = raftLog
+
+		lastIndex, err2 := raftLog.LastIndex()
+		if err2 != nil {
+			return err2
+		}
+		_ = raftLog.Compact(lastIndex)
 	}
 
 	return nil

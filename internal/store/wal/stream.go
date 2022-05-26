@@ -121,6 +121,7 @@ func (s *logStream) Visit(visitor WalkFunc, compacted int64) (int64, error) {
 				if r.Type == record.Zero {
 					// TODO(james.yin): has empty log file(s).
 					if i != len(s.stream)-1 {
+						panic("has empty log file")
 					}
 
 					// TODO(james.yin): Has incomplete entry, truncate it.

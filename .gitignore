@@ -1,10 +1,3 @@
-
-# configuration file
-./config/*.json
-config/*.yaml
-config/cluster/*.yaml
-./config/*.toml
-
 # macOS
 .DS_Store
 
@@ -15,14 +8,22 @@ config/cluster/*.yaml
 #!.vscode/launch.json
 #!.vscode/extensions.json
 #!.vscode/*.code-snippets
+__debug_bin
 
 # JetBrains
 .idea/
 
+# configuration file
+/config/*.json
+/config/*.toml
+/config/*.yaml
+/config/cluster/*.yaml
+/config/**/*.local.*
+
 # data dir of etcd
 etcd
 bin
-ø
+
 *.xml
 
 *coverage*

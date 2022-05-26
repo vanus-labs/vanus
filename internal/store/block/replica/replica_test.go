@@ -12,21 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package transport
+package replica
 
 import (
 	// standard libraries.
-	"context"
+	"testing"
 
-	// first-party libraries.
-	"github.com/linkall-labs/raft/raftpb"
+	// third-party libraries.
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-type Multiplexer interface {
-	Send(msg *raftpb.Message)
-	Sendv(msgs []*raftpb.Message)
-}
-
-type Demultiplexer interface {
-	Receive(ctx context.Context, msg *raftpb.Message, endpoint string) error
+func TestReplica(t *testing.T) {
+	Convey("test cloud event marshall and unmarshall", t, func() {
+	})
 }

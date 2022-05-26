@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package block
+package replica
 
 import (
 	// standard libraries.
 	"context"
+	stderr "errors"
 	"sort"
 	"sync"
 	"time"
@@ -30,15 +31,25 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	raftlog "github.com/linkall-labs/vanus/internal/raft/log"
 	"github.com/linkall-labs/vanus/internal/raft/transport"
+	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/segment/errors"
 )
 
-type IDAndEndpoint struct {
+const (
+	defaultHintCapactiy    = 2
+	defaultTickPeriodMs    = 100
+	defaultElectionTick    = 10
+	defaultHeartbeatTick   = 3
+	defaultMaxSizePerMsg   = 4096
+	defaultMaxInflightMsgs = 256
+)
+
+type Peer struct {
 	ID       vanus.ID
 	Endpoint string
 }
 
-type idAndEndpoint struct {
+type peer struct {
 	id       uint64
 	endpoint string
 }
@@ -46,12 +57,12 @@ type idAndEndpoint struct {
 type LeaderChangedListener func(block, leader vanus.ID, term uint64)
 
 type Replica struct {
-	num  int
-	wo   int
-	full bool
-	mu   sync.RWMutex
+	blockID vanus.ID
 
-	block *FileBlock
+	mu sync.RWMutex
+
+	appender block.TwoPCAppender
+	actx     block.AppendContext
 
 	leaderID vanus.ID
 	listener LeaderChangedListener
@@ -60,53 +71,53 @@ type Replica struct {
 	log    *raftlog.Log
 	sender transport.Sender
 
-	endpoints []idAndEndpoint
-	epMu      sync.RWMutex
+	hint   []peer
+	hintMu sync.RWMutex
 
 	ctx    context.Context
 	cancel context.CancelFunc
 	donec  chan struct{}
 }
 
-// Make sure replica implements SegmentBlockWriter, ClusterInfoSource and transport.Receiver.
+// Make sure replica implements block.Appender, block.ClusterInfoSource and transport.Receiver.
 var (
-	_ SegmentBlockWriter = (*Replica)(nil)
-	_ ClusterInfoSource  = (*Replica)(nil)
-	_ transport.Receiver = (*Replica)(nil)
+	_ block.Appender          = (*Replica)(nil)
+	_ block.ClusterInfoSource = (*Replica)(nil)
+	_ transport.Receiver      = (*Replica)(nil)
 )
 
-func NewReplica(ctx context.Context, block SegmentBlock, raftLog *raftlog.Log,
+func New(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, raftLog *raftlog.Log,
 	sender transport.Sender, listener LeaderChangedListener,
 ) *Replica {
-	blockID := block.SegmentBlockID()
-
 	ctx, cancel := context.WithCancel(ctx)
 
 	r := &Replica{
-		block:     block.(*FileBlock),
-		listener:  listener,
-		log:       raftLog,
-		sender:    sender,
-		endpoints: make([]idAndEndpoint, 0, 2),
-		ctx:       ctx,
-		cancel:    cancel,
-		donec:     make(chan struct{}),
+		blockID:  blockID,
+		appender: appender,
+		listener: listener,
+		log:      raftLog,
+		sender:   sender,
+		hint:     make([]peer, 0, defaultHintCapactiy),
+		ctx:      ctx,
+		cancel:   cancel,
+		donec:    make(chan struct{}),
 	}
-	r.resetByBlock()
+	r.actx = r.appender.NewAppendContext(nil)
 
 	c := &raft.Config{
 		ID:                        blockID.Uint64(),
-		ElectionTick:              10,
-		HeartbeatTick:             3,
+		ElectionTick:              defaultElectionTick,
+		HeartbeatTick:             defaultHeartbeatTick,
 		Storage:                   raftLog,
 		Applied:                   raftLog.Applied(),
 		Compacted:                 raftLog.Compacted(),
-		MaxSizePerMsg:             4096,
-		MaxInflightMsgs:           256,
+		MaxSizePerMsg:             defaultMaxSizePerMsg,
+		MaxInflightMsgs:           defaultMaxInflightMsgs,
 		PreVote:                   true,
 		DisableProposalForwarding: true,
 	}
 	r.node = raft.RestartNode(c)
+
 	go r.run()
 
 	return r
@@ -118,7 +129,7 @@ func (r *Replica) Stop() {
 	<-r.donec
 }
 
-func (r *Replica) Bootstrap(blocks []IDAndEndpoint) error {
+func (r *Replica) Bootstrap(blocks []Peer) error {
 	peers := make([]raft.Peer, 0, len(blocks))
 	for _, ep := range blocks {
 		peers = append(peers, raft.Peer{
@@ -135,7 +146,8 @@ func (r *Replica) Bootstrap(blocks []IDAndEndpoint) error {
 
 func (r *Replica) run() {
 	// TODO(james.yin): reduce Ticker
-	t := time.NewTicker(100 * time.Millisecond)
+	period := defaultTickPeriodMs * time.Millisecond
+	t := time.NewTicker(period)
 	defer t.Stop()
 
 	for {
@@ -175,14 +187,14 @@ func (r *Replica) run() {
 			if num := len(rd.CommittedEntries); num != 0 {
 				var cs *raftpb.ConfState
 
-				entries := make([]Entry, 0, num)
+				entries := make([]block.Entry, 0, num)
 				for i := range rd.CommittedEntries {
 					entrypb := &rd.CommittedEntries[i]
 
 					if entrypb.Type == raftpb.EntryNormal {
 						// Skip empty entry(raft heartbeat).
-						if len(entrypb.Data) > 0 {
-							entry := UnmarshalWithOffsetAndIndex(entrypb.Data)
+						if len(entrypb.Data) != 0 {
+							entry := block.UnmarshalEntryWithOffsetAndIndex(entrypb.Data)
 							entries = append(entries, entry)
 						}
 						continue
@@ -192,7 +204,7 @@ func (r *Replica) run() {
 					cs = r.applyConfChange(entrypb)
 				}
 
-				if len(entries) > 0 {
+				if len(entries) != 0 {
 					r.doAppend(entries...)
 				}
 
@@ -207,6 +219,7 @@ func (r *Replica) run() {
 			}
 
 			if applied != 0 {
+				// FIXME(james.yin): persist applied after flush block.
 				r.log.SetApplied(applied)
 			}
 
@@ -236,7 +249,7 @@ func (r *Replica) leaderChanged() {
 	}
 
 	leader, term := r.leaderInfo()
-	r.listener(r.block.SegmentBlockID(), leader, term)
+	r.listener(r.blockID, leader, term)
 }
 
 func (r *Replica) applyConfChange(entrypb *raftpb.Entry) *raftpb.ConfState {
@@ -252,7 +265,7 @@ func (r *Replica) applyConfChange(entrypb *raftpb.Entry) *raftpb.ConfState {
 			panic(err)
 		}
 		// TODO(james.yin): non-add
-		r.hintEndpoint(cc.NodeID, string(cc.Context))
+		r.hintPeer(cc.NodeID, string(cc.Context))
 		cci = cc
 	} else {
 		var cc raftpb.ConfChangeV2
@@ -261,7 +274,7 @@ func (r *Replica) applyConfChange(entrypb *raftpb.Entry) *raftpb.ConfState {
 		}
 		// TODO(james.yin): non-add
 		for _, ccs := range cc.Changes {
-			r.hintEndpoint(ccs.NodeID, string(cc.Context))
+			r.hintPeer(ccs.NodeID, string(cc.Context))
 		}
 		cci = cc
 	}
@@ -274,19 +287,22 @@ func (r *Replica) reset() {
 		off = r.log.HardState().Commit
 	}
 
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	for off > 0 {
 		entrypbs, err2 := r.log.Entries(off, off+1, 0)
 
 		// Entry has been compacted.
 		if err2 != nil {
-			r.resetByBlock()
+			r.actx = r.appender.NewAppendContext(nil)
 			break
 		}
 
 		entrypb := entrypbs[0]
 		if entrypb.Type == raftpb.EntryNormal && len(entrypb.Data) > 0 {
-			entry := UnmarshalWithOffsetAndIndex(entrypb.Data)
-			r.resetByEntry(entry)
+			entry := block.UnmarshalEntryWithOffsetAndIndex(entrypb.Data)
+			r.actx = r.appender.NewAppendContext(&entry)
 			break
 		}
 
@@ -295,34 +311,12 @@ func (r *Replica) reset() {
 
 	// no normal entry
 	if off == 0 {
-		r.resetByBlock()
+		r.actx = r.appender.NewAppendContext(nil)
 	}
 }
 
-func (r *Replica) resetByEntry(entry Entry) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.num = int(entry.Index + 1)
-	r.wo = int(entry.Offset) + len(entry.Payload)
-	r.full = len(entry.Payload) == 0
-}
-
-func (r *Replica) resetByBlock() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.num = int(r.block.num.Load())
-	r.wo = int(r.block.wo.Load())
-	r.full = r.block.full.Load()
-}
-
-// Append implements SegmentBlockWriter.
-func (r *Replica) Append(ctx context.Context, entries ...Entry) error {
-	if !r.isLeader() {
-		return ErrNotLeader
-	}
-
+// Append implements block.Appender.
+func (r *Replica) Append(ctx context.Context, entries ...block.Entry) error {
 	// TODO(james.yin): support batch
 	if len(entries) != 1 {
 		return errors.ErrInvalidRequest
@@ -331,7 +325,24 @@ func (r *Replica) Append(ctx context.Context, entries ...Entry) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if err := r.preAppend(ctx, entries); err != nil {
+	if !r.isLeader() {
+		return block.ErrNotLeader
+	}
+
+	if r.actx.Full() {
+		return block.ErrFull
+	}
+
+	if err := r.appender.PrepareAppend(ctx, r.actx, entries...); err != nil {
+		// Full
+		if stderr.Is(err, block.ErrNotEnoughSpace) {
+			entry := r.actx.FullEntry()
+			data := entry.MarshalWithOffsetAndIndex()
+			if err2 := r.node.Propose(ctx, data); err2 != nil {
+				return err2
+			}
+			r.actx.MarkFull()
+		}
 		return err
 	}
 
@@ -346,40 +357,7 @@ func (r *Replica) Append(ctx context.Context, entries ...Entry) error {
 	return nil
 }
 
-func (r *Replica) preAppend(ctx context.Context, entries []Entry) error {
-	if r.full {
-		return ErrFull
-	}
-
-	var size int
-	for i := range entries {
-		entry := &entries[i]
-		entry.Offset = uint32(r.wo + size)
-		entry.Index = uint32(r.num + i)
-		size += entry.Size()
-	}
-
-	// TODO(james.yin): full
-	if int64(r.wo+size+v1IndexLength*(r.num+len(entries))) > r.block.cap {
-		fullEntry := Entry{
-			Offset: uint32(r.wo),
-			Index:  uint32(r.num),
-		}
-		data := fullEntry.MarshalWithOffsetAndIndex()
-		if err := r.node.Propose(ctx, data); err != nil {
-			return err
-		}
-		r.full = true
-		return ErrNoEnoughCapacity
-	}
-
-	r.wo += size
-	r.num += len(entries)
-
-	return nil
-}
-
-func (r *Replica) doAppend(entries ...Entry) {
+func (r *Replica) doAppend(entries ...block.Entry) {
 	num := len(entries)
 	if num == 0 {
 		return
@@ -392,13 +370,14 @@ func (r *Replica) doAppend(entries ...Entry) {
 		last = nil
 	}
 
-	// FIXME(james.yin): context
-	r.block.appendWithOffset(context.TODO(), entries...)
+	if len(entries) != 0 {
+		// FIXME(james.yin): context
+		_ = r.appender.CommitAppend(context.TODO(), entries...)
+	}
 
 	// Mark full.
 	if last != nil {
-		r.full = true
-		r.block.full.Store(true)
+		_ = r.appender.MarkFull(context.TODO())
 	}
 }
 
@@ -409,7 +388,7 @@ func (r *Replica) send(msgs []raftpb.Message) {
 
 	if len(msgs) == 1 {
 		msg := &msgs[0]
-		endpoint := r.endpointHint(msg.To)
+		endpoint := r.peerHint(msg.To)
 		r.sender.Send(r.ctx, msg, msg.To, endpoint)
 		return
 	}
@@ -428,7 +407,7 @@ func (r *Replica) send(msgs []raftpb.Message) {
 		for i := 0; i < len(msgs); i++ {
 			ma[i] = &msgs[i]
 		}
-		endpoint := r.endpointHint(to)
+		endpoint := r.peerHint(to)
 		r.sender.Sendv(r.ctx, ma, to, endpoint)
 		return
 	}
@@ -439,7 +418,7 @@ func (r *Replica) send(msgs []raftpb.Message) {
 		mm[msg.To] = append(mm[msg.To], msg)
 	}
 	for to, msgs := range mm {
-		endpoint := r.endpointHint(to)
+		endpoint := r.peerHint(to)
 		if len(msgs) == 1 {
 			r.sender.Send(r.ctx, msgs[0], to, endpoint)
 		} else {
@@ -448,13 +427,13 @@ func (r *Replica) send(msgs []raftpb.Message) {
 	}
 }
 
-func (r *Replica) endpointHint(to uint64) string {
-	r.epMu.RLock()
-	defer r.epMu.RUnlock()
-	for i := range r.endpoints {
-		ep := &r.endpoints[i]
-		if ep.id == to {
-			return ep.endpoint
+func (r *Replica) peerHint(to uint64) string {
+	r.hintMu.RLock()
+	defer r.hintMu.RUnlock()
+	for i := range r.hint {
+		p := &r.hint[i]
+		if p.id == to {
+			return p.endpoint
 		}
 	}
 	return ""
@@ -463,37 +442,37 @@ func (r *Replica) endpointHint(to uint64) string {
 // Receive implements transport.Receiver.
 func (r *Replica) Receive(ctx context.Context, msg *raftpb.Message, from uint64, endpoint string) {
 	if endpoint != "" {
-		r.hintEndpoint(from, endpoint)
+		r.hintPeer(from, endpoint)
 	}
 
 	// TODO(james.yin): check ctx.Done().
 	_ = r.node.Step(r.ctx, *msg)
 }
 
-func (r *Replica) hintEndpoint(from uint64, endpoint string) {
+func (r *Replica) hintPeer(from uint64, endpoint string) {
 	if endpoint == "" {
 		return
 	}
 
 	// TODO(james.yin): optimize lock
-	r.epMu.Lock()
-	defer r.epMu.Unlock()
-	ep := func() *idAndEndpoint {
-		for i := range r.endpoints {
-			ep := &r.endpoints[i]
+	r.hintMu.Lock()
+	defer r.hintMu.Unlock()
+	p := func() *peer {
+		for i := range r.hint {
+			ep := &r.hint[i]
 			if ep.id == from {
 				return ep
 			}
 		}
 		return nil
 	}()
-	if ep == nil {
-		r.endpoints = append(r.endpoints, idAndEndpoint{
+	if p == nil {
+		r.hint = append(r.hint, peer{
 			id:       from,
 			endpoint: endpoint,
 		})
-	} else if ep.endpoint != endpoint {
-		ep.endpoint = endpoint
+	} else if p.endpoint != endpoint {
+		p.endpoint = endpoint
 	}
 }
 
@@ -509,16 +488,10 @@ func (r *Replica) leaderInfo() (vanus.ID, uint64) {
 
 // CloseWrite implements SegmentBlockWriter.
 func (r *Replica) CloseWrite(ctx context.Context) error {
-	return r.block.CloseWrite(ctx)
-}
-
-// IsAppendable implements SegmentBlockWriter.
-func (r *Replica) IsAppendable() bool {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	return !r.full
+	// return r.appender.CloseWrite(ctx)
+	return nil
 }
 
 func (r *Replica) isLeader() bool {
-	return r.leaderID == r.block.SegmentBlockID()
+	return r.leaderID == r.blockID
 }

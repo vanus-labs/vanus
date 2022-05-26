@@ -12,17 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package block
-
-import (
-	// standard libraries.
-	"testing"
-
-	// third-party libraries.
-	. "github.com/smartystreets/goconvey/convey"
-)
-
-func TestReplica(t *testing.T) {
-	Convey("test cloud event marshall and unmarshall", t, func() {
-	})
-}
+package file
