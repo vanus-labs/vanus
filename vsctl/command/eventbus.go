@@ -174,10 +174,14 @@ func getEventbusInfoCommand() *cobra.Command {
 					})
 				} else {
 					t.AppendHeader(table.Row{"Eventbus", "Eventlog", "Segment", "Start", "End", "Block", "Leader", "Volume", "Endpoint"})
+					multiReplic := false
 					for idx := 0; idx < len(res.Logs); idx++ {
 						segOfEL := segs[res.Logs[idx].EventLogId]
 						for sIdx, seg := range segOfEL {
 							tIdx := 0
+							if !multiReplic && len(seg.Replicas) > 1 {
+								multiReplic = true
+							}
 							for _, blk := range seg.Replicas {
 								if idx == 0 && sIdx == 0 && tIdx == 0 {
 									t.AppendRow(table.Row{res.Name, res.Logs[idx].EventLogId, seg.Id, seg.StartOffsetInLog,
@@ -200,8 +204,8 @@ func getEventbusInfoCommand() *cobra.Command {
 						{Number: 1, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: 2, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: 3, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 4, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 5, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 4, VAlign: text.VAlignMiddle, AutoMerge: multiReplic, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 5, VAlign: text.VAlignMiddle, AutoMerge: multiReplic, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: 6, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: 7, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: 8, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
