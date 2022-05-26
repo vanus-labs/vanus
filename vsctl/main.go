@@ -55,7 +55,7 @@ func init() {
 		command.NewEventCommand(),
 		command.NewEventbusCommand(),
 		command.NewSubscriptionCommand(),
-		command.NewMetadataCommand(),
+		//command.NewMetadataCommand(),
 	)
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
