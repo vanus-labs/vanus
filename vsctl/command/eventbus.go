@@ -185,8 +185,8 @@ func getEventbusInfoCommand() *cobra.Command {
 						{Number: 1, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: 2, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: 3, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 4, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 5, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 4, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 5, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: 6, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: 7, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					})
@@ -211,12 +211,12 @@ func getEventbusInfoCommand() *cobra.Command {
 											seg.Size, seg.StartOffsetInLog, seg.EndOffsetInLog, blk.Id,
 											blk.Id == seg.LeaderBlockId, blk.VolumeID, blk.Endpoint})
 									} else if tIdx == 0 {
-										t.AppendRow(table.Row{"", "", seg.Id, seg.Capacity,
-											seg.Size, seg.StartOffsetInLog, seg.EndOffsetInLog, blk.Id,
+										t.AppendRow(table.Row{"", "", seg.Id, seg.Capacity, seg.Size,
+											seg.StartOffsetInLog, seg.EndOffsetInLog, blk.Id,
 											blk.Id == seg.LeaderBlockId, blk.VolumeID, blk.Endpoint})
 									} else {
-										t.AppendRow(table.Row{"", "", "", "", "", blk.Id, blk.Id == seg.LeaderBlockId,
-											blk.VolumeID, blk.Endpoint})
+										t.AppendRow(table.Row{"", "", "", "", "", "", "", blk.Id,
+											blk.Id == seg.LeaderBlockId, blk.VolumeID, blk.Endpoint})
 									}
 									tIdx++
 								}
