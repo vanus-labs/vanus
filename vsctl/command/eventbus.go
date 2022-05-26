@@ -202,13 +202,15 @@ func getEventbusInfoCommand() *cobra.Command {
 								if !multiReplica && len(seg.Replicas) > 1 {
 									multiReplica = true
 								}
-								var keys []uint64
-								for k, _ := range seg.Replicas {
-									keys = append(keys, k)
+								var vols []uint64
+								var volMap map[uint64]*metapb.Block
+								for _, v := range seg.Replicas {
+									vols = append(vols, v.VolumeID)
+									volMap[v.VolumeID] = v
 								}
-								sortkeys.Uint64s(keys)
-								for _, k := range keys {
-									blk := seg.Replicas[k]
+								sortkeys.Uint64s(vols)
+								for _, k := range vols {
+									blk := volMap[k]
 									if idx == 0 && sIdx == 0 && tIdx == 0 {
 										t.AppendRow(table.Row{res.Name, res.Logs[idx].EventLogId, seg.Id, seg.Capacity,
 											seg.Size, seg.StartOffsetInLog, seg.EndOffsetInLog, blk.Id,
