@@ -156,7 +156,7 @@ func getEventbusInfoCommand() *cobra.Command {
 					t.SetColumnConfigs([]table.ColumnConfig{
 						{Number: 1, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: 2, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 3, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					})
 				}
 			} else {
