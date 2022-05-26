@@ -13,3 +13,40 @@
 // limitations under the License.
 
 package file
+
+import (
+	"bytes"
+	. "github.com/smartystreets/goconvey/convey"
+	"math/rand"
+	"testing"
+	"time"
+)
+
+func TestIndex_Marshal(t *testing.T) {
+	Convey("test marshall & unmarshall of index", t, func() {
+		rd := rand.New(rand.NewSource(time.Now().UnixNano()))
+		idx1 := index{
+			offset: rd.Int63(),
+			length: rd.Int31(),
+		}
+
+		data := make([]byte, 12)
+		n, err := idx1.MarshalTo(data)
+		So(err, ShouldBeNil)
+		So(n, ShouldEqual, 12)
+
+		nIdx, err := unmarshalIndex(data)
+		So(err, ShouldBeNil)
+		So(idx1, ShouldResemble, nIdx)
+		So(nIdx.StartOffset(), ShouldEqual, nIdx.offset)
+		So(nIdx.EndOffset(), ShouldEqual, nIdx.offset+int64(nIdx.length))
+
+		n, err = idx1.MarshalTo(make([]byte, rd.Int31n(12)))
+		So(n, ShouldBeZeroValue)
+		So(err, ShouldEqual, bytes.ErrTooLarge)
+
+		nIdx, err = unmarshalIndex(make([]byte, rd.Int31n(12)))
+		So(n, ShouldBeZeroValue)
+		So(nIdx, ShouldResemble, index{})
+	})
+}

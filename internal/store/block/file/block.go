@@ -242,7 +242,7 @@ func (b *Block) loadIndexFromFile() error {
 	b.indexes = make([]index, num)
 	for i := range b.indexes {
 		off := int(length) - (i+1)*v1IndexSize
-		b.indexes[i], _ = unmashalIndex(data[off : off+v1IndexSize])
+		b.indexes[i], _ = unmarshalIndex(data[off : off+v1IndexSize])
 	}
 
 	return nil
