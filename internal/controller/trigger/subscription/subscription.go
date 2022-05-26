@@ -123,7 +123,7 @@ func (m *manager) GetSubscription(ctx context.Context, subId vanus.ID) (*primiti
 func (m *manager) AddSubscription(ctx context.Context, sub *primitive.SubscriptionData) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	sub.ID = vanus.GenerateID()
+	sub.ID = vanus.NewID()
 	sub.Phase = primitive.SubscriptionPhaseCreated
 	err := m.storage.CreateSubscription(ctx, sub)
 	if err != nil {

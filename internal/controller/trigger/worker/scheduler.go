@@ -83,7 +83,7 @@ func (s *SubscriptionScheduler) Run() {
 }
 
 func (s *SubscriptionScheduler) handler(ctx context.Context, subIdStr string) error {
-	subscriptionID, _ := vanus.StringToID(subIdStr)
+	subscriptionID, _ := vanus.NewIDFromString(subIdStr)
 	for {
 		select {
 		case <-ctx.Done():
