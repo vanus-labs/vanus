@@ -62,7 +62,7 @@ func getControllerTopology() *cobra.Command {
 			t.AppendHeader(table.Row{"Name", "Leader", "Endpoint"})
 			t.AppendRows([]table.Row{
 				{"Leader-controller", "TRUE", res.LeaderAddr},
-				{"Gateway", "-", res.LeaderAddr},
+				{"Gateway", "-", res.GatewayAddr},
 			})
 			t.SetColumnConfigs([]table.ColumnConfig{
 				{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
