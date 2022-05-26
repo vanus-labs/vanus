@@ -155,14 +155,14 @@ func (r *Replica) run() {
 		case <-t.C:
 			r.node.Tick()
 		case rd := <-r.node.Ready():
+			if err := r.log.Append(rd.Entries); err != nil {
+				panic(err)
+			}
+
 			if !raft.IsEmptyHardState(rd.HardState) {
 				if err := r.log.SetHardState(rd.HardState); err != nil {
 					panic(err)
 				}
-			}
-
-			if err := r.log.Append(rd.Entries); err != nil {
-				panic(err)
 			}
 
 			if rd.SoftState != nil {
