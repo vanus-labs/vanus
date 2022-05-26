@@ -15,13 +15,19 @@
 package command
 
 import (
+	"context"
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
+	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/spf13/cobra"
+	"os"
 )
 
-func NewMetadataCommand() *cobra.Command {
+func NewClusterCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "event sub-command ",
-		Short: "convenient operations for pub/sub",
+		Use:   "cluster sub-command ",
+		Short: "vanus cluster operations",
 	}
 	cmd.AddCommand(controllerCommand())
 	return cmd
@@ -29,14 +35,45 @@ func NewMetadataCommand() *cobra.Command {
 
 func controllerCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "controller <eventbus-name> ",
+		Use:   "controller sub-command",
 		Short: "get controller metadata",
-		Run: func(cmd *cobra.Command, args []string) {
-			if len(args) == 0 {
-				cmdFailedWithHelpNotice(cmd, "eventbus name can't be empty\n")
-			}
-			//endpoint := mustGetGatewayEndpoint(cmd)
+	}
+	cmd.AddCommand(getControllerTopology())
+	return cmd
+}
 
+func getControllerTopology() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "topology",
+		Short: "get topology",
+		Run: func(cmd *cobra.Command, args []string) {
+			ctx := context.Background()
+			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
+			defer func() {
+				_ = grpcConn.Close()
+			}()
+			cli := ctrlpb.NewPingServerClient(grpcConn)
+			res, err := cli.Ping(ctx, &empty.Empty{})
+			if err != nil {
+				cmdFailedf("get Gateway endpoint from controller failed: %s", err)
+			}
+
+			t := table.NewWriter()
+			t.AppendHeader(table.Row{"Name", "Leader", "Endpoint"})
+			t.AppendRows([]table.Row{
+				{"Leader-controller", "TRUE", res.LeaderAddr},
+				{"Gateway", "-", res.LeaderAddr},
+			})
+			t.SetColumnConfigs([]table.ColumnConfig{
+				{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+				{Number: 2, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+				{Number: 3, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+			})
+			t.SetStyle(table.StyleLight)
+			t.Style().Options.SeparateRows = true
+			t.Style().Box = table.StyleBoxDefault
+			t.SetOutputMirror(os.Stdout)
+			t.Render()
 		},
 	}
 	return cmd
