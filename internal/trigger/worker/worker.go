@@ -152,7 +152,7 @@ loop:
 	w.offsetManager.RemoveSubscription(id)
 }
 
-func (w *Worker) ListSubInfos() ([]pInfo.SubscriptionInfo, func()) {
+func (w *Worker) ListSubscriptionInfo() ([]pInfo.SubscriptionInfo, func()) {
 	w.lock.RLock()
 	defer w.lock.RUnlock()
 	var list []pInfo.SubscriptionInfo
