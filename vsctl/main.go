@@ -55,6 +55,7 @@ func init() {
 		command.NewEventCommand(),
 		command.NewEventbusCommand(),
 		command.NewSubscriptionCommand(),
+		command.NewClusterCommand(),
 	)
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true

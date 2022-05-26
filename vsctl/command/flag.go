@@ -33,4 +33,6 @@ var (
 	filters          string
 	inputTransformer string
 	subscriptionID   uint64
+	showSegment      bool
+	showBlock        bool
 )
