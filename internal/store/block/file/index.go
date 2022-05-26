@@ -47,7 +47,7 @@ func (i index) MarshalTo(data []byte) (int, error) {
 	return v1IndexSize, nil
 }
 
-func unmashalIndex(data []byte) (index, error) {
+func unmarshalIndex(data []byte) (index, error) {
 	if len(data) < v1IndexSize {
 		// TODO(james.yin): correct error.
 		return index{}, bytes.ErrTooLarge
