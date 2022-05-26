@@ -73,7 +73,7 @@ func NewTrigger(config *Config, sub *primitive.Subscription, offsetManager *offs
 	config.initConfig()
 	t := &Trigger{
 		config:         *config,
-		ID:             vanus.GenerateID(),
+		ID:             vanus.NewID(),
 		SubscriptionID: sub.ID,
 		Target:         sub.Sink,
 		SleepDuration:  30 * time.Second,

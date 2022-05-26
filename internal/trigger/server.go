@@ -201,7 +201,7 @@ func (s *server) startHeartbeat() {
 				s.client.closeHeartBeat(ctx)
 				return
 			case <-ticker.C:
-				workerSub, callback := s.worker.ListSubInfos()
+				workerSub, callback := s.worker.ListSubscriptionInfo()
 				var subInfos []*meta.SubscriptionInfo
 				for _, sub := range workerSub {
 					subInfos = append(subInfos, convert.ToPbSubscriptionInfo(sub))

@@ -16,6 +16,7 @@ package vanus
 
 import (
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -23,12 +24,15 @@ type ID uint64
 
 var (
 	emptyID = ID(0)
+	lock    = sync.Mutex{}
 )
 
 func EmptyID() ID {
 	return emptyID
 }
 func NewID() ID {
+	lock.Lock()
+	defer lock.Unlock()
 	// avoiding same id
 	time.Sleep(time.Microsecond)
 	return ID(time.Now().UnixNano())
@@ -60,16 +64,4 @@ func (id ID) Key() string {
 
 func (id ID) Equals(cID ID) bool {
 	return id.Uint64() == cID.Uint64()
-}
-
-func GenerateID() ID {
-	return ID(time.Now().UnixNano())
-}
-
-func StringToID(str string) (ID, error) {
-	id, err := strconv.ParseUint(str, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return ID(id), nil
 }
