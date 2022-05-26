@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/fatih/color"
+	"github.com/gogo/protobuf/sortkeys"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
@@ -201,7 +202,13 @@ func getEventbusInfoCommand() *cobra.Command {
 								if !multiReplica && len(seg.Replicas) > 1 {
 									multiReplica = true
 								}
-								for _, blk := range seg.Replicas {
+								var keys []uint64
+								for k, _ := range seg.Replicas {
+									keys = append(keys, k)
+								}
+								sortkeys.Uint64s(keys)
+								for _, k := range keys {
+									blk := seg.Replicas[k]
 									if idx == 0 && sIdx == 0 && tIdx == 0 {
 										t.AppendRow(table.Row{res.Name, res.Logs[idx].EventLogId, seg.Id, seg.Capacity,
 											seg.Size, seg.StartOffsetInLog, seg.EndOffsetInLog, blk.Id,

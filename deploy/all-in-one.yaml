@@ -192,7 +192,7 @@ metadata:
   name: vanus-trigger
   namespace: vanus
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: vanus-trigger
