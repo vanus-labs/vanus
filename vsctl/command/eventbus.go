@@ -203,7 +203,7 @@ func getEventbusInfoCommand() *cobra.Command {
 									multiReplica = true
 								}
 								var vols []uint64
-								var volMap map[uint64]*metapb.Block
+								var volMap = map[uint64]*metapb.Block{}
 								for _, v := range seg.Replicas {
 									vols = append(vols, v.VolumeID)
 									volMap[v.VolumeID] = v
