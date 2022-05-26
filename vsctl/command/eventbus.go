@@ -115,7 +115,7 @@ func getEventbusInfoCommand() *cobra.Command {
 			}
 
 			segs := make(map[uint64][]*metapb.Segment)
-			if showSegment {
+			if showSegment || showBlock {
 				logCli := ctrlpb.NewEventLogControllerClient(grpcConn)
 				logs := res.GetLogs()
 				for idx := range logs {
@@ -166,9 +166,9 @@ func getEventbusInfoCommand() *cobra.Command {
 						t.AppendSeparator()
 					}
 					t.SetColumnConfigs([]table.ColumnConfig{
-						{Number: 1, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 2, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 3, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 1, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 2, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 3, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: 4, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: 5, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					})
@@ -197,11 +197,11 @@ func getEventbusInfoCommand() *cobra.Command {
 						t.AppendSeparator()
 					}
 					t.SetColumnConfigs([]table.ColumnConfig{
-						{Number: 1, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 2, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 3, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 4, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 5, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 1, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 2, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 3, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 4, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 5, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: 6, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: 7, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: 8, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
