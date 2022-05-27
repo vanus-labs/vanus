@@ -29,6 +29,9 @@ func TestBlock_Creation(t *testing.T) {
 		capacity := (rd.Int63n(128) + 16) * 1024 * 1024
 		id := vanus.NewID()
 		blk, err := Create(stdCtx.Background(), "/tmp", id, capacity)
+		defer func() {
+			_ = blk.Close(stdCtx.Background())
+		}()
 		So(err, ShouldBeNil)
 
 		So(blk.ID(), ShouldEqual, id)
@@ -41,9 +44,30 @@ func TestBlock_Creation(t *testing.T) {
 	})
 }
 
-func TestBlock_Index(t *testing.T) {
+func TestBlock_IndexHeader(t *testing.T) {
 	Convey("test block index", t, func() {
+		rd := rand.New(rand.NewSource(time.Now().UnixNano()))
+		capacity := (rd.Int63n(128) + 16) * 1024 * 1024
+		id := vanus.NewID()
+		blk, _ := Create(stdCtx.Background(), "/tmp", id, capacity)
+		blk.version = rd.Int31()
+		// TODO(wenfeng): fix here
+		blk.fo.Store(int64(rd.Int31()))
+		blk.actx.num = rd.Uint32()
 
+		err := blk.persistHeader(stdCtx.Background())
+		So(err, ShouldBeNil)
+		So(blk.Close(stdCtx.Background()), ShouldBeNil)
+
+		blkNew, err := Open(stdCtx.Background(), blk.path)
+		So(err, ShouldBeNil)
+		err = blkNew.loadHeader(stdCtx.Background())
+		So(err, ShouldBeNil)
+		So(blkNew.version, ShouldEqual, blk.version)
+		So(blkNew.cap, ShouldEqual, blk.cap)
+		So(blkNew.size(), ShouldEqual, blk.size())
+		So(blkNew.actx.num, ShouldEqual, blk.actx.num)
+		So(blkNew.Close(stdCtx.Background()), ShouldBeNil)
 	})
 }
 
