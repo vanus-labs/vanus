@@ -283,7 +283,6 @@ func (b *Block) rebuildIndex() error {
 func (b *Block) validate(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
-
 	return nil
 }
 

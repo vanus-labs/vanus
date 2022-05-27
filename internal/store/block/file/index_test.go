@@ -16,10 +16,11 @@ package file
 
 import (
 	"bytes"
-	. "github.com/smartystreets/goconvey/convey"
 	"math/rand"
 	"testing"
 	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestIndex_Marshal(t *testing.T) {
