@@ -29,8 +29,10 @@ func TestCreateSubscriptionRequestValidator(t *testing.T) {
 	Convey("multiple dialect", t, func() {
 		request := &ctrlpb.CreateSubscriptionRequest{
 			Filters: []*metapb.Filter{{
-				Exact: map[string]string{
-					"key1": "value1",
+				Not: &metapb.Filter{
+					Exact: map[string]string{
+						"key1": "value1",
+					},
 				},
 				Cel: "$type.(string) =='test'",
 			}},
@@ -130,8 +132,10 @@ func TestValidateFilter(t *testing.T) {
 	})
 	Convey("not", t, func() {
 		f := &metapb.Filter{
-			Exact: map[string]string{
-				"key": "value",
+			Not: &metapb.Filter{
+				Exact: map[string]string{
+					"key": "value",
+				},
 			},
 		}
 		So(ValidateFilter(ctx, f), ShouldBeNil)

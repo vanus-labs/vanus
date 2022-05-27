@@ -16,6 +16,7 @@ package offset
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -33,7 +34,7 @@ func TestGetOffset(t *testing.T) {
 	defer ctrl.Finish()
 	storage := storage.NewMockOffsetStorage(ctrl)
 	storage.EXPECT().DeleteOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
-	m := NewOffsetManager(storage, 10*time.Microsecond).(*manager)
+	m := NewOffsetManager(storage, 0).(*manager)
 	subId := vanus.ID(1)
 	eventLogID := vanus.ID(1)
 	offset := uint64(1)
@@ -108,7 +109,14 @@ func TestCommit(t *testing.T) {
 				m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
 				storage.EXPECT().UpdateOffset(gomock.Any(), subId, gomock.Any()).Return(nil)
 				m.commit(ctx)
+				Convey("commit with storage error", func() {
+					offset++
+					m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
+					storage.EXPECT().UpdateOffset(gomock.Any(), subId, gomock.Any()).Return(fmt.Errorf("error"))
+					m.commit(ctx)
+				})
 			})
+
 		})
 	})
 

@@ -14,6 +14,9 @@
 
 package worker
 
+import "time"
+
 type Config struct {
-	Controllers []string
+	Controllers              []string
+	CleanSubscriptionTimeout time.Duration
 }

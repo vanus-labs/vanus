@@ -15,9 +15,10 @@
 package primitive
 
 import (
+	"time"
+
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"time"
 )
 
 type URI string
@@ -73,6 +74,7 @@ type InputTransformer struct {
 	Template string            `json:"template,omitempty"`
 }
 
+/* annotation no use code .
 type SinkSpec struct {
 	Type   string
 	Name   string // TODO use id or name? ID used in CloudEvents Specification
@@ -109,3 +111,4 @@ type TargetSpec struct {
 	LBStrategy string
 	Sinks      []string
 }
+*/

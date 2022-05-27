@@ -26,10 +26,41 @@ import (
 func TestParse(t *testing.T) {
 	event := ce.NewEvent()
 	_ = event.SetData(ce.ApplicationJSON, map[string]interface{}{
-		"key": "test",
+		"key":    "test",
+		"double": 3.14,
+		"int64":  3,
+		"uint64": 3,
 	})
-	Convey("cel parse", t, func() {
+	Convey("cel parse string", t, func() {
 		p, err := cel.Parse("$key.(string) == 'test'")
+		So(err, ShouldBeNil)
+		b, err := p.Eval(event)
+		So(err, ShouldBeNil)
+		So(b, ShouldBeTrue)
+	})
+	Convey("cel parse double", t, func() {
+		p, err := cel.Parse("$double.(double) >= 3.1")
+		So(err, ShouldBeNil)
+		b, err := p.Eval(event)
+		So(err, ShouldBeNil)
+		So(b, ShouldBeTrue)
+	})
+	Convey("cel parse int64", t, func() {
+		p, err := cel.Parse("$int64.(int64) >= 3")
+		So(err, ShouldBeNil)
+		b, err := p.Eval(event)
+		So(err, ShouldBeNil)
+		So(b, ShouldBeTrue)
+	})
+	Convey("cel parse uint64", t, func() {
+		p, err := cel.Parse("$uint64.(uint64) >= 3u")
+		So(err, ShouldBeNil)
+		b, err := p.Eval(event)
+		So(err, ShouldBeNil)
+		So(b, ShouldBeTrue)
+	})
+	Convey("cel parse uint64", t, func() {
+		p, err := cel.Parse("$uint64.(uint64) >= 3u")
 		So(err, ShouldBeNil)
 		b, err := p.Eval(event)
 		So(err, ShouldBeNil)

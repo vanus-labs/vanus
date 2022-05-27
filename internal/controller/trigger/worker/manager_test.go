@@ -45,6 +45,12 @@ func getTestTriggerWorkerRemoveSubscription() OnTriggerWorkerRemoveSubscription 
 	}
 }
 
+func getTestTriggerWorkerRemoveSubscriptionWithErr() OnTriggerWorkerRemoveSubscription {
+	return func(ctx context.Context, subId vanus.ID, addr string) error {
+		return fmt.Errorf("trigger worker leave remove subscription %s fail", subId)
+	}
+}
+
 func TestInit(t *testing.T) {
 	ctx := context.Background()
 	addr := "test"
@@ -112,6 +118,20 @@ func TestRemoveTriggerWorker(t *testing.T) {
 		Convey("test remove", func() {
 			workerStorage.EXPECT().SaveTriggerWorker(ctx, gomock.Any()).AnyTimes().Return(nil)
 			workerStorage.EXPECT().DeleteTriggerWorker(ctx, gomock.Any()).AnyTimes().Return(nil)
+			err := twManager.AddTriggerWorker(ctx, addr)
+			So(err, ShouldBeNil)
+			tWorker := twManager.GetTriggerWorker(ctx, addr)
+			So(tWorker, ShouldNotBeNil)
+			tWorker.AddAssignSub(sub.ID)
+			twManager.RemoveTriggerWorker(ctx, addr)
+			tWorker = twManager.GetTriggerWorker(ctx, addr)
+			So(tWorker, ShouldBeNil)
+		})
+
+		Convey("test remove subscription error", func() {
+			workerStorage.EXPECT().SaveTriggerWorker(ctx, gomock.Any()).AnyTimes().Return(nil)
+			workerStorage.EXPECT().DeleteTriggerWorker(ctx, gomock.Any()).AnyTimes().Return(nil)
+			twManager = NewTriggerWorkerManager(Config{}, workerStorage, nil, getTestTriggerWorkerRemoveSubscriptionWithErr())
 			err := twManager.AddTriggerWorker(ctx, addr)
 			So(err, ShouldBeNil)
 			tWorker := twManager.GetTriggerWorker(ctx, addr)
@@ -355,4 +375,18 @@ func TestGetActiveWorker(t *testing.T) {
 
 	})
 
+}
+
+func TestManagerStartStop(t *testing.T) {
+	Convey("manager start stop", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		subManager := subscription.NewMockManager(ctrl)
+		workerStorage := storage.NewMockTriggerWorkerStorage(ctrl)
+		twManager := NewTriggerWorkerManager(Config{}, workerStorage, subManager,
+			getTestTriggerWorkerRemoveSubscription())
+		twManager.Start()
+		time.Sleep(time.Millisecond)
+		twManager.Stop()
+	})
 }

@@ -196,6 +196,7 @@ func (b *Block) checkEntries(ctx context.Context, entries []block.Entry) error {
 			"blockID": b.id,
 			"offset":  offset,
 			"wo":      b.actx.offset,
+			"index":   entries[0].Index,
 		})
 		return errors.ErrInternal
 	}
