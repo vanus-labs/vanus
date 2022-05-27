@@ -63,7 +63,7 @@ func (b *Block) NewAppendContext(last *block.Entry) block.AppendContext {
 			full = 1
 		}
 		return &appendContext{
-			offset: last.Offset + uint32(len(last.Payload)) + block.EntryLengthSize,
+			offset: last.Offset + uint32(last.Size()),
 			num:    last.Index + 1,
 			full:   full,
 		}
