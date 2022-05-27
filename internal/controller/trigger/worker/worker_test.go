@@ -157,7 +157,7 @@ func TestTriggerWorkerClose(t *testing.T) {
 	_ = tWorker.init(ctx)
 	client := pbtrigger.NewMockTriggerWorkerClient(ctrl)
 	tWorker.client = client
-	Convey("start", t, func() {
+	Convey("test close", t, func() {
 		err := tWorker.Close()
 		So(err, ShouldBeNil)
 	})

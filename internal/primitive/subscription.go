@@ -15,9 +15,10 @@
 package primitive
 
 import (
+	"time"
+
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"time"
 )
 
 type URI string
@@ -73,39 +74,40 @@ type InputTransformer struct {
 	Template string            `json:"template,omitempty"`
 }
 
-type SinkSpec struct {
-	Type   string
-	Name   string // TODO use id or name? ID used in CloudEvents Specification
-	Weight float32
-	Config map[string]interface{}
-}
-
-type DialectType string
-
-const (
-	ExactDialect  = "exact"
-	PrefixDialect = "prefix"
-	SuffixDialect = "suffix"
-	AllDialect    = "all"
-	AnyDialect    = "any"
-	NotDialect    = "not"
-	SQLDialect    = "ce-sql"
-)
-
-type FilterSpec struct {
-	Name    string
-	Exp     interface{}
-	ApplyTo []string
-	Target  TargetSpec
-}
-
-type SubscriptionSpec struct {
-	EventBuses []string
-	Sinks      []SinkSpec
-	Filters    []FilterSpec
-}
-
-type TargetSpec struct {
-	LBStrategy string
-	Sinks      []string
-}
+//
+//type SinkSpec struct {
+//	Type   string
+//	Name   string // TODO use id or name? ID used in CloudEvents Specification
+//	Weight float32
+//	Config map[string]interface{}
+//}
+//
+//type DialectType string
+//
+//const (
+//	ExactDialect  = "exact"
+//	PrefixDialect = "prefix"
+//	SuffixDialect = "suffix"
+//	AllDialect    = "all"
+//	AnyDialect    = "any"
+//	NotDialect    = "not"
+//	SQLDialect    = "ce-sql"
+//)
+//
+//type FilterSpec struct {
+//	Name    string
+//	Exp     interface{}
+//	ApplyTo []string
+//	Target  TargetSpec
+//}
+//
+//type SubscriptionSpec struct {
+//	EventBuses []string
+//	Sinks      []SinkSpec
+//	Filters    []FilterSpec
+//}
+//
+//type TargetSpec struct {
+//	LBStrategy string
+//	Sinks      []string
+//}
