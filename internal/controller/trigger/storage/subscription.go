@@ -44,10 +44,6 @@ func NewSubscriptionStorage(client kv.Client) SubscriptionStorage {
 	}
 }
 
-func (s *subscriptionStorage) Close() error {
-	return s.client.Close()
-}
-
 func (s *subscriptionStorage) getKey(subID vanus.ID) string {
 	return path.Join(StorageSubscription.String(), subID.String())
 }
