@@ -83,6 +83,9 @@ func (w *subscriptionWorker) Run(ctx context.Context) error {
 }
 
 func NewWorker(config Config) *Worker {
+	if config.CleanSubscriptionTimeout == 0 {
+		config.CleanSubscriptionTimeout = 5 * time.Second
+	}
 	w := &Worker{
 		subscriptions: map[vanus.ID]*subscriptionWorker{},
 		offsetManager: offset.NewOffsetManager(),
@@ -106,8 +109,8 @@ func (w *Worker) Stop() error {
 		wg.Add(1)
 		go func(id vanus.ID) {
 			defer wg.Done()
-			w.stopSub(id)
-			w.cleanSub(id)
+			w.stopSubscription(id)
+			w.cleanSubscription(id)
 		}(id)
 	}
 	wg.Wait()
@@ -115,7 +118,7 @@ func (w *Worker) Stop() error {
 	return nil
 }
 
-func (w *Worker) stopSub(id vanus.ID) {
+func (w *Worker) stopSubscription(id vanus.ID) {
 	if info, exist := w.subscriptions[id]; exist {
 		log.Info(w.ctx, "worker begin stop subscription", map[string]interface{}{
 			"subId": id,
@@ -130,9 +133,9 @@ func (w *Worker) stopSub(id vanus.ID) {
 	}
 }
 
-func (w *Worker) cleanSub(id vanus.ID) {
+func (w *Worker) cleanSubscription(id vanus.ID) {
 	//wait offset commit or timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), w.config.CleanSubscriptionTimeout)
 	defer cancel()
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
@@ -191,7 +194,7 @@ func (w *Worker) AddSubscription(sub *primitive.Subscription) error {
 func (w *Worker) PauseSubscription(id vanus.ID) error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
-	w.stopSub(id)
+	w.stopSubscription(id)
 	return nil
 }
 
@@ -201,8 +204,8 @@ func (w *Worker) RemoveSubscription(id vanus.ID) error {
 	if _, exist := w.subscriptions[id]; !exist {
 		return nil
 	}
-	w.stopSub(id)
-	w.cleanSub(id)
+	w.stopSubscription(id)
+	w.cleanSubscription(id)
 	return nil
 }
 

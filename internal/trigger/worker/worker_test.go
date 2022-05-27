@@ -16,6 +16,7 @@ package worker
 
 import (
 	"testing"
+	"time"
 
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -99,5 +100,23 @@ func TestPauseSubscription(t *testing.T) {
 		So(err, ShouldBeNil)
 		_, exist := w.subscriptions[ID]
 		So(exist, ShouldBeTrue)
+	})
+}
+
+func TestCleanSubscription(t *testing.T) {
+	Convey("clean subscription by ID", t, func() {
+		ID := vanus.NewID()
+		w := NewWorker(Config{CleanSubscriptionTimeout: time.Millisecond * 100})
+		Convey("clean no exist subscription ID", func() {
+			w.cleanSubscription(ID)
+		})
+		Convey("clean exist subscription ID", func() {
+			w.subscriptions = map[vanus.ID]*subscriptionWorker{
+				ID: {stopTime: time.Now()},
+			}
+			w.cleanSubscription(ID)
+			_, exist := w.subscriptions[ID]
+			So(exist, ShouldBeFalse)
+		})
 	})
 }

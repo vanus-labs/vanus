@@ -148,3 +148,17 @@ func TestTriggerWorkerRemoveSubscription(t *testing.T) {
 		So(err, ShouldBeNil)
 	})
 }
+
+func TestTriggerWorkerClose(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	tWorker := NewTriggerWorkerByAddr("test")
+	_ = tWorker.init(ctx)
+	client := pbtrigger.NewMockTriggerWorkerClient(ctrl)
+	tWorker.client = client
+	Convey("test close", t, func() {
+		err := tWorker.Close()
+		So(err, ShouldBeNil)
+	})
+}
