@@ -41,6 +41,10 @@ func (e Entry) Size() int {
 	return EntryLengthSize + len(e.Payload)
 }
 
+func (e Entry) EndOffset() uint32 {
+	return e.Offset + uint32(e.Size())
+}
+
 func (e Entry) MarshalWithOffsetAndIndex() []byte {
 	buf := make([]byte, entryOffsetSize+entryIndexSize+len(e.Payload))
 	_, _ = e.doMarshalTo(buf, e.Offset, e.Index)

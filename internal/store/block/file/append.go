@@ -63,7 +63,7 @@ func (b *Block) NewAppendContext(last *block.Entry) block.AppendContext {
 			full = 1
 		}
 		return &appendContext{
-			offset: last.Offset + uint32(last.Size()),
+			offset: last.EndOffset(),
 			num:    last.Index + 1,
 			full:   full,
 		}
@@ -116,7 +116,7 @@ func (b *Block) CommitAppend(ctx context.Context, entries ...block.Entry) error 
 
 	offset := entries[0].Offset
 	last := &entries[len(entries)-1]
-	length := last.Offset - offset + uint32(last.Size())
+	length := last.EndOffset() - offset
 
 	// Check free space.
 	if !b.hasEnoughSpace(&b.actx, length, uint32(len(entries))) {
@@ -212,7 +212,7 @@ func (b *Block) checkEntries(ctx context.Context, entries []block.Entry) error {
 			})
 			return errors.ErrInternal
 		}
-		if prev.Offset+uint32(prev.Size()) != entry.Offset {
+		if prev.EndOffset() != entry.Offset {
 			log.Error(ctx, "block: entry offset is discontinuous.", map[string]interface{}{
 				"blockID": b.id,
 				"offset":  entry.Offset,
