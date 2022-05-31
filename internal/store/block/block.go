@@ -39,6 +39,7 @@ type Appender interface {
 }
 
 type AppendContext interface {
+	WriteOffset() uint32
 	Full() bool
 	MarkFull()
 	FullEntry() Entry

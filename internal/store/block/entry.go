@@ -94,6 +94,11 @@ func UnmarshalEntry(data []byte) (Entry, error) {
 	return e, nil
 }
 
+func EntryEndOffset(data []byte) uint32 {
+	offset := binary.BigEndian.Uint32(data[0:entryOffsetSize])
+	return offset + EntryLengthSize + uint32(len(data[entryOffsetSize+entryIndexSize:]))
+}
+
 func EntryLength(data []byte) uint32 {
-	return binary.BigEndian.Uint32(data)
+	return binary.BigEndian.Uint32(data[0:EntryLengthSize])
 }

@@ -56,6 +56,11 @@ type peer struct {
 
 type LeaderChangedListener func(block, leader vanus.ID, term uint64)
 
+type commitWaiter struct {
+	offset uint32
+	c      chan struct{}
+}
+
 type Replica struct {
 	blockID vanus.ID
 
@@ -63,6 +68,11 @@ type Replica struct {
 
 	appender block.TwoPCAppender
 	actx     block.AppendContext
+
+	waiters      []commitWaiter
+	commitIndex  uint64
+	commitOffset uint32
+	mu2          sync.Mutex
 
 	leaderID vanus.ID
 	listener LeaderChangedListener
@@ -94,6 +104,7 @@ func New(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, ra
 	r := &Replica{
 		blockID:  blockID,
 		appender: appender,
+		waiters:  make([]commitWaiter, 0),
 		listener: listener,
 		log:      raftLog,
 		sender:   sender,
@@ -103,6 +114,7 @@ func New(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, ra
 		donec:    make(chan struct{}),
 	}
 	r.actx = r.appender.NewAppendContext(nil)
+	r.commitOffset = r.actx.WriteOffset()
 
 	c := &raft.Config{
 		ID:                        blockID.Uint64(),
@@ -117,6 +129,7 @@ func New(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, ra
 		DisableProposalForwarding: true,
 	}
 	r.node = raft.RestartNode(c)
+	r.commitIndex = r.log.HardState().Commit
 
 	go r.run()
 
@@ -155,11 +168,20 @@ func (r *Replica) run() {
 		case <-t.C:
 			r.node.Tick()
 		case rd := <-r.node.Ready():
+			var partial bool
+			stateChanged := !raft.IsEmptyHardState(rd.HardState)
+			if stateChanged {
+				partial = r.wakeup(rd.HardState.Commit)
+			}
+
 			if err := r.log.Append(rd.Entries); err != nil {
 				panic(err)
 			}
 
-			if !raft.IsEmptyHardState(rd.HardState) {
+			if stateChanged {
+				if partial {
+					_ = r.wakeup(rd.HardState.Commit)
+				}
 				if err := r.log.SetHardState(rd.HardState); err != nil {
 					panic(err)
 				}
@@ -234,6 +256,35 @@ func (r *Replica) run() {
 			return
 		}
 	}
+}
+
+func (r *Replica) wakeup(commit uint64) (partial bool) {
+	li, _ := r.log.LastIndex()
+	if commit > li {
+		commit = li
+		partial = true
+	}
+
+	if commit <= r.commitIndex {
+		return
+	}
+	r.commitIndex = commit
+
+	for off := commit; off > 0; off-- {
+		entrypbs, err := r.log.Entries(off, off+1, 0)
+		if err != nil {
+			return
+		}
+
+		entrypb := entrypbs[0]
+		if entrypb.Type == raftpb.EntryNormal && len(entrypb.Data) > 0 {
+			offset := block.EntryEndOffset(entrypb.Data)
+			r.doWakeup(offset)
+			return
+		}
+	}
+
+	return partial
 }
 
 func (r *Replica) becomeLeader() {
@@ -322,15 +373,27 @@ func (r *Replica) Append(ctx context.Context, entries ...block.Entry) error {
 		return errors.ErrInvalidRequest
 	}
 
+	offset, err := r.append(ctx, entries)
+	if err != nil {
+		return err
+	}
+
+	// Wait until entries is committed.
+	r.waitCommit(ctx, offset)
+
+	return nil
+}
+
+func (r *Replica) append(ctx context.Context, entries []block.Entry) (uint32, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if !r.isLeader() {
-		return block.ErrNotLeader
+		return 0, block.ErrNotLeader
 	}
 
 	if r.actx.Full() {
-		return block.ErrFull
+		return 0, block.ErrFull
 	}
 
 	if err := r.appender.PrepareAppend(ctx, r.actx, entries...); err != nil {
@@ -339,22 +402,20 @@ func (r *Replica) Append(ctx context.Context, entries ...block.Entry) error {
 			entry := r.actx.FullEntry()
 			data := entry.MarshalWithOffsetAndIndex()
 			if err2 := r.node.Propose(ctx, data); err2 != nil {
-				return err2
+				return 0, err2
 			}
 			r.actx.MarkFull()
 		}
-		return err
+		return 0, err
 	}
 
 	// FIXME(james.yin): batch propose
 	data := entries[0].MarshalWithOffsetAndIndex()
 	if err := r.node.Propose(ctx, data); err != nil {
-		return err
+		return 0, err
 	}
 
-	// TODO(james.yin): wait committed
-
-	return nil
+	return r.actx.WriteOffset(), nil
 }
 
 func (r *Replica) doAppend(entries ...block.Entry) {
@@ -379,6 +440,44 @@ func (r *Replica) doAppend(entries ...block.Entry) {
 	if last != nil {
 		_ = r.appender.MarkFull(context.TODO())
 	}
+}
+
+func (r *Replica) waitCommit(ctx context.Context, offset uint32) {
+	r.mu2.Lock()
+
+	if offset <= r.commitOffset {
+		r.mu2.Unlock()
+		return
+	}
+
+	ch := make(chan struct{})
+	r.waiters = append(r.waiters, commitWaiter{
+		offset: offset,
+		c:      ch,
+	})
+
+	r.mu2.Unlock()
+
+	// FIXME(james.yin): lost leader
+	select {
+	case <-ch:
+	case <-ctx.Done():
+	}
+}
+
+func (r *Replica) doWakeup(commit uint32) {
+	r.mu2.Lock()
+	defer r.mu2.Unlock()
+
+	for len(r.waiters) != 0 {
+		waiter := r.waiters[0]
+		if waiter.offset > commit {
+			break
+		}
+		close(waiter.c)
+		r.waiters = r.waiters[1:]
+	}
+	r.commitOffset = commit
 }
 
 func (r *Replica) send(msgs []raftpb.Message) {

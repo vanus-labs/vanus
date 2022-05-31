@@ -38,6 +38,10 @@ func (c *appendContext) size() uint32 {
 	return c.offset - headerSize
 }
 
+func (c *appendContext) WriteOffset() uint32 {
+	return c.offset
+}
+
 func (c *appendContext) Full() bool {
 	return c.full != 0
 }
