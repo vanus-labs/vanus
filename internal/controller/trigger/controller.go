@@ -81,7 +81,7 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	ctrl.scheduler.EnqueueNormalSub(sub.ID)
+	ctrl.scheduler.EnqueueNormalSubscription(sub.ID)
 	resp := convert.ToPbSubscription(sub)
 	return resp, nil
 }
@@ -257,7 +257,7 @@ func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, ad
 	if err != nil {
 		return err
 	}
-	ctrl.scheduler.EnqueueSub(id)
+	ctrl.scheduler.EnqueueSubscription(id)
 	return nil
 }
 
@@ -278,9 +278,9 @@ func (ctrl *controller) init(ctx context.Context) error {
 	for ID, subscription := range ctrl.subscriptionManager.ListSubscription(ctx) {
 		switch subscription.Phase {
 		case primitive.SubscriptionPhaseCreated:
-			ctrl.scheduler.EnqueueNormalSub(ID)
+			ctrl.scheduler.EnqueueNormalSubscription(ID)
 		case primitive.SubscriptionPhasePending:
-			ctrl.scheduler.EnqueueSub(ID)
+			ctrl.scheduler.EnqueueSubscription(ID)
 		case primitive.SubscriptionPhaseToDelete:
 			ctrl.needCleanSubscription[ID] = subscription.TriggerWorker
 		}

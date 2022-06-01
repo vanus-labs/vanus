@@ -15,12 +15,13 @@
 package controller
 
 import (
+	"path/filepath"
+	"time"
+
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
 	"github.com/linkall-labs/vanus/internal/controller/trigger"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"path/filepath"
-	"time"
 )
 
 type Config struct {

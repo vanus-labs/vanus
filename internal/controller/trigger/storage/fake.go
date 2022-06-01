@@ -16,6 +16,7 @@ package storage
 
 import (
 	"context"
+
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive"
@@ -62,32 +63,32 @@ func (f *fake) GetSubscription(ctx context.Context, id vanus.ID) (*primitive.Sub
 }
 
 func (f *fake) ListSubscription(ctx context.Context) ([]*primitive.SubscriptionData, error) {
-	var list []*primitive.SubscriptionData
+	list := make([]*primitive.SubscriptionData, 0)
 	for _, sub := range f.subs {
 		list = append(list, sub)
 	}
 	return list, nil
 }
 
-func (f *fake) CreateOffset(ctx context.Context, subId vanus.ID, info pInfo.OffsetInfo) error {
-	sub, exist := f.offset[subId]
+func (f *fake) CreateOffset(ctx context.Context, subscriptionID vanus.ID, info pInfo.OffsetInfo) error {
+	sub, exist := f.offset[subscriptionID]
 	if !exist {
 		sub = map[vanus.ID]pInfo.OffsetInfo{}
-		f.offset[subId] = sub
+		f.offset[subscriptionID] = sub
 	}
 	sub[info.EventLogID] = info
 	return nil
 }
-func (f *fake) UpdateOffset(ctx context.Context, subId vanus.ID, info pInfo.OffsetInfo) error {
-	sub, exist := f.offset[subId]
+func (f *fake) UpdateOffset(ctx context.Context, subscriptionID vanus.ID, info pInfo.OffsetInfo) error {
+	sub, exist := f.offset[subscriptionID]
 	if !exist {
 		return kv.ErrorKeyNotFound
 	}
 	sub[info.EventLogID] = info
 	return nil
 }
-func (f *fake) GetOffsets(ctx context.Context, subId vanus.ID) (pInfo.ListOffsetInfo, error) {
-	sub, exist := f.offset[subId]
+func (f *fake) GetOffsets(ctx context.Context, subscriptionID vanus.ID) (pInfo.ListOffsetInfo, error) {
+	sub, exist := f.offset[subscriptionID]
 	if !exist {
 		return nil, nil
 	}
@@ -98,8 +99,8 @@ func (f *fake) GetOffsets(ctx context.Context, subId vanus.ID) (pInfo.ListOffset
 	return infos, nil
 }
 
-func (f *fake) DeleteOffset(ctx context.Context, subId vanus.ID) error {
-	delete(f.offset, subId)
+func (f *fake) DeleteOffset(ctx context.Context, subscriptionID vanus.ID) error {
+	delete(f.offset, subscriptionID)
 	return nil
 }
 
@@ -115,7 +116,7 @@ func (f *fake) DeleteTriggerWorker(ctx context.Context, id string) error {
 	return nil
 }
 func (f *fake) ListTriggerWorker(ctx context.Context) ([]*info.TriggerWorkerInfo, error) {
-	var list []*info.TriggerWorkerInfo
+	list := make([]*info.TriggerWorkerInfo, 0)
 	for _, data := range f.tWorkers {
 		list = append(list, data)
 	}

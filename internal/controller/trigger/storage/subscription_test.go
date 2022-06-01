@@ -107,7 +107,7 @@ func TestListSubscription(t *testing.T) {
 			EventBus: "bus",
 		}
 		v, _ := json.Marshal(expect)
-		kvClient.EXPECT().List(ctx, StorageSubscription.String()).Return([]kv.Pair{
+		kvClient.EXPECT().List(ctx, KeyPrefixSubscription.String()).Return([]kv.Pair{
 			{Key: fmt.Sprintf("%d", subID), Value: v},
 		}, nil)
 		list, err := s.ListSubscription(ctx)

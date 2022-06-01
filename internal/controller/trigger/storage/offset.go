@@ -27,11 +27,16 @@ import (
 )
 
 type OffsetStorage interface {
-	CreateOffset(ctx context.Context, subId vanus.ID, info info.OffsetInfo) error
-	UpdateOffset(ctx context.Context, subId vanus.ID, info info.OffsetInfo) error
-	GetOffsets(ctx context.Context, subId vanus.ID) (info.ListOffsetInfo, error)
-	DeleteOffset(ctx context.Context, subId vanus.ID) error
+	CreateOffset(ctx context.Context, subscriptionID vanus.ID, info info.OffsetInfo) error
+	UpdateOffset(ctx context.Context, subscriptionID vanus.ID, info info.OffsetInfo) error
+	GetOffsets(ctx context.Context, subscriptionID vanus.ID) (info.ListOffsetInfo, error)
+	DeleteOffset(ctx context.Context, subscriptionID vanus.ID) error
 }
+
+var (
+	base    = 10
+	bitSize = 64
+)
 
 type offsetStorage struct {
 	client kv.Client
@@ -43,39 +48,43 @@ func NewOffsetStorage(client kv.Client) OffsetStorage {
 	}
 }
 
-func (s *offsetStorage) getKey(subID, eventLogID vanus.ID) string {
-	return path.Join(StorageOffset.String(), subID.String(), eventLogID.String())
+func (s *offsetStorage) getKey(subscriptionID, eventLogID vanus.ID) string {
+	return path.Join(KeyPrefixOffset.String(), subscriptionID.String(), eventLogID.String())
 }
 
-func (s *offsetStorage) getSubKey(subID vanus.ID) string {
-	return path.Join(StorageOffset.String(), subID.String())
+func (s *offsetStorage) getSubKey(subscriptionID vanus.ID) string {
+	return path.Join(KeyPrefixOffset.String(), subscriptionID.String())
 }
 
 func (s *offsetStorage) int64ToByteArr(v uint64) []byte {
-	//b := make([]byte, 8)
-	//binary.LittleEndian.PutUint64(b, vanus.ID(v))
-	//return b
-	str := strconv.FormatUint(v, 10)
+	/*
+		b := make([]byte, 8)
+		binary.LittleEndian.PutUint64(b, vanus.ID(v))
+		return b
+	*/
+	str := strconv.FormatUint(v, base)
 	return []byte(str)
 }
 
 func (s *offsetStorage) byteArrToUint64(b []byte) uint64 {
-	//v := binary.LittleEndian.vanus.ID(b)
-	//return int64(v)
-	v, _ := strconv.ParseUint(string(b), 10, 64)
+	/*
+		v := binary.LittleEndian.vanus.ID(b)
+		return int64(v)
+	*/
+	v, _ := strconv.ParseUint(string(b), base, bitSize)
 	return v
 }
 
-func (s *offsetStorage) CreateOffset(ctx context.Context, subId vanus.ID, info info.OffsetInfo) error {
-	return s.client.Create(ctx, s.getKey(subId, info.EventLogID), s.int64ToByteArr(info.Offset))
+func (s *offsetStorage) CreateOffset(ctx context.Context, subscriptionID vanus.ID, info info.OffsetInfo) error {
+	return s.client.Create(ctx, s.getKey(subscriptionID, info.EventLogID), s.int64ToByteArr(info.Offset))
 }
 
-func (s *offsetStorage) UpdateOffset(ctx context.Context, subId vanus.ID, info info.OffsetInfo) error {
-	return s.client.Update(ctx, s.getKey(subId, info.EventLogID), s.int64ToByteArr(info.Offset))
+func (s *offsetStorage) UpdateOffset(ctx context.Context, subscriptionID vanus.ID, info info.OffsetInfo) error {
+	return s.client.Update(ctx, s.getKey(subscriptionID, info.EventLogID), s.int64ToByteArr(info.Offset))
 }
 
-func (s *offsetStorage) GetOffsets(ctx context.Context, subId vanus.ID) (info.ListOffsetInfo, error) {
-	l, err := s.client.List(ctx, s.getSubKey(subId))
+func (s *offsetStorage) GetOffsets(ctx context.Context, subscriptionID vanus.ID) (info.ListOffsetInfo, error) {
+	l, err := s.client.List(ctx, s.getSubKey(subscriptionID))
 	if err != nil {
 		return nil, err
 	}
@@ -87,6 +96,6 @@ func (s *offsetStorage) GetOffsets(ctx context.Context, subId vanus.ID) (info.Li
 	return infos, nil
 }
 
-func (s *offsetStorage) DeleteOffset(ctx context.Context, subId vanus.ID) error {
-	return s.client.DeleteDir(ctx, s.getSubKey(subId))
+func (s *offsetStorage) DeleteOffset(ctx context.Context, subscriptionID vanus.ID) error {
+	return s.client.DeleteDir(ctx, s.getSubKey(subscriptionID))
 }

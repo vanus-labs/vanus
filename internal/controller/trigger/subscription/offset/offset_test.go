@@ -35,29 +35,29 @@ func TestGetOffset(t *testing.T) {
 	storage := storage.NewMockOffsetStorage(ctrl)
 	storage.EXPECT().DeleteOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 	m := NewOffsetManager(storage, 0).(*manager)
-	subId := vanus.ID(1)
+	subscriptionID := vanus.ID(1)
 	eventLogID := vanus.ID(1)
 	offset := uint64(1)
 
 	Convey("get offset storage is empty", t, func() {
-		storage.EXPECT().GetOffsets(gomock.Any(), subId).Return(info.ListOffsetInfo{}, nil)
-		offsets, _ := m.GetOffset(ctx, subId)
+		storage.EXPECT().GetOffsets(gomock.Any(), subscriptionID).Return(info.ListOffsetInfo{}, nil)
+		offsets, _ := m.GetOffset(ctx, subscriptionID)
 		So(len(offsets), ShouldEqual, 0)
-		subOffset, exist := m.subOffset.Load(subId)
+		subOffset, exist := m.subscriptionOffset.Load(subscriptionID)
 		So(exist, ShouldBeTrue)
 		So(subOffset, ShouldNotBeNil)
-		m.RemoveRegisterSubscription(ctx, subId)
+		m.RemoveRegisterSubscription(ctx, subscriptionID)
 	})
 
 	Convey("get offset storage has", t, func() {
-		storage.EXPECT().GetOffsets(gomock.Any(), subId).Return(info.ListOffsetInfo{info.OffsetInfo{
+		storage.EXPECT().GetOffsets(gomock.Any(), subscriptionID).Return(info.ListOffsetInfo{info.OffsetInfo{
 			EventLogID: eventLogID,
 			Offset:     offset,
 		}}, nil)
-		offsets, _ := m.GetOffset(ctx, subId)
+		offsets, _ := m.GetOffset(ctx, subscriptionID)
 		So(len(offsets), ShouldEqual, 1)
 		So(offsets[0].Offset, ShouldEqual, offset)
-		subOffset, exist := m.subOffset.Load(subId)
+		subOffset, exist := m.subscriptionOffset.Load(subscriptionID)
 		So(exist, ShouldBeTrue)
 		So(subOffset, ShouldNotBeNil)
 	})
@@ -70,17 +70,17 @@ func TestSetOffset(t *testing.T) {
 	storage := storage.NewMockOffsetStorage(ctrl)
 	storage.EXPECT().DeleteOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 	m := NewOffsetManager(storage, 10*time.Microsecond)
-	subId := vanus.ID(1)
+	subscriptionID := vanus.ID(1)
 	eventLogID := vanus.ID(1)
 	offset := uint64(1)
 
 	Convey("set offset", t, func() {
-		storage.EXPECT().GetOffsets(gomock.Any(), subId).Return(info.ListOffsetInfo{}, nil)
-		m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
-		offsets, _ := m.GetOffset(ctx, subId)
+		storage.EXPECT().GetOffsets(gomock.Any(), subscriptionID).Return(info.ListOffsetInfo{}, nil)
+		m.Offset(ctx, subscriptionID, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
+		offsets, _ := m.GetOffset(ctx, subscriptionID)
 		So(len(offsets), ShouldEqual, 1)
 		So(offsets[0].Offset, ShouldEqual, offset)
-		m.RemoveRegisterSubscription(ctx, subId)
+		m.RemoveRegisterSubscription(ctx, subscriptionID)
 	})
 }
 
@@ -91,35 +91,33 @@ func TestCommit(t *testing.T) {
 	storage := storage.NewMockOffsetStorage(ctrl)
 	storage.EXPECT().DeleteOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 	m := NewOffsetManager(storage, 10*time.Microsecond).(*manager)
-	subId := vanus.ID(1)
+	subscriptionID := vanus.ID(1)
 	eventLogID := vanus.ID(1)
 	offset := uint64(1)
 
 	Convey("commit", t, func() {
 		Convey("commit with storage create", func() {
-			storage.EXPECT().GetOffsets(gomock.Any(), subId).Return(info.ListOffsetInfo{}, nil)
-			storage.EXPECT().CreateOffset(gomock.Any(), subId, gomock.Any()).Return(nil)
-			m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
-			offsets, _ := m.GetOffset(ctx, subId)
+			storage.EXPECT().GetOffsets(gomock.Any(), subscriptionID).Return(info.ListOffsetInfo{}, nil)
+			storage.EXPECT().CreateOffset(gomock.Any(), subscriptionID, gomock.Any()).Return(nil)
+			m.Offset(ctx, subscriptionID, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
+			offsets, _ := m.GetOffset(ctx, subscriptionID)
 			So(len(offsets), ShouldEqual, 1)
 			So(offsets[0].Offset, ShouldEqual, offset)
 			m.commit(ctx)
 			Convey("commit with storage update", func() {
 				offset++
-				m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
-				storage.EXPECT().UpdateOffset(gomock.Any(), subId, gomock.Any()).Return(nil)
+				m.Offset(ctx, subscriptionID, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
+				storage.EXPECT().UpdateOffset(gomock.Any(), subscriptionID, gomock.Any()).Return(nil)
 				m.commit(ctx)
 				Convey("commit with storage error", func() {
 					offset++
-					m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
-					storage.EXPECT().UpdateOffset(gomock.Any(), subId, gomock.Any()).Return(fmt.Errorf("error"))
+					m.Offset(ctx, subscriptionID, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
+					storage.EXPECT().UpdateOffset(gomock.Any(), subscriptionID, gomock.Any()).Return(fmt.Errorf("error"))
 					m.commit(ctx)
 				})
 			})
-
 		})
 	})
-
 }
 
 func TestStart(t *testing.T) {
@@ -128,39 +126,38 @@ func TestStart(t *testing.T) {
 	commitInterval := 10 * time.Millisecond
 	m := NewOffsetManager(storage, commitInterval)
 	Convey("commit", t, func() {
-		subId := vanus.ID(1)
+		subscriptionID := vanus.ID(1)
 		eventLogID := vanus.ID(1)
 		offset := uint64(1)
-		m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
+		m.Offset(ctx, subscriptionID, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
 		Convey("commit storage created", func() {
-			offsets, _ := m.GetOffset(ctx, subId)
+			offsets, _ := m.GetOffset(ctx, subscriptionID)
 			So(len(offsets), ShouldEqual, 1)
 			So(offsets[0].Offset, ShouldEqual, offset)
-			offsets, _ = storage.GetOffsets(ctx, subId)
+			offsets, _ = storage.GetOffsets(ctx, subscriptionID)
 			So(len(offsets), ShouldEqual, 0)
 			m.Start()
 			time.Sleep(2 * commitInterval)
 			m.Stop()
-			offsets, _ = storage.GetOffsets(ctx, subId)
+			offsets, _ = storage.GetOffsets(ctx, subscriptionID)
 			So(len(offsets), ShouldEqual, 1)
 			So(offsets[0].Offset, ShouldEqual, offset)
 
 			offset++
-			m.Offset(ctx, subId, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
+			m.Offset(ctx, subscriptionID, []info.OffsetInfo{{EventLogID: eventLogID, Offset: offset}})
 			Convey("commit storage update", func() {
-				offsets, _ = m.GetOffset(ctx, subId)
+				offsets, _ = m.GetOffset(ctx, subscriptionID)
 				So(len(offsets), ShouldEqual, 1)
 				So(offsets[0].Offset, ShouldEqual, offset)
-				offsets, _ = storage.GetOffsets(ctx, subId)
+				offsets, _ = storage.GetOffsets(ctx, subscriptionID)
 				So(len(offsets), ShouldEqual, 1)
 				m.Start()
 				time.Sleep(2 * commitInterval)
 				m.Stop()
-				offsets, _ = storage.GetOffsets(ctx, subId)
+				offsets, _ = storage.GetOffsets(ctx, subscriptionID)
 				So(len(offsets), ShouldEqual, 1)
 				So(offsets[0].Offset, ShouldEqual, offset)
 			})
 		})
-
 	})
 }

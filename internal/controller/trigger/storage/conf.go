@@ -14,14 +14,14 @@
 
 package storage
 
-type StorageKeyPrefix string
+type KeyPrefix string
 
-func (s StorageKeyPrefix) String() string {
+func (s KeyPrefix) String() string {
 	return string(s)
 }
 
 const (
-	StorageOffset        StorageKeyPrefix = "/trigger/offsets/"
-	StorageSubscription  StorageKeyPrefix = "/trigger/subscriptions/"
-	StorageTriggerWorker StorageKeyPrefix = "/trigger/triggerWorkers/"
+	KeyPrefixOffset        KeyPrefix = "/trigger/offsets/"
+	KeyPrefixSubscription  KeyPrefix = "/trigger/subscriptions/"
+	KeyPrefixTriggerWorker KeyPrefix = "/trigger/triggerWorkers/"
 )

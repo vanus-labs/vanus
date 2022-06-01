@@ -25,6 +25,10 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
+const (
+	defaultRetryPrintLog = 5
+)
+
 type SubscriptionScheduler struct {
 	normalQueue          queue.Queue
 	maxRetryPrintLog     int
@@ -35,10 +39,11 @@ type SubscriptionScheduler struct {
 	stop                 context.CancelFunc
 }
 
-func NewSubscriptionScheduler(triggerWorkerManager Manager, subscriptionManager subscription.Manager) *SubscriptionScheduler {
+func NewSubscriptionScheduler(triggerWorkerManager Manager,
+	subscriptionManager subscription.Manager) *SubscriptionScheduler {
 	s := &SubscriptionScheduler{
 		normalQueue:          queue.New(),
-		maxRetryPrintLog:     5,
+		maxRetryPrintLog:     defaultRetryPrintLog,
 		policy:               &RoundRobinPolicy{},
 		triggerWorkerManager: triggerWorkerManager,
 		subscriptionManager:  subscriptionManager,
@@ -47,12 +52,12 @@ func NewSubscriptionScheduler(triggerWorkerManager Manager, subscriptionManager 
 	return s
 }
 
-func (s *SubscriptionScheduler) EnqueueSub(subId vanus.ID) {
-	s.normalQueue.Add(subId.String())
+func (s *SubscriptionScheduler) EnqueueSubscription(id vanus.ID) {
+	s.normalQueue.Add(id.String())
 }
 
-func (s *SubscriptionScheduler) EnqueueNormalSub(subId vanus.ID) {
-	s.normalQueue.Add(subId.String())
+func (s *SubscriptionScheduler) EnqueueNormalSubscription(id vanus.ID) {
+	s.normalQueue.Add(id.String())
 }
 
 func (s *SubscriptionScheduler) Stop() {
@@ -63,27 +68,27 @@ func (s *SubscriptionScheduler) Run() {
 	go func() {
 		ctx := s.ctx
 		for {
-			subId, stop := s.normalQueue.Get()
+			subscriptionID, stop := s.normalQueue.Get()
 			if stop {
 				break
 			}
-			err := s.handler(ctx, subId)
+			err := s.handler(ctx, subscriptionID)
 			if err == nil {
-				s.normalQueue.Done(subId)
-				s.normalQueue.ClearFailNum(subId)
+				s.normalQueue.Done(subscriptionID)
+				s.normalQueue.ClearFailNum(subscriptionID)
 			} else {
-				s.normalQueue.ReAdd(subId)
+				s.normalQueue.ReAdd(subscriptionID)
 				log.Warning(ctx, "scheduler handler subscription has error", map[string]interface{}{
 					log.KeyError:          err,
-					log.KeySubscriptionID: subId,
+					log.KeySubscriptionID: subscriptionID,
 				})
 			}
 		}
 	}()
 }
 
-func (s *SubscriptionScheduler) handler(ctx context.Context, subIdStr string) error {
-	subscriptionID, _ := vanus.NewIDFromString(subIdStr)
+func (s *SubscriptionScheduler) handler(ctx context.Context, subscriptionIDStr string) error {
+	subscriptionID, _ := vanus.NewIDFromString(subscriptionIDStr)
 	for {
 		select {
 		case <-ctx.Done():

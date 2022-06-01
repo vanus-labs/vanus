@@ -16,10 +16,9 @@ package worker
 
 import (
 	"context"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"math/rand"
 	"sync/atomic"
-
-	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 )
 
 type TriggerWorkerPolicy interface {
