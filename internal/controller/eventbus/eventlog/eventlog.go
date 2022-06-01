@@ -200,7 +200,7 @@ func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
 
 	el, _ := v.(*eventlog)
 	s := el.currentAppendableSegment()
-	if s != nil && len(result) == 0 {
+	if s == nil && len(result) == 0 {
 		seg, err := mgr.createSegment(ctx, el)
 		if err != nil {
 			return nil, err

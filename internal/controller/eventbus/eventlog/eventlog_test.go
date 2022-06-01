@@ -185,7 +185,7 @@ func TestEventlogManager_RunWithTask(t *testing.T) {
 			Capacity: 64 * 1024 * 1024 * 1024,
 		}
 		alloc.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
-		alloc.EXPECT().Pick(ctx, 3).AnyTimes().DoAndReturn(func(ctx stdCtx.Context, num int) ([]*metadata.Block, error) {
+		alloc.EXPECT().Pick(gomock.Any(), 3).AnyTimes().DoAndReturn(func(ctx stdCtx.Context, num int) ([]*metadata.Block, error) {
 			return []*metadata.Block{
 				{
 					ID:       vanus.NewID(),
@@ -212,7 +212,7 @@ func TestEventlogManager_RunWithTask(t *testing.T) {
 		volIns.EXPECT().Address().AnyTimes().Return("127.0.0.1:10001")
 		grpcCli := segpb.NewMockSegmentServerClient(ctrl)
 		srv.EXPECT().GetClient().AnyTimes().Return(grpcCli)
-		grpcCli.EXPECT().ActivateSegment(ctx, gomock.Any()).AnyTimes().Return(nil, nil)
+		grpcCli.EXPECT().ActivateSegment(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, nil)
 
 		utMgr.scaleTick = time.NewTicker(20 * time.Millisecond)
 		utMgr.cleanTick = time.NewTicker(20 * time.Millisecond)
@@ -257,6 +257,7 @@ func TestEventlogManager_RunWithTask(t *testing.T) {
 		So(el3.size(), ShouldEqual, 0)
 	})
 }
+
 func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 	Convey("test AcquireEventLog", t, func() {
 		utMgr := &eventlogManager{segmentReplicaNum: 3}
