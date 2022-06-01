@@ -31,8 +31,8 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
-	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
-	"github.com/linkall-labs/vsproto/pkg/meta"
+	"github.com/linkall-labs/vanus/proto/pkg/meta"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 

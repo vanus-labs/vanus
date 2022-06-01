@@ -14,7 +14,7 @@
 
 package errors
 
-import rpcerr "github.com/linkall-labs/vsproto/pkg/errors"
+import rpcerr "github.com/linkall-labs/vanus/proto/pkg/errors"
 
 var (
 	ErrEventLogNotFound       = rpcerr.New("eventlog not found").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_NOT_FOUND)

@@ -18,9 +18,9 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	ctrl "github.com/linkall-labs/vsproto/pkg/controller"
-	pb "github.com/linkall-labs/vsproto/pkg/meta"
-	pbtrigger "github.com/linkall-labs/vsproto/pkg/trigger"
+	ctrl "github.com/linkall-labs/vanus/proto/pkg/controller"
+	pb "github.com/linkall-labs/vanus/proto/pkg/meta"
+	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
 )
 
 func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *primitive.SubscriptionData {

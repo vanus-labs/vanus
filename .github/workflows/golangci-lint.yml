@@ -20,12 +20,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/setup-go@v2
-      - name: checkout-vsproto
+      - name: checkout-proto
         uses: actions/checkout@v3
         with:
-          repository: linkall-labs/vsproto
+          repository: linkall-labs/proto
           token: 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 # `GH_PAT` is a secret that contains your PAT
-          path: vsproto
+          path: proto
       - name: checkout-etcd
         uses: actions/checkout@v3
         with:

@@ -21,8 +21,8 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/golang/protobuf/ptypes/empty"
-	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
-	"github.com/linkall-labs/vsproto/pkg/meta"
+	"github.com/linkall-labs/vanus/proto/pkg/meta"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/spf13/cobra"
 )
 

@@ -21,7 +21,7 @@ import (
 
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	metapb "github.com/linkall-labs/vsproto/pkg/meta"
+	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 )
 
 type SegmentState string

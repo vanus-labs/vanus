@@ -14,7 +14,7 @@
 
 package errors
 
-import rpcerr "github.com/linkall-labs/vsproto/pkg/errors"
+import rpcerr "github.com/linkall-labs/vanus/proto/pkg/errors"
 
 var (
 	ErrInternal              = rpcerr.New("internal error").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)

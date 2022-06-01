@@ -17,7 +17,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/linkall-labs/eventbus-go"
+	"github.com/linkall-labs/vanus/client"
 )
 
 func main() {

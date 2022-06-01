@@ -31,8 +31,8 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vsproto/pkg/meta"
-	"github.com/linkall-labs/vsproto/pkg/segment"
+	"github.com/linkall-labs/vanus/proto/pkg/meta"
+	"github.com/linkall-labs/vanus/proto/pkg/segment"
 )
 
 const (

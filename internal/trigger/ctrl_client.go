@@ -22,8 +22,8 @@ import (
 
 	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"github.com/linkall-labs/vanus/observability/log"
-	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
-	errpb "github.com/linkall-labs/vsproto/pkg/errors"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"

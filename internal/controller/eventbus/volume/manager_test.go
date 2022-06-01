@@ -28,7 +28,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/util"
-	"github.com/linkall-labs/vsproto/pkg/errors"
+	"github.com/linkall-labs/vanus/proto/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

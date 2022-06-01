@@ -19,8 +19,8 @@ import (
 
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/primitive/cel"
-	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
-	metapb "github.com/linkall-labs/vsproto/pkg/meta"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 
 	cesqlparser "github.com/cloudevents/sdk-go/sql/v2/parser"
 )

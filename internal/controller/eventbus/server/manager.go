@@ -23,7 +23,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/errors"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
-	segpb "github.com/linkall-labs/vsproto/pkg/segment"
+	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"

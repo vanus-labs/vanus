@@ -27,7 +27,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
-	rpcerr "github.com/linkall-labs/vsproto/pkg/errors"
+	rpcerr "github.com/linkall-labs/vanus/proto/pkg/errors"
 )
 
 const (

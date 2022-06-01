@@ -21,10 +21,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/eventbus-go/pkg/discovery"
-	"github.com/linkall-labs/eventbus-go/pkg/discovery/record"
-	eberrors "github.com/linkall-labs/eventbus-go/pkg/errors"
-	"github.com/linkall-labs/eventbus-go/pkg/eventlog"
+	"github.com/linkall-labs/vanus/client/pkg/discovery"
+	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
+	eberrors "github.com/linkall-labs/vanus/client/pkg/errors"
+	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/errors"
@@ -33,7 +33,7 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	eb "github.com/linkall-labs/eventbus-go"
+	eb "github.com/linkall-labs/vanus/client"
 )
 
 type Config struct {

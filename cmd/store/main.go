@@ -26,8 +26,8 @@ import (
 	"google.golang.org/grpc"
 
 	// first-party libraries.
-	raftpb "github.com/linkall-labs/vsproto/pkg/raft"
-	segpb "github.com/linkall-labs/vsproto/pkg/segment"
+	raftpb "github.com/linkall-labs/vanus/proto/pkg/raft"
+	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive"

@@ -10,7 +10,7 @@ run:
     - embed-etcd
     - eventbus-go
     - raft
-    - vsproto
+    - proto
 
 severity:
   default-severity: info
