@@ -69,7 +69,7 @@ func main() {
 	}
 
 	//trigger controller
-	triggerCtrlStv := trigger.NewTriggerController(cfg.GetTriggerConfig(), etcd)
+	triggerCtrlStv := trigger.NewController(cfg.GetTriggerConfig(), etcd)
 	if err = triggerCtrlStv.Start(); err != nil {
 		log.Error(ctx, "start trigger controller fail", map[string]interface{}{
 			log.KeyError: err,

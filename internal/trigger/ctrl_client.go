@@ -16,6 +16,10 @@ package trigger
 
 import (
 	"context"
+	"io"
+	"sync"
+	"time"
+
 	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
@@ -27,9 +31,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"io"
-	"sync"
-	"time"
 )
 
 type ctrlClient struct {
@@ -176,7 +177,7 @@ func (cli *ctrlClient) makeSureClient(renew bool) ctrlpb.TriggerControllerClient
 			leader = res.LeaderAddr
 			break
 		}
-		//todo check leader is invalid
+		// todo check leader is invalid
 		if leader == "" {
 			log.Info(context.Background(), "leader is empty", nil)
 			return nil
