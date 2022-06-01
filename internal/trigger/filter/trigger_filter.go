@@ -73,11 +73,13 @@ func extractFilter(subscriptionFilter *primitive.SubscriptionFilter) Filter {
 }
 
 func extractFilters(subscriptionFilters []*primitive.SubscriptionFilter) []Filter {
-	var filters []Filter
+	filters := make([]Filter, 0)
 	for _, subscriptionFilter := range subscriptionFilters {
 		tf := extractFilter(subscriptionFilter)
 		if tf == nil {
-			log.Debug(context.Background(), "get filter is nil will ignore the filter", map[string]interface{}{"filter": subscriptionFilter})
+			log.Debug(context.Background(), "get filter is nil will ignore the filter", map[string]interface{}{
+				"filter": subscriptionFilter,
+			})
 			continue
 		}
 		filters = append(filters, tf)
@@ -96,7 +98,7 @@ func GetFilter(subscriptionFilters []*primitive.SubscriptionFilter) Filter {
 	return NewAllFilter(filters...)
 }
 
-func FilterEvent(f Filter, event ce.Event) FilterResult {
+func FilterEvent(f Filter, event ce.Event) Result {
 	if f == nil {
 		return PassFilter
 	}

@@ -133,7 +133,7 @@ func (t *Trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 func (t *Trigger) runEventProcess(ctx context.Context) {
 	for {
 		select {
-		//TODO  是否立即停止，还是等待eventCh处理完
+		// TODO  是否立即停止，还是等待eventCh处理完.
 		case <-ctx.Done():
 			return
 		case event, ok := <-t.eventCh:
@@ -180,7 +180,7 @@ func (t *Trigger) runSleepWatch(ctx context.Context) {
 		case <-tk.C:
 			t.stateMutex.Lock()
 			if t.state == TriggerRunning {
-				if time.Now().Sub(t.lastActive) > t.SleepDuration {
+				if time.Since(t.lastActive) > t.SleepDuration {
 					t.state = TriggerSleep
 				} else {
 					t.state = TriggerRunning

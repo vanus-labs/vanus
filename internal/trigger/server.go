@@ -154,7 +154,7 @@ func (s *server) Initialize(ctx context.Context) error {
 	s.startTime = time.Now()
 	go func() {
 		time.Sleep(60 * time.Second)
-		//启动60s后还没有收到start，则退出
+		// 启动60s后还没有收到start，则退出.
 		if s.state != primitive.ServerStateRunning {
 			os.Exit(1)
 		}

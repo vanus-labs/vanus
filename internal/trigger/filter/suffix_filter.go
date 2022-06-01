@@ -15,6 +15,7 @@
 package filter
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -31,7 +32,7 @@ type suffixFilter struct {
 func NewSuffixFilter(suffix map[string]string) Filter {
 	for attr, v := range suffix {
 		if attr == "" || v == "" {
-			log.Info(nil, "new suffix filter but has empty ", map[string]interface{}{
+			log.Info(context.TODO(), "new suffix filter but has empty ", map[string]interface{}{
 				"attr":  attr,
 				"value": v,
 			})
@@ -41,11 +42,8 @@ func NewSuffixFilter(suffix map[string]string) Filter {
 	return &suffixFilter{suffix: suffix}
 }
 
-func (filter *suffixFilter) Filter(event ce.Event) FilterResult {
-	if filter == nil {
-		return FailFilter
-	}
-	log.Debug(nil, "suffix filter ", map[string]interface{}{"filter": filter, "event": event})
+func (filter *suffixFilter) Filter(event ce.Event) Result {
+	log.Debug(context.TODO(), "suffix filter ", map[string]interface{}{"filter": filter, "event": event})
 	for attr, suffix := range filter.suffix {
 		value, ok := util.LookupAttribute(event, attr)
 		if !ok {

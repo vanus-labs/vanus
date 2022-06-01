@@ -36,7 +36,6 @@ type Worker struct {
 	subscriptions map[vanus.ID]*subscriptionWorker
 	offsetManager *offset.Manager
 	lock          sync.RWMutex
-	wg            sync.WaitGroup
 	ctx           context.Context
 	stop          context.CancelFunc
 	config        Config
@@ -50,8 +49,8 @@ type subscriptionWorker struct {
 	stopTime time.Time
 }
 
-func (wk *Worker) NewSubWorker(sub *primitive.Subscription, subOffset *offset.SubscriptionOffset) *subscriptionWorker {
-	w := &subscriptionWorker{
+func (w *Worker) NewSubWorker(sub *primitive.Subscription, subOffset *offset.SubscriptionOffset) *subscriptionWorker {
+	sw := &subscriptionWorker{
 		events: make(chan info.EventOffset, 2048),
 		sub:    sub,
 	}
@@ -59,10 +58,10 @@ func (wk *Worker) NewSubWorker(sub *primitive.Subscription, subOffset *offset.Su
 	for _, o := range sub.Offsets {
 		offset[o.EventLogID] = o.Offset
 	}
-	w.reader = reader.NewReader(wk.getReaderConfig(sub), offset, w.events)
+	sw.reader = reader.NewReader(w.getReaderConfig(sub), offset, sw.events)
 	triggerConf := &trigger.Config{}
-	w.trigger = trigger.NewTrigger(triggerConf, sub, subOffset)
-	return w
+	sw.trigger = trigger.NewTrigger(triggerConf, sub, subOffset)
+	return sw
 }
 
 func (w *subscriptionWorker) Run(ctx context.Context) error {
@@ -134,7 +133,7 @@ func (w *Worker) stopSubscription(id vanus.ID) {
 }
 
 func (w *Worker) cleanSubscription(id vanus.ID) {
-	//wait offset commit or timeout
+	// wait offset commit or timeout
 	ctx, cancel := context.WithTimeout(context.Background(), w.config.CleanSubscriptionTimeout)
 	defer cancel()
 	ticker := time.NewTicker(10 * time.Millisecond)
@@ -158,7 +157,7 @@ loop:
 func (w *Worker) ListSubscriptionInfo() ([]pInfo.SubscriptionInfo, func()) {
 	w.lock.RLock()
 	defer w.lock.RUnlock()
-	var list []pInfo.SubscriptionInfo
+	list := make([]pInfo.SubscriptionInfo, 0)
 	for id := range w.subscriptions {
 		subOffset := w.offsetManager.GetSubscription(id)
 		if subOffset == nil {
@@ -214,8 +213,8 @@ func (w *Worker) getReaderConfig(sub *primitive.Subscription) reader.Config {
 		w.config.Controllers[0], sub.EventBus,
 		strings.Join(w.config.Controllers, ","))
 	return reader.Config{
-		EventBusName: sub.EventBus,
-		EventBusVRN:  ebVrn,
-		SubId:        sub.ID,
+		EventBusName:   sub.EventBus,
+		EventBusVRN:    ebVrn,
+		SubscriptionID: sub.ID,
 	}
 }

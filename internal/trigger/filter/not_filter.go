@@ -31,7 +31,7 @@ func NewNotFilter(f Filter) Filter {
 	return &notFilter{filter: f}
 }
 
-func (filter *notFilter) Filter(event ce.Event) FilterResult {
+func (filter *notFilter) Filter(event ce.Event) Result {
 	if filter == nil {
 		return FailFilter
 	}

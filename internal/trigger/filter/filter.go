@@ -20,15 +20,15 @@ import (
 
 // Filtering result conditions.
 const (
-	PassFilter FilterResult = true
-	FailFilter FilterResult = false
+	PassFilter Result = true
+	FailFilter Result = false
 )
 
-// FilterResult has the result of the filtering operation.
-type FilterResult bool
+// Result has the result of the filtering operation.
+type Result bool
 
 // Filter is an interface representing an event filter of the trigger filter.
 type Filter interface {
 	// Filter compute the predicate on the provided event and returns the result of the matching
-	Filter(ce.Event) FilterResult
+	Filter(ce.Event) Result
 }

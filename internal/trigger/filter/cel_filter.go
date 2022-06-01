@@ -34,13 +34,15 @@ func NewCELFilter(expression string) Filter {
 	}
 	cel, err := cel.Parse(expression)
 	if err != nil {
-		log.Info(context.Background(), "parse cel expression error", map[string]interface{}{"expression": expression, "error": err})
+		log.Info(context.Background(), "parse cel expression error", map[string]interface{}{
+			"expression": expression,
+			log.KeyError: err})
 		return nil
 	}
 	return &CELFilter{rawExpression: expression, parsedExpression: cel}
 }
 
-func (filter *CELFilter) Filter(event ce.Event) FilterResult {
+func (filter *CELFilter) Filter(event ce.Event) Result {
 	if filter == nil {
 		return FailFilter
 	}

@@ -108,10 +108,10 @@ func TestParseExample(t *testing.T) {
 	m, err := vjson.Decode([]byte(s))
 	fmt.Println(err)
 	for k, v := range m {
-		fmt.Println(fmt.Sprintf("%s:%s", k, v.String()))
+		fmt.Printf("%s:%s", k, v.String())
 		if v.Result != nil {
 			for k2, v2 := range v.Result {
-				fmt.Println(fmt.Sprintf("%s:%s", k2, v2.String()))
+				fmt.Printf("%s:%s", k2, v2.String())
 			}
 		}
 	}

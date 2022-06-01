@@ -19,7 +19,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/util"
 )
 
-//Type is json raw type.
+// Type is json raw type.
 type Type int
 
 const (
@@ -33,9 +33,9 @@ const (
 
 type Result struct {
 	Key string
-	//Type is the json type
+	// Type is the json type.
 	Type Type
-	//Raw is the raw json
+	// Raw is the raw json.
 	Raw []byte
 
 	Result map[string]Result
@@ -78,7 +78,7 @@ func (sList *scannerList) parseObject() error {
 		}
 		switch c {
 		case '"':
-			//key begin
+			// key begin.
 			s := &scanner{json: sList.json, pos: sList.pos + 1}
 			err := s.parseBeginKey()
 			if err != nil {
@@ -90,12 +90,12 @@ func (sList *scannerList) parseObject() error {
 			return nil
 		}
 	}
-	return errors.ErrVanusJsonParse.WithMessage("object not end")
+	return errors.ErrVanusJSONParse.WithMessage("object not end")
 }
 
 func (s *scanner) parseBeginKey() error {
 	start := s.pos
-	err := s.parseJsonString()
+	err := s.parseJSONString()
 	if err != nil {
 		return err
 	}
@@ -112,22 +112,22 @@ func (s *scanner) parseBeginKey() error {
 		case '"':
 			s.pos++
 			start = s.pos
-			err = s.parseJsonString()
+			err = s.parseJSONString()
 			if err != nil {
 				return err
 			}
-			//raw abc
+			// raw abc.
 			s.result.Raw = s.json[start:s.pos]
 			s.result.Type = String
 			return nil
 		case '[':
 			start = s.pos
 			s.pos++
-			err = s.parseJsonArr()
+			err = s.parseJSONArr()
 			if err != nil {
 				return err
 			}
-			//raw [1,2,3],contains []
+			// raw [1,2,3],contains [].
 			s.result.Raw = s.json[start : s.pos+1]
 			s.result.Type = Array
 			return nil
@@ -139,7 +139,7 @@ func (s *scanner) parseBeginKey() error {
 			if err != nil {
 				return err
 			}
-			//raw {"key":"value"}，contains {}
+			// raw {"key":"value"}，contains {} .
 			s.result.Raw = s.json[start : sList.pos+1]
 			s.result.Type = Object
 			s.result.Result = sList.result
@@ -147,27 +147,27 @@ func (s *scanner) parseBeginKey() error {
 			return nil
 		case 't':
 			start = s.pos
-			err = s.parseJsonTrue()
+			err = s.parseJSONTrue()
 			if err != nil {
 				return err
 			}
-			//raw ture
+			// raw ture.
 			s.result.Raw = s.json[start : s.pos+1]
 			s.result.Type = Bool
 			return nil
 		case 'f':
 			start = s.pos
-			err = s.parseJsonFalse()
+			err = s.parseJSONFalse()
 			if err != nil {
 				return err
 			}
-			//raw false
+			// raw false.
 			s.result.Raw = s.json[start : s.pos+1]
 			s.result.Type = Bool
 			return nil
 		case 'n':
 			start = s.pos
-			err = s.parseJsonNil()
+			err = s.parseJSONNil()
 			if err != nil {
 				return err
 			}
@@ -176,9 +176,6 @@ func (s *scanner) parseBeginKey() error {
 			s.result.Type = Null
 			return nil
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
-			start = s.pos
-		}
-		if '0' <= c && c <= '9' {
 			start = s.pos
 			s.pos++
 			err = s.parseNum()
@@ -190,7 +187,7 @@ func (s *scanner) parseBeginKey() error {
 			s.pos--
 			return nil
 		}
-		return errors.ErrVanusJsonParse.WithMessage("unknown value begin")
+		return errors.ErrVanusJSONParse.WithMessage("unknown value begin")
 	}
 	return nil
 }
@@ -203,10 +200,10 @@ func (s *scanner) parseNum() error {
 			return nil
 		}
 	}
-	return errors.ErrVanusJsonParse.WithMessage("number invalid end")
+	return errors.ErrVanusJSONParse.WithMessage("number invalid end")
 }
 
-func (s *scanner) parseJsonNil() error {
+func (s *scanner) parseJSONNil() error {
 	s.pos += 3
 	if s.pos < len(s.json) &&
 		s.json[s.pos-2] == 'u' &&
@@ -214,10 +211,10 @@ func (s *scanner) parseJsonNil() error {
 		s.json[s.pos] == 'l' {
 		return nil
 	}
-	return errors.ErrVanusJsonParse.WithMessage("null invalid")
+	return errors.ErrVanusJSONParse.WithMessage("null invalid")
 }
 
-func (s *scanner) parseJsonTrue() error {
+func (s *scanner) parseJSONTrue() error {
 	s.pos += 3
 	if s.pos < len(s.json) &&
 		s.json[s.pos-2] == 'r' &&
@@ -225,10 +222,10 @@ func (s *scanner) parseJsonTrue() error {
 		s.json[s.pos] == 'e' {
 		return nil
 	}
-	return errors.ErrVanusJsonParse.WithMessage("bool true invalid")
+	return errors.ErrVanusJSONParse.WithMessage("bool true invalid")
 }
 
-func (s *scanner) parseJsonFalse() error {
+func (s *scanner) parseJSONFalse() error {
 	s.pos += 4
 	if s.pos < len(s.json) &&
 		s.json[s.pos-3] == 'a' &&
@@ -237,10 +234,10 @@ func (s *scanner) parseJsonFalse() error {
 		s.json[s.pos] == 'e' {
 		return nil
 	}
-	return errors.ErrVanusJsonParse.WithMessage("bool false invalid")
+	return errors.ErrVanusJSONParse.WithMessage("bool false invalid")
 }
 
-func (s *scanner) parseJsonArr() error {
+func (s *scanner) parseJSONArr() error {
 	startCount := 1
 	for ; s.pos < len(s.json); s.pos++ {
 		c := s.json[s.pos]
@@ -254,10 +251,10 @@ func (s *scanner) parseJsonArr() error {
 			}
 		}
 	}
-	return errors.ErrVanusJsonParse.WithMessage("string not end")
+	return errors.ErrVanusJSONParse.WithMessage("string not end")
 }
 
-func (s *scanner) parseJsonString() error {
+func (s *scanner) parseJSONString() error {
 	for ; s.pos < len(s.json); s.pos++ {
 		c := s.json[s.pos]
 		switch c {
@@ -267,5 +264,5 @@ func (s *scanner) parseJsonString() error {
 			}
 		}
 	}
-	return errors.ErrVanusJsonParse.WithMessage("string not end")
+	return errors.ErrVanusJSONParse.WithMessage("string not end")
 }

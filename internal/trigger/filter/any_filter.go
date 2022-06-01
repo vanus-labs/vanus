@@ -31,7 +31,7 @@ func NewAnyFilter(filters ...Filter) Filter {
 	return append(anyFilter{}, filters...)
 }
 
-func (filter anyFilter) Filter(event ce.Event) FilterResult {
+func (filter anyFilter) Filter(event ce.Event) Result {
 	log.Debug(context.Background(), "any filter ", map[string]interface{}{"filter": filter, "event": event})
 	for _, f := range filter {
 		res := f.Filter(event)

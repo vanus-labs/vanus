@@ -41,7 +41,7 @@ func NewExactFilter(exact map[string]string) Filter {
 	return &exactFilter{exact: exact}
 }
 
-func (filter *exactFilter) Filter(event ce.Event) FilterResult {
+func (filter *exactFilter) Filter(event ce.Event) Result {
 	if filter == nil {
 		return FailFilter
 	}

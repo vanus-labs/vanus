@@ -36,12 +36,12 @@ import (
 
 func TestReader(t *testing.T) {
 	testSendInmemory()
-	//memoryEbVRN := "vanus+local:eventbus:1"
+	// memoryEbVRN := "vanus+local:eventbus:1".
 	memoryEbVRN := "vanus+local:///eventbus/1"
 	conf := reader.Config{
-		EventBusName: "testBus",
-		EventBusVRN:  memoryEbVRN,
-		SubId:        1,
+		EventBusName:   "testBus",
+		EventBusVRN:    memoryEbVRN,
+		SubscriptionID: 1,
 	}
 	events := make(chan info.EventOffset, 10)
 	r := reader.NewReader(conf, map[vanus.ID]uint64{}, events)
@@ -59,7 +59,7 @@ func TestReader(t *testing.T) {
 			}
 		}
 	}()
-	//wait read complete .
+	// wait read complete .
 	time.Sleep(time.Second)
 	r.Close()
 	close(events)
@@ -103,7 +103,7 @@ func testSendInmemory() {
 		for ; i <= 100; i++ {
 			tp := "test"
 			if i%2 == 0 {
-				//time.Sleep(1 * time.Second)
+				// time.Sleep(1 * time.Second).
 				tp = "none"
 			}
 			// Create an Event.
