@@ -17,6 +17,10 @@ package eventlog
 import (
 	stdCtx "context"
 	stdJson "encoding/json"
+	"path/filepath"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/block"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/errors"
@@ -28,9 +32,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/util"
 	segpb "github.com/linkall-labs/vsproto/pkg/segment"
 	. "github.com/smartystreets/goconvey/convey"
-	"path/filepath"
-	"testing"
-	"time"
 )
 
 func TestEventlogManager_RunWithoutTask(t *testing.T) {
@@ -255,7 +256,6 @@ func TestEventlogManager_RunWithTask(t *testing.T) {
 		So(el2.size(), ShouldEqual, 2)
 		So(el3.size(), ShouldEqual, 0)
 	})
-	//STOP
 }
 func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 	Convey("test AcquireEventLog", t, func() {
@@ -311,7 +311,7 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 		})
 
 		Convey("validate eventlog", func() {
-			elog := utMgr.getEventLog(stdCtx.Background(), logMD.ID)
+			elog := utMgr.getEventLog(logMD.ID)
 			So(elog, ShouldNotBeNil)
 			So(elog.size(), ShouldEqual, 2)
 			So(elog.appendableSegmentNumber(), ShouldEqual, 2)
@@ -345,7 +345,6 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(segAnother, ShouldEqual, seg)
 		})
-
 	})
 }
 
@@ -485,7 +484,6 @@ func TestEventlogManager_UpdateSegment(t *testing.T) {
 					},
 				},
 			})
-
 		})
 	})
 }
@@ -524,7 +522,6 @@ func TestEventlogManager_UpdateSegmentReplicas(t *testing.T) {
 		err = utMgr.UpdateSegmentReplicas(ctx, blk.ID, 4)
 		So(err, ShouldBeNil)
 	})
-
 }
 
 func TestEventlog(t *testing.T) {
@@ -593,7 +590,6 @@ func TestEventlog(t *testing.T) {
 			So(el.previousOf(el.indexAt(2)), ShouldEqual, seg2)
 			So(el.previousOf(el.indexAt(3)), ShouldEqual, seg3)
 		})
-
 	})
 }
 

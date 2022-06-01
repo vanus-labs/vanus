@@ -60,7 +60,7 @@ func main() {
 	}
 
 	// TODO wait server ready
-	segmentCtrl := eventbus.NewEventBusController(cfg.GetEventbusCtrlConfig(), etcd)
+	segmentCtrl := eventbus.NewController(cfg.GetEventbusCtrlConfig(), etcd)
 	if err = segmentCtrl.Start(ctx); err != nil {
 		log.Error(ctx, "start Eventbus Controller failed", map[string]interface{}{
 			log.KeyError: err,

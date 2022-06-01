@@ -16,6 +16,9 @@ package server
 
 import (
 	"context"
+	"sync"
+	"time"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/errors"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -24,8 +27,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-	"sync"
-	"time"
 )
 
 type Manager interface {
@@ -36,6 +37,10 @@ type Manager interface {
 	Run(ctx context.Context) error
 	Stop(ctx context.Context)
 }
+
+const (
+	serverStateRunning = "running"
+)
 
 func NewServerManager() Manager {
 	return &segmentServerManager{
@@ -65,7 +70,7 @@ func (mgr *segmentServerManager) AddServer(ctx context.Context, srv Server) erro
 
 	v, exist := mgr.segmentServerMapByIP.Load(srv.Address())
 	if exist {
-		srvOld := v.(Server)
+		srvOld, _ := v.(Server)
 		if srv.ID().Equals(srvOld.ID()) {
 			return nil
 		}
@@ -292,9 +297,9 @@ func (ss *segmentServer) IsActive(ctx context.Context) bool {
 	}
 
 	// maximum heartbeat interval is 1 minute
-	//return time.Now().Sub(ss.lastHeartbeatTime) > time.Minute
+	// return time.Now().Sub(ss.lastHeartbeatTime) > time.Minute
 	// TODO optimize here
-	return res.Status == "running"
+	return res.Status == serverStateRunning
 }
 
 func (ss *segmentServer) Uptime() time.Time {

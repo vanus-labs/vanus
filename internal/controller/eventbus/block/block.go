@@ -72,23 +72,23 @@ func (al *allocator) Run(ctx context.Context, kvCli kv.Client, startDynamicAlloc
 	for idx := range pairs {
 		pair := pairs[idx]
 		bl := &metadata.Block{}
-		err := json.Unmarshal(pair.Value, bl)
-		if err != nil {
-			return err
+		_err := json.Unmarshal(pair.Value, bl)
+		if _err != nil {
+			return _err
 		}
 		v, exist := al.volumeBlockBuffer.Load(bl.VolumeID.Key())
 		if !exist {
 			v = skiplist.New(skiplist.String)
 			al.volumeBlockBuffer.Store(bl.VolumeID.Key(), v)
 		}
-		l := v.(*skiplist.SkipList)
+		l, _ := v.(*skiplist.SkipList)
 		if bl.SegmentID == vanus.EmptyID() {
 			l.Set(bl.ID.Key(), bl)
 		}
 	}
 	if startDynamicAllocate {
 		al.cancelCtx, al.cancel = context.WithCancel(context.Background())
-		go al.dynamicAllocateBlockTask()
+		go al.dynamicAllocateBlockTask(al.cancelCtx)
 	}
 	return nil
 }
@@ -109,7 +109,7 @@ func (al *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, erro
 		var err error
 		var block *metadata.Block
 		if exist {
-			skipList = v.(*skiplist.SkipList)
+			skipList, _ = v.(*skiplist.SkipList)
 		}
 
 		if !exist || skipList.Len() == 0 {
@@ -127,7 +127,7 @@ func (al *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, erro
 			metrics.BlockCounterVec.WithLabelValues(metrics.LabelValueResourceManualCreate).Inc()
 		} else {
 			val := skipList.RemoveFront()
-			block = val.Value.(*metadata.Block)
+			block, _ = val.Value.(*metadata.Block)
 		}
 		blockArr[idx] = block
 	}
@@ -138,11 +138,10 @@ func (al *allocator) Stop() {
 	al.cancel()
 }
 
-func (al *allocator) dynamicAllocateBlockTask() {
-	ctx := context.Background()
+func (al *allocator) dynamicAllocateBlockTask(ctx context.Context) {
 	for {
 		select {
-		case <-al.cancelCtx.Done():
+		case <-ctx.Done():
 			log.Info(ctx, "the dynamic-allocate task exit", nil)
 			return
 		case <-al.allocateTicker.C:
@@ -154,9 +153,8 @@ func (al *allocator) dynamicAllocateBlockTask() {
 					v = skiplist.New(skiplist.String)
 					al.volumeBlockBuffer.Store(instance.GetMeta().ID.Key(), v)
 				}
-				skipList = v.(*skiplist.SkipList)
+				skipList, _ = v.(*skiplist.SkipList)
 				for skipList.Len() < defaultBlockBufferSizePerVolume {
-
 					block, err := instance.CreateBlock(ctx, defaultBlockSize)
 					if err != nil {
 						log.Warning(ctx, "create block failed", map[string]interface{}{

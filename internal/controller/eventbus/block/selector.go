@@ -23,7 +23,7 @@ import (
 )
 
 // VolumeSelector selector for Block creating. The implementation based on different algorithm, typical
-// is Round-Robin
+// is Round-Robin.
 type VolumeSelector interface {
 	// Select return #{num} server.Instance as an array, #{size} tell selector how large Block
 	// will be created. The same server.Instance maybe placed in different index of returned array

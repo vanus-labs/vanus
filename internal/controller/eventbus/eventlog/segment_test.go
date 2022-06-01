@@ -41,8 +41,8 @@ func TestConvert2ProtoSegment(t *testing.T) {
 			ID:                segID,
 			Capacity:          64 * 1024 * 1024,
 			EventLogID:        eID,
-			PreviousSegmentId: vanus.NewID(),
-			NextSegmentId:     vanus.NewID(),
+			PreviousSegmentID: vanus.NewID(),
+			NextSegmentID:     vanus.NewID(),
 			StartOffsetInLog:  1000,
 			Replicas: &ReplicaGroup{
 				ID:     vanus.NewID(),
@@ -104,8 +104,8 @@ func TestConvert2ProtoSegment(t *testing.T) {
 		So(pbSegs[0], ShouldResemble, pbSegs[1])
 		So(pbSegs[1], ShouldResemble, pbSegs[2])
 		So(pbSegs[0].Id, ShouldEqual, seg.ID.Uint64())
-		So(pbSegs[0].PreviousSegmentId, ShouldEqual, seg.PreviousSegmentId.Uint64())
-		So(pbSegs[0].NextSegmentId, ShouldEqual, seg.NextSegmentId.Uint64())
+		So(pbSegs[0].PreviousSegmentId, ShouldEqual, seg.PreviousSegmentID.Uint64())
+		So(pbSegs[0].NextSegmentId, ShouldEqual, seg.NextSegmentID.Uint64())
 		So(pbSegs[0].EventLogId, ShouldEqual, eID.Uint64())
 		So(pbSegs[0].StartOffsetInLog, ShouldEqual, seg.StartOffsetInLog)
 		So(pbSegs[0].EndOffsetInLog, ShouldEqual, seg.StartOffsetInLog+int64(seg.Number)-1)

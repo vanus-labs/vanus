@@ -15,11 +15,13 @@
 package eventlog
 
 import (
+	"context"
 	"encoding/json"
+	"time"
+
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	metapb "github.com/linkall-labs/vsproto/pkg/meta"
-	"time"
 )
 
 type SegmentState string
@@ -36,8 +38,8 @@ type Segment struct {
 	ID                vanus.ID      `json:"id,omitempty"`
 	Capacity          int64         `json:"capacity,omitempty"`
 	EventLogID        vanus.ID      `json:"event_log_id,omitempty"`
-	PreviousSegmentId vanus.ID      `json:"previous_segment_id,omitempty"`
-	NextSegmentId     vanus.ID      `json:"next_segment_id,omitempty"`
+	PreviousSegmentID vanus.ID      `json:"previous_segment_id,omitempty"`
+	NextSegmentID     vanus.ID      `json:"next_segment_id,omitempty"`
 	StartOffsetInLog  int64         `json:"start_offset_in_log,omitempty"`
 	Replicas          *ReplicaGroup `json:"replicas,omitempty"`
 	State             SegmentState  `json:"state,omitempty"`
@@ -109,7 +111,7 @@ func Convert2ProtoSegment(ins ...*Segment) []*metapb.Segment {
 		seg := ins[idx]
 		blocks := map[uint64]*metapb.Block{}
 		if seg.isReady() {
-			topo := mgr.getSegmentTopology(seg)
+			topo := mgr.getSegmentTopology(context.TODO(), seg)
 			for _, v := range seg.Replicas.Peers {
 				blocks[v.ID.Uint64()] = &metapb.Block{
 					Id:       v.ID.Uint64(),
@@ -120,8 +122,8 @@ func Convert2ProtoSegment(ins ...*Segment) []*metapb.Segment {
 		}
 		segs[idx] = &metapb.Segment{
 			Id:                seg.ID.Uint64(),
-			PreviousSegmentId: seg.PreviousSegmentId.Uint64(),
-			NextSegmentId:     seg.NextSegmentId.Uint64(),
+			PreviousSegmentId: seg.PreviousSegmentID.Uint64(),
+			NextSegmentId:     seg.NextSegmentID.Uint64(),
 			EventLogId:        seg.EventLogID.Uint64(),
 			StartOffsetInLog:  seg.StartOffsetInLog,
 			EndOffsetInLog:    seg.StartOffsetInLog + int64(seg.Number) - 1,
