@@ -37,9 +37,9 @@ import (
 )
 
 type Config struct {
-	EventBusName string
-	EventBusVRN  string
-	SubId        vanus.ID
+	EventBusName   string
+	EventBusVRN    string
+	SubscriptionID vanus.ID
 
 	CheckEventLogDuration time.Duration
 }
@@ -256,7 +256,10 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventlog.LogRe
 	}
 	for i := range events {
 		elReader.offset++
-		e := info.EventOffset{Event: events[i], OffsetInfo: pInfo.OffsetInfo{EventLogID: elReader.eventLogID, Offset: elReader.offset}}
+		e := info.EventOffset{Event: events[i], OffsetInfo: pInfo.OffsetInfo{
+			EventLogID: elReader.eventLogID,
+			Offset:     elReader.offset,
+		}}
 		if err = elReader.sendEvent(ctx, e); err != nil {
 			return err
 		}
@@ -287,7 +290,7 @@ func (elReader *eventLogReader) init(ctx context.Context) (eventlog.LogReader, e
 	defer cancel()
 	_, err = lr.Seek(timeout, int64(elReader.offset), io.SeekStart)
 	if err != nil {
-		//todo overflow need reset offset
+		// todo overflow need reset offset.
 		lr.Close()
 		return nil, err
 	}

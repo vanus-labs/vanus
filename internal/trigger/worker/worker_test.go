@@ -26,17 +26,17 @@ import (
 
 func TestAddSubscription(t *testing.T) {
 	Convey("add subscription", t, func() {
-		ID := vanus.NewID()
+		id := vanus.NewID()
 		w := NewWorker(Config{Controllers: []string{"test"}})
 		err := w.AddSubscription(&primitive.Subscription{
-			ID: ID,
+			ID: id,
 		})
 		So(err, ShouldBeNil)
-		_, exist := w.subscriptions[ID]
+		_, exist := w.subscriptions[id]
 		So(exist, ShouldBeTrue)
 		Convey("repeat add subscription", func() {
 			err = w.AddSubscription(&primitive.Subscription{
-				ID: ID,
+				ID: id,
 			})
 			So(err, ShouldNotBeNil)
 			So(err, ShouldEqual, errors.ErrResourceAlreadyExist)
@@ -46,16 +46,16 @@ func TestAddSubscription(t *testing.T) {
 
 func TestListSubscriptionInfo(t *testing.T) {
 	Convey("list subscription info", t, func() {
-		ID := vanus.NewID()
+		id := vanus.NewID()
 		w := NewWorker(Config{Controllers: []string{"test"}})
 		err := w.AddSubscription(&primitive.Subscription{
-			ID: ID,
+			ID: id,
 		})
 		So(err, ShouldBeNil)
 		list, f := w.ListSubscriptionInfo()
 		f()
 		So(len(list), ShouldEqual, 1)
-		So(list[0].SubscriptionID, ShouldEqual, ID)
+		So(list[0].SubscriptionID, ShouldEqual, id)
 	})
 }
 
@@ -90,32 +90,32 @@ func TestListSubscriptionInfo(t *testing.T) {
 
 func TestPauseSubscription(t *testing.T) {
 	Convey("pause subscription", t, func() {
-		ID := vanus.NewID()
+		id := vanus.NewID()
 		w := NewWorker(Config{Controllers: []string{"test"}})
 		err := w.AddSubscription(&primitive.Subscription{
-			ID: ID,
+			ID: id,
 		})
 		So(err, ShouldBeNil)
-		err = w.PauseSubscription(ID)
+		err = w.PauseSubscription(id)
 		So(err, ShouldBeNil)
-		_, exist := w.subscriptions[ID]
+		_, exist := w.subscriptions[id]
 		So(exist, ShouldBeTrue)
 	})
 }
 
 func TestCleanSubscription(t *testing.T) {
 	Convey("clean subscription by ID", t, func() {
-		ID := vanus.NewID()
+		id := vanus.NewID()
 		w := NewWorker(Config{CleanSubscriptionTimeout: time.Millisecond * 100})
 		Convey("clean no exist subscription ID", func() {
-			w.cleanSubscription(ID)
+			w.cleanSubscription(id)
 		})
 		Convey("clean exist subscription ID", func() {
 			w.subscriptions = map[vanus.ID]*subscriptionWorker{
-				ID: {stopTime: time.Now()},
+				id: {stopTime: time.Now()},
 			}
-			w.cleanSubscription(ID)
-			_, exist := w.subscriptions[ID]
+			w.cleanSubscription(id)
+			_, exist := w.subscriptions[id]
 			So(exist, ShouldBeFalse)
 		})
 	})

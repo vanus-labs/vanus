@@ -69,18 +69,18 @@ func TestSubscriptionData(t *testing.T) {
 		err := m.AddSubscription(ctx, makeSubscription())
 		So(err, ShouldBeNil)
 	})
-	var ID vanus.ID
+	var id vanus.ID
 	var subscriptionData *primitive.SubscriptionData
 	Convey("list subscription", t, func() {
 		subscriptionMap := m.ListSubscription(ctx)
 		So(len(subscriptionMap), ShouldEqual, 1)
-		for id, data := range subscriptionMap {
-			ID = id
+		for _id, data := range subscriptionMap {
+			id = _id
 			subscriptionData = data
 		}
 	})
 	Convey("get subscription data", t, func() {
-		subscription := m.GetSubscriptionData(ctx, ID)
+		subscription := m.GetSubscriptionData(ctx, id)
 		So(subscription, ShouldNotBeNil)
 	})
 	Convey("update subscription", t, func() {
@@ -88,12 +88,12 @@ func TestSubscriptionData(t *testing.T) {
 		subscriptionData.Sink = "newSink"
 		err := m.UpdateSubscription(ctx, subscriptionData)
 		So(err, ShouldBeNil)
-		subscription := m.GetSubscriptionData(ctx, ID)
+		subscription := m.GetSubscriptionData(ctx, id)
 		So(subscription.Sink, ShouldEqual, subscriptionData.Sink)
 	})
 	Convey("heartbeat", t, func() {
 		storage.MockSubscriptionStorage.EXPECT().UpdateSubscription(ctx, gomock.Any()).Return(nil)
-		err := m.Heartbeat(ctx, ID, "addr", time.Now())
+		err := m.Heartbeat(ctx, id, "addr", time.Now())
 		So(err, ShouldBeNil)
 	})
 }
@@ -107,10 +107,10 @@ func TestOffset(t *testing.T) {
 	m.offsetManager = offsetManager
 	storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).Return(nil)
 	m.AddSubscription(ctx, makeSubscription())
-	var ID vanus.ID
+	var id vanus.ID
 	subscriptionMap := m.ListSubscription(ctx)
-	for id := range subscriptionMap {
-		ID = id
+	for _id := range subscriptionMap {
+		id = _id
 	}
 	listOffsetInfo := info.ListOffsetInfo{
 		{EventLogID: 1, Offset: 10},
@@ -118,16 +118,16 @@ func TestOffset(t *testing.T) {
 	Convey("set offset ", t, func() {
 		err := m.Offset(ctx, 1, listOffsetInfo)
 		So(err, ShouldBeNil)
-		offsetManager.EXPECT().Offset(ctx, ID, listOffsetInfo).Return(nil)
-		err = m.Offset(ctx, ID, listOffsetInfo)
+		offsetManager.EXPECT().Offset(ctx, id, listOffsetInfo).Return(nil)
+		err = m.Offset(ctx, id, listOffsetInfo)
 		So(err, ShouldBeNil)
 	})
 	Convey("get offset", t, func() {
 		offsets, err := m.GetOffset(ctx, 1)
 		So(err, ShouldBeNil)
 		So(len(offsets), ShouldEqual, 0)
-		offsetManager.EXPECT().GetOffset(ctx, ID).Return(listOffsetInfo, nil)
-		offsets, err = m.GetOffset(ctx, ID)
+		offsetManager.EXPECT().GetOffset(ctx, id).Return(listOffsetInfo, nil)
+		offsets, err = m.GetOffset(ctx, id)
 		So(err, ShouldBeNil)
 		So(len(offsets), ShouldEqual, 1)
 		So(offsets[0].EventLogID, ShouldEqual, 1)
@@ -145,17 +145,17 @@ func TestSubscription(t *testing.T) {
 	m.offsetManager = offsetManager
 	storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).Return(nil)
 	m.AddSubscription(ctx, makeSubscription())
-	var ID vanus.ID
+	var id vanus.ID
 	subscriptionMap := m.ListSubscription(ctx)
-	for id := range subscriptionMap {
-		ID = id
+	for _id := range subscriptionMap {
+		id = _id
 	}
 	listOffsetInfo := info.ListOffsetInfo{
 		{EventLogID: 1, Offset: 10},
 	}
-	offsetManager.EXPECT().GetOffset(ctx, ID).Return(listOffsetInfo, nil)
+	offsetManager.EXPECT().GetOffset(ctx, id).Return(listOffsetInfo, nil)
 	Convey("get subscription", t, func() {
-		subscription, err := m.GetSubscription(ctx, ID)
+		subscription, err := m.GetSubscription(ctx, id)
 		So(err, ShouldBeNil)
 		So(subscription, ShouldNotBeNil)
 		So(subscription.Offsets[0].Offset, ShouldEqual, listOffsetInfo[0].Offset)
@@ -164,9 +164,9 @@ func TestSubscription(t *testing.T) {
 	Convey("delete subscription data", t, func() {
 		offsetManager.EXPECT().RemoveRegisterSubscription(ctx, gomock.Any()).Return(nil)
 		storage.MockSubscriptionStorage.EXPECT().DeleteSubscription(ctx, gomock.Any()).Return(nil)
-		err := m.DeleteSubscription(ctx, ID)
+		err := m.DeleteSubscription(ctx, id)
 		So(err, ShouldBeNil)
-		subscription, err := m.GetSubscription(ctx, ID)
+		subscription, err := m.GetSubscription(ctx, id)
 		So(err, ShouldNotBeNil)
 		So(subscription, ShouldBeNil)
 	})

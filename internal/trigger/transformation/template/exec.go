@@ -52,7 +52,7 @@ func NewOtherData(d []byte) Data {
 	return Data{Other, d}
 }
 
-func (p *Parser) executeJson(data map[string]Data) string {
+func (p *Parser) executeJSON(data map[string]Data) string {
 	var sb strings.Builder
 	for _, node := range p.GetNodes() {
 		switch node.Type() {
@@ -87,7 +87,7 @@ func (p *Parser) executeText(data map[string]Data) string {
 		switch node.Type() {
 		case Constant:
 			sb.WriteString(node.Value())
-		default:
+		case Variable, StringVariable:
 			v, exist := data[node.Value()]
 			if !exist || v.DataType == Null {
 				continue
@@ -101,7 +101,7 @@ func (p *Parser) executeText(data map[string]Data) string {
 func (p *Parser) Execute(data map[string]Data) string {
 	switch p.OutputType {
 	case JSON:
-		return p.executeJson(data)
+		return p.executeJSON(data)
 	default:
 		return p.executeText(data)
 	}

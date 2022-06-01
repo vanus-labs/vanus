@@ -29,8 +29,8 @@ import (
 type SubscriptionStorage interface {
 	CreateSubscription(ctx context.Context, sub *primitive.SubscriptionData) error
 	UpdateSubscription(ctx context.Context, sub *primitive.SubscriptionData) error
-	DeleteSubscription(ctx context.Context, subId vanus.ID) error
-	GetSubscription(ctx context.Context, subId vanus.ID) (*primitive.SubscriptionData, error)
+	DeleteSubscription(ctx context.Context, id vanus.ID) error
+	GetSubscription(ctx context.Context, id vanus.ID) (*primitive.SubscriptionData, error)
 	ListSubscription(ctx context.Context) ([]*primitive.SubscriptionData, error)
 }
 
@@ -45,7 +45,7 @@ func NewSubscriptionStorage(client kv.Client) SubscriptionStorage {
 }
 
 func (s *subscriptionStorage) getKey(subID vanus.ID) string {
-	return path.Join(StorageSubscription.String(), subID.String())
+	return path.Join(KeyPrefixSubscription.String(), subID.String())
 }
 
 func (s *subscriptionStorage) CreateSubscription(ctx context.Context, sub *primitive.SubscriptionData) error {
@@ -72,12 +72,12 @@ func (s *subscriptionStorage) UpdateSubscription(ctx context.Context, sub *primi
 	return nil
 }
 
-func (s *subscriptionStorage) DeleteSubscription(ctx context.Context, subId vanus.ID) error {
-	return s.client.Delete(ctx, s.getKey(subId))
+func (s *subscriptionStorage) DeleteSubscription(ctx context.Context, id vanus.ID) error {
+	return s.client.Delete(ctx, s.getKey(id))
 }
 
-func (s *subscriptionStorage) GetSubscription(ctx context.Context, subId vanus.ID) (*primitive.SubscriptionData, error) {
-	v, err := s.client.Get(ctx, s.getKey(subId))
+func (s *subscriptionStorage) GetSubscription(ctx context.Context, id vanus.ID) (*primitive.SubscriptionData, error) {
+	v, err := s.client.Get(ctx, s.getKey(id))
 	if err != nil {
 		return nil, err
 	}
@@ -90,11 +90,11 @@ func (s *subscriptionStorage) GetSubscription(ctx context.Context, subId vanus.I
 }
 
 func (s *subscriptionStorage) ListSubscription(ctx context.Context) ([]*primitive.SubscriptionData, error) {
-	l, err := s.client.List(ctx, StorageSubscription.String())
+	l, err := s.client.List(ctx, KeyPrefixSubscription.String())
 	if err != nil {
 		return nil, err
 	}
-	var list []*primitive.SubscriptionData
+	list := make([]*primitive.SubscriptionData, 0)
 	for _, v := range l {
 		sub := &primitive.SubscriptionData{}
 		err = json.Unmarshal(v.Value, sub)

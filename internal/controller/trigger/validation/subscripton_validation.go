@@ -72,7 +72,7 @@ func ValidateFilter(ctx context.Context, f *metapb.Filter) error {
 		return err
 	}
 	if f.Sql != "" {
-		err = validateCeSql(ctx, f.Sql)
+		err = validateCeSQL(ctx, f.Sql)
 		if err != nil {
 			return err
 		}
@@ -112,7 +112,7 @@ func validateCel(ctx context.Context, expression string) (err error) {
 	return nil
 }
 
-func validateCeSql(ctx context.Context, expression string) (err error) {
+func validateCeSQL(ctx context.Context, expression string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = errors.ErrCeSqlExpression.WithMessage(expression)
@@ -147,44 +147,38 @@ func hasMultipleDialects(f *metapb.Filter) bool {
 	if len(f.Prefix) > 0 {
 		if dialectFound {
 			return true
-		} else {
-			dialectFound = true
 		}
+		dialectFound = true
 	}
 	if len(f.Suffix) > 0 {
 		if dialectFound {
 			return true
-		} else {
-			dialectFound = true
 		}
+		dialectFound = true
 	}
 	if len(f.All) > 0 {
 		if dialectFound {
 			return true
-		} else {
-			dialectFound = true
 		}
+		dialectFound = true
 	}
 	if len(f.Any) > 0 {
 		if dialectFound {
 			return true
-		} else {
-			dialectFound = true
 		}
+		dialectFound = true
 	}
 	if f.Not != nil {
 		if dialectFound {
 			return true
-		} else {
-			dialectFound = true
 		}
+		dialectFound = true
 	}
 	if f.Sql != "" {
 		if dialectFound {
 			return true
-		} else {
-			dialectFound = true
 		}
+		dialectFound = true
 	}
 	if f.Cel != "" && dialectFound {
 		return true

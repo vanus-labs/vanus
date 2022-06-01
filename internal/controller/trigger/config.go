@@ -15,19 +15,13 @@
 package trigger
 
 import (
+	"time"
+
 	"github.com/linkall-labs/vanus/internal/primitive"
 )
 
 type Config struct {
 	// etcd storage config
-	Storage primitive.KvStorageConfig `yaml:"storage"`
-}
-
-func Init(filename string) (*Config, error) {
-	c := new(Config)
-	err := primitive.LoadConfig(filename, c)
-	if err != nil {
-		return nil, err
-	}
-	return c, nil
+	Storage              primitive.KvStorageConfig
+	GcSubscriptionPeriod time.Duration
 }

@@ -33,11 +33,11 @@ func TestReportSubId(t *testing.T) {
 	map1 := map[vanus.ID]struct{}{
 		1: {}, 2: {},
 	}
-	tWorker.SetReportSubId(map1)
-	getMap := tWorker.GetReportSubId()
+	tWorker.SetReportSubscription(map1)
+	getMap := tWorker.GetReportSubscription()
 	now := time.Now()
 	time.Sleep(time.Millisecond)
-	tWorker.SetReportSubId(map[vanus.ID]struct{}{
+	tWorker.SetReportSubscription(map[vanus.ID]struct{}{
 		11: {},
 	})
 	Convey("test", t, func() {
@@ -50,12 +50,12 @@ func TestReportSubId(t *testing.T) {
 
 func TestAssignSubId(t *testing.T) {
 	tWorker := NewTriggerWorkerByAddr("test")
-	subIds := []vanus.ID{1, 2}
-	for _, subId := range subIds {
-		tWorker.AddAssignSub(subId)
+	subscriptionIDs := []vanus.ID{1, 2}
+	for _, id := range subscriptionIDs {
+		tWorker.AddAssignSubscription(id)
 	}
-	assignSubIds := tWorker.GetAssignSubIds()
-	tWorker.AddAssignSub(3)
+	assignSubIds := tWorker.GetAssignSubscription()
+	tWorker.AddAssignSubscription(3)
 	Convey("test", t, func() {
 		So(len(assignSubIds), ShouldEqual, 2)
 		var keys []vanus.ID
@@ -65,14 +65,14 @@ func TestAssignSubId(t *testing.T) {
 		sort.Slice(keys, func(i, j int) bool {
 			return keys[i] > keys[j]
 		})
-		sort.Slice(subIds, func(i, j int) bool {
-			return subIds[i] > subIds[j]
+		sort.Slice(subscriptionIDs, func(i, j int) bool {
+			return subscriptionIDs[i] > subscriptionIDs[j]
 		})
-		So(keys, ShouldResemble, subIds)
+		So(keys, ShouldResemble, subscriptionIDs)
 	})
-	tWorker.RemoveAssignSub(1)
+	tWorker.RemoveAssignSubscription(1)
 	Convey("test", t, func() {
-		assignSubIds = tWorker.GetAssignSubIds()
+		assignSubIds = tWorker.GetAssignSubscription()
 		So(len(assignSubIds), ShouldEqual, 2)
 		var keys []vanus.ID
 		for k := range assignSubIds {

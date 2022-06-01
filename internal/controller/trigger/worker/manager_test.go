@@ -25,6 +25,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/observability/log"
 	pbtrigger "github.com/linkall-labs/vsproto/pkg/trigger"
 
 	"github.com/golang/mock/gomock"
@@ -39,8 +40,10 @@ func getTestSubscription() *primitive.SubscriptionData {
 }
 
 func getTestTriggerWorkerRemoveSubscription() OnTriggerWorkerRemoveSubscription {
-	return func(ctx context.Context, subId vanus.ID, addr string) error {
-		fmt.Println(fmt.Sprintf("trigger worker leave remove subscription %s", subId))
+	return func(ctx context.Context, subscriptionID vanus.ID, addr string) error {
+		log.Info(ctx, "trigger worker leave remove subscription", map[string]interface{}{
+			log.KeySubscriptionID: subscriptionID,
+		})
 		return nil
 	}
 }
@@ -72,7 +75,7 @@ func TestInit(t *testing.T) {
 		So(err, ShouldBeNil)
 		tWorker := twManager.GetTriggerWorker(ctx, addr)
 		So(tWorker, ShouldNotBeNil)
-		subIds := tWorker.GetAssignSubIds()
+		subIds := tWorker.GetAssignSubscription()
 		_, exist := subIds[sub.ID]
 		So(exist, ShouldBeTrue)
 	})
@@ -122,7 +125,7 @@ func TestRemoveTriggerWorker(t *testing.T) {
 			So(err, ShouldBeNil)
 			tWorker := twManager.GetTriggerWorker(ctx, addr)
 			So(tWorker, ShouldNotBeNil)
-			tWorker.AddAssignSub(sub.ID)
+			tWorker.AddAssignSubscription(sub.ID)
 			twManager.RemoveTriggerWorker(ctx, addr)
 			tWorker = twManager.GetTriggerWorker(ctx, addr)
 			So(tWorker, ShouldBeNil)
@@ -136,7 +139,7 @@ func TestRemoveTriggerWorker(t *testing.T) {
 			So(err, ShouldBeNil)
 			tWorker := twManager.GetTriggerWorker(ctx, addr)
 			So(tWorker, ShouldNotBeNil)
-			tWorker.AddAssignSub(sub.ID)
+			tWorker.AddAssignSubscription(sub.ID)
 			twManager.RemoveTriggerWorker(ctx, addr)
 			tWorker = twManager.GetTriggerWorker(ctx, addr)
 			So(tWorker, ShouldBeNil)
@@ -169,8 +172,8 @@ func TestAssignSubscription(t *testing.T) {
 			ID: sub.ID,
 		}, nil)
 		twManager.AssignSubscription(ctx, tWorker, sub.ID)
-		So(len(tWorker.GetAssignSubIds()), ShouldEqual, 1)
-		_, exist := tWorker.GetAssignSubIds()[sub.ID]
+		So(len(tWorker.GetAssignSubscription()), ShouldEqual, 1)
+		_, exist := tWorker.GetAssignSubscription()[sub.ID]
 		So(exist, ShouldBeTrue)
 	})
 }
@@ -195,14 +198,14 @@ func TestUnAssignSubscription(t *testing.T) {
 		tWorker.client = client
 		err = twManager.UpdateTriggerWorkerInfo(ctx, addr, map[vanus.ID]struct{}{})
 		So(err, ShouldBeNil)
-		tWorker.AddAssignSub(sub.ID)
-		So(len(tWorker.GetAssignSubIds()), ShouldEqual, 1)
-		_, exist := tWorker.GetAssignSubIds()[sub.ID]
+		tWorker.AddAssignSubscription(sub.ID)
+		So(len(tWorker.GetAssignSubscription()), ShouldEqual, 1)
+		_, exist := tWorker.GetAssignSubscription()[sub.ID]
 		So(exist, ShouldBeTrue)
 		client.EXPECT().RemoveSubscription(ctx, gomock.Any()).AnyTimes().Return(nil, nil)
 		err = twManager.UnAssignSubscription(ctx, addr, sub.ID)
 		So(err, ShouldBeNil)
-		So(len(tWorker.GetAssignSubIds()), ShouldEqual, 0)
+		So(len(tWorker.GetAssignSubscription()), ShouldEqual, 0)
 	})
 }
 
@@ -232,12 +235,12 @@ func TestPendingTriggerWorkerHandler(t *testing.T) {
 			twManager.pendingTriggerWorkerHandler(ctx, tWorker)
 		})
 		Convey("pending worker clean", func() {
-			tWorker.AddAssignSub(sub.ID)
+			tWorker.AddAssignSubscription(sub.ID)
 			tWorker.PendingTime = time.Now().Add(twManager.config.WaitRunningTimeout * -1)
 			workerStorage.EXPECT().DeleteTriggerWorker(ctx, gomock.Any()).Return(nil)
 			twManager.pendingTriggerWorkerHandler(ctx, tWorker)
 			So(tWorker.GetPhase(), ShouldEqual, info.TriggerWorkerPhasePaused)
-			So(len(tWorker.GetAssignSubIds()), ShouldEqual, 0)
+			So(len(tWorker.GetAssignSubscription()), ShouldEqual, 0)
 			tWorker = twManager.GetTriggerWorker(ctx, addr)
 			So(tWorker, ShouldBeNil)
 		})
@@ -282,13 +285,13 @@ func TestRunningTriggerWorkerHandler(t *testing.T) {
 
 		Convey("running worker start subscription", func() {
 			hbTime := time.Now().Add(twManager.config.StartSubscriptionDuration * -1)
-			tWorker.SetReportSubId(map[vanus.ID]struct{}{vanus.ID(2): {}})
-			tWorker.AssignSubIds = map[vanus.ID]time.Time{sub.ID: hbTime}
+			tWorker.SetReportSubscription(map[vanus.ID]struct{}{vanus.ID(2): {}})
+			tWorker.AssignSubscriptionIDs = map[vanus.ID]time.Time{sub.ID: hbTime}
 			subManager.EXPECT().Heartbeat(ctx, gomock.Any(), addr, gomock.Any()).Return(nil)
 			Convey("subscription not exist", func() {
 				subManager.EXPECT().GetSubscription(ctx, sub.ID).Return(nil, subscription.ErrSubscriptionNotExist)
 				twManager.runningTriggerWorkerHandler(ctx, tWorker)
-				So(len(tWorker.GetAssignSubIds()), ShouldEqual, 0)
+				So(len(tWorker.GetAssignSubscription()), ShouldEqual, 0)
 			})
 			Convey("subscription  start", func() {
 				subManager.EXPECT().GetSubscription(ctx, sub.ID).Return(&primitive.Subscription{
@@ -302,9 +305,7 @@ func TestRunningTriggerWorkerHandler(t *testing.T) {
 				twManager.runningTriggerWorkerHandler(ctx, tWorker)
 			})
 		})
-
 	})
-
 }
 
 func TestManagerCheck(t *testing.T) {
@@ -372,9 +373,7 @@ func TestGetActiveWorker(t *testing.T) {
 			So(len(tWorkers), ShouldEqual, 1)
 			So(tWorkers[0].Addr, ShouldEqual, tWorker1.info.Addr)
 		})
-
 	})
-
 }
 
 func TestManagerStartStop(t *testing.T) {

@@ -42,7 +42,7 @@ func NewPrefixFilter(prefix map[string]string) Filter {
 	return &prefixFilter{prefix: prefix}
 }
 
-func (filter *prefixFilter) Filter(event ce.Event) FilterResult {
+func (filter *prefixFilter) Filter(event ce.Event) Result {
 	if filter == nil {
 		return FailFilter
 	}

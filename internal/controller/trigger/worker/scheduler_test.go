@@ -62,7 +62,6 @@ func TestSubscriptionSchedulerHandler(t *testing.T) {
 			workerManager.EXPECT().AssignSubscription(ctx, gomock.Any(), gomock.Any())
 			scheduler.handler(ctx, subscriptionID.String())
 		})
-
 	})
 }
 
@@ -84,7 +83,7 @@ func TestSubscriptionSchedulerRun(t *testing.T) {
 					ID:    subscriptionID,
 					Phase: primitive.SubscriptionPhaseScheduled,
 				})
-			scheduler.EnqueueSub(subscriptionID)
+			scheduler.EnqueueSubscription(subscriptionID)
 			scheduler.Run()
 			time.Sleep(10 * time.Millisecond)
 			scheduler.Stop()
@@ -99,11 +98,10 @@ func TestSubscriptionSchedulerRun(t *testing.T) {
 				})
 			workerManager.EXPECT().GetTriggerWorker(ctx, workerAddr).Return(NewTriggerWorkerByAddr(workerAddr))
 			subscriptionManager.EXPECT().UpdateSubscription(ctx, gomock.Any()).AnyTimes().Return(errors.New("update error"))
-			scheduler.EnqueueSub(subscriptionID)
+			scheduler.EnqueueSubscription(subscriptionID)
 			scheduler.Run()
 			time.Sleep(10 * time.Millisecond)
 			scheduler.Stop()
 		})
-
 	})
 }

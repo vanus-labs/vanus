@@ -30,75 +30,75 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-//TriggerWorker send SubscriptionData to trigger worker server
+// TriggerWorker send SubscriptionData to trigger worker server.
 type TriggerWorker struct {
-	info          *info.TriggerWorkerInfo
-	cc            *grpc.ClientConn
-	client        trigger.TriggerWorkerClient
-	lock          sync.RWMutex
-	AssignSubIds  map[vanus.ID]time.Time
-	ReportSubIds  map[vanus.ID]struct{}
-	PendingTime   time.Time
-	HeartbeatTime *time.Time
+	info                  *info.TriggerWorkerInfo
+	cc                    *grpc.ClientConn
+	client                trigger.TriggerWorkerClient
+	lock                  sync.RWMutex
+	AssignSubscriptionIDs map[vanus.ID]time.Time
+	ReportSubscriptionIDs map[vanus.ID]struct{}
+	PendingTime           time.Time
+	HeartbeatTime         *time.Time
 }
 
-func NewTriggerWorkerByAddr(Addr string) *TriggerWorker {
-	tw := NewTriggerWorker(info.NewTriggerWorkerInfo(Addr))
+func NewTriggerWorkerByAddr(addr string) *TriggerWorker {
+	tw := NewTriggerWorker(info.NewTriggerWorkerInfo(addr))
 	return tw
 }
 
 func NewTriggerWorker(twInfo *info.TriggerWorkerInfo) *TriggerWorker {
 	tw := &TriggerWorker{
-		info:         twInfo,
-		PendingTime:  time.Now(),
-		AssignSubIds: map[vanus.ID]time.Time{},
-		ReportSubIds: map[vanus.ID]struct{}{},
+		info:                  twInfo,
+		PendingTime:           time.Now(),
+		AssignSubscriptionIDs: map[vanus.ID]time.Time{},
+		ReportSubscriptionIDs: map[vanus.ID]struct{}{},
 	}
 	return tw
 }
 
-//ResetReportSubId trigger worker restart
-func (tw *TriggerWorker) ResetReportSubId() {
+// ResetReportSubscription trigger worker restart.
+func (tw *TriggerWorker) ResetReportSubscription() {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	tw.ReportSubIds = map[vanus.ID]struct{}{}
+	tw.ReportSubscriptionIDs = map[vanus.ID]struct{}{}
 	tw.info.Phase = info.TriggerWorkerPhasePending
 	tw.PendingTime = time.Now()
 }
 
-//SetReportSubId trigger worker heartbeat running subscription
-func (tw *TriggerWorker) SetReportSubId(subIds map[vanus.ID]struct{}) {
+// SetReportSubscription trigger worker heartbeat running subscription.
+func (tw *TriggerWorker) SetReportSubscription(ids map[vanus.ID]struct{}) {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	tw.ReportSubIds = subIds
+	tw.ReportSubscriptionIDs = ids
 	now := time.Now()
 	tw.HeartbeatTime = &now
 }
 
-func (tw *TriggerWorker) GetReportSubId() map[vanus.ID]struct{} {
+func (tw *TriggerWorker) GetReportSubscription() map[vanus.ID]struct{} {
 	tw.lock.RLock()
 	defer tw.lock.RUnlock()
-	return tw.ReportSubIds
+	return tw.ReportSubscriptionIDs
 }
 
-func (tw *TriggerWorker) AddAssignSub(subId vanus.ID) {
+func (tw *TriggerWorker) AddAssignSubscription(id vanus.ID) {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	tw.AssignSubIds[subId] = time.Now()
+	tw.AssignSubscriptionIDs[id] = time.Now()
 }
 
-func (tw *TriggerWorker) RemoveAssignSub(subId vanus.ID) {
+func (tw *TriggerWorker) RemoveAssignSubscription(id vanus.ID) {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	delete(tw.AssignSubIds, subId)
+	delete(tw.AssignSubscriptionIDs, id)
 }
 
-func (tw *TriggerWorker) GetAssignSubIds() map[vanus.ID]time.Time {
+func (tw *TriggerWorker) GetAssignSubscription() map[vanus.ID]time.Time {
 	tw.lock.RLock()
 	defer tw.lock.RUnlock()
-	newMap := make(map[vanus.ID]time.Time, len(tw.AssignSubIds))
-	for subId, t := range tw.AssignSubIds {
-		newMap[subId] = t
+	newMap := make(map[vanus.ID]time.Time, len(tw.AssignSubscriptionIDs))
+	for id, t := range tw.AssignSubscriptionIDs {
+		newMap[id] = t
 	}
 	return newMap
 }
@@ -110,10 +110,7 @@ func (tw *TriggerWorker) GetPendingTime() time.Time {
 func (tw *TriggerWorker) HasHeartbeat() bool {
 	tw.lock.RLock()
 	defer tw.lock.RUnlock()
-	if tw.HeartbeatTime == nil {
-		return false
-	}
-	return true
+	return tw.HeartbeatTime != nil
 }
 
 func (tw *TriggerWorker) GetLastHeartbeatTime() time.Time {

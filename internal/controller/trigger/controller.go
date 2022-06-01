@@ -16,10 +16,9 @@ package trigger
 
 import (
 	"context"
+	stdErr "errors"
 	"io"
-	"os"
 	"sync"
-	"time"
 
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
@@ -34,40 +33,42 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/linkall-labs/vsproto/pkg/meta"
-
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-//triggerController allocate subscription to trigger worker
-type triggerController struct {
-	config               Config
-	member               embedetcd.Member
-	storage              storage.Storage
-	subscriptionManager  subscription.Manager
-	triggerWorkerManager worker.Manager
-	scheduler            *worker.SubscriptionScheduler
-	needCleanSubIds      map[vanus.ID]string
-	lock                 sync.Mutex
-	membershipMutex      sync.Mutex
-	isLeader             bool
-	ctx                  context.Context
-	stopFunc             context.CancelFunc
-	state                primitive.ServerState
-}
+var (
+	_ ctrlpb.TriggerControllerServer = &controller{}
+)
 
-func NewTriggerController(config Config, member embedetcd.Member) *triggerController {
-	ctrl := &triggerController{
-		config:          config,
-		member:          member,
-		needCleanSubIds: map[vanus.ID]string{},
-		state:           primitive.ServerStateCreated,
+func NewController(config Config, member embedetcd.Member) *controller {
+	ctrl := &controller{
+		config:                config,
+		member:                member,
+		needCleanSubscription: map[vanus.ID]string{},
+		state:                 primitive.ServerStateCreated,
 	}
 	ctrl.ctx, ctrl.stopFunc = context.WithCancel(context.Background())
 	return ctrl
 }
 
-//CreateSubscription api storage
-func (ctrl *triggerController) CreateSubscription(ctx context.Context, request *ctrlpb.CreateSubscriptionRequest) (*meta.Subscription, error) {
+type controller struct {
+	config                Config
+	member                embedetcd.Member
+	storage               storage.Storage
+	subscriptionManager   subscription.Manager
+	triggerWorkerManager  worker.Manager
+	scheduler             *worker.SubscriptionScheduler
+	needCleanSubscription map[vanus.ID]string
+	lock                  sync.Mutex
+	membershipMutex       sync.Mutex
+	isLeader              bool
+	ctx                   context.Context
+	stopFunc              context.CancelFunc
+	state                 primitive.ServerState
+}
+
+func (ctrl *controller) CreateSubscription(ctx context.Context,
+	request *ctrlpb.CreateSubscriptionRequest) (*meta.Subscription, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
@@ -80,12 +81,13 @@ func (ctrl *triggerController) CreateSubscription(ctx context.Context, request *
 	if err != nil {
 		return nil, err
 	}
-	ctrl.scheduler.EnqueueNormalSub(sub.ID)
+	ctrl.scheduler.EnqueueNormalSubscription(sub.ID)
 	resp := convert.ToPbSubscription(sub)
 	return resp, nil
 }
 
-func (ctrl *triggerController) DeleteSubscription(ctx context.Context, request *ctrlpb.DeleteSubscriptionRequest) (*emptypb.Empty, error) {
+func (ctrl *controller) DeleteSubscription(ctx context.Context,
+	request *ctrlpb.DeleteSubscriptionRequest) (*emptypb.Empty, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
@@ -102,14 +104,15 @@ func (ctrl *triggerController) DeleteSubscription(ctx context.Context, request *
 			if err != nil {
 				ctrl.lock.Lock()
 				defer ctrl.lock.Unlock()
-				ctrl.needCleanSubIds[subID] = addr
+				ctrl.needCleanSubscription[subID] = addr
 			}
 		}(subID, subData.TriggerWorker)
 	}
 	return &emptypb.Empty{}, nil
 }
 
-func (ctrl *triggerController) GetSubscription(ctx context.Context, request *ctrlpb.GetSubscriptionRequest) (*meta.Subscription, error) {
+func (ctrl *controller) GetSubscription(ctx context.Context,
+	request *ctrlpb.GetSubscriptionRequest) (*meta.Subscription, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
@@ -121,7 +124,8 @@ func (ctrl *triggerController) GetSubscription(ctx context.Context, request *ctr
 	return resp, nil
 }
 
-func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerController_TriggerWorkerHeartbeatServer) error {
+func (ctrl *controller) TriggerWorkerHeartbeat(
+	heartbeat ctrlpb.TriggerController_TriggerWorkerHeartbeatServer) error {
 	ctx := ctrl.ctx
 	for {
 		select {
@@ -135,43 +139,43 @@ func (ctrl *triggerController) TriggerWorkerHeartbeat(heartbeat ctrlpb.TriggerCo
 			return nil
 		}
 		req, err := heartbeat.Recv()
-		if err == nil {
-			log.Debug(ctx, "heartbeat", map[string]interface{}{
-				log.KeyTriggerWorkerAddr: req.Address,
-				"subs":                   req.SubInfos,
-			})
-			subIds := make(map[vanus.ID]struct{}, len(req.SubInfos))
-			for _, sub := range req.SubInfos {
-				subIds[vanus.ID(sub.SubscriptionId)] = struct{}{}
-			}
-			err = ctrl.triggerWorkerManager.UpdateTriggerWorkerInfo(ctx, req.Address, subIds)
-			if err != nil {
-				log.Info(context.Background(), "unknown trigger worker", map[string]interface{}{
-					log.KeyTriggerWorkerAddr: req.Address,
-				})
-				return errors.ErrResourceNotFound.WithMessage("unknown trigger worker")
-			}
-			for _, sub := range req.SubInfos {
-				offsets := convert.FromPbOffsetInfos(sub.Offsets)
-				err = ctrl.subscriptionManager.Offset(ctx, vanus.ID(sub.SubscriptionId), offsets)
-				if err != nil {
-					log.Warning(ctx, "heartbeat commit offset error", map[string]interface{}{
-						log.KeyError:          err,
-						log.KeySubscriptionID: sub.SubscriptionId,
-					})
-				}
-			}
-		} else {
-			if err != io.EOF {
+		if err != nil {
+			if stdErr.Is(err, io.EOF) {
 				log.Warning(ctx, "heartbeat recv error", map[string]interface{}{log.KeyError: err})
 			}
 			log.Info(ctx, "heartbeat close", nil)
 			return nil
 		}
+		log.Debug(ctx, "heartbeat", map[string]interface{}{
+			log.KeyTriggerWorkerAddr: req.Address,
+			"subscriptionInfo":       req.SubInfos,
+		})
+		subscriptionIDs := make(map[vanus.ID]struct{}, len(req.SubInfos))
+		for _, sub := range req.SubInfos {
+			subscriptionIDs[vanus.ID(sub.SubscriptionId)] = struct{}{}
+		}
+		err = ctrl.triggerWorkerManager.UpdateTriggerWorkerInfo(ctx, req.Address, subscriptionIDs)
+		if err != nil {
+			log.Info(context.Background(), "unknown trigger worker", map[string]interface{}{
+				log.KeyTriggerWorkerAddr: req.Address,
+			})
+			return errors.ErrResourceNotFound.WithMessage("unknown trigger worker")
+		}
+		for _, sub := range req.SubInfos {
+			offsets := convert.FromPbOffsetInfos(sub.Offsets)
+			err = ctrl.subscriptionManager.Offset(ctx, vanus.ID(sub.SubscriptionId), offsets)
+			if err != nil {
+				log.Warning(ctx, "heartbeat commit offset error", map[string]interface{}{
+					log.KeyError:          err,
+					log.KeySubscriptionID: sub.SubscriptionId,
+				})
+			}
+		}
 	}
 }
 
-func (ctrl *triggerController) RegisterTriggerWorker(ctx context.Context, request *ctrlpb.RegisterTriggerWorkerRequest) (*ctrlpb.RegisterTriggerWorkerResponse, error) {
+func (ctrl *controller) RegisterTriggerWorker(ctx context.Context,
+	request *ctrlpb.RegisterTriggerWorkerRequest) (*ctrlpb.RegisterTriggerWorkerResponse, error) {
 	log.Info(ctx, "register trigger worker", map[string]interface{}{
 		log.KeyTriggerWorkerAddr: request.Address,
 	})
@@ -186,15 +190,18 @@ func (ctrl *triggerController) RegisterTriggerWorker(ctx context.Context, reques
 	return &ctrlpb.RegisterTriggerWorkerResponse{}, nil
 }
 
-func (ctrl *triggerController) UnregisterTriggerWorker(ctx context.Context, request *ctrlpb.UnregisterTriggerWorkerRequest) (*ctrlpb.UnregisterTriggerWorkerResponse, error) {
+func (ctrl *controller) UnregisterTriggerWorker(ctx context.Context,
+	request *ctrlpb.UnregisterTriggerWorkerRequest) (*ctrlpb.UnregisterTriggerWorkerResponse, error) {
 	log.Info(ctx, "unregister trigger worker", map[string]interface{}{
 		log.KeyTriggerWorkerAddr: request.Address,
 	})
-	ctrl.triggerWorkerManager.RemoveTriggerWorker(ctrl.ctx, request.Address)
+
+	ctrl.triggerWorkerManager.RemoveTriggerWorker(context.TODO(), request.Address)
 	return &ctrlpb.UnregisterTriggerWorkerResponse{}, nil
 }
 
-func (ctrl *triggerController) ListSubscription(ctx context.Context, _ *emptypb.Empty) (*ctrlpb.ListSubscriptionResponse, error) {
+func (ctrl *controller) ListSubscription(ctx context.Context,
+	_ *emptypb.Empty) (*ctrlpb.ListSubscriptionResponse, error) {
 	subscriptionList := make([]*meta.Subscription, 0)
 	for _, sub := range ctrl.subscriptionManager.ListSubscription(ctx) {
 		subscriptionList = append(subscriptionList, convert.ToPbSubscription(sub))
@@ -202,43 +209,43 @@ func (ctrl *triggerController) ListSubscription(ctx context.Context, _ *emptypb.
 	return &ctrlpb.ListSubscriptionResponse{Subscription: subscriptionList}, nil
 }
 
-//gcSubscription before delete subscription,need
+// gcSubscription before delete subscription,need
 //
-//1.trigger worker remove subscription
-//2.delete offset
-//3.delete subscription
-func (ctrl *triggerController) gcSubscription(ctx context.Context, subId vanus.ID, addr string) error {
-	err := ctrl.triggerWorkerManager.UnAssignSubscription(ctx, addr, subId)
+// 1.trigger worker remove subscription
+// 2.delete offset
+// 3.delete subscription .
+func (ctrl *controller) gcSubscription(ctx context.Context, id vanus.ID, addr string) error {
+	err := ctrl.triggerWorkerManager.UnAssignSubscription(ctx, addr, id)
 	if err != nil {
 		return err
 	}
-	err = ctrl.subscriptionManager.DeleteSubscription(ctx, subId)
+	err = ctrl.subscriptionManager.DeleteSubscription(ctx, id)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (ctrl *triggerController) gcSubscriptions(ctx context.Context) {
+func (ctrl *controller) gcSubscriptions(ctx context.Context) {
 	util.UntilWithContext(ctx, func(ctx context.Context) {
 		ctrl.lock.Lock()
 		defer ctrl.lock.Unlock()
-		for subId, addr := range ctrl.needCleanSubIds {
-			err := ctrl.gcSubscription(ctx, subId, addr)
+		for ID, addr := range ctrl.needCleanSubscription {
+			err := ctrl.gcSubscription(ctx, ID, addr)
 			if err == nil {
-				delete(ctrl.needCleanSubIds, subId)
+				delete(ctrl.needCleanSubscription, ID)
 			}
 		}
-	}, time.Second*10)
+	}, ctrl.config.GcSubscriptionPeriod)
 }
 
-func (ctrl *triggerController) requeueSubscription(ctx context.Context, subId vanus.ID, addr string) error {
-	subData := ctrl.subscriptionManager.GetSubscriptionData(ctx, subId)
+func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, addr string) error {
+	subData := ctrl.subscriptionManager.GetSubscriptionData(ctx, id)
 	if subData == nil {
 		return nil
 	}
 	if subData.TriggerWorker != addr {
-		//数据不一致了，不应该出现这种情况
+		// 数据不一致了，不应该出现这种情况
 		log.Error(ctx, "requeue subscription invalid", map[string]interface{}{
 			log.KeyTriggerWorkerAddr: subData.TriggerWorker,
 			"runningAddr":            addr,
@@ -250,13 +257,14 @@ func (ctrl *triggerController) requeueSubscription(ctx context.Context, subId va
 	if err != nil {
 		return err
 	}
-	ctrl.scheduler.EnqueueSub(subId)
+	ctrl.scheduler.EnqueueSubscription(id)
 	return nil
 }
 
-func (ctrl *triggerController) init(ctx context.Context) error {
+func (ctrl *controller) init(ctx context.Context) error {
 	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage)
-	ctrl.triggerWorkerManager = worker.NewTriggerWorkerManager(worker.Config{}, ctrl.storage, ctrl.subscriptionManager, ctrl.requeueSubscription)
+	ctrl.triggerWorkerManager = worker.NewTriggerWorkerManager(worker.Config{}, ctrl.storage,
+		ctrl.subscriptionManager, ctrl.requeueSubscription)
 	ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.triggerWorkerManager, ctrl.subscriptionManager)
 	err := ctrl.subscriptionManager.Init(ctx)
 	if err != nil {
@@ -266,21 +274,22 @@ func (ctrl *triggerController) init(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	//restart,need reschedule
-	for subId, sub := range ctrl.subscriptionManager.ListSubscription(ctx) {
-		switch sub.Phase {
+	// restart,need reschedule
+	for ID, subscription := range ctrl.subscriptionManager.ListSubscription(ctx) {
+		switch subscription.Phase {
 		case primitive.SubscriptionPhaseCreated:
-			ctrl.scheduler.EnqueueNormalSub(subId)
+			ctrl.scheduler.EnqueueNormalSubscription(ID)
 		case primitive.SubscriptionPhasePending:
-			ctrl.scheduler.EnqueueSub(subId)
+			ctrl.scheduler.EnqueueSubscription(ID)
 		case primitive.SubscriptionPhaseToDelete:
-			ctrl.needCleanSubIds[subId] = sub.TriggerWorker
+			ctrl.needCleanSubscription[ID] = subscription.TriggerWorker
 		}
 	}
 	return nil
 }
 
-func (ctrl *triggerController) membershipChangedProcessor(ctx context.Context, event embedetcd.MembershipChangedEvent) error {
+func (ctrl *controller) membershipChangedProcessor(ctx context.Context,
+	event embedetcd.MembershipChangedEvent) error {
 	ctrl.membershipMutex.Lock()
 	defer ctrl.membershipMutex.Unlock()
 	switch event.Type {
@@ -288,10 +297,15 @@ func (ctrl *triggerController) membershipChangedProcessor(ctx context.Context, e
 		if ctrl.isLeader {
 			return nil
 		}
-		log.Info(ctrl.ctx, "become leader", nil)
+		log.Info(context.TODO(), "become leader", nil)
 		err := ctrl.init(ctx)
 		if err != nil {
-			ctrl.stop(ctx)
+			_err := ctrl.stop(ctx)
+			if _err != nil {
+				log.Error(ctx, "controller stop has error", map[string]interface{}{
+					log.KeyError: _err,
+				})
+			}
 			return err
 		}
 		ctrl.triggerWorkerManager.Start()
@@ -304,13 +318,18 @@ func (ctrl *triggerController) membershipChangedProcessor(ctx context.Context, e
 		if !ctrl.isLeader {
 			return nil
 		}
-		log.Info(ctrl.ctx, "become flower", nil)
-		os.Exit(1)
+		log.Info(context.TODO(), "become flower", nil)
+		_err := ctrl.stop(ctx)
+		if _err != nil {
+			log.Error(ctx, "controller stop has error", map[string]interface{}{
+				log.KeyError: _err,
+			})
+		}
 	}
 	return nil
 }
 
-func (ctrl *triggerController) stop(ctx context.Context) error {
+func (ctrl *controller) stop(ctx context.Context) error {
 	ctrl.member.ResignIfLeader()
 	ctrl.state = primitive.ServerStateStopping
 	ctrl.stopFunc()
@@ -322,7 +341,7 @@ func (ctrl *triggerController) stop(ctx context.Context) error {
 	return nil
 }
 
-func (ctrl *triggerController) Start() error {
+func (ctrl *controller) Start() error {
 	s, err := storage.NewStorage(ctrl.config.Storage)
 	if err != nil {
 		return err
@@ -332,8 +351,8 @@ func (ctrl *triggerController) Start() error {
 	return nil
 }
 
-func (ctrl *triggerController) Stop(ctx context.Context) {
-	if err := ctrl.stop(ctrl.ctx); err != nil {
+func (ctrl *controller) Stop(ctx context.Context) {
+	if err := ctrl.stop(ctx); err != nil {
 		log.Warning(ctx, "stop trigger controller error", map[string]interface{}{
 			log.KeyError: err,
 		})

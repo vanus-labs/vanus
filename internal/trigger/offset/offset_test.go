@@ -26,32 +26,31 @@ func TestRegisterSubscription(t *testing.T) {
 	m := NewOffsetManager()
 	Convey("register subscription", t, func() {
 		Convey("subscription offset same", func() {
-			subId := vanus.ID(1)
-			So(m.RegisterSubscription(subId), ShouldEqual, m.RegisterSubscription(subId))
+			id := vanus.ID(1)
+			So(m.RegisterSubscription(id), ShouldEqual, m.RegisterSubscription(id))
 		})
-		Convey("subId not equals subscription offset not same", func() {
+		Convey("subscriptionID not equals subscription offset not same", func() {
 			So(m.RegisterSubscription(1), ShouldNotEqual, m.RegisterSubscription(2))
 		})
 	})
-
 }
 
 func TestGetSubscription(t *testing.T) {
 	m := NewOffsetManager()
 	Convey("get subscription", t, func() {
-		subId := vanus.ID(1)
+		id := vanus.ID(1)
 		Convey("get subscription nil", func() {
-			So(m.GetSubscription(subId), ShouldBeNil)
+			So(m.GetSubscription(id), ShouldBeNil)
 		})
-		subOffset := m.RegisterSubscription(subId)
+		subOffset := m.RegisterSubscription(id)
 		Convey("get subscription not nil", func() {
-			So(m.GetSubscription(subId), ShouldNotBeNil)
+			So(m.GetSubscription(id), ShouldNotBeNil)
 		})
 		Convey("get same register", func() {
-			So(subOffset, ShouldEqual, m.GetSubscription(subId))
+			So(subOffset, ShouldEqual, m.GetSubscription(id))
 		})
 		Convey("multi get same", func() {
-			So(m.GetSubscription(subId), ShouldEqual, m.GetSubscription(subId))
+			So(m.GetSubscription(id), ShouldEqual, m.GetSubscription(id))
 		})
 	})
 }
@@ -59,20 +58,20 @@ func TestGetSubscription(t *testing.T) {
 func TestRemoveSubscription(t *testing.T) {
 	m := NewOffsetManager()
 	Convey("remove subscription", t, func() {
-		subId := vanus.ID(1)
-		m.RegisterSubscription(subId)
+		id := vanus.ID(1)
+		m.RegisterSubscription(id)
 		Convey("multi remove register subscription", func() {
-			So(m.GetSubscription(subId), ShouldNotBeNil)
-			m.RemoveSubscription(subId)
-			So(m.GetSubscription(subId), ShouldBeNil)
-			So(m.GetSubscription(subId), ShouldBeNil)
+			So(m.GetSubscription(id), ShouldNotBeNil)
+			m.RemoveSubscription(id)
+			So(m.GetSubscription(id), ShouldBeNil)
+			So(m.GetSubscription(id), ShouldBeNil)
 		})
 	})
 }
 
 func TestSubscriptionOffset(t *testing.T) {
 	eventLogID := vanus.ID(1)
-	subOffset := &SubscriptionOffset{subId: 1}
+	subOffset := &SubscriptionOffset{subscriptionID: 1}
 	Convey("subscription offset", t, func() {
 		offsetBegin := uint64(1)
 		offsetEnd := uint64(100)

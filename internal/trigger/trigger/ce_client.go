@@ -16,6 +16,7 @@ package trigger
 
 import (
 	"context"
+
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/event"
 	"github.com/cloudevents/sdk-go/v2/protocol"

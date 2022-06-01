@@ -53,7 +53,6 @@ func TestCreateSubscriptionRequestValidator(t *testing.T) {
 		}
 		So(ValidateCreateSubscription(ctx, request), ShouldNotBeNil)
 	})
-
 }
 
 func TestValidateFilter(t *testing.T) {

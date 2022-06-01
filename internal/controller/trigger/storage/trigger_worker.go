@@ -44,7 +44,7 @@ func NewTriggerWorkerStorage(client kv.Client) TriggerWorkerStorage {
 }
 
 func (s *triggerWorkerStorage) getKey(id string) string {
-	return path.Join(StorageTriggerWorker.String(), id)
+	return path.Join(KeyPrefixTriggerWorker.String(), id)
 }
 
 func (s *triggerWorkerStorage) SaveTriggerWorker(ctx context.Context, info info.TriggerWorkerInfo) error {
@@ -84,7 +84,7 @@ func (s *triggerWorkerStorage) ListTriggerWorker(ctx context.Context) ([]*info.T
 	if err != nil {
 		return nil, err
 	}
-	var list []*info.TriggerWorkerInfo
+	list := make([]*info.TriggerWorkerInfo, 0)
 	for _, v := range l {
 		var tWorker info.TriggerWorkerInfo
 		err = json.Unmarshal(v.Value, &tWorker)

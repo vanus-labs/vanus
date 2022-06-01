@@ -16,8 +16,9 @@ package filter
 
 import (
 	"context"
-	"github.com/linkall-labs/vanus/observability/log"
 	"runtime"
+
+	"github.com/linkall-labs/vanus/observability/log"
 
 	cesql "github.com/cloudevents/sdk-go/sql/v2"
 	cesqlparser "github.com/cloudevents/sdk-go/sql/v2/parser"
@@ -46,17 +47,21 @@ func NewCESQLFilter(expression string) Filter {
 	}()
 	parsed, err := cesqlparser.Parse(expression)
 	if err != nil {
-		log.Info(context.Background(), "parse cesql filter expression error", map[string]interface{}{"expression": expression, "error": err})
+		log.Info(context.Background(), "parse cesql filter expression error", map[string]interface{}{
+			"expression": expression,
+			log.KeyError: err})
 		return nil
 	}
 	return &ceSQLFilter{rawExpression: expression, parsedExpression: parsed}
 }
 
-func (filter *ceSQLFilter) Filter(event ce.Event) FilterResult {
+func (filter *ceSQLFilter) Filter(event ce.Event) Result {
 	if filter == nil {
 		return FailFilter
 	}
-	log.Debug(context.Background(), "cesql filter ", map[string]interface{}{"filter": filter, "event": event})
+	log.Debug(context.Background(), "cesql filter ", map[string]interface{}{
+		"filter": filter,
+		"event":  event})
 	res, err := filter.parsedExpression.Evaluate(event)
 	if err != nil {
 		log.Info(context.Background(), "cesql filter evaluate error ", map[string]interface{}{"filter": filter, "event": event})
