@@ -54,7 +54,7 @@ func TestTrigger(t *testing.T) {
 }
 
 func startSink(ctx context.Context) {
-	ls, err := net.Listen("tcp", ":18080")
+	ls, err := net.Listen("tcp4", ":18080")
 	if err != nil {
 		panic(err)
 	}

@@ -82,7 +82,7 @@ func TestGetFilter(t *testing.T) {
 	Convey("suffix filter pass", t, func() {
 		f := filter.GetFilter(filters)
 		So(f, ShouldNotBeNil)
-		result := filter.FilterEvent(f, event)
+		result := filter.Run(f, event)
 		So(result, ShouldEqual, filter.PassFilter)
 	})
 }

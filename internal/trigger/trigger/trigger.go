@@ -140,7 +140,7 @@ func (t *Trigger) runEventProcess(ctx context.Context) {
 			if !ok {
 				return
 			}
-			if res := filter.FilterEvent(t.filter, *event.Event); res == filter.FailFilter {
+			if res := filter.Run(t.filter, *event.Event); res == filter.FailFilter {
 				t.offsetManager.EventCommit(event.OffsetInfo)
 				continue
 			}

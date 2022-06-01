@@ -98,7 +98,7 @@ func GetFilter(subscriptionFilters []*primitive.SubscriptionFilter) Filter {
 	return NewAllFilter(filters...)
 }
 
-func FilterEvent(f Filter, event ce.Event) Result {
+func Run(f Filter, event ce.Event) Result {
 	if f == nil {
 		return PassFilter
 	}
