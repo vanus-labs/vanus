@@ -19,7 +19,7 @@ import (
 	"fmt"
 )
 
-func GetIdByAddr(addr string) string {
+func GetIDByAddr(addr string) string {
 	return fmt.Sprintf("%x", md5.Sum([]byte(addr)))
 }
 

@@ -16,12 +16,13 @@ package command
 
 import (
 	"context"
+	"os"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 func NewClusterCommand() *cobra.Command {

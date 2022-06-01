@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	// RFC3339
+	// RFC3339.
 	vanusTimeLayout = "2006-01-02T15:04:05Z07:00"
 )
 

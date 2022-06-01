@@ -20,9 +20,11 @@ import (
 	"strings"
 )
 
-var LocalIp = getInternalIp()
+func GetLocalIP() string {
+	return getInternalIP()
+}
 
-func getInternalIp() string {
+func getInternalIP() string {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		panic(err)

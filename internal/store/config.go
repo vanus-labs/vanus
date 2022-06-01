@@ -40,7 +40,7 @@ func InitConfig(filename string) (*Config, error) {
 		return nil, err
 	}
 	if c.IP == "" {
-		c.IP = util.LocalIp
+		c.IP = util.GetLocalIP()
 	}
 	return c, nil
 }

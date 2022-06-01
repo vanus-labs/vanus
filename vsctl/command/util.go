@@ -15,8 +15,9 @@
 package command
 
 import (
-	"github.com/spf13/cobra"
 	"os"
+
+	"github.com/spf13/cobra"
 
 	"github.com/fatih/color"
 	"github.com/go-resty/resty/v2"

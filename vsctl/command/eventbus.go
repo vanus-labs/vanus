@@ -18,6 +18,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
+	"strings"
+
 	"github.com/fatih/color"
 	"github.com/gogo/protobuf/sortkeys"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -26,8 +29,6 @@ import (
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	metapb "github.com/linkall-labs/vsproto/pkg/meta"
 	"github.com/spf13/cobra"
-	"os"
-	"strings"
 )
 
 func NewEventbusCommand() *cobra.Command {
@@ -167,13 +168,14 @@ func getEventbusInfoCommand() *cobra.Command {
 						for idx := 0; idx < len(res.Logs); idx++ {
 							segOfEL := segs[res.Logs[idx].EventLogId]
 							for sIdx, v := range segOfEL {
-								if idx == 0 && sIdx == 0 {
+								switch {
+								case idx == 0 && sIdx == 0:
 									t.AppendRow(table.Row{res.Name, res.Logs[idx].EventLogId, v.Id, v.Capacity, v.Size,
 										v.StartOffsetInLog, v.EndOffsetInLog})
-								} else if sIdx == 0 {
+								case sIdx == 0:
 									t.AppendRow(table.Row{"", res.Logs[idx].EventLogId, v.Id, v.Capacity, v.Size,
 										v.StartOffsetInLog, v.EndOffsetInLog})
-								} else {
+								default:
 									t.AppendRow(table.Row{"", "", v.Id, v.Capacity, v.Size, v.StartOffsetInLog,
 										v.EndOffsetInLog})
 								}
@@ -192,7 +194,8 @@ func getEventbusInfoCommand() *cobra.Command {
 						{Number: 7, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					})
 				} else {
-					t.AppendHeader(table.Row{"Eventbus", "Eventlog", "Segment", "Capacity", "Size", "Start", "End", "Block", "Leader", "Volume", "Endpoint"})
+					t.AppendHeader(table.Row{"Eventbus", "Eventlog", "Segment", "Capacity", "Size", "Start", "End",
+						"Block", "Leader", "Volume", "Endpoint"})
 					multiReplica := false
 					for _, res := range busMetas {
 						for idx := 0; idx < len(res.Logs); idx++ {
@@ -211,22 +214,24 @@ func getEventbusInfoCommand() *cobra.Command {
 								sortkeys.Uint64s(vols)
 								for _, k := range vols {
 									blk := volMap[k]
-									if idx == 0 && sIdx == 0 && tIdx == 0 {
+									switch {
+									case idx == 0 && sIdx == 0 && tIdx == 0:
 										t.AppendRow(table.Row{res.Name, res.Logs[idx].EventLogId, seg.Id, seg.Capacity,
 											seg.Size, seg.StartOffsetInLog, seg.EndOffsetInLog, blk.Id,
 											blk.Id == seg.LeaderBlockId, blk.VolumeID, blk.Endpoint})
-									} else if sIdx == 0 && tIdx == 0 {
+									case sIdx == 0 && tIdx == 0:
 										t.AppendRow(table.Row{"", res.Logs[idx].EventLogId, seg.Id, seg.Capacity,
 											seg.Size, seg.StartOffsetInLog, seg.EndOffsetInLog, blk.Id,
 											blk.Id == seg.LeaderBlockId, blk.VolumeID, blk.Endpoint})
-									} else if tIdx == 0 {
+									case tIdx == 0:
 										t.AppendRow(table.Row{"", "", seg.Id, seg.Capacity, seg.Size,
 											seg.StartOffsetInLog, seg.EndOffsetInLog, blk.Id,
 											blk.Id == seg.LeaderBlockId, blk.VolumeID, blk.Endpoint})
-									} else {
+									default:
 										t.AppendRow(table.Row{"", "", "", "", "", "", "", blk.Id,
 											blk.Id == seg.LeaderBlockId, blk.VolumeID, blk.Endpoint})
 									}
+
 									tIdx++
 								}
 							}
@@ -234,13 +239,20 @@ func getEventbusInfoCommand() *cobra.Command {
 						}
 					}
 					t.SetColumnConfigs([]table.ColumnConfig{
-						{Number: 1, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 2, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 3, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 4, VAlign: text.VAlignMiddle, AutoMerge: multiReplica, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 5, VAlign: text.VAlignMiddle, AutoMerge: multiReplica, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 6, VAlign: text.VAlignMiddle, AutoMerge: multiReplica, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 7, VAlign: text.VAlignMiddle, AutoMerge: multiReplica, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 1, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter,
+							AlignHeader: text.AlignCenter},
+						{Number: 2, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter,
+							AlignHeader: text.AlignCenter},
+						{Number: 3, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter,
+							AlignHeader: text.AlignCenter},
+						{Number: 4, VAlign: text.VAlignMiddle, AutoMerge: multiReplica, Align: text.AlignCenter,
+							AlignHeader: text.AlignCenter},
+						{Number: 5, VAlign: text.VAlignMiddle, AutoMerge: multiReplica, Align: text.AlignCenter,
+							AlignHeader: text.AlignCenter},
+						{Number: 6, VAlign: text.VAlignMiddle, AutoMerge: multiReplica, Align: text.AlignCenter,
+							AlignHeader: text.AlignCenter},
+						{Number: 7, VAlign: text.VAlignMiddle, AutoMerge: multiReplica, Align: text.AlignCenter,
+							AlignHeader: text.AlignCenter},
 						{Number: 8, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: 9, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: 10, Align: text.AlignCenter, AlignHeader: text.AlignCenter},

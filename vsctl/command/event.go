@@ -19,14 +19,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/google/uuid"
-	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 	"io"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/google/uuid"
+	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
@@ -207,7 +208,6 @@ func getEventCommand() *cobra.Command {
 		Use:   "get <eventbus-name> ",
 		Short: "get a event from specified eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-
 			if len(args) == 0 {
 				cmdFailedWithHelpNotice(cmd, "eventbus name can't be empty\n")
 			}

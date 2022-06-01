@@ -55,7 +55,7 @@ func SetupSignalContext() context.Context {
 }
 
 // RequestShutdown emulates a received event that is considered as shutdown signal (SIGTERM/SIGINT)
-// This returns whether a handler was notified
+// This returns whether a handler was notified.
 func RequestShutdown() bool {
 	if shutdownHandler != nil {
 		select {
