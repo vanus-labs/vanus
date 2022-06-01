@@ -23,9 +23,9 @@ import (
 	"time"
 
 	// first-party libraries.
+	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	"github.com/linkall-labs/vanus/raft"
 	"github.com/linkall-labs/vanus/raft/raftpb"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
