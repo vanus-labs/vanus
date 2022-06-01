@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+
 	"github.com/fatih/color"
 	"github.com/golang/protobuf/ptypes/empty"
 	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"

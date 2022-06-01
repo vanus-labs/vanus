@@ -15,8 +15,6 @@
 package command
 
 import (
-	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/jedib0t/go-pretty/v6/text"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -39,16 +37,4 @@ func mustEndpointsFromCmd(cmd *cobra.Command) []string {
 		}
 	}
 	return eps
-}
-
-var styleVanus = table.Style{
-	Name:    "StyleVanus",
-	Box:     table.StyleBoxDefault,
-	Color:   table.ColorOptionsDefault,
-	Format:  table.FormatOptionsDefault,
-	HTML:    table.DefaultHTMLOptions,
-	Options: table.OptionsDefault,
-	Title: table.TitleOptions{
-		Align: text.AlignCenter,
-	},
 }

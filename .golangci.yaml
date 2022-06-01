@@ -283,7 +283,7 @@ linters:
     - exportloopref
     - funlen
     - forbidigo
-#    - gochecknoglobals
+    - gochecknoglobals
     - gochecknoinits
     - gocognit
     - goconst
@@ -357,9 +357,22 @@ issues:
   max-issues-per-linter: 0
   max-same-issues: 0
   exclude-rules:
+    - path: "^vsctl"
+      linters:
+        - gomnd
+        - funlen
+        - gocognit
+        - gocyclo
+        - nestif
+        - cyclop
+        - gochecknoinits
+        - gochecknoglobals
     - text: "unexported-return: exported func NewController returns unexported type \\*eventbus.controller"
       linters:
         - revive
+    - text: "Non-inherited new context"
+      linters:
+        - contextcheck
     - text: "shadow: declaration of"
       linters:
         - govet
@@ -378,8 +391,12 @@ issues:
     - source: "^\\s+if _, ok := err\\.\\([^.]+\\.InternalError\\); ok {"
       linters:
         - errorlint
+    - path: "errors\\.go"
+      linters:
+          - lll
     - path: "_test\\.go"
       linters:
+        - lll
         - bodyclose
         - dupl
         - funlen
