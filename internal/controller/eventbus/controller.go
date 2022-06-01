@@ -17,11 +17,13 @@ package eventbus
 import (
 	"context"
 	"encoding/json"
-	"github.com/linkall-labs/vanus/observability/metrics"
+	stdErr "errors"
 	"io"
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/linkall-labs/vanus/observability/metrics"
 
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
@@ -42,7 +44,14 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-func NewEventBusController(cfg Config, member embedetcd.Member) *controller {
+var (
+	_ ctrlpb.EventBusControllerServer = &controller{}
+	_ ctrlpb.EventLogControllerServer = &controller{}
+	_ ctrlpb.SegmentControllerServer  = &controller{}
+	_ ctrlpb.PingServerServer         = &controller{}
+)
+
+func NewController(cfg Config, member embedetcd.Member) *controller {
 	c := &controller{
 		cfg:         &cfg,
 		ssMgr:       server.NewServerManager(),
@@ -73,7 +82,7 @@ type controller struct {
 	stopNotify      chan error
 }
 
-func (ctrl *controller) Start(ctx context.Context) error {
+func (ctrl *controller) Start(_ context.Context) error {
 	store, err := etcd.NewEtcdClientV3(ctrl.cfg.KVStoreEndpoints, ctrl.cfg.KVKeyPrefix)
 	if err != nil {
 		return err
@@ -97,7 +106,8 @@ func (ctrl *controller) StopNotify() <-chan error {
 	return ctrl.stopNotify
 }
 
-func (ctrl *controller) CreateEventBus(ctx context.Context, req *ctrlpb.CreateEventBusRequest) (*metapb.EventBus, error) {
+func (ctrl *controller) CreateEventBus(ctx context.Context,
+	req *ctrlpb.CreateEventBusRequest) (*metapb.EventBus, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
@@ -315,7 +325,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 		_ = ctrl.processHeartbeat(ctx, req)
 	}
 
-	if err != nil && err != io.EOF {
+	if err != nil && stdErr.Is(err, io.EOF) {
 		sts := status.Convert(err)
 		if sts != nil && sts.Code() != codes.Canceled {
 			log.Warning(ctx, "block server heartbeat error", map[string]interface{}{
@@ -412,14 +422,15 @@ func (ctrl *controller) ReportSegmentBlockIsFull(ctx context.Context,
 	return &emptypb.Empty{}, nil
 }
 
-func (ctrl *controller) Ping(ctx context.Context, empty *emptypb.Empty) (*ctrlpb.PingResponse, error) {
+func (ctrl *controller) Ping(_ context.Context, _ *emptypb.Empty) (*ctrlpb.PingResponse, error) {
 	return &ctrlpb.PingResponse{
 		LeaderAddr:  ctrl.member.GetLeaderAddr(),
 		GatewayAddr: ctrl.cfg.GatewayEndpoint,
 	}, nil
 }
 
-func (ctrl *controller) ReportSegmentLeader(ctx context.Context, req *ctrlpb.ReportSegmentLeaderRequest) (*emptypb.Empty, error) {
+func (ctrl *controller) ReportSegmentLeader(ctx context.Context,
+	req *ctrlpb.ReportSegmentLeaderRequest) (*emptypb.Empty, error) {
 	err := ctrl.eventLogMgr.UpdateSegmentReplicas(ctx, vanus.NewIDFromUint64(req.LeaderId), req.Term)
 	if err != nil {
 		return nil, err

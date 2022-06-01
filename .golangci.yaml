@@ -11,6 +11,15 @@ run:
     - eventbus-go
     - raft
     - vsproto
+
+severity:
+  default-severity: info
+  case-sensitive: false
+  rules:
+    - linters:
+        - contextcheck
+      severity: warn
+
 linters-settings:
   errcheck:
     disable-default-exclusions: false # disable built-in exclude list # default: false
@@ -76,7 +85,7 @@ linters-settings:
     lines: 100 # default 60
     statements: 50 # default 40
   gocognit:
-    min-complexity: 20 # minimal code complexity to report, 30 by default (but we recommend 10-20)
+    min-complexity: 80 # minimal code complexity to report, 30 by default (but we recommend 10-20)
   goconst:
     match-constant: true # look for existing constants matching the values # default true
     min-len: 3 # minimal length of string constant # default 3
@@ -275,7 +284,7 @@ linters:
     - funlen
     - forbidigo
 #    - gochecknoglobals
-#    - gochecknoinits
+    - gochecknoinits
     - gocognit
     - goconst
     - gocritic
@@ -283,8 +292,8 @@ linters:
     - godot
     - goimports
     - gomnd
-    - gomoddirectives
-    - gomodguard
+#    - gomoddirectives
+#    - gomodguard
     - goprintffuncname
     - gosec
     - lll
@@ -303,13 +312,13 @@ linters:
     - sqlclosecheck
     - stylecheck
     - tenv
-#    - testpackage
     - tparallel
     - unconvert
-    - unparam
-    - wastedassign
+#    - unparam
     - whitespace
     ## disabled
+    #- wastedassign
+    #- testpackage
     #- containedctx # is not used - linter that detects struct contained context.Context field
     #- decorder # is not used - a declaration order and number linter for golang
     #- depguard # replaced with gomodguard
@@ -348,14 +357,27 @@ issues:
   max-issues-per-linter: 0
   max-same-issues: 0
   exclude-rules:
+    - text: "unexported-return: exported func NewController returns unexported type \\*eventbus.controller"
+      linters:
+        - revive
+    - text: "shadow: declaration of"
+      linters:
+        - govet
+    - source: "TODO"
+      linters:
+        - contextcheck
     - source: "^//\\s*go:generate\\s"
-      linters: lll
+      linters:
+        - lll
     - source: "(noinspection|TODO)"
-      linters: godot
+      linters:
+        - godot
     - source: "//noinspection"
-      linters: gocritic
+      linters:
+        - gocritic
     - source: "^\\s+if _, ok := err\\.\\([^.]+\\.InternalError\\); ok {"
-      linters: errorlint
+      linters:
+        - errorlint
     - path: "_test\\.go"
       linters:
         - bodyclose
@@ -364,3 +386,4 @@ issues:
         - goconst
         - noctx
         - wrapcheck
+        - errcheck

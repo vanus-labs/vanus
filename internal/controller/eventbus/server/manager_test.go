@@ -125,7 +125,7 @@ func TestSegmentServerManager_Run(t *testing.T) {
 		_ss1.client = mockSSCli1
 		_ss2.client = mockSSCli2
 
-		mutex := sync.Mutex{}
+		mutex = sync.Mutex{}
 		status1 := "running"
 		status2 := "running"
 		f1 := func(ctx stdCtx.Context, empty *empty.Empty, opts ...grpc.CallOption) (*segpb.StatusResponse, error) {
@@ -192,9 +192,10 @@ func TestSegmentServer(t *testing.T) {
 		So(ss1.IsActive(ctx), ShouldBeFalse)
 
 		mockSSCli1.EXPECT().Start(ctx, gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
-			func(ctx stdCtx.Context, req *segpb.StartSegmentServerRequest, opts ...grpc.CallOption) (*segpb.StartSegmentServerResponse, error) {
+			func(ctx stdCtx.Context, req *segpb.StartSegmentServerRequest,
+				opts ...grpc.CallOption) (*segpb.StartSegmentServerResponse, error) {
 				So(req.ServerId, ShouldEqual, ss1.ID())
-				return nil, nil
+				return &segpb.StartSegmentServerResponse{}, nil
 			})
 		So(ss1.RemoteStart(ctx), ShouldBeNil)
 

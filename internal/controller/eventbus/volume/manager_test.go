@@ -226,13 +226,6 @@ func TestVolumeMgr_Init(t *testing.T) {
 			o3.Address = "127.0.0.1:10003"
 			o3.ServerID = vanus.NewID()
 
-			o4 := new(struct {
-				Address  string   `json:"address"`
-				ServerID vanus.ID `json:"server_id"`
-			})
-			o4.Address = "127.0.0.1:10004"
-			o3.ServerID = vanus.NewID()
-
 			data1, _ = stdJson.Marshal(o1)
 			data2, _ = stdJson.Marshal(o2)
 			data3, _ := stdJson.Marshal(o3)
@@ -271,14 +264,16 @@ func TestVolumeMgr_Init(t *testing.T) {
 			srv2.EXPECT().IsActive(gomock.Any()).Times(1).Return(false)
 
 			server.MockServerGetter(func(id vanus.ID, addr string) (server.Server, error) {
-				if id.Uint64() == o1.ServerID.Uint64() {
+				switch id.Uint64() {
+				case o1.ServerID.Uint64():
 					return srv1, nil
-				} else if id.Uint64() == o2.ServerID.Uint64() {
+				case o2.ServerID.Uint64():
 					return srv2, nil
-				} else if id.Uint64() == o3.ServerID.Uint64() {
+				case o3.ServerID.Uint64():
 					return srv3, nil
+				default:
+					return nil, errors.New("invalid server")
 				}
-				return nil, errors.New("invalid server")
 			})
 			defer server.MockReset()
 

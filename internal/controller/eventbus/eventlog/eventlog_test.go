@@ -17,6 +17,10 @@ package eventlog
 import (
 	stdCtx "context"
 	stdJson "encoding/json"
+	"path/filepath"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/block"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/errors"
@@ -28,9 +32,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/util"
 	segpb "github.com/linkall-labs/vsproto/pkg/segment"
 	. "github.com/smartystreets/goconvey/convey"
-	"path/filepath"
-	"testing"
-	"time"
 )
 
 func TestEventlogManager_RunWithoutTask(t *testing.T) {
@@ -184,7 +185,7 @@ func TestEventlogManager_RunWithTask(t *testing.T) {
 			Capacity: 64 * 1024 * 1024 * 1024,
 		}
 		alloc.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
-		alloc.EXPECT().Pick(ctx, 3).AnyTimes().DoAndReturn(func(ctx stdCtx.Context, num int) ([]*metadata.Block, error) {
+		alloc.EXPECT().Pick(gomock.Any(), 3).AnyTimes().DoAndReturn(func(ctx stdCtx.Context, num int) ([]*metadata.Block, error) {
 			return []*metadata.Block{
 				{
 					ID:       vanus.NewID(),
@@ -211,7 +212,7 @@ func TestEventlogManager_RunWithTask(t *testing.T) {
 		volIns.EXPECT().Address().AnyTimes().Return("127.0.0.1:10001")
 		grpcCli := segpb.NewMockSegmentServerClient(ctrl)
 		srv.EXPECT().GetClient().AnyTimes().Return(grpcCli)
-		grpcCli.EXPECT().ActivateSegment(ctx, gomock.Any()).AnyTimes().Return(nil, nil)
+		grpcCli.EXPECT().ActivateSegment(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, nil)
 
 		utMgr.scaleTick = time.NewTicker(20 * time.Millisecond)
 		utMgr.cleanTick = time.NewTicker(20 * time.Millisecond)
@@ -255,8 +256,8 @@ func TestEventlogManager_RunWithTask(t *testing.T) {
 		So(el2.size(), ShouldEqual, 2)
 		So(el3.size(), ShouldEqual, 0)
 	})
-	//STOP
 }
+
 func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 	Convey("test AcquireEventLog", t, func() {
 		utMgr := &eventlogManager{segmentReplicaNum: 3}
@@ -311,7 +312,7 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 		})
 
 		Convey("validate eventlog", func() {
-			elog := utMgr.getEventLog(stdCtx.Background(), logMD.ID)
+			elog := utMgr.getEventLog(logMD.ID)
 			So(elog, ShouldNotBeNil)
 			So(elog.size(), ShouldEqual, 2)
 			So(elog.appendableSegmentNumber(), ShouldEqual, 2)
@@ -345,7 +346,6 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(segAnother, ShouldEqual, seg)
 		})
-
 	})
 }
 
@@ -485,7 +485,6 @@ func TestEventlogManager_UpdateSegment(t *testing.T) {
 					},
 				},
 			})
-
 		})
 	})
 }
@@ -524,7 +523,6 @@ func TestEventlogManager_UpdateSegmentReplicas(t *testing.T) {
 		err = utMgr.UpdateSegmentReplicas(ctx, blk.ID, 4)
 		So(err, ShouldBeNil)
 	})
-
 }
 
 func TestEventlog(t *testing.T) {
@@ -593,7 +591,6 @@ func TestEventlog(t *testing.T) {
 			So(el.previousOf(el.indexAt(2)), ShouldEqual, seg2)
 			So(el.previousOf(el.indexAt(3)), ShouldEqual, seg3)
 		})
-
 	})
 }
 

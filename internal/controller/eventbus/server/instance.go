@@ -16,12 +16,13 @@ package server
 
 import (
 	"context"
+	"sync"
+
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/errors"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	segpb "github.com/linkall-labs/vsproto/pkg/segment"
-	"sync"
 )
 
 type Instance interface {
@@ -52,10 +53,10 @@ func (ins *volumeInstance) GetMeta() *metadata.VolumeMetadata {
 	return ins.md
 }
 
-func (ins *volumeInstance) CreateBlock(ctx context.Context, cap int64) (*metadata.Block, error) {
+func (ins *volumeInstance) CreateBlock(ctx context.Context, capacity int64) (*metadata.Block, error) {
 	blk := &metadata.Block{
 		ID:       vanus.NewID(),
-		Capacity: cap,
+		Capacity: capacity,
 		VolumeID: ins.md.ID,
 	}
 	if ins.srv == nil {
@@ -71,7 +72,7 @@ func (ins *volumeInstance) CreateBlock(ctx context.Context, cap int64) (*metadat
 
 	ins.metaMutex.Lock()
 	defer ins.metaMutex.Unlock()
-	ins.md.Used += cap
+	ins.md.Used += capacity
 	ins.md.Blocks[blk.ID.Uint64()] = blk
 	return blk, nil
 }
@@ -129,7 +130,7 @@ func (ins *volumeInstance) SetServer(srv Server) {
 	if srv == nil || !srv.IsActive(context.Background()) {
 		return
 	}
-	log.Info(nil, "update server of volume", map[string]interface{}{
+	log.Info(context.TODO(), "update server of volume", map[string]interface{}{
 		"srv":     srv.ID(),
 		"address": srv.Address(),
 		"uptime":  srv.Uptime(),

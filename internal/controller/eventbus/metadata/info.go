@@ -16,6 +16,7 @@ package metadata
 
 import (
 	"encoding/json"
+
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vsproto/pkg/meta"
 )

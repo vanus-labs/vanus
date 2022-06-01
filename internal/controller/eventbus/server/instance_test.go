@@ -16,11 +16,12 @@ package server
 
 import (
 	stdCtx "context"
+	"testing"
+	"time"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	segpb "github.com/linkall-labs/vsproto/pkg/segment"
 	"google.golang.org/grpc"
-	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
