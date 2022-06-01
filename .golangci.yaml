@@ -357,6 +357,13 @@ issues:
   max-issues-per-linter: 0
   max-same-issues: 0
   exclude-rules:
+    - text: "(^shutdownHandler|^onlyOneSignalHandler)*."
+      linters:
+        - gochecknoglobals
+    - path: "^internal/util"
+      linters:
+        - gosec
+        - gomnd
     - path: "^vsctl"
       linters:
         - gomnd

@@ -32,6 +32,6 @@ func TestIsSpace(t *testing.T) {
 
 func TestGetIdByAddr(t *testing.T) {
 	Convey("test get id by addr", t, func() {
-		So(GetIdByAddr("test"), ShouldEqual, "098f6bcd4621d373cade4e832627b4f6")
+		So(GetIDByAddr("test"), ShouldEqual, "098f6bcd4621d373cade4e832627b4f6")
 	})
 }

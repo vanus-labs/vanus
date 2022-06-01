@@ -38,7 +38,7 @@ type TriggerWorkerInfo struct {
 func NewTriggerWorkerInfo(addr string) *TriggerWorkerInfo {
 	twInfo := &TriggerWorkerInfo{
 		Addr:  addr,
-		ID:    util.GetIdByAddr(addr),
+		ID:    util.GetIDByAddr(addr),
 		Phase: TriggerWorkerPhasePending,
 	}
 	return twInfo

@@ -35,7 +35,7 @@ func InitConfig(filename string) (*Config, error) {
 		return nil, err
 	}
 	if c.IP == "" {
-		c.IP = util.LocalIp
+		c.IP = util.GetLocalIP()
 	}
 	c.TriggerAddr = fmt.Sprintf("%s:%d", c.IP, c.Port)
 	return c, nil
