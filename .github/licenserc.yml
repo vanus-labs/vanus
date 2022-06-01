@@ -28,4 +28,5 @@ header:
     - '**/*mock*'
     - '**/*.sh'
     - 'Makefile'
+    - 'buf.lock'
   comment: on-failure
