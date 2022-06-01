@@ -4,6 +4,8 @@ header:
     copyright-owner: Linkall Inc.
 
   paths-ignore:
+    - 'proto/include'
+    - 'thirds/raft'
     - 'build/'
     - '.github/'
     - 'docs/'
