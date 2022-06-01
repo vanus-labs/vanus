@@ -1,0 +1,16 @@
+version: v1
+name: buf.build/linkall-labs/raft
+deps:
+  - buf.build/gogo/protobuf:b03c65ea87cdc3521ede29f62fe3ce239267c1bc
+lint:
+  use:
+    - DEFAULT
+  except:
+    - PACKAGE_VERSION_SUFFIX
+    - ENUM_VALUE_UPPER_SNAKE_CASE
+    - ENUM_VALUE_PREFIX
+    - ENUM_ZERO_VALUE_SUFFIX
+  rpc_allow_google_protobuf_empty_responses: true
+breaking:
+  use:
+    - FILE
