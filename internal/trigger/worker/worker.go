@@ -33,6 +33,11 @@ const (
 	eventBufferSize = 2048
 )
 
+type SubscriptionWorker interface {
+	Run(ctx context.Context) error
+	Stop(ctx context.Context)
+}
+
 type subscriptionWorker struct {
 	subscription *primitive.Subscription
 	trigger      *trigger.Trigger
@@ -44,16 +49,16 @@ type subscriptionWorker struct {
 
 func NewSubscriptionWorker(subscription *primitive.Subscription,
 	subscriptionOffset *offset.SubscriptionOffset,
-	controllers []string) *subscriptionWorker {
+	controllers []string) SubscriptionWorker {
 	sw := &subscriptionWorker{
 		events:       make(chan info.EventOffset, eventBufferSize),
 		subscription: subscription,
 	}
-	offset := make(map[vanus.ID]uint64)
+	offsetMap := make(map[vanus.ID]uint64)
 	for _, o := range subscription.Offsets {
-		offset[o.EventLogID] = o.Offset
+		offsetMap[o.EventLogID] = o.Offset
 	}
-	sw.reader = reader.NewReader(getReaderConfig(subscription, controllers), offset, sw.events)
+	sw.reader = reader.NewReader(getReaderConfig(subscription, controllers), offsetMap, sw.events)
 	triggerConf := &trigger.Config{}
 	sw.trigger = trigger.NewTrigger(triggerConf, subscription, subscriptionOffset)
 	return sw

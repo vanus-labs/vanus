@@ -38,6 +38,7 @@ type Manager interface {
 
 const (
 	defaultCleanSubscriptionTimeout = 5 * time.Second
+	cleanSubscriptionCheckPeriod    = 10 * time.Millisecond
 )
 
 type manager struct {
@@ -169,7 +170,7 @@ func (m *manager) cleanSubscription(ctx context.Context, id vanus.ID) {
 	// wait offset commit or timeout .
 	ctx, cancel := context.WithTimeout(ctx, m.config.CleanSubscriptionTimeout)
 	defer cancel()
-	ticker := time.NewTicker(10 * time.Millisecond)
+	ticker := time.NewTicker(cleanSubscriptionCheckPeriod)
 	defer ticker.Stop()
 loop:
 	for {

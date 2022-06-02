@@ -43,7 +43,8 @@ func TestSubscriptionWorker(t *testing.T) {
 		offsetManager := offset.NewOffsetManager()
 		offsetManager.RemoveSubscription(id)
 		subscriptionOffset := offsetManager.GetSubscription(id)
-		w := NewSubscriptionWorker(subscription, subscriptionOffset, []string{"test"})
+		w := NewSubscriptionWorker(subscription, subscriptionOffset,
+			[]string{"test"}).(*subscriptionWorker)
 		w.reader = r
 		r.EXPECT().Start().AnyTimes().Return(nil)
 		r.EXPECT().Close().AnyTimes().Return()
