@@ -19,7 +19,7 @@ package linkall.vanus.raft;
 import "google/protobuf/empty.proto";
 import "raftpb/raft.proto";
 
-option go_package = "github.com/linkall-labs/proto/thirds/raft";
+option go_package = "github.com/linkall-labs/vanus/proto/pkg/raft";
 
 service RaftServer {
   rpc SendMsssage(stream raftpb.Message) returns (google.protobuf.Empty);

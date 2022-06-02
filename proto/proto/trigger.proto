@@ -19,7 +19,7 @@ package linkall.vanus.trigger;
 import "config.proto";
 import "meta.proto";
 
-option go_package = "github.com/linkall-labs/proto/thirds/trigger";
+option go_package = "github.com/linkall-labs/vanus/proto/pkg/trigger";
 
 service TriggerWorker {
   rpc Start(StartTriggerWorkerRequest) returns (StartTriggerWorkerResponse);

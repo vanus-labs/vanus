@@ -16,7 +16,7 @@ syntax = "proto3";
 
 package linkall.vanus.meta;
 
-option go_package = "github.com/linkall-labs/proto/thirds/meta";
+option go_package = "github.com/linkall-labs/vanus/proto/pkg/meta";
 
 message VanusResourceName {
   string value = 1;

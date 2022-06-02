@@ -39,10 +39,10 @@ require (
 )
 
 replace (
-	cloudevents.io/genproto v1.0.2 => ./proto/include/cloudevents/pkg
-	github.com/linkall-labs/vanus/client v0.1.0 => ./client
-	github.com/linkall-labs/vanus/proto v0.1.0 => ./proto
-	github.com/linkall-labs/vanus/raft v0.1.0 => ./thirds/raft
+	cloudevents.io/genproto => ./proto/include/cloudevents/pkg
+	github.com/linkall-labs/vanus/client => ./client
+	github.com/linkall-labs/vanus/proto => ./proto
+	github.com/linkall-labs/vanus/raft => ./raft
 )
 
 require (

@@ -19,7 +19,7 @@ package linkall.vanus.controller;
 import "google/protobuf/empty.proto";
 import "meta.proto";
 
-option go_package = "github.com/linkall-labs/proto/thirds/controller";
+option go_package = "github.com/linkall-labs/vanus/proto/pkg/controller";
 
 service PingServer {
   rpc Ping(google.protobuf.Empty) returns (PingResponse);
