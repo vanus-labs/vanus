@@ -56,15 +56,16 @@ func NewCESQLFilter(expression string) Filter {
 }
 
 func (filter *ceSQLFilter) Filter(event ce.Event) Result {
-	if filter == nil {
-		return FailFilter
-	}
 	log.Debug(context.Background(), "cesql filter ", map[string]interface{}{
 		"filter": filter,
-		"event":  event})
+		"event":  event,
+	})
 	res, err := filter.parsedExpression.Evaluate(event)
 	if err != nil {
-		log.Info(context.Background(), "cesql filter evaluate error ", map[string]interface{}{"filter": filter, "event": event})
+		log.Info(context.Background(), "cesql filter evaluate error ", map[string]interface{}{
+			"filter": filter,
+			"event":  event,
+		})
 		return FailFilter
 	}
 

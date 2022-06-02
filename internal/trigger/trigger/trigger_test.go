@@ -16,7 +16,6 @@ package trigger_test
 
 import (
 	"context"
-	"net"
 	"testing"
 	"time"
 
@@ -50,15 +49,10 @@ func TestTrigger(t *testing.T) {
 		So(tg.GetState(), ShouldEqual, trigger.TriggerStopped)
 		cancel()
 	})
-
 }
 
 func startSink(ctx context.Context) {
-	ls, err := net.Listen("tcp4", ":18080")
-	if err != nil {
-		panic(err)
-	}
-	c, err := client.NewHTTP(cehttp.WithListener(ls))
+	c, err := client.NewHTTP(cehttp.WithPort(18080))
 	if err != nil {
 		panic(err)
 	}

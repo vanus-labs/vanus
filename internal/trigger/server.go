@@ -31,8 +31,12 @@ import (
 	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
 )
 
+const (
+	heartbeatPeriod = 3 * time.Second
+)
+
 type server struct {
-	worker    *worker.Worker
+	worker    worker.Manager
 	config    Config
 	client    *ctrlClient
 	ctx       context.Context
@@ -45,7 +49,7 @@ type server struct {
 func NewTriggerServer(config Config) pbtrigger.TriggerWorkerServer {
 	s := &server{
 		config: config,
-		worker: worker.NewWorker(worker.Config{
+		worker: worker.NewManager(worker.Config{
 			Controllers: config.ControllerAddr,
 		}),
 		client: NewClient(config.ControllerAddr),
@@ -60,7 +64,7 @@ func (s *server) Start(ctx context.Context,
 	if s.state == primitive.ServerStateRunning {
 		return &pbtrigger.StartTriggerWorkerResponse{}, nil
 	}
-	err := s.worker.Start()
+	err := s.worker.Start(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -83,15 +87,18 @@ func (s *server) AddSubscription(ctx context.Context,
 	if s.state != primitive.ServerStateRunning {
 		return nil, errors.ErrWorkerNotStart
 	}
-	sub := convert.FromPbAddSubscription(request)
-	err := s.worker.AddSubscription(sub)
+	subscription := convert.FromPbAddSubscription(request)
+	err := s.worker.AddSubscription(ctx, subscription)
 	if err != nil {
 		if err == errors.ErrResourceAlreadyExist {
-			log.Info(ctx, "add subscription bus sub exist", map[string]interface{}{
-				"id": sub.ID,
+			log.Info(ctx, "add subscription bus subscription exist", map[string]interface{}{
+				log.KeySubscriptionID: subscription.ID,
 			})
 		} else {
-			log.Warning(ctx, "worker add subscription error ", map[string]interface{}{"subscription": sub, "error": err})
+			log.Warning(ctx, "worker add subscription error ", map[string]interface{}{
+				"subscription": subscription,
+				log.KeyError:   err,
+			})
 			return nil, err
 		}
 	}
@@ -104,7 +111,7 @@ func (s *server) RemoveSubscription(ctx context.Context,
 	if s.state != primitive.ServerStateRunning {
 		return nil, errors.ErrWorkerNotStart
 	}
-	err := s.worker.RemoveSubscription(vanus.ID(request.SubscriptionId))
+	err := s.worker.RemoveSubscription(ctx, vanus.NewIDFromUint64(request.SubscriptionId))
 	if err != nil {
 		log.Info(ctx, "remove subscription error", map[string]interface{}{
 			log.KeySubscriptionID: request.SubscriptionId,
@@ -120,7 +127,7 @@ func (s *server) PauseSubscription(ctx context.Context,
 	if s.state != primitive.ServerStateRunning {
 		return nil, errors.ErrWorkerNotStart
 	}
-	s.worker.PauseSubscription(vanus.NewIDFromUint64(request.SubscriptionId))
+	_ = s.worker.PauseSubscription(ctx, vanus.NewIDFromUint64(request.SubscriptionId))
 	return &pbtrigger.PauseSubscriptionResponse{}, nil
 }
 
@@ -152,13 +159,6 @@ func (s *server) Initialize(ctx context.Context) error {
 	})
 	s.state = primitive.ServerStateStarted
 	s.startTime = time.Now()
-	go func() {
-		time.Sleep(60 * time.Second)
-		// 启动60s后还没有收到start，则退出.
-		if s.state != primitive.ServerStateRunning {
-			os.Exit(1)
-		}
-	}()
 	return nil
 }
 
@@ -173,7 +173,7 @@ func (s *server) stop(sendUnregister bool) {
 	if s.state != primitive.ServerStateRunning {
 		return
 	}
-	_ = s.worker.Stop()
+	_ = s.worker.Stop(s.ctx)
 	s.cancel()
 	s.wg.Wait()
 	ctx := context.Background()
@@ -198,7 +198,7 @@ func (s *server) startHeartbeat() {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		ticker := time.NewTicker(time.Second * 3)
+		ticker := time.NewTicker(heartbeatPeriod)
 		defer ticker.Stop()
 		ctx := context.Background()
 		for {

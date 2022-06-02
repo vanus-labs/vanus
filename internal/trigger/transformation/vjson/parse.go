@@ -171,7 +171,7 @@ func (s *scanner) parseBeginKey() error {
 			if err != nil {
 				return err
 			}
-			//raw null
+			// raw null .
 			s.result.Raw = s.json[start : s.pos+1]
 			s.result.Type = Null
 			return nil

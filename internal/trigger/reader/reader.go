@@ -36,12 +36,16 @@ import (
 	eb "github.com/linkall-labs/vanus/client"
 )
 
+const (
+	checkEventLogPeriod = 30 * time.Second
+)
+
 type Config struct {
 	EventBusName   string
 	EventBusVRN    string
 	SubscriptionID vanus.ID
 
-	CheckEventLogDuration time.Duration
+	CheckEventLogPeriod time.Duration
 }
 type EventLogOffset map[vanus.ID]uint64
 
@@ -62,8 +66,8 @@ type reader struct {
 }
 
 func NewReader(config Config, offset EventLogOffset, events chan<- info.EventOffset) Reader {
-	if config.CheckEventLogDuration <= 0 {
-		config.CheckEventLogDuration = 30 * time.Second
+	if config.CheckEventLogPeriod <= 0 {
+		config.CheckEventLogPeriod = checkEventLogPeriod
 	}
 	r := &reader{
 		config:   config,
@@ -85,7 +89,7 @@ func (r *reader) Close() {
 func (r *reader) Start() error {
 	go func() {
 		r.checkEventLogChange()
-		tk := time.NewTicker(r.config.CheckEventLogDuration)
+		tk := time.NewTicker(r.config.CheckEventLogPeriod)
 		defer tk.Stop()
 		for {
 			select {
