@@ -8,7 +8,7 @@ run:
   timeout: 1m # default 1m
   skip-dirs:
     - client
-    - thirds/raft
+    - raft
     - proto
 
 severity:
