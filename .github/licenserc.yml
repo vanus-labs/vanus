@@ -5,7 +5,7 @@ header:
 
   paths-ignore:
     - 'proto/include'
-    - 'raft'
+    - 'raft/'
     - 'build/'
     - '.github/'
     - 'docs/'
