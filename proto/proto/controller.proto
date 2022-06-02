@@ -1,0 +1,204 @@
+// Copyright 2022 Linkall Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package linkall.vanus.controller;
+
+import "google/protobuf/empty.proto";
+import "meta.proto";
+
+option go_package = "github.com/linkall-labs/vanus/proto/pkg/controller";
+
+service PingServer {
+  rpc Ping(google.protobuf.Empty) returns (PingResponse);
+}
+
+service EventBusController {
+  // grpc -> HTTP
+  rpc CreateEventBus(CreateEventBusRequest)
+      returns (linkall.vanus.meta.EventBus);
+  rpc DeleteEventBus(meta.EventBus) returns (google.protobuf.Empty);
+  rpc GetEventBus(meta.EventBus) returns (linkall.vanus.meta.EventBus);
+  rpc ListEventBus(google.protobuf.Empty) returns (ListEventbusResponse);
+  rpc UpdateEventBus(UpdateEventBusRequest)
+      returns (linkall.vanus.meta.EventBus);
+  // Don't consider UpdateEventBus now
+}
+
+service EventLogController {
+  rpc ListSegment(ListSegmentRequest) returns (ListSegmentResponse);
+  rpc GetAppendableSegment(GetAppendableSegmentRequest)
+      returns (GetAppendableSegmentResponse);
+}
+
+service SegmentController {
+  rpc QuerySegmentRouteInfo(QuerySegmentRouteInfoRequest)
+      returns (QuerySegmentRouteInfoResponse);
+  rpc SegmentHeartbeat(stream SegmentHeartbeatRequest)
+      returns (SegmentHeartbeatResponse);
+  rpc RegisterSegmentServer(RegisterSegmentServerRequest)
+      returns (RegisterSegmentServerResponse);
+  rpc UnregisterSegmentServer(UnregisterSegmentServerRequest)
+      returns (UnregisterSegmentServerResponse);
+  rpc ReportSegmentBlockIsFull(SegmentHeartbeatRequest)
+      returns (google.protobuf.Empty);
+  rpc ReportSegmentLeader(ReportSegmentLeaderRequest)
+      returns (google.protobuf.Empty);
+}
+
+service TriggerController {
+  rpc CreateSubscription(CreateSubscriptionRequest)
+      returns (linkall.vanus.meta.Subscription) {}
+  rpc DeleteSubscription(DeleteSubscriptionRequest)
+      returns (google.protobuf.Empty) {}
+  rpc GetSubscription(GetSubscriptionRequest)
+      returns (linkall.vanus.meta.Subscription) {}
+  rpc ListSubscription(google.protobuf.Empty)
+      returns (ListSubscriptionResponse) {}
+  rpc TriggerWorkerHeartbeat(stream TriggerWorkerHeartbeatRequest)
+      returns (TriggerWorkerHeartbeatResponse);
+  rpc RegisterTriggerWorker(RegisterTriggerWorkerRequest)
+      returns (RegisterTriggerWorkerResponse);
+  rpc UnregisterTriggerWorker(UnregisterTriggerWorkerRequest)
+      returns (UnregisterTriggerWorkerResponse);
+}
+
+message PingResponse {
+  string leader_addr = 1;
+  string gateway_addr = 2;
+}
+
+message CreateEventBusRequest {
+  string name = 1;
+  int32 log_number = 2;
+}
+
+message ListEventbusResponse {
+  repeated linkall.vanus.meta.EventBus eventbus = 1;
+}
+
+message UpdateEventBusRequest {}
+
+message QuerySegmentRouteInfoRequest {}
+
+message QuerySegmentRouteInfoResponse {}
+
+message SegmentHeartbeatRequest {
+  uint64 server_id = 1;
+  uint64 volume_id = 2;
+  repeated meta.SegmentHealthInfo health_info = 3;
+  string report_time = 4;
+  string server_addr = 5;
+}
+
+message SegmentHeartbeatResponse {}
+
+message RegisterSegmentServerRequest {
+  string address = 1;
+  uint64 volume_id = 2;
+  uint64 capacity = 3;
+}
+
+message RegisterSegmentServerResponse {
+  uint64 server_id = 1;
+  map<uint64, meta.Segment> segments = 2;
+  uint64 volume_id = 3;
+}
+
+message UnregisterSegmentServerRequest {
+  uint64 server_id = 1;
+  string address = 2;
+  uint64 volume_id = 3;
+}
+
+message UnregisterSegmentServerResponse {}
+
+message ReportSegmentLeaderRequest {
+  uint64 segment_id = 3;
+  uint64 leader_id = 1;
+  uint64 term = 2;
+}
+
+message CreateSubscriptionRequest {
+  string source = 1;
+  repeated string types = 2;
+  map<string, string> config = 3;
+  repeated meta.Filter filters = 4;
+  string sink = 5;
+  string protocol = 6;
+  map<string, string> protocol_settings = 7;
+  string event_bus = 8;
+  meta.InputTransformer input_transformer = 9;
+}
+
+message GetSubscriptionRequest {
+  uint64 id = 1;
+}
+
+message DeleteSubscriptionRequest {
+  uint64 id = 1;
+}
+
+message ListSubscriptionResponse {
+  repeated linkall.vanus.meta.Subscription subscription = 1;
+}
+
+message RegisterTriggerWorkerRequest {
+  string address = 1;
+}
+
+message RegisterTriggerWorkerResponse {}
+
+message UnregisterTriggerWorkerRequest {
+  string address = 1;
+}
+
+message UnregisterTriggerWorkerResponse {}
+
+message TriggerWorkerHeartbeatRequest {
+  string address = 1;
+  bool started = 2;
+  repeated meta.SubscriptionInfo sub_infos = 3;
+}
+
+message TriggerWorkerHeartbeatResponse {}
+
+message ListSegmentRequest {
+  uint64 event_bus_id = 1;
+  uint64 event_log_id = 2;
+  // if a segment has the range [a, b), if a <= start_offset < b, the segment
+  // will be returned
+  int64 start_offset = 3;
+  // if a segment has the range [c, d), if end_offset = c, the segment will not
+  // be returned
+  int64 end_offset = 4;
+  // max returned segment number, default is 16
+  int32 limited = 5;
+}
+
+message ListSegmentResponse {
+  repeated linkall.vanus.meta.Segment segments = 1;
+}
+
+message GetAppendableSegmentRequest {
+  uint64 event_bus_id = 1;
+  uint64 event_log_id = 2;
+  // max returned segment number, default is 2
+  int32 limited = 3;
+}
+
+message GetAppendableSegmentResponse {
+  repeated linkall.vanus.meta.Segment segments = 3;
+}

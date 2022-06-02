@@ -21,8 +21,8 @@ import (
 	"sync"
 
 	// first-party libraries.
-	"github.com/linkall-labs/raft"
-	"github.com/linkall-labs/raft/raftpb"
+	"github.com/linkall-labs/vanus/raft"
+	"github.com/linkall-labs/vanus/raft/raftpb"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"

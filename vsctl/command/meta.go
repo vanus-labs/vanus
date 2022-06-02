@@ -21,7 +21,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/spf13/cobra"
 )
 

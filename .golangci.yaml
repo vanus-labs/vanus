@@ -7,10 +7,9 @@
 run:
   timeout: 1m # default 1m
   skip-dirs:
-    - embed-etcd
-    - eventbus-go
+    - client
     - raft
-    - vsproto
+    - proto
 
 severity:
   default-severity: info

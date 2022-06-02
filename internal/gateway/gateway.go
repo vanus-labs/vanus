@@ -26,8 +26,8 @@ import (
 	"github.com/cloudevents/sdk-go/v2/client"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
-	eb "github.com/linkall-labs/eventbus-go"
-	"github.com/linkall-labs/eventbus-go/pkg/eventbus"
+	eb "github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/client/pkg/eventbus"
 )
 
 const (

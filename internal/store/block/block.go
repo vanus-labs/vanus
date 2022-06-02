@@ -20,7 +20,7 @@ import (
 	"errors"
 
 	// first-party libraries.
-	metapb "github.com/linkall-labs/vsproto/pkg/meta"
+	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"

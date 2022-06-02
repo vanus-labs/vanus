@@ -1,0 +1,6 @@
+version: v1
+plugins:
+  - name: go
+    out: include/cloudevents/thirds
+    opt:
+      - module=cloudevents.io/genproto

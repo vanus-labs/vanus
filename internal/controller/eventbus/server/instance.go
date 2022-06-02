@@ -22,7 +22,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
-	segpb "github.com/linkall-labs/vsproto/pkg/segment"
+	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 )
 
 type Instance interface {

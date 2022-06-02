@@ -18,7 +18,7 @@ import (
 	v1 "cloudevents.io/genproto/v1"
 	"context"
 	"fmt"
-	"github.com/linkall-labs/vsproto/pkg/segment"
+	"github.com/linkall-labs/vanus/proto/pkg/segment"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

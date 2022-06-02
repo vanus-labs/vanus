@@ -1,0 +1,99 @@
+// Copyright 2022 Linkall Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package linkall.vanus.segment;
+
+option go_package = "github.com/linkall-labs/vanus/proto/pkg/segment";
+
+import "google/protobuf/empty.proto";
+import "cloudevents/cloudevents.proto";
+import "config.proto";
+
+service SegmentServer {
+  rpc Start(StartSegmentServerRequest) returns (StartSegmentServerResponse);
+  rpc Stop(StopSegmentServerRequest) returns (StopSegmentServerResponse);
+
+  rpc CreateBlock(CreateBlockRequest) returns (google.protobuf.Empty);
+  rpc RemoveBlock(RemoveBlockRequest) returns (google.protobuf.Empty);
+  rpc GetBlockInfo(GetBlockInfoRequest) returns (GetBlockInfoResponse);
+
+  rpc ActivateSegment(ActivateSegmentRequest) returns (ActivateSegmentResponse);
+  rpc InactivateSegment(InactivateSegmentRequest)
+      returns (InactivateSegmentResponse);
+
+  rpc AppendToBlock(AppendToBlockRequest) returns (google.protobuf.Empty);
+  rpc ReadFromBlock(ReadFromBlockRequest) returns (ReadFromBlockResponse);
+  rpc Status(google.protobuf.Empty) returns (StatusResponse);
+}
+
+message StartSegmentServerRequest {
+  linkall.vanus.config.ServerConfig config = 1;
+  uint64 server_id = 2;
+}
+
+message StartSegmentServerResponse {}
+
+message StopSegmentServerRequest {}
+
+message StopSegmentServerResponse {}
+
+message CreateBlockRequest {
+  uint64 id = 1;
+  int64 size = 2;
+}
+
+message RemoveBlockRequest {
+  uint64 id = 1;
+}
+
+message GetBlockInfoRequest {}
+
+message GetBlockInfoResponse {}
+
+message ActivateSegmentRequest {
+  uint64 event_log_id = 1;
+  uint64 replica_group_id = 2;
+  // block ID and its server endpoint.
+  map<uint64, string> replicas = 3;
+}
+
+message ActivateSegmentResponse {}
+
+message InactivateSegmentRequest {}
+
+message InactivateSegmentResponse {}
+
+message AppendToBlockRequest {
+  uint64 block_id = 1;
+  io.cloudevents.v1.CloudEventBatch events = 2;
+}
+
+message ReadFromBlockRequest {
+  uint64 block_id = 1;
+  int64 offset = 2;
+  int64 number = 3;
+}
+
+message ReadFromBlockResponse {
+  io.cloudevents.v1.CloudEventBatch events = 1;
+  // Don't use this now, just used to optimize cpu overhead of SegmentServer in
+  // the future for backward compatibility
+  bytes payload = 2;
+}
+
+message StatusResponse {
+  string status = 1;
+}

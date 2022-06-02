@@ -26,8 +26,8 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
-	metapb "github.com/linkall-labs/vsproto/pkg/meta"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	"github.com/spf13/cobra"
 )
 

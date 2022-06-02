@@ -31,8 +31,8 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	// first-party libraries.
-	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
-	errpb "github.com/linkall-labs/vsproto/pkg/errors"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/segment/errors"

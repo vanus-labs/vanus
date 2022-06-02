@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	eb "github.com/linkall-labs/eventbus-go"
+	eb "github.com/linkall-labs/vanus/client"
 	"io"
 	"math"
 	"net/http"

@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 	embedetcd "github.com/linkall-labs/embed-etcd"
-	rpcerr "github.com/linkall-labs/vsproto/pkg/errors"
+	rpcerr "github.com/linkall-labs/vanus/proto/pkg/errors"
 	"google.golang.org/grpc"
 )
 

@@ -26,8 +26,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	// first-party libraries.
-	"github.com/linkall-labs/raft/raftpb"
-	vsraftpb "github.com/linkall-labs/vsproto/pkg/raft"
+	vsraftpb "github.com/linkall-labs/vanus/proto/pkg/raft"
+	"github.com/linkall-labs/vanus/raft/raftpb"
 )
 
 const (

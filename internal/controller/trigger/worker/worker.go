@@ -24,7 +24,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vsproto/pkg/trigger"
+	"github.com/linkall-labs/vanus/proto/pkg/trigger"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

@@ -20,7 +20,7 @@ import (
 	"sync"
 
 	// third-party libraries.
-	"github.com/linkall-labs/raft/raftpb"
+	"github.com/linkall-labs/vanus/raft/raftpb"
 )
 
 type Host interface {

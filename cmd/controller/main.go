@@ -27,7 +27,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/util/signal"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
-	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"

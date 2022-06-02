@@ -33,11 +33,11 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	// first-party libraries.
-	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
-	rpcerr "github.com/linkall-labs/vsproto/pkg/errors"
-	metapb "github.com/linkall-labs/vsproto/pkg/meta"
-	raftpb "github.com/linkall-labs/vsproto/pkg/raft"
-	segpb "github.com/linkall-labs/vsproto/pkg/segment"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	rpcerr "github.com/linkall-labs/vanus/proto/pkg/errors"
+	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
+	raftpb "github.com/linkall-labs/vanus/proto/pkg/raft"
+	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive"

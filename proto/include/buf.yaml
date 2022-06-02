@@ -1,0 +1,9 @@
+version: v1
+lint:
+  use:
+    - DEFAULT
+  except:
+    - PACKAGE_DIRECTORY_MATCH
+breaking:
+  use:
+    - FILE

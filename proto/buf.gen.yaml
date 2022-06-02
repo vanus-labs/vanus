@@ -1,0 +1,16 @@
+version: v1
+plugins:
+  - name: go
+    out: thirds
+    opt:
+      - plugins=grpc
+      - module=github.com/linkall-labs/proto/thirds
+  # - name: go-grpc
+  #   out: thirds
+  #   opt:
+  #     - module=github.com/linkall-labs/proto/thirds
+  #     - require_unimplemented_servers=false
+  - name: grpc-gateway
+    out: thirds
+    opt:
+      - module=github.com/linkall-labs/proto/thirds

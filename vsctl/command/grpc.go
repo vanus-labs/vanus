@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

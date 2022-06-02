@@ -17,12 +17,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/linkall-labs/eventbus-go"
+	"github.com/linkall-labs/vanus/client"
 )
 
 func main() {
 	vrn := fmt.Sprintf("vanus://%s/eventlog/%s?namespace=vanus", "127.0.0.1:2048", "df5aff09-9242-4b47-b9df-cf07c5868e3a")
-	r, err := eventbus.OpenLogReader(vrn)
+	r, err := client.OpenLogReader(vrn)
 	if err != nil {
 		panic(err)
 	}

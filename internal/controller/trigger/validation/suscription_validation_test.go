@@ -18,8 +18,8 @@ import (
 	"context"
 	"testing"
 
-	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
-	metapb "github.com/linkall-labs/vsproto/pkg/meta"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 
 	. "github.com/smartystreets/goconvey/convey"
 )

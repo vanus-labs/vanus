@@ -1,0 +1,17 @@
+version: v1
+name: buf.build/linkall-labs/vanus
+deps:
+  - buf.build/linkall-labs/raft
+lint:
+  use:
+    - DEFAULT
+  except:
+    # FIXME: restructure directories
+    - DIRECTORY_SAME_PACKAGE
+    - PACKAGE_DIRECTORY_MATCH
+    - PACKAGE_VERSION_SUFFIX
+    - SERVICE_SUFFIX
+  rpc_allow_google_protobuf_empty_responses: true
+breaking:
+  use:
+    - FILE

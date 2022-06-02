@@ -16,7 +16,7 @@ package grpc_error
 
 import (
 	"context"
-	"github.com/linkall-labs/vsproto/pkg/errors"
+	"github.com/linkall-labs/vanus/proto/pkg/errors"
 	"google.golang.org/grpc"
 )
 

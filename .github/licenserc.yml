@@ -4,6 +4,8 @@ header:
     copyright-owner: Linkall Inc.
 
   paths-ignore:
+    - 'proto/include'
+    - 'raft/'
     - 'build/'
     - '.github/'
     - 'docs/'
@@ -26,4 +28,5 @@ header:
     - '**/*mock*'
     - '**/*.sh'
     - 'Makefile'
+    - 'buf.lock'
   comment: on-failure

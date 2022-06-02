@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	segpb "github.com/linkall-labs/vsproto/pkg/segment"
+	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 	"google.golang.org/grpc"
 
 	"github.com/golang/mock/gomock"

@@ -1,0 +1,122 @@
+// Copyright 2022 Linkall Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package linkall.vanus.meta;
+
+option go_package = "github.com/linkall-labs/vanus/proto/pkg/meta";
+
+message VanusResourceName {
+  string value = 1;
+}
+
+message EventBus {
+  string name = 1;
+  int32 log_number = 2;
+  repeated EventLog logs = 3;
+  uint64 id = 4;
+}
+
+message EventLog {
+  string event_bus_name = 1;
+  uint64 event_log_id = 2;
+  int32 current_segment_numbers = 3;
+  repeated string server_address = 4;
+}
+
+message Block {
+  uint64 id = 1;
+  string endpoint = 2;
+  uint64 volumeID = 3;
+}
+
+message Segment {
+  uint64 id = 1;
+  uint64 previous_segment_id = 2;
+  uint64 next_segment_id = 3;
+  uint64 event_log_id = 4;
+  int64 start_offset_in_log = 5;
+  int64 end_offset_in_log = 6;
+  int64 size = 7;
+  int64 capacity = 8;
+  int32 number_event_stored = 9;
+  CompressAlgorithm compressed = 10;
+  string state = 11;
+  map<uint64, Block> replicas = 12;
+  uint64 leader_block_id = 13;
+}
+
+message SegmentHealthInfo {
+  uint64 id = 1;
+  uint64 event_log_id = 2;
+  int64 capacity = 3;
+  int64 size = 4;
+  int32 event_number = 5;
+  int32 serialization_version = 6;
+  bool is_full = 7;
+  uint64 term = 9;
+  uint64 leader = 8;
+}
+
+enum StorageTier {
+  MEMORY = 0;
+  SSD = 1;
+  HDD = 2;
+  S3 = 3;
+}
+
+enum CompressAlgorithm {
+  NONE = 0;
+  LZ4 = 1;
+}
+
+message Subscription {
+  uint64 id = 1;
+  string source = 2;
+  repeated string types = 3;
+  map<string, string> config = 4;
+  repeated Filter filters = 5;
+  string sink = 6;
+  string protocol = 7;
+  map<string, string> protocol_settings = 8;
+  string event_bus = 9;
+  meta.InputTransformer input_transformer = 10;
+}
+
+message Filter {
+  map<string, string> exact = 1;
+  map<string, string> prefix = 2;
+  map<string, string> suffix = 3;
+  Filter not = 4;
+  repeated Filter all = 5;
+  repeated Filter any = 6;
+  string sql = 7;
+  string cel = 8;
+}
+
+message SubscriptionInfo {
+  uint64 subscription_id = 1;
+  repeated OffsetInfo offsets = 2;
+}
+
+message OffsetInfo {
+  uint64 offset = 1;
+  uint64 event_log_id = 2;
+}
+
+message InputTransformer {
+  map<string, string> define = 1;
+  string template = 2;
+}

@@ -26,9 +26,9 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"github.com/linkall-labs/vanus/internal/trigger/worker"
 	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vsproto/pkg/controller"
-	"github.com/linkall-labs/vsproto/pkg/meta"
-	pbtrigger "github.com/linkall-labs/vsproto/pkg/trigger"
+	"github.com/linkall-labs/vanus/proto/pkg/controller"
+	"github.com/linkall-labs/vanus/proto/pkg/meta"
+	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
 )
 
 type server struct {

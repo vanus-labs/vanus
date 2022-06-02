@@ -8,6 +8,7 @@ require (
 	github.com/cloudevents/sdk-go/v2 v2.8.0
 	github.com/fatih/color v1.13.0
 	github.com/go-resty/resty/v2 v2.7.0
+	github.com/gogo/protobuf v1.3.2
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2
 	github.com/google/cel-go v0.11.2
@@ -16,12 +17,11 @@ require (
 	github.com/huandu/skiplist v1.2.0
 	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/labstack/echo/v4 v4.7.2
-	github.com/linkall-labs/embed-etcd v0.0.0
-	github.com/linkall-labs/eventbus-go v0.0.0
-	github.com/linkall-labs/raft v0.0.0
-	github.com/linkall-labs/vsproto v0.0.0
+	github.com/linkall-labs/embed-etcd v0.0.1
+	github.com/linkall-labs/vanus/client v0.1.0
+	github.com/linkall-labs/vanus/proto v0.1.0
+	github.com/linkall-labs/vanus/raft v0.1.0
 	github.com/pkg/errors v0.9.1
-	github.com/prashantv/gostub v1.1.0
 	github.com/prometheus/client_golang v1.11.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/smartystreets/goconvey v1.7.2
@@ -39,11 +39,10 @@ require (
 )
 
 replace (
-	cloudevents.io/genproto v1.0.2 => ../vsproto/include/cloudevents/pkg
-	github.com/linkall-labs/embed-etcd v0.0.0 => ../embed-etcd
-	github.com/linkall-labs/eventbus-go v0.0.0 => ../eventbus-go
-	github.com/linkall-labs/raft v0.0.0 => ../raft
-	github.com/linkall-labs/vsproto v0.0.0 => ../vsproto
+	cloudevents.io/genproto => ./proto/include/cloudevents/pkg
+	github.com/linkall-labs/vanus/client => ./client
+	github.com/linkall-labs/vanus/proto => ./proto
+	github.com/linkall-labs/vanus/raft => ./raft
 )
 
 require (
@@ -55,7 +54,6 @@ require (
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.3+incompatible // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20181017120253-0766667cb4d1 // indirect

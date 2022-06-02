@@ -14,7 +14,7 @@
 
 package errors
 
-import rpcerr "github.com/linkall-labs/vsproto/pkg/errors"
+import rpcerr "github.com/linkall-labs/vanus/proto/pkg/errors"
 
 var (
 	ErrInvalidRequest       = rpcerr.New("invalid request").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)

@@ -26,7 +26,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
-	pbtrigger "github.com/linkall-labs/vsproto/pkg/trigger"
+	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
 
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"

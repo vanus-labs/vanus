@@ -25,13 +25,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/google/uuid"
-	ctrlpb "github.com/linkall-labs/vsproto/pkg/controller"
-
 	ce "github.com/cloudevents/sdk-go/v2"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"github.com/fatih/color"
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/google/uuid"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/spf13/cobra"
 )
 

@@ -22,7 +22,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger"
 	"github.com/linkall-labs/vanus/internal/util/signal"
 	"github.com/linkall-labs/vanus/observability/log"
-	pbtrigger "github.com/linkall-labs/vsproto/pkg/trigger"
+	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
 	"google.golang.org/grpc"
 	"net"
 	"os"
