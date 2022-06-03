@@ -158,5 +158,4 @@ func TestExecute(t *testing.T) {
 			So(string(e.Data()), ShouldEqual, `{"body": {"data": "source is \"value\"","data2": "source is \"\""}}`)
 		})
 	})
-
 }

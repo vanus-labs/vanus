@@ -72,6 +72,7 @@ func NewTrigger(config *Config, sub *primitive.Subscription, offsetManager *offs
 	}
 	config.initConfig()
 	t := &Trigger{
+		stop:           func() {},
 		config:         *config,
 		ID:             vanus.NewID(),
 		SubscriptionID: sub.ID,

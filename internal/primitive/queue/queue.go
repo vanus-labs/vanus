@@ -15,9 +15,10 @@
 package queue
 
 import (
+	"time"
+
 	"golang.org/x/time/rate"
 	"k8s.io/client-go/util/workqueue"
-	"time"
 )
 
 type Queue interface {
@@ -32,6 +33,13 @@ type Queue interface {
 	ClearFailNum(key string)
 }
 
+const (
+	limitSize      = 10
+	burst          = 100
+	limitBaseDelay = 500 * time.Millisecond
+	limitMaxDelay  = 10 * time.Second
+)
+
 type queue struct {
 	queue workqueue.RateLimitingInterface
 }
@@ -44,9 +52,9 @@ func New() Queue {
 
 func DefaultControllerRateLimiter() workqueue.RateLimiter {
 	return workqueue.NewMaxOfRateLimiter(
-		workqueue.NewItemExponentialFailureRateLimiter(500*time.Millisecond, 10*time.Second),
+		workqueue.NewItemExponentialFailureRateLimiter(limitBaseDelay, limitMaxDelay),
 		// 10 qps, 100 bucket size.  This is only for retry speed and its only the overall factor (not per item)
-		&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
+		&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(limitSize), burst)},
 	)
 }
 
@@ -60,11 +68,10 @@ func (q *queue) Len() int {
 
 func (q *queue) Get() (value string, shutdown bool) {
 	v, shutdown := q.queue.Get()
-	if shutdown {
-		return "", shutdown
-	} else {
-		return v.(string), shutdown
+	if !shutdown {
+		value, _ = v.(string)
 	}
+	return value, shutdown
 }
 
 func (q *queue) Done(key string) {

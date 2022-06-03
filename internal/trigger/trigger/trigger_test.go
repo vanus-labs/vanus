@@ -16,7 +16,6 @@ package trigger_test
 
 import (
 	"context"
-	"net"
 	"testing"
 	"time"
 
@@ -50,15 +49,10 @@ func TestTrigger(t *testing.T) {
 		So(tg.GetState(), ShouldEqual, trigger.TriggerStopped)
 		cancel()
 	})
-
 }
 
 func startSink(ctx context.Context) {
-	ls, err := net.Listen("tcp4", ":18080")
-	if err != nil {
-		panic(err)
-	}
-	c, err := client.NewHTTP(cehttp.WithListener(ls))
+	c, err := client.NewHTTP(cehttp.WithPort(18080))
 	if err != nil {
 		panic(err)
 	}
@@ -69,9 +63,9 @@ func startSink(ctx context.Context) {
 	})
 }
 
-func makeSubscription(ID vanus.ID) *primitive.Subscription {
+func makeSubscription(id vanus.ID) *primitive.Subscription {
 	return &primitive.Subscription{
-		ID:      ID,
+		ID:      id,
 		Sink:    "http://localhost:18080",
 		Filters: []*primitive.SubscriptionFilter{{Exact: map[string]string{"type": "type"}}},
 	}

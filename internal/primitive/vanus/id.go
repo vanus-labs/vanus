@@ -25,6 +25,8 @@ type ID uint64
 var (
 	emptyID = ID(0)
 	lock    = sync.Mutex{}
+	base    = 10
+	bitSize = 64
 )
 
 func EmptyID() ID {
@@ -43,7 +45,7 @@ func NewIDFromUint64(id uint64) ID {
 }
 
 func NewIDFromString(id string) (ID, error) {
-	i, err := strconv.ParseUint(id, 10, 64)
+	i, err := strconv.ParseUint(id, base, bitSize)
 	if err != nil {
 		return emptyID, err
 	}
@@ -51,7 +53,7 @@ func NewIDFromString(id string) (ID, error) {
 }
 
 func (id ID) String() string {
-	return strconv.FormatUint(uint64(id), 10)
+	return strconv.FormatUint(uint64(id), base)
 }
 
 func (id ID) Uint64() uint64 {

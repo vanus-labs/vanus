@@ -15,108 +15,41 @@
 package worker
 
 import (
+	"context"
 	"testing"
-	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/trigger/errors"
+	"github.com/linkall-labs/vanus/internal/trigger/offset"
+	"github.com/linkall-labs/vanus/internal/trigger/reader"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestAddSubscription(t *testing.T) {
-	Convey("add subscription", t, func() {
+func TestSubscriptionWorker(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	r := reader.NewMockReader(ctrl)
+	Convey("subscription worker", t, func() {
 		id := vanus.NewID()
-		w := NewWorker(Config{Controllers: []string{"test"}})
-		err := w.AddSubscription(&primitive.Subscription{
+		subscription := &primitive.Subscription{
 			ID: id,
-		})
+			Offsets: info.ListOffsetInfo{
+				{Offset: 1, EventLogID: 1},
+			},
+		}
+		offsetManager := offset.NewOffsetManager()
+		offsetManager.RemoveSubscription(id)
+		subscriptionOffset := offsetManager.GetSubscription(id)
+		w := NewSubscriptionWorker(subscription, subscriptionOffset,
+			[]string{"test"}).(*subscriptionWorker)
+		w.reader = r
+		r.EXPECT().Start().AnyTimes().Return(nil)
+		r.EXPECT().Close().AnyTimes().Return()
+		err := w.Run(ctx)
 		So(err, ShouldBeNil)
-		_, exist := w.subscriptions[id]
-		So(exist, ShouldBeTrue)
-		Convey("repeat add subscription", func() {
-			err = w.AddSubscription(&primitive.Subscription{
-				ID: id,
-			})
-			So(err, ShouldNotBeNil)
-			So(err, ShouldEqual, errors.ErrResourceAlreadyExist)
-		})
-	})
-}
-
-func TestListSubscriptionInfo(t *testing.T) {
-	Convey("list subscription info", t, func() {
-		id := vanus.NewID()
-		w := NewWorker(Config{Controllers: []string{"test"}})
-		err := w.AddSubscription(&primitive.Subscription{
-			ID: id,
-		})
-		So(err, ShouldBeNil)
-		list, f := w.ListSubscriptionInfo()
-		f()
-		So(len(list), ShouldEqual, 1)
-		So(list[0].SubscriptionID, ShouldEqual, id)
-	})
-}
-
-//func TestRemoveSubscription(t *testing.T) {
-//	Convey("remove subscription", t, func() {
-//		ID := vanus.NewID()
-//		w := NewWorker(Config{Controllers: []string{"test"}})
-//		err := w.AddSubscription(&primitive.Subscription{
-//			ID: ID,
-//		})
-//		So(err, ShouldBeNil)
-//		ctx, cancel := context.WithCancel(context.Background())
-//		go func() {
-//			for {
-//				select {
-//				case <-ctx.Done():
-//					return
-//				default:
-//					time.Sleep(time.Millisecond * 10)
-//					_, f := w.ListSubscriptionInfo()
-//					f()
-//				}
-//			}
-//		}()
-//		err = w.RemoveSubscription(ID)
-//		cancel()
-//		So(err, ShouldBeNil)
-//		_, exist := w.subscriptions[ID]
-//		So(exist, ShouldBeFalse)
-//	})
-//}
-
-func TestPauseSubscription(t *testing.T) {
-	Convey("pause subscription", t, func() {
-		id := vanus.NewID()
-		w := NewWorker(Config{Controllers: []string{"test"}})
-		err := w.AddSubscription(&primitive.Subscription{
-			ID: id,
-		})
-		So(err, ShouldBeNil)
-		err = w.PauseSubscription(id)
-		So(err, ShouldBeNil)
-		_, exist := w.subscriptions[id]
-		So(exist, ShouldBeTrue)
-	})
-}
-
-func TestCleanSubscription(t *testing.T) {
-	Convey("clean subscription by ID", t, func() {
-		id := vanus.NewID()
-		w := NewWorker(Config{CleanSubscriptionTimeout: time.Millisecond * 100})
-		Convey("clean no exist subscription ID", func() {
-			w.cleanSubscription(id)
-		})
-		Convey("clean exist subscription ID", func() {
-			w.subscriptions = map[vanus.ID]*subscriptionWorker{
-				id: {stopTime: time.Now()},
-			}
-			w.cleanSubscription(id)
-			_, exist := w.subscriptions[id]
-			So(exist, ShouldBeFalse)
-		})
+		w.Stop(ctx)
 	})
 }

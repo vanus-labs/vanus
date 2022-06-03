@@ -27,6 +27,7 @@ import (
 type Manager struct {
 	subOffset      sync.Map
 	lastCommitTime time.Time
+	lock           sync.RWMutex
 }
 
 func NewOffsetManager() *Manager {
@@ -57,10 +58,14 @@ func (m *Manager) RemoveSubscription(id vanus.ID) {
 }
 
 func (m *Manager) SetLastCommitTime() {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	m.lastCommitTime = time.Now()
 }
 
 func (m *Manager) GetLastCommitTime() time.Time {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 	return m.lastCommitTime
 }
 
@@ -88,7 +93,7 @@ func (offset *SubscriptionOffset) EventCommit(info info.OffsetInfo) {
 func (offset *SubscriptionOffset) GetCommit() info.ListOffsetInfo {
 	var commit info.ListOffsetInfo
 	offset.elOffset.Range(func(key, value interface{}) bool {
-		tracker := value.(*offsetTracker)
+		tracker, _ := value.(*offsetTracker)
 		commit = append(commit, info.OffsetInfo{
 			EventLogID: key.(vanus.ID),
 			Offset:     tracker.offsetToCommit(),
