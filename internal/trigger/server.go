@@ -16,6 +16,7 @@ package trigger
 
 import (
 	"context"
+	stdErr "errors"
 	"os"
 	"sync"
 	"time"
@@ -90,7 +91,7 @@ func (s *server) AddSubscription(ctx context.Context,
 	subscription := convert.FromPbAddSubscription(request)
 	err := s.worker.AddSubscription(ctx, subscription)
 	if err != nil {
-		if err == errors.ErrResourceAlreadyExist {
+		if stdErr.Is(err, errors.ErrResourceAlreadyExist) {
 			log.Info(ctx, "add subscription bus subscription exist", map[string]interface{}{
 				log.KeySubscriptionID: subscription.ID,
 			})
@@ -217,7 +218,7 @@ func (s *server) startHeartbeat() {
 					SubInfos: subInfos,
 				})
 				if err != nil {
-					log.Warning(ctx, "send heartbeat to controller failed, connection lost. try to reconnecting", map[string]interface{}{
+					log.Warning(ctx, "heartbeat failed, connection lost. try to reconnecting", map[string]interface{}{
 						log.KeyError: err,
 					})
 				}

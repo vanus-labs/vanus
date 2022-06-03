@@ -63,9 +63,9 @@ func startSink(ctx context.Context) {
 	})
 }
 
-func makeSubscription(ID vanus.ID) *primitive.Subscription {
+func makeSubscription(id vanus.ID) *primitive.Subscription {
 	return &primitive.Subscription{
-		ID:      ID,
+		ID:      id,
 		Sink:    "http://localhost:18080",
 		Filters: []*primitive.SubscriptionFilter{{Exact: map[string]string{"type": "type"}}},
 	}

@@ -119,30 +119,30 @@ func (p *Parser) Parse(text string) {
 	rightDelimLen := len(p.rightDelim)
 	for {
 		x := strings.Index(text[pos:], p.leftDelim)
-		if x >= 0 {
-			ldp := pos + x + leftDelimLen
-			y := strings.Index(text[ldp:], p.rightDelim)
-			if y >= 0 {
-				var stringVar bool
-				if p.OutputType == JSON {
-					stringVar = isStringVar(text, pos+x-1)
-				}
-				if x > 0 {
-					p.addNode(p.newConstant(text[pos : pos+x]))
-				}
-				if stringVar {
-					p.addNode(p.newStringVariable(text[ldp : ldp+y]))
-				} else {
-					p.addNode(p.newVariable(text[ldp : ldp+y]))
-				}
-				pos = ldp + y + rightDelimLen
-				if pos == len(text) {
-					break
-				}
-				continue
-			}
+		if x < 0 {
+			p.addNode(p.newConstant(text[pos:]))
+			break
 		}
-		p.addNode(p.newConstant(text[pos:]))
-		break
+		ldp := pos + x + leftDelimLen
+		y := strings.Index(text[ldp:], p.rightDelim)
+		if y < 0 {
+			continue
+		}
+		var stringVar bool
+		if p.OutputType == JSON {
+			stringVar = isStringVar(text, pos+x-1)
+		}
+		if x > 0 {
+			p.addNode(p.newConstant(text[pos : pos+x]))
+		}
+		if stringVar {
+			p.addNode(p.newStringVariable(text[ldp : ldp+y]))
+		} else {
+			p.addNode(p.newVariable(text[ldp : ldp+y]))
+		}
+		pos = ldp + y + rightDelimLen
+		if pos == len(text) {
+			break
+		}
 	}
 }
