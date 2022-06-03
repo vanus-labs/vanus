@@ -37,7 +37,12 @@ import (
 )
 
 const (
-	checkEventLogPeriod = 30 * time.Second
+	checkEventLogPeriod       = 30 * time.Second
+	lookupReadableLogsTimeout = 5 * time.Second
+	readerSeekTimeout         = 5 * time.Second
+	readEventTimeout          = 5 * time.Second
+	initErrSleepTime          = 5 * time.Second
+	readSize                  = 5
 )
 
 type Config struct {
@@ -104,7 +109,7 @@ func (r *reader) Start() error {
 }
 
 func (r *reader) checkEventLogChange() {
-	ctx, cancel := context.WithTimeout(r.stctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.stctx, lookupReadableLogsTimeout)
 	defer cancel()
 	els, err := eb.LookupReadableLogs(ctx, r.config.EventBusVRN)
 	if err != nil {
@@ -205,7 +210,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 				log.KeyEventlogID:   elReader.eventLogID,
 				log.KeyError:        err,
 			})
-			if !util.SleepWithContext(ctx, time.Second*5) {
+			if !util.SleepWithContext(ctx, initErrSleepTime) {
 				return
 			}
 			continue
@@ -280,9 +285,9 @@ func (elReader *eventLogReader) sendEvent(ctx context.Context, event info.EventO
 }
 
 func readEvents(ctx context.Context, lr eventlog.LogReader) ([]*ce.Event, error) {
-	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	timeout, cancel := context.WithTimeout(ctx, readEventTimeout)
 	defer cancel()
-	return lr.Read(timeout, 5)
+	return lr.Read(timeout, readSize)
 }
 
 func (elReader *eventLogReader) init(ctx context.Context) (eventlog.LogReader, error) {
@@ -290,7 +295,7 @@ func (elReader *eventLogReader) init(ctx context.Context) (eventlog.LogReader, e
 	if err != nil {
 		return nil, err
 	}
-	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	timeout, cancel := context.WithTimeout(ctx, readerSeekTimeout)
 	defer cancel()
 	_, err = lr.Seek(timeout, int64(elReader.offset), io.SeekStart)
 	if err != nil {
