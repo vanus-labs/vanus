@@ -16,10 +16,9 @@ syntax = "proto3";
 
 package linkall.vanus.segment;
 
-option go_package = "github.com/linkall-labs/vanus/proto/pkg/segment";
+option go_package = "github.com/linkall-labs/vsproto/pkg/segment";
 
 import "google/protobuf/empty.proto";
-import "cloudevents/cloudevents.proto";
 import "config.proto";
 
 service SegmentServer {
@@ -78,7 +77,7 @@ message InactivateSegmentResponse {}
 
 message AppendToBlockRequest {
   uint64 block_id = 1;
-  io.cloudevents.v1.CloudEventBatch events = 2;
+  repeated bytes events = 2;
 }
 
 message ReadFromBlockRequest {
@@ -88,7 +87,7 @@ message ReadFromBlockRequest {
 }
 
 message ReadFromBlockResponse {
-  io.cloudevents.v1.CloudEventBatch events = 1;
+  repeated bytes events = 1;
   // Don't use this now, just used to optimize cpu overhead of SegmentServer in
   // the future for backward compatibility
   bytes payload = 2;

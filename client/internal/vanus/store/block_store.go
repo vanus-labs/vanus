@@ -24,6 +24,7 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	// first-party libraries
 	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
@@ -70,11 +71,15 @@ func (s *BlockStore) Append(ctx context.Context, block uint64, event *ce.Event) 
 	if err != nil {
 		return -1, err
 	}
+
+	data, err := proto.Marshal(eventpb)
+	if err != nil {
+		return -1, err
+	}
+
 	req := &segpb.AppendToBlockRequest{
 		BlockId: block,
-		Events: &cepb.CloudEventBatch{
-			Events: []*cepb.CloudEvent{eventpb},
-		},
+		Events:  [][]byte{data},
 	}
 
 	client, err := s.client.Get(ctx)
@@ -124,19 +129,22 @@ func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size 
 		return nil, err
 	}
 
-	if batch := resp.GetEvents(); batch != nil {
-		if eventpbs := batch.GetEvents(); len(eventpbs) > 0 {
-			events := make([]*ce.Event, 0, len(eventpbs))
-			for _, eventpb := range eventpbs {
-				event, err := codec.FromProto(eventpb)
-				if err != nil {
-					// TODO: return events or error?
-					return events, err
-				}
-				events = append(events, event)
+	if eventpbs := resp.GetEvents(); len(eventpbs) != 0 {
+		events := make([]*ce.Event, 0, len(eventpbs))
+		for _, data := range eventpbs {
+			var eventpb cepb.CloudEvent
+			err := proto.Unmarshal(data, &eventpb)
+			if err != nil {
+				return events, err
 			}
-			return events, nil
+			event, err := codec.FromProto(&eventpb)
+			if err != nil {
+				// TODO: return events or error?
+				return events, err
+			}
+			events = append(events, event)
 		}
+		return events, nil
 	}
 
 	return make([]*ce.Event, 0, 0), nil

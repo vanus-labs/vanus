@@ -26,8 +26,6 @@ import (
 	"time"
 
 	// third-party libraries.
-	cepb "cloudevents.io/genproto/v1"
-	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -348,7 +346,7 @@ func (s *server) AppendToBlock(ctx context.Context, req *segpb.AppendToBlockRequ
 		return nil, err
 	}
 
-	if req.Events == nil || len(req.Events.Events) == 0 {
+	if req.Events == nil || len(req.Events) == 0 {
 		return nil, errors.ErrInvalidRequest.WithMessage("event list is empty")
 	}
 
@@ -361,15 +359,11 @@ func (s *server) AppendToBlock(ctx context.Context, req *segpb.AppendToBlockRequ
 		return nil, errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
 	}
 
-	events := req.GetEvents().Events
+	events := req.GetEvents()
 	entries := make([]block.Entry, len(events))
 	for i, event := range events {
-		payload, err := proto.Marshal(event)
-		if err != nil {
-			return nil, errors.ErrInternal.WithMessage("marshall event failed").Wrap(err)
-		}
 		entries[i] = block.Entry{
-			Payload: payload,
+			Payload: event,
 		}
 	}
 
@@ -433,18 +427,13 @@ func (s *server) ReadFromBlock(
 		return nil, err
 	}
 
-	events := make([]*cepb.CloudEvent, len(entries))
+	events := make([][]byte, len(entries))
 	for i, entry := range entries {
-		event := &cepb.CloudEvent{}
-		if err2 := proto.Unmarshal(entry.Payload, event); err2 != nil {
-			return nil, errors.ErrInternal.WithMessage(
-				"unmarshall data to event failed").Wrap(err2)
-		}
-		events[i] = event
+		events[i] = entry.Payload
 	}
 
 	return &segpb.ReadFromBlockResponse{
-		Events: &cepb.CloudEventBatch{Events: events},
+		Events: events,
 	}, nil
 }
 
