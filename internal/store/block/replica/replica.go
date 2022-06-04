@@ -36,12 +36,13 @@ import (
 )
 
 const (
-	defaultHintCapactiy    = 2
-	defaultTickPeriodMs    = 100
-	defaultElectionTick    = 10
-	defaultHeartbeatTick   = 3
-	defaultMaxSizePerMsg   = 4096
-	defaultMaxInflightMsgs = 256
+	defaultHintCapactiy         = 2
+	defaultTickPeriodMs         = 100
+	defaultElectionTick         = 10
+	defaultHeartbeatTick        = 3
+	defaultMaxSizePerMsg        = 4096
+	defaultMaxInflightMsgs      = 256
+	defaultAppendTaskBufferSize = 256
 )
 
 type Peer struct {
@@ -56,16 +57,22 @@ type peer struct {
 
 type LeaderChangedListener func(block, leader vanus.ID, term uint64)
 
+type appendTask struct {
+	ctx     context.Context
+	entries []block.Entry
+	resultc chan<- error
+}
+
 type commitWaiter struct {
-	offset uint32
-	c      chan struct{}
+	offset  uint32
+	resultc chan<- error
 }
 
 type Replica struct {
 	blockID vanus.ID
 
-	mu sync.RWMutex
-
+	appendc  chan appendTask
+	resetc   chan chan<- struct{}
 	appender block.TwoPCAppender
 	actx     block.AppendContext
 
@@ -103,6 +110,8 @@ func New(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, ra
 
 	r := &Replica{
 		blockID:  blockID,
+		appendc:  make(chan appendTask, defaultAppendTaskBufferSize),
+		resetc:   make(chan chan<- struct{}, 1),
 		appender: appender,
 		waiters:  make([]commitWaiter, 0),
 		listener: listener,
@@ -132,6 +141,7 @@ func New(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, ra
 	r.commitIndex = r.log.HardState().Commit
 
 	go r.run()
+	go r.runAppend()
 
 	return r
 }
@@ -288,8 +298,8 @@ func (r *Replica) wakeup(commit uint64) (partial bool) {
 }
 
 func (r *Replica) becomeLeader() {
-	// Reset when become leader.
-	r.reset()
+	// Reset append context when become leader.
+	r.resetAppendContext()
 
 	r.leaderChanged()
 }
@@ -332,14 +342,17 @@ func (r *Replica) applyConfChange(entrypb *raftpb.Entry) *raftpb.ConfState {
 	return r.node.ApplyConfChange(cci)
 }
 
-func (r *Replica) reset() {
+func (r *Replica) resetAppendContext() {
+	ch := make(chan struct{}, 1)
+	r.resetc <- ch
+	<-ch
+}
+
+func (r *Replica) doReset() {
 	off, err := r.log.LastIndex()
 	if err != nil {
 		off = r.log.HardState().Commit
 	}
-
-	r.mu.Lock()
-	defer r.mu.Unlock()
 
 	for off > 0 {
 		entrypbs, err2 := r.log.Entries(off, off+1, 0)
@@ -373,21 +386,47 @@ func (r *Replica) Append(ctx context.Context, entries ...block.Entry) error {
 		return errors.ErrInvalidRequest
 	}
 
-	offset, err := r.append(ctx, entries)
-	if err != nil {
-		return err
+	ch := make(chan error, 1)
+	task := appendTask{
+		ctx:     ctx,
+		entries: entries,
+		resultc: ch,
 	}
 
-	// Wait until entries is committed.
-	r.waitCommit(ctx, offset)
+	select {
+	case r.appendc <- task:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 
-	return nil
+	select {
+	case err := <-ch:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (r *Replica) runAppend() {
+	for {
+		select {
+		case cb := <-r.resetc:
+			r.doReset()
+			cb <- struct{}{}
+		case task := <-r.appendc:
+			offset, err := r.append(task.ctx, task.entries)
+			if err != nil {
+				task.resultc <- err
+			}
+			// Wait until entries is committed.
+			r.waitCommit(task.ctx, offset, task.resultc)
+		case <-r.ctx.Done():
+			return
+		}
+	}
 }
 
 func (r *Replica) append(ctx context.Context, entries []block.Entry) (uint32, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	if !r.isLeader() {
 		return 0, block.ErrNotLeader
 	}
@@ -442,27 +481,21 @@ func (r *Replica) doAppend(entries ...block.Entry) {
 	}
 }
 
-func (r *Replica) waitCommit(ctx context.Context, offset uint32) {
+func (r *Replica) waitCommit(ctx context.Context, offset uint32, resultc chan<- error) {
 	r.mu2.Lock()
 
 	if offset <= r.commitOffset {
 		r.mu2.Unlock()
+		close(resultc)
 		return
 	}
 
-	ch := make(chan struct{})
 	r.waiters = append(r.waiters, commitWaiter{
-		offset: offset,
-		c:      ch,
+		offset:  offset,
+		resultc: resultc,
 	})
 
 	r.mu2.Unlock()
-
-	// FIXME(james.yin): lost leader
-	select {
-	case <-ch:
-	case <-ctx.Done():
-	}
 }
 
 func (r *Replica) doWakeup(commit uint32) {
@@ -474,7 +507,7 @@ func (r *Replica) doWakeup(commit uint32) {
 		if waiter.offset > commit {
 			break
 		}
-		close(waiter.c)
+		close(waiter.resultc)
 		r.waiters = r.waiters[1:]
 	}
 	r.commitOffset = commit
