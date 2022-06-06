@@ -135,7 +135,7 @@ func (s *AsyncStore) commit() {
 	if err != nil {
 		panic(err)
 	}
-	offset, err := s.wal.AppendOneWithoutBatching(data)
+	offset, err := s.wal.AppendOne(data, walog.WithoutBatching()).Wait()
 	if err != nil {
 		panic(err)
 	}

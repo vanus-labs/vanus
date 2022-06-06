@@ -26,15 +26,13 @@ import (
 )
 
 const (
-	blockSize = 32 * 1024
-	fileSize  = 128 * 1024 * 1024
-
-	appendChanSize   = 64
-	callbackChanSize = 64
-	flushChanSize    = 1024
-	wakeupChanSize   = 1024
-
-	walAppendInterval = 500 * time.Microsecond
+	blockSize                 = 4 * 1024
+	fileSize                  = 128 * 1024 * 1024
+	defaultFlushTimeoutUs     = 500
+	defaultAppendBufferSize   = 64
+	defaultCallbackBufferSize = (blockSize + record.HeaderSize - 1) / record.HeaderSize
+	defaultFlushBufferSize    = 64
+	defaultWeakupBufferSize   = 64
 )
 
 type blockWithSo struct {
@@ -43,28 +41,46 @@ type blockWithSo struct {
 	so int64
 }
 
-type ResultOrError struct {
-	Result []int64
-	Err    error
+type Result struct {
+	Offsets []int64
+	Err     error
 }
 
-type AppendCallback func(ResultOrError)
+func (re *Result) Offset() int64 {
+	return re.Offsets[0]
+}
 
-type entriesWithCallback struct {
+type AppendCallback func(Result)
+
+type appendTask struct {
 	entries  [][]byte
 	batching bool
 	callback AppendCallback
 }
 
-type blockWithArgs struct {
+type AppendOption func(*appendTask)
+
+func WithoutBatching() AppendOption {
+	return func(task *appendTask) {
+		task.batching = false
+	}
+}
+
+func WithCallback(callback AppendCallback) AppendOption {
+	return func(task *appendTask) {
+		task.callback = callback
+	}
+}
+
+type flushTask struct {
 	block  *blockWithSo
 	offset int
 	own    bool
 }
 
-type callbackWithThreshold struct {
+type callbackTask struct {
 	callback  AppendCallback
-	result    []int64
+	offsets   []int64
 	threshold int64
 }
 
@@ -80,9 +96,9 @@ type WAL struct {
 
 	stream *logStream
 
-	appendc   chan entriesWithCallback
-	callbackc chan callbackWithThreshold
-	flushc    chan blockWithArgs
+	appendc   chan appendTask
+	callbackc chan callbackTask
+	flushc    chan flushTask
 	weakupc   chan int64
 
 	donec chan struct{}
@@ -102,12 +118,11 @@ func newWAL(ctx context.Context, stream *logStream, pos int64) (*WAL, error) {
 		pool: sync.Pool{
 			New: newBlock,
 		},
-		stream: stream,
-		// TODO(james.yin): don't use magic numbers.
-		appendc:   make(chan entriesWithCallback, appendChanSize),
-		callbackc: make(chan callbackWithThreshold, callbackChanSize),
-		flushc:    make(chan blockWithArgs, flushChanSize),
-		weakupc:   make(chan int64, wakeupChanSize),
+		stream:    stream,
+		appendc:   make(chan appendTask, defaultAppendBufferSize),
+		callbackc: make(chan callbackTask, defaultCallbackBufferSize),
+		flushc:    make(chan flushTask, defaultFlushBufferSize),
+		weakupc:   make(chan int64, defaultWeakupBufferSize),
 		donec:     make(chan struct{}),
 		ctx:       ctx,
 	}
@@ -142,64 +157,61 @@ func (w *WAL) Wait() {
 	<-w.donec
 }
 
-func (w *WAL) AppendOne(entry []byte) (int64, error) {
-	return w.appendOne(entry, true)
+type AppendOneFuture <-chan Result
+
+func (f AppendOneFuture) Wait() (int64, error) {
+	re := <-f
+	return re.Offset(), re.Err
 }
 
-func (w *WAL) AppendOneWithoutBatching(entry []byte) (int64, error) {
-	return w.appendOne(entry, false)
+func (w *WAL) AppendOne(entry []byte, opts ...AppendOption) AppendOneFuture {
+	return AppendOneFuture(w.Append([][]byte{entry}, opts...))
 }
 
-func (w *WAL) appendOne(entry []byte, batching bool) (int64, error) {
-	offs, err := w.append([][]byte{entry}, batching)
-	if err != nil {
-		return 0, err
-	}
-	return offs[0], nil
+type AppendFuture <-chan Result
+
+func (f AppendFuture) Wait() ([]int64, error) {
+	re := <-f
+	return re.Offsets, re.Err
 }
 
-// Append appends entries to WAL. It blocks until all entries are persisted.
-func (w *WAL) Append(entries [][]byte) ([]int64, error) {
-	return w.append(entries, true)
-}
-
-func (w *WAL) AppendWithoutBatching(entries [][]byte) ([]int64, error) {
-	return w.append(entries, false)
-}
-
-func (w *WAL) append(entries [][]byte, batching bool) ([]int64, error) {
-	ch := make(chan ResultOrError, 1)
-	cb := func(re ResultOrError) {
-		ch <- re
-	}
-	w.appendWithCallback(entries, batching, cb)
-	result := <-ch
-	return result.Result, result.Err
-}
-
-func (w *WAL) AppendOneWithCallback(entry []byte, callback AppendCallback) {
-	w.appendWithCallback([][]byte{entry}, true, callback)
-}
-
-func (w *WAL) appendWithCallback(entries [][]byte, batching bool, callback AppendCallback) {
-	er := entriesWithCallback{
+// Append appends entries to WAL.
+func (w *WAL) Append(entries [][]byte, opts ...AppendOption) AppendFuture {
+	task := appendTask{
 		entries:  entries,
-		batching: batching,
-		callback: callback,
+		batching: true,
 	}
+
+	for _, opt := range opts {
+		opt(&task)
+	}
+
+	var ch chan Result
+	if task.callback == nil {
+		ch = make(chan Result, 1)
+		task.callback = func(re Result) {
+			ch <- re
+		}
+	}
+
 	select {
 	case <-w.ctx.Done():
-		callback(ResultOrError{
-			Result: nil,
-			Err:    w.ctx.Err(),
+		// TODO(james.yin): invoke callback in another goroutine.
+		task.callback(Result{
+			Offsets: nil,
+			Err:     w.ctx.Err(),
 		})
-	case w.appendc <- er:
+	case w.appendc <- task:
 	}
+
+	return ch
 }
 
 func (w *WAL) runAppend() {
+	period := defaultFlushTimeoutUs * time.Microsecond
+
 	// create a stopped timer
-	timer := time.NewTimer(walAppendInterval)
+	timer := time.NewTimer(period)
 	if !timer.Stop() {
 		<-timer.C
 	}
@@ -207,10 +219,10 @@ func (w *WAL) runAppend() {
 
 	for {
 		select {
-		case er := <-w.appendc:
-			full, goahead := w.doAppend(er.entries, er.callback)
+		case task := <-w.appendc:
+			full, goahead := w.doAppend(task.entries, task.callback)
 			switch {
-			case full || !er.batching:
+			case full || !task.batching:
 				if !full {
 					w.flushWritableBlock()
 				}
@@ -228,11 +240,11 @@ func (w *WAL) runAppend() {
 					// drain channel
 					<-timer.C
 				}
-				timer.Reset(walAppendInterval)
+				timer.Reset(period)
 				waiting = true
 			case !waiting:
 				// start timer
-				timer.Reset(walAppendInterval)
+				timer.Reset(period)
 				waiting = true
 			}
 		case <-timer.C:
@@ -252,7 +264,7 @@ func (w *WAL) runAppend() {
 }
 
 func (w *WAL) flushWritableBlock() {
-	w.flushc <- blockWithArgs{
+	w.flushc <- flushTask{
 		block:  w.wb,
 		offset: w.wb.Size(),
 		own:    false,
@@ -270,7 +282,7 @@ func (w *WAL) doAppend(entries [][]byte, callback AppendCallback) (bool, bool) {
 		for j, record := range records {
 			n, err := w.wb.Append(record)
 			if err != nil {
-				callback(ResultOrError{nil, err})
+				callback(Result{nil, err})
 				return full, goahead
 			}
 			if j == len(records)-1 {
@@ -278,16 +290,16 @@ func (w *WAL) doAppend(entries [][]byte, callback AppendCallback) (bool, bool) {
 				offsets[i] = offset
 				if i == len(entries)-1 {
 					// register callback
-					w.callbackc <- callbackWithThreshold{
+					w.callbackc <- callbackTask{
 						callback:  callback,
-						result:    offsets,
+						offsets:   offsets,
 						threshold: offset,
 					}
 				}
 			}
 			if full = w.wb.full(n); full {
 				// notify to flush
-				w.flushc <- blockWithArgs{
+				w.flushc <- flushTask{
 					block:  w.wb,
 					offset: w.wb.Capacity(),
 					own:    true,
@@ -303,14 +315,14 @@ func (w *WAL) doAppend(entries [][]byte, callback AppendCallback) (bool, bool) {
 
 func (w *WAL) runFlush() {
 	// TODO(james.yin): parallelizing, or batching
-	for ba := range w.flushc {
-		err := w.doFlush(ba.block, ba.offset)
+	for task := range w.flushc {
+		err := w.doFlush(task.block, task.offset)
 		if err != nil {
 			// TODO(james.yin): handle flush error
 			panic(err)
 		}
-		if ba.own {
-			w.freeBlock(ba.block)
+		if task.own {
+			w.freeBlock(task.block)
 		}
 	}
 	close(w.weakupc)
@@ -331,33 +343,31 @@ func (w *WAL) doFlush(fb *blockWithSo, offset int) error {
 }
 
 func (w *WAL) runCallback() {
-	var cb AppendCallback
-	var re []int64
-	var th int64
+	var task *callbackTask
 	for offset := range w.weakupc {
 		// NOTE: write cb to callbackc before writing offset to weakupc.
-		if cb == nil {
-			cb, re, th = w.nextCallback()
+		if task == nil {
+			task = w.nextCallbackTask()
 		}
-		for cb != nil {
-			if th > offset {
+		for task != nil {
+			if task.threshold > offset {
 				break
 			}
-			cb(ResultOrError{
-				Result: re,
+			task.callback(Result{
+				Offsets: task.offsets,
 			})
-			cb, re, th = w.nextCallback()
+			task = w.nextCallbackTask()
 		}
 	}
 	close(w.donec)
 }
 
-func (w *WAL) nextCallback() (AppendCallback, []int64, int64) {
+func (w *WAL) nextCallbackTask() *callbackTask {
 	select {
 	case c := <-w.callbackc:
-		return c.callback, c.result, c.threshold
+		return &c
 	default:
-		return nil, nil, 0
+		return nil
 	}
 }
 
