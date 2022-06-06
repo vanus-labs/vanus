@@ -39,89 +39,89 @@ func (m *MockManager) EXPECT() *MockManagerMockRecorder {
 }
 
 // AddSubscription mocks base method.
-func (m *MockManager) AddSubscription(ctx context.Context, sub *primitive.SubscriptionData) error {
+func (m *MockManager) AddSubscription(ctx context.Context, subscription *primitive.SubscriptionData) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddSubscription", ctx, sub)
+	ret := m.ctrl.Call(m, "AddSubscription", ctx, subscription)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // AddSubscription indicates an expected call of AddSubscription.
-func (mr *MockManagerMockRecorder) AddSubscription(ctx, sub interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) AddSubscription(ctx, subscription interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddSubscription", reflect.TypeOf((*MockManager)(nil).AddSubscription), ctx, sub)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddSubscription", reflect.TypeOf((*MockManager)(nil).AddSubscription), ctx, subscription)
 }
 
 // DeleteSubscription mocks base method.
-func (m *MockManager) DeleteSubscription(ctx context.Context, subId vanus.ID) error {
+func (m *MockManager) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteSubscription", ctx, subId)
+	ret := m.ctrl.Call(m, "DeleteSubscription", ctx, id)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteSubscription indicates an expected call of DeleteSubscription.
-func (mr *MockManagerMockRecorder) DeleteSubscription(ctx, subId interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) DeleteSubscription(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteSubscription", reflect.TypeOf((*MockManager)(nil).DeleteSubscription), ctx, subId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteSubscription", reflect.TypeOf((*MockManager)(nil).DeleteSubscription), ctx, id)
 }
 
 // GetOffset mocks base method.
-func (m *MockManager) GetOffset(ctx context.Context, subId vanus.ID) (info.ListOffsetInfo, error) {
+func (m *MockManager) GetOffset(ctx context.Context, id vanus.ID) (info.ListOffsetInfo, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOffset", ctx, subId)
+	ret := m.ctrl.Call(m, "GetOffset", ctx, id)
 	ret0, _ := ret[0].(info.ListOffsetInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetOffset indicates an expected call of GetOffset.
-func (mr *MockManagerMockRecorder) GetOffset(ctx, subId interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) GetOffset(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOffset", reflect.TypeOf((*MockManager)(nil).GetOffset), ctx, subId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOffset", reflect.TypeOf((*MockManager)(nil).GetOffset), ctx, id)
 }
 
 // GetSubscription mocks base method.
-func (m *MockManager) GetSubscription(ctx context.Context, subId vanus.ID) (*primitive.Subscription, error) {
+func (m *MockManager) GetSubscription(ctx context.Context, id vanus.ID) (*primitive.Subscription, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSubscription", ctx, subId)
+	ret := m.ctrl.Call(m, "GetSubscription", ctx, id)
 	ret0, _ := ret[0].(*primitive.Subscription)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetSubscription indicates an expected call of GetSubscription.
-func (mr *MockManagerMockRecorder) GetSubscription(ctx, subId interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) GetSubscription(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscription", reflect.TypeOf((*MockManager)(nil).GetSubscription), ctx, subId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscription", reflect.TypeOf((*MockManager)(nil).GetSubscription), ctx, id)
 }
 
 // GetSubscriptionData mocks base method.
-func (m *MockManager) GetSubscriptionData(ctx context.Context, subId vanus.ID) *primitive.SubscriptionData {
+func (m *MockManager) GetSubscriptionData(ctx context.Context, id vanus.ID) *primitive.SubscriptionData {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSubscriptionData", ctx, subId)
+	ret := m.ctrl.Call(m, "GetSubscriptionData", ctx, id)
 	ret0, _ := ret[0].(*primitive.SubscriptionData)
 	return ret0
 }
 
 // GetSubscriptionData indicates an expected call of GetSubscriptionData.
-func (mr *MockManagerMockRecorder) GetSubscriptionData(ctx, subId interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) GetSubscriptionData(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscriptionData", reflect.TypeOf((*MockManager)(nil).GetSubscriptionData), ctx, subId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscriptionData", reflect.TypeOf((*MockManager)(nil).GetSubscriptionData), ctx, id)
 }
 
 // Heartbeat mocks base method.
-func (m *MockManager) Heartbeat(ctx context.Context, subId vanus.ID, addr string, time time.Time) error {
+func (m *MockManager) Heartbeat(ctx context.Context, id vanus.ID, addr string, time time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Heartbeat", ctx, subId, addr, time)
+	ret := m.ctrl.Call(m, "Heartbeat", ctx, id, addr, time)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Heartbeat indicates an expected call of Heartbeat.
-func (mr *MockManagerMockRecorder) Heartbeat(ctx, subId, addr, time interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) Heartbeat(ctx, id, addr, time interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Heartbeat", reflect.TypeOf((*MockManager)(nil).Heartbeat), ctx, subId, addr, time)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Heartbeat", reflect.TypeOf((*MockManager)(nil).Heartbeat), ctx, id, addr, time)
 }
 
 // Init mocks base method.
@@ -139,10 +139,10 @@ func (mr *MockManagerMockRecorder) Init(ctx interface{}) *gomock.Call {
 }
 
 // ListSubscription mocks base method.
-func (m *MockManager) ListSubscription(ctx context.Context) map[vanus.ID]*primitive.SubscriptionData {
+func (m *MockManager) ListSubscription(ctx context.Context) []*primitive.SubscriptionData {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListSubscription", ctx)
-	ret0, _ := ret[0].(map[vanus.ID]*primitive.SubscriptionData)
+	ret0, _ := ret[0].([]*primitive.SubscriptionData)
 	return ret0
 }
 
@@ -153,17 +153,17 @@ func (mr *MockManagerMockRecorder) ListSubscription(ctx interface{}) *gomock.Cal
 }
 
 // Offset mocks base method.
-func (m *MockManager) Offset(ctx context.Context, subId vanus.ID, offsets info.ListOffsetInfo) error {
+func (m *MockManager) Offset(ctx context.Context, id vanus.ID, offsets info.ListOffsetInfo) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Offset", ctx, subId, offsets)
+	ret := m.ctrl.Call(m, "Offset", ctx, id, offsets)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Offset indicates an expected call of Offset.
-func (mr *MockManagerMockRecorder) Offset(ctx, subId, offsets interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) Offset(ctx, id, offsets interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Offset", reflect.TypeOf((*MockManager)(nil).Offset), ctx, subId, offsets)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Offset", reflect.TypeOf((*MockManager)(nil).Offset), ctx, id, offsets)
 }
 
 // Start mocks base method.
@@ -191,15 +191,15 @@ func (mr *MockManagerMockRecorder) Stop() *gomock.Call {
 }
 
 // UpdateSubscription mocks base method.
-func (m *MockManager) UpdateSubscription(ctx context.Context, sub *primitive.SubscriptionData) error {
+func (m *MockManager) UpdateSubscription(ctx context.Context, subscription *primitive.SubscriptionData) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateSubscription", ctx, sub)
+	ret := m.ctrl.Call(m, "UpdateSubscription", ctx, subscription)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateSubscription indicates an expected call of UpdateSubscription.
-func (mr *MockManagerMockRecorder) UpdateSubscription(ctx, sub interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) UpdateSubscription(ctx, subscription interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSubscription", reflect.TypeOf((*MockManager)(nil).UpdateSubscription), ctx, sub)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSubscription", reflect.TypeOf((*MockManager)(nil).UpdateSubscription), ctx, subscription)
 }

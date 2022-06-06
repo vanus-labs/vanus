@@ -373,11 +373,11 @@ func (m *manager) Init(ctx context.Context) error {
 		m.triggerWorkers[twInfo.Addr] = tWorker
 	}
 	subscriptions := m.subscriptionManager.ListSubscription(ctx)
-	for id, metaData := range subscriptions {
+	for _, metaData := range subscriptions {
 		if metaData.TriggerWorker != "" {
 			tWorker, exist := m.triggerWorkers[metaData.TriggerWorker]
 			if exist {
-				tWorker.AddAssignSubscription(id)
+				tWorker.AddAssignSubscription(metaData.ID)
 			}
 		}
 	}

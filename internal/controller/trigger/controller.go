@@ -19,6 +19,7 @@ import (
 	stdErr "errors"
 	"io"
 	"sync"
+	"time"
 
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
@@ -40,6 +41,10 @@ var (
 	_ ctrlpb.TriggerControllerServer = &controller{}
 )
 
+const (
+	defaultGcSubscriptionPeriod = time.Second * 10
+)
+
 func NewController(config Config, member embedetcd.Member) *controller {
 	ctrl := &controller{
 		config:                config,
@@ -56,7 +61,7 @@ type controller struct {
 	member                embedetcd.Member
 	storage               storage.Storage
 	subscriptionManager   subscription.Manager
-	triggerWorkerManager  worker.Manager
+	workerManager         worker.Manager
 	scheduler             *worker.SubscriptionScheduler
 	needCleanSubscription map[vanus.ID]string
 	lock                  sync.Mutex
@@ -140,7 +145,7 @@ func (ctrl *controller) TriggerWorkerHeartbeat(
 		}
 		req, err := heartbeat.Recv()
 		if err != nil {
-			if stdErr.Is(err, io.EOF) {
+			if !stdErr.Is(err, io.EOF) {
 				log.Warning(ctx, "heartbeat recv error", map[string]interface{}{log.KeyError: err})
 			}
 			log.Info(ctx, "heartbeat close", nil)
@@ -154,7 +159,7 @@ func (ctrl *controller) TriggerWorkerHeartbeat(
 		for _, sub := range req.SubInfos {
 			subscriptionIDs[vanus.ID(sub.SubscriptionId)] = struct{}{}
 		}
-		err = ctrl.triggerWorkerManager.UpdateTriggerWorkerInfo(ctx, req.Address, subscriptionIDs)
+		err = ctrl.workerManager.UpdateTriggerWorkerInfo(ctx, req.Address, subscriptionIDs)
 		if err != nil {
 			log.Info(context.Background(), "unknown trigger worker", map[string]interface{}{
 				log.KeyTriggerWorkerAddr: req.Address,
@@ -179,7 +184,7 @@ func (ctrl *controller) RegisterTriggerWorker(ctx context.Context,
 	log.Info(ctx, "register trigger worker", map[string]interface{}{
 		log.KeyTriggerWorkerAddr: request.Address,
 	})
-	err := ctrl.triggerWorkerManager.AddTriggerWorker(ctx, request.Address)
+	err := ctrl.workerManager.AddTriggerWorker(ctx, request.Address)
 	if err != nil {
 		log.Warning(ctx, "register trigger worker error", map[string]interface{}{
 			"addr":       request.Address,
@@ -196,17 +201,18 @@ func (ctrl *controller) UnregisterTriggerWorker(ctx context.Context,
 		log.KeyTriggerWorkerAddr: request.Address,
 	})
 
-	ctrl.triggerWorkerManager.RemoveTriggerWorker(context.TODO(), request.Address)
+	ctrl.workerManager.RemoveTriggerWorker(context.TODO(), request.Address)
 	return &ctrlpb.UnregisterTriggerWorkerResponse{}, nil
 }
 
 func (ctrl *controller) ListSubscription(ctx context.Context,
 	_ *emptypb.Empty) (*ctrlpb.ListSubscriptionResponse, error) {
-	subscriptionList := make([]*meta.Subscription, 0)
-	for _, sub := range ctrl.subscriptionManager.ListSubscription(ctx) {
-		subscriptionList = append(subscriptionList, convert.ToPbSubscription(sub))
+	subscriptions := ctrl.subscriptionManager.ListSubscription(ctx)
+	list := make([]*meta.Subscription, 0, len(subscriptions))
+	for _, sub := range subscriptions {
+		list = append(list, convert.ToPbSubscription(sub))
 	}
-	return &ctrlpb.ListSubscriptionResponse{Subscription: subscriptionList}, nil
+	return &ctrlpb.ListSubscriptionResponse{Subscription: list}, nil
 }
 
 // gcSubscription before delete subscription,need
@@ -215,7 +221,7 @@ func (ctrl *controller) ListSubscription(ctx context.Context,
 // 2.delete offset
 // 3.delete subscription .
 func (ctrl *controller) gcSubscription(ctx context.Context, id vanus.ID, addr string) error {
-	err := ctrl.triggerWorkerManager.UnAssignSubscription(ctx, addr, id)
+	err := ctrl.workerManager.UnAssignSubscription(ctx, addr, id)
 	if err != nil {
 		return err
 	}
@@ -236,7 +242,7 @@ func (ctrl *controller) gcSubscriptions(ctx context.Context) {
 				delete(ctrl.needCleanSubscription, ID)
 			}
 		}
-	}, ctrl.config.GcSubscriptionPeriod)
+	}, defaultGcSubscriptionPeriod)
 }
 
 func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, addr string) error {
@@ -263,26 +269,26 @@ func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, ad
 
 func (ctrl *controller) init(ctx context.Context) error {
 	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage)
-	ctrl.triggerWorkerManager = worker.NewTriggerWorkerManager(worker.Config{}, ctrl.storage,
+	ctrl.workerManager = worker.NewTriggerWorkerManager(worker.Config{}, ctrl.storage,
 		ctrl.subscriptionManager, ctrl.requeueSubscription)
-	ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.triggerWorkerManager, ctrl.subscriptionManager)
+	ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
 	err := ctrl.subscriptionManager.Init(ctx)
 	if err != nil {
 		return err
 	}
-	err = ctrl.triggerWorkerManager.Init(ctx)
+	err = ctrl.workerManager.Init(ctx)
 	if err != nil {
 		return err
 	}
 	// restart,need reschedule
-	for ID, subscription := range ctrl.subscriptionManager.ListSubscription(ctx) {
+	for _, subscription := range ctrl.subscriptionManager.ListSubscription(ctx) {
 		switch subscription.Phase {
 		case primitive.SubscriptionPhaseCreated:
-			ctrl.scheduler.EnqueueNormalSubscription(ID)
+			ctrl.scheduler.EnqueueNormalSubscription(subscription.ID)
 		case primitive.SubscriptionPhasePending:
-			ctrl.scheduler.EnqueueSubscription(ID)
+			ctrl.scheduler.EnqueueSubscription(subscription.ID)
 		case primitive.SubscriptionPhaseToDelete:
-			ctrl.needCleanSubscription[ID] = subscription.TriggerWorker
+			ctrl.needCleanSubscription[subscription.ID] = subscription.TriggerWorker
 		}
 	}
 	return nil
@@ -308,7 +314,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context,
 			}
 			return err
 		}
-		ctrl.triggerWorkerManager.Start()
+		ctrl.workerManager.Start()
 		ctrl.subscriptionManager.Start()
 		ctrl.scheduler.Run()
 		go ctrl.gcSubscriptions(ctx)
@@ -334,7 +340,7 @@ func (ctrl *controller) stop(ctx context.Context) error {
 	ctrl.state = primitive.ServerStateStopping
 	ctrl.stopFunc()
 	ctrl.scheduler.Stop()
-	ctrl.triggerWorkerManager.Stop()
+	ctrl.workerManager.Stop()
 	ctrl.subscriptionManager.Stop()
 	ctrl.storage.Close()
 	ctrl.state = primitive.ServerStateStopped
