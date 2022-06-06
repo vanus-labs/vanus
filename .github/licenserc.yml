@@ -29,4 +29,5 @@ header:
     - '**/*.sh'
     - 'Makefile'
     - 'buf.lock'
+    - 'CODEOWNERS'
   comment: on-failure
