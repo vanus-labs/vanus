@@ -356,6 +356,9 @@ issues:
   max-issues-per-linter: 0
   max-same-issues: 0
   exclude-rules:
+    - path: "convert.go"
+      linters:
+        - dupl
     - text: "^G404: Use of weak random number generator"
       linters:
         - gosec
