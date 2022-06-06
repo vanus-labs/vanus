@@ -214,8 +214,8 @@ func (s *server) startHeartbeat() {
 					subInfos = append(subInfos, convert.ToPbSubscriptionInfo(sub))
 				}
 				err := s.client.heartbeat(ctx, &controller.TriggerWorkerHeartbeatRequest{
-					Address:  s.config.TriggerAddr,
-					SubInfos: subInfos,
+					Address:          s.config.TriggerAddr,
+					SubscriptionInfo: subInfos,
 				})
 				if err != nil {
 					log.Warning(ctx, "heartbeat failed, connection lost. try to reconnecting", map[string]interface{}{

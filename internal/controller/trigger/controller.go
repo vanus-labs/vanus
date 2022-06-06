@@ -153,11 +153,11 @@ func (ctrl *controller) TriggerWorkerHeartbeat(
 		}
 		log.Debug(ctx, "heartbeat", map[string]interface{}{
 			log.KeyTriggerWorkerAddr: req.Address,
-			"subscriptionInfo":       req.SubInfos,
+			"subscriptionInfo":       req.SubscriptionInfo,
 		})
-		subscriptionIDs := make(map[vanus.ID]struct{}, len(req.SubInfos))
-		for _, sub := range req.SubInfos {
-			subscriptionIDs[vanus.ID(sub.SubscriptionId)] = struct{}{}
+		subscriptionIDs := make(map[vanus.ID]struct{}, len(req.SubscriptionInfo))
+		for _, subInfo := range req.SubscriptionInfo {
+			subscriptionIDs[vanus.ID(subInfo.SubscriptionId)] = struct{}{}
 		}
 		err = ctrl.workerManager.UpdateTriggerWorkerInfo(ctx, req.Address, subscriptionIDs)
 		if err != nil {
@@ -166,13 +166,13 @@ func (ctrl *controller) TriggerWorkerHeartbeat(
 			})
 			return errors.ErrResourceNotFound.WithMessage("unknown trigger worker")
 		}
-		for _, sub := range req.SubInfos {
-			offsets := convert.FromPbOffsetInfos(sub.Offsets)
-			err = ctrl.subscriptionManager.Offset(ctx, vanus.ID(sub.SubscriptionId), offsets)
+		for _, subInfo := range req.SubscriptionInfo {
+			offsets := convert.FromPbOffsetInfos(subInfo.Offsets)
+			err = ctrl.subscriptionManager.Offset(ctx, vanus.ID(subInfo.SubscriptionId), offsets)
 			if err != nil {
 				log.Warning(ctx, "heartbeat commit offset error", map[string]interface{}{
 					log.KeyError:          err,
-					log.KeySubscriptionID: sub.SubscriptionId,
+					log.KeySubscriptionID: subInfo.SubscriptionId,
 				})
 			}
 		}
