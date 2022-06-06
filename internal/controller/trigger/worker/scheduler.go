@@ -30,23 +30,23 @@ const (
 )
 
 type SubscriptionScheduler struct {
-	normalQueue          queue.Queue
-	maxRetryPrintLog     int
-	policy               TriggerWorkerPolicy
-	triggerWorkerManager Manager
-	subscriptionManager  subscription.Manager
-	ctx                  context.Context
-	stop                 context.CancelFunc
+	normalQueue         queue.Queue
+	maxRetryPrintLog    int
+	policy              TriggerWorkerPolicy
+	workerManager       Manager
+	subscriptionManager subscription.Manager
+	ctx                 context.Context
+	stop                context.CancelFunc
 }
 
-func NewSubscriptionScheduler(triggerWorkerManager Manager,
+func NewSubscriptionScheduler(workerManager Manager,
 	subscriptionManager subscription.Manager) *SubscriptionScheduler {
 	s := &SubscriptionScheduler{
-		normalQueue:          queue.New(),
-		maxRetryPrintLog:     defaultRetryPrintLog,
-		policy:               &RoundRobinPolicy{},
-		triggerWorkerManager: triggerWorkerManager,
-		subscriptionManager:  subscriptionManager,
+		normalQueue:         queue.New(),
+		maxRetryPrintLog:    defaultRetryPrintLog,
+		policy:              &RoundRobinPolicy{},
+		workerManager:       workerManager,
+		subscriptionManager: subscriptionManager,
 	}
 	s.ctx, s.stop = context.WithCancel(context.Background())
 	return s
@@ -95,7 +95,7 @@ func (s *SubscriptionScheduler) handler(ctx context.Context, subscriptionIDStr s
 			return nil
 		default:
 		}
-		twInfos := s.triggerWorkerManager.GetActiveRunningTriggerWorker()
+		twInfos := s.workerManager.GetActiveRunningTriggerWorker()
 		if len(twInfos) == 0 {
 			time.Sleep(time.Second)
 			continue
@@ -108,7 +108,7 @@ func (s *SubscriptionScheduler) handler(ctx context.Context, subscriptionIDStr s
 		if subData.Phase != primitive.SubscriptionPhaseCreated && subData.Phase != primitive.SubscriptionPhasePending {
 			return nil
 		}
-		tWorker := s.triggerWorkerManager.GetTriggerWorker(ctx, twInfo.Addr)
+		tWorker := s.workerManager.GetTriggerWorker(ctx, twInfo.Addr)
 		if tWorker == nil {
 			continue
 		}
@@ -119,7 +119,7 @@ func (s *SubscriptionScheduler) handler(ctx context.Context, subscriptionIDStr s
 		if err != nil {
 			return err
 		}
-		s.triggerWorkerManager.AssignSubscription(ctx, tWorker, subscriptionID)
+		s.workerManager.AssignSubscription(ctx, tWorker, subscriptionID)
 		return nil
 	}
 }

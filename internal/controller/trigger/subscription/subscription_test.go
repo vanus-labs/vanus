@@ -57,8 +57,8 @@ func TestSubscriptionData(t *testing.T) {
 	storage := storage.NewMockStorage(ctrl)
 	m := NewSubscriptionManager(storage)
 	Convey("list subscription size 0", t, func() {
-		subscriptionMap := m.ListSubscription(ctx)
-		So(len(subscriptionMap), ShouldEqual, 0)
+		subscriptions := m.ListSubscription(ctx)
+		So(len(subscriptions), ShouldEqual, 0)
 	})
 	Convey("get subscription not exist", t, func() {
 		subscription := m.GetSubscriptionData(ctx, 1)
@@ -72,12 +72,10 @@ func TestSubscriptionData(t *testing.T) {
 	var id vanus.ID
 	var subscriptionData *primitive.SubscriptionData
 	Convey("list subscription", t, func() {
-		subscriptionMap := m.ListSubscription(ctx)
-		So(len(subscriptionMap), ShouldEqual, 1)
-		for _id, data := range subscriptionMap {
-			id = _id
-			subscriptionData = data
-		}
+		subscriptions := m.ListSubscription(ctx)
+		So(len(subscriptions), ShouldEqual, 1)
+		id = subscriptions[0].ID
+		subscriptionData = subscriptions[0]
 	})
 	Convey("get subscription data", t, func() {
 		subscription := m.GetSubscriptionData(ctx, id)
@@ -107,11 +105,8 @@ func TestOffset(t *testing.T) {
 	m.offsetManager = offsetManager
 	storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).Return(nil)
 	m.AddSubscription(ctx, makeSubscription())
-	var id vanus.ID
-	subscriptionMap := m.ListSubscription(ctx)
-	for _id := range subscriptionMap {
-		id = _id
-	}
+	subscriptions := m.ListSubscription(ctx)
+	id := subscriptions[0].ID
 	listOffsetInfo := info.ListOffsetInfo{
 		{EventLogID: 1, Offset: 10},
 	}
@@ -145,11 +140,8 @@ func TestSubscription(t *testing.T) {
 	m.offsetManager = offsetManager
 	storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).Return(nil)
 	m.AddSubscription(ctx, makeSubscription())
-	var id vanus.ID
-	subscriptionMap := m.ListSubscription(ctx)
-	for _id := range subscriptionMap {
-		id = _id
-	}
+	subscriptions := m.ListSubscription(ctx)
+	id := subscriptions[0].ID
 	listOffsetInfo := info.ListOffsetInfo{
 		{EventLogID: 1, Offset: 10},
 	}

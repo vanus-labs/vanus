@@ -32,7 +32,7 @@ import (
 type Manager interface {
 	Offset(ctx context.Context, id vanus.ID, offsets iInfo.ListOffsetInfo) error
 	GetOffset(ctx context.Context, id vanus.ID) (iInfo.ListOffsetInfo, error)
-	ListSubscription(ctx context.Context) map[vanus.ID]*primitive.SubscriptionData
+	ListSubscription(ctx context.Context) []*primitive.SubscriptionData
 	GetSubscriptionData(ctx context.Context, id vanus.ID) *primitive.SubscriptionData
 	GetSubscription(ctx context.Context, id vanus.ID) (*primitive.Subscription, error)
 	AddSubscription(ctx context.Context, subscription *primitive.SubscriptionData) error
@@ -49,20 +49,17 @@ var (
 )
 
 type manager struct {
-	storage       storage.Storage
-	offsetManager offset.Manager
-	ctx           context.Context
-	stop          context.CancelFunc
-	lock          sync.RWMutex
-	subscription  map[vanus.ID]*primitive.SubscriptionData
+	storage         storage.Storage
+	offsetManager   offset.Manager
+	lock            sync.RWMutex
+	subscriptionMap map[vanus.ID]*primitive.SubscriptionData
 }
 
 func NewSubscriptionManager(storage storage.Storage) Manager {
 	m := &manager{
-		storage:      storage,
-		subscription: map[vanus.ID]*primitive.SubscriptionData{},
+		storage:         storage,
+		subscriptionMap: map[vanus.ID]*primitive.SubscriptionData{},
 	}
-	m.ctx, m.stop = context.WithCancel(context.Background())
 	return m
 }
 
@@ -82,16 +79,20 @@ func (m *manager) GetOffset(ctx context.Context, id vanus.ID) (iInfo.ListOffsetI
 	return m.offsetManager.GetOffset(ctx, id)
 }
 
-func (m *manager) ListSubscription(ctx context.Context) map[vanus.ID]*primitive.SubscriptionData {
+func (m *manager) ListSubscription(ctx context.Context) []*primitive.SubscriptionData {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	return m.subscription
+	list := make([]*primitive.SubscriptionData, 0, len(m.subscriptionMap))
+	for _, subscription := range m.subscriptionMap {
+		list = append(list, subscription)
+	}
+	return list
 }
 
 func (m *manager) GetSubscriptionData(ctx context.Context, id vanus.ID) *primitive.SubscriptionData {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	sub, exist := m.subscription[id]
+	sub, exist := m.subscriptionMap[id]
 	if !exist || sub.Phase == primitive.SubscriptionPhaseToDelete {
 		return nil
 	}
@@ -101,7 +102,7 @@ func (m *manager) GetSubscriptionData(ctx context.Context, id vanus.ID) *primiti
 func (m *manager) GetSubscription(ctx context.Context, id vanus.ID) (*primitive.Subscription, error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	subData, exist := m.subscription[id]
+	subData, exist := m.subscriptionMap[id]
 	if !exist || subData.Phase == primitive.SubscriptionPhaseToDelete {
 		return nil, ErrSubscriptionNotExist
 	}
@@ -129,7 +130,7 @@ func (m *manager) AddSubscription(ctx context.Context, sub *primitive.Subscripti
 	if err != nil {
 		return err
 	}
-	m.subscription[sub.ID] = sub
+	m.subscriptionMap[sub.ID] = sub
 	return nil
 }
 
@@ -140,7 +141,7 @@ func (m *manager) UpdateSubscription(ctx context.Context, sub *primitive.Subscri
 	if err != nil {
 		return err
 	}
-	m.subscription[sub.ID] = sub
+	m.subscriptionMap[sub.ID] = sub
 	return nil
 }
 
@@ -150,7 +151,7 @@ func (m *manager) UpdateSubscription(ctx context.Context, sub *primitive.Subscri
 func (m *manager) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	_, exist := m.subscription[id]
+	_, exist := m.subscriptionMap[id]
 	if !exist {
 		return nil
 	}
@@ -162,7 +163,7 @@ func (m *manager) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 	if err != nil {
 		return err
 	}
-	delete(m.subscription, id)
+	delete(m.subscriptionMap, id)
 	return nil
 }
 
@@ -194,7 +195,6 @@ func (m *manager) Heartbeat(ctx context.Context, id vanus.ID, addr string, time 
 }
 
 func (m *manager) Stop() {
-	m.stop()
 	m.offsetManager.Stop()
 }
 
@@ -212,7 +212,7 @@ func (m *manager) Init(ctx context.Context) error {
 	})
 	for i := range subList {
 		sub := subList[i]
-		m.subscription[sub.ID] = sub
+		m.subscriptionMap[sub.ID] = sub
 	}
 	m.offsetManager = offset.NewOffsetManager(m.storage, defaultCommitInterval)
 	return nil

@@ -98,15 +98,15 @@ func fromPbFilters(filters []*pb.Filter) []*primitive.SubscriptionFilter {
 	if len(filters) == 0 {
 		return nil
 	}
-	var tos []*primitive.SubscriptionFilter
+	to := make([]*primitive.SubscriptionFilter, 0, len(filters))
 	for _, filter := range filters {
 		f := fromPbFilter(filter)
 		if f == nil {
 			continue
 		}
-		tos = append(tos, f)
+		to = append(to, f)
 	}
-	return tos
+	return to
 }
 
 func fromPbFilter(filter *pb.Filter) *primitive.SubscriptionFilter {
@@ -138,11 +138,11 @@ func fromPbFilter(filter *pb.Filter) *primitive.SubscriptionFilter {
 }
 
 func toPbFilters(filters []*primitive.SubscriptionFilter) []*pb.Filter {
-	var tos []*pb.Filter
+	to := make([]*pb.Filter, 0, len(filters))
 	for _, filter := range filters {
-		tos = append(tos, toPbFilter(filter))
+		to = append(to, toPbFilter(filter))
 	}
-	return tos
+	return to
 }
 
 func toPbFilter(filter *primitive.SubscriptionFilter) *pb.Filter {
@@ -198,7 +198,7 @@ func ToPbSubscriptionInfo(sub info.SubscriptionInfo) *pb.SubscriptionInfo {
 }
 
 func ToPbOffsetInfos(offsets info.ListOffsetInfo) []*pb.OffsetInfo {
-	var to []*pb.OffsetInfo
+	to := make([]*pb.OffsetInfo, 0, len(offsets))
 	for _, offset := range offsets {
 		to = append(to, toPbOffsetInfo(offset))
 	}
