@@ -356,6 +356,9 @@ issues:
   max-issues-per-linter: 0
   max-same-issues: 0
   exclude-rules:
+    - source: "strconv"
+      linters:
+        - gomnd
     - path: "convert.go"
       linters:
         - dupl
@@ -379,7 +382,7 @@ issues:
         - cyclop
         - gochecknoinits
         - gochecknoglobals
-    - text: "unexported-return: exported func NewController returns unexported type"
+    - text: "unexported-return: exported func (NewController|NewGateway) returns unexported type"
       linters:
         - revive
     - text: "Non-inherited new context"

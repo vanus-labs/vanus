@@ -17,10 +17,11 @@ package gateway
 import (
 	"context"
 	"fmt"
-	"github.com/linkall-labs/vanus/observability/log"
 	"net"
 	"strings"
 	"sync"
+
+	"github.com/linkall-labs/vanus/observability/log"
 
 	v2 "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/client"
@@ -36,7 +37,7 @@ const (
 )
 
 type ceGateway struct {
-	ceClient  v2.Client
+	// ceClient  v2.Client
 	busWriter sync.Map
 	config    Config
 }
@@ -83,7 +84,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) protocol.Resul
 		}
 	}
 	event.SetExtension(xceVanusEventbus, ebName)
-	writer := v.(eventbus.BusWriter)
+	writer, _ := v.(eventbus.BusWriter)
 	_, err := writer.Append(ctx, &event)
 	if err != nil {
 		log.Warning(ctx, "append to failed", map[string]interface{}{
