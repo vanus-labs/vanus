@@ -22,16 +22,13 @@ jobs:
       - uses: actions/setup-go@v2
       - name: checkout-vanus
         uses: actions/checkout@v3
-      - name: replace-gomod
-        run: |
-          sed -i "s/\.\./\./g" go.mod
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3.1.0
         with:
           # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
           version: v1.45
           # Optional: working directory, useful for monorepos
-#          working-directory: vanus
+          working-directory: internal
 
           # Optional: golangci-lint command line arguments.
           # args: --issues-exit-code=0
