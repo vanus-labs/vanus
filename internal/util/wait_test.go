@@ -16,6 +16,7 @@ package util
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -66,11 +67,20 @@ func TestWaitStartWithChannel(t *testing.T) {
 func TestUntilWithContext(t *testing.T) {
 	Convey("util with context", t, func() {
 		ctx, cancel := context.WithCancel(context.Background())
+		count := int64(0)
+		interval := 2 * time.Millisecond
 		go UntilWithContext(ctx, func(ctx context.Context) {
 			log.Info(ctx, "entrance", nil)
 			time.Sleep(time.Millisecond)
-		}, time.Millisecond*2)
-		time.Sleep(time.Millisecond * 10)
+			atomic.AddInt64(&count, 1)
+		}, interval)
+		time.Sleep(10 * interval)
 		cancel()
+		So(atomic.LoadInt64(&count), ShouldBeGreaterThanOrEqualTo, 9)
+		// waiting goroutine exit
+		time.Sleep(interval)
+		old := atomic.LoadInt64(&count)
+		time.Sleep(10 * interval)
+		So(atomic.LoadInt64(&count), ShouldEqual, old)
 	})
 }
