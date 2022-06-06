@@ -115,11 +115,11 @@ func validateCel(ctx context.Context, expression string) (err error) {
 func validateCeSQL(ctx context.Context, expression string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = errors.ErrCeSqlExpression.WithMessage(expression)
+			err = errors.ErrCeSQLExpression.WithMessage(expression)
 		}
 	}()
 	if _, err := cesqlparser.Parse(expression); err != nil {
-		return errors.ErrCeSqlExpression.WithMessage(expression).Wrap(err)
+		return errors.ErrCeSQLExpression.WithMessage(expression).Wrap(err)
 	}
 	return nil
 }

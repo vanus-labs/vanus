@@ -356,6 +356,9 @@ issues:
   max-issues-per-linter: 0
   max-same-issues: 0
   exclude-rules:
+    - text: "^G404: Use of weak random number generator"
+      linters:
+        - gosec
     - text: "(^shutdownHandler|^onlyOneSignalHandler)*."
       linters:
         - gochecknoglobals
@@ -373,7 +376,7 @@ issues:
         - cyclop
         - gochecknoinits
         - gochecknoglobals
-    - text: "unexported-return: exported func NewController returns unexported type \\*eventbus.controller"
+    - text: "unexported-return: exported func NewController returns unexported type"
       linters:
         - revive
     - text: "Non-inherited new context"
