@@ -356,6 +356,9 @@ issues:
   max-issues-per-linter: 0
   max-same-issues: 0
   exclude-rules:
+    - text: "type assertion on error will fail on wrapped errors. Use errors.As to check for specific errors"
+      linters:
+        - errorlint
     - source: "strconv"
       linters:
         - gomnd
