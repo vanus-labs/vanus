@@ -9,8 +9,6 @@
 /cmd/store/ @ifplusor
 /cmd/trigger/ @xdlbdy
 
-/config/ @wenfengwang
-
 /deploy/ @xdlbdy
 
 /internal/controller/ @xdlbdy
