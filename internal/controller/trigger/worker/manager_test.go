@@ -68,8 +68,8 @@ func TestInit(t *testing.T) {
 		workerStorage.EXPECT().ListTriggerWorker(ctx).Return([]*info.TriggerWorkerInfo{
 			{Addr: addr},
 		}, nil)
-		subManager.EXPECT().ListSubscription(ctx).Return(map[vanus.ID]*primitive.SubscriptionData{
-			sub.ID: sub,
+		subManager.EXPECT().ListSubscription(ctx).Return([]*primitive.SubscriptionData{
+			sub,
 		})
 		err := twManager.Init(ctx)
 		So(err, ShouldBeNil)

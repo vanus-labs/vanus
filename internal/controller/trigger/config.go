@@ -15,13 +15,10 @@
 package trigger
 
 import (
-	"time"
-
 	"github.com/linkall-labs/vanus/internal/primitive"
 )
 
 type Config struct {
 	// etcd storage config
-	Storage              primitive.KvStorageConfig
-	GcSubscriptionPeriod time.Duration
+	Storage primitive.KvStorageConfig
 }

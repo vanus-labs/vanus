@@ -170,7 +170,7 @@ message UnregisterTriggerWorkerResponse {}
 message TriggerWorkerHeartbeatRequest {
   string address = 1;
   bool started = 2;
-  repeated meta.SubscriptionInfo sub_infos = 3;
+  repeated meta.SubscriptionInfo subscription_info = 3;
 }
 
 message TriggerWorkerHeartbeatResponse {}

@@ -16,7 +16,6 @@ package controller
 
 import (
 	"path/filepath"
-	"time"
 
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
@@ -66,7 +65,6 @@ func (c *Config) GetTriggerConfig() trigger.Config {
 			KeyPrefix:  c.MetadataConfig.KeyPrefix,
 			ServerList: c.EtcdEndpoints,
 		},
-		GcSubscriptionPeriod: 10 * time.Second,
 	}
 }
 
