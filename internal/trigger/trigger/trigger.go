@@ -31,7 +31,7 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 )
 
-type TriggerState string
+type State string
 
 const (
 	TriggerCreated   = "created"
@@ -41,6 +41,9 @@ const (
 	TriggerPaused    = "paused"
 	TriggerStopped   = "stopped"
 	TriggerDestroyed = "destroyed"
+
+	sleepCheckPeriod = 10 * time.Millisecond
+	sleepDuration    = 30 * time.Second
 )
 
 type Trigger struct {
@@ -49,7 +52,7 @@ type Trigger struct {
 	Target         primitive.URI `json:"target"`
 	SleepDuration  time.Duration `json:"sleep_duration"`
 
-	state      TriggerState
+	state      State
 	stateMutex sync.RWMutex
 	lastActive time.Time
 
@@ -77,7 +80,7 @@ func NewTrigger(config *Config, sub *primitive.Subscription, offsetManager *offs
 		ID:             vanus.NewID(),
 		SubscriptionID: sub.ID,
 		Target:         sub.Sink,
-		SleepDuration:  30 * time.Second,
+		SleepDuration:  sleepDuration,
 		state:          TriggerCreated,
 		filter:         filter.GetFilter(sub.Filters),
 		eventCh:        make(chan info.EventRecord, config.BufferSize),
@@ -172,7 +175,7 @@ func (t *Trigger) runEventSend(ctx context.Context) {
 }
 
 func (t *Trigger) runSleepWatch(ctx context.Context) {
-	tk := time.NewTicker(10 * time.Millisecond)
+	tk := time.NewTicker(sleepCheckPeriod)
 	defer tk.Stop()
 	for {
 		select {
@@ -232,13 +235,13 @@ func (t *Trigger) Stop() {
 	})
 }
 
-func (t *Trigger) GetState() TriggerState {
+func (t *Trigger) GetState() State {
 	t.stateMutex.RLock()
 	defer t.stateMutex.RUnlock()
 	return t.state
 }
 
-func (t *Trigger) SetState(state TriggerState) {
+func (t *Trigger) SetState(state State) {
 	t.stateMutex.Lock()
 	defer t.stateMutex.Unlock()
 	t.state = state

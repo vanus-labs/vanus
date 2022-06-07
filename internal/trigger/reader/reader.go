@@ -17,6 +17,7 @@ package reader
 
 import (
 	"context"
+	stdErr "errors"
 	"io"
 	"sync"
 	"time"
@@ -42,6 +43,7 @@ const (
 	readerSeekTimeout         = 5 * time.Second
 	readEventTimeout          = 5 * time.Second
 	initErrSleepTime          = 5 * time.Second
+	readErrSleepTime          = 2 * time.Second
 	readSize                  = 5
 )
 
@@ -113,7 +115,7 @@ func (r *reader) checkEventLogChange() {
 	defer cancel()
 	els, err := eb.LookupReadableLogs(ctx, r.config.EventBusVRN)
 	if err != nil {
-		if err == context.Canceled {
+		if stdErr.Is(err, context.Canceled) {
 			return
 		}
 		log.Warning(ctx, "eventbus lookup Readable eventlog error", map[string]interface{}{
@@ -247,7 +249,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 				})
 			}
 			sleepCnt++
-			if !util.SleepWithContext(ctx, util.Backoff(sleepCnt, 2*time.Second)) {
+			if !util.SleepWithContext(ctx, util.Backoff(sleepCnt, readErrSleepTime)) {
 				lr.Close()
 				return
 			}
