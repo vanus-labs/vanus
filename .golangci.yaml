@@ -368,7 +368,7 @@ issues:
     - text: "missing cases in switch of type"
       linters:
         - exhaustive
-    - source: "strconv|make"
+    - source: "strconv|make|len|math"
       linters:
         - gomnd
     - path: "convert.go"
