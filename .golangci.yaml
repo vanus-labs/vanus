@@ -374,7 +374,7 @@ issues:
     - path: "convert.go"
       linters:
         - dupl
-    - text: "^G404: Use of weak random number generator"
+    - text: "^(G401|G404|G501)"
       linters:
         - gosec
     - text: "(^shutdownHandler|^onlyOneSignalHandler)*."
