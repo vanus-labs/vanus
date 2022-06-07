@@ -16,11 +16,18 @@ package etcd
 
 import (
 	"context"
-	kvdef "github.com/linkall-labs/vanus/internal/kv"
-	v3client "go.etcd.io/etcd/client/v3"
 	"path"
 	"strings"
 	"time"
+
+	kvdef "github.com/linkall-labs/vanus/internal/kv"
+	v3client "go.etcd.io/etcd/client/v3"
+)
+
+const (
+	dialTimeout          = 5 * time.Second
+	dialKeepAliveTime    = 1 * time.Second
+	dialKeepAliveTimeout = 3 * time.Second
 )
 
 type etcdClient3 struct {
@@ -28,12 +35,12 @@ type etcdClient3 struct {
 	keyPrefix string
 }
 
-func NewEtcdClientV3(endpoints []string, keyPrefix string) (*etcdClient3, error) {
+func NewEtcdClientV3(endpoints []string, keyPrefix string) (kvdef.Client, error) {
 	client, err := v3client.New(v3client.Config{
 		Endpoints:            endpoints,
-		DialTimeout:          5 * time.Second,
-		DialKeepAliveTime:    1 * time.Second,
-		DialKeepAliveTimeout: 3 * time.Second,
+		DialTimeout:          dialTimeout,
+		DialKeepAliveTime:    dialKeepAliveTime,
+		DialKeepAliveTimeout: dialKeepAliveTimeout,
 	})
 	if err != nil {
 		return nil, err
@@ -48,7 +55,7 @@ func (c *etcdClient3) Get(ctx context.Context, key string) ([]byte, error) {
 		return nil, err
 	}
 	if len(resp.Kvs) == 0 {
-		return nil, kvdef.ErrorKeyNotFound
+		return nil, kvdef.ErrKeyNotFound
 	}
 	return resp.Kvs[0].Value, nil
 }
@@ -66,7 +73,7 @@ func (c *etcdClient3) Create(ctx context.Context, key string, value []byte) erro
 	}
 
 	if !resp.Succeeded {
-		return kvdef.ErrorNodeExist
+		return kvdef.ErrNodeExist
 	}
 	return nil
 }
@@ -90,7 +97,7 @@ func (c *etcdClient3) Update(ctx context.Context, key string, value []byte) erro
 	}
 
 	if !resp.Succeeded {
-		return kvdef.ErrorKeyNotFound
+		return kvdef.ErrKeyNotFound
 	}
 
 	return nil
@@ -102,11 +109,7 @@ func (c *etcdClient3) Exists(ctx context.Context, key string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if len(resp.Kvs) == 0 {
-		return false, nil
-	} else {
-		return true, nil
-	}
+	return len(resp.Kvs) != 0, nil
 }
 
 func (c *etcdClient3) SetWithTTL(ctx context.Context, key string, value []byte, ttl time.Duration) error {
@@ -128,7 +131,7 @@ func (c *etcdClient3) Delete(ctx context.Context, key string) error {
 	}
 	if resp.Deleted == 0 {
 		return nil
-		//return ErrorKeyNotFound // as need
+		// return ErrKeyNotFound as need .
 	}
 	return nil
 }
@@ -141,7 +144,7 @@ func (c *etcdClient3) DeleteDir(ctx context.Context, key string) error {
 	}
 	if resp.Deleted == 0 {
 		return nil
-		//return ErrorKeyNotFound // as need
+		// return ErrKeyNotFound as need .
 	}
 	return nil
 }
@@ -168,14 +171,19 @@ func (c *etcdClient3) ListKey(ctx context.Context, path string) (map[string]stru
 	if err != nil {
 		return nil, err
 	}
-	keys := make(map[string]struct{}, 0)
+	keys := make(map[string]struct{})
 	for _, kvdefin := range resp.Kvs {
 		keys[string(kvdefin.Key)[len(path)+1:]] = struct{}{}
 	}
 	return keys, nil
 }
 
-func (c *etcdClient3) watch(ctx context.Context, key string, stopCh <-chan struct{}, isTree bool) (chan kvdef.Pair, chan error) {
+func (c *etcdClient3) watch(
+	ctx context.Context,
+	key string,
+	stopCh <-chan struct{},
+	isTree bool,
+) (chan kvdef.Pair, chan error) {
 	watcher := v3client.NewWatcher(c.client)
 	var watchC v3client.WatchChan
 	if isTree {
@@ -183,8 +191,10 @@ func (c *etcdClient3) watch(ctx context.Context, key string, stopCh <-chan struc
 	} else {
 		watchC = watcher.Watch(ctx, key, v3client.WithPrevKV())
 	}
-	pairC := make(chan kvdef.Pair, 100)
-	errorC := make(chan error, 10)
+	dataBufferSize := 100
+	errBufferSize := 10
+	pairC := make(chan kvdef.Pair, dataBufferSize)
+	errorC := make(chan error, errBufferSize)
 	go func() {
 		for {
 			select {
@@ -240,7 +250,7 @@ func (c *etcdClient3) CompareAndSwap(ctx context.Context, key string, preValue, 
 		return err
 	}
 	if !resp.Succeeded {
-		return kvdef.ErrorSetFailed
+		return kvdef.ErrSetFailed
 	}
 	return nil
 }
@@ -256,7 +266,7 @@ func (c *etcdClient3) CompareAndDelete(ctx context.Context, key string, preValue
 		return err
 	}
 	if !resp.Succeeded {
-		return kvdef.ErrorSetFailed
+		return kvdef.ErrSetFailed
 	}
 	return nil
 }

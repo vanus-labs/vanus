@@ -16,10 +16,11 @@ package segment
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/linkall-labs/vanus/internal/store/segment/errors"
 	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
-	"testing"
 )
 
 func TestCtrlClientIsNeedRetry(t *testing.T) {

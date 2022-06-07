@@ -22,12 +22,12 @@ var (
 	ErrResourceAlreadyExist = rpcerr.New("resource already exist").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_EXIST)
 
 	ErrServerNotStart = rpcerr.New("server not start").WithGRPCCode(rpcerr.ErrorCode_SERVICE_NOT_RUNNING)
-	ErrJsonMarshal    = rpcerr.New("json marshal").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
-	ErrJsonUnMarshal  = rpcerr.New("json unmarshal").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
+	ErrJSONMarshal    = rpcerr.New("json marshal").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
+	ErrJSONUnMarshal  = rpcerr.New("json unmarshal").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
 
 	ErrTriggerWorker = rpcerr.New("trigger worker error").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
 
-	ErrCeSqlExpression        = rpcerr.New("ce sql expression invalid").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
+	ErrCeSQLExpression        = rpcerr.New("ce sql expression invalid").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
 	ErrCelExpression          = rpcerr.New("cel expression invalid").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
 	ErrFilterAttributeIsEmpty = rpcerr.New("filter dialect attribute is empty").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
 	ErrFilterMultiple         = rpcerr.New("filter multiple dialects found").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)

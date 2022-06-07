@@ -42,7 +42,6 @@ type ctrlClient struct {
 	leaderClient    ctrlpb.TriggerControllerClient
 	credentials     credentials.TransportCredentials
 	heartBeatClient ctrlpb.TriggerController_TriggerWorkerHeartbeatClient
-	pingClient      ctrlpb.PingServerClient
 }
 
 func NewClient(ctrlAddrs []string) *ctrlClient {

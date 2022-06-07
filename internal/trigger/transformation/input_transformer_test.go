@@ -17,11 +17,9 @@ package transformation
 import (
 	"testing"
 
+	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger/transformation/template"
-	"github.com/linkall-labs/vanus/internal/trigger/transformation/vjson"
-
-	ce "github.com/cloudevents/sdk-go/v2"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -49,8 +47,6 @@ func TestParseDataVariable(t *testing.T) {
 	})
 
 	Convey("test parse data value other", t, func() {
-		rs := make(map[string]vjson.Result)
-		rs["key"] = vjson.Result{Key: "key", Type: vjson.Array}
 		d := parseDataVariable([]byte(`{"key": {"k":"v"}}`), key)
 		So(d.DataType, ShouldEqual, template.Other)
 		So(d.String(), ShouldEqual, `{"k":"v"}`)

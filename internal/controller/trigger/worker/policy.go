@@ -18,6 +18,7 @@ import (
 	"context"
 	"math/rand"
 	"sync/atomic"
+	"time"
 
 	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 )
@@ -40,5 +41,5 @@ type RandomPolicy struct {
 }
 
 func (r *RandomPolicy) Acquire(ctx context.Context, workers []info.TriggerWorkerInfo) info.TriggerWorkerInfo {
-	return workers[rand.Intn(len(workers))]
+	return workers[rand.New(rand.NewSource(time.Now().Unix())).Intn(len(workers))]
 }

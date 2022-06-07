@@ -22,8 +22,8 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
 	"github.com/linkall-labs/vanus/internal/controller/trigger"
-	"github.com/linkall-labs/vanus/internal/primitive/interceptor/grpc_error"
-	"github.com/linkall-labs/vanus/internal/primitive/interceptor/grpc_member"
+	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
+	"github.com/linkall-labs/vanus/internal/primitive/interceptor/memberinterceptor"
 	"github.com/linkall-labs/vanus/internal/util/signal"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
@@ -96,13 +96,13 @@ func main() {
 	grpcServer := grpc.NewServer(
 		grpc.ChainStreamInterceptor(
 			recovery.StreamServerInterceptor(),
-			grpc_error.StreamServerInterceptor(),
-			grpc_member.StreamServerInterceptor(etcd),
+			errinterceptor.StreamServerInterceptor(),
+			memberinterceptor.StreamServerInterceptor(etcd),
 		),
 		grpc.ChainUnaryInterceptor(
 			recovery.UnaryServerInterceptor(),
-			grpc_error.UnaryServerInterceptor(),
-			grpc_member.UnaryServerInterceptor(etcd),
+			errinterceptor.UnaryServerInterceptor(),
+			memberinterceptor.UnaryServerInterceptor(etcd),
 		),
 	)
 

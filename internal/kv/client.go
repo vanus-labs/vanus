@@ -21,9 +21,9 @@ import (
 )
 
 var (
-	ErrorKeyNotFound = errors.New("key not found")
-	ErrorNodeExist   = errors.New("node exist")
-	ErrorSetFailed   = errors.New("set failed")
+	ErrKeyNotFound = errors.New("key not found")
+	ErrNodeExist   = errors.New("node exist")
+	ErrSetFailed   = errors.New("set failed")
 )
 
 type Client interface {

@@ -47,6 +47,7 @@ func TestIndex_Marshal(t *testing.T) {
 		So(err, ShouldEqual, bytes.ErrTooLarge)
 
 		nIdx, err = unmarshalIndex(make([]byte, rd.Int31n(12)))
+		So(err, ShouldEqual, bytes.ErrTooLarge)
 		So(n, ShouldBeZeroValue)
 		So(nIdx, ShouldResemble, index{})
 	})

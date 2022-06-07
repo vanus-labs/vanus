@@ -16,11 +16,12 @@ package file
 
 import (
 	stdCtx "context"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	. "github.com/smartystreets/goconvey/convey"
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestBlock_Creation(t *testing.T) {
@@ -69,13 +70,4 @@ func TestBlock_IndexHeader(t *testing.T) {
 		So(blkNew.actx.num, ShouldEqual, blk.actx.num)
 		So(blkNew.Close(stdCtx.Background()), ShouldBeNil)
 	})
-}
-
-func randomGenerateData(rd rand.Rand) []byte {
-	size := rd.Int31n(1024*1024) + 1
-	data := make([]byte, size)
-	for idx := 0; idx < int(size); idx++ {
-		data[idx] = 'a'
-	}
-	return data
 }

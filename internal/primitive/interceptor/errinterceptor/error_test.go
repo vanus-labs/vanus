@@ -12,4 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package grpc_member
+package errinterceptor
+
+import "testing"
+
+func TestGRPCErrorClientInboundInterceptor(t *testing.T) {
+
+}
+
+func TestGRPCErrorServerOutboundInterceptor(t *testing.T) {
+
+}

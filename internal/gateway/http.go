@@ -17,14 +17,15 @@ package gateway
 import (
 	"context"
 	"fmt"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-	eb "github.com/linkall-labs/vanus/client"
 	"io"
 	"math"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	eb "github.com/linkall-labs/vanus/client"
 )
 
 type httpServer struct {
@@ -51,7 +52,7 @@ func MustStartHTTP(cfg Config) {
 	e.Logger.Fatal(e.Start(fmt.Sprintf(":%d", cfg.Port+1)))
 }
 
-// getControllerAddrs return the endpoints of controller
+// getControllerAddrs return the endpoints of controller.
 func (srv *httpServer) getControllerEndpoints(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"endpoints": srv.cfg.ControllerAddr,
@@ -67,7 +68,7 @@ func (srv *httpServer) getEvents(c echo.Context) error {
 		})
 	}
 	var offset int
-	var num int
+	var num int16
 	var err error
 	offsetStr := c.QueryParam("offset")
 	if offsetStr != "" {
@@ -85,21 +86,21 @@ func (srv *httpServer) getEvents(c echo.Context) error {
 	}
 	numStr := c.QueryParam("number")
 	if numStr != "" {
-		num, err = strconv.Atoi(numStr)
+		numPara, err := strconv.ParseInt(numStr, 10, 64)
 		if err != nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{
 				"error": fmt.Sprintf("invalid number: %s", err),
 			})
 		}
+		if numPara > math.MaxInt16 {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "number exceeded, maximum is 32767",
+			})
+		}
+		num = int16(numPara)
 	} else {
 		num = 1
 	}
-	if num >= math.MaxInt16 {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": fmt.Sprintf("number exceeded, must < 32767: %s", err),
-		})
-	}
-
 	vrn := fmt.Sprintf("vanus:///eventbus/%s?controllers=%s",
 		eventbus, strings.Join(srv.cfg.ControllerAddr, ","))
 	ls, err := eb.LookupReadableLogs(ctx, vrn)
@@ -124,7 +125,7 @@ func (srv *httpServer) getEvents(c echo.Context) error {
 		})
 	}
 
-	events, err := r.Read(context.Background(), int16(num))
+	events, err := r.Read(context.Background(), num)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": fmt.Sprintf("read event failed: %s", err),

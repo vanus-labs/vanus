@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package grpc_error
+package errinterceptor
 
 import (
 	"context"
+	"fmt"
+
 	"github.com/linkall-labs/vanus/proto/pkg/errors"
 	"google.golang.org/grpc"
 )
@@ -44,7 +46,7 @@ func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	}
 }
 
-// convertToGRPCError convert an internal error to an exported error defined in gRPC
+// convertToGRPCError convert an internal error to an exported error defined in gRPC.
 func convertToGRPCError(err error) error {
 	if err == nil {
 		return nil
@@ -58,5 +60,6 @@ func convertToGRPCError(err error) error {
 		grpcErr.Message = err.Error()
 	}
 
-	return e
+	return fmt.Errorf("{\"code\":\"%v\",\"message\":\"%s\"}",
+		grpcErr.Code, grpcErr.Message)
 }

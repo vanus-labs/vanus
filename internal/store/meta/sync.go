@@ -25,6 +25,10 @@ import (
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
 )
 
+const (
+	runSnapshotInterval = 30 * time.Second
+)
+
 type SyncStore struct {
 	store
 
@@ -117,8 +121,7 @@ func (s *SyncStore) set(kvs Ranger) error {
 }
 
 func (s *SyncStore) runSnapshot() {
-	period := 30 * time.Second
-	ticker := time.NewTicker(period)
+	ticker := time.NewTicker(runSnapshotInterval)
 	defer ticker.Stop()
 
 	for {

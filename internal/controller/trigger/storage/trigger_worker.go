@@ -55,7 +55,7 @@ func (s *triggerWorkerStorage) SaveTriggerWorker(ctx context.Context, info info.
 	}
 	v, err := json.Marshal(info)
 	if err != nil {
-		return errors.ErrJsonMarshal.Wrap(err)
+		return errors.ErrJSONMarshal.Wrap(err)
 	}
 	if !exist {
 		return s.client.Create(ctx, key, v)
@@ -70,7 +70,7 @@ func (s *triggerWorkerStorage) GetTriggerWorker(ctx context.Context, id string) 
 	var tWorker info.TriggerWorkerInfo
 	err = json.Unmarshal(v, &tWorker)
 	if err != nil {
-		return nil, errors.ErrJsonUnMarshal.Wrap(err)
+		return nil, errors.ErrJSONUnMarshal.Wrap(err)
 	}
 	return &tWorker, nil
 }
@@ -89,7 +89,7 @@ func (s *triggerWorkerStorage) ListTriggerWorker(ctx context.Context) ([]*info.T
 		var tWorker info.TriggerWorkerInfo
 		err = json.Unmarshal(v.Value, &tWorker)
 		if err != nil {
-			return nil, errors.ErrJsonUnMarshal.Wrap(err)
+			return nil, errors.ErrJSONUnMarshal.Wrap(err)
 		}
 		tWorker.ID = filepath.Base(v.Key)
 		list = append(list, &tWorker)

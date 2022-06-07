@@ -69,7 +69,7 @@ func (s *server) Start(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	s.startHeartbeat()
+	s.startHeartbeat(context.Background())
 	s.state = primitive.ServerStateRunning
 	return &pbtrigger.StartTriggerWorkerResponse{}, nil
 }
@@ -77,7 +77,7 @@ func (s *server) Start(ctx context.Context,
 func (s *server) Stop(ctx context.Context,
 	request *pbtrigger.StopTriggerWorkerRequest) (*pbtrigger.StopTriggerWorkerResponse, error) {
 	log.Info(ctx, "worker server stop ", map[string]interface{}{"request": request})
-	s.stop(false)
+	s.stop(context.Background(), false)
 	os.Exit(1)
 	return &pbtrigger.StopTriggerWorkerResponse{}, nil
 }
@@ -165,19 +165,18 @@ func (s *server) Initialize(ctx context.Context) error {
 
 func (s *server) Close(ctx context.Context) error {
 	log.Info(ctx, "trigger worker server stop...", nil)
-	s.stop(true)
+	s.stop(ctx, true)
 	log.Info(ctx, "trigger worker server stopped", nil)
 	return nil
 }
 
-func (s *server) stop(sendUnregister bool) {
+func (s *server) stop(ctx context.Context, sendUnregister bool) {
 	if s.state != primitive.ServerStateRunning {
 		return
 	}
 	_ = s.worker.Stop(s.ctx)
 	s.cancel()
 	s.wg.Wait()
-	ctx := context.Background()
 	if sendUnregister {
 		_, err := s.client.unregisterTriggerWorker(ctx, &controller.UnregisterTriggerWorkerRequest{
 			Address: s.config.TriggerAddr,
@@ -195,13 +194,12 @@ func (s *server) stop(sendUnregister bool) {
 	s.state = primitive.ServerStateStopped
 }
 
-func (s *server) startHeartbeat() {
+func (s *server) startHeartbeat(ctx context.Context) {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
 		ticker := time.NewTicker(heartbeatPeriod)
 		defer ticker.Stop()
-		ctx := context.Background()
 		for {
 			select {
 			case <-s.ctx.Done():

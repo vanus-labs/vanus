@@ -131,7 +131,7 @@ func New(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, ra
 	r.node = raft.RestartNode(c)
 	r.commitIndex = r.log.HardState().Commit
 
-	go r.run()
+	go r.run(context.TODO())
 
 	return r
 }
@@ -157,7 +157,7 @@ func (r *Replica) Bootstrap(blocks []Peer) error {
 	return r.node.Bootstrap(peers)
 }
 
-func (r *Replica) run() {
+func (r *Replica) run(ctx context.Context) {
 	// TODO(james.yin): reduce Ticker
 	period := defaultTickPeriodMs * time.Millisecond
 	t := time.NewTicker(period)
@@ -201,10 +201,10 @@ func (r *Replica) run() {
 			var applied uint64
 
 			// TODO(james.yin): snapshot
-			if !raft.IsEmptySnap(rd.Snapshot) {
-				// processSnapshot(rd.Snapshot)
-				// applied = rd.Snapshot.Metadata.Index
-			}
+			// if !raft.IsEmptySnap(rd.Snapshot) {
+			// processSnapshot(rd.Snapshot)
+			// applied = rd.Snapshot.Metadata.Index
+			// }
 
 			if num := len(rd.CommittedEntries); num != 0 {
 				var cs *raftpb.ConfState
@@ -227,7 +227,7 @@ func (r *Replica) run() {
 				}
 
 				if len(entries) != 0 {
-					r.doAppend(entries...)
+					r.doAppend(ctx, entries...)
 				}
 
 				// ConfState is changed.
@@ -418,7 +418,7 @@ func (r *Replica) append(ctx context.Context, entries []block.Entry) (uint32, er
 	return r.actx.WriteOffset(), nil
 }
 
-func (r *Replica) doAppend(entries ...block.Entry) {
+func (r *Replica) doAppend(_ context.Context, entries ...block.Entry) {
 	num := len(entries)
 	if num == 0 {
 		return

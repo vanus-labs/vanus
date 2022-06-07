@@ -82,7 +82,7 @@ func (f *fake) CreateOffset(ctx context.Context, subscriptionID vanus.ID, info p
 func (f *fake) UpdateOffset(ctx context.Context, subscriptionID vanus.ID, info pInfo.OffsetInfo) error {
 	sub, exist := f.offset[subscriptionID]
 	if !exist {
-		return kv.ErrorKeyNotFound
+		return kv.ErrKeyNotFound
 	}
 	sub[info.EventLogID] = info
 	return nil
