@@ -48,7 +48,7 @@ type ctrlClient struct {
 	leaderClient    ctrlpb.SegmentControllerClient
 	credentials     credentials.TransportCredentials
 	heartBeatClient ctrlpb.SegmentController_SegmentHeartbeatClient
-	pingClient      ctrlpb.PingServerClient
+	// pingClient      ctrlpb.PingServerClient
 }
 
 func NewClient(ctrlAddrs []string) *ctrlClient {
@@ -99,23 +99,23 @@ func (cli *ctrlClient) registerSegmentServer(ctx context.Context,
 	return res, err
 }
 
-func (cli *ctrlClient) unregisterSegmentServer(ctx context.Context,
-	req *ctrlpb.UnregisterSegmentServerRequest,
-) (*ctrlpb.UnregisterSegmentServerResponse, error) {
-	client := cli.makeSureClient(false)
-	if client == nil {
-		return nil, errors.ErrNoControllerLeader
-	}
-	res, err := client.UnregisterSegmentServer(ctx, req)
-	if cli.isNeedRetry(err) {
-		client = cli.makeSureClient(true)
-		if client == nil {
-			return nil, errors.ErrNoControllerLeader
-		}
-		res, err = client.UnregisterSegmentServer(ctx, req)
-	}
-	return res, err
-}
+//func (cli *ctrlClient) unregisterSegmentServer(ctx context.Context,
+//	req *ctrlpb.UnregisterSegmentServerRequest,
+//) (*ctrlpb.UnregisterSegmentServerResponse, error) {
+//	client := cli.makeSureClient(false)
+//	if client == nil {
+//		return nil, errors.ErrNoControllerLeader
+//	}
+//	res, err := client.UnregisterSegmentServer(ctx, req)
+//	if cli.isNeedRetry(err) {
+//		client = cli.makeSureClient(true)
+//		if client == nil {
+//			return nil, errors.ErrNoControllerLeader
+//		}
+//		res, err = client.UnregisterSegmentServer(ctx, req)
+//	}
+//	return res, err
+//}
 
 func (cli *ctrlClient) reportSegmentBlockIsFull(ctx context.Context,
 	req *ctrlpb.SegmentHeartbeatRequest,

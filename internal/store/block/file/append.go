@@ -159,9 +159,9 @@ func (b *Block) CommitAppend(ctx context.Context, entries ...block.Entry) error 
 	b.actx.offset += uint32(n)
 	b.fo.Store(int64(b.actx.offset))
 
-	//if err = b.physicalFile.Sync(); err != nil {
-	//	return err
-	//}
+	// if err = b.physicalFile.Sync(); err != nil {
+	// 	return err
+	// }
 
 	return nil
 }

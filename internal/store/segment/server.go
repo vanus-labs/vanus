@@ -27,9 +27,9 @@ import (
 
 	// third-party libraries.
 	cepb "cloudevents.io/genproto/v1"
-	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	// first-party libraries.

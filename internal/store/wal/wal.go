@@ -28,6 +28,13 @@ import (
 const (
 	blockSize = 32 * 1024
 	fileSize  = 128 * 1024 * 1024
+
+	appendChanSize   = 64
+	callbackChanSize = 64
+	flushChanSize    = 1024
+	wakeupChanSize   = 1024
+
+	walAppendInterval = 500 * time.Microsecond
 )
 
 type blockWithSo struct {
@@ -97,10 +104,10 @@ func newWAL(ctx context.Context, stream *logStream, pos int64) (*WAL, error) {
 		},
 		stream: stream,
 		// TODO(james.yin): don't use magic numbers.
-		appendc:   make(chan entriesWithCallback, 64),
-		callbackc: make(chan callbackWithThreshold, 64),
-		flushc:    make(chan blockWithArgs, 1024),
-		weakupc:   make(chan int64, 1024),
+		appendc:   make(chan entriesWithCallback, appendChanSize),
+		callbackc: make(chan callbackWithThreshold, callbackChanSize),
+		flushc:    make(chan blockWithArgs, flushChanSize),
+		weakupc:   make(chan int64, wakeupChanSize),
 		donec:     make(chan struct{}),
 		ctx:       ctx,
 	}
@@ -191,10 +198,8 @@ func (w *WAL) appendWithCallback(entries [][]byte, batching bool, callback Appen
 }
 
 func (w *WAL) runAppend() {
-	period := 500 * time.Microsecond
-
 	// create a stopped timer
-	timer := time.NewTimer(period)
+	timer := time.NewTimer(walAppendInterval)
 	if !timer.Stop() {
 		<-timer.C
 	}
@@ -223,11 +228,11 @@ func (w *WAL) runAppend() {
 					// drain channel
 					<-timer.C
 				}
-				timer.Reset(period)
+				timer.Reset(walAppendInterval)
 				waiting = true
 			case !waiting:
 				// start timer
-				timer.Reset(period)
+				timer.Reset(walAppendInterval)
 				waiting = true
 			}
 		case <-timer.C:

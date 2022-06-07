@@ -25,6 +25,10 @@ import (
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
 )
 
+const (
+	runCommitInterval = 3 * time.Second
+)
+
 type AsyncStore struct {
 	store
 
@@ -100,8 +104,7 @@ func (s *AsyncStore) needCommit() bool {
 }
 
 func (s *AsyncStore) runCommit() {
-	period := 3 * time.Second
-	ticker := time.NewTicker(period)
+	ticker := time.NewTicker(runCommitInterval)
 	defer func() {
 		ticker.Stop()
 		s.commit()

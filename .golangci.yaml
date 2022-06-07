@@ -82,7 +82,7 @@ linters-settings:
     exclude-godoc-examples: true # exclude godoc examples from forbidigo checks # default is true
   funlen:
     lines: 100 # default 60
-    statements: 50 # default 40
+    statements: 80 # default 40
   gocognit:
     min-complexity: 80 # minimal code complexity to report, 30 by default (but we recommend 10-20)
   goconst:
@@ -182,7 +182,7 @@ linters-settings:
   nakedret:
     max-func-lines: 0 # default 30
   nestif:
-    min-complexity: 4 # default 5
+    min-complexity: 8 # default 5
   nilnil:
     checked-types: # default [ptr, func, iface, map, chan]
       - ptr
@@ -356,6 +356,9 @@ issues:
   max-issues-per-linter: 0
   max-same-issues: 0
   exclude-rules:
+    - path: "etcd/clientv3.go"
+      linters:
+        - gomnd
     - text: "type assertion on error will fail on wrapped errors. Use errors.As to check for specific errors"
       linters:
         - errorlint
@@ -365,7 +368,7 @@ issues:
     - text: "missing cases in switch of type"
       linters:
         - exhaustive
-    - source: "strconv"
+    - source: "strconv|make"
       linters:
         - gomnd
     - path: "convert.go"
@@ -391,7 +394,7 @@ issues:
         - cyclop
         - gochecknoinits
         - gochecknoglobals
-    - text: "unexported-return: exported func (NewController|NewGateway) returns unexported type"
+    - text: "unexported-return: exported func (NewController|NewGateway|NewEtcdClientV3) returns unexported type"
       linters:
         - revive
     - text: "Non-inherited new context"
