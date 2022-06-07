@@ -11,7 +11,7 @@ require (
 )
 
 replace (
-	cloudevents.io/genproto v1.0.2 => ./include/cloudevents/pkg
+	cloudevents.io/genproto => ./include/cloudevents/pkg
 	github.com/linkall-labs/vanus/raft => ../raft
 )
 
