@@ -76,7 +76,7 @@ func TestUntilWithContext(t *testing.T) {
 		}, interval)
 		time.Sleep(10 * interval)
 		cancel()
-		So(atomic.LoadInt64(&count), ShouldBeGreaterThanOrEqualTo, 9)
+		So(atomic.LoadInt64(&count), ShouldBeGreaterThanOrEqualTo, 5)
 		// waiting goroutine exit
 		time.Sleep(interval)
 		old := atomic.LoadInt64(&count)
