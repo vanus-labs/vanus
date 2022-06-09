@@ -83,7 +83,7 @@ We strictly check PR title's style. The PR's title follow [Conventional Commits 
 - perf: A code change that improves performance
 - test: Adding missing tests or correcting existing tests
 - build: Changes that affect the build system or external dependencies (example scopes: gulp, broccoli, npm)
-- ci: Changes to RisingWave CI configuration files and scripts (example scopes: Travis, Circle, BrowserStack, SauceLabs)
+- ci: Changes to CI configuration files and scripts
 - chore: Other changes that don't modify src or test files
 - revert: Reverts a previous commit
 
@@ -99,7 +99,7 @@ We provide the template for each PR and expect you could explain your PR for wha
 If the PR wants to address one issue, please link to it.
 
 ### Testings
-We hope you can test well your PR before starting the Code Review. If the PR is about a new feature or bugfix, the related
+We hope you can test well your PR before starting the Code Review. If the PR is about a new feature, refactor or bugfix, the related
 Unit tests will be required.
 
 ### CI Checking
