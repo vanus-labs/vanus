@@ -87,7 +87,7 @@ func (s *SyncStore) set(kvs Ranger) error {
 	}
 
 	ch := make(chan error, 1)
-	s.wal.AppendOneWithCallback(entry, func(re walog.ResultOrError) {
+	s.wal.AppendOne(entry, walog.WithCallback(func(re walog.Result) {
 		if re.Err != nil {
 			ch <- re.Err
 			return
@@ -106,8 +106,7 @@ func (s *SyncStore) set(kvs Ranger) error {
 				return nil
 			})
 
-			offset := re.Result[len(re.Result)-1]
-			s.version = offset
+			s.version = re.Offset()
 		}()
 
 		close(ch)
@@ -116,7 +115,7 @@ func (s *SyncStore) set(kvs Ranger) error {
 		case s.snapshotc <- struct{}{}:
 		default:
 		}
-	})
+	}))
 	return <-ch
 }
 
