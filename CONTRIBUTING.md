@@ -14,8 +14,8 @@ resources to make it easier to get your contribution accepted.
   - [Setting up your development environment(optional)](#setting-up-your-development-environmentoptional)
 - [Issues](#issues)
   - [Choosing](#choosing)
-  - [First Contribution](#first-contribution)
-  - [Further Contributions](#further-contributions)
+    - [First Contribution](#first-contribution)
+    - [Further Contributions](#further-contributions)
   - [Submit an Issue](#submit-an-issue)
 - [Pull Requests](#pull-requests)
   - [Style](#style)
@@ -97,7 +97,7 @@ test: fix unstable ut of wait.go
 feat: waiting for ack of append from raft
 ```
 
-#### Descriptions
+### Descriptions
 We provide the template for each PR and expect you could explain your PR for what/why/how in detail. 
 If the PR want to address one issue, please link to.
 
