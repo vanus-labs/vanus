@@ -40,21 +40,28 @@ You can start by finding an existing issues with the
 These issues are well suited for a new contributor.
 
 #### Further Contributions
-After your first contribution was done. You cloud choose other issues you interested in to continuing contributing, 
+After your first contribution was done, you cloud choose other issues you interested in to continuing contributing. You also
+could create a PR directly to Vanus for fixing or improving.
 
 ### Submit an Issue
 Submit an issue to Vanus is a pretty important contributing. Each issue whatever which about bug/feature request/improvement/
 blog/looking for helping/confusing is ESSENTIAL for making Vanus greater.
 
-You could click `new` button in (issues sub-page)[https://github.com/linkall-labs/vanus/issues] of Vanus project to 
+You could click `New issue` button in (issues sub-page)[https://github.com/linkall-labs/vanus/issues] of Vanus project to 
 submit an issue for us.
 
-## PRs
+## Pull Requests
+After your work done, you can create a `Pull Request` by click `New pull request` button in
+[pull requests](https://github.com/linkall-labs/vanus/pulls) pages to submit your contribution to Vanus.
+More about `Pull Request` you can find [here](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests).
 
-### Format
+There are some constraints that in order to save review's time you need pay attention to.
+
+### Style
+We strictly check PR's format. A PR consist of two part: Title and Description.
 
 #### Title
-This repo's PR title based on [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)
+The PR's title follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)
 
 - feat: A new feature
 - fix: A bug fix
@@ -70,18 +77,30 @@ This repo's PR title based on [Conventional Commits 1.0.0](https://www.conventio
 
 Examples:
 
-#### Descriptions
+```text
+test: fix unstable ut of wait.go 
+feat: waiting for ack of append from raft
+```
 
+#### Descriptions
+We provide the template for each PR and expect you could explain your PR for what/why/how in detail. 
+If the PR want to address one issue, please link to.
 
 ### Testings
+We hope you can test well your PR before starting the Code Review. If the PR is about a new feature or bugfix, the related
+Unit tests will be required.
 
-### Sign the CLA
-You need to sign the CLA(Contributor License Agreement) of Linkall for contributing, click here know how.
-
-### Automatic Checking
+### Checking
+There are many automated task to ensure each PR's reach a high quality in Vanus. These tasks are:
+- License checker: check if a new source code file include 'Apache License 2.0' Header. The auto-generated file isn't required.
+- golang-lint: run lint checker to analyse code to find the hidden risk in code.
+- CLA checker: checkout if the contributor signed the Contributor License Agreement.
+- codecov: run all unit tests and generate unit test report. If any case failed or the coverage number down, the task will be failed.
+- e2e testing: run the e2e testing. Any case failed will cause the task failed.
 
 ### Code Review
+The Code Review can be started until all checking were passed. Each PR will automatically assign reviewers. After getting 
+at least one `Approve` from reviewers, the PR can be merged.
 
-### Discussion
-
-### Merging
+## Rewards
+TODO
