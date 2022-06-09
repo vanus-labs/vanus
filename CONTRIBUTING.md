@@ -9,6 +9,21 @@ resources to make it easier to get your contribution accepted.
 
 <!-- TOC -->
 - [How about contributing to Vanus](#how-about-contributing-to-vanus)
+- [Before you get started](#before-you-get-started)
+  - [Sign the CLA](#sign-the-cla)
+  - [Setting up your development environment(optional)](#setting-up-your-development-environmentoptional)
+- [Issues](#issues)
+  - [Choosing](#choosing)
+  - [First Contribution](#first-contribution)
+  - [Further Contributions](#further-contributions)
+  - [Submit an Issue](#submit-an-issue)
+- [Pull Requests](#pull-requests)
+  - [Style](#style)
+  - [Descriptions](#descriptions)
+  - [Testings](#testings)
+  - [CI Checking](#ci-checking)
+  - [Code Review](#code-review)
+- [Reward](#reward)
 <!-- /TOC -->
 
 ## Before you get started
@@ -16,7 +31,7 @@ resources to make it easier to get your contribution accepted.
 ### Sign the CLA
 Click the Sign in with GitHub to agree button to sign the CLA. See an example [here](#).
 
-What is [CLA](#)?
+What is [CLA](https://en.wikipedia.org/wiki/Contributor_License_Agreement)?
 
 ### Setting up your development environment(optional)
 If you want to contribute to codebase of Vanus, it's better to set up development environment in local first.
@@ -90,8 +105,8 @@ If the PR want to address one issue, please link to.
 We hope you can test well your PR before starting the Code Review. If the PR is about a new feature or bugfix, the related
 Unit tests will be required.
 
-### Checking
-There are many automated task to ensure each PR's reach a high quality in Vanus. These tasks are:
+### CI Checking
+There are some automated task to ensure each PR's reach a high quality in Vanus. These tasks are:
 - License checker: check if a new source code file include 'Apache License 2.0' Header. The auto-generated file isn't required.
 - golang-lint: run lint checker to analyse code to find the hidden risk in code.
 - CLA checker: checkout if the contributor signed the Contributor License Agreement.
@@ -102,5 +117,5 @@ There are many automated task to ensure each PR's reach a high quality in Vanus.
 The Code Review can be started until all checking were passed. Each PR will automatically assign reviewers. After getting 
 at least one `Approve` from reviewers, the PR can be merged.
 
-## Rewards
-TODO
+## Reward
+Once your PR has been merged, you become a Vanus Contributor. Thanks for your contribution! please fill the [form](#) to get you reward
