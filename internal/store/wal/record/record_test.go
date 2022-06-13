@@ -61,8 +61,8 @@ func TestRecord_Size(t *testing.T) {
 	})
 }
 
-func TestRecord_MashalTo(t *testing.T) {
-	Convey("mashal record to buffer", t, func() {
+func TestRecord_MarshalTo(t *testing.T) {
+	Convey("marshal record to buffer", t, func() {
 		r := Record{
 			Length: uint16(len(rawData)),
 			Type:   Full,
@@ -74,7 +74,7 @@ func TestRecord_MashalTo(t *testing.T) {
 		So(n, ShouldEqual, r.Size())
 		So(data, ShouldResemble, encodedData)
 	})
-	Convey("mashal record to buffer that don't have enough space", t, func() {
+	Convey("marshal record to buffer that don't have enough space", t, func() {
 		r := Record{
 			Length: uint16(len(rawData)),
 			Type:   Full,
@@ -86,8 +86,8 @@ func TestRecord_MashalTo(t *testing.T) {
 	})
 }
 
-func TestRecord_Mashal(t *testing.T) {
-	Convey("mashal record", t, func() {
+func TestRecord_Marshal(t *testing.T) {
+	Convey("marshal record", t, func() {
 		r := Record{
 			Length: uint16(len(rawData)),
 			Type:   Full,
@@ -96,7 +96,7 @@ func TestRecord_Mashal(t *testing.T) {
 		data := r.Marshal()
 		So(data, ShouldResemble, encodedData)
 	})
-	Convey("mashal record with CRC", t, func() {
+	Convey("marshal record with CRC", t, func() {
 		r := Record{
 			CRC:    0x00000001,
 			Length: uint16(len(rawData)),
@@ -108,9 +108,9 @@ func TestRecord_Mashal(t *testing.T) {
 	})
 }
 
-func TestRecord_Unmashal(t *testing.T) {
-	Convey("unmashal record", t, func() {
-		r, err := Unmashal(encodedData)
+func TestRecord_Unmarshal(t *testing.T) {
+	Convey("unmarshal record", t, func() {
+		r, err := Unmarshal(encodedData)
 		So(err, ShouldBeNil)
 		So(r.CRC, ShouldEqual, 0x0476b01b)
 		So(r.Length, ShouldEqual, 3)
@@ -118,8 +118,8 @@ func TestRecord_Unmashal(t *testing.T) {
 		So(r.Data, ShouldResemble, rawData)
 	})
 
-	Convey("unmashal padding space", t, func() {
-		r, err := Unmashal([]byte{0x00, 0x00, 0x00, 0x00, 0x00})
+	Convey("unmarshal padding space", t, func() {
+		r, err := Unmarshal([]byte{0x00, 0x00, 0x00, 0x00, 0x00})
 		So(err, ShouldBeNil)
 		So(r.CRC, ShouldEqual, 0)
 		So(r.Length, ShouldEqual, 0)

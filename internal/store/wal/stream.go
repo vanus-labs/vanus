@@ -111,7 +111,7 @@ func (s *logStream) Visit(visitor WalkFunc, compacted int64) (int64, error) {
 			}
 
 			for so := firstRecordOffset(f.so+at, compacted); so <= blockSize-record.HeaderSize; {
-				r, err2 := record.Unmashal(buf[so:])
+				r, err2 := record.Unmarshal(buf[so:])
 				if err2 != nil {
 					// TODO(james.yin): handle parse error
 					return -1, err2
