@@ -36,19 +36,19 @@ var (
 
 func TestType(t *testing.T) {
 	Convey("terminal type", t, func() {
-		So(Zero.IsTerminal(), ShouldEqual, false)
-		So(Full.IsTerminal(), ShouldEqual, true)
-		So(First.IsTerminal(), ShouldEqual, false)
-		So(Middle.IsTerminal(), ShouldEqual, false)
-		So(Last.IsTerminal(), ShouldEqual, true)
+		So(Zero.IsTerminal(), ShouldBeFalse)
+		So(Full.IsTerminal(), ShouldBeTrue)
+		So(First.IsTerminal(), ShouldBeFalse)
+		So(Middle.IsTerminal(), ShouldBeFalse)
+		So(Last.IsTerminal(), ShouldBeTrue)
 	})
 
 	Convey("non-terminal type", t, func() {
-		So(Zero.IsNonTerminal(), ShouldEqual, false)
-		So(Full.IsNonTerminal(), ShouldEqual, false)
-		So(First.IsNonTerminal(), ShouldEqual, true)
-		So(Middle.IsNonTerminal(), ShouldEqual, true)
-		So(Last.IsNonTerminal(), ShouldEqual, false)
+		So(Zero.IsNonTerminal(), ShouldBeFalse)
+		So(Full.IsNonTerminal(), ShouldBeFalse)
+		So(First.IsNonTerminal(), ShouldBeTrue)
+		So(Middle.IsNonTerminal(), ShouldBeTrue)
+		So(Last.IsNonTerminal(), ShouldBeFalse)
 	})
 }
 

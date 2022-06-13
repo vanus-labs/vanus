@@ -16,29 +16,54 @@ package wal
 
 import (
 	// standard libraries.
-	"context"
-	"io"
+	"errors"
 	"sync"
 	"time"
 
+	// third-party libraries.
+	"github.com/ncw/directio"
+
 	// this project.
+	"github.com/linkall-labs/vanus/internal/store/wal/config"
+	"github.com/linkall-labs/vanus/internal/store/wal/io"
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
 )
 
 const (
 	blockSize                 = 4 * 1024
 	fileSize                  = 128 * 1024 * 1024
-	defaultFlushTimeoutUs     = 500
+	defaultFlushTimeoutUs     = 200
 	defaultAppendBufferSize   = 64
 	defaultCallbackBufferSize = (blockSize + record.HeaderSize - 1) / record.HeaderSize
 	defaultFlushBufferSize    = 64
-	defaultWeakupBufferSize   = 64
+	defaultWeakupBufferSize   = defaultFlushBufferSize * 2
+)
+
+var (
+	ErrClosed     = errors.New("wal: closed")
+	emptyBlockBuf = make([]byte, blockSize)
 )
 
 type blockWithSo struct {
 	block
 	// so is start offset
 	so int64
+}
+
+func newBlock() interface{} {
+	return &blockWithSo{
+		block: block{
+			buf: directio.AlignedBlock(blockSize),
+		},
+	}
+}
+
+func (b *blockWithSo) reset(so int64) {
+	copy(b.buf, emptyBlockBuf)
+	b.wp = 0
+	b.fp = 0
+	b.cp = 0
+	b.so = so
 }
 
 type Result struct {
@@ -95,36 +120,32 @@ type WAL struct {
 	wboff int64
 
 	stream *logStream
+	engine io.Engine
 
 	appendc   chan appendTask
 	callbackc chan callbackTask
 	flushc    chan flushTask
 	weakupc   chan int64
 
-	donec chan struct{}
-	ctx   context.Context
+	flushw sync.WaitGroup
+
+	closec chan struct{}
+	donec  chan struct{}
 }
 
-func newBlock() interface{} {
-	return &blockWithSo{
-		block: block{
-			buf: make([]byte, blockSize),
-		},
-	}
-}
-
-func newWAL(ctx context.Context, stream *logStream, pos int64) (*WAL, error) {
+func newWAL(stream *logStream, pos int64) (*WAL, error) {
 	w := &WAL{
 		pool: sync.Pool{
 			New: newBlock,
 		},
 		stream:    stream,
+		engine:    config.DefaultIOEngine(),
 		appendc:   make(chan appendTask, defaultAppendBufferSize),
 		callbackc: make(chan callbackTask, defaultCallbackBufferSize),
 		flushc:    make(chan flushTask, defaultFlushBufferSize),
 		weakupc:   make(chan int64, defaultWeakupBufferSize),
+		closec:    make(chan struct{}),
 		donec:     make(chan struct{}),
-		ctx:       ctx,
 	}
 
 	w.wboff = pos
@@ -151,6 +172,15 @@ func newWAL(ctx context.Context, stream *logStream, pos int64) (*WAL, error) {
 
 func (w *WAL) Dir() string {
 	return w.stream.dir
+}
+
+func (w *WAL) Close() {
+	close(w.closec)
+}
+
+func (w *WAL) doClose() {
+	w.engine.Close()
+	close(w.donec)
 }
 
 func (w *WAL) Wait() {
@@ -195,11 +225,11 @@ func (w *WAL) Append(entries [][]byte, opts ...AppendOption) AppendFuture {
 	}
 
 	select {
-	case <-w.ctx.Done():
+	case <-w.closec:
 		// TODO(james.yin): invoke callback in another goroutine.
 		task.callback(Result{
 			Offsets: nil,
-			Err:     w.ctx.Err(),
+			Err:     ErrClosed,
 		})
 	case w.appendc <- task:
 	}
@@ -251,7 +281,7 @@ func (w *WAL) runAppend() {
 			// timeout, flush
 			w.flushWritableBlock()
 			waiting = false
-		case <-w.ctx.Done():
+		case <-w.closec:
 			if waiting {
 				timer.Stop()
 			}
@@ -314,32 +344,41 @@ func (w *WAL) doAppend(entries [][]byte, callback AppendCallback) (bool, bool) {
 }
 
 func (w *WAL) runFlush() {
-	// TODO(james.yin): parallelizing, or batching
 	for task := range w.flushc {
-		err := w.doFlush(task.block, task.offset)
-		if err != nil {
-			// TODO(james.yin): handle flush error
-			panic(err)
-		}
-		if task.own {
-			w.freeBlock(task.block)
-		}
+		// Copy
+		fb := task.block
+		own := task.own
+
+		writer := w.logWriter(fb.so)
+
+		w.flushw.Add(1)
+		fb.Flush(writer, task.offset, fb.so, func(off int64, err error) {
+			if err != nil {
+				panic(err)
+			}
+
+			// Weakup callbacks.
+			w.weakupc <- fb.so + off
+
+			w.flushw.Done()
+
+			if own {
+				w.freeBlock(fb)
+			}
+		})
 	}
+
+	// Wait in-flight flush tasks.
+	w.flushw.Wait()
+
 	close(w.weakupc)
 }
 
-func (w *WAL) doFlush(fb *blockWithSo, offset int) error {
-	writer := w.logWriter(fb.so)
-
-	n, err := fb.Flush(writer, offset, fb.so)
-	if err != nil {
-		return err
-	}
-
-	// weakup
-	w.weakupc <- fb.so + int64(n)
-
-	return nil
+func (w *WAL) logWriter(offset int64) io.WriterAt {
+	f := w.stream.selectFile(offset)
+	return io.WriteAtFunc(func(b []byte, off int64, cb io.WriteCallback) {
+		f.WriteAt(w.engine, b, off, cb)
+	})
 }
 
 func (w *WAL) runCallback() {
@@ -359,7 +398,8 @@ func (w *WAL) runCallback() {
 			task = w.nextCallbackTask()
 		}
 	}
-	close(w.donec)
+
+	w.doClose()
 }
 
 func (w *WAL) nextCallbackTask() *callbackTask {
@@ -371,16 +411,9 @@ func (w *WAL) nextCallbackTask() *callbackTask {
 	}
 }
 
-func (w *WAL) logWriter(offset int64) io.WriterAt {
-	return w.stream.selectFile(offset)
-}
-
 func (w *WAL) allocateBlock() *blockWithSo {
 	b, _ := w.pool.Get().(*blockWithSo)
-	// reset block
-	b.wp = 0
-	b.fp = 0
-	b.so = w.wboff
+	b.reset(w.wboff)
 	w.wboff += blockSize
 	return b
 }

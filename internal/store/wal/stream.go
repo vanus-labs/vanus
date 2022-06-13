@@ -126,7 +126,7 @@ func (s *logStream) Visit(visitor WalkFunc, compacted int64) (int64, error) {
 
 					// TODO(james.yin): Has incomplete entry, truncate it.
 					if lastType.IsNonTerminal() {
-						log.Info(context.TODO(), "Found incomplete entry, truncate it.",
+						log.Info(context.Background(), "Found incomplete entry, truncate it.",
 							map[string]interface{}{
 								"lastType": lastType,
 							})

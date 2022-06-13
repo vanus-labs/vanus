@@ -15,12 +15,12 @@
 package wal
 
 import (
-	// standard libraries.
-	"io"
-
 	// this project.
+	"github.com/linkall-labs/vanus/internal/store/wal/io"
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
 )
+
+type FlushCallback func(off int64, err error)
 
 type block struct {
 	buf []byte
@@ -28,6 +28,8 @@ type block struct {
 	wp int
 	// fp is flush pointer
 	fp int
+	// cp is commit pointer
+	cp int
 }
 
 func (b *block) Capacity() int {
@@ -63,16 +65,22 @@ func (b *block) Append(r record.Record) (int, error) {
 	return b.wp, nil
 }
 
-func (b *block) Flush(writer io.WriterAt, offset int, base int64) (int, error) {
+func (b *block) Flush(writer io.WriterAt, offset int, base int64, cb FlushCallback) {
 	// Already flushed, skip.
 	if b.fp >= offset {
-		return b.fp, nil
+		cb(int64(b.fp), nil)
+		return
 	}
+	b.fp = offset
 
-	n, err := writer.WriteAt(b.buf[b.fp:offset], base+int64(b.fp))
-	if err != nil {
-		return n, err
-	}
-	b.fp += n
-	return b.fp, nil
+	writer.WriteAt(b.buf, base, func(_ int, err error) {
+		if err != nil {
+			cb(0, err)
+		} else {
+			if offset > b.cp {
+				b.cp = offset
+			}
+			cb(int64(b.cp), nil)
+		}
+	})
 }
