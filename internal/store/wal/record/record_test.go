@@ -34,6 +34,24 @@ var (
 	}
 )
 
+func TestType(t *testing.T) {
+	Convey("terminal type", t, func() {
+		So(Zero.IsTerminal(), ShouldEqual, false)
+		So(Full.IsTerminal(), ShouldEqual, true)
+		So(First.IsTerminal(), ShouldEqual, false)
+		So(Middle.IsTerminal(), ShouldEqual, false)
+		So(Last.IsTerminal(), ShouldEqual, true)
+	})
+
+	Convey("non-terminal type", t, func() {
+		So(Zero.IsNonTerminal(), ShouldEqual, false)
+		So(Full.IsNonTerminal(), ShouldEqual, false)
+		So(First.IsNonTerminal(), ShouldEqual, true)
+		So(Middle.IsNonTerminal(), ShouldEqual, true)
+		So(Last.IsNonTerminal(), ShouldEqual, false)
+	})
+}
+
 func TestRecord_Size(t *testing.T) {
 	Convey("size", t, func() {
 		r := Record{
@@ -98,5 +116,14 @@ func TestRecord_Unmashal(t *testing.T) {
 		So(r.Length, ShouldEqual, 3)
 		So(r.Type, ShouldEqual, Full)
 		So(r.Data, ShouldResemble, rawData)
+	})
+
+	Convey("unmashal padding space", t, func() {
+		r, err := Unmashal([]byte{0x00, 0x00, 0x00, 0x00, 0x00})
+		So(err, ShouldBeNil)
+		So(r.CRC, ShouldEqual, 0)
+		So(r.Length, ShouldEqual, 0)
+		So(r.Type, ShouldEqual, Zero)
+		So(r.Data, ShouldBeNil)
 	})
 }
