@@ -29,7 +29,7 @@ resources to make it easier to get your contribution accepted.
 ## Before you get started
 
 ### Sign the CLA
-Click the Sign in with GitHub to `agree` button to sign the CLA. See an example [here](#).
+Click [here](https://cla-assistant.io/linkall-labs/) to sign the CLA, and click the `Sign in with GitHub to agree` button to sign.
 
 What is [CLA](https://en.wikipedia.org/wiki/Contributor_License_Agreement).
 
