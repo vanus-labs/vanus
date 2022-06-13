@@ -31,31 +31,24 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
 )
 
-func doAppend(wal *WAL, entry []byte, wg *sync.WaitGroup) {
-	entries := [][]byte{entry}
-	_, err := wal.Append(entries)
-	if err != nil {
-		panic(err)
-	}
-	wg.Done()
-}
-
-func TestWAL_Append(t *testing.T) {
+func TestWAL_AppendOne(t *testing.T) {
 	walDir, err := os.MkdirTemp("", "wal-*")
 	if err != nil {
 		panic(err)
 	}
-	defer os.Remove(walDir)
+	defer os.RemoveAll(walDir)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	wal, _ := newWAL(ctx, &logStream{dir: walDir}, 0)
 
 	Convey("wal append testing", t, func() {
 		wg := sync.WaitGroup{}
-		wg.Add(2)
+		wg.Add(1)
 
-		go doAppend(wal, []byte{0x41, 0x42, 0x43}, &wg)
-		go doAppend(wal, []byte{0x44, 0x45, 0x46, 0x47}, &wg)
+		wal.AppendOne([]byte{0x41, 0x42, 0x43}, WithCallback(func(_ Result) {
+			wg.Done()
+		}))
+		wal.AppendOne([]byte{0x44, 0x45, 0x46, 0x47}).Wait()
 
 		wg.Wait()
 
