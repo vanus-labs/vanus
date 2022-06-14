@@ -281,8 +281,8 @@ func getEventCommand() *cobra.Command {
 					t.AppendRow(table.Row{idx, data.Events[idx].String()})
 				}
 				t.SetColumnConfigs([]table.ColumnConfig{
-					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, AlignHeader: text.AlignCenter},
 				})
 				t.SetOutputMirror(os.Stdout)
 				t.Render()

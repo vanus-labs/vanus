@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
 	"os"
 
 	"github.com/fatih/color"
@@ -42,6 +43,10 @@ func cmdFailedf(cmd *cobra.Command, format string, a ...interface{}) {
 		t := table.NewWriter()
 		t.AppendHeader(table.Row{"ERROR"})
 		t.AppendRow(table.Row{errStr})
+		t.SetColumnConfigs([]table.ColumnConfig{
+			{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+			{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+		})
 		t.SetOutputMirror(os.Stdout)
 		t.Render()
 	}
