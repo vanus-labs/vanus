@@ -56,7 +56,7 @@ func getControllerTopology() *cobra.Command {
 			cli := ctrlpb.NewPingServerClient(grpcConn)
 			res, err := cli.Ping(ctx, &empty.Empty{})
 			if err != nil {
-				cmdFailedf("get Gateway endpoint from controller failed: %s", err)
+				cmdFailedf(cmd, "get Gateway endpoint from controller failed: %s", err)
 			}
 
 			t := table.NewWriter()

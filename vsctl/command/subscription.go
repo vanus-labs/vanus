@@ -58,7 +58,7 @@ func createSubscriptionCommand() *cobra.Command {
 			if filters != "" {
 				err := json.Unmarshal([]byte(filters), &filter)
 				if err != nil {
-					cmdFailedf("the filter invalid: %s", err)
+					cmdFailedf(cmd, "the filter invalid: %s", err)
 				}
 			}
 
@@ -66,7 +66,7 @@ func createSubscriptionCommand() *cobra.Command {
 			if inputTransformer != "" {
 				err := json.Unmarshal([]byte(inputTransformer), &inputTrans)
 				if err != nil {
-					cmdFailedf("the inputTransformer invalid: %s", err)
+					cmdFailedf(cmd, "the inputTransformer invalid: %s", err)
 				}
 			}
 
@@ -79,7 +79,7 @@ func createSubscriptionCommand() *cobra.Command {
 				InputTransformer: inputTrans,
 			})
 			if err != nil {
-				cmdFailedf("create subscription failed: %s", err)
+				cmdFailedf(cmd, "create subscription failed: %s", err)
 			}
 
 			color.Green("create subscription: %d success\n", res.Id)
@@ -112,7 +112,7 @@ func deleteSubscriptionCommand() *cobra.Command {
 				Id: subscriptionID,
 			})
 			if err != nil {
-				cmdFailedf("delete subscription failed: %s", err)
+				cmdFailedf(cmd, "delete subscription failed: %s", err)
 			}
 			color.Green("delete subscription: %d success\n", subscriptionID)
 		},
@@ -140,7 +140,7 @@ func getSubscriptionCommand() *cobra.Command {
 				Id: subscriptionID,
 			})
 			if err != nil {
-				cmdFailedf("get subscription info failed: %s", err)
+				cmdFailedf(cmd, "get subscription info failed: %s", err)
 			}
 			data, _ := json.Marshal(res)
 			var out bytes.Buffer
@@ -166,7 +166,7 @@ func listSubscriptionCommand() *cobra.Command {
 			cli := ctrlpb.NewTriggerControllerClient(grpcConn)
 			res, err := cli.ListSubscription(ctx, &empty.Empty{})
 			if err != nil {
-				cmdFailedf("list subscription failed: %s", err)
+				cmdFailedf(cmd, "list subscription failed: %s", err)
 			}
 			data, _ := json.Marshal(res)
 			var out bytes.Buffer

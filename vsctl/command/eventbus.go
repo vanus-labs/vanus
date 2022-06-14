@@ -49,7 +49,7 @@ func createEventbusCommand() *cobra.Command {
 		Short: "create a eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
 			if eventbus == "" {
-				cmdFailedf("the --name flag MUST> be set")
+				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
 			ctx := context.Background()
 			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
@@ -62,7 +62,7 @@ func createEventbusCommand() *cobra.Command {
 				Name: eventbus,
 			})
 			if err != nil {
-				cmdFailedf("create eventbus failed: %s", err)
+				cmdFailedf(cmd, "create eventbus failed: %s", err)
 			}
 			color.Green("create eventbus: %s success\n", eventbus)
 		},
@@ -77,7 +77,7 @@ func deleteEventbusCommand() *cobra.Command {
 		Short: "delete a eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
 			if eventbus == "" {
-				cmdFailedf("the --name flag MUST> be set")
+				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
 			ctx := context.Background()
 			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
@@ -88,7 +88,7 @@ func deleteEventbusCommand() *cobra.Command {
 			cli := ctrlpb.NewEventBusControllerClient(grpcConn)
 			_, err := cli.DeleteEventBus(ctx, &metapb.EventBus{Name: args[0]})
 			if err != nil {
-				cmdFailedf("delete eventbus failed: %s", err)
+				cmdFailedf(cmd, "delete eventbus failed: %s", err)
 			}
 			color.Green("delete eventbus: %s success\n", args[0])
 		},
@@ -103,7 +103,7 @@ func getEventbusInfoCommand() *cobra.Command {
 		Short: "get the eventbus info",
 		Run: func(cmd *cobra.Command, args []string) {
 			if eventbus == "" && (len(args) == 0 || args[0] == "") {
-				cmdFailedf("the eventbus must be set")
+				cmdFailedf(cmd, "the eventbus must be set")
 			}
 			var buses []string
 			if len(args) > 0 && args[0] != "" {
@@ -123,7 +123,7 @@ func getEventbusInfoCommand() *cobra.Command {
 			for idx := range buses {
 				res, err := cli.GetEventBus(ctx, &metapb.EventBus{Name: buses[idx]})
 				if err != nil {
-					cmdFailedf("get eventbus failed: %s", err)
+					cmdFailedf(cmd, "get eventbus failed: %s", err)
 				}
 
 				busMetas = append(busMetas, res)
@@ -136,7 +136,7 @@ func getEventbusInfoCommand() *cobra.Command {
 							EventLogId: logs[idx].EventLogId,
 						})
 						if err != nil {
-							cmdFailedf("get segments failed: %s", err)
+							cmdFailedf(cmd, "get segments failed: %s", err)
 						}
 						segs[logs[idx].EventLogId] = segRes.Segments
 					}
@@ -287,7 +287,7 @@ func listEventbusInfoCommand() *cobra.Command {
 			cli := ctrlpb.NewEventBusControllerClient(grpcConn)
 			res, err := cli.ListEventBus(ctx, &empty.Empty{})
 			if err != nil {
-				cmdFailedf("list eventbus failed: %s", err)
+				cmdFailedf(cmd, "list eventbus failed: %s", err)
 			}
 			data, _ := json.Marshal(res)
 			var out bytes.Buffer

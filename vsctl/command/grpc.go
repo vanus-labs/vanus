@@ -55,7 +55,7 @@ func mustGetLeaderControllerGRPCConn(ctx context.Context,
 	}
 
 	if leaderAddr == "" {
-		cmdFailedf("the leader controller not found")
+		cmdFailedf(cmd, "the leader controller not found")
 	}
 
 	if leaderConn != nil {
@@ -65,7 +65,7 @@ func mustGetLeaderControllerGRPCConn(ctx context.Context,
 	}
 
 	if leaderConn == nil {
-		cmdFailedf("connect to leader: %s failed", leaderAddr)
+		cmdFailedf(cmd, "connect to leader: %s failed", leaderAddr)
 	}
 	return leaderConn
 }
