@@ -230,6 +230,7 @@ func sendFile(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 					color.Green(string(data))
 				} else {
 					t.AppendRow(table.Row{idx, httpResult.StatusCode})
+					t.AppendSeparator()
 					t.Render()
 				}
 			}
@@ -279,6 +280,7 @@ func getEventCommand() *cobra.Command {
 				t.AppendHeader(table.Row{"No.", "Event"})
 				for idx := range data.Events {
 					t.AppendRow(table.Row{idx, data.Events[idx].String()})
+					t.AppendSeparator()
 				}
 				t.SetColumnConfigs([]table.ColumnConfig{
 					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
