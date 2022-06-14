@@ -18,6 +18,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
+	"os"
 
 	"github.com/fatih/color"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -81,8 +84,31 @@ func createSubscriptionCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf(cmd, "create subscription failed: %s", err)
 			}
-
-			color.Green("create subscription: %d success\n", res.Id)
+			if isOutputFormatJSON(cmd) {
+				data, _ := json.Marshal(map[string]interface{}{
+					"id":          res.Id,
+					"eventbus":    eventbus,
+					"source":      source,
+					"filter":      filter,
+					"sink":        sink,
+					"transformer": inputTransformer,
+				})
+				color.Green(string(data))
+			} else {
+				t := table.NewWriter()
+				t.AppendHeader(table.Row{"id", "eventbus", "source", "filter", "sink", "transformer"})
+				t.AppendRow(table.Row{res.Id, eventbus, source, filter, sink, inputTransformer})
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 4, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 5, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 6, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+				})
+				t.SetOutputMirror(os.Stdout)
+				t.Render()
+			}
 		},
 	}
 	cmd.Flags().StringVar(&eventbus, "eventbus", "", "eventbus name to consuming")
@@ -114,6 +140,20 @@ func deleteSubscriptionCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf(cmd, "delete subscription failed: %s", err)
 			}
+
+			if isOutputFormatJSON(cmd) {
+				data, _ := json.Marshal(map[string]interface{}{"subscription_id": subscriptionID})
+				color.Green(string(data))
+			} else {
+				t := table.NewWriter()
+				t.AppendHeader(table.Row{"subscriptionID"})
+				t.AppendRow(table.Row{subscriptionID})
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+				})
+				t.SetOutputMirror(os.Stdout)
+				t.Render()
+			}
 			color.Green("delete subscription: %d success\n", subscriptionID)
 		},
 	}
@@ -142,10 +182,24 @@ func getSubscriptionCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf(cmd, "get subscription info failed: %s", err)
 			}
-			data, _ := json.Marshal(res)
-			var out bytes.Buffer
-			_ = json.Indent(&out, data, "", "\t")
-			color.Green("%s", out.String())
+			if isOutputFormatJSON(cmd) {
+				data, _ := json.Marshal(res)
+				color.Green(string(data))
+			} else {
+				t := table.NewWriter()
+				t.AppendHeader(table.Row{"id", "eventbus", "source", "filter", "sink", "transformer"})
+				t.AppendRow(table.Row{res.Id, res.EventBus, res.Source, res.Filters, res.Sink, res.InputTransformer})
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 4, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 5, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 6, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+				})
+				t.SetOutputMirror(os.Stdout)
+				t.Render()
+			}
 		},
 	}
 	cmd.Flags().Uint64Var(&subscriptionID, "id", 0, "subscription id to deleting")
@@ -168,6 +222,29 @@ func listSubscriptionCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf(cmd, "list subscription failed: %s", err)
 			}
+			if isOutputFormatJSON(cmd) {
+				data, _ := json.Marshal(res)
+				color.Green(string(data))
+			} else {
+				t := table.NewWriter()
+				t.AppendHeader(table.Row{"no.", "id", "eventbus", "source", "filter", "sink", "transformer"})
+				for idx := range res.Subscription {
+					sub := res.Subscription[idx]
+					t.AppendRow(table.Row{idx + 1, sub.Id, sub.EventBus, sub.Source, sub.Filters, sub.Sink, sub.InputTransformer})
+				}
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 4, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 5, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 6, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 7, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+				})
+				t.SetOutputMirror(os.Stdout)
+				t.Render()
+			}
+
 			data, _ := json.Marshal(res)
 			var out bytes.Buffer
 			_ = json.Indent(&out, data, "", "\t")
