@@ -15,7 +15,6 @@
 package command
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -231,6 +230,7 @@ func listSubscriptionCommand() *cobra.Command {
 				for idx := range res.Subscription {
 					sub := res.Subscription[idx]
 					t.AppendRow(table.Row{idx + 1, sub.Id, sub.EventBus, sub.Source, sub.Filters, sub.Sink, sub.InputTransformer})
+					t.AppendSeparator()
 				}
 				t.SetColumnConfigs([]table.ColumnConfig{
 					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
@@ -244,11 +244,6 @@ func listSubscriptionCommand() *cobra.Command {
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
 			}
-
-			data, _ := json.Marshal(res)
-			var out bytes.Buffer
-			_ = json.Indent(&out, data, "", "\t")
-			color.Green("%s", out.String())
 		},
 	}
 	return cmd
