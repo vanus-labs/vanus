@@ -324,10 +324,14 @@ func listEventbusInfoCommand() *cobra.Command {
 				t.AppendHeader(table.Row{"Name", "ID", "Eventlog", "Segments"})
 				for idx := range res.Eventbus {
 					eb := res.Eventbus[idx]
-					t.AppendRow(table.Row{eb.Name, eb.Id, eb.Logs[0].EventLogId, eb.Logs[0].CurrentSegmentNumbers})
-					for sIdx := 1; sIdx < len(eb.Logs); sIdx++ {
-						t.AppendSeparator()
-						t.AppendRow(table.Row{eb.Name, eb.Id, eb.Logs[idx].EventLogId, eb.Logs[idx].CurrentSegmentNumbers})
+					if len(eb.Logs) == 0 {
+						t.AppendRow(table.Row{eb.Name, eb.Id})
+					} else {
+						t.AppendRow(table.Row{eb.Name, eb.Id, eb.Logs[0].EventLogId, eb.Logs[0].CurrentSegmentNumbers})
+						for sIdx := 1; sIdx < len(eb.Logs); sIdx++ {
+							t.AppendSeparator()
+							t.AppendRow(table.Row{eb.Name, eb.Id, eb.Logs[idx].EventLogId, eb.Logs[idx].CurrentSegmentNumbers})
+						}
 					}
 					t.AppendSeparator()
 				}
