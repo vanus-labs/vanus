@@ -273,7 +273,12 @@ func getEventCommand() *cobra.Command {
 			}
 			if isOutputFormatJSON(cmd) {
 				for idx := range data.Events {
-					color.Yellow("event: %d, %s\n", idx, data.Events[idx].String())
+					data, _ := json.Marshal(map[string]interface{}{
+						"No.":   idx,
+						"Event": data.Events[idx].String(),
+					})
+
+					color.Yellow(string(data))
 				}
 			} else {
 				t := table.NewWriter()
