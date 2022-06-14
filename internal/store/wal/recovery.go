@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	defaultDirPerm = 0755
+	defaultDirPerm = 0o755
 )
 
 func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc) (*WAL, error) {
@@ -55,7 +55,7 @@ func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc) (*WAL,
 			eo := f.so + f.size
 			// discontinuous log file
 			if so != eo {
-				log.Warning(context.TODO(), "Discontinuous log file, discard before.",
+				log.Warning(context.Background(), "Discontinuous log file, discard before.",
 					map[string]interface{}{
 						"lastEnd":   eo,
 						"nextStart": so,
@@ -73,7 +73,7 @@ func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc) (*WAL,
 		size := info.Size()
 		if size%blockSize != 0 {
 			truncated := size - size%blockSize
-			log.Warning(context.TODO(), "The size of log file is not a multiple of blockSize, truncate it.",
+			log.Warning(context.Background(), "The size of log file is not a multiple of blockSize, truncate it.",
 				map[string]interface{}{
 					"file":       path,
 					"originSize": size,
@@ -82,11 +82,12 @@ func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc) (*WAL,
 			size = truncated
 		}
 
-		s.stream = append(s.stream, &logFile{
+		f := &logFile{
 			so:   so,
 			size: size,
 			path: path,
-		})
+		}
+		s.stream = append(s.stream, f)
 	}
 
 	eo, err := s.Visit(visitor, compacted)
@@ -95,7 +96,7 @@ func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc) (*WAL,
 	}
 
 	// Make WAL.
-	return newWAL(context.TODO(), s, eo)
+	return newWAL(s, eo)
 }
 
 func filterRegularLog(entries []os.DirEntry) []os.DirEntry {

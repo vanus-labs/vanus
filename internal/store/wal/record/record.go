@@ -82,7 +82,7 @@ func (r *Record) MarshalTo(data []byte) (int, error) {
 	return sz, nil
 }
 
-func Unmashal(data []byte) (record Record, err error) {
+func Unmarshal(data []byte) (record Record, err error) {
 	if len(data) < HeaderSize {
 		// return empty record
 		return record, nil
