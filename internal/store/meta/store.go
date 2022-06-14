@@ -16,6 +16,7 @@ package meta
 
 import (
 	// standard libraries.
+	"errors"
 	"sync"
 
 	// third-party libraries.
@@ -24,6 +25,8 @@ import (
 	// this project.
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
 )
+
+var ErrClosed = errors.New("MetaStore: closed")
 
 type store struct {
 	mu sync.RWMutex

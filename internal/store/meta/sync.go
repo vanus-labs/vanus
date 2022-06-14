@@ -16,6 +16,7 @@ package meta
 
 import (
 	// standard libraries.
+	"errors"
 	"time"
 
 	// third-party libraries.
@@ -33,6 +34,7 @@ type SyncStore struct {
 	store
 
 	snapshotc chan struct{}
+	donec     chan struct{}
 }
 
 func newSyncStore(wal *walog.WAL, committed *skiplist.SkipList, version, snapshot int64) *SyncStore {
@@ -45,6 +47,7 @@ func newSyncStore(wal *walog.WAL, committed *skiplist.SkipList, version, snapsho
 			marshaler: defaultCodec,
 		},
 		snapshotc: make(chan struct{}, 1),
+		donec:     make(chan struct{}),
 	}
 
 	go s.runSnapshot()
@@ -52,8 +55,15 @@ func newSyncStore(wal *walog.WAL, committed *skiplist.SkipList, version, snapsho
 	return s
 }
 
-func (s *SyncStore) Stop() {
-	// TODO(james.yin): stop WAL
+func (s *SyncStore) Close() {
+	// Close WAL.
+	s.wal.Close()
+	s.wal.Wait()
+
+	// NOTE: Can not close the snapshotc before close the WAL,
+	// because write to snapshotc in callback of WAL append.
+	close(s.snapshotc)
+	<-s.donec
 }
 
 func (s *SyncStore) Load(key []byte) (interface{}, bool) {
@@ -87,6 +97,7 @@ func (s *SyncStore) set(kvs Ranger) error {
 	}
 
 	ch := make(chan error, 1)
+	// Use callbacks for ordering guarantees.
 	s.wal.AppendOne(entry, walog.WithCallback(func(re walog.Result) {
 		if re.Err != nil {
 			ch <- re.Err
@@ -94,20 +105,17 @@ func (s *SyncStore) set(kvs Ranger) error {
 		}
 
 		// Update state.
-		func() {
-			s.mu.Lock()
-			defer s.mu.Unlock()
-			_ = kvs.Range(func(key []byte, value interface{}) error {
-				if value == deletedMark {
-					s.committed.Remove(key)
-				} else {
-					s.committed.Set(key, value)
-				}
-				return nil
-			})
-
-			s.version = re.Offset()
-		}()
+		s.mu.Lock()
+		_ = kvs.Range(func(key []byte, value interface{}) error {
+			if value == deletedMark {
+				s.committed.Remove(key)
+			} else {
+				s.committed.Set(key, value)
+			}
+			return nil
+		})
+		s.version = re.Offset()
+		s.mu.Unlock()
 
 		close(ch)
 
@@ -116,12 +124,22 @@ func (s *SyncStore) set(kvs Ranger) error {
 		default:
 		}
 	}))
-	return <-ch
+	err = <-ch
+
+	// Convert ErrClosed.
+	if err != nil && errors.Is(err, walog.ErrClosed) {
+		return ErrClosed
+	}
+
+	return err
 }
 
 func (s *SyncStore) runSnapshot() {
 	ticker := time.NewTicker(runSnapshotInterval)
-	defer ticker.Stop()
+	defer func() {
+		ticker.Stop()
+		close(s.donec)
+	}()
 
 	for {
 		select {
