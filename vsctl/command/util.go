@@ -40,7 +40,8 @@ func cmdFailedf(cmd *cobra.Command, format string, a ...interface{}) {
 		color.Red(string(data))
 	} else {
 		t := table.NewWriter()
-		t.AppendRow(table.Row{"ERROR", errStr})
+		t.AppendHeader(table.Row{"ERROR"})
+		t.AppendRow(table.Row{errStr})
 		t.SetOutputMirror(os.Stdout)
 		t.Render()
 	}

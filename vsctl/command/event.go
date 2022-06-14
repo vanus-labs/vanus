@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
 	"io"
 	"net/http"
 	"os"
@@ -151,7 +152,12 @@ func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendRow(table.Row{"Result", httpResult.StatusCode})
+				t.AppendHeader(table.Row{"Result"})
+				t.AppendRow(table.Row{httpResult.StatusCode})
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+				})
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
 			}
@@ -191,6 +197,13 @@ func sendFile(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 		}
 		events = append(events, arr)
 	}
+	t := table.NewWriter()
+	t.AppendHeader(table.Row{"No.", "Result"})
+	t.SetColumnConfigs([]table.ColumnConfig{
+		{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+		{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+	})
+	t.SetOutputMirror(os.Stdout)
 	for idx, v := range events {
 		event := ce.NewEvent()
 		event.SetID(v[0])
@@ -204,9 +217,6 @@ func sendFile(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 		if ce.IsUndelivered(res) {
 			cmdFailedf(cmd, "failed to send: %s\n", res.Error())
 		} else {
-			//var httpResult *cehttp.Result
-			//ce.ResultAs(res, &httpResult)
-			//cmdFailedf(cmd, "%dth sent %d \n", idx, httpResult.StatusCode)
 			var httpResult *cehttp.Result
 			ce.ResultAs(res, &httpResult)
 			if httpResult == nil {
@@ -219,10 +229,7 @@ func sendFile(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 					})
 					color.Green(string(data))
 				} else {
-					t := table.NewWriter()
-					t.AppendHeader(table.Row{"No.", "Result"})
 					t.AppendRow(table.Row{idx, httpResult.StatusCode})
-					t.SetOutputMirror(os.Stdout)
 					t.Render()
 				}
 			}
@@ -273,6 +280,10 @@ func getEventCommand() *cobra.Command {
 				for idx := range data.Events {
 					t.AppendRow(table.Row{idx, data.Events[idx].String()})
 				}
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+				})
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
 			}
