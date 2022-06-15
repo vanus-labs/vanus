@@ -15,10 +15,6 @@
 package filter
 
 import (
-	"context"
-
-	"github.com/linkall-labs/vanus/observability/log"
-
 	ce "github.com/cloudevents/sdk-go/v2"
 )
 
@@ -32,7 +28,6 @@ func NewAnyFilter(filters ...Filter) Filter {
 }
 
 func (filter anyFilter) Filter(event ce.Event) Result {
-	log.Debug(context.Background(), "any filter ", map[string]interface{}{"filter": filter, "event": event})
 	for _, f := range filter {
 		res := f.Filter(event)
 		if res == PassFilter {

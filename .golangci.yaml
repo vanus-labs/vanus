@@ -60,7 +60,7 @@ linters-settings:
     pop-directional-isolate: true # default true
   cyclop:
     max-complexity: 30 # the maximal code complexity to report # default 10
-    package-average: 10.0 # the maximal average package complexity. If it's higher than 0.0 (float) the check is enabled # default 0.0
+    package-average: 30.0 # the maximal average package complexity. If it's higher than 0.0 (float) the check is enabled # default 0.0
     skip-tests: false # should ignore tests # default false
   dupl:
     threshold: 150 # default 150
@@ -372,6 +372,9 @@ issues:
       linters:
         - gomnd
     - path: "convert.go"
+      linters:
+        - dupl
+    - path: "_filter.go"
       linters:
         - dupl
     - text: "^(G401|G404|G501)"

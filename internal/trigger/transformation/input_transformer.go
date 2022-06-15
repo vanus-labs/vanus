@@ -22,7 +22,6 @@ import (
 	"github.com/tidwall/gjson"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/cloudevents/sdk-go/v2/types"
 )
 
 type InputTransformer struct {
@@ -59,8 +58,7 @@ func (tf *InputTransformer) parseData(event *ce.Event) map[string]template.Data 
 				dataMap[k] = template.NewNullData()
 				continue
 			}
-			s, _ := types.Format(v)
-			dataMap[k] = template.NewTextData([]byte(s))
+			dataMap[k] = template.NewTextData([]byte(v))
 		case define.DataVariable:
 			if n.Value == "" {
 				dataMap[k] = template.NewOtherData(event.Data())

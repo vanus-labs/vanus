@@ -24,7 +24,6 @@ import (
 )
 
 func extractFilter(subscriptionFilter *primitive.SubscriptionFilter) Filter {
-	ctx := context.Background()
 	if len(subscriptionFilter.Exact) > 0 {
 		return NewExactFilter(subscriptionFilter.Exact)
 	}
@@ -35,39 +34,19 @@ func extractFilter(subscriptionFilter *primitive.SubscriptionFilter) Filter {
 		return NewSuffixFilter(subscriptionFilter.Suffix)
 	}
 	if subscriptionFilter.Not != nil {
-		f := NewNotFilter(extractFilter(subscriptionFilter.Not))
-		if f == nil {
-			log.Debug(ctx, "new not filter is nil ", map[string]interface{}{"filter": subscriptionFilter.Not})
-		}
-		return f
+		return NewNotFilter(extractFilter(subscriptionFilter.Not))
 	}
 	if subscriptionFilter.CeSQL != "" {
-		f := NewCESQLFilter(subscriptionFilter.CeSQL)
-		if f == nil {
-			log.Debug(ctx, "new cesql filter is nil ", map[string]interface{}{"sql": subscriptionFilter.CeSQL})
-		}
-		return f
+		return NewCESQLFilter(subscriptionFilter.CeSQL)
 	}
 	if subscriptionFilter.CEL != "" {
-		f := NewCELFilter(subscriptionFilter.CEL)
-		if f == nil {
-			log.Debug(ctx, "new cel filter is nil ", map[string]interface{}{"cel-expression": subscriptionFilter.CEL})
-		}
-		return f
+		return NewCELFilter(subscriptionFilter.CEL)
 	}
 	if len(subscriptionFilter.All) > 0 {
-		f := NewAllFilter(extractFilters(subscriptionFilter.All)...)
-		if f == nil {
-			log.Debug(ctx, "new all filter is nil ", map[string]interface{}{"filters": subscriptionFilter.All})
-		}
-		return f
+		return NewAllFilter(extractFilters(subscriptionFilter.All)...)
 	}
 	if len(subscriptionFilter.Any) > 0 {
-		f := NewAnyFilter(extractFilters(subscriptionFilter.Any)...)
-		if f == nil {
-			log.Debug(ctx, "new any filter is nil ", map[string]interface{}{"filters": subscriptionFilter.Any})
-		}
-		return f
+		return NewAnyFilter(extractFilters(subscriptionFilter.Any)...)
 	}
 	return nil
 }
@@ -77,7 +56,7 @@ func extractFilters(subscriptionFilters []*primitive.SubscriptionFilter) []Filte
 	for _, subscriptionFilter := range subscriptionFilters {
 		tf := extractFilter(subscriptionFilter)
 		if tf == nil {
-			log.Debug(context.Background(), "get filter is nil will ignore the filter", map[string]interface{}{
+			log.Info(context.Background(), "get filter is nil will ignore the filter", map[string]interface{}{
 				"filter": subscriptionFilter,
 			})
 			continue
@@ -90,7 +69,7 @@ func extractFilters(subscriptionFilters []*primitive.SubscriptionFilter) []Filte
 func GetFilter(subscriptionFilters []*primitive.SubscriptionFilter) Filter {
 	filters := extractFilters(subscriptionFilters)
 	if len(filters) == 0 {
-		return NewNoFilter()
+		return nil
 	}
 	if len(filters) == 1 {
 		return filters[0]

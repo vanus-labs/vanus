@@ -46,8 +46,16 @@ func TestSuffixFilter(t *testing.T) {
 		So(result, ShouldEqual, filter.PassFilter)
 	})
 
+	Convey("suffix filter fail no exist filed", t, func() {
+		f := filter.NewSuffixFilter(map[string]string{
+			"abc": "value",
+		})
+		result := f.Filter(event)
+		So(result, ShouldEqual, filter.FailFilter)
+	})
+
 	Convey("suffix filter fail", t, func() {
-		f := filter.NewPrefixFilter(map[string]string{
+		f := filter.NewSuffixFilter(map[string]string{
 			"id":     "un",
 			"source": "test",
 		})

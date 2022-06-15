@@ -43,17 +43,9 @@ func NewPrefixFilter(prefix map[string]string) Filter {
 }
 
 func (filter *prefixFilter) Filter(event ce.Event) Result {
-	if filter == nil {
-		return FailFilter
-	}
-	log.Debug(context.Background(), "prefix filter ", map[string]interface{}{"filter": filter, "event": event})
 	for attr, prefix := range filter.prefix {
 		value, ok := util.LookupAttribute(event, attr)
-		if !ok {
-			return FailFilter
-		}
-
-		if !strings.HasPrefix(fmt.Sprintf("%v", value), prefix) {
+		if !ok || !strings.HasPrefix(value, prefix) {
 			return FailFilter
 		}
 	}
