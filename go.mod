@@ -15,12 +15,14 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/huandu/skiplist v1.2.0
+	github.com/iceber/iouring-go v0.0.0-20220609112130-b1dc8dd9fbfd
 	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/labstack/echo/v4 v4.7.2
 	github.com/linkall-labs/embed-etcd v0.0.1
 	github.com/linkall-labs/vanus/client v0.1.0
 	github.com/linkall-labs/vanus/proto v0.1.0
 	github.com/linkall-labs/vanus/raft v0.1.0
+	github.com/ncw/directio v1.0.5
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.1
 	github.com/sirupsen/logrus v1.8.1

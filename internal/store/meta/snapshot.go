@@ -68,7 +68,7 @@ func (s *store) createSnapshot() {
 	s.snapshot = s.version
 }
 
-func recoverLatestSnopshot(dir string, unmashaler Unmarshaler) (*skiplist.SkipList, int64, error) {
+func recoverLatestSnopshot(dir string, unmarshaler Unmarshaler) (*skiplist.SkipList, int64, error) {
 	// Make sure the snapshot directory exists.
 	if err := os.MkdirAll(dir, defaultDirPerm); err != nil {
 		return nil, 0, err
@@ -97,7 +97,7 @@ func recoverLatestSnopshot(dir string, unmashaler Unmarshaler) (*skiplist.SkipLi
 	}
 
 	m := skiplist.New(skiplist.Bytes)
-	err = unmashaler.Unmarshl(data, func(key []byte, value interface{}) error {
+	err = unmarshaler.Unmarshl(data, func(key []byte, value interface{}) error {
 		m.Set(key, value)
 		return nil
 	})

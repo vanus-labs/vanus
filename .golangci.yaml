@@ -439,3 +439,7 @@ issues:
         - nestif
         - revive
         - gocritic
+    - source: FALLOC_FL_ZERO_RANGE
+      linters:
+        - revive
+        - stylecheck

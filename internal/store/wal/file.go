@@ -17,16 +17,15 @@ package wal
 import (
 	// standard libraries.
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 
 	// this project.
-	errutil "github.com/linkall-labs/vanus/internal/util/errors"
+	"github.com/linkall-labs/vanus/internal/store/wal/io"
 )
 
 const (
-	defaultFilePerm = 0644
+	defaultFilePerm = 0o644
 	logFileExt      = ".log"
 )
 
@@ -36,9 +35,6 @@ type logFile struct {
 	path string
 	f    *os.File
 }
-
-// Make sure logFile implements io.WriteAt.
-var _ io.WriterAt = (*logFile)(nil)
 
 func (l *logFile) Close() error {
 	if l.f == nil {
@@ -55,7 +51,7 @@ func (l *logFile) Open() error {
 	if l.f != nil {
 		return nil
 	}
-	f, err := os.OpenFile(l.path, os.O_RDWR|os.O_SYNC, 0)
+	f, err := openFile(l.path)
 	if err != nil {
 		return err
 	}
@@ -63,14 +59,15 @@ func (l *logFile) Open() error {
 	return nil
 }
 
-func (l *logFile) WriteAt(p []byte, off int64) (int, error) {
+func (l *logFile) WriteAt(e io.Engine, b []byte, off int64, cb io.WriteCallback) {
 	if off < l.so {
 		panic("underflow")
 	}
-	if off+int64(len(p)) > l.so+l.size {
+	if off+int64(len(b)) > l.so+l.size {
 		panic("overflow")
 	}
-	return l.f.WriteAt(p, off-l.so)
+
+	e.WriteAt(l.f, b, off-l.so, cb)
 }
 
 func createLogFile(dir string, so, size int64, sync bool) (*logFile, error) {
@@ -85,28 +82,4 @@ func createLogFile(dir string, so, size int64, sync bool) (*logFile, error) {
 		path: path,
 		f:    f,
 	}, nil
-}
-
-func createFile(path string, size int64, wronly bool, sync bool) (*os.File, error) {
-	flag := os.O_CREATE | os.O_EXCL
-	if wronly {
-		flag |= os.O_WRONLY
-	} else {
-		flag |= os.O_RDWR
-	}
-	if sync {
-		flag |= os.O_SYNC
-	}
-	f, err := os.OpenFile(path, flag, defaultFilePerm)
-	if err != nil {
-		return nil, err
-	}
-	// resize file
-	if err = f.Truncate(size); err != nil {
-		if err2 := f.Close(); err2 != nil {
-			return f, errutil.Chain(err, err2)
-		}
-		return nil, err
-	}
-	return f, nil
 }

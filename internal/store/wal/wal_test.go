@@ -17,7 +17,6 @@ package wal
 import (
 	// standard libraries.
 	"bytes"
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -38,8 +37,11 @@ func TestWAL_AppendOne(t *testing.T) {
 	}
 	defer os.RemoveAll(walDir)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	wal, _ := newWAL(ctx, &logStream{dir: walDir}, 0)
+	wal, _ := newWAL(&logStream{dir: walDir}, 0)
+	defer func() {
+		wal.Close()
+		wal.Wait()
+	}()
 
 	Convey("wal append testing", t, func() {
 		wg := sync.WaitGroup{}
@@ -69,7 +71,4 @@ func TestWAL_AppendOne(t *testing.T) {
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		}), ShouldBeTrue)
 	})
-
-	cancel()
-	wal.Wait()
 }

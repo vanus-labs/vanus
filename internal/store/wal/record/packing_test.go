@@ -34,7 +34,7 @@ func TestPack(t *testing.T) {
 		r0 := &records[0]
 		So(r0.Type, ShouldEqual, Full)
 		So(r0.Length, ShouldEqual, len(rawData))
-		So(bytes.Equal(r0.Data, rawData), ShouldEqual, true)
+		So(bytes.Equal(r0.Data, rawData), ShouldBeTrue)
 	})
 
 	Convey("pack with not enough space in first block", t, func() {
@@ -43,11 +43,11 @@ func TestPack(t *testing.T) {
 		r0 := &records[0]
 		So(r0.Type, ShouldEqual, First)
 		So(r0.Length, ShouldEqual, 1)
-		So(bytes.Equal(r0.Data, rawData[:1]), ShouldEqual, true)
+		So(bytes.Equal(r0.Data, rawData[:1]), ShouldBeTrue)
 		r1 := &records[1]
 		So(r1.Type, ShouldEqual, Last)
 		So(r1.Length, ShouldEqual, len(rawData)-1)
-		So(bytes.Equal(r1.Data, rawData[1:]), ShouldEqual, true)
+		So(bytes.Equal(r1.Data, rawData[1:]), ShouldBeTrue)
 	})
 
 	Convey("pack with no space in first block", t, func() {
@@ -56,11 +56,11 @@ func TestPack(t *testing.T) {
 		r0 := &records[0]
 		So(r0.Type, ShouldEqual, First)
 		So(r0.Length, ShouldEqual, 0)
-		So(bytes.Equal(r0.Data, []byte{}), ShouldEqual, true)
+		So(bytes.Equal(r0.Data, []byte{}), ShouldBeTrue)
 		r1 := &records[1]
 		So(r1.Type, ShouldEqual, Last)
 		So(r1.Length, ShouldEqual, len(rawData))
-		So(bytes.Equal(r1.Data, rawData), ShouldEqual, true)
+		So(bytes.Equal(r1.Data, rawData), ShouldBeTrue)
 	})
 
 	Convey("pack big data", t, func() {
@@ -75,14 +75,14 @@ func TestPack(t *testing.T) {
 		r0 := &records[0]
 		So(r0.Type, ShouldEqual, First)
 		So(r0.Length, ShouldEqual, blockSize-HeaderSize)
-		So(bytes.Equal(r0.Data, bigData[:r0.Length]), ShouldEqual, true)
+		So(bytes.Equal(r0.Data, bigData[:r0.Length]), ShouldBeTrue)
 		r1 := &records[1]
 		So(r1.Type, ShouldEqual, Middle)
 		So(r1.Length, ShouldEqual, blockSize-HeaderSize)
-		So(bytes.Equal(r1.Data, bigData[r0.Length:r0.Length+r1.Length]), ShouldEqual, true)
+		So(bytes.Equal(r1.Data, bigData[r0.Length:r0.Length+r1.Length]), ShouldBeTrue)
 		r2 := &records[2]
 		So(r2.Type, ShouldEqual, Last)
 		So(r2.Length, ShouldEqual, 2*HeaderSize)
-		So(bytes.Equal(r2.Data, bigData[2*(blockSize-HeaderSize):]), ShouldEqual, true)
+		So(bytes.Equal(r2.Data, bigData[2*(blockSize-HeaderSize):]), ShouldBeTrue)
 	})
 }
