@@ -25,35 +25,35 @@ build: build-controller build-trigger build-gateway build-store
 docker-push-store: docker-build-store
 	docker push ${DOCKER_REPO}/store:${IMAGE_TAG}
 docker-build-store:
-	docker build -t ${DOCKER_REPO}/store:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/store/Dockerfile ../
+	docker build -t ${DOCKER_REPO}/store:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/store/Dockerfile .
 build-store:
 	$(GO_BUILD)  -o bin/store cmd/store/main.go
 
 docker-push-gateway: docker-build-gateway
 	docker push ${DOCKER_REPO}/gateway:${IMAGE_TAG}
 docker-build-gateway:
-	docker build -t ${DOCKER_REPO}/gateway:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/gateway/Dockerfile ../
+	docker build -t ${DOCKER_REPO}/gateway:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/gateway/Dockerfile .
 build-gateway:
 	$(GO_BUILD)  -o bin/gateway cmd/gateway/main.go
 
 docker-push-cmd: docker-build-cmd
 	docker push ${DOCKER_REPO}/vsctl:${IMAGE_TAG}
 docker-build-cmd:
-	docker build -t ${DOCKER_REPO}/vsctl:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/vsctl/Dockerfile ../
+	docker build -t ${DOCKER_REPO}/vsctl:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/vsctl/Dockerfile .
 build-cmd:
 	$(GO_BUILD)  -o bin/vsctl vsctl/main.go
 
 docker-push-controller: docker-build-controller
 	docker push ${DOCKER_REPO}/controller:${IMAGE_TAG}
 docker-build-controller:
-	docker build -t ${DOCKER_REPO}/controller:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/controller/Dockerfile ../
+	docker build -t ${DOCKER_REPO}/controller:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/controller/Dockerfile .
 build-controller:
 	$(GO_BUILD) -o bin/controller cmd/controller/main.go
 
 docker-push-trigger: docker-build-trigger
 	docker push ${DOCKER_REPO}/trigger:${IMAGE_TAG}
 docker-build-trigger:
-	docker build -t ${DOCKER_REPO}/trigger:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/trigger/Dockerfile ../
+	docker build -t ${DOCKER_REPO}/trigger:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/trigger/Dockerfile .
 build-trigger:
 	$(GO_BUILD)  -o bin/trigger cmd/trigger/main.go
 

@@ -61,14 +61,15 @@ spec:
     spec:
       containers:
         - name: store
-          image: public.ecr.aws/vanus/store:5952928
-          imagePullPolicy: Always
-          command: ["/bin/sh", "-c", "export VOLUME_ID=${HOSTNAME##*-}; /server/bin/store"]
+          image: public.ecr.aws/vanus/store:v0.0.5
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c", "export VOLUME_ID=${HOSTNAME##*-}; /vanus/bin/store"]
           livenessProbe:
             grpc:
               port: 11811
             failureThreshold: 3
             periodSeconds: 2
+            initialDelaySeconds: 30
           ports:
             - name: grpc
               containerPort: 11811
@@ -81,7 +82,7 @@ spec:
                   fieldPath: status.podIP
           volumeMounts:
             - name: config-store
-              mountPath: /server/config
+              mountPath: /vanus/config
             - name: data
               mountPath: /data
       volumes:

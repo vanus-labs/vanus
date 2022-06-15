@@ -64,8 +64,8 @@ spec:
     spec:
       containers:
         - name: gateway
-          image: public.ecr.aws/vanus/gateway:5952928
-          imagePullPolicy: Always
+          image: public.ecr.aws/vanus/gateway:v0.0.5
+          imagePullPolicy: IfNotPresent
           ports:
             - name: httpput
               containerPort: 8080
@@ -73,7 +73,7 @@ spec:
               containerPort: 8081
           volumeMounts:
             - name: config-gateway
-              mountPath: /server/config
+              mountPath: /vanus/config
       volumes:
         - name: config-gateway
           configMap:

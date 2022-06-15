@@ -21,14 +21,13 @@ data:
     name: ${POD_NAME}
     ip: ${POD_IP}
     port: 2048
-    grpc_reflection_enable: true
     gateway_endpoint: http://192.168.49.2:30001
     etcd:
       - vanus-controller-0.vanus-controller.vanus.svc:2379
       - vanus-controller-1.vanus-controller.vanus.svc:2379
       - vanus-controller-2.vanus-controller.vanus.svc:2379
     data_dir: /data
-    replicas: 1
+    replicas: 3
     metadata:
       key_prefix: /vanus
     topology:
@@ -83,7 +82,7 @@ spec:
   type: NodePort
   ports:
     - port: 2048
-      nodePort: 32100
+      nodePort: 32001
       name: controller-grpc
 ---
 apiVersion: v1
@@ -97,7 +96,7 @@ spec:
   type: NodePort
   ports:
     - port: 2048
-      nodePort: 32200
+      nodePort: 32002
       name: controller-grpc
 ---
 apiVersion: apps/v1
@@ -131,8 +130,8 @@ spec:
     spec:
       containers:
         - name: controller
-          image: public.ecr.aws/vanus/controller:5952928
-          imagePullPolicy: Always
+          image: public.ecr.aws/vanus/controller:v0.0.5
+          imagePullPolicy: IfNotPresent
           livenessProbe:
             grpc:
               port: 2048
@@ -158,7 +157,7 @@ spec:
                   fieldPath: status.podIP
           volumeMounts:
             - name: config-controller
-              mountPath: /server/config
+              mountPath: /vanus/config
             - name: data
               mountPath: /data
       volumes:
