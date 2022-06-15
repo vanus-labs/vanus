@@ -42,10 +42,6 @@ func NewExactFilter(exact map[string]string) Filter {
 }
 
 func (filter *exactFilter) Filter(event ce.Event) Result {
-	if filter == nil {
-		return FailFilter
-	}
-	log.Debug(context.Background(), "exact filter ", map[string]interface{}{"filter": filter, "event": event})
 	for attr, v := range filter.exact {
 		value, ok := util.LookupAttribute(event, attr)
 		if !ok || value != v {

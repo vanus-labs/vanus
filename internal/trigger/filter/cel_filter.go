@@ -43,13 +43,9 @@ func NewCELFilter(expression string) Filter {
 }
 
 func (filter *CELFilter) Filter(event ce.Event) Result {
-	if filter == nil {
-		return FailFilter
-	}
-	log.Debug(context.Background(), "cel filter ", map[string]interface{}{"filter": filter, "event": event})
 	result, err := filter.parsedExpression.Eval(event)
 	if err != nil {
-		log.Warning(context.Background(), "cek eval error", map[string]interface{}{
+		log.Info(context.Background(), "cel eval error", map[string]interface{}{
 			log.KeyError: err,
 		})
 		return FailFilter

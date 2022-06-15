@@ -37,35 +37,35 @@ func extractFilter(subscriptionFilter *primitive.SubscriptionFilter) Filter {
 	if subscriptionFilter.Not != nil {
 		f := NewNotFilter(extractFilter(subscriptionFilter.Not))
 		if f == nil {
-			log.Debug(ctx, "new not filter is nil ", map[string]interface{}{"filter": subscriptionFilter.Not})
+			log.Info(ctx, "new not filter is nil ", map[string]interface{}{"filter": subscriptionFilter.Not})
 		}
 		return f
 	}
 	if subscriptionFilter.CeSQL != "" {
 		f := NewCESQLFilter(subscriptionFilter.CeSQL)
 		if f == nil {
-			log.Debug(ctx, "new cesql filter is nil ", map[string]interface{}{"sql": subscriptionFilter.CeSQL})
+			log.Info(ctx, "new cesql filter is nil ", map[string]interface{}{"sql": subscriptionFilter.CeSQL})
 		}
 		return f
 	}
 	if subscriptionFilter.CEL != "" {
 		f := NewCELFilter(subscriptionFilter.CEL)
 		if f == nil {
-			log.Debug(ctx, "new cel filter is nil ", map[string]interface{}{"cel-expression": subscriptionFilter.CEL})
+			log.Info(ctx, "new cel filter is nil ", map[string]interface{}{"cel-expression": subscriptionFilter.CEL})
 		}
 		return f
 	}
 	if len(subscriptionFilter.All) > 0 {
 		f := NewAllFilter(extractFilters(subscriptionFilter.All)...)
 		if f == nil {
-			log.Debug(ctx, "new all filter is nil ", map[string]interface{}{"filters": subscriptionFilter.All})
+			log.Info(ctx, "new all filter is nil ", map[string]interface{}{"filters": subscriptionFilter.All})
 		}
 		return f
 	}
 	if len(subscriptionFilter.Any) > 0 {
 		f := NewAnyFilter(extractFilters(subscriptionFilter.Any)...)
 		if f == nil {
-			log.Debug(ctx, "new any filter is nil ", map[string]interface{}{"filters": subscriptionFilter.Any})
+			log.Info(ctx, "new any filter is nil ", map[string]interface{}{"filters": subscriptionFilter.Any})
 		}
 		return f
 	}
@@ -77,7 +77,7 @@ func extractFilters(subscriptionFilters []*primitive.SubscriptionFilter) []Filte
 	for _, subscriptionFilter := range subscriptionFilters {
 		tf := extractFilter(subscriptionFilter)
 		if tf == nil {
-			log.Debug(context.Background(), "get filter is nil will ignore the filter", map[string]interface{}{
+			log.Info(context.Background(), "get filter is nil will ignore the filter", map[string]interface{}{
 				"filter": subscriptionFilter,
 			})
 			continue
