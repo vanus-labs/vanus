@@ -37,18 +37,18 @@ import (
 )
 
 var (
-	f = flag.String("config", "./config/store.yaml", "store config file path")
+	configPath = flag.String("config", "./config/store.yaml", "store config file path")
 )
 
 func main() {
 	flag.Parse()
-
-	cfg, err := store.InitConfig(*f)
+	cfg, err := store.InitConfig(*configPath)
 	if err != nil {
-		log.Error(nil, "init config error", map[string]interface{}{log.KeyError: err})
+		log.Error(context.Background(), "init config error", map[string]interface{}{
+			log.KeyError: err,
+		})
 		os.Exit(-1)
 	}
-
 	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
 		log.Error(context.Background(), "failed to listen", map[string]interface{}{

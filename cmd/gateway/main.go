@@ -17,17 +17,23 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
+
 	"github.com/linkall-labs/vanus/internal/gateway"
 	"github.com/linkall-labs/vanus/observability/log"
-	"os"
+)
+
+var (
+	configPath = flag.String("config", "./config/gateway.yaml", "gateway config file path")
 )
 
 func main() {
-	f := flag.String("config", "./config/gateway.yaml", "gateway config file path")
 	flag.Parse()
-	cfg, err := gateway.InitConfig(*f)
+	cfg, err := gateway.InitConfig(*configPath)
 	if err != nil {
-		log.Error(nil, "init config error", map[string]interface{}{log.KeyError: err})
+		log.Error(nil, "init config error", map[string]interface{}{
+			log.KeyError: err,
+		})
 		os.Exit(-1)
 	}
 

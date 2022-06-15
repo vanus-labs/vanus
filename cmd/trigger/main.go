@@ -18,36 +18,43 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net"
+	"os"
+	"sync"
+
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger"
 	"github.com/linkall-labs/vanus/internal/util/signal"
 	"github.com/linkall-labs/vanus/observability/log"
 	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
+
 	"google.golang.org/grpc"
-	"net"
-	"os"
-	"sync"
+)
+
+var (
+	configPath = flag.String("config", "./config/trigger.yaml", "trigger worker config file path")
 )
 
 func main() {
-	ctx := signal.SetupSignalContext()
-	f := flag.String("config", "./config/trigger.yaml", "trigger worker config file path")
 	flag.Parse()
-	c, err := trigger.InitConfig(*f)
+	cfg, err := trigger.InitConfig(*configPath)
 	if err != nil {
-		log.Error(nil, "init config error", map[string]interface{}{log.KeyError: err})
-		os.Exit(-1)
-	}
-	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", c.Port))
-	if err != nil {
-		log.Error(context.Background(), "failed to listen", map[string]interface{}{
-			"error": err,
+		log.Error(context.Background(), "init config error", map[string]interface{}{
+			log.KeyError: err,
 		})
 		os.Exit(-1)
 	}
+	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
+	if err != nil {
+		log.Error(context.Background(), "failed to listen", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+	ctx := signal.SetupSignalContext()
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
-	srv := trigger.NewTriggerServer(*c)
+	srv := trigger.NewTriggerServer(*cfg)
 	pbtrigger.RegisterTriggerWorkerServer(grpcServer, srv)
 	var wg sync.WaitGroup
 	wg.Add(1)
