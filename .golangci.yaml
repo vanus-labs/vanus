@@ -374,6 +374,9 @@ issues:
     - path: "convert.go"
       linters:
         - dupl
+    - path: "_filter.go"
+      linters:
+        - dupl
     - text: "^(G401|G404|G501)"
       linters:
         - gosec
