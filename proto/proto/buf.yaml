@@ -1,7 +1,7 @@
 version: v1
-name: buf.build/linkall-labs/vanus
+name: buf.build/linkall-labs/vanus-proto
 deps:
-  - buf.build/linkall-labs/raft
+  - buf.build/linkall-labs/vanus-raft
 lint:
   use:
     - DEFAULT

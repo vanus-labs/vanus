@@ -7,5 +7,5 @@ deps:
     commit: 4df00b267f944190a229ce3695781e99
   - remote: buf.build
     owner: linkall-labs
-    repository: raft
-    commit: 7c9d87eddfee44dcaf94dc517f023cb3
+    repository: vanus-raft
+    commit: 6fa231ad0f274e6fa8df4dadcce67195
