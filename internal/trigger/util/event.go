@@ -14,9 +14,12 @@
 
 package util
 
-import ce "github.com/cloudevents/sdk-go/v2"
+import (
+	"fmt"
+	ce "github.com/cloudevents/sdk-go/v2"
+)
 
-func LookupAttribute(event ce.Event, attr string) (interface{}, bool) {
+func LookupAttribute(event ce.Event, attr string) (string, bool) {
 	// Set standard context attributes. The attributes available may not be
 	// exactly the same as the attributes defined in the current version of the
 	// ce spec.
@@ -39,6 +42,10 @@ func LookupAttribute(event ce.Event, attr string) (interface{}, bool) {
 		return event.DataContentType(), true
 	default:
 		val, ok := event.Extensions()[attr]
-		return val, ok
+		var str string
+		if ok {
+			str = fmt.Sprintf("%v", val)
+		}
+		return str, ok
 	}
 }

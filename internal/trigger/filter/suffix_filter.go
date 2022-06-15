@@ -45,10 +45,7 @@ func NewSuffixFilter(suffix map[string]string) Filter {
 func (filter *suffixFilter) Filter(event ce.Event) Result {
 	for attr, suffix := range filter.suffix {
 		value, ok := util.LookupAttribute(event, attr)
-		if !ok {
-			return FailFilter
-		}
-		if !strings.HasSuffix(fmt.Sprintf("%v", value), suffix) {
+		if !ok || !strings.HasSuffix(value, suffix) {
 			return FailFilter
 		}
 	}

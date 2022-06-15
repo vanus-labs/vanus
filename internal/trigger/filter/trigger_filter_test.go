@@ -33,10 +33,29 @@ func TestGetFilter(t *testing.T) {
 		"num": 10,
 	})
 	filters := make([]*primitive.SubscriptionFilter, 0)
+	Convey("trigger filter no filter", t, func() {
+		f := filter.GetFilter(filters)
+		So(f, ShouldBeNil)
+		result := filter.Run(f, event)
+		So(result, ShouldEqual, filter.PassFilter)
+	})
+	filters = append(filters, &primitive.SubscriptionFilter{})
+	Convey("trigger filter one filter no filed", t, func() {
+		f := filter.GetFilter(filters)
+		So(f, ShouldBeNil)
+		result := filter.Run(f, event)
+		So(result, ShouldEqual, filter.PassFilter)
+	})
 	filters = append(filters, &primitive.SubscriptionFilter{
 		Exact: map[string]string{
 			"id": "testID",
 		},
+	})
+	Convey("trigger filter one filter", t, func() {
+		f := filter.GetFilter(filters)
+		So(f, ShouldNotBeNil)
+		result := filter.Run(f, event)
+		So(result, ShouldEqual, filter.PassFilter)
 	})
 	filters = append(filters, &primitive.SubscriptionFilter{
 		Suffix: map[string]string{
@@ -79,7 +98,7 @@ func TestGetFilter(t *testing.T) {
 			},
 		},
 	})
-	Convey("suffix filter pass", t, func() {
+	Convey("trigger filter multi filter", t, func() {
 		f := filter.GetFilter(filters)
 		So(f, ShouldNotBeNil)
 		result := filter.Run(f, event)

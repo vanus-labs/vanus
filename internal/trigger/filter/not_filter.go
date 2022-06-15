@@ -32,9 +32,6 @@ func NewNotFilter(f Filter) Filter {
 }
 
 func (filter *notFilter) Filter(event ce.Event) Result {
-	if filter == nil {
-		return FailFilter
-	}
 	switch filter.filter.Filter(event) {
 	case FailFilter:
 		return PassFilter
