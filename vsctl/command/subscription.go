@@ -225,7 +225,9 @@ func listSubscriptionCommand() *cobra.Command {
 				t.AppendHeader(table.Row{"no.", "id", "eventbus", "sink", "filter", "transformer"})
 				for idx := range res.Subscription {
 					sub := res.Subscription[idx]
-					t.AppendRow(table.Row{idx + 1, sub.Id, sub.EventBus, sub.Sink, sub.Filters, sub.InputTransformer})
+					data1, _ := json.MarshalIndent(sub.Filters, "", "  ")
+					data2, _ := json.MarshalIndent(sub.InputTransformer, "", "  ")
+					t.AppendRow(table.Row{idx + 1, sub.Id, sub.EventBus, sub.Sink, string(data1), string(data2)})
 					t.AppendSeparator()
 				}
 				t.SetColumnConfigs([]table.ColumnConfig{
