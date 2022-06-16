@@ -95,15 +95,15 @@ func createSubscriptionCommand() *cobra.Command {
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"id", "eventbus", "source", "filter", "sink", "transformer"})
-				t.AppendRow(table.Row{res.Id, eventbus, source, filter, sink, inputTransformer})
+				t.AppendHeader(table.Row{"id", "eventbus", "source", "sink", "filter", "transformer"})
+				t.AppendRow(table.Row{res.Id, eventbus, source, sink, filter, inputTransformer})
 				t.SetColumnConfigs([]table.ColumnConfig{
 					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 4, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 5, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 6, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 5, AlignHeader: text.AlignCenter},
+					{Number: 6, AlignHeader: text.AlignCenter},
 				})
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
