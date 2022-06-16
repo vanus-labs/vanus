@@ -20,6 +20,7 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"os"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/go-resty/resty/v2"
@@ -63,4 +64,10 @@ func cmdFailedWithHelpNotice(cmd *cobra.Command, format string) {
 
 func newHTTPRequest() *resty.Request {
 	return httpClient.NewRequest()
+}
+
+func jsonBeauty(str string) string {
+	strings.ReplaceAll(str, "\\\"", "\"")
+	strings.ReplaceAll(str, "\",\"", "\",\n\"")
+	return str
 }

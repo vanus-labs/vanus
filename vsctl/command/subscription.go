@@ -227,14 +227,15 @@ func listSubscriptionCommand() *cobra.Command {
 					sub := res.Subscription[idx]
 					data1, _ := json.MarshalIndent(sub.Filters, "", "  ")
 					data2, _ := json.MarshalIndent(sub.InputTransformer, "", "  ")
-					t.AppendRow(table.Row{idx + 1, sub.Id, sub.EventBus, sub.Sink, string(data1), string(data2)})
+					t.AppendRow(table.Row{idx + 1, sub.Id, sub.EventBus, sub.Sink, jsonBeauty(string(data1)),
+						jsonBeauty(string(data2))})
 					t.AppendSeparator()
 				}
 				t.SetColumnConfigs([]table.ColumnConfig{
-					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 4, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 3, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 4, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 5, AlignHeader: text.AlignCenter},
 					{Number: 6, AlignHeader: text.AlignCenter},
 				})
