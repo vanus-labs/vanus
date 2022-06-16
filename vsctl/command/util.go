@@ -17,14 +17,12 @@ package command
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/jedib0t/go-pretty/v6/text"
-	"os"
-	"strings"
-
 	"github.com/fatih/color"
 	"github.com/go-resty/resty/v2"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 var (
@@ -64,10 +62,4 @@ func cmdFailedWithHelpNotice(cmd *cobra.Command, format string) {
 
 func newHTTPRequest() *resty.Request {
 	return httpClient.NewRequest()
-}
-
-func jsonBeauty(str string) string {
-	str = strings.ReplaceAll(str, "\\\"", "\"")
-	str = strings.ReplaceAll(str, "\",\"", "\",\n\"")
-	return str
 }

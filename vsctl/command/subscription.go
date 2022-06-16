@@ -95,7 +95,9 @@ func createSubscriptionCommand() *cobra.Command {
 			} else {
 				t := table.NewWriter()
 				t.AppendHeader(table.Row{"id", "eventbus", "sink", "filter", "transformer"})
-				t.AppendRow(table.Row{res.Id, eventbus, sink, filter, inputTransformer})
+				data1, _ := json.MarshalIndent(filter, "", "  ")
+				data2, _ := json.MarshalIndent(inputTransformer, "", "  ")
+				t.AppendRow(table.Row{res.Id, eventbus, sink, string(data1), string(data2)})
 				t.SetColumnConfigs([]table.ColumnConfig{
 					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
@@ -184,7 +186,10 @@ func getSubscriptionCommand() *cobra.Command {
 			} else {
 				t := table.NewWriter()
 				t.AppendHeader(table.Row{"id", "eventbus", "sink", "filter", "transformer"})
-				t.AppendRow(table.Row{res.Id, res.EventBus, res.Sink, res.Filters, res.InputTransformer})
+				data1, _ := json.MarshalIndent(res.Filters, "", "  ")
+				data2, _ := json.MarshalIndent(res.InputTransformer, "", "  ")
+
+				t.AppendRow(table.Row{res.Id, res.EventBus, res.Sink, string(data1), string(data2)})
 				t.SetColumnConfigs([]table.ColumnConfig{
 					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
@@ -227,8 +232,8 @@ func listSubscriptionCommand() *cobra.Command {
 					sub := res.Subscription[idx]
 					data1, _ := json.MarshalIndent(sub.Filters, "", "  ")
 					data2, _ := json.MarshalIndent(sub.InputTransformer, "", "  ")
-					t.AppendRow(table.Row{idx + 1, sub.Id, sub.EventBus, sub.Sink, jsonBeauty(string(data1)),
-						jsonBeauty(string(data2))})
+					t.AppendRow(table.Row{idx + 1, sub.Id, sub.EventBus, sub.Sink, string(data1),
+						string(data2)})
 					t.AppendSeparator()
 				}
 				t.SetColumnConfigs([]table.ColumnConfig{
