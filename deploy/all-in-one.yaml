@@ -69,9 +69,13 @@ metadata:
 ---
 apiVersion: v1
 data:
-  trigger.yaml: "port: 2148\nip : ${POD_IP}\ncontrollers:\n  - vanus-controller-0.vanus-controller.vanus.svc:2048\n
-    \ - vanus-controller-1.vanus-controller.vanus.svc:2048\n  - vanus-controller-2.vanus-controller.vanus.svc:2048\n
-    \ "
+  trigger.yaml: |-
+    port: 2148
+    ip : ${POD_IP}
+    controllers:
+      - vanus-controller-0.vanus-controller.vanus.svc:2048
+      - vanus-controller-1.vanus-controller.vanus.svc:2048
+      - vanus-controller-2.vanus-controller.vanus.svc:2048
 kind: ConfigMap
 metadata:
   name: config-trigger
@@ -97,7 +101,7 @@ metadata:
   namespace: vanus
 spec:
   ports:
-  - name: controller-grpc
+  - name: grpc
     nodePort: 32000
     port: 2048
   selector:
@@ -111,7 +115,7 @@ metadata:
   namespace: vanus
 spec:
   ports:
-  - name: controller-grpc
+  - name: grpc
     nodePort: 32001
     port: 2048
   selector:
@@ -125,7 +129,7 @@ metadata:
   namespace: vanus
 spec:
   ports:
-  - name: controller-grpc
+  - name: grpc
     nodePort: 32002
     port: 2048
   selector:

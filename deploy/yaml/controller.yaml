@@ -69,7 +69,7 @@ spec:
   ports:
     - port: 2048
       nodePort: 32000
-      name: controller-grpc
+      name: grpc
 ---
 apiVersion: v1
 kind: Service
@@ -83,7 +83,7 @@ spec:
   ports:
     - port: 2048
       nodePort: 32001
-      name: controller-grpc
+      name: grpc
 ---
 apiVersion: v1
 kind: Service
@@ -97,7 +97,7 @@ spec:
   ports:
     - port: 2048
       nodePort: 32002
-      name: controller-grpc
+      name: grpc
 ---
 apiVersion: apps/v1
 kind: StatefulSet

@@ -26,7 +26,7 @@ File structure:
   
   * trigger.yaml is yaml file of vanus triggerWorker which process events and route them to user workload or Sink Connector
 
-* all-in-one.yaml is yaml file auto generate by [kustomize][kustomize]  use below command
+* all-in-one.yaml is yaml file auto generate by [kustomize]  use below command
 
 ```shell
 $ kubectl kustomize deploy > deploy/all-in-one.yaml

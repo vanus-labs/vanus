@@ -24,7 +24,7 @@ data:
       - vanus-controller-0.vanus-controller.vanus.svc:2048
       - vanus-controller-1.vanus-controller.vanus.svc:2048
       - vanus-controller-2.vanus-controller.vanus.svc:2048
-      
+
 ---
 apiVersion: apps/v1
 kind: Deployment
