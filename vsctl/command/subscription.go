@@ -186,15 +186,15 @@ func getSubscriptionCommand() *cobra.Command {
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"id", "eventbus", "source", "filter", "sink", "transformer"})
-				t.AppendRow(table.Row{res.Id, res.EventBus, res.Source, res.Filters, res.Sink, res.InputTransformer})
+				t.AppendHeader(table.Row{"id", "eventbus", "source", "sink", "filter", "transformer"})
+				t.AppendRow(table.Row{res.Id, res.EventBus, res.Source, res.Sink, res.Filters, res.InputTransformer})
 				t.SetColumnConfigs([]table.ColumnConfig{
 					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 4, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 5, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 6, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 5, AlignHeader: text.AlignCenter},
+					{Number: 6, AlignHeader: text.AlignCenter},
 				})
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
@@ -226,10 +226,10 @@ func listSubscriptionCommand() *cobra.Command {
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"no.", "id", "eventbus", "source", "filter", "sink", "transformer"})
+				t.AppendHeader(table.Row{"no.", "id", "eventbus", "source", "sink", "filter", "transformer"})
 				for idx := range res.Subscription {
 					sub := res.Subscription[idx]
-					t.AppendRow(table.Row{idx + 1, sub.Id, sub.EventBus, sub.Source, sub.Filters, sub.Sink, sub.InputTransformer})
+					t.AppendRow(table.Row{idx + 1, sub.Id, sub.EventBus, sub.Source, sub.Sink, sub.Filters, sub.InputTransformer})
 					t.AppendSeparator()
 				}
 				t.SetColumnConfigs([]table.ColumnConfig{
@@ -238,8 +238,8 @@ func listSubscriptionCommand() *cobra.Command {
 					{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 4, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 5, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 6, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 7, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 6, AlignHeader: text.AlignCenter},
+					{Number: 7, AlignHeader: text.AlignCenter},
 				})
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
