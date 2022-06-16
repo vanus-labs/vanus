@@ -87,7 +87,6 @@ func createSubscriptionCommand() *cobra.Command {
 				data, _ := json.Marshal(map[string]interface{}{
 					"id":          res.Id,
 					"eventbus":    eventbus,
-					"source":      source,
 					"filter":      filter,
 					"sink":        sink,
 					"transformer": inputTransformer,
@@ -95,15 +94,14 @@ func createSubscriptionCommand() *cobra.Command {
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"id", "eventbus", "source", "sink", "filter", "transformer"})
-				t.AppendRow(table.Row{res.Id, eventbus, source, sink, filter, inputTransformer})
+				t.AppendHeader(table.Row{"id", "eventbus", "sink", "filter", "transformer"})
+				t.AppendRow(table.Row{res.Id, eventbus, sink, filter, inputTransformer})
 				t.SetColumnConfigs([]table.ColumnConfig{
 					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 4, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 4, AlignHeader: text.AlignCenter},
 					{Number: 5, AlignHeader: text.AlignCenter},
-					{Number: 6, AlignHeader: text.AlignCenter},
 				})
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
@@ -111,7 +109,6 @@ func createSubscriptionCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&eventbus, "eventbus", "", "eventbus name to consuming")
-	cmd.Flags().StringVar(&source, "source", "", "the event from which source")
 	cmd.Flags().StringVar(&sink, "sink", "", "the event you want to send to")
 	cmd.Flags().StringVar(&filters, "filters", "", "filter event you interested, JSON format required")
 	cmd.Flags().StringVar(&inputTransformer, "input-transformer", "", "input transformer, JSON format required")
@@ -186,15 +183,14 @@ func getSubscriptionCommand() *cobra.Command {
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"id", "eventbus", "source", "sink", "filter", "transformer"})
-				t.AppendRow(table.Row{res.Id, res.EventBus, res.Source, res.Sink, res.Filters, res.InputTransformer})
+				t.AppendHeader(table.Row{"id", "eventbus", "sink", "filter", "transformer"})
+				t.AppendRow(table.Row{res.Id, res.EventBus, res.Sink, res.Filters, res.InputTransformer})
 				t.SetColumnConfigs([]table.ColumnConfig{
 					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 4, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 4, AlignHeader: text.AlignCenter},
 					{Number: 5, AlignHeader: text.AlignCenter},
-					{Number: 6, AlignHeader: text.AlignCenter},
 				})
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
@@ -226,10 +222,10 @@ func listSubscriptionCommand() *cobra.Command {
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"no.", "id", "eventbus", "source", "sink", "filter", "transformer"})
+				t.AppendHeader(table.Row{"no.", "id", "eventbus", "sink", "filter", "transformer"})
 				for idx := range res.Subscription {
 					sub := res.Subscription[idx]
-					t.AppendRow(table.Row{idx + 1, sub.Id, sub.EventBus, sub.Source, sub.Sink, sub.Filters, sub.InputTransformer})
+					t.AppendRow(table.Row{idx + 1, sub.Id, sub.EventBus, sub.Sink, sub.Filters, sub.InputTransformer})
 					t.AppendSeparator()
 				}
 				t.SetColumnConfigs([]table.ColumnConfig{
@@ -237,9 +233,8 @@ func listSubscriptionCommand() *cobra.Command {
 					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 4, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 5, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 5, AlignHeader: text.AlignCenter},
 					{Number: 6, AlignHeader: text.AlignCenter},
-					{Number: 7, AlignHeader: text.AlignCenter},
 				})
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
