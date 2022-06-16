@@ -67,7 +67,7 @@ func newHTTPRequest() *resty.Request {
 }
 
 func jsonBeauty(str string) string {
-	strings.ReplaceAll(str, "\\\"", "\"")
-	strings.ReplaceAll(str, "\",\"", "\",\n\"")
+	str = strings.ReplaceAll(str, "\\\"", "\"")
+	str = strings.ReplaceAll(str, "\",\"", "\",\n\"")
 	return str
 }
