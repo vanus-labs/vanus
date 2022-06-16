@@ -1,16 +1,16 @@
 version: v1
 plugins:
   - name: go
-    out: thirds
+    out: pkg
     opt:
       - plugins=grpc
-      - module=github.com/linkall-labs/proto/thirds
+      - module=github.com/linkall-labs/vanus/proto/pkg
   # - name: go-grpc
-  #   out: thirds
+  #   out: pkg
   #   opt:
-  #     - module=github.com/linkall-labs/proto/thirds
+  #     - module=github.com/linkall-labs/vanus/proto/pkg
   #     - require_unimplemented_servers=false
-  - name: grpc-gateway
-    out: thirds
-    opt:
-      - module=github.com/linkall-labs/proto/thirds
+  # - name: grpc-gateway
+  #   out: pkg
+  #   opt:
+  #     - module=github.com/linkall-labs/vanus/proto/pkg
