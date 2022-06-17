@@ -37,6 +37,7 @@ var (
 
 func main() {
 	flag.Parse()
+
 	cfg, err := trigger.InitConfig(*configPath)
 	if err != nil {
 		log.Error(context.Background(), "init config error", map[string]interface{}{

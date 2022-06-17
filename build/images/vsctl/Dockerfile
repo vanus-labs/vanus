@@ -6,8 +6,7 @@ COPY go.sum go.sum
 COPY Makefile Makefile
 COPY vsctl vsctl
 COPY proto proto
-WORKDIR /workspace
-RUN go env -w GOPROXY=https://goproxy.cn,direct
+
 ARG TARGETOS
 ARG TARGETARCH
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-cmd

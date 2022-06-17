@@ -9,8 +9,7 @@ COPY internal internal
 COPY observability observability
 COPY proto proto
 COPY raft raft
-WORKDIR /workspace
-RUN go env -w GOPROXY=https://goproxy.cn,direct
+
 ARG TARGETOS
 ARG TARGETARCH
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-store

@@ -9,8 +9,7 @@ COPY internal internal
 COPY observability observability
 COPY proto proto
 COPY client client
-WORKDIR /workspace
-RUN go env -w GOPROXY=https://goproxy.cn,direct
+
 ARG TARGETOS
 ARG TARGETARCH
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-gateway

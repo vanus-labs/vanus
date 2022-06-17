@@ -29,6 +29,7 @@ var (
 
 func main() {
 	flag.Parse()
+
 	cfg, err := gateway.InitConfig(*configPath)
 	if err != nil {
 		log.Error(nil, "init config error", map[string]interface{}{

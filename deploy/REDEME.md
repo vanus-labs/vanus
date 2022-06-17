@@ -1,4 +1,4 @@
-# Vanus deploy
+# Vanus Deploy
 
 Vanus is runtime in Kubernetes cluster
 
