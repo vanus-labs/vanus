@@ -29,7 +29,7 @@ const (
 	defaultDirPerm = 0o755
 )
 
-func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc) (*WAL, error) {
+func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc, opts ...Option) (*WAL, error) {
 	// Make sure the WAL directory exists.
 	if err := os.MkdirAll(walDir, defaultDirPerm); err != nil {
 		return nil, err
@@ -41,9 +41,10 @@ func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc) (*WAL,
 	}
 	files = filterRegularLog(files)
 
-	s := &logStream{
-		dir: walDir,
-	}
+	cfg := makeConfig(walDir, opts...)
+
+	// Rebuild log stream.
+	s := cfg.stream
 	for _, file := range files {
 		filename := file.Name()
 		so, err2 := strconv.ParseInt(filename[:len(filename)-len(logFileExt)], 10, 64)
@@ -71,8 +72,8 @@ func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc) (*WAL,
 
 		path := filepath.Join(walDir, filename)
 		size := info.Size()
-		if size%blockSize != 0 {
-			truncated := size - size%blockSize
+		if size%s.blockSize != 0 {
+			truncated := size - size%s.blockSize
 			log.Warning(context.Background(), "The size of log file is not a multiple of blockSize, truncate it.",
 				map[string]interface{}{
 					"file":       path,
@@ -90,13 +91,14 @@ func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc) (*WAL,
 		s.stream = append(s.stream, f)
 	}
 
-	eo, err := s.Visit(visitor, compacted)
+	pos, err := s.Visit(visitor, compacted)
 	if err != nil {
 		return nil, err
 	}
+	WithPosition(pos)(&cfg)
 
 	// Make WAL.
-	return newWAL(s, eo)
+	return newWAL(cfg)
 }
 
 func filterRegularLog(entries []os.DirEntry) []os.DirEntry {

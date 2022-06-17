@@ -12,4 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build !linux
+// +build !linux
+
 package wal
+
+import "github.com/linkall-labs/vanus/internal/store/wal/io"
+
+func defaultIOEngine() io.Engine {
+	return io.NewEngine()
+}

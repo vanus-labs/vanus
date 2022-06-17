@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package wal
+package block
 
 import (
+	// standard libraries.
+	"os"
+
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/wal/io"
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
@@ -40,6 +43,10 @@ func (b *block) Size() int {
 	return b.wp
 }
 
+func (b *block) Committed() int {
+	return b.cp
+}
+
 func (b *block) Remaining() int {
 	return b.remaining(b.Size())
 }
@@ -52,7 +59,7 @@ func (b *block) Full() bool {
 	return b.Remaining() < record.HeaderSize
 }
 
-func (b *block) full(off int) bool {
+func (b *block) FullWithOff(off int) bool {
 	return b.remaining(off) < record.HeaderSize
 }
 
@@ -83,4 +90,20 @@ func (b *block) Flush(writer io.WriterAt, offset int, base int64, cb FlushCallba
 			cb(int64(b.cp), nil)
 		}
 	})
+}
+
+func (b *block) RecoverFromFile(f *os.File, at int64, committed int) error {
+	if _, err := f.ReadAt(b.buf, at); err != nil {
+		return err
+	}
+	b.wp = committed
+	b.fp = committed
+	b.cp = committed
+	return nil
+}
+
+type Block struct {
+	block
+	// SO is start offset
+	SO int64
 }
