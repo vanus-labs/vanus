@@ -5,7 +5,8 @@ Vanus is runtime in Kubernetes cluster
 ## Declare
 
 File structure:
-> ```
+
+> ```text
 > ├── all-in-one.yaml
 > └── yaml
 >     ├── controller.yaml
@@ -16,6 +17,7 @@ File structure:
 >     └── vsctl.yaml
 > 
 > ```
+
 * yaml folder is yaml file of vanus core components
 
   * controller.yaml is yaml file of vanus controller which is responsible for service discovery, metadata management, and resource scheduling
@@ -29,27 +31,32 @@ File structure:
 * all-in-one.yaml is yaml file auto generate by [kustomize]  use below command
 
 ```shell
-$ kubectl kustomize deploy > deploy/all-in-one.yaml
+kubectl kustomize deploy > deploy/all-in-one.yaml
 ```
 
 ## Installation
 
 ### Pre-requisites
-- [Kubernetes cluster]( https://kubernetes.io/docs/setup/)
+
+* [Kubernetes cluster]( https://kubernetes.io/docs/setup/)
 
 ### Install
 
 ```shell
-$ kubectl apply -f all-in-one.yml
+kubectl apply -f all-in-one.yml
 ```
+
 ### Verifying the installation
 
 when all resources creating done, the result will be liking below:
+
 ```shell
-$ kubectl get po -n vanus
+kubectl get po -n vanus
 ```
+
 output format:
->```
+
+> ```text
 > vanus-controller-0                  1/1     Running   0             30s
 > vanus-controller-1                  1/1     Running   0             30s
 > vanus-controller-2                  1/1     Running   0             30s
@@ -63,7 +70,7 @@ output format:
 ### Uninstall
 
 ```shell
-$ kubectl delete -f all-in-one.yml
+kubectl delete -f all-in-one.yml
 ```
 
 ## Install step by step
@@ -73,25 +80,25 @@ install vanus use step by step,first need create namespace: vanus
 ### Install Controller
 
 ```shell
-$ kubectl apply -f yaml/controller.yml
+kubectl apply -f yaml/controller.yml
 ```
 
 ### Install GateWay
 
 ```shell
-$ kubectl apply -f yaml/gateway.yml
+kubectl apply -f yaml/gateway.yml
 ```
 
-### Install SegemntServer
+### Install SegmentServer
 
 ```shell
-$ kubectl apply -f yaml/store.yml
+kubectl apply -f yaml/store.yml
 ```
 
 ### Install TriggerWorker
 
 ```shell
-$ kubectl apply -f yaml/trigger.yml
+kubectl apply -f yaml/trigger.yml
 ```
 
 [kustomize]: https://kustomize.io/
