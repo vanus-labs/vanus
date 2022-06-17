@@ -206,12 +206,11 @@ func (w *WAL) Append(entries [][]byte, opts ...AppendOption) AppendFuture {
 }
 
 func (w *WAL) runAppend(flushTimeout time.Duration) {
-	// Create a stopped timer.
+	// Create flush timer.
 	timer := time.NewTimer(flushTimeout)
-	if !timer.Stop() {
-		<-timer.C
-	}
+	running := true
 	waiting := false
+	var start time.Time
 
 	for {
 		select {
@@ -222,37 +221,42 @@ func (w *WAL) runAppend(flushTimeout time.Duration) {
 				if !full {
 					w.flushWritableBlock()
 				}
-				if waiting {
-					// stop timer
-					if !timer.Stop() {
-						// drain channel
-						<-timer.C
-					}
-					waiting = false
-				}
-			case goahead:
+				// stop timer
+				waiting = false
+			case goahead || !waiting:
 				// reset timer
-				if waiting && !timer.Stop() {
-					// drain channel
-					<-timer.C
+				waiting = true
+				start = time.Now()
+				if !running {
+					timer.Reset(flushTimeout)
+					running = true
 				}
-				timer.Reset(flushTimeout)
-				waiting = true
-			case !waiting:
-				// start timer
-				timer.Reset(flushTimeout)
-				waiting = true
 			}
 		case <-timer.C:
+			// timer stopped
+			if !waiting {
+				running = false
+				break
+			}
+
+			d := time.Since(start)
+			if d < flushTimeout {
+				timer.Reset(d)
+				break
+			}
+
 			// timeout, flush
 			w.flushWritableBlock()
 			waiting = false
+			running = false
 		case <-w.closec:
-			if waiting {
+			if running {
 				timer.Stop()
 			}
 			// flush, then stop
-			w.flushWritableBlock()
+			if waiting {
+				w.flushWritableBlock()
+			}
 			close(w.flushc)
 			return
 		}
