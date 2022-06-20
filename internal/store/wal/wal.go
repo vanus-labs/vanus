@@ -85,7 +85,8 @@ type WAL struct {
 	flushc    chan flushTask
 	weakupc   chan int64
 
-	flushw sync.WaitGroup
+	closemu sync.RWMutex
+	flushw  sync.WaitGroup
 
 	closec chan struct{}
 	donec  chan struct{}
@@ -141,6 +142,8 @@ func (w *WAL) Dir() string {
 }
 
 func (w *WAL) Close() {
+	w.closemu.Lock()
+	defer w.closemu.Unlock()
 	close(w.closec)
 }
 
@@ -193,14 +196,23 @@ func (w *WAL) Append(entries [][]byte, opts ...AppendOption) AppendFuture {
 		}
 	}
 
+	// Check entries.
+	if len(entries) == 0 {
+		task.callback(Result{})
+	}
+
+	// NOTE: Can not close the WAL while writing to appendc.
+	w.closemu.RLock()
 	select {
 	case <-w.closec:
 		// TODO(james.yin): invoke callback in another goroutine.
 		task.callback(Result{
 			Err: ErrClosed,
 		})
-	case w.appendc <- task:
+	default:
+		w.appendc <- task
 	}
+	w.closemu.RUnlock()
 
 	return ch
 }

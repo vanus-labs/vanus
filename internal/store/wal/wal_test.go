@@ -100,12 +100,16 @@ func TestWAL_AppendOne(t *testing.T) {
 		}))
 
 		wal.Close()
-		wal.Wait()
-		So(done, ShouldBeTrue)
 
 		_, err = wal.AppendOne(data1).Wait()
 		So(err, ShouldNotBeNil)
 
+		wal.Wait()
+
+		// NOTE: All appends are guaranteed to return before wal is closed.
+		So(done, ShouldBeTrue)
+
+		// NOTE: There is no guarantee that data0 will be successfully written.
 		// So(wal.wb.Size(), ShouldEqual, 10)
 		// So(wal.wb.Committed(), ShouldEqual, 10)
 
@@ -144,6 +148,15 @@ func TestWAL_Append(t *testing.T) {
 					0x52, 0x74, 0x2F, 0x51, 0x00, 0x04, 0x01, 0x44, 0x45, 0x46, 0x47,
 					0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 				})
+		})
+
+		Convey("append without entry", func() {
+			offsets, err := wal.Append([][]byte{}).Wait()
+
+			So(err, ShouldBeNil)
+			So(len(offsets), ShouldEqual, 0)
+			So(wal.wb.Size(), ShouldEqual, 0)
+			So(wal.wb.Committed(), ShouldEqual, 0)
 		})
 
 		Reset(func() {
