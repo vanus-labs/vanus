@@ -149,6 +149,7 @@ func (w *WAL) Close() {
 
 func (w *WAL) doClose() {
 	w.engine.Close()
+	w.stream.Close()
 	close(w.donec)
 }
 

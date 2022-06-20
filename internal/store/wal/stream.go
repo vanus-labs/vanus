@@ -38,6 +38,17 @@ type logStream struct {
 	fileSize  int64
 }
 
+func (s *logStream) Close() {
+	for _, f := range s.stream {
+		if err := f.Close(); err != nil {
+			log.Error(context.Background(), "Close log file failed.", map[string]interface{}{
+				"path":       f.path,
+				log.KeyError: err,
+			})
+		}
+	}
+}
+
 func (s *logStream) lastFile() *logFile {
 	if len(s.stream) == 0 {
 		return nil
