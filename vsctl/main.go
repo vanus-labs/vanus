@@ -47,6 +47,8 @@ func init() {
 		"~/.vanus/vanus.yml", "the config file of vsctl")
 	rootCmd.PersistentFlags().BoolVarP(&globalFlags.Debug, "debug", "D", false,
 		"is debug mode enable")
+	rootCmd.PersistentFlags().StringVar(&globalFlags.OutputFormat, "output-format", "table",
+		"json or table")
 
 	if os.Getenv("VANUS_ENDPOINTS") != "" {
 		globalFlags.Endpoints = strings.Split(os.Getenv("VANUS_ENDPOINTS"), ",")

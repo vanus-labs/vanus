@@ -30,6 +30,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/spf13/cobra"
 )
@@ -66,11 +68,11 @@ func putEventCommand() *cobra.Command {
 			endpoint := mustGetGatewayEndpoint(cmd)
 			p, err := ce.NewHTTP()
 			if err != nil {
-				cmdFailedf("init ce protocol error: %s\n", err)
+				cmdFailedf(cmd, "init ce protocol error: %s\n", err)
 			}
 			c, err := ce.NewClient(p, ce.WithTimeNow(), ce.WithUUIDs())
 			if err != nil {
-				cmdFailedf("create ce client error: %s\n", err)
+				cmdFailedf(cmd, "create ce client error: %s\n", err)
 			}
 			var target string
 			if strings.HasPrefix(endpoint, httpPrefix) {
@@ -82,9 +84,9 @@ func putEventCommand() *cobra.Command {
 			ctx := ce.ContextWithTarget(context.Background(), target)
 
 			if dataFile == "" {
-				sendOne(ctx, c)
+				sendOne(cmd, ctx, c)
 			} else {
-				sendFile(ctx, c)
+				sendFile(cmd, ctx, c)
 			}
 		},
 	}
@@ -108,12 +110,12 @@ func mustGetGatewayEndpoint(cmd *cobra.Command) string {
 	cli := ctrlpb.NewPingServerClient(grpcConn)
 	res, err := cli.Ping(ctx, &empty.Empty{})
 	if err != nil {
-		cmdFailedf("get Gateway endpoint from controller failed: %s", err)
+		cmdFailedf(cmd, "get Gateway endpoint from controller failed: %s", err)
 	}
 	return res.GatewayAddr
 }
 
-func sendOne(ctx context.Context, ceClient ce.Client) {
+func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 	event := ce.NewEvent()
 	if eventID == "" {
 		eventID = uuid.NewString()
@@ -126,7 +128,7 @@ func sendOne(ctx context.Context, ceClient ce.Client) {
 		m := make(map[string]interface{})
 		if err := json.Unmarshal([]byte(eventBody), &m); err != nil {
 			color.White(eventBody)
-			cmdFailedf("invalid format of data body: %s, err: %s", eventBody, err.Error())
+			cmdFailedf(cmd, "invalid format of data body: %s, err: %s", eventBody, err.Error())
 		}
 		err = event.SetData(ce.ApplicationJSON, m)
 	} else {
@@ -134,29 +136,42 @@ func sendOne(ctx context.Context, ceClient ce.Client) {
 	}
 
 	if err != nil {
-		cmdFailedf("set data failed: %s\n", err)
+		cmdFailedf(cmd, "set data failed: %s\n", err)
 	}
 	res := ceClient.Send(ctx, event)
 	if ce.IsUndelivered(res) {
-		cmdFailedf("failed to send: %s\n", res.Error())
+		cmdFailedf(cmd, "failed to send: %s\n", res.Error())
 	} else {
 		var httpResult *cehttp.Result
 		ce.ResultAs(res, &httpResult)
 		if httpResult == nil {
-			cmdFailedf("failed to send: %s\n", res.Error())
+			cmdFailedf(cmd, "failed to send: %s\n", res.Error())
 		} else {
-			color.Green("sent %d \n", httpResult.StatusCode)
+			if isOutputFormatJSON(cmd) {
+				data, _ := json.Marshal(map[string]interface{}{"Result": httpResult.StatusCode})
+				color.Green(string(data))
+			} else {
+				t := table.NewWriter()
+				t.AppendHeader(table.Row{"Result"})
+				t.AppendRow(table.Row{httpResult.StatusCode})
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+				})
+				t.SetOutputMirror(os.Stdout)
+				t.Render()
+			}
 		}
 	}
 }
 
-func sendFile(ctx context.Context, ceClient ce.Client) {
+func sendFile(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 	f, err := os.Open(dataFile)
 	defer func() {
 		_ = f.Close()
 	}()
 	if err != nil {
-		cmdFailedf("open data file failed: %s\n", err)
+		cmdFailedf(cmd, "open data file failed: %s\n", err)
 	}
 	events := make([][]string, 0)
 	reader := bufio.NewReader(f)
@@ -166,22 +181,29 @@ func sendFile(ctx context.Context, ceClient ce.Client) {
 			if _err == io.EOF {
 				break
 			}
-			cmdFailedf("read data file failed: %s\n", _err)
+			cmdFailedf(cmd, "read data file failed: %s\n", _err)
 		}
 		for isPrx {
 			var _data []byte
 			_data, isPrx, err = reader.ReadLine()
 			if err != nil {
-				cmdFailedf("read data file failed: %s\n", err)
+				cmdFailedf(cmd, "read data file failed: %s\n", err)
 			}
 			data = append(data, _data...)
 		}
 		arr := strings.Split(string(data), ",")
 		if len(arr) != cloudEventDataRowLength {
-			cmdFailedf("invalid data file: %s, please see vsctl event put --print-template", string(data))
+			cmdFailedf(cmd, "invalid data file: %s, please see vsctl event put --print-template", string(data))
 		}
 		events = append(events, arr)
 	}
+	t := table.NewWriter()
+	t.AppendHeader(table.Row{"No.", "Result"})
+	t.SetColumnConfigs([]table.ColumnConfig{
+		{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+		{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+	})
+	t.SetOutputMirror(os.Stdout)
 	for idx, v := range events {
 		event := ce.NewEvent()
 		event.SetID(v[0])
@@ -189,15 +211,29 @@ func sendFile(ctx context.Context, ceClient ce.Client) {
 		event.SetType(v[2])
 		err = event.SetData(ce.ApplicationJSON, v[3])
 		if err != nil {
-			cmdFailedf("set data failed: %s\n", err)
+			cmdFailedf(cmd, "set data failed: %s\n", err)
 		}
 		res := ceClient.Send(ctx, event)
 		if ce.IsUndelivered(res) {
-			cmdFailedf("failed to send: %s\n", res.Error())
+			cmdFailedf(cmd, "failed to send: %s\n", res.Error())
 		} else {
 			var httpResult *cehttp.Result
 			ce.ResultAs(res, &httpResult)
-			cmdFailedf("%dth sent %d \n", idx, httpResult.StatusCode)
+			if httpResult == nil {
+				cmdFailedf(cmd, "failed to send: %s\n", res.Error())
+			} else {
+				if isOutputFormatJSON(cmd) {
+					data, _ := json.Marshal(map[string]interface{}{
+						"No.":    idx,
+						"Result": httpResult.StatusCode,
+					})
+					color.Green(string(data))
+				} else {
+					t.AppendRow(table.Row{idx, httpResult.StatusCode})
+					t.AppendSeparator()
+					t.Render()
+				}
+			}
 		}
 	}
 }
@@ -217,26 +253,46 @@ func getEventCommand() *cobra.Command {
 			idx := strings.LastIndex(endpoint, ":")
 			port, err := strconv.Atoi(endpoint[idx+1:])
 			if err != nil {
-				cmdFailedf("parse gateway port failed: %s, endpoint: %s", err, endpoint)
+				cmdFailedf(cmd, "parse gateway port failed: %s, endpoint: %s", err, endpoint)
 			}
 			endpoint = fmt.Sprintf("%s:%d", endpoint[:idx], port+1)
 			res, err := newHTTPRequest().Get(fmt.Sprintf("%s/getEvents?eventbus=%s&offset=%d&number=%d",
 				endpoint, args[0], offset, number))
 			if err != nil {
-				cmdFailedf("send request to gateway failed: %s", err)
+				cmdFailedf(cmd, "send request to gateway failed: %s", err)
 			}
 			if res.StatusCode() != http.StatusOK {
-				cmdFailedf("got response, but no 200 OK: %d", res.StatusCode())
+				cmdFailedf(cmd, "got response, but no 200 OK: %d", res.StatusCode())
 			}
 			data := new(struct {
 				Events []ce.Event
 			})
 			err = json.Unmarshal(res.Body(), data)
 			if err != nil {
-				cmdFailedf("unmarshal http response data failed: %s", err)
+				cmdFailedf(cmd, "unmarshal http response data failed: %s", err)
 			}
-			for idx := range data.Events {
-				color.Yellow("event: %d, %s\n", idx, data.Events[idx].String())
+			if isOutputFormatJSON(cmd) {
+				for idx := range data.Events {
+					data, _ := json.Marshal(map[string]interface{}{
+						"No.":   idx,
+						"Event": data.Events[idx].String(),
+					})
+
+					color.Yellow(string(data))
+				}
+			} else {
+				t := table.NewWriter()
+				t.AppendHeader(table.Row{"No.", "Event"})
+				for idx := range data.Events {
+					t.AppendRow(table.Row{idx, data.Events[idx].String()})
+					t.AppendSeparator()
+				}
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, AlignHeader: text.AlignCenter},
+				})
+				t.SetOutputMirror(os.Stdout)
+				t.Render()
 			}
 		},
 	}

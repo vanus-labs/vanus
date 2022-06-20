@@ -15,7 +15,6 @@
 package command
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -49,7 +48,7 @@ func createEventbusCommand() *cobra.Command {
 		Short: "create a eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
 			if eventbus == "" {
-				cmdFailedf("the --name flag MUST> be set")
+				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
 			ctx := context.Background()
 			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
@@ -62,9 +61,22 @@ func createEventbusCommand() *cobra.Command {
 				Name: eventbus,
 			})
 			if err != nil {
-				cmdFailedf("create eventbus failed: %s", err)
+				cmdFailedf(cmd, "create eventbus failed: %s", err)
 			}
-			color.Green("create eventbus: %s success\n", eventbus)
+			if isOutputFormatJSON(cmd) {
+				data, _ := json.Marshal(map[string]interface{}{"Result": "Create Success", "Eventbus": eventbus})
+				color.Green(string(data))
+			} else {
+				t := table.NewWriter()
+				t.AppendHeader(table.Row{"Result", "Eventbus"})
+				t.AppendRow(table.Row{"Create Success", eventbus})
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, AlignHeader: text.AlignCenter},
+				})
+				t.SetOutputMirror(os.Stdout)
+				t.Render()
+			}
 		},
 	}
 	cmd.Flags().StringVar(&eventbus, "name", "", "eventbus name to deleting")
@@ -77,7 +89,7 @@ func deleteEventbusCommand() *cobra.Command {
 		Short: "delete a eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
 			if eventbus == "" {
-				cmdFailedf("the --name flag MUST> be set")
+				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
 			ctx := context.Background()
 			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
@@ -88,9 +100,22 @@ func deleteEventbusCommand() *cobra.Command {
 			cli := ctrlpb.NewEventBusControllerClient(grpcConn)
 			_, err := cli.DeleteEventBus(ctx, &metapb.EventBus{Name: args[0]})
 			if err != nil {
-				cmdFailedf("delete eventbus failed: %s", err)
+				cmdFailedf(cmd, "delete eventbus failed: %s", err)
 			}
-			color.Green("delete eventbus: %s success\n", args[0])
+			if isOutputFormatJSON(cmd) {
+				data, _ := json.Marshal(map[string]interface{}{"Result": "Delete Success", "Eventbus": eventbus})
+				color.Green(string(data))
+			} else {
+				t := table.NewWriter()
+				t.AppendHeader(table.Row{"Result", "Eventbus"})
+				t.AppendRow(table.Row{"Delete Success", eventbus})
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, AlignHeader: text.AlignCenter},
+				})
+				t.SetOutputMirror(os.Stdout)
+				t.Render()
+			}
 		},
 	}
 	cmd.Flags().StringVar(&eventbus, "name", "", "eventbus name to deleting")
@@ -103,7 +128,7 @@ func getEventbusInfoCommand() *cobra.Command {
 		Short: "get the eventbus info",
 		Run: func(cmd *cobra.Command, args []string) {
 			if eventbus == "" && (len(args) == 0 || args[0] == "") {
-				cmdFailedf("the eventbus must be set")
+				cmdFailedf(cmd, "the eventbus must be set")
 			}
 			var buses []string
 			if len(args) > 0 && args[0] != "" {
@@ -123,7 +148,7 @@ func getEventbusInfoCommand() *cobra.Command {
 			for idx := range buses {
 				res, err := cli.GetEventBus(ctx, &metapb.EventBus{Name: buses[idx]})
 				if err != nil {
-					cmdFailedf("get eventbus failed: %s", err)
+					cmdFailedf(cmd, "get eventbus failed: %s", err)
 				}
 
 				busMetas = append(busMetas, res)
@@ -136,7 +161,7 @@ func getEventbusInfoCommand() *cobra.Command {
 							EventLogId: logs[idx].EventLogId,
 						})
 						if err != nil {
-							cmdFailedf("get segments failed: %s", err)
+							cmdFailedf(cmd, "get segments failed: %s", err)
 						}
 						segs[logs[idx].EventLogId] = segRes.Segments
 					}
@@ -144,7 +169,9 @@ func getEventbusInfoCommand() *cobra.Command {
 			}
 
 			t := table.NewWriter()
-
+			if isOutputFormatJSON(cmd) {
+				color.Yellow("WARN: this command doesn't support --output-format\n")
+			}
 			if !showSegment && !showBlock {
 				t.AppendHeader(table.Row{"Eventbus", "Eventlog", "Segment Number"})
 				for _, res := range busMetas {
@@ -287,12 +314,36 @@ func listEventbusInfoCommand() *cobra.Command {
 			cli := ctrlpb.NewEventBusControllerClient(grpcConn)
 			res, err := cli.ListEventBus(ctx, &empty.Empty{})
 			if err != nil {
-				cmdFailedf("list eventbus failed: %s", err)
+				cmdFailedf(cmd, "list eventbus failed: %s", err)
 			}
-			data, _ := json.Marshal(res)
-			var out bytes.Buffer
-			_ = json.Indent(&out, data, "", "\t")
-			color.Green("%s", out.String())
+			if isOutputFormatJSON(cmd) {
+				data, _ := json.Marshal(res)
+				color.Green(string(data))
+			} else {
+				t := table.NewWriter()
+				t.AppendHeader(table.Row{"Name", "ID", "Eventlog", "Segments"})
+				for idx := range res.Eventbus {
+					eb := res.Eventbus[idx]
+					if len(eb.Logs) == 0 {
+						t.AppendRow(table.Row{eb.Name, eb.Id})
+					} else {
+						t.AppendRow(table.Row{eb.Name, eb.Id, eb.Logs[0].EventLogId, eb.Logs[0].CurrentSegmentNumbers})
+						for sIdx := 1; sIdx < len(eb.Logs); sIdx++ {
+							t.AppendSeparator()
+							t.AppendRow(table.Row{eb.Name, eb.Id, eb.Logs[idx].EventLogId, eb.Logs[idx].CurrentSegmentNumbers})
+						}
+					}
+					t.AppendSeparator()
+				}
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 4, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+				})
+				t.SetOutputMirror(os.Stdout)
+				t.Render()
+			}
 		},
 	}
 	return cmd

@@ -15,20 +15,41 @@
 package command
 
 import (
-	"os"
-
-	"github.com/spf13/cobra"
-
+	"encoding/json"
+	"fmt"
 	"github.com/fatih/color"
 	"github.com/go-resty/resty/v2"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
+	"github.com/spf13/cobra"
+	"os"
 )
 
 var (
 	httpClient = resty.New()
 )
 
-func cmdFailedf(format string, a ...interface{}) {
-	color.Red(format, a)
+func cmdFailedf(cmd *cobra.Command, format string, a ...interface{}) {
+	errStr := format
+	if a != nil {
+		errStr = fmt.Sprintf(format, a)
+	}
+	if isOutputFormatJSON(cmd) {
+		m := map[string]string{"ERROR": errStr}
+		data, _ := json.Marshal(m)
+		color.Red(string(data))
+	} else {
+		t := table.NewWriter()
+		t.AppendHeader(table.Row{"ERROR"})
+		t.AppendRow(table.Row{errStr})
+		t.SetColumnConfigs([]table.ColumnConfig{
+			{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+			{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+		})
+		t.SetOutputMirror(os.Stdout)
+		t.Render()
+	}
+
 	os.Exit(-1)
 }
 

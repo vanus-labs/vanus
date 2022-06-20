@@ -15,12 +15,14 @@
 package command
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"os"
 
 	"github.com/fatih/color"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/linkall-labs/vanus/proto/pkg/meta"
 	"github.com/spf13/cobra"
@@ -58,7 +60,7 @@ func createSubscriptionCommand() *cobra.Command {
 			if filters != "" {
 				err := json.Unmarshal([]byte(filters), &filter)
 				if err != nil {
-					cmdFailedf("the filter invalid: %s", err)
+					cmdFailedf(cmd, "the filter invalid: %s", err)
 				}
 			}
 
@@ -66,7 +68,7 @@ func createSubscriptionCommand() *cobra.Command {
 			if inputTransformer != "" {
 				err := json.Unmarshal([]byte(inputTransformer), &inputTrans)
 				if err != nil {
-					cmdFailedf("the inputTransformer invalid: %s", err)
+					cmdFailedf(cmd, "the inputTransformer invalid: %s", err)
 				}
 			}
 
@@ -79,14 +81,36 @@ func createSubscriptionCommand() *cobra.Command {
 				InputTransformer: inputTrans,
 			})
 			if err != nil {
-				cmdFailedf("create subscription failed: %s", err)
+				cmdFailedf(cmd, "create subscription failed: %s", err)
 			}
-
-			color.Green("create subscription: %d success\n", res.Id)
+			if isOutputFormatJSON(cmd) {
+				data, _ := json.Marshal(map[string]interface{}{
+					"id":          res.Id,
+					"eventbus":    eventbus,
+					"filter":      filter,
+					"sink":        sink,
+					"transformer": inputTransformer,
+				})
+				color.Green(string(data))
+			} else {
+				t := table.NewWriter()
+				t.AppendHeader(table.Row{"id", "eventbus", "sink", "filter", "transformer"})
+				data1, _ := json.MarshalIndent(filter, "", "  ")
+				data2, _ := json.MarshalIndent(inputTransformer, "", "  ")
+				t.AppendRow(table.Row{res.Id, eventbus, sink, string(data1), string(data2)})
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 4, AlignHeader: text.AlignCenter},
+					{Number: 5, AlignHeader: text.AlignCenter},
+				})
+				t.SetOutputMirror(os.Stdout)
+				t.Render()
+			}
 		},
 	}
 	cmd.Flags().StringVar(&eventbus, "eventbus", "", "eventbus name to consuming")
-	cmd.Flags().StringVar(&source, "source", "", "the event from which source")
 	cmd.Flags().StringVar(&sink, "sink", "", "the event you want to send to")
 	cmd.Flags().StringVar(&filters, "filters", "", "filter event you interested, JSON format required")
 	cmd.Flags().StringVar(&inputTransformer, "input-transformer", "", "input transformer, JSON format required")
@@ -112,7 +136,21 @@ func deleteSubscriptionCommand() *cobra.Command {
 				Id: subscriptionID,
 			})
 			if err != nil {
-				cmdFailedf("delete subscription failed: %s", err)
+				cmdFailedf(cmd, "delete subscription failed: %s", err)
+			}
+
+			if isOutputFormatJSON(cmd) {
+				data, _ := json.Marshal(map[string]interface{}{"subscription_id": subscriptionID})
+				color.Green(string(data))
+			} else {
+				t := table.NewWriter()
+				t.AppendHeader(table.Row{"subscriptionID"})
+				t.AppendRow(table.Row{subscriptionID})
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+				})
+				t.SetOutputMirror(os.Stdout)
+				t.Render()
 			}
 			color.Green("delete subscription: %d success\n", subscriptionID)
 		},
@@ -140,12 +178,28 @@ func getSubscriptionCommand() *cobra.Command {
 				Id: subscriptionID,
 			})
 			if err != nil {
-				cmdFailedf("get subscription info failed: %s", err)
+				cmdFailedf(cmd, "get subscription info failed: %s", err)
 			}
-			data, _ := json.Marshal(res)
-			var out bytes.Buffer
-			_ = json.Indent(&out, data, "", "\t")
-			color.Green("%s", out.String())
+			if isOutputFormatJSON(cmd) {
+				data, _ := json.Marshal(res)
+				color.Green(string(data))
+			} else {
+				t := table.NewWriter()
+				t.AppendHeader(table.Row{"id", "eventbus", "sink", "filter", "transformer"})
+				data1, _ := json.MarshalIndent(res.Filters, "", "  ")
+				data2, _ := json.MarshalIndent(res.InputTransformer, "", "  ")
+
+				t.AppendRow(table.Row{res.Id, res.EventBus, res.Sink, string(data1), string(data2)})
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 4, AlignHeader: text.AlignCenter},
+					{Number: 5, AlignHeader: text.AlignCenter},
+				})
+				t.SetOutputMirror(os.Stdout)
+				t.Render()
+			}
 		},
 	}
 	cmd.Flags().Uint64Var(&subscriptionID, "id", 0, "subscription id to deleting")
@@ -166,12 +220,33 @@ func listSubscriptionCommand() *cobra.Command {
 			cli := ctrlpb.NewTriggerControllerClient(grpcConn)
 			res, err := cli.ListSubscription(ctx, &empty.Empty{})
 			if err != nil {
-				cmdFailedf("list subscription failed: %s", err)
+				cmdFailedf(cmd, "list subscription failed: %s", err)
 			}
-			data, _ := json.Marshal(res)
-			var out bytes.Buffer
-			_ = json.Indent(&out, data, "", "\t")
-			color.Green("%s", out.String())
+			if isOutputFormatJSON(cmd) {
+				data, _ := json.Marshal(res)
+				color.Green(string(data))
+			} else {
+				t := table.NewWriter()
+				t.AppendHeader(table.Row{"no.", "id", "eventbus", "sink", "filter", "transformer"})
+				for idx := range res.Subscription {
+					sub := res.Subscription[idx]
+					data1, _ := json.MarshalIndent(sub.Filters, "", "  ")
+					data2, _ := json.MarshalIndent(sub.InputTransformer, "", "  ")
+					t.AppendRow(table.Row{idx + 1, sub.Id, sub.EventBus, sub.Sink, string(data1),
+						string(data2)})
+					t.AppendSeparator()
+				}
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 3, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 4, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 5, AlignHeader: text.AlignCenter},
+					{Number: 6, AlignHeader: text.AlignCenter},
+				})
+				t.SetOutputMirror(os.Stdout)
+				t.Render()
+			}
 		},
 	}
 	return cmd
