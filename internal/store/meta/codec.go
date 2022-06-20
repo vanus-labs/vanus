@@ -34,7 +34,7 @@ type Marshaler interface {
 }
 
 type Unmarshaler interface {
-	Unmarshl(data []byte, cb RangeCallback) error
+	Unmarshal(data []byte, cb RangeCallback) error
 }
 
 type deletedMarkType struct{}
@@ -176,7 +176,7 @@ func toKind(k reflect.Kind) Kind {
 	return Invalid
 }
 
-func (codec) Unmarshl(data []byte, cb RangeCallback) error {
+func (codec) Unmarshal(data []byte, cb RangeCallback) error {
 	var last []byte
 	for so := 0; so < len(data); {
 		// Decode key.

@@ -143,7 +143,7 @@ func RecoverSyncStore(walDir string) (*SyncStore, error) {
 
 	version := snapshot
 	wal, err := walog.RecoverWithVisitor(walDir, snapshot, func(data []byte, offset int64) error {
-		err2 := defaultCodec.Unmarshl(data, func(key []byte, value interface{}) error {
+		err2 := defaultCodec.Unmarshal(data, func(key []byte, value interface{}) error {
 			set(committed, key, value)
 			return nil
 		})

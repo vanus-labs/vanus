@@ -97,7 +97,7 @@ func recoverLatestSnopshot(dir string, unmarshaler Unmarshaler) (*skiplist.SkipL
 	}
 
 	m := skiplist.New(skiplist.Bytes)
-	err = unmarshaler.Unmarshl(data, func(key []byte, value interface{}) error {
+	err = unmarshaler.Unmarshal(data, func(key []byte, value interface{}) error {
 		m.Set(key, value)
 		return nil
 	})
