@@ -19,8 +19,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/jedib0t/go-pretty/v6/text"
 	"io"
 	"net/http"
 	"os"
@@ -32,6 +30,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/spf13/cobra"
 )

@@ -17,12 +17,12 @@ package command
 import (
 	"context"
 	"encoding/json"
-	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/jedib0t/go-pretty/v6/text"
 	"os"
 
 	"github.com/fatih/color"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/linkall-labs/vanus/proto/pkg/meta"
 	"github.com/spf13/cobra"
