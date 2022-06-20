@@ -83,7 +83,7 @@ type WAL struct {
 	appendc   chan appendTask
 	callbackc chan callbackTask
 	flushc    chan flushTask
-	weakupc   chan int64
+	wakeupc   chan int64
 
 	closemu sync.RWMutex
 	flushw  sync.WaitGroup
@@ -110,7 +110,7 @@ func newWAL(cfg config) (*WAL, error) {
 		appendc:   make(chan appendTask, cfg.appendBufferSize),
 		callbackc: make(chan callbackTask, cfg.callbackBufferSize),
 		flushc:    make(chan flushTask, cfg.flushBufferSize),
-		weakupc:   make(chan int64, cfg.weakupBufferSize),
+		wakeupc:   make(chan int64, cfg.wakeupBufferSize),
 		closec:    make(chan struct{}),
 		donec:     make(chan struct{}),
 	}
@@ -339,8 +339,8 @@ func (w *WAL) runFlush() {
 				panic(err)
 			}
 
-			// Weakup callbacks.
-			w.weakupc <- fb.SO + off
+			// Wakeup callbacks.
+			w.wakeupc <- fb.SO + off
 
 			w.flushw.Done()
 
@@ -353,7 +353,7 @@ func (w *WAL) runFlush() {
 	// Wait in-flight flush tasks.
 	w.flushw.Wait()
 
-	close(w.weakupc)
+	close(w.wakeupc)
 }
 
 func (w *WAL) logWriter(offset int64) io.WriterAt {
@@ -365,8 +365,8 @@ func (w *WAL) logWriter(offset int64) io.WriterAt {
 
 func (w *WAL) runCallback() {
 	var task *callbackTask
-	for offset := range w.weakupc {
-		// NOTE: write cb to callbackc before writing offset to weakupc.
+	for offset := range w.wakeupc {
+		// NOTE: write cb to callbackc before writing offset to wakeupc.
 		if task == nil {
 			task = w.nextCallbackTask()
 		}
@@ -381,13 +381,13 @@ func (w *WAL) runCallback() {
 		}
 	}
 
-	// Weakup in-flight append tasks.
-	w.weakupPendingTasks(task)
+	// Wakeup in-flight append tasks.
+	w.wakeupPendingTasks(task)
 
 	w.doClose()
 }
 
-func (w *WAL) weakupPendingTasks(task *callbackTask) {
+func (w *WAL) wakeupPendingTasks(task *callbackTask) {
 	if task != nil {
 		task.callback(Result{
 			Err: ErrClosed,

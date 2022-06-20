@@ -29,7 +29,7 @@ const (
 	defaultFlushTimeoutUs   = 200
 	defaultAppendBufferSize = 64
 	defaultFlushBufferSize  = 64
-	defaultWeakupBufferSize = defaultFlushBufferSize * 2
+	defaultWakeupBufferSize = defaultFlushBufferSize * 2
 )
 
 type config struct {
@@ -39,7 +39,7 @@ type config struct {
 	appendBufferSize   int
 	callbackBufferSize int
 	flushBufferSize    int
-	weakupBufferSize   int
+	wakeupBufferSize   int
 	engine             io.Engine
 }
 
@@ -57,7 +57,7 @@ func defaultWALConfig() config {
 		appendBufferSize:   defaultAppendBufferSize,
 		callbackBufferSize: (defaultBlockSize + record.HeaderSize - 1) / record.HeaderSize,
 		flushBufferSize:    defaultFlushBufferSize,
-		weakupBufferSize:   defaultWeakupBufferSize,
+		wakeupBufferSize:   defaultWakeupBufferSize,
 		engine:             defaultIOEngine(),
 	}
 	return cfg
@@ -117,9 +117,9 @@ func WithFlushBufferSize(size int) Option {
 	}
 }
 
-func WithWeakupBufferSize(size int) Option {
+func WithWakeupBufferSize(size int) Option {
 	return func(cfg *config) {
-		cfg.weakupBufferSize = size
+		cfg.wakeupBufferSize = size
 	}
 }
 
