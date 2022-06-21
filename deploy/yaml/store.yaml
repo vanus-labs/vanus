@@ -63,7 +63,7 @@ spec:
         - name: store
           image: public.ecr.aws/vanus/store:v0.0.5
           imagePullPolicy: IfNotPresent
-          command: ["/bin/sh", "-c", "export VOLUME_ID=${HOSTNAME##*-}; /vanus/bin/store"]
+          command: ["/bin/sh", "-c", "VOLUME_ID=${HOSTNAME##*-} /vanus/bin/store"]
           livenessProbe:
             grpc:
               port: 11811

@@ -1,4 +1,4 @@
-# Vanus Deploy
+# Deploy Vanus
 
 Vanus is runtime in Kubernetes cluster
 
@@ -18,17 +18,17 @@ File structure:
 > 
 > ```
 
-* yaml folder is yaml file of vanus core components
+- yaml folder is yaml file of vanus core components
 
-  * controller.yaml is yaml file of vanus controller which is responsible for service discovery, metadata management, and resource scheduling
+  - controller.yaml is yaml file of vanus controller which is responsible for service discovery, metadata management, and resource scheduling
   
-  * gateway.yaml is yaml file of vanus gateway which receive CloudEvent and write them to SegmentServer
+  - gateway.yaml is yaml file of vanus gateway which receive CloudEvent and write them to SegmentServer
   
-  * store.yaml is yaml file of vanus segmentServer which store CloudEvent data
+  - store.yaml is yaml file of vanus segmentServer which store CloudEvent data
   
-  * trigger.yaml is yaml file of vanus triggerWorker which process events and route them to user workload or Sink Connector
+  - trigger.yaml is yaml file of vanus triggerWorker which process events and route them to user workload or Sink Connector
 
-* all-in-one.yaml is yaml file auto generate by [kustomize]  use below command
+- all-in-one.yaml is yaml file auto generate by [kustomize]  use below command
 
 ```shell
 kubectl kustomize deploy > deploy/all-in-one.yaml
@@ -38,7 +38,7 @@ kubectl kustomize deploy > deploy/all-in-one.yaml
 
 ### Pre-requisites
 
-* [Kubernetes cluster]( https://kubernetes.io/docs/setup/)
+- [Kubernetes cluster](https://kubernetes.io/docs/setup/)
 
 ### Install
 
@@ -48,13 +48,13 @@ kubectl apply -f all-in-one.yml
 
 ### Verifying the installation
 
-when all resources creating done, the result will be liking below:
+When all resources creating done, the result will be liking below:
 
 ```shell
 kubectl get po -n vanus
 ```
 
-output format:
+Output format:
 
 > ```text
 > vanus-controller-0                  1/1     Running   0             30s
@@ -75,7 +75,13 @@ kubectl delete -f all-in-one.yml
 
 ## Install step by step
 
-install vanus use step by step,first need create namespace: vanus
+Install vanus use step by step
+
+### Create namespace vanus
+
+```shell
+kubectl create namespace vanus
+```
 
 ### Install Controller
 
