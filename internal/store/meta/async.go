@@ -35,6 +35,7 @@ type AsyncStore struct {
 	pending *skiplist.SkipList
 
 	commitc chan struct{}
+	closec  chan struct{}
 	donec   chan struct{}
 }
 
@@ -49,6 +50,7 @@ func newAsyncStore(wal *walog.WAL, committed *skiplist.SkipList, version, snapsh
 		},
 		pending: skiplist.New(skiplist.Bytes),
 		commitc: make(chan struct{}, 1),
+		closec:  make(chan struct{}),
 		donec:   make(chan struct{}),
 	}
 
@@ -57,10 +59,16 @@ func newAsyncStore(wal *walog.WAL, committed *skiplist.SkipList, version, snapsh
 	return s
 }
 
-func (s *AsyncStore) Stop() {
-	// TODO(james.yin): stop WAL
-	close(s.commitc)
+func (s *AsyncStore) Close() {
+	s.mu.Lock()
+	close(s.closec)
+	s.mu.Unlock()
+
 	<-s.donec
+
+	// Close WAL.
+	s.wal.Close()
+	s.wal.Wait()
 }
 
 func (s *AsyncStore) Load(key []byte) (interface{}, bool) {
@@ -76,17 +84,38 @@ func (s *AsyncStore) Load(key []byte) (interface{}, bool) {
 }
 
 func (s *AsyncStore) Store(key []byte, value interface{}) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.pending.Set(key, value)
-	s.tryCommit()
+	_ = s.set(KVRange(key, value))
+}
+
+func (s *AsyncStore) BatchStore(kvs Ranger) {
+	_ = s.set(kvs)
 }
 
 func (s *AsyncStore) Delete(key []byte) {
+	_ = s.set(KVRange(key, deletedMark))
+}
+
+func (s *AsyncStore) set(kvs Ranger) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.pending.Set(key, deletedMark)
+
+	select {
+	case <-s.closec:
+		return ErrClosed
+	default:
+	}
+
+	err := kvs.Range(func(key []byte, value interface{}) error {
+		s.pending.Set(key, value)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	s.tryCommit()
+
+	return nil
 }
 
 func (s *AsyncStore) tryCommit() {
@@ -113,10 +142,9 @@ func (s *AsyncStore) runCommit() {
 
 	for {
 		select {
-		case _, ok := <-s.commitc:
-			if !ok {
-				return
-			}
+		case <-s.closec:
+			return
+		case <-s.commitc:
 		case <-ticker.C:
 		}
 		s.commit()
@@ -163,7 +191,7 @@ func RecoverAsyncStore(walDir string) (*AsyncStore, error) {
 	version := snapshot
 	wal, err := walog.RecoverWithVisitor(walDir, snapshot, func(data []byte, offset int64) error {
 		m := skiplist.New(skiplist.Bytes)
-		err2 := defaultCodec.Unmarshl(data, func(key []byte, value interface{}) error {
+		err2 := defaultCodec.Unmarshal(data, func(key []byte, value interface{}) error {
 			m.Set(key, value)
 			return nil
 		})
