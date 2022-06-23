@@ -29,11 +29,7 @@ var _ block.Reader = (*Block)(nil)
 // Read date from file.
 func (b *Block) Read(ctx context.Context, start, number int) ([]block.Entry, error) {
 	observability.EntryMark(ctx)
-	b.uncompletedReadRequestCount.Add(1)
-	defer func() {
-		observability.LeaveMark(ctx)
-		b.uncompletedReadRequestCount.Sub(1)
-	}()
+	defer observability.LeaveMark(ctx)
 
 	from, to, num, err := b.entryRange(start, number)
 	if err != nil {

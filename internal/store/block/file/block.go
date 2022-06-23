@@ -21,7 +21,6 @@ import (
 	"os"
 	"sync"
 	stdatomic "sync/atomic"
-	"time"
 
 	// third-party libraries.
 	"go.uber.org/atomic"
@@ -57,6 +56,7 @@ type Block struct {
 
 	actx appendContext
 	fo   atomic.Int64
+	so   int64 // sync offset
 
 	mu sync.RWMutex
 
@@ -64,9 +64,6 @@ type Block struct {
 
 	cis     block.ClusterInfoSource
 	indexes []index
-
-	uncompletedReadRequestCount   atomic.Int32
-	uncompletedAppendRequestCount atomic.Int32
 }
 
 // Make sure block implements block.Block.
@@ -88,43 +85,12 @@ func (b *Block) Appendable() bool {
 	return !b.full()
 }
 
-func (b *Block) CloseWrite(ctx context.Context) error {
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
-
-	// b.appendable.Store(false)
-	for b.uncompletedAppendRequestCount.Load() != 0 {
-		time.Sleep(time.Millisecond)
-	}
-
-	if err := b.persistHeader(ctx); err != nil {
-		return err
-	}
-	if b.full() {
-		if err := b.persistIndex(ctx); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (b *Block) CloseRead(ctx context.Context) error {
-	if err := b.f.Close(); err != nil {
-		return err
-	}
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
-
-	// b.readable.Store(false)
-	for b.uncompletedReadRequestCount.Load() != 0 {
-		time.Sleep(time.Millisecond)
-	}
-	return nil
-}
-
 func (b *Block) Close(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
+	if err := b.sync(ctx); err != nil {
+		return err
+	}
 	return b.f.Close()
 }
 
@@ -186,9 +152,10 @@ func (b *Block) loadHeader(ctx context.Context) error {
 	b.cap = int64(binary.BigEndian.Uint64(buf[4:12]))
 	size := int64(binary.BigEndian.Uint64(buf[12:20]))
 	b.actx.offset = uint32(size + headerSize)
-	b.fo.Store(int64(b.actx.offset))
 	b.actx.num = binary.BigEndian.Uint32(buf[20:24])
 	b.actx.full = uint32(buf[24])
+	b.fo.Store(int64(b.actx.offset))
+	b.so = int64(b.actx.offset)
 
 	return nil
 }
@@ -277,6 +244,22 @@ func (b *Block) rebuildIndex() error {
 	b.fo.Store(int64(b.actx.offset))
 	b.actx.num = num
 
+	return nil
+}
+
+func (b *Block) sync(ctx context.Context) error {
+	// TODO(james.yin): lock
+	if fo := b.fo.Load(); b.so < fo {
+		if err := b.persistHeader(ctx); err != nil {
+			return err
+		}
+		if b.full() {
+			if err := b.persistIndex(ctx); err != nil {
+				return err
+			}
+		}
+		b.so = fo
+	}
 	return nil
 }
 
