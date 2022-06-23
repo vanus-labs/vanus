@@ -78,7 +78,9 @@ func (b *Block) NewAppendContext(last *block.Entry) block.AppendContext {
 	return &actx
 }
 
-func (b *Block) PrepareAppend(ctx context.Context, appendCtx block.AppendContext, entries ...block.Entry) error {
+func (b *Block) PrepareAppend(
+	ctx context.Context, appendCtx block.AppendContext, entries ...block.Entry,
+) ([]block.Entry, error) {
 	actx, _ := appendCtx.(*appendContext)
 
 	var size uint32
@@ -90,13 +92,13 @@ func (b *Block) PrepareAppend(ctx context.Context, appendCtx block.AppendContext
 	}
 
 	if !b.hasEnoughSpace(actx, size, uint32(len(entries))) {
-		return block.ErrNotEnoughSpace
+		return nil, block.ErrNotEnoughSpace
 	}
 
 	actx.offset += size
 	actx.num += uint32(len(entries))
 
-	return nil
+	return entries, nil
 }
 
 func (b *Block) hasEnoughSpace(actx *appendContext, length, num uint32) bool {

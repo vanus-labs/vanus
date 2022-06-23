@@ -47,7 +47,7 @@ type AppendContext interface {
 
 type TwoPCAppender interface {
 	NewAppendContext(last *Entry) AppendContext
-	PrepareAppend(ctx context.Context, appendCtx AppendContext, entries ...Entry) error
+	PrepareAppend(ctx context.Context, appendCtx AppendContext, entries ...Entry) ([]Entry, error)
 	CommitAppend(ctx context.Context, entries ...Entry) error
 	MarkFull(ctx context.Context) error
 }

@@ -396,7 +396,8 @@ func (r *Replica) append(ctx context.Context, entries []block.Entry) (uint32, er
 		return 0, block.ErrFull
 	}
 
-	if err := r.appender.PrepareAppend(ctx, r.actx, entries...); err != nil {
+	entries, err := r.appender.PrepareAppend(ctx, r.actx, entries...)
+	if err != nil {
 		// Full
 		if stderr.Is(err, block.ErrNotEnoughSpace) {
 			entry := r.actx.FullEntry()
