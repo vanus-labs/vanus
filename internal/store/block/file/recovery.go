@@ -22,13 +22,14 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/observability/log"
 )
 
 const (
 	defaultDirPerm = 0o755
 )
 
-func Recover(blockDir string) (map[vanus.ID]string, error) {
+func Recover(blockDir string) (map[vanus.ID]*Block, error) {
 	// Make sure the block directory exists.
 	if err := os.MkdirAll(blockDir, defaultDirPerm); err != nil {
 		return nil, err
@@ -40,17 +41,30 @@ func Recover(blockDir string) (map[vanus.ID]string, error) {
 	}
 	files = filterRegularBlock(files)
 
-	blocks := make(map[vanus.ID]string, len(files))
+	blocks := make(map[vanus.ID]*Block, len(files))
 	for _, file := range files {
 		filename := file.Name()
 		blockID, err2 := vanus.NewIDFromString(filename[:len(filename)-len(blockExt)])
 		if err2 != nil {
-			return nil, err2
+			err = err2
 		}
 
 		path := filepath.Join(blockDir, filename)
-		blocks[blockID] = path
+		block, err2 := Open(context.Background(), path)
+		if err2 != nil {
+			err = err2
+			break
+		}
+		blocks[blockID] = block
 	}
+
+	if err != nil {
+		for _, block := range blocks {
+			_ = block.Close(context.Background())
+		}
+		return nil, err
+	}
+
 	return blocks, nil
 }
 
@@ -74,7 +88,7 @@ func filterRegularBlock(entries []os.DirEntry) []os.DirEntry {
 	return entries
 }
 
-func (b *Block) Recover(ctx context.Context) error {
+func (b *Block) recover(ctx context.Context) error {
 	if err := b.loadHeader(ctx); err != nil {
 		return err
 	}
@@ -83,9 +97,17 @@ func (b *Block) Recover(ctx context.Context) error {
 		return err
 	}
 
+	if err := b.correctMeta(); err != nil {
+		return err
+	}
+
 	if err := b.validate(ctx); err != nil {
 		return err
 	}
+
+	log.Debug(ctx, "The block was loaded.", map[string]interface{}{
+		"block_id": b.id,
+	})
 
 	return nil
 }

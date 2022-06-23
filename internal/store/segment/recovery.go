@@ -61,19 +61,7 @@ func (s *server) recoverBlocks(ctx context.Context, raftLogs map[vanus.ID]*raftl
 	}
 
 	// TODO: optimize this, because the implementation assumes under storage is linux file system
-	for blockID, path := range blocks {
-		b, err2 := file.Open(ctx, path)
-		if err2 != nil {
-			return err2
-		}
-
-		log.Info(ctx, "The block was loaded.", map[string]interface{}{
-			"block_id": blockID,
-		})
-		if err2 = b.Recover(ctx); err2 != nil {
-			return err2
-		}
-
+	for blockID, b := range blocks {
 		s.blocks.Store(blockID, b)
 
 		// recover replica

@@ -47,7 +47,7 @@ func (c *appendContext) Full() bool {
 }
 
 func (c *appendContext) MarkFull() {
-	atomic.StoreUint32(&c.full, 1)
+	c.full = 1
 }
 
 func (c *appendContext) FullEntry() block.Entry {
@@ -156,15 +156,11 @@ func (b *Block) CommitAppend(ctx context.Context, entries ...block.Entry) error 
 		return err
 	}
 
-	func() {
-		b.mu.Lock()
-		defer b.mu.Unlock()
-		b.indexes = append(b.indexes, indexes...)
-	}()
-
+	b.mu.Lock()
+	b.indexes = append(b.indexes, indexes...)
 	b.actx.num += uint32(len(entries))
 	b.actx.offset += uint32(n)
-	b.fo.Store(int64(b.actx.offset))
+	b.mu.Unlock()
 
 	// if err = b.physicalFile.Sync(); err != nil {
 	// 	return err
@@ -174,7 +170,7 @@ func (b *Block) CommitAppend(ctx context.Context, entries ...block.Entry) error 
 }
 
 func (b *Block) trimEntries(ctx context.Context, entries []block.Entry) ([]block.Entry, error) {
-	num := atomic.LoadUint32(&b.actx.num)
+	num := b.actx.num
 	for i := 0; i < len(entries); i++ {
 		switch entry := &entries[i]; {
 		case entry.Index < num:
@@ -237,13 +233,17 @@ func (b *Block) checkEntries(ctx context.Context, entries []block.Entry) error {
 }
 
 func (b *Block) MarkFull(ctx context.Context) error {
-	b.actx.MarkFull()
+	b.mu.Lock()
+	atomic.StoreUint32(&b.actx.full, 1)
+	b.mu.Unlock()
 
+	// TODO(james.yin): flush header and index
 	if err := b.persistHeader(ctx); err != nil {
 		return err
 	}
 
 	go func() {
+		// FIXME(james.yin): wait complete when close.
 		_ = b.persistIndex(ctx)
 	}()
 

@@ -23,6 +23,7 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	errutil "github.com/linkall-labs/vanus/internal/util/errors"
 	"github.com/linkall-labs/vanus/observability"
 )
 
@@ -58,7 +59,6 @@ func Create(ctx context.Context, blockDir string, id vanus.ID, capacity int64) (
 	}
 	b.f = f
 
-	b.fo.Store(int64(b.actx.offset))
 	if err = b.persistHeader(ctx); err != nil {
 		return nil, err
 	}
@@ -87,6 +87,15 @@ func Open(ctx context.Context, path string) (*Block, error) {
 		return nil, err
 	}
 	b.f = f
+
+	// Recover block state.
+	if err := b.recover(ctx); err != nil {
+		b.f = nil
+		if err2 := f.Close(); err2 != nil {
+			return nil, errutil.Chain(err, err2)
+		}
+		return nil, err
+	}
 
 	return b, nil
 }

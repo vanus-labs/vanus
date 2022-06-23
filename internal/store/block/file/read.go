@@ -57,12 +57,11 @@ func (b *Block) Read(ctx context.Context, start, number int) ([]block.Entry, err
 }
 
 func (b *Block) entryRange(start, num int) (int64, int64, int, error) {
-	indexes := func() []index {
-		b.mu.RLock()
-		defer b.mu.RUnlock()
-		return b.indexes
-	}()
-	sz := len(indexes)
+	// TODO(james.yin): optimize lock.
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
+	sz := len(b.indexes)
 
 	if start >= sz {
 		if start == sz && !b.full() {
@@ -75,5 +74,6 @@ func (b *Block) entryRange(start, num int) (int64, int64, int, error) {
 	if end >= sz {
 		end = sz - 1
 	}
-	return indexes[start].StartOffset(), indexes[end].EndOffset(), end - start + 1, nil
+
+	return b.indexes[start].StartOffset(), b.indexes[end].EndOffset(), end - start + 1, nil
 }

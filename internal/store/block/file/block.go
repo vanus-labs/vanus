@@ -20,10 +20,7 @@ import (
 	"encoding/binary"
 	"os"
 	"sync"
-	stdatomic "sync/atomic"
-
-	// third-party libraries.
-	"go.uber.org/atomic"
+	"sync/atomic"
 
 	// first-party libraries.
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
@@ -36,17 +33,40 @@ import (
 
 const (
 	headerBlockSize = 4 * 1024
-	// version + capacity + size + number + full.
-	headerSize = 4 + 8 + 8 + 4 + 1
+	// version + padding(4) + capacity + size + entryNum + indexNum + full.
+	headerSize   = 4 + 4 + 8 + 8 + 4 + 4 + 1
+	boundMinSize = indexSize
 )
+
+// blockMeta is mutable metadata of Block.
+type blockMeta struct {
+	// entrySize is the size of persisted entries.
+	entrySize uint64
+	// entryNum is the number of persisted entries.
+	entryNum uint32
+	// indexNum is the number of persisted indexes.
+	indexNum uint32
+	// full is the flag indicating Block is full.
+	full bool
+}
+
+func (m *blockMeta) toAppendContext() appendContext {
+	ctx := appendContext{
+		offset: uint32(m.entrySize + headerBlockSize),
+		num:    m.entryNum,
+	}
+	if m.full {
+		ctx.full = 1
+	}
+	return ctx
+}
 
 // Block
 //
 // The layout of Block is:
-//   ┌────────────────┬─────────────────────┬───────────────┐
-//   │  Header Block  │  Data Blocks ...    │  Index Block  │
-//   └────────────────┴─────────────────────┴───────────────┘
-// An index Block contains one entry per data Block.
+//   ┌────────────────┬───────────────┬─────────┬─────----──────┐
+//   │  Header Block  │  Entries ...  │  Bound  │  ... Indexes  │
+//   └────────────────┴───────────────┴─────────┴────────----───┘
 type Block struct {
 	id   vanus.ID
 	path string
@@ -54,16 +74,15 @@ type Block struct {
 	version int32
 	cap     int64
 
-	actx appendContext
-	fo   atomic.Int64
-	so   int64 // sync offset
-
-	mu sync.RWMutex
+	fm      blockMeta // flushed meta
+	actx    appendContext
+	fi      uint32 // flushed index count
+	indexes []index
+	mu      sync.RWMutex
 
 	f *os.File
 
-	cis     block.ClusterInfoSource
-	indexes []index
+	cis block.ClusterInfoSource
 }
 
 // Make sure block implements block.Block.
@@ -78,7 +97,7 @@ func (b *Block) Path() string {
 }
 
 func (b *Block) full() bool {
-	return stdatomic.LoadUint32(&b.actx.full) != 0
+	return atomic.LoadUint32(&b.actx.full) != 0
 }
 
 func (b *Block) Appendable() bool {
@@ -88,54 +107,95 @@ func (b *Block) Appendable() bool {
 func (b *Block) Close(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
-	if err := b.sync(ctx); err != nil {
+
+	// Flush metadata.
+	if err := b.metasync(ctx); err != nil {
 		return err
 	}
+
 	return b.f.Close()
 }
 
 func (b *Block) HealthInfo() *metapb.SegmentHealthInfo {
+	// Copy append context.
+	b.mu.RLock()
+	actx := b.actx
+	b.mu.RUnlock()
+
 	info := &metapb.SegmentHealthInfo{
 		Id:                   b.id.Uint64(),
-		Size:                 b.size(),
-		EventNumber:          int32(b.actx.num),
+		Size:                 int64(actx.size()),
+		EventNumber:          int32(actx.num),
 		SerializationVersion: b.version,
-		IsFull:               b.full(),
+		IsFull:               actx.Full(),
 	}
+
 	// Fill cluster information.
 	if cis := b.cis; cis != nil {
 		cis.FillClusterInfo(info)
 	}
+
 	return info
 }
 
-func (b *Block) size() int64 {
-	return b.fo.Load() - headerBlockSize
+func (b *Block) size() uint32 {
+	return b.actx.size()
 }
 
 // remaining calculates remaining space by given entrySize and entryNum.
 func (b *Block) remaining(size, num uint32) uint32 {
-	// capacity - headerBlockSize - dataLength - indexLength.
-	return uint32(b.cap) - headerBlockSize - size - num*indexSize
+	// capacity - headerBlockSize - boundMinSize - dataLength - indexLength.
+	return uint32(b.cap) - headerBlockSize - boundMinSize - size - num*indexSize
+}
+
+// metasync flushes metadata.
+func (b *Block) metasync(ctx context.Context) error {
+	if b.stale() {
+		if err := b.persistHeader(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// stale checks if flushed metadata is stale.
+func (b *Block) stale() bool {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.fm.full != b.full() || b.fm.entrySize < uint64(b.actx.offset) || b.fm.indexNum < b.fi
 }
 
 func (b *Block) persistHeader(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	buf := make([]byte, headerSize)
+	b.mu.RLock()
+	meta := blockMeta{
+		entrySize: uint64(b.actx.size()),
+		entryNum:  b.actx.num,
+		indexNum:  b.fi,
+		full:      b.actx.Full(),
+	}
+	b.mu.RUnlock()
+
+	var buf [headerSize]byte
 	binary.BigEndian.PutUint32(buf[0:4], uint32(b.version))
-	binary.BigEndian.PutUint64(buf[4:12], uint64(b.cap))
-	binary.BigEndian.PutUint64(buf[12:20], uint64(b.size()))
-	binary.BigEndian.PutUint32(buf[20:24], b.actx.num)
-	if b.full() {
-		buf[24] = 1
+	binary.BigEndian.PutUint64(buf[8:16], uint64(b.cap))
+	binary.BigEndian.PutUint64(buf[16:24], meta.entrySize)
+	binary.BigEndian.PutUint32(buf[24:28], meta.entryNum)
+	binary.BigEndian.PutUint32(buf[28:32], meta.indexNum)
+	if meta.full {
+		buf[32] = 1
 	}
 
 	// TODO: does it safe when concurrent write and append?
-	if _, err := b.f.WriteAt(buf, 0); err != nil {
+	if _, err := b.f.WriteAt(buf[:], 0); err != nil {
 		return err
 	}
+
+	b.mu.Lock()
+	b.fm = meta
+	b.mu.Unlock()
 
 	return nil
 }
@@ -150,13 +210,14 @@ func (b *Block) loadHeader(ctx context.Context) error {
 	}
 
 	b.version = int32(binary.BigEndian.Uint32(buf[0:4]))
-	b.cap = int64(binary.BigEndian.Uint64(buf[4:12]))
-	size := int64(binary.BigEndian.Uint64(buf[12:20]))
-	b.actx.offset = uint32(size + headerBlockSize)
-	b.actx.num = binary.BigEndian.Uint32(buf[20:24])
-	b.actx.full = uint32(buf[24])
-	b.fo.Store(int64(b.actx.offset))
-	b.so = int64(b.actx.offset)
+	b.cap = int64(binary.BigEndian.Uint64(buf[8:16]))
+	b.fm.entrySize = binary.BigEndian.Uint64(buf[16:24])
+	b.fm.entryNum = binary.BigEndian.Uint32(buf[24:28])
+	b.fm.indexNum = binary.BigEndian.Uint32(buf[28:32])
+	b.fm.full = buf[32] != 0
+
+	b.actx = b.fm.toAppendContext()
+	b.fi = b.fm.indexNum
 
 	return nil
 }
@@ -169,17 +230,29 @@ func (b *Block) persistIndex(ctx context.Context) error {
 		return nil
 	}
 
-	length := indexSize * len(b.indexes)
-	buf := make([]byte, length)
-	for i := range b.indexes {
-		idx := &b.indexes[i]
-		off := length - (i+1)*indexSize
+	b.mu.RLock()
+	indexes := b.indexes
+	base := int(b.fi)
+	b.mu.RUnlock()
+
+	total := len(indexes)
+	num := total - base
+	size := num * indexSize
+	buf := make([]byte, size)
+	for i := 0; i < num; i++ {
+		idx := &indexes[base+i]
+		off := size - (i+1)*indexSize
 		_, _ = idx.MarshalTo(buf[off : off+indexSize])
 	}
 
-	if _, err := b.f.WriteAt(buf, b.cap-int64(length)); err != nil {
+	if _, err := b.f.WriteAt(buf, b.cap-int64(total)*indexSize); err != nil {
 		return err
 	}
+
+	b.mu.Lock()
+	b.fi = uint32(total)
+	b.mu.Unlock()
+
 	return nil
 }
 
@@ -187,80 +260,71 @@ func (b *Block) loadIndex(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	// rebuild index
-	if !b.full() {
-		return b.rebuildIndex()
+	if b.fi <= 0 {
+		return nil
 	}
 
-	// read index directly
-	return b.loadIndexFromFile()
-}
-
-func (b *Block) loadIndexFromFile() error {
-	num := b.actx.num
-	length := num * indexSize
+	num := int(b.fi)
+	size := num * indexSize
 
 	// Read index data from file.
-	data := make([]byte, length)
-	if _, err := b.f.ReadAt(data, b.cap-int64(length)); err != nil {
+	data := make([]byte, size)
+	if _, err := b.f.ReadAt(data, b.cap-int64(size)); err != nil {
 		return err
 	}
 
 	// Decode indexes.
-	b.indexes = make([]index, num)
-	for i := range b.indexes {
-		off := int(length) - (i+1)*indexSize
+	b.indexes = make([]index, num, b.actx.num)
+	for i := 0; i < num; i++ {
+		off := size - (i+1)*indexSize
 		b.indexes[i], _ = unmarshalIndex(data[off : off+indexSize])
 	}
 
 	return nil
 }
 
-func (b *Block) rebuildIndex() error {
-	num := b.actx.num
-	b.indexes = make([]index, 0, num)
+func (b *Block) correctMeta() error {
+	if len(b.indexes) == 0 && b.actx.num > 0 {
+		b.indexes = make([]index, 0, b.actx.num)
+	}
 
-	num = 0
-	buf := make([]byte, block.EntryLengthSize)
+	// TODO(james.yin): scan indexes
+
+	num := 0
 	off := int64(headerBlockSize)
+	if len(b.indexes) > 0 {
+		num = len(b.indexes)
+		off = b.indexes[num-1].EndOffset()
+	}
+
+	// Scan entries.
+	buf := make([]byte, block.EntryLengthSize)
 	for {
 		if _, err := b.f.ReadAt(buf, off); err != nil {
 			return err
 		}
+
 		length := block.EntryLength(buf)
+
+		// Meet bound, stop scaning.
 		if length == 0 {
 			break
 		}
+
 		idx := index{
 			offset: off,
 			length: int32(length) + block.EntryLengthSize,
 		}
 		b.indexes = append(b.indexes, idx)
+
 		off = idx.EndOffset()
 		num++
 	}
 
 	// Reset meta data.
 	b.actx.offset = uint32(off)
-	b.fo.Store(int64(b.actx.offset))
-	b.actx.num = num
+	b.actx.num = uint32(num)
 
-	return nil
-}
-
-func (b *Block) sync(ctx context.Context) error {
-	// TODO(james.yin): lock
-	if fo := b.fo.Load(); b.so < fo {
-		if err := b.persistHeader(ctx); err != nil {
-			return err
-		}
-		if b.full() {
-			if err := b.persistIndex(ctx); err != nil {
-				return err
-			}
-		}
-		b.so = fo
-	}
 	return nil
 }
 
