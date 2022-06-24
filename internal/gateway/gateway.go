@@ -56,6 +56,10 @@ func NewGateway(config Config) *ceGateway {
 	}
 }
 
+func (ga *ceGateway) StartCtrlProxy(ctx context.Context) error {
+	return ga.cp.start(ctx)
+}
+
 func (ga *ceGateway) StartReceive(ctx context.Context) error {
 	ls, err := net.Listen("tcp", fmt.Sprintf(":%d", ga.config.Port))
 	if err != nil {

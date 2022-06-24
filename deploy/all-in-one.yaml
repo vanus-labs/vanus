@@ -185,6 +185,8 @@ spec:
           name: httpput
         - containerPort: 8081
           name: httpget
+        - containerPort: 8082
+          name: ctrl-proxy
         volumeMounts:
         - mountPath: /vanus/config
           name: config-gateway

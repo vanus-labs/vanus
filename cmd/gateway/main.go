@@ -41,6 +41,14 @@ func main() {
 	go gateway.MustStartHTTP(*cfg)
 
 	ga := gateway.NewGateway(*cfg)
+	err = ga.StartCtrlProxy(context.Background())
+	if err != nil {
+		log.Error(context.Background(), "start controller proxy failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+
 	err = ga.StartReceive(context.Background())
 	if err != nil {
 		log.Error(context.Background(), "start CloudEvents gateway failed", map[string]interface{}{
