@@ -38,7 +38,15 @@ const (
 
 var (
 	allowCtrlProxyList = map[string]string{
-		"/linkall.vanus.controller.PingServer/Ping": "ALLOW",
+		"/linkall.vanus.controller.PingServer/Ping":                      "ALLOW",
+		"/linkall.vanus.controller.EventBusController/ListEventBus":      "ALLOW",
+		"/linkall.vanus.controller.EventBusController/CreateEventBus":    "ALLOW",
+		"/linkall.vanus.controller.EventBusController/DeleteEventBus":    "ALLOW",
+		"/linkall.vanus.controller.EventBusController/GetEventBus":       "ALLOW",
+		"/linkall.vanus.controller.TriggerController/CreateSubscription": "ALLOW",
+		"/linkall.vanus.controller.TriggerController/DeleteSubscription": "ALLOW",
+		"/linkall.vanus.controller.TriggerController/GetSubscription":    "ALLOW",
+		"/linkall.vanus.controller.TriggerController/ListSubscription":   "ALLOW",
 	}
 )
 
