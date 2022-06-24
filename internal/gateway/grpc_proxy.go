@@ -17,19 +17,19 @@ package gateway
 import (
 	"context"
 	"fmt"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"net"
 	"sync"
 	"time"
 
 	"github.com/linkall-labs/vanus/observability/log"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/mwitkow/grpc-proxy/proxy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func newCtrlProxy(port int, allowProxyMethod map[string]string, ctrlList []string) *ctrlProxy {
@@ -52,6 +52,7 @@ type ctrlProxy struct {
 
 func (cp *ctrlProxy) start(ctx context.Context) error {
 	grpcServer := grpc.NewServer(
+		grpc.CustomCodec(proxy.Codec()),
 		grpc.UnknownServiceHandler(proxy.TransparentHandler(cp.director)),
 	)
 	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cp.port))
@@ -179,6 +180,7 @@ func createGRPCConn(ctx context.Context, addr string) *grpc.ClientConn {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	opts = append(opts, grpc.WithBlock())
+	opts = append(opts, grpc.WithCodec(proxy.Codec()))
 	ctx, cancel := context.WithCancel(ctx)
 	timeout := false
 	go func() {

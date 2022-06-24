@@ -17,13 +17,15 @@ package gateway
 import (
 	stdCtx "context"
 	"fmt"
-	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/ptypes/empty"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/ptypes/empty"
+	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	. "github.com/smartystreets/goconvey/convey"
@@ -108,7 +110,7 @@ func Test_A(t *testing.T) {
 		})
 
 		Convey("test ping", func() {
-			cp.allowProxyMethod["/linkall.vanus.controller.PingServer/Ping"] = "/linkall.vanus.controller.PingServer/Ping"
+			cp.allowProxyMethod["/linkall.vanus.controller.PingServer/Ping"] = "ALLOW"
 			pingCli := ctrlpb.NewPingServerClient(conn)
 			time.Sleep(100 * time.Millisecond)
 			res, err := pingCli.Ping(stdCtx.Background(), &empty.Empty{})
@@ -122,7 +124,41 @@ func Test_A(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(res.LeaderAddr, ShouldEqual, "127.0.0.1:20003")
 			So(res.GatewayAddr, ShouldEqual, "127.0.0.1:12345")
+		})
 
+		Convey("test list eventbus", func() {
+			cp.allowProxyMethod["/linkall.vanus.controller.PingServer/Ping"] = "ALLOW"
+			cp.allowProxyMethod["/linkall.vanus.controller.EventBusController/ListEventBus"] = "ALLOW"
+			ebCli := ctrlpb.NewEventBusControllerClient(conn)
+			time.Sleep(100 * time.Millisecond)
+
+			ebSvc1.EXPECT().ListEventBus(gomock.Any(), gomock.Any()).Times(1).Return(&ctrlpb.ListEventbusResponse{
+				Eventbus: []*metapb.EventBus{
+					{
+						Name:      "battle1",
+						LogNumber: 1,
+						Id:        1,
+					},
+					{
+						Name:      "battle2",
+						LogNumber: 2,
+						Id:        2,
+					},
+					{
+						Name:      "battle3",
+						LogNumber: 4,
+						Id:        3,
+					},
+					{
+						Name:      "battle4",
+						LogNumber: 4,
+						Id:        4,
+					},
+				},
+			}, nil)
+			res, err := ebCli.ListEventBus(ctx, &empty.Empty{})
+			So(err, ShouldBeNil)
+			So(res.Eventbus, ShouldHaveLength, 4)
 		})
 
 		cancel()
