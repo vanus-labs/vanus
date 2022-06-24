@@ -28,11 +28,9 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"github.com/fatih/color"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/spf13/cobra"
 )
 
@@ -99,20 +97,6 @@ func putEventCommand() *cobra.Command {
 		"and like [id],[source],[type],<body>")
 	cmd.Flags().BoolVar(&printDataTemplate, "print-template", false, "print data template file")
 	return cmd
-}
-
-func mustGetGatewayEndpoint(cmd *cobra.Command) string {
-	ctx := context.Background()
-	grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
-	defer func() {
-		_ = grpcConn.Close()
-	}()
-	cli := ctrlpb.NewPingServerClient(grpcConn)
-	res, err := cli.Ping(ctx, &empty.Empty{})
-	if err != nil {
-		cmdFailedf(cmd, "get Gateway endpoint from controller failed: %s", err)
-	}
-	return res.GatewayAddr
 }
 
 func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {

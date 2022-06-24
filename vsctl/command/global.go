@@ -21,23 +21,18 @@ import (
 )
 
 type GlobalFlags struct {
-	Endpoints    []string
+	Endpoint     string
 	Debug        bool
 	ConfigFile   string
 	OutputFormat string
 }
 
-func mustEndpointsFromCmd(cmd *cobra.Command) []string {
-	eps, err := cmd.Flags().GetStringSlice("endpoints")
+func mustGetGatewayEndpoint(cmd *cobra.Command) string {
+	endpoint, err := cmd.Flags().GetString("endpoint")
 	if err != nil {
-		cmdFailedf(cmd, "get controller endpoints failed: %s", err)
+		cmdFailedf(cmd, "get gateway endpoint failed: %s", err)
 	}
-	if err == nil {
-		for i, ip := range eps {
-			eps[i] = strings.TrimSpace(ip)
-		}
-	}
-	return eps
+	return endpoint
 }
 
 func isOutputFormatJSON(cmd *cobra.Command) bool {

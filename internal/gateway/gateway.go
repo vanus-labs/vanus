@@ -36,15 +36,23 @@ const (
 	xceVanusEventbus  = "xvanuseventbus"
 )
 
+var (
+	allowCtrlProxyList = map[string]string{
+		"/linkall.vanus.controller.PingServer/Ping": "ALLOW",
+	}
+)
+
 type ceGateway struct {
 	// ceClient  v2.Client
 	busWriter sync.Map
 	config    Config
+	cp        *ctrlProxy
 }
 
 func NewGateway(config Config) *ceGateway {
 	return &ceGateway{
 		config: config,
+		cp:     newCtrlProxy(config.Port+2, allowCtrlProxyList, config.ControllerAddr),
 	}
 }
 

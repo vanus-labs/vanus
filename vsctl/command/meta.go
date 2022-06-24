@@ -49,7 +49,7 @@ func getControllerTopology() *cobra.Command {
 		Short: "get topology",
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
-			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
+			grpcConn := mustGatewayProxyGRPCConn(ctx, cmd)
 			defer func() {
 				_ = grpcConn.Close()
 			}()

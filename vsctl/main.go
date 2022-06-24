@@ -16,12 +16,10 @@
 package main
 
 import (
-	"os"
-	"strings"
-
 	"github.com/fatih/color"
 	"github.com/linkall-labs/vanus/vsctl/command"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 const (
@@ -41,8 +39,8 @@ var (
 func init() {
 	cobra.EnablePrefixMatching = true
 	cobra.EnableCommandSorting = false
-	rootCmd.PersistentFlags().StringSliceVar(&globalFlags.Endpoints, "endpoints",
-		[]string{"127.0.0.1:2048"}, "the endpoints of vanus controller")
+	rootCmd.PersistentFlags().StringVar(&globalFlags.Endpoint, "endpoint",
+		"127.0.0.1:30001", "the endpoints of vanus controller")
 	rootCmd.PersistentFlags().StringVarP(&globalFlags.ConfigFile, "config", "C",
 		"~/.vanus/vanus.yml", "the config file of vsctl")
 	rootCmd.PersistentFlags().BoolVarP(&globalFlags.Debug, "debug", "D", false,
@@ -50,8 +48,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&globalFlags.OutputFormat, "output-format", "table",
 		"json or table")
 
-	if os.Getenv("VANUS_ENDPOINTS") != "" {
-		globalFlags.Endpoints = strings.Split(os.Getenv("VANUS_ENDPOINTS"), ",")
+	if os.Getenv("VANUS_GATEWAY") != "" {
+		globalFlags.Endpoint = os.Getenv("VANUS_GATEWAY")
 	}
 
 	rootCmd.AddCommand(
