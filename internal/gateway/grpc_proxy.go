@@ -52,7 +52,6 @@ type ctrlProxy struct {
 
 func (cp *ctrlProxy) start(ctx context.Context) error {
 	grpcServer := grpc.NewServer(
-		grpc.CustomCodec(proxy.Codec()),
 		grpc.UnknownServiceHandler(proxy.TransparentHandler(cp.director)),
 	)
 	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cp.port))
@@ -180,7 +179,6 @@ func createGRPCConn(ctx context.Context, addr string) *grpc.ClientConn {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	opts = append(opts, grpc.WithBlock())
-	opts = append(opts, grpc.WithCodec(proxy.Codec()))
 	ctx, cancel := context.WithCancel(ctx)
 	timeout := false
 	go func() {
