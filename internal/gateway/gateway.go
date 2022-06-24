@@ -32,8 +32,9 @@ import (
 )
 
 const (
-	httpRequestPrefix = "/gateway"
-	xceVanusEventbus  = "xvanuseventbus"
+	httpRequestPrefix  = "/gateway"
+	xceVanusEventbus   = "xvanuseventbus"
+	ctrlProxyPortShift = 2
 )
 
 var (
@@ -60,7 +61,7 @@ type ceGateway struct {
 func NewGateway(config Config) *ceGateway {
 	return &ceGateway{
 		config: config,
-		cp:     newCtrlProxy(config.Port+2, allowCtrlProxyList, config.ControllerAddr),
+		cp:     newCtrlProxy(config.Port+ctrlProxyPortShift, allowCtrlProxyList, config.ControllerAddr),
 	}
 }
 

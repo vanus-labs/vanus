@@ -68,12 +68,8 @@ func (cp *ctrlProxy) start(ctx context.Context) error {
 	}()
 
 	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				grpcServer.GracefulStop()
-			}
-		}
+		<-ctx.Done()
+		grpcServer.GracefulStop()
 	}()
 	go cp.updateLeader(ctx)
 	return nil
@@ -89,7 +85,7 @@ func (cp *ctrlProxy) director(ctx context.Context, fullMethodName string) (conte
 
 	_, exist := cp.allowProxyMethod[fullMethodName]
 	if !exist {
-		log.Warning(nil, "invalid access", map[string]interface{}{
+		log.Warning(ctx, "invalid access", map[string]interface{}{
 			"method": fullMethodName,
 		})
 		return outCtx, nil, status.Errorf(codes.Unimplemented, "Unknown method")
@@ -182,10 +178,11 @@ func createGRPCConn(ctx context.Context, addr string) *grpc.ClientConn {
 	ctx, cancel := context.WithCancel(ctx)
 	timeout := false
 	go func() {
-		ticker := time.Tick(time.Second)
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
 		select {
 		case <-ctx.Done():
-		case <-ticker:
+		case <-ticker.C:
 			cancel()
 			timeout = true
 		}

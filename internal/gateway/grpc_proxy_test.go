@@ -105,7 +105,7 @@ func Test_A(t *testing.T) {
 			So(res, ShouldBeNil)
 			So(err.Error(), ShouldContainSubstring, "No leader founded")
 			time.Sleep(100 * time.Millisecond)
-			res, err = pingCli.Ping(stdCtx.Background(), &empty.Empty{})
+			_, err = pingCli.Ping(stdCtx.Background(), &empty.Empty{})
 			So(err.Error(), ShouldContainSubstring, "Unknown method")
 		})
 
@@ -159,6 +159,14 @@ func Test_A(t *testing.T) {
 			res, err := ebCli.ListEventBus(ctx, &empty.Empty{})
 			So(err, ShouldBeNil)
 			So(res.Eventbus, ShouldHaveLength, 4)
+			So(res.Eventbus[0].Name, ShouldEqual, "battle1")
+			So(res.Eventbus[0].Id, ShouldEqual, 1)
+			So(res.Eventbus[1].Name, ShouldEqual, "battle2")
+			So(res.Eventbus[1].Id, ShouldEqual, 2)
+			So(res.Eventbus[2].Name, ShouldEqual, "battle3")
+			So(res.Eventbus[2].Id, ShouldEqual, 3)
+			So(res.Eventbus[3].Name, ShouldEqual, "battle4")
+			So(res.Eventbus[3].Id, ShouldEqual, 4)
 		})
 
 		cancel()
