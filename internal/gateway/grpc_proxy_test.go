@@ -18,6 +18,7 @@ import (
 	stdCtx "context"
 	"fmt"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -86,16 +87,23 @@ func Test_A(t *testing.T) {
 			LeaderAddr:  "127.0.0.1:20001",
 			GatewayAddr: "127.0.0.1:12345",
 		}
+		mutex := sync.Mutex{}
 		pingSvc1.EXPECT().Ping(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
 			in *emptypb.Empty) (*ctrlpb.PingResponse, error) {
+			mutex.Lock()
+			defer mutex.Unlock()
 			return pingRes, nil
 		})
 		pingSvc2.EXPECT().Ping(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
 			in *emptypb.Empty) (*ctrlpb.PingResponse, error) {
+			mutex.Lock()
+			defer mutex.Unlock()
 			return pingRes, nil
 		})
 		pingSvc3.EXPECT().Ping(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
 			in *emptypb.Empty) (*ctrlpb.PingResponse, error) {
+			mutex.Lock()
+			defer mutex.Unlock()
 			return pingRes, nil
 		})
 
@@ -118,7 +126,9 @@ func Test_A(t *testing.T) {
 			So(res.LeaderAddr, ShouldEqual, "127.0.0.1:20001")
 			So(res.GatewayAddr, ShouldEqual, "127.0.0.1:12345")
 
+			mutex.Lock()
 			pingRes.LeaderAddr = "127.0.0.1:20003"
+			mutex.Unlock()
 			time.Sleep(100 * time.Millisecond)
 			res, err = pingCli.Ping(stdCtx.Background(), &empty.Empty{})
 			So(err, ShouldBeNil)
