@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 
 	// third-party libraries.
@@ -50,7 +51,7 @@ func TestWAL_AppendOne(t *testing.T) {
 			}))
 			n, _ := wal.AppendOne(data1).Wait()
 
-			// Invoke callback of appand data0, before appand data1 return.
+			// Invoke callback of append data0, before append data1 return.
 			So(done, ShouldBeTrue)
 			So(n, ShouldEqual, 21)
 			So(wal.wb.Size(), ShouldEqual, 21)
@@ -94,10 +95,12 @@ func TestWAL_AppendOne(t *testing.T) {
 		wal, err := NewWAL(walDir, WithFileSize(fileSize))
 		So(err, ShouldBeNil)
 
-		var done bool
-		wal.AppendOne(data0, WithCallback(func(_ Result) {
-			done = true
-		}))
+		var inflight int32 = 100
+		for i := int32(0); i < inflight; i++ {
+			wal.AppendOne(data0, WithCallback(func(_ Result) {
+				atomic.AddInt32(&inflight, -1)
+			}))
+		}
 
 		wal.Close()
 
@@ -107,7 +110,7 @@ func TestWAL_AppendOne(t *testing.T) {
 		wal.Wait()
 
 		// NOTE: All appends are guaranteed to return before wal is closed.
-		So(done, ShouldBeTrue)
+		So(atomic.LoadInt32(&inflight), ShouldBeZeroValue)
 
 		// NOTE: There is no guarantee that data0 will be successfully written.
 		// So(wal.wb.Size(), ShouldEqual, 10)
