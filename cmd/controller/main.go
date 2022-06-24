@@ -15,9 +15,14 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
+	"net"
+	"net/http"
+	"os"
+	"sync"
+
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
@@ -28,28 +33,36 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+
+	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"net"
-	"net/http"
-	"os"
-	"sync"
 )
 
 var (
-	configPath = flag.String("config-file", "./config/controller.yaml", "the configuration file of controller")
+	configPath = flag.String("config", "./config/controller.yaml", "the configuration file of controller")
 )
 
 func main() {
 	flag.Parse()
-	ctx := signal.SetupSignalContext()
+
 	cfg, err := controller.InitConfig(*configPath)
 	if err != nil {
-		log.Error(ctx, "init config error", map[string]interface{}{log.KeyError: err})
+		log.Error(context.Background(), "init config error", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
+	if err != nil {
+		log.Error(context.Background(), "failed to listen", map[string]interface{}{
+			"error": err,
+		})
 		os.Exit(-1)
 	}
 
+	ctx := signal.SetupSignalContext()
 	go startMetrics()
 	etcd := embedetcd.New(cfg.Topology)
 	if err = etcd.Init(ctx, cfg.GetEtcdConfig()); err != nil {
@@ -81,14 +94,6 @@ func main() {
 	if err != nil {
 		log.Error(ctx, "failed to start etcd", map[string]interface{}{
 			log.KeyError: err,
-		})
-		os.Exit(-1)
-	}
-
-	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
-	if err != nil {
-		log.Error(ctx, "failed to listen", map[string]interface{}{
-			"error": err,
 		})
 		os.Exit(-1)
 	}

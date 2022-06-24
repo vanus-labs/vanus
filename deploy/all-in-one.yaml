@@ -9,7 +9,6 @@ data:
     name: ${POD_NAME}
     ip: ${POD_IP}
     port: 2048
-    grpc_reflection_enable: true
     gateway_endpoint: http://192.168.49.2:30001
     etcd:
       - vanus-controller-0.vanus-controller.vanus.svc:2379
@@ -70,9 +69,13 @@ metadata:
 ---
 apiVersion: v1
 data:
-  trigger.yaml: "port: 2148\nip : ${POD_IP}\ncontrollers:\n  - vanus-controller-0.vanus-controller.vanus.svc:2048\n
-    \ - vanus-controller-1.vanus-controller.vanus.svc:2048\n  - vanus-controller-2.vanus-controller.vanus.svc:2048\n
-    \ "
+  trigger.yaml: |-
+    port: 2148
+    ip : ${POD_IP}
+    controllers:
+      - vanus-controller-0.vanus-controller.vanus.svc:2048
+      - vanus-controller-1.vanus-controller.vanus.svc:2048
+      - vanus-controller-2.vanus-controller.vanus.svc:2048
 kind: ConfigMap
 metadata:
   name: config-trigger
@@ -98,7 +101,7 @@ metadata:
   namespace: vanus
 spec:
   ports:
-  - name: controller-grpc
+  - name: grpc
     nodePort: 32000
     port: 2048
   selector:
@@ -112,8 +115,8 @@ metadata:
   namespace: vanus
 spec:
   ports:
-  - name: controller-grpc
-    nodePort: 32100
+  - name: grpc
+    nodePort: 32001
     port: 2048
   selector:
     statefulset.kubernetes.io/pod-name: vanus-controller-1
@@ -126,8 +129,8 @@ metadata:
   namespace: vanus
 spec:
   ports:
-  - name: controller-grpc
-    nodePort: 32200
+  - name: grpc
+    nodePort: 32002
     port: 2048
   selector:
     statefulset.kubernetes.io/pod-name: vanus-controller-2
@@ -140,11 +143,11 @@ metadata:
   namespace: vanus
 spec:
   ports:
-  - name: vanus-gateway
+  - name: put
     nodePort: 30001
     port: 8080
     targetPort: 8080
-  - name: vanus-gateway-http
+  - name: get
     nodePort: 30002
     port: 8081
     targetPort: 8081
@@ -171,13 +174,15 @@ spec:
     spec:
       containers:
       - image: public.ecr.aws/vanus/gateway:v0.0.5
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         name: gateway
         ports:
         - containerPort: 8080
-          name: http
+          name: httpput
+        - containerPort: 8081
+          name: httpget
         volumeMounts:
-        - mountPath: /server/config
+        - mountPath: /vanus/config
           name: config-gateway
       volumes:
       - configMap:
@@ -192,7 +197,7 @@ metadata:
   name: vanus-trigger
   namespace: vanus
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: vanus-trigger
@@ -210,18 +215,19 @@ spec:
             fieldRef:
               fieldPath: status.podIP
         image: public.ecr.aws/vanus/trigger:v0.0.5
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
           grpc:
             port: 2148
+          initialDelaySeconds: 30
           periodSeconds: 2
         name: trigger
         ports:
         - containerPort: 2148
           name: grpc
         volumeMounts:
-        - mountPath: /server/config
+        - mountPath: /vanus/config
           name: config-trigger
       volumes:
       - configMap:
@@ -259,7 +265,7 @@ spec:
             fieldRef:
               fieldPath: status.podIP
         image: public.ecr.aws/vanus/controller:v0.0.5
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
           grpc:
@@ -274,7 +280,7 @@ spec:
         - containerPort: 2380
           name: etcd-peer
         volumeMounts:
-        - mountPath: /server/config
+        - mountPath: /vanus/config
           name: config-controller
         - mountPath: /data
           name: data
@@ -316,7 +322,7 @@ spec:
       - command:
         - /bin/sh
         - -c
-        - export VOLUME_ID=${HOSTNAME##*-}; /server/bin/store
+        - export VOLUME_ID=${HOSTNAME##*-}; /vanus/bin/store
         env:
         - name: VANUS_LOG_LEVEL
           value: DEBUG
@@ -325,18 +331,19 @@ spec:
             fieldRef:
               fieldPath: status.podIP
         image: public.ecr.aws/vanus/store:v0.0.5
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
           grpc:
             port: 11811
+          initialDelaySeconds: 30
           periodSeconds: 2
         name: store
         ports:
         - containerPort: 11811
           name: grpc
         volumeMounts:
-        - mountPath: /server/config
+        - mountPath: /vanus/config
           name: config-store
         - mountPath: /data
           name: data
