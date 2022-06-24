@@ -45,7 +45,7 @@ func Create(ctx context.Context, blockDir string, id vanus.ID, capacity int64) (
 		path: path,
 		cap:  capacity,
 		actx: appendContext{
-			offset: headerSize,
+			offset: headerBlockSize,
 		},
 	}
 

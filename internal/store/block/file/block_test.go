@@ -39,7 +39,7 @@ func TestBlock_Creation(t *testing.T) {
 		So(blk.Path(), ShouldEqual, resolvePath("/tmp", id))
 		So(blk.Appendable(), ShouldBeTrue)
 		So(blk.size(), ShouldEqual, 0)
-		So(blk.remaining(0, 0), ShouldEqual, capacity-headerSize)
+		So(blk.remaining(0, 0), ShouldEqual, capacity-headerBlockSize)
 		So(blk.persistHeader(stdCtx.Background()), ShouldBeNil)
 		So(blk.loadHeader(stdCtx.Background()), ShouldBeNil)
 	})

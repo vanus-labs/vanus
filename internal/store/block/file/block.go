@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	headerSize = 4 * 1024
+	headerBlockSize = 4 * 1024
 	// version + capacity + size + number + full.
 	v1HeaderSize = 4 + 8 + 8 + 4 + 1
 )
@@ -110,12 +110,12 @@ func (b *Block) HealthInfo() *metapb.SegmentHealthInfo {
 }
 
 func (b *Block) size() int64 {
-	return b.fo.Load() - headerSize
+	return b.fo.Load() - headerBlockSize
 }
 
 func (b *Block) remaining(length, num uint32) uint32 {
-	// capacity - headerSize - dataLength - indexLength.
-	return uint32(b.cap) - headerSize - length - num*indexSize
+	// capacity - headerBlockSize - dataLength - indexLength.
+	return uint32(b.cap) - headerBlockSize - length - num*indexSize
 }
 
 func (b *Block) persistHeader(ctx context.Context) error {
@@ -151,7 +151,7 @@ func (b *Block) loadHeader(ctx context.Context) error {
 	b.version = int32(binary.BigEndian.Uint32(buf[0:4]))
 	b.cap = int64(binary.BigEndian.Uint64(buf[4:12]))
 	size := int64(binary.BigEndian.Uint64(buf[12:20]))
-	b.actx.offset = uint32(size + headerSize)
+	b.actx.offset = uint32(size + headerBlockSize)
 	b.actx.num = binary.BigEndian.Uint32(buf[20:24])
 	b.actx.full = uint32(buf[24])
 	b.fo.Store(int64(b.actx.offset))
@@ -221,7 +221,7 @@ func (b *Block) rebuildIndex() error {
 
 	num = 0
 	buf := make([]byte, block.EntryLengthSize)
-	off := int64(headerSize)
+	off := int64(headerBlockSize)
 	for {
 		if _, err := b.f.ReadAt(buf, off); err != nil {
 			return err

@@ -35,7 +35,7 @@ type appendContext struct {
 var _ block.AppendContext = (*appendContext)(nil)
 
 func (c *appendContext) size() uint32 {
-	return c.offset - headerSize
+	return c.offset - headerBlockSize
 }
 
 func (c *appendContext) WriteOffset() uint32 {
