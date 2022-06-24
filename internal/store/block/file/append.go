@@ -102,7 +102,7 @@ func (b *Block) PrepareAppend(
 }
 
 func (b *Block) hasEnoughSpace(actx *appendContext, length, num uint32) bool {
-	require := length + v1IndexSize*num + block.EntryLengthSize
+	require := length + indexSize*num + block.EntryLengthSize
 	return require <= b.remaining(actx.size(), actx.num)
 }
 

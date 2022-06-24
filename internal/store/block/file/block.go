@@ -115,7 +115,7 @@ func (b *Block) size() int64 {
 
 func (b *Block) remaining(length, num uint32) uint32 {
 	// capacity - headerSize - dataLength - indexLength.
-	return uint32(b.cap) - headerSize - length - num*v1IndexSize
+	return uint32(b.cap) - headerSize - length - num*indexSize
 }
 
 func (b *Block) persistHeader(ctx context.Context) error {
@@ -168,12 +168,12 @@ func (b *Block) persistIndex(ctx context.Context) error {
 		return nil
 	}
 
-	length := v1IndexSize * len(b.indexes)
+	length := indexSize * len(b.indexes)
 	buf := make([]byte, length)
 	for i := range b.indexes {
 		idx := &b.indexes[i]
-		off := length - (i+1)*v1IndexSize
-		_, _ = idx.MarshalTo(buf[off : off+v1IndexSize])
+		off := length - (i+1)*indexSize
+		_, _ = idx.MarshalTo(buf[off : off+indexSize])
 	}
 
 	if _, err := b.f.WriteAt(buf, b.cap-int64(length)); err != nil {
@@ -197,7 +197,7 @@ func (b *Block) loadIndex(ctx context.Context) error {
 
 func (b *Block) loadIndexFromFile() error {
 	num := b.actx.num
-	length := num * v1IndexSize
+	length := num * indexSize
 
 	// Read index data from file.
 	data := make([]byte, length)
@@ -208,8 +208,8 @@ func (b *Block) loadIndexFromFile() error {
 	// Decode indexes.
 	b.indexes = make([]index, num)
 	for i := range b.indexes {
-		off := int(length) - (i+1)*v1IndexSize
-		b.indexes[i], _ = unmarshalIndex(data[off : off+v1IndexSize])
+		off := int(length) - (i+1)*indexSize
+		b.indexes[i], _ = unmarshalIndex(data[off : off+indexSize])
 	}
 
 	return nil
