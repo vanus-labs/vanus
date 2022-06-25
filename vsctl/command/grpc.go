@@ -17,13 +17,14 @@ package command
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"strconv"
-	"strings"
-	"time"
 )
 
 func mustGatewayProxyGRPCConn(ctx context.Context, cmd *cobra.Command) *grpc.ClientConn {
