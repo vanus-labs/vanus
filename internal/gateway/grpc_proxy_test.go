@@ -33,7 +33,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func Test_A(t *testing.T) {
+func Test_ControllerProxy(t *testing.T) {
 	Convey("test grpc reverse proxy", t, func() {
 		listen1, err := net.Listen("tcp", fmt.Sprintf(":%d", 20001))
 		So(err, ShouldBeNil)

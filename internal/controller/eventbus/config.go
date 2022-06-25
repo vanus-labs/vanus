@@ -24,5 +24,4 @@ type Config struct {
 	EtcdConfig       embedetcd.Config  `yaml:"etcd"`
 	Replicas         uint              `yaml:"replicas"`
 	Topology         map[string]string `yaml:"topology"`
-	GatewayEndpoint  string            `yaml:"gateway_endpoint"`
 }
