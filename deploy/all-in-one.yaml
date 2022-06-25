@@ -9,7 +9,6 @@ data:
     name: ${POD_NAME}
     ip: ${POD_IP}
     port: 2048
-    gateway_endpoint: http://192.168.49.2:30001
     etcd:
       - vanus-controller-0.vanus-controller.vanus.svc:2379
       - vanus-controller-1.vanus-controller.vanus.svc:2379
