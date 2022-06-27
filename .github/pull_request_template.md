@@ -20,7 +20,7 @@ There MUST be one line starting with "Issue Number:  ".
 
 Issue Number: close #xxx
 
-Problem Summary:
+### Problem Summary:
 
 ### What is changed and how it works?
 
