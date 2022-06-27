@@ -16,56 +16,26 @@ package command
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/fatih/color"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-func mustGetLeaderControllerGRPCConn(ctx context.Context,
-	cmd *cobra.Command) *grpc.ClientConn {
-	endpoints := mustEndpointsFromCmd(cmd)
-	var leaderAddr string
-	var leaderConn *grpc.ClientConn
-	tryConnectLeaderOnce := false
-	for idx := range endpoints {
-		conn := createGRPCConn(ctx, endpoints[idx])
-		if conn == nil {
-			continue
-		}
-		pingClient := ctrlpb.NewPingServerClient(conn)
-		res, err := pingClient.Ping(ctx, &emptypb.Empty{})
-		if err != nil {
-			color.Red("ping controller: %s failed", endpoints[idx])
-			continue
-		}
-		leaderAddr = res.LeaderAddr
-		if leaderAddr == endpoints[idx] {
-			leaderConn = conn
-			tryConnectLeaderOnce = false
-		} else {
-			_ = conn.Close()
-		}
-		break
+func mustGetControllerProxyConn(ctx context.Context, cmd *cobra.Command) *grpc.ClientConn {
+	splits := strings.Split(mustGetGatewayEndpoint(cmd), ":")
+	port, err := strconv.Atoi(splits[1])
+	if err != nil {
+		cmdFailedf(cmd, "parsing gateway port failed")
 	}
-
-	if leaderAddr == "" {
-		cmdFailedf(cmd, "the leader controller not found")
-	}
-
-	if leaderConn != nil {
-		return leaderConn
-	} else if !tryConnectLeaderOnce {
-		leaderConn = createGRPCConn(ctx, mappingLeaderAddr(leaderAddr))
-	}
-
+	leaderConn := createGRPCConn(ctx, fmt.Sprintf("%s:%d", splits[0], port+2))
 	if leaderConn == nil {
-		cmdFailedf(cmd, "connect to leader: %s failed", leaderAddr)
+		cmdFailedf(cmd, "failed to connect to gateway")
 	}
 	return leaderConn
 }
@@ -100,12 +70,4 @@ func createGRPCConn(ctx context.Context, addr string) *grpc.ClientConn {
 		return nil
 	}
 	return conn
-}
-
-func mappingLeaderAddr(addr string) string {
-	m := map[string]string{
-		"vanus-controller-0.vanus-controller.vanus.svc:2048": "192.168.49.2:32000",
-		"vanus-controller-1.vanus-controller.vanus.svc:2048": "192.168.49.2:32100",
-		"vanus-controller-2.vanus-controller.vanus.svc:2048": "192.168.49.2:32200"}
-	return m[addr]
 }

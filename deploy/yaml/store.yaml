@@ -61,7 +61,7 @@ spec:
     spec:
       containers:
         - name: store
-          image: public.ecr.aws/vanus/store:v0.0.5
+          image: public.ecr.aws/vanus/store:v0.1.0
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c", "VOLUME_ID=${HOSTNAME##*-} /vanus/bin/store"]
           livenessProbe:

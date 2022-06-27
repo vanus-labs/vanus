@@ -21,7 +21,6 @@ data:
     name: ${POD_NAME}
     ip: ${POD_IP}
     port: 2048
-    gateway_endpoint: http://192.168.49.2:30001
     etcd:
       - vanus-controller-0.vanus-controller.vanus.svc:2379
       - vanus-controller-1.vanus-controller.vanus.svc:2379
@@ -57,48 +56,6 @@ spec:
     - port: 2048
       name: vanus-controller
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: vanus-controller-0
-  namespace: vanus
-spec:
-  selector:
-    statefulset.kubernetes.io/pod-name: vanus-controller-0
-  type: NodePort
-  ports:
-    - port: 2048
-      nodePort: 32000
-      name: grpc
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: vanus-controller-1
-  namespace: vanus
-spec:
-  selector:
-    statefulset.kubernetes.io/pod-name: vanus-controller-1
-  type: NodePort
-  ports:
-    - port: 2048
-      nodePort: 32001
-      name: grpc
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: vanus-controller-2
-  namespace: vanus
-spec:
-  selector:
-    statefulset.kubernetes.io/pod-name: vanus-controller-2
-  type: NodePort
-  ports:
-    - port: 2048
-      nodePort: 32002
-      name: grpc
----
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -130,7 +87,7 @@ spec:
     spec:
       containers:
         - name: controller
-          image: public.ecr.aws/vanus/controller:v0.0.5
+          image: public.ecr.aws/vanus/controller:v0.1.0
           imagePullPolicy: IfNotPresent
           livenessProbe:
             grpc:

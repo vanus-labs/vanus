@@ -9,7 +9,6 @@ data:
     name: ${POD_NAME}
     ip: ${POD_IP}
     port: 2048
-    gateway_endpoint: http://192.168.49.2:30001
     etcd:
       - vanus-controller-0.vanus-controller.vanus.svc:2379
       - vanus-controller-1.vanus-controller.vanus.svc:2379
@@ -97,48 +96,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: vanus-controller-0
-  namespace: vanus
-spec:
-  ports:
-  - name: grpc
-    nodePort: 32000
-    port: 2048
-  selector:
-    statefulset.kubernetes.io/pod-name: vanus-controller-0
-  type: NodePort
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: vanus-controller-1
-  namespace: vanus
-spec:
-  ports:
-  - name: grpc
-    nodePort: 32001
-    port: 2048
-  selector:
-    statefulset.kubernetes.io/pod-name: vanus-controller-1
-  type: NodePort
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: vanus-controller-2
-  namespace: vanus
-spec:
-  ports:
-  - name: grpc
-    nodePort: 32002
-    port: 2048
-  selector:
-    statefulset.kubernetes.io/pod-name: vanus-controller-2
-  type: NodePort
----
-apiVersion: v1
-kind: Service
-metadata:
   name: vanus-gateway
   namespace: vanus
 spec:
@@ -151,6 +108,10 @@ spec:
     nodePort: 30002
     port: 8081
     targetPort: 8081
+  - name: ctrl-proxy
+    nodePort: 30003
+    port: 8082
+    targetPort: 8082
   selector:
     app: vanus-gateway
   type: NodePort
@@ -173,7 +134,7 @@ spec:
         app: vanus-gateway
     spec:
       containers:
-      - image: public.ecr.aws/vanus/gateway:v0.0.5
+      - image: public.ecr.aws/vanus/gateway:v0.1.0
         imagePullPolicy: IfNotPresent
         name: gateway
         ports:
@@ -214,7 +175,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/trigger:v0.0.5
+        image: public.ecr.aws/vanus/trigger:v0.1.0
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
@@ -264,7 +225,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/controller:v0.0.5
+        image: public.ecr.aws/vanus/controller:v0.1.0
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
@@ -322,7 +283,7 @@ spec:
       - command:
         - /bin/sh
         - -c
-        - export VOLUME_ID=${HOSTNAME##*-}; /vanus/bin/store
+        - VOLUME_ID=${HOSTNAME##*-} /vanus/bin/store
         env:
         - name: VANUS_LOG_LEVEL
           value: DEBUG
@@ -330,7 +291,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/store:v0.0.5
+        image: public.ecr.aws/vanus/store:v0.1.0
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3

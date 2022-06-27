@@ -52,7 +52,7 @@ func createSubscriptionCommand() *cobra.Command {
 				cmdFailedWithHelpNotice(cmd, "sink name can't be empty\n")
 			}
 			ctx := context.Background()
-			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
+			grpcConn := mustGetControllerProxyConn(ctx, cmd)
 			defer func() {
 				_ = grpcConn.Close()
 			}()
@@ -126,7 +126,7 @@ func deleteSubscriptionCommand() *cobra.Command {
 				cmdFailedWithHelpNotice(cmd, "subscriptionID name can't be empty\n")
 			}
 			ctx := context.Background()
-			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
+			grpcConn := mustGetControllerProxyConn(ctx, cmd)
 			defer func() {
 				_ = grpcConn.Close()
 			}()
@@ -168,7 +168,7 @@ func getSubscriptionCommand() *cobra.Command {
 				cmdFailedWithHelpNotice(cmd, "subscriptionID name can't be empty\n")
 			}
 			ctx := context.Background()
-			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
+			grpcConn := mustGetControllerProxyConn(ctx, cmd)
 			defer func() {
 				_ = grpcConn.Close()
 			}()
@@ -212,7 +212,7 @@ func listSubscriptionCommand() *cobra.Command {
 		Short: "list the subscription ",
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
-			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
+			grpcConn := mustGetControllerProxyConn(ctx, cmd)
 			defer func() {
 				_ = grpcConn.Close()
 			}()

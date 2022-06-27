@@ -22,6 +22,7 @@ require (
 	github.com/linkall-labs/vanus/client v0.1.0
 	github.com/linkall-labs/vanus/proto v0.1.0
 	github.com/linkall-labs/vanus/raft v0.1.0
+	github.com/mwitkow/grpc-proxy v0.0.0
 	github.com/ncw/directio v1.0.5
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.1
@@ -45,6 +46,7 @@ replace (
 	github.com/linkall-labs/vanus/client => ./client
 	github.com/linkall-labs/vanus/proto => ./proto
 	github.com/linkall-labs/vanus/raft => ./raft
+	github.com/mwitkow/grpc-proxy => github.com/linkall-labs/grpc-proxy v0.0.0-20220624142509-a3b0cb2bb86c
 )
 
 require (

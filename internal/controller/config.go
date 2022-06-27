@@ -34,7 +34,6 @@ type Config struct {
 	EtcdConfig           embedetcd.Config  `yaml:"embed_etcd"`
 	Topology             map[string]string `yaml:"topology"`
 	Replicas             uint              `yaml:"replicas"`
-	GatewayEndpoint      string            `yaml:"gateway_endpoint"`
 }
 
 func (c *Config) GetEtcdConfig() embedetcd.Config {
@@ -51,7 +50,6 @@ func (c *Config) GetEventbusCtrlConfig() eventbus.Config {
 		KVKeyPrefix:      c.MetadataConfig.KeyPrefix,
 		Replicas:         c.Replicas,
 		Topology:         c.Topology,
-		GatewayEndpoint:  c.GatewayEndpoint,
 	}
 }
 

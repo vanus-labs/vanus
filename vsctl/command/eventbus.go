@@ -51,7 +51,7 @@ func createEventbusCommand() *cobra.Command {
 				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
 			ctx := context.Background()
-			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
+			grpcConn := mustGetControllerProxyConn(ctx, cmd)
 			defer func() {
 				_ = grpcConn.Close()
 			}()
@@ -92,7 +92,7 @@ func deleteEventbusCommand() *cobra.Command {
 				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
 			ctx := context.Background()
-			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
+			grpcConn := mustGetControllerProxyConn(ctx, cmd)
 			defer func() {
 				_ = grpcConn.Close()
 			}()
@@ -137,7 +137,7 @@ func getEventbusInfoCommand() *cobra.Command {
 				buses = strings.Split(eventbus, ",")
 			}
 			ctx := context.Background()
-			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
+			grpcConn := mustGetControllerProxyConn(ctx, cmd)
 			defer func() {
 				_ = grpcConn.Close()
 			}()
@@ -306,7 +306,7 @@ func listEventbusInfoCommand() *cobra.Command {
 		Short: "list the eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
-			grpcConn := mustGetLeaderControllerGRPCConn(ctx, cmd)
+			grpcConn := mustGetControllerProxyConn(ctx, cmd)
 			defer func() {
 				_ = grpcConn.Close()
 			}()

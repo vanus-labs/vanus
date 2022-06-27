@@ -32,20 +32,41 @@ import (
 )
 
 const (
-	httpRequestPrefix = "/gateway"
-	xceVanusEventbus  = "xvanuseventbus"
+	httpRequestPrefix  = "/gateway"
+	xceVanusEventbus   = "xvanuseventbus"
+	ctrlProxyPortShift = 2
+)
+
+var (
+	allowCtrlProxyList = map[string]string{
+		"/linkall.vanus.controller.PingServer/Ping":                      "ALLOW",
+		"/linkall.vanus.controller.EventBusController/ListEventBus":      "ALLOW",
+		"/linkall.vanus.controller.EventBusController/CreateEventBus":    "ALLOW",
+		"/linkall.vanus.controller.EventBusController/DeleteEventBus":    "ALLOW",
+		"/linkall.vanus.controller.EventBusController/GetEventBus":       "ALLOW",
+		"/linkall.vanus.controller.TriggerController/CreateSubscription": "ALLOW",
+		"/linkall.vanus.controller.TriggerController/DeleteSubscription": "ALLOW",
+		"/linkall.vanus.controller.TriggerController/GetSubscription":    "ALLOW",
+		"/linkall.vanus.controller.TriggerController/ListSubscription":   "ALLOW",
+	}
 )
 
 type ceGateway struct {
 	// ceClient  v2.Client
 	busWriter sync.Map
 	config    Config
+	cp        *ctrlProxy
 }
 
 func NewGateway(config Config) *ceGateway {
 	return &ceGateway{
 		config: config,
+		cp:     newCtrlProxy(config.Port+ctrlProxyPortShift, allowCtrlProxyList, config.ControllerAddr),
 	}
+}
+
+func (ga *ceGateway) StartCtrlProxy(ctx context.Context) error {
+	return ga.cp.start(ctx)
 }
 
 func (ga *ceGateway) StartReceive(ctx context.Context) error {
