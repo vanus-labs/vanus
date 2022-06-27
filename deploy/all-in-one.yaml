@@ -179,12 +179,6 @@ spec:
               fieldPath: status.podIP
         image: public.ecr.aws/vanus/trigger:v0.1.1
         imagePullPolicy: IfNotPresent
-        livenessProbe:
-          failureThreshold: 10
-          grpc:
-            port: 2148
-          initialDelaySeconds: 30
-          periodSeconds: 30
         name: trigger
         ports:
         - containerPort: 2148
@@ -229,11 +223,6 @@ spec:
               fieldPath: status.podIP
         image: public.ecr.aws/vanus/controller:v0.1.1
         imagePullPolicy: IfNotPresent
-        livenessProbe:
-          failureThreshold: 10
-          grpc:
-            port: 2048
-          periodSeconds: 30
         name: controller
         ports:
         - containerPort: 2048
@@ -295,12 +284,6 @@ spec:
               fieldPath: status.podIP
         image: public.ecr.aws/vanus/store:v0.1.1
         imagePullPolicy: IfNotPresent
-        livenessProbe:
-          failureThreshold: 10
-          grpc:
-            port: 11811
-          initialDelaySeconds: 30
-          periodSeconds: 30
         name: store
         ports:
         - containerPort: 11811
