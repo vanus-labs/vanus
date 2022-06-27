@@ -129,7 +129,7 @@ func TestWAL_AppendOne(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		var inflight int32 = 100
-		for i := int32(0); i < inflight; i++ {
+		for i := inflight; i > 0; i-- {
 			wal.AppendOne(data0, WithCallback(func(_ Result) {
 				atomic.AddInt32(&inflight, -1)
 			}))
