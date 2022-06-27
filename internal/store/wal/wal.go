@@ -254,7 +254,7 @@ func (w *WAL) runAppend(flushTimeout time.Duration) {
 
 			d := time.Since(start)
 			if d < flushTimeout {
-				timer.Reset(d)
+				timer.Reset(flushTimeout - d)
 				break
 			}
 
