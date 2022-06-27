@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	// third-party libraries.
 	. "github.com/smartystreets/goconvey/convey"
@@ -88,6 +89,38 @@ func TestWAL_AppendOne(t *testing.T) {
 		})
 	})
 
+	Convey("flush wal when timeout", t, func() {
+		walDir, err := os.MkdirTemp("", "wal-*")
+		So(err, ShouldBeNil)
+
+		flushTimeout := time.Second
+		wal, err := NewWAL(walDir, WithFileSize(fileSize), WithFlushTimeout(flushTimeout))
+		So(err, ShouldBeNil)
+
+		data := make([]byte, defaultBlockSize)
+
+		startTime := time.Now()
+		var t0, t1 time.Time
+		wal.AppendOne(data0, WithCallback(func(_ Result) {
+			t0 = time.Now()
+		}))
+		wal.AppendOne(data, WithCallback(func(_ Result) {
+			t1 = time.Now()
+		}))
+		wal.AppendOne(data1).Wait()
+		t2 := time.Now()
+
+		So(t0, ShouldHappenBefore, startTime.Add(flushTimeout))
+		So(t1, ShouldHappenAfter, startTime.Add(flushTimeout))
+		So(t2, ShouldHappenAfter, t1)
+
+		wal.Close()
+		wal.Wait()
+
+		err = os.RemoveAll(walDir)
+		So(err, ShouldBeNil)
+	})
+
 	Convey("wal append one after close", t, func() {
 		walDir, err := os.MkdirTemp("", "wal-*")
 		So(err, ShouldBeNil)
@@ -96,7 +129,7 @@ func TestWAL_AppendOne(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		var inflight int32 = 100
-		for i := int32(0); i < inflight; i++ {
+		for i := inflight; i > 0; i-- {
 			wal.AppendOne(data0, WithCallback(func(_ Result) {
 				atomic.AddInt32(&inflight, -1)
 			}))
