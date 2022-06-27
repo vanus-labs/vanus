@@ -27,7 +27,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func mustGatewayProxyGRPCConn(ctx context.Context, cmd *cobra.Command) *grpc.ClientConn {
+func mustGetControllerProxyConn(ctx context.Context, cmd *cobra.Command) *grpc.ClientConn {
 	splits := strings.Split(mustGetGatewayEndpoint(cmd), ":")
 	port, err := strconv.Atoi(splits[1])
 	if err != nil {
