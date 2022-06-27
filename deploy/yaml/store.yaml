@@ -61,14 +61,14 @@ spec:
     spec:
       containers:
         - name: store
-          image: public.ecr.aws/vanus/store:v0.1.0
+          image: public.ecr.aws/vanus/store:v0.1.1
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c", "VOLUME_ID=${HOSTNAME##*-} /vanus/bin/store"]
           livenessProbe:
             grpc:
               port: 11811
-            failureThreshold: 3
-            periodSeconds: 2
+            failureThreshold: 10
+            periodSeconds: 30
             initialDelaySeconds: 30
           ports:
             - name: grpc

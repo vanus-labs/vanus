@@ -45,13 +45,13 @@ spec:
     spec:
       containers:
         - name: trigger
-          image: public.ecr.aws/vanus/trigger:v0.1.0
+          image: public.ecr.aws/vanus/trigger:v0.1.1
           imagePullPolicy: IfNotPresent
           livenessProbe:
             grpc:
               port: 2148
-            failureThreshold: 3
-            periodSeconds: 2
+            failureThreshold: 10
+            periodSeconds: 30
             initialDelaySeconds: 30
           ports:
             - name: grpc
