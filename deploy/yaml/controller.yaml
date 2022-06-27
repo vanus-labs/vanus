@@ -89,11 +89,11 @@ spec:
         - name: controller
           image: public.ecr.aws/vanus/controller:v0.1.1
           imagePullPolicy: IfNotPresent
-          livenessProbe:
-            grpc:
-              port: 2048
-            failureThreshold: 10
-            periodSeconds: 30
+#          livenessProbe:
+#            grpc:
+#              port: 2048
+#            failureThreshold: 10
+#            periodSeconds: 30
           ports:
             - name: grpc
               containerPort: 2048
