@@ -33,6 +33,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/raft/transport"
 	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/segment/errors"
+	"github.com/linkall-labs/vanus/observability/log"
 )
 
 const (
@@ -174,14 +175,25 @@ func (r *Replica) run(ctx context.Context) {
 				partial = r.wakeup(rd.HardState.Commit)
 			}
 
-			if err := r.log.Append(rd.Entries); err != nil {
-				panic(err)
+			if len(rd.Entries) != 0 {
+				log.Debug(ctx, "Append entries to raft log.", map[string]interface{}{
+					"block_id":       r.blockID,
+					"appended_index": rd.Entries[0].Index,
+					"entries_num":    len(rd.Entries),
+				})
+				if err := r.log.Append(rd.Entries); err != nil {
+					panic(err)
+				}
 			}
 
 			if stateChanged {
 				if partial {
 					_ = r.wakeup(rd.HardState.Commit)
 				}
+				log.Debug(ctx, "Persist raft hard state.", map[string]interface{}{
+					"block_id":   r.blockID,
+					"hard_state": rd.HardState,
+				})
 				if err := r.log.SetHardState(rd.HardState); err != nil {
 					panic(err)
 				}
@@ -211,6 +223,10 @@ func (r *Replica) run(ctx context.Context) {
 			}
 
 			if applied != 0 {
+				log.Debug(ctx, "Store applied offset.", map[string]interface{}{
+					"block_id":       r.blockID,
+					"applied_offset": applied,
+				})
 				// FIXME(james.yin): persist applied after flush block.
 				r.log.SetApplied(applied)
 			}
@@ -406,7 +422,8 @@ func (r *Replica) append(ctx context.Context, entries []block.Entry) (uint32, er
 
 	entries, err := r.appender.PrepareAppend(ctx, r.actx, entries...)
 	if err != nil {
-		// Full
+		// Mark as full, if there is not enough space.
+		// TODO(james.yin): improve space utilization.
 		if stderr.Is(err, block.ErrNotEnoughSpace) {
 			entry := r.actx.FullEntry()
 			data := entry.MarshalWithOffsetAndIndex()

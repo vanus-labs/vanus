@@ -68,7 +68,7 @@ func (s *server) recoverBlocks(ctx context.Context, raftLogs map[vanus.ID]*raftl
 		}
 
 		log.Info(ctx, "The block was loaded.", map[string]interface{}{
-			"blockID": blockID,
+			"block_id": blockID,
 		})
 		if err2 = b.Recover(ctx); err2 != nil {
 			return err2
@@ -99,11 +99,11 @@ func (s *server) recoverBlocks(ctx context.Context, raftLogs map[vanus.ID]*raftl
 		switch {
 		case b == nil:
 			log.Debug(ctx, "Not found block, so discard the raft log.", map[string]interface{}{
-				"nodeID": nodeID,
+				"node_id": nodeID,
 			})
 		case !b.Appendable():
 			log.Debug(ctx, "Block is not appendable, so discard the raft log.", map[string]interface{}{
-				"nodeID": nodeID,
+				"node_id": nodeID,
 			})
 		default:
 			continue

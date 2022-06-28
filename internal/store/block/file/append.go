@@ -91,7 +91,7 @@ func (b *Block) PrepareAppend(
 		size += uint32(entry.Size())
 	}
 
-	if !b.hasEnoughSpace(actx, size, uint32(len(entries))) {
+	if !b.hasEnoughSpace(actx, size, len(entries)) {
 		return nil, block.ErrNotEnoughSpace
 	}
 
@@ -101,9 +101,12 @@ func (b *Block) PrepareAppend(
 	return entries, nil
 }
 
-func (b *Block) hasEnoughSpace(actx *appendContext, length, num uint32) bool {
-	require := length + indexSize*num + block.EntryLengthSize
-	return require <= b.remaining(actx.size(), actx.num)
+func (b *Block) hasEnoughSpace(actx *appendContext, size uint32, num int) bool {
+	return b.requireSpace(size, num) <= b.remaining(actx.size(), actx.num)
+}
+
+func (b *Block) requireSpace(size uint32, num int) uint32 {
+	return size + indexSize*uint32(num) + block.EntryLengthSize
 }
 
 func (b *Block) CommitAppend(ctx context.Context, entries ...block.Entry) error {
@@ -122,21 +125,23 @@ func (b *Block) CommitAppend(ctx context.Context, entries ...block.Entry) error 
 
 	offset := entries[0].Offset
 	last := &entries[len(entries)-1]
-	length := last.EndOffset() - offset
+	size := last.EndOffset() - offset
 
 	// Check free space.
-	if !b.hasEnoughSpace(&b.actx, length, uint32(len(entries))) {
+	if !b.hasEnoughSpace(&b.actx, size, len(entries)) {
+		actx := b.actx
 		log.Error(ctx, "block: not enough space.", map[string]interface{}{
-			"blockID": b.id,
-			"length":  length,
-			"num":     len(entries),
-			// "require":   require,
-			// "remaining": b.remaining(),
+			"block_id":        b.id,
+			"entry_size":      size,
+			"entry_num":       len(entries),
+			"append_context":  actx,
+			"require_space":   b.requireSpace(size, len(entries)),
+			"remaining_space": b.remaining(b.actx.size(), b.actx.num),
 		})
 		return block.ErrNotEnoughSpace
 	}
 
-	buf := make([]byte, length)
+	buf := make([]byte, size)
 	indexes := make([]index, 0, len(entries))
 	for _, entry := range entries {
 		n, _ := entry.MarshalTo(buf[entry.Offset-offset:])
@@ -174,16 +179,16 @@ func (b *Block) trimEntries(ctx context.Context, entries []block.Entry) ([]block
 		switch entry := &entries[i]; {
 		case entry.Index < num:
 			log.Warning(ctx, "block: entry index less than block num, skip this entry.", map[string]interface{}{
-				"blockID": b.id,
-				"index":   entry.Index,
-				"num":     num,
+				"block_id": b.id,
+				"index":    entry.Index,
+				"num":      num,
 			})
 			continue
 		case entry.Index > num:
 			log.Error(ctx, "block: entry index greater than block num.", map[string]interface{}{
-				"blockID": b.id,
-				"index":   entry.Index,
-				"num":     num,
+				"block_id": b.id,
+				"index":    entry.Index,
+				"num":      num,
 			})
 			return nil, errors.ErrInternal
 		}
@@ -199,10 +204,10 @@ func (b *Block) checkEntries(ctx context.Context, entries []block.Entry) error {
 	offset := entries[0].Offset
 	if offset != b.actx.offset {
 		log.Error(ctx, "block: entry offset is not equal than block wo.", map[string]interface{}{
-			"blockID": b.id,
-			"offset":  offset,
-			"wo":      b.actx.offset,
-			"index":   entries[0].Index,
+			"block_id": b.id,
+			"offset":   offset,
+			"wo":       b.actx.offset,
+			"index":    entries[0].Index,
 		})
 		return errors.ErrInternal
 	}
@@ -212,17 +217,17 @@ func (b *Block) checkEntries(ctx context.Context, entries []block.Entry) error {
 		prev := &entries[i-1]
 		if prev.Index+1 != entry.Index {
 			log.Error(ctx, "block: entry index is discontinuous.", map[string]interface{}{
-				"blockID": b.id,
-				"index":   entry.Index,
-				"prev":    prev.Index,
+				"block_id": b.id,
+				"index":    entry.Index,
+				"prev":     prev.Index,
 			})
 			return errors.ErrInternal
 		}
 		if prev.EndOffset() != entry.Offset {
 			log.Error(ctx, "block: entry offset is discontinuous.", map[string]interface{}{
-				"blockID": b.id,
-				"offset":  entry.Offset,
-				"prev":    prev.Offset,
+				"block_id": b.id,
+				"offset":   entry.Offset,
+				"prev":     prev.Offset,
 			})
 			return errors.ErrInternal
 		}

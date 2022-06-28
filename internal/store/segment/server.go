@@ -204,8 +204,8 @@ func (s *server) CreateBlock(ctx context.Context, req *segpb.CreateBlockRequest)
 	}
 
 	log.Info(ctx, "Create block.", map[string]interface{}{
-		"blockID": req.Id,
-		"size":    req.Size,
+		"block_id": req.Id,
+		"size":     req.Size,
 	})
 
 	blockID := vanus.NewIDFromUint64(req.Id)
@@ -299,8 +299,8 @@ func (s *server) ActivateSegment(
 	}
 
 	log.Info(ctx, "Bootstrap replica.", map[string]interface{}{
-		"blockID": myID,
-		"peers":   peers,
+		"block_id": myID,
+		"peers":    peers,
 	})
 
 	// Bootstrap replica.
@@ -387,7 +387,7 @@ func (s *server) processAppendError(ctx context.Context, blockID vanus.ID, err e
 
 	if stderr.Is(err, block.ErrNotEnoughSpace) {
 		log.Debug(ctx, "Append failed: not enough space. Mark segment is full.", map[string]interface{}{
-			"blockID": blockID,
+			"block_id": blockID,
 		})
 		// TODO: optimize this to async from sync
 		if err = s.markSegmentIsFull(ctx, blockID); err != nil {
@@ -396,13 +396,13 @@ func (s *server) processAppendError(ctx context.Context, blockID vanus.ID, err e
 		return errors.ErrSegmentNotEnoughSpace
 	} else if stderr.Is(err, block.ErrFull) {
 		log.Debug(ctx, "Append failed: block is full.", map[string]interface{}{
-			"blockID": blockID,
+			"block_id": blockID,
 		})
 		return errors.ErrSegmentFull
 	}
 
 	log.Warning(ctx, "Append failed.", map[string]interface{}{
-		"blockID":    blockID,
+		"block_id":   blockID,
 		log.KeyError: err,
 	})
 	return errors.ErrInternal.WithMessage("write to storage failed").Wrap(err)
@@ -630,10 +630,10 @@ func (s *server) registerSelf(ctx context.Context) error {
 				if myID != 0 {
 					// FIXME(james.yin): multiple blocks of same segment in this server.
 					log.Warning(ctx, "Multiple blocks of the same segment in this server.", map[string]interface{}{
-						"blockID":   blockID,
-						"other":     myID,
-						"segmentID": segmentpb.Id,
-						"volumeID":  s.volumeID,
+						"block_id":       blockID,
+						"other":          myID,
+						log.KeySegmentID: segmentpb.Id,
+						log.KeyVolumeID:  s.volumeID,
 					})
 				}
 				myID = vanus.NewIDFromUint64(blockID)
@@ -642,8 +642,8 @@ func (s *server) registerSelf(ctx context.Context) error {
 		if myID == 0 {
 			// TODO(james.yin): no my block
 			log.Warning(ctx, "No block of the specific segment in this server.", map[string]interface{}{
-				"segmentID": segmentpb.Id,
-				"volumeID":  s.volumeID,
+				log.KeySegmentID: segmentpb.Id,
+				log.KeyVolumeID:  s.volumeID,
 			})
 			continue
 		}
@@ -660,10 +660,10 @@ func (s *server) registerReplicas(ctx context.Context, segmentpb *metapb.Segment
 				blockpb.Endpoint = s.localAddress
 			} else {
 				log.Warning(ctx, "Block is offline.", map[string]interface{}{
-					"blockID":    blockID,
-					"volumeID":   blockpb.VolumeID,
-					"segmentID":  segmentpb.Id,
-					"eventlogID": segmentpb.EventLogId,
+					"block_id":        blockID,
+					log.KeyVolumeID:   blockpb.VolumeID,
+					log.KeySegmentID:  segmentpb.Id,
+					log.KeyEventlogID: segmentpb.EventLogId,
 				})
 				continue
 			}

@@ -113,9 +113,10 @@ func (b *Block) size() int64 {
 	return b.fo.Load() - headerBlockSize
 }
 
-func (b *Block) remaining(length, num uint32) uint32 {
+// remaining calculates remaining space by given entrySize and entryNum.
+func (b *Block) remaining(size, num uint32) uint32 {
 	// capacity - headerBlockSize - dataLength - indexLength.
-	return uint32(b.cap) - headerBlockSize - length - num*indexSize
+	return uint32(b.cap) - headerBlockSize - size - num*indexSize
 }
 
 func (b *Block) persistHeader(ctx context.Context) error {
