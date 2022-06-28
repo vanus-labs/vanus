@@ -25,6 +25,7 @@ service TriggerWorker {
   rpc Start(StartTriggerWorkerRequest) returns (StartTriggerWorkerResponse);
   rpc Stop(StopTriggerWorkerRequest) returns (StopTriggerWorkerResponse);
   rpc AddSubscription(AddSubscriptionRequest) returns (AddSubscriptionResponse);
+  rpc UpdateSubscription(UpdateSubscriptionRequest) returns (UpdateSubscriptionResponse);
   rpc RemoveSubscription(RemoveSubscriptionRequest)
       returns (RemoveSubscriptionResponse);
   rpc PauseSubscription(PauseSubscriptionRequest)
@@ -53,6 +54,15 @@ message AddSubscriptionRequest {
 }
 
 message AddSubscriptionResponse {}
+
+message UpdateSubscriptionRequest {
+  uint64 id = 1;
+  repeated meta.Filter filters = 2;
+  string sink = 3;
+  meta.InputTransformer input_transformer = 4;
+}
+
+message UpdateSubscriptionResponse {}
 
 message RemoveSubscriptionRequest {
   uint64 subscription_id = 1;

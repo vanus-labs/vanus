@@ -1122,6 +1122,26 @@ func (mr *MockTriggerControllerClientMockRecorder) UnregisterTriggerWorker(ctx, 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnregisterTriggerWorker", reflect.TypeOf((*MockTriggerControllerClient)(nil).UnregisterTriggerWorker), varargs...)
 }
 
+// UpdateSubscription mocks base method.
+func (m *MockTriggerControllerClient) UpdateSubscription(ctx context.Context, in *UpdateSubscriptionRequest, opts ...grpc.CallOption) (*meta.Subscription, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "UpdateSubscription", varargs...)
+	ret0, _ := ret[0].(*meta.Subscription)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateSubscription indicates an expected call of UpdateSubscription.
+func (mr *MockTriggerControllerClientMockRecorder) UpdateSubscription(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSubscription", reflect.TypeOf((*MockTriggerControllerClient)(nil).UpdateSubscription), varargs...)
+}
+
 // MockTriggerController_TriggerWorkerHeartbeatClient is a mock of TriggerController_TriggerWorkerHeartbeatClient interface.
 type MockTriggerController_TriggerWorkerHeartbeatClient struct {
 	ctrl     *gomock.Controller
@@ -1384,6 +1404,21 @@ func (m *MockTriggerControllerServer) UnregisterTriggerWorker(arg0 context.Conte
 func (mr *MockTriggerControllerServerMockRecorder) UnregisterTriggerWorker(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnregisterTriggerWorker", reflect.TypeOf((*MockTriggerControllerServer)(nil).UnregisterTriggerWorker), arg0, arg1)
+}
+
+// UpdateSubscription mocks base method.
+func (m *MockTriggerControllerServer) UpdateSubscription(arg0 context.Context, arg1 *UpdateSubscriptionRequest) (*meta.Subscription, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateSubscription", arg0, arg1)
+	ret0, _ := ret[0].(*meta.Subscription)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateSubscription indicates an expected call of UpdateSubscription.
+func (mr *MockTriggerControllerServerMockRecorder) UpdateSubscription(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSubscription", reflect.TypeOf((*MockTriggerControllerServer)(nil).UpdateSubscription), arg0, arg1)
 }
 
 // MockTriggerController_TriggerWorkerHeartbeatServer is a mock of TriggerController_TriggerWorkerHeartbeatServer interface.
