@@ -37,7 +37,7 @@ import (
 const (
 	headerBlockSize = 4 * 1024
 	// version + capacity + size + number + full.
-	v1HeaderSize = 4 + 8 + 8 + 4 + 1
+	headerSize = 4 + 8 + 8 + 4 + 1
 )
 
 // Block
@@ -122,7 +122,7 @@ func (b *Block) persistHeader(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	buf := make([]byte, v1HeaderSize)
+	buf := make([]byte, headerSize)
 	binary.BigEndian.PutUint32(buf[0:4], uint32(b.version))
 	binary.BigEndian.PutUint64(buf[4:12], uint64(b.cap))
 	binary.BigEndian.PutUint64(buf[12:20], uint64(b.size()))
@@ -143,7 +143,7 @@ func (b *Block) loadHeader(ctx context.Context) error {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	buf := make([]byte, v1HeaderSize)
+	buf := make([]byte, headerSize)
 	if _, err := b.f.ReadAt(buf, 0); err != nil {
 		return err
 	}
