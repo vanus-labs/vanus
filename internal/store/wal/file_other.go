@@ -29,7 +29,7 @@ import (
 )
 
 func openFile(path string) (*os.File, error) {
-	return directio.OpenFile(path, os.O_RDWR|os.SYNC, 0)
+	return directio.OpenFile(path, os.O_RDWR|os.O_SYNC, 0)
 }
 
 func createFile(path string, size int64, wronly bool, sync bool) (*os.File, error) {
