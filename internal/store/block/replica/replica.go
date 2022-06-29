@@ -206,38 +206,8 @@ func (r *Replica) run(ctx context.Context) {
 			// applied = rd.Snapshot.Metadata.Index
 			// }
 
-			if num := len(rd.CommittedEntries); num != 0 {
-				var cs *raftpb.ConfState
-
-				entries := make([]block.Entry, 0, num)
-				for i := range rd.CommittedEntries {
-					entrypb := &rd.CommittedEntries[i]
-
-					if entrypb.Type == raftpb.EntryNormal {
-						// Skip empty entry(raft heartbeat).
-						if len(entrypb.Data) != 0 {
-							entry := block.UnmarshalEntryWithOffsetAndIndex(entrypb.Data)
-							entries = append(entries, entry)
-						}
-						continue
-					}
-
-					// Change membership.
-					cs = r.applyConfChange(entrypb)
-				}
-
-				if len(entries) != 0 {
-					r.doAppend(ctx, entries...)
-				}
-
-				// ConfState is changed.
-				if cs != nil {
-					if err := r.log.SetConfState(*cs); err != nil {
-						panic(err)
-					}
-				}
-
-				applied = rd.CommittedEntries[len(rd.CommittedEntries)-1].Index
+			if len(rd.CommittedEntries) != 0 {
+				applied = r.applyEntries(ctx, rd.CommittedEntries)
 			}
 
 			if applied != 0 {
@@ -256,6 +226,44 @@ func (r *Replica) run(ctx context.Context) {
 			return
 		}
 	}
+}
+
+func (r *Replica) applyEntries(ctx context.Context, committedEntries []raftpb.Entry) uint64 {
+	num := len(committedEntries)
+	if num == 0 {
+		return 0
+	}
+
+	var cs *raftpb.ConfState
+	entries := make([]block.Entry, 0, num)
+	for i := range committedEntries {
+		entrypb := &committedEntries[i]
+
+		if entrypb.Type == raftpb.EntryNormal {
+			// Skip empty entry(raft heartbeat).
+			if len(entrypb.Data) != 0 {
+				entry := block.UnmarshalEntryWithOffsetAndIndex(entrypb.Data)
+				entries = append(entries, entry)
+			}
+			continue
+		}
+
+		// Change membership.
+		cs = r.applyConfChange(entrypb)
+	}
+
+	if len(entries) != 0 {
+		r.doAppend(ctx, entries...)
+	}
+
+	// ConfState is changed.
+	if cs != nil {
+		if err := r.log.SetConfState(*cs); err != nil {
+			panic(err)
+		}
+	}
+
+	return committedEntries[num-1].Index
 }
 
 func (r *Replica) wakeup(commit uint64) (partial bool) {
