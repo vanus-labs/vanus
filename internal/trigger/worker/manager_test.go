@@ -22,7 +22,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"github.com/linkall-labs/vanus/internal/trigger/reader"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -39,12 +38,12 @@ func TestAddSubscription(t *testing.T) {
 		So(err, ShouldBeNil)
 		_, exist := m.subscriptionMap.Load(id)
 		So(exist, ShouldBeTrue)
-		Convey("repeat add subscription", func() {
+		Convey("update subscription", func() {
 			err = m.AddSubscription(ctx, &primitive.Subscription{
-				ID: id,
+				ID:   id,
+				Sink: "http://localhost:8080",
 			})
-			So(err, ShouldNotBeNil)
-			So(err, ShouldEqual, errors.ErrResourceAlreadyExist)
+			So(err, ShouldBeNil)
 		})
 	})
 }

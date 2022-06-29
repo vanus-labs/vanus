@@ -53,3 +53,28 @@ func TestSubscriptionWorker(t *testing.T) {
 		w.Stop(ctx)
 	})
 }
+
+func TestSubscriptionWorker_Change(t *testing.T) {
+	Convey("test trigger worker change subscription", t, func() {
+		ctx := context.Background()
+		id := vanus.NewID()
+		w := NewSubscriptionWorker(&primitive.Subscription{
+			ID: id,
+		}, nil, []string{"test"})
+		Convey("change target", func() {
+			err := w.Change(ctx, &primitive.Subscription{Sink: "test_sink"})
+			So(err, ShouldBeNil)
+		})
+		Convey("change filter", func() {
+			err := w.Change(ctx, &primitive.Subscription{Filters: []*primitive.SubscriptionFilter{
+				{Exact: map[string]string{"test": "test"}},
+			}})
+			So(err, ShouldBeNil)
+		})
+		Convey("change transformation", func() {
+			err := w.Change(ctx, &primitive.Subscription{InputTransformer: &primitive.InputTransformer{}})
+			So(err, ShouldBeNil)
+		})
+	})
+
+}

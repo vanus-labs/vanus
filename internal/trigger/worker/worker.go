@@ -36,6 +36,7 @@ const (
 type SubscriptionWorker interface {
 	Run(ctx context.Context) error
 	Stop(ctx context.Context)
+	Change(ctx context.Context, subscription *primitive.Subscription) error
 }
 
 type subscriptionWorker struct {
@@ -64,6 +65,21 @@ func NewSubscriptionWorker(subscription *primitive.Subscription,
 	return sw
 }
 
+func (w *subscriptionWorker) Change(ctx context.Context, subscription *primitive.Subscription) error {
+	if subscription.Sink != "" {
+		err := w.trigger.ChangeTarget(subscription.Sink)
+		if err != nil {
+			return err
+		}
+	}
+	if subscription.Filters != nil {
+		w.trigger.ChangeFilter(subscription.Filters)
+	}
+	if subscription.InputTransformer != nil {
+		w.trigger.ChangeInputTransformer(subscription.InputTransformer)
+	}
+	return nil
+}
 func (w *subscriptionWorker) Run(ctx context.Context) error {
 	err := w.reader.Start()
 	if err != nil {

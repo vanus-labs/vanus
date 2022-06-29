@@ -17,20 +17,22 @@ package queue
 import (
 	"time"
 
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+
 	"golang.org/x/time/rate"
 	"k8s.io/client-go/util/workqueue"
 )
 
 type Queue interface {
-	Add(key string)
+	Add(key vanus.ID)
 	Len() int
-	Get() (value string, shutdown bool)
-	Done(key string)
+	Get() (value vanus.ID, shutdown bool)
+	Done(key vanus.ID)
 	ShutDown()
 	IsShutDown() bool
-	ReAdd(key string)
-	GetFailNum(key string) int
-	ClearFailNum(key string)
+	ReAdd(key vanus.ID)
+	GetFailNum(key vanus.ID) int
+	ClearFailNum(key vanus.ID)
 }
 
 const (
@@ -58,7 +60,7 @@ func DefaultControllerRateLimiter() workqueue.RateLimiter {
 	)
 }
 
-func (q *queue) Add(key string) {
+func (q *queue) Add(key vanus.ID) {
 	q.queue.Add(key)
 }
 
@@ -66,15 +68,15 @@ func (q *queue) Len() int {
 	return q.queue.Len()
 }
 
-func (q *queue) Get() (value string, shutdown bool) {
+func (q *queue) Get() (value vanus.ID, shutdown bool) {
 	v, shutdown := q.queue.Get()
 	if !shutdown {
-		value, _ = v.(string)
+		value, _ = v.(vanus.ID)
 	}
 	return value, shutdown
 }
 
-func (q *queue) Done(key string) {
+func (q *queue) Done(key vanus.ID) {
 	q.queue.Done(key)
 }
 
@@ -86,15 +88,15 @@ func (q *queue) IsShutDown() bool {
 	return q.queue.ShuttingDown()
 }
 
-func (q *queue) ReAdd(key string) {
+func (q *queue) ReAdd(key vanus.ID) {
 	q.queue.Done(key)
 	q.queue.AddRateLimited(key)
 }
 
-func (q *queue) GetFailNum(key string) int {
+func (q *queue) GetFailNum(key vanus.ID) int {
 	return q.queue.NumRequeues(key)
 }
 
-func (q *queue) ClearFailNum(key string) {
+func (q *queue) ClearFailNum(key vanus.ID) {
 	q.queue.Forget(key)
 }

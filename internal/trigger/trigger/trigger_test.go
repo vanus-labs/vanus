@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trigger_test
+package trigger
 
 import (
 	"context"
@@ -23,36 +23,73 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
-	"github.com/linkall-labs/vanus/internal/trigger/trigger"
 	"github.com/linkall-labs/vanus/observability/log"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/cloudevents/sdk-go/v2/client"
+	ceClient "github.com/cloudevents/sdk-go/v2/client"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"github.com/google/uuid"
 	. "github.com/smartystreets/goconvey/convey"
 )
+
+func TestTrigger_ChangeTarget(t *testing.T) {
+	offsetManger := offset.NewOffsetManager()
+	offsetManger.RegisterSubscription(1)
+	tg := NewTrigger(nil, &primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
+	Convey("test change target", t, func() {
+		So(tg.Target, ShouldEqual, "")
+		So(tg.getCeClient(), ShouldBeNil)
+		tg.ChangeTarget("http://localhost:18081")
+		So(tg.getCeClient(), ShouldNotBeNil)
+	})
+}
+
+func TestTrigger_ChangeFilter(t *testing.T) {
+	offsetManger := offset.NewOffsetManager()
+	offsetManger.RegisterSubscription(1)
+	tg := NewTrigger(nil, &primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
+	Convey("test change filter", t, func() {
+		So(tg.getFilter(), ShouldBeNil)
+		tg.ChangeFilter([]*primitive.SubscriptionFilter{{Exact: map[string]string{"type": "test"}}})
+		So(tg.getFilter(), ShouldNotBeNil)
+	})
+}
+
+func TestTrigger_ChangeInputTransformer(t *testing.T) {
+	offsetManger := offset.NewOffsetManager()
+	offsetManger.RegisterSubscription(1)
+	tg := NewTrigger(nil, &primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
+	Convey("test change input transformer", t, func() {
+		So(tg.getInputTransformer(), ShouldBeNil)
+		tg.ChangeInputTransformer(&primitive.InputTransformer{})
+		So(tg.getInputTransformer(), ShouldBeNil)
+		tg.ChangeInputTransformer(&primitive.InputTransformer{Define: map[string]string{"d": "d"}})
+		So(tg.getInputTransformer(), ShouldNotBeNil)
+		tg.ChangeInputTransformer(nil)
+		So(tg.getInputTransformer(), ShouldBeNil)
+	})
+}
 
 func TestTrigger(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	go startSink(ctx)
 	offsetManger := offset.NewOffsetManager()
 	offsetManger.RegisterSubscription(1)
-	tg := trigger.NewTrigger(nil, makeSubscription(1), offsetManger.GetSubscription(1))
+	tg := NewTrigger(nil, makeSubscription(1), offsetManger.GetSubscription(1))
 
 	Convey("test", t, func() {
 		_ = tg.EventArrived(ctx, makeEventRecord())
 		_ = tg.Start()
 		time.Sleep(time.Second * 1)
-		So(tg.GetState(), ShouldEqual, trigger.TriggerRunning)
+		So(tg.GetState(), ShouldEqual, TriggerRunning)
 		tg.Stop()
-		So(tg.GetState(), ShouldEqual, trigger.TriggerStopped)
+		So(tg.GetState(), ShouldEqual, TriggerStopped)
 		cancel()
 	})
 }
 
 func startSink(ctx context.Context) {
-	c, err := client.NewHTTP(cehttp.WithPort(18080))
+	c, err := ceClient.NewHTTP(cehttp.WithPort(18080))
 	if err != nil {
 		panic(err)
 	}

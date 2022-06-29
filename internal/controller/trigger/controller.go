@@ -91,6 +91,53 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 	return resp, nil
 }
 
+func (ctrl *controller) UpdateSubscription(ctx context.Context,
+	request *ctrlpb.UpdateSubscriptionRequest) (*meta.Subscription, error) {
+	if ctrl.state != primitive.ServerStateRunning {
+		return nil, errors.ErrServerNotStart
+	}
+	subID := vanus.ID(request.Id)
+	subscriptionData := ctrl.subscriptionManager.GetSubscriptionData(ctx, subID)
+	if subscriptionData == nil {
+		return nil, errors.ErrResourceNotFound.WithMessage("subscription not exist")
+	}
+	err := validation.ValidateUpdateSubscription(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	if request.Source != "" {
+		subscriptionData.Source = request.Source
+	}
+	if len(request.Types) > 0 {
+		subscriptionData.Types = request.Types
+	}
+	if len(request.Config) > 0 {
+		subscriptionData.Config = request.Config
+	}
+	if len(request.Filters) > 0 {
+		subscriptionData.Filters = convert.FromPbFilters(request.Filters)
+	}
+	if request.Sink != "" {
+		subscriptionData.Sink = primitive.URI(request.Sink)
+	}
+	if request.Protocol != "" {
+		subscriptionData.Protocol = request.Protocol
+	}
+	if len(request.ProtocolSettings) > 0 {
+		subscriptionData.ProtocolSettings = request.ProtocolSettings
+	}
+	if request.InputTransformer != nil {
+		subscriptionData.InputTransformer = convert.FromFPbInputTransformer(request.InputTransformer)
+	}
+	err = ctrl.subscriptionManager.UpdateSubscription(ctx, subscriptionData)
+	if err != nil {
+		return nil, err
+	}
+	ctrl.scheduler.EnqueueNormalSubscription(subscriptionData.ID)
+	resp := convert.ToPbSubscription(subscriptionData)
+	return resp, nil
+}
+
 func (ctrl *controller) DeleteSubscription(ctx context.Context,
 	request *ctrlpb.DeleteSubscriptionRequest) (*emptypb.Empty, error) {
 	if ctrl.state != primitive.ServerStateRunning {

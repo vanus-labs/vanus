@@ -22,7 +22,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
 	"github.com/linkall-labs/vanus/observability/log"
 )
@@ -96,14 +95,17 @@ func (m *manager) Stop(ctx context.Context) error {
 func (m *manager) AddSubscription(ctx context.Context, subscription *primitive.Subscription) error {
 	subOffset := m.offsetManager.RegisterSubscription(subscription.ID)
 	worker := NewSubscriptionWorker(subscription, subOffset, m.config.Controllers)
-	_, exist := m.subscriptionMap.LoadOrStore(subscription.ID, worker)
+	data, exist := m.subscriptionMap.LoadOrStore(subscription.ID, worker)
 	if exist {
-		return errors.ErrResourceAlreadyExist
+		worker, _ = data.(SubscriptionWorker)
+		err := worker.Change(ctx, subscription)
+		return err
 	}
 	if m.startSubscription {
 		err := worker.Run(m.ctx)
 		if err != nil {
 			m.offsetManager.RemoveSubscription(subscription.ID)
+			m.subscriptionMap.Delete(subscription.ID)
 			return err
 		}
 	}

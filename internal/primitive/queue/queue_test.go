@@ -17,38 +17,42 @@ package queue
 import (
 	"testing"
 
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestQueue(t *testing.T) {
 	Convey("test queue", t, func() {
+		id := vanus.NewID()
 		q := New()
-		q.Add("key1")
+		q.Add(id)
 		So(q.Len(), ShouldEqual, 1)
 		v, shutdown := q.Get()
 		So(shutdown, ShouldBeFalse)
-		So(v, ShouldEqual, "key1")
+		So(v, ShouldEqual, id)
 		So(q.Len(), ShouldEqual, 0)
-		q.Done("key1")
+		q.Done(id)
 	})
 }
 
 func TestQueueReAdd(t *testing.T) {
 	Convey("test queue", t, func() {
+		id := vanus.NewID()
 		q := New()
-		q.Add("key1")
+		q.Add(id)
 		So(q.Len(), ShouldEqual, 1)
 		v, shutdown := q.Get()
 		So(shutdown, ShouldBeFalse)
-		So(v, ShouldEqual, "key1")
+		So(v, ShouldEqual, id)
 		So(q.Len(), ShouldEqual, 0)
-		q.ReAdd("key1")
-		So(q.GetFailNum("key1"), ShouldEqual, 1)
-		q.ClearFailNum("key1")
-		So(q.GetFailNum("key1"), ShouldEqual, 0)
+		q.ReAdd(id)
+		So(q.GetFailNum(id), ShouldEqual, 1)
+		q.ClearFailNum(id)
+		So(q.GetFailNum(id), ShouldEqual, 0)
 		v, shutdown = q.Get()
 		So(shutdown, ShouldBeFalse)
-		So(v, ShouldEqual, "key1")
+		So(v, ShouldEqual, id)
 		So(q.Len(), ShouldEqual, 0)
 	})
 }

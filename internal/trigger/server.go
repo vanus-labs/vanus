@@ -36,6 +36,10 @@ const (
 	heartbeatPeriod = 3 * time.Second
 )
 
+var (
+	_ pbtrigger.TriggerWorkerServer = &server{}
+)
+
 type server struct {
 	worker    worker.Manager
 	config    Config

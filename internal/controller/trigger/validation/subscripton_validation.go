@@ -39,6 +39,14 @@ func ValidateCreateSubscription(ctx context.Context, request *ctrlpb.CreateSubsc
 	return nil
 }
 
+func ValidateUpdateSubscription(ctx context.Context, request *ctrlpb.UpdateSubscriptionRequest) error {
+	err := ValidateFilterList(ctx, request.Filters)
+	if err != nil {
+		return errors.ErrInvalidRequest.WithMessage("filters is invalid").Wrap(err)
+	}
+	return nil
+}
+
 func ValidateFilterList(ctx context.Context, filters []*metapb.Filter) error {
 	if len(filters) == 0 {
 		return nil

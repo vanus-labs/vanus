@@ -65,6 +65,7 @@ type Trigger struct {
 
 	inputTransformer *transformation.InputTransformer
 	config           Config
+	lock             sync.RWMutex
 
 	wg util.Group
 }
@@ -93,6 +94,55 @@ func NewTrigger(config *Config, sub *primitive.Subscription, offsetManager *offs
 	return t
 }
 
+func (t *Trigger) getCeClient() ce.Client {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+	return t.ceClient
+}
+
+func (t *Trigger) ChangeTarget(target primitive.URI) error {
+	if t.Target == target {
+		return nil
+	}
+	ceClient, err := NewCeClient(t.Target)
+	if err != nil {
+		return err
+	}
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	t.Target = primitive.URI(target)
+	t.ceClient = ceClient
+	return nil
+}
+
+func (t *Trigger) getFilter() filter.Filter {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+	return t.filter
+}
+
+func (t *Trigger) ChangeFilter(filters []*primitive.SubscriptionFilter) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	t.filter = filter.GetFilter(filters)
+}
+
+func (t *Trigger) getInputTransformer() *transformation.InputTransformer {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+	return t.inputTransformer
+}
+
+func (t *Trigger) ChangeInputTransformer(inputTransformer *primitive.InputTransformer) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	if inputTransformer == nil || inputTransformer.Define == nil && inputTransformer.Template == "" {
+		t.inputTransformer = nil
+	} else {
+		t.inputTransformer = transformation.NewInputTransformer(inputTransformer)
+	}
+}
+
 func (t *Trigger) EventArrived(ctx context.Context, event info.EventRecord) error {
 	select {
 	case t.eventCh <- event:
@@ -108,11 +158,12 @@ func (t *Trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 	doFunc := func() error {
 		timeout, cancel := context.WithTimeout(ctx, t.config.SendTimeOut)
 		defer cancel()
-		return t.ceClient.Send(timeout, *e)
+		return t.getCeClient().Send(timeout, *e)
 	}
 	var err error
-	if t.inputTransformer != nil {
-		err = t.inputTransformer.Execute(e)
+	inputTransformer := t.getInputTransformer()
+	if inputTransformer != nil {
+		err = inputTransformer.Execute(e)
 		if err != nil {
 			return err
 		}
@@ -144,7 +195,7 @@ func (t *Trigger) runEventProcess(ctx context.Context) {
 			if !ok {
 				return
 			}
-			if res := filter.Run(t.filter, *event.Event); res == filter.FailFilter {
+			if res := filter.Run(t.getFilter(), *event.Event); res == filter.FailFilter {
 				t.offsetManager.EventCommit(event.OffsetInfo)
 				continue
 			}
@@ -220,7 +271,7 @@ func (t *Trigger) Start() error {
 func (t *Trigger) Stop() {
 	ctx := context.Background()
 	log.Info(ctx, "trigger stop...", map[string]interface{}{
-		"subId": t.SubscriptionID,
+		log.KeySubscriptionID: t.SubscriptionID,
 	})
 	if t.GetState() == TriggerStopped {
 		return
@@ -231,7 +282,7 @@ func (t *Trigger) Stop() {
 	close(t.sendCh)
 	t.SetState(TriggerStopped)
 	log.Info(ctx, "trigger stopped", map[string]interface{}{
-		"subId": t.SubscriptionID,
+		log.KeySubscriptionID: t.SubscriptionID,
 	})
 }
 
