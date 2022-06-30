@@ -35,7 +35,7 @@ type appendContext struct {
 var _ block.AppendContext = (*appendContext)(nil)
 
 func (c *appendContext) size() uint32 {
-	return c.offset - headerSize
+	return c.offset - headerBlockSize
 }
 
 func (c *appendContext) WriteOffset() uint32 {
@@ -47,7 +47,7 @@ func (c *appendContext) Full() bool {
 }
 
 func (c *appendContext) MarkFull() {
-	atomic.StoreUint32(&c.full, 1)
+	c.full = 1
 }
 
 func (c *appendContext) FullEntry() block.Entry {
@@ -78,7 +78,9 @@ func (b *Block) NewAppendContext(last *block.Entry) block.AppendContext {
 	return &actx
 }
 
-func (b *Block) PrepareAppend(ctx context.Context, appendCtx block.AppendContext, entries ...block.Entry) error {
+func (b *Block) PrepareAppend(
+	ctx context.Context, appendCtx block.AppendContext, entries ...block.Entry,
+) ([]block.Entry, error) {
 	actx, _ := appendCtx.(*appendContext)
 
 	var size uint32
@@ -89,19 +91,22 @@ func (b *Block) PrepareAppend(ctx context.Context, appendCtx block.AppendContext
 		size += uint32(entry.Size())
 	}
 
-	if !b.hasEnoughSpace(actx, size, uint32(len(entries))) {
-		return block.ErrNotEnoughSpace
+	if !b.hasEnoughSpace(actx, size, len(entries)) {
+		return nil, block.ErrNotEnoughSpace
 	}
 
 	actx.offset += size
 	actx.num += uint32(len(entries))
 
-	return nil
+	return entries, nil
 }
 
-func (b *Block) hasEnoughSpace(actx *appendContext, length, num uint32) bool {
-	require := length + v1IndexSize*num + block.EntryLengthSize
-	return require <= b.remaining(actx.size(), actx.num)
+func (b *Block) hasEnoughSpace(actx *appendContext, size uint32, num int) bool {
+	return b.requireSpace(size, num) <= b.remaining(actx.size(), actx.num)
+}
+
+func (b *Block) requireSpace(size uint32, num int) uint32 {
+	return size + indexSize*uint32(num) + block.EntryLengthSize
 }
 
 func (b *Block) CommitAppend(ctx context.Context, entries ...block.Entry) error {
@@ -120,21 +125,23 @@ func (b *Block) CommitAppend(ctx context.Context, entries ...block.Entry) error 
 
 	offset := entries[0].Offset
 	last := &entries[len(entries)-1]
-	length := last.EndOffset() - offset
+	size := last.EndOffset() - offset
 
 	// Check free space.
-	if !b.hasEnoughSpace(&b.actx, length, uint32(len(entries))) {
+	if !b.hasEnoughSpace(&b.actx, size, len(entries)) {
+		actx := b.actx
 		log.Error(ctx, "block: not enough space.", map[string]interface{}{
-			"blockID": b.id,
-			"length":  length,
-			"num":     len(entries),
-			// "require":   require,
-			// "remaining": b.remaining(),
+			"block_id":        b.id,
+			"entry_size":      size,
+			"entry_num":       len(entries),
+			"append_context":  actx,
+			"require_space":   b.requireSpace(size, len(entries)),
+			"remaining_space": b.remaining(b.actx.size(), b.actx.num),
 		})
 		return block.ErrNotEnoughSpace
 	}
 
-	buf := make([]byte, length)
+	buf := make([]byte, size)
 	indexes := make([]index, 0, len(entries))
 	for _, entry := range entries {
 		n, _ := entry.MarshalTo(buf[entry.Offset-offset:])
@@ -149,15 +156,11 @@ func (b *Block) CommitAppend(ctx context.Context, entries ...block.Entry) error 
 		return err
 	}
 
-	func() {
-		b.mu.Lock()
-		defer b.mu.Unlock()
-		b.indexes = append(b.indexes, indexes...)
-	}()
-
+	b.mu.Lock()
+	b.indexes = append(b.indexes, indexes...)
 	b.actx.num += uint32(len(entries))
 	b.actx.offset += uint32(n)
-	b.fo.Store(int64(b.actx.offset))
+	b.mu.Unlock()
 
 	// if err = b.physicalFile.Sync(); err != nil {
 	// 	return err
@@ -167,21 +170,21 @@ func (b *Block) CommitAppend(ctx context.Context, entries ...block.Entry) error 
 }
 
 func (b *Block) trimEntries(ctx context.Context, entries []block.Entry) ([]block.Entry, error) {
-	num := atomic.LoadUint32(&b.actx.num)
+	num := b.actx.num
 	for i := 0; i < len(entries); i++ {
 		switch entry := &entries[i]; {
 		case entry.Index < num:
 			log.Warning(ctx, "block: entry index less than block num, skip this entry.", map[string]interface{}{
-				"blockID": b.id,
-				"index":   entry.Index,
-				"num":     num,
+				"block_id": b.id,
+				"index":    entry.Index,
+				"num":      num,
 			})
 			continue
 		case entry.Index > num:
 			log.Error(ctx, "block: entry index greater than block num.", map[string]interface{}{
-				"blockID": b.id,
-				"index":   entry.Index,
-				"num":     num,
+				"block_id": b.id,
+				"index":    entry.Index,
+				"num":      num,
 			})
 			return nil, errors.ErrInternal
 		}
@@ -197,10 +200,10 @@ func (b *Block) checkEntries(ctx context.Context, entries []block.Entry) error {
 	offset := entries[0].Offset
 	if offset != b.actx.offset {
 		log.Error(ctx, "block: entry offset is not equal than block wo.", map[string]interface{}{
-			"blockID": b.id,
-			"offset":  offset,
-			"wo":      b.actx.offset,
-			"index":   entries[0].Index,
+			"block_id": b.id,
+			"offset":   offset,
+			"wo":       b.actx.offset,
+			"index":    entries[0].Index,
 		})
 		return errors.ErrInternal
 	}
@@ -210,17 +213,17 @@ func (b *Block) checkEntries(ctx context.Context, entries []block.Entry) error {
 		prev := &entries[i-1]
 		if prev.Index+1 != entry.Index {
 			log.Error(ctx, "block: entry index is discontinuous.", map[string]interface{}{
-				"blockID": b.id,
-				"index":   entry.Index,
-				"prev":    prev.Index,
+				"block_id": b.id,
+				"index":    entry.Index,
+				"prev":     prev.Index,
 			})
 			return errors.ErrInternal
 		}
 		if prev.EndOffset() != entry.Offset {
 			log.Error(ctx, "block: entry offset is discontinuous.", map[string]interface{}{
-				"blockID": b.id,
-				"offset":  entry.Offset,
-				"prev":    prev.Offset,
+				"block_id": b.id,
+				"offset":   entry.Offset,
+				"prev":     prev.Offset,
 			})
 			return errors.ErrInternal
 		}
@@ -230,13 +233,17 @@ func (b *Block) checkEntries(ctx context.Context, entries []block.Entry) error {
 }
 
 func (b *Block) MarkFull(ctx context.Context) error {
-	b.actx.MarkFull()
+	b.mu.Lock()
+	atomic.StoreUint32(&b.actx.full, 1)
+	b.mu.Unlock()
 
+	// TODO(james.yin): flush header and index
 	if err := b.persistHeader(ctx); err != nil {
 		return err
 	}
 
 	go func() {
+		// FIXME(james.yin): wait complete when close.
 		_ = b.persistIndex(ctx)
 	}()
 

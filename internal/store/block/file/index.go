@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	v1IndexSize = 8 + 4
+	indexSize = 8 + 4
 )
 
 type index struct {
@@ -38,17 +38,17 @@ func (i index) EndOffset() int64 {
 }
 
 func (i index) MarshalTo(data []byte) (int, error) {
-	if len(data) < v1IndexSize {
+	if len(data) < indexSize {
 		// TODO(james.yin): correct error.
 		return 0, bytes.ErrTooLarge
 	}
 	binary.BigEndian.PutUint64(data[0:8], uint64(i.offset))
 	binary.BigEndian.PutUint32(data[8:12], uint32(i.length))
-	return v1IndexSize, nil
+	return indexSize, nil
 }
 
 func unmarshalIndex(data []byte) (index, error) {
-	if len(data) < v1IndexSize {
+	if len(data) < indexSize {
 		// TODO(james.yin): correct error.
 		return index{}, bytes.ErrTooLarge
 	}

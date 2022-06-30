@@ -33,6 +33,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/raft/transport"
 	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/segment/errors"
+	"github.com/linkall-labs/vanus/observability/log"
 )
 
 const (
@@ -174,14 +175,25 @@ func (r *Replica) run(ctx context.Context) {
 				partial = r.wakeup(rd.HardState.Commit)
 			}
 
-			if err := r.log.Append(rd.Entries); err != nil {
-				panic(err)
+			if len(rd.Entries) != 0 {
+				log.Debug(ctx, "Append entries to raft log.", map[string]interface{}{
+					"block_id":       r.blockID,
+					"appended_index": rd.Entries[0].Index,
+					"entries_num":    len(rd.Entries),
+				})
+				if err := r.log.Append(rd.Entries); err != nil {
+					panic(err)
+				}
 			}
 
 			if stateChanged {
 				if partial {
 					_ = r.wakeup(rd.HardState.Commit)
 				}
+				log.Debug(ctx, "Persist raft hard state.", map[string]interface{}{
+					"block_id":   r.blockID,
+					"hard_state": rd.HardState,
+				})
 				if err := r.log.SetHardState(rd.HardState); err != nil {
 					panic(err)
 				}
@@ -206,41 +218,15 @@ func (r *Replica) run(ctx context.Context) {
 			// applied = rd.Snapshot.Metadata.Index
 			// }
 
-			if num := len(rd.CommittedEntries); num != 0 {
-				var cs *raftpb.ConfState
-
-				entries := make([]block.Entry, 0, num)
-				for i := range rd.CommittedEntries {
-					entrypb := &rd.CommittedEntries[i]
-
-					if entrypb.Type == raftpb.EntryNormal {
-						// Skip empty entry(raft heartbeat).
-						if len(entrypb.Data) != 0 {
-							entry := block.UnmarshalEntryWithOffsetAndIndex(entrypb.Data)
-							entries = append(entries, entry)
-						}
-						continue
-					}
-
-					// Change membership.
-					cs = r.applyConfChange(entrypb)
-				}
-
-				if len(entries) != 0 {
-					r.doAppend(ctx, entries...)
-				}
-
-				// ConfState is changed.
-				if cs != nil {
-					if err := r.log.SetConfState(*cs); err != nil {
-						panic(err)
-					}
-				}
-
-				applied = rd.CommittedEntries[len(rd.CommittedEntries)-1].Index
+			if len(rd.CommittedEntries) != 0 {
+				applied = r.applyEntries(ctx, rd.CommittedEntries)
 			}
 
 			if applied != 0 {
+				log.Debug(ctx, "Store applied offset.", map[string]interface{}{
+					"block_id":       r.blockID,
+					"applied_offset": applied,
+				})
 				// FIXME(james.yin): persist applied after flush block.
 				r.log.SetApplied(applied)
 			}
@@ -256,6 +242,44 @@ func (r *Replica) run(ctx context.Context) {
 			return
 		}
 	}
+}
+
+func (r *Replica) applyEntries(ctx context.Context, committedEntries []raftpb.Entry) uint64 {
+	num := len(committedEntries)
+	if num == 0 {
+		return 0
+	}
+
+	var cs *raftpb.ConfState
+	entries := make([]block.Entry, 0, num)
+	for i := range committedEntries {
+		entrypb := &committedEntries[i]
+
+		if entrypb.Type == raftpb.EntryNormal {
+			// Skip empty entry(raft heartbeat).
+			if len(entrypb.Data) != 0 {
+				entry := block.UnmarshalEntryWithOffsetAndIndex(entrypb.Data)
+				entries = append(entries, entry)
+			}
+			continue
+		}
+
+		// Change membership.
+		cs = r.applyConfChange(entrypb)
+	}
+
+	if len(entries) != 0 {
+		r.doAppend(ctx, entries...)
+	}
+
+	// ConfState is changed.
+	if cs != nil {
+		if err := r.log.SetConfState(*cs); err != nil {
+			panic(err)
+		}
+	}
+
+	return committedEntries[num-1].Index
 }
 
 func (r *Replica) wakeup(commit uint64) (partial bool) {
@@ -396,8 +420,10 @@ func (r *Replica) append(ctx context.Context, entries []block.Entry) (uint32, er
 		return 0, block.ErrFull
 	}
 
-	if err := r.appender.PrepareAppend(ctx, r.actx, entries...); err != nil {
-		// Full
+	entries, err := r.appender.PrepareAppend(ctx, r.actx, entries...)
+	if err != nil {
+		// Mark as full, if there is not enough space.
+		// TODO(james.yin): improve space utilization.
 		if stderr.Is(err, block.ErrNotEnoughSpace) {
 			entry := r.actx.FullEntry()
 			data := entry.MarshalWithOffsetAndIndex()

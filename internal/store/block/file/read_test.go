@@ -13,3 +13,72 @@
 // limitations under the License.
 
 package file
+
+import (
+	// standard libraries.
+	"context"
+	"math/rand"
+	"os"
+	"testing"
+	"time"
+
+	// third-party libraries.
+	. "github.com/smartystreets/goconvey/convey"
+
+	// this project.
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/store/block"
+)
+
+func TestRead(t *testing.T) {
+	Convey("Create block ", t, func() {
+		blockDir, err := os.MkdirTemp("", "block-*")
+		So(err, ShouldBeNil)
+		defer os.RemoveAll(blockDir)
+
+		id := vanus.NewID()
+
+		rd := rand.New(rand.NewSource(time.Now().UnixNano()))
+		capacity := (rd.Int63n(5) + 4) * 1024 * 1024
+
+		b, err := Create(context.Background(), blockDir, id, capacity)
+		So(err, ShouldBeNil)
+
+		Convey("Append entry", func() {
+			actx := b.NewAppendContext(nil)
+			So(actx, ShouldNotBeNil)
+
+			payload := []byte("vanus")
+			entry := block.Entry{
+				Payload: payload,
+			}
+
+			entries, err2 := b.PrepareAppend(context.Background(), actx, entry)
+			So(err2, ShouldBeNil)
+			err2 = b.CommitAppend(context.Background(), entries...)
+			So(err2, ShouldBeNil)
+
+			Convey("Read entries", func() {
+				entries, err3 := b.Read(context.Background(), 0, 2)
+				So(err3, ShouldBeNil)
+				So(len(entries), ShouldEqual, 1)
+				So(entries[0].Payload, ShouldResemble, payload)
+
+				_, err3 = b.Read(context.Background(), 1, 2)
+				So(err3, ShouldBeError, block.ErrOffsetOnEnd)
+
+				_, err3 = b.Read(context.Background(), 2, 2)
+				So(err3, ShouldBeError, block.ErrOffsetExceeded)
+
+				b.MarkFull(context.Background())
+				_, err3 = b.Read(context.Background(), 1, 2)
+				So(err3, ShouldBeError, block.ErrOffsetExceeded)
+			})
+		})
+
+		Reset(func() {
+			err = b.Close(context.Background())
+			So(err, ShouldBeNil)
+		})
+	})
+}
