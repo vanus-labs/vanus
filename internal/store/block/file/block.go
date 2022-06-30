@@ -33,7 +33,7 @@ import (
 
 const (
 	headerBlockSize = 4 * 1024
-	// version + padding(4) + capacity + size + entryNum + indexNum + full.
+	// version + reserved(4) + capacity + entrySize + entryNum + indexNum + full.
 	headerSize   = 4 + 4 + 8 + 8 + 4 + 4 + 1
 	boundMinSize = indexSize
 )
