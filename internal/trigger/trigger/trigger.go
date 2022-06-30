@@ -110,7 +110,7 @@ func (t *Trigger) ChangeTarget(target primitive.URI) error {
 	}
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	t.Target = primitive.URI(target)
+	t.Target = target
 	t.ceClient = ceClient
 	return nil
 }

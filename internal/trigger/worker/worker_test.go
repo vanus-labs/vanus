@@ -76,5 +76,4 @@ func TestSubscriptionWorker_Change(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 	})
-
 }

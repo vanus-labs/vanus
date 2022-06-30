@@ -80,7 +80,6 @@ func TestInit(t *testing.T) {
 		time.Sleep(time.Millisecond * 10)
 		twManager.Stop()
 	})
-
 }
 
 func TestAddTriggerWorker(t *testing.T) {
@@ -179,7 +178,6 @@ func TestManager_UpdateTriggerWorkerInfo(t *testing.T) {
 			err = twManager.UpdateTriggerWorkerInfo(ctx, addr, []vanus.ID{sub.ID})
 			So(err, ShouldBeNil)
 		})
-
 	})
 }
 

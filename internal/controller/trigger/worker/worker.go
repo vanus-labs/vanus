@@ -122,7 +122,7 @@ func (tw *triggerWorker) handler(ctx context.Context, subscriptionID vanus.ID) e
 	_, exist := tw.assignSubscriptionIDs[subscriptionID]
 	tw.lock.RUnlock()
 	if !exist {
-		//no assign to this trigger worker,remove subscription
+		// no assign to this trigger worker,remove subscription
 		return tw.removeSubscription(ctx, subscriptionID)
 	}
 	return tw.addSubscription(ctx, subscriptionID)
@@ -219,7 +219,7 @@ func (tw *triggerWorker) UnAssignSubscription(id vanus.ID) {
 func (tw *triggerWorker) GetAssignSubscriptions() []vanus.ID {
 	tw.lock.RLock()
 	defer tw.lock.RUnlock()
-	var ids []vanus.ID
+	ids := make([]vanus.ID, 0, len(tw.assignSubscriptionIDs))
 	for id := range tw.assignSubscriptionIDs {
 		ids = append(ids, id)
 	}
