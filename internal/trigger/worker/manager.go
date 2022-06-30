@@ -93,14 +93,15 @@ func (m *manager) Stop(ctx context.Context) error {
 }
 
 func (m *manager) AddSubscription(ctx context.Context, subscription *primitive.Subscription) error {
-	subOffset := m.offsetManager.RegisterSubscription(subscription.ID)
-	worker := NewSubscriptionWorker(subscription, subOffset, m.config.Controllers)
-	data, exist := m.subscriptionMap.LoadOrStore(subscription.ID, worker)
+	data, exist := m.subscriptionMap.Load(subscription.ID)
 	if exist {
-		worker, _ = data.(SubscriptionWorker)
+		worker, _ := data.(SubscriptionWorker)
 		err := worker.Change(ctx, subscription)
 		return err
 	}
+	subOffset := m.offsetManager.RegisterSubscription(subscription.ID)
+	worker := NewSubscriptionWorker(subscription, subOffset, m.config.Controllers)
+	m.subscriptionMap.Store(subscription.ID, worker)
 	if m.startSubscription {
 		err := worker.Run(m.ctx)
 		if err != nil {

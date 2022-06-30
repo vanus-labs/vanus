@@ -101,9 +101,6 @@ func (t *Trigger) getCeClient() ce.Client {
 }
 
 func (t *Trigger) ChangeTarget(target primitive.URI) error {
-	if t.Target == target {
-		return nil
-	}
 	ceClient, err := NewCeClient(t.Target)
 	if err != nil {
 		return err

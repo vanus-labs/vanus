@@ -17,6 +17,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -66,16 +67,19 @@ func NewSubscriptionWorker(subscription *primitive.Subscription,
 }
 
 func (w *subscriptionWorker) Change(ctx context.Context, subscription *primitive.Subscription) error {
-	if subscription.Sink != "" {
+	if w.subscription.Sink != subscription.Sink {
+		w.subscription.Sink = subscription.Sink
 		err := w.trigger.ChangeTarget(subscription.Sink)
 		if err != nil {
 			return err
 		}
 	}
-	if subscription.Filters != nil {
+	if !reflect.DeepEqual(w.subscription.Filters, subscription.Filters) {
+		w.subscription.Filters = subscription.Filters
 		w.trigger.ChangeFilter(subscription.Filters)
 	}
-	if subscription.InputTransformer != nil {
+	if !reflect.DeepEqual(w.subscription.InputTransformer, subscription.InputTransformer) {
+		w.subscription.InputTransformer = subscription.InputTransformer
 		w.trigger.ChangeInputTransformer(subscription.InputTransformer)
 	}
 	return nil

@@ -1,5 +1,5 @@
 VANUS_ROOT=$(shell pwd)
-VSPROTO_ROOT=$(VANUS_ROOT)/../vsproto
+VSPROTO_ROOT=$(VANUS_ROOT)/proto
 GIT_COMMIT=$(shell git log -1 --format='%h' | awk '{print $0}')
 
 export VANUS_LOG_LEVEL=debug

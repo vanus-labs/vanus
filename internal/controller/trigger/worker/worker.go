@@ -104,9 +104,13 @@ func NewTriggerWorker(twInfo *info.TriggerWorkerInfo, subscriptionManager subscr
 			if err == nil {
 				tw.subscriptionQueue.Done(subscriptionID)
 				tw.subscriptionQueue.ClearFailNum(subscriptionID)
+				log.Warning(ctx, "trigger worker handle subscription sucess", map[string]interface{}{
+					log.KeyTriggerWorkerAddr: tw.info.Addr,
+					log.KeySubscriptionID:    subscriptionID,
+				})
 			} else {
 				tw.subscriptionQueue.ReAdd(subscriptionID)
-				log.Warning(ctx, "trigger worker handler subscription has error", map[string]interface{}{
+				log.Warning(ctx, "trigger worker handle subscription has error", map[string]interface{}{
 					log.KeyError:             err,
 					log.KeyTriggerWorkerAddr: tw.info.Addr,
 					log.KeySubscriptionID:    subscriptionID,
@@ -187,7 +191,14 @@ func (tw *triggerWorker) ReportSubscription(ids []vanus.ID) {
 func (tw *triggerWorker) AssignSubscription(id vanus.ID) {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	log.Info(context.Background(), "trigger worker assign a subscription", map[string]interface{}{
+	_, exist := tw.assignSubscriptionIDs[id]
+	var msg string
+	if !exist {
+		msg = "trigger worker assign a subscription"
+	} else {
+		msg = "trigger worker reassign a subscription"
+	}
+	log.Info(context.Background(), msg, map[string]interface{}{
 		log.KeyTriggerWorkerAddr: tw.info.Addr,
 		log.KeySubscriptionID:    id,
 	})
@@ -276,9 +287,6 @@ func (tw *triggerWorker) RemoteStop(ctx context.Context) error {
 }
 
 func (tw *triggerWorker) RemoteStart(ctx context.Context) error {
-	if tw.client == nil {
-		return errNoInit
-	}
 	_, err := tw.client.Start(ctx, &trigger.StartTriggerWorkerRequest{})
 	if err != nil {
 		return errors.ErrTriggerWorker.WithMessage("start error").Wrap(err)
