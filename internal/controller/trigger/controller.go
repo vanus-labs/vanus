@@ -129,6 +129,7 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 	if request.InputTransformer != nil {
 		subscriptionData.InputTransformer = convert.FromFPbInputTransformer(request.InputTransformer)
 	}
+	subscriptionData.Phase = primitive.SubscriptionPhasePending
 	err = ctrl.subscriptionManager.UpdateSubscription(ctx, subscriptionData)
 	if err != nil {
 		return nil, err
@@ -202,11 +203,11 @@ func (ctrl *controller) TriggerWorkerHeartbeat(
 			log.KeyTriggerWorkerAddr: req.Address,
 			"subscriptionInfo":       req.SubscriptionInfo,
 		})
-		subscriptionIDs := make(map[vanus.ID]struct{}, len(req.SubscriptionInfo))
+		var ids []vanus.ID
 		for _, subInfo := range req.SubscriptionInfo {
-			subscriptionIDs[vanus.ID(subInfo.SubscriptionId)] = struct{}{}
+			ids = append(ids, vanus.ID(subInfo.SubscriptionId))
 		}
-		err = ctrl.workerManager.UpdateTriggerWorkerInfo(ctx, req.Address, subscriptionIDs)
+		err = ctrl.workerManager.UpdateTriggerWorkerInfo(ctx, req.Address, ids)
 		if err != nil {
 			log.Info(context.Background(), "unknown trigger worker", map[string]interface{}{
 				log.KeyTriggerWorkerAddr: req.Address,
@@ -268,11 +269,11 @@ func (ctrl *controller) ListSubscription(ctx context.Context,
 // 2.delete offset
 // 3.delete subscription .
 func (ctrl *controller) gcSubscription(ctx context.Context, id vanus.ID, addr string) error {
-	err := ctrl.workerManager.UnAssignSubscription(ctx, addr, id)
-	if err != nil {
-		return err
+	tWorker := ctrl.workerManager.GetTriggerWorker(addr)
+	if tWorker != nil {
+		tWorker.UnAssignSubscription(id)
 	}
-	err = ctrl.subscriptionManager.DeleteSubscription(ctx, id)
+	err := ctrl.subscriptionManager.DeleteSubscription(ctx, id)
 	if err != nil {
 		return err
 	}

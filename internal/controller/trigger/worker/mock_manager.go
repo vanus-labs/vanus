@@ -50,18 +50,6 @@ func (mr *MockManagerMockRecorder) AddTriggerWorker(ctx, addr interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTriggerWorker", reflect.TypeOf((*MockManager)(nil).AddTriggerWorker), ctx, addr)
 }
 
-// AssignSubscription mocks base method.
-func (m *MockManager) AssignSubscription(ctx context.Context, tWorker *TriggerWorker, subId vanus.ID) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "AssignSubscription", ctx, tWorker, subId)
-}
-
-// AssignSubscription indicates an expected call of AssignSubscription.
-func (mr *MockManagerMockRecorder) AssignSubscription(ctx, tWorker, subId interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssignSubscription", reflect.TypeOf((*MockManager)(nil).AssignSubscription), ctx, tWorker, subId)
-}
-
 // GetActiveRunningTriggerWorker mocks base method.
 func (m *MockManager) GetActiveRunningTriggerWorker() []info.TriggerWorkerInfo {
 	m.ctrl.T.Helper()
@@ -77,17 +65,17 @@ func (mr *MockManagerMockRecorder) GetActiveRunningTriggerWorker() *gomock.Call 
 }
 
 // GetTriggerWorker mocks base method.
-func (m *MockManager) GetTriggerWorker(ctx context.Context, addr string) *TriggerWorker {
+func (m *MockManager) GetTriggerWorker(addr string) TriggerWorker {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetTriggerWorker", ctx, addr)
-	ret0, _ := ret[0].(*TriggerWorker)
+	ret := m.ctrl.Call(m, "GetTriggerWorker", addr)
+	ret0, _ := ret[0].(TriggerWorker)
 	return ret0
 }
 
 // GetTriggerWorker indicates an expected call of GetTriggerWorker.
-func (mr *MockManagerMockRecorder) GetTriggerWorker(ctx, addr interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) GetTriggerWorker(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTriggerWorker", reflect.TypeOf((*MockManager)(nil).GetTriggerWorker), ctx, addr)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTriggerWorker", reflect.TypeOf((*MockManager)(nil).GetTriggerWorker), addr)
 }
 
 // Init mocks base method.
@@ -140,30 +128,16 @@ func (mr *MockManagerMockRecorder) Stop() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockManager)(nil).Stop))
 }
 
-// UnAssignSubscription mocks base method.
-func (m *MockManager) UnAssignSubscription(ctx context.Context, addr string, subId vanus.ID) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UnAssignSubscription", ctx, addr, subId)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// UnAssignSubscription indicates an expected call of UnAssignSubscription.
-func (mr *MockManagerMockRecorder) UnAssignSubscription(ctx, addr, subId interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnAssignSubscription", reflect.TypeOf((*MockManager)(nil).UnAssignSubscription), ctx, addr, subId)
-}
-
 // UpdateTriggerWorkerInfo mocks base method.
-func (m *MockManager) UpdateTriggerWorkerInfo(ctx context.Context, addr string, subIds map[vanus.ID]struct{}) error {
+func (m *MockManager) UpdateTriggerWorkerInfo(ctx context.Context, addr string, subscriptionIDs []vanus.ID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateTriggerWorkerInfo", ctx, addr, subIds)
+	ret := m.ctrl.Call(m, "UpdateTriggerWorkerInfo", ctx, addr, subscriptionIDs)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateTriggerWorkerInfo indicates an expected call of UpdateTriggerWorkerInfo.
-func (mr *MockManagerMockRecorder) UpdateTriggerWorkerInfo(ctx, addr, subIds interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) UpdateTriggerWorkerInfo(ctx, addr, subscriptionIDs interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateTriggerWorkerInfo", reflect.TypeOf((*MockManager)(nil).UpdateTriggerWorkerInfo), ctx, addr, subIds)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateTriggerWorkerInfo", reflect.TypeOf((*MockManager)(nil).UpdateTriggerWorkerInfo), ctx, addr, subscriptionIDs)
 }

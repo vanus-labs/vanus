@@ -16,7 +16,6 @@ package trigger
 
 import (
 	"context"
-	stdErr "errors"
 	"os"
 	"sync"
 	"time"
@@ -95,17 +94,11 @@ func (s *server) AddSubscription(ctx context.Context,
 	subscription := convert.FromPbAddSubscription(request)
 	err := s.worker.AddSubscription(ctx, subscription)
 	if err != nil {
-		if stdErr.Is(err, errors.ErrResourceAlreadyExist) {
-			log.Info(ctx, "add subscription bus subscription exist", map[string]interface{}{
-				log.KeySubscriptionID: subscription.ID,
-			})
-		} else {
-			log.Warning(ctx, "worker add subscription error ", map[string]interface{}{
-				"subscription": subscription,
-				log.KeyError:   err,
-			})
-			return nil, err
-		}
+		log.Warning(ctx, "worker add subscription error ", map[string]interface{}{
+			"subscription": subscription,
+			log.KeyError:   err,
+		})
+		return nil, err
 	}
 	return &pbtrigger.AddSubscriptionResponse{}, nil
 }

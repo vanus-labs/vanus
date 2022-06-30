@@ -110,7 +110,7 @@ func (s *SubscriptionScheduler) handler(ctx context.Context, subscriptionID vanu
 			break
 		}
 	}
-	tWorker := s.workerManager.GetTriggerWorker(ctx, twAddr)
+	tWorker := s.workerManager.GetTriggerWorker(twAddr)
 	if tWorker == nil {
 		return ErrTriggerWorkerNotFound
 	}
@@ -121,6 +121,6 @@ func (s *SubscriptionScheduler) handler(ctx context.Context, subscriptionID vanu
 	if err != nil {
 		return err
 	}
-	s.workerManager.AssignSubscription(ctx, tWorker, subscriptionID)
+	tWorker.AssignSubscription(subscriptionID)
 	return nil
 }

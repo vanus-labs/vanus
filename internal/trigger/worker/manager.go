@@ -104,8 +104,8 @@ func (m *manager) AddSubscription(ctx context.Context, subscription *primitive.S
 	if m.startSubscription {
 		err := worker.Run(m.ctx)
 		if err != nil {
-			m.offsetManager.RemoveSubscription(subscription.ID)
 			m.subscriptionMap.Delete(subscription.ID)
+			m.offsetManager.RemoveSubscription(subscription.ID)
 			return err
 		}
 	}

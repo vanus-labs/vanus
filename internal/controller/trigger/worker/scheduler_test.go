@@ -36,6 +36,7 @@ func TestSubscriptionSchedulerHandler(t *testing.T) {
 		workerAddr := "test"
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
+		tWorker := NewMockTriggerWorker(ctrl)
 		subscriptionManager := subscription.NewMockManager(ctrl)
 		workerManager := NewMockManager(ctrl)
 		scheduler := NewSubscriptionScheduler(workerManager, subscriptionManager)
@@ -44,15 +45,8 @@ func TestSubscriptionSchedulerHandler(t *testing.T) {
 			subscriptionManager.EXPECT().GetSubscriptionData(ctx, subscriptionID).Return(nil)
 			scheduler.handler(ctx, subscriptionID)
 		})
-		Convey("test handler subscription phase not match", func() {
-			subscriptionManager.EXPECT().GetSubscriptionData(ctx, subscriptionID).Return(
-				&primitive.SubscriptionData{
-					ID:    subscriptionID,
-					Phase: primitive.SubscriptionPhaseToDelete,
-				})
-			scheduler.handler(ctx, subscriptionID)
-		})
 
+		tWorker.EXPECT().AssignSubscription(gomock.Any()).AnyTimes().Return()
 		Convey("test scheduler handler has trigger worker ", func() {
 			subscriptionManager.EXPECT().GetSubscriptionData(ctx, subscriptionID).Return(
 				&primitive.SubscriptionData{
@@ -60,9 +54,8 @@ func TestSubscriptionSchedulerHandler(t *testing.T) {
 					Phase:         primitive.SubscriptionPhaseCreated,
 					TriggerWorker: workerAddr,
 				})
-			workerManager.EXPECT().GetTriggerWorker(ctx, workerAddr).Return(NewTriggerWorkerByAddr(workerAddr))
+			workerManager.EXPECT().GetTriggerWorker(workerAddr).Return(tWorker)
 			subscriptionManager.EXPECT().UpdateSubscription(ctx, gomock.Any()).AnyTimes().Return(nil)
-			workerManager.EXPECT().AssignSubscription(ctx, gomock.Any(), gomock.Any())
 			scheduler.handler(ctx, subscriptionID)
 		})
 
@@ -75,9 +68,8 @@ func TestSubscriptionSchedulerHandler(t *testing.T) {
 			workerManager.EXPECT().GetActiveRunningTriggerWorker().AnyTimes().Return([]info.TriggerWorkerInfo{
 				{Addr: workerAddr},
 			})
-			workerManager.EXPECT().GetTriggerWorker(ctx, workerAddr).Return(NewTriggerWorkerByAddr(workerAddr))
+			workerManager.EXPECT().GetTriggerWorker(workerAddr).Return(tWorker)
 			subscriptionManager.EXPECT().UpdateSubscription(ctx, gomock.Any()).AnyTimes().Return(nil)
-			workerManager.EXPECT().AssignSubscription(ctx, gomock.Any(), gomock.Any())
 			scheduler.handler(ctx, subscriptionID)
 		})
 	})
@@ -93,11 +85,7 @@ func TestSubscriptionSchedulerRun(t *testing.T) {
 		workerManager := NewMockManager(ctrl)
 		scheduler := NewSubscriptionScheduler(workerManager, subscriptionManager)
 		Convey("test scheduler run handler no error", func() {
-			subscriptionManager.EXPECT().GetSubscriptionData(scheduler.ctx, gomock.Any()).Return(
-				&primitive.SubscriptionData{
-					ID:    subscriptionID,
-					Phase: primitive.SubscriptionPhaseToDelete,
-				})
+			subscriptionManager.EXPECT().GetSubscriptionData(scheduler.ctx, gomock.Any()).Return(nil)
 			scheduler.EnqueueNormalSubscription(subscriptionID)
 			scheduler.Run()
 			time.Sleep(10 * time.Millisecond)
@@ -112,7 +100,7 @@ func TestSubscriptionSchedulerRun(t *testing.T) {
 					TriggerWorker: workerAddr,
 					Phase:         primitive.SubscriptionPhasePending,
 				})
-			workerManager.EXPECT().GetTriggerWorker(ctx, workerAddr).Return(NewTriggerWorkerByAddr(workerAddr))
+			workerManager.EXPECT().GetTriggerWorker(workerAddr).Return(NewTriggerWorkerByAddr(workerAddr, subscriptionManager))
 			subscriptionManager.EXPECT().UpdateSubscription(ctx, gomock.Any()).AnyTimes().Return(errors.New("update error"))
 			scheduler.EnqueueSubscription(subscriptionID)
 			scheduler.Run()
