@@ -15,22 +15,62 @@
 package store
 
 import (
+	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/store/io"
+	walog "github.com/linkall-labs/vanus/internal/store/wal"
 	"github.com/linkall-labs/vanus/internal/util"
 )
 
+const ioEnginePsync = "psync"
+
 type Config struct {
-	ControllerAddresses []string   `yaml:"controllers"`
-	IP                  string     `yaml:"ip"`
-	Port                int        `yaml:"port"`
-	Volume              VolumeInfo `yaml:"volume"`
+	ControllerAddresses []string         `yaml:"controllers"`
+	IP                  string           `yaml:"ip"`
+	Port                int              `yaml:"port"`
+	Volume              VolumeInfo       `yaml:"volume"`
+	MetaStore           SyncStoreConfig  `yaml:"meta_store"`
+	OffsetStore         AsyncStoreConfig `yaml:"offset_store"`
+	Raft                RaftConfig       `yaml:"raft"`
 }
 
 type VolumeInfo struct {
 	ID       vanus.ID `json:"id"`
 	Dir      string   `json:"dir"`
 	Capacity uint64   `json:"capacity"`
+}
+
+type SyncStoreConfig struct {
+	WAL WALConfig `yaml:"wal"`
+}
+
+type AsyncStoreConfig struct {
+	WAL WALConfig `yaml:"wal"`
+}
+
+type RaftConfig struct {
+	WAL WALConfig `yaml:"wal"`
+}
+
+type WALConfig struct {
+	IO IOConfig `yaml:"io"`
+}
+
+type IOConfig struct {
+	Engine string `yaml:"engine"`
+}
+
+func (c *WALConfig) Options() (opts []walog.Option) {
+	if c.IO.Engine != "" {
+		switch c.IO.Engine {
+		case ioEnginePsync:
+			opts = append(opts, walog.WithIOEngine(io.NewEngine()))
+		default:
+			opts = configWALIOEngineOptionEx(opts, c.IO)
+		}
+	}
+	return opts
 }
 
 func InitConfig(filename string) (*Config, error) {

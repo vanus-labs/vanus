@@ -23,6 +23,7 @@ import (
 	"github.com/huandu/skiplist"
 
 	// this project.
+	storecfg "github.com/linkall-labs/vanus/internal/store"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
 )
 
@@ -153,7 +154,7 @@ func (s *SyncStore) runSnapshot() {
 	}
 }
 
-func RecoverSyncStore(walDir string) (*SyncStore, error) {
+func RecoverSyncStore(cfg storecfg.SyncStoreConfig, walDir string) (*SyncStore, error) {
 	committed, snapshot, err := recoverLatestSnopshot(walDir, defaultCodec)
 	if err != nil {
 		return nil, err
@@ -170,7 +171,7 @@ func RecoverSyncStore(walDir string) (*SyncStore, error) {
 		}
 		version = offset
 		return nil
-	})
+	}, cfg.WAL.Options()...)
 	if err != nil {
 		return nil, err
 	}
