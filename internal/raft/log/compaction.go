@@ -31,6 +31,10 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
+const (
+	defaultCompactInterval = 30 * time.Second
+)
+
 // Compact discards all log entries prior to compactIndex.
 // It is the application's responsibility to not attempt to compact an index
 // greater than raftLog.applied.
@@ -144,6 +148,38 @@ func (m *compactMeta) Range(cb meta.RangeCallback) error {
 	return nil
 }
 
+type compactContext struct {
+	compacted int64
+	toCompact int64
+	infos     logCompactInfos
+	metaStore *meta.SyncStore
+}
+
+func loadCompactContext(metaStore *meta.SyncStore) *compactContext {
+	cctx := &compactContext{
+		infos:     make(logCompactInfos),
+		metaStore: metaStore,
+	}
+	if v, ok := metaStore.Load(walCompactKey); ok {
+		cctx.compacted, _ = v.(int64)
+	}
+	cctx.toCompact = cctx.compacted
+	return cctx
+}
+
+func (c *compactContext) stale() bool {
+	return c.toCompact > c.compacted || len(c.infos) != 0
+}
+
+func (c *compactContext) sync() {
+	c.metaStore.BatchStore(&compactMeta{
+		infos:  c.infos,
+		offset: c.toCompact,
+	})
+	c.compacted = c.toCompact
+	c.infos = make(logCompactInfos)
+}
+
 var emptyMark = struct{}{}
 
 func (w WAL) run() {
@@ -160,52 +196,57 @@ func (w WAL) run() {
 			w.compactc <- ct
 		}
 	}
+	close(w.compactc)
 }
 
 func (w *WAL) runCompact() {
-	period := 30 * time.Second
-	ticker := time.NewTicker(period)
+	ticker := time.NewTicker(defaultCompactInterval)
 	defer ticker.Stop()
 
-	var compacted int64
-	if v, ok := w.metaStore.Load(walCompactKey); ok {
-		compacted, _ = v.(int64)
-	}
-
-	toCompact := compacted
-	infos := make(logCompactInfos)
+	cctx := loadCompactContext(w.metaStore)
 	for {
 		select {
-		case compact := <-w.compactc:
-			// Discard last barrier.
-			if compact.last != 0 {
-				w.barrier.Remove(compact.last)
+		case task, closed := <-w.compactc:
+			if closed {
+				for task := range w.compactc {
+					w.compact(cctx, task)
+				}
+				w.doCompact(cctx)
+				close(w.donec)
+				return
 			}
-			// Set new barrier.
-			if compact.offset != 0 {
-				w.barrier.Set(compact.offset, emptyMark)
-			}
-			// Set compation info.
-			if compact.nodeID != 0 {
-				infos[compact.nodeID] = compact.info
-			}
-			if front := w.barrier.Front(); front != nil {
-				offset, _ := front.Key().(int64)
-				toCompact = offset
-			}
-			// TODO(james.yin): no log entry in WAL.
+			w.compact(cctx, task)
 		case <-ticker.C:
-			if toCompact > compacted || len(infos) != 0 {
-				log.Debug(context.TODO(), "compact WAL of raft log.", map[string]interface{}{
-					"offset": toCompact,
-				})
-				w.metaStore.BatchStore(&compactMeta{
-					infos:  infos,
-					offset: toCompact,
-				})
-				compacted = toCompact
-				infos = make(logCompactInfos)
-			}
+			w.doCompact(cctx)
 		}
+	}
+}
+
+func (w *WAL) compact(cctx *compactContext, compact compactTask) {
+	// Discard last barrier.
+	if compact.last != 0 {
+		w.barrier.Remove(compact.last)
+	}
+	// Set new barrier.
+	if compact.offset != 0 {
+		w.barrier.Set(compact.offset, emptyMark)
+	}
+	// Set compation info.
+	if compact.nodeID != 0 {
+		cctx.infos[compact.nodeID] = compact.info
+	}
+	if front := w.barrier.Front(); front != nil {
+		offset, _ := front.Key().(int64)
+		cctx.toCompact = offset
+	}
+	// TODO(james.yin): no log entry in WAL.
+}
+
+func (w *WAL) doCompact(cctx *compactContext) {
+	if cctx.stale() {
+		log.Debug(context.TODO(), "compact WAL of raft log.", map[string]interface{}{
+			"offset": cctx.toCompact,
+		})
+		cctx.sync()
 	}
 }

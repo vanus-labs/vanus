@@ -66,7 +66,6 @@ func (s *server) SendMessage(stream raftpb.RaftServer_SendMessageServer) error {
 			if errors.Is(err2, context.Canceled) {
 				return s.closeStream(stream)
 			}
-
 			return err2
 		}
 	}

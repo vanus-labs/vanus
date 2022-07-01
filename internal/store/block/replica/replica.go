@@ -38,7 +38,7 @@ import (
 
 const (
 	defaultHintCapactiy    = 2
-	defaultTickPeriodMs    = 100
+	defaultTickInterval    = 100 * time.Millisecond
 	defaultElectionTick    = 10
 	defaultHeartbeatTick   = 3
 	defaultMaxSizePerMsg   = 4096
@@ -160,8 +160,7 @@ func (r *Replica) Bootstrap(blocks []Peer) error {
 
 func (r *Replica) run(ctx context.Context) {
 	// TODO(james.yin): reduce Ticker
-	period := defaultTickPeriodMs * time.Millisecond
-	t := time.NewTicker(period)
+	t := time.NewTicker(defaultTickInterval)
 	defer t.Stop()
 
 	for {

@@ -27,6 +27,7 @@ type Host interface {
 	Sender
 	Demultiplexer
 
+	Stop()
 	Register(node uint64, r Receiver)
 }
 
@@ -51,6 +52,14 @@ func NewHost(resolver Resolver, callback string) Host {
 		dmu:  h,
 	}
 	return h
+}
+
+func (h *host) Stop() {
+	h.peers.Range(func(key, value interface{}) bool {
+		p, _ := value.(*peer)
+		p.Close()
+		return true
+	})
 }
 
 func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoint string) {

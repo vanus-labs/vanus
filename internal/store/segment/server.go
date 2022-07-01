@@ -32,6 +32,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/tap"
 	"google.golang.org/protobuf/proto"
 
 	// first-party libraries.
@@ -59,6 +60,7 @@ import (
 const (
 	debugModeENV                = "SEGMENT_SERVER_DEBUG_MODE"
 	defaultLeaderInfoBufferSize = 256
+	defaultForceStopTimeout     = 30 * time.Second
 )
 
 type Server interface {
@@ -157,13 +159,27 @@ func (s *server) Serve(lis net.Listener) error {
 
 	raftSrv := transport.NewServer(s.host)
 
-	// TODO(james.yin): options
-	srv := grpc.NewServer()
+	srv := grpc.NewServer(grpc.InTapHandle(s.preGrpcStream))
 	segpb.RegisterSegmentServerServer(srv, segSrv)
 	raftpb.RegisterRaftServerServer(srv, raftSrv)
 	s.grpcSrv = srv
 
 	return srv.Serve(lis)
+}
+
+func (s *server) preGrpcStream(ctx context.Context, info *tap.Info) (context.Context, error) {
+	if info.FullMethodName == "/linkall.vanus.raft.RaftServer/SendMessage" {
+		cctx, cannel := context.WithCancel(ctx)
+		go func() {
+			select {
+			case <-cctx.Done():
+			case <-s.closec:
+				cannel()
+			}
+		}()
+		return cctx, nil
+	}
+	return ctx, nil
 }
 
 func (s *server) Initialize(ctx context.Context) error {
@@ -371,12 +387,20 @@ func (s *server) Stop(ctx context.Context) error {
 	}
 
 	s.state = primitive.ServerStateStopped
+
+	// TODO(james.yin): async
 	if err := s.stop(ctx); err != nil {
 		return errors.ErrInternal.WithMessage("stop server failed")
 	}
 
 	// Stop grpc asyncronously.
 	go func() {
+		// Force stop if timeout.
+		t := time.AfterFunc(defaultForceStopTimeout, func() {
+			log.Warning(context.Background(), "Graceful stop timeout, force stop.", nil)
+			s.grpcSrv.Stop()
+		})
+		defer t.Stop()
 		s.grpcSrv.GracefulStop()
 	}()
 
@@ -384,48 +408,37 @@ func (s *server) Stop(ctx context.Context) error {
 }
 
 func (s *server) stop(ctx context.Context) error {
-	// TODO(james.yin):
+	// Close all raft nodes.
+	s.writers.Range(func(key, value interface{}) bool {
+		r, _ := value.(*replica.Replica)
+		r.Stop()
+		return true
+	})
+
+	// Close all blocks.
+	s.blocks.Range(func(key, value interface{}) bool {
+		b, _ := value.(*file.Block)
+		_ = b.Close(context.TODO())
+		return true
+	})
+
+	// Close WAL, metaStore, offsetStore.
+	s.wal.Close()
+	s.offsetStore.Close()
+	// Make sure WAL is closed before close metaStore.
+	s.wal.Wait()
+	s.metaStore.Close()
+
+	// Stop heartbeat task, etc.
+	close(s.closec)
+
+	// Close grpc connections for raft.
+	s.host.Stop()
 
 	s.cc.Close(ctx)
-	wg := sync.WaitGroup{}
-	var err error
-	{
-		wg.Add(1)
-		go func() {
-			s.waitAllAppendRequestCompleted(ctx)
-			// s.blockWriters.Range(func(key, value interface{}) bool {
-			// 	writer, _ := value.(block.Writer)
-			// 	if err2 := writer.CloseWrite(ctx); err2 != nil {
-			// 		err = errutil.Chain(err, err2)
-			// 	}
-			// 	return true
-			// })
-			wg.Done()
-		}()
-	}
 
-	{
-		wg.Add(1)
-		go func() {
-			s.waitAllReadRequestCompleted(ctx)
-			// s.blockReaders.Range(func(key, value interface{}) bool {
-			// 	reader, _ := value.(block.Reader)
-			// 	if err2 := reader.CloseRead(ctx); err2 != nil {
-			// 		err = errutil.Chain(err, err2)
-			// 	}
-			// 	return true
-			// })
-			wg.Done()
-		}()
-	}
-
-	wg.Wait()
-	return err
+	return nil
 }
-
-func (s *server) waitAllAppendRequestCompleted(ctx context.Context) {}
-
-func (s *server) waitAllReadRequestCompleted(ctx context.Context) {}
 
 func (s *server) Status() primitive.ServerState {
 	return s.state
