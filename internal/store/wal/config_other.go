@@ -17,7 +17,7 @@
 
 package wal
 
-import "github.com/linkall-labs/vanus/internal/store/wal/io"
+import "github.com/linkall-labs/vanus/internal/store/io"
 
 func defaultIOEngine() io.Engine {
 	return io.NewEngine()

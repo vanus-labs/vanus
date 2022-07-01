@@ -20,7 +20,6 @@ import (
 
 	// third-party libraries.
 	. "github.com/smartystreets/goconvey/convey"
-	// this project.
 )
 
 var emptyBuf = make([]byte, blockSize)
