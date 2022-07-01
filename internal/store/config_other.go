@@ -15,10 +15,13 @@
 //go:build !linux
 // +build !linux
 
-package wal
+package store
 
-import "github.com/linkall-labs/vanus/internal/store/io"
+import (
+	// this project.
+	walog "github.com/linkall-labs/vanus/internal/store/wal"
+)
 
-func defaultIOEngine() io.Engine {
-	return io.NewEngine()
+func configWALIOEngineOptionEx(opts []walog.Option, cfg IOConfig) []walog.Option {
+	panic("io engine is not supported")
 }

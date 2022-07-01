@@ -26,13 +26,14 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	storecfg "github.com/linkall-labs/vanus/internal/store"
 	"github.com/linkall-labs/vanus/internal/store/meta"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
 func RecoverLogsAndWAL(
-	walDir string, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore,
+	cfg storecfg.RaftConfig, walDir string, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore,
 ) (map[vanus.ID]*Log, *WAL, error) {
 	var compacted int64
 	if v, exist := metaStore.Load(walCompactKey); exist {
@@ -57,7 +58,7 @@ func RecoverLogsAndWAL(
 		}
 
 		return l.appendInRecovery(entry, offset)
-	})
+	}, cfg.WAL.Options()...)
 	if err != nil {
 		return nil, nil, err
 	}

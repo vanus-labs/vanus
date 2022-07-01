@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/wal/io"
+	"github.com/linkall-labs/vanus/internal/store/io"
 )
 
 const (

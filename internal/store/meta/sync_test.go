@@ -21,6 +21,9 @@ import (
 
 	// third-party libraries.
 	. "github.com/smartystreets/goconvey/convey"
+
+	// this project.
+	storecfg "github.com/linkall-labs/vanus/internal/store"
 )
 
 var (
@@ -35,7 +38,7 @@ func TestSyncStore(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("new empty SyncStore by recovery", func() {
-			ss, err := RecoverSyncStore(walDir)
+			ss, err := RecoverSyncStore(storecfg.SyncStoreConfig{}, walDir)
 
 			So(err, ShouldBeNil)
 			So(ss, ShouldNotBeNil)
@@ -44,14 +47,14 @@ func TestSyncStore(t *testing.T) {
 		})
 
 		Convey("setup SyncStore", func() {
-			ss, err := RecoverSyncStore(walDir)
+			ss, err := RecoverSyncStore(storecfg.SyncStoreConfig{}, walDir)
 			So(err, ShouldBeNil)
 			ss.Store(key0, "value0")
 			ss.Store(key1, "value1")
 			ss.Close()
 
 			Convey("recover SyncStore", func() {
-				ss, err = RecoverSyncStore(walDir)
+				ss, err = RecoverSyncStore(storecfg.SyncStoreConfig{}, walDir)
 				So(err, ShouldBeNil)
 
 				value0, ok0 := ss.Load(key0)
@@ -78,7 +81,7 @@ func TestSyncStore(t *testing.T) {
 					ss.Close()
 
 					Convey("recover SyncStore again", func() {
-						ss, err = RecoverSyncStore(walDir)
+						ss, err = RecoverSyncStore(storecfg.SyncStoreConfig{}, walDir)
 						So(err, ShouldBeNil)
 
 						value0, ok0 := ss.Load(key0)

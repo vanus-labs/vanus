@@ -12,13 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !linux
-// +build !linux
+//go:build linux
+// +build linux
 
-package wal
+package store
 
-import "github.com/linkall-labs/vanus/internal/store/io"
+import (
+	// this project.
+	"github.com/linkall-labs/vanus/internal/store/io"
+	walog "github.com/linkall-labs/vanus/internal/store/wal"
+)
 
-func defaultIOEngine() io.Engine {
-	return io.NewEngine()
+const ioEngineUring = "io_uring"
+
+func configWALIOEngineOptionEx(opts []walog.Option, cfg IOConfig) []walog.Option {
+	if cfg.Engine == ioEngineUring {
+		opts = append(opts, walog.WithIOEngine(io.NewURing()))
+	}
+	return opts
 }

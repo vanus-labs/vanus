@@ -22,6 +22,7 @@ import (
 	"github.com/huandu/skiplist"
 
 	// this project.
+	storecfg "github.com/linkall-labs/vanus/internal/store"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
 )
 
@@ -182,7 +183,7 @@ func merge(dst, src *skiplist.SkipList) {
 	}
 }
 
-func RecoverAsyncStore(walDir string) (*AsyncStore, error) {
+func RecoverAsyncStore(cfg storecfg.AsyncStoreConfig, walDir string) (*AsyncStore, error) {
 	committed, snapshot, err := recoverLatestSnopshot(walDir, defaultCodec)
 	if err != nil {
 		return nil, err
@@ -201,7 +202,7 @@ func RecoverAsyncStore(walDir string) (*AsyncStore, error) {
 		merge(committed, m)
 		version = offset
 		return nil
-	})
+	}, cfg.WAL.Options()...)
 	if err != nil {
 		return nil, err
 	}

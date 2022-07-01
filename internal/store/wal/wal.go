@@ -21,8 +21,8 @@ import (
 	"time"
 
 	// this project.
+	"github.com/linkall-labs/vanus/internal/store/io"
 	"github.com/linkall-labs/vanus/internal/store/wal/block"
-	"github.com/linkall-labs/vanus/internal/store/wal/io"
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
 )
 

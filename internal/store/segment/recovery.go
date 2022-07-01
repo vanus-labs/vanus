@@ -28,20 +28,21 @@ import (
 )
 
 func (s *server) recover(ctx context.Context) error {
-	metaStore, err := meta.RecoverSyncStore(filepath.Join(s.volumeDir, "meta"))
+	metaStore, err := meta.RecoverSyncStore(s.cfg.MetaStore, filepath.Join(s.volumeDir, "meta"))
 	if err != nil {
 		return err
 	}
 	s.metaStore = metaStore
 
-	offsetStore, err := meta.RecoverAsyncStore(filepath.Join(s.volumeDir, "offset"))
+	offsetStore, err := meta.RecoverAsyncStore(s.cfg.OffsetStore, filepath.Join(s.volumeDir, "offset"))
 	if err != nil {
 		return err
 	}
 	s.offsetStore = offsetStore
 
 	// Recover wal and raft log.
-	raftLogs, wal, err := raftlog.RecoverLogsAndWAL(filepath.Join(s.volumeDir, "raft"), metaStore, offsetStore)
+	raftLogs, wal, err := raftlog.RecoverLogsAndWAL(s.cfg.Raft,
+		filepath.Join(s.volumeDir, "raft"), metaStore, offsetStore)
 	if err != nil {
 		return err
 	}
