@@ -45,6 +45,8 @@ type Segment struct {
 	State             SegmentState  `json:"state,omitempty"`
 	Size              int64         `json:"size,omitempty"`
 	Number            int32         `json:"number,omitempty"`
+	FirstEventBornAt  time.Time     `json:"first_event_born_at"`
+	LastEventBornAt   time.Time     `json:"last_event_born_at"`
 }
 
 func (seg *Segment) IsAppendable() bool {
