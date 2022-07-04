@@ -59,7 +59,8 @@ type Manager interface {
 }
 
 var mgr = &eventlogManager{
-	segmentReplicaNum: defaultSegmentReplicaNumber,
+	segmentReplicaNum:  defaultSegmentReplicaNumber,
+	segmentExpiredTime: defaultSegmentExpiredTime,
 }
 
 type eventlogManager struct {
@@ -84,6 +85,7 @@ type eventlogManager struct {
 	scaleTick               *time.Ticker
 	cleanTick               *time.Ticker
 	segmentExpiredCheckTick *time.Ticker
+	segmentExpiredTime      time.Duration
 }
 
 func NewManager(volMgr volume.Manager, replicaNum uint) Manager {
@@ -520,7 +522,7 @@ func (mgr *eventlogManager) checkSegmentExpired(ctx context.Context) {
 							})
 							break
 						}
-						log.Warning(ctx, "delete segment success", map[string]interface{}{
+						log.Info(ctx, "delete segment success", map[string]interface{}{
 							"execution_id":     executionID,
 							"last_event_time":  head.LastEventBornAt,
 							"first_event_time": head.FirstEventBornAt,
