@@ -108,13 +108,13 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 	if request.Source != "" {
 		subscriptionData.Source = request.Source
 	}
-	if len(request.Types) > 0 {
+	if request.Types != nil {
 		subscriptionData.Types = request.Types
 	}
-	if len(request.Config) > 0 {
+	if request.Config != nil {
 		subscriptionData.Config = request.Config
 	}
-	if len(request.Filters) > 0 {
+	if request.Filters != nil {
 		subscriptionData.Filters = convert.FromPbFilters(request.Filters)
 	}
 	if request.Sink != "" {
@@ -123,7 +123,7 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 	if request.Protocol != "" {
 		subscriptionData.Protocol = request.Protocol
 	}
-	if len(request.ProtocolSettings) > 0 {
+	if request.ProtocolSettings != nil {
 		subscriptionData.ProtocolSettings = request.ProtocolSettings
 	}
 	if request.InputTransformer != nil {
