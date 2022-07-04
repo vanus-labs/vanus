@@ -17,11 +17,12 @@ package eventlog
 import (
 	"context"
 	"encoding/json"
-	"github.com/google/uuid"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/block"
@@ -496,10 +497,9 @@ func (mgr *eventlogManager) checkSegmentExpired(ctx context.Context) {
 				head := elog.head()
 				ctx := context.Background()
 				for head != nil {
-					if !head.isFull() {
-						break
-					}
-					if head.LastEventBornAt.Equal(time.Time{}) {
+					switch {
+					case !head.isFull():
+					case head.LastEventBornAt.Equal(time.Time{}):
 						head.LastEventBornAt = time.Now().Add(defaultSegmentExpiredTime)
 						if err := elog.updateSegment(ctx, head); err != nil {
 							log.Warning(ctx, "update segment's metadata failed", map[string]interface{}{
@@ -508,7 +508,7 @@ func (mgr *eventlogManager) checkSegmentExpired(ctx context.Context) {
 								"eventlog":   elog.md.ID.String(),
 							})
 						}
-					} else if time.Now().Sub(head.LastEventBornAt.Add(defaultSegmentExpiredTime)) > 0 {
+					case time.Since(head.LastEventBornAt.Add(defaultSegmentExpiredTime)) > 0:
 						err := elog.deleteHead(ctx)
 						if err != nil {
 							log.Warning(ctx, "delete segment error", map[string]interface{}{
@@ -529,7 +529,7 @@ func (mgr *eventlogManager) checkSegmentExpired(ctx context.Context) {
 						})
 						mgr.segmentNeedBeClean.Store(head.ID.Key(), head)
 						head = elog.head()
-					} else {
+					default:
 						head = nil
 					}
 				}

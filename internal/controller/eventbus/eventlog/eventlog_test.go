@@ -594,6 +594,14 @@ func TestEventlog(t *testing.T) {
 	})
 }
 
+func Test_ExpiredSegmentDeleting(t *testing.T) {
+	Convey("test expired segment deleting", t, func() {
+		Convey("", func() {
+
+		})
+	})
+}
+
 func createTestSegment() *Segment {
 	leader := vanus.NewID()
 	fo1 := vanus.NewID()
