@@ -87,6 +87,7 @@ func (seg *Segment) isNeedUpdate(newSeg Segment) bool {
 		seg.State = newSeg.State
 		needed = true
 	}
+	// TODO(wenfeng.wang) add event time
 	return needed
 }
 

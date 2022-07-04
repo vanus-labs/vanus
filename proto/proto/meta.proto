@@ -66,8 +66,10 @@ message SegmentHealthInfo {
   int32 event_number = 5;
   int32 serialization_version = 6;
   bool is_full = 7;
-  uint64 term = 9;
   uint64 leader = 8;
+  uint64 term = 9;
+  uint64 first_event_born_at=10;
+  uint64 last_event_born_at=11;
 }
 
 enum StorageTier {
