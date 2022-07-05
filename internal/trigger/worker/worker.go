@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=worker.go  -destination=mock_worker.go -package=worker
 package worker
 
 import (
@@ -37,6 +38,8 @@ const (
 type SubscriptionWorker interface {
 	Run(ctx context.Context) error
 	Stop(ctx context.Context)
+	IsStart() bool
+	GetStopTime() time.Time
 	Change(ctx context.Context, subscription *primitive.Subscription) error
 }
 
@@ -46,7 +49,7 @@ type subscriptionWorker struct {
 	events       chan info.EventOffset
 	reader       reader.Reader
 	stopTime     time.Time
-	startTime    *time.Time
+	startTime    time.Time
 }
 
 func NewSubscriptionWorker(subscription *primitive.Subscription,
@@ -84,6 +87,15 @@ func (w *subscriptionWorker) Change(ctx context.Context, subscription *primitive
 	}
 	return nil
 }
+
+func (w *subscriptionWorker) IsStart() bool {
+	return !w.startTime.IsZero()
+}
+
+func (w *subscriptionWorker) GetStopTime() time.Time {
+	return w.stopTime
+}
+
 func (w *subscriptionWorker) Run(ctx context.Context) error {
 	err := w.reader.Start()
 	if err != nil {
@@ -100,12 +112,12 @@ func (w *subscriptionWorker) Run(ctx context.Context) error {
 		}
 	}()
 	now := time.Now()
-	w.startTime = &now
+	w.startTime = now
 	return nil
 }
 
 func (w *subscriptionWorker) Stop(ctx context.Context) {
-	if w.startTime == nil {
+	if !w.IsStart() {
 		return
 	}
 	w.reader.Close()

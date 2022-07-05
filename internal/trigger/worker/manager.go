@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=manager.go  -destination=mock_manager.go -package=worker
 package worker
 
 import (
@@ -40,13 +41,17 @@ const (
 	cleanSubscriptionCheckPeriod    = 10 * time.Millisecond
 )
 
+type newSubscriptionWorker func(subscription *primitive.Subscription,
+	subscriptionOffset *offset.SubscriptionOffset,
+	controllers []string) SubscriptionWorker
+
 type manager struct {
-	subscriptionMap   sync.Map
-	offsetManager     *offset.Manager
-	ctx               context.Context
-	stop              context.CancelFunc
-	config            Config
-	startSubscription bool
+	subscriptionMap       sync.Map
+	offsetManager         *offset.Manager
+	ctx                   context.Context
+	stop                  context.CancelFunc
+	config                Config
+	newSubscriptionWorker newSubscriptionWorker
 }
 
 func NewManager(config Config) Manager {
@@ -54,20 +59,20 @@ func NewManager(config Config) Manager {
 		config.CleanSubscriptionTimeout = defaultCleanSubscriptionTimeout
 	}
 	m := &manager{
-		config:            config,
-		startSubscription: true,
-		offsetManager:     offset.NewOffsetManager(),
+		config:                config,
+		newSubscriptionWorker: NewSubscriptionWorker,
+		offsetManager:         offset.NewOffsetManager(),
 	}
 	m.ctx, m.stop = context.WithCancel(context.Background())
 	return m
 }
 
-func (m *manager) getSubscriptionWorker(id vanus.ID) *subscriptionWorker {
+func (m *manager) getSubscriptionWorker(id vanus.ID) SubscriptionWorker {
 	v, exist := m.subscriptionMap.Load(id)
 	if !exist {
 		return nil
 	}
-	worker, _ := v.(*subscriptionWorker)
+	worker, _ := v.(SubscriptionWorker)
 	return worker
 }
 
@@ -100,15 +105,13 @@ func (m *manager) AddSubscription(ctx context.Context, subscription *primitive.S
 		return err
 	}
 	subOffset := m.offsetManager.RegisterSubscription(subscription.ID)
-	worker := NewSubscriptionWorker(subscription, subOffset, m.config.Controllers)
+	worker := m.newSubscriptionWorker(subscription, subOffset, m.config.Controllers)
 	m.subscriptionMap.Store(subscription.ID, worker)
-	if m.startSubscription {
-		err := worker.Run(m.ctx)
-		if err != nil {
-			m.subscriptionMap.Delete(subscription.ID)
-			m.offsetManager.RemoveSubscription(subscription.ID)
-			return err
-		}
+	err := worker.Run(m.ctx)
+	if err != nil {
+		m.subscriptionMap.Delete(subscription.ID)
+		m.offsetManager.RemoveSubscription(subscription.ID)
+		return err
 	}
 	return nil
 }
@@ -152,7 +155,7 @@ func (m *manager) stopSubscription(ctx context.Context, id vanus.ID) {
 	if !exist {
 		return
 	}
-	worker, _ := value.(*subscriptionWorker)
+	worker, _ := value.(SubscriptionWorker)
 	worker.Stop(ctx)
 	log.Info(ctx, "stop subscription success", map[string]interface{}{
 		log.KeySubscriptionID: id,
@@ -164,8 +167,8 @@ func (m *manager) cleanSubscription(ctx context.Context, id vanus.ID) {
 	if !exist {
 		return
 	}
-	worker, _ := info.(*subscriptionWorker)
-	if worker.startTime == nil {
+	worker, _ := info.(SubscriptionWorker)
+	if !worker.IsStart() {
 		m.subscriptionMap.Delete(id)
 		m.offsetManager.RemoveSubscription(id)
 		return
@@ -181,7 +184,7 @@ loop:
 		case <-ctx.Done():
 			break loop
 		case <-ticker.C:
-			if worker.stopTime.Before(m.offsetManager.GetLastCommitTime()) {
+			if worker.GetStopTime().Before(m.offsetManager.GetLastCommitTime()) {
 				break loop
 			}
 		}

@@ -17,6 +17,7 @@ package worker
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/primitive"
@@ -48,9 +49,15 @@ func TestSubscriptionWorker(t *testing.T) {
 		w.reader = r
 		r.EXPECT().Start().AnyTimes().Return(nil)
 		r.EXPECT().Close().AnyTimes().Return()
+		So(w.IsStart(), ShouldBeFalse)
 		err := w.Run(ctx)
 		So(err, ShouldBeNil)
+		So(w.IsStart(), ShouldBeTrue)
+		now := time.Now()
+		So(w.GetStopTime().IsZero(), ShouldBeTrue)
 		w.Stop(ctx)
+		So(w.GetStopTime().IsZero(), ShouldBeFalse)
+		So(w.GetStopTime().After(now), ShouldBeTrue)
 	})
 }
 
