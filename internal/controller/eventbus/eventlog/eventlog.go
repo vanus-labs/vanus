@@ -157,9 +157,6 @@ func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client, startTa
 }
 
 func (mgr *eventlogManager) Stop() {
-	//mgr.scaleTick.Stop()
-	//mgr.cleanTick.Stop()
-	//mgr.segmentExpiredCheckTick.Stop()
 	mgr.stop()
 	mgr.allocator.Stop()
 }
