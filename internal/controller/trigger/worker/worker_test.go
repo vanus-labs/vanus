@@ -117,6 +117,26 @@ func TestTriggerWorker_UnAssignSubscription(t *testing.T) {
 	})
 }
 
+func TestTriggerWorker_QueueHandler(t *testing.T) {
+	Convey("test trigger worker queue subscription", t, func() {
+		ctx := context.Background()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		subscriptionManager := subscription.NewMockManager(ctrl)
+		client := pbtrigger.NewMockTriggerWorkerClient(ctrl)
+		addr := "test"
+		tWorker := NewTriggerWorkerByAddr(addr, subscriptionManager).(*triggerWorker)
+		_ = tWorker.Init(ctx)
+		tWorker.client = client
+		tWorker.SetPhase(info.TriggerWorkerPhaseRunning)
+		tWorker.subscriptionQueue.Add(2)
+		client.EXPECT().RemoveSubscription(gomock.Any(), gomock.Any()).Return(nil, nil)
+		time.Sleep(time.Millisecond * 100)
+		tWorker.subscriptionQueue.Add(1)
+		client.EXPECT().RemoveSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, fmt.Errorf("error"))
+	})
+}
+
 func TestTriggerWorker_Handler(t *testing.T) {
 	Convey("test trigger worker handler", t, func() {
 		ctx := context.Background()
