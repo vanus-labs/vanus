@@ -66,6 +66,9 @@ build-ctrl-bin:
 build-gw-util:
 	go build -o bin/gw-util test/gateway/main.go
 
+build-e2e:
+	go build -o bin/e2e test/e2e/quick-start/main.go
+
 controller-start:
 	go run ${VANUS_ROOT}/cmd/controller/${module}/main.go
 

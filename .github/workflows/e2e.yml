@@ -1,0 +1,56 @@
+name: e2e
+on:
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: read
+  # Optional: allow read access to pull request. Use with `only-new-issues` option.
+  # pull-requests: read-
+jobs:
+  e2e:
+    name: e2e
+    if: |
+      startsWith(github.event.pull_request.title, 'fix:') ||
+      startsWith(github.event.pull_request.title, 'feat:') ||
+      startsWith(github.event.pull_request.title, 'refactor:')
+    runs-on: ubuntu-latest
+    env:
+      VANUS_GATEWAY: 192.168.49.2:30001
+      
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+
+      - name: Environmental preparation
+        run: |
+          curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+          sudo install minikube-linux-amd64 /usr/local/bin/minikube
+          minikube start
+          curl -LO https://dl.k8s.io/release/v1.24.0/bin/linux/amd64/kubectl
+          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+      - name: Deploy Vanus
+        run: |
+          export IMAGE_TAG=$(git log -1 --format='%h' | awk '{print $0}')
+          export VERSION=$(cat ./deploy/all-in-one.yaml| grep -w "image" | awk -F ":" '{print $NF}' | awk 'FNR == 1')
+          sed -i "s/${VERSION}/${IMAGE_TAG}/g" ./deploy/all-in-one.yaml
+          eval $(minikube docker-env)
+          make docker-build
+          kubectl apply -f ./deploy/all-in-one.yaml
+          kubectl apply -f http://44.242.140.28:9080/utils/display.yml
+          make build-cmd
+          chmod ug+x ./bin/vsctl
+          sudo mv ./bin/vsctl /usr/local/bin/vsctl
+          sleep 60s && for i in $(seq 1 20); do kubectl get pod -n vanus --no-headers | grep -v Run || break;sleep 5s;done
+
+      - name: Exec e2e
+        run: |
+          make build-e2e
+          ./bin/e2e
+
+      - name: Check e2e
+        run: |
+          kubectl get pod -n vanus | grep quick-display | awk '{print $1}' | xargs kubectl logs -n vanus | grep -n "total" | wc -l
+          [[ $(kubectl get pod -n vanus | grep quick-display | awk '{print $1}' | xargs kubectl logs -n vanus | grep -n "total" | wc -l) -eq 10001 ]] && echo "success" || echo "failed"
+
