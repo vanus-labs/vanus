@@ -784,11 +784,9 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 
 			So(el1.segmentList.Len(), ShouldEqual, 1)
 			So(el1.segments, ShouldHaveLength, 1)
-			minutes := math.Ceil(float64(el1.head().LastEventBornAt.Sub(time.Now())) / float64(time.Minute))
+			minutes := math.Ceil(float64(time.Until(el1.head().LastEventBornAt)) / float64(time.Minute))
 			So(minutes, ShouldEqual, 60)
-
 		})
-
 	})
 }
 
