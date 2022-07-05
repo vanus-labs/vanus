@@ -17,6 +17,7 @@ package eventlog
 import (
 	stdCtx "context"
 	stdJson "encoding/json"
+	"math"
 	"path/filepath"
 	"testing"
 	"time"
@@ -604,6 +605,7 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 			segmentExpiredCheckTick: time.NewTicker(100 * time.Millisecond),
 			segmentExpiredTime:      time.Hour,
 		}
+
 		el1, err1 := newEventlog(ctx, &metadata.Eventlog{
 			ID:         vanus.NewID(),
 			EventbusID: vanus.NewID(),
@@ -622,13 +624,17 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 		utMgr.eventLogMap.Store(el1.md.ID.Key(), el1)
 		utMgr.eventLogMap.Store(el2.md.ID.Key(), el2)
 		utMgr.eventLogMap.Store(el3.md.ID.Key(), el3)
+
 		Convey("test clean expired segment", func() {
+			kvCli.EXPECT().Delete(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+
 			s11 := &Segment{
 				ID:               vanus.NewID(),
 				FirstEventBornAt: time.Now().Add(-6 * time.Hour),
 				LastEventBornAt:  time.Now().Add(-3 * time.Hour),
 			}
-			el1.segmentList.Set(s11.ID.Key(), s11)
+			el1.segmentList.Set(s11.ID.Uint64(), s11)
+			el1.segments = []vanus.ID{s11.ID}
 
 			s21 := &Segment{
 				ID:               vanus.NewID(),
@@ -641,8 +647,9 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 				FirstEventBornAt: time.Now().Add(-3 * time.Hour),
 				LastEventBornAt:  time.Now().Add(-1 * time.Minute),
 			}
-			el2.segmentList.Set(s21.ID.Key(), s21)
-			el2.segmentList.Set(s22.ID.Key(), s22)
+			el2.segmentList.Set(s21.ID.Uint64(), s21)
+			el2.segmentList.Set(s22.ID.Uint64(), s22)
+			el2.segments = []vanus.ID{s21.ID, s22.ID}
 
 			s31 := &Segment{
 				ID:               vanus.NewID(),
@@ -668,11 +675,120 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 				LastEventBornAt:  time.Now().Add(-1 * time.Millisecond),
 				State:            StateFrozen,
 			}
-			el3.segmentList.Set(s31.ID.Key(), s31)
-			el3.segmentList.Set(s32.ID.Key(), s32)
-			el3.segmentList.Set(s33.ID.Key(), s33)
-			el3.segmentList.Set(s34.ID.Key(), s34)
+			el3.segmentList.Set(s31.ID.Uint64(), s31)
+			el3.segmentList.Set(s32.ID.Uint64(), s32)
+			el3.segmentList.Set(s33.ID.Uint64(), s33)
+			el3.segmentList.Set(s34.ID.Uint64(), s34)
+			el3.segments = []vanus.ID{s31.ID, s32.ID, s33.ID, s34.ID}
+			cCtx, cancel := stdCtx.WithCancel(ctx)
+			ch := make(chan struct{})
+			go func() {
+				utMgr.checkSegmentExpired(cCtx)
+				ch <- struct{}{}
+			}()
+			time.Sleep(time.Second)
+			cancel()
+			<-ch
+			So(el1.segmentList.Len(), ShouldEqual, 1)
+			So(el1.segments, ShouldHaveLength, 1)
+
+			So(el2.segmentList.Len(), ShouldEqual, 1)
+			So(el2.segments, ShouldHaveLength, 1)
+			So(el2.segments[0], ShouldEqual, s22.ID)
+
+			So(el3.segmentList.Len(), ShouldEqual, 2)
+			So(el3.segments, ShouldHaveLength, 2)
+			So(el3.segments[0], ShouldEqual, s33.ID)
+			So(el3.segments[1], ShouldEqual, s34.ID)
+
+			So(util.MapLen(&utMgr.segmentNeedBeClean), ShouldEqual, 3)
 		})
+
+		Convey("test kv error", func() {
+			kvCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(kv.ErrUnknown)
+			kvCli.EXPECT().Delete(gomock.Any(), gomock.Any()).AnyTimes().Return(kv.ErrUnknown)
+
+			s11 := &Segment{
+				ID:    vanus.NewID(),
+				State: StateFrozen,
+			}
+			el1.segmentList.Set(s11.ID.Uint64(), s11)
+			el1.segments = []vanus.ID{s11.ID}
+
+			s31 := &Segment{
+				ID:               vanus.NewID(),
+				FirstEventBornAt: time.Now().Add(-6 * time.Hour),
+				LastEventBornAt:  time.Now().Add(-3 * time.Hour),
+				State:            StateFrozen,
+			}
+			s32 := &Segment{
+				ID:               vanus.NewID(),
+				FirstEventBornAt: time.Now().Add(-3 * time.Hour),
+				LastEventBornAt:  time.Now().Add(-1*time.Hour - time.Minute),
+				State:            StateFrozen,
+			}
+			s33 := &Segment{
+				ID:               vanus.NewID(),
+				FirstEventBornAt: time.Now().Add(-1 * time.Hour),
+				LastEventBornAt:  time.Now().Add(-1 * time.Minute),
+				State:            StateFrozen,
+			}
+			s34 := &Segment{
+				ID:               vanus.NewID(),
+				FirstEventBornAt: time.Now().Add(-1 * time.Minute),
+				LastEventBornAt:  time.Now().Add(-1 * time.Millisecond),
+				State:            StateFrozen,
+			}
+			el3.segmentList.Set(s31.ID.Uint64(), s31)
+			el3.segmentList.Set(s32.ID.Uint64(), s32)
+			el3.segmentList.Set(s33.ID.Uint64(), s33)
+			el3.segmentList.Set(s34.ID.Uint64(), s34)
+			el3.segments = []vanus.ID{s31.ID, s32.ID, s33.ID, s34.ID}
+			cCtx, cancel := stdCtx.WithCancel(ctx)
+			ch := make(chan struct{})
+			go func() {
+				utMgr.checkSegmentExpired(cCtx)
+				ch <- struct{}{}
+			}()
+			time.Sleep(time.Second)
+			cancel()
+			<-ch
+
+			So(el1.segmentList.Len(), ShouldEqual, 1)
+			So(el1.segments, ShouldHaveLength, 1)
+			So(el1.head().LastEventBornAt, ShouldEqual, time.Time{})
+
+			So(el3.segmentList.Len(), ShouldEqual, 4)
+			So(el3.segments, ShouldHaveLength, 4)
+		})
+
+		Convey("test update segment no last event time", func() {
+			kvCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
+
+			s11 := &Segment{
+				ID:    vanus.NewID(),
+				State: StateFrozen,
+			}
+			el1.segmentList.Set(s11.ID.Uint64(), s11)
+			el1.segments = []vanus.ID{s11.ID}
+
+			cCtx, cancel := stdCtx.WithCancel(ctx)
+			ch := make(chan struct{})
+			go func() {
+				utMgr.checkSegmentExpired(cCtx)
+				ch <- struct{}{}
+			}()
+			time.Sleep(time.Second)
+			cancel()
+			<-ch
+
+			So(el1.segmentList.Len(), ShouldEqual, 1)
+			So(el1.segments, ShouldHaveLength, 1)
+			minutes := math.Ceil(float64(el1.head().LastEventBornAt.Sub(time.Now())) / float64(time.Minute))
+			So(minutes, ShouldEqual, 60)
+
+		})
+
 	})
 }
 

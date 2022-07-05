@@ -501,16 +501,19 @@ func (mgr *eventlogManager) checkSegmentExpired(ctx context.Context) {
 				for head != nil {
 					switch {
 					case !head.isFull():
+						return true
 					case head.LastEventBornAt.Equal(time.Time{}):
-						head.LastEventBornAt = time.Now().Add(defaultSegmentExpiredTime)
+						head.LastEventBornAt = time.Now().Add(mgr.segmentExpiredTime)
 						if err := elog.updateSegment(ctx, head); err != nil {
 							log.Warning(ctx, "update segment's metadata failed", map[string]interface{}{
 								log.KeyError: err,
 								"segment":    head.String(),
 								"eventlog":   elog.md.ID.String(),
 							})
+							head.LastEventBornAt = time.Time{}
 						}
-					case time.Since(head.LastEventBornAt.Add(defaultSegmentExpiredTime)) > 0:
+						return true
+					case time.Since(head.LastEventBornAt.Add(mgr.segmentExpiredTime)) > 0:
 						err := elog.deleteHead(ctx)
 						if err != nil {
 							log.Warning(ctx, "delete segment error", map[string]interface{}{
@@ -520,10 +523,12 @@ func (mgr *eventlogManager) checkSegmentExpired(ctx context.Context) {
 								"first_event_time": head.FirstEventBornAt,
 								"time":             time.Now(),
 							})
-							break
+							return true
 						}
+						count++
 						log.Info(ctx, "delete segment success", map[string]interface{}{
 							"execution_id":     executionID,
+							"log_id":           elog.md.ID.String(),
 							"last_event_time":  head.LastEventBornAt,
 							"first_event_time": head.FirstEventBornAt,
 							"time":             time.Now(),
@@ -882,7 +887,7 @@ func (el *eventlog) previousOf(seg *Segment) *Segment {
 func (el *eventlog) deleteHead(ctx context.Context) error {
 	el.mutex.Lock()
 	defer el.mutex.Unlock()
-	head, _ := el.segmentList.RemoveFront().Value.(*Segment)
+	head, _ := el.segmentList.Front().Value.(*Segment)
 	segments := make([]vanus.ID, 0)
 	for _, v := range el.segments {
 		if v.Uint64() != head.ID.Uint64() {
@@ -893,6 +898,7 @@ func (el *eventlog) deleteHead(ctx context.Context) error {
 	if err := el.kvClient.Delete(ctx, key); err != nil {
 		return err
 	}
+	_ = el.segmentList.RemoveFront()
 	el.segments = segments
 	return nil
 }
@@ -902,7 +908,7 @@ func (el *eventlog) updateSegment(ctx context.Context, seg *Segment) error {
 	data, _ := json.Marshal(seg)
 	// TODO(wenfeng.wang) update block info at the same time
 	key := filepath.Join(metadata.SegmentKeyPrefixInKVStore, seg.ID.String())
-	if err := mgr.kvClient.Set(ctx, key, data); err != nil {
+	if err := el.kvClient.Set(ctx, key, data); err != nil {
 		return err
 	}
 	if seg.isFull() {
