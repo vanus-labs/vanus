@@ -129,11 +129,12 @@ func TestTriggerWorker_QueueHandler(t *testing.T) {
 		_ = tWorker.Init(ctx)
 		tWorker.client = client
 		tWorker.SetPhase(info.TriggerWorkerPhaseRunning)
-		tWorker.subscriptionQueue.Add(2)
 		client.EXPECT().RemoveSubscription(gomock.Any(), gomock.Any()).Return(nil, nil)
+		tWorker.subscriptionQueue.Add(2)
 		time.Sleep(time.Millisecond * 100)
-		tWorker.subscriptionQueue.Add(1)
 		client.EXPECT().RemoveSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, fmt.Errorf("error"))
+		tWorker.subscriptionQueue.Add(1)
+		_ = tWorker.Close()
 	})
 }
 
@@ -169,6 +170,7 @@ func TestTriggerWorker_Handler(t *testing.T) {
 			err = tWorker.handler(ctx, id)
 			So(err, ShouldNotBeNil)
 		})
+		_ = tWorker.Close()
 	})
 }
 
@@ -214,5 +216,6 @@ func TestTriggerWorker_RemoteStartStop(t *testing.T) {
 		client.EXPECT().Stop(ctx, gomock.Any()).Return(nil, fmt.Errorf("error"))
 		err = tWorker.RemoteStop(ctx)
 		So(err, ShouldNotBeNil)
+		_ = tWorker.Close()
 	})
 }

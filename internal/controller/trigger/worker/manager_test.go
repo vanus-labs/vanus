@@ -77,7 +77,7 @@ func TestInit(t *testing.T) {
 		subIds := tWorker.GetAssignSubscriptions()
 		So(len(subIds), ShouldEqual, 1)
 		So(subIds[0], ShouldEqual, sub.ID)
-		time.Sleep(time.Millisecond * 10)
+		time.Sleep(time.Millisecond * 100)
 		twManager.Stop()
 	})
 }
