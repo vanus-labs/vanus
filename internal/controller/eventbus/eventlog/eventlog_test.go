@@ -168,7 +168,7 @@ func TestEventlogManager_RunWithoutTask(t *testing.T) {
 	})
 }
 
-func TestEventlogManager_RunWithTask(t *testing.T) {
+func TestEventlogManager_ScaleAndCleanTask(t *testing.T) {
 	Convey("case: run with start", t, func() {
 		utMgr := &eventlogManager{segmentReplicaNum: 3}
 		ctrl := gomock.NewController(t)
@@ -215,8 +215,8 @@ func TestEventlogManager_RunWithTask(t *testing.T) {
 		srv.EXPECT().GetClient().AnyTimes().Return(grpcCli)
 		grpcCli.EXPECT().ActivateSegment(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, nil)
 
-		utMgr.scaleTick = time.NewTicker(20 * time.Millisecond)
-		utMgr.cleanTick = time.NewTicker(20 * time.Millisecond)
+		utMgr.scaleInterval = 20 * time.Millisecond
+		utMgr.cleanInterval = 20 * time.Millisecond
 		kvCli.EXPECT().List(gomock.Any(), gomock.Any()).Times(1).Return([]kv.Pair{}, nil)
 		kvCli.EXPECT().Delete(gomock.Any(), gomock.Any()).Times(2).Return(nil)
 		err := utMgr.Run(ctx, kvCli, true)
@@ -226,6 +226,7 @@ func TestEventlogManager_RunWithTask(t *testing.T) {
 			EventbusID: vanus.NewID(),
 		}
 
+		// Test allocate segment automatically
 		el, err := newEventlog(ctx, md, kvCli, false)
 		So(err, ShouldBeNil)
 		So(el.size(), ShouldEqual, 0)
@@ -601,9 +602,9 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 		kvCli := kv.NewMockClient(ctrl)
 		ctx := stdCtx.Background()
 		utMgr := &eventlogManager{
-			segmentReplicaNum:       3,
-			segmentExpiredCheckTick: time.NewTicker(100 * time.Millisecond),
-			segmentExpiredTime:      time.Hour,
+			segmentReplicaNum:           3,
+			checkSegmentExpiredInterval: 100 * time.Millisecond,
+			segmentExpiredTime:          time.Hour,
 		}
 
 		el1, err1 := newEventlog(ctx, &metadata.Eventlog{

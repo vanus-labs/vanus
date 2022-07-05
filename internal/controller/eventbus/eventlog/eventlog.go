@@ -38,9 +38,12 @@ import (
 )
 
 const (
-	defaultAppendableSegmentNumber = 2
-	defaultSegmentReplicaNumber    = 3
-	defaultSegmentExpiredTime      = 72 * time.Hour
+	defaultAppendableSegmentNumber     = 2
+	defaultSegmentReplicaNumber        = 3
+	defaultSegmentExpiredTime          = 72 * time.Hour
+	defaultScaleInterval               = time.Second
+	defaultCleanInterval               = time.Minute
+	defaultCheckExpiredSegmentInterval = time.Minute
 )
 
 type Manager interface {
@@ -59,8 +62,11 @@ type Manager interface {
 }
 
 var mgr = &eventlogManager{
-	segmentReplicaNum:  defaultSegmentReplicaNumber,
-	segmentExpiredTime: defaultSegmentExpiredTime,
+	segmentReplicaNum:           defaultSegmentReplicaNumber,
+	segmentExpiredTime:          defaultSegmentExpiredTime,
+	cleanInterval:               defaultCleanInterval,
+	scaleInterval:               defaultScaleInterval,
+	checkSegmentExpiredInterval: defaultCheckExpiredSegmentInterval,
 }
 
 type eventlogManager struct {
@@ -80,12 +86,12 @@ type eventlogManager struct {
 	cancel   func()
 	mutex    sync.Mutex
 	// vanus.ID *Segment
-	segmentNeedBeClean      sync.Map
-	segmentReplicaNum       uint
-	scaleTick               *time.Ticker
-	cleanTick               *time.Ticker
-	segmentExpiredCheckTick *time.Ticker
-	segmentExpiredTime      time.Duration
+	segmentNeedBeClean          sync.Map
+	segmentReplicaNum           uint
+	scaleInterval               time.Duration
+	cleanInterval               time.Duration
+	checkSegmentExpiredInterval time.Duration
+	segmentExpiredTime          time.Duration
 }
 
 func NewManager(volMgr volume.Manager, replicaNum uint) Manager {
@@ -98,10 +104,17 @@ func NewManager(volMgr volume.Manager, replicaNum uint) Manager {
 }
 
 func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client, startTask bool) error {
+	// add check for unit tests
+	if mgr.checkSegmentExpiredInterval == 0 {
+		mgr.checkSegmentExpiredInterval = defaultCheckExpiredSegmentInterval
+	}
+	if mgr.scaleInterval == 0 {
+		mgr.scaleInterval = defaultScaleInterval
+	}
+	if mgr.cleanInterval == 0 {
+		mgr.cleanInterval = defaultCleanInterval
+	}
 	mgr.kvClient = kvClient
-	mgr.scaleTick = time.NewTicker(time.Second)
-	mgr.cleanTick = time.NewTicker(time.Minute)
-	mgr.segmentExpiredCheckTick = time.NewTicker(time.Minute)
 	if err := mgr.allocator.Run(ctx, mgr.kvClient, true); err != nil {
 		return err
 	}
@@ -144,9 +157,9 @@ func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client, startTa
 }
 
 func (mgr *eventlogManager) Stop() {
-	mgr.scaleTick.Stop()
-	mgr.cleanTick.Stop()
-	mgr.segmentExpiredCheckTick.Stop()
+	//mgr.scaleTick.Stop()
+	//mgr.cleanTick.Stop()
+	//mgr.segmentExpiredCheckTick.Stop()
 	mgr.stop()
 	mgr.allocator.Stop()
 }
@@ -403,12 +416,14 @@ func (mgr *eventlogManager) initializeEventLog(ctx context.Context, md *metadata
 }
 
 func (mgr *eventlogManager) dynamicScaleUpEventLog(ctx context.Context) {
+	ticker := time.NewTicker(mgr.scaleInterval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			log.Info(ctx, "the task of dynamic-scale stopped", nil)
 			return
-		case <-mgr.scaleTick.C:
+		case <-ticker.C:
 			count := 0
 			mgr.eventLogMap.Range(func(key, value interface{}) bool {
 				el, ok := value.(*eventlog)
@@ -454,12 +469,14 @@ func (mgr *eventlogManager) dynamicScaleUpEventLog(ctx context.Context) {
 }
 
 func (mgr *eventlogManager) cleanAbnormalSegment(ctx context.Context) {
+	ticker := time.NewTicker(mgr.cleanInterval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			log.Info(ctx, "the task of clean-abnormal-segment stopped", nil)
 			return
-		case <-mgr.cleanTick.C:
+		case <-ticker.C:
 			count := 0
 			mgr.segmentNeedBeClean.Range(func(key, value interface{}) bool {
 				v, ok := value.(*Segment)
@@ -486,12 +503,14 @@ func (mgr *eventlogManager) cleanAbnormalSegment(ctx context.Context) {
 }
 
 func (mgr *eventlogManager) checkSegmentExpired(ctx context.Context) {
+	ticker := time.NewTicker(mgr.checkSegmentExpiredInterval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			log.Info(ctx, "the task of check-segment-expired stopped", nil)
 			return
-		case <-mgr.segmentExpiredCheckTick.C:
+		case <-ticker.C:
 			count := 0
 			executionID := uuid.NewString()
 			mgr.eventLogMap.Range(func(key, value interface{}) bool {
