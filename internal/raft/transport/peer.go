@@ -38,7 +38,7 @@ const (
 type peer struct {
 	addr   string
 	msgc   chan *raftpb.Message
-	stream vsraftpb.RaftServer_SendMsssageClient
+	stream vsraftpb.RaftServer_SendMessageClient
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -129,7 +129,7 @@ func (p *peer) Sendv(msgs []*raftpb.Message) {
 	}
 }
 
-func (p *peer) connect(opts ...grpc.DialOption) (vsraftpb.RaftServer_SendMsssageClient, error) {
+func (p *peer) connect(opts ...grpc.DialOption) (vsraftpb.RaftServer_SendMessageClient, error) {
 	timeout := defaultTimeoutMilliseconds * time.Millisecond
 	ctx, cancel := context.WithTimeout(p.ctx, timeout)
 	defer cancel()
@@ -140,7 +140,7 @@ func (p *peer) connect(opts ...grpc.DialOption) (vsraftpb.RaftServer_SendMsssage
 	}
 
 	client := vsraftpb.NewRaftServerClient(conn)
-	stream, err := client.SendMsssage(context.TODO())
+	stream, err := client.SendMessage(context.TODO())
 	if err != nil {
 		return nil, err
 	}
