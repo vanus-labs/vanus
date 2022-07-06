@@ -434,16 +434,18 @@ func TestEventlogManager_UpdateSegment(t *testing.T) {
 				},
 			})
 		})
+
 		md := &metadata.Eventlog{
 			ID:         vanus.NewID(),
 			EventbusID: vanus.NewID(),
 		}
-		elog, err := newEventlog(ctx, md, kvCli, false)
-		So(err, ShouldBeNil)
-		Convey("case: test segment to be updated", func() {
+
+		Convey("case: test segment doesn't need to be updated", func() {
+			elog, err := newEventlog(ctx, md, kvCli, false)
+			So(err, ShouldBeNil)
 			seg := createTestSegment()
-			kvCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).Times(6).Return(nil)
-			err := elog.add(ctx, seg)
+			kvCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).Times(1).Return(nil)
+			err = elog.add(ctx, seg)
 			So(err, ShouldBeNil)
 			utMgr.eventLogMap.Store(md.ID.Key(), elog)
 			// segment doesn't exist
@@ -454,6 +456,7 @@ func TestEventlogManager_UpdateSegment(t *testing.T) {
 					},
 				},
 			})
+
 			// segment doesn't need to be updated
 			utMgr.UpdateSegment(ctx, map[string][]Segment{
 				md.ID.String(): {
@@ -462,30 +465,83 @@ func TestEventlogManager_UpdateSegment(t *testing.T) {
 					},
 				},
 			})
+		})
+
+		Convey("case: test segment to be updated", func() {
+			elog, err := newEventlog(ctx, md, kvCli, false)
+			So(err, ShouldBeNil)
+			seg := createTestSegment()
+			key := filepath.Join(metadata.EventlogSegmentsKeyPrefixInKVStore, elog.md.ID.String(), seg.ID.String())
+			kvCli.EXPECT().Set(ctx, key, gomock.Any()).Times(1).Return(nil)
+			err = elog.add(ctx, seg)
+			So(err, ShouldBeNil)
+			utMgr.eventLogMap.Store(md.ID.Key(), elog)
 
 			// segment need to be updated
+			updateSegment1 := Segment{
+				ID:                 seg.ID,
+				Size:               1024,
+				Number:             16,
+				State:              StateWorking,
+				FirstEventBornTime: time.Now(),
+				LastEventBornTime:  time.Now(),
+			}
+			segV1 := seg.Copy()
+			segV1.Size = updateSegment1.Size
+			segV1.Number = updateSegment1.Number
+			segV1.State = updateSegment1.State
+			segV1.FirstEventBornTime = updateSegment1.FirstEventBornTime
+			segV1.LastEventBornTime = updateSegment1.LastEventBornTime
+			data, _ := stdJson.Marshal(segV1)
+			key = filepath.Join(metadata.SegmentKeyPrefixInKVStore, seg.ID.String())
+			kvCli.EXPECT().Set(ctx, key, data).Times(1).Return(nil)
+			utMgr.UpdateSegment(ctx, map[string][]Segment{
+				md.ID.String(): {updateSegment1},
+			})
+
+			// segment doesn't need to be updated because ID is nil
 			utMgr.UpdateSegment(ctx, map[string][]Segment{
 				md.ID.String(): {
 					{
-						ID:     seg.ID,
-						Size:   1024,
-						Number: 16,
-						State:  StateWorking,
+						LastEventBornTime: time.Now().Add(time.Second),
 					},
 				},
 			})
 
-			// mark is full
-			_seg := createTestSegment()
-			err = elog.add(ctx, _seg)
-			So(err, ShouldBeNil)
+			// segment need to be updated when last event born time changed
+			updateSegment2 := Segment{
+				ID:                seg.ID,
+				Size:              2048,
+				Number:            17,
+				LastEventBornTime: time.Now().Add(time.Second),
+			}
+			segV2 := segV1.Copy()
+			segV2.Size = updateSegment2.Size
+			segV2.Number = updateSegment2.Number
+			segV2.LastEventBornTime = updateSegment2.LastEventBornTime
+			data, _ = stdJson.Marshal(segV2)
+			kvCli.EXPECT().Set(ctx, key, data).Times(1).Return(nil)
 			utMgr.UpdateSegment(ctx, map[string][]Segment{
-				md.ID.String(): {
-					{
-						ID:    seg.ID,
-						State: StateFrozen,
-					},
-				},
+				md.ID.String(): {updateSegment2},
+			})
+
+			// mark is full
+			updateSegment3 := Segment{
+				ID:                seg.ID,
+				Size:              4096,
+				Number:            18,
+				LastEventBornTime: time.Now().Add(time.Second),
+				State:             StateFrozen,
+			}
+			segV3 := segV2.Copy()
+			segV3.Size = updateSegment3.Size
+			segV3.Number = updateSegment3.Number
+			segV3.LastEventBornTime = updateSegment3.LastEventBornTime
+			segV3.State = updateSegment3.State
+			data, _ = stdJson.Marshal(segV3)
+			kvCli.EXPECT().Set(ctx, key, data).Times(1).Return(nil)
+			utMgr.UpdateSegment(ctx, map[string][]Segment{
+				md.ID.String(): {updateSegment3},
 			})
 		})
 	})
@@ -789,30 +845,4 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 			So(minutes, ShouldEqual, 60)
 		})
 	})
-}
-
-func createTestSegment() *Segment {
-	leader := vanus.NewID()
-	fo1 := vanus.NewID()
-	fo2 := vanus.NewID()
-	return &Segment{
-		ID: vanus.NewID(),
-		Replicas: &ReplicaGroup{
-			ID:     vanus.NewID(),
-			Leader: leader.Uint64(),
-			Peers: map[uint64]*metadata.Block{
-				leader.Uint64(): {
-					ID: leader,
-				},
-				fo1.Uint64(): {
-					ID: fo1,
-				},
-				fo2.Uint64(): {
-					ID: fo2,
-				},
-			},
-			Term:     0,
-			CreateAt: time.Now(),
-		},
-	}
 }

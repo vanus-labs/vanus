@@ -87,7 +87,15 @@ func (seg *Segment) isNeedUpdate(newSeg Segment) bool {
 		seg.State = newSeg.State
 		needed = true
 	}
-	// TODO(wenfeng.wang) add event time
+
+	if newSeg.FirstEventBornTime.After(seg.FirstEventBornTime) {
+		seg.FirstEventBornTime = newSeg.FirstEventBornTime
+		needed = true
+	}
+	if newSeg.LastEventBornTime.After(seg.LastEventBornTime) {
+		seg.LastEventBornTime = newSeg.LastEventBornTime
+		needed = true
+	}
 	return needed
 }
 
@@ -97,6 +105,23 @@ func (seg *Segment) isFull() bool {
 
 func (seg *Segment) isReady() bool {
 	return seg.Replicas != nil && seg.Replicas.Leader > 0
+}
+
+func (seg *Segment) Copy() Segment {
+	return Segment{
+		ID:                 seg.ID,
+		Capacity:           seg.Capacity,
+		EventLogID:         seg.EventLogID,
+		PreviousSegmentID:  seg.PreviousSegmentID,
+		NextSegmentID:      seg.NextSegmentID,
+		StartOffsetInLog:   seg.StartOffsetInLog,
+		Replicas:           seg.Replicas,
+		State:              seg.State,
+		Size:               seg.Size,
+		Number:             seg.Number,
+		FirstEventBornTime: seg.FirstEventBornTime,
+		LastEventBornTime:  seg.LastEventBornTime,
+	}
 }
 
 type ReplicaGroup struct {

@@ -521,6 +521,7 @@ func (mgr *eventlogManager) checkSegmentExpired(ctx context.Context) {
 						return true
 					case head.LastEventBornTime.Equal(time.Time{}):
 						head.LastEventBornTime = time.Now().Add(mgr.segmentExpiredTime)
+						elog.lock()
 						if err := elog.updateSegment(checkCtx, head); err != nil {
 							log.Warning(ctx, "update segment's metadata failed", map[string]interface{}{
 								log.KeyError: err,
@@ -529,6 +530,7 @@ func (mgr *eventlogManager) checkSegmentExpired(ctx context.Context) {
 							})
 							head.LastEventBornTime = time.Time{}
 						}
+						elog.unlock()
 						return true
 					case time.Since(head.LastEventBornTime.Add(mgr.segmentExpiredTime)) > 0:
 						err := elog.deleteHead(ctx)
