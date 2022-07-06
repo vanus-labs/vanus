@@ -32,8 +32,8 @@ func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *primitive.Su
 		Protocol:         sub.Protocol,
 		ProtocolSettings: sub.ProtocolSettings,
 		EventBus:         sub.EventBus,
-		Filters:          fromPbFilters(sub.Filters),
-		InputTransformer: fromPbInputTransformer(sub.InputTransformer),
+		Filters:          FromPbFilters(sub.Filters),
+		InputTransformer: FromFPbInputTransformer(sub.InputTransformer),
 	}
 	return to
 }
@@ -44,8 +44,8 @@ func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Sub
 		Sink:             primitive.URI(sub.Sink),
 		EventBus:         sub.EventBus,
 		Offsets:          FromPbOffsetInfos(sub.Offsets),
-		Filters:          fromPbFilters(sub.Filters),
-		InputTransformer: fromPbInputTransformer(sub.InputTransformer),
+		Filters:          FromPbFilters(sub.Filters),
+		InputTransformer: FromFPbInputTransformer(sub.InputTransformer),
 	}
 	return to
 }
@@ -72,8 +72,8 @@ func FromPbSubscription(sub *pb.Subscription) *primitive.SubscriptionData {
 		Protocol:         sub.Protocol,
 		ProtocolSettings: sub.ProtocolSettings,
 		EventBus:         sub.EventBus,
-		Filters:          fromPbFilters(sub.Filters),
-		InputTransformer: fromPbInputTransformer(sub.InputTransformer),
+		Filters:          FromPbFilters(sub.Filters),
+		InputTransformer: FromFPbInputTransformer(sub.InputTransformer),
 	}
 	return to
 }
@@ -94,7 +94,7 @@ func ToPbSubscription(sub *primitive.SubscriptionData) *pb.Subscription {
 	return to
 }
 
-func fromPbFilters(filters []*pb.Filter) []*primitive.SubscriptionFilter {
+func FromPbFilters(filters []*pb.Filter) []*primitive.SubscriptionFilter {
 	if len(filters) == 0 {
 		return nil
 	}
@@ -129,10 +129,10 @@ func fromPbFilter(filter *pb.Filter) *primitive.SubscriptionFilter {
 		return &primitive.SubscriptionFilter{CEL: filter.Cel}
 	}
 	if len(filter.All) > 0 {
-		return &primitive.SubscriptionFilter{All: fromPbFilters(filter.All)}
+		return &primitive.SubscriptionFilter{All: FromPbFilters(filter.All)}
 	}
 	if len(filter.Any) > 0 {
-		return &primitive.SubscriptionFilter{Any: fromPbFilters(filter.Any)}
+		return &primitive.SubscriptionFilter{Any: FromPbFilters(filter.Any)}
 	}
 	return nil
 }
@@ -211,7 +211,7 @@ func toPbOffsetInfo(offset info.OffsetInfo) *pb.OffsetInfo {
 		Offset:     offset.Offset,
 	}
 }
-func fromPbInputTransformer(inputTransformer *pb.InputTransformer) *primitive.InputTransformer {
+func FromFPbInputTransformer(inputTransformer *pb.InputTransformer) *primitive.InputTransformer {
 	if inputTransformer == nil {
 		return nil
 	}

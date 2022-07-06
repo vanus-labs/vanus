@@ -53,11 +53,11 @@ func NewSubscriptionScheduler(workerManager Manager,
 }
 
 func (s *SubscriptionScheduler) EnqueueSubscription(id vanus.ID) {
-	s.normalQueue.Add(id.String())
+	s.normalQueue.Add(id)
 }
 
 func (s *SubscriptionScheduler) EnqueueNormalSubscription(id vanus.ID) {
-	s.normalQueue.Add(id.String())
+	s.normalQueue.Add(id)
 }
 
 func (s *SubscriptionScheduler) Stop() {
@@ -87,39 +87,40 @@ func (s *SubscriptionScheduler) Run() {
 	}()
 }
 
-func (s *SubscriptionScheduler) handler(ctx context.Context, subscriptionIDStr string) error {
-	subscriptionID, _ := vanus.NewIDFromString(subscriptionIDStr)
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-		}
-		twInfos := s.workerManager.GetActiveRunningTriggerWorker()
-		if len(twInfos) == 0 {
-			time.Sleep(time.Second)
-			continue
-		}
-		twInfo := s.policy.Acquire(ctx, twInfos)
-		subData := s.subscriptionManager.GetSubscriptionData(ctx, subscriptionID)
-		if subData == nil {
-			return nil
-		}
-		if subData.Phase != primitive.SubscriptionPhaseCreated && subData.Phase != primitive.SubscriptionPhasePending {
-			return nil
-		}
-		tWorker := s.workerManager.GetTriggerWorker(ctx, twInfo.Addr)
-		if tWorker == nil {
-			continue
-		}
-		subData.TriggerWorker = twInfo.Addr
-		subData.Phase = primitive.SubscriptionPhaseScheduled
-		subData.HeartbeatTime = time.Now()
-		err := s.subscriptionManager.UpdateSubscription(ctx, subData)
-		if err != nil {
-			return err
-		}
-		s.workerManager.AssignSubscription(ctx, tWorker, subscriptionID)
+func (s *SubscriptionScheduler) handler(ctx context.Context, subscriptionID vanus.ID) error {
+	subData := s.subscriptionManager.GetSubscriptionData(ctx, subscriptionID)
+	if subData == nil {
 		return nil
 	}
+	twAddr := subData.TriggerWorker
+	if twAddr == "" {
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			default:
+			}
+			twInfos := s.workerManager.GetActiveRunningTriggerWorker()
+			if len(twInfos) == 0 {
+				time.Sleep(time.Second)
+				continue
+			}
+			twInfo := s.policy.Acquire(ctx, twInfos)
+			twAddr = twInfo.Addr
+			break
+		}
+	}
+	tWorker := s.workerManager.GetTriggerWorker(twAddr)
+	if tWorker == nil {
+		return ErrTriggerWorkerNotFound
+	}
+	subData.TriggerWorker = twAddr
+	subData.Phase = primitive.SubscriptionPhaseScheduled
+	subData.HeartbeatTime = time.Now()
+	err := s.subscriptionManager.UpdateSubscription(ctx, subData)
+	if err != nil {
+		return err
+	}
+	tWorker.AssignSubscription(subscriptionID)
+	return nil
 }

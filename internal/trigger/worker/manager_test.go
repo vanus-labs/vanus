@@ -16,35 +16,54 @@ package worker
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/linkall-labs/vanus/internal/trigger/offset"
 
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/trigger/errors"
-	"github.com/linkall-labs/vanus/internal/trigger/reader"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestAddSubscription(t *testing.T) {
 	ctx := context.Background()
 	Convey("add subscription", t, func() {
-		id := vanus.NewID()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		subWorker := NewMockSubscriptionWorker(ctrl)
 		m := NewManager(Config{Controllers: []string{"test"}}).(*manager)
-		m.startSubscription = false
-		err := m.AddSubscription(ctx, &primitive.Subscription{
-			ID: id,
+		m.newSubscriptionWorker = func(subscription *primitive.Subscription, subscriptionOffset *offset.SubscriptionOffset, controllers []string) SubscriptionWorker {
+			return subWorker
+		}
+		Convey("add subscription", func() {
+			id := vanus.NewID()
+			subWorker.EXPECT().Run(gomock.Any()).Return(nil)
+			err := m.AddSubscription(ctx, &primitive.Subscription{
+				ID: id,
+			})
+			So(err, ShouldBeNil)
+			So(m.getSubscriptionWorker(id), ShouldNotBeNil)
+			Convey("update subscription", func() {
+				subWorker.EXPECT().Change(gomock.Any(), gomock.Any()).Return(nil)
+				err = m.AddSubscription(ctx, &primitive.Subscription{
+					ID:   id,
+					Sink: "http://localhost:8080",
+				})
+				So(err, ShouldBeNil)
+			})
 		})
-		So(err, ShouldBeNil)
-		_, exist := m.subscriptionMap.Load(id)
-		So(exist, ShouldBeTrue)
-		Convey("repeat add subscription", func() {
-			err = m.AddSubscription(ctx, &primitive.Subscription{
+		Convey("add subscription has error", func() {
+			id := vanus.NewID()
+			subWorker.EXPECT().Run(gomock.Any()).Return(fmt.Errorf("error"))
+			err := m.AddSubscription(ctx, &primitive.Subscription{
 				ID: id,
 			})
 			So(err, ShouldNotBeNil)
-			So(err, ShouldEqual, errors.ErrResourceAlreadyExist)
+			So(m.getSubscriptionWorker(id), ShouldBeNil)
+			So(m.offsetManager.GetSubscription(id), ShouldBeNil)
 		})
 	})
 }
@@ -73,27 +92,107 @@ func TestListSubscriptionInfo(t *testing.T) {
 
 func TestRemoveSubscription(t *testing.T) {
 	ctx := context.Background()
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	r := reader.NewMockReader(ctrl)
 	Convey("remove subscription", t, func() {
 		id := vanus.NewID()
-		m := NewManager(Config{Controllers: []string{"test"}}).(*manager)
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		subWorker := NewMockSubscriptionWorker(ctrl)
+		m := NewManager(Config{}).(*manager)
+		m.newSubscriptionWorker = func(subscription *primitive.Subscription, subscriptionOffset *offset.SubscriptionOffset, controllers []string) SubscriptionWorker {
+			return subWorker
+		}
+
 		Convey("remove no exist subscription", func() {
 			m.RemoveSubscription(ctx, id)
 		})
 		Convey("remove exist subscription", func() {
-			m.startSubscription = false
+			subWorker.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
 			err := m.AddSubscription(ctx, &primitive.Subscription{
 				ID: id,
 			})
 			So(err, ShouldBeNil)
-			worker := m.getSubscriptionWorker(id)
-			worker.reader = r
-			r.EXPECT().Start().AnyTimes().Return(nil)
-			r.EXPECT().Close().AnyTimes().Return()
-			err = worker.Run(ctx)
+			So(m.getSubscriptionWorker(id), ShouldNotBeNil)
+			subWorker.EXPECT().Stop(gomock.Any()).AnyTimes().Return()
+			subWorker.EXPECT().IsStart().Return(false)
+			err = m.RemoveSubscription(ctx, id)
 			So(err, ShouldBeNil)
+			So(m.getSubscriptionWorker(id), ShouldBeNil)
+		})
+	})
+}
+
+func TestPauseSubscription(t *testing.T) {
+	ctx := context.Background()
+	Convey("pause subscription", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		subWorker := NewMockSubscriptionWorker(ctrl)
+		m := NewManager(Config{}).(*manager)
+		m.newSubscriptionWorker = func(subscription *primitive.Subscription, subscriptionOffset *offset.SubscriptionOffset, controllers []string) SubscriptionWorker {
+			return subWorker
+		}
+		id := vanus.NewID()
+		subWorker.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
+		err := m.AddSubscription(ctx, &primitive.Subscription{
+			ID: id,
+		})
+		So(err, ShouldBeNil)
+		So(m.getSubscriptionWorker(id), ShouldNotBeNil)
+		subWorker.EXPECT().Stop(gomock.Any()).Return()
+		err = m.PauseSubscription(ctx, id)
+		So(err, ShouldBeNil)
+		So(m.getSubscriptionWorker(id), ShouldNotBeNil)
+	})
+}
+
+func TestCleanSubscription(t *testing.T) {
+	ctx := context.Background()
+	Convey("clean subscription by ID", t, func() {
+		id := vanus.NewID()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		subWorker := NewMockSubscriptionWorker(ctrl)
+		m := NewManager(Config{CleanSubscriptionTimeout: time.Millisecond * 100}).(*manager)
+		m.newSubscriptionWorker = func(subscription *primitive.Subscription, subscriptionOffset *offset.SubscriptionOffset, controllers []string) SubscriptionWorker {
+			return subWorker
+		}
+		Convey("clean no exist subscription", func() {
+			m.cleanSubscription(ctx, id)
+		})
+		subWorker.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
+		Convey("clean no start subscription", func() {
+			err := m.AddSubscription(ctx, &primitive.Subscription{
+				ID: id,
+			})
+			So(err, ShouldBeNil)
+			So(m.getSubscriptionWorker(id), ShouldNotBeNil)
+			subWorker.EXPECT().IsStart().Return(false)
+			m.cleanSubscription(ctx, id)
+			So(m.getSubscriptionWorker(id), ShouldBeNil)
+		})
+		Convey("clean exist subscription timeout", func() {
+			err := m.AddSubscription(ctx, &primitive.Subscription{
+				ID: id,
+			})
+			So(err, ShouldBeNil)
+			So(m.getSubscriptionWorker(id), ShouldNotBeNil)
+			subWorker.EXPECT().IsStart().Return(true)
+			now := time.Now()
+			subWorker.EXPECT().GetStopTime().AnyTimes().Return(now)
+			m.cleanSubscription(ctx, id)
+			So(m.getSubscriptionWorker(id), ShouldBeNil)
+		})
+
+		Convey("clean exist subscription stopTime gt last commitTime", func() {
+			m.config.CleanSubscriptionTimeout = time.Hour
+			err := m.AddSubscription(ctx, &primitive.Subscription{
+				ID: id,
+			})
+			So(err, ShouldBeNil)
+			So(m.getSubscriptionWorker(id), ShouldNotBeNil)
+			subWorker.EXPECT().IsStart().Return(true)
+			now := time.Now()
+			subWorker.EXPECT().GetStopTime().AnyTimes().Return(now.Add(time.Second))
 			ctxCancel, cancel := context.WithCancel(context.Background())
 			go func() {
 				ticker := time.NewTicker(time.Millisecond * 10)
@@ -107,53 +206,9 @@ func TestRemoveSubscription(t *testing.T) {
 					}
 				}
 			}()
-			err = m.RemoveSubscription(ctx, id)
+			m.cleanSubscription(ctx, id)
 			cancel()
-			So(err, ShouldBeNil)
-			worker = m.getSubscriptionWorker(id)
-			So(worker, ShouldBeNil)
-		})
-	})
-}
-
-func TestPauseSubscription(t *testing.T) {
-	ctx := context.Background()
-	Convey("pause subscription", t, func() {
-		id := vanus.NewID()
-		m := NewManager(Config{Controllers: []string{"test"}}).(*manager)
-		m.startSubscription = false
-		err := m.AddSubscription(ctx, &primitive.Subscription{
-			ID: id,
-		})
-		So(err, ShouldBeNil)
-		err = m.PauseSubscription(ctx, id)
-		So(err, ShouldBeNil)
-		_, exist := m.subscriptionMap.Load(id)
-		So(exist, ShouldBeTrue)
-	})
-}
-
-func TestCleanSubscription(t *testing.T) {
-	ctx := context.Background()
-	Convey("clean subscription by ID", t, func() {
-		id := vanus.NewID()
-		m := NewManager(Config{CleanSubscriptionTimeout: time.Millisecond * 100}).(*manager)
-		Convey("clean no exist subscription", func() {
-			m.cleanSubscription(ctx, id)
-		})
-		Convey("clean no start subscription", func() {
-			m.subscriptionMap.Store(id, &subscriptionWorker{})
-			m.cleanSubscription(ctx, id)
-		})
-		Convey("clean exist subscription timeout", func() {
-			now := time.Now()
-			m.subscriptionMap.Store(id, &subscriptionWorker{
-				stopTime:  now,
-				startTime: &now,
-			})
-			m.cleanSubscription(ctx, id)
-			_, exist := m.subscriptionMap.Load(id)
-			So(exist, ShouldBeFalse)
+			So(m.getSubscriptionWorker(id), ShouldBeNil)
 		})
 	})
 }
@@ -161,13 +216,23 @@ func TestCleanSubscription(t *testing.T) {
 func TestManager_Stop(t *testing.T) {
 	ctx := context.Background()
 	Convey("start stop", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		subWorker := NewMockSubscriptionWorker(ctrl)
+		m := NewManager(Config{}).(*manager)
+		m.newSubscriptionWorker = func(subscription *primitive.Subscription, subscriptionOffset *offset.SubscriptionOffset, controllers []string) SubscriptionWorker {
+			return subWorker
+		}
 		id := vanus.NewID()
-		m := NewManager(Config{Controllers: []string{"test"}}).(*manager)
-		m.startSubscription = false
+		subWorker.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
 		err := m.AddSubscription(ctx, &primitive.Subscription{
 			ID: id,
 		})
 		So(err, ShouldBeNil)
+		So(m.getSubscriptionWorker(id), ShouldNotBeNil)
+		subWorker.EXPECT().Stop(gomock.Any()).AnyTimes().Return()
+		subWorker.EXPECT().IsStart().Return(false)
 		m.Stop(ctx)
+		So(m.getSubscriptionWorker(id), ShouldBeNil)
 	})
 }

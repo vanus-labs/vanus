@@ -61,6 +61,8 @@ service SegmentController {
 service TriggerController {
   rpc CreateSubscription(CreateSubscriptionRequest)
       returns (linkall.vanus.meta.Subscription) {}
+  rpc UpdateSubscription(UpdateSubscriptionRequest)
+      returns (linkall.vanus.meta.Subscription) {}
   rpc DeleteSubscription(DeleteSubscriptionRequest)
       returns (google.protobuf.Empty) {}
   rpc GetSubscription(GetSubscriptionRequest)
@@ -140,6 +142,18 @@ message CreateSubscriptionRequest {
   string protocol = 6;
   map<string, string> protocol_settings = 7;
   string event_bus = 8;
+  meta.InputTransformer input_transformer = 9;
+}
+
+message UpdateSubscriptionRequest {
+  uint64 id = 1;
+  string source = 2;
+  repeated string types = 3;
+  map<string, string> config = 4;
+  repeated meta.Filter filters = 5;
+  string sink = 6;
+  string protocol = 7;
+  map<string, string> protocol_settings = 8;
   meta.InputTransformer input_transformer = 9;
 }
 

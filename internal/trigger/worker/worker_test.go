@@ -17,6 +17,7 @@ package worker
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/primitive"
@@ -48,8 +49,38 @@ func TestSubscriptionWorker(t *testing.T) {
 		w.reader = r
 		r.EXPECT().Start().AnyTimes().Return(nil)
 		r.EXPECT().Close().AnyTimes().Return()
+		So(w.IsStart(), ShouldBeFalse)
 		err := w.Run(ctx)
 		So(err, ShouldBeNil)
+		So(w.IsStart(), ShouldBeTrue)
+		now := time.Now()
+		So(w.GetStopTime().IsZero(), ShouldBeTrue)
 		w.Stop(ctx)
+		So(w.GetStopTime().IsZero(), ShouldBeFalse)
+		So(w.GetStopTime().After(now), ShouldBeTrue)
+	})
+}
+
+func TestSubscriptionWorker_Change(t *testing.T) {
+	Convey("test trigger worker change subscription", t, func() {
+		ctx := context.Background()
+		id := vanus.NewID()
+		w := NewSubscriptionWorker(&primitive.Subscription{
+			ID: id,
+		}, nil, []string{"test"})
+		Convey("change target", func() {
+			err := w.Change(ctx, &primitive.Subscription{Sink: "test_sink"})
+			So(err, ShouldBeNil)
+		})
+		Convey("change filter", func() {
+			err := w.Change(ctx, &primitive.Subscription{Filters: []*primitive.SubscriptionFilter{
+				{Exact: map[string]string{"test": "test"}},
+			}})
+			So(err, ShouldBeNil)
+		})
+		Convey("change transformation", func() {
+			err := w.Change(ctx, &primitive.Subscription{InputTransformer: &primitive.InputTransformer{}})
+			So(err, ShouldBeNil)
+		})
 	})
 }

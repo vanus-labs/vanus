@@ -91,6 +91,54 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 	return resp, nil
 }
 
+func (ctrl *controller) UpdateSubscription(ctx context.Context,
+	request *ctrlpb.UpdateSubscriptionRequest) (*meta.Subscription, error) {
+	if ctrl.state != primitive.ServerStateRunning {
+		return nil, errors.ErrServerNotStart
+	}
+	subID := vanus.ID(request.Id)
+	subscriptionData := ctrl.subscriptionManager.GetSubscriptionData(ctx, subID)
+	if subscriptionData == nil {
+		return nil, errors.ErrResourceNotFound.WithMessage("subscription not exist")
+	}
+	err := validation.ValidateUpdateSubscription(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	if request.Source != "" {
+		subscriptionData.Source = request.Source
+	}
+	if request.Types != nil {
+		subscriptionData.Types = request.Types
+	}
+	if request.Config != nil {
+		subscriptionData.Config = request.Config
+	}
+	if request.Filters != nil {
+		subscriptionData.Filters = convert.FromPbFilters(request.Filters)
+	}
+	if request.Sink != "" {
+		subscriptionData.Sink = primitive.URI(request.Sink)
+	}
+	if request.Protocol != "" {
+		subscriptionData.Protocol = request.Protocol
+	}
+	if request.ProtocolSettings != nil {
+		subscriptionData.ProtocolSettings = request.ProtocolSettings
+	}
+	if request.InputTransformer != nil {
+		subscriptionData.InputTransformer = convert.FromFPbInputTransformer(request.InputTransformer)
+	}
+	subscriptionData.Phase = primitive.SubscriptionPhasePending
+	err = ctrl.subscriptionManager.UpdateSubscription(ctx, subscriptionData)
+	if err != nil {
+		return nil, err
+	}
+	ctrl.scheduler.EnqueueNormalSubscription(subscriptionData.ID)
+	resp := convert.ToPbSubscription(subscriptionData)
+	return resp, nil
+}
+
 func (ctrl *controller) DeleteSubscription(ctx context.Context,
 	request *ctrlpb.DeleteSubscriptionRequest) (*emptypb.Empty, error) {
 	if ctrl.state != primitive.ServerStateRunning {
@@ -155,11 +203,11 @@ func (ctrl *controller) TriggerWorkerHeartbeat(
 			log.KeyTriggerWorkerAddr: req.Address,
 			"subscriptionInfo":       req.SubscriptionInfo,
 		})
-		subscriptionIDs := make(map[vanus.ID]struct{}, len(req.SubscriptionInfo))
+		var ids []vanus.ID
 		for _, subInfo := range req.SubscriptionInfo {
-			subscriptionIDs[vanus.ID(subInfo.SubscriptionId)] = struct{}{}
+			ids = append(ids, vanus.ID(subInfo.SubscriptionId))
 		}
-		err = ctrl.workerManager.UpdateTriggerWorkerInfo(ctx, req.Address, subscriptionIDs)
+		err = ctrl.workerManager.UpdateTriggerWorkerInfo(ctx, req.Address, ids)
 		if err != nil {
 			log.Info(context.Background(), "unknown trigger worker", map[string]interface{}{
 				log.KeyTriggerWorkerAddr: req.Address,
@@ -221,11 +269,11 @@ func (ctrl *controller) ListSubscription(ctx context.Context,
 // 2.delete offset
 // 3.delete subscription .
 func (ctrl *controller) gcSubscription(ctx context.Context, id vanus.ID, addr string) error {
-	err := ctrl.workerManager.UnAssignSubscription(ctx, addr, id)
-	if err != nil {
-		return err
+	tWorker := ctrl.workerManager.GetTriggerWorker(addr)
+	if tWorker != nil {
+		tWorker.UnAssignSubscription(id)
 	}
-	err = ctrl.subscriptionManager.DeleteSubscription(ctx, id)
+	err := ctrl.subscriptionManager.DeleteSubscription(ctx, id)
 	if err != nil {
 		return err
 	}

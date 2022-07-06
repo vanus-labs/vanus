@@ -356,9 +356,9 @@ issues:
   max-issues-per-linter: 0
   max-same-issues: 0
   exclude-rules:
-    - path: "etcd/clientv3.go"
+    - path: "worker.go"
       linters:
-        - gomnd
+        - contextcheck
     - text: "type assertion on error will fail on wrapped errors. Use errors.As to check for specific errors"
       linters:
         - errorlint
@@ -397,7 +397,7 @@ issues:
         - cyclop
         - gochecknoinits
         - gochecknoglobals
-    - text: "unexported-return: exported func (NewController|NewGateway|NewEtcdClientV3) returns unexported type"
+    - text: "unexported-return: exported func (NewController|NewGateway) returns unexported type"
       linters:
         - revive
     - text: "Non-inherited new context"
@@ -434,6 +434,7 @@ issues:
         - noctx
         - wrapcheck
         - errcheck
+        - contextcheck
     - path: "ctrl_client.go"
       linters:
         - staticcheck

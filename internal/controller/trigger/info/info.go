@@ -23,10 +23,10 @@ import (
 type TriggerWorkerPhase string
 
 const (
-	TriggerWorkerPhasePending    = "pending"
-	TriggerWorkerPhaseRunning    = "running"
-	TriggerWorkerPhasePaused     = "paused"
-	TriggerWorkerPhaseDisconnect = "disconnect"
+	TriggerWorkerPhasePending    TriggerWorkerPhase = "pending"
+	TriggerWorkerPhaseRunning    TriggerWorkerPhase = "running"
+	TriggerWorkerPhasePaused     TriggerWorkerPhase = "paused"
+	TriggerWorkerPhaseDisconnect TriggerWorkerPhase = "disconnect"
 )
 
 type TriggerWorkerInfo struct {
