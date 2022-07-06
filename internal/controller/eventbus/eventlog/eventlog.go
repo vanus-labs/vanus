@@ -810,10 +810,13 @@ func (el *eventlog) add(ctx context.Context, seg *Segment) error {
 }
 
 func (el *eventlog) markSegmentIsFull(ctx context.Context, seg *Segment) error {
-	next := el.nextOf(seg)
-	if next == nil {
+	// because sync.RWMutex isn't reentrant, so here have to implement *eventlog.nextOf again
+	node := el.segmentList.Get(seg.ID.Uint64())
+	nextNode := node.Next()
+	if nextNode == nil {
 		return nil
 	}
+	next, _ := nextNode.Value.(*Segment)
 	next.StartOffsetInLog = seg.StartOffsetInLog + int64(seg.Number)
 	data, _ := json.Marshal(next)
 	// TODO update block info at the same time
