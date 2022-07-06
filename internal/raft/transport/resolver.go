@@ -15,9 +15,11 @@
 package transport
 
 import (
-	// standard libraries
+	// standard libraries.
+	"context"
 	"sync"
 
+	// this project.
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
@@ -43,8 +45,8 @@ func (r *SimpleResolver) Resolve(node uint64) string {
 }
 
 func (r *SimpleResolver) Register(node uint64, endpoint string) {
-	log.Info(nil, "Register raft node route.", map[string]interface{}{
-		"nodeID":   node,
+	log.Info(context.TODO(), "Register raft node route.", map[string]interface{}{
+		"node_id":  node,
 		"endpoint": endpoint,
 	})
 

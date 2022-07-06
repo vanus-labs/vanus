@@ -29,21 +29,19 @@ import (
 
 type server struct {
 	dmx Demultiplexer
-	ctx context.Context
 }
 
-// Make sure Server implements raftpb.RaftServerServer.
+// Make sure server implements raftpb.RaftServerServer.
 var _ raftpb.RaftServerServer = (*server)(nil)
 
-func NewRaftServer(ctx context.Context, dmx Demultiplexer) raftpb.RaftServerServer {
+func NewServer(dmx Demultiplexer) raftpb.RaftServerServer {
 	return &server{
 		dmx: dmx,
-		ctx: ctx,
 	}
 }
 
 // SendMessage implements raftpb.RaftServerServer.
-func (s *server) SendMsssage(stream raftpb.RaftServer_SendMsssageServer) error {
+func (s *server) SendMessage(stream raftpb.RaftServer_SendMessageServer) error {
 	preface, err := stream.Recv()
 	if err != nil {
 		return err
@@ -51,6 +49,7 @@ func (s *server) SendMsssage(stream raftpb.RaftServer_SendMsssageServer) error {
 
 	callback := string(preface.Context)
 
+	ctx := stream.Context()
 	for {
 		msg, err2 := stream.Recv()
 		if err2 != nil {
@@ -61,19 +60,18 @@ func (s *server) SendMsssage(stream raftpb.RaftServer_SendMsssageServer) error {
 			return err2
 		}
 
-		err2 = s.dmx.Receive(s.ctx, msg, callback)
+		err2 = s.dmx.Receive(ctx, msg, callback)
 		if err2 != nil {
 			// server is closed
 			if errors.Is(err2, context.Canceled) {
 				return s.closeStream(stream)
 			}
-
 			return err2
 		}
 	}
 }
 
-func (s *server) closeStream(stream raftpb.RaftServer_SendMsssageServer) error {
+func (s *server) closeStream(stream raftpb.RaftServer_SendMessageServer) error {
 	empty := &emptypb.Empty{}
 	return stream.SendAndClose(empty)
 }

@@ -22,5 +22,5 @@ import "raftpb/raft.proto";
 option go_package = "github.com/linkall-labs/vanus/proto/pkg/raft";
 
 service RaftServer {
-  rpc SendMsssage(stream raftpb.Message) returns (google.protobuf.Empty);
+  rpc SendMessage(stream raftpb.Message) returns (google.protobuf.Empty);
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
+// recover recovers state from volume.
 func (s *server) recover(ctx context.Context) error {
 	metaStore, err := meta.RecoverSyncStore(s.cfg.MetaStore, filepath.Join(s.volumeDir, "meta"))
 	if err != nil {

@@ -56,6 +56,7 @@ type WAL struct {
 	barrier  *skiplist.SkipList
 	executec chan executeTask
 	compactc chan compactTask
+	donec    chan struct{}
 }
 
 func newWAL(wal *walog.WAL, metaStore *meta.SyncStore) *WAL {
@@ -65,10 +66,23 @@ func newWAL(wal *walog.WAL, metaStore *meta.SyncStore) *WAL {
 		barrier:   skiplist.New(skiplist.Int64),
 		executec:  make(chan executeTask, defaultExecuteTaskBufferSize),
 		compactc:  make(chan compactTask, defaultCompactTaskBufferSize),
+		donec:     make(chan struct{}),
 	}
 
 	go w.run()
 	go w.runCompact()
 
 	return w
+}
+
+func (w *WAL) Close() {
+	w.WAL.Close()
+	go func() {
+		w.WAL.Wait()
+		close(w.executec)
+	}()
+}
+
+func (w *WAL) Wait() {
+	<-w.donec
 }

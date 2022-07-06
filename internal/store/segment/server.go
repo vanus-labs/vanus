@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=server.go -destination=mock_server.go -package=segment
 package segment
 
 import (
@@ -19,6 +20,7 @@ import (
 	"context"
 	stderr "errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,10 +29,11 @@ import (
 
 	// third-party libraries.
 	cepb "cloudevents.io/genproto/v1"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/tap"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	// first-party libraries.
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
@@ -51,14 +54,65 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/meta"
 	"github.com/linkall-labs/vanus/internal/store/segment/errors"
 	"github.com/linkall-labs/vanus/internal/util"
-	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
 const (
-	segmentServerDebugModeFlagENV = "SEGMENT_SERVER_DEBUG_MODE"
-	defaultLeaderInfoBufferSize   = 256
+	debugModeENV                = "SEGMENT_SERVER_DEBUG_MODE"
+	defaultLeaderInfoBufferSize = 256
+	defaultForceStopTimeout     = 30 * time.Second
 )
+
+type Server interface {
+	primitive.Initializer
+
+	Serve(lis net.Listener) error
+
+	Start(ctx context.Context) error
+	Stop(ctx context.Context) error
+	Status() primitive.ServerState
+
+	CreateBlock(ctx context.Context, id vanus.ID, size int64) error
+	RemoveBlock(ctx context.Context, id vanus.ID) error
+	// GetBlockInfo(ctx context.Context, id vanus.ID) error
+
+	ActivateSegment(ctx context.Context, logID vanus.ID, segID vanus.ID, replicas map[vanus.ID]string) error
+	InactivateSegment(ctx context.Context) error
+
+	AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) error
+	ReadFromBlock(ctx context.Context, id vanus.ID, off int, num int) ([]*cepb.CloudEvent, error)
+}
+
+func NewServer(cfg store.Config) Server {
+	var debugModel bool
+	if strings.ToLower(os.Getenv(debugModeENV)) == "true" {
+		debugModel = true
+	}
+
+	localAddress := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
+
+	// Setup raft.
+	resolver := transport.NewSimpleResolver()
+	host := transport.NewHost(resolver, localAddress)
+
+	srv := &server{
+		state:        primitive.ServerStateCreated,
+		cfg:          cfg,
+		isDebugMode:  debugModel,
+		localAddress: localAddress,
+		volumeID:     cfg.Volume.ID,
+		volumeDir:    cfg.Volume.Dir,
+		resolver:     resolver,
+		host:         host,
+		ctrlAddress:  cfg.ControllerAddresses,
+		credentials:  insecure.NewCredentials(),
+		cc:           NewClient(cfg.ControllerAddresses),
+		leaderc:      make(chan leaderInfo, defaultLeaderInfoBufferSize),
+		closec:       make(chan struct{}),
+	}
+
+	return srv
+}
 
 type leaderInfo struct {
 	leader vanus.ID
@@ -91,56 +145,66 @@ type server struct {
 	cc          *ctrlClient
 	leaderc     chan leaderInfo
 
-	stopCallback func()
-	closec       chan struct{}
+	grpcSrv *grpc.Server
+	closec  chan struct{}
 }
 
-// Make sure segmentServer implements segpb.SegmentServerServer and primitive.Initializer.
-var (
-	_ segpb.SegmentServerServer = (*server)(nil)
-	_ primitive.Initializer     = (*server)(nil)
-)
+// Make sure server implements Server.
+var _ Server = (*server)(nil)
 
-func NewSegmentServer(cfg store.Config, stop func()) (segpb.SegmentServerServer, raftpb.RaftServerServer) {
-	localAddress := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
-
-	// Setup raft.
-	resolver := transport.NewSimpleResolver()
-	host := transport.NewHost(resolver, localAddress)
-	raftSrv := transport.NewRaftServer(context.TODO(), host)
-
-	srv := &server{
-		state:        primitive.ServerStateCreated,
-		cfg:          cfg,
-		localAddress: localAddress,
-		volumeID:     cfg.Volume.ID,
-		volumeDir:    cfg.Volume.Dir,
-		resolver:     resolver,
-		host:         host,
-		ctrlAddress:  cfg.ControllerAddresses,
-		credentials:  insecure.NewCredentials(),
-		cc:           NewClient(cfg.ControllerAddresses),
-		leaderc:      make(chan leaderInfo, defaultLeaderInfoBufferSize),
-		stopCallback: stop,
-		closec:       make(chan struct{}),
+func (s *server) Serve(lis net.Listener) error {
+	segSrv := &segmentServer{
+		srv: s,
 	}
 
-	return srv, raftSrv
+	raftSrv := transport.NewServer(s.host)
+
+	srv := grpc.NewServer(grpc.InTapHandle(s.preGrpcStream))
+	segpb.RegisterSegmentServerServer(srv, segSrv)
+	raftpb.RegisterRaftServerServer(srv, raftSrv)
+	s.grpcSrv = srv
+
+	return srv.Serve(lis)
+}
+
+func (s *server) preGrpcStream(ctx context.Context, info *tap.Info) (context.Context, error) {
+	if info.FullMethodName == "/linkall.vanus.raft.RaftServer/SendMessage" {
+		cctx, cannel := context.WithCancel(ctx)
+		go func() {
+			select {
+			case <-cctx.Done():
+			case <-s.closec:
+				cannel()
+			}
+		}()
+		return cctx, nil
+	}
+	return ctx, nil
 }
 
 func (s *server) Initialize(ctx context.Context) error {
+	// Recover state from volume.
 	if err := s.recover(ctx); err != nil {
 		return err
 	}
 
-	if err := s.registerSelf(ctx); err != nil {
+	// Fetch block information in volume from controller, and make state up to date.
+	if err := s.reconcileBlocks(ctx); err != nil {
 		return err
 	}
 
 	s.state = primitive.ServerStateStarted
 
-	if s.isDebugMode {
-		if err := s.start(ctx); err != nil {
+	if !s.isDebugMode {
+		// Register to controller.
+		if err := s.registerSelf(ctx); err != nil {
+			return err
+		}
+	} else {
+		log.Info(ctx, "the segment server debug mode enabled", nil)
+
+		s.id = vanus.NewID()
+		if err := s.Start(ctx); err != nil {
 			return err
 		}
 		s.state = primitive.ServerStateRunning
@@ -149,303 +213,101 @@ func (s *server) Initialize(ctx context.Context) error {
 	return nil
 }
 
-func (s *server) Start(
-	ctx context.Context, req *segpb.StartSegmentServerRequest,
-) (*segpb.StartSegmentServerResponse, error) {
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
-
-	if s.state != primitive.ServerStateStarted {
-		return nil, errors.ErrServiceState.WithMessage(
-			"start failed, server state is not created")
-	}
-	if err := s.start(ctx); err != nil {
-		return nil, errors.ErrInternal.WithMessage("start heartbeat task failed")
-	}
-	s.state = primitive.ServerStateRunning
-	return &segpb.StartSegmentServerResponse{}, nil
+func (s *server) reconcileBlocks(ctx context.Context) error {
+	// TODO(james.yin): Fetch block information in volume from controller, and make state up to date.
+	return nil
 }
 
-func (s *server) Stop(
-	ctx context.Context, req *segpb.StopSegmentServerRequest,
-) (*segpb.StopSegmentServerResponse, error) {
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
-
-	if s.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServiceState.WithMessage(fmt.Sprintf(
-			"the server isn't running, current state:%s", s.state))
-	}
-
-	s.state = primitive.ServerStateStopped
-	if err := s.stop(ctx); err != nil {
-		return nil, errors.ErrInternal.WithMessage("stop server failed")
-	}
-
-	s.stopCallback()
-	return &segpb.StopSegmentServerResponse{}, nil
-}
-
-func (s *server) Status(ctx context.Context, req *emptypb.Empty) (*segpb.StatusResponse, error) {
-	return &segpb.StatusResponse{Status: string(s.state)}, nil
-}
-
-func (s *server) CreateBlock(ctx context.Context, req *segpb.CreateBlockRequest) (*emptypb.Empty, error) {
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
-
-	if err := s.checkState(); err != nil {
-		return nil, err
-	}
-
-	if req.Id == 0 {
-		log.Warning(ctx, "Can not create block without id.", nil)
-		return nil, errors.ErrInvalidRequest.WithMessage("can not create block without id.")
-	}
-
-	log.Info(ctx, "Create block.", map[string]interface{}{
-		"block_id": req.Id,
-		"size":     req.Size,
+func (s *server) registerSelf(ctx context.Context) error {
+	// TODO(james.yin): pass information of blocks.
+	res, err := s.cc.registerSegmentServer(ctx, &ctrlpb.RegisterSegmentServerRequest{
+		Address:  s.localAddress,
+		VolumeId: s.volumeID.Uint64(),
+		Capacity: s.cfg.Volume.Capacity,
 	})
-
-	blockID := vanus.NewIDFromUint64(req.Id)
-
-	if _, ok := s.blocks.Load(blockID); ok {
-		return nil, errors.ErrResourceAlreadyExist.WithMessage("the segment has already exist.")
-	}
-
-	// Create block.
-	b, err := file.Create(ctx, filepath.Join(s.volumeDir, "block"), blockID, req.Size)
 	if err != nil {
-		return nil, err
-	}
-
-	// Create replica.
-	r := s.makeReplica(context.TODO(), b.ID(), b)
-	b.SetClusterInfoSource(r)
-
-	s.blocks.Store(blockID, b)
-	s.writers.Store(blockID, r)
-	s.readers.Store(blockID, b)
-
-	return &emptypb.Empty{}, nil
-}
-
-func (s *server) RemoveBlock(
-	ctx context.Context, req *segpb.RemoveBlockRequest,
-) (*emptypb.Empty, error) {
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
-
-	if err := s.checkState(); err != nil {
-		return nil, err
-	}
-
-	// TODO(james.yin): remove block
-
-	return &emptypb.Empty{}, nil
-}
-
-// ActivateSegment mark a block ready to using and preparing to initializing a replica group.
-func (s *server) ActivateSegment(
-	ctx context.Context, req *segpb.ActivateSegmentRequest,
-) (*segpb.ActivateSegmentResponse, error) {
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
-
-	if err := s.checkState(); err != nil {
-		return nil, err
-	}
-
-	if len(req.Replicas) == 0 {
-		log.Warning(ctx, "Replicas can not be empty.", map[string]interface{}{
-			"eventLogID":     req.EventLogId,
-			"replicaGroupID": req.ReplicaGroupId,
-		})
-		return &segpb.ActivateSegmentResponse{}, nil
-	}
-
-	log.Info(ctx, "Activate segment.", map[string]interface{}{
-		"eventLogID":     req.EventLogId,
-		"replicaGroupID": req.ReplicaGroupId,
-		"replicas":       req.Replicas,
-	})
-
-	var myID vanus.ID
-	peers := make([]replica.Peer, 0, len(req.Replicas)-1)
-	for blockID, endpoint := range req.Replicas {
-		peer := vanus.NewIDFromUint64(blockID)
-		peers = append(peers, replica.Peer{
-			ID:       peer,
-			Endpoint: endpoint,
-		})
-		if endpoint == s.localAddress {
-			myID = peer
-		}
-	}
-
-	if myID == 0 {
-		return nil, errors.ErrResourceNotFound.WithMessage("the segment doesn't exist")
-	}
-	v, ok := s.writers.Load(myID)
-	if !ok {
-		return nil, errors.ErrResourceNotFound.WithMessage("the segment doesn't exist")
-	}
-
-	// Register peers.
-	for i := range peers {
-		peer := &peers[i]
-		s.resolver.Register(peer.ID.Uint64(), peer.Endpoint)
-	}
-
-	log.Info(ctx, "Bootstrap replica.", map[string]interface{}{
-		"block_id": myID,
-		"peers":    peers,
-	})
-
-	// Bootstrap replica.
-	replica, _ := v.(*replica.Replica)
-	if err := replica.Bootstrap(peers); err != nil {
-		return nil, err
-	}
-
-	return &segpb.ActivateSegmentResponse{}, nil
-}
-
-// InactivateSegment mark a block ready to be removed.
-func (s *server) InactivateSegment(
-	ctx context.Context, req *segpb.InactivateSegmentRequest,
-) (*segpb.InactivateSegmentResponse, error) {
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
-
-	if err := s.checkState(); err != nil {
-		return nil, err
-	}
-
-	return &segpb.InactivateSegmentResponse{}, nil
-}
-
-func (s *server) GetBlockInfo(
-	ctx context.Context, req *segpb.GetBlockInfoRequest,
-) (*segpb.GetBlockInfoResponse, error) {
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
-
-	if err := s.checkState(); err != nil {
-		return nil, err
-	}
-
-	return &segpb.GetBlockInfoResponse{}, nil
-}
-
-// AppendToBlock implements segpb.SegmentServerServer.
-func (s *server) AppendToBlock(ctx context.Context, req *segpb.AppendToBlockRequest) (*emptypb.Empty, error) {
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
-
-	if err := s.checkState(); err != nil {
-		return nil, err
-	}
-
-	if req.Events == nil || len(req.Events.Events) == 0 {
-		return nil, errors.ErrInvalidRequest.WithMessage("event list is empty")
-	}
-
-	blockID := vanus.NewIDFromUint64(req.BlockId)
-
-	var appender block.Appender
-	if v, ok := s.writers.Load(blockID); ok {
-		appender, _ = v.(block.Appender)
-	} else {
-		return nil, errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
-	}
-
-	events := req.GetEvents().Events
-	entries := make([]block.Entry, len(events))
-	for i, event := range events {
-		payload, err := proto.Marshal(event)
-		if err != nil {
-			return nil, errors.ErrInternal.WithMessage("marshall event failed").Wrap(err)
-		}
-		entries[i] = block.Entry{
-			Payload: payload,
-		}
-	}
-
-	if err := appender.Append(ctx, entries...); err != nil {
-		return nil, s.processAppendError(ctx, blockID, err)
-	}
-
-	return &emptypb.Empty{}, nil
-}
-
-func (s *server) processAppendError(ctx context.Context, blockID vanus.ID, err error) error {
-	if stderr.As(err, &rpcerr.ErrorType{}) {
 		return err
 	}
 
-	if stderr.Is(err, block.ErrNotEnoughSpace) {
-		log.Debug(ctx, "Append failed: not enough space. Mark segment is full.", map[string]interface{}{
-			"block_id": blockID,
-		})
-		// TODO: optimize this to async from sync
-		if err = s.markSegmentIsFull(ctx, blockID); err != nil {
-			return err
-		}
-		return errors.ErrSegmentNotEnoughSpace
-	} else if stderr.Is(err, block.ErrFull) {
-		log.Debug(ctx, "Append failed: block is full.", map[string]interface{}{
-			"block_id": blockID,
-		})
-		return errors.ErrSegmentFull
+	s.id = vanus.NewIDFromUint64(res.ServerId)
+
+	// FIXME(james.yin): some blocks may not be bound to segment.
+
+	// No block in the volume of this server.
+	if len(res.Segments) == 0 {
+		return nil
 	}
 
-	log.Warning(ctx, "Append failed.", map[string]interface{}{
-		"block_id":   blockID,
-		log.KeyError: err,
-	})
-	return errors.ErrInternal.WithMessage("write to storage failed").Wrap(err)
+	s.reconcileSegments(ctx, res.Segments)
+
+	return nil
 }
 
-// ReadFromBlock implements segpb.SegmentServerServer.
-func (s *server) ReadFromBlock(
-	ctx context.Context, req *segpb.ReadFromBlockRequest,
-) (*segpb.ReadFromBlockResponse, error) {
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
-	if err := s.checkState(); err != nil {
-		return nil, err
-	}
-
-	blockID := vanus.NewIDFromUint64(req.BlockId)
-
-	var reader block.Reader
-	if v, ok := s.readers.Load(blockID); ok {
-		reader, _ = v.(block.Reader)
-	} else {
-		return nil, errors.ErrResourceNotFound.WithMessage(
-			"the segment doesn't exist on this server")
-	}
-
-	entries, err := reader.Read(ctx, int(req.Offset), int(req.Number))
-	if err != nil {
-		return nil, err
-	}
-
-	events := make([]*cepb.CloudEvent, len(entries))
-	for i, entry := range entries {
-		event := &cepb.CloudEvent{}
-		if err2 := proto.Unmarshal(entry.Payload, event); err2 != nil {
-			return nil, errors.ErrInternal.WithMessage(
-				"unmarshall data to event failed").Wrap(err2)
+func (s *server) reconcileSegments(ctx context.Context, segmentpbs map[uint64]*metapb.Segment) {
+	for _, segmentpb := range segmentpbs {
+		if len(segmentpb.Replicas) == 0 {
+			continue
 		}
-		events[i] = event
+		var myID vanus.ID
+		for blockID, blockpb := range segmentpb.Replicas {
+			// Don't use address to compare
+			if blockpb.VolumeID == s.volumeID.Uint64() {
+				if myID != 0 {
+					// FIXME(james.yin): multiple blocks of same segment in this server.
+					log.Warning(ctx, "Multiple blocks of the same segment in this server.", map[string]interface{}{
+						"blockID":   blockID,
+						"other":     myID,
+						"segmentID": segmentpb.Id,
+						"volumeID":  s.volumeID,
+					})
+				}
+				myID = vanus.NewIDFromUint64(blockID)
+			}
+		}
+		if myID == 0 {
+			// TODO(james.yin): no my block
+			log.Warning(ctx, "No block of the specific segment in this server.", map[string]interface{}{
+				"segmentID": segmentpb.Id,
+				"volumeID":  s.volumeID,
+			})
+			continue
+		}
+		s.registerReplicas(ctx, segmentpb)
+	}
+}
+
+func (s *server) registerReplicas(ctx context.Context, segmentpb *metapb.Segment) {
+	for blockID, blockpb := range segmentpb.Replicas {
+		if blockpb.Endpoint == "" {
+			if blockpb.VolumeID == s.volumeID.Uint64() {
+				blockpb.Endpoint = s.localAddress
+			} else {
+				log.Warning(ctx, "Block is offline.", map[string]interface{}{
+					"blockID":    blockID,
+					"volumeID":   blockpb.VolumeID,
+					"segmentID":  segmentpb.Id,
+					"eventlogID": segmentpb.EventLogId,
+				})
+				continue
+			}
+		}
+		s.resolver.Register(blockID, blockpb.Endpoint)
+	}
+}
+
+func (s *server) Start(ctx context.Context) error {
+	if s.state != primitive.ServerStateStarted {
+		return errors.ErrServiceState.WithMessage(
+			"start failed, server state is not created")
 	}
 
-	return &segpb.ReadFromBlockResponse{
-		Events: &cepb.CloudEventBatch{Events: events},
-	}, nil
+	log.Info(ctx, "Start SegmentServer.", nil)
+	if err := s.startHeartbeatTask(ctx); err != nil {
+		return errors.ErrInternal.WithMessage("start heartbeat task failed")
+	}
+
+	s.state = primitive.ServerStateRunning
+	return nil
 }
 
 func (s *server) startHeartbeatTask(ctx context.Context) error {
@@ -518,52 +380,271 @@ func (s *server) leaderChanged(blockID, leaderID vanus.ID, term uint64) {
 	}
 }
 
-func (s *server) start(ctx context.Context) error {
-	log.Info(ctx, "Start SegmentServer.", nil)
-	if err := s.startHeartbeatTask(ctx); err != nil {
-		return err
+func (s *server) Stop(ctx context.Context) error {
+	if s.state != primitive.ServerStateRunning {
+		return errors.ErrServiceState.WithMessage(fmt.Sprintf(
+			"the server isn't running, current state:%s", s.state))
 	}
+
+	s.state = primitive.ServerStateStopped
+
+	// TODO(james.yin): async
+	if err := s.stop(ctx); err != nil {
+		return errors.ErrInternal.WithMessage("stop server failed")
+	}
+
+	// Stop grpc asyncronously.
+	go func() {
+		// Force stop if timeout.
+		t := time.AfterFunc(defaultForceStopTimeout, func() {
+			log.Warning(context.Background(), "Graceful stop timeout, force stop.", nil)
+			s.grpcSrv.Stop()
+		})
+		defer t.Stop()
+		s.grpcSrv.GracefulStop()
+	}()
+
 	return nil
 }
 
 func (s *server) stop(ctx context.Context) error {
-	// TODO(james.yin):
+	// Close all raft nodes.
+	s.writers.Range(func(key, value interface{}) bool {
+		r, _ := value.(*replica.Replica)
+		r.Stop()
+		return true
+	})
+
+	// Close all blocks.
+	s.blocks.Range(func(key, value interface{}) bool {
+		b, _ := value.(*file.Block)
+		_ = b.Close(context.TODO())
+		return true
+	})
+
+	// Close WAL, metaStore, offsetStore.
+	s.wal.Close()
+	s.offsetStore.Close()
+	// Make sure WAL is closed before close metaStore.
+	s.wal.Wait()
+	s.metaStore.Close()
+
+	// Stop heartbeat task, etc.
+	close(s.closec)
+
+	// Close grpc connections for raft.
+	s.host.Stop()
 
 	s.cc.Close(ctx)
-	wg := sync.WaitGroup{}
-	var err error
-	{
-		wg.Add(1)
-		go func() {
-			s.waitAllAppendRequestCompleted(ctx)
-			// s.blockWriters.Range(func(key, value interface{}) bool {
-			// 	writer, _ := value.(block.Writer)
-			// 	if err2 := writer.CloseWrite(ctx); err2 != nil {
-			// 		err = errutil.Chain(err, err2)
-			// 	}
-			// 	return true
-			// })
-			wg.Done()
-		}()
+
+	return nil
+}
+
+func (s *server) Status() primitive.ServerState {
+	return s.state
+}
+
+func (s *server) CreateBlock(ctx context.Context, id vanus.ID, size int64) error {
+	if id == 0 {
+		log.Warning(ctx, "Can not create block with id(0).", nil)
+		return errors.ErrInvalidRequest.WithMessage("can not create block with id(0).")
 	}
 
-	{
-		wg.Add(1)
-		go func() {
-			s.waitAllReadRequestCompleted(ctx)
-			// s.blockReaders.Range(func(key, value interface{}) bool {
-			// 	reader, _ := value.(block.Reader)
-			// 	if err2 := reader.CloseRead(ctx); err2 != nil {
-			// 		err = errutil.Chain(err, err2)
-			// 	}
-			// 	return true
-			// })
-			wg.Done()
-		}()
+	if err := s.checkState(); err != nil {
+		return err
 	}
 
-	wg.Wait()
-	return err
+	log.Info(ctx, "Create block.", map[string]interface{}{
+		"blockID": id,
+		"size":    size,
+	})
+
+	if _, ok := s.blocks.Load(id); ok {
+		return errors.ErrResourceAlreadyExist.WithMessage("the segment has already exist.")
+	}
+
+	// Create block.
+	b, err := file.Create(ctx, filepath.Join(s.volumeDir, "block"), id, size)
+	if err != nil {
+		return err
+	}
+
+	// Create replica.
+	r := s.makeReplica(context.TODO(), b.ID(), b)
+	b.SetClusterInfoSource(r)
+
+	s.blocks.Store(id, b)
+	s.writers.Store(id, r)
+	s.readers.Store(id, b)
+
+	return nil
+}
+
+func (s *server) makeReplica(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender) *replica.Replica {
+	raftLog := raftlog.NewLog(blockID, s.wal, s.metaStore, s.offsetStore)
+	return s.makeReplicaWithRaftLog(ctx, blockID, appender, raftLog)
+}
+
+func (s *server) makeReplicaWithRaftLog(
+	ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, raftLog *raftlog.Log,
+) *replica.Replica {
+	r := replica.New(ctx, blockID, appender, raftLog, s.host, s.leaderChanged)
+	s.host.Register(blockID.Uint64(), r)
+	return r
+}
+
+func (s *server) RemoveBlock(ctx context.Context, id vanus.ID) error {
+	if err := s.checkState(); err != nil {
+		return err
+	}
+
+	// TODO(james.yin): remove block
+
+	return nil
+}
+
+// TODO(james.yin):
+// func (s *server) GetBlockInfo(ctx context.Context, id vanus.ID) error {
+// 	if err := s.checkState(); err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
+
+// ActivateSegment mark a block ready to using and preparing to initializing a replica group.
+func (s *server) ActivateSegment(
+	ctx context.Context, logID vanus.ID, segID vanus.ID, replicas map[vanus.ID]string,
+) error {
+	if err := s.checkState(); err != nil {
+		return err
+	}
+
+	if len(replicas) == 0 {
+		log.Warning(ctx, "Replicas can not be empty.", map[string]interface{}{
+			"eventLogID":     logID,
+			"replicaGroupID": segID,
+		})
+		return nil
+	}
+
+	log.Info(ctx, "Activate segment.", map[string]interface{}{
+		"eventLogID":     logID,
+		"replicaGroupID": segID,
+		"replicas":       replicas,
+	})
+
+	var myID vanus.ID
+	peers := make([]replica.Peer, 0, len(replicas)-1)
+	for blockID, endpoint := range replicas {
+		peer := replica.Peer{
+			ID:       blockID,
+			Endpoint: endpoint,
+		}
+		peers = append(peers, peer)
+		if endpoint == s.localAddress {
+			myID = blockID
+		}
+	}
+
+	if myID == 0 {
+		return errors.ErrResourceNotFound.WithMessage("the segment doesn't exist")
+	}
+	v, ok := s.writers.Load(myID)
+	if !ok {
+		return errors.ErrResourceNotFound.WithMessage("the segment doesn't exist")
+	}
+
+	// Register peers.
+	for i := range peers {
+		peer := &peers[i]
+		s.resolver.Register(peer.ID.Uint64(), peer.Endpoint)
+	}
+
+	log.Info(ctx, "Bootstrap replica.", map[string]interface{}{
+		"blockID": myID,
+		"peers":   peers,
+	})
+
+	// Bootstrap replica.
+	replica, _ := v.(*replica.Replica)
+	if err := replica.Bootstrap(peers); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// InactivateSegment mark a block ready to be removed.
+func (s *server) InactivateSegment(ctx context.Context) error {
+	if err := s.checkState(); err != nil {
+		return err
+	}
+
+	// TODO(james.yin):
+
+	return nil
+}
+
+func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) error {
+	if len(events) == 0 {
+		return errors.ErrInvalidRequest.WithMessage("event list is empty")
+	}
+
+	if err := s.checkState(); err != nil {
+		return err
+	}
+
+	var appender block.Appender
+	if v, ok := s.writers.Load(id); ok {
+		appender, _ = v.(block.Appender)
+	} else {
+		return errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
+	}
+
+	entries := make([]block.Entry, len(events))
+	for i, event := range events {
+		payload, err := proto.Marshal(event)
+		if err != nil {
+			return errors.ErrInternal.WithMessage("marshall event failed").Wrap(err)
+		}
+		entries[i] = block.Entry{
+			Payload: payload,
+		}
+	}
+
+	if err := appender.Append(ctx, entries...); err != nil {
+		return s.processAppendError(ctx, id, err)
+	}
+
+	return nil
+}
+
+func (s *server) processAppendError(ctx context.Context, blockID vanus.ID, err error) error {
+	if stderr.As(err, &rpcerr.ErrorType{}) {
+		return err
+	}
+
+	if stderr.Is(err, block.ErrNotEnoughSpace) {
+		log.Debug(ctx, "Append failed: not enough space. Mark segment is full.", map[string]interface{}{
+			"blockID": blockID,
+		})
+		// TODO: optimize this to async from sync
+		if err = s.markSegmentIsFull(ctx, blockID); err != nil {
+			return err
+		}
+		return errors.ErrSegmentNotEnoughSpace
+	} else if stderr.Is(err, block.ErrFull) {
+		log.Debug(ctx, "Append failed: block is full.", map[string]interface{}{
+			"blockID": blockID,
+		})
+		return errors.ErrSegmentFull
+	}
+
+	log.Warning(ctx, "Append failed.", map[string]interface{}{
+		"blockID":    blockID,
+		log.KeyError: err,
+	})
+	return errors.ErrInternal.WithMessage("write to storage failed").Wrap(err)
 }
 
 func (s *server) markSegmentIsFull(ctx context.Context, blockID vanus.ID) error {
@@ -592,106 +673,35 @@ func (s *server) markSegmentIsFull(ctx context.Context, blockID vanus.ID) error 
 	return err
 }
 
-func (s *server) waitAllAppendRequestCompleted(ctx context.Context) {}
-
-func (s *server) waitAllReadRequestCompleted(ctx context.Context) {}
-
-func (s *server) registerSelf(ctx context.Context) error {
-	if strings.ToLower(os.Getenv(segmentServerDebugModeFlagENV)) == "true" {
-		return s.registerSelfInDebug(ctx)
+func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num int) ([]*cepb.CloudEvent, error) {
+	if err := s.checkState(); err != nil {
+		return nil, err
 	}
 
-	res, err := s.cc.registerSegmentServer(ctx, &ctrlpb.RegisterSegmentServerRequest{
-		Address:  s.localAddress,
-		VolumeId: s.volumeID.Uint64(),
-		Capacity: s.cfg.Volume.Capacity,
-	})
+	var reader block.Reader
+	if v, ok := s.readers.Load(id); ok {
+		reader, _ = v.(block.Reader)
+	} else {
+		return nil, errors.ErrResourceNotFound.WithMessage(
+			"the segment doesn't exist on this server")
+	}
+
+	entries, err := reader.Read(ctx, off, num)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	s.id = vanus.NewIDFromUint64(res.ServerId)
-
-	// FIXME(james.yin): some blocks may not be bound to segment.
-
-	// No block in the volume of this server.
-	if len(res.Segments) == 0 {
-		return nil
+	events := make([]*cepb.CloudEvent, len(entries))
+	for i, entry := range entries {
+		event := &cepb.CloudEvent{}
+		if err2 := proto.Unmarshal(entry.Payload, event); err2 != nil {
+			return nil, errors.ErrInternal.WithMessage(
+				"unmarshall data to event failed").Wrap(err2)
+		}
+		events[i] = event
 	}
 
-	for _, segmentpb := range res.Segments {
-		if len(segmentpb.Replicas) == 0 {
-			continue
-		}
-		var myID vanus.ID
-		for blockID, blockpb := range segmentpb.Replicas {
-			// Don't use address to compare
-			if blockpb.VolumeID == s.volumeID.Uint64() {
-				if myID != 0 {
-					// FIXME(james.yin): multiple blocks of same segment in this server.
-					log.Warning(ctx, "Multiple blocks of the same segment in this server.", map[string]interface{}{
-						"block_id":       blockID,
-						"other":          myID,
-						log.KeySegmentID: segmentpb.Id,
-						log.KeyVolumeID:  s.volumeID,
-					})
-				}
-				myID = vanus.NewIDFromUint64(blockID)
-			}
-		}
-		if myID == 0 {
-			// TODO(james.yin): no my block
-			log.Warning(ctx, "No block of the specific segment in this server.", map[string]interface{}{
-				log.KeySegmentID: segmentpb.Id,
-				log.KeyVolumeID:  s.volumeID,
-			})
-			continue
-		}
-		s.registerReplicas(ctx, segmentpb)
-	}
-
-	return nil
-}
-
-func (s *server) registerReplicas(ctx context.Context, segmentpb *metapb.Segment) {
-	for blockID, blockpb := range segmentpb.Replicas {
-		if blockpb.Endpoint == "" {
-			if blockpb.VolumeID == s.volumeID.Uint64() {
-				blockpb.Endpoint = s.localAddress
-			} else {
-				log.Warning(ctx, "Block is offline.", map[string]interface{}{
-					"block_id":        blockID,
-					log.KeyVolumeID:   blockpb.VolumeID,
-					log.KeySegmentID:  segmentpb.Id,
-					log.KeyEventlogID: segmentpb.EventLogId,
-				})
-				continue
-			}
-		}
-		s.resolver.Register(blockID, blockpb.Endpoint)
-	}
-}
-
-func (s *server) registerSelfInDebug(ctx context.Context) error {
-	log.Info(ctx, "the segment server debug mode enabled", nil)
-
-	s.id = vanus.NewID()
-	s.isDebugMode = true
-
-	return nil
-}
-
-func (s *server) makeReplica(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender) *replica.Replica {
-	raftLog := raftlog.NewLog(blockID, s.wal, s.metaStore, s.offsetStore)
-	return s.makeReplicaWithRaftLog(ctx, blockID, appender, raftLog)
-}
-
-func (s *server) makeReplicaWithRaftLog(
-	ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, raftLog *raftlog.Log,
-) *replica.Replica {
-	r := replica.New(ctx, blockID, appender, raftLog, s.host, s.leaderChanged)
-	s.host.Register(blockID.Uint64(), r)
-	return r
+	return events, nil
 }
 
 func (s *server) checkState() error {
