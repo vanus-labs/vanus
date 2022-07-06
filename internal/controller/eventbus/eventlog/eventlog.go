@@ -269,6 +269,7 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[string][]Se
 			continue
 		}
 		el, _ := v.(*eventlog)
+		el.lock()
 		for idx := range segments {
 			newSeg := segments[idx]
 			seg := el.get(newSeg.ID)
@@ -291,6 +292,7 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[string][]Se
 				}
 			}
 		}
+		el.unlock()
 	}
 }
 
@@ -935,6 +937,14 @@ func (el *eventlog) updateSegment(ctx context.Context, seg *Segment) error {
 		}
 	}
 	return nil
+}
+
+func (el *eventlog) lock() {
+	el.mutex.Lock()
+}
+
+func (el *eventlog) unlock() {
+	el.mutex.Unlock()
 }
 
 func Convert2ProtoEventLog(ins ...*metadata.Eventlog) []*meta.EventLog {

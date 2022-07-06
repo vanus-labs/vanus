@@ -388,7 +388,7 @@ func (ctrl *controller) processHeartbeat(ctx context.Context, req *ctrlpb.Segmen
 			Size:               info.Size,
 			Number:             info.EventNumber,
 			FirstEventBornTime: time.UnixMilli(info.FirstEventBornTime),
-			LastEventBornTime:  time.UnixMilli(info.FirstEventBornTime),
+			LastEventBornTime:  time.UnixMilli(info.LastEventBornTime),
 		}
 		if info.IsFull {
 			seg.State = eventlog.StateFrozen
