@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
 	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/block"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/errors"
@@ -63,10 +62,10 @@ type Manager interface {
 
 var mgr = &eventlogManager{
 	segmentReplicaNum:           defaultSegmentReplicaNumber,
-	segmentExpiredTime:          defaultSegmentExpiredTime,
-	cleanInterval:               defaultCleanInterval,
 	scaleInterval:               defaultScaleInterval,
+	cleanInterval:               defaultCleanInterval,
 	checkSegmentExpiredInterval: defaultCheckExpiredSegmentInterval,
+	segmentExpiredTime:          defaultSegmentExpiredTime,
 }
 
 type eventlogManager struct {
@@ -513,14 +512,14 @@ func (mgr *eventlogManager) checkSegmentExpired(ctx context.Context) {
 			mgr.eventLogMap.Range(func(key, value interface{}) bool {
 				elog, _ := value.(*eventlog)
 				head := elog.head()
-				ctx := context.Background()
+				checkCtx := context.Background()
 				for head != nil {
 					switch {
 					case !head.isFull():
 						return true
 					case head.LastEventBornAt.Equal(time.Time{}):
 						head.LastEventBornAt = time.Now().Add(mgr.segmentExpiredTime)
-						if err := elog.updateSegment(ctx, head); err != nil {
+						if err := elog.updateSegment(checkCtx, head); err != nil {
 							log.Warning(ctx, "update segment's metadata failed", map[string]interface{}{
 								log.KeyError: err,
 								"segment":    head.String(),
@@ -551,17 +550,16 @@ func (mgr *eventlogManager) checkSegmentExpired(ctx context.Context) {
 							"number":           head.Number,
 						})
 						mgr.segmentNeedBeClean.Store(head.ID.Key(), head)
-						head = elog.head()
 					default:
-						head = nil
+						return true
 					}
+					head = elog.head()
 				}
 				return true
 			})
 			log.Info(ctx, "check-segment-expired completed", map[string]interface{}{
 				"count":        count,
 				"execution_id": executionID,
-				"time":         time.Now(),
 			})
 		}
 	}
@@ -903,8 +901,11 @@ func (el *eventlog) previousOf(seg *Segment) *Segment {
 func (el *eventlog) deleteHead(ctx context.Context) error {
 	el.mutex.Lock()
 	defer el.mutex.Unlock()
+	if el.segmentList.Len() == 0 {
+		return nil
+	}
 	head, _ := el.segmentList.Front().Value.(*Segment)
-	segments := make([]vanus.ID, 0)
+	segments := make([]vanus.ID, 0, len(el.segments)-1)
 	for _, v := range el.segments {
 		if v.Uint64() != head.ID.Uint64() {
 			segments = append(segments, v)
