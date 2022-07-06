@@ -31,29 +31,32 @@ import (
 )
 
 const (
-	defaultTimeoutMilliseconds = 300
-	defaultMessageChainSize    = 32
+	defaultConnectTimeout   = 300 * time.Millisecond
+	defaultMessageChainSize = 32
 )
+
+type messageWithContext struct {
+	msg *raftpb.Message
+	ctx context.Context
+}
 
 type peer struct {
 	addr   string
-	msgc   chan *raftpb.Message
+	msgc   chan messageWithContext
 	stream vsraftpb.RaftServer_SendMessageClient
-	ctx    context.Context
-	cancel context.CancelFunc
+	closec chan struct{}
+	donec  chan struct{}
 }
 
 // Make sure peer implements Multiplexer.
 var _ Multiplexer = (*peer)(nil)
 
-func newPeer(ctx context.Context, endpoint string, callback string) *peer {
-	ctx, cancel := context.WithCancel(ctx)
-
+func newPeer(endpoint string, callback string) *peer {
 	p := &peer{
 		addr:   endpoint,
-		msgc:   make(chan *raftpb.Message, defaultMessageChainSize),
-		ctx:    ctx,
-		cancel: cancel,
+		msgc:   make(chan messageWithContext, defaultMessageChainSize),
+		closec: make(chan struct{}),
+		donec:  make(chan struct{}),
 	}
 
 	go p.run(callback)
@@ -75,10 +78,10 @@ loop:
 	for {
 		var err error
 		select {
-		case msg := <-p.msgc:
+		case mwc := <-p.msgc:
 			stream := p.stream
 			if stream == nil {
-				if stream, err = p.connect(opts...); err != nil {
+				if stream, err = p.connect(mwc.ctx, opts...); err != nil {
 					p.processSendError(err)
 					break
 				}
@@ -88,11 +91,11 @@ loop:
 					break
 				}
 			}
-			if err = stream.Send(msg); err != nil {
+			if err = stream.Send(mwc.msg); err != nil {
 				p.processSendError(err)
 				break
 			}
-		case <-p.ctx.Done():
+		case <-p.closec:
 			break loop
 		}
 	}
@@ -100,6 +103,8 @@ loop:
 	if p.stream != nil {
 		_, _ = p.stream.CloseAndRecv()
 	}
+
+	close(p.donec)
 }
 
 func (p *peer) processSendError(err error) {
@@ -111,27 +116,33 @@ func (p *peer) processSendError(err error) {
 }
 
 func (p *peer) Close() {
-	p.cancel()
+	close(p.closec)
+	<-p.donec
 }
 
-func (p *peer) Send(msg *raftpb.Message) {
-	// TODO(james.yin):
+func (p *peer) Send(ctx context.Context, msg *raftpb.Message) {
+	mwc := messageWithContext{
+		msg: msg,
+		ctx: ctx,
+	}
+
 	select {
-	case <-p.ctx.Done():
+	case <-ctx.Done():
 		return
-	case p.msgc <- msg:
+	case <-p.closec:
+		return
+	case p.msgc <- mwc:
 	}
 }
 
-func (p *peer) Sendv(msgs []*raftpb.Message) {
+func (p *peer) Sendv(ctx context.Context, msgs []*raftpb.Message) {
 	for _, msg := range msgs {
-		p.Send(msg)
+		p.Send(ctx, msg)
 	}
 }
 
-func (p *peer) connect(opts ...grpc.DialOption) (vsraftpb.RaftServer_SendMessageClient, error) {
-	timeout := defaultTimeoutMilliseconds * time.Millisecond
-	ctx, cancel := context.WithTimeout(p.ctx, timeout)
+func (p *peer) connect(ctx context.Context, opts ...grpc.DialOption) (vsraftpb.RaftServer_SendMessageClient, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultConnectTimeout)
 	defer cancel()
 
 	conn, err := grpc.DialContext(ctx, p.addr, opts...)

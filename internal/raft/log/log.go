@@ -250,8 +250,8 @@ func (l *Log) length() uint64 {
 // snapshot and call Snapshot later.
 func (l *Log) Snapshot() (raftpb.Snapshot, error) {
 	// TODO(james.yin): snapshot
-	//l.RLock()
-	//defer l.RUnlock()
+	// l.RLock()
+	// defer l.RUnlock()
 	return raftpb.Snapshot{}, raft.ErrSnapshotTemporarilyUnavailable
 }
 
@@ -262,12 +262,12 @@ func (l *Log) ApplySnapshot(snap raftpb.Snapshot) error {
 	defer l.Unlock()
 
 	// handle check for old snapshot being applied
-	//if l.snapshot.Metadata.Index >= snap.Metadata.Index {
-	//	log.Warning(context.Background(), "snapshot is out of date", map[string]interface{}{})
-	//	return raft.ErrSnapOutOfDate
-	//}
+	// if l.snapshot.Metadata.Index >= snap.Metadata.Index {
+	// 	log.Warning(context.Background(), "snapshot is out of date", map[string]interface{}{})
+	// 	return raft.ErrSnapOutOfDate
+	// }
 
-	//l.snapshot = snap
+	// l.snapshot = snap
 	l.ents = []raftpb.Entry{{Term: snap.Metadata.Term, Index: snap.Metadata.Index}}
 	return nil
 }

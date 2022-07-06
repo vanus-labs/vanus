@@ -7,9 +7,9 @@
 run:
   timeout: 1m # default 1m
   skip-dirs:
-    - client
-    - raft
-    - proto
+    - ^client/
+    - ^raft/
+    - ^proto/
 
 severity:
   default-severity: info
@@ -28,7 +28,7 @@ linters-settings:
     exclude-functions: [] # see https://github.com/kisielk/errcheck#excluding-functions for details # default []
   gosimple:
     go: "1.16" # default 1.13
-    checks: [ "*" ] # https://staticcheck.io/docs/options#checks # default ["*"]
+    checks: ["*"] # https://staticcheck.io/docs/options#checks # default ["*"]
   govet:
     enable-all: true
     disable:
@@ -38,7 +38,7 @@ linters-settings:
         strict: true # default false
   staticcheck:
     go: "1.17" # default 1.13
-    checks: [ "*" ] # https://staticcheck.io/docs/options#checks # default ["*"]
+    checks: ["*"] # https://staticcheck.io/docs/options#checks # default ["*"]
   structcheck:
     exported-fields: false # default false
   unused:
@@ -239,10 +239,48 @@ linters-settings:
       - github.com/jmoiron/sqlx
   stylecheck:
     go: "1.16" # default 1.13
-    checks: [ "*" ] # https://staticcheck.io/docs/options#checks # default ["*"]
+    checks: ["*"] # https://staticcheck.io/docs/options#checks # default ["*"]
     dot-import-whitelist: [] # https://staticcheck.io/docs/options#dot_import_whitelist  # default []
-    initialisms: [ "ACL", "API", "ASCII", "CPU", "CSS", "DNS", "EOF", "GUID", "HTML", "HTTP", "HTTPS", "ID", "IP", "JSON", "QPS", "RAM", "RPC", "SLA", "SMTP", "SQL", "SSH", "TCP", "TLS", "TTL", "UDP", "UI", "GID", "UID", "UUID", "URI", "URL", "UTF8", "VM", "XML", "XMPP", "XSRF", "XSS" ] # https://staticcheck.io/docs/options#initialisms
-    http-status-code-whitelist: [ "200", "400", "404", "500" ] # https://staticcheck.io/docs/options#http_status_code_whitelist
+    initialisms: [
+        "ACL",
+        "API",
+        "ASCII",
+        "CPU",
+        "CSS",
+        "DNS",
+        "EOF",
+        "GUID",
+        "HTML",
+        "HTTP",
+        "HTTPS",
+        "ID",
+        "IP",
+        "JSON",
+        "QPS",
+        "RAM",
+        "RPC",
+        "SLA",
+        "SMTP",
+        "SQL",
+        "SSH",
+        "TCP",
+        "TLS",
+        "TTL",
+        "UDP",
+        "UI",
+        "GID",
+        "UID",
+        "UUID",
+        "URI",
+        "URL",
+        "UTF8",
+        "VM",
+        "XML",
+        "XMPP",
+        "XSRF",
+        "XSS",
+      ] # https://staticcheck.io/docs/options#initialisms
+    http-status-code-whitelist: ["200", "400", "404", "500"] # https://staticcheck.io/docs/options#http_status_code_whitelist
   tenv:
     all: true # check all functions in _test.go, not only test functions # default false
   testpackage:
@@ -291,8 +329,8 @@ linters:
     - godot
     - goimports
     - gomnd
-#    - gomoddirectives
-#    - gomodguard
+    #    - gomoddirectives
+    #    - gomodguard
     - goprintffuncname
     - gosec
     - lll
@@ -313,7 +351,7 @@ linters:
     - tenv
     - tparallel
     - unconvert
-#    - unparam
+    #    - unparam
     - whitespace
     ## disabled
     #- wastedassign
@@ -423,7 +461,7 @@ issues:
         - errorlint
     - path: "errors\\.go"
       linters:
-          - lll
+        - lll
     - path: "_test\\.go"
       linters:
         - lll

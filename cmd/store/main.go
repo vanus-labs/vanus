@@ -54,7 +54,6 @@ func main() {
 	srv := segment.NewServer(*cfg)
 
 	if err = srv.Initialize(ctx); err != nil {
-		// TODO: panic
 		log.Error(ctx, "The SegmentServer has initialized failed.", map[string]interface{}{
 			log.KeyError: err,
 		})

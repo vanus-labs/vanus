@@ -68,7 +68,7 @@ func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoin
 		// TODO(james.yin): report MsgUnreachable.
 		return
 	}
-	mux.Send(msg)
+	mux.Send(ctx, msg)
 }
 
 func (h *host) Sendv(ctx context.Context, msgs []*raftpb.Message, to uint64, endpoint string) {
@@ -77,7 +77,7 @@ func (h *host) Sendv(ctx context.Context, msgs []*raftpb.Message, to uint64, end
 		// TODO(james.yin): report MsgUnreachable.
 		return
 	}
-	mux.Sendv(msgs)
+	mux.Sendv(ctx, msgs)
 }
 
 func (h *host) resolveMultiplexer(ctx context.Context, to uint64, endpoint string) Multiplexer {
@@ -95,8 +95,7 @@ func (h *host) resolveMultiplexer(ctx context.Context, to uint64, endpoint strin
 		p, _ := mux.(*peer)
 		return p
 	}
-	// TODO(james.yin): clean unused peer
-	p := newPeer(context.TODO(), endpoint, h.callback)
+	p := newPeer(endpoint, h.callback)
 	if mux, loaded := h.peers.LoadOrStore(endpoint, p); loaded {
 		defer p.Close()
 		p2, _ := mux.(*peer)
