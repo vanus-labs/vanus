@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quick-display
+  namespace: vanus
+  labels:
+    app: quick-display
+spec:
+  selector:
+    matchLabels:
+      app: quick-display
+  template:
+    metadata:
+      labels:
+        app: quick-display
+    spec:
+      containers:
+        - name: quick-display
+          image: vancehub/display:1.0.0
+          imagePullPolicy: IfNotPresent
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: vanus
+  name: quick-display
+spec:
+  ports:
+    - port: 80
+      targetPort: 8080
+  selector:
+    app: quick-display
+  type: ClusterIP
