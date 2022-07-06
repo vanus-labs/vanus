@@ -35,18 +35,18 @@ const (
 )
 
 type Segment struct {
-	ID                vanus.ID      `json:"id,omitempty"`
-	Capacity          int64         `json:"capacity,omitempty"`
-	EventLogID        vanus.ID      `json:"event_log_id,omitempty"`
-	PreviousSegmentID vanus.ID      `json:"previous_segment_id,omitempty"`
-	NextSegmentID     vanus.ID      `json:"next_segment_id,omitempty"`
-	StartOffsetInLog  int64         `json:"start_offset_in_log,omitempty"`
-	Replicas          *ReplicaGroup `json:"replicas,omitempty"`
-	State             SegmentState  `json:"state,omitempty"`
-	Size              int64         `json:"size,omitempty"`
-	Number            int32         `json:"number,omitempty"`
-	FirstEventBornAt  time.Time     `json:"first_event_born_at"`
-	LastEventBornAt   time.Time     `json:"last_event_born_at"`
+	ID                 vanus.ID      `json:"id,omitempty"`
+	Capacity           int64         `json:"capacity,omitempty"`
+	EventLogID         vanus.ID      `json:"event_log_id,omitempty"`
+	PreviousSegmentID  vanus.ID      `json:"previous_segment_id,omitempty"`
+	NextSegmentID      vanus.ID      `json:"next_segment_id,omitempty"`
+	StartOffsetInLog   int64         `json:"start_offset_in_log,omitempty"`
+	Replicas           *ReplicaGroup `json:"replicas,omitempty"`
+	State              SegmentState  `json:"state,omitempty"`
+	Size               int64         `json:"size,omitempty"`
+	Number             int32         `json:"number,omitempty"`
+	FirstEventBornTime time.Time     `json:"first_event_born_time"`
+	LastEventBornTime  time.Time     `json:"last_event_born_time"`
 }
 
 func (seg *Segment) IsAppendable() bool {

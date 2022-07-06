@@ -630,51 +630,51 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 			kvCli.EXPECT().Delete(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 
 			s11 := &Segment{
-				ID:               vanus.NewID(),
-				FirstEventBornAt: time.Now().Add(-6 * time.Hour),
-				LastEventBornAt:  time.Now().Add(-3 * time.Hour),
+				ID:                 vanus.NewID(),
+				FirstEventBornTime: time.Now().Add(-6 * time.Hour),
+				LastEventBornTime:  time.Now().Add(-3 * time.Hour),
 			}
 			el1.segmentList.Set(s11.ID.Uint64(), s11)
 			el1.segments = []vanus.ID{s11.ID}
 
 			s21 := &Segment{
-				ID:               vanus.NewID(),
-				FirstEventBornAt: time.Now().Add(-6 * time.Hour),
-				LastEventBornAt:  time.Now().Add(-3 * time.Hour),
-				State:            StateFrozen,
+				ID:                 vanus.NewID(),
+				FirstEventBornTime: time.Now().Add(-6 * time.Hour),
+				LastEventBornTime:  time.Now().Add(-3 * time.Hour),
+				State:              StateFrozen,
 			}
 			s22 := &Segment{
-				ID:               vanus.NewID(),
-				FirstEventBornAt: time.Now().Add(-3 * time.Hour),
-				LastEventBornAt:  time.Now().Add(-1 * time.Minute),
+				ID:                 vanus.NewID(),
+				FirstEventBornTime: time.Now().Add(-3 * time.Hour),
+				LastEventBornTime:  time.Now().Add(-1 * time.Minute),
 			}
 			el2.segmentList.Set(s21.ID.Uint64(), s21)
 			el2.segmentList.Set(s22.ID.Uint64(), s22)
 			el2.segments = []vanus.ID{s21.ID, s22.ID}
 
 			s31 := &Segment{
-				ID:               vanus.NewID(),
-				FirstEventBornAt: time.Now().Add(-6 * time.Hour),
-				LastEventBornAt:  time.Now().Add(-3 * time.Hour),
-				State:            StateFrozen,
+				ID:                 vanus.NewID(),
+				FirstEventBornTime: time.Now().Add(-6 * time.Hour),
+				LastEventBornTime:  time.Now().Add(-3 * time.Hour),
+				State:              StateFrozen,
 			}
 			s32 := &Segment{
-				ID:               vanus.NewID(),
-				FirstEventBornAt: time.Now().Add(-3 * time.Hour),
-				LastEventBornAt:  time.Now().Add(-1*time.Hour - time.Minute),
-				State:            StateFrozen,
+				ID:                 vanus.NewID(),
+				FirstEventBornTime: time.Now().Add(-3 * time.Hour),
+				LastEventBornTime:  time.Now().Add(-1*time.Hour - time.Minute),
+				State:              StateFrozen,
 			}
 			s33 := &Segment{
-				ID:               vanus.NewID(),
-				FirstEventBornAt: time.Now().Add(-1 * time.Hour),
-				LastEventBornAt:  time.Now().Add(-1 * time.Minute),
-				State:            StateFrozen,
+				ID:                 vanus.NewID(),
+				FirstEventBornTime: time.Now().Add(-1 * time.Hour),
+				LastEventBornTime:  time.Now().Add(-1 * time.Minute),
+				State:              StateFrozen,
 			}
 			s34 := &Segment{
-				ID:               vanus.NewID(),
-				FirstEventBornAt: time.Now().Add(-1 * time.Minute),
-				LastEventBornAt:  time.Now().Add(-1 * time.Millisecond),
-				State:            StateFrozen,
+				ID:                 vanus.NewID(),
+				FirstEventBornTime: time.Now().Add(-1 * time.Minute),
+				LastEventBornTime:  time.Now().Add(-1 * time.Millisecond),
+				State:              StateFrozen,
 			}
 			el3.segmentList.Set(s31.ID.Uint64(), s31)
 			el3.segmentList.Set(s32.ID.Uint64(), s32)
@@ -717,28 +717,28 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 			el1.segments = []vanus.ID{s11.ID}
 
 			s31 := &Segment{
-				ID:               vanus.NewID(),
-				FirstEventBornAt: time.Now().Add(-6 * time.Hour),
-				LastEventBornAt:  time.Now().Add(-3 * time.Hour),
-				State:            StateFrozen,
+				ID:                 vanus.NewID(),
+				FirstEventBornTime: time.Now().Add(-6 * time.Hour),
+				LastEventBornTime:  time.Now().Add(-3 * time.Hour),
+				State:              StateFrozen,
 			}
 			s32 := &Segment{
-				ID:               vanus.NewID(),
-				FirstEventBornAt: time.Now().Add(-3 * time.Hour),
-				LastEventBornAt:  time.Now().Add(-1*time.Hour - time.Minute),
-				State:            StateFrozen,
+				ID:                 vanus.NewID(),
+				FirstEventBornTime: time.Now().Add(-3 * time.Hour),
+				LastEventBornTime:  time.Now().Add(-1*time.Hour - time.Minute),
+				State:              StateFrozen,
 			}
 			s33 := &Segment{
-				ID:               vanus.NewID(),
-				FirstEventBornAt: time.Now().Add(-1 * time.Hour),
-				LastEventBornAt:  time.Now().Add(-1 * time.Minute),
-				State:            StateFrozen,
+				ID:                 vanus.NewID(),
+				FirstEventBornTime: time.Now().Add(-1 * time.Hour),
+				LastEventBornTime:  time.Now().Add(-1 * time.Minute),
+				State:              StateFrozen,
 			}
 			s34 := &Segment{
-				ID:               vanus.NewID(),
-				FirstEventBornAt: time.Now().Add(-1 * time.Minute),
-				LastEventBornAt:  time.Now().Add(-1 * time.Millisecond),
-				State:            StateFrozen,
+				ID:                 vanus.NewID(),
+				FirstEventBornTime: time.Now().Add(-1 * time.Minute),
+				LastEventBornTime:  time.Now().Add(-1 * time.Millisecond),
+				State:              StateFrozen,
 			}
 			el3.segmentList.Set(s31.ID.Uint64(), s31)
 			el3.segmentList.Set(s32.ID.Uint64(), s32)
@@ -757,7 +757,7 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 
 			So(el1.segmentList.Len(), ShouldEqual, 1)
 			So(el1.segments, ShouldHaveLength, 1)
-			So(el1.head().LastEventBornAt, ShouldEqual, time.Time{})
+			So(el1.head().LastEventBornTime, ShouldEqual, time.Time{})
 
 			So(el3.segmentList.Len(), ShouldEqual, 4)
 			So(el3.segments, ShouldHaveLength, 4)
@@ -785,7 +785,7 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 
 			So(el1.segmentList.Len(), ShouldEqual, 1)
 			So(el1.segments, ShouldHaveLength, 1)
-			minutes := math.Ceil(float64(time.Until(el1.head().LastEventBornAt)) / float64(time.Minute))
+			minutes := math.Ceil(float64(time.Until(el1.head().LastEventBornTime)) / float64(time.Minute))
 			So(minutes, ShouldEqual, 60)
 		})
 	})

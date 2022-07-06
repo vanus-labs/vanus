@@ -69,9 +69,9 @@ message SegmentHealthInfo {
   uint64 leader = 8;
   uint64 term = 9;
   // Unix timestamp, unit is millisecond
-  int64 first_event_born_at = 10;
+  int64 first_event_born_time = 10;
   // Unix timestamp, unit is millisecond
-  int64 last_event_born_at = 11;
+  int64 last_event_born_time = 11;
 }
 
 enum StorageTier {
