@@ -38,7 +38,7 @@ jobs:
           eval $(minikube docker-env)
           make docker-build
           kubectl apply -f ./deploy/all-in-one.yaml
-          kubectl apply -f http://44.242.140.28:9080/utils/display.yml
+          kubectl apply -f ./test/yaml/display.yml
           make build-cmd
           chmod ug+x ./bin/vsctl
           sudo mv ./bin/vsctl /usr/local/bin/vsctl
