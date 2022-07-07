@@ -1,5 +1,8 @@
 name: e2e
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -10,10 +13,10 @@ permissions:
 jobs:
   e2e:
     name: e2e
-    if: |
-      startsWith(github.event.pull_request.title, 'fix:') ||
-      startsWith(github.event.pull_request.title, 'feat:') ||
-      startsWith(github.event.pull_request.title, 'refactor:')
+    #if: |
+    #  startsWith(github.event.pull_request.title, 'fix:') ||
+    #  startsWith(github.event.pull_request.title, 'feat:') ||
+    #  startsWith(github.event.pull_request.title, 'refactor:')
     runs-on: ubuntu-latest
     env:
       VANUS_GATEWAY: 192.168.49.2:30001
@@ -39,6 +42,7 @@ jobs:
           make docker-build
           kubectl apply -f ./deploy/all-in-one.yaml
           kubectl apply -f ./test/yaml/display.yml
+          kubectl apply -f ./test/yaml/etcd-srv.yml
           make build-cmd
           chmod ug+x ./bin/vsctl
           sudo mv ./bin/vsctl /usr/local/bin/vsctl
@@ -49,8 +53,8 @@ jobs:
           make build-e2e
           ./bin/e2e
 
-      - name: Check e2e
-        run: |
-          kubectl get pod -n vanus | grep quick-display | awk '{print $1}' | xargs kubectl logs -n vanus | grep -n "total" | wc -l
-          [[ $(kubectl get pod -n vanus | grep quick-display | awk '{print $1}' | xargs kubectl logs -n vanus | grep -n "total" | wc -l) -eq 10001 ]] && echo "success" || echo "failed"
+      # - name: Check e2e
+        # run: |
+          # kubectl get pod -n vanus | grep quick-display | awk '{print $1}' | xargs kubectl logs -n vanus | grep -n "total" | wc -l
+          # [[ $(kubectl get pod -n vanus | grep quick-display | awk '{print $1}' | xargs kubectl logs -n vanus | grep -n "total" | wc -l) -eq 10001 ]] && echo "success" || echo "failed"
 
