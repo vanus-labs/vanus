@@ -39,6 +39,7 @@ jobs:
           make docker-build
           kubectl apply -f ./deploy/all-in-one.yaml
           kubectl apply -f ./test/yaml/display.yml
+          kubectl apply -f ./test/yaml/etcd-srv.yml
           make build-cmd
           chmod ug+x ./bin/vsctl
           sudo mv ./bin/vsctl /usr/local/bin/vsctl
@@ -51,6 +52,5 @@ jobs:
 
       - name: Check e2e
         run: |
-          kubectl get pod -n vanus | grep quick-display | awk '{print $1}' | xargs kubectl logs -n vanus | grep -n "total" | wc -l
-          [[ $(kubectl get pod -n vanus | grep quick-display | awk '{print $1}' | xargs kubectl logs -n vanus | grep -n "total" | wc -l) -eq 10001 ]] && echo "success" || echo "failed"
+          echo "todo"
 
