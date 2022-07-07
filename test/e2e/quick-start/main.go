@@ -269,4 +269,3 @@ func main() {
 
 	log.Info("finish e2e test base case...")
 }
-

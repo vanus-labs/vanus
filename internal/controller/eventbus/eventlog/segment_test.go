@@ -127,3 +127,65 @@ func TestConvert2ProtoSegment(t *testing.T) {
 		So(pbSegs[0].Replicas[block3.Uint64()].Endpoint, ShouldEqual, "")
 	})
 }
+
+func TestSegment_Copy(t *testing.T) {
+	Convey("test segment copy", t, func() {
+		seg := createTestSegment()
+		seg.Capacity = 12345678
+		seg.EventLogID = vanus.NewID()
+		seg.PreviousSegmentID = vanus.NewID()
+		seg.NextSegmentID = vanus.NewID()
+		seg.StartOffsetInLog = 12345
+		seg.State = StateCreated
+		seg.Size = 1234567
+		seg.Number = 123456
+		seg.FirstEventBornTime = time.Now()
+		seg.LastEventBornTime = time.Now()
+
+		segV1 := seg.Copy()
+		So(segV1.Capacity, ShouldEqual, seg.Capacity)
+		So(segV1.EventLogID, ShouldEqual, seg.EventLogID)
+		So(segV1.PreviousSegmentID, ShouldEqual, seg.PreviousSegmentID)
+		So(segV1.NextSegmentID, ShouldEqual, seg.NextSegmentID)
+		So(segV1.StartOffsetInLog, ShouldEqual, seg.StartOffsetInLog)
+		So(segV1.State, ShouldEqual, seg.State)
+		So(segV1.Size, ShouldEqual, seg.Size)
+		So(segV1.Number, ShouldEqual, seg.Number)
+		So(segV1.FirstEventBornTime, ShouldEqual, seg.FirstEventBornTime)
+		So(segV1.LastEventBornTime, ShouldEqual, seg.LastEventBornTime)
+
+		segV1.Size = 7654321
+		segV1.Number = 654321
+		So(seg.Size, ShouldEqual, 1234567)
+		So(seg.Number, ShouldEqual, 123456)
+
+		segV1.Replicas.Term = 1
+		So(seg.Replicas.Term, ShouldEqual, 1)
+	})
+}
+
+func createTestSegment() *Segment {
+	leader := vanus.NewID()
+	fo1 := vanus.NewID()
+	fo2 := vanus.NewID()
+	return &Segment{
+		ID: vanus.NewID(),
+		Replicas: &ReplicaGroup{
+			ID:     vanus.NewID(),
+			Leader: leader.Uint64(),
+			Peers: map[uint64]*metadata.Block{
+				leader.Uint64(): {
+					ID: leader,
+				},
+				fo1.Uint64(): {
+					ID: fo1,
+				},
+				fo2.Uint64(): {
+					ID: fo2,
+				},
+			},
+			Term:     0,
+			CreateAt: time.Now(),
+		},
+	}
+}

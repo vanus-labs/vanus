@@ -24,6 +24,7 @@ var (
 	ErrKeyNotFound = errors.New("key not found")
 	ErrNodeExist   = errors.New("node exist")
 	ErrSetFailed   = errors.New("set failed")
+	ErrUnknown     = errors.New("unknown")
 )
 
 type Client interface {

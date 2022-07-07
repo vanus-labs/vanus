@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/linkall-labs/vanus/observability/metrics"
 
@@ -381,11 +382,13 @@ func (ctrl *controller) processHeartbeat(ctx context.Context, req *ctrlpb.Segmen
 		}
 
 		seg := eventlog.Segment{
-			ID:         block.SegmentID,
-			Capacity:   info.Capacity,
-			EventLogID: block.EventlogID,
-			Size:       info.Size,
-			Number:     info.EventNumber,
+			ID:                 block.SegmentID,
+			Capacity:           info.Capacity,
+			EventLogID:         block.EventlogID,
+			Size:               info.Size,
+			Number:             info.EventNumber,
+			FirstEventBornTime: time.UnixMilli(info.FirstEventBornTime),
+			LastEventBornTime:  time.UnixMilli(info.LastEventBornTime),
 		}
 		if info.IsFull {
 			seg.State = eventlog.StateFrozen

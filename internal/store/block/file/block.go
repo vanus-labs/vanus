@@ -122,6 +122,7 @@ func (b *Block) HealthInfo() *metapb.SegmentHealthInfo {
 	actx := b.actx
 	b.mu.RUnlock()
 
+	// TODO(weihe.yin) add FirstEventBornTime & LastEventBornTime
 	info := &metapb.SegmentHealthInfo{
 		Id:                   b.id.Uint64(),
 		Size:                 int64(actx.size()),
