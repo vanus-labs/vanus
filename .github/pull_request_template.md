@@ -20,17 +20,17 @@ There MUST be one line starting with "Issue Number:  ".
 
 Issue Number: close #xxx
 
-### Problem Summary:
+### Problem Summary
 
-### What is changed and how it works?
+### What is changed and how does it work?
 
 ### Check List
 
 <!-- At least one of them must be included. -->
 
 #### Tests
+
 - [ ] Unit test
 - [ ] Integration test
 - [ ] Manual test (add detailed scripts or steps below)
 - [ ] No code
-
