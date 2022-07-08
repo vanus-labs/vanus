@@ -26,10 +26,16 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
+	errutil "github.com/linkall-labs/vanus/internal/util/errors"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
-type WalkFunc func(entry []byte, offset int64) error
+var (
+	ErrOutOfRange = errors.New("WAL: out of range")
+	errEndOfLog   = errors.New("WAL: end of log")
+)
+
+type OnEntryCallback func(entry []byte, eo int64) error
 
 type logStream struct {
 	stream    []*logFile
@@ -49,10 +55,11 @@ func (s *logStream) Close() {
 	}
 }
 
+func (s *logStream) firstFile() *logFile {
+	return s.stream[0]
+}
+
 func (s *logStream) lastFile() *logFile {
-	if len(s.stream) == 0 {
-		return nil
-	}
 	return s.stream[len(s.stream)-1]
 }
 
@@ -109,35 +116,41 @@ func (s *logStream) createNextFile(last *logFile) *logFile {
 }
 
 type scanContext struct {
-	buf       []byte
-	buffer    *bytes.Buffer
-	lastType  record.Type
-	nextStart int64
-	compacted int64
+	buf    []byte
+	buffer *bytes.Buffer
+	last   record.Type
+	eo     int64 // end offset of entry
+	from   int64
+	cb     OnEntryCallback
 }
 
-var errEndOfLog = errors.New("WAL: end of log")
-
-func (s *logStream) Visit(visitor WalkFunc, compacted int64) (int64, error) {
+func (s *logStream) Range(from int64, cb OnEntryCallback) (int64, error) {
 	if len(s.stream) == 0 {
-		return compacted, nil
+		if from == 0 {
+			return 0, nil
+		}
+		return -1, ErrOutOfRange
+	}
+	if from < s.firstFile().so || from > s.lastFile().eo() {
+		return -1, ErrOutOfRange
 	}
 
 	ctx := scanContext{
-		buf:       directio.AlignedBlock(int(s.blockSize)),
-		buffer:    bytes.NewBuffer(nil),
-		lastType:  record.Zero,
-		nextStart: compacted,
-		compacted: compacted,
+		buf:    directio.AlignedBlock(int(s.blockSize)),
+		buffer: bytes.NewBuffer(nil),
+		last:   record.Zero,
+		eo:     from,
+		from:   from,
+		cb:     cb,
 	}
 
 	for i, f := range s.stream {
 		// log file is compacted, skip.
-		if f.so+f.size <= compacted {
+		if f.so+f.size <= from {
 			continue
 		}
 
-		err := s.scanFile(&ctx, f, visitor)
+		err := s.scanFile(&ctx, f)
 
 		if err == nil {
 			continue
@@ -150,14 +163,14 @@ func (s *logStream) Visit(visitor WalkFunc, compacted int64) (int64, error) {
 			}
 
 			// TODO(james.yin): Has incomplete entry, truncate it.
-			if ctx.lastType.IsNonTerminal() {
+			if ctx.last.IsNonTerminal() {
 				log.Info(context.Background(), "Found incomplete entry, truncate it.",
 					map[string]interface{}{
-						"lastType": ctx.lastType,
+						"last_type": ctx.last,
 					})
 			}
 
-			return ctx.nextStart, nil
+			return ctx.eo, nil
 		}
 
 		return -1, err
@@ -166,106 +179,118 @@ func (s *logStream) Visit(visitor WalkFunc, compacted int64) (int64, error) {
 	panic("WAL: no zero record, the WAL is incomplete.")
 }
 
-func (s *logStream) scanFile(ctx *scanContext, lf *logFile, visitor WalkFunc) error {
+func (s *logStream) scanFile(ctx *scanContext, lf *logFile) (err error) {
 	f, err := openFile(lf.path)
 	if err != nil {
 		return err
 	}
+
 	defer func() {
 		if err2 := f.Close(); err2 != nil {
 			log.Error(context.Background(), "Close file failed.", map[string]interface{}{
 				"path":       lf.path,
 				log.KeyError: err2,
 			})
+			err = errutil.Chain(err, err2)
 		}
 	}()
 
-	for at := s.firstBlockOffset(lf.so, lf.size, ctx.compacted); at < lf.size; at += s.blockSize {
+	for at := s.firstBlockOffset(lf.so, lf.size, ctx.from); at < lf.size; at += s.blockSize {
 		if _, err = f.ReadAt(ctx.buf, at); err != nil {
 			return err
 		}
 
-		for so := s.firstRecordOffset(lf.so+at, ctx.compacted); so <= s.blockSize-record.HeaderSize; {
+		bso := lf.so + at
+		for so := s.firstRecordOffset(lf.so+at, ctx.from); so <= s.blockSize-record.HeaderSize; {
 			r, err2 := record.Unmarshal(ctx.buf[so:])
 			if err2 != nil {
 				// TODO(james.yin): handle parse error
-				return err2
+				err = err2
+				return
 			}
 
 			// no new record
 			if r.Type == record.Zero {
-				return errEndOfLog
+				err = errEndOfLog
+				return
 			}
 
 			// TODO(james.yin): check crc
 
 			sz := int64(r.Size())
-			switch r.Type {
-			case record.Full:
-				if !ctx.lastType.IsTerminal() && ctx.lastType != record.Zero {
-					// TODO(james.yin): unexcepted state
-					panic("WAL: unexcepted state")
-				}
-				offset := lf.so + at + so + sz
-				if err3 := visitor(r.Data, offset); err3 != nil {
-					return err3
-				}
-			case record.First:
-				if !ctx.lastType.IsTerminal() && ctx.lastType != record.Zero {
-					// TODO(james.yin): unexcepted state
-					panic("WAL: unexcepted state")
-				}
-				ctx.buffer.Write(r.Data)
-			case record.Middle:
-				if !ctx.lastType.IsNonTerminal() {
-					// TODO(james.yin): unexcepted state
-					panic("WAL: unexcepted state")
-				}
-				ctx.buffer.Write(r.Data)
-			case record.Last:
-				if !ctx.lastType.IsNonTerminal() {
-					// TODO(james.yin): unexcepted state
-					panic("WAL: unexcepted state")
-				}
-				ctx.buffer.Write(r.Data)
-				offset := lf.so + at + so + sz
-				if err3 := visitor(ctx.buffer.Bytes(), offset); err3 != nil {
-					return err3
-				}
-				ctx.buffer.Reset()
-			case record.Zero:
-				panic("WAL: unexcepted state")
+			reo := bso + so + sz
+			if err = onRecord(ctx, r, reo); err != nil {
+				return err
 			}
-
-			ctx.lastType = r.Type
 			so += sz
-			if ctx.lastType.IsTerminal() {
-				ctx.nextStart = lf.so + at + so
-			}
 		}
 	}
 
 	return nil
 }
 
-func (s *logStream) firstBlockOffset(so, size, compacted int64) int64 {
-	if so < compacted {
-		if so+size <= compacted {
+func onRecord(ctx *scanContext, r record.Record, eo int64) error {
+	switch r.Type {
+	case record.Full:
+		if !ctx.last.IsTerminal() && ctx.last != record.Zero {
+			// TODO(james.yin): unexcepted state
+			panic("WAL: unexcepted state")
+		}
+		if err := ctx.cb(r.Data, eo); err != nil {
+			return err
+		}
+	case record.First:
+		if !ctx.last.IsTerminal() && ctx.last != record.Zero {
+			// TODO(james.yin): unexcepted state
+			panic("WAL: unexcepted state")
+		}
+		ctx.buffer.Write(r.Data)
+	case record.Middle:
+		if !ctx.last.IsNonTerminal() {
+			// TODO(james.yin): unexcepted state
+			panic("WAL: unexcepted state")
+		}
+		ctx.buffer.Write(r.Data)
+	case record.Last:
+		if !ctx.last.IsNonTerminal() {
+			// TODO(james.yin): unexcepted state
+			panic("WAL: unexcepted state")
+		}
+		ctx.buffer.Write(r.Data)
+		if err := ctx.cb(ctx.buffer.Bytes(), eo); err != nil {
+			return err
+		}
+		ctx.buffer.Reset()
+	case record.Zero:
+		panic("WAL: unexcepted state")
+	}
+
+	ctx.last = r.Type
+	if ctx.last.IsTerminal() {
+		ctx.eo = eo
+	}
+
+	return nil
+}
+
+func (s *logStream) firstBlockOffset(so, size, from int64) int64 {
+	if so < from {
+		if so+size <= from {
 			panic("WAL: so is out of range.")
 		}
-		off := compacted - so
+		off := from - so
 		off -= off % s.blockSize
 		return off
 	}
 	return 0
 }
 
-func (s *logStream) firstRecordOffset(so, compacted int64) int64 {
-	if so < compacted {
-		if compacted-so >= s.blockSize {
+func (s *logStream) firstRecordOffset(so, from int64) int64 {
+	if so < from {
+		if from-so >= s.blockSize {
 			panic("WAL: so is out of range.")
 		}
-		return compacted % s.blockSize
+		return from % s.blockSize
 	}
 	return 0
 }

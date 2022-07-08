@@ -36,6 +36,10 @@ type logFile struct {
 	f    *os.File
 }
 
+func (l *logFile) eo() int64 {
+	return l.so + l.size
+}
+
 func (l *logFile) Close() error {
 	if l.f == nil {
 		return nil

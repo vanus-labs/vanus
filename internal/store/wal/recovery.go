@@ -29,7 +29,7 @@ const (
 	defaultDirPerm = 0o755
 )
 
-func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc, opts ...Option) (*WAL, error) {
+func RecoverWithVisitor(walDir string, compacted int64, visitor OnEntryCallback, opts ...Option) (*WAL, error) {
 	// Make sure the WAL directory exists.
 	if err := os.MkdirAll(walDir, defaultDirPerm); err != nil {
 		return nil, err
@@ -45,6 +45,7 @@ func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc, opts .
 
 	// Rebuild log stream.
 	s := cfg.stream
+	var last *logFile
 	for _, file := range files {
 		filename := file.Name()
 		so, err2 := strconv.ParseInt(filename[:len(filename)-len(logFileExt)], 10, 64)
@@ -52,14 +53,13 @@ func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc, opts .
 			return nil, err2
 		}
 
-		if f := s.lastFile(); f != nil {
-			eo := f.so + f.size
+		if last != nil {
 			// discontinuous log file
-			if so != eo {
+			if so != last.eo() {
 				log.Warning(context.Background(), "Discontinuous log file, discard before.",
 					map[string]interface{}{
-						"lastEnd":   eo,
-						"nextStart": so,
+						"last_end":   last.eo,
+						"next_start": so,
 					})
 				s.stream = nil
 			}
@@ -83,15 +83,15 @@ func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc, opts .
 			size = truncated
 		}
 
-		f := &logFile{
+		last = &logFile{
 			so:   so,
 			size: size,
 			path: path,
 		}
-		s.stream = append(s.stream, f)
+		s.stream = append(s.stream, last)
 	}
 
-	pos, err := s.Visit(visitor, compacted)
+	pos, err := s.Range(compacted, visitor)
 	if err != nil {
 		return nil, err
 	}
