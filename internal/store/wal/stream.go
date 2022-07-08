@@ -64,7 +64,8 @@ func (s *logStream) lastFile() *logFile {
 }
 
 func (s *logStream) selectFile(offset int64, autoCreate bool) *logFile {
-	if len(s.stream) == 0 {
+	sz := len(s.stream)
+	if sz == 0 {
 		if offset == 0 {
 			if !autoCreate {
 				return nil
@@ -74,9 +75,9 @@ func (s *logStream) selectFile(offset int64, autoCreate bool) *logFile {
 		panic("log stream not begin from 0")
 	}
 
-	last := s.lastFile()
-	if offset >= last.so {
-		eo := last.so + last.size
+	// Fast return for append.
+	if last := s.lastFile(); offset >= last.so {
+		eo := last.eo()
 		if offset < eo {
 			return last
 		}
@@ -94,10 +95,8 @@ func (s *logStream) selectFile(offset int64, autoCreate bool) *logFile {
 		panic("log stream underflow")
 	}
 
-	i := sort.Search(len(s.stream)-1, func(i int) bool {
-		f := s.stream[i]
-		eo := f.so + f.size
-		return eo > offset
+	i := sort.Search(sz-1, func(i int) bool {
+		return s.stream[i].eo() > offset
 	})
 	if i < len(s.stream)-1 {
 		return s.stream[i]
