@@ -29,30 +29,25 @@ const (
 	defaultDirPerm = 0o755
 )
 
-func RecoverWithVisitor(walDir string, compacted int64, visitor OnEntryCallback, opts ...Option) (*WAL, error) {
+// recoverLogStream rebuilds log stream from specified directory.
+func recoverLogStream(dir string, cfg config) (*logStream, error) {
 	// Make sure the WAL directory exists.
-	if err := os.MkdirAll(walDir, defaultDirPerm); err != nil {
+	if err := os.MkdirAll(dir, defaultDirPerm); err != nil {
 		return nil, err
 	}
 
-	cfg := makeConfig(walDir, opts...)
-
-	// Rebuild log stream.
-	stream, err := scanLogFiles(walDir, cfg.blockSize())
+	files, err := scanLogFiles(dir, cfg.blockSize)
 	if err != nil {
 		return nil, err
 	}
-	s := cfg.stream
-	s.stream = stream
 
-	pos, err := s.Range(compacted, visitor)
-	if err != nil {
-		return nil, err
+	stream := &logStream{
+		stream:    files,
+		dir:       dir,
+		blockSize: cfg.blockSize,
+		fileSize:  cfg.fileSize,
 	}
-	WithPosition(pos)(&cfg)
-
-	// Make WAL.
-	return newWAL(cfg)
+	return stream, nil
 }
 
 func scanLogFiles(dir string, blockSize int64) (stream []*logFile, err error) {

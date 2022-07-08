@@ -26,7 +26,10 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
 )
 
-var ErrClosed = errors.New("wal: closed")
+var (
+	ErrClosed          = errors.New("wal: closed")
+	ErrNotFoundLogFile = errors.New("wal: not found log file")
+)
 
 type Result struct {
 	Offsets []int64
@@ -92,20 +95,28 @@ type WAL struct {
 	donec  chan struct{}
 }
 
-func NewWAL(dir string, opts ...Option) (*WAL, error) {
-	cfg := makeConfig(dir, opts...)
-	return newWAL(cfg)
+func Open(dir string, opts ...Option) (*WAL, error) {
+	cfg := makeConfig(opts...)
+	return open(dir, cfg)
 }
 
-func newWAL(cfg config) (*WAL, error) {
-	blockSize := cfg.blockSize()
-	pos := cfg.pos
-	wbso := pos
-	wbso -= pos % blockSize
+func open(dir string, cfg config) (*WAL, error) {
+	stream, err := recoverLogStream(dir, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	off, err := stream.Range(cfg.pos, cfg.cb)
+	if err != nil {
+		return nil, err
+	}
+
+	wbso := off
+	wbso -= off % cfg.blockSize
 
 	w := &WAL{
-		allocator: block.NewAllocator(int(blockSize), wbso),
-		stream:    cfg.stream,
+		allocator: block.NewAllocator(int(cfg.blockSize), wbso),
+		stream:    stream,
 		engine:    cfg.engine,
 		appendc:   make(chan appendTask, cfg.appendBufferSize),
 		callbackc: make(chan callbackTask, cfg.callbackBufferSize),
@@ -118,15 +129,16 @@ func newWAL(cfg config) (*WAL, error) {
 	w.wb = w.allocator.Next()
 
 	// Recover write block
-	if pos > 0 {
+	if off > 0 {
 		f := w.stream.selectFile(w.wb.SO, false)
-		if f != nil {
-			if err := f.Open(); err != nil {
-				return nil, err
-			}
-			if err := w.wb.RecoverFromFile(f.f, w.wb.SO-f.so, int(pos-w.wb.SO)); err != nil {
-				return nil, err
-			}
+		if f == nil {
+			return nil, ErrNotFoundLogFile
+		}
+		if err := f.Open(); err != nil {
+			return nil, err
+		}
+		if err := w.wb.RecoverFromFile(f.f, w.wb.SO-f.so, int(off-w.wb.SO)); err != nil {
+			return nil, err
 		}
 	}
 

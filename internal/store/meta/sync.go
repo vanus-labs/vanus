@@ -161,17 +161,21 @@ func RecoverSyncStore(cfg storecfg.SyncStoreConfig, walDir string) (*SyncStore, 
 	}
 
 	version := snapshot
-	wal, err := walog.RecoverWithVisitor(walDir, snapshot, func(data []byte, offset int64) error {
-		err2 := defaultCodec.Unmarshal(data, func(key []byte, value interface{}) error {
-			set(committed, key, value)
+	opts := append([]walog.Option{
+		walog.FromPosition(snapshot),
+		walog.WithRecoveryCallback(func(data []byte, offset int64) error {
+			err2 := defaultCodec.Unmarshal(data, func(key []byte, value interface{}) error {
+				set(committed, key, value)
+				return nil
+			})
+			if err2 != nil {
+				return err2
+			}
+			version = offset
 			return nil
-		})
-		if err2 != nil {
-			return err2
-		}
-		version = offset
-		return nil
+		}),
 	}, cfg.WAL.Options()...)
+	wal, err := walog.Open(walDir, opts...)
 	if err != nil {
 		return nil, err
 	}

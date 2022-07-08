@@ -41,7 +41,7 @@ func TestWAL_AppendOne(t *testing.T) {
 		walDir, err := os.MkdirTemp("", "wal-*")
 		So(err, ShouldBeNil)
 
-		wal, err := NewWAL(walDir, WithFileSize(fileSize))
+		wal, err := Open(walDir, WithFileSize(fileSize))
 		So(err, ShouldBeNil)
 
 		Convey("append one with callback", func() {
@@ -94,7 +94,7 @@ func TestWAL_AppendOne(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		flushTimeout := time.Second
-		wal, err := NewWAL(walDir, WithFileSize(fileSize), WithFlushTimeout(flushTimeout))
+		wal, err := Open(walDir, WithFileSize(fileSize), WithFlushTimeout(flushTimeout))
 		So(err, ShouldBeNil)
 
 		data := make([]byte, defaultBlockSize)
@@ -125,7 +125,7 @@ func TestWAL_AppendOne(t *testing.T) {
 		walDir, err := os.MkdirTemp("", "wal-*")
 		So(err, ShouldBeNil)
 
-		wal, err := NewWAL(walDir, WithFileSize(fileSize))
+		wal, err := Open(walDir, WithFileSize(fileSize))
 		So(err, ShouldBeNil)
 
 		var inflight int32 = 100
@@ -159,7 +159,7 @@ func TestWAL_Append(t *testing.T) {
 		walDir, err := os.MkdirTemp("", "wal-*")
 		So(err, ShouldBeNil)
 
-		wal, err := NewWAL(walDir, WithFileSize(fileSize))
+		wal, err := Open(walDir, WithFileSize(fileSize))
 		So(err, ShouldBeNil)
 
 		Convey("append without batching", func() {
