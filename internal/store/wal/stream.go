@@ -25,6 +25,7 @@ import (
 	"github.com/ncw/directio"
 
 	// this project.
+	"github.com/linkall-labs/vanus/internal/store/io"
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
 	errutil "github.com/linkall-labs/vanus/internal/util/errors"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -184,7 +185,7 @@ func (s *logStream) Range(from int64, cb OnEntryCallback) (int64, error) {
 }
 
 func (s *logStream) scanFile(ctx *scanContext, lf *logFile) (err error) {
-	f, err := openFile(lf.path)
+	f, err := io.OpenFile(lf.path, false, false)
 	if err != nil {
 		return err
 	}
