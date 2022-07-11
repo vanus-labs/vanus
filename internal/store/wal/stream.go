@@ -88,6 +88,12 @@ func (s *logStream) selectFile(offset int64, autoCreate bool) *logFile {
 		}
 		panic("log stream overflow")
 	}
+
+	first := s.firstFile()
+	if offset < first.so {
+		panic("log stream underflow")
+	}
+
 	i := sort.Search(len(s.stream)-1, func(i int) bool {
 		f := s.stream[i]
 		eo := f.so + f.size
@@ -97,7 +103,7 @@ func (s *logStream) selectFile(offset int64, autoCreate bool) *logFile {
 		return s.stream[i]
 	}
 
-	panic("log stream underflow")
+	panic("unreachable")
 }
 
 func (s *logStream) createNextFile(last *logFile) *logFile {
