@@ -89,7 +89,7 @@ type WAL struct {
 	wakeupc   chan int64
 
 	closemu sync.RWMutex
-	flushw  sync.WaitGroup
+	flushwg sync.WaitGroup
 
 	closec chan struct{}
 	donec  chan struct{}
@@ -346,7 +346,7 @@ func (w *WAL) runFlush() {
 
 		writer := w.logWriter(fb.SO)
 
-		w.flushw.Add(1)
+		w.flushwg.Add(1)
 		fb.Flush(writer, task.offset, fb.SO, func(off int64, err error) {
 			if err != nil {
 				panic(err)
@@ -355,7 +355,7 @@ func (w *WAL) runFlush() {
 			// Wakeup callbacks.
 			w.wakeupc <- fb.SO + off
 
-			w.flushw.Done()
+			w.flushwg.Done()
 
 			if own {
 				w.allocator.Free(fb)
@@ -364,7 +364,7 @@ func (w *WAL) runFlush() {
 	}
 
 	// Wait in-flight flush tasks.
-	w.flushw.Wait()
+	w.flushwg.Wait()
 
 	close(w.wakeupc)
 }
