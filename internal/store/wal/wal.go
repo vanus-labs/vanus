@@ -106,6 +106,7 @@ func open(dir string, cfg config) (*WAL, error) {
 		return nil, err
 	}
 
+	// Check wal entries from pos.
 	off, err := stream.Range(cfg.pos, cfg.cb)
 	if err != nil {
 		return nil, err
@@ -440,4 +441,8 @@ func (w *WAL) nextCallbackTask() *callbackTask {
 	default:
 		return nil
 	}
+}
+
+func (w *WAL) Compact(off int64) error {
+	return w.stream.compact(off)
 }

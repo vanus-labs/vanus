@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 
@@ -33,8 +32,8 @@ import (
 
 const (
 	snapshotExt         = ".snapshot"
-	defaultSnapshotPrem = 0644
-	defaultDirPerm      = 0755
+	defaultSnapshotPrem = 0o644
+	defaultDirPerm      = 0o755
 )
 
 func (s *store) tryCreateSnapshot() {
@@ -57,15 +56,24 @@ func (s *store) createSnapshot() {
 	}
 
 	// Write data to file.
-	name := fmt.Sprintf("%020d%s", s.version, snapshotExt)
-	path := path.Join(s.wal.Dir(), name)
+	path := s.resolveSnapshotPath(s.version)
 	if err = ioutil.WriteFile(path, data, defaultSnapshotPrem); err != nil {
 		log.Warning(context.TODO(), "Write snapshot failed.", map[string]interface{}{
-			"path":  name,
+			"path":  path,
 			"error": err,
 		})
+		return
 	}
+	lastSnapshot := s.snapshot
 	s.snapshot = s.version
+
+	// Compact expired wal.
+	_ = s.wal.Compact(s.snapshot)
+	_ = os.Remove(s.resolveSnapshotPath(lastSnapshot))
+}
+
+func (s *store) resolveSnapshotPath(version int64) string {
+	return filepath.Join(s.wal.Dir(), fmt.Sprintf("%020d%s", version, snapshotExt))
 }
 
 func recoverLatestSnopshot(dir string, unmarshaler Unmarshaler) (*skiplist.SkipList, int64, error) {
@@ -78,13 +86,13 @@ func recoverLatestSnopshot(dir string, unmarshaler Unmarshaler) (*skiplist.SkipL
 	if err != nil {
 		return nil, 0, err
 	}
-	file := filterLatestSnapshot(files)
+	latest, expired := filterLatestSnapshot(files)
 
-	if file == nil {
+	if latest == nil {
 		return skiplist.New(skiplist.Bytes), 0, nil
 	}
 
-	filename := file.Name()
+	filename := latest.Name()
 	snapshot, err := strconv.ParseInt(filename[:len(filename)-len(snapshotExt)], 10, 64)
 	if err != nil {
 		return nil, 0, err
@@ -105,22 +113,33 @@ func recoverLatestSnopshot(dir string, unmarshaler Unmarshaler) (*skiplist.SkipL
 		return nil, 0, err
 	}
 
+	// Delete expired snapshots.
+	for _, entry := range expired {
+		_ = os.Remove(filepath.Join(dir, entry.Name()))
+	}
+
 	return m, snapshot, nil
 }
 
-func filterLatestSnapshot(entries []os.DirEntry) os.DirEntry {
+func filterLatestSnapshot(entries []os.DirEntry) (os.DirEntry, []os.DirEntry) {
 	if len(entries) == 0 {
-		return nil
+		return nil, nil
 	}
 
+	var snapshots []os.DirEntry
 	for i := 1; i <= len(entries); i++ {
 		entry := entries[len(entries)-i]
 		if !entry.Type().IsRegular() {
 			continue
 		}
-		if filepath.Ext(entry.Name()) == snapshotExt {
-			return entry
+		if filepath.Ext(entry.Name()) != snapshotExt {
+			continue
 		}
+		snapshots = append(snapshots, entry)
 	}
-	return nil
+
+	if len(snapshots) == 0 {
+		return nil, nil
+	}
+	return snapshots[0], snapshots[1:]
 }

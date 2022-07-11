@@ -58,6 +58,7 @@ func scanLogFiles(dir string, blockSize int64) (stream []*logFile, err error) {
 	files = filterRegularLog(files)
 
 	// Rebuild log stream.
+	var discards []*logFile
 	var last *logFile
 	for _, file := range files {
 		filename := file.Name()
@@ -74,6 +75,7 @@ func scanLogFiles(dir string, blockSize int64) (stream []*logFile, err error) {
 						"last_end":   last.eo,
 						"next_start": so,
 					})
+				discards = append(discards, stream...)
 				stream = nil
 			}
 		}
@@ -91,9 +93,9 @@ func scanLogFiles(dir string, blockSize int64) (stream []*logFile, err error) {
 			truncated := size - size%blockSize
 			log.Warning(context.Background(), "The size of log file is not a multiple of blockSize, truncate it.",
 				map[string]interface{}{
-					"file":       path,
-					"originSize": size,
-					"newSize":    truncated,
+					"file":        path,
+					"origin_size": size,
+					"new_size":    truncated,
 				})
 			size = truncated
 		}
@@ -101,6 +103,12 @@ func scanLogFiles(dir string, blockSize int64) (stream []*logFile, err error) {
 		last = newLogFile(path, so, size, nil)
 		stream = append(stream, last)
 	}
+
+	// Delete discard files.
+	for _, f := range discards {
+		_ = os.Remove(f.path)
+	}
+
 	return stream, nil
 }
 

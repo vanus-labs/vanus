@@ -49,8 +49,8 @@ func (l *Log) Compact(i uint64) error {
 	}
 	if i > l.lastIndex() {
 		log.Error(context.Background(), "conpactedIndex is out of bound lastIndex", map[string]interface{}{
-			"compactedIndex": i,
-			"lastIndex":      l.lastIndex(),
+			"compacted_index": i,
+			"last_index":      l.lastIndex(),
 		})
 		// FIXME(james.yin): error
 		return raft.ErrCompacted
@@ -247,6 +247,9 @@ func (w *WAL) doCompact(cctx *compactContext) {
 		log.Debug(context.TODO(), "compact WAL of raft log.", map[string]interface{}{
 			"offset": cctx.toCompact,
 		})
+		// Store compacted offset.
 		cctx.sync()
+		// Compact underlying WAL.
+		_ = w.WAL.Compact(cctx.compacted)
 	}
 }
