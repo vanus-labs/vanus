@@ -156,7 +156,12 @@ func (w *WAL) Dir() string {
 func (w *WAL) Close() {
 	w.closemu.Lock()
 	defer w.closemu.Unlock()
-	close(w.closec)
+
+	select {
+	case <-w.closec:
+	default:
+		close(w.closec)
+	}
 }
 
 func (w *WAL) doClose() {
