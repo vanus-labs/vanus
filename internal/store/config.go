@@ -54,7 +54,8 @@ type RaftConfig struct {
 }
 
 type WALConfig struct {
-	IO IOConfig `yaml:"io"`
+	FileSize int64    `yaml:"file_size"`
+	IO       IOConfig `yaml:"io"`
 }
 
 type IOConfig struct {
@@ -62,6 +63,9 @@ type IOConfig struct {
 }
 
 func (c *WALConfig) Options() (opts []walog.Option) {
+	if c.FileSize > 0 {
+		opts = append(opts, walog.WithFileSize(c.FileSize))
+	}
 	if c.IO.Engine != "" {
 		switch c.IO.Engine {
 		case ioEnginePsync:

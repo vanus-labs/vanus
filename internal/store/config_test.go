@@ -48,6 +48,7 @@ meta_store:
 #      engine: psync
 raft:
   wal:
+    file_size: 4194304
     io:
       engine: io_uring
 `)
@@ -73,9 +74,10 @@ raft:
 		So(cfg.OffsetStore.WAL.IO.Engine, ShouldEqual, "")
 		So(len(cfg.OffsetStore.WAL.Options()), ShouldEqual, 0)
 
+		So(cfg.Raft.WAL.FileSize, ShouldEqual, 4194304)
 		So(cfg.Raft.WAL.IO.Engine, ShouldEqual, "io_uring")
 		if runtime.GOOS == "linux" {
-			So(len(cfg.Raft.WAL.Options()), ShouldEqual, 1)
+			So(len(cfg.Raft.WAL.Options()), ShouldEqual, 2)
 		} else {
 			So(func() {
 				cfg.Raft.WAL.Options()
