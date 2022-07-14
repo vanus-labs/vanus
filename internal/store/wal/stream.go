@@ -77,11 +77,10 @@ func (s *logStream) selectFile(offset int64, autoCreate bool) *logFile {
 
 	// Fast return for append.
 	if last := s.lastFile(); offset >= last.so {
-		eo := last.eo()
-		if offset < eo {
+		if offset < last.eo {
 			return last
 		}
-		if offset == eo {
+		if offset == last.eo {
 			if !autoCreate {
 				return nil
 			}
@@ -96,7 +95,7 @@ func (s *logStream) selectFile(offset int64, autoCreate bool) *logFile {
 	}
 
 	i := sort.Search(sz-1, func(i int) bool {
-		return s.stream[i].eo() > offset
+		return s.stream[i].eo > offset
 	})
 	if i < len(s.stream)-1 {
 		return s.stream[i]
@@ -108,7 +107,7 @@ func (s *logStream) selectFile(offset int64, autoCreate bool) *logFile {
 func (s *logStream) createNextFile(last *logFile) *logFile {
 	off := func() int64 {
 		if last != nil {
-			return last.so + last.size
+			return last.eo
 		}
 		return 0
 	}()
@@ -136,7 +135,7 @@ func (s *logStream) Range(from int64, cb OnEntryCallback) (int64, error) {
 		}
 		return -1, ErrOutOfRange
 	}
-	if from < s.firstFile().so || from > s.lastFile().eo() {
+	if from < s.firstFile().so || from > s.lastFile().eo {
 		return -1, ErrOutOfRange
 	}
 
@@ -151,7 +150,7 @@ func (s *logStream) Range(from int64, cb OnEntryCallback) (int64, error) {
 
 	for i, f := range s.stream {
 		// log file is compacted, skip.
-		if f.so+f.size <= from {
+		if f.eo <= from {
 			continue
 		}
 

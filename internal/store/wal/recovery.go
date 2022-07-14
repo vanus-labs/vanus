@@ -68,7 +68,7 @@ func scanLogFiles(dir string, blockSize int64) (stream []*logFile, err error) {
 
 		if last != nil {
 			// discontinuous log file
-			if so != last.eo() {
+			if so != last.eo {
 				log.Warning(context.Background(), "Discontinuous log file, discard before.",
 					map[string]interface{}{
 						"last_end":   last.eo,
@@ -98,11 +98,7 @@ func scanLogFiles(dir string, blockSize int64) (stream []*logFile, err error) {
 			size = truncated
 		}
 
-		last = &logFile{
-			so:   so,
-			size: size,
-			path: path,
-		}
+		last = newLogFile(path, so, size, nil)
 		stream = append(stream, last)
 	}
 	return stream, nil

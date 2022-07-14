@@ -31,13 +31,20 @@ const (
 
 type logFile struct {
 	so   int64
+	eo   int64
 	size int64
 	path string
 	f    *os.File
 }
 
-func (l *logFile) eo() int64 {
-	return l.so + l.size
+func newLogFile(path string, so int64, size int64, f *os.File) *logFile {
+	return &logFile{
+		so:   so,
+		eo:   so + size,
+		size: size,
+		path: path,
+		f:    f,
+	}
 }
 
 func (l *logFile) Close() error {
@@ -67,7 +74,7 @@ func (l *logFile) WriteAt(e io.Engine, b []byte, off int64, cb io.WriteCallback)
 	if off < l.so {
 		panic("underflow")
 	}
-	if off+int64(len(b)) > l.so+l.size {
+	if off+int64(len(b)) > l.eo {
 		panic("overflow")
 	}
 
@@ -80,10 +87,5 @@ func createLogFile(dir string, so, size int64, sync bool) (*logFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &logFile{
-		so:   so,
-		size: size,
-		path: path,
-		f:    f,
-	}, nil
+	return newLogFile(path, so, size, f), nil
 }
