@@ -42,6 +42,12 @@ func NewInputTransformer(inputTransformer *primitive.InputTransformer) *InputTra
 func (tf *InputTransformer) Execute(event *ce.Event) error {
 	dataMap := tf.parseData(event)
 	newData := tf.template.Execute(dataMap)
+	switch tf.template.OutputType {
+	case template.JSON:
+		event.SetDataContentType(ce.ApplicationJSON)
+	default:
+		event.SetDataContentType("")
+	}
 	event.DataEncoded = []byte(newData)
 	return nil
 }
