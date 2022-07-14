@@ -30,11 +30,15 @@ const (
 )
 
 type logFile struct {
-	so   int64
-	eo   int64
+	// so is the start offset of the log file.
+	so int64
+	// eo is the end offset of the log file.
+	eo int64
+
 	size int64
 	path string
-	f    *os.File
+
+	f *os.File
 }
 
 func newLogFile(path string, so int64, size int64, f *os.File) *logFile {
