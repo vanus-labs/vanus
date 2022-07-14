@@ -31,9 +31,9 @@ import (
 )
 
 var (
-	blockSize int64 = 4 * 1024
-	fileSize        = 8 * blockSize
-	metaCfg         = storecfg.SyncStoreConfig{
+	blockSize uint64 = 4 * 1024
+	fileSize         = 8 * blockSize
+	metaCfg          = storecfg.SyncStoreConfig{
 		WAL: storecfg.WALConfig{
 			FileSize: fileSize,
 		},
@@ -88,7 +88,7 @@ func TestLog(t *testing.T) {
 		defer offsetStore.Close()
 
 		Convey("create raft log", func() {
-			rawWAL, err := walog.Open(walDir, walog.WithFileSize(fileSize))
+			rawWAL, err := walog.Open(walDir, walog.WithFileSize(int64(fileSize)))
 			So(err, ShouldBeNil)
 			wal := newWAL(rawWAL, metaStore)
 			defer wal.Close()
