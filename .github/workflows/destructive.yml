@@ -1,19 +1,15 @@
-name: e2e
+name: destruct
 on:
-  pull_request:
-    branches:
-      - main
+  schedule:
+    - cron: '30 2 * * *'
 permissions:
   contents: read
   # Optional: allow read access to pull request. Use with `only-new-issues` option.
   # pull-requests: read-
 jobs:
-  e2e:
-    name: e2e
-    if: |
-      startsWith(github.event.pull_request.title, 'fix:') ||
-      startsWith(github.event.pull_request.title, 'feat:') ||
-      startsWith(github.event.pull_request.title, 'refactor:')
+  destruct:
+    name: destruct
+    if: false
     runs-on: ubuntu-latest
     env:
       VANUS_GATEWAY: 192.168.49.2:30001
@@ -41,17 +37,33 @@ jobs:
           kubectl apply -f ./test/yaml/display.yml
           kubectl apply -f ./test/yaml/etcd-srv.yml
           make build-cmd
+          make build-destruct
           chmod ug+x ./bin/vsctl
           sudo mv ./bin/vsctl /usr/local/bin/vsctl
           sleep 60s && for i in $(seq 1 20); do kubectl get pod -n vanus --no-headers | grep -v Run || break;sleep 5s;done
+          kubectl get pod -n vanus
 
-      - name: Exec e2e
+      - name: Pre
         run: |
-          make build-e2e
-          ./bin/e2e
+          ./bin/destruct pre
 
-      - name: Check e2e
+      - name: Destruct
         run: |
-          kubectl get pod -n vanus | grep quick-display | awk '{print $1}' | xargs kubectl logs -n vanus | grep -n "total" | wc -l
-          # [[ $(kubectl get pod -n vanus | grep quick-display | awk '{print $1}' | xargs kubectl logs -n vanus | grep -n "total" | wc -l) -eq 10001 ]] && echo "success" || echo "failed"
+          kubectl delete pod -n vanus vanus-controller-0
+          sleep 10s && for i in $(seq 1 20); do kubectl get pod -n vanus --no-headers | grep -v Run || break;sleep 5s;done
+          kubectl delete pod -n vanus vanus-controller-1
+          sleep 10s && for i in $(seq 1 20); do kubectl get pod -n vanus --no-headers | grep -v Run || break;sleep 5s;done
+          kubectl delete pod -n vanus vanus-controller-2
+          sleep 10s && for i in $(seq 1 20); do kubectl get pod -n vanus --no-headers | grep -v Run || break;sleep 5s;done
+          kubectl delete pod -n vanus vanus-store-0
+          sleep 10s && for i in $(seq 1 20); do kubectl get pod -n vanus --no-headers | grep -v Run || break;sleep 5s;done
+          kubectl delete pod -n vanus vanus-store-1
+          sleep 10s && for i in $(seq 1 20); do kubectl get pod -n vanus --no-headers | grep -v Run || break;sleep 5s;done
+          kubectl delete pod -n vanus vanus-store-2
+          sleep 10s && for i in $(seq 1 20); do kubectl get pod -n vanus --no-headers | grep -v Run || break;sleep 5s;done
+          kubectl get pod -n vanus
+
+      - name: Post
+        run: |
+          ./bin/destruct post
 

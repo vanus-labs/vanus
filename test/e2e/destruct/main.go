@@ -45,12 +45,14 @@ const (
 
 	EventbusKeyPrefixInKVStore = "/vanus/internal/resource/eventbus"
 	EventlogKeyPrefixInKVStore = "/vanus/internal/resource/eventlog"
-	SegmentKeyPrefixInKVStore  = "/vanus/internal/resource/segment"
+	// SegmentKeyPrefixInKVStore restrain kv operator in one?
+	SegmentKeyPrefixInKVStore = "/vanus/internal/resource/segment"
 
 	EventlogSegmentsKeyPrefixInKVStore = "/vanus/internal/resource/segs_of_eventlog"
 )
 
 const (
+	// cloudEventDataRowLength = 4
 	HttpPrefix = "http://"
 	EventBus   = "quick-start"
 )
@@ -250,119 +252,69 @@ func getEvent(eventbus, offset, number string) error {
 	url := fmt.Sprintf("%s%s/getEvents?eventbus=%s&offset=%s&number=%s", HttpPrefix, newEndpoint, eventbus, offset, number)
 	evevt, err := HttpClient.NewRequest().Get(url)
 	if err != nil {
-		log.Errorf("get event from eventbus[%s]&offset[%s]&number[%s] failed, err: %s\n", eventbus, offset, number, err)
+		log.Errorf("get event failed, err: %s\n", err)
 		return err
 	}
-	log.Infof("get event from eventbus[%s]&offset[%s]&number[%s] success, event: %s\n", eventbus, offset, number, evevt.String())
+	log.Infof("get event success, event: %s\n", evevt.String())
 	return nil
 }
 
-func Test_e2e_base() {
-	eventBus := "eventbus-base"
-	err = createEventbus(eventBus)
+func Test_pre_destructive() {
+	err = createEventbus(EventBus)
 	if err != nil {
 		return
 	}
 
-	err = createSubscription(eventBus, Sink, Source, Filters, InputTransformer)
+	err = createSubscription(EventBus, Sink, Source, Filters, InputTransformer)
 	if err != nil {
 		return
 	}
 
-	putEvents(0, 10000, 100, eventBus, EventBody, EventSource)
+	putEvents(0, 1, 1, EventBus, EventBody, EventSource)
 
-	err = getEvent(eventBus, "0", "10000")
+	err = getEvent(EventBus, "0", "1")
 	if err != nil {
-		log.Error("Test_e2e_base get event failed")
+		log.Error("Test_pre_destructive get event failed")
 		return
 	}
-	log.Info("Test_e2e_base get event success")
+	log.Info("Test_pre_destructive get event success")
 }
 
-func Test_e2e_filter() {
-	eventBus := "eventbus-filter"
-	err = createEventbus(eventBus)
+func Test_post_destructive() {
+	err = getEvent(EventBus, "0", "1")
 	if err != nil {
+		log.Error("Test_post_destructive get event failed")
 		return
 	}
-
-	filters := "[{\"exact\": {\"source\":\"filter\"}}]"
-	err = createSubscription(eventBus, Sink, Source, filters, InputTransformer)
-	if err != nil {
-		return
-	}
-
-	filters = "[{\"cel\": \"$key.(string) == \\\"value\\\"\"}]"
-	err = createSubscription(eventBus, Sink, Source, filters, InputTransformer)
-	if err != nil {
-		return
-	}
-
-	putEvents(0, 2000, 100, eventBus, EventBody, EventSource)
-	eventSource := "filter"
-	putEvents(2000, 4000, 10, eventBus, EventBody, eventSource)
-	eventBody := "{\"key\":\"value\"}"
-	putEvents(4000, 4000, 100, eventBus, eventBody, EventSource)
-
-	err = getEvent(eventBus, "0", "8000")
-	if err != nil {
-		log.Error("Test_e2e_filter get event failed")
-		return
-	}
-	log.Info("Test_e2e_filter get event success")
-}
-
-func Test_e2e_transformation() {
-	eventBus := "eventbus-transformation"
-	err = createEventbus(eventBus)
-	if err != nil {
-		return
-	}
-
-	inputTransformer := "{\"template\": \"{\\\"transKey\\\": \\\"transValue\\\"}\"}"
-	err = createSubscription(eventBus, Sink, Source, Filters, inputTransformer)
-	if err != nil {
-		return
-	}
-
-	putEvents(0, 10000, 100, eventBus, EventBody, EventSource)
-
-	err = getEvent(eventBus, "0", "10000")
-	if err != nil {
-		log.Error("Test_e2e_transformation get event failed")
-		return
-	}
-	log.Info("Test_e2e_filter get event success")
-}
-
-func Test_e2e_metadata() {
-	eventBus := "eventbus-meta"
-	err = createEventbus(eventBus)
-	if err != nil {
-		return
-	}
+	log.Info("Test_post_destructive get event success")
 
 	// Currently, only check metadata of eventbus
-	var path string = fmt.Sprintf("%s/%s", EventbusKeyPrefixInKVStore, eventBus)
+	var path string = fmt.Sprintf("%s/%s", EventbusKeyPrefixInKVStore, EventBus)
 	ctx := context.Background()
 	meta, err := EtcdClient.Get(ctx, path)
 	if err != nil {
-		log.Errorf("get metadata failed, path: %s, err: %s\n", path, err.Error())
+		log.Errorf("Test_post_destructive get metadata failed, path: %s, err: %s\n", path, err.Error())
 		return
 	}
-	log.Infof("get metadata success, path: %s, mata: %s\n", path, string(meta))
+	log.Infof("Test_post_destructive get metadata success, path: %s, mata: %s\n", path, string(meta))
 }
 
 func main() {
 	log.Info("start e2e test base case...")
 
-	Test_e2e_base()
+	if len(os.Args) < 2 {
+		log.Error("control parameters required")
+		return
+	}
 
-	Test_e2e_filter()
-
-	Test_e2e_transformation()
-
-	Test_e2e_metadata()
+	switch os.Args[1] {
+	case "pre":
+		Test_pre_destructive()
+	case "post":
+		Test_post_destructive()
+	default:
+		log.Error("only pre and post control parameters are supported")
+	}
 
 	log.Info("finish e2e test base case...")
 }
