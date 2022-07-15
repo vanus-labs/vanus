@@ -591,7 +591,7 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 		if srv == nil {
 			return nil, errors.ErrVolumeInstanceNoServer
 		}
-		_, err := srv.GetClient().ActivateSegment(ctx, &segment.ActivateSegmentRequest{
+		_, err = srv.GetClient().ActivateSegment(ctx, &segment.ActivateSegmentRequest{
 			EventLogId:     seg.EventLogID.Uint64(),
 			ReplicaGroupId: seg.Replicas.ID.Uint64(),
 			Replicas:       mgr.getSegmentTopology(ctx, seg),
