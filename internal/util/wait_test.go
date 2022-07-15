@@ -68,10 +68,9 @@ func TestUntilWithContext(t *testing.T) {
 	Convey("util with context", t, func() {
 		ctx, cancel := context.WithCancel(context.Background())
 		count := int64(0)
-		interval := 2 * time.Millisecond
+		interval := 20 * time.Millisecond
 		go UntilWithContext(ctx, func(ctx context.Context) {
 			log.Info(ctx, "entrance", nil)
-			time.Sleep(time.Millisecond)
 			atomic.AddInt64(&count, 1)
 		}, interval)
 		time.Sleep(10 * interval)
