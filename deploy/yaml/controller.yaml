@@ -75,37 +75,37 @@ spec:
         app: vanus-controller
     spec:
       containers:
-      - name: controller
-        image: public.ecr.aws/vanus/controller:v0.1.2
-        imagePullPolicy: IfNotPresent
-#          livenessProbe:
-#            grpc:
-#              port: 2048
-#            failureThreshold: 10
-#            periodSeconds: 30
-        ports:
-          - name: grpc
-            containerPort: 2048
-          - name: etcd-client
-            containerPort: 2379
-          - name: etcd-peer
-            containerPort: 2380
-        env:
-          - name: VANUS_LOG_LEVEL
-            value: DEBUG
-          - name: POD_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.name
-          - name: POD_IP
-            valueFrom:
-              fieldRef:
-                fieldPath: status.podIP
-        volumeMounts:
-          - name: config-controller
-            mountPath: /vanus/config
-          - name: data
-            mountPath: /data
+        - name: controller
+          image: public.ecr.aws/vanus/controller:v0.1.2
+          imagePullPolicy: IfNotPresent
+  #          livenessProbe:
+  #            grpc:
+  #              port: 2048
+  #            failureThreshold: 10
+  #            periodSeconds: 30
+          ports:
+            - name: grpc
+              containerPort: 2048
+            - name: etcd-client
+              containerPort: 2379
+            - name: etcd-peer
+              containerPort: 2380
+          env:
+            - name: VANUS_LOG_LEVEL
+              value: DEBUG
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: config-controller
+              mountPath: /vanus/config
+            - name: data
+              mountPath: /data
       volumes:
         - name: config-controller
           configMap:
