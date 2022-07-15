@@ -59,7 +59,7 @@ func makeFlag(flag int, wronly bool, sync bool) int {
 		flag |= os.O_RDWR
 	}
 	if sync {
-		flag |= os.O_DSYNC
+		flag |= syscall.O_DSYNC
 	}
 	return flag
 }
