@@ -599,6 +599,12 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 		if err == nil {
 			break
 		}
+		log.Warning(context.TODO(), "activate segment failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	for _, v := range seg.Replicas.Peers {
