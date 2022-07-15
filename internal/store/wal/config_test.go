@@ -29,8 +29,8 @@ import (
 func TestConfig(t *testing.T) {
 	Convey("wal config", t, func() {
 		engine := io.NewEngine()
-		cfg := makeConfig("wal-test",
-			WithPosition(1024),
+		cfg := makeConfig(
+			FromPosition(1024),
 			WithBlockSize(1024),
 			WithFileSize(4*1024*1024),
 			WithFlushTimeout(5*time.Millisecond),
@@ -42,9 +42,8 @@ func TestConfig(t *testing.T) {
 		)
 
 		So(cfg.pos, ShouldEqual, 1024)
-		So(cfg.stream.dir, ShouldEqual, "wal-test")
-		So(cfg.stream.blockSize, ShouldEqual, 1024)
-		So(cfg.stream.fileSize, ShouldEqual, 4*1024*1024)
+		So(cfg.blockSize, ShouldEqual, 1024)
+		So(cfg.fileSize, ShouldEqual, 4*1024*1024)
 		So(cfg.flushTimeout, ShouldEqual, 5*time.Millisecond)
 		So(cfg.appendBufferSize, ShouldEqual, 1)
 		So(cfg.callbackBufferSize, ShouldEqual, 1)

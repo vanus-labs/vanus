@@ -190,19 +190,23 @@ func RecoverAsyncStore(cfg storecfg.AsyncStoreConfig, walDir string) (*AsyncStor
 	}
 
 	version := snapshot
-	wal, err := walog.RecoverWithVisitor(walDir, snapshot, func(data []byte, offset int64) error {
-		m := skiplist.New(skiplist.Bytes)
-		err2 := defaultCodec.Unmarshal(data, func(key []byte, value interface{}) error {
-			m.Set(key, value)
+	opts := append([]walog.Option{
+		walog.FromPosition(snapshot),
+		walog.WithRecoveryCallback(func(data []byte, offset int64) error {
+			m := skiplist.New(skiplist.Bytes)
+			err2 := defaultCodec.Unmarshal(data, func(key []byte, value interface{}) error {
+				m.Set(key, value)
+				return nil
+			})
+			if err2 != nil {
+				return err2
+			}
+			merge(committed, m)
+			version = offset
 			return nil
-		})
-		if err2 != nil {
-			return err2
-		}
-		merge(committed, m)
-		version = offset
-		return nil
+		}),
 	}, cfg.WAL.Options()...)
+	wal, err := walog.Open(walDir, opts...)
 	if err != nil {
 		return nil, err
 	}

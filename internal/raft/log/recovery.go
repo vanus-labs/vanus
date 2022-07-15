@@ -44,21 +44,25 @@ func RecoverLogsAndWAL(
 	}
 
 	logs := make(map[uint64]*Log)
-	wal, err := walog.RecoverWithVisitor(walDir, compacted, func(data []byte, offset int64) error {
-		var entry raftpb.Entry
-		err := entry.Unmarshal(data)
-		if err != nil {
-			return err
-		}
+	opts := append([]walog.Option{
+		walog.FromPosition(compacted),
+		walog.WithRecoveryCallback(func(data []byte, offset int64) error {
+			var entry raftpb.Entry
+			err := entry.Unmarshal(data)
+			if err != nil {
+				return err
+			}
 
-		l := logs[entry.NodeId]
-		if l == nil {
-			l = RecoverLog(vanus.NewIDFromUint64(entry.NodeId), nil, metaStore, offsetStore)
-			logs[entry.NodeId] = l
-		}
+			l := logs[entry.NodeId]
+			if l == nil {
+				l = RecoverLog(vanus.NewIDFromUint64(entry.NodeId), nil, metaStore, offsetStore)
+				logs[entry.NodeId] = l
+			}
 
-		return l.appendInRecovery(entry, offset)
+			return l.appendInRecovery(entry, offset)
+		}),
 	}, cfg.WAL.Options()...)
+	wal, err := walog.Open(walDir, opts...)
 	if err != nil {
 		return nil, nil, err
 	}

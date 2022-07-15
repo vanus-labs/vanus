@@ -29,22 +29,36 @@ const (
 	defaultDirPerm = 0o755
 )
 
-func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc, opts ...Option) (*WAL, error) {
+// recoverLogStream rebuilds log stream from specified directory.
+func recoverLogStream(dir string, cfg config) (*logStream, error) {
 	// Make sure the WAL directory exists.
-	if err := os.MkdirAll(walDir, defaultDirPerm); err != nil {
+	if err := os.MkdirAll(dir, defaultDirPerm); err != nil {
 		return nil, err
 	}
 
-	files, err := os.ReadDir(walDir)
+	files, err := scanLogFiles(dir, cfg.blockSize)
+	if err != nil {
+		return nil, err
+	}
+
+	stream := &logStream{
+		stream:    files,
+		dir:       dir,
+		blockSize: cfg.blockSize,
+		fileSize:  cfg.fileSize,
+	}
+	return stream, nil
+}
+
+func scanLogFiles(dir string, blockSize int64) (stream []*logFile, err error) {
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
 	files = filterRegularLog(files)
 
-	cfg := makeConfig(walDir, opts...)
-
 	// Rebuild log stream.
-	s := cfg.stream
+	var last *logFile
 	for _, file := range files {
 		filename := file.Name()
 		so, err2 := strconv.ParseInt(filename[:len(filename)-len(logFileExt)], 10, 64)
@@ -52,16 +66,15 @@ func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc, opts .
 			return nil, err2
 		}
 
-		if f := s.lastFile(); f != nil {
-			eo := f.so + f.size
+		if last != nil {
 			// discontinuous log file
-			if so != eo {
+			if so != last.eo {
 				log.Warning(context.Background(), "Discontinuous log file, discard before.",
 					map[string]interface{}{
-						"lastEnd":   eo,
-						"nextStart": so,
+						"last_end":   last.eo,
+						"next_start": so,
 					})
-				s.stream = nil
+				stream = nil
 			}
 		}
 
@@ -70,10 +83,12 @@ func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc, opts .
 			return nil, err2
 		}
 
-		path := filepath.Join(walDir, filename)
+		path := filepath.Join(dir, filename)
 		size := info.Size()
-		if size%s.blockSize != 0 {
-			truncated := size - size%s.blockSize
+
+		if size%blockSize != 0 {
+			// TODO(james.yin): return error
+			truncated := size - size%blockSize
 			log.Warning(context.Background(), "The size of log file is not a multiple of blockSize, truncate it.",
 				map[string]interface{}{
 					"file":       path,
@@ -83,22 +98,10 @@ func RecoverWithVisitor(walDir string, compacted int64, visitor WalkFunc, opts .
 			size = truncated
 		}
 
-		f := &logFile{
-			so:   so,
-			size: size,
-			path: path,
-		}
-		s.stream = append(s.stream, f)
+		last = newLogFile(path, so, size, nil)
+		stream = append(stream, last)
 	}
-
-	pos, err := s.Visit(visitor, compacted)
-	if err != nil {
-		return nil, err
-	}
-	WithPosition(pos)(&cfg)
-
-	// Make WAL.
-	return newWAL(cfg)
+	return stream, nil
 }
 
 func filterRegularLog(entries []os.DirEntry) []os.DirEntry {

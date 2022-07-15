@@ -23,17 +23,17 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestRecoverWithVisitor(t *testing.T) {
-	Convey("wal recovery", t, func() {
+func TestOpen(t *testing.T) {
+	Convey("open wal in recover mode", t, func() {
 		walDir, err := os.MkdirTemp("", "wal-*")
 		So(err, ShouldBeNil)
 
-		Convey("new empty wal by recovery", func() {
+		Convey("create empty wal", func() {
 			var entryNum int
-			wal, err := RecoverWithVisitor(walDir, 0, func(entry []byte, offset int64) error {
+			wal, err := Open(walDir, WithRecoveryCallback(func(entry []byte, offset int64) error {
 				entryNum++
 				return nil
-			}, WithFileSize(fileSize))
+			}), WithFileSize(fileSize))
 
 			So(err, ShouldBeNil)
 			So(wal, ShouldNotBeNil)
@@ -44,7 +44,7 @@ func TestRecoverWithVisitor(t *testing.T) {
 		})
 
 		Convey("recover wal", func() {
-			wal, err := NewWAL(walDir, WithFileSize(fileSize))
+			wal, err := Open(walDir, WithFileSize(fileSize))
 			So(err, ShouldBeNil)
 			wal.AppendOne(data0).Wait()
 			wal.AppendOne(data1).Wait()
@@ -53,10 +53,10 @@ func TestRecoverWithVisitor(t *testing.T) {
 
 			Convey("recover entire wal", func() {
 				entries := make([][]byte, 0, 2)
-				wal, err = RecoverWithVisitor(walDir, 0, func(entry []byte, offset int64) error {
+				wal, err = Open(walDir, WithRecoveryCallback(func(entry []byte, offset int64) error {
 					entries = append(entries, entry)
 					return nil
-				}, WithFileSize(fileSize))
+				}), WithFileSize(fileSize))
 
 				So(err, ShouldBeNil)
 				So(len(entries), ShouldEqual, 2)
@@ -69,10 +69,10 @@ func TestRecoverWithVisitor(t *testing.T) {
 
 			Convey("recover wal with compacted", func() {
 				entries := make([][]byte, 0, 1)
-				wal, err = RecoverWithVisitor(walDir, 10, func(entry []byte, offset int64) error {
+				wal, err = Open(walDir, FromPosition(10), WithRecoveryCallback(func(entry []byte, offset int64) error {
 					entries = append(entries, entry)
 					return nil
-				}, WithFileSize(fileSize))
+				}), WithFileSize(fileSize))
 
 				So(err, ShouldBeNil)
 				So(len(entries), ShouldEqual, 1)
@@ -86,17 +86,17 @@ func TestRecoverWithVisitor(t *testing.T) {
 		Convey("recover large data", func() {
 			data := make([]byte, fileSize)
 
-			wal, err := NewWAL(walDir, WithFileSize(fileSize))
+			wal, err := Open(walDir, WithFileSize(fileSize))
 			So(err, ShouldBeNil)
 			wal.AppendOne(data).Wait()
 			wal.Close()
 			wal.Wait()
 
 			entries := make([][]byte, 0, 1)
-			wal, err = RecoverWithVisitor(walDir, 0, func(entry []byte, offset int64) error {
+			wal, err = Open(walDir, WithRecoveryCallback(func(entry []byte, offset int64) error {
 				entries = append(entries, entry)
 				return nil
-			}, WithFileSize(fileSize))
+			}), WithFileSize(fileSize))
 			So(err, ShouldBeNil)
 			So(len(entries), ShouldEqual, 1)
 			So(entries[0], ShouldResemble, data)

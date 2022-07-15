@@ -26,15 +26,17 @@ import (
 const (
 	defaultBlockSize        = 4 * 1024
 	defaultFileSize         = 128 * 1024 * 1024
-	defaultFlushTimeoutUs   = 200
+	defaultFlushTimeout     = 200 * time.Microsecond
 	defaultAppendBufferSize = 64
 	defaultFlushBufferSize  = 64
 	defaultWakeupBufferSize = defaultFlushBufferSize * 2
 )
 
 type config struct {
-	stream             *logStream
 	pos                int64
+	cb                 OnEntryCallback
+	blockSize          int64
+	fileSize           int64
 	flushTimeout       time.Duration
 	appendBufferSize   int
 	callbackBufferSize int
@@ -43,17 +45,11 @@ type config struct {
 	engine             io.Engine
 }
 
-func (c *config) blockSize() int64 {
-	return c.stream.blockSize
-}
-
 func defaultWALConfig() config {
 	cfg := config{
-		stream: &logStream{
-			blockSize: defaultBlockSize,
-			fileSize:  defaultFileSize,
-		},
-		flushTimeout:       defaultFlushTimeoutUs * time.Microsecond,
+		blockSize:          defaultBlockSize,
+		fileSize:           defaultFileSize,
+		flushTimeout:       defaultFlushTimeout,
 		appendBufferSize:   defaultAppendBufferSize,
 		callbackBufferSize: (defaultBlockSize + record.HeaderSize - 1) / record.HeaderSize,
 		flushBufferSize:    defaultFlushBufferSize,
@@ -65,31 +61,36 @@ func defaultWALConfig() config {
 
 type Option func(*config)
 
-func makeConfig(dir string, opts ...Option) config {
+func makeConfig(opts ...Option) config {
 	cfg := defaultWALConfig()
 	for _, opt := range opts {
 		opt(&cfg)
 	}
-	cfg.stream.dir = dir
 	return cfg
 }
 
-func WithPosition(pos int64) Option {
+func FromPosition(pos int64) Option {
 	return func(cfg *config) {
 		cfg.pos = pos
 	}
 }
 
+func WithRecoveryCallback(cb OnEntryCallback) Option {
+	return func(cfg *config) {
+		cfg.cb = cb
+	}
+}
+
 func WithBlockSize(blockSize int64) Option {
 	return func(cfg *config) {
-		cfg.stream.blockSize = blockSize
+		cfg.blockSize = blockSize
 		cfg.callbackBufferSize = int((blockSize + record.HeaderSize - 1) / record.HeaderSize)
 	}
 }
 
 func WithFileSize(fileSize int64) Option {
 	return func(cfg *config) {
-		cfg.stream.fileSize = fileSize
+		cfg.fileSize = fileSize
 	}
 }
 

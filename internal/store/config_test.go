@@ -40,6 +40,7 @@ volume:
   capacity: 536870912
 meta_store:
   wal:
+    file_size: 4194304
     io:
       engine: psync
 #offset_store:
@@ -67,8 +68,9 @@ raft:
 		So(cfg.Volume.Dir, ShouldEqual, "/linkall/volume/store-1")
 		So(cfg.Volume.Capacity, ShouldEqual, 536870912)
 
+		So(cfg.MetaStore.WAL.FileSize, ShouldEqual, 4194304)
 		So(cfg.MetaStore.WAL.IO.Engine, ShouldEqual, "psync")
-		So(len(cfg.MetaStore.WAL.Options()), ShouldEqual, 1)
+		So(len(cfg.MetaStore.WAL.Options()), ShouldEqual, 2)
 
 		So(cfg.OffsetStore.WAL.IO.Engine, ShouldEqual, "")
 		So(len(cfg.OffsetStore.WAL.Options()), ShouldEqual, 0)
@@ -81,5 +83,37 @@ raft:
 				cfg.Raft.WAL.Options()
 			}, ShouldPanic)
 		}
+	})
+
+	Convey("store config validation", t, func() {
+		cfg := Config{
+			MetaStore: SyncStoreConfig{
+				WAL: WALConfig{
+					FileSize: minMetaStoreWALFileSize - 1,
+				},
+			},
+		}
+		err := cfg.Validate()
+		So(err, ShouldNotBeNil)
+
+		cfg = Config{
+			OffsetStore: AsyncStoreConfig{
+				WAL: WALConfig{
+					FileSize: minMetaStoreWALFileSize - 1,
+				},
+			},
+		}
+		err = cfg.Validate()
+		So(err, ShouldNotBeNil)
+
+		cfg = Config{
+			Raft: RaftConfig{
+				WAL: WALConfig{
+					FileSize: minMetaStoreWALFileSize - 1,
+				},
+			},
+		}
+		err = cfg.Validate()
+		So(err, ShouldNotBeNil)
 	})
 }

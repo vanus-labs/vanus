@@ -35,7 +35,7 @@ func BenchmarkWAL_AppendOneWithBatching(b *testing.B) {
 	}
 	defer os.RemoveAll(walDir)
 
-	wal, err := RecoverWithVisitor(walDir, 0, nil)
+	wal, err := Open(walDir)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func BenchmarkWAL_AppendOneWithoutBatching(b *testing.B) {
 	}
 	defer os.RemoveAll(walDir)
 
-	wal, err := RecoverWithVisitor(walDir, 0, nil)
+	wal, err := Open(walDir)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func BenchmarkWAL_AppendOneWithCallback(b *testing.B) {
 	}
 	defer os.RemoveAll(walDir)
 
-	wal, err := RecoverWithVisitor(walDir, 0, nil)
+	wal, err := Open(walDir)
 	if err != nil {
 		b.Fatal(err)
 	}

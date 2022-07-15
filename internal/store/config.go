@@ -16,6 +16,8 @@ package store
 
 import (
 	// this project.
+	"errors"
+
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store/io"
@@ -23,7 +25,11 @@ import (
 	"github.com/linkall-labs/vanus/internal/util"
 )
 
-const ioEnginePsync = "psync"
+const (
+	ioEnginePsync                  = "psync"
+	minMetaStoreWALFileSize uint64 = 4 * 1024 * 1024
+	minRaftLogWALFileSize   uint64 = 32 * 1024 * 1024
+)
 
 type Config struct {
 	ControllerAddresses []string         `yaml:"controllers"`
@@ -33,6 +39,19 @@ type Config struct {
 	MetaStore           SyncStoreConfig  `yaml:"meta_store"`
 	OffsetStore         AsyncStoreConfig `yaml:"offset_store"`
 	Raft                RaftConfig       `yaml:"raft"`
+}
+
+func (c *Config) Validate() error {
+	if c.MetaStore.WAL.FileSize != 0 && c.MetaStore.WAL.FileSize < minMetaStoreWALFileSize {
+		return errors.New("wal file size must be greater than or equal to 4MB")
+	}
+	if c.OffsetStore.WAL.FileSize != 0 && c.OffsetStore.WAL.FileSize < minMetaStoreWALFileSize {
+		return errors.New("wal file size must be greater than or equal to 4MB")
+	}
+	if c.Raft.WAL.FileSize != 0 && c.Raft.WAL.FileSize < minRaftLogWALFileSize {
+		return errors.New("wal file size must be greater than or equal to 32MB")
+	}
+	return nil
 }
 
 type VolumeInfo struct {
@@ -54,7 +73,8 @@ type RaftConfig struct {
 }
 
 type WALConfig struct {
-	IO IOConfig `yaml:"io"`
+	FileSize uint64   `yaml:"file_size"`
+	IO       IOConfig `yaml:"io"`
 }
 
 type IOConfig struct {
@@ -62,6 +82,9 @@ type IOConfig struct {
 }
 
 func (c *WALConfig) Options() (opts []walog.Option) {
+	if c.FileSize > 0 {
+		opts = append(opts, walog.WithFileSize(int64(c.FileSize)))
+	}
 	if c.IO.Engine != "" {
 		switch c.IO.Engine {
 		case ioEnginePsync:
@@ -75,12 +98,14 @@ func (c *WALConfig) Options() (opts []walog.Option) {
 
 func InitConfig(filename string) (*Config, error) {
 	c := new(Config)
-	err := primitive.LoadConfig(filename, c)
-	if err != nil {
+	if err := primitive.LoadConfig(filename, c); err != nil {
 		return nil, err
 	}
 	if c.IP == "" {
 		c.IP = util.GetLocalIP()
+	}
+	if err := c.Validate(); err != nil {
+		return nil, err
 	}
 	return c, nil
 }
