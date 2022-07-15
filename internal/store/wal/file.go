@@ -59,11 +59,11 @@ func (l *logFile) Close() error {
 	return nil
 }
 
-func (l *logFile) Open() error {
+func (l *logFile) Open(wronly bool) error {
 	if l.f != nil {
 		return nil
 	}
-	f, err := io.OpenFile(l.path, true, true)
+	f, err := io.OpenFile(l.path, wronly, true)
 	if err != nil {
 		return err
 	}

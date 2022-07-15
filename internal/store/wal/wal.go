@@ -135,7 +135,7 @@ func open(dir string, cfg config) (*WAL, error) {
 		if f == nil {
 			return nil, ErrNotFoundLogFile
 		}
-		if err := f.Open(); err != nil {
+		if err := f.Open(false); err != nil {
 			return nil, err
 		}
 		if err := w.wb.RecoverFromFile(f.f, w.wb.SO-f.so, int(off-w.wb.SO)); err != nil {
