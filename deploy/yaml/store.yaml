@@ -21,9 +21,9 @@ data:
     port: 11811
     ip : ${POD_IP}
     controllers:
-      - vanus-controller-0.vanus-controller.vanus.svc:2048
-      - vanus-controller-1.vanus-controller.vanus.svc:2048
-      - vanus-controller-2.vanus-controller.vanus.svc:2048
+      - vanus-controller-0.vanus-controller:2048
+      - vanus-controller-1.vanus-controller:2048
+      - vanus-controller-2.vanus-controller:2048
     volume:
       id: ${VOLUME_ID}
       dir: /data

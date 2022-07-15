@@ -38,8 +38,8 @@ data:
       data_dir: etcd/data
       listen_client_addr: 0.0.0.0:2379
       listen_peer_addr: 0.0.0.0:2380
-      advertise_client_addr: ${POD_IP}:2379,${POD_NAME}.vanus-controller:2379
-      advertise_peer_addr: ${POD_IP}:2380,${POD_NAME}.vanus-controller:2380
+      advertise_client_addr: ${POD_NAME}.vanus-controller:2379
+      advertise_peer_addr: ${POD_NAME}.vanus-controller:2380
       clusters:
         - vanus-controller-0=http://vanus-controller-0.vanus-controller:2380
         - vanus-controller-1=http://vanus-controller-1.vanus-controller:2380
@@ -88,37 +88,37 @@ spec:
         app: vanus-controller
     spec:
       containers:
-        - name: controller
-          image: public.ecr.aws/vanus/controller:v0.1.1
-          imagePullPolicy: IfNotPresent
+      - name: controller
+        image: public.ecr.aws/vanus/controller:5039ddc
+        imagePullPolicy: IfNotPresent
 #          livenessProbe:
 #            grpc:
 #              port: 2048
 #            failureThreshold: 10
 #            periodSeconds: 30
-          ports:
-            - name: grpc
-              containerPort: 2048
-            - name: etcd-client
-              containerPort: 2379
-            - name: etcd-peer
-              containerPort: 2380
-          env:
-            - name: VANUS_LOG_LEVEL
-              value: DEBUG
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-          volumeMounts:
-            - name: config-controller
-              mountPath: /vanus/config
-            - name: data
-              mountPath: /data
+        ports:
+          - name: grpc
+            containerPort: 2048
+          - name: etcd-client
+            containerPort: 2379
+          - name: etcd-peer
+            containerPort: 2380
+        env:
+          - name: VANUS_LOG_LEVEL
+            value: DEBUG
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+        volumeMounts:
+          - name: config-controller
+            mountPath: /vanus/config
+          - name: data
+            mountPath: /data
       volumes:
         - name: config-controller
           configMap:
