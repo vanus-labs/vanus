@@ -16,6 +16,7 @@ package trigger
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -72,15 +73,19 @@ func TestTrigger_ChangeInputTransformer(t *testing.T) {
 
 func TestTrigger(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	go startSink(ctx)
+	var wg sync.WaitGroup
+	go startSink(ctx, &wg)
+	time.Sleep(time.Second)
 	offsetManger := offset.NewOffsetManager()
 	offsetManger.RegisterSubscription(1)
-	tg := NewTrigger(nil, makeSubscription(1), offsetManger.GetSubscription(1))
+	tg := NewTrigger(&Config{SendTimeOut: time.Millisecond * 100, RetryPeriod: time.Millisecond * 100}, makeSubscription(1), offsetManger.GetSubscription(1))
 
 	Convey("test", t, func() {
+		wg.Add(1)
 		_ = tg.EventArrived(ctx, makeEventRecord())
 		_ = tg.Start()
-		time.Sleep(time.Second * 1)
+		wg.Wait()
+		time.Sleep(time.Second)
 		So(tg.GetState(), ShouldEqual, TriggerRunning)
 		tg.Stop()
 		So(tg.GetState(), ShouldEqual, TriggerStopped)
@@ -88,12 +93,13 @@ func TestTrigger(t *testing.T) {
 	})
 }
 
-func startSink(ctx context.Context) {
+func startSink(ctx context.Context, wg *sync.WaitGroup) {
 	c, err := ceClient.NewHTTP(cehttp.WithPort(18080))
 	if err != nil {
 		panic(err)
 	}
 	_ = c.StartReceiver(ctx, func(e ce.Event) {
+		defer wg.Done()
 		log.Info(ctx, "receive event", map[string]interface{}{
 			"event": e,
 		})
