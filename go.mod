@@ -18,7 +18,7 @@ require (
 	github.com/iceber/iouring-go v0.0.0-20220609112130-b1dc8dd9fbfd
 	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/labstack/echo/v4 v4.7.2
-	github.com/linkall-labs/embed-etcd v0.0.1
+	github.com/linkall-labs/embed-etcd v0.0.2
 	github.com/linkall-labs/vanus/client v0.1.0
 	github.com/linkall-labs/vanus/proto v0.1.0
 	github.com/linkall-labs/vanus/raft v0.1.0
