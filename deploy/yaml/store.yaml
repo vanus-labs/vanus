@@ -1,16 +1,3 @@
-# Copyright 2022 Linkall Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http:www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -21,14 +8,25 @@ data:
     port: 11811
     ip : ${POD_IP}
     controllers:
-      - vanus-controller-0.vanus-controller.vanus.svc:2048
-      - vanus-controller-1.vanus-controller.vanus.svc:2048
-      - vanus-controller-2.vanus-controller.vanus.svc:2048
+      - vanus-controller-0.vanus-controller:2048
+      - vanus-controller-1.vanus-controller:2048
+      - vanus-controller-2.vanus-controller:2048
     volume:
       id: ${VOLUME_ID}
       dir: /data
       capacity: 1073741824
-
+    meta_store:
+      wal:
+        io:
+          engine: psync
+    offset_store:
+      wal:
+        io:
+          engine: psync
+    raft:
+      wal:
+        io:
+          engine: psync
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -61,7 +59,7 @@ spec:
     spec:
       containers:
         - name: store
-          image: public.ecr.aws/vanus/store:v0.1.1
+          image: public.ecr.aws/vanus/store:v0.1.2
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c", "VOLUME_ID=${HOSTNAME##*-} /vanus/bin/store"]
 #          livenessProbe:

@@ -336,8 +336,8 @@ github.com/labstack/echo/v4 v4.7.2 h1:Kv2/p8OaQ+M6Ex4eGimg9b9e6icoxA42JSlOR3msKt
 github.com/labstack/echo/v4 v4.7.2/go.mod h1:xkCDAdFCIf8jsFQ5NnbK7oqaF/yU1A1X20Ltm0OvSks=
 github.com/labstack/gommon v0.3.1 h1:OomWaJXm7xR6L1HmEtGyQf26TEn7V6X88mktX9kee9o=
 github.com/labstack/gommon v0.3.1/go.mod h1:uW6kP17uPlLJsD3ijUYn3/M5bAxtlZhMI6m3MFxTMTM=
-github.com/linkall-labs/embed-etcd v0.0.2 h1:v8yUKhOLh3K+Dc9dc2jMpnO3c3BzyX1J7Fw0MkfEgTg=
-github.com/linkall-labs/embed-etcd v0.0.2/go.mod h1:2vIGENtcpLaQZ1JZvKq0LRUjvTlNCeY0r3ySTKwX0EA=
+github.com/linkall-labs/embed-etcd v0.0.3 h1:b0u3tLtoU/Q2ZOou3tLKj0DAqMz4lNiFWLQMol+dhI8=
+github.com/linkall-labs/embed-etcd v0.0.3/go.mod h1:2vIGENtcpLaQZ1JZvKq0LRUjvTlNCeY0r3ySTKwX0EA=
 github.com/linkall-labs/grpc-proxy v0.0.0-20220624142509-a3b0cb2bb86c h1:Psf/nuPqSfn3yF/AInrDmIs9bY2Rv56Cmf855i6//K0=
 github.com/linkall-labs/grpc-proxy v0.0.0-20220624142509-a3b0cb2bb86c/go.mod h1:MvMXoufZAtqExNexqi4cjrNYE9MefKddKylxjS+//n0=
 github.com/magiconair/properties v1.8.1/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=

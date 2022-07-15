@@ -591,7 +591,7 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 		if srv == nil {
 			return nil, errors.ErrVolumeInstanceNoServer
 		}
-		_, err := srv.GetClient().ActivateSegment(ctx, &segment.ActivateSegmentRequest{
+		_, err = srv.GetClient().ActivateSegment(ctx, &segment.ActivateSegmentRequest{
 			EventLogId:     seg.EventLogID.Uint64(),
 			ReplicaGroupId: seg.Replicas.ID.Uint64(),
 			Replicas:       mgr.getSegmentTopology(ctx, seg),
@@ -599,6 +599,12 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 		if err == nil {
 			break
 		}
+		log.Warning(context.TODO(), "activate segment failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	for _, v := range seg.Replicas.Peers {

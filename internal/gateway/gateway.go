@@ -44,6 +44,7 @@ var (
 		"/linkall.vanus.controller.EventBusController/CreateEventBus":    "ALLOW",
 		"/linkall.vanus.controller.EventBusController/DeleteEventBus":    "ALLOW",
 		"/linkall.vanus.controller.EventBusController/GetEventBus":       "ALLOW",
+		"/linkall.vanus.controller.EventLogController/ListSegment":       "ALLOW",
 		"/linkall.vanus.controller.TriggerController/CreateSubscription": "ALLOW",
 		"/linkall.vanus.controller.TriggerController/DeleteSubscription": "ALLOW",
 		"/linkall.vanus.controller.TriggerController/GetSubscription":    "ALLOW",
