@@ -136,7 +136,7 @@ spec:
         app: vanus-gateway
     spec:
       containers:
-      - image: public.ecr.aws/vanus/gateway:v0.1.1
+      - image: public.ecr.aws/vanus/gateway:v0.1.2
         imagePullPolicy: IfNotPresent
         name: gateway
         ports:
@@ -179,7 +179,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/trigger:v0.1.1
+        image: public.ecr.aws/vanus/trigger:v0.1.2
         imagePullPolicy: IfNotPresent
         name: trigger
         ports:
@@ -223,7 +223,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/controller:5039ddc
+        image: public.ecr.aws/vanus/controller:v0.1.2
         imagePullPolicy: IfNotPresent
         name: controller
         ports:
@@ -284,7 +284,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/store:v0.1.1
+        image: public.ecr.aws/vanus/store:v0.1.2
         imagePullPolicy: IfNotPresent
         name: store
         ports:
