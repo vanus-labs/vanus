@@ -37,7 +37,7 @@ What is [CLA](https://en.wikipedia.org/wiki/Contributor_License_Agreement).
 If you want to contribute to the codebase of Vanus, it's better to set up a development environment in local first.
 
 1. Install Go version 1.17 or above. Refer to [How to Write Go Code](https://go.dev/doc/code) for more information.
-2. Install [minikube](#)(Users from China mainland may have network issues that need to be addressed for using minikube). 
+2. Install [minikube](https://minikube.sigs.k8s.io/docs/start/)(Users from China mainland may have network issues that need to be addressed for using minikube). 
 Vanus is a k8s based project.
 3. Learning [QuickStart](#) how to deploy the Vanus to k8s. Deploying a specified component to minikube for testing. 
 Click [here](#) for details.
