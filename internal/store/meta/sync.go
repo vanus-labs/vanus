@@ -115,7 +115,7 @@ func (s *SyncStore) set(kvs Ranger) error {
 			}
 			return nil
 		})
-		s.version = re.Offset()
+		s.version = re.Range().EO
 		s.mu.Unlock()
 
 		close(ch)
@@ -163,7 +163,7 @@ func RecoverSyncStore(cfg storecfg.SyncStoreConfig, walDir string) (*SyncStore, 
 	version := snapshot
 	opts := append([]walog.Option{
 		walog.FromPosition(snapshot),
-		walog.WithRecoveryCallback(func(data []byte, offset int64) error {
+		walog.WithRecoveryCallback(func(data []byte, r walog.Range) error {
 			err2 := defaultCodec.Unmarshal(data, func(key []byte, value interface{}) error {
 				set(committed, key, value)
 				return nil
@@ -171,7 +171,7 @@ func RecoverSyncStore(cfg storecfg.SyncStoreConfig, walDir string) (*SyncStore, 
 			if err2 != nil {
 				return err2
 			}
-			version = offset
+			version = r.EO
 			return nil
 		}),
 	}, cfg.WAL.Options()...)

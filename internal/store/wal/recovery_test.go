@@ -30,7 +30,7 @@ func TestOpen(t *testing.T) {
 
 		Convey("create empty wal", func() {
 			var entryNum int
-			wal, err := Open(walDir, WithRecoveryCallback(func(entry []byte, offset int64) error {
+			wal, err := Open(walDir, WithRecoveryCallback(func(entry []byte, r Range) error {
 				entryNum++
 				return nil
 			}), WithFileSize(fileSize))
@@ -53,7 +53,7 @@ func TestOpen(t *testing.T) {
 
 			Convey("recover entire wal", func() {
 				entries := make([][]byte, 0, 2)
-				wal, err = Open(walDir, WithRecoveryCallback(func(entry []byte, offset int64) error {
+				wal, err = Open(walDir, WithRecoveryCallback(func(entry []byte, r Range) error {
 					entries = append(entries, entry)
 					return nil
 				}), WithFileSize(fileSize))
@@ -69,7 +69,7 @@ func TestOpen(t *testing.T) {
 
 			Convey("recover wal with compacted", func() {
 				entries := make([][]byte, 0, 1)
-				wal, err = Open(walDir, FromPosition(10), WithRecoveryCallback(func(entry []byte, offset int64) error {
+				wal, err = Open(walDir, FromPosition(10), WithRecoveryCallback(func(entry []byte, r Range) error {
 					entries = append(entries, entry)
 					return nil
 				}), WithFileSize(fileSize))
@@ -93,7 +93,7 @@ func TestOpen(t *testing.T) {
 			wal.Wait()
 
 			entries := make([][]byte, 0, 1)
-			wal, err = Open(walDir, WithRecoveryCallback(func(entry []byte, offset int64) error {
+			wal, err = Open(walDir, WithRecoveryCallback(func(entry []byte, r Range) error {
 				entries = append(entries, entry)
 				return nil
 			}), WithFileSize(fileSize))

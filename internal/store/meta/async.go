@@ -164,7 +164,7 @@ func (s *AsyncStore) commit() {
 	if err != nil {
 		panic(err)
 	}
-	offset, err := s.wal.AppendOne(data, walog.WithoutBatching()).Wait()
+	r, err := s.wal.AppendOne(data, walog.WithoutBatching()).Wait()
 	if err != nil {
 		panic(err)
 	}
@@ -173,7 +173,7 @@ func (s *AsyncStore) commit() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	merge(s.committed, s.pending)
-	s.version = offset
+	s.version = r.EO
 	s.pending.Init()
 }
 
@@ -192,7 +192,7 @@ func RecoverAsyncStore(cfg storecfg.AsyncStoreConfig, walDir string) (*AsyncStor
 	version := snapshot
 	opts := append([]walog.Option{
 		walog.FromPosition(snapshot),
-		walog.WithRecoveryCallback(func(data []byte, offset int64) error {
+		walog.WithRecoveryCallback(func(data []byte, r walog.Range) error {
 			m := skiplist.New(skiplist.Bytes)
 			err2 := defaultCodec.Unmarshal(data, func(key []byte, value interface{}) error {
 				m.Set(key, value)
@@ -202,7 +202,7 @@ func RecoverAsyncStore(cfg storecfg.AsyncStoreConfig, walDir string) (*AsyncStor
 				return err2
 			}
 			merge(committed, m)
-			version = offset
+			version = r.EO
 			return nil
 		}),
 	}, cfg.WAL.Options()...)

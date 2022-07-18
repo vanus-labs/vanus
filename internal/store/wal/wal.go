@@ -31,13 +31,18 @@ var (
 	ErrNotFoundLogFile = errors.New("wal: not found log file")
 )
 
-type Result struct {
-	Offsets []int64
-	Err     error
+type Range struct {
+	SO int64
+	EO int64
 }
 
-func (re *Result) Offset() int64 {
-	return re.Offsets[0]
+type Result struct {
+	Ranges []Range
+	Err    error
+}
+
+func (re *Result) Range() Range {
+	return re.Ranges[0]
 }
 
 type AppendCallback func(Result)
@@ -70,7 +75,7 @@ type flushTask struct {
 
 type callbackTask struct {
 	callback  AppendCallback
-	offsets   []int64
+	ranges    []Range
 	threshold int64
 }
 
@@ -177,12 +182,12 @@ func (w *WAL) Wait() {
 
 type AppendOneFuture <-chan Result
 
-func (f AppendOneFuture) Wait() (int64, error) {
+func (f AppendOneFuture) Wait() (Range, error) {
 	re := <-f
 	if re.Err != nil {
-		return -1, re.Err
+		return Range{}, re.Err
 	}
-	return re.Offset(), nil
+	return re.Range(), nil
 }
 
 func (w *WAL) AppendOne(entry []byte, opts ...AppendOption) AppendOneFuture {
@@ -191,9 +196,9 @@ func (w *WAL) AppendOne(entry []byte, opts ...AppendOption) AppendOneFuture {
 
 type AppendFuture <-chan Result
 
-func (f AppendFuture) Wait() ([]int64, error) {
+func (f AppendFuture) Wait() ([]Range, error) {
 	re := <-f
-	return re.Offsets, re.Err
+	return re.Ranges, re.Err
 }
 
 // Append appends entries to WAL.
@@ -307,8 +312,11 @@ func (w *WAL) flushWritableBlock() {
 // goahead flag indicate switching to a new block.
 func (w *WAL) doAppend(entries [][]byte, callback AppendCallback) (bool, bool) {
 	var full, goahead bool
-	offsets := make([]int64, len(entries))
+	ranges := make([]Range, len(entries))
 	for i, entry := range entries {
+		if false {
+			ranges[i].SO = w.wb.WriteOffset()
+		}
 		records := record.Pack(entry, w.wb.Remaining(), w.allocator.BlockSize())
 		for j, record := range records {
 			n, err := w.wb.Append(record)
@@ -318,12 +326,12 @@ func (w *WAL) doAppend(entries [][]byte, callback AppendCallback) (bool, bool) {
 			}
 			if j == len(records)-1 {
 				offset := w.wb.SO + int64(n)
-				offsets[i] = offset
+				ranges[i].EO = offset
 				if i == len(entries)-1 {
 					// register callback
 					w.callbackc <- callbackTask{
 						callback:  callback,
-						offsets:   offsets,
+						ranges:    ranges,
 						threshold: offset,
 					}
 				}
@@ -394,7 +402,7 @@ func (w *WAL) runCallback() {
 				break
 			}
 			task.callback(Result{
-				Offsets: task.offsets,
+				Ranges: task.ranges,
 			})
 			task = w.nextCallbackTask()
 		}

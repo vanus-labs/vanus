@@ -64,25 +64,20 @@ func (l *Log) Compact(i uint64) error {
 	// Save compact information to dummy entry.
 	ents[0].Index = l.ents[sz].Index
 	ents[0].Term = l.ents[sz].Term
-	last := l.offs[0]
 
 	// Copy remained entries.
-	if sz < l.length() {
+	if remaining != 0 {
 		ents = append(ents, l.ents[sz+1:]...)
 		offs = append(offs, l.offs[sz+1:]...)
+		offs[0] = offs[1]
 	}
-
-	// Reset log entries.
-	l.ents = ents
-	l.offs = offs
 
 	// Compact WAL.
-	var compact int64
-	if remaining != 0 {
-		compact = offs[1]
-	}
-	offs[0] = compact
-	l.wal.tryCompact(compact, last, l.nodeID, l.ents[0].Index, l.ents[0].Term)
+	l.wal.tryCompact(offs[0], l.offs[0], l.nodeID, ents[0].Index, ents[0].Term)
+
+	// Reset log entries and offsets.
+	l.ents = ents
+	l.offs = offs
 
 	return nil
 }
@@ -182,7 +177,7 @@ func (c *compactContext) sync() {
 
 var emptyMark = struct{}{}
 
-func (w WAL) run() {
+func (w *WAL) run() {
 	for task := range w.executec {
 		ct, err := task.cb()
 		if task.result != nil {
@@ -247,7 +242,7 @@ func (w *WAL) doCompact(cctx *compactContext) {
 		log.Debug(context.TODO(), "compact WAL of raft log.", map[string]interface{}{
 			"offset": cctx.toCompact,
 		})
-		// Store compacted offset.
+		// Store compacted info and offset.
 		cctx.sync()
 		// Compact underlying WAL.
 		_ = w.WAL.Compact(cctx.compacted)

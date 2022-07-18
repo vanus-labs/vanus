@@ -38,7 +38,7 @@ var (
 	errEndOfLog   = errors.New("WAL: end of log")
 )
 
-type OnEntryCallback func(entry []byte, eo int64) error
+type OnEntryCallback func(entry []byte, r Range) error
 
 type logStream struct {
 	stream    []*logFile
@@ -254,7 +254,7 @@ func onRecord(ctx *scanContext, r record.Record, eo int64) error {
 			// TODO(james.yin): unexcepted state
 			panic("WAL: unexcepted state")
 		}
-		if err := ctx.cb(r.Data, eo); err != nil {
+		if err := ctx.cb(r.Data, Range{SO: ctx.eo, EO: eo}); err != nil {
 			return err
 		}
 	case record.First:
@@ -275,7 +275,7 @@ func onRecord(ctx *scanContext, r record.Record, eo int64) error {
 			panic("WAL: unexcepted state")
 		}
 		ctx.buffer.Write(r.Data)
-		if err := ctx.cb(ctx.buffer.Bytes(), eo); err != nil {
+		if err := ctx.cb(ctx.buffer.Bytes(), Range{SO: ctx.eo, EO: eo}); err != nil {
 			return err
 		}
 		ctx.buffer.Reset()
