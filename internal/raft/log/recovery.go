@@ -55,7 +55,10 @@ func RecoverLogsAndWAL(
 
 			l := logs[entry.NodeId]
 			if l == nil {
-				l = RecoverLog(vanus.NewIDFromUint64(entry.NodeId), nil, metaStore, offsetStore)
+				l, err = RecoverLog(vanus.NewIDFromUint64(entry.NodeId), nil, metaStore, offsetStore)
+				if err != nil {
+					return err
+				}
 				logs[entry.NodeId] = l
 			}
 
@@ -84,10 +87,46 @@ func RecoverLogsAndWAL(
 	return logs2, wal2, nil
 }
 
-func RecoverLog(blockID vanus.ID, wal *WAL, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore) *Log {
+func RecoverLog(blockID vanus.ID, wal *WAL, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore) (*Log, error) {
 	l := NewLog(blockID, wal, metaStore, offsetStore)
-	l.recoverCompactionInfo()
-	return l
+
+	if err := l.recoverCompactionInfo(); err != nil {
+		return nil, err
+	}
+
+	if err := l.recoverState(); err != nil {
+		return nil, err
+	}
+
+	return l, nil
+}
+
+func (l *Log) recoverState() error {
+	hs, err := l.recoverHardState()
+	if err != nil {
+		return err
+	}
+	if compacted := l.Compacted(); hs.Commit < compacted {
+		hs.Commit = compacted
+	}
+	l.prevHardSt = hs
+
+	cs, err := l.recoverConfState()
+	if err != nil {
+		return err
+	}
+	l.prevConfSt = cs
+
+	app, err := l.recoverApplied()
+	if err != nil {
+		return err
+	}
+	if com := l.Compacted(); app < com {
+		app = com
+	}
+	l.prevApply = app
+
+	return nil
 }
 
 func (l *Log) recoverHardState() (raftpb.HardState, error) {
@@ -127,18 +166,18 @@ func (l *Log) recoverConfState() (raftpb.ConfState, error) {
 	return cs, nil
 }
 
-func (l *Log) recoverApplied() uint64 {
+func (l *Log) recoverApplied() (uint64, error) {
 	if v, exist := l.offsetStore.Load(l.appKey); exist {
 		app, ok := v.(uint64)
 		if !ok {
 			panic("raftLog: applied is not uint64")
 		}
-		return app
+		return app, nil
 	}
-	return 0
+	return 0, nil
 }
 
-func (l *Log) recoverCompactionInfo() {
+func (l *Log) recoverCompactionInfo() error {
 	key := fmt.Sprintf("block/%020d/compact", l.nodeID.Uint64())
 	if v, ok := l.metaStore.Load([]byte(key)); ok {
 		if buf, ok2 := v.([]byte); ok2 {
@@ -149,6 +188,7 @@ func (l *Log) recoverCompactionInfo() {
 			panic("raftLog: compact is not []byte")
 		}
 	}
+	return nil
 }
 
 func (l *Log) appendInRecovery(entry raftpb.Entry, so int64) error {
