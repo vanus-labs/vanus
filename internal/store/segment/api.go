@@ -17,6 +17,7 @@ package segment
 import (
 	// standard libraries.
 	"context"
+	"github.com/linkall-labs/vanus/internal/store/segment/errors"
 
 	// third-party libraries.
 	cepb "cloudevents.io/genproto/v1"
@@ -128,15 +129,20 @@ func (s *segmentServer) ActivateSegment(
 
 func (s *segmentServer) InactivateSegment(
 	ctx context.Context, req *segpb.InactivateSegmentRequest,
-) (*segpb.InactivateSegmentResponse, error) {
+) (*emptypb.Empty, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	if err := s.srv.InactivateSegment(ctx); err != nil {
+	segID, err := vanus.NewIDFromString(req.SegmentId)
+	if err != nil {
+		return nil, errors.ErrInvalidRequest
+	}
+
+	if err := s.srv.InactivateSegment(ctx, segID, req.Replicas, req.Force); err != nil {
 		return nil, err
 	}
 
-	return &segpb.InactivateSegmentResponse{}, nil
+	return &emptypb.Empty{}, nil
 }
 
 func (s *segmentServer) AppendToBlock(ctx context.Context, req *segpb.AppendToBlockRequest) (*emptypb.Empty, error) {

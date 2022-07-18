@@ -88,7 +88,7 @@ store-api-test:
 	grpcui --import-path=${VSPROTO_ROOT}/include \
            --import-path=${VSPROTO_ROOT}/proto \
            --plaintext \
-           --proto=segment.proto 127.0.0.1:2148
+           --proto=segment.proto 127.0.0.1:11831
 
 trigger-start:
 	go run ${VANUS_ROOT}/cmd/trigger/main.go

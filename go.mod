@@ -4,8 +4,8 @@ go 1.17
 
 require (
 	cloudevents.io/genproto v1.0.2
-	github.com/cloudevents/sdk-go/sql/v2 v2.8.0
-	github.com/cloudevents/sdk-go/v2 v2.8.0
+	github.com/cloudevents/sdk-go/sql/v2 v2.10.1
+	github.com/cloudevents/sdk-go/v2 v2.10.1
 	github.com/fatih/color v1.13.0
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/gogo/protobuf v1.3.2
@@ -47,6 +47,7 @@ replace (
 	github.com/linkall-labs/vanus/proto => ./proto
 	github.com/linkall-labs/vanus/raft => ./raft
 	github.com/mwitkow/grpc-proxy => github.com/linkall-labs/grpc-proxy v0.0.0-20220624142509-a3b0cb2bb86c
+	//github.com/cloudevents/sdk-go/v2 => /Users/wenfeng/personal/workspace/github/sdk-go/v2
 )
 
 require (

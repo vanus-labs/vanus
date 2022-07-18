@@ -1,0 +1,25 @@
+name: "wenfeng"
+ip: "192.168.1.110"
+port: 2048
+etcd:
+  - "192.168.1.108:2379"
+  - "192.168.1.110:2379"
+  - "192.168.1.120:2379"
+data_dir: "/tmp/data/vanus/cluster"
+topology:
+  wenfeng: 192.168.1.110:2048
+  weihe: 192.168.1.120:2048
+  delu: 192.168.1.108:2048
+metadata:
+  key_prefix: "/develop"
+embed_etcd:
+  # relative path to ${data_dir} above
+  data_dir: "etcd/node1"
+  client_addr: "192.168.1.110:2379"
+  peer_addr: "192.168.1.110:2380"
+  heartbeat-interval: 600000
+  election-timeout: 600000
+  clusters:
+    - wenfeng=http://192.168.1.110:2380
+    - weihe=http://192.168.1.120:2380
+    - delu=http://192.168.1.108:2380

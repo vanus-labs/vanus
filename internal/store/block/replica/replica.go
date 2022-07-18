@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	defaultHintCapactiy    = 2
+	defaultHintCapacity    = 2
 	defaultTickInterval    = 100 * time.Millisecond
 	defaultElectionTick    = 10
 	defaultHeartbeatTick   = 3
@@ -109,7 +109,7 @@ func New(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, ra
 		listener: listener,
 		log:      raftLog,
 		sender:   sender,
-		hint:     make([]peer, 0, defaultHintCapactiy),
+		hint:     make([]peer, 0, defaultHintCapacity),
 		ctx:      ctx,
 		cancel:   cancel,
 		donec:    make(chan struct{}),
@@ -137,10 +137,14 @@ func New(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, ra
 	return r
 }
 
-func (r *Replica) Stop() {
+func (r *Replica) Stop(ctx context.Context) {
 	r.cancel()
 	// Block until the stop has been acknowledged.
 	<-r.donec
+	log.Info(ctx, "the raft node stopped", map[string]interface{}{
+		"node_id":   r.node,
+		"leader_id": r.leaderID,
+	})
 }
 
 func (r *Replica) Bootstrap(blocks []Peer) error {
@@ -157,6 +161,34 @@ func (r *Replica) Bootstrap(blocks []Peer) error {
 	})
 	return r.node.Bootstrap(peers)
 }
+
+//func (r *Replica) ProposeDestroy(ctx context.Context, topo map[uint64]bool) error {
+//	var leaderID uint64
+//	var ccs []raftpb.ConfChangeSingle
+//	for nodeID, isLeader := range topo {
+//		if isLeader {
+//			leaderID = nodeID
+//		} else {
+//			ccs = append(ccs, raftpb.ConfChangeSingle{
+//				Type:   raftpb.ConfChangeRemoveNode,
+//				NodeID: nodeID,
+//			})
+//		}
+//	}
+//	if r.leaderID.Uint64() != leaderID {
+//		return errors.ErrNoRaftNode
+//	}
+//	err := r.node.ProposeConfChange(ctx, raftpb.ConfChangeV2{
+//		Transition: 0,
+//		Changes:    ccs,
+//		Context:    nil,
+//	})
+//	if err != nil {
+//		return errors.ErrInternal.WithMessage("it's failed to remove raft node.").Wrap(err)
+//	}
+//	r.Stop()
+//	return nil
+//}
 
 func (r *Replica) run(ctx context.Context) {
 	// TODO(james.yin): reduce Ticker

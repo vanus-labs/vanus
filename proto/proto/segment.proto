@@ -32,7 +32,7 @@ service SegmentServer {
 
   rpc ActivateSegment(ActivateSegmentRequest) returns (ActivateSegmentResponse);
   rpc InactivateSegment(InactivateSegmentRequest)
-      returns (InactivateSegmentResponse);
+      returns (google.protobuf.Empty);
 
   rpc AppendToBlock(AppendToBlockRequest) returns (google.protobuf.Empty);
   rpc ReadFromBlock(ReadFromBlockRequest) returns (ReadFromBlockResponse);
@@ -72,7 +72,13 @@ message ActivateSegmentRequest {
 
 message ActivateSegmentResponse {}
 
-message InactivateSegmentRequest {}
+message InactivateSegmentRequest {
+  string segment_id = 1;
+  // key: raftNode ID, value:
+  map<uint64, bool> replicas = 2;
+  // used to delete eventbus
+  bool force = 3;
+}
 
 message InactivateSegmentResponse {}
 

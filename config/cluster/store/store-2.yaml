@@ -1,0 +1,20 @@
+port: 11821
+ip : 127.0.0.1
+controllers:
+  - 127.0.0.1:2048
+volume:
+  id: 2
+  dir: /Users/wenfeng/tmp/data/vanus/store2
+  capacity: 1073741824
+meta_store:
+  wal:
+    io:
+      engine: psync
+offset_store:
+  wal:
+    io:
+      engine: psync
+raft:
+  wal:
+    io:
+      engine: psync

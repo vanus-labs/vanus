@@ -77,7 +77,7 @@ type Server interface {
 	// GetBlockInfo(ctx context.Context, id vanus.ID) error
 
 	ActivateSegment(ctx context.Context, logID vanus.ID, segID vanus.ID, replicas map[vanus.ID]string) error
-	InactivateSegment(ctx context.Context) error
+	InactivateSegment(ctx context.Context, segID vanus.ID, topo map[uint64]bool, force bool) error
 
 	AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) error
 	ReadFromBlock(ctx context.Context, id vanus.ID, off int, num int) ([]*cepb.CloudEvent, error)
@@ -120,9 +120,9 @@ type leaderInfo struct {
 }
 
 type server struct {
-	blocks  sync.Map // *file.Block
-	writers sync.Map // *replica.Replica
-	readers sync.Map
+	blocks  sync.Map // block.ID, *file.Block
+	writers sync.Map // block.ID, *replica.Replica
+	readers sync.Map // block.ID, *replica.Replica
 
 	wal         *raftlog.WAL
 	metaStore   *meta.SyncStore
@@ -411,7 +411,7 @@ func (s *server) stop(ctx context.Context) error {
 	// Close all raft nodes.
 	s.writers.Range(func(key, value interface{}) bool {
 		r, _ := value.(*replica.Replica)
-		r.Stop()
+		r.Stop(ctx)
 		return true
 	})
 
@@ -493,14 +493,19 @@ func (s *server) makeReplicaWithRaftLog(
 	return r
 }
 
-func (s *server) RemoveBlock(ctx context.Context, id vanus.ID) error {
+func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
 	if err := s.checkState(); err != nil {
 		return err
 	}
 
-	// TODO(james.yin): remove block
-
-	return nil
+	v, exist := s.blocks.LoadAndDelete(blockID)
+	if !exist {
+		return errors.ErrResourceNotFound.WithMessage("the block not found")
+	}
+	s.writers.Delete(blockID)
+	s.readers.Delete(blockID)
+	blk := v.(*file.Block)
+	return blk.Destroy(ctx)
 }
 
 // TODO(james.yin):
@@ -575,13 +580,28 @@ func (s *server) ActivateSegment(
 }
 
 // InactivateSegment mark a block ready to be removed.
-func (s *server) InactivateSegment(ctx context.Context) error {
+func (s *server) InactivateSegment(ctx context.Context, blockID vanus.ID, topo map[uint64]bool, force bool) error {
 	if err := s.checkState(); err != nil {
 		return err
 	}
+	v, exist := s.blocks.Load(blockID)
+	if !exist {
+		return errors.ErrResourceNotFound.WithMessage("the block not found")
+	}
 
-	// TODO(james.yin):
+	blk := v.(*file.Block)
+	if !force && !blk.HealthInfo().IsFull {
+		return errors.ErrInvalidRequest.WithMessage("the block can't be inactivated because of it isn't full")
+	}
 
+	v, exist = s.writers.Load(blockID)
+	if !exist {
+		return errors.ErrResourceNotFound.WithMessage("the segment not found")
+	}
+	rp, _ := v.(*replica.Replica)
+	rp.Stop(ctx)
+	s.writers.Delete(blockID)
+	s.readers.Delete(blockID)
 	return nil
 }
 

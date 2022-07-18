@@ -1,0 +1,58 @@
+# // Copyright 2022 Linkall Inc.
+# //
+# // Licensed under the Apache License, Version 2.0 (the "License");
+# // you may not use this file except in compliance with the License.
+# // You may obtain a copy of the License at
+# //
+# //     http://www.apache.org/licenses/LICENSE-2.0
+# //
+# // Unless required by applicable law or agreed to in writing, software
+# // distributed under the License is distributed on an "AS IS" BASIS,
+# // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# // See the License for the specific language governing permissions and
+# // limitations under the License.
+#
+# Copyright 2022 Linkall Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http:www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+name: "test-3"
+ip: "127.0.0.1"
+port: 4048
+etcd:
+  - "127.0.0.1:2379"
+  - "127.0.0.1:3379"
+  - "127.0.0.1:4379"
+topology:
+  test-1: 127.0.0.1:2048
+  test-2: 127.0.0.1:3048
+  test-3: 127.0.0.1:4048
+data_dir: "/Users/wenfeng/tmp/data/vanus/cluster"
+metadata:
+  key_prefix: "/wenfeng"
+embed_etcd:
+  # relative path to ${data_dir} above
+  data_dir: "etcd/node3"
+  client_addr: "127.0.0.1:4379"
+  peer_addr: "127.0.0.1:4380"
+  heartbeat-interval: 600000
+  election-timeout: 600000
+  clusters:
+    - test-1=http://127.0.0.1:2380
+    - test-2=http://127.0.0.1:3380
+    - test-3=http://127.0.0.1:4380
+#eventbus:
+trigger:
+  storage:
+    keyPrefix: "/xdl"
+    serverList: [ "127.0.0.1:2379" ]
