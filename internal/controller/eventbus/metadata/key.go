@@ -14,6 +14,11 @@
 
 package metadata
 
+import (
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"strings"
+)
+
 const (
 	VolumeKeyPrefixInKVStore         = "/vanus/internal/resource/volume/metadata"
 	BlockKeyPrefixInKVStore          = "/vanus/internal/resource/volume/block"
@@ -26,3 +31,23 @@ const (
 
 	EventlogSegmentsKeyPrefixInKVStore = "/vanus/internal/resource/segs_of_eventlog"
 )
+
+func GetEventbusMetadataKey(ebName string) string {
+	return strings.Join([]string{EventbusKeyPrefixInKVStore, ebName}, "/")
+}
+
+func GetEventlogMetadataKey(elID vanus.ID) string {
+	return strings.Join([]string{EventlogKeyPrefixInKVStore, elID.Key()}, "/")
+}
+
+func GetBlockMetadataKey(volumeID, blockID vanus.ID) string {
+	return strings.Join([]string{BlockKeyPrefixInKVStore, volumeID.Key(), blockID.Key()}, "/")
+}
+
+func GetSegmentMetadataKey(segmentID vanus.ID) string {
+	return strings.Join([]string{SegmentKeyPrefixInKVStore, segmentID.Key()}, "/")
+}
+
+func GetEventlogSegmentsMetadataKey(eventlogID, segmentID vanus.ID) string {
+	return strings.Join([]string{BlockKeyPrefixInKVStore, eventlogID.Key(), segmentID.Key()}, "/")
+}

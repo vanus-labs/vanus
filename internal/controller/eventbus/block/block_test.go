@@ -103,8 +103,7 @@ func TestAllocator_RunWithoutDynamic(t *testing.T) {
 		data6, _ := stdJson.Marshal(block6)
 		kvMock.EXPECT().List(ctx, metadata.BlockKeyPrefixInKVStore).Return([]kv.Pair{
 			{
-				Key: strings.Join([]string{metadata.BlockKeyPrefixInKVStore,
-					block1.VolumeID.String(), block1.ID.Key()}, ","),
+				Key:   metadata.GetBlockMetadataKey(block1.VolumeID, block1.ID),
 				Value: data1,
 			},
 			{

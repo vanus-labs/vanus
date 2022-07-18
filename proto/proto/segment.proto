@@ -73,11 +73,7 @@ message ActivateSegmentRequest {
 message ActivateSegmentResponse {}
 
 message InactivateSegmentRequest {
-  string segment_id = 1;
-  // key: raftNode ID, value:
-  map<uint64, bool> replicas = 2;
-  // used to delete eventbus
-  bool force = 3;
+  string block_id = 1;
 }
 
 message InactivateSegmentResponse {}

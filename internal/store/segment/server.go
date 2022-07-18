@@ -77,7 +77,7 @@ type Server interface {
 	// GetBlockInfo(ctx context.Context, id vanus.ID) error
 
 	ActivateSegment(ctx context.Context, logID vanus.ID, segID vanus.ID, replicas map[vanus.ID]string) error
-	InactivateSegment(ctx context.Context, segID vanus.ID, topo map[uint64]bool, force bool) error
+	InactivateSegment(ctx context.Context, segID vanus.ID) error
 
 	AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) error
 	ReadFromBlock(ctx context.Context, id vanus.ID, off int, num int) ([]*cepb.CloudEvent, error)
@@ -393,7 +393,7 @@ func (s *server) Stop(ctx context.Context) error {
 		return errors.ErrInternal.WithMessage("stop server failed")
 	}
 
-	// Stop grpc asyncronously.
+	// Stop grpc asynchronously.
 	go func() {
 		// Force stop if timeout.
 		t := time.AfterFunc(defaultForceStopTimeout, func() {
@@ -498,12 +498,14 @@ func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
 		return err
 	}
 
+	err := s.InactivateSegment(ctx, blockID)
+	if err != nil {
+		return err
+	}
 	v, exist := s.blocks.LoadAndDelete(blockID)
 	if !exist {
 		return errors.ErrResourceNotFound.WithMessage("the block not found")
 	}
-	s.writers.Delete(blockID)
-	s.readers.Delete(blockID)
 	blk := v.(*file.Block)
 	return blk.Destroy(ctx)
 }
@@ -579,22 +581,13 @@ func (s *server) ActivateSegment(
 	return nil
 }
 
-// InactivateSegment mark a block ready to be removed.
-func (s *server) InactivateSegment(ctx context.Context, blockID vanus.ID, topo map[uint64]bool, force bool) error {
+// InactivateSegment mark a block ready to be removed. This method usually is used for data transfer
+func (s *server) InactivateSegment(ctx context.Context, blockID vanus.ID) error {
 	if err := s.checkState(); err != nil {
 		return err
 	}
-	v, exist := s.blocks.Load(blockID)
-	if !exist {
-		return errors.ErrResourceNotFound.WithMessage("the block not found")
-	}
 
-	blk := v.(*file.Block)
-	if !force && !blk.HealthInfo().IsFull {
-		return errors.ErrInvalidRequest.WithMessage("the block can't be inactivated because of it isn't full")
-	}
-
-	v, exist = s.writers.Load(blockID)
+	v, exist := s.writers.Load(blockID)
 	if !exist {
 		return errors.ErrResourceNotFound.WithMessage("the segment not found")
 	}

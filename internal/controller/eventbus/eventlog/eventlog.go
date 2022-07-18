@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -50,6 +49,7 @@ type Manager interface {
 	Stop()
 	AcquireEventLog(ctx context.Context, eventbusID vanus.ID) (*metadata.Eventlog, error)
 	GetEventLog(ctx context.Context, id vanus.ID) *metadata.Eventlog
+	DeleteEventlog(ctx context.Context, id vanus.ID)
 	GetEventLogSegmentList(elID vanus.ID) []*Segment
 	GetAppendableSegment(ctx context.Context, eli *metadata.Eventlog,
 		num int) ([]*Segment, error)
@@ -169,7 +169,7 @@ func (mgr *eventlogManager) AcquireEventLog(ctx context.Context, eventbusID vanu
 		EventbusID: eventbusID,
 	}
 	data, _ := json.Marshal(elMD)
-	if err := mgr.kvClient.Set(ctx, mgr.getEventLogKeyInKVStore(elMD.ID), data); err != nil {
+	if err := mgr.kvClient.Set(ctx, metadata.GetEventlogMetadataKey(elMD.ID), data); err != nil {
 		return nil, err
 	}
 
@@ -203,6 +203,32 @@ func (mgr *eventlogManager) getEventLog(id vanus.ID) *eventlog {
 		return v.(*eventlog)
 	}
 	return nil
+}
+
+func (mgr *eventlogManager) DeleteEventlog(ctx context.Context, id vanus.ID) {
+	v, exist := mgr.eventLogMap.LoadAndDelete(id.Key())
+	if !exist {
+		return
+	}
+	el := v.(*eventlog)
+	for el.head() != nil {
+		head := el.head()
+		err := el.deleteHead(ctx)
+		if err != nil {
+			log.Warning(ctx, "delete eventlog error when deleting segment", map[string]interface{}{
+				log.KeyError:  err,
+				"head_id":     head.ID.Key(),
+				"eventlog_id": id.Key(),
+			})
+		}
+		mgr.segmentNeedBeClean.Store(head.ID.Key(), head)
+	}
+	if err := mgr.kvClient.Delete(ctx, metadata.GetEventlogMetadataKey(id)); err != nil {
+		log.Warning(ctx, "deleting eventlog metadata in kv error", map[string]interface{}{
+			log.KeyError:  err,
+			"eventlog_id": id.Key(),
+		})
+	}
 }
 
 func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
@@ -247,10 +273,6 @@ func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
 		s = el.nextOf(s)
 	}
 	return result, nil
-}
-
-func (mgr *eventlogManager) getEventLogKeyInKVStore(elID vanus.ID) string {
-	return strings.Join([]string{metadata.EventlogKeyPrefixInKVStore, elID.String()}, "/")
 }
 
 func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[string][]Segment) {
@@ -481,16 +503,38 @@ func (mgr *eventlogManager) cleanAbnormalSegment(ctx context.Context) {
 				if !ok {
 					return true
 				}
-				deleteKey := filepath.Join(metadata.SegmentKeyPrefixInKVStore, v.ID.String())
-				if err := mgr.kvClient.Delete(ctx, deleteKey); err != nil {
+
+				for _, blk := range v.Replicas.Peers {
+					ins := mgr.volMgr.GetVolumeInstanceByID(blk.VolumeID)
+					infos := map[string]interface{}{
+						"segment_id":   v.ID.Key(),
+						"size":         v.Size,
+						"number":       v.Number,
+						"start_offset": v.StartOffsetInLog,
+						"block_id":     blk.ID,
+					}
+					err := ins.DeleteBlock(ctx, blk.ID)
+					if err != nil {
+						infos[log.KeyError] = err
+						log.Warning(ctx, "delete block failed", infos)
+					}
+					mgr.globalBlockMap.Delete(blk.ID.Key())
+					err = mgr.kvClient.Delete(ctx, metadata.GetBlockMetadataKey(blk.VolumeID, blk.ID))
+					if err != nil {
+						infos[log.KeyError] = err
+						log.Warning(ctx, "delete block metadata in kv failed", infos)
+					}
+				}
+
+				if err := mgr.kvClient.Delete(ctx, metadata.GetSegmentMetadataKey(v.ID)); err != nil {
 					log.Warning(ctx, "clean segment data in KV failed", map[string]interface{}{
-						log.KeyError: deleteKey,
+						log.KeyError: err,
 						"segment":    v.String(),
 					})
 				}
+				mgr.globalSegmentMap.Delete(v.ID.Key())
 				mgr.segmentNeedBeClean.Delete(key)
 				count++
-				// TODO(wenfeng): remove other relative resources
 				return true
 			})
 			log.Debug(ctx, "clean segment task completed", map[string]interface{}{
@@ -795,8 +839,7 @@ func (el *eventlog) add(ctx context.Context, seg *Segment) error {
 	})
 	s.SegmentID = seg.ID
 	data, _ := json.Marshal(s)
-	key := filepath.Join(metadata.EventlogSegmentsKeyPrefixInKVStore, el.md.ID.String(), seg.ID.String())
-	if err := el.kvClient.Set(ctx, key, data); err != nil {
+	if err := el.kvClient.Set(ctx, metadata.GetEventlogSegmentsMetadataKey(el.md.ID, seg.ID), data); err != nil {
 		last.NextSegmentID = vanus.EmptyID()
 		seg.PreviousSegmentID = vanus.EmptyID()
 		return err
@@ -804,8 +847,7 @@ func (el *eventlog) add(ctx context.Context, seg *Segment) error {
 
 	if last != nil {
 		data, _ = json.Marshal(last)
-		key = filepath.Join(metadata.SegmentKeyPrefixInKVStore, last.ID.String())
-		if err := el.kvClient.Set(ctx, key, data); err != nil {
+		if err := el.kvClient.Set(ctx, metadata.GetSegmentMetadataKey(last.ID), data); err != nil {
 			// TODO clean when failed
 			last.NextSegmentID = vanus.EmptyID()
 			seg.PreviousSegmentID = vanus.EmptyID()
@@ -924,8 +966,7 @@ func (el *eventlog) deleteHead(ctx context.Context) error {
 			segments = append(segments, v)
 		}
 	}
-	key := filepath.Join(metadata.EventlogSegmentsKeyPrefixInKVStore, el.md.ID.String(), head.ID.String())
-	if err := el.kvClient.Delete(ctx, key); err != nil {
+	if err := el.kvClient.Delete(ctx, metadata.GetEventlogSegmentsMetadataKey(el.md.ID, head.ID)); err != nil {
 		return err
 	}
 	_ = el.segmentList.RemoveFront()

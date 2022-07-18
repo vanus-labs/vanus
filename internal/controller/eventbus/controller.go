@@ -20,7 +20,6 @@ import (
 	stdErr "errors"
 	"io"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -81,6 +80,7 @@ type controller struct {
 	isLeader        bool
 	readyNotify     chan error
 	stopNotify      chan error
+	mutex           sync.Mutex
 }
 
 func (ctrl *controller) Start(_ context.Context) error {
@@ -111,7 +111,8 @@ func (ctrl *controller) CreateEventBus(ctx context.Context,
 	req *ctrlpb.CreateEventBusRequest) (*metapb.EventBus, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
-
+	ctrl.mutex.Lock()
+	defer ctrl.mutex.Unlock()
 	if req.LogNumber == 0 {
 		req.LogNumber = 1
 	}
@@ -122,12 +123,12 @@ func (ctrl *controller) CreateEventBus(ctx context.Context,
 		LogNumber: elNum,
 		EventLogs: make([]*metadata.Eventlog, elNum),
 	}
-	exist, err := ctrl.kvStore.Exists(ctx, eb.Name)
+	exist, err := ctrl.kvStore.Exists(ctx, metadata.GetEventbusMetadataKey(eb.Name))
 	if err != nil {
 		return nil, err
 	}
 	if exist {
-		return nil, errors.ErrResourceAlreadyExist.WithMessage("already exist")
+		return nil, errors.ErrResourceAlreadyExist.WithMessage("the eventbus already exist")
 	}
 	for idx := 0; idx < eb.LogNumber; idx++ {
 		el, err := ctrl.eventLogMgr.AcquireEventLog(ctx, eb.ID)
@@ -140,7 +141,7 @@ func (ctrl *controller) CreateEventBus(ctx context.Context,
 
 	{
 		data, _ := json.Marshal(eb)
-		if err := ctrl.kvStore.Set(ctx, ctrl.getEventBusKeyInKVStore(eb.Name), data); err != nil {
+		if err := ctrl.kvStore.Set(ctx, metadata.GetEventbusMetadataKey(eb.Name), data); err != nil {
 			return nil, err
 		}
 	}
@@ -157,6 +158,30 @@ func (ctrl *controller) DeleteEventBus(ctx context.Context,
 	eb *metapb.EventBus) (*emptypb.Empty, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
+	ctrl.mutex.Lock()
+	defer ctrl.mutex.Unlock()
+
+	bus, exist := ctrl.eventBusMap[eb.Name]
+	if !exist {
+		return nil, errors.ErrResourceNotFound.WithMessage("the eventbus doesn't exist")
+	}
+	err := ctrl.kvStore.Delete(ctx, metadata.GetEventbusMetadataKey(eb.Name))
+	if err != nil {
+		return nil, errors.ErrInternal.WithMessage("delete eventbus metadata in kv failed").Wrap(err)
+	}
+
+	// TODO(wenfeng.wang) notify gateway to cut flow
+	delete(ctrl.eventBusMap, eb.Name)
+	wg := sync.WaitGroup{}
+
+	for _, v := range bus.EventLogs {
+		wg.Add(1)
+		go func(logID vanus.ID) {
+			ctrl.eventLogMgr.DeleteEventlog(ctx, logID)
+			wg.Done()
+		}(v.ID)
+	}
+	wg.Wait()
 	metrics.EventbusGauge.Set(float64(len(ctrl.eventBusMap)))
 	return &emptypb.Empty{}, nil
 }
@@ -438,10 +463,6 @@ func (ctrl *controller) ReportSegmentLeader(ctx context.Context,
 		return nil, err
 	}
 	return &emptypb.Empty{}, nil
-}
-
-func (ctrl *controller) getEventBusKeyInKVStore(ebName string) string {
-	return strings.Join([]string{metadata.EventbusKeyPrefixInKVStore, ebName}, "/")
 }
 
 func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event embedetcd.MembershipChangedEvent) error {

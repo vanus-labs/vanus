@@ -133,12 +133,12 @@ func (s *segmentServer) InactivateSegment(
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
-	segID, err := vanus.NewIDFromString(req.SegmentId)
+	blockID, err := vanus.NewIDFromString(req.BlockId)
 	if err != nil {
 		return nil, errors.ErrInvalidRequest
 	}
 
-	if err := s.srv.InactivateSegment(ctx, segID, req.Replicas, req.Force); err != nil {
+	if err := s.srv.InactivateSegment(ctx, blockID); err != nil {
 		return nil, err
 	}
 
