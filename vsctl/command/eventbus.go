@@ -98,7 +98,7 @@ func deleteEventbusCommand() *cobra.Command {
 			}()
 
 			cli := ctrlpb.NewEventBusControllerClient(grpcConn)
-			_, err := cli.DeleteEventBus(ctx, &metapb.EventBus{Name: args[0]})
+			_, err := cli.DeleteEventBus(ctx, &metapb.EventBus{Name: eventbus})
 			if err != nil {
 				cmdFailedf(cmd, "delete eventbus failed: %s", err)
 			}

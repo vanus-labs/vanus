@@ -507,7 +507,15 @@ func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
 		return errors.ErrResourceNotFound.WithMessage("the block not found")
 	}
 	blk := v.(*file.Block)
-	return blk.Destroy(ctx)
+	if err = blk.Destroy(ctx); err != nil {
+		return err
+	}
+	log.Info(ctx, "the block has been deleted", map[string]interface{}{
+		"id":       blk.ID(),
+		"path":     blk.Path(),
+		"metadata": blk.HealthInfo().String(),
+	})
+	return nil
 }
 
 // TODO(james.yin):

@@ -125,6 +125,7 @@ func (b *Block) HealthInfo() *metapb.SegmentHealthInfo {
 	// TODO(weihe.yin) add FirstEventBornTime & LastEventBornTime
 	info := &metapb.SegmentHealthInfo{
 		Id:                   b.id.Uint64(),
+		Capacity:             b.cap,
 		Size:                 int64(actx.size()),
 		EventNumber:          int32(actx.num),
 		SerializationVersion: b.version,

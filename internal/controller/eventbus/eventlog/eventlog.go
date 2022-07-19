@@ -40,7 +40,7 @@ const (
 	defaultSegmentReplicaNumber        = 3
 	defaultSegmentExpiredTime          = 72 * time.Hour
 	defaultScaleInterval               = time.Second
-	defaultCleanInterval               = time.Minute
+	defaultCleanInterval               = time.Second
 	defaultCheckExpiredSegmentInterval = time.Minute
 )
 
@@ -103,7 +103,6 @@ func NewManager(volMgr volume.Manager, replicaNum uint) Manager {
 }
 
 func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client, startTask bool) error {
-	// add check for unit tests
 	if mgr.checkSegmentExpiredInterval == 0 {
 		mgr.checkSegmentExpiredInterval = defaultCheckExpiredSegmentInterval
 	}
@@ -517,13 +516,16 @@ func (mgr *eventlogManager) cleanAbnormalSegment(ctx context.Context) {
 					if err != nil {
 						infos[log.KeyError] = err
 						log.Warning(ctx, "delete block failed", infos)
+						continue
 					}
 					mgr.globalBlockMap.Delete(blk.ID.Key())
 					err = mgr.kvClient.Delete(ctx, metadata.GetBlockMetadataKey(blk.VolumeID, blk.ID))
 					if err != nil {
 						infos[log.KeyError] = err
 						log.Warning(ctx, "delete block metadata in kv failed", infos)
+						continue
 					}
+					log.Debug(ctx, "the block has been deleted", infos)
 				}
 
 				if err := mgr.kvClient.Delete(ctx, metadata.GetSegmentMetadataKey(v.ID)); err != nil {
@@ -534,6 +536,13 @@ func (mgr *eventlogManager) cleanAbnormalSegment(ctx context.Context) {
 				}
 				mgr.globalSegmentMap.Delete(v.ID.Key())
 				mgr.segmentNeedBeClean.Delete(key)
+				log.Info(ctx, "the segment has been deleted", map[string]interface{}{
+					"segment_id":   v.ID.Key(),
+					"size":         v.Size,
+					"number":       v.Number,
+					"start_offset": v.StartOffsetInLog,
+					"eventlog_id":  v.EventLogID.Key(),
+				})
 				count++
 				return true
 			})
