@@ -27,8 +27,7 @@ const (
 
 	EventbusKeyPrefixInKVStore = "/vanus/internal/resource/eventbus"
 	EventlogKeyPrefixInKVStore = "/vanus/internal/resource/eventlog"
-	// SegmentKeyPrefixInKVStore restrain kv operator in one?
-	SegmentKeyPrefixInKVStore = "/vanus/internal/resource/segment"
+	SegmentKeyPrefixInKVStore  = "/vanus/internal/resource/segment"
 
 	EventlogSegmentsKeyPrefixInKVStore = "/vanus/internal/resource/segs_of_eventlog"
 )
@@ -50,5 +49,5 @@ func GetSegmentMetadataKey(segmentID vanus.ID) string {
 }
 
 func GetEventlogSegmentsMetadataKey(eventlogID, segmentID vanus.ID) string {
-	return strings.Join([]string{BlockKeyPrefixInKVStore, eventlogID.Key(), segmentID.Key()}, "/")
+	return strings.Join([]string{EventlogSegmentsKeyPrefixInKVStore, eventlogID.Key(), segmentID.Key()}, "/")
 }

@@ -260,9 +260,6 @@ func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
 			mgr.segmentNeedBeClean.Store(seg.ID.Key(), seg)
 			return nil, err
 		}
-		for _, v := range seg.Replicas.Peers {
-			mgr.globalBlockMap.Store(v.ID.Key(), v)
-		}
 	}
 
 	s = el.currentAppendableSegment()
@@ -427,9 +424,6 @@ func (mgr *eventlogManager) initializeEventLog(ctx context.Context, md *metadata
 			mgr.segmentNeedBeClean.Store(seg.ID.Key(), seg)
 			return nil, err
 		}
-		for _, v := range seg.Replicas.Peers {
-			mgr.globalBlockMap.Store(v.ID.Key(), v)
-		}
 	}
 	return el, nil
 }
@@ -452,7 +446,7 @@ func (mgr *eventlogManager) dynamicScaleUpEventLog(ctx context.Context) {
 					})
 					return true
 				}
-				if el.appendableSegmentNumber() < defaultAppendableSegmentNumber {
+				for el.appendableSegmentNumber() < defaultAppendableSegmentNumber {
 					seg, err := mgr.createSegment(ctx, el)
 					if err != nil {
 						log.Warning(ctx, "create new segment failed", map[string]interface{}{
@@ -472,15 +466,15 @@ func (mgr *eventlogManager) dynamicScaleUpEventLog(ctx context.Context) {
 						return true
 					}
 					metrics.SegmentCounterVec.WithLabelValues(metrics.LabelValueResourceDynamicCreate).Inc()
-					for _, v := range seg.Replicas.Peers {
-						mgr.globalBlockMap.Store(v.ID.Key(), v)
-					}
-					count++
-
-					log.Debug(ctx, "scale task completed", map[string]interface{}{
-						"segment_created": count,
+					log.Info(ctx, "the new segment created", map[string]interface{}{
+						"segment_id":  seg.ID.Key(),
+						"eventlog_id": el.md.ID.Key(),
 					})
+					count++
 				}
+				log.Debug(ctx, "scale task completed", map[string]interface{}{
+					"segment_created": count,
+				})
 				return true
 			})
 		}
@@ -525,7 +519,7 @@ func (mgr *eventlogManager) cleanAbnormalSegment(ctx context.Context) {
 						log.Warning(ctx, "delete block metadata in kv failed", infos)
 						continue
 					}
-					log.Debug(ctx, "the block has been deleted", infos)
+					log.Info(ctx, "the block has been deleted", infos)
 				}
 
 				if err := mgr.kvClient.Delete(ctx, metadata.GetSegmentMetadataKey(v.ID)); err != nil {
@@ -685,6 +679,9 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 		return nil, err
 	}
 
+	for _, v := range seg.Replicas.Peers {
+		mgr.globalBlockMap.Store(v.ID.Key(), v)
+	}
 	mgr.globalSegmentMap.Store(seg.ID.Key(), seg)
 	return seg, nil
 }
@@ -789,21 +786,21 @@ func (el *eventlog) get(segID vanus.ID) *Segment {
 }
 
 func (el *eventlog) appendableSegmentNumber() int {
-	head := el.currentAppendableSegment()
-	if head == nil {
+	cur := el.currentAppendableSegment()
+	if cur == nil {
 		return 0
 	}
 	count := 0
-	for head != nil {
+	for cur != nil {
 		count++
-		head = el.nextOf(head)
+		cur = el.nextOf(cur)
 	}
 	return count
 }
 
 func (el *eventlog) currentAppendableSegment() *Segment {
-	el.mutex.RLock()
-	defer el.mutex.RUnlock()
+	el.mutex.Lock()
+	defer el.mutex.Unlock()
 	if el.size() == 0 {
 		return nil
 	}
@@ -819,7 +816,15 @@ func (el *eventlog) currentAppendableSegment() *Segment {
 		}
 	}
 	if el.writePtr != nil && !el.writePtr.IsAppendable() {
-		el.writePtr = el.nextOf(el.writePtr)
+		node := el.segmentList.Get(el.writePtr.ID.Uint64())
+		if node == nil {
+			return nil
+		}
+		next := node.Next()
+		if next == nil {
+			return nil
+		}
+		el.writePtr = next.Value.(*Segment)
 	}
 	return el.writePtr
 }
@@ -940,6 +945,9 @@ func (el *eventlog) nextOf(seg *Segment) *Segment {
 	defer el.mutex.RUnlock()
 
 	node := el.segmentList.Get(seg.ID.Uint64())
+	if node == nil {
+		return nil
+	}
 	next := node.Next()
 	if next == nil {
 		return nil
@@ -968,7 +976,9 @@ func (el *eventlog) deleteHead(ctx context.Context) error {
 	if el.segmentList.Len() == 0 {
 		return nil
 	}
-	head, _ := el.segmentList.Front().Value.(*Segment)
+	headV := el.segmentList.Front()
+	nextV := headV.Next()
+	head := headV.Value.(*Segment)
 	segments := make([]vanus.ID, 0, len(el.segments)-1)
 	for _, v := range el.segments {
 		if v.Uint64() != head.ID.Uint64() {
@@ -976,7 +986,27 @@ func (el *eventlog) deleteHead(ctx context.Context) error {
 		}
 	}
 	if err := el.kvClient.Delete(ctx, metadata.GetEventlogSegmentsMetadataKey(el.md.ID, head.ID)); err != nil {
+		log.Warning(ctx, "delete segment failed when delete head", map[string]interface{}{
+			log.KeyError:  err,
+			"segment_id":  head.ID.String(),
+			"eventlog_id": el.md.ID.String(),
+		})
 		return err
+	}
+
+	next := nextV.Value.(*Segment)
+	next.PreviousSegmentID = vanus.EmptyID()
+	data, _ := json.Marshal(next)
+	if err := el.kvClient.Set(ctx, metadata.GetSegmentMetadataKey(next.ID), data); err != nil {
+		log.Warning(ctx, "update segment failed when delete head", map[string]interface{}{
+			log.KeyError:  err,
+			"segment_id":  next.ID.String(),
+			"eventlog_id": el.md.ID.String(),
+		})
+		return err
+	}
+	if el.writePtr == head {
+		el.writePtr = nil
 	}
 	_ = el.segmentList.RemoveFront()
 	el.segments = segments

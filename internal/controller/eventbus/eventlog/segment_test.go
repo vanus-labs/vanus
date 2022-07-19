@@ -130,7 +130,7 @@ func TestConvert2ProtoSegment(t *testing.T) {
 
 func TestSegment_Copy(t *testing.T) {
 	Convey("test segment copy", t, func() {
-		seg := createTestSegment()
+		seg := createTestSegment(vanus.NewID())
 		seg.Capacity = 12345678
 		seg.EventLogID = vanus.NewID()
 		seg.PreviousSegmentID = vanus.NewID()
@@ -164,7 +164,7 @@ func TestSegment_Copy(t *testing.T) {
 	})
 }
 
-func createTestSegment() *Segment {
+func createTestSegment(volID vanus.ID) *Segment {
 	leader := vanus.NewID()
 	fo1 := vanus.NewID()
 	fo2 := vanus.NewID()
@@ -175,13 +175,19 @@ func createTestSegment() *Segment {
 			Leader: leader.Uint64(),
 			Peers: map[uint64]*metadata.Block{
 				leader.Uint64(): {
-					ID: leader,
+					ID:       leader,
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: volID,
 				},
 				fo1.Uint64(): {
-					ID: fo1,
+					ID:       fo1,
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: volID,
 				},
 				fo2.Uint64(): {
-					ID: fo2,
+					ID:       fo2,
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: volID,
 				},
 			},
 			Term:     0,
