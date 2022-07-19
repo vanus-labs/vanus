@@ -15,8 +15,9 @@
 package metadata
 
 import (
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"strings"
+
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
 const (

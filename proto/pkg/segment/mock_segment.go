@@ -117,14 +117,14 @@ func (mr *MockSegmentServerClientMockRecorder) GetBlockInfo(ctx, in interface{},
 }
 
 // InactivateSegment mocks base method.
-func (m *MockSegmentServerClient) InactivateSegment(ctx context.Context, in *InactivateSegmentRequest, opts ...grpc.CallOption) (*InactivateSegmentResponse, error) {
+func (m *MockSegmentServerClient) InactivateSegment(ctx context.Context, in *InactivateSegmentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "InactivateSegment", varargs...)
-	ret0, _ := ret[0].(*InactivateSegmentResponse)
+	ret0, _ := ret[0].(*emptypb.Empty)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -320,10 +320,10 @@ func (mr *MockSegmentServerServerMockRecorder) GetBlockInfo(arg0, arg1 interface
 }
 
 // InactivateSegment mocks base method.
-func (m *MockSegmentServerServer) InactivateSegment(arg0 context.Context, arg1 *InactivateSegmentRequest) (*InactivateSegmentResponse, error) {
+func (m *MockSegmentServerServer) InactivateSegment(arg0 context.Context, arg1 *InactivateSegmentRequest) (*emptypb.Empty, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InactivateSegment", arg0, arg1)
-	ret0, _ := ret[0].(*InactivateSegmentResponse)
+	ret0, _ := ret[0].(*emptypb.Empty)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

@@ -139,7 +139,7 @@ func TestSegmentServer(t *testing.T) {
 
 		Convey("InactivateSegment()", func() {
 			// TODO(james.yin):
-			srv.EXPECT().InactivateSegment(Any()).Return(nil)
+			srv.EXPECT().InactivateSegment(Any(), Any()).Return(nil)
 
 			req := &segpb.InactivateSegmentRequest{}
 			resp, err := ss.InactivateSegment(context.Background(), req)

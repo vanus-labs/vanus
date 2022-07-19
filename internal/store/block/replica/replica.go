@@ -162,34 +162,6 @@ func (r *Replica) Bootstrap(blocks []Peer) error {
 	return r.node.Bootstrap(peers)
 }
 
-//func (r *Replica) ProposeDestroy(ctx context.Context, topo map[uint64]bool) error {
-//	var leaderID uint64
-//	var ccs []raftpb.ConfChangeSingle
-//	for nodeID, isLeader := range topo {
-//		if isLeader {
-//			leaderID = nodeID
-//		} else {
-//			ccs = append(ccs, raftpb.ConfChangeSingle{
-//				Type:   raftpb.ConfChangeRemoveNode,
-//				NodeID: nodeID,
-//			})
-//		}
-//	}
-//	if r.leaderID.Uint64() != leaderID {
-//		return errors.ErrNoRaftNode
-//	}
-//	err := r.node.ProposeConfChange(ctx, raftpb.ConfChangeV2{
-//		Transition: 0,
-//		Changes:    ccs,
-//		Context:    nil,
-//	})
-//	if err != nil {
-//		return errors.ErrInternal.WithMessage("it's failed to remove raft node.").Wrap(err)
-//	}
-//	r.Stop()
-//	return nil
-//}
-
 func (r *Replica) run(ctx context.Context) {
 	// TODO(james.yin): reduce Ticker
 	t := time.NewTicker(defaultTickInterval)

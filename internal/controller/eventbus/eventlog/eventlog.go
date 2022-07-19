@@ -209,7 +209,7 @@ func (mgr *eventlogManager) DeleteEventlog(ctx context.Context, id vanus.ID) {
 	if !exist {
 		return
 	}
-	el := v.(*eventlog)
+	el, _ := v.(*eventlog)
 	for el.head() != nil {
 		head := el.head()
 		err := el.deleteHead(ctx)

@@ -17,7 +17,6 @@ package segment
 import (
 	// standard libraries.
 	"context"
-	"github.com/linkall-labs/vanus/internal/store/segment/errors"
 
 	// third-party libraries.
 	cepb "cloudevents.io/genproto/v1"
@@ -28,6 +27,7 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/store/segment/errors"
 	"github.com/linkall-labs/vanus/observability"
 )
 
