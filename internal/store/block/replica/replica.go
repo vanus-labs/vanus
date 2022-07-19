@@ -419,7 +419,10 @@ func (r *replica) Append(ctx context.Context, entries ...block.Entry) ([]block.E
 	}
 
 	// Wait until entries is committed.
-	r.waitCommit(ctx, offset)
+	err = r.waitCommit(ctx, offset)
+	if err != nil {
+		return nil, err
+	}
 
 	return entries, nil
 }
@@ -484,12 +487,12 @@ func (r *replica) doAppend(_ context.Context, entries ...block.Entry) {
 	}
 }
 
-func (r *replica) waitCommit(ctx context.Context, offset uint32) {
+func (r *replica) waitCommit(ctx context.Context, offset uint32) error {
 	r.mu2.Lock()
 
 	if offset <= r.commitOffset {
 		r.mu2.Unlock()
-		return
+		return nil
 	}
 
 	ch := make(chan struct{})
@@ -503,7 +506,9 @@ func (r *replica) waitCommit(ctx context.Context, offset uint32) {
 	// FIXME(james.yin): lost leader
 	select {
 	case <-ch:
+		return nil
 	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 
