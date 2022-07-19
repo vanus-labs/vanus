@@ -51,7 +51,6 @@ type Log struct {
 	offsetStore *meta.AsyncStore
 
 	prevHardSt raftpb.HardState
-	raftpb.ConfState
 
 	hsKey  []byte
 	offKey []byte

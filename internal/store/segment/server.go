@@ -589,7 +589,7 @@ func (s *server) ActivateSegment(
 	return nil
 }
 
-// InactivateSegment mark a block ready to be removed. This method usually is used for data transfer.
+// InactivateSegment mark a block ready to be removed. This method is usually used for data transfer.
 func (s *server) InactivateSegment(ctx context.Context, blockID vanus.ID) error {
 	if err := s.checkState(); err != nil {
 		return err
