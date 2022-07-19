@@ -824,7 +824,7 @@ func (el *eventlog) currentAppendableSegment() *Segment {
 		if next == nil {
 			return nil
 		}
-		el.writePtr = next.Value.(*Segment)
+		el.writePtr, _ = next.Value.(*Segment)
 	}
 	return el.writePtr
 }
@@ -978,7 +978,7 @@ func (el *eventlog) deleteHead(ctx context.Context) error {
 	}
 	headV := el.segmentList.Front()
 	nextV := headV.Next()
-	head := headV.Value.(*Segment)
+	head, _ := headV.Value.(*Segment)
 	segments := make([]vanus.ID, 0, len(el.segments)-1)
 	for _, v := range el.segments {
 		if v.Uint64() != head.ID.Uint64() {
@@ -994,7 +994,7 @@ func (el *eventlog) deleteHead(ctx context.Context) error {
 		return err
 	}
 
-	next := nextV.Value.(*Segment)
+	next, _ := nextV.Value.(*Segment)
 	next.PreviousSegmentID = vanus.EmptyID()
 	data, _ := json.Marshal(next)
 	if err := el.kvClient.Set(ctx, metadata.GetSegmentMetadataKey(next.ID), data); err != nil {
