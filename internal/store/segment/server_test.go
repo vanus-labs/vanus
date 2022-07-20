@@ -17,6 +17,9 @@ package segment
 import (
 	stdCtx "context"
 	"fmt"
+	"os"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -24,8 +27,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/block/replica"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/proto/pkg/errors"
-	"os"
-	"testing"
 
 	"github.com/linkall-labs/vanus/internal/store"
 	. "github.com/smartystreets/goconvey/convey"
