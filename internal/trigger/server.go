@@ -55,6 +55,7 @@ func NewTriggerServer(config Config) pbtrigger.TriggerWorkerServer {
 		config: config,
 		worker: worker.NewManager(worker.Config{
 			Controllers: config.ControllerAddr,
+			RateLimit:   config.RateLimit,
 		}),
 		client: NewClient(config.ControllerAddr),
 		state:  primitive.ServerStateCreated,

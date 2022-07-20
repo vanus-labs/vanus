@@ -16,6 +16,7 @@ package trigger
 
 import (
 	"context"
+	"math/rand"
 	"sync"
 	"testing"
 	"time"
@@ -36,7 +37,7 @@ import (
 func TestTrigger_ChangeTarget(t *testing.T) {
 	offsetManger := offset.NewOffsetManager()
 	offsetManger.RegisterSubscription(1)
-	tg := NewTrigger(nil, &primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
+	tg := NewTrigger(&primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
 	Convey("test change target", t, func() {
 		So(tg.Target, ShouldEqual, "")
 		So(tg.getCeClient(), ShouldBeNil)
@@ -48,7 +49,7 @@ func TestTrigger_ChangeTarget(t *testing.T) {
 func TestTrigger_ChangeFilter(t *testing.T) {
 	offsetManger := offset.NewOffsetManager()
 	offsetManger.RegisterSubscription(1)
-	tg := NewTrigger(nil, &primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
+	tg := NewTrigger(&primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
 	Convey("test change filter", t, func() {
 		So(tg.getFilter(), ShouldBeNil)
 		tg.ChangeFilter([]*primitive.SubscriptionFilter{{Exact: map[string]string{"type": "test"}}})
@@ -59,7 +60,7 @@ func TestTrigger_ChangeFilter(t *testing.T) {
 func TestTrigger_ChangeInputTransformer(t *testing.T) {
 	offsetManger := offset.NewOffsetManager()
 	offsetManger.RegisterSubscription(1)
-	tg := NewTrigger(nil, &primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
+	tg := NewTrigger(&primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
 	Convey("test change input transformer", t, func() {
 		So(tg.getInputTransformer(), ShouldBeNil)
 		tg.ChangeInputTransformer(&primitive.InputTransformer{})
@@ -71,6 +72,47 @@ func TestTrigger_ChangeInputTransformer(t *testing.T) {
 	})
 }
 
+func TestTrigger_Options(t *testing.T) {
+	Convey("test trigger option", t, func() {
+		tg := &Trigger{}
+		WithFilterProcessSize(-1)(tg)
+		So(tg.config.FilterProcessSize, ShouldEqual, 0)
+		size := rand.Intn(1000) + 1
+		WithFilterProcessSize(size)(tg)
+		So(tg.config.FilterProcessSize, ShouldEqual, size)
+		WithSendProcessSize(-1)(tg)
+		So(tg.config.SendProcessSize, ShouldEqual, 0)
+		size = rand.Intn(1000) + size
+		WithSendProcessSize(size)(tg)
+		So(tg.config.SendProcessSize, ShouldEqual, size)
+		WithSendTimeOut(-1)(tg)
+		So(tg.config.SendTimeOut, ShouldEqual, 0)
+		size = rand.Intn(1000) + size
+		WithSendTimeOut(time.Duration(size))(tg)
+		So(tg.config.SendTimeOut, ShouldEqual, size)
+		WithRetryPeriod(-1)(tg)
+		So(tg.config.RetryPeriod, ShouldEqual, 0)
+		size = rand.Intn(1000) + size
+		WithRetryPeriod(time.Duration(size))(tg)
+		So(tg.config.RetryPeriod, ShouldEqual, size)
+		WithMaxRetryTimes(-1)(tg)
+		So(tg.config.MaxRetryTimes, ShouldEqual, 0)
+		size = rand.Intn(1000) + size
+		WithMaxRetryTimes(size)(tg)
+		So(tg.config.MaxRetryTimes, ShouldEqual, size)
+		WithBufferSize(-1)(tg)
+		So(tg.config.BufferSize, ShouldEqual, 0)
+		size = rand.Intn(1000) + size
+		WithBufferSize(size)(tg)
+		So(tg.config.BufferSize, ShouldEqual, size)
+		WithRateLimit(-1)(tg)
+		So(tg.config.RateLimit, ShouldEqual, 0)
+		size = rand.Intn(1000) + size
+		WithRateLimit(size)(tg)
+		So(tg.config.RateLimit, ShouldEqual, size)
+	})
+}
+
 func TestTrigger(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
@@ -78,7 +120,7 @@ func TestTrigger(t *testing.T) {
 	time.Sleep(time.Second)
 	offsetManger := offset.NewOffsetManager()
 	offsetManger.RegisterSubscription(1)
-	tg := NewTrigger(&Config{SendTimeOut: time.Millisecond * 100, RetryPeriod: time.Millisecond * 100}, makeSubscription(1), offsetManger.GetSubscription(1))
+	tg := NewTrigger(makeSubscription(1), offsetManger.GetSubscription(1), WithSendTimeOut(100*time.Millisecond), WithRetryPeriod(100*time.Millisecond))
 
 	Convey("test", t, func() {
 		wg.Add(1)

@@ -14,7 +14,11 @@
 
 package trigger
 
-import "time"
+import (
+	"time"
+
+	"go.uber.org/ratelimit"
+)
 
 const (
 	defaultBufferSize        = 1 << 10
@@ -32,25 +36,83 @@ type Config struct {
 	MaxRetryTimes     int
 	RetryPeriod       time.Duration
 	SendTimeOut       time.Duration
+	RateLimit         int
 }
 
-func (c *Config) initConfig() {
-	if c.FilterProcessSize <= 0 {
-		c.FilterProcessSize = defaultFilterProcessSize
+func defaultConfig() Config {
+	c := Config{
+		FilterProcessSize: defaultFilterProcessSize,
+		SendProcessSize:   defaultSendProcessSize,
+		BufferSize:        defaultBufferSize,
+		MaxRetryTimes:     defaultMaxRetryTimes,
+		RetryPeriod:       defaultRetryPeriod,
+		SendTimeOut:       defaultSendTimeout,
 	}
-	if c.SendProcessSize <= 0 {
-		c.SendProcessSize = defaultSendProcessSize
+	return c
+}
+
+type Option func(t *Trigger)
+
+func WithFilterProcessSize(size int) Option {
+	return func(t *Trigger) {
+		if size <= 0 {
+			return
+		}
+		t.config.FilterProcessSize = size
 	}
-	if c.BufferSize <= 0 {
-		c.BufferSize = defaultBufferSize
+}
+
+func WithSendProcessSize(size int) Option {
+	return func(t *Trigger) {
+		if size <= 0 {
+			return
+		}
+		t.config.SendProcessSize = size
 	}
-	if c.MaxRetryTimes <= 0 {
-		c.MaxRetryTimes = defaultMaxRetryTimes
+}
+
+func WithBufferSize(size int) Option {
+	return func(t *Trigger) {
+		if size <= 0 {
+			return
+		}
+		t.config.BufferSize = size
 	}
-	if c.RetryPeriod <= 0 {
-		c.RetryPeriod = defaultRetryPeriod
+}
+
+func WithMaxRetryTimes(times int) Option {
+	return func(t *Trigger) {
+		if times <= 0 {
+			return
+		}
+		t.config.MaxRetryTimes = times
 	}
-	if c.SendTimeOut <= 0 {
-		c.SendTimeOut = defaultSendTimeout
+}
+
+func WithRetryPeriod(period time.Duration) Option {
+	return func(t *Trigger) {
+		if period <= 0 {
+			return
+		}
+		t.config.RetryPeriod = period
+	}
+}
+
+func WithSendTimeOut(timeout time.Duration) Option {
+	return func(t *Trigger) {
+		if timeout <= 0 {
+			return
+		}
+		t.config.SendTimeOut = timeout
+	}
+}
+
+func WithRateLimit(rateLimit int) Option {
+	return func(t *Trigger) {
+		if rateLimit <= 0 {
+			return
+		}
+		t.config.RateLimit = rateLimit
+		t.rateLimiter = ratelimit.New(rateLimit)
 	}
 }

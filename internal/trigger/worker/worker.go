@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -54,7 +55,7 @@ type subscriptionWorker struct {
 
 func NewSubscriptionWorker(subscription *primitive.Subscription,
 	subscriptionOffset *offset.SubscriptionOffset,
-	controllers []string) SubscriptionWorker {
+	config Config) SubscriptionWorker {
 	sw := &subscriptionWorker{
 		events:       make(chan info.EventOffset, eventBufferSize),
 		subscription: subscription,
@@ -63,10 +64,33 @@ func NewSubscriptionWorker(subscription *primitive.Subscription,
 	for _, o := range subscription.Offsets {
 		offsetMap[o.EventLogID] = o.Offset
 	}
-	sw.reader = reader.NewReader(getReaderConfig(subscription, controllers), offsetMap, sw.events)
-	triggerConf := &trigger.Config{}
-	sw.trigger = trigger.NewTrigger(triggerConf, subscription, subscriptionOffset)
+	sw.reader = reader.NewReader(getReaderConfig(subscription, config.Controllers), offsetMap, sw.events)
+	sw.trigger = trigger.NewTrigger(subscription, subscriptionOffset, getTriggerOptions(config, subscription)...)
 	return sw
+}
+
+func getTriggerOptions(cfg Config, subscription *primitive.Subscription) []trigger.Option {
+	opts := make([]trigger.Option, 0)
+	var rateLimit int
+	config := subscription.Config
+	if config != nil {
+		if config.RateLimit != "" {
+			v, err := strconv.Atoi(config.RateLimit)
+			if err != nil {
+				rateLimit = cfg.RateLimit
+				log.Info(context.Background(), "subscription config rateLimit is invalid", map[string]interface{}{
+					log.KeyError: err,
+					"value":      config.RateLimit,
+				})
+			} else {
+				rateLimit = v
+			}
+		}
+	}
+	if rateLimit > 0 {
+		opts = append(opts, trigger.WithRateLimit(rateLimit))
+	}
+	return opts
 }
 
 func (w *subscriptionWorker) Change(ctx context.Context, subscription *primitive.Subscription) error {

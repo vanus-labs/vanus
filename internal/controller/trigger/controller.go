@@ -112,7 +112,7 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 		subscriptionData.Types = request.Types
 	}
 	if request.Config != nil {
-		subscriptionData.Config = request.Config
+		subscriptionData.Config = convert.FromMapToConfig(request.Config)
 	}
 	if request.Filters != nil {
 		subscriptionData.Filters = convert.FromPbFilters(request.Filters)

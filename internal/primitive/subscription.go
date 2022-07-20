@@ -37,7 +37,7 @@ type SubscriptionData struct {
 	ID               vanus.ID              `json:"id"`
 	Source           string                `json:"source,omitempty"`
 	Types            []string              `json:"types,omitempty"`
-	Config           map[string]string     `json:"config,omitempty"`
+	Config           *Config               `json:"config,omitempty"`
 	Filters          []*SubscriptionFilter `json:"filters,omitempty"`
 	Sink             URI                   `json:"sink,omitempty"`
 	Protocol         string                `json:"protocol,omitempty"`
@@ -56,6 +56,11 @@ type Subscription struct {
 	EventBus         string                `json:"eventBus"`
 	Offsets          info.ListOffsetInfo   `json:"offsets"`
 	InputTransformer *InputTransformer     `json:"inputTransformer,omitempty"`
+	Config           *Config               `json:"config,omitempty"`
+}
+
+type Config struct {
+	RateLimit string `json:"rateLimit,omitempty"`
 }
 
 type SubscriptionFilter struct {

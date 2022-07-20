@@ -22,10 +22,11 @@ import (
 )
 
 type Config struct {
+	TriggerAddr    string
 	Port           int      `yaml:"port"`
 	IP             string   `yaml:"ip"`
 	ControllerAddr []string `yaml:"controllers"`
-	TriggerAddr    string
+	RateLimit      int      `yaml:"rateLimit"`
 }
 
 func InitConfig(filename string) (*Config, error) {
