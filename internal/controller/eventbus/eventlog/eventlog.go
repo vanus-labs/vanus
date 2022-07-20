@@ -212,8 +212,8 @@ func (mgr *eventlogManager) DeleteEventlog(ctx context.Context, id vanus.ID) {
 		return
 	}
 	el, _ := v.(*eventlog)
-	for el.head() != nil {
-		head := el.head()
+	head := el.head()
+	for head != nil {
 		err := el.deleteHead(ctx)
 		if err != nil {
 			log.Warning(ctx, "delete eventlog error when deleting segment", map[string]interface{}{
@@ -223,6 +223,7 @@ func (mgr *eventlogManager) DeleteEventlog(ctx context.Context, id vanus.ID) {
 			})
 		}
 		mgr.segmentNeedBeClean.Store(head.ID.Key(), head)
+		head = el.head()
 	}
 	if err := mgr.kvClient.Delete(ctx, metadata.GetEventlogMetadataKey(id)); err != nil {
 		log.Warning(ctx, "deleting eventlog metadata in kv error", map[string]interface{}{
@@ -719,7 +720,7 @@ func (mgr *eventlogManager) generateSegment(ctx context.Context) (*Segment, erro
 			log.KeyError: err,
 			"segment":    seg.String(),
 		})
-		// mgr.allocator.Clean(ctx, blocks...)
+		mgr.segmentNeedBeClean.Store(seg.ID.Key(), seg)
 		return nil, err
 	}
 	return seg, nil
@@ -875,7 +876,7 @@ func (el *eventlog) add(ctx context.Context, seg *Segment) error {
 	return nil
 }
 
-func (el *eventlog) markSegmentIsFull(ctx context.Context, seg *Segment) error {
+func (el *eventlog) markSegmentFull(ctx context.Context, seg *Segment) error {
 	// because sync.RWMutex isn't reentrant, so here have to implement *eventlog.nextOf again
 	node := el.segmentList.Get(seg.ID.Uint64())
 	nextNode := node.Next()
@@ -885,12 +886,11 @@ func (el *eventlog) markSegmentIsFull(ctx context.Context, seg *Segment) error {
 	next, _ := nextNode.Value.(*Segment)
 	next.StartOffsetInLog = seg.StartOffsetInLog + int64(seg.Number)
 	data, _ := json.Marshal(next)
-	// TODO update block info at the same time
-	key := filepath.Join(metadata.SegmentKeyPrefixInKVStore, next.ID.String())
+	// TODO(wenfeng.wang) update block info at the same time
 	log.Debug(context.TODO(), "segment is full", map[string]interface{}{
 		"data": string(data),
 	})
-	if err := el.kvClient.Set(ctx, key, data); err != nil {
+	if err := el.kvClient.Set(ctx, metadata.GetSegmentMetadataKey(next.ID), data); err != nil {
 		return err
 	}
 	return nil
@@ -996,16 +996,18 @@ func (el *eventlog) deleteHead(ctx context.Context) error {
 		return err
 	}
 
-	next, _ := nextV.Value.(*Segment)
-	next.PreviousSegmentID = vanus.EmptyID()
-	data, _ := json.Marshal(next)
-	if err := el.kvClient.Set(ctx, metadata.GetSegmentMetadataKey(next.ID), data); err != nil {
-		log.Warning(ctx, "update segment failed when delete head", map[string]interface{}{
-			log.KeyError:  err,
-			"segment_id":  next.ID.String(),
-			"eventlog_id": el.md.ID.String(),
-		})
-		return err
+	if nextV != nil {
+		next, _ := nextV.Value.(*Segment)
+		next.PreviousSegmentID = vanus.EmptyID()
+		data, _ := json.Marshal(next)
+		if err := el.kvClient.Set(ctx, metadata.GetSegmentMetadataKey(next.ID), data); err != nil {
+			log.Warning(ctx, "update segment failed when delete head", map[string]interface{}{
+				log.KeyError:  err,
+				"segment_id":  next.ID.String(),
+				"eventlog_id": el.md.ID.String(),
+			})
+			return err
+		}
 	}
 	if el.writePtr == head {
 		el.writePtr = nil
@@ -1024,7 +1026,7 @@ func (el *eventlog) updateSegment(ctx context.Context, seg *Segment) error {
 		return err
 	}
 	if seg.isFull() {
-		err := el.markSegmentIsFull(ctx, seg)
+		err := el.markSegmentFull(ctx, seg)
 		if err != nil {
 			return err
 		}
