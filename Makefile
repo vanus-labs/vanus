@@ -18,9 +18,9 @@ DOCKER_BUILD_ARG= --build-arg TARGETARCH=$(GOARCH) --build-arg TARGETOS=$(GOOS)
 clean :
 	rm -rf bin
 
-docker-push: docker-push-controller docker-push-trigger docker-push-gateway docker-push-store
-docker-build: docker-build-controller docker-build-trigger docker-build-gateway docker-build-store
-build: build-controller build-trigger build-gateway build-store
+docker-push: docker-push-controller docker-push-timer docker-push-trigger docker-push-gateway docker-push-store
+docker-build: docker-build-controller docker-build-timer docker-build-trigger docker-build-gateway docker-build-store
+build: build-controller build-timer build-trigger build-gateway build-store
 
 docker-push-store: docker-build-store
 	docker push ${DOCKER_REPO}/store:${IMAGE_TAG}
@@ -56,6 +56,13 @@ docker-build-trigger:
 	docker build -t ${DOCKER_REPO}/trigger:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/trigger/Dockerfile .
 build-trigger:
 	$(GO_BUILD)  -o bin/trigger cmd/trigger/main.go
+
+docker-push-timer: docker-build-timer
+	docker push ${DOCKER_REPO}/timer:${IMAGE_TAG}
+docker-build-timer:
+	docker build -t ${DOCKER_REPO}/timer:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/timer/Dockerfile .
+build-timer:
+	$(GO_BUILD)  -o bin/timer cmd/timer/main.go
 
 controller-start:
 	go run ${VANUS_ROOT}/cmd/controller/main.go
