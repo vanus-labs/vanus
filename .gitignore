@@ -17,7 +17,8 @@ __debug_bin
 /config/*.json
 /config/*.toml
 /config/*.yaml
-/config/cluster/*.yaml
+/config/cluster/store/*.yaml
+/config/cluster/controller/*.yaml
 /config/**/*.local.*
 
 # data dir of etcd
