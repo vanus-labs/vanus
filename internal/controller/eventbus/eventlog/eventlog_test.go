@@ -1027,7 +1027,6 @@ func TestEventlog_MarkSegmentFull(t *testing.T) {
 		seg2 := createTestSegment(md.ID)
 		_ = el.add(ctx, seg1)
 		_ = el.add(ctx, seg2)
-		//seg1.Number
 		seg1.StartOffsetInLog = 111111
 		seg1.Number = 12345
 		err := el.markSegmentFull(ctx, seg1)

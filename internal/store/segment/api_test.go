@@ -131,7 +131,13 @@ func TestSegmentServer(t *testing.T) {
 			// TODO(james.yin):
 			srv.EXPECT().ActivateSegment(Any(), Any(), Any(), Any()).Return(nil)
 
-			req := &segpb.ActivateSegmentRequest{}
+			req := &segpb.ActivateSegmentRequest{
+				EventLogId:     vanus.NewID().Uint64(),
+				ReplicaGroupId: vanus.NewID().Uint64(),
+				Replicas: map[uint64]string{
+					1: "a",
+				},
+			}
 			resp, err := ss.ActivateSegment(context.Background(), req)
 			So(err, ShouldBeNil)
 			So(resp, ShouldNotBeNil)
