@@ -17,20 +17,16 @@ package trigger
 import (
 	"context"
 	"math/rand"
-	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/google/uuid"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
-	"github.com/linkall-labs/vanus/observability/log"
-
-	ce "github.com/cloudevents/sdk-go/v2"
-	ceClient "github.com/cloudevents/sdk-go/v2/client"
-	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
-	"github.com/google/uuid"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -113,54 +109,99 @@ func TestTrigger_Options(t *testing.T) {
 	})
 }
 
-func TestTrigger(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	var wg sync.WaitGroup
-	go startSink(ctx, &wg)
-	time.Sleep(time.Second)
+func TestTriggerStartStop(t *testing.T) {
 	offsetManger := offset.NewOffsetManager()
 	offsetManger.RegisterSubscription(1)
-	tg := NewTrigger(makeSubscription(1), offsetManger.GetSubscription(1), WithSendTimeOut(100*time.Millisecond), WithRetryPeriod(100*time.Millisecond))
-
+	tg := NewTrigger(makeSubscription(1), offsetManger.GetSubscription(1))
 	Convey("test", t, func() {
-		wg.Add(1)
-		_ = tg.EventArrived(ctx, makeEventRecord())
 		_ = tg.Start()
-		wg.Wait()
 		time.Sleep(time.Second)
 		So(tg.GetState(), ShouldEqual, TriggerRunning)
 		tg.Stop()
 		So(tg.GetState(), ShouldEqual, TriggerStopped)
-		cancel()
 	})
 }
 
-func startSink(ctx context.Context, wg *sync.WaitGroup) {
-	c, err := ceClient.NewHTTP(cehttp.WithPort(18080))
-	if err != nil {
-		panic(err)
-	}
-	_ = c.StartReceiver(ctx, func(e ce.Event) {
-		defer wg.Done()
-		log.Info(ctx, "receive event", map[string]interface{}{
-			"event": e,
+func TestTriggerRunEventSend(t *testing.T) {
+	offsetManger := offset.NewOffsetManager()
+	offsetManger.RegisterSubscription(1)
+	tg := NewTrigger(makeSubscription(1), offsetManger.GetSubscription(1))
+	tg.ceClient = NewFakeClient("test")
+	ctx := context.Background()
+	Convey("test event run process", t, func() {
+		size := 10
+		for i := 0; i < size; i++ {
+			_ = tg.EventArrived(ctx, makeEventRecord("test"))
+		}
+		So(len(tg.eventCh), ShouldEqual, size)
+		go func() {
+			tg.runEventProcess(ctx)
+		}()
+		time.Sleep(100 * time.Millisecond)
+		So(len(tg.sendCh), ShouldEqual, size)
+		_ = tg.EventArrived(ctx, makeEventRecord("no"))
+		time.Sleep(100 * time.Millisecond)
+		So(len(tg.sendCh), ShouldEqual, size)
+		close(tg.eventCh)
+		go func() {
+			tg.runEventSend(ctx)
+		}()
+		time.Sleep(100 * time.Millisecond)
+		close(tg.sendCh)
+	})
+}
+
+func TestTriggerRateLimit(t *testing.T) {
+	Convey("test rate limit", t, func() {
+		offsetManger := offset.NewOffsetManager()
+		offsetManger.RegisterSubscription(1)
+		tg := NewTrigger(makeSubscription(1), offsetManger.GetSubscription(1))
+		tg.ceClient = NewFakeClient("test")
+		ctx := context.Background()
+		rateLimit := 10000
+		Convey("test no rate limit", func() {
+			c := testSendEvent(ctx, tg)
+			So(c, ShouldBeGreaterThan, rateLimit)
+		})
+		Convey("test with rate", func() {
+			WithRateLimit(rateLimit)(tg)
+			c := testSendEvent(ctx, tg)
+			So(c, ShouldBeLessThanOrEqualTo, 2*rateLimit+1)
 		})
 	})
+}
+
+func testSendEvent(ctx context.Context, tg *Trigger) int64 {
+	size := 50000
+	eventCh := make(chan *ce.Event, size)
+	for i := 0; i < size; i++ {
+		eventCh <- makeEventRecord("test").Event
+	}
+	var c int64
+	go func() {
+		for event := range eventCh {
+			tg.retrySendEvent(ctx, event)
+			atomic.AddInt64(&c, 1)
+		}
+	}()
+	time.Sleep(2 * time.Second)
+	close(eventCh)
+	return c
 }
 
 func makeSubscription(id vanus.ID) *primitive.Subscription {
 	return &primitive.Subscription{
 		ID:      id,
-		Sink:    "http://localhost:18080",
-		Filters: []*primitive.SubscriptionFilter{{Exact: map[string]string{"type": "type"}}},
+		Sink:    "http://localhost:8080",
+		Filters: []*primitive.SubscriptionFilter{{Exact: map[string]string{"type": "test"}}},
 	}
 }
 
-func makeEventRecord() info.EventRecord {
+func makeEventRecord(t string) info.EventRecord {
 	event := ce.NewEvent()
 	event.SetID(uuid.New().String())
 	event.SetSource("source")
-	event.SetType("type")
+	event.SetType(t)
 	return info.EventRecord{
 		EventOffset: info.EventOffset{
 			Event: &event,
