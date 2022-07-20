@@ -204,3 +204,51 @@ func TestWAL_Append(t *testing.T) {
 		})
 	})
 }
+
+func TestWAL_Compact(t *testing.T) {
+	data := make([]byte, defaultBlockSize-record.HeaderSize)
+	copy(data, []byte("hello world!"))
+
+	Convey("wal compaction", t, func() {
+		walDir, err := os.MkdirTemp("", "wal-*")
+		So(err, ShouldBeNil)
+
+		wal, err := Open(walDir, WithFileSize(fileSize))
+		So(err, ShouldBeNil)
+
+		_, err = wal.Append([][]byte{data, data, data, data, data, data, data, data}).Wait()
+		So(err, ShouldBeNil)
+		So(wal.stream.stream, ShouldHaveLength, 1)
+
+		r, err := wal.AppendOne(data).Wait()
+		So(err, ShouldBeNil)
+		So(r, ShouldResemble, Range{SO: fileSize, EO: fileSize + defaultBlockSize})
+		So(wal.stream.stream, ShouldHaveLength, 2)
+
+		err = wal.Compact(r.SO)
+		So(err, ShouldBeNil)
+		So(wal.stream.stream, ShouldHaveLength, 1)
+
+		err = wal.Compact(r.EO)
+		So(err, ShouldBeNil)
+		So(wal.stream.stream, ShouldHaveLength, 1)
+
+		ranges, err := wal.Append([][]byte{
+			data, data, data, data, data, data, data, data,
+			data, data, data, data, data, data, data, data,
+		}).Wait()
+		So(err, ShouldBeNil)
+		So(ranges[len(ranges)-1].EO, ShouldEqual, fileSize*3+defaultBlockSize)
+		So(wal.stream.stream, ShouldHaveLength, 3)
+
+		err = wal.Compact(fileSize * 2)
+		So(err, ShouldBeNil)
+		So(wal.stream.stream, ShouldHaveLength, 2)
+
+		wal.Close()
+		wal.Wait()
+
+		err = os.RemoveAll(walDir)
+		So(err, ShouldBeNil)
+	})
+}

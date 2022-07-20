@@ -314,9 +314,7 @@ func (w *WAL) doAppend(entries [][]byte, callback AppendCallback) (bool, bool) {
 	var full, goahead bool
 	ranges := make([]Range, len(entries))
 	for i, entry := range entries {
-		if false {
-			ranges[i].SO = w.wb.WriteOffset()
-		}
+		ranges[i].SO = w.wb.WriteOffset()
 		records := record.Pack(entry, w.wb.Remaining(), w.allocator.BlockSize())
 		for j, record := range records {
 			n, err := w.wb.Append(record)
