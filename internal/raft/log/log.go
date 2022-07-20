@@ -211,7 +211,7 @@ func (l *Log) Term(i uint64) (uint64, error) {
 }
 
 func (l *Log) lastTerm() uint64 {
-	return l.ents[l.lastIndex()].Term
+	return l.ents[l.length()].Term
 }
 
 func (l *Log) compactedTerm() uint64 {

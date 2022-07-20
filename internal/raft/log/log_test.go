@@ -21,13 +21,17 @@ import (
 	"testing"
 
 	// third-party libraries.
+	. "github.com/smartystreets/goconvey/convey"
+
+	// first-party libraries.
+	"github.com/linkall-labs/vanus/raft"
+	"github.com/linkall-labs/vanus/raft/raftpb"
+
+	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	storecfg "github.com/linkall-labs/vanus/internal/store"
 	"github.com/linkall-labs/vanus/internal/store/meta"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
-	"github.com/linkall-labs/vanus/raft"
-	"github.com/linkall-labs/vanus/raft/raftpb"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 var (

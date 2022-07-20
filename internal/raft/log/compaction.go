@@ -112,9 +112,9 @@ type logCompactInfos map[vanus.ID]compactInfo
 var _ meta.Ranger = (logCompactInfos)(nil)
 
 func (i logCompactInfos) Range(cb meta.RangeCallback) error {
-	value := make([]byte, 16)
 	for id := range i {
 		key := fmt.Sprintf("block/%020d/compact", id.Uint64())
+		value := make([]byte, 16)
 		binary.BigEndian.PutUint64(value[0:8], i[id].index)
 		binary.BigEndian.PutUint64(value[8:16], i[id].term)
 		if err := cb([]byte(key), value); err != nil {
