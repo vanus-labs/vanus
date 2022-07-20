@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=eventlog.go  -destination=mock_eventlog.go -package=eventlog
 package eventlog
 
 import (
@@ -31,7 +32,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/proto/pkg/meta"
 	"github.com/linkall-labs/vanus/proto/pkg/segment"
 )
 
@@ -184,12 +184,14 @@ func (mgr *eventlogManager) AcquireEventLog(ctx context.Context, eventbusID vanu
 		"id":  elMD.EventbusID.Key(),
 	})
 	metrics.EventlogGaugeVec.WithLabelValues(elMD.ID.String()).Inc()
+	elMD.SegmentNumber = el.size()
 	return elMD, nil
 }
 
 func (mgr *eventlogManager) GetEventLog(_ context.Context, id vanus.ID) *metadata.Eventlog {
 	el := mgr.getEventLog(id)
 	if el != nil {
+		el.md.SegmentNumber = el.size()
 		return el.md
 	}
 	return nil
@@ -1036,18 +1038,4 @@ func (el *eventlog) lock() {
 
 func (el *eventlog) unlock() {
 	el.mutex.Unlock()
-}
-
-func Convert2ProtoEventLog(ins ...*metadata.Eventlog) []*meta.EventLog {
-	pels := make([]*meta.EventLog, len(ins))
-	for idx := 0; idx < len(ins); idx++ {
-		eli := ins[idx]
-
-		elObj := mgr.getEventLog(eli.ID)
-		pels[idx] = &meta.EventLog{
-			EventLogId:            eli.ID.Uint64(),
-			CurrentSegmentNumbers: int32(elObj.size()),
-		}
-	}
-	return pels
 }

@@ -146,12 +146,12 @@ func (ctrl *controller) CreateEventBus(ctx context.Context,
 		}
 	}
 	metrics.EventbusGauge.Set(float64(len(ctrl.eventBusMap)))
-	return &metapb.EventBus{
-		Name:      eb.Name,
-		LogNumber: int32(eb.LogNumber),
-		Logs:      eventlog.Convert2ProtoEventLog(eb.EventLogs...),
-		Id:        eb.ID.Uint64(),
-	}, nil
+
+	md := &metapb.EventBus{
+		Name: eb.Name,
+	}
+
+	return ctrl.GetEventBus(ctx, md)
 }
 
 func (ctrl *controller) DeleteEventBus(ctx context.Context,
@@ -197,7 +197,7 @@ func (ctrl *controller) GetEventBus(ctx context.Context,
 
 	ebMD := metadata.Convert2ProtoEventBus(_eb)[0]
 	ebMD.Name = _eb.Name
-	ebMD.Logs = eventlog.Convert2ProtoEventLog(_eb.EventLogs...)
+	ebMD.Logs = metadata.Convert2ProtoEventLog(_eb.EventLogs...)
 	addrs := make([]string, 0)
 	for _, v := range ctrl.cfg.Topology {
 		addrs = append(addrs, v)
