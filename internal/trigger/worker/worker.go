@@ -71,13 +71,12 @@ func NewSubscriptionWorker(subscription *primitive.Subscription,
 
 func getTriggerOptions(cfg Config, subscription *primitive.Subscription) []trigger.Option {
 	opts := make([]trigger.Option, 0)
-	var rateLimit int
+	rateLimit := cfg.RateLimit
 	config := subscription.Config
 	if config != nil {
 		if config.RateLimit != "" {
 			v, err := strconv.Atoi(config.RateLimit)
 			if err != nil {
-				rateLimit = cfg.RateLimit
 				log.Info(context.Background(), "subscription config rateLimit is invalid", map[string]interface{}{
 					log.KeyError: err,
 					"value":      config.RateLimit,
