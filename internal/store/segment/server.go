@@ -698,6 +698,11 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 			return nil, errors.ErrInternal.WithMessage(
 				"unmarshall data to event failed").Wrap(err2)
 		}
+		event.Attributes["xvanusblockoff"] = &cepb.CloudEventAttributeValue{
+			Attr: &cepb.CloudEventAttributeValue_CeInteger{
+				CeInteger: int32(entry.Index),
+			},
+		}
 		events[i] = event
 	}
 

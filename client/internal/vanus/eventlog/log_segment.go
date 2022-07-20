@@ -17,6 +17,7 @@ package eventlog
 import (
 	// standard libraries
 	"context"
+	"encoding/binary"
 	"math"
 	"sync"
 
@@ -168,6 +169,15 @@ func (s *logSegment) Read(ctx context.Context, from int64, size int16) ([]*ce.Ev
 	if err != nil {
 		return nil, err
 	}
+
+	for _, e := range events {
+		eventBlockOff, _ := e.Extensions()["xvanusblockoff"].(int32)
+		offset := s.startOffset + int64(eventBlockOff)
+		buf := make([]byte, 8)
+		binary.BigEndian.PutUint64(buf, uint64(offset))
+		e.SetExtension("xvanuslogoff", buf)
+	}
+
 	return events, err
 }
 
