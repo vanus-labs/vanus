@@ -121,8 +121,8 @@ type leaderInfo struct {
 
 type server struct {
 	blocks  sync.Map // block.ID, *file.Block
-	writers sync.Map // block.ID, *replica.Replica
-	readers sync.Map // block.ID, *replica.Replica
+	writers sync.Map // block.ID, replica.Replica
+	readers sync.Map // block.ID, *file.Block
 
 	wal         *raftlog.WAL
 	metaStore   *meta.SyncStore
@@ -169,12 +169,12 @@ func (s *server) Serve(lis net.Listener) error {
 
 func (s *server) preGrpcStream(ctx context.Context, info *tap.Info) (context.Context, error) {
 	if info.FullMethodName == "/linkall.vanus.raft.RaftServer/SendMessage" {
-		cctx, cannel := context.WithCancel(ctx)
+		cctx, cancel := context.WithCancel(ctx)
 		go func() {
 			select {
 			case <-cctx.Done():
 			case <-s.closec:
-				cannel()
+				cancel()
 			}
 		}()
 		return cctx, nil
@@ -410,7 +410,7 @@ func (s *server) Stop(ctx context.Context) error {
 func (s *server) stop(ctx context.Context) error {
 	// Close all raft nodes.
 	s.writers.Range(func(key, value interface{}) bool {
-		r, _ := value.(*replica.Replica)
+		r, _ := value.(replica.Replica)
 		r.Stop(ctx)
 		return true
 	})
@@ -480,14 +480,14 @@ func (s *server) CreateBlock(ctx context.Context, id vanus.ID, size int64) error
 	return nil
 }
 
-func (s *server) makeReplica(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender) *replica.Replica {
+func (s *server) makeReplica(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender) replica.Replica {
 	raftLog := raftlog.NewLog(blockID, s.wal, s.metaStore, s.offsetStore)
 	return s.makeReplicaWithRaftLog(ctx, blockID, appender, raftLog)
 }
 
 func (s *server) makeReplicaWithRaftLog(
 	ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, raftLog *raftlog.Log,
-) *replica.Replica {
+) replica.Replica {
 	r := replica.New(ctx, blockID, appender, raftLog, s.host, s.leaderChanged)
 	s.host.Register(blockID.Uint64(), r)
 	return r
@@ -581,7 +581,7 @@ func (s *server) ActivateSegment(
 	})
 
 	// Bootstrap replica.
-	replica, _ := v.(*replica.Replica)
+	replica, _ := v.(replica.Replica)
 	if err := replica.Bootstrap(peers); err != nil {
 		return err
 	}
@@ -597,9 +597,9 @@ func (s *server) InactivateSegment(ctx context.Context, blockID vanus.ID) error 
 
 	v, exist := s.writers.Load(blockID)
 	if !exist {
-		return errors.ErrResourceNotFound.WithMessage("the segment not found")
+		return errors.ErrResourceNotFound.WithMessage("the replica not found")
 	}
-	rp, _ := v.(*replica.Replica)
+	rp, _ := v.(replica.Replica)
 	rp.Stop(ctx)
 	s.writers.Delete(blockID)
 	s.readers.Delete(blockID)
@@ -728,7 +728,7 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 func (s *server) checkState() error {
 	if s.state != primitive.ServerStateRunning {
 		return errors.ErrServiceState.WithMessage(fmt.Sprintf(
-			"the server isn't ready to work, current state:%s", s.state))
+			"the server isn't ready to work, current state: %s", s.state))
 	}
 	return nil
 }

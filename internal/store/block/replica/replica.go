@@ -62,7 +62,17 @@ type commitWaiter struct {
 	c      chan struct{}
 }
 
-type Replica struct {
+//go:generate mockgen -source=replica.go  -destination=mock_replica.go -package=replica
+type Replica interface {
+	Stop(ctx context.Context)
+	Bootstrap(blocks []Peer) error
+	Append(ctx context.Context, entries ...block.Entry) error
+	Receive(ctx context.Context, msg *raftpb.Message, from uint64, endpoint string)
+	FillClusterInfo(info *metapb.SegmentHealthInfo)
+	CloseWrite(ctx context.Context) error
+}
+
+type replica struct {
 	blockID vanus.ID
 
 	mu sync.RWMutex
@@ -92,17 +102,17 @@ type Replica struct {
 
 // Make sure replica implements block.Appender, block.ClusterInfoSource and transport.Receiver.
 var (
-	_ block.Appender          = (*Replica)(nil)
-	_ block.ClusterInfoSource = (*Replica)(nil)
-	_ transport.Receiver      = (*Replica)(nil)
+	_ block.Appender          = (*replica)(nil)
+	_ block.ClusterInfoSource = (*replica)(nil)
+	_ transport.Receiver      = (*replica)(nil)
 )
 
 func New(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, raftLog *raftlog.Log,
 	sender transport.Sender, listener LeaderChangedListener,
-) *Replica {
+) Replica {
 	ctx, cancel := context.WithCancel(ctx)
 
-	r := &Replica{
+	r := &replica{
 		blockID:  blockID,
 		appender: appender,
 		waiters:  make([]commitWaiter, 0),
@@ -137,7 +147,7 @@ func New(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, ra
 	return r
 }
 
-func (r *Replica) Stop(ctx context.Context) {
+func (r *replica) Stop(ctx context.Context) {
 	r.cancel()
 	// Block until the stop has been acknowledged.
 	<-r.donec
@@ -147,7 +157,7 @@ func (r *Replica) Stop(ctx context.Context) {
 	})
 }
 
-func (r *Replica) Bootstrap(blocks []Peer) error {
+func (r *replica) Bootstrap(blocks []Peer) error {
 	peers := make([]raft.Peer, 0, len(blocks))
 	for _, ep := range blocks {
 		peers = append(peers, raft.Peer{
@@ -162,7 +172,7 @@ func (r *Replica) Bootstrap(blocks []Peer) error {
 	return r.node.Bootstrap(peers)
 }
 
-func (r *Replica) run(ctx context.Context) {
+func (r *replica) run(ctx context.Context) {
 	// TODO(james.yin): reduce Ticker
 	t := time.NewTicker(defaultTickInterval)
 	defer t.Stop()
@@ -247,7 +257,7 @@ func (r *Replica) run(ctx context.Context) {
 	}
 }
 
-func (r *Replica) applyEntries(ctx context.Context, committedEntries []raftpb.Entry) uint64 {
+func (r *replica) applyEntries(ctx context.Context, committedEntries []raftpb.Entry) uint64 {
 	num := len(committedEntries)
 	if num == 0 {
 		return 0
@@ -285,7 +295,7 @@ func (r *Replica) applyEntries(ctx context.Context, committedEntries []raftpb.En
 	return committedEntries[num-1].Index
 }
 
-func (r *Replica) wakeup(commit uint64) (partial bool) {
+func (r *replica) wakeup(commit uint64) (partial bool) {
 	li, _ := r.log.LastIndex()
 	if commit > li {
 		commit = li
@@ -314,14 +324,14 @@ func (r *Replica) wakeup(commit uint64) (partial bool) {
 	return partial
 }
 
-func (r *Replica) becomeLeader() {
+func (r *replica) becomeLeader() {
 	// Reset when become leader.
 	r.reset()
 
 	r.leaderChanged()
 }
 
-func (r *Replica) leaderChanged() {
+func (r *replica) leaderChanged() {
 	if r.listener == nil {
 		return
 	}
@@ -330,7 +340,7 @@ func (r *Replica) leaderChanged() {
 	r.listener(r.blockID, leader, term)
 }
 
-func (r *Replica) applyConfChange(entrypb *raftpb.Entry) *raftpb.ConfState {
+func (r *replica) applyConfChange(entrypb *raftpb.Entry) *raftpb.ConfState {
 	if entrypb.Type == raftpb.EntryNormal {
 		// TODO(james.yin): return error
 		return nil
@@ -359,7 +369,7 @@ func (r *Replica) applyConfChange(entrypb *raftpb.Entry) *raftpb.ConfState {
 	return r.node.ApplyConfChange(cci)
 }
 
-func (r *Replica) reset() {
+func (r *replica) reset() {
 	off, err := r.log.LastIndex()
 	if err != nil {
 		off = r.log.HardState().Commit
@@ -394,7 +404,7 @@ func (r *Replica) reset() {
 }
 
 // Append implements block.Appender.
-func (r *Replica) Append(ctx context.Context, entries ...block.Entry) error {
+func (r *replica) Append(ctx context.Context, entries ...block.Entry) error {
 	// TODO(james.yin): support batch
 	if len(entries) != 1 {
 		return errors.ErrInvalidRequest
@@ -411,7 +421,7 @@ func (r *Replica) Append(ctx context.Context, entries ...block.Entry) error {
 	return nil
 }
 
-func (r *Replica) append(ctx context.Context, entries []block.Entry) (uint32, error) {
+func (r *replica) append(ctx context.Context, entries []block.Entry) (uint32, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -447,7 +457,7 @@ func (r *Replica) append(ctx context.Context, entries []block.Entry) (uint32, er
 	return r.actx.WriteOffset(), nil
 }
 
-func (r *Replica) doAppend(_ context.Context, entries ...block.Entry) {
+func (r *replica) doAppend(_ context.Context, entries ...block.Entry) {
 	num := len(entries)
 	if num == 0 {
 		return
@@ -471,7 +481,7 @@ func (r *Replica) doAppend(_ context.Context, entries ...block.Entry) {
 	}
 }
 
-func (r *Replica) waitCommit(ctx context.Context, offset uint32) {
+func (r *replica) waitCommit(ctx context.Context, offset uint32) {
 	r.mu2.Lock()
 
 	if offset <= r.commitOffset {
@@ -494,7 +504,7 @@ func (r *Replica) waitCommit(ctx context.Context, offset uint32) {
 	}
 }
 
-func (r *Replica) doWakeup(commit uint32) {
+func (r *replica) doWakeup(commit uint32) {
 	r.mu2.Lock()
 	defer r.mu2.Unlock()
 
@@ -509,7 +519,7 @@ func (r *Replica) doWakeup(commit uint32) {
 	r.commitOffset = commit
 }
 
-func (r *Replica) send(msgs []raftpb.Message) {
+func (r *replica) send(msgs []raftpb.Message) {
 	if len(msgs) == 0 {
 		return
 	}
@@ -555,7 +565,7 @@ func (r *Replica) send(msgs []raftpb.Message) {
 	}
 }
 
-func (r *Replica) peerHint(to uint64) string {
+func (r *replica) peerHint(to uint64) string {
 	r.hintMu.RLock()
 	defer r.hintMu.RUnlock()
 	for i := range r.hint {
@@ -568,7 +578,7 @@ func (r *Replica) peerHint(to uint64) string {
 }
 
 // Receive implements transport.Receiver.
-func (r *Replica) Receive(ctx context.Context, msg *raftpb.Message, from uint64, endpoint string) {
+func (r *replica) Receive(ctx context.Context, msg *raftpb.Message, from uint64, endpoint string) {
 	if endpoint != "" {
 		r.hintPeer(from, endpoint)
 	}
@@ -577,7 +587,7 @@ func (r *Replica) Receive(ctx context.Context, msg *raftpb.Message, from uint64,
 	_ = r.node.Step(r.ctx, *msg)
 }
 
-func (r *Replica) hintPeer(from uint64, endpoint string) {
+func (r *replica) hintPeer(from uint64, endpoint string) {
 	if endpoint == "" {
 		return
 	}
@@ -604,22 +614,22 @@ func (r *Replica) hintPeer(from uint64, endpoint string) {
 	}
 }
 
-func (r *Replica) FillClusterInfo(info *metapb.SegmentHealthInfo) {
+func (r *replica) FillClusterInfo(info *metapb.SegmentHealthInfo) {
 	leader, term := r.leaderInfo()
 	info.Leader = leader.Uint64()
 	info.Term = term
 }
 
-func (r *Replica) leaderInfo() (vanus.ID, uint64) {
+func (r *replica) leaderInfo() (vanus.ID, uint64) {
 	return r.leaderID, r.log.HardState().Term
 }
 
 // CloseWrite implements SegmentBlockWriter.
-func (r *Replica) CloseWrite(ctx context.Context) error {
+func (r *replica) CloseWrite(ctx context.Context) error {
 	// return r.appender.CloseWrite(ctx)
 	return nil
 }
 
-func (r *Replica) isLeader() bool {
+func (r *replica) isLeader() bool {
 	return r.leaderID == r.blockID
 }
