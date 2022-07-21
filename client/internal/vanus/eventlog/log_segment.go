@@ -171,11 +171,18 @@ func (s *logSegment) Read(ctx context.Context, from int64, size int16) ([]*ce.Ev
 	}
 
 	for _, e := range events {
-		eventBlockOff, _ := e.Extensions()["xvanusblockoff"].(int32)
-		offset := s.startOffset + int64(eventBlockOff)
+		v, ok := e.Extensions()["xvanusblockoffset"]
+		if !ok {
+			continue
+		}
+		off, ok := v.(int32)
+		if !ok {
+			return events, errors.ErrCorruptedEvent
+		}
+		offset := s.startOffset + int64(off)
 		buf := make([]byte, 8)
 		binary.BigEndian.PutUint64(buf, uint64(offset))
-		e.SetExtension("xvanuslogoff", buf)
+		e.SetExtension("xvanuslogoffset", buf)
 	}
 
 	return events, err
