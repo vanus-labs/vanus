@@ -40,10 +40,11 @@ type Log struct {
 
 	nodeID vanus.ID
 
-	// ents[0] is a dummy entry, which record compact information.
+	// ents[0] is a dummy entry, which records compact information.
 	// ents[i] has raft log position i+snapshot.Metadata.Index.
 	ents []raftpb.Entry
-	// offs[i] is the end offset of ents[i] in WAL.
+	// offs[0] is a dummy entry, which records last offset where the barrier was set.
+	// offs[i] is the start offset of ents[i] in WAL.
 	offs []int64
 
 	wal *WAL
