@@ -17,6 +17,7 @@ package trigger
 import (
 	"context"
 	"math/rand"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -134,7 +135,10 @@ func TestTriggerRunEventSend(t *testing.T) {
 			_ = tg.EventArrived(ctx, makeEventRecord("test"))
 		}
 		So(len(tg.eventCh), ShouldEqual, size)
+		var wg sync.WaitGroup
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			tg.runEventProcess(ctx)
 		}()
 		time.Sleep(100 * time.Millisecond)
@@ -143,11 +147,15 @@ func TestTriggerRunEventSend(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 		So(len(tg.sendCh), ShouldEqual, size)
 		close(tg.eventCh)
+		wg.Wait()
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			tg.runEventSend(ctx)
 		}()
 		time.Sleep(100 * time.Millisecond)
 		close(tg.sendCh)
+		wg.Wait()
 	})
 }
 
@@ -157,35 +165,48 @@ func TestTriggerRateLimit(t *testing.T) {
 		offsetManger.RegisterSubscription(1)
 		tg := NewTrigger(makeSubscription(1), offsetManger.GetSubscription(1))
 		tg.ceClient = NewFakeClient("test")
-		ctx := context.Background()
 		rateLimit := 10000
 		Convey("test no rate limit", func() {
-			c := testSendEvent(ctx, tg)
+			c := testSendEvent(tg)
 			So(c, ShouldBeGreaterThan, rateLimit)
 		})
 		Convey("test with rate", func() {
 			WithRateLimit(rateLimit)(tg)
-			c := testSendEvent(ctx, tg)
-			So(c, ShouldBeLessThanOrEqualTo, 2*rateLimit+1)
+			c := testSendEvent(tg)
+			So(c, ShouldBeLessThanOrEqualTo, 2*rateLimit+10)
 		})
 	})
 }
 
-func testSendEvent(ctx context.Context, tg *Trigger) int64 {
+func testSendEvent(tg *Trigger) int64 {
 	size := 50000
 	eventCh := make(chan *ce.Event, size)
 	for i := 0; i < size; i++ {
 		eventCh <- makeEventRecord("test").Event
 	}
+	var wg sync.WaitGroup
+	wg.Add(1)
 	var c int64
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		for event := range eventCh {
-			tg.retrySendEvent(ctx, event)
-			atomic.AddInt64(&c, 1)
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case event, ok := <-eventCh:
+				if !ok {
+					return
+				}
+				tg.retrySendEvent(ctx, event)
+				atomic.AddInt64(&c, 1)
+			}
 		}
 	}()
 	time.Sleep(2 * time.Second)
 	close(eventCh)
+	cancel()
+	wg.Wait()
 	return c
 }
 
