@@ -24,10 +24,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/io"
 )
 
-const (
-	defaultFilePerm = 0o644
-	logFileExt      = ".log"
-)
+const logFileExt = ".log"
 
 type logFile struct {
 	// so is the start offset of the log file.
@@ -62,11 +59,11 @@ func (l *logFile) Close() error {
 	return nil
 }
 
-func (l *logFile) Open() error {
+func (l *logFile) Open(wronly bool) error {
 	if l.f != nil {
 		return nil
 	}
-	f, err := openFile(l.path)
+	f, err := io.OpenFile(l.path, wronly, true)
 	if err != nil {
 		return err
 	}
@@ -87,7 +84,7 @@ func (l *logFile) WriteAt(e io.Engine, b []byte, off int64, cb io.WriteCallback)
 
 func createLogFile(dir string, so, size int64, sync bool) (*logFile, error) {
 	path := filepath.Join(dir, fmt.Sprintf("%020d%s", so, logFileExt))
-	f, err := createFile(path, size, true, sync)
+	f, err := io.CreateFile(path, size, true, sync)
 	if err != nil {
 		return nil, err
 	}

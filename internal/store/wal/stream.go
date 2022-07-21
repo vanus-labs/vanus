@@ -19,12 +19,15 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
 	"sort"
+	"sync"
 
 	// third-party libraries.
 	"github.com/ncw/directio"
 
 	// this project.
+	"github.com/linkall-labs/vanus/internal/store/io"
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
 	errutil "github.com/linkall-labs/vanus/internal/util/errors"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -35,13 +38,14 @@ var (
 	errEndOfLog   = errors.New("WAL: end of log")
 )
 
-type OnEntryCallback func(entry []byte, eo int64) error
+type OnEntryCallback func(entry []byte, r Range) error
 
 type logStream struct {
 	stream    []*logFile
 	dir       string
 	blockSize int64
 	fileSize  int64
+	mu        sync.RWMutex
 }
 
 func (s *logStream) Close() {
@@ -64,8 +68,12 @@ func (s *logStream) lastFile() *logFile {
 }
 
 func (s *logStream) selectFile(offset int64, autoCreate bool) *logFile {
+	s.mu.RLock()
+
 	sz := len(s.stream)
 	if sz == 0 {
+		s.mu.RUnlock()
+
 		if offset == 0 {
 			if !autoCreate {
 				return nil
@@ -77,6 +85,8 @@ func (s *logStream) selectFile(offset int64, autoCreate bool) *logFile {
 
 	// Fast return for append.
 	if last := s.lastFile(); offset >= last.so {
+		s.mu.RUnlock()
+
 		if offset < last.eo {
 			return last
 		}
@@ -88,6 +98,8 @@ func (s *logStream) selectFile(offset int64, autoCreate bool) *logFile {
 		}
 		panic("log stream overflow")
 	}
+
+	defer s.mu.RUnlock()
 
 	first := s.firstFile()
 	if offset < first.so {
@@ -105,17 +117,20 @@ func (s *logStream) selectFile(offset int64, autoCreate bool) *logFile {
 }
 
 func (s *logStream) createNextFile(last *logFile) *logFile {
-	off := func() int64 {
-		if last != nil {
-			return last.eo
-		}
-		return 0
-	}()
+	var off int64
+	if last != nil {
+		off = last.eo
+	}
+
 	next, err := createLogFile(s.dir, off, s.fileSize, true)
 	if err != nil {
 		panic(err)
 	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.stream = append(s.stream, next)
+
 	return next
 }
 
@@ -155,7 +170,6 @@ func (s *logStream) Range(from int64, cb OnEntryCallback) (int64, error) {
 		}
 
 		err := s.scanFile(&ctx, f)
-
 		if err == nil {
 			continue
 		}
@@ -184,7 +198,7 @@ func (s *logStream) Range(from int64, cb OnEntryCallback) (int64, error) {
 }
 
 func (s *logStream) scanFile(ctx *scanContext, lf *logFile) (err error) {
-	f, err := openFile(lf.path)
+	f, err := io.OpenFile(lf.path, false, false)
 	if err != nil {
 		return err
 	}
@@ -240,7 +254,7 @@ func onRecord(ctx *scanContext, r record.Record, eo int64) error {
 			// TODO(james.yin): unexcepted state
 			panic("WAL: unexcepted state")
 		}
-		if err := ctx.cb(r.Data, eo); err != nil {
+		if err := ctx.cb(r.Data, Range{SO: ctx.eo, EO: eo}); err != nil {
 			return err
 		}
 	case record.First:
@@ -261,7 +275,7 @@ func onRecord(ctx *scanContext, r record.Record, eo int64) error {
 			panic("WAL: unexcepted state")
 		}
 		ctx.buffer.Write(r.Data)
-		if err := ctx.cb(ctx.buffer.Bytes(), eo); err != nil {
+		if err := ctx.cb(ctx.buffer.Bytes(), Range{SO: ctx.eo, EO: eo}); err != nil {
 			return err
 		}
 		ctx.buffer.Reset()
@@ -297,4 +311,42 @@ func (s *logStream) firstRecordOffset(so, from int64) int64 {
 		return from % s.blockSize
 	}
 	return 0
+}
+
+// compact compacts all log files whose end offset is not after off.
+func (s *logStream) compact(off int64) error {
+	var compacted []*logFile
+	defer func() {
+		if compacted != nil {
+			go doCompact(compacted)
+		}
+	}()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	sz := len(s.stream)
+	if sz <= 1 {
+		return nil
+	}
+
+	for i, f := range s.stream[:sz-1] {
+		if f.eo > off {
+			if i > 0 {
+				compacted = s.stream[:i]
+				s.stream = s.stream[i:]
+			}
+			return nil
+		}
+	}
+	compacted = s.stream[:sz-1]
+	s.stream = s.stream[sz-1:]
+	return nil
+}
+
+func doCompact(files []*logFile) {
+	for _, f := range files {
+		_ = f.Close()
+		_ = os.Remove(f.path)
+	}
 }

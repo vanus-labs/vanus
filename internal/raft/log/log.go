@@ -18,6 +18,7 @@ import (
 	// standard libraries.
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	// first-party libraries.
@@ -39,10 +40,11 @@ type Log struct {
 
 	nodeID vanus.ID
 
-	// ents[0] is a dummy entry, which record compact information.
+	// ents[0] is a dummy entry, which records compact information.
 	// ents[i] has raft log position i+snapshot.Metadata.Index.
 	ents []raftpb.Entry
-	// offs[i] is the offset of ents[i] in WAL.
+	// offs[0] is a dummy entry, which records last offset where the barrier was set.
+	// offs[i] is the start offset of ents[i] in WAL.
 	offs []int64
 
 	wal *WAL
@@ -209,6 +211,14 @@ func (l *Log) Term(i uint64) (uint64, error) {
 	return l.ents[i-ci].Term, nil
 }
 
+func (l *Log) lastTerm() uint64 {
+	return l.ents[l.length()].Term
+}
+
+func (l *Log) compactedTerm() uint64 {
+	return l.ents[0].Term
+}
+
 // LastIndex returns the index of the last entry in the log.
 func (l *Log) LastIndex() (uint64, error) {
 	l.RLock()
@@ -278,96 +288,128 @@ func (l *Log) Append(entries []raftpb.Entry) error {
 		return nil
 	}
 
-	// TODO(james.yin): tolerate discontinuous entries
 	for i := 1; i < len(entries); i++ {
-		if entries[i].Index != entries[i-1].Index+1 {
-			log.Warning(context.Background(), "entries to append are discontinuous", map[string]interface{}{})
+		entry, prev := &entries[i], &entries[i-1]
+		var reason string
+		if entry.Index != prev.Index+1 {
+			reason = "Entries to append are discontinuous."
+		} else if entry.Term < prev.Term {
+			reason = "Term roll back."
+		}
+		if reason != "" {
+			log.Warning(context.Background(), reason, map[string]interface{}{
+				"node_id":        l.nodeID,
+				"term":           entry.Term,
+				"index":          entry.Index,
+				"previous_term":  prev.Term,
+				"previous_index": prev.Index,
+			})
 			// FIXME(james.yin): error
 			return raft.ErrUnavailable
 		}
-		if entries[i].Term != entries[i-1].Term {
-			entries[i].PrevTerm = entries[i-1].PrevTerm
+		if entry.Term != prev.Term {
+			entry.PrevTerm = prev.Term
 		}
 	}
 
 	l.Lock()
 	defer l.Unlock()
 
-	firstInLog := l.firstIndex()
-	expectedToAppend := l.lastIndex() + 1
-	firstToAppend := entries[0].Index
+	term := entries[0].Term
+	index := entries[0].Index
+	rindex := index + uint64(len(entries)) - 1 // entries[len(entries)-1].Index
 
-	if expectedToAppend < firstToAppend {
-		log.Error(context.Background(), "missing log entries", map[string]interface{}{
-			"lastIndex":     expectedToAppend - 1,
-			"appendedIndex": firstToAppend,
-		})
+	firstIndex := l.firstIndex()
+	lastTerm := l.lastTerm()
+	lastIndex := l.lastIndex()
+	expectedIndex := lastIndex + 1
+
+	var err error
+	var reason string
+	var offsets []int64
+
+	if expectedIndex < index {
 		// FIXME(james.yin): correct error
-		return raft.ErrUnavailable
+		err = raft.ErrUnavailable
+		reason = "missing log entries"
+		goto ERROR
 	}
 
-	lastToAppend := firstToAppend + uint64(len(entries)) - 1 // entries[len(entries)-1].Index
-
 	// Shortcut if there is no new entry.
-	if lastToAppend < firstInLog {
+	if rindex < firstIndex {
 		return nil
 	}
 
 	// Truncate compacted entries.
-	if firstToAppend < firstInLog {
-		entries = entries[firstInLog-firstToAppend:]
-		firstToAppend = entries[0].Index
+	if index < firstIndex {
+		entries = entries[firstIndex-index:]
+		term = entries[0].Term
+		index = entries[0].Index
 	}
 
-	pi := firstToAppend - firstInLog
-	if entries[0].Term != l.ents[pi].Term {
-		entries[0].PrevTerm = l.ents[pi].Term
+	if term < lastTerm {
+		// FIXME(james.yin): correct error
+		err = raft.ErrUnavailable
+		reason = "term roll back"
+		goto ERROR
+	}
+
+	if prev := &l.ents[index-firstIndex]; term != prev.Term {
+		entries[0].PrevTerm = prev.Term
 	}
 
 	// Append to WAL.
-	var err error
-	var offsets []int64
-	func() {
-		l.Unlock()
-		defer l.Lock()
-
-		if firstToAppend == firstInLog {
-			if l.wal.suppressCompact(func() (compactTask, error) {
-				if offsets, err = l.appendToWAL(entries); err != nil {
-					return compactTask{}, err
-				}
-				return compactTask{
-					offset: offsets[0],
-					last:   l.offs[0],
-				}, nil
-			}) == nil {
-				// Record offset of first entry in WAL.
-				l.offs[0] = offsets[0]
-			}
-		} else {
+	l.Unlock()
+	if index == firstIndex {
+		_ = l.wal.suppressCompact(func() (compactTask, error) {
 			offsets, err = l.appendToWAL(entries)
-		}
-	}()
+			if err != nil {
+				return compactTask{}, err
+			}
+			return compactTask{
+				offset: offsets[0],
+				last:   l.offs[0],
+			}, nil
+		})
+	} else {
+		offsets, err = l.appendToWAL(entries)
+	}
+	l.Lock()
 	if err != nil {
 		// FIXME(james.yin): correct error
 		return err
 	}
 
+	// Record offset of first entry in WAL.
+	if index == firstIndex {
+		l.offs[0] = offsets[0]
+	}
+
 	// Write to cache, and record offset in WAL.
-	if firstToAppend == expectedToAppend {
+	if index == expectedIndex {
 		// append
 		l.ents = append(l.ents, entries...)
 		l.offs = append(l.offs, offsets...)
 	} else {
-		// truncate then append: firstToAppend < expectedToAppend
-		si := pi + 1
-		l.ents = append([]raftpb.Entry{}, l.ents[:si]...)
+		// truncate then append: term > lastTerm
+		i := index - firstIndex + 1
+		l.ents = append([]raftpb.Entry{}, l.ents[:i]...)
 		l.ents = append(l.ents, entries...)
-		l.offs = append([]int64{}, l.offs[:si]...)
+		l.offs = append([]int64{}, l.offs[:i]...)
 		l.offs = append(l.offs, offsets...)
 	}
-
 	return nil
+
+ERROR:
+	log.Error(context.Background(), fmt.Sprintf("%s%s.", strings.ToUpper(reason[0:1]), reason[1:]), map[string]interface{}{
+		"node_id":     l.nodeID,
+		"first_index": firstIndex,
+		"last_term":   lastTerm,
+		"last_lndex":  lastIndex,
+		"next_term":   term,
+		"next_index":  index,
+	})
+	return err
 }
 
 func (l *Log) appendToWAL(entries []raftpb.Entry) ([]int64, error) {
@@ -381,5 +423,13 @@ func (l *Log) appendToWAL(entries []raftpb.Entry) ([]int64, error) {
 		}
 		ents[i] = ent
 	}
-	return l.wal.Append(ents, walog.WithoutBatching()).Wait()
+	ranges, err := l.wal.Append(ents, walog.WithoutBatching()).Wait()
+	if err != nil {
+		return nil, err
+	}
+	offsets := make([]int64, len(ranges))
+	for i, r := range ranges {
+		offsets[i] = r.SO
+	}
+	return offsets, nil
 }
