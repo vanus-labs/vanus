@@ -36,7 +36,7 @@ type Config struct {
 	MaxRetryTimes     int
 	RetryPeriod       time.Duration
 	SendTimeOut       time.Duration
-	RateLimit         int
+	RateLimit         int32
 }
 
 func defaultConfig() Config {
@@ -107,12 +107,16 @@ func WithSendTimeOut(timeout time.Duration) Option {
 	}
 }
 
-func WithRateLimit(rateLimit int) Option {
+func WithRateLimit(rateLimit int32) Option {
 	return func(t *Trigger) {
-		if rateLimit <= 0 {
+		if rateLimit == 0 || t.config.RateLimit == rateLimit {
 			return
 		}
 		t.config.RateLimit = rateLimit
-		t.rateLimiter = ratelimit.New(rateLimit)
+		if rateLimit < 0 {
+			t.rateLimiter = ratelimit.NewUnlimited()
+		} else {
+			t.rateLimiter = ratelimit.New(int(rateLimit))
+		}
 	}
 }

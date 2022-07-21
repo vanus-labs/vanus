@@ -149,6 +149,14 @@ func (t *Trigger) ChangeInputTransformer(inputTransformer *primitive.InputTransf
 	}
 }
 
+func (t *Trigger) ChangeConfig(config primitive.SubscriptionConfig) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	if config.RateLimit != 0 && config.RateLimit != t.config.RateLimit {
+		t.applyOptions(WithRateLimit(config.RateLimit))
+	}
+}
+
 func (t *Trigger) EventArrived(ctx context.Context, event info.EventRecord) error {
 	select {
 	case t.eventCh <- event:

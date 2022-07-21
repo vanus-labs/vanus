@@ -102,10 +102,12 @@ func TestTrigger_Options(t *testing.T) {
 		size = rand.Intn(1000) + size
 		WithBufferSize(size)(tg)
 		So(tg.config.BufferSize, ShouldEqual, size)
-		WithRateLimit(-1)(tg)
+		WithRateLimit(0)(tg)
 		So(tg.config.RateLimit, ShouldEqual, 0)
+		WithRateLimit(-1)(tg)
+		So(tg.config.RateLimit, ShouldEqual, -1)
 		size = rand.Intn(1000) + size
-		WithRateLimit(size)(tg)
+		WithRateLimit(int32(size))(tg)
 		So(tg.config.RateLimit, ShouldEqual, size)
 	})
 }
@@ -165,7 +167,7 @@ func TestTriggerRateLimit(t *testing.T) {
 		offsetManger.RegisterSubscription(1)
 		tg := NewTrigger(makeSubscription(1), offsetManger.GetSubscription(1))
 		tg.ceClient = NewFakeClient("test")
-		rateLimit := 10000
+		rateLimit := int32(10000)
 		Convey("test no rate limit", func() {
 			c := testSendEvent(tg)
 			So(c, ShouldBeGreaterThan, rateLimit)

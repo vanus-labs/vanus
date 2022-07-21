@@ -40,8 +40,8 @@ func TestSubscriptionWorker(t *testing.T) {
 			Offsets: info.ListOffsetInfo{
 				{Offset: 1, EventLogID: 1},
 			},
-			Config: &primitive.Config{
-				RateLimit: "1000",
+			Config: primitive.SubscriptionConfig{
+				RateLimit: 1000,
 			},
 		}
 		offsetManager := offset.NewOffsetManager()

@@ -136,7 +136,7 @@ message ReportSegmentLeaderRequest {
 message CreateSubscriptionRequest {
   string source = 1;
   repeated string types = 2;
-  map<string, string> config = 3;
+  meta.SubscriptionConfig config = 3;
   repeated meta.Filter filters = 4;
   string sink = 5;
   string protocol = 6;
@@ -149,7 +149,7 @@ message UpdateSubscriptionRequest {
   uint64 id = 1;
   string source = 2;
   repeated string types = 3;
-  map<string, string> config = 4;
+  meta.SubscriptionConfig config = 4;
   repeated meta.Filter filters = 5;
   string sink = 6;
   string protocol = 7;

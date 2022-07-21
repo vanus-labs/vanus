@@ -50,7 +50,7 @@ message AddSubscriptionRequest {
   string event_bus = 4;
   repeated meta.OffsetInfo offsets = 5;
   meta.InputTransformer input_transformer = 6;
-  map<string, string> config = 7;
+  meta.SubscriptionConfig config = 7;
 }
 
 message AddSubscriptionResponse {}

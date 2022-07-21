@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
@@ -73,22 +72,10 @@ func getTriggerOptions(cfg Config, subscription *primitive.Subscription) []trigg
 	opts := make([]trigger.Option, 0)
 	rateLimit := cfg.RateLimit
 	config := subscription.Config
-	if config != nil {
-		if config.RateLimit != "" {
-			v, err := strconv.Atoi(config.RateLimit)
-			if err != nil {
-				log.Info(context.Background(), "subscription config rateLimit is invalid", map[string]interface{}{
-					log.KeyError: err,
-					"value":      config.RateLimit,
-				})
-			} else {
-				rateLimit = v
-			}
-		}
+	if config.RateLimit != 0 {
+		rateLimit = config.RateLimit
 	}
-	if rateLimit > 0 {
-		opts = append(opts, trigger.WithRateLimit(rateLimit))
-	}
+	opts = append(opts, trigger.WithRateLimit(rateLimit))
 	return opts
 }
 
@@ -107,6 +94,10 @@ func (w *subscriptionWorker) Change(ctx context.Context, subscription *primitive
 	if !reflect.DeepEqual(w.subscription.InputTransformer, subscription.InputTransformer) {
 		w.subscription.InputTransformer = subscription.InputTransformer
 		w.trigger.ChangeInputTransformer(subscription.InputTransformer)
+	}
+	if !reflect.DeepEqual(w.subscription.Config, subscription.Config) {
+		w.subscription.Config = subscription.Config
+		w.trigger.ChangeConfig(subscription.Config)
 	}
 	return nil
 }

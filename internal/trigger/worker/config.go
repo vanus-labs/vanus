@@ -19,5 +19,5 @@ import "time"
 type Config struct {
 	Controllers              []string
 	CleanSubscriptionTimeout time.Duration
-	RateLimit                int
+	RateLimit                int32
 }

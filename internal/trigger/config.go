@@ -26,7 +26,7 @@ type Config struct {
 	Port           int      `yaml:"port"`
 	IP             string   `yaml:"ip"`
 	ControllerAddr []string `yaml:"controllers"`
-	RateLimit      int      `yaml:"rateLimit"`
+	RateLimit      int32    `yaml:"rateLimit"`
 }
 
 func InitConfig(filename string) (*Config, error) {
