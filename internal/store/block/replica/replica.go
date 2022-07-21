@@ -101,11 +101,10 @@ type replica struct {
 	donec  chan struct{}
 }
 
-// Make sure replica implements block.Appender, block.ClusterInfoSource and transport.Receiver.
+// Make sure replica implements block.Appender and block.ClusterInfoSource.
 var (
 	_ block.Appender          = (*replica)(nil)
 	_ block.ClusterInfoSource = (*replica)(nil)
-	_ transport.Receiver      = (*replica)(nil)
 )
 
 func New(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, raftLog *raftlog.Log,
@@ -195,6 +194,7 @@ func (r *replica) run(ctx context.Context) {
 			var partial bool
 			stateChanged := !raft.IsEmptyHardState(rd.HardState)
 			if stateChanged {
+				// Wake up fast before writing logs.
 				partial = r.wakeup(rd.HardState.Commit)
 			}
 
@@ -210,6 +210,7 @@ func (r *replica) run(ctx context.Context) {
 			}
 
 			if stateChanged {
+				// Wake up after writing logs.
 				if partial {
 					_ = r.wakeup(rd.HardState.Commit)
 				}
@@ -298,6 +299,7 @@ func (r *replica) applyEntries(ctx context.Context, committedEntries []raftpb.En
 	return committedEntries[num-1].Index
 }
 
+// wakeup wakes up append requests to the smaller of the committed or last index.
 func (r *replica) wakeup(commit uint64) (partial bool) {
 	li, _ := r.log.LastIndex()
 	if commit > li {
@@ -527,117 +529,6 @@ func (r *replica) doWakeup(commit uint32) {
 	r.commitOffset = commit
 }
 
-func (r *replica) send(msgs []raftpb.Message) {
-	if len(msgs) == 0 {
-		return
-	}
-
-	if len(msgs) == 1 {
-		msg := &msgs[0]
-		endpoint := r.peerHint(msg.To)
-		r.sender.Send(r.ctx, msg, msg.To, endpoint, func(err error) {
-			if err != nil {
-				r.node.ReportUnreachable(msg.To)
-			}
-		})
-		return
-	}
-
-	to := msgs[0].To
-	for i := 1; i < len(msgs); i++ {
-		if msgs[i].To != to {
-			to = 0
-			break
-		}
-	}
-
-	// send to same node
-	if to != 0 {
-		endpoint := r.peerHint(to)
-		for i := 0; i < len(msgs); i++ {
-			r.sender.Send(r.ctx, &msgs[i], to, endpoint, func(err error) {
-				if err != nil {
-					r.node.ReportUnreachable(to)
-				}
-			})
-		}
-		return
-	}
-
-	mm := make(map[uint64][]*raftpb.Message)
-	for i := 0; i < len(msgs); i++ {
-		msg := &msgs[i]
-		mm[msg.To] = append(mm[msg.To], msg)
-	}
-	for to, msgs := range mm {
-		endpoint := r.peerHint(to)
-		if len(msgs) == 1 {
-			r.sender.Send(r.ctx, msgs[0], to, endpoint, func(err error) {
-				if err != nil {
-					r.node.ReportUnreachable(to)
-				}
-			})
-		} else {
-			for _, m := range msgs {
-				r.sender.Send(r.ctx, m, to, endpoint, func(err error) {
-					if err != nil {
-						r.node.ReportUnreachable(to)
-					}
-				})
-			}
-		}
-	}
-}
-
-func (r *replica) peerHint(to uint64) string {
-	r.hintMu.RLock()
-	defer r.hintMu.RUnlock()
-	for i := range r.hint {
-		p := &r.hint[i]
-		if p.id == to {
-			return p.endpoint
-		}
-	}
-	return ""
-}
-
-// Receive implements transport.Receiver.
-func (r *replica) Receive(ctx context.Context, msg *raftpb.Message, from uint64, endpoint string) {
-	if endpoint != "" {
-		r.hintPeer(from, endpoint)
-	}
-
-	// TODO(james.yin): check ctx.Done().
-	_ = r.node.Step(r.ctx, *msg)
-}
-
-func (r *replica) hintPeer(from uint64, endpoint string) {
-	if endpoint == "" {
-		return
-	}
-
-	// TODO(james.yin): optimize lock
-	r.hintMu.Lock()
-	defer r.hintMu.Unlock()
-	p := func() *peer {
-		for i := range r.hint {
-			ep := &r.hint[i]
-			if ep.id == from {
-				return ep
-			}
-		}
-		return nil
-	}()
-	if p == nil {
-		r.hint = append(r.hint, peer{
-			id:       from,
-			endpoint: endpoint,
-		})
-	} else if p.endpoint != endpoint {
-		p.endpoint = endpoint
-	}
-}
-
 func (r *replica) FillClusterInfo(info *metapb.SegmentHealthInfo) {
 	leader, term := r.leaderInfo()
 	info.Leader = leader.Uint64()
@@ -646,12 +537,6 @@ func (r *replica) FillClusterInfo(info *metapb.SegmentHealthInfo) {
 
 func (r *replica) leaderInfo() (vanus.ID, uint64) {
 	return r.leaderID, r.log.HardState().Term
-}
-
-// CloseWrite implements SegmentBlockWriter.
-func (r *replica) CloseWrite(ctx context.Context) error {
-	// return r.appender.CloseWrite(ctx)
-	return nil
 }
 
 func (r *replica) isLeader() bool {
