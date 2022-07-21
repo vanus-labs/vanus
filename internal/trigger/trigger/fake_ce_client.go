@@ -15,29 +15,29 @@
 package trigger
 
 import (
-	"fmt"
+	"context"
 
+	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/cloudevents/sdk-go/v2/event"
+	"github.com/cloudevents/sdk-go/v2/protocol"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/util"
 )
 
-type Config struct {
-	TriggerAddr    string
-	Port           int      `yaml:"port"`
-	IP             string   `yaml:"ip"`
-	ControllerAddr []string `yaml:"controllers"`
-	RateLimit      int32    `yaml:"rateLimit"`
+type fakeClient struct {
 }
 
-func InitConfig(filename string) (*Config, error) {
-	c := new(Config)
-	err := primitive.LoadConfig(filename, c)
-	if err != nil {
-		return nil, err
-	}
-	if c.IP == "" {
-		c.IP = util.GetLocalIP()
-	}
-	c.TriggerAddr = fmt.Sprintf("%s:%d", c.IP, c.Port)
-	return c, nil
+func (c *fakeClient) Send(ctx context.Context, out event.Event) protocol.Result {
+	return ce.ResultACK
+}
+
+func (c *fakeClient) Request(ctx context.Context, out event.Event) (*event.Event, protocol.Result) {
+	return nil, ce.ResultACK
+}
+
+func (c *fakeClient) StartReceiver(ctx context.Context, fn interface{}) error {
+	return nil
+}
+
+func NewFakeClient(target primitive.URI) ce.Client {
+	return &fakeClient{}
 }

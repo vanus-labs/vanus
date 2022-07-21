@@ -43,7 +43,7 @@ const (
 
 type newSubscriptionWorker func(subscription *primitive.Subscription,
 	subscriptionOffset *offset.SubscriptionOffset,
-	controllers []string) SubscriptionWorker
+	config Config) SubscriptionWorker
 
 type manager struct {
 	subscriptionMap       sync.Map
@@ -105,7 +105,7 @@ func (m *manager) AddSubscription(ctx context.Context, subscription *primitive.S
 		return err
 	}
 	subOffset := m.offsetManager.RegisterSubscription(subscription.ID)
-	worker := m.newSubscriptionWorker(subscription, subOffset, m.config.Controllers)
+	worker := m.newSubscriptionWorker(subscription, subOffset, m.config)
 	m.subscriptionMap.Store(subscription.ID, worker)
 	err := worker.Run(m.ctx)
 	if err != nil {

@@ -117,6 +117,7 @@ func (m *manager) GetSubscription(ctx context.Context, id vanus.ID) (*primitive.
 		EventBus:         subData.EventBus,
 		Offsets:          offsets,
 		InputTransformer: subData.InputTransformer,
+		Config:           subData.Config,
 	}
 	return sub, nil
 }

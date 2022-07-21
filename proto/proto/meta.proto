@@ -90,13 +90,17 @@ message Subscription {
   uint64 id = 1;
   string source = 2;
   repeated string types = 3;
-  map<string, string> config = 4;
+  meta.SubscriptionConfig config = 4;
   repeated Filter filters = 5;
   string sink = 6;
   string protocol = 7;
   map<string, string> protocol_settings = 8;
   string event_bus = 9;
   meta.InputTransformer input_transformer = 10;
+}
+
+message SubscriptionConfig {
+  int32 rate_limit = 1;
 }
 
 message Filter {
