@@ -28,15 +28,8 @@ import (
 	"github.com/linkall-labs/vanus/raft/raftpb"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store/meta"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
-)
-
-var (
-	nodeID1 = vanus.NewIDFromUint64(1)
-	nodeID2 = vanus.NewIDFromUint64(2)
-	nodeID3 = vanus.NewIDFromUint64(3)
 )
 
 func TestLog_Compact(t *testing.T) {

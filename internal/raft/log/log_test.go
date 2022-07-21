@@ -52,7 +52,9 @@ var (
 			FileSize: fileSize,
 		},
 	}
-	nodeID = vanus.NewIDFromUint64(1)
+	nodeID1 = vanus.NewIDFromUint64(1)
+	nodeID2 = vanus.NewIDFromUint64(2)
+	nodeID3 = vanus.NewIDFromUint64(3)
 )
 
 func TestLog(t *testing.T) {
@@ -74,10 +76,24 @@ func TestLog(t *testing.T) {
 	}
 	defer os.RemoveAll(walDir)
 
-	cc := raftpb.ConfChange{
-		Type: raftpb.ConfChangeAddNode, NodeID: nodeID.Uint64(),
+	cc1 := raftpb.ConfChange{
+		Type: raftpb.ConfChangeAddNode, NodeID: nodeID1.Uint64(),
 	}
-	data, err := cc.Marshal()
+	data1, err := cc1.Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cc2 := raftpb.ConfChangeV2{
+		Changes: []raftpb.ConfChangeSingle{{
+			Type:   raftpb.ConfChangeAddNode,
+			NodeID: nodeID2.Uint64(),
+		}, {
+			Type:   raftpb.ConfChangeAddNode,
+			NodeID: nodeID3.Uint64(),
+		}},
+	}
+	data2, err := cc2.Marshal()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,14 +113,14 @@ func TestLog(t *testing.T) {
 			wal := newWAL(rawWAL, metaStore)
 			defer wal.Close()
 
-			log := NewLog(nodeID, wal, metaStore, offsetStore)
+			log := NewLog(nodeID1, wal, metaStore, offsetStore)
 
 			hardSt, confSt, err := log.InitialState()
 			So(err, ShouldBeNil)
 			So(hardSt, ShouldResemble, raftpb.HardState{})
 			So(confSt, ShouldResemble, raftpb.ConfState{})
 
-			ent := raftpb.Entry{Term: 1, Index: 1, Type: raftpb.EntryConfChange, Data: data}
+			ent := raftpb.Entry{Term: 1, Index: 1, Type: raftpb.EntryConfChange, Data: data1}
 			err = log.Append([]raftpb.Entry{ent})
 			So(err, ShouldBeNil)
 
@@ -115,15 +131,17 @@ func TestLog(t *testing.T) {
 
 			err = log.SetHardState(raftpb.HardState{Term: 1, Commit: 1})
 			So(err, ShouldBeNil)
-			err = log.SetConfState(raftpb.ConfState{Voters: []uint64{nodeID.Uint64()}})
+
+			err = log.SetConfState(raftpb.ConfState{Voters: []uint64{nodeID1.Uint64()}})
 			So(err, ShouldBeNil)
+
 			log.SetApplied(1)
 
 			ent = raftpb.Entry{Term: 2, Index: 2, Type: raftpb.EntryNormal}
 			err = log.Append([]raftpb.Entry{ent})
 			So(err, ShouldBeNil)
 
-			err = log.SetHardState(raftpb.HardState{Term: 2, Vote: nodeID.Uint64(), Commit: 2})
+			err = log.SetHardState(raftpb.HardState{Term: 2, Vote: nodeID1.Uint64(), Commit: 2})
 			So(err, ShouldBeNil)
 		})
 
@@ -133,7 +151,7 @@ func TestLog(t *testing.T) {
 			defer wal.Close()
 
 			So(logs, ShouldHaveLength, 1)
-			log, ok := logs[nodeID]
+			log, ok := logs[nodeID1]
 			So(ok, ShouldBeTrue)
 
 			fi, err := log.FirstIndex()
@@ -154,8 +172,8 @@ func TestLog(t *testing.T) {
 
 			hardSt, confSt, err := log.InitialState()
 			So(err, ShouldBeNil)
-			So(hardSt, ShouldResemble, raftpb.HardState{Term: 2, Vote: nodeID.Uint64(), Commit: 2})
-			So(confSt, ShouldResemble, raftpb.ConfState{Voters: []uint64{nodeID.Uint64()}})
+			So(hardSt, ShouldResemble, raftpb.HardState{Term: 2, Vote: nodeID1.Uint64(), Commit: 2})
+			So(confSt, ShouldResemble, raftpb.ConfState{Voters: []uint64{nodeID1.Uint64()}})
 
 			app := log.Applied()
 			So(app, ShouldEqual, 1)
@@ -167,8 +185,8 @@ func TestLog(t *testing.T) {
 				Term:   1,
 				Index:  1,
 				Type:   raftpb.EntryConfChange,
-				Data:   data,
-				NodeId: nodeID.Uint64(),
+				Data:   data1,
+				NodeId: nodeID1.Uint64(),
 			})
 
 			ents, err = log.Entries(1, 3, math.MaxUint64)
@@ -178,12 +196,144 @@ func TestLog(t *testing.T) {
 				Term:     2,
 				Index:    2,
 				Type:     raftpb.EntryNormal,
-				NodeId:   nodeID.Uint64(),
+				NodeId:   nodeID1.Uint64(),
 				PrevTerm: 1,
 			})
 
 			_, err = log.Entries(3, 4, 0)
 			So(err, ShouldEqual, raft.ErrUnavailable)
+
+			Convey("add new members, and truncate", func() {
+				err = log.Append([]raftpb.Entry{{Term: 3, Index: 3, Type: raftpb.EntryNormal}})
+				So(err, ShouldBeNil)
+
+				err = log.SetHardState(raftpb.HardState{Term: 3, Vote: nodeID1.Uint64(), Commit: 3})
+				So(err, ShouldBeNil)
+
+				err = log.Append([]raftpb.Entry{{
+					Term:  3,
+					Index: 4,
+					Type:  raftpb.EntryConfChange,
+					Data:  data2,
+				}})
+				So(err, ShouldBeNil)
+
+				err = log.SetHardState(raftpb.HardState{Term: 3, Vote: nodeID1.Uint64(), Commit: 4})
+				So(err, ShouldBeNil)
+
+				err = log.SetConfState(raftpb.ConfState{
+					Voters: []uint64{nodeID1.Uint64(), nodeID2.Uint64(), nodeID3.Uint64()},
+				})
+				So(err, ShouldBeNil)
+
+				log.SetApplied(4)
+
+				err = log.Append([]raftpb.Entry{{
+					Term:  3,
+					Index: 5,
+					Type:  raftpb.EntryNormal,
+					Data:  []byte("hello world!"),
+				}})
+				So(err, ShouldBeNil)
+
+				err = log.Append([]raftpb.Entry{{
+					Term:  4,
+					Index: 5,
+					Type:  raftpb.EntryNormal,
+				}})
+				So(err, ShouldBeNil)
+
+				err = log.SetHardState(raftpb.HardState{Term: 4, Vote: nodeID2.Uint64(), Commit: 5})
+				So(err, ShouldBeNil)
+
+				log.SetApplied(5)
+
+				err = log.Append([]raftpb.Entry{{
+					Term:  4,
+					Index: 6,
+					Type:  raftpb.EntryNormal,
+					Data:  []byte("nice job!"),
+				}})
+				So(err, ShouldBeNil)
+
+				err = log.SetHardState(raftpb.HardState{Term: 4, Vote: nodeID2.Uint64(), Commit: 6})
+				So(err, ShouldBeNil)
+
+				log.SetApplied(6)
+			})
+		})
+
+		Convey("recover raft log again", func() {
+			logs, wal, err := RecoverLogsAndWAL(raftCfg, walDir, metaStore, offsetStore)
+			So(err, ShouldBeNil)
+			defer wal.Close()
+
+			So(logs, ShouldHaveLength, 1)
+			log, ok := logs[nodeID1]
+			So(ok, ShouldBeTrue)
+
+			fi, err := log.FirstIndex()
+			So(err, ShouldBeNil)
+			So(fi, ShouldEqual, 1)
+
+			li, err := log.LastIndex()
+			So(err, ShouldBeNil)
+			So(li, ShouldEqual, 6)
+
+			term3, err := log.Term(3)
+			So(err, ShouldBeNil)
+			So(term3, ShouldEqual, 3)
+
+			term4, err := log.Term(4)
+			So(err, ShouldBeNil)
+			So(term4, ShouldEqual, 3)
+
+			term5, err := log.Term(5)
+			So(err, ShouldBeNil)
+			So(term5, ShouldEqual, 4)
+
+			term6, err := log.Term(6)
+			So(err, ShouldBeNil)
+			So(term6, ShouldEqual, 4)
+
+			hardSt, confSt, err := log.InitialState()
+			So(err, ShouldBeNil)
+			So(hardSt, ShouldResemble, raftpb.HardState{Term: 4, Vote: nodeID2.Uint64(), Commit: 6})
+			So(confSt, ShouldResemble, raftpb.ConfState{
+				Voters: []uint64{nodeID1.Uint64(), nodeID2.Uint64(), nodeID3.Uint64()},
+			})
+
+			app := log.Applied()
+			So(app, ShouldEqual, 6)
+
+			ents, err := log.Entries(3, 7, math.MaxUint64)
+			So(err, ShouldBeNil)
+			So(ents, ShouldHaveLength, 4)
+			So(ents, ShouldResemble, []raftpb.Entry{{
+				Term:     3,
+				Index:    3,
+				Type:     raftpb.EntryNormal,
+				NodeId:   nodeID1.Uint64(),
+				PrevTerm: 2,
+			}, {
+				Term:   3,
+				Index:  4,
+				Type:   raftpb.EntryConfChange,
+				Data:   data2,
+				NodeId: nodeID1.Uint64(),
+			}, {
+				Term:     4,
+				Index:    5,
+				Type:     raftpb.EntryNormal,
+				NodeId:   nodeID1.Uint64(),
+				PrevTerm: 3,
+			}, {
+				Term:   4,
+				Index:  6,
+				Type:   raftpb.EntryNormal,
+				Data:   []byte("nice job!"),
+				NodeId: nodeID1.Uint64(),
+			}})
 		})
 	})
 }
