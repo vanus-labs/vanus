@@ -70,18 +70,16 @@ func (mr *MockReplicaMockRecorder) Bootstrap(blocks interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Bootstrap", reflect.TypeOf((*MockReplica)(nil).Bootstrap), blocks)
 }
 
-// CloseWrite mocks base method.
-func (m *MockReplica) CloseWrite(ctx context.Context) error {
+// Delete mocks base method.
+func (m *MockReplica) Delete(ctx context.Context) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CloseWrite", ctx)
-	ret0, _ := ret[0].(error)
-	return ret0
+	m.ctrl.Call(m, "Delete", ctx)
 }
 
-// CloseWrite indicates an expected call of CloseWrite.
-func (mr *MockReplicaMockRecorder) CloseWrite(ctx interface{}) *gomock.Call {
+// Delete indicates an expected call of Delete.
+func (mr *MockReplicaMockRecorder) Delete(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseWrite", reflect.TypeOf((*MockReplica)(nil).CloseWrite), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockReplica)(nil).Delete), ctx)
 }
 
 // FillClusterInfo mocks base method.

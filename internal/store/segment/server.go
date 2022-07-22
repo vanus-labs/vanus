@@ -498,7 +498,7 @@ func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
 		return err
 	}
 
-	err := s.inactivateBlock(ctx, blockID)
+	err := s.removeReplica(ctx, blockID)
 	if err != nil {
 		return err
 	}
@@ -507,6 +507,7 @@ func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
 		return errors.ErrResourceNotFound.WithMessage("the block not found")
 	}
 	blk, _ := v.(*file.Block)
+	// TODO(weihe.yin) s.host.Unregister
 	if err = blk.Destroy(ctx); err != nil {
 		return err
 	}
@@ -518,7 +519,7 @@ func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
 	return nil
 }
 
-func (s *server) inactivateBlock(ctx context.Context, blockID vanus.ID) error {
+func (s *server) removeReplica(ctx context.Context, blockID vanus.ID) error {
 	if err := s.checkState(); err != nil {
 		return err
 	}
@@ -528,7 +529,8 @@ func (s *server) inactivateBlock(ctx context.Context, blockID vanus.ID) error {
 		return errors.ErrResourceNotFound.WithMessage("the replica not found")
 	}
 	rp, _ := v.(replica.Replica)
-	rp.Stop(ctx)
+	rp.Delete(ctx)
+
 	s.writers.Delete(blockID)
 	s.readers.Delete(blockID)
 	return nil

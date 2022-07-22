@@ -29,6 +29,7 @@ type Host interface {
 
 	Stop()
 	Register(node uint64, r Receiver)
+	// TODO(weihe.yin) Unregister
 }
 
 type host struct {

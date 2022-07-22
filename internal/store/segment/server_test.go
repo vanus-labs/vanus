@@ -67,7 +67,7 @@ func TestServer_RemoveBlock(t *testing.T) {
 			So(util.MapLen(&srv.writers), ShouldEqual, 1)
 			So(util.MapLen(&srv.readers), ShouldEqual, 1)
 
-			rep.EXPECT().Stop(ctx).Times(1)
+			rep.EXPECT().Delete(ctx).Times(1)
 			err := srv.RemoveBlock(ctx, blk.ID())
 			So(util.MapLen(&srv.writers), ShouldEqual, 0)
 			So(util.MapLen(&srv.readers), ShouldEqual, 0)
@@ -86,7 +86,7 @@ func TestServer_RemoveBlock(t *testing.T) {
 			So(util.MapLen(&srv.writers), ShouldEqual, 1)
 			So(util.MapLen(&srv.readers), ShouldEqual, 1)
 
-			rep.EXPECT().Stop(ctx).Times(1)
+			rep.EXPECT().Delete(ctx).Times(1)
 			err := srv.RemoveBlock(ctx, blk.ID())
 			So(util.MapLen(&srv.blocks), ShouldEqual, 0)
 			So(util.MapLen(&srv.writers), ShouldEqual, 0)

@@ -383,3 +383,13 @@ func (l *Log) appendToWAL(entries []raftpb.Entry) ([]int64, error) {
 	}
 	return l.wal.Append(ents, walog.WithoutBatching()).Wait()
 }
+
+func (l *Log) Destroy(_ context.Context) {
+	l.metaStore.Delete(l.hsKey)
+	l.metaStore.Delete(l.csKey)
+	l.metaStore.Delete([]byte(fmt.Sprintf("block/%020d/compact", l.nodeID.Uint64())))
+	l.offsetStore.Delete(l.offKey)
+	l.offsetStore.Delete(l.appKey)
+
+	// TODO(weihe.yin) clean flag in WAL
+}

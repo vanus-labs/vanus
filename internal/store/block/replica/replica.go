@@ -69,6 +69,7 @@ type Replica interface {
 	Append(ctx context.Context, entries ...block.Entry) error
 	Receive(ctx context.Context, msg *raftpb.Message, from uint64, endpoint string)
 	FillClusterInfo(info *metapb.SegmentHealthInfo)
+	Delete(ctx context.Context)
 }
 
 type replica struct {
@@ -169,6 +170,11 @@ func (r *replica) Bootstrap(blocks []Peer) error {
 		return peers[a].ID < peers[b].ID
 	})
 	return r.node.Bootstrap(peers)
+}
+
+func (r *replica) Delete(ctx context.Context) {
+	r.Stop(ctx)
+	r.log.Destroy(ctx)
 }
 
 func (r *replica) run(ctx context.Context) {
