@@ -14,6 +14,12 @@
 
 package metadata
 
+import (
+	"path"
+
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+)
+
 const (
 	VolumeKeyPrefixInKVStore         = "/vanus/internal/resource/volume/metadata"
 	BlockKeyPrefixInKVStore          = "/vanus/internal/resource/volume/block"
@@ -21,8 +27,27 @@ const (
 
 	EventbusKeyPrefixInKVStore = "/vanus/internal/resource/eventbus"
 	EventlogKeyPrefixInKVStore = "/vanus/internal/resource/eventlog"
-	// SegmentKeyPrefixInKVStore restrain kv operator in one?
-	SegmentKeyPrefixInKVStore = "/vanus/internal/resource/segment"
+	SegmentKeyPrefixInKVStore  = "/vanus/internal/resource/segment"
 
 	EventlogSegmentsKeyPrefixInKVStore = "/vanus/internal/resource/segs_of_eventlog"
 )
+
+func GetEventbusMetadataKey(ebName string) string {
+	return path.Join(EventbusKeyPrefixInKVStore, ebName)
+}
+
+func GetEventlogMetadataKey(elID vanus.ID) string {
+	return path.Join(EventlogKeyPrefixInKVStore, elID.Key())
+}
+
+func GetBlockMetadataKey(volumeID, blockID vanus.ID) string {
+	return path.Join(BlockKeyPrefixInKVStore, volumeID.Key(), blockID.Key())
+}
+
+func GetSegmentMetadataKey(segmentID vanus.ID) string {
+	return path.Join(SegmentKeyPrefixInKVStore, segmentID.Key())
+}
+
+func GetEventlogSegmentsMetadataKey(eventlogID, segmentID vanus.ID) string {
+	return path.Join(EventlogSegmentsKeyPrefixInKVStore, eventlogID.Key(), segmentID.Key())
+}

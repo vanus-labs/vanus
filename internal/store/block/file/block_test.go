@@ -13,3 +13,34 @@
 // limitations under the License.
 
 package file
+
+import (
+	stdCtx "context"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	. "github.com/smartystreets/goconvey/convey"
+)
+
+func TestBlock_Destroy(t *testing.T) {
+	Convey("test block destroy", t, func() {
+		dir, _ := os.MkdirTemp("", "*")
+		defer func() {
+			_ = os.RemoveAll(dir)
+		}()
+		workDir := filepath.Join(dir, "vanus/test/store/test")
+		_ = os.MkdirAll(workDir, 0777)
+		blk, err := Create(stdCtx.Background(), workDir, vanus.NewID(), 1024*1024*64)
+		So(err, ShouldBeNil)
+		f, err := os.Open(blk.Path())
+		So(err, ShouldBeNil)
+		_ = f.Close()
+
+		err = blk.Destroy(stdCtx.Background())
+		So(err, ShouldBeNil)
+		_, err = os.Open(blk.Path())
+		So(os.IsNotExist(err), ShouldBeTrue)
+	})
+}

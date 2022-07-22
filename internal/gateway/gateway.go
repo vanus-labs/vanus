@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"strings"
 	"sync"
 
@@ -113,8 +114,9 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) protocol.Resul
 			log.KeyError: err,
 			"vrn":        vrn,
 		})
+		return v2.NewHTTPResult(http.StatusBadRequest, err.Error())
 	}
-	return protocol.Result(err)
+	return v2.ResultACK
 }
 
 func getEventBusFromPath(reqData *cehttp.RequestData) string {
