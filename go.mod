@@ -47,7 +47,6 @@ replace (
 	github.com/linkall-labs/vanus/proto => ./proto
 	github.com/linkall-labs/vanus/raft => ./raft
 	github.com/mwitkow/grpc-proxy => github.com/linkall-labs/grpc-proxy v0.0.0-20220624142509-a3b0cb2bb86c
-	//github.com/cloudevents/sdk-go/v2 => /Users/wenfeng/personal/workspace/github/sdk-go/v2
 )
 
 require (
