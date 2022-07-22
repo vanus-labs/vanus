@@ -77,7 +77,7 @@ type Server interface {
 	// GetBlockInfo(ctx context.Context, id vanus.ID) error
 
 	ActivateSegment(ctx context.Context, logID vanus.ID, segID vanus.ID, replicas map[vanus.ID]string) error
-	InactivateSegment(ctx context.Context, blockID vanus.ID) error
+	InactivateSegment(ctx context.Context) error
 
 	AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) error
 	ReadFromBlock(ctx context.Context, id vanus.ID, off int, num int) ([]*cepb.CloudEvent, error)
@@ -122,6 +122,7 @@ type leaderInfo struct {
 type server struct {
 	blocks  sync.Map // block.ID, *file.Block
 	writers sync.Map // block.ID, replica.Replica
+	// TODO(weihe.yin) delete this
 	readers sync.Map // block.ID, *file.Block
 
 	wal         *raftlog.WAL
@@ -502,6 +503,7 @@ func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
 	if err != nil {
 		return err
 	}
+	s.readers.Delete(blockID)
 	v, exist := s.blocks.LoadAndDelete(blockID)
 	if !exist {
 		return errors.ErrResourceNotFound.WithMessage("the block not found")
@@ -532,7 +534,6 @@ func (s *server) removeReplica(ctx context.Context, blockID vanus.ID) error {
 	rp.Delete(ctx)
 
 	s.writers.Delete(blockID)
-	s.readers.Delete(blockID)
 	return nil
 }
 
@@ -608,7 +609,7 @@ func (s *server) ActivateSegment(
 }
 
 // InactivateSegment mark a block ready to be removed. This method is usually used for data transfer.
-func (s *server) InactivateSegment(ctx context.Context, blockID vanus.ID) error {
+func (s *server) InactivateSegment(ctx context.Context) error {
 	if err := s.checkState(); err != nil {
 		return err
 	}

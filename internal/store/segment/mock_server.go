@@ -81,17 +81,17 @@ func (mr *MockServerMockRecorder) CreateBlock(ctx, id, size interface{}) *gomock
 }
 
 // InactivateSegment mocks base method.
-func (m *MockServer) InactivateSegment(ctx context.Context, segID vanus.ID) error {
+func (m *MockServer) InactivateSegment(ctx context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InactivateSegment", ctx, segID)
+	ret := m.ctrl.Call(m, "InactivateSegment", ctx)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // InactivateSegment indicates an expected call of InactivateSegment.
-func (mr *MockServerMockRecorder) InactivateSegment(ctx, segID interface{}) *gomock.Call {
+func (mr *MockServerMockRecorder) InactivateSegment(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InactivateSegment", reflect.TypeOf((*MockServer)(nil).InactivateSegment), ctx, segID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InactivateSegment", reflect.TypeOf((*MockServer)(nil).InactivateSegment), ctx)
 }
 
 // Initialize mocks base method.

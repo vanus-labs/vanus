@@ -135,7 +135,7 @@ func TestSegmentServer(t *testing.T) {
 				EventLogId:     vanus.NewID().Uint64(),
 				ReplicaGroupId: vanus.NewID().Uint64(),
 				Replicas: map[uint64]string{
-					1: "a",
+					1: "127.0.0.1:11811",
 				},
 			}
 			resp, err := ss.ActivateSegment(context.Background(), req)

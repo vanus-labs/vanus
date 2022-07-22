@@ -18,6 +18,7 @@ import (
 	stdCtx "context"
 	"fmt"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -56,7 +57,11 @@ func TestServer_RemoveBlock(t *testing.T) {
 		})
 
 		ctrl := gomock.NewController(t)
-		_ = os.MkdirAll("/tmp/vanus/test/store/test", 0777)
+		dir, _ := os.MkdirTemp("", "*")
+		defer func() {
+			_ = os.RemoveAll(dir)
+		}()
+		_ = os.MkdirAll(path.Join(dir, "/vanus/test/store/test"), 0777)
 		blk, err := file.Create(stdCtx.Background(), "/tmp/vanus/test/store/test", vanus.NewID(), 1024*1024*64)
 		So(err, ShouldBeNil)
 
