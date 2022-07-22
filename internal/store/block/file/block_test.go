@@ -17,6 +17,7 @@ package file
 import (
 	stdCtx "context"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -25,8 +26,14 @@ import (
 
 func TestBlock_Destroy(t *testing.T) {
 	Convey("", t, func() {
-		_ = os.MkdirAll("/tmp/vanus/test/store/test", 0777)
-		blk, err := Create(stdCtx.Background(), "/tmp/vanus/test/store/test", vanus.NewID(), 1024*1024*64)
+		dir, err := os.MkdirTemp("", "*")
+		defer func() {
+			_ = os.RemoveAll(dir)
+		}()
+		t.Log(dir)
+		workDir := filepath.Join(dir, "vanus/test/store/test")
+		_ = os.MkdirAll(workDir, 0777)
+		blk, err := Create(stdCtx.Background(), workDir, vanus.NewID(), 1024*1024*64)
 		So(err, ShouldBeNil)
 		f, err := os.Open(blk.Path())
 		So(err, ShouldBeNil)
