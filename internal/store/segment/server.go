@@ -498,7 +498,7 @@ func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
 		return err
 	}
 
-	err := s.InactivateSegment(ctx, blockID)
+	err := s.inactivateBlock(ctx, blockID)
 	if err != nil {
 		return err
 	}
@@ -515,6 +515,22 @@ func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
 		"path":     blk.Path(),
 		"metadata": blk.HealthInfo().String(),
 	})
+	return nil
+}
+
+func (s *server) inactivateBlock(ctx context.Context, blockID vanus.ID) error {
+	if err := s.checkState(); err != nil {
+		return err
+	}
+
+	v, exist := s.writers.Load(blockID)
+	if !exist {
+		return errors.ErrResourceNotFound.WithMessage("the replica not found")
+	}
+	rp, _ := v.(replica.Replica)
+	rp.Stop(ctx)
+	s.writers.Delete(blockID)
+	s.readers.Delete(blockID)
 	return nil
 }
 
@@ -594,15 +610,6 @@ func (s *server) InactivateSegment(ctx context.Context, blockID vanus.ID) error 
 	if err := s.checkState(); err != nil {
 		return err
 	}
-
-	v, exist := s.writers.Load(blockID)
-	if !exist {
-		return errors.ErrResourceNotFound.WithMessage("the replica not found")
-	}
-	rp, _ := v.(replica.Replica)
-	rp.Stop(ctx)
-	s.writers.Delete(blockID)
-	s.readers.Delete(blockID)
 	return nil
 }
 

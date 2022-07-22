@@ -72,9 +72,7 @@ message ActivateSegmentRequest {
 
 message ActivateSegmentResponse {}
 
-message InactivateSegmentRequest {
-  string block_id = 1;
-}
+message InactivateSegmentRequest {}
 
 message InactivateSegmentResponse {}
 

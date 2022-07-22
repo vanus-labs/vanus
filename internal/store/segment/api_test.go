@@ -148,9 +148,8 @@ func TestSegmentServer(t *testing.T) {
 			// srv.EXPECT().InactivateSegment(Any(), Any()).Return(nil)
 
 			req := &segpb.InactivateSegmentRequest{}
-			resp, err := ss.InactivateSegment(context.Background(), req)
-			So(err, ShouldNotBeNil)
-			So(resp, ShouldBeNil)
+			_, err := ss.InactivateSegment(context.Background(), req)
+			So(err, ShouldBeNil)
 		})
 
 		Convey("AppendToBlock()", func() {

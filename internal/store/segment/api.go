@@ -27,7 +27,6 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store/segment/errors"
 	"github.com/linkall-labs/vanus/observability"
 )
 
@@ -132,15 +131,6 @@ func (s *segmentServer) InactivateSegment(
 ) (*emptypb.Empty, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
-
-	blockID, err := vanus.NewIDFromString(req.BlockId)
-	if err != nil {
-		return nil, errors.ErrInvalidRequest
-	}
-
-	if err := s.srv.InactivateSegment(ctx, blockID); err != nil {
-		return nil, err
-	}
 
 	return &emptypb.Empty{}, nil
 }
