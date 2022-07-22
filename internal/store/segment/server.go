@@ -534,7 +534,7 @@ func (s *server) ActivateSegment(
 	})
 
 	var myID vanus.ID
-	peers := make([]replica.Peer, 0, len(replicas)-1)
+	peers := make([]replica.Peer, 0, len(replicas))
 	for blockID, endpoint := range replicas {
 		peer := replica.Peer{
 			ID:       blockID,
@@ -697,6 +697,9 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 		if err2 := proto.Unmarshal(entry.Payload, event); err2 != nil {
 			return nil, errors.ErrInternal.WithMessage(
 				"unmarshall data to event failed").Wrap(err2)
+		}
+		if event.Attributes == nil {
+			event.Attributes = make(map[string]*cepb.CloudEventAttributeValue, 1)
 		}
 		event.Attributes["xvanusblockoffset"] = &cepb.CloudEventAttributeValue{
 			Attr: &cepb.CloudEventAttributeValue_CeInteger{
