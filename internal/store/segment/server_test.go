@@ -62,7 +62,7 @@ func TestServer_RemoveBlock(t *testing.T) {
 			_ = os.RemoveAll(dir)
 		}()
 		_ = os.MkdirAll(path.Join(dir, "/vanus/test/store/test"), 0777)
-		blk, err := file.Create(stdCtx.Background(), "/tmp/vanus/test/store/test", vanus.NewID(), 1024*1024*64)
+		blk, err := file.Create(stdCtx.Background(), "/vanus/test/store/test", vanus.NewID(), 1024*1024*64)
 		So(err, ShouldBeNil)
 
 		Convey("the block not found", func() {

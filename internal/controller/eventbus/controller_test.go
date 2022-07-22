@@ -17,6 +17,7 @@ package eventbus
 import (
 	stdCtx "context"
 	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/eventlog"
@@ -67,6 +68,7 @@ func TestController_CreateEventBus(t *testing.T) {
 			So(res.Logs, ShouldHaveLength, 1)
 			So(res.LogNumber, ShouldEqual, 1)
 			So(res.Logs[0].EventBusName, ShouldEqual, "test-1")
+			sort.Strings(res.Logs[0].ServerAddress)
 			So(res.Logs[0].ServerAddress, ShouldResemble, []string{"a", "b"})
 			So(res.Logs[0].CurrentSegmentNumbers, ShouldEqual, 2)
 
