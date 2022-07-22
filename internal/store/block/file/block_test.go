@@ -30,7 +30,6 @@ func TestBlock_Destroy(t *testing.T) {
 		defer func() {
 			_ = os.RemoveAll(dir)
 		}()
-		t.Log(dir)
 		workDir := filepath.Join(dir, "vanus/test/store/test")
 		_ = os.MkdirAll(workDir, 0777)
 		blk, err := Create(stdCtx.Background(), workDir, vanus.NewID(), 1024*1024*64)
