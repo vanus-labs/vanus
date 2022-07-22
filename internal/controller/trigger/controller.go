@@ -18,6 +18,7 @@ import (
 	"context"
 	stdErr "errors"
 	"io"
+	"reflect"
 	"sync"
 	"time"
 
@@ -105,29 +106,37 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	if request.Source != "" {
-		subscriptionData.Source = request.Source
-	}
-	if request.Types != nil {
-		subscriptionData.Types = request.Types
-	}
+	change := false
 	if request.Config != nil {
-		subscriptionData.Config = request.Config
+		// check rateLimit change
+		config := convert.FromPbSubscriptionConfig(request.Config)
+		c := subscriptionData.Config.Change(config)
+		if !change {
+			change = c
+		}
 	}
 	if request.Filters != nil {
-		subscriptionData.Filters = convert.FromPbFilters(request.Filters)
+		filters := convert.FromPbFilters(request.Filters)
+		if reflect.DeepEqual(filters, subscriptionData.Filters) {
+			change = true
+			subscriptionData.Filters = filters
+		}
 	}
 	if request.Sink != "" {
-		subscriptionData.Sink = primitive.URI(request.Sink)
-	}
-	if request.Protocol != "" {
-		subscriptionData.Protocol = request.Protocol
-	}
-	if request.ProtocolSettings != nil {
-		subscriptionData.ProtocolSettings = request.ProtocolSettings
+		if string(subscriptionData.Sink) != request.Sink {
+			change = true
+			subscriptionData.Sink = primitive.URI(request.Sink)
+		}
 	}
 	if request.InputTransformer != nil {
-		subscriptionData.InputTransformer = convert.FromFPbInputTransformer(request.InputTransformer)
+		transformer := convert.FromFPbInputTransformer(request.InputTransformer)
+		if reflect.DeepEqual(transformer, subscriptionData.InputTransformer) {
+			change = true
+			subscriptionData.InputTransformer = transformer
+		}
+	}
+	if !change {
+		return nil, errors.ErrInvalidRequest.WithMessage("no change")
 	}
 	subscriptionData.Phase = primitive.SubscriptionPhasePending
 	err = ctrl.subscriptionManager.UpdateSubscription(ctx, subscriptionData)

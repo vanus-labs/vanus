@@ -28,6 +28,11 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+func testNewSubscriptionWorker(subWorker SubscriptionWorker) newSubscriptionWorker {
+	return func(subscription *primitive.Subscription, subscriptionOffset *offset.SubscriptionOffset, config Config) SubscriptionWorker {
+		return subWorker
+	}
+}
 func TestAddSubscription(t *testing.T) {
 	ctx := context.Background()
 	Convey("add subscription", t, func() {
@@ -35,9 +40,7 @@ func TestAddSubscription(t *testing.T) {
 		defer ctrl.Finish()
 		subWorker := NewMockSubscriptionWorker(ctrl)
 		m := NewManager(Config{Controllers: []string{"test"}}).(*manager)
-		m.newSubscriptionWorker = func(subscription *primitive.Subscription, subscriptionOffset *offset.SubscriptionOffset, controllers []string) SubscriptionWorker {
-			return subWorker
-		}
+		m.newSubscriptionWorker = testNewSubscriptionWorker(subWorker)
 		Convey("add subscription", func() {
 			id := vanus.NewID()
 			subWorker.EXPECT().Run(gomock.Any()).Return(nil)
@@ -98,9 +101,7 @@ func TestRemoveSubscription(t *testing.T) {
 		defer ctrl.Finish()
 		subWorker := NewMockSubscriptionWorker(ctrl)
 		m := NewManager(Config{}).(*manager)
-		m.newSubscriptionWorker = func(subscription *primitive.Subscription, subscriptionOffset *offset.SubscriptionOffset, controllers []string) SubscriptionWorker {
-			return subWorker
-		}
+		m.newSubscriptionWorker = testNewSubscriptionWorker(subWorker)
 
 		Convey("remove no exist subscription", func() {
 			m.RemoveSubscription(ctx, id)
@@ -128,9 +129,7 @@ func TestPauseSubscription(t *testing.T) {
 		defer ctrl.Finish()
 		subWorker := NewMockSubscriptionWorker(ctrl)
 		m := NewManager(Config{}).(*manager)
-		m.newSubscriptionWorker = func(subscription *primitive.Subscription, subscriptionOffset *offset.SubscriptionOffset, controllers []string) SubscriptionWorker {
-			return subWorker
-		}
+		m.newSubscriptionWorker = testNewSubscriptionWorker(subWorker)
 		id := vanus.NewID()
 		subWorker.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
 		err := m.AddSubscription(ctx, &primitive.Subscription{
@@ -153,9 +152,7 @@ func TestCleanSubscription(t *testing.T) {
 		defer ctrl.Finish()
 		subWorker := NewMockSubscriptionWorker(ctrl)
 		m := NewManager(Config{CleanSubscriptionTimeout: time.Millisecond * 100}).(*manager)
-		m.newSubscriptionWorker = func(subscription *primitive.Subscription, subscriptionOffset *offset.SubscriptionOffset, controllers []string) SubscriptionWorker {
-			return subWorker
-		}
+		m.newSubscriptionWorker = testNewSubscriptionWorker(subWorker)
 		Convey("clean no exist subscription", func() {
 			m.cleanSubscription(ctx, id)
 		})
@@ -220,9 +217,7 @@ func TestManager_Stop(t *testing.T) {
 		defer ctrl.Finish()
 		subWorker := NewMockSubscriptionWorker(ctrl)
 		m := NewManager(Config{}).(*manager)
-		m.newSubscriptionWorker = func(subscription *primitive.Subscription, subscriptionOffset *offset.SubscriptionOffset, controllers []string) SubscriptionWorker {
-			return subWorker
-		}
+		m.newSubscriptionWorker = testNewSubscriptionWorker(subWorker)
 		id := vanus.NewID()
 		subWorker.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
 		err := m.AddSubscription(ctx, &primitive.Subscription{

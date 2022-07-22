@@ -109,7 +109,7 @@ func (b *Block) Close(ctx context.Context) error {
 	defer observability.LeaveMark(ctx)
 
 	// Flush metadata.
-	if err := b.metasync(ctx); err != nil {
+	if err := b.syncMeta(ctx); err != nil {
 		return err
 	}
 
@@ -125,6 +125,7 @@ func (b *Block) HealthInfo() *metapb.SegmentHealthInfo {
 	// TODO(weihe.yin) add FirstEventBornTime & LastEventBornTime
 	info := &metapb.SegmentHealthInfo{
 		Id:                   b.id.Uint64(),
+		Capacity:             b.cap,
 		Size:                 int64(actx.size()),
 		EventNumber:          int32(actx.num),
 		SerializationVersion: b.version,
@@ -149,8 +150,8 @@ func (b *Block) remaining(size, num uint32) uint32 {
 	return uint32(b.cap) - headerBlockSize - boundMinSize - size - num*indexSize
 }
 
-// metasync flushes metadata.
-func (b *Block) metasync(ctx context.Context) error {
+// syncMeta flushes metadata.
+func (b *Block) syncMeta(ctx context.Context) error {
 	if b.stale() {
 		if err := b.persistHeader(ctx); err != nil {
 			return err
@@ -337,4 +338,9 @@ func (b *Block) validate(ctx context.Context) error {
 
 func (b *Block) SetClusterInfoSource(cis block.ClusterInfoSource) {
 	b.cis = cis
+}
+
+func (b *Block) Destroy(ctx context.Context) error {
+	_ = b.Close(ctx)
+	return os.Remove(b.path)
 }

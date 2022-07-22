@@ -37,7 +37,7 @@ type SubscriptionData struct {
 	ID               vanus.ID              `json:"id"`
 	Source           string                `json:"source,omitempty"`
 	Types            []string              `json:"types,omitempty"`
-	Config           map[string]string     `json:"config,omitempty"`
+	Config           SubscriptionConfig    `json:"config,omitempty"`
 	Filters          []*SubscriptionFilter `json:"filters,omitempty"`
 	Sink             URI                   `json:"sink,omitempty"`
 	Protocol         string                `json:"protocol,omitempty"`
@@ -56,6 +56,20 @@ type Subscription struct {
 	EventBus         string                `json:"eventBus"`
 	Offsets          info.ListOffsetInfo   `json:"offsets"`
 	InputTransformer *InputTransformer     `json:"inputTransformer,omitempty"`
+	Config           SubscriptionConfig    `json:"config,omitempty"`
+}
+
+type SubscriptionConfig struct {
+	RateLimit int32 `json:"rateLimit,omitempty"`
+}
+
+func (conf *SubscriptionConfig) Change(curr SubscriptionConfig) bool {
+	change := false
+	if curr.RateLimit != 0 && conf.RateLimit != curr.RateLimit {
+		change = true
+		conf.RateLimit = curr.RateLimit
+	}
+	return change
 }
 
 type SubscriptionFilter struct {

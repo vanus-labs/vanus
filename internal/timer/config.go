@@ -15,64 +15,56 @@
 package timer
 
 import (
-	"github.com/linkall-labs/vanus/internal/kv"
+	"time"
+
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/timer/leaderelection"
 	"github.com/linkall-labs/vanus/internal/timer/timingwheel"
-
-	eventctl "github.com/linkall-labs/vanus/internal/timer/event"
-	"github.com/linkall-labs/vanus/internal/timer/eventbus"
 )
 
 type Config struct {
-	Name                string            `yaml:"name"`
-	IP                  string            `yaml:"ip"`
-	Port                int               `yaml:"port"`
-	EtcdEndpoints       []string          `yaml:"etcd"`
-	MetadataConfig      MetadataConfig    `yaml:"metadata"`
-	TimingWheelConfig   TimingWheelConfig `yaml:"timingwheel"`
-	Replicas            uint              `yaml:"replicas"`
-	ControllerEndpoints []string          `yaml:"controllers"`
-	EtcdClient          kv.Client
-	TimingWheelManager  *timingwheel.TimingWheel
+	Name                 string               `yaml:"name"`
+	IP                   string               `yaml:"ip"`
+	Port                 int                  `yaml:"port"`
+	Replicas             uint                 `yaml:"replicas"`
+	EtcdEndpoints        []string             `yaml:"etcd"`
+	CtrlEndpoints        []string             `yaml:"controllers"`
+	MetadataConfig       MetadataConfig       `yaml:"metadata"`
+	LeaderElectionConfig LeaderElectionConfig `yaml:"leaderelection"`
+	TimingWheelConfig    TimingWheelConfig    `yaml:"timingwheel"`
 }
 
 const (
-	ResourceLockName = "timer"
+	resourceLockName = "timer"
 )
 
 func (c *Config) GetLeaderElectionConfig() *leaderelection.Config {
 	return &leaderelection.Config{
-		Identity:         "",
-		ResourceLockName: ResourceLockName,
-		// KeyPrefix:        c.MetadataConfig.KeyPrefix,
-		EtcdClient: c.EtcdClient,
+		LeaseDuration: c.LeaderElectionConfig.LeaseDuration,
+		Name:          resourceLockName,
+		KeyPrefix:     c.MetadataConfig.KeyPrefix,
+		EtcdEndpoints: c.EtcdEndpoints,
 	}
 }
 
 func (c *Config) GetTimingWheelConfig() *timingwheel.Config {
 	return &timingwheel.Config{
-		Tick:       c.TimingWheelConfig.Tick,
-		WheelSize:  c.TimingWheelConfig.WheelSize,
-		Layers:     c.TimingWheelConfig.Layers,
-		EtcdClient: c.EtcdClient,
-	}
-}
-
-func (c *Config) GetEventBusConfig() *eventbus.Config {
-	return &eventbus.Config{
-		Endpoints: c.ControllerEndpoints,
-	}
-}
-
-func (c *Config) GetEventConfig() *eventctl.Config {
-	return &eventctl.Config{
-		Endpoints: c.ControllerEndpoints,
+		Tick:          time.Duration(c.TimingWheelConfig.Tick) * time.Second,
+		WheelSize:     c.TimingWheelConfig.WheelSize,
+		Layers:        c.TimingWheelConfig.Layers,
+		StartTime:     time.Now().UTC(),
+		KeyPrefix:     c.MetadataConfig.KeyPrefix,
+		EtcdEndpoints: c.EtcdEndpoints,
+		CtrlEndpoints: c.CtrlEndpoints,
 	}
 }
 
 type MetadataConfig struct {
 	KeyPrefix string `yaml:"key_prefix"`
+}
+
+type LeaderElectionConfig struct {
+	LeaseDuration int64 `yaml:"lease_duration"`
 }
 
 type TimingWheelConfig struct {
@@ -81,11 +73,27 @@ type TimingWheelConfig struct {
 	Layers    int64 `yaml:"layers"`
 }
 
+func Default(c *Config) {
+	if c.LeaderElectionConfig.LeaseDuration == 0 {
+		c.LeaderElectionConfig.LeaseDuration = 15
+	}
+	if c.TimingWheelConfig.Tick == 0 {
+		c.TimingWheelConfig.Tick = 1
+	}
+	if c.TimingWheelConfig.WheelSize == 0 {
+		c.TimingWheelConfig.WheelSize = 32
+	}
+	if c.TimingWheelConfig.Layers == 0 {
+		c.TimingWheelConfig.Layers = 4
+	}
+}
+
 func InitConfig(filename string) (*Config, error) {
 	c := new(Config)
 	err := primitive.LoadConfig(filename, c)
 	if err != nil {
 		return nil, err
 	}
+	Default(c)
 	return c, nil
 }

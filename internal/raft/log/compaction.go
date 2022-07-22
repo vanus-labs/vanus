@@ -49,8 +49,8 @@ func (l *Log) Compact(i uint64) error {
 	}
 	if i > l.lastIndex() {
 		log.Error(context.Background(), "conpactedIndex is out of bound lastIndex", map[string]interface{}{
-			"compactedIndex": i,
-			"lastIndex":      l.lastIndex(),
+			"compacted_index": i,
+			"last_index":      l.lastIndex(),
 		})
 		// FIXME(james.yin): error
 		return raft.ErrCompacted
@@ -64,25 +64,20 @@ func (l *Log) Compact(i uint64) error {
 	// Save compact information to dummy entry.
 	ents[0].Index = l.ents[sz].Index
 	ents[0].Term = l.ents[sz].Term
-	last := l.offs[0]
 
 	// Copy remained entries.
-	if sz < l.length() {
+	if remaining != 0 {
 		ents = append(ents, l.ents[sz+1:]...)
 		offs = append(offs, l.offs[sz+1:]...)
+		offs[0] = offs[1]
 	}
-
-	// Reset log entries.
-	l.ents = ents
-	l.offs = offs
 
 	// Compact WAL.
-	var compact int64
-	if remaining != 0 {
-		compact = offs[1]
-	}
-	offs[0] = compact
-	l.wal.tryCompact(compact, last, l.nodeID, l.ents[0].Index, l.ents[0].Term)
+	l.wal.tryCompact(offs[0], l.offs[0], l.nodeID, ents[0].Index, ents[0].Term)
+
+	// Reset log entries and offsets.
+	l.ents = ents
+	l.offs = offs
 
 	return nil
 }
@@ -117,9 +112,9 @@ type logCompactInfos map[vanus.ID]compactInfo
 var _ meta.Ranger = (logCompactInfos)(nil)
 
 func (i logCompactInfos) Range(cb meta.RangeCallback) error {
-	value := make([]byte, 16)
 	for id := range i {
 		key := fmt.Sprintf("block/%020d/compact", id.Uint64())
+		value := make([]byte, 16)
 		binary.BigEndian.PutUint64(value[0:8], i[id].index)
 		binary.BigEndian.PutUint64(value[8:16], i[id].term)
 		if err := cb([]byte(key), value); err != nil {
@@ -182,7 +177,7 @@ func (c *compactContext) sync() {
 
 var emptyMark = struct{}{}
 
-func (w WAL) run() {
+func (w *WAL) run() {
 	for task := range w.executec {
 		ct, err := task.cb()
 		if task.result != nil {
@@ -247,6 +242,9 @@ func (w *WAL) doCompact(cctx *compactContext) {
 		log.Debug(context.TODO(), "compact WAL of raft log.", map[string]interface{}{
 			"offset": cctx.toCompact,
 		})
+		// Store compacted info and offset.
 		cctx.sync()
+		// Compact underlying WAL.
+		_ = w.WAL.Compact(cctx.compacted)
 	}
 }

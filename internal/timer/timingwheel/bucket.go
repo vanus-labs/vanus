@@ -1,178 +1,432 @@
+// Copyright 2022 Linkall Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package timingwheel
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/linkall-labs/vanus/internal/timer/metadata"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/proto/pkg/meta"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	eventctl "github.com/linkall-labs/vanus/internal/timer/event"
-	"github.com/linkall-labs/vanus/internal/timer/eventbus"
+	"github.com/cloudevents/sdk-go/v2/types"
+	eb "github.com/linkall-labs/vanus/client"
+	es "github.com/linkall-labs/vanus/client/pkg/errors"
+	eventlog "github.com/linkall-labs/vanus/client/pkg/eventlog"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 )
 
-// Timer represents a single event. When the Timer expires, the given
-// task will be executed.
-type Timer struct {
-	expiration int64 // in milliseconds
+const (
+	timerBuiltInEventbusReceivingStation    = "__Timer_RS"
+	timerBuiltInEventbusDistributionStation = "__Timer_DS"
+	timerBuiltInEventbus                    = "__Timer_%d_%d"
+	xceVanusEventbus                        = "xvanuseventbus"
+	xceVanusDeliveryTime                    = "xvanusdeliverytime"
+)
+
+var (
+	lookupReadableLogs = eb.LookupReadableLogs
+	openLogWriter      = eb.OpenLogWriter
+	openLogReader      = eb.OpenLogReader
+)
+
+type timingMsg struct {
+	expiration time.Time
 	event      *ce.Event
 }
 
-// func (t *Timer) getBucket() *bucket {
-// 	return (*bucket)(atomic.LoadPointer(&t.b))
-// }
+func newTimingMsg(ctx context.Context, e *ce.Event) *timingMsg {
+	var (
+		err        error
+		expiration time.Time
+	)
+	extensions := e.Extensions()
+	if _, ok := extensions[xceVanusDeliveryTime]; ok {
+		expiration, err = types.ParseTime(extensions[xceVanusDeliveryTime].(string))
+		if err != nil {
+			log.Error(ctx, "parse time failed", map[string]interface{}{
+				log.KeyError: err,
+				"time":       extensions[xceVanusDeliveryTime].(string),
+			})
+			expiration = time.Now().UTC()
+		}
+	} else {
+		log.Error(ctx, "xvanusdeliverytime not found, set to current time", nil)
+		expiration = time.Now().UTC()
+	}
+	return &timingMsg{
+		expiration: expiration.UTC(),
+		event:      e,
+	}
+}
 
-// func (t *Timer) setBucket(b *bucket) {
-// 	atomic.StorePointer(&t.b, unsafe.Pointer(b))
-// }
+func (tm *timingMsg) isExpired(tick time.Duration) bool {
+	return time.Now().UTC().Add(tick).After(tm.expiration)
+}
 
-// Stop prevents the Timer from firing. It returns true if the call
-// stops the timer, false if the timer has already expired or been stopped.
-//
-// If the timer t has already expired and the t.task has been started in its own
-// goroutine; Stop does not wait for t.task to complete before returning. If the caller
-// needs to know whether t.task is completed, it must coordinate with t.task explicitly.
-// func (t *Timer) Stop() bool {
-// 	stopped := false
-// 	for b := t.getBucket(); b != nil; b = t.getBucket() {
-// 		// If b.Remove is called just after the timing wheel's goroutine has:
-// 		//     1. removed t from b (through b.Flush -> b.remove)
-// 		//     2. moved t from b to another bucket ab (through b.Flush -> b.remove and ab.Add)
-// 		// this may fail to remove t due to the change of t's bucket.
-// 		stopped = b.Remove(t)
+func (tm *timingMsg) consume(ctx context.Context, endpoints []string) error {
+	var (
+		err            error
+		vrn            string
+		ebName         string
+		eventlogWriter eventlog.LogWriter
+	)
+	err = tm.event.ExtensionAs(xceVanusEventbus, &ebName)
+	if err != nil {
+		log.Error(ctx, "get eventbus failed when consume", map[string]interface{}{
+			log.KeyError: err,
+		})
+		return err
+	}
+	vrn = fmt.Sprintf("vanus:///eventbus/%s?controllers=%s", ebName, strings.Join(endpoints, ","))
+	ls, err := lookupReadableLogs(ctx, vrn)
+	if err != nil {
+		log.Error(ctx, "lookup readable logs failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		return err
+	}
+	// new eventlog writer
+	eventlogWriter, err = openLogWriter(ls[defaultIndexOfEventlogWriter].VRN)
+	if err != nil {
+		log.Error(ctx, "open log writer failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		return err
+	}
 
-// 		// Thus, here we re-get t's possibly new bucket (nil for case 1, or ab (non-nil) for case 2),
-// 		// and retry until the bucket becomes nil, which indicates that t has finally been removed.
-// 	}
-// 	return stopped
-// }
+	offset, err := eventlogWriter.Append(ctx, tm.event)
+	defer eventlogWriter.Close()
+	if err != nil {
+		log.Error(ctx, "consume event failed", map[string]interface{}{
+			log.KeyError: err,
+			"expiration": tm.expiration,
+		})
+		return err
+	}
+	log.Info(ctx, "consume event success", map[string]interface{}{
+		"expiration": tm.expiration,
+		"offset":     offset,
+	})
+	return nil
+}
 
 type bucket struct {
-	// 64-bit atomic operations require 64-bit alignment, but 32-bit
-	// compilers do not ensure it. So we must keep the 64-bit field
-	// as the first field of the struct.
-	//
-	// For more explanations, see https://golang.org/pkg/sync/atomic/#pkg-note-BUG
-	// and https://go101.org/article/memory-layout.html.
-	// expiration int64
-	mu       sync.Mutex
+	config   *Config
+	tick     time.Duration
+	layer    int64
+	slot     int64
 	offset   int64
 	eventbus string
+
+	mu             sync.Mutex
+	kvStore        kv.Client
+	client         *ctrlClient
+	eventlogWriter eventlog.LogWriter
+	eventlogReader eventlog.LogReader
 }
 
-func newBucket(layer int64, slot int64) *bucket {
-	eb := fmt.Sprintf("__Timer_%d_%d", layer, slot)
-	err := eventbus.CreateEventBus(context.Background(), eb)
-	if err != nil {
-		panic(err)
-	}
+func newBucket(c *Config, store kv.Client, cli *ctrlClient,
+	tick time.Duration, ebName string, layer, slot int64) *bucket {
 	return &bucket{
-		eventbus: eb,
-		// expiration: -1,
-		offset: 0,
+		config:   c,
+		tick:     tick,
+		layer:    layer,
+		slot:     slot,
+		offset:   0,
+		eventbus: ebName,
+		kvStore:  store,
+		client:   cli,
 	}
 }
 
-// func (b *bucket) Expiration() int64 {
-// 	return atomic.LoadInt64(&b.expiration)
-// }
+// create buckets for each layer of time wheel.
+func createBucketsForTimingWheel(c *Config, store kv.Client, cli *ctrlClient,
+	tick time.Duration, layer int64) []*bucket {
+	var (
+		i       int64
+		buckets []*bucket
+	)
 
-// func (b *bucket) SetExpiration(expiration int64) bool {
-// 	return atomic.SwapInt64(&b.expiration, expiration) != expiration
-// }
-
-func (b *bucket) Add(t *Timer) {
-	b.mu.Lock()
-	eventctl.PutEvent(context.Background(), b.eventbus, t.event)
-	b.mu.Unlock()
+	buckets = make([]*bucket, c.WheelSize)
+	for i = 0; i < c.WheelSize; i++ {
+		ebName := fmt.Sprintf(timerBuiltInEventbus, layer, i)
+		buckets[i] = newBucket(c, store, cli, tick, ebName, layer, i)
+	}
+	return buckets
 }
 
-// func (b *bucket) remove(t *Timer) bool {
-// 	if t.getBucket() != b {
-// 		// If remove is called from within t.Stop, and this happens just after the timing wheel's goroutine has:
-// 		//     1. removed t from b (through b.Flush -> b.remove)
-// 		//     2. moved t from b to another bucket ab (through b.Flush -> b.remove and ab.Add)
-// 		// then t.getBucket will return nil for case 1, or ab (non-nil) for case 2.
-// 		// In either case, the returned value does not equal to b.
-// 		return false
-// 	}
-// 	b.timers.Remove(t.element)
-// 	t.setBucket(nil)
-// 	t.element = nil
-// 	return true
-// }
+func (b *bucket) start(ctx context.Context) error {
+	var (
+		err error
+		vrn string
+	)
 
-// func (b *bucket) Remove(t *Timer) bool {
-// 	b.mu.Lock()
-// 	defer b.mu.Unlock()
-// 	return b.remove(t)
-// }
+	vrn = fmt.Sprintf("vanus:///eventbus/%s?controllers=%s", b.eventbus, strings.Join(b.config.CtrlEndpoints, ","))
+	ls, err := lookupReadableLogs(ctx, vrn)
+	if err != nil {
+		log.Error(ctx, "lookup readable logs failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		return err
+	}
+	// new eventlog writer
+	b.eventlogWriter, err = openLogWriter(ls[defaultIndexOfEventlogWriter].VRN)
+	if err != nil {
+		log.Error(ctx, "open log writer failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		return err
+	}
+	// new eventlog reader
+	b.eventlogReader, err = openLogReader(ls[defaultIndexOfEventlogReader].VRN)
+	if err != nil {
+		log.Error(ctx, "open log reader failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		return err
+	}
 
-func (b *bucket) Flush() {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	return nil
+}
 
-	ctx := context.Background()
-	for {
-		events, err := eventctl.GetEvent(ctx, b.eventbus, b.offset, 1)
+func (b *bucket) add(ctx context.Context, tm *timingMsg, check bool) error {
+	if check {
+		// just for highest layer timingwheel
+		err := b.createEventbus(ctx)
 		if err != nil {
-			if err.Error() != "on end" {
-				log.Warning(ctx, "get event failed", map[string]interface{}{
-					"eventbus":   b.eventbus,
-					log.KeyError: err,
-				})
-			}
-			return
-		}
-
-		if time.Now().After(events[0].Time()) {
-			// todo： 当event的定时时间已到期，直接转发到真实的eventbus中
-			// 更新etcd元数据信息
-			// 更新offset
-			log.Info(ctx, "get event success", map[string]interface{}{
-				"event": events[0],
-				"Time":  events[0].Time().Format("2006-01-02 15:04:05.000"),
+			log.Error(ctx, "bucket create eventbus failed", map[string]interface{}{
+				log.KeyError: err,
+				"eventbus":   b.eventbus,
 			})
-			b.offset++
-			continue
+			return err
 		}
-		break
+		err = b.start(ctx)
+		if err != nil {
+			log.Error(ctx, "bucket start failed", map[string]interface{}{
+				log.KeyError: err,
+				"eventbus":   b.eventbus,
+			})
+			return err
+		}
+	}
+	return b.putEvent(ctx, tm)
+}
+
+func (b *bucket) buildTimingMessageTask(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			log.Warning(ctx, "context canceled at bucket distribute", map[string]interface{}{
+				"eventbus": b.eventbus,
+			})
+			return
+		default:
+			events, err := b.getEvent(ctx, defaultNumberOfEventsRead)
+			if err != nil {
+				if !errors.Is(err, es.ErrOnEnd) && !errors.Is(err, es.ErrTryAgain) {
+					log.Error(ctx, "get event failed when bucket distribute", map[string]interface{}{
+						"eventbus":   b.eventbus,
+						log.KeyError: err,
+					})
+				}
+				return
+			}
+
+			tm := newTimingMsg(ctx, events[defaultIndexOfEventsRead])
+			waitCtx, cancel := context.WithCancel(ctx)
+			wait.Until(func() {
+				if time.Now().UTC().After(tm.expiration) {
+					cancel()
+				}
+			}, b.tick/defaultFlushWaitingPeriodRatio, waitCtx.Done())
+
+			err = tm.consume(ctx, b.config.CtrlEndpoints)
+			if err != nil {
+				log.Error(ctx, "consume event failed", map[string]interface{}{
+					"expiration": tm.expiration,
+				})
+				break
+			}
+			b.offset++
+			if err = b.updateOffsetMeta(ctx); err != nil {
+				log.Warning(ctx, "update offset metadata failed", map[string]interface{}{
+					log.KeyError: err,
+					"layer":      b.layer,
+					"slot":       b.slot,
+					"offset":     b.offset,
+					"eventbus":   b.eventbus,
+				})
+			}
+		}
 	}
 }
 
-func (b *bucket) Load(reinsert func(*Timer) bool) {
+func (b *bucket) fetchEventFromOverflowWheelAdvance(ctx context.Context,
+	reInsert func(context.Context, *timingMsg) bool) {
+	for {
+		select {
+		case <-ctx.Done():
+			log.Debug(ctx, "context canceled at bucket load", nil)
+			return
+		default:
+			events, err := b.getEvent(ctx, defaultNumberOfEventsRead)
+			if err != nil {
+				if !errors.Is(err, es.ErrOnEnd) && !errors.Is(ctx.Err(), context.Canceled) {
+					log.Error(ctx, "get event failed when bucket load", map[string]interface{}{
+						"eventbus":   b.eventbus,
+						"offset":     b.offset,
+						log.KeyError: err,
+					})
+				}
+				return
+			}
+
+			tm := newTimingMsg(ctx, events[defaultIndexOfEventsRead])
+			log.Debug(ctx, "load event to next layer timingwheel", map[string]interface{}{
+				"sourceEventbus": b.eventbus,
+				"expiration":     tm.expiration,
+			})
+			tmCtx, cancel := context.WithCancel(ctx)
+			wait.Until(func() {
+				if tm.isExpired(b.tick) {
+					cancel()
+				}
+			}, b.tick/defaultLoadWaitingPeriodRatio, tmCtx.Done())
+
+			if reInsert(ctx, tm) {
+				log.Info(ctx, "reinsert timing message success", map[string]interface{}{
+					"sourceEventbus": b.eventbus,
+					"expiration":     tm.expiration,
+				})
+				b.offset++
+				if err = b.updateOffsetMeta(ctx); err != nil {
+					log.Warning(ctx, "update offset metadata failed", map[string]interface{}{
+						log.KeyError: err,
+						"layer":      b.layer,
+						"slot":       b.slot,
+						"offset":     b.offset,
+						"eventbus":   b.eventbus,
+					})
+				}
+			}
+		}
+	}
+}
+
+func (b *bucket) isExistEventbus(ctx context.Context) bool {
+	_, err := b.client.leaderClient.GetEventBus(ctx, &meta.EventBus{Name: b.eventbus})
+	return err == nil
+}
+
+func (b *bucket) createEventbus(ctx context.Context) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-
-	ctx := context.Background()
-	for {
-		events, err := eventctl.GetEvent(ctx, b.eventbus, b.offset, 1)
-		if err != nil {
-			if err.Error() != "on end" {
-				log.Warning(ctx, "get event failed", map[string]interface{}{
-					"eventbus":   b.eventbus,
-					log.KeyError: err,
-				})
-			}
-			return
-		}
-
-		t := &Timer{
-			expiration: events[0].Time().Unix(),
-			event:      events[0],
-		}
-		// log.Info(context.Background(), "Load event", map[string]interface{}{
-		// 	"t": t,
-		// })
-		if reinsert(t) {
-			// todo： 当event降级成功后
-			// 更新etcd元数据信息
-			// 更新offset
-			// 继续降级下一个event
-			continue
-		}
-		break
+	if b.isExistEventbus(ctx) {
+		return nil
 	}
+	_, err := b.client.leaderClient.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
+		Name: b.eventbus,
+	})
+	if err != nil {
+		log.Error(ctx, "create eventbus failed", map[string]interface{}{
+			log.KeyError: err,
+			"eventbus":   b.eventbus,
+		})
+		return err
+	}
+	log.Info(ctx, "create eventbus success.", map[string]interface{}{
+		"eventbus": b.eventbus,
+	})
+	return nil
+}
+
+func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) error {
+	_, err := b.eventlogWriter.Append(ctx, tm.event)
+	if err != nil {
+		log.Error(ctx, "append event to failed", map[string]interface{}{
+			log.KeyError: err,
+			"eventbus":   b.eventbus,
+			"expiration": tm.expiration,
+		})
+		return err
+	}
+	log.Debug(ctx, "put event success", map[string]interface{}{
+		"eventbus":  b.eventbus,
+		"eventTime": tm.expiration,
+	})
+	return nil
+}
+
+func (b *bucket) getEvent(ctx context.Context, number int16) ([]*ce.Event, error) {
+	var err error
+	_, err = b.eventlogReader.Seek(ctx, b.offset, io.SeekStart)
+	if err != nil {
+		log.Error(ctx, "seek failed", map[string]interface{}{
+			log.KeyError: err,
+			"offset":     b.offset,
+		})
+		return nil, err
+	}
+
+	events, err := b.eventlogReader.Read(ctx, number)
+	if err != nil {
+		if !errors.Is(err, es.ErrOnEnd) && !errors.Is(ctx.Err(), context.Canceled) {
+			log.Error(ctx, "Read failed", map[string]interface{}{
+				log.KeyError: err,
+				"offset":     b.offset,
+			})
+		}
+		return nil, err
+	}
+
+	log.Debug(ctx, "get event success", map[string]interface{}{
+		"eventbus": b.eventbus,
+		"offset":   b.offset,
+		"number":   number,
+	})
+	return events, nil
+}
+
+func (b *bucket) updateOffsetMeta(ctx context.Context) error {
+	key := fmt.Sprintf("%s/offset/%s", metadata.MetadataKeyPrefixInKVStore, b.eventbus)
+	offsetMeta := &metadata.OffsetMeta{
+		Layer:    b.layer,
+		Slot:     b.slot,
+		Offset:   b.offset,
+		Eventbus: b.eventbus,
+	}
+	data, _ := json.Marshal(offsetMeta)
+	err := b.kvStore.Set(ctx, key, data)
+	if err != nil {
+		log.Warning(ctx, "set offset metadata to kvstore failed", map[string]interface{}{
+			log.KeyError: err,
+			"key":        key,
+			"data":       data,
+		})
+		return err
+	}
+	return nil
 }

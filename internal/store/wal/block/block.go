@@ -107,3 +107,7 @@ type Block struct {
 	// SO is start offset
 	SO int64
 }
+
+func (b *Block) WriteOffset() int64 {
+	return b.SO + int64(b.Size())
+}

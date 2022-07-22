@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/ratelimit"
+
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/filter"
@@ -62,6 +64,7 @@ type Trigger struct {
 	sendCh        chan info.EventRecord
 	ceClient      ce.Client
 	filter        filter.Filter
+	rateLimiter   ratelimit.Limiter
 
 	inputTransformer *transformation.InputTransformer
 	config           Config
@@ -70,28 +73,34 @@ type Trigger struct {
 	wg util.Group
 }
 
-func NewTrigger(config *Config, sub *primitive.Subscription, offsetManager *offset.SubscriptionOffset) *Trigger {
-	if config == nil {
-		config = &Config{}
-	}
-	config.initConfig()
+func NewTrigger(sub *primitive.Subscription, offsetManager *offset.SubscriptionOffset, opts ...Option) *Trigger {
 	t := &Trigger{
 		stop:           func() {},
-		config:         *config,
+		config:         defaultConfig(),
 		ID:             vanus.NewID(),
 		SubscriptionID: sub.ID,
 		Target:         sub.Sink,
 		SleepDuration:  sleepDuration,
 		state:          TriggerCreated,
 		filter:         filter.GetFilter(sub.Filters),
-		eventCh:        make(chan info.EventRecord, config.BufferSize),
-		sendCh:         make(chan info.EventRecord, config.BufferSize),
 		offsetManager:  offsetManager,
+	}
+	t.applyOptions(opts...)
+	t.eventCh = make(chan info.EventRecord, t.config.BufferSize)
+	t.sendCh = make(chan info.EventRecord, t.config.BufferSize)
+	if t.rateLimiter == nil {
+		t.rateLimiter = ratelimit.NewUnlimited()
 	}
 	if sub.InputTransformer != nil {
 		t.inputTransformer = transformation.NewInputTransformer(sub.InputTransformer)
 	}
 	return t
+}
+
+func (t *Trigger) applyOptions(opts ...Option) {
+	for _, fn := range opts {
+		fn(t)
+	}
 }
 
 func (t *Trigger) getCeClient() ce.Client {
@@ -140,6 +149,14 @@ func (t *Trigger) ChangeInputTransformer(inputTransformer *primitive.InputTransf
 	}
 }
 
+func (t *Trigger) ChangeConfig(config primitive.SubscriptionConfig) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	if config.RateLimit != 0 && config.RateLimit != t.config.RateLimit {
+		t.applyOptions(WithRateLimit(config.RateLimit))
+	}
+}
+
 func (t *Trigger) EventArrived(ctx context.Context, event info.EventRecord) error {
 	select {
 	case t.eventCh <- event:
@@ -155,6 +172,7 @@ func (t *Trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 	doFunc := func() error {
 		timeout, cancel := context.WithTimeout(ctx, t.config.SendTimeOut)
 		defer cancel()
+		t.rateLimiter.Take()
 		return t.getCeClient().Send(timeout, *e)
 	}
 	var err error

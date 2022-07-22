@@ -20,6 +20,8 @@ import (
 	"os"
 
 	"github.com/linkall-labs/vanus/internal/timer"
+	"github.com/linkall-labs/vanus/internal/timer/leaderelection"
+	"github.com/linkall-labs/vanus/internal/timer/timingwheel"
 	"github.com/linkall-labs/vanus/internal/util/signal"
 	"github.com/linkall-labs/vanus/observability/log"
 )
@@ -29,25 +31,75 @@ var (
 )
 
 func main() {
-	flag.Parse()
+	var (
+		err error
+		ctx context.Context
+	)
 
+	flag.Parse()
+	ctx = signal.SetupSignalContext()
 	cfg, err := timer.InitConfig(*configPath)
 	if err != nil {
-		log.Error(context.Background(), "init config error", map[string]interface{}{
+		log.Error(ctx, "init config error", map[string]interface{}{
 			log.KeyError: err,
 		})
 		os.Exit(-1)
 	}
 
-	ctx := signal.SetupSignalContext()
+	// new leaderelection manager
+	leaderelectionMgr := leaderelection.NewLeaderElection(cfg.GetLeaderElectionConfig())
+	// new timingwheel manager
+	timingwheelMgr := timingwheel.NewTimingWheel(cfg.GetTimingWheelConfig())
 
-	cfg.Init()
+	// init timingwheel
+	if err = timingwheelMgr.Init(ctx); err != nil {
+		log.Error(ctx, "init timer wheel failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
 
-	cfg.Start(ctx)
+	// define leaderelection callback
+	callbacks := leaderelection.LeaderCallbacks{
+		OnStartedLeading: func(ctx context.Context) {
+			log.Info(ctx, "leaderelection finish, become leader", nil)
+			if timingwheelMgr.IsDeployed(ctx) {
+				err := timingwheelMgr.RecoverForFailover(ctx)
+				if err != nil {
+					log.Error(ctx, "recover for failover failed, keeping follower", map[string]interface{}{
+						log.KeyError: err,
+					})
+					return
+				}
+			}
+			timingwheelMgr.SetLeader(true)
+		},
+		OnStoppedLeading: func(ctx context.Context) {
+			log.Info(ctx, "leaderelection lost, become follower", nil)
+			timingwheelMgr.SetLeader(false)
+		},
+	}
+
+	// start leaderelection
+	if err = leaderelectionMgr.Start(ctx, callbacks); err != nil {
+		log.Error(ctx, "start leader election failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+
+	// start timingwheel
+	if err = timingwheelMgr.Start(ctx); err != nil {
+		log.Error(ctx, "start timer wheel failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
 
 	<-ctx.Done()
 
-	cfg.Stop()
+	leaderelectionMgr.Stop(ctx)
+	timingwheelMgr.Stop(ctx)
 
 	log.Info(ctx, "the tiemr has been shutdown gracefully", nil)
 }

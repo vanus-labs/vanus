@@ -32,7 +32,7 @@ service SegmentServer {
 
   rpc ActivateSegment(ActivateSegmentRequest) returns (ActivateSegmentResponse);
   rpc InactivateSegment(InactivateSegmentRequest)
-      returns (InactivateSegmentResponse);
+      returns (google.protobuf.Empty);
 
   rpc AppendToBlock(AppendToBlockRequest) returns (google.protobuf.Empty);
   rpc ReadFromBlock(ReadFromBlockRequest) returns (ReadFromBlockResponse);

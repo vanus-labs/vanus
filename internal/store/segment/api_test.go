@@ -131,7 +131,13 @@ func TestSegmentServer(t *testing.T) {
 			// TODO(james.yin):
 			srv.EXPECT().ActivateSegment(Any(), Any(), Any(), Any()).Return(nil)
 
-			req := &segpb.ActivateSegmentRequest{}
+			req := &segpb.ActivateSegmentRequest{
+				EventLogId:     vanus.NewID().Uint64(),
+				ReplicaGroupId: vanus.NewID().Uint64(),
+				Replicas: map[uint64]string{
+					1: "127.0.0.1:11811",
+				},
+			}
 			resp, err := ss.ActivateSegment(context.Background(), req)
 			So(err, ShouldBeNil)
 			So(resp, ShouldNotBeNil)
@@ -139,12 +145,11 @@ func TestSegmentServer(t *testing.T) {
 
 		Convey("InactivateSegment()", func() {
 			// TODO(james.yin):
-			srv.EXPECT().InactivateSegment(Any()).Return(nil)
+			// srv.EXPECT().InactivateSegment(Any(), Any()).Return(nil)
 
 			req := &segpb.InactivateSegmentRequest{}
-			resp, err := ss.InactivateSegment(context.Background(), req)
+			_, err := ss.InactivateSegment(context.Background(), req)
 			So(err, ShouldBeNil)
-			So(resp, ShouldNotBeNil)
 		})
 
 		Convey("AppendToBlock()", func() {

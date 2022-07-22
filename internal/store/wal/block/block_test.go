@@ -36,6 +36,7 @@ func TestBlock(t *testing.T) {
 			block: block{
 				buf: make([]byte, blockSize),
 			},
+			SO: 4096,
 		}
 
 		Convey("properties", func() {
@@ -44,6 +45,7 @@ func TestBlock(t *testing.T) {
 			So(b.Committed(), ShouldEqual, 0)
 			So(b.Remaining(), ShouldEqual, blockSize)
 			So(b.Full(), ShouldBeFalse)
+			So(b.WriteOffset(), ShouldEqual, 4096)
 		})
 
 		Convey("append", func() {
@@ -58,11 +60,10 @@ func TestBlock(t *testing.T) {
 			So(b.Full(), ShouldBeTrue)
 			So(b.FullWithOff(n-1), ShouldBeFalse)
 			So(b.Committed(), ShouldEqual, 0)
+			So(b.WriteOffset(), ShouldEqual, 4096+b.Size())
 
 			Convey("flush", func() {
-				b.Flush(io.WriteAtFunc(func(b []byte, base int64,
-					cb io.WriteCallback,
-				) {
+				b.Flush(io.WriteAtFunc(func(b []byte, base int64, cb io.WriteCallback) {
 					So(b[:n], ShouldResemble, r.Marshal())
 					So(base, ShouldEqual, 0)
 

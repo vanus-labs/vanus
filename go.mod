@@ -4,8 +4,8 @@ go 1.17
 
 require (
 	cloudevents.io/genproto v1.0.2
-	github.com/cloudevents/sdk-go/sql/v2 v2.8.0
-	github.com/cloudevents/sdk-go/v2 v2.8.0
+	github.com/cloudevents/sdk-go/sql/v2 v2.10.1
+	github.com/cloudevents/sdk-go/v2 v2.10.1
 	github.com/fatih/color v1.13.0
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/gogo/protobuf v1.3.2
@@ -18,7 +18,7 @@ require (
 	github.com/iceber/iouring-go v0.0.0-20220609112130-b1dc8dd9fbfd
 	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/labstack/echo/v4 v4.7.2
-	github.com/linkall-labs/embed-etcd v0.0.1
+	github.com/linkall-labs/embed-etcd v0.0.3
 	github.com/linkall-labs/vanus/client v0.1.0
 	github.com/linkall-labs/vanus/proto v0.1.0
 	github.com/linkall-labs/vanus/raft v0.1.0
@@ -32,6 +32,7 @@ require (
 	github.com/tidwall/gjson v1.14.1
 	go.etcd.io/etcd/client/v3 v3.5.3
 	go.opentelemetry.io/otel v0.20.0
+	go.uber.org/ratelimit v0.2.0
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 	google.golang.org/genproto v0.0.0-20220310185008-1973136f34c6
 	google.golang.org/grpc v1.44.0
@@ -51,6 +52,7 @@ replace (
 )
 
 require (
+	github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129 // indirect
 	github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20220209173558-ad29539cd2e9 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
@@ -63,8 +65,6 @@ require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/go-cmp v0.5.7 // indirect
-	github.com/google/gofuzz v1.1.0 // indirect
-	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20181017120253-0766667cb4d1 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
@@ -81,6 +81,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/prashantv/gostub v1.1.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.26.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
@@ -118,18 +119,10 @@ require (
 	go.uber.org/zap v1.17.0 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
-	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f // indirect
 	golang.org/x/sys v0.0.0-20220209214540-3681064d5158 // indirect
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	google.golang.org/appengine v1.6.7 // indirect
-	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/api v0.23.4 // indirect
-	k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65 // indirect
 	k8s.io/utils v0.0.0-20211116205334-6203023598ed // indirect
-	sigs.k8s.io/json v0.0.0-20211020170558-c049b76a60c6 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )

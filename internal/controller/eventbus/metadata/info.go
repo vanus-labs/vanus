@@ -42,8 +42,22 @@ func Convert2ProtoEventBus(ins ...*Eventbus) []*meta.EventBus {
 
 type Eventlog struct {
 	// global unique id
-	ID         vanus.ID `json:"id"`
-	EventbusID vanus.ID `json:"eventbus_id"`
+	ID            vanus.ID `json:"id"`
+	EventbusID    vanus.ID `json:"eventbus_id"`
+	SegmentNumber int      `json:"segment_number"`
+}
+
+func Convert2ProtoEventLog(ins ...*Eventlog) []*meta.EventLog {
+	pels := make([]*meta.EventLog, len(ins))
+	for idx := 0; idx < len(ins); idx++ {
+		eli := ins[idx]
+
+		pels[idx] = &meta.EventLog{
+			EventLogId:            eli.ID.Uint64(),
+			CurrentSegmentNumbers: int32(eli.SegmentNumber),
+		}
+	}
+	return pels
 }
 
 type VolumeMetadata struct {

@@ -14,11 +14,16 @@
 
 package timingwheel
 
-import "github.com/linkall-labs/vanus/internal/kv"
+import (
+	"time"
+)
 
 type Config struct {
-	Tick       int64
-	WheelSize  int64
-	Layers     int64
-	EtcdClient kv.Client
+	Tick          time.Duration `yaml:"tick"`
+	WheelSize     int64         `yaml:"wheel_size"`
+	Layers        int64         `yaml:"layers"`
+	StartTime     time.Time     `yaml:"start_time"`
+	KeyPrefix     string        `yaml:"key_prefix"`
+	EtcdEndpoints []string      `yaml:"etcd"`
+	CtrlEndpoints []string      `yaml:"controllers"`
 }

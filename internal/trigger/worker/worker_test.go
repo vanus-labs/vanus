@@ -40,12 +40,16 @@ func TestSubscriptionWorker(t *testing.T) {
 			Offsets: info.ListOffsetInfo{
 				{Offset: 1, EventLogID: 1},
 			},
+			Config: primitive.SubscriptionConfig{
+				RateLimit: 1000,
+			},
 		}
 		offsetManager := offset.NewOffsetManager()
 		offsetManager.RemoveSubscription(id)
 		subscriptionOffset := offsetManager.GetSubscription(id)
-		w := NewSubscriptionWorker(subscription, subscriptionOffset,
-			[]string{"test"}).(*subscriptionWorker)
+		w := NewSubscriptionWorker(subscription, subscriptionOffset, Config{
+			Controllers: []string{"test"},
+		}).(*subscriptionWorker)
 		w.reader = r
 		r.EXPECT().Start().AnyTimes().Return(nil)
 		r.EXPECT().Close().AnyTimes().Return()
@@ -67,7 +71,9 @@ func TestSubscriptionWorker_Change(t *testing.T) {
 		id := vanus.NewID()
 		w := NewSubscriptionWorker(&primitive.Subscription{
 			ID: id,
-		}, nil, []string{"test"})
+		}, nil, Config{
+			Controllers: []string{"test"},
+		})
 		Convey("change target", func() {
 			err := w.Change(ctx, &primitive.Subscription{Sink: "test_sink"})
 			So(err, ShouldBeNil)

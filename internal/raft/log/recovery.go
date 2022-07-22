@@ -19,9 +19,9 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"strings"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/raft"
 	"github.com/linkall-labs/vanus/raft/raftpb"
 
 	// this project.
@@ -46,7 +46,7 @@ func RecoverLogsAndWAL(
 	logs := make(map[uint64]*Log)
 	opts := append([]walog.Option{
 		walog.FromPosition(compacted),
-		walog.WithRecoveryCallback(func(data []byte, offset int64) error {
+		walog.WithRecoveryCallback(func(data []byte, r walog.Range) error {
 			var entry raftpb.Entry
 			err := entry.Unmarshal(data)
 			if err != nil {
@@ -59,7 +59,7 @@ func RecoverLogsAndWAL(
 				logs[entry.NodeId] = l
 			}
 
-			return l.appendInRecovery(entry, offset)
+			return l.appendInRecovery(entry, r.SO)
 		}),
 	}, cfg.WAL.Options()...)
 	wal, err := walog.Open(walDir, opts...)
@@ -73,8 +73,10 @@ func RecoverLogsAndWAL(
 	for nodeID, raftLog := range logs {
 		raftLog.wal = wal2
 		// TODO(james.yin): move to compaction.go
-		if offset := raftLog.offs[0]; offset != 0 {
-			wal2.barrier.Set(offset, emptyMark)
+		if raftLog.length() != 0 {
+			off := raftLog.offs[1]
+			raftLog.offs[0] = off
+			wal2.barrier.Set(off, emptyMark)
 		}
 		logs2[vanus.NewIDFromUint64(nodeID)] = raftLog
 	}
@@ -149,48 +151,65 @@ func (l *Log) recoverCompactionInfo() {
 	}
 }
 
-func (l *Log) appendInRecovery(entry raftpb.Entry, offset int64) error {
-	firstInLog := l.firstIndex()
-	expectedToAppend := l.lastIndex() + 1
+func (l *Log) appendInRecovery(entry raftpb.Entry, so int64) error {
+	term := entry.Term
 	index := entry.Index
 
-	if expectedToAppend < index {
-		log.Error(context.Background(), "missing log entries", map[string]interface{}{
-			"lastIndex":     expectedToAppend - 1,
-			"appendedIndex": index,
-		})
-		// FIXME(james.yin): correct error
-		return raft.ErrUnavailable
+	compactedTerm := l.compactedTerm()
+	firstIndex := l.firstIndex()
+	lastTerm := l.lastTerm()
+	lastIndex := l.lastIndex()
+	expectedIndex := lastIndex + 1
+
+	var reason string
+
+	// Compacted entry, discard.
+	if term < compactedTerm {
+		return nil
+	}
+	if index < firstIndex {
+		// All compacted entries are committed, and committed entries are immutable.
+		if term != compactedTerm || l.length() != 0 {
+			reason = "roll back to the index before compacted"
+			goto PANIC
+		}
+		return nil
 	}
 
 	// Write to cache.
 	switch {
-	case index < firstInLog:
-		// Compacted entry, discard.
-	case index == firstInLog:
-		// First entry, reset compaction info.
-		if offset > l.offs[0] {
-			l.ents = []raftpb.Entry{{
-				Index: index - 1,
-				Term:  entry.Term,
-			}, entry}
-			if entry.PrevTerm != 0 {
-				l.ents[0].Term = entry.PrevTerm
-			}
-			l.offs = []int64{offset, offset}
-		}
-	case index == expectedToAppend:
+	case term < lastTerm:
+		// Term will not roll back.
+		reason = "term roll back"
+		goto PANIC
+	case index > expectedIndex:
+		reason = "missing log entries"
+		goto PANIC
+	case index == expectedIndex:
 		// Append entry.
 		l.ents = append(l.ents, entry)
-		l.offs = append(l.offs, offset)
-	default:
-		// Truncate then append entry.
-		si := index - firstInLog + 1
+		l.offs = append(l.offs, so)
+	case term > lastTerm:
+		// Truncate, then append entry.
+		si := index - firstIndex + 1
 		l.ents = append([]raftpb.Entry{}, l.ents[:si]...)
 		l.ents = append(l.ents, entry)
 		l.offs = append([]int64{}, l.offs[:si]...)
-		l.offs = append(l.offs, offset)
+		l.offs = append(l.offs, so)
+	default:
+		// In the same term, index is monotonically increasing.
+		reason = "index roll back in term"
+		goto PANIC
 	}
-
 	return nil
+
+PANIC:
+	log.Error(context.Background(), fmt.Sprintf("%s%s.", strings.ToUpper(reason[0:1]), reason[1:]), map[string]interface{}{
+		"node_id":    l.nodeID,
+		"last_term":  lastTerm,
+		"last_index": lastIndex,
+		"next_term":  term,
+		"next_index": index,
+	})
+	panic(fmt.Sprintf("unreachable: %s", reason))
 }

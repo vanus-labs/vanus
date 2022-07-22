@@ -31,13 +31,18 @@ var (
 	ErrNotFoundLogFile = errors.New("wal: not found log file")
 )
 
-type Result struct {
-	Offsets []int64
-	Err     error
+type Range struct {
+	SO int64
+	EO int64
 }
 
-func (re *Result) Offset() int64 {
-	return re.Offsets[0]
+type Result struct {
+	Ranges []Range
+	Err    error
+}
+
+func (re *Result) Range() Range {
+	return re.Ranges[0]
 }
 
 type AppendCallback func(Result)
@@ -70,7 +75,7 @@ type flushTask struct {
 
 type callbackTask struct {
 	callback  AppendCallback
-	offsets   []int64
+	ranges    []Range
 	threshold int64
 }
 
@@ -89,7 +94,7 @@ type WAL struct {
 	wakeupc   chan int64
 
 	closemu sync.RWMutex
-	flushw  sync.WaitGroup
+	flushwg sync.WaitGroup
 
 	closec chan struct{}
 	donec  chan struct{}
@@ -106,6 +111,7 @@ func open(dir string, cfg config) (*WAL, error) {
 		return nil, err
 	}
 
+	// Check wal entries from pos.
 	off, err := stream.Range(cfg.pos, cfg.cb)
 	if err != nil {
 		return nil, err
@@ -134,7 +140,7 @@ func open(dir string, cfg config) (*WAL, error) {
 		if f == nil {
 			return nil, ErrNotFoundLogFile
 		}
-		if err := f.Open(); err != nil {
+		if err := f.Open(false); err != nil {
 			return nil, err
 		}
 		if err := w.wb.RecoverFromFile(f.f, w.wb.SO-f.so, int(off-w.wb.SO)); err != nil {
@@ -156,7 +162,12 @@ func (w *WAL) Dir() string {
 func (w *WAL) Close() {
 	w.closemu.Lock()
 	defer w.closemu.Unlock()
-	close(w.closec)
+
+	select {
+	case <-w.closec:
+	default:
+		close(w.closec)
+	}
 }
 
 func (w *WAL) doClose() {
@@ -171,12 +182,12 @@ func (w *WAL) Wait() {
 
 type AppendOneFuture <-chan Result
 
-func (f AppendOneFuture) Wait() (int64, error) {
+func (f AppendOneFuture) Wait() (Range, error) {
 	re := <-f
 	if re.Err != nil {
-		return -1, re.Err
+		return Range{}, re.Err
 	}
-	return re.Offset(), nil
+	return re.Range(), nil
 }
 
 func (w *WAL) AppendOne(entry []byte, opts ...AppendOption) AppendOneFuture {
@@ -185,9 +196,9 @@ func (w *WAL) AppendOne(entry []byte, opts ...AppendOption) AppendOneFuture {
 
 type AppendFuture <-chan Result
 
-func (f AppendFuture) Wait() ([]int64, error) {
+func (f AppendFuture) Wait() ([]Range, error) {
 	re := <-f
-	return re.Offsets, re.Err
+	return re.Ranges, re.Err
 }
 
 // Append appends entries to WAL.
@@ -301,8 +312,9 @@ func (w *WAL) flushWritableBlock() {
 // goahead flag indicate switching to a new block.
 func (w *WAL) doAppend(entries [][]byte, callback AppendCallback) (bool, bool) {
 	var full, goahead bool
-	offsets := make([]int64, len(entries))
+	ranges := make([]Range, len(entries))
 	for i, entry := range entries {
+		ranges[i].SO = w.wb.WriteOffset()
 		records := record.Pack(entry, w.wb.Remaining(), w.allocator.BlockSize())
 		for j, record := range records {
 			n, err := w.wb.Append(record)
@@ -312,12 +324,12 @@ func (w *WAL) doAppend(entries [][]byte, callback AppendCallback) (bool, bool) {
 			}
 			if j == len(records)-1 {
 				offset := w.wb.SO + int64(n)
-				offsets[i] = offset
+				ranges[i].EO = offset
 				if i == len(entries)-1 {
 					// register callback
 					w.callbackc <- callbackTask{
 						callback:  callback,
-						offsets:   offsets,
+						ranges:    ranges,
 						threshold: offset,
 					}
 				}
@@ -346,7 +358,7 @@ func (w *WAL) runFlush() {
 
 		writer := w.logWriter(fb.SO)
 
-		w.flushw.Add(1)
+		w.flushwg.Add(1)
 		fb.Flush(writer, task.offset, fb.SO, func(off int64, err error) {
 			if err != nil {
 				panic(err)
@@ -355,7 +367,7 @@ func (w *WAL) runFlush() {
 			// Wakeup callbacks.
 			w.wakeupc <- fb.SO + off
 
-			w.flushw.Done()
+			w.flushwg.Done()
 
 			if own {
 				w.allocator.Free(fb)
@@ -364,7 +376,7 @@ func (w *WAL) runFlush() {
 	}
 
 	// Wait in-flight flush tasks.
-	w.flushw.Wait()
+	w.flushwg.Wait()
 
 	close(w.wakeupc)
 }
@@ -388,7 +400,7 @@ func (w *WAL) runCallback() {
 				break
 			}
 			task.callback(Result{
-				Offsets: task.offsets,
+				Ranges: task.ranges,
 			})
 			task = w.nextCallbackTask()
 		}
@@ -435,4 +447,8 @@ func (w *WAL) nextCallbackTask() *callbackTask {
 	default:
 		return nil
 	}
+}
+
+func (w *WAL) Compact(off int64) error {
+	return w.stream.compact(off)
 }

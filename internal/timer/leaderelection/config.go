@@ -14,11 +14,9 @@
 
 package leaderelection
 
-import "github.com/linkall-labs/vanus/internal/kv"
-
 type Config struct {
-	Identity         string
-	ResourceLockName string
-	// KeyPrefix        string
-	EtcdClient kv.Client
+	LeaseDuration int64    `yaml:"lease_duration"`
+	Name          string   `yaml:"name"`
+	KeyPrefix     string   `yaml:"key_prefix"`
+	EtcdEndpoints []string `yaml:"etcd"`
 }

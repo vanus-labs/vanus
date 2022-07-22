@@ -7,9 +7,11 @@ etcd:
 replicas: 2
 metadata:
   key_prefix: "/vanus"
+leaderelection:
+  lease_duration: 15
 timingwheel:
   tick: 1
-  wheel_size: 10
+  wheel_size: 32
   layers: 4
 controllers:
   - 127.0.0.1:2048

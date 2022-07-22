@@ -16,27 +16,25 @@ package trigger
 
 import (
 	"context"
+	"math/rand"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/google/uuid"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
-	"github.com/linkall-labs/vanus/observability/log"
-
-	ce "github.com/cloudevents/sdk-go/v2"
-	ceClient "github.com/cloudevents/sdk-go/v2/client"
-	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
-	"github.com/google/uuid"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestTrigger_ChangeTarget(t *testing.T) {
 	offsetManger := offset.NewOffsetManager()
 	offsetManger.RegisterSubscription(1)
-	tg := NewTrigger(nil, &primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
+	tg := NewTrigger(&primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
 	Convey("test change target", t, func() {
 		So(tg.Target, ShouldEqual, "")
 		So(tg.getCeClient(), ShouldBeNil)
@@ -48,7 +46,7 @@ func TestTrigger_ChangeTarget(t *testing.T) {
 func TestTrigger_ChangeFilter(t *testing.T) {
 	offsetManger := offset.NewOffsetManager()
 	offsetManger.RegisterSubscription(1)
-	tg := NewTrigger(nil, &primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
+	tg := NewTrigger(&primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
 	Convey("test change filter", t, func() {
 		So(tg.getFilter(), ShouldBeNil)
 		tg.ChangeFilter([]*primitive.SubscriptionFilter{{Exact: map[string]string{"type": "test"}}})
@@ -59,7 +57,7 @@ func TestTrigger_ChangeFilter(t *testing.T) {
 func TestTrigger_ChangeInputTransformer(t *testing.T) {
 	offsetManger := offset.NewOffsetManager()
 	offsetManger.RegisterSubscription(1)
-	tg := NewTrigger(nil, &primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
+	tg := NewTrigger(&primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
 	Convey("test change input transformer", t, func() {
 		So(tg.getInputTransformer(), ShouldBeNil)
 		tg.ChangeInputTransformer(&primitive.InputTransformer{})
@@ -71,54 +69,162 @@ func TestTrigger_ChangeInputTransformer(t *testing.T) {
 	})
 }
 
-func TestTrigger(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	var wg sync.WaitGroup
-	go startSink(ctx, &wg)
-	time.Sleep(time.Second)
+func TestTrigger_Options(t *testing.T) {
+	Convey("test trigger option", t, func() {
+		tg := &Trigger{}
+		WithFilterProcessSize(-1)(tg)
+		So(tg.config.FilterProcessSize, ShouldEqual, 0)
+		size := rand.Intn(1000) + 1
+		WithFilterProcessSize(size)(tg)
+		So(tg.config.FilterProcessSize, ShouldEqual, size)
+		WithSendProcessSize(-1)(tg)
+		So(tg.config.SendProcessSize, ShouldEqual, 0)
+		size = rand.Intn(1000) + size
+		WithSendProcessSize(size)(tg)
+		So(tg.config.SendProcessSize, ShouldEqual, size)
+		WithSendTimeOut(-1)(tg)
+		So(tg.config.SendTimeOut, ShouldEqual, 0)
+		size = rand.Intn(1000) + size
+		WithSendTimeOut(time.Duration(size))(tg)
+		So(tg.config.SendTimeOut, ShouldEqual, size)
+		WithRetryPeriod(-1)(tg)
+		So(tg.config.RetryPeriod, ShouldEqual, 0)
+		size = rand.Intn(1000) + size
+		WithRetryPeriod(time.Duration(size))(tg)
+		So(tg.config.RetryPeriod, ShouldEqual, size)
+		WithMaxRetryTimes(-1)(tg)
+		So(tg.config.MaxRetryTimes, ShouldEqual, 0)
+		size = rand.Intn(1000) + size
+		WithMaxRetryTimes(size)(tg)
+		So(tg.config.MaxRetryTimes, ShouldEqual, size)
+		WithBufferSize(-1)(tg)
+		So(tg.config.BufferSize, ShouldEqual, 0)
+		size = rand.Intn(1000) + size
+		WithBufferSize(size)(tg)
+		So(tg.config.BufferSize, ShouldEqual, size)
+		WithRateLimit(0)(tg)
+		So(tg.config.RateLimit, ShouldEqual, 0)
+		WithRateLimit(-1)(tg)
+		So(tg.config.RateLimit, ShouldEqual, -1)
+		size = rand.Intn(1000) + size
+		WithRateLimit(int32(size))(tg)
+		So(tg.config.RateLimit, ShouldEqual, size)
+	})
+}
+
+func TestTriggerStartStop(t *testing.T) {
 	offsetManger := offset.NewOffsetManager()
 	offsetManger.RegisterSubscription(1)
-	tg := NewTrigger(&Config{SendTimeOut: time.Millisecond * 100, RetryPeriod: time.Millisecond * 100}, makeSubscription(1), offsetManger.GetSubscription(1))
-
+	tg := NewTrigger(makeSubscription(1), offsetManger.GetSubscription(1))
 	Convey("test", t, func() {
-		wg.Add(1)
-		_ = tg.EventArrived(ctx, makeEventRecord())
 		_ = tg.Start()
-		wg.Wait()
 		time.Sleep(time.Second)
 		So(tg.GetState(), ShouldEqual, TriggerRunning)
 		tg.Stop()
 		So(tg.GetState(), ShouldEqual, TriggerStopped)
-		cancel()
 	})
 }
 
-func startSink(ctx context.Context, wg *sync.WaitGroup) {
-	c, err := ceClient.NewHTTP(cehttp.WithPort(18080))
-	if err != nil {
-		panic(err)
-	}
-	_ = c.StartReceiver(ctx, func(e ce.Event) {
-		defer wg.Done()
-		log.Info(ctx, "receive event", map[string]interface{}{
-			"event": e,
+func TestTriggerRunEventSend(t *testing.T) {
+	offsetManger := offset.NewOffsetManager()
+	offsetManger.RegisterSubscription(1)
+	tg := NewTrigger(makeSubscription(1), offsetManger.GetSubscription(1))
+	tg.ceClient = NewFakeClient("test")
+	ctx := context.Background()
+	Convey("test event run process", t, func() {
+		size := 10
+		for i := 0; i < size; i++ {
+			_ = tg.EventArrived(ctx, makeEventRecord("test"))
+		}
+		So(len(tg.eventCh), ShouldEqual, size)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tg.runEventProcess(ctx)
+		}()
+		time.Sleep(100 * time.Millisecond)
+		So(len(tg.sendCh), ShouldEqual, size)
+		_ = tg.EventArrived(ctx, makeEventRecord("no"))
+		time.Sleep(100 * time.Millisecond)
+		So(len(tg.sendCh), ShouldEqual, size)
+		close(tg.eventCh)
+		wg.Wait()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tg.runEventSend(ctx)
+		}()
+		time.Sleep(100 * time.Millisecond)
+		close(tg.sendCh)
+		wg.Wait()
+	})
+}
+
+func TestTriggerRateLimit(t *testing.T) {
+	Convey("test rate limit", t, func() {
+		offsetManger := offset.NewOffsetManager()
+		offsetManger.RegisterSubscription(1)
+		tg := NewTrigger(makeSubscription(1), offsetManger.GetSubscription(1))
+		tg.ceClient = NewFakeClient("test")
+		rateLimit := int32(10000)
+		Convey("test no rate limit", func() {
+			c := testSendEvent(tg)
+			So(c, ShouldBeGreaterThan, rateLimit)
+		})
+		Convey("test with rate", func() {
+			WithRateLimit(rateLimit)(tg)
+			c := testSendEvent(tg)
+			So(c, ShouldBeLessThanOrEqualTo, 2*rateLimit+10)
 		})
 	})
+}
+
+func testSendEvent(tg *Trigger) int64 {
+	size := 50000
+	eventCh := make(chan *ce.Event, size)
+	for i := 0; i < size; i++ {
+		eventCh <- makeEventRecord("test").Event
+	}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	var c int64
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case event, ok := <-eventCh:
+				if !ok {
+					return
+				}
+				tg.retrySendEvent(ctx, event)
+				atomic.AddInt64(&c, 1)
+			}
+		}
+	}()
+	time.Sleep(2 * time.Second)
+	close(eventCh)
+	cancel()
+	wg.Wait()
+	return c
 }
 
 func makeSubscription(id vanus.ID) *primitive.Subscription {
 	return &primitive.Subscription{
 		ID:      id,
-		Sink:    "http://localhost:18080",
-		Filters: []*primitive.SubscriptionFilter{{Exact: map[string]string{"type": "type"}}},
+		Sink:    "http://localhost:8080",
+		Filters: []*primitive.SubscriptionFilter{{Exact: map[string]string{"type": "test"}}},
 	}
 }
 
-func makeEventRecord() info.EventRecord {
+func makeEventRecord(t string) info.EventRecord {
 	event := ce.NewEvent()
 	event.SetID(uuid.New().String())
 	event.SetSource("source")
-	event.SetType("type")
+	event.SetType(t)
 	return info.EventRecord{
 		EventOffset: info.EventOffset{
 			Event: &event,

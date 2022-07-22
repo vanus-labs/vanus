@@ -12,4 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package wal
+package timingwheel
+
+import (
+	"context"
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
+)
+
+func TestCtrlClient_Close(t *testing.T) {
+	Convey("test controller client close", t, func() {
+		ctx := context.Background()
+		cli := NewClient([]string{"127.0.0.1"})
+		Convey("test controller client close", func() {
+			cli.Close(ctx)
+		})
+	})
+}
+
+func TestCtrlClient_makeSureClient(t *testing.T) {
+	Convey("test controller client close", t, func() {
+	})
+}
+
+func TestCtrlClient_getGRPCConn(t *testing.T) {
+	Convey("test controller client close", t, func() {
+	})
+}

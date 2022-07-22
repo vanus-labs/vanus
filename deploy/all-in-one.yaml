@@ -96,9 +96,11 @@ data:
     replicas: 2
     metadata:
       key_prefix: "/vanus"
+    leaderelection:
+      lease_duration: 15
     timingwheel:
       tick: 1
-      wheel_size: 10
+      wheel_size: 32
       layers: 4
     controllers:
       - vanus-controller-0.vanus-controller.vanus.svc:2048
@@ -359,7 +361,7 @@ spec:
   selector:
     matchLabels:
       app: vanus-timer
-  replicas: 1
+  replicas: 2
   template:
     metadata:
       labels:
@@ -367,7 +369,7 @@ spec:
     spec:
       containers:
         - name: timer
-          image: public.ecr.aws/vanus/timer:v0.1.1
+          image: public.ecr.aws/vanus/timer:v0.1.2
           imagePullPolicy: IfNotPresent
 #          livenessProbe:
 #            grpc:

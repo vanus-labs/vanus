@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package wal
+package io
 
-func (w *WAL) Compact(off int64) error {
-	return nil
-}
+const (
+	defaultFilePerm = 0o644
+)

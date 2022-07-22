@@ -21,7 +21,17 @@ import (
 	"hash/crc32"
 )
 
-const HeaderSize = 7
+const (
+	crcFieldSO    = 0
+	crcFieldEO    = crcFieldSO + 4
+	lengthFieldSO = crcFieldEO
+	lengthFieldEO = lengthFieldSO + 2
+	typeFieldSO   = lengthFieldEO
+	typeFieldEO   = typeFieldSO + 1
+	dataFieldSO   = typeFieldEO
+)
+
+const HeaderSize = dataFieldSO
 
 var crc32q = crc32.MakeTable(crc32.Castagnoli)
 
@@ -53,7 +63,7 @@ type Record struct {
 }
 
 func (r *Record) Size() int {
-	return 4 + 2 + 1 + len(r.Data)
+	return typeFieldEO + len(r.Data)
 }
 
 func (r *Record) Marshal() []byte {
@@ -68,17 +78,17 @@ func (r *Record) MarshalTo(data []byte) (int, error) {
 		// TODO(james.yin): correct error.
 		return 0, bytes.ErrTooLarge
 	}
-	binary.BigEndian.PutUint16(data[4:6], r.Length)
-	data[6] = byte(r.Type)
+	binary.BigEndian.PutUint16(data[lengthFieldSO:lengthFieldEO], r.Length)
+	data[typeFieldSO] = byte(r.Type)
 	ds := len(r.Data)
 	if ds != 0 {
-		copy(data[7:7+ds], r.Data)
+		copy(data[dataFieldSO:dataFieldSO+ds], r.Data)
 	}
 	// calculate CRC
 	if r.CRC == 0 {
-		r.CRC = crc32.Checksum(data[6:7+ds], crc32q)
+		r.CRC = crc32.Checksum(data[typeFieldSO:dataFieldSO+ds], crc32q)
 	}
-	binary.BigEndian.PutUint32(data[0:4], r.CRC)
+	binary.BigEndian.PutUint32(data[crcFieldSO:crcFieldEO], r.CRC)
 	return sz, nil
 }
 
@@ -87,13 +97,13 @@ func Unmarshal(data []byte) (record Record, err error) {
 		// return empty record
 		return record, nil
 	}
-	record.CRC = binary.BigEndian.Uint32(data[0:4])
-	record.Length = binary.BigEndian.Uint16(data[4:6])
-	record.Type = Type(data[6])
+	record.CRC = binary.BigEndian.Uint32(data[crcFieldSO:crcFieldEO])
+	record.Length = binary.BigEndian.Uint16(data[lengthFieldSO:lengthFieldEO])
+	record.Type = Type(data[typeFieldSO])
 	if len(data) < int(record.Length)+HeaderSize {
 		// TODO(james.yin): correct error
 		return record, bytes.ErrTooLarge
 	}
-	record.Data = data[7 : 7+record.Length]
+	record.Data = data[dataFieldSO : dataFieldSO+record.Length]
 	return record, nil
 }

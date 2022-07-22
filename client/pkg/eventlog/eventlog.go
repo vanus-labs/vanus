@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=eventlog.go  -destination=mock_eventlog.go -package=eventlog
 package eventlog
 
 import (

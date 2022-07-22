@@ -27,7 +27,7 @@ func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *primitive.Su
 	to := &primitive.SubscriptionData{
 		Source:           sub.Source,
 		Types:            sub.Types,
-		Config:           sub.Config,
+		Config:           FromPbSubscriptionConfig(sub.Config),
 		Sink:             primitive.URI(sub.Sink),
 		Protocol:         sub.Protocol,
 		ProtocolSettings: sub.ProtocolSettings,
@@ -38,6 +38,22 @@ func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *primitive.Su
 	return to
 }
 
+func FromPbSubscriptionConfig(config *pb.SubscriptionConfig) primitive.SubscriptionConfig {
+	if config == nil {
+		return primitive.SubscriptionConfig{}
+	}
+	to := primitive.SubscriptionConfig{
+		RateLimit: config.RateLimit,
+	}
+	return to
+}
+
+func toPbSubscriptionConfig(config primitive.SubscriptionConfig) *pb.SubscriptionConfig {
+	return &pb.SubscriptionConfig{
+		RateLimit: config.RateLimit,
+	}
+}
+
 func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Subscription {
 	to := &primitive.Subscription{
 		ID:               vanus.ID(sub.Id),
@@ -46,6 +62,7 @@ func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Sub
 		Offsets:          FromPbOffsetInfos(sub.Offsets),
 		Filters:          FromPbFilters(sub.Filters),
 		InputTransformer: FromFPbInputTransformer(sub.InputTransformer),
+		Config:           FromPbSubscriptionConfig(sub.Config),
 	}
 	return to
 }
@@ -58,6 +75,7 @@ func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscription
 		Offsets:          ToPbOffsetInfos(sub.Offsets),
 		Filters:          toPbFilters(sub.Filters),
 		InputTransformer: toPbInputTransformer(sub.InputTransformer),
+		Config:           toPbSubscriptionConfig(sub.Config),
 	}
 	return to
 }
@@ -67,7 +85,7 @@ func FromPbSubscription(sub *pb.Subscription) *primitive.SubscriptionData {
 		ID:               vanus.ID(sub.Id),
 		Source:           sub.Source,
 		Types:            sub.Types,
-		Config:           sub.Config,
+		Config:           FromPbSubscriptionConfig(sub.Config),
 		Sink:             primitive.URI(sub.Sink),
 		Protocol:         sub.Protocol,
 		ProtocolSettings: sub.ProtocolSettings,
@@ -83,7 +101,7 @@ func ToPbSubscription(sub *primitive.SubscriptionData) *pb.Subscription {
 		Id:               uint64(sub.ID),
 		Source:           sub.Source,
 		Types:            sub.Types,
-		Config:           sub.Config,
+		Config:           toPbSubscriptionConfig(sub.Config),
 		Sink:             string(sub.Sink),
 		Protocol:         sub.Protocol,
 		ProtocolSettings: sub.ProtocolSettings,
