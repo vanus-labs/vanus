@@ -26,7 +26,7 @@ import (
 
 func TestBlock_Destroy(t *testing.T) {
 	Convey("", t, func() {
-		dir, err := os.MkdirTemp("", "*")
+		dir, _ := os.MkdirTemp("", "*")
 		defer func() {
 			_ = os.RemoveAll(dir)
 		}()
