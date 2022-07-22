@@ -557,24 +557,27 @@ func (r *raft) advance(rd Ready) {
 	if newApplied := rd.appliedCursor(); newApplied > 0 {
 		oldApplied := r.raftLog.applied
 		r.raftLog.appliedTo(newApplied)
-		r.maybeCompact()
 
-		if r.prs.Config.AutoLeave && oldApplied <= r.pendingConfIndex && newApplied >= r.pendingConfIndex && r.state == StateLeader {
-			// If the current (and most recent, at least for this leader's term)
-			// configuration should be auto-left, initiate that now. We use a
-			// nil Data which unmarshals into an empty ConfChangeV2 and has the
-			// benefit that appendEntry can never refuse it based on its size
-			// (which registers as zero).
-			ent := pb.Entry{
-				Type: pb.EntryConfChangeV2,
-				Data: nil,
+		if r.state == StateLeader {
+			if r.prs.Config.AutoLeave && oldApplied <= r.pendingConfIndex && newApplied >= r.pendingConfIndex {
+				// If the current (and most recent, at least for this leader's term)
+				// configuration should be auto-left, initiate that now. We use a
+				// nil Data which unmarshals into an empty ConfChangeV2 and has the
+				// benefit that appendEntry can never refuse it based on its size
+				// (which registers as zero).
+				ent := pb.Entry{
+					Type: pb.EntryConfChangeV2,
+					Data: nil,
+				}
+				// There's no way in which this proposal should be able to be rejected.
+				if !r.appendEntry(ent) {
+					panic("refused un-refusable auto-leaving ConfChangeV2")
+				}
+				r.pendingConfIndex = r.raftLog.lastIndex()
+				r.logger.Infof("initiating automatic transition out of joint configuration %s", r.prs.Config)
 			}
-			// There's no way in which this proposal should be able to be rejected.
-			if !r.appendEntry(ent) {
-				panic("refused un-refusable auto-leaving ConfChangeV2")
-			}
-			r.pendingConfIndex = r.raftLog.lastIndex()
-			r.logger.Infof("initiating automatic transition out of joint configuration %s", r.prs.Config)
+
+			r.maybeCompact()
 		}
 	}
 

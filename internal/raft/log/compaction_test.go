@@ -67,9 +67,9 @@ func TestLog_Compact(t *testing.T) {
 		So(err, ShouldBeNil)
 		wal := newWAL(rawWAL, metaStore)
 
-		log1 := NewLog(nodeID1, wal, metaStore, offsetStore)
-		log2 := NewLog(nodeID2, wal, metaStore, offsetStore)
-		log3 := NewLog(nodeID3, wal, metaStore, offsetStore)
+		log1 := NewLog(nodeID1, wal, metaStore, offsetStore, nil)
+		log2 := NewLog(nodeID2, wal, metaStore, offsetStore, nil)
+		log3 := NewLog(nodeID3, wal, metaStore, offsetStore, nil)
 
 		data1, err := (&raftpb.ConfChange{
 			Type: raftpb.ConfChangeAddNode, NodeID: nodeID1.Uint64(),

@@ -15,22 +15,61 @@
 package log
 
 import (
+	// standard libraries.
+	"context"
+
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/raft"
 	"github.com/linkall-labs/vanus/raft/raftpb"
+
+	// this project.
+	"github.com/linkall-labs/vanus/observability/log"
 )
 
-type snapshotStorage struct{}
+type SnapshotOperator interface {
+	GetSnapshot(index uint64) ([]byte, error)
+	ApplySnapshot(data []byte) error
+}
+
+type snapshotStorage struct {
+	snapOp SnapshotOperator
+}
+
+func (ss *snapshotStorage) SetSnapshotOperator(op SnapshotOperator) {
+	ss.snapOp = op
+}
 
 // Snapshot returns the most recent snapshot.
 // If snapshot is temporarily unavailable, it should return ErrSnapshotTemporarilyUnavailable,
 // so raft state machine could know that Storage needs some time to prepare
 // snapshot and call Snapshot later.
 func (l *Log) Snapshot() (raftpb.Snapshot, error) {
-	// TODO(james.yin): snapshot
-	// l.RLock()
-	// defer l.RUnlock()
-	return raftpb.Snapshot{}, raft.ErrSnapshotTemporarilyUnavailable
+	l.RLock()
+	defer l.RUnlock()
+
+	if l.snapOp == nil {
+		return raftpb.Snapshot{}, raft.ErrSnapshotTemporarilyUnavailable
+	}
+
+	term, err := l.term(l.prevApply)
+	if err != nil {
+		return raftpb.Snapshot{}, raft.ErrSnapshotTemporarilyUnavailable
+	}
+
+	data, err := l.snapOp.GetSnapshot(l.prevApply)
+	if err != nil {
+		return raftpb.Snapshot{}, err
+	}
+
+	s := raftpb.Snapshot{
+		Metadata: raftpb.SnapshotMetadata{
+			ConfState: l.prevConfSt,
+			Index:     l.prevApply,
+			Term:      term,
+		},
+		Data: data,
+	}
+	return s, nil
 }
 
 // ApplySnapshot overwrites the contents of this Storage object with
@@ -39,13 +78,21 @@ func (l *Log) ApplySnapshot(snap raftpb.Snapshot) error {
 	l.Lock()
 	defer l.Unlock()
 
-	// handle check for old snapshot being applied
-	// if l.snapshot.Metadata.Index >= snap.Metadata.Index {
-	// 	log.Warning(context.Background(), "snapshot is out of date", map[string]interface{}{})
-	// 	return raft.ErrSnapOutOfDate
-	// }
+	// Handle check for old snapshot being applied.
+	if l.lastIndex() >= snap.Metadata.Index {
+		log.Warning(context.Background(), "snapshot is out of date", map[string]interface{}{})
+		return nil
+	}
 
-	// l.snapshot = snap
+	if err := l.snapOp.ApplySnapshot(snap.Data); err != nil {
+		return err
+	}
+
+	last := l.offs[0]
 	l.ents = []raftpb.Entry{{Term: snap.Metadata.Term, Index: snap.Metadata.Index}}
+	l.offs = []int64{0}
+	l.wal.tryCompact(0, last, l.nodeID, snap.Metadata.Index, snap.Metadata.Term)
+	l.SetApplied(snap.Metadata.Index)
+
 	return nil
 }

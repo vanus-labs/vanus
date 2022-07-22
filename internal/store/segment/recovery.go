@@ -71,10 +71,12 @@ func (s *server) recoverBlocks(ctx context.Context, raftLogs map[vanus.ID]*raftl
 			raftLog := raftLogs[blockID]
 			// Raft log has been compacted.
 			if raftLog == nil {
-				raftLog, err = raftlog.RecoverLog(blockID, s.wal, s.metaStore, s.offsetStore)
+				raftLog, err = raftlog.RecoverLog(blockID, s.wal, s.metaStore, s.offsetStore, b)
 				if err != nil {
 					return err
 				}
+			} else {
+				raftLog.SetSnapshotOperator(b)
 			}
 			r := s.makeReplicaWithRaftLog(context.TODO(), b.ID(), b, raftLog)
 			b.SetClusterInfoSource(r)

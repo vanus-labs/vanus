@@ -471,7 +471,7 @@ func (s *server) CreateBlock(ctx context.Context, id vanus.ID, size int64) error
 	}
 
 	// Create replica.
-	r := s.makeReplica(context.TODO(), b.ID(), b)
+	r := s.makeReplica(context.TODO(), b.ID(), b, b)
 	b.SetClusterInfoSource(r)
 
 	s.blocks.Store(id, b)
@@ -481,8 +481,10 @@ func (s *server) CreateBlock(ctx context.Context, id vanus.ID, size int64) error
 	return nil
 }
 
-func (s *server) makeReplica(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender) replica.Replica {
-	raftLog := raftlog.NewLog(blockID, s.wal, s.metaStore, s.offsetStore)
+func (s *server) makeReplica(
+	ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, snapOp raftlog.SnapshotOperator,
+) replica.Replica {
+	raftLog := raftlog.NewLog(blockID, s.wal, s.metaStore, s.offsetStore, snapOp)
 	return s.makeReplicaWithRaftLog(ctx, blockID, appender, raftLog)
 }
 

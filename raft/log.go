@@ -84,7 +84,8 @@ func newLogWithSize(storage Storage, logger Logger, maxNextEntsSize uint64) *raf
 }
 
 func (l *raftLog) String() string {
-	return fmt.Sprintf("committed=%d, applied=%d, unstable.offset=%d, len(unstable.Entries)=%d", l.committed, l.applied, l.unstable.offset, len(l.unstable.entries))
+	return fmt.Sprintf("committed=%d, applied=%d, unstable.offset=%d, len(unstable.Entries)=%d",
+		l.committed, l.applied, l.unstable.offset, len(l.unstable.entries))
 }
 
 // maybeAppend returns (0, false) if the entries cannot be appended. Otherwise,
@@ -105,7 +106,6 @@ func (l *raftLog) maybeAppend(index, logTerm, committed uint64, ents ...pb.Entry
 			l.append(ents[ci-offset:]...)
 		}
 		l.commitTo(min(committed, lastnewi))
-		// TODO:(james.yin): compact
 		return lastnewi, true
 	}
 	return 0, false
@@ -270,7 +270,11 @@ func (l *raftLog) appliedTo(i uint64) {
 
 func (l *raftLog) stableTo(i, t uint64) { l.unstable.stableTo(i, t) }
 
-func (l *raftLog) stableSnapTo(i uint64) { l.unstable.stableSnapTo(i) }
+func (l *raftLog) stableSnapTo(i uint64) {
+	if l.unstable.stableSnapTo(i) {
+		l.compactTo(i)
+	}
+}
 
 func (l *raftLog) lastTerm() uint64 {
 	t, err := l.term(l.lastIndex())
@@ -358,7 +362,7 @@ func (l *raftLog) maybeCompact(i uint64) {
 func (l *raftLog) restore(s pb.Snapshot) {
 	l.logger.Infof("log [%s] starts to restore snapshot [index: %d, term: %d]", l, s.Metadata.Index, s.Metadata.Term)
 	l.committed = s.Metadata.Index
-	// l.compacted = s.Metadata.Index
+	// NOTE: applied and compacted will be reset in raft.advance().
 	l.unstable.restore(s)
 }
 

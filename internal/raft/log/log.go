@@ -46,7 +46,9 @@ type Log struct {
 var _ raft.Storage = (*Log)(nil)
 
 // NewLog creates an empty Log.
-func NewLog(nodeID vanus.ID, wal *WAL, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore) *Log {
+func NewLog(
+	nodeID vanus.ID, wal *WAL, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore, snapOp SnapshotOperator,
+) *Log {
 	return &Log{
 		nodeID: nodeID,
 		logStorage: logStorage{
@@ -63,7 +65,9 @@ func NewLog(nodeID vanus.ID, wal *WAL, metaStore *meta.SyncStore, offsetStore *m
 			csKey:       []byte(fmt.Sprintf("block/%020d/confState", nodeID.Uint64())),
 			appKey:      []byte(fmt.Sprintf("block/%020d/applied", nodeID.Uint64())),
 		},
-		snapshotStorage: snapshotStorage{},
+		snapshotStorage: snapshotStorage{
+			snapOp: snapOp,
+		},
 	}
 }
 

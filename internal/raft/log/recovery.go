@@ -55,7 +55,7 @@ func RecoverLogsAndWAL(
 
 			l := logs[entry.NodeId]
 			if l == nil {
-				l, err = RecoverLog(vanus.NewIDFromUint64(entry.NodeId), nil, metaStore, offsetStore)
+				l, err = RecoverLog(vanus.NewIDFromUint64(entry.NodeId), nil, metaStore, offsetStore, nil)
 				if err != nil {
 					return err
 				}
@@ -87,8 +87,10 @@ func RecoverLogsAndWAL(
 	return logs2, wal2, nil
 }
 
-func RecoverLog(blockID vanus.ID, wal *WAL, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore) (*Log, error) {
-	l := NewLog(blockID, wal, metaStore, offsetStore)
+func RecoverLog(
+	blockID vanus.ID, wal *WAL, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore, snapOp SnapshotOperator,
+) (*Log, error) {
+	l := NewLog(blockID, wal, metaStore, offsetStore, snapOp)
 
 	if err := l.recoverCompactionInfo(); err != nil {
 		return nil, err

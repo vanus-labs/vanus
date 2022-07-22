@@ -106,10 +106,12 @@ func (u *unstable) shrinkEntriesArray() {
 	}
 }
 
-func (u *unstable) stableSnapTo(i uint64) {
+func (u *unstable) stableSnapTo(i uint64) bool {
 	if u.snapshot != nil && u.snapshot.Metadata.Index == i {
 		u.snapshot = nil
+		return true
 	}
+	return false
 }
 
 func (u *unstable) restore(s pb.Snapshot) {
