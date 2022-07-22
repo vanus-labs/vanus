@@ -15,7 +15,7 @@
 package metadata
 
 import (
-	"strings"
+	"path/filepath"
 
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
@@ -33,21 +33,21 @@ const (
 )
 
 func GetEventbusMetadataKey(ebName string) string {
-	return strings.Join([]string{EventbusKeyPrefixInKVStore, ebName}, "/")
+	return filepath.Join(EventbusKeyPrefixInKVStore, ebName)
 }
 
 func GetEventlogMetadataKey(elID vanus.ID) string {
-	return strings.Join([]string{EventlogKeyPrefixInKVStore, elID.Key()}, "/")
+	return filepath.Join(EventlogKeyPrefixInKVStore, elID.Key())
 }
 
 func GetBlockMetadataKey(volumeID, blockID vanus.ID) string {
-	return strings.Join([]string{BlockKeyPrefixInKVStore, volumeID.Key(), blockID.Key()}, "/")
+	return filepath.Join(BlockKeyPrefixInKVStore, volumeID.Key(), blockID.Key())
 }
 
 func GetSegmentMetadataKey(segmentID vanus.ID) string {
-	return strings.Join([]string{SegmentKeyPrefixInKVStore, segmentID.Key()}, "/")
+	return filepath.Join(SegmentKeyPrefixInKVStore, segmentID.Key())
 }
 
 func GetEventlogSegmentsMetadataKey(eventlogID, segmentID vanus.ID) string {
-	return strings.Join([]string{EventlogSegmentsKeyPrefixInKVStore, eventlogID.Key(), segmentID.Key()}, "/")
+	return filepath.Join(EventlogSegmentsKeyPrefixInKVStore, eventlogID.Key(), segmentID.Key())
 }

@@ -146,12 +146,7 @@ func (ctrl *controller) CreateEventBus(ctx context.Context,
 		}
 	}
 	metrics.EventbusGauge.Set(float64(len(ctrl.eventBusMap)))
-
-	md := &metapb.EventBus{
-		Name: eb.Name,
-	}
-
-	return ctrl.GetEventBus(ctx, md)
+	return ctrl.getEventbus(eb.Name)
 }
 
 func (ctrl *controller) DeleteEventBus(ctx context.Context,
@@ -190,7 +185,12 @@ func (ctrl *controller) GetEventBus(ctx context.Context,
 	eb *metapb.EventBus) (*metapb.EventBus, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
-	_eb, exist := ctrl.eventBusMap[eb.Name]
+
+	return ctrl.getEventbus(eb.Name)
+}
+
+func (ctrl *controller) getEventbus(name string) (*metapb.EventBus, error) {
+	_eb, exist := ctrl.eventBusMap[name]
 	if !exist {
 		return nil, errors.ErrResourceNotFound.WithMessage("eventbus not found")
 	}

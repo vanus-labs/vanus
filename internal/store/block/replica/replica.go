@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=replica.go  -destination=mock_replica.go -package=replica
 package replica
 
 import (
@@ -62,14 +63,12 @@ type commitWaiter struct {
 	c      chan struct{}
 }
 
-//go:generate mockgen -source=replica.go  -destination=mock_replica.go -package=replica
 type Replica interface {
 	Stop(ctx context.Context)
 	Bootstrap(blocks []Peer) error
 	Append(ctx context.Context, entries ...block.Entry) error
 	Receive(ctx context.Context, msg *raftpb.Message, from uint64, endpoint string)
 	FillClusterInfo(info *metapb.SegmentHealthInfo)
-	CloseWrite(ctx context.Context) error
 }
 
 type replica struct {

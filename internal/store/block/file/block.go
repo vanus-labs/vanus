@@ -109,7 +109,7 @@ func (b *Block) Close(ctx context.Context) error {
 	defer observability.LeaveMark(ctx)
 
 	// Flush metadata.
-	if err := b.metaSync(ctx); err != nil {
+	if err := b.syncMeta(ctx); err != nil {
 		return err
 	}
 
@@ -150,8 +150,8 @@ func (b *Block) remaining(size, num uint32) uint32 {
 	return uint32(b.cap) - headerBlockSize - boundMinSize - size - num*indexSize
 }
 
-// metaSync flushes metadata.
-func (b *Block) metaSync(ctx context.Context) error {
+// syncMeta flushes metadata.
+func (b *Block) syncMeta(ctx context.Context) error {
 	if b.stale() {
 		if err := b.persistHeader(ctx); err != nil {
 			return err
