@@ -77,7 +77,7 @@ type Server interface {
 	// GetBlockInfo(ctx context.Context, id vanus.ID) error
 
 	ActivateSegment(ctx context.Context, logID vanus.ID, segID vanus.ID, replicas map[vanus.ID]string) error
-	InactivateSegment(ctx context.Context, segID vanus.ID) error
+	InactivateSegment(ctx context.Context, blockID vanus.ID) error
 
 	AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) error
 	ReadFromBlock(ctx context.Context, id vanus.ID, off int, num int) ([]*cepb.CloudEvent, error)
