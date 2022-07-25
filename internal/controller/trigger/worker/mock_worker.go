@@ -9,8 +9,9 @@ import (
 	reflect "reflect"
 	time "time"
 
+	info "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
+
 	gomock "github.com/golang/mock/gomock"
-	info "github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 

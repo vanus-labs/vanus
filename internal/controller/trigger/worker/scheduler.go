@@ -18,8 +18,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
+
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
-	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/queue"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -88,7 +89,7 @@ func (s *SubscriptionScheduler) Run() {
 }
 
 func (s *SubscriptionScheduler) handler(ctx context.Context, subscriptionID vanus.ID) error {
-	subData := s.subscriptionManager.GetSubscriptionData(ctx, subscriptionID)
+	subData := s.subscriptionManager.GetSubscription(ctx, subscriptionID)
 	if subData == nil {
 		return nil
 	}
@@ -115,7 +116,7 @@ func (s *SubscriptionScheduler) handler(ctx context.Context, subscriptionID vanu
 		return ErrTriggerWorkerNotFound
 	}
 	subData.TriggerWorker = twAddr
-	subData.Phase = primitive.SubscriptionPhaseScheduled
+	subData.Phase = metadata.SubscriptionPhaseScheduled
 	subData.HeartbeatTime = time.Now()
 	err := s.subscriptionManager.UpdateSubscription(ctx, subData)
 	if err != nil {

@@ -19,9 +19,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
+
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription/offset"
-	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 
@@ -37,7 +38,7 @@ func TestInit(t *testing.T) {
 	m := NewSubscriptionManager(storage)
 
 	Convey("init ", t, func() {
-		storage.MockSubscriptionStorage.EXPECT().ListSubscription(ctx).Return([]*primitive.SubscriptionData{
+		storage.MockSubscriptionStorage.EXPECT().ListSubscription(ctx).Return([]*metadata.Subscription{
 			{ID: 1},
 		}, nil)
 		err := m.Init(ctx)
@@ -61,7 +62,7 @@ func TestSubscriptionData(t *testing.T) {
 		So(len(subscriptions), ShouldEqual, 0)
 	})
 	Convey("get subscription not exist", t, func() {
-		subscription := m.GetSubscriptionData(ctx, 1)
+		subscription := m.GetSubscription(ctx, 1)
 		So(subscription, ShouldBeNil)
 	})
 	Convey("add subscription", t, func() {
@@ -70,7 +71,7 @@ func TestSubscriptionData(t *testing.T) {
 		So(err, ShouldBeNil)
 	})
 	var id vanus.ID
-	var subscriptionData *primitive.SubscriptionData
+	var subscriptionData *metadata.Subscription
 	Convey("list subscription", t, func() {
 		subscriptions := m.ListSubscription(ctx)
 		So(len(subscriptions), ShouldEqual, 1)
@@ -78,7 +79,7 @@ func TestSubscriptionData(t *testing.T) {
 		subscriptionData = subscriptions[0]
 	})
 	Convey("get subscription data", t, func() {
-		subscription := m.GetSubscriptionData(ctx, id)
+		subscription := m.GetSubscription(ctx, id)
 		So(subscription, ShouldNotBeNil)
 	})
 	Convey("update subscription", t, func() {
@@ -86,7 +87,7 @@ func TestSubscriptionData(t *testing.T) {
 		subscriptionData.Sink = "newSink"
 		err := m.UpdateSubscription(ctx, subscriptionData)
 		So(err, ShouldBeNil)
-		subscription := m.GetSubscriptionData(ctx, id)
+		subscription := m.GetSubscription(ctx, id)
 		So(subscription.Sink, ShouldEqual, subscriptionData.Sink)
 	})
 	Convey("heartbeat", t, func() {
@@ -147,7 +148,7 @@ func TestSubscription(t *testing.T) {
 	}
 	offsetManager.EXPECT().GetOffset(ctx, id).Return(listOffsetInfo, nil)
 	Convey("get subscription", t, func() {
-		subscription, err := m.GetSubscription(ctx, id)
+		subscription, err := m.GetSubscriptionWithOffset(ctx, id)
 		So(err, ShouldBeNil)
 		So(subscription, ShouldNotBeNil)
 		So(subscription.Offsets[0].Offset, ShouldEqual, listOffsetInfo[0].Offset)
@@ -158,12 +159,12 @@ func TestSubscription(t *testing.T) {
 		storage.MockSubscriptionStorage.EXPECT().DeleteSubscription(ctx, gomock.Any()).Return(nil)
 		err := m.DeleteSubscription(ctx, id)
 		So(err, ShouldBeNil)
-		subscription, err := m.GetSubscription(ctx, id)
+		subscription, err := m.GetSubscriptionWithOffset(ctx, id)
 		So(err, ShouldNotBeNil)
 		So(subscription, ShouldBeNil)
 	})
 }
 
-func makeSubscription() *primitive.SubscriptionData {
-	return &primitive.SubscriptionData{}
+func makeSubscription() *metadata.Subscription {
+	return &metadata.Subscription{}
 }

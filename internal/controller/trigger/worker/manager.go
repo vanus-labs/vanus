@@ -21,8 +21,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
+
 	"github.com/linkall-labs/vanus/internal/controller/errors"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -44,7 +45,7 @@ type Manager interface {
 	GetTriggerWorker(addr string) TriggerWorker
 	RemoveTriggerWorker(ctx context.Context, addr string)
 	UpdateTriggerWorkerInfo(ctx context.Context, addr string, subscriptionIDs []vanus.ID) error
-	GetActiveRunningTriggerWorker() []info.TriggerWorkerInfo
+	GetActiveRunningTriggerWorker() []metadata.TriggerWorkerInfo
 	Init(ctx context.Context) error
 	Start()
 	Stop()
@@ -119,7 +120,7 @@ func (m *manager) GetTriggerWorker(addr string) TriggerWorker {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	tWorker, exist := m.triggerWorkers[addr]
-	if !exist || tWorker.GetPhase() == info.TriggerWorkerPhasePaused {
+	if !exist || tWorker.GetPhase() == metadata.TriggerWorkerPhasePaused {
 		return nil
 	}
 	return tWorker
@@ -138,7 +139,7 @@ func (m *manager) AddTriggerWorker(ctx context.Context, addr string) error {
 		m.triggerWorkers[addr] = tWorker
 	} else {
 		phase := tWorker.GetPhase()
-		if phase == info.TriggerWorkerPhasePaused {
+		if phase == metadata.TriggerWorkerPhasePaused {
 			// wait clean
 			return errors.ErrResourceAlreadyExist
 		}
@@ -169,7 +170,7 @@ func (m *manager) RemoveTriggerWorker(ctx context.Context, addr string) {
 		})
 		return
 	}
-	tWorker.SetPhase(info.TriggerWorkerPhasePaused)
+	tWorker.SetPhase(metadata.TriggerWorkerPhasePaused)
 	err := m.storage.SaveTriggerWorker(ctx, tWorker.GetInfo())
 	if err != nil {
 		log.Warning(ctx, "trigger worker remove save phase error", map[string]interface{}{
@@ -185,8 +186,8 @@ func (m *manager) UpdateTriggerWorkerInfo(ctx context.Context, addr string, ids 
 	if tWorker == nil {
 		return ErrTriggerWorkerNotFound
 	}
-	if tWorker.GetPhase() != info.TriggerWorkerPhaseRunning {
-		tWorker.SetPhase(info.TriggerWorkerPhaseRunning)
+	if tWorker.GetPhase() != metadata.TriggerWorkerPhaseRunning {
+		tWorker.SetPhase(metadata.TriggerWorkerPhaseRunning)
 		err := m.storage.SaveTriggerWorker(ctx, tWorker.GetInfo())
 		if err != nil {
 			log.Warning(ctx, "storage save trigger worker phase to running error", map[string]interface{}{
@@ -256,11 +257,11 @@ func (m *manager) doTriggerWorkerLeave(ctx context.Context, tWorker TriggerWorke
 	return hasFail
 }
 
-func (m *manager) GetActiveRunningTriggerWorker() []info.TriggerWorkerInfo {
+func (m *manager) GetActiveRunningTriggerWorker() []metadata.TriggerWorkerInfo {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	now := time.Now()
-	runningTriggerWorker := make([]info.TriggerWorkerInfo, 0)
+	runningTriggerWorker := make([]metadata.TriggerWorkerInfo, 0)
 	for _, tWorker := range m.triggerWorkers {
 		if !tWorker.IsActive() ||
 			now.Sub(tWorker.GetHeartbeatTime()) > 10*time.Second {
@@ -341,13 +342,13 @@ func (m *manager) check(ctx context.Context) {
 			phase := tWorker.GetPhase()
 			defer wg.Done()
 			switch phase {
-			case info.TriggerWorkerPhaseRunning:
+			case metadata.TriggerWorkerPhaseRunning:
 				m.runningTriggerWorkerHandler(ctx, tWorker)
-			case info.TriggerWorkerPhasePending:
+			case metadata.TriggerWorkerPhasePending:
 				m.pendingTriggerWorkerHandler(ctx, tWorker)
-			case info.TriggerWorkerPhasePaused:
+			case metadata.TriggerWorkerPhasePaused:
 				m.cleanTriggerWorker(ctx, tWorker)
-			case info.TriggerWorkerPhaseDisconnect:
+			case metadata.TriggerWorkerPhaseDisconnect:
 				var d time.Duration
 				if tWorker.IsActive() {
 					d = now.Sub(tWorker.GetHeartbeatTime())
@@ -371,7 +372,7 @@ func (m *manager) pendingTriggerWorkerHandler(ctx context.Context, tWorker Trigg
 	now := time.Now()
 	d := now.Sub(tWorker.GetPendingTime())
 	if d > m.config.WaitRunningTimeout {
-		tWorker.SetPhase(info.TriggerWorkerPhasePaused)
+		tWorker.SetPhase(metadata.TriggerWorkerPhasePaused)
 		log.Info(ctx, "pending trigger worker heartbeat timeout change phase to paused", map[string]interface{}{
 			log.KeyTriggerWorkerAddr: tWorker.GetAddr(),
 		})
@@ -390,7 +391,7 @@ func (m *manager) runningTriggerWorkerHandler(ctx context.Context, tWorker Trigg
 		d = now.Sub(tWorker.GetPendingTime())
 	}
 	if d > m.config.HeartbeatTimeout {
-		tWorker.SetPhase(info.TriggerWorkerPhaseDisconnect)
+		tWorker.SetPhase(metadata.TriggerWorkerPhaseDisconnect)
 		err := m.storage.SaveTriggerWorker(ctx, tWorker.GetInfo())
 		if err != nil {
 			log.Info(ctx, "running trigger worker heartbeat timeout save error", map[string]interface{}{

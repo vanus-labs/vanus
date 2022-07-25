@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -48,10 +48,10 @@ func TestRoundRobinPolicy(t *testing.T) {
 	})
 }
 
-func getTriggerWorker(size int) []info.TriggerWorkerInfo {
-	var list []info.TriggerWorkerInfo
+func getTriggerWorker(size int) []metadata.TriggerWorkerInfo {
+	var list []metadata.TriggerWorkerInfo
 	for i := 0; i < size; i++ {
-		list = append(list, info.TriggerWorkerInfo{
+		list = append(list, metadata.TriggerWorkerInfo{
 			ID:   fmt.Sprintf("%d", i),
 			Addr: fmt.Sprintf("addr%d", i),
 		})

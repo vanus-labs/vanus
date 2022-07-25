@@ -20,9 +20,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
+
 	"github.com/linkall-labs/vanus/internal/primitive"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
@@ -96,7 +97,7 @@ func TestTriggerWorker_UnAssignSubscription(t *testing.T) {
 		tWorker := NewTriggerWorkerByAddr(addr, subscriptionManager).(*triggerWorker)
 		_ = tWorker.Init(ctx)
 		tWorker.client = client
-		tWorker.SetPhase(info.TriggerWorkerPhaseRunning)
+		tWorker.SetPhase(metadata.TriggerWorkerPhaseRunning)
 		Convey("remove subscription no error", func() {
 			id := vanus.NewID()
 			tWorker.assignSubscriptionIDs[id] = time.Now()
@@ -128,7 +129,7 @@ func TestTriggerWorker_QueueHandler(t *testing.T) {
 		tWorker := NewTriggerWorkerByAddr(addr, subscriptionManager).(*triggerWorker)
 		_ = tWorker.Init(ctx)
 		tWorker.client = client
-		tWorker.SetPhase(info.TriggerWorkerPhaseRunning)
+		tWorker.SetPhase(metadata.TriggerWorkerPhaseRunning)
 		client.EXPECT().RemoveSubscription(gomock.Any(), gomock.Any()).Return(nil, nil)
 		tWorker.subscriptionQueue.Add(2)
 		time.Sleep(time.Millisecond * 100)
@@ -161,7 +162,7 @@ func TestTriggerWorker_Handler(t *testing.T) {
 		Convey("add subscription", func() {
 			id := vanus.NewID()
 			tWorker.assignSubscriptionIDs[id] = time.Now()
-			subscriptionManager.EXPECT().GetSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(
+			subscriptionManager.EXPECT().GetSubscriptionWithOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(
 				&primitive.Subscription{ID: id}, nil)
 			client.EXPECT().AddSubscription(gomock.Any(), gomock.Any()).Return(nil, nil)
 			err := tWorker.handler(ctx, id)
@@ -183,7 +184,7 @@ func TestTriggerWorker_IsActive(t *testing.T) {
 		tWorker := NewTriggerWorkerByAddr(addr, subscriptionManager).(*triggerWorker)
 		active := tWorker.IsActive()
 		So(active, ShouldBeFalse)
-		tWorker.SetPhase(info.TriggerWorkerPhaseRunning)
+		tWorker.SetPhase(metadata.TriggerWorkerPhaseRunning)
 		active = tWorker.IsActive()
 		So(active, ShouldBeFalse)
 		tWorker.ReportSubscription([]vanus.ID{})
