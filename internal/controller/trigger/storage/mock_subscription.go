@@ -8,9 +8,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	primitive "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-
 	gomock "github.com/golang/mock/gomock"
+	primitive "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 

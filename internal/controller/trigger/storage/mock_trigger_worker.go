@@ -8,9 +8,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	info "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-
 	gomock "github.com/golang/mock/gomock"
+	info "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 )
 
 // MockTriggerWorkerStorage is a mock of TriggerWorkerStorage interface.

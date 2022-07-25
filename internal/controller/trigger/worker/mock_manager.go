@@ -8,9 +8,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	info "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-
 	gomock "github.com/golang/mock/gomock"
+	metadata "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
@@ -52,10 +51,10 @@ func (mr *MockManagerMockRecorder) AddTriggerWorker(ctx, addr interface{}) *gomo
 }
 
 // GetActiveRunningTriggerWorker mocks base method.
-func (m *MockManager) GetActiveRunningTriggerWorker() []info.TriggerWorkerInfo {
+func (m *MockManager) GetActiveRunningTriggerWorker() []metadata.TriggerWorkerInfo {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetActiveRunningTriggerWorker")
-	ret0, _ := ret[0].([]info.TriggerWorkerInfo)
+	ret0, _ := ret[0].([]metadata.TriggerWorkerInfo)
 	return ret0
 }
 

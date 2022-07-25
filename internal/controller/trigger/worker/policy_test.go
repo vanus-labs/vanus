@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-
 	. "github.com/smartystreets/goconvey/convey"
 )
 

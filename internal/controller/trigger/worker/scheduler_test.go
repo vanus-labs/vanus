@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 
