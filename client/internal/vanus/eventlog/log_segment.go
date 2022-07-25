@@ -17,6 +17,7 @@ package eventlog
 import (
 	// standard libraries
 	"context"
+	"encoding/binary"
 	"math"
 	"sync"
 
@@ -27,6 +28,8 @@ import (
 	// this project
 	vdr "github.com/linkall-labs/vanus/client/internal/vanus/discovery/record"
 	"github.com/linkall-labs/vanus/client/pkg/errors"
+	"github.com/linkall-labs/vanus/client/pkg/eventlog"
+	"github.com/linkall-labs/vanus/internal/store/segment"
 )
 
 func newLogSegment(r *vdr.LogSegment, towrite bool) (*logSegment, error) {
@@ -168,6 +171,23 @@ func (s *logSegment) Read(ctx context.Context, from int64, size int16) ([]*ce.Ev
 	if err != nil {
 		return nil, err
 	}
+
+	for _, e := range events {
+		v, ok := e.Extensions()[segment.XVanusBlockOffset]
+		if !ok {
+			continue
+		}
+		off, ok := v.(int32)
+		if !ok {
+			return events, errors.ErrCorruptedEvent
+		}
+		offset := s.startOffset + int64(off)
+		buf := make([]byte, 8)
+		binary.BigEndian.PutUint64(buf, uint64(offset))
+		e.SetExtension(eventlog.XVanusLogOffset, buf)
+		e.SetExtension(segment.XVanusBlockOffset, nil)
+	}
+
 	return events, err
 }
 

@@ -43,14 +43,16 @@ func (b *Block) Read(ctx context.Context, start, number int) ([]block.Entry, err
 	}
 
 	entries := make([]block.Entry, 0, num)
-	for so, from2 := uint32(0), uint32(from); so < length; {
+	for i, so, from2 := uint32(start), uint32(0), uint32(from); so < length; {
 		entry, err2 := block.UnmarshalEntry(data[so:])
 		if err2 != nil {
 			return nil, err2
 		}
 		entry.Offset = from2 + so
+		entry.Index = i
 		entries = append(entries, entry)
 		so += uint32(entry.Size())
+		i++
 	}
 
 	return entries, nil
