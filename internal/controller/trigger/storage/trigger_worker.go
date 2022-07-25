@@ -21,9 +21,8 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-
 	"github.com/linkall-labs/vanus/internal/controller/errors"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/kv"
 )
 

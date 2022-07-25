@@ -20,9 +20,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-
 	"github.com/golang/mock/gomock"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
