@@ -61,7 +61,6 @@ const (
 	debugModeENV                = "SEGMENT_SERVER_DEBUG_MODE"
 	defaultLeaderInfoBufferSize = 256
 	defaultForceStopTimeout     = 30 * time.Second
-	XVanusBlockOffset           = "xvanusblockoffset"
 )
 
 type Server interface {
@@ -733,7 +732,7 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 		if event.Attributes == nil {
 			event.Attributes = make(map[string]*cepb.CloudEventAttributeValue, 1)
 		}
-		event.Attributes[XVanusBlockOffset] = &cepb.CloudEventAttributeValue{
+		event.Attributes[segpb.XVanusBlockOffset] = &cepb.CloudEventAttributeValue{
 			Attr: &cepb.CloudEventAttributeValue_CeInteger{
 				CeInteger: int32(entry.Index),
 			},

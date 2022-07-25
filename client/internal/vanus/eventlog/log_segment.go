@@ -15,21 +15,23 @@
 package eventlog
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	"encoding/binary"
 	"math"
 	"sync"
 
-	// third-party libraries
+	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
 	"go.uber.org/atomic"
 
-	// this project
+	// first-party libraries.
+	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
+
+	// this project.
 	vdr "github.com/linkall-labs/vanus/client/internal/vanus/discovery/record"
 	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
-	"github.com/linkall-labs/vanus/internal/store/segment"
 )
 
 func newLogSegment(r *vdr.LogSegment, towrite bool) (*logSegment, error) {
@@ -173,7 +175,7 @@ func (s *logSegment) Read(ctx context.Context, from int64, size int16) ([]*ce.Ev
 	}
 
 	for _, e := range events {
-		v, ok := e.Extensions()[segment.XVanusBlockOffset]
+		v, ok := e.Extensions()[segpb.XVanusBlockOffset]
 		if !ok {
 			continue
 		}
@@ -185,7 +187,7 @@ func (s *logSegment) Read(ctx context.Context, from int64, size int16) ([]*ce.Ev
 		buf := make([]byte, 8)
 		binary.BigEndian.PutUint64(buf, uint64(offset))
 		e.SetExtension(eventlog.XVanusLogOffset, buf)
-		e.SetExtension(segment.XVanusBlockOffset, nil)
+		e.SetExtension(segpb.XVanusBlockOffset, nil)
 	}
 
 	return events, err

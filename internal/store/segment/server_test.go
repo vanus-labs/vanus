@@ -30,6 +30,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/block/replica"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/proto/pkg/errors"
+	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
 	"github.com/linkall-labs/vanus/internal/store"
 	. "github.com/smartystreets/goconvey/convey"
@@ -178,7 +179,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 		pbEvents, err := srv.ReadFromBlock(ctx, blockID, 0, 3)
 		So(err, ShouldBeNil)
 		for i, pbEvent := range pbEvents {
-			So(pbEvent.Attributes["xvanusblockoffset"].Attr.(*cepb.CloudEventAttributeValue_CeInteger).CeInteger, ShouldEqual, i)
+			So(pbEvent.Attributes[segpb.XVanusBlockOffset].Attr.(*cepb.CloudEventAttributeValue_CeInteger).CeInteger, ShouldEqual, i)
 		}
 	})
 }
