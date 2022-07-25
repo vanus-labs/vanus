@@ -20,6 +20,10 @@ import (
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 )
 
+const (
+	XVanusLogOffset = eventlog.XVanusLogOffset
+)
+
 // EventBus functions.
 var (
 	// OpenBusWriter open a Writer of EventBus identified by vrn.

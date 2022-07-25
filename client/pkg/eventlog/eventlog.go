@@ -22,6 +22,10 @@ import (
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
 )
 
+const (
+	XVanusLogOffset = "xvanuslogoffset"
+)
+
 type EventLog interface {
 	primitive.RefCounter
 

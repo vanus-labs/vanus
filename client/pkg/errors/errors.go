@@ -34,4 +34,5 @@ var (
 	ErrNoBlock            = errors.New("no block")
 	ErrNoLeader           = errors.New("no leader")
 	ErrNoEndpoint         = errors.New("no endpoint")
+	ErrCorruptedEvent     = errors.New("corrupted event")
 )
