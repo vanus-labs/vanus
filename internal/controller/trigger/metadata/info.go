@@ -12,12 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package info
+package metadata
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/linkall-labs/vanus/internal/util"
+
+	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
 type TriggerWorkerPhase string
@@ -46,4 +50,30 @@ func NewTriggerWorkerInfo(addr string) *TriggerWorkerInfo {
 
 func (tw *TriggerWorkerInfo) String() string {
 	return fmt.Sprintf("addr:%s,phase:%v", tw.Addr, tw.Phase)
+}
+
+type SubscriptionPhase string
+
+const (
+	SubscriptionPhaseCreated   = "created"
+	SubscriptionPhasePending   = "pending"
+	SubscriptionPhaseScheduled = "scheduled"
+	SubscriptionPhaseRunning   = "running"
+	SubscriptionPhaseToDelete  = "toDelete"
+)
+
+type Subscription struct {
+	ID               vanus.ID                        `json:"id"`
+	Source           string                          `json:"source,omitempty"`
+	Types            []string                        `json:"types,omitempty"`
+	Config           primitive.SubscriptionConfig    `json:"config,omitempty"`
+	Filters          []*primitive.SubscriptionFilter `json:"filters,omitempty"`
+	Sink             primitive.URI                   `json:"sink,omitempty"`
+	Protocol         string                          `json:"protocol,omitempty"`
+	ProtocolSettings map[string]string               `json:"protocolSettings,omitempty"`
+	EventBus         string                          `json:"eventBus"`
+	Phase            SubscriptionPhase               `json:"phase"`
+	TriggerWorker    string                          `json:"triggerWorker,omitempty"`
+	InputTransformer *primitive.InputTransformer     `json:"inputTransformer,omitempty"`
+	HeartbeatTime    time.Time                       `json:"-"`
 }

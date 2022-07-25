@@ -15,6 +15,7 @@
 package convert
 
 import (
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -23,8 +24,8 @@ import (
 	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
 )
 
-func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *primitive.SubscriptionData {
-	to := &primitive.SubscriptionData{
+func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *metadata.Subscription {
+	to := &metadata.Subscription{
 		Source:           sub.Source,
 		Types:            sub.Types,
 		Config:           FromPbSubscriptionConfig(sub.Config),
@@ -80,8 +81,8 @@ func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscription
 	return to
 }
 
-func FromPbSubscription(sub *pb.Subscription) *primitive.SubscriptionData {
-	to := &primitive.SubscriptionData{
+func FromPbSubscription(sub *pb.Subscription) *metadata.Subscription {
+	to := &metadata.Subscription{
 		ID:               vanus.ID(sub.Id),
 		Source:           sub.Source,
 		Types:            sub.Types,
@@ -96,7 +97,7 @@ func FromPbSubscription(sub *pb.Subscription) *primitive.SubscriptionData {
 	return to
 }
 
-func ToPbSubscription(sub *primitive.SubscriptionData) *pb.Subscription {
+func ToPbSubscription(sub *metadata.Subscription) *pb.Subscription {
 	to := &pb.Subscription{
 		Id:               uint64(sub.ID),
 		Source:           sub.Source,

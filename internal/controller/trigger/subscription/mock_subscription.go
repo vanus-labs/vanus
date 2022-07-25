@@ -10,6 +10,7 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
+	metadata "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	primitive "github.com/linkall-labs/vanus/internal/primitive"
 	info "github.com/linkall-labs/vanus/internal/primitive/info"
 	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -39,7 +40,7 @@ func (m *MockManager) EXPECT() *MockManagerMockRecorder {
 }
 
 // AddSubscription mocks base method.
-func (m *MockManager) AddSubscription(ctx context.Context, subscription *primitive.SubscriptionData) error {
+func (m *MockManager) AddSubscription(ctx context.Context, subscription *metadata.Subscription) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddSubscription", ctx, subscription)
 	ret0, _ := ret[0].(error)
@@ -82,12 +83,11 @@ func (mr *MockManagerMockRecorder) GetOffset(ctx, id interface{}) *gomock.Call {
 }
 
 // GetSubscription mocks base method.
-func (m *MockManager) GetSubscription(ctx context.Context, id vanus.ID) (*primitive.Subscription, error) {
+func (m *MockManager) GetSubscription(ctx context.Context, id vanus.ID) *metadata.Subscription {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSubscription", ctx, id)
-	ret0, _ := ret[0].(*primitive.Subscription)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(*metadata.Subscription)
+	return ret0
 }
 
 // GetSubscription indicates an expected call of GetSubscription.
@@ -96,18 +96,19 @@ func (mr *MockManagerMockRecorder) GetSubscription(ctx, id interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscription", reflect.TypeOf((*MockManager)(nil).GetSubscription), ctx, id)
 }
 
-// GetSubscriptionData mocks base method.
-func (m *MockManager) GetSubscriptionData(ctx context.Context, id vanus.ID) *primitive.SubscriptionData {
+// GetSubscriptionWithOffset mocks base method.
+func (m *MockManager) GetSubscriptionWithOffset(ctx context.Context, id vanus.ID) (*primitive.Subscription, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSubscriptionData", ctx, id)
-	ret0, _ := ret[0].(*primitive.SubscriptionData)
-	return ret0
+	ret := m.ctrl.Call(m, "GetSubscriptionWithOffset", ctx, id)
+	ret0, _ := ret[0].(*primitive.Subscription)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
-// GetSubscriptionData indicates an expected call of GetSubscriptionData.
-func (mr *MockManagerMockRecorder) GetSubscriptionData(ctx, id interface{}) *gomock.Call {
+// GetSubscriptionWithOffset indicates an expected call of GetSubscriptionWithOffset.
+func (mr *MockManagerMockRecorder) GetSubscriptionWithOffset(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscriptionData", reflect.TypeOf((*MockManager)(nil).GetSubscriptionData), ctx, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscriptionWithOffset", reflect.TypeOf((*MockManager)(nil).GetSubscriptionWithOffset), ctx, id)
 }
 
 // Heartbeat mocks base method.
@@ -139,10 +140,10 @@ func (mr *MockManagerMockRecorder) Init(ctx interface{}) *gomock.Call {
 }
 
 // ListSubscription mocks base method.
-func (m *MockManager) ListSubscription(ctx context.Context) []*primitive.SubscriptionData {
+func (m *MockManager) ListSubscription(ctx context.Context) []*metadata.Subscription {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListSubscription", ctx)
-	ret0, _ := ret[0].([]*primitive.SubscriptionData)
+	ret0, _ := ret[0].([]*metadata.Subscription)
 	return ret0
 }
 
@@ -191,7 +192,7 @@ func (mr *MockManagerMockRecorder) Stop() *gomock.Call {
 }
 
 // UpdateSubscription mocks base method.
-func (m *MockManager) UpdateSubscription(ctx context.Context, subscription *primitive.SubscriptionData) error {
+func (m *MockManager) UpdateSubscription(ctx context.Context, subscription *metadata.Subscription) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateSubscription", ctx, subscription)
 	ret0, _ := ret[0].(error)

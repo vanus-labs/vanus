@@ -20,18 +20,19 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 )
 
 type TriggerWorkerPolicy interface {
-	Acquire(context.Context, []info.TriggerWorkerInfo) info.TriggerWorkerInfo
+	Acquire(context.Context, []metadata.TriggerWorkerInfo) metadata.TriggerWorkerInfo
 }
 
 type RoundRobinPolicy struct {
 	idx uint64
 }
 
-func (rr *RoundRobinPolicy) Acquire(ctx context.Context, workers []info.TriggerWorkerInfo) info.TriggerWorkerInfo {
+func (rr *RoundRobinPolicy) Acquire(ctx context.Context,
+	workers []metadata.TriggerWorkerInfo) metadata.TriggerWorkerInfo {
 	length := uint64(len(workers))
 	idx := atomic.AddUint64(&rr.idx, 1) - 1
 	return workers[idx%length]
@@ -40,6 +41,6 @@ func (rr *RoundRobinPolicy) Acquire(ctx context.Context, workers []info.TriggerW
 type RandomPolicy struct {
 }
 
-func (r *RandomPolicy) Acquire(ctx context.Context, workers []info.TriggerWorkerInfo) info.TriggerWorkerInfo {
+func (r *RandomPolicy) Acquire(ctx context.Context, workers []metadata.TriggerWorkerInfo) metadata.TriggerWorkerInfo {
 	return workers[rand.New(rand.NewSource(time.Now().Unix())).Intn(len(workers))]
 }

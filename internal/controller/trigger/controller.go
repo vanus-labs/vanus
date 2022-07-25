@@ -22,6 +22,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
+
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
@@ -98,7 +100,7 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 		return nil, errors.ErrServerNotStart
 	}
 	subID := vanus.ID(request.Id)
-	subscriptionData := ctrl.subscriptionManager.GetSubscriptionData(ctx, subID)
+	subscriptionData := ctrl.subscriptionManager.GetSubscription(ctx, subID)
 	if subscriptionData == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("subscription not exist")
 	}
@@ -138,7 +140,7 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 	if !change {
 		return nil, errors.ErrInvalidRequest.WithMessage("no change")
 	}
-	subscriptionData.Phase = primitive.SubscriptionPhasePending
+	subscriptionData.Phase = metadata.SubscriptionPhasePending
 	err = ctrl.subscriptionManager.UpdateSubscription(ctx, subscriptionData)
 	if err != nil {
 		return nil, err
@@ -154,9 +156,9 @@ func (ctrl *controller) DeleteSubscription(ctx context.Context,
 		return nil, errors.ErrServerNotStart
 	}
 	subID := vanus.ID(request.Id)
-	subData := ctrl.subscriptionManager.GetSubscriptionData(ctx, subID)
+	subData := ctrl.subscriptionManager.GetSubscription(ctx, subID)
 	if subData != nil {
-		subData.Phase = primitive.SubscriptionPhaseToDelete
+		subData.Phase = metadata.SubscriptionPhaseToDelete
 		err := ctrl.subscriptionManager.UpdateSubscription(ctx, subData)
 		if err != nil {
 			return nil, err
@@ -178,7 +180,7 @@ func (ctrl *controller) GetSubscription(ctx context.Context,
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
-	sub := ctrl.subscriptionManager.GetSubscriptionData(ctx, vanus.ID(request.Id))
+	sub := ctrl.subscriptionManager.GetSubscription(ctx, vanus.ID(request.Id))
 	if sub == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("subscription not exist")
 	}
@@ -303,7 +305,7 @@ func (ctrl *controller) gcSubscriptions(ctx context.Context) {
 }
 
 func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, addr string) error {
-	subData := ctrl.subscriptionManager.GetSubscriptionData(ctx, id)
+	subData := ctrl.subscriptionManager.GetSubscription(ctx, id)
 	if subData == nil {
 		return nil
 	}
@@ -315,7 +317,7 @@ func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, ad
 		})
 	}
 	subData.TriggerWorker = ""
-	subData.Phase = primitive.SubscriptionPhasePending
+	subData.Phase = metadata.SubscriptionPhasePending
 	err := ctrl.subscriptionManager.UpdateSubscription(ctx, subData)
 	if err != nil {
 		return err
@@ -340,11 +342,11 @@ func (ctrl *controller) init(ctx context.Context) error {
 	// restart,need reschedule
 	for _, subscription := range ctrl.subscriptionManager.ListSubscription(ctx) {
 		switch subscription.Phase {
-		case primitive.SubscriptionPhaseCreated:
+		case metadata.SubscriptionPhaseCreated:
 			ctrl.scheduler.EnqueueNormalSubscription(subscription.ID)
-		case primitive.SubscriptionPhasePending:
+		case metadata.SubscriptionPhasePending:
 			ctrl.scheduler.EnqueueSubscription(subscription.ID)
-		case primitive.SubscriptionPhaseToDelete:
+		case metadata.SubscriptionPhaseToDelete:
 			ctrl.needCleanSubscription[subscription.ID] = subscription.TriggerWorker
 		}
 	}
