@@ -39,9 +39,8 @@ func TestRecover(t *testing.T) {
 		Convey("create block", func() {
 			id := vanus.NewID()
 			path := resolvePath(blockDir, id)
-			capacity := int64(4 * 1024 * 1024)
 
-			b, err := Create(context.Background(), blockDir, id, capacity)
+			b, err := Create(context.Background(), blockDir, id, defaultCapacity)
 			So(err, ShouldBeNil)
 
 			err = b.Close(context.Background())
@@ -57,7 +56,7 @@ func TestRecover(t *testing.T) {
 
 				info, err := os.Stat(path)
 				So(err, ShouldBeNil)
-				So(info.Size(), ShouldEqual, capacity)
+				So(info.Size(), ShouldEqual, defaultCapacity)
 
 				So(b.ID(), ShouldEqual, id)
 				So(b.Path(), ShouldEqual, path)

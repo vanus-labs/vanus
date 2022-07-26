@@ -17,10 +17,8 @@ package file
 import (
 	// standard libraries.
 	"context"
-	"math/rand"
 	"os"
 	"testing"
-	"time"
 
 	// third-party libraries.
 	. "github.com/smartystreets/goconvey/convey"
@@ -38,10 +36,7 @@ func TestRead(t *testing.T) {
 
 		id := vanus.NewID()
 
-		rd := rand.New(rand.NewSource(time.Now().UnixNano()))
-		capacity := (rd.Int63n(5) + 4) * 1024 * 1024
-
-		b, err := Create(context.Background(), blockDir, id, capacity)
+		b, err := Create(context.Background(), blockDir, id, defaultCapacity)
 		So(err, ShouldBeNil)
 
 		Convey("Append entry", func() {

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=snapshot_storage.go -destination=mock_snapshot_storage.go -package=log
 package log
 
 import (

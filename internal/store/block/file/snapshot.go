@@ -60,7 +60,7 @@ func (b *Block) ApplySnapshot(data []byte) error {
 	}
 
 	// Build indexes from data.
-	for off := eo; off < int64(len(data)); {
+	for off := eo; off < int64(len(data)+headerBlockSize); {
 		length := block.EntryLength(data[off-int64(headerBlockSize):])
 
 		idx := index{

@@ -17,7 +17,6 @@ package file
 import (
 	// standard libraries.
 	"context"
-	"math/rand"
 	"os"
 	"testing"
 	"time"
@@ -30,6 +29,10 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/block"
 )
 
+const (
+	defaultCapacity = 4 * 1024 * 1024
+)
+
 func TestCreate(t *testing.T) {
 	Convey("Create block ", t, func() {
 		blockDir, err := os.MkdirTemp("", "block-*")
@@ -39,15 +42,12 @@ func TestCreate(t *testing.T) {
 		id := vanus.NewID()
 		path := resolvePath(blockDir, id)
 
-		rd := rand.New(rand.NewSource(time.Now().UnixNano()))
-		capacity := (rd.Int63n(5) + 4) * 1024 * 1024
-
-		b, err := Create(context.Background(), blockDir, id, capacity)
+		b, err := Create(context.Background(), blockDir, id, defaultCapacity)
 		So(err, ShouldBeNil)
 
 		info, err := os.Stat(path)
 		So(err, ShouldBeNil)
-		So(info.Size(), ShouldEqual, capacity)
+		So(info.Size(), ShouldEqual, defaultCapacity)
 
 		So(b.ID(), ShouldEqual, id)
 		So(b.Path(), ShouldEqual, path)
@@ -69,10 +69,7 @@ func TestOpen(t *testing.T) {
 		id := vanus.NewID()
 		path := resolvePath(blockDir, id)
 
-		rd := rand.New(rand.NewSource(time.Now().UnixNano()))
-		capacity := (rd.Int63n(5) + 4) * 1024 * 1024
-
-		b, err := Create(context.Background(), blockDir, id, capacity)
+		b, err := Create(context.Background(), blockDir, id, defaultCapacity)
 		So(err, ShouldBeNil)
 
 		Convey("Append entry, then close the block", func() {
