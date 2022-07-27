@@ -41,7 +41,7 @@ var _ Receiver = (*receiver)(nil)
 
 func TestServer(t *testing.T) {
 	Convey("test server", t, func() {
-		serverIP, serverPort := "127.0.0.1", 12000
+		serverIP, serverPort := "127.0.0.1", 12050
 		nodeID := uint64(2)
 
 		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", serverPort))
@@ -127,8 +127,9 @@ func TestServer(t *testing.T) {
 				}
 			}
 		})
-
-		sendHost.Stop()
-		srv.GracefulStop()
+		Reset(func() {
+			sendHost.Stop()
+			srv.GracefulStop()
+		})
 	})
 }

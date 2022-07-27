@@ -31,7 +31,7 @@ import (
 )
 
 func TestPeer(t *testing.T) {
-	serverIP, serverPort := "127.0.0.1", 12000
+	serverIP, serverPort := "127.0.0.1", 12050
 	nodeID := uint64(2)
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", serverPort))
@@ -69,10 +69,9 @@ func TestPeer(t *testing.T) {
 		msg := &raftpb.Message{
 			To: nodeID,
 		}
-		Convey("test stream send", func() {
-			err = stream.Send(msg)
-			So(err, ShouldBeNil)
-		})
+
+		err = stream.Send(msg)
+		So(err, ShouldBeNil)
 	})
 
 	Convey("test peer Send", t, func() {
