@@ -77,22 +77,19 @@ func TestServer(t *testing.T) {
 			msg := &raftpb.Message{
 				To: nodeID,
 			}
-			ctx := context.Background()
-			sendHost.Send(ctx, msg, 100, fmt.Sprintf("%s:%d", serverIP, serverPort))
+			timeoutCtx, cannel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cannel()
 
-			var m *raftpb.Message
-			timer := time.NewTimer(3 * time.Second)
+			sendHost.Send(timeoutCtx, msg, 100, fmt.Sprintf("%s:%d", serverIP, serverPort))
 
-		loop:
-			for {
+			for i := 0; i < 3; i++ {
 				select {
-				case m = <-ch:
+				case m := <-ch:
 					So(m, ShouldResemble, msg)
-					break loop
-				case <-timer.C:
-					So(m, ShouldResemble, msg)
-					break loop
+					return
+				default:
 				}
+				time.Sleep(50 * time.Millisecond)
 			}
 		})
 
@@ -104,26 +101,19 @@ func TestServer(t *testing.T) {
 					To: nodeID,
 				}
 			}
-			ctx := context.Background()
-			sendHost.Sendv(ctx, msgs, 100, fmt.Sprintf("%s:%d", serverIP, serverPort))
 
-			var m *raftpb.Message
-			timer := time.NewTimer(3 * time.Second)
-			i := 0
+			timeoutCtx, cannel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cannel()
+			sendHost.Sendv(timeoutCtx, msgs, 100, fmt.Sprintf("%s:%d", serverIP, serverPort))
 
-		loop:
-			for {
-				select {
-				case m = <-ch:
-					So(m, ShouldResemble, msgs[i])
-					i++
-					timer.Reset(3 * time.Second)
-					if i == msgLen {
-						break loop
+			for i := 0; i < msgLen; i++ {
+				for j := 0; j < 3; j++ {
+					select {
+					case m := <-ch:
+						So(m, ShouldResemble, msgs[i])
+					default:
 					}
-				case <-timer.C:
-					So(m, ShouldResemble, msgs)
-					break loop
+					time.Sleep(50 * time.Millisecond)
 				}
 			}
 		})

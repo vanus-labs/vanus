@@ -24,94 +24,88 @@ import (
 )
 
 func TestHost(t *testing.T) {
-	resolver := NewSimpleResolver()
-	localaddr := "127.0.0.1:12000"
-	h := NewHost(resolver, localaddr)
-	ctx := context.Background()
-	nodeID := uint64(3)
-	ch := make(chan *raftpb.Message, 10)
-	h.Register(nodeID, &receiver{
-		recvch: ch,
-	})
-	msg := &raftpb.Message{
-		To: nodeID,
-	}
-	msgLen := 5
-	msgs := make([]*raftpb.Message, msgLen)
-	for i := 0; i < msgLen; i++ {
-		msgs[i] = &raftpb.Message{
+	Convey("test host", t, func() {
+		resolver := NewSimpleResolver()
+		localaddr := "127.0.0.1:12000"
+		h := NewHost(resolver, localaddr)
+		ctx := context.Background()
+		nodeID := uint64(3)
+		ch := make(chan *raftpb.Message, 10)
+		h.Register(nodeID, &receiver{
+			recvch: ch,
+		})
+		msg := &raftpb.Message{
 			To: nodeID,
 		}
-	}
-
-	Convey("test host Receive method", t, func() {
-		err := h.Receive(ctx, msg, localaddr)
-		So(err, ShouldBeNil)
-
-		var m *raftpb.Message
-		timer := time.NewTimer(3 * time.Second)
-
-	loop:
-		for {
-			select {
-			case m = <-ch:
-				So(m, ShouldResemble, msg)
-				break loop
-			case <-timer.C:
-				So(m, ShouldResemble, msg)
-				break loop
+		msgLen := 5
+		msgs := make([]*raftpb.Message, msgLen)
+		for i := 0; i < msgLen; i++ {
+			msgs[i] = &raftpb.Message{
+				To: nodeID,
 			}
 		}
-	})
 
-	Convey("test host Send callback", t, func() {
-		h.Send(ctx, msg, nodeID, localaddr)
-		var m *raftpb.Message
-		timer := time.NewTimer(3 * time.Second)
+		Convey("test host Receive method", func() {
+			err := h.Receive(ctx, msg, localaddr)
+			So(err, ShouldBeNil)
 
-	loop:
-		for {
-			select {
-			case m = <-ch:
-				So(m, ShouldResemble, msg)
-				break loop
-			case <-timer.C:
-				So(m, ShouldResemble, msg)
-				break loop
-			}
-		}
-	})
+			var m *raftpb.Message
+			timer := time.NewTimer(3 * time.Second)
 
-	Convey("test host Sendv callback", t, func() {
-		h.Sendv(ctx, msgs, nodeID, localaddr)
-		var m *raftpb.Message
-		timer := time.NewTimer(3 * time.Second)
-		i := 0
-	loop:
-		for {
-			select {
-			case m = <-ch:
-				So(m, ShouldResemble, msgs[i])
-				i++
-				timer.Reset(3 * time.Second)
-				if i == msgLen {
+		loop:
+			for {
+				select {
+				case m = <-ch:
+					So(m, ShouldResemble, msg)
+					break loop
+				case <-timer.C:
+					So(m, ShouldResemble, msg)
 					break loop
 				}
-			case <-timer.C:
-				So(m, ShouldResemble, msgs)
-				break loop
 			}
-		}
-	})
+		})
 
-	Convey("test host resolveMultiplexer method", t, func() {
-		h := h.(*host)
-		testEndpoint := "127.0.0.1:11000"
-		_, ok := h.peers.Load(testEndpoint)
-		So(ok, ShouldBeFalse)
-		p := h.resolveMultiplexer(ctx, nodeID, testEndpoint)
-		So(p, ShouldNotBeNil)
-		_, ok = h.peers.Load(testEndpoint)
-		So(ok, ShouldBeTrue)
+		Convey("test host Send callback", func() {
+			timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
+			defer cannel()
+
+			h.Send(timeoutCtx, msg, nodeID, localaddr)
+			for i := 0; i < 3; i++ {
+				select {
+				case m := <-ch:
+					So(m, ShouldResemble, msg)
+					return
+				default:
+				}
+				time.Sleep(50 * time.Millisecond)
+			}
+		})
+
+		Convey("test host Sendv callback", func() {
+			timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
+			defer cannel()
+			h.Sendv(timeoutCtx, msgs, nodeID, localaddr)
+			for i := 0; i < msgLen; i++ {
+				for j := 0; j < 3; j++ {
+					select {
+					case m := <-ch:
+						So(m, ShouldResemble, msgs[i])
+					default:
+					}
+					time.Sleep(50 * time.Millisecond)
+				}
+			}
+		})
+
+		Convey("test host resolveMultiplexer method", func() {
+			h := h.(*host)
+			testEndpoint := "127.0.0.1:11000"
+			_, ok := h.peers.Load(testEndpoint)
+			So(ok, ShouldBeFalse)
+			p := h.resolveMultiplexer(ctx, nodeID, testEndpoint)
+			So(p, ShouldNotBeNil)
+			_, ok = h.peers.Load(testEndpoint)
+			So(ok, ShouldBeTrue)
+		})
 	})
 }

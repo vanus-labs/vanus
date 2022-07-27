@@ -35,60 +35,52 @@ func (d *dmu) Receive(ctx context.Context, msg *raftpb.Message, endpoint string)
 var _ Demultiplexer = (*dmu)(nil)
 
 func TestLoopBack(t *testing.T) {
-	ch := make(chan *raftpb.Message, 15)
-	loopbackInstance := loopback{
-		addr: "127.0.0.1:12000",
-		dmu: &dmu{
-			recvch: ch,
-		},
-	}
-
-	Convey("test loopback Send method", t, func() {
-		msg := &raftpb.Message{
-			To: 2,
+	Convey("test loopback", t, func() {
+		ch := make(chan *raftpb.Message, 15)
+		loopbackInstance := loopback{
+			addr: "127.0.0.1:12000",
+			dmu: &dmu{
+				recvch: ch,
+			},
 		}
-		ctx := context.Background()
-		loopbackInstance.Send(ctx, msg)
-		var m *raftpb.Message
-		timer := time.NewTimer(3 * time.Second)
 
-	loop:
-		for {
-			select {
-			case m = <-ch:
-				So(m, ShouldResemble, msg)
-				break loop
-			case <-timer.C:
-				So(m, ShouldResemble, msg)
-				break loop
+		Convey("test loopback Send method", func() {
+			msg := &raftpb.Message{
+				To: 2,
 			}
-		}
-	})
+			timeoutCtx, cannel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cannel()
 
-	Convey("test loopback Sendv method", t, func() {
-		msgLen := 5
-		msgs := make([]*raftpb.Message, msgLen)
-		ctx := context.Background()
-		loopbackInstance.Sendv(ctx, msgs)
-		var m *raftpb.Message
-		timer := time.NewTimer(3 * time.Second)
-		i := 0
-
-	loop:
-		for {
-			select {
-			case m = <-ch:
-				So(m, ShouldResemble, msgs[i])
-				i++
-				timer.Reset(3 * time.Second)
-				if i == msgLen {
-					break loop
+			loopbackInstance.Send(timeoutCtx, msg)
+			for i := 0; i < 3; i++ {
+				select {
+				case m := <-ch:
+					So(m, ShouldResemble, msg)
+					return
+				default:
 				}
-			case <-timer.C:
-				So(m, ShouldResemble, msgs)
-				break loop
+				time.Sleep(50 * time.Millisecond)
 			}
-		}
-	})
+		})
 
+		Convey("test loopback Sendv method", func() {
+			msgLen := 5
+			msgs := make([]*raftpb.Message, msgLen)
+
+			timeoutCtx, cannel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cannel()
+			loopbackInstance.Sendv(timeoutCtx, msgs)
+
+			for i := 0; i < msgLen; i++ {
+				for j := 0; j < 3; j++ {
+					select {
+					case m := <-ch:
+						So(m, ShouldResemble, msgs[i])
+					default:
+					}
+					time.Sleep(50 * time.Millisecond)
+				}
+			}
+		})
+	})
 }

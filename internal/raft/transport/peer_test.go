@@ -31,7 +31,7 @@ import (
 )
 
 func TestPeer(t *testing.T) {
-	serverIP, serverPort := "127.0.0.1", 12050
+	serverIP, serverPort := "127.0.0.1", 12040
 	nodeID := uint64(2)
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", serverPort))
@@ -56,7 +56,13 @@ func TestPeer(t *testing.T) {
 		}
 	}()
 	ctx := context.Background()
-	p := newPeer(fmt.Sprintf("%s:%d", serverIP, serverPort), " ")
+	p := newPeer(fmt.Sprintf("%s:%d", serverIP, serverPort), "")
+
+	defer func() {
+		p.Close()
+		srv.GracefulStop()
+	}()
+
 	Convey("test peer connect", t, func() {
 		opts := []grpc.DialOption{
 			grpc.WithBlock(),
@@ -72,26 +78,27 @@ func TestPeer(t *testing.T) {
 
 		err = stream.Send(msg)
 		So(err, ShouldBeNil)
+		stream.CloseAndRecv()
 	})
 
 	Convey("test peer Send", t, func() {
 		msg := &raftpb.Message{
 			To: nodeID,
 		}
-		p.Send(ctx, msg)
-		var m *raftpb.Message
-		timer := time.NewTimer(3 * time.Second)
 
-	loop:
-		for {
+		timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
+		defer cannel()
+
+		p.Send(timeoutCtx, msg)
+
+		for i := 0; i < 3; i++ {
 			select {
-			case m = <-ch:
+			case m := <-ch:
 				So(m, ShouldResemble, msg)
-				break loop
-			case <-timer.C:
-				So(m, ShouldResemble, msg)
-				break loop
+				return
+			default:
 			}
+			time.Sleep(50 * time.Millisecond)
 		}
 	})
 
@@ -103,23 +110,18 @@ func TestPeer(t *testing.T) {
 				To: nodeID,
 			}
 		}
-		p.Sendv(ctx, msgs)
-		var m *raftpb.Message
-		timer := time.NewTimer(3 * time.Second)
-		i := 0
-	loop:
-		for {
-			select {
-			case m = <-ch:
-				So(m, ShouldResemble, msgs[i])
-				i++
-				timer.Reset(3 * time.Second)
-				if i == msgLen {
-					break loop
+		timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
+		defer cannel()
+		p.Sendv(timeoutCtx, msgs)
+
+		for i := 0; i < msgLen; i++ {
+			for j := 0; j < 3; j++ {
+				select {
+				case m := <-ch:
+					So(m, ShouldResemble, msgs[i])
+				default:
 				}
-			case <-timer.C:
-				So(m, ShouldResemble, msgs)
-				break loop
+				time.Sleep(50 * time.Millisecond)
 			}
 		}
 	})
