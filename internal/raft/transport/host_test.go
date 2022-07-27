@@ -46,22 +46,19 @@ func TestHost(t *testing.T) {
 		}
 
 		Convey("test host Receive method", func() {
-			err := h.Receive(ctx, msg, localaddr)
+			timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
+			defer cannel()
+			err := h.Receive(timeoutCtx, msg, localaddr)
 			So(err, ShouldBeNil)
 
-			var m *raftpb.Message
-			timer := time.NewTimer(3 * time.Second)
-
-		loop:
-			for {
+			for i := 0; i < 3; i++ {
 				select {
-				case m = <-ch:
+				case m := <-ch:
 					So(m, ShouldResemble, msg)
-					break loop
-				case <-timer.C:
-					So(m, ShouldResemble, msg)
-					break loop
+					return
+				default:
 				}
+				time.Sleep(50 * time.Millisecond)
 			}
 		})
 
