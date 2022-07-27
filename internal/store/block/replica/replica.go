@@ -228,19 +228,12 @@ func (r *replica) run(ctx context.Context) {
 			// are committed to stable storage.
 			r.send(rd.Messages)
 
-			var applied uint64
-
-			// TODO(james.yin): snapshot
-			// if !raft.IsEmptySnap(rd.Snapshot) {
-			// processSnapshot(rd.Snapshot)
-			// applied = rd.Snapshot.Metadata.Index
-			// }
-
-			if len(rd.CommittedEntries) != 0 {
-				applied = r.applyEntries(ctx, rd.CommittedEntries)
+			if !raft.IsEmptySnap(rd.Snapshot) {
+				_ = r.log.ApplySnapshot(rd.Snapshot)
 			}
 
-			if applied != 0 {
+			if len(rd.CommittedEntries) != 0 {
+				applied := r.applyEntries(ctx, rd.CommittedEntries)
 				log.Debug(ctx, "Store applied offset.", map[string]interface{}{
 					"block_id":       r.blockID,
 					"applied_offset": applied,

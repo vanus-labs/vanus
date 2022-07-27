@@ -38,7 +38,7 @@ func TestAppend(t *testing.T) {
 		id := vanus.NewID()
 		path := resolvePath(blockDir, id)
 
-		b, err := Create(context.Background(), blockDir, id, 4*1024*1024)
+		b, err := Create(context.Background(), blockDir, id, defaultCapacity)
 		So(err, ShouldBeNil)
 
 		Convey("Append entries, then close the block", func() {

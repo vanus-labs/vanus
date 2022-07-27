@@ -113,7 +113,7 @@ func TestLog(t *testing.T) {
 			wal := newWAL(rawWAL, metaStore)
 			defer wal.Close()
 
-			log := NewLog(nodeID1, wal, metaStore, offsetStore)
+			log := NewLog(nodeID1, wal, metaStore, offsetStore, nil)
 
 			hardSt, confSt, err := log.InitialState()
 			So(err, ShouldBeNil)

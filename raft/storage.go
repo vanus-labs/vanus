@@ -44,10 +44,17 @@ var ErrSnapshotTemporarilyUnavailable = errors.New("snapshot is temporarily unav
 // become inoperable and refuse to participate in elections; the
 // application is responsible for cleanup and recovery in this case.
 type Storage interface {
-	// TODO(tbg): split this into two interfaces, LogStorage and StateStorage.
+	StateStorage
+	LogStorage
+	SnapshotStorage
+}
 
+type StateStorage interface {
 	// InitialState returns the saved HardState and ConfState information.
 	InitialState() (pb.HardState, pb.ConfState, error)
+}
+
+type LogStorage interface {
 	// Entries returns a slice of log entries in the range [lo,hi).
 	// MaxSize limits the total size of the log entries returned, but
 	// Entries returns at least one entry if any.
@@ -64,6 +71,9 @@ type Storage interface {
 	// into the latest Snapshot; if storage only contains the dummy entry the
 	// first log entry is not available).
 	FirstIndex() (uint64, error)
+}
+
+type SnapshotStorage interface {
 	// Snapshot returns the most recent snapshot.
 	// If snapshot is temporarily unavailable, it should return ErrSnapshotTemporarilyUnavailable,
 	// so raft state machine could know that Storage needs some time to prepare

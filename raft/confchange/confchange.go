@@ -253,6 +253,7 @@ func (c Changer) initProgress(cfg *tracker.Config, prs tracker.ProgressMap, id u
 		nilAwareAdd(&cfg.Learners, id)
 	}
 	prs[id] = &tracker.Progress{
+		Match: 0,
 		// Initializing the Progress with the last index means that the follower
 		// can be probed (with the last index).
 		//
@@ -261,14 +262,13 @@ func (c Changer) initProgress(cfg *tracker.Config, prs tracker.ProgressMap, id u
 		// at all (and will thus likely need a snapshot), though the app may
 		// have applied a snapshot out of band before adding the replica (thus
 		// making the first index the better choice).
-		Next:      c.LastIndex,
-		Match:     0,
-		Inflights: tracker.NewInflights(c.Tracker.MaxInflight),
-		IsLearner: isLearner,
+		Next: c.LastIndex,
 		// When a node is first added, we should mark it as recently active.
 		// Otherwise, CheckQuorum may cause us to step down if it is invoked
 		// before the added node has had a chance to communicate with us.
 		RecentActive: true,
+		Inflights:    tracker.NewInflights(c.Tracker.MaxInflight),
+		IsLearner:    isLearner,
 	}
 }
 
