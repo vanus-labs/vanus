@@ -13,3 +13,122 @@
 // limitations under the License.
 
 package transport
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/linkall-labs/vanus/observability/log"
+	. "github.com/linkall-labs/vanus/proto/pkg/raft"
+	"github.com/linkall-labs/vanus/raft/raftpb"
+	. "github.com/smartystreets/goconvey/convey"
+	"google.golang.org/grpc"
+)
+
+type receiver struct {
+	recvch chan *raftpb.Message
+}
+
+func (r *receiver) Receive(ctx context.Context, msg *raftpb.Message, from uint64, endpoint string) {
+	r.recvch <- msg
+}
+
+var _ Receiver = (*receiver)(nil)
+
+func TestServer(t *testing.T) {
+	Convey("test server", t, func() {
+		serverIP, serverPort := "127.0.0.1", 12000
+		nodeID := uint64(2)
+
+		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", serverPort))
+		if err != nil {
+			log.Error(context.Background(), "failed to listen", map[string]interface{}{
+				"error": err,
+			})
+			os.Exit(-1)
+		}
+		// So(err, ShouldBeNil)
+		receiveResolver := NewSimpleResolver()
+		receiveHost := NewHost(receiveResolver, fmt.Sprintf("%s:%d", serverIP, serverPort))
+		ch := make(chan *raftpb.Message, 15)
+		r := &receiver{
+			recvch: ch,
+		}
+		receiveHost.Register(nodeID, r)
+		raftSrv := NewServer(receiveHost)
+		srv := grpc.NewServer()
+		RegisterRaftServerServer(srv, raftSrv)
+		go func() {
+			if err := srv.Serve(listener); err != nil {
+				panic(err)
+			}
+		}()
+
+		clientIP, clientPort := "127.0.0.1", 11900
+
+		sendResolver := NewSimpleResolver()
+		sendHost := NewHost(sendResolver, fmt.Sprintf("%s:%d", clientIP, clientPort))
+
+		Convey("test Send", func() {
+			msg := &raftpb.Message{
+				To: nodeID,
+			}
+			ctx := context.Background()
+			sendHost.Send(ctx, msg, 100, fmt.Sprintf("%s:%d", serverIP, serverPort))
+
+			var m *raftpb.Message
+			timer := time.NewTimer(3 * time.Second)
+
+		loop:
+			for {
+				select {
+				case m = <-ch:
+					So(m, ShouldResemble, msg)
+					break loop
+				case <-timer.C:
+					So(m, ShouldResemble, msg)
+					break loop
+				}
+			}
+		})
+
+		Convey("test Sendv", func() {
+			msgLen := 5
+			msgs := make([]*raftpb.Message, msgLen)
+			for i := 0; i < msgLen; i++ {
+				msgs[i] = &raftpb.Message{
+					To: nodeID,
+				}
+			}
+			ctx := context.Background()
+			sendHost.Sendv(ctx, msgs, 100, fmt.Sprintf("%s:%d", serverIP, serverPort))
+
+			var m *raftpb.Message
+			timer := time.NewTimer(3 * time.Second)
+			i := 0
+
+		loop:
+			for {
+				select {
+				case m = <-ch:
+					So(m, ShouldResemble, msgs[i])
+					i++
+					timer.Reset(3 * time.Second)
+					if i == msgLen {
+						break loop
+					}
+				case <-timer.C:
+					So(m, ShouldResemble, msgs)
+					break loop
+				}
+			}
+		})
+
+		sendHost.Stop()
+		srv.GracefulStop()
+	})
+}

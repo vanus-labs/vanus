@@ -16,6 +16,7 @@ package transport
 
 import (
 	// standard libraries.
+
 	"testing"
 
 	// third-party libraries.
@@ -23,6 +24,19 @@ import (
 )
 
 func TestResolver(t *testing.T) {
-	Convey("test cloud event marshall and unmarshall", t, func() {
+	Convey("test resolver", t, func() {
+		simpleResolver := NewSimpleResolver()
+		nodeID := 1
+		endpoint := "127.0.0.1:2000"
+		Convey("test Register and Resolve method", func() {
+			simpleResolver.Register(uint64(nodeID), endpoint)
+			So(simpleResolver.Resolve(uint64(nodeID)), ShouldEqual, endpoint)
+			simpleResolver.Register(uint64(nodeID+1), endpoint)
+			So(simpleResolver.Resolve(uint64(nodeID+1)), ShouldEqual, endpoint)
+		})
+		Convey("test Unregister method", func() {
+			simpleResolver.Unregister(uint64(nodeID))
+			So(simpleResolver.Resolve(uint64(nodeID)), ShouldBeEmpty)
+		})
 	})
 }

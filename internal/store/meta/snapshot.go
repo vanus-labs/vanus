@@ -76,7 +76,7 @@ func (s *store) resolveSnapshotPath(version int64) string {
 	return filepath.Join(s.wal.Dir(), fmt.Sprintf("%020d%s", version, snapshotExt))
 }
 
-func recoverLatestSnopshot(dir string, unmarshaler Unmarshaler) (*skiplist.SkipList, int64, error) {
+func recoverLatestSnapshot(dir string, unmarshaler Unmarshaler) (*skiplist.SkipList, int64, error) {
 	// Make sure the snapshot directory exists.
 	if err := os.MkdirAll(dir, defaultDirPerm); err != nil {
 		return nil, 0, err
