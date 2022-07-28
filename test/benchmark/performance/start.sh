@@ -24,13 +24,13 @@ vsctl subscription create --sink http://172.31.59.20:8088 --eventbus performance
 
 # run benchmark
 go build -o vanus-bench test/benchmark/main.go
-nohup ./vanus-bench performance run --number 1000 --parallelism 1 \
+nohup ./vanus-bench performance run --number 10000 --parallelism 1 \
  --endpoint 172.31.59.198:8080 --payload-size 1024 > send.log &
 nohup ./vanus-bench performance receive --port 8088 > receive.log &
 
 # analyse results
-## ./vanus-bench performance analyse --benchmark-id XQO1E7Hf9QWxOYJP --benchmark-type produce
-## ./vanus-bench performance analyse --benchmark-id 5LBbHD3JV8WjM63M --benchmark-type consume
+## ./vanus-bench performance analyse --benchmark-id dsJIoiI9z4upDSxU --benchmark-type produce
+## ./vanus-bench performance analyse --benchmark-id NZOL3c4gRxpb4bWL --benchmark-type consume
 5LBbHD3JV8WjM63M
 # clean resources
 #vsctl eventbus delete performance-1

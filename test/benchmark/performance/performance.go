@@ -87,7 +87,7 @@ func runCommand() *cobra.Command {
 					select {
 					case <-tick.C:
 						tps := success - prev
-						fmt.Printf("Sent: %d, TPS: %d\n", success, tps)
+						log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", success, tps), nil)
 						prev = atomic.LoadInt64(&success)
 					case <-ctx.Done():
 						return
@@ -268,7 +268,7 @@ func receive(_ context.Context, event ce.Event) protocol.Result {
 			for {
 				tps := atomic.LoadInt64(&consumingCnt) - prev
 				prev = atomic.LoadInt64(&consumingCnt)
-				fmt.Printf("Received: %d, TPS: %d\n", consumingCnt, tps)
+				log.Info(nil, fmt.Sprintf("Received: %d, TPS: %d\n", consumingCnt, tps), nil)
 				time.Sleep(time.Second)
 			}
 		}()
