@@ -41,7 +41,7 @@ const (
 	defaultSegmentExpiredTime          = 72 * time.Hour
 	defaultScaleInterval               = time.Second
 	defaultCleanInterval               = time.Second
-	defaultCheckExpiredSegmentInterval = time.Minute
+	defaultCheckExpiredSegmentInterval = time.Second
 )
 
 type Manager interface {
@@ -568,9 +568,8 @@ func (mgr *eventlogManager) checkSegmentExpired(ctx context.Context) {
 				checkCtx := context.Background()
 				for head != nil {
 					switch {
-					case !head.isFull():
-						return true
-					case head.LastEventBornTime.Equal(time.Time{}):
+					case head.LastEventBornTime.Second() == 0:
+						// TODO(wenfeng.wang) fix if set
 						head.LastEventBornTime = time.Now().Add(mgr.segmentExpiredTime)
 						elog.lock()
 						if err := elog.updateSegment(checkCtx, head); err != nil {
@@ -582,6 +581,8 @@ func (mgr *eventlogManager) checkSegmentExpired(ctx context.Context) {
 							head.LastEventBornTime = time.Time{}
 						}
 						elog.unlock()
+						return true
+					case !head.isFull():
 						return true
 					case time.Since(head.LastEventBornTime.Add(mgr.segmentExpiredTime)) > 0:
 						err := elog.deleteHead(ctx)
