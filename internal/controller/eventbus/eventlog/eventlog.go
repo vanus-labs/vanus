@@ -41,7 +41,7 @@ const (
 	defaultSegmentExpiredTime          = 72 * time.Hour
 	defaultScaleInterval               = time.Second
 	defaultCleanInterval               = time.Second
-	defaultCheckExpiredSegmentInterval = time.Second
+	defaultCheckExpiredSegmentInterval = time.Minute
 )
 
 type Manager interface {

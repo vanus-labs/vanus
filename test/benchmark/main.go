@@ -36,7 +36,7 @@ func main() {
 	rootCmd.AddCommand(performance.NewPerformanceCommand())
 
 	rootCmd.PersistentFlags().StringVar(&endpoint, "endpoint",
-		"127.0.0.1:30001", "the endpoints of vanus controller")
+		"127.0.0.1:8080", "the endpoints of vanus controller")
 	if err := rootCmd.Execute(); err != nil {
 		color.Red("vsctl-bench run error: %s", err)
 		os.Exit(-1)
