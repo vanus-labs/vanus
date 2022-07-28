@@ -111,7 +111,7 @@ func receiveCommand() *cobra.Command {
 		Use:   "receive",
 		Short: "vanus performance benchmark program",
 		Run: func(cmd *cobra.Command, args []string) {
-			ls, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+			ls, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 			if err != nil {
 				cmdFailedf(cmd, "init network error: %s", err)
 			}
