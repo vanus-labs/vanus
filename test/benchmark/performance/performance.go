@@ -320,9 +320,6 @@ func analyseConsume(ch chan *ce.Event, f func(his *hdrhistogram.Histogram, unit 
 		cnt++
 		receiveAtStr := e.Extensions()[eventReceivedAt].(string)
 		t, _ := time.Parse(time.RFC3339, receiveAtStr)
-		if cnt < 57000 {
-			continue
-		}
 		latency := t.Sub(e.Time())
 		if err := his.RecordValue(latency.Milliseconds()); err != nil {
 			log.Warning(context.Background(), "histogram error", map[string]interface{}{
