@@ -36,6 +36,7 @@ const (
 
 var (
 	number      int64
+	eventbusNum int
 	parallelism int
 	payLoadSize int
 	eventbus    string
@@ -70,14 +71,16 @@ func runCommand() *cobra.Command {
 			// start
 			var success int64
 			wg := sync.WaitGroup{}
-			wg.Add(parallelism)
+			wg.Add(eventbusNum * parallelism)
 			ctx, cancel := context.WithCancel(context.Background())
-			for idx := 1; idx <= parallelism; idx++ {
+			for idx := 1; idx <= eventbusNum; idx++ {
 				eb := fmt.Sprintf("performance-%d", idx)
-				go func() {
-					run(cmd, endpoint, eb, int(number)/parallelism, &success, false)
-					wg.Done()
-				}()
+				for p := 0; p < parallelism; p++ {
+					go func() {
+						run(cmd, endpoint, eb, int(number)/(eventbusNum*parallelism), &success, false)
+						wg.Done()
+					}()
+				}
 			}
 
 			go func() {
@@ -100,7 +103,8 @@ func runCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().Int64Var(&number, "number", 100000, "the event number")
-	cmd.Flags().IntVar(&parallelism, "parallelism", 8, "")
+	cmd.Flags().IntVar(&eventbusNum, "eventbus-number", 1, "")
+	cmd.Flags().IntVar(&parallelism, "parallelism", 4, "")
 	cmd.Flags().IntVar(&payLoadSize, "payload-size", 64, "byte")
 	cmd.Flags().StringVar(&eventbus, "eventbus", "performance-test", "the eventbus name used to")
 	return cmd
@@ -346,7 +350,7 @@ var (
 
 func genData() map[string]interface{} {
 	once.Do(func() {
-		for idx := 0; idx < parallelism; idx++ {
+		for idx := 0; idx < eventbusNum; idx++ {
 			go func() {
 				rd := rand.New(rand.NewSource(time.Now().UnixNano()))
 				for {
