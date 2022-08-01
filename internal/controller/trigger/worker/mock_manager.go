@@ -10,7 +10,6 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	metadata "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
 // MockManager is a mock of Manager interface.
@@ -129,15 +128,15 @@ func (mr *MockManagerMockRecorder) Stop() *gomock.Call {
 }
 
 // UpdateTriggerWorkerInfo mocks base method.
-func (m *MockManager) UpdateTriggerWorkerInfo(ctx context.Context, addr string, subscriptionIDs []vanus.ID) error {
+func (m *MockManager) UpdateTriggerWorkerInfo(ctx context.Context, addr string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateTriggerWorkerInfo", ctx, addr, subscriptionIDs)
+	ret := m.ctrl.Call(m, "UpdateTriggerWorkerInfo", ctx, addr)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateTriggerWorkerInfo indicates an expected call of UpdateTriggerWorkerInfo.
-func (mr *MockManagerMockRecorder) UpdateTriggerWorkerInfo(ctx, addr, subscriptionIDs interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) UpdateTriggerWorkerInfo(ctx, addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateTriggerWorkerInfo", reflect.TypeOf((*MockManager)(nil).UpdateTriggerWorkerInfo), ctx, addr, subscriptionIDs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateTriggerWorkerInfo", reflect.TypeOf((*MockManager)(nil).UpdateTriggerWorkerInfo), ctx, addr)
 }

@@ -74,6 +74,13 @@ type SubscriptionOffset struct {
 	elOffset       sync.Map
 }
 
+func (offset *SubscriptionOffset) CLear() {
+	offset.elOffset.Range(func(key, value interface{}) bool {
+		offset.elOffset.Delete(key)
+		return true
+	})
+}
+
 func (offset *SubscriptionOffset) EventReceive(info info.OffsetInfo) {
 	o, exist := offset.elOffset.Load(info.EventLogID)
 	if !exist {

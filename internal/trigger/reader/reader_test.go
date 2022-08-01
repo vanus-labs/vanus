@@ -27,7 +27,6 @@ import (
 	"github.com/linkall-labs/vanus/client/pkg/discovery"
 	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
 	"github.com/linkall-labs/vanus/client/pkg/inmemory"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/reader"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -44,7 +43,7 @@ func TestReader(t *testing.T) {
 		SubscriptionID: 1,
 	}
 	events := make(chan info.EventOffset, 10)
-	r := reader.NewReader(conf, map[vanus.ID]uint64{}, events)
+	r := reader.NewReader(conf, events)
 	r.Start()
 	var testC, noneC int
 	var wg sync.WaitGroup

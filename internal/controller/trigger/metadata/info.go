@@ -70,10 +70,10 @@ type Subscription struct {
 	Filters          []*primitive.SubscriptionFilter `json:"filters,omitempty"`
 	Sink             primitive.URI                   `json:"sink,omitempty"`
 	Protocol         string                          `json:"protocol,omitempty"`
-	ProtocolSettings map[string]string               `json:"protocolSettings,omitempty"`
-	EventBus         string                          `json:"eventBus"`
+	ProtocolSettings map[string]string               `json:"protocol_settings,omitempty"`
+	EventBus         string                          `json:"eventbus"`
 	Phase            SubscriptionPhase               `json:"phase"`
-	TriggerWorker    string                          `json:"triggerWorker,omitempty"`
-	InputTransformer *primitive.InputTransformer     `json:"inputTransformer,omitempty"`
+	TriggerWorker    string                          `json:"trigger_worker,omitempty"`
+	InputTransformer *primitive.InputTransformer     `json:"input_transformer,omitempty"`
 	HeartbeatTime    time.Time                       `json:"-"`
 }

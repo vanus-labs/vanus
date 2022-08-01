@@ -29,6 +29,7 @@ enum ErrorCode {
   NOT_LEADER = 7;
   RESOURCE_EXHAUSTED = 8;
   NO_MORE_MESSAGE = 9;
+  RESOURCE_CAN_NOT_OP = 10;
 }
 
 message Error {

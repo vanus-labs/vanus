@@ -22,8 +22,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
+	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
+
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+
+	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
 	"github.com/linkall-labs/vanus/internal/trigger/reader"
@@ -41,6 +44,7 @@ type SubscriptionWorker interface {
 	IsStart() bool
 	GetStopTime() time.Time
 	Change(ctx context.Context, subscription *primitive.Subscription) error
+	ResetOffsetToTimestamp(ctx context.Context, timestamp uint64) (pInfo.ListOffsetInfo, error)
 }
 
 type subscriptionWorker struct {
@@ -59,11 +63,7 @@ func NewSubscriptionWorker(subscription *primitive.Subscription,
 		events:       make(chan info.EventOffset, eventBufferSize),
 		subscription: subscription,
 	}
-	offsetMap := make(map[vanus.ID]uint64)
-	for _, o := range subscription.Offsets {
-		offsetMap[o.EventLogID] = o.Offset
-	}
-	sw.reader = reader.NewReader(getReaderConfig(subscription, config.Controllers), offsetMap, sw.events)
+	sw.reader = reader.NewReader(getReaderConfig(subscription, config.Controllers), sw.events)
 	sw.trigger = trigger.NewTrigger(subscription, subscriptionOffset, getTriggerOptions(config, subscription)...)
 	return sw
 }
@@ -100,6 +100,11 @@ func (w *subscriptionWorker) Change(ctx context.Context, subscription *primitive
 		w.trigger.ChangeConfig(subscription.Config)
 	}
 	return nil
+}
+
+func (w *subscriptionWorker) ResetOffsetToTimestamp(ctx context.Context,
+	timestamp uint64) (pInfo.ListOffsetInfo, error) {
+	return w.reader.SetOffsetToTimestamp(timestamp)
 }
 
 func (w *subscriptionWorker) IsStart() bool {
@@ -150,9 +155,22 @@ func getReaderConfig(sub *primitive.Subscription, controllers []string) reader.C
 	ebVrn := fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s",
 		controllers[0], sub.EventBus,
 		strings.Join(controllers, ","))
+	offsetMap := make(map[vanus.ID]uint64)
+	for _, o := range sub.Offsets {
+		offsetMap[o.EventLogID] = o.Offset
+	}
+	var offsetTimestamp int64
+	if sub.Config.OffsetTimestamp != nil {
+		offsetTimestamp = int64(*sub.Config.OffsetTimestamp)
+	} else {
+		offsetTimestamp = time.Now().Add(-1 * 30 * time.Minute).Unix()
+	}
 	return reader.Config{
-		EventBusName:   sub.EventBus,
-		EventBusVRN:    ebVrn,
-		SubscriptionID: sub.ID,
+		EventBusName:    sub.EventBus,
+		EventBusVRN:     ebVrn,
+		SubscriptionID:  sub.ID,
+		Offset:          offsetMap,
+		OffsetType:      sub.Config.OffsetType,
+		OffsetTimestamp: offsetTimestamp,
 	}
 }

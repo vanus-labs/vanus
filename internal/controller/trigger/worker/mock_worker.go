@@ -10,7 +10,7 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
-	info "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
+	metadata "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
@@ -106,10 +106,10 @@ func (mr *MockTriggerWorkerMockRecorder) GetHeartbeatTime() *gomock.Call {
 }
 
 // GetInfo mocks base method.
-func (m *MockTriggerWorker) GetInfo() info.TriggerWorkerInfo {
+func (m *MockTriggerWorker) GetInfo() metadata.TriggerWorkerInfo {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetInfo")
-	ret0, _ := ret[0].(info.TriggerWorkerInfo)
+	ret0, _ := ret[0].(metadata.TriggerWorkerInfo)
 	return ret0
 }
 
@@ -134,10 +134,10 @@ func (mr *MockTriggerWorkerMockRecorder) GetPendingTime() *gomock.Call {
 }
 
 // GetPhase mocks base method.
-func (m *MockTriggerWorker) GetPhase() info.TriggerWorkerPhase {
+func (m *MockTriggerWorker) GetPhase() metadata.TriggerWorkerPhase {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPhase")
-	ret0, _ := ret[0].(info.TriggerWorkerPhase)
+	ret0, _ := ret[0].(metadata.TriggerWorkerPhase)
 	return ret0
 }
 
@@ -175,6 +175,18 @@ func (mr *MockTriggerWorkerMockRecorder) IsActive() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActive", reflect.TypeOf((*MockTriggerWorker)(nil).IsActive))
 }
 
+// Polish mocks base method.
+func (m *MockTriggerWorker) Polish() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Polish")
+}
+
+// Polish indicates an expected call of Polish.
+func (mr *MockTriggerWorkerMockRecorder) Polish() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Polish", reflect.TypeOf((*MockTriggerWorker)(nil).Polish))
+}
+
 // RemoteStart mocks base method.
 func (m *MockTriggerWorker) RemoteStart(ctx context.Context) error {
 	m.ctrl.T.Helper()
@@ -203,18 +215,6 @@ func (mr *MockTriggerWorkerMockRecorder) RemoteStop(ctx interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoteStop", reflect.TypeOf((*MockTriggerWorker)(nil).RemoteStop), ctx)
 }
 
-// ReportSubscription mocks base method.
-func (m *MockTriggerWorker) ReportSubscription(ids []vanus.ID) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "ReportSubscription", ids)
-}
-
-// ReportSubscription indicates an expected call of ReportSubscription.
-func (mr *MockTriggerWorkerMockRecorder) ReportSubscription(ids interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReportSubscription", reflect.TypeOf((*MockTriggerWorker)(nil).ReportSubscription), ids)
-}
-
 // Reset mocks base method.
 func (m *MockTriggerWorker) Reset() {
 	m.ctrl.T.Helper()
@@ -227,8 +227,22 @@ func (mr *MockTriggerWorkerMockRecorder) Reset() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reset", reflect.TypeOf((*MockTriggerWorker)(nil).Reset))
 }
 
+// ResetOffsetToTimestamp mocks base method.
+func (m *MockTriggerWorker) ResetOffsetToTimestamp(id vanus.ID, timestamp uint64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResetOffsetToTimestamp", id, timestamp)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ResetOffsetToTimestamp indicates an expected call of ResetOffsetToTimestamp.
+func (mr *MockTriggerWorkerMockRecorder) ResetOffsetToTimestamp(id, timestamp interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetOffsetToTimestamp", reflect.TypeOf((*MockTriggerWorker)(nil).ResetOffsetToTimestamp), id, timestamp)
+}
+
 // SetPhase mocks base method.
-func (m *MockTriggerWorker) SetPhase(arg0 info.TriggerWorkerPhase) {
+func (m *MockTriggerWorker) SetPhase(arg0 metadata.TriggerWorkerPhase) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetPhase", arg0)
 }

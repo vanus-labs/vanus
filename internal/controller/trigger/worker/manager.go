@@ -43,7 +43,7 @@ type Manager interface {
 	AddTriggerWorker(ctx context.Context, addr string) error
 	GetTriggerWorker(addr string) TriggerWorker
 	RemoveTriggerWorker(ctx context.Context, addr string)
-	UpdateTriggerWorkerInfo(ctx context.Context, addr string, subscriptionIDs []vanus.ID) error
+	UpdateTriggerWorkerInfo(ctx context.Context, addr string) error
 	GetActiveRunningTriggerWorker() []metadata.TriggerWorkerInfo
 	Init(ctx context.Context) error
 	Start()
@@ -180,7 +180,7 @@ func (m *manager) RemoveTriggerWorker(ctx context.Context, addr string) {
 	m.cleanTriggerWorker(ctx, tWorker)
 }
 
-func (m *manager) UpdateTriggerWorkerInfo(ctx context.Context, addr string, ids []vanus.ID) error {
+func (m *manager) UpdateTriggerWorkerInfo(ctx context.Context, addr string) error {
 	tWorker := m.GetTriggerWorker(addr)
 	if tWorker == nil {
 		return ErrTriggerWorkerNotFound
@@ -199,7 +199,7 @@ func (m *manager) UpdateTriggerWorkerInfo(ctx context.Context, addr string, ids 
 			})
 		}
 	}
-	tWorker.ReportSubscription(ids)
+	tWorker.Polish()
 	return nil
 }
 

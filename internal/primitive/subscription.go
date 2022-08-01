@@ -25,14 +25,24 @@ type Subscription struct {
 	ID               vanus.ID              `json:"id"`
 	Filters          []*SubscriptionFilter `json:"filters,omitempty"`
 	Sink             URI                   `json:"sink,omitempty"`
-	EventBus         string                `json:"eventBus"`
+	EventBus         string                `json:"eventbus"`
 	Offsets          info.ListOffsetInfo   `json:"offsets"`
-	InputTransformer *InputTransformer     `json:"inputTransformer,omitempty"`
+	InputTransformer *InputTransformer     `json:"input_transformer,omitempty"`
 	Config           SubscriptionConfig    `json:"config,omitempty"`
 }
 
+type OffsetType int32
+
+const (
+	LatestOffset   OffsetType = 0
+	EarliestOffset OffsetType = 1
+	Timestamp      OffsetType = 2
+)
+
 type SubscriptionConfig struct {
-	RateLimit int32 `json:"rateLimit,omitempty"`
+	RateLimit       int32      `json:"rate_limit,omitempty"`
+	OffsetType      OffsetType `json:"offset_type"`
+	OffsetTimestamp *uint64    `json:"offset_timestamp"`
 }
 
 func (conf *SubscriptionConfig) Change(curr SubscriptionConfig) bool {
@@ -48,7 +58,7 @@ type SubscriptionFilter struct {
 	Exact  map[string]string     `json:"exact,omitempty"`
 	Prefix map[string]string     `json:"prefix,omitempty"`
 	Suffix map[string]string     `json:"suffix,omitempty"`
-	CeSQL  string                `json:"ceSql,omitempty"`
+	CeSQL  string                `json:"ce_qql,omitempty"`
 	Not    *SubscriptionFilter   `json:"not,omitempty"`
 	All    []*SubscriptionFilter `json:"all,omitempty"`
 	Any    []*SubscriptionFilter `json:"any,omitempty"`

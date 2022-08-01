@@ -17,10 +17,11 @@ package reader
 
 import (
 	"context"
-	stdErr "errors"
 	"io"
 	"sync"
 	"time"
+
+	"github.com/linkall-labs/vanus/internal/primitive"
 
 	"github.com/linkall-labs/vanus/client/pkg/discovery"
 	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
@@ -48,9 +49,12 @@ const (
 )
 
 type Config struct {
-	EventBusName   string
-	EventBusVRN    string
-	SubscriptionID vanus.ID
+	EventBusName    string
+	EventBusVRN     string
+	SubscriptionID  vanus.ID
+	Offset          EventLogOffset
+	OffsetType      primitive.OffsetType
+	OffsetTimestamp int64
 
 	CheckEventLogPeriod time.Duration
 }
@@ -58,6 +62,7 @@ type EventLogOffset map[vanus.ID]uint64
 
 type Reader interface {
 	Start() error
+	SetOffsetToTimestamp(timestamp uint64) (pInfo.ListOffsetInfo, error)
 	Close()
 }
 
@@ -65,25 +70,33 @@ type reader struct {
 	config   Config
 	elReader map[vanus.ID]struct{}
 	events   chan<- info.EventOffset
-	offset   EventLogOffset
 	stop     context.CancelFunc
 	stctx    context.Context
 	wg       sync.WaitGroup
 	lock     sync.Mutex
 }
 
-func NewReader(config Config, offset EventLogOffset, events chan<- info.EventOffset) Reader {
+func NewReader(config Config, events chan<- info.EventOffset) Reader {
 	if config.CheckEventLogPeriod <= 0 {
 		config.CheckEventLogPeriod = checkEventLogPeriod
 	}
+	if config.Offset == nil {
+		config.Offset = map[vanus.ID]uint64{}
+	}
 	r := &reader{
 		config:   config,
-		offset:   offset,
 		events:   events,
 		elReader: map[vanus.ID]struct{}{},
 	}
 	r.stctx, r.stop = context.WithCancel(context.Background())
 	return r
+}
+
+func (r *reader) SetOffsetToTimestamp(timestamp uint64) (pInfo.ListOffsetInfo, error) {
+	// todo get offset from eventbus
+	offsets := make(map[vanus.ID]uint64)
+	r.config.Offset = offsets
+	return pInfo.ListOffsetInfo{}, nil
 }
 
 func (r *reader) Close() {
@@ -93,21 +106,24 @@ func (r *reader) Close() {
 		log.KeyEventbusName: r.config.EventBusName,
 	})
 }
+
 func (r *reader) Start() error {
-	go func() {
-		r.checkEventLogChange()
-		tk := time.NewTicker(r.config.CheckEventLogPeriod)
-		defer tk.Stop()
-		for {
-			select {
-			case <-r.stctx.Done():
-				return
-			case <-tk.C:
-				r.checkEventLogChange()
-			}
-		}
-	}()
+	go r.watchEventLogChange()
 	return nil
+}
+
+func (r *reader) watchEventLogChange() {
+	r.checkEventLogChange()
+	tk := time.NewTicker(r.config.CheckEventLogPeriod)
+	defer tk.Stop()
+	for {
+		select {
+		case <-r.stctx.Done():
+			return
+		case <-tk.C:
+			r.checkEventLogChange()
+		}
+	}
 }
 
 func (r *reader) checkEventLogChange() {
@@ -115,9 +131,6 @@ func (r *reader) checkEventLogChange() {
 	defer cancel()
 	els, err := eb.LookupReadableLogs(ctx, r.config.EventBusVRN)
 	if err != nil {
-		if stdErr.Is(err, context.Canceled) {
-			return
-		}
 		log.Warning(ctx, "eventbus lookup Readable eventlog error", map[string]interface{}{
 			log.KeyEventbusName: r.config.EventBusName,
 			log.KeyError:        err,
@@ -136,9 +149,16 @@ func (r *reader) checkEventLogChange() {
 }
 
 func (r *reader) getOffset(eventLogID vanus.ID) uint64 {
-	offset, exist := r.offset[eventLogID]
+	offset, exist := r.config.Offset[eventLogID]
 	if !exist {
-		offset = 0
+		switch r.config.OffsetType {
+		case primitive.LatestOffset:
+			// todo get offset
+		case primitive.EarliestOffset:
+			// todo get offset
+		case primitive.Timestamp:
+			// todo get offset
+		}
 	}
 	return offset
 }
@@ -174,13 +194,13 @@ func (r *reader) start(els []*record.EventLog) {
 				r.wg.Done()
 				log.Info(r.stctx, "event eventlog reader stop", map[string]interface{}{
 					log.KeyEventlogID: elc.eventLogVrn,
+					"offset":          elc.offset,
 				})
 			}()
 			log.Info(r.stctx, "event eventlog reader start", map[string]interface{}{
 				log.KeyEventlogID: elc.eventLogVrn,
 			})
 			elc.run(r.stctx)
-			r.offset[elc.eventLogID] = elc.offset
 		}()
 	}
 }

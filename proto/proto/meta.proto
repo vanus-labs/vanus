@@ -101,7 +101,15 @@ message Subscription {
 
 message SubscriptionConfig {
   int32 rate_limit = 1;
+  enum OffsetType {
+    LATEST = 0;
+    EARLIEST = 1;
+    TIMESTAMP = 2;
+  }
+  OffsetType offset_type = 2;
+  optional uint64 offset_timestamp = 3;
 }
+
 
 message Filter {
   map<string, string> exact = 1;

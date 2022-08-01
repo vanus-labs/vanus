@@ -62,7 +62,7 @@ func TestInit(t *testing.T) {
 		sub := getTestSubscription()
 		sub.TriggerWorker = addr
 		twManager := NewTriggerWorkerManager(Config{}, workerStorage, subManager, nil)
-		subManager.EXPECT().GetSubscriptionWithOffset(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error"))
+		subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Any()).Return(nil)
 		workerStorage.EXPECT().ListTriggerWorker(ctx).Return([]*metadata.TriggerWorkerInfo{
 			{Addr: addr},
 		}, nil)
@@ -150,18 +150,17 @@ func TestManager_UpdateTriggerWorkerInfo(t *testing.T) {
 		defer ctrl.Finish()
 		tWorker := NewMockTriggerWorker(ctrl)
 		workerStorage := storage.NewMockTriggerWorkerStorage(ctrl)
-		sub := getTestSubscription()
 		twManager := NewTriggerWorkerManager(Config{}, workerStorage, nil, getTestTriggerWorkerRemoveSubscription()).(*manager)
 		Convey("trigger worker not exist", func() {
-			err := twManager.UpdateTriggerWorkerInfo(ctx, addr, []vanus.ID{sub.ID})
+			err := twManager.UpdateTriggerWorkerInfo(ctx, addr)
 			So(err, ShouldNotBeNil)
 		})
-		tWorker.EXPECT().ReportSubscription(gomock.Any()).AnyTimes().Return()
+		tWorker.EXPECT().Polish().AnyTimes().Return()
 		tWorker.EXPECT().GetInfo().AnyTimes().Return(metadata.TriggerWorkerInfo{})
 		Convey("trigger worker running", func() {
 			twManager.triggerWorkers[addr] = tWorker
 			tWorker.EXPECT().GetPhase().AnyTimes().Return(metadata.TriggerWorkerPhaseRunning)
-			err := twManager.UpdateTriggerWorkerInfo(ctx, addr, []vanus.ID{sub.ID})
+			err := twManager.UpdateTriggerWorkerInfo(ctx, addr)
 			So(err, ShouldBeNil)
 		})
 
@@ -171,10 +170,10 @@ func TestManager_UpdateTriggerWorkerInfo(t *testing.T) {
 			tWorker.EXPECT().SetPhase(metadata.TriggerWorkerPhaseRunning).AnyTimes().Return()
 			tWorker.EXPECT().GetAddr().Return(addr)
 			workerStorage.EXPECT().SaveTriggerWorker(gomock.Any(), gomock.Any()).Return(nil)
-			err := twManager.UpdateTriggerWorkerInfo(ctx, addr, []vanus.ID{sub.ID})
+			err := twManager.UpdateTriggerWorkerInfo(ctx, addr)
 			So(err, ShouldBeNil)
 			workerStorage.EXPECT().SaveTriggerWorker(gomock.Any(), gomock.Any()).Return(fmt.Errorf("error"))
-			err = twManager.UpdateTriggerWorkerInfo(ctx, addr, []vanus.ID{sub.ID})
+			err = twManager.UpdateTriggerWorkerInfo(ctx, addr)
 			So(err, ShouldBeNil)
 		})
 	})

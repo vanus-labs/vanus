@@ -74,6 +74,49 @@ type controller struct {
 	state                 primitive.ServerState
 }
 
+func (ctrl *controller) CommitOffset(ctx context.Context, request *ctrlpb.CommitOffsetRequest) (*emptypb.Empty, error) {
+	if ctrl.state != primitive.ServerStateRunning {
+		return nil, errors.ErrServerNotStart
+	}
+	id := vanus.ID(request.SubscriptionInfo.SubscriptionId)
+	offsets := convert.FromPbOffsetInfos(request.SubscriptionInfo.Offsets)
+	err := ctrl.subscriptionManager.Offset(ctx, id, offsets, request.ForceCommit)
+	if err != nil {
+		log.Warning(ctx, "heartbeat commit offset error", map[string]interface{}{
+			log.KeyError:          err,
+			log.KeySubscriptionID: id,
+		})
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (ctrl *controller) ResetOffsetToTimestamp(ctx context.Context,
+	request *ctrlpb.ResetOffsetToTimestampRequest) (*emptypb.Empty, error) {
+	if ctrl.state != primitive.ServerStateRunning {
+		return nil, errors.ErrServerNotStart
+	}
+	if request.Timestamp == 0 {
+		return nil, errors.ErrInvalidRequest.WithMessage("timestamp is invalid")
+	}
+	subID := vanus.ID(request.SubscriptionId)
+	subscriptionData := ctrl.subscriptionManager.GetSubscription(ctx, subID)
+	if subscriptionData == nil {
+		return nil, errors.ErrResourceNotFound.WithMessage("subscription not exist")
+	}
+	if subscriptionData.Phase != metadata.SubscriptionPhaseRunning {
+		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription is not running")
+	}
+	tWorker := ctrl.workerManager.GetTriggerWorker(subscriptionData.TriggerWorker)
+	if tWorker == nil {
+		return nil, errors.ErrInternal.WithMessage("trigger worker is not running")
+	}
+	err := tWorker.ResetOffsetToTimestamp(subID, request.Timestamp)
+	if err != nil {
+		return nil, err
+	}
+	return &emptypb.Empty{}, nil
+}
+
 func (ctrl *controller) CreateSubscription(ctx context.Context,
 	request *ctrlpb.CreateSubscriptionRequest) (*meta.Subscription, error) {
 	if ctrl.state != primitive.ServerStateRunning {
@@ -213,11 +256,19 @@ func (ctrl *controller) TriggerWorkerHeartbeat(
 			log.KeyTriggerWorkerAddr: req.Address,
 			"subscriptionInfo":       req.SubscriptionInfo,
 		})
-		var ids []vanus.ID
+		now := time.Now()
 		for _, subInfo := range req.SubscriptionInfo {
-			ids = append(ids, vanus.ID(subInfo.SubscriptionId))
+			subscriptionID := vanus.ID(subInfo.SubscriptionId)
+			err = ctrl.subscriptionManager.Heartbeat(ctx, subscriptionID, req.Address, now)
+			if err != nil {
+				log.Warning(ctx, "heartbeat subscription heartbeat error", map[string]interface{}{
+					log.KeyError:             err,
+					log.KeyTriggerWorkerAddr: req.Address,
+					log.KeySubscriptionID:    subscriptionID,
+				})
+			}
 		}
-		err = ctrl.workerManager.UpdateTriggerWorkerInfo(ctx, req.Address, ids)
+		err = ctrl.workerManager.UpdateTriggerWorkerInfo(ctx, req.Address)
 		if err != nil {
 			log.Info(context.Background(), "unknown trigger worker", map[string]interface{}{
 				log.KeyTriggerWorkerAddr: req.Address,
@@ -226,7 +277,7 @@ func (ctrl *controller) TriggerWorkerHeartbeat(
 		}
 		for _, subInfo := range req.SubscriptionInfo {
 			offsets := convert.FromPbOffsetInfos(subInfo.Offsets)
-			err = ctrl.subscriptionManager.Offset(ctx, vanus.ID(subInfo.SubscriptionId), offsets)
+			err = ctrl.subscriptionManager.Offset(ctx, vanus.ID(subInfo.SubscriptionId), offsets, false)
 			if err != nil {
 				log.Warning(ctx, "heartbeat commit offset error", map[string]interface{}{
 					log.KeyError:          err,

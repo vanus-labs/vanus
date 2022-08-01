@@ -16,6 +16,7 @@ syntax = "proto3";
 
 package linkall.vanus.trigger;
 
+import "google/protobuf/empty.proto";
 import "config.proto";
 import "meta.proto";
 
@@ -31,6 +32,8 @@ service TriggerWorker {
       returns (PauseSubscriptionResponse);
   rpc ResumeSubscription(ResumeSubscriptionRequest)
       returns (ResumeSubscriptionResponse);
+  rpc ResetOffsetToTimestamp(ResetOffsetToTimestampRequest)
+      returns (google.protobuf.Empty);
 }
 
 message StartTriggerWorkerRequest {
@@ -51,6 +54,7 @@ message AddSubscriptionRequest {
   repeated meta.OffsetInfo offsets = 5;
   meta.InputTransformer input_transformer = 6;
   meta.SubscriptionConfig config = 7;
+  optional uint64 reset_offset_timestamp = 8;
 }
 
 message AddSubscriptionResponse {}
@@ -72,3 +76,8 @@ message ResumeSubscriptionRequest {
 }
 
 message ResumeSubscriptionResponse {}
+
+message ResetOffsetToTimestampRequest {
+  uint64 subscription_id = 1;
+  uint64 timestamp = 2;
+}

@@ -24,18 +24,16 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription/offset"
-	"github.com/linkall-labs/vanus/internal/primitive"
 	iInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type Manager interface {
-	Offset(ctx context.Context, id vanus.ID, offsets iInfo.ListOffsetInfo) error
+	Offset(ctx context.Context, id vanus.ID, offsets iInfo.ListOffsetInfo, commit bool) error
 	GetOffset(ctx context.Context, id vanus.ID) (iInfo.ListOffsetInfo, error)
 	ListSubscription(ctx context.Context) []*metadata.Subscription
 	GetSubscription(ctx context.Context, id vanus.ID) *metadata.Subscription
-	GetSubscriptionWithOffset(ctx context.Context, id vanus.ID) (*primitive.Subscription, error)
 	AddSubscription(ctx context.Context, subscription *metadata.Subscription) error
 	UpdateSubscription(ctx context.Context, subscription *metadata.Subscription) error
 	Heartbeat(ctx context.Context, id vanus.ID, addr string, time time.Time) error
@@ -64,18 +62,18 @@ func NewSubscriptionManager(storage storage.Storage) Manager {
 	return m
 }
 
-func (m *manager) Offset(ctx context.Context, id vanus.ID, offsets iInfo.ListOffsetInfo) error {
+func (m *manager) Offset(ctx context.Context, id vanus.ID, offsets iInfo.ListOffsetInfo, commit bool) error {
 	subData := m.GetSubscription(ctx, id)
 	if subData == nil {
 		return nil
 	}
-	return m.offsetManager.Offset(ctx, id, offsets)
+	return m.offsetManager.Offset(ctx, id, offsets, commit)
 }
 
 func (m *manager) GetOffset(ctx context.Context, id vanus.ID) (iInfo.ListOffsetInfo, error) {
 	subData := m.GetSubscription(ctx, id)
 	if subData == nil {
-		return iInfo.ListOffsetInfo{}, nil
+		return iInfo.ListOffsetInfo{}, ErrSubscriptionNotExist
 	}
 	return m.offsetManager.GetOffset(ctx, id)
 }
@@ -100,29 +98,6 @@ func (m *manager) GetSubscription(ctx context.Context, id vanus.ID) *metadata.Su
 	return sub
 }
 
-func (m *manager) GetSubscriptionWithOffset(ctx context.Context, id vanus.ID) (*primitive.Subscription, error) {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	subData, exist := m.subscriptionMap[id]
-	if !exist || subData.Phase == metadata.SubscriptionPhaseToDelete {
-		return nil, ErrSubscriptionNotExist
-	}
-	offsets, err := m.offsetManager.GetOffset(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	sub := &primitive.Subscription{
-		ID:               subData.ID,
-		Filters:          subData.Filters,
-		Sink:             subData.Sink,
-		EventBus:         subData.EventBus,
-		Offsets:          offsets,
-		InputTransformer: subData.InputTransformer,
-		Config:           subData.Config,
-	}
-	return sub, nil
-}
-
 func (m *manager) AddSubscription(ctx context.Context, sub *metadata.Subscription) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -139,11 +114,14 @@ func (m *manager) AddSubscription(ctx context.Context, sub *metadata.Subscriptio
 func (m *manager) UpdateSubscription(ctx context.Context, sub *metadata.Subscription) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
+	_, exist := m.subscriptionMap[sub.ID]
+	if !exist {
+		return nil
+	}
 	err := m.storage.UpdateSubscription(ctx, sub)
 	if err != nil {
 		return err
 	}
-	m.subscriptionMap[sub.ID] = sub
 	return nil
 }
 
@@ -170,29 +148,19 @@ func (m *manager) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 }
 
 func (m *manager) Heartbeat(ctx context.Context, id vanus.ID, addr string, time time.Time) error {
-	subscriptionData := m.GetSubscription(ctx, id)
-	if subscriptionData == nil {
+	subscription := m.GetSubscription(ctx, id)
+	if subscription == nil {
 		return ErrSubscriptionNotExist
 	}
-	if subscriptionData.TriggerWorker != addr {
-		// 数据不一致了，有bug了
+	if subscription.TriggerWorker != addr {
+		// not same ,has bug ?
 		log.Error(ctx, "subscription trigger worker invalid", map[string]interface{}{
 			log.KeySubscriptionID:    id,
-			log.KeyTriggerWorkerAddr: subscriptionData.TriggerWorker,
+			log.KeyTriggerWorkerAddr: subscription.TriggerWorker,
 			"running_addr":           addr,
 		})
 	}
-	if subscriptionData.Phase != metadata.SubscriptionPhaseRunning {
-		subscriptionData.Phase = metadata.SubscriptionPhaseRunning
-		err := m.UpdateSubscription(ctx, subscriptionData)
-		if err != nil {
-			log.Error(ctx, "storage save subscription phase to running error", map[string]interface{}{
-				log.KeyError:          err,
-				log.KeySubscriptionID: id,
-			})
-		}
-	}
-	subscriptionData.HeartbeatTime = time
+	subscription.HeartbeatTime = time
 	return nil
 }
 

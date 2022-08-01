@@ -20,6 +20,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/linkall-labs/vanus/internal/trigger/errors"
+
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -33,7 +35,9 @@ type Manager interface {
 	AddSubscription(ctx context.Context, subscription *primitive.Subscription) error
 	RemoveSubscription(ctx context.Context, id vanus.ID) error
 	PauseSubscription(ctx context.Context, id vanus.ID) error
+	StartSubscription(ctx context.Context, id vanus.ID) error
 	ListSubscriptionInfo() ([]pInfo.SubscriptionInfo, func())
+	ResetOffsetToTimestamp(ctx context.Context, id vanus.ID, timestamp uint64) (pInfo.ListOffsetInfo, error)
 }
 
 const (
@@ -131,6 +135,28 @@ func (m *manager) PauseSubscription(ctx context.Context, id vanus.ID) error {
 	return nil
 }
 
+func (m *manager) StartSubscription(ctx context.Context, id vanus.ID) error {
+	return m.startSubscription(ctx, id)
+}
+
+func (m *manager) ResetOffsetToTimestamp(ctx context.Context,
+	id vanus.ID,
+	timestamp uint64) (pInfo.ListOffsetInfo, error) {
+	// clean offset
+	subOffset := m.offsetManager.GetSubscription(id)
+	if subOffset == nil {
+		return nil, errors.ErrInternal.WithMessage("get offset is nil")
+	}
+	subOffset.CLear()
+	value, exist := m.subscriptionMap.Load(id)
+	if !exist {
+		return nil, errors.ErrInternal.WithMessage("subscription is nil")
+	}
+	worker, _ := value.(SubscriptionWorker)
+	worker.GetStopTime()
+	return nil, nil
+}
+
 func (m *manager) ListSubscriptionInfo() ([]pInfo.SubscriptionInfo, func()) {
 	list := make([]pInfo.SubscriptionInfo, 0)
 	m.subscriptionMap.Range(func(key, value interface{}) bool {
@@ -160,6 +186,22 @@ func (m *manager) stopSubscription(ctx context.Context, id vanus.ID) {
 	log.Info(ctx, "stop subscription success", map[string]interface{}{
 		log.KeySubscriptionID: id,
 	})
+}
+
+func (m *manager) startSubscription(ctx context.Context, id vanus.ID) error {
+	value, exist := m.subscriptionMap.Load(id)
+	if !exist {
+		return nil
+	}
+	worker, _ := value.(SubscriptionWorker)
+	err := worker.Run(ctx)
+	if err != nil {
+		return err
+	}
+	log.Info(ctx, "start subscription success", map[string]interface{}{
+		log.KeySubscriptionID: id,
+	})
+	return nil
 }
 
 func (m *manager) cleanSubscription(ctx context.Context, id vanus.ID) {

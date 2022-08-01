@@ -17,6 +17,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -191,7 +192,10 @@ func TestCleanSubscription(t *testing.T) {
 			now := time.Now()
 			subWorker.EXPECT().GetStopTime().AnyTimes().Return(now.Add(time.Second))
 			ctxCancel, cancel := context.WithCancel(context.Background())
+			var wg sync.WaitGroup
+			wg.Add(1)
 			go func() {
+				wg.Done()
 				ticker := time.NewTicker(time.Millisecond * 10)
 				for {
 					select {
@@ -205,6 +209,7 @@ func TestCleanSubscription(t *testing.T) {
 			}()
 			m.cleanSubscription(ctx, id)
 			cancel()
+			wg.Wait()
 			So(m.getSubscriptionWorker(id), ShouldBeNil)
 		})
 	})

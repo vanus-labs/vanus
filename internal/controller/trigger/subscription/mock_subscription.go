@@ -11,7 +11,6 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	metadata "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	primitive "github.com/linkall-labs/vanus/internal/primitive"
 	info "github.com/linkall-labs/vanus/internal/primitive/info"
 	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
@@ -96,21 +95,6 @@ func (mr *MockManagerMockRecorder) GetSubscription(ctx, id interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscription", reflect.TypeOf((*MockManager)(nil).GetSubscription), ctx, id)
 }
 
-// GetSubscriptionWithOffset mocks base method.
-func (m *MockManager) GetSubscriptionWithOffset(ctx context.Context, id vanus.ID) (*primitive.Subscription, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSubscriptionWithOffset", ctx, id)
-	ret0, _ := ret[0].(*primitive.Subscription)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSubscriptionWithOffset indicates an expected call of GetSubscriptionWithOffset.
-func (mr *MockManagerMockRecorder) GetSubscriptionWithOffset(ctx, id interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscriptionWithOffset", reflect.TypeOf((*MockManager)(nil).GetSubscriptionWithOffset), ctx, id)
-}
-
 // Heartbeat mocks base method.
 func (m *MockManager) Heartbeat(ctx context.Context, id vanus.ID, addr string, time time.Time) error {
 	m.ctrl.T.Helper()
@@ -154,17 +138,17 @@ func (mr *MockManagerMockRecorder) ListSubscription(ctx interface{}) *gomock.Cal
 }
 
 // Offset mocks base method.
-func (m *MockManager) Offset(ctx context.Context, id vanus.ID, offsets info.ListOffsetInfo) error {
+func (m *MockManager) Offset(ctx context.Context, id vanus.ID, offsets info.ListOffsetInfo, commit bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Offset", ctx, id, offsets)
+	ret := m.ctrl.Call(m, "Offset", ctx, id, offsets, commit)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Offset indicates an expected call of Offset.
-func (mr *MockManagerMockRecorder) Offset(ctx, id, offsets interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) Offset(ctx, id, offsets, commit interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Offset", reflect.TypeOf((*MockManager)(nil).Offset), ctx, id, offsets)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Offset", reflect.TypeOf((*MockManager)(nil).Offset), ctx, id, offsets, commit)
 }
 
 // Start mocks base method.

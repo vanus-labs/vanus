@@ -11,6 +11,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	primitive "github.com/linkall-labs/vanus/internal/primitive"
+	info "github.com/linkall-labs/vanus/internal/primitive/info"
 )
 
 // MockSubscriptionWorker is a mock of SubscriptionWorker interface.
@@ -76,6 +77,21 @@ func (m *MockSubscriptionWorker) IsStart() bool {
 func (mr *MockSubscriptionWorkerMockRecorder) IsStart() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsStart", reflect.TypeOf((*MockSubscriptionWorker)(nil).IsStart))
+}
+
+// ResetOffsetToTimestamp mocks base method.
+func (m *MockSubscriptionWorker) ResetOffsetToTimestamp(ctx context.Context, timestamp uint64) (info.ListOffsetInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResetOffsetToTimestamp", ctx, timestamp)
+	ret0, _ := ret[0].(info.ListOffsetInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResetOffsetToTimestamp indicates an expected call of ResetOffsetToTimestamp.
+func (mr *MockSubscriptionWorkerMockRecorder) ResetOffsetToTimestamp(ctx, timestamp interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetOffsetToTimestamp", reflect.TypeOf((*MockSubscriptionWorker)(nil).ResetOffsetToTimestamp), ctx, timestamp)
 }
 
 // Run mocks base method.

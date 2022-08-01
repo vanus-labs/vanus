@@ -20,6 +20,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/linkall-labs/vanus/internal/primitive/info"
+
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -137,6 +141,50 @@ func (s *server) ResumeSubscription(ctx context.Context,
 		return nil, errors.ErrWorkerNotStart
 	}
 	return &pbtrigger.ResumeSubscriptionResponse{}, nil
+}
+
+func (s *server) ResetOffsetToTimestamp(ctx context.Context,
+	request *pbtrigger.ResetOffsetToTimestampRequest) (*emptypb.Empty, error) {
+	id := vanus.NewIDFromUint64(request.SubscriptionId)
+	err := s.resetOffsetToTimestamp(ctx, id, request.Timestamp)
+	if err != nil {
+		log.Warning(ctx, "reset offset error", map[string]interface{}{
+			log.KeySubscriptionID: id,
+			log.KeyError:          err,
+		})
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (s *server) resetOffsetToTimestamp(ctx context.Context, id vanus.ID, timestamp uint64) error {
+	// pause subscription
+	err := s.worker.PauseSubscription(ctx, id)
+	if err != nil {
+		return err
+	}
+	// reset offset
+	offsets, err := s.worker.ResetOffsetToTimestamp(ctx, id, timestamp)
+	if err != nil {
+		return err
+	}
+	// commit offset
+	err = s.client.commitOffset(ctx, &controller.CommitOffsetRequest{
+		ForceCommit: true,
+		SubscriptionInfo: convert.ToPbSubscriptionInfo(info.SubscriptionInfo{
+			SubscriptionID: id,
+			Offsets:        offsets,
+		}),
+	})
+	if err != nil {
+		return err
+	}
+	// start subscription
+	err = s.worker.StartSubscription(ctx, id)
+	if err != nil {
+		// todo process start fail
+		return err
+	}
+	return err
 }
 
 func (s *server) Initialize(ctx context.Context) error {
