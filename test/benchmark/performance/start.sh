@@ -32,7 +32,7 @@ nohup ./vanus-bench performance-1 receive --endpoint 172.31.54.156:8080 --port 8
 # analyse results
 ## ./vanus-bench performance analyse --benchmark-id bLztrvZHG9qkTNNY --benchmark-type produce
 ## ./vanus-bench performance analyse --benchmark-id NZOL3c4gRxpb4bWL --benchmark-type consume
-5LBbHD3JV8WjM63M
+
 # clean resources
 #vsctl eventbus delete performance-1
 #vsctl subscription delete --id 1234

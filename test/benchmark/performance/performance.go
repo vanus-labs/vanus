@@ -45,6 +45,7 @@ import (
 const (
 	httpPrefix      = "http://"
 	eventReceivedAt = "xreceivedat"
+	eventSentAt     = "xsentat"
 	redisKey        = "/vanus/benchmark/performance"
 )
 
@@ -121,7 +122,7 @@ func runCommand() *cobra.Command {
 	cmd.Flags().Int64Var(&number, "number", 100000, "the event number")
 	cmd.Flags().IntVar(&eventbusNum, "eventbus-number", 1, "")
 	cmd.Flags().IntVar(&parallelism, "parallelism", 4, "")
-	cmd.Flags().IntVar(&payLoadSize, "payload-size", 64, "byte")
+	cmd.Flags().IntVar(&payloadSize, "payload-size", 64, "byte")
 	cmd.Flags().StringVar(&eventbus, "eventbus", "performance-test", "the eventbus name used to")
 	return cmd
 }
@@ -162,6 +163,8 @@ func analyseCommand() *cobra.Command {
 				cmdFailedf(cmd, "benchmark-type can't be empty")
 			}
 			ch := make(chan *ce.Event, 64)
+			wg := sync.WaitGroup{}
+			wg.Add(1)
 			f := func(his *hdrhistogram.Histogram, unit string) {
 				res := his.CumulativeDistribution()
 				for _, v := range res {
@@ -177,14 +180,15 @@ func analyseCommand() *cobra.Command {
 				fmt.Printf("StdDev: %.2f\n", his.StdDev())
 				fmt.Printf("Max: %d %s, Min: %d %s\n", his.Max(), unit, his.Min(), unit)
 				fmt.Println()
+				wg.Done()
 			}
 			dataKey := ""
 			if benchType == "produce" {
 				dataKey = path.Join(redisKey, "send", benchmarkID)
-				go analyseProduce(ch, f)
+				go analyseProduction(ch, f)
 			} else {
 				dataKey = path.Join(redisKey, "receive", benchmarkID)
-				go analyseConsume(ch, f)
+				go analyseConsumption(ch, f)
 			}
 			ctx := context.Background()
 			num := rdb.LLen(ctx, dataKey).Val()
@@ -214,7 +218,7 @@ func analyseCommand() *cobra.Command {
 				time.Sleep(time.Second)
 			}
 			close(ch)
-			time.Sleep(time.Second)
+			wg.Wait()
 			_ = rdb.Close()
 		},
 	}
@@ -264,7 +268,7 @@ func run(cmd *cobra.Command, endpoint, eventbus string, number int, cnt *int64, 
 			} else if httpResult.StatusCode != http.StatusOK {
 				failed++
 			} else {
-				event.SetExtension("xsentat", time.Now())
+				event.SetExtension(eventSentAt, time.Now())
 				cache(&event, "send")
 				atomic.AddInt64(cnt, 1)
 			}
@@ -372,7 +376,7 @@ func genData() map[string]interface{} {
 				rd := rand.New(rand.NewSource(time.Now().UnixNano()))
 				for {
 					m := map[string]interface{}{
-						"data": genStr(rd, payLoadSize),
+						"data": genStr(rd, payloadSize),
 					}
 					ch <- m
 				}
