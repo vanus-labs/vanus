@@ -52,7 +52,7 @@ var (
 	number      int64
 	eventbusNum int
 	parallelism int
-	payLoadSize int
+	payloadSize int
 	eventbus    string
 
 	port        int
