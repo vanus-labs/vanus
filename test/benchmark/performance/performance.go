@@ -100,6 +100,7 @@ func runCommand() *cobra.Command {
 			go func() {
 				var prev int64
 				tick := time.NewTicker(time.Second)
+				defer tick.Stop()
 				for prev < number {
 					select {
 					case <-tick.C:
