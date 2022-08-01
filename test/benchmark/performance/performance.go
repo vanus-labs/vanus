@@ -322,7 +322,7 @@ func cache(e *ce.Event, key string) {
 	}
 }
 
-func analyseProduce(ch chan *ce.Event, f func(his *hdrhistogram.Histogram, unit string)) {
+func analyseProduction(ch <-chan *ce.Event, f func(his *hdrhistogram.Histogram, unit string)) {
 	his := hdrhistogram.New(1, 100, 50)
 	for e := range ch {
 		sentAtStr := e.Extensions()["xsentat"].(string)
