@@ -1,4 +1,5 @@
 #!/bin/bash
+# this script isn't completed now
 
 # variables
 GIT_HASH=$(shell git log -1 --format='%h' | awk '{print $0}')

@@ -17,7 +17,6 @@ package main
 import (
 	// standard libraries.
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"net"
@@ -41,8 +40,6 @@ func main() {
 		})
 		os.Exit(-1)
 	}
-	d, _ := json.Marshal(cfg)
-	println(string(d))
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
