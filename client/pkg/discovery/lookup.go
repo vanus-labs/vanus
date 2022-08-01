@@ -15,11 +15,11 @@
 package discovery
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	"time"
 
-	// this project
+	// this project.
 	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
 	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/primitive"

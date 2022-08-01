@@ -15,16 +15,17 @@
 package eventlog
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
+	stderr "errors"
 	"io"
 	"sort"
 	"sync"
 
-	// third-party libraries
+	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
 
-	// this project
+	// this project.
 	veld "github.com/linkall-labs/vanus/client/internal/vanus/discovery/eventlog"
 	vdr "github.com/linkall-labs/vanus/client/internal/vanus/discovery/record"
 	"github.com/linkall-labs/vanus/client/pkg/discovery"
@@ -150,7 +151,7 @@ func (l *distributedEventLog) Reader() (eventlog.LogReader, error) {
 func (l *distributedEventLog) updateWritableSegment(r *vdr.LogSegment) {
 	if l.writableSegment != nil {
 		if l.writableSegment.ID() == r.ID {
-			l.writableSegment.Update(r, true)
+			_ = l.writableSegment.Update(r, true)
 			return
 		}
 	}
@@ -192,7 +193,7 @@ func (l *distributedEventLog) fetchWritableSegment(ctx context.Context) *logSegm
 }
 
 func (l *distributedEventLog) refreshWritableSegment(ctx context.Context) {
-	l.writableWatcher.Refresh(ctx)
+	_ = l.writableWatcher.Refresh(ctx)
 }
 
 func (l *distributedEventLog) updateReadableSegments(rs []*vdr.LogSegment) {
@@ -264,7 +265,7 @@ func (l *distributedEventLog) fetchReadableSegments(ctx context.Context) []*logS
 }
 
 func (l *distributedEventLog) refreshReadableSegments(ctx context.Context) {
-	l.readableWatcher.Refresh(ctx)
+	_ = l.readableWatcher.Refresh(ctx)
 }
 
 // logWriter is the writer of distributedEventLog.
@@ -369,7 +370,7 @@ func (r *logReader) Close() {
 func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 	if r.cur == nil {
 		segment, err := r.elog.selectReadableSegment(ctx, r.pos)
-		if err == errors.ErrOnEnd {
+		if stderr.Is(err, errors.ErrOnEnd) {
 			r.elog.refreshReadableSegments(ctx)
 			segment, err = r.elog.selectReadableSegment(ctx, r.pos)
 		}
@@ -381,7 +382,7 @@ func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 
 	events, err := r.cur.Read(ctx, r.pos, size)
 	if err != nil {
-		if err == errors.ErrOverflow && r.switchSegment(ctx) {
+		if stderr.Is(err, errors.ErrOverflow) && r.switchSegment(ctx) {
 			return nil, errors.ErrTryAgain
 		}
 		return nil, err
@@ -401,10 +402,9 @@ func (r *logReader) switchSegment(ctx context.Context) bool {
 	if err != nil {
 		r.cur = nil
 		return false
-	} else {
-		r.cur = segment
-		return true
 	}
+	r.cur = segment
+	return true
 }
 
 func (r *logReader) Seek(ctx context.Context, offset int64, whence int) (int64, error) {

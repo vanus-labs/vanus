@@ -15,17 +15,17 @@
 package eventbus
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	stderrors "errors"
 	"fmt"
 	"sync"
 
-	// third-party libraries
+	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/scylladb/go-set/strset"
 
-	// this project
+	// this project.
 	"github.com/linkall-labs/vanus/client/pkg/discovery"
 	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
 	"github.com/linkall-labs/vanus/client/pkg/errors"
@@ -116,7 +116,7 @@ func (b *basicEventBus) updateWritableLogs(ls []*record.EventLog) {
 
 	// diff
 	removed := strset.Difference(b.writableLogs, s)
-	new := strset.Difference(s, b.writableLogs)
+	added := strset.Difference(s, b.writableLogs)
 
 	a := make([]eventlog.LogWriter, 0, len(ls))
 	for _, w := range b.logWriters {
@@ -126,7 +126,7 @@ func (b *basicEventBus) updateWritableLogs(ls []*record.EventLog) {
 			w.Close()
 		}
 	}
-	new.Each(func(vrn string) bool {
+	added.Each(func(vrn string) bool {
 		w, err := eventlog.OpenWriter(vrn)
 		if err != nil {
 			// TODO: open failed, logging
@@ -165,7 +165,7 @@ func (b *basicEventBus) getLogWriters(ctx context.Context) []eventlog.LogWriter 
 }
 
 func (b *basicEventBus) refreshWritableLogs(ctx context.Context) {
-	b.writableWatcher.Refresh(ctx)
+	_ = b.writableWatcher.Refresh(ctx)
 }
 
 type basicBusWriter struct {
@@ -195,7 +195,7 @@ func (w *basicBusWriter) Append(ctx context.Context, event *ce.Event) (string, e
 	}
 
 	// TODO: event id
-	return fmt.Sprintf("vanus:event:%s:%s/%d", w.ebus.cfg.ID, lw.Log().VRN(), off), nil
+	return fmt.Sprintf("vanus:event:%d:%s/%d", w.ebus.cfg.ID, lw.Log().VRN(), off), nil
 }
 
 func (w *basicBusWriter) pickLogWriter(ctx context.Context, event *ce.Event) (eventlog.LogWriter, error) {

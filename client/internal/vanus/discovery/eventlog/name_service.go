@@ -15,12 +15,13 @@
 package eventlog
 
 import (
-	// standard library
+	// standard library.
+	"context"
 	"sort"
 	"strings"
 	"sync"
 
-	// this project
+	// this project.
 	vdr "github.com/linkall-labs/vanus/client/internal/vanus/discovery/record"
 	"github.com/linkall-labs/vanus/client/pkg/discovery"
 )
@@ -37,20 +38,20 @@ type nameService struct {
 	mu    sync.RWMutex
 }
 
-func (ns *nameService) LookupWritableSegment(eventlog *discovery.VRN) (*vdr.LogSegment, error) {
+func (ns *nameService) LookupWritableSegment(ctx context.Context, eventlog *discovery.VRN) (*vdr.LogSegment, error) {
 	impl, err := ns.selectNameServiceImpl(eventlog.Endpoints)
 	if err != nil {
 		return nil, err
 	}
-	return impl.LookupWritableSegment(eventlog)
+	return impl.LookupWritableSegment(ctx, eventlog)
 }
 
-func (ns *nameService) LookupReadableSegments(eventlog *discovery.VRN) ([]*vdr.LogSegment, error) {
+func (ns *nameService) LookupReadableSegments(ctx context.Context, eventlog *discovery.VRN) ([]*vdr.LogSegment, error) {
 	impl, err := ns.selectNameServiceImpl(eventlog.Endpoints)
 	if err != nil {
 		return nil, err
 	}
-	return impl.LookupReadableSegments(eventlog)
+	return impl.LookupReadableSegments(ctx, eventlog)
 }
 
 func (ns *nameService) selectNameServiceImpl(endpoints []string) (*nameServiceImpl, error) {

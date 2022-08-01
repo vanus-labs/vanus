@@ -15,16 +15,22 @@
 package eventlog
 
 import (
+	// standard libraries.
+	"context"
 	"time"
 
+	// this project.
 	vdr "github.com/linkall-labs/vanus/client/internal/vanus/discovery/record"
 	"github.com/linkall-labs/vanus/client/pkg/discovery"
+	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
 )
 
-var (
-	ns = newNameService()
+const (
+	defaultWatchInterval = 30 * time.Second
 )
+
+var ns = newNameService()
 
 type WritableSegmentWatcher struct {
 	*primitive.Watcher
@@ -42,8 +48,8 @@ func (w *WritableSegmentWatcher) Start() {
 func WatchWritableSegment(eventlog *discovery.VRN) (*WritableSegmentWatcher, error) {
 	// TODO: true watch
 	ch := make(chan *vdr.LogSegment, 1)
-	w := primitive.NewWatcher(30*time.Second, func() {
-		r, err := ns.LookupWritableSegment(eventlog)
+	w := primitive.NewWatcher(defaultWatchInterval, func() {
+		r, err := ns.LookupWritableSegment(context.Background(), eventlog)
 		if err != nil {
 			// TODO: logging
 
@@ -78,8 +84,8 @@ func (w *ReadableSegmentsWatcher) Start() {
 func WatchReadableSegments(eventlog *discovery.VRN) (*ReadableSegmentsWatcher, error) {
 	// TODO: true watch
 	ch := make(chan []*vdr.LogSegment, 1)
-	w := primitive.NewWatcher(30*time.Second, func() {
-		rs, err := ns.LookupReadableSegments(eventlog)
+	w := primitive.NewWatcher(defaultWatchInterval, func() {
+		rs, err := ns.LookupReadableSegments(context.Background(), eventlog)
 		if err != nil {
 			// TODO: logging
 
@@ -96,4 +102,31 @@ func WatchReadableSegments(eventlog *discovery.VRN) (*ReadableSegmentsWatcher, e
 		ch:      ch,
 	}
 	return watcher, nil
+}
+
+func LookupEarliestOffset(ctx context.Context, eventlog *discovery.VRN) (int64, error) {
+	rs, err := ns.LookupReadableSegments(ctx, eventlog)
+	if err != nil {
+		return 0, err
+	}
+	if len(rs) == 0 {
+		return 0, errors.ErrNotReadable
+	}
+	return rs[0].StartOffset, nil
+}
+
+func LookupLatestOffset(ctx context.Context, eventlog *discovery.VRN) (int64, error) {
+	rs, err := ns.LookupReadableSegments(ctx, eventlog)
+	if err != nil {
+		return 0, err
+	}
+	if len(rs) == 0 {
+		return 0, errors.ErrNotReadable
+	}
+	return rs[len(rs)-1].EndOffset, nil
+}
+
+func LookupOffset(ctx context.Context, eventlog *discovery.VRN, ts int64) (int64, error) {
+	// TODO(james.yin): lookup offset by timestamp
+	return 0, nil
 }
