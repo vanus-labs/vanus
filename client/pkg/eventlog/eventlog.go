@@ -16,15 +16,22 @@
 package eventlog
 
 import (
+	// standard libraries.
 	"context"
 
+	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
+
+	// first-party libraries.
+	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
+
+	// this project.
 	"github.com/linkall-labs/vanus/client/pkg/discovery"
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
 )
 
 const (
-	XVanusLogOffset = "xvanuslogoffset"
+	XVanusLogOffset = segpb.XVanusLogOffset
 )
 
 type EventLog interface {

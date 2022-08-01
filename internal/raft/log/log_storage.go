@@ -284,7 +284,7 @@ func (l *Log) appendToWAL(entries []raftpb.Entry, suppress bool) ([]int64, error
 	var err error
 	if suppress {
 		_ = l.wal.suppressCompact(func() (compactTask, error) {
-			offsets, err = l.appendToWAL0(entries)
+			offsets, err = l.doAppendToWAL(entries)
 			if err != nil {
 				return compactTask{}, err
 			}
@@ -294,7 +294,7 @@ func (l *Log) appendToWAL(entries []raftpb.Entry, suppress bool) ([]int64, error
 			}, nil
 		})
 	} else {
-		offsets, err = l.appendToWAL0(entries)
+		offsets, err = l.doAppendToWAL(entries)
 	}
 	if err != nil {
 		return nil, err
@@ -302,7 +302,7 @@ func (l *Log) appendToWAL(entries []raftpb.Entry, suppress bool) ([]int64, error
 	return offsets, nil
 }
 
-func (l *Log) appendToWAL0(entries []raftpb.Entry) ([]int64, error) {
+func (l *Log) doAppendToWAL(entries []raftpb.Entry) ([]int64, error) {
 	ents := make([][]byte, len(entries))
 	for i, entry := range entries {
 		// reset node ID.

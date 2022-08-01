@@ -14,4 +14,9 @@
 
 package segment
 
-const XVanusBlockOffset = "xvanusblockoffset"
+const (
+	XVanusBlockOffset = "xvanusblockoffset"
+	XVanusLogOffset   = "xvanuslogoffset"
+	// The timestamp when to write the event to Block.
+	XVanusStime = "xvanusstime"
+)

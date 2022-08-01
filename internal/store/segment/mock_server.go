@@ -110,18 +110,18 @@ func (mr *MockServerMockRecorder) Initialize(arg0 interface{}) *gomock.Call {
 }
 
 // ReadFromBlock mocks base method.
-func (m *MockServer) ReadFromBlock(ctx context.Context, id vanus.ID, off, num int) ([]*v1.CloudEvent, error) {
+func (m *MockServer) ReadFromBlock(ctx context.Context, id vanus.ID, seq int64, num int) ([]*v1.CloudEvent, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadFromBlock", ctx, id, off, num)
+	ret := m.ctrl.Call(m, "ReadFromBlock", ctx, id, seq, num)
 	ret0, _ := ret[0].([]*v1.CloudEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ReadFromBlock indicates an expected call of ReadFromBlock.
-func (mr *MockServerMockRecorder) ReadFromBlock(ctx, id, off, num interface{}) *gomock.Call {
+func (mr *MockServerMockRecorder) ReadFromBlock(ctx, id, seq, num interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFromBlock", reflect.TypeOf((*MockServer)(nil).ReadFromBlock), ctx, id, off, num)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFromBlock", reflect.TypeOf((*MockServer)(nil).ReadFromBlock), ctx, id, seq, num)
 }
 
 // RemoveBlock mocks base method.

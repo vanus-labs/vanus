@@ -329,8 +329,8 @@ linters:
     - godot
     - goimports
     - gomnd
-    #    - gomoddirectives
-    #    - gomodguard
+    #- gomoddirectives
+    #- gomodguard
     - goprintffuncname
     - gosec
     - lll
@@ -351,7 +351,7 @@ linters:
     - tenv
     - tparallel
     - unconvert
-    #    - unparam
+    #- unparam
     - whitespace
     ## disabled
     #- wastedassign
@@ -482,6 +482,14 @@ issues:
         - revive
         - gocritic
     - source: FALLOC_FL_ZERO_RANGE
+      linters:
+        - revive
+        - stylecheck
+    - path: /testing/
+      linters:
+        - gomnd
+    - path: /testing/
+      source: \\. \"github.com/golang/mock/gomock\"||\\. \"github.com/smartystreets/goconvey/convey\"
       linters:
         - revive
         - stylecheck
