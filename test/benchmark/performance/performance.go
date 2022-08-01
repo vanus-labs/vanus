@@ -103,9 +103,10 @@ func runCommand() *cobra.Command {
 				for prev < number {
 					select {
 					case <-tick.C:
-						tps := success - prev
-						log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", success, tps), nil)
-						prev = atomic.LoadInt64(&success)
+						cur := atomic.LoadInt64(&success)
+						tps := cur - prev
+						log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", cur, tps), nil)
+						prev = cur
 					case <-ctx.Done():
 						return
 					}
