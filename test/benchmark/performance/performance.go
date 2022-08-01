@@ -285,9 +285,10 @@ func receive(_ context.Context, event ce.Event) protocol.Result {
 		prev := int64(0)
 		go func() {
 			for {
-				tps := atomic.LoadInt64(&consumingCnt) - prev
-				prev = atomic.LoadInt64(&consumingCnt)
-				log.Info(nil, fmt.Sprintf("Received: %d, TPS: %d\n", consumingCnt, tps), nil)
+				cur := atomic.LoadInt64(&consumingCnt)
+				tps := cur - prev
+				prev = cur
+				log.Info(nil, fmt.Sprintf("Received: %d, TPS: %d\n", cur, tps), nil)
 				time.Sleep(time.Second)
 			}
 		}()
