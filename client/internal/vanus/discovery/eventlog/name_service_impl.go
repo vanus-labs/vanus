@@ -15,14 +15,15 @@
 package eventlog
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
+	stderr "errors"
 	"fmt"
 	"math"
 	"sync"
 	"time"
 
-	// third-party libraries
+	// third-party libraries.
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
@@ -31,18 +32,16 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	// first-party libraries
+	// first-party libraries.
 	ctlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 
-	// this project
+	// this project.
 	vdr "github.com/linkall-labs/vanus/client/internal/vanus/discovery/record"
 	"github.com/linkall-labs/vanus/client/pkg/discovery"
 	"github.com/linkall-labs/vanus/client/pkg/errors"
 )
-
-var ()
 
 func newNameServiceImpl(endpoints []string) (*nameServiceImpl, error) {
 	ns := &nameServiceImpl{
@@ -60,7 +59,7 @@ func newNameServiceImpl(endpoints []string) (*nameServiceImpl, error) {
 }
 
 type nameServiceImpl struct {
-	//client       rpc.Client
+	// client       rpc.Client
 	endpoints    []string
 	grpcConn     map[string]*grpc.ClientConn
 	ctrlClients  map[string]ctlpb.EventLogControllerClient
@@ -70,7 +69,7 @@ type nameServiceImpl struct {
 	credentials  credentials.TransportCredentials
 }
 
-func (ns *nameServiceImpl) LookupWritableSegment(eventlog *discovery.VRN) (*vdr.LogSegment, error) {
+func (ns *nameServiceImpl) LookupWritableSegment(ctx context.Context, eventlog *discovery.VRN) (*vdr.LogSegment, error) {
 	// TODO: use standby segments
 	req := &ctlpb.GetAppendableSegmentRequest{
 		EventLogId: eventlog.ID,
@@ -82,7 +81,6 @@ func (ns *nameServiceImpl) LookupWritableSegment(eventlog *discovery.VRN) (*vdr.
 	if client == nil {
 		return nil, errors.ErrNoControllerLeader
 	}
-	ctx := context.Background()
 	resp, err := client.GetAppendableSegment(ctx, req)
 	if ns.isNeedRetry(err) {
 		client = ns.makeSureClient(true)
@@ -96,13 +94,13 @@ func (ns *nameServiceImpl) LookupWritableSegment(eventlog *discovery.VRN) (*vdr.
 	}
 
 	segments := toSegments(resp.GetSegments())
-	if len(segments) <= 0 {
+	if len(segments) == 0 {
 		return nil, errors.ErrNotWritable
 	}
 	return segments[0], nil
 }
 
-func (ns *nameServiceImpl) LookupReadableSegments(eventlog *discovery.VRN) ([]*vdr.LogSegment, error) {
+func (ns *nameServiceImpl) LookupReadableSegments(ctx context.Context, eventlog *discovery.VRN) ([]*vdr.LogSegment, error) {
 	// TODO: use range
 	req := &ctlpb.ListSegmentRequest{
 		EventLogId:  eventlog.ID,
@@ -116,7 +114,6 @@ func (ns *nameServiceImpl) LookupReadableSegments(eventlog *discovery.VRN) ([]*v
 	if client == nil {
 		return nil, errors.ErrNoControllerLeader
 	}
-	ctx := context.Background()
 	resp, err := client.ListSegment(ctx, req)
 	if ns.isNeedRetry(err) {
 		client = ns.makeSureClient(true)
@@ -175,36 +172,27 @@ func (ns *nameServiceImpl) getGRPCConn(addr string) *grpc.ClientConn {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(ns.credentials))
 	opts = append(opts, grpc.WithBlock())
-	ctx, cancel := context.WithCancel(ctx)
-	timeout := false
-	go func() {
-		ticker := time.Tick(time.Second)
-		select {
-		case <-ctx.Done():
-		case <-ticker:
-			cancel()
-			timeout = true
-		}
-	}()
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
 	conn, err = grpc.DialContext(ctx, addr, opts...)
-	cancel()
-	if timeout {
+	if err != nil {
 		// TODO use log thirds
-		fmt.Printf("dial to: %s controller timeout\n", addr)
-	} else if err != nil {
-		fmt.Printf("dial to: %s controller failed, error:%s\n", addr, err)
-	} else {
-		ns.grpcConn[addr] = conn
-		return conn
+		if stderr.Is(err, context.DeadlineExceeded) {
+			fmt.Printf("dial to: %s controller timeout\n", addr)
+		} else {
+			fmt.Printf("dial to: %s controller failed, error:%s\n", addr, err)
+		}
+		return nil
 	}
-	return nil
+	ns.grpcConn[addr] = conn
+	return conn
 }
 
 func (ns *nameServiceImpl) isNeedRetry(err error) bool {
 	if err == nil {
 		return false
 	}
-	if err == errors.ErrNoControllerLeader {
+	if stderr.Is(err, errors.ErrNoControllerLeader) {
 		return true
 	}
 	sts := status.Convert(err)
@@ -232,8 +220,8 @@ func isConnectionOK(conn *grpc.ClientConn) bool {
 }
 
 func toSegments(segmentpbs []*metapb.Segment) []*vdr.LogSegment {
-	if len(segmentpbs) <= 0 {
-		return make([]*vdr.LogSegment, 0, 0)
+	if len(segmentpbs) == 0 {
+		return make([]*vdr.LogSegment, 0)
 	}
 	segments := make([]*vdr.LogSegment, 0, len(segmentpbs))
 	for _, segmentpb := range segmentpbs {
