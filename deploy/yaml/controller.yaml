@@ -75,6 +75,8 @@ spec:
         app: vanus-controller
     spec:
       containers:
+        - name: node-export
+          iamge: prom/node-export
         - name: controller
           image: public.ecr.aws/vanus/controller:v0.2.0
           imagePullPolicy: IfNotPresent

@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -27,6 +28,7 @@ const (
 )
 
 func RegisterControllerMetrics() {
+	registerGoRuntimeMetrics()
 	prometheus.MustRegister(EventbusGauge)
 	prometheus.MustRegister(EventlogGaugeVec)
 	prometheus.MustRegister(SegmentCounterVec)
@@ -54,6 +56,12 @@ func RegisterSegmentServerMetrics() {
 	prometheus.MustRegister(WriteThroughputCounterVec)
 	prometheus.MustRegister(ReadTPSCounterVec)
 	prometheus.MustRegister(ReadThroughputCounterVec)
+}
+
+func registerGoRuntimeMetrics() {
+	prometheus.MustRegister(collectors.NewBuildInfoCollector())
+	prometheus.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	prometheus.MustRegister(collectors.NewGoCollector(collectors.WithGoCollections(collectors.GoRuntimeMetricsCollection)))
 }
 
 type Config struct {
