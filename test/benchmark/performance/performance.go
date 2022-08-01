@@ -334,7 +334,7 @@ func analyseProduction(ch <-chan *ce.Event, f func(his *hdrhistogram.Histogram, 
 	f(his, "us")
 }
 
-func analyseConsume(ch chan *ce.Event, f func(his *hdrhistogram.Histogram, unit string)) {
+func analyseConsumption(ch <-chan *ce.Event, f func(his *hdrhistogram.Histogram, unit string)) {
 	his := hdrhistogram.New(1, 1000, 50)
 	cnt := 0
 	for e := range ch {
