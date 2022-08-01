@@ -22,13 +22,13 @@ import (
 	"github.com/linkall-labs/vanus/client/internal/vanus/discovery/eventlog"
 )
 
-func LookupEarlestOffset(ctx context.Context, vrn string) (int64, error) {
+func LookupEarliestOffset(ctx context.Context, vrn string) (int64, error) {
 	cfg, err := ParseVRN(vrn)
 	if err != nil {
 		return 0, err
 	}
 	// TODO(james.yin): check scheme.
-	return eventlog.LookupEarlestOffset(ctx, &cfg.VRN)
+	return eventlog.LookupEarliestOffset(ctx, &cfg.VRN)
 }
 
 func LookupLatestOffset(ctx context.Context, vrn string) (int64, error) {

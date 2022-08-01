@@ -104,7 +104,7 @@ func WatchReadableSegments(eventlog *discovery.VRN) (*ReadableSegmentsWatcher, e
 	return watcher, nil
 }
 
-func LookupEarlestOffset(ctx context.Context, eventlog *discovery.VRN) (int64, error) {
+func LookupEarliestOffset(ctx context.Context, eventlog *discovery.VRN) (int64, error) {
 	rs, err := ns.LookupReadableSegments(ctx, eventlog)
 	if err != nil {
 		return 0, err

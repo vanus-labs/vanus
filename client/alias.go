@@ -38,9 +38,9 @@ var (
 	// OpenLogReader open a Reader of EventLog identified by vrn.
 	OpenLogReader = eventlog.OpenReader
 
-	LookupEarlestLogOffset = eventlog.LookupEarlestOffset
-	LookupLatestLogOffset  = eventlog.LookupLatestOffset
-	LookupLogOffset        = eventlog.LookupOffest
+	LookupEarliestLogOffset = eventlog.LookupEarliestOffset
+	LookupLatestLogOffset   = eventlog.LookupLatestOffset
+	LookupLogOffset         = eventlog.LookupOffest
 )
 
 func init() {
