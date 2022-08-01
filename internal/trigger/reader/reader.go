@@ -17,16 +17,16 @@ package reader
 
 import (
 	"context"
+	"encoding/binary"
 	"io"
 	"sync"
 	"time"
-
-	"github.com/linkall-labs/vanus/internal/primitive"
 
 	"github.com/linkall-labs/vanus/client/pkg/discovery"
 	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
 	eberrors "github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
+	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/errors"
@@ -62,13 +62,13 @@ type EventLogOffset map[vanus.ID]uint64
 
 type Reader interface {
 	Start() error
-	SetOffsetToTimestamp(timestamp uint64) (pInfo.ListOffsetInfo, error)
+	GetOffsetByTimestamp(ctx context.Context, timestamp int64) (pInfo.ListOffsetInfo, error)
 	Close()
 }
 
 type reader struct {
 	config   Config
-	elReader map[vanus.ID]struct{}
+	elReader map[vanus.ID]string
 	events   chan<- info.EventOffset
 	stop     context.CancelFunc
 	stctx    context.Context
@@ -86,16 +86,25 @@ func NewReader(config Config, events chan<- info.EventOffset) Reader {
 	r := &reader{
 		config:   config,
 		events:   events,
-		elReader: map[vanus.ID]struct{}{},
+		elReader: make(map[vanus.ID]string),
 	}
 	r.stctx, r.stop = context.WithCancel(context.Background())
 	return r
 }
 
-func (r *reader) SetOffsetToTimestamp(timestamp uint64) (pInfo.ListOffsetInfo, error) {
-	// todo get offset from eventbus
-	offsets := make(map[vanus.ID]uint64)
-	r.config.Offset = offsets
+func (r *reader) GetOffsetByTimestamp(ctx context.Context, timestamp int64) (pInfo.ListOffsetInfo, error) {
+	offsets := make(pInfo.ListOffsetInfo, 0, len(r.elReader))
+	for id, elVRN := range r.elReader {
+		offset, err := eb.LookupLogOffset(ctx, elVRN, timestamp)
+		if err != nil {
+			return offsets, err
+		}
+		offsets = append(offsets, pInfo.OffsetInfo{
+			EventLogID: id,
+			Offset:     uint64(offset),
+		})
+	}
+
 	return pInfo.ListOffsetInfo{}, nil
 }
 
@@ -148,19 +157,31 @@ func (r *reader) checkEventLogChange() {
 	}
 }
 
-func (r *reader) getOffset(eventLogID vanus.ID) uint64 {
+func (r *reader) getOffset(ctx context.Context, eventLogID vanus.ID, elVRN string) (uint64, error) {
 	offset, exist := r.config.Offset[eventLogID]
 	if !exist {
 		switch r.config.OffsetType {
 		case primitive.LatestOffset:
-			// todo get offset
+			v, err := eb.LookupLatestLogOffset(ctx, elVRN)
+			if err != nil {
+				return 0, err
+			}
+			offset = uint64(v)
 		case primitive.EarliestOffset:
-			// todo get offset
+			v, err := eb.LookupEarliestLogOffset(ctx, elVRN)
+			if err != nil {
+				return 0, err
+			}
+			offset = uint64(v)
 		case primitive.Timestamp:
-			// todo get offset
+			v, err := eb.LookupLogOffset(ctx, elVRN, r.config.OffsetTimestamp)
+			if err != nil {
+				return 0, err
+			}
+			offset = uint64(v)
 		}
 	}
-	return offset
+	return offset, nil
 }
 
 func (r *reader) start(els []*record.EventLog) {
@@ -169,7 +190,7 @@ func (r *reader) start(els []*record.EventLog) {
 	for _, el := range els {
 		vrn, err := discovery.ParseVRN(el.VRN)
 		if err != nil {
-			log.Error(r.stctx, "event log vrn prase error", map[string]interface{}{
+			log.Error(r.stctx, "event log vrn parse error", map[string]interface{}{
 				log.KeyError: err,
 			})
 			continue
@@ -179,15 +200,21 @@ func (r *reader) start(els []*record.EventLog) {
 		if _, exist := r.elReader[eventLogID]; exist {
 			continue
 		}
-
+		offset, err := r.getOffset(r.stctx, eventLogID, el.VRN)
+		if err != nil {
+			log.Error(r.stctx, "event log get offset error", map[string]interface{}{
+				log.KeyError: err,
+			})
+			continue
+		}
 		elc := &eventLogReader{
 			config:      r.config,
 			eventLogVrn: el.VRN,
 			eventLogID:  eventLogID,
 			events:      r.events,
-			offset:      r.getOffset(eventLogID),
+			offset:      offset,
 		}
-		r.elReader[elc.eventLogID] = struct{}{}
+		r.elReader[elc.eventLogID] = el.VRN
 		r.wg.Add(1)
 		go func() {
 			defer func() {
@@ -286,12 +313,14 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventlog.LogRe
 		return errors.ErrReadNoEvent
 	}
 	for i := range events {
-		elReader.offset++
-		e := info.EventOffset{Event: events[i], OffsetInfo: pInfo.OffsetInfo{
+		e := events[i]
+		offsetByte, _ := e.Extensions()[eventlog.XVanusLogOffset].([]byte)
+		offset := binary.BigEndian.Uint64(offsetByte)
+		eo := info.EventOffset{Event: events[i], OffsetInfo: pInfo.OffsetInfo{
 			EventLogID: elReader.eventLogID,
-			Offset:     elReader.offset,
+			Offset:     offset,
 		}}
-		if err = elReader.sendEvent(ctx, e); err != nil {
+		if err = elReader.sendEvent(ctx, eo); err != nil {
 			return err
 		}
 	}

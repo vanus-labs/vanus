@@ -37,9 +37,7 @@ func NewOffsetManager() *Manager {
 func (m *Manager) RegisterSubscription(id vanus.ID) *SubscriptionOffset {
 	subOffset, exist := m.subOffset.Load(id)
 	if !exist {
-		sub := &SubscriptionOffset{
-			subscriptionID: id,
-		}
+		sub := NewSubscriptionOffset(id)
 		subOffset, _ = m.subOffset.LoadOrStore(id, sub)
 	}
 	return subOffset.(*SubscriptionOffset)
@@ -69,6 +67,12 @@ func (m *Manager) GetLastCommitTime() time.Time {
 	return m.lastCommitTime
 }
 
+func NewSubscriptionOffset(id vanus.ID) *SubscriptionOffset {
+	return &SubscriptionOffset{
+		subscriptionID: id,
+	}
+}
+
 type SubscriptionOffset struct {
 	subscriptionID vanus.ID
 	elOffset       sync.Map
@@ -84,7 +88,7 @@ func (offset *SubscriptionOffset) CLear() {
 func (offset *SubscriptionOffset) EventReceive(info info.OffsetInfo) {
 	o, exist := offset.elOffset.Load(info.EventLogID)
 	if !exist {
-		o, _ = offset.elOffset.LoadOrStore(info.EventLogID, initOffset(info.Offset))
+		o, _ = offset.elOffset.LoadOrStore(info.EventLogID, initOffset(info.Offset-1))
 	}
 	o.(*offsetTracker).putOffset(info.Offset)
 }
@@ -111,14 +115,15 @@ func (offset *SubscriptionOffset) GetCommit() info.ListOffsetInfo {
 }
 
 type offsetTracker struct {
-	mutex     sync.Mutex
-	maxOffset uint64
-	list      *skiplist.SkipList
+	mutex      sync.Mutex
+	maxOffset  uint64
+	initOffset uint64
+	list       *skiplist.SkipList
 }
 
 func initOffset(initOffset uint64) *offsetTracker {
 	return &offsetTracker{
-		maxOffset: initOffset,
+		initOffset: initOffset,
 		list: skiplist.New(skiplist.GreaterThanFunc(func(lhs, rhs interface{}) int {
 			v1, _ := lhs.(uint64)
 			v2, _ := rhs.(uint64)
@@ -149,7 +154,10 @@ func (o *offsetTracker) offsetToCommit() uint64 {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 	if o.list.Len() == 0 {
-		return o.maxOffset
+		if o.maxOffset == 0 {
+			return o.initOffset
+		}
+		return o.maxOffset + 1
 	}
-	return o.list.Front().Key().(uint64) - 1
+	return o.list.Front().Key().(uint64)
 }

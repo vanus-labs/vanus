@@ -146,7 +146,7 @@ func (s *server) ResumeSubscription(ctx context.Context,
 func (s *server) ResetOffsetToTimestamp(ctx context.Context,
 	request *pbtrigger.ResetOffsetToTimestampRequest) (*emptypb.Empty, error) {
 	id := vanus.NewIDFromUint64(request.SubscriptionId)
-	err := s.resetOffsetToTimestamp(ctx, id, request.Timestamp)
+	err := s.resetOffsetToTimestamp(ctx, id, int64(request.Timestamp))
 	if err != nil {
 		log.Warning(ctx, "reset offset error", map[string]interface{}{
 			log.KeySubscriptionID: id,
@@ -156,7 +156,8 @@ func (s *server) ResetOffsetToTimestamp(ctx context.Context,
 	return &emptypb.Empty{}, nil
 }
 
-func (s *server) resetOffsetToTimestamp(ctx context.Context, id vanus.ID, timestamp uint64) error {
+// todo refactor
+func (s *server) resetOffsetToTimestamp(ctx context.Context, id vanus.ID, timestamp int64) error {
 	// pause subscription
 	err := s.worker.PauseSubscription(ctx, id)
 	if err != nil {

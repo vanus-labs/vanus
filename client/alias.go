@@ -40,7 +40,7 @@ var (
 
 	LookupEarliestLogOffset = eventlog.LookupEarliestOffset
 	LookupLatestLogOffset   = eventlog.LookupLatestOffset
-	LookupLogOffset         = eventlog.LookupOffest
+	LookupLogOffset         = eventlog.LookupOffset
 )
 
 func init() {

@@ -44,34 +44,35 @@ type SubscriptionWorker interface {
 	IsStart() bool
 	GetStopTime() time.Time
 	Change(ctx context.Context, subscription *primitive.Subscription) error
-	ResetOffsetToTimestamp(ctx context.Context, timestamp uint64) (pInfo.ListOffsetInfo, error)
+	ResetOffsetToTimestamp(ctx context.Context, timestamp int64) (pInfo.ListOffsetInfo, error)
 }
 
 type subscriptionWorker struct {
-	subscription *primitive.Subscription
-	trigger      *trigger.Trigger
-	events       chan info.EventOffset
-	reader       reader.Reader
-	stopTime     time.Time
-	startTime    time.Time
+	subscription       *primitive.Subscription
+	subscriptionOffset *offset.SubscriptionOffset
+	config             Config
+	trigger            *trigger.Trigger
+	events             chan info.EventOffset
+	reader             reader.Reader
+	stopTime           time.Time
+	startTime          time.Time
 }
 
 func NewSubscriptionWorker(subscription *primitive.Subscription,
 	subscriptionOffset *offset.SubscriptionOffset,
 	config Config) SubscriptionWorker {
 	sw := &subscriptionWorker{
-		events:       make(chan info.EventOffset, eventBufferSize),
-		subscription: subscription,
+		config:             config,
+		subscription:       subscription,
+		subscriptionOffset: subscriptionOffset,
 	}
-	sw.reader = reader.NewReader(getReaderConfig(subscription, config.Controllers), sw.events)
-	sw.trigger = trigger.NewTrigger(subscription, subscriptionOffset, getTriggerOptions(config, subscription)...)
 	return sw
 }
 
-func getTriggerOptions(cfg Config, subscription *primitive.Subscription) []trigger.Option {
+func (w *subscriptionWorker) getTriggerOptions() []trigger.Option {
 	opts := make([]trigger.Option, 0)
-	rateLimit := cfg.RateLimit
-	config := subscription.Config
+	rateLimit := w.config.RateLimit
+	config := w.subscription.Config
 	if config.RateLimit != 0 {
 		rateLimit = config.RateLimit
 	}
@@ -103,8 +104,13 @@ func (w *subscriptionWorker) Change(ctx context.Context, subscription *primitive
 }
 
 func (w *subscriptionWorker) ResetOffsetToTimestamp(ctx context.Context,
-	timestamp uint64) (pInfo.ListOffsetInfo, error) {
-	return w.reader.SetOffsetToTimestamp(timestamp)
+	timestamp int64) (pInfo.ListOffsetInfo, error) {
+	offsets, err := w.reader.GetOffsetByTimestamp(ctx, timestamp)
+	if err != nil {
+		return nil, err
+	}
+	w.subscription.Offsets = offsets
+	return offsets, nil
 }
 
 func (w *subscriptionWorker) IsStart() bool {
@@ -116,6 +122,9 @@ func (w *subscriptionWorker) GetStopTime() time.Time {
 }
 
 func (w *subscriptionWorker) Run(ctx context.Context) error {
+	w.events = make(chan info.EventOffset, eventBufferSize)
+	w.reader = reader.NewReader(getReaderConfig(w.subscription, w.config.Controllers), w.events)
+	w.trigger = trigger.NewTrigger(w.subscription, w.subscriptionOffset, w.getTriggerOptions()...)
 	err := w.reader.Start()
 	if err != nil {
 		return err

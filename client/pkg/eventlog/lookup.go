@@ -40,7 +40,7 @@ func LookupLatestOffset(ctx context.Context, vrn string) (int64, error) {
 	return eventlog.LookupLatestOffset(ctx, &cfg.VRN)
 }
 
-func LookupOffest(ctx context.Context, vrn string, ts int64) (int64, error) {
+func LookupOffset(ctx context.Context, vrn string, ts int64) (int64, error) {
 	cfg, err := ParseVRN(vrn)
 	if err != nil {
 		return 0, err

@@ -15,6 +15,7 @@
 package offset
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/linkall-labs/vanus/internal/primitive/info"
@@ -70,40 +71,74 @@ func TestRemoveSubscription(t *testing.T) {
 }
 
 func TestSubscriptionOffset(t *testing.T) {
-	eventLogID := vanus.ID(1)
-	subOffset := &SubscriptionOffset{subscriptionID: 1}
 	Convey("subscription offset", t, func() {
-		offsetBegin := uint64(1)
-		offsetEnd := uint64(100)
-		for offset := offsetBegin; offset <= offsetEnd; offset++ {
-			subOffset.EventReceive(info.OffsetInfo{
-				EventLogID: 1,
-				Offset:     offset,
-			})
-		}
-		commitEnd := offsetBegin + 10
-		for offset := offsetBegin; offset <= commitEnd; offset++ {
-			subOffset.EventCommit(info.OffsetInfo{
-				EventLogID: eventLogID,
-				Offset:     offset,
-			})
-		}
-		commits := subOffset.GetCommit()
-		So(1, ShouldEqual, len(commits))
-		So(commitEnd, ShouldEqual, commits[0].Offset)
-		offsetBegin = commitEnd
-		commitEnd = offsetEnd
-		for offset := offsetBegin; offset <= commitEnd; offset++ {
-			subOffset.EventCommit(info.OffsetInfo{
-				EventLogID: eventLogID,
-				Offset:     offset,
-			})
-		}
-		commits = subOffset.GetCommit()
-		So(1, ShouldEqual, len(commits))
-		So(offsetEnd, ShouldEqual, commits[0].Offset)
-		commits = subOffset.GetCommit()
-		So(1, ShouldEqual, len(commits))
-		So(offsetEnd, ShouldEqual, commits[0].Offset)
+		eventLogID := vanus.NewID()
+		Convey("commit with no receive", func() {
+			subOffset := NewSubscriptionOffset(vanus.NewID())
+			offsetBegin := uint64(1)
+			commitEnd := offsetBegin + 10
+			for offset := offsetBegin; offset < commitEnd; offset++ {
+				subOffset.EventCommit(info.OffsetInfo{
+					EventLogID: eventLogID,
+					Offset:     offset,
+				})
+			}
+			commits := subOffset.GetCommit()
+			So(0, ShouldEqual, len(commits))
+		})
+		Convey("commit with receive", func() {
+			subOffset := NewSubscriptionOffset(vanus.NewID())
+			offsetBegin := uint64(1)
+			offsetEnd := uint64(100)
+			var wg sync.WaitGroup
+			for offset := offsetBegin; offset < offsetEnd; offset++ {
+				wg.Add(1)
+				go func(offset uint64) {
+					defer wg.Done()
+					subOffset.EventReceive(info.OffsetInfo{
+						EventLogID: eventLogID,
+						Offset:     offset,
+					})
+				}(offset)
+			}
+			wg.Wait()
+			commitEnd := offsetBegin + 10
+			for offset := offsetBegin; offset < commitEnd; offset++ {
+				wg.Add(1)
+				go func(offset uint64) {
+					defer wg.Done()
+					subOffset.EventCommit(info.OffsetInfo{
+						EventLogID: eventLogID,
+						Offset:     offset,
+					})
+				}(offset)
+			}
+			wg.Wait()
+			commits := subOffset.GetCommit()
+			So(1, ShouldEqual, len(commits))
+			So(commitEnd, ShouldEqual, commits[0].Offset)
+			offsetBegin = commitEnd
+			commitEnd = offsetEnd
+			for offset := offsetBegin; offset <= commitEnd; offset++ {
+				wg.Add(1)
+				go func(offset uint64) {
+					defer wg.Done()
+					subOffset.EventCommit(info.OffsetInfo{
+						EventLogID: eventLogID,
+						Offset:     offset,
+					})
+				}(offset)
+			}
+			wg.Wait()
+			commits = subOffset.GetCommit()
+			So(1, ShouldEqual, len(commits))
+			So(offsetEnd, ShouldEqual, commits[0].Offset)
+			commits = subOffset.GetCommit()
+			So(1, ShouldEqual, len(commits))
+			So(offsetEnd, ShouldEqual, commits[0].Offset)
+			subOffset.CLear()
+			commits = subOffset.GetCommit()
+			So(0, ShouldEqual, len(commits))
+		})
 	})
 }

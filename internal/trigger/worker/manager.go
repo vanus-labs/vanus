@@ -37,7 +37,7 @@ type Manager interface {
 	PauseSubscription(ctx context.Context, id vanus.ID) error
 	StartSubscription(ctx context.Context, id vanus.ID) error
 	ListSubscriptionInfo() ([]pInfo.SubscriptionInfo, func())
-	ResetOffsetToTimestamp(ctx context.Context, id vanus.ID, timestamp uint64) (pInfo.ListOffsetInfo, error)
+	ResetOffsetToTimestamp(ctx context.Context, id vanus.ID, timestamp int64) (pInfo.ListOffsetInfo, error)
 }
 
 const (
@@ -141,7 +141,7 @@ func (m *manager) StartSubscription(ctx context.Context, id vanus.ID) error {
 
 func (m *manager) ResetOffsetToTimestamp(ctx context.Context,
 	id vanus.ID,
-	timestamp uint64) (pInfo.ListOffsetInfo, error) {
+	timestamp int64) (pInfo.ListOffsetInfo, error) {
 	// clean offset
 	subOffset := m.offsetManager.GetSubscription(id)
 	if subOffset == nil {
@@ -153,8 +153,7 @@ func (m *manager) ResetOffsetToTimestamp(ctx context.Context,
 		return nil, errors.ErrInternal.WithMessage("subscription is nil")
 	}
 	worker, _ := value.(SubscriptionWorker)
-	worker.GetStopTime()
-	return nil, nil
+	return worker.ResetOffsetToTimestamp(ctx, timestamp)
 }
 
 func (m *manager) ListSubscriptionInfo() ([]pInfo.SubscriptionInfo, func()) {

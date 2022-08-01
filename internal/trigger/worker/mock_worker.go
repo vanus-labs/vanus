@@ -80,7 +80,7 @@ func (mr *MockSubscriptionWorkerMockRecorder) IsStart() *gomock.Call {
 }
 
 // ResetOffsetToTimestamp mocks base method.
-func (m *MockSubscriptionWorker) ResetOffsetToTimestamp(ctx context.Context, timestamp uint64) (info.ListOffsetInfo, error) {
+func (m *MockSubscriptionWorker) ResetOffsetToTimestamp(ctx context.Context, timestamp int64) (info.ListOffsetInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResetOffsetToTimestamp", ctx, timestamp)
 	ret0, _ := ret[0].(info.ListOffsetInfo)
