@@ -30,6 +30,24 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+type TestRaftSrv struct {
+	recvch chan *raftpb.Message
+}
+
+func (s *TestRaftSrv) SendMessage(stream RaftServer_SendMessageServer) error {
+	_, err := stream.Recv()
+	if err != nil {
+		return err
+	}
+	for {
+		msg, err2 := stream.Recv()
+		if err2 != nil {
+			return err2
+		}
+		s.recvch <- msg
+	}
+}
+
 func TestPeer(t *testing.T) {
 	serverIP, serverPort := "127.0.0.1", 12040
 	nodeID := uint64(2)
@@ -41,19 +59,12 @@ func TestPeer(t *testing.T) {
 		})
 		os.Exit(-1)
 	}
-	receiveResolver := NewSimpleResolver()
-	receiveHost := NewHost(receiveResolver, fmt.Sprintf("%s:%d", serverIP, serverPort))
 	ch := make(chan *raftpb.Message, 10)
-	receiveHost.Register(nodeID, &receiver{
-		recvch: ch,
-	})
-	raftSrv := NewServer(receiveHost)
 	srv := grpc.NewServer()
+	raftSrv := &TestRaftSrv{recvch: ch}
 	RegisterRaftServerServer(srv, raftSrv)
 	go func() {
-		if err := srv.Serve(listener); err != nil {
-			panic(err)
-		}
+		srv.Serve(listener)
 	}()
 	ctx := context.Background()
 	p := newPeer(fmt.Sprintf("%s:%d", serverIP, serverPort), "")
@@ -102,7 +113,7 @@ func TestPeer(t *testing.T) {
 		}
 	})
 
-	Convey("test peer Sendv", t, func() {
+	Convey("test peer Sendv and reconnect", t, func() {
 		msgLen := 5
 		msgs := make([]*raftpb.Message, msgLen)
 		for i := 0; i < msgLen; i++ {
@@ -112,7 +123,12 @@ func TestPeer(t *testing.T) {
 		}
 		timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
 		defer cannel()
+
+		srv.Stop() // stop the raftsrv to test peer reconnect
 		p.Sendv(timeoutCtx, msgs)
+		go func() {
+			srv.Serve(listener)
+		}() // restart the raftsrv
 
 		for i := 0; i < msgLen; i++ {
 			for j := 0; j < 3; j++ {
