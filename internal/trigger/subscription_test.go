@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package worker
+package trigger
 
 import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/linkall-labs/vanus/internal/trigger/trigger"
 
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/primitive"
@@ -44,11 +46,9 @@ func TestSubscriptionWorker(t *testing.T) {
 				RateLimit: 1000,
 			},
 		}
-		offsetManager := offset.NewOffsetManager()
-		offsetManager.RemoveSubscription(id)
-		subscriptionOffset := offsetManager.GetSubscription(id)
+		subscriptionOffset := offset.NewSubscriptionOffset(id)
 		w := NewSubscriptionWorker(subscription, subscriptionOffset, Config{
-			Controllers: []string{"test"},
+			ControllerAddr: []string{"test"},
 		}).(*subscriptionWorker)
 		w.reader = r
 		r.EXPECT().Start().AnyTimes().Return(nil)
@@ -71,9 +71,10 @@ func TestSubscriptionWorker_Change(t *testing.T) {
 		id := vanus.NewID()
 		w := NewSubscriptionWorker(&primitive.Subscription{
 			ID: id,
-		}, nil, Config{
-			Controllers: []string{"test"},
-		})
+		}, offset.NewSubscriptionOffset(id), Config{
+			ControllerAddr: []string{"test"},
+		}).(*subscriptionWorker)
+		w.trigger = trigger.NewTrigger(w.subscription, w.subscriptionOffset)
 		Convey("change target", func() {
 			err := w.Change(ctx, &primitive.Subscription{Sink: "test_sink"})
 			So(err, ShouldBeNil)

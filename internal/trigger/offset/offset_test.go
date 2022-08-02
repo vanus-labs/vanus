@@ -136,7 +136,7 @@ func TestSubscriptionOffset(t *testing.T) {
 			commits = subOffset.GetCommit()
 			So(1, ShouldEqual, len(commits))
 			So(offsetEnd, ShouldEqual, commits[0].Offset)
-			subOffset.CLear()
+			subOffset.Clear()
 			commits = subOffset.GetCommit()
 			So(0, ShouldEqual, len(commits))
 		})

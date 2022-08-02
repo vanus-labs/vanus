@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=worker.go  -destination=mock_worker.go -package=worker
-package worker
+//go:generate mockgen -source=subscription.go  -destination=mock_subscription.go -package=trigger
+package trigger
 
 import (
 	"context"
@@ -22,11 +22,9 @@ import (
 	"strings"
 	"time"
 
-	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
-
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-
 	"github.com/linkall-labs/vanus/internal/primitive"
+	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
 	"github.com/linkall-labs/vanus/internal/trigger/reader"
@@ -123,7 +121,9 @@ func (w *subscriptionWorker) GetStopTime() time.Time {
 
 func (w *subscriptionWorker) Run(ctx context.Context) error {
 	w.events = make(chan info.EventOffset, eventBufferSize)
-	w.reader = reader.NewReader(getReaderConfig(w.subscription, w.config.Controllers), w.events)
+	readerConfig := getReaderConfig(w.subscriptionOffset, w.subscription, w.config.ControllerAddr)
+	w.subscriptionOffset.Clear()
+	w.reader = reader.NewReader(readerConfig, w.events)
 	w.trigger = trigger.NewTrigger(w.subscription, w.subscriptionOffset, w.getTriggerOptions()...)
 	err := w.reader.Start()
 	if err != nil {
@@ -160,14 +160,11 @@ func (w *subscriptionWorker) Stop(ctx context.Context) {
 	})
 }
 
-func getReaderConfig(sub *primitive.Subscription, controllers []string) reader.Config {
+func getReaderConfig(subscriptionOffset *offset.SubscriptionOffset, sub *primitive.Subscription, controllers []string) reader.Config {
 	ebVrn := fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s",
-		controllers[0], sub.EventBus,
+		controllers[0],
+		sub.EventBus,
 		strings.Join(controllers, ","))
-	offsetMap := make(map[vanus.ID]uint64)
-	for _, o := range sub.Offsets {
-		offsetMap[o.EventLogID] = o.Offset
-	}
 	var offsetTimestamp int64
 	if sub.Config.OffsetTimestamp != nil {
 		offsetTimestamp = int64(*sub.Config.OffsetTimestamp)
@@ -178,8 +175,22 @@ func getReaderConfig(sub *primitive.Subscription, controllers []string) reader.C
 		EventBusName:    sub.EventBus,
 		EventBusVRN:     ebVrn,
 		SubscriptionID:  sub.ID,
-		Offset:          offsetMap,
 		OffsetType:      sub.Config.OffsetType,
 		OffsetTimestamp: offsetTimestamp,
+		Offset:          getOffset(subscriptionOffset, sub),
 	}
+}
+
+// getOffset from subscription,if subscriptionOffset exist,use subscriptionOffset
+func getOffset(subscriptionOffset *offset.SubscriptionOffset, sub *primitive.Subscription) map[vanus.ID]uint64 {
+	offsetMap := make(map[vanus.ID]uint64)
+	for _, o := range sub.Offsets {
+		offsetMap[o.EventLogID] = o.Offset
+	}
+	offsets := subscriptionOffset.GetCommit()
+	for _, offset := range offsets {
+		offsetMap[offset.EventLogID] = offset.Offset
+	}
+	subscriptionOffset.Clear()
+	return offsetMap
 }

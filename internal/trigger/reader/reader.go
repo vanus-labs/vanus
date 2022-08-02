@@ -314,6 +314,7 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventlog.LogRe
 	}
 	for i := range events {
 		e := events[i]
+		e.Time()
 		offsetByte, _ := e.Extensions()[eventlog.XVanusLogOffset].([]byte)
 		offset := binary.BigEndian.Uint64(offsetByte)
 		eo := info.EventOffset{Event: events[i], OffsetInfo: pInfo.OffsetInfo{
@@ -323,6 +324,7 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventlog.LogRe
 		if err = elReader.sendEvent(ctx, eo); err != nil {
 			return err
 		}
+		elReader.offset = offset
 	}
 	return nil
 }

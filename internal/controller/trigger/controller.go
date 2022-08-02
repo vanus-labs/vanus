@@ -74,20 +74,27 @@ type controller struct {
 	state                 primitive.ServerState
 }
 
-func (ctrl *controller) CommitOffset(ctx context.Context, request *ctrlpb.CommitOffsetRequest) (*emptypb.Empty, error) {
+func (ctrl *controller) CommitOffset(ctx context.Context, request *ctrlpb.CommitOffsetRequest) (*ctrlpb.CommitOffsetResponse, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
-	id := vanus.ID(request.SubscriptionInfo.SubscriptionId)
-	offsets := convert.FromPbOffsetInfos(request.SubscriptionInfo.Offsets)
-	err := ctrl.subscriptionManager.Offset(ctx, id, offsets, request.ForceCommit)
-	if err != nil {
-		log.Warning(ctx, "heartbeat commit offset error", map[string]interface{}{
-			log.KeyError:          err,
-			log.KeySubscriptionID: id,
-		})
+	resp := new(ctrlpb.CommitOffsetResponse)
+	for _, subscription := range request.SubscriptionInfo {
+		if len(subscription.Offsets) == 0 {
+			continue
+		}
+		id := vanus.ID(subscription.SubscriptionId)
+		offsets := convert.FromPbOffsetInfos(subscription.Offsets)
+		err := ctrl.subscriptionManager.Offset(ctx, id, offsets, request.ForceCommit)
+		if err != nil {
+			resp.FailSubscriptionId = append(resp.FailSubscriptionId, subscription.SubscriptionId)
+			log.Warning(ctx, "commit offset error", map[string]interface{}{
+				log.KeyError:          err,
+				log.KeySubscriptionID: id,
+			})
+		}
 	}
-	return &emptypb.Empty{}, nil
+	return resp, nil
 }
 
 func (ctrl *controller) ResetOffsetToTimestamp(ctx context.Context,
@@ -276,6 +283,9 @@ func (ctrl *controller) TriggerWorkerHeartbeat(
 			return errors.ErrResourceNotFound.WithMessage("unknown trigger worker")
 		}
 		for _, subInfo := range req.SubscriptionInfo {
+			if len(subInfo.Offsets) == 0 {
+				continue
+			}
 			offsets := convert.FromPbOffsetInfos(subInfo.Offsets)
 			err = ctrl.subscriptionManager.Offset(ctx, vanus.ID(subInfo.SubscriptionId), offsets, false)
 			if err != nil {

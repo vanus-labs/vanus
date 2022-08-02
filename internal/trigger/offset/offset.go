@@ -16,18 +16,14 @@ package offset
 
 import (
 	"sync"
-	"time"
-
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 
 	"github.com/huandu/skiplist"
+	"github.com/linkall-labs/vanus/internal/primitive/info"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
 type Manager struct {
-	subOffset      sync.Map
-	lastCommitTime time.Time
-	lock           sync.RWMutex
+	subOffset sync.Map
 }
 
 func NewOffsetManager() *Manager {
@@ -55,18 +51,6 @@ func (m *Manager) RemoveSubscription(id vanus.ID) {
 	m.subOffset.Delete(id)
 }
 
-func (m *Manager) SetLastCommitTime() {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	m.lastCommitTime = time.Now()
-}
-
-func (m *Manager) GetLastCommitTime() time.Time {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	return m.lastCommitTime
-}
-
 func NewSubscriptionOffset(id vanus.ID) *SubscriptionOffset {
 	return &SubscriptionOffset{
 		subscriptionID: id,
@@ -78,7 +62,7 @@ type SubscriptionOffset struct {
 	elOffset       sync.Map
 }
 
-func (offset *SubscriptionOffset) CLear() {
+func (offset *SubscriptionOffset) Clear() {
 	offset.elOffset.Range(func(key, value interface{}) bool {
 		offset.elOffset.Delete(key)
 		return true
@@ -88,7 +72,7 @@ func (offset *SubscriptionOffset) CLear() {
 func (offset *SubscriptionOffset) EventReceive(info info.OffsetInfo) {
 	o, exist := offset.elOffset.Load(info.EventLogID)
 	if !exist {
-		o, _ = offset.elOffset.LoadOrStore(info.EventLogID, initOffset(info.Offset-1))
+		o, _ = offset.elOffset.LoadOrStore(info.EventLogID, initOffset(info.Offset))
 	}
 	o.(*offsetTracker).putOffset(info.Offset)
 }

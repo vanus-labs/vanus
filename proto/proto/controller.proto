@@ -78,7 +78,7 @@ service TriggerController {
   rpc ResetOffsetToTimestamp(ResetOffsetToTimestampRequest)
       returns (google.protobuf.Empty);
   rpc CommitOffset(CommitOffsetRequest)
-      returns (google.protobuf.Empty);
+      returns (CommitOffsetResponse);
 }
 
 message PingResponse {
@@ -200,8 +200,12 @@ message ResetOffsetToTimestampRequest {
 }
 
 message CommitOffsetRequest {
-  meta.SubscriptionInfo subscription_info = 1;
+  repeated meta.SubscriptionInfo subscription_info = 1;
   bool force_commit = 2;
+}
+
+message CommitOffsetResponse {
+  repeated uint64 fail_subscription_id = 1;
 }
 
 message ListSegmentRequest {
