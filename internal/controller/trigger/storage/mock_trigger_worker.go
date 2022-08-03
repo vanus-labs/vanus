@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	info "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
+	metadata "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 )
 
 // MockTriggerWorkerStorage is a mock of TriggerWorkerStorage interface.
@@ -50,10 +50,10 @@ func (mr *MockTriggerWorkerStorageMockRecorder) DeleteTriggerWorker(ctx, id inte
 }
 
 // GetTriggerWorker mocks base method.
-func (m *MockTriggerWorkerStorage) GetTriggerWorker(ctx context.Context, id string) (*info.TriggerWorkerInfo, error) {
+func (m *MockTriggerWorkerStorage) GetTriggerWorker(ctx context.Context, id string) (*metadata.TriggerWorkerInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTriggerWorker", ctx, id)
-	ret0, _ := ret[0].(*info.TriggerWorkerInfo)
+	ret0, _ := ret[0].(*metadata.TriggerWorkerInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -65,10 +65,10 @@ func (mr *MockTriggerWorkerStorageMockRecorder) GetTriggerWorker(ctx, id interfa
 }
 
 // ListTriggerWorker mocks base method.
-func (m *MockTriggerWorkerStorage) ListTriggerWorker(ctx context.Context) ([]*info.TriggerWorkerInfo, error) {
+func (m *MockTriggerWorkerStorage) ListTriggerWorker(ctx context.Context) ([]*metadata.TriggerWorkerInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListTriggerWorker", ctx)
-	ret0, _ := ret[0].([]*info.TriggerWorkerInfo)
+	ret0, _ := ret[0].([]*metadata.TriggerWorkerInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -80,7 +80,7 @@ func (mr *MockTriggerWorkerStorageMockRecorder) ListTriggerWorker(ctx interface{
 }
 
 // SaveTriggerWorker mocks base method.
-func (m *MockTriggerWorkerStorage) SaveTriggerWorker(arg0 context.Context, arg1 info.TriggerWorkerInfo) error {
+func (m *MockTriggerWorkerStorage) SaveTriggerWorker(arg0 context.Context, arg1 metadata.TriggerWorkerInfo) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SaveTriggerWorker", arg0, arg1)
 	ret0, _ := ret[0].(error)
