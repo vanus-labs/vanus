@@ -118,26 +118,64 @@ func TestPeer(t *testing.T) {
 		msgs := make([]*raftpb.Message, msgLen)
 		for i := 0; i < msgLen; i++ {
 			msgs[i] = &raftpb.Message{
-				To: nodeID,
+				To: uint64(i + 1),
 			}
 		}
-		timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
-		defer cannel()
 
-		srv.Stop() // stop the raftsrv to test peer reconnect
-		p.Sendv(timeoutCtx, msgs)
-		go func() {
-			srv.Serve(listener)
-		}() // restart the raftsrv
+		p.Sendv(ctx, msgs)
 
 		for i := 0; i < msgLen; i++ {
+			count := 0
+		loop:
 			for j := 0; j < 3; j++ {
 				select {
 				case m := <-ch:
 					So(m, ShouldResemble, msgs[i])
+					count++
+					break loop
 				default:
 				}
 				time.Sleep(50 * time.Millisecond)
+			}
+			if count == 0 {
+				So(false, ShouldBeTrue)
+			}
+		}
+
+		srv.Stop() // stop the raftsrv to test peer
+
+		srv = grpc.NewServer()
+		RegisterRaftServerServer(srv, raftSrv)
+		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", serverPort))
+		if err != nil {
+			log.Error(context.Background(), "failed to listen", map[string]interface{}{
+				"error": err,
+			})
+			os.Exit(-1)
+		}
+		go func() {
+			if err2 := srv.Serve(listener); err2 != nil {
+				panic(err2)
+			}
+		}() // restart the raftsrv
+
+		p.Sendv(ctx, msgs)
+
+		for i := 1; i < msgLen; i++ {
+			count := 0
+		loop1:
+			for j := 0; j < 3; j++ {
+				select {
+				case m := <-ch:
+					So(m, ShouldResemble, msgs[i])
+					count++
+					break loop1
+				default:
+				}
+				time.Sleep(50 * time.Millisecond)
+			}
+			if count == 0 {
+				So(false, ShouldBeTrue)
 			}
 		}
 	})

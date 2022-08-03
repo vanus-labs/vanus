@@ -26,10 +26,12 @@ import (
 func TestHost(t *testing.T) {
 	Convey("test host", t, func() {
 		resolver := NewSimpleResolver()
+		nodeID := uint64(3)
 		localaddr := "127.0.0.1:12000"
+		resolver.Register(nodeID, localaddr)
 		h := NewHost(resolver, localaddr)
 		ctx := context.Background()
-		nodeID := uint64(3)
+
 		ch := make(chan *raftpb.Message, 10)
 		h.Register(nodeID, &receiver{
 			recvch: ch,
@@ -60,6 +62,7 @@ func TestHost(t *testing.T) {
 				}
 				time.Sleep(50 * time.Millisecond)
 			}
+			So(false, ShouldBeTrue)
 		})
 
 		Convey("test host Send callback", func() {
@@ -76,6 +79,24 @@ func TestHost(t *testing.T) {
 				}
 				time.Sleep(50 * time.Millisecond)
 			}
+			So(false, ShouldBeTrue)
+		})
+
+		Convey("test host Send no endpoint input", func() {
+			timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
+			defer cannel()
+
+			h.Send(timeoutCtx, msg, nodeID, "")
+			for i := 0; i < 3; i++ {
+				select {
+				case m := <-ch:
+					So(m, ShouldResemble, msg)
+					return
+				default:
+				}
+				time.Sleep(50 * time.Millisecond)
+			}
+			So(false, ShouldBeTrue)
 		})
 
 		Convey("test host Sendv callback", func() {
@@ -83,13 +104,20 @@ func TestHost(t *testing.T) {
 			defer cannel()
 			h.Sendv(timeoutCtx, msgs, nodeID, localaddr)
 			for i := 0; i < msgLen; i++ {
+				count := 0
+			loop:
 				for j := 0; j < 3; j++ {
 					select {
 					case m := <-ch:
 						So(m, ShouldResemble, msgs[i])
+						count++
+						break loop
 					default:
 					}
 					time.Sleep(50 * time.Millisecond)
+				}
+				if count == 0 {
+					So(false, ShouldBeTrue)
 				}
 			}
 		})
