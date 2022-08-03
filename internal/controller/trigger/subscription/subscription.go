@@ -63,16 +63,16 @@ func NewSubscriptionManager(storage storage.Storage) Manager {
 }
 
 func (m *manager) Offset(ctx context.Context, id vanus.ID, offsets iInfo.ListOffsetInfo, commit bool) error {
-	subData := m.GetSubscription(ctx, id)
-	if subData == nil {
+	subscription := m.GetSubscription(ctx, id)
+	if subscription == nil {
 		return nil
 	}
 	return m.offsetManager.Offset(ctx, id, offsets, commit)
 }
 
 func (m *manager) GetOffset(ctx context.Context, id vanus.ID) (iInfo.ListOffsetInfo, error) {
-	subData := m.GetSubscription(ctx, id)
-	if subData == nil {
+	subscription := m.GetSubscription(ctx, id)
+	if subscription == nil {
 		return iInfo.ListOffsetInfo{}, ErrSubscriptionNotExist
 	}
 	return m.offsetManager.GetOffset(ctx, id)

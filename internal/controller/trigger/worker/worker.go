@@ -128,8 +128,8 @@ func (tw *triggerWorker) handler(ctx context.Context, subscriptionID vanus.ID) e
 		// no assign to this trigger worker,remove subscription
 		return tw.removeSubscription(ctx, subscriptionID)
 	}
-	subData := tw.subscriptionManager.GetSubscription(ctx, subscriptionID)
-	if subData == nil {
+	subscription := tw.subscriptionManager.GetSubscription(ctx, subscriptionID)
+	if subscription == nil {
 		return nil
 	}
 	offsets, err := tw.subscriptionManager.GetOffset(ctx, subscriptionID)
@@ -137,20 +137,20 @@ func (tw *triggerWorker) handler(ctx context.Context, subscriptionID vanus.ID) e
 		return err
 	}
 	err = tw.addSubscription(ctx, &primitive.Subscription{
-		ID:               subData.ID,
-		Filters:          subData.Filters,
-		Sink:             subData.Sink,
-		EventBus:         subData.EventBus,
+		ID:               subscription.ID,
+		Filters:          subscription.Filters,
+		Sink:             subscription.Sink,
+		EventBus:         subscription.EventBus,
 		Offsets:          offsets,
-		InputTransformer: subData.InputTransformer,
-		Config:           subData.Config,
+		InputTransformer: subscription.InputTransformer,
+		Config:           subscription.Config,
 	})
 	if err != nil {
 		return err
 	}
 	// modify subscription to running
-	subData.Phase = metadata.SubscriptionPhaseRunning
-	err = tw.subscriptionManager.UpdateSubscription(ctx, subData)
+	subscription.Phase = metadata.SubscriptionPhaseRunning
+	err = tw.subscriptionManager.UpdateSubscription(ctx, subscription)
 	if err != nil {
 		return err
 	}
