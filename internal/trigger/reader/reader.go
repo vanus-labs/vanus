@@ -69,19 +69,16 @@ type Reader interface {
 type reader struct {
 	config   Config
 	elReader map[vanus.ID]string
-	events   chan<- info.EventOffset
+	events   chan<- info.EventRecord
 	stop     context.CancelFunc
 	stctx    context.Context
 	wg       sync.WaitGroup
 	lock     sync.Mutex
 }
 
-func NewReader(config Config, events chan<- info.EventOffset) Reader {
+func NewReader(config Config, events chan<- info.EventRecord) Reader {
 	if config.CheckEventLogPeriod <= 0 {
 		config.CheckEventLogPeriod = checkEventLogPeriod
-	}
-	if config.Offset == nil {
-		config.Offset = map[vanus.ID]uint64{}
 	}
 	r := &reader{
 		config:   config,
@@ -236,7 +233,7 @@ type eventLogReader struct {
 	config      Config
 	eventLogID  vanus.ID
 	eventLogVrn string
-	events      chan<- info.EventOffset
+	events      chan<- info.EventRecord
 	offset      uint64
 }
 
@@ -314,10 +311,9 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventlog.LogRe
 	}
 	for i := range events {
 		e := events[i]
-		e.Time()
-		offsetByte, _ := e.Extensions()[eventlog.XVanusLogOffset].([]byte)
+		offsetByte, _ := e.Extensions()[eb.XVanusLogOffset].([]byte)
 		offset := binary.BigEndian.Uint64(offsetByte)
-		eo := info.EventOffset{Event: events[i], OffsetInfo: pInfo.OffsetInfo{
+		eo := info.EventRecord{Event: events[i], OffsetInfo: pInfo.OffsetInfo{
 			EventLogID: elReader.eventLogID,
 			Offset:     offset,
 		}}
@@ -328,7 +324,7 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventlog.LogRe
 	}
 	return nil
 }
-func (elReader *eventLogReader) sendEvent(ctx context.Context, event info.EventOffset) error {
+func (elReader *eventLogReader) sendEvent(ctx context.Context, event info.EventRecord) error {
 	select {
 	case elReader.events <- event:
 		return nil
@@ -352,7 +348,6 @@ func (elReader *eventLogReader) init(ctx context.Context) (eventlog.LogReader, e
 	defer cancel()
 	_, err = lr.Seek(timeout, int64(elReader.offset), io.SeekStart)
 	if err != nil {
-		// todo overflow need reset offset.
 		lr.Close()
 		return nil, err
 	}

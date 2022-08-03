@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/linkall-labs/vanus/internal/trigger/trigger"
+
 	"github.com/linkall-labs/vanus/proto/pkg/controller"
 
 	"github.com/linkall-labs/vanus/internal/primitive/info"
@@ -28,13 +30,12 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/trigger/offset"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func testNewSubscriptionWorker(subWorker SubscriptionWorker) newSubscriptionWorker {
-	return func(subscription *primitive.Subscription, subscriptionOffset *offset.SubscriptionOffset, config Config) SubscriptionWorker {
-		return subWorker
+func testNewTrigger(t trigger.Trigger) newTrigger {
+	return func(sub *primitive.Subscription, opts ...trigger.Option) trigger.Trigger {
+		return t
 	}
 }
 func TestAddSubscription(t *testing.T) {
@@ -42,19 +43,22 @@ func TestAddSubscription(t *testing.T) {
 	Convey("add subscription", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		subWorker := NewMockSubscriptionWorker(ctrl)
+		tg := trigger.NewMockTrigger(ctrl)
 		m := NewWorker(Config{ControllerAddr: []string{"test"}}).(*worker)
-		m.newSubscriptionWorker = testNewSubscriptionWorker(subWorker)
+		m.newTrigger = testNewTrigger(tg)
 		Convey("add subscription", func() {
 			id := vanus.NewID()
-			subWorker.EXPECT().Run(gomock.Any()).Return(nil)
+			tg.EXPECT().Init(gomock.Any()).Return(nil)
+			tg.EXPECT().Start(gomock.Any()).Return(nil)
 			err := m.AddSubscription(ctx, &primitive.Subscription{
 				ID: id,
 			})
 			So(err, ShouldBeNil)
-			So(m.getSubscriptionWorker(id), ShouldNotBeNil)
+			v, exist := m.getTrigger(id)
+			So(exist, ShouldBeTrue)
+			So(v, ShouldNotBeNil)
 			Convey("update subscription", func() {
-				subWorker.EXPECT().Change(gomock.Any(), gomock.Any()).Return(nil)
+				tg.EXPECT().Change(gomock.Any(), gomock.Any()).Return(nil)
 				err = m.AddSubscription(ctx, &primitive.Subscription{
 					ID:   id,
 					Sink: "http://localhost:8080",
@@ -64,13 +68,15 @@ func TestAddSubscription(t *testing.T) {
 		})
 		Convey("add subscription has error", func() {
 			id := vanus.NewID()
-			subWorker.EXPECT().Run(gomock.Any()).Return(fmt.Errorf("error"))
+			tg.EXPECT().Init(gomock.Any()).Return(nil)
+			tg.EXPECT().Start(gomock.Any()).Return(fmt.Errorf("error"))
 			err := m.AddSubscription(ctx, &primitive.Subscription{
 				ID: id,
 			})
 			So(err, ShouldNotBeNil)
-			So(m.getSubscriptionWorker(id), ShouldBeNil)
-			So(m.offsetManager.GetSubscription(id), ShouldBeNil)
+			v, exist := m.getTrigger(id)
+			So(exist, ShouldBeFalse)
+			So(v, ShouldBeNil)
 		})
 	})
 }
@@ -81,26 +87,33 @@ func TestRemoveSubscription(t *testing.T) {
 		id := vanus.NewID()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		subWorker := NewMockSubscriptionWorker(ctrl)
+		tg := trigger.NewMockTrigger(ctrl)
 		m := NewWorker(Config{}).(*worker)
-		m.newSubscriptionWorker = testNewSubscriptionWorker(subWorker)
+		m.newTrigger = testNewTrigger(tg)
 
 		Convey("remove no exist subscription", func() {
+			v, exist := m.getTrigger(id)
+			So(exist, ShouldBeFalse)
+			So(v, ShouldBeNil)
 			err := m.RemoveSubscription(ctx, id)
 			So(err, ShouldBeNil)
-			So(m.getSubscriptionWorker(id), ShouldBeNil)
 		})
 		Convey("remove exist subscription", func() {
-			subWorker.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
+			tg.EXPECT().Init(gomock.Any()).Return(nil)
+			tg.EXPECT().Start(gomock.Any()).AnyTimes().Return(nil)
 			err := m.AddSubscription(ctx, &primitive.Subscription{
 				ID: id,
 			})
 			So(err, ShouldBeNil)
-			So(m.getSubscriptionWorker(id), ShouldNotBeNil)
-			subWorker.EXPECT().Stop(gomock.Any()).Return()
+			v, exist := m.getTrigger(id)
+			So(exist, ShouldBeTrue)
+			So(v, ShouldNotBeNil)
+			tg.EXPECT().Stop(gomock.Any()).Return(nil)
 			err = m.RemoveSubscription(ctx, id)
 			So(err, ShouldBeNil)
-			So(m.getSubscriptionWorker(id), ShouldBeNil)
+			v, exist = m.getTrigger(id)
+			So(exist, ShouldBeFalse)
+			So(v, ShouldBeNil)
 		})
 	})
 }
@@ -110,9 +123,9 @@ func TestPauseStartSubscription(t *testing.T) {
 	Convey("pause subscription", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		subWorker := NewMockSubscriptionWorker(ctrl)
+		tg := trigger.NewMockTrigger(ctrl)
 		m := NewWorker(Config{}).(*worker)
-		m.newSubscriptionWorker = testNewSubscriptionWorker(subWorker)
+		m.newTrigger = testNewTrigger(tg)
 		id := vanus.NewID()
 		Convey("pause no exist subscription", func() {
 			err := m.PauseSubscription(ctx, id)
@@ -123,47 +136,28 @@ func TestPauseStartSubscription(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 		Convey("pause exist subscription", func() {
-			subWorker.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
+			tg.EXPECT().Init(gomock.Any()).AnyTimes().Return(nil)
+			tg.EXPECT().Start(gomock.Any()).AnyTimes().Return(nil)
 			err := m.AddSubscription(ctx, &primitive.Subscription{
 				ID: id,
 			})
 			So(err, ShouldBeNil)
-			So(m.getSubscriptionWorker(id), ShouldNotBeNil)
-			subWorker.EXPECT().Stop(gomock.Any()).Return()
+			v, exist := m.getTrigger(id)
+			So(exist, ShouldBeTrue)
+			So(v, ShouldNotBeNil)
+			tg.EXPECT().Stop(gomock.Any()).Return(nil)
 			err = m.PauseSubscription(ctx, id)
 			So(err, ShouldBeNil)
-			So(m.getSubscriptionWorker(id), ShouldNotBeNil)
+			v, exist = m.getTrigger(id)
+			So(exist, ShouldBeTrue)
+			So(v, ShouldNotBeNil)
 			Convey("start pause subscription", func() {
 				err = m.StartSubscription(ctx, id)
 				So(err, ShouldBeNil)
-				So(m.getSubscriptionWorker(id), ShouldNotBeNil)
+				v, exist = m.getTrigger(id)
+				So(exist, ShouldBeTrue)
+				So(v, ShouldNotBeNil)
 			})
-		})
-
-	})
-}
-
-func TestCleanSubscription(t *testing.T) {
-	ctx := context.Background()
-	Convey("clean subscription by ID", t, func() {
-		id := vanus.NewID()
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		subWorker := NewMockSubscriptionWorker(ctrl)
-		m := NewWorker(Config{}).(*worker)
-		m.newSubscriptionWorker = testNewSubscriptionWorker(subWorker)
-		Convey("clean no exist subscription", func() {
-			m.cleanSubscription(ctx, id)
-		})
-		subWorker.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
-		Convey("clean exist subscription", func() {
-			err := m.AddSubscription(ctx, &primitive.Subscription{
-				ID: id,
-			})
-			So(err, ShouldBeNil)
-			So(m.getSubscriptionWorker(id), ShouldNotBeNil)
-			m.cleanSubscription(ctx, id)
-			So(m.getSubscriptionWorker(id), ShouldBeNil)
 		})
 	})
 }
@@ -174,22 +168,23 @@ func TestResetOffsetToTimestamp(t *testing.T) {
 		id := vanus.NewID()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		subWorker := NewMockSubscriptionWorker(ctrl)
+		tg := trigger.NewMockTrigger(ctrl)
 		m := NewWorker(Config{}).(*worker)
-		m.newSubscriptionWorker = testNewSubscriptionWorker(subWorker)
+		m.newTrigger = testNewTrigger(tg)
 		Convey("reset offset no exist subscription", func() {
 			err := m.ResetOffsetToTimestamp(ctx, id, time.Now().Unix())
 			So(err, ShouldNotBeNil)
 		})
 		Convey("reset offset exist subscription", func() {
-			subWorker.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
+			tg.EXPECT().Init(gomock.Any()).AnyTimes().Return(nil)
+			tg.EXPECT().Start(gomock.Any()).AnyTimes().Return(nil)
 			err := m.AddSubscription(ctx, &primitive.Subscription{
 				ID: id,
 			})
 			So(err, ShouldBeNil)
-			subWorker.EXPECT().Stop(gomock.Any()).Return()
+			tg.EXPECT().Stop(gomock.Any()).Return(nil)
 			offsets := info.ListOffsetInfo{{EventLogID: vanus.NewID(), Offset: uint64(100)}}
-			subWorker.EXPECT().ResetOffsetToTimestamp(gomock.Any(), gomock.Any()).Return(offsets, nil)
+			tg.EXPECT().ResetOffsetToTimestamp(gomock.Any(), gomock.Any()).Return(offsets, nil)
 			triggerClient := controller.NewMockTriggerControllerClient(ctrl)
 			m.client.leaderClient = triggerClient
 			triggerClient.EXPECT().CommitOffset(gomock.Any(), gomock.Any()).Return(nil, nil)
@@ -205,18 +200,21 @@ func TestHeartbeat(t *testing.T) {
 		id := vanus.NewID()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		subWorker := NewMockSubscriptionWorker(ctrl)
 		m := NewWorker(Config{HeartbeatPeriod: time.Millisecond * 10}).(*worker)
-		m.newSubscriptionWorker = testNewSubscriptionWorker(subWorker)
+		tg := trigger.NewMockTrigger(ctrl)
+		m.newTrigger = testNewTrigger(tg)
 		heartBeatClient := controller.NewMockTriggerController_TriggerWorkerHeartbeatClient(ctrl)
 		m.client.heartBeatClient = heartBeatClient
-		heartBeatClient.EXPECT().Send(gomock.Any()).AnyTimes().Return(nil)
-		heartBeatClient.EXPECT().CloseSend().Return(nil)
-		subWorker.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
+		tg.EXPECT().Init(gomock.Any()).Return(nil)
+		tg.EXPECT().Start(gomock.Any()).Return(nil)
 		err := m.AddSubscription(ctx, &primitive.Subscription{
 			ID: id,
 		})
 		So(err, ShouldBeNil)
+		heartBeatClient.EXPECT().Send(gomock.Any()).AnyTimes().Return(nil)
+		heartBeatClient.EXPECT().CloseSend().Return(nil)
+		offsets := info.ListOffsetInfo{{EventLogID: vanus.NewID(), Offset: uint64(100)}}
+		tg.EXPECT().GetOffsets(gomock.Any()).AnyTimes().Return(offsets)
 		cancelCtx, cancel := context.WithCancel(ctx)
 		var wg sync.WaitGroup
 		wg.Add(1)
@@ -230,23 +228,34 @@ func TestHeartbeat(t *testing.T) {
 	})
 }
 
-func TestManager_Stop(t *testing.T) {
+func TestWorker_Stop(t *testing.T) {
 	ctx := context.Background()
 	Convey("start stop", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		subWorker := NewMockSubscriptionWorker(ctrl)
+		tg := trigger.NewMockTrigger(ctrl)
 		m := NewWorker(Config{}).(*worker)
-		m.newSubscriptionWorker = testNewSubscriptionWorker(subWorker)
+		m.newTrigger = testNewTrigger(tg)
 		id := vanus.NewID()
-		subWorker.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
+		tg.EXPECT().Init(gomock.Any()).Return(nil)
+		tg.EXPECT().Start(gomock.Any()).AnyTimes().Return(nil)
 		err := m.AddSubscription(ctx, &primitive.Subscription{
 			ID: id,
 		})
 		So(err, ShouldBeNil)
-		So(m.getSubscriptionWorker(id), ShouldNotBeNil)
-		subWorker.EXPECT().Stop(gomock.Any()).AnyTimes().Return()
+		v, exist := m.getTrigger(id)
+		So(exist, ShouldBeTrue)
+		So(v, ShouldNotBeNil)
+		triggerClient := controller.NewMockTriggerControllerClient(ctrl)
+		m.client.leaderClient = triggerClient
+		tg.EXPECT().Stop(gomock.Any()).AnyTimes().Return(nil)
+		offsets := info.ListOffsetInfo{{EventLogID: vanus.NewID(), Offset: uint64(100)}}
+		tg.EXPECT().GetOffsets(gomock.Any()).AnyTimes().Return(offsets)
+		triggerClient.EXPECT().CommitOffset(gomock.Any(), gomock.Any()).Return(nil, nil)
 		err = m.Stop(ctx)
-		So(m.getSubscriptionWorker(id), ShouldBeNil)
+		So(err, ShouldBeNil)
+		v, exist = m.getTrigger(id)
+		So(exist, ShouldBeFalse)
+		So(v, ShouldBeNil)
 	})
 }

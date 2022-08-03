@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://wwt.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,25 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=trigger.go  -destination=mock_trigger.go -package=trigger
 package trigger
 
 import (
 	"context"
+	"fmt"
+	"reflect"
+	"strings"
 	"sync"
 	"time"
 
-	"go.uber.org/ratelimit"
-
+	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/filter"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
+	"github.com/linkall-labs/vanus/internal/trigger/reader"
 	"github.com/linkall-labs/vanus/internal/trigger/transformation"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
-
-	ce "github.com/cloudevents/sdk-go/v2"
+	"go.uber.org/ratelimit"
 )
 
 type State string
@@ -43,103 +47,97 @@ const (
 	TriggerPaused    = "paused"
 	TriggerStopped   = "stopped"
 	TriggerDestroyed = "destroyed"
-
-	sleepCheckPeriod = 10 * time.Millisecond
-	sleepDuration    = 30 * time.Second
 )
 
-type Trigger struct {
-	ID             vanus.ID      `json:"id"`
-	SubscriptionID vanus.ID      `json:"subscription_id"`
-	Target         primitive.URI `json:"target"`
-	SleepDuration  time.Duration `json:"sleep_duration"`
-
-	state      State
-	stateMutex sync.RWMutex
-	lastActive time.Time
-
-	offsetManager *offset.SubscriptionOffset
-	stop          context.CancelFunc
-	eventCh       chan info.EventRecord
-	sendCh        chan info.EventRecord
-	ceClient      ce.Client
-	filter        filter.Filter
-	rateLimiter   ratelimit.Limiter
-
-	inputTransformer *transformation.InputTransformer
-	config           Config
-	lock             sync.RWMutex
-
-	wg util.Group
+type Trigger interface {
+	Init(ctx context.Context) error
+	Start(ctx context.Context) error
+	Stop(ctx context.Context) error
+	Change(ctx context.Context, subscription *primitive.Subscription) error
+	GetOffsets(ctx context.Context) pInfo.ListOffsetInfo
+	ResetOffsetToTimestamp(ctx context.Context, timestamp int64) (pInfo.ListOffsetInfo, error)
 }
 
-func NewTrigger(sub *primitive.Subscription, offsetManager *offset.SubscriptionOffset, opts ...Option) *Trigger {
-	t := &Trigger{
-		stop:           func() {},
-		config:         defaultConfig(),
-		ID:             vanus.NewID(),
-		SubscriptionID: sub.ID,
-		Target:         sub.Sink,
-		SleepDuration:  sleepDuration,
-		state:          TriggerCreated,
-		filter:         filter.GetFilter(sub.Filters),
-		offsetManager:  offsetManager,
+type trigger struct {
+	subscription     *primitive.Subscription
+	offsetManager    *offset.SubscriptionOffset
+	reader           reader.Reader
+	eventCh          chan info.EventRecord
+	sendCh           chan info.EventRecord
+	ceClient         ce.Client
+	filter           filter.Filter
+	inputTransformer *transformation.InputTransformer
+	rateLimiter      ratelimit.Limiter
+	config           Config
+
+	state State
+	stop  context.CancelFunc
+	lock  sync.RWMutex
+	wg    util.Group
+}
+
+func NewTrigger(subscription *primitive.Subscription,
+	opts ...Option) Trigger {
+	t := &trigger{
+		stop:          func() {},
+		config:        defaultConfig(),
+		state:         TriggerCreated,
+		filter:        filter.GetFilter(subscription.Filters),
+		offsetManager: offset.NewSubscriptionOffset(subscription.ID),
+		subscription:  subscription,
 	}
 	t.applyOptions(opts...)
-	t.eventCh = make(chan info.EventRecord, t.config.BufferSize)
-	t.sendCh = make(chan info.EventRecord, t.config.BufferSize)
 	if t.rateLimiter == nil {
 		t.rateLimiter = ratelimit.NewUnlimited()
 	}
-	if sub.InputTransformer != nil {
-		t.inputTransformer = transformation.NewInputTransformer(sub.InputTransformer)
+	if subscription.InputTransformer != nil {
+		t.inputTransformer = transformation.NewInputTransformer(subscription.InputTransformer)
 	}
 	return t
 }
 
-func (t *Trigger) applyOptions(opts ...Option) {
+func (t *trigger) applyOptions(opts ...Option) {
 	for _, fn := range opts {
 		fn(t)
 	}
 }
 
-func (t *Trigger) getCeClient() ce.Client {
+func (t *trigger) getCeClient() ce.Client {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 	return t.ceClient
 }
 
-func (t *Trigger) ChangeTarget(target primitive.URI) error {
-	ceClient, err := NewCeClient(t.Target)
+func (t *trigger) changeTarget(target primitive.URI) error {
+	ceClient, err := NewCeClient(target)
 	if err != nil {
 		return err
 	}
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	t.Target = target
 	t.ceClient = ceClient
 	return nil
 }
 
-func (t *Trigger) getFilter() filter.Filter {
+func (t *trigger) getFilter() filter.Filter {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 	return t.filter
 }
 
-func (t *Trigger) ChangeFilter(filters []*primitive.SubscriptionFilter) {
+func (t *trigger) changeFilter(filters []*primitive.SubscriptionFilter) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	t.filter = filter.GetFilter(filters)
 }
 
-func (t *Trigger) getInputTransformer() *transformation.InputTransformer {
+func (t *trigger) getInputTransformer() *transformation.InputTransformer {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 	return t.inputTransformer
 }
 
-func (t *Trigger) ChangeInputTransformer(inputTransformer *primitive.InputTransformer) {
+func (t *trigger) changeInputTransformer(inputTransformer *primitive.InputTransformer) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	if inputTransformer == nil || inputTransformer.Define == nil && inputTransformer.Template == "" {
@@ -149,7 +147,7 @@ func (t *Trigger) ChangeInputTransformer(inputTransformer *primitive.InputTransf
 	}
 }
 
-func (t *Trigger) ChangeConfig(config primitive.SubscriptionConfig) {
+func (t *trigger) changeConfig(config primitive.SubscriptionConfig) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	if config.RateLimit != 0 && config.RateLimit != t.config.RateLimit {
@@ -157,17 +155,17 @@ func (t *Trigger) ChangeConfig(config primitive.SubscriptionConfig) {
 	}
 }
 
-func (t *Trigger) EventArrived(ctx context.Context, event info.EventRecord) error {
+// eventArrived for test.
+func (t *trigger) eventArrived(ctx context.Context, event info.EventRecord) error {
 	select {
 	case t.eventCh <- event:
-		t.offsetManager.EventReceive(event.OffsetInfo)
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	}
 }
 
-func (t *Trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
+func (t *trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 	retryTimes := 0
 	doFunc := func() error {
 		timeout, cancel := context.WithTimeout(ctx, t.config.SendTimeOut)
@@ -200,16 +198,16 @@ func (t *Trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 	return err
 }
 
-func (t *Trigger) runEventProcess(ctx context.Context) {
+func (t *trigger) runEventProcess(ctx context.Context) {
 	for {
 		select {
-		// TODO  是否立即停止，还是等待eventCh处理完.
 		case <-ctx.Done():
 			return
 		case event, ok := <-t.eventCh:
 			if !ok {
 				return
 			}
+			t.offsetManager.EventReceive(event.OffsetInfo)
 			if res := filter.Run(t.getFilter(), *event.Event); res == filter.FailFilter {
 				t.offsetManager.EventCommit(event.OffsetInfo)
 				continue
@@ -219,7 +217,7 @@ func (t *Trigger) runEventProcess(ctx context.Context) {
 	}
 }
 
-func (t *Trigger) runEventSend(ctx context.Context) {
+func (t *trigger) runEventSend(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -240,33 +238,62 @@ func (t *Trigger) runEventSend(ctx context.Context) {
 	}
 }
 
-func (t *Trigger) runSleepWatch(ctx context.Context) {
-	tk := time.NewTicker(sleepCheckPeriod)
-	defer tk.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-tk.C:
-			t.stateMutex.Lock()
-			if t.state == TriggerRunning {
-				if time.Since(t.lastActive) > t.SleepDuration {
-					t.state = TriggerSleep
-				} else {
-					t.state = TriggerRunning
-				}
-			}
-			t.stateMutex.Unlock()
-		}
+func (t *trigger) getReaderConfig() reader.Config {
+	controllers := t.config.Controllers
+	sub := t.subscription
+	ebVrn := fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s",
+		controllers[0],
+		sub.EventBus,
+		strings.Join(controllers, ","))
+	var offsetTimestamp int64
+	if sub.Config.OffsetTimestamp != nil {
+		offsetTimestamp = int64(*sub.Config.OffsetTimestamp)
+	} else {
+		offsetTimestamp = time.Now().Add(-1 * 30 * time.Minute).Unix()
+	}
+	return reader.Config{
+		EventBusName:    sub.EventBus,
+		EventBusVRN:     ebVrn,
+		SubscriptionID:  sub.ID,
+		OffsetType:      sub.Config.OffsetType,
+		OffsetTimestamp: offsetTimestamp,
+		Offset:          getOffset(t.offsetManager, sub),
 	}
 }
 
-func (t *Trigger) Start() error {
-	ceClient, err := NewCeClient(t.Target)
+// getOffset from subscription,if subscriptionOffset exist,use subscriptionOffset.
+func getOffset(subscriptionOffset *offset.SubscriptionOffset, sub *primitive.Subscription) map[vanus.ID]uint64 {
+	// get offset from subscription
+	offsetMap := make(map[vanus.ID]uint64)
+	for _, o := range sub.Offsets {
+		offsetMap[o.EventLogID] = o.Offset
+	}
+	// get offset from offset manager
+	offsets := subscriptionOffset.GetCommit()
+	for _, offset := range offsets {
+		offsetMap[offset.EventLogID] = offset.Offset
+	}
+	return offsetMap
+}
+
+func (t *trigger) Init(ctx context.Context) error {
+	ceClient, err := NewCeClient(t.subscription.Sink)
 	if err != nil {
 		return err
 	}
 	t.ceClient = ceClient
+	t.eventCh = make(chan info.EventRecord, t.config.BufferSize)
+	t.sendCh = make(chan info.EventRecord, t.config.BufferSize)
+	t.reader = reader.NewReader(t.getReaderConfig(), t.eventCh)
+	t.offsetManager.Clear()
+	return nil
+}
+
+func (t *trigger) Start(ctx context.Context) error {
+	log.Info(ctx, "trigger start...", map[string]interface{}{
+		log.KeySubscriptionID: t.subscription.ID,
+	})
+	_ = t.reader.Start()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.stop = cancel
 	for i := 0; i < t.config.FilterProcessSize; i++ {
@@ -276,39 +303,64 @@ func (t *Trigger) Start() error {
 		t.wg.StartWithContext(ctx, t.runEventSend)
 	}
 	t.state = TriggerRunning
-	t.lastActive = time.Now()
-
-	t.wg.StartWithContext(ctx, t.runSleepWatch)
-
+	log.Info(ctx, "trigger started", map[string]interface{}{
+		log.KeySubscriptionID: t.subscription.ID,
+	})
 	return nil
 }
 
-func (t *Trigger) Stop() {
-	ctx := context.Background()
+func (t *trigger) Stop(ctx context.Context) error {
 	log.Info(ctx, "trigger stop...", map[string]interface{}{
-		log.KeySubscriptionID: t.SubscriptionID,
+		log.KeySubscriptionID: t.subscription.ID,
 	})
-	if t.GetState() == TriggerStopped {
-		return
+	if t.state == TriggerStopped {
+		return nil
 	}
 	t.stop()
+	t.reader.Close()
 	t.wg.Wait()
 	close(t.eventCh)
 	close(t.sendCh)
-	t.SetState(TriggerStopped)
+	t.state = TriggerStopped
 	log.Info(ctx, "trigger stopped", map[string]interface{}{
-		log.KeySubscriptionID: t.SubscriptionID,
+		log.KeySubscriptionID: t.subscription.ID,
 	})
+	return nil
 }
 
-func (t *Trigger) GetState() State {
-	t.stateMutex.RLock()
-	defer t.stateMutex.RUnlock()
-	return t.state
+func (t *trigger) Change(ctx context.Context, subscription *primitive.Subscription) error {
+	if t.subscription.Sink != subscription.Sink {
+		t.subscription.Sink = subscription.Sink
+		err := t.changeTarget(subscription.Sink)
+		if err != nil {
+			return err
+		}
+	}
+	if !reflect.DeepEqual(t.subscription.Filters, subscription.Filters) {
+		t.subscription.Filters = subscription.Filters
+		t.changeFilter(subscription.Filters)
+	}
+	if !reflect.DeepEqual(t.subscription.InputTransformer, subscription.InputTransformer) {
+		t.subscription.InputTransformer = subscription.InputTransformer
+		t.changeInputTransformer(subscription.InputTransformer)
+	}
+	if !reflect.DeepEqual(t.subscription.Config, subscription.Config) {
+		t.subscription.Config = subscription.Config
+		t.changeConfig(subscription.Config)
+	}
+	return nil
 }
 
-func (t *Trigger) SetState(state State) {
-	t.stateMutex.Lock()
-	defer t.stateMutex.Unlock()
-	t.state = state
+func (t *trigger) ResetOffsetToTimestamp(ctx context.Context, timestamp int64) (pInfo.ListOffsetInfo, error) {
+	offsets, err := t.reader.GetOffsetByTimestamp(ctx, timestamp)
+	if err != nil {
+		return nil, err
+	}
+	t.subscription.Offsets = offsets
+	t.offsetManager.Clear()
+	return offsets, nil
+}
+
+func (t *trigger) GetOffsets(ctx context.Context) pInfo.ListOffsetInfo {
+	return t.offsetManager.GetCommit()
 }

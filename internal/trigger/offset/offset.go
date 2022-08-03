@@ -22,35 +22,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
-type Manager struct {
-	subOffset sync.Map
-}
-
-func NewOffsetManager() *Manager {
-	return &Manager{}
-}
-
-func (m *Manager) RegisterSubscription(id vanus.ID) *SubscriptionOffset {
-	subOffset, exist := m.subOffset.Load(id)
-	if !exist {
-		sub := NewSubscriptionOffset(id)
-		subOffset, _ = m.subOffset.LoadOrStore(id, sub)
-	}
-	return subOffset.(*SubscriptionOffset)
-}
-
-func (m *Manager) GetSubscription(id vanus.ID) *SubscriptionOffset {
-	sub, exist := m.subOffset.Load(id)
-	if !exist {
-		return nil
-	}
-	return sub.(*SubscriptionOffset)
-}
-
-func (m *Manager) RemoveSubscription(id vanus.ID) {
-	m.subOffset.Delete(id)
-}
-
 func NewSubscriptionOffset(id vanus.ID) *SubscriptionOffset {
 	return &SubscriptionOffset{
 		subscriptionID: id,

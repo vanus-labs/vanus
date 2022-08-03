@@ -74,7 +74,8 @@ type controller struct {
 	state                 primitive.ServerState
 }
 
-func (ctrl *controller) CommitOffset(ctx context.Context, request *ctrlpb.CommitOffsetRequest) (*ctrlpb.CommitOffsetResponse, error) {
+func (ctrl *controller) CommitOffset(ctx context.Context,
+	request *ctrlpb.CommitOffsetRequest) (*ctrlpb.CommitOffsetResponse, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}

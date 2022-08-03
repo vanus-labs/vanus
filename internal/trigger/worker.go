@@ -20,13 +20,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/linkall-labs/vanus/internal/trigger/trigger"
+
 	"github.com/linkall-labs/vanus/internal/trigger/errors"
 
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/trigger/offset"
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
@@ -49,19 +50,18 @@ const (
 	defaultHeartbeatPeriod          = 2 * time.Second
 )
 
-type newSubscriptionWorker func(subscription *primitive.Subscription,
-	subscriptionOffset *offset.SubscriptionOffset,
-	config Config) SubscriptionWorker
+type newTrigger func(subscription *primitive.Subscription,
+	options ...trigger.Option) trigger.Trigger
 
 type worker struct {
-	subscriptionMap       sync.Map
-	offsetManager         *offset.Manager
-	ctx                   context.Context
-	stop                  context.CancelFunc
-	config                Config
-	newSubscriptionWorker newSubscriptionWorker
-	wg                    sync.WaitGroup
-	client                *ctrlClient
+	triggerMap map[vanus.ID]trigger.Trigger
+	ctx        context.Context
+	stop       context.CancelFunc
+	config     Config
+	newTrigger newTrigger
+	wg         sync.WaitGroup
+	lock       sync.RWMutex
+	client     *ctrlClient
 }
 
 func NewWorker(config Config) Worker {
@@ -72,22 +72,26 @@ func NewWorker(config Config) Worker {
 		config.HeartbeatPeriod = defaultHeartbeatPeriod
 	}
 	m := &worker{
-		config:                config,
-		client:                NewClient(config.ControllerAddr),
-		newSubscriptionWorker: NewSubscriptionWorker,
-		offsetManager:         offset.NewOffsetManager(),
+		config:     config,
+		client:     NewClient(config.ControllerAddr),
+		triggerMap: make(map[vanus.ID]trigger.Trigger),
+		newTrigger: trigger.NewTrigger,
 	}
 	m.ctx, m.stop = context.WithCancel(context.Background())
 	return m
 }
 
-func (w *worker) getSubscriptionWorker(id vanus.ID) SubscriptionWorker {
-	v, exist := w.subscriptionMap.Load(id)
-	if !exist {
-		return nil
-	}
-	sub, _ := v.(SubscriptionWorker)
-	return sub
+func (w *worker) getTrigger(id vanus.ID) (trigger.Trigger, bool) {
+	t, exist := w.triggerMap[id]
+	return t, exist
+}
+
+func (w *worker) addTrigger(id vanus.ID, t trigger.Trigger) {
+	w.triggerMap[id] = t
+}
+
+func (w *worker) deleteTrigger(id vanus.ID) {
+	delete(w.triggerMap, id)
 }
 
 func (w *worker) Register(ctx context.Context) error {
@@ -112,15 +116,14 @@ func (w *worker) Start(ctx context.Context) error {
 func (w *worker) Stop(ctx context.Context) error {
 	var wg sync.WaitGroup
 	// stop subscription
-	w.subscriptionMap.Range(func(key, value interface{}) bool {
+	for id, t := range w.triggerMap {
 		wg.Add(1)
-		id, _ := key.(vanus.ID)
-		go func(id vanus.ID) {
+		go func(id vanus.ID, t trigger.Trigger) {
 			defer wg.Done()
-			w.stopSubscription(ctx, id)
-		}(id)
-		return true
-	})
+			_ = t.Stop(ctx)
+		}(id, t)
+	}
+
 	wg.Wait()
 	// commit offset
 	err := w.commitOffsets(ctx)
@@ -131,42 +134,47 @@ func (w *worker) Stop(ctx context.Context) error {
 	}
 	// stop heartbeat
 	w.stop()
-	w.subscriptionMap.Range(func(key, value interface{}) bool {
-		w.subscriptionMap.Delete(key)
-		return true
-	})
+	// clean trigger
+	for id := range w.triggerMap {
+		delete(w.triggerMap, id)
+	}
 	w.wg.Wait()
 	return nil
 }
 
 func (w *worker) AddSubscription(ctx context.Context, subscription *primitive.Subscription) error {
-	data, exist := w.subscriptionMap.Load(subscription.ID)
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	t, exist := w.getTrigger(subscription.ID)
 	if exist {
-		sub, _ := data.(SubscriptionWorker)
-		err := sub.Change(ctx, subscription)
+		err := t.Change(ctx, subscription)
 		return err
 	}
-	subOffset := w.offsetManager.RegisterSubscription(subscription.ID)
-	sub := w.newSubscriptionWorker(subscription, subOffset, w.config)
-	w.subscriptionMap.Store(subscription.ID, sub)
-	err := sub.Run(w.ctx)
+	t = w.newTrigger(subscription, w.getTriggerOptions(subscription)...)
+	err := t.Init(ctx)
 	if err != nil {
-		w.subscriptionMap.Delete(subscription.ID)
-		w.offsetManager.RemoveSubscription(subscription.ID)
 		return err
 	}
+	err = t.Start(w.ctx)
+	if err != nil {
+		return err
+	}
+	w.addTrigger(subscription.ID, t)
 	return nil
 }
 
 func (w *worker) RemoveSubscription(ctx context.Context, id vanus.ID) error {
-	w.stopSubscription(ctx, id)
-	w.cleanSubscription(w.ctx, id)
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	_ = w.stopSubscription(ctx, id)
+	w.deleteTrigger(id)
 	return nil
 }
 
 func (w *worker) PauseSubscription(ctx context.Context, id vanus.ID) error {
-	w.stopSubscription(ctx, id)
-	return nil
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	return w.stopSubscription(ctx, id)
 }
 
 func (w *worker) StartSubscription(ctx context.Context, id vanus.ID) error {
@@ -176,20 +184,14 @@ func (w *worker) StartSubscription(ctx context.Context, id vanus.ID) error {
 func (w *worker) ResetOffsetToTimestamp(ctx context.Context,
 	id vanus.ID,
 	timestamp int64) error {
-	v, exist := w.subscriptionMap.Load(id)
+	t, exist := w.getTrigger(id)
 	if !exist {
 		return errors.ErrResourceNotFound.WithMessage("subscription not exist")
 	}
-	subWorker, _ := v.(SubscriptionWorker)
 	// pause subscription
-	w.stopSubscription(ctx, id)
-	// clean current offset
-	subOffset := w.offsetManager.GetSubscription(id)
-	if subOffset != nil {
-		subOffset.Clear()
-	}
+	_ = w.stopSubscription(ctx, id)
 	// reset offset
-	offsets, err := subWorker.ResetOffsetToTimestamp(ctx, timestamp)
+	offsets, err := t.ResetOffsetToTimestamp(ctx, timestamp)
 	if err != nil {
 		return err
 	}
@@ -220,7 +222,7 @@ func (w *worker) startHeartbeat(ctx context.Context) {
 		case <-ticker.C:
 			err := w.client.heartbeat(ctx, &ctrlpb.TriggerWorkerHeartbeatRequest{
 				Address:          w.config.TriggerAddr,
-				SubscriptionInfo: w.getAllSubscriptionInfo(),
+				SubscriptionInfo: w.getAllSubscriptionInfo(ctx),
 			})
 			if err != nil {
 				log.Warning(ctx, "heartbeat error", map[string]interface{}{
@@ -231,37 +233,24 @@ func (w *worker) startHeartbeat(ctx context.Context) {
 	}
 }
 
-func (w *worker) stopSubscription(ctx context.Context, id vanus.ID) {
-	v, exist := w.subscriptionMap.Load(id)
+func (w *worker) stopSubscription(ctx context.Context, id vanus.ID) error {
+	t, exist := w.getTrigger(id)
 	if !exist {
-		return
+		return nil
 	}
-	subWorker, _ := v.(SubscriptionWorker)
-	subWorker.Stop(ctx)
-	log.Info(ctx, "stop subscription success", map[string]interface{}{
-		log.KeySubscriptionID: id,
-	})
+	return t.Stop(ctx)
 }
 
 func (w *worker) startSubscription(ctx context.Context, id vanus.ID) error {
-	v, exist := w.subscriptionMap.Load(id)
+	t, exist := w.getTrigger(id)
 	if !exist {
 		return errors.ErrResourceNotFound.WithMessage("subscription not exist")
 	}
-	subWorker, _ := v.(SubscriptionWorker)
-	err := subWorker.Run(ctx)
+	err := t.Init(ctx)
 	if err != nil {
 		return err
 	}
-	log.Info(ctx, "start subscription success", map[string]interface{}{
-		log.KeySubscriptionID: id,
-	})
-	return nil
-}
-
-func (w *worker) cleanSubscription(ctx context.Context, id vanus.ID) {
-	w.subscriptionMap.Delete(id)
-	w.offsetManager.RemoveSubscription(id)
+	return t.Start(ctx)
 }
 
 func (w *worker) commitOffset(ctx context.Context, id vanus.ID, offsets info.ListOffsetInfo) error {
@@ -277,23 +266,30 @@ func (w *worker) commitOffset(ctx context.Context, id vanus.ID, offsets info.Lis
 func (w *worker) commitOffsets(ctx context.Context) error {
 	return w.client.commitOffset(ctx, &ctrlpb.CommitOffsetRequest{
 		ForceCommit:      true,
-		SubscriptionInfo: w.getAllSubscriptionInfo(),
+		SubscriptionInfo: w.getAllSubscriptionInfo(ctx),
 	})
 }
 
-func (w *worker) getAllSubscriptionInfo() []*metapb.SubscriptionInfo {
-	var subInfos []*metapb.SubscriptionInfo
-	w.subscriptionMap.Range(func(key, value interface{}) bool {
-		id, _ := key.(vanus.ID)
-		subOffset := w.offsetManager.GetSubscription(id)
-		if subOffset == nil {
-			return true
-		}
+func (w *worker) getAllSubscriptionInfo(ctx context.Context) []*metapb.SubscriptionInfo {
+	w.lock.RLock()
+	defer w.lock.RUnlock()
+	subInfos := make([]*metapb.SubscriptionInfo, 0, len(w.triggerMap))
+	for id, t := range w.triggerMap {
 		subInfos = append(subInfos, &metapb.SubscriptionInfo{
 			SubscriptionId: uint64(id),
-			Offsets:        convert.ToPbOffsetInfos(subOffset.GetCommit()),
+			Offsets:        convert.ToPbOffsetInfos(t.GetOffsets(ctx)),
 		})
-		return true
-	})
+	}
 	return subInfos
+}
+
+func (w *worker) getTriggerOptions(subscription *primitive.Subscription) []trigger.Option {
+	opts := []trigger.Option{trigger.WithControllers(w.config.ControllerAddr)}
+	rateLimit := w.config.RateLimit
+	config := subscription.Config
+	if config.RateLimit != 0 {
+		rateLimit = config.RateLimit
+	}
+	opts = append(opts, trigger.WithRateLimit(rateLimit))
+	return opts
 }

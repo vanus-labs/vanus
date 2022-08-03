@@ -37,6 +37,7 @@ type Config struct {
 	RetryPeriod       time.Duration
 	SendTimeOut       time.Duration
 	RateLimit         int32
+	Controllers       []string
 }
 
 func defaultConfig() Config {
@@ -51,10 +52,10 @@ func defaultConfig() Config {
 	return c
 }
 
-type Option func(t *Trigger)
+type Option func(t *trigger)
 
 func WithFilterProcessSize(size int) Option {
-	return func(t *Trigger) {
+	return func(t *trigger) {
 		if size <= 0 {
 			return
 		}
@@ -63,7 +64,7 @@ func WithFilterProcessSize(size int) Option {
 }
 
 func WithSendProcessSize(size int) Option {
-	return func(t *Trigger) {
+	return func(t *trigger) {
 		if size <= 0 {
 			return
 		}
@@ -72,7 +73,7 @@ func WithSendProcessSize(size int) Option {
 }
 
 func WithBufferSize(size int) Option {
-	return func(t *Trigger) {
+	return func(t *trigger) {
 		if size <= 0 {
 			return
 		}
@@ -81,7 +82,7 @@ func WithBufferSize(size int) Option {
 }
 
 func WithMaxRetryTimes(times int) Option {
-	return func(t *Trigger) {
+	return func(t *trigger) {
 		if times <= 0 {
 			return
 		}
@@ -90,7 +91,7 @@ func WithMaxRetryTimes(times int) Option {
 }
 
 func WithRetryPeriod(period time.Duration) Option {
-	return func(t *Trigger) {
+	return func(t *trigger) {
 		if period <= 0 {
 			return
 		}
@@ -99,7 +100,7 @@ func WithRetryPeriod(period time.Duration) Option {
 }
 
 func WithSendTimeOut(timeout time.Duration) Option {
-	return func(t *Trigger) {
+	return func(t *trigger) {
 		if timeout <= 0 {
 			return
 		}
@@ -108,7 +109,7 @@ func WithSendTimeOut(timeout time.Duration) Option {
 }
 
 func WithRateLimit(rateLimit int32) Option {
-	return func(t *Trigger) {
+	return func(t *trigger) {
 		if rateLimit == 0 || t.config.RateLimit == rateLimit {
 			return
 		}
@@ -118,5 +119,11 @@ func WithRateLimit(rateLimit int32) Option {
 		} else {
 			t.rateLimiter = ratelimit.New(int(rateLimit))
 		}
+	}
+}
+
+func WithControllers(controllers []string) Option {
+	return func(t *trigger) {
+		t.config.Controllers = controllers
 	}
 }

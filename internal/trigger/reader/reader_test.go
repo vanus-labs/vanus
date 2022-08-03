@@ -30,10 +30,14 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/reader"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestReader(t *testing.T) {
+	gostub.Stub(&eb.LookupLatestLogOffset, func(ctx context.Context, vrn string) (int64, error) {
+		return 0, nil
+	})
 	testSendInmemory()
 	// memoryEbVRN := "vanus+local:eventbus:1".
 	memoryEbVRN := "vanus+local:///eventbus/1"
@@ -42,7 +46,7 @@ func TestReader(t *testing.T) {
 		EventBusVRN:    memoryEbVRN,
 		SubscriptionID: 1,
 	}
-	events := make(chan info.EventOffset, 10)
+	events := make(chan info.EventRecord, 10)
 	r := reader.NewReader(conf, events)
 	r.Start()
 	var testC, noneC int

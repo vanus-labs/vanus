@@ -23,58 +23,11 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestRegisterSubscription(t *testing.T) {
-	m := NewOffsetManager()
-	Convey("register subscription", t, func() {
-		Convey("subscription offset same", func() {
-			id := vanus.ID(1)
-			So(m.RegisterSubscription(id), ShouldEqual, m.RegisterSubscription(id))
-		})
-		Convey("subscriptionID not equals subscription offset not same", func() {
-			So(m.RegisterSubscription(1), ShouldNotEqual, m.RegisterSubscription(2))
-		})
-	})
-}
-
-func TestGetSubscription(t *testing.T) {
-	m := NewOffsetManager()
-	Convey("get subscription", t, func() {
-		id := vanus.ID(1)
-		Convey("get subscription nil", func() {
-			So(m.GetSubscription(id), ShouldBeNil)
-		})
-		subOffset := m.RegisterSubscription(id)
-		Convey("get subscription not nil", func() {
-			So(m.GetSubscription(id), ShouldNotBeNil)
-		})
-		Convey("get same register", func() {
-			So(subOffset, ShouldEqual, m.GetSubscription(id))
-		})
-		Convey("multi get same", func() {
-			So(m.GetSubscription(id), ShouldEqual, m.GetSubscription(id))
-		})
-	})
-}
-
-func TestRemoveSubscription(t *testing.T) {
-	m := NewOffsetManager()
-	Convey("remove subscription", t, func() {
-		id := vanus.ID(1)
-		m.RegisterSubscription(id)
-		Convey("multi remove register subscription", func() {
-			So(m.GetSubscription(id), ShouldNotBeNil)
-			m.RemoveSubscription(id)
-			So(m.GetSubscription(id), ShouldBeNil)
-			So(m.GetSubscription(id), ShouldBeNil)
-		})
-	})
-}
-
 func TestSubscriptionOffset(t *testing.T) {
 	Convey("subscription offset", t, func() {
 		eventLogID := vanus.NewID()
+		subOffset := NewSubscriptionOffset(vanus.NewID())
 		Convey("commit with no receive", func() {
-			subOffset := NewSubscriptionOffset(vanus.NewID())
 			offsetBegin := uint64(1)
 			commitEnd := offsetBegin + 10
 			for offset := offsetBegin; offset < commitEnd; offset++ {
@@ -87,7 +40,6 @@ func TestSubscriptionOffset(t *testing.T) {
 			So(0, ShouldEqual, len(commits))
 		})
 		Convey("commit with receive", func() {
-			subOffset := NewSubscriptionOffset(vanus.NewID())
 			offsetBegin := uint64(1)
 			offsetEnd := uint64(100)
 			var wg sync.WaitGroup
