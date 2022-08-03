@@ -53,6 +53,38 @@ func TestCreateSubscriptionRequestValidator(t *testing.T) {
 		}
 		So(ValidateCreateSubscription(ctx, request), ShouldNotBeNil)
 	})
+	Convey("subscription config rate limit", t, func() {
+		request := &ctrlpb.CreateSubscriptionRequest{
+			Sink:     "sink",
+			EventBus: "eventBus",
+			Config: &metapb.SubscriptionConfig{
+				RateLimit: -2,
+			},
+		}
+		So(ValidateCreateSubscription(ctx, request), ShouldNotBeNil)
+	})
+	Convey("subscription config offset invalid", t, func() {
+		request := &ctrlpb.CreateSubscriptionRequest{
+			Sink:     "sink",
+			EventBus: "eventBus",
+			Config: &metapb.SubscriptionConfig{
+				OffsetType: metapb.SubscriptionConfig_TIMESTAMP,
+			},
+		}
+		So(ValidateCreateSubscription(ctx, request), ShouldNotBeNil)
+	})
+}
+
+func TestValidateUpdateSubscription(t *testing.T) {
+	ctx := context.Background()
+	Convey("test update subscription", t, func() {
+		request := &ctrlpb.UpdateSubscriptionRequest{
+			Config: &metapb.SubscriptionConfig{
+				OffsetType: metapb.SubscriptionConfig_EARLIEST,
+			},
+		}
+		So(ValidateUpdateSubscription(ctx, request), ShouldBeNil)
+	})
 }
 
 func TestValidateFilter(t *testing.T) {
