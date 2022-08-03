@@ -16,7 +16,6 @@ package trigger
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"sync"
 	"sync/atomic"
@@ -148,7 +147,6 @@ func TestTriggerRateLimit(t *testing.T) {
 		Convey("test with rate", func() {
 			WithRateLimit(rateLimit)(tg)
 			c := testSendEvent(tg)
-			fmt.Println(c)
 			So(c, ShouldBeLessThanOrEqualTo, 1*rateLimit+10)
 		})
 	})
