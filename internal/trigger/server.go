@@ -79,7 +79,7 @@ func (s *server) AddSubscription(ctx context.Context,
 	subscription := convert.FromPbAddSubscription(request)
 	err := s.worker.AddSubscription(ctx, subscription)
 	if err != nil {
-		log.Warning(ctx, "worker add subscription error ", map[string]interface{}{
+		log.Error(ctx, "add subscription error ", map[string]interface{}{
 			"subscription": subscription,
 			log.KeyError:   err,
 		})
@@ -96,7 +96,7 @@ func (s *server) RemoveSubscription(ctx context.Context,
 	}
 	err := s.worker.RemoveSubscription(ctx, vanus.NewIDFromUint64(request.SubscriptionId))
 	if err != nil {
-		log.Info(ctx, "remove subscription error", map[string]interface{}{
+		log.Error(ctx, "remove subscription error", map[string]interface{}{
 			log.KeySubscriptionID: request.SubscriptionId,
 			log.KeyError:          err,
 		})
@@ -113,7 +113,7 @@ func (s *server) PauseSubscription(ctx context.Context,
 	}
 	err := s.worker.PauseSubscription(ctx, vanus.NewIDFromUint64(request.SubscriptionId))
 	if err != nil {
-		log.Info(ctx, "pause subscription error", map[string]interface{}{
+		log.Error(ctx, "pause subscription error", map[string]interface{}{
 			log.KeySubscriptionID: request.SubscriptionId,
 			log.KeyError:          err,
 		})
@@ -130,7 +130,7 @@ func (s *server) ResumeSubscription(ctx context.Context,
 	}
 	err := s.worker.StartSubscription(ctx, vanus.NewIDFromUint64(request.SubscriptionId))
 	if err != nil {
-		log.Info(ctx, "resume subscription error", map[string]interface{}{
+		log.Error(ctx, "resume subscription error", map[string]interface{}{
 			log.KeySubscriptionID: request.SubscriptionId,
 			log.KeyError:          err,
 		})

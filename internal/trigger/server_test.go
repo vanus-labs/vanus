@@ -16,6 +16,7 @@ package trigger
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -44,25 +45,50 @@ func TestServerApi(t *testing.T) {
 			_, err := s.AddSubscription(ctx, &pbtrigger.AddSubscriptionRequest{})
 			So(err, ShouldBeNil)
 		})
+		Convey("test add subscription has error", func() {
+			w.EXPECT().AddSubscription(gomock.Any(), gomock.Any()).Return(fmt.Errorf("test error"))
+			_, err := s.AddSubscription(ctx, &pbtrigger.AddSubscriptionRequest{})
+			So(err, ShouldNotBeNil)
+		})
 		Convey("test remove subscription", func() {
 			w.EXPECT().RemoveSubscription(gomock.Any(), gomock.Any()).Return(nil)
 			_, err := s.RemoveSubscription(ctx, &pbtrigger.RemoveSubscriptionRequest{})
 			So(err, ShouldBeNil)
+		})
+		Convey("test remove subscription has error", func() {
+			w.EXPECT().RemoveSubscription(gomock.Any(), gomock.Any()).Return(fmt.Errorf("test error"))
+			_, err := s.RemoveSubscription(ctx, &pbtrigger.RemoveSubscriptionRequest{})
+			So(err, ShouldNotBeNil)
 		})
 		Convey("test pause subscription", func() {
 			w.EXPECT().PauseSubscription(gomock.Any(), gomock.Any()).Return(nil)
 			_, err := s.PauseSubscription(ctx, &pbtrigger.PauseSubscriptionRequest{})
 			So(err, ShouldBeNil)
 		})
+		Convey("test pause subscription has error", func() {
+			w.EXPECT().PauseSubscription(gomock.Any(), gomock.Any()).Return(fmt.Errorf("test error"))
+			_, err := s.PauseSubscription(ctx, &pbtrigger.PauseSubscriptionRequest{})
+			So(err, ShouldNotBeNil)
+		})
 		Convey("test resume subscription", func() {
 			w.EXPECT().StartSubscription(gomock.Any(), gomock.Any()).Return(nil)
 			_, err := s.ResumeSubscription(ctx, &pbtrigger.ResumeSubscriptionRequest{})
 			So(err, ShouldBeNil)
 		})
+		Convey("test resume subscription has error", func() {
+			w.EXPECT().StartSubscription(gomock.Any(), gomock.Any()).Return(fmt.Errorf("test error"))
+			_, err := s.ResumeSubscription(ctx, &pbtrigger.ResumeSubscriptionRequest{})
+			So(err, ShouldNotBeNil)
+		})
 		Convey("test reset offset to timestamp", func() {
 			w.EXPECT().ResetOffsetToTimestamp(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 			_, err := s.ResetOffsetToTimestamp(ctx, &pbtrigger.ResetOffsetToTimestampRequest{})
 			So(err, ShouldBeNil)
+		})
+		Convey("test reset offset to timestamp has error", func() {
+			w.EXPECT().ResetOffsetToTimestamp(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("test error"))
+			_, err := s.ResetOffsetToTimestamp(ctx, &pbtrigger.ResetOffsetToTimestampRequest{})
+			So(err, ShouldNotBeNil)
 		})
 	})
 }
