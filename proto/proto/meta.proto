@@ -110,7 +110,6 @@ message SubscriptionConfig {
   optional uint64 offset_timestamp = 3;
 }
 
-
 message Filter {
   map<string, string> exact = 1;
   map<string, string> prefix = 2;

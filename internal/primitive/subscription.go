@@ -58,7 +58,7 @@ type SubscriptionFilter struct {
 	Exact  map[string]string     `json:"exact,omitempty"`
 	Prefix map[string]string     `json:"prefix,omitempty"`
 	Suffix map[string]string     `json:"suffix,omitempty"`
-	CeSQL  string                `json:"ce_qql,omitempty"`
+	CeSQL  string                `json:"ce_sql,omitempty"`
 	Not    *SubscriptionFilter   `json:"not,omitempty"`
 	All    []*SubscriptionFilter `json:"all,omitempty"`
 	Any    []*SubscriptionFilter `json:"any,omitempty"`

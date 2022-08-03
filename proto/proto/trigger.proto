@@ -54,7 +54,6 @@ message AddSubscriptionRequest {
   repeated meta.OffsetInfo offsets = 5;
   meta.InputTransformer input_transformer = 6;
   meta.SubscriptionConfig config = 7;
-  optional uint64 reset_offset_timestamp = 8;
 }
 
 message AddSubscriptionResponse {}
