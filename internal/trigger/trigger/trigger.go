@@ -247,8 +247,6 @@ func (t *trigger) getReaderConfig() reader.Config {
 	var offsetTimestamp int64
 	if sub.Config.OffsetTimestamp != nil {
 		offsetTimestamp = int64(*sub.Config.OffsetTimestamp)
-	} else {
-		offsetTimestamp = time.Now().Add(-1 * 30 * time.Minute).Unix()
 	}
 	return reader.Config{
 		EventBusName:    sub.EventBus,

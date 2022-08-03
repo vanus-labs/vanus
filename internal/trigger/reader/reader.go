@@ -101,8 +101,7 @@ func (r *reader) GetOffsetByTimestamp(ctx context.Context, timestamp int64) (pIn
 			Offset:     uint64(offset),
 		})
 	}
-
-	return pInfo.ListOffsetInfo{}, nil
+	return offsets, nil
 }
 
 func (r *reader) Close() {

@@ -36,6 +36,10 @@ func ValidateCreateSubscription(ctx context.Context, request *ctrlpb.CreateSubsc
 	if request.EventBus == "" {
 		return errors.ErrInvalidRequest.WithMessage("eventBus is empty")
 	}
+	err = validateSubscriptionConfig(ctx, request.Config)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -44,9 +48,31 @@ func ValidateUpdateSubscription(ctx context.Context, request *ctrlpb.UpdateSubsc
 	if err != nil {
 		return errors.ErrInvalidRequest.WithMessage("filters is invalid").Wrap(err)
 	}
+	err = validateSubscriptionConfig(ctx, request.Config)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
+func validateSubscriptionConfig(ctx context.Context, cfg *metapb.SubscriptionConfig) error {
+	if cfg == nil {
+		return nil
+	}
+	if cfg.RateLimit < -1 {
+		return errors.ErrInvalidRequest.WithMessage("rate limit is -1 or gt than 0")
+	}
+	switch cfg.OffsetType {
+	case metapb.SubscriptionConfig_LATEST, metapb.SubscriptionConfig_EARLIEST:
+	case metapb.SubscriptionConfig_TIMESTAMP:
+		if cfg.OffsetTimestamp == nil {
+			return errors.ErrInvalidRequest.WithMessage("offset type is timestamp, offset timestamp can not be nil")
+		}
+	default:
+		return errors.ErrInvalidRequest.WithMessage("offset type is invalid")
+	}
+	return nil
+}
 func ValidateFilterList(ctx context.Context, filters []*metapb.Filter) error {
 	if len(filters) == 0 {
 		return nil

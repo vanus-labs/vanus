@@ -12,15 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package reader_test
+package reader
 
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/linkall-labs/vanus/internal/primitive"
+
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	eb "github.com/linkall-labs/vanus/client"
@@ -28,11 +33,81 @@ import (
 	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
 	"github.com/linkall-labs/vanus/client/pkg/inmemory"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
-	"github.com/linkall-labs/vanus/internal/trigger/reader"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
 )
+
+func TestGetOffsetByTimestamp(t *testing.T) {
+	Convey("test get offset by timestamp", t, func() {
+		events := make(chan info.EventRecord, 10)
+		r := NewReader(Config{}, events).(*reader)
+		eventLogID := vanus.NewID()
+		r.elReader = map[vanus.ID]string{eventLogID: "test"}
+		rand.Seed(time.Now().Unix())
+		offset := rand.Uint64()
+		gostub.Stub(&eb.LookupLogOffset, func(ctx context.Context, vrn string, ts int64) (int64, error) {
+			return int64(offset), nil
+		})
+		offsets, err := r.GetOffsetByTimestamp(context.Background(), time.Now().Unix())
+		So(err, ShouldBeNil)
+		So(len(offsets), ShouldEqual, 1)
+		So(offsets[0].EventLogID, ShouldEqual, eventLogID)
+		So(offsets[0].Offset, ShouldEqual, offset)
+	})
+}
+
+func TestGetOffset(t *testing.T) {
+	Convey("test get offset", t, func() {
+		events := make(chan info.EventRecord, 10)
+		r := NewReader(Config{}, events).(*reader)
+		eventLogID := vanus.NewID()
+		vrn := "test"
+		r.elReader = map[vanus.ID]string{eventLogID: vrn}
+		Convey("test latest", func() {
+			r.config.OffsetType = primitive.LatestOffset
+			rand.Seed(time.Now().Unix())
+			offset := rand.Uint64()
+			gostub.Stub(&eb.LookupLatestLogOffset, func(ctx context.Context, vrn string) (int64, error) {
+				return int64(offset), nil
+			})
+			v, err := r.getOffset(context.Background(), eventLogID, vrn)
+			So(err, ShouldBeNil)
+			So(v, ShouldEqual, offset)
+		})
+		Convey("test earliest", func() {
+			r.config.OffsetType = primitive.EarliestOffset
+			rand.Seed(time.Now().Unix())
+			offset := rand.Uint64()
+			gostub.Stub(&eb.LookupEarliestLogOffset, func(ctx context.Context, vrn string) (int64, error) {
+				return int64(offset), nil
+			})
+			v, err := r.getOffset(context.Background(), eventLogID, vrn)
+			So(err, ShouldBeNil)
+			So(v, ShouldEqual, offset)
+		})
+		Convey("test timestamp", func() {
+			r.config.OffsetType = primitive.Timestamp
+			r.config.OffsetTimestamp = time.Now().Unix()
+			rand.Seed(time.Now().Unix())
+			offset := rand.Uint64()
+			gostub.Stub(&eb.LookupLogOffset, func(ctx context.Context, vrn string, ts int64) (int64, error) {
+				return int64(offset), nil
+			})
+			v, err := r.getOffset(context.Background(), eventLogID, vrn)
+			So(err, ShouldBeNil)
+			So(v, ShouldEqual, offset)
+		})
+		Convey("test exist", func() {
+			rand.Seed(time.Now().Unix())
+			offset := rand.Uint64()
+			r.config.Offset = map[vanus.ID]uint64{eventLogID: offset}
+			v, err := r.getOffset(context.Background(), eventLogID, vrn)
+			So(err, ShouldBeNil)
+			So(v, ShouldEqual, offset)
+		})
+	})
+}
 
 func TestReader(t *testing.T) {
 	gostub.Stub(&eb.LookupLatestLogOffset, func(ctx context.Context, vrn string) (int64, error) {
@@ -41,13 +116,13 @@ func TestReader(t *testing.T) {
 	testSendInmemory()
 	// memoryEbVRN := "vanus+local:eventbus:1".
 	memoryEbVRN := "vanus+local:///eventbus/1"
-	conf := reader.Config{
+	conf := Config{
 		EventBusName:   "testBus",
 		EventBusVRN:    memoryEbVRN,
 		SubscriptionID: 1,
 	}
 	events := make(chan info.EventRecord, 10)
-	r := reader.NewReader(conf, events)
+	r := NewReader(conf, events)
 	r.Start()
 	var testC, noneC int
 	var wg sync.WaitGroup

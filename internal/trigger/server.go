@@ -19,14 +19,13 @@ import (
 	"os"
 	"time"
 
-	"google.golang.org/protobuf/types/known/emptypb"
-
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"github.com/linkall-labs/vanus/observability/log"
 	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -101,6 +100,7 @@ func (s *server) RemoveSubscription(ctx context.Context,
 			log.KeySubscriptionID: request.SubscriptionId,
 			log.KeyError:          err,
 		})
+		return nil, err
 	}
 	return &pbtrigger.RemoveSubscriptionResponse{}, nil
 }
@@ -111,7 +111,14 @@ func (s *server) PauseSubscription(ctx context.Context,
 	if s.state != primitive.ServerStateRunning {
 		return nil, errors.ErrWorkerNotStart
 	}
-	_ = s.worker.PauseSubscription(ctx, vanus.NewIDFromUint64(request.SubscriptionId))
+	err := s.worker.PauseSubscription(ctx, vanus.NewIDFromUint64(request.SubscriptionId))
+	if err != nil {
+		log.Info(ctx, "pause subscription error", map[string]interface{}{
+			log.KeySubscriptionID: request.SubscriptionId,
+			log.KeyError:          err,
+		})
+		return nil, err
+	}
 	return &pbtrigger.PauseSubscriptionResponse{}, nil
 }
 
@@ -120,6 +127,14 @@ func (s *server) ResumeSubscription(ctx context.Context,
 	log.Info(ctx, "subscription resume ", map[string]interface{}{"request": request})
 	if s.state != primitive.ServerStateRunning {
 		return nil, errors.ErrWorkerNotStart
+	}
+	err := s.worker.StartSubscription(ctx, vanus.NewIDFromUint64(request.SubscriptionId))
+	if err != nil {
+		log.Info(ctx, "resume subscription error", map[string]interface{}{
+			log.KeySubscriptionID: request.SubscriptionId,
+			log.KeyError:          err,
+		})
+		return nil, err
 	}
 	return &pbtrigger.ResumeSubscriptionResponse{}, nil
 }
@@ -134,6 +149,7 @@ func (s *server) ResetOffsetToTimestamp(ctx context.Context,
 			log.KeySubscriptionID: id,
 			log.KeyError:          err,
 		})
+		return nil, err
 	}
 	return &emptypb.Empty{}, nil
 }
