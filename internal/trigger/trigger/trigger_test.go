@@ -16,6 +16,7 @@ package trigger
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"sync"
 	"sync/atomic"
@@ -90,7 +91,7 @@ func TestTriggerStartStop(t *testing.T) {
 		r.EXPECT().Start().Return(nil)
 		err = tg.Start(ctx)
 		So(err, ShouldBeNil)
-		time.Sleep(time.Second)
+		time.Sleep(100 * time.Millisecond)
 		So(tg.state, ShouldEqual, TriggerRunning)
 		r.EXPECT().Close().Return()
 		_ = tg.Stop(ctx)
@@ -147,7 +148,8 @@ func TestTriggerRateLimit(t *testing.T) {
 		Convey("test with rate", func() {
 			WithRateLimit(rateLimit)(tg)
 			c := testSendEvent(tg)
-			So(c, ShouldBeLessThanOrEqualTo, 2*rateLimit+10)
+			fmt.Println(c)
+			So(c, ShouldBeLessThanOrEqualTo, 1*rateLimit+10)
 		})
 	})
 }
@@ -177,7 +179,7 @@ func testSendEvent(tg *trigger) int64 {
 			}
 		}
 	}()
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 	close(eventCh)
 	cancel()
 	wg.Wait()

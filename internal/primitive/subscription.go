@@ -41,8 +41,8 @@ const (
 
 type SubscriptionConfig struct {
 	RateLimit       int32      `json:"rate_limit,omitempty"`
-	OffsetType      OffsetType `json:"offset_type"`
-	OffsetTimestamp *uint64    `json:"offset_timestamp"`
+	OffsetType      OffsetType `json:"offset_type,omitempty"`
+	OffsetTimestamp *uint64    `json:"offset_timestamp,omitempty"`
 }
 
 func (conf *SubscriptionConfig) Change(curr SubscriptionConfig) bool {
