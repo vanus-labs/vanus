@@ -146,15 +146,9 @@ func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size 
 			}
 		}
 	}()
-	select {
-	case <-ctx.Done():
-		cancel()
+	<-tCtx.Done()
+	if tCtx.Err() == context.DeadlineExceeded {
 		return nil, errors.ErrTimeout
-	case <-tCtx.Done():
-		if tCtx.Err() == context.DeadlineExceeded {
-			return nil, errors.ErrTimeout
-		}
 	}
-
 	return events, err
 }
