@@ -724,33 +724,7 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 			"the segment doesn't exist on this server")
 	}
 
-	readMessages := func(ctx context.Context) ([]*cepb.CloudEvent, error) {
-		entries, err := reader.Read(ctx, off, num)
-		if err != nil {
-			return nil, err
-		}
-
-		events := make([]*cepb.CloudEvent, len(entries))
-		for i, entry := range entries {
-			event := &cepb.CloudEvent{}
-			if err2 := proto.Unmarshal(entry.Payload, event); err2 != nil {
-				return nil, errors.ErrInternal.WithMessage(
-					"unmarshall data to event failed").Wrap(err2)
-			}
-			if event.Attributes == nil {
-				event.Attributes = make(map[string]*cepb.CloudEventAttributeValue, 1)
-			}
-			event.Attributes[segpb.XVanusBlockOffset] = &cepb.CloudEventAttributeValue{
-				Attr: &cepb.CloudEventAttributeValue_CeInteger{
-					CeInteger: int32(entry.Index),
-				},
-			}
-			events[i] = event
-		}
-
-		return events, nil
-	}
-	events, err := readMessages(ctx)
+	events, err := s.readMessages(ctx, reader, off, num)
 	if err == nil {
 		return events, nil
 	}
@@ -768,11 +742,36 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 		return nil, block.ErrOffsetOnEnd
 	case <-doneC:
 		// it can't read message immediately because of async apply
-		events, err = readMessages(ctx)
+		events, err = s.readMessages(ctx, reader, off, num)
 	}
 	return events, err
 }
+func (s *server) readMessages(ctx context.Context, reader block.Reader, off, num int) ([]*cepb.CloudEvent, error) {
+	entries, err := reader.Read(ctx, off, num)
+	if err != nil {
+		return nil, err
+	}
 
+	events := make([]*cepb.CloudEvent, len(entries))
+	for i, entry := range entries {
+		event := &cepb.CloudEvent{}
+		if err2 := proto.Unmarshal(entry.Payload, event); err2 != nil {
+			return nil, errors.ErrInternal.WithMessage(
+				"unmarshall data to event failed").Wrap(err2)
+		}
+		if event.Attributes == nil {
+			event.Attributes = make(map[string]*cepb.CloudEventAttributeValue, 1)
+		}
+		event.Attributes[segpb.XVanusBlockOffset] = &cepb.CloudEventAttributeValue{
+			Attr: &cepb.CloudEventAttributeValue_CeInteger{
+				CeInteger: int32(entry.Index),
+			},
+		}
+		events[i] = event
+	}
+
+	return events, nil
+}
 func (s *server) checkState() error {
 	if s.state != primitive.ServerStateRunning {
 		return errors.ErrServiceState.WithMessage(fmt.Sprintf(

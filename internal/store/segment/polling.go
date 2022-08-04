@@ -67,21 +67,20 @@ func (p *pollingMgr) NewMessageArrived(blockID vanus.ID) {
 }
 
 type blockPolling struct {
-	mutex sync.Mutex
+	mutex sync.RWMutex
 	ch    chan struct{}
 }
 
 func newBlockPolling() *blockPolling {
 	bp := &blockPolling{
-		mutex: sync.Mutex{},
-		ch:    make(chan struct{}),
+		ch: make(chan struct{}),
 	}
 	return bp
 }
 
 func (bp *blockPolling) add(ctx context.Context) <-chan struct{} {
-	bp.mutex.Lock()
-	defer bp.mutex.Unlock()
+	bp.mutex.RLock()
+	defer bp.mutex.RUnlock()
 
 	t, ok := ctx.Deadline()
 	if !ok {

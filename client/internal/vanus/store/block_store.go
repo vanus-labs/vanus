@@ -115,40 +115,38 @@ func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size 
 		return nil, err
 	}
 
-	tCtx, cancel := context.WithTimeout(ctx, readMessageFromServerTimeoutInSecond)
+	tCtx, cancel := context.WithTimeout(ctx, defaultReadTimeout)
+	defer cancel()
 	var events []*ce.Event
-	go func() {
-		defer cancel()
-		resp, err := client.(segpb.SegmentServerClient).ReadFromBlock(tCtx, req)
-		if err != nil {
-			// TODO: convert error
-			if errStatus, ok := status.FromError(err); ok {
-				errMsg := errStatus.Message()
-				if strings.Contains(errMsg, "the offset on end") {
-					err = errors.ErrOnEnd
-				} else if strings.Contains(errMsg, "the offset exceeded") {
-					err = errors.ErrOverflow
-				}
+	resp, err := client.(segpb.SegmentServerClient).ReadFromBlock(tCtx, req)
+	if err != nil {
+		// TODO: convert error
+		if errStatus, ok := status.FromError(err); ok {
+			errMsg := errStatus.Message()
+			if strings.Contains(errMsg, "the offset on end") {
+				err = errors.ErrOnEnd
+			} else if strings.Contains(errMsg, "the offset exceeded") {
+				err = errors.ErrOverflow
 			}
-			return
+		} else if err == context.DeadlineExceeded {
+			return nil, errors.ErrTimeout
+		} else {
+			return nil, err
 		}
-
-		if batch := resp.GetEvents(); batch != nil {
-			if eventpbs := batch.GetEvents(); len(eventpbs) > 0 {
-				for _, eventpb := range eventpbs {
-					event, err := codec.FromProto(eventpb)
-					if err != nil {
-						// TODO: return events or error?
-						return
-					}
-					events = append(events, event)
-				}
-			}
-		}
-	}()
-	<-tCtx.Done()
-	if tCtx.Err() == context.DeadlineExceeded {
-		return nil, errors.ErrTimeout
 	}
+
+	if batch := resp.GetEvents(); batch != nil {
+		if eventpbs := batch.GetEvents(); len(eventpbs) > 0 {
+			for _, eventpb := range eventpbs {
+				event, err := codec.FromProto(eventpb)
+				if err != nil {
+					// TODO: return events or error?
+					return events, err
+				}
+				events = append(events, event)
+			}
+		}
+	}
+
 	return events, err
 }
