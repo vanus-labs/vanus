@@ -723,7 +723,7 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 			"the segment doesn't exist on this server")
 	}
 
-	f := func(ctx context.Context) ([]*cepb.CloudEvent, error) {
+	readMessages := func(ctx context.Context) ([]*cepb.CloudEvent, error) {
 		entries, err := reader.Read(ctx, off, num)
 		if err != nil {
 			return nil, err
@@ -749,7 +749,7 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 
 		return events, nil
 	}
-	events, err := f(ctx)
+	events, err := readMessages(ctx)
 	if err == nil {
 		return events, nil
 	}
@@ -767,7 +767,7 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 		return nil, block.ErrOffsetOnEnd
 	case _, _ = <-doneC:
 		// it can't read message immediately because of async apply
-		events, err = f(ctx)
+		events, err = readMessages(ctx)
 	}
 	return events, err
 }

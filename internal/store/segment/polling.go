@@ -23,9 +23,9 @@ import (
 var _ = pollingManager(&pm{})
 
 type pollingManager interface {
-	Destroy()
 	Add(ctx context.Context, blockID vanus.ID) <-chan struct{}
 	NewMessageArrived(blockID vanus.ID)
+	Destroy()
 }
 
 type pm struct {

@@ -17,8 +17,6 @@ package store
 import (
 	// standard libraries
 	"context"
-	"fmt"
-	"github.com/google/uuid"
 	"strings"
 	"time"
 
@@ -119,11 +117,8 @@ func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size 
 
 	tCtx, cancel := context.WithTimeout(ctx, readMessageFromServerTimeoutInSecond)
 	var events []*ce.Event
-	reqId, _ := uuid.NewUUID()
 	go func() {
 		defer cancel()
-		println("===========")
-		fmt.Printf("req: %s, time: %v\n", reqId.String(), time.Now())
 		resp, err := client.(segpb.SegmentServerClient).ReadFromBlock(tCtx, req)
 		if err != nil {
 			// TODO: convert error
@@ -159,7 +154,6 @@ func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size 
 		if tCtx.Err() == context.DeadlineExceeded {
 			return nil, errors.ErrTimeout
 		}
-		fmt.Printf("req: %s, time: %v\n", reqId.String(), time.Now())
 	}
 
 	return events, err
