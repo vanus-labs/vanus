@@ -17,7 +17,6 @@ package segment
 import (
 	// standard libraries.
 	"context"
-	"github.com/linkall-labs/vanus/internal/store/errors"
 	"io"
 	"sync"
 	"time"
@@ -32,10 +31,10 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/internal/store/errors"
+	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
-
-	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type ctrlClient struct {

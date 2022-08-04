@@ -17,9 +17,10 @@ package main
 import (
 	"context"
 	"fmt"
-	eb "github.com/linkall-labs/vanus/client"
 	"io"
 	"log"
+
+	eb "github.com/linkall-labs/vanus/client"
 )
 
 func main() {

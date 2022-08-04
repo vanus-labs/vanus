@@ -17,11 +17,11 @@ package file
 import (
 	// standard libraries.
 	"context"
-	"github.com/linkall-labs/vanus/internal/store/errors"
 	"sync/atomic"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
+	"github.com/linkall-labs/vanus/internal/store/errors"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 

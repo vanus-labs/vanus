@@ -652,6 +652,7 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 	if err := appender.Append(ctx, entries...); err != nil {
 		return s.processAppendError(ctx, id, err)
 	}
+	// TODO(weihe.yin) make this method deep to code
 	s.pm.NewMessageArrived(id)
 	return nil
 }
