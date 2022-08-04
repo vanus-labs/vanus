@@ -87,7 +87,7 @@ func (bp *blockPolling) add(ctx context.Context) <-chan struct{} {
 	if !ok {
 		return nil
 	}
-	if time.Since(t) > 0 {
+	if time.Since(t) >= 0 {
 		return nil
 	}
 	return bp.ch
