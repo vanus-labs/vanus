@@ -195,7 +195,7 @@ message TriggerWorkerHeartbeatResponse {}
 
 message ResetOffsetToTimestampRequest {
   uint64 subscription_id = 1;
-  // utc time milliseconds
+  // utc time seconds
   uint64 timestamp = 2;
 }
 

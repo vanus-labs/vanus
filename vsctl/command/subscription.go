@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -51,11 +52,7 @@ func createSubscriptionCommand() *cobra.Command {
 			if sink == "" {
 				cmdFailedWithHelpNotice(cmd, "sink name can't be empty\n")
 			}
-			ctx := context.Background()
-			grpcConn := mustGetControllerProxyConn(ctx, cmd)
-			defer func() {
-				_ = grpcConn.Close()
-			}()
+
 			var filter []*meta.Filter
 			if filters != "" {
 				err := json.Unmarshal([]byte(filters), &filter)
@@ -64,21 +61,53 @@ func createSubscriptionCommand() *cobra.Command {
 				}
 			}
 
-			var inputTrans *meta.InputTransformer
+			var transformer *meta.InputTransformer
 			if inputTransformer != "" {
-				err := json.Unmarshal([]byte(inputTransformer), &inputTrans)
+				err := json.Unmarshal([]byte(inputTransformer), &transformer)
 				if err != nil {
 					cmdFailedf(cmd, "the inputTransformer invalid: %s", err)
 				}
 			}
 
+			// subscription config
+			config := &meta.SubscriptionConfig{}
+			if rateLimit < -1 {
+				cmdFailedf(cmd, "rate limit can only set -1,0,positive number")
+			}
+			if rateLimit != 0 {
+				config.RateLimit = rateLimit
+			}
+			if (fromLatest && fromEarliest) || (fromTime != "" && (fromLatest || fromEarliest)) {
+				cmdFailedf(cmd, "only accept one of `from-time`, `from-latest` or `from-earliest`")
+			}
+			switch {
+			case fromLatest:
+				config.OffsetType = meta.SubscriptionConfig_LATEST
+			case fromEarliest:
+				config.OffsetType = meta.SubscriptionConfig_EARLIEST
+			case fromTime != "":
+				config.OffsetType = meta.SubscriptionConfig_TIMESTAMP
+				t, err := time.Parse(time.RFC3339, fromTime)
+				if err != nil {
+					cmdFailedf(cmd, "timestamp format is invalid failed: %s", err)
+				}
+				ts := uint64(t.Unix())
+				config.OffsetTimestamp = &ts
+			}
+
+			ctx := context.Background()
+			grpcConn := mustGetControllerProxyConn(ctx, cmd)
+			defer func() {
+				_ = grpcConn.Close()
+			}()
 			cli := ctrlpb.NewTriggerControllerClient(grpcConn)
 			res, err := cli.CreateSubscription(ctx, &ctrlpb.CreateSubscriptionRequest{
 				Source:           source,
 				Filters:          filter,
 				Sink:             sink,
 				EventBus:         eventbus,
-				InputTransformer: inputTrans,
+				InputTransformer: transformer,
+				Config:           config,
 			})
 			if err != nil {
 				cmdFailedf(cmd, "create subscription failed: %s", err)
@@ -89,21 +118,24 @@ func createSubscriptionCommand() *cobra.Command {
 					"eventbus":    eventbus,
 					"filter":      filter,
 					"sink":        sink,
-					"transformer": inputTransformer,
+					"transformer": transformer,
+					"config":      config,
 				})
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"id", "eventbus", "sink", "filter", "transformer"})
+				t.AppendHeader(table.Row{"id", "eventbus", "sink", "filter", "transformer", "config"})
 				data1, _ := json.MarshalIndent(filter, "", "  ")
-				data2, _ := json.MarshalIndent(inputTransformer, "", "  ")
-				t.AppendRow(table.Row{res.Id, eventbus, sink, string(data1), string(data2)})
+				data2, _ := json.MarshalIndent(transformer, "", "  ")
+				data3, _ := json.MarshalIndent(config, "", "  ")
+				t.AppendRow(table.Row{res.Id, eventbus, sink, string(data1), string(data2), string(data3)})
 				t.SetColumnConfigs([]table.ColumnConfig{
 					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 4, AlignHeader: text.AlignCenter},
 					{Number: 5, AlignHeader: text.AlignCenter},
+					{Number: 6, AlignHeader: text.AlignCenter},
 				})
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
@@ -113,7 +145,11 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&eventbus, "eventbus", "", "eventbus name to consuming")
 	cmd.Flags().StringVar(&sink, "sink", "", "the event you want to send to")
 	cmd.Flags().StringVar(&filters, "filters", "", "filter event you interested, JSON format required")
-	cmd.Flags().StringVar(&inputTransformer, "input-transformer", "", "input transformer, JSON format required")
+	cmd.Flags().StringVar(&inputTransformer, "transformer", "", "transformer, JSON format required")
+	cmd.Flags().Int32Var(&rateLimit, "rate-limit", 0, "rate limit")
+	cmd.Flags().BoolVar(&fromLatest, "from-latest", false, "consume events from latest position")
+	cmd.Flags().BoolVar(&fromEarliest, "from-earliest", false, "consume events from earliest position")
+	cmd.Flags().StringVar(&fromTime, "from-time", "", "consume events from specified time")
 	return cmd
 }
 

@@ -32,6 +32,10 @@ var (
 	sink             string
 	filters          string
 	inputTransformer string
+	rateLimit        int32
+	fromLatest       bool
+	fromEarliest     bool
+	fromTime         string
 	subscriptionID   uint64
 	showSegment      bool
 	showBlock        bool

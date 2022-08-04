@@ -17,14 +17,11 @@
 // 	protoc-gen-go v1.26.0
 // 	protoc        v3.19.1
 // source: controller.proto
-//go:generate mockgen -source=controller.pb.go  -destination=mock_controller.go -package=controller
+
 package controller
 
 import (
 	context "context"
-	reflect "reflect"
-	sync "sync"
-
 	meta "github.com/linkall-labs/vanus/proto/pkg/meta"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
@@ -32,6 +29,8 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
+	reflect "reflect"
+	sync "sync"
 )
 
 const (
@@ -1359,7 +1358,7 @@ type ResetOffsetToTimestampRequest struct {
 	unknownFields protoimpl.UnknownFields
 
 	SubscriptionId uint64 `protobuf:"varint,1,opt,name=subscription_id,json=subscriptionId,proto3" json:"subscription_id,omitempty"`
-	// utc time milliseconds
+	// utc time seconds
 	Timestamp uint64 `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 }
 
