@@ -48,7 +48,7 @@ func (p *pollingMgr) Add(ctx context.Context, blockID vanus.ID) <-chan struct{} 
 	v, exist := p.blockPollingMap.Load(blockID)
 	if !exist {
 		bp := newBlockPolling()
-		actual, loaded := p.blockPollingMap.LoadOrStore(blockID, newBlockPolling())
+		actual, loaded := p.blockPollingMap.LoadOrStore(blockID, bp)
 		if loaded {
 			bp.destroy()
 		}
