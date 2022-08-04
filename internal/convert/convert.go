@@ -60,9 +60,19 @@ func FromPbSubscriptionConfig(config *pb.SubscriptionConfig) primitive.Subscript
 }
 
 func toPbSubscriptionConfig(config primitive.SubscriptionConfig) *pb.SubscriptionConfig {
-	return &pb.SubscriptionConfig{
+	to := &pb.SubscriptionConfig{
 		RateLimit: config.RateLimit,
 	}
+	switch config.OffsetType {
+	case primitive.LatestOffset:
+		to.OffsetType = pb.SubscriptionConfig_LATEST
+	case primitive.EarliestOffset:
+		to.OffsetType = pb.SubscriptionConfig_EARLIEST
+	case primitive.Timestamp:
+		to.OffsetType = pb.SubscriptionConfig_TIMESTAMP
+		to.OffsetTimestamp = config.OffsetTimestamp
+	}
+	return to
 }
 
 func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Subscription {

@@ -107,7 +107,7 @@ func (tw *triggerWorker) start() {
 			if err == nil {
 				tw.subscriptionQueue.Done(subscriptionID)
 				tw.subscriptionQueue.ClearFailNum(subscriptionID)
-				log.Warning(ctx, "trigger worker handle subscription sucess", map[string]interface{}{
+				log.Info(ctx, "trigger worker handle subscription sucess", map[string]interface{}{
 					log.KeyTriggerWorkerAddr: tw.info.Addr,
 					log.KeySubscriptionID:    subscriptionID,
 				})

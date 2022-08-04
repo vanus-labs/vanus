@@ -196,6 +196,10 @@ func (w *worker) ResetOffsetToTimestamp(ctx context.Context,
 		return err
 	}
 	// commit offset
+	log.Info(ctx, "reset offset to timestamp offsets info", map[string]interface{}{
+		log.KeySubscriptionID: id,
+		"offsets":             offsets,
+	})
 	err = w.commitOffset(ctx, id, offsets)
 	if err != nil {
 		return err
