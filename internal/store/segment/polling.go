@@ -17,11 +17,13 @@ package segment
 
 import (
 	"context"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"sync"
+	"time"
+
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
-var _ = pollingManager(&pm{})
+var _ = pollingManager(&pollingMgr{})
 
 type pollingManager interface {
 	Add(ctx context.Context, blockID vanus.ID) <-chan struct{}
@@ -29,19 +31,20 @@ type pollingManager interface {
 	Destroy()
 }
 
-type pm struct {
+type pollingMgr struct {
 	// vanus.ID, *blockPolling
 	blockPollingMap sync.Map
 }
 
-func (p *pm) Destroy() {
-	p.blockPollingMap.Range(func(_, value interface{}) bool {
+func (p *pollingMgr) Destroy() {
+	p.blockPollingMap.Range(func(key, value interface{}) bool {
 		value.(*blockPolling).destroy()
+		p.blockPollingMap.Delete(key)
 		return true
 	})
 }
 
-func (p *pm) Add(ctx context.Context, blockID vanus.ID) <-chan struct{} {
+func (p *pollingMgr) Add(ctx context.Context, blockID vanus.ID) <-chan struct{} {
 	v, exist := p.blockPollingMap.Load(blockID)
 	if !exist {
 		bp := newBlockPolling()
@@ -51,11 +54,11 @@ func (p *pm) Add(ctx context.Context, blockID vanus.ID) <-chan struct{} {
 		}
 		v = actual
 	}
-	bp := v.(*blockPolling)
+	bp, _ := v.(*blockPolling)
 	return bp.add(ctx)
 }
 
-func (p *pm) NewMessageArrived(blockID vanus.ID) {
+func (p *pollingMgr) NewMessageArrived(blockID vanus.ID) {
 	v, exist := p.blockPollingMap.Load(blockID)
 	if !exist {
 		return
@@ -80,8 +83,11 @@ func (bp *blockPolling) add(ctx context.Context) <-chan struct{} {
 	bp.mutex.Lock()
 	defer bp.mutex.Unlock()
 
-	_, ok := ctx.Deadline()
+	t, ok := ctx.Deadline()
 	if !ok {
+		return nil
+	}
+	if time.Since(t) > 0 {
 		return nil
 	}
 	return bp.ch

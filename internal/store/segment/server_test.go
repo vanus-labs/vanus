@@ -17,7 +17,6 @@ package segment
 import (
 	"context"
 	"fmt"
-	"google.golang.org/protobuf/proto"
 	"os"
 	"path"
 	"testing"
@@ -27,16 +26,16 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/store"
 	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/block/file"
 	"github.com/linkall-labs/vanus/internal/store/block/replica"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/proto/pkg/errors"
-	rpcerr "github.com/linkall-labs/vanus/proto/pkg/errors"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/linkall-labs/vanus/internal/store"
+	"go.uber.org/atomic"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestServer_RemoveBlock(t *testing.T) {
@@ -201,12 +200,12 @@ func TestServer_ReadFromBlock(t *testing.T) {
 			defer cancel()
 			_, err := srv.ReadFromBlock(ctx, blkID, 3, 5)
 			So(err, ShouldNotBeNil)
-			So(err.(*rpcerr.ErrorType).Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
+			So(err.(*errors.ErrorType).Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
 
 			srv.readers.Store(blkID, reader)
-			newMessageArrived := false
+			newMessageArrived := atomic.NewBool(false)
 			reader.EXPECT().Read(ctx, 3, 5).Times(2).DoAndReturn(func(ctx context.Context, off, num int) ([]block.Entry, error) {
-				if !newMessageArrived {
+				if !newMessageArrived.Load() {
 					return nil, block.ErrOffsetOnEnd
 				}
 				ce := &cepb.CloudEvent{
@@ -228,13 +227,13 @@ func TestServer_ReadFromBlock(t *testing.T) {
 			start := time.Now()
 			go func() {
 				time.Sleep(time.Second)
-				newMessageArrived = true
+				newMessageArrived.Store(true)
 				close(ch)
 			}()
 			events, _ := srv.ReadFromBlock(ctx, blkID, 3, 5)
 			So(events, ShouldHaveLength, 1)
 			So(events[0].Id, ShouldEqual, "123")
-			So(time.Now().Sub(start), ShouldBeGreaterThan, 800*time.Millisecond)
+			So(time.Since(start), ShouldBeGreaterThan, 800*time.Millisecond)
 		})
 
 		Convey("long-polling with timeout", func() {
@@ -249,7 +248,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			_, err := srv.ReadFromBlock(ctx, blkID, 3, 5)
 			So(err, ShouldNotBeNil)
-			So(err.(*rpcerr.ErrorType).Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
+			So(err.(*errors.ErrorType).Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
 
 			srv.readers.Store(blkID, reader)
 			reader.EXPECT().Read(ctx, 3, 5).Times(1).Return(nil, block.ErrOffsetOnEnd)
@@ -263,7 +262,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 			}()
 			_, err = srv.ReadFromBlock(ctx, blkID, 3, 5)
 			So(err, ShouldEqual, block.ErrOffsetOnEnd)
-			So(time.Now().Sub(start), ShouldBeGreaterThan, 800*time.Millisecond)
+			So(time.Since(start), ShouldBeGreaterThan, 800*time.Millisecond)
 		})
 	})
 }

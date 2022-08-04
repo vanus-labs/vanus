@@ -20,7 +20,6 @@ import (
 	"context"
 	stderr "errors"
 	"fmt"
-	"github.com/linkall-labs/vanus/internal/store/errors"
 	"net"
 	"os"
 	"path/filepath"
@@ -30,6 +29,7 @@ import (
 
 	// third-party libraries.
 	cepb "cloudevents.io/genproto/v1"
+	"github.com/linkall-labs/vanus/internal/store/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -110,7 +110,7 @@ func NewServer(cfg store.Config) Server {
 		cc:           NewClient(cfg.ControllerAddresses),
 		leaderc:      make(chan leaderInfo, defaultLeaderInfoBufferSize),
 		closec:       make(chan struct{}),
-		pm:           &pm{},
+		pm:           &pollingMgr{},
 	}
 
 	return srv
@@ -754,7 +754,7 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 	if err == nil {
 		return events, nil
 	}
-	if err != block.ErrOffsetOnEnd {
+	if !stderr.Is(err, block.ErrOffsetOnEnd) {
 		return nil, err
 	}
 	tCtx, cancel := context.WithTimeout(ctx, defaultLongPollingTimeout)
@@ -766,7 +766,7 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 	select {
 	case <-tCtx.Done():
 		return nil, block.ErrOffsetOnEnd
-	case _, _ = <-doneC:
+	case <-doneC:
 		// it can't read message immediately because of async apply
 		events, err = readMessages(ctx)
 	}
