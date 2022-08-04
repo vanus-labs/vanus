@@ -23,7 +23,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
-var _ = pollingManager(&pollingMgr{})
+var _ pollingManager = (*pollingMgr)(nil)
 
 type pollingManager interface {
 	Add(ctx context.Context, blockID vanus.ID) <-chan struct{}
