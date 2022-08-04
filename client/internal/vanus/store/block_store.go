@@ -17,7 +17,10 @@ package store
 import (
 	// standard libraries
 	"context"
+	"fmt"
+	"github.com/google/uuid"
 	"strings"
+	"time"
 
 	// third-party libraries
 	cepb "cloudevents.io/genproto/v1"
@@ -35,6 +38,10 @@ import (
 	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc/bare"
 	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
+)
+
+const (
+	readMessageFromServerTimeoutInSecond = 5 * time.Second
 )
 
 func newBlockStore(endpoint string) (*BlockStore, error) {
@@ -110,34 +117,50 @@ func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size 
 		return nil, err
 	}
 
-	resp, err := client.(segpb.SegmentServerClient).ReadFromBlock(ctx, req)
-	if err != nil {
-		// TODO: convert error
-		if errStatus, ok := status.FromError(err); ok {
-			errMsg := errStatus.Message()
-			if strings.Contains(errMsg, "the offset on end") {
-				return nil, errors.ErrOnEnd
-			} else if strings.Contains(errMsg, "the offset exceeded") {
-				return nil, errors.ErrOverflow
-			}
-		}
-		return nil, err
-	}
-
-	if batch := resp.GetEvents(); batch != nil {
-		if eventpbs := batch.GetEvents(); len(eventpbs) > 0 {
-			events := make([]*ce.Event, 0, len(eventpbs))
-			for _, eventpb := range eventpbs {
-				event, err := codec.FromProto(eventpb)
-				if err != nil {
-					// TODO: return events or error?
-					return events, err
+	tCtx, cancel := context.WithTimeout(ctx, readMessageFromServerTimeoutInSecond)
+	var events []*ce.Event
+	reqId, _ := uuid.NewUUID()
+	go func() {
+		defer cancel()
+		println("===========")
+		fmt.Printf("req: %s, time: %v\n", reqId.String(), time.Now())
+		resp, err := client.(segpb.SegmentServerClient).ReadFromBlock(tCtx, req)
+		if err != nil {
+			// TODO: convert error
+			if errStatus, ok := status.FromError(err); ok {
+				errMsg := errStatus.Message()
+				if strings.Contains(errMsg, "the offset on end") {
+					err = errors.ErrOnEnd
+				} else if strings.Contains(errMsg, "the offset exceeded") {
+					err = errors.ErrOverflow
 				}
-				events = append(events, event)
 			}
-			return events, nil
+			return
 		}
+
+		if batch := resp.GetEvents(); batch != nil {
+			if eventpbs := batch.GetEvents(); len(eventpbs) > 0 {
+				for _, eventpb := range eventpbs {
+					event, err := codec.FromProto(eventpb)
+					if err != nil {
+						// TODO: return events or error?
+						return
+					}
+					events = append(events, event)
+				}
+			}
+		}
+	}()
+	select {
+	case <-ctx.Done():
+		cancel()
+		return nil, errors.ErrTimeout
+	case <-tCtx.Done():
+		if tCtx.Err() == context.DeadlineExceeded {
+			return nil, errors.ErrTimeout
+		}
+		fmt.Printf("req: %s, time: %v\n", reqId.String(), time.Now())
 	}
 
-	return make([]*ce.Event, 0, 0), nil
+	return events, err
 }

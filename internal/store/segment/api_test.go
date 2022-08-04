@@ -17,6 +17,7 @@ package segment
 import (
 	// standard libraries.
 	"context"
+	"github.com/linkall-labs/vanus/internal/store/errors"
 	"testing"
 
 	// third-party libraries.
@@ -31,7 +32,6 @@ import (
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store/segment/errors"
 )
 
 func TestSegmentServer(t *testing.T) {

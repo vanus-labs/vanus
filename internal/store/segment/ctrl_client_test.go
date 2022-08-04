@@ -16,9 +16,9 @@ package segment
 
 import (
 	"fmt"
+	"github.com/linkall-labs/vanus/internal/store/errors"
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/store/segment/errors"
 	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )

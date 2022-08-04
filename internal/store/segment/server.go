@@ -20,6 +20,7 @@ import (
 	"context"
 	stderr "errors"
 	"fmt"
+	"github.com/linkall-labs/vanus/internal/store/errors"
 	"net"
 	"os"
 	"path/filepath"
@@ -52,7 +53,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/block/file"
 	"github.com/linkall-labs/vanus/internal/store/block/replica"
 	"github.com/linkall-labs/vanus/internal/store/meta"
-	"github.com/linkall-labs/vanus/internal/store/segment/errors"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 )
@@ -61,6 +61,7 @@ const (
 	debugModeENV                = "SEGMENT_SERVER_DEBUG_MODE"
 	defaultLeaderInfoBufferSize = 256
 	defaultForceStopTimeout     = 30 * time.Second
+	defaultLongPollingTimeout   = 3 * time.Second
 )
 
 type Server interface {
@@ -109,6 +110,7 @@ func NewServer(cfg store.Config) Server {
 		cc:           NewClient(cfg.ControllerAddresses),
 		leaderc:      make(chan leaderInfo, defaultLeaderInfoBufferSize),
 		closec:       make(chan struct{}),
+		pm:           &pm{},
 	}
 
 	return srv
@@ -148,6 +150,8 @@ type server struct {
 
 	grpcSrv *grpc.Server
 	closec  chan struct{}
+
+	pm pollingManager
 }
 
 // Make sure server implements Server.
@@ -648,7 +652,7 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 	if err := appender.Append(ctx, entries...); err != nil {
 		return s.processAppendError(ctx, id, err)
 	}
-
+	s.pm.NewMessageArrived(id)
 	return nil
 }
 
@@ -719,30 +723,50 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 			"the segment doesn't exist on this server")
 	}
 
-	entries, err := reader.Read(ctx, off, num)
-	if err != nil {
+	f := func(ctx context.Context) ([]*cepb.CloudEvent, error) {
+		entries, err := reader.Read(ctx, off, num)
+		if err != nil {
+			return nil, err
+		}
+
+		events := make([]*cepb.CloudEvent, len(entries))
+		for i, entry := range entries {
+			event := &cepb.CloudEvent{}
+			if err2 := proto.Unmarshal(entry.Payload, event); err2 != nil {
+				return nil, errors.ErrInternal.WithMessage(
+					"unmarshall data to event failed").Wrap(err2)
+			}
+			if event.Attributes == nil {
+				event.Attributes = make(map[string]*cepb.CloudEventAttributeValue, 1)
+			}
+			event.Attributes[segpb.XVanusBlockOffset] = &cepb.CloudEventAttributeValue{
+				Attr: &cepb.CloudEventAttributeValue_CeInteger{
+					CeInteger: int32(entry.Index),
+				},
+			}
+			events[i] = event
+		}
+
+		return events, nil
+	}
+	events, err := f(ctx)
+	if err == nil {
+		return events, nil
+	}
+	if err != block.ErrOffsetOnEnd {
 		return nil, err
 	}
-
-	events := make([]*cepb.CloudEvent, len(entries))
-	for i, entry := range entries {
-		event := &cepb.CloudEvent{}
-		if err2 := proto.Unmarshal(entry.Payload, event); err2 != nil {
-			return nil, errors.ErrInternal.WithMessage(
-				"unmarshall data to event failed").Wrap(err2)
-		}
-		if event.Attributes == nil {
-			event.Attributes = make(map[string]*cepb.CloudEventAttributeValue, 1)
-		}
-		event.Attributes[segpb.XVanusBlockOffset] = &cepb.CloudEventAttributeValue{
-			Attr: &cepb.CloudEventAttributeValue_CeInteger{
-				CeInteger: int32(entry.Index),
-			},
-		}
-		events[i] = event
+	tCtx, cancel := context.WithTimeout(ctx, defaultLongPollingTimeout)
+	defer cancel()
+	doneC := s.pm.Add(ctx, id)
+	select {
+	case <-tCtx.Done():
+		return nil, block.ErrOffsetOnEnd
+	case _, _ = <-doneC:
+		// it can't read message immediately because of async apply
+		events, err = f(ctx)
 	}
-
-	return events, nil
+	return events, err
 }
 
 func (s *server) checkState() error {

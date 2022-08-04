@@ -17,6 +17,7 @@ package segment
 import (
 	// standard libraries.
 	"context"
+	"github.com/linkall-labs/vanus/internal/store/errors"
 	"io"
 	"sync"
 	"time"
@@ -34,8 +35,6 @@ import (
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 
-	// this project.
-	"github.com/linkall-labs/vanus/internal/store/segment/errors"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
