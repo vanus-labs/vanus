@@ -44,6 +44,7 @@ func main() {
 		events, err := r.Read(context.Background(), 5)
 		if err != nil {
 			log.Printf("%s", err)
+			continue
 		}
 
 		if len(events) == 0 {

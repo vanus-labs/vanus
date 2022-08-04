@@ -17,6 +17,7 @@ package store
 import (
 	// standard libraries
 	"context"
+	"google.golang.org/grpc/codes"
 	"strings"
 	"time"
 
@@ -127,12 +128,11 @@ func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size 
 				err = errors.ErrOnEnd
 			} else if strings.Contains(errMsg, "the offset exceeded") {
 				err = errors.ErrOverflow
+			} else if errStatus.Code() == codes.DeadlineExceeded {
+				err = errors.ErrTimeout
 			}
-		} else if err == context.DeadlineExceeded {
-			return nil, errors.ErrTimeout
-		} else {
-			return nil, err
 		}
+		return nil, err
 	}
 
 	if batch := resp.GetEvents(); batch != nil {
