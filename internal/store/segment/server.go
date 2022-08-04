@@ -759,6 +759,9 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 	tCtx, cancel := context.WithTimeout(ctx, defaultLongPollingTimeout)
 	defer cancel()
 	doneC := s.pm.Add(ctx, id)
+	if doneC == nil {
+		return nil, block.ErrOffsetOnEnd
+	}
 	select {
 	case <-tCtx.Done():
 		return nil, block.ErrOffsetOnEnd

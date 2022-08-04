@@ -16,7 +16,6 @@ package segment
 
 import (
 	"context"
-	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"sync"
 )
@@ -64,15 +63,12 @@ func (p *pm) NewMessageArrived(blockID vanus.ID) {
 }
 
 type blockPolling struct {
-	// context.Context
-	list  *skiplist.SkipList
 	mutex sync.Mutex
 	ch    chan struct{}
 }
 
 func newBlockPolling() *blockPolling {
 	bp := &blockPolling{
-		list:  skiplist.New(skiplist.Int64),
 		mutex: sync.Mutex{},
 		ch:    make(chan struct{}),
 	}
@@ -83,20 +79,16 @@ func (bp *blockPolling) add(ctx context.Context) <-chan struct{} {
 	bp.mutex.Lock()
 	defer bp.mutex.Unlock()
 
-	t, ok := ctx.Deadline()
+	_, ok := ctx.Deadline()
 	if !ok {
 		return nil
 	}
-	bp.list.Set(t.UnixMilli(), ctx)
 	return bp.ch
 }
 
 func (bp *blockPolling) messageArrived() {
 	bp.mutex.Lock()
 	defer bp.mutex.Unlock()
-	for bp.list.Len() > 0 {
-		_ = bp.list.RemoveFront()
-	}
 	close(bp.ch)
 	bp.ch = make(chan struct{})
 }
