@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	readMessageFromServerTimeoutInSecond = 5 * time.Second
+	defaultReadTimeout = 5 * time.Second
 )
 
 func newBlockStore(endpoint string) (*BlockStore, error) {
