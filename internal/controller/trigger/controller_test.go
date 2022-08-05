@@ -296,7 +296,9 @@ func TestController_DeleteSubscription(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(sub.Phase, ShouldEqual, metadata.SubscriptionPhaseToDelete)
 				time.Sleep(10 * time.Millisecond)
+				ctrl.lock.Lock()
 				_, exist := ctrl.needCleanSubscription[subID]
+				ctrl.lock.Unlock()
 				So(exist, ShouldBeFalse)
 			})
 			Convey("delete subscription fail", func() {
@@ -305,7 +307,9 @@ func TestController_DeleteSubscription(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(sub.Phase, ShouldEqual, metadata.SubscriptionPhaseToDelete)
 				time.Sleep(10 * time.Millisecond)
+				ctrl.lock.Lock()
 				_, exist := ctrl.needCleanSubscription[subID]
+				ctrl.lock.Unlock()
 				So(exist, ShouldBeTrue)
 			})
 		})
