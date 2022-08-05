@@ -733,7 +733,7 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 	}
 	tCtx, cancel := context.WithTimeout(ctx, defaultLongPollingTimeout)
 	defer cancel()
-	doneC := s.pm.Add(ctx, id)
+	doneC := s.pm.Add(tCtx, id)
 	if doneC == nil {
 		return nil, block.ErrOffsetOnEnd
 	}
@@ -746,6 +746,7 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 	}
 	return events, err
 }
+
 func (s *server) readMessages(ctx context.Context, reader block.Reader, off, num int) ([]*cepb.CloudEvent, error) {
 	entries, err := reader.Read(ctx, off, num)
 	if err != nil {
@@ -772,6 +773,7 @@ func (s *server) readMessages(ctx context.Context, reader block.Reader, off, num
 
 	return events, nil
 }
+
 func (s *server) checkState() error {
 	if s.state != primitive.ServerStateRunning {
 		return errors.ErrServiceState.WithMessage(fmt.Sprintf(

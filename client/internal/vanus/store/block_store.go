@@ -118,7 +118,7 @@ func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size 
 
 	tCtx, cancel := context.WithTimeout(ctx, defaultReadTimeout)
 	defer cancel()
-	var events []*ce.Event
+	events := make([]*ce.Event, 0)
 	resp, err := client.(segpb.SegmentServerClient).ReadFromBlock(tCtx, req)
 	if err != nil {
 		// TODO: convert error
