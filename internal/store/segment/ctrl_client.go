@@ -31,12 +31,10 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/internal/store/errors"
+	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
-
-	// this project.
-	"github.com/linkall-labs/vanus/internal/store/segment/errors"
-	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type ctrlClient struct {

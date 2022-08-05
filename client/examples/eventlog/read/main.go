@@ -19,13 +19,12 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"time"
 
 	eb "github.com/linkall-labs/vanus/client"
 )
 
 func main() {
-	ls, err := eb.LookupReadableLogs(context.Background(), "vanus:///eventbus/wwf042702?controllers=localhost:2048")
+	ls, err := eb.LookupReadableLogs(context.Background(), "vanus:///eventbus/test?controllers=localhost:2048")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,10 +44,12 @@ func main() {
 		events, err := r.Read(context.Background(), 5)
 		if err != nil {
 			log.Printf("%s", err)
+			continue
 		}
 
 		if len(events) == 0 {
-			time.Sleep(time.Second)
+			log.Println("no more events")
+			continue
 		}
 
 		for _, e := range events {

@@ -21,7 +21,7 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/internal/store/segment/errors"
+	"github.com/linkall-labs/vanus/internal/store/errors"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 

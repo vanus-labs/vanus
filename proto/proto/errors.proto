@@ -28,6 +28,7 @@ enum ErrorCode {
   RESOURCE_EXIST = 6;
   NOT_LEADER = 7;
   RESOURCE_EXHAUSTED = 8;
+  NO_MORE_MESSAGE = 9;
 }
 
 message Error {

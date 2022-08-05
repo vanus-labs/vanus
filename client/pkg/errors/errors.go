@@ -35,4 +35,5 @@ var (
 	ErrNoLeader           = errors.New("no leader")
 	ErrNoEndpoint         = errors.New("no endpoint")
 	ErrCorruptedEvent     = errors.New("corrupted event")
+	ErrTimeout            = errors.New("timeout")
 )

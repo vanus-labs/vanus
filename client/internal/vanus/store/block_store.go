@@ -17,7 +17,9 @@ package store
 import (
 	// standard libraries
 	"context"
+	"google.golang.org/grpc/codes"
 	"strings"
+	"time"
 
 	// third-party libraries
 	cepb "cloudevents.io/genproto/v1"
@@ -35,6 +37,10 @@ import (
 	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc/bare"
 	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
+)
+
+const (
+	defaultReadTimeout = 5 * time.Second
 )
 
 func newBlockStore(endpoint string) (*BlockStore, error) {
@@ -110,15 +116,19 @@ func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size 
 		return nil, err
 	}
 
-	resp, err := client.(segpb.SegmentServerClient).ReadFromBlock(ctx, req)
+	tCtx, cancel := context.WithTimeout(ctx, defaultReadTimeout)
+	defer cancel()
+	resp, err := client.(segpb.SegmentServerClient).ReadFromBlock(tCtx, req)
 	if err != nil {
 		// TODO: convert error
 		if errStatus, ok := status.FromError(err); ok {
 			errMsg := errStatus.Message()
 			if strings.Contains(errMsg, "the offset on end") {
-				return nil, errors.ErrOnEnd
+				err = errors.ErrOnEnd
 			} else if strings.Contains(errMsg, "the offset exceeded") {
-				return nil, errors.ErrOverflow
+				err = errors.ErrOverflow
+			} else if errStatus.Code() == codes.DeadlineExceeded {
+				err = errors.ErrTimeout
 			}
 		}
 		return nil, err
@@ -139,5 +149,5 @@ func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size 
 		}
 	}
 
-	return make([]*ce.Event, 0, 0), nil
+	return []*ce.Event{}, err
 }

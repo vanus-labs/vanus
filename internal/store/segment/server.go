@@ -29,6 +29,7 @@ import (
 
 	// third-party libraries.
 	cepb "cloudevents.io/genproto/v1"
+	"github.com/linkall-labs/vanus/internal/store/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -52,7 +53,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/block/file"
 	"github.com/linkall-labs/vanus/internal/store/block/replica"
 	"github.com/linkall-labs/vanus/internal/store/meta"
-	"github.com/linkall-labs/vanus/internal/store/segment/errors"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 )
@@ -61,6 +61,7 @@ const (
 	debugModeENV                = "SEGMENT_SERVER_DEBUG_MODE"
 	defaultLeaderInfoBufferSize = 256
 	defaultForceStopTimeout     = 30 * time.Second
+	defaultLongPollingTimeout   = 3 * time.Second
 )
 
 type Server interface {
@@ -109,6 +110,7 @@ func NewServer(cfg store.Config) Server {
 		cc:           NewClient(cfg.ControllerAddresses),
 		leaderc:      make(chan leaderInfo, defaultLeaderInfoBufferSize),
 		closec:       make(chan struct{}),
+		pm:           &pollingMgr{},
 	}
 
 	return srv
@@ -148,6 +150,8 @@ type server struct {
 
 	grpcSrv *grpc.Server
 	closec  chan struct{}
+
+	pm pollingManager
 }
 
 // Make sure server implements Server.
@@ -648,7 +652,8 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 	if err := appender.Append(ctx, entries...); err != nil {
 		return s.processAppendError(ctx, id, err)
 	}
-
+	// TODO(weihe.yin) make this method deep to code
+	s.pm.NewMessageArrived(id)
 	return nil
 }
 
@@ -719,6 +724,33 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 			"the segment doesn't exist on this server")
 	}
 
+	events, err := s.readMessages(ctx, reader, off, num)
+	if err == nil {
+		return events, nil
+	}
+	if !stderr.Is(err, block.ErrOffsetOnEnd) {
+		return nil, err
+	}
+	tCtx, cancel := context.WithTimeout(ctx, defaultLongPollingTimeout)
+	defer cancel()
+	doneC := s.pm.Add(tCtx, id)
+	if doneC == nil {
+		return nil, block.ErrOffsetOnEnd
+	}
+	select {
+	case <-tCtx.Done():
+		if stderr.Is(tCtx.Err(), context.Canceled) {
+			return nil, tCtx.Err()
+		}
+		return nil, block.ErrOffsetOnEnd
+	case <-doneC:
+		// it can't read message immediately because of async apply
+		events, err = s.readMessages(ctx, reader, off, num)
+	}
+	return events, err
+}
+
+func (s *server) readMessages(ctx context.Context, reader block.Reader, off, num int) ([]*cepb.CloudEvent, error) {
 	entries, err := reader.Read(ctx, off, num)
 	if err != nil {
 		return nil, err

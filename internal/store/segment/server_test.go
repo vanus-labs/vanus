@@ -26,14 +26,16 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/store"
+	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/block/file"
 	"github.com/linkall-labs/vanus/internal/store/block/replica"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/proto/pkg/errors"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
-
-	"github.com/linkall-labs/vanus/internal/store"
 	. "github.com/smartystreets/goconvey/convey"
+	"go.uber.org/atomic"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestServer_RemoveBlock(t *testing.T) {
@@ -110,76 +112,176 @@ func TestServer_RemoveBlock(t *testing.T) {
 func TestServer_ReadFromBlock(t *testing.T) {
 	Convey("Test segment read block whether exist offset", t, func() {
 		volumeDir, _ := os.MkdirTemp("", "volume-*")
-		defer os.RemoveAll(volumeDir)
-
-		cfg := store.Config{
-			IP:   "127.0.0.1",
-			Port: 2148,
-			Volume: store.VolumeInfo{
-				ID:       123456,
-				Dir:      volumeDir,
-				Capacity: 137975824384,
-			},
-			MetaStore: store.SyncStoreConfig{
-				WAL: store.WALConfig{
-					FileSize: 1024 * 1024,
-					IO: store.IOConfig{
-						Engine: "psync",
+		defer func() {
+			_ = os.RemoveAll(volumeDir)
+		}()
+		Convey("no long-polling", func() {
+			cfg := store.Config{
+				IP:   "127.0.0.1",
+				Port: 2148,
+				Volume: store.VolumeInfo{
+					ID:       123456,
+					Dir:      volumeDir,
+					Capacity: 137975824384,
+				},
+				MetaStore: store.SyncStoreConfig{
+					WAL: store.WALConfig{
+						FileSize: 1024 * 1024,
+						IO: store.IOConfig{
+							Engine: "psync",
+						},
 					},
 				},
-			},
-			OffsetStore: store.AsyncStoreConfig{
-				WAL: store.WALConfig{
-					FileSize: 1024 * 1024,
-					IO: store.IOConfig{
-						Engine: "psync",
+				OffsetStore: store.AsyncStoreConfig{
+					WAL: store.WALConfig{
+						FileSize: 1024 * 1024,
+						IO: store.IOConfig{
+							Engine: "psync",
+						},
 					},
 				},
-			},
-			Raft: store.RaftConfig{
-				WAL: store.WALConfig{
-					FileSize: 1024 * 1024,
-					IO: store.IOConfig{
-						Engine: "psync",
+				Raft: store.RaftConfig{
+					WAL: store.WALConfig{
+						FileSize: 1024 * 1024,
+						IO: store.IOConfig{
+							Engine: "psync",
+						},
 					},
 				},
-			},
-		}
+			}
 
-		srv := NewServer(cfg).(*server)
-		ctx := context.Background()
+			srv := NewServer(cfg).(*server)
+			ctx := context.Background()
 
-		srv.isDebugMode = true
-		srv.Initialize(ctx)
+			srv.isDebugMode = true
+			_ = srv.Initialize(ctx)
 
-		blockID := vanus.NewIDFromUint64(1)
-		err := srv.CreateBlock(ctx, blockID, 1024*1024)
-		So(err, ShouldBeNil)
+			blockID := vanus.NewIDFromUint64(1)
+			err := srv.CreateBlock(ctx, blockID, 1024*1024)
+			So(err, ShouldBeNil)
 
-		replicas := map[vanus.ID]string{
-			blockID: srv.localAddress,
-		}
-		srv.ActivateSegment(ctx, 1, 1, replicas)
+			replicas := map[vanus.ID]string{
+				blockID: srv.localAddress,
+			}
+			_ = srv.ActivateSegment(ctx, 1, 1, replicas)
 
-		time.Sleep(3 * time.Second) // make sure that there is a leader elected in Raft.
+			time.Sleep(3 * time.Second) // make sure that there is a leader elected in Raft.
 
-		events := []*cepb.CloudEvent{{
-			Id: "123",
-			Data: &cepb.CloudEvent_TextData{
-				TextData: "hello world!",
-			},
-		}}
-		err = srv.AppendToBlock(ctx, blockID, events)
-		So(err, ShouldBeNil)
-		srv.AppendToBlock(ctx, blockID, events)
-		srv.AppendToBlock(ctx, blockID, events)
+			events := []*cepb.CloudEvent{{
+				Id: "123",
+				Data: &cepb.CloudEvent_TextData{
+					TextData: "hello world!",
+				},
+			}}
+			err = srv.AppendToBlock(ctx, blockID, events)
+			So(err, ShouldBeNil)
+			_ = srv.AppendToBlock(ctx, blockID, events)
+			_ = srv.AppendToBlock(ctx, blockID, events)
 
-		time.Sleep(3 * time.Second)
+			time.Sleep(3 * time.Second)
 
-		pbEvents, err := srv.ReadFromBlock(ctx, blockID, 0, 3)
-		So(err, ShouldBeNil)
-		for i, pbEvent := range pbEvents {
-			So(pbEvent.Attributes[segpb.XVanusBlockOffset].Attr.(*cepb.CloudEventAttributeValue_CeInteger).CeInteger, ShouldEqual, i)
-		}
+			pbEvents, err := srv.ReadFromBlock(ctx, blockID, 0, 3)
+			So(err, ShouldBeNil)
+			for i, pbEvent := range pbEvents {
+				So(pbEvent.Attributes[segpb.XVanusBlockOffset].Attr.(*cepb.CloudEventAttributeValue_CeInteger).CeInteger, ShouldEqual, i)
+			}
+		})
+
+		Convey("long-polling without timeout", func() {
+			srv := &server{}
+			srv.state = primitive.ServerStateRunning
+			ctrl := gomock.NewController(t)
+			pmMock := NewMockpollingManager(ctrl)
+			srv.pm = pmMock
+			reader := block.NewMockReader(ctrl)
+			blkID := vanus.NewID()
+
+			ctx := context.Background()
+			_, err := srv.ReadFromBlock(ctx, blkID, 3, 5)
+			So(err, ShouldNotBeNil)
+			So(err.(*errors.ErrorType).Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
+
+			srv.readers.Store(blkID, reader)
+			newMessageArrived := atomic.NewBool(false)
+			reader.EXPECT().Read(ctx, 3, 5).Times(2).DoAndReturn(func(ctx context.Context, off, num int) ([]block.Entry, error) {
+				if !newMessageArrived.Load() {
+					return nil, block.ErrOffsetOnEnd
+				}
+				ce := &cepb.CloudEvent{
+					Id: "123",
+					Data: &cepb.CloudEvent_TextData{
+						TextData: "hello world!",
+					},
+				}
+				data, _ := proto.Marshal(ce)
+				var events = []block.Entry{{
+					Offset:  3,
+					Index:   3,
+					Payload: data,
+				}}
+				return events, nil
+			})
+			ch := make(chan struct{})
+			pmMock.EXPECT().Add(gomock.Any(), blkID).Times(1).Return(ch)
+			start := time.Now()
+			go func() {
+				time.Sleep(time.Second)
+				newMessageArrived.Store(true)
+				close(ch)
+			}()
+			events, _ := srv.ReadFromBlock(ctx, blkID, 3, 5)
+			So(events, ShouldHaveLength, 1)
+			So(events[0].Id, ShouldEqual, "123")
+			So(time.Since(start), ShouldBeGreaterThan, time.Second)
+		})
+
+		Convey("long-polling with timeout", func() {
+			srv := &server{}
+			srv.state = primitive.ServerStateRunning
+			ctrl := gomock.NewController(t)
+			pmMock := NewMockpollingManager(ctrl)
+			srv.pm = pmMock
+			reader := block.NewMockReader(ctrl)
+			blkID := vanus.NewID()
+			srv.readers.Store(blkID, reader)
+
+			ctx := context.Background()
+			start := time.Now()
+			reader.EXPECT().Read(ctx, 3, 5).Times(1).Return(nil, block.ErrOffsetOnEnd)
+			ch := make(chan struct{})
+			pmMock.EXPECT().Add(gomock.Any(), blkID).Times(1).Return(ch)
+
+			_, err := srv.ReadFromBlock(ctx, blkID, 3, 5)
+			So(err, ShouldEqual, block.ErrOffsetOnEnd)
+			So(time.Since(start), ShouldBeGreaterThan, defaultLongPollingTimeout)
+		})
+
+		Convey("long-polling with request is canceled by user", func() {
+			srv := &server{}
+			srv.state = primitive.ServerStateRunning
+			ctrl := gomock.NewController(t)
+			pmMock := NewMockpollingManager(ctrl)
+			srv.pm = pmMock
+			reader := block.NewMockReader(ctrl)
+			blkID := vanus.NewID()
+
+			ctx, cancel := context.WithCancel(context.Background())
+			_, err := srv.ReadFromBlock(ctx, blkID, 3, 5)
+			So(err, ShouldNotBeNil)
+			So(err.(*errors.ErrorType).Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
+
+			srv.readers.Store(blkID, reader)
+			reader.EXPECT().Read(ctx, 3, 5).Times(1).Return(nil, block.ErrOffsetOnEnd)
+			ch := make(chan struct{})
+			pmMock.EXPECT().Add(gomock.Any(), blkID).Times(1).Return(ch)
+			start := time.Now()
+			go func() {
+				time.Sleep(time.Second)
+				cancel()
+			}()
+			_, err = srv.ReadFromBlock(ctx, blkID, 3, 5)
+			So(err, ShouldEqual, context.Canceled)
+			So(time.Since(start), ShouldBeGreaterThan, time.Second)
+		})
 	})
 }

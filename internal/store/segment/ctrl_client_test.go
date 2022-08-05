@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/store/segment/errors"
+	"github.com/linkall-labs/vanus/internal/store/errors"
 	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )

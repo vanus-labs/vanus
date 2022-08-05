@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=block.go  -destination=mock_block.go -package=block
 package block
 
 import (
