@@ -25,7 +25,7 @@ const (
 	defaultFilterProcessSize = 2
 	defaultSendProcessSize   = 2
 	defaultMaxRetryTimes     = 3
-	defaultRetryPeriod       = 3 * time.Second
+	defaultRetryInterval     = 3 * time.Second
 	defaultSendTimeout       = 5 * time.Second
 )
 
@@ -34,9 +34,10 @@ type Config struct {
 	SendProcessSize   int
 	BufferSize        int
 	MaxRetryTimes     int
-	RetryPeriod       time.Duration
+	RetryInterval     time.Duration
 	SendTimeOut       time.Duration
 	RateLimit         int32
+	Controllers       []string
 }
 
 func defaultConfig() Config {
@@ -45,16 +46,16 @@ func defaultConfig() Config {
 		SendProcessSize:   defaultSendProcessSize,
 		BufferSize:        defaultBufferSize,
 		MaxRetryTimes:     defaultMaxRetryTimes,
-		RetryPeriod:       defaultRetryPeriod,
+		RetryInterval:     defaultRetryInterval,
 		SendTimeOut:       defaultSendTimeout,
 	}
 	return c
 }
 
-type Option func(t *Trigger)
+type Option func(t *trigger)
 
 func WithFilterProcessSize(size int) Option {
-	return func(t *Trigger) {
+	return func(t *trigger) {
 		if size <= 0 {
 			return
 		}
@@ -63,7 +64,7 @@ func WithFilterProcessSize(size int) Option {
 }
 
 func WithSendProcessSize(size int) Option {
-	return func(t *Trigger) {
+	return func(t *trigger) {
 		if size <= 0 {
 			return
 		}
@@ -72,7 +73,7 @@ func WithSendProcessSize(size int) Option {
 }
 
 func WithBufferSize(size int) Option {
-	return func(t *Trigger) {
+	return func(t *trigger) {
 		if size <= 0 {
 			return
 		}
@@ -81,7 +82,7 @@ func WithBufferSize(size int) Option {
 }
 
 func WithMaxRetryTimes(times int) Option {
-	return func(t *Trigger) {
+	return func(t *trigger) {
 		if times <= 0 {
 			return
 		}
@@ -89,17 +90,17 @@ func WithMaxRetryTimes(times int) Option {
 	}
 }
 
-func WithRetryPeriod(period time.Duration) Option {
-	return func(t *Trigger) {
-		if period <= 0 {
+func WithRetryInterval(interval time.Duration) Option {
+	return func(t *trigger) {
+		if interval <= 0 {
 			return
 		}
-		t.config.RetryPeriod = period
+		t.config.RetryInterval = interval
 	}
 }
 
 func WithSendTimeOut(timeout time.Duration) Option {
-	return func(t *Trigger) {
+	return func(t *trigger) {
 		if timeout <= 0 {
 			return
 		}
@@ -108,7 +109,7 @@ func WithSendTimeOut(timeout time.Duration) Option {
 }
 
 func WithRateLimit(rateLimit int32) Option {
-	return func(t *Trigger) {
+	return func(t *trigger) {
 		if rateLimit == 0 || t.config.RateLimit == rateLimit {
 			return
 		}
@@ -118,5 +119,11 @@ func WithRateLimit(rateLimit int32) Option {
 		} else {
 			t.rateLimiter = ratelimit.New(int(rateLimit))
 		}
+	}
+}
+
+func WithControllers(controllers []string) Option {
+	return func(t *trigger) {
+		t.config.Controllers = controllers
 	}
 }

@@ -17,22 +17,15 @@ package trigger
 import (
 	"context"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/errors"
-	"github.com/linkall-labs/vanus/internal/trigger/worker"
 	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/proto/pkg/controller"
-	"github.com/linkall-labs/vanus/proto/pkg/meta"
 	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
-)
-
-const (
-	heartbeatPeriod = 3 * time.Second
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -40,12 +33,8 @@ var (
 )
 
 type server struct {
-	worker    worker.Manager
+	worker    Worker
 	config    Config
-	client    *ctrlClient
-	ctx       context.Context
-	cancel    context.CancelFunc
-	wg        sync.WaitGroup
 	state     primitive.ServerState
 	startTime time.Time
 }
@@ -53,11 +42,7 @@ type server struct {
 func NewTriggerServer(config Config) pbtrigger.TriggerWorkerServer {
 	s := &server{
 		config: config,
-		worker: worker.NewManager(worker.Config{
-			Controllers: config.ControllerAddr,
-			RateLimit:   config.RateLimit,
-		}),
-		client: NewClient(config.ControllerAddr),
+		worker: NewWorker(config),
 		state:  primitive.ServerStateCreated,
 	}
 	return s
@@ -73,7 +58,6 @@ func (s *server) Start(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	s.startHeartbeat(context.Background())
 	s.state = primitive.ServerStateRunning
 	return &pbtrigger.StartTriggerWorkerResponse{}, nil
 }
@@ -95,7 +79,7 @@ func (s *server) AddSubscription(ctx context.Context,
 	subscription := convert.FromPbAddSubscription(request)
 	err := s.worker.AddSubscription(ctx, subscription)
 	if err != nil {
-		log.Warning(ctx, "worker add subscription error ", map[string]interface{}{
+		log.Error(ctx, "add subscription error ", map[string]interface{}{
 			"subscription": subscription,
 			log.KeyError:   err,
 		})
@@ -112,10 +96,11 @@ func (s *server) RemoveSubscription(ctx context.Context,
 	}
 	err := s.worker.RemoveSubscription(ctx, vanus.NewIDFromUint64(request.SubscriptionId))
 	if err != nil {
-		log.Info(ctx, "remove subscription error", map[string]interface{}{
+		log.Error(ctx, "remove subscription error", map[string]interface{}{
 			log.KeySubscriptionID: request.SubscriptionId,
 			log.KeyError:          err,
 		})
+		return nil, err
 	}
 	return &pbtrigger.RemoveSubscriptionResponse{}, nil
 }
@@ -126,7 +111,14 @@ func (s *server) PauseSubscription(ctx context.Context,
 	if s.state != primitive.ServerStateRunning {
 		return nil, errors.ErrWorkerNotStart
 	}
-	_ = s.worker.PauseSubscription(ctx, vanus.NewIDFromUint64(request.SubscriptionId))
+	err := s.worker.PauseSubscription(ctx, vanus.NewIDFromUint64(request.SubscriptionId))
+	if err != nil {
+		log.Error(ctx, "pause subscription error", map[string]interface{}{
+			log.KeySubscriptionID: request.SubscriptionId,
+			log.KeyError:          err,
+		})
+		return nil, err
+	}
 	return &pbtrigger.PauseSubscriptionResponse{}, nil
 }
 
@@ -136,20 +128,39 @@ func (s *server) ResumeSubscription(ctx context.Context,
 	if s.state != primitive.ServerStateRunning {
 		return nil, errors.ErrWorkerNotStart
 	}
+	err := s.worker.StartSubscription(ctx, vanus.NewIDFromUint64(request.SubscriptionId))
+	if err != nil {
+		log.Error(ctx, "resume subscription error", map[string]interface{}{
+			log.KeySubscriptionID: request.SubscriptionId,
+			log.KeyError:          err,
+		})
+		return nil, err
+	}
 	return &pbtrigger.ResumeSubscriptionResponse{}, nil
 }
 
+func (s *server) ResetOffsetToTimestamp(ctx context.Context,
+	request *pbtrigger.ResetOffsetToTimestampRequest) (*emptypb.Empty, error) {
+	log.Info(ctx, "subscription reset offset ", map[string]interface{}{"request": request})
+	id := vanus.NewIDFromUint64(request.SubscriptionId)
+	err := s.worker.ResetOffsetToTimestamp(ctx, id, int64(request.Timestamp))
+	if err != nil {
+		log.Error(ctx, "reset offset error", map[string]interface{}{
+			log.KeySubscriptionID: id,
+			log.KeyError:          err,
+		})
+		return nil, err
+	}
+	return &emptypb.Empty{}, nil
+}
+
 func (s *server) Initialize(ctx context.Context) error {
-	s.ctx, s.cancel = context.WithCancel(ctx)
-	_, err := s.client.registerTriggerWorker(ctx, &controller.RegisterTriggerWorkerRequest{
-		Address: s.config.TriggerAddr,
-	})
+	err := s.worker.Register(ctx)
 	if err != nil {
 		log.Error(ctx, "register trigger worker error", map[string]interface{}{
 			"tcAddr":     s.config.ControllerAddr,
 			log.KeyError: err,
 		})
-		s.client.Close(ctx)
 		return err
 	}
 	log.Info(ctx, "trigger worker register success", map[string]interface{}{
@@ -172,13 +183,14 @@ func (s *server) stop(ctx context.Context, sendUnregister bool) {
 	if s.state != primitive.ServerStateRunning {
 		return
 	}
-	_ = s.worker.Stop(s.ctx)
-	s.cancel()
-	s.wg.Wait()
-	if sendUnregister {
-		_, err := s.client.unregisterTriggerWorker(ctx, &controller.UnregisterTriggerWorkerRequest{
-			Address: s.config.TriggerAddr,
+	err := s.worker.Stop(ctx)
+	if err != nil {
+		log.Error(ctx, "trigger worker stop error", map[string]interface{}{
+			log.KeyError: err,
 		})
+	}
+	if sendUnregister {
+		err = s.worker.Unregister(ctx)
 		if err != nil {
 			log.Error(ctx, "unregister trigger worker error", map[string]interface{}{
 				"addr":       s.config.ControllerAddr,
@@ -188,38 +200,5 @@ func (s *server) stop(ctx context.Context, sendUnregister bool) {
 			log.Info(ctx, "unregister trigger worker success", nil)
 		}
 	}
-	s.client.Close(ctx)
 	s.state = primitive.ServerStateStopped
-}
-
-func (s *server) startHeartbeat(ctx context.Context) {
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
-		ticker := time.NewTicker(heartbeatPeriod)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-s.ctx.Done():
-				s.client.closeHeartBeat(ctx)
-				return
-			case <-ticker.C:
-				workerSub, callback := s.worker.ListSubscriptionInfo()
-				var subInfos []*meta.SubscriptionInfo
-				for _, sub := range workerSub {
-					subInfos = append(subInfos, convert.ToPbSubscriptionInfo(sub))
-				}
-				err := s.client.heartbeat(ctx, &controller.TriggerWorkerHeartbeatRequest{
-					Address:          s.config.TriggerAddr,
-					SubscriptionInfo: subInfos,
-				})
-				if err != nil {
-					log.Warning(ctx, "heartbeat failed, connection lost. try to reconnecting", map[string]interface{}{
-						log.KeyError: err,
-					})
-				}
-				callback()
-			}
-		}
-	}()
 }

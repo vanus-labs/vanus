@@ -5,9 +5,11 @@
 package reader
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	info "github.com/linkall-labs/vanus/internal/primitive/info"
 )
 
 // MockReader is a mock of Reader interface.
@@ -43,6 +45,21 @@ func (m *MockReader) Close() {
 func (mr *MockReaderMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockReader)(nil).Close))
+}
+
+// GetOffsetByTimestamp mocks base method.
+func (m *MockReader) GetOffsetByTimestamp(ctx context.Context, timestamp int64) (info.ListOffsetInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOffsetByTimestamp", ctx, timestamp)
+	ret0, _ := ret[0].(info.ListOffsetInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOffsetByTimestamp indicates an expected call of GetOffsetByTimestamp.
+func (mr *MockReaderMockRecorder) GetOffsetByTimestamp(ctx, timestamp interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOffsetByTimestamp", reflect.TypeOf((*MockReader)(nil).GetOffsetByTimestamp), ctx, timestamp)
 }
 
 // Start mocks base method.

@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	primitive "github.com/linkall-labs/vanus/internal/primitive"
+	metadata "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
@@ -37,7 +37,7 @@ func (m *MockSubscriptionStorage) EXPECT() *MockSubscriptionStorageMockRecorder 
 }
 
 // CreateSubscription mocks base method.
-func (m *MockSubscriptionStorage) CreateSubscription(ctx context.Context, sub *primitive.SubscriptionData) error {
+func (m *MockSubscriptionStorage) CreateSubscription(ctx context.Context, sub *metadata.Subscription) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateSubscription", ctx, sub)
 	ret0, _ := ret[0].(error)
@@ -51,39 +51,39 @@ func (mr *MockSubscriptionStorageMockRecorder) CreateSubscription(ctx, sub inter
 }
 
 // DeleteSubscription mocks base method.
-func (m *MockSubscriptionStorage) DeleteSubscription(ctx context.Context, subId vanus.ID) error {
+func (m *MockSubscriptionStorage) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteSubscription", ctx, subId)
+	ret := m.ctrl.Call(m, "DeleteSubscription", ctx, id)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteSubscription indicates an expected call of DeleteSubscription.
-func (mr *MockSubscriptionStorageMockRecorder) DeleteSubscription(ctx, subId interface{}) *gomock.Call {
+func (mr *MockSubscriptionStorageMockRecorder) DeleteSubscription(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteSubscription", reflect.TypeOf((*MockSubscriptionStorage)(nil).DeleteSubscription), ctx, subId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteSubscription", reflect.TypeOf((*MockSubscriptionStorage)(nil).DeleteSubscription), ctx, id)
 }
 
 // GetSubscription mocks base method.
-func (m *MockSubscriptionStorage) GetSubscription(ctx context.Context, subId vanus.ID) (*primitive.SubscriptionData, error) {
+func (m *MockSubscriptionStorage) GetSubscription(ctx context.Context, id vanus.ID) (*metadata.Subscription, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSubscription", ctx, subId)
-	ret0, _ := ret[0].(*primitive.SubscriptionData)
+	ret := m.ctrl.Call(m, "GetSubscription", ctx, id)
+	ret0, _ := ret[0].(*metadata.Subscription)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetSubscription indicates an expected call of GetSubscription.
-func (mr *MockSubscriptionStorageMockRecorder) GetSubscription(ctx, subId interface{}) *gomock.Call {
+func (mr *MockSubscriptionStorageMockRecorder) GetSubscription(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscription", reflect.TypeOf((*MockSubscriptionStorage)(nil).GetSubscription), ctx, subId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscription", reflect.TypeOf((*MockSubscriptionStorage)(nil).GetSubscription), ctx, id)
 }
 
 // ListSubscription mocks base method.
-func (m *MockSubscriptionStorage) ListSubscription(ctx context.Context) ([]*primitive.SubscriptionData, error) {
+func (m *MockSubscriptionStorage) ListSubscription(ctx context.Context) ([]*metadata.Subscription, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListSubscription", ctx)
-	ret0, _ := ret[0].([]*primitive.SubscriptionData)
+	ret0, _ := ret[0].([]*metadata.Subscription)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -95,7 +95,7 @@ func (mr *MockSubscriptionStorageMockRecorder) ListSubscription(ctx interface{})
 }
 
 // UpdateSubscription mocks base method.
-func (m *MockSubscriptionStorage) UpdateSubscription(ctx context.Context, sub *primitive.SubscriptionData) error {
+func (m *MockSubscriptionStorage) UpdateSubscription(ctx context.Context, sub *metadata.Subscription) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateSubscription", ctx, sub)
 	ret0, _ := ret[0].(error)

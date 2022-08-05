@@ -75,6 +75,10 @@ service TriggerController {
       returns (RegisterTriggerWorkerResponse);
   rpc UnregisterTriggerWorker(UnregisterTriggerWorkerRequest)
       returns (UnregisterTriggerWorkerResponse);
+  rpc ResetOffsetToTimestamp(ResetOffsetToTimestampRequest)
+      returns (google.protobuf.Empty);
+  rpc CommitOffset(CommitOffsetRequest)
+      returns (CommitOffsetResponse);
 }
 
 message PingResponse {
@@ -142,7 +146,7 @@ message CreateSubscriptionRequest {
   string protocol = 6;
   map<string, string> protocol_settings = 7;
   string event_bus = 8;
-  meta.InputTransformer input_transformer = 9;
+  meta.Transformer transformer = 9;
 }
 
 message UpdateSubscriptionRequest {
@@ -154,7 +158,7 @@ message UpdateSubscriptionRequest {
   string sink = 6;
   string protocol = 7;
   map<string, string> protocol_settings = 8;
-  meta.InputTransformer input_transformer = 9;
+  meta.Transformer transformer = 9;
 }
 
 message GetSubscriptionRequest {
@@ -188,6 +192,21 @@ message TriggerWorkerHeartbeatRequest {
 }
 
 message TriggerWorkerHeartbeatResponse {}
+
+message ResetOffsetToTimestampRequest {
+  uint64 subscription_id = 1;
+  // utc time seconds
+  uint64 timestamp = 2;
+}
+
+message CommitOffsetRequest {
+  repeated meta.SubscriptionInfo subscription_info = 1;
+  bool force_commit = 2;
+}
+
+message CommitOffsetResponse {
+  repeated uint64 fail_subscription_id = 1;
+}
 
 message ListSegmentRequest {
   uint64 event_bus_id = 1;

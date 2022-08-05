@@ -21,6 +21,7 @@ var (
 	ErrResourceNotFound     = rpcerr.New("resource not found").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_NOT_FOUND)
 	ErrResourceAlreadyExist = rpcerr.New("resource already exist").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_EXIST)
 	ErrWorkerNotStart       = rpcerr.New("worker not start").WithGRPCCode(rpcerr.ErrorCode_SERVICE_NOT_RUNNING)
+	ErrInternal             = rpcerr.New("internal").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
 
 	ErrReadNoEvent         = rpcerr.New("read no event")
 	ErrVanusJSONParse      = rpcerr.New("invalid json").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)

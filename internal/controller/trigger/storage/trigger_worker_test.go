@@ -19,10 +19,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
-	"github.com/linkall-labs/vanus/internal/kv"
-
 	"github.com/golang/mock/gomock"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/linkall-labs/vanus/internal/kv"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -36,7 +35,7 @@ func TestSaveTriggerWorker(t *testing.T) {
 	Convey("create trigger worker", t, func() {
 		kvClient.EXPECT().Exists(ctx, s.getKey(id)).Return(false, nil)
 		kvClient.EXPECT().Create(ctx, s.getKey(id), gomock.Any()).Return(nil)
-		err := s.SaveTriggerWorker(ctx, info.TriggerWorkerInfo{
+		err := s.SaveTriggerWorker(ctx, metadata.TriggerWorkerInfo{
 			ID:   id,
 			Addr: "test",
 		})
@@ -46,7 +45,7 @@ func TestSaveTriggerWorker(t *testing.T) {
 	Convey("update trigger worker", t, func() {
 		kvClient.EXPECT().Exists(ctx, s.getKey(id)).Return(true, nil)
 		kvClient.EXPECT().Update(ctx, s.getKey(id), gomock.Any()).Return(nil)
-		err := s.SaveTriggerWorker(ctx, info.TriggerWorkerInfo{
+		err := s.SaveTriggerWorker(ctx, metadata.TriggerWorkerInfo{
 			ID:   id,
 			Addr: "test",
 		})
@@ -62,7 +61,7 @@ func TestGetTriggerWorker(t *testing.T) {
 	s := NewTriggerWorkerStorage(kvClient).(*triggerWorkerStorage)
 	id := "testID"
 	Convey("get trigger worker", t, func() {
-		expect := info.TriggerWorkerInfo{
+		expect := metadata.TriggerWorkerInfo{
 			ID:   id,
 			Addr: "test",
 		}
@@ -96,7 +95,7 @@ func TestListTriggerWorker(t *testing.T) {
 	s := NewTriggerWorkerStorage(kvClient).(*triggerWorkerStorage)
 	id := "testID"
 	Convey("list trigger worker", t, func() {
-		expect := info.TriggerWorkerInfo{
+		expect := metadata.TriggerWorkerInfo{
 			ID:   id,
 			Addr: "test",
 		}

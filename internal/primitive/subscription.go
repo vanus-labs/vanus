@@ -15,52 +15,34 @@
 package primitive
 
 import (
-	"time"
-
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
 type URI string
 
-type SubscriptionPhase string
+type Subscription struct {
+	ID          vanus.ID              `json:"id"`
+	Filters     []*SubscriptionFilter `json:"filters,omitempty"`
+	Sink        URI                   `json:"sink,omitempty"`
+	EventBus    string                `json:"eventbus"`
+	Offsets     info.ListOffsetInfo   `json:"offsets"`
+	Transformer *Transformer          `json:"transformer,omitempty"`
+	Config      SubscriptionConfig    `json:"config,omitempty"`
+}
+
+type OffsetType int32
 
 const (
-	SubscriptionPhaseCreated   = "created"
-	SubscriptionPhasePending   = "pending"
-	SubscriptionPhaseScheduled = "scheduled"
-	SubscriptionPhaseRunning   = "running"
-	SubscriptionPhaseToDelete  = "toDelete"
+	LatestOffset   OffsetType = 0
+	EarliestOffset OffsetType = 1
+	Timestamp      OffsetType = 2
 )
 
-type SubscriptionData struct {
-	ID               vanus.ID              `json:"id"`
-	Source           string                `json:"source,omitempty"`
-	Types            []string              `json:"types,omitempty"`
-	Config           SubscriptionConfig    `json:"config,omitempty"`
-	Filters          []*SubscriptionFilter `json:"filters,omitempty"`
-	Sink             URI                   `json:"sink,omitempty"`
-	Protocol         string                `json:"protocol,omitempty"`
-	ProtocolSettings map[string]string     `json:"protocolSettings,omitempty"`
-	EventBus         string                `json:"eventBus"`
-	Phase            SubscriptionPhase     `json:"phase"`
-	TriggerWorker    string                `json:"triggerWorker,omitempty"`
-	InputTransformer *InputTransformer     `json:"inputTransformer,omitempty"`
-	HeartbeatTime    time.Time             `json:"-"`
-}
-
-type Subscription struct {
-	ID               vanus.ID              `json:"id"`
-	Filters          []*SubscriptionFilter `json:"filters,omitempty"`
-	Sink             URI                   `json:"sink,omitempty"`
-	EventBus         string                `json:"eventBus"`
-	Offsets          info.ListOffsetInfo   `json:"offsets"`
-	InputTransformer *InputTransformer     `json:"inputTransformer,omitempty"`
-	Config           SubscriptionConfig    `json:"config,omitempty"`
-}
-
 type SubscriptionConfig struct {
-	RateLimit int32 `json:"rateLimit,omitempty"`
+	RateLimit       int32      `json:"rate_limit,omitempty"`
+	OffsetType      OffsetType `json:"offset_type,omitempty"`
+	OffsetTimestamp *uint64    `json:"offset_timestamp,omitempty"`
 }
 
 func (conf *SubscriptionConfig) Change(curr SubscriptionConfig) bool {
@@ -76,14 +58,14 @@ type SubscriptionFilter struct {
 	Exact  map[string]string     `json:"exact,omitempty"`
 	Prefix map[string]string     `json:"prefix,omitempty"`
 	Suffix map[string]string     `json:"suffix,omitempty"`
-	CeSQL  string                `json:"ceSql,omitempty"`
+	CeSQL  string                `json:"ce_sql,omitempty"`
 	Not    *SubscriptionFilter   `json:"not,omitempty"`
 	All    []*SubscriptionFilter `json:"all,omitempty"`
 	Any    []*SubscriptionFilter `json:"any,omitempty"`
 	CEL    string                `json:"cel,omitempty"`
 }
 
-type InputTransformer struct {
+type Transformer struct {
 	Define   map[string]string `json:"define,omitempty"`
 	Template string            `json:"template,omitempty"`
 }

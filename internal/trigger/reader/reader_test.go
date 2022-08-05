@@ -12,112 +12,149 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package reader_test
+package reader
 
 import (
 	"context"
-	"fmt"
-	"os"
+	"encoding/binary"
+	"math/rand"
 	"sync"
 	"testing"
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/discovery"
+	"github.com/google/uuid"
+
+	"github.com/linkall-labs/vanus/client/pkg/eventlog"
+
 	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
-	"github.com/linkall-labs/vanus/client/pkg/inmemory"
+
+	"github.com/golang/mock/gomock"
+
+	eb "github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
-	"github.com/linkall-labs/vanus/internal/trigger/reader"
-	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestReader(t *testing.T) {
-	testSendInmemory()
-	// memoryEbVRN := "vanus+local:eventbus:1".
-	memoryEbVRN := "vanus+local:///eventbus/1"
-	conf := reader.Config{
-		EventBusName:   "testBus",
-		EventBusVRN:    memoryEbVRN,
-		SubscriptionID: 1,
-	}
-	events := make(chan info.EventOffset, 10)
-	r := reader.NewReader(conf, map[vanus.ID]uint64{}, events)
-	r.Start()
-	var testC, noneC int
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for e := range events {
-			if e.Event.Type() == "test" {
-				testC++
-			} else {
-				noneC++
-			}
-		}
-	}()
-	// wait read complete .
-	time.Sleep(time.Second)
-	r.Close()
-	close(events)
-	wg.Wait()
-	Convey("test reader", t, func() {
-		So(len(events), ShouldEqual, 0)
-		So(testC, ShouldEqual, 50)
-		So(noneC, ShouldEqual, 50)
+func TestGetOffsetByTimestamp(t *testing.T) {
+	Convey("test get offset by timestamp", t, func() {
+		events := make(chan info.EventRecord, 10)
+		r := NewReader(Config{}, events).(*reader)
+		eventLogID := vanus.NewID()
+		r.elReader = map[vanus.ID]string{eventLogID: "test"}
+		rand.Seed(time.Now().Unix())
+		offset := rand.Uint64()
+		gostub.Stub(&eb.LookupLogOffset, func(ctx context.Context, vrn string, ts int64) (int64, error) {
+			return int64(offset), nil
+		})
+		offsets, err := r.GetOffsetByTimestamp(context.Background(), time.Now().Unix())
+		So(err, ShouldBeNil)
+		So(len(offsets), ShouldEqual, 1)
+		So(offsets[0].EventLogID, ShouldEqual, eventLogID)
+		So(offsets[0].Offset, ShouldEqual, offset)
 	})
 }
 
-func testSendInmemory() {
-	ebVRN := "vanus+local:///eventbus/1"
-	elVRN := "vanus+inmemory:///eventlog/1?eventbus=1&keepalive=true"
-	br := &record.EventBus{
-		VRN: ebVRN,
-		Logs: []*record.EventLog{
-			{
-				VRN:  elVRN,
-				Mode: record.PremWrite | record.PremRead,
-			},
-		},
-	}
+func TestGetOffset(t *testing.T) {
+	Convey("test get offset", t, func() {
+		events := make(chan info.EventRecord, 10)
+		r := NewReader(Config{}, events).(*reader)
+		eventLogID := vanus.NewID()
+		vrn := "test"
+		r.elReader = map[vanus.ID]string{eventLogID: vrn}
+		Convey("test latest", func() {
+			r.config.OffsetType = primitive.LatestOffset
+			rand.Seed(time.Now().Unix())
+			offset := rand.Uint64()
+			gostub.Stub(&eb.LookupLatestLogOffset, func(ctx context.Context, vrn string) (int64, error) {
+				return int64(offset), nil
+			})
+			v, err := r.getOffset(context.Background(), eventLogID, vrn)
+			So(err, ShouldBeNil)
+			So(v, ShouldEqual, offset)
+		})
+		Convey("test earliest", func() {
+			r.config.OffsetType = primitive.EarliestOffset
+			rand.Seed(time.Now().Unix())
+			offset := rand.Uint64()
+			gostub.Stub(&eb.LookupEarliestLogOffset, func(ctx context.Context, vrn string) (int64, error) {
+				return int64(offset), nil
+			})
+			v, err := r.getOffset(context.Background(), eventLogID, vrn)
+			So(err, ShouldBeNil)
+			So(v, ShouldEqual, offset)
+		})
+		Convey("test timestamp", func() {
+			r.config.OffsetType = primitive.Timestamp
+			r.config.OffsetTimestamp = time.Now().Unix()
+			rand.Seed(time.Now().Unix())
+			offset := rand.Uint64()
+			gostub.Stub(&eb.LookupLogOffset, func(ctx context.Context, vrn string, ts int64) (int64, error) {
+				return int64(offset), nil
+			})
+			v, err := r.getOffset(context.Background(), eventLogID, vrn)
+			So(err, ShouldBeNil)
+			So(v, ShouldEqual, offset)
+		})
+		Convey("test exist", func() {
+			rand.Seed(time.Now().Unix())
+			offset := rand.Uint64()
+			r.config.Offset = map[vanus.ID]uint64{eventLogID: offset}
+			v, err := r.getOffset(context.Background(), eventLogID, vrn)
+			So(err, ShouldBeNil)
+			So(v, ShouldEqual, offset)
+		})
+	})
+}
 
-	inmemory.UseInMemoryLog("vanus+inmemory")
-	ns := inmemory.UseNameService("vanus+local")
-	// register metadata of eventbus
-	vrn, err := discovery.ParseVRN(ebVRN)
-	if err != nil {
-		panic(err.Error())
-	}
-	ns.Register(vrn, br)
-	bw, err := eb.OpenBusWriter(ebVRN)
-	if err != nil {
-		log.Error(context.Background(), "open bus writer error", map[string]interface{}{"error": err})
-		os.Exit(1)
-	}
+func TestReaderStart(t *testing.T) {
+	vrn := "vanus:///eventlog/1?eventbus=1"
+	Convey("test start eventLogs", t, func() {
+		offset := int64(100)
+		gostub.Stub(&eb.LookupLatestLogOffset, func(_ context.Context, _ string) (int64, error) {
+			return offset, nil
+		})
+		gostub.Stub(&eb.LookupReadableLogs, func(_ context.Context, _ string) ([]*record.EventLog, error) {
+			return []*record.EventLog{{VRN: vrn, Mode: record.PremRead}}, nil
+		})
 
-	go func() {
-		i := 1
-		for ; i <= 100; i++ {
-			tp := "test"
-			if i%2 == 0 {
-				// time.Sleep(1 * time.Second).
-				tp = "none"
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		logReader := eventlog.NewMockLogReader(ctrl)
+		gostub.Stub(&eb.OpenLogReader, func(_ string) (eventlog.LogReader, error) {
+			return logReader, nil
+		})
+		index := uint64(offset)
+		logReader.EXPECT().Seek(gomock.Any(), gomock.Any(), gomock.Any()).Return(int64(100), nil)
+		logReader.EXPECT().Read(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
+			func(ctx context.Context, size int16) ([]*ce.Event, error) {
+				time.Sleep(time.Millisecond)
+				e := ce.NewEvent()
+				e.SetID(uuid.NewString())
+				buf := make([]byte, 8)
+				binary.BigEndian.PutUint64(buf, index)
+				e.SetExtension(eb.XVanusLogOffset, buf)
+				index++
+				return []*ce.Event{&e}, nil
+			})
+		logReader.EXPECT().Close().Return()
+		eventCh := make(chan info.EventRecord, 100)
+		r := NewReader(Config{EventBusName: "test"}, eventCh).(*reader)
+		r.Start()
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for e := range eventCh {
+				if e.Offset >= uint64(offset+100) {
+					return
+				}
 			}
-			// Create an Event.
-			event := ce.NewEvent()
-			event.SetID(fmt.Sprintf("%d", i))
-			event.SetSource("example/uri")
-			event.SetType(tp)
-			event.SetExtension("vanus", fmt.Sprintf("value%d", i))
-			_ = event.SetData(ce.ApplicationJSON, map[string]string{"hello": fmt.Sprintf("world %d", i), "type": tp})
-
-			_, err = bw.Append(context.Background(), &event)
-			if err != nil {
-				log.Error(context.Background(), "append event error", map[string]interface{}{"error": err})
-			}
-		}
-	}()
+		}()
+		wg.Wait()
+		r.Close()
+	})
 }

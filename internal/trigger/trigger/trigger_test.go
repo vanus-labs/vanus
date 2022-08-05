@@ -23,55 +23,19 @@ import (
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
-	"github.com/linkall-labs/vanus/internal/trigger/offset"
+	"github.com/linkall-labs/vanus/internal/trigger/reader"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestTrigger_ChangeTarget(t *testing.T) {
-	offsetManger := offset.NewOffsetManager()
-	offsetManger.RegisterSubscription(1)
-	tg := NewTrigger(&primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
-	Convey("test change target", t, func() {
-		So(tg.Target, ShouldEqual, "")
-		So(tg.getCeClient(), ShouldBeNil)
-		tg.ChangeTarget("http://localhost:18081")
-		So(tg.getCeClient(), ShouldNotBeNil)
-	})
-}
-
-func TestTrigger_ChangeFilter(t *testing.T) {
-	offsetManger := offset.NewOffsetManager()
-	offsetManger.RegisterSubscription(1)
-	tg := NewTrigger(&primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
-	Convey("test change filter", t, func() {
-		So(tg.getFilter(), ShouldBeNil)
-		tg.ChangeFilter([]*primitive.SubscriptionFilter{{Exact: map[string]string{"type": "test"}}})
-		So(tg.getFilter(), ShouldNotBeNil)
-	})
-}
-
-func TestTrigger_ChangeInputTransformer(t *testing.T) {
-	offsetManger := offset.NewOffsetManager()
-	offsetManger.RegisterSubscription(1)
-	tg := NewTrigger(&primitive.Subscription{ID: 1}, offsetManger.GetSubscription(1))
-	Convey("test change input transformer", t, func() {
-		So(tg.getInputTransformer(), ShouldBeNil)
-		tg.ChangeInputTransformer(&primitive.InputTransformer{})
-		So(tg.getInputTransformer(), ShouldBeNil)
-		tg.ChangeInputTransformer(&primitive.InputTransformer{Define: map[string]string{"d": "d"}})
-		So(tg.getInputTransformer(), ShouldNotBeNil)
-		tg.ChangeInputTransformer(nil)
-		So(tg.getInputTransformer(), ShouldBeNil)
-	})
-}
-
 func TestTrigger_Options(t *testing.T) {
 	Convey("test trigger option", t, func() {
-		tg := &Trigger{}
+		tg := &trigger{}
 		WithFilterProcessSize(-1)(tg)
 		So(tg.config.FilterProcessSize, ShouldEqual, 0)
 		size := rand.Intn(1000) + 1
@@ -87,11 +51,11 @@ func TestTrigger_Options(t *testing.T) {
 		size = rand.Intn(1000) + size
 		WithSendTimeOut(time.Duration(size))(tg)
 		So(tg.config.SendTimeOut, ShouldEqual, size)
-		WithRetryPeriod(-1)(tg)
-		So(tg.config.RetryPeriod, ShouldEqual, 0)
+		WithRetryInterval(-1)(tg)
+		So(tg.config.RetryInterval, ShouldEqual, 0)
 		size = rand.Intn(1000) + size
-		WithRetryPeriod(time.Duration(size))(tg)
-		So(tg.config.RetryPeriod, ShouldEqual, size)
+		WithRetryInterval(time.Duration(size))(tg)
+		So(tg.config.RetryInterval, ShouldEqual, size)
 		WithMaxRetryTimes(-1)(tg)
 		So(tg.config.MaxRetryTimes, ShouldEqual, 0)
 		size = rand.Intn(1000) + size
@@ -113,28 +77,37 @@ func TestTrigger_Options(t *testing.T) {
 }
 
 func TestTriggerStartStop(t *testing.T) {
-	offsetManger := offset.NewOffsetManager()
-	offsetManger.RegisterSubscription(1)
-	tg := NewTrigger(makeSubscription(1), offsetManger.GetSubscription(1))
-	Convey("test", t, func() {
-		_ = tg.Start()
-		time.Sleep(time.Second)
-		So(tg.GetState(), ShouldEqual, TriggerRunning)
-		tg.Stop()
-		So(tg.GetState(), ShouldEqual, TriggerStopped)
+	id := vanus.NewID()
+	tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
+	Convey("test start and stop", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		r := reader.NewMockReader(ctrl)
+		ctx := context.Background()
+		err := tg.Init(ctx)
+		So(err, ShouldBeNil)
+		tg.reader = r
+		r.EXPECT().Start().Return(nil)
+		err = tg.Start(ctx)
+		So(err, ShouldBeNil)
+		time.Sleep(100 * time.Millisecond)
+		So(tg.state, ShouldEqual, TriggerRunning)
+		r.EXPECT().Close().Return()
+		_ = tg.Stop(ctx)
+		So(tg.state, ShouldEqual, TriggerStopped)
 	})
 }
 
 func TestTriggerRunEventSend(t *testing.T) {
-	offsetManger := offset.NewOffsetManager()
-	offsetManger.RegisterSubscription(1)
-	tg := NewTrigger(makeSubscription(1), offsetManger.GetSubscription(1))
-	tg.ceClient = NewFakeClient("test")
-	ctx := context.Background()
 	Convey("test event run process", t, func() {
+		ctx := context.Background()
+		id := vanus.NewID()
+		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
+		_ = tg.Init(ctx)
+		tg.ceClient = NewFakeClient("test")
 		size := 10
 		for i := 0; i < size; i++ {
-			_ = tg.EventArrived(ctx, makeEventRecord("test"))
+			_ = tg.eventArrived(ctx, makeEventRecord("test"))
 		}
 		So(len(tg.eventCh), ShouldEqual, size)
 		var wg sync.WaitGroup
@@ -145,7 +118,7 @@ func TestTriggerRunEventSend(t *testing.T) {
 		}()
 		time.Sleep(100 * time.Millisecond)
 		So(len(tg.sendCh), ShouldEqual, size)
-		_ = tg.EventArrived(ctx, makeEventRecord("no"))
+		_ = tg.eventArrived(ctx, makeEventRecord("no"))
 		time.Sleep(100 * time.Millisecond)
 		So(len(tg.sendCh), ShouldEqual, size)
 		close(tg.eventCh)
@@ -163,9 +136,8 @@ func TestTriggerRunEventSend(t *testing.T) {
 
 func TestTriggerRateLimit(t *testing.T) {
 	Convey("test rate limit", t, func() {
-		offsetManger := offset.NewOffsetManager()
-		offsetManger.RegisterSubscription(1)
-		tg := NewTrigger(makeSubscription(1), offsetManger.GetSubscription(1))
+		id := vanus.NewID()
+		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
 		tg.ceClient = NewFakeClient("test")
 		rateLimit := int32(10000)
 		Convey("test no rate limit", func() {
@@ -175,12 +147,12 @@ func TestTriggerRateLimit(t *testing.T) {
 		Convey("test with rate", func() {
 			WithRateLimit(rateLimit)(tg)
 			c := testSendEvent(tg)
-			So(c, ShouldBeLessThanOrEqualTo, 2*rateLimit+10)
+			So(c, ShouldBeLessThanOrEqualTo, 1*rateLimit+10)
 		})
 	})
 }
 
-func testSendEvent(tg *Trigger) int64 {
+func testSendEvent(tg *trigger) int64 {
 	size := 50000
 	eventCh := make(chan *ce.Event, size)
 	for i := 0; i < size; i++ {
@@ -200,12 +172,12 @@ func testSendEvent(tg *Trigger) int64 {
 				if !ok {
 					return
 				}
-				tg.retrySendEvent(ctx, event)
+				_ = tg.retrySendEvent(ctx, event)
 				atomic.AddInt64(&c, 1)
 			}
 		}
 	}()
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 	close(eventCh)
 	cancel()
 	wg.Wait()
@@ -226,8 +198,51 @@ func makeEventRecord(t string) info.EventRecord {
 	event.SetSource("source")
 	event.SetType(t)
 	return info.EventRecord{
-		EventOffset: info.EventOffset{
-			Event: &event,
-		},
+		Event: &event,
 	}
+}
+
+func TestChangeSubscription(t *testing.T) {
+	Convey("test change subscription", t, func() {
+		ctx := context.Background()
+		id := vanus.NewID()
+		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
+		Convey("change target", func() {
+			err := tg.Change(ctx, &primitive.Subscription{Sink: "test_sink"})
+			So(err, ShouldBeNil)
+		})
+		Convey("change filter", func() {
+			err := tg.Change(ctx, &primitive.Subscription{Filters: []*primitive.SubscriptionFilter{
+				{Exact: map[string]string{"test": "test"}},
+			}})
+			So(err, ShouldBeNil)
+		})
+		Convey("change transformation", func() {
+			err := tg.Change(ctx, &primitive.Subscription{Transformer: &primitive.Transformer{}})
+			So(err, ShouldBeNil)
+		})
+		Convey("change config", func() {
+			err := tg.Change(ctx, &primitive.Subscription{Config: primitive.SubscriptionConfig{RateLimit: 100}})
+			So(err, ShouldBeNil)
+		})
+	})
+}
+
+func TestResetOffset(t *testing.T) {
+	Convey("test reset offset", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		ctx := context.Background()
+		id := vanus.NewID()
+		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
+		r := reader.NewMockReader(ctrl)
+		tg.reader = r
+		Convey("reset offset to timestamp", func() {
+			offsets := pInfo.ListOffsetInfo{{EventLogID: vanus.NewID(), Offset: uint64(100)}}
+			r.EXPECT().GetOffsetByTimestamp(gomock.Any(), gomock.Any()).Return(offsets, nil)
+			v, err := tg.ResetOffsetToTimestamp(ctx, time.Now().Unix())
+			So(err, ShouldBeNil)
+			So(len(v), ShouldEqual, len(offsets))
+		})
+	})
 }

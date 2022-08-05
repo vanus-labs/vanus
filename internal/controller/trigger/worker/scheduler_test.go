@@ -20,9 +20,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
-	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 
 	"github.com/golang/mock/gomock"
@@ -42,16 +41,16 @@ func TestSubscriptionSchedulerHandler(t *testing.T) {
 		scheduler := NewSubscriptionScheduler(workerManager, subscriptionManager)
 
 		Convey("test handler subscription is nil", func() {
-			subscriptionManager.EXPECT().GetSubscriptionData(ctx, subscriptionID).Return(nil)
+			subscriptionManager.EXPECT().GetSubscription(ctx, subscriptionID).Return(nil)
 			scheduler.handler(ctx, subscriptionID)
 		})
 
 		tWorker.EXPECT().AssignSubscription(gomock.Any()).AnyTimes().Return()
 		Convey("test scheduler handler has trigger worker ", func() {
-			subscriptionManager.EXPECT().GetSubscriptionData(ctx, subscriptionID).Return(
-				&primitive.SubscriptionData{
+			subscriptionManager.EXPECT().GetSubscription(ctx, subscriptionID).Return(
+				&metadata.Subscription{
 					ID:            subscriptionID,
-					Phase:         primitive.SubscriptionPhaseCreated,
+					Phase:         metadata.SubscriptionPhaseCreated,
 					TriggerWorker: workerAddr,
 				})
 			workerManager.EXPECT().GetTriggerWorker(workerAddr).Return(tWorker)
@@ -60,12 +59,12 @@ func TestSubscriptionSchedulerHandler(t *testing.T) {
 		})
 
 		Convey("test scheduler handler from no trigger worker ", func() {
-			subscriptionManager.EXPECT().GetSubscriptionData(ctx, subscriptionID).Return(
-				&primitive.SubscriptionData{
+			subscriptionManager.EXPECT().GetSubscription(ctx, subscriptionID).Return(
+				&metadata.Subscription{
 					ID:    subscriptionID,
-					Phase: primitive.SubscriptionPhaseCreated,
+					Phase: metadata.SubscriptionPhaseCreated,
 				})
-			workerManager.EXPECT().GetActiveRunningTriggerWorker().AnyTimes().Return([]info.TriggerWorkerInfo{
+			workerManager.EXPECT().GetActiveRunningTriggerWorker().AnyTimes().Return([]metadata.TriggerWorkerInfo{
 				{Addr: workerAddr},
 			})
 			workerManager.EXPECT().GetTriggerWorker(workerAddr).Return(tWorker)
@@ -85,7 +84,7 @@ func TestSubscriptionSchedulerRun(t *testing.T) {
 		workerManager := NewMockManager(ctrl)
 		scheduler := NewSubscriptionScheduler(workerManager, subscriptionManager)
 		Convey("test scheduler run handler no error", func() {
-			subscriptionManager.EXPECT().GetSubscriptionData(scheduler.ctx, gomock.Any()).Return(nil)
+			subscriptionManager.EXPECT().GetSubscription(scheduler.ctx, gomock.Any()).Return(nil)
 			scheduler.EnqueueNormalSubscription(subscriptionID)
 			scheduler.Run()
 			time.Sleep(10 * time.Millisecond)
@@ -94,11 +93,11 @@ func TestSubscriptionSchedulerRun(t *testing.T) {
 
 		Convey("test scheduler run handler error", func() {
 			ctx := scheduler.ctx
-			subscriptionManager.EXPECT().GetSubscriptionData(ctx, subscriptionID).Return(
-				&primitive.SubscriptionData{
+			subscriptionManager.EXPECT().GetSubscription(ctx, subscriptionID).Return(
+				&metadata.Subscription{
 					ID:            subscriptionID,
 					TriggerWorker: workerAddr,
-					Phase:         primitive.SubscriptionPhasePending,
+					Phase:         metadata.SubscriptionPhasePending,
 				})
 			workerManager.EXPECT().GetTriggerWorker(workerAddr).Return(NewTriggerWorkerByAddr(workerAddr, subscriptionManager))
 			subscriptionManager.EXPECT().UpdateSubscription(ctx, gomock.Any()).AnyTimes().Return(errors.New("update error"))

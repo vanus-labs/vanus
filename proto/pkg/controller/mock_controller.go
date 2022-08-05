@@ -982,6 +982,26 @@ func (m *MockTriggerControllerClient) EXPECT() *MockTriggerControllerClientMockR
 	return m.recorder
 }
 
+// CommitOffset mocks base method.
+func (m *MockTriggerControllerClient) CommitOffset(ctx context.Context, in *CommitOffsetRequest, opts ...grpc.CallOption) (*CommitOffsetResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "CommitOffset", varargs...)
+	ret0, _ := ret[0].(*CommitOffsetResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CommitOffset indicates an expected call of CommitOffset.
+func (mr *MockTriggerControllerClientMockRecorder) CommitOffset(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommitOffset", reflect.TypeOf((*MockTriggerControllerClient)(nil).CommitOffset), varargs...)
+}
+
 // CreateSubscription mocks base method.
 func (m *MockTriggerControllerClient) CreateSubscription(ctx context.Context, in *CreateSubscriptionRequest, opts ...grpc.CallOption) (*meta.Subscription, error) {
 	m.ctrl.T.Helper()
@@ -1080,6 +1100,26 @@ func (mr *MockTriggerControllerClientMockRecorder) RegisterTriggerWorker(ctx, in
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, in}, opts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterTriggerWorker", reflect.TypeOf((*MockTriggerControllerClient)(nil).RegisterTriggerWorker), varargs...)
+}
+
+// ResetOffsetToTimestamp mocks base method.
+func (m *MockTriggerControllerClient) ResetOffsetToTimestamp(ctx context.Context, in *ResetOffsetToTimestampRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ResetOffsetToTimestamp", varargs...)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResetOffsetToTimestamp indicates an expected call of ResetOffsetToTimestamp.
+func (mr *MockTriggerControllerClientMockRecorder) ResetOffsetToTimestamp(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetOffsetToTimestamp", reflect.TypeOf((*MockTriggerControllerClient)(nil).ResetOffsetToTimestamp), varargs...)
 }
 
 // TriggerWorkerHeartbeat mocks base method.
@@ -1302,6 +1342,21 @@ func (m *MockTriggerControllerServer) EXPECT() *MockTriggerControllerServerMockR
 	return m.recorder
 }
 
+// CommitOffset mocks base method.
+func (m *MockTriggerControllerServer) CommitOffset(arg0 context.Context, arg1 *CommitOffsetRequest) (*CommitOffsetResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CommitOffset", arg0, arg1)
+	ret0, _ := ret[0].(*CommitOffsetResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CommitOffset indicates an expected call of CommitOffset.
+func (mr *MockTriggerControllerServerMockRecorder) CommitOffset(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommitOffset", reflect.TypeOf((*MockTriggerControllerServer)(nil).CommitOffset), arg0, arg1)
+}
+
 // CreateSubscription mocks base method.
 func (m *MockTriggerControllerServer) CreateSubscription(arg0 context.Context, arg1 *CreateSubscriptionRequest) (*meta.Subscription, error) {
 	m.ctrl.T.Helper()
@@ -1375,6 +1430,21 @@ func (m *MockTriggerControllerServer) RegisterTriggerWorker(arg0 context.Context
 func (mr *MockTriggerControllerServerMockRecorder) RegisterTriggerWorker(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterTriggerWorker", reflect.TypeOf((*MockTriggerControllerServer)(nil).RegisterTriggerWorker), arg0, arg1)
+}
+
+// ResetOffsetToTimestamp mocks base method.
+func (m *MockTriggerControllerServer) ResetOffsetToTimestamp(arg0 context.Context, arg1 *ResetOffsetToTimestampRequest) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResetOffsetToTimestamp", arg0, arg1)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResetOffsetToTimestamp indicates an expected call of ResetOffsetToTimestamp.
+func (mr *MockTriggerControllerServerMockRecorder) ResetOffsetToTimestamp(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetOffsetToTimestamp", reflect.TypeOf((*MockTriggerControllerServer)(nil).ResetOffsetToTimestamp), arg0, arg1)
 }
 
 // TriggerWorkerHeartbeat mocks base method.

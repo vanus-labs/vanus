@@ -96,11 +96,18 @@ message Subscription {
   string protocol = 7;
   map<string, string> protocol_settings = 8;
   string event_bus = 9;
-  meta.InputTransformer input_transformer = 10;
+  meta.Transformer transformer = 10;
 }
 
 message SubscriptionConfig {
   int32 rate_limit = 1;
+  enum OffsetType {
+    LATEST = 0;
+    EARLIEST = 1;
+    TIMESTAMP = 2;
+  }
+  OffsetType offset_type = 2;
+  optional uint64 offset_timestamp = 3;
 }
 
 message Filter {
@@ -124,7 +131,7 @@ message OffsetInfo {
   uint64 event_log_id = 2;
 }
 
-message InputTransformer {
+message Transformer {
   map<string, string> define = 1;
   string template = 2;
 }

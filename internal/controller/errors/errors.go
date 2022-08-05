@@ -21,6 +21,7 @@ var (
 	ErrResourceNotFound     = rpcerr.New("resource not found").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_NOT_FOUND)
 	ErrResourceAlreadyExist = rpcerr.New("resource already exist").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_EXIST)
 	ErrInternal             = rpcerr.New("internal error").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
+	ErrResourceCanNotOp     = rpcerr.New("resource can not operation").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_CAN_NOT_OP)
 
 	ErrServerNotStart = rpcerr.New("server not start").WithGRPCCode(rpcerr.ErrorCode_SERVICE_NOT_RUNNING)
 	ErrJSONMarshal    = rpcerr.New("json marshal").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)

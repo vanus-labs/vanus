@@ -16,62 +16,28 @@ package offset
 
 import (
 	"sync"
-	"time"
-
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 
 	"github.com/huandu/skiplist"
+	"github.com/linkall-labs/vanus/internal/primitive/info"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
-type Manager struct {
-	subOffset      sync.Map
-	lastCommitTime time.Time
-	lock           sync.RWMutex
-}
-
-func NewOffsetManager() *Manager {
-	return &Manager{}
-}
-
-func (m *Manager) RegisterSubscription(id vanus.ID) *SubscriptionOffset {
-	subOffset, exist := m.subOffset.Load(id)
-	if !exist {
-		sub := &SubscriptionOffset{
-			subscriptionID: id,
-		}
-		subOffset, _ = m.subOffset.LoadOrStore(id, sub)
+func NewSubscriptionOffset(id vanus.ID) *SubscriptionOffset {
+	return &SubscriptionOffset{
+		subscriptionID: id,
 	}
-	return subOffset.(*SubscriptionOffset)
-}
-
-func (m *Manager) GetSubscription(id vanus.ID) *SubscriptionOffset {
-	sub, exist := m.subOffset.Load(id)
-	if !exist {
-		return nil
-	}
-	return sub.(*SubscriptionOffset)
-}
-
-func (m *Manager) RemoveSubscription(id vanus.ID) {
-	m.subOffset.Delete(id)
-}
-
-func (m *Manager) SetLastCommitTime() {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	m.lastCommitTime = time.Now()
-}
-
-func (m *Manager) GetLastCommitTime() time.Time {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	return m.lastCommitTime
 }
 
 type SubscriptionOffset struct {
 	subscriptionID vanus.ID
 	elOffset       sync.Map
+}
+
+func (offset *SubscriptionOffset) Clear() {
+	offset.elOffset.Range(func(key, value interface{}) bool {
+		offset.elOffset.Delete(key)
+		return true
+	})
 }
 
 func (offset *SubscriptionOffset) EventReceive(info info.OffsetInfo) {
@@ -104,14 +70,15 @@ func (offset *SubscriptionOffset) GetCommit() info.ListOffsetInfo {
 }
 
 type offsetTracker struct {
-	mutex     sync.Mutex
-	maxOffset uint64
-	list      *skiplist.SkipList
+	mutex      sync.Mutex
+	maxOffset  uint64
+	initOffset uint64
+	list       *skiplist.SkipList
 }
 
 func initOffset(initOffset uint64) *offsetTracker {
 	return &offsetTracker{
-		maxOffset: initOffset,
+		initOffset: initOffset,
 		list: skiplist.New(skiplist.GreaterThanFunc(func(lhs, rhs interface{}) int {
 			v1, _ := lhs.(uint64)
 			v2, _ := rhs.(uint64)
@@ -142,7 +109,10 @@ func (o *offsetTracker) offsetToCommit() uint64 {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 	if o.list.Len() == 0 {
-		return o.maxOffset
+		if o.maxOffset == 0 {
+			return o.initOffset
+		}
+		return o.maxOffset + 1
 	}
-	return o.list.Front().Key().(uint64) - 1
+	return o.list.Front().Key().(uint64)
 }

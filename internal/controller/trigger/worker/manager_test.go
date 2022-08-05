@@ -21,19 +21,18 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
-	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func getTestSubscription() *primitive.SubscriptionData {
-	return &primitive.SubscriptionData{
+func getTestSubscription() *metadata.Subscription {
+	return &metadata.Subscription{
 		ID:    vanus.NewID(),
-		Phase: primitive.SubscriptionPhaseCreated,
+		Phase: metadata.SubscriptionPhaseCreated,
 	}
 }
 
@@ -63,18 +62,18 @@ func TestInit(t *testing.T) {
 		sub := getTestSubscription()
 		sub.TriggerWorker = addr
 		twManager := NewTriggerWorkerManager(Config{}, workerStorage, subManager, nil)
-		subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error"))
-		workerStorage.EXPECT().ListTriggerWorker(ctx).Return([]*info.TriggerWorkerInfo{
+		subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Any()).Return(nil)
+		workerStorage.EXPECT().ListTriggerWorker(ctx).Return([]*metadata.TriggerWorkerInfo{
 			{Addr: addr},
 		}, nil)
-		subManager.EXPECT().ListSubscription(ctx).Return([]*primitive.SubscriptionData{
+		subManager.EXPECT().ListSubscription(ctx).Return([]*metadata.Subscription{
 			sub,
 		})
 		err := twManager.Init(ctx)
 		So(err, ShouldBeNil)
 		tWorker := twManager.GetTriggerWorker(addr)
 		So(tWorker, ShouldNotBeNil)
-		subIds := tWorker.GetAssignSubscriptions()
+		subIds := tWorker.GetAssignedSubscriptions()
 		So(len(subIds), ShouldEqual, 1)
 		So(subIds[0], ShouldEqual, sub.ID)
 		time.Sleep(time.Millisecond * 100)
@@ -120,12 +119,12 @@ func TestRemoveTriggerWorker(t *testing.T) {
 			So(twManager.GetTriggerWorker(addr), ShouldBeNil)
 		})
 		tWorker.EXPECT().GetAddr().AnyTimes().Return(addr)
-		tWorker.EXPECT().GetPhase().AnyTimes().Return(info.TriggerWorkerPhaseRunning)
-		tWorker.EXPECT().GetInfo().AnyTimes().Return(info.TriggerWorkerInfo{})
+		tWorker.EXPECT().GetPhase().AnyTimes().Return(metadata.TriggerWorkerPhaseRunning)
+		tWorker.EXPECT().GetInfo().AnyTimes().Return(metadata.TriggerWorkerInfo{})
 		workerStorage.EXPECT().SaveTriggerWorker(ctx, gomock.Any()).AnyTimes().Return(nil)
 		workerStorage.EXPECT().DeleteTriggerWorker(ctx, gomock.Any()).AnyTimes().Return(nil)
-		tWorker.EXPECT().SetPhase(info.TriggerWorkerPhasePaused).AnyTimes().Return()
-		tWorker.EXPECT().GetAssignSubscriptions().AnyTimes().Return([]vanus.ID{sub.ID})
+		tWorker.EXPECT().SetPhase(metadata.TriggerWorkerPhasePaused).AnyTimes().Return()
+		tWorker.EXPECT().GetAssignedSubscriptions().AnyTimes().Return([]vanus.ID{sub.ID})
 		Convey("test remove subscription no error", func() {
 			twManager.triggerWorkers[addr] = tWorker
 			So(twManager.GetTriggerWorker(addr), ShouldNotBeNil)
@@ -151,31 +150,30 @@ func TestManager_UpdateTriggerWorkerInfo(t *testing.T) {
 		defer ctrl.Finish()
 		tWorker := NewMockTriggerWorker(ctrl)
 		workerStorage := storage.NewMockTriggerWorkerStorage(ctrl)
-		sub := getTestSubscription()
 		twManager := NewTriggerWorkerManager(Config{}, workerStorage, nil, getTestTriggerWorkerRemoveSubscription()).(*manager)
 		Convey("trigger worker not exist", func() {
-			err := twManager.UpdateTriggerWorkerInfo(ctx, addr, []vanus.ID{sub.ID})
+			err := twManager.UpdateTriggerWorkerInfo(ctx, addr)
 			So(err, ShouldNotBeNil)
 		})
-		tWorker.EXPECT().ReportSubscription(gomock.Any()).AnyTimes().Return()
-		tWorker.EXPECT().GetInfo().AnyTimes().Return(info.TriggerWorkerInfo{})
+		tWorker.EXPECT().Polish().AnyTimes().Return()
+		tWorker.EXPECT().GetInfo().AnyTimes().Return(metadata.TriggerWorkerInfo{})
 		Convey("trigger worker running", func() {
 			twManager.triggerWorkers[addr] = tWorker
-			tWorker.EXPECT().GetPhase().AnyTimes().Return(info.TriggerWorkerPhaseRunning)
-			err := twManager.UpdateTriggerWorkerInfo(ctx, addr, []vanus.ID{sub.ID})
+			tWorker.EXPECT().GetPhase().AnyTimes().Return(metadata.TriggerWorkerPhaseRunning)
+			err := twManager.UpdateTriggerWorkerInfo(ctx, addr)
 			So(err, ShouldBeNil)
 		})
 
 		Convey("trigger worker not running", func() {
 			twManager.triggerWorkers[addr] = tWorker
-			tWorker.EXPECT().GetPhase().AnyTimes().Return(info.TriggerWorkerPhasePending)
-			tWorker.EXPECT().SetPhase(info.TriggerWorkerPhaseRunning).AnyTimes().Return()
+			tWorker.EXPECT().GetPhase().AnyTimes().Return(metadata.TriggerWorkerPhasePending)
+			tWorker.EXPECT().SetPhase(metadata.TriggerWorkerPhaseRunning).AnyTimes().Return()
 			tWorker.EXPECT().GetAddr().Return(addr)
 			workerStorage.EXPECT().SaveTriggerWorker(gomock.Any(), gomock.Any()).Return(nil)
-			err := twManager.UpdateTriggerWorkerInfo(ctx, addr, []vanus.ID{sub.ID})
+			err := twManager.UpdateTriggerWorkerInfo(ctx, addr)
 			So(err, ShouldBeNil)
 			workerStorage.EXPECT().SaveTriggerWorker(gomock.Any(), gomock.Any()).Return(fmt.Errorf("error"))
-			err = twManager.UpdateTriggerWorkerInfo(ctx, addr, []vanus.ID{sub.ID})
+			err = twManager.UpdateTriggerWorkerInfo(ctx, addr)
 			So(err, ShouldBeNil)
 		})
 	})
@@ -195,7 +193,7 @@ func TestPendingTriggerWorkerHandler(t *testing.T) {
 			getTestTriggerWorkerRemoveSubscription()).(*manager)
 		twManager.triggerWorkers[addr] = tWorker
 		tWorker.EXPECT().GetAddr().AnyTimes().Return(addr)
-		tWorker.EXPECT().GetInfo().AnyTimes().Return(info.TriggerWorkerInfo{})
+		tWorker.EXPECT().GetInfo().AnyTimes().Return(metadata.TriggerWorkerInfo{})
 		Convey("pending worker start", func() {
 			tWorker.EXPECT().GetPendingTime().AnyTimes().Return(time.Now().Add(twManager.config.StartWorkerDuration * -1))
 			time.Sleep(time.Millisecond)
@@ -206,8 +204,8 @@ func TestPendingTriggerWorkerHandler(t *testing.T) {
 		})
 		Convey("pending worker clean", func() {
 			tWorker.EXPECT().GetPendingTime().Return(time.Now().Add(twManager.config.WaitRunningTimeout * -1))
-			tWorker.EXPECT().SetPhase(info.TriggerWorkerPhasePaused).Return()
-			tWorker.EXPECT().GetAssignSubscriptions().Return([]vanus.ID{sub.ID})
+			tWorker.EXPECT().SetPhase(metadata.TriggerWorkerPhasePaused).Return()
+			tWorker.EXPECT().GetAssignedSubscriptions().Return([]vanus.ID{sub.ID})
 			workerStorage.EXPECT().DeleteTriggerWorker(ctx, gomock.Any()).Return(nil)
 			time.Sleep(time.Millisecond)
 			twManager.pendingTriggerWorkerHandler(ctx, tWorker)
@@ -228,12 +226,12 @@ func TestRunningTriggerWorkerHandler(t *testing.T) {
 		twManager := NewTriggerWorkerManager(Config{}, workerStorage, subManager,
 			getTestTriggerWorkerRemoveSubscription()).(*manager)
 		tWorker.EXPECT().GetAddr().AnyTimes().Return(addr)
-		tWorker.EXPECT().GetInfo().AnyTimes().Return(info.TriggerWorkerInfo{})
+		tWorker.EXPECT().GetInfo().AnyTimes().Return(metadata.TriggerWorkerInfo{})
 		Convey("running worker heartbeat timeout", func() {
 			tWorker.EXPECT().IsActive().Return(true)
 			hbTime := time.Now().Add(twManager.config.HeartbeatTimeout * -1)
 			tWorker.EXPECT().GetHeartbeatTime().Return(hbTime)
-			tWorker.EXPECT().SetPhase(info.TriggerWorkerPhaseDisconnect).Return()
+			tWorker.EXPECT().SetPhase(metadata.TriggerWorkerPhaseDisconnect).Return()
 			workerStorage.EXPECT().SaveTriggerWorker(ctx, gomock.Any()).Return(nil)
 			time.Sleep(time.Millisecond)
 			twManager.runningTriggerWorkerHandler(ctx, tWorker)
@@ -260,31 +258,31 @@ func TestManagerCheck(t *testing.T) {
 			getTestTriggerWorkerRemoveSubscription()).(*manager)
 		twManager.triggerWorkers[addr] = tWorker
 		tWorker.EXPECT().GetAddr().AnyTimes().Return(addr)
-		tWorker.EXPECT().GetInfo().AnyTimes().Return(info.TriggerWorkerInfo{})
+		tWorker.EXPECT().GetInfo().AnyTimes().Return(metadata.TriggerWorkerInfo{})
 		Convey("pending check", func() {
-			tWorker.EXPECT().GetPhase().Return(info.TriggerWorkerPhasePending)
+			tWorker.EXPECT().GetPhase().Return(metadata.TriggerWorkerPhasePending)
 			tWorker.EXPECT().GetPendingTime().Return(time.Now())
 			twManager.check(ctx)
 		})
 		Convey("running check", func() {
-			tWorker.EXPECT().GetPhase().Return(info.TriggerWorkerPhaseRunning)
+			tWorker.EXPECT().GetPhase().Return(metadata.TriggerWorkerPhaseRunning)
 			tWorker.EXPECT().IsActive().Return(true)
 			tWorker.EXPECT().GetHeartbeatTime().Return(time.Now())
 			twManager.check(ctx)
 		})
 		Convey("disconnect check", func() {
-			tWorker.EXPECT().GetPhase().Return(info.TriggerWorkerPhaseDisconnect)
+			tWorker.EXPECT().GetPhase().Return(metadata.TriggerWorkerPhaseDisconnect)
 			tWorker.EXPECT().IsActive().Return(true)
 			hbTime := time.Now().Add(twManager.config.DisconnectCleanTime * -1)
 			tWorker.EXPECT().GetHeartbeatTime().Return(hbTime)
-			tWorker.EXPECT().GetAssignSubscriptions().Return(nil)
+			tWorker.EXPECT().GetAssignedSubscriptions().Return(nil)
 			time.Sleep(time.Millisecond)
 			workerStorage.EXPECT().DeleteTriggerWorker(ctx, gomock.Any()).Return(nil)
 			twManager.check(ctx)
 		})
 		Convey("pause check", func() {
-			tWorker.EXPECT().GetPhase().Return(info.TriggerWorkerPhasePaused)
-			tWorker.EXPECT().GetAssignSubscriptions().Return(nil)
+			tWorker.EXPECT().GetPhase().Return(metadata.TriggerWorkerPhasePaused)
+			tWorker.EXPECT().GetAssignedSubscriptions().Return(nil)
 			workerStorage.EXPECT().DeleteTriggerWorker(ctx, gomock.Any()).Return(nil)
 			twManager.check(ctx)
 		})
@@ -303,11 +301,11 @@ func TestGetActiveWorker(t *testing.T) {
 		workerStorage := storage.NewMockTriggerWorkerStorage(ctrl)
 		twManager := NewTriggerWorkerManager(Config{}, workerStorage, subManager,
 			getTestTriggerWorkerRemoveSubscription()).(*manager)
-		tWorker.EXPECT().GetPhase().Return(info.TriggerWorkerPhaseRunning)
+		tWorker.EXPECT().GetPhase().Return(metadata.TriggerWorkerPhaseRunning)
 		tWorker.EXPECT().IsActive().Return(true)
 		tWorker.EXPECT().GetHeartbeatTime().Return(time.Now())
-		tWorker.EXPECT().GetInfo().Return(info.TriggerWorkerInfo{Addr: addr})
-		tWorker2.EXPECT().GetPhase().AnyTimes().Return(info.TriggerWorkerPhaseRunning)
+		tWorker.EXPECT().GetInfo().Return(metadata.TriggerWorkerInfo{Addr: addr})
+		tWorker2.EXPECT().GetPhase().AnyTimes().Return(metadata.TriggerWorkerPhaseRunning)
 		tWorker2.EXPECT().IsActive().Return(false)
 		twManager.triggerWorkers[addr] = tWorker
 		twManager.triggerWorkers[addr2] = tWorker2

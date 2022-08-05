@@ -27,12 +27,16 @@ var (
 	number            int16
 
 	// for vsctl eventbus and subscription.
-	eventbus         string
-	source           string
-	sink             string
-	filters          string
-	inputTransformer string
-	subscriptionID   uint64
-	showSegment      bool
-	showBlock        bool
+	eventbus       string
+	source         string
+	sink           string
+	filters        string
+	transformer    string
+	rateLimit      int32
+	fromLatest     bool
+	fromEarliest   bool
+	fromTime       string
+	subscriptionID uint64
+	showSegment    bool
+	showBlock      bool
 )

@@ -17,24 +17,23 @@ package storage
 import (
 	"context"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
 type fake struct {
-	subs     map[vanus.ID]*primitive.SubscriptionData
+	subs     map[vanus.ID]*metadata.Subscription
 	offset   map[vanus.ID]map[vanus.ID]pInfo.OffsetInfo
-	tWorkers map[string]*info.TriggerWorkerInfo
+	tWorkers map[string]*metadata.TriggerWorkerInfo
 }
 
 func NewFakeStorage() Storage {
 	s := &fake{
-		subs:     map[vanus.ID]*primitive.SubscriptionData{},
+		subs:     map[vanus.ID]*metadata.Subscription{},
 		offset:   map[vanus.ID]map[vanus.ID]pInfo.OffsetInfo{},
-		tWorkers: map[string]*info.TriggerWorkerInfo{},
+		tWorkers: map[string]*metadata.TriggerWorkerInfo{},
 	}
 	return s
 }
@@ -43,12 +42,12 @@ func (f *fake) Close() {
 
 }
 
-func (f *fake) CreateSubscription(ctx context.Context, sub *primitive.SubscriptionData) error {
+func (f *fake) CreateSubscription(ctx context.Context, sub *metadata.Subscription) error {
 	f.subs[sub.ID] = sub
 	return nil
 }
 
-func (f *fake) UpdateSubscription(ctx context.Context, sub *primitive.SubscriptionData) error {
+func (f *fake) UpdateSubscription(ctx context.Context, sub *metadata.Subscription) error {
 	f.subs[sub.ID] = sub
 	return nil
 }
@@ -58,12 +57,12 @@ func (f *fake) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 	return nil
 }
 
-func (f *fake) GetSubscription(ctx context.Context, id vanus.ID) (*primitive.SubscriptionData, error) {
+func (f *fake) GetSubscription(ctx context.Context, id vanus.ID) (*metadata.Subscription, error) {
 	return f.subs[id], nil
 }
 
-func (f *fake) ListSubscription(ctx context.Context) ([]*primitive.SubscriptionData, error) {
-	list := make([]*primitive.SubscriptionData, 0)
+func (f *fake) ListSubscription(ctx context.Context) ([]*metadata.Subscription, error) {
+	list := make([]*metadata.Subscription, 0)
 	for _, sub := range f.subs {
 		list = append(list, sub)
 	}
@@ -104,19 +103,19 @@ func (f *fake) DeleteOffset(ctx context.Context, subscriptionID vanus.ID) error 
 	return nil
 }
 
-func (f *fake) SaveTriggerWorker(ctx context.Context, info info.TriggerWorkerInfo) error {
+func (f *fake) SaveTriggerWorker(ctx context.Context, info metadata.TriggerWorkerInfo) error {
 	f.tWorkers[info.ID] = &info
 	return nil
 }
-func (f *fake) GetTriggerWorker(ctx context.Context, id string) (*info.TriggerWorkerInfo, error) {
+func (f *fake) GetTriggerWorker(ctx context.Context, id string) (*metadata.TriggerWorkerInfo, error) {
 	return f.tWorkers[id], nil
 }
 func (f *fake) DeleteTriggerWorker(ctx context.Context, id string) error {
 	delete(f.tWorkers, id)
 	return nil
 }
-func (f *fake) ListTriggerWorker(ctx context.Context) ([]*info.TriggerWorkerInfo, error) {
-	list := make([]*info.TriggerWorkerInfo, 0)
+func (f *fake) ListTriggerWorker(ctx context.Context) ([]*metadata.TriggerWorkerInfo, error) {
+	list := make([]*metadata.TriggerWorkerInfo, 0)
 	for _, data := range f.tWorkers {
 		list = append(list, data)
 	}

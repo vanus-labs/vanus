@@ -22,15 +22,15 @@ import (
 	"path/filepath"
 
 	"github.com/linkall-labs/vanus/internal/controller/errors"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/kv"
 )
 
 type TriggerWorkerStorage interface {
-	SaveTriggerWorker(context.Context, info.TriggerWorkerInfo) error
-	GetTriggerWorker(ctx context.Context, id string) (*info.TriggerWorkerInfo, error)
+	SaveTriggerWorker(context.Context, metadata.TriggerWorkerInfo) error
+	GetTriggerWorker(ctx context.Context, id string) (*metadata.TriggerWorkerInfo, error)
 	DeleteTriggerWorker(ctx context.Context, id string) error
-	ListTriggerWorker(ctx context.Context) ([]*info.TriggerWorkerInfo, error)
+	ListTriggerWorker(ctx context.Context) ([]*metadata.TriggerWorkerInfo, error)
 }
 
 type triggerWorkerStorage struct {
@@ -47,7 +47,7 @@ func (s *triggerWorkerStorage) getKey(id string) string {
 	return path.Join(KeyPrefixTriggerWorker.String(), id)
 }
 
-func (s *triggerWorkerStorage) SaveTriggerWorker(ctx context.Context, info info.TriggerWorkerInfo) error {
+func (s *triggerWorkerStorage) SaveTriggerWorker(ctx context.Context, info metadata.TriggerWorkerInfo) error {
 	key := s.getKey(info.ID)
 	exist, err := s.client.Exists(ctx, key)
 	if err != nil {
@@ -62,12 +62,12 @@ func (s *triggerWorkerStorage) SaveTriggerWorker(ctx context.Context, info info.
 	}
 	return s.client.Update(ctx, key, v)
 }
-func (s *triggerWorkerStorage) GetTriggerWorker(ctx context.Context, id string) (*info.TriggerWorkerInfo, error) {
+func (s *triggerWorkerStorage) GetTriggerWorker(ctx context.Context, id string) (*metadata.TriggerWorkerInfo, error) {
 	v, err := s.client.Get(ctx, s.getKey(id))
 	if err != nil {
 		return nil, err
 	}
-	var tWorker info.TriggerWorkerInfo
+	var tWorker metadata.TriggerWorkerInfo
 	err = json.Unmarshal(v, &tWorker)
 	if err != nil {
 		return nil, errors.ErrJSONUnMarshal.Wrap(err)
@@ -79,14 +79,14 @@ func (s *triggerWorkerStorage) DeleteTriggerWorker(ctx context.Context, id strin
 	return s.client.Delete(ctx, s.getKey(id))
 }
 
-func (s *triggerWorkerStorage) ListTriggerWorker(ctx context.Context) ([]*info.TriggerWorkerInfo, error) {
+func (s *triggerWorkerStorage) ListTriggerWorker(ctx context.Context) ([]*metadata.TriggerWorkerInfo, error) {
 	l, err := s.client.List(ctx, s.getKey("/"))
 	if err != nil {
 		return nil, err
 	}
-	list := make([]*info.TriggerWorkerInfo, 0)
+	list := make([]*metadata.TriggerWorkerInfo, 0)
 	for _, v := range l {
-		var tWorker info.TriggerWorkerInfo
+		var tWorker metadata.TriggerWorkerInfo
 		err = json.Unmarshal(v.Value, &tWorker)
 		if err != nil {
 			return nil, errors.ErrJSONUnMarshal.Wrap(err)

@@ -26,8 +26,7 @@ import (
 )
 
 func ValidateCreateSubscription(ctx context.Context, request *ctrlpb.CreateSubscriptionRequest) error {
-	err := ValidateFilterList(ctx, request.Filters)
-	if err != nil {
+	if err := ValidateFilterList(ctx, request.Filters); err != nil {
 		return errors.ErrInvalidRequest.WithMessage("filters is invalid").Wrap(err)
 	}
 	if request.Sink == "" {
@@ -36,17 +35,40 @@ func ValidateCreateSubscription(ctx context.Context, request *ctrlpb.CreateSubsc
 	if request.EventBus == "" {
 		return errors.ErrInvalidRequest.WithMessage("eventBus is empty")
 	}
-	return nil
-}
-
-func ValidateUpdateSubscription(ctx context.Context, request *ctrlpb.UpdateSubscriptionRequest) error {
-	err := ValidateFilterList(ctx, request.Filters)
-	if err != nil {
-		return errors.ErrInvalidRequest.WithMessage("filters is invalid").Wrap(err)
+	if err := validateSubscriptionConfig(ctx, request.Config); err != nil {
+		return err
 	}
 	return nil
 }
 
+func ValidateUpdateSubscription(ctx context.Context, request *ctrlpb.UpdateSubscriptionRequest) error {
+	if err := ValidateFilterList(ctx, request.Filters); err != nil {
+		return errors.ErrInvalidRequest.WithMessage("filters is invalid").Wrap(err)
+	}
+	if err := validateSubscriptionConfig(ctx, request.Config); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateSubscriptionConfig(ctx context.Context, cfg *metapb.SubscriptionConfig) error {
+	if cfg == nil {
+		return nil
+	}
+	if cfg.RateLimit < -1 {
+		return errors.ErrInvalidRequest.WithMessage("rate limit is -1 or gt than 0")
+	}
+	switch cfg.OffsetType {
+	case metapb.SubscriptionConfig_LATEST, metapb.SubscriptionConfig_EARLIEST:
+	case metapb.SubscriptionConfig_TIMESTAMP:
+		if cfg.OffsetTimestamp == nil {
+			return errors.ErrInvalidRequest.WithMessage("offset type is timestamp, offset timestamp can not be nil")
+		}
+	default:
+		return errors.ErrInvalidRequest.WithMessage("offset type is invalid")
+	}
+	return nil
+}
 func ValidateFilterList(ctx context.Context, filters []*metapb.Filter) error {
 	if len(filters) == 0 {
 		return nil
@@ -55,8 +77,7 @@ func ValidateFilterList(ctx context.Context, filters []*metapb.Filter) error {
 		if f == nil {
 			continue
 		}
-		err := ValidateFilter(ctx, f)
-		if err != nil {
+		if err := ValidateFilter(ctx, f); err != nil {
 			return err
 		}
 	}
@@ -67,42 +88,34 @@ func ValidateFilter(ctx context.Context, f *metapb.Filter) error {
 	if hasMultipleDialects(f) {
 		return errors.ErrFilterMultiple.WithMessage("filters can have only one dialect")
 	}
-	err := validateAttributeMap("exact", f.Exact)
-	if err != nil {
+	if err := validateAttributeMap("exact", f.Exact); err != nil {
 		return err
 	}
-	err = validateAttributeMap("prefix", f.Prefix)
-	if err != nil {
+	if err := validateAttributeMap("prefix", f.Prefix); err != nil {
 		return err
 	}
-	err = validateAttributeMap("suffix", f.Suffix)
-	if err != nil {
+	if err := validateAttributeMap("suffix", f.Suffix); err != nil {
 		return err
 	}
 	if f.Sql != "" {
-		err = validateCeSQL(ctx, f.Sql)
-		if err != nil {
+		if err := validateCeSQL(ctx, f.Sql); err != nil {
 			return err
 		}
 	}
 	if f.Cel != "" {
-		err = validateCel(ctx, f.Cel)
-		if err != nil {
+		if err := validateCel(ctx, f.Cel); err != nil {
 			return err
 		}
 	}
 	if f.Not != nil {
-		err = ValidateFilter(ctx, f.Not)
-		if err != nil {
+		if err := ValidateFilter(ctx, f.Not); err != nil {
 			return errors.ErrInvalidRequest.WithMessage("not filter dialect invalid").Wrap(err)
 		}
 	}
-	err = ValidateFilterList(ctx, f.All)
-	if err != nil {
+	if err := ValidateFilterList(ctx, f.All); err != nil {
 		return errors.ErrInvalidRequest.WithMessage("all filter dialect invalid").Wrap(err)
 	}
-	err = ValidateFilterList(ctx, f.Any)
-	if err != nil {
+	if err := ValidateFilterList(ctx, f.Any); err != nil {
 		return errors.ErrInvalidRequest.WithMessage("any filter dialect invalid").Wrap(err)
 	}
 	return nil
@@ -114,10 +127,10 @@ func validateCel(ctx context.Context, expression string) (err error) {
 			err = errors.ErrCelExpression.WithMessage(expression)
 		}
 	}()
-	if _, err := cel.Parse(expression); err != nil {
+	if _, err = cel.Parse(expression); err != nil {
 		return errors.ErrCelExpression.WithMessage(expression).Wrap(err)
 	}
-	return nil
+	return err
 }
 
 func validateCeSQL(ctx context.Context, expression string) (err error) {
@@ -126,10 +139,10 @@ func validateCeSQL(ctx context.Context, expression string) (err error) {
 			err = errors.ErrCeSQLExpression.WithMessage(expression)
 		}
 	}()
-	if _, err := cesqlparser.Parse(expression); err != nil {
+	if _, err = cesqlparser.Parse(expression); err != nil {
 		return errors.ErrCeSQLExpression.WithMessage(expression).Wrap(err)
 	}
-	return nil
+	return err
 }
 
 func validateAttributeMap(attributeName string, attribute map[string]string) error {

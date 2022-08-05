@@ -37,46 +37,46 @@ func (m *MockManager) EXPECT() *MockManagerMockRecorder {
 }
 
 // GetOffset mocks base method.
-func (m *MockManager) GetOffset(ctx context.Context, subId vanus.ID) (info.ListOffsetInfo, error) {
+func (m *MockManager) GetOffset(ctx context.Context, subscriptionID vanus.ID) (info.ListOffsetInfo, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOffset", ctx, subId)
+	ret := m.ctrl.Call(m, "GetOffset", ctx, subscriptionID)
 	ret0, _ := ret[0].(info.ListOffsetInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetOffset indicates an expected call of GetOffset.
-func (mr *MockManagerMockRecorder) GetOffset(ctx, subId interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) GetOffset(ctx, subscriptionID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOffset", reflect.TypeOf((*MockManager)(nil).GetOffset), ctx, subId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOffset", reflect.TypeOf((*MockManager)(nil).GetOffset), ctx, subscriptionID)
 }
 
 // Offset mocks base method.
-func (m *MockManager) Offset(ctx context.Context, subId vanus.ID, offsets info.ListOffsetInfo) error {
+func (m *MockManager) Offset(ctx context.Context, subscriptionID vanus.ID, offsets info.ListOffsetInfo, commit bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Offset", ctx, subId, offsets)
+	ret := m.ctrl.Call(m, "SaveOffset", ctx, subscriptionID, offsets, commit)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Offset indicates an expected call of Offset.
-func (mr *MockManagerMockRecorder) Offset(ctx, subId, offsets interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) Offset(ctx, subscriptionID, offsets, commit interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Offset", reflect.TypeOf((*MockManager)(nil).Offset), ctx, subId, offsets)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveOffset", reflect.TypeOf((*MockManager)(nil).Offset), ctx, subscriptionID, offsets, commit)
 }
 
 // RemoveRegisterSubscription mocks base method.
-func (m *MockManager) RemoveRegisterSubscription(ctx context.Context, subId vanus.ID) error {
+func (m *MockManager) RemoveRegisterSubscription(ctx context.Context, id vanus.ID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RemoveRegisterSubscription", ctx, subId)
+	ret := m.ctrl.Call(m, "RemoveRegisterSubscription", ctx, id)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // RemoveRegisterSubscription indicates an expected call of RemoveRegisterSubscription.
-func (mr *MockManagerMockRecorder) RemoveRegisterSubscription(ctx, subId interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) RemoveRegisterSubscription(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveRegisterSubscription", reflect.TypeOf((*MockManager)(nil).RemoveRegisterSubscription), ctx, subId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveRegisterSubscription", reflect.TypeOf((*MockManager)(nil).RemoveRegisterSubscription), ctx, id)
 }
 
 // Start mocks base method.

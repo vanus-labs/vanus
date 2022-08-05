@@ -16,6 +16,7 @@ package inmemory
 
 import (
 	"context"
+	"encoding/binary"
 	"io"
 	"strconv"
 	"sync"
@@ -163,6 +164,11 @@ func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 		ei = length
 	}
 	events := elog.events[si:ei]
+	for i := range events {
+		buf := make([]byte, 8)
+		binary.BigEndian.PutUint64(buf, uint64(si+int64(i)))
+		events[i].SetExtension(eventlog.XVanusLogOffset, buf)
+	}
 	r.pos = elog.start + ei
 
 	return events, nil

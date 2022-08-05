@@ -17,15 +17,14 @@ package worker
 
 import (
 	"context"
-	stdErr "errors"
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/linkall-labs/vanus/internal/controller/errors"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/info"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/convert"
+	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/queue"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -35,37 +34,33 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var (
-	errNoInit = fmt.Errorf("trigger worker not init")
-)
-
 type TriggerWorker interface {
-	Init(ctx context.Context) error
+	Start(ctx context.Context) error
 	RemoteStart(ctx context.Context) error
 	RemoteStop(ctx context.Context) error
 	Close() error
 	IsActive() bool
 	Reset()
-	GetInfo() info.TriggerWorkerInfo
+	GetInfo() metadata.TriggerWorkerInfo
 	GetAddr() string
-	SetPhase(info.TriggerWorkerPhase)
-	GetPhase() info.TriggerWorkerPhase
+	SetPhase(metadata.TriggerWorkerPhase)
+	GetPhase() metadata.TriggerWorkerPhase
 	GetPendingTime() time.Time
 	GetHeartbeatTime() time.Time
-	ReportSubscription(ids []vanus.ID)
+	Polish()
 	AssignSubscription(id vanus.ID)
 	UnAssignSubscription(id vanus.ID)
-	GetAssignSubscriptions() []vanus.ID
+	GetAssignedSubscriptions() []vanus.ID
+	ResetOffsetToTimestamp(id vanus.ID, timestamp uint64) error
 }
 
 // triggerWorker send subscription to trigger worker server.
 type triggerWorker struct {
-	info                  *info.TriggerWorkerInfo
+	info                  *metadata.TriggerWorkerInfo
 	cc                    *grpc.ClientConn
 	client                trigger.TriggerWorkerClient
 	lock                  sync.RWMutex
-	assignSubscriptionIDs map[vanus.ID]time.Time
-	reportSubscriptionIDs map[vanus.ID]struct{}
+	assignSubscriptionIDs sync.Map
 	pendingTime           time.Time
 	heartbeatTime         time.Time
 	ctx                   context.Context
@@ -75,22 +70,28 @@ type triggerWorker struct {
 }
 
 func NewTriggerWorkerByAddr(addr string, subscriptionManager subscription.Manager) TriggerWorker {
-	tw := NewTriggerWorker(info.NewTriggerWorkerInfo(addr), subscriptionManager)
+	tw := NewTriggerWorker(metadata.NewTriggerWorkerInfo(addr), subscriptionManager)
 	return tw
 }
 
-func NewTriggerWorker(twInfo *info.TriggerWorkerInfo, subscriptionManager subscription.Manager) TriggerWorker {
+func NewTriggerWorker(twInfo *metadata.TriggerWorkerInfo, subscriptionManager subscription.Manager) TriggerWorker {
 	tw := &triggerWorker{
-		info:                  twInfo,
-		subscriptionManager:   subscriptionManager,
-		subscriptionQueue:     queue.New(),
-		pendingTime:           time.Now(),
-		assignSubscriptionIDs: map[vanus.ID]time.Time{},
-		reportSubscriptionIDs: map[vanus.ID]struct{}{},
+		info:                twInfo,
+		subscriptionManager: subscriptionManager,
+		subscriptionQueue:   queue.New(),
+		pendingTime:         time.Now(),
+		stop:                func() {},
 	}
+	return tw
+}
+
+func (tw *triggerWorker) Start(ctx context.Context) error {
 	tw.ctx, tw.stop = context.WithCancel(context.Background())
+	if err := tw.init(tw.ctx); err != nil {
+		return err
+	}
 	go func() {
-		ctx := tw.ctx
+		ctx = tw.ctx
 		for {
 			subscriptionID, stop := tw.subscriptionQueue.Get()
 			if stop {
@@ -104,7 +105,7 @@ func NewTriggerWorker(twInfo *info.TriggerWorkerInfo, subscriptionManager subscr
 			if err == nil {
 				tw.subscriptionQueue.Done(subscriptionID)
 				tw.subscriptionQueue.ClearFailNum(subscriptionID)
-				log.Warning(ctx, "trigger worker handle subscription sucess", map[string]interface{}{
+				log.Info(ctx, "trigger worker handle subscription sucess", map[string]interface{}{
 					log.KeyTriggerWorkerAddr: tw.info.Addr,
 					log.KeySubscriptionID:    subscriptionID,
 				})
@@ -118,24 +119,47 @@ func NewTriggerWorker(twInfo *info.TriggerWorkerInfo, subscriptionManager subscr
 			}
 		}
 	}()
-	return tw
+	return nil
 }
-
 func (tw *triggerWorker) handler(ctx context.Context, subscriptionID vanus.ID) error {
-	tw.lock.RLock()
-	_, exist := tw.assignSubscriptionIDs[subscriptionID]
-	tw.lock.RUnlock()
+	_, exist := tw.assignSubscriptionIDs.Load(subscriptionID)
 	if !exist {
 		// no assign to this trigger worker,remove subscription
 		return tw.removeSubscription(ctx, subscriptionID)
 	}
-	return tw.addSubscription(ctx, subscriptionID)
+	subscription := tw.subscriptionManager.GetSubscription(ctx, subscriptionID)
+	if subscription == nil {
+		return nil
+	}
+	offsets, err := tw.subscriptionManager.GetOffset(ctx, subscriptionID)
+	if err != nil {
+		return err
+	}
+	err = tw.addSubscription(ctx, &primitive.Subscription{
+		ID:          subscription.ID,
+		Filters:     subscription.Filters,
+		Sink:        subscription.Sink,
+		EventBus:    subscription.EventBus,
+		Offsets:     offsets,
+		Transformer: subscription.Transformer,
+		Config:      subscription.Config,
+	})
+	if err != nil {
+		return err
+	}
+	// modify subscription to running
+	subscription.Phase = metadata.SubscriptionPhaseRunning
+	err = tw.subscriptionManager.UpdateSubscription(ctx, subscription)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (tw *triggerWorker) IsActive() bool {
 	tw.lock.RLock()
 	defer tw.lock.RUnlock()
-	if tw.info.Phase != info.TriggerWorkerPhaseRunning {
+	if tw.info.Phase != metadata.TriggerWorkerPhaseRunning {
 		return false
 	}
 	if tw.heartbeatTime.IsZero() {
@@ -148,12 +172,11 @@ func (tw *triggerWorker) IsActive() bool {
 func (tw *triggerWorker) Reset() {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	tw.reportSubscriptionIDs = map[vanus.ID]struct{}{}
-	tw.info.Phase = info.TriggerWorkerPhasePending
+	tw.info.Phase = metadata.TriggerWorkerPhasePending
 	tw.pendingTime = time.Now()
 }
 
-func (tw *triggerWorker) GetInfo() info.TriggerWorkerInfo {
+func (tw *triggerWorker) GetInfo() metadata.TriggerWorkerInfo {
 	return *tw.info
 }
 
@@ -161,37 +184,26 @@ func (tw *triggerWorker) GetAddr() string {
 	return tw.info.Addr
 }
 
-func (tw *triggerWorker) SetPhase(phase info.TriggerWorkerPhase) {
+func (tw *triggerWorker) SetPhase(phase metadata.TriggerWorkerPhase) {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
 	tw.info.Phase = phase
 }
 
-func (tw *triggerWorker) GetPhase() info.TriggerWorkerPhase {
+func (tw *triggerWorker) GetPhase() metadata.TriggerWorkerPhase {
 	tw.lock.RLock()
 	defer tw.lock.RUnlock()
 	return tw.info.Phase
 }
 
-// ReportSubscription trigger worker running subscription ID.
-func (tw *triggerWorker) ReportSubscription(ids []vanus.ID) {
+func (tw *triggerWorker) Polish() {
 	tw.lock.Lock()
 	defer tw.lock.Unlock()
-	for id := range tw.reportSubscriptionIDs {
-		delete(tw.reportSubscriptionIDs, id)
-	}
-	now := time.Now()
-	for _, id := range ids {
-		tw.reportSubscriptionIDs[id] = struct{}{}
-		_ = tw.subscriptionManager.Heartbeat(tw.ctx, id, tw.info.Addr, now)
-	}
-	tw.heartbeatTime = now
+	tw.heartbeatTime = time.Now()
 }
 
 func (tw *triggerWorker) AssignSubscription(id vanus.ID) {
-	tw.lock.Lock()
-	defer tw.lock.Unlock()
-	_, exist := tw.assignSubscriptionIDs[id]
+	_, exist := tw.assignSubscriptionIDs.Load(id)
 	var msg string
 	if !exist {
 		msg = "trigger worker assign a subscription"
@@ -202,19 +214,17 @@ func (tw *triggerWorker) AssignSubscription(id vanus.ID) {
 		log.KeyTriggerWorkerAddr: tw.info.Addr,
 		log.KeySubscriptionID:    id,
 	})
-	tw.assignSubscriptionIDs[id] = time.Now()
+	tw.assignSubscriptionIDs.Store(id, time.Now())
 	tw.subscriptionQueue.Add(id)
 }
 
 func (tw *triggerWorker) UnAssignSubscription(id vanus.ID) {
-	tw.lock.Lock()
-	defer tw.lock.Unlock()
 	log.Info(context.Background(), "trigger worker remove a subscription", map[string]interface{}{
 		log.KeyTriggerWorkerAddr: tw.info.Addr,
 		log.KeySubscriptionID:    id,
 	})
-	delete(tw.assignSubscriptionIDs, id)
-	if tw.info.Phase == info.TriggerWorkerPhaseRunning {
+	tw.assignSubscriptionIDs.Delete(id)
+	if tw.info.Phase == metadata.TriggerWorkerPhaseRunning {
 		err := tw.removeSubscription(tw.ctx, id)
 		if err != nil {
 			log.Warning(context.Background(), "trigger worker remove subscription error", map[string]interface{}{
@@ -227,13 +237,13 @@ func (tw *triggerWorker) UnAssignSubscription(id vanus.ID) {
 	}
 }
 
-func (tw *triggerWorker) GetAssignSubscriptions() []vanus.ID {
-	tw.lock.RLock()
-	defer tw.lock.RUnlock()
-	ids := make([]vanus.ID, 0, len(tw.assignSubscriptionIDs))
-	for id := range tw.assignSubscriptionIDs {
+func (tw *triggerWorker) GetAssignedSubscriptions() []vanus.ID {
+	ids := make([]vanus.ID, 0)
+	tw.assignSubscriptionIDs.Range(func(key, value interface{}) bool {
+		id, _ := key.(vanus.ID)
 		ids = append(ids, id)
-	}
+		return true
+	})
 	return ids
 }
 
@@ -249,7 +259,7 @@ func (tw *triggerWorker) GetHeartbeatTime() time.Time {
 	return tw.heartbeatTime
 }
 
-func (tw *triggerWorker) Init(ctx context.Context) error {
+func (tw *triggerWorker) init(ctx context.Context) error {
 	if tw.cc != nil {
 		return nil
 	}
@@ -276,9 +286,6 @@ func (tw *triggerWorker) Close() error {
 }
 
 func (tw *triggerWorker) RemoteStop(ctx context.Context) error {
-	if tw.client == nil {
-		return errNoInit
-	}
 	_, err := tw.client.Stop(ctx, &trigger.StopTriggerWorkerRequest{})
 	if err != nil {
 		return errors.ErrTriggerWorker.WithMessage("stop error").Wrap(err)
@@ -294,19 +301,18 @@ func (tw *triggerWorker) RemoteStart(ctx context.Context) error {
 	return nil
 }
 
-func (tw *triggerWorker) addSubscription(ctx context.Context, id vanus.ID) error {
-	if tw.client == nil {
-		return errNoInit
-	}
-	sub, err := tw.subscriptionManager.GetSubscription(ctx, id)
+func (tw *triggerWorker) ResetOffsetToTimestamp(id vanus.ID, timestamp uint64) error {
+	request := &trigger.ResetOffsetToTimestampRequest{SubscriptionId: id.Uint64(), Timestamp: timestamp}
+	_, err := tw.client.ResetOffsetToTimestamp(tw.ctx, request)
 	if err != nil {
-		if stdErr.Is(err, subscription.ErrSubscriptionNotExist) {
-			return nil
-		}
-		return err
+		return errors.ErrTriggerWorker.WithMessage("reset offset to timestamp").Wrap(err)
 	}
+	return nil
+}
+
+func (tw *triggerWorker) addSubscription(ctx context.Context, sub *primitive.Subscription) error {
 	request := convert.ToPbAddSubscription(sub)
-	_, err = tw.client.AddSubscription(ctx, request)
+	_, err := tw.client.AddSubscription(ctx, request)
 	if err != nil {
 		return errors.ErrTriggerWorker.WithMessage("add subscription error").Wrap(err)
 	}
@@ -314,9 +320,6 @@ func (tw *triggerWorker) addSubscription(ctx context.Context, id vanus.ID) error
 }
 
 func (tw *triggerWorker) removeSubscription(ctx context.Context, id vanus.ID) error {
-	if tw.client == nil {
-		return errNoInit
-	}
 	request := &trigger.RemoveSubscriptionRequest{SubscriptionId: uint64(id)}
 	_, err := tw.client.RemoveSubscription(ctx, request)
 	if err != nil {

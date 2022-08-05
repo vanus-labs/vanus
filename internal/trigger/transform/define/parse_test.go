@@ -17,7 +17,7 @@ package define_test
 import (
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/trigger/transformation/define"
+	"github.com/linkall-labs/vanus/internal/trigger/transform/define"
 
 	// third-party.
 	. "github.com/smartystreets/goconvey/convey"

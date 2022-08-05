@@ -9,8 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	info "github.com/linkall-labs/vanus/internal/controller/trigger/info"
-	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
+	metadata "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 )
 
 // MockManager is a mock of Manager interface.
@@ -51,10 +50,10 @@ func (mr *MockManagerMockRecorder) AddTriggerWorker(ctx, addr interface{}) *gomo
 }
 
 // GetActiveRunningTriggerWorker mocks base method.
-func (m *MockManager) GetActiveRunningTriggerWorker() []info.TriggerWorkerInfo {
+func (m *MockManager) GetActiveRunningTriggerWorker() []metadata.TriggerWorkerInfo {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetActiveRunningTriggerWorker")
-	ret0, _ := ret[0].([]info.TriggerWorkerInfo)
+	ret0, _ := ret[0].([]metadata.TriggerWorkerInfo)
 	return ret0
 }
 
@@ -129,15 +128,15 @@ func (mr *MockManagerMockRecorder) Stop() *gomock.Call {
 }
 
 // UpdateTriggerWorkerInfo mocks base method.
-func (m *MockManager) UpdateTriggerWorkerInfo(ctx context.Context, addr string, subscriptionIDs []vanus.ID) error {
+func (m *MockManager) UpdateTriggerWorkerInfo(ctx context.Context, addr string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateTriggerWorkerInfo", ctx, addr, subscriptionIDs)
+	ret := m.ctrl.Call(m, "UpdateTriggerWorkerInfo", ctx, addr)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateTriggerWorkerInfo indicates an expected call of UpdateTriggerWorkerInfo.
-func (mr *MockManagerMockRecorder) UpdateTriggerWorkerInfo(ctx, addr, subscriptionIDs interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) UpdateTriggerWorkerInfo(ctx, addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateTriggerWorkerInfo", reflect.TypeOf((*MockManager)(nil).UpdateTriggerWorkerInfo), ctx, addr, subscriptionIDs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateTriggerWorkerInfo", reflect.TypeOf((*MockManager)(nil).UpdateTriggerWorkerInfo), ctx, addr)
 }

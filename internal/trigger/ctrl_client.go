@@ -77,6 +77,23 @@ func (cli *ctrlClient) Close(ctx context.Context) {
 	}
 }
 
+func (cli *ctrlClient) commitOffset(ctx context.Context,
+	req *ctrlpb.CommitOffsetRequest) error {
+	client := cli.makeSureClient(false)
+	if client == nil {
+		return errors.ErrNoControllerLeader
+	}
+	_, err := client.CommitOffset(ctx, req)
+	if cli.isNeedRetry(err) {
+		client = cli.makeSureClient(true)
+		if client == nil {
+			return errors.ErrNoControllerLeader
+		}
+		_, err = client.CommitOffset(ctx, req)
+	}
+	return err
+}
+
 func (cli *ctrlClient) registerTriggerWorker(ctx context.Context,
 	req *ctrlpb.RegisterTriggerWorkerRequest) (*ctrlpb.RegisterTriggerWorkerResponse, error) {
 	client := cli.makeSureClient(false)

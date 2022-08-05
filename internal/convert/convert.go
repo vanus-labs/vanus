@@ -15,6 +15,7 @@
 package convert
 
 import (
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -23,8 +24,8 @@ import (
 	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
 )
 
-func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *primitive.SubscriptionData {
-	to := &primitive.SubscriptionData{
+func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *metadata.Subscription {
+	to := &metadata.Subscription{
 		Source:           sub.Source,
 		Types:            sub.Types,
 		Config:           FromPbSubscriptionConfig(sub.Config),
@@ -33,7 +34,7 @@ func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *primitive.Su
 		ProtocolSettings: sub.ProtocolSettings,
 		EventBus:         sub.EventBus,
 		Filters:          FromPbFilters(sub.Filters),
-		InputTransformer: FromFPbInputTransformer(sub.InputTransformer),
+		Transformer:      FromPbTransformer(sub.Transformer),
 	}
 	return to
 }
@@ -42,46 +43,66 @@ func FromPbSubscriptionConfig(config *pb.SubscriptionConfig) primitive.Subscript
 	if config == nil {
 		return primitive.SubscriptionConfig{}
 	}
+
 	to := primitive.SubscriptionConfig{
 		RateLimit: config.RateLimit,
+	}
+	switch config.OffsetType {
+	case pb.SubscriptionConfig_LATEST:
+		to.OffsetType = primitive.LatestOffset
+	case pb.SubscriptionConfig_EARLIEST:
+		to.OffsetType = primitive.EarliestOffset
+	case pb.SubscriptionConfig_TIMESTAMP:
+		to.OffsetType = primitive.Timestamp
+		to.OffsetTimestamp = config.OffsetTimestamp
 	}
 	return to
 }
 
 func toPbSubscriptionConfig(config primitive.SubscriptionConfig) *pb.SubscriptionConfig {
-	return &pb.SubscriptionConfig{
+	to := &pb.SubscriptionConfig{
 		RateLimit: config.RateLimit,
 	}
+	switch config.OffsetType {
+	case primitive.LatestOffset:
+		to.OffsetType = pb.SubscriptionConfig_LATEST
+	case primitive.EarliestOffset:
+		to.OffsetType = pb.SubscriptionConfig_EARLIEST
+	case primitive.Timestamp:
+		to.OffsetType = pb.SubscriptionConfig_TIMESTAMP
+		to.OffsetTimestamp = config.OffsetTimestamp
+	}
+	return to
 }
 
 func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Subscription {
 	to := &primitive.Subscription{
-		ID:               vanus.ID(sub.Id),
-		Sink:             primitive.URI(sub.Sink),
-		EventBus:         sub.EventBus,
-		Offsets:          FromPbOffsetInfos(sub.Offsets),
-		Filters:          FromPbFilters(sub.Filters),
-		InputTransformer: FromFPbInputTransformer(sub.InputTransformer),
-		Config:           FromPbSubscriptionConfig(sub.Config),
+		ID:          vanus.ID(sub.Id),
+		Sink:        primitive.URI(sub.Sink),
+		EventBus:    sub.EventBus,
+		Offsets:     FromPbOffsetInfos(sub.Offsets),
+		Filters:     FromPbFilters(sub.Filters),
+		Transformer: FromPbTransformer(sub.Transformer),
+		Config:      FromPbSubscriptionConfig(sub.Config),
 	}
 	return to
 }
 
 func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscriptionRequest {
 	to := &pbtrigger.AddSubscriptionRequest{
-		Id:               uint64(sub.ID),
-		Sink:             string(sub.Sink),
-		EventBus:         sub.EventBus,
-		Offsets:          ToPbOffsetInfos(sub.Offsets),
-		Filters:          toPbFilters(sub.Filters),
-		InputTransformer: toPbInputTransformer(sub.InputTransformer),
-		Config:           toPbSubscriptionConfig(sub.Config),
+		Id:          uint64(sub.ID),
+		Sink:        string(sub.Sink),
+		EventBus:    sub.EventBus,
+		Offsets:     ToPbOffsetInfos(sub.Offsets),
+		Filters:     toPbFilters(sub.Filters),
+		Transformer: toPbTransformer(sub.Transformer),
+		Config:      toPbSubscriptionConfig(sub.Config),
 	}
 	return to
 }
 
-func FromPbSubscription(sub *pb.Subscription) *primitive.SubscriptionData {
-	to := &primitive.SubscriptionData{
+func FromPbSubscription(sub *pb.Subscription) *metadata.Subscription {
+	to := &metadata.Subscription{
 		ID:               vanus.ID(sub.Id),
 		Source:           sub.Source,
 		Types:            sub.Types,
@@ -91,12 +112,12 @@ func FromPbSubscription(sub *pb.Subscription) *primitive.SubscriptionData {
 		ProtocolSettings: sub.ProtocolSettings,
 		EventBus:         sub.EventBus,
 		Filters:          FromPbFilters(sub.Filters),
-		InputTransformer: FromFPbInputTransformer(sub.InputTransformer),
+		Transformer:      FromPbTransformer(sub.Transformer),
 	}
 	return to
 }
 
-func ToPbSubscription(sub *primitive.SubscriptionData) *pb.Subscription {
+func ToPbSubscription(sub *metadata.Subscription) *pb.Subscription {
 	to := &pb.Subscription{
 		Id:               uint64(sub.ID),
 		Source:           sub.Source,
@@ -107,7 +128,7 @@ func ToPbSubscription(sub *primitive.SubscriptionData) *pb.Subscription {
 		ProtocolSettings: sub.ProtocolSettings,
 		EventBus:         sub.EventBus,
 		Filters:          toPbFilters(sub.Filters),
-		InputTransformer: toPbInputTransformer(sub.InputTransformer),
+		Transformer:      toPbTransformer(sub.Transformer),
 	}
 	return to
 }
@@ -229,22 +250,22 @@ func toPbOffsetInfo(offset info.OffsetInfo) *pb.OffsetInfo {
 		Offset:     offset.Offset,
 	}
 }
-func FromFPbInputTransformer(inputTransformer *pb.InputTransformer) *primitive.InputTransformer {
-	if inputTransformer == nil {
+func FromPbTransformer(transformer *pb.Transformer) *primitive.Transformer {
+	if transformer == nil {
 		return nil
 	}
-	return &primitive.InputTransformer{
-		Define:   inputTransformer.Define,
-		Template: inputTransformer.Template,
+	return &primitive.Transformer{
+		Define:   transformer.Define,
+		Template: transformer.Template,
 	}
 }
 
-func toPbInputTransformer(inputTransformer *primitive.InputTransformer) *pb.InputTransformer {
-	if inputTransformer == nil {
+func toPbTransformer(transformer *primitive.Transformer) *pb.Transformer {
+	if transformer == nil {
 		return nil
 	}
-	return &pb.InputTransformer{
-		Define:   inputTransformer.Define,
-		Template: inputTransformer.Template,
+	return &pb.Transformer{
+		Define:   transformer.Define,
+		Template: transformer.Template,
 	}
 }

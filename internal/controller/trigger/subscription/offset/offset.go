@@ -28,7 +28,7 @@ import (
 
 type Manager interface {
 	GetOffset(ctx context.Context, subscriptionID vanus.ID) (info.ListOffsetInfo, error)
-	Offset(ctx context.Context, subscriptionID vanus.ID, offsets info.ListOffsetInfo) error
+	Offset(ctx context.Context, subscriptionID vanus.ID, offsets info.ListOffsetInfo, commit bool) error
 	RemoveRegisterSubscription(ctx context.Context, id vanus.ID) error
 	Start()
 	Stop()
@@ -70,12 +70,15 @@ func (m *manager) GetOffset(ctx context.Context, subscriptionID vanus.ID) (info.
 	return subOffset.getOffsets(), nil
 }
 
-func (m *manager) Offset(ctx context.Context, subscriptionID vanus.ID, offsets info.ListOffsetInfo) error {
+func (m *manager) Offset(ctx context.Context, subscriptionID vanus.ID, offsets info.ListOffsetInfo, commit bool) error {
 	subOffset, err := m.getSubscriptionOffset(ctx, subscriptionID)
 	if err != nil {
 		return err
 	}
 	subOffset.offset(offsets)
+	if commit {
+		subOffset.commitOffset(ctx, m.storage)
+	}
 	return nil
 }
 

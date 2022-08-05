@@ -20,11 +20,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-
 	"github.com/golang/mock/gomock"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -37,7 +36,7 @@ func TestCreateSubscription(t *testing.T) {
 	subID := vanus.ID(1)
 	Convey("create subscription", t, func() {
 		kvClient.EXPECT().Create(ctx, s.getKey(subID), gomock.Any()).Return(nil)
-		err := s.CreateSubscription(ctx, &primitive.SubscriptionData{
+		err := s.CreateSubscription(ctx, &metadata.Subscription{
 			ID: subID,
 		})
 		So(err, ShouldBeNil)
@@ -53,7 +52,7 @@ func TestUpdateSubscription(t *testing.T) {
 	subID := vanus.ID(1)
 	Convey("update subscription", t, func() {
 		kvClient.EXPECT().Update(ctx, s.getKey(subID), gomock.Any()).Return(nil)
-		err := s.UpdateSubscription(ctx, &primitive.SubscriptionData{
+		err := s.UpdateSubscription(ctx, &metadata.Subscription{
 			ID: subID,
 		})
 		So(err, ShouldBeNil)
@@ -68,7 +67,7 @@ func TestGetSubscription(t *testing.T) {
 	s := NewSubscriptionStorage(kvClient).(*subscriptionStorage)
 	subID := vanus.ID(1)
 	Convey("get subscription", t, func() {
-		expect := &primitive.SubscriptionData{
+		expect := &metadata.Subscription{
 			ID:       subID,
 			EventBus: "bus",
 		}
@@ -102,7 +101,7 @@ func TestListSubscription(t *testing.T) {
 	s := NewSubscriptionStorage(kvClient).(*subscriptionStorage)
 	subID := vanus.ID(1)
 	Convey("list subscription", t, func() {
-		expect := &primitive.SubscriptionData{
+		expect := &metadata.Subscription{
 			ID:       subID,
 			EventBus: "bus",
 		}

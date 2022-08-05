@@ -731,7 +731,7 @@ type CreateSubscriptionRequest struct {
 	Protocol         string                   `protobuf:"bytes,6,opt,name=protocol,proto3" json:"protocol,omitempty"`
 	ProtocolSettings map[string]string        `protobuf:"bytes,7,rep,name=protocol_settings,json=protocolSettings,proto3" json:"protocol_settings,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	EventBus         string                   `protobuf:"bytes,8,opt,name=event_bus,json=eventBus,proto3" json:"event_bus,omitempty"`
-	InputTransformer *meta.InputTransformer   `protobuf:"bytes,9,opt,name=input_transformer,json=inputTransformer,proto3" json:"input_transformer,omitempty"`
+	Transformer      *meta.Transformer        `protobuf:"bytes,9,opt,name=transformer,proto3" json:"transformer,omitempty"`
 }
 
 func (x *CreateSubscriptionRequest) Reset() {
@@ -822,9 +822,9 @@ func (x *CreateSubscriptionRequest) GetEventBus() string {
 	return ""
 }
 
-func (x *CreateSubscriptionRequest) GetInputTransformer() *meta.InputTransformer {
+func (x *CreateSubscriptionRequest) GetTransformer() *meta.Transformer {
 	if x != nil {
-		return x.InputTransformer
+		return x.Transformer
 	}
 	return nil
 }
@@ -842,7 +842,7 @@ type UpdateSubscriptionRequest struct {
 	Sink             string                   `protobuf:"bytes,6,opt,name=sink,proto3" json:"sink,omitempty"`
 	Protocol         string                   `protobuf:"bytes,7,opt,name=protocol,proto3" json:"protocol,omitempty"`
 	ProtocolSettings map[string]string        `protobuf:"bytes,8,rep,name=protocol_settings,json=protocolSettings,proto3" json:"protocol_settings,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	InputTransformer *meta.InputTransformer   `protobuf:"bytes,9,opt,name=input_transformer,json=inputTransformer,proto3" json:"input_transformer,omitempty"`
+	Transformer      *meta.Transformer        `protobuf:"bytes,9,opt,name=transformer,proto3" json:"transformer,omitempty"`
 }
 
 func (x *UpdateSubscriptionRequest) Reset() {
@@ -933,9 +933,9 @@ func (x *UpdateSubscriptionRequest) GetProtocolSettings() map[string]string {
 	return nil
 }
 
-func (x *UpdateSubscriptionRequest) GetInputTransformer() *meta.InputTransformer {
+func (x *UpdateSubscriptionRequest) GetTransformer() *meta.Transformer {
 	if x != nil {
-		return x.InputTransformer
+		return x.Transformer
 	}
 	return nil
 }
@@ -1352,6 +1352,164 @@ func (*TriggerWorkerHeartbeatResponse) Descriptor() ([]byte, []int) {
 	return file_controller_proto_rawDescGZIP(), []int{23}
 }
 
+type ResetOffsetToTimestampRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	SubscriptionId uint64 `protobuf:"varint,1,opt,name=subscription_id,json=subscriptionId,proto3" json:"subscription_id,omitempty"`
+	// utc time seconds
+	Timestamp uint64 `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+}
+
+func (x *ResetOffsetToTimestampRequest) Reset() {
+	*x = ResetOffsetToTimestampRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_controller_proto_msgTypes[24]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ResetOffsetToTimestampRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResetOffsetToTimestampRequest) ProtoMessage() {}
+
+func (x *ResetOffsetToTimestampRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_controller_proto_msgTypes[24]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResetOffsetToTimestampRequest.ProtoReflect.Descriptor instead.
+func (*ResetOffsetToTimestampRequest) Descriptor() ([]byte, []int) {
+	return file_controller_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ResetOffsetToTimestampRequest) GetSubscriptionId() uint64 {
+	if x != nil {
+		return x.SubscriptionId
+	}
+	return 0
+}
+
+func (x *ResetOffsetToTimestampRequest) GetTimestamp() uint64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+type CommitOffsetRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	SubscriptionInfo []*meta.SubscriptionInfo `protobuf:"bytes,1,rep,name=subscription_info,json=subscriptionInfo,proto3" json:"subscription_info,omitempty"`
+	ForceCommit      bool                     `protobuf:"varint,2,opt,name=force_commit,json=forceCommit,proto3" json:"force_commit,omitempty"`
+}
+
+func (x *CommitOffsetRequest) Reset() {
+	*x = CommitOffsetRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_controller_proto_msgTypes[25]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *CommitOffsetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommitOffsetRequest) ProtoMessage() {}
+
+func (x *CommitOffsetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_controller_proto_msgTypes[25]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommitOffsetRequest.ProtoReflect.Descriptor instead.
+func (*CommitOffsetRequest) Descriptor() ([]byte, []int) {
+	return file_controller_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *CommitOffsetRequest) GetSubscriptionInfo() []*meta.SubscriptionInfo {
+	if x != nil {
+		return x.SubscriptionInfo
+	}
+	return nil
+}
+
+func (x *CommitOffsetRequest) GetForceCommit() bool {
+	if x != nil {
+		return x.ForceCommit
+	}
+	return false
+}
+
+type CommitOffsetResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	FailSubscriptionId []uint64 `protobuf:"varint,1,rep,packed,name=fail_subscription_id,json=failSubscriptionId,proto3" json:"fail_subscription_id,omitempty"`
+}
+
+func (x *CommitOffsetResponse) Reset() {
+	*x = CommitOffsetResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_controller_proto_msgTypes[26]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *CommitOffsetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommitOffsetResponse) ProtoMessage() {}
+
+func (x *CommitOffsetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_controller_proto_msgTypes[26]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommitOffsetResponse.ProtoReflect.Descriptor instead.
+func (*CommitOffsetResponse) Descriptor() ([]byte, []int) {
+	return file_controller_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *CommitOffsetResponse) GetFailSubscriptionId() []uint64 {
+	if x != nil {
+		return x.FailSubscriptionId
+	}
+	return nil
+}
+
 type ListSegmentRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1372,7 +1530,7 @@ type ListSegmentRequest struct {
 func (x *ListSegmentRequest) Reset() {
 	*x = ListSegmentRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_controller_proto_msgTypes[24]
+		mi := &file_controller_proto_msgTypes[27]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1385,7 +1543,7 @@ func (x *ListSegmentRequest) String() string {
 func (*ListSegmentRequest) ProtoMessage() {}
 
 func (x *ListSegmentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_proto_msgTypes[24]
+	mi := &file_controller_proto_msgTypes[27]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1398,7 +1556,7 @@ func (x *ListSegmentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSegmentRequest.ProtoReflect.Descriptor instead.
 func (*ListSegmentRequest) Descriptor() ([]byte, []int) {
-	return file_controller_proto_rawDescGZIP(), []int{24}
+	return file_controller_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ListSegmentRequest) GetEventBusId() uint64 {
@@ -1447,7 +1605,7 @@ type ListSegmentResponse struct {
 func (x *ListSegmentResponse) Reset() {
 	*x = ListSegmentResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_controller_proto_msgTypes[25]
+		mi := &file_controller_proto_msgTypes[28]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1460,7 +1618,7 @@ func (x *ListSegmentResponse) String() string {
 func (*ListSegmentResponse) ProtoMessage() {}
 
 func (x *ListSegmentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_proto_msgTypes[25]
+	mi := &file_controller_proto_msgTypes[28]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1473,7 +1631,7 @@ func (x *ListSegmentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSegmentResponse.ProtoReflect.Descriptor instead.
 func (*ListSegmentResponse) Descriptor() ([]byte, []int) {
-	return file_controller_proto_rawDescGZIP(), []int{25}
+	return file_controller_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ListSegmentResponse) GetSegments() []*meta.Segment {
@@ -1497,7 +1655,7 @@ type GetAppendableSegmentRequest struct {
 func (x *GetAppendableSegmentRequest) Reset() {
 	*x = GetAppendableSegmentRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_controller_proto_msgTypes[26]
+		mi := &file_controller_proto_msgTypes[29]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1510,7 +1668,7 @@ func (x *GetAppendableSegmentRequest) String() string {
 func (*GetAppendableSegmentRequest) ProtoMessage() {}
 
 func (x *GetAppendableSegmentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_proto_msgTypes[26]
+	mi := &file_controller_proto_msgTypes[29]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1523,7 +1681,7 @@ func (x *GetAppendableSegmentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAppendableSegmentRequest.ProtoReflect.Descriptor instead.
 func (*GetAppendableSegmentRequest) Descriptor() ([]byte, []int) {
-	return file_controller_proto_rawDescGZIP(), []int{26}
+	return file_controller_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetAppendableSegmentRequest) GetEventBusId() uint64 {
@@ -1558,7 +1716,7 @@ type GetAppendableSegmentResponse struct {
 func (x *GetAppendableSegmentResponse) Reset() {
 	*x = GetAppendableSegmentResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_controller_proto_msgTypes[27]
+		mi := &file_controller_proto_msgTypes[30]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1571,7 +1729,7 @@ func (x *GetAppendableSegmentResponse) String() string {
 func (*GetAppendableSegmentResponse) ProtoMessage() {}
 
 func (x *GetAppendableSegmentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_proto_msgTypes[27]
+	mi := &file_controller_proto_msgTypes[30]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1584,7 +1742,7 @@ func (x *GetAppendableSegmentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAppendableSegmentResponse.ProtoReflect.Descriptor instead.
 func (*GetAppendableSegmentResponse) Descriptor() ([]byte, []int) {
-	return file_controller_proto_rawDescGZIP(), []int{27}
+	return file_controller_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *GetAppendableSegmentResponse) GetSegments() []*meta.Segment {
@@ -1680,7 +1838,7 @@ var file_controller_proto_rawDesc = []byte{
 	0x1b, 0x0a, 0x09, 0x6c, 0x65, 0x61, 0x64, 0x65, 0x72, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01,
 	0x28, 0x04, 0x52, 0x08, 0x6c, 0x65, 0x61, 0x64, 0x65, 0x72, 0x49, 0x64, 0x12, 0x12, 0x0a, 0x04,
 	0x74, 0x65, 0x72, 0x6d, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x52, 0x04, 0x74, 0x65, 0x72, 0x6d,
-	0x22, 0x9c, 0x04, 0x0a, 0x19, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x75, 0x62, 0x73, 0x63,
+	0x22, 0x8c, 0x04, 0x0a, 0x19, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x75, 0x62, 0x73, 0x63,
 	0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x16,
 	0x0a, 0x06, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06,
 	0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x12, 0x14, 0x0a, 0x05, 0x74, 0x79, 0x70, 0x65, 0x73, 0x18,
@@ -1704,17 +1862,16 @@ var file_controller_proto_rawDesc = []byte{
 	0x6e, 0x67, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x10, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63,
 	0x6f, 0x6c, 0x53, 0x65, 0x74, 0x74, 0x69, 0x6e, 0x67, 0x73, 0x12, 0x1b, 0x0a, 0x09, 0x65, 0x76,
 	0x65, 0x6e, 0x74, 0x5f, 0x62, 0x75, 0x73, 0x18, 0x08, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x65,
-	0x76, 0x65, 0x6e, 0x74, 0x42, 0x75, 0x73, 0x12, 0x51, 0x0a, 0x11, 0x69, 0x6e, 0x70, 0x75, 0x74,
-	0x5f, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x6f, 0x72, 0x6d, 0x65, 0x72, 0x18, 0x09, 0x20, 0x01,
-	0x28, 0x0b, 0x32, 0x24, 0x2e, 0x6c, 0x69, 0x6e, 0x6b, 0x61, 0x6c, 0x6c, 0x2e, 0x76, 0x61, 0x6e,
-	0x75, 0x73, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x2e, 0x49, 0x6e, 0x70, 0x75, 0x74, 0x54, 0x72, 0x61,
-	0x6e, 0x73, 0x66, 0x6f, 0x72, 0x6d, 0x65, 0x72, 0x52, 0x10, 0x69, 0x6e, 0x70, 0x75, 0x74, 0x54,
+	0x76, 0x65, 0x6e, 0x74, 0x42, 0x75, 0x73, 0x12, 0x41, 0x0a, 0x0b, 0x74, 0x72, 0x61, 0x6e, 0x73,
+	0x66, 0x6f, 0x72, 0x6d, 0x65, 0x72, 0x18, 0x09, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1f, 0x2e, 0x6c,
+	0x69, 0x6e, 0x6b, 0x61, 0x6c, 0x6c, 0x2e, 0x76, 0x61, 0x6e, 0x75, 0x73, 0x2e, 0x6d, 0x65, 0x74,
+	0x61, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x6f, 0x72, 0x6d, 0x65, 0x72, 0x52, 0x0b, 0x74,
 	0x72, 0x61, 0x6e, 0x73, 0x66, 0x6f, 0x72, 0x6d, 0x65, 0x72, 0x1a, 0x43, 0x0a, 0x15, 0x50, 0x72,
 	0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x53, 0x65, 0x74, 0x74, 0x69, 0x6e, 0x67, 0x73, 0x45, 0x6e,
 	0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
 	0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02,
 	0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x22,
-	0x8f, 0x04, 0x0a, 0x19, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x53, 0x75, 0x62, 0x73, 0x63, 0x72,
+	0xff, 0x03, 0x0a, 0x19, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x53, 0x75, 0x62, 0x73, 0x63, 0x72,
 	0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x0e, 0x0a,
 	0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x02, 0x69, 0x64, 0x12, 0x16, 0x0a,
 	0x06, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x73,
@@ -1737,12 +1894,11 @@ var file_controller_proto_rawDesc = []byte{
 	0x62, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
 	0x74, 0x2e, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x53, 0x65, 0x74, 0x74, 0x69, 0x6e,
 	0x67, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x10, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f,
-	0x6c, 0x53, 0x65, 0x74, 0x74, 0x69, 0x6e, 0x67, 0x73, 0x12, 0x51, 0x0a, 0x11, 0x69, 0x6e, 0x70,
-	0x75, 0x74, 0x5f, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x6f, 0x72, 0x6d, 0x65, 0x72, 0x18, 0x09,
-	0x20, 0x01, 0x28, 0x0b, 0x32, 0x24, 0x2e, 0x6c, 0x69, 0x6e, 0x6b, 0x61, 0x6c, 0x6c, 0x2e, 0x76,
-	0x61, 0x6e, 0x75, 0x73, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x2e, 0x49, 0x6e, 0x70, 0x75, 0x74, 0x54,
-	0x72, 0x61, 0x6e, 0x73, 0x66, 0x6f, 0x72, 0x6d, 0x65, 0x72, 0x52, 0x10, 0x69, 0x6e, 0x70, 0x75,
-	0x74, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x6f, 0x72, 0x6d, 0x65, 0x72, 0x1a, 0x43, 0x0a, 0x15,
+	0x6c, 0x53, 0x65, 0x74, 0x74, 0x69, 0x6e, 0x67, 0x73, 0x12, 0x41, 0x0a, 0x0b, 0x74, 0x72, 0x61,
+	0x6e, 0x73, 0x66, 0x6f, 0x72, 0x6d, 0x65, 0x72, 0x18, 0x09, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1f,
+	0x2e, 0x6c, 0x69, 0x6e, 0x6b, 0x61, 0x6c, 0x6c, 0x2e, 0x76, 0x61, 0x6e, 0x75, 0x73, 0x2e, 0x6d,
+	0x65, 0x74, 0x61, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x6f, 0x72, 0x6d, 0x65, 0x72, 0x52,
+	0x0b, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x6f, 0x72, 0x6d, 0x65, 0x72, 0x1a, 0x43, 0x0a, 0x15,
 	0x50, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x53, 0x65, 0x74, 0x74, 0x69, 0x6e, 0x67, 0x73,
 	0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01,
 	0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65,
@@ -1783,6 +1939,26 @@ var file_controller_proto_rawDesc = []byte{
 	0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x6e, 0x66, 0x6f, 0x22, 0x20, 0x0a,
 	0x1e, 0x54, 0x72, 0x69, 0x67, 0x67, 0x65, 0x72, 0x57, 0x6f, 0x72, 0x6b, 0x65, 0x72, 0x48, 0x65,
 	0x61, 0x72, 0x74, 0x62, 0x65, 0x61, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
+	0x66, 0x0a, 0x1d, 0x52, 0x65, 0x73, 0x65, 0x74, 0x4f, 0x66, 0x66, 0x73, 0x65, 0x74, 0x54, 0x6f,
+	0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x12, 0x27, 0x0a, 0x0f, 0x73, 0x75, 0x62, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e,
+	0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x0e, 0x73, 0x75, 0x62, 0x73, 0x63,
+	0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x64, 0x12, 0x1c, 0x0a, 0x09, 0x74, 0x69, 0x6d,
+	0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x52, 0x09, 0x74, 0x69,
+	0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x22, 0x8b, 0x01, 0x0a, 0x13, 0x43, 0x6f, 0x6d, 0x6d,
+	0x69, 0x74, 0x4f, 0x66, 0x66, 0x73, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12,
+	0x51, 0x0a, 0x11, 0x73, 0x75, 0x62, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x5f,
+	0x69, 0x6e, 0x66, 0x6f, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x24, 0x2e, 0x6c, 0x69, 0x6e,
+	0x6b, 0x61, 0x6c, 0x6c, 0x2e, 0x76, 0x61, 0x6e, 0x75, 0x73, 0x2e, 0x6d, 0x65, 0x74, 0x61, 0x2e,
+	0x53, 0x75, 0x62, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x6e, 0x66, 0x6f,
+	0x52, 0x10, 0x73, 0x75, 0x62, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x6e,
+	0x66, 0x6f, 0x12, 0x21, 0x0a, 0x0c, 0x66, 0x6f, 0x72, 0x63, 0x65, 0x5f, 0x63, 0x6f, 0x6d, 0x6d,
+	0x69, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x08, 0x52, 0x0b, 0x66, 0x6f, 0x72, 0x63, 0x65, 0x43,
+	0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x22, 0x48, 0x0a, 0x14, 0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x4f,
+	0x66, 0x66, 0x73, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x30, 0x0a,
+	0x14, 0x66, 0x61, 0x69, 0x6c, 0x5f, 0x73, 0x75, 0x62, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69,
+	0x6f, 0x6e, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x03, 0x28, 0x04, 0x52, 0x12, 0x66, 0x61, 0x69,
+	0x6c, 0x53, 0x75, 0x62, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x64, 0x22,
 	0xb4, 0x01, 0x0a, 0x12, 0x4c, 0x69, 0x73, 0x74, 0x53, 0x65, 0x67, 0x6d, 0x65, 0x6e, 0x74, 0x52,
 	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x20, 0x0a, 0x0c, 0x65, 0x76, 0x65, 0x6e, 0x74, 0x5f,
 	0x62, 0x75, 0x73, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x0a, 0x65, 0x76,
@@ -1911,7 +2087,7 @@ var file_controller_proto_rawDesc = []byte{
 	0x6c, 0x6c, 0x65, 0x72, 0x2e, 0x52, 0x65, 0x70, 0x6f, 0x72, 0x74, 0x53, 0x65, 0x67, 0x6d, 0x65,
 	0x6e, 0x74, 0x4c, 0x65, 0x61, 0x64, 0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
 	0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75,
-	0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x32, 0xcd, 0x07, 0x0a, 0x11, 0x54, 0x72, 0x69, 0x67,
+	0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x32, 0xa7, 0x09, 0x0a, 0x11, 0x54, 0x72, 0x69, 0x67,
 	0x67, 0x65, 0x72, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x6c, 0x65, 0x72, 0x12, 0x6d, 0x0a,
 	0x12, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x75, 0x62, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74,
 	0x69, 0x6f, 0x6e, 0x12, 0x33, 0x2e, 0x6c, 0x69, 0x6e, 0x6b, 0x61, 0x6c, 0x6c, 0x2e, 0x76, 0x61,
@@ -1972,11 +2148,24 @@ var file_controller_proto_rawDesc = []byte{
 	0x69, 0x6e, 0x6b, 0x61, 0x6c, 0x6c, 0x2e, 0x76, 0x61, 0x6e, 0x75, 0x73, 0x2e, 0x63, 0x6f, 0x6e,
 	0x74, 0x72, 0x6f, 0x6c, 0x6c, 0x65, 0x72, 0x2e, 0x55, 0x6e, 0x72, 0x65, 0x67, 0x69, 0x73, 0x74,
 	0x65, 0x72, 0x54, 0x72, 0x69, 0x67, 0x67, 0x65, 0x72, 0x57, 0x6f, 0x72, 0x6b, 0x65, 0x72, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x42, 0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x68, 0x75,
-	0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6c, 0x69, 0x6e, 0x6b, 0x61, 0x6c, 0x6c, 0x2d, 0x6c, 0x61,
-	0x62, 0x73, 0x2f, 0x76, 0x61, 0x6e, 0x75, 0x73, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x70,
-	0x6b, 0x67, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x6c, 0x65, 0x72, 0x62, 0x06, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x69, 0x0a, 0x16, 0x52, 0x65, 0x73, 0x65, 0x74,
+	0x4f, 0x66, 0x66, 0x73, 0x65, 0x74, 0x54, 0x6f, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d,
+	0x70, 0x12, 0x37, 0x2e, 0x6c, 0x69, 0x6e, 0x6b, 0x61, 0x6c, 0x6c, 0x2e, 0x76, 0x61, 0x6e, 0x75,
+	0x73, 0x2e, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x6c, 0x65, 0x72, 0x2e, 0x52, 0x65, 0x73,
+	0x65, 0x74, 0x4f, 0x66, 0x66, 0x73, 0x65, 0x74, 0x54, 0x6f, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74,
+	0x61, 0x6d, 0x70, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x16, 0x2e, 0x67, 0x6f, 0x6f,
+	0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70,
+	0x74, 0x79, 0x12, 0x6d, 0x0a, 0x0c, 0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x4f, 0x66, 0x66, 0x73,
+	0x65, 0x74, 0x12, 0x2d, 0x2e, 0x6c, 0x69, 0x6e, 0x6b, 0x61, 0x6c, 0x6c, 0x2e, 0x76, 0x61, 0x6e,
+	0x75, 0x73, 0x2e, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x6c, 0x65, 0x72, 0x2e, 0x43, 0x6f,
+	0x6d, 0x6d, 0x69, 0x74, 0x4f, 0x66, 0x66, 0x73, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x1a, 0x2e, 0x2e, 0x6c, 0x69, 0x6e, 0x6b, 0x61, 0x6c, 0x6c, 0x2e, 0x76, 0x61, 0x6e, 0x75,
+	0x73, 0x2e, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x6c, 0x65, 0x72, 0x2e, 0x43, 0x6f, 0x6d,
+	0x6d, 0x69, 0x74, 0x4f, 0x66, 0x66, 0x73, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x42, 0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f,
+	0x6c, 0x69, 0x6e, 0x6b, 0x61, 0x6c, 0x6c, 0x2d, 0x6c, 0x61, 0x62, 0x73, 0x2f, 0x76, 0x61, 0x6e,
+	0x75, 0x73, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x63, 0x6f, 0x6e,
+	0x74, 0x72, 0x6f, 0x6c, 0x6c, 0x65, 0x72, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1991,7 +2180,7 @@ func file_controller_proto_rawDescGZIP() []byte {
 	return file_controller_proto_rawDescData
 }
 
-var file_controller_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_controller_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_controller_proto_goTypes = []interface{}{
 	(*PingResponse)(nil),                    // 0: linkall.vanus.controller.PingResponse
 	(*CreateEventBusRequest)(nil),           // 1: linkall.vanus.controller.CreateEventBusRequest
@@ -2017,89 +2206,97 @@ var file_controller_proto_goTypes = []interface{}{
 	(*UnregisterTriggerWorkerResponse)(nil), // 21: linkall.vanus.controller.UnregisterTriggerWorkerResponse
 	(*TriggerWorkerHeartbeatRequest)(nil),   // 22: linkall.vanus.controller.TriggerWorkerHeartbeatRequest
 	(*TriggerWorkerHeartbeatResponse)(nil),  // 23: linkall.vanus.controller.TriggerWorkerHeartbeatResponse
-	(*ListSegmentRequest)(nil),              // 24: linkall.vanus.controller.ListSegmentRequest
-	(*ListSegmentResponse)(nil),             // 25: linkall.vanus.controller.ListSegmentResponse
-	(*GetAppendableSegmentRequest)(nil),     // 26: linkall.vanus.controller.GetAppendableSegmentRequest
-	(*GetAppendableSegmentResponse)(nil),    // 27: linkall.vanus.controller.GetAppendableSegmentResponse
-	nil,                                     // 28: linkall.vanus.controller.RegisterSegmentServerResponse.SegmentsEntry
-	nil,                                     // 29: linkall.vanus.controller.CreateSubscriptionRequest.ProtocolSettingsEntry
-	nil,                                     // 30: linkall.vanus.controller.UpdateSubscriptionRequest.ProtocolSettingsEntry
-	(*meta.EventBus)(nil),                   // 31: linkall.vanus.meta.EventBus
-	(*meta.SegmentHealthInfo)(nil),          // 32: linkall.vanus.meta.SegmentHealthInfo
-	(*meta.SubscriptionConfig)(nil),         // 33: linkall.vanus.meta.SubscriptionConfig
-	(*meta.Filter)(nil),                     // 34: linkall.vanus.meta.Filter
-	(*meta.InputTransformer)(nil),           // 35: linkall.vanus.meta.InputTransformer
-	(*meta.Subscription)(nil),               // 36: linkall.vanus.meta.Subscription
-	(*meta.SubscriptionInfo)(nil),           // 37: linkall.vanus.meta.SubscriptionInfo
-	(*meta.Segment)(nil),                    // 38: linkall.vanus.meta.Segment
-	(*emptypb.Empty)(nil),                   // 39: google.protobuf.Empty
+	(*ResetOffsetToTimestampRequest)(nil),   // 24: linkall.vanus.controller.ResetOffsetToTimestampRequest
+	(*CommitOffsetRequest)(nil),             // 25: linkall.vanus.controller.CommitOffsetRequest
+	(*CommitOffsetResponse)(nil),            // 26: linkall.vanus.controller.CommitOffsetResponse
+	(*ListSegmentRequest)(nil),              // 27: linkall.vanus.controller.ListSegmentRequest
+	(*ListSegmentResponse)(nil),             // 28: linkall.vanus.controller.ListSegmentResponse
+	(*GetAppendableSegmentRequest)(nil),     // 29: linkall.vanus.controller.GetAppendableSegmentRequest
+	(*GetAppendableSegmentResponse)(nil),    // 30: linkall.vanus.controller.GetAppendableSegmentResponse
+	nil,                                     // 31: linkall.vanus.controller.RegisterSegmentServerResponse.SegmentsEntry
+	nil,                                     // 32: linkall.vanus.controller.CreateSubscriptionRequest.ProtocolSettingsEntry
+	nil,                                     // 33: linkall.vanus.controller.UpdateSubscriptionRequest.ProtocolSettingsEntry
+	(*meta.EventBus)(nil),                   // 34: linkall.vanus.meta.EventBus
+	(*meta.SegmentHealthInfo)(nil),          // 35: linkall.vanus.meta.SegmentHealthInfo
+	(*meta.SubscriptionConfig)(nil),         // 36: linkall.vanus.meta.SubscriptionConfig
+	(*meta.Filter)(nil),                     // 37: linkall.vanus.meta.Filter
+	(*meta.Transformer)(nil),                // 38: linkall.vanus.meta.Transformer
+	(*meta.Subscription)(nil),               // 39: linkall.vanus.meta.Subscription
+	(*meta.SubscriptionInfo)(nil),           // 40: linkall.vanus.meta.SubscriptionInfo
+	(*meta.Segment)(nil),                    // 41: linkall.vanus.meta.Segment
+	(*emptypb.Empty)(nil),                   // 42: google.protobuf.Empty
 }
 var file_controller_proto_depIdxs = []int32{
-	31, // 0: linkall.vanus.controller.ListEventbusResponse.eventbus:type_name -> linkall.vanus.meta.EventBus
-	32, // 1: linkall.vanus.controller.SegmentHeartbeatRequest.health_info:type_name -> linkall.vanus.meta.SegmentHealthInfo
-	28, // 2: linkall.vanus.controller.RegisterSegmentServerResponse.segments:type_name -> linkall.vanus.controller.RegisterSegmentServerResponse.SegmentsEntry
-	33, // 3: linkall.vanus.controller.CreateSubscriptionRequest.config:type_name -> linkall.vanus.meta.SubscriptionConfig
-	34, // 4: linkall.vanus.controller.CreateSubscriptionRequest.filters:type_name -> linkall.vanus.meta.Filter
-	29, // 5: linkall.vanus.controller.CreateSubscriptionRequest.protocol_settings:type_name -> linkall.vanus.controller.CreateSubscriptionRequest.ProtocolSettingsEntry
-	35, // 6: linkall.vanus.controller.CreateSubscriptionRequest.input_transformer:type_name -> linkall.vanus.meta.InputTransformer
-	33, // 7: linkall.vanus.controller.UpdateSubscriptionRequest.config:type_name -> linkall.vanus.meta.SubscriptionConfig
-	34, // 8: linkall.vanus.controller.UpdateSubscriptionRequest.filters:type_name -> linkall.vanus.meta.Filter
-	30, // 9: linkall.vanus.controller.UpdateSubscriptionRequest.protocol_settings:type_name -> linkall.vanus.controller.UpdateSubscriptionRequest.ProtocolSettingsEntry
-	35, // 10: linkall.vanus.controller.UpdateSubscriptionRequest.input_transformer:type_name -> linkall.vanus.meta.InputTransformer
-	36, // 11: linkall.vanus.controller.ListSubscriptionResponse.subscription:type_name -> linkall.vanus.meta.Subscription
-	37, // 12: linkall.vanus.controller.TriggerWorkerHeartbeatRequest.subscription_info:type_name -> linkall.vanus.meta.SubscriptionInfo
-	38, // 13: linkall.vanus.controller.ListSegmentResponse.segments:type_name -> linkall.vanus.meta.Segment
-	38, // 14: linkall.vanus.controller.GetAppendableSegmentResponse.segments:type_name -> linkall.vanus.meta.Segment
-	38, // 15: linkall.vanus.controller.RegisterSegmentServerResponse.SegmentsEntry.value:type_name -> linkall.vanus.meta.Segment
-	39, // 16: linkall.vanus.controller.PingServer.Ping:input_type -> google.protobuf.Empty
-	1,  // 17: linkall.vanus.controller.EventBusController.CreateEventBus:input_type -> linkall.vanus.controller.CreateEventBusRequest
-	31, // 18: linkall.vanus.controller.EventBusController.DeleteEventBus:input_type -> linkall.vanus.meta.EventBus
-	31, // 19: linkall.vanus.controller.EventBusController.GetEventBus:input_type -> linkall.vanus.meta.EventBus
-	39, // 20: linkall.vanus.controller.EventBusController.ListEventBus:input_type -> google.protobuf.Empty
-	3,  // 21: linkall.vanus.controller.EventBusController.UpdateEventBus:input_type -> linkall.vanus.controller.UpdateEventBusRequest
-	24, // 22: linkall.vanus.controller.EventLogController.ListSegment:input_type -> linkall.vanus.controller.ListSegmentRequest
-	26, // 23: linkall.vanus.controller.EventLogController.GetAppendableSegment:input_type -> linkall.vanus.controller.GetAppendableSegmentRequest
-	4,  // 24: linkall.vanus.controller.SegmentController.QuerySegmentRouteInfo:input_type -> linkall.vanus.controller.QuerySegmentRouteInfoRequest
-	6,  // 25: linkall.vanus.controller.SegmentController.SegmentHeartbeat:input_type -> linkall.vanus.controller.SegmentHeartbeatRequest
-	8,  // 26: linkall.vanus.controller.SegmentController.RegisterSegmentServer:input_type -> linkall.vanus.controller.RegisterSegmentServerRequest
-	10, // 27: linkall.vanus.controller.SegmentController.UnregisterSegmentServer:input_type -> linkall.vanus.controller.UnregisterSegmentServerRequest
-	6,  // 28: linkall.vanus.controller.SegmentController.ReportSegmentBlockIsFull:input_type -> linkall.vanus.controller.SegmentHeartbeatRequest
-	12, // 29: linkall.vanus.controller.SegmentController.ReportSegmentLeader:input_type -> linkall.vanus.controller.ReportSegmentLeaderRequest
-	13, // 30: linkall.vanus.controller.TriggerController.CreateSubscription:input_type -> linkall.vanus.controller.CreateSubscriptionRequest
-	14, // 31: linkall.vanus.controller.TriggerController.UpdateSubscription:input_type -> linkall.vanus.controller.UpdateSubscriptionRequest
-	16, // 32: linkall.vanus.controller.TriggerController.DeleteSubscription:input_type -> linkall.vanus.controller.DeleteSubscriptionRequest
-	15, // 33: linkall.vanus.controller.TriggerController.GetSubscription:input_type -> linkall.vanus.controller.GetSubscriptionRequest
-	39, // 34: linkall.vanus.controller.TriggerController.ListSubscription:input_type -> google.protobuf.Empty
-	22, // 35: linkall.vanus.controller.TriggerController.TriggerWorkerHeartbeat:input_type -> linkall.vanus.controller.TriggerWorkerHeartbeatRequest
-	18, // 36: linkall.vanus.controller.TriggerController.RegisterTriggerWorker:input_type -> linkall.vanus.controller.RegisterTriggerWorkerRequest
-	20, // 37: linkall.vanus.controller.TriggerController.UnregisterTriggerWorker:input_type -> linkall.vanus.controller.UnregisterTriggerWorkerRequest
-	0,  // 38: linkall.vanus.controller.PingServer.Ping:output_type -> linkall.vanus.controller.PingResponse
-	31, // 39: linkall.vanus.controller.EventBusController.CreateEventBus:output_type -> linkall.vanus.meta.EventBus
-	39, // 40: linkall.vanus.controller.EventBusController.DeleteEventBus:output_type -> google.protobuf.Empty
-	31, // 41: linkall.vanus.controller.EventBusController.GetEventBus:output_type -> linkall.vanus.meta.EventBus
-	2,  // 42: linkall.vanus.controller.EventBusController.ListEventBus:output_type -> linkall.vanus.controller.ListEventbusResponse
-	31, // 43: linkall.vanus.controller.EventBusController.UpdateEventBus:output_type -> linkall.vanus.meta.EventBus
-	25, // 44: linkall.vanus.controller.EventLogController.ListSegment:output_type -> linkall.vanus.controller.ListSegmentResponse
-	27, // 45: linkall.vanus.controller.EventLogController.GetAppendableSegment:output_type -> linkall.vanus.controller.GetAppendableSegmentResponse
-	5,  // 46: linkall.vanus.controller.SegmentController.QuerySegmentRouteInfo:output_type -> linkall.vanus.controller.QuerySegmentRouteInfoResponse
-	7,  // 47: linkall.vanus.controller.SegmentController.SegmentHeartbeat:output_type -> linkall.vanus.controller.SegmentHeartbeatResponse
-	9,  // 48: linkall.vanus.controller.SegmentController.RegisterSegmentServer:output_type -> linkall.vanus.controller.RegisterSegmentServerResponse
-	11, // 49: linkall.vanus.controller.SegmentController.UnregisterSegmentServer:output_type -> linkall.vanus.controller.UnregisterSegmentServerResponse
-	39, // 50: linkall.vanus.controller.SegmentController.ReportSegmentBlockIsFull:output_type -> google.protobuf.Empty
-	39, // 51: linkall.vanus.controller.SegmentController.ReportSegmentLeader:output_type -> google.protobuf.Empty
-	36, // 52: linkall.vanus.controller.TriggerController.CreateSubscription:output_type -> linkall.vanus.meta.Subscription
-	36, // 53: linkall.vanus.controller.TriggerController.UpdateSubscription:output_type -> linkall.vanus.meta.Subscription
-	39, // 54: linkall.vanus.controller.TriggerController.DeleteSubscription:output_type -> google.protobuf.Empty
-	36, // 55: linkall.vanus.controller.TriggerController.GetSubscription:output_type -> linkall.vanus.meta.Subscription
-	17, // 56: linkall.vanus.controller.TriggerController.ListSubscription:output_type -> linkall.vanus.controller.ListSubscriptionResponse
-	23, // 57: linkall.vanus.controller.TriggerController.TriggerWorkerHeartbeat:output_type -> linkall.vanus.controller.TriggerWorkerHeartbeatResponse
-	19, // 58: linkall.vanus.controller.TriggerController.RegisterTriggerWorker:output_type -> linkall.vanus.controller.RegisterTriggerWorkerResponse
-	21, // 59: linkall.vanus.controller.TriggerController.UnregisterTriggerWorker:output_type -> linkall.vanus.controller.UnregisterTriggerWorkerResponse
-	38, // [38:60] is the sub-list for method output_type
-	16, // [16:38] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	34, // 0: linkall.vanus.controller.ListEventbusResponse.eventbus:type_name -> linkall.vanus.meta.EventBus
+	35, // 1: linkall.vanus.controller.SegmentHeartbeatRequest.health_info:type_name -> linkall.vanus.meta.SegmentHealthInfo
+	31, // 2: linkall.vanus.controller.RegisterSegmentServerResponse.segments:type_name -> linkall.vanus.controller.RegisterSegmentServerResponse.SegmentsEntry
+	36, // 3: linkall.vanus.controller.CreateSubscriptionRequest.config:type_name -> linkall.vanus.meta.SubscriptionConfig
+	37, // 4: linkall.vanus.controller.CreateSubscriptionRequest.filters:type_name -> linkall.vanus.meta.Filter
+	32, // 5: linkall.vanus.controller.CreateSubscriptionRequest.protocol_settings:type_name -> linkall.vanus.controller.CreateSubscriptionRequest.ProtocolSettingsEntry
+	38, // 6: linkall.vanus.controller.CreateSubscriptionRequest.transformer:type_name -> linkall.vanus.meta.Transformer
+	36, // 7: linkall.vanus.controller.UpdateSubscriptionRequest.config:type_name -> linkall.vanus.meta.SubscriptionConfig
+	37, // 8: linkall.vanus.controller.UpdateSubscriptionRequest.filters:type_name -> linkall.vanus.meta.Filter
+	33, // 9: linkall.vanus.controller.UpdateSubscriptionRequest.protocol_settings:type_name -> linkall.vanus.controller.UpdateSubscriptionRequest.ProtocolSettingsEntry
+	38, // 10: linkall.vanus.controller.UpdateSubscriptionRequest.transformer:type_name -> linkall.vanus.meta.Transformer
+	39, // 11: linkall.vanus.controller.ListSubscriptionResponse.subscription:type_name -> linkall.vanus.meta.Subscription
+	40, // 12: linkall.vanus.controller.TriggerWorkerHeartbeatRequest.subscription_info:type_name -> linkall.vanus.meta.SubscriptionInfo
+	40, // 13: linkall.vanus.controller.CommitOffsetRequest.subscription_info:type_name -> linkall.vanus.meta.SubscriptionInfo
+	41, // 14: linkall.vanus.controller.ListSegmentResponse.segments:type_name -> linkall.vanus.meta.Segment
+	41, // 15: linkall.vanus.controller.GetAppendableSegmentResponse.segments:type_name -> linkall.vanus.meta.Segment
+	41, // 16: linkall.vanus.controller.RegisterSegmentServerResponse.SegmentsEntry.value:type_name -> linkall.vanus.meta.Segment
+	42, // 17: linkall.vanus.controller.PingServer.Ping:input_type -> google.protobuf.Empty
+	1,  // 18: linkall.vanus.controller.EventBusController.CreateEventBus:input_type -> linkall.vanus.controller.CreateEventBusRequest
+	34, // 19: linkall.vanus.controller.EventBusController.DeleteEventBus:input_type -> linkall.vanus.meta.EventBus
+	34, // 20: linkall.vanus.controller.EventBusController.GetEventBus:input_type -> linkall.vanus.meta.EventBus
+	42, // 21: linkall.vanus.controller.EventBusController.ListEventBus:input_type -> google.protobuf.Empty
+	3,  // 22: linkall.vanus.controller.EventBusController.UpdateEventBus:input_type -> linkall.vanus.controller.UpdateEventBusRequest
+	27, // 23: linkall.vanus.controller.EventLogController.ListSegment:input_type -> linkall.vanus.controller.ListSegmentRequest
+	29, // 24: linkall.vanus.controller.EventLogController.GetAppendableSegment:input_type -> linkall.vanus.controller.GetAppendableSegmentRequest
+	4,  // 25: linkall.vanus.controller.SegmentController.QuerySegmentRouteInfo:input_type -> linkall.vanus.controller.QuerySegmentRouteInfoRequest
+	6,  // 26: linkall.vanus.controller.SegmentController.SegmentHeartbeat:input_type -> linkall.vanus.controller.SegmentHeartbeatRequest
+	8,  // 27: linkall.vanus.controller.SegmentController.RegisterSegmentServer:input_type -> linkall.vanus.controller.RegisterSegmentServerRequest
+	10, // 28: linkall.vanus.controller.SegmentController.UnregisterSegmentServer:input_type -> linkall.vanus.controller.UnregisterSegmentServerRequest
+	6,  // 29: linkall.vanus.controller.SegmentController.ReportSegmentBlockIsFull:input_type -> linkall.vanus.controller.SegmentHeartbeatRequest
+	12, // 30: linkall.vanus.controller.SegmentController.ReportSegmentLeader:input_type -> linkall.vanus.controller.ReportSegmentLeaderRequest
+	13, // 31: linkall.vanus.controller.TriggerController.CreateSubscription:input_type -> linkall.vanus.controller.CreateSubscriptionRequest
+	14, // 32: linkall.vanus.controller.TriggerController.UpdateSubscription:input_type -> linkall.vanus.controller.UpdateSubscriptionRequest
+	16, // 33: linkall.vanus.controller.TriggerController.DeleteSubscription:input_type -> linkall.vanus.controller.DeleteSubscriptionRequest
+	15, // 34: linkall.vanus.controller.TriggerController.GetSubscription:input_type -> linkall.vanus.controller.GetSubscriptionRequest
+	42, // 35: linkall.vanus.controller.TriggerController.ListSubscription:input_type -> google.protobuf.Empty
+	22, // 36: linkall.vanus.controller.TriggerController.TriggerWorkerHeartbeat:input_type -> linkall.vanus.controller.TriggerWorkerHeartbeatRequest
+	18, // 37: linkall.vanus.controller.TriggerController.RegisterTriggerWorker:input_type -> linkall.vanus.controller.RegisterTriggerWorkerRequest
+	20, // 38: linkall.vanus.controller.TriggerController.UnregisterTriggerWorker:input_type -> linkall.vanus.controller.UnregisterTriggerWorkerRequest
+	24, // 39: linkall.vanus.controller.TriggerController.ResetOffsetToTimestamp:input_type -> linkall.vanus.controller.ResetOffsetToTimestampRequest
+	25, // 40: linkall.vanus.controller.TriggerController.CommitOffset:input_type -> linkall.vanus.controller.CommitOffsetRequest
+	0,  // 41: linkall.vanus.controller.PingServer.Ping:output_type -> linkall.vanus.controller.PingResponse
+	34, // 42: linkall.vanus.controller.EventBusController.CreateEventBus:output_type -> linkall.vanus.meta.EventBus
+	42, // 43: linkall.vanus.controller.EventBusController.DeleteEventBus:output_type -> google.protobuf.Empty
+	34, // 44: linkall.vanus.controller.EventBusController.GetEventBus:output_type -> linkall.vanus.meta.EventBus
+	2,  // 45: linkall.vanus.controller.EventBusController.ListEventBus:output_type -> linkall.vanus.controller.ListEventbusResponse
+	34, // 46: linkall.vanus.controller.EventBusController.UpdateEventBus:output_type -> linkall.vanus.meta.EventBus
+	28, // 47: linkall.vanus.controller.EventLogController.ListSegment:output_type -> linkall.vanus.controller.ListSegmentResponse
+	30, // 48: linkall.vanus.controller.EventLogController.GetAppendableSegment:output_type -> linkall.vanus.controller.GetAppendableSegmentResponse
+	5,  // 49: linkall.vanus.controller.SegmentController.QuerySegmentRouteInfo:output_type -> linkall.vanus.controller.QuerySegmentRouteInfoResponse
+	7,  // 50: linkall.vanus.controller.SegmentController.SegmentHeartbeat:output_type -> linkall.vanus.controller.SegmentHeartbeatResponse
+	9,  // 51: linkall.vanus.controller.SegmentController.RegisterSegmentServer:output_type -> linkall.vanus.controller.RegisterSegmentServerResponse
+	11, // 52: linkall.vanus.controller.SegmentController.UnregisterSegmentServer:output_type -> linkall.vanus.controller.UnregisterSegmentServerResponse
+	42, // 53: linkall.vanus.controller.SegmentController.ReportSegmentBlockIsFull:output_type -> google.protobuf.Empty
+	42, // 54: linkall.vanus.controller.SegmentController.ReportSegmentLeader:output_type -> google.protobuf.Empty
+	39, // 55: linkall.vanus.controller.TriggerController.CreateSubscription:output_type -> linkall.vanus.meta.Subscription
+	39, // 56: linkall.vanus.controller.TriggerController.UpdateSubscription:output_type -> linkall.vanus.meta.Subscription
+	42, // 57: linkall.vanus.controller.TriggerController.DeleteSubscription:output_type -> google.protobuf.Empty
+	39, // 58: linkall.vanus.controller.TriggerController.GetSubscription:output_type -> linkall.vanus.meta.Subscription
+	17, // 59: linkall.vanus.controller.TriggerController.ListSubscription:output_type -> linkall.vanus.controller.ListSubscriptionResponse
+	23, // 60: linkall.vanus.controller.TriggerController.TriggerWorkerHeartbeat:output_type -> linkall.vanus.controller.TriggerWorkerHeartbeatResponse
+	19, // 61: linkall.vanus.controller.TriggerController.RegisterTriggerWorker:output_type -> linkall.vanus.controller.RegisterTriggerWorkerResponse
+	21, // 62: linkall.vanus.controller.TriggerController.UnregisterTriggerWorker:output_type -> linkall.vanus.controller.UnregisterTriggerWorkerResponse
+	42, // 63: linkall.vanus.controller.TriggerController.ResetOffsetToTimestamp:output_type -> google.protobuf.Empty
+	26, // 64: linkall.vanus.controller.TriggerController.CommitOffset:output_type -> linkall.vanus.controller.CommitOffsetResponse
+	41, // [41:65] is the sub-list for method output_type
+	17, // [17:41] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_controller_proto_init() }
@@ -2397,7 +2594,7 @@ func file_controller_proto_init() {
 			}
 		}
 		file_controller_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListSegmentRequest); i {
+			switch v := v.(*ResetOffsetToTimestampRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2409,7 +2606,7 @@ func file_controller_proto_init() {
 			}
 		}
 		file_controller_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListSegmentResponse); i {
+			switch v := v.(*CommitOffsetRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2421,7 +2618,7 @@ func file_controller_proto_init() {
 			}
 		}
 		file_controller_proto_msgTypes[26].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetAppendableSegmentRequest); i {
+			switch v := v.(*CommitOffsetResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2433,6 +2630,42 @@ func file_controller_proto_init() {
 			}
 		}
 		file_controller_proto_msgTypes[27].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ListSegmentRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_controller_proto_msgTypes[28].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ListSegmentResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_controller_proto_msgTypes[29].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetAppendableSegmentRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_controller_proto_msgTypes[30].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*GetAppendableSegmentResponse); i {
 			case 0:
 				return &v.state
@@ -2451,7 +2684,7 @@ func file_controller_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_controller_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   31,
+			NumMessages:   34,
 			NumExtensions: 0,
 			NumServices:   5,
 		},
@@ -3170,6 +3403,8 @@ type TriggerControllerClient interface {
 	TriggerWorkerHeartbeat(ctx context.Context, opts ...grpc.CallOption) (TriggerController_TriggerWorkerHeartbeatClient, error)
 	RegisterTriggerWorker(ctx context.Context, in *RegisterTriggerWorkerRequest, opts ...grpc.CallOption) (*RegisterTriggerWorkerResponse, error)
 	UnregisterTriggerWorker(ctx context.Context, in *UnregisterTriggerWorkerRequest, opts ...grpc.CallOption) (*UnregisterTriggerWorkerResponse, error)
+	ResetOffsetToTimestamp(ctx context.Context, in *ResetOffsetToTimestampRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	CommitOffset(ctx context.Context, in *CommitOffsetRequest, opts ...grpc.CallOption) (*CommitOffsetResponse, error)
 }
 
 type triggerControllerClient struct {
@@ -3277,6 +3512,24 @@ func (c *triggerControllerClient) UnregisterTriggerWorker(ctx context.Context, i
 	return out, nil
 }
 
+func (c *triggerControllerClient) ResetOffsetToTimestamp(ctx context.Context, in *ResetOffsetToTimestampRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.TriggerController/ResetOffsetToTimestamp", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *triggerControllerClient) CommitOffset(ctx context.Context, in *CommitOffsetRequest, opts ...grpc.CallOption) (*CommitOffsetResponse, error) {
+	out := new(CommitOffsetResponse)
+	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.TriggerController/CommitOffset", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TriggerControllerServer is the server API for TriggerController service.
 type TriggerControllerServer interface {
 	CreateSubscription(context.Context, *CreateSubscriptionRequest) (*meta.Subscription, error)
@@ -3287,6 +3540,8 @@ type TriggerControllerServer interface {
 	TriggerWorkerHeartbeat(TriggerController_TriggerWorkerHeartbeatServer) error
 	RegisterTriggerWorker(context.Context, *RegisterTriggerWorkerRequest) (*RegisterTriggerWorkerResponse, error)
 	UnregisterTriggerWorker(context.Context, *UnregisterTriggerWorkerRequest) (*UnregisterTriggerWorkerResponse, error)
+	ResetOffsetToTimestamp(context.Context, *ResetOffsetToTimestampRequest) (*emptypb.Empty, error)
+	CommitOffset(context.Context, *CommitOffsetRequest) (*CommitOffsetResponse, error)
 }
 
 // UnimplementedTriggerControllerServer can be embedded to have forward compatible implementations.
@@ -3316,6 +3571,12 @@ func (*UnimplementedTriggerControllerServer) RegisterTriggerWorker(context.Conte
 }
 func (*UnimplementedTriggerControllerServer) UnregisterTriggerWorker(context.Context, *UnregisterTriggerWorkerRequest) (*UnregisterTriggerWorkerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UnregisterTriggerWorker not implemented")
+}
+func (*UnimplementedTriggerControllerServer) ResetOffsetToTimestamp(context.Context, *ResetOffsetToTimestampRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResetOffsetToTimestamp not implemented")
+}
+func (*UnimplementedTriggerControllerServer) CommitOffset(context.Context, *CommitOffsetRequest) (*CommitOffsetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CommitOffset not implemented")
 }
 
 func RegisterTriggerControllerServer(s *grpc.Server, srv TriggerControllerServer) {
@@ -3474,6 +3735,42 @@ func _TriggerController_UnregisterTriggerWorker_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TriggerController_ResetOffsetToTimestamp_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResetOffsetToTimestampRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TriggerControllerServer).ResetOffsetToTimestamp(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/linkall.vanus.controller.TriggerController/ResetOffsetToTimestamp",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TriggerControllerServer).ResetOffsetToTimestamp(ctx, req.(*ResetOffsetToTimestampRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TriggerController_CommitOffset_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommitOffsetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TriggerControllerServer).CommitOffset(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/linkall.vanus.controller.TriggerController/CommitOffset",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TriggerControllerServer).CommitOffset(ctx, req.(*CommitOffsetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _TriggerController_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "linkall.vanus.controller.TriggerController",
 	HandlerType: (*TriggerControllerServer)(nil),
@@ -3505,6 +3802,14 @@ var _TriggerController_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UnregisterTriggerWorker",
 			Handler:    _TriggerController_UnregisterTriggerWorker_Handler,
+		},
+		{
+			MethodName: "ResetOffsetToTimestamp",
+			Handler:    _TriggerController_ResetOffsetToTimestamp_Handler,
+		},
+		{
+			MethodName: "CommitOffset",
+			Handler:    _TriggerController_CommitOffset_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
