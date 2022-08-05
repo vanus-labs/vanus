@@ -118,7 +118,6 @@ func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size 
 
 	tCtx, cancel := context.WithTimeout(ctx, defaultReadTimeout)
 	defer cancel()
-	events := make([]*ce.Event, 0)
 	resp, err := client.(segpb.SegmentServerClient).ReadFromBlock(tCtx, req)
 	if err != nil {
 		// TODO: convert error
@@ -137,6 +136,7 @@ func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size 
 
 	if batch := resp.GetEvents(); batch != nil {
 		if eventpbs := batch.GetEvents(); len(eventpbs) > 0 {
+			events := make([]*ce.Event, 0, len(eventpbs))
 			for _, eventpb := range eventpbs {
 				event, err := codec.FromProto(eventpb)
 				if err != nil {
@@ -145,8 +145,9 @@ func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size 
 				}
 				events = append(events, event)
 			}
+			return events, nil
 		}
 	}
 
-	return events, err
+	return []*ce.Event{}, err
 }

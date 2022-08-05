@@ -196,8 +196,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 			reader := block.NewMockReader(ctrl)
 			blkID := vanus.NewID()
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := context.Background()
 			_, err := srv.ReadFromBlock(ctx, blkID, 3, 5)
 			So(err, ShouldNotBeNil)
 			So(err.(*errors.ErrorType).Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
@@ -233,10 +232,31 @@ func TestServer_ReadFromBlock(t *testing.T) {
 			events, _ := srv.ReadFromBlock(ctx, blkID, 3, 5)
 			So(events, ShouldHaveLength, 1)
 			So(events[0].Id, ShouldEqual, "123")
-			So(time.Since(start), ShouldBeGreaterThan, 800*time.Millisecond)
+			So(time.Since(start), ShouldBeGreaterThan, time.Second)
 		})
 
 		Convey("long-polling with timeout", func() {
+			srv := &server{}
+			srv.state = primitive.ServerStateRunning
+			ctrl := gomock.NewController(t)
+			pmMock := NewMockpollingManager(ctrl)
+			srv.pm = pmMock
+			reader := block.NewMockReader(ctrl)
+			blkID := vanus.NewID()
+			srv.readers.Store(blkID, reader)
+
+			ctx := context.Background()
+			start := time.Now()
+			reader.EXPECT().Read(ctx, 3, 5).Times(1).Return(nil, block.ErrOffsetOnEnd)
+			ch := make(chan struct{})
+			pmMock.EXPECT().Add(gomock.Any(), blkID).Times(1).Return(ch)
+
+			_, err := srv.ReadFromBlock(ctx, blkID, 3, 5)
+			So(err, ShouldEqual, block.ErrOffsetOnEnd)
+			So(time.Since(start), ShouldBeGreaterThan, defaultLongPollingTimeout)
+		})
+
+		Convey("long-polling with request is canceled by user", func() {
 			srv := &server{}
 			srv.state = primitive.ServerStateRunning
 			ctrl := gomock.NewController(t)
@@ -254,15 +274,14 @@ func TestServer_ReadFromBlock(t *testing.T) {
 			reader.EXPECT().Read(ctx, 3, 5).Times(1).Return(nil, block.ErrOffsetOnEnd)
 			ch := make(chan struct{})
 			pmMock.EXPECT().Add(gomock.Any(), blkID).Times(1).Return(ch)
-			defer close(ch)
 			start := time.Now()
 			go func() {
 				time.Sleep(time.Second)
 				cancel()
 			}()
 			_, err = srv.ReadFromBlock(ctx, blkID, 3, 5)
-			So(err, ShouldEqual, block.ErrOffsetOnEnd)
-			So(time.Since(start), ShouldBeGreaterThan, 800*time.Millisecond)
+			So(err, ShouldEqual, context.Canceled)
+			So(time.Since(start), ShouldBeGreaterThan, time.Second)
 		})
 	})
 }

@@ -739,6 +739,9 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 	}
 	select {
 	case <-tCtx.Done():
+		if stderr.Is(tCtx.Err(), context.Canceled) {
+			return nil, tCtx.Err()
+		}
 		return nil, block.ErrOffsetOnEnd
 	case <-doneC:
 		// it can't read message immediately because of async apply
