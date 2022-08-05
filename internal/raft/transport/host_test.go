@@ -13,3 +13,124 @@
 // limitations under the License.
 
 package transport
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/linkall-labs/vanus/raft/raftpb"
+	. "github.com/smartystreets/goconvey/convey"
+)
+
+func TestHost(t *testing.T) {
+	Convey("test host", t, func() {
+		resolver := NewSimpleResolver()
+		nodeID := uint64(3)
+		localaddr := "127.0.0.1:12000"
+		resolver.Register(nodeID, localaddr)
+		h := NewHost(resolver, localaddr)
+		ctx := context.Background()
+
+		ch := make(chan *raftpb.Message, 10)
+		h.Register(nodeID, &receiver{
+			recvch: ch,
+		})
+		msg := &raftpb.Message{
+			To: nodeID,
+		}
+		msgLen := 5
+		msgs := make([]*raftpb.Message, msgLen)
+		for i := 0; i < msgLen; i++ {
+			msgs[i] = &raftpb.Message{
+				To: nodeID,
+			}
+		}
+
+		Convey("test host Receive method", func() {
+			timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
+			defer cannel()
+			err := h.Receive(timeoutCtx, msg, localaddr)
+			So(err, ShouldBeNil)
+
+			for i := 0; i < 3; i++ {
+				select {
+				case m := <-ch:
+					So(m, ShouldResemble, msg)
+					return
+				default:
+				}
+				time.Sleep(50 * time.Millisecond)
+			}
+			So(false, ShouldBeTrue)
+		})
+
+		Convey("test host Send callback", func() {
+			timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
+			defer cannel()
+
+			h.Send(timeoutCtx, msg, nodeID, localaddr)
+			for i := 0; i < 3; i++ {
+				select {
+				case m := <-ch:
+					So(m, ShouldResemble, msg)
+					return
+				default:
+				}
+				time.Sleep(50 * time.Millisecond)
+			}
+			So(false, ShouldBeTrue)
+		})
+
+		Convey("test host Send no endpoint input", func() {
+			timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
+			defer cannel()
+
+			h.Send(timeoutCtx, msg, nodeID, "")
+			for i := 0; i < 3; i++ {
+				select {
+				case m := <-ch:
+					So(m, ShouldResemble, msg)
+					return
+				default:
+				}
+				time.Sleep(50 * time.Millisecond)
+			}
+			So(false, ShouldBeTrue)
+		})
+
+		Convey("test host Sendv callback", func() {
+			timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
+			defer cannel()
+			h.Sendv(timeoutCtx, msgs, nodeID, localaddr)
+			for i := 0; i < msgLen; i++ {
+				count := 0
+			loop:
+				for j := 0; j < 3; j++ {
+					select {
+					case m := <-ch:
+						So(m, ShouldResemble, msgs[i])
+						count++
+						break loop
+					default:
+					}
+					time.Sleep(50 * time.Millisecond)
+				}
+				if count == 0 {
+					So(false, ShouldBeTrue)
+				}
+			}
+		})
+
+		Convey("test host resolveMultiplexer method", func() {
+			h := h.(*host)
+			testEndpoint := "127.0.0.1:11000"
+			_, ok := h.peers.Load(testEndpoint)
+			So(ok, ShouldBeFalse)
+			p := h.resolveMultiplexer(ctx, nodeID, testEndpoint)
+			So(p, ShouldNotBeNil)
+			_, ok = h.peers.Load(testEndpoint)
+			So(ok, ShouldBeTrue)
+		})
+	})
+}

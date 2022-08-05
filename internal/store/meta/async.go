@@ -184,7 +184,7 @@ func merge(dst, src *skiplist.SkipList) {
 }
 
 func RecoverAsyncStore(cfg storecfg.AsyncStoreConfig, walDir string) (*AsyncStore, error) {
-	committed, snapshot, err := recoverLatestSnopshot(walDir, defaultCodec)
+	committed, snapshot, err := recoverLatestSnapshot(walDir, defaultCodec)
 	if err != nil {
 		return nil, err
 	}

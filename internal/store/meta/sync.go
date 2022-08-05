@@ -155,7 +155,7 @@ func (s *SyncStore) runSnapshot() {
 }
 
 func RecoverSyncStore(cfg storecfg.SyncStoreConfig, walDir string) (*SyncStore, error) {
-	committed, snapshot, err := recoverLatestSnopshot(walDir, defaultCodec)
+	committed, snapshot, err := recoverLatestSnapshot(walDir, defaultCodec)
 	if err != nil {
 		return nil, err
 	}
