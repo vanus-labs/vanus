@@ -59,16 +59,16 @@ type Trigger interface {
 }
 
 type trigger struct {
-	subscription     *primitive.Subscription
-	offsetManager    *offset.SubscriptionOffset
-	reader           reader.Reader
-	eventCh          chan info.EventRecord
-	sendCh           chan info.EventRecord
-	ceClient         ce.Client
-	filter           filter.Filter
-	inputTransformer *transform.Transformer
-	rateLimiter      ratelimit.Limiter
-	config           Config
+	subscription  *primitive.Subscription
+	offsetManager *offset.SubscriptionOffset
+	reader        reader.Reader
+	eventCh       chan info.EventRecord
+	sendCh        chan info.EventRecord
+	ceClient      ce.Client
+	filter        filter.Filter
+	transformer   *transform.Transformer
+	rateLimiter   ratelimit.Limiter
+	config        Config
 
 	state State
 	stop  context.CancelFunc
@@ -90,7 +90,7 @@ func NewTrigger(subscription *primitive.Subscription, opts ...Option) Trigger {
 		t.rateLimiter = ratelimit.NewUnlimited()
 	}
 	if subscription.Transformer != nil {
-		t.inputTransformer = transform.NewTransformer(subscription.Transformer)
+		t.transformer = transform.NewTransformer(subscription.Transformer)
 	}
 	return t
 }
@@ -130,19 +130,19 @@ func (t *trigger) changeFilter(filters []*primitive.SubscriptionFilter) {
 	t.filter = filter.GetFilter(filters)
 }
 
-func (t *trigger) getInputTransformer() *transform.Transformer {
+func (t *trigger) getTransformer() *transform.Transformer {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
-	return t.inputTransformer
+	return t.transformer
 }
 
-func (t *trigger) changeInputTransformer(inputTransformer *primitive.Transformer) {
+func (t *trigger) changeTransformer(transformer *primitive.Transformer) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	if inputTransformer == nil || inputTransformer.Define == nil && inputTransformer.Template == "" {
-		t.inputTransformer = nil
+	if transformer == nil || transformer.Define == nil && transformer.Template == "" {
+		t.transformer = nil
 	} else {
-		t.inputTransformer = transform.NewTransformer(inputTransformer)
+		t.transformer = transform.NewTransformer(transformer)
 	}
 }
 
@@ -173,9 +173,9 @@ func (t *trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 		return t.getCeClient().Send(timeout, *e)
 	}
 	var err error
-	inputTransformer := t.getInputTransformer()
-	if inputTransformer != nil {
-		err = inputTransformer.Execute(e)
+	transformer := t.getTransformer()
+	if transformer != nil {
+		err = transformer.Execute(e)
 		if err != nil {
 			return err
 		}
@@ -339,7 +339,7 @@ func (t *trigger) Change(ctx context.Context, subscription *primitive.Subscripti
 	}
 	if !reflect.DeepEqual(t.subscription.Transformer, subscription.Transformer) {
 		t.subscription.Transformer = subscription.Transformer
-		t.changeInputTransformer(subscription.Transformer)
+		t.changeTransformer(subscription.Transformer)
 	}
 	if !reflect.DeepEqual(t.subscription.Config, subscription.Config) {
 		t.subscription.Config = subscription.Config

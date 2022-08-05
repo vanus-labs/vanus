@@ -58,10 +58,10 @@ const (
 )
 
 var (
-	Sink             = "http://quick-display:80"
-	Source           = ""
-	Filters          = ""
-	InputTransformer = ""
+	Sink        = "http://quick-display:80"
+	Source      = ""
+	Filters     = ""
+	Transformer = ""
 
 	EventType   = "examples"
 	EventBody   = "Hello Vanus"
@@ -148,7 +148,7 @@ func createEventbus(eb string) error {
 	return nil
 }
 
-func createSubscription(eventbus, sink, source, filters, inputTransformer string) error {
+func createSubscription(eventbus, sink, source, filters, transformer string) error {
 	ctx := context.Background()
 	grpcConn := mustGetControllerProxyConn(ctx)
 	defer func() {
@@ -163,22 +163,22 @@ func createSubscription(eventbus, sink, source, filters, inputTransformer string
 		}
 	}
 
-	var inputTrans *meta.InputTransformer
-	if inputTransformer != "" {
-		err := json.Unmarshal([]byte(inputTransformer), &inputTrans)
+	var trans *meta.Transformer
+	if transformer != "" {
+		err := json.Unmarshal([]byte(transformer), &trans)
 		if err != nil {
-			log.Errorf("the inputTransformer invalid, err: %s", err)
+			log.Errorf("the transformer invalid, err: %s", err)
 			return err
 		}
 	}
 
 	cli := ctrlpb.NewTriggerControllerClient(grpcConn)
 	res, err := cli.CreateSubscription(ctx, &ctrlpb.CreateSubscriptionRequest{
-		Source:           source,
-		Filters:          filter,
-		Sink:             sink,
-		EventBus:         eventbus,
-		InputTransformer: inputTrans,
+		Source:      source,
+		Filters:     filter,
+		Sink:        sink,
+		EventBus:    eventbus,
+		Transformer: trans,
 	})
 	if err != nil {
 		log.Errorf("create subscription failed, err: %s", err)
@@ -265,7 +265,7 @@ func Test_pre_destructive() {
 		return
 	}
 
-	err = createSubscription(EventBus, Sink, Source, Filters, InputTransformer)
+	err = createSubscription(EventBus, Sink, Source, Filters, Transformer)
 	if err != nil {
 		return
 	}

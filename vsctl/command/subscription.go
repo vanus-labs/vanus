@@ -61,11 +61,11 @@ func createSubscriptionCommand() *cobra.Command {
 				}
 			}
 
-			var transformer *meta.Transformer
-			if inputTransformer != "" {
-				err := json.Unmarshal([]byte(inputTransformer), &transformer)
+			var trans *meta.Transformer
+			if transformer != "" {
+				err := json.Unmarshal([]byte(transformer), &trans)
 				if err != nil {
-					cmdFailedf(cmd, "the inputTransformer invalid: %s", err)
+					cmdFailedf(cmd, "the transformer invalid: %s", err)
 				}
 			}
 
@@ -106,7 +106,7 @@ func createSubscriptionCommand() *cobra.Command {
 				Filters:     filter,
 				Sink:        sink,
 				EventBus:    eventbus,
-				Transformer: transformer,
+				Transformer: trans,
 				Config:      config,
 			})
 			if err != nil {
@@ -118,7 +118,7 @@ func createSubscriptionCommand() *cobra.Command {
 					"eventbus":    eventbus,
 					"filter":      filter,
 					"sink":        sink,
-					"transformer": transformer,
+					"transformer": trans,
 					"config":      config,
 				})
 				color.Green(string(data))
@@ -126,7 +126,7 @@ func createSubscriptionCommand() *cobra.Command {
 				t := table.NewWriter()
 				t.AppendHeader(table.Row{"id", "eventbus", "sink", "filter", "transformer", "config"})
 				data1, _ := json.MarshalIndent(filter, "", "  ")
-				data2, _ := json.MarshalIndent(transformer, "", "  ")
+				data2, _ := json.MarshalIndent(trans, "", "  ")
 				data3, _ := json.MarshalIndent(config, "", "  ")
 				t.AppendRow(table.Row{res.Id, eventbus, sink, string(data1), string(data2), string(data3)})
 				t.SetColumnConfigs([]table.ColumnConfig{
@@ -145,7 +145,7 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&eventbus, "eventbus", "", "eventbus name to consuming")
 	cmd.Flags().StringVar(&sink, "sink", "", "the event you want to send to")
 	cmd.Flags().StringVar(&filters, "filters", "", "filter event you interested, JSON format required")
-	cmd.Flags().StringVar(&inputTransformer, "transformer", "", "transformer, JSON format required")
+	cmd.Flags().StringVar(&transformer, "transformer", "", "transformer, JSON format required")
 	cmd.Flags().Int32Var(&rateLimit, "rate-limit", 0, "rate limit")
 	cmd.Flags().BoolVar(&fromLatest, "from-latest", false, "consume events from latest position")
 	cmd.Flags().BoolVar(&fromEarliest, "from-earliest", false, "consume events from earliest position")
