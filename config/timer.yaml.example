@@ -1,0 +1,17 @@
+name: "test-1"
+ip: "127.0.0.1"
+etcd:
+  - "127.0.0.1:2379"
+  # - "127.0.0.1:3379"
+  # - "127.0.0.1:4379"
+replicas: 2
+metadata:
+  key_prefix: "/vanus"
+leaderelection:
+  lease_duration: 15
+timingwheel:
+  tick: 1
+  wheel_size: 32
+  layers: 4
+controllers:
+  - 127.0.0.1:2048
