@@ -197,7 +197,7 @@ func TestHeartbeat(t *testing.T) {
 		id := vanus.NewID()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		m := NewWorker(Config{HeartbeatPeriod: time.Millisecond * 10}).(*worker)
+		m := NewWorker(Config{HeartbeatInterval: time.Millisecond * 10}).(*worker)
 		tg := trigger.NewMockTrigger(ctrl)
 		m.newTrigger = testNewTrigger(tg)
 		heartBeatClient := controller.NewMockTriggerController_TriggerWorkerHeartbeatClient(ctrl)
@@ -254,5 +254,35 @@ func TestWorker_Stop(t *testing.T) {
 		v, exist = m.getTrigger(id)
 		So(exist, ShouldBeFalse)
 		So(v, ShouldBeNil)
+	})
+}
+
+func TestWorker_Register(t *testing.T) {
+	Convey("test register", t, func() {
+		ctx := context.Background()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		addr := "test"
+		m := NewWorker(Config{TriggerAddr: addr}).(*worker)
+		triggerClient := controller.NewMockTriggerControllerClient(ctrl)
+		m.client.leaderClient = triggerClient
+		triggerClient.EXPECT().RegisterTriggerWorker(gomock.Any(), gomock.Any()).Return(nil, nil)
+		err := m.Register(ctx)
+		So(err, ShouldBeNil)
+	})
+}
+
+func TestWorker_Unregister(t *testing.T) {
+	Convey("test unregister", t, func() {
+		ctx := context.Background()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		addr := "test"
+		m := NewWorker(Config{TriggerAddr: addr}).(*worker)
+		triggerClient := controller.NewMockTriggerControllerClient(ctrl)
+		m.client.leaderClient = triggerClient
+		triggerClient.EXPECT().UnregisterTriggerWorker(gomock.Any(), gomock.Any()).Return(nil, nil)
+		err := m.Unregister(ctx)
+		So(err, ShouldBeNil)
 	})
 }

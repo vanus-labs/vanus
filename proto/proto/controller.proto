@@ -146,7 +146,7 @@ message CreateSubscriptionRequest {
   string protocol = 6;
   map<string, string> protocol_settings = 7;
   string event_bus = 8;
-  meta.InputTransformer input_transformer = 9;
+  meta.Transformer transformer = 9;
 }
 
 message UpdateSubscriptionRequest {
@@ -158,7 +158,7 @@ message UpdateSubscriptionRequest {
   string sink = 6;
   string protocol = 7;
   map<string, string> protocol_settings = 8;
-  meta.InputTransformer input_transformer = 9;
+  meta.Transformer transformer = 9;
 }
 
 message GetSubscriptionRequest {

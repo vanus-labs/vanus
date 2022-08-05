@@ -61,7 +61,7 @@ func createSubscriptionCommand() *cobra.Command {
 				}
 			}
 
-			var transformer *meta.InputTransformer
+			var transformer *meta.Transformer
 			if inputTransformer != "" {
 				err := json.Unmarshal([]byte(inputTransformer), &transformer)
 				if err != nil {
@@ -102,12 +102,12 @@ func createSubscriptionCommand() *cobra.Command {
 			}()
 			cli := ctrlpb.NewTriggerControllerClient(grpcConn)
 			res, err := cli.CreateSubscription(ctx, &ctrlpb.CreateSubscriptionRequest{
-				Source:           source,
-				Filters:          filter,
-				Sink:             sink,
-				EventBus:         eventbus,
-				InputTransformer: transformer,
-				Config:           config,
+				Source:      source,
+				Filters:     filter,
+				Sink:        sink,
+				EventBus:    eventbus,
+				Transformer: transformer,
+				Config:      config,
 			})
 			if err != nil {
 				cmdFailedf(cmd, "create subscription failed: %s", err)
@@ -223,7 +223,7 @@ func getSubscriptionCommand() *cobra.Command {
 				t := table.NewWriter()
 				t.AppendHeader(table.Row{"id", "eventbus", "sink", "filter", "transformer"})
 				data1, _ := json.MarshalIndent(res.Filters, "", "  ")
-				data2, _ := json.MarshalIndent(res.InputTransformer, "", "  ")
+				data2, _ := json.MarshalIndent(res.Transformer, "", "  ")
 
 				t.AppendRow(table.Row{res.Id, res.EventBus, res.Sink, string(data1), string(data2)})
 				t.SetColumnConfigs([]table.ColumnConfig{
@@ -267,7 +267,7 @@ func listSubscriptionCommand() *cobra.Command {
 				for idx := range res.Subscription {
 					sub := res.Subscription[idx]
 					data1, _ := json.MarshalIndent(sub.Filters, "", "  ")
-					data2, _ := json.MarshalIndent(sub.InputTransformer, "", "  ")
+					data2, _ := json.MarshalIndent(sub.Transformer, "", "  ")
 					t.AppendRow(table.Row{idx + 1, sub.Id, sub.EventBus, sub.Sink, string(data1),
 						string(data2)})
 					t.AppendSeparator()

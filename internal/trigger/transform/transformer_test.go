@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package transformation
+package transform
 
 import (
 	"testing"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/trigger/transformation/template"
+	"github.com/linkall-labs/vanus/internal/trigger/transform/template"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -63,7 +63,7 @@ func TestParseData(t *testing.T) {
 		"key":  "value",
 		"key1": "value1",
 	})
-	input := &primitive.InputTransformer{
+	input := &primitive.Transformer{
 		Define: map[string]string{
 			"keyTest": "keyValue",
 			"ctxId":   "$.id",
@@ -76,7 +76,7 @@ func TestParseData(t *testing.T) {
 	}
 
 	Convey("test parse data", t, func() {
-		it := NewInputTransformer(input)
+		it := NewTransformer(input)
 		m := it.parseData(&e)
 		So(m["keyTest"].String(), ShouldEqual, "keyValue")
 		So(m["ctxId"].String(), ShouldEqual, e.ID())
@@ -94,7 +94,7 @@ func TestExecute(t *testing.T) {
 		e.SetSource("testSource")
 		e.SetID("testId")
 		e.SetExtension("vanusKey", "vanusValue")
-		input := &primitive.InputTransformer{
+		input := &primitive.Transformer{
 			Define: map[string]string{
 				"keyTest": "keyValue",
 				"ctxId":   "$.id",
@@ -109,7 +109,7 @@ func TestExecute(t *testing.T) {
 				"key1": "value1",
 			})
 			input.Template = "${keyTest} ${ctxId} ${ctxType} ${data} ${dataKey}"
-			it := NewInputTransformer(input)
+			it := NewTransformer(input)
 			it.Execute(&e)
 			So(string(e.Data()), ShouldEqual, `keyValue testId  {"key":"value","key1":"value1"} value`)
 		})
@@ -119,7 +119,7 @@ func TestExecute(t *testing.T) {
 				"key1": "value1",
 			})
 			input.Template = `{"body": {"data": ${dataKey},"data2": "${dataKey}","data3": ${noExist},"data4": "${noExist}"}}`
-			it := NewInputTransformer(input)
+			it := NewTransformer(input)
 			it.Execute(&e)
 			So(string(e.Data()), ShouldEqual, `{"body": {"data": "value","data2": "value","data3": null,"data4": ""}}`)
 		})
@@ -129,7 +129,7 @@ func TestExecute(t *testing.T) {
 				"key1": "value1",
 			})
 			input.Template = ` {"body": {"data": "source is ${dataKey}","data2": "source is ${noExist}"}}`
-			it := NewInputTransformer(input)
+			it := NewTransformer(input)
 			it.Execute(&e)
 			So(string(e.Data()), ShouldEqual, ` {"body": {"data": "source is value","data2": "source is "}}`)
 		})
@@ -139,7 +139,7 @@ func TestExecute(t *testing.T) {
 				"key1": "value1",
 			})
 			input.Template = `{"body": {"data": ":${dataKey}","data2": "\":${dataKey}\"","data3": "::${dataKey} other:${ctxId}"}}`
-			it := NewInputTransformer(input)
+			it := NewTransformer(input)
 			it.Execute(&e)
 			So(string(e.Data()), ShouldEqual, `{"body": {"data": ":value","data2": "\":value\"","data3": "::value other:testId"}}`)
 		})
@@ -149,7 +149,7 @@ func TestExecute(t *testing.T) {
 				"key1": "value1",
 			})
 			input.Template = `{"body": {"data": "source is \"${dataKey}\"","data2": "source is \"${noExist}\""}}`
-			it := NewInputTransformer(input)
+			it := NewTransformer(input)
 			it.Execute(&e)
 			So(string(e.Data()), ShouldEqual, `{"body": {"data": "source is \"value\"","data2": "source is \"\""}}`)
 		})

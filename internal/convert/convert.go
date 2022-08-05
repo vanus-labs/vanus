@@ -34,7 +34,7 @@ func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *metadata.Sub
 		ProtocolSettings: sub.ProtocolSettings,
 		EventBus:         sub.EventBus,
 		Filters:          FromPbFilters(sub.Filters),
-		InputTransformer: FromFPbInputTransformer(sub.InputTransformer),
+		Transformer:      FromPbTransformer(sub.Transformer),
 	}
 	return to
 }
@@ -77,26 +77,26 @@ func toPbSubscriptionConfig(config primitive.SubscriptionConfig) *pb.Subscriptio
 
 func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Subscription {
 	to := &primitive.Subscription{
-		ID:               vanus.ID(sub.Id),
-		Sink:             primitive.URI(sub.Sink),
-		EventBus:         sub.EventBus,
-		Offsets:          FromPbOffsetInfos(sub.Offsets),
-		Filters:          FromPbFilters(sub.Filters),
-		InputTransformer: FromFPbInputTransformer(sub.InputTransformer),
-		Config:           FromPbSubscriptionConfig(sub.Config),
+		ID:          vanus.ID(sub.Id),
+		Sink:        primitive.URI(sub.Sink),
+		EventBus:    sub.EventBus,
+		Offsets:     FromPbOffsetInfos(sub.Offsets),
+		Filters:     FromPbFilters(sub.Filters),
+		Transformer: FromPbTransformer(sub.Transformer),
+		Config:      FromPbSubscriptionConfig(sub.Config),
 	}
 	return to
 }
 
 func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscriptionRequest {
 	to := &pbtrigger.AddSubscriptionRequest{
-		Id:               uint64(sub.ID),
-		Sink:             string(sub.Sink),
-		EventBus:         sub.EventBus,
-		Offsets:          ToPbOffsetInfos(sub.Offsets),
-		Filters:          toPbFilters(sub.Filters),
-		InputTransformer: toPbInputTransformer(sub.InputTransformer),
-		Config:           toPbSubscriptionConfig(sub.Config),
+		Id:          uint64(sub.ID),
+		Sink:        string(sub.Sink),
+		EventBus:    sub.EventBus,
+		Offsets:     ToPbOffsetInfos(sub.Offsets),
+		Filters:     toPbFilters(sub.Filters),
+		Transformer: toPbTransformer(sub.Transformer),
+		Config:      toPbSubscriptionConfig(sub.Config),
 	}
 	return to
 }
@@ -112,7 +112,7 @@ func FromPbSubscription(sub *pb.Subscription) *metadata.Subscription {
 		ProtocolSettings: sub.ProtocolSettings,
 		EventBus:         sub.EventBus,
 		Filters:          FromPbFilters(sub.Filters),
-		InputTransformer: FromFPbInputTransformer(sub.InputTransformer),
+		Transformer:      FromPbTransformer(sub.Transformer),
 	}
 	return to
 }
@@ -128,7 +128,7 @@ func ToPbSubscription(sub *metadata.Subscription) *pb.Subscription {
 		ProtocolSettings: sub.ProtocolSettings,
 		EventBus:         sub.EventBus,
 		Filters:          toPbFilters(sub.Filters),
-		InputTransformer: toPbInputTransformer(sub.InputTransformer),
+		Transformer:      toPbTransformer(sub.Transformer),
 	}
 	return to
 }
@@ -250,22 +250,22 @@ func toPbOffsetInfo(offset info.OffsetInfo) *pb.OffsetInfo {
 		Offset:     offset.Offset,
 	}
 }
-func FromFPbInputTransformer(inputTransformer *pb.InputTransformer) *primitive.InputTransformer {
-	if inputTransformer == nil {
+func FromPbTransformer(Transformer *pb.Transformer) *primitive.Transformer {
+	if Transformer == nil {
 		return nil
 	}
-	return &primitive.InputTransformer{
-		Define:   inputTransformer.Define,
-		Template: inputTransformer.Template,
+	return &primitive.Transformer{
+		Define:   Transformer.Define,
+		Template: Transformer.Template,
 	}
 }
 
-func toPbInputTransformer(inputTransformer *primitive.InputTransformer) *pb.InputTransformer {
-	if inputTransformer == nil {
+func toPbTransformer(Transformer *primitive.Transformer) *pb.Transformer {
+	if Transformer == nil {
 		return nil
 	}
-	return &pb.InputTransformer{
-		Define:   inputTransformer.Define,
-		Template: inputTransformer.Template,
+	return &pb.Transformer{
+		Define:   Transformer.Define,
+		Template: Transformer.Template,
 	}
 }

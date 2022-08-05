@@ -30,7 +30,7 @@ type Config struct {
 	RateLimit      int32    `yaml:"rateLimit"`
 
 	CleanSubscriptionTimeout time.Duration
-	HeartbeatPeriod          time.Duration
+	HeartbeatInterval        time.Duration
 }
 
 func InitConfig(filename string) (*Config, error) {

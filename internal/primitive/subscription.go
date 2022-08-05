@@ -22,13 +22,13 @@ import (
 type URI string
 
 type Subscription struct {
-	ID               vanus.ID              `json:"id"`
-	Filters          []*SubscriptionFilter `json:"filters,omitempty"`
-	Sink             URI                   `json:"sink,omitempty"`
-	EventBus         string                `json:"eventbus"`
-	Offsets          info.ListOffsetInfo   `json:"offsets"`
-	InputTransformer *InputTransformer     `json:"input_transformer,omitempty"`
-	Config           SubscriptionConfig    `json:"config,omitempty"`
+	ID          vanus.ID              `json:"id"`
+	Filters     []*SubscriptionFilter `json:"filters,omitempty"`
+	Sink        URI                   `json:"sink,omitempty"`
+	EventBus    string                `json:"eventbus"`
+	Offsets     info.ListOffsetInfo   `json:"offsets"`
+	Transformer *Transformer          `json:"transformer,omitempty"`
+	Config      SubscriptionConfig    `json:"config,omitempty"`
 }
 
 type OffsetType int32
@@ -65,7 +65,7 @@ type SubscriptionFilter struct {
 	CEL    string                `json:"cel,omitempty"`
 }
 
-type InputTransformer struct {
+type Transformer struct {
 	Define   map[string]string `json:"define,omitempty"`
 	Template string            `json:"template,omitempty"`
 }

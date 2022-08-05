@@ -31,7 +31,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
 	"github.com/linkall-labs/vanus/internal/trigger/reader"
-	"github.com/linkall-labs/vanus/internal/trigger/transformation"
+	"github.com/linkall-labs/vanus/internal/trigger/transform"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"go.uber.org/ratelimit"
@@ -66,7 +66,7 @@ type trigger struct {
 	sendCh           chan info.EventRecord
 	ceClient         ce.Client
 	filter           filter.Filter
-	inputTransformer *transformation.InputTransformer
+	inputTransformer *transform.Transformer
 	rateLimiter      ratelimit.Limiter
 	config           Config
 
@@ -89,8 +89,8 @@ func NewTrigger(subscription *primitive.Subscription, opts ...Option) Trigger {
 	if t.rateLimiter == nil {
 		t.rateLimiter = ratelimit.NewUnlimited()
 	}
-	if subscription.InputTransformer != nil {
-		t.inputTransformer = transformation.NewInputTransformer(subscription.InputTransformer)
+	if subscription.Transformer != nil {
+		t.inputTransformer = transform.NewTransformer(subscription.Transformer)
 	}
 	return t
 }
@@ -130,19 +130,19 @@ func (t *trigger) changeFilter(filters []*primitive.SubscriptionFilter) {
 	t.filter = filter.GetFilter(filters)
 }
 
-func (t *trigger) getInputTransformer() *transformation.InputTransformer {
+func (t *trigger) getInputTransformer() *transform.Transformer {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 	return t.inputTransformer
 }
 
-func (t *trigger) changeInputTransformer(inputTransformer *primitive.InputTransformer) {
+func (t *trigger) changeInputTransformer(inputTransformer *primitive.Transformer) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	if inputTransformer == nil || inputTransformer.Define == nil && inputTransformer.Template == "" {
 		t.inputTransformer = nil
 	} else {
-		t.inputTransformer = transformation.NewInputTransformer(inputTransformer)
+		t.inputTransformer = transform.NewTransformer(inputTransformer)
 	}
 }
 
@@ -186,7 +186,7 @@ func (t *trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 			log.Debug(ctx, "process event error", map[string]interface{}{
 				"error": err, "retryTimes": retryTimes,
 			})
-			time.Sleep(t.config.RetryPeriod)
+			time.Sleep(t.config.RetryInterval)
 		} else {
 			log.Debug(ctx, "send ce event success", map[string]interface{}{
 				"event": e,
@@ -337,9 +337,9 @@ func (t *trigger) Change(ctx context.Context, subscription *primitive.Subscripti
 		t.subscription.Filters = subscription.Filters
 		t.changeFilter(subscription.Filters)
 	}
-	if !reflect.DeepEqual(t.subscription.InputTransformer, subscription.InputTransformer) {
-		t.subscription.InputTransformer = subscription.InputTransformer
-		t.changeInputTransformer(subscription.InputTransformer)
+	if !reflect.DeepEqual(t.subscription.Transformer, subscription.Transformer) {
+		t.subscription.Transformer = subscription.Transformer
+		t.changeInputTransformer(subscription.Transformer)
 	}
 	if !reflect.DeepEqual(t.subscription.Config, subscription.Config) {
 		t.subscription.Config = subscription.Config

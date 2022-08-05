@@ -44,7 +44,7 @@ var (
 )
 
 const (
-	defaultGcSubscriptionPeriod = time.Second * 10
+	defaultGcSubscriptionInterval = time.Second * 10
 )
 
 func NewController(config Config, member embedetcd.Member) *controller {
@@ -86,7 +86,7 @@ func (ctrl *controller) CommitOffset(ctx context.Context,
 		}
 		id := vanus.ID(subscription.SubscriptionId)
 		offsets := convert.FromPbOffsetInfos(subscription.Offsets)
-		err := ctrl.subscriptionManager.Offset(ctx, id, offsets, request.ForceCommit)
+		err := ctrl.subscriptionManager.SaveOffset(ctx, id, offsets, request.ForceCommit)
 		if err != nil {
 			resp.FailSubscriptionId = append(resp.FailSubscriptionId, subscription.SubscriptionId)
 			log.Warning(ctx, "commit offset error", map[string]interface{}{
@@ -182,11 +182,11 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 			subscription.Sink = primitive.URI(request.Sink)
 		}
 	}
-	if request.InputTransformer != nil {
-		transformer := convert.FromFPbInputTransformer(request.InputTransformer)
-		if !reflect.DeepEqual(transformer, subscription.InputTransformer) {
+	if request.Transformer != nil {
+		transformer := convert.FromPbTransformer(request.Transformer)
+		if !reflect.DeepEqual(transformer, subscription.Transformer) {
 			change = true
-			subscription.InputTransformer = transformer
+			subscription.Transformer = transformer
 		}
 	}
 	if !change {
@@ -299,7 +299,7 @@ func (ctrl *controller) triggerWorkerHeartbeatRequest(ctx context.Context,
 			continue
 		}
 		offsets := convert.FromPbOffsetInfos(subInfo.Offsets)
-		err = ctrl.subscriptionManager.Offset(ctx, vanus.ID(subInfo.SubscriptionId), offsets, false)
+		err = ctrl.subscriptionManager.SaveOffset(ctx, vanus.ID(subInfo.SubscriptionId), offsets, false)
 		if err != nil {
 			log.Warning(ctx, "heartbeat commit offset error", map[string]interface{}{
 				log.KeyError:          err,
@@ -373,7 +373,7 @@ func (ctrl *controller) gcSubscriptions(ctx context.Context) {
 				delete(ctrl.needCleanSubscription, ID)
 			}
 		}
-	}, defaultGcSubscriptionPeriod)
+	}, defaultGcSubscriptionInterval)
 }
 
 func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, addr string) error {
@@ -382,7 +382,7 @@ func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, ad
 		return nil
 	}
 	if subscription.TriggerWorker != addr {
-		// 数据不一致了，不应该出现这种情况
+		// data is not consistent, record
 		log.Error(ctx, "requeue subscription invalid", map[string]interface{}{
 			log.KeyTriggerWorkerAddr: subscription.TriggerWorker,
 			"runningAddr":            addr,

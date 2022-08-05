@@ -30,7 +30,7 @@ import (
 )
 
 type Manager interface {
-	Offset(ctx context.Context, id vanus.ID, offsets iInfo.ListOffsetInfo, commit bool) error
+	SaveOffset(ctx context.Context, id vanus.ID, offsets iInfo.ListOffsetInfo, commit bool) error
 	GetOffset(ctx context.Context, id vanus.ID) (iInfo.ListOffsetInfo, error)
 	ListSubscription(ctx context.Context) []*metadata.Subscription
 	GetSubscription(ctx context.Context, id vanus.ID) *metadata.Subscription
@@ -62,7 +62,7 @@ func NewSubscriptionManager(storage storage.Storage) Manager {
 	return m
 }
 
-func (m *manager) Offset(ctx context.Context, id vanus.ID, offsets iInfo.ListOffsetInfo, commit bool) error {
+func (m *manager) SaveOffset(ctx context.Context, id vanus.ID, offsets iInfo.ListOffsetInfo, commit bool) error {
 	subscription := m.GetSubscription(ctx, id)
 	if subscription == nil {
 		return nil
@@ -151,7 +151,7 @@ func (m *manager) Heartbeat(ctx context.Context, id vanus.ID, addr string, time 
 		return ErrSubscriptionNotExist
 	}
 	if subscription.TriggerWorker != addr {
-		// not same ,has bug ?
+		// data is not consistent, record
 		log.Error(ctx, "subscription trigger worker invalid", map[string]interface{}{
 			log.KeySubscriptionID:    id,
 			log.KeyTriggerWorkerAddr: subscription.TriggerWorker,

@@ -12,34 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package transformation
+package transform
 
 import (
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/trigger/transformation/define"
-	"github.com/linkall-labs/vanus/internal/trigger/transformation/template"
+	"github.com/linkall-labs/vanus/internal/trigger/transform/define"
+	"github.com/linkall-labs/vanus/internal/trigger/transform/template"
 	"github.com/linkall-labs/vanus/internal/trigger/util"
 	"github.com/tidwall/gjson"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 )
 
-type InputTransformer struct {
+type Transformer struct {
 	define   *define.Parser
 	template *template.Parser
 }
 
-func NewInputTransformer(inputTransformer *primitive.InputTransformer) *InputTransformer {
-	tf := &InputTransformer{
+func NewTransformer(transformer *primitive.Transformer) *Transformer {
+	tf := &Transformer{
 		define:   define.NewParse(),
 		template: template.NewParser(),
 	}
-	tf.define.Parse(inputTransformer.Define)
-	tf.template.Parse(inputTransformer.Template)
+	tf.define.Parse(transformer.Define)
+	tf.template.Parse(transformer.Template)
 	return tf
 }
 
-func (tf *InputTransformer) Execute(event *ce.Event) error {
+func (tf *Transformer) Execute(event *ce.Event) error {
 	dataMap := tf.parseData(event)
 	newData := tf.template.Execute(dataMap)
 	switch tf.template.OutputType {
@@ -52,7 +52,7 @@ func (tf *InputTransformer) Execute(event *ce.Event) error {
 	return nil
 }
 
-func (tf *InputTransformer) parseData(event *ce.Event) map[string]template.Data {
+func (tf *Transformer) parseData(event *ce.Event) map[string]template.Data {
 	dataMap := make(map[string]template.Data)
 	for k, n := range tf.define.GetNodes() {
 		switch n.Type {

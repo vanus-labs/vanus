@@ -20,14 +20,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/trigger/trigger"
-
-	"github.com/linkall-labs/vanus/internal/trigger/errors"
-
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/trigger/errors"
+	"github.com/linkall-labs/vanus/internal/trigger/trigger"
 	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
@@ -35,7 +33,7 @@ import (
 
 type Worker interface {
 	Register(ctx context.Context) error
-	UnRegister(ctx context.Context) error
+	Unregister(ctx context.Context) error
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
 	AddSubscription(ctx context.Context, subscription *primitive.Subscription) error
@@ -47,7 +45,7 @@ type Worker interface {
 
 const (
 	defaultCleanSubscriptionTimeout = 5 * time.Second
-	defaultHeartbeatPeriod          = 2 * time.Second
+	defaultHeartbeatInterval        = 2 * time.Second
 )
 
 type newTrigger func(subscription *primitive.Subscription,
@@ -61,6 +59,7 @@ type worker struct {
 	newTrigger newTrigger
 	wg         sync.WaitGroup
 	lock       sync.RWMutex
+	tgLock     sync.RWMutex
 	client     *ctrlClient
 }
 
@@ -68,8 +67,8 @@ func NewWorker(config Config) Worker {
 	if config.CleanSubscriptionTimeout == 0 {
 		config.CleanSubscriptionTimeout = defaultCleanSubscriptionTimeout
 	}
-	if config.HeartbeatPeriod == 0 {
-		config.HeartbeatPeriod = defaultHeartbeatPeriod
+	if config.HeartbeatInterval == 0 {
+		config.HeartbeatInterval = defaultHeartbeatInterval
 	}
 	m := &worker{
 		config:     config,
@@ -82,15 +81,21 @@ func NewWorker(config Config) Worker {
 }
 
 func (w *worker) getTrigger(id vanus.ID) (trigger.Trigger, bool) {
+	w.tgLock.RLock()
+	defer w.tgLock.RUnlock()
 	t, exist := w.triggerMap[id]
 	return t, exist
 }
 
 func (w *worker) addTrigger(id vanus.ID, t trigger.Trigger) {
+	w.tgLock.Lock()
+	defer w.tgLock.Unlock()
 	w.triggerMap[id] = t
 }
 
 func (w *worker) deleteTrigger(id vanus.ID) {
+	w.tgLock.Lock()
+	defer w.tgLock.Unlock()
 	delete(w.triggerMap, id)
 }
 
@@ -101,7 +106,7 @@ func (w *worker) Register(ctx context.Context) error {
 	return err
 }
 
-func (w *worker) UnRegister(ctx context.Context) error {
+func (w *worker) Unregister(ctx context.Context) error {
 	_, err := w.client.unregisterTriggerWorker(ctx, &ctrlpb.UnregisterTriggerWorkerRequest{
 		Address: w.config.TriggerAddr,
 	})
@@ -172,8 +177,6 @@ func (w *worker) RemoveSubscription(ctx context.Context, id vanus.ID) error {
 }
 
 func (w *worker) PauseSubscription(ctx context.Context, id vanus.ID) error {
-	w.lock.Lock()
-	defer w.lock.Unlock()
 	return w.stopSubscription(ctx, id)
 }
 
@@ -216,7 +219,7 @@ func (w *worker) ResetOffsetToTimestamp(ctx context.Context,
 func (w *worker) startHeartbeat(ctx context.Context) {
 	w.wg.Add(1)
 	defer w.wg.Done()
-	ticker := time.NewTicker(w.config.HeartbeatPeriod)
+	ticker := time.NewTicker(w.config.HeartbeatInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -224,11 +227,10 @@ func (w *worker) startHeartbeat(ctx context.Context) {
 			w.client.closeHeartBeat(ctx)
 			return
 		case <-ticker.C:
-			err := w.client.heartbeat(ctx, &ctrlpb.TriggerWorkerHeartbeatRequest{
+			if err := w.client.heartbeat(ctx, &ctrlpb.TriggerWorkerHeartbeatRequest{
 				Address:          w.config.TriggerAddr,
 				SubscriptionInfo: w.getAllSubscriptionInfo(ctx),
-			})
-			if err != nil {
+			}); err != nil {
 				log.Warning(ctx, "heartbeat error", map[string]interface{}{
 					log.KeyError: err,
 				})
@@ -275,8 +277,8 @@ func (w *worker) commitOffsets(ctx context.Context) error {
 }
 
 func (w *worker) getAllSubscriptionInfo(ctx context.Context) []*metapb.SubscriptionInfo {
-	w.lock.RLock()
-	defer w.lock.RUnlock()
+	w.tgLock.RLock()
+	defer w.tgLock.RUnlock()
 	subInfos := make([]*metapb.SubscriptionInfo, 0, len(w.triggerMap))
 	for id, t := range w.triggerMap {
 		subInfos = append(subInfos, &metapb.SubscriptionInfo{

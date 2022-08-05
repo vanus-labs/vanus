@@ -110,7 +110,7 @@ func TestServerInitAndClose(t *testing.T) {
 		s.state = primitive.ServerStateRunning
 		Convey("test stop", func() {
 			w.EXPECT().Stop(gomock.Any()).Return(nil)
-			w.EXPECT().UnRegister(gomock.Any()).Return(nil)
+			w.EXPECT().Unregister(gomock.Any()).Return(nil)
 			s.stop(ctx, true)
 			So(s.state, ShouldEqual, primitive.ServerStateStopped)
 		})

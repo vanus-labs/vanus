@@ -77,18 +77,18 @@ func (mr *MockTriggerWorkerMockRecorder) GetAddr() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAddr", reflect.TypeOf((*MockTriggerWorker)(nil).GetAddr))
 }
 
-// GetAssignSubscriptions mocks base method.
-func (m *MockTriggerWorker) GetAssignSubscriptions() []vanus.ID {
+// GetAssignedSubscriptions mocks base method.
+func (m *MockTriggerWorker) GetAssignedSubscriptions() []vanus.ID {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAssignSubscriptions")
+	ret := m.ctrl.Call(m, "GetAssignedSubscriptions")
 	ret0, _ := ret[0].([]vanus.ID)
 	return ret0
 }
 
-// GetAssignSubscriptions indicates an expected call of GetAssignSubscriptions.
-func (mr *MockTriggerWorkerMockRecorder) GetAssignSubscriptions() *gomock.Call {
+// GetAssignedSubscriptions indicates an expected call of GetAssignedSubscriptions.
+func (mr *MockTriggerWorkerMockRecorder) GetAssignedSubscriptions() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAssignSubscriptions", reflect.TypeOf((*MockTriggerWorker)(nil).GetAssignSubscriptions))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAssignedSubscriptions", reflect.TypeOf((*MockTriggerWorker)(nil).GetAssignedSubscriptions))
 }
 
 // GetHeartbeatTime mocks base method.
@@ -145,20 +145,6 @@ func (m *MockTriggerWorker) GetPhase() metadata.TriggerWorkerPhase {
 func (mr *MockTriggerWorkerMockRecorder) GetPhase() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPhase", reflect.TypeOf((*MockTriggerWorker)(nil).GetPhase))
-}
-
-// Init mocks base method.
-func (m *MockTriggerWorker) Init(ctx context.Context) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Init", ctx)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Init indicates an expected call of Init.
-func (mr *MockTriggerWorkerMockRecorder) Init(ctx interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Init", reflect.TypeOf((*MockTriggerWorker)(nil).Init), ctx)
 }
 
 // IsActive mocks base method.
@@ -251,6 +237,20 @@ func (m *MockTriggerWorker) SetPhase(arg0 metadata.TriggerWorkerPhase) {
 func (mr *MockTriggerWorkerMockRecorder) SetPhase(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetPhase", reflect.TypeOf((*MockTriggerWorker)(nil).SetPhase), arg0)
+}
+
+// Start mocks base method.
+func (m *MockTriggerWorker) Start(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Start", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Start indicates an expected call of Start.
+func (mr *MockTriggerWorkerMockRecorder) Start(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockTriggerWorker)(nil).Start), ctx)
 }
 
 // UnAssignSubscription mocks base method.

@@ -25,7 +25,7 @@ const (
 	defaultFilterProcessSize = 2
 	defaultSendProcessSize   = 2
 	defaultMaxRetryTimes     = 3
-	defaultRetryPeriod       = 3 * time.Second
+	defaultRetryInterval     = 3 * time.Second
 	defaultSendTimeout       = 5 * time.Second
 )
 
@@ -34,7 +34,7 @@ type Config struct {
 	SendProcessSize   int
 	BufferSize        int
 	MaxRetryTimes     int
-	RetryPeriod       time.Duration
+	RetryInterval     time.Duration
 	SendTimeOut       time.Duration
 	RateLimit         int32
 	Controllers       []string
@@ -46,7 +46,7 @@ func defaultConfig() Config {
 		SendProcessSize:   defaultSendProcessSize,
 		BufferSize:        defaultBufferSize,
 		MaxRetryTimes:     defaultMaxRetryTimes,
-		RetryPeriod:       defaultRetryPeriod,
+		RetryInterval:     defaultRetryInterval,
 		SendTimeOut:       defaultSendTimeout,
 	}
 	return c
@@ -90,12 +90,12 @@ func WithMaxRetryTimes(times int) Option {
 	}
 }
 
-func WithRetryPeriod(period time.Duration) Option {
+func WithRetryInterval(interval time.Duration) Option {
 	return func(t *trigger) {
-		if period <= 0 {
+		if interval <= 0 {
 			return
 		}
-		t.config.RetryPeriod = period
+		t.config.RetryInterval = interval
 	}
 }
 

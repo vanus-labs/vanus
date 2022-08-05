@@ -57,14 +57,14 @@ func TestController_CommitOffset(t *testing.T) {
 			}},
 		}
 		Convey("commit offset fail", func() {
-			subManager.EXPECT().Offset(gomock.Any(), gomock.Eq(subID), gomock.Any(), gomock.Any()).Return(fmt.Errorf("test error"))
+			subManager.EXPECT().SaveOffset(gomock.Any(), gomock.Eq(subID), gomock.Any(), gomock.Any()).Return(fmt.Errorf("test error"))
 			resp, err := ctrl.CommitOffset(ctx, request)
 			So(err, ShouldBeNil)
 			So(len(resp.FailSubscriptionId), ShouldEqual, 1)
 			So(resp.FailSubscriptionId[0], ShouldEqual, subID)
 		})
 		Convey("commit offset success", func() {
-			subManager.EXPECT().Offset(gomock.Any(), gomock.Eq(subID), gomock.Any(), gomock.Any()).Return(nil)
+			subManager.EXPECT().SaveOffset(gomock.Any(), gomock.Eq(subID), gomock.Any(), gomock.Any()).Return(nil)
 			resp, err := ctrl.CommitOffset(ctx, request)
 			So(err, ShouldBeNil)
 			So(len(resp.FailSubscriptionId), ShouldEqual, 0)
@@ -244,15 +244,15 @@ func TestController_UpdateSubscription(t *testing.T) {
 			subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
-				InputTransformer: &metapb.InputTransformer{
+				Transformer: &metapb.Transformer{
 					Define:   map[string]string{"k": "v"},
 					Template: "test",
 				},
 			}
 			resp, err := ctrl.UpdateSubscription(ctx, request)
 			So(err, ShouldBeNil)
-			So(resp.InputTransformer, ShouldNotBeNil)
-			So(sub.InputTransformer, ShouldBeNil)
+			So(resp.Transformer, ShouldNotBeNil)
+			So(sub.Transformer, ShouldBeNil)
 		})
 	})
 }
@@ -426,8 +426,8 @@ func TestController_TriggerWorkerHeartbeat(t *testing.T) {
 		})
 		Convey("heartbeat success", func() {
 			workerManager.EXPECT().UpdateTriggerWorkerInfo(gomock.Any(), gomock.Eq(request.Address)).Return(nil)
-			subManager.EXPECT().Offset(gomock.Any(), gomock.Eq(subID1), gomock.Any(), false).Return(nil)
-			subManager.EXPECT().Offset(gomock.Any(), gomock.Eq(subID2), gomock.Any(), false).Return(fmt.Errorf("error"))
+			subManager.EXPECT().SaveOffset(gomock.Any(), gomock.Eq(subID1), gomock.Any(), false).Return(nil)
+			subManager.EXPECT().SaveOffset(gomock.Any(), gomock.Eq(subID2), gomock.Any(), false).Return(fmt.Errorf("error"))
 			err := ctrl.triggerWorkerHeartbeatRequest(ctx, request)
 			So(err, ShouldBeNil)
 		})

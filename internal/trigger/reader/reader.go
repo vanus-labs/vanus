@@ -39,12 +39,11 @@ import (
 )
 
 const (
-	checkEventLogPeriod       = 30 * time.Second
+	checkEventLogInterval     = 30 * time.Second
 	lookupReadableLogsTimeout = 5 * time.Second
 	readerSeekTimeout         = 5 * time.Second
 	readEventTimeout          = 5 * time.Second
 	initErrSleepTime          = 5 * time.Second
-	readErrSleepTime          = 2 * time.Second
 	readSize                  = 5
 )
 
@@ -56,7 +55,7 @@ type Config struct {
 	OffsetType      primitive.OffsetType
 	OffsetTimestamp int64
 
-	CheckEventLogPeriod time.Duration
+	CheckEventLogInterval time.Duration
 }
 type EventLogOffset map[vanus.ID]uint64
 
@@ -77,8 +76,8 @@ type reader struct {
 }
 
 func NewReader(config Config, events chan<- info.EventRecord) Reader {
-	if config.CheckEventLogPeriod <= 0 {
-		config.CheckEventLogPeriod = checkEventLogPeriod
+	if config.CheckEventLogInterval <= 0 {
+		config.CheckEventLogInterval = checkEventLogInterval
 	}
 	r := &reader{
 		config:   config,
@@ -119,7 +118,7 @@ func (r *reader) Start() error {
 
 func (r *reader) watchEventLogChange() {
 	r.checkEventLogChange()
-	tk := time.NewTicker(r.config.CheckEventLogPeriod)
+	tk := time.NewTicker(r.config.CheckEventLogInterval)
 	defer tk.Stop()
 	for {
 		select {
@@ -156,26 +155,23 @@ func (r *reader) checkEventLogChange() {
 func (r *reader) getOffset(ctx context.Context, eventLogID vanus.ID, elVRN string) (uint64, error) {
 	offset, exist := r.config.Offset[eventLogID]
 	if !exist {
+		var err error
+		var v int64
 		switch r.config.OffsetType {
 		case primitive.LatestOffset:
-			v, err := eb.LookupLatestLogOffset(ctx, elVRN)
-			if err != nil {
+			if v, err = eb.LookupLatestLogOffset(ctx, elVRN); err != nil {
 				return 0, err
 			}
-			offset = uint64(v)
 		case primitive.EarliestOffset:
-			v, err := eb.LookupEarliestLogOffset(ctx, elVRN)
-			if err != nil {
+			if v, err = eb.LookupEarliestLogOffset(ctx, elVRN); err != nil {
 				return 0, err
 			}
-			offset = uint64(v)
 		case primitive.Timestamp:
-			v, err := eb.LookupLogOffset(ctx, elVRN, r.config.OffsetTimestamp)
-			if err != nil {
+			if v, err = eb.LookupLogOffset(ctx, elVRN, r.config.OffsetTimestamp); err != nil {
 				return 0, err
 			}
-			offset = uint64(v)
 		}
+		offset = uint64(v)
 	}
 	return offset, nil
 }
@@ -265,36 +261,25 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 			log.KeyEventlogID:   elReader.eventLogID,
 			"offset":            elReader.offset,
 		})
-		sleepCnt := 0
 		for {
 			err = elReader.readEvent(ctx, lr)
 			switch err {
 			case nil:
-				sleepCnt = 0
 				continue
 			case context.Canceled:
 				lr.Close()
 				return
 			case context.DeadlineExceeded:
-				log.Warning(ctx, "readEvents timeout", map[string]interface{}{
-					log.KeyEventlogID: elReader.eventLogVrn,
-					"offset":          elReader.offset,
-				})
-				continue
 			case errors.ErrReadNoEvent:
 			case eberrors.ErrOnEnd:
 			case eberrors.ErrUnderflow:
+			case eberrors.ErrTimeout:
 			default:
 				log.Warning(ctx, "read event error", map[string]interface{}{
 					log.KeyEventlogID: elReader.eventLogVrn,
 					"offset":          elReader.offset,
 					log.KeyError:      err,
 				})
-			}
-			sleepCnt++
-			if !util.SleepWithContext(ctx, util.Backoff(sleepCnt, readErrSleepTime)) {
-				lr.Close()
-				return
 			}
 		}
 	}
@@ -316,14 +301,14 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventlog.LogRe
 			EventLogID: elReader.eventLogID,
 			Offset:     offset,
 		}}
-		if err = elReader.sendEvent(ctx, eo); err != nil {
+		if err = elReader.putEvent(ctx, eo); err != nil {
 			return err
 		}
 		elReader.offset = offset
 	}
 	return nil
 }
-func (elReader *eventLogReader) sendEvent(ctx context.Context, event info.EventRecord) error {
+func (elReader *eventLogReader) putEvent(ctx context.Context, event info.EventRecord) error {
 	select {
 	case elReader.events <- event:
 		return nil

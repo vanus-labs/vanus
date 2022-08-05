@@ -17,7 +17,6 @@ package worker
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -35,12 +34,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var (
-	errNoInit = fmt.Errorf("trigger worker not init")
-)
-
 type TriggerWorker interface {
-	Init(ctx context.Context) error
+	Start(ctx context.Context) error
 	RemoteStart(ctx context.Context) error
 	RemoteStop(ctx context.Context) error
 	Close() error
@@ -55,7 +50,7 @@ type TriggerWorker interface {
 	Polish()
 	AssignSubscription(id vanus.ID)
 	UnAssignSubscription(id vanus.ID)
-	GetAssignSubscriptions() []vanus.ID
+	GetAssignedSubscriptions() []vanus.ID
 	ResetOffsetToTimestamp(id vanus.ID, timestamp uint64) error
 }
 
@@ -85,15 +80,18 @@ func NewTriggerWorker(twInfo *metadata.TriggerWorkerInfo, subscriptionManager su
 		subscriptionManager: subscriptionManager,
 		subscriptionQueue:   queue.New(),
 		pendingTime:         time.Now(),
+		stop:                func() {},
 	}
-	tw.ctx, tw.stop = context.WithCancel(context.Background())
-	tw.start()
 	return tw
 }
 
-func (tw *triggerWorker) start() {
+func (tw *triggerWorker) Start(ctx context.Context) error {
+	tw.ctx, tw.stop = context.WithCancel(context.Background())
+	if err := tw.init(tw.ctx); err != nil {
+		return err
+	}
 	go func() {
-		ctx := tw.ctx
+		ctx = tw.ctx
 		for {
 			subscriptionID, stop := tw.subscriptionQueue.Get()
 			if stop {
@@ -121,6 +119,7 @@ func (tw *triggerWorker) start() {
 			}
 		}
 	}()
+	return nil
 }
 func (tw *triggerWorker) handler(ctx context.Context, subscriptionID vanus.ID) error {
 	_, exist := tw.assignSubscriptionIDs.Load(subscriptionID)
@@ -137,13 +136,13 @@ func (tw *triggerWorker) handler(ctx context.Context, subscriptionID vanus.ID) e
 		return err
 	}
 	err = tw.addSubscription(ctx, &primitive.Subscription{
-		ID:               subscription.ID,
-		Filters:          subscription.Filters,
-		Sink:             subscription.Sink,
-		EventBus:         subscription.EventBus,
-		Offsets:          offsets,
-		InputTransformer: subscription.InputTransformer,
-		Config:           subscription.Config,
+		ID:          subscription.ID,
+		Filters:     subscription.Filters,
+		Sink:        subscription.Sink,
+		EventBus:    subscription.EventBus,
+		Offsets:     offsets,
+		Transformer: subscription.Transformer,
+		Config:      subscription.Config,
 	})
 	if err != nil {
 		return err
@@ -238,7 +237,7 @@ func (tw *triggerWorker) UnAssignSubscription(id vanus.ID) {
 	}
 }
 
-func (tw *triggerWorker) GetAssignSubscriptions() []vanus.ID {
+func (tw *triggerWorker) GetAssignedSubscriptions() []vanus.ID {
 	ids := make([]vanus.ID, 0)
 	tw.assignSubscriptionIDs.Range(func(key, value interface{}) bool {
 		id, _ := key.(vanus.ID)
@@ -260,7 +259,7 @@ func (tw *triggerWorker) GetHeartbeatTime() time.Time {
 	return tw.heartbeatTime
 }
 
-func (tw *triggerWorker) Init(ctx context.Context) error {
+func (tw *triggerWorker) init(ctx context.Context) error {
 	if tw.cc != nil {
 		return nil
 	}
@@ -287,9 +286,6 @@ func (tw *triggerWorker) Close() error {
 }
 
 func (tw *triggerWorker) RemoteStop(ctx context.Context) error {
-	if tw.client == nil {
-		return errNoInit
-	}
 	_, err := tw.client.Stop(ctx, &trigger.StopTriggerWorkerRequest{})
 	if err != nil {
 		return errors.ErrTriggerWorker.WithMessage("stop error").Wrap(err)
@@ -306,9 +302,6 @@ func (tw *triggerWorker) RemoteStart(ctx context.Context) error {
 }
 
 func (tw *triggerWorker) ResetOffsetToTimestamp(id vanus.ID, timestamp uint64) error {
-	if tw.client == nil {
-		return errNoInit
-	}
 	request := &trigger.ResetOffsetToTimestampRequest{SubscriptionId: id.Uint64(), Timestamp: timestamp}
 	_, err := tw.client.ResetOffsetToTimestamp(tw.ctx, request)
 	if err != nil {
@@ -318,9 +311,6 @@ func (tw *triggerWorker) ResetOffsetToTimestamp(id vanus.ID, timestamp uint64) e
 }
 
 func (tw *triggerWorker) addSubscription(ctx context.Context, sub *primitive.Subscription) error {
-	if tw.client == nil {
-		return errNoInit
-	}
 	request := convert.ToPbAddSubscription(sub)
 	_, err := tw.client.AddSubscription(ctx, request)
 	if err != nil {
@@ -330,9 +320,6 @@ func (tw *triggerWorker) addSubscription(ctx context.Context, sub *primitive.Sub
 }
 
 func (tw *triggerWorker) removeSubscription(ctx context.Context, id vanus.ID) error {
-	if tw.client == nil {
-		return errNoInit
-	}
 	request := &trigger.RemoveSubscriptionRequest{SubscriptionId: uint64(id)}
 	_, err := tw.client.RemoveSubscription(ctx, request)
 	if err != nil {

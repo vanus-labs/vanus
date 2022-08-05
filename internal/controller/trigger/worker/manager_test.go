@@ -73,7 +73,7 @@ func TestInit(t *testing.T) {
 		So(err, ShouldBeNil)
 		tWorker := twManager.GetTriggerWorker(addr)
 		So(tWorker, ShouldNotBeNil)
-		subIds := tWorker.GetAssignSubscriptions()
+		subIds := tWorker.GetAssignedSubscriptions()
 		So(len(subIds), ShouldEqual, 1)
 		So(subIds[0], ShouldEqual, sub.ID)
 		time.Sleep(time.Millisecond * 100)
@@ -124,7 +124,7 @@ func TestRemoveTriggerWorker(t *testing.T) {
 		workerStorage.EXPECT().SaveTriggerWorker(ctx, gomock.Any()).AnyTimes().Return(nil)
 		workerStorage.EXPECT().DeleteTriggerWorker(ctx, gomock.Any()).AnyTimes().Return(nil)
 		tWorker.EXPECT().SetPhase(metadata.TriggerWorkerPhasePaused).AnyTimes().Return()
-		tWorker.EXPECT().GetAssignSubscriptions().AnyTimes().Return([]vanus.ID{sub.ID})
+		tWorker.EXPECT().GetAssignedSubscriptions().AnyTimes().Return([]vanus.ID{sub.ID})
 		Convey("test remove subscription no error", func() {
 			twManager.triggerWorkers[addr] = tWorker
 			So(twManager.GetTriggerWorker(addr), ShouldNotBeNil)
@@ -205,7 +205,7 @@ func TestPendingTriggerWorkerHandler(t *testing.T) {
 		Convey("pending worker clean", func() {
 			tWorker.EXPECT().GetPendingTime().Return(time.Now().Add(twManager.config.WaitRunningTimeout * -1))
 			tWorker.EXPECT().SetPhase(metadata.TriggerWorkerPhasePaused).Return()
-			tWorker.EXPECT().GetAssignSubscriptions().Return([]vanus.ID{sub.ID})
+			tWorker.EXPECT().GetAssignedSubscriptions().Return([]vanus.ID{sub.ID})
 			workerStorage.EXPECT().DeleteTriggerWorker(ctx, gomock.Any()).Return(nil)
 			time.Sleep(time.Millisecond)
 			twManager.pendingTriggerWorkerHandler(ctx, tWorker)
@@ -275,14 +275,14 @@ func TestManagerCheck(t *testing.T) {
 			tWorker.EXPECT().IsActive().Return(true)
 			hbTime := time.Now().Add(twManager.config.DisconnectCleanTime * -1)
 			tWorker.EXPECT().GetHeartbeatTime().Return(hbTime)
-			tWorker.EXPECT().GetAssignSubscriptions().Return(nil)
+			tWorker.EXPECT().GetAssignedSubscriptions().Return(nil)
 			time.Sleep(time.Millisecond)
 			workerStorage.EXPECT().DeleteTriggerWorker(ctx, gomock.Any()).Return(nil)
 			twManager.check(ctx)
 		})
 		Convey("pause check", func() {
 			tWorker.EXPECT().GetPhase().Return(metadata.TriggerWorkerPhasePaused)
-			tWorker.EXPECT().GetAssignSubscriptions().Return(nil)
+			tWorker.EXPECT().GetAssignedSubscriptions().Return(nil)
 			workerStorage.EXPECT().DeleteTriggerWorker(ctx, gomock.Any()).Return(nil)
 			twManager.check(ctx)
 		})

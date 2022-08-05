@@ -148,16 +148,16 @@ func (mr *MockWorkerMockRecorder) Stop(ctx interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockWorker)(nil).Stop), ctx)
 }
 
-// UnRegister mocks base method.
-func (m *MockWorker) UnRegister(ctx context.Context) error {
+// Unregister mocks base method.
+func (m *MockWorker) Unregister(ctx context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UnRegister", ctx)
+	ret := m.ctrl.Call(m, "Unregister", ctx)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UnRegister indicates an expected call of UnRegister.
-func (mr *MockWorkerMockRecorder) UnRegister(ctx interface{}) *gomock.Call {
+// Unregister indicates an expected call of Unregister.
+func (mr *MockWorkerMockRecorder) Unregister(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnRegister", reflect.TypeOf((*MockWorker)(nil).UnRegister), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Unregister", reflect.TypeOf((*MockWorker)(nil).Unregister), ctx)
 }

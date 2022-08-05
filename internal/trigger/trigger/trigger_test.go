@@ -51,11 +51,11 @@ func TestTrigger_Options(t *testing.T) {
 		size = rand.Intn(1000) + size
 		WithSendTimeOut(time.Duration(size))(tg)
 		So(tg.config.SendTimeOut, ShouldEqual, size)
-		WithRetryPeriod(-1)(tg)
-		So(tg.config.RetryPeriod, ShouldEqual, 0)
+		WithRetryInterval(-1)(tg)
+		So(tg.config.RetryInterval, ShouldEqual, 0)
 		size = rand.Intn(1000) + size
-		WithRetryPeriod(time.Duration(size))(tg)
-		So(tg.config.RetryPeriod, ShouldEqual, size)
+		WithRetryInterval(time.Duration(size))(tg)
+		So(tg.config.RetryInterval, ShouldEqual, size)
 		WithMaxRetryTimes(-1)(tg)
 		So(tg.config.MaxRetryTimes, ShouldEqual, 0)
 		size = rand.Intn(1000) + size
@@ -218,7 +218,7 @@ func TestChangeSubscription(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("change transformation", func() {
-			err := tg.Change(ctx, &primitive.Subscription{InputTransformer: &primitive.InputTransformer{}})
+			err := tg.Change(ctx, &primitive.Subscription{Transformer: &primitive.Transformer{}})
 			So(err, ShouldBeNil)
 		})
 		Convey("change config", func() {

@@ -96,7 +96,7 @@ message Subscription {
   string protocol = 7;
   map<string, string> protocol_settings = 8;
   string event_bus = 9;
-  meta.InputTransformer input_transformer = 10;
+  meta.Transformer transformer = 10;
 }
 
 message SubscriptionConfig {
@@ -131,7 +131,7 @@ message OffsetInfo {
   uint64 event_log_id = 2;
 }
 
-message InputTransformer {
+message Transformer {
   map<string, string> define = 1;
   string template = 2;
 }

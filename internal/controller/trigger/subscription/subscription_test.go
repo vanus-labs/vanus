@@ -142,12 +142,12 @@ func TestOffset(t *testing.T) {
 			{EventLogID: 1, Offset: 10},
 		}
 		Convey("set offset subscription no exist", func() {
-			err := m.Offset(ctx, 1, listOffsetInfo, false)
+			err := m.SaveOffset(ctx, 1, listOffsetInfo, false)
 			So(err, ShouldBeNil)
 		})
 		Convey("set offset ", func() {
 			offsetManager.EXPECT().Offset(ctx, id, listOffsetInfo, false).Return(nil)
-			err := m.Offset(ctx, id, listOffsetInfo, false)
+			err := m.SaveOffset(ctx, id, listOffsetInfo, false)
 			So(err, ShouldBeNil)
 		})
 		Convey("get offset subscription no exist", func() {

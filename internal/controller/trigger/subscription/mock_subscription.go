@@ -137,18 +137,18 @@ func (mr *MockManagerMockRecorder) ListSubscription(ctx interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSubscription", reflect.TypeOf((*MockManager)(nil).ListSubscription), ctx)
 }
 
-// Offset mocks base method.
-func (m *MockManager) Offset(ctx context.Context, id vanus.ID, offsets info.ListOffsetInfo, commit bool) error {
+// SaveOffset mocks base method.
+func (m *MockManager) SaveOffset(ctx context.Context, id vanus.ID, offsets info.ListOffsetInfo, commit bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Offset", ctx, id, offsets, commit)
+	ret := m.ctrl.Call(m, "SaveOffset", ctx, id, offsets, commit)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// Offset indicates an expected call of Offset.
-func (mr *MockManagerMockRecorder) Offset(ctx, id, offsets, commit interface{}) *gomock.Call {
+// SaveOffset indicates an expected call of SaveOffset.
+func (mr *MockManagerMockRecorder) SaveOffset(ctx, id, offsets, commit interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Offset", reflect.TypeOf((*MockManager)(nil).Offset), ctx, id, offsets, commit)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveOffset", reflect.TypeOf((*MockManager)(nil).SaveOffset), ctx, id, offsets, commit)
 }
 
 // Start mocks base method.

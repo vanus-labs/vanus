@@ -74,6 +74,6 @@ type Subscription struct {
 	EventBus         string                          `json:"eventbus"`
 	Phase            SubscriptionPhase               `json:"phase"`
 	TriggerWorker    string                          `json:"trigger_worker,omitempty"`
-	InputTransformer *primitive.InputTransformer     `json:"input_transformer,omitempty"`
+	Transformer      *primitive.Transformer          `json:"transformer,omitempty"`
 	HeartbeatTime    time.Time                       `json:"-"`
 }

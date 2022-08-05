@@ -52,7 +52,7 @@ message AddSubscriptionRequest {
   string sink = 3;
   string event_bus = 4;
   repeated meta.OffsetInfo offsets = 5;
-  meta.InputTransformer input_transformer = 6;
+  meta.Transformer transformer = 6;
   meta.SubscriptionConfig config = 7;
 }
 

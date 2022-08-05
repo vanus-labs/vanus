@@ -190,7 +190,7 @@ func (s *server) stop(ctx context.Context, sendUnregister bool) {
 		})
 	}
 	if sendUnregister {
-		err = s.worker.UnRegister(ctx)
+		err = s.worker.Unregister(ctx)
 		if err != nil {
 			log.Error(ctx, "unregister trigger worker error", map[string]interface{}{
 				"addr":       s.config.ControllerAddr,

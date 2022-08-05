@@ -131,8 +131,7 @@ func (m *manager) AddTriggerWorker(ctx context.Context, addr string) error {
 	tWorker, exist := m.triggerWorkers[addr]
 	if !exist {
 		tWorker = NewTriggerWorkerByAddr(addr, m.subscriptionManager)
-		err := tWorker.Init(ctx)
-		if err != nil {
+		if err := tWorker.Start(ctx); err != nil {
 			return err
 		}
 		m.triggerWorkers[addr] = tWorker
@@ -239,7 +238,7 @@ func (m *manager) cleanTriggerWorker(ctx context.Context, tWorker TriggerWorker)
 }
 
 func (m *manager) doTriggerWorkerLeave(ctx context.Context, tWorker TriggerWorker) bool {
-	assignSubscription := tWorker.GetAssignSubscriptions()
+	assignSubscription := tWorker.GetAssignedSubscriptions()
 	// reallocate subscription
 	var hasFail bool
 	for _, id := range assignSubscription {
@@ -299,8 +298,7 @@ func (m *manager) Init(ctx context.Context) error {
 	for i := range tWorkerInfos {
 		twInfo := tWorkerInfos[i]
 		tWorker := NewTriggerWorker(twInfo, m.subscriptionManager)
-		err = tWorker.Init(ctx)
-		if err != nil {
+		if err = tWorker.Start(ctx); err != nil {
 			return err
 		}
 		m.triggerWorkers[twInfo.Addr] = tWorker
