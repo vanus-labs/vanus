@@ -28,14 +28,17 @@ import (
 	"github.com/cloudevents/sdk-go/v2/client"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
+	"github.com/cloudevents/sdk-go/v2/types"
 	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/eventbus"
 )
 
 const (
-	httpRequestPrefix  = "/gateway"
-	xceVanusEventbus   = "xvanuseventbus"
-	ctrlProxyPortShift = 2
+	httpRequestPrefix    = "/gateway"
+	xceVanusEventbus     = "xvanuseventbus"
+	xceVanusDeliveryTime = "xvanusdeliverytime"
+	timerBuiltInEventbus = "__Timer_RS"
+	ctrlProxyPortShift   = 2
 )
 
 var (
@@ -51,6 +54,10 @@ var (
 		"/linkall.vanus.controller.TriggerController/GetSubscription":    "ALLOW",
 		"/linkall.vanus.controller.TriggerController/ListSubscription":   "ALLOW",
 	}
+)
+
+var (
+	requestDataFromContext = cehttp.RequestDataFromContext
 )
 
 type ceGateway struct {
@@ -85,10 +92,25 @@ func (ga *ceGateway) StartReceive(ctx context.Context) error {
 }
 
 func (ga *ceGateway) receive(ctx context.Context, event v2.Event) protocol.Result {
-	ebName := getEventBusFromPath(cehttp.RequestDataFromContext(ctx))
+	ebName := getEventBusFromPath(requestDataFromContext(ctx))
 
 	if ebName == "" {
 		return fmt.Errorf("invalid eventbus name")
+	}
+
+	event.SetExtension(xceVanusEventbus, ebName)
+
+	extensions := event.Extensions()
+	if eventTime, ok := extensions[xceVanusDeliveryTime]; ok {
+		// validate event time
+		if _, err := types.ParseTime(eventTime.(string)); err != nil {
+			log.Error(ctx, "invalid format of event time", map[string]interface{}{
+				log.KeyError: err,
+				"eventTime":  eventTime.(string),
+			})
+			return fmt.Errorf("invalid delivery time")
+		}
+		ebName = timerBuiltInEventbus
 	}
 
 	vrn := fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s", ga.config.ControllerAddr[0],
@@ -106,7 +128,6 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) protocol.Resul
 			writer.Close()
 		}
 	}
-	event.SetExtension(xceVanusEventbus, ebName)
 	writer, _ := v.(eventbus.BusWriter)
 	_, err := writer.Append(ctx, &event)
 	if err != nil {
