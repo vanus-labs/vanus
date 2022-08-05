@@ -250,22 +250,22 @@ func toPbOffsetInfo(offset info.OffsetInfo) *pb.OffsetInfo {
 		Offset:     offset.Offset,
 	}
 }
-func FromPbTransformer(Transformer *pb.Transformer) *primitive.Transformer {
-	if Transformer == nil {
+func FromPbTransformer(transformer *pb.Transformer) *primitive.Transformer {
+	if transformer == nil {
 		return nil
 	}
 	return &primitive.Transformer{
-		Define:   Transformer.Define,
-		Template: Transformer.Template,
+		Define:   transformer.Define,
+		Template: transformer.Template,
 	}
 }
 
-func toPbTransformer(Transformer *primitive.Transformer) *pb.Transformer {
-	if Transformer == nil {
+func toPbTransformer(transformer *primitive.Transformer) *pb.Transformer {
+	if transformer == nil {
 		return nil
 	}
 	return &pb.Transformer{
-		Define:   Transformer.Define,
-		Template: Transformer.Template,
+		Define:   transformer.Define,
+		Template: transformer.Template,
 	}
 }
