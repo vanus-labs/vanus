@@ -59,9 +59,9 @@ func RegisterSegmentServerMetrics() {
 }
 
 func registerGoRuntimeMetrics() {
-	prometheus.MustRegister(collectors.NewBuildInfoCollector())
-	prometheus.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
-	prometheus.MustRegister(collectors.NewGoCollector(collectors.WithGoCollections(collectors.GoRuntimeMetricsCollection)))
+	collectors.NewBuildInfoCollector()
+	collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})
+	collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})
 }
 
 type Config struct {

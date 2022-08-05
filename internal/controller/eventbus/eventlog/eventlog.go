@@ -18,6 +18,7 @@ package eventlog
 import (
 	"context"
 	"encoding/json"
+	"github.com/linkall-labs/vanus/internal/util"
 	"path/filepath"
 	"sync"
 	"time"
@@ -144,6 +145,7 @@ func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client, startTa
 			}
 		}
 	}
+	metrics.EventlogGaugeVec.WithLabelValues("aa").Set(float64(util.MapLen(&mgr.eventLogMap)))
 	if startTask {
 		cancelCtx, cancel := context.WithCancel(ctx)
 		mgr.cancel = cancel
