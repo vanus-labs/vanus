@@ -101,8 +101,6 @@ func (m *manager) GetSubscription(ctx context.Context, id vanus.ID) *metadata.Su
 func (m *manager) AddSubscription(ctx context.Context, sub *metadata.Subscription) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	sub.ID = vanus.NewID()
-	sub.Phase = metadata.SubscriptionPhaseCreated
 	err := m.storage.CreateSubscription(ctx, sub)
 	if err != nil {
 		return err

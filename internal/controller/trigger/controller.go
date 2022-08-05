@@ -135,6 +135,8 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 		return nil, err
 	}
 	sub := convert.FromPbCreateSubscription(request)
+	sub.ID = vanus.NewID()
+	sub.Phase = metadata.SubscriptionPhaseCreated
 	err = ctrl.subscriptionManager.AddSubscription(ctx, sub)
 	if err != nil {
 		return nil, err
@@ -169,7 +171,7 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 	}
 	if request.Filters != nil {
 		filters := convert.FromPbFilters(request.Filters)
-		if reflect.DeepEqual(filters, subscription.Filters) {
+		if !reflect.DeepEqual(filters, subscription.Filters) {
 			change = true
 			subscription.Filters = filters
 		}
@@ -182,7 +184,7 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 	}
 	if request.InputTransformer != nil {
 		transformer := convert.FromFPbInputTransformer(request.InputTransformer)
-		if reflect.DeepEqual(transformer, subscription.InputTransformer) {
+		if !reflect.DeepEqual(transformer, subscription.InputTransformer) {
 			change = true
 			subscription.InputTransformer = transformer
 		}
@@ -264,39 +266,48 @@ func (ctrl *controller) TriggerWorkerHeartbeat(
 			log.KeyTriggerWorkerAddr: req.Address,
 			"subscriptionInfo":       req.SubscriptionInfo,
 		})
-		now := time.Now()
-		for _, subInfo := range req.SubscriptionInfo {
-			subscriptionID := vanus.ID(subInfo.SubscriptionId)
-			err = ctrl.subscriptionManager.Heartbeat(ctx, subscriptionID, req.Address, now)
-			if err != nil {
-				log.Warning(ctx, "heartbeat subscription heartbeat error", map[string]interface{}{
-					log.KeyError:             err,
-					log.KeyTriggerWorkerAddr: req.Address,
-					log.KeySubscriptionID:    subscriptionID,
-				})
-			}
-		}
-		err = ctrl.workerManager.UpdateTriggerWorkerInfo(ctx, req.Address)
+		err = ctrl.triggerWorkerHeartbeatRequest(ctx, req)
 		if err != nil {
-			log.Info(context.Background(), "unknown trigger worker", map[string]interface{}{
-				log.KeyTriggerWorkerAddr: req.Address,
-			})
-			return errors.ErrResourceNotFound.WithMessage("unknown trigger worker")
-		}
-		for _, subInfo := range req.SubscriptionInfo {
-			if len(subInfo.Offsets) == 0 {
-				continue
-			}
-			offsets := convert.FromPbOffsetInfos(subInfo.Offsets)
-			err = ctrl.subscriptionManager.Offset(ctx, vanus.ID(subInfo.SubscriptionId), offsets, false)
-			if err != nil {
-				log.Warning(ctx, "heartbeat commit offset error", map[string]interface{}{
-					log.KeyError:          err,
-					log.KeySubscriptionID: subInfo.SubscriptionId,
-				})
-			}
+			return err
 		}
 	}
+}
+
+func (ctrl *controller) triggerWorkerHeartbeatRequest(ctx context.Context,
+	req *ctrlpb.TriggerWorkerHeartbeatRequest) error {
+	now := time.Now()
+	for _, subInfo := range req.SubscriptionInfo {
+		subscriptionID := vanus.ID(subInfo.SubscriptionId)
+		err := ctrl.subscriptionManager.Heartbeat(ctx, subscriptionID, req.Address, now)
+		if err != nil {
+			log.Warning(ctx, "heartbeat subscription heartbeat error", map[string]interface{}{
+				log.KeyError:             err,
+				log.KeyTriggerWorkerAddr: req.Address,
+				log.KeySubscriptionID:    subscriptionID,
+			})
+		}
+	}
+	err := ctrl.workerManager.UpdateTriggerWorkerInfo(ctx, req.Address)
+	if err != nil {
+		log.Info(context.Background(), "unknown trigger worker", map[string]interface{}{
+			log.KeyTriggerWorkerAddr: req.Address,
+		})
+		return errors.ErrResourceNotFound.WithMessage("unknown trigger worker")
+	}
+	for _, subInfo := range req.SubscriptionInfo {
+		if len(subInfo.Offsets) == 0 {
+			continue
+		}
+		offsets := convert.FromPbOffsetInfos(subInfo.Offsets)
+		err = ctrl.subscriptionManager.Offset(ctx, vanus.ID(subInfo.SubscriptionId), offsets, false)
+		if err != nil {
+			log.Warning(ctx, "heartbeat commit offset error", map[string]interface{}{
+				log.KeyError:          err,
+				log.KeySubscriptionID: subInfo.SubscriptionId,
+			})
+		}
+	}
+	return nil
 }
 
 func (ctrl *controller) RegisterTriggerWorker(ctx context.Context,
