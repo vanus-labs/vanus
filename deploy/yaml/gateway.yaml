@@ -54,7 +54,7 @@ spec:
     spec:
       containers:
         - name: gateway
-          image: public.ecr.aws/vanus/gateway:v0.1.2
+          image: public.ecr.aws/vanus/gateway:v0.2.0
           imagePullPolicy: IfNotPresent
           ports:
             - name: httpput

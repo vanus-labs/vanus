@@ -81,10 +81,6 @@ metadata:
   namespace: vanus
 ---
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: config-timer
-  namespace: vanus
 data:
   timer.yaml: |-
     name: "timer"
@@ -106,6 +102,10 @@ data:
       - vanus-controller-0.vanus-controller.vanus.svc:2048
       - vanus-controller-1.vanus-controller.vanus.svc:2048
       - vanus-controller-2.vanus-controller.vanus.svc:2048
+kind: ConfigMap
+metadata:
+  name: config-timer
+  namespace: vanus
 ---
 apiVersion: v1
 data:
@@ -175,7 +175,7 @@ spec:
         app: vanus-gateway
     spec:
       containers:
-      - image: public.ecr.aws/vanus/gateway:v0.1.2
+      - image: public.ecr.aws/vanus/gateway:v0.2.0
         imagePullPolicy: IfNotPresent
         name: gateway
         ports:
@@ -192,6 +192,42 @@ spec:
       - configMap:
           name: config-gateway
         name: config-gateway
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: vanus-timer
+  name: vanus-timer
+  namespace: vanus
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vanus-timer
+  template:
+    metadata:
+      labels:
+        app: vanus-timer
+    spec:
+      containers:
+      - env:
+        - name: VANUS_LOG_LEVEL
+          value: DEBUG
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        image: public.ecr.aws/vanus/timer:v0.2.0
+        imagePullPolicy: IfNotPresent
+        name: timer
+        volumeMounts:
+        - mountPath: /vanus/config
+          name: config-timer
+      volumes:
+      - configMap:
+          name: config-timer
+        name: config-timer
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -218,7 +254,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/trigger:v0.1.2
+        image: public.ecr.aws/vanus/trigger:v0.2.0
         imagePullPolicy: IfNotPresent
         name: trigger
         ports:
@@ -262,7 +298,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/controller:v0.1.2
+        image: public.ecr.aws/vanus/controller:v0.2.0
         imagePullPolicy: IfNotPresent
         name: controller
         ports:
@@ -323,7 +359,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/store:v0.1.2
+        image: public.ecr.aws/vanus/store:v0.2.0
         imagePullPolicy: IfNotPresent
         name: store
         ports:
@@ -349,45 +385,3 @@ spec:
       resources:
         requests:
           storage: 1Gi
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: vanus-timer
-  namespace: vanus
-  labels:
-    app: vanus-timer
-spec:
-  selector:
-    matchLabels:
-      app: vanus-timer
-  replicas: 2
-  template:
-    metadata:
-      labels:
-        app: vanus-timer
-    spec:
-      containers:
-        - name: timer
-          image: public.ecr.aws/vanus/timer:v0.1.2
-          imagePullPolicy: IfNotPresent
-#          livenessProbe:
-#            grpc:
-#              port: 2148
-#            failureThreshold: 10
-#            periodSeconds: 30
-#            initialDelaySeconds: 30
-          env:
-            - name: VANUS_LOG_LEVEL
-              value: DEBUG
-            - name: POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-          volumeMounts:
-            - name: config-timer
-              mountPath: /vanus/config
-      volumes:
-        - name: config-timer
-          configMap:
-            name: config-timer

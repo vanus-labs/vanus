@@ -21,3 +21,4 @@ resources:
 - yaml/trigger.yaml
 - yaml/gateway.yaml
 - yaml/store.yaml
+- yaml/timer.yaml

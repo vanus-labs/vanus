@@ -76,7 +76,7 @@ spec:
     spec:
       containers:
         - name: controller
-          image: public.ecr.aws/vanus/controller:v0.1.2
+          image: public.ecr.aws/vanus/controller:v0.2.0
           imagePullPolicy: IfNotPresent
   #          livenessProbe:
   #            grpc:
