@@ -39,12 +39,13 @@ import (
 )
 
 const (
-	defaultHintCapacity    = 2
-	defaultTickInterval    = 100 * time.Millisecond
-	defaultElectionTick    = 10
-	defaultHeartbeatTick   = 3
-	defaultMaxSizePerMsg   = 4096
-	defaultMaxInflightMsgs = 256
+	defaultHintCapacity       = 2
+	defaultTickInterval       = 100 * time.Millisecond
+	defaultElectionTick       = 10
+	defaultHeartbeatTick      = 3
+	defaultMaxSizePerMsg      = 4096
+	defaultMaxInflightMsgs    = 256
+	defaultMaxUnreachableMsgs = 12
 )
 
 type Peer struct {
