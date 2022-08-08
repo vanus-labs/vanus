@@ -23,6 +23,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -55,6 +56,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/meta"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 )
 
 const (
@@ -113,6 +115,8 @@ func NewServer(cfg store.Config) Server {
 		pm:           &pollingMgr{},
 	}
 
+	srv.volumeIDStr = strconv.FormatUint(cfg.Volume.ID.Uint64(), 10)
+
 	return srv
 }
 
@@ -140,8 +144,9 @@ type server struct {
 	cfg          store.Config
 	localAddress string
 
-	volumeID  vanus.ID
-	volumeDir string
+	volumeID    vanus.ID
+	volumeIDStr string
+	volumeDir   string
 
 	ctrlAddress []string
 	credentials credentials.TransportCredentials
@@ -637,8 +642,8 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 	} else {
 		return errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
 	}
-
 	entries := make([]block.Entry, len(events))
+	throughput := .0
 	for i, event := range events {
 		payload, err := proto.Marshal(event)
 		if err != nil {
@@ -647,7 +652,15 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 		entries[i] = block.Entry{
 			Payload: payload,
 		}
+		throughput += float64(len(payload))
 	}
+	b, ok := s.blocks.Load(id)
+	if !ok {
+		return errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
+	}
+
+	metrics.ThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.(file.Block).IdStr).Add(throughput)
+	metrics.TPSCounterVec.WithLabelValues(s.volumeIDStr, b.(file.Block).IdStr).Add(float64(len(entries)))
 
 	if err := appender.Append(ctx, entries...); err != nil {
 		return s.processAppendError(ctx, id, err)
@@ -724,7 +737,7 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 			"the segment doesn't exist on this server")
 	}
 
-	events, err := s.readMessages(ctx, reader, off, num)
+	events, err := s.readMessages(ctx, reader, off, num, id)
 	if err == nil {
 		return events, nil
 	}
@@ -745,24 +758,27 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 		return nil, block.ErrOffsetOnEnd
 	case <-doneC:
 		// it can't read message immediately because of async apply
-		events, err = s.readMessages(ctx, reader, off, num)
+		events, err = s.readMessages(ctx, reader, off, num, id)
 	}
 	return events, err
 }
 
-func (s *server) readMessages(ctx context.Context, reader block.Reader, off, num int) ([]*cepb.CloudEvent, error) {
+func (s *server) readMessages(
+	ctx context.Context, reader block.Reader, off, num int, id vanus.ID,
+) ([]*cepb.CloudEvent, error) {
 	entries, err := reader.Read(ctx, off, num)
 	if err != nil {
 		return nil, err
 	}
-
 	events := make([]*cepb.CloudEvent, len(entries))
+	throughput := .0
 	for i, entry := range entries {
 		event := &cepb.CloudEvent{}
 		if err2 := proto.Unmarshal(entry.Payload, event); err2 != nil {
 			return nil, errors.ErrInternal.WithMessage(
 				"unmarshall data to event failed").Wrap(err2)
 		}
+		throughput += float64(len(entry.Payload))
 		if event.Attributes == nil {
 			event.Attributes = make(map[string]*cepb.CloudEventAttributeValue, 1)
 		}
@@ -773,6 +789,12 @@ func (s *server) readMessages(ctx context.Context, reader block.Reader, off, num
 		}
 		events[i] = event
 	}
+	b, ok := s.blocks.Load(id)
+	if !ok {
+		return nil, errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
+	}
+	metrics.ThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.(file.Block).IdStr).Add(throughput)
+	metrics.TPSCounterVec.WithLabelValues(s.volumeIDStr, b.(file.Block).IdStr).Add(float64(len(events)))
 
 	return events, nil
 }

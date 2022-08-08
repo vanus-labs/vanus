@@ -14,21 +14,22 @@
 
 package metrics
 
-const (
-	LabelType     = "type"
-	LabelVolume   = "volume"
-	LabelEventbus = "eventbus"
-	LabelEventlog = "eventlog"
+import "github.com/prometheus/client_golang/prometheus"
 
-	LabelTriggerWorker = "trigger_worker"
-	LabelTrigger       = "trigger"
-	LabelResult        = "result"
-	LabelBlock         = "block"
-)
+var (
+	moduleOfSegmentServer = "segment_server"
 
-const (
-	LabelValueResourceDynamicCreate = "dynamic"
-	LabelValueResourceManualCreate  = "manual"
-	LabelValuePushEventSuccess      = "success"
-	LabelValuePushEventFail         = "fail"
+	TPSCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfSegmentServer,
+		Name:      "event_count",
+		Help:      "Total events for reading or writing",
+	}, []string{LabelVolume, LabelBlock})
+
+	ThroughputCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfSegmentServer,
+		Name:      "byte_count",
+		Help:      "Total bytes for reading or writing",
+	}, []string{LabelVolume, LabelBlock})
 )

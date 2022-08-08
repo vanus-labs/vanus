@@ -20,12 +20,15 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store"
 	"github.com/linkall-labs/vanus/internal/store/segment"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var configPath = flag.String("config", "./config/store.yaml", "store config file path")
@@ -50,6 +53,9 @@ func main() {
 		os.Exit(-1)
 	}
 
+	metrics.RegisterSegmentServerMetrics()
+	go startMetrics()
+
 	ctx := context.Background()
 	srv := segment.NewServer(*cfg)
 
@@ -73,4 +79,14 @@ func main() {
 	}
 
 	log.Info(ctx, "The SegmentServer has been shutdown.", nil)
+}
+
+func startMetrics() {
+	http.Handle("/metrics", promhttp.Handler())
+	err := http.ListenAndServe(":2112", nil)
+	if err != nil {
+		log.Error(context.Background(), "Metrics listen and serve failed.", map[string]interface{}{
+			log.KeyError: err,
+		})
+	}
 }
