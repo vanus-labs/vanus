@@ -16,9 +16,10 @@ package metrics
 
 import (
 	"context"
+	"sync"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel/attribute"
-	"sync"
 )
 
 const (
@@ -30,6 +31,14 @@ func RegisterControllerMetrics() {
 	prometheus.MustRegister(EventlogGaugeVec)
 	prometheus.MustRegister(SegmentCounterVec)
 	prometheus.MustRegister(BlockCounterVec)
+	prometheus.MustRegister(SubscriptionGauge)
+	prometheus.MustRegister(CtrlTriggerGauge)
+}
+
+func RegisterTriggerMetrics() {
+	prometheus.MustRegister(TriggerGauge)
+	prometheus.MustRegister(TriggerPullCounter)
+	prometheus.MustRegister(TriggerPushCounter)
 }
 
 func RegisterTimerMetrics() {

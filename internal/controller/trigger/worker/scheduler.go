@@ -23,6 +23,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/queue"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 )
 
 const (
@@ -113,6 +114,9 @@ func (s *SubscriptionScheduler) handler(ctx context.Context, subscriptionID vanu
 	tWorker := s.workerManager.GetTriggerWorker(twAddr)
 	if tWorker == nil {
 		return ErrTriggerWorkerNotFound
+	}
+	if subscription.TriggerWorker == "" {
+		metrics.CtrlTriggerGauge.WithLabelValues(twAddr).Inc()
 	}
 	subscription.TriggerWorker = twAddr
 	subscription.Phase = metadata.SubscriptionPhaseScheduled

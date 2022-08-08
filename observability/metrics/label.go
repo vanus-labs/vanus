@@ -19,6 +19,9 @@ const (
 	LabelVolume   = "volume"
 	LabelEventbus = "eventbus"
 	LabelEventlog = "eventlog"
+
+	LabelTriggerWorker = "trigger_worker"
+	LabelTrigger       = "trigger"
 )
 
 const (

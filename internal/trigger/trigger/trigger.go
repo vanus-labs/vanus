@@ -34,6 +34,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/transform"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 	"go.uber.org/ratelimit"
 )
 
@@ -53,12 +54,15 @@ type Trigger interface {
 	Init(ctx context.Context) error
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
+	GetSubscription(ctx context.Context) *primitive.Subscription
 	Change(ctx context.Context, subscription *primitive.Subscription) error
 	GetOffsets(ctx context.Context) pInfo.ListOffsetInfo
 	ResetOffsetToTimestamp(ctx context.Context, timestamp int64) (pInfo.ListOffsetInfo, error)
 }
 
 type trigger struct {
+	subscriptionIDStr string
+
 	subscription  *primitive.Subscription
 	offsetManager *offset.SubscriptionOffset
 	reader        reader.Reader
@@ -78,12 +82,13 @@ type trigger struct {
 
 func NewTrigger(subscription *primitive.Subscription, opts ...Option) Trigger {
 	t := &trigger{
-		stop:          func() {},
-		config:        defaultConfig(),
-		state:         TriggerCreated,
-		filter:        filter.GetFilter(subscription.Filters),
-		offsetManager: offset.NewSubscriptionOffset(subscription.ID),
-		subscription:  subscription,
+		stop:              func() {},
+		config:            defaultConfig(),
+		state:             TriggerCreated,
+		filter:            filter.GetFilter(subscription.Filters),
+		offsetManager:     offset.NewSubscriptionOffset(subscription.ID),
+		subscription:      subscription,
+		subscriptionIDStr: subscription.ID.String(),
 	}
 	t.applyOptions(opts...)
 	if t.rateLimiter == nil {
@@ -191,6 +196,7 @@ func (t *trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 			log.Debug(ctx, "send ce event success", map[string]interface{}{
 				"event": e,
 			})
+			metrics.TriggerPushCounter.WithLabelValues(t.subscriptionIDStr).Inc()
 			return nil
 		}
 	}
@@ -360,4 +366,8 @@ func (t *trigger) ResetOffsetToTimestamp(ctx context.Context, timestamp int64) (
 
 func (t *trigger) GetOffsets(ctx context.Context) pInfo.ListOffsetInfo {
 	return t.offsetManager.GetCommit()
+}
+
+func (t *trigger) GetSubscription(ctx context.Context) *primitive.Subscription {
+	return t.subscription
 }
