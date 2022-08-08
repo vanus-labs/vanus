@@ -69,7 +69,7 @@ func TestHost(t *testing.T) {
 			timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
 			defer cannel()
 
-			h.Send(timeoutCtx, msg, nodeID, localaddr)
+			h.Send(timeoutCtx, msg, nodeID, localaddr, func(err error) {})
 			for i := 0; i < 3; i++ {
 				select {
 				case m := <-ch:
@@ -86,7 +86,7 @@ func TestHost(t *testing.T) {
 			timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
 			defer cannel()
 
-			h.Send(timeoutCtx, msg, nodeID, "")
+			h.Send(timeoutCtx, msg, nodeID, "", func(err error) {})
 			for i := 0; i < 3; i++ {
 				select {
 				case m := <-ch:
@@ -102,7 +102,7 @@ func TestHost(t *testing.T) {
 		Convey("test host Sendv callback", func() {
 			timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
 			defer cannel()
-			h.Sendv(timeoutCtx, msgs, nodeID, localaddr)
+			h.Sendv(timeoutCtx, msgs, nodeID, localaddr, func(err error) {})
 			for i := 0; i < msgLen; i++ {
 				count := 0
 			loop:

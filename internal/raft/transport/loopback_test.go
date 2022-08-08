@@ -51,7 +51,7 @@ func TestLoopBack(t *testing.T) {
 			timeoutCtx, cannel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cannel()
 
-			loopbackInstance.Send(timeoutCtx, msg)
+			loopbackInstance.Send(timeoutCtx, msg, func(err error) {})
 			for i := 0; i < 3; i++ {
 				select {
 				case m := <-ch:
@@ -70,7 +70,7 @@ func TestLoopBack(t *testing.T) {
 
 			timeoutCtx, cannel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cannel()
-			loopbackInstance.Sendv(timeoutCtx, msgs)
+			loopbackInstance.Sendv(timeoutCtx, msgs, func(err error) {})
 
 			for i := 0; i < msgLen; i++ {
 				count := 0

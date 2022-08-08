@@ -39,12 +39,13 @@ import (
 )
 
 const (
-	defaultHintCapacity    = 2
-	defaultTickInterval    = 100 * time.Millisecond
-	defaultElectionTick    = 10
-	defaultHeartbeatTick   = 3
-	defaultMaxSizePerMsg   = 4096
-	defaultMaxInflightMsgs = 256
+	defaultHintCapacity       = 2
+	defaultTickInterval       = 100 * time.Millisecond
+	defaultElectionTick       = 10
+	defaultHeartbeatTick      = 3
+	defaultMaxSizePerMsg      = 4096
+	defaultMaxInflightMsgs    = 256
+	defaultMaxUnreachableMsgs = 12
 )
 
 type Peer struct {
@@ -530,7 +531,9 @@ func (r *replica) send(msgs []raftpb.Message) {
 	if len(msgs) == 1 {
 		msg := &msgs[0]
 		endpoint := r.peerHint(msg.To)
-		r.sender.Send(r.ctx, msg, msg.To, endpoint)
+		r.sender.Send(r.ctx, msg, msg.To, endpoint, func(err error) {
+			r.node.ReportUnreachable(msg.To)
+		})
 		return
 	}
 
@@ -549,7 +552,9 @@ func (r *replica) send(msgs []raftpb.Message) {
 			ma[i] = &msgs[i]
 		}
 		endpoint := r.peerHint(to)
-		r.sender.Sendv(r.ctx, ma, to, endpoint)
+		r.sender.Sendv(r.ctx, ma, to, endpoint, func(err error) {
+			r.node.ReportUnreachable(to)
+		})
 		return
 	}
 
@@ -561,9 +566,13 @@ func (r *replica) send(msgs []raftpb.Message) {
 	for to, msgs := range mm {
 		endpoint := r.peerHint(to)
 		if len(msgs) == 1 {
-			r.sender.Send(r.ctx, msgs[0], to, endpoint)
+			r.sender.Send(r.ctx, msgs[0], to, endpoint, func(err error) {
+				r.node.ReportUnreachable(to)
+			})
 		} else {
-			r.sender.Sendv(r.ctx, msgs, to, endpoint)
+			r.sender.Sendv(r.ctx, msgs, to, endpoint, func(err error) {
+				r.node.ReportUnreachable(to)
+			})
 		}
 	}
 }

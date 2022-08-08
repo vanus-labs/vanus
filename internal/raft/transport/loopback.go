@@ -29,11 +29,11 @@ type loopback struct {
 
 var _ Multiplexer = (*loopback)(nil)
 
-func (lo *loopback) Send(ctx context.Context, msg *raftpb.Message) {
+func (lo *loopback) Send(ctx context.Context, msg *raftpb.Message, cb SendErrorCallback) {
 	_ = lo.dmu.Receive(ctx, msg, lo.addr)
 }
 
-func (lo *loopback) Sendv(ctx context.Context, msgs []*raftpb.Message) {
+func (lo *loopback) Sendv(ctx context.Context, msgs []*raftpb.Message, cb SendErrorCallback) {
 	for _, msg := range msgs {
 		_ = lo.dmu.Receive(ctx, msg, lo.addr)
 	}

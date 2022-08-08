@@ -80,7 +80,7 @@ func TestServer(t *testing.T) {
 			timeoutCtx, cannel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cannel()
 
-			sendHost.Send(timeoutCtx, msg, 100, fmt.Sprintf("%s:%d", serverIP, serverPort))
+			sendHost.Send(timeoutCtx, msg, 100, fmt.Sprintf("%s:%d", serverIP, serverPort), func(err error) {})
 
 			for i := 0; i < 3; i++ {
 				select {
@@ -105,7 +105,7 @@ func TestServer(t *testing.T) {
 
 			timeoutCtx, cannel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cannel()
-			sendHost.Sendv(timeoutCtx, msgs, 100, fmt.Sprintf("%s:%d", serverIP, serverPort))
+			sendHost.Sendv(timeoutCtx, msgs, 100, fmt.Sprintf("%s:%d", serverIP, serverPort), func(err error) {})
 
 			for i := 0; i < msgLen; i++ {
 				count := 0

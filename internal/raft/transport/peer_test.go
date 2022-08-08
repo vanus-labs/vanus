@@ -100,7 +100,7 @@ func TestPeer(t *testing.T) {
 		timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
 		defer cannel()
 
-		p.Send(timeoutCtx, msg)
+		p.Send(timeoutCtx, msg, func(err error) {})
 
 		for i := 0; i < 3; i++ {
 			select {
@@ -122,7 +122,7 @@ func TestPeer(t *testing.T) {
 			}
 		}
 
-		p.Sendv(ctx, msgs)
+		p.Sendv(ctx, msgs, func(err error) {})
 
 		for i := 0; i < msgLen; i++ {
 			count := 0
@@ -159,7 +159,7 @@ func TestPeer(t *testing.T) {
 			}
 		}() // restart the raftsrv
 
-		p.Sendv(ctx, msgs)
+		p.Sendv(ctx, msgs, func(err error) {})
 	loop1:
 		for i := 3; i < msgLen; i++ {
 			for j := 0; j < 3; j++ {
@@ -172,5 +172,19 @@ func TestPeer(t *testing.T) {
 				time.Sleep(50 * time.Millisecond)
 			}
 		}
+	})
+
+	Convey("test message send error callback", t, func() {
+		msg := &raftpb.Message{
+			To: nodeID,
+		}
+		srv.Stop()
+		time.Sleep(time.Second / 10)
+		count := 0
+		p.Send(ctx, msg, func(err error) {
+			count++
+		})
+		time.Sleep(time.Second)
+		So(count, ShouldNotBeZeroValue)
 	})
 }
