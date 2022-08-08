@@ -21,6 +21,8 @@ var (
 	eventSource       string
 	eventType         string
 	eventBody         string
+	eventDeliveryTime string
+	eventDelayTime    string
 	dataFile          string
 	printDataTemplate bool
 	offset            int64

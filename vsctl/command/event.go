@@ -24,6 +24,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
@@ -37,6 +38,7 @@ import (
 const (
 	cloudEventDataRowLength = 4
 	httpPrefix              = "http://"
+	xceVanusDeliveryTime    = "xvanusdeliverytime"
 )
 
 func NewEventCommand() *cobra.Command {
@@ -91,6 +93,8 @@ func putEventCommand() *cobra.Command {
 	cmd.Flags().StringVar(&eventID, "id", "", "event id of CloudEvent")
 	cmd.Flags().StringVar(&dataFormat, "data-format", "json", "the format of event body, JSON or plain")
 	cmd.Flags().StringVar(&eventSource, "source", "cmd", "event source of CloudEvent")
+	cmd.Flags().StringVar(&eventDeliveryTime, "delivery-time", "", "event delivery time of CloudEvent, only support the time layout of RFC3339, for example: 2022-01-01T08:00:00Z")
+	cmd.Flags().StringVar(&eventDelayTime, "delay-time", "", "event delay delivery time of CloudEvent, only support the unit of seconds, for example: 60")
 	cmd.Flags().StringVar(&eventType, "type", "cmd", "event type of CloudEvent")
 	cmd.Flags().StringVar(&eventBody, "body", "", "event body of CloudEvent")
 	cmd.Flags().StringVar(&dataFile, "data", "", "the data file to send, each line represent a event "+
@@ -107,6 +111,21 @@ func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 	event.SetID(eventID)
 	event.SetSource(eventSource)
 	event.SetType(eventType)
+	if eventDeliveryTime != "" {
+		// validate event delivery time
+		if _, err := time.Parse(time.RFC3339, eventDeliveryTime); err != nil {
+			cmdFailedf(cmd, "invalid format of delivery-time: %s\n", err)
+		}
+		event.SetExtension(xceVanusDeliveryTime, eventDeliveryTime)
+	} else if eventDelayTime != "" {
+		// validate event delay time
+		timeOfInt64, err := strconv.ParseInt(eventDelayTime, 10, 64)
+		if err != nil {
+			cmdFailedf(cmd, "invalid format of delay-time: %s\n", err)
+		}
+		timeOfRFC3339 := time.Now().Add(time.Duration(timeOfInt64) * time.Second).UTC().Format(time.RFC3339)
+		event.SetExtension(xceVanusDeliveryTime, timeOfRFC3339)
+	}
 	var err error
 	if strings.ToLower(dataFormat) == "json" {
 		m := make(map[string]interface{})
