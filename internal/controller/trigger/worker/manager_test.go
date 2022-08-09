@@ -20,12 +20,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
+
+	"github.com/golang/mock/gomock"
+	"github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -62,21 +64,24 @@ func TestInit(t *testing.T) {
 		sub := getTestSubscription()
 		sub.TriggerWorker = addr
 		twManager := NewTriggerWorkerManager(Config{}, workerStorage, subManager, nil)
-		subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Any()).Return(nil)
+		//subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Any()).Return(nil)
 		workerStorage.EXPECT().ListTriggerWorker(ctx).Return([]*metadata.TriggerWorkerInfo{
 			{Addr: addr},
 		}, nil)
 		subManager.EXPECT().ListSubscription(ctx).Return([]*metadata.Subscription{
 			sub,
 		})
+		tWorker := NewMockTriggerWorker(ctrl)
+		gostub.Stub(&newTriggerWorker, func(_ *metadata.TriggerWorkerInfo, _ subscription.Manager) TriggerWorker {
+			return tWorker
+		})
+		tWorker.EXPECT().Start(gomock.Any()).Return(nil)
+		tWorker.EXPECT().AssignSubscription(gomock.Eq(sub.ID)).Return()
+		tWorker.EXPECT().GetPhase().Return(metadata.TriggerWorkerPhaseRunning)
 		err := twManager.Init(ctx)
 		So(err, ShouldBeNil)
-		time.Sleep(time.Millisecond * 100)
-		tWorker := twManager.GetTriggerWorker(addr)
-		So(tWorker, ShouldNotBeNil)
-		subIds := tWorker.GetAssignedSubscriptions()
-		So(len(subIds), ShouldEqual, 1)
-		So(subIds[0], ShouldEqual, sub.ID)
+		So(twManager.GetTriggerWorker(addr), ShouldNotBeNil)
+		tWorker.EXPECT().Close().Return(nil)
 		twManager.Stop()
 	})
 }

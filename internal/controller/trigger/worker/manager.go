@@ -297,7 +297,7 @@ func (m *manager) Init(ctx context.Context) error {
 	log.Info(ctx, "trigger worker size", map[string]interface{}{"size": len(tWorkerInfos)})
 	for i := range tWorkerInfos {
 		twInfo := tWorkerInfos[i]
-		tWorker := NewTriggerWorker(twInfo, m.subscriptionManager)
+		tWorker := newTriggerWorker(twInfo, m.subscriptionManager)
 		if err = tWorker.Start(ctx); err != nil {
 			return err
 		}

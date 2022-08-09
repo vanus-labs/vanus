@@ -69,6 +69,8 @@ type triggerWorker struct {
 	subscriptionQueue     queue.Queue
 }
 
+var newTriggerWorker = NewTriggerWorker
+
 func NewTriggerWorkerByAddr(addr string, subscriptionManager subscription.Manager) TriggerWorker {
 	tw := NewTriggerWorker(metadata.NewTriggerWorkerInfo(addr), subscriptionManager)
 	return tw
