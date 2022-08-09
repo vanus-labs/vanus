@@ -56,7 +56,7 @@ func main() {
 		os.Exit(-1)
 	}
 	ctx := signal.SetupSignalContext()
-	go startMetrics(cfg)
+	go startMetrics()
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
 	srv := trigger.NewTriggerServer(*cfg)
@@ -88,9 +88,9 @@ func main() {
 	log.Info(ctx, "trigger worker stopped", nil)
 }
 
-func startMetrics(cfg *trigger.Config) {
+func startMetrics() {
 	metrics.RegisterTriggerMetrics()
 
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port+1), nil)
+	http.ListenAndServe("2112", nil)
 }

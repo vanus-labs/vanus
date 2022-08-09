@@ -187,16 +187,19 @@ func (t *trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 	}
 	for retryTimes < t.config.MaxRetryTimes {
 		retryTimes++
+		startTime := time.Now()
 		if err = doFunc(); !ce.IsACK(err) {
+			metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, "fail").Inc()
 			log.Debug(ctx, "process event error", map[string]interface{}{
 				"error": err, "retryTimes": retryTimes,
 			})
 			time.Sleep(t.config.RetryInterval)
 		} else {
+			metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, "success").Inc()
+			metrics.TriggerPushEventRtCounter.WithLabelValues(t.subscriptionIDStr).Observe(time.Since(startTime).Seconds())
 			log.Debug(ctx, "send ce event success", map[string]interface{}{
 				"event": e,
 			})
-			metrics.TriggerPushCounter.WithLabelValues(t.subscriptionIDStr).Inc()
 			return nil
 		}
 	}
@@ -218,6 +221,7 @@ func (t *trigger) runEventProcess(ctx context.Context) {
 				continue
 			}
 			t.sendCh <- event
+			metrics.TriggerFilterMatchCounter.WithLabelValues(t.subscriptionIDStr).Inc()
 		}
 	}
 }

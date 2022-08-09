@@ -309,7 +309,7 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventlog.LogRe
 		if err = elReader.putEvent(ctx, eo); err != nil {
 			return err
 		}
-		metrics.TriggerPullCounter.WithLabelValues(elReader.config.SubscriptionIDStr, elReader.eventLogIDStr).Inc()
+		metrics.TriggerPullEventCounter.WithLabelValues(elReader.config.SubscriptionIDStr, elReader.eventLogIDStr).Inc()
 		elReader.offset = offset
 	}
 	return nil

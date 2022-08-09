@@ -22,6 +22,7 @@ const (
 
 	LabelTriggerWorker = "trigger_worker"
 	LabelTrigger       = "trigger"
+	LabelResult        = "result"
 )
 
 const (
