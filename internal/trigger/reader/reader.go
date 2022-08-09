@@ -203,11 +203,12 @@ func (r *reader) start(els []*record.EventLog) {
 			continue
 		}
 		elc := &eventLogReader{
-			config:      r.config,
-			eventLogVrn: el.VRN,
-			eventLogID:  eventLogID,
-			events:      r.events,
-			offset:      offset,
+			config:        r.config,
+			eventLogVrn:   el.VRN,
+			eventLogID:    eventLogID,
+			eventLogIDStr: eventLogID.String(),
+			events:        r.events,
+			offset:        offset,
 		}
 		r.elReader[elc.eventLogID] = el.VRN
 		r.wg.Add(1)

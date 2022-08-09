@@ -71,12 +71,12 @@ func TestInit(t *testing.T) {
 		})
 		err := twManager.Init(ctx)
 		So(err, ShouldBeNil)
+		time.Sleep(time.Millisecond * 10)
 		tWorker := twManager.GetTriggerWorker(addr)
 		So(tWorker, ShouldNotBeNil)
 		subIds := tWorker.GetAssignedSubscriptions()
 		So(len(subIds), ShouldEqual, 1)
 		So(subIds[0], ShouldEqual, sub.ID)
-		time.Sleep(time.Millisecond * 100)
 		twManager.Stop()
 	})
 }
