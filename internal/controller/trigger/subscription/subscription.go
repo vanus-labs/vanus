@@ -189,7 +189,6 @@ func (m *manager) Init(ctx context.Context) error {
 			metrics.CtrlTriggerGauge.WithLabelValues(sub.TriggerWorker).Inc()
 		}
 	}
-
 	m.offsetManager = offset.NewOffsetManager(m.storage, defaultCommitInterval)
 	return nil
 }
