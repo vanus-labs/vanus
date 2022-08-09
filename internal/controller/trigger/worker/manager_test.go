@@ -73,7 +73,7 @@ func TestInit(t *testing.T) {
 		So(err, ShouldBeNil)
 		time.Sleep(time.Millisecond * 10)
 		tWorker := twManager.GetTriggerWorker(addr)
-		So(tWorker, ShouldNotBeNil)
+		So(tWorker == nil, ShouldBeFalse)
 		subIds := tWorker.GetAssignedSubscriptions()
 		So(len(subIds), ShouldEqual, 1)
 		So(subIds[0], ShouldEqual, sub.ID)
