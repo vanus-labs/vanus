@@ -64,7 +64,6 @@ func TestInit(t *testing.T) {
 		sub := getTestSubscription()
 		sub.TriggerWorker = addr
 		twManager := NewTriggerWorkerManager(Config{}, workerStorage, subManager, nil)
-		//subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Any()).Return(nil)
 		workerStorage.EXPECT().ListTriggerWorker(ctx).Return([]*metadata.TriggerWorkerInfo{
 			{Addr: addr},
 		}, nil)
