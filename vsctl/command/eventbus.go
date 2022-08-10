@@ -63,7 +63,7 @@ func createEventbusCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf(cmd, "create eventbus failed: %s", err)
 			}
-			if isOutputFormatJSON(cmd) {
+			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Create Success", "Eventbus": eventbus})
 				color.Green(string(data))
 			} else {
@@ -102,7 +102,7 @@ func deleteEventbusCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf(cmd, "delete eventbus failed: %s", err)
 			}
-			if isOutputFormatJSON(cmd) {
+			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Delete Success", "Eventbus": eventbus})
 				color.Green(string(data))
 			} else {
@@ -169,7 +169,7 @@ func getEventbusInfoCommand() *cobra.Command {
 			}
 
 			t := table.NewWriter()
-			if isOutputFormatJSON(cmd) {
+			if IsFormatJSON(cmd) {
 				color.Yellow("WARN: this command doesn't support --output-format\n")
 			}
 			if !showSegment && !showBlock {
@@ -316,7 +316,7 @@ func listEventbusInfoCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf(cmd, "list eventbus failed: %s", err)
 			}
-			if isOutputFormatJSON(cmd) {
+			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(res)
 				color.Green(string(data))
 			} else {

@@ -20,11 +20,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	FormatJSON = "json"
+)
+
 type GlobalFlags struct {
-	Endpoint     string
-	Debug        bool
-	ConfigFile   string
-	OutputFormat string
+	Endpoint   string
+	Debug      bool
+	ConfigFile string
+	Format     string
 }
 
 func mustGetGatewayEndpoint(cmd *cobra.Command) string {
@@ -35,10 +39,10 @@ func mustGetGatewayEndpoint(cmd *cobra.Command) string {
 	return endpoint
 }
 
-func isOutputFormatJSON(cmd *cobra.Command) bool {
-	v, err := cmd.Flags().GetString("output-format")
+func IsFormatJSON(cmd *cobra.Command) bool {
+	v, err := cmd.Flags().GetString("format")
 	if err != nil {
 		return false
 	}
-	return strings.ToLower(v) == "json"
+	return strings.ToLower(v) == FormatJSON
 }

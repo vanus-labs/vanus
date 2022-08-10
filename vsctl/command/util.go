@@ -34,7 +34,7 @@ func cmdFailedf(cmd *cobra.Command, format string, a ...interface{}) {
 	if a != nil {
 		errStr = fmt.Sprintf(format, a)
 	}
-	if isOutputFormatJSON(cmd) {
+	if IsFormatJSON(cmd) {
 		m := map[string]string{"ERROR": errStr}
 		data, _ := json.Marshal(m)
 		color.Red(string(data))

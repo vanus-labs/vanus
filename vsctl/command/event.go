@@ -150,7 +150,7 @@ func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 		if httpResult == nil {
 			cmdFailedf(cmd, "failed to send: %s\n", res.Error())
 		} else {
-			if isOutputFormatJSON(cmd) {
+			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": httpResult.StatusCode})
 				color.Green(string(data))
 			} else {
@@ -225,7 +225,7 @@ func sendFile(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 			if httpResult == nil {
 				cmdFailedf(cmd, "failed to send: %s\n", res.Error())
 			} else {
-				if isOutputFormatJSON(cmd) {
+				if IsFormatJSON(cmd) {
 					data, _ := json.Marshal(map[string]interface{}{
 						"No.":    idx,
 						"Result": httpResult.StatusCode,
@@ -274,7 +274,7 @@ func getEventCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf(cmd, "unmarshal http response data failed: %s", err)
 			}
-			if isOutputFormatJSON(cmd) {
+			if IsFormatJSON(cmd) {
 				for idx := range data.Events {
 					data, _ := json.Marshal(map[string]interface{}{
 						"No.":   idx,

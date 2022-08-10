@@ -45,8 +45,8 @@ func init() {
 		"~/.vanus/vanus.yml", "the config file of vsctl")
 	rootCmd.PersistentFlags().BoolVarP(&globalFlags.Debug, "debug", "D", false,
 		"is debug mode enable")
-	rootCmd.PersistentFlags().StringVar(&globalFlags.OutputFormat, "output-format", "table",
-		"json or table")
+	rootCmd.PersistentFlags().StringVar(&globalFlags.Format, "format", "table",
+		"the output format of vsctl, json or table")
 
 	if os.Getenv("VANUS_GATEWAY") != "" {
 		globalFlags.Endpoint = os.Getenv("VANUS_GATEWAY")
@@ -57,8 +57,8 @@ func init() {
 		command.NewEventbusCommand(),
 		command.NewSubscriptionCommand(),
 		command.NewClusterCommand(),
+		newVersionCommand(),
 	)
-
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }
 
