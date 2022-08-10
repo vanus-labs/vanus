@@ -1,7 +1,7 @@
 VANUS_ROOT=$(shell pwd)
 VSPROTO_ROOT=$(VANUS_ROOT)/proto
 GIT_COMMIT=$(shell git log -1 --format='%h' | awk '{print $0}')
-
+DATE=$(shell date +%Y-%m-%d_%H:%M:%S)
 export VANUS_LOG_LEVEL=debug
 
 DOCKER_REGISTRY ?= public.ecr.aws
@@ -11,6 +11,8 @@ IMAGE_TAG ?= ${GIT_COMMIT}
 GOOS ?= linux
 #arch amd64 or arm64
 GOARCH ?= amd64
+
+VERSION ?= ${IMAGE_TAG}
 
 GO_BUILD= GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -trimpath
 DOCKER_BUILD_ARG= --build-arg TARGETARCH=$(GOARCH) --build-arg TARGETOS=$(GOOS)
@@ -36,12 +38,14 @@ docker-build-gateway:
 build-gateway:
 	$(GO_BUILD)  -o bin/gateway cmd/gateway/main.go
 
-docker-push-cmd: docker-build-cmd
-	docker push ${DOCKER_REPO}/vsctl:${IMAGE_TAG}
-docker-build-cmd:
-	docker build -t ${DOCKER_REPO}/vsctl:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/vsctl/Dockerfile .
+t1=-X 'main.Version=${VERSION}'
+t2=${t1} -X 'main.GitCommit=${GIT_COMMIT}'
+t3=${t2} -X 'main.BuildDate=${DATE}'
+#t4=${t3} -X 'main.GoVersion=${GO_VERSION}'
+LD_FLAGS=${t3} -X 'main.Platform=${GOOS}/${GOARCH}'
+
 build-cmd:
-	$(GO_BUILD)  -o bin/vsctl vsctl/main.go
+	$(GO_BUILD)  -ldflags "${LD_FLAGS}" -o bin/vsctl ./vsctl/
 
 docker-push-controller: docker-build-controller
 	docker push ${DOCKER_REPO}/controller:${IMAGE_TAG}

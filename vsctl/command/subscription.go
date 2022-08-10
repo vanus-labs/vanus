@@ -112,7 +112,7 @@ func createSubscriptionCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf(cmd, "create subscription failed: %s", err)
 			}
-			if isOutputFormatJSON(cmd) {
+			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{
 					"id":          res.Id,
 					"eventbus":    eventbus,
@@ -175,7 +175,7 @@ func deleteSubscriptionCommand() *cobra.Command {
 				cmdFailedf(cmd, "delete subscription failed: %s", err)
 			}
 
-			if isOutputFormatJSON(cmd) {
+			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"subscription_id": subscriptionID})
 				color.Green(string(data))
 			} else {
@@ -216,7 +216,7 @@ func getSubscriptionCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf(cmd, "get subscription info failed: %s", err)
 			}
-			if isOutputFormatJSON(cmd) {
+			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(res)
 				color.Green(string(data))
 			} else {
@@ -258,7 +258,7 @@ func listSubscriptionCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf(cmd, "list subscription failed: %s", err)
 			}
-			if isOutputFormatJSON(cmd) {
+			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(res)
 				color.Green(string(data))
 			} else {
