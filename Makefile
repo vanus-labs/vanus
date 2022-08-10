@@ -1,7 +1,7 @@
 VANUS_ROOT=$(shell pwd)
 VSPROTO_ROOT=$(VANUS_ROOT)/proto
 GIT_COMMIT=$(shell git log -1 --format='%h' | awk '{print $0}')
-DATE=$(shell date +%Y-%m-%d_%H:%M:%S)
+DATE=$(shell date +%Y-%m-%d_%H:%M:%S%z)
 export VANUS_LOG_LEVEL=debug
 
 DOCKER_REGISTRY ?= public.ecr.aws
