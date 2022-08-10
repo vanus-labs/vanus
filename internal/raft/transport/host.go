@@ -23,7 +23,7 @@ import (
 	"github.com/linkall-labs/vanus/raft/raftpb"
 )
 
-type SendErrorCallback func(error)
+type ErrorCallback func(error)
 
 type Host interface {
 	Sender
@@ -65,7 +65,7 @@ func (h *host) Stop() {
 	})
 }
 
-func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoint string, cb SendErrorCallback) {
+func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoint string, cb ErrorCallback) {
 	mux := h.resolveMultiplexer(ctx, to, endpoint)
 	if mux == nil {
 		// TODO(james.yin): report MsgUnreachable.
@@ -75,7 +75,7 @@ func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoin
 	mux.Send(ctx, msg, cb)
 }
 
-func (h *host) Sendv(ctx context.Context, msgs []*raftpb.Message, to uint64, endpoint string, cb SendErrorCallback) {
+func (h *host) Sendv(ctx context.Context, msgs []*raftpb.Message, to uint64, endpoint string, cb ErrorCallback) {
 	mux := h.resolveMultiplexer(ctx, to, endpoint)
 	if mux == nil {
 		// TODO(james.yin): report MsgUnreachable.

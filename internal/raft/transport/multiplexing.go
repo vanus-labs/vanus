@@ -23,8 +23,8 @@ import (
 )
 
 type Multiplexer interface {
-	Send(ctx context.Context, msg *raftpb.Message, cb SendErrorCallback)
-	Sendv(ctx context.Context, msgs []*raftpb.Message, cb SendErrorCallback)
+	Send(ctx context.Context, msg *raftpb.Message, cb ErrorCallback)
+	Sendv(ctx context.Context, msgs []*raftpb.Message, cb ErrorCallback)
 }
 
 type Demultiplexer interface {
