@@ -407,7 +407,7 @@ func TestBucket_updateOffsetMeta(t *testing.T) {
 
 func event(i int64) *ce.Event {
 	e := ce.NewEvent()
-	t := time.Now().Add(time.Duration(i) * time.Millisecond).UTC().Format("2006-01-02T15:04:05Z")
+	t := time.Now().Add(time.Duration(i) * time.Millisecond).UTC().Format(time.RFC3339)
 	e.SetExtension(xceVanusDeliveryTime, t)
 	e.SetExtension(xceVanusEventbus, "quick-start")
 	return &e
