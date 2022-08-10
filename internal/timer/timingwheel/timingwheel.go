@@ -29,6 +29,7 @@ import (
 	timererrors "github.com/linkall-labs/vanus/internal/timer/errors"
 	"github.com/linkall-labs/vanus/internal/timer/metadata"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	ce "github.com/cloudevents/sdk-go/v2"
@@ -124,6 +125,9 @@ func NewTimingWheel(c *Config) Manager {
 		"etcdEndpoints": c.EtcdEndpoints,
 		"ctrlEndpoints": c.CtrlEndpoints,
 	})
+	metrics.TimingWheelTickGauge.Set(float64(c.Tick))
+	metrics.TimingWheelSizeGauge.Set(float64(c.WheelSize))
+	metrics.TimingWheelLayersGauge.Set(float64(c.Layers))
 	return &timingWheel{
 		config:  c,
 		kvStore: store,

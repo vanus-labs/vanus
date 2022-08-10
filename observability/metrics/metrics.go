@@ -32,6 +32,12 @@ func RegisterControllerMetrics() {
 	prometheus.MustRegister(BlockCounterVec)
 }
 
+func RegisterTimerMetrics() {
+	prometheus.MustRegister(TimingWheelTickGauge)
+	prometheus.MustRegister(TimingWheelSizeGauge)
+	prometheus.MustRegister(TimingWheelLayersGauge)
+}
+
 type Config struct {
 	ModuleName string
 }

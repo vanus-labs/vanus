@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"flag"
+	"net/http"
 	"os"
 
 	"github.com/linkall-labs/vanus/internal/timer"
@@ -24,6 +25,8 @@ import (
 	"github.com/linkall-labs/vanus/internal/timer/timingwheel"
 	"github.com/linkall-labs/vanus/internal/util/signal"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -45,6 +48,8 @@ func main() {
 		})
 		os.Exit(-1)
 	}
+
+	go startMetrics(cfg)
 
 	// new leaderelection manager
 	leaderelectionMgr := leaderelection.NewLeaderElection(cfg.GetLeaderElectionConfig())
@@ -102,4 +107,15 @@ func main() {
 	timingwheelMgr.Stop(ctx)
 
 	log.Info(ctx, "the tiemr has been shutdown gracefully", nil)
+}
+
+func startMetrics(cfg *timer.Config) {
+	metrics.RegisterTimerMetrics()
+	http.Handle("/metrics", promhttp.Handler())
+	err := http.ListenAndServe(":2112", nil)
+	if err != nil {
+		log.Error(context.Background(), "Metrics listen and serve failed.", map[string]interface{}{
+			log.KeyError: err,
+		})
+	}
 }
