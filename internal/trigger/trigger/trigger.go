@@ -189,13 +189,13 @@ func (t *trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 		retryTimes++
 		startTime := time.Now()
 		if err = doFunc(); !ce.IsACK(err) {
-			metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, "fail").Inc()
+			metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelValuePushEventFail).Inc()
 			log.Debug(ctx, "process event error", map[string]interface{}{
 				"error": err, "retryTimes": retryTimes,
 			})
 			time.Sleep(t.config.RetryInterval)
 		} else {
-			metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, "success").Inc()
+			metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelValuePushEventSuccess).Inc()
 			metrics.TriggerPushEventRtCounter.WithLabelValues(t.subscriptionIDStr).Observe(time.Since(startTime).Seconds())
 			log.Debug(ctx, "send ce event success", map[string]interface{}{
 				"event": e,

@@ -23,11 +23,12 @@ import (
 	"os"
 	"sync"
 
+	"github.com/linkall-labs/vanus/observability/metrics"
+
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger"
 	"github.com/linkall-labs/vanus/internal/util/signal"
 	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
 	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -56,6 +57,7 @@ func main() {
 		os.Exit(-1)
 	}
 	ctx := signal.SetupSignalContext()
+	metrics.RegisterTriggerMetrics()
 	go startMetrics()
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
@@ -89,8 +91,6 @@ func main() {
 }
 
 func startMetrics() {
-	metrics.RegisterTriggerMetrics()
-
 	http.Handle("/metrics", promhttp.Handler())
 	http.ListenAndServe(":2112", nil)
 }

@@ -29,28 +29,28 @@ var (
 	TriggerPullEventCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfTriggerWorker,
-		Name:      "trigger pull event number",
+		Name:      "pull_event_number",
 		Help:      "The event number of Trigger Pull",
 	}, []string{LabelTrigger, LabelEventlog})
 
 	TriggerFilterMatchCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfTriggerWorker,
-		Name:      "trigger filter match event number",
+		Name:      "filter_match_number",
 		Help:      "The event number of Trigger Filter Match",
 	}, []string{LabelTrigger})
 
 	TriggerPushEventCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfTriggerWorker,
-		Name:      "trigger push event number",
+		Name:      "push_event_number",
 		Help:      "The event number of Trigger Push",
 	}, []string{LabelTrigger, LabelResult})
 
 	TriggerPushEventRtCounter = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfTriggerWorker,
-		Name:      "trigger push event rt",
+		Name:      "push_event_rt",
 		Help:      "The rt of Trigger Push Event",
 	}, []string{LabelTrigger})
 )

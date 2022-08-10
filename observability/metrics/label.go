@@ -28,4 +28,6 @@ const (
 const (
 	LabelValueResourceDynamicCreate = "dynamic"
 	LabelValueResourceManualCreate  = "manual"
+	LabelValuePushEventSuccess      = "success"
+	LabelValuePushEventFail         = "fail"
 )
