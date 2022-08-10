@@ -31,8 +31,9 @@ func RegisterControllerMetrics() {
 	registerGoRuntimeMetrics()
 	prometheus.MustRegister(EventbusGauge)
 	prometheus.MustRegister(EventlogGaugeVec)
-	prometheus.MustRegister(SegmentCounterVec)
-	prometheus.MustRegister(BlockCounterVec)
+	prometheus.MustRegister(SegmentGaugeVec)
+	prometheus.MustRegister(SegmentCreationRuntimeCounterVec)
+	prometheus.MustRegister(SegmentDeletedCounterVec)
 	prometheus.MustRegister(SubscriptionGauge)
 	prometheus.MustRegister(CtrlTriggerGauge)
 }
