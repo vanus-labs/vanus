@@ -21,8 +21,7 @@ import (
 )
 
 const (
-	FormatJSON  = "json"
-	FormatTable = "table"
+	FormatJSON = "json"
 )
 
 type GlobalFlags struct {

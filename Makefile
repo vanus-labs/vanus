@@ -2,6 +2,8 @@ VANUS_ROOT=$(shell pwd)
 VSPROTO_ROOT=$(VANUS_ROOT)/proto
 GIT_COMMIT=$(shell git log -1 --format='%h' | awk '{print $0}')
 DATE=$(shell date +%Y-%m-%d_%H:%M:%S%z)
+GO_VERSION=$(shell go version)
+
 export VANUS_LOG_LEVEL=debug
 
 DOCKER_REGISTRY ?= public.ecr.aws
@@ -41,8 +43,8 @@ build-gateway:
 t1=-X 'main.Version=${VERSION}'
 t2=${t1} -X 'main.GitCommit=${GIT_COMMIT}'
 t3=${t2} -X 'main.BuildDate=${DATE}'
-#t4=${t3} -X 'main.GoVersion=${GO_VERSION}'
-LD_FLAGS=${t3} -X 'main.Platform=${GOOS}/${GOARCH}'
+t4=${t3} -X 'main.GoVersion=${GO_VERSION}'
+LD_FLAGS=${t4} -X 'main.Platform=${GOOS}/${GOARCH}'
 
 build-cmd:
 	$(GO_BUILD)  -ldflags "${LD_FLAGS}" -o bin/vsctl ./vsctl/
