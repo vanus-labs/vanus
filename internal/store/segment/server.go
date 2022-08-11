@@ -659,8 +659,8 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 		return errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
 	}
 
-	metrics.ThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.(file.Block).IdStr).Add(throughput)
-	metrics.TPSCounterVec.WithLabelValues(s.volumeIDStr, b.(file.Block).IdStr).Add(float64(len(entries)))
+	metrics.ThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.(file.Block).IDStr).Add(throughput)
+	metrics.TPSCounterVec.WithLabelValues(s.volumeIDStr, b.(file.Block).IDStr).Add(float64(len(entries)))
 
 	if err := appender.Append(ctx, entries...); err != nil {
 		return s.processAppendError(ctx, id, err)
@@ -793,8 +793,8 @@ func (s *server) readMessages(
 	if !ok {
 		return nil, errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
 	}
-	metrics.ThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.(file.Block).IdStr).Add(throughput)
-	metrics.TPSCounterVec.WithLabelValues(s.volumeIDStr, b.(file.Block).IdStr).Add(float64(len(events)))
+	metrics.ThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.(file.Block).IDStr).Add(throughput)
+	metrics.TPSCounterVec.WithLabelValues(s.volumeIDStr, b.(file.Block).IDStr).Add(float64(len(events)))
 
 	return events, nil
 }
