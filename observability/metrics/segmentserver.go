@@ -22,28 +22,28 @@ var (
 	WriteTPSCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfSegmentServer,
-		Name:      "event_count",
+		Name:      "write_event_count",
 		Help:      "Total events for writing",
 	}, []string{LabelVolume, LabelBlock})
 
 	ReadTPSCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfSegmentServer,
-		Name:      "event_count",
+		Name:      "read_event_count",
 		Help:      "Total events for reading",
 	}, []string{LabelVolume, LabelBlock})
 
 	WriteThroughputCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfSegmentServer,
-		Name:      "byte_count",
+		Name:      "write_byte_count",
 		Help:      "Total bytes for writing",
 	}, []string{LabelVolume, LabelBlock})
 
 	ReadThroughputCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfSegmentServer,
-		Name:      "byte_count",
+		Name:      "read_byte_count",
 		Help:      "Total bytes for reading or reading",
 	}, []string{LabelVolume, LabelBlock})
 )
