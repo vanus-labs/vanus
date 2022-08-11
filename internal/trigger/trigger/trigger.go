@@ -34,6 +34,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/transform"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 	"go.uber.org/ratelimit"
 )
 
@@ -59,6 +60,8 @@ type Trigger interface {
 }
 
 type trigger struct {
+	subscriptionIDStr string
+
 	subscription  *primitive.Subscription
 	offsetManager *offset.SubscriptionOffset
 	reader        reader.Reader
@@ -78,12 +81,13 @@ type trigger struct {
 
 func NewTrigger(subscription *primitive.Subscription, opts ...Option) Trigger {
 	t := &trigger{
-		stop:          func() {},
-		config:        defaultConfig(),
-		state:         TriggerCreated,
-		filter:        filter.GetFilter(subscription.Filters),
-		offsetManager: offset.NewSubscriptionOffset(subscription.ID),
-		subscription:  subscription,
+		stop:              func() {},
+		config:            defaultConfig(),
+		state:             TriggerCreated,
+		filter:            filter.GetFilter(subscription.Filters),
+		offsetManager:     offset.NewSubscriptionOffset(subscription.ID),
+		subscription:      subscription,
+		subscriptionIDStr: subscription.ID.String(),
 	}
 	t.applyOptions(opts...)
 	if t.rateLimiter == nil {
@@ -182,12 +186,16 @@ func (t *trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 	}
 	for retryTimes < t.config.MaxRetryTimes {
 		retryTimes++
+		startTime := time.Now()
 		if err = doFunc(); !ce.IsACK(err) {
+			metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelValuePushEventFail).Inc()
 			log.Debug(ctx, "process event error", map[string]interface{}{
 				"error": err, "retryTimes": retryTimes,
 			})
 			time.Sleep(t.config.RetryInterval)
 		} else {
+			metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelValuePushEventSuccess).Inc()
+			metrics.TriggerPushEventRtCounter.WithLabelValues(t.subscriptionIDStr).Observe(time.Since(startTime).Seconds())
 			log.Debug(ctx, "send ce event success", map[string]interface{}{
 				"event": e,
 			})
@@ -212,6 +220,7 @@ func (t *trigger) runEventProcess(ctx context.Context) {
 				continue
 			}
 			t.sendCh <- event
+			metrics.TriggerFilterMatchCounter.WithLabelValues(t.subscriptionIDStr).Inc()
 		}
 	}
 }

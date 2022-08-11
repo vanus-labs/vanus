@@ -13,3 +13,44 @@
 // limitations under the License.
 
 package metrics
+
+import "github.com/prometheus/client_golang/prometheus"
+
+var (
+	moduleOfTriggerWorker = "trigger_worker"
+
+	TriggerGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfTriggerWorker,
+		Name:      "trigger_number",
+		Help:      "The number of trigger",
+	}, []string{LabelTriggerWorker})
+
+	TriggerPullEventCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfTriggerWorker,
+		Name:      "pull_event_number",
+		Help:      "The event number of trigger pull",
+	}, []string{LabelTrigger, LabelEventlog})
+
+	TriggerFilterMatchCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfTriggerWorker,
+		Name:      "filter_match_event_number",
+		Help:      "The event number of trigger filter match",
+	}, []string{LabelTrigger})
+
+	TriggerPushEventCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfTriggerWorker,
+		Name:      "push_event_number",
+		Help:      "The event number of trigger push",
+	}, []string{LabelTrigger, LabelResult})
+
+	TriggerPushEventRtCounter = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfTriggerWorker,
+		Name:      "push_event_rt",
+		Help:      "The rt of trigger push event",
+	}, []string{LabelTrigger})
+)

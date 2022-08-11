@@ -47,4 +47,18 @@ var (
 		Name:      "block_number",
 		Help:      "The number of Block.",
 	}, []string{LabelType})
+
+	SubscriptionGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfController,
+		Name:      "subscription_number",
+		Help:      "The number of subscription",
+	}, []string{LabelEventbus})
+
+	CtrlTriggerGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfController,
+		Name:      "trigger_number",
+		Help:      "The number of trigger",
+	}, []string{LabelTriggerWorker})
 )

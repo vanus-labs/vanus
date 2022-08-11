@@ -226,7 +226,7 @@ func (mgr *volumeMgr) GetBlocksOfVolume(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	result := make(map[uint64]*metadata.Block, 0)
+	result := make(map[uint64]*metadata.Block, len(pairs))
 	for idx := range pairs {
 		pair := pairs[idx]
 		bl := &metadata.Block{}

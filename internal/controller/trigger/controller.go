@@ -34,6 +34,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/linkall-labs/vanus/proto/pkg/meta"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -388,6 +389,7 @@ func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, ad
 			"runningAddr":            addr,
 		})
 	}
+	metrics.CtrlTriggerGauge.WithLabelValues(subscription.TriggerWorker).Dec()
 	subscription.TriggerWorker = ""
 	subscription.Phase = metadata.SubscriptionPhasePending
 	err := ctrl.subscriptionManager.UpdateSubscription(ctx, subscription)

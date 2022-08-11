@@ -27,6 +27,7 @@ import (
 	iInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 )
 
 type Manager interface {
@@ -98,14 +99,15 @@ func (m *manager) GetSubscription(ctx context.Context, id vanus.ID) *metadata.Su
 	return sub
 }
 
-func (m *manager) AddSubscription(ctx context.Context, sub *metadata.Subscription) error {
+func (m *manager) AddSubscription(ctx context.Context, subscription *metadata.Subscription) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	err := m.storage.CreateSubscription(ctx, sub)
+	err := m.storage.CreateSubscription(ctx, subscription)
 	if err != nil {
 		return err
 	}
-	m.subscriptionMap[sub.ID] = sub
+	m.subscriptionMap[subscription.ID] = subscription
+	metrics.SubscriptionGauge.WithLabelValues(subscription.EventBus).Inc()
 	return nil
 }
 
@@ -129,7 +131,7 @@ func (m *manager) UpdateSubscription(ctx context.Context, sub *metadata.Subscrip
 func (m *manager) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	_, exist := m.subscriptionMap[id]
+	subscription, exist := m.subscriptionMap[id]
 	if !exist {
 		return nil
 	}
@@ -142,6 +144,7 @@ func (m *manager) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 		return err
 	}
 	delete(m.subscriptionMap, id)
+	metrics.SubscriptionGauge.WithLabelValues(subscription.EventBus).Dec()
 	return nil
 }
 
@@ -181,6 +184,10 @@ func (m *manager) Init(ctx context.Context) error {
 	for i := range subList {
 		sub := subList[i]
 		m.subscriptionMap[sub.ID] = sub
+		metrics.SubscriptionGauge.WithLabelValues(sub.EventBus).Inc()
+		if sub.TriggerWorker != "" {
+			metrics.CtrlTriggerGauge.WithLabelValues(sub.TriggerWorker).Inc()
+		}
 	}
 	m.offsetManager = offset.NewOffsetManager(m.storage, defaultCommitInterval)
 	return nil

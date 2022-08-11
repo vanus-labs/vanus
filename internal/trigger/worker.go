@@ -27,6 +27,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"github.com/linkall-labs/vanus/internal/trigger/trigger"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 )
@@ -165,6 +166,7 @@ func (w *worker) AddSubscription(ctx context.Context, subscription *primitive.Su
 		return err
 	}
 	w.addTrigger(subscription.ID, t)
+	metrics.TriggerGauge.WithLabelValues(w.config.IP).Inc()
 	return nil
 }
 
@@ -173,6 +175,7 @@ func (w *worker) RemoveSubscription(ctx context.Context, id vanus.ID) error {
 	defer w.lock.Unlock()
 	_ = w.stopSubscription(ctx, id)
 	w.deleteTrigger(id)
+	metrics.TriggerGauge.WithLabelValues(w.config.IP).Dec()
 	return nil
 }
 

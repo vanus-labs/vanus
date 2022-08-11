@@ -33,6 +33,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	eb "github.com/linkall-labs/vanus/client"
@@ -48,12 +49,13 @@ const (
 )
 
 type Config struct {
-	EventBusName    string
-	EventBusVRN     string
-	SubscriptionID  vanus.ID
-	Offset          EventLogOffset
-	OffsetType      primitive.OffsetType
-	OffsetTimestamp int64
+	EventBusName      string
+	EventBusVRN       string
+	SubscriptionID    vanus.ID
+	SubscriptionIDStr string
+	Offset            EventLogOffset
+	OffsetType        primitive.OffsetType
+	OffsetTimestamp   int64
 
 	CheckEventLogInterval time.Duration
 }
@@ -79,6 +81,7 @@ func NewReader(config Config, events chan<- info.EventRecord) Reader {
 	if config.CheckEventLogInterval <= 0 {
 		config.CheckEventLogInterval = checkEventLogInterval
 	}
+	config.SubscriptionIDStr = config.SubscriptionID.String()
 	r := &reader{
 		config:   config,
 		events:   events,
@@ -200,11 +203,12 @@ func (r *reader) start(els []*record.EventLog) {
 			continue
 		}
 		elc := &eventLogReader{
-			config:      r.config,
-			eventLogVrn: el.VRN,
-			eventLogID:  eventLogID,
-			events:      r.events,
-			offset:      offset,
+			config:        r.config,
+			eventLogVrn:   el.VRN,
+			eventLogID:    eventLogID,
+			eventLogIDStr: eventLogID.String(),
+			events:        r.events,
+			offset:        offset,
 		}
 		r.elReader[elc.eventLogID] = el.VRN
 		r.wg.Add(1)
@@ -225,11 +229,12 @@ func (r *reader) start(els []*record.EventLog) {
 }
 
 type eventLogReader struct {
-	config      Config
-	eventLogID  vanus.ID
-	eventLogVrn string
-	events      chan<- info.EventRecord
-	offset      uint64
+	config        Config
+	eventLogID    vanus.ID
+	eventLogIDStr string
+	eventLogVrn   string
+	events        chan<- info.EventRecord
+	offset        uint64
 }
 
 func (elReader *eventLogReader) run(ctx context.Context) {
@@ -294,16 +299,18 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventlog.LogRe
 		return errors.ErrReadNoEvent
 	}
 	for i := range events {
-		e := events[i]
-		offsetByte, _ := e.Extensions()[eb.XVanusLogOffset].([]byte)
+		ec, _ := events[i].Context.(*ce.EventContextV1)
+		offsetByte, _ := ec.Extensions[eb.XVanusLogOffset].([]byte)
 		offset := binary.BigEndian.Uint64(offsetByte)
 		eo := info.EventRecord{Event: events[i], OffsetInfo: pInfo.OffsetInfo{
 			EventLogID: elReader.eventLogID,
 			Offset:     offset,
 		}}
+		delete(ec.Extensions, eb.XVanusLogOffset)
 		if err = elReader.putEvent(ctx, eo); err != nil {
 			return err
 		}
+		metrics.TriggerPullEventCounter.WithLabelValues(elReader.config.SubscriptionIDStr, elReader.eventLogIDStr).Inc()
 		elReader.offset = offset
 	}
 	return nil

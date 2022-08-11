@@ -19,9 +19,15 @@ const (
 	LabelVolume   = "volume"
 	LabelEventbus = "eventbus"
 	LabelEventlog = "eventlog"
+
+	LabelTriggerWorker = "trigger_worker"
+	LabelTrigger       = "trigger"
+	LabelResult        = "result"
 )
 
 const (
 	LabelValueResourceDynamicCreate = "dynamic"
 	LabelValueResourceManualCreate  = "manual"
+	LabelValuePushEventSuccess      = "success"
+	LabelValuePushEventFail         = "fail"
 )
