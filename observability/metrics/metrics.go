@@ -62,7 +62,7 @@ func RegisterSegmentServerMetrics() {
 func registerGoRuntimeMetrics() {
 	collectors.NewBuildInfoCollector()
 	collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})
-	collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})
+	collectors.NewGoCollector(collectors.WithGoCollections(collectors.GoRuntimeMetricsCollection))
 }
 
 type Config struct {
