@@ -20,6 +20,7 @@ import (
 	"context"
 	stderr "errors"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -145,6 +146,10 @@ func New(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, ra
 	go r.run(context.TODO())
 
 	return r
+}
+
+func (r *replica) IDStr() string {
+	return strconv.FormatUint(r.blockID.Uint64(), 10)
 }
 
 func (r *replica) Stop(ctx context.Context) {

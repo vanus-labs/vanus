@@ -105,6 +105,7 @@ func NewServer(cfg store.Config) Server {
 		localAddress: localAddress,
 		volumeID:     cfg.Volume.ID,
 		volumeDir:    cfg.Volume.Dir,
+		volumeIDStr:  strconv.FormatUint(cfg.Volume.ID.Uint64(), 10),
 		resolver:     resolver,
 		host:         host,
 		ctrlAddress:  cfg.ControllerAddresses,
@@ -114,8 +115,6 @@ func NewServer(cfg store.Config) Server {
 		closec:       make(chan struct{}),
 		pm:           &pollingMgr{},
 	}
-
-	srv.volumeIDStr = strconv.FormatUint(cfg.Volume.ID.Uint64(), 10)
 
 	return srv
 }
@@ -654,13 +653,9 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 		}
 		byteCount += float64(len(payload))
 	}
-	b, ok := s.blocks.Load(id)
-	if !ok {
-		return errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
-	}
 
-	metrics.ThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.(*file.Block).IDStr()).Add(byteCount)
-	metrics.TPSCounterVec.WithLabelValues(s.volumeIDStr, b.(*file.Block).IDStr()).Add(float64(len(entries)))
+	metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, appender.IDStr()).Add(byteCount)
+	metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, appender.IDStr()).Add(float64(len(entries)))
 
 	if err := appender.Append(ctx, entries...); err != nil {
 		return s.processAppendError(ctx, id, err)
@@ -790,8 +785,8 @@ func (s *server) readMessages(
 		events[i] = event
 	}
 
-	metrics.ThroughputCounterVec.WithLabelValues(s.volumeIDStr, reader.IDStr()).Add(byteCount)
-	metrics.TPSCounterVec.WithLabelValues(s.volumeIDStr, reader.IDStr()).Add(float64(len(events)))
+	metrics.ReadThroughputCounterVec.WithLabelValues(s.volumeIDStr, reader.IDStr()).Add(byteCount)
+	metrics.ReadTPSCounterVec.WithLabelValues(s.volumeIDStr, reader.IDStr()).Add(float64(len(events)))
 
 	return events, nil
 }

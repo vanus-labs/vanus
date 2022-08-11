@@ -19,17 +19,31 @@ import "github.com/prometheus/client_golang/prometheus"
 var (
 	moduleOfSegmentServer = "segment_server"
 
-	TPSCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
+	WriteTPSCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfSegmentServer,
 		Name:      "event_count",
-		Help:      "Total events for reading or writing",
+		Help:      "Total events for writing",
 	}, []string{LabelVolume, LabelBlock})
 
-	ThroughputCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
+	ReadTPSCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfSegmentServer,
+		Name:      "event_count",
+		Help:      "Total events for reading",
+	}, []string{LabelVolume, LabelBlock})
+
+	WriteThroughputCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfSegmentServer,
 		Name:      "byte_count",
-		Help:      "Total bytes for reading or writing",
+		Help:      "Total bytes for writing",
+	}, []string{LabelVolume, LabelBlock})
+
+	ReadThroughputCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfSegmentServer,
+		Name:      "byte_count",
+		Help:      "Total bytes for reading or reading",
 	}, []string{LabelVolume, LabelBlock})
 )

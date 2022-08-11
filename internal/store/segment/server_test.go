@@ -189,15 +189,17 @@ func TestServer_ReadFromBlock(t *testing.T) {
 		})
 
 		Convey("long-polling without timeout", func() {
-			srv := &server{}
-			srv.state = primitive.ServerStateRunning
 			ctrl := gomock.NewController(t)
 			pmMock := NewMockpollingManager(ctrl)
-			srv.pm = pmMock
 
 			blkID := vanus.NewID()
 			reader := block.NewMockReader(ctrl)
 			reader.EXPECT().IDStr().AnyTimes().Return(blkID.String())
+
+			srv := &server{
+				state: primitive.ServerStateRunning,
+				pm:    pmMock,
+			}
 
 			ctx := context.Background()
 			_, err := srv.ReadFromBlock(ctx, blkID, 3, 5)
@@ -265,15 +267,17 @@ func TestServer_ReadFromBlock(t *testing.T) {
 		})
 
 		Convey("long-polling with request is canceled by user", func() {
-			srv := &server{}
-			srv.state = primitive.ServerStateRunning
 			ctrl := gomock.NewController(t)
 			pmMock := NewMockpollingManager(ctrl)
-			srv.pm = pmMock
 
 			blkID := vanus.NewID()
 			reader := block.NewMockReader(ctrl)
 			reader.EXPECT().IDStr().AnyTimes().Return(blkID.String())
+
+			srv := &server{
+				state: primitive.ServerStateRunning,
+				pm:    pmMock,
+			}
 
 			ctx, cancel := context.WithCancel(context.Background())
 			_, err := srv.ReadFromBlock(ctx, blkID, 3, 5)

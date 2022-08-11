@@ -50,8 +50,10 @@ func RegisterTimerMetrics() {
 }
 
 func RegisterSegmentServerMetrics() {
-	prometheus.MustRegister(TPSCounterVec)
-	prometheus.MustRegister(ThroughputCounterVec)
+	prometheus.MustRegister(WriteTPSCounterVec)
+	prometheus.MustRegister(WriteThroughputCounterVec)
+	prometheus.MustRegister(ReadTPSCounterVec)
+	prometheus.MustRegister(ReadThroughputCounterVec)
 }
 
 type Config struct {
