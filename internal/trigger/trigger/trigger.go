@@ -54,7 +54,6 @@ type Trigger interface {
 	Init(ctx context.Context) error
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
-	GetSubscription(ctx context.Context) *primitive.Subscription
 	Change(ctx context.Context, subscription *primitive.Subscription) error
 	GetOffsets(ctx context.Context) pInfo.ListOffsetInfo
 	ResetOffsetToTimestamp(ctx context.Context, timestamp int64) (pInfo.ListOffsetInfo, error)
@@ -370,8 +369,4 @@ func (t *trigger) ResetOffsetToTimestamp(ctx context.Context, timestamp int64) (
 
 func (t *trigger) GetOffsets(ctx context.Context) pInfo.ListOffsetInfo {
 	return t.offsetManager.GetCommit()
-}
-
-func (t *trigger) GetSubscription(ctx context.Context) *primitive.Subscription {
-	return t.subscription
 }

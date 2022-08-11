@@ -106,10 +106,6 @@ func TestRemoveSubscription(t *testing.T) {
 			So(exist, ShouldBeTrue)
 			So(v, ShouldNotBeNil)
 			tg.EXPECT().Stop(gomock.Any()).Return(nil)
-			tg.EXPECT().GetSubscription(gomock.Any()).Return(&primitive.Subscription{
-				ID:       id,
-				EventBus: "test",
-			})
 			err = m.RemoveSubscription(ctx, id)
 			So(err, ShouldBeNil)
 			v, exist = m.getTrigger(id)

@@ -64,20 +64,6 @@ func (mr *MockTriggerMockRecorder) GetOffsets(ctx interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOffsets", reflect.TypeOf((*MockTrigger)(nil).GetOffsets), ctx)
 }
 
-// GetSubscription mocks base method.
-func (m *MockTrigger) GetSubscription(ctx context.Context) *primitive.Subscription {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSubscription", ctx)
-	ret0, _ := ret[0].(*primitive.Subscription)
-	return ret0
-}
-
-// GetSubscription indicates an expected call of GetSubscription.
-func (mr *MockTriggerMockRecorder) GetSubscription(ctx interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscription", reflect.TypeOf((*MockTrigger)(nil).GetSubscription), ctx)
-}
-
 // Init mocks base method.
 func (m *MockTrigger) Init(ctx context.Context) error {
 	m.ctrl.T.Helper()

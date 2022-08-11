@@ -166,20 +166,16 @@ func (w *worker) AddSubscription(ctx context.Context, subscription *primitive.Su
 		return err
 	}
 	w.addTrigger(subscription.ID, t)
-	metrics.TriggerGauge.WithLabelValues(subscription.EventBus, w.config.IP).Inc()
+	metrics.TriggerGauge.WithLabelValues(w.config.IP).Inc()
 	return nil
 }
 
 func (w *worker) RemoveSubscription(ctx context.Context, id vanus.ID) error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
-	t, exist := w.getTrigger(id)
-	if !exist {
-		return nil
-	}
 	_ = w.stopSubscription(ctx, id)
 	w.deleteTrigger(id)
-	metrics.TriggerGauge.WithLabelValues(t.GetSubscription(ctx).EventBus, w.config.IP).Dec()
+	metrics.TriggerGauge.WithLabelValues(w.config.IP).Dec()
 	return nil
 }
 

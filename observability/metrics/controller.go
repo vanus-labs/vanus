@@ -52,13 +52,13 @@ var (
 		Namespace: namespace,
 		Subsystem: moduleOfController,
 		Name:      "subscription_number",
-		Help:      "The number of Subscription.",
+		Help:      "The number of subscription",
 	}, []string{LabelEventbus})
 
 	CtrlTriggerGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfController,
 		Name:      "trigger_number",
-		Help:      "The number of Trigger.",
+		Help:      "The number of trigger",
 	}, []string{LabelTriggerWorker})
 )
