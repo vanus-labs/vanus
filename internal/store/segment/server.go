@@ -643,7 +643,7 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 		return errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
 	}
 	entries := make([]block.Entry, len(events))
-	throughput := .0
+	byteCount := .0
 	for i, event := range events {
 		payload, err := proto.Marshal(event)
 		if err != nil {
@@ -652,15 +652,15 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 		entries[i] = block.Entry{
 			Payload: payload,
 		}
-		throughput += float64(len(payload))
+		byteCount += float64(len(payload))
 	}
 	b, ok := s.blocks.Load(id)
 	if !ok {
 		return errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
 	}
 
-	metrics.ThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.(file.Block).IDStr).Add(throughput)
-	metrics.TPSCounterVec.WithLabelValues(s.volumeIDStr, b.(file.Block).IDStr).Add(float64(len(entries)))
+	metrics.ThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.(*file.Block).IDStr()).Add(byteCount)
+	metrics.TPSCounterVec.WithLabelValues(s.volumeIDStr, b.(*file.Block).IDStr()).Add(float64(len(entries)))
 
 	if err := appender.Append(ctx, entries...); err != nil {
 		return s.processAppendError(ctx, id, err)
@@ -771,14 +771,14 @@ func (s *server) readMessages(
 		return nil, err
 	}
 	events := make([]*cepb.CloudEvent, len(entries))
-	throughput := .0
+	byteCount := .0
 	for i, entry := range entries {
 		event := &cepb.CloudEvent{}
 		if err2 := proto.Unmarshal(entry.Payload, event); err2 != nil {
 			return nil, errors.ErrInternal.WithMessage(
 				"unmarshall data to event failed").Wrap(err2)
 		}
-		throughput += float64(len(entry.Payload))
+		byteCount += float64(len(entry.Payload))
 		if event.Attributes == nil {
 			event.Attributes = make(map[string]*cepb.CloudEventAttributeValue, 1)
 		}
@@ -789,12 +789,9 @@ func (s *server) readMessages(
 		}
 		events[i] = event
 	}
-	b, ok := s.blocks.Load(id)
-	if !ok {
-		return nil, errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
-	}
-	metrics.ThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.(file.Block).IDStr).Add(throughput)
-	metrics.TPSCounterVec.WithLabelValues(s.volumeIDStr, b.(file.Block).IDStr).Add(float64(len(events)))
+
+	metrics.ThroughputCounterVec.WithLabelValues(s.volumeIDStr, reader.IDStr()).Add(byteCount)
+	metrics.TPSCounterVec.WithLabelValues(s.volumeIDStr, reader.IDStr()).Add(float64(len(events)))
 
 	return events, nil
 }

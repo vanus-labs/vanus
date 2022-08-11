@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -43,14 +42,14 @@ func Create(ctx context.Context, blockDir string, id vanus.ID, capacity int64) (
 
 	path := resolvePath(blockDir, id)
 	b := &Block{
-		id:   id,
-		path: path,
-		cap:  capacity,
+		id:    id,
+		idStr: id.String(),
+		path:  path,
+		cap:   capacity,
 		actx: appendContext{
 			offset: headerBlockSize,
 		},
 	}
-	b.IDStr = strconv.FormatUint(id.Uint64(), 10)
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_RDWR|os.O_SYNC, defaultFilePerm)
 	if err != nil {

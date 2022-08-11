@@ -54,6 +54,7 @@ type TwoPCAppender interface {
 }
 
 type Reader interface {
+	IDStr() string
 	Read(context.Context, int, int) ([]Entry, error)
 }
 

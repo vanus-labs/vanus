@@ -69,7 +69,7 @@ func (m *blockMeta) toAppendContext() appendContext {
 //   └────────────────┴───────────────┴─────────┴────────----───┘
 type Block struct {
 	id    vanus.ID
-	IDStr string
+	idStr string
 	path  string
 
 	version int32
