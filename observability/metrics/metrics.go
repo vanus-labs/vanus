@@ -49,6 +49,13 @@ func RegisterTimerMetrics() {
 	prometheus.MustRegister(TimingWheelLayersGauge)
 }
 
+func RegisterSegmentServerMetrics() {
+	prometheus.MustRegister(WriteTPSCounterVec)
+	prometheus.MustRegister(WriteThroughputCounterVec)
+	prometheus.MustRegister(ReadTPSCounterVec)
+	prometheus.MustRegister(ReadThroughputCounterVec)
+}
+
 type Config struct {
 	ModuleName string
 }

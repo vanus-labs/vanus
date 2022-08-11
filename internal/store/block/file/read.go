@@ -58,6 +58,10 @@ func (b *Block) Read(ctx context.Context, start, number int) ([]block.Entry, err
 	return entries, nil
 }
 
+func (b *Block) IDStr() string {
+	return b.idStr
+}
+
 func (b *Block) entryRange(start, num int) (int64, int64, int, error) {
 	// TODO(james.yin): optimize lock.
 	b.mu.RLock()

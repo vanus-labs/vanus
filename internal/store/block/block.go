@@ -36,6 +36,7 @@ var (
 )
 
 type Appender interface {
+	IDStr() string
 	Append(ctx context.Context, entries ...Entry) error
 }
 
@@ -54,6 +55,7 @@ type TwoPCAppender interface {
 }
 
 type Reader interface {
+	IDStr() string
 	Read(context.Context, int, int) ([]Entry, error)
 }
 

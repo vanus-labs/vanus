@@ -23,6 +23,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -55,6 +56,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/meta"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 )
 
 const (
@@ -103,6 +105,7 @@ func NewServer(cfg store.Config) Server {
 		localAddress: localAddress,
 		volumeID:     cfg.Volume.ID,
 		volumeDir:    cfg.Volume.Dir,
+		volumeIDStr:  strconv.FormatUint(cfg.Volume.ID.Uint64(), 10),
 		resolver:     resolver,
 		host:         host,
 		ctrlAddress:  cfg.ControllerAddresses,
@@ -140,8 +143,9 @@ type server struct {
 	cfg          store.Config
 	localAddress string
 
-	volumeID  vanus.ID
-	volumeDir string
+	volumeID    vanus.ID
+	volumeIDStr string
+	volumeDir   string
 
 	ctrlAddress []string
 	credentials credentials.TransportCredentials
@@ -637,8 +641,8 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 	} else {
 		return errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
 	}
-
 	entries := make([]block.Entry, len(events))
+	byteCount := .0
 	for i, event := range events {
 		payload, err := proto.Marshal(event)
 		if err != nil {
@@ -647,7 +651,11 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 		entries[i] = block.Entry{
 			Payload: payload,
 		}
+		byteCount += float64(len(payload))
 	}
+
+	metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, appender.IDStr()).Add(byteCount)
+	metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, appender.IDStr()).Add(float64(len(entries)))
 
 	if err := appender.Append(ctx, entries...); err != nil {
 		return s.processAppendError(ctx, id, err)
@@ -750,19 +758,22 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, off int, num in
 	return events, err
 }
 
-func (s *server) readMessages(ctx context.Context, reader block.Reader, off, num int) ([]*cepb.CloudEvent, error) {
+func (s *server) readMessages(
+	ctx context.Context, reader block.Reader, off, num int,
+) ([]*cepb.CloudEvent, error) {
 	entries, err := reader.Read(ctx, off, num)
 	if err != nil {
 		return nil, err
 	}
-
 	events := make([]*cepb.CloudEvent, len(entries))
+	byteCount := .0
 	for i, entry := range entries {
 		event := &cepb.CloudEvent{}
 		if err2 := proto.Unmarshal(entry.Payload, event); err2 != nil {
 			return nil, errors.ErrInternal.WithMessage(
 				"unmarshall data to event failed").Wrap(err2)
 		}
+		byteCount += float64(len(entry.Payload))
 		if event.Attributes == nil {
 			event.Attributes = make(map[string]*cepb.CloudEventAttributeValue, 1)
 		}
@@ -773,6 +784,9 @@ func (s *server) readMessages(ctx context.Context, reader block.Reader, off, num
 		}
 		events[i] = event
 	}
+
+	metrics.ReadThroughputCounterVec.WithLabelValues(s.volumeIDStr, reader.IDStr()).Add(byteCount)
+	metrics.ReadTPSCounterVec.WithLabelValues(s.volumeIDStr, reader.IDStr()).Add(float64(len(events)))
 
 	return events, nil
 }

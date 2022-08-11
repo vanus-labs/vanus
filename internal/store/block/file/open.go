@@ -42,9 +42,10 @@ func Create(ctx context.Context, blockDir string, id vanus.ID, capacity int64) (
 
 	path := resolvePath(blockDir, id)
 	b := &Block{
-		id:   id,
-		path: path,
-		cap:  capacity,
+		id:    id,
+		idStr: id.String(),
+		path:  path,
+		cap:   capacity,
 		actx: appendContext{
 			offset: headerBlockSize,
 		},

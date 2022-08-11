@@ -68,8 +68,9 @@ func (m *blockMeta) toAppendContext() appendContext {
 //   │  Header Block  │  Entries ...  │  Bound  │  ... Indexes  │
 //   └────────────────┴───────────────┴─────────┴────────----───┘
 type Block struct {
-	id   vanus.ID
-	path string
+	id    vanus.ID
+	idStr string
+	path  string
 
 	version int32
 	cap     int64

@@ -245,6 +245,20 @@ func (m *MockReader) EXPECT() *MockReaderMockRecorder {
 	return m.recorder
 }
 
+// IDStr mocks base method.
+func (m *MockReader) IDStr() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IDStr")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// IDStr indicates an expected call of IDStr.
+func (mr *MockReaderMockRecorder) IDStr() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IDStr", reflect.TypeOf((*MockReader)(nil).IDStr))
+}
+
 // Read mocks base method.
 func (m *MockReader) Read(arg0 context.Context, arg1, arg2 int) ([]Entry, error) {
 	m.ctrl.T.Helper()
