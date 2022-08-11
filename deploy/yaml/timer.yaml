@@ -11,7 +11,6 @@ data:
       - vanus-controller-0.vanus-controller:2379
       - vanus-controller-1.vanus-controller:2379
       - vanus-controller-2.vanus-controller:2379
-    replicas: 2
     metadata:
       key_prefix: "/vanus"
     leaderelection:
