@@ -20,7 +20,6 @@ import (
 	"context"
 	stderr "errors"
 	"sort"
-	"strconv"
 	"sync"
 	"time"
 
@@ -34,6 +33,7 @@ import (
 	raftlog "github.com/linkall-labs/vanus/internal/raft/log"
 	"github.com/linkall-labs/vanus/internal/raft/transport"
 	"github.com/linkall-labs/vanus/internal/store/block"
+	"github.com/linkall-labs/vanus/internal/store/block/file"
 	"github.com/linkall-labs/vanus/internal/store/errors"
 	"github.com/linkall-labs/vanus/observability/log"
 )
@@ -149,7 +149,7 @@ func New(ctx context.Context, blockID vanus.ID, appender block.TwoPCAppender, ra
 }
 
 func (r *replica) IDStr() string {
-	return strconv.FormatUint(r.blockID.Uint64(), 10)
+	return r.appender.(*file.Block).IDStr()
 }
 
 func (r *replica) Stop(ctx context.Context) {
