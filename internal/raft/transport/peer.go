@@ -79,21 +79,21 @@ loop:
 	for {
 		var err error
 		select {
-		case mwc := <-p.taskc:
+		case t := <-p.taskc:
 			stream := p.stream
 			if stream == nil {
-				if stream, err = p.connect(mwc.ctx, opts...); err != nil {
-					p.processSendError(mwc, err)
+				if stream, err = p.connect(t.ctx, opts...); err != nil {
+					p.processSendError(t, err)
 					break
 				}
 				p.stream = stream
 				if err = stream.Send(&preface); err != nil {
-					p.processSendError(mwc, err)
+					p.processSendError(t, err)
 					break
 				}
 			}
-			if err = stream.Send(mwc.msg); err != nil {
-				p.processSendError(mwc, err)
+			if err = stream.Send(t.msg); err != nil {
+				p.processSendError(t, err)
 				break
 			}
 		case <-p.closec:
