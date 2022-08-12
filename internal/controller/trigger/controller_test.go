@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/linkall-labs/vanus/internal/primitive/info"
+
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/worker"
@@ -202,6 +204,7 @@ func TestController_UpdateSubscription(t *testing.T) {
 			})
 			Convey("rate limit change", func() {
 				subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
+				subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).Return(info.ListOffsetInfo{}, nil)
 				request := &ctrlpb.UpdateSubscriptionRequest{
 					Id: subID.Uint64(),
 					Config: &metapb.SubscriptionConfig{
@@ -215,6 +218,7 @@ func TestController_UpdateSubscription(t *testing.T) {
 		})
 		Convey("update subscription sink", func() {
 			subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
+			subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).Return(info.ListOffsetInfo{}, nil)
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id:   subID.Uint64(),
 				Sink: "modify-sink",
@@ -227,6 +231,7 @@ func TestController_UpdateSubscription(t *testing.T) {
 		})
 		Convey("update filters", func() {
 			subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
+			subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).Return(info.ListOffsetInfo{}, nil)
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Filters: []*metapb.Filter{
@@ -242,6 +247,7 @@ func TestController_UpdateSubscription(t *testing.T) {
 		})
 		Convey("update transformer", func() {
 			subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
+			subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).Return(info.ListOffsetInfo{}, nil)
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Transformer: &metapb.Transformer{
@@ -344,6 +350,7 @@ func TestController_GetSubscription(t *testing.T) {
 				EventBus: "test-bus",
 			}
 			subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).Return(sub)
+			subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).Return(info.ListOffsetInfo{}, nil)
 			resp, err := ctrl.GetSubscription(ctx, request)
 			So(err, ShouldBeNil)
 			So(resp.EventBus, ShouldEqual, sub.EventBus)
@@ -369,6 +376,7 @@ func TestController_ListSubscription(t *testing.T) {
 				{ID: vanus.NewID(), EventBus: "bus2"},
 			}
 			subManager.EXPECT().ListSubscription(gomock.Any()).Return(list)
+			subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(info.ListOffsetInfo{}, nil)
 			resp, err := ctrl.ListSubscription(ctx, nil)
 			So(err, ShouldBeNil)
 			So(len(resp.Subscription), ShouldEqual, 2)

@@ -143,7 +143,7 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 		return nil, err
 	}
 	ctrl.scheduler.EnqueueNormalSubscription(sub.ID)
-	resp := convert.ToPbSubscription(sub)
+	resp := convert.ToPbSubscription(sub, nil)
 	return resp, nil
 }
 
@@ -199,7 +199,8 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 		return nil, err
 	}
 	ctrl.scheduler.EnqueueNormalSubscription(subscription.ID)
-	resp := convert.ToPbSubscription(subscription)
+	offsets, _ := ctrl.subscriptionManager.GetOffset(ctx, subID)
+	resp := convert.ToPbSubscription(subscription, offsets)
 	return resp, nil
 }
 
@@ -237,7 +238,8 @@ func (ctrl *controller) GetSubscription(ctx context.Context,
 	if sub == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("subscription not exist")
 	}
-	resp := convert.ToPbSubscription(sub)
+	offsets, _ := ctrl.subscriptionManager.GetOffset(ctx, sub.ID)
+	resp := convert.ToPbSubscription(sub, offsets)
 	return resp, nil
 }
 
@@ -342,7 +344,8 @@ func (ctrl *controller) ListSubscription(ctx context.Context,
 	subscriptions := ctrl.subscriptionManager.ListSubscription(ctx)
 	list := make([]*meta.Subscription, 0, len(subscriptions))
 	for _, sub := range subscriptions {
-		list = append(list, convert.ToPbSubscription(sub))
+		offsets, _ := ctrl.subscriptionManager.GetOffset(ctx, sub.ID)
+		list = append(list, convert.ToPbSubscription(sub, offsets))
 	}
 	return &ctrlpb.ListSubscriptionResponse{Subscription: list}, nil
 }
