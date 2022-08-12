@@ -35,9 +35,7 @@ var (
 	filters        string
 	transformer    string
 	rateLimit      int32
-	fromLatest     bool
-	fromEarliest   bool
-	fromTime       string
+	from           string
 	subscriptionID uint64
 	showSegment    bool
 	showBlock      bool
