@@ -74,7 +74,7 @@ spec:
       labels:
         app: vanus-controller
       annotations:
-        linkall.com/vanus/metrics/port: "2112"
+        vanus.dev/metrics/port: "2112"
     spec:
       containers:
         - name: controller

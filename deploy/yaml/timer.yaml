@@ -41,6 +41,8 @@ spec:
     metadata:
       labels:
         app: vanus-timer
+      annotations:
+        vanus.dev/metrics/port: "2112"
     spec:
       containers:
         - name: timer

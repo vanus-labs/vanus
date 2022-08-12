@@ -56,6 +56,8 @@ spec:
     metadata:
       labels:
         app: vanus-store
+      annotations:
+        vanus.dev/metrics/port: "2112"
     spec:
       containers:
         - name: store

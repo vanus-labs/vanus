@@ -170,6 +170,8 @@ spec:
       app: vanus-gateway
   template:
     metadata:
+      annotations:
+        vanus.dev/metrics/port: "2112"
       labels:
         app: vanus-gateway
     spec:
@@ -206,6 +208,8 @@ spec:
       app: vanus-timer
   template:
     metadata:
+      annotations:
+        vanus.dev/metrics/port: "2112"
       labels:
         app: vanus-timer
     spec:
@@ -242,6 +246,8 @@ spec:
       app: vanus-trigger
   template:
     metadata:
+      annotations:
+        vanus.dev/metrics/port: "2112"
       labels:
         app: vanus-trigger
     spec:
@@ -282,6 +288,8 @@ spec:
   serviceName: vanus-controller
   template:
     metadata:
+      annotations:
+        vanus.dev/metrics/port: "2112"
       labels:
         app: vanus-controller
     spec:
@@ -307,6 +315,8 @@ spec:
           name: etcd-client
         - containerPort: 2380
           name: etcd-peer
+        - containerPort: 2112
+          name: metrics
         volumeMounts:
         - mountPath: /vanus/config
           name: config-controller
@@ -343,6 +353,8 @@ spec:
   serviceName: vanus-store
   template:
     metadata:
+      annotations:
+        vanus.dev/metrics/port: "2112"
       labels:
         app: vanus-store
     spec:
