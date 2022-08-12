@@ -37,6 +37,8 @@ var (
 	OpenLogWriter = eventlog.OpenWriter
 	// OpenLogReader open a Reader of EventLog identified by vrn.
 	OpenLogReader = eventlog.OpenReader
+	// search an event by Event ID
+	SearchEventByID = eventlog.SearchEventByID
 
 	LookupEarliestLogOffset = eventlog.LookupEarliestOffset
 	LookupLatestLogOffset   = eventlog.LookupLatestOffset

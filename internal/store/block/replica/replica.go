@@ -67,7 +67,7 @@ type commitWaiter struct {
 type Replica interface {
 	Stop(ctx context.Context)
 	Bootstrap(blocks []Peer) error
-	Append(ctx context.Context, entries ...block.Entry) error
+	Append(ctx context.Context, entries ...block.Entry) ([]block.Entry, error)
 	Receive(ctx context.Context, msg *raftpb.Message, from uint64, endpoint string)
 	FillClusterInfo(info *metapb.SegmentHealthInfo)
 	Delete(ctx context.Context)
@@ -407,21 +407,21 @@ func (r *replica) reset() {
 }
 
 // Append implements block.Appender.
-func (r *replica) Append(ctx context.Context, entries ...block.Entry) error {
+func (r *replica) Append(ctx context.Context, entries ...block.Entry) ([]block.Entry, error) {
 	// TODO(james.yin): support batch
 	if len(entries) != 1 {
-		return errors.ErrInvalidRequest
+		return entries, errors.ErrInvalidRequest
 	}
 
 	offset, err := r.append(ctx, entries)
 	if err != nil {
-		return err
+		return entries, err
 	}
 
 	// Wait until entries is committed.
 	r.waitCommit(ctx, offset)
 
-	return nil
+	return entries, nil
 }
 
 func (r *replica) append(ctx context.Context, entries []block.Entry) (uint32, error) {

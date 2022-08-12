@@ -34,7 +34,7 @@ service SegmentServer {
   rpc InactivateSegment(InactivateSegmentRequest)
       returns (google.protobuf.Empty);
 
-  rpc AppendToBlock(AppendToBlockRequest) returns (google.protobuf.Empty);
+  rpc AppendToBlock(AppendToBlockRequest) returns (AppendToBlockResponse);
   rpc ReadFromBlock(ReadFromBlockRequest) returns (ReadFromBlockResponse);
   rpc Status(google.protobuf.Empty) returns (StatusResponse);
 }
@@ -79,6 +79,10 @@ message InactivateSegmentResponse {}
 message AppendToBlockRequest {
   uint64 block_id = 1;
   io.cloudevents.v1.CloudEventBatch events = 2;
+}
+
+message AppendToBlockResponse {
+  repeated int64 offset = 1;
 }
 
 message ReadFromBlockRequest {

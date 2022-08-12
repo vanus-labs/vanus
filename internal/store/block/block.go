@@ -37,7 +37,7 @@ var (
 
 type Appender interface {
 	IDStr() string
-	Append(ctx context.Context, entries ...Entry) error
+	Append(ctx context.Context, entries ...Entry) ([]Entry, error)
 }
 
 type AppendContext interface {

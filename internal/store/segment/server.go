@@ -82,7 +82,7 @@ type Server interface {
 	ActivateSegment(ctx context.Context, logID vanus.ID, segID vanus.ID, replicas map[vanus.ID]string) error
 	InactivateSegment(ctx context.Context) error
 
-	AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) error
+	AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]block.Entry, error)
 	ReadFromBlock(ctx context.Context, id vanus.ID, off int, num int) ([]*cepb.CloudEvent, error)
 }
 
@@ -626,28 +626,29 @@ func (s *server) InactivateSegment(ctx context.Context) error {
 	return nil
 }
 
-func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) error {
+func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]block.Entry, error) {
 	if len(events) == 0 {
-		return errors.ErrInvalidRequest.WithMessage("event list is empty")
+		return nil, errors.ErrInvalidRequest.WithMessage("event list is empty")
 	}
 
 	if err := s.checkState(); err != nil {
-		return err
+		return nil, err
 	}
 
 	var appender block.Appender
 	if v, ok := s.writers.Load(id); ok {
 		appender, _ = v.(block.Appender)
 	} else {
-		return errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
+		return nil, errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
 	}
 	entries := make([]block.Entry, len(events))
 	byteCount := .0
 	for i, event := range events {
 		payload, err := proto.Marshal(event)
 		if err != nil {
-			return errors.ErrInternal.WithMessage("marshall event failed").Wrap(err)
+			return nil, errors.ErrInternal.WithMessage("marshall event failed").Wrap(err)
 		}
+
 		entries[i] = block.Entry{
 			Payload: payload,
 		}
@@ -657,12 +658,14 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 	metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, appender.IDStr()).Add(byteCount)
 	metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, appender.IDStr()).Add(float64(len(entries)))
 
-	if err := appender.Append(ctx, entries...); err != nil {
-		return s.processAppendError(ctx, id, err)
+	entries, err := appender.Append(ctx, entries...)
+	if err != nil {
+		return nil, s.processAppendError(ctx, id, err)
 	}
+
 	// TODO(weihe.yin) make this method deep to code
 	s.pm.NewMessageArrived(id)
-	return nil
+	return entries, nil
 }
 
 func (s *server) processAppendError(ctx context.Context, blockID vanus.ID, err error) error {

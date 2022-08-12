@@ -17,8 +17,9 @@ package eventbus
 import (
 	// standard libraries.
 	"context"
+	"encoding/base64"
+	"encoding/binary"
 	stderrors "errors"
-	"fmt"
 	"sync"
 
 	// third-party libraries.
@@ -195,7 +196,7 @@ func (w *basicBusWriter) Append(ctx context.Context, event *ce.Event) (string, e
 	}
 
 	// TODO: event id
-	return fmt.Sprintf("vanus:event:%d:%s/%d", w.ebus.cfg.ID, lw.Log().VRN(), off), nil
+	return w.createEventID(lw.Log().VRN().ID, off), nil
 }
 
 func (w *basicBusWriter) pickLogWriter(ctx context.Context, event *ce.Event) (eventlog.LogWriter, error) {
@@ -215,4 +216,12 @@ func (w *basicBusWriter) pickLogWriter(ctx context.Context, event *ce.Event) (ev
 func (w *basicBusWriter) WithPicker(picker WriterPicker) BusWriter {
 	w.picker = picker
 	return w
+}
+
+func (w *basicBusWriter) createEventID(logID uint64, off int64) string {
+	buf := make([]byte, 16)
+	binary.BigEndian.PutUint64(buf[0:8], logID)
+	binary.BigEndian.PutUint64(buf[8:16], uint64(off))
+	encoded := base64.StdEncoding.EncodeToString(buf)
+	return encoded
 }

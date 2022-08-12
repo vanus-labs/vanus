@@ -38,15 +38,16 @@ func (m *MockReplica) EXPECT() *MockReplicaMockRecorder {
 }
 
 // Append mocks base method.
-func (m *MockReplica) Append(ctx context.Context, entries ...block.Entry) error {
+func (m *MockReplica) Append(ctx context.Context, entries ...block.Entry) ([]block.Entry, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx}
 	for _, a := range entries {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "Append", varargs...)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].([]block.Entry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Append indicates an expected call of Append.

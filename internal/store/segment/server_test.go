@@ -43,23 +43,6 @@ func TestServer_RemoveBlock(t *testing.T) {
 		cfg := store.Config{}
 		srv := NewServer(cfg).(*server)
 		ctx := context.Background()
-		Convey("test state checking", func() {
-			err := srv.RemoveBlock(ctx, vanus.NewID())
-			et := err.(*errors.ErrorType)
-			So(et.Description, ShouldEqual, "service state error")
-			So(et.Code, ShouldEqual, errors.ErrorCode_SERVICE_NOT_RUNNING)
-			So(et.Message, ShouldEqual, fmt.Sprintf("the server isn't ready to work, current state: %s",
-				primitive.ServerStateCreated))
-		})
-
-		srv.state = primitive.ServerStateRunning
-		Convey("the replica not found", func() {
-			err := srv.RemoveBlock(ctx, vanus.NewID())
-			et := err.(*errors.ErrorType)
-			So(et.Description, ShouldEqual, "resource not found")
-			So(et.Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
-			So(et.Message, ShouldEqual, "the replica not found")
-		})
 
 		ctrl := gomock.NewController(t)
 		dir, _ := os.MkdirTemp("", "*")
@@ -71,7 +54,28 @@ func TestServer_RemoveBlock(t *testing.T) {
 		blk, err := file.Create(context.Background(), p, vanus.NewID(), 1024*1024*64)
 		So(err, ShouldBeNil)
 
+		Convey("test state checking", func() {
+			err := srv.RemoveBlock(ctx, vanus.NewID())
+			et := err.(*errors.ErrorType)
+			So(et.Description, ShouldEqual, "service state error")
+			So(et.Code, ShouldEqual, errors.ErrorCode_SERVICE_NOT_RUNNING)
+			So(et.Message, ShouldEqual, fmt.Sprintf("the server isn't ready to work, current state: %s",
+				primitive.ServerStateCreated))
+		})
+
+		Convey("the replica not found", func() {
+			srv.state = primitive.ServerStateRunning
+
+			err := srv.RemoveBlock(ctx, vanus.NewID())
+			et := err.(*errors.ErrorType)
+			So(et.Description, ShouldEqual, "resource not found")
+			So(et.Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
+			So(et.Message, ShouldEqual, "the replica not found")
+		})
+
 		Convey("the block not found", func() {
+			srv.state = primitive.ServerStateRunning
+
 			rep := replica.NewMockReplica(ctrl)
 			srv.writers.Store(blk.ID(), rep)
 			srv.readers.Store(blk.ID(), blk)
@@ -79,7 +83,7 @@ func TestServer_RemoveBlock(t *testing.T) {
 			So(util.MapLen(&srv.readers), ShouldEqual, 1)
 
 			rep.EXPECT().Delete(ctx).Times(1)
-			err := srv.RemoveBlock(ctx, blk.ID())
+			err = srv.RemoveBlock(ctx, blk.ID())
 			So(util.MapLen(&srv.writers), ShouldEqual, 0)
 			So(util.MapLen(&srv.readers), ShouldEqual, 0)
 			et := err.(*errors.ErrorType)
@@ -89,6 +93,8 @@ func TestServer_RemoveBlock(t *testing.T) {
 		})
 
 		Convey("test remove success", func() {
+			srv.state = primitive.ServerStateRunning
+
 			rep := replica.NewMockReplica(ctrl)
 			srv.blocks.Store(blk.ID(), blk)
 			srv.writers.Store(blk.ID(), rep)
@@ -98,7 +104,7 @@ func TestServer_RemoveBlock(t *testing.T) {
 			So(util.MapLen(&srv.readers), ShouldEqual, 1)
 
 			rep.EXPECT().Delete(ctx).Times(1)
-			err := srv.RemoveBlock(ctx, blk.ID())
+			err = srv.RemoveBlock(ctx, blk.ID())
 			So(util.MapLen(&srv.blocks), ShouldEqual, 0)
 			So(util.MapLen(&srv.writers), ShouldEqual, 0)
 			So(util.MapLen(&srv.readers), ShouldEqual, 0)
@@ -174,10 +180,10 @@ func TestServer_ReadFromBlock(t *testing.T) {
 					TextData: "hello world!",
 				},
 			}}
-			err = srv.AppendToBlock(ctx, blockID, events)
+			_, err = srv.AppendToBlock(ctx, blockID, events)
 			So(err, ShouldBeNil)
-			_ = srv.AppendToBlock(ctx, blockID, events)
-			_ = srv.AppendToBlock(ctx, blockID, events)
+			_, _ = srv.AppendToBlock(ctx, blockID, events)
+			_, _ = srv.AppendToBlock(ctx, blockID, events)
 
 			time.Sleep(3 * time.Second)
 

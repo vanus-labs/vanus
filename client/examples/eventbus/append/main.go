@@ -35,11 +35,13 @@ func main() {
 	event.SetType("example.type")
 	event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world"})
 
-	_, err = w.Append(context.Background(), &event)
+	msgID, err := w.Append(context.Background(), &event)
+
 	if err != nil {
 		log.Print(err.Error())
 	} else {
 		log.Print("success!")
+		log.Print(msgID)
 	}
 
 	w.Close()
