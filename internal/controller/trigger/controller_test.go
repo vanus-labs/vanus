@@ -21,12 +21,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/worker"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
@@ -204,7 +203,6 @@ func TestController_UpdateSubscription(t *testing.T) {
 			})
 			Convey("rate limit change", func() {
 				subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
-				subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).Return(info.ListOffsetInfo{}, nil)
 				request := &ctrlpb.UpdateSubscriptionRequest{
 					Id: subID.Uint64(),
 					Config: &metapb.SubscriptionConfig{
@@ -218,7 +216,6 @@ func TestController_UpdateSubscription(t *testing.T) {
 		})
 		Convey("update subscription sink", func() {
 			subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
-			subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).Return(info.ListOffsetInfo{}, nil)
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id:   subID.Uint64(),
 				Sink: "modify-sink",
@@ -231,7 +228,6 @@ func TestController_UpdateSubscription(t *testing.T) {
 		})
 		Convey("update filters", func() {
 			subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
-			subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).Return(info.ListOffsetInfo{}, nil)
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Filters: []*metapb.Filter{
@@ -247,7 +243,6 @@ func TestController_UpdateSubscription(t *testing.T) {
 		})
 		Convey("update transformer", func() {
 			subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
-			subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).Return(info.ListOffsetInfo{}, nil)
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Transformer: &metapb.Transformer{

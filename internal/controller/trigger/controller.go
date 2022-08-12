@@ -199,8 +199,7 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 		return nil, err
 	}
 	ctrl.scheduler.EnqueueNormalSubscription(subscription.ID)
-	offsets, _ := ctrl.subscriptionManager.GetOffset(ctx, subID)
-	resp := convert.ToPbSubscription(subscription, offsets)
+	resp := convert.ToPbSubscription(subscription, nil)
 	return resp, nil
 }
 
