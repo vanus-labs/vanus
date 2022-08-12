@@ -179,7 +179,7 @@ func TestPeer(t *testing.T) {
 			To: nodeID,
 		}
 		srv.Stop()
-		time.Sleep(time.Second / 10)
+		time.Sleep(100 * time.Millisecond)
 		count := 0
 		p.Send(ctx, msg, func(err error) {
 			count++
