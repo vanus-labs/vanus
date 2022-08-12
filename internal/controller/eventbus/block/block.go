@@ -26,7 +26,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
 	rpcerr "github.com/linkall-labs/vanus/proto/pkg/errors"
 )
 
@@ -124,7 +123,6 @@ func (al *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, erro
 				})
 				return nil, err
 			}
-			metrics.BlockCounterVec.WithLabelValues(metrics.LabelValueResourceManualCreate).Inc()
 		} else {
 			val := skipList.RemoveFront()
 			block, _ = val.Value.(*metadata.Block)
@@ -176,7 +174,6 @@ func (al *allocator) dynamicAllocateBlockTask(ctx context.Context) {
 						"volume_id": instance.GetMeta().ID,
 						"block_id":  block.ID,
 					})
-					metrics.BlockCounterVec.WithLabelValues(metrics.LabelValueResourceDynamicCreate).Inc()
 					skipList.Set(block.ID.Key(), block)
 				}
 			}

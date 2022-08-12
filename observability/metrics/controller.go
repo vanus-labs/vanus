@@ -22,30 +22,36 @@ var (
 	EventbusGauge = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfController,
-		Name:      "eventbus_number",
+		Name:      "eventbus_number_total",
 		Help:      "The number of Eventbus.",
 	})
 
-	EventlogGaugeVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	EventlogGaugeVec = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfController,
-		Name:      "eventlog_number",
-		Help:      "The number of Eventlog.",
+		Name:      "eventlog_number_total",
+		Help:      "The Eventlog number.",
+	})
+
+	SegmentGaugeVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfController,
+		Name:      "segment_number_per_eventbus_total",
+		Help:      "The Segment's number of each eventbus .",
 	}, []string{LabelEventbus})
 
-	SegmentCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
+	SegmentCreationRuntimeCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfController,
-		Name:      "segment_number",
-		Help:      "The number of Segment.",
+		Name:      "segment_creation_runtime",
+		Help:      "The runtime info about segment creation.",
 	}, []string{LabelType})
 
-	// BlockCounterVec move to store module?
-	BlockCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
+	SegmentDeletedCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfController,
-		Name:      "block_number",
-		Help:      "The number of Block.",
+		Name:      "deleted_segment_number_runtime",
+		Help:      "The number of deleted Segment.",
 	}, []string{LabelType})
 
 	SubscriptionGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{

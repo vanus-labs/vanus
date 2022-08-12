@@ -24,18 +24,18 @@ require (
 	github.com/linkall-labs/vanus/client v0.1.0
 	github.com/linkall-labs/vanus/proto v0.1.0
 	github.com/linkall-labs/vanus/raft v0.1.0
-	github.com/montanaflynn/stats v0.6.6
 	github.com/mwitkow/grpc-proxy v0.0.0
 	github.com/ncw/directio v1.0.5
 	github.com/pkg/errors v0.9.1
 	github.com/prashantv/gostub v1.1.0
-	github.com/prometheus/client_golang v1.11.1
+	github.com/prometheus/client_golang v1.12.2
 	github.com/sirupsen/logrus v1.8.1
 	github.com/smartystreets/goconvey v1.7.2
 	github.com/spf13/cobra v1.4.0
 	github.com/tidwall/gjson v1.14.1
 	go.etcd.io/etcd/client/v3 v3.5.3
 	go.opentelemetry.io/otel v0.20.0
+	go.uber.org/atomic v1.9.0
 	go.uber.org/ratelimit v0.2.0
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 	google.golang.org/genproto v0.0.0-20220310185008-1973136f34c6
@@ -86,10 +86,9 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prashantv/gostub v1.1.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
-	github.com/prometheus/common v0.26.0 // indirect
-	github.com/prometheus/procfs v0.6.0 // indirect
+	github.com/prometheus/common v0.32.1 // indirect
+	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/scylladb/go-set v1.0.2 // indirect
 	github.com/smartystreets/assertions v1.2.0 // indirect
@@ -119,7 +118,6 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v0.20.0 // indirect
 	go.opentelemetry.io/otel/trace v0.20.0 // indirect
 	go.opentelemetry.io/proto/otlp v0.7.0 // indirect
-	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.17.0 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect

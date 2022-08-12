@@ -27,19 +27,21 @@ data:
     # Here it's Prometheus itself.
     scrape_configs:
       # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
-      - job_name: 'prometheus'
-    
-        # metrics_path defaults to '/metrics'
-        # scheme defaults to 'http'.
-    
+      - job_name: 'prometheus'    
         static_configs:
-          - targets: ['localhost:9090']
-    
+          - targets: ['localhost:9090']    
       - job_name: 'vanus'
         static_configs:
           - targets: ['vanus-controller-0.vanus-controller.vanus.svc:2112',
                       'vanus-controller-1.vanus-controller.vanus.svc:2112',
                       'vanus-controller-2.vanus-controller.vanus.svc:2112']
+      - job_name: 'node-exporter'
+         kubernetes_sd_configs:
+           - role: endpoints
+         relabel_configs:
+         - source_labels: [__meta_kubernetes_endpoints_name]
+           regex: 'node-exporter'
+           action: keep
 ---
 apiVersion: apps/v1
 kind: Deployment

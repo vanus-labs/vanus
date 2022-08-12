@@ -520,6 +520,7 @@ func (ctrl *controller) loadEventbus(ctx context.Context) error {
 		}
 		ctrl.eventBusMap[filepath.Base(pair.Key)] = busInfo
 	}
+	metrics.EventbusGauge.Set(float64(len(ctrl.eventBusMap)))
 	return nil
 }
 

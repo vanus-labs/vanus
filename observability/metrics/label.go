@@ -27,8 +27,11 @@ const (
 )
 
 const (
-	LabelValueResourceDynamicCreate = "dynamic"
-	LabelValueResourceManualCreate  = "manual"
-	LabelValuePushEventSuccess      = "success"
-	LabelValuePushEventFail         = "fail"
+	LabelValueResourceDynamicCreate        = "dynamic"
+	LabelValueResourceManualCreate         = "manual"
+	LabelValuePushEventSuccess             = "success"
+	LabelValuePushEventFail                = "fail"
+	LabelSegmentDeletedBecauseExpired      = "segment_expired"
+	LabelSegmentDeletedBecauseCreateFailed = "segment_create_failed"
+	LabelSegmentDeletedBecauseDeleted      = "segment_deleted"
 )

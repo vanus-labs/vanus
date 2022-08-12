@@ -44,7 +44,15 @@ type Eventlog struct {
 	// global unique id
 	ID            vanus.ID `json:"id"`
 	EventbusID    vanus.ID `json:"eventbus_id"`
+	EventbusName  string   `json:"eventbus_name"`
 	SegmentNumber int      `json:"segment_number"`
+}
+
+func (el *Eventlog) Eventbus() string {
+	if el.EventbusName != "" {
+		return el.EventbusName
+	}
+	return el.EventbusID.String()
 }
 
 func Convert2ProtoEventLog(ins ...*Eventlog) []*meta.EventLog {
