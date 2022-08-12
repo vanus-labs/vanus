@@ -420,6 +420,38 @@ func TestTimingWheel_startDistributionStation(t *testing.T) {
 	})
 }
 
+func TestTimingWheel_startTickingOfPointer(t *testing.T) {
+	Convey("test timingwheel start ticking of pointer", t, func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		tw := newtimingwheel(cfg())
+		tw.config.Tick = 10 * time.Millisecond
+
+		Convey("test timingwheel start ticking of pointer with ctx cancel", func() {
+			go func() {
+				time.Sleep(50 * time.Millisecond)
+				cancel()
+			}()
+			tw.startTickingOfPointer(ctx)
+			tw.wg.Wait()
+		})
+
+		Convey("test timingwheel start ticking of pointer with ticker", func() {
+			tw.SetLeader(true)
+			go func() {
+				for {
+					<-tw.twList.Front().Value.(*timingWheelElement).tickC
+				}
+			}()
+			go func() {
+				time.Sleep(50 * time.Millisecond)
+				cancel()
+			}()
+			tw.startTickingOfPointer(ctx)
+			tw.wg.Wait()
+		})
+	})
+}
+
 func TestTimingWheel_startHeartBeat(t *testing.T) {
 	Convey("test timingwheel start heartbeat", t, func() {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -495,12 +527,12 @@ func TestTimingWheel_calculateIndex(t *testing.T) {
 		Convey("test timingwheel calculate index with layer equal 1", func() {
 			twe := tw.twList.Front().Value.(*timingWheelElement)
 			index := twe.calculateIndex(now.Add(1*time.Second), now)
-			So(index, ShouldEqual, 2)
+			So(index, ShouldEqual, 1)
 		})
 
 		Convey("test timingwheel calculate index with layer equal 2", func() {
 			twe := tw.twList.Front().Next().Value.(*timingWheelElement)
-			index := twe.calculateIndex(now.Add(1*time.Second), now)
+			index := twe.calculateIndex(now.Add(11*time.Second), now)
 			So(index, ShouldEqual, 1)
 		})
 	})
@@ -603,6 +635,31 @@ func TestTimingWheel_addEvent(t *testing.T) {
 	})
 }
 
+func TestTimingWheel_isExistBucket(t *testing.T) {
+	Convey("test timingwheel is exist bucket", t, func() {
+		ctx := context.Background()
+		tw := newtimingwheel(cfg())
+
+		Convey("test timingwheel is exist with return false1", func() {
+			ret := tw.twList.Back().Value.(*timingWheelElement).isExistBucket(ctx, 0)
+			So(ret, ShouldBeFalse)
+		})
+
+		Convey("test timingwheel is exist with return false2", func() {
+			tw.twList.Back().Value.(*timingWheelElement).resetBucketsCapacity(1)
+			ret := tw.twList.Back().Value.(*timingWheelElement).isExistBucket(ctx, 0)
+			So(ret, ShouldBeFalse)
+		})
+
+		Convey("test timingwheel is exist with return true", func() {
+			tw.twList.Back().Value.(*timingWheelElement).resetBucketsCapacity(1)
+			tw.twList.Back().Value.(*timingWheelElement).buckets[0] = newBucket(cfg(), nil, nil, 1, "__Timer_5_0", 1, 1)
+			ret := tw.twList.Back().Value.(*timingWheelElement).isExistBucket(ctx, 0)
+			So(ret, ShouldBeTrue)
+		})
+	})
+}
+
 func TestTimingWheel_fetchEventFromOverflowWheelAdvance(t *testing.T) {
 	Convey("test timingwheel fetch event from overflowwheel advance", t, func() {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -621,14 +678,11 @@ func TestTimingWheel_fetchEventFromOverflowWheelAdvance(t *testing.T) {
 		Convey("test timingwheel fetch event from overflowwheel advance1", func() {
 			mockEventlogReader.EXPECT().Seek(gomock.Any(), gomock.Any(), io.SeekStart).AnyTimes().Return(int64(0), nil)
 			mockEventlogReader.EXPECT().Read(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, errors.New("test"))
-			add := func(context.Context, *timingMsg) bool {
-				return true
-			}
 			go func(tw *timingWheel) {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
 			}(tw)
-			tw.twList.Front().Value.(*timingWheelElement).fetchEventFromOverflowWheelAdvance(ctx, add)
+			tw.twList.Front().Value.(*timingWheelElement).fetchEventFromOverflowWheelAdvance(ctx)
 			tw.twList.Front().Value.(*timingWheelElement).wg.Wait()
 		})
 	})
@@ -677,7 +731,7 @@ func TestTimingWheel_updatePointerMeta(t *testing.T) {
 			key := "/vanus/internal/resource/timer/metadata/pointer/1"
 			pointerMeta := &metadata.PointerMeta{
 				Layer:   1,
-				Pointer: 1,
+				Pointer: 0,
 			}
 			data, _ := json.Marshal(pointerMeta)
 			mockStoreCli.EXPECT().Set(ctx, key, data).Times(1).Return(nil)
@@ -689,7 +743,7 @@ func TestTimingWheel_updatePointerMeta(t *testing.T) {
 			key := "/vanus/internal/resource/timer/metadata/pointer/1"
 			pointerMeta := &metadata.PointerMeta{
 				Layer:   1,
-				Pointer: 1,
+				Pointer: 0,
 			}
 			data, _ := json.Marshal(pointerMeta)
 			mockStoreCli.EXPECT().Set(ctx, key, data).Times(1).Return(errors.New("test"))
@@ -709,9 +763,9 @@ func TestTimingWheel_startPointer(t *testing.T) {
 
 		Convey("test timingwheel start pointer cancel", func() {
 			mockStoreCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).Times(1).Return(errors.New("test"))
-			time.Sleep(time.Second)
 			tw.twList.Front().Value.(*timingWheelElement).kvStore = mockStoreCli
-			tw.twList.Front().Value.(*timingWheelElement).startPointerTimer(ctx)
+			tw.twList.Front().Value.(*timingWheelElement).start(ctx)
+			tw.twList.Front().Value.(*timingWheelElement).tickC <- struct{}{}
 			time.Sleep(100 * time.Millisecond)
 			cancel()
 			tw.twList.Front().Value.(*timingWheelElement).wg.Wait()

@@ -42,9 +42,6 @@ const (
 	// flush routine waiting period every 1/defaultFlushPeriodRatio tick time by default.
 	defaultFlushWaitingPeriodRatio = 100
 
-	// check the pointer every 1/defaultPointerCheckPeriod tick time by default.
-	defaultPointerCheckPeriodRatio = 50
-
 	// load routine waiting period every 1/defaultLoadWaitingPeriodRatio tick time by default.
 	defaultLoadCheckWaitingPeriodRatio = 10
 
@@ -89,8 +86,7 @@ type Manager interface {
 
 // timingWheel timewheel contains multiple layers.
 type timingWheel struct {
-	config *Config
-	// member  le.Member
+	config  *Config
 	kvStore kv.Client
 	client  *ctrlClient
 	twList  *list.List // element: *timingWheelElement
@@ -209,18 +205,21 @@ func (tw *timingWheel) Start(ctx context.Context) error {
 		return err
 	}
 
-	// start the timingwheel pointer of each layer
+	// start the timingwheel of each layer
 	for e := tw.twList.Front(); e != nil; {
-		e.Value.(*timingWheelElement).startPointerTimer(ctx)
+		e.Value.(*timingWheelElement).start(ctx)
 		next := e.Next()
 		e = next
 	}
 
-	// start routine for scheduled event dispatcher
-	tw.startScheduledEventDispatcher(ctx)
+	// start ticking of pointer
+	tw.startTickingOfPointer(ctx)
 
 	// start routine for scheduled event distributer
 	tw.twList.Front().Value.(*timingWheelElement).startScheduledEventDistributer(ctx)
+
+	// start routine for scheduled event dispatcher
+	tw.startScheduledEventDispatcher(ctx)
 
 	// start controller client heartbeat
 	tw.startHeartBeat(ctx)
@@ -383,6 +382,27 @@ func (tw *timingWheel) startDistributionStation(ctx context.Context) error {
 	return nil
 }
 
+func (tw *timingWheel) startTickingOfPointer(ctx context.Context) {
+	tw.wg.Add(1)
+	go func() {
+		defer tw.wg.Done()
+		ticker := time.NewTicker(tw.config.Tick)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				log.Warning(ctx, "context canceled at ticking of pointer", nil)
+				return
+			case <-ticker.C:
+				if !tw.IsLeader() {
+					break
+				}
+				tw.twList.Front().Value.(*timingWheelElement).tickC <- struct{}{}
+			}
+		}
+	}()
+}
+
 func (tw *timingWheel) startHeartBeat(ctx context.Context) {
 	tw.wg.Add(1)
 	go func() {
@@ -419,7 +439,7 @@ func (tw *timingWheel) startScheduledEventDispatcher(ctx context.Context) {
 				return
 			default:
 				if tw.IsLeader() {
-					events, err := tw.receivingStation.getEvent(ctx, 1)
+					events, err := tw.receivingStation.getEvent(ctx, defaultNumberOfEventsRead)
 					if err != nil {
 						if !errors.Is(err, es.ErrOnEnd) {
 							log.Error(ctx, "get event failed when event dispatching", map[string]interface{}{
@@ -429,7 +449,7 @@ func (tw *timingWheel) startScheduledEventDispatcher(ctx context.Context) {
 						}
 						break
 					}
-					if tw.AddEvent(ctx, events[0]) {
+					if tw.AddEvent(ctx, events[defaultIndexOfEventsRead]) {
 						tw.receivingStation.offset++
 						if err = tw.receivingStation.updateOffsetMeta(ctx); err != nil {
 							log.Warning(ctx, "update receiving station offset metadata failed", map[string]interface{}{
@@ -457,6 +477,7 @@ type timingWheelElement struct {
 	buckets  []*bucket
 
 	leader bool
+	tickC  chan struct{}
 	exitC  chan struct{}
 	wg     sync.WaitGroup
 
@@ -481,10 +502,11 @@ func newTimingWheelElement(c *Config, store kv.Client, cli *ctrlClient,
 		kvStore:  store,
 		client:   cli,
 		tick:     tick,
-		pointer:  1,
+		pointer:  0,
 		layer:    layer,
 		interval: tick * time.Duration(c.WheelSize),
 		buckets:  buckets,
+		tickC:    make(chan struct{}),
 		exitC:    make(chan struct{}),
 	}
 }
@@ -498,10 +520,12 @@ func (twe *timingWheelElement) isLeader() bool {
 }
 
 func (twe *timingWheelElement) calculateIndex(expiration, currentTime time.Time) int64 {
-	var index int64
+	var (
+		pointer int64
+	)
 	subTick := expiration.Sub(currentTime)
 	if twe.layer == 1 {
-		index = int64(subTick/twe.tick) + twe.pointer
+		pointer = int64(subTick/twe.tick) + twe.pointer
 	} else {
 		lowerTimingWheelTick := twe.element.Prev().Value.(*timingWheelElement).tick
 		lowerTimingWheelPointer := twe.element.Prev().Value.(*timingWheelElement).pointer
@@ -510,12 +534,12 @@ func (twe *timingWheelElement) calculateIndex(expiration, currentTime time.Time)
 		if remainder > 0 {
 			offset++
 		}
-		index = offset + twe.pointer - 1
+		pointer = offset + twe.pointer - 1
 	}
-	if twe.layer > twe.config.Layers {
-		return index
+	if twe.layer <= twe.config.Layers && pointer >= twe.config.WheelSize {
+		pointer %= twe.config.WheelSize
 	}
-	return index % twe.config.WheelSize
+	return pointer
 }
 
 func (twe *timingWheelElement) resetBucketsCapacity(newCap int64) {
@@ -576,26 +600,49 @@ func (twe *timingWheelElement) addEvent(ctx context.Context, tm *timingMsg) bool
 		return true
 	}
 	// Out of the interval. Put it into the overflow wheel
-	return twe.element.Next().Value.(*timingWheelElement).addEvent(ctx, tm)
+	return twe.next().addEvent(ctx, tm)
 }
 
-func (twe *timingWheelElement) fetchEventFromOverflowWheelAdvance(ctx context.Context,
-	reInsert func(context.Context, *timingMsg) bool) {
+func (twe *timingWheelElement) isExistBucket(ctx context.Context, index int64) bool {
+	if twe.layer <= twe.config.Layers {
+		return true
+	}
+	if cap(twe.buckets) < int(index+1) {
+		log.Debug(ctx, "the bucket of current layer capacity less than index", map[string]interface{}{
+			"layer":   twe.layer,
+			"pointer": twe.pointer,
+			"index":   index,
+		})
+		return false
+	}
+	if twe.buckets[index] == nil {
+		log.Debug(ctx, "the bucket of current layer is nil", map[string]interface{}{
+			"layer":   twe.layer,
+			"pointer": twe.pointer,
+			"index":   index,
+		})
+		return false
+	}
+	return true
+}
+
+func (twe *timingWheelElement) fetchEventFromOverflowWheelAdvance(ctx context.Context) {
 	var (
-		startPointer int64
-		endPointer   int64
+		// position of overflow wheel pointer when start loading.
+		startLoadingPointer int64
+		// the bucket index to be loading.
+		indexToBeLoading int64
+		// position of overflow wheel pointer when end loading.
+		endLoadingPointer int64
 	)
 
-	startPointer = twe.pointer
-	if twe.layer > twe.config.Layers {
-		endPointer = twe.pointer + defaultFetchEventFromOverflowWheelEndPointer
-	} else {
-		endPointer = (twe.pointer + defaultFetchEventFromOverflowWheelEndPointer) % twe.config.WheelSize
-	}
+	startLoadingPointer = twe.next().pointer
+	indexToBeLoading = (startLoadingPointer + 1) % twe.config.WheelSize
+	endLoadingPointer = (startLoadingPointer + defaultFetchEventFromOverflowWheelEndPointer) % twe.config.WheelSize
 
-	log.Debug(ctx, "start loading from overflowwheel", map[string]interface{}{
-		"layer":   twe.layer,
-		"pointer": startPointer,
+	log.Debug(ctx, "start loading from overflowWheel", map[string]interface{}{
+		"layer":       twe.next().layer,
+		"bucketIndex": indexToBeLoading,
 	})
 	waitCtx, cancel := context.WithCancel(ctx)
 	twe.wg.Add(1)
@@ -608,21 +655,17 @@ func (twe *timingWheelElement) fetchEventFromOverflowWheelAdvance(ctx context.Co
 			case <-waitCtx.Done():
 				return
 			case <-ticker.C:
-				if cap(twe.buckets) < int(twe.pointer+1) {
-					break
+				if twe.next().isExistBucket(ctx, indexToBeLoading) {
+					twe.next().buckets[indexToBeLoading].fetchEventFromOverflowWheelAdvance(waitCtx, twe.addEvent)
 				}
-				if twe.buckets[twe.pointer] == nil {
-					break
-				}
-				twe.buckets[twe.pointer].fetchEventFromOverflowWheelAdvance(waitCtx, reInsert)
 			}
 		}
 	}()
 	wait.Until(func() {
-		if twe.pointer == endPointer {
+		if twe.next().pointer == endLoadingPointer {
 			log.Debug(ctx, "end loading from overflowwheel", map[string]interface{}{
-				"layer":   twe.layer,
-				"pointer": startPointer,
+				"layer":       twe.next().layer,
+				"bucketIndex": indexToBeLoading,
 			})
 			cancel()
 		}
@@ -671,8 +714,7 @@ func (twe *timingWheelElement) updatePointerMeta(ctx context.Context) error {
 	return nil
 }
 
-func (twe *timingWheelElement) startPointerTimer(ctx context.Context) {
-	last := twe.config.StartTime
+func (twe *timingWheelElement) start(ctx context.Context) {
 	twe.wg.Add(1)
 	go func() {
 		defer twe.wg.Done()
@@ -683,30 +725,34 @@ func (twe *timingWheelElement) startPointerTimer(ctx context.Context) {
 					"layer": twe.layer,
 				})
 				return
-			default:
-				now := time.Now().UTC()
-				if now.After(last.Add(twe.tick)) {
-					if twe.isLeader() {
-						twe.pointer = (twe.pointer + 1) % twe.config.WheelSize
-						if err := twe.updatePointerMeta(ctx); err != nil {
-							log.Warning(ctx, "update offset metadata failed", map[string]interface{}{
-								log.KeyError: err,
-								"layer":      twe.layer,
-								"pointer":    twe.pointer,
-							})
-						}
-						log.Debug(ctx, "timingwheel pointer timer", map[string]interface{}{
-							"layer":   twe.layer,
-							"pointer": twe.pointer,
-						})
-						if twe.pointer == (twe.config.WheelSize - 1) {
-							go twe.element.Next().Value.(*timingWheelElement).fetchEventFromOverflowWheelAdvance(ctx, twe.addEvent)
-						}
-					}
-					last = now
+			case <-twe.tickC:
+				if !twe.isLeader() {
+					break
 				}
-				time.Sleep(twe.tick / defaultPointerCheckPeriodRatio)
+				twe.pointer++
+				if twe.layer <= twe.config.Layers && twe.pointer >= twe.config.WheelSize {
+					twe.next().tickC <- struct{}{}
+					twe.pointer = 0
+				}
+				if err := twe.updatePointerMeta(ctx); err != nil {
+					log.Warning(ctx, "update pointer metadata failed", map[string]interface{}{
+						log.KeyError: err,
+						"layer":      twe.layer,
+						"pointer":    twe.pointer,
+					})
+				}
+				log.Debug(ctx, "current layer timingwheel pointer", map[string]interface{}{
+					"layer":   twe.layer,
+					"pointer": twe.pointer,
+				})
+				if twe.layer <= twe.config.Layers && twe.pointer == twe.config.WheelSize-1 {
+					go twe.fetchEventFromOverflowWheelAdvance(ctx)
+				}
 			}
 		}
 	}()
+}
+
+func (twe *timingWheelElement) next() *timingWheelElement {
+	return twe.element.Next().Value.(*timingWheelElement)
 }
