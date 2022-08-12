@@ -18,10 +18,13 @@ package reader
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"sync"
 	"time"
 
+	ce "github.com/cloudevents/sdk-go/v2"
+	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/discovery"
 	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
 	eberrors "github.com/linkall-labs/vanus/client/pkg/errors"
@@ -29,14 +32,10 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/trigger/errors"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
-
-	ce "github.com/cloudevents/sdk-go/v2"
-	eb "github.com/linkall-labs/vanus/client"
 )
 
 const (
@@ -45,8 +44,11 @@ const (
 	readerSeekTimeout         = 5 * time.Second
 	readEventTimeout          = 5 * time.Second
 	initErrSleepTime          = 5 * time.Second
+	readErrSleepTime          = 2 * time.Second
 	readSize                  = 5
 )
+
+var errReadNoEvent = fmt.Errorf("no event")
 
 type Config struct {
 	EventBusName      string
@@ -251,7 +253,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 			})
 			continue
 		default:
-			log.Info(ctx, "eventlog reader init error,will retry", map[string]interface{}{
+			log.Warning(ctx, "eventlog reader init error,will retry", map[string]interface{}{
 				log.KeyEventbusName: elReader.config.EventBusName,
 				log.KeyEventlogID:   elReader.eventLogID,
 				log.KeyError:        err,
@@ -275,7 +277,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 				lr.Close()
 				return
 			case context.DeadlineExceeded:
-			case errors.ErrReadNoEvent:
+			case errReadNoEvent:
 			case eberrors.ErrOnEnd:
 			case eberrors.ErrUnderflow:
 			case eberrors.ErrTimeout:
@@ -285,6 +287,9 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 					"offset":          elReader.offset,
 					log.KeyError:      err,
 				})
+				if !util.SleepWithContext(ctx, readErrSleepTime) {
+					return
+				}
 			}
 		}
 	}
@@ -296,7 +301,7 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventlog.LogRe
 		return err
 	}
 	if len(events) == 0 {
-		return errors.ErrReadNoEvent
+		return errReadNoEvent
 	}
 	for i := range events {
 		ec, _ := events[i].Context.(*ce.EventContextV1)
@@ -310,9 +315,10 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventlog.LogRe
 		if err = elReader.putEvent(ctx, eo); err != nil {
 			return err
 		}
-		metrics.TriggerPullEventCounter.WithLabelValues(elReader.config.SubscriptionIDStr, elReader.eventLogIDStr).Inc()
 		elReader.offset = offset
 	}
+	metrics.TriggerPullEventCounter.WithLabelValues(elReader.config.SubscriptionIDStr, elReader.eventLogIDStr).
+		Add(float64(len(events)))
 	return nil
 }
 func (elReader *eventLogReader) putEvent(ctx context.Context, event info.EventRecord) error {

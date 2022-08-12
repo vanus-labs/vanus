@@ -23,7 +23,6 @@ var (
 	ErrWorkerNotStart       = rpcerr.New("worker not start").WithGRPCCode(rpcerr.ErrorCode_SERVICE_NOT_RUNNING)
 	ErrInternal             = rpcerr.New("internal").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
 
-	ErrReadNoEvent         = rpcerr.New("read no event")
 	ErrVanusJSONParse      = rpcerr.New("invalid json").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
 	ErrTransformInputParse = rpcerr.New("transform input invalid").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
 
