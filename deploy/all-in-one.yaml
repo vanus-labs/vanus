@@ -171,7 +171,7 @@ spec:
   template:
     metadata:
       annotations:
-        vanus.dev/metrics/port: "2112"
+        vanus.dev/metrics.port: "2112"
       labels:
         app: vanus-gateway
     spec:
@@ -209,7 +209,7 @@ spec:
   template:
     metadata:
       annotations:
-        vanus.dev/metrics/port: "2112"
+        vanus.dev/metrics.port: "2112"
       labels:
         app: vanus-timer
     spec:
@@ -247,7 +247,7 @@ spec:
   template:
     metadata:
       annotations:
-        vanus.dev/metrics/port: "2112"
+        vanus.dev/metrics.port: "2112"
       labels:
         app: vanus-trigger
     spec:
@@ -289,7 +289,7 @@ spec:
   template:
     metadata:
       annotations:
-        vanus.dev/metrics/port: "2112"
+        vanus.dev/metrics.port: "2112"
       labels:
         app: vanus-controller
     spec:
@@ -354,7 +354,7 @@ spec:
   template:
     metadata:
       annotations:
-        vanus.dev/metrics/port: "2112"
+        vanus.dev/metrics.port: "2112"
       labels:
         app: vanus-store
     spec:

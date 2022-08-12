@@ -52,7 +52,7 @@ spec:
       labels:
         app: vanus-gateway
       annotations:
-        vanus.dev/metrics/port: "2112"
+        vanus.dev/metrics.port: "2112"
     spec:
       containers:
         - name: gateway
