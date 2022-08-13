@@ -26,6 +26,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	// first-party libraries.
+
 	vsraftpb "github.com/linkall-labs/vanus/proto/pkg/raft"
 	"github.com/linkall-labs/vanus/raft/raftpb"
 )
@@ -33,6 +34,8 @@ import (
 const (
 	defaultConnectTimeout   = 300 * time.Millisecond
 	defaultMessageChainSize = 32
+	initRetryMicroSeconds   = 2e6
+	maxRertyMicropSeconds   = 64e6
 )
 
 type task struct {
@@ -47,6 +50,7 @@ type peer struct {
 	stream vsraftpb.RaftServer_SendMessageClient
 	closec chan struct{}
 	donec  chan struct{}
+	timer  *BackoffTimer
 }
 
 // Make sure peer implements Multiplexer.
@@ -58,6 +62,7 @@ func newPeer(endpoint string, callback string) *peer {
 		taskc:  make(chan task, defaultMessageChainSize),
 		closec: make(chan struct{}),
 		donec:  make(chan struct{}),
+		timer:  NewBackoffTimer(initRetryMicroSeconds, maxRertyMicropSeconds),
 	}
 
 	go p.run(callback)
@@ -80,6 +85,9 @@ loop:
 		var err error
 		select {
 		case t := <-p.taskc:
+			if !p.timer.CanTry() {
+				break
+			}
 			stream := p.stream
 			if stream == nil {
 				if stream, err = p.connect(t.ctx, opts...); err != nil {
@@ -97,6 +105,7 @@ loop:
 				break
 			}
 			t.cb(nil)
+			p.timer.SuccessHit(t.ctx)
 		case <-p.closec:
 			for {
 				select {
@@ -118,6 +127,7 @@ loop:
 
 func (p *peer) processSendError(t task, err error) {
 	t.cb(err)
+	p.timer.FailedHit(t.ctx)
 	if errors.Is(err, io.EOF) {
 		_, _ = p.stream.CloseAndRecv()
 		p.stream = nil
