@@ -17,60 +17,51 @@ package transport
 import (
 	"context"
 	"time"
-
-	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type BackoffTimer struct {
-	startInterval  int64
-	curInterval    int64
-	maxInterval    int64
-	expire         int64
-	useCanTryFirst bool
+	startInterval int64
+	curInterval   int64
+	maxInterval   int64
+	expire        int64
 }
 
 func NewBackoffTimer(startMicroSecond int64, maxMirocSecond int64) *BackoffTimer {
 	return &BackoffTimer{
-		startInterval:  startMicroSecond,
-		curInterval:    startMicroSecond,
-		maxInterval:    maxMirocSecond,
-		expire:         0,
-		useCanTryFirst: false,
+		startInterval: startMicroSecond,
+		curInterval:   startMicroSecond,
+		maxInterval:   maxMirocSecond,
+		expire:        0,
 	}
 }
 
 func (t *BackoffTimer) OriginalSetting(ctx context.Context) {
 	t.curInterval = t.startInterval
-	t.useCanTryFirst = false
 	t.expire = 0
 }
 
 func (t *BackoffTimer) SuccessHit(ctx context.Context) {
 	// when connect or send successfully, call this once
-	if !t.useCanTryFirst {
-		log.Error(context.Background(), "first use canTry() to judge", map[string]interface{}{})
+	if !t.CanTry() {
+		return
 	}
 	t.curInterval = t.startInterval
 	t.expire = 0
-	t.useCanTryFirst = false
 }
 
 func (t *BackoffTimer) FailedHit(ctx context.Context) {
 	// when connect or send failed, call this once
-	if !t.useCanTryFirst {
-		log.Error(context.Background(), "first use canTry() to judge", map[string]interface{}{})
+	if !t.CanTry() {
+		return
 	}
 	t.expire = t.curInterval + time.Now().UnixMicro()
 	t.curInterval *= 2
 	if t.curInterval > t.maxInterval {
 		t.curInterval = t.maxInterval
 	}
-	t.useCanTryFirst = false
 }
 
 func (t *BackoffTimer) CanTry() bool {
 	// judge whether retry
-	// Should call CanTry before SuccessHit or FailedHit
-	t.useCanTryFirst = true
 	return time.Now().UnixMicro() > t.expire
 }
