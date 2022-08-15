@@ -177,6 +177,9 @@ func createResponseEvent(eventData EventData) (*v2.Event, error) {
 		return nil, err
 	}
 
-	e.SetData("Text/plain", dataMarshal)
+	err = e.SetData("Text/plain", dataMarshal)
+	if err != nil {
+		return nil, err
+	}
 	return e, nil
 }
