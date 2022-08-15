@@ -195,7 +195,6 @@ func (w *basicBusWriter) Append(ctx context.Context, event *ce.Event) (string, e
 		return "", err
 	}
 
-	// TODO: event id
 	return w.createEventID(lw.Log().VRN().ID, off), nil
 }
 
