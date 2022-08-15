@@ -58,7 +58,7 @@ func OpenReader(vrn string) (LogReader, error) {
 }
 
 func SearchEventByID(eventID string, controllers string) (*event.Event, error) {
-	logID, off, err := decodeMsgID(eventID)
+	logID, off, err := decodeEventID(eventID)
 	if err != nil {
 		return nil, err
 	}
@@ -73,15 +73,15 @@ func SearchEventByID(eventID string, controllers string) (*event.Event, error) {
 		log.Fatal(err)
 		return nil, err
 	}
-	event, err := r.Read(context.Background(), 1)
+	events, err := r.Read(context.Background(), 1)
 	if err != nil {
 		log.Printf("%s", err)
 		return nil, err
 	}
-	return event[0], err
+	return events[0], err
 }
 
-func decodeMsgID(eventID string) (uint64, int64, error) {
+func decodeEventID(eventID string) (uint64, int64, error) {
 	decoded, err := base64.StdEncoding.DecodeString(eventID)
 	if err != nil {
 		log.Printf("decode eventID error: %v", err)
