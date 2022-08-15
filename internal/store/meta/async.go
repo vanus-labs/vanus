@@ -160,7 +160,9 @@ func (s *AsyncStore) commit() {
 	}
 
 	// Write WAL.
+	s.mu.RLock()
 	data, err := s.marshaler.Marshal(SkiplistRange(s.pending))
+	s.mu.RUnlock()
 	if err != nil {
 		panic(err)
 	}

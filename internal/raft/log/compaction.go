@@ -201,8 +201,8 @@ func (w *WAL) runCompact() {
 	cctx := loadCompactContext(w.metaStore)
 	for {
 		select {
-		case task, closed := <-w.compactc:
-			if closed {
+		case task, ok := <-w.compactc:
+			if !ok {
 				for task := range w.compactc {
 					w.compact(cctx, task)
 				}
