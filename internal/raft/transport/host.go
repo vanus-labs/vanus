@@ -17,14 +17,11 @@ package transport
 import (
 	// standard libraries.
 	"context"
-	"errors"
 	"sync"
 
 	// third-party libraries.
 	"github.com/linkall-labs/vanus/raft/raftpb"
 )
-
-var ErrNotReachable = errors.New("raft node unreachable")
 
 type SendCallback func(error)
 

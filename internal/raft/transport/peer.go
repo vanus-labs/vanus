@@ -98,11 +98,14 @@ loop:
 			}
 			t.cb(nil)
 		case <-p.closec:
-			close(p.taskc)
-			for t := range p.taskc {
-				t.cb(ErrNotReachable)
+			for {
+				select {
+				case t := <-p.taskc:
+					t.cb(ErrClosed)
+				default:
+					break loop
+				}
 			}
-			break loop
 		}
 	}
 
@@ -135,8 +138,10 @@ func (p *peer) Send(ctx context.Context, msg *raftpb.Message, cb SendCallback) {
 
 	select {
 	case <-ctx.Done():
+		cb(ctx.Err())
 		return
 	case <-p.closec:
+		cb(ErrClosed)
 		return
 	case p.taskc <- mwc:
 	}
