@@ -111,8 +111,10 @@ func TestLog(t *testing.T) {
 			rawWAL, err := walog.Open(walDir, walog.WithFileSize(int64(fileSize)))
 			So(err, ShouldBeNil)
 			wal := newWAL(rawWAL, metaStore)
-			defer wal.Close()
-
+			defer func() {
+				wal.Close()
+				wal.Wait()
+			}()
 			log := NewLog(nodeID1, wal, metaStore, offsetStore, nil)
 
 			hardSt, confSt, err := log.InitialState()
@@ -148,7 +150,10 @@ func TestLog(t *testing.T) {
 		Convey("recover raft log", func() {
 			logs, wal, err := RecoverLogsAndWAL(raftCfg, walDir, metaStore, offsetStore)
 			So(err, ShouldBeNil)
-			defer wal.Close()
+			defer func() {
+				wal.Close()
+				wal.Wait()
+			}()
 
 			So(logs, ShouldHaveLength, 1)
 			log, ok := logs[nodeID1]
@@ -266,7 +271,10 @@ func TestLog(t *testing.T) {
 		Convey("recover raft log again", func() {
 			logs, wal, err := RecoverLogsAndWAL(raftCfg, walDir, metaStore, offsetStore)
 			So(err, ShouldBeNil)
-			defer wal.Close()
+			defer func() {
+				wal.Close()
+				wal.Wait()
+			}()
 
 			So(logs, ShouldHaveLength, 1)
 			log, ok := logs[nodeID1]
