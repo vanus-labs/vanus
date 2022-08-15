@@ -38,7 +38,7 @@ const (
 type task struct {
 	msg *raftpb.Message
 	ctx context.Context
-	cb  ErrorCallback
+	cb  SendCallback
 }
 
 type peer struct {
@@ -96,6 +96,7 @@ loop:
 				p.processSendError(t, err)
 				break
 			}
+			t.cb(nil)
 		case <-p.closec:
 			break loop
 		}
@@ -122,7 +123,7 @@ func (p *peer) Close() {
 	<-p.donec
 }
 
-func (p *peer) Send(ctx context.Context, msg *raftpb.Message, cb ErrorCallback) {
+func (p *peer) Send(ctx context.Context, msg *raftpb.Message, cb SendCallback) {
 	mwc := task{
 		msg: msg,
 		ctx: ctx,
@@ -135,12 +136,6 @@ func (p *peer) Send(ctx context.Context, msg *raftpb.Message, cb ErrorCallback) 
 	case <-p.closec:
 		return
 	case p.taskc <- mwc:
-	}
-}
-
-func (p *peer) Sendv(ctx context.Context, msgs []*raftpb.Message, cb ErrorCallback) {
-	for _, msg := range msgs {
-		p.Send(ctx, msg, cb)
 	}
 }
 

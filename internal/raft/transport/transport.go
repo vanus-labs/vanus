@@ -23,8 +23,7 @@ import (
 )
 
 type Sender interface {
-	Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoint string, cb ErrorCallback)
-	Sendv(ctx context.Context, msg []*raftpb.Message, to uint64, endpoint string, cb ErrorCallback)
+	Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoint string, cb SendCallback)
 }
 
 type Receiver interface {

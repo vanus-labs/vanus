@@ -99,29 +99,6 @@ func TestHost(t *testing.T) {
 			So(false, ShouldBeTrue)
 		})
 
-		Convey("test host Sendv callback", func() {
-			timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
-			defer cannel()
-			h.Sendv(timeoutCtx, msgs, nodeID, localaddr, func(err error) {})
-			for i := 0; i < msgLen; i++ {
-				count := 0
-			loop:
-				for j := 0; j < 3; j++ {
-					select {
-					case m := <-ch:
-						So(m, ShouldResemble, msgs[i])
-						count++
-						break loop
-					default:
-					}
-					time.Sleep(50 * time.Millisecond)
-				}
-				if count == 0 {
-					So(false, ShouldBeTrue)
-				}
-			}
-		})
-
 		Convey("test host resolveMultiplexer method", func() {
 			h := h.(*host)
 			testEndpoint := "127.0.0.1:11000"

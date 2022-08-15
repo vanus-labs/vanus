@@ -35,4 +35,6 @@ var (
 	ErrFilterMultiple         = rpcerr.New("filter multiple dialects found").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
 
 	ErrNotLeader = rpcerr.New("not leader").WithGRPCCode(rpcerr.ErrorCode_NOT_LEADER)
+
+	ErrNotReachable = rpcerr.New("raftnode not reachable").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
 )

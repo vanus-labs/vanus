@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -113,33 +114,24 @@ func TestPeer(t *testing.T) {
 		}
 	})
 
-	Convey("test peer Sendv and reconnect", t, func() {
-		msgLen := 5
-		msgs := make([]*raftpb.Message, msgLen)
-		for i := 0; i < msgLen; i++ {
-			msgs[i] = &raftpb.Message{
-				To: nodeID,
-			}
+	Convey("test peer reconnect", t, func() {
+		msg := &raftpb.Message{
+			To: nodeID,
 		}
 
-		p.Sendv(ctx, msgs, func(err error) {})
+		timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
+		defer cannel()
 
-		for i := 0; i < msgLen; i++ {
-			count := 0
-		loop:
-			for j := 0; j < 3; j++ {
-				select {
-				case m := <-ch:
-					So(m, ShouldResemble, msgs[i])
-					count++
-					break loop
-				default:
-				}
-				time.Sleep(50 * time.Millisecond)
+		p.Send(timeoutCtx, msg, func(err error) {})
+
+		for i := 0; i < 3; i++ {
+			select {
+			case m := <-ch:
+				So(m, ShouldResemble, msg)
+				return
+			default:
 			}
-			if count == 0 {
-				So(false, ShouldBeTrue)
-			}
+			time.Sleep(50 * time.Millisecond)
 		}
 
 		srv.Stop() // stop the raftsrv to test peer
@@ -159,18 +151,16 @@ func TestPeer(t *testing.T) {
 			}
 		}() // restart the raftsrv
 
-		p.Sendv(ctx, msgs, func(err error) {})
-	loop1:
-		for i := 3; i < msgLen; i++ {
-			for j := 0; j < 3; j++ {
-				select {
-				case m := <-ch:
-					So(m, ShouldResemble, msgs[i])
-					break loop1
-				default:
-				}
-				time.Sleep(50 * time.Millisecond)
+		p.Send(ctx, msg, func(err error) {})
+
+		for i := 0; i < 3; i++ {
+			select {
+			case m := <-ch:
+				So(m, ShouldResemble, msg)
+				return
+			default:
 			}
+			time.Sleep(50 * time.Millisecond)
 		}
 	})
 
@@ -179,12 +169,16 @@ func TestPeer(t *testing.T) {
 			To: nodeID,
 		}
 		srv.Stop()
-		time.Sleep(100 * time.Millisecond)
-		count := 0
+		time.Sleep(200 * time.Millisecond)
+		var count int64 = 0
+		ch := make(chan struct{})
 		p.Send(ctx, msg, func(err error) {
-			count++
+			if err != nil {
+				atomic.AddInt64(&count, 1)
+			}
+			ch <- struct{}{}
 		})
-		time.Sleep(time.Second)
+		<-ch
 		So(count, ShouldNotBeZeroValue)
 	})
 }

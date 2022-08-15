@@ -531,7 +531,9 @@ func (r *replica) send(msgs []raftpb.Message) {
 		msg := &msgs[0]
 		endpoint := r.peerHint(msg.To)
 		r.sender.Send(r.ctx, msg, msg.To, endpoint, func(err error) {
-			r.node.ReportUnreachable(msg.To)
+			if err != nil {
+				r.node.ReportUnreachable(msg.To)
+			}
 		})
 		return
 	}
@@ -546,14 +548,14 @@ func (r *replica) send(msgs []raftpb.Message) {
 
 	// send to same node
 	if to != 0 {
-		ma := make([]*raftpb.Message, len(msgs))
-		for i := 0; i < len(msgs); i++ {
-			ma[i] = &msgs[i]
-		}
 		endpoint := r.peerHint(to)
-		r.sender.Sendv(r.ctx, ma, to, endpoint, func(err error) {
-			r.node.ReportUnreachable(to)
-		})
+		for i := 0; i < len(msgs); i++ {
+			r.sender.Send(r.ctx, &msgs[i], to, endpoint, func(err error) {
+				if err != nil {
+					r.node.ReportUnreachable(to)
+				}
+			})
+		}
 		return
 	}
 
@@ -566,12 +568,18 @@ func (r *replica) send(msgs []raftpb.Message) {
 		endpoint := r.peerHint(to)
 		if len(msgs) == 1 {
 			r.sender.Send(r.ctx, msgs[0], to, endpoint, func(err error) {
-				r.node.ReportUnreachable(to)
+				if err != nil {
+					r.node.ReportUnreachable(to)
+				}
 			})
 		} else {
-			r.sender.Sendv(r.ctx, msgs, to, endpoint, func(err error) {
-				r.node.ReportUnreachable(to)
-			})
+			for _, m := range msgs {
+				r.sender.Send(r.ctx, m, to, endpoint, func(err error) {
+					if err != nil {
+						r.node.ReportUnreachable(to)
+					}
+				})
+			}
 		}
 	}
 }

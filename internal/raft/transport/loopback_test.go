@@ -63,32 +63,5 @@ func TestLoopBack(t *testing.T) {
 			}
 			So(false, ShouldBeTrue)
 		})
-
-		Convey("test loopback Sendv method", func() {
-			msgLen := 5
-			msgs := make([]*raftpb.Message, msgLen)
-
-			timeoutCtx, cannel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cannel()
-			loopbackInstance.Sendv(timeoutCtx, msgs, func(err error) {})
-
-			for i := 0; i < msgLen; i++ {
-				count := 0
-			loop:
-				for j := 0; j < 3; j++ {
-					select {
-					case m := <-ch:
-						So(m, ShouldResemble, msgs[i])
-						count++
-						break loop
-					default:
-					}
-					time.Sleep(50 * time.Millisecond)
-				}
-				if count == 0 {
-					So(false, ShouldBeTrue)
-				}
-			}
-		})
 	})
 }
