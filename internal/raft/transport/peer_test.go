@@ -168,6 +168,7 @@ func TestPeer(t *testing.T) {
 		msg := &raftpb.Message{
 			To: nodeID,
 		}
+		time.Sleep(time.Second)
 		srv.Stop()
 		time.Sleep(200 * time.Millisecond)
 		var count int64 = 0
