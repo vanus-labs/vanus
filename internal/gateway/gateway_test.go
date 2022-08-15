@@ -64,7 +64,7 @@ func TestUtils_receive(t *testing.T) {
 		}
 		stub := StubFunc(&requestDataFromContext, reqData)
 		defer stub.Reset()
-		ret := ga.receive(ctx, e)
+		_, ret := ga.receive(ctx, e)
 		So(ret, ShouldBeError)
 	})
 
@@ -78,7 +78,7 @@ func TestUtils_receive(t *testing.T) {
 		e.SetExtension(xceVanusDeliveryTime, "2006-01-02T15:04:05")
 		stub := StubFunc(&requestDataFromContext, reqData)
 		defer stub.Reset()
-		ret := ga.receive(ctx, e)
+		_, ret := ga.receive(ctx, e)
 		So(ret, ShouldBeError)
 	})
 
