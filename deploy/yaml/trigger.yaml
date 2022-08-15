@@ -29,6 +29,8 @@ spec:
     metadata:
       labels:
         app: vanus-trigger
+      annotations:
+        vanus.dev/metrics.port: "2112"
     spec:
       containers:
         - name: trigger

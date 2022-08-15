@@ -73,10 +73,10 @@ spec:
     metadata:
       labels:
         app: vanus-controller
+      annotations:
+        vanus.dev/metrics.port: "2112"
     spec:
       containers:
-        - name: node-export
-          iamge: prom/node-export
         - name: controller
           image: public.ecr.aws/vanus/controller:v0.2.0
           imagePullPolicy: IfNotPresent
@@ -92,6 +92,8 @@ spec:
               containerPort: 2379
             - name: etcd-peer
               containerPort: 2380
+            - name: metrics
+              containerPort: 2112
           env:
             - name: VANUS_LOG_LEVEL
               value: DEBUG
