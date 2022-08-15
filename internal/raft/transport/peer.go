@@ -98,6 +98,10 @@ loop:
 			}
 			t.cb(nil)
 		case <-p.closec:
+			close(p.taskc)
+			for t := range p.taskc {
+				t.cb(ErrNotReachable)
+			}
 			break loop
 		}
 	}

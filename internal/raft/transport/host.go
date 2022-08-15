@@ -17,15 +17,16 @@ package transport
 import (
 	// standard libraries.
 	"context"
+	"errors"
 	"sync"
 
 	// third-party libraries.
-	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/raft/raftpb"
 )
 
-type SendCallback func(error)
+var ErrNotReachable = errors.New("raft node unreachable")
 
+type SendCallback func(error)
 type Host interface {
 	Sender
 	Demultiplexer
@@ -70,7 +71,7 @@ func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoin
 	mux := h.resolveMultiplexer(ctx, to, endpoint)
 	if mux == nil {
 		// TODO(james.yin): report MsgUnreachable.
-		cb(errors.ErrNotReachable)
+		cb(ErrNotReachable)
 		return
 	}
 	mux.Send(ctx, msg, cb)
