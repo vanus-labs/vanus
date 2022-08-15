@@ -27,6 +27,7 @@ import (
 var ErrNotReachable = errors.New("raft node unreachable")
 
 type SendCallback func(error)
+
 type Host interface {
 	Sender
 	Demultiplexer
@@ -70,7 +71,6 @@ func (h *host) Stop() {
 func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoint string, cb SendCallback) {
 	mux := h.resolveMultiplexer(ctx, to, endpoint)
 	if mux == nil {
-		// TODO(james.yin): report MsgUnreachable.
 		cb(ErrNotReachable)
 		return
 	}

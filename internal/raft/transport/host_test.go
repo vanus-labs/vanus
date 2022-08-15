@@ -109,5 +109,13 @@ func TestHost(t *testing.T) {
 			_, ok = h.peers.Load(testEndpoint)
 			So(ok, ShouldBeTrue)
 		})
+
+		Convey("test raftnode unreachable", func() {
+			count := 0
+			h.Send(ctx, msg, nodeID+1, "", func(err error) {
+				count++
+			})
+			So(count, ShouldNotBeZeroValue)
+		})
 	})
 }

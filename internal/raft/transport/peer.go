@@ -114,7 +114,6 @@ loop:
 }
 
 func (p *peer) processSendError(t task, err error) {
-	// TODO(james.yin): report MsgUnreachable, backoff
 	t.cb(err)
 	if errors.Is(err, io.EOF) {
 		_, _ = p.stream.CloseAndRecv()
