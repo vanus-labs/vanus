@@ -195,7 +195,13 @@ func (w *basicBusWriter) Append(ctx context.Context, event *ce.Event) (string, e
 		return "", err
 	}
 
-	return w.createEventID(lw.Log().VRN().ID, off), nil
+	// 3. generate event ID
+	buf := make([]byte, 16)
+	binary.BigEndian.PutUint64(buf[0:8], lw.Log().VRN().ID)
+	binary.BigEndian.PutUint64(buf[8:16], uint64(off))
+	encoded := base64.StdEncoding.EncodeToString(buf)
+
+	return encoded, nil
 }
 
 func (w *basicBusWriter) pickLogWriter(ctx context.Context, event *ce.Event) (eventlog.LogWriter, error) {
@@ -215,12 +221,4 @@ func (w *basicBusWriter) pickLogWriter(ctx context.Context, event *ce.Event) (ev
 func (w *basicBusWriter) WithPicker(picker WriterPicker) BusWriter {
 	w.picker = picker
 	return w
-}
-
-func (w *basicBusWriter) createEventID(logID uint64, off int64) string {
-	buf := make([]byte, 16)
-	binary.BigEndian.PutUint64(buf[0:8], logID)
-	binary.BigEndian.PutUint64(buf[8:16], uint64(off))
-	encoded := base64.StdEncoding.EncodeToString(buf)
-	return encoded
 }
