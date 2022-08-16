@@ -101,23 +101,7 @@ func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscription
 	return to
 }
 
-func FromPbSubscription(sub *pb.Subscription) *metadata.Subscription {
-	to := &metadata.Subscription{
-		ID:               vanus.ID(sub.Id),
-		Source:           sub.Source,
-		Types:            sub.Types,
-		Config:           FromPbSubscriptionConfig(sub.Config),
-		Sink:             primitive.URI(sub.Sink),
-		Protocol:         sub.Protocol,
-		ProtocolSettings: sub.ProtocolSettings,
-		EventBus:         sub.EventBus,
-		Filters:          FromPbFilters(sub.Filters),
-		Transformer:      FromPbTransformer(sub.Transformer),
-	}
-	return to
-}
-
-func ToPbSubscription(sub *metadata.Subscription) *pb.Subscription {
+func ToPbSubscription(sub *metadata.Subscription, offsets info.ListOffsetInfo) *pb.Subscription {
 	to := &pb.Subscription{
 		Id:               uint64(sub.ID),
 		Source:           sub.Source,
@@ -129,6 +113,7 @@ func ToPbSubscription(sub *metadata.Subscription) *pb.Subscription {
 		EventBus:         sub.EventBus,
 		Filters:          toPbFilters(sub.Filters),
 		Transformer:      toPbTransformer(sub.Transformer),
+		Offsets:          ToPbOffsetInfos(offsets),
 	}
 	return to
 }

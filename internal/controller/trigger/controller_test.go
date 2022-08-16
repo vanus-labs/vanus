@@ -25,6 +25,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/worker"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
@@ -344,6 +345,7 @@ func TestController_GetSubscription(t *testing.T) {
 				EventBus: "test-bus",
 			}
 			subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).Return(sub)
+			subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).Return(info.ListOffsetInfo{}, nil)
 			resp, err := ctrl.GetSubscription(ctx, request)
 			So(err, ShouldBeNil)
 			So(resp.EventBus, ShouldEqual, sub.EventBus)
@@ -369,6 +371,7 @@ func TestController_ListSubscription(t *testing.T) {
 				{ID: vanus.NewID(), EventBus: "bus2"},
 			}
 			subManager.EXPECT().ListSubscription(gomock.Any()).Return(list)
+			subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(info.ListOffsetInfo{}, nil)
 			resp, err := ctrl.ListSubscription(ctx, nil)
 			So(err, ShouldBeNil)
 			So(len(resp.Subscription), ShouldEqual, 2)

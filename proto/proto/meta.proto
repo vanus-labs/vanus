@@ -97,6 +97,7 @@ message Subscription {
   map<string, string> protocol_settings = 8;
   string event_bus = 9;
   meta.Transformer transformer = 10;
+  repeated OffsetInfo offsets = 11;
 }
 
 message SubscriptionConfig {

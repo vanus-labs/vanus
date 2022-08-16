@@ -124,19 +124,9 @@ func createSubscriptionCommand() *cobra.Command {
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"id", "eventbus", "sink", "filter", "transformer", "config"})
-				data1, _ := json.MarshalIndent(filter, "", "  ")
-				data2, _ := json.MarshalIndent(trans, "", "  ")
-				data3, _ := json.MarshalIndent(config, "", "  ")
-				t.AppendRow(table.Row{res.Id, eventbus, sink, string(data1), string(data2), string(data3)})
-				t.SetColumnConfigs([]table.ColumnConfig{
-					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 4, AlignHeader: text.AlignCenter},
-					{Number: 5, AlignHeader: text.AlignCenter},
-					{Number: 6, AlignHeader: text.AlignCenter},
-				})
+				t.AppendHeader(getSubscriptionHeader())
+				t.AppendRow(getSubscriptionRow(res))
+				t.SetColumnConfigs(getSubscriptionColumnConfig())
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
 			}
@@ -221,18 +211,9 @@ func getSubscriptionCommand() *cobra.Command {
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"id", "eventbus", "sink", "filter", "transformer"})
-				data1, _ := json.MarshalIndent(res.Filters, "", "  ")
-				data2, _ := json.MarshalIndent(res.Transformer, "", "  ")
-
-				t.AppendRow(table.Row{res.Id, res.EventBus, res.Sink, string(data1), string(data2)})
-				t.SetColumnConfigs([]table.ColumnConfig{
-					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 4, AlignHeader: text.AlignCenter},
-					{Number: 5, AlignHeader: text.AlignCenter},
-				})
+				t.AppendHeader(getSubscriptionHeader())
+				t.AppendRow(getSubscriptionRow(res))
+				t.SetColumnConfigs(getSubscriptionColumnConfig())
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
 			}
@@ -263,27 +244,48 @@ func listSubscriptionCommand() *cobra.Command {
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"no.", "id", "eventbus", "sink", "filter", "transformer"})
+				t.AppendHeader(getSubscriptionHeader("no."))
 				for idx := range res.Subscription {
 					sub := res.Subscription[idx]
-					data1, _ := json.MarshalIndent(sub.Filters, "", "  ")
-					data2, _ := json.MarshalIndent(sub.Transformer, "", "  ")
-					t.AppendRow(table.Row{idx + 1, sub.Id, sub.EventBus, sub.Sink, string(data1),
-						string(data2)})
+					t.AppendRow(getSubscriptionRow(sub, idx+1))
 					t.AppendSeparator()
 				}
-				t.SetColumnConfigs([]table.ColumnConfig{
-					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 2, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 3, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 4, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 5, AlignHeader: text.AlignCenter},
-					{Number: 6, AlignHeader: text.AlignCenter},
-				})
+				t.SetColumnConfigs(getSubscriptionColumnConfig(
+					table.ColumnConfig{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+				))
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
 			}
 		},
 	}
 	return cmd
+}
+
+func getSubscriptionHeader(headers ...interface{}) table.Row {
+	headers = append(headers, "id", "eventbus", "sink", "filter", "transformer", "config", "offsets")
+	return headers
+}
+
+func getSubscriptionRow(sub *meta.Subscription, rows ...interface{}) table.Row {
+	data1, _ := json.MarshalIndent(sub.Filters, "", "  ")
+	data2, _ := json.MarshalIndent(sub.Transformer, "", "  ")
+	data3, _ := json.MarshalIndent(sub.Config, "", "  ")
+	data4, _ := json.MarshalIndent(sub.Offsets, "", "  ")
+
+	rows = append(rows, sub.Id, sub.EventBus, sub.Sink, string(data1),
+		string(data2), string(data3), string(data4))
+	return rows
+}
+
+func getSubscriptionColumnConfig(columnConfigs ...table.ColumnConfig) []table.ColumnConfig {
+	num := len(columnConfigs)
+	columnConfigs = append(columnConfigs, []table.ColumnConfig{
+		{Number: num + 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+		{Number: num + 2, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+		{Number: num + 3, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+		{Number: num + 4, AlignHeader: text.AlignCenter},
+		{Number: num + 5, AlignHeader: text.AlignCenter},
+		{Number: num + 6, AlignHeader: text.AlignCenter},
+		{Number: num + 7, AlignHeader: text.AlignCenter}}...)
+	return columnConfigs
 }

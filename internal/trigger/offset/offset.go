@@ -15,6 +15,7 @@
 package offset
 
 import (
+	"math"
 	"sync"
 
 	"github.com/huandu/skiplist"
@@ -79,6 +80,7 @@ type offsetTracker struct {
 func initOffset(initOffset uint64) *offsetTracker {
 	return &offsetTracker{
 		initOffset: initOffset,
+		maxOffset:  math.MaxUint64,
 		list: skiplist.New(skiplist.GreaterThanFunc(func(lhs, rhs interface{}) int {
 			v1, _ := lhs.(uint64)
 			v2, _ := rhs.(uint64)
@@ -109,7 +111,7 @@ func (o *offsetTracker) offsetToCommit() uint64 {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 	if o.list.Len() == 0 {
-		if o.maxOffset == 0 {
+		if o.maxOffset == math.MaxUint64 {
 			return o.initOffset
 		}
 		return o.maxOffset + 1
