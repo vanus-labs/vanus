@@ -31,7 +31,6 @@ import (
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	block "github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/errors"
 )
 
@@ -154,9 +153,9 @@ func TestSegmentServer(t *testing.T) {
 		})
 
 		Convey("AppendToBlock()", func() {
-			srv.EXPECT().AppendToBlock(Any(), Not(vanus.EmptyID()), Not(Len(0))).Return(make([]block.Entry, 1), nil)
-			srv.EXPECT().AppendToBlock(Any(), Eq(vanus.EmptyID()), Any()).Return(make([]block.Entry, 1), errors.ErrInvalidRequest)
-			srv.EXPECT().AppendToBlock(Any(), Any(), Len(0)).Return(make([]block.Entry, 1), errors.ErrInvalidRequest)
+			srv.EXPECT().AppendToBlock(Any(), Not(vanus.EmptyID()), Not(Len(0))).Return(make([]int64, 1), nil)
+			srv.EXPECT().AppendToBlock(Any(), Eq(vanus.EmptyID()), Any()).Return(make([]int64, 1), errors.ErrInvalidRequest)
+			srv.EXPECT().AppendToBlock(Any(), Any(), Len(0)).Return(make([]int64, 1), errors.ErrInvalidRequest)
 
 			req := &segpb.AppendToBlockRequest{
 				BlockId: vanus.NewID().Uint64(),
