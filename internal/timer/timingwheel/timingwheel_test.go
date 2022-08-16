@@ -367,6 +367,8 @@ func TestTimingWheel_startReceivingStation(t *testing.T) {
 				Name: "__Timer_RS",
 			}).Times(1).Return(nil, nil)
 			mockStoreCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).Times(1).Return(errors.New("test"))
+			stub1 := StubFunc(&lookupReadableLogs, nil, errors.New("test"))
+			defer stub1.Reset()
 			err := tw.startReceivingStation(ctx)
 			So(err, ShouldNotBeNil)
 		})
@@ -379,6 +381,7 @@ func TestTimingWheel_startReceivingStation(t *testing.T) {
 			stub1 := StubFunc(&lookupReadableLogs, nil, errors.New("test"))
 			defer stub1.Reset()
 			err := tw.startReceivingStation(ctx)
+			time.Sleep(100 * time.Millisecond)
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -411,6 +414,8 @@ func TestTimingWheel_startDistributionStation(t *testing.T) {
 				Name: "__Timer_DS",
 			}).Times(1).Return(nil, nil)
 			mockStoreCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).Times(1).Return(errors.New("test"))
+			stub1 := StubFunc(&lookupReadableLogs, nil, errors.New("test"))
+			defer stub1.Reset()
 			err := tw.startDistributionStation(ctx)
 			So(err, ShouldNotBeNil)
 		})
@@ -423,6 +428,7 @@ func TestTimingWheel_startDistributionStation(t *testing.T) {
 			stub1 := StubFunc(&lookupReadableLogs, nil, errors.New("test"))
 			defer stub1.Reset()
 			err := tw.startDistributionStation(ctx)
+			time.Sleep(100 * time.Millisecond)
 			So(err, ShouldNotBeNil)
 		})
 	})
@@ -481,12 +487,12 @@ func TestTimingWheel_startScheduledEventDispatcher(t *testing.T) {
 		tw := newtimingwheel(cfg())
 		tw.SetLeader(true)
 		mockCtrl := gomock.NewController(t)
+		mockStoreCli := kv.NewMockClient(mockCtrl)
 		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
 		mockEventlogWriter := eventlog.NewMockLogWriter(mockCtrl)
-		mockStoreCli := kv.NewMockClient(mockCtrl)
-		tw.receivingStation.kvStore = mockStoreCli
 		tw.receivingStation.eventlogReader = mockEventlogReader
 		tw.receivingStation.eventlogWriter = mockEventlogWriter
+		tw.receivingStation.kvStore = mockStoreCli
 
 		Convey("test timingwheel start scheduled event dispatcher abnormal", func() {
 			mockEventlogReader.EXPECT().Seek(gomock.Eq(ctx), int64(0), io.SeekStart).AnyTimes().Return(int64(0), es.ErrNoLeader)
@@ -514,9 +520,9 @@ func TestTimingWheel_startScheduledEventDispatcher(t *testing.T) {
 			defer stub1.Reset()
 			stub2 := StubFunc(&openLogWriter, mockEventlogWriter, nil)
 			defer stub2.Reset()
-			mockEventlogWriter.EXPECT().Append(gomock.Eq(ctx), gomock.Any()).AnyTimes().Return(int64(1), nil)
+			mockEventlogWriter.EXPECT().Append(gomock.Eq(ctx), gomock.Any()).AnyTimes().Return(int64(1), errors.New("test"))
 			mockEventlogWriter.EXPECT().Close().AnyTimes().Return()
-			mockStoreCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).AnyTimes().Return(errors.New("test"))
+			mockStoreCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
@@ -702,20 +708,49 @@ func TestTimingWheel_startScheduledEventDistributer(t *testing.T) {
 		tw := newtimingwheel(cfg())
 		tw.SetLeader(true)
 		mockCtrl := gomock.NewController(t)
+		mockStoreCli := kv.NewMockClient(mockCtrl)
 		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
+		mockEventlogWriter := eventlog.NewMockLogWriter(mockCtrl)
 		for e := tw.twList.Front(); e != nil; {
 			for _, bucket := range e.Value.(*timingWheelElement).buckets {
 				bucket.eventlogReader = mockEventlogReader
+				bucket.eventlogWriter = mockEventlogWriter
+				bucket.kvStore = mockStoreCli
 			}
 			next := e.Next()
 			e = next
 		}
+		ls := make([]*record.EventLog, 1)
+		ls[0] = &record.EventLog{
+			VRN: "testvrn",
+		}
 
-		Convey("test timingwheel start scheduled event distributer cancel", func() {
+		Convey("test timingwheel start scheduled event distributer cancel1", func() {
 			e := ce.NewEvent()
 			events := []*ce.Event{&e}
-			mockEventlogReader.EXPECT().Seek(gomock.Eq(ctx), int64(0), io.SeekStart).AnyTimes().Return(int64(0), nil)
-			mockEventlogReader.EXPECT().Read(gomock.Eq(ctx), int16(1)).AnyTimes().Return(events, errors.New("test"))
+			mockEventlogReader.EXPECT().Seek(gomock.Eq(ctx), gomock.Any(), io.SeekStart).AnyTimes().Return(int64(0), nil)
+			mockEventlogReader.EXPECT().Read(gomock.Eq(ctx), gomock.Any()).AnyTimes().Return(events, errors.New("test"))
+			tw.twList.Front().Value.(*timingWheelElement).startScheduledEventDistributer(ctx)
+			go func() {
+				time.Sleep(100 * time.Millisecond)
+				cancel()
+			}()
+			time.Sleep(200 * time.Millisecond)
+			tw.Stop(ctx)
+		})
+
+		Convey("test timingwheel start scheduled event distributer cancel2", func() {
+			e := ce.NewEvent()
+			events := []*ce.Event{&e}
+			mockEventlogReader.EXPECT().Seek(gomock.Eq(ctx), gomock.Any(), io.SeekStart).AnyTimes().Return(int64(0), nil)
+			mockEventlogReader.EXPECT().Read(gomock.Eq(ctx), gomock.Any()).AnyTimes().Return(events, nil)
+			mockEventlogWriter.EXPECT().Append(ctx, e).AnyTimes().Return(int64(0), nil)
+			mockEventlogWriter.EXPECT().Close().AnyTimes().Return()
+			mockStoreCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+			stub1 := StubFunc(&lookupReadableLogs, ls, nil)
+			defer stub1.Reset()
+			stub2 := StubFunc(&openLogWriter, mockEventlogWriter, nil)
+			defer stub2.Reset()
 			tw.twList.Front().Value.(*timingWheelElement).startScheduledEventDistributer(ctx)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
@@ -743,8 +778,8 @@ func TestTimingWheel_updatePointerMeta(t *testing.T) {
 			}
 			data, _ := json.Marshal(pointerMeta)
 			mockStoreCli.EXPECT().Set(ctx, key, data).Times(1).Return(nil)
-			err := twe.updatePointerMeta(ctx)
-			So(err, ShouldBeNil)
+			twe.updatePointerMeta(ctx)
+			twe.wg.Wait()
 		})
 
 		Convey("test timingwheel update pointer metadata failure", func() {
@@ -755,8 +790,8 @@ func TestTimingWheel_updatePointerMeta(t *testing.T) {
 			}
 			data, _ := json.Marshal(pointerMeta)
 			mockStoreCli.EXPECT().Set(ctx, key, data).Times(1).Return(errors.New("test"))
-			err := twe.updatePointerMeta(ctx)
-			So(err, ShouldNotBeNil)
+			twe.updatePointerMeta(ctx)
+			twe.wg.Wait()
 		})
 	})
 }

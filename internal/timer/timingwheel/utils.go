@@ -16,8 +16,14 @@ package timingwheel
 
 import (
 	"container/list"
+	"sync"
 	"time"
 )
+
+type waitGroup struct {
+	wg   *sync.WaitGroup
+	data int64
+}
 
 func exponent(tick time.Duration, m, n int64) time.Duration {
 	result := int64(1)

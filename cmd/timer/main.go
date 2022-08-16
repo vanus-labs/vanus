@@ -106,6 +106,7 @@ func main() {
 		log.Info(ctx, "received system signal, preparing exit", nil)
 	case <-timingwheelMgr.StopNotify():
 		log.Info(ctx, "received timingwheel manager ready to stop, preparing exit", nil)
+		signal.RequestShutdown()
 	}
 
 	leaderelectionMgr.Stop(ctx)

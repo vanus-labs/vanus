@@ -41,6 +41,7 @@ func TestTimingMsg_newTimingMsg(t *testing.T) {
 		ctx := context.Background()
 		e := ce.NewEvent()
 		e.SetID("1")
+
 		Convey("test timing message new1", func() {
 			t := time.Now().Add(time.Second).UTC().Format("2006-01-02T15:04:05")
 			e.SetExtension(xceVanusDeliveryTime, t)
@@ -70,11 +71,12 @@ func TestTimingMsg_consume(t *testing.T) {
 		ctx := context.Background()
 		e := event(2000)
 		mockCtrl := gomock.NewController(t)
-		eventlogWriter := eventlog.NewMockLogWriter(mockCtrl)
+		mockEventlogWriter := eventlog.NewMockLogWriter(mockCtrl)
 		ls := make([]*record.EventLog, 1)
 		ls[0] = &record.EventLog{
 			VRN: "testvrn",
 		}
+
 		Convey("test bucket flush timing message", func() {
 			tm := newTimingMsg(ctx, e)
 			err := tm.consume(ctx, []string{})
@@ -108,11 +110,11 @@ func TestTimingMsg_consume(t *testing.T) {
 		})
 
 		Convey("test bucket fluent timing message return false4", func() {
-			eventlogWriter.EXPECT().Append(ctx, e).Times(1).Return(int64(0), errors.New("test"))
-			eventlogWriter.EXPECT().Close().Times(1).Return()
+			mockEventlogWriter.EXPECT().Append(ctx, e).Times(1).Return(int64(0), errors.New("test"))
+			mockEventlogWriter.EXPECT().Close().Times(1).Return()
 			stub1 := StubFunc(&lookupReadableLogs, ls, nil)
 			defer stub1.Reset()
-			stub2 := StubFunc(&openLogWriter, eventlogWriter, nil)
+			stub2 := StubFunc(&openLogWriter, mockEventlogWriter, nil)
 			defer stub2.Reset()
 			tm := newTimingMsg(ctx, e)
 			err := tm.consume(ctx, []string{})
@@ -120,11 +122,11 @@ func TestTimingMsg_consume(t *testing.T) {
 		})
 
 		Convey("test bucket fluent timing message return false5", func() {
-			eventlogWriter.EXPECT().Append(ctx, e).Times(1).Return(int64(0), nil)
-			eventlogWriter.EXPECT().Close().Times(1).Return()
+			mockEventlogWriter.EXPECT().Append(ctx, e).Times(1).Return(int64(0), nil)
+			mockEventlogWriter.EXPECT().Close().Times(1).Return()
 			stub1 := StubFunc(&lookupReadableLogs, ls, nil)
 			defer stub1.Reset()
-			stub2 := StubFunc(&openLogWriter, eventlogWriter, nil)
+			stub2 := StubFunc(&openLogWriter, mockEventlogWriter, nil)
 			defer stub2.Reset()
 			tm := newTimingMsg(ctx, e)
 			err := tm.consume(ctx, []string{})
@@ -162,6 +164,7 @@ func TestBucket_start(t *testing.T) {
 		ls[0] = &record.EventLog{
 			VRN: "testvrn",
 		}
+
 		Convey("test bucket strat failure", func() {
 			stub1 := StubFunc(&lookupReadableLogs, ls, errors.New("test"))
 			defer stub1.Reset()
@@ -209,17 +212,18 @@ func TestBucket_add(t *testing.T) {
 		bucket := newBucket(cfg(), nil, NewClient([]string{"127.0.0.1"}), 1, "__Timer_1_0", 1, 0)
 		tm := newTimingMsg(ctx, e)
 		mockCtrl := gomock.NewController(t)
-		eventbusCtrl := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
-		eventlogWriter := eventlog.NewMockLogWriter(mockCtrl)
-		bucket.client.leaderClient = eventbusCtrl
-		bucket.eventlogWriter = eventlogWriter
+		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
+		mockEventlogWriter := eventlog.NewMockLogWriter(mockCtrl)
+		bucket.client.leaderClient = mockEventbusCtrlCli
+		bucket.eventlogWriter = mockEventlogWriter
 		ls := make([]*record.EventLog, 1)
 		ls[0] = &record.EventLog{
 			VRN: "testvrn",
 		}
+
 		Convey("test bucket add failure", func() {
-			eventbusCtrl.EXPECT().GetEventBus(ctx, &meta.EventBus{Name: "__Timer_1_0"}).Times(1).Return(nil, errors.New("test"))
-			eventbusCtrl.EXPECT().CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
+			mockEventbusCtrlCli.EXPECT().GetEventBus(ctx, &meta.EventBus{Name: "__Timer_1_0"}).Times(1).Return(nil, errors.New("test"))
+			mockEventbusCtrlCli.EXPECT().CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
 				Name: "__Timer_1_0",
 			}).Times(1).Return(nil, errors.New("test"))
 			err := bucket.add(ctx, tm, true)
@@ -227,14 +231,14 @@ func TestBucket_add(t *testing.T) {
 		})
 
 		Convey("test bucket add success", func() {
-			eventlogWriter.EXPECT().Append(ctx, e).Times(1).Return(int64(1), nil)
+			mockEventlogWriter.EXPECT().Append(ctx, e).Times(1).Return(int64(1), nil)
 			err := bucket.add(ctx, tm, false)
 			So(err, ShouldBeNil)
 		})
 
 		Convey("test bucket add start failure", func() {
-			eventbusCtrl.EXPECT().GetEventBus(ctx, &meta.EventBus{Name: "__Timer_1_0"}).AnyTimes().Return(nil, errors.New("test"))
-			eventbusCtrl.EXPECT().CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
+			mockEventbusCtrlCli.EXPECT().GetEventBus(ctx, &meta.EventBus{Name: "__Timer_1_0"}).AnyTimes().Return(nil, errors.New("test"))
+			mockEventbusCtrlCli.EXPECT().CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
 				Name: "__Timer_1_0",
 			}).AnyTimes().Return(nil, nil)
 			stub1 := StubFunc(&lookupReadableLogs, ls, errors.New("test"))
@@ -245,49 +249,26 @@ func TestBucket_add(t *testing.T) {
 	})
 }
 
-func TestBucket_buildTimingMessageTask(t *testing.T) {
-	Convey("test bucket build timing message task", t, func() {
-		ctx, cancel := context.WithCancel(context.Background())
-		bucket := newBucket(cfg(), nil, nil, time.Second, "", 1, 0)
-		mockCtrl := gomock.NewController(t)
-		eventlogCtrl := eventlog.NewMockLogReader(mockCtrl)
-		bucket.eventlogReader = eventlogCtrl
-		Convey("test bucket build timing message task with ctx cancel", func() {
-			events := make([]*ce.Event, 1)
-			e := ce.NewEvent()
-			e.SetExtension(xceVanusEventbus, time.Now())
-			events[0] = &e
-			eventlogCtrl.EXPECT().Seek(gomock.Eq(ctx), int64(0), io.SeekStart).AnyTimes().Return(int64(0), nil)
-			eventlogCtrl.EXPECT().Read(gomock.Eq(ctx), int16(1)).AnyTimes().Return(events, nil)
-			go func() {
-				time.Sleep(50 * time.Millisecond)
-				cancel()
-			}()
-			bucket.buildTimingMessageTask(ctx)
-		})
-
-		Convey("test bucket distribute timing message return false", func() {
-			events := make([]*ce.Event, 1)
-			events[0] = event(1)
-			eventlogCtrl.EXPECT().Seek(gomock.Eq(ctx), int64(0), io.SeekStart).AnyTimes().Return(int64(0), nil)
-			eventlogCtrl.EXPECT().Read(gomock.Eq(ctx), int16(1)).AnyTimes().Return(events, errors.New("test"))
-			bucket.buildTimingMessageTask(ctx)
-		})
-	})
-}
-
 func TestBucket_fetchEventFromOverflowWheelAdvance(t *testing.T) {
 	Convey("test bucket fetch event from overflowwheel advance", t, func() {
 		ctx, cancel := context.WithCancel(context.Background())
 		bucket := newBucket(cfg(), nil, nil, time.Second, "", 1, 0)
 		mockCtrl := gomock.NewController(t)
-		eventlogCtrl := eventlog.NewMockLogReader(mockCtrl)
-		bucket.eventlogReader = eventlogCtrl
+		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
+		mockEventlogWriter := eventlog.NewMockLogWriter(mockCtrl)
+		mockStoreCli := kv.NewMockClient(mockCtrl)
+		bucket.eventlogReader = mockEventlogReader
+		bucket.eventlogWriter = mockEventlogWriter
+		bucket.kvStore = mockStoreCli
+
 		Convey("test bucket fetch event from overflowwheel advance1", func() {
 			events := make([]*ce.Event, 1)
 			events[0] = event(500)
-			eventlogCtrl.EXPECT().Seek(gomock.Eq(ctx), int64(0), io.SeekStart).AnyTimes().Return(int64(0), nil)
-			eventlogCtrl.EXPECT().Read(gomock.Eq(ctx), int16(1)).AnyTimes().Return(events, nil)
+			mockEventlogReader.EXPECT().Seek(gomock.Eq(ctx), gomock.Any(), io.SeekStart).AnyTimes().Return(int64(0), nil)
+			mockEventlogReader.EXPECT().Read(gomock.Eq(ctx), gomock.Any()).AnyTimes().Return(events, nil)
+			mockEventlogWriter.EXPECT().Append(ctx, gomock.Any()).AnyTimes().Return(int64(0), nil)
+			mockEventlogWriter.EXPECT().Close().AnyTimes().Return()
+			mockStoreCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 			add := func(context.Context, *timingMsg) bool {
 				return false
 			}
@@ -295,17 +276,6 @@ func TestBucket_fetchEventFromOverflowWheelAdvance(t *testing.T) {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
 			}()
-			bucket.fetchEventFromOverflowWheelAdvance(ctx, add)
-		})
-
-		Convey("test bucket fetch event from overflowwheel advance2", func() {
-			events := make([]*ce.Event, 1)
-			events[0] = event(1000)
-			eventlogCtrl.EXPECT().Seek(gomock.Eq(ctx), int64(0), io.SeekStart).AnyTimes().Return(int64(0), nil)
-			eventlogCtrl.EXPECT().Read(gomock.Eq(ctx), int16(1)).AnyTimes().Return(events, errors.New("test"))
-			add := func(context.Context, *timingMsg) bool {
-				return false
-			}
 			bucket.fetchEventFromOverflowWheelAdvance(ctx, add)
 		})
 	})
@@ -316,13 +286,14 @@ func TestBucket_createEventBus(t *testing.T) {
 		ctx := context.Background()
 		bucket := newBucket(cfg(), nil, NewClient([]string{"127.0.0.1"}), 1, "__Timer_1_0", 1, 0)
 		mockCtrl := gomock.NewController(t)
-		eventbusCtrl := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
-		bucket.client.leaderClient = eventbusCtrl
+		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
+		bucket.client.leaderClient = mockEventbusCtrlCli
+
 		Convey("test bucket create eventbus success", func() {
-			eventbusCtrl.EXPECT().GetEventBus(ctx, &meta.EventBus{
+			mockEventbusCtrlCli.EXPECT().GetEventBus(ctx, &meta.EventBus{
 				Name: "__Timer_1_0",
 			}).Times(1).Return(nil, nil)
-			eventbusCtrl.EXPECT().CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
+			mockEventbusCtrlCli.EXPECT().CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
 				Name: "__Timer_1_0",
 			}).AnyTimes().Return(nil, nil)
 			err := bucket.createEventbus(ctx)
@@ -338,11 +309,11 @@ func TestBucket_putEvent(t *testing.T) {
 		bucket := newBucket(cfg(), nil, NewClient([]string{"127.0.0.1"}), 1, "", 1, 0)
 		tm := newTimingMsg(ctx, e)
 		mockCtrl := gomock.NewController(t)
-		eventlogWriter := eventlog.NewMockLogWriter(mockCtrl)
-		bucket.eventlogWriter = eventlogWriter
+		mockEventlogWriter := eventlog.NewMockLogWriter(mockCtrl)
+		bucket.eventlogWriter = mockEventlogWriter
 
 		Convey("test bucket put event success", func() {
-			eventlogWriter.EXPECT().Append(ctx, e).Times(1).Return(int64(1), errors.New("test"))
+			mockEventlogWriter.EXPECT().Append(ctx, e).Times(1).Return(int64(1), errors.New("test"))
 			err := bucket.putEvent(ctx, tm)
 			So(err, ShouldNotBeNil)
 		})
@@ -354,13 +325,14 @@ func TestBucket_getEvent(t *testing.T) {
 		ctx := context.Background()
 		bucket := newBucket(cfg(), nil, nil, 1, "", 1, 0)
 		mockCtrl := gomock.NewController(t)
-		eventlogCtrl := eventlog.NewMockLogReader(mockCtrl)
-		bucket.eventlogReader = eventlogCtrl
+		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
+		bucket.eventlogReader = mockEventlogReader
+
 		Convey("test bucket get event with seek error", func() {
 			events := make([]*ce.Event, 1)
 			events[0] = event(10000)
-			eventlogCtrl.EXPECT().Seek(gomock.Eq(ctx), int64(0), io.SeekStart).AnyTimes().Return(int64(0), errors.New("test"))
-			eventlogCtrl.EXPECT().Read(gomock.Eq(ctx), int16(1)).AnyTimes().Return(events, nil)
+			mockEventlogReader.EXPECT().Seek(gomock.Eq(ctx), int64(0), io.SeekStart).AnyTimes().Return(int64(0), errors.New("test"))
+			mockEventlogReader.EXPECT().Read(gomock.Eq(ctx), int16(1)).AnyTimes().Return(events, nil)
 			result, err := bucket.getEvent(ctx, 1)
 			So(result, ShouldBeNil)
 			So(err, ShouldNotBeNil)
@@ -373,8 +345,9 @@ func TestBucket_updateOffsetMeta(t *testing.T) {
 		ctx := context.Background()
 		bucket := newBucket(cfg(), nil, nil, 1, "__Timer_1_0", 1, 0)
 		mockCtrl := gomock.NewController(t)
-		storeCtrl := kv.NewMockClient(mockCtrl)
-		bucket.kvStore = storeCtrl
+		mockStoreCli := kv.NewMockClient(mockCtrl)
+		bucket.kvStore = mockStoreCli
+
 		Convey("test bucket update offset metadata success", func() {
 			key := "/vanus/internal/resource/timer/metadata/offset/__Timer_1_0"
 			offsetMeta := &metadata.OffsetMeta{
@@ -384,9 +357,9 @@ func TestBucket_updateOffsetMeta(t *testing.T) {
 				Eventbus: "__Timer_1_0",
 			}
 			data, _ := json.Marshal(offsetMeta)
-			storeCtrl.EXPECT().Set(ctx, key, data).Times(1).Return(nil)
-			err := bucket.updateOffsetMeta(ctx)
-			So(err, ShouldBeNil)
+			mockStoreCli.EXPECT().Set(ctx, key, data).Times(1).Return(nil)
+			bucket.updateOffsetMeta(ctx, bucket.offset)
+			time.Sleep(100 * time.Millisecond)
 		})
 
 		Convey("test bucket update offset metadata failure", func() {
@@ -398,9 +371,9 @@ func TestBucket_updateOffsetMeta(t *testing.T) {
 				Eventbus: "__Timer_1_0",
 			}
 			data, _ := json.Marshal(offsetMeta)
-			storeCtrl.EXPECT().Set(ctx, key, data).Times(1).Return(errors.New("test"))
-			err := bucket.updateOffsetMeta(ctx)
-			So(err, ShouldNotBeNil)
+			mockStoreCli.EXPECT().Set(ctx, key, data).Times(1).Return(errors.New("test"))
+			bucket.updateOffsetMeta(ctx, bucket.offset)
+			time.Sleep(100 * time.Millisecond)
 		})
 	})
 }
