@@ -81,6 +81,7 @@ type Manager interface {
 	IsLeader() bool
 	IsDeployed(ctx context.Context) bool
 	RecoverForFailover(ctx context.Context) error
+	StopNotify() <-chan struct{}
 	Stop(ctx context.Context)
 }
 
@@ -225,6 +226,10 @@ func (tw *timingWheel) Start(ctx context.Context) error {
 	tw.startHeartBeat(ctx)
 
 	return nil
+}
+
+func (tw *timingWheel) StopNotify() <-chan struct{} {
+	return tw.exitC
 }
 
 // Stop stops the current timing wheel.

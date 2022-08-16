@@ -101,7 +101,12 @@ func main() {
 		os.Exit(-1)
 	}
 
-	<-ctx.Done()
+	select {
+	case <-ctx.Done():
+		log.Info(ctx, "received system signal, preparing exit", nil)
+	case <-timingwheelMgr.StopNotify():
+		log.Info(ctx, "received timingwheel manager ready to stop, preparing exit", nil)
+	}
 
 	leaderelectionMgr.Stop(ctx)
 	timingwheelMgr.Stop(ctx)
