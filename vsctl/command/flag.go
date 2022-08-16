@@ -39,6 +39,11 @@ var (
 	rateLimit      int32
 	from           string
 	subscriptionID uint64
-	showSegment    bool
-	showBlock      bool
+
+	protocol           string
+	sinkCredentialType string
+	sinkCredential     string
+
+	showSegment bool
+	showBlock   bool
 )

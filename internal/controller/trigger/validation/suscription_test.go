@@ -87,6 +87,49 @@ func TestValidateUpdateSubscription(t *testing.T) {
 	})
 }
 
+func TestValidateSinkAndProtocol(t *testing.T) {
+	ctx := context.Background()
+	Convey("subscription protocol is lambda", t, func() {
+		Convey("arn is invalid", func() {
+			sink := "arn:aws:lambda"
+			credential := &metapb.SinkCredential{}
+			So(validateSinkAndProtocol(ctx, sink, metapb.Protocol_AWS_LAMBDA, credential), ShouldNotBeNil)
+		})
+		sink := "arn:aws:lambda:us-west-2:843378899134:function:xdltest"
+		Convey("sink credential is nil", func() {
+			So(validateSinkAndProtocol(ctx, sink, metapb.Protocol_AWS_LAMBDA, nil), ShouldNotBeNil)
+		})
+		Convey("sink credential type is invalid", func() {
+			credential := &metapb.SinkCredential{CredentialType: metapb.SinkCredential_PLAIN}
+			So(validateSinkAndProtocol(ctx, sink, metapb.Protocol_AWS_LAMBDA, credential), ShouldNotBeNil)
+		})
+		Convey("all valid", func() {
+			credential := &metapb.SinkCredential{CredentialType: metapb.SinkCredential_CLOUD}
+			So(validateSinkAndProtocol(ctx, sink, metapb.Protocol_AWS_LAMBDA, credential), ShouldBeNil)
+		})
+	})
+}
+
+func TestValidateSinkCredential(t *testing.T) {
+	ctx := context.Background()
+	Convey("subscription sink credential type is lambda", t, func() {
+		Convey("ak or sk is empty", func() {
+			credential := &metapb.SinkCredential{
+				CredentialType: metapb.SinkCredential_CLOUD,
+			}
+			So(validateSinkCredential(ctx, credential), ShouldNotBeNil)
+		})
+		Convey("all valid", func() {
+			credential := &metapb.SinkCredential{
+				CredentialType:  metapb.SinkCredential_CLOUD,
+				AccessKeyId:     "xxxxxx",
+				SecretAccessKey: "xxxxxx",
+			}
+			So(validateSinkCredential(ctx, credential), ShouldBeNil)
+		})
+	})
+}
+
 func TestValidateFilter(t *testing.T) {
 	ctx := context.Background()
 	Convey("exact key empty", t, func() {

@@ -22,6 +22,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
+
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
@@ -63,6 +65,7 @@ type controller struct {
 	config                Config
 	member                embedetcd.Member
 	storage               storage.Storage
+	secretPersistence     secret.Persistence
 	subscriptionManager   subscription.Manager
 	workerManager         worker.Manager
 	scheduler             *worker.SubscriptionScheduler
@@ -403,7 +406,7 @@ func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, ad
 }
 
 func (ctrl *controller) init(ctx context.Context) error {
-	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage)
+	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage, ctrl.secretPersistence)
 	ctrl.workerManager = worker.NewTriggerWorkerManager(worker.Config{}, ctrl.storage,
 		ctrl.subscriptionManager, ctrl.requeueSubscription)
 	ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
@@ -488,6 +491,11 @@ func (ctrl *controller) Start() error {
 		return err
 	}
 	ctrl.storage = s
+	p, err := secret.NewEtcdPersistence(ctrl.config.Storage, ctrl.config.SecretEncryptionSalt)
+	if err != nil {
+		return err
+	}
+	ctrl.secretPersistence = p
 	go ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
 	return nil
 }

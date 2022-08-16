@@ -12,17 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package crypto
 
-type KeyPrefix string
+import (
+	"testing"
 
-func (s KeyPrefix) String() string {
-	return string(s)
-}
-
-const (
-	KeyPrefixOffset        KeyPrefix = "/trigger/offsets/"
-	KeyPrefixSubscription  KeyPrefix = "/trigger/subscriptions/"
-	KeyPrefixTriggerWorker KeyPrefix = "/trigger/triggerWorkers/"
-	KeyPrefixSecret        KeyPrefix = "/trigger/secret/"
+	. "github.com/smartystreets/goconvey/convey"
 )
+
+func TestAesCrypt(t *testing.T) {
+	Convey("test aes crypt", t, func() {
+		key := "testKey"
+		value := "value"
+		d, err := AesEncrypt(value, key)
+		So(err, ShouldBeNil)
+		So(d, ShouldEqual, "1583cbd8550dc075273f293b1abf42e1")
+		d, err = AesDecrypt(d, key)
+		So(err, ShouldBeNil)
+		So(d, ShouldEqual, value)
+	})
+}

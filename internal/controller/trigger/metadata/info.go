@@ -63,17 +63,19 @@ const (
 )
 
 type Subscription struct {
-	ID               vanus.ID                        `json:"id"`
-	Source           string                          `json:"source,omitempty"`
-	Types            []string                        `json:"types,omitempty"`
-	Config           primitive.SubscriptionConfig    `json:"config,omitempty"`
-	Filters          []*primitive.SubscriptionFilter `json:"filters,omitempty"`
-	Sink             primitive.URI                   `json:"sink,omitempty"`
-	Protocol         string                          `json:"protocol,omitempty"`
-	ProtocolSettings map[string]string               `json:"protocol_settings,omitempty"`
-	EventBus         string                          `json:"eventbus"`
-	Phase            SubscriptionPhase               `json:"phase"`
-	TriggerWorker    string                          `json:"trigger_worker,omitempty"`
-	Transformer      *primitive.Transformer          `json:"transformer,omitempty"`
-	HeartbeatTime    time.Time                       `json:"-"`
+	ID                 vanus.ID                        `json:"id"`
+	Source             string                          `json:"source,omitempty"`
+	Types              []string                        `json:"types,omitempty"`
+	Config             primitive.SubscriptionConfig    `json:"config,omitempty"`
+	Filters            []*primitive.SubscriptionFilter `json:"filters,omitempty"`
+	Sink               primitive.URI                   `json:"sink,omitempty"`
+	SinkCredentialType *primitive.CredentialType       `json:"sink_credential_type,omitempty"`
+	Protocol           primitive.Protocol              `json:"protocol,omitempty"`
+	ProtocolSetting    *primitive.ProtocolSetting      `json:"protocol_settings,omitempty"`
+	EventBus           string                          `json:"eventbus"`
+	Phase              SubscriptionPhase               `json:"phase"`
+	TriggerWorker      string                          `json:"trigger_worker,omitempty"`
+	Transformer        *primitive.Transformer          `json:"transformer,omitempty"`
+	HeartbeatTime      time.Time                       `json:"-"`
+	SinkCredential     *primitive.SinkCredential       `json:"-"`
 }

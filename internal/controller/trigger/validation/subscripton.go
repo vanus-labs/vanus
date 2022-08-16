@@ -17,6 +17,8 @@ package validation
 import (
 	"context"
 
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
+
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/primitive/cel"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
@@ -29,8 +31,11 @@ func ValidateCreateSubscription(ctx context.Context, request *ctrlpb.CreateSubsc
 	if err := ValidateFilterList(ctx, request.Filters); err != nil {
 		return errors.ErrInvalidRequest.WithMessage("filters is invalid").Wrap(err)
 	}
-	if request.Sink == "" {
-		return errors.ErrInvalidRequest.WithMessage("sink is empty")
+	if err := validateSinkAndProtocol(ctx, request.Sink, request.Protocol, request.SinkCredential); err != nil {
+		return err
+	}
+	if err := validateSinkCredential(ctx, request.SinkCredential); err != nil {
+		return err
 	}
 	if request.EventBus == "" {
 		return errors.ErrInvalidRequest.WithMessage("eventBus is empty")
@@ -47,6 +52,50 @@ func ValidateUpdateSubscription(ctx context.Context, request *ctrlpb.UpdateSubsc
 	}
 	if err := validateSubscriptionConfig(ctx, request.Config); err != nil {
 		return err
+	}
+	return nil
+}
+
+func validateSinkAndProtocol(ctx context.Context,
+	sink string,
+	protocol metapb.Protocol,
+	credential *metapb.SinkCredential) error {
+	if sink == "" {
+		return errors.ErrInvalidRequest.WithMessage("sink is empty")
+	}
+	switch protocol {
+	case metapb.Protocol_HTTP:
+	case metapb.Protocol_AWS_LAMBDA:
+		if _, err := arn.Parse(sink); err != nil {
+			return errors.ErrInvalidRequest.
+				WithMessage("protocol is aws lambda, sink is arn, arn parse error").Wrap(err)
+		}
+		if credential == nil || credential.CredentialType != metapb.SinkCredential_CLOUD {
+			return errors.ErrInvalidRequest.
+				WithMessage("protocol is aws lambda, sink credential can not be nil and  credential type is cloud")
+		}
+	default:
+		return errors.ErrInvalidRequest.WithMessage("protocol is invalid")
+	}
+	return nil
+}
+
+func validateSinkCredential(ctx context.Context, credential *metapb.SinkCredential) error {
+	if credential == nil {
+		return nil
+	}
+	switch credential.CredentialType {
+	case metapb.SinkCredential_PLAIN:
+		if credential.Identifier == "" || credential.Secret == "" {
+			return errors.ErrInvalidRequest.WithMessage("sink credential type is plain,Identifier and Secret can not empty")
+		}
+	case metapb.SinkCredential_CLOUD:
+		if credential.AccessKeyId == "" || credential.SecretAccessKey == "" {
+			return errors.ErrInvalidRequest.
+				WithMessage("sink credential type is cloud,accessKeyId and SecretAccessKey can not empty")
+		}
+	default:
+		return errors.ErrInvalidRequest.WithMessage("sink credential type is invalid")
 	}
 	return nil
 }

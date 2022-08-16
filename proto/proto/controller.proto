@@ -140,13 +140,14 @@ message ReportSegmentLeaderRequest {
 message CreateSubscriptionRequest {
   string source = 1;
   repeated string types = 2;
-  meta.SubscriptionConfig config = 3;
+  optional meta.SubscriptionConfig config = 3;
   repeated meta.Filter filters = 4;
   string sink = 5;
-  string protocol = 6;
-  map<string, string> protocol_settings = 7;
-  string event_bus = 8;
-  meta.Transformer transformer = 9;
+  optional meta.SinkCredential sink_credential = 6;
+  meta.Protocol protocol = 7;
+  optional meta.ProtocolSetting protocol_settings = 8;
+  string event_bus = 9;
+  optional meta.Transformer transformer = 10;
 }
 
 message UpdateSubscriptionRequest {

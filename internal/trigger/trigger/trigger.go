@@ -23,10 +23,10 @@ import (
 	"sync"
 	"time"
 
-	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/trigger/client"
 	"github.com/linkall-labs/vanus/internal/trigger/filter"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
@@ -35,6 +35,8 @@ import (
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
+
+	ce "github.com/cloudevents/sdk-go/v2"
 	"go.uber.org/ratelimit"
 )
 
@@ -67,7 +69,7 @@ type trigger struct {
 	reader        reader.Reader
 	eventCh       chan info.EventRecord
 	sendCh        chan info.EventRecord
-	ceClient      ce.Client
+	client        client.EventClient
 	filter        filter.Filter
 	transformer   *transform.Transformer
 	rateLimiter   ratelimit.Limiter
@@ -105,20 +107,27 @@ func (t *trigger) applyOptions(opts ...Option) {
 	}
 }
 
-func (t *trigger) getCeClient() ce.Client {
+func (t *trigger) getClient() client.EventClient {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
-	return t.ceClient
+	return t.client
+}
+
+func (t *trigger) newEventClient() client.EventClient {
+	sub := t.subscription
+	switch sub.Protocol {
+	case primitive.AwsLambdaProtocol:
+		return client.NewAwsLambdaClient(sub.SinkCredential.AccessKeyID, sub.SinkCredential.SecretAccessKey, string(sub.Sink))
+	default:
+		return client.NewHTTPClient(string(sub.Sink))
+	}
 }
 
 func (t *trigger) changeTarget(target primitive.URI) error {
-	ceClient, err := NewCeClient(target)
-	if err != nil {
-		return err
-	}
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	t.ceClient = ceClient
+	t.subscription.Sink = target
+	t.client = t.newEventClient()
 	return nil
 }
 
@@ -174,7 +183,7 @@ func (t *trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 		timeout, cancel := context.WithTimeout(ctx, t.config.SendTimeOut)
 		defer cancel()
 		t.rateLimiter.Take()
-		return t.getCeClient().Send(timeout, *e)
+		return t.getClient().Send(timeout, *e)
 	}
 	var err error
 	transformer := t.getTransformer()
@@ -283,11 +292,7 @@ func getOffset(subscriptionOffset *offset.SubscriptionOffset, sub *primitive.Sub
 }
 
 func (t *trigger) Init(ctx context.Context) error {
-	ceClient, err := NewCeClient(t.subscription.Sink)
-	if err != nil {
-		return err
-	}
-	t.ceClient = ceClient
+	t.client = t.newEventClient()
 	t.eventCh = make(chan info.EventRecord, t.config.BufferSize)
 	t.sendCh = make(chan info.EventRecord, t.config.BufferSize)
 	t.reader = reader.NewReader(t.getReaderConfig(), t.eventCh)

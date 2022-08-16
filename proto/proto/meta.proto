@@ -93,11 +93,39 @@ message Subscription {
   meta.SubscriptionConfig config = 4;
   repeated Filter filters = 5;
   string sink = 6;
-  string protocol = 7;
-  map<string, string> protocol_settings = 8;
-  string event_bus = 9;
-  meta.Transformer transformer = 10;
-  repeated OffsetInfo offsets = 11;
+  SinkCredential sink_credential = 7;
+  Protocol protocol = 8;
+  ProtocolSetting protocol_settings = 9;
+  string event_bus = 10;
+  meta.Transformer transformer = 11;
+  repeated OffsetInfo offsets = 12;
+}
+
+enum Protocol{
+  HTTP = 0;
+  AWS_LAMBDA = 1;
+}
+
+message SinkCredential {
+  enum CredentialType {
+    PLAIN = 0;
+    CLOUD = 1;
+  }
+  CredentialType credential_type = 1;
+
+  // plain
+  string identifier = 2;
+  string secret = 3;
+  // access token
+  string access_token = 4;
+  // cloud
+  string access_key_id = 5;
+  string secret_access_key = 6;
+}
+
+message ProtocolSetting {
+  map<string, string> headers = 1;
+  string method = 2;
 }
 
 message SubscriptionConfig {

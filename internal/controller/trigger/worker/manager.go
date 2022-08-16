@@ -203,16 +203,21 @@ func (m *manager) UpdateTriggerWorkerInfo(ctx context.Context, addr string) erro
 }
 
 func (m *manager) startTriggerWorker(ctx context.Context, tWorker TriggerWorker) {
+	assignSubscription := tWorker.GetAssignedSubscriptions()
 	err := tWorker.RemoteStart(ctx)
 	if err != nil {
 		log.Warning(ctx, "trigger worker start error", map[string]interface{}{
 			log.KeyError:             err,
 			log.KeyTriggerWorkerAddr: tWorker.GetAddr(),
 		})
-	} else {
-		log.Info(ctx, "trigger worker start success", map[string]interface{}{
-			log.KeyTriggerWorkerAddr: tWorker.GetAddr(),
-		})
+		return
+	}
+	log.Info(ctx, "trigger worker start success", map[string]interface{}{
+		log.KeyTriggerWorkerAddr: tWorker.GetAddr(),
+	})
+	// trigger worker restart need add to trigger worker again
+	for _, id := range assignSubscription {
+		tWorker.AssignSubscription(id)
 	}
 }
 func (m *manager) cleanTriggerWorker(ctx context.Context, tWorker TriggerWorker) {

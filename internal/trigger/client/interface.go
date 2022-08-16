@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+//go:generate mockgen -source=interface.go  -destination=mock_interface.go -package=client
+package client
 
-type KeyPrefix string
+import (
+	"context"
 
-func (s KeyPrefix) String() string {
-	return string(s)
+	ce "github.com/cloudevents/sdk-go/v2"
+)
+
+type Sender interface {
+	Send(ctx context.Context, event ce.Event) error
 }
 
-const (
-	KeyPrefixOffset        KeyPrefix = "/trigger/offsets/"
-	KeyPrefixSubscription  KeyPrefix = "/trigger/subscriptions/"
-	KeyPrefixTriggerWorker KeyPrefix = "/trigger/triggerWorkers/"
-	KeyPrefixSecret        KeyPrefix = "/trigger/secret/"
-)
+type EventClient interface {
+	Sender
+}

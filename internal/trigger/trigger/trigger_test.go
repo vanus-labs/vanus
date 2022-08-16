@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/linkall-labs/vanus/internal/trigger/client"
+
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
@@ -100,11 +102,15 @@ func TestTriggerStartStop(t *testing.T) {
 
 func TestTriggerRunEventSend(t *testing.T) {
 	Convey("test event run process", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		cli := client.NewMockEventClient(ctrl)
 		ctx := context.Background()
 		id := vanus.NewID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
 		_ = tg.Init(ctx)
-		tg.ceClient = NewFakeClient("test")
+		tg.client = cli
+		cli.EXPECT().Send(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 		size := 10
 		for i := 0; i < size; i++ {
 			_ = tg.eventArrived(ctx, makeEventRecord("test"))
@@ -136,9 +142,13 @@ func TestTriggerRunEventSend(t *testing.T) {
 
 func TestTriggerRateLimit(t *testing.T) {
 	Convey("test rate limit", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		cli := client.NewMockEventClient(ctrl)
 		id := vanus.NewID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
-		tg.ceClient = NewFakeClient("test")
+		tg.client = cli
+		cli.EXPECT().Send(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 		rateLimit := int32(10000)
 		Convey("test no rate limit", func() {
 			c := testSendEvent(tg)

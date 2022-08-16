@@ -19,12 +19,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription/offset"
+	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -34,12 +35,16 @@ func TestSubscriptionInit(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	storage := storage.NewMockStorage(ctrl)
-	m := NewSubscriptionManager(storage)
+	persistence := secret.NewMockPersistence(ctrl)
+	m := NewSubscriptionManager(storage, persistence)
 
 	Convey("init ", t, func() {
+		subID := vanus.NewID()
+		credentialType := primitive.CloudCredentialType
 		storage.MockSubscriptionStorage.EXPECT().ListSubscription(ctx).Return([]*metadata.Subscription{
-			{ID: 1},
+			{ID: subID, SinkCredentialType: &credentialType},
 		}, nil)
+		persistence.EXPECT().Read(gomock.Any(), gomock.Eq(subID)).Return(primitive.SinkCredential{}, nil)
 		err := m.Init(ctx)
 		So(err, ShouldBeNil)
 	})
@@ -56,7 +61,8 @@ func TestGetListSubscription(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
-		m := NewSubscriptionManager(storage)
+		persistence := secret.NewMockPersistence(ctrl)
+		m := NewSubscriptionManager(storage, persistence)
 		id := vanus.NewID()
 		Convey("list subscription size 0", func() {
 			subscriptions := m.ListSubscription(ctx)
@@ -90,16 +96,26 @@ func TestGetListSubscription(t *testing.T) {
 	})
 }
 
-func TestModifySubscription(t *testing.T) {
+func TestSubscription(t *testing.T) {
 	Convey("test add update delete subscription", t, func() {
 		ctx := context.Background()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
-		m := NewSubscriptionManager(storage)
+		persistence := secret.NewMockPersistence(ctrl)
+		m := NewSubscriptionManager(storage, persistence)
+		subID := vanus.NewID()
 		Convey("test add subscription", func() {
 			storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).Return(nil)
-			err := m.AddSubscription(ctx, &metadata.Subscription{})
+			persistence.EXPECT().Write(gomock.Any(), gomock.Eq(subID), gomock.Any()).Return(nil)
+			credentialType := primitive.CloudCredentialType
+			err := m.AddSubscription(ctx, &metadata.Subscription{
+				SinkCredentialType: &credentialType,
+				ID:                 subID,
+				SinkCredential: &primitive.SinkCredential{
+					Type: credentialType,
+				},
+			})
 			So(err, ShouldBeNil)
 			subscriptions := m.ListSubscription(ctx)
 			So(len(subscriptions), ShouldEqual, 1)
@@ -131,7 +147,8 @@ func TestOffset(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
-		m := NewSubscriptionManager(storage).(*manager)
+		persistence := secret.NewMockPersistence(ctrl)
+		m := NewSubscriptionManager(storage, persistence).(*manager)
 		offsetManager := offset.NewMockManager(ctrl)
 		m.offsetManager = offsetManager
 		storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).Return(nil)

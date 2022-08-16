@@ -21,6 +21,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
+
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription/offset"
@@ -49,16 +51,18 @@ var (
 )
 
 type manager struct {
-	storage         storage.Storage
-	offsetManager   offset.Manager
-	lock            sync.RWMutex
-	subscriptionMap map[vanus.ID]*metadata.Subscription
+	secretPersistence secret.Persistence
+	storage           storage.Storage
+	offsetManager     offset.Manager
+	lock              sync.RWMutex
+	subscriptionMap   map[vanus.ID]*metadata.Subscription
 }
 
-func NewSubscriptionManager(storage storage.Storage) Manager {
+func NewSubscriptionManager(storage storage.Storage, persistence secret.Persistence) Manager {
 	m := &manager{
-		storage:         storage,
-		subscriptionMap: map[vanus.ID]*metadata.Subscription{},
+		storage:           storage,
+		secretPersistence: persistence,
+		subscriptionMap:   map[vanus.ID]*metadata.Subscription{},
 	}
 	return m
 }
@@ -102,8 +106,12 @@ func (m *manager) GetSubscription(ctx context.Context, id vanus.ID) *metadata.Su
 func (m *manager) AddSubscription(ctx context.Context, subscription *metadata.Subscription) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	err := m.storage.CreateSubscription(ctx, subscription)
-	if err != nil {
+	if subscription.SinkCredentialType != nil {
+		if err := m.secretPersistence.Write(ctx, subscription.ID, *subscription.SinkCredential); err != nil {
+			return err
+		}
+	}
+	if err := m.storage.CreateSubscription(ctx, subscription); err != nil {
 		return err
 	}
 	m.subscriptionMap[subscription.ID] = subscription
@@ -166,6 +174,9 @@ func (m *manager) Heartbeat(ctx context.Context, id vanus.ID, addr string, time 
 }
 
 func (m *manager) Stop() {
+	if m.offsetManager == nil {
+		return
+	}
 	m.offsetManager.Stop()
 }
 
@@ -183,6 +194,13 @@ func (m *manager) Init(ctx context.Context) error {
 	})
 	for i := range subList {
 		sub := subList[i]
+		if sub.SinkCredentialType != nil {
+			credential, err := m.secretPersistence.Read(ctx, sub.ID)
+			if err != nil {
+				return err
+			}
+			sub.SinkCredential = &credential
+		}
 		m.subscriptionMap[sub.ID] = sub
 		metrics.SubscriptionGauge.WithLabelValues(sub.EventBus).Inc()
 		if sub.TriggerWorker != "" {
