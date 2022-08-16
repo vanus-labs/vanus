@@ -172,7 +172,7 @@ func (tw *timingWheel) Start(ctx context.Context) error {
 
 	// create eventbus and start of each layer bucket
 	for e := tw.twList.Front(); e != nil; {
-		for _, bucket := range e.Value.(*timingWheelElement).buckets {
+		for _, bucket := range e.Value.(*timingWheelElement).getBuckets() {
 			if tw.IsLeader() {
 				err = bucket.createEventbus(ctx)
 				if err != nil {
@@ -287,15 +287,15 @@ func (tw *timingWheel) RecoverForFailover(ctx context.Context) error {
 			return err
 		}
 		if md.Layer > tw.config.Layers {
-			highestTimingWheel := tw.twList.Back().Value.(*timingWheelElement) // nolint:errcheck // todo
-			if cap(highestTimingWheel.buckets) < int(md.Slot+1) {
-				highestTimingWheel.resetBucketsCapacity(md.Slot + 1)
+			if cap(tw.twList.Back().Value.(*timingWheelElement).getBuckets()) < int(md.Slot+1) {
+				tw.twList.Back().Value.(*timingWheelElement).resetBucketsCapacity(md.Slot + 1)
 			}
-			if highestTimingWheel.buckets[md.Slot] == nil {
-				ebName := fmt.Sprintf(timerBuiltInEventbus, highestTimingWheel.layer, md.Slot)
-				highestTimingWheel.buckets[md.Slot] = newBucket(tw.config,
-					tw.kvStore, tw.client, highestTimingWheel.tick, ebName, highestTimingWheel.layer, md.Slot)
-				if err = highestTimingWheel.buckets[md.Slot].start(ctx); err != nil {
+			if tw.twList.Back().Value.(*timingWheelElement).getBucket(md.Slot) == nil {
+				ebName := fmt.Sprintf(timerBuiltInEventbus, tw.twList.Back().Value.(*timingWheelElement).getLayer(), md.Slot)
+				newbucket := newBucket(tw.config, tw.kvStore, tw.client, tw.twList.Back().Value.(*timingWheelElement).getTick(),
+					ebName, tw.twList.Back().Value.(*timingWheelElement).getLayer(), md.Slot)
+				tw.twList.Back().Value.(*timingWheelElement).setBuckets(md.Slot, newbucket)
+				if err = tw.twList.Back().Value.(*timingWheelElement).getBucket(md.Slot).start(ctx); err != nil {
 					return err
 				}
 			}
@@ -304,8 +304,8 @@ func (tw *timingWheel) RecoverForFailover(ctx context.Context) error {
 	}
 
 	for e := tw.twList.Front(); e != nil; {
-		e.Value.(*timingWheelElement).pointer = pointerMetaMap[e.Value.(*timingWheelElement).layer]
-		for _, bucket := range e.Value.(*timingWheelElement).buckets {
+		e.Value.(*timingWheelElement).setPointer(pointerMetaMap[e.Value.(*timingWheelElement).getLayer()])
+		for _, bucket := range e.Value.(*timingWheelElement).getBuckets() {
 			if v, ok := offsetMetaMap[bucket.eventbus]; ok {
 				log.Info(ctx, "recover offset metadata", map[string]interface{}{
 					"layer":    v.Layer,
@@ -402,7 +402,7 @@ func (tw *timingWheel) startTickingOfPointer(ctx context.Context) {
 				if !tw.IsLeader() {
 					break
 				}
-				tw.twList.Front().Value.(*timingWheelElement).tickC <- struct{}{}
+				tw.twList.Front().Value.(*timingWheelElement).tickingOnce()
 			}
 		}
 	}()
@@ -532,8 +532,8 @@ func (twe *timingWheelElement) calculateIndex(expiration, currentTime time.Time)
 	if twe.layer == 1 {
 		pointer = int64(subTick/twe.tick) + twe.pointer
 	} else {
-		lowerTimingWheelTick := twe.element.Prev().Value.(*timingWheelElement).tick
-		lowerTimingWheelPointer := twe.element.Prev().Value.(*timingWheelElement).pointer
+		lowerTimingWheelTick := twe.element.Prev().Value.(*timingWheelElement).getTick()
+		lowerTimingWheelPointer := twe.element.Prev().Value.(*timingWheelElement).getPointer()
 		offset := int64((subTick + time.Duration(lowerTimingWheelPointer)*lowerTimingWheelTick) / twe.tick)
 		remainder := int64((subTick + time.Duration(lowerTimingWheelPointer)*lowerTimingWheelTick) % twe.tick)
 		if remainder > 0 {
@@ -736,7 +736,7 @@ func (twe *timingWheelElement) start(ctx context.Context) {
 				}
 				twe.pointer++
 				if twe.layer <= twe.config.Layers && twe.pointer >= twe.config.WheelSize {
-					twe.next().tickC <- struct{}{}
+					twe.next().tickingOnce()
 					twe.pointer = 0
 				}
 				if err := twe.updatePointerMeta(ctx); err != nil {
@@ -756,6 +756,38 @@ func (twe *timingWheelElement) start(ctx context.Context) {
 			}
 		}
 	}()
+}
+
+func (twe *timingWheelElement) getTick() time.Duration {
+	return twe.tick
+}
+
+func (twe *timingWheelElement) getPointer() int64 {
+	return twe.pointer
+}
+
+func (twe *timingWheelElement) setPointer(pointer int64) {
+	twe.pointer = pointer
+}
+
+func (twe *timingWheelElement) getLayer() int64 {
+	return twe.layer
+}
+
+func (twe *timingWheelElement) getBucket(slot int64) *bucket {
+	return twe.buckets[slot]
+}
+
+func (twe *timingWheelElement) getBuckets() []*bucket {
+	return twe.buckets
+}
+
+func (twe *timingWheelElement) setBuckets(slot int64, b *bucket) {
+	twe.buckets[slot] = b
+}
+
+func (twe *timingWheelElement) tickingOnce() {
+	twe.tickC <- struct{}{}
 }
 
 func (twe *timingWheelElement) next() *timingWheelElement {
