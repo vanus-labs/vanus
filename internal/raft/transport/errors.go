@@ -17,4 +17,4 @@ package transport
 import "errors"
 
 var ErrNotReachable = errors.New("raft node unreachable")
-var PeerClosed = errors.New("connection closed")
+var ErrPeerClosed = errors.New("peer closed")

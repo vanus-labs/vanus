@@ -16,6 +16,7 @@ package transport
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -111,10 +112,15 @@ func TestHost(t *testing.T) {
 		})
 
 		Convey("test raftnode unreachable", func() {
-			count := 0
+			var count int64 = 0
+			ch2 := make(chan struct{}, 1)
 			h.Send(ctx, msg, nodeID+1, "", func(err error) {
-				count++
+				if err != nil {
+					atomic.AddInt64(&count, 1)
+				}
+				ch2 <- struct{}{}
 			})
+			<-ch2
 			So(count, ShouldNotBeZeroValue)
 		})
 	})
