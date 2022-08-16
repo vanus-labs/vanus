@@ -101,7 +101,7 @@ loop:
 			for {
 				select {
 				case t := <-p.taskc:
-					t.cb(ErrClosed)
+					t.cb(PeerClosed)
 				default:
 					break loop
 				}
@@ -141,7 +141,7 @@ func (p *peer) Send(ctx context.Context, msg *raftpb.Message, cb SendCallback) {
 		cb(ctx.Err())
 		return
 	case <-p.closec:
-		cb(ErrClosed)
+		cb(PeerClosed)
 		return
 	case p.taskc <- mwc:
 	}

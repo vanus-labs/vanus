@@ -31,4 +31,5 @@ var _ Multiplexer = (*loopback)(nil)
 
 func (lo *loopback) Send(ctx context.Context, msg *raftpb.Message, cb SendCallback) {
 	_ = lo.dmu.Receive(ctx, msg, lo.addr)
+	cb(nil)
 }
