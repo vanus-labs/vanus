@@ -21,9 +21,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
-
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription/offset"
 	iInfo "github.com/linkall-labs/vanus/internal/primitive/info"

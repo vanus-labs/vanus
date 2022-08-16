@@ -17,13 +17,12 @@ package validation
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/aws/arn"
-
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/primitive/cel"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	cesqlparser "github.com/cloudevents/sdk-go/sql/v2/parser"
 )
 

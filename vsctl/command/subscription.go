@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
-
 	"github.com/fatih/color"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/jedib0t/go-pretty/v6/table"
