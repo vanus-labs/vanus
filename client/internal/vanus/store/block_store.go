@@ -20,12 +20,11 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/grpc/codes"
-
 	// third-party libraries
 	cepb "cloudevents.io/genproto/v1"
 	ce "github.com/cloudevents/sdk-go/v2"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	// first-party libraries
@@ -101,7 +100,6 @@ func (s *BlockStore) Append(ctx context.Context, block uint64, event *ce.Event) 
 		}
 		return -1, err
 	}
-	// FIXME: return offset
 	// TODO(Y. F. Zhang): batch events
 	return res.GetOffset()[0], nil
 }

@@ -64,8 +64,8 @@ var (
 )
 
 type EventData struct {
-	EventID string
-	BusName string
+	EventID string `json:"event_id"`
+	BusName string `json:"bus_name"`
 }
 
 type ceGateway struct {
@@ -166,20 +166,19 @@ func getEventBusFromPath(reqData *cehttp.RequestData) string {
 }
 
 func createResponseEvent(eventData EventData) (*v2.Event, error) {
-	e := &v2.Event{}
-	e.SetSpecVersion("1.0")
+	e := v2.NewEvent("1.0")
+	e.SetID(uuid.NewString())
 	e.SetType("com.linkall.vanus.event.stored")
 	e.SetSource("https://linkall.com/vanus")
-	e.SetID(uuid.NewString())
 
 	dataMarshal, err := json.Marshal(eventData)
 	if err != nil {
 		return nil, err
 	}
 
-	err = e.SetData("Text/plain", dataMarshal)
+	err = e.SetData(v2.ApplicationJSON, dataMarshal)
 	if err != nil {
 		return nil, err
 	}
-	return e, nil
+	return &e, nil
 }

@@ -82,7 +82,7 @@ type Server interface {
 	ActivateSegment(ctx context.Context, logID vanus.ID, segID vanus.ID, replicas map[vanus.ID]string) error
 	InactivateSegment(ctx context.Context) error
 
-	AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]block.Entry, error)
+	AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]int64, error)
 	ReadFromBlock(ctx context.Context, id vanus.ID, off int, num int) ([]*cepb.CloudEvent, error)
 }
 
@@ -626,7 +626,7 @@ func (s *server) InactivateSegment(ctx context.Context) error {
 	return nil
 }
 
-func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]block.Entry, error) {
+func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]int64, error) {
 	if len(events) == 0 {
 		return nil, errors.ErrInvalidRequest.WithMessage("event list is empty")
 	}
@@ -646,7 +646,7 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 	for i, event := range events {
 		payload, err := proto.Marshal(event)
 		if err != nil {
-			return nil, errors.ErrInternal.WithMessage("marshall event failed").Wrap(err)
+			return nil, errors.ErrInternal.WithMessage("marshal event failed").Wrap(err)
 		}
 
 		entries[i] = block.Entry{
@@ -665,7 +665,13 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 
 	// TODO(weihe.yin) make this method deep to code
 	s.pm.NewMessageArrived(id)
-	return entries, nil
+
+	// return indexes for client
+	indexes := make([]int64, len(entries))
+	for i := 0; i < len(indexes); i++ {
+		indexes[i] = int64(entries[i].Index)
+	}
+	return indexes, nil
 }
 
 func (s *server) processAppendError(ctx context.Context, blockID vanus.ID, err error) error {

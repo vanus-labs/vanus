@@ -13,7 +13,6 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	primitive "github.com/linkall-labs/vanus/internal/primitive"
 	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
-	block "github.com/linkall-labs/vanus/internal/store/block"
 )
 
 // MockServer is a mock of Server interface.
@@ -54,10 +53,10 @@ func (mr *MockServerMockRecorder) ActivateSegment(ctx, logID, segID, replicas in
 }
 
 // AppendToBlock mocks base method.
-func (m *MockServer) AppendToBlock(ctx context.Context, id vanus.ID, events []*v1.CloudEvent) ([]block.Entry, error) {
+func (m *MockServer) AppendToBlock(ctx context.Context, id vanus.ID, events []*v1.CloudEvent) ([]int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AppendToBlock", ctx, id, events)
-	ret0, _ := ret[0].([]block.Entry)
+	ret0, _ := ret[0].([]int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

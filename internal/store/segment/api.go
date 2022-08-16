@@ -143,14 +143,9 @@ func (s *segmentServer) AppendToBlock(
 
 	blockID := vanus.NewIDFromUint64(req.BlockId)
 	events := req.Events.GetEvents()
-	entries, err := s.srv.AppendToBlock(ctx, blockID, events)
+	indexes, err := s.srv.AppendToBlock(ctx, blockID, events)
 	if err != nil {
 		return nil, err
-	}
-
-	indexes := make([]int64, len(entries))
-	for i := 0; i < len(indexes); i++ {
-		indexes[i] = int64(entries[i].Index)
 	}
 
 	return &segpb.AppendToBlockResponse{Offset: indexes}, nil

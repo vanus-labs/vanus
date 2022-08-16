@@ -44,16 +44,6 @@ func TestServer_RemoveBlock(t *testing.T) {
 		srv := NewServer(cfg).(*server)
 		ctx := context.Background()
 
-		ctrl := gomock.NewController(t)
-		dir, _ := os.MkdirTemp("", "*")
-		defer func() {
-			_ = os.RemoveAll(dir)
-		}()
-		p := path.Join(dir, "/vanus/test/store/test")
-		_ = os.MkdirAll(p, 0777)
-		blk, err := file.Create(context.Background(), p, vanus.NewID(), 1024*1024*64)
-		So(err, ShouldBeNil)
-
 		Convey("test state checking", func() {
 			err := srv.RemoveBlock(ctx, vanus.NewID())
 			et := err.(*errors.ErrorType)
@@ -73,44 +63,54 @@ func TestServer_RemoveBlock(t *testing.T) {
 			So(et.Message, ShouldEqual, "the replica not found")
 		})
 
-		Convey("the block not found", func() {
-			srv.state = primitive.ServerStateRunning
-
-			rep := replica.NewMockReplica(ctrl)
-			srv.writers.Store(blk.ID(), rep)
-			srv.readers.Store(blk.ID(), blk)
-			So(util.MapLen(&srv.writers), ShouldEqual, 1)
-			So(util.MapLen(&srv.readers), ShouldEqual, 1)
-
-			rep.EXPECT().Delete(ctx).Times(1)
-			err = srv.RemoveBlock(ctx, blk.ID())
-			So(util.MapLen(&srv.writers), ShouldEqual, 0)
-			So(util.MapLen(&srv.readers), ShouldEqual, 0)
-			et := err.(*errors.ErrorType)
-			So(et.Description, ShouldEqual, "resource not found")
-			So(et.Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
-			So(et.Message, ShouldEqual, "the block not found")
-		})
-
-		Convey("test remove success", func() {
-			srv.state = primitive.ServerStateRunning
-
-			rep := replica.NewMockReplica(ctrl)
-			srv.blocks.Store(blk.ID(), blk)
-			srv.writers.Store(blk.ID(), rep)
-			srv.readers.Store(blk.ID(), blk)
-			So(util.MapLen(&srv.blocks), ShouldEqual, 1)
-			So(util.MapLen(&srv.writers), ShouldEqual, 1)
-			So(util.MapLen(&srv.readers), ShouldEqual, 1)
-
-			rep.EXPECT().Delete(ctx).Times(1)
-			err = srv.RemoveBlock(ctx, blk.ID())
-			So(util.MapLen(&srv.blocks), ShouldEqual, 0)
-			So(util.MapLen(&srv.writers), ShouldEqual, 0)
-			So(util.MapLen(&srv.readers), ShouldEqual, 0)
+		Convey("test remove", func() {
+			ctrl := gomock.NewController(t)
+			dir, _ := os.MkdirTemp("", "*")
+			defer func() {
+				_ = os.RemoveAll(dir)
+			}()
+			p := path.Join(dir, "/vanus/test/store/test")
+			_ = os.MkdirAll(p, 0777)
+			blk, err := file.Create(context.Background(), p, vanus.NewID(), 1024*1024*64)
 			So(err, ShouldBeNil)
-			_, err = os.Open(blk.Path())
-			So(os.IsNotExist(err), ShouldBeTrue)
+
+			srv.state = primitive.ServerStateRunning
+
+			Convey("the block not found", func() {
+				rep := replica.NewMockReplica(ctrl)
+				srv.writers.Store(blk.ID(), rep)
+				srv.readers.Store(blk.ID(), blk)
+				So(util.MapLen(&srv.writers), ShouldEqual, 1)
+				So(util.MapLen(&srv.readers), ShouldEqual, 1)
+
+				rep.EXPECT().Delete(ctx).Times(1)
+				err = srv.RemoveBlock(ctx, blk.ID())
+				So(util.MapLen(&srv.writers), ShouldEqual, 0)
+				So(util.MapLen(&srv.readers), ShouldEqual, 0)
+				et := err.(*errors.ErrorType)
+				So(et.Description, ShouldEqual, "resource not found")
+				So(et.Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
+				So(et.Message, ShouldEqual, "the block not found")
+			})
+
+			Convey("test remove success", func() {
+				rep := replica.NewMockReplica(ctrl)
+				srv.blocks.Store(blk.ID(), blk)
+				srv.writers.Store(blk.ID(), rep)
+				srv.readers.Store(blk.ID(), blk)
+				So(util.MapLen(&srv.blocks), ShouldEqual, 1)
+				So(util.MapLen(&srv.writers), ShouldEqual, 1)
+				So(util.MapLen(&srv.readers), ShouldEqual, 1)
+
+				rep.EXPECT().Delete(ctx).Times(1)
+				err = srv.RemoveBlock(ctx, blk.ID())
+				So(util.MapLen(&srv.blocks), ShouldEqual, 0)
+				So(util.MapLen(&srv.writers), ShouldEqual, 0)
+				So(util.MapLen(&srv.readers), ShouldEqual, 0)
+				So(err, ShouldBeNil)
+				_, err = os.Open(blk.Path())
+				So(os.IsNotExist(err), ShouldBeTrue)
+			})
 		})
 	})
 }
