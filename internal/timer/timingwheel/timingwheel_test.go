@@ -109,6 +109,14 @@ func TestTimingWheel_Start(t *testing.T) {
 	})
 }
 
+func TestTimingWheel_StopNotify(t *testing.T) {
+	Convey("test timingwheel stop notify", t, func() {
+		tw := newtimingwheel(cfg())
+		retC := tw.StopNotify()
+		So(retC, ShouldNotBeNil)
+	})
+}
+
 func TestTimingWheel_Stop(t *testing.T) {
 	Convey("test timingwheel stop", t, func() {
 		ctx := context.Background()
