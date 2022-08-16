@@ -16,6 +16,7 @@ package transport
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -69,7 +70,7 @@ func TestHost(t *testing.T) {
 			timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
 			defer cannel()
 
-			h.Send(timeoutCtx, msg, nodeID, localaddr)
+			h.Send(timeoutCtx, msg, nodeID, localaddr, func(err error) {})
 			for i := 0; i < 3; i++ {
 				select {
 				case m := <-ch:
@@ -86,7 +87,7 @@ func TestHost(t *testing.T) {
 			timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
 			defer cannel()
 
-			h.Send(timeoutCtx, msg, nodeID, "")
+			h.Send(timeoutCtx, msg, nodeID, "", func(err error) {})
 			for i := 0; i < 3; i++ {
 				select {
 				case m := <-ch:
@@ -99,29 +100,6 @@ func TestHost(t *testing.T) {
 			So(false, ShouldBeTrue)
 		})
 
-		Convey("test host Sendv callback", func() {
-			timeoutCtx, cannel := context.WithTimeout(ctx, 3*time.Second)
-			defer cannel()
-			h.Sendv(timeoutCtx, msgs, nodeID, localaddr)
-			for i := 0; i < msgLen; i++ {
-				count := 0
-			loop:
-				for j := 0; j < 3; j++ {
-					select {
-					case m := <-ch:
-						So(m, ShouldResemble, msgs[i])
-						count++
-						break loop
-					default:
-					}
-					time.Sleep(50 * time.Millisecond)
-				}
-				if count == 0 {
-					So(false, ShouldBeTrue)
-				}
-			}
-		})
-
 		Convey("test host resolveMultiplexer method", func() {
 			h := h.(*host)
 			testEndpoint := "127.0.0.1:11000"
@@ -131,6 +109,19 @@ func TestHost(t *testing.T) {
 			So(p, ShouldNotBeNil)
 			_, ok = h.peers.Load(testEndpoint)
 			So(ok, ShouldBeTrue)
+		})
+
+		Convey("test raftnode unreachable", func() {
+			var count int64 = 0
+			ch2 := make(chan struct{}, 1)
+			h.Send(ctx, msg, nodeID+1, "", func(err error) {
+				if err != nil {
+					atomic.AddInt64(&count, 1)
+				}
+				ch2 <- struct{}{}
+			})
+			<-ch2
+			So(count, ShouldNotBeZeroValue)
 		})
 	})
 }

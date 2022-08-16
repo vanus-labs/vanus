@@ -14,18 +14,7 @@
 
 package transport
 
-import (
-	// standard libraries.
-	"context"
+import "errors"
 
-	// first-party libraries.
-	"github.com/linkall-labs/vanus/raft/raftpb"
-)
-
-type Multiplexer interface {
-	Send(ctx context.Context, msg *raftpb.Message, cb SendCallback)
-}
-
-type Demultiplexer interface {
-	Receive(ctx context.Context, msg *raftpb.Message, endpoint string) error
-}
+var ErrNotReachable = errors.New("raft node unreachable")
+var ErrPeerClosed = errors.New("peer closed")

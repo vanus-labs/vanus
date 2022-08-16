@@ -35,14 +35,15 @@ const (
 	defaultMessageChainSize = 32
 )
 
-type messageWithContext struct {
+type task struct {
 	msg *raftpb.Message
 	ctx context.Context
+	cb  SendCallback
 }
 
 type peer struct {
 	addr   string
-	msgc   chan messageWithContext
+	taskc  chan task
 	stream vsraftpb.RaftServer_SendMessageClient
 	closec chan struct{}
 	donec  chan struct{}
@@ -54,7 +55,7 @@ var _ Multiplexer = (*peer)(nil)
 func newPeer(endpoint string, callback string) *peer {
 	p := &peer{
 		addr:   endpoint,
-		msgc:   make(chan messageWithContext, defaultMessageChainSize),
+		taskc:  make(chan task, defaultMessageChainSize),
 		closec: make(chan struct{}),
 		donec:  make(chan struct{}),
 	}
@@ -78,25 +79,33 @@ loop:
 	for {
 		var err error
 		select {
-		case mwc := <-p.msgc:
+		case t := <-p.taskc:
 			stream := p.stream
 			if stream == nil {
-				if stream, err = p.connect(mwc.ctx, opts...); err != nil {
-					p.processSendError(err)
+				if stream, err = p.connect(t.ctx, opts...); err != nil {
+					p.processSendError(t, err)
 					break
 				}
 				p.stream = stream
 				if err = stream.Send(&preface); err != nil {
-					p.processSendError(err)
+					p.processSendError(t, err)
 					break
 				}
 			}
-			if err = stream.Send(mwc.msg); err != nil {
-				p.processSendError(err)
+			if err = stream.Send(t.msg); err != nil {
+				p.processSendError(t, err)
 				break
 			}
+			t.cb(nil)
 		case <-p.closec:
-			break loop
+			for {
+				select {
+				case t := <-p.taskc:
+					t.cb(ErrPeerClosed)
+				default:
+					break loop
+				}
+			}
 		}
 	}
 
@@ -107,8 +116,8 @@ loop:
 	close(p.donec)
 }
 
-func (p *peer) processSendError(err error) {
-	// TODO(james.yin): report MsgUnreachable, backoff
+func (p *peer) processSendError(t task, err error) {
+	t.cb(err)
 	if errors.Is(err, io.EOF) {
 		_, _ = p.stream.CloseAndRecv()
 		p.stream = nil
@@ -120,24 +129,21 @@ func (p *peer) Close() {
 	<-p.donec
 }
 
-func (p *peer) Send(ctx context.Context, msg *raftpb.Message) {
-	mwc := messageWithContext{
+func (p *peer) Send(ctx context.Context, msg *raftpb.Message, cb SendCallback) {
+	mwc := task{
 		msg: msg,
 		ctx: ctx,
+		cb:  cb,
 	}
 
 	select {
 	case <-ctx.Done():
+		cb(ctx.Err())
 		return
 	case <-p.closec:
+		cb(ErrPeerClosed)
 		return
-	case p.msgc <- mwc:
-	}
-}
-
-func (p *peer) Sendv(ctx context.Context, msgs []*raftpb.Message) {
-	for _, msg := range msgs {
-		p.Send(ctx, msg)
+	case p.taskc <- mwc:
 	}
 }
 

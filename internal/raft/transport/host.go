@@ -23,6 +23,8 @@ import (
 	"github.com/linkall-labs/vanus/raft/raftpb"
 )
 
+type SendCallback func(error)
+
 type Host interface {
 	Sender
 	Demultiplexer
@@ -63,22 +65,13 @@ func (h *host) Stop() {
 	})
 }
 
-func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoint string) {
+func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoint string, cb SendCallback) {
 	mux := h.resolveMultiplexer(ctx, to, endpoint)
 	if mux == nil {
-		// TODO(james.yin): report MsgUnreachable.
+		cb(ErrNotReachable)
 		return
 	}
-	mux.Send(ctx, msg)
-}
-
-func (h *host) Sendv(ctx context.Context, msgs []*raftpb.Message, to uint64, endpoint string) {
-	mux := h.resolveMultiplexer(ctx, to, endpoint)
-	if mux == nil {
-		// TODO(james.yin): report MsgUnreachable.
-		return
-	}
-	mux.Sendv(ctx, msgs)
+	mux.Send(ctx, msg, cb)
 }
 
 func (h *host) resolveMultiplexer(ctx context.Context, to uint64, endpoint string) Multiplexer {
