@@ -34,8 +34,8 @@ import (
 const (
 	defaultConnectTimeout   = 300 * time.Millisecond
 	defaultMessageChainSize = 32
-	initRetryMicroSeconds   = 2e6
-	maxRertyMicropSeconds   = 64e6
+	initRetryTime           = 2 * time.Second
+	maxRertyTime            = 8 * time.Second
 )
 
 type task struct {
@@ -50,7 +50,7 @@ type peer struct {
 	stream vsraftpb.RaftServer_SendMessageClient
 	closec chan struct{}
 	donec  chan struct{}
-	timer  *BackoffTimer
+	timer  BackoffTimer
 }
 
 // Make sure peer implements Multiplexer.
@@ -62,7 +62,7 @@ func newPeer(endpoint string, callback string) *peer {
 		taskc:  make(chan task, defaultMessageChainSize),
 		closec: make(chan struct{}),
 		donec:  make(chan struct{}),
-		timer:  NewBackoffTimer(initRetryMicroSeconds, maxRertyMicropSeconds),
+		timer:  NewBackoffTimer(initRetryTime, maxRertyTime),
 	}
 
 	go p.run(callback)

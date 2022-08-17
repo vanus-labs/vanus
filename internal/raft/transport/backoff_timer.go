@@ -19,28 +19,37 @@ import (
 	"time"
 )
 
-type BackoffTimer struct {
+type BackoffTimer interface {
+	OriginalSetting(ctx context.Context)
+	SuccessHit(ctx context.Context)
+	FailedHit(ctx context.Context)
+	CanTry() bool
+}
+
+func NewBackoffTimer(initRetryTime time.Duration, maxRertyTime time.Duration) BackoffTimer {
+	return &backoffTimer{
+		startInterval: initRetryTime.Microseconds(),
+		curInterval:   initRetryTime.Microseconds(),
+		maxInterval:   maxRertyTime.Microseconds(),
+		expire:        0,
+	}
+}
+
+type backoffTimer struct {
 	startInterval int64
 	curInterval   int64
 	maxInterval   int64
 	expire        int64
 }
 
-func NewBackoffTimer(startMicroSecond int64, maxMirocSecond int64) *BackoffTimer {
-	return &BackoffTimer{
-		startInterval: startMicroSecond,
-		curInterval:   startMicroSecond,
-		maxInterval:   maxMirocSecond,
-		expire:        0,
-	}
-}
+var _ BackoffTimer = (*backoffTimer)(nil)
 
-func (t *BackoffTimer) OriginalSetting(ctx context.Context) {
+func (t *backoffTimer) OriginalSetting(ctx context.Context) {
 	t.curInterval = t.startInterval
 	t.expire = 0
 }
 
-func (t *BackoffTimer) SuccessHit(ctx context.Context) {
+func (t *backoffTimer) SuccessHit(ctx context.Context) {
 	// when connect or send successfully, call this once
 	if !t.CanTry() {
 		return
@@ -49,7 +58,7 @@ func (t *BackoffTimer) SuccessHit(ctx context.Context) {
 	t.expire = 0
 }
 
-func (t *BackoffTimer) FailedHit(ctx context.Context) {
+func (t *backoffTimer) FailedHit(ctx context.Context) {
 	// when connect or send failed, call this once
 	if !t.CanTry() {
 		return
@@ -61,7 +70,7 @@ func (t *BackoffTimer) FailedHit(ctx context.Context) {
 	}
 }
 
-func (t *BackoffTimer) CanTry() bool {
+func (t *backoffTimer) CanTry() bool {
 	// judge whether retry
 	return time.Now().UnixMicro() > t.expire
 }

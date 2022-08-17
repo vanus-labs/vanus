@@ -23,7 +23,7 @@ import (
 )
 
 func Test_BackoffTimer(t *testing.T) {
-	timer := NewBackoffTimer(0.2e6, 0.6e6)
+	timer := NewBackoffTimer(200*time.Millisecond, 600*time.Millisecond)
 
 	Convey("test backoff timer", t, func() {
 		ctx := context.Background()
@@ -32,33 +32,33 @@ func Test_BackoffTimer(t *testing.T) {
 		timer.FailedHit(ctx)
 		So(timer.CanTry(), ShouldBeFalse)
 
-		time.Sleep(0.3e6 * time.Microsecond)
+		time.Sleep(300 * time.Millisecond)
 		So(timer.CanTry(), ShouldBeTrue)
 
 		timer.FailedHit(ctx)
 		So(timer.CanTry(), ShouldBeFalse)
 
-		time.Sleep(0.3e6 * time.Microsecond)
+		time.Sleep(300 * time.Millisecond)
 		So(timer.CanTry(), ShouldBeFalse)
 
-		time.Sleep(0.2e6 * time.Microsecond)
+		time.Sleep(200 * time.Millisecond)
 		So(timer.CanTry(), ShouldBeTrue)
 
 		timer.FailedHit(ctx)
-		time.Sleep(0.5e6 * time.Microsecond)
+		time.Sleep(500 * time.Millisecond)
 		So(timer.CanTry(), ShouldBeFalse)
 
-		time.Sleep(0.2e6 * time.Microsecond)
+		time.Sleep(200 * time.Millisecond)
 		So(timer.CanTry(), ShouldBeTrue)
 
 		timer.SuccessHit(ctx)
 		So(timer.CanTry(), ShouldBeTrue)
 
 		timer.FailedHit(ctx)
-		time.Sleep(0.1e6 * time.Microsecond)
+		time.Sleep(100 * time.Millisecond)
 		So(timer.CanTry(), ShouldBeFalse)
 
-		time.Sleep(0.2e6 * time.Microsecond)
+		time.Sleep(200 * time.Millisecond)
 		So(timer.CanTry(), ShouldBeTrue)
 	})
 }
