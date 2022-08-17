@@ -70,12 +70,22 @@ type Subscription struct {
 	Filters            []*primitive.SubscriptionFilter `json:"filters,omitempty"`
 	Sink               primitive.URI                   `json:"sink,omitempty"`
 	SinkCredentialType *primitive.CredentialType       `json:"sink_credential_type,omitempty"`
+	SinkCredential     *primitive.SinkCredential       `json:"-"`
 	Protocol           primitive.Protocol              `json:"protocol,omitempty"`
 	ProtocolSetting    *primitive.ProtocolSetting      `json:"protocol_settings,omitempty"`
 	EventBus           string                          `json:"eventbus"`
-	Phase              SubscriptionPhase               `json:"phase"`
-	TriggerWorker      string                          `json:"trigger_worker,omitempty"`
 	Transformer        *primitive.Transformer          `json:"transformer,omitempty"`
-	HeartbeatTime      time.Time                       `json:"-"`
-	SinkCredential     *primitive.SinkCredential       `json:"-"`
+
+	// not from api
+	Phase         SubscriptionPhase `json:"phase"`
+	TriggerWorker string            `json:"trigger_worker,omitempty"`
+	HeartbeatTime time.Time         `json:"-"`
+}
+
+// CloneNotFromAPI property not change from api .
+func (update *Subscription) CloneNotFromAPI(curr *Subscription) {
+	update.ID = curr.ID
+	update.TriggerWorker = curr.TriggerWorker
+	update.Phase = curr.Phase
+	update.HeartbeatTime = curr.HeartbeatTime
 }

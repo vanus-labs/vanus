@@ -32,6 +32,7 @@ import (
 type Persistence interface {
 	Read(ctx context.Context, subID vanus.ID) (primitive.SinkCredential, error)
 	Write(ctx context.Context, subID vanus.ID, credential primitive.SinkCredential) error
+	Delete(ctx context.Context, subID vanus.ID) error
 }
 
 func NewEtcdPersistence(config primitive.KvStorageConfig, encryption string) (Persistence, error) {
@@ -130,4 +131,9 @@ func (p *etcdPersistence) Write(ctx context.Context, subID vanus.ID, credential 
 		return p.client.Create(ctx, key, v)
 	}
 	return p.client.Update(ctx, key, v)
+}
+
+func (p *etcdPersistence) Delete(ctx context.Context, subID vanus.ID) error {
+	key := p.getKey(subID)
+	return p.client.Delete(ctx, key)
 }

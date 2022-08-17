@@ -110,32 +110,71 @@ func TestSubscription(t *testing.T) {
 			persistence.EXPECT().Write(gomock.Any(), gomock.Eq(subID), gomock.Any()).Return(nil)
 			credentialType := primitive.CloudCredentialType
 			err := m.AddSubscription(ctx, &metadata.Subscription{
-				SinkCredentialType: &credentialType,
 				ID:                 subID,
+				SinkCredentialType: &credentialType,
 				SinkCredential: &primitive.SinkCredential{
-					Type: credentialType,
+					Type:            credentialType,
+					AccessKeyID:     "test_ak",
+					SecretAccessKey: "test_sk",
 				},
 			})
 			So(err, ShouldBeNil)
-			subscriptions := m.ListSubscription(ctx)
-			So(len(subscriptions), ShouldEqual, 1)
-			subscription := subscriptions[0]
 			Convey("test update subscription", func() {
-				subscription.Sink = "test"
-				storage.MockSubscriptionStorage.EXPECT().UpdateSubscription(ctx, gomock.Any()).Return(nil)
-				err = m.UpdateSubscription(ctx, subscription)
-				So(err, ShouldBeNil)
-				So(m.GetSubscription(ctx, subscription.ID).Sink, ShouldEqual, subscription.Sink)
+				storage.MockSubscriptionStorage.EXPECT().UpdateSubscription(ctx, gomock.Any()).AnyTimes().Return(nil)
+				Convey("update sink", func() {
+					updateSub := &metadata.Subscription{
+						ID:                 subID,
+						SinkCredentialType: &credentialType,
+						SinkCredential: &primitive.SinkCredential{
+							Type:            credentialType,
+							AccessKeyID:     "test_ak",
+							SecretAccessKey: "test_sk",
+						},
+						Sink: "test",
+					}
+					err = m.UpdateSubscription(ctx, updateSub)
+					So(err, ShouldBeNil)
+					So(m.GetSubscription(ctx, subID).Sink, ShouldEqual, updateSub.Sink)
+				})
+				Convey("test update subscription credential", func() {
+					Convey("modify credential", func() {
+						updateSub := &metadata.Subscription{
+							ID:                 subID,
+							Sink:               "test",
+							SinkCredentialType: &credentialType,
+							SinkCredential: &primitive.SinkCredential{
+								Type:            credentialType,
+								AccessKeyID:     "new_test_ak",
+								SecretAccessKey: "new_test_sk",
+							},
+						}
+						persistence.EXPECT().Write(gomock.Any(), gomock.Eq(subID), gomock.Any()).Return(nil)
+						err = m.UpdateSubscription(ctx, updateSub)
+						So(err, ShouldBeNil)
+					})
+					Convey("delete credential", func() {
+						updateSub := &metadata.Subscription{
+							ID:                 subID,
+							Sink:               "test",
+							SinkCredentialType: nil,
+							SinkCredential:     nil,
+						}
+						persistence.EXPECT().Delete(gomock.Any(), gomock.Eq(subID)).Return(nil)
+						err = m.UpdateSubscription(ctx, updateSub)
+						So(err, ShouldBeNil)
+					})
+				})
 			})
 			Convey("test delete subscription", func() {
 				mm := m.(*manager)
 				offsetManager := offset.NewMockManager(ctrl)
 				mm.offsetManager = offsetManager
-				storage.MockSubscriptionStorage.EXPECT().DeleteSubscription(ctx, gomock.Any()).Return(nil)
-				offsetManager.EXPECT().RemoveRegisterSubscription(ctx, gomock.Any()).Return(nil)
-				err = m.DeleteSubscription(ctx, subscription.ID)
+				storage.MockSubscriptionStorage.EXPECT().DeleteSubscription(ctx, gomock.Eq(subID)).Return(nil)
+				offsetManager.EXPECT().RemoveRegisterSubscription(ctx, gomock.Eq(subID)).Return(nil)
+				persistence.EXPECT().Delete(gomock.Any(), gomock.Eq(subID)).Return(nil)
+				err = m.DeleteSubscription(ctx, subID)
 				So(err, ShouldBeNil)
-				So(m.GetSubscription(ctx, subscription.ID), ShouldBeNil)
+				So(m.GetSubscription(ctx, subID), ShouldBeNil)
 			})
 		})
 	})

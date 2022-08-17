@@ -87,18 +87,19 @@ enum CompressAlgorithm {
 }
 
 message Subscription {
-  uint64 id = 1;
-  string source = 2;
-  repeated string types = 3;
-  meta.SubscriptionConfig config = 4;
-  repeated Filter filters = 5;
-  string sink = 6;
-  SinkCredential sink_credential = 7;
-  Protocol protocol = 8;
-  ProtocolSetting protocol_settings = 9;
-  string event_bus = 10;
-  meta.Transformer transformer = 11;
-  repeated OffsetInfo offsets = 12;
+  string source = 1;
+  repeated string types = 2;
+  meta.SubscriptionConfig config = 3;
+  repeated meta.Filter filters = 4;
+  string sink = 5;
+  meta.SinkCredential sink_credential = 6;
+  meta.Protocol protocol = 7;
+  meta.ProtocolSetting protocol_settings = 8;
+  string event_bus = 9;
+  meta.Transformer transformer = 10;
+
+  uint64 id = 100;
+  repeated OffsetInfo offsets = 101;
 }
 
 enum Protocol{
@@ -108,19 +109,26 @@ enum Protocol{
 
 message SinkCredential {
   enum CredentialType {
-    PLAIN = 0;
-    CLOUD = 1;
+    None = 0;
+    PLAIN = 1;
+    CLOUD = 2;
   }
   CredentialType credential_type = 1;
 
-  // plain
-  string identifier = 2;
-  string secret = 3;
-  // access token
-  string access_token = 4;
-  // cloud
-  string access_key_id = 5;
-  string secret_access_key = 6;
+  oneof credential {
+    PlainCredential plain = 2;
+    CloudCredential cloud = 3;
+  }
+}
+
+message PlainCredential{
+  string identifier = 1;
+  string secret = 2;
+}
+
+message CloudCredential{
+  string access_key_id = 1;
+  string secret_access_key = 2;
 }
 
 message ProtocolSetting {

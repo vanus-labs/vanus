@@ -137,7 +137,7 @@ message ReportSegmentLeaderRequest {
   uint64 term = 2;
 }
 
-message CreateSubscriptionRequest {
+message SubscriptionRequest {
   string source = 1;
   repeated string types = 2;
   meta.SubscriptionConfig config = 3;
@@ -150,15 +150,13 @@ message CreateSubscriptionRequest {
   meta.Transformer transformer = 10;
 }
 
+message CreateSubscriptionRequest {
+  SubscriptionRequest subscription = 1;
+}
+
 message UpdateSubscriptionRequest {
   uint64 id = 1;
-  meta.SubscriptionConfig config = 2;
-  repeated meta.Filter filters = 3;
-  string sink = 4;
-  meta.SinkCredential sink_credential = 5;
-  optional meta.Protocol protocol = 6;
-  meta.ProtocolSetting protocol_settings = 7;
-  meta.Transformer transformer = 8;
+  SubscriptionRequest subscription = 2;
 }
 
 message GetSubscriptionRequest {

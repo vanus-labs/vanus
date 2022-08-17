@@ -123,11 +123,11 @@ func (t *trigger) newEventClient() client.EventClient {
 	}
 }
 
-func (t *trigger) changeTarget(target primitive.URI) error {
+func (t *trigger) changeTarget() error {
+	eventCli := t.newEventClient()
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	t.subscription.Sink = target
-	t.client = t.newEventClient()
+	t.client = eventCli
 	return nil
 }
 
@@ -137,10 +137,11 @@ func (t *trigger) getFilter() filter.Filter {
 	return t.filter
 }
 
-func (t *trigger) changeFilter(filters []*primitive.SubscriptionFilter) {
+func (t *trigger) changeFilter() {
+	f := filter.GetFilter(t.subscription.Filters)
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	t.filter = filter.GetFilter(filters)
+	t.filter = f
 }
 
 func (t *trigger) getTransformer() *transform.Transformer {
@@ -149,22 +150,23 @@ func (t *trigger) getTransformer() *transform.Transformer {
 	return t.transformer
 }
 
-func (t *trigger) changeTransformer(transformer *primitive.Transformer) {
+func (t *trigger) changeTransformer() {
+	var transformer *transform.Transformer
+	if t.subscription.Transformer != nil &&
+		len(t.subscription.Transformer.Define) > 0 &&
+		t.subscription.Transformer.Template != "" {
+		transformer = transform.NewTransformer(t.subscription.Transformer)
+	}
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	if transformer == nil || transformer.Define == nil && transformer.Template == "" {
-		t.transformer = nil
-	} else {
-		t.transformer = transform.NewTransformer(transformer)
-	}
+	t.transformer = transformer
 }
 
-func (t *trigger) changeConfig(config primitive.SubscriptionConfig) {
+func (t *trigger) changeConfig() {
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	if config.RateLimit != 0 && config.RateLimit != t.config.RateLimit {
-		t.applyOptions(WithRateLimit(config.RateLimit))
-	}
+	config := t.subscription.Config
+	t.applyOptions(WithRateLimit(config.RateLimit))
 }
 
 // eventArrived for test.
@@ -196,9 +198,9 @@ func (t *trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 	for retryTimes < t.config.MaxRetryTimes {
 		retryTimes++
 		startTime := time.Now()
-		if err = doFunc(); !ce.IsACK(err) {
+		if err = doFunc(); err != nil {
 			metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelValuePushEventFail).Inc()
-			log.Debug(ctx, "process event error", map[string]interface{}{
+			log.Info(ctx, "process event error", map[string]interface{}{
 				"error": err, "retryTimes": retryTimes,
 			})
 			time.Sleep(t.config.RetryInterval)
@@ -340,24 +342,28 @@ func (t *trigger) Stop(ctx context.Context) error {
 }
 
 func (t *trigger) Change(ctx context.Context, subscription *primitive.Subscription) error {
-	if t.subscription.Sink != subscription.Sink {
+	if t.subscription.Sink != subscription.Sink ||
+		t.subscription.Protocol != subscription.Protocol ||
+		!reflect.DeepEqual(t.subscription.SinkCredential, subscription.SinkCredential) {
 		t.subscription.Sink = subscription.Sink
-		err := t.changeTarget(subscription.Sink)
+		t.subscription.Protocol = subscription.Protocol
+		t.subscription.SinkCredential = subscription.SinkCredential
+		err := t.changeTarget()
 		if err != nil {
 			return err
 		}
 	}
 	if !reflect.DeepEqual(t.subscription.Filters, subscription.Filters) {
 		t.subscription.Filters = subscription.Filters
-		t.changeFilter(subscription.Filters)
+		t.changeFilter()
 	}
 	if !reflect.DeepEqual(t.subscription.Transformer, subscription.Transformer) {
 		t.subscription.Transformer = subscription.Transformer
-		t.changeTransformer(subscription.Transformer)
+		t.changeTransformer()
 	}
 	if !reflect.DeepEqual(t.subscription.Config, subscription.Config) {
 		t.subscription.Config = subscription.Config
-		t.changeConfig(subscription.Config)
+		t.changeConfig()
 	}
 	return nil
 }

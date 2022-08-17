@@ -18,6 +18,7 @@ package subscription
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -121,13 +122,27 @@ func (m *manager) AddSubscription(ctx context.Context, subscription *metadata.Su
 func (m *manager) UpdateSubscription(ctx context.Context, sub *metadata.Subscription) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	_, exist := m.subscriptionMap[sub.ID]
+	curr, exist := m.subscriptionMap[sub.ID]
 	if !exist {
 		return nil
 	}
-	err := m.storage.UpdateSubscription(ctx, sub)
-	if err != nil {
+	if err := m.storage.UpdateSubscription(ctx, sub); err != nil {
 		return err
+	}
+	m.subscriptionMap[sub.ID] = sub
+	if reflect.DeepEqual(curr.SinkCredential, sub.SinkCredential) {
+		return nil
+	}
+	if sub.SinkCredential == nil {
+		if curr.SinkCredential != nil {
+			if err := m.secretPersistence.Delete(ctx, sub.ID); err != nil {
+				return err
+			}
+		}
+	} else {
+		if err := m.secretPersistence.Write(ctx, sub.ID, *sub.SinkCredential); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -142,12 +157,13 @@ func (m *manager) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 	if !exist {
 		return nil
 	}
-	err := m.offsetManager.RemoveRegisterSubscription(ctx, id)
-	if err != nil {
+	if err := m.offsetManager.RemoveRegisterSubscription(ctx, id); err != nil {
 		return err
 	}
-	err = m.storage.DeleteSubscription(ctx, id)
-	if err != nil {
+	if err := m.storage.DeleteSubscription(ctx, id); err != nil {
+		return err
+	}
+	if err := m.secretPersistence.Delete(ctx, id); err != nil {
 		return err
 	}
 	delete(m.subscriptionMap, id)

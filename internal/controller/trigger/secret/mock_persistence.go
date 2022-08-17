@@ -36,31 +36,45 @@ func (m *MockPersistence) EXPECT() *MockPersistenceMockRecorder {
 	return m.recorder
 }
 
-// Read mocks base method.
-func (m *MockPersistence) Read(ctx context.Context, subscriptionID vanus.ID) (primitive.SinkCredential, error) {
+// Delete mocks base method.
+func (m *MockPersistence) Delete(ctx context.Context, subID vanus.ID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Read", ctx, subscriptionID)
+	ret := m.ctrl.Call(m, "Delete", ctx, subID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockPersistenceMockRecorder) Delete(ctx, subID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockPersistence)(nil).Delete), ctx, subID)
+}
+
+// Read mocks base method.
+func (m *MockPersistence) Read(ctx context.Context, subID vanus.ID) (primitive.SinkCredential, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Read", ctx, subID)
 	ret0, _ := ret[0].(primitive.SinkCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Read indicates an expected call of Read.
-func (mr *MockPersistenceMockRecorder) Read(ctx, subscriptionID interface{}) *gomock.Call {
+func (mr *MockPersistenceMockRecorder) Read(ctx, subID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockPersistence)(nil).Read), ctx, subscriptionID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockPersistence)(nil).Read), ctx, subID)
 }
 
 // Write mocks base method.
-func (m *MockPersistence) Write(ctx context.Context, subscriptionID vanus.ID, credential primitive.SinkCredential) error {
+func (m *MockPersistence) Write(ctx context.Context, subID vanus.ID, credential primitive.SinkCredential) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Write", ctx, subscriptionID, credential)
+	ret := m.ctrl.Call(m, "Write", ctx, subID, credential)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Write indicates an expected call of Write.
-func (mr *MockPersistenceMockRecorder) Write(ctx, subscriptionID, credential interface{}) *gomock.Call {
+func (mr *MockPersistenceMockRecorder) Write(ctx, subID, credential interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockPersistence)(nil).Write), ctx, subscriptionID, credential)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockPersistence)(nil).Write), ctx, subID, credential)
 }

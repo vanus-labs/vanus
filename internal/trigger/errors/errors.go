@@ -25,6 +25,8 @@ var (
 
 	ErrVanusJSONParse      = rpcerr.New("invalid json").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
 	ErrTransformInputParse = rpcerr.New("transform input invalid").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
+	ErrLambdaInvokeResp    = rpcerr.New("lambda invoker resp fail").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
+	ErrLambdaInvoke        = rpcerr.New("lambda invoker error").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
 
 	ErrNoControllerLeader = rpcerr.New("no leader controller found").WithGRPCCode(rpcerr.ErrorCode_NOT_LEADER)
 )

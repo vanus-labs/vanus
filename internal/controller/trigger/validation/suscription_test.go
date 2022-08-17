@@ -24,10 +24,10 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestCreateSubscriptionRequestValidator(t *testing.T) {
+func TestSubscriptionRequestValidator(t *testing.T) {
 	ctx := context.Background()
 	Convey("multiple dialect", t, func() {
-		request := &ctrlpb.CreateSubscriptionRequest{
+		request := &ctrlpb.SubscriptionRequest{
 			Filters: []*metapb.Filter{{
 				Not: &metapb.Filter{
 					Exact: map[string]string{
@@ -37,53 +37,41 @@ func TestCreateSubscriptionRequestValidator(t *testing.T) {
 				Cel: "$type.(string) =='test'",
 			}},
 		}
-		So(ValidateCreateSubscription(ctx, request), ShouldNotBeNil)
+		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
 	})
 	Convey("sink empty", t, func() {
-		request := &ctrlpb.CreateSubscriptionRequest{
+		request := &ctrlpb.SubscriptionRequest{
 			Sink:     "",
 			EventBus: "bus",
 		}
-		So(ValidateCreateSubscription(ctx, request), ShouldNotBeNil)
+		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
 	})
 	Convey("eventBus empty", t, func() {
-		request := &ctrlpb.CreateSubscriptionRequest{
+		request := &ctrlpb.SubscriptionRequest{
 			Sink:     "sink",
 			EventBus: "",
 		}
-		So(ValidateCreateSubscription(ctx, request), ShouldNotBeNil)
+		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
 	})
 	Convey("subscription config rate limit", t, func() {
-		request := &ctrlpb.CreateSubscriptionRequest{
+		request := &ctrlpb.SubscriptionRequest{
 			Sink:     "sink",
 			EventBus: "eventBus",
 			Config: &metapb.SubscriptionConfig{
 				RateLimit: -2,
 			},
 		}
-		So(ValidateCreateSubscription(ctx, request), ShouldNotBeNil)
+		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
 	})
 	Convey("subscription config offset invalid", t, func() {
-		request := &ctrlpb.CreateSubscriptionRequest{
+		request := &ctrlpb.SubscriptionRequest{
 			Sink:     "sink",
 			EventBus: "eventBus",
 			Config: &metapb.SubscriptionConfig{
 				OffsetType: metapb.SubscriptionConfig_TIMESTAMP,
 			},
 		}
-		So(ValidateCreateSubscription(ctx, request), ShouldNotBeNil)
-	})
-}
-
-func TestValidateUpdateSubscription(t *testing.T) {
-	ctx := context.Background()
-	Convey("test update subscription", t, func() {
-		request := &ctrlpb.UpdateSubscriptionRequest{
-			Config: &metapb.SubscriptionConfig{
-				OffsetType: metapb.SubscriptionConfig_EARLIEST,
-			},
-		}
-		So(ValidateUpdateSubscription(ctx, request), ShouldBeNil)
+		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
 	})
 }
 
@@ -93,19 +81,19 @@ func TestValidateSinkAndProtocol(t *testing.T) {
 		Convey("arn is invalid", func() {
 			sink := "arn:aws:lambda"
 			credential := &metapb.SinkCredential{}
-			So(validateSinkAndProtocol(ctx, sink, metapb.Protocol_AWS_LAMBDA, credential), ShouldNotBeNil)
+			So(ValidateSinkAndProtocol(ctx, sink, metapb.Protocol_AWS_LAMBDA, credential), ShouldNotBeNil)
 		})
 		sink := "arn:aws:lambda:us-west-2:843378899134:function:xdltest"
 		Convey("sink credential is nil", func() {
-			So(validateSinkAndProtocol(ctx, sink, metapb.Protocol_AWS_LAMBDA, nil), ShouldNotBeNil)
+			So(ValidateSinkAndProtocol(ctx, sink, metapb.Protocol_AWS_LAMBDA, nil), ShouldNotBeNil)
 		})
 		Convey("sink credential type is invalid", func() {
 			credential := &metapb.SinkCredential{CredentialType: metapb.SinkCredential_PLAIN}
-			So(validateSinkAndProtocol(ctx, sink, metapb.Protocol_AWS_LAMBDA, credential), ShouldNotBeNil)
+			So(ValidateSinkAndProtocol(ctx, sink, metapb.Protocol_AWS_LAMBDA, credential), ShouldNotBeNil)
 		})
 		Convey("all valid", func() {
 			credential := &metapb.SinkCredential{CredentialType: metapb.SinkCredential_CLOUD}
-			So(validateSinkAndProtocol(ctx, sink, metapb.Protocol_AWS_LAMBDA, credential), ShouldBeNil)
+			So(ValidateSinkAndProtocol(ctx, sink, metapb.Protocol_AWS_LAMBDA, credential), ShouldBeNil)
 		})
 	})
 }
@@ -121,9 +109,13 @@ func TestValidateSinkCredential(t *testing.T) {
 		})
 		Convey("all valid", func() {
 			credential := &metapb.SinkCredential{
-				CredentialType:  metapb.SinkCredential_CLOUD,
-				AccessKeyId:     "xxxxxx",
-				SecretAccessKey: "xxxxxx",
+				CredentialType: metapb.SinkCredential_CLOUD,
+				Credential: &metapb.SinkCredential_Cloud{
+					Cloud: &metapb.CloudCredential{
+						AccessKeyId:     "xxxxxx",
+						SecretAccessKey: "xxxxxx",
+					},
+				},
 			}
 			So(validateSinkCredential(ctx, credential), ShouldBeNil)
 		})

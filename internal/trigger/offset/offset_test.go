@@ -94,3 +94,27 @@ func TestSubscriptionOffset(t *testing.T) {
 		})
 	})
 }
+
+func TestOffsetTracker(t *testing.T) {
+	Convey("test offset tracker", t, func() {
+		offset := uint64(0)
+		tracker := initOffset(offset)
+		So(tracker.offsetToCommit(), ShouldEqual, offset)
+		tracker.putOffset(offset)
+		So(tracker.offsetToCommit(), ShouldEqual, offset)
+		tracker.putOffset(offset + 2)
+		So(tracker.offsetToCommit(), ShouldEqual, offset)
+		tracker.putOffset(offset + 1)
+		So(tracker.offsetToCommit(), ShouldEqual, offset)
+		tracker.putOffset(offset + 3)
+		So(tracker.offsetToCommit(), ShouldEqual, offset)
+		tracker.commitOffset(offset)
+		So(tracker.offsetToCommit(), ShouldEqual, offset+1)
+		tracker.commitOffset(offset + 2)
+		So(tracker.offsetToCommit(), ShouldEqual, offset+1)
+		tracker.commitOffset(offset + 1)
+		So(tracker.offsetToCommit(), ShouldEqual, offset+3)
+		tracker.commitOffset(offset + 3)
+		So(tracker.offsetToCommit(), ShouldEqual, offset+4)
+	})
+}

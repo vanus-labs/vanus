@@ -34,11 +34,11 @@ type Subscription struct {
 	SinkCredential  *SinkCredential       `json:"sink_credential,omitempty"`
 }
 
-type Protocol int32
+type Protocol string
 
 const (
-	HTTPProtocol      Protocol = 0
-	AwsLambdaProtocol Protocol = 1
+	HTTPProtocol      Protocol = "http"
+	AwsLambdaProtocol Protocol = "aws-lambda"
 )
 
 type ProtocolSetting struct {
@@ -46,11 +46,13 @@ type ProtocolSetting struct {
 	Method  string            `json:"method,omitempty"`
 }
 
-type CredentialType int32
+type CredentialType string
 
 const (
-	PlainCredentialType CredentialType = 0
-	CloudCredentialType CredentialType = 1
+	PlainCredentialType CredentialType = "plain"
+	CloudCredentialType CredentialType = "cloud"
+
+	SecretsMask = "******"
 )
 
 type SinkCredential struct {
@@ -60,11 +62,33 @@ type SinkCredential struct {
 	Identifier string `json:"identifier,omitempty"`
 	Secret     string `json:"secret,omitempty"`
 
-	// token
-	AccessToken string `json:"access_token,omitempty"`
 	// cloud need
 	AccessKeyID     string `json:"access_key_id,omitempty"`
 	SecretAccessKey string `json:"secret_access_key,omitempty"`
+}
+
+func (credential *SinkCredential) Update(curr *SinkCredential) {
+	if curr == nil {
+		return
+	}
+	if curr.Type != credential.Type {
+		return
+	}
+	switch curr.Type {
+	case PlainCredentialType:
+		if credential.Identifier == SecretsMask &&
+			credential.Secret == SecretsMask {
+			credential.Identifier = curr.Identifier
+			credential.Secret = curr.Secret
+			return
+		}
+	case CloudCredentialType:
+		if credential.AccessKeyID == SecretsMask &&
+			credential.SecretAccessKey == SecretsMask {
+			credential.AccessKeyID = curr.AccessKeyID
+			credential.SecretAccessKey = curr.SecretAccessKey
+		}
+	}
 }
 
 type OffsetType int32

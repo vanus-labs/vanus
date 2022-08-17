@@ -17,12 +17,18 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/vanus/internal/trigger/errors"
+)
+
+const (
+	errStatusCode = 400
 )
 
 type awsLambda struct {
@@ -32,9 +38,9 @@ type awsLambda struct {
 
 func NewAwsLambdaClient(accessKeyID, secretKeyID, arnStr string) EventClient {
 	a, _ := arn.Parse(arnStr)
-	creds := aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(accessKeyID, secretKeyID, ""))
+	credential := aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(accessKeyID, secretKeyID, ""))
 	c := lambda.New(lambda.Options{
-		Credentials: creds,
+		Credentials: credential,
 		Region:      a.Region,
 	})
 	return &awsLambda{
@@ -52,8 +58,12 @@ func (l *awsLambda) Send(ctx context.Context, event ce.Event) error {
 		FunctionName: l.arn,
 		Payload:      payload,
 	}
-	if _, err = l.client.Invoke(ctx, req); err != nil {
-		return err
+	resp, err := l.client.Invoke(ctx, req)
+	if err != nil {
+		return errors.ErrLambdaInvoke.Wrap(err)
+	}
+	if resp.StatusCode >= errStatusCode {
+		return errors.ErrLambdaInvokeResp.WithMessage(fmt.Sprintf("status code:%d", resp.StatusCode))
 	}
 	return nil
 }

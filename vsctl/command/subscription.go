@@ -75,16 +75,22 @@ func createSubscriptionCommand() *cobra.Command {
 				if sinkCredential == "" {
 					cmdFailedf(cmd, "credential-type is set but credential empty\n")
 				}
-				err := json.Unmarshal([]byte(sinkCredential), &credential)
-				if err != nil {
-					cmdFailedf(cmd, "the sink credential invalid: %s", err.Error())
-				}
 				switch sinkCredentialType {
 				case "cloud":
-					if credential.AccessKeyId == "" || credential.SecretAccessKey == "" {
+					var cloud *meta.CloudCredential
+					err := json.Unmarshal([]byte(sinkCredential), &cloud)
+					if err != nil {
+						cmdFailedf(cmd, "the sink credential unmarshal json error: %s", err.Error())
+					}
+					if cloud.AccessKeyId == "" || cloud.SecretAccessKey == "" {
 						cmdFailedf(cmd, "credential-type is cloud, access_key_id and secret_access_key must not be empty\n")
 					}
-					credential.CredentialType = meta.SinkCredential_CLOUD
+					credential = &meta.SinkCredential{
+						CredentialType: meta.SinkCredential_CLOUD,
+						Credential: &meta.SinkCredential_Cloud{
+							Cloud: cloud,
+						},
+					}
 				default:
 					cmdFailedf(cmd, "credential-type is invalid\n")
 				}
@@ -138,27 +144,22 @@ func createSubscriptionCommand() *cobra.Command {
 			}()
 			cli := ctrlpb.NewTriggerControllerClient(grpcConn)
 			res, err := cli.CreateSubscription(ctx, &ctrlpb.CreateSubscriptionRequest{
-				Source:         source,
-				Filters:        filter,
-				Sink:           sink,
-				Protocol:       p,
-				SinkCredential: credential,
-				EventBus:       eventbus,
-				Transformer:    trans,
-				Config:         config,
+				Subscription: &ctrlpb.SubscriptionRequest{
+					Source:         source,
+					Filters:        filter,
+					Sink:           sink,
+					Protocol:       p,
+					SinkCredential: credential,
+					EventBus:       eventbus,
+					Transformer:    trans,
+					Config:         config,
+				},
 			})
 			if err != nil {
 				cmdFailedf(cmd, "create subscription failed: %s", err)
 			}
 			if IsFormatJSON(cmd) {
-				data, _ := json.Marshal(map[string]interface{}{
-					"id":          res.Id,
-					"eventbus":    eventbus,
-					"filter":      filter,
-					"sink":        sink,
-					"transformer": trans,
-					"config":      config,
-				})
+				data, _ := json.Marshal(res)
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
@@ -178,7 +179,8 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&from, "from", "", "consume events from, latest,earliest or RFC3339 format time")
 	cmd.Flags().StringVar(&protocol, "protocol", "http", "protocol,http or aws-lambda")
 	cmd.Flags().StringVar(&sinkCredentialType, "credential-type", "", "sink credential type, plain or cloud, now only support cloud")
-	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, when type is cloud,need access_key_id and secret_access_key")
+	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, JSON format, "+
+		"when type is cloud,need access_key_id and secret_access_key")
 	return cmd
 }
 

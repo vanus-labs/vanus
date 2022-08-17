@@ -24,28 +24,41 @@ import (
 	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
 )
 
-const SecretsMask = "******"
-
-func FromPbCreateSubscription(sub *ctrl.CreateSubscriptionRequest) *metadata.Subscription {
+func FromPbSubscriptionRequest(sub *ctrl.SubscriptionRequest) *metadata.Subscription {
 	to := &metadata.Subscription{
-		Source:          sub.Source,
-		Types:           sub.Types,
-		Config:          FromPbSubscriptionConfig(sub.Config),
-		Sink:            primitive.URI(sub.Sink),
-		ProtocolSetting: fromPbProtocolSettings(sub.ProtocolSettings),
-		EventBus:        sub.EventBus,
-		Filters:         FromPbFilters(sub.Filters),
-		Transformer:     FromPbTransformer(sub.Transformer),
+		Source:             sub.Source,
+		Types:              sub.Types,
+		Config:             FromPbSubscriptionConfig(sub.Config),
+		Sink:               primitive.URI(sub.Sink),
+		SinkCredential:     FromPbSinkCredential(sub.SinkCredential),
+		SinkCredentialType: FromPbSinkCredentialType(sub.SinkCredential),
+		Protocol:           FromPbProtocol(sub.Protocol),
+		ProtocolSetting:    fromPbProtocolSettings(sub.ProtocolSettings),
+		Filters:            FromPbFilters(sub.Filters),
+		Transformer:        FromPbTransformer(sub.Transformer),
+		EventBus:           sub.EventBus,
 	}
-	switch sub.Protocol {
+	return to
+}
+
+func FromPbProtocol(from pb.Protocol) primitive.Protocol {
+	var to primitive.Protocol
+	switch from {
 	case pb.Protocol_HTTP:
-		to.Protocol = primitive.HTTPProtocol
+		to = primitive.HTTPProtocol
 	case pb.Protocol_AWS_LAMBDA:
-		to.Protocol = primitive.AwsLambdaProtocol
+		to = primitive.AwsLambdaProtocol
 	}
-	if sub.SinkCredential != nil {
-		to.SinkCredentialType = fromPbSinkCredentialType(sub.SinkCredential.CredentialType)
-		to.SinkCredential = FromPbSinkCredential(sub.SinkCredential)
+	return to
+}
+
+func ToPbProtocol(from primitive.Protocol) pb.Protocol {
+	var to pb.Protocol
+	switch from {
+	case primitive.HTTPProtocol:
+		to = pb.Protocol_HTTP
+	case primitive.AwsLambdaProtocol:
+		to = pb.Protocol_AWS_LAMBDA
 	}
 	return to
 }
@@ -72,9 +85,14 @@ func toPbProtocolSettings(from *primitive.ProtocolSetting) *pb.ProtocolSetting {
 	return to
 }
 
-func fromPbSinkCredentialType(credentialType pb.SinkCredential_CredentialType) *primitive.CredentialType {
+func FromPbSinkCredentialType(from *pb.SinkCredential) *primitive.CredentialType {
+	if from == nil {
+		return nil
+	}
 	var to primitive.CredentialType
-	switch credentialType {
+	switch from.CredentialType {
+	case pb.SinkCredential_None:
+		return nil
 	case pb.SinkCredential_PLAIN:
 		to = primitive.PlainCredentialType
 	case pb.SinkCredential_CLOUD:
@@ -89,14 +107,16 @@ func FromPbSinkCredential(from *pb.SinkCredential) *primitive.SinkCredential {
 	}
 	to := &primitive.SinkCredential{}
 	switch from.CredentialType {
+	case pb.SinkCredential_None:
+		return nil
 	case pb.SinkCredential_PLAIN:
 		to.Type = primitive.PlainCredentialType
-		to.Identifier = from.Identifier
-		to.Secret = from.Secret
+		to.Identifier = from.GetPlain().Identifier
+		to.Secret = from.GetPlain().GetSecret()
 	case pb.SinkCredential_CLOUD:
 		to.Type = primitive.CloudCredentialType
-		to.AccessKeyID = from.AccessKeyId
-		to.SecretAccessKey = from.SecretAccessKey
+		to.AccessKeyID = from.GetCloud().GetAccessKeyId()
+		to.SecretAccessKey = from.GetCloud().GetSecretAccessKey()
 	}
 	return to
 }
@@ -109,17 +129,25 @@ func toPbSinkCredentialByType(credentialType *primitive.CredentialType) *pb.Sink
 	switch *credentialType {
 	case primitive.PlainCredentialType:
 		to.CredentialType = pb.SinkCredential_PLAIN
-		to.Identifier = SecretsMask
-		to.Secret = SecretsMask
+		to.Credential = &pb.SinkCredential_Plain{
+			Plain: &pb.PlainCredential{
+				Identifier: primitive.SecretsMask,
+				Secret:     primitive.SecretsMask,
+			},
+		}
 	case primitive.CloudCredentialType:
 		to.CredentialType = pb.SinkCredential_CLOUD
-		to.AccessKeyId = SecretsMask
-		to.SecretAccessKey = SecretsMask
+		to.Credential = &pb.SinkCredential_Cloud{
+			Cloud: &pb.CloudCredential{
+				AccessKeyId:     primitive.SecretsMask,
+				SecretAccessKey: primitive.SecretsMask,
+			},
+		}
 	}
 	return to
 }
 
-func toPbSinkCredential(from *primitive.SinkCredential) *pb.SinkCredential {
+func ToPbSinkCredential(from *primitive.SinkCredential) *pb.SinkCredential {
 	if from == nil {
 		return nil
 	}
@@ -127,12 +155,20 @@ func toPbSinkCredential(from *primitive.SinkCredential) *pb.SinkCredential {
 	switch from.Type {
 	case primitive.PlainCredentialType:
 		to.CredentialType = pb.SinkCredential_PLAIN
-		to.Identifier = from.Identifier
-		to.Secret = from.Secret
+		to.Credential = &pb.SinkCredential_Plain{
+			Plain: &pb.PlainCredential{
+				Identifier: from.Identifier,
+				Secret:     from.Secret,
+			},
+		}
 	case primitive.CloudCredentialType:
 		to.CredentialType = pb.SinkCredential_CLOUD
-		to.AccessKeyId = from.AccessKeyID
-		to.SecretAccessKey = from.SecretAccessKey
+		to.Credential = &pb.SinkCredential_Cloud{
+			Cloud: &pb.CloudCredential{
+				AccessKeyId:     from.AccessKeyID,
+				SecretAccessKey: from.SecretAccessKey,
+			},
+		}
 	}
 	return to
 }
@@ -175,20 +211,16 @@ func toPbSubscriptionConfig(config primitive.SubscriptionConfig) *pb.Subscriptio
 
 func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Subscription {
 	to := &primitive.Subscription{
-		ID:             vanus.ID(sub.Id),
-		Sink:           primitive.URI(sub.Sink),
-		SinkCredential: FromPbSinkCredential(sub.SinkCredential),
-		EventBus:       sub.EventBus,
-		Offsets:        FromPbOffsetInfos(sub.Offsets),
-		Filters:        FromPbFilters(sub.Filters),
-		Transformer:    FromPbTransformer(sub.Transformer),
-		Config:         FromPbSubscriptionConfig(sub.Config),
-	}
-	switch sub.Protocol {
-	case pb.Protocol_HTTP:
-		to.Protocol = primitive.HTTPProtocol
-	case pb.Protocol_AWS_LAMBDA:
-		to.Protocol = primitive.AwsLambdaProtocol
+		ID:              vanus.ID(sub.Id),
+		Sink:            primitive.URI(sub.Sink),
+		SinkCredential:  FromPbSinkCredential(sub.SinkCredential),
+		Protocol:        FromPbProtocol(sub.Protocol),
+		ProtocolSetting: fromPbProtocolSettings(sub.ProtocolSettings),
+		EventBus:        sub.EventBus,
+		Offsets:         FromPbOffsetInfos(sub.Offsets),
+		Filters:         FromPbFilters(sub.Filters),
+		Transformer:     FromPbTransformer(sub.Transformer),
+		Config:          FromPbSubscriptionConfig(sub.Config),
 	}
 	return to
 }
@@ -197,19 +229,14 @@ func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscription
 	to := &pbtrigger.AddSubscriptionRequest{
 		Id:               uint64(sub.ID),
 		Sink:             string(sub.Sink),
-		SinkCredential:   toPbSinkCredential(sub.SinkCredential),
+		SinkCredential:   ToPbSinkCredential(sub.SinkCredential),
 		EventBus:         sub.EventBus,
 		Offsets:          ToPbOffsetInfos(sub.Offsets),
 		Filters:          toPbFilters(sub.Filters),
 		Transformer:      toPbTransformer(sub.Transformer),
 		Config:           toPbSubscriptionConfig(sub.Config),
+		Protocol:         ToPbProtocol(sub.Protocol),
 		ProtocolSettings: toPbProtocolSettings(sub.ProtocolSetting),
-	}
-	switch sub.Protocol {
-	case primitive.HTTPProtocol:
-		to.Protocol = pb.Protocol_HTTP
-	case primitive.AwsLambdaProtocol:
-		to.Protocol = pb.Protocol_AWS_LAMBDA
 	}
 	return to
 }
@@ -222,17 +249,12 @@ func ToPbSubscription(sub *metadata.Subscription, offsets info.ListOffsetInfo) *
 		Config:           toPbSubscriptionConfig(sub.Config),
 		Sink:             string(sub.Sink),
 		SinkCredential:   toPbSinkCredentialByType(sub.SinkCredentialType),
+		Protocol:         ToPbProtocol(sub.Protocol),
 		ProtocolSettings: toPbProtocolSettings(sub.ProtocolSetting),
 		EventBus:         sub.EventBus,
 		Filters:          toPbFilters(sub.Filters),
 		Transformer:      toPbTransformer(sub.Transformer),
 		Offsets:          ToPbOffsetInfos(offsets),
-	}
-	switch sub.Protocol {
-	case primitive.HTTPProtocol:
-		to.Protocol = pb.Protocol_HTTP
-	case primitive.AwsLambdaProtocol:
-		to.Protocol = pb.Protocol_AWS_LAMBDA
 	}
 	return to
 }

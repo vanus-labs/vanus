@@ -137,6 +137,28 @@ func (tw *triggerWorker) handler(ctx context.Context, subscriptionID vanus.ID) e
 	if err != nil {
 		return err
 	}
+	if subscription.Source != "" {
+		subscription.Filters = append(subscription.Filters, &primitive.SubscriptionFilter{
+			Exact: map[string]string{"source": subscription.Source},
+		})
+	}
+	if len(subscription.Types) > 0 {
+		if len(subscription.Types) == 1 {
+			subscription.Filters = append(subscription.Filters, &primitive.SubscriptionFilter{
+				Exact: map[string]string{"type": subscription.Types[0]},
+			})
+		} else {
+			types := make([]*primitive.SubscriptionFilter, len(subscription.Types))
+			for i, t := range subscription.Types {
+				types[i] = &primitive.SubscriptionFilter{
+					Exact: map[string]string{"type": t},
+				}
+			}
+			subscription.Filters = append(subscription.Filters, &primitive.SubscriptionFilter{
+				Any: types,
+			})
+		}
+	}
 	err = tw.addSubscription(ctx, &primitive.Subscription{
 		ID:              subscription.ID,
 		Filters:         subscription.Filters,
