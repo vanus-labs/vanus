@@ -172,7 +172,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 			}
 			_ = srv.ActivateSegment(ctx, 1, 1, replicas)
 
-			time.Sleep(3 * time.Second) // make sure that there is a leader elected in Raft.
+			time.Sleep(2 * time.Second) // make sure that there is a leader elected in Raft.
 
 			events := []*cepb.CloudEvent{{
 				Id: "123",
@@ -185,7 +185,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 			_, _ = srv.AppendToBlock(ctx, blockID, events)
 			_, _ = srv.AppendToBlock(ctx, blockID, events)
 
-			time.Sleep(3 * time.Second)
+			time.Sleep(1 * time.Second)
 
 			pbEvents, err := srv.ReadFromBlock(ctx, blockID, 0, 3)
 			So(err, ShouldBeNil)
