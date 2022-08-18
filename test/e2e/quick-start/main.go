@@ -248,12 +248,12 @@ func getEvent(eventbus, offset, number string) error {
 	}
 	newEndpoint := fmt.Sprintf("%s:%d", Endpoint[:idx], port+1)
 	url := fmt.Sprintf("%s%s/getEvents?eventbus=%s&offset=%s&number=%s", HttpPrefix, newEndpoint, eventbus, offset, number)
-	evevt, err := HttpClient.NewRequest().Get(url)
+	event, err := HttpClient.NewRequest().Get(url)
 	if err != nil {
 		log.Errorf("get event from eventbus[%s]&offset[%s]&number[%s] failed, err: %s\n", eventbus, offset, number, err)
 		return err
 	}
-	log.Infof("get event from eventbus[%s]&offset[%s]&number[%s] success, event: %s\n", eventbus, offset, number, evevt.String())
+	log.Infof("get event from eventbus[%s]&offset[%s]&number[%s] success, event: %s\n", eventbus, offset, number, event.String())
 	return nil
 }
 

@@ -148,7 +148,7 @@ func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 	var res protocol.Result
 	var resEvent *ce.Event
 	if !detail {
-		res, resEvent = ceClient.Send(ctx, event), nil
+		resEvent, res = nil, ceClient.Send(ctx, event)
 	} else {
 		resEvent, res = ceClient.Request(ctx, event)
 	}
@@ -243,7 +243,7 @@ func sendFile(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 		var res protocol.Result
 		var resEvent *ce.Event
 		if !detail {
-			res, resEvent = ceClient.Send(ctx, event), nil
+			resEvent, res = nil, ceClient.Send(ctx, event)
 		} else {
 			resEvent, res = ceClient.Request(ctx, event)
 		}
