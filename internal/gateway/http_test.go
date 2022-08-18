@@ -57,5 +57,4 @@ func TestHTTP(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(data.Events[0], ShouldResemble, event)
 	})
-
 }
