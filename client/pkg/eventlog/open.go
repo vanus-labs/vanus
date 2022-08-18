@@ -83,7 +83,7 @@ func decodeEventID(eventID string) (uint64, int64, error) {
 		return 0, 0, err
 	}
 	if len(decoded) != 16 { // fixed length
-		return 0, 0, fmt.Errorf("the length of decoded bytes is incorrect")
+		return 0, 0, fmt.Errorf("eventid format is incorrect")
 	}
 	logID := binary.BigEndian.Uint64(decoded[0:8])
 	off := binary.BigEndian.Uint64(decoded[8:16])

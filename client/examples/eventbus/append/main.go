@@ -39,7 +39,7 @@ func main() {
 	if err != nil {
 		log.Print(err.Error())
 	} else {
-		log.Printf("success! eventID:%s", eventID)
+		log.Printf("success! eventID:%s\n", eventID)
 	}
 
 	w.Close()

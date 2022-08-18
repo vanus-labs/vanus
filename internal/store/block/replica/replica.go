@@ -410,12 +410,12 @@ func (r *replica) reset() {
 func (r *replica) Append(ctx context.Context, entries ...block.Entry) ([]block.Entry, error) {
 	// TODO(james.yin): support batch
 	if len(entries) != 1 {
-		return entries, errors.ErrInvalidRequest
+		return nil, errors.ErrInvalidRequest
 	}
 
 	offset, err := r.append(ctx, entries)
 	if err != nil {
-		return entries, err
+		return nil, err
 	}
 
 	// Wait until entries is committed.

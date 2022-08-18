@@ -16,7 +16,6 @@ package gateway
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"testing"
@@ -147,7 +146,8 @@ func TestGateway_EventID(t *testing.T) {
 		ControllerAddr: controllers,
 	}
 	ga := NewGateway(cfg)
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	go ga.StartReceive(ctx)
 	time.Sleep(50 * time.Millisecond)
 
@@ -169,10 +169,9 @@ func TestGateway_EventID(t *testing.T) {
 		var httpResult *cehttp.Result
 		ce.ResultAs(res, &httpResult)
 		So(httpResult, ShouldNotBeNil)
-		jsonData := resEvent.Data()
 
 		var ed EventData
-		err = json.Unmarshal(jsonData, &ed)
+		err = resEvent.DataAs(&ed)
 		So(err, ShouldBeNil)
 		So(ed.BusName, ShouldEqual, busName)
 		So(ed.EventID, ShouldEqual, eventID)

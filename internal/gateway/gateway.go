@@ -22,8 +22,6 @@ import (
 	"strings"
 	"sync"
 
-	"encoding/json"
-
 	"github.com/google/uuid"
 	"github.com/linkall-labs/vanus/observability/log"
 
@@ -171,12 +169,7 @@ func createResponseEvent(eventData EventData) (*v2.Event, error) {
 	e.SetType("com.linkall.vanus.event.stored")
 	e.SetSource("https://linkall.com/vanus")
 
-	dataMarshal, err := json.Marshal(eventData)
-	if err != nil {
-		return nil, err
-	}
-
-	err = e.SetData(v2.ApplicationJSON, dataMarshal)
+	err := e.SetData(v2.ApplicationJSON, eventData)
 	if err != nil {
 		return nil, err
 	}

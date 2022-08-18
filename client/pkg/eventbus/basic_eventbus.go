@@ -196,10 +196,10 @@ func (w *basicBusWriter) Append(ctx context.Context, event *ce.Event) (string, e
 	}
 
 	// 3. generate event ID
-	buf := make([]byte, 16)
+	var buf [16]byte
 	binary.BigEndian.PutUint64(buf[0:8], lw.Log().VRN().ID)
 	binary.BigEndian.PutUint64(buf[8:16], uint64(off))
-	encoded := base64.StdEncoding.EncodeToString(buf)
+	encoded := base64.StdEncoding.EncodeToString(buf[:])
 
 	return encoded, nil
 }

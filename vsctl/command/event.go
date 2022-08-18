@@ -92,7 +92,7 @@ func putEventCommand() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringVar(&eventID, "id", "", "event id of CloudEvent")
+	cmd.Flags().StringVar(&ID, "id", "", "event id of CloudEvent")
 	cmd.Flags().StringVar(&dataFormat, "data-format", "json", "the format of event body, JSON or plain")
 	cmd.Flags().StringVar(&eventSource, "source", "cmd", "event source of CloudEvent")
 	cmd.Flags().StringVar(&eventDeliveryTime, "delivery-time", "", "event delivery time of CloudEvent, only support the time layout of RFC3339, for example: 2022-01-01T08:00:00Z")
@@ -102,16 +102,16 @@ func putEventCommand() *cobra.Command {
 	cmd.Flags().StringVar(&dataFile, "data", "", "the data file to send, each line represent a event "+
 		"and like [id],[source],[type],<body>")
 	cmd.Flags().BoolVar(&printDataTemplate, "print-template", false, "print data template file")
-	cmd.Flags().BoolVar(&detail, "detail", false, "if true, return the response event")
+	cmd.Flags().BoolVar(&detail, "detail", false, "show detail of persistence event")
 	return cmd
 }
 
 func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 	event := ce.NewEvent()
-	if eventID == "" {
-		eventID = uuid.NewString()
+	if ID == "" {
+		ID = uuid.NewString()
 	}
-	event.SetID(eventID)
+	event.SetID(ID)
 	event.SetSource(eventSource)
 	event.SetType(eventType)
 	if eventDeliveryTime != "" {
@@ -148,7 +148,7 @@ func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 	var res protocol.Result
 	var resEvent *ce.Event
 	if !detail {
-		resEvent, res = nil, ceClient.Send(ctx, event)
+		res = ceClient.Send(ctx, event)
 	} else {
 		resEvent, res = ceClient.Request(ctx, event)
 	}
@@ -281,7 +281,7 @@ func getEventCommand() *cobra.Command {
 		Use:   "get <eventbus-name or event-id> ",
 		Short: "get a event from specified eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-			if len(args) == 0 {
+			if len(args) == 0 && eventID == "" {
 				cmdFailedWithHelpNotice(cmd, "eventbus name and eventID can't be both empty\n")
 			}
 			endpoint := mustGetGatewayEndpoint(cmd)
@@ -296,8 +296,8 @@ func getEventCommand() *cobra.Command {
 			endpoint = fmt.Sprintf("%s:%d", endpoint[:idx], port+1)
 
 			var res *resty.Response
-			if getEventByID {
-				res, err = newHTTPRequest().Get(fmt.Sprintf("%s/getEvents?eventid=%s", endpoint, args[0]))
+			if eventID != "" {
+				res, err = newHTTPRequest().Get(fmt.Sprintf("%s/getEvents?eventid=%s", endpoint, eventID))
 			} else {
 				res, err = newHTTPRequest().Get(fmt.Sprintf("%s/getEvents?eventbus=%s&offset=%d&number=%d",
 					endpoint, args[0], offset, number))
@@ -346,6 +346,6 @@ func getEventCommand() *cobra.Command {
 
 	cmd.Flags().Int64Var(&offset, "offset", 0, "which position you want to start get")
 	cmd.Flags().Int16Var(&number, "number", 1, "the number of event you want to get")
-	cmd.Flags().BoolVar(&getEventByID, "get-by-ID", false, "get event by event ID")
+	cmd.Flags().StringVar(&eventID, "eventid", "", "get event by event ID")
 	return cmd
 }
