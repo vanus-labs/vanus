@@ -153,9 +153,9 @@ func TestSegmentServer(t *testing.T) {
 		})
 
 		Convey("AppendToBlock()", func() {
-			srv.EXPECT().AppendToBlock(Any(), Not(vanus.EmptyID()), Not(Len(0))).Return(make([]int64, 1), nil)
-			srv.EXPECT().AppendToBlock(Any(), Eq(vanus.EmptyID()), Any()).Return(make([]int64, 1), errors.ErrInvalidRequest)
-			srv.EXPECT().AppendToBlock(Any(), Any(), Len(0)).Return(make([]int64, 1), errors.ErrInvalidRequest)
+			srv.EXPECT().AppendToBlock(Any(), Not(vanus.EmptyID()), Not(Len(0))).Return([]int64{1}, nil)
+			srv.EXPECT().AppendToBlock(Any(), Eq(vanus.EmptyID()), Any()).Return(nil, errors.ErrInvalidRequest)
+			srv.EXPECT().AppendToBlock(Any(), Any(), Len(0)).Return(nil, errors.ErrInvalidRequest)
 
 			req := &segpb.AppendToBlockRequest{
 				BlockId: vanus.NewID().Uint64(),
@@ -165,7 +165,8 @@ func TestSegmentServer(t *testing.T) {
 			}
 			resp, err := ss.AppendToBlock(context.Background(), req)
 			So(err, ShouldBeNil)
-			So(resp, ShouldNotBeNil)
+			So(len(resp.Offset), ShouldEqual, 1)
+			So(resp.Offset[0], ShouldEqual, 1)
 
 			req = &segpb.AppendToBlockRequest{
 				BlockId: 0,

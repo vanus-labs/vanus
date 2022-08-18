@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 
+	v2 "github.com/cloudevents/sdk-go/v2"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	eb "github.com/linkall-labs/vanus/client"
@@ -61,15 +62,29 @@ func (srv *httpServer) getControllerEndpoints(c echo.Context) error {
 
 func (srv *httpServer) getEvents(c echo.Context) error {
 	ctx := context.Background()
+	eventid := c.QueryParam("eventid")
 	eventbus := c.QueryParam("eventbus")
-	if eventbus == "" {
+	if eventbus == "" && eventid == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "the eventbus name can't be empty",
+			"error": "the eventbus name and event id can't be both empty",
 		})
 	}
+	if eventid != "" {
+		event, err := eb.SearchEventByID(eventid, srv.cfg.ControllerAddr[0])
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "can not query the event by event id",
+			})
+		}
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"events": []*v2.Event{event},
+		})
+	}
+
 	var offset int
 	var num int16
 	var err error
+
 	offsetStr := c.QueryParam("offset")
 	if offsetStr != "" {
 		offset, err = strconv.Atoi(offsetStr)

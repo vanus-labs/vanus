@@ -27,8 +27,10 @@ import (
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"github.com/fatih/color"
+	"github.com/go-resty/resty/v2"
 	"github.com/google/uuid"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
@@ -100,6 +102,7 @@ func putEventCommand() *cobra.Command {
 	cmd.Flags().StringVar(&dataFile, "data", "", "the data file to send, each line represent a event "+
 		"and like [id],[source],[type],<body>")
 	cmd.Flags().BoolVar(&printDataTemplate, "print-template", false, "print data template file")
+	cmd.Flags().BoolVar(&detail, "detail", false, "if true, return the response event")
 	return cmd
 }
 
@@ -141,7 +144,15 @@ func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 	if err != nil {
 		cmdFailedf(cmd, "set data failed: %s\n", err)
 	}
-	res := ceClient.Send(ctx, event)
+
+	var res protocol.Result
+	var resEvent *ce.Event
+	if !detail {
+		res, resEvent = ceClient.Send(ctx, event), nil
+	} else {
+		resEvent, res = ceClient.Request(ctx, event)
+	}
+
 	if ce.IsUndelivered(res) {
 		cmdFailedf(cmd, "failed to send: %s\n", res.Error())
 	} else {
@@ -157,10 +168,16 @@ func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 				t := table.NewWriter()
 				t.AppendHeader(table.Row{"Result"})
 				t.AppendRow(table.Row{httpResult.StatusCode})
-				t.SetColumnConfigs([]table.ColumnConfig{
+				tbcfg := []table.ColumnConfig{
 					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-				})
+				}
+				if detail {
+					t.AppendSeparator()
+					t.AppendRow(table.Row{"RESPONSE EVENT"})
+					t.AppendSeparator()
+					t.AppendRow(table.Row{resEvent})
+				}
+				t.SetColumnConfigs(tbcfg)
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
 			}
@@ -201,11 +218,17 @@ func sendFile(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 		events = append(events, arr)
 	}
 	t := table.NewWriter()
-	t.AppendHeader(table.Row{"No.", "Result"})
-	t.SetColumnConfigs([]table.ColumnConfig{
+	tbcfg := []table.ColumnConfig{
 		{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 		{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-	})
+	}
+	if detail {
+		t.AppendHeader(table.Row{"No.", "Result", "Response Event"})
+		tbcfg = append(tbcfg, table.ColumnConfig{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter})
+	} else {
+		t.AppendHeader(table.Row{"No.", "Result"})
+	}
+	t.SetColumnConfigs(tbcfg)
 	t.SetOutputMirror(os.Stdout)
 	for idx, v := range events {
 		event := ce.NewEvent()
@@ -216,7 +239,15 @@ func sendFile(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 		if err != nil {
 			cmdFailedf(cmd, "set data failed: %s\n", err)
 		}
-		res := ceClient.Send(ctx, event)
+
+		var res protocol.Result
+		var resEvent *ce.Event
+		if !detail {
+			res, resEvent = ceClient.Send(ctx, event), nil
+		} else {
+			resEvent, res = ceClient.Request(ctx, event)
+		}
+
 		if ce.IsUndelivered(res) {
 			cmdFailedf(cmd, "failed to send: %s\n", res.Error())
 		} else {
@@ -232,7 +263,11 @@ func sendFile(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 					})
 					color.Green(string(data))
 				} else {
-					t.AppendRow(table.Row{idx, httpResult.StatusCode})
+					if detail {
+						t.AppendRow(table.Row{idx, httpResult.StatusCode, resEvent})
+					} else {
+						t.AppendRow(table.Row{idx, httpResult.StatusCode})
+					}
 					t.AppendSeparator()
 					t.Render()
 				}
@@ -243,11 +278,11 @@ func sendFile(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 
 func getEventCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <eventbus-name> ",
+		Use:   "get <eventbus-name or event-id> ",
 		Short: "get a event from specified eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
-				cmdFailedWithHelpNotice(cmd, "eventbus name can't be empty\n")
+				cmdFailedWithHelpNotice(cmd, "eventbus name and eventID can't be both empty\n")
 			}
 			endpoint := mustGetGatewayEndpoint(cmd)
 			if !strings.HasPrefix(endpoint, httpPrefix) {
@@ -259,8 +294,15 @@ func getEventCommand() *cobra.Command {
 				cmdFailedf(cmd, "parse gateway port failed: %s, endpoint: %s", err, endpoint)
 			}
 			endpoint = fmt.Sprintf("%s:%d", endpoint[:idx], port+1)
-			res, err := newHTTPRequest().Get(fmt.Sprintf("%s/getEvents?eventbus=%s&offset=%d&number=%d",
-				endpoint, args[0], offset, number))
+
+			var res *resty.Response
+			if getEventByID {
+				res, err = newHTTPRequest().Get(fmt.Sprintf("%s/getEvents?eventid=%s", endpoint, args[0]))
+			} else {
+				res, err = newHTTPRequest().Get(fmt.Sprintf("%s/getEvents?eventbus=%s&offset=%d&number=%d",
+					endpoint, args[0], offset, number))
+			}
+
 			if err != nil {
 				cmdFailedf(cmd, "send request to gateway failed: %s", err)
 			}
@@ -304,5 +346,6 @@ func getEventCommand() *cobra.Command {
 
 	cmd.Flags().Int64Var(&offset, "offset", 0, "which position you want to start get")
 	cmd.Flags().Int16Var(&number, "number", 1, "the number of event you want to get")
+	cmd.Flags().BoolVar(&getEventByID, "get-by-ID", false, "get event by event ID")
 	return cmd
 }

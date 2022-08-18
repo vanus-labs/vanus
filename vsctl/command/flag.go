@@ -27,6 +27,8 @@ var (
 	printDataTemplate bool
 	offset            int64
 	number            int16
+	detail            bool
+	getEventByID      bool
 
 	// for vsctl eventbus and subscription.
 	eventbus       string
