@@ -28,20 +28,20 @@ func FromPbSubscriptionRequest(sub *ctrl.SubscriptionRequest) *metadata.Subscrip
 	to := &metadata.Subscription{
 		Source:             sub.Source,
 		Types:              sub.Types,
-		Config:             FromPbSubscriptionConfig(sub.Config),
+		Config:             fromPbSubscriptionConfig(sub.Config),
 		Sink:               primitive.URI(sub.Sink),
-		SinkCredential:     FromPbSinkCredential(sub.SinkCredential),
-		SinkCredentialType: FromPbSinkCredentialType(sub.SinkCredential),
-		Protocol:           FromPbProtocol(sub.Protocol),
+		SinkCredential:     fromPbSinkCredential(sub.SinkCredential),
+		SinkCredentialType: fromPbSinkCredentialType(sub.SinkCredential),
+		Protocol:           fromPbProtocol(sub.Protocol),
 		ProtocolSetting:    fromPbProtocolSettings(sub.ProtocolSettings),
-		Filters:            FromPbFilters(sub.Filters),
-		Transformer:        FromPbTransformer(sub.Transformer),
+		Filters:            fromPbFilters(sub.Filters),
+		Transformer:        fromPbTransformer(sub.Transformer),
 		EventBus:           sub.EventBus,
 	}
 	return to
 }
 
-func FromPbProtocol(from pb.Protocol) primitive.Protocol {
+func fromPbProtocol(from pb.Protocol) primitive.Protocol {
 	var to primitive.Protocol
 	switch from {
 	case pb.Protocol_HTTP:
@@ -52,7 +52,7 @@ func FromPbProtocol(from pb.Protocol) primitive.Protocol {
 	return to
 }
 
-func ToPbProtocol(from primitive.Protocol) pb.Protocol {
+func toPbProtocol(from primitive.Protocol) pb.Protocol {
 	var to pb.Protocol
 	switch from {
 	case primitive.HTTPProtocol:
@@ -85,7 +85,7 @@ func toPbProtocolSettings(from *primitive.ProtocolSetting) *pb.ProtocolSetting {
 	return to
 }
 
-func FromPbSinkCredentialType(from *pb.SinkCredential) *primitive.CredentialType {
+func fromPbSinkCredentialType(from *pb.SinkCredential) *primitive.CredentialType {
 	if from == nil {
 		return nil
 	}
@@ -101,7 +101,7 @@ func FromPbSinkCredentialType(from *pb.SinkCredential) *primitive.CredentialType
 	return &to
 }
 
-func FromPbSinkCredential(from *pb.SinkCredential) *primitive.SinkCredential {
+func fromPbSinkCredential(from *pb.SinkCredential) *primitive.SinkCredential {
 	if from == nil {
 		return nil
 	}
@@ -147,7 +147,7 @@ func toPbSinkCredentialByType(credentialType *primitive.CredentialType) *pb.Sink
 	return to
 }
 
-func ToPbSinkCredential(from *primitive.SinkCredential) *pb.SinkCredential {
+func toPbSinkCredential(from *primitive.SinkCredential) *pb.SinkCredential {
 	if from == nil {
 		return nil
 	}
@@ -173,7 +173,7 @@ func ToPbSinkCredential(from *primitive.SinkCredential) *pb.SinkCredential {
 	return to
 }
 
-func FromPbSubscriptionConfig(config *pb.SubscriptionConfig) primitive.SubscriptionConfig {
+func fromPbSubscriptionConfig(config *pb.SubscriptionConfig) primitive.SubscriptionConfig {
 	if config == nil {
 		return primitive.SubscriptionConfig{}
 	}
@@ -213,14 +213,14 @@ func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Sub
 	to := &primitive.Subscription{
 		ID:              vanus.ID(sub.Id),
 		Sink:            primitive.URI(sub.Sink),
-		SinkCredential:  FromPbSinkCredential(sub.SinkCredential),
-		Protocol:        FromPbProtocol(sub.Protocol),
+		SinkCredential:  fromPbSinkCredential(sub.SinkCredential),
+		Protocol:        fromPbProtocol(sub.Protocol),
 		ProtocolSetting: fromPbProtocolSettings(sub.ProtocolSettings),
 		EventBus:        sub.EventBus,
 		Offsets:         FromPbOffsetInfos(sub.Offsets),
-		Filters:         FromPbFilters(sub.Filters),
-		Transformer:     FromPbTransformer(sub.Transformer),
-		Config:          FromPbSubscriptionConfig(sub.Config),
+		Filters:         fromPbFilters(sub.Filters),
+		Transformer:     fromPbTransformer(sub.Transformer),
+		Config:          fromPbSubscriptionConfig(sub.Config),
 	}
 	return to
 }
@@ -229,13 +229,13 @@ func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscription
 	to := &pbtrigger.AddSubscriptionRequest{
 		Id:               uint64(sub.ID),
 		Sink:             string(sub.Sink),
-		SinkCredential:   ToPbSinkCredential(sub.SinkCredential),
+		SinkCredential:   toPbSinkCredential(sub.SinkCredential),
 		EventBus:         sub.EventBus,
 		Offsets:          ToPbOffsetInfos(sub.Offsets),
 		Filters:          toPbFilters(sub.Filters),
 		Transformer:      toPbTransformer(sub.Transformer),
 		Config:           toPbSubscriptionConfig(sub.Config),
-		Protocol:         ToPbProtocol(sub.Protocol),
+		Protocol:         toPbProtocol(sub.Protocol),
 		ProtocolSettings: toPbProtocolSettings(sub.ProtocolSetting),
 	}
 	return to
@@ -249,7 +249,7 @@ func ToPbSubscription(sub *metadata.Subscription, offsets info.ListOffsetInfo) *
 		Config:           toPbSubscriptionConfig(sub.Config),
 		Sink:             string(sub.Sink),
 		SinkCredential:   toPbSinkCredentialByType(sub.SinkCredentialType),
-		Protocol:         ToPbProtocol(sub.Protocol),
+		Protocol:         toPbProtocol(sub.Protocol),
 		ProtocolSettings: toPbProtocolSettings(sub.ProtocolSetting),
 		EventBus:         sub.EventBus,
 		Filters:          toPbFilters(sub.Filters),
@@ -259,7 +259,7 @@ func ToPbSubscription(sub *metadata.Subscription, offsets info.ListOffsetInfo) *
 	return to
 }
 
-func FromPbFilters(filters []*pb.Filter) []*primitive.SubscriptionFilter {
+func fromPbFilters(filters []*pb.Filter) []*primitive.SubscriptionFilter {
 	if len(filters) == 0 {
 		return nil
 	}
@@ -294,10 +294,10 @@ func fromPbFilter(filter *pb.Filter) *primitive.SubscriptionFilter {
 		return &primitive.SubscriptionFilter{CEL: filter.Cel}
 	}
 	if len(filter.All) > 0 {
-		return &primitive.SubscriptionFilter{All: FromPbFilters(filter.All)}
+		return &primitive.SubscriptionFilter{All: fromPbFilters(filter.All)}
 	}
 	if len(filter.Any) > 0 {
-		return &primitive.SubscriptionFilter{Any: FromPbFilters(filter.Any)}
+		return &primitive.SubscriptionFilter{Any: fromPbFilters(filter.Any)}
 	}
 	return nil
 }
@@ -341,12 +341,12 @@ func toPbFilter(filter *primitive.SubscriptionFilter) *pb.Filter {
 func FromPbOffsetInfos(offsets []*pb.OffsetInfo) info.ListOffsetInfo {
 	var to info.ListOffsetInfo
 	for _, offset := range offsets {
-		to = append(to, FromPbOffsetInfo(offset))
+		to = append(to, fromPbOffsetInfo(offset))
 	}
 	return to
 }
 
-func FromPbOffsetInfo(offset *pb.OffsetInfo) info.OffsetInfo {
+func fromPbOffsetInfo(offset *pb.OffsetInfo) info.OffsetInfo {
 	return info.OffsetInfo{
 		EventLogID: vanus.ID(offset.EventLogId),
 		Offset:     offset.Offset,
@@ -376,7 +376,7 @@ func toPbOffsetInfo(offset info.OffsetInfo) *pb.OffsetInfo {
 		Offset:     offset.Offset,
 	}
 }
-func FromPbTransformer(transformer *pb.Transformer) *primitive.Transformer {
+func fromPbTransformer(transformer *pb.Transformer) *primitive.Transformer {
 	if transformer == nil {
 		return nil
 	}

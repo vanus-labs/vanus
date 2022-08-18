@@ -145,7 +145,11 @@ func TestTriggerWorker_Handler(t *testing.T) {
 			id := vanus.NewID()
 			tWorker.assignSubscriptionIDs.Store(id, time.Now())
 			subscriptionManager.EXPECT().GetSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(
-				&metadata.Subscription{ID: id})
+				&metadata.Subscription{
+					ID:     id,
+					Source: "test-source",
+					Types:  []string{"type-1", "type-2"},
+				})
 			subscriptionManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(info.ListOffsetInfo{}, nil)
 			client.EXPECT().AddSubscription(gomock.Any(), gomock.Any()).Return(nil, nil)
 			subscriptionManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)

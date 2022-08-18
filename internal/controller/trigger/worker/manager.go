@@ -215,7 +215,7 @@ func (m *manager) startTriggerWorker(ctx context.Context, tWorker TriggerWorker)
 	log.Info(ctx, "trigger worker start success", map[string]interface{}{
 		log.KeyTriggerWorkerAddr: tWorker.GetAddr(),
 	})
-	// trigger worker restart need add to trigger worker again
+	// trigger worker restart need assign to trigger worker again
 	for _, id := range assignSubscription {
 		tWorker.AssignSubscription(id)
 	}
