@@ -174,11 +174,13 @@ func createSubscription(eventbus, sink, source, filters, transformer string) err
 
 	cli := ctrlpb.NewTriggerControllerClient(grpcConn)
 	res, err := cli.CreateSubscription(ctx, &ctrlpb.CreateSubscriptionRequest{
-		Source:      source,
-		Filters:     filter,
-		Sink:        sink,
-		EventBus:    eventbus,
-		Transformer: trans,
+		Subscription: &ctrlpb.SubscriptionRequest{
+			Source:      source,
+			Filters:     filter,
+			Sink:        sink,
+			EventBus:    eventbus,
+			Transformer: trans,
+		},
 	})
 	if err != nil {
 		log.Errorf("create subscription failed, err: %s", err)

@@ -20,10 +20,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
+	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
 
@@ -144,12 +144,15 @@ func TestTriggerWorker_Handler(t *testing.T) {
 		Convey("add subscription", func() {
 			id := vanus.NewID()
 			tWorker.assignSubscriptionIDs.Store(id, time.Now())
-			subscriptionManager.EXPECT().GetSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(
-				&metadata.Subscription{
-					ID:     id,
-					Source: "test-source",
-					Types:  []string{"type-1", "type-2"},
-				})
+			sub := &metadata.Subscription{
+				ID:     id,
+				Source: "test-source",
+				Types:  []string{"type-1", "type-2"},
+				Filters: []*primitive.SubscriptionFilter{
+					{Exact: map[string]string{"k": "v"}},
+				},
+			}
+			subscriptionManager.EXPECT().GetSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(sub)
 			subscriptionManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(info.ListOffsetInfo{}, nil)
 			client.EXPECT().AddSubscription(gomock.Any(), gomock.Any()).Return(nil, nil)
 			subscriptionManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
@@ -158,6 +161,7 @@ func TestTriggerWorker_Handler(t *testing.T) {
 			client.EXPECT().AddSubscription(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error"))
 			err = tWorker.handler(ctx, id)
 			So(err, ShouldNotBeNil)
+			So(len(sub.Filters), ShouldEqual, 1)
 		})
 		_ = tWorker.Close()
 	})

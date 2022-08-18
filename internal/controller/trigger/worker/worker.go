@@ -139,6 +139,7 @@ func (tw *triggerWorker) handler(ctx context.Context, subscriptionID vanus.ID) e
 	}
 	var filters []*primitive.SubscriptionFilter
 	copy(filters, sub.Filters)
+	// filters = sub.Filters
 	if sub.Source != "" {
 		filters = append(filters, &primitive.SubscriptionFilter{
 			Exact: map[string]string{"source": sub.Source},
