@@ -92,7 +92,7 @@ func putEventCommand() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringVar(&ID, "id", "", "event id of CloudEvent")
+	cmd.Flags().StringVar(&id, "id", "", "event id of CloudEvent")
 	cmd.Flags().StringVar(&dataFormat, "data-format", "json", "the format of event body, JSON or plain")
 	cmd.Flags().StringVar(&eventSource, "source", "cmd", "event source of CloudEvent")
 	cmd.Flags().StringVar(&eventDeliveryTime, "delivery-time", "", "event delivery time of CloudEvent, only support the time layout of RFC3339, for example: 2022-01-01T08:00:00Z")
@@ -108,10 +108,10 @@ func putEventCommand() *cobra.Command {
 
 func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 	event := ce.NewEvent()
-	if ID == "" {
-		ID = uuid.NewString()
+	if id == "" {
+		id = uuid.NewString()
 	}
-	event.SetID(ID)
+	event.SetID(id)
 	event.SetSource(eventSource)
 	event.SetType(eventType)
 	if eventDeliveryTime != "" {
@@ -166,16 +166,16 @@ func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Result"})
-				t.AppendRow(table.Row{httpResult.StatusCode})
 				tbcfg := []table.ColumnConfig{
 					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 				}
 				if detail {
-					t.AppendSeparator()
-					t.AppendRow(table.Row{"RESPONSE EVENT"})
-					t.AppendSeparator()
-					t.AppendRow(table.Row{resEvent})
+					t.AppendHeader(table.Row{"Result", "RESPONSE EVENT"})
+					t.AppendRow(table.Row{httpResult.StatusCode, resEvent})
+					tbcfg = append(tbcfg, table.ColumnConfig{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter})
+				} else {
+					t.AppendHeader(table.Row{"Result"})
+					t.AppendRow(table.Row{httpResult.StatusCode})
 				}
 				t.SetColumnConfigs(tbcfg)
 				t.SetOutputMirror(os.Stdout)

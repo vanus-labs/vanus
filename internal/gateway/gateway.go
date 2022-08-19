@@ -63,7 +63,7 @@ var (
 
 type EventData struct {
 	EventID string `json:"event_id"`
-	BusName string `json:"bus_name"`
+	BusName string `json:"eventbus_name"`
 }
 
 type ceGateway struct {

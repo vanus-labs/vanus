@@ -14,16 +14,6 @@
 
 package eventlog
 
-import (
-	"context"
-	"encoding/base64"
-	"encoding/binary"
-	"fmt"
-	"io"
-
-	"github.com/cloudevents/sdk-go/v2/event"
-)
-
 // OpenWriter open a Writer of EventLog identified by vrn.
 func OpenWriter(vrn string) (LogWriter, error) {
 	el, err := Get(vrn)
@@ -54,38 +44,4 @@ func OpenReader(vrn string) (LogReader, error) {
 	}
 
 	return r, nil
-}
-
-func SearchEventByID(eventID string, controllers string) (*event.Event, error) {
-	logID, off, err := decodeEventID(eventID)
-	if err != nil {
-		return nil, err
-	}
-	vrn := fmt.Sprintf("vanus:///eventlog/%d?eventbus=%s&controllers=%s", logID, "", controllers)
-	r, err := OpenReader(vrn)
-	if err != nil {
-		return nil, err
-	}
-	_, err = r.Seek(context.Background(), off, io.SeekStart)
-	if err != nil {
-		return nil, err
-	}
-	events, err := r.Read(context.Background(), 1)
-	if err != nil {
-		return nil, err
-	}
-	return events[0], err
-}
-
-func decodeEventID(eventID string) (uint64, int64, error) {
-	decoded, err := base64.StdEncoding.DecodeString(eventID)
-	if err != nil {
-		return 0, 0, err
-	}
-	if len(decoded) != 16 { // fixed length
-		return 0, 0, fmt.Errorf("eventid format is incorrect")
-	}
-	logID := binary.BigEndian.Uint64(decoded[0:8])
-	off := binary.BigEndian.Uint64(decoded[8:16])
-	return logID, int64(off), nil
 }

@@ -166,6 +166,7 @@ func TestGateway_EventID(t *testing.T) {
 		ctx := ce.ContextWithTarget(context.Background(), fmt.Sprintf("http://127.0.0.1:%d/gateway/%s", port, busName))
 		resEvent, res := c.Request(ctx, event)
 		So(ce.IsUndelivered(res), ShouldBeFalse)
+		So(ce.IsACK(res), ShouldBeTrue)
 		var httpResult *cehttp.Result
 		ce.ResultAs(res, &httpResult)
 		So(httpResult, ShouldNotBeNil)

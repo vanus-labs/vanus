@@ -63,7 +63,7 @@ const (
 	debugModeENV                = "SEGMENT_SERVER_DEBUG_MODE"
 	defaultLeaderInfoBufferSize = 256
 	defaultForceStopTimeout     = 30 * time.Second
-	defaultLongPollingTimeout   = 2 * time.Second
+	defaultLongPollingTimeout   = 3 * time.Second
 )
 
 type Server interface {

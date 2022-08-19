@@ -23,7 +23,10 @@ import (
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/go-resty/resty/v2"
-	"github.com/linkall-labs/vanus/client"
+	. "github.com/golang/mock/gomock"
+	eb "github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
+	el "github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -34,8 +37,6 @@ func TestHTTP(t *testing.T) {
 	event.SetSource("example/uri")
 	event.SetType("example.type")
 	event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world"})
-	stub1 := gostub.StubFunc(&client.SearchEventByID, &event, nil)
-	defer stub1.Reset()
 
 	cfg := Config{
 		Port:           8080,
@@ -43,11 +44,13 @@ func TestHTTP(t *testing.T) {
 	}
 
 	go MustStartHTTP(cfg)
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	httpClient := resty.New()
 
 	Convey("test get events by event id", t, func() {
-		res, err := httpClient.NewRequest().Get(fmt.Sprintf("%s%d/getEvents?eventid=%s", "http://127.0.0.1:", cfg.Port+1, "AABBCC"))
+		stub1 := gostub.StubFunc(&eb.SearchEventByID, &event, nil)
+		defer stub1.Reset()
+		res, err := httpClient.NewRequest().Get(fmt.Sprintf("http://127.0.0.1:%d/getEvents?eventid=%s", cfg.Port+1, "AABBCC"))
 		So(err, ShouldBeNil)
 		So(res.StatusCode(), ShouldEqual, http.StatusOK)
 		data := new(struct {
@@ -56,5 +59,44 @@ func TestHTTP(t *testing.T) {
 		err = json.Unmarshal(res.Body(), data)
 		So(err, ShouldBeNil)
 		So(data.Events[0], ShouldResemble, event)
+	})
+
+	Convey("test get events by eventbus name, offset and num", t, func() {
+		ctrl := NewController(t)
+		defer ctrl.Finish()
+		r := el.NewMockLogReader(ctrl)
+		r.EXPECT().Seek(Any(), Any(), Any()).Return(int64(0), nil)
+		r.EXPECT().Read(Any(), Any()).Return([]*ce.Event{&event}, nil)
+		r.EXPECT().Close().Return()
+
+		el := &record.EventLog{}
+
+		stub1 := gostub.StubFunc(&eb.LookupReadableLogs, []*record.EventLog{el}, nil)
+		defer stub1.Reset()
+		stub2 := gostub.StubFunc(&eb.OpenLogReader, r, nil)
+		defer stub2.Reset()
+
+		res, err := httpClient.NewRequest().Get(fmt.Sprintf("http://127.0.0.1:%d/getEvents?eventbus=%s&offset=%d&number=%d",
+			cfg.Port+1, "test", 0, 1))
+		So(err, ShouldBeNil)
+		So(res.StatusCode(), ShouldEqual, http.StatusOK)
+		data := new(struct {
+			Events []ce.Event
+		})
+		err = json.Unmarshal(res.Body(), data)
+		So(err, ShouldBeNil)
+		So(data.Events[0], ShouldResemble, event)
+	})
+
+	Convey("test getController endpoints", t, func() {
+		res, err := httpClient.NewRequest().Get(fmt.Sprintf("http://127.0.0.1:%d/getControllerEndpoints", cfg.Port+1))
+		So(err, ShouldBeNil)
+		So(res.StatusCode(), ShouldEqual, http.StatusOK)
+		data := new(struct {
+			Endpoints []string
+		})
+		err = json.Unmarshal(res.Body(), data)
+		So(err, ShouldBeNil)
+		So(data.Endpoints, ShouldNotBeEmpty)
 	})
 }

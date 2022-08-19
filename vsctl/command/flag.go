@@ -16,7 +16,7 @@ package command
 
 var (
 	// for vsctl event.
-	ID                string
+	id                string
 	dataFormat        string
 	eventSource       string
 	eventType         string
