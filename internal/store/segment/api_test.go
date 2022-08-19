@@ -165,8 +165,7 @@ func TestSegmentServer(t *testing.T) {
 			}
 			resp, err := ss.AppendToBlock(context.Background(), req)
 			So(err, ShouldBeNil)
-			So(resp.Offset, ShouldHaveLength, 1)
-			So(resp.Offset[0], ShouldEqual, 1)
+			So(resp.Offset, ShouldResemble, []int64{1})
 
 			req = &segpb.AppendToBlockRequest{
 				BlockId: 0,

@@ -58,7 +58,7 @@ func TestHTTP(t *testing.T) {
 		})
 		err = json.Unmarshal(res.Body(), data)
 		So(err, ShouldBeNil)
-		So(data.Events[0], ShouldResemble, event)
+		So(data.Events, ShouldResemble, []ce.Event{event})
 	})
 
 	Convey("test get events by eventbus name, offset and num", t, func() {
@@ -85,7 +85,7 @@ func TestHTTP(t *testing.T) {
 		})
 		err = json.Unmarshal(res.Body(), data)
 		So(err, ShouldBeNil)
-		So(data.Events[0], ShouldResemble, event)
+		So(data.Events, ShouldResemble, []ce.Event{event})
 	})
 
 	Convey("test getController endpoints", t, func() {
@@ -97,6 +97,6 @@ func TestHTTP(t *testing.T) {
 		})
 		err = json.Unmarshal(res.Body(), data)
 		So(err, ShouldBeNil)
-		So(data.Endpoints, ShouldNotBeEmpty)
+		So(data.Endpoints, ShouldResemble, cfg.ControllerAddr)
 	})
 }
