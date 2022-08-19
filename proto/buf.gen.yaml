@@ -3,13 +3,13 @@ plugins:
   - name: go
     out: pkg
     opt:
-      - plugins=grpc
+      # - plugins=grpc
       - module=github.com/linkall-labs/vanus/proto/pkg
-  # - name: go-grpc
-  #   out: pkg
-  #   opt:
-  #     - module=github.com/linkall-labs/vanus/proto/pkg
-  #     - require_unimplemented_servers=false
+  - name: go-grpc
+    out: pkg
+    opt:
+      - module=github.com/linkall-labs/vanus/proto/pkg
+      - require_unimplemented_servers=false
   # - name: grpc-gateway
   #   out: pkg
   #   opt:

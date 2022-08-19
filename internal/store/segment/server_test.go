@@ -37,7 +37,10 @@ import (
 	"github.com/linkall-labs/vanus/internal/util"
 )
 
-const delayTimeInTest = 200 * time.Millisecond
+const (
+	shortDelayInTest = 200 * time.Millisecond
+	longDelayInTest  = 3 * time.Second
+)
 
 func TestServer_RemoveBlock(t *testing.T) {
 	Convey("remove block", t, func() {
@@ -90,7 +93,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 			state: primitive.ServerStateRunning,
 		}
 
-		_, err := srv.ReadFromBlock(context.Background(), vanus.NewID(), 0, 3)
+		_, err := srv.ReadFromBlock(context.Background(), vanus.NewID(), 0, 3, false)
 		So(err, ShouldNotBeNil)
 		So(err.(*errors.ErrorType).Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
 	})
@@ -100,8 +103,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 		defer ctrl.Finish()
 
 		srv := &server{
-			state:          primitive.ServerStateRunning,
-			pollingTimeout: defaultLongPollingTimeout,
+			state: primitive.ServerStateRunning,
 		}
 
 		id := vanus.NewID()
@@ -113,10 +115,15 @@ func TestServer_ReadFromBlock(t *testing.T) {
 		ent0 := cetest.MakeStoredEntry0(ctrl)
 		ent1 := cetest.MakeStoredEntry1(ctrl)
 
-		Convey("no long-polling", func() {
+		Convey("enable long-polling, but not wait", func() {
 			b.EXPECT().Read(Any(), int64(0), 3).Return([]block.Entry{ent0, ent1}, nil)
 
-			events, err := srv.ReadFromBlock(context.Background(), id, 0, 3)
+			start := time.Now()
+			ctx, cancel := context.WithTimeout(context.Background(), shortDelayInTest)
+			defer cancel()
+
+			events, err := srv.ReadFromBlock(ctx, id, 0, 3, true)
+			So(time.Now(), ShouldHappenBefore, start.Add(shortDelayInTest))
 			So(err, ShouldBeNil)
 			So(events, ShouldHaveLength, 2)
 			cetest.CheckEvent0(events[0])
@@ -141,13 +148,16 @@ func TestServer_ReadFromBlock(t *testing.T) {
 
 			start := time.Now()
 			go func() {
-				time.Sleep(delayTimeInTest)
+				time.Sleep(shortDelayInTest)
 				atomic.StoreUint64(&newMessageArrived, 1)
 				close(ch)
 			}()
 
-			events, err := srv.ReadFromBlock(context.Background(), id, 0, 3)
-			So(time.Now(), ShouldHappenBetween, start.Add(delayTimeInTest), start.Add(defaultLongPollingTimeout))
+			ctx, cancel := context.WithTimeout(context.Background(), longDelayInTest)
+			defer cancel()
+
+			events, err := srv.ReadFromBlock(ctx, id, 0, 3, true)
+			So(time.Now(), ShouldHappenBetween, start.Add(shortDelayInTest), start.Add(longDelayInTest))
 			So(err, ShouldBeNil)
 			So(events, ShouldHaveLength, 2)
 			cetest.CheckEvent0(events[0])
@@ -161,11 +171,13 @@ func TestServer_ReadFromBlock(t *testing.T) {
 			ch := make(chan struct{})
 			mgr.EXPECT().Add(Any(), id).Times(1).Return(ch)
 			srv.pm = mgr
-			srv.pollingTimeout = delayTimeInTest
 
 			start := time.Now()
-			_, err := srv.ReadFromBlock(context.Background(), id, 0, 3)
-			So(time.Now(), ShouldHappenAfter, start.Add(delayTimeInTest))
+			ctx, cancel := context.WithTimeout(context.Background(), shortDelayInTest)
+			defer cancel()
+
+			_, err := srv.ReadFromBlock(ctx, id, 0, 3, true)
+			So(time.Now(), ShouldHappenAfter, start.Add(shortDelayInTest))
 			So(err, ShouldBeError, block.ErrOnEnd)
 		})
 
@@ -181,12 +193,15 @@ func TestServer_ReadFromBlock(t *testing.T) {
 
 			start := time.Now()
 			go func() {
-				time.Sleep(delayTimeInTest)
+				time.Sleep(shortDelayInTest)
 				cancel()
 			}()
 
-			_, err := srv.ReadFromBlock(ctx, id, 0, 3)
-			So(time.Now(), ShouldHappenBetween, start.Add(delayTimeInTest), start.Add(defaultLongPollingTimeout))
+			ctx, cancel2 := context.WithTimeout(ctx, longDelayInTest)
+			defer cancel2()
+
+			_, err := srv.ReadFromBlock(ctx, id, 0, 3, true)
+			So(time.Now(), ShouldHappenBetween, start.Add(shortDelayInTest), start.Add(longDelayInTest))
 			So(err, ShouldBeError, context.Canceled)
 		})
 	})

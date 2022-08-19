@@ -139,10 +139,11 @@ func (l *distributedEventLog) Writer() (eventlog.LogWriter, error) {
 	return w, nil
 }
 
-func (l *distributedEventLog) Reader() (eventlog.LogReader, error) {
+func (l *distributedEventLog) Reader(cfg *eventlog.ReaderConfig) (eventlog.LogReader, error) {
 	r := &logReader{
 		elog: l,
 		pos:  0,
+		cfg:  cfg,
 	}
 	l.Acquire()
 	return r, nil
@@ -357,6 +358,7 @@ type logReader struct {
 	elog *distributedEventLog
 	pos  int64
 	cur  *logSegment
+	cfg  *eventlog.ReaderConfig
 }
 
 func (r *logReader) Log() eventlog.EventLog {
@@ -380,7 +382,7 @@ func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 		r.cur = segment
 	}
 
-	events, err := r.cur.Read(ctx, r.pos, size)
+	events, err := r.cur.Read(ctx, r.pos, size, r.cfg.PollingTimeout)
 	if err != nil {
 		if stderr.Is(err, errors.ErrOverflow) {
 			r.elog.refreshReadableSegments(ctx)

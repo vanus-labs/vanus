@@ -21,6 +21,7 @@ import (
 	"log"
 
 	eb "github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 )
 
 func main() {
@@ -29,7 +30,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	r, err := eb.OpenLogReader(ls[0].VRN)
+	r, err := eb.OpenLogReader(ls[0].VRN, eventlog.DisablePolling())
 	if err != nil {
 		log.Fatal(err)
 	}

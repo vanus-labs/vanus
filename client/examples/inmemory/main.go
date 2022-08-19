@@ -24,6 +24,7 @@ import (
 	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/discovery"
 	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
+	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/inmemory"
 )
 
@@ -82,7 +83,7 @@ func doRead() {
 		log.Fatal(err)
 	}
 
-	r, err := eb.OpenLogReader(ls[0].VRN)
+	r, err := eb.OpenLogReader(ls[0].VRN, eventlog.DisablePolling())
 	if err != nil {
 		log.Fatal(err)
 	}

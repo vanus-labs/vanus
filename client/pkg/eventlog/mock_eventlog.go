@@ -61,18 +61,18 @@ func (mr *MockEventLogMockRecorder) Close() *gomock.Call {
 }
 
 // Reader mocks base method.
-func (m *MockEventLog) Reader() (LogReader, error) {
+func (m *MockEventLog) Reader(cfg *ReaderConfig) (LogReader, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Reader")
+	ret := m.ctrl.Call(m, "Reader", cfg)
 	ret0, _ := ret[0].(LogReader)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Reader indicates an expected call of Reader.
-func (mr *MockEventLogMockRecorder) Reader() *gomock.Call {
+func (mr *MockEventLogMockRecorder) Reader(cfg interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reader", reflect.TypeOf((*MockEventLog)(nil).Reader))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reader", reflect.TypeOf((*MockEventLog)(nil).Reader), cfg)
 }
 
 // Release mocks base method.

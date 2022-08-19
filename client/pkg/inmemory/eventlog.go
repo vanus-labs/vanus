@@ -84,10 +84,11 @@ func (l *EventLog) Writer() (eventlog.LogWriter, error) {
 	return w, nil
 }
 
-func (l *EventLog) Reader() (eventlog.LogReader, error) {
+func (l *EventLog) Reader(readConfig *eventlog.ReaderConfig) (eventlog.LogReader, error) {
 	r := &logReader{
-		elog: l,
-		pos:  0,
+		elog:       l,
+		pos:        0,
+		readConfig: readConfig,
 	}
 	l.Acquire()
 	return r, nil
@@ -123,8 +124,9 @@ func (w *logWriter) Append(ctx context.Context, event *ce.Event) (int64, error) 
 }
 
 type logReader struct {
-	elog *EventLog
-	pos  int64
+	elog       *EventLog
+	pos        int64
+	readConfig *eventlog.ReaderConfig
 }
 
 func (r *logReader) Log() eventlog.EventLog {

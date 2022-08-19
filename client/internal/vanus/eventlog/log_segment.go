@@ -152,7 +152,7 @@ func (s *logSegment) Append(ctx context.Context, event *ce.Event) (int64, error)
 	return off + s.startOffset, nil
 }
 
-func (s *logSegment) Read(ctx context.Context, from int64, size int16) ([]*ce.Event, error) {
+func (s *logSegment) Read(ctx context.Context, from int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
 	if from < s.startOffset {
 		return nil, errors.ErrUnderflow
 	}
@@ -169,7 +169,7 @@ func (s *logSegment) Read(ctx context.Context, from int64, size int16) ([]*ce.Ev
 	if b == nil {
 		return nil, errors.ErrNoBlock
 	}
-	events, err := b.Read(ctx, from-s.startOffset, size)
+	events, err := b.Read(ctx, from-s.startOffset, size, pollingTimeout)
 	if err != nil {
 		return nil, err
 	}

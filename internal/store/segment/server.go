@@ -64,7 +64,6 @@ const (
 	debugModeENV                = "SEGMENT_SERVER_DEBUG_MODE"
 	defaultLeaderInfoBufferSize = 256
 	defaultForceStopTimeout     = 30 * time.Second
-	defaultLongPollingTimeout   = 3 * time.Second
 )
 
 type Server interface {
@@ -84,7 +83,7 @@ type Server interface {
 	InactivateSegment(ctx context.Context) error
 
 	AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]int64, error)
-	ReadFromBlock(ctx context.Context, id vanus.ID, seq int64, num int) ([]*cepb.CloudEvent, error)
+	ReadFromBlock(ctx context.Context, id vanus.ID, seq int64, num int, polling bool) ([]*cepb.CloudEvent, error)
 }
 
 func NewServer(cfg store.Config) Server {
@@ -100,22 +99,21 @@ func NewServer(cfg store.Config) Server {
 	host := transport.NewHost(resolver, localAddress)
 
 	srv := &server{
-		state:          primitive.ServerStateCreated,
-		cfg:            cfg,
-		isDebugMode:    debugModel,
-		localAddress:   localAddress,
-		pollingTimeout: defaultLongPollingTimeout,
-		volumeID:       cfg.Volume.ID,
-		volumeDir:      cfg.Volume.Dir,
-		volumeIDStr:    strconv.FormatUint(cfg.Volume.ID.Uint64(), 10),
-		resolver:       resolver,
-		host:           host,
-		ctrlAddress:    cfg.ControllerAddresses,
-		credentials:    insecure.NewCredentials(),
-		cc:             NewClient(cfg.ControllerAddresses),
-		leaderc:        make(chan leaderInfo, defaultLeaderInfoBufferSize),
-		closec:         make(chan struct{}),
-		pm:             &pollingMgr{},
+		state:        primitive.ServerStateCreated,
+		cfg:          cfg,
+		isDebugMode:  debugModel,
+		localAddress: localAddress,
+		volumeID:     cfg.Volume.ID,
+		volumeDir:    cfg.Volume.Dir,
+		volumeIDStr:  strconv.FormatUint(cfg.Volume.ID.Uint64(), 10),
+		resolver:     resolver,
+		host:         host,
+		ctrlAddress:  cfg.ControllerAddresses,
+		credentials:  insecure.NewCredentials(),
+		cc:           NewClient(cfg.ControllerAddresses),
+		leaderc:      make(chan leaderInfo, defaultLeaderInfoBufferSize),
+		closec:       make(chan struct{}),
+		pm:           &pollingMgr{},
 	}
 
 	return srv
@@ -136,12 +134,11 @@ type server struct {
 	resolver *transport.SimpleResolver
 	host     transport.Host
 
-	id             vanus.ID
-	state          primitive.ServerState
-	isDebugMode    bool
-	cfg            store.Config
-	localAddress   string
-	pollingTimeout time.Duration
+	id           vanus.ID
+	state        primitive.ServerState
+	isDebugMode  bool
+	cfg          store.Config
+	localAddress string
 
 	volumeID    vanus.ID
 	volumeIDStr string
@@ -683,7 +680,9 @@ func (s *server) onBlockArchived(stat block.Statistics) {
 	}()
 }
 
-func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, seq int64, num int) ([]*cepb.CloudEvent, error) {
+func (s *server) ReadFromBlock(
+	ctx context.Context, id vanus.ID, seq int64, num int, polling bool,
+) ([]*cepb.CloudEvent, error) {
 	if err := s.checkState(); err != nil {
 		return nil, err
 	}
@@ -696,31 +695,27 @@ func (s *server) ReadFromBlock(ctx context.Context, id vanus.ID, seq int64, num 
 			"the segment doesn't exist on this server")
 	}
 
-	events, err := s.readEvents(ctx, b, seq, num)
-	if err == nil {
+	if events, err := s.readEvents(ctx, b, seq, num); err == nil {
 		return events, nil
-	}
-	if !stderr.Is(err, block.ErrOnEnd) {
+	} else if !stderr.Is(err, block.ErrOnEnd) || !polling {
 		return nil, err
 	}
 
-	tCtx, cancel := context.WithTimeout(ctx, s.pollingTimeout)
-	defer cancel()
-	doneC := s.pm.Add(tCtx, id)
+	doneC := s.pm.Add(ctx, id)
 	if doneC == nil {
 		return nil, block.ErrOnEnd
 	}
+
 	select {
-	case <-tCtx.Done():
-		if stderr.Is(tCtx.Err(), context.Canceled) {
-			return nil, tCtx.Err()
+	case <-ctx.Done():
+		if err := ctx.Err(); stderr.Is(err, context.Canceled) {
+			return nil, err
 		}
 		return nil, block.ErrOnEnd
 	case <-doneC:
-		// it can't read message immediately because of async apply
-		events, err = s.readEvents(ctx, b, seq, num)
+		// FIXME(james.yin) It can't read message immediately because of async apply.
+		return s.readEvents(ctx, b, seq, num)
 	}
-	return events, err
 }
 
 func (s *server) readEvents(ctx context.Context, b Replica, seq int64, num int) ([]*cepb.CloudEvent, error) {

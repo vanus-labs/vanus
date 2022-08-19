@@ -54,7 +54,7 @@ func TestAppend(t *testing.T) {
 }
 
 func TestRead(t *testing.T) {
-	reader, err := elog.Reader()
+	reader, err := elog.Reader(&eventlog.ReaderConfig{})
 	if err != nil {
 		t.Error(err.Error())
 	}

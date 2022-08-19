@@ -186,9 +186,9 @@ func TestSegmentServer(t *testing.T) {
 
 		Convey("ReadFromBlock()", func() {
 			id := vanus.NewID()
-			srv.EXPECT().ReadFromBlock(Any(), Not(vanus.EmptyID()), Any(), Not(0)).Return(make([]*cepb.CloudEvent, 1), nil)
-			srv.EXPECT().ReadFromBlock(Any(), Eq(vanus.EmptyID()), Any(), Any()).Return(nil, errors.ErrInvalidRequest)
-			srv.EXPECT().ReadFromBlock(Any(), Any(), Any(), Eq(0)).Return(nil, errors.ErrResourceNotFound)
+			srv.EXPECT().ReadFromBlock(Any(), Not(vanus.EmptyID()), Any(), Not(0), Any()).Return(make([]*cepb.CloudEvent, 1), nil)
+			srv.EXPECT().ReadFromBlock(Any(), Eq(vanus.EmptyID()), Any(), Any(), Any()).Return(nil, errors.ErrInvalidRequest)
+			srv.EXPECT().ReadFromBlock(Any(), Any(), Any(), Eq(0), Any()).Return(nil, errors.ErrResourceNotFound)
 
 			req := &segpb.ReadFromBlockRequest{
 				BlockId: id.Uint64(),

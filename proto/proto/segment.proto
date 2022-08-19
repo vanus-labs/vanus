@@ -16,11 +16,11 @@ syntax = "proto3";
 
 package linkall.vanus.segment;
 
-option go_package = "github.com/linkall-labs/vanus/proto/pkg/segment";
-
-import "google/protobuf/empty.proto";
 import "cloudevents/cloudevents.proto";
 import "config.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/linkall-labs/vanus/proto/pkg/segment";
 
 service SegmentServer {
   rpc Start(StartSegmentServerRequest) returns (StartSegmentServerResponse);
@@ -31,8 +31,7 @@ service SegmentServer {
   rpc GetBlockInfo(GetBlockInfoRequest) returns (GetBlockInfoResponse);
 
   rpc ActivateSegment(ActivateSegmentRequest) returns (ActivateSegmentResponse);
-  rpc InactivateSegment(InactivateSegmentRequest)
-      returns (google.protobuf.Empty);
+  rpc InactivateSegment(InactivateSegmentRequest) returns (google.protobuf.Empty);
 
   rpc AppendToBlock(AppendToBlockRequest) returns (AppendToBlockResponse);
   rpc ReadFromBlock(ReadFromBlockRequest) returns (ReadFromBlockResponse);
@@ -89,6 +88,8 @@ message ReadFromBlockRequest {
   uint64 block_id = 1;
   int64 offset = 2;
   int64 number = 3;
+  // polling timeout in milliseconds, 0 is disable.
+  uint32 polling_timeout = 4;
 }
 
 message ReadFromBlockResponse {

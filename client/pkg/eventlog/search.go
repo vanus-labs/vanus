@@ -30,7 +30,7 @@ func SearchEventByID(eventID string, controllers string) (*event.Event, error) {
 		return nil, err
 	}
 	vrn := fmt.Sprintf("vanus:///eventlog/%d?eventbus=%s&controllers=%s", logID, "", controllers)
-	r, err := OpenReader(vrn)
+	r, err := OpenReader(vrn, DisablePolling())
 	if err != nil {
 		return nil, err
 	}

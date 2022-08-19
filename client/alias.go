@@ -36,8 +36,10 @@ var (
 	// OpenLogWriter open a Writer of EventLog identified by vrn.
 	OpenLogWriter = eventlog.OpenWriter
 	// OpenLogReader open a Reader of EventLog identified by vrn.
-	OpenLogReader = eventlog.OpenReader
-	// search an event by Event ID
+	OpenLogReader  = eventlog.OpenReader
+	DisablePolling = eventlog.DisablePolling
+	PollingTimeout = eventlog.PollingTimeout
+	// SearchEventByID searches an event by ID.
 	SearchEventByID = eventlog.SearchEventByID
 
 	LookupEarliestLogOffset = eventlog.LookupEarliestOffset

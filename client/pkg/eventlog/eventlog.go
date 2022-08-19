@@ -41,7 +41,7 @@ type EventLog interface {
 
 	Close()
 	Writer() (LogWriter, error)
-	Reader() (LogReader, error)
+	Reader(cfg *ReaderConfig) (LogReader, error)
 }
 
 type LogWriter interface {
