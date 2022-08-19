@@ -77,22 +77,21 @@ func createSubscriptionCommand() *cobra.Command {
 			if rateLimit != 0 {
 				config.RateLimit = rateLimit
 			}
-			if (fromLatest && fromEarliest) || (fromTime != "" && (fromLatest || fromEarliest)) {
-				cmdFailedf(cmd, "only accept one of `from-time`, `from-latest` or `from-earliest`")
-			}
-			switch {
-			case fromLatest:
-				config.OffsetType = meta.SubscriptionConfig_LATEST
-			case fromEarliest:
-				config.OffsetType = meta.SubscriptionConfig_EARLIEST
-			case fromTime != "":
-				config.OffsetType = meta.SubscriptionConfig_TIMESTAMP
-				t, err := time.Parse(time.RFC3339, fromTime)
-				if err != nil {
-					cmdFailedf(cmd, "timestamp format is invalid failed: %s", err)
+			if from != "" {
+				switch from {
+				case "latest":
+					config.OffsetType = meta.SubscriptionConfig_LATEST
+				case "earliest":
+					config.OffsetType = meta.SubscriptionConfig_EARLIEST
+				default:
+					t, err := time.Parse(time.RFC3339, from)
+					if err != nil {
+						cmdFailedf(cmd, "consumer from time format is invalid: %s", err)
+					}
+					ts := uint64(t.Unix())
+					config.OffsetTimestamp = &ts
+					config.OffsetType = meta.SubscriptionConfig_TIMESTAMP
 				}
-				ts := uint64(t.Unix())
-				config.OffsetTimestamp = &ts
 			}
 
 			ctx := context.Background()
@@ -137,9 +136,7 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&filters, "filters", "", "filter event you interested, JSON format required")
 	cmd.Flags().StringVar(&transformer, "transformer", "", "transformer, JSON format required")
 	cmd.Flags().Int32Var(&rateLimit, "rate-limit", 0, "rate limit")
-	cmd.Flags().BoolVar(&fromLatest, "from-latest", false, "consume events from latest position")
-	cmd.Flags().BoolVar(&fromEarliest, "from-earliest", false, "consume events from earliest position")
-	cmd.Flags().StringVar(&fromTime, "from-time", "", "consume events from specified time")
+	cmd.Flags().StringVar(&from, "from", "", "consume events from, latest,earliest or RFC3339 format time")
 	return cmd
 }
 
