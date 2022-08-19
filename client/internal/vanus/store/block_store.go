@@ -101,7 +101,7 @@ func (s *BlockStore) Append(ctx context.Context, block uint64, event *ce.Event) 
 		return -1, err
 	}
 	// TODO(Y. F. Zhang): batch events
-	return res.GetOffset()[0], nil
+	return res.GetOffsets()[0], nil
 }
 
 func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size int16) ([]*ce.Event, error) {

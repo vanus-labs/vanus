@@ -148,7 +148,7 @@ func (s *segmentServer) AppendToBlock(
 		return nil, err
 	}
 
-	return &segpb.AppendToBlockResponse{Offset: indexes}, nil
+	return &segpb.AppendToBlockResponse{Offsets: indexes}, nil
 }
 
 func (s *segmentServer) ReadFromBlock(
