@@ -135,17 +135,20 @@ func (s *segmentServer) InactivateSegment(
 	return &emptypb.Empty{}, nil
 }
 
-func (s *segmentServer) AppendToBlock(ctx context.Context, req *segpb.AppendToBlockRequest) (*emptypb.Empty, error) {
+func (s *segmentServer) AppendToBlock(
+	ctx context.Context, req *segpb.AppendToBlockRequest,
+) (*segpb.AppendToBlockResponse, error) {
 	observability.EntryMark(ctx)
 	defer observability.LeaveMark(ctx)
 
 	blockID := vanus.NewIDFromUint64(req.BlockId)
 	events := req.Events.GetEvents()
-	if err := s.srv.AppendToBlock(ctx, blockID, events); err != nil {
+	indexes, err := s.srv.AppendToBlock(ctx, blockID, events)
+	if err != nil {
 		return nil, err
 	}
 
-	return &emptypb.Empty{}, nil
+	return &segpb.AppendToBlockResponse{Offsets: indexes}, nil
 }
 
 func (s *segmentServer) ReadFromBlock(

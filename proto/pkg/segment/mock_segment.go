@@ -57,14 +57,14 @@ func (mr *MockSegmentServerClientMockRecorder) ActivateSegment(ctx, in interface
 }
 
 // AppendToBlock mocks base method.
-func (m *MockSegmentServerClient) AppendToBlock(ctx context.Context, in *AppendToBlockRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (m *MockSegmentServerClient) AppendToBlock(ctx context.Context, in *AppendToBlockRequest, opts ...grpc.CallOption) (*AppendToBlockResponse, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "AppendToBlock", varargs...)
-	ret0, _ := ret[0].(*emptypb.Empty)
+	ret0, _ := ret[0].(*AppendToBlockResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -275,10 +275,10 @@ func (mr *MockSegmentServerServerMockRecorder) ActivateSegment(arg0, arg1 interf
 }
 
 // AppendToBlock mocks base method.
-func (m *MockSegmentServerServer) AppendToBlock(arg0 context.Context, arg1 *AppendToBlockRequest) (*emptypb.Empty, error) {
+func (m *MockSegmentServerServer) AppendToBlock(arg0 context.Context, arg1 *AppendToBlockRequest) (*AppendToBlockResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AppendToBlock", arg0, arg1)
-	ret0, _ := ret[0].(*emptypb.Empty)
+	ret0, _ := ret[0].(*AppendToBlockResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

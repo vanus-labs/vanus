@@ -22,6 +22,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/linkall-labs/vanus/observability/log"
 
 	v2 "github.com/cloudevents/sdk-go/v2"
@@ -60,6 +61,11 @@ var (
 	requestDataFromContext = cehttp.RequestDataFromContext
 )
 
+type EventData struct {
+	EventID string `json:"event_id"`
+	BusName string `json:"eventbus_name"`
+}
+
 type ceGateway struct {
 	// ceClient  v2.Client
 	busWriter sync.Map
@@ -91,11 +97,11 @@ func (ga *ceGateway) StartReceive(ctx context.Context) error {
 	return c.StartReceiver(ctx, ga.receive)
 }
 
-func (ga *ceGateway) receive(ctx context.Context, event v2.Event) protocol.Result {
+func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, protocol.Result) {
 	ebName := getEventBusFromPath(requestDataFromContext(ctx))
 
 	if ebName == "" {
-		return fmt.Errorf("invalid eventbus name")
+		return nil, fmt.Errorf("invalid eventbus name")
 	}
 
 	event.SetExtension(xceVanusEventbus, ebName)
@@ -108,7 +114,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) protocol.Resul
 				log.KeyError: err,
 				"eventTime":  eventTime.(string),
 			})
-			return fmt.Errorf("invalid delivery time")
+			return nil, fmt.Errorf("invalid delivery time")
 		}
 		ebName = timerBuiltInEventbus
 	}
@@ -119,7 +125,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) protocol.Resul
 	if !exist {
 		writer, err := eb.OpenBusWriter(vrn)
 		if err != nil {
-			return protocol.Result(err)
+			return nil, protocol.Result(err)
 		}
 
 		var loaded bool
@@ -129,15 +135,23 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) protocol.Resul
 		}
 	}
 	writer, _ := v.(eventbus.BusWriter)
-	_, err := writer.Append(ctx, &event)
+	eventID, err := writer.Append(ctx, &event)
 	if err != nil {
 		log.Warning(ctx, "append to failed", map[string]interface{}{
 			log.KeyError: err,
 			"vrn":        vrn,
 		})
-		return v2.NewHTTPResult(http.StatusBadRequest, err.Error())
+		return nil, v2.NewHTTPResult(http.StatusBadRequest, err.Error())
 	}
-	return v2.ResultACK
+	eventData := EventData{
+		BusName: ebName,
+		EventID: eventID,
+	}
+	resEvent, err := createResponseEvent(eventData)
+	if err != nil {
+		return nil, fmt.Errorf("create response event error")
+	}
+	return resEvent, v2.ResultACK
 }
 
 func getEventBusFromPath(reqData *cehttp.RequestData) string {
@@ -147,4 +161,17 @@ func getEventBusFromPath(reqData *cehttp.RequestData) string {
 		return ""
 	}
 	return strings.TrimLeft(reqPathStr[len(httpRequestPrefix):], "/")
+}
+
+func createResponseEvent(eventData EventData) (*v2.Event, error) {
+	e := v2.NewEvent("1.0")
+	e.SetID(uuid.NewString())
+	e.SetType("com.linkall.vanus.event.stored")
+	e.SetSource("https://linkall.com/vanus")
+
+	err := e.SetData(v2.ApplicationJSON, eventData)
+	if err != nil {
+		return nil, err
+	}
+	return &e, nil
 }

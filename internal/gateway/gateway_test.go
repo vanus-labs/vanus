@@ -16,18 +16,22 @@ package gateway
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"testing"
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
+	eb "github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/client/pkg/eventbus"
 
+	. "github.com/golang/mock/gomock"
 	. "github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestUtils_NewGateway(t *testing.T) {
+func TestGateway_NewGateway(t *testing.T) {
 	Convey("test new gateway ", t, func() {
 		c := Config{
 			Port:           8080,
@@ -39,7 +43,7 @@ func TestUtils_NewGateway(t *testing.T) {
 	})
 }
 
-func TestUtils_StartReceive(t *testing.T) {
+func TestGateway_StartReceive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	ga := &ceGateway{}
 	Convey("test start receive ", t, func() {
@@ -52,7 +56,7 @@ func TestUtils_StartReceive(t *testing.T) {
 	})
 }
 
-func TestUtils_receive(t *testing.T) {
+func TestGateway_receive(t *testing.T) {
 	ctx := context.Background()
 	ga := &ceGateway{}
 	Convey("test receive failure1 ", t, func() {
@@ -64,7 +68,7 @@ func TestUtils_receive(t *testing.T) {
 		}
 		stub := StubFunc(&requestDataFromContext, reqData)
 		defer stub.Reset()
-		ret := ga.receive(ctx, e)
+		_, ret := ga.receive(ctx, e)
 		So(ret, ShouldBeError)
 	})
 
@@ -78,7 +82,7 @@ func TestUtils_receive(t *testing.T) {
 		e.SetExtension(xceVanusDeliveryTime, "2006-01-02T15:04:05")
 		stub := StubFunc(&requestDataFromContext, reqData)
 		defer stub.Reset()
-		ret := ga.receive(ctx, e)
+		_, ret := ga.receive(ctx, e)
 		So(ret, ShouldBeError)
 	})
 
@@ -100,7 +104,7 @@ func TestUtils_receive(t *testing.T) {
 	// })
 }
 
-func TestUtils_getEventBusFromPath(t *testing.T) {
+func TestGateway_getEventBusFromPath(t *testing.T) {
 	Convey("test get eventbus from path return nil ", t, func() {
 		reqData := &cehttp.RequestData{
 			URL: &url.URL{
@@ -118,5 +122,58 @@ func TestUtils_getEventBusFromPath(t *testing.T) {
 		}
 		ret := getEventBusFromPath(reqData)
 		So(ret, ShouldEqual, "test")
+	})
+}
+
+func TestGateway_EventID(t *testing.T) {
+	ctrl := NewController(t)
+	defer ctrl.Finish()
+	var (
+		eventID     = "AABBCC"
+		busName     = "test"
+		controllers = []string{"127.0.0.1:2048"}
+		port        = 8080
+	)
+
+	writer := eventbus.NewMockBusWriter(ctrl)
+	writer.EXPECT().Append(Any(), Any()).Return(eventID, nil)
+
+	stub := StubFunc(&eb.OpenBusWriter, writer, nil)
+	defer stub.Reset()
+
+	cfg := Config{
+		Port:           port,
+		ControllerAddr: controllers,
+	}
+	ga := NewGateway(cfg)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go ga.StartReceive(ctx)
+	time.Sleep(50 * time.Millisecond)
+
+	Convey("test put event and receive response event", t, func() {
+		p, err := ce.NewHTTP()
+		So(err, ShouldBeNil)
+		c, err := ce.NewClient(p, ce.WithTimeNow(), ce.WithUUIDs())
+		So(err, ShouldBeNil)
+
+		event := ce.NewEvent()
+		event.SetID("example-event")
+		event.SetSource("example/uri")
+		event.SetType("example.type")
+		event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world"})
+
+		ctx := ce.ContextWithTarget(context.Background(), fmt.Sprintf("http://127.0.0.1:%d/gateway/%s", port, busName))
+		resEvent, res := c.Request(ctx, event)
+		So(ce.IsACK(res), ShouldBeTrue)
+		var httpResult *cehttp.Result
+		ce.ResultAs(res, &httpResult)
+		So(httpResult, ShouldNotBeNil)
+
+		var ed EventData
+		err = resEvent.DataAs(&ed)
+		So(err, ShouldBeNil)
+		So(ed.BusName, ShouldEqual, busName)
+		So(ed.EventID, ShouldEqual, eventID)
 	})
 }

@@ -16,7 +16,7 @@ package command
 
 var (
 	// for vsctl event.
-	eventID           string
+	id                string
 	dataFormat        string
 	eventSource       string
 	eventType         string
@@ -27,6 +27,8 @@ var (
 	printDataTemplate bool
 	offset            int64
 	number            int16
+	detail            bool
+	eventID           string
 
 	// for vsctl eventbus and subscription.
 	eventbus       string

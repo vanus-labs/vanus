@@ -17,7 +17,6 @@ package store
 import (
 	// standard libraries
 	"context"
-	"google.golang.org/grpc/codes"
 	"strings"
 	"time"
 
@@ -25,6 +24,7 @@ import (
 	cepb "cloudevents.io/genproto/v1"
 	ce "github.com/cloudevents/sdk-go/v2"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	// first-party libraries
@@ -88,7 +88,7 @@ func (s *BlockStore) Append(ctx context.Context, block uint64, event *ce.Event) 
 		return -1, err
 	}
 
-	_, err = client.(segpb.SegmentServerClient).AppendToBlock(ctx, req)
+	res, err := client.(segpb.SegmentServerClient).AppendToBlock(ctx, req)
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok {
 			if errType, ok := errpb.Convert(errStatus.Message()); ok {
@@ -100,8 +100,8 @@ func (s *BlockStore) Append(ctx context.Context, block uint64, event *ce.Event) 
 		}
 		return -1, err
 	}
-	// FIXME: return offset
-	return 0, nil
+	// TODO(Y. F. Zhang): batch events
+	return res.GetOffsets()[0], nil
 }
 
 func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size int16) ([]*ce.Event, error) {
