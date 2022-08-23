@@ -40,7 +40,7 @@ var (
 	from           string
 	subscriptionID uint64
 
-	protocol           string
+	subProtocol        string
 	sinkCredentialType string
 	sinkCredential     string
 

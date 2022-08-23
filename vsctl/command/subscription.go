@@ -55,7 +55,7 @@ func createSubscriptionCommand() *cobra.Command {
 			}
 
 			var p meta.Protocol
-			switch protocol {
+			switch subProtocol {
 			case "http", "":
 				p = meta.Protocol_HTTP
 			case "aws-lambda":
@@ -177,10 +177,10 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&transformer, "transformer", "", "transformer, JSON format required")
 	cmd.Flags().Int32Var(&rateLimit, "rate-limit", 0, "rate limit")
 	cmd.Flags().StringVar(&from, "from", "", "consume events from, latest,earliest or RFC3339 format time")
-	cmd.Flags().StringVar(&protocol, "protocol", "http", "protocol,http or aws-lambda")
+	cmd.Flags().StringVar(&subProtocol, "protocol", "http", "protocol,http or aws-lambda")
 	cmd.Flags().StringVar(&sinkCredentialType, "credential-type", "", "sink credential type, plain or cloud, now only support cloud")
 	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, JSON format, "+
-		"when type is cloud,need access_key_id and secret_access_key")
+		"when credential-type is cloud, need access_key_id and secret_access_key")
 	return cmd
 }
 
