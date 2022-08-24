@@ -235,103 +235,85 @@ func (b *bucket) add(ctx context.Context, tm *timingMsg, check bool) error {
 	return b.putEvent(ctx, tm)
 }
 
-func (b *bucket) buildTimingMessageTask(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			log.Warning(ctx, "context canceled at bucket distribute", map[string]interface{}{
-				"eventbus": b.eventbus,
-			})
-			return
-		default:
-			events, err := b.getEvent(ctx, defaultNumberOfEventsRead)
-			if err != nil {
-				if !errors.Is(err, es.ErrOnEnd) && !errors.Is(err, es.ErrTryAgain) {
-					log.Error(ctx, "get event failed when bucket distribute", map[string]interface{}{
-						"eventbus":   b.eventbus,
-						log.KeyError: err,
-					})
-				}
-				return
-			}
-
-			tm := newTimingMsg(ctx, events[defaultIndexOfEventsRead])
-			waitCtx, cancel := context.WithCancel(ctx)
-			wait.Until(func() {
-				if time.Now().UTC().After(tm.expiration) {
-					cancel()
-				}
-			}, b.tick/defaultFlushWaitingPeriodRatio, waitCtx.Done())
-
-			err = tm.consume(ctx, b.config.CtrlEndpoints)
-			if err != nil {
-				log.Error(ctx, "consume event failed", map[string]interface{}{
-					"expiration": tm.expiration,
-				})
-				break
-			}
-			b.offset++
-			if err = b.updateOffsetMeta(ctx); err != nil {
-				log.Warning(ctx, "update offset metadata failed", map[string]interface{}{
-					log.KeyError: err,
-					"layer":      b.layer,
-					"slot":       b.slot,
-					"offset":     b.offset,
-					"eventbus":   b.eventbus,
-				})
-			}
-		}
-	}
-}
-
 func (b *bucket) fetchEventFromOverflowWheelAdvance(ctx context.Context,
 	reInsert func(context.Context, *timingMsg) bool) {
+	offsetC := make(chan waitGroup, defaultMaxNumberOfWorkers)
+	// update offset asynchronously
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				log.Debug(ctx, "context canceled at bucket loading and update offset metadata", nil)
+				return
+			case offset := <-offsetC:
+				// wait for all goroutines to finish before updating offset metadata
+				offset.wg.Wait()
+				log.Debug(ctx, "update offset metadata", map[string]interface{}{
+					"eventbus": b.eventbus,
+					"updateTo": offset.data,
+				})
+				b.updateOffsetMeta(ctx, offset.data)
+			}
+		}
+	}()
+	// limit the number of goroutines to no more than defaultMaxNumberOfWorkers
+	glimitC := make(chan struct{}, defaultMaxNumberOfWorkers)
 	for {
 		select {
 		case <-ctx.Done():
-			log.Debug(ctx, "context canceled at bucket load", nil)
+			log.Debug(ctx, "context canceled at bucket loading", nil)
 			return
 		default:
+			// batch read
 			events, err := b.getEvent(ctx, defaultNumberOfEventsRead)
 			if err != nil {
 				if !errors.Is(err, es.ErrOnEnd) && !errors.Is(ctx.Err(), context.Canceled) {
-					log.Error(ctx, "get event failed when bucket load", map[string]interface{}{
+					log.Error(ctx, "get event failed when bucket loading", map[string]interface{}{
 						"eventbus":   b.eventbus,
 						"offset":     b.offset,
 						log.KeyError: err,
 					})
 				}
-				return
+				break
 			}
-
-			tm := newTimingMsg(ctx, events[defaultIndexOfEventsRead])
-			log.Debug(ctx, "load event to next layer timingwheel", map[string]interface{}{
-				"sourceEventbus": b.eventbus,
-				"expiration":     tm.expiration,
+			// concurrent write
+			numberOfEvents := int64(len(events))
+			log.Debug(ctx, "got events when loading", map[string]interface{}{
+				"eventbus":       b.eventbus,
+				"offset":         b.offset,
+				"numberOfEvents": numberOfEvents,
 			})
-			tmCtx, cancel := context.WithCancel(ctx)
-			wait.Until(func() {
-				if tm.isExpired(b.tick) {
-					cancel()
-				}
-			}, b.tick/defaultLoadWaitingPeriodRatio, tmCtx.Done())
-
-			if reInsert(ctx, tm) {
-				log.Info(ctx, "reinsert timing message success", map[string]interface{}{
-					"sourceEventbus": b.eventbus,
-					"expiration":     tm.expiration,
-				})
-				b.offset++
-				if err = b.updateOffsetMeta(ctx); err != nil {
-					log.Warning(ctx, "update offset metadata failed", map[string]interface{}{
-						log.KeyError: err,
-						"layer":      b.layer,
-						"slot":       b.slot,
-						"offset":     b.offset,
-						"eventbus":   b.eventbus,
+			wg := sync.WaitGroup{}
+			for _, event := range events {
+				glimitC <- struct{}{}
+				go func(e *ce.Event) {
+					tm := newTimingMsg(ctx, e)
+					log.Debug(ctx, "load event to next layer timingwheel", map[string]interface{}{
+						"sourceEventbus": b.eventbus,
+						"expiration":     tm.expiration,
 					})
-				}
+					waitExpiredCtx, cancel := context.WithCancel(ctx)
+					wait.Until(func() {
+						if tm.isExpired(b.tick) {
+							cancel()
+						}
+					}, b.tick/defaultLoadingWaitingPeriodRatio, waitExpiredCtx.Done())
+
+					waitSuccessCtx, cancel := context.WithCancel(ctx)
+					wait.Until(func() {
+						if reInsert(ctx, tm) {
+							cancel()
+						}
+					}, b.config.Tick/defaultCheckWaitingPeriodRatio, waitSuccessCtx.Done())
+					<-glimitC
+				}(event)
 			}
+			// asynchronously update offset after the same batch of events are successfully written
+			offsetC <- waitGroup{
+				wg:   &wg,
+				data: b.offset + numberOfEvents,
+			}
+			b.offset += numberOfEvents
 		}
 	}
 }
@@ -410,12 +392,12 @@ func (b *bucket) getEvent(ctx context.Context, number int16) ([]*ce.Event, error
 	return events, nil
 }
 
-func (b *bucket) updateOffsetMeta(ctx context.Context) error {
+func (b *bucket) updateOffsetMeta(ctx context.Context, offset int64) {
 	key := fmt.Sprintf("%s/offset/%s", metadata.MetadataKeyPrefixInKVStore, b.eventbus)
 	offsetMeta := &metadata.OffsetMeta{
 		Layer:    b.layer,
 		Slot:     b.slot,
-		Offset:   b.offset,
+		Offset:   offset,
 		Eventbus: b.eventbus,
 	}
 	data, _ := json.Marshal(offsetMeta)
@@ -424,9 +406,26 @@ func (b *bucket) updateOffsetMeta(ctx context.Context) error {
 		log.Warning(ctx, "set offset metadata to kvstore failed", map[string]interface{}{
 			log.KeyError: err,
 			"key":        key,
-			"data":       data,
+			"slot":       b.slot,
+			"layer":      b.layer,
+			"offset":     offset,
+			"eventbus":   b.eventbus,
 		})
-		return err
 	}
-	return nil
+}
+
+func (b *bucket) getTick() time.Duration {
+	return b.tick
+}
+
+func (b *bucket) getEventbus() string {
+	return b.eventbus
+}
+
+func (b *bucket) getOffset() int64 {
+	return b.offset
+}
+
+func (b *bucket) incOffset(diff int64) {
+	b.offset += diff
 }

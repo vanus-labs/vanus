@@ -36,29 +36,23 @@ import (
 )
 
 const (
-	// the consumer routine triggers the flush operation every 1/defaultFlushPeriodRatio tick time by default.
-	defaultFlushPeriodRatio = 10
+	// check waiting period every 1/defaultCheckWaitingPeriodRatio tick time by default.
+	defaultCheckWaitingPeriodRatio = 10
 
-	// flush routine waiting period every 1/defaultFlushPeriodRatio tick time by default.
-	defaultFlushWaitingPeriodRatio = 100
+	// frequent check waiting period every 1/defaultFrequentCheckWaitingPeriodRatio tick time by default.
+	defaultFrequentCheckWaitingPeriodRatio = 100
 
-	// load routine waiting period every 1/defaultLoadWaitingPeriodRatio tick time by default.
-	defaultLoadCheckWaitingPeriodRatio = 10
-
-	// load routine trigger period every 1/defaultLoadTriggerPeriodRatio tick time by default.
-	defaultLoadTriggerPeriodRatio = 10
-
-	// load routine waiting period every 1/defaultLoadWaitingPeriodRatio tick time by default.
-	defaultLoadWaitingPeriodRatio = 100
+	// load routine waiting period every 1/defaultLoadingWaitingPeriodRatio tick time by default.
+	defaultLoadingWaitingPeriodRatio = 100
 
 	// fetch event from overflowwheel advance number of tick times by default.
 	defaultFetchEventFromOverflowWheelEndPointer = 2
 
 	// number of events read each time by default.
-	defaultNumberOfEventsRead = 1
+	defaultNumberOfEventsRead = 10
 
-	// index of events read each time by default.
-	defaultIndexOfEventsRead = 0
+	// the max number of workers by default.
+	defaultMaxNumberOfWorkers = 1000
 
 	// index of eventlog reader by default.
 	defaultIndexOfEventlogReader = 0
@@ -235,6 +229,9 @@ func (tw *timingWheel) StopNotify() <-chan struct{} {
 // Stop stops the current timing wheel.
 func (tw *timingWheel) Stop(ctx context.Context) {
 	log.Info(ctx, "stop timingwheel", nil)
+	for e := tw.twList.Front(); e != nil; e = e.Next() {
+		e.Value.(*timingWheelElement).wait(ctx)
+	}
 	close(tw.exitC)
 	tw.wg.Wait()
 }
@@ -349,14 +346,7 @@ func (tw *timingWheel) startReceivingStation(ctx context.Context) error {
 		if err = tw.receivingStation.createEventbus(ctx); err != nil {
 			return err
 		}
-		if err = tw.receivingStation.updateOffsetMeta(ctx); err != nil {
-			log.Warning(ctx, "update receiving station offset metadata failed", map[string]interface{}{
-				log.KeyError: err,
-				"offset":     tw.receivingStation.offset,
-				"eventbus":   tw.receivingStation.eventbus,
-			})
-			return err
-		}
+		tw.receivingStation.updateOffsetMeta(ctx, tw.receivingStation.offset)
 	}
 	err = tw.receivingStation.start(ctx)
 	if err != nil {
@@ -371,14 +361,7 @@ func (tw *timingWheel) startDistributionStation(ctx context.Context) error {
 		if err = tw.distributionStation.createEventbus(ctx); err != nil {
 			return err
 		}
-		if err = tw.distributionStation.updateOffsetMeta(ctx); err != nil {
-			log.Warning(ctx, "update distribution station offset metadata failed", map[string]interface{}{
-				log.KeyError: err,
-				"offset":     tw.distributionStation.offset,
-				"eventbus":   tw.distributionStation.eventbus,
-			})
-			return err
-		}
+		tw.distributionStation.updateOffsetMeta(ctx, tw.distributionStation.offset)
 	}
 	err = tw.distributionStation.start(ctx)
 	if err != nil {
@@ -431,12 +414,35 @@ func (tw *timingWheel) startHeartBeat(ctx context.Context) {
 	}()
 }
 
+// startScheduledEventDispatcher continuously read scheduled event from receiving station and write to timingwheel.
 func (tw *timingWheel) startScheduledEventDispatcher(ctx context.Context) {
+	offsetC := make(chan waitGroup, defaultMaxNumberOfWorkers)
+	tw.wg.Add(1)
+	// update offset asynchronously
+	go func() {
+		defer tw.wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				log.Warning(ctx, "context canceled at scheduled event dispatching and update offset metadata", nil)
+				return
+			case offset := <-offsetC:
+				// wait for all goroutines to finish before updating offset metadata
+				offset.wg.Wait()
+				log.Debug(ctx, "update offset metadata", map[string]interface{}{
+					"eventbus": tw.receivingStation.getEventbus(),
+					"updateTo": offset.data,
+				})
+				tw.receivingStation.updateOffsetMeta(ctx, offset.data)
+			}
+		}
+	}()
+
 	tw.wg.Add(1)
 	go func() {
 		defer tw.wg.Done()
-		ticker := time.NewTicker(heartbeatInterval)
-		defer ticker.Stop()
+		// limit the number of goroutines to no more than defaultMaxNumberOfWorkers
+		glimitC := make(chan struct{}, defaultMaxNumberOfWorkers)
 		for {
 			select {
 			case <-ctx.Done():
@@ -444,26 +450,47 @@ func (tw *timingWheel) startScheduledEventDispatcher(ctx context.Context) {
 				return
 			default:
 				if tw.IsLeader() {
+					// batch read
 					events, err := tw.receivingStation.getEvent(ctx, defaultNumberOfEventsRead)
 					if err != nil {
 						if !errors.Is(err, es.ErrOnEnd) {
 							log.Error(ctx, "get event failed when event dispatching", map[string]interface{}{
-								"eventbus":   tw.receivingStation.eventbus,
 								log.KeyError: err,
+								"eventbus":   tw.receivingStation.getEventbus(),
 							})
 						}
 						break
 					}
-					if tw.AddEvent(ctx, events[defaultIndexOfEventsRead]) {
-						tw.receivingStation.offset++
-						if err = tw.receivingStation.updateOffsetMeta(ctx); err != nil {
-							log.Warning(ctx, "update receiving station offset metadata failed", map[string]interface{}{
-								log.KeyError: err,
-								"offset":     tw.receivingStation.offset,
-								"eventbus":   tw.receivingStation.eventbus,
-							})
-						}
+
+					// concurrent write
+					numberOfEvents := int64(len(events))
+					log.Debug(ctx, "got events when dispatching", map[string]interface{}{
+						"eventbus":       tw.receivingStation.getEventbus(),
+						"offset":         tw.receivingStation.getOffset(),
+						"numberOfEvents": numberOfEvents,
+					})
+
+					wg := sync.WaitGroup{}
+					for _, event := range events {
+						wg.Add(1)
+						glimitC <- struct{}{}
+						go func(ctx context.Context, e *ce.Event) {
+							defer wg.Done()
+							waitCtx, cancel := context.WithCancel(ctx)
+							wait.Until(func() {
+								if tw.AddEvent(ctx, e) {
+									cancel()
+								}
+							}, tw.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
+							<-glimitC
+						}(ctx, event)
 					}
+					// asynchronously update offset after the same batch of events are successfully written
+					offsetC <- waitGroup{
+						wg:   &wg,
+						data: tw.receivingStation.getOffset() + numberOfEvents,
+					}
+					tw.receivingStation.incOffset(numberOfEvents)
 				}
 			}
 		}
@@ -645,6 +672,14 @@ func (twe *timingWheelElement) fetchEventFromOverflowWheelAdvance(ctx context.Co
 	indexToBeLoading = (startLoadingPointer + 1) % twe.config.WheelSize
 	endLoadingPointer = (startLoadingPointer + defaultFetchEventFromOverflowWheelEndPointer) % twe.config.WheelSize
 
+	// enter only when the overflowwheel is the highest timingwheel and the bucket is empty(no scheduled event)
+	if !twe.next().isExistBucket(ctx, indexToBeLoading) {
+		log.Debug(ctx, "the bucket of overflowWheel is not exist, do nothing", map[string]interface{}{
+			"layer":       twe.next().layer,
+			"bucketIndex": indexToBeLoading,
+		})
+		return
+	}
 	log.Debug(ctx, "start loading from overflowWheel", map[string]interface{}{
 		"layer":       twe.next().layer,
 		"bucketIndex": indexToBeLoading,
@@ -653,18 +688,7 @@ func (twe *timingWheelElement) fetchEventFromOverflowWheelAdvance(ctx context.Co
 	twe.wg.Add(1)
 	go func() {
 		defer twe.wg.Done()
-		ticker := time.NewTicker(twe.tick / defaultLoadTriggerPeriodRatio)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-waitCtx.Done():
-				return
-			case <-ticker.C:
-				if twe.next().isExistBucket(ctx, indexToBeLoading) {
-					twe.next().buckets[indexToBeLoading].fetchEventFromOverflowWheelAdvance(waitCtx, twe.addEvent)
-				}
-			}
-		}
+		twe.next().buckets[indexToBeLoading].fetchEventFromOverflowWheelAdvance(waitCtx, twe.addEvent)
 	}()
 	wait.Until(func() {
 		if twe.next().pointer == endLoadingPointer {
@@ -674,7 +698,7 @@ func (twe *timingWheelElement) fetchEventFromOverflowWheelAdvance(ctx context.Co
 			})
 			cancel()
 		}
-	}, twe.tick/defaultLoadCheckWaitingPeriodRatio, waitCtx.Done())
+	}, twe.tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
 }
 
 func (twe *timingWheelElement) startScheduledEventDistributer(ctx context.Context) {
@@ -682,41 +706,111 @@ func (twe *timingWheelElement) startScheduledEventDistributer(ctx context.Contex
 		twe.wg.Add(1)
 		go func(index int64) {
 			defer twe.wg.Done()
+			offsetC := make(chan waitGroup, defaultMaxNumberOfWorkers)
+			twe.wg.Add(1)
+			// update offset asynchronously
+			go func() {
+				defer twe.wg.Done()
+				for {
+					select {
+					case <-ctx.Done():
+						log.Warning(ctx, "context canceled at scheduled event distributing and update offset metadata", nil)
+						return
+					case offset := <-offsetC:
+						// wait for all goroutines to finish before updating offset metadata
+						offset.wg.Wait()
+						log.Debug(ctx, "update offset metadata", map[string]interface{}{
+							"eventbus": twe.buckets[index].getEventbus(),
+							"updateTo": offset.data,
+						})
+						twe.buckets[index].updateOffsetMeta(ctx, offset.data)
+					}
+				}
+			}()
+			glimitC := make(chan struct{}, defaultMaxNumberOfWorkers)
 			for {
 				select {
 				case <-ctx.Done():
-					log.Warning(ctx, "context canceled at timingwheel element consume routine", map[string]interface{}{
-						"index": index,
+					log.Warning(ctx, "context canceled at bucket distributing", map[string]interface{}{
+						"eventbus": twe.buckets[index].getEventbus(),
 					})
 					return
 				default:
 					if twe.isLeader() {
-						twe.buckets[index].buildTimingMessageTask(ctx)
+						// batch read
+						events, err := twe.buckets[index].getEvent(ctx, defaultNumberOfEventsRead)
+						if err != nil {
+							if !errors.Is(err, es.ErrOnEnd) && !errors.Is(err, es.ErrTryAgain) {
+								log.Error(ctx, "get event failed when bucket distributing", map[string]interface{}{
+									"eventbus":   twe.buckets[index].getEventbus(),
+									log.KeyError: err,
+								})
+							}
+							break
+						}
+						// concurrent write
+						numberOfEvents := int64(len(events))
+						log.Debug(ctx, "got events when distributing", map[string]interface{}{
+							"eventbus":       twe.buckets[index].getEventbus(),
+							"offset":         twe.buckets[index].getOffset(),
+							"numberOfEvents": numberOfEvents,
+						})
+						wg := sync.WaitGroup{}
+						for _, event := range events {
+							wg.Add(1)
+							glimitC <- struct{}{}
+							tm := newTimingMsg(ctx, event)
+							waitCtx, cancel := context.WithCancel(ctx)
+							wait.Until(func() {
+								if time.Now().UTC().After(tm.expiration) {
+									cancel()
+								}
+							}, twe.buckets[index].getTick()/defaultFrequentCheckWaitingPeriodRatio, waitCtx.Done())
+
+							go func(ctx context.Context, e *ce.Event) {
+								defer wg.Done()
+								waitCtx, cancel := context.WithCancel(ctx)
+								wait.Until(func() {
+									if tm.consume(ctx, twe.config.CtrlEndpoints) == nil {
+										cancel()
+									}
+								}, twe.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
+								<-glimitC
+							}(ctx, event)
+						}
+						// asynchronously update offset after the same batch of events are successfully written
+						offsetC <- waitGroup{
+							wg:   &wg,
+							data: twe.buckets[index].getOffset() + numberOfEvents,
+						}
+						twe.buckets[index].incOffset(numberOfEvents)
 					}
-					time.Sleep(twe.tick / defaultFlushPeriodRatio)
 				}
 			}
 		}(i)
 	}
 }
 
-func (twe *timingWheelElement) updatePointerMeta(ctx context.Context) error {
-	key := fmt.Sprintf("%s/pointer/%d", metadata.MetadataKeyPrefixInKVStore, twe.layer)
-	pointerMeta := &metadata.PointerMeta{
-		Layer:   twe.layer,
-		Pointer: twe.pointer,
-	}
-	data, _ := json.Marshal(pointerMeta)
-	err := twe.kvStore.Set(ctx, key, data)
-	if err != nil {
-		log.Warning(ctx, "set pointer metadata to kvstore failed", map[string]interface{}{
-			log.KeyError: err,
-			"key":        key,
-			"data":       data,
-		})
-		return err
-	}
-	return nil
+func (twe *timingWheelElement) updatePointerMeta(ctx context.Context) {
+	twe.wg.Add(1)
+	go func() {
+		defer twe.wg.Done()
+		key := fmt.Sprintf("%s/pointer/%d", metadata.MetadataKeyPrefixInKVStore, twe.layer)
+		pointerMeta := &metadata.PointerMeta{
+			Layer:   twe.layer,
+			Pointer: twe.pointer,
+		}
+		data, _ := json.Marshal(pointerMeta)
+		err := twe.kvStore.Set(ctx, key, data)
+		if err != nil {
+			log.Warning(ctx, "set pointer metadata to kvstore failed", map[string]interface{}{
+				log.KeyError: err,
+				"key":        key,
+				"layer":      twe.layer,
+				"pointer":    twe.pointer,
+			})
+		}
+	}()
 }
 
 func (twe *timingWheelElement) start(ctx context.Context) {
@@ -739,23 +833,25 @@ func (twe *timingWheelElement) start(ctx context.Context) {
 					twe.next().tickingOnce()
 					twe.pointer = 0
 				}
-				if err := twe.updatePointerMeta(ctx); err != nil {
-					log.Warning(ctx, "update pointer metadata failed", map[string]interface{}{
-						log.KeyError: err,
-						"layer":      twe.layer,
-						"pointer":    twe.pointer,
-					})
-				}
-				log.Debug(ctx, "current layer timingwheel pointer", map[string]interface{}{
-					"layer":   twe.layer,
-					"pointer": twe.pointer,
-				})
+				twe.updatePointerMeta(ctx)
+				// log.Debug(ctx, "current layer timingwheel pointer", map[string]interface{}{
+				// 	"layer":   twe.layer,
+				// 	"pointer": twe.pointer,
+				// })
 				if twe.layer <= twe.config.Layers && twe.pointer == twe.config.WheelSize-1 {
-					go twe.fetchEventFromOverflowWheelAdvance(ctx)
+					twe.wg.Add(1)
+					go func() {
+						defer twe.wg.Done()
+						twe.fetchEventFromOverflowWheelAdvance(ctx)
+					}()
 				}
 			}
 		}
 	}()
+}
+
+func (twe *timingWheelElement) wait(ctx context.Context) {
+	twe.wg.Wait()
 }
 
 func (twe *timingWheelElement) getTick() time.Duration {
