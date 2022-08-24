@@ -26,6 +26,7 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
+	eventbus "github.com/linkall-labs/vanus/client/pkg/eventbus"
 	eventlog "github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/timer/metadata"
@@ -63,75 +64,6 @@ func TestTimingMsg_isExpired(t *testing.T) {
 		e.SetExtension(xceVanusDeliveryTime, time.Now().Add(2*time.Second).UTC().Format("2006-01-02T15:04:05Z"))
 		tm := newTimingMsg(ctx, &e)
 		So(tm.isExpired(1*time.Second), ShouldEqual, false)
-	})
-}
-
-func TestTimingMsg_consume(t *testing.T) {
-	Convey("test timing message consume", t, func() {
-		ctx := context.Background()
-		e := event(2000)
-		mockCtrl := gomock.NewController(t)
-		mockEventlogWriter := eventlog.NewMockLogWriter(mockCtrl)
-		ls := make([]*record.EventLog, 1)
-		ls[0] = &record.EventLog{
-			VRN: "testvrn",
-		}
-
-		Convey("test bucket flush timing message", func() {
-			tm := newTimingMsg(ctx, e)
-			err := tm.consume(ctx, []string{})
-			So(err, ShouldNotBeNil)
-		})
-
-		Convey("test bucket fluent timing message return false1", func() {
-			ee := ce.NewEvent()
-			ee.SetExtension(xceVanusEventbus, time.Now())
-			tm := newTimingMsg(ctx, &ee)
-			err := tm.consume(ctx, []string{})
-			So(err, ShouldNotBeNil)
-		})
-
-		Convey("test bucket fluent timing message return false2", func() {
-			stubs := StubFunc(&lookupReadableLogs, ls, errors.New("test"))
-			defer stubs.Reset()
-			tm := newTimingMsg(ctx, e)
-			err := tm.consume(ctx, []string{})
-			So(err, ShouldNotBeNil)
-		})
-
-		Convey("test bucket fluent timing message return false3", func() {
-			stub1 := StubFunc(&lookupReadableLogs, ls, nil)
-			defer stub1.Reset()
-			stub2 := StubFunc(&openLogWriter, nil, errors.New("test"))
-			defer stub2.Reset()
-			tm := newTimingMsg(ctx, e)
-			err := tm.consume(ctx, []string{})
-			So(err, ShouldNotBeNil)
-		})
-
-		Convey("test bucket fluent timing message return false4", func() {
-			mockEventlogWriter.EXPECT().Append(ctx, e).Times(1).Return(int64(0), errors.New("test"))
-			mockEventlogWriter.EXPECT().Close().Times(1).Return()
-			stub1 := StubFunc(&lookupReadableLogs, ls, nil)
-			defer stub1.Reset()
-			stub2 := StubFunc(&openLogWriter, mockEventlogWriter, nil)
-			defer stub2.Reset()
-			tm := newTimingMsg(ctx, e)
-			err := tm.consume(ctx, []string{})
-			So(err, ShouldNotBeNil)
-		})
-
-		Convey("test bucket fluent timing message return false5", func() {
-			mockEventlogWriter.EXPECT().Append(ctx, e).Times(1).Return(int64(0), nil)
-			mockEventlogWriter.EXPECT().Close().Times(1).Return()
-			stub1 := StubFunc(&lookupReadableLogs, ls, nil)
-			defer stub1.Reset()
-			stub2 := StubFunc(&openLogWriter, mockEventlogWriter, nil)
-			defer stub2.Reset()
-			tm := newTimingMsg(ctx, e)
-			err := tm.consume(ctx, []string{})
-			So(err, ShouldBeNil)
-		})
 	})
 }
 
@@ -336,6 +268,47 @@ func TestBucket_getEvent(t *testing.T) {
 			result, err := bucket.getEvent(ctx, 1)
 			So(result, ShouldBeNil)
 			So(err, ShouldNotBeNil)
+		})
+	})
+}
+
+func TestBucket_leave(t *testing.T) {
+	Convey("test bucket event leave", t, func() {
+		ctx := context.Background()
+		e := event(2000)
+		bucket := newBucket(cfg(), nil, nil, 1, "", 1, 0)
+		mockCtrl := gomock.NewController(t)
+		mockEventbusWriter := eventbus.NewMockBusWriter(mockCtrl)
+
+		Convey("test bucket event leave failure with abnormal event", func() {
+			e.SetExtension(xceVanusEventbus, time.Now())
+			err := bucket.leave(ctx, e)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("test bucket event leave open eventbus writer failed", func() {
+			stubs := StubFunc(&openBusWriter, mockEventbusWriter, errors.New("test"))
+			defer stubs.Reset()
+			err := bucket.leave(ctx, e)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("test bucket event leave append failed", func() {
+			stubs := StubFunc(&openBusWriter, mockEventbusWriter, nil)
+			defer stubs.Reset()
+			mockEventbusWriter.EXPECT().Append(ctx, gomock.Any()).Times(1).Return("", errors.New("test"))
+			mockEventbusWriter.EXPECT().Close().Times(1).Return()
+			err := bucket.leave(ctx, e)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("test bucket event leave success", func() {
+			stubs := StubFunc(&openBusWriter, mockEventbusWriter, nil)
+			defer stubs.Reset()
+			mockEventbusWriter.EXPECT().Append(ctx, gomock.Any()).Times(1).Return("", nil)
+			mockEventbusWriter.EXPECT().Close().Times(1).Return()
+			err := bucket.leave(ctx, e)
+			So(err, ShouldBeNil)
 		})
 	})
 }

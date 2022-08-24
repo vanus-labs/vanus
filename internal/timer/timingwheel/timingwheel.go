@@ -64,7 +64,8 @@ const (
 )
 
 var (
-	newEtcdClientV3 = etcd.NewEtcdClientV3
+	newEtcdClientV3     = etcd.NewEtcdClientV3
+	timingWheelInstance *timingWheel
 )
 
 type Manager interface {
@@ -119,13 +120,14 @@ func NewTimingWheel(c *Config) Manager {
 	metrics.TimingWheelTickGauge.Set(float64(c.Tick))
 	metrics.TimingWheelSizeGauge.Set(float64(c.WheelSize))
 	metrics.TimingWheelLayersGauge.Set(float64(c.Layers))
-	return &timingWheel{
+	timingWheelInstance = &timingWheel{
 		config:  c,
 		kvStore: store,
 		client:  client,
 		leader:  false,
 		exitC:   make(chan struct{}),
 	}
+	return timingWheelInstance
 }
 
 // Init init the current timing wheel.
@@ -215,6 +217,9 @@ func (tw *timingWheel) Start(ctx context.Context) error {
 
 	// start routine for scheduled event dispatcher
 	tw.startScheduledEventDispatcher(ctx)
+
+	// start scheduled event consuming pool
+	tw.startWorkerPoolOfScheduledEventLeaving(ctx)
 
 	// start controller client heartbeat
 	tw.startHeartBeat(ctx)
@@ -370,6 +375,21 @@ func (tw *timingWheel) startDistributionStation(ctx context.Context) error {
 	return nil
 }
 
+func (tw *timingWheel) putTimingMsgInDistributionStation(ctx context.Context, tm *timingMsg) error {
+	err := tw.distributionStation.putEvent(ctx, tm)
+	if err != nil {
+		log.Error(ctx, "put timing message in distribution station failed", map[string]interface{}{
+			log.KeyError: err,
+			"expiration": tm.expiration,
+		})
+		return err
+	}
+	log.Info(ctx, "put timing message in distribution station success", map[string]interface{}{
+		"expiration": tm.expiration,
+	})
+	return nil
+}
+
 func (tw *timingWheel) startTickingOfPointer(ctx context.Context) {
 	tw.wg.Add(1)
 	go func() {
@@ -430,8 +450,8 @@ func (tw *timingWheel) startScheduledEventDispatcher(ctx context.Context) {
 				// wait for all goroutines to finish before updating offset metadata
 				offset.wg.Wait()
 				log.Debug(ctx, "update offset metadata", map[string]interface{}{
-					"eventbus": tw.receivingStation.getEventbus(),
-					"updateTo": offset.data,
+					"eventbus":  tw.receivingStation.getEventbus(),
+					"update_to": offset.data,
 				})
 				tw.receivingStation.updateOffsetMeta(ctx, offset.data)
 			}
@@ -491,6 +511,91 @@ func (tw *timingWheel) startScheduledEventDispatcher(ctx context.Context) {
 						data: tw.receivingStation.getOffset() + numberOfEvents,
 					}
 					tw.receivingStation.incOffset(numberOfEvents)
+				}
+			}
+		}
+	}()
+}
+
+func (tw *timingWheel) startWorkerPoolOfScheduledEventLeaving(ctx context.Context) {
+	offsetC := make(chan waitGroup, defaultMaxNumberOfWorkers)
+	tw.wg.Add(1)
+	// update offset asynchronously
+	go func() {
+		defer tw.wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				log.Warning(ctx, "context canceled at scheduled event leaving and update offset metadata", nil)
+				return
+			case offset := <-offsetC:
+				// wait for all goroutines to finish before updating offset metadata
+				offset.wg.Wait()
+				log.Debug(ctx, "update offset metadata", map[string]interface{}{
+					"eventbus":  tw.distributionStation.getEventbus(),
+					"update_to": offset.data,
+				})
+				tw.distributionStation.updateOffsetMeta(ctx, offset.data)
+			}
+		}
+	}()
+
+	tw.wg.Add(1)
+	go func() {
+		defer tw.wg.Done()
+		// var offsetToBeConsuming int64
+		glimitC := make(chan struct{}, defaultMaxNumberOfWorkers)
+		for {
+			select {
+			case <-ctx.Done():
+				log.Warning(ctx, "context canceled at scheduled event leaving", nil)
+				return
+			default:
+				if tw.IsLeader() {
+					// batch read
+					events, err := tw.distributionStation.getEvent(ctx, defaultNumberOfEventsRead)
+					if err != nil {
+						if !errors.Is(err, es.ErrOnEnd) {
+							log.Error(ctx, "get event failed when event leaving", map[string]interface{}{
+								log.KeyError: err,
+								"eventbus":   tw.distributionStation.getEventbus(),
+							})
+						}
+						break
+					}
+					// concurrent write
+					numberOfEvents := int64(len(events))
+					log.Debug(ctx, "got events when leaving", map[string]interface{}{
+						"eventbus":       tw.distributionStation.getEventbus(),
+						"offset":         tw.distributionStation.getOffset(),
+						"numberOfEvents": numberOfEvents,
+					})
+
+					wg := sync.WaitGroup{}
+					for _, event := range events {
+						wg.Add(1)
+						glimitC <- struct{}{}
+						go func(ctx context.Context, e *ce.Event) {
+							defer wg.Done()
+							waitCtx, cancel := context.WithCancel(ctx)
+							wait.Until(func() {
+								if err = tw.distributionStation.leave(ctx, e); err == nil {
+									cancel()
+								}
+								log.Warning(ctx, "event leaving failed, retry until it succeed", map[string]interface{}{
+									"eventbus": tw.distributionStation.getEventbus(),
+									"event":    e.String(),
+								})
+							}, tw.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
+							<-glimitC
+						}(ctx, event)
+					}
+					// asynchronously update offset after the same batch of events are successfully written
+					offsetC <- waitGroup{
+						wg:   &wg,
+						data: tw.distributionStation.getOffset() + numberOfEvents,
+					}
+					tw.distributionStation.incOffset(numberOfEvents)
 				}
 			}
 		}
@@ -611,7 +716,7 @@ func (twe *timingWheelElement) addEvent(ctx context.Context, tm *timingMsg) bool
 
 	if now.After(tm.expiration) {
 		// Already expired
-		return tm.consume(ctx, twe.config.CtrlEndpoints) == nil
+		return timingWheelInstance.putTimingMsgInDistributionStation(ctx, tm) == nil
 	}
 
 	if now.Add(twe.interval).After(tm.expiration) {
@@ -720,8 +825,8 @@ func (twe *timingWheelElement) startScheduledEventDistributer(ctx context.Contex
 						// wait for all goroutines to finish before updating offset metadata
 						offset.wg.Wait()
 						log.Debug(ctx, "update offset metadata", map[string]interface{}{
-							"eventbus": twe.buckets[index].getEventbus(),
-							"updateTo": offset.data,
+							"eventbus":  twe.buckets[index].getEventbus(),
+							"update_to": offset.data,
 						})
 						twe.buckets[index].updateOffsetMeta(ctx, offset.data)
 					}
@@ -771,7 +876,7 @@ func (twe *timingWheelElement) startScheduledEventDistributer(ctx context.Contex
 								defer wg.Done()
 								waitCtx, cancel := context.WithCancel(ctx)
 								wait.Until(func() {
-									if tm.consume(ctx, twe.config.CtrlEndpoints) == nil {
+									if timingWheelInstance.putTimingMsgInDistributionStation(ctx, tm) == nil {
 										cancel()
 									}
 								}, twe.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())

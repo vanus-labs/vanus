@@ -47,6 +47,7 @@ const (
 )
 
 var (
+	openBusWriter      = eb.OpenBusWriter
 	lookupReadableLogs = eb.LookupReadableLogs
 	openLogWriter      = eb.OpenLogWriter
 	openLogReader      = eb.OpenLogReader
@@ -84,53 +85,6 @@ func newTimingMsg(ctx context.Context, e *ce.Event) *timingMsg {
 
 func (tm *timingMsg) isExpired(tick time.Duration) bool {
 	return time.Now().UTC().Add(tick).After(tm.expiration)
-}
-
-func (tm *timingMsg) consume(ctx context.Context, endpoints []string) error {
-	var (
-		err            error
-		vrn            string
-		ebName         string
-		eventlogWriter eventlog.LogWriter
-	)
-	err = tm.event.ExtensionAs(xceVanusEventbus, &ebName)
-	if err != nil {
-		log.Error(ctx, "get eventbus failed when consume", map[string]interface{}{
-			log.KeyError: err,
-		})
-		return err
-	}
-	vrn = fmt.Sprintf("vanus:///eventbus/%s?controllers=%s", ebName, strings.Join(endpoints, ","))
-	ls, err := lookupReadableLogs(ctx, vrn)
-	if err != nil {
-		log.Error(ctx, "lookup readable logs failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		return err
-	}
-	// new eventlog writer
-	eventlogWriter, err = openLogWriter(ls[defaultIndexOfEventlogWriter].VRN)
-	if err != nil {
-		log.Error(ctx, "open log writer failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		return err
-	}
-
-	offset, err := eventlogWriter.Append(ctx, tm.event)
-	defer eventlogWriter.Close()
-	if err != nil {
-		log.Error(ctx, "consume event failed", map[string]interface{}{
-			log.KeyError: err,
-			"expiration": tm.expiration,
-		})
-		return err
-	}
-	log.Info(ctx, "consume event success", map[string]interface{}{
-		"expiration": tm.expiration,
-		"offset":     offset,
-	})
-	return nil
 }
 
 type bucket struct {
@@ -390,6 +344,43 @@ func (b *bucket) getEvent(ctx context.Context, number int16) ([]*ce.Event, error
 		"number":   number,
 	})
 	return events, nil
+}
+
+func (b *bucket) leave(ctx context.Context, e *ce.Event) error {
+	var (
+		err    error
+		ebName string
+	)
+
+	err = e.ExtensionAs(xceVanusEventbus, &ebName)
+	if err != nil {
+		log.Error(ctx, "get eventbus failed when leaving", map[string]interface{}{
+			log.KeyError: err,
+		})
+		return err
+	}
+	vrn := fmt.Sprintf("vanus:///eventbus/%s?controllers=%s", ebName, strings.Join(b.config.CtrlEndpoints, ","))
+	eventbusWriter, err := openBusWriter(vrn)
+	if err != nil {
+		log.Error(ctx, "open eventbus writer failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		return err
+	}
+	defer eventbusWriter.Close()
+	_, err = eventbusWriter.Append(ctx, e)
+	if err != nil {
+		log.Error(ctx, "append failed", map[string]interface{}{
+			log.KeyError: err,
+			"eventbus":   b.eventbus,
+		})
+		return err
+	}
+	log.Info(ctx, "event left", map[string]interface{}{
+		"delivery-time": e.Extensions()[xceVanusDeliveryTime],
+		"eventbus":      b.eventbus,
+	})
+	return nil
 }
 
 func (b *bucket) updateOffsetMeta(ctx context.Context, offset int64) {

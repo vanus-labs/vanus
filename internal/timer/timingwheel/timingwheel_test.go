@@ -27,6 +27,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
 	es "github.com/linkall-labs/vanus/client/pkg/errors"
+	eventbus "github.com/linkall-labs/vanus/client/pkg/eventbus"
 	eventlog "github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/timer/metadata"
@@ -492,7 +493,9 @@ func TestTimingWheel_startScheduledEventDispatcher(t *testing.T) {
 		mockEventlogWriter := eventlog.NewMockLogWriter(mockCtrl)
 		tw.receivingStation.eventlogReader = mockEventlogReader
 		tw.receivingStation.eventlogWriter = mockEventlogWriter
+		tw.distributionStation.eventlogWriter = mockEventlogWriter
 		tw.receivingStation.kvStore = mockStoreCli
+		timingWheelInstance = tw
 
 		Convey("test timingwheel start scheduled event dispatcher abnormal", func() {
 			mockEventlogReader.EXPECT().Seek(gomock.Eq(ctx), int64(0), io.SeekStart).AnyTimes().Return(int64(0), es.ErrNoLeader)
@@ -521,13 +524,63 @@ func TestTimingWheel_startScheduledEventDispatcher(t *testing.T) {
 			stub2 := StubFunc(&openLogWriter, mockEventlogWriter, nil)
 			defer stub2.Reset()
 			mockEventlogWriter.EXPECT().Append(gomock.Eq(ctx), gomock.Any()).AnyTimes().Return(int64(1), errors.New("test"))
-			mockEventlogWriter.EXPECT().Close().AnyTimes().Return()
 			mockStoreCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
 			}()
 			tw.startScheduledEventDispatcher(ctx)
+			tw.wg.Wait()
+		})
+	})
+}
+
+func TestTimingWheel_startWorkerPoolOfScheduledEventLeaving(t *testing.T) {
+	Convey("test timingwheel start worker pool of scheduled event leaving", t, func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		tw := newtimingwheel(cfg())
+		tw.SetLeader(true)
+		mockCtrl := gomock.NewController(t)
+		mockStoreCli := kv.NewMockClient(mockCtrl)
+		mockEventbusWriter := eventbus.NewMockBusWriter(mockCtrl)
+		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
+		mockEventlogWriter := eventlog.NewMockLogWriter(mockCtrl)
+		tw.distributionStation.eventlogReader = mockEventlogReader
+		tw.distributionStation.eventlogWriter = mockEventlogWriter
+		tw.distributionStation.kvStore = mockStoreCli
+
+		Convey("test timingwheel start worker pool of scheduled event leaving abnormal", func() {
+			mockEventlogReader.EXPECT().Seek(gomock.Eq(ctx), int64(0), io.SeekStart).AnyTimes().Return(int64(0), es.ErrNoLeader)
+			go func() {
+				time.Sleep(100 * time.Millisecond)
+				cancel()
+			}()
+			tw.startWorkerPoolOfScheduledEventLeaving(ctx)
+			tw.wg.Wait()
+		})
+
+		Convey("test timingwheel start worker pool of scheduled event leaving ctx cancel", func() {
+			e := ce.NewEvent()
+			e.SetExtension(xceVanusDeliveryTime, time.Now().UTC().Format(time.RFC3339))
+			e.SetExtension(xceVanusEventbus, "quick-start")
+			events := make([]*ce.Event, 1)
+			events[0] = &e
+			mockEventlogReader.EXPECT().Seek(gomock.Eq(ctx), gomock.Any(), io.SeekStart).AnyTimes().Return(int64(0), nil)
+			mockEventlogReader.EXPECT().Read(gomock.Eq(ctx), gomock.Any()).AnyTimes().Return(events, nil)
+			ls := make([]*record.EventLog, 1)
+			ls[0] = &record.EventLog{
+				VRN: "testvrn",
+			}
+			stubs := StubFunc(&openBusWriter, mockEventbusWriter, nil)
+			defer stubs.Reset()
+			mockEventbusWriter.EXPECT().Append(ctx, gomock.Any()).AnyTimes().Return("", errors.New("test"))
+			mockEventbusWriter.EXPECT().Close().AnyTimes().Return()
+			mockStoreCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+			go func() {
+				time.Sleep(100 * time.Millisecond)
+				cancel()
+			}()
+			tw.startWorkerPoolOfScheduledEventLeaving(ctx)
 			tw.wg.Wait()
 		})
 	})
@@ -711,6 +764,8 @@ func TestTimingWheel_startScheduledEventDistributer(t *testing.T) {
 		mockStoreCli := kv.NewMockClient(mockCtrl)
 		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
 		mockEventlogWriter := eventlog.NewMockLogWriter(mockCtrl)
+		tw.distributionStation.eventlogWriter = mockEventlogWriter
+		timingWheelInstance = tw
 		for e := tw.twList.Front(); e != nil; {
 			for _, bucket := range e.Value.(*timingWheelElement).buckets {
 				bucket.eventlogReader = mockEventlogReader
@@ -744,8 +799,7 @@ func TestTimingWheel_startScheduledEventDistributer(t *testing.T) {
 			events := []*ce.Event{&e}
 			mockEventlogReader.EXPECT().Seek(gomock.Eq(ctx), gomock.Any(), io.SeekStart).AnyTimes().Return(int64(0), nil)
 			mockEventlogReader.EXPECT().Read(gomock.Eq(ctx), gomock.Any()).AnyTimes().Return(events, nil)
-			mockEventlogWriter.EXPECT().Append(ctx, e).AnyTimes().Return(int64(0), nil)
-			mockEventlogWriter.EXPECT().Close().AnyTimes().Return()
+			mockEventlogWriter.EXPECT().Append(ctx, gomock.Any()).AnyTimes().Return(int64(0), nil)
 			mockStoreCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 			stub1 := StubFunc(&lookupReadableLogs, ls, nil)
 			defer stub1.Reset()
