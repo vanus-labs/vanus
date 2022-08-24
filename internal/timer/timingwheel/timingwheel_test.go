@@ -97,6 +97,7 @@ func TestTimingWheel_Start(t *testing.T) {
 
 		Convey("test timingwheel start bucket start success", func() {
 			tw.SetLeader(false)
+			mockEventbusCtrlCli.EXPECT().GetEventBus(ctx, gomock.Any()).AnyTimes().Return(nil, nil)
 			stub1 := StubFunc(&lookupReadableLogs, ls, nil)
 			defer stub1.Reset()
 			stub2 := StubFunc(&openLogWriter, nil, nil)
@@ -156,13 +157,14 @@ func TestTimingWheel_IsDeployed(t *testing.T) {
 	Convey("test timingwheel isdeployed", t, func() {
 		ctx := context.Background()
 		tw := newtimingwheel(cfg())
+		mockCtrl := gomock.NewController(t)
+		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
+		tw.client.leaderClient = mockEventbusCtrlCli
 
-		Convey("test timingwheel is not deployed", func() {
-			tw.receivingStation = newBucket(cfg(), nil, nil, 1, "__Timer_1_0", 1, 1)
-			stub1 := StubFunc(&lookupReadableLogs, nil, errors.New("test"))
-			defer stub1.Reset()
+		Convey("test timingwheel is deployed return true", func() {
+			mockEventbusCtrlCli.EXPECT().GetEventBus(ctx, gomock.Any()).Times(2).Return(nil, nil)
 			ret := tw.IsDeployed(ctx)
-			So(ret, ShouldBeFalse)
+			So(ret, ShouldBeTrue)
 		})
 	})
 }
