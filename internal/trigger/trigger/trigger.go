@@ -117,7 +117,8 @@ func (t *trigger) newEventClient() client.EventClient {
 	sub := t.subscription
 	switch sub.Protocol {
 	case primitive.AwsLambdaProtocol:
-		return client.NewAwsLambdaClient(sub.SinkCredential.AccessKeyID, sub.SinkCredential.SecretAccessKey, string(sub.Sink))
+		credential, _ := sub.SinkCredential.(*primitive.CloudSinkCredential)
+		return client.NewAwsLambdaClient(credential.AccessKeyID, credential.SecretAccessKey, string(sub.Sink))
 	default:
 		return client.NewHTTPClient(string(sub.Sink))
 	}

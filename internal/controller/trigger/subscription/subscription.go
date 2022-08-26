@@ -51,18 +51,18 @@ var (
 )
 
 type manager struct {
-	secretPersistence secret.Persistence
-	storage           storage.Storage
-	offsetManager     offset.Manager
-	lock              sync.RWMutex
-	subscriptionMap   map[vanus.ID]*metadata.Subscription
+	secret          secret.Storage
+	storage         storage.Storage
+	offsetManager   offset.Manager
+	lock            sync.RWMutex
+	subscriptionMap map[vanus.ID]*metadata.Subscription
 }
 
-func NewSubscriptionManager(storage storage.Storage, persistence secret.Persistence) Manager {
+func NewSubscriptionManager(storage storage.Storage, secret secret.Storage) Manager {
 	m := &manager{
-		storage:           storage,
-		secretPersistence: persistence,
-		subscriptionMap:   map[vanus.ID]*metadata.Subscription{},
+		storage:         storage,
+		secret:          secret,
+		subscriptionMap: map[vanus.ID]*metadata.Subscription{},
 	}
 	return m
 }
@@ -107,7 +107,7 @@ func (m *manager) AddSubscription(ctx context.Context, subscription *metadata.Su
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	if subscription.SinkCredentialType != nil {
-		if err := m.secretPersistence.Write(ctx, subscription.ID, *subscription.SinkCredential); err != nil {
+		if err := m.secret.Write(ctx, subscription.ID, subscription.SinkCredential); err != nil {
 			return err
 		}
 	}
@@ -135,12 +135,12 @@ func (m *manager) UpdateSubscription(ctx context.Context, sub *metadata.Subscrip
 	}
 	if sub.SinkCredential == nil {
 		if curr.SinkCredential != nil {
-			if err := m.secretPersistence.Delete(ctx, sub.ID); err != nil {
+			if err := m.secret.Delete(ctx, sub.ID); err != nil {
 				return err
 			}
 		}
 	} else {
-		if err := m.secretPersistence.Write(ctx, sub.ID, *sub.SinkCredential); err != nil {
+		if err := m.secret.Write(ctx, sub.ID, sub.SinkCredential); err != nil {
 			return err
 		}
 	}
@@ -163,7 +163,7 @@ func (m *manager) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 	if err := m.storage.DeleteSubscription(ctx, id); err != nil {
 		return err
 	}
-	if err := m.secretPersistence.Delete(ctx, id); err != nil {
+	if err := m.secret.Delete(ctx, id); err != nil {
 		return err
 	}
 	delete(m.subscriptionMap, id)
@@ -210,11 +210,11 @@ func (m *manager) Init(ctx context.Context) error {
 	for i := range subList {
 		sub := subList[i]
 		if sub.SinkCredentialType != nil {
-			credential, err := m.secretPersistence.Read(ctx, sub.ID)
+			credential, err := m.secret.Read(ctx, sub.ID, *sub.SinkCredentialType)
 			if err != nil {
 				return err
 			}
-			sub.SinkCredential = &credential
+			sub.SinkCredential = credential
 		}
 		m.subscriptionMap[sub.ID] = sub
 		metrics.SubscriptionGauge.WithLabelValues(sub.EventBus).Inc()

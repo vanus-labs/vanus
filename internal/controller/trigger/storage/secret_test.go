@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package secret
+package storage
 
 import (
 	"context"
@@ -27,50 +27,43 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestEtcdPersistence(t *testing.T) {
+func TestSecretStorage(t *testing.T) {
 	Convey("test secret", t, func() {
 		ctx := context.Background()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		kvClient := kv.NewMockClient(ctrl)
-		p, err := NewEtcdPersistence(primitive.KvStorageConfig{
+		p, err := NewSecretStorage(primitive.KvStorageConfig{
 			ServerList: []string{"test"},
 		}, "just_for_test")
 		So(err, ShouldBeNil)
-		persistence := p.(*etcdPersistence)
-		persistence.client = kvClient
+		secret := p.(*SecretStorage)
+		secret.client = kvClient
 		Convey("test read credential type cloud", func() {
 			subID := vanus.NewID()
-			a, _ := crypto.AesEncrypt("test_access_key_id", persistence.cipherKey)
-			s, _ := crypto.AesEncrypt("test_secret_access_key", persistence.cipherKey)
-			v, _ := json.Marshal(primitive.SinkCredential{
-				Type:            primitive.CloudCredentialType,
-				AccessKeyID:     a,
-				SecretAccessKey: s,
-			})
-			kvClient.EXPECT().Get(ctx, persistence.getKey(subID)).Return(v, nil)
-			credential, err := persistence.Read(ctx, subID)
+			a, _ := crypto.AESEncrypt("test_access_key_id", secret.cipherKey)
+			s, _ := crypto.AESEncrypt("test_secret_access_key", secret.cipherKey)
+			v, _ := json.Marshal(primitive.NewCloudSinkCredential(a, s))
+			kvClient.EXPECT().Get(ctx, secret.getKey(subID)).Return(v, nil)
+			credential, err := secret.Read(ctx, subID, primitive.Cloud)
 			So(err, ShouldBeNil)
-			So(credential.AccessKeyID, ShouldEqual, "test_access_key_id")
-			So(credential.SecretAccessKey, ShouldEqual, "test_secret_access_key")
+			So(credential.GetType(), ShouldEqual, primitive.Cloud)
+			So(credential.(*primitive.CloudSinkCredential).AccessKeyID, ShouldEqual, "test_access_key_id")
+			So(credential.(*primitive.CloudSinkCredential).SecretAccessKey, ShouldEqual, "test_secret_access_key")
 		})
 		Convey("test write", func() {
 			subID := vanus.NewID()
-			credential := primitive.SinkCredential{
-				Type:            primitive.CloudCredentialType,
-				AccessKeyID:     "test_access_key_id",
-				SecretAccessKey: "test_secret_access_key",
-			}
+			credential := primitive.NewCloudSinkCredential("test_access_key_id", "test_secret_access_key")
 			Convey("test create", func() {
-				kvClient.EXPECT().Exists(ctx, persistence.getKey(subID)).Return(false, nil)
-				kvClient.EXPECT().Create(ctx, persistence.getKey(subID), gomock.Any()).Return(nil)
-				err := persistence.Write(ctx, subID, credential)
+				kvClient.EXPECT().Exists(ctx, secret.getKey(subID)).Return(false, nil)
+				kvClient.EXPECT().Create(ctx, secret.getKey(subID), gomock.Any()).Return(nil)
+				err := secret.Write(ctx, subID, credential)
 				So(err, ShouldBeNil)
 			})
 			Convey("test update", func() {
-				kvClient.EXPECT().Exists(ctx, persistence.getKey(subID)).Return(true, nil)
-				kvClient.EXPECT().Update(ctx, persistence.getKey(subID), gomock.Any()).Return(nil)
-				err := persistence.Write(ctx, subID, credential)
+				kvClient.EXPECT().Exists(ctx, secret.getKey(subID)).Return(true, nil)
+				kvClient.EXPECT().Update(ctx, secret.getKey(subID), gomock.Any()).Return(nil)
+				err := secret.Write(ctx, subID, credential)
 				So(err, ShouldBeNil)
 			})
 		})

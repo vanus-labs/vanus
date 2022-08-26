@@ -31,7 +31,7 @@ type Subscription struct {
 	Config          SubscriptionConfig    `json:"config,omitempty"`
 	Protocol        Protocol              `json:"protocol,omitempty"`
 	ProtocolSetting *ProtocolSetting      `json:"protocolSetting,omitempty"`
-	SinkCredential  *SinkCredential       `json:"sink_credential,omitempty"`
+	SinkCredential  SinkCredential        `json:"sink_credential,omitempty"`
 }
 
 type Protocol string
@@ -43,52 +43,6 @@ const (
 
 type ProtocolSetting struct {
 	Headers map[string]string `json:"headers,omitempty"`
-	Method  string            `json:"method,omitempty"`
-}
-
-type CredentialType string
-
-const (
-	PlainCredentialType CredentialType = "plain"
-	CloudCredentialType CredentialType = "cloud"
-
-	SecretsMask = "******"
-)
-
-type SinkCredential struct {
-	Type CredentialType `json:"type,omitempty"`
-
-	// plain
-	Identifier string `json:"identifier,omitempty"`
-	Secret     string `json:"secret,omitempty"`
-
-	// cloud need
-	AccessKeyID     string `json:"access_key_id,omitempty"`
-	SecretAccessKey string `json:"secret_access_key,omitempty"`
-}
-
-func (credential *SinkCredential) Update(curr *SinkCredential) {
-	if curr == nil {
-		return
-	}
-	if curr.Type != credential.Type {
-		return
-	}
-	switch curr.Type {
-	case PlainCredentialType:
-		if credential.Identifier == SecretsMask &&
-			credential.Secret == SecretsMask {
-			credential.Identifier = curr.Identifier
-			credential.Secret = curr.Secret
-			return
-		}
-	case CloudCredentialType:
-		if credential.AccessKeyID == SecretsMask &&
-			credential.SecretAccessKey == SecretsMask {
-			credential.AccessKeyID = curr.AccessKeyID
-			credential.SecretAccessKey = curr.SecretAccessKey
-		}
-	}
 }
 
 type OffsetType int32

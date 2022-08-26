@@ -21,7 +21,7 @@ import (
 	"encoding/hex"
 )
 
-func AesEncrypt(value, key string) (string, error) {
+func AESEncrypt(value, key string) (string, error) {
 	keyByte := paddingKey(key, aes.BlockSize)
 	c, err := aes.NewCipher(keyByte)
 	if err != nil {
@@ -35,7 +35,7 @@ func AesEncrypt(value, key string) (string, error) {
 	return hex.EncodeToString(cryptoByte), nil
 }
 
-func AesDecrypt(value, key string) (string, error) {
+func AESDecrypt(value, key string) (string, error) {
 	cryptoByte, err := hex.DecodeString(value)
 	if err != nil {
 		return "", err
@@ -48,7 +48,7 @@ func AesDecrypt(value, key string) (string, error) {
 	blockMode := cipher.NewCBCDecrypter(c, keyByte)
 	origData := make([]byte, len(cryptoByte))
 	blockMode.CryptBlocks(origData, cryptoByte)
-	origData = pkcs5UnPadding(origData)
+	origData = pkcs5Unpadding(origData)
 	return string(origData), nil
 }
 
@@ -58,7 +58,7 @@ func pkcs5Padding(ciphertext []byte, blockSize int) []byte {
 	return append(ciphertext, padtext...)
 }
 
-func pkcs5UnPadding(origData []byte) []byte {
+func pkcs5Unpadding(origData []byte) []byte {
 	length := len(origData)
 	unpadding := int(origData[length-1])
 	return origData[:(length - unpadding)]

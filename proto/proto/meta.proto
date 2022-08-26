@@ -133,7 +133,6 @@ message CloudCredential{
 
 message ProtocolSetting {
   map<string, string> headers = 1;
-  string method = 2;
 }
 
 message SubscriptionConfig {

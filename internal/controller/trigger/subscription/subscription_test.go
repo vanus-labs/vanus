@@ -35,16 +35,17 @@ func TestSubscriptionInit(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	storage := storage.NewMockStorage(ctrl)
-	persistence := secret.NewMockPersistence(ctrl)
-	m := NewSubscriptionManager(storage, persistence)
+	secret := secret.NewMockStorage(ctrl)
+	m := NewSubscriptionManager(storage, secret)
 
 	Convey("init ", t, func() {
 		subID := vanus.NewID()
-		credentialType := primitive.CloudCredentialType
+		credentialType := primitive.Cloud
 		storage.MockSubscriptionStorage.EXPECT().ListSubscription(ctx).Return([]*metadata.Subscription{
 			{ID: subID, SinkCredentialType: &credentialType},
 		}, nil)
-		persistence.EXPECT().Read(gomock.Any(), gomock.Eq(subID)).Return(primitive.SinkCredential{}, nil)
+		secret.EXPECT().Read(gomock.Any(), gomock.Eq(subID), gomock.Any()).
+			Return(primitive.NewCloudSinkCredential("ak", "sk"), nil)
 		err := m.Init(ctx)
 		So(err, ShouldBeNil)
 	})
@@ -61,8 +62,8 @@ func TestGetListSubscription(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
-		persistence := secret.NewMockPersistence(ctrl)
-		m := NewSubscriptionManager(storage, persistence)
+		secret := secret.NewMockStorage(ctrl)
+		m := NewSubscriptionManager(storage, secret)
 		id := vanus.NewID()
 		Convey("list subscription size 0", func() {
 			subscriptions := m.ListSubscription(ctx)
@@ -102,21 +103,17 @@ func TestSubscription(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
-		persistence := secret.NewMockPersistence(ctrl)
-		m := NewSubscriptionManager(storage, persistence)
+		secret := secret.NewMockStorage(ctrl)
+		m := NewSubscriptionManager(storage, secret)
 		subID := vanus.NewID()
 		Convey("test add subscription", func() {
 			storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).Return(nil)
-			persistence.EXPECT().Write(gomock.Any(), gomock.Eq(subID), gomock.Any()).Return(nil)
-			credentialType := primitive.CloudCredentialType
+			secret.EXPECT().Write(gomock.Any(), gomock.Eq(subID), gomock.Any()).Return(nil)
+			credentialType := primitive.Cloud
 			err := m.AddSubscription(ctx, &metadata.Subscription{
 				ID:                 subID,
 				SinkCredentialType: &credentialType,
-				SinkCredential: &primitive.SinkCredential{
-					Type:            credentialType,
-					AccessKeyID:     "test_ak",
-					SecretAccessKey: "test_sk",
-				},
+				SinkCredential:     primitive.NewCloudSinkCredential("test_ak", "test_sk"),
 			})
 			So(err, ShouldBeNil)
 			Convey("test update subscription", func() {
@@ -125,12 +122,8 @@ func TestSubscription(t *testing.T) {
 					updateSub := &metadata.Subscription{
 						ID:                 subID,
 						SinkCredentialType: &credentialType,
-						SinkCredential: &primitive.SinkCredential{
-							Type:            credentialType,
-							AccessKeyID:     "test_ak",
-							SecretAccessKey: "test_sk",
-						},
-						Sink: "test",
+						SinkCredential:     primitive.NewCloudSinkCredential("test_ak", "test_sk"),
+						Sink:               "test",
 					}
 					err = m.UpdateSubscription(ctx, updateSub)
 					So(err, ShouldBeNil)
@@ -142,13 +135,9 @@ func TestSubscription(t *testing.T) {
 							ID:                 subID,
 							Sink:               "test",
 							SinkCredentialType: &credentialType,
-							SinkCredential: &primitive.SinkCredential{
-								Type:            credentialType,
-								AccessKeyID:     "new_test_ak",
-								SecretAccessKey: "new_test_sk",
-							},
+							SinkCredential:     primitive.NewCloudSinkCredential("test_new_ak", "test_new_sk"),
 						}
-						persistence.EXPECT().Write(gomock.Any(), gomock.Eq(subID), gomock.Any()).Return(nil)
+						secret.EXPECT().Write(gomock.Any(), gomock.Eq(subID), gomock.Any()).Return(nil)
 						err = m.UpdateSubscription(ctx, updateSub)
 						So(err, ShouldBeNil)
 					})
@@ -159,7 +148,7 @@ func TestSubscription(t *testing.T) {
 							SinkCredentialType: nil,
 							SinkCredential:     nil,
 						}
-						persistence.EXPECT().Delete(gomock.Any(), gomock.Eq(subID)).Return(nil)
+						secret.EXPECT().Delete(gomock.Any(), gomock.Eq(subID)).Return(nil)
 						err = m.UpdateSubscription(ctx, updateSub)
 						So(err, ShouldBeNil)
 					})
@@ -171,7 +160,7 @@ func TestSubscription(t *testing.T) {
 				mm.offsetManager = offsetManager
 				storage.MockSubscriptionStorage.EXPECT().DeleteSubscription(ctx, gomock.Eq(subID)).Return(nil)
 				offsetManager.EXPECT().RemoveRegisterSubscription(ctx, gomock.Eq(subID)).Return(nil)
-				persistence.EXPECT().Delete(gomock.Any(), gomock.Eq(subID)).Return(nil)
+				secret.EXPECT().Delete(gomock.Any(), gomock.Eq(subID)).Return(nil)
 				err = m.DeleteSubscription(ctx, subID)
 				So(err, ShouldBeNil)
 				So(m.GetSubscription(ctx, subID), ShouldBeNil)
@@ -186,8 +175,8 @@ func TestOffset(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
-		persistence := secret.NewMockPersistence(ctrl)
-		m := NewSubscriptionManager(storage, persistence).(*manager)
+		secret := secret.NewMockStorage(ctrl)
+		m := NewSubscriptionManager(storage, secret).(*manager)
 		offsetManager := offset.NewMockManager(ctrl)
 		m.offsetManager = offsetManager
 		storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).Return(nil)

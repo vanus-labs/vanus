@@ -12,23 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crypto
+//go:generate mockgen -source=storage.go  -destination=mock_storage.go -package=secret
+package secret
 
 import (
-	"testing"
+	"context"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
-func TestAesCrypt(t *testing.T) {
-	Convey("test aes crypt", t, func() {
-		key := "testKey"
-		value := "value"
-		d, err := AESEncrypt(value, key)
-		So(err, ShouldBeNil)
-		So(d, ShouldEqual, "1583cbd8550dc075273f293b1abf42e1")
-		d, err = AESDecrypt(d, key)
-		So(err, ShouldBeNil)
-		So(d, ShouldEqual, value)
-	})
+type Storage interface {
+	Read(ctx context.Context, subID vanus.ID, credentialType primitive.CredentialType) (primitive.SinkCredential, error)
+	Write(ctx context.Context, subID vanus.ID, credential primitive.SinkCredential) error
+	Delete(ctx context.Context, subID vanus.ID) error
 }

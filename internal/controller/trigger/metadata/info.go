@@ -70,7 +70,7 @@ type Subscription struct {
 	Filters            []*primitive.SubscriptionFilter `json:"filters,omitempty"`
 	Sink               primitive.URI                   `json:"sink,omitempty"`
 	SinkCredentialType *primitive.CredentialType       `json:"sink_credential_type,omitempty"`
-	SinkCredential     *primitive.SinkCredential       `json:"-"`
+	SinkCredential     primitive.SinkCredential        `json:"-"`
 	Protocol           primitive.Protocol              `json:"protocol,omitempty"`
 	ProtocolSetting    *primitive.ProtocolSetting      `json:"protocol_settings,omitempty"`
 	EventBus           string                          `json:"eventbus"`

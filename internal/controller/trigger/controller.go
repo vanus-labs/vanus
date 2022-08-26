@@ -64,7 +64,7 @@ type controller struct {
 	config                Config
 	member                embedetcd.Member
 	storage               storage.Storage
-	secretPersistence     secret.Persistence
+	secret                secret.Storage
 	subscriptionManager   subscription.Manager
 	workerManager         worker.Manager
 	scheduler             *worker.SubscriptionScheduler
@@ -166,9 +166,7 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 		return nil, errors.ErrInvalidRequest.WithMessage("eventbus can not change")
 	}
 	updateSub := convert.FromPbSubscriptionRequest(request.Subscription)
-	if updateSub.SinkCredential != nil {
-		updateSub.SinkCredential.Update(sub.SinkCredential)
-	}
+	primitive.UpdateSinkCredential(sub.SinkCredential, updateSub.SinkCredential)
 	updateSub.CloneNotFromAPI(sub)
 	change := !reflect.DeepEqual(updateSub, sub)
 	if !change {
@@ -383,7 +381,7 @@ func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, ad
 }
 
 func (ctrl *controller) init(ctx context.Context) error {
-	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage, ctrl.secretPersistence)
+	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage, ctrl.secret)
 	ctrl.workerManager = worker.NewTriggerWorkerManager(worker.Config{}, ctrl.storage,
 		ctrl.subscriptionManager, ctrl.requeueSubscription)
 	ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
@@ -468,11 +466,11 @@ func (ctrl *controller) Start() error {
 		return err
 	}
 	ctrl.storage = s
-	p, err := secret.NewEtcdPersistence(ctrl.config.Storage, ctrl.config.SecretEncryptionSalt)
+	p, err := storage.NewSecretStorage(ctrl.config.Storage, ctrl.config.SecretEncryptionSalt)
 	if err != nil {
 		return err
 	}
-	ctrl.secretPersistence = p
+	ctrl.secret = p
 	go ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
 	return nil
 }

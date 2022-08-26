@@ -69,7 +69,6 @@ func fromPbProtocolSettings(from *pb.ProtocolSetting) *primitive.ProtocolSetting
 	}
 	to := &primitive.ProtocolSetting{
 		Headers: from.Headers,
-		Method:  from.Method,
 	}
 	return to
 }
@@ -80,7 +79,6 @@ func toPbProtocolSettings(from *primitive.ProtocolSetting) *pb.ProtocolSetting {
 	}
 	to := &pb.ProtocolSetting{
 		Headers: from.Headers,
-		Method:  from.Method,
 	}
 	return to
 }
@@ -94,31 +92,28 @@ func fromPbSinkCredentialType(from *pb.SinkCredential) *primitive.CredentialType
 	case pb.SinkCredential_None:
 		return nil
 	case pb.SinkCredential_PLAIN:
-		to = primitive.PlainCredentialType
+		to = primitive.Plain
 	case pb.SinkCredential_CLOUD:
-		to = primitive.CloudCredentialType
+		to = primitive.Cloud
 	}
 	return &to
 }
 
-func fromPbSinkCredential(from *pb.SinkCredential) *primitive.SinkCredential {
+func fromPbSinkCredential(from *pb.SinkCredential) primitive.SinkCredential {
 	if from == nil {
 		return nil
 	}
-	to := &primitive.SinkCredential{}
 	switch from.CredentialType {
 	case pb.SinkCredential_None:
 		return nil
 	case pb.SinkCredential_PLAIN:
-		to.Type = primitive.PlainCredentialType
-		to.Identifier = from.GetPlain().Identifier
-		to.Secret = from.GetPlain().GetSecret()
+		plain := from.GetPlain()
+		return primitive.NewPlainSinkCredential(plain.Identifier, plain.Secret)
 	case pb.SinkCredential_CLOUD:
-		to.Type = primitive.CloudCredentialType
-		to.AccessKeyID = from.GetCloud().GetAccessKeyId()
-		to.SecretAccessKey = from.GetCloud().GetSecretAccessKey()
+		cloud := from.GetCloud()
+		return primitive.NewCloudSinkCredential(cloud.AccessKeyId, cloud.SecretAccessKey)
 	}
-	return to
+	return nil
 }
 
 func toPbSinkCredentialByType(credentialType *primitive.CredentialType) *pb.SinkCredential {
@@ -127,7 +122,7 @@ func toPbSinkCredentialByType(credentialType *primitive.CredentialType) *pb.Sink
 	}
 	to := &pb.SinkCredential{}
 	switch *credentialType {
-	case primitive.PlainCredentialType:
+	case primitive.Plain:
 		to.CredentialType = pb.SinkCredential_PLAIN
 		to.Credential = &pb.SinkCredential_Plain{
 			Plain: &pb.PlainCredential{
@@ -135,7 +130,7 @@ func toPbSinkCredentialByType(credentialType *primitive.CredentialType) *pb.Sink
 				Secret:     primitive.SecretsMask,
 			},
 		}
-	case primitive.CloudCredentialType:
+	case primitive.Cloud:
 		to.CredentialType = pb.SinkCredential_CLOUD
 		to.Credential = &pb.SinkCredential_Cloud{
 			Cloud: &pb.CloudCredential{
@@ -147,26 +142,28 @@ func toPbSinkCredentialByType(credentialType *primitive.CredentialType) *pb.Sink
 	return to
 }
 
-func toPbSinkCredential(from *primitive.SinkCredential) *pb.SinkCredential {
+func toPbSinkCredential(from primitive.SinkCredential) *pb.SinkCredential {
 	if from == nil {
 		return nil
 	}
 	to := &pb.SinkCredential{}
-	switch from.Type {
-	case primitive.PlainCredentialType:
+	switch from.GetType() {
+	case primitive.Plain:
+		credential, _ := from.(*primitive.PlainSinkCredential)
 		to.CredentialType = pb.SinkCredential_PLAIN
 		to.Credential = &pb.SinkCredential_Plain{
 			Plain: &pb.PlainCredential{
-				Identifier: from.Identifier,
-				Secret:     from.Secret,
+				Identifier: credential.Identifier,
+				Secret:     credential.Secret,
 			},
 		}
-	case primitive.CloudCredentialType:
+	case primitive.Cloud:
+		credential, _ := from.(*primitive.CloudSinkCredential)
 		to.CredentialType = pb.SinkCredential_CLOUD
 		to.Credential = &pb.SinkCredential_Cloud{
 			Cloud: &pb.CloudCredential{
-				AccessKeyId:     from.AccessKeyID,
-				SecretAccessKey: from.SecretAccessKey,
+				AccessKeyId:     credential.AccessKeyID,
+				SecretAccessKey: credential.SecretAccessKey,
 			},
 		}
 	}
