@@ -134,10 +134,8 @@ func (m *manager) UpdateSubscription(ctx context.Context, sub *metadata.Subscrip
 		return nil
 	}
 	if sub.SinkCredential == nil {
-		if curr.SinkCredential != nil {
-			if err := m.secret.Delete(ctx, sub.ID); err != nil {
-				return err
-			}
+		if err := m.secret.Delete(ctx, sub.ID); err != nil {
+			return err
 		}
 	} else {
 		if err := m.secret.Write(ctx, sub.ID, sub.SinkCredential); err != nil {

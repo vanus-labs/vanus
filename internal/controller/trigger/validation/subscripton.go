@@ -87,13 +87,11 @@ func validateSinkCredential(ctx context.Context, credential *metapb.SinkCredenti
 	switch credential.CredentialType {
 	case metapb.SinkCredential_None:
 	case metapb.SinkCredential_PLAIN:
-		if credential.GetPlain() == nil ||
-			credential.GetPlain().GetIdentifier() == "" || credential.GetPlain().GetSecret() == "" {
+		if credential.GetPlain().GetIdentifier() == "" || credential.GetPlain().GetSecret() == "" {
 			return errors.ErrInvalidRequest.WithMessage("sink credential type is plain,Identifier and Secret can not empty")
 		}
 	case metapb.SinkCredential_CLOUD:
-		if credential.GetCloud() == nil ||
-			credential.GetCloud().GetAccessKeyId() == "" || credential.GetCloud().GetSecretAccessKey() == "" {
+		if credential.GetCloud().GetAccessKeyId() == "" || credential.GetCloud().GetSecretAccessKey() == "" {
 			return errors.ErrInvalidRequest.
 				WithMessage("sink credential type is cloud,accessKeyId and SecretAccessKey can not empty")
 		}
