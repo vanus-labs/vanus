@@ -49,18 +49,11 @@ func (s *triggerWorkerStorage) getKey(id string) string {
 
 func (s *triggerWorkerStorage) SaveTriggerWorker(ctx context.Context, info metadata.TriggerWorkerInfo) error {
 	key := s.getKey(info.ID)
-	exist, err := s.client.Exists(ctx, key)
-	if err != nil {
-		return err
-	}
 	v, err := json.Marshal(info)
 	if err != nil {
 		return errors.ErrJSONMarshal.Wrap(err)
 	}
-	if !exist {
-		return s.client.Create(ctx, key, v)
-	}
-	return s.client.Update(ctx, key, v)
+	return s.client.Set(ctx, key, v)
 }
 func (s *triggerWorkerStorage) GetTriggerWorker(ctx context.Context, id string) (*metadata.TriggerWorkerInfo, error) {
 	v, err := s.client.Get(ctx, s.getKey(id))

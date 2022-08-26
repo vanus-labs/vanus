@@ -18,21 +18,32 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/rand"
 	"encoding/hex"
+	"io"
 )
+
+const nonceSize = 12
 
 func AESEncrypt(value, key string) (string, error) {
 	keyByte := paddingKey(key, aes.BlockSize)
-	c, err := aes.NewCipher(keyByte)
+	// Get the AES block cipher
+	aesBlock, err := aes.NewCipher(keyByte)
 	if err != nil {
 		return "", err
 	}
-	blockMode := cipher.NewCBCEncrypter(c, keyByte)
-	origByte := []byte(value)
-	origByte = pkcs5Padding(origByte, c.BlockSize())
-	cryptoByte := make([]byte, len(origByte))
-	blockMode.CryptBlocks(cryptoByte, origByte)
-	return hex.EncodeToString(cryptoByte), nil
+
+	// Get the GCM cipher mode
+	gcm, err := cipher.NewGCM(aesBlock)
+	if err != nil {
+		return "", err
+	}
+	var out bytes.Buffer
+	_, _ = io.CopyN(&out, rand.Reader, nonceSize)
+	nonce := out.Bytes()
+	cryptoByte := gcm.Seal(nil, nonce, []byte(value), nil)
+	out.Write(cryptoByte)
+	return hex.EncodeToString(out.Bytes()), nil
 }
 
 func AESDecrypt(value, key string) (string, error) {
@@ -41,27 +52,24 @@ func AESDecrypt(value, key string) (string, error) {
 		return "", err
 	}
 	keyByte := paddingKey(key, aes.BlockSize)
-	c, err := aes.NewCipher(keyByte)
+	// Get the AES block cipher
+	aesBlock, err := aes.NewCipher(keyByte)
 	if err != nil {
 		return "", err
 	}
-	blockMode := cipher.NewCBCDecrypter(c, keyByte)
-	origData := make([]byte, len(cryptoByte))
-	blockMode.CryptBlocks(origData, cryptoByte)
-	origData = pkcs5Unpadding(origData)
+
+	// Get the GCM cipher mode
+	gcm, err := cipher.NewGCM(aesBlock)
+	if err != nil {
+		return "", err
+	}
+	nonce := cryptoByte[:nonceSize]
+	ciphertext := cryptoByte[nonceSize:]
+	origData, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return "", err
+	}
 	return string(origData), nil
-}
-
-func pkcs5Padding(ciphertext []byte, blockSize int) []byte {
-	padding := blockSize - len(ciphertext)%blockSize
-	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
-	return append(ciphertext, padtext...)
-}
-
-func pkcs5Unpadding(origData []byte) []byte {
-	length := len(origData)
-	unpadding := int(origData[length-1])
-	return origData[:(length - unpadding)]
 }
 
 // paddingKey lt size append 0, gt size will discard.

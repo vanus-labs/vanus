@@ -58,33 +58,33 @@ func (p *SecretStorage) Read(ctx context.Context,
 	switch credentialType {
 	case primitive.Cloud:
 		credential := &primitive.CloudSinkCredential{}
-		if err = json.Unmarshal(v, &credential); err != nil {
+		if err = json.Unmarshal(v, credential); err != nil {
 			return nil, errors.ErrJSONUnMarshal.Wrap(err)
 		}
 		accessKeyID, err := crypto.AESDecrypt(credential.AccessKeyID, p.cipherKey)
 		if err != nil {
-			return credential, errors.ErrAESDecrypt.Wrap(err)
+			return nil, errors.ErrAESDecrypt.Wrap(err)
 		}
 		credential.AccessKeyID = accessKeyID
 		secretAccessKey, err := crypto.AESDecrypt(credential.SecretAccessKey, p.cipherKey)
 		if err != nil {
-			return credential, errors.ErrAESDecrypt.Wrap(err)
+			return nil, errors.ErrAESDecrypt.Wrap(err)
 		}
 		credential.SecretAccessKey = secretAccessKey
 		return credential, nil
 	case primitive.Plain:
 		credential := &primitive.PlainSinkCredential{}
-		if err = json.Unmarshal(v, &credential); err != nil {
+		if err = json.Unmarshal(v, credential); err != nil {
 			return nil, errors.ErrJSONUnMarshal.Wrap(err)
 		}
 		identifier, err := crypto.AESDecrypt(credential.Identifier, p.cipherKey)
 		if err != nil {
-			return credential, errors.ErrAESDecrypt.Wrap(err)
+			return nil, errors.ErrAESDecrypt.Wrap(err)
 		}
 		credential.Identifier = identifier
 		s, err := crypto.AESDecrypt(credential.Secret, p.cipherKey)
 		if err != nil {
-			return credential, errors.ErrAESDecrypt.Wrap(err)
+			return nil, errors.ErrAESDecrypt.Wrap(err)
 		}
 		credential.Secret = s
 		return credential, nil
@@ -124,14 +124,7 @@ func (p *SecretStorage) Write(ctx context.Context, subID vanus.ID, credential pr
 		return errors.ErrJSONMarshal.Wrap(err)
 	}
 	key := p.getKey(subID)
-	exist, err := p.client.Exists(ctx, key)
-	if err != nil {
-		return err
-	}
-	if !exist {
-		return p.client.Create(ctx, key, v)
-	}
-	return p.client.Update(ctx, key, v)
+	return p.client.Set(ctx, key, v)
 }
 
 func (p *SecretStorage) Delete(ctx context.Context, subID vanus.ID) error {

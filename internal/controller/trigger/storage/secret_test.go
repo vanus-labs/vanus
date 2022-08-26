@@ -39,33 +39,65 @@ func TestSecretStorage(t *testing.T) {
 		So(err, ShouldBeNil)
 		secret := p.(*SecretStorage)
 		secret.client = kvClient
-		Convey("test read credential type cloud", func() {
+		Convey("test credential type cloud", func() {
 			subID := vanus.NewID()
-			a, _ := crypto.AESEncrypt("test_access_key_id", secret.cipherKey)
-			s, _ := crypto.AESEncrypt("test_secret_access_key", secret.cipherKey)
-			v, _ := json.Marshal(primitive.NewCloudSinkCredential(a, s))
-			kvClient.EXPECT().Get(ctx, secret.getKey(subID)).Return(v, nil)
-			credential, err := secret.Read(ctx, subID, primitive.Cloud)
-			So(err, ShouldBeNil)
-			So(credential.GetType(), ShouldEqual, primitive.Cloud)
-			So(credential.(*primitive.CloudSinkCredential).AccessKeyID, ShouldEqual, "test_access_key_id")
-			So(credential.(*primitive.CloudSinkCredential).SecretAccessKey, ShouldEqual, "test_secret_access_key")
+			Convey("test read", func() {
+				a, _ := crypto.AESEncrypt("test_access_key_id", secret.cipherKey)
+				s, _ := crypto.AESEncrypt("test_secret_access_key", secret.cipherKey)
+				v, _ := json.Marshal(primitive.NewCloudSinkCredential(a, s))
+				kvClient.EXPECT().Get(ctx, secret.getKey(subID)).Return(v, nil)
+				credential, err := secret.Read(ctx, subID, primitive.Cloud)
+				So(err, ShouldBeNil)
+				So(credential.GetType(), ShouldEqual, primitive.Cloud)
+				So(credential.(*primitive.CloudSinkCredential).AccessKeyID, ShouldEqual, "test_access_key_id")
+				So(credential.(*primitive.CloudSinkCredential).SecretAccessKey, ShouldEqual, "test_secret_access_key")
+			})
+			Convey("test write", func() {
+				credential := primitive.NewCloudSinkCredential("test_access_key_id", "test_secret_access_key")
+				Convey("test create", func() {
+					kvClient.EXPECT().Set(ctx, secret.getKey(subID), gomock.Any()).Return(nil)
+					err := secret.Write(ctx, subID, credential)
+					So(err, ShouldBeNil)
+				})
+				Convey("test update", func() {
+					kvClient.EXPECT().Set(ctx, secret.getKey(subID), gomock.Any()).Return(nil)
+					err := secret.Write(ctx, subID, credential)
+					So(err, ShouldBeNil)
+				})
+			})
 		})
-		Convey("test write", func() {
+		Convey("test credential type plain", func() {
 			subID := vanus.NewID()
-			credential := primitive.NewCloudSinkCredential("test_access_key_id", "test_secret_access_key")
-			Convey("test create", func() {
-				kvClient.EXPECT().Exists(ctx, secret.getKey(subID)).Return(false, nil)
-				kvClient.EXPECT().Create(ctx, secret.getKey(subID), gomock.Any()).Return(nil)
-				err := secret.Write(ctx, subID, credential)
+			Convey("test read", func() {
+				a, _ := crypto.AESEncrypt("test_identifier", secret.cipherKey)
+				s, _ := crypto.AESEncrypt("test_secret", secret.cipherKey)
+				v, _ := json.Marshal(primitive.NewPlainSinkCredential(a, s))
+				kvClient.EXPECT().Get(ctx, secret.getKey(subID)).Return(v, nil)
+				credential, err := secret.Read(ctx, subID, primitive.Plain)
 				So(err, ShouldBeNil)
+				So(credential.GetType(), ShouldEqual, primitive.Plain)
+				So(credential.(*primitive.PlainSinkCredential).Identifier, ShouldEqual, "test_identifier")
+				So(credential.(*primitive.PlainSinkCredential).Secret, ShouldEqual, "test_secret")
 			})
-			Convey("test update", func() {
-				kvClient.EXPECT().Exists(ctx, secret.getKey(subID)).Return(true, nil)
-				kvClient.EXPECT().Update(ctx, secret.getKey(subID), gomock.Any()).Return(nil)
-				err := secret.Write(ctx, subID, credential)
-				So(err, ShouldBeNil)
+			Convey("test write", func() {
+				credential := primitive.NewPlainSinkCredential("test_identifier", "test_secret")
+				Convey("test create", func() {
+					kvClient.EXPECT().Set(ctx, secret.getKey(subID), gomock.Any()).Return(nil)
+					err := secret.Write(ctx, subID, credential)
+					So(err, ShouldBeNil)
+				})
+				Convey("test update", func() {
+					kvClient.EXPECT().Set(ctx, secret.getKey(subID), gomock.Any()).Return(nil)
+					err := secret.Write(ctx, subID, credential)
+					So(err, ShouldBeNil)
+				})
 			})
+		})
+		Convey("test delete", func() {
+			subID := vanus.NewID()
+			kvClient.EXPECT().Delete(ctx, secret.getKey(subID)).Return(nil)
+			err := secret.Delete(ctx, subID)
+			So(err, ShouldBeNil)
 		})
 	})
 }

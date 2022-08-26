@@ -71,7 +71,7 @@ func ValidateSinkAndProtocol(ctx context.Context,
 			return errors.ErrInvalidRequest.
 				WithMessage("protocol is aws lambda, sink is arn, arn parse error").Wrap(err)
 		}
-		if credential == nil || credential.CredentialType != metapb.SinkCredential_CLOUD {
+		if credential.GetCredentialType() != metapb.SinkCredential_CLOUD {
 			return errors.ErrInvalidRequest.
 				WithMessage("protocol is aws lambda, sink credential can not be nil and  credential type is cloud")
 		}
@@ -87,13 +87,13 @@ func validateSinkCredential(ctx context.Context, credential *metapb.SinkCredenti
 	switch credential.CredentialType {
 	case metapb.SinkCredential_None:
 	case metapb.SinkCredential_PLAIN:
-		if credential.Credential == nil ||
-			credential.GetPlain().Identifier == "" || credential.GetPlain().Secret == "" {
+		if credential.GetPlain() == nil ||
+			credential.GetPlain().GetIdentifier() == "" || credential.GetPlain().GetSecret() == "" {
 			return errors.ErrInvalidRequest.WithMessage("sink credential type is plain,Identifier and Secret can not empty")
 		}
 	case metapb.SinkCredential_CLOUD:
-		if credential.Credential == nil ||
-			credential.GetCloud().AccessKeyId == "" || credential.GetCloud().SecretAccessKey == "" {
+		if credential.GetCloud() == nil ||
+			credential.GetCloud().GetAccessKeyId() == "" || credential.GetCloud().GetSecretAccessKey() == "" {
 			return errors.ErrInvalidRequest.
 				WithMessage("sink credential type is cloud,accessKeyId and SecretAccessKey can not empty")
 		}

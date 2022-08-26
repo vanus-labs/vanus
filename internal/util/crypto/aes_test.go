@@ -26,7 +26,6 @@ func TestAesCrypt(t *testing.T) {
 		value := "value"
 		d, err := AESEncrypt(value, key)
 		So(err, ShouldBeNil)
-		So(d, ShouldEqual, "1583cbd8550dc075273f293b1abf42e1")
 		d, err = AESDecrypt(d, key)
 		So(err, ShouldBeNil)
 		So(d, ShouldEqual, value)

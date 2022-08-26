@@ -466,11 +466,11 @@ func (ctrl *controller) Start() error {
 		return err
 	}
 	ctrl.storage = s
-	p, err := storage.NewSecretStorage(ctrl.config.Storage, ctrl.config.SecretEncryptionSalt)
+	secret, err := storage.NewSecretStorage(ctrl.config.Storage, ctrl.config.SecretEncryptionSalt)
 	if err != nil {
 		return err
 	}
-	ctrl.secret = p
+	ctrl.secret = secret
 	go ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
 	return nil
 }
