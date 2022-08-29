@@ -19,12 +19,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription/offset"
+	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -34,12 +35,17 @@ func TestSubscriptionInit(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	storage := storage.NewMockStorage(ctrl)
-	m := NewSubscriptionManager(storage)
+	secret := secret.NewMockStorage(ctrl)
+	m := NewSubscriptionManager(storage, secret)
 
 	Convey("init ", t, func() {
+		subID := vanus.NewID()
+		credentialType := primitive.Cloud
 		storage.MockSubscriptionStorage.EXPECT().ListSubscription(ctx).Return([]*metadata.Subscription{
-			{ID: 1},
+			{ID: subID, SinkCredentialType: &credentialType},
 		}, nil)
+		secret.EXPECT().Read(gomock.Any(), gomock.Eq(subID), gomock.Any()).
+			Return(primitive.NewCloudSinkCredential("ak", "sk"), nil)
 		err := m.Init(ctx)
 		So(err, ShouldBeNil)
 	})
@@ -56,7 +62,8 @@ func TestGetListSubscription(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
-		m := NewSubscriptionManager(storage)
+		secret := secret.NewMockStorage(ctrl)
+		m := NewSubscriptionManager(storage, secret)
 		id := vanus.NewID()
 		Convey("list subscription size 0", func() {
 			subscriptions := m.ListSubscription(ctx)
@@ -90,36 +97,73 @@ func TestGetListSubscription(t *testing.T) {
 	})
 }
 
-func TestModifySubscription(t *testing.T) {
+func TestSubscription(t *testing.T) {
 	Convey("test add update delete subscription", t, func() {
 		ctx := context.Background()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
-		m := NewSubscriptionManager(storage)
+		secret := secret.NewMockStorage(ctrl)
+		m := NewSubscriptionManager(storage, secret)
+		subID := vanus.NewID()
 		Convey("test add subscription", func() {
 			storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).Return(nil)
-			err := m.AddSubscription(ctx, &metadata.Subscription{})
+			secret.EXPECT().Write(gomock.Any(), gomock.Eq(subID), gomock.Any()).Return(nil)
+			credentialType := primitive.Cloud
+			err := m.AddSubscription(ctx, &metadata.Subscription{
+				ID:                 subID,
+				SinkCredentialType: &credentialType,
+				SinkCredential:     primitive.NewCloudSinkCredential("test_ak", "test_sk"),
+			})
 			So(err, ShouldBeNil)
-			subscriptions := m.ListSubscription(ctx)
-			So(len(subscriptions), ShouldEqual, 1)
-			subscription := subscriptions[0]
 			Convey("test update subscription", func() {
-				subscription.Sink = "test"
-				storage.MockSubscriptionStorage.EXPECT().UpdateSubscription(ctx, gomock.Any()).Return(nil)
-				err = m.UpdateSubscription(ctx, subscription)
-				So(err, ShouldBeNil)
-				So(m.GetSubscription(ctx, subscription.ID).Sink, ShouldEqual, subscription.Sink)
+				storage.MockSubscriptionStorage.EXPECT().UpdateSubscription(ctx, gomock.Any()).AnyTimes().Return(nil)
+				Convey("update sink", func() {
+					updateSub := &metadata.Subscription{
+						ID:                 subID,
+						SinkCredentialType: &credentialType,
+						SinkCredential:     primitive.NewCloudSinkCredential("test_ak", "test_sk"),
+						Sink:               "test",
+					}
+					err = m.UpdateSubscription(ctx, updateSub)
+					So(err, ShouldBeNil)
+					So(m.GetSubscription(ctx, subID).Sink, ShouldEqual, updateSub.Sink)
+				})
+				Convey("test update subscription credential", func() {
+					Convey("modify credential", func() {
+						updateSub := &metadata.Subscription{
+							ID:                 subID,
+							Sink:               "test",
+							SinkCredentialType: &credentialType,
+							SinkCredential:     primitive.NewCloudSinkCredential("test_new_ak", "test_new_sk"),
+						}
+						secret.EXPECT().Write(gomock.Any(), gomock.Eq(subID), gomock.Any()).Return(nil)
+						err = m.UpdateSubscription(ctx, updateSub)
+						So(err, ShouldBeNil)
+					})
+					Convey("delete credential", func() {
+						updateSub := &metadata.Subscription{
+							ID:                 subID,
+							Sink:               "test",
+							SinkCredentialType: nil,
+							SinkCredential:     nil,
+						}
+						secret.EXPECT().Delete(gomock.Any(), gomock.Eq(subID)).Return(nil)
+						err = m.UpdateSubscription(ctx, updateSub)
+						So(err, ShouldBeNil)
+					})
+				})
 			})
 			Convey("test delete subscription", func() {
 				mm := m.(*manager)
 				offsetManager := offset.NewMockManager(ctrl)
 				mm.offsetManager = offsetManager
-				storage.MockSubscriptionStorage.EXPECT().DeleteSubscription(ctx, gomock.Any()).Return(nil)
-				offsetManager.EXPECT().RemoveRegisterSubscription(ctx, gomock.Any()).Return(nil)
-				err = m.DeleteSubscription(ctx, subscription.ID)
+				storage.MockSubscriptionStorage.EXPECT().DeleteSubscription(ctx, gomock.Eq(subID)).Return(nil)
+				offsetManager.EXPECT().RemoveRegisterSubscription(ctx, gomock.Eq(subID)).Return(nil)
+				secret.EXPECT().Delete(gomock.Any(), gomock.Eq(subID)).Return(nil)
+				err = m.DeleteSubscription(ctx, subID)
 				So(err, ShouldBeNil)
-				So(m.GetSubscription(ctx, subscription.ID), ShouldBeNil)
+				So(m.GetSubscription(ctx, subID), ShouldBeNil)
 			})
 		})
 	})
@@ -131,7 +175,8 @@ func TestOffset(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
-		m := NewSubscriptionManager(storage).(*manager)
+		secret := secret.NewMockStorage(ctrl)
+		m := NewSubscriptionManager(storage, secret).(*manager)
 		offsetManager := offset.NewMockManager(ctrl)
 		m.offsetManager = offsetManager
 		storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).Return(nil)

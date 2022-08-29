@@ -20,6 +20,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/fatih/color"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -51,6 +52,48 @@ func createSubscriptionCommand() *cobra.Command {
 			}
 			if sink == "" {
 				cmdFailedWithHelpNotice(cmd, "sink name can't be empty\n")
+			}
+
+			var p meta.Protocol
+			switch subProtocol {
+			case "http", "":
+				p = meta.Protocol_HTTP
+			case "aws-lambda":
+				p = meta.Protocol_AWS_LAMBDA
+				if _, err := arn.Parse(sink); err != nil {
+					cmdFailedf(cmd, "protocol is aws-lambda sink is aws arn, arn parse error: %s\n", err.Error())
+				}
+				if sinkCredentialType != "cloud" {
+					cmdFailedf(cmd, "protocol is aws-lambda, credential-type must be cloud\n")
+				}
+			default:
+				cmdFailedf(cmd, "protocol is invalid\n")
+			}
+
+			var credential *meta.SinkCredential
+			if sinkCredentialType != "" {
+				if sinkCredential == "" {
+					cmdFailedf(cmd, "credential-type is set but credential empty\n")
+				}
+				switch sinkCredentialType {
+				case "cloud":
+					var cloud *meta.CloudCredential
+					err := json.Unmarshal([]byte(sinkCredential), &cloud)
+					if err != nil {
+						cmdFailedf(cmd, "the sink credential unmarshal json error: %s", err.Error())
+					}
+					if cloud.AccessKeyId == "" || cloud.SecretAccessKey == "" {
+						cmdFailedf(cmd, "credential-type is cloud, access_key_id and secret_access_key must not be empty\n")
+					}
+					credential = &meta.SinkCredential{
+						CredentialType: meta.SinkCredential_CLOUD,
+						Credential: &meta.SinkCredential_Cloud{
+							Cloud: cloud,
+						},
+					}
+				default:
+					cmdFailedf(cmd, "credential-type is invalid\n")
+				}
 			}
 
 			var filter []*meta.Filter
@@ -101,25 +144,22 @@ func createSubscriptionCommand() *cobra.Command {
 			}()
 			cli := ctrlpb.NewTriggerControllerClient(grpcConn)
 			res, err := cli.CreateSubscription(ctx, &ctrlpb.CreateSubscriptionRequest{
-				Source:      source,
-				Filters:     filter,
-				Sink:        sink,
-				EventBus:    eventbus,
-				Transformer: trans,
-				Config:      config,
+				Subscription: &ctrlpb.SubscriptionRequest{
+					Source:         source,
+					Filters:        filter,
+					Sink:           sink,
+					Protocol:       p,
+					SinkCredential: credential,
+					EventBus:       eventbus,
+					Transformer:    trans,
+					Config:         config,
+				},
 			})
 			if err != nil {
 				cmdFailedf(cmd, "create subscription failed: %s", err)
 			}
 			if IsFormatJSON(cmd) {
-				data, _ := json.Marshal(map[string]interface{}{
-					"id":          res.Id,
-					"eventbus":    eventbus,
-					"filter":      filter,
-					"sink":        sink,
-					"transformer": trans,
-					"config":      config,
-				})
+				data, _ := json.Marshal(res)
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
@@ -137,6 +177,10 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&transformer, "transformer", "", "transformer, JSON format required")
 	cmd.Flags().Int32Var(&rateLimit, "rate-limit", 0, "rate limit")
 	cmd.Flags().StringVar(&from, "from", "", "consume events from, latest,earliest or RFC3339 format time")
+	cmd.Flags().StringVar(&subProtocol, "protocol", "http", "protocol,http or aws-lambda")
+	cmd.Flags().StringVar(&sinkCredentialType, "credential-type", "", "sink credential type, plain or cloud, now only support cloud")
+	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, JSON format, "+
+		"when credential-type is cloud, need access_key_id and secret_access_key")
 	return cmd
 }
 
@@ -258,31 +302,37 @@ func listSubscriptionCommand() *cobra.Command {
 	return cmd
 }
 
+var subscriptionHeaders = []string{"id", "eventbus", "sink", "protocol", "sinkCredential", "filter", "transformer", "config", "offsets"}
+
 func getSubscriptionHeader(headers ...interface{}) table.Row {
-	headers = append(headers, "id", "eventbus", "sink", "filter", "transformer", "config", "offsets")
+	for _, k := range subscriptionHeaders {
+		headers = append(headers, k)
+	}
 	return headers
 }
 
 func getSubscriptionRow(sub *meta.Subscription, rows ...interface{}) table.Row {
-	data1, _ := json.MarshalIndent(sub.Filters, "", "  ")
-	data2, _ := json.MarshalIndent(sub.Transformer, "", "  ")
-	data3, _ := json.MarshalIndent(sub.Config, "", "  ")
-	data4, _ := json.MarshalIndent(sub.Offsets, "", "  ")
-
-	rows = append(rows, sub.Id, sub.EventBus, sub.Sink, string(data1),
-		string(data2), string(data3), string(data4))
+	sinkCredential, _ := json.MarshalIndent(sub.SinkCredential, "", "  ")
+	filter, _ := json.MarshalIndent(sub.Filters, "", "  ")
+	trans, _ := json.MarshalIndent(sub.Transformer, "", "  ")
+	cfg, _ := json.MarshalIndent(sub.Config, "", "  ")
+	offsets, _ := json.MarshalIndent(sub.Offsets, "", "  ")
+	var protocol string
+	switch sub.Protocol {
+	case meta.Protocol_HTTP:
+		protocol = "http"
+	case meta.Protocol_AWS_LAMBDA:
+		protocol = "aws-lambda"
+	}
+	rows = append(rows, sub.Id, sub.EventBus, sub.Sink, protocol, string(sinkCredential), string(filter),
+		string(trans), string(cfg), string(offsets))
 	return rows
 }
 
 func getSubscriptionColumnConfig(columnConfigs ...table.ColumnConfig) []table.ColumnConfig {
-	num := len(columnConfigs)
-	columnConfigs = append(columnConfigs, []table.ColumnConfig{
-		{Number: num + 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-		{Number: num + 2, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-		{Number: num + 3, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-		{Number: num + 4, AlignHeader: text.AlignCenter},
-		{Number: num + 5, AlignHeader: text.AlignCenter},
-		{Number: num + 6, AlignHeader: text.AlignCenter},
-		{Number: num + 7, AlignHeader: text.AlignCenter}}...)
+	//num := len(columnConfigs)
+	for i := 0; i < len(subscriptionHeaders); i++ {
+		columnConfigs = append(columnConfigs, table.ColumnConfig{VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter})
+	}
 	return columnConfigs
 }

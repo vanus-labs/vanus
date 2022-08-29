@@ -12,32 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trigger
+package client
 
 import (
 	"context"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/cloudevents/sdk-go/v2/event"
-	"github.com/cloudevents/sdk-go/v2/protocol"
-	"github.com/linkall-labs/vanus/internal/primitive"
 )
 
-type fakeClient struct {
+type http struct {
+	client ce.Client
 }
 
-func (c *fakeClient) Send(ctx context.Context, out event.Event) protocol.Result {
-	return ce.ResultACK
+func NewHTTPClient(url string) EventClient {
+	c, _ := ce.NewClientHTTP(ce.WithTarget(url))
+	return &http{
+		client: c,
+	}
 }
 
-func (c *fakeClient) Request(ctx context.Context, out event.Event) (*event.Event, protocol.Result) {
-	return nil, ce.ResultACK
-}
-
-func (c *fakeClient) StartReceiver(ctx context.Context, fn interface{}) error {
+func (c *http) Send(ctx context.Context, event ce.Event) error {
+	if err := c.client.Send(ctx, event); !ce.IsACK(err) {
+		return err
+	}
 	return nil
-}
-
-func NewFakeClient(target primitive.URI) ce.Client {
-	return &fakeClient{}
 }

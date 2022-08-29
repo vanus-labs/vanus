@@ -137,28 +137,26 @@ message ReportSegmentLeaderRequest {
   uint64 term = 2;
 }
 
-message CreateSubscriptionRequest {
+message SubscriptionRequest {
   string source = 1;
   repeated string types = 2;
   meta.SubscriptionConfig config = 3;
   repeated meta.Filter filters = 4;
   string sink = 5;
-  string protocol = 6;
-  map<string, string> protocol_settings = 7;
-  string event_bus = 8;
-  meta.Transformer transformer = 9;
+  meta.SinkCredential sink_credential = 6;
+  meta.Protocol protocol = 7;
+  meta.ProtocolSetting protocol_settings = 8;
+  string event_bus = 9;
+  meta.Transformer transformer = 10;
+}
+
+message CreateSubscriptionRequest {
+  SubscriptionRequest subscription = 1;
 }
 
 message UpdateSubscriptionRequest {
   uint64 id = 1;
-  string source = 2;
-  repeated string types = 3;
-  meta.SubscriptionConfig config = 4;
-  repeated meta.Filter filters = 5;
-  string sink = 6;
-  string protocol = 7;
-  map<string, string> protocol_settings = 8;
-  meta.Transformer transformer = 9;
+  SubscriptionRequest subscription = 2;
 }
 
 message GetSubscriptionRequest {

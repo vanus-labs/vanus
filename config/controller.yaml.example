@@ -21,3 +21,4 @@ embed_etcd:
   election-timeout: 600000
   clusters:
     - test-1=http://127.0.0.1:2380
+secret_encryption_salt: "encryption_salt"

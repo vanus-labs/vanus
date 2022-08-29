@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+//go:generate mockgen -source=storage.go  -destination=mock_storage.go -package=secret
+package secret
 
-type KeyPrefix string
+import (
+	"context"
 
-func (s KeyPrefix) String() string {
-	return string(s)
-}
-
-const (
-	KeyPrefixOffset        KeyPrefix = "/trigger/offsets/"
-	KeyPrefixSubscription  KeyPrefix = "/trigger/subscriptions/"
-	KeyPrefixTriggerWorker KeyPrefix = "/trigger/triggerWorkers/"
-	KeyPrefixSecret        KeyPrefix = "/trigger/secret/"
+	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
+
+type Storage interface {
+	Read(ctx context.Context, subID vanus.ID, credentialType primitive.CredentialType) (primitive.SinkCredential, error)
+	Write(ctx context.Context, subID vanus.ID, credential primitive.SinkCredential) error
+	Delete(ctx context.Context, subID vanus.ID) error
+}

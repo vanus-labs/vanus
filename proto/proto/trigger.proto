@@ -48,12 +48,15 @@ message StopTriggerWorkerResponse {}
 
 message AddSubscriptionRequest {
   uint64 id = 1;
-  repeated meta.Filter filters = 2;
-  string sink = 3;
-  string event_bus = 4;
-  repeated meta.OffsetInfo offsets = 5;
-  meta.Transformer transformer = 6;
-  meta.SubscriptionConfig config = 7;
+  meta.SubscriptionConfig config = 2;
+  repeated meta.Filter filters = 3;
+  string sink = 4;
+  meta.SinkCredential sink_credential = 5;
+  meta.Protocol protocol = 6;
+  meta.ProtocolSetting protocol_settings = 7;
+  string event_bus = 8;
+  meta.Transformer transformer = 9;
+  repeated meta.OffsetInfo offsets = 10;
 }
 
 message AddSubscriptionResponse {}

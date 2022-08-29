@@ -18,13 +18,13 @@ import (
 	"context"
 	stdErr "errors"
 	"io"
-	"reflect"
 	"sync"
 	"time"
 
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/validation"
@@ -63,6 +63,7 @@ type controller struct {
 	config                Config
 	member                embedetcd.Member
 	storage               storage.Storage
+	secretStorage         secret.Storage
 	subscriptionManager   subscription.Manager
 	workerManager         worker.Manager
 	scheduler             *worker.SubscriptionScheduler
@@ -81,15 +82,15 @@ func (ctrl *controller) CommitOffset(ctx context.Context,
 		return nil, errors.ErrServerNotStart
 	}
 	resp := new(ctrlpb.CommitOffsetResponse)
-	for _, subscription := range request.SubscriptionInfo {
-		if len(subscription.Offsets) == 0 {
+	for _, subInfo := range request.SubscriptionInfo {
+		if len(subInfo.Offsets) == 0 {
 			continue
 		}
-		id := vanus.ID(subscription.SubscriptionId)
-		offsets := convert.FromPbOffsetInfos(subscription.Offsets)
+		id := vanus.ID(subInfo.SubscriptionId)
+		offsets := convert.FromPbOffsetInfos(subInfo.Offsets)
 		err := ctrl.subscriptionManager.SaveOffset(ctx, id, offsets, request.ForceCommit)
 		if err != nil {
-			resp.FailSubscriptionId = append(resp.FailSubscriptionId, subscription.SubscriptionId)
+			resp.FailSubscriptionId = append(resp.FailSubscriptionId, subInfo.SubscriptionId)
 			log.Warning(ctx, "commit offset error", map[string]interface{}{
 				log.KeyError:          err,
 				log.KeySubscriptionID: id,
@@ -108,14 +109,14 @@ func (ctrl *controller) ResetOffsetToTimestamp(ctx context.Context,
 		return nil, errors.ErrInvalidRequest.WithMessage("timestamp is invalid")
 	}
 	subID := vanus.ID(request.SubscriptionId)
-	subscription := ctrl.subscriptionManager.GetSubscription(ctx, subID)
-	if subscription == nil {
+	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
+	if sub == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("subscription not exist")
 	}
-	if subscription.Phase != metadata.SubscriptionPhaseRunning {
+	if sub.Phase != metadata.SubscriptionPhaseRunning {
 		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription is not running")
 	}
-	tWorker := ctrl.workerManager.GetTriggerWorker(subscription.TriggerWorker)
+	tWorker := ctrl.workerManager.GetTriggerWorker(sub.TriggerWorker)
 	if tWorker == nil {
 		return nil, errors.ErrInternal.WithMessage("trigger worker is not running")
 	}
@@ -131,11 +132,11 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
-	err := validation.ValidateCreateSubscription(ctx, request)
+	err := validation.ValidateSubscriptionRequest(ctx, request.Subscription)
 	if err != nil {
 		return nil, err
 	}
-	sub := convert.FromPbCreateSubscription(request)
+	sub := convert.FromPbSubscriptionRequest(request.Subscription)
 	sub.ID = vanus.NewID()
 	sub.Phase = metadata.SubscriptionPhaseCreated
 	err = ctrl.subscriptionManager.AddSubscription(ctx, sub)
@@ -153,53 +154,26 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 		return nil, errors.ErrServerNotStart
 	}
 	subID := vanus.ID(request.Id)
-	subscription := ctrl.subscriptionManager.GetSubscription(ctx, subID)
-	if subscription == nil {
+	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
+	if sub == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("subscription not exist")
 	}
-	err := validation.ValidateUpdateSubscription(ctx, request)
-	if err != nil {
+	if err := validation.ValidateSubscriptionRequest(ctx, request.Subscription); err != nil {
 		return nil, err
 	}
-	change := false
-	if request.Config != nil {
-		// check rateLimit change
-		config := convert.FromPbSubscriptionConfig(request.Config)
-		c := subscription.Config.Change(config)
-		if !change {
-			change = c
-		}
+	if request.Subscription.EventBus != sub.EventBus {
+		return nil, errors.ErrInvalidRequest.WithMessage("eventbus can not change")
 	}
-	if request.Filters != nil {
-		filters := convert.FromPbFilters(request.Filters)
-		if !reflect.DeepEqual(filters, subscription.Filters) {
-			change = true
-			subscription.Filters = filters
-		}
-	}
-	if request.Sink != "" {
-		if string(subscription.Sink) != request.Sink {
-			change = true
-			subscription.Sink = primitive.URI(request.Sink)
-		}
-	}
-	if request.Transformer != nil {
-		transformer := convert.FromPbTransformer(request.Transformer)
-		if !reflect.DeepEqual(transformer, subscription.Transformer) {
-			change = true
-			subscription.Transformer = transformer
-		}
-	}
+	change := sub.Update(convert.FromPbSubscriptionRequest(request.Subscription))
 	if !change {
 		return nil, errors.ErrInvalidRequest.WithMessage("no change")
 	}
-	subscription.Phase = metadata.SubscriptionPhasePending
-	err = ctrl.subscriptionManager.UpdateSubscription(ctx, subscription)
-	if err != nil {
+	sub.Phase = metadata.SubscriptionPhasePending
+	if err := ctrl.subscriptionManager.UpdateSubscription(ctx, sub); err != nil {
 		return nil, err
 	}
-	ctrl.scheduler.EnqueueNormalSubscription(subscription.ID)
-	resp := convert.ToPbSubscription(subscription, nil)
+	ctrl.scheduler.EnqueueNormalSubscription(sub.ID)
+	resp := convert.ToPbSubscription(sub, nil)
 	return resp, nil
 }
 
@@ -209,10 +183,10 @@ func (ctrl *controller) DeleteSubscription(ctx context.Context,
 		return nil, errors.ErrServerNotStart
 	}
 	subID := vanus.ID(request.Id)
-	subscription := ctrl.subscriptionManager.GetSubscription(ctx, subID)
-	if subscription != nil {
-		subscription.Phase = metadata.SubscriptionPhaseToDelete
-		err := ctrl.subscriptionManager.UpdateSubscription(ctx, subscription)
+	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
+	if sub != nil {
+		sub.Phase = metadata.SubscriptionPhaseToDelete
+		err := ctrl.subscriptionManager.UpdateSubscription(ctx, sub)
 		if err != nil {
 			return nil, err
 		}
@@ -223,7 +197,7 @@ func (ctrl *controller) DeleteSubscription(ctx context.Context,
 				defer ctrl.lock.Unlock()
 				ctrl.needCleanSubscription[subID] = addr
 			}
-		}(subID, subscription.TriggerWorker)
+		}(subID, sub.TriggerWorker)
 	}
 	return &emptypb.Empty{}, nil
 }
@@ -248,12 +222,12 @@ func (ctrl *controller) TriggerWorkerHeartbeat(
 	for {
 		select {
 		case <-ctx.Done():
-			heartbeat.SendAndClose(&ctrlpb.TriggerWorkerHeartbeatResponse{})
+			_ = heartbeat.SendAndClose(&ctrlpb.TriggerWorkerHeartbeatResponse{})
 			return nil
 		default:
 		}
 		if !ctrl.member.IsLeader() {
-			heartbeat.SendAndClose(&ctrlpb.TriggerWorkerHeartbeatResponse{})
+			_ = heartbeat.SendAndClose(&ctrlpb.TriggerWorkerHeartbeatResponse{})
 			return nil
 		}
 		req, err := heartbeat.Recv()
@@ -380,21 +354,21 @@ func (ctrl *controller) gcSubscriptions(ctx context.Context) {
 }
 
 func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, addr string) error {
-	subscription := ctrl.subscriptionManager.GetSubscription(ctx, id)
-	if subscription == nil {
+	sub := ctrl.subscriptionManager.GetSubscription(ctx, id)
+	if sub == nil {
 		return nil
 	}
-	if subscription.TriggerWorker != addr {
+	if sub.TriggerWorker != addr {
 		// data is not consistent, record
 		log.Error(ctx, "requeue subscription invalid", map[string]interface{}{
-			log.KeyTriggerWorkerAddr: subscription.TriggerWorker,
+			log.KeyTriggerWorkerAddr: sub.TriggerWorker,
 			"runningAddr":            addr,
 		})
 	}
-	metrics.CtrlTriggerGauge.WithLabelValues(subscription.TriggerWorker).Dec()
-	subscription.TriggerWorker = ""
-	subscription.Phase = metadata.SubscriptionPhasePending
-	err := ctrl.subscriptionManager.UpdateSubscription(ctx, subscription)
+	metrics.CtrlTriggerGauge.WithLabelValues(sub.TriggerWorker).Dec()
+	sub.TriggerWorker = ""
+	sub.Phase = metadata.SubscriptionPhasePending
+	err := ctrl.subscriptionManager.UpdateSubscription(ctx, sub)
 	if err != nil {
 		return err
 	}
@@ -403,7 +377,7 @@ func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, ad
 }
 
 func (ctrl *controller) init(ctx context.Context) error {
-	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage)
+	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage, ctrl.secretStorage)
 	ctrl.workerManager = worker.NewTriggerWorkerManager(worker.Config{}, ctrl.storage,
 		ctrl.subscriptionManager, ctrl.requeueSubscription)
 	ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
@@ -416,14 +390,14 @@ func (ctrl *controller) init(ctx context.Context) error {
 		return err
 	}
 	// restart,need reschedule
-	for _, subscription := range ctrl.subscriptionManager.ListSubscription(ctx) {
-		switch subscription.Phase {
+	for _, sub := range ctrl.subscriptionManager.ListSubscription(ctx) {
+		switch sub.Phase {
 		case metadata.SubscriptionPhaseCreated:
-			ctrl.scheduler.EnqueueNormalSubscription(subscription.ID)
+			ctrl.scheduler.EnqueueNormalSubscription(sub.ID)
 		case metadata.SubscriptionPhasePending:
-			ctrl.scheduler.EnqueueSubscription(subscription.ID)
+			ctrl.scheduler.EnqueueSubscription(sub.ID)
 		case metadata.SubscriptionPhaseToDelete:
-			ctrl.needCleanSubscription[subscription.ID] = subscription.TriggerWorker
+			ctrl.needCleanSubscription[sub.ID] = sub.TriggerWorker
 		}
 	}
 	return nil
@@ -488,6 +462,11 @@ func (ctrl *controller) Start() error {
 		return err
 	}
 	ctrl.storage = s
+	secretStorage, err := storage.NewSecretStorage(ctrl.config.Storage, ctrl.config.SecretEncryptionSalt)
+	if err != nil {
+		return err
+	}
+	ctrl.secretStorage = secretStorage
 	go ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
 	return nil
 }

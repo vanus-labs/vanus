@@ -21,4 +21,6 @@ import (
 type Config struct {
 	// etcd storage config
 	Storage primitive.KvStorageConfig
+
+	SecretEncryptionSalt string
 }

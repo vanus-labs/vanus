@@ -34,6 +34,7 @@ type Config struct {
 	EtcdConfig           embedetcd.Config  `yaml:"embed_etcd"`
 	Topology             map[string]string `yaml:"topology"`
 	Replicas             uint              `yaml:"replicas"`
+	SecretEncryptionSalt string            `yaml:"secret_encryption_salt"`
 }
 
 func (c *Config) GetEtcdConfig() embedetcd.Config {
@@ -63,6 +64,7 @@ func (c *Config) GetTriggerConfig() trigger.Config {
 			KeyPrefix:  c.MetadataConfig.KeyPrefix,
 			ServerList: c.EtcdEndpoints,
 		},
+		SecretEncryptionSalt: c.SecretEncryptionSalt,
 	}
 }
 

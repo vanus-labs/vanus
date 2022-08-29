@@ -22,15 +22,25 @@ import (
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	cesqlparser "github.com/cloudevents/sdk-go/sql/v2/parser"
 )
 
-func ValidateCreateSubscription(ctx context.Context, request *ctrlpb.CreateSubscriptionRequest) error {
+func ValidateSubscriptionRequest(ctx context.Context, request *ctrlpb.SubscriptionRequest) error {
 	if err := ValidateFilterList(ctx, request.Filters); err != nil {
 		return errors.ErrInvalidRequest.WithMessage("filters is invalid").Wrap(err)
 	}
+	if err := validateProtocol(ctx, request.Protocol); err != nil {
+		return err
+	}
 	if request.Sink == "" {
 		return errors.ErrInvalidRequest.WithMessage("sink is empty")
+	}
+	if err := ValidateSinkAndProtocol(ctx, request.Sink, request.Protocol, request.SinkCredential); err != nil {
+		return err
+	}
+	if err := validateSinkCredential(ctx, request.SinkCredential); err != nil {
+		return err
 	}
 	if request.EventBus == "" {
 		return errors.ErrInvalidRequest.WithMessage("eventBus is empty")
@@ -41,12 +51,52 @@ func ValidateCreateSubscription(ctx context.Context, request *ctrlpb.CreateSubsc
 	return nil
 }
 
-func ValidateUpdateSubscription(ctx context.Context, request *ctrlpb.UpdateSubscriptionRequest) error {
-	if err := ValidateFilterList(ctx, request.Filters); err != nil {
-		return errors.ErrInvalidRequest.WithMessage("filters is invalid").Wrap(err)
+func validateProtocol(ctx context.Context, protocol metapb.Protocol) error {
+	switch protocol {
+	case metapb.Protocol_HTTP:
+	case metapb.Protocol_AWS_LAMBDA:
+	default:
+		return errors.ErrInvalidRequest.WithMessage("protocol is invalid")
 	}
-	if err := validateSubscriptionConfig(ctx, request.Config); err != nil {
-		return err
+	return nil
+}
+
+func ValidateSinkAndProtocol(ctx context.Context,
+	sink string,
+	protocol metapb.Protocol,
+	credential *metapb.SinkCredential) error {
+	switch protocol {
+	case metapb.Protocol_AWS_LAMBDA:
+		if _, err := arn.Parse(sink); err != nil {
+			return errors.ErrInvalidRequest.
+				WithMessage("protocol is aws lambda, sink is arn, arn parse error").Wrap(err)
+		}
+		if credential.GetCredentialType() != metapb.SinkCredential_CLOUD {
+			return errors.ErrInvalidRequest.
+				WithMessage("protocol is aws lambda, sink credential can not be nil and  credential type is cloud")
+		}
+	case metapb.Protocol_HTTP:
+	}
+	return nil
+}
+
+func validateSinkCredential(ctx context.Context, credential *metapb.SinkCredential) error {
+	if credential == nil {
+		return nil
+	}
+	switch credential.CredentialType {
+	case metapb.SinkCredential_None:
+	case metapb.SinkCredential_PLAIN:
+		if credential.GetPlain().GetIdentifier() == "" || credential.GetPlain().GetSecret() == "" {
+			return errors.ErrInvalidRequest.WithMessage("sink credential type is plain,Identifier and Secret can not empty")
+		}
+	case metapb.SinkCredential_CLOUD:
+		if credential.GetCloud().GetAccessKeyId() == "" || credential.GetCloud().GetSecretAccessKey() == "" {
+			return errors.ErrInvalidRequest.
+				WithMessage("sink credential type is cloud,accessKeyId and SecretAccessKey can not empty")
+		}
+	default:
+		return errors.ErrInvalidRequest.WithMessage("sink credential type is invalid")
 	}
 	return nil
 }

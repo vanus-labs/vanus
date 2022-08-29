@@ -129,15 +129,18 @@ func TestController_CreateSubscription(t *testing.T) {
 		ctrl.state = primitive.ServerStateRunning
 		Convey("create subscription", func() {
 			subManager.EXPECT().AddSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
-			request := &ctrlpb.CreateSubscriptionRequest{
-				EventBus: "test-bus",
-				Sink:     "test-sink",
+			create := &ctrlpb.CreateSubscriptionRequest{
+				Subscription: &ctrlpb.SubscriptionRequest{
+					EventBus: "test-bus",
+					Sink:     "test-sink",
+				},
 			}
-			resp, err := ctrl.CreateSubscription(ctx, request)
+			request := create.Subscription
+			resp, err := ctrl.CreateSubscription(ctx, create)
 			So(err, ShouldBeNil)
 			So(resp.Sink, ShouldEqual, request.Sink)
 			So(resp.EventBus, ShouldEqual, request.EventBus)
-			resp2, err := ctrl.CreateSubscription(ctx, request)
+			resp2, err := ctrl.CreateSubscription(ctx, create)
 			So(err, ShouldBeNil)
 			So(resp2.Sink, ShouldEqual, request.Sink)
 			So(resp2.EventBus, ShouldEqual, request.EventBus)
@@ -163,8 +166,10 @@ func TestController_UpdateSubscription(t *testing.T) {
 		Convey("update subscription not exist", func() {
 			subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).Return(nil)
 			request := &ctrlpb.UpdateSubscriptionRequest{
-				Sink: "test-sink",
-				Id:   subID.Uint64(),
+				Subscription: &ctrlpb.SubscriptionRequest{
+					Sink: "test-sink",
+				},
+				Id: subID.Uint64(),
 			}
 			_, err := ctrl.UpdateSubscription(ctx, request)
 			So(err, ShouldNotBeNil)
@@ -175,54 +180,135 @@ func TestController_UpdateSubscription(t *testing.T) {
 			TriggerWorker: "test-addr",
 			EventBus:      "test-eb",
 			Sink:          "test-sink",
+			Protocol:      primitive.HTTPProtocol,
 		}
 		b, _ := stdJson.Marshal(sub)
 		var _sub *metadata.Subscription
 		_ = stdJson.Unmarshal(b, &_sub)
 		subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).AnyTimes().Return(_sub)
-		Convey("update subscription rate limit", func() {
-			Convey("rate limit no change", func() {
+		Convey("no change", func() {
+			request := &ctrlpb.UpdateSubscriptionRequest{
+				Id: subID.Uint64(),
+				Subscription: &ctrlpb.SubscriptionRequest{
+					EventBus: "test-eb",
+					Sink:     "test-sink",
+				},
+			}
+			_, err := ctrl.UpdateSubscription(ctx, request)
+			So(err, ShouldNotBeNil)
+		})
+		Convey("tet update eventbus fail", func() {
+			request := &ctrlpb.UpdateSubscriptionRequest{
+				Id: subID.Uint64(),
+				Subscription: &ctrlpb.SubscriptionRequest{
+					EventBus: "test-eb-modify",
+					Sink:     "test-sink",
+				},
+			}
+			_, err := ctrl.UpdateSubscription(ctx, request)
+			So(err, ShouldNotBeNil)
+		})
+		Convey("tet update sink credential", func() {
+			Convey("sink is invalid", func() {
 				request := &ctrlpb.UpdateSubscriptionRequest{
 					Id: subID.Uint64(),
-					Config: &metapb.SubscriptionConfig{
-						RateLimit: 0,
+					Subscription: &ctrlpb.SubscriptionRequest{
+						EventBus: "test-eb",
+						Sink:     "test-sink",
+						Protocol: metapb.Protocol_AWS_LAMBDA,
+						SinkCredential: &metapb.SinkCredential{
+							CredentialType: metapb.SinkCredential_CLOUD,
+						},
 					},
 				}
 				_, err := ctrl.UpdateSubscription(ctx, request)
 				So(err, ShouldNotBeNil)
 			})
-			Convey("rate limit invalid", func() {
+			Convey("credential type is invalid", func() {
 				request := &ctrlpb.UpdateSubscriptionRequest{
 					Id: subID.Uint64(),
-					Config: &metapb.SubscriptionConfig{
-						RateLimit: -2,
+					Subscription: &ctrlpb.SubscriptionRequest{
+						EventBus: "test-eb",
+						Sink:     "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
+						Protocol: metapb.Protocol_AWS_LAMBDA,
+						SinkCredential: &metapb.SinkCredential{
+							CredentialType: metapb.SinkCredential_PLAIN,
+						},
 					},
 				}
 				_, err := ctrl.UpdateSubscription(ctx, request)
 				So(err, ShouldNotBeNil)
 			})
-			Convey("rate limit change", func() {
+			Convey("ak,sk is empty", func() {
+				request := &ctrlpb.UpdateSubscriptionRequest{
+					Id: subID.Uint64(),
+					Subscription: &ctrlpb.SubscriptionRequest{
+						EventBus: "test-eb",
+						Sink:     "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
+						Protocol: metapb.Protocol_AWS_LAMBDA,
+						SinkCredential: &metapb.SinkCredential{
+							CredentialType: metapb.SinkCredential_CLOUD,
+						},
+					},
+				}
+				_, err := ctrl.UpdateSubscription(ctx, request)
+				So(err, ShouldNotBeNil)
+			})
+			Convey("success", func() {
+				request := &ctrlpb.UpdateSubscriptionRequest{
+					Id: subID.Uint64(),
+					Subscription: &ctrlpb.SubscriptionRequest{
+						EventBus: "test-eb",
+						Sink:     "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
+						Protocol: metapb.Protocol_AWS_LAMBDA,
+						SinkCredential: &metapb.SinkCredential{
+							CredentialType: metapb.SinkCredential_CLOUD,
+							Credential: &metapb.SinkCredential_Cloud{
+								Cloud: &metapb.CloudCredential{
+									AccessKeyId:     "test_ak",
+									SecretAccessKey: "test_sk",
+								},
+							},
+						},
+					},
+				}
 				subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
-				request := &ctrlpb.UpdateSubscriptionRequest{
-					Id: subID.Uint64(),
+				resp, err := ctrl.UpdateSubscription(ctx, request)
+				So(err, ShouldBeNil)
+				So(resp.Protocol, ShouldEqual, request.Subscription.Protocol)
+				So(resp.SinkCredential.CredentialType, ShouldEqual, request.Subscription.SinkCredential.CredentialType)
+				So(resp.SinkCredential.GetCloud().AccessKeyId, ShouldEqual, primitive.SecretsMask)
+				So(resp.SinkCredential.GetCloud().SecretAccessKey, ShouldEqual, primitive.SecretsMask)
+			})
+		})
+		Convey("update rate limit", func() {
+			subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
+			request := &ctrlpb.UpdateSubscriptionRequest{
+				Id: subID.Uint64(),
+				Subscription: &ctrlpb.SubscriptionRequest{
+					EventBus: "test-eb",
+					Sink:     "test-sink",
 					Config: &metapb.SubscriptionConfig{
 						RateLimit: -1,
 					},
-				}
-				resp, err := ctrl.UpdateSubscription(ctx, request)
-				So(err, ShouldBeNil)
-				So(resp.Config.RateLimit, ShouldEqual, request.Config.RateLimit)
-			})
+				},
+			}
+			resp, err := ctrl.UpdateSubscription(ctx, request)
+			So(err, ShouldBeNil)
+			So(resp.Config.RateLimit, ShouldEqual, request.Subscription.Config.RateLimit)
 		})
 		Convey("update subscription sink", func() {
 			subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
 			request := &ctrlpb.UpdateSubscriptionRequest{
-				Id:   subID.Uint64(),
-				Sink: "modify-sink",
+				Id: subID.Uint64(),
+				Subscription: &ctrlpb.SubscriptionRequest{
+					EventBus: "test-eb",
+					Sink:     "modify-sink",
+				},
 			}
 			resp, err := ctrl.UpdateSubscription(ctx, request)
 			So(err, ShouldBeNil)
-			So(resp.Sink, ShouldEqual, request.Sink)
+			So(resp.Sink, ShouldEqual, request.Subscription.Sink)
 			So(resp.Sink, ShouldNotEqual, sub.Sink)
 			So(resp.EventBus, ShouldEqual, sub.EventBus)
 		})
@@ -230,9 +316,13 @@ func TestController_UpdateSubscription(t *testing.T) {
 			subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
-				Filters: []*metapb.Filter{
-					{
-						Exact: map[string]string{"type": "test"},
+				Subscription: &ctrlpb.SubscriptionRequest{
+					EventBus: "test-eb",
+					Sink:     "test-sink",
+					Filters: []*metapb.Filter{
+						{
+							Exact: map[string]string{"type": "test"},
+						},
 					},
 				},
 			}
@@ -245,9 +335,13 @@ func TestController_UpdateSubscription(t *testing.T) {
 			subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
-				Transformer: &metapb.Transformer{
-					Define:   map[string]string{"k": "v"},
-					Template: "test",
+				Subscription: &ctrlpb.SubscriptionRequest{
+					EventBus: "test-eb",
+					Sink:     "test-sink",
+					Transformer: &metapb.Transformer{
+						Define:   map[string]string{"k": "v"},
+						Template: "test",
+					},
 				},
 			}
 			resp, err := ctrl.UpdateSubscription(ctx, request)

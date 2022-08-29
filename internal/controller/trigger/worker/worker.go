@@ -129,29 +129,57 @@ func (tw *triggerWorker) handler(ctx context.Context, subscriptionID vanus.ID) e
 		// no assign to this trigger worker,remove subscription
 		return tw.removeSubscription(ctx, subscriptionID)
 	}
-	subscription := tw.subscriptionManager.GetSubscription(ctx, subscriptionID)
-	if subscription == nil {
+	sub := tw.subscriptionManager.GetSubscription(ctx, subscriptionID)
+	if sub == nil {
 		return nil
 	}
 	offsets, err := tw.subscriptionManager.GetOffset(ctx, subscriptionID)
 	if err != nil {
 		return err
 	}
+	var filters []*primitive.SubscriptionFilter
+	copy(filters, sub.Filters)
+	// filters = sub.Filters
+	if sub.Source != "" {
+		filters = append(filters, &primitive.SubscriptionFilter{
+			Exact: map[string]string{"source": sub.Source},
+		})
+	}
+	if len(sub.Types) > 0 {
+		if len(sub.Types) == 1 {
+			filters = append(filters, &primitive.SubscriptionFilter{
+				Exact: map[string]string{"type": sub.Types[0]},
+			})
+		} else {
+			types := make([]*primitive.SubscriptionFilter, len(sub.Types))
+			for i, t := range sub.Types {
+				types[i] = &primitive.SubscriptionFilter{
+					Exact: map[string]string{"type": t},
+				}
+			}
+			filters = append(filters, &primitive.SubscriptionFilter{
+				Any: types,
+			})
+		}
+	}
 	err = tw.addSubscription(ctx, &primitive.Subscription{
-		ID:          subscription.ID,
-		Filters:     subscription.Filters,
-		Sink:        subscription.Sink,
-		EventBus:    subscription.EventBus,
-		Offsets:     offsets,
-		Transformer: subscription.Transformer,
-		Config:      subscription.Config,
+		ID:              sub.ID,
+		Filters:         filters,
+		Sink:            sub.Sink,
+		EventBus:        sub.EventBus,
+		Offsets:         offsets,
+		Transformer:     sub.Transformer,
+		Config:          sub.Config,
+		Protocol:        sub.Protocol,
+		ProtocolSetting: sub.ProtocolSetting,
+		SinkCredential:  sub.SinkCredential,
 	})
 	if err != nil {
 		return err
 	}
 	// modify subscription to running
-	subscription.Phase = metadata.SubscriptionPhaseRunning
-	err = tw.subscriptionManager.UpdateSubscription(ctx, subscription)
+	sub.Phase = metadata.SubscriptionPhaseRunning
+	err = tw.subscriptionManager.UpdateSubscription(ctx, sub)
 	if err != nil {
 		return err
 	}

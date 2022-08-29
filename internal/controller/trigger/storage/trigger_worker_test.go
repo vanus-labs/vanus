@@ -33,8 +33,7 @@ func TestSaveTriggerWorker(t *testing.T) {
 	s := NewTriggerWorkerStorage(kvClient).(*triggerWorkerStorage)
 	id := "testID"
 	Convey("create trigger worker", t, func() {
-		kvClient.EXPECT().Exists(ctx, s.getKey(id)).Return(false, nil)
-		kvClient.EXPECT().Create(ctx, s.getKey(id), gomock.Any()).Return(nil)
+		kvClient.EXPECT().Set(ctx, s.getKey(id), gomock.Any()).Return(nil)
 		err := s.SaveTriggerWorker(ctx, metadata.TriggerWorkerInfo{
 			ID:   id,
 			Addr: "test",
@@ -43,8 +42,7 @@ func TestSaveTriggerWorker(t *testing.T) {
 	})
 
 	Convey("update trigger worker", t, func() {
-		kvClient.EXPECT().Exists(ctx, s.getKey(id)).Return(true, nil)
-		kvClient.EXPECT().Update(ctx, s.getKey(id), gomock.Any()).Return(nil)
+		kvClient.EXPECT().Set(ctx, s.getKey(id), gomock.Any()).Return(nil)
 		err := s.SaveTriggerWorker(ctx, metadata.TriggerWorkerInfo{
 			ID:   id,
 			Addr: "test",

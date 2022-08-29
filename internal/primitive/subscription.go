@@ -22,13 +22,27 @@ import (
 type URI string
 
 type Subscription struct {
-	ID          vanus.ID              `json:"id"`
-	Filters     []*SubscriptionFilter `json:"filters,omitempty"`
-	Sink        URI                   `json:"sink,omitempty"`
-	EventBus    string                `json:"eventbus"`
-	Offsets     info.ListOffsetInfo   `json:"offsets"`
-	Transformer *Transformer          `json:"transformer,omitempty"`
-	Config      SubscriptionConfig    `json:"config,omitempty"`
+	ID              vanus.ID              `json:"id"`
+	Filters         []*SubscriptionFilter `json:"filters,omitempty"`
+	Sink            URI                   `json:"sink,omitempty"`
+	EventBus        string                `json:"eventbus"`
+	Offsets         info.ListOffsetInfo   `json:"offsets"`
+	Transformer     *Transformer          `json:"transformer,omitempty"`
+	Config          SubscriptionConfig    `json:"config,omitempty"`
+	Protocol        Protocol              `json:"protocol,omitempty"`
+	ProtocolSetting *ProtocolSetting      `json:"protocolSetting,omitempty"`
+	SinkCredential  SinkCredential        `json:"sink_credential,omitempty"`
+}
+
+type Protocol string
+
+const (
+	HTTPProtocol      Protocol = "http"
+	AwsLambdaProtocol Protocol = "aws-lambda"
+)
+
+type ProtocolSetting struct {
+	Headers map[string]string `json:"headers,omitempty"`
 }
 
 type OffsetType int32
@@ -40,18 +54,10 @@ const (
 )
 
 type SubscriptionConfig struct {
-	RateLimit       int32      `json:"rate_limit,omitempty"`
+	RateLimit int32 `json:"rate_limit,omitempty"`
+	// consumer from
 	OffsetType      OffsetType `json:"offset_type,omitempty"`
 	OffsetTimestamp *uint64    `json:"offset_timestamp,omitempty"`
-}
-
-func (conf *SubscriptionConfig) Change(curr SubscriptionConfig) bool {
-	change := false
-	if curr.RateLimit != 0 && conf.RateLimit != curr.RateLimit {
-		change = true
-		conf.RateLimit = curr.RateLimit
-	}
-	return change
 }
 
 type SubscriptionFilter struct {

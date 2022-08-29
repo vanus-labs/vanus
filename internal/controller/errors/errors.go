@@ -26,6 +26,8 @@ var (
 	ErrServerNotStart = rpcerr.New("server not start").WithGRPCCode(rpcerr.ErrorCode_SERVICE_NOT_RUNNING)
 	ErrJSONMarshal    = rpcerr.New("json marshal").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
 	ErrJSONUnMarshal  = rpcerr.New("json unmarshal").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
+	ErrAESEncrypt     = rpcerr.New("aes encrypt").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
+	ErrAESDecrypt     = rpcerr.New("aes decrypt").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
 
 	ErrTriggerWorker = rpcerr.New("trigger worker error").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
 

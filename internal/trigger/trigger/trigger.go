@@ -23,10 +23,10 @@ import (
 	"sync"
 	"time"
 
-	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/trigger/client"
 	"github.com/linkall-labs/vanus/internal/trigger/filter"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
@@ -35,6 +35,8 @@ import (
 	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
+
+	ce "github.com/cloudevents/sdk-go/v2"
 	"go.uber.org/ratelimit"
 )
 
@@ -67,7 +69,7 @@ type trigger struct {
 	reader        reader.Reader
 	eventCh       chan info.EventRecord
 	sendCh        chan info.EventRecord
-	ceClient      ce.Client
+	client        client.EventClient
 	filter        filter.Filter
 	transformer   *transform.Transformer
 	rateLimiter   ratelimit.Limiter
@@ -88,13 +90,11 @@ func NewTrigger(subscription *primitive.Subscription, opts ...Option) Trigger {
 		offsetManager:     offset.NewSubscriptionOffset(subscription.ID),
 		subscription:      subscription,
 		subscriptionIDStr: subscription.ID.String(),
+		transformer:       transform.NewTransformer(subscription.Transformer),
 	}
 	t.applyOptions(opts...)
 	if t.rateLimiter == nil {
 		t.rateLimiter = ratelimit.NewUnlimited()
-	}
-	if subscription.Transformer != nil {
-		t.transformer = transform.NewTransformer(subscription.Transformer)
 	}
 	return t
 }
@@ -105,20 +105,34 @@ func (t *trigger) applyOptions(opts ...Option) {
 	}
 }
 
-func (t *trigger) getCeClient() ce.Client {
+func (t *trigger) getClient() client.EventClient {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
-	return t.ceClient
+	return t.client
 }
 
-func (t *trigger) changeTarget(target primitive.URI) error {
-	ceClient, err := NewCeClient(target)
-	if err != nil {
-		return err
+func newEventClient(sink primitive.URI,
+	protocol primitive.Protocol,
+	credential primitive.SinkCredential) client.EventClient {
+	switch protocol {
+	case primitive.AwsLambdaProtocol:
+		_credential, _ := credential.(*primitive.CloudSinkCredential)
+		return client.NewAwsLambdaClient(_credential.AccessKeyID, _credential.SecretAccessKey, string(sink))
+	default:
+		return client.NewHTTPClient(string(sink))
 	}
+}
+
+func (t *trigger) changeTarget(sink primitive.URI,
+	protocol primitive.Protocol,
+	credential primitive.SinkCredential) error {
+	eventCli := newEventClient(sink, protocol, credential)
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	t.ceClient = ceClient
+	t.client = eventCli
+	t.subscription.Sink = sink
+	t.subscription.Protocol = protocol
+	t.subscription.SinkCredential = credential
 	return nil
 }
 
@@ -129,9 +143,11 @@ func (t *trigger) getFilter() filter.Filter {
 }
 
 func (t *trigger) changeFilter(filters []*primitive.SubscriptionFilter) {
+	f := filter.GetFilter(filters)
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	t.filter = filter.GetFilter(filters)
+	t.filter = f
+	t.subscription.Filters = filters
 }
 
 func (t *trigger) getTransformer() *transform.Transformer {
@@ -141,21 +157,20 @@ func (t *trigger) getTransformer() *transform.Transformer {
 }
 
 func (t *trigger) changeTransformer(transformer *primitive.Transformer) {
+	trans := transform.NewTransformer(transformer)
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	if transformer == nil || transformer.Define == nil && transformer.Template == "" {
-		t.transformer = nil
-	} else {
-		t.transformer = transform.NewTransformer(transformer)
-	}
+	t.transformer = trans
+	t.subscription.Transformer = transformer
 }
 
 func (t *trigger) changeConfig(config primitive.SubscriptionConfig) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	if config.RateLimit != 0 && config.RateLimit != t.config.RateLimit {
+	if config.RateLimit != t.config.RateLimit {
 		t.applyOptions(WithRateLimit(config.RateLimit))
 	}
+	t.subscription.Config = config
 }
 
 // eventArrived for test.
@@ -174,7 +189,7 @@ func (t *trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 		timeout, cancel := context.WithTimeout(ctx, t.config.SendTimeOut)
 		defer cancel()
 		t.rateLimiter.Take()
-		return t.getCeClient().Send(timeout, *e)
+		return t.getClient().Send(timeout, *e)
 	}
 	var err error
 	transformer := t.getTransformer()
@@ -187,9 +202,9 @@ func (t *trigger) retrySendEvent(ctx context.Context, e *ce.Event) error {
 	for retryTimes < t.config.MaxRetryTimes {
 		retryTimes++
 		startTime := time.Now()
-		if err = doFunc(); !ce.IsACK(err) {
+		if err = doFunc(); err != nil {
 			metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelValuePushEventFail).Inc()
-			log.Debug(ctx, "process event error", map[string]interface{}{
+			log.Info(ctx, "process event error", map[string]interface{}{
 				"error": err, "retryTimes": retryTimes,
 			})
 			time.Sleep(t.config.RetryInterval)
@@ -283,11 +298,7 @@ func getOffset(subscriptionOffset *offset.SubscriptionOffset, sub *primitive.Sub
 }
 
 func (t *trigger) Init(ctx context.Context) error {
-	ceClient, err := NewCeClient(t.subscription.Sink)
-	if err != nil {
-		return err
-	}
-	t.ceClient = ceClient
+	t.client = newEventClient(t.subscription.Sink, t.subscription.Protocol, t.subscription.SinkCredential)
 	t.eventCh = make(chan info.EventRecord, t.config.BufferSize)
 	t.sendCh = make(chan info.EventRecord, t.config.BufferSize)
 	t.reader = reader.NewReader(t.getReaderConfig(), t.eventCh)
@@ -335,23 +346,21 @@ func (t *trigger) Stop(ctx context.Context) error {
 }
 
 func (t *trigger) Change(ctx context.Context, subscription *primitive.Subscription) error {
-	if t.subscription.Sink != subscription.Sink {
-		t.subscription.Sink = subscription.Sink
-		err := t.changeTarget(subscription.Sink)
+	if t.subscription.Sink != subscription.Sink ||
+		t.subscription.Protocol != subscription.Protocol ||
+		!reflect.DeepEqual(t.subscription.SinkCredential, subscription.SinkCredential) {
+		err := t.changeTarget(subscription.Sink, subscription.Protocol, subscription.SinkCredential)
 		if err != nil {
 			return err
 		}
 	}
 	if !reflect.DeepEqual(t.subscription.Filters, subscription.Filters) {
-		t.subscription.Filters = subscription.Filters
 		t.changeFilter(subscription.Filters)
 	}
 	if !reflect.DeepEqual(t.subscription.Transformer, subscription.Transformer) {
-		t.subscription.Transformer = subscription.Transformer
 		t.changeTransformer(subscription.Transformer)
 	}
 	if !reflect.DeepEqual(t.subscription.Config, subscription.Config) {
-		t.subscription.Config = subscription.Config
 		t.changeConfig(subscription.Config)
 	}
 	return nil
