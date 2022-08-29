@@ -22,14 +22,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/trigger/client"
-
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/trigger/client"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/reader"
 	. "github.com/smartystreets/goconvey/convey"

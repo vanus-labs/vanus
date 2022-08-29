@@ -27,30 +27,31 @@ type SinkCredential interface {
 	GetType() CredentialType
 }
 
-func UpdateSinkCredential(original, now SinkCredential) {
-	if original == nil || now == nil {
+func FillSinkCredential(dst, src SinkCredential) {
+	if dst == nil || src == nil {
 		return
 	}
-	if original.GetType() != now.GetType() {
+	if dst.GetType() != src.GetType() {
 		return
 	}
-	switch original.GetType() {
+	switch dst.GetType() {
 	case Plain:
-		credential, _ := now.(*PlainSinkCredential)
-		_credential, _ := original.(*PlainSinkCredential)
-		if credential.Identifier == SecretsMask &&
-			credential.Secret == SecretsMask {
-			credential.Identifier = _credential.Identifier
-			credential.Secret = _credential.Secret
-			return
+		_dst, _ := dst.(*PlainSinkCredential)
+		_src, _ := src.(*PlainSinkCredential)
+		if _dst.Identifier == SecretsMask {
+			_dst.Identifier = _src.Identifier
+		}
+		if _dst.Secret == SecretsMask {
+			_dst.Secret = _src.Secret
 		}
 	case Cloud:
-		credential, _ := now.(*CloudSinkCredential)
-		_credential, _ := original.(*CloudSinkCredential)
-		if credential.AccessKeyID == SecretsMask &&
-			credential.SecretAccessKey == SecretsMask {
-			credential.AccessKeyID = _credential.AccessKeyID
-			credential.SecretAccessKey = _credential.SecretAccessKey
+		_dst, _ := src.(*CloudSinkCredential)
+		_src, _ := dst.(*CloudSinkCredential)
+		if _dst.AccessKeyID == SecretsMask {
+			_dst.AccessKeyID = _src.AccessKeyID
+		}
+		if _dst.SecretAccessKey == SecretsMask {
+			_dst.SecretAccessKey = _src.SecretAccessKey
 		}
 	}
 }

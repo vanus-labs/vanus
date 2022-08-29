@@ -90,13 +90,11 @@ func NewTrigger(subscription *primitive.Subscription, opts ...Option) Trigger {
 		offsetManager:     offset.NewSubscriptionOffset(subscription.ID),
 		subscription:      subscription,
 		subscriptionIDStr: subscription.ID.String(),
+		transformer:       transform.NewTransformer(subscription.Transformer),
 	}
 	t.applyOptions(opts...)
 	if t.rateLimiter == nil {
 		t.rateLimiter = ratelimit.NewUnlimited()
-	}
-	if subscription.Transformer != nil {
-		t.transformer = transform.NewTransformer(subscription.Transformer)
 	}
 	return t
 }
@@ -113,22 +111,28 @@ func (t *trigger) getClient() client.EventClient {
 	return t.client
 }
 
-func (t *trigger) newEventClient() client.EventClient {
-	sub := t.subscription
-	switch sub.Protocol {
+func newEventClient(sink primitive.URI,
+	protocol primitive.Protocol,
+	credential primitive.SinkCredential) client.EventClient {
+	switch protocol {
 	case primitive.AwsLambdaProtocol:
-		credential, _ := sub.SinkCredential.(*primitive.CloudSinkCredential)
-		return client.NewAwsLambdaClient(credential.AccessKeyID, credential.SecretAccessKey, string(sub.Sink))
+		_credential, _ := credential.(*primitive.CloudSinkCredential)
+		return client.NewAwsLambdaClient(_credential.AccessKeyID, _credential.SecretAccessKey, string(sink))
 	default:
-		return client.NewHTTPClient(string(sub.Sink))
+		return client.NewHTTPClient(string(sink))
 	}
 }
 
-func (t *trigger) changeTarget() error {
-	eventCli := t.newEventClient()
+func (t *trigger) changeTarget(sink primitive.URI,
+	protocol primitive.Protocol,
+	credential primitive.SinkCredential) error {
+	eventCli := newEventClient(sink, protocol, credential)
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	t.client = eventCli
+	t.subscription.Sink = sink
+	t.subscription.Protocol = protocol
+	t.subscription.SinkCredential = credential
 	return nil
 }
 
@@ -138,11 +142,12 @@ func (t *trigger) getFilter() filter.Filter {
 	return t.filter
 }
 
-func (t *trigger) changeFilter() {
-	f := filter.GetFilter(t.subscription.Filters)
+func (t *trigger) changeFilter(filters []*primitive.SubscriptionFilter) {
+	f := filter.GetFilter(filters)
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	t.filter = f
+	t.subscription.Filters = filters
 }
 
 func (t *trigger) getTransformer() *transform.Transformer {
@@ -151,23 +156,21 @@ func (t *trigger) getTransformer() *transform.Transformer {
 	return t.transformer
 }
 
-func (t *trigger) changeTransformer() {
-	var transformer *transform.Transformer
-	if t.subscription.Transformer != nil &&
-		len(t.subscription.Transformer.Define) > 0 &&
-		t.subscription.Transformer.Template != "" {
-		transformer = transform.NewTransformer(t.subscription.Transformer)
-	}
+func (t *trigger) changeTransformer(transformer *primitive.Transformer) {
+	trans := transform.NewTransformer(transformer)
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	t.transformer = transformer
+	t.transformer = trans
+	t.subscription.Transformer = transformer
 }
 
-func (t *trigger) changeConfig() {
+func (t *trigger) changeConfig(config primitive.SubscriptionConfig) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	config := t.subscription.Config
-	t.applyOptions(WithRateLimit(config.RateLimit))
+	if config.RateLimit != t.config.RateLimit {
+		t.applyOptions(WithRateLimit(config.RateLimit))
+	}
+	t.subscription.Config = config
 }
 
 // eventArrived for test.
@@ -295,7 +298,7 @@ func getOffset(subscriptionOffset *offset.SubscriptionOffset, sub *primitive.Sub
 }
 
 func (t *trigger) Init(ctx context.Context) error {
-	t.client = t.newEventClient()
+	t.client = newEventClient(t.subscription.Sink, t.subscription.Protocol, t.subscription.SinkCredential)
 	t.eventCh = make(chan info.EventRecord, t.config.BufferSize)
 	t.sendCh = make(chan info.EventRecord, t.config.BufferSize)
 	t.reader = reader.NewReader(t.getReaderConfig(), t.eventCh)
@@ -346,25 +349,19 @@ func (t *trigger) Change(ctx context.Context, subscription *primitive.Subscripti
 	if t.subscription.Sink != subscription.Sink ||
 		t.subscription.Protocol != subscription.Protocol ||
 		!reflect.DeepEqual(t.subscription.SinkCredential, subscription.SinkCredential) {
-		t.subscription.Sink = subscription.Sink
-		t.subscription.Protocol = subscription.Protocol
-		t.subscription.SinkCredential = subscription.SinkCredential
-		err := t.changeTarget()
+		err := t.changeTarget(subscription.Sink, subscription.Protocol, subscription.SinkCredential)
 		if err != nil {
 			return err
 		}
 	}
 	if !reflect.DeepEqual(t.subscription.Filters, subscription.Filters) {
-		t.subscription.Filters = subscription.Filters
-		t.changeFilter()
+		t.changeFilter(subscription.Filters)
 	}
 	if !reflect.DeepEqual(t.subscription.Transformer, subscription.Transformer) {
-		t.subscription.Transformer = subscription.Transformer
-		t.changeTransformer()
+		t.changeTransformer(subscription.Transformer)
 	}
 	if !reflect.DeepEqual(t.subscription.Config, subscription.Config) {
-		t.subscription.Config = subscription.Config
-		t.changeConfig()
+		t.changeConfig(subscription.Config)
 	}
 	return nil
 }

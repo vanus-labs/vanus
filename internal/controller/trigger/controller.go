@@ -18,7 +18,6 @@ import (
 	"context"
 	stdErr "errors"
 	"io"
-	"reflect"
 	"sync"
 	"time"
 
@@ -64,7 +63,7 @@ type controller struct {
 	config                Config
 	member                embedetcd.Member
 	storage               storage.Storage
-	secret                secret.Storage
+	secretStorage         secret.Storage
 	subscriptionManager   subscription.Manager
 	workerManager         worker.Manager
 	scheduler             *worker.SubscriptionScheduler
@@ -165,19 +164,16 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 	if request.Subscription.EventBus != sub.EventBus {
 		return nil, errors.ErrInvalidRequest.WithMessage("eventbus can not change")
 	}
-	updateSub := convert.FromPbSubscriptionRequest(request.Subscription)
-	primitive.UpdateSinkCredential(sub.SinkCredential, updateSub.SinkCredential)
-	updateSub.CloneNotFromAPI(sub)
-	change := !reflect.DeepEqual(updateSub, sub)
+	change := sub.Update(convert.FromPbSubscriptionRequest(request.Subscription))
 	if !change {
 		return nil, errors.ErrInvalidRequest.WithMessage("no change")
 	}
-	updateSub.Phase = metadata.SubscriptionPhasePending
-	if err := ctrl.subscriptionManager.UpdateSubscription(ctx, updateSub); err != nil {
+	sub.Phase = metadata.SubscriptionPhasePending
+	if err := ctrl.subscriptionManager.UpdateSubscription(ctx, sub); err != nil {
 		return nil, err
 	}
-	ctrl.scheduler.EnqueueNormalSubscription(updateSub.ID)
-	resp := convert.ToPbSubscription(updateSub, nil)
+	ctrl.scheduler.EnqueueNormalSubscription(sub.ID)
+	resp := convert.ToPbSubscription(sub, nil)
 	return resp, nil
 }
 
@@ -381,7 +377,7 @@ func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, ad
 }
 
 func (ctrl *controller) init(ctx context.Context) error {
-	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage, ctrl.secret)
+	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage, ctrl.secretStorage)
 	ctrl.workerManager = worker.NewTriggerWorkerManager(worker.Config{}, ctrl.storage,
 		ctrl.subscriptionManager, ctrl.requeueSubscription)
 	ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
@@ -466,11 +462,11 @@ func (ctrl *controller) Start() error {
 		return err
 	}
 	ctrl.storage = s
-	secret, err := storage.NewSecretStorage(ctrl.config.Storage, ctrl.config.SecretEncryptionSalt)
+	secretStorage, err := storage.NewSecretStorage(ctrl.config.Storage, ctrl.config.SecretEncryptionSalt)
 	if err != nil {
 		return err
 	}
-	ctrl.secret = secret
+	ctrl.secretStorage = secretStorage
 	go ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
 	return nil
 }

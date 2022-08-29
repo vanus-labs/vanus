@@ -51,17 +51,17 @@ var (
 )
 
 type manager struct {
-	secret          secret.Storage
+	secretStorage   secret.Storage
 	storage         storage.Storage
 	offsetManager   offset.Manager
 	lock            sync.RWMutex
 	subscriptionMap map[vanus.ID]*metadata.Subscription
 }
 
-func NewSubscriptionManager(storage storage.Storage, secret secret.Storage) Manager {
+func NewSubscriptionManager(storage storage.Storage, secretStorage secret.Storage) Manager {
 	m := &manager{
 		storage:         storage,
-		secret:          secret,
+		secretStorage:   secretStorage,
 		subscriptionMap: map[vanus.ID]*metadata.Subscription{},
 	}
 	return m
@@ -106,8 +106,8 @@ func (m *manager) GetSubscription(ctx context.Context, id vanus.ID) *metadata.Su
 func (m *manager) AddSubscription(ctx context.Context, subscription *metadata.Subscription) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	if subscription.SinkCredentialType != nil {
-		if err := m.secret.Write(ctx, subscription.ID, subscription.SinkCredential); err != nil {
+	if subscription.SinkCredential != nil {
+		if err := m.secretStorage.Write(ctx, subscription.ID, subscription.SinkCredential); err != nil {
 			return err
 		}
 	}
@@ -134,11 +134,11 @@ func (m *manager) UpdateSubscription(ctx context.Context, sub *metadata.Subscrip
 		return nil
 	}
 	if sub.SinkCredential == nil {
-		if err := m.secret.Delete(ctx, sub.ID); err != nil {
+		if err := m.secretStorage.Delete(ctx, sub.ID); err != nil {
 			return err
 		}
 	} else {
-		if err := m.secret.Write(ctx, sub.ID, sub.SinkCredential); err != nil {
+		if err := m.secretStorage.Write(ctx, sub.ID, sub.SinkCredential); err != nil {
 			return err
 		}
 	}
@@ -161,7 +161,7 @@ func (m *manager) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 	if err := m.storage.DeleteSubscription(ctx, id); err != nil {
 		return err
 	}
-	if err := m.secret.Delete(ctx, id); err != nil {
+	if err := m.secretStorage.Delete(ctx, id); err != nil {
 		return err
 	}
 	delete(m.subscriptionMap, id)
@@ -208,7 +208,7 @@ func (m *manager) Init(ctx context.Context) error {
 	for i := range subList {
 		sub := subList[i]
 		if sub.SinkCredentialType != nil {
-			credential, err := m.secret.Read(ctx, sub.ID, *sub.SinkCredentialType)
+			credential, err := m.secretStorage.Read(ctx, sub.ID, *sub.SinkCredentialType)
 			if err != nil {
 				return err
 			}

@@ -63,7 +63,7 @@ func (l *awsLambda) Send(ctx context.Context, event ce.Event) error {
 		return errors.ErrLambdaInvoke.Wrap(err)
 	}
 	if resp.StatusCode >= errStatusCode {
-		return errors.ErrLambdaInvokeResp.WithMessage(fmt.Sprintf("status code:%d", resp.StatusCode))
+		return errors.ErrLambdaInvokeResponse.WithMessage(fmt.Sprintf("status code:%d", resp.StatusCode))
 	}
 	return nil
 }

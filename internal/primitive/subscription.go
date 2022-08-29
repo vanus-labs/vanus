@@ -60,15 +60,6 @@ type SubscriptionConfig struct {
 	OffsetTimestamp *uint64    `json:"offset_timestamp,omitempty"`
 }
 
-func (conf *SubscriptionConfig) Change(curr SubscriptionConfig) bool {
-	change := false
-	if curr.RateLimit != 0 && conf.RateLimit != curr.RateLimit {
-		change = true
-		conf.RateLimit = curr.RateLimit
-	}
-	return change
-}
-
 type SubscriptionFilter struct {
 	Exact  map[string]string     `json:"exact,omitempty"`
 	Prefix map[string]string     `json:"prefix,omitempty"`

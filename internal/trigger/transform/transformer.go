@@ -30,6 +30,9 @@ type Transformer struct {
 }
 
 func NewTransformer(transformer *primitive.Transformer) *Transformer {
+	if transformer == nil || transformer.Template == "" {
+		return nil
+	}
 	tf := &Transformer{
 		define:   define.NewParse(),
 		template: template.NewParser(),
