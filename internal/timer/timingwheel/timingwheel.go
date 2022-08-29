@@ -250,7 +250,7 @@ func (tw *timingWheel) IsLeader() bool {
 }
 
 func (tw *timingWheel) IsDeployed(ctx context.Context) bool {
-	return tw.receivingStation.start(ctx) == nil && tw.distributionStation.start(ctx) == nil
+	return tw.receivingStation.isExistEventbus(ctx) && tw.distributionStation.isExistEventbus(ctx)
 }
 
 func (tw *timingWheel) RecoverForFailover(ctx context.Context) error {
