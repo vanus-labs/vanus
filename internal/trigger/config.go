@@ -27,10 +27,8 @@ type Config struct {
 	Port           int      `yaml:"port"`
 	IP             string   `yaml:"ip"`
 	ControllerAddr []string `yaml:"controllers"`
-	RateLimit      int32    `yaml:"rateLimit"`
 
-	CleanSubscriptionTimeout time.Duration
-	HeartbeatInterval        time.Duration
+	HeartbeatInterval time.Duration
 }
 
 func InitConfig(filename string) (*Config, error) {

@@ -22,8 +22,21 @@ import (
 )
 
 type Sender interface {
-	Send(ctx context.Context, event ce.Event) error
+	Send(ctx context.Context, event ce.Event) Result
 }
+
+type Result struct {
+	StatusCode int
+	Err        error
+}
+
+var Success Result
+
+const (
+	ErrInternalCode = 600
+	ErrHttp         = 650
+	ErrLambdaInvoke = 700
+)
 
 type EventClient interface {
 	Sender

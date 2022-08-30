@@ -40,9 +40,12 @@ var (
 	from           string
 	subscriptionID uint64
 
-	subProtocol        string
-	sinkCredentialType string
-	sinkCredential     string
+	subProtocol          string
+	sinkCredentialType   string
+	sinkCredential       string
+	eventDeliveryTimeout int32
+	maxRetryAttempts     int32
+	dlEventbus           string
 
 	showSegment bool
 	showBlock   bool

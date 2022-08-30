@@ -136,6 +136,15 @@ func createSubscriptionCommand() *cobra.Command {
 					config.OffsetType = meta.SubscriptionConfig_TIMESTAMP
 				}
 			}
+			if eventDeliveryTimeout != 0 {
+				config.DeliveryTimeout = eventDeliveryTimeout
+			}
+			if maxRetryAttempts != 0 {
+				config.MaxRetryAttempts = maxRetryAttempts
+			}
+			if dlEventbus != "" {
+				config.DeadLetterEventbus = dlEventbus
+			}
 
 			ctx := context.Background()
 			grpcConn := mustGetControllerProxyConn(ctx, cmd)
@@ -181,6 +190,9 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&sinkCredentialType, "credential-type", "", "sink credential type, plain or cloud, now only support cloud")
 	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, JSON format, "+
 		"when credential-type is cloud, need access_key_id and secret_access_key")
+	cmd.Flags().Int32Var(&eventDeliveryTimeout, "delivery-timeout", 0, "event delivery to sink timeout, unit millisecond")
+	cmd.Flags().Int32Var(&maxRetryAttempts, "max-retry-attempts", 0, "event delivery fail max retry attempts")
+	cmd.Flags().StringVar(&dlEventbus, "dl-eventbus", "", "dead letter eventbus")
 	return cmd
 }
 

@@ -144,6 +144,11 @@ message SubscriptionConfig {
   }
   OffsetType offset_type = 2;
   optional uint64 offset_timestamp = 3;
+  int32 max_retry_attempts = 4;
+  // delivery timeout, unit milliseconds
+  int32 delivery_timeout = 5;
+  // dead letter eventbus
+  string dead_letter_eventbus = 6;
 }
 
 message Filter {

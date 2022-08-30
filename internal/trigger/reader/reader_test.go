@@ -22,19 +22,16 @@ import (
 	"testing"
 	"time"
 
-	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/google/uuid"
-
-	"github.com/linkall-labs/vanus/client/pkg/eventlog"
-
-	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
-
-	"github.com/golang/mock/gomock"
-
 	eb "github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
+	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
+
+	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
 )

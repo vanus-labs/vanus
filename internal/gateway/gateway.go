@@ -36,6 +36,7 @@ import (
 
 const (
 	httpRequestPrefix    = "/gateway"
+	xceVanusPrefix       = "xvanus"
 	xceVanusEventbus     = "xvanuseventbus"
 	xceVanusDeliveryTime = "xvanusdeliverytime"
 	timerBuiltInEventbus = "__Timer_RS"
@@ -104,9 +105,19 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, pr
 		return nil, fmt.Errorf("invalid eventbus name")
 	}
 
-	event.SetExtension(xceVanusEventbus, ebName)
-
 	extensions := event.Extensions()
+	if len(extensions) > 0 {
+		for name := range extensions {
+			if name == xceVanusDeliveryTime {
+				continue
+			}
+			// event attribute can not prefix with vanus system use
+			if strings.HasPrefix(name, xceVanusPrefix) {
+				return nil, fmt.Errorf("invalid ce attribute [%s] perfix %s", name, xceVanusPrefix)
+			}
+		}
+	}
+
 	if eventTime, ok := extensions[xceVanusDeliveryTime]; ok {
 		// validate event time
 		if _, err := types.ParseTime(eventTime.(string)); err != nil {
@@ -118,6 +129,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, pr
 		}
 		ebName = timerBuiltInEventbus
 	}
+	event.SetExtension(xceVanusEventbus, ebName)
 
 	vrn := fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s", ga.config.ControllerAddr[0],
 		ebName, strings.Join(ga.config.ControllerAddr, ","))

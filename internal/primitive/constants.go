@@ -12,35 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package client
+package primitive
 
-import (
-	"context"
+const (
+	RetryEventBusName      = "__retry_eb"
+	DeadLetterEventBusName = "__dl_eb"
+	TimerEventBusName      = "__Timer_RS"
 
-	ce "github.com/cloudevents/sdk-go/v2"
-	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
+	XVanusEventbus              = "xvanuseventbus"
+	XVanusDeliveryTime          = "xvanusdeliverytime"
+	XVanusRetryAttempts         = "xvanusretryattempts"
+	XVanusSubscriptionID        = "xvanussubscriptionid"
+	XVanusLastDeliveryTime      = "xvanuslastdeliverytime"
+	XVanusLastDeliveryErrorInfo = "xvanuslastdeliveryerrorinfo"
+	XVanusDeadLetterReason      = "xvanusdeadletterreason"
+
+	MaxRetryAttempts = 32
 )
-
-type http struct {
-	client ce.Client
-}
-
-func NewHTTPClient(url string) EventClient {
-	c, _ := ce.NewClientHTTP(ce.WithTarget(url))
-	return &http{
-		client: c,
-	}
-}
-
-func (c *http) Send(ctx context.Context, event ce.Event) Result {
-	if err := c.client.Send(ctx, event); !ce.IsACK(err) {
-		r := Result{Err: err}
-		if v, ok := err.(*cehttp.Result); ok {
-			r.StatusCode = v.StatusCode
-		} else {
-			r.StatusCode = ErrHttp
-		}
-		return r
-	}
-	return Success
-}

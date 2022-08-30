@@ -24,11 +24,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/vanus/internal/trigger/errors"
-)
-
-const (
-	errStatusCode = 400
 )
 
 type awsLambda struct {
@@ -49,10 +44,13 @@ func NewAwsLambdaClient(accessKeyID, secretKeyID, arnStr string) EventClient {
 	}
 }
 
-func (l *awsLambda) Send(ctx context.Context, event ce.Event) error {
+func (l *awsLambda) Send(ctx context.Context, event ce.Event) Result {
 	payload, err := json.Marshal(event)
 	if err != nil {
-		return err
+		return Result{
+			StatusCode: ErrInternalCode,
+			Err:        err,
+		}
 	}
 	req := &lambda.InvokeInput{
 		FunctionName: l.arn,
@@ -60,10 +58,16 @@ func (l *awsLambda) Send(ctx context.Context, event ce.Event) error {
 	}
 	resp, err := l.client.Invoke(ctx, req)
 	if err != nil {
-		return errors.ErrLambdaInvoke.Wrap(err)
+		return Result{
+			StatusCode: ErrLambdaInvoke,
+			Err:        fmt.Errorf("lambda invke error:%s", err.Error()),
+		}
 	}
-	if resp.StatusCode >= errStatusCode {
-		return errors.ErrLambdaInvokeResponse.WithMessage(fmt.Sprintf("status code:%d", resp.StatusCode))
+	if resp.FunctionError != nil {
+		return Result{
+			StatusCode: int(resp.StatusCode),
+			Err:        fmt.Errorf("lambda invoke response error:%s", *resp.FunctionError),
+		}
 	}
-	return nil
+	return Success
 }

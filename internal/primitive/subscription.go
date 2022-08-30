@@ -56,8 +56,11 @@ const (
 type SubscriptionConfig struct {
 	RateLimit int32 `json:"rate_limit,omitempty"`
 	// consumer from
-	OffsetType      OffsetType `json:"offset_type,omitempty"`
-	OffsetTimestamp *uint64    `json:"offset_timestamp,omitempty"`
+	OffsetType         OffsetType `json:"offset_type,omitempty"`
+	OffsetTimestamp    *uint64    `json:"offset_timestamp,omitempty"`
+	DeliveryTimeout    int32      `json:"delivery_timeout,omitempty"`
+	MaxRetryAttempts   int32      `json:"max_retry_attempts,omitempty"`
+	DeadLetterEventbus string     `json:"dead_letter_eventbus,omitempty"`
 }
 
 type SubscriptionFilter struct {

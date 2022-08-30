@@ -36,10 +36,10 @@ func (m *MockSender) EXPECT() *MockSenderMockRecorder {
 }
 
 // Send mocks base method.
-func (m *MockSender) Send(ctx context.Context, event v2.Event) error {
+func (m *MockSender) Send(ctx context.Context, event v2.Event) Result {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Send", ctx, event)
-	ret0, _ := ret[0].(error)
+	ret0, _ := ret[0].(Result)
 	return ret0
 }
 
@@ -73,10 +73,10 @@ func (m *MockEventClient) EXPECT() *MockEventClientMockRecorder {
 }
 
 // Send mocks base method.
-func (m *MockEventClient) Send(ctx context.Context, event v2.Event) error {
+func (m *MockEventClient) Send(ctx context.Context, event v2.Event) Result {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Send", ctx, event)
-	ret0, _ := ret[0].(error)
+	ret0, _ := ret[0].(Result)
 	return ret0
 }
 
