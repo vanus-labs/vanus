@@ -60,7 +60,7 @@ func (l *awsLambda) Send(ctx context.Context, event ce.Event) Result {
 	if err != nil {
 		return Result{
 			StatusCode: ErrLambdaInvoke,
-			Err:        fmt.Errorf("lambda invke error:%s", err.Error()),
+			Err:        fmt.Errorf("lambda invke error:%w", err),
 		}
 	}
 	if resp.FunctionError != nil {

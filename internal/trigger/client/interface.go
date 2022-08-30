@@ -34,7 +34,7 @@ var Success Result
 
 const (
 	ErrInternalCode = 600
-	ErrHttp         = 650
+	ErrHTTP         = 650
 	ErrLambdaInvoke = 700
 )
 

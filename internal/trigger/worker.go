@@ -45,8 +45,7 @@ type Worker interface {
 }
 
 const (
-	defaultCleanSubscriptionTimeout = 5 * time.Second
-	defaultHeartbeatInterval        = 2 * time.Second
+	defaultHeartbeatInterval = 2 * time.Second
 )
 
 type newTrigger func(subscription *primitive.Subscription,

@@ -298,7 +298,13 @@ func (t *trigger) writeFailEvent(ctx context.Context, e *ce.Event, code int, sen
 	if needRetry {
 		// get attempts
 		if v, ok := ec.Extensions[primitive.XVanusRetryAttempts]; ok {
-			attempts = getRetryAttempts(v)
+			var err error
+			attempts, err = getRetryAttempts(v)
+			if err != nil {
+				log.Info(ctx, "get retry attempts error", map[string]interface{}{
+					log.KeyError: err,
+				})
+			}
 			if attempts >= t.getConfig().MaxRetryAttempts {
 				needRetry = false
 				reason = "MaxDeliveryAttemptExceeded"
@@ -515,7 +521,7 @@ func (t *trigger) ResetOffsetToTimestamp(ctx context.Context, timestamp int64) (
 	return offsets, nil
 }
 
-// GetOffsets contains retry eventlog
+// GetOffsets contains retry eventlog.
 func (t *trigger) GetOffsets(ctx context.Context) pInfo.ListOffsetInfo {
 	return t.offsetManager.GetCommit()
 }

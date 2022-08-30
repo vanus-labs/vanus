@@ -121,7 +121,8 @@ func validateSubscriptionConfig(ctx context.Context, cfg *metapb.SubscriptionCon
 		return errors.ErrInvalidRequest.WithMessage("offset type is invalid")
 	}
 	if cfg.MaxRetryAttempts > primitive.MaxRetryAttempts {
-		return errors.ErrInvalidRequest.WithMessage(fmt.Sprintf("max retry attempts can not gt than %d", primitive.MaxRetryAttempts))
+		return errors.ErrInvalidRequest.WithMessage(
+			fmt.Sprintf("max retry attempts can not gt than %d", primitive.MaxRetryAttempts))
 	}
 	return nil
 }

@@ -38,7 +38,7 @@ func (c *http) Send(ctx context.Context, event ce.Event) Result {
 		if v, ok := err.(*cehttp.Result); ok {
 			r.StatusCode = v.StatusCode
 		} else {
-			r.StatusCode = ErrHttp
+			r.StatusCode = ErrHTTP
 		}
 		return r
 	}

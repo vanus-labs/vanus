@@ -89,23 +89,17 @@ func calDeliveryTime(attempts int32) time.Duration {
 	return time.Duration(v) * time.Second
 }
 
-func getRetryAttempts(attempts interface{}) int32 {
+func getRetryAttempts(attempts interface{}) (int32, error) {
 	switch v := attempts.(type) {
 	case int32:
-		return v
+		return v, nil
 	case string:
-		if intV, err := strconv.Atoi(v); err == nil {
-			return int32(intV)
-		} else {
-			log.Info(context.Background(), "parse attempts fail", map[string]interface{}{
-				log.KeyError:                  err,
-				primitive.XVanusRetryAttempts: v,
-			})
+		intV, err := strconv.ParseInt(v, 10, 64)
+		if err == nil {
+			return int32(intV), nil
 		}
+		return 0, fmt.Errorf("parse int error: %w", err)
 	default:
-		log.Info(context.Background(), "attempts type not support", map[string]interface{}{
-			"type": v,
-		})
+		return 0, fmt.Errorf("attempts type %v not support", v)
 	}
-	return 0
 }
