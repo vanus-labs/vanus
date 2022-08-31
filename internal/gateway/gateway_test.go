@@ -21,11 +21,12 @@ import (
 	"testing"
 	"time"
 
-	ce "github.com/cloudevents/sdk-go/v2"
-	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/eventbus"
+	"github.com/linkall-labs/vanus/internal/primitive"
 
+	ce "github.com/cloudevents/sdk-go/v2"
+	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	. "github.com/golang/mock/gomock"
 	. "github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
@@ -79,7 +80,7 @@ func TestGateway_receive(t *testing.T) {
 				Opaque: "/gateway/test",
 			},
 		}
-		e.SetExtension(xceVanusDeliveryTime, "2006-01-02T15:04:05")
+		e.SetExtension(primitive.XVanusLastDeliveryTime, "2006-01-02T15:04:05")
 		stub := StubFunc(&requestDataFromContext, reqData)
 		defer stub.Reset()
 		_, ret := ga.receive(ctx, e)
@@ -104,6 +105,19 @@ func TestGateway_receive(t *testing.T) {
 	// })
 }
 
+func TestGateway_checkExtension(t *testing.T) {
+	Convey("test check extensions", t, func() {
+		e := ce.NewEvent()
+		err := checkExtension(e.Extensions())
+		So(err, ShouldBeNil)
+		e.SetExtension(primitive.XVanusLastDeliveryTime, "test")
+		err = checkExtension(e.Extensions())
+		So(err, ShouldBeNil)
+		e.SetExtension(primitive.XVanusPrefix+"fortest", "test")
+		err = checkExtension(e.Extensions())
+		So(err, ShouldNotBeNil)
+	})
+}
 func TestGateway_getEventBusFromPath(t *testing.T) {
 	Convey("test get eventbus from path return nil ", t, func() {
 		reqData := &cehttp.RequestData{

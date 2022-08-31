@@ -22,7 +22,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/google/uuid"
+	eb "github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/client/pkg/eventbus"
+	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/observability/log"
 
 	v2 "github.com/cloudevents/sdk-go/v2"
@@ -30,17 +32,12 @@ import (
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"github.com/cloudevents/sdk-go/v2/types"
-	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/eventbus"
+	"github.com/google/uuid"
 )
 
 const (
-	httpRequestPrefix    = "/gateway"
-	xceVanusPrefix       = "xvanus"
-	xceVanusEventbus     = "xvanuseventbus"
-	xceVanusDeliveryTime = "xvanusdeliverytime"
-	timerBuiltInEventbus = "__Timer_RS"
-	ctrlProxyPortShift   = 2
+	httpRequestPrefix  = "/gateway"
+	ctrlProxyPortShift = 2
 )
 
 var (
@@ -106,19 +103,12 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, pr
 	}
 
 	extensions := event.Extensions()
-	if len(extensions) > 0 {
-		for name := range extensions {
-			if name == xceVanusDeliveryTime {
-				continue
-			}
-			// event attribute can not prefix with vanus system use
-			if strings.HasPrefix(name, xceVanusPrefix) {
-				return nil, fmt.Errorf("invalid ce attribute [%s] perfix %s", name, xceVanusPrefix)
-			}
-		}
+	err := checkExtension(extensions)
+	if err != nil {
+		return nil, v2.NewHTTPResult(http.StatusBadRequest, err.Error())
 	}
 
-	if eventTime, ok := extensions[xceVanusDeliveryTime]; ok {
+	if eventTime, ok := extensions[primitive.XVanusLastDeliveryTime]; ok {
 		// validate event time
 		if _, err := types.ParseTime(eventTime.(string)); err != nil {
 			log.Error(ctx, "invalid format of event time", map[string]interface{}{
@@ -127,9 +117,9 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, pr
 			})
 			return nil, fmt.Errorf("invalid delivery time")
 		}
-		ebName = timerBuiltInEventbus
+		ebName = primitive.TimerEventbusName
 	}
-	event.SetExtension(xceVanusEventbus, ebName)
+	event.SetExtension(primitive.XVanusEventbus, ebName)
 
 	vrn := fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s", ga.config.ControllerAddr[0],
 		ebName, strings.Join(ga.config.ControllerAddr, ","))
@@ -164,6 +154,22 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, pr
 		return nil, fmt.Errorf("create response event error")
 	}
 	return resEvent, v2.ResultACK
+}
+
+func checkExtension(extensions map[string]interface{}) error {
+	if len(extensions) == 0 {
+		return nil
+	}
+	for name := range extensions {
+		if name == primitive.XVanusLastDeliveryTime {
+			continue
+		}
+		// event attribute can not prefix with vanus system use
+		if strings.HasPrefix(name, primitive.XVanusPrefix) {
+			return fmt.Errorf("invalid ce attribute [%s] perfix %s", name, primitive.XVanusPrefix)
+		}
+	}
+	return nil
 }
 
 func getEventBusFromPath(reqData *cehttp.RequestData) string {
