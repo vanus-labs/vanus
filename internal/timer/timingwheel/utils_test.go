@@ -15,7 +15,6 @@
 package timingwheel
 
 import (
-	"container/list"
 	"testing"
 	"time"
 
@@ -26,18 +25,5 @@ func TestUtils_Exponent(t *testing.T) {
 	Convey("test 10^2 equal 100", t, func() {
 		ret := exponent(time.Second, 10, 2)
 		So(ret, ShouldEqual, 100*time.Second)
-	})
-}
-
-func TestUtils_Add(t *testing.T) {
-	Convey("test list add two elements", t, func() {
-		c := &Config{}
-		l := list.New()
-		tw1 := newTimingWheelElement(c, nil, nil, 1, 1)
-		add(l, tw1)
-		tw2 := newTimingWheelElement(c, nil, nil, 2, 2)
-		add(l, tw2)
-		So(l.Front().Value.(*timingWheelElement).tick, ShouldEqual, 1)
-		So(l.Front().Next().Value.(*timingWheelElement).tick, ShouldEqual, 2)
 	})
 }

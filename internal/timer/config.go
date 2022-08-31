@@ -52,7 +52,6 @@ func (c *Config) GetTimingWheelConfig() *timingwheel.Config {
 		Tick:          time.Duration(c.TimingWheelConfig.Tick) * time.Second,
 		WheelSize:     c.TimingWheelConfig.WheelSize,
 		Layers:        c.TimingWheelConfig.Layers,
-		StartTime:     time.Now().UTC(),
 		KeyPrefix:     c.MetadataConfig.KeyPrefix,
 		EtcdEndpoints: c.EtcdEndpoints,
 		CtrlEndpoints: c.CtrlEndpoints,

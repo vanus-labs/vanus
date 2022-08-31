@@ -15,7 +15,6 @@
 package timingwheel
 
 import (
-	"container/list"
 	"sync"
 	"time"
 )
@@ -34,10 +33,4 @@ func exponent(tick time.Duration, m, n int64) time.Duration {
 		m *= m
 	}
 	return time.Duration(result) * tick
-}
-
-func add(l *list.List, twe *timingWheelElement) {
-	e := l.PushBack(twe)
-	twe.timingwheel = l
-	twe.element = e
 }

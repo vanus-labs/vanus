@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -42,11 +43,8 @@ const (
 	// frequent check waiting period every 1/defaultFrequentCheckWaitingPeriodRatio tick time by default.
 	defaultFrequentCheckWaitingPeriodRatio = 100
 
-	// load routine waiting period every 1/defaultLoadingWaitingPeriodRatio tick time by default.
-	defaultLoadingWaitingPeriodRatio = 100
-
-	// fetch event from overflowwheel advance number of tick times by default.
-	defaultFetchEventFromOverflowWheelEndPointer = 2
+	// number of tick loads in advance by default.
+	defaultNumberOfTickLoadsInAdvance = 1
 
 	// number of events read each time by default.
 	defaultNumberOfEventsRead = 10
@@ -56,9 +54,6 @@ const (
 
 	// index of eventlog reader by default.
 	defaultIndexOfEventlogReader = 0
-
-	// index of eventlog writer by default.
-	defaultIndexOfEventlogWriter = 0
 
 	heartbeatInterval = 5 * time.Second
 )
@@ -70,11 +65,11 @@ var (
 type Manager interface {
 	Init(ctx context.Context) error
 	Start(ctx context.Context) error
-	AddEvent(ctx context.Context, e *ce.Event) bool
+	Push(ctx context.Context, e *ce.Event) bool
 	SetLeader(isleader bool)
 	IsLeader() bool
 	IsDeployed(ctx context.Context) bool
-	RecoverForFailover(ctx context.Context) error
+	Recover(ctx context.Context) error
 	StopNotify() <-chan struct{}
 	Stop(ctx context.Context)
 }
@@ -98,23 +93,20 @@ func NewTimingWheel(c *Config) Manager {
 	store, err := newEtcdClientV3(c.EtcdEndpoints, c.KeyPrefix)
 	if err != nil {
 		log.Error(context.Background(), "new etcd client v3 failed", map[string]interface{}{
-			"endpoints":  c.EtcdEndpoints,
-			"keyprefix":  c.KeyPrefix,
 			log.KeyError: err,
+			"endpoints":  c.EtcdEndpoints,
+			"key_prefix": c.KeyPrefix,
 		})
 		panic("new etcd client failed")
 	}
 
-	client := NewClient(c.CtrlEndpoints)
-
 	log.Info(context.Background(), "new timingwheel manager", map[string]interface{}{
-		"tick":          c.Tick,
-		"layers":        c.Layers,
-		"wheelSize":     c.WheelSize,
-		"keyPrefix":     c.KeyPrefix,
-		"startTime":     c.StartTime,
-		"etcdEndpoints": c.EtcdEndpoints,
-		"ctrlEndpoints": c.CtrlEndpoints,
+		"tick":           c.Tick,
+		"layers":         c.Layers,
+		"wheel_size":     c.WheelSize,
+		"key_prefix":     c.KeyPrefix,
+		"etcd_endpoints": c.EtcdEndpoints,
+		"ctrl_endpoints": c.CtrlEndpoints,
 	})
 	metrics.TimingWheelTickGauge.Set(float64(c.Tick))
 	metrics.TimingWheelSizeGauge.Set(float64(c.WheelSize))
@@ -122,7 +114,8 @@ func NewTimingWheel(c *Config) Manager {
 	return &timingWheel{
 		config:  c,
 		kvStore: store,
-		client:  client,
+		client:  NewClient(c.CtrlEndpoints),
+		twList:  list.New(),
 		leader:  false,
 		exitC:   make(chan struct{}),
 	}
@@ -131,15 +124,22 @@ func NewTimingWheel(c *Config) Manager {
 // Init init the current timing wheel.
 func (tw *timingWheel) Init(ctx context.Context) error {
 	log.Info(ctx, "init timingwheel", nil)
-	l := list.New()
 	// Init Hierarchical Timing Wheels.
 	for layer := int64(1); layer <= tw.config.Layers+1; layer++ {
 		tick := exponent(tw.config.Tick, tw.config.WheelSize, layer-1)
-		add(l, newTimingWheelElement(tw.config, tw.kvStore, tw.client, tick, layer))
+		twe := newTimingWheelElement(tw, tick, layer)
+		twe.setElement(tw.twList.PushBack(twe))
+		if layer <= tw.config.Layers {
+			buckets := make(map[int64]*bucket, tw.config.WheelSize+defaultNumberOfTickLoadsInAdvance)
+			for i := int64(0); i < tw.config.WheelSize+defaultNumberOfTickLoadsInAdvance; i++ {
+				ebName := fmt.Sprintf(timerBuiltInEventbus, layer, i)
+				buckets[i] = newBucket(tw, twe.element, tick, ebName, layer, i)
+			}
+			twe.buckets = buckets
+		}
 	}
-	tw.twList = l
-	tw.receivingStation = newBucket(tw.config, tw.kvStore, tw.client, 0, timerBuiltInEventbusReceivingStation, 0, 0)
-	tw.distributionStation = newBucket(tw.config, tw.kvStore, tw.client, 0, timerBuiltInEventbusDistributionStation, 0, 0)
+	tw.receivingStation = newBucket(tw, nil, 0, timerBuiltInEventbusReceivingStation, 0, 0)
+	tw.distributionStation = newBucket(tw, nil, 0, timerBuiltInEventbusDistributionStation, 0, 0)
 
 	// makesure controller client
 	if tw.client.makeSureClient(ctx, true) == nil {
@@ -164,57 +164,28 @@ func (tw *timingWheel) Start(ctx context.Context) error {
 		log.Info(ctx, "wait for the leader to be ready", nil)
 	}, time.Second, waitCtx.Done())
 
-	// create eventbus and start of each layer bucket
-	for e := tw.twList.Front(); e != nil; {
+	// start distribution station for scheduled events distributing
+	if err = tw.startDistributionStation(ctx); err != nil {
+		return err
+	}
+
+	// start all bucket of each layer
+	for e := tw.twList.Front(); e != nil; e = e.Next() {
 		for _, bucket := range e.Value.(*timingWheelElement).getBuckets() {
-			if tw.IsLeader() {
-				err = bucket.createEventbus(ctx)
-				if err != nil {
-					log.Error(ctx, "bucket create eventbus failed", map[string]interface{}{
-						log.KeyError: err,
-						"eventbus":   bucket.eventbus,
-					})
-					return err
-				}
-			}
-			err = bucket.start(ctx)
-			if err != nil {
-				log.Error(ctx, "bucket start failed", map[string]interface{}{
+			if err = bucket.start(ctx); err != nil {
+				log.Error(ctx, "start bucket failed", map[string]interface{}{
 					log.KeyError: err,
-					"eventbus":   bucket.eventbus,
+					"eventbus":   bucket.getEventbus(),
 				})
 				return err
 			}
 		}
-		next := e.Next()
-		e = next
 	}
 
 	// start receving station for scheduled events receiving
 	if err = tw.startReceivingStation(ctx); err != nil {
 		return err
 	}
-
-	// start distribution station for scheduled events distributing
-	if err = tw.startDistributionStation(ctx); err != nil {
-		return err
-	}
-
-	// start the timingwheel of each layer
-	for e := tw.twList.Front(); e != nil; {
-		e.Value.(*timingWheelElement).start(ctx)
-		next := e.Next()
-		e = next
-	}
-
-	// start ticking of pointer
-	tw.startTickingOfPointer(ctx)
-
-	// start routine for scheduled event distributer
-	tw.twList.Front().Value.(*timingWheelElement).startScheduledEventDistributer(ctx)
-
-	// start routine for scheduled event dispatcher
-	tw.startScheduledEventDispatcher(ctx)
 
 	// start controller client heartbeat
 	tw.startHeartBeat(ctx)
@@ -229,19 +200,20 @@ func (tw *timingWheel) StopNotify() <-chan struct{} {
 // Stop stops the current timing wheel.
 func (tw *timingWheel) Stop(ctx context.Context) {
 	log.Info(ctx, "stop timingwheel", nil)
+	// wait for all goroutine to end
 	for e := tw.twList.Front(); e != nil; e = e.Next() {
+		for _, bucket := range e.Value.(*timingWheelElement).getBuckets() {
+			bucket.wait(ctx)
+		}
 		e.Value.(*timingWheelElement).wait(ctx)
 	}
+	tw.receivingStation.wait(ctx)
+	tw.distributionStation.wait(ctx)
 	close(tw.exitC)
 	tw.wg.Wait()
 }
 
 func (tw *timingWheel) SetLeader(isLeader bool) {
-	for e := tw.twList.Front(); e != nil; {
-		e.Value.(*timingWheelElement).setLeader(isLeader)
-		next := e.Next()
-		e = next
-	}
 	tw.leader = isLeader
 }
 
@@ -253,57 +225,30 @@ func (tw *timingWheel) IsDeployed(ctx context.Context) bool {
 	return tw.receivingStation.isExistEventbus(ctx) && tw.distributionStation.isExistEventbus(ctx)
 }
 
-func (tw *timingWheel) RecoverForFailover(ctx context.Context) error {
-	pointerPath := fmt.Sprintf("%s/pointer", metadata.MetadataKeyPrefixInKVStore)
-	pointerPairs, err := tw.kvStore.List(ctx, pointerPath)
-	if err != nil {
-		return err
-	}
-	pointerMetaMap := make(map[int64]int64, tw.config.Layers+1)
-	for _, v := range pointerPairs {
-		md := &metadata.PointerMeta{}
-		if err := json.Unmarshal(v.Value, md); err != nil {
-			return err
-		}
-		log.Info(ctx, "recover pointer metadata", map[string]interface{}{
-			"layer":   md.Layer,
-			"pointer": md.Pointer,
-		})
-		pointerMetaMap[md.Layer] = md.Pointer
-	}
-
+func (tw *timingWheel) Recover(ctx context.Context) error {
 	offsetPath := fmt.Sprintf("%s/offset", metadata.MetadataKeyPrefixInKVStore)
 	offsetPairs, err := tw.kvStore.List(ctx, offsetPath)
 	if err != nil {
 		return err
 	}
+	// no offset metadata, no recovery required
+	if len(offsetPairs) == 0 {
+		return nil
+	}
 	offsetMetaMap := make(map[string]*metadata.OffsetMeta, tw.config.Layers+1)
 	for _, v := range offsetPairs {
 		md := &metadata.OffsetMeta{}
-		if err := json.Unmarshal(v.Value, md); err != nil {
+		_ = json.Unmarshal(v.Value, md)
+		if md.Layer > tw.config.Layers &&
+			tw.twList.Back().Value.(*timingWheelElement).makeSureBucketExist(ctx, md.Slot) != nil {
 			return err
-		}
-		if md.Layer > tw.config.Layers {
-			if cap(tw.twList.Back().Value.(*timingWheelElement).getBuckets()) < int(md.Slot+1) {
-				tw.twList.Back().Value.(*timingWheelElement).resetBucketsCapacity(md.Slot + 1)
-			}
-			if tw.twList.Back().Value.(*timingWheelElement).getBucket(md.Slot) == nil {
-				ebName := fmt.Sprintf(timerBuiltInEventbus, tw.twList.Back().Value.(*timingWheelElement).getLayer(), md.Slot)
-				newbucket := newBucket(tw.config, tw.kvStore, tw.client, tw.twList.Back().Value.(*timingWheelElement).getTick(),
-					ebName, tw.twList.Back().Value.(*timingWheelElement).getLayer(), md.Slot)
-				tw.twList.Back().Value.(*timingWheelElement).setBuckets(md.Slot, newbucket)
-				if err = tw.twList.Back().Value.(*timingWheelElement).getBucket(md.Slot).start(ctx); err != nil {
-					return err
-				}
-			}
 		}
 		offsetMetaMap[md.Eventbus] = md
 	}
 
-	for e := tw.twList.Front(); e != nil; {
-		e.Value.(*timingWheelElement).setPointer(pointerMetaMap[e.Value.(*timingWheelElement).getLayer()])
+	for e := tw.twList.Front(); e != nil; e = e.Next() {
 		for _, bucket := range e.Value.(*timingWheelElement).getBuckets() {
-			if v, ok := offsetMetaMap[bucket.eventbus]; ok {
+			if v, ok := offsetMetaMap[bucket.getEventbus()]; ok {
 				log.Info(ctx, "recover offset metadata", map[string]interface{}{
 					"layer":    v.Layer,
 					"slot":     v.Slot,
@@ -313,82 +258,44 @@ func (tw *timingWheel) RecoverForFailover(ctx context.Context) error {
 				bucket.offset = v.Offset
 			}
 		}
-		next := e.Next()
-		e = next
 	}
 
 	log.Info(ctx, "recover receiving station metadata", map[string]interface{}{
 		"offset":   offsetMetaMap[timerBuiltInEventbusReceivingStation].Offset,
-		"eventbus": tw.receivingStation.eventbus,
+		"eventbus": tw.receivingStation.getEventbus(),
 	})
 	tw.receivingStation.offset = offsetMetaMap[timerBuiltInEventbusReceivingStation].Offset
 	log.Info(ctx, "recover distribution station metadata", map[string]interface{}{
 		"offset":   offsetMetaMap[timerBuiltInEventbusDistributionStation].Offset,
-		"eventbus": tw.distributionStation.eventbus,
+		"eventbus": tw.distributionStation.getEventbus(),
 	})
 	tw.distributionStation.offset = offsetMetaMap[timerBuiltInEventbusDistributionStation].Offset
 
 	return nil
 }
 
-func (tw *timingWheel) AddEvent(ctx context.Context, e *ce.Event) bool {
+// Push the scheduled event to the timingwheel.
+func (tw *timingWheel) Push(ctx context.Context, e *ce.Event) bool {
 	tm := newTimingMsg(ctx, e)
-	log.Info(ctx, "add event to timingwheel", map[string]interface{}{
-		"eventID":        e.ID(),
-		"expirationTime": tm.expiration,
+	log.Info(ctx, "push event to timingwheel", map[string]interface{}{
+		"event":      e.String(),
+		"expiration": tm.getExpiration().Format(time.RFC3339Nano),
 	})
-	return tw.twList.Front().Value.(*timingWheelElement).addEvent(ctx, tm)
+
+	if tm.hasExpired() {
+		// Already expired
+		return tw.getDistributionStation().push(ctx, tm) == nil
+	}
+
+	return tw.twList.Front().Value.(*timingWheelElement).push(ctx, tm, false)
 }
 
-func (tw *timingWheel) startReceivingStation(ctx context.Context) error {
-	var err error
-	if tw.IsLeader() {
-		if err = tw.receivingStation.createEventbus(ctx); err != nil {
-			return err
-		}
-		tw.receivingStation.updateOffsetMeta(ctx, tw.receivingStation.offset)
-	}
-	err = tw.receivingStation.start(ctx)
-	if err != nil {
-		return err
-	}
-	return nil
+func (tw *timingWheel) getReceivingStation() *bucket {
+	return tw.receivingStation
 }
 
-func (tw *timingWheel) startDistributionStation(ctx context.Context) error {
-	var err error
-	if tw.IsLeader() {
-		if err = tw.distributionStation.createEventbus(ctx); err != nil {
-			return err
-		}
-		tw.distributionStation.updateOffsetMeta(ctx, tw.distributionStation.offset)
-	}
-	err = tw.distributionStation.start(ctx)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (tw *timingWheel) startTickingOfPointer(ctx context.Context) {
-	tw.wg.Add(1)
-	go func() {
-		defer tw.wg.Done()
-		ticker := time.NewTicker(tw.config.Tick)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				log.Warning(ctx, "context canceled at ticking of pointer", nil)
-				return
-			case <-ticker.C:
-				if !tw.IsLeader() {
-					break
-				}
-				tw.twList.Front().Value.(*timingWheelElement).tickingOnce()
-			}
-		}
-	}()
+func (tw *timingWheel) getDistributionStation() *bucket {
+	return tw.distributionStation
 }
 
 func (tw *timingWheel) startHeartBeat(ctx context.Context) {
@@ -400,7 +307,7 @@ func (tw *timingWheel) startHeartBeat(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Warning(ctx, "context canceled at timingwheel element heartbeat", nil)
+				log.Debug(ctx, "context canceled at timingwheel element heartbeat", nil)
 				return
 			case <-ticker.C:
 				err := tw.client.heartbeat(ctx)
@@ -414,8 +321,22 @@ func (tw *timingWheel) startHeartBeat(ctx context.Context) {
 	}()
 }
 
-// startScheduledEventDispatcher continuously read scheduled event from receiving station and write to timingwheel.
-func (tw *timingWheel) startScheduledEventDispatcher(ctx context.Context) {
+func (tw *timingWheel) startReceivingStation(ctx context.Context) error {
+	var err error
+	if err = tw.getReceivingStation().createEventbus(ctx); err != nil {
+		return err
+	}
+
+	if err = tw.getReceivingStation().connectEventbus(ctx); err != nil {
+		return err
+	}
+
+	tw.runReceivingStation(ctx)
+	return nil
+}
+
+// runReceivingStation as the unified entrance of scheduled events and pushed to the timingwheel.
+func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 	offsetC := make(chan waitGroup, defaultMaxNumberOfWorkers)
 	tw.wg.Add(1)
 	// update offset asynchronously
@@ -424,14 +345,14 @@ func (tw *timingWheel) startScheduledEventDispatcher(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Warning(ctx, "context canceled at scheduled event dispatching and update offset metadata", nil)
+				log.Debug(ctx, "context canceled at receiving station update offset metadata", nil)
 				return
 			case offset := <-offsetC:
 				// wait for all goroutines to finish before updating offset metadata
 				offset.wg.Wait()
 				log.Debug(ctx, "update offset metadata", map[string]interface{}{
-					"eventbus": tw.receivingStation.getEventbus(),
-					"updateTo": offset.data,
+					"eventbus":  tw.receivingStation.getEventbus(),
+					"update_to": offset.data,
 				})
 				tw.receivingStation.updateOffsetMeta(ctx, offset.data)
 			}
@@ -446,55 +367,194 @@ func (tw *timingWheel) startScheduledEventDispatcher(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Warning(ctx, "context canceled at scheduled event dispatcher", nil)
+				log.Debug(ctx, "context canceled at receiving station running", nil)
 				return
 			default:
-				if tw.IsLeader() {
-					// batch read
-					events, err := tw.receivingStation.getEvent(ctx, defaultNumberOfEventsRead)
-					if err != nil {
-						if !errors.Is(err, es.ErrOnEnd) {
-							log.Error(ctx, "get event failed when event dispatching", map[string]interface{}{
-								log.KeyError: err,
-								"eventbus":   tw.receivingStation.getEventbus(),
-							})
-						}
-						break
+				// batch read
+				events, err := tw.receivingStation.getEvent(ctx, defaultNumberOfEventsRead)
+				if err != nil {
+					if !errors.Is(err, es.ErrOnEnd) {
+						log.Error(ctx, "get event failed when receiving station running", map[string]interface{}{
+							log.KeyError: err,
+							"eventbus":   tw.receivingStation.getEventbus(),
+						})
 					}
-
-					// concurrent write
-					numberOfEvents := int64(len(events))
-					log.Debug(ctx, "got events when dispatching", map[string]interface{}{
-						"eventbus":       tw.receivingStation.getEventbus(),
-						"offset":         tw.receivingStation.getOffset(),
-						"numberOfEvents": numberOfEvents,
-					})
-
-					wg := sync.WaitGroup{}
-					for _, event := range events {
-						wg.Add(1)
-						glimitC <- struct{}{}
-						go func(ctx context.Context, e *ce.Event) {
-							defer wg.Done()
-							waitCtx, cancel := context.WithCancel(ctx)
-							wait.Until(func() {
-								if tw.AddEvent(ctx, e) {
-									cancel()
-								}
-							}, tw.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
-							<-glimitC
-						}(ctx, event)
-					}
-					// asynchronously update offset after the same batch of events are successfully written
-					offsetC <- waitGroup{
-						wg:   &wg,
-						data: tw.receivingStation.getOffset() + numberOfEvents,
-					}
-					tw.receivingStation.incOffset(numberOfEvents)
+					break
 				}
+
+				// concurrent write
+				numberOfEvents := int64(len(events))
+				log.Debug(ctx, "got events when receiving station running", map[string]interface{}{
+					"eventbus":         tw.receivingStation.getEventbus(),
+					"offset":           tw.receivingStation.getOffset(),
+					"number_of_events": numberOfEvents,
+				})
+
+				wg := sync.WaitGroup{}
+				for _, event := range events {
+					wg.Add(1)
+					glimitC <- struct{}{}
+					go func(ctx context.Context, e *ce.Event) {
+						defer wg.Done()
+						waitCtx, cancel := context.WithCancel(ctx)
+						wait.Until(func() {
+							if tw.Push(ctx, e) {
+								cancel()
+							} else {
+								log.Warning(ctx, "push event to timingwheel failed, retry until it succeed", map[string]interface{}{
+									"eventbus": tw.receivingStation.getEventbus(),
+									"event":    e.String(),
+								})
+							}
+						}, tw.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
+						<-glimitC
+					}(ctx, event)
+				}
+				// asynchronously update offset after the same batch of events are successfully written
+				offsetC <- waitGroup{
+					wg:   &wg,
+					data: tw.receivingStation.getOffset() + numberOfEvents,
+				}
+				tw.receivingStation.incOffset(numberOfEvents)
 			}
 		}
 	}()
+}
+
+func (tw *timingWheel) startDistributionStation(ctx context.Context) error {
+	var err error
+	if err = tw.getDistributionStation().createEventbus(ctx); err != nil {
+		return err
+	}
+
+	if err = tw.getDistributionStation().connectEventbus(ctx); err != nil {
+		return err
+	}
+
+	tw.runDistributionStation(ctx)
+	return nil
+}
+
+// runDistributionStation as the unified exit of scheduled events and popped to the timingwheel.
+func (tw *timingWheel) runDistributionStation(ctx context.Context) {
+	offsetC := make(chan waitGroup, defaultMaxNumberOfWorkers)
+	tw.wg.Add(1)
+	// update offset asynchronously
+	go func() {
+		defer tw.wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				log.Debug(ctx, "context canceled at distribution station update offset metadata", nil)
+				return
+			case offset := <-offsetC:
+				// wait for all goroutines to finish before updating offset metadata
+				offset.wg.Wait()
+				log.Debug(ctx, "update offset metadata", map[string]interface{}{
+					"eventbus":  tw.distributionStation.getEventbus(),
+					"update_to": offset.data,
+				})
+				tw.distributionStation.updateOffsetMeta(ctx, offset.data)
+			}
+		}
+	}()
+
+	tw.wg.Add(1)
+	go func() {
+		defer tw.wg.Done()
+		// limit the number of goroutines to no more than defaultMaxNumberOfWorkers
+		glimitC := make(chan struct{}, defaultMaxNumberOfWorkers)
+		for {
+			select {
+			case <-ctx.Done():
+				log.Debug(ctx, "context canceled at distribution station running", nil)
+				return
+			default:
+				// batch read
+				events, err := tw.distributionStation.getEvent(ctx, defaultNumberOfEventsRead)
+				if err != nil {
+					if !errors.Is(err, es.ErrOnEnd) {
+						log.Error(ctx, "get event failed when distribution station running", map[string]interface{}{
+							log.KeyError: err,
+							"eventbus":   tw.distributionStation.getEventbus(),
+						})
+					}
+					break
+				}
+				// concurrent write
+				numberOfEvents := int64(len(events))
+				log.Debug(ctx, "got events when distribution station running", map[string]interface{}{
+					"eventbus":         tw.distributionStation.getEventbus(),
+					"offset":           tw.distributionStation.getOffset(),
+					"number_of_events": numberOfEvents,
+				})
+
+				wg := sync.WaitGroup{}
+				for _, event := range events {
+					wg.Add(1)
+					glimitC <- struct{}{}
+					go func(ctx context.Context, e *ce.Event) {
+						defer wg.Done()
+						waitCtx, cancel := context.WithCancel(ctx)
+						wait.Until(func() {
+							if err = tw.deliver(ctx, e); err == nil {
+								cancel()
+							} else {
+								log.Warning(ctx, "deliver event failed, retry until it succeed", map[string]interface{}{
+									"eventbus": tw.distributionStation.getEventbus(),
+									"event":    e.String(),
+								})
+							}
+						}, tw.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
+						<-glimitC
+					}(ctx, event)
+				}
+				// asynchronously update offset after the same batch of events are successfully written
+				offsetC <- waitGroup{
+					wg:   &wg,
+					data: tw.distributionStation.getOffset() + numberOfEvents,
+				}
+				tw.distributionStation.incOffset(numberOfEvents)
+			}
+		}
+	}()
+}
+
+func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
+	var (
+		err    error
+		ebName string
+	)
+
+	err = e.ExtensionAs(xVanusEventbus, &ebName)
+	if err != nil {
+		log.Error(ctx, "get eventbus failed when delivering", map[string]interface{}{
+			log.KeyError: err,
+		})
+		return err
+	}
+	vrn := fmt.Sprintf("vanus:///eventbus/%s?controllers=%s", ebName, strings.Join(tw.config.CtrlEndpoints, ","))
+	eventbusWriter, err := openBusWriter(vrn)
+	if err != nil {
+		log.Error(ctx, "open eventbus writer failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		return err
+	}
+	defer eventbusWriter.Close()
+	_, err = eventbusWriter.Append(ctx, e)
+	if err != nil {
+		log.Error(ctx, "append failed", map[string]interface{}{
+			log.KeyError: err,
+			"eventbus":   ebName,
+		})
+		return err
+	}
+	log.Debug(ctx, "event delivered", map[string]interface{}{
+		"delivery-time": e.Extensions()[xVanusDeliveryTime],
+		"eventbus":      e.Extensions()[xVanusEventbus],
+	})
+	return nil
 }
 
 // timingWheelElement timingwheelelement has N number of buckets, every bucket is an eventbus.
@@ -503,387 +563,123 @@ type timingWheelElement struct {
 	kvStore  kv.Client
 	client   *ctrlClient
 	tick     time.Duration
-	pointer  int64
 	layer    int64
 	interval time.Duration
-	buckets  []*bucket
+	buckets  map[int64]*bucket
 
-	leader bool
-	tickC  chan struct{}
-	exitC  chan struct{}
-	wg     sync.WaitGroup
+	exitC chan struct{}
+	mu    sync.Mutex
+	wg    sync.WaitGroup
 
-	timingwheel *list.List
+	timingwheel *timingWheel
 	element     *list.Element
 }
 
 // newTimingWheel is an internal helper function that really creates an instance of TimingWheel.
-func newTimingWheelElement(c *Config, store kv.Client, cli *ctrlClient,
-	tick time.Duration, layer int64) *timingWheelElement {
+func newTimingWheelElement(tw *timingWheel, tick time.Duration, layer int64) *timingWheelElement {
 	if tick <= 0 {
 		panic(errors.New("tick must be greater than or equal to 1s"))
 	}
 
-	var buckets []*bucket
-	if layer <= c.Layers {
-		buckets = createBucketsForTimingWheel(c, store, cli, tick, layer)
-	}
-
 	return &timingWheelElement{
-		config:   c,
-		kvStore:  store,
-		client:   cli,
-		tick:     tick,
-		pointer:  0,
-		layer:    layer,
-		interval: tick * time.Duration(c.WheelSize),
-		buckets:  buckets,
-		tickC:    make(chan struct{}),
-		exitC:    make(chan struct{}),
+		config:      tw.config,
+		kvStore:     tw.kvStore,
+		client:      tw.client,
+		tick:        tick,
+		layer:       layer,
+		interval:    tick * time.Duration(tw.config.WheelSize),
+		exitC:       make(chan struct{}),
+		timingwheel: tw,
 	}
 }
 
-func (twe *timingWheelElement) setLeader(isLeader bool) {
-	twe.leader = isLeader
-}
-
-func (twe *timingWheelElement) isLeader() bool {
-	return twe.leader
-}
-
-func (twe *timingWheelElement) calculateIndex(expiration, currentTime time.Time) int64 {
-	var (
-		pointer int64
-	)
-	subTick := expiration.Sub(currentTime)
-	if twe.layer == 1 {
-		pointer = int64(subTick/twe.tick) + twe.pointer
-	} else {
-		lowerTimingWheelTick := twe.element.Prev().Value.(*timingWheelElement).getTick()
-		lowerTimingWheelPointer := twe.element.Prev().Value.(*timingWheelElement).getPointer()
-		offset := int64((subTick + time.Duration(lowerTimingWheelPointer)*lowerTimingWheelTick) / twe.tick)
-		remainder := int64((subTick + time.Duration(lowerTimingWheelPointer)*lowerTimingWheelTick) % twe.tick)
-		if remainder > 0 {
-			offset++
-		}
-		pointer = offset + twe.pointer - 1
-	}
-	if twe.layer <= twe.config.Layers && pointer >= twe.config.WheelSize {
-		pointer %= twe.config.WheelSize
-	}
-	return pointer
-}
-
-func (twe *timingWheelElement) resetBucketsCapacity(newCap int64) {
-	newBuckets := make([]*bucket, newCap)
-	copy(newBuckets, twe.buckets)
-	twe.buckets = newBuckets
-}
-
-func (twe *timingWheelElement) addEvent(ctx context.Context, tm *timingMsg) bool {
-	var err error
-	now := time.Now().UTC()
-	if twe.layer > twe.config.Layers {
+func (twe *timingWheelElement) push(ctx context.Context, tm *timingMsg, isFlowing bool) bool {
+	if isFlowing || twe.allowPush(tm) || twe.layer > twe.config.Layers {
+		index := twe.calculateIndex(tm, isFlowing)
 		// Put it into its own bucket
-		index := twe.calculateIndex(tm.expiration, now)
-		if cap(twe.buckets) < int(index+1) {
-			twe.resetBucketsCapacity(index + 1)
-		}
-		if twe.buckets[index] == nil {
-			ebName := fmt.Sprintf(timerBuiltInEventbus, twe.layer, index)
-			twe.buckets[index] = newBucket(twe.config, twe.kvStore, twe.client, twe.tick, ebName, twe.layer, index)
-		}
-
-		err := twe.buckets[index].add(ctx, tm, true)
-		if err != nil {
-			log.Error(ctx, "add event to eventbus failed", map[string]interface{}{
-				"eventbus":   twe.buckets[index].eventbus,
-				"expiration": tm.expiration,
+		if twe.layer > twe.config.Layers && twe.makeSureBucketExist(ctx, index) != nil {
+			log.Error(ctx, "push timing message failed because bucket not exist", map[string]interface{}{
+				"eventbus":   twe.buckets[index].getEventbus(),
+				"expiration": tm.getExpiration().Format(time.RFC3339Nano),
 			})
 			return false
 		}
-		log.Info(ctx, "add event to eventbus success", map[string]interface{}{
-			"eventbus":   twe.buckets[index].eventbus,
-			"expiration": tm.expiration,
-		})
-		return true
-	}
-
-	if now.After(tm.expiration) {
-		// Already expired
-		return tm.consume(ctx, twe.config.CtrlEndpoints) == nil
-	}
-
-	if now.Add(twe.interval).After(tm.expiration) {
-		// Put it into its own bucket
-		index := twe.calculateIndex(tm.expiration, now)
-		err = twe.buckets[index].add(ctx, tm, false)
-		if err != nil {
-			log.Error(ctx, "add event to eventbus failed", map[string]interface{}{
-				"eventbus":   twe.buckets[index].eventbus,
-				"expiration": tm.expiration,
+		if err := twe.buckets[index].push(ctx, tm); err != nil {
+			log.Error(ctx, "push timing message failed", map[string]interface{}{
+				"eventbus":   twe.buckets[index].getEventbus(),
+				"expiration": tm.getExpiration().Format(time.RFC3339Nano),
 			})
 			return false
 		}
-		log.Info(ctx, "add event to eventbus success", map[string]interface{}{
-			"eventbus":   twe.buckets[index].eventbus,
-			"expiration": tm.expiration,
+		log.Debug(ctx, "push timing message success", map[string]interface{}{
+			"eventbus":   twe.buckets[index].getEventbus(),
+			"expiration": tm.getExpiration().Format(time.RFC3339Nano),
 		})
 		return true
 	}
 	// Out of the interval. Put it into the overflow wheel
-	return twe.next().addEvent(ctx, tm)
+	return twe.next().push(ctx, tm, false)
 }
 
-func (twe *timingWheelElement) isExistBucket(ctx context.Context, index int64) bool {
-	if twe.layer <= twe.config.Layers {
-		return true
+func (twe *timingWheelElement) allowPush(tm *timingMsg) bool {
+	now := time.Now()
+	timeOfBufferBoundaryLine := now.UnixNano() - (now.UnixNano() % twe.tick.Nanoseconds()) + twe.interval.Nanoseconds()
+	return tm.getExpiration().UnixNano() < timeOfBufferBoundaryLine
+}
+
+func (twe *timingWheelElement) calculateIndex(tm *timingMsg, isFlowing bool) int64 {
+	if isFlowing {
+		// the timing message comes from the timingwheel of the upper layer
+		startTimeOfBucket := tm.getExpiration().UnixNano() - (tm.getExpiration().UnixNano() % twe.interval.Nanoseconds())
+		timeOfEarlyFlow := defaultNumberOfTickLoadsInAdvance * twe.tick.Nanoseconds()
+		timeOfBufferBoundaryLine := startTimeOfBucket - timeOfEarlyFlow + twe.interval.Nanoseconds()
+		if tm.getExpiration().UnixNano() >= timeOfBufferBoundaryLine {
+			// Put it into its buffer bucket
+			return (tm.getExpiration().UnixNano()-timeOfBufferBoundaryLine)/twe.tick.Nanoseconds() + twe.config.WheelSize
+		}
 	}
-	if cap(twe.buckets) < int(index+1) {
-		log.Debug(ctx, "the bucket of current layer capacity less than index", map[string]interface{}{
-			"layer":   twe.layer,
-			"pointer": twe.pointer,
-			"index":   index,
+	// Put it into its own bucket
+	if twe.layer > twe.config.Layers {
+		return tm.getExpiration().UnixNano() / twe.tick.Nanoseconds()
+	}
+	return tm.getExpiration().UnixNano() % twe.interval.Nanoseconds() / twe.tick.Nanoseconds()
+}
+
+func (twe *timingWheelElement) makeSureBucketExist(ctx context.Context, index int64) error {
+	twe.mu.Lock()
+	defer twe.mu.Unlock()
+	if _, ok := twe.buckets[index]; ok {
+		return nil
+	}
+	ebName := fmt.Sprintf(timerBuiltInEventbus, twe.layer, index)
+	if twe.buckets == nil {
+		twe.buckets = make(map[int64]*bucket)
+	}
+	twe.buckets[index] = newBucket(twe.timingwheel, twe.element, twe.tick, ebName, twe.layer, index)
+	if err := twe.buckets[index].start(ctx); err != nil {
+		log.Error(ctx, "start bucket failed when makesure bucket exist", map[string]interface{}{
+			log.KeyError: err,
+			"eventbus":   twe.buckets[index].getEventbus(),
 		})
-		return false
+		return err
 	}
-	if twe.buckets[index] == nil {
-		log.Debug(ctx, "the bucket of current layer is nil", map[string]interface{}{
-			"layer":   twe.layer,
-			"pointer": twe.pointer,
-			"index":   index,
-		})
-		return false
-	}
-	return true
-}
-
-func (twe *timingWheelElement) fetchEventFromOverflowWheelAdvance(ctx context.Context) {
-	var (
-		// position of overflow wheel pointer when start loading.
-		startLoadingPointer int64
-		// the bucket index to be loading.
-		indexToBeLoading int64
-		// position of overflow wheel pointer when end loading.
-		endLoadingPointer int64
-	)
-
-	startLoadingPointer = twe.next().pointer
-	indexToBeLoading = (startLoadingPointer + 1) % twe.config.WheelSize
-	endLoadingPointer = (startLoadingPointer + defaultFetchEventFromOverflowWheelEndPointer) % twe.config.WheelSize
-
-	// enter only when the overflowwheel is the highest timingwheel and the bucket is empty(no scheduled event)
-	if !twe.next().isExistBucket(ctx, indexToBeLoading) {
-		log.Debug(ctx, "the bucket of overflowWheel is not exist, do nothing", map[string]interface{}{
-			"layer":       twe.next().layer,
-			"bucketIndex": indexToBeLoading,
-		})
-		return
-	}
-	log.Debug(ctx, "start loading from overflowWheel", map[string]interface{}{
-		"layer":       twe.next().layer,
-		"bucketIndex": indexToBeLoading,
-	})
-	waitCtx, cancel := context.WithCancel(ctx)
-	twe.wg.Add(1)
-	go func() {
-		defer twe.wg.Done()
-		twe.next().buckets[indexToBeLoading].fetchEventFromOverflowWheelAdvance(waitCtx, twe.addEvent)
-	}()
-	wait.Until(func() {
-		if twe.next().pointer == endLoadingPointer {
-			log.Debug(ctx, "end loading from overflowwheel", map[string]interface{}{
-				"layer":       twe.next().layer,
-				"bucketIndex": indexToBeLoading,
-			})
-			cancel()
-		}
-	}, twe.tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
-}
-
-func (twe *timingWheelElement) startScheduledEventDistributer(ctx context.Context) {
-	for i := int64(0); i < twe.config.WheelSize; i++ {
-		twe.wg.Add(1)
-		go func(index int64) {
-			defer twe.wg.Done()
-			offsetC := make(chan waitGroup, defaultMaxNumberOfWorkers)
-			twe.wg.Add(1)
-			// update offset asynchronously
-			go func() {
-				defer twe.wg.Done()
-				for {
-					select {
-					case <-ctx.Done():
-						log.Warning(ctx, "context canceled at scheduled event distributing and update offset metadata", nil)
-						return
-					case offset := <-offsetC:
-						// wait for all goroutines to finish before updating offset metadata
-						offset.wg.Wait()
-						log.Debug(ctx, "update offset metadata", map[string]interface{}{
-							"eventbus": twe.buckets[index].getEventbus(),
-							"updateTo": offset.data,
-						})
-						twe.buckets[index].updateOffsetMeta(ctx, offset.data)
-					}
-				}
-			}()
-			glimitC := make(chan struct{}, defaultMaxNumberOfWorkers)
-			for {
-				select {
-				case <-ctx.Done():
-					log.Warning(ctx, "context canceled at bucket distributing", map[string]interface{}{
-						"eventbus": twe.buckets[index].getEventbus(),
-					})
-					return
-				default:
-					if twe.isLeader() {
-						// batch read
-						events, err := twe.buckets[index].getEvent(ctx, defaultNumberOfEventsRead)
-						if err != nil {
-							if !errors.Is(err, es.ErrOnEnd) && !errors.Is(err, es.ErrTryAgain) {
-								log.Error(ctx, "get event failed when bucket distributing", map[string]interface{}{
-									"eventbus":   twe.buckets[index].getEventbus(),
-									log.KeyError: err,
-								})
-							}
-							break
-						}
-						// concurrent write
-						numberOfEvents := int64(len(events))
-						log.Debug(ctx, "got events when distributing", map[string]interface{}{
-							"eventbus":       twe.buckets[index].getEventbus(),
-							"offset":         twe.buckets[index].getOffset(),
-							"numberOfEvents": numberOfEvents,
-						})
-						wg := sync.WaitGroup{}
-						for _, event := range events {
-							wg.Add(1)
-							glimitC <- struct{}{}
-							tm := newTimingMsg(ctx, event)
-							waitCtx, cancel := context.WithCancel(ctx)
-							wait.Until(func() {
-								if time.Now().UTC().After(tm.expiration) {
-									cancel()
-								}
-							}, twe.buckets[index].getTick()/defaultFrequentCheckWaitingPeriodRatio, waitCtx.Done())
-
-							go func(ctx context.Context, e *ce.Event) {
-								defer wg.Done()
-								waitCtx, cancel := context.WithCancel(ctx)
-								wait.Until(func() {
-									if tm.consume(ctx, twe.config.CtrlEndpoints) == nil {
-										cancel()
-									}
-								}, twe.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
-								<-glimitC
-							}(ctx, event)
-						}
-						// asynchronously update offset after the same batch of events are successfully written
-						offsetC <- waitGroup{
-							wg:   &wg,
-							data: twe.buckets[index].getOffset() + numberOfEvents,
-						}
-						twe.buckets[index].incOffset(numberOfEvents)
-					}
-				}
-			}
-		}(i)
-	}
-}
-
-func (twe *timingWheelElement) updatePointerMeta(ctx context.Context) {
-	twe.wg.Add(1)
-	go func() {
-		defer twe.wg.Done()
-		key := fmt.Sprintf("%s/pointer/%d", metadata.MetadataKeyPrefixInKVStore, twe.layer)
-		pointerMeta := &metadata.PointerMeta{
-			Layer:   twe.layer,
-			Pointer: twe.pointer,
-		}
-		data, _ := json.Marshal(pointerMeta)
-		err := twe.kvStore.Set(ctx, key, data)
-		if err != nil {
-			log.Warning(ctx, "set pointer metadata to kvstore failed", map[string]interface{}{
-				log.KeyError: err,
-				"key":        key,
-				"layer":      twe.layer,
-				"pointer":    twe.pointer,
-			})
-		}
-	}()
-}
-
-func (twe *timingWheelElement) start(ctx context.Context) {
-	twe.wg.Add(1)
-	go func() {
-		defer twe.wg.Done()
-		for {
-			select {
-			case <-ctx.Done():
-				log.Warning(ctx, "context canceled at timingwheel element pointer routine", map[string]interface{}{
-					"layer": twe.layer,
-				})
-				return
-			case <-twe.tickC:
-				if !twe.isLeader() {
-					break
-				}
-				twe.pointer++
-				if twe.layer <= twe.config.Layers && twe.pointer >= twe.config.WheelSize {
-					twe.next().tickingOnce()
-					twe.pointer = 0
-				}
-				twe.updatePointerMeta(ctx)
-				// log.Debug(ctx, "current layer timingwheel pointer", map[string]interface{}{
-				// 	"layer":   twe.layer,
-				// 	"pointer": twe.pointer,
-				// })
-				if twe.layer <= twe.config.Layers && twe.pointer == twe.config.WheelSize-1 {
-					twe.wg.Add(1)
-					go func() {
-						defer twe.wg.Done()
-						twe.fetchEventFromOverflowWheelAdvance(ctx)
-					}()
-				}
-			}
-		}
-	}()
+	return nil
 }
 
 func (twe *timingWheelElement) wait(ctx context.Context) {
 	twe.wg.Wait()
 }
 
-func (twe *timingWheelElement) getTick() time.Duration {
-	return twe.tick
-}
-
-func (twe *timingWheelElement) getPointer() int64 {
-	return twe.pointer
-}
-
-func (twe *timingWheelElement) setPointer(pointer int64) {
-	twe.pointer = pointer
-}
-
-func (twe *timingWheelElement) getLayer() int64 {
-	return twe.layer
-}
-
-func (twe *timingWheelElement) getBucket(slot int64) *bucket {
-	return twe.buckets[slot]
-}
-
-func (twe *timingWheelElement) getBuckets() []*bucket {
+func (twe *timingWheelElement) getBuckets() map[int64]*bucket {
 	return twe.buckets
 }
 
-func (twe *timingWheelElement) setBuckets(slot int64, b *bucket) {
-	twe.buckets[slot] = b
+func (twe *timingWheelElement) setElement(element *list.Element) {
+	twe.element = element
 }
 
-func (twe *timingWheelElement) tickingOnce() {
-	twe.tickC <- struct{}{}
+func (twe *timingWheelElement) prev() *timingWheelElement {
+	return twe.element.Prev().Value.(*timingWheelElement)
 }
 
 func (twe *timingWheelElement) next() *timingWheelElement {

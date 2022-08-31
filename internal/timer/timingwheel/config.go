@@ -22,7 +22,6 @@ type Config struct {
 	Tick          time.Duration `yaml:"tick"`
 	WheelSize     int64         `yaml:"wheel_size"`
 	Layers        int64         `yaml:"layers"`
-	StartTime     time.Time     `yaml:"start_time"`
 	KeyPrefix     string        `yaml:"key_prefix"`
 	EtcdEndpoints []string      `yaml:"etcd"`
 	CtrlEndpoints []string      `yaml:"controllers"`
