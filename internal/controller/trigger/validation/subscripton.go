@@ -18,9 +18,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
-
 	"github.com/linkall-labs/vanus/internal/controller/errors"
+	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/cel"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"

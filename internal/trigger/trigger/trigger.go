@@ -327,7 +327,7 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 	delayTime := calDeliveryTime(attempts)
 	ec.Extensions[primitive.XVanusDeliveryTime] = ce.Timestamp{Time: time.Now().Add(delayTime).UTC()}.Format(time.RFC3339)
 	ec.Extensions[primitive.XVanusSubscriptionID] = t.subscriptionIDStr
-	ec.Extensions[primitive.XVanusEventbus] = primitive.RetryEventBusName
+	ec.Extensions[primitive.XVanusEventbus] = primitive.RetryEventbusName
 	for {
 		if _, err := t.timerEventWriter.Append(ctx, e); err != nil {
 			log.Info(ctx, "write retry event error", map[string]interface{}{
@@ -395,7 +395,7 @@ func (t *trigger) getReaderConfig() reader.Config {
 func (t *trigger) getRetryEventReaderConfig() reader.Config {
 	controllers := t.config.Controllers
 	sub := t.subscription
-	ebName := primitive.RetryEventBusName
+	ebName := primitive.RetryEventbusName
 	ebVrn := fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s",
 		controllers[0],
 		ebName,
@@ -426,12 +426,12 @@ func getOffset(subscriptionOffset *offset.SubscriptionOffset, sub *primitive.Sub
 
 func (t *trigger) Init(ctx context.Context) error {
 	t.client = newEventClient(t.subscription.Sink, t.subscription.Protocol, t.subscription.SinkCredential)
-	timerEventWriter, err := newEventLogWriter(ctx, primitive.TimerEventBusName, t.config.Controllers)
+	timerEventWriter, err := newEventLogWriter(ctx, primitive.TimerEventbusName, t.config.Controllers)
 	if err != nil {
 		return err
 	}
 	t.timerEventWriter = timerEventWriter
-	dlEventWriter, err := newEventLogWriter(ctx, t.config.DeadLetterEbName, t.config.Controllers)
+	dlEventWriter, err := newEventLogWriter(ctx, t.config.DeadLetterEventbus, t.config.Controllers)
 	if err != nil {
 		return err
 	}

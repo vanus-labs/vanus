@@ -22,11 +22,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/trigger/client"
-
 	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
+	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/trigger/client"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 

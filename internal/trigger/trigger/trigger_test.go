@@ -68,10 +68,10 @@ func TestTrigger_Options(t *testing.T) {
 		size = rand.Intn(1000) + size
 		WithRateLimit(int32(size))(tg)
 		So(tg.config.RateLimit, ShouldEqual, size)
-		WithDeadLetterEbName("")(tg)
-		So(tg.config.DeadLetterEbName, ShouldEqual, primitive.DeadLetterEventBusName)
-		WithDeadLetterEbName("test_eb")(tg)
-		So(tg.config.DeadLetterEbName, ShouldEqual, "test_eb")
+		WithDeadLetterEventbus("")(tg)
+		So(tg.config.DeadLetterEventbus, ShouldEqual, primitive.DeadLetterEventbusName)
+		WithDeadLetterEventbus("test_eb")(tg)
+		So(tg.config.DeadLetterEventbus, ShouldEqual, "test_eb")
 	})
 }
 
@@ -139,16 +139,16 @@ func TestTriggerWriteFailEvent(t *testing.T) {
 		Convey("test first retry,in retry", func() {
 			tg.writeFailEvent(ctx, e.Event, 500, fmt.Errorf("500 error"))
 			So(e.Event.Extensions()[primitive.XVanusRetryAttempts], ShouldEqual, 1)
-			So(e.Event.Extensions()[primitive.XVanusEventbus], ShouldEqual, primitive.RetryEventBusName)
+			So(e.Event.Extensions()[primitive.XVanusEventbus], ShouldEqual, primitive.RetryEventbusName)
 			So(e.Event.Extensions()[primitive.XVanusSubscriptionID], ShouldEqual, id.String())
 		})
 		Convey("test retry again,in retry", func() {
 			attempts := 1
 			e.Event.SetExtension(primitive.XVanusRetryAttempts, strconv.Itoa(attempts))
-			e.Event.SetExtension(primitive.XVanusEventbus, primitive.RetryEventBusName)
+			e.Event.SetExtension(primitive.XVanusEventbus, primitive.RetryEventbusName)
 			tg.writeFailEvent(ctx, e.Event, 500, fmt.Errorf("500 error"))
 			So(e.Event.Extensions()[primitive.XVanusRetryAttempts], ShouldEqual, attempts+1)
-			So(e.Event.Extensions()[primitive.XVanusEventbus], ShouldEqual, primitive.RetryEventBusName)
+			So(e.Event.Extensions()[primitive.XVanusEventbus], ShouldEqual, primitive.RetryEventbusName)
 		})
 		Convey("test attempts max,in dlq", func() {
 			attempts := primitive.MaxRetryAttempts

@@ -29,22 +29,22 @@ const (
 )
 
 type Config struct {
-	FilterProcessSize int
-	BufferSize        int
-	MaxRetryAttempts  int32
-	DeliveryTimeout   time.Duration
-	RateLimit         int32
-	Controllers       []string
-	DeadLetterEbName  string
+	FilterProcessSize  int
+	BufferSize         int
+	MaxRetryAttempts   int32
+	DeliveryTimeout    time.Duration
+	RateLimit          int32
+	Controllers        []string
+	DeadLetterEventbus string
 }
 
 func defaultConfig() Config {
 	c := Config{
-		FilterProcessSize: defaultFilterProcessSize,
-		BufferSize:        defaultBufferSize,
-		MaxRetryAttempts:  primitive.MaxRetryAttempts,
-		DeliveryTimeout:   defaultDeliveryTimeout,
-		DeadLetterEbName:  primitive.DeadLetterEventBusName,
+		FilterProcessSize:  defaultFilterProcessSize,
+		BufferSize:         defaultBufferSize,
+		MaxRetryAttempts:   primitive.MaxRetryAttempts,
+		DeliveryTimeout:    defaultDeliveryTimeout,
+		DeadLetterEventbus: primitive.DeadLetterEventbusName,
 	}
 	return c
 }
@@ -105,11 +105,11 @@ func WithControllers(controllers []string) Option {
 	}
 }
 
-func WithDeadLetterEbName(ebName string) Option {
+func WithDeadLetterEventbus(eventbus string) Option {
 	return func(t *trigger) {
-		if ebName == "" {
-			ebName = primitive.DeadLetterEventBusName
+		if eventbus == "" {
+			eventbus = primitive.DeadLetterEventbusName
 		}
-		t.config.DeadLetterEbName = ebName
+		t.config.DeadLetterEventbus = eventbus
 	}
 }
