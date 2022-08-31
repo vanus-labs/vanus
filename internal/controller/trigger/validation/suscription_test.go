@@ -53,25 +53,29 @@ func TestSubscriptionRequestValidator(t *testing.T) {
 		}
 		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
 	})
-	Convey("subscription config rate limit", t, func() {
-		request := &ctrlpb.SubscriptionRequest{
-			Sink:     "sink",
-			EventBus: "eventBus",
-			Config: &metapb.SubscriptionConfig{
+}
+
+func TestValidateSubscriptionConfig(t *testing.T) {
+	ctx := context.Background()
+	Convey("test validate subscription config", t, func() {
+		Convey("test rate limit", func() {
+			config := &metapb.SubscriptionConfig{
 				RateLimit: -2,
-			},
-		}
-		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
-	})
-	Convey("subscription config offset invalid", t, func() {
-		request := &ctrlpb.SubscriptionRequest{
-			Sink:     "sink",
-			EventBus: "eventBus",
-			Config: &metapb.SubscriptionConfig{
+			}
+			So(validateSubscriptionConfig(ctx, config), ShouldNotBeNil)
+		})
+		Convey("test offset timestamp", func() {
+			config := &metapb.SubscriptionConfig{
 				OffsetType: metapb.SubscriptionConfig_TIMESTAMP,
-			},
-		}
-		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
+			}
+			So(validateSubscriptionConfig(ctx, config), ShouldNotBeNil)
+		})
+		Convey("test max retry attempts", func() {
+			config := &metapb.SubscriptionConfig{
+				MaxRetryAttempts: 10000,
+			}
+			So(validateSubscriptionConfig(ctx, config), ShouldNotBeNil)
+		})
 	})
 }
 

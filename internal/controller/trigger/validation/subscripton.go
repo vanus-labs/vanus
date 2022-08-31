@@ -119,6 +119,9 @@ func validateSubscriptionConfig(ctx context.Context, cfg *metapb.SubscriptionCon
 	default:
 		return errors.ErrInvalidRequest.WithMessage("offset type is invalid")
 	}
+	if cfg.DeadLetterEventbus != "" {
+		return errors.ErrInvalidRequest.WithMessage("set dead letter eventbus not support")
+	}
 	if cfg.MaxRetryAttempts > primitive.MaxRetryAttempts {
 		return errors.ErrInvalidRequest.WithMessage(
 			fmt.Sprintf("max retry attempts can not gt than %d", primitive.MaxRetryAttempts))

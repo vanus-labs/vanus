@@ -17,6 +17,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -24,6 +25,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	ce "github.com/cloudevents/sdk-go/v2"
+)
+
+const (
+	errStatusCode = 400
 )
 
 type awsLambda struct {
@@ -58,15 +63,18 @@ func (l *awsLambda) Send(ctx context.Context, event ce.Event) Result {
 	}
 	resp, err := l.client.Invoke(ctx, req)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return DeliveryTimeout
+		}
 		return Result{
-			StatusCode: ErrLambdaInvoke,
-			Err:        fmt.Errorf("lambda invke error:%w", err),
+			StatusCode: ErrUndefined,
+			Err:        fmt.Errorf("lambda invoke error:%w", err),
 		}
 	}
-	if resp.FunctionError != nil {
+	if resp.StatusCode >= errStatusCode {
 		return Result{
 			StatusCode: int(resp.StatusCode),
-			Err:        fmt.Errorf("lambda invoke response error:%s", *resp.FunctionError),
+			Err:        fmt.Errorf("lambda invoke statusCode:%d, paylaod:%s", resp.StatusCode, string(resp.Payload)),
 		}
 	}
 	return Success

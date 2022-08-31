@@ -142,9 +142,6 @@ func createSubscriptionCommand() *cobra.Command {
 			if maxRetryAttempts != 0 {
 				config.MaxRetryAttempts = maxRetryAttempts
 			}
-			if dlEventbus != "" {
-				config.DeadLetterEventbus = dlEventbus
-			}
 
 			ctx := context.Background()
 			grpcConn := mustGetControllerProxyConn(ctx, cmd)
@@ -192,7 +189,6 @@ func createSubscriptionCommand() *cobra.Command {
 		"when credential-type is cloud, need access_key_id and secret_access_key")
 	cmd.Flags().Int32Var(&eventDeliveryTimeout, "delivery-timeout", 0, "event delivery to sink timeout, unit millisecond")
 	cmd.Flags().Int32Var(&maxRetryAttempts, "max-retry-attempts", 0, "event delivery fail max retry attempts")
-	cmd.Flags().StringVar(&dlEventbus, "dl-eventbus", "", "dead letter eventbus")
 	return cmd
 }
 

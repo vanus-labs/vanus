@@ -16,6 +16,7 @@ package client
 
 import (
 	"context"
+	"errors"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
@@ -35,10 +36,13 @@ func NewHTTPClient(url string) EventClient {
 func (c *http) Send(ctx context.Context, event ce.Event) Result {
 	if err := c.client.Send(ctx, event); !ce.IsACK(err) {
 		r := Result{Err: err}
+		if errors.Is(err, context.DeadlineExceeded) {
+			return DeliveryTimeout
+		}
 		if v, ok := err.(*cehttp.Result); ok {
 			r.StatusCode = v.StatusCode
 		} else {
-			r.StatusCode = ErrHTTP
+			r.StatusCode = ErrUndefined
 		}
 		return r
 	}

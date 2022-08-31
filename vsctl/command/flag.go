@@ -45,7 +45,6 @@ var (
 	sinkCredential       string
 	eventDeliveryTimeout int32
 	maxRetryAttempts     int32
-	dlEventbus           string
 
 	showSegment bool
 	showBlock   bool
