@@ -12,8 +12,12 @@ jobs:
     name: e2e
     if: |
       startsWith(github.event.pull_request.title, 'fix:') ||
+      startsWith(github.event.pull_request.title, 'fix(') ||
       startsWith(github.event.pull_request.title, 'feat:') ||
-      startsWith(github.event.pull_request.title, 'refactor:')
+      startsWith(github.event.pull_request.title, 'feat(') ||
+      startsWith(github.event.pull_request.title, 'feat!:') ||
+      startsWith(github.event.pull_request.title, 'refactor:') ||
+      startsWith(github.event.pull_request.title, 'refactor(')
     runs-on: ubuntu-latest
     env:
       VANUS_GATEWAY: 192.168.49.2:30001
