@@ -192,8 +192,11 @@ func (t *trigger) eventArrived(ctx context.Context, event info.EventRecord) erro
 func (t *trigger) sendEvent(ctx context.Context, e *ce.Event) (int, error) {
 	var err error
 	transformer := t.getTransformer()
+	sendEvent := *e
 	if transformer != nil {
-		err = transformer.Execute(e)
+		// transform will chang event which lost origin event
+		sendEvent = e.Clone()
+		err = transformer.Execute(&sendEvent)
 		if err != nil {
 			return -1, err
 		}
@@ -202,7 +205,7 @@ func (t *trigger) sendEvent(ctx context.Context, e *ce.Event) (int, error) {
 	defer cancel()
 	t.rateLimiter.Take()
 	startTime := time.Now()
-	r := t.getClient().Send(timeoutCtx, *e)
+	r := t.getClient().Send(timeoutCtx, sendEvent)
 	if r == client.Success {
 		metrics.TriggerPushEventRtCounter.WithLabelValues(t.subscriptionIDStr).Observe(time.Since(startTime).Seconds())
 	}
