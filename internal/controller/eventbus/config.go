@@ -24,4 +24,5 @@ type Config struct {
 	EtcdConfig       embedetcd.Config  `yaml:"etcd"`
 	Replicas         uint              `yaml:"replicas"`
 	Topology         map[string]string `yaml:"topology"`
+	SegmentCapacity  int64             `yaml:"segment_capacity"`
 }
