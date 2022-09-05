@@ -31,6 +31,7 @@ import (
 
 const (
 	defaultBlockSize                = int64(64 * 1024 * 1024)
+	minimumBlockSize                = int64(4 * 1024 * 1024)
 	defaultBlockBufferSizePerVolume = 8
 )
 
@@ -47,8 +48,8 @@ type Allocator interface {
 func NewAllocator(defaultBlockCapacity int64, selector VolumeSelector) Allocator {
 	if defaultBlockCapacity <= 0 {
 		defaultBlockCapacity = defaultBlockSize
-	} else if defaultBlockCapacity < 4*1024*1024 {
-		defaultBlockCapacity = 4 * 1024 * 1024
+	} else if defaultBlockCapacity < minimumBlockSize {
+		defaultBlockCapacity = minimumBlockSize
 	}
 	return &allocator{
 		blockCapacity:  defaultBlockCapacity,
