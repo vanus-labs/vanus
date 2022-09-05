@@ -21,7 +21,7 @@ jobs:
       - name: Generate coverage report
         timeout-minutes: 2
         run: |
-          cd vanus && go test -failfast -race -coverprofile=coverage.txt -covermode=atomic -timeout 20s ./internal/...
+          pwd && ll && go test -failfast -race -coverprofile=coverage.txt -covermode=atomic -timeout 20s ./internal/...
       - uses: codecov/codecov-action@v2
         with:
           token: 931ae77e-a303-4e84-9c9f-33083aceaef2 # not required for public repos
