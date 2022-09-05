@@ -12,8 +12,12 @@ permissions:
   # pull-requests: read-
 jobs:
   codecov:
+    strategy:
+      matrix:
+        go-version: [ 1.17.x ]
+        os: [ ubuntu-latest ]
     name: codecov
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/setup-go@v2
       - name: checkout-vanus
@@ -21,7 +25,7 @@ jobs:
       - name: Generate coverage report
         timeout-minutes: 2
         run: |
-          pwd && ll && go test -failfast -race -coverprofile=coverage.txt -covermode=atomic -timeout 20s ./internal/...
+          pwd && ls -alh && go test -failfast -race -coverprofile=coverage.txt -covermode=atomic -timeout 20s ./internal/...
       - uses: codecov/codecov-action@v2
         with:
           token: 931ae77e-a303-4e84-9c9f-33083aceaef2 # not required for public repos
