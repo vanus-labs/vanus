@@ -227,8 +227,8 @@ func (l *distributedEventLog) updateReadableSegments(rs []*vdr.LogSegment) {
 	l.readableSegments = segments
 }
 
-func (l *distributedEventLog) selectReadableSegment(ctx context.Context, offset int64, force bool) (*logSegment, error) {
-	segments := l.fetchReadableSegments(ctx, force)
+func (l *distributedEventLog) selectReadableSegment(ctx context.Context, offset int64) (*logSegment, error) {
+	segments := l.fetchReadableSegments(ctx)
 	if len(segments) == 0 {
 		return nil, errors.ErrNotReadable
 	}
@@ -248,11 +248,11 @@ func (l *distributedEventLog) selectReadableSegment(ctx context.Context, offset 
 	return nil, errors.ErrOverflow
 }
 
-func (l *distributedEventLog) fetchReadableSegments(ctx context.Context, force bool) []*logSegment {
+func (l *distributedEventLog) fetchReadableSegments(ctx context.Context) []*logSegment {
 	l.readableMu.RLock()
 	defer l.readableMu.RUnlock()
 
-	if force || len(l.readableSegments) == 0 {
+	if len(l.readableSegments) == 0 {
 		// refresh
 		func() {
 			l.readableMu.RUnlock()
@@ -369,10 +369,10 @@ func (r *logReader) Close() {
 
 func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 	if r.cur == nil {
-		segment, err := r.elog.selectReadableSegment(ctx, r.pos, false)
+		segment, err := r.elog.selectReadableSegment(ctx, r.pos)
 		if stderr.Is(err, errors.ErrOnEnd) {
 			r.elog.refreshReadableSegments(ctx)
-			segment, err = r.elog.selectReadableSegment(ctx, r.pos, false)
+			segment, err = r.elog.selectReadableSegment(ctx, r.pos)
 		}
 		if err != nil {
 			return nil, err
@@ -382,23 +382,26 @@ func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 
 	events, err := r.cur.Read(ctx, r.pos, size)
 	if err != nil {
-		if stderr.Is(err, errors.ErrOverflow) && r.switchSegment(ctx, true) {
-			return nil, errors.ErrTryAgain
+		if stderr.Is(err, errors.ErrOverflow) {
+			r.elog.refreshReadableSegments(ctx)
+			if r.switchSegment(ctx) {
+				return nil, errors.ErrTryAgain
+			}
 		}
 		return nil, err
 	}
 
 	r.pos += int64(len(events))
 	if r.pos == r.cur.EndOffset() {
-		r.switchSegment(ctx, false)
+		r.switchSegment(ctx)
 	}
 
 	return events, nil
 }
 
-func (r *logReader) switchSegment(ctx context.Context, force bool) bool {
+func (r *logReader) switchSegment(ctx context.Context) bool {
 	// switch to next segment
-	segment, err := r.elog.selectReadableSegment(ctx, r.pos, force)
+	segment, err := r.elog.selectReadableSegment(ctx, r.pos)
 	if err != nil {
 		r.cur = nil
 		return false
