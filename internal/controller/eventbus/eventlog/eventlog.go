@@ -94,12 +94,12 @@ type eventlogManager struct {
 	segmentExpiredTime          time.Duration
 }
 
-func NewManager(volMgr volume.Manager, replicaNum uint) Manager {
+func NewManager(volMgr volume.Manager, replicaNum uint, defaultBlockSize int64) Manager {
 	mgr.volMgr = volMgr
 	if replicaNum > 0 {
 		mgr.segmentReplicaNum = replicaNum
 	}
-	mgr.allocator = block.NewAllocator(block.NewVolumeRoundRobin(mgr.volMgr.GetAllActiveVolumes))
+	mgr.allocator = block.NewAllocator(defaultBlockSize, block.NewVolumeRoundRobin(mgr.volMgr.GetAllActiveVolumes))
 	return mgr
 }
 

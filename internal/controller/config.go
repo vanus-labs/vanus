@@ -35,6 +35,7 @@ type Config struct {
 	Topology             map[string]string `yaml:"topology"`
 	Replicas             uint              `yaml:"replicas"`
 	SecretEncryptionSalt string            `yaml:"secret_encryption_salt"`
+	SegmentCapacity      int64             `yaml:"segment_capacity"`
 }
 
 func (c *Config) GetEtcdConfig() embedetcd.Config {
@@ -51,6 +52,7 @@ func (c *Config) GetEventbusCtrlConfig() eventbus.Config {
 		KVKeyPrefix:      c.MetadataConfig.KeyPrefix,
 		Replicas:         c.Replicas,
 		Topology:         c.Topology,
+		SegmentCapacity:  c.SegmentCapacity,
 	}
 }
 

@@ -210,7 +210,7 @@ func TestAllocator_RunWithDynamic(t *testing.T) {
 
 		mutex := sync.Mutex{}
 		var instanceList []server.Instance
-		alloc := NewAllocator(NewVolumeRoundRobin(func() []server.Instance {
+		alloc := NewAllocator(0, NewVolumeRoundRobin(func() []server.Instance {
 			mutex.Lock()
 			defer mutex.Unlock()
 			return instanceList
@@ -317,7 +317,7 @@ func getAllocator(ctrl *gomock.Controller) *allocator {
 		}, nil
 	})
 
-	alloc := NewAllocator(NewVolumeRoundRobin(func() []server.Instance {
+	alloc := NewAllocator(0, NewVolumeRoundRobin(func() []server.Instance {
 		return []server.Instance{srv1, srv2, srv3}
 	}))
 	return alloc.(*allocator)
