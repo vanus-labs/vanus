@@ -31,6 +31,7 @@ import (
 
 const (
 	defaultBlockSize                = int64(64 * 1024 * 1024)
+	minimumBlockSize                = int64(4 * 1024 * 1024)
 	defaultBlockBufferSizePerVolume = 8
 )
 
@@ -44,8 +45,14 @@ type Allocator interface {
 	Stop()
 }
 
-func NewAllocator(selector VolumeSelector) Allocator {
+func NewAllocator(defaultBlockCapacity int64, selector VolumeSelector) Allocator {
+	if defaultBlockCapacity <= 0 {
+		defaultBlockCapacity = defaultBlockSize
+	} else if defaultBlockCapacity < minimumBlockSize {
+		defaultBlockCapacity = minimumBlockSize
+	}
 	return &allocator{
+		blockCapacity:  defaultBlockCapacity,
 		selector:       selector,
 		allocateTicker: time.NewTicker(time.Second),
 	}
@@ -60,6 +67,7 @@ type allocator struct {
 	cancel            func()
 	cancelCtx         context.Context
 	allocateTicker    *time.Ticker
+	blockCapacity     int64
 }
 
 func (al *allocator) Run(ctx context.Context, kvCli kv.Client, startDynamicAllocate bool) error {
@@ -97,7 +105,7 @@ func (al *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, erro
 	defer al.mutex.Unlock()
 	blockArr := make([]*metadata.Block, num)
 
-	instances := al.selector.Select(num, defaultBlockSize)
+	instances := al.selector.Select(num, al.blockCapacity)
 	if len(instances) == 0 {
 		return nil, ErrVolumeNotFound
 	}
@@ -112,7 +120,7 @@ func (al *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, erro
 		}
 
 		if !exist || skipList.Len() == 0 {
-			block, err = ins.CreateBlock(ctx, defaultBlockSize)
+			block, err = ins.CreateBlock(ctx, al.blockCapacity)
 			if err != nil {
 				return nil, err
 			}
@@ -153,7 +161,7 @@ func (al *allocator) dynamicAllocateBlockTask(ctx context.Context) {
 				}
 				skipList, _ = v.(*skiplist.SkipList)
 				for skipList.Len() < defaultBlockBufferSizePerVolume {
-					block, err := instance.CreateBlock(ctx, defaultBlockSize)
+					block, err := instance.CreateBlock(ctx, al.blockCapacity)
 					if err != nil {
 						log.Warning(ctx, "create block failed", map[string]interface{}{
 							"volume_id":   instance.GetMeta().ID,

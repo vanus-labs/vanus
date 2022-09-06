@@ -12,8 +12,12 @@ jobs:
     name: e2e
     if: |
       startsWith(github.event.pull_request.title, 'fix:') ||
+      startsWith(github.event.pull_request.title, 'fix(') ||
       startsWith(github.event.pull_request.title, 'feat:') ||
-      startsWith(github.event.pull_request.title, 'refactor:')
+      startsWith(github.event.pull_request.title, 'feat(') ||
+      startsWith(github.event.pull_request.title, 'feat!:') ||
+      startsWith(github.event.pull_request.title, 'refactor:') ||
+      startsWith(github.event.pull_request.title, 'refactor(')
     runs-on: ubuntu-latest
     env:
       VANUS_GATEWAY: 192.168.49.2:30001
@@ -21,7 +25,6 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
-
       - name: Environmental preparation
         run: |
           curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64

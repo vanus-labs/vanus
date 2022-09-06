@@ -382,8 +382,11 @@ func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 
 	events, err := r.cur.Read(ctx, r.pos, size)
 	if err != nil {
-		if stderr.Is(err, errors.ErrOverflow) && r.switchSegment(ctx) {
-			return nil, errors.ErrTryAgain
+		if stderr.Is(err, errors.ErrOverflow) {
+			r.elog.refreshReadableSegments(ctx)
+			if r.switchSegment(ctx) {
+				return nil, errors.ErrTryAgain
+			}
 		}
 		return nil, err
 	}

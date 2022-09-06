@@ -12,24 +12,24 @@ permissions:
   # pull-requests: read-
 jobs:
   codecov:
+    strategy:
+      matrix:
+        go-version: [ 1.17.x, 1.18.x ]
+        os: [ ubuntu-latest ]
     name: codecov
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
       - uses: actions/setup-go@v2
       - name: checkout-vanus
         uses: actions/checkout@v3
-        with:
-          repository: linkall-labs/vanus
-          token: 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 # `GH_PAT` is a secret that contains your PAT
-          path: vanus
       - name: Generate coverage report
         timeout-minutes: 2
         run: |
-          cd vanus && go test -failfast -race -coverprofile=coverage.txt -covermode=atomic -timeout 20s ./internal/...
+          go test -failfast -race -coverprofile=coverage.txt -covermode=atomic -timeout 20s ./internal/...
       - uses: codecov/codecov-action@v2
         with:
-          token: 931ae77e-a303-4e84-9c9f-33083aceaef2 # not required for public repos
-          working-directory: vanus
           files: ./coverage.txt # optional
           name: codecov-umbrella # optional
           fail_ci_if_error: true # optional (default = false)
