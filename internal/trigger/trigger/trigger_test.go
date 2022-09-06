@@ -28,8 +28,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
-	"github.com/linkall-labs/vanus/client/pkg/eventlog"
+	"github.com/linkall-labs/vanus/client/pkg/eventbus"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -76,55 +75,53 @@ func TestTrigger_Options(t *testing.T) {
 }
 
 func TestTriggerStartStop(t *testing.T) {
-	vrn := "vanus:///eventlog/1?eventbus=1"
-	id := vanus.NewID()
-	tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
 	Convey("test start and stop", t, func() {
+		id := vanus.NewID()
+		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		r := reader.NewMockReader(ctrl)
+		r2 := reader.NewMockReader(ctrl)
 		ctx := context.Background()
-		gostub.Stub(&eb.LookupReadableLogs, func(_ context.Context, _ string) ([]*record.EventLog, error) {
-			return []*record.EventLog{{VRN: vrn, Mode: record.PremRead}}, nil
+		busWriter := eventbus.NewMockBusWriter(ctrl)
+		stub := gostub.Stub(&eb.OpenBusWriter, func(_ string) (eventbus.BusWriter, error) {
+			return busWriter, nil
 		})
-		logWriter := eventlog.NewMockLogWriter(ctrl)
-		logWriter.EXPECT().Close().Times(2).Return()
-		gostub.Stub(&eb.OpenLogWriter, func(_ string) (eventlog.LogWriter, error) {
-			return logWriter, nil
-		})
+		defer stub.Reset()
+		busWriter.EXPECT().Close().Times(2).Return()
 		err := tg.Init(ctx)
 		So(err, ShouldBeNil)
 		tg.reader = r
+		tg.retryEventReader = r2
 		r.EXPECT().Start().Return(nil)
+		r2.EXPECT().Start().Return(nil)
 		err = tg.Start(ctx)
 		So(err, ShouldBeNil)
 		time.Sleep(100 * time.Millisecond)
 		So(tg.state, ShouldEqual, TriggerRunning)
 		r.EXPECT().Close().Return()
+		r2.EXPECT().Close().Return()
 		_ = tg.Stop(ctx)
 		So(tg.state, ShouldEqual, TriggerStopped)
 	})
 }
 
 func TestTriggerWriteFailEvent(t *testing.T) {
-	vrn := "vanus:///eventlog/1?eventbus=1"
 	Convey("test write fail event", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		ctx := context.Background()
 		id := vanus.NewID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
-		gostub.Stub(&eb.LookupReadableLogs, func(_ context.Context, _ string) ([]*record.EventLog, error) {
-			return []*record.EventLog{{VRN: vrn, Mode: record.PremRead}}, nil
+		busWriter := eventbus.NewMockBusWriter(ctrl)
+		stub := gostub.Stub(&eb.OpenBusWriter, func(_ string) (eventbus.BusWriter, error) {
+			return busWriter, nil
 		})
-		logWriter := eventlog.NewMockLogWriter(ctrl)
-		gostub.Stub(&eb.OpenLogWriter, func(_ string) (eventlog.LogWriter, error) {
-			return logWriter, nil
-		})
+		defer stub.Reset()
 		_ = tg.Init(ctx)
 		e := makeEventRecord("type")
 		var callCount int
-		logWriter.EXPECT().Append(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(context.Context,
+		busWriter.EXPECT().Append(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(context.Context,
 			*ce.Event) (int64, error) {
 			callCount++
 			if callCount%2 != 0 {
@@ -134,7 +131,7 @@ func TestTriggerWriteFailEvent(t *testing.T) {
 		})
 		Convey("test no need retry,in dlq", func() {
 			tg.writeFailEvent(ctx, e.Event, 400, fmt.Errorf("400 error"))
-			So(e.Event.Extensions()[primitive.XVanusDeadLetterReason], ShouldNotBeNil)
+			So(e.Event.Extensions()[primitive.DeadLetterReason], ShouldNotBeNil)
 		})
 		Convey("test first retry,in retry", func() {
 			tg.writeFailEvent(ctx, e.Event, 500, fmt.Errorf("500 error"))
@@ -155,13 +152,12 @@ func TestTriggerWriteFailEvent(t *testing.T) {
 			e.Event.SetExtension(primitive.XVanusRetryAttempts, strconv.Itoa(attempts))
 			tg.writeFailEvent(ctx, e.Event, 500, fmt.Errorf("500 error"))
 			So(e.Event.Extensions()[primitive.XVanusRetryAttempts], ShouldEqual, strconv.Itoa(attempts))
-			So(e.Event.Extensions()[primitive.XVanusDeadLetterReason], ShouldNotBeNil)
+			So(e.Event.Extensions()[primitive.DeadLetterReason], ShouldNotBeNil)
 		})
 	})
 }
 
 func TestTriggerRunEventSend(t *testing.T) {
-	vrn := "vanus:///eventlog/1?eventbus=1"
 	Convey("test event run process", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -169,13 +165,11 @@ func TestTriggerRunEventSend(t *testing.T) {
 		ctx := context.Background()
 		id := vanus.NewID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
-		gostub.Stub(&eb.LookupReadableLogs, func(_ context.Context, _ string) ([]*record.EventLog, error) {
-			return []*record.EventLog{{VRN: vrn, Mode: record.PremRead}}, nil
+		busWriter := eventbus.NewMockBusWriter(ctrl)
+		stub := gostub.Stub(&eb.OpenBusWriter, func(_ string) (eventbus.BusWriter, error) {
+			return busWriter, nil
 		})
-		logWriter := eventlog.NewMockLogWriter(ctrl)
-		gostub.Stub(&eb.OpenLogWriter, func(_ string) (eventlog.LogWriter, error) {
-			return logWriter, nil
-		})
+		defer stub.Reset()
 		_ = tg.Init(ctx)
 		tg.client = cli
 		cli.EXPECT().Send(gomock.Any(), gomock.Any()).AnyTimes().Return(client.Success)

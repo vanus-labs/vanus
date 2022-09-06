@@ -22,8 +22,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/linkall-labs/vanus/client/pkg/eventbus"
+
 	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger/client"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -41,23 +42,17 @@ func newEventClient(sink primitive.URI,
 	}
 }
 
-func newEventLogWriter(ctx context.Context, eventbus string, endpoints []string) (eventlog.LogWriter, error) {
+func newEventbusWriter(ctx context.Context, eventbus string, endpoints []string) (eventbus.BusWriter, error) {
 	vrn := fmt.Sprintf("vanus:///eventbus/%s?controllers=%s", eventbus, strings.Join(endpoints, ","))
-	ls, err := eb.LookupReadableLogs(ctx, vrn)
+	busWriter, err := eb.OpenBusWriter(vrn)
 	if err != nil {
-		log.Error(ctx, "lookup readable logs failed", map[string]interface{}{
-			log.KeyError: err,
+		log.Error(ctx, "open bus writer failed", map[string]interface{}{
+			log.KeyError:        err,
+			log.KeyEventbusName: eventbus,
 		})
 		return nil, err
 	}
-	eventlogWriter, err := eb.OpenLogWriter(ls[0].VRN)
-	if err != nil {
-		log.Error(ctx, "open log writer failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		return nil, err
-	}
-	return eventlogWriter, nil
+	return busWriter, nil
 }
 
 func isShouldRetry(statusCode int) (bool, string) {

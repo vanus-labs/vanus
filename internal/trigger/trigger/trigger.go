@@ -23,7 +23,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/client/pkg/eventlog"
+	"github.com/linkall-labs/vanus/client/pkg/eventbus"
+
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -78,8 +79,8 @@ type trigger struct {
 
 	retryEventCh     chan info.EventRecord
 	retryEventReader reader.Reader
-	timerEventWriter eventlog.LogWriter
-	dlEventWriter    eventlog.LogWriter
+	timerEventWriter eventbus.BusWriter
+	dlEventWriter    eventbus.BusWriter
 
 	state State
 	stop  context.CancelFunc
@@ -353,9 +354,9 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 	ec, _ := e.Context.(*ce.EventContextV1)
 	delete(ec.Extensions, primitive.XVanusEventbus)
 	ec.Extensions[primitive.XVanusSubscriptionID] = t.subscriptionIDStr
-	ec.Extensions[primitive.XVanusLastDeliveryTime] = ce.Timestamp{Time: time.Now().UTC()}.Format(time.RFC3339)
-	ec.Extensions[primitive.XVanusLastDeliveryErrorInfo] = errorMsg
-	ec.Extensions[primitive.XVanusDeadLetterReason] = reason
+	ec.Extensions[primitive.LastDeliveryTime] = ce.Timestamp{Time: time.Now().UTC()}.Format(time.RFC3339)
+	ec.Extensions[primitive.LastDeliveryError] = errorMsg
+	ec.Extensions[primitive.DeadLetterReason] = reason
 	for {
 		if _, err := t.dlEventWriter.Append(ctx, e); err != nil {
 			log.Info(ctx, "write dl event error", map[string]interface{}{
@@ -429,12 +430,12 @@ func getOffset(subscriptionOffset *offset.SubscriptionOffset, sub *primitive.Sub
 
 func (t *trigger) Init(ctx context.Context) error {
 	t.client = newEventClient(t.subscription.Sink, t.subscription.Protocol, t.subscription.SinkCredential)
-	timerEventWriter, err := newEventLogWriter(ctx, primitive.TimerEventbusName, t.config.Controllers)
+	timerEventWriter, err := newEventbusWriter(ctx, primitive.TimerEventbusName, t.config.Controllers)
 	if err != nil {
 		return err
 	}
 	t.timerEventWriter = timerEventWriter
-	dlEventWriter, err := newEventLogWriter(ctx, t.config.DeadLetterEventbus, t.config.Controllers)
+	dlEventWriter, err := newEventbusWriter(ctx, t.config.DeadLetterEventbus, t.config.Controllers)
 	if err != nil {
 		return err
 	}

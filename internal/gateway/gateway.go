@@ -108,7 +108,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, pr
 		return nil, v2.NewHTTPResult(http.StatusBadRequest, err.Error())
 	}
 
-	if eventTime, ok := extensions[primitive.XVanusLastDeliveryTime]; ok {
+	if eventTime, ok := extensions[primitive.XVanusDeliveryTime]; ok {
 		// validate event time
 		if _, err := types.ParseTime(eventTime.(string)); err != nil {
 			log.Error(ctx, "invalid format of event time", map[string]interface{}{
@@ -161,12 +161,12 @@ func checkExtension(extensions map[string]interface{}) error {
 		return nil
 	}
 	for name := range extensions {
-		if name == primitive.XVanusLastDeliveryTime {
+		if name == primitive.XVanusDeliveryTime {
 			continue
 		}
 		// event attribute can not prefix with vanus system use
-		if strings.HasPrefix(name, primitive.XVanusPrefix) {
-			return fmt.Errorf("invalid ce attribute [%s] perfix %s", name, primitive.XVanusPrefix)
+		if strings.HasPrefix(name, primitive.XVanus) {
+			return fmt.Errorf("invalid ce attribute [%s] perfix %s", name, primitive.XVanus)
 		}
 	}
 	return nil

@@ -19,14 +19,15 @@ const (
 	DeadLetterEventbusName = "__dl_eb"
 	TimerEventbusName      = "__Timer_RS"
 
-	XVanusPrefix                = "xvanus"
-	XVanusEventbus              = XVanusPrefix + "eventbus"
-	XVanusDeliveryTime          = XVanusPrefix + "deliverytime"
-	XVanusRetryAttempts         = XVanusPrefix + "retryattempts"
-	XVanusSubscriptionID        = XVanusPrefix + "subscriptionid"
-	XVanusLastDeliveryTime      = XVanusPrefix + "lastdeliverytime"
-	XVanusLastDeliveryErrorInfo = XVanusPrefix + "lastdeliveryerrorinfo"
-	XVanusDeadLetterReason      = XVanusPrefix + "deadletterreason"
+	XVanus               = "xvanus"
+	XVanusEventbus       = XVanus + "eventbus"
+	XVanusDeliveryTime   = XVanus + "deliverytime"
+	XVanusRetryAttempts  = XVanus + "retryattempts"
+	XVanusSubscriptionID = XVanus + "subscriptionid"
+
+	LastDeliveryTime  = "lastdeliverytime"
+	LastDeliveryError = "lastdeliveryerror"
+	DeadLetterReason  = "deadletterreason"
 
 	MaxRetryAttempts = 32
 )

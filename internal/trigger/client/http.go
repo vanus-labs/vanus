@@ -34,17 +34,20 @@ func NewHTTPClient(url string) EventClient {
 }
 
 func (c *http) Send(ctx context.Context, event ce.Event) Result {
-	if err := c.client.Send(ctx, event); !ce.IsACK(err) {
-		r := Result{Err: err}
-		if errors.Is(err, context.DeadlineExceeded) {
-			return DeliveryTimeout
-		}
-		if v, ok := err.(*cehttp.Result); ok {
-			r.StatusCode = v.StatusCode
-		} else {
-			r.StatusCode = ErrUndefined
-		}
-		return r
+	res := c.client.Send(ctx, event)
+	if ce.IsACK(res) {
+		return Success
 	}
-	return Success
+	if errors.Is(res, context.DeadlineExceeded) {
+		return DeliveryTimeout
+	}
+	r := Result{Err: res}
+	var httpResult *cehttp.Result
+	if ce.ResultAs(res, &httpResult) {
+		r.StatusCode = httpResult.StatusCode
+	} else {
+		r.StatusCode = ErrUndefined
+	}
+
+	return r
 }
