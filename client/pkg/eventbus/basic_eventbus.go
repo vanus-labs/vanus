@@ -117,6 +117,10 @@ func (b *basicEventBus) setState(err error) {
 func (b *basicEventBus) updateWritableLogs(re *discovery.WritableLogsResult) {
 	b.setState(re.Err)
 
+	if re.Err != nil {
+		return
+	}
+
 	s := strset.NewWithSize(len(re.Eventlogs))
 	for _, l := range re.Eventlogs {
 		s.Add(l.VRN)
@@ -219,8 +223,8 @@ func (w *basicBusWriter) Append(ctx context.Context, event *ce.Event) (string, e
 func (w *basicBusWriter) pickLogWriter(ctx context.Context, event *ce.Event) (eventlog.LogWriter, error) {
 	lws := w.ebus.getLogWriters(ctx)
 	if len(lws) == 0 {
-		if w.ebus.getState() != nil {
-			return nil, w.ebus.getState()
+		if err := w.ebus.getState(); err != nil {
+			return nil, err
 		}
 		return nil, errors.ErrNotWritable
 	}
