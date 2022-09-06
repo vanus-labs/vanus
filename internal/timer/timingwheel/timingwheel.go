@@ -24,7 +24,8 @@ import (
 	"sync"
 	"time"
 
-	es "github.com/linkall-labs/vanus/client/pkg/errors"
+	errcli "github.com/linkall-labs/vanus/client/pkg/errors"
+	errctrl "github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	timererrors "github.com/linkall-labs/vanus/internal/timer/errors"
@@ -373,7 +374,7 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 				// batch read
 				events, err := tw.receivingStation.getEvent(ctx, defaultNumberOfEventsRead)
 				if err != nil {
-					if !errors.Is(err, es.ErrOnEnd) {
+					if !errors.Is(err, errcli.ErrOnEnd) {
 						log.Error(ctx, "get event failed when receiving station running", map[string]interface{}{
 							log.KeyError: err,
 							"eventbus":   tw.receivingStation.getEventbus(),
@@ -473,7 +474,7 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 				// batch read
 				events, err := tw.distributionStation.getEvent(ctx, defaultNumberOfEventsRead)
 				if err != nil {
-					if !errors.Is(err, es.ErrOnEnd) {
+					if !errors.Is(err, errcli.ErrOnEnd) {
 						log.Error(ctx, "get event failed when distribution station running", map[string]interface{}{
 							log.KeyError: err,
 							"eventbus":   tw.distributionStation.getEventbus(),
@@ -544,6 +545,14 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 	defer eventbusWriter.Close()
 	_, err = eventbusWriter.Append(ctx, e)
 	if err != nil {
+		if errors.Is(err, errctrl.ErrResourceNotFound) {
+			log.Warning(ctx, "eventbus not found, discard this event", map[string]interface{}{
+				log.KeyError: err,
+				"eventbus":   ebName,
+				"event":      e.String(),
+			})
+			return nil
+		}
 		log.Error(ctx, "append failed", map[string]interface{}{
 			log.KeyError: err,
 			"eventbus":   ebName,

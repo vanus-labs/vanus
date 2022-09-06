@@ -25,12 +25,25 @@ import (
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
 )
 
-type WritableLogsWatcher struct {
-	*primitive.Watcher
-	ch chan []*record.EventLog
+type WritableLogsState struct {
+	eventlogs []*record.EventLog
+	state     error
 }
 
-func (w *WritableLogsWatcher) Chan() <-chan []*record.EventLog {
+func (w *WritableLogsState) WritableLogs() []*record.EventLog {
+	return w.eventlogs
+}
+
+func (w *WritableLogsState) State() error {
+	return w.state
+}
+
+type WritableLogsWatcher struct {
+	*primitive.Watcher
+	ch chan *WritableLogsState
+}
+
+func (w *WritableLogsWatcher) Chan() <-chan *WritableLogsState {
 	return w.ch
 }
 
@@ -45,16 +58,12 @@ func WatchWritableLogs(eventbus *VRN) (*WritableLogsWatcher, error) {
 	}
 
 	// TODO: true watch
-	ch := make(chan []*record.EventLog, 1)
+	ch := make(chan *WritableLogsState, 1)
 	w := primitive.NewWatcher(30*time.Second, func() {
 		rs, err := ns.LookupWritableLogs(context.Background(), eventbus)
-		if err != nil {
-			// TODO: logging
-
-			// FIXME: notify
-			ch <- nil
-		} else {
-			ch <- rs
+		ch <- &WritableLogsState{
+			eventlogs: rs,
+			state:     err,
 		}
 	}, func() {
 		close(ch)

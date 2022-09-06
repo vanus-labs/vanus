@@ -28,7 +28,6 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/client/pkg/discovery"
-	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
 	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
@@ -47,6 +46,7 @@ func newEventBus(cfg *Config) EventBus {
 		writableLogs:    strset.New(),
 		logWriters:      make([]eventlog.LogWriter, 0),
 		writableMu:      sync.RWMutex{},
+		state:           nil,
 	}
 
 	go func() {
@@ -57,10 +57,7 @@ func newEventBus(cfg *Config) EventBus {
 				break
 			}
 
-			if rs != nil {
-				bus.updateWritableLogs(rs)
-			}
-
+			bus.updateWritableLogs(rs)
 			bus.writableWatcher.Wakeup()
 		}
 	}()
@@ -78,6 +75,7 @@ type basicEventBus struct {
 	writableLogs    *strset.Set
 	logWriters      []eventlog.LogWriter
 	writableMu      sync.RWMutex
+	state           error
 }
 
 // make sure basicEventBus implements EventBus.
@@ -104,9 +102,20 @@ func (b *basicEventBus) Writer() (BusWriter, error) {
 	return w, nil
 }
 
-func (b *basicEventBus) updateWritableLogs(ls []*record.EventLog) {
-	s := strset.NewWithSize(len(ls))
-	for _, l := range ls {
+func (b *basicEventBus) getState() error {
+	return b.state
+}
+
+func (b *basicEventBus) setState(err error) {
+	b.writableMu.Lock()
+	defer b.writableMu.Unlock()
+	b.state = err
+}
+
+func (b *basicEventBus) updateWritableLogs(ls *discovery.WritableLogsState) {
+	b.setState(ls.State())
+	s := strset.NewWithSize(len(ls.WritableLogs()))
+	for _, l := range ls.WritableLogs() {
 		s.Add(l.VRN)
 	}
 
@@ -119,7 +128,7 @@ func (b *basicEventBus) updateWritableLogs(ls []*record.EventLog) {
 	removed := strset.Difference(b.writableLogs, s)
 	added := strset.Difference(s, b.writableLogs)
 
-	a := make([]eventlog.LogWriter, 0, len(ls))
+	a := make([]eventlog.LogWriter, 0, len(ls.WritableLogs()))
 	for _, w := range b.logWriters {
 		if !removed.Has(w.Log().VRN().String()) {
 			a = append(a, w)
@@ -207,6 +216,9 @@ func (w *basicBusWriter) Append(ctx context.Context, event *ce.Event) (string, e
 func (w *basicBusWriter) pickLogWriter(ctx context.Context, event *ce.Event) (eventlog.LogWriter, error) {
 	lws := w.ebus.getLogWriters(ctx)
 	if len(lws) == 0 {
+		if w.ebus.getState() != nil {
+			return nil, w.ebus.getState()
+		}
 		return nil, errors.ErrNotWritable
 	}
 

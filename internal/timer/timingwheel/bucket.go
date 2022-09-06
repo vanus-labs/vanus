@@ -336,11 +336,19 @@ func (b *bucket) connectEventbus(ctx context.Context) error {
 	return nil
 }
 
-func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) error {
+func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
+	defer func() {
+		if errOfPanic := recover(); errOfPanic != nil {
+			log.Warning(ctx, "panic when put event", map[string]interface{}{
+				log.KeyError: errOfPanic,
+			})
+			err = errors.New("panic when put event")
+		}
+	}()
 	if !b.isLeader() {
 		return nil
 	}
-	_, err := b.eventbusWriter.Append(ctx, tm.getEvent())
+	_, err = b.eventbusWriter.Append(ctx, tm.getEvent())
 	if err != nil {
 		log.Error(ctx, "append event to failed", map[string]interface{}{
 			log.KeyError: err,
@@ -353,14 +361,22 @@ func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) error {
 		"eventbus":   b.eventbus,
 		"expiration": tm.getExpiration().Format(time.RFC3339Nano),
 	})
-	return nil
+	return err
 }
 
-func (b *bucket) getEvent(ctx context.Context, number int16) ([]*ce.Event, error) {
+func (b *bucket) getEvent(ctx context.Context, number int16) (events []*ce.Event, err error) {
+	defer func() {
+		if errOfPanic := recover(); errOfPanic != nil {
+			log.Warning(ctx, "panic when get event", map[string]interface{}{
+				log.KeyError: errOfPanic,
+			})
+			events = []*ce.Event{}
+			err = es.ErrOnEnd
+		}
+	}()
 	if !b.isLeader() {
 		return []*ce.Event{}, es.ErrOnEnd
 	}
-	var err error
 	_, err = b.eventlogReader.Seek(ctx, b.offset, io.SeekStart)
 	if err != nil {
 		log.Error(ctx, "seek failed", map[string]interface{}{
@@ -370,7 +386,7 @@ func (b *bucket) getEvent(ctx context.Context, number int16) ([]*ce.Event, error
 		return nil, err
 	}
 
-	events, err := b.eventlogReader.Read(ctx, number)
+	events, err = b.eventlogReader.Read(ctx, number)
 	if err != nil {
 		if !errors.Is(err, es.ErrOnEnd) && !errors.Is(ctx.Err(), context.Canceled) {
 			log.Error(ctx, "read failed", map[string]interface{}{
@@ -386,7 +402,7 @@ func (b *bucket) getEvent(ctx context.Context, number int16) ([]*ce.Event, error
 		"offset":   b.offset,
 		"number":   number,
 	})
-	return events, nil
+	return events, err
 }
 
 func (b *bucket) updateOffsetMeta(ctx context.Context, offset int64) {
