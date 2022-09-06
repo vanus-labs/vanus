@@ -52,12 +52,12 @@ func newEventBus(cfg *Config) EventBus {
 	go func() {
 		ch := w.Chan()
 		for {
-			rs, ok := <-ch
+			re, ok := <-ch
 			if !ok {
 				break
 			}
 
-			bus.updateWritableLogs(rs)
+			bus.updateWritableLogs(re)
 			bus.writableWatcher.Wakeup()
 		}
 	}()
@@ -103,6 +103,8 @@ func (b *basicEventBus) Writer() (BusWriter, error) {
 }
 
 func (b *basicEventBus) getState() error {
+	b.writableMu.RLock()
+	defer b.writableMu.RUnlock()
 	return b.state
 }
 
@@ -112,10 +114,11 @@ func (b *basicEventBus) setState(err error) {
 	b.state = err
 }
 
-func (b *basicEventBus) updateWritableLogs(ls *discovery.WritableLogsState) {
-	b.setState(ls.State())
-	s := strset.NewWithSize(len(ls.WritableLogs()))
-	for _, l := range ls.WritableLogs() {
+func (b *basicEventBus) updateWritableLogs(re *discovery.WritableLogsResult) {
+	b.setState(re.Err)
+
+	s := strset.NewWithSize(len(re.Eventlogs))
+	for _, l := range re.Eventlogs {
 		s.Add(l.VRN)
 	}
 
@@ -128,7 +131,7 @@ func (b *basicEventBus) updateWritableLogs(ls *discovery.WritableLogsState) {
 	removed := strset.Difference(b.writableLogs, s)
 	added := strset.Difference(s, b.writableLogs)
 
-	a := make([]eventlog.LogWriter, 0, len(ls.WritableLogs()))
+	a := make([]eventlog.LogWriter, 0, len(re.Eventlogs))
 	for _, w := range b.logWriters {
 		if !removed.Has(w.Log().VRN().String()) {
 			a = append(a, w)
