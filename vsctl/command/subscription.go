@@ -113,12 +113,10 @@ func createSubscriptionCommand() *cobra.Command {
 			}
 
 			// subscription config
-			config := &meta.SubscriptionConfig{}
-			if rateLimit < -1 {
-				cmdFailedf(cmd, "rate limit can only set -1,0,positive number")
-			}
-			if rateLimit != 0 {
-				config.RateLimit = rateLimit
+			config := &meta.SubscriptionConfig{
+				RateLimit:        rateLimit,
+				DeliveryTimeout:  deliveryTimeout,
+				MaxRetryAttempts: maxRetryAttempts,
 			}
 			if from != "" {
 				switch from {
@@ -181,6 +179,8 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&sinkCredentialType, "credential-type", "", "sink credential type, plain or cloud, now only support cloud")
 	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, JSON format, "+
 		"when credential-type is cloud, need access_key_id and secret_access_key")
+	cmd.Flags().Int32Var(&deliveryTimeout, "delivery-timeout", 0, "event delivery to sink timeout, unit millisecond")
+	cmd.Flags().Int32Var(&maxRetryAttempts, "max-retry-attempts", 0, "event delivery fail max retry attempts")
 	return cmd
 }
 

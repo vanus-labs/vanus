@@ -45,8 +45,7 @@ type Worker interface {
 }
 
 const (
-	defaultCleanSubscriptionTimeout = 5 * time.Second
-	defaultHeartbeatInterval        = 2 * time.Second
+	defaultHeartbeatInterval = 2 * time.Second
 )
 
 type newTrigger func(subscription *primitive.Subscription,
@@ -65,9 +64,6 @@ type worker struct {
 }
 
 func NewWorker(config Config) Worker {
-	if config.CleanSubscriptionTimeout == 0 {
-		config.CleanSubscriptionTimeout = defaultCleanSubscriptionTimeout
-	}
 	if config.HeartbeatInterval == 0 {
 		config.HeartbeatInterval = defaultHeartbeatInterval
 	}
@@ -294,11 +290,10 @@ func (w *worker) getAllSubscriptionInfo(ctx context.Context) []*metapb.Subscript
 
 func (w *worker) getTriggerOptions(subscription *primitive.Subscription) []trigger.Option {
 	opts := []trigger.Option{trigger.WithControllers(w.config.ControllerAddr)}
-	rateLimit := w.config.RateLimit
 	config := subscription.Config
-	if config.RateLimit != 0 {
-		rateLimit = config.RateLimit
-	}
-	opts = append(opts, trigger.WithRateLimit(rateLimit))
+	opts = append(opts, trigger.WithRateLimit(config.RateLimit),
+		trigger.WithDeliveryTimeout(config.DeliveryTimeout),
+		trigger.WithMaxRetryAttempts(config.MaxRetryAttempts),
+		trigger.WithDeadLetterEventbus(config.DeadLetterEventbus))
 	return opts
 }

@@ -17,6 +17,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -24,7 +25,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/vanus/internal/trigger/errors"
 )
 
 const (
@@ -49,10 +49,13 @@ func NewAwsLambdaClient(accessKeyID, secretKeyID, arnStr string) EventClient {
 	}
 }
 
-func (l *awsLambda) Send(ctx context.Context, event ce.Event) error {
+func (l *awsLambda) Send(ctx context.Context, event ce.Event) Result {
 	payload, err := json.Marshal(event)
 	if err != nil {
-		return err
+		return Result{
+			StatusCode: ErrInternalCode,
+			Err:        err,
+		}
 	}
 	req := &lambda.InvokeInput{
 		FunctionName: l.arn,
@@ -60,10 +63,19 @@ func (l *awsLambda) Send(ctx context.Context, event ce.Event) error {
 	}
 	resp, err := l.client.Invoke(ctx, req)
 	if err != nil {
-		return errors.ErrLambdaInvoke.Wrap(err)
+		if errors.Is(err, context.DeadlineExceeded) {
+			return DeliveryTimeout
+		}
+		return Result{
+			StatusCode: ErrUndefined,
+			Err:        fmt.Errorf("lambda invoke error:%w", err),
+		}
 	}
 	if resp.StatusCode >= errStatusCode {
-		return errors.ErrLambdaInvokeResponse.WithMessage(fmt.Sprintf("status code:%d", resp.StatusCode))
+		return Result{
+			StatusCode: int(resp.StatusCode),
+			Err:        fmt.Errorf("lambda invoke statusCode:%d, paylaod:%s", resp.StatusCode, string(resp.Payload)),
+		}
 	}
-	return nil
+	return Success
 }

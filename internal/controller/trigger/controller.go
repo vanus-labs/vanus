@@ -162,7 +162,12 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 		return nil, err
 	}
 	if request.Subscription.EventBus != sub.EventBus {
-		return nil, errors.ErrInvalidRequest.WithMessage("eventbus can not change")
+		return nil, errors.ErrInvalidRequest.WithMessage("can not change eventbus")
+	}
+	if request.Subscription.Config != nil {
+		if request.Subscription.Config.DeadLetterEventbus != sub.Config.DeadLetterEventbus {
+			return nil, errors.ErrInvalidRequest.WithMessage("can not change dead letter eventbus")
+		}
 	}
 	change := sub.Update(convert.FromPbSubscriptionRequest(request.Subscription))
 	if !change {

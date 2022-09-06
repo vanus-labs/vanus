@@ -16,8 +16,10 @@ package validation
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/linkall-labs/vanus/internal/controller/errors"
+	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/cel"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
@@ -116,6 +118,13 @@ func validateSubscriptionConfig(ctx context.Context, cfg *metapb.SubscriptionCon
 		}
 	default:
 		return errors.ErrInvalidRequest.WithMessage("offset type is invalid")
+	}
+	if cfg.DeadLetterEventbus != "" {
+		return errors.ErrInvalidRequest.WithMessage("no support to set dead letter eventbus")
+	}
+	if cfg.MaxRetryAttempts > primitive.MaxRetryAttempts {
+		return errors.ErrInvalidRequest.WithMessage(
+			fmt.Sprintf("could not set max retry attempts greater than %d", primitive.MaxRetryAttempts))
 	}
 	return nil
 }

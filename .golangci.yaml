@@ -421,7 +421,7 @@ issues:
     - text: "(^shutdownHandler|^onlyOneSignalHandler)*."
       linters:
         - gochecknoglobals
-    - path: "^internal/util"
+    - path: "util.go"
       linters:
         - gosec
         - gomnd

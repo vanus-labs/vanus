@@ -43,6 +43,8 @@ var (
 	subProtocol        string
 	sinkCredentialType string
 	sinkCredential     string
+	deliveryTimeout    int32
+	maxRetryAttempts   int32
 
 	showSegment bool
 	showBlock   bool

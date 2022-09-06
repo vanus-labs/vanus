@@ -12,36 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=interface.go  -destination=mock_interface.go -package=client
-package client
-
-import (
-	"context"
-	"errors"
-
-	ce "github.com/cloudevents/sdk-go/v2"
-)
-
-type Sender interface {
-	Send(ctx context.Context, event ce.Event) Result
-}
-
-type Result struct {
-	StatusCode int
-	Err        error
-}
-
-var (
-	Success         = Result{}
-	DeliveryTimeout = Result{ErrDeliveryTimeout, errors.New("DeliveryTimeout")}
-)
+package primitive
 
 const (
-	ErrInternalCode    = 600
-	ErrDeliveryTimeout = 601
-	ErrUndefined       = 700
-)
+	RetryEventbusName      = "__retry_eb"
+	DeadLetterEventbusName = "__dl_eb"
+	TimerEventbusName      = "__Timer_RS"
 
-type EventClient interface {
-	Sender
-}
+	XVanus               = "xvanus"
+	XVanusEventbus       = XVanus + "eventbus"
+	XVanusDeliveryTime   = XVanus + "deliverytime"
+	XVanusRetryAttempts  = XVanus + "retryattempts"
+	XVanusSubscriptionID = XVanus + "subscriptionid"
+
+	LastDeliveryTime  = "lastdeliverytime"
+	LastDeliveryError = "lastdeliveryerror"
+	DeadLetterReason  = "deadletterreason"
+
+	MaxRetryAttempts = 32
+)
