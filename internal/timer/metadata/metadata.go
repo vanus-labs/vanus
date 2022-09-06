@@ -14,11 +14,6 @@
 
 package metadata
 
-type PointerMeta struct {
-	Layer   int64 `json:"layer"`
-	Pointer int64 `json:"pointer"`
-}
-
 type OffsetMeta struct {
 	Layer    int64  `json:"layer"`
 	Slot     int64  `json:"slot"`

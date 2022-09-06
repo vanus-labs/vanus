@@ -69,7 +69,7 @@ func main() {
 		OnStartedLeading: func(ctx context.Context) {
 			log.Info(ctx, "leaderelection finish, become leader", nil)
 			if timingwheelMgr.IsDeployed(ctx) {
-				err := timingwheelMgr.RecoverForFailover(ctx)
+				err := timingwheelMgr.Recover(ctx)
 				if err != nil {
 					log.Error(ctx, "recover for failover failed, keeping follower", map[string]interface{}{
 						log.KeyError: err,
@@ -109,8 +109,8 @@ func main() {
 		signal.RequestShutdown()
 	}
 
-	leaderelectionMgr.Stop(ctx)
-	timingwheelMgr.Stop(ctx)
+	leaderelectionMgr.Stop(context.Background())
+	timingwheelMgr.Stop(context.Background())
 
 	log.Info(ctx, "the tiemr has been shutdown gracefully", nil)
 }
