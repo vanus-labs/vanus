@@ -80,7 +80,7 @@ func TestGateway_receive(t *testing.T) {
 				Opaque: "/gateway/test",
 			},
 		}
-		e.SetExtension(primitive.LastDeliveryTime, "2006-01-02T15:04:05")
+		e.SetExtension(primitive.XVanusDeliveryTime, "2006-01-02T15:04:05")
 		stub := StubFunc(&requestDataFromContext, reqData)
 		defer stub.Reset()
 		_, ret := ga.receive(ctx, e)
@@ -110,7 +110,7 @@ func TestGateway_checkExtension(t *testing.T) {
 		e := ce.NewEvent()
 		err := checkExtension(e.Extensions())
 		So(err, ShouldBeNil)
-		e.SetExtension(primitive.LastDeliveryTime, "test")
+		e.SetExtension(primitive.XVanusDeliveryTime, "test")
 		err = checkExtension(e.Extensions())
 		So(err, ShouldBeNil)
 		e.SetExtension(primitive.XVanus+"fortest", "test")
