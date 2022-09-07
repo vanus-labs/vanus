@@ -46,7 +46,7 @@ spec:
     spec:
       containers:
         - name: timer
-          image: public.ecr.aws/vanus/timer:v0.2.0
+          image: public.ecr.aws/vanus/timer:v0.3.0
           imagePullPolicy: IfNotPresent
 #          livenessProbe:
 #            grpc:
