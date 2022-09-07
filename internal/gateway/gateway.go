@@ -99,7 +99,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, pr
 	ebName := getEventBusFromPath(requestDataFromContext(ctx))
 
 	if ebName == "" {
-		return nil, fmt.Errorf("invalid eventbus name")
+		return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid eventbus name")
 	}
 
 	extensions := event.Extensions()
@@ -115,7 +115,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, pr
 				log.KeyError: err,
 				"eventTime":  eventTime.(string),
 			})
-			return nil, fmt.Errorf("invalid delivery time")
+			return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid delivery time")
 		}
 		ebName = primitive.TimerEventbusName
 	}
@@ -127,7 +127,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, pr
 	if !exist {
 		writer, err := eb.OpenBusWriter(vrn)
 		if err != nil {
-			return nil, protocol.Result(err)
+			return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 		}
 
 		var loaded bool
@@ -143,7 +143,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, pr
 			log.KeyError: err,
 			"vrn":        vrn,
 		})
-		return nil, v2.NewHTTPResult(http.StatusBadRequest, err.Error())
+		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
 	eventData := EventData{
 		BusName: ebName,
@@ -151,7 +151,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, pr
 	}
 	resEvent, err := createResponseEvent(eventData)
 	if err != nil {
-		return nil, fmt.Errorf("create response event error")
+		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
 	return resEvent, v2.ResultACK
 }

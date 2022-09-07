@@ -162,20 +162,24 @@ func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 			cmdFailedf(cmd, "failed to send: %s\n", res.Error())
 		} else {
 			if IsFormatJSON(cmd) {
-				data, _ := json.Marshal(map[string]interface{}{"Result": httpResult.StatusCode})
+				data, _ := json.Marshal(map[string]interface{}{
+					"Result": httpResult.StatusCode,
+					"Error":  fmt.Errorf(httpResult.Format, httpResult.Args...),
+				})
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
 				tbcfg := []table.ColumnConfig{
 					{Number: 1, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 				}
 				if detail {
 					t.AppendHeader(table.Row{"Result", "RESPONSE EVENT"})
 					t.AppendRow(table.Row{httpResult.StatusCode, resEvent})
 					tbcfg = append(tbcfg, table.ColumnConfig{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter})
 				} else {
-					t.AppendHeader(table.Row{"Result"})
-					t.AppendRow(table.Row{httpResult.StatusCode})
+					t.AppendHeader(table.Row{"Result", "Error"})
+					t.AppendRow(table.Row{httpResult.StatusCode, fmt.Errorf(httpResult.Format, httpResult.Args...)})
 				}
 				t.SetColumnConfigs(tbcfg)
 				t.SetOutputMirror(os.Stdout)
