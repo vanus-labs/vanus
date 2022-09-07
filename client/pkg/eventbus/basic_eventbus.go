@@ -20,15 +20,16 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	stderrors "errors"
+	"strings"
 	"sync"
 
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/scylladb/go-set/strset"
+	"google.golang.org/grpc/status"
 
 	// this project.
 	"github.com/linkall-labs/vanus/client/pkg/discovery"
-	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
 	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
@@ -47,20 +48,18 @@ func newEventBus(cfg *Config) EventBus {
 		writableLogs:    strset.New(),
 		logWriters:      make([]eventlog.LogWriter, 0),
 		writableMu:      sync.RWMutex{},
+		state:           nil,
 	}
 
 	go func() {
 		ch := w.Chan()
 		for {
-			rs, ok := <-ch
+			re, ok := <-ch
 			if !ok {
 				break
 			}
 
-			if rs != nil {
-				bus.updateWritableLogs(rs)
-			}
-
+			bus.updateWritableLogs(re)
 			bus.writableWatcher.Wakeup()
 		}
 	}()
@@ -78,6 +77,7 @@ type basicEventBus struct {
 	writableLogs    *strset.Set
 	logWriters      []eventlog.LogWriter
 	writableMu      sync.RWMutex
+	state           error
 }
 
 // make sure basicEventBus implements EventBus.
@@ -104,9 +104,39 @@ func (b *basicEventBus) Writer() (BusWriter, error) {
 	return w, nil
 }
 
-func (b *basicEventBus) updateWritableLogs(ls []*record.EventLog) {
-	s := strset.NewWithSize(len(ls))
-	for _, l := range ls {
+func (b *basicEventBus) getState() error {
+	b.writableMu.RLock()
+	defer b.writableMu.RUnlock()
+	return b.state
+}
+
+func (b *basicEventBus) setState(err error) {
+	b.writableMu.Lock()
+	defer b.writableMu.Unlock()
+	b.state = err
+}
+
+func (b *basicEventBus) isNeedUpdate(err error) bool {
+	if err == nil {
+		b.setState(nil)
+		return true
+	}
+	sts := status.Convert(err)
+	// TODO: temporary scheme, wait for error code reconstruction
+	if strings.Contains(sts.Message(), "RESOURCE_NOT_FOUND") {
+		b.setState(errors.ErrNotFound)
+		return true
+	}
+	return false
+}
+
+func (b *basicEventBus) updateWritableLogs(re *discovery.WritableLogsResult) {
+	if !b.isNeedUpdate(re.Err) {
+		return
+	}
+
+	s := strset.NewWithSize(len(re.Eventlogs))
+	for _, l := range re.Eventlogs {
 		s.Add(l.VRN)
 	}
 
@@ -119,7 +149,7 @@ func (b *basicEventBus) updateWritableLogs(ls []*record.EventLog) {
 	removed := strset.Difference(b.writableLogs, s)
 	added := strset.Difference(s, b.writableLogs)
 
-	a := make([]eventlog.LogWriter, 0, len(ls))
+	a := make([]eventlog.LogWriter, 0, len(re.Eventlogs))
 	for _, w := range b.logWriters {
 		if !removed.Has(w.Log().VRN().String()) {
 			a = append(a, w)
@@ -207,6 +237,9 @@ func (w *basicBusWriter) Append(ctx context.Context, event *ce.Event) (string, e
 func (w *basicBusWriter) pickLogWriter(ctx context.Context, event *ce.Event) (eventlog.LogWriter, error) {
 	lws := w.ebus.getLogWriters(ctx)
 	if len(lws) == 0 {
+		if err := w.ebus.getState(); err != nil {
+			return nil, err
+		}
 		return nil, errors.ErrNotWritable
 	}
 
