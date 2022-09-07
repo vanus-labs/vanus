@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.12.13
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.23.8
 	github.com/cloudevents/sdk-go/sql/v2 v2.10.1
-	github.com/cloudevents/sdk-go/v2 v2.10.1
+	github.com/cloudevents/sdk-go/v2 v2.11.0
 	github.com/fatih/color v1.13.0
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/go-resty/resty/v2 v2.7.0
@@ -44,7 +44,7 @@ require (
 	google.golang.org/genproto v0.0.0-20220310185008-1973136f34c6
 	google.golang.org/grpc v1.44.0
 	google.golang.org/protobuf v1.27.1
-	gopkg.in/yaml.v3 v3.0.0
+	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apimachinery v0.23.4
 	k8s.io/client-go v0.23.4
 	k8s.io/klog/v2 v2.30.0
@@ -102,7 +102,7 @@ require (
 	github.com/soheilhy/cmux v0.1.5 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stoewer/go-strcase v1.2.0 // indirect
-	github.com/stretchr/testify v1.7.0 // indirect
+	github.com/stretchr/testify v1.8.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20201229170055-e5319fda7802 // indirect
