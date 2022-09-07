@@ -27,6 +27,7 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
+	errcli "github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/eventbus"
 	eventlog "github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/internal/kv"
@@ -425,7 +426,16 @@ func TestTimingWheel_deliver(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 
-		Convey("test timingwheel deliver failure with  append failed", func() {
+		Convey("test timingwheel deliver failure with eventbus not found", func() {
+			stubs := StubFunc(&openBusWriter, mockEventbusWriter, nil)
+			defer stubs.Reset()
+			mockEventbusWriter.EXPECT().Append(ctx, gomock.Any()).Times(1).Return("", errcli.ErrNotFound)
+			mockEventbusWriter.EXPECT().Close().Times(1).Return()
+			err := tw.deliver(ctx, e)
+			So(err, ShouldBeNil)
+		})
+
+		Convey("test timingwheel deliver failure with append failed", func() {
 			stubs := StubFunc(&openBusWriter, mockEventbusWriter, nil)
 			defer stubs.Reset()
 			mockEventbusWriter.EXPECT().Append(ctx, gomock.Any()).Times(1).Return("", errors.New("test"))

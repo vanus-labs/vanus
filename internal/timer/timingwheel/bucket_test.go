@@ -284,6 +284,13 @@ func TestBucket_putEvent(t *testing.T) {
 			err := bucket.putEvent(ctx, newTimingMsg(ctx, e))
 			So(err, ShouldBeNil)
 		})
+
+		Convey("test bucket put event panic", func() {
+			bucket.eventbusWriter = nil
+			tw.SetLeader(true)
+			err := bucket.putEvent(ctx, newTimingMsg(ctx, e))
+			So(err, ShouldNotBeNil)
+		})
 	})
 }
 
@@ -298,6 +305,14 @@ func TestBucket_getEvent(t *testing.T) {
 		bucket.eventlogReader = mockEventlogReader
 
 		Convey("test bucket get event success", func() {
+			result, err := bucket.getEvent(ctx, 1)
+			So(len(result), ShouldEqual, 0)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("test bucket get event panic", func() {
+			bucket.eventlogReader = nil
+			tw.SetLeader(true)
 			result, err := bucket.getEvent(ctx, 1)
 			So(len(result), ShouldEqual, 0)
 			So(err, ShouldNotBeNil)

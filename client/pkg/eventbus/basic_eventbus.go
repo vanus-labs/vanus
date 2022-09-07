@@ -20,11 +20,13 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	stderrors "errors"
+	"strings"
 	"sync"
 
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/scylladb/go-set/strset"
+	"google.golang.org/grpc/status"
 
 	// this project.
 	"github.com/linkall-labs/vanus/client/pkg/discovery"
@@ -114,10 +116,22 @@ func (b *basicEventBus) setState(err error) {
 	b.state = err
 }
 
-func (b *basicEventBus) updateWritableLogs(re *discovery.WritableLogsResult) {
-	b.setState(re.Err)
+func (b *basicEventBus) isNeedUpdate(err error) bool {
+	if err == nil {
+		b.setState(nil)
+		return true
+	}
+	sts := status.Convert(err)
+	// TODO: temporary scheme, wait for error code reconstruction
+	if strings.Contains(sts.Message(), "RESOURCE_NOT_FOUND") {
+		b.setState(errors.ErrNotFound)
+		return true
+	}
+	return false
+}
 
-	if re.Err != nil {
+func (b *basicEventBus) updateWritableLogs(re *discovery.WritableLogsResult) {
+	if !b.isNeedUpdate(re.Err) {
 		return
 	}
 

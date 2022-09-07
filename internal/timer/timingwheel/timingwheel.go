@@ -25,7 +25,6 @@ import (
 	"time"
 
 	errcli "github.com/linkall-labs/vanus/client/pkg/errors"
-	errctrl "github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	timererrors "github.com/linkall-labs/vanus/internal/timer/errors"
@@ -545,7 +544,7 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 	defer eventbusWriter.Close()
 	_, err = eventbusWriter.Append(ctx, e)
 	if err != nil {
-		if errors.Is(err, errctrl.ErrResourceNotFound) {
+		if errors.Is(err, errcli.ErrNotFound) {
 			log.Warning(ctx, "eventbus not found, discard this event", map[string]interface{}{
 				log.KeyError: err,
 				"eventbus":   ebName,
