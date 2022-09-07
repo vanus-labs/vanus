@@ -24,6 +24,8 @@ header:
     - '.codecov.yml'
     - '**/go.mod'
     - '**/go.sum'
+    - '**/go.work'
+    - '**/go.work.sum'
     - 'LICENSE'
     - '**/*mock*'
     - '**/*.sh'

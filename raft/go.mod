@@ -14,9 +14,12 @@ require (
 	github.com/cockroachdb/errors v1.2.4 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20190617123548-eb05cc24525f // indirect
 	github.com/getsentry/raven-go v0.2.0 // indirect
+	github.com/google/go-cmp v0.5.8 // indirect
+	github.com/kr/pretty v0.2.0 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	google.golang.org/protobuf v1.26.0 // indirect
+	google.golang.org/protobuf v1.27.1 // indirect
 )
 
 // Bad imports are sometimes causing attempts to pull that code.

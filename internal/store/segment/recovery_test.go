@@ -13,3 +13,46 @@
 // limitations under the License.
 
 package segment
+
+import (
+	// standard libraries.
+	"context"
+	"os"
+	"testing"
+
+	// third-party libraries.
+	. "github.com/golang/mock/gomock"
+	. "github.com/smartystreets/goconvey/convey"
+
+	// this project.
+	"github.com/linkall-labs/vanus/internal/store"
+)
+
+func TestServer_recover(t *testing.T) {
+	ctrl := NewController(t)
+	defer ctrl.Finish()
+
+	Convey("recover", t, func() {
+		dir, err := os.MkdirTemp("", "volume-*")
+		So(err, ShouldBeNil)
+		defer func() {
+			So(os.RemoveAll(dir), ShouldBeNil)
+		}()
+
+		srv := &server{
+			cfg: store.Config{
+				Volume: store.VolumeInfo{
+					Dir: dir,
+				},
+			},
+		}
+		err = srv.loadEngine(context.Background())
+		So(err, ShouldBeNil)
+
+		err = srv.recover(context.Background())
+		So(err, ShouldBeNil)
+		So(srv.metaStore, ShouldNotBeNil)
+		So(srv.offsetStore, ShouldNotBeNil)
+		So(srv.wal, ShouldNotBeNil)
+	})
+}

@@ -18,7 +18,6 @@ import (
 	// standard libraries.
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -57,7 +56,7 @@ func (s *store) createSnapshot() {
 
 	// Write data to file.
 	path := s.resolveSnapshotPath(s.version)
-	if err = ioutil.WriteFile(path, data, defaultSnapshotPrem); err != nil {
+	if err = os.WriteFile(path, data, defaultSnapshotPrem); err != nil {
 		log.Warning(context.TODO(), "Write snapshot failed.", map[string]interface{}{
 			"path":  path,
 			"error": err,

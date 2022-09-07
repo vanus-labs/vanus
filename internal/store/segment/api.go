@@ -143,12 +143,12 @@ func (s *segmentServer) AppendToBlock(
 
 	blockID := vanus.NewIDFromUint64(req.BlockId)
 	events := req.Events.GetEvents()
-	indexes, err := s.srv.AppendToBlock(ctx, blockID, events)
+	offs, err := s.srv.AppendToBlock(ctx, blockID, events)
 	if err != nil {
 		return nil, err
 	}
 
-	return &segpb.AppendToBlockResponse{Offsets: indexes}, nil
+	return &segpb.AppendToBlockResponse{Offsets: offs}, nil
 }
 
 func (s *segmentServer) ReadFromBlock(
@@ -158,7 +158,7 @@ func (s *segmentServer) ReadFromBlock(
 	defer observability.LeaveMark(ctx)
 
 	blockID := vanus.NewIDFromUint64(req.BlockId)
-	events, err := s.srv.ReadFromBlock(ctx, blockID, int(req.Offset), int(req.Number))
+	events, err := s.srv.ReadFromBlock(ctx, blockID, req.Offset, int(req.Number))
 	if err != nil {
 		return nil, err
 	}

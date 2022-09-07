@@ -26,9 +26,9 @@ type stateStorage struct {
 	metaStore   *meta.SyncStore
 	offsetStore *meta.AsyncStore
 
-	prevHardSt raftpb.HardState
-	prevConfSt raftpb.ConfState
-	prevApply  uint64
+	prevHardSt raftpb.HardState //nolint:structcheck // use in Log
+	prevConfSt raftpb.ConfState //nolint:structcheck // use in Log
+	prevApply  uint64           //nolint:structcheck // use in Log
 
 	hsKey  []byte
 	offKey []byte
