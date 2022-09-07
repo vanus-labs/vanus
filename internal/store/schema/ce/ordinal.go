@@ -23,7 +23,6 @@ const (
 // Fields of entry.
 const (
 	SequenceNumberOrdinal = iota
-	// The timestamp when to write the Entry to Block.
 	StimeOrdinal
 	IDOrdinal
 	SourceOrdinal

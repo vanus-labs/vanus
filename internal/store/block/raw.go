@@ -55,13 +55,15 @@ type Raw interface {
 }
 
 type Statistics struct {
-	ID              vanus.ID
-	Capacity        uint64
-	Archived        bool
-	EntryNum        uint32
-	EntrySize       uint64
+	ID        vanus.ID
+	Capacity  uint64
+	Archived  bool
+	EntryNum  uint32
+	EntrySize uint64
+	// FirstEntryStime is the millisecond timestamp when the first Entry will be written to Block.
 	FirstEntryStime int64
-	LastEntryStime  int64
+	// LastEntryStime is the millisecond timestamp when the last Entry will be written to Block.
+	LastEntryStime int64
 }
 
 type ArchivedListener interface {

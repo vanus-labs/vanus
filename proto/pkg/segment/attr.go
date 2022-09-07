@@ -17,6 +17,7 @@ package segment
 const (
 	XVanusBlockOffset = "xvanusblockoffset"
 	XVanusLogOffset   = "xvanuslogoffset"
-	// The timestamp when to write the event to Block.
+	// XVanusStime is an attribute of CloudEvent whose value is a millisecond timestamp when writing the event to
+	// Block.
 	XVanusStime = "xvanusstime"
 )

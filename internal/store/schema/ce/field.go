@@ -30,6 +30,7 @@ func SequenceNumber(entry block.Entry) int64 {
 	return entry.GetInt64(SequenceNumberOrdinal)
 }
 
+// Stime returns the value of stime field, which is a millisecond timestamp when the Entry will be written to Block.
 func Stime(entry block.Entry) int64 {
 	return entry.GetInt64(StimeOrdinal)
 }
