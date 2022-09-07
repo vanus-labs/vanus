@@ -24,7 +24,6 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go }}
-          cache: true
           check-latest: true
       - name: checkout-vanus
         uses: actions/checkout@v3
