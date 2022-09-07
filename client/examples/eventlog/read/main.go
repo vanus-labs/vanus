@@ -16,21 +16,20 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log"
 
 	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 )
 
 func main() {
-	ls, err := eb.LookupReadableLogs(context.Background(), "vanus:///eventbus/test?controllers=localhost:2048")
+	ls, err := eb.LookupReadableLogs(context.Background(),
+		"vanus:///eventbus/test?controllers=localhost:2048")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	r, err := eb.OpenLogReader(ls[0].VRN, eventlog.DisablePolling())
+	r, err := eb.OpenLogReader(ls[0].VRN)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -50,12 +49,11 @@ func main() {
 
 		if len(events) == 0 {
 			log.Println("no more events")
-			continue
+			break
 		}
 
 		for _, e := range events {
-			fmt.Sprintf("%s", e)
-			log.Printf("event %d: \n", idx)
+			log.Printf("event %d: %v\n", idx, e)
 			idx++
 		}
 	}
