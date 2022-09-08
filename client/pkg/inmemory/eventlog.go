@@ -15,13 +15,17 @@
 package inmemory
 
 import (
+	// standard libraies.
 	"context"
 	"encoding/binary"
 	"io"
 	"strconv"
 	"sync"
 
+	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
+
+	// this project.
 	"github.com/linkall-labs/vanus/client/pkg/discovery"
 	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
@@ -84,11 +88,10 @@ func (l *EventLog) Writer() (eventlog.LogWriter, error) {
 	return w, nil
 }
 
-func (l *EventLog) Reader(readConfig *eventlog.ReaderConfig) (eventlog.LogReader, error) {
+func (l *EventLog) Reader(_ eventlog.ReaderConfig) (eventlog.LogReader, error) {
 	r := &logReader{
-		elog:       l,
-		pos:        0,
-		readConfig: readConfig,
+		elog: l,
+		pos:  0,
 	}
 	l.Acquire()
 	return r, nil
@@ -124,9 +127,8 @@ func (w *logWriter) Append(ctx context.Context, event *ce.Event) (int64, error) 
 }
 
 type logReader struct {
-	elog       *EventLog
-	pos        int64
-	readConfig *eventlog.ReaderConfig
+	elog *EventLog
+	pos  int64
 }
 
 func (r *logReader) Log() eventlog.EventLog {

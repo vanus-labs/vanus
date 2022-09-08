@@ -15,11 +15,15 @@
 package inmemory
 
 import (
+	// standard libraries.
 	"context"
 	"io"
 	"testing"
 
+	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
+
+	// this project.
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 )
 
@@ -54,7 +58,7 @@ func TestAppend(t *testing.T) {
 }
 
 func TestRead(t *testing.T) {
-	reader, err := elog.Reader(&eventlog.ReaderConfig{})
+	reader, err := elog.Reader(eventlog.ReaderConfig{})
 	if err != nil {
 		t.Error(err.Error())
 	}

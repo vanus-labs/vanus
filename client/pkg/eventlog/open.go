@@ -62,9 +62,9 @@ func OpenReader(vrn string, opts ...Option) (LogReader, error) {
 	}
 	defer Put(el)
 
-	cfg := &ReaderConfig{PollingTimeout: defaultPollingTimeout}
+	cfg := ReaderConfig{PollingTimeout: defaultPollingTimeout}
 	for _, option := range opts {
-		option(cfg)
+		option(&cfg)
 	}
 
 	r, err := el.Reader(cfg)
