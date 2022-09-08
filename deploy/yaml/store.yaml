@@ -6,7 +6,7 @@ metadata:
 data:
   store.yaml: |-
     port: 11811
-    ip : ${POD_IP}
+    ip: ${POD_IP}
     controllers:
       - vanus-controller-0.vanus-controller:2048
       - vanus-controller-1.vanus-controller:2048
@@ -63,13 +63,8 @@ spec:
         - name: store
           image: public.ecr.aws/vanus/store:v0.3.0
           imagePullPolicy: IfNotPresent
-          command: ["/bin/sh", "-c", "VOLUME_ID=${HOSTNAME##*-} /vanus/bin/store"]
-#          livenessProbe:
-#            grpc:
-#              port: 11811
-#            failureThreshold: 10
-#            periodSeconds: 30
-#            initialDelaySeconds: 30
+          command:
+            ["/bin/sh", "-c", "VOLUME_ID=${HOSTNAME##*-} /vanus/bin/store"]
           ports:
             - name: grpc
               containerPort: 11811
