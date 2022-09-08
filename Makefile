@@ -18,6 +18,7 @@ VERSION ?= ${IMAGE_TAG}
 
 GO_BUILD= GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -trimpath
 DOCKER_BUILD_ARG= --build-arg TARGETARCH=$(GOARCH) --build-arg TARGETOS=$(GOOS)
+DOCKER_PLATFORM ?= linux/amd64,linux/arm64
 
 clean :
 	rm -rf bin
@@ -26,15 +27,15 @@ docker-push: docker-push-controller docker-push-timer docker-push-trigger docker
 docker-build: docker-build-controller docker-build-timer docker-build-trigger docker-build-gateway docker-build-store
 build: build-controller build-timer build-trigger build-gateway build-store
 
-docker-push-store: docker-build-store
-	docker push ${DOCKER_REPO}/store:${IMAGE_TAG}
+docker-push-store:
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/store:${IMAGE_TAG} -f build/images/store/Dockerfile . --push
 docker-build-store:
 	docker build -t ${DOCKER_REPO}/store:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/store/Dockerfile .
 build-store:
 	$(GO_BUILD)  -o bin/store cmd/store/main.go
 
-docker-push-gateway: docker-build-gateway
-	docker push ${DOCKER_REPO}/gateway:${IMAGE_TAG}
+docker-push-gateway:
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/gateway:${IMAGE_TAG} -f build/images/gateway/Dockerfile . --push
 docker-build-gateway:
 	docker build -t ${DOCKER_REPO}/gateway:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/gateway/Dockerfile .
 build-gateway:
@@ -49,22 +50,22 @@ LD_FLAGS=${t4} -X 'main.Platform=${GOOS}/${GOARCH}'
 build-cmd:
 	$(GO_BUILD)  -ldflags "${LD_FLAGS}" -o bin/vsctl ./vsctl/
 
-docker-push-controller: docker-build-controller
-	docker push ${DOCKER_REPO}/controller:${IMAGE_TAG}
+docker-push-controller:
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/controller:${IMAGE_TAG} -f build/images/controller/Dockerfile . --push
 docker-build-controller:
 	docker build -t ${DOCKER_REPO}/controller:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/controller/Dockerfile .
 build-controller:
 	$(GO_BUILD) -o bin/controller cmd/controller/main.go
 
-docker-push-trigger: docker-build-trigger
-	docker push ${DOCKER_REPO}/trigger:${IMAGE_TAG}
+docker-push-trigger:
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/trigger:${IMAGE_TAG} -f build/images/trigger/Dockerfile . --push
 docker-build-trigger:
 	docker build -t ${DOCKER_REPO}/trigger:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/trigger/Dockerfile .
 build-trigger:
 	$(GO_BUILD)  -o bin/trigger cmd/trigger/main.go
 
 docker-push-timer: docker-build-timer
-	docker push ${DOCKER_REPO}/timer:${IMAGE_TAG}
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/timer:${IMAGE_TAG} -f build/images/timer/Dockerfile . --push
 docker-build-timer:
 	docker build -t ${DOCKER_REPO}/timer:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/timer/Dockerfile .
 build-timer:
