@@ -23,7 +23,6 @@ data:
       - vanus-controller-0.vanus-controller.vanus.svc:2048
       - vanus-controller-1.vanus-controller.vanus.svc:2048
       - vanus-controller-2.vanus-controller.vanus.svc:2048
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -48,12 +47,6 @@ spec:
         - name: timer
           image: public.ecr.aws/vanus/timer:v0.3.0
           imagePullPolicy: IfNotPresent
-#          livenessProbe:
-#            grpc:
-#              port: 2148
-#            failureThreshold: 10
-#            periodSeconds: 30
-#            initialDelaySeconds: 30
           env:
             - name: VANUS_LOG_LEVEL
               value: DEBUG
