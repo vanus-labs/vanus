@@ -34,7 +34,7 @@ spec:
     spec:
       containers:
         - name: trigger
-          image: public.ecr.aws/vanus/trigger:v0.2.0
+          image: public.ecr.aws/vanus/trigger:v0.3.0
           imagePullPolicy: IfNotPresent
 #          livenessProbe:
 #            grpc:
