@@ -18,7 +18,6 @@ import (
 	// standard libraries.
 	"context"
 	"fmt"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -75,7 +74,7 @@ func TestServer_RemoveBlock(t *testing.T) {
 			id := vanus.NewID()
 			b := NewMockReplica(ctrl)
 			b.EXPECT().ID().AnyTimes().Return(id)
-			b.EXPECT().Delete(Any()).Times(1)
+			b.EXPECT().Delete(Any())
 			srv.replicas.Store(id, b)
 
 			srv.state = primitive.ServerStateRunning
@@ -93,7 +92,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 			state: primitive.ServerStateRunning,
 		}
 
-		_, err := srv.ReadFromBlock(context.Background(), vanus.NewID(), 0, 3, false)
+		_, err := srv.ReadFromBlock(context.Background(), vanus.NewID(), 0, 3, uint32(0))
 		So(err, ShouldNotBeNil)
 		So(err.(*errors.ErrorType).Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
 	})
@@ -119,10 +118,8 @@ func TestServer_ReadFromBlock(t *testing.T) {
 			b.EXPECT().Read(Any(), int64(0), 3).Return([]block.Entry{ent0, ent1}, nil)
 
 			start := time.Now()
-			ctx, cancel := context.WithTimeout(context.Background(), shortDelayInTest)
-			defer cancel()
-
-			events, err := srv.ReadFromBlock(ctx, id, 0, 3, true)
+			events, err := srv.ReadFromBlock(context.Background(), id, 0, 3,
+				uint32(shortDelayInTest.Milliseconds()))
 			So(time.Now(), ShouldHappenBefore, start.Add(shortDelayInTest))
 			So(err, ShouldBeNil)
 			So(events, ShouldHaveLength, 2)
@@ -131,32 +128,22 @@ func TestServer_ReadFromBlock(t *testing.T) {
 		})
 
 		Convey("long-polling without timeout", func() {
-			var newMessageArrived uint64
-			b.EXPECT().Read(Any(), int64(0), 3).Times(2).DoAndReturn(func(
-				ctx context.Context, off int64, num int,
-			) ([]block.Entry, error) {
-				if atomic.LoadUint64(&newMessageArrived) == 0 {
-					return nil, block.ErrOnEnd
-				}
-				return []block.Entry{ent0, ent1}, nil
-			})
+			b.EXPECT().Read(Any(), int64(0), 3).Return(nil, block.ErrOnEnd)
+			b.EXPECT().Read(Any(), int64(0), 3).Return([]block.Entry{ent0, ent1}, nil)
 
 			mgr := NewMockpollingManager(ctrl)
 			ch := make(chan struct{})
-			mgr.EXPECT().Add(Any(), id).Times(1).Return(ch)
+			mgr.EXPECT().Add(Any(), id).Return(ch)
 			srv.pm = mgr
 
 			start := time.Now()
 			go func() {
 				time.Sleep(shortDelayInTest)
-				atomic.StoreUint64(&newMessageArrived, 1)
 				close(ch)
 			}()
 
-			ctx, cancel := context.WithTimeout(context.Background(), longDelayInTest)
-			defer cancel()
-
-			events, err := srv.ReadFromBlock(ctx, id, 0, 3, true)
+			events, err := srv.ReadFromBlock(context.Background(), id, 0, 3,
+				uint32(longDelayInTest.Milliseconds()))
 			So(time.Now(), ShouldHappenBetween, start.Add(shortDelayInTest), start.Add(longDelayInTest))
 			So(err, ShouldBeNil)
 			So(events, ShouldHaveLength, 2)
@@ -165,28 +152,26 @@ func TestServer_ReadFromBlock(t *testing.T) {
 		})
 
 		Convey("long-polling with timeout", func() {
-			b.EXPECT().Read(Any(), int64(0), 3).Times(1).Return(nil, block.ErrOnEnd)
+			b.EXPECT().Read(Any(), int64(0), 3).Return(nil, block.ErrOnEnd)
 
 			mgr := NewMockpollingManager(ctrl)
 			ch := make(chan struct{})
-			mgr.EXPECT().Add(Any(), id).Times(1).Return(ch)
+			mgr.EXPECT().Add(Any(), id).Return(ch)
 			srv.pm = mgr
 
 			start := time.Now()
-			ctx, cancel := context.WithTimeout(context.Background(), shortDelayInTest)
-			defer cancel()
-
-			_, err := srv.ReadFromBlock(ctx, id, 0, 3, true)
+			_, err := srv.ReadFromBlock(context.Background(), id, 0, 3,
+				uint32(shortDelayInTest.Milliseconds()))
 			So(time.Now(), ShouldHappenAfter, start.Add(shortDelayInTest))
 			So(err, ShouldBeError, block.ErrOnEnd)
 		})
 
 		Convey("long-polling with canceled request", func() {
-			b.EXPECT().Read(Any(), int64(0), 3).Times(1).Return(nil, block.ErrOnEnd)
+			b.EXPECT().Read(Any(), int64(0), 3).Return(nil, block.ErrOnEnd)
 
 			mgr := NewMockpollingManager(ctrl)
 			ch := make(chan struct{})
-			mgr.EXPECT().Add(Any(), id).Times(1).Return(ch)
+			mgr.EXPECT().Add(Any(), id).Return(ch)
 			srv.pm = mgr
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -197,10 +182,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 				cancel()
 			}()
 
-			ctx, cancel2 := context.WithTimeout(ctx, longDelayInTest)
-			defer cancel2()
-
-			_, err := srv.ReadFromBlock(ctx, id, 0, 3, true)
+			_, err := srv.ReadFromBlock(ctx, id, 0, 3, uint32(longDelayInTest.Milliseconds()))
 			So(time.Now(), ShouldHappenBetween, start.Add(shortDelayInTest), start.Add(longDelayInTest))
 			So(err, ShouldBeError, context.Canceled)
 		})

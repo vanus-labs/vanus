@@ -698,7 +698,7 @@ func (s *server) ReadFromBlock(
 
 	if events, err := s.readEvents(ctx, b, seq, num); err == nil {
 		return events, nil
-	} else if !stderr.Is(err, block.ErrOnEnd) || pollingTimeout != 0 {
+	} else if !stderr.Is(err, block.ErrOnEnd) || pollingTimeout == 0 {
 		return nil, err
 	}
 
