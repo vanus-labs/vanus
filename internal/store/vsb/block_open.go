@@ -18,6 +18,7 @@ import (
 	// standard libraries.
 	"context"
 	"errors"
+	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
 	"io"
 	"math"
 	"os"
@@ -27,7 +28,6 @@ import (
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
 	"github.com/linkall-labs/vanus/internal/store/vsb/index"
-	errutil "github.com/linkall-labs/vanus/internal/util/errors"
 )
 
 var (

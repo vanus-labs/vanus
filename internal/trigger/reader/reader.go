@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"github.com/linkall-labs/vanus/pkg/util"
 	"io"
 	"sync"
 	"time"
@@ -33,7 +34,6 @@ import (
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
-	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
 )

@@ -53,19 +53,19 @@ func TestTimingWheel_Start(t *testing.T) {
 		tw := newtimingwheel(cfg())
 		tw.SetLeader(true)
 		mockCtrl := gomock.NewController(t)
-		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
 		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
+		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
 		for e := tw.twList.Front(); e != nil; {
 			for _, bucket := range e.Value.(*timingWheelElement).buckets {
 				bucket.eventlogReader = mockEventlogReader
-				bucket.client.leaderClient = mockEventbusCtrlCli
+				bucket.client = mockEventbusCtrlCli
 				bucket.timingwheel = tw
 			}
 			next := e.Next()
 			e = next
 		}
-		tw.receivingStation.client.leaderClient = mockEventbusCtrlCli
-		tw.distributionStation.client.leaderClient = mockEventbusCtrlCli
+		tw.receivingStation.client = mockEventbusCtrlCli
+		tw.distributionStation.client = mockEventbusCtrlCli
 		tw.receivingStation.timingwheel = tw
 		tw.distributionStation.timingwheel = tw
 		ls := make([]*record.EventLog, 1)
@@ -138,8 +138,8 @@ func TestTimingWheel_IsDeployed(t *testing.T) {
 		tw := newtimingwheel(cfg())
 		mockCtrl := gomock.NewController(t)
 		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
-		tw.receivingStation.client.leaderClient = mockEventbusCtrlCli
-		tw.distributionStation.client.leaderClient = mockEventbusCtrlCli
+		tw.receivingStation.client = mockEventbusCtrlCli
+		tw.distributionStation.client = mockEventbusCtrlCli
 
 		Convey("test timingwheel is not deployed", func() {
 			mockEventbusCtrlCli.EXPECT().GetEventBus(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, nil)
@@ -246,7 +246,7 @@ func TestTimingWheel_startReceivingStation(t *testing.T) {
 		tw.SetLeader(true)
 		mockCtrl := gomock.NewController(t)
 		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
-		tw.receivingStation.client.leaderClient = mockEventbusCtrlCli
+		tw.receivingStation.client = mockEventbusCtrlCli
 
 		Convey("test timingwheel start receiving station with create eventbus failed", func() {
 			mockEventbusCtrlCli.EXPECT().GetEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, errors.New("test"))
@@ -329,11 +329,13 @@ func TestTimingWheel_startDistributionStation(t *testing.T) {
 		tw.SetLeader(true)
 		mockCtrl := gomock.NewController(t)
 		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
-		tw.receivingStation.client.leaderClient = mockEventbusCtrlCli
+		tw.client = mockEventbusCtrlCli
+		tw.receivingStation.client = mockEventbusCtrlCli
 
 		Convey("test timingwheel start distribution station with create eventbus failed", func() {
 			mockEventbusCtrlCli.EXPECT().GetEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, errors.New("test"))
 			mockEventbusCtrlCli.EXPECT().CreateEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, errors.New("test"))
+			tw.distributionStation.client = mockEventbusCtrlCli
 			err := tw.startDistributionStation(ctx)
 			So(err, ShouldNotBeNil)
 		})
@@ -343,6 +345,7 @@ func TestTimingWheel_startDistributionStation(t *testing.T) {
 			mockEventbusCtrlCli.EXPECT().CreateEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
 			stubs := StubFunc(&openBusWriter, nil, errors.New("test"))
 			defer stubs.Reset()
+			tw.distributionStation.client = mockEventbusCtrlCli
 			err := tw.startDistributionStation(ctx)
 			So(err, ShouldNotBeNil)
 		})
@@ -481,7 +484,7 @@ func TestTimingWheelElement_push(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
 		mockEventbusWriter := eventbus.NewMockBusWriter(mockCtrl)
 		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
-		tw.client.leaderClient = mockEventbusCtrlCli
+		tw.client = mockEventbusCtrlCli
 
 		for e := tw.twList.Front(); e != nil; e = e.Next() {
 			for _, bucket := range e.Value.(*timingWheelElement).buckets {
@@ -539,7 +542,7 @@ func TestTimingWheelElement_makeSureBucketExist(t *testing.T) {
 		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
 		mockStoreCli := kv.NewMockClient(mockCtrl)
 		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
-		tw.client.leaderClient = mockEventbusCtrlCli
+		tw.client = mockEventbusCtrlCli
 		events := make([]*ce.Event, 1)
 		events[0] = event(0)
 		ls := make([]*record.EventLog, 1)
@@ -576,7 +579,6 @@ func cfg() *Config {
 func newtimingwheel(c *Config) *timingWheel {
 	timingWheelInstance := &timingWheel{
 		config: c,
-		client: NewClient(c.CtrlEndpoints),
 		twList: list.New(),
 		leader: false,
 		exitC:  make(chan struct{}),

@@ -16,10 +16,10 @@ package trigger
 
 import (
 	"fmt"
+	"github.com/linkall-labs/vanus/pkg/util"
 	"time"
 
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/util"
 )
 
 type Config struct {

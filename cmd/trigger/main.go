@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/linkall-labs/vanus/pkg/util/signal"
 	"net"
 	"net/http"
 	"os"
@@ -27,7 +28,6 @@ import (
 
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger"
-	"github.com/linkall-labs/vanus/internal/util/signal"
 	"github.com/linkall-labs/vanus/observability/log"
 	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
 

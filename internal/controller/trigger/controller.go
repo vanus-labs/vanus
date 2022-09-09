@@ -17,6 +17,7 @@ package trigger
 import (
 	"context"
 	stdErr "errors"
+	"github.com/linkall-labs/vanus/pkg/util"
 	"io"
 	"sync"
 	"time"
@@ -32,7 +33,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"

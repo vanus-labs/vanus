@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
 	"os"
 	"sort"
 	"sync"
@@ -29,7 +30,6 @@ import (
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/io"
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
-	errutil "github.com/linkall-labs/vanus/internal/util/errors"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 

@@ -1,3 +1,6 @@
 port: 8080
 controllers:
-  - 127.0.0.1:2048
+  - "127.0.0.1:2048"
+  - "127.0.0.1:3048"
+  - "127.0.0.1:4048"
+tracing_url: "http://localhost:14268/api/traces"
