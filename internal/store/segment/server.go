@@ -20,7 +20,6 @@ import (
 	"context"
 	stderr "errors"
 	"fmt"
-	"github.com/linkall-labs/vanus/pkg/util"
 	"io"
 	"net"
 	"os"
@@ -32,6 +31,9 @@ import (
 
 	// third-party libraries.
 	cepb "cloudevents.io/genproto/v1"
+
+	// first-party libraries.
+	"github.com/linkall-labs/vanus/pkg/util"
 
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/linkall-labs/vanus/internal/store/errors"

@@ -17,12 +17,12 @@ package store
 import (
 	// this project.
 	"errors"
-	"github.com/linkall-labs/vanus/pkg/util"
 
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store/io"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
+	"github.com/linkall-labs/vanus/pkg/util"
 )
 
 const (

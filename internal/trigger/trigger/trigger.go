@@ -18,14 +18,13 @@ package trigger
 import (
 	"context"
 	"fmt"
-	"github.com/linkall-labs/vanus/pkg/util"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
 
+	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/client/pkg/eventbus"
-
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -37,8 +36,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/transform"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
-
-	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/vanus/pkg/util"
 	"go.uber.org/ratelimit"
 )
 

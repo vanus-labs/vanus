@@ -18,10 +18,12 @@ import (
 	// standard libraries.
 	"context"
 	"errors"
-	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
 	"io"
 	"math"
 	"os"
+
+	// first-party libraries.
+	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"

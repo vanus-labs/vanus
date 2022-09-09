@@ -18,7 +18,6 @@ package eventlog
 import (
 	"context"
 	"encoding/json"
-	"github.com/linkall-labs/vanus/pkg/util"
 	"path/filepath"
 	"sync"
 	"time"
@@ -33,6 +32,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
+	"github.com/linkall-labs/vanus/pkg/util"
 	"github.com/linkall-labs/vanus/proto/pkg/segment"
 )
 
