@@ -83,7 +83,7 @@ type Server interface {
 	InactivateSegment(ctx context.Context) error
 
 	AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]int64, error)
-	ReadFromBlock(ctx context.Context, id vanus.ID, seq int64, num int, polling bool) ([]*cepb.CloudEvent, error)
+	ReadFromBlock(ctx context.Context, id vanus.ID, seq int64, num int, pollingTimeout uint32) ([]*cepb.CloudEvent, error)
 }
 
 func NewServer(cfg store.Config) Server {
@@ -680,8 +680,9 @@ func (s *server) onBlockArchived(stat block.Statistics) {
 	}()
 }
 
+// ReadFromBlock returns at most num events from seq in Block id.
 func (s *server) ReadFromBlock(
-	ctx context.Context, id vanus.ID, seq int64, num int, polling bool,
+	ctx context.Context, id vanus.ID, seq int64, num int, pollingTimeout uint32,
 ) ([]*cepb.CloudEvent, error) {
 	if err := s.checkState(); err != nil {
 		return nil, err
@@ -697,7 +698,7 @@ func (s *server) ReadFromBlock(
 
 	if events, err := s.readEvents(ctx, b, seq, num); err == nil {
 		return events, nil
-	} else if !stderr.Is(err, block.ErrOnEnd) || !polling {
+	} else if !stderr.Is(err, block.ErrOnEnd) || pollingTimeout != 0 {
 		return nil, err
 	}
 
@@ -706,15 +707,17 @@ func (s *server) ReadFromBlock(
 		return nil, block.ErrOnEnd
 	}
 
+	t := time.NewTimer(time.Duration(pollingTimeout) * time.Millisecond)
+	defer t.Stop()
+
 	select {
-	case <-ctx.Done():
-		if err := ctx.Err(); stderr.Is(err, context.Canceled) {
-			return nil, err
-		}
-		return nil, block.ErrOnEnd
 	case <-doneC:
 		// FIXME(james.yin) It can't read message immediately because of async apply.
 		return s.readEvents(ctx, b, seq, num)
+	case <-t.C:
+		return nil, block.ErrOnEnd
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
 }
 

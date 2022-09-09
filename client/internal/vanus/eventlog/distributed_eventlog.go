@@ -21,6 +21,7 @@ import (
 	"io"
 	"sort"
 	"sync"
+	"time"
 
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
@@ -36,6 +37,8 @@ import (
 
 const (
 	defaultRetryTimes = 3
+	pollingThreshold  = 200 // in milliseconds.
+	pollingPostSpan   = 100 // in milliseconds.
 )
 
 func UseDistributedLog(scheme string) {
@@ -382,7 +385,7 @@ func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 		r.cur = segment
 	}
 
-	events, err := r.cur.Read(ctx, r.pos, size, r.cfg.PollingTimeout)
+	events, err := r.cur.Read(ctx, r.pos, size, uint32(r.pollingTimeout(ctx)))
 	if err != nil {
 		if stderr.Is(err, errors.ErrOverflow) {
 			r.elog.refreshReadableSegments(ctx)
@@ -399,6 +402,21 @@ func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 	}
 
 	return events, nil
+}
+
+func (r *logReader) pollingTimeout(ctx context.Context) int64 {
+	if r.cfg.PollingTimeout == 0 {
+		return 0
+	}
+	if dl, ok := ctx.Deadline(); ok {
+		switch timeout := time.Until(dl).Milliseconds(); {
+		case timeout < pollingThreshold || timeout <= pollingPostSpan:
+			return 0
+		case timeout < r.cfg.PollingTimeout:
+			return timeout - pollingPostSpan
+		}
+	}
+	return r.cfg.PollingTimeout
 }
 
 func (r *logReader) switchSegment(ctx context.Context) bool {

@@ -24,7 +24,11 @@ type Option func(*ReaderConfig)
 
 func PollingTimeout(d time.Duration) Option {
 	return func(cfg *ReaderConfig) {
-		cfg.PollingTimeout = uint32(d.Milliseconds())
+		if d <= 0 {
+			cfg.PollingTimeout = 0
+		} else {
+			cfg.PollingTimeout = d.Milliseconds()
+		}
 	}
 }
 
@@ -35,7 +39,7 @@ func DisablePolling() Option {
 }
 
 type ReaderConfig struct {
-	PollingTimeout uint32
+	PollingTimeout int64
 }
 
 // OpenWriter open a Writer of EventLog identified by vrn.

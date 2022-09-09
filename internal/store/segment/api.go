@@ -17,7 +17,6 @@ package segment
 import (
 	// standard libraries.
 	"context"
-	"time"
 
 	// third-party libraries.
 	cepb "cloudevents.io/genproto/v1"
@@ -159,15 +158,7 @@ func (s *segmentServer) ReadFromBlock(
 	defer observability.LeaveMark(ctx)
 
 	blockID := vanus.NewIDFromUint64(req.BlockId)
-
-	polling := req.PollingTimeout != 0
-	if polling {
-		tCtx, cancel := context.WithTimeout(ctx, time.Duration(req.PollingTimeout)*time.Millisecond)
-		defer cancel()
-		ctx = tCtx
-	}
-
-	events, err := s.srv.ReadFromBlock(ctx, blockID, req.Offset, int(req.Number), polling)
+	events, err := s.srv.ReadFromBlock(ctx, blockID, req.Offset, int(req.Number), req.PollingTimeout)
 	if err != nil {
 		return nil, err
 	}
