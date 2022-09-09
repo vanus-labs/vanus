@@ -25,12 +25,12 @@ require (
 	github.com/labstack/echo/v4 v4.7.2
 	github.com/linkall-labs/embed-etcd v0.1.0
 	github.com/linkall-labs/vanus/client v0.3.0-alpha
-	github.com/linkall-labs/vanus/proto v0.3.0-alpha
-	github.com/linkall-labs/vanus/raft v0.3.0-alpha
+	github.com/linkall-labs/vanus/observability v0.4.0
 	github.com/linkall-labs/vanus/pkg v0.3.0-alpha
+	github.com/linkall-labs/vanus/proto v0.4.0
+	github.com/linkall-labs/vanus/raft v0.3.0-alpha
 	github.com/mwitkow/grpc-proxy v0.0.0
 	github.com/ncw/directio v1.0.5
-	github.com/pkg/errors v0.9.1
 	github.com/prashantv/gostub v1.1.0
 	github.com/prometheus/client_golang v1.13.0
 	github.com/smartystreets/goconvey v1.7.2
@@ -93,6 +93,7 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
