@@ -27,7 +27,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 )
 
 type httpServer struct {
@@ -126,7 +125,7 @@ func (srv *httpServer) getEvents(c echo.Context) error {
 		})
 	}
 
-	r, err := eb.OpenLogReader(ls[0].VRN, eventlog.DisablePolling())
+	r, err := eb.OpenLogReader(ls[0].VRN, eb.DisablePolling())
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": fmt.Sprintf("open eventlog failed: %s", err),
