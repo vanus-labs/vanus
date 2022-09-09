@@ -275,7 +275,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 				return
 			case eberrors.ErrOnEnd, eberrors.ErrTryAgain:
 			case eberrors.ErrUnderflow:
-				//todo reset offset timestamp
+				// todo reset offset timestamp
 			default:
 				log.Warning(ctx, "read event error", map[string]interface{}{
 					log.KeyEventlogID: elReader.eventLogVrn,
@@ -309,7 +309,8 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventlog.LogRe
 		}
 		elReader.offset = offset
 	}
-	metrics.TriggerPullEventCounter.WithLabelValues(elReader.config.SubscriptionIDStr, elReader.config.EventBusName, elReader.eventLogIDStr).
+	metrics.TriggerPullEventCounter.WithLabelValues(
+		elReader.config.SubscriptionIDStr, elReader.config.EventBusName, elReader.eventLogIDStr).
 		Add(float64(len(events)))
 	return nil
 }
