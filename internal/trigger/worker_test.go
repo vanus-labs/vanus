@@ -17,7 +17,6 @@ package trigger
 import (
 	"context"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -183,45 +182,11 @@ func TestResetOffsetToTimestamp(t *testing.T) {
 			offsets := info.ListOffsetInfo{{EventLogID: vanus.NewID(), Offset: uint64(100)}}
 			tg.EXPECT().ResetOffsetToTimestamp(gomock.Any(), gomock.Any()).Return(offsets, nil)
 			triggerClient := controller.NewMockTriggerControllerClient(ctrl)
-			m.client.leaderClient = triggerClient
+			m.client = triggerClient
 			triggerClient.EXPECT().CommitOffset(gomock.Any(), gomock.Any()).Return(nil, nil)
 			err = m.ResetOffsetToTimestamp(ctx, id, time.Now().Unix())
 			So(err, ShouldBeNil)
 		})
-	})
-}
-
-func TestHeartbeat(t *testing.T) {
-	ctx := context.Background()
-	Convey("test heartbeat", t, func() {
-		id := vanus.NewID()
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		m := NewWorker(Config{HeartbeatInterval: time.Millisecond * 10}).(*worker)
-		tg := trigger.NewMockTrigger(ctrl)
-		m.newTrigger = testNewTrigger(tg)
-		heartBeatClient := controller.NewMockTriggerController_TriggerWorkerHeartbeatClient(ctrl)
-		m.client.heartBeatClient = heartBeatClient
-		tg.EXPECT().Init(gomock.Any()).Return(nil)
-		tg.EXPECT().Start(gomock.Any()).Return(nil)
-		err := m.AddSubscription(ctx, &primitive.Subscription{
-			ID: id,
-		})
-		So(err, ShouldBeNil)
-		heartBeatClient.EXPECT().Send(gomock.Any()).AnyTimes().Return(nil)
-		heartBeatClient.EXPECT().CloseSend().Return(nil)
-		offsets := info.ListOffsetInfo{{EventLogID: vanus.NewID(), Offset: uint64(100)}}
-		tg.EXPECT().GetOffsets(gomock.Any()).AnyTimes().Return(offsets)
-		cancelCtx, cancel := context.WithCancel(ctx)
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			m.startHeartbeat(cancelCtx)
-		}()
-		time.Sleep(time.Second)
-		cancel()
-		wg.Wait()
 	})
 }
 
@@ -244,7 +209,7 @@ func TestWorker_Stop(t *testing.T) {
 		So(exist, ShouldBeTrue)
 		So(v, ShouldNotBeNil)
 		triggerClient := controller.NewMockTriggerControllerClient(ctrl)
-		m.client.leaderClient = triggerClient
+		m.client = triggerClient
 		tg.EXPECT().Stop(gomock.Any()).AnyTimes().Return(nil)
 		offsets := info.ListOffsetInfo{{EventLogID: vanus.NewID(), Offset: uint64(100)}}
 		tg.EXPECT().GetOffsets(gomock.Any()).AnyTimes().Return(offsets)
@@ -265,7 +230,7 @@ func TestWorker_Register(t *testing.T) {
 		addr := "test"
 		m := NewWorker(Config{TriggerAddr: addr}).(*worker)
 		triggerClient := controller.NewMockTriggerControllerClient(ctrl)
-		m.client.leaderClient = triggerClient
+		m.client = triggerClient
 		triggerClient.EXPECT().RegisterTriggerWorker(gomock.Any(), gomock.Any()).Return(nil, nil)
 		err := m.Register(ctx)
 		So(err, ShouldBeNil)
@@ -280,7 +245,7 @@ func TestWorker_Unregister(t *testing.T) {
 		addr := "test"
 		m := NewWorker(Config{TriggerAddr: addr}).(*worker)
 		triggerClient := controller.NewMockTriggerControllerClient(ctrl)
-		m.client.leaderClient = triggerClient
+		m.client = triggerClient
 		triggerClient.EXPECT().UnregisterTriggerWorker(gomock.Any(), gomock.Any()).Return(nil, nil)
 		err := m.Unregister(ctx)
 		So(err, ShouldBeNil)

@@ -18,6 +18,7 @@ package trigger
 import (
 	"context"
 	"fmt"
+	"github.com/linkall-labs/vanus/pkg/util"
 	"reflect"
 	"strings"
 	"sync"
@@ -34,7 +35,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
 	"github.com/linkall-labs/vanus/internal/trigger/reader"
 	"github.com/linkall-labs/vanus/internal/trigger/transform"
-	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
 

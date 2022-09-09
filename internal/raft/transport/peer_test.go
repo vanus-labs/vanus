@@ -170,7 +170,7 @@ func TestPeer(t *testing.T) {
 		}
 		srv.Stop()
 		time.Sleep(200 * time.Millisecond)
-		var count int64 = 0
+		var count int64
 		ch := make(chan struct{})
 		p.Send(ctx, msg, func(err error) {
 			if err != nil {

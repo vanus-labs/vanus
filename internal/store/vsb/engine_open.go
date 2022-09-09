@@ -18,6 +18,7 @@ import (
 	// standard libraries.
 	"context"
 	"fmt"
+	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
 	"os"
 	"path/filepath"
 
@@ -25,7 +26,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
-	errutil "github.com/linkall-labs/vanus/internal/util/errors"
 )
 
 const (

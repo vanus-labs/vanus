@@ -16,11 +16,11 @@ package segment
 
 import (
 	stdCtx "context"
+	"github.com/linkall-labs/vanus/pkg/util"
 	"testing"
 	"time"
 
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/util"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

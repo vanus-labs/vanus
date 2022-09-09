@@ -18,15 +18,13 @@
 package io
 
 import (
+	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
 	// standard libraries.
 	"os"
 	"syscall"
 
 	// third-party libraries.
 	"github.com/ncw/directio"
-
-	// this project.
-	errutil "github.com/linkall-labs/vanus/internal/util/errors"
 )
 
 const FALLOC_FL_ZERO_RANGE uint32 = 0x10

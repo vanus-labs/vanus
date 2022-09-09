@@ -17,24 +17,14 @@ package eventlog
 import (
 	// standard libraries.
 	"context"
-	stderr "errors"
-	"fmt"
 	"math"
-	"sync"
-	"time"
 
 	// third-party libraries.
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/pkg/controller"
 	ctlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 
 	// this project.
@@ -45,11 +35,7 @@ import (
 
 func newNameServiceImpl(endpoints []string) (*nameServiceImpl, error) {
 	ns := &nameServiceImpl{
-		endpoints:   endpoints,
-		grpcConn:    map[string]*grpc.ClientConn{},
-		ctrlClients: map[string]ctlpb.EventLogControllerClient{},
-		mutex:       sync.Mutex{},
-		credentials: insecure.NewCredentials(),
+		client: controller.NewEventlogClient(endpoints, insecure.NewCredentials()),
 	}
 	// TODO: non-blocking now
 	// if _, err := ns.Client(); err != nil {
@@ -60,13 +46,7 @@ func newNameServiceImpl(endpoints []string) (*nameServiceImpl, error) {
 
 type nameServiceImpl struct {
 	// client       rpc.Client
-	endpoints    []string
-	grpcConn     map[string]*grpc.ClientConn
-	ctrlClients  map[string]ctlpb.EventLogControllerClient
-	leader       string
-	leaderClient ctlpb.EventLogControllerClient
-	mutex        sync.Mutex
-	credentials  credentials.TransportCredentials
+	client ctlpb.EventLogControllerClient
 }
 
 func (ns *nameServiceImpl) LookupWritableSegment(ctx context.Context, eventlog *discovery.VRN) (*vdr.LogSegment, error) {
@@ -76,19 +56,7 @@ func (ns *nameServiceImpl) LookupWritableSegment(ctx context.Context, eventlog *
 		Limited:    1,
 	}
 
-	var resp *ctlpb.GetAppendableSegmentResponse
-	client := ns.makeSureClient(false)
-	if client == nil {
-		return nil, errors.ErrNoControllerLeader
-	}
-	resp, err := client.GetAppendableSegment(ctx, req)
-	if ns.isNeedRetry(err) {
-		client = ns.makeSureClient(true)
-		if client == nil {
-			return nil, errors.ErrNoControllerLeader
-		}
-		resp, err = client.GetAppendableSegment(ctx, req)
-	}
+	resp, err := ns.client.GetAppendableSegment(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -109,114 +77,13 @@ func (ns *nameServiceImpl) LookupReadableSegments(ctx context.Context, eventlog 
 		Limited:     math.MaxInt32,
 	}
 
-	var resp *ctlpb.ListSegmentResponse
-	client := ns.makeSureClient(false)
-	if client == nil {
-		return nil, errors.ErrNoControllerLeader
-	}
-	resp, err := client.ListSegment(ctx, req)
-	if ns.isNeedRetry(err) {
-		client = ns.makeSureClient(true)
-		if client == nil {
-			return nil, errors.ErrNoControllerLeader
-		}
-		resp, err = client.ListSegment(ctx, req)
-	}
+	resp, err := ns.client.ListSegment(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
 	segments := toSegments(resp.GetSegments())
 	return segments, nil
-}
-
-func (ns *nameServiceImpl) makeSureClient(renew bool) ctlpb.EventLogControllerClient {
-	ns.mutex.Lock()
-	defer ns.mutex.Unlock()
-	if ns.leaderClient == nil || renew {
-		leader := ""
-		for _, v := range ns.endpoints {
-			conn := ns.getGRPCConn(v)
-			if conn == nil {
-				continue
-			}
-			pingClient := ctlpb.NewPingServerClient(conn)
-			res, err := pingClient.Ping(context.Background(), &emptypb.Empty{})
-			if err != nil {
-				return nil
-			}
-			leader = res.LeaderAddr
-			break
-		}
-
-		conn := ns.getGRPCConn(leader)
-		if conn == nil {
-			return nil
-		}
-		ns.leader = leader
-		ns.leaderClient = ctlpb.NewEventLogControllerClient(conn)
-	}
-	return ns.leaderClient
-}
-
-func (ns *nameServiceImpl) getGRPCConn(addr string) *grpc.ClientConn {
-	if addr == "" {
-		return nil
-	}
-	ctx := context.Background()
-	var err error
-	conn := ns.grpcConn[addr]
-	if isConnectionOK(conn) {
-		return conn
-	}
-	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithTransportCredentials(ns.credentials))
-	opts = append(opts, grpc.WithBlock())
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
-	conn, err = grpc.DialContext(ctx, addr, opts...)
-	if err != nil {
-		// TODO use log thirds
-		if stderr.Is(err, context.DeadlineExceeded) {
-			fmt.Printf("dial to: %s controller timeout\n", addr)
-		} else {
-			fmt.Printf("dial to: %s controller failed, error:%s\n", addr, err)
-		}
-		return nil
-	}
-	ns.grpcConn[addr] = conn
-	return conn
-}
-
-func (ns *nameServiceImpl) isNeedRetry(err error) bool {
-	if err == nil {
-		return false
-	}
-	if stderr.Is(err, errors.ErrNoControllerLeader) {
-		return true
-	}
-	sts := status.Convert(err)
-	if sts == nil {
-		return false
-	}
-	if sts.Code() == codes.Unavailable {
-		return true
-	}
-	errType, ok := errpb.Convert(sts.Message())
-	if !ok {
-		return false
-	}
-	if errType.Code == errpb.ErrorCode_NOT_LEADER {
-		return true
-	}
-	return false
-}
-
-func isConnectionOK(conn *grpc.ClientConn) bool {
-	if conn == nil {
-		return false
-	}
-	return conn.GetState() == connectivity.Idle || conn.GetState() == connectivity.Ready
 }
 
 func toSegments(segmentpbs []*metapb.Segment) []*vdr.LogSegment {

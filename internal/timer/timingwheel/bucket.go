@@ -108,7 +108,7 @@ type bucket struct {
 	mu             sync.Mutex
 	wg             sync.WaitGroup
 	kvStore        kv.Client
-	client         *ctrlClient
+	client         ctrlpb.EventBusControllerClient
 	eventbusWriter eventbus.BusWriter
 	eventlogReader eventlog.LogReader
 
@@ -276,7 +276,7 @@ func (b *bucket) push(ctx context.Context, tm *timingMsg) error {
 }
 
 func (b *bucket) isExistEventbus(ctx context.Context) bool {
-	_, err := b.client.leaderClient.GetEventBus(ctx, &meta.EventBus{Name: b.eventbus})
+	_, err := b.client.GetEventBus(ctx, &meta.EventBus{Name: b.eventbus})
 	return err == nil
 }
 
@@ -286,7 +286,7 @@ func (b *bucket) createEventbus(ctx context.Context) error {
 	if !b.isLeader() || b.isExistEventbus(ctx) {
 		return nil
 	}
-	_, err := b.client.leaderClient.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
+	_, err := b.client.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
 		Name: b.eventbus,
 	})
 	if err != nil {

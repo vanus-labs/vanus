@@ -17,6 +17,7 @@ package eventlog
 import (
 	stdCtx "context"
 	stdJson "encoding/json"
+	"github.com/linkall-labs/vanus/pkg/util"
 	"math"
 	"path/filepath"
 	"testing"
@@ -30,7 +31,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/util"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 	. "github.com/smartystreets/goconvey/convey"
 )

@@ -18,14 +18,12 @@
 package io
 
 import (
+	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
 	// standard libraries.
 	"os"
 
 	// third-party libraries.
 	"github.com/ncw/directio"
-
-	// this project.
-	errutil "github.com/linkall-labs/vanus/internal/util/errors"
 )
 
 func OpenFile(path string, wronly bool, sync bool) (*os.File, error) {

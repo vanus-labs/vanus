@@ -26,6 +26,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/pkg/util"
 	"github.com/linkall-labs/vanus/proto/pkg/errors"
 
 	// this project.
@@ -33,7 +34,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store/block"
 	cetest "github.com/linkall-labs/vanus/internal/store/schema/ce/testing"
-	"github.com/linkall-labs/vanus/internal/util"
 )
 
 const (
