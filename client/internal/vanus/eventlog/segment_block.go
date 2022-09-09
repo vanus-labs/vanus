@@ -51,7 +51,7 @@ func (s *segmentBlock) Append(ctx context.Context, event *ce.Event) (int64, erro
 	return s.store.Append(ctx, s.id, event)
 }
 
-func (s *segmentBlock) Read(ctx context.Context, offset int64, size int16) ([]*ce.Event, error) {
+func (s *segmentBlock) Read(ctx context.Context, offset int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
 	if offset < 0 {
 		return nil, errors.ErrUnderflow
 	}
@@ -62,5 +62,5 @@ func (s *segmentBlock) Read(ctx context.Context, offset int64, size int16) ([]*c
 	} else if size < 0 {
 		return nil, errors.ErrInvalidArgument
 	}
-	return s.store.Read(ctx, s.id, offset, size)
+	return s.store.Read(ctx, s.id, offset, size, pollingTimeout)
 }

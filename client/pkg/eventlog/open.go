@@ -14,6 +14,34 @@
 
 package eventlog
 
+import "time"
+
+const (
+	defaultPollingTimeout = 3000 // in milliseconds.
+)
+
+type Option func(*ReaderConfig)
+
+func PollingTimeout(d time.Duration) Option {
+	return func(cfg *ReaderConfig) {
+		if d <= 0 {
+			cfg.PollingTimeout = 0
+		} else {
+			cfg.PollingTimeout = d.Milliseconds()
+		}
+	}
+}
+
+func DisablePolling() Option {
+	return func(cfg *ReaderConfig) {
+		cfg.PollingTimeout = 0
+	}
+}
+
+type ReaderConfig struct {
+	PollingTimeout int64
+}
+
 // OpenWriter open a Writer of EventLog identified by vrn.
 func OpenWriter(vrn string) (LogWriter, error) {
 	el, err := Get(vrn)
@@ -31,14 +59,19 @@ func OpenWriter(vrn string) (LogWriter, error) {
 }
 
 // OpenReader open a Reader of EventLog identified by vrn.
-func OpenReader(vrn string) (LogReader, error) {
+func OpenReader(vrn string, opts ...Option) (LogReader, error) {
 	el, err := Get(vrn)
 	if err != nil {
 		return nil, err
 	}
 	defer Put(el)
 
-	r, err := el.Reader()
+	cfg := ReaderConfig{PollingTimeout: defaultPollingTimeout}
+	for _, option := range opts {
+		option(&cfg)
+	}
+
+	r, err := el.Reader(cfg)
 	if err != nil {
 		return nil, err
 	}

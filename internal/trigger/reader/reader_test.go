@@ -121,7 +121,7 @@ func TestReaderStart(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		logReader := eventlog.NewMockLogReader(ctrl)
-		gostub.Stub(&eb.OpenLogReader, func(_ string) (eventlog.LogReader, error) {
+		gostub.Stub(&eb.OpenLogReader, func(_ string, _ ...eventlog.Option) (eventlog.LogReader, error) {
 			return logReader, nil
 		})
 		index := uint64(offset)

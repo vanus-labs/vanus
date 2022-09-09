@@ -18,7 +18,6 @@ import (
 	// standard libraries
 	"context"
 	"strings"
-	"time"
 
 	// third-party libraries
 	cepb "cloudevents.io/genproto/v1"
@@ -37,10 +36,6 @@ import (
 	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc/bare"
 	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
-)
-
-const (
-	defaultReadTimeout = 5 * time.Second
 )
 
 func newBlockStore(endpoint string) (*BlockStore, error) {
@@ -104,11 +99,14 @@ func (s *BlockStore) Append(ctx context.Context, block uint64, event *ce.Event) 
 	return res.GetOffsets()[0], nil
 }
 
-func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size int16) ([]*ce.Event, error) {
+func (s *BlockStore) Read(
+	ctx context.Context, block uint64, offset int64, size int16, pollingTimeout uint32,
+) ([]*ce.Event, error) {
 	req := &segpb.ReadFromBlockRequest{
-		BlockId: block,
-		Offset:  offset,
-		Number:  int64(size),
+		BlockId:        block,
+		Offset:         offset,
+		Number:         int64(size),
+		PollingTimeout: pollingTimeout,
 	}
 
 	client, err := s.client.Get(ctx)
@@ -116,9 +114,7 @@ func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size 
 		return nil, err
 	}
 
-	tCtx, cancel := context.WithTimeout(ctx, defaultReadTimeout)
-	defer cancel()
-	resp, err := client.(segpb.SegmentServerClient).ReadFromBlock(tCtx, req)
+	resp, err := client.(segpb.SegmentServerClient).ReadFromBlock(ctx, req)
 	if err != nil {
 		// TODO: convert error
 		if errStatus, ok := status.FromError(err); ok {
@@ -138,10 +134,10 @@ func (s *BlockStore) Read(ctx context.Context, block uint64, offset int64, size 
 		if eventpbs := batch.GetEvents(); len(eventpbs) > 0 {
 			events := make([]*ce.Event, 0, len(eventpbs))
 			for _, eventpb := range eventpbs {
-				event, err := codec.FromProto(eventpb)
-				if err != nil {
+				event, err2 := codec.FromProto(eventpb)
+				if err2 != nil {
 					// TODO: return events or error?
-					return events, err
+					return events, err2
 				}
 				events = append(events, event)
 			}

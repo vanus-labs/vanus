@@ -158,7 +158,7 @@ func (s *segmentServer) ReadFromBlock(
 	defer observability.LeaveMark(ctx)
 
 	blockID := vanus.NewIDFromUint64(req.BlockId)
-	events, err := s.srv.ReadFromBlock(ctx, blockID, req.Offset, int(req.Number))
+	events, err := s.srv.ReadFromBlock(ctx, blockID, req.Offset, int(req.Number), req.PollingTimeout)
 	if err != nil {
 		return nil, err
 	}

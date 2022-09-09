@@ -82,7 +82,7 @@ func doRead() {
 		log.Fatal(err)
 	}
 
-	r, err := eb.OpenLogReader(ls[0].VRN)
+	r, err := eb.OpenLogReader(ls[0].VRN, eb.DisablePolling())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -103,7 +103,7 @@ func doRead() {
 		}
 
 		for _, e := range events {
-			log.Printf("event: \n%s", e)
+			log.Printf("event: %v\n", e)
 		}
 	}
 

@@ -125,7 +125,7 @@ func (srv *httpServer) getEvents(c echo.Context) error {
 		})
 	}
 
-	r, err := eb.OpenLogReader(ls[0].VRN)
+	r, err := eb.OpenLogReader(ls[0].VRN, eb.DisablePolling())
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": fmt.Sprintf("open eventlog failed: %s", err),

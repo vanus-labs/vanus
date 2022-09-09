@@ -21,6 +21,7 @@ import (
 	"io"
 	"sort"
 	"sync"
+	"time"
 
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
@@ -36,6 +37,8 @@ import (
 
 const (
 	defaultRetryTimes = 3
+	pollingThreshold  = 200 // in milliseconds.
+	pollingPostSpan   = 100 // in milliseconds.
 )
 
 func UseDistributedLog(scheme string) {
@@ -139,10 +142,11 @@ func (l *distributedEventLog) Writer() (eventlog.LogWriter, error) {
 	return w, nil
 }
 
-func (l *distributedEventLog) Reader() (eventlog.LogReader, error) {
+func (l *distributedEventLog) Reader(cfg eventlog.ReaderConfig) (eventlog.LogReader, error) {
 	r := &logReader{
 		elog: l,
 		pos:  0,
+		cfg:  cfg,
 	}
 	l.Acquire()
 	return r, nil
@@ -357,6 +361,7 @@ type logReader struct {
 	elog *distributedEventLog
 	pos  int64
 	cur  *logSegment
+	cfg  eventlog.ReaderConfig
 }
 
 func (r *logReader) Log() eventlog.EventLog {
@@ -380,7 +385,7 @@ func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 		r.cur = segment
 	}
 
-	events, err := r.cur.Read(ctx, r.pos, size)
+	events, err := r.cur.Read(ctx, r.pos, size, uint32(r.pollingTimeout(ctx)))
 	if err != nil {
 		if stderr.Is(err, errors.ErrOverflow) {
 			r.elog.refreshReadableSegments(ctx)
@@ -397,6 +402,21 @@ func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 	}
 
 	return events, nil
+}
+
+func (r *logReader) pollingTimeout(ctx context.Context) int64 {
+	if r.cfg.PollingTimeout == 0 {
+		return 0
+	}
+	if dl, ok := ctx.Deadline(); ok {
+		switch timeout := time.Until(dl).Milliseconds() - pollingPostSpan; {
+		case timeout < pollingThreshold:
+			return 0
+		case timeout < r.cfg.PollingTimeout:
+			return timeout
+		}
+	}
+	return r.cfg.PollingTimeout
 }
 
 func (r *logReader) switchSegment(ctx context.Context) bool {
