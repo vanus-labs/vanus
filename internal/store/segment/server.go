@@ -46,9 +46,9 @@ import (
 	"google.golang.org/grpc/tap"
 	"google.golang.org/protobuf/proto"
 
+	// first-party libraries.
 	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
 	"github.com/linkall-labs/vanus/observability/tracing"
-	// first-party libraries.
 	"github.com/linkall-labs/vanus/pkg/controller"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	rpcerr "github.com/linkall-labs/vanus/proto/pkg/errors"
