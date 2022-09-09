@@ -409,11 +409,11 @@ func (r *logReader) pollingTimeout(ctx context.Context) int64 {
 		return 0
 	}
 	if dl, ok := ctx.Deadline(); ok {
-		switch timeout := time.Until(dl).Milliseconds(); {
-		case timeout < pollingThreshold || timeout <= pollingPostSpan:
+		switch timeout := time.Until(dl).Milliseconds() - pollingPostSpan; {
+		case timeout < pollingThreshold:
 			return 0
 		case timeout < r.cfg.PollingTimeout:
-			return timeout - pollingPostSpan
+			return timeout
 		}
 	}
 	return r.cfg.PollingTimeout
