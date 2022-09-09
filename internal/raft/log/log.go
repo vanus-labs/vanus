@@ -71,10 +71,10 @@ func NewLog(
 	}
 }
 
-func (l *Log) Delete(_ context.Context) {
-	l.metaStore.Delete(l.hsKey)
-	l.metaStore.Delete(l.csKey)
-	l.metaStore.Delete([]byte(fmt.Sprintf("block/%020d/compact", l.nodeID.Uint64())))
+func (l *Log) Delete(ctx context.Context) {
+	l.metaStore.Delete(ctx, l.hsKey)
+	l.metaStore.Delete(ctx, l.csKey)
+	l.metaStore.Delete(ctx, []byte(fmt.Sprintf("block/%020d/compact", l.nodeID.Uint64())))
 	l.offsetStore.Delete(l.offKey)
 	l.offsetStore.Delete(l.appKey)
 

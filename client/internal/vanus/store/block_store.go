@@ -17,6 +17,8 @@ package store
 import (
 	// standard libraries
 	"context"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"go.opentelemetry.io/otel/trace"
 	"strings"
 
 	// third-party libraries
@@ -44,6 +46,7 @@ func newBlockStore(endpoint string) (*BlockStore, error) {
 		client: bare.New(endpoint, rpc.NewClientFunc(func(conn *grpc.ClientConn) interface{} {
 			return segpb.NewSegmentServerClient(conn)
 		})),
+		tracer: tracing.NewTracer("internal.store.BlockStore", trace.SpanKindClient),
 	}
 	_, err := s.client.Get(context.Background())
 	if err != nil {
@@ -56,6 +59,7 @@ func newBlockStore(endpoint string) (*BlockStore, error) {
 type BlockStore struct {
 	primitive.RefCount
 	client rpc.Client
+	tracer *tracing.Tracer
 }
 
 func (s *BlockStore) Endpoint() string {
@@ -67,6 +71,9 @@ func (s *BlockStore) Close() {
 }
 
 func (s *BlockStore) Append(ctx context.Context, block uint64, event *ce.Event) (int64, error) {
+	_ctx, span := s.tracer.Start(ctx, "Append")
+	defer span.End()
+
 	eventpb, err := codec.ToProto(event)
 	if err != nil {
 		return -1, err
@@ -78,12 +85,12 @@ func (s *BlockStore) Append(ctx context.Context, block uint64, event *ce.Event) 
 		},
 	}
 
-	client, err := s.client.Get(ctx)
+	client, err := s.client.Get(_ctx)
 	if err != nil {
 		return -1, err
 	}
 
-	res, err := client.(segpb.SegmentServerClient).AppendToBlock(ctx, req)
+	res, err := client.(segpb.SegmentServerClient).AppendToBlock(_ctx, req)
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok {
 			if errType, ok := errpb.Convert(errStatus.Message()); ok {
@@ -102,6 +109,9 @@ func (s *BlockStore) Append(ctx context.Context, block uint64, event *ce.Event) 
 func (s *BlockStore) Read(
 	ctx context.Context, block uint64, offset int64, size int16, pollingTimeout uint32,
 ) ([]*ce.Event, error) {
+	ctx, span := s.tracer.Start(ctx, "Append")
+	defer span.End()
+
 	req := &segpb.ReadFromBlockRequest{
 		BlockId:        block,
 		Offset:         offset,

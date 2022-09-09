@@ -32,12 +32,20 @@ import (
 
 	// third-party libraries.
 	cepb "cloudevents.io/genproto/v1"
+
+	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
+	"github.com/linkall-labs/vanus/internal/store/errors"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/tap"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
+	"github.com/linkall-labs/vanus/observability/tracing"
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/pkg/controller"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
@@ -54,7 +62,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/store"
 	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/block/raft"
-	"github.com/linkall-labs/vanus/internal/store/errors"
 	"github.com/linkall-labs/vanus/internal/store/meta"
 	ceconv "github.com/linkall-labs/vanus/internal/store/schema/ce/convert"
 	"github.com/linkall-labs/vanus/internal/store/vsb"
@@ -115,6 +122,7 @@ func NewServer(cfg store.Config) Server {
 		leaderc:      make(chan leaderInfo, defaultLeaderInfoBufferSize),
 		closec:       make(chan struct{}),
 		pm:           &pollingMgr{},
+		tracer:       tracing.NewTracer("segment.server", trace.SpanKindServer),
 	}
 
 	srv.cc = controller.NewSegmentClient(cfg.ControllerAddresses, srv.credentials)
@@ -154,7 +162,8 @@ type server struct {
 	grpcSrv *grpc.Server
 	closec  chan struct{}
 
-	pm pollingManager
+	pm     pollingManager
+	tracer *tracing.Tracer
 }
 
 // Make sure server implements Server.
@@ -166,8 +175,21 @@ func (s *server) Serve(lis net.Listener) error {
 	}
 
 	raftSrv := transport.NewServer(s.host)
-
-	srv := grpc.NewServer(grpc.InTapHandle(s.preGrpcStream))
+	srv := grpc.NewServer(
+		grpc.InTapHandle(s.preGrpcStream),
+		grpc.ChainStreamInterceptor(
+			recovery.StreamServerInterceptor(),
+			errinterceptor.StreamServerInterceptor(),
+			otelgrpc.StreamServerInterceptor(),
+		),
+		grpc.ChainUnaryInterceptor(
+			recovery.UnaryServerInterceptor(),
+			errinterceptor.UnaryServerInterceptor(),
+			otelgrpc.UnaryServerInterceptor(
+				otelgrpc.WithPropagators(propagation.TraceContext{}),
+			),
+		),
+	)
 	segpb.RegisterSegmentServerServer(srv, segSrv)
 	raftpb.RegisterRaftServerServer(srv, raftSrv)
 	s.grpcSrv = srv
@@ -309,11 +331,14 @@ func (s *server) registerReplicas(ctx context.Context, segmentpb *metapb.Segment
 				continue
 			}
 		}
-		s.resolver.Register(blockID, blockpb.Endpoint)
+		s.resolver.Register(blockID, blockpb.Endpoint) //nolint:contextcheck // wrong advice
 	}
 }
 
 func (s *server) Start(ctx context.Context) error {
+	ctx, span := s.tracer.Start(ctx, "Start")
+	defer span.End()
+
 	if s.state != primitive.ServerStateStarted {
 		return errors.ErrServiceState.WithMessage(
 			"start failed, server state is not created")
@@ -398,6 +423,8 @@ func (s *server) leaderChanged(blockID, leaderID vanus.ID, term uint64) {
 }
 
 func (s *server) Stop(ctx context.Context) error {
+	ctx, span := s.tracer.Start(ctx, "Stop")
+	defer span.End()
 	if s.state != primitive.ServerStateRunning {
 		return errors.ErrServiceState.WithMessage(fmt.Sprintf(
 			"the server isn't running, current state:%s", s.state))
@@ -437,7 +464,7 @@ func (s *server) stop(ctx context.Context) error {
 	s.offsetStore.Close()
 	// Make sure WAL is closed before close metaStore.
 	s.wal.Wait()
-	s.metaStore.Close()
+	s.metaStore.Close(ctx)
 
 	// Stop heartbeat task, etc.
 	close(s.closec)
@@ -457,6 +484,9 @@ func (s *server) Status() primitive.ServerState {
 }
 
 func (s *server) CreateBlock(ctx context.Context, id vanus.ID, size int64) error {
+	ctx, span := s.tracer.Start(ctx, "CreateBlock")
+	defer span.End()
+
 	if id == 0 {
 		log.Warning(ctx, "Can not create block with id(0).", nil)
 		return errors.ErrInvalidRequest.WithMessage("can not create block with id(0)")
@@ -490,6 +520,9 @@ func (s *server) CreateBlock(ctx context.Context, id vanus.ID, size int64) error
 }
 
 func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
+	ctx, span := s.tracer.Start(ctx, "RemoveBlock")
+	defer span.End()
+
 	if err := s.checkState(); err != nil {
 		return err
 	}
@@ -527,6 +560,9 @@ func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
 func (s *server) ActivateSegment(
 	ctx context.Context, logID vanus.ID, segID vanus.ID, replicas map[vanus.ID]string,
 ) error {
+	ctx, span := s.tracer.Start(ctx, "ActivateSegment")
+	defer span.End()
+
 	if err := s.checkState(); err != nil {
 		return err
 	}
@@ -570,7 +606,7 @@ func (s *server) ActivateSegment(
 	// Register peers.
 	for i := range peers {
 		peer := &peers[i]
-		s.resolver.Register(peer.ID.Uint64(), peer.Endpoint)
+		s.resolver.Register(peer.ID.Uint64(), peer.Endpoint) //nolint:contextcheck // wrong advice
 	}
 
 	log.Info(ctx, "Bootstrap replica.", map[string]interface{}{
@@ -580,7 +616,7 @@ func (s *server) ActivateSegment(
 
 	// Bootstrap raft.
 	b, _ := v.(Replica)
-	if err := b.Bootstrap(peers); err != nil {
+	if err := b.Bootstrap(ctx, peers); err != nil {
 		return err
 	}
 
@@ -596,6 +632,9 @@ func (s *server) InactivateSegment(ctx context.Context) error {
 }
 
 func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]int64, error) {
+	ctx, span := s.tracer.Start(ctx, "AppendToBlock")
+	defer span.End()
+
 	if len(events) == 0 {
 		return nil, errors.ErrInvalidRequest.WithMessage("event list is empty")
 	}
@@ -687,6 +726,9 @@ func (s *server) onBlockArchived(stat block.Statistics) {
 func (s *server) ReadFromBlock(
 	ctx context.Context, id vanus.ID, seq int64, num int, pollingTimeout uint32,
 ) ([]*cepb.CloudEvent, error) {
+	ctx, span := s.tracer.Start(ctx, "ReadFromBlock")
+	defer span.End()
+
 	if err := s.checkState(); err != nil {
 		return nil, err
 	}

@@ -59,17 +59,17 @@ func (mr *MockReplicaMockRecorder) Append(ctx interface{}, entries ...interface{
 }
 
 // Bootstrap mocks base method.
-func (m *MockReplica) Bootstrap(blocks []raft.Peer) error {
+func (m *MockReplica) Bootstrap(ctx context.Context, blocks []raft.Peer) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Bootstrap", blocks)
+	ret := m.ctrl.Call(m, "Bootstrap", ctx, blocks)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Bootstrap indicates an expected call of Bootstrap.
-func (mr *MockReplicaMockRecorder) Bootstrap(blocks interface{}) *gomock.Call {
+func (mr *MockReplicaMockRecorder) Bootstrap(ctx, blocks interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Bootstrap", reflect.TypeOf((*MockReplica)(nil).Bootstrap), blocks)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Bootstrap", reflect.TypeOf((*MockReplica)(nil).Bootstrap), ctx, blocks)
 }
 
 // Close mocks base method.

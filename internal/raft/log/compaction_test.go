@@ -15,6 +15,7 @@
 package log
 
 import (
+	stdCtx "context"
 	// standard libraries.
 	"encoding/binary"
 	"fmt"
@@ -55,15 +56,15 @@ func TestLog_Compact(t *testing.T) {
 	defer os.RemoveAll(walDir)
 
 	Convey("raft log compaction", t, func() {
-		metaStore, err := meta.RecoverSyncStore(metaCfg, metaDir)
+		metaStore, err := meta.RecoverSyncStore(stdCtx.Background(), metaCfg, metaDir)
 		So(err, ShouldBeNil)
-		defer metaStore.Close()
+		defer metaStore.Close(stdCtx.Background())
 
-		offsetStore, err := meta.RecoverAsyncStore(offsetCfg, offsetDir)
+		offsetStore, err := meta.RecoverAsyncStore(stdCtx.Background(), offsetCfg, offsetDir)
 		So(err, ShouldBeNil)
 		defer offsetStore.Close()
 
-		rawWAL, err := walog.Open(walDir, walog.WithFileSize(int64(fileSize)))
+		rawWAL, err := walog.Open(stdCtx.Background(), walDir, walog.WithFileSize(int64(fileSize)))
 		So(err, ShouldBeNil)
 		wal := newWAL(rawWAL, metaStore)
 
@@ -75,7 +76,7 @@ func TestLog_Compact(t *testing.T) {
 			Type: raftpb.ConfChangeAddNode, NodeID: nodeID1.Uint64(),
 		}).Marshal()
 		So(err, ShouldBeNil)
-		err = log1.Append([]raftpb.Entry{
+		err = log1.Append(stdCtx.Background(), []raftpb.Entry{
 			{Term: 1, Index: 1, Type: raftpb.EntryConfChange, Data: data1},
 			{Term: 2, Index: 2, Type: raftpb.EntryNormal},
 		})
@@ -85,7 +86,7 @@ func TestLog_Compact(t *testing.T) {
 			Type: raftpb.ConfChangeAddNode, NodeID: nodeID2.Uint64(),
 		}).Marshal()
 		So(err, ShouldBeNil)
-		err = log2.Append([]raftpb.Entry{
+		err = log2.Append(stdCtx.Background(), []raftpb.Entry{
 			{Term: 1, Index: 1, Type: raftpb.EntryConfChange, Data: data2},
 			{Term: 2, Index: 2, Type: raftpb.EntryNormal},
 		})
@@ -95,34 +96,34 @@ func TestLog_Compact(t *testing.T) {
 			Type: raftpb.ConfChangeAddNode, NodeID: nodeID3.Uint64(),
 		}).Marshal()
 		So(err, ShouldBeNil)
-		err = log3.Append([]raftpb.Entry{
+		err = log3.Append(stdCtx.Background(), []raftpb.Entry{
 			{Term: 1, Index: 1, Type: raftpb.EntryConfChange, Data: data3},
 			{Term: 2, Index: 2, Type: raftpb.EntryNormal},
 		})
 		So(err, ShouldBeNil)
 
-		err = log1.Compact(2)
+		err = log1.Compact(stdCtx.Background(), 2)
 		So(err, ShouldBeNil)
 
-		err = log2.Compact(2)
+		err = log2.Compact(stdCtx.Background(), 2)
 		So(err, ShouldBeNil)
 
-		err = log1.Append([]raftpb.Entry{{Term: 2, Index: 3, Type: raftpb.EntryNormal, Data: data}})
+		err = log1.Append(stdCtx.Background(), []raftpb.Entry{{Term: 2, Index: 3, Type: raftpb.EntryNormal, Data: data}})
 		So(err, ShouldBeNil)
 
-		err = log2.Append([]raftpb.Entry{{Term: 2, Index: 3, Type: raftpb.EntryNormal, Data: data}})
+		err = log2.Append(stdCtx.Background(), []raftpb.Entry{{Term: 2, Index: 3, Type: raftpb.EntryNormal, Data: data}})
 		So(err, ShouldBeNil)
 
-		err = log3.Append([]raftpb.Entry{{Term: 2, Index: 3, Type: raftpb.EntryNormal, Data: data}})
+		err = log3.Append(stdCtx.Background(), []raftpb.Entry{{Term: 2, Index: 3, Type: raftpb.EntryNormal, Data: data}})
 		So(err, ShouldBeNil)
 
-		err = log3.Compact(2)
+		err = log3.Compact(stdCtx.Background(), 2)
 		So(err, ShouldBeNil)
 
-		err = log1.Compact(3)
+		err = log1.Compact(stdCtx.Background(), 3)
 		So(err, ShouldBeNil)
 
-		err = log3.Compact(3)
+		err = log3.Compact(stdCtx.Background(), 3)
 		So(err, ShouldBeNil)
 
 		wal.Close()

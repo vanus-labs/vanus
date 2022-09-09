@@ -15,6 +15,7 @@
 package meta
 
 import (
+	stdCtx "context"
 	// standard libraries.
 	"os"
 	"testing"
@@ -38,23 +39,23 @@ func TestSyncStore(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("new empty SyncStore by recovery", func() {
-			ss, err := RecoverSyncStore(storecfg.SyncStoreConfig{}, walDir)
+			ss, err := RecoverSyncStore(stdCtx.Background(), storecfg.SyncStoreConfig{}, walDir)
 
 			So(err, ShouldBeNil)
 			So(ss, ShouldNotBeNil)
 
-			ss.Close()
+			ss.Close(stdCtx.Background())
 		})
 
 		Convey("setup SyncStore", func() {
-			ss, err := RecoverSyncStore(storecfg.SyncStoreConfig{}, walDir)
+			ss, err := RecoverSyncStore(stdCtx.Background(), storecfg.SyncStoreConfig{}, walDir)
 			So(err, ShouldBeNil)
-			ss.Store(key0, "value0")
-			ss.Store(key1, "value1")
-			ss.Close()
+			ss.Store(stdCtx.Background(), key0, "value0")
+			ss.Store(stdCtx.Background(), key1, "value1")
+			ss.Close(stdCtx.Background())
 
 			Convey("recover SyncStore", func() {
-				ss, err = RecoverSyncStore(storecfg.SyncStoreConfig{}, walDir)
+				ss, err = RecoverSyncStore(stdCtx.Background(), storecfg.SyncStoreConfig{}, walDir)
 				So(err, ShouldBeNil)
 
 				value0, ok0 := ss.Load(key0)
@@ -69,19 +70,19 @@ func TestSyncStore(t *testing.T) {
 				So(ok2, ShouldBeFalse)
 
 				Convey("modify SyncStore", func() {
-					ss.Delete(key1)
+					ss.Delete(stdCtx.Background(), key1)
 					_, ok1 = ss.Load(key1)
 					So(ok1, ShouldBeFalse)
 
-					ss.Store(key2, "value2")
+					ss.Store(stdCtx.Background(), key2, "value2")
 					value2, ok2 := ss.Load(key2)
 					So(ok2, ShouldBeTrue)
 					So(value2, ShouldResemble, "value2")
 
-					ss.Close()
+					ss.Close(stdCtx.Background())
 
 					Convey("recover SyncStore again", func() {
-						ss, err = RecoverSyncStore(storecfg.SyncStoreConfig{}, walDir)
+						ss, err = RecoverSyncStore(stdCtx.Background(), storecfg.SyncStoreConfig{}, walDir)
 						So(err, ShouldBeNil)
 
 						value0, ok0 := ss.Load(key0)
@@ -95,7 +96,7 @@ func TestSyncStore(t *testing.T) {
 						So(ok2, ShouldBeTrue)
 						So(value2, ShouldResemble, "value2")
 
-						ss.Close()
+						ss.Close(stdCtx.Background())
 					})
 				})
 			})

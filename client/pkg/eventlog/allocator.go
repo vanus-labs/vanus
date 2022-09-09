@@ -15,7 +15,10 @@
 package eventlog
 
 import (
+	"context"
 	"fmt"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"go.opentelemetry.io/otel/trace"
 	"sync"
 )
 
@@ -23,16 +26,21 @@ func NewAllocator() *Allocator {
 	return &Allocator{
 		eventlogs: make(map[string]EventLog),
 		mu:        sync.RWMutex{},
+		tracer:    tracing.NewTracer("pkg.eventlog.Allocator", trace.SpanKindClient),
 	}
 }
 
 type Allocator struct {
 	eventlogs map[string]EventLog
 	mu        sync.RWMutex
+	tracer    *tracing.Tracer
 }
 
 // Get acquire EventLog.
-func (a *Allocator) Get(vrn string) (EventLog, error) {
+func (a *Allocator) Get(ctx context.Context, vrn string) (EventLog, error) {
+	_, span := a.tracer.Start(ctx, "Get")
+	defer span.End()
+
 	cfg, err := ParseVRN(vrn)
 	if err != nil {
 		return nil, err
@@ -76,7 +84,10 @@ func (a *Allocator) doNew(cfg *Config) (EventLog, error) {
 }
 
 // Put release EventLog.
-func (a *Allocator) Put(el EventLog) {
+func (a *Allocator) Put(ctx context.Context, el EventLog) {
+	_ctx, span := a.tracer.Start(ctx, "Put")
+	defer span.End()
+
 	d := false
 	if el.Release() {
 		func() {
@@ -89,6 +100,6 @@ func (a *Allocator) Put(el EventLog) {
 		}()
 	}
 	if d {
-		el.Close()
+		el.Close(_ctx)
 	}
 }

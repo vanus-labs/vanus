@@ -536,14 +536,14 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 		return err
 	}
 	vrn := fmt.Sprintf("vanus:///eventbus/%s?controllers=%s", ebName, strings.Join(tw.config.CtrlEndpoints, ","))
-	eventbusWriter, err := openBusWriter(vrn)
+	eventbusWriter, err := openBusWriter(ctx, vrn)
 	if err != nil {
 		log.Error(ctx, "open eventbus writer failed", map[string]interface{}{
 			log.KeyError: err,
 		})
 		return err
 	}
-	defer eventbusWriter.Close()
+	defer eventbusWriter.Close(ctx)
 	_, err = eventbusWriter.Append(ctx, e)
 	if err != nil {
 		if errors.Is(err, errcli.ErrNotFound) {

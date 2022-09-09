@@ -18,6 +18,8 @@ import (
 	// standard libraries
 	"context"
 	"fmt"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"go.opentelemetry.io/otel/trace"
 	"sort"
 	"strings"
 
@@ -35,6 +37,7 @@ import (
 func newNameServiceImpl(endpoints []string) (*nameServiceImpl, error) {
 	ns := &nameServiceImpl{
 		client: controller.NewEventbusClient(endpoints, insecure.NewCredentials()),
+		tracer: tracing.NewTracer("internal.discovery.eventbus", trace.SpanKindClient),
 	}
 
 	return ns, nil
@@ -43,6 +46,7 @@ func newNameServiceImpl(endpoints []string) (*nameServiceImpl, error) {
 type nameServiceImpl struct {
 	//client       rpc.Client
 	client ctrlpb.EventBusControllerClient
+	tracer *tracing.Tracer
 }
 
 // make sure nameServiceImpl implements discovery.NameService.
@@ -55,6 +59,9 @@ func (ns *nameServiceImpl) LookupWritableLogs(ctx context.Context, eventbus *dis
 	// 	WritableOnly: true,
 	// }
 	// resp, err := ns.client.ListEventLogs(context.Background(), req)
+	ctx, span := ns.tracer.Start(ctx, "LookupWritableLogs")
+	defer span.End()
+
 	req := &metapb.EventBus{
 		Id:   eventbus.ID,
 		Name: eventbus.Name,
@@ -75,6 +82,9 @@ func (ns *nameServiceImpl) LookupReadableLogs(ctx context.Context, eventbus *dis
 	// 	ReadableOnly: true,
 	// }
 	// resp, err := ns.client.ListEventLogs(context.Background(), req)
+	ctx, span := ns.tracer.Start(ctx, "LookupReadableLogs")
+	defer span.End()
+
 	req := &metapb.EventBus{
 		Id:   eventbus.ID,
 		Name: eventbus.Name,

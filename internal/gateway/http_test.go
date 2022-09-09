@@ -15,6 +15,7 @@
 package gateway
 
 import (
+	stdCtx "context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -67,7 +68,7 @@ func TestHTTP(t *testing.T) {
 		r := el.NewMockLogReader(ctrl)
 		r.EXPECT().Seek(Any(), Any(), Any()).Return(int64(0), nil)
 		r.EXPECT().Read(Any(), Any()).Return([]*ce.Event{&event}, nil)
-		r.EXPECT().Close().Return()
+		r.EXPECT().Close(stdCtx.Background()).Return()
 
 		el := &record.EventLog{}
 

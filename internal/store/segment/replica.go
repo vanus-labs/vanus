@@ -34,7 +34,7 @@ type Replica interface {
 	block.Block
 
 	IDStr() string
-	Bootstrap(blocks []raft.Peer) error
+	Bootstrap(ctx context.Context, blocks []raft.Peer) error
 	Close(ctx context.Context) error
 	Delete(ctx context.Context) error
 	Status() *metapb.SegmentHealthInfo
@@ -58,8 +58,8 @@ func (r *replica) IDStr() string {
 	return r.idStr
 }
 
-func (r *replica) Bootstrap(blocks []raft.Peer) error {
-	return r.appender.Bootstrap(blocks)
+func (r *replica) Bootstrap(ctx context.Context, blocks []raft.Peer) error {
+	return r.appender.Bootstrap(ctx, blocks)
 }
 
 func (r *replica) Close(ctx context.Context) error {

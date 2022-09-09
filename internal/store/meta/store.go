@@ -22,6 +22,9 @@ import (
 	// third-party libraries.
 	"github.com/huandu/skiplist"
 
+	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/tracing"
+
 	// this project.
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
 )
@@ -38,6 +41,7 @@ type store struct {
 	snapshot int64
 
 	marshaler Marshaler
+	tracer    *tracing.Tracer
 }
 
 func (s *store) load(key []byte) (interface{}, bool) {

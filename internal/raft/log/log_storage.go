@@ -155,12 +155,12 @@ func (l *Log) length() uint64 {
 }
 
 // Append the new entries to storage.
-func (l *Log) Append(entries []raftpb.Entry) error {
+func (l *Log) Append(ctx context.Context, entries []raftpb.Entry) error {
 	if len(entries) == 0 {
 		return nil
 	}
 
-	if err := l.prepareAppend(entries); err != nil {
+	if err := l.prepareAppend(entries); err != nil { //nolint:contextcheck // wrong advice
 		return err
 	}
 
@@ -211,7 +211,7 @@ func (l *Log) Append(entries []raftpb.Entry) error {
 	}
 
 	// Append to WAL.
-	offsets, err = l.appendToWAL(entries, index == firstIndex)
+	offsets, err = l.appendToWAL(ctx, entries, index == firstIndex)
 	if err != nil {
 		// FIXME(james.yin): correct error
 		return err
@@ -276,7 +276,7 @@ func (l *Log) prepareAppend(entries []raftpb.Entry) error {
 	return nil
 }
 
-func (l *Log) appendToWAL(entries []raftpb.Entry, suppress bool) ([]int64, error) {
+func (l *Log) appendToWAL(ctx context.Context, entries []raftpb.Entry, suppress bool) ([]int64, error) {
 	l.Unlock()
 	defer l.Lock()
 
@@ -284,7 +284,7 @@ func (l *Log) appendToWAL(entries []raftpb.Entry, suppress bool) ([]int64, error
 	var err error
 	if suppress {
 		_ = l.wal.suppressCompact(func() (compactTask, error) {
-			offsets, err = l.doAppendToWAL(entries)
+			offsets, err = l.doAppendToWAL(ctx, entries)
 			if err != nil {
 				return compactTask{}, err
 			}
@@ -294,7 +294,7 @@ func (l *Log) appendToWAL(entries []raftpb.Entry, suppress bool) ([]int64, error
 			}, nil
 		})
 	} else {
-		offsets, err = l.doAppendToWAL(entries)
+		offsets, err = l.doAppendToWAL(ctx, entries)
 	}
 	if err != nil {
 		return nil, err
@@ -302,7 +302,7 @@ func (l *Log) appendToWAL(entries []raftpb.Entry, suppress bool) ([]int64, error
 	return offsets, nil
 }
 
-func (l *Log) doAppendToWAL(entries []raftpb.Entry) ([]int64, error) {
+func (l *Log) doAppendToWAL(ctx context.Context, entries []raftpb.Entry) ([]int64, error) {
 	ents := make([][]byte, len(entries))
 	for i, entry := range entries {
 		// reset node ID.
@@ -313,7 +313,7 @@ func (l *Log) doAppendToWAL(entries []raftpb.Entry) ([]int64, error) {
 		}
 		ents[i] = ent
 	}
-	ranges, err := l.wal.Append(ents, walog.WithoutBatching()).Wait()
+	ranges, err := l.wal.Append(ctx, ents, walog.WithoutBatching()).Wait()
 	if err != nil {
 		return nil, err
 	}

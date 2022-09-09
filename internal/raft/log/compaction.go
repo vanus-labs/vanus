@@ -38,7 +38,7 @@ const (
 // Compact discards all log entries prior to compactIndex.
 // It is the application's responsibility to not attempt to compact an index
 // greater than raftLog.applied.
-func (l *Log) Compact(i uint64) error {
+func (l *Log) Compact(ctx context.Context, i uint64) error {
 	l.Lock()
 	defer l.Unlock()
 
@@ -73,7 +73,7 @@ func (l *Log) Compact(i uint64) error {
 	}
 
 	// Compact WAL.
-	l.wal.tryCompact(offs[0], l.offs[0], l.nodeID, ents[0].Index, ents[0].Term)
+	l.wal.tryCompact(ctx, offs[0], l.offs[0], l.nodeID, ents[0].Index, ents[0].Term)
 
 	// Reset log entries and offsets.
 	l.ents = ents
@@ -91,7 +91,7 @@ func (w *WAL) suppressCompact(cb executeCallback) error {
 	return <-result
 }
 
-func (w *WAL) tryCompact(offset, last int64, nodeID vanus.ID, index, term uint64) {
+func (w *WAL) tryCompact(ctx context.Context, offset, last int64, nodeID vanus.ID, index, term uint64) {
 	w.executec <- executeTask{
 		cb: func() (compactTask, error) {
 			return compactTask{
@@ -166,8 +166,8 @@ func (c *compactContext) stale() bool {
 	return c.toCompact > c.compacted || len(c.infos) != 0
 }
 
-func (c *compactContext) sync() {
-	c.metaStore.BatchStore(&compactMeta{
+func (c *compactContext) sync(ctx context.Context) {
+	c.metaStore.BatchStore(ctx, &compactMeta{
 		infos:  c.infos,
 		offset: c.toCompact,
 	})
@@ -238,12 +238,14 @@ func (w *WAL) compact(cctx *compactContext, compact compactTask) {
 }
 
 func (w *WAL) doCompact(cctx *compactContext) {
+	ctx, span := w.tracer.Start(context.Background(), "doCompact")
+	defer span.End()
 	if cctx.stale() {
 		log.Debug(context.TODO(), "compact WAL of raft log.", map[string]interface{}{
 			"offset": cctx.toCompact,
 		})
 		// Store compacted info and offset.
-		cctx.sync()
+		cctx.sync(ctx)
 		// Compact underlying WAL.
 		_ = w.WAL.Compact(cctx.compacted)
 	}

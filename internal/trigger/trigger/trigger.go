@@ -485,8 +485,8 @@ func (t *trigger) Stop(ctx context.Context) error {
 	close(t.eventCh)
 	close(t.sendCh)
 	close(t.retryEventCh)
-	t.timerEventWriter.Close()
-	t.dlEventWriter.Close()
+	t.timerEventWriter.Close(ctx)
+	t.dlEventWriter.Close(ctx)
 	t.state = TriggerStopped
 	log.Info(ctx, "trigger stopped", map[string]interface{}{
 		log.KeySubscriptionID: t.subscription.ID,
@@ -504,7 +504,7 @@ func (t *trigger) Change(ctx context.Context, subscription *primitive.Subscripti
 		}
 	}
 	if !reflect.DeepEqual(t.subscription.Filters, subscription.Filters) {
-		t.changeFilter(subscription.Filters)
+		t.changeFilter(subscription.Filters) //nolint:contextcheck // wrong advice
 	}
 	if !reflect.DeepEqual(t.subscription.Transformer, subscription.Transformer) {
 		t.changeTransformer(subscription.Transformer)

@@ -17,7 +17,7 @@ severity:
   rules:
     - linters:
         - contextcheck
-      severity: warn
+      severity: info
 
 linters-settings:
   errcheck:
@@ -39,12 +39,8 @@ linters-settings:
   staticcheck:
     go: "1.17" # default 1.13
     checks: ["*"] # https://staticcheck.io/docs/options#checks # default ["*"]
-  structcheck:
-    exported-fields: false # default false
   unused:
     check-exported: false # default false # TODO: enable after fixing false positives
-  varcheck:
-    exported-fields: false # default false # TODO: enable after fixing false positives
 
   bidichk:
     # The following configurations check for all mentioned invisible unicode runes.
@@ -233,10 +229,6 @@ linters-settings:
   #directives:
   #  - name: "xxx"
   #    severity: "xxx"
-  rowserrcheck:
-    packages:
-      - database/sql
-      - github.com/jmoiron/sqlx
   stylecheck:
     go: "1.16" # default 1.13
     checks: ["*"] # https://staticcheck.io/docs/options#checks # default ["*"]
@@ -296,21 +288,18 @@ linters:
   disable-all: true
   enable:
     ## enabled by default
-    - deadcode
     - errcheck
     - gosimple
     - govet
     - ineffassign
     - staticcheck
-    - structcheck
     - typecheck
     - unused
-    - varcheck
     ## disabled by default
     - asciicheck
     - bidichk
     - bodyclose
-    - contextcheck
+#    - contextcheck
     - cyclop
     - dupl
     - durationcheck
@@ -345,8 +334,6 @@ linters:
     - predeclared
     - promlinter
     - revive
-    - rowserrcheck
-    - sqlclosecheck
     - stylecheck
     - tenv
     - tparallel

@@ -17,6 +17,8 @@ package log
 import (
 	// third-party libraries.
 	"github.com/huandu/skiplist"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	oteltracer "go.opentelemetry.io/otel/trace"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -57,6 +59,7 @@ type WAL struct {
 	executec chan executeTask
 	compactc chan compactTask
 	donec    chan struct{}
+	tracer   *tracing.Tracer
 }
 
 func newWAL(wal *walog.WAL, metaStore *meta.SyncStore) *WAL {
@@ -67,6 +70,7 @@ func newWAL(wal *walog.WAL, metaStore *meta.SyncStore) *WAL {
 		executec:  make(chan executeTask, defaultExecuteTaskBufferSize),
 		compactc:  make(chan compactTask, defaultCompactTaskBufferSize),
 		donec:     make(chan struct{}),
+		tracer:    tracing.NewTracer("raft.log.wal", oteltracer.SpanKindInternal),
 	}
 
 	go w.run()

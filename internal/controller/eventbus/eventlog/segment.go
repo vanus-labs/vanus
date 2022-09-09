@@ -133,13 +133,13 @@ type ReplicaGroup struct {
 	DestroyAt time.Time                  `json:"destroy_at"`
 }
 
-func Convert2ProtoSegment(ins ...*Segment) []*metapb.Segment {
+func Convert2ProtoSegment(ctx context.Context, ins ...*Segment) []*metapb.Segment {
 	segs := make([]*metapb.Segment, len(ins))
 	for idx := 0; idx < len(ins); idx++ {
 		seg := ins[idx]
 		blocks := map[uint64]*metapb.Block{}
 		if seg.isReady() {
-			topo := mgr.getSegmentTopology(context.TODO(), seg)
+			topo := mgr.getSegmentTopology(ctx, seg)
 			for _, v := range seg.Replicas.Peers {
 				blocks[v.ID.Uint64()] = &metapb.Block{
 					Id:       v.ID.Uint64(),
