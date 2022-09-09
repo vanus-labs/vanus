@@ -14,14 +14,16 @@
 
 package store
 
+import "context"
+
 var allocator = NewAllocator()
 
 // Get acquire BlockStore.
-func Get(endpoint string) (*BlockStore, error) {
-	return allocator.Get(endpoint)
+func Get(ctx context.Context, endpoint string) (*BlockStore, error) {
+	return allocator.Get(ctx, endpoint)
 }
 
 // Put release BlockStore.
-func Put(bs *BlockStore) {
-	allocator.Put(bs)
+func Put(ctx context.Context, bs *BlockStore) {
+	allocator.Put(ctx, bs)
 }

@@ -33,7 +33,11 @@ import (
 )
 
 func RecoverLogsAndWAL(
-	cfg storecfg.RaftConfig, walDir string, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore,
+	ctx context.Context,
+	cfg storecfg.RaftConfig,
+	walDir string,
+	metaStore *meta.SyncStore,
+	offsetStore *meta.AsyncStore,
 ) (map[vanus.ID]*Log, *WAL, error) {
 	var compacted int64
 	if v, exist := metaStore.Load(walCompactKey); exist {
@@ -62,14 +66,14 @@ func RecoverLogsAndWAL(
 				logs[entry.NodeId] = l
 			}
 
-			return l.appendInRecovery(entry, r.SO)
+			return l.appendInRecovery(ctx, entry, r.SO)
 		}),
 	}, cfg.WAL.Options()...)
-	wal, err := walog.Open(walDir, opts...)
+	wal, err := walog.Open(ctx, walDir, opts...)
 	if err != nil {
 		return nil, nil, err
 	}
-	wal2 := newWAL(wal, metaStore)
+	wal2 := newWAL(wal, metaStore) //nolint:contextcheck // wrong advice
 
 	// convert raftLogs, and set wal
 	logs2 := make(map[vanus.ID]*Log, len(logs))
@@ -193,7 +197,7 @@ func (l *Log) recoverCompactionInfo() error {
 	return nil
 }
 
-func (l *Log) appendInRecovery(entry raftpb.Entry, so int64) error {
+func (l *Log) appendInRecovery(_ context.Context, entry raftpb.Entry, so int64) error {
 	term := entry.Term
 	index := entry.Index
 

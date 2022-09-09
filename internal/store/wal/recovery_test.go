@@ -15,6 +15,7 @@
 package wal
 
 import (
+	stdCtx "context"
 	// standard libraries.
 	"os"
 	"testing"
@@ -30,7 +31,7 @@ func TestOpen(t *testing.T) {
 
 		Convey("create empty wal", func() {
 			var entryNum int
-			wal, err := Open(walDir, WithRecoveryCallback(func(entry []byte, r Range) error {
+			wal, err := Open(stdCtx.Background(), walDir, WithRecoveryCallback(func(entry []byte, r Range) error {
 				entryNum++
 				return nil
 			}), WithFileSize(fileSize))
@@ -44,16 +45,16 @@ func TestOpen(t *testing.T) {
 		})
 
 		Convey("recover wal", func() {
-			wal, err := Open(walDir, WithFileSize(fileSize))
+			wal, err := Open(stdCtx.Background(), walDir, WithFileSize(fileSize))
 			So(err, ShouldBeNil)
-			wal.AppendOne(data0).Wait()
-			wal.AppendOne(data1).Wait()
+			wal.AppendOne(stdCtx.Background(), data0).Wait()
+			wal.AppendOne(stdCtx.Background(), data1).Wait()
 			wal.Close()
 			wal.Wait()
 
 			Convey("recover entire wal", func() {
 				entries := make([][]byte, 0, 2)
-				wal, err = Open(walDir, WithRecoveryCallback(func(entry []byte, r Range) error {
+				wal, err = Open(stdCtx.Background(), walDir, WithRecoveryCallback(func(entry []byte, r Range) error {
 					entries = append(entries, entry)
 					return nil
 				}), WithFileSize(fileSize))
@@ -69,7 +70,7 @@ func TestOpen(t *testing.T) {
 
 			Convey("recover wal with compacted", func() {
 				entries := make([][]byte, 0, 1)
-				wal, err = Open(walDir, FromPosition(10), WithRecoveryCallback(func(entry []byte, r Range) error {
+				wal, err = Open(stdCtx.Background(), walDir, FromPosition(10), WithRecoveryCallback(func(entry []byte, r Range) error {
 					entries = append(entries, entry)
 					return nil
 				}), WithFileSize(fileSize))
@@ -86,14 +87,14 @@ func TestOpen(t *testing.T) {
 		Convey("recover large data", func() {
 			data := make([]byte, fileSize)
 
-			wal, err := Open(walDir, WithFileSize(fileSize))
+			wal, err := Open(stdCtx.Background(), walDir, WithFileSize(fileSize))
 			So(err, ShouldBeNil)
-			wal.AppendOne(data).Wait()
+			wal.AppendOne(stdCtx.Background(), data).Wait()
 			wal.Close()
 			wal.Wait()
 
 			entries := make([][]byte, 0, 1)
-			wal, err = Open(walDir, WithRecoveryCallback(func(entry []byte, r Range) error {
+			wal, err = Open(stdCtx.Background(), walDir, WithRecoveryCallback(func(entry []byte, r Range) error {
 				entries = append(entries, entry)
 				return nil
 			}), WithFileSize(fileSize))

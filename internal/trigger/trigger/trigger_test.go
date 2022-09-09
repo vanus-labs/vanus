@@ -84,11 +84,11 @@ func TestTriggerStartStop(t *testing.T) {
 		r2 := reader.NewMockReader(ctrl)
 		ctx := context.Background()
 		busWriter := eventbus.NewMockBusWriter(ctrl)
-		stub := gostub.Stub(&eb.OpenBusWriter, func(_ string) (eventbus.BusWriter, error) {
+		stub := gostub.Stub(&eb.OpenBusWriter, func(_ context.Context, _ string) (eventbus.BusWriter, error) {
 			return busWriter, nil
 		})
 		defer stub.Reset()
-		busWriter.EXPECT().Close().Times(2).Return()
+		busWriter.EXPECT().Close(context.Background()).Times(2).Return()
 		err := tg.Init(ctx)
 		So(err, ShouldBeNil)
 		tg.reader = r
@@ -114,7 +114,7 @@ func TestTriggerWriteFailEvent(t *testing.T) {
 		id := vanus.NewID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
 		busWriter := eventbus.NewMockBusWriter(ctrl)
-		stub := gostub.Stub(&eb.OpenBusWriter, func(_ string) (eventbus.BusWriter, error) {
+		stub := gostub.Stub(&eb.OpenBusWriter, func(_ context.Context, _ string) (eventbus.BusWriter, error) {
 			return busWriter, nil
 		})
 		defer stub.Reset()
@@ -166,7 +166,7 @@ func TestTriggerRunEventSend(t *testing.T) {
 		id := vanus.NewID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
 		busWriter := eventbus.NewMockBusWriter(ctrl)
-		stub := gostub.Stub(&eb.OpenBusWriter, func(_ string) (eventbus.BusWriter, error) {
+		stub := gostub.Stub(&eb.OpenBusWriter, func(ctx context.Context, _ string) (eventbus.BusWriter, error) {
 			return busWriter, nil
 		})
 		defer stub.Reset()

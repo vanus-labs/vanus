@@ -15,6 +15,7 @@
 package wal
 
 import (
+	stdCtx "context"
 	// standard libraries.
 	"fmt"
 	"os"
@@ -41,16 +42,16 @@ func TestWAL_AppendOne(t *testing.T) {
 		walDir, err := os.MkdirTemp("", "wal-*")
 		So(err, ShouldBeNil)
 
-		wal, err := Open(walDir, WithFileSize(fileSize))
+		wal, err := Open(stdCtx.Background(), walDir, WithFileSize(fileSize))
 		So(err, ShouldBeNil)
 
 		Convey("append one with callback", func() {
 			var done bool
 
-			wal.AppendOne(data0, WithCallback(func(_ Result) {
+			wal.AppendOne(stdCtx.Background(), data0, WithCallback(func(_ Result) {
 				done = true
 			}))
-			n, _ := wal.AppendOne(data1).Wait()
+			n, _ := wal.AppendOne(stdCtx.Background(), data1).Wait()
 
 			// Invoke callback of append data0, before append data1 return.
 			So(done, ShouldBeTrue)
@@ -73,7 +74,7 @@ func TestWAL_AppendOne(t *testing.T) {
 		Convey("append one with large data", func() {
 			data := make([]byte, fileSize)
 
-			n, err := wal.AppendOne(data, WithoutBatching()).Wait()
+			n, err := wal.AppendOne(stdCtx.Background(), data, WithoutBatching()).Wait()
 
 			So(err, ShouldBeNil)
 			So(n.EO, ShouldEqual, fileSize+9*record.HeaderSize)
@@ -94,20 +95,20 @@ func TestWAL_AppendOne(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		flushTimeout := time.Second
-		wal, err := Open(walDir, WithFileSize(fileSize), WithFlushTimeout(flushTimeout))
+		wal, err := Open(stdCtx.Background(), walDir, WithFileSize(fileSize), WithFlushTimeout(flushTimeout))
 		So(err, ShouldBeNil)
 
 		data := make([]byte, defaultBlockSize)
 
 		startTime := time.Now()
 		var t0, t1 time.Time
-		wal.AppendOne(data0, WithCallback(func(_ Result) {
+		wal.AppendOne(stdCtx.Background(), data0, WithCallback(func(_ Result) {
 			t0 = time.Now()
 		}))
-		wal.AppendOne(data, WithCallback(func(_ Result) {
+		wal.AppendOne(stdCtx.Background(), data, WithCallback(func(_ Result) {
 			t1 = time.Now()
 		}))
-		wal.AppendOne(data1).Wait()
+		wal.AppendOne(stdCtx.Background(), data1).Wait()
 		t2 := time.Now()
 
 		So(t0, ShouldHappenBefore, startTime.Add(flushTimeout))
@@ -125,19 +126,19 @@ func TestWAL_AppendOne(t *testing.T) {
 		walDir, err := os.MkdirTemp("", "wal-*")
 		So(err, ShouldBeNil)
 
-		wal, err := Open(walDir, WithFileSize(fileSize))
+		wal, err := Open(stdCtx.Background(), walDir, WithFileSize(fileSize))
 		So(err, ShouldBeNil)
 
 		var inflight int32 = 100
 		for i := inflight; i > 0; i-- {
-			wal.AppendOne(data0, WithCallback(func(_ Result) {
+			wal.AppendOne(stdCtx.Background(), data0, WithCallback(func(_ Result) {
 				atomic.AddInt32(&inflight, -1)
 			}))
 		}
 
 		wal.Close()
 
-		_, err = wal.AppendOne(data1).Wait()
+		_, err = wal.AppendOne(stdCtx.Background(), data1).Wait()
 		So(err, ShouldNotBeNil)
 
 		wal.Wait()
@@ -159,11 +160,11 @@ func TestWAL_Append(t *testing.T) {
 		walDir, err := os.MkdirTemp("", "wal-*")
 		So(err, ShouldBeNil)
 
-		wal, err := Open(walDir, WithFileSize(fileSize))
+		wal, err := Open(stdCtx.Background(), walDir, WithFileSize(fileSize))
 		So(err, ShouldBeNil)
 
 		Convey("append without batching", func() {
-			ranges, err := wal.Append([][]byte{
+			ranges, err := wal.Append(stdCtx.Background(), [][]byte{
 				data0, data1,
 			}, WithoutBatching()).Wait()
 
@@ -187,7 +188,7 @@ func TestWAL_Append(t *testing.T) {
 		})
 
 		Convey("append without entry", func() {
-			ranges, err := wal.Append([][]byte{}).Wait()
+			ranges, err := wal.Append(stdCtx.Background(), [][]byte{}).Wait()
 
 			So(err, ShouldBeNil)
 			So(len(ranges), ShouldEqual, 0)
@@ -213,14 +214,14 @@ func TestWAL_Compact(t *testing.T) {
 		walDir, err := os.MkdirTemp("", "wal-*")
 		So(err, ShouldBeNil)
 
-		wal, err := Open(walDir, WithFileSize(fileSize))
+		wal, err := Open(stdCtx.Background(), walDir, WithFileSize(fileSize))
 		So(err, ShouldBeNil)
 
-		_, err = wal.Append([][]byte{data, data, data, data, data, data, data, data}).Wait()
+		_, err = wal.Append(stdCtx.Background(), [][]byte{data, data, data, data, data, data, data, data}).Wait()
 		So(err, ShouldBeNil)
 		So(wal.stream.stream, ShouldHaveLength, 1)
 
-		r, err := wal.AppendOne(data).Wait()
+		r, err := wal.AppendOne(stdCtx.Background(), data).Wait()
 		So(err, ShouldBeNil)
 		So(r, ShouldResemble, Range{SO: fileSize, EO: fileSize + defaultBlockSize})
 		So(wal.stream.stream, ShouldHaveLength, 2)
@@ -233,7 +234,7 @@ func TestWAL_Compact(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(wal.stream.stream, ShouldHaveLength, 1)
 
-		ranges, err := wal.Append([][]byte{
+		ranges, err := wal.Append(stdCtx.Background(), [][]byte{
 			data, data, data, data, data, data, data, data,
 			data, data, data, data, data, data, data, data,
 		}).Wait()

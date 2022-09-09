@@ -24,21 +24,21 @@ import (
 	"github.com/cloudevents/sdk-go/v2/event"
 )
 
-func SearchEventByID(eventID string, controllers string) (*event.Event, error) {
+func SearchEventByID(ctx context.Context, eventID string, controllers string) (*event.Event, error) {
 	logID, off, err := decodeEventID(eventID)
 	if err != nil {
 		return nil, err
 	}
 	vrn := fmt.Sprintf("vanus:///eventlog/%d?eventbus=%s&controllers=%s", logID, "", controllers)
-	r, err := OpenReader(vrn, DisablePolling())
+	r, err := OpenReader(ctx, vrn, DisablePolling())
 	if err != nil {
 		return nil, err
 	}
-	_, err = r.Seek(context.Background(), off, io.SeekStart)
+	_, err = r.Seek(ctx, off, io.SeekStart)
 	if err != nil {
 		return nil, err
 	}
-	events, err := r.Read(context.Background(), 1)
+	events, err := r.Read(ctx, 1)
 	if err != nil {
 		return nil, err
 	}

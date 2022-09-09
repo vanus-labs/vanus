@@ -18,13 +18,10 @@ import (
 	"context"
 	"encoding/json"
 	stdErr "errors"
-	"github.com/linkall-labs/vanus/pkg/util"
 	"io"
 	"path/filepath"
 	"sync"
 	"time"
-
-	"github.com/linkall-labs/vanus/observability/metrics"
 
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/errors"
@@ -35,8 +32,9 @@ import (
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
+	"github.com/linkall-labs/vanus/pkg/util"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	"google.golang.org/grpc/codes"
@@ -109,8 +107,6 @@ func (ctrl *controller) StopNotify() <-chan error {
 
 func (ctrl *controller) CreateEventBus(ctx context.Context,
 	req *ctrlpb.CreateEventBusRequest) (*metapb.EventBus, error) {
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
 	ctrl.mutex.Lock()
 	defer ctrl.mutex.Unlock()
 	if req.LogNumber == 0 {
@@ -149,10 +145,7 @@ func (ctrl *controller) CreateEventBus(ctx context.Context,
 	return ctrl.getEventbus(eb.Name)
 }
 
-func (ctrl *controller) DeleteEventBus(ctx context.Context,
-	eb *metapb.EventBus) (*emptypb.Empty, error) {
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
+func (ctrl *controller) DeleteEventBus(ctx context.Context, eb *metapb.EventBus) (*emptypb.Empty, error) {
 	ctrl.mutex.Lock()
 	defer ctrl.mutex.Unlock()
 
@@ -181,11 +174,7 @@ func (ctrl *controller) DeleteEventBus(ctx context.Context,
 	return &emptypb.Empty{}, nil
 }
 
-func (ctrl *controller) GetEventBus(ctx context.Context,
-	eb *metapb.EventBus) (*metapb.EventBus, error) {
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
-
+func (ctrl *controller) GetEventBus(ctx context.Context, eb *metapb.EventBus) (*metapb.EventBus, error) {
 	return ctrl.getEventbus(eb.Name)
 }
 
@@ -220,31 +209,23 @@ func (ctrl *controller) ListEventBus(ctx context.Context, _ *emptypb.Empty) (*ct
 
 func (ctrl *controller) UpdateEventBus(ctx context.Context,
 	req *ctrlpb.UpdateEventBusRequest) (*metapb.EventBus, error) {
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
 	return &metapb.EventBus{}, nil
 }
 
 func (ctrl *controller) ListSegment(ctx context.Context,
 	req *ctrlpb.ListSegmentRequest) (*ctrlpb.ListSegmentResponse, error) {
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
-
 	el := ctrl.eventLogMgr.GetEventLog(ctx, vanus.NewIDFromUint64(req.EventLogId))
 	if el == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
 	}
 
 	return &ctrlpb.ListSegmentResponse{
-		Segments: eventlog.Convert2ProtoSegment(ctrl.eventLogMgr.GetEventLogSegmentList(el.ID)...),
+		Segments: eventlog.Convert2ProtoSegment(ctx, ctrl.eventLogMgr.GetEventLogSegmentList(el.ID)...),
 	}, nil
 }
 
 func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 	req *ctrlpb.RegisterSegmentServerRequest) (*ctrlpb.RegisterSegmentServerResponse, error) {
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
-
 	srv, err := server.NewSegmentServer(req.Address)
 	if err != nil {
 		return nil, err
@@ -282,7 +263,7 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 		if err != nil {
 			return nil, err
 		}
-		segments[seg.ID.Uint64()] = eventlog.Convert2ProtoSegment(seg)[0]
+		segments[seg.ID.Uint64()] = eventlog.Convert2ProtoSegment(ctx, seg)[0]
 	}
 
 	go func() {
@@ -300,9 +281,6 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 
 func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
 	req *ctrlpb.UnregisterSegmentServerRequest) (*ctrlpb.UnregisterSegmentServerResponse, error) {
-	observability.EntryMark(ctx)
-	defer observability.LeaveMark(ctx)
-
 	srv := ctrl.ssMgr.GetServerByAddress(req.Address)
 
 	if srv == nil {
@@ -439,7 +417,7 @@ func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	return &ctrlpb.GetAppendableSegmentResponse{Segments: eventlog.Convert2ProtoSegment(segInfos...)}, nil
+	return &ctrlpb.GetAppendableSegmentResponse{Segments: eventlog.Convert2ProtoSegment(ctx, segInfos...)}, nil
 }
 
 func (ctrl *controller) ReportSegmentBlockIsFull(ctx context.Context,

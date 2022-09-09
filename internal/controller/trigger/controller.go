@@ -17,7 +17,6 @@ package trigger
 import (
 	"context"
 	stdErr "errors"
-	"github.com/linkall-labs/vanus/pkg/util"
 	"io"
 	"sync"
 	"time"
@@ -35,6 +34,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
+	"github.com/linkall-labs/vanus/pkg/util"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/linkall-labs/vanus/proto/pkg/meta"
 	"google.golang.org/protobuf/types/known/emptypb"

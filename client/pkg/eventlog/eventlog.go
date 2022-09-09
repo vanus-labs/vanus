@@ -39,7 +39,7 @@ type EventLog interface {
 
 	VRN() *discovery.VRN
 
-	Close()
+	Close(ctx context.Context)
 	Writer() (LogWriter, error)
 	Reader(cfg ReaderConfig) (LogReader, error)
 }
@@ -47,7 +47,7 @@ type EventLog interface {
 type LogWriter interface {
 	Log() EventLog
 
-	Close()
+	Close(ctx context.Context)
 
 	Append(ctx context.Context, event *ce.Event) (off int64, err error)
 }
@@ -55,7 +55,7 @@ type LogWriter interface {
 type LogReader interface {
 	Log() EventLog
 
-	Close()
+	Close(ctx context.Context)
 
 	// TODO: async
 	Read(ctx context.Context, size int16) (events []*ce.Event, err error)

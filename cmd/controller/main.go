@@ -36,6 +36,7 @@ import (
 
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -103,11 +104,13 @@ func main() {
 			recovery.StreamServerInterceptor(),
 			errinterceptor.StreamServerInterceptor(),
 			memberinterceptor.StreamServerInterceptor(etcd),
+			otelgrpc.StreamServerInterceptor(),
 		),
 		grpc.ChainUnaryInterceptor(
 			recovery.UnaryServerInterceptor(),
 			errinterceptor.UnaryServerInterceptor(),
 			memberinterceptor.UnaryServerInterceptor(etcd),
+			otelgrpc.UnaryServerInterceptor(),
 		),
 	)
 

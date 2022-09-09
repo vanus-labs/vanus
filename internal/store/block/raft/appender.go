@@ -23,7 +23,11 @@ import (
 	"sync"
 	"time"
 
+	// third-party libraries.
+	oteltracer "go.opentelemetry.io/otel/trace"
+
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/raft"
 	"github.com/linkall-labs/vanus/raft/raftpb"
 
@@ -70,7 +74,7 @@ type Appender interface {
 	block.Appender
 
 	Stop(ctx context.Context)
-	Bootstrap(blocks []Peer) error
+	Bootstrap(ctx context.Context, blocks []Peer) error
 	Delete(ctx context.Context)
 	Status() ClusterStatus
 }
@@ -99,6 +103,7 @@ type appender struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	donec  chan struct{}
+	tracer *tracing.Tracer
 }
 
 // Make sure appender implements Appender.
@@ -119,6 +124,7 @@ func NewAppender(
 		ctx:      ctx,
 		cancel:   cancel,
 		donec:    make(chan struct{}),
+		tracer:   tracing.NewTracer("store.block.replica.replica", oteltracer.SpanKindInternal),
 	}
 	r.actx = r.raw.NewAppendContext(nil)
 	r.commitOffset = r.actx.WriteOffset()
@@ -164,7 +170,10 @@ func (r *appender) Stop(ctx context.Context) {
 	})
 }
 
-func (r *appender) Bootstrap(blocks []Peer) error {
+func (r *appender) Bootstrap(ctx context.Context, blocks []Peer) error {
+	_, span := r.tracer.Start(ctx, "Bootstrap")
+	defer span.End()
+
 	peers := make([]raft.Peer, 0, len(blocks))
 	for _, ep := range blocks {
 		peers = append(peers, raft.Peer{
@@ -180,6 +189,9 @@ func (r *appender) Bootstrap(blocks []Peer) error {
 }
 
 func (r *appender) Delete(ctx context.Context) {
+	ctx, span := r.tracer.Start(ctx, "Delete")
+	defer span.End()
+
 	r.Stop(ctx)
 	r.log.Delete(ctx)
 }
@@ -194,11 +206,12 @@ func (r *appender) run(ctx context.Context) {
 		case <-t.C:
 			r.node.Tick()
 		case rd := <-r.node.Ready():
+			ctx, span := r.tracer.Start(context.Background(), "RaftReady")
 			var partial bool
 			stateChanged := !raft.IsEmptyHardState(rd.HardState)
 			if stateChanged {
 				// Wake up fast before writing logs.
-				partial = r.wakeup(rd.HardState.Commit)
+				partial = r.wakeup(rd.HardState.Commit) //nolint:contextcheck // wrong advice
 			}
 
 			if len(rd.Entries) != 0 {
@@ -207,7 +220,8 @@ func (r *appender) run(ctx context.Context) {
 					"appended_index": rd.Entries[0].Index,
 					"entries_num":    len(rd.Entries),
 				})
-				if err := r.log.Append(rd.Entries); err != nil {
+				if err := r.log.Append(ctx, rd.Entries); err != nil {
+					span.End()
 					panic(err)
 				}
 			}
@@ -215,13 +229,14 @@ func (r *appender) run(ctx context.Context) {
 			if stateChanged {
 				// Wake up after writing logs.
 				if partial {
-					_ = r.wakeup(rd.HardState.Commit)
+					_ = r.wakeup(rd.HardState.Commit) //nolint:contextcheck // wrong advice
 				}
 				log.Debug(ctx, "Persist raft hard state.", map[string]interface{}{
 					"block_id":   r.ID(),
 					"hard_state": rd.HardState,
 				})
-				if err := r.log.SetHardState(rd.HardState); err != nil {
+				if err := r.log.SetHardState(ctx, rd.HardState); err != nil {
+					span.End()
 					panic(err)
 				}
 			}
@@ -229,7 +244,7 @@ func (r *appender) run(ctx context.Context) {
 			if rd.SoftState != nil {
 				r.leaderID = vanus.NewIDFromUint64(rd.SoftState.Lead)
 				if rd.SoftState.RaftState == raft.StateLeader {
-					r.becomeLeader()
+					r.becomeLeader() //nolint:contextcheck // wrong advice
 				}
 			}
 
@@ -237,7 +252,7 @@ func (r *appender) run(ctx context.Context) {
 			r.send(rd.Messages)
 
 			if !raft.IsEmptySnap(rd.Snapshot) {
-				_ = r.log.ApplySnapshot(rd.Snapshot)
+				_ = r.log.ApplySnapshot(ctx, rd.Snapshot)
 			}
 
 			if len(rd.CommittedEntries) != 0 {
@@ -251,10 +266,11 @@ func (r *appender) run(ctx context.Context) {
 			}
 
 			if rd.Compact != 0 {
-				_ = r.log.Compact(rd.Compact)
+				_ = r.log.Compact(ctx, rd.Compact)
 			}
 
 			r.node.Advance()
+			span.End()
 		case <-r.ctx.Done():
 			r.node.Stop()
 			close(r.donec)
@@ -264,6 +280,9 @@ func (r *appender) run(ctx context.Context) {
 }
 
 func (r *appender) applyEntries(ctx context.Context, committedEntries []raftpb.Entry) uint64 {
+	ctx, span := r.tracer.Start(ctx, "applyEntries")
+	defer span.End()
+
 	num := len(committedEntries)
 	if num == 0 {
 		return 0
@@ -293,7 +312,7 @@ func (r *appender) applyEntries(ctx context.Context, committedEntries []raftpb.E
 
 	// ConfState is changed.
 	if cs != nil {
-		if err := r.log.SetConfState(*cs); err != nil {
+		if err := r.log.SetConfState(ctx, *cs); err != nil {
 			panic(err)
 		}
 	}
@@ -412,6 +431,9 @@ func (r *appender) reset() {
 
 // Append implements block.raw.
 func (r *appender) Append(ctx context.Context, entries ...block.Entry) ([]int64, error) {
+	ctx, span := r.tracer.Start(ctx, "Append")
+	defer span.End()
+
 	seqs, offset, err := r.append(ctx, entries)
 	if err != nil {
 		if errors.Is(err, block.ErrFull) {
@@ -430,6 +452,9 @@ func (r *appender) Append(ctx context.Context, entries ...block.Entry) ([]int64,
 }
 
 func (r *appender) append(ctx context.Context, entries []block.Entry) ([]int64, int64, error) {
+	ctx, span := r.tracer.Start(ctx, "append")
+	defer span.End()
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -471,6 +496,8 @@ func (r *appender) doAppend(ctx context.Context, frags ...block.Fragment) {
 }
 
 func (r *appender) waitCommit(ctx context.Context, offset int64) error {
+	ctx, span := r.tracer.Start(ctx, "waitCommit")
+	defer span.End()
 	r.mu2.Lock()
 
 	if offset <= r.commitOffset {

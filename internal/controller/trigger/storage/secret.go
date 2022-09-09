@@ -17,7 +17,6 @@ package storage
 import (
 	"context"
 	"encoding/json"
-	"github.com/linkall-labs/vanus/pkg/util/crypto"
 	"path"
 
 	"github.com/linkall-labs/vanus/internal/controller/errors"
@@ -26,6 +25,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/pkg/util/crypto"
 )
 
 func NewSecretStorage(config primitive.KvStorageConfig, encryption string) (secret.Storage, error) {

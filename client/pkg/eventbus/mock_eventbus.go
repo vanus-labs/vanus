@@ -49,15 +49,15 @@ func (mr *MockEventBusMockRecorder) Acquire() *gomock.Call {
 }
 
 // Close mocks base method.
-func (m *MockEventBus) Close() {
+func (m *MockEventBus) Close(ctx context.Context) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Close")
+	m.ctrl.Call(m, "Close", ctx)
 }
 
 // Close indicates an expected call of Close.
-func (mr *MockEventBusMockRecorder) Close() *gomock.Call {
+func (mr *MockEventBusMockRecorder) Close(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockEventBus)(nil).Close))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockEventBus)(nil).Close), ctx)
 }
 
 // Release mocks base method.
@@ -170,15 +170,15 @@ func (mr *MockBusWriterMockRecorder) Bus() *gomock.Call {
 }
 
 // Close mocks base method.
-func (m *MockBusWriter) Close() {
+func (m *MockBusWriter) Close(ctx context.Context) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Close")
+	m.ctrl.Call(m, "Close", ctx)
 }
 
 // Close indicates an expected call of Close.
-func (mr *MockBusWriterMockRecorder) Close() *gomock.Call {
+func (mr *MockBusWriterMockRecorder) Close(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockBusWriter)(nil).Close))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockBusWriter)(nil).Close), ctx)
 }
 
 // WithPicker mocks base method.

@@ -20,9 +20,11 @@ import (
 	"math"
 
 	// third-party libraries.
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/credentials/insecure"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/controller"
 	ctlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
@@ -36,7 +38,9 @@ import (
 func newNameServiceImpl(endpoints []string) (*nameServiceImpl, error) {
 	ns := &nameServiceImpl{
 		client: controller.NewEventlogClient(endpoints, insecure.NewCredentials()),
+		tracer: tracing.NewTracer("internal.discovery.eventlog", trace.SpanKindClient),
 	}
+
 	// TODO: non-blocking now
 	// if _, err := ns.Client(); err != nil {
 	// 	return nil, err
@@ -47,9 +51,13 @@ func newNameServiceImpl(endpoints []string) (*nameServiceImpl, error) {
 type nameServiceImpl struct {
 	// client       rpc.Client
 	client ctlpb.EventLogControllerClient
+	tracer *tracing.Tracer
 }
 
 func (ns *nameServiceImpl) LookupWritableSegment(ctx context.Context, eventlog *discovery.VRN) (*vdr.LogSegment, error) {
+	ctx, span := ns.tracer.Start(ctx, "LookupWritableSegment")
+	defer span.End()
+
 	// TODO: use standby segments
 	req := &ctlpb.GetAppendableSegmentRequest{
 		EventLogId: eventlog.ID,
@@ -69,6 +77,9 @@ func (ns *nameServiceImpl) LookupWritableSegment(ctx context.Context, eventlog *
 }
 
 func (ns *nameServiceImpl) LookupReadableSegments(ctx context.Context, eventlog *discovery.VRN) ([]*vdr.LogSegment, error) {
+	ctx, span := ns.tracer.Start(ctx, "LookupReadableSegments")
+	defer span.End()
+
 	// TODO: use range
 	req := &ctlpb.ListSegmentRequest{
 		EventLogId:  eventlog.ID,

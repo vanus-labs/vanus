@@ -20,6 +20,8 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	stderrors "errors"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"go.opentelemetry.io/otel/trace"
 	"strings"
 	"sync"
 
@@ -49,6 +51,7 @@ func newEventBus(cfg *Config) EventBus {
 		logWriters:      make([]eventlog.LogWriter, 0),
 		writableMu:      sync.RWMutex{},
 		state:           nil,
+		tracer:          tracing.NewTracer("pkg.eventbus.basic", trace.SpanKindClient),
 	}
 
 	go func() {
@@ -59,7 +62,7 @@ func newEventBus(cfg *Config) EventBus {
 				break
 			}
 
-			bus.updateWritableLogs(re)
+			bus.updateWritableLogs(context.Background(), re)
 			bus.writableWatcher.Wakeup()
 		}
 	}()
@@ -78,6 +81,7 @@ type basicEventBus struct {
 	logWriters      []eventlog.LogWriter
 	writableMu      sync.RWMutex
 	state           error
+	tracer          *tracing.Tracer
 }
 
 // make sure basicEventBus implements EventBus.
@@ -87,11 +91,11 @@ func (b *basicEventBus) VRN() *discovery.VRN {
 	return &b.cfg.VRN
 }
 
-func (b *basicEventBus) Close() {
+func (b *basicEventBus) Close(ctx context.Context) {
 	b.writableWatcher.Close()
 
 	for _, w := range b.logWriters {
-		w.Close()
+		w.Close(ctx)
 	}
 }
 
@@ -99,6 +103,7 @@ func (b *basicEventBus) Writer() (BusWriter, error) {
 	w := &basicBusWriter{
 		ebus:   b,
 		picker: &RoundRobinPick{},
+		tracer: tracing.NewTracer("pkg.eventbus.basic", trace.SpanKindClient),
 	}
 	b.Acquire()
 	return w, nil
@@ -130,7 +135,10 @@ func (b *basicEventBus) isNeedUpdate(err error) bool {
 	return false
 }
 
-func (b *basicEventBus) updateWritableLogs(re *discovery.WritableLogsResult) {
+func (b *basicEventBus) updateWritableLogs(ctx context.Context, re *discovery.WritableLogsResult) {
+	_ctx, span := b.tracer.Start(ctx, "updateWritableLogs")
+	defer span.End()
+
 	if !b.isNeedUpdate(re.Err) {
 		return
 	}
@@ -154,11 +162,11 @@ func (b *basicEventBus) updateWritableLogs(re *discovery.WritableLogsResult) {
 		if !removed.Has(w.Log().VRN().String()) {
 			a = append(a, w)
 		} else {
-			w.Close()
+			w.Close(ctx)
 		}
 	}
 	added.Each(func(vrn string) bool {
-		w, err := eventlog.OpenWriter(vrn)
+		w, err := eventlog.OpenWriter(_ctx, vrn)
 		if err != nil {
 			// TODO: open failed, logging
 			s.Remove(vrn)
@@ -196,31 +204,38 @@ func (b *basicEventBus) getLogWriters(ctx context.Context) []eventlog.LogWriter 
 }
 
 func (b *basicEventBus) refreshWritableLogs(ctx context.Context) {
-	_ = b.writableWatcher.Refresh(ctx)
+	_ctx, span := b.tracer.Start(ctx, "refreshWritableLogs")
+	defer span.End()
+
+	_ = b.writableWatcher.Refresh(_ctx)
 }
 
 type basicBusWriter struct {
 	ebus   *basicEventBus
 	picker WriterPicker
+	tracer *tracing.Tracer
 }
 
 func (w *basicBusWriter) Bus() EventBus {
 	return w.ebus
 }
 
-func (w *basicBusWriter) Close() {
-	Put(w.ebus)
+func (w *basicBusWriter) Close(ctx context.Context) {
+	Put(ctx, w.ebus)
 }
 
 func (w *basicBusWriter) Append(ctx context.Context, event *ce.Event) (string, error) {
+	_ctx, span := w.tracer.Start(ctx, "Append")
+	defer span.End()
+
 	// 1. pick a writer of eventlog
-	lw, err := w.pickLogWriter(ctx, event)
+	lw, err := w.pickLogWriter(_ctx, event)
 	if err != nil {
 		return "", err
 	}
 
 	// 2. append the event to the eventlog
-	off, err := lw.Append(ctx, event)
+	off, err := lw.Append(_ctx, event)
 	if err != nil {
 		return "", err
 	}
@@ -235,7 +250,10 @@ func (w *basicBusWriter) Append(ctx context.Context, event *ce.Event) (string, e
 }
 
 func (w *basicBusWriter) pickLogWriter(ctx context.Context, event *ce.Event) (eventlog.LogWriter, error) {
-	lws := w.ebus.getLogWriters(ctx)
+	_ctx, span := w.tracer.Start(ctx, "pickLogWriter")
+	defer span.End()
+
+	lws := w.ebus.getLogWriters(_ctx)
 	if len(lws) == 0 {
 		if err := w.ebus.getState(); err != nil {
 			return nil, err

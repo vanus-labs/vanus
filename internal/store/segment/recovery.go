@@ -30,20 +30,23 @@ import (
 
 // recover recovers state from volume.
 func (s *server) recover(ctx context.Context) error {
-	metaStore, err := meta.RecoverSyncStore(s.cfg.MetaStore, filepath.Join(s.volumeDir, "meta"))
+	ctx, span := s.tracer.Start(ctx, "recover")
+	defer span.End()
+
+	metaStore, err := meta.RecoverSyncStore(ctx, s.cfg.MetaStore, filepath.Join(s.volumeDir, "meta"))
 	if err != nil {
 		return err
 	}
 	s.metaStore = metaStore
 
-	offsetStore, err := meta.RecoverAsyncStore(s.cfg.OffsetStore, filepath.Join(s.volumeDir, "offset"))
+	offsetStore, err := meta.RecoverAsyncStore(ctx, s.cfg.OffsetStore, filepath.Join(s.volumeDir, "offset"))
 	if err != nil {
 		return err
 	}
 	s.offsetStore = offsetStore
 
 	// Recover wal and raft logs.
-	logs, wal, err := raftlog.RecoverLogsAndWAL(s.cfg.Raft,
+	logs, wal, err := raftlog.RecoverLogsAndWAL(ctx, s.cfg.Raft,
 		filepath.Join(s.volumeDir, "raft"), metaStore, offsetStore)
 	if err != nil {
 		return err
@@ -104,7 +107,7 @@ func (s *server) recoverBlocks(ctx context.Context, logs map[vanus.ID]*raftlog.L
 		if err2 != nil {
 			return err2
 		}
-		_ = l.Compact(lastIndex)
+		_ = l.Compact(ctx, lastIndex)
 	}
 
 	return nil

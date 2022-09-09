@@ -15,6 +15,7 @@
 package wal
 
 import (
+	stdCtx "context"
 	// standard libraries.
 	"fmt"
 	"log"
@@ -35,7 +36,7 @@ func BenchmarkWAL_AppendOneWithBatching(b *testing.B) {
 	}
 	defer os.RemoveAll(walDir)
 
-	wal, err := Open(walDir)
+	wal, err := Open(stdCtx.Background(), walDir)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -48,14 +49,14 @@ func BenchmarkWAL_AppendOneWithBatching(b *testing.B) {
 
 	// b.Run("WAL: append with batching", func(b *testing.B) {
 	// 	for i := 0; i < b.N; i++ {
-	// 		wal.AppendOne([]byte("foo")).Wait()
+	// 		wal.AppendOne(stdCtx.Background(), []byte("foo")).Wait()
 	// 	}
 	// })
 
 	b.Run("WAL: concurrent append with batching", func(b *testing.B) {
 		b.RunParallel(func(p *testing.PB) {
 			for p.Next() {
-				wal.AppendOne([]byte("foo")).Wait()
+				wal.AppendOne(stdCtx.Background(), []byte("foo")).Wait()
 			}
 		})
 	})
@@ -68,7 +69,7 @@ func BenchmarkWAL_AppendOneWithoutBatching(b *testing.B) {
 	}
 	defer os.RemoveAll(walDir)
 
-	wal, err := Open(walDir)
+	wal, err := Open(stdCtx.Background(), walDir)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -81,14 +82,14 @@ func BenchmarkWAL_AppendOneWithoutBatching(b *testing.B) {
 
 	b.Run("WAL: append without batching", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			wal.AppendOne([]byte("foo"), WithoutBatching()).Wait()
+			wal.AppendOne(stdCtx.Background(), []byte("foo"), WithoutBatching()).Wait()
 		}
 	})
 
 	// b.Run("WAL: concurrent append without batching", func(b *testing.B) {
 	// 	b.RunParallel(func(p *testing.PB) {
 	// 		for p.Next() {
-	// 			wal.AppendOne([]byte("foo"), WithoutBatching()).Wait()
+	// 			wal.AppendOne(stdCtx.Background(), []byte("foo"), WithoutBatching()).Wait()
 	// 		}
 	// 	})
 	// })
@@ -102,7 +103,7 @@ func BenchmarkWAL_AppendOneWithCallback(b *testing.B) {
 	}
 	defer os.RemoveAll(walDir)
 
-	wal, err := Open(walDir)
+	wal, err := Open(stdCtx.Background(), walDir)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -145,7 +146,7 @@ func BenchmarkWAL_AppendOneWithCallback(b *testing.B) {
 			wg := sync.WaitGroup{}
 			wg.Add(b.N)
 			for i := 0; i < b.N; i++ {
-				wal.AppendOne(tc.payload, WithCallback(func(re Result) {
+				wal.AppendOne(stdCtx.Background(), tc.payload, WithCallback(func(re Result) {
 					if re.Err != nil {
 						log.Printf("err: %v", re.Err)
 					}

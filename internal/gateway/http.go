@@ -70,7 +70,7 @@ func (srv *httpServer) getEvents(c echo.Context) error {
 		})
 	}
 	if eventid != "" {
-		event, err := eb.SearchEventByID(eventid, srv.cfg.ControllerAddr[0])
+		event, err := eb.SearchEventByID(ctx, eventid, srv.cfg.ControllerAddr[0])
 		if err != nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{
 				"error": "can not query the event by event id",
@@ -125,13 +125,13 @@ func (srv *httpServer) getEvents(c echo.Context) error {
 		})
 	}
 
-	r, err := eb.OpenLogReader(ls[0].VRN, eb.DisablePolling())
+	r, err := eb.OpenLogReader(ctx, ls[0].VRN, eb.DisablePolling())
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": fmt.Sprintf("open eventlog failed: %s", err),
 		})
 	}
-	defer r.Close()
+	defer r.Close(ctx)
 
 	_, err = r.Seek(context.Background(), int64(offset), io.SeekStart)
 	if err != nil {

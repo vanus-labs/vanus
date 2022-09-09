@@ -16,14 +16,19 @@ package wal
 
 import (
 	// standard libraries.
+	"context"
 	"errors"
 	"sync"
 	"time"
+
+	// third-party project.
+	oteltracer "go.opentelemetry.io/otel/trace"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/io"
 	"github.com/linkall-labs/vanus/internal/store/wal/block"
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
+	"github.com/linkall-labs/vanus/observability/tracing"
 )
 
 var (
@@ -98,21 +103,25 @@ type WAL struct {
 
 	closec chan struct{}
 	donec  chan struct{}
+
+	tracer *tracing.Tracer
 }
 
-func Open(dir string, opts ...Option) (*WAL, error) {
+func Open(ctx context.Context, dir string, opts ...Option) (*WAL, error) {
+	ctx, span := tracing.Start(ctx, "store.wal", "Open")
+	defer span.End()
 	cfg := makeConfig(opts...)
-	return open(dir, cfg)
+	return open(ctx, dir, cfg)
 }
 
-func open(dir string, cfg config) (*WAL, error) {
-	stream, err := recoverLogStream(dir, cfg)
+func open(ctx context.Context, dir string, cfg config) (*WAL, error) {
+	stream, err := recoverLogStream(ctx, dir, cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	// Check wal entries from pos.
-	off, err := stream.Range(cfg.pos, cfg.cb)
+	off, err := stream.Range(ctx, cfg.pos, cfg.cb)
 	if err != nil {
 		return nil, err
 	}
@@ -130,6 +139,7 @@ func open(dir string, cfg config) (*WAL, error) {
 		wakeupc:   make(chan int64, cfg.wakeupBufferSize),
 		closec:    make(chan struct{}),
 		donec:     make(chan struct{}),
+		tracer:    tracing.NewTracer("store.wal.walog", oteltracer.SpanKindInternal),
 	}
 
 	w.wb = w.allocator.Next()
@@ -148,7 +158,7 @@ func open(dir string, cfg config) (*WAL, error) {
 		}
 	}
 
-	go w.runCallback()
+	go w.runCallback() //nolint:contextcheck // wrong advice
 	go w.runFlush()
 	go w.runAppend(cfg.flushTimeout)
 
@@ -171,8 +181,11 @@ func (w *WAL) Close() {
 }
 
 func (w *WAL) doClose() {
+	ctx, span := w.tracer.Start(context.Background(), "doClose")
+	defer span.End()
+
 	w.engine.Close()
-	w.stream.Close()
+	w.stream.Close(ctx)
 	close(w.donec)
 }
 
@@ -190,8 +203,8 @@ func (f AppendOneFuture) Wait() (Range, error) {
 	return re.Range(), nil
 }
 
-func (w *WAL) AppendOne(entry []byte, opts ...AppendOption) AppendOneFuture {
-	return AppendOneFuture(w.Append([][]byte{entry}, opts...))
+func (w *WAL) AppendOne(ctx context.Context, entry []byte, opts ...AppendOption) AppendOneFuture {
+	return AppendOneFuture(w.Append(ctx, [][]byte{entry}, opts...))
 }
 
 type AppendFuture <-chan Result
@@ -202,7 +215,10 @@ func (f AppendFuture) Wait() ([]Range, error) {
 }
 
 // Append appends entries to WAL.
-func (w *WAL) Append(entries [][]byte, opts ...AppendOption) AppendFuture {
+func (w *WAL) Append(ctx context.Context, entries [][]byte, opts ...AppendOption) AppendFuture {
+	_, span := w.tracer.Start(ctx, "Append")
+	defer span.End()
+
 	task := appendTask{
 		entries:  entries,
 		batching: true,

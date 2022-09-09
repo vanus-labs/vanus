@@ -18,9 +18,11 @@ import (
 	// standard libraries.
 	"context"
 	"fmt"
-	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
 	"os"
 	"path/filepath"
+
+	// first-party libraries.
+	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"

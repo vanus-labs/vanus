@@ -15,6 +15,7 @@
 package wal
 
 import (
+	stdCtx "context"
 	// standard libraries.
 	"os"
 	"testing"
@@ -79,7 +80,7 @@ func TestLogStream_SelectFile(t *testing.T) {
 		})
 
 		Reset(func() {
-			s.Close()
+			s.Close(stdCtx.Background())
 
 			err = os.RemoveAll(walDir)
 			So(err, ShouldBeNil)

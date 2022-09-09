@@ -18,6 +18,8 @@ import (
 	// standard libraries.
 	"context"
 	"encoding/binary"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"go.opentelemetry.io/otel/trace"
 	"math"
 	"sync"
 
@@ -34,8 +36,8 @@ import (
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 )
 
-func newLogSegment(r *vdr.LogSegment, towrite bool) (*logSegment, error) {
-	prefer, err := newSegmentBlockExt(r, towrite)
+func newLogSegment(ctx context.Context, r *vdr.LogSegment, towrite bool) (*logSegment, error) {
+	prefer, err := newSegmentBlockExt(ctx, r, towrite)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +48,9 @@ func newLogSegment(r *vdr.LogSegment, towrite bool) (*logSegment, error) {
 		endOffset:   atomic.Int64{},
 		writable:    atomic.Bool{},
 		prefer:      prefer,
+		tracer:      tracing.NewTracer("internal.eventlog.segment", trace.SpanKindClient),
 	}
+
 	if !r.Writable {
 		segment.endOffset.Store(r.EndOffset)
 	} else {
@@ -56,7 +60,7 @@ func newLogSegment(r *vdr.LogSegment, towrite bool) (*logSegment, error) {
 	return segment, nil
 }
 
-func newSegmentBlockExt(r *vdr.LogSegment, leaderOnly bool) (*segmentBlock, error) {
+func newSegmentBlockExt(ctx context.Context, r *vdr.LogSegment, leaderOnly bool) (*segmentBlock, error) {
 	id := r.LeaderBlockID
 	if id == 0 {
 		if leaderOnly {
@@ -73,7 +77,7 @@ func newSegmentBlockExt(r *vdr.LogSegment, leaderOnly bool) (*segmentBlock, erro
 	if !ok {
 		return nil, errors.ErrNoBlock
 	}
-	return newSegmentBlock(b)
+	return newSegmentBlock(ctx, b)
 }
 
 type logSegment struct {
@@ -84,6 +88,7 @@ type logSegment struct {
 
 	prefer *segmentBlock
 	mu     sync.RWMutex
+	tracer *tracing.Tracer
 }
 
 func (s *logSegment) ID() uint64 {
@@ -106,16 +111,19 @@ func (s *logSegment) SetNotWritable() {
 	s.writable.Store(false)
 }
 
-func (s *logSegment) Close() {
-	s.prefer.Close()
+func (s *logSegment) Close(ctx context.Context) {
+	s.prefer.Close(ctx)
 }
 
-func (s *logSegment) Update(r *vdr.LogSegment, towrite bool) error {
+func (s *logSegment) Update(ctx context.Context, r *vdr.LogSegment, towrite bool) error {
 	// When a segment become read-only, the end offset needs to be set to the readlly value.
 	if s.Writable() && !r.Writable && s.writable.CAS(true, false) {
 		s.endOffset.Store(r.EndOffset)
 		return nil
 	}
+
+	_, span := s.tracer.Start(ctx, "Update")
+	defer span.End()
 
 	switchBlock := func() bool {
 		if towrite {
@@ -130,7 +138,7 @@ func (s *logSegment) Update(r *vdr.LogSegment, towrite bool) error {
 		return false
 	}()
 	if switchBlock {
-		prefer, err := newSegmentBlockExt(r, true)
+		prefer, err := newSegmentBlockExt(ctx, r, true)
 		if err != nil {
 			return err
 		}
@@ -141,11 +149,14 @@ func (s *logSegment) Update(r *vdr.LogSegment, towrite bool) error {
 }
 
 func (s *logSegment) Append(ctx context.Context, event *ce.Event) (int64, error) {
+	_ctx, span := s.tracer.Start(ctx, "Append")
+	defer span.End()
+
 	b := s.preferSegmentBlock()
 	if b == nil {
 		return -1, errors.ErrNoLeader
 	}
-	off, err := b.Append(ctx, event)
+	off, err := b.Append(_ctx, event)
 	if err != nil {
 		return -1, err
 	}
@@ -156,6 +167,9 @@ func (s *logSegment) Read(ctx context.Context, from int64, size int16, pollingTi
 	if from < s.startOffset {
 		return nil, errors.ErrUnderflow
 	}
+	ctx, span := s.tracer.Start(ctx, "Read")
+	defer span.End()
+
 	if eo := s.endOffset.Load(); eo >= 0 {
 		if from > eo {
 			return nil, errors.ErrOverflow

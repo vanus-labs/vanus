@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=eventbus.go  -destination=mock_eventbus.go -package=eventbus
 package eventbus
 
 import (
@@ -28,14 +29,14 @@ type EventBus interface {
 
 	VRN() *discovery.VRN
 
-	Close()
+	Close(ctx context.Context)
 	Writer() (BusWriter, error)
 }
 
 type BusWriter interface {
 	Bus() EventBus
 
-	Close()
+	Close(ctx context.Context)
 
 	Append(ctx context.Context, event *ce.Event) (eid string, err error)
 

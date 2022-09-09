@@ -16,10 +16,13 @@ package meta
 
 import (
 	// standard libraries.
+	"context"
 	"time"
 
 	// third-party libraries.
 	"github.com/huandu/skiplist"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	oteltracer "go.opentelemetry.io/otel/trace"
 
 	// this project.
 	storecfg "github.com/linkall-labs/vanus/internal/store"
@@ -40,7 +43,14 @@ type AsyncStore struct {
 	donec   chan struct{}
 }
 
-func newAsyncStore(wal *walog.WAL, committed *skiplist.SkipList, version, snapshot int64) *AsyncStore {
+func newAsyncStore(
+	ctx context.Context,
+	wal *walog.WAL,
+	committed *skiplist.SkipList,
+	version, snapshot int64) *AsyncStore {
+	_, span := tracing.Start(ctx, "store.meta.async", "newAsyncStore")
+	defer span.End()
+
 	s := &AsyncStore{
 		store: store{
 			committed: committed,
@@ -48,6 +58,7 @@ func newAsyncStore(wal *walog.WAL, committed *skiplist.SkipList, version, snapsh
 			wal:       wal,
 			snapshot:  snapshot,
 			marshaler: defaultCodec,
+			tracer:    tracing.NewTracer("store.meta.async", oteltracer.SpanKindInternal),
 		},
 		pending: skiplist.New(skiplist.Bytes),
 		commitc: make(chan struct{}, 1),
@@ -55,7 +66,7 @@ func newAsyncStore(wal *walog.WAL, committed *skiplist.SkipList, version, snapsh
 		donec:   make(chan struct{}),
 	}
 
-	go s.runCommit()
+	go s.runCommit() //nolint:contextcheck // wrong advice
 
 	return s
 }
@@ -153,7 +164,11 @@ func (s *AsyncStore) runCommit() {
 }
 
 func (s *AsyncStore) commit() {
-	defer s.tryCreateSnapshot()
+	ctx, span := s.tracer.Start(context.Background(), "commit")
+	defer func() {
+		s.tryCreateSnapshot(ctx)
+		span.End()
+	}()
 
 	if s.pending.Len() == 0 {
 		return
@@ -166,7 +181,7 @@ func (s *AsyncStore) commit() {
 	if err != nil {
 		panic(err)
 	}
-	r, err := s.wal.AppendOne(data, walog.WithoutBatching()).Wait()
+	r, err := s.wal.AppendOne(ctx, data, walog.WithoutBatching()).Wait()
 	if err != nil {
 		panic(err)
 	}
@@ -185,8 +200,10 @@ func merge(dst, src *skiplist.SkipList) {
 	}
 }
 
-func RecoverAsyncStore(cfg storecfg.AsyncStoreConfig, walDir string) (*AsyncStore, error) {
-	committed, snapshot, err := recoverLatestSnapshot(walDir, defaultCodec)
+func RecoverAsyncStore(ctx context.Context, cfg storecfg.AsyncStoreConfig, walDir string) (*AsyncStore, error) {
+	ctx, span := tracing.Start(ctx, "store.meta.async", "newAsyncStore")
+	defer span.End()
+	committed, snapshot, err := recoverLatestSnapshot(ctx, walDir, defaultCodec)
 	if err != nil {
 		return nil, err
 	}
@@ -208,10 +225,10 @@ func RecoverAsyncStore(cfg storecfg.AsyncStoreConfig, walDir string) (*AsyncStor
 			return nil
 		}),
 	}, cfg.WAL.Options()...)
-	wal, err := walog.Open(walDir, opts...)
+	wal, err := walog.Open(ctx, walDir, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	return newAsyncStore(wal, committed, version, snapshot), nil
+	return newAsyncStore(ctx, wal, committed, version, snapshot), nil
 }

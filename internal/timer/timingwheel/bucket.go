@@ -310,7 +310,7 @@ func (b *bucket) connectEventbus(ctx context.Context) error {
 
 	vrn = fmt.Sprintf("vanus:///eventbus/%s?controllers=%s", b.eventbus, strings.Join(b.config.CtrlEndpoints, ","))
 	// new eventbus writer
-	b.eventbusWriter, err = openBusWriter(vrn)
+	b.eventbusWriter, err = openBusWriter(ctx, vrn)
 	if err != nil {
 		log.Error(ctx, "open eventbus writer failed", map[string]interface{}{
 			log.KeyError: err,
@@ -325,7 +325,7 @@ func (b *bucket) connectEventbus(ctx context.Context) error {
 		return err
 	}
 	// new eventlog reader
-	b.eventlogReader, err = openLogReader(ls[defaultIndexOfEventlogReader].VRN)
+	b.eventlogReader, err = openLogReader(ctx, ls[defaultIndexOfEventlogReader].VRN)
 	if err != nil {
 		log.Error(ctx, "open log reader failed", map[string]interface{}{
 			log.KeyError: err,

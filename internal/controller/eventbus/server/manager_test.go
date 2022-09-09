@@ -16,7 +16,6 @@ package server
 
 import (
 	stdCtx "context"
-	"github.com/linkall-labs/vanus/pkg/util"
 	"sync"
 	"testing"
 	"time"
@@ -25,6 +24,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/errors"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/pkg/util"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 	. "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc"
