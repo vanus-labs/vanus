@@ -170,7 +170,7 @@ func (m *manager) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 	delete(m.subscriptionMap, id)
 	metrics.SubscriptionGauge.WithLabelValues(subscription.EventBus).Dec()
 	if subscription.Transformer.Exist() {
-		metrics.SubscriptionTransformerGauge.WithLabelValues(subscription.EventBus).Inc()
+		metrics.SubscriptionTransformerGauge.WithLabelValues(subscription.EventBus).Dec()
 	}
 	return nil
 }
