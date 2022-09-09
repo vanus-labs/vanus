@@ -343,9 +343,10 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 	ec.Extensions[primitive.XVanusEventbus] = primitive.RetryEventbusName
 	for {
 		startTime := time.Now()
-		if _, err := t.timerEventWriter.Append(ctx, e); err != nil {
-			metrics.TriggerRetryEventAppendSecond.WithLabelValues(t.subscriptionIDStr, "fail").
-				Observe(time.Since(startTime).Seconds())
+		_, err := t.timerEventWriter.Append(ctx, e)
+		metrics.TriggerRetryEventAppendSecond.WithLabelValues(t.subscriptionIDStr).
+			Observe(time.Since(startTime).Seconds())
+		if err != nil {
 			log.Info(ctx, "write retry event error", map[string]interface{}{
 				log.KeyError:          err,
 				log.KeySubscriptionID: t.subscription.ID,
@@ -353,8 +354,6 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 			})
 			time.Sleep(time.Second)
 		} else {
-			metrics.TriggerRetryEventAppendSecond.WithLabelValues(t.subscriptionIDStr, "success").
-				Observe(time.Since(startTime).Seconds())
 			break
 		}
 	}
@@ -373,9 +372,10 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 	ec.Extensions[primitive.DeadLetterReason] = reason
 	for {
 		startTime := time.Now()
-		if _, err := t.dlEventWriter.Append(ctx, e); err != nil {
-			metrics.TriggerDeadLetterEventAppendSecond.WithLabelValues(t.subscriptionIDStr, "fail").
-				Observe(time.Since(startTime).Seconds())
+		_, err := t.dlEventWriter.Append(ctx, e)
+		metrics.TriggerDeadLetterEventAppendSecond.WithLabelValues(t.subscriptionIDStr).
+			Observe(time.Since(startTime).Seconds())
+		if err != nil {
 			log.Info(ctx, "write dl event error", map[string]interface{}{
 				log.KeyError:          err,
 				log.KeySubscriptionID: t.subscription.ID,
@@ -383,8 +383,6 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 			})
 			time.Sleep(time.Second)
 		} else {
-			metrics.TriggerDeadLetterEventAppendSecond.WithLabelValues(t.subscriptionIDStr, "success").
-				Observe(time.Since(startTime).Seconds())
 			break
 		}
 	}
