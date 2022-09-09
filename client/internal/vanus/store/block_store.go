@@ -18,7 +18,6 @@ import (
 	// standard libraries
 	"context"
 	"strings"
-	"time"
 
 	// third-party libraries
 	cepb "cloudevents.io/genproto/v1"
@@ -37,10 +36,6 @@ import (
 	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc/bare"
 	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
-)
-
-const (
-	defaultReadTimeout = 3 * time.Second
 )
 
 func newBlockStore(endpoint string) (*BlockStore, error) {
@@ -119,9 +114,7 @@ func (s *BlockStore) Read(
 		return nil, err
 	}
 
-	tCtx, cancel := context.WithTimeout(ctx, time.Duration(pollingTimeout)*time.Millisecond+defaultReadTimeout)
-	defer cancel()
-	resp, err := client.(segpb.SegmentServerClient).ReadFromBlock(tCtx, req)
+	resp, err := client.(segpb.SegmentServerClient).ReadFromBlock(ctx, req)
 	if err != nil {
 		// TODO: convert error
 		if errStatus, ok := status.FromError(err); ok {
