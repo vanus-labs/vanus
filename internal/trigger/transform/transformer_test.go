@@ -63,6 +63,10 @@ func TestParseData(t *testing.T) {
 		"key":  "value",
 		"key1": "value1",
 	})
+	Convey("test new transformer", t, func() {
+		it := NewTransformer(nil)
+		So(it, ShouldBeNil)
+	})
 	input := &primitive.Transformer{
 		Define: map[string]string{
 			"keyTest": "keyValue",

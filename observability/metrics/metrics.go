@@ -39,11 +39,12 @@ func RegisterControllerMetrics() {
 }
 
 func RegisterTriggerMetrics() {
+	registerGoRuntimeMetrics()
 	prometheus.MustRegister(TriggerGauge)
 	prometheus.MustRegister(TriggerPullEventCounter)
-	prometheus.MustRegister(TriggerFilterMatchCounter)
+	prometheus.MustRegister(TriggerFilterMatchEventCounter)
 	prometheus.MustRegister(TriggerPushEventCounter)
-	prometheus.MustRegister(TriggerPushEventRtCounter)
+	prometheus.MustRegister(TriggerPushEventTime)
 }
 
 func RegisterTimerMetrics() {

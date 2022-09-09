@@ -31,13 +31,62 @@ var (
 		Subsystem: moduleOfTriggerWorker,
 		Name:      "pull_event_number",
 		Help:      "The event number of trigger pull",
-	}, []string{LabelTrigger, LabelEventlog})
+	}, []string{LabelTrigger, LabelEventbus, LabelEventlog})
 
-	TriggerFilterMatchCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+	TriggerFilterCostSecond = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfTriggerWorker,
+		Name:      "filter_cost_second",
+		Help:      "The cost second of trigger",
+	}, []string{LabelTrigger})
+
+	TriggerTransformCostSecond = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfTriggerWorker,
+		Name:      "transformer_cost_second",
+		Help:      "The cost second of transformer",
+	}, []string{LabelTrigger})
+
+	TriggerFilterMatchEventCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfTriggerWorker,
 		Name:      "filter_match_event_number",
 		Help:      "The event number of trigger filter match",
+	}, []string{LabelTrigger})
+
+	TriggerFilterMatchRetryEventCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfTriggerWorker,
+		Name:      "filter_match_retry_event_number",
+		Help:      "The event number of retry match",
+	}, []string{LabelTrigger})
+
+	TriggerRetryEventCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfTriggerWorker,
+		Name:      "retry_event_number",
+		Help:      "The event number of retry",
+	}, []string{LabelTrigger})
+
+	TriggerRetryEventAppendSecond = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfTriggerWorker,
+		Name:      "retry_event_append_second",
+		Help:      "The cost second of retry event append",
+	}, []string{LabelTrigger})
+
+	TriggerDeadLetterEventCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfTriggerWorker,
+		Name:      "dead_letter_event_number",
+		Help:      "The event number of dead letter",
+	}, []string{LabelTrigger})
+
+	TriggerDeadLetterEventAppendSecond = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfTriggerWorker,
+		Name:      "dead_letter_event_append_second",
+		Help:      "The cost second of dead letter event append",
 	}, []string{LabelTrigger})
 
 	TriggerPushEventCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -47,7 +96,7 @@ var (
 		Help:      "The event number of trigger push",
 	}, []string{LabelTrigger, LabelResult})
 
-	TriggerPushEventRtCounter = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+	TriggerPushEventTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfTriggerWorker,
 		Name:      "push_event_rt",

@@ -61,6 +61,13 @@ var (
 		Help:      "The number of subscription",
 	}, []string{LabelEventbus})
 
+	SubscriptionTransformerGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfController,
+		Name:      "subscription_transformer_number",
+		Help:      "The number of subscription transformer",
+	}, []string{LabelEventbus})
+
 	CtrlTriggerGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfController,

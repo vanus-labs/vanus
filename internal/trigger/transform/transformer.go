@@ -30,7 +30,7 @@ type Transformer struct {
 }
 
 func NewTransformer(transformer *primitive.Transformer) *Transformer {
-	if transformer == nil || transformer.Template == "" {
+	if !transformer.Exist() {
 		return nil
 	}
 	tf := &Transformer{

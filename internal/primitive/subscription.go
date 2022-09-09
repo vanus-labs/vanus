@@ -79,6 +79,16 @@ type Transformer struct {
 	Template string            `json:"template,omitempty"`
 }
 
+func (t *Transformer) Exist() bool {
+	if t == nil {
+		return false
+	}
+	if t.Template == "" {
+		return false
+	}
+	return true
+}
+
 /* annotation no use code .
 type SinkSpec struct {
 	Type   string
