@@ -15,6 +15,7 @@
 package log
 
 import (
+	"context"
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/raft/raftpb"
 
@@ -26,9 +27,9 @@ type stateStorage struct {
 	metaStore   *meta.SyncStore
 	offsetStore *meta.AsyncStore
 
-	prevHardSt raftpb.HardState //nolint:structcheck // use in Log
-	prevConfSt raftpb.ConfState //nolint:structcheck // use in Log
-	prevApply  uint64           //nolint:structcheck // use in Log
+	prevHardSt raftpb.HardState
+	prevConfSt raftpb.ConfState
+	prevApply  uint64
 
 	hsKey  []byte
 	offKey []byte
@@ -49,13 +50,13 @@ func (l *Log) HardState() raftpb.HardState {
 }
 
 // SetHardState saves the current HardState.
-func (l *Log) SetHardState(hs raftpb.HardState) (err error) {
+func (l *Log) SetHardState(ctx context.Context, hs raftpb.HardState) (err error) {
 	if hs.Term != l.prevHardSt.Term || hs.Vote != l.prevHardSt.Vote {
 		var data []byte
 		if data, err = hs.Marshal(); err != nil {
 			return err
 		}
-		l.metaStore.Store(l.hsKey, data)
+		l.metaStore.Store(ctx, l.hsKey, data)
 		l.prevHardSt = hs
 	} else {
 		l.offsetStore.Store(l.offKey, hs.Commit)
@@ -64,12 +65,12 @@ func (l *Log) SetHardState(hs raftpb.HardState) (err error) {
 	return nil
 }
 
-func (l *Log) SetConfState(cs raftpb.ConfState) error {
+func (l *Log) SetConfState(ctx context.Context, cs raftpb.ConfState) error {
 	data, err := cs.Marshal()
 	if err != nil {
 		return err
 	}
-	l.metaStore.Store(l.csKey, data)
+	l.metaStore.Store(ctx, l.csKey, data)
 	l.prevConfSt = cs
 	return nil
 }

@@ -21,15 +21,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/observability/log"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/mwitkow/grpc-proxy/proxy"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 )
 
 func newCtrlProxy(port int, allowProxyMethod map[string]string, ctrlList []string) *ctrlProxy {
@@ -38,6 +41,7 @@ func newCtrlProxy(port int, allowProxyMethod map[string]string, ctrlList []strin
 		port:             port,
 		allowProxyMethod: allowProxyMethod,
 		ticker:           time.NewTicker(time.Second),
+		tracer:           tracing.NewTracer("controller-proxy", trace.SpanKindServer),
 	}
 }
 
@@ -48,6 +52,7 @@ type ctrlProxy struct {
 	allowProxyMethod map[string]string
 	ticker           *time.Ticker
 	port             int
+	tracer           *tracing.Tracer
 }
 
 func (cp *ctrlProxy) start(ctx context.Context) error {

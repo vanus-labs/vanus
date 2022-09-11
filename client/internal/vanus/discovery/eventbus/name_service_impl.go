@@ -18,35 +18,26 @@ import (
 	// standard libraries
 	"context"
 	"fmt"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"go.opentelemetry.io/otel/trace"
 	"sort"
 	"strings"
-	"sync"
-	"time"
 
-	"github.com/linkall-labs/vanus/client/pkg/errors"
-	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials"
+	// third-party libraries
+	"github.com/linkall-labs/vanus/pkg/controller"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	// first-party libraries
-	ctlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
-
 	"github.com/linkall-labs/vanus/client/pkg/discovery"
 	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 )
 
 func newNameServiceImpl(endpoints []string) (*nameServiceImpl, error) {
 	ns := &nameServiceImpl{
-		endpoints:   endpoints,
-		grpcConn:    map[string]*grpc.ClientConn{},
-		ctrlClients: map[string]ctlpb.EventBusControllerClient{},
-		mutex:       sync.Mutex{},
-		credentials: insecure.NewCredentials(),
+		client: controller.NewEventbusClient(endpoints, insecure.NewCredentials()),
+		tracer: tracing.NewTracer("internal.discovery.eventbus", trace.SpanKindClient),
 	}
 
 	return ns, nil
@@ -54,13 +45,8 @@ func newNameServiceImpl(endpoints []string) (*nameServiceImpl, error) {
 
 type nameServiceImpl struct {
 	//client       rpc.Client
-	endpoints    []string
-	grpcConn     map[string]*grpc.ClientConn
-	ctrlClients  map[string]ctlpb.EventBusControllerClient
-	leader       string
-	leaderClient ctlpb.EventBusControllerClient
-	mutex        sync.Mutex
-	credentials  credentials.TransportCredentials
+	client ctrlpb.EventBusControllerClient
+	tracer *tracing.Tracer
 }
 
 // make sure nameServiceImpl implements discovery.NameService.
@@ -73,25 +59,15 @@ func (ns *nameServiceImpl) LookupWritableLogs(ctx context.Context, eventbus *dis
 	// 	WritableOnly: true,
 	// }
 	// resp, err := ns.client.ListEventLogs(context.Background(), req)
+	ctx, span := ns.tracer.Start(ctx, "LookupWritableLogs")
+	defer span.End()
+
 	req := &metapb.EventBus{
 		Id:   eventbus.ID,
 		Name: eventbus.Name,
 	}
 
-	var resp *metapb.EventBus
-	var err = errors.ErrNoControllerLeader
-	client := ns.makeSureClient(false)
-	if client == nil {
-		return nil, errors.ErrNoControllerLeader
-	}
-	resp, err = client.GetEventBus(ctx, req)
-	if ns.isNeedRetry(err) {
-		client = ns.makeSureClient(true)
-		if client == nil {
-			return nil, errors.ErrNoControllerLeader
-		}
-		resp, err = client.GetEventBus(ctx, req)
-	}
+	resp, err := ns.client.GetEventBus(ctx, req)
 
 	if err != nil {
 		return nil, err
@@ -106,128 +82,20 @@ func (ns *nameServiceImpl) LookupReadableLogs(ctx context.Context, eventbus *dis
 	// 	ReadableOnly: true,
 	// }
 	// resp, err := ns.client.ListEventLogs(context.Background(), req)
+	ctx, span := ns.tracer.Start(ctx, "LookupReadableLogs")
+	defer span.End()
+
 	req := &metapb.EventBus{
 		Id:   eventbus.ID,
 		Name: eventbus.Name,
 	}
 
-	var resp *metapb.EventBus
-	var err = errors.ErrNoControllerLeader
-	client := ns.makeSureClient(false)
-	if client == nil {
-		return nil, errors.ErrNoControllerLeader
-	}
-	resp, err = client.GetEventBus(ctx, req)
-	if ns.isNeedRetry(err) {
-		client = ns.makeSureClient(true)
-		if client == nil {
-			return nil, errors.ErrNoControllerLeader
-		}
-		resp, err = client.GetEventBus(ctx, req)
-	}
-
+	resp, err := ns.client.GetEventBus(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
 	return toLogs(resp.GetLogs()), nil
-}
-
-func (ns *nameServiceImpl) makeSureClient(renew bool) ctlpb.EventBusControllerClient {
-	ns.mutex.Lock()
-	defer ns.mutex.Unlock()
-	if ns.leaderClient == nil || renew {
-		leader := ""
-		for _, v := range ns.endpoints {
-			conn := ns.getGRPCConn(v)
-			if conn == nil {
-				continue
-			}
-			pingClient := ctlpb.NewPingServerClient(conn)
-			res, err := pingClient.Ping(context.Background(), &emptypb.Empty{})
-			if err != nil {
-				fmt.Printf("ping failed: %s\n", err)
-				return nil
-			}
-			leader = res.LeaderAddr
-			fmt.Printf("get leader address: %s\n", res.LeaderAddr)
-			break
-		}
-
-		conn := ns.getGRPCConn(leader)
-		if conn == nil {
-			return nil
-		}
-		ns.leader = leader
-		ns.leaderClient = ctlpb.NewEventBusControllerClient(conn)
-	}
-	return ns.leaderClient
-}
-
-func (ns *nameServiceImpl) getGRPCConn(addr string) *grpc.ClientConn {
-	if addr == "" {
-		return nil
-	}
-	ctx := context.Background()
-	var err error
-	conn := ns.grpcConn[addr]
-	if isConnectionOK(conn) {
-		return conn
-	}
-	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithTransportCredentials(ns.credentials))
-	opts = append(opts, grpc.WithBlock())
-	ctx, cancel := context.WithCancel(ctx)
-	timeout := false
-	go func() {
-		ticker := time.Tick(time.Second)
-		select {
-		case <-ctx.Done():
-		case <-ticker:
-			cancel()
-			timeout = true
-		}
-	}()
-	conn, err = grpc.DialContext(ctx, addr, opts...)
-	cancel()
-	if timeout {
-		// TODO use log thirds
-		fmt.Printf("dial to: %s controller timeout\n", addr)
-	} else if err != nil {
-		fmt.Printf("dial to: %s controller failed, error:%s\n", addr, err)
-	} else {
-		ns.grpcConn[addr] = conn
-		return conn
-	}
-	return nil
-}
-
-func (ns *nameServiceImpl) isNeedRetry(err error) bool {
-	if err == nil {
-		return false
-	}
-	if err == errors.ErrNoControllerLeader {
-		return true
-	}
-	sts := status.Convert(err)
-	if sts == nil {
-		return false
-	}
-	errType, ok := errpb.Convert(sts.Message())
-	if !ok {
-		return false
-	}
-	if errType.Code == errpb.ErrorCode_NOT_LEADER {
-		return true
-	}
-	return false
-}
-
-func isConnectionOK(conn *grpc.ClientConn) bool {
-	if conn == nil {
-		return false
-	}
-	return conn.GetState() == connectivity.Idle || conn.GetState() == connectivity.Ready
 }
 
 func toLogs(logpbs []*metapb.EventLog) []*record.EventLog {

@@ -27,6 +27,9 @@ var _ block.Reader = (*vsBlock)(nil)
 
 // Read date from file.
 func (b *vsBlock) Read(ctx context.Context, seq int64, num int) ([]block.Entry, error) {
+	_, span := b.tracer.Start(ctx, "Read")
+	defer span.End()
+
 	from, to, num, err := b.entryRange(int(seq), num)
 	if err != nil {
 		return nil, err

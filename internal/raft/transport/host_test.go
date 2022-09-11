@@ -111,8 +111,8 @@ func TestHost(t *testing.T) {
 			So(ok, ShouldBeTrue)
 		})
 
-		Convey("test raftnode unreachable", func() {
-			var count int64 = 0
+		Convey("test raftNode unreachable", func() {
+			var count int64
 			ch2 := make(chan struct{}, 1)
 			h.Send(ctx, msg, nodeID+1, "", func(err error) {
 				if err != nil {

@@ -18,6 +18,8 @@ import (
 	// standard libraries.
 	"context"
 	stderr "errors"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"go.opentelemetry.io/otel/trace"
 	"io"
 	"sort"
 	"sync"
@@ -62,6 +64,8 @@ func newDistributedLog(cfg *eventlog.Config) (*distributedEventLog, error) {
 		cfg:             cfg,
 		writableWatcher: ww,
 		readableWatcher: rw,
+		tracer: tracing.NewTracer("internal.eventlog.distributed",
+			trace.SpanKindClient),
 	}
 
 	go func() {
@@ -72,11 +76,13 @@ func newDistributedLog(cfg *eventlog.Config) (*distributedEventLog, error) {
 				break
 			}
 
+			ctx, span := l.tracer.Start(context.Background(), "updateReadableSegmentsTask")
 			if r != nil {
-				l.updateWritableSegment(r)
+				l.updateWritableSegment(ctx, r)
 			}
 
 			l.writableWatcher.Wakeup()
+			span.End()
 		}
 	}()
 	ww.Start()
@@ -88,12 +94,13 @@ func newDistributedLog(cfg *eventlog.Config) (*distributedEventLog, error) {
 			if !ok {
 				break
 			}
-
+			ctx, span := l.tracer.Start(context.Background(), "updateReadableSegmentsTask")
 			if rs != nil {
-				l.updateReadableSegments(rs)
+				l.updateReadableSegments(ctx, rs)
 			}
 
 			l.readableWatcher.Wakeup()
+			span.End()
 		}
 	}()
 	rw.Start()
@@ -113,6 +120,7 @@ type distributedEventLog struct {
 	readableWatcher  *veld.ReadableSegmentsWatcher
 	readableSegments []*logSegment
 	readableMu       sync.RWMutex
+	tracer           *tracing.Tracer
 }
 
 // make sure distributedEventLog implements eventlog.EventLog.
@@ -122,15 +130,15 @@ func (l *distributedEventLog) VRN() *discovery.VRN {
 	return &l.cfg.VRN
 }
 
-func (l *distributedEventLog) Close() {
+func (l *distributedEventLog) Close(ctx context.Context) {
 	// TODO: stop discovery
 
 	// TODO: lock
 	if l.writableSegment != nil {
-		l.writableSegment.Close()
+		l.writableSegment.Close(ctx)
 	}
 	for _, segment := range l.readableSegments {
-		segment.Close()
+		segment.Close(ctx)
 	}
 }
 
@@ -152,15 +160,15 @@ func (l *distributedEventLog) Reader(cfg eventlog.ReaderConfig) (eventlog.LogRea
 	return r, nil
 }
 
-func (l *distributedEventLog) updateWritableSegment(r *vdr.LogSegment) {
+func (l *distributedEventLog) updateWritableSegment(ctx context.Context, r *vdr.LogSegment) {
 	if l.writableSegment != nil {
 		if l.writableSegment.ID() == r.ID {
-			_ = l.writableSegment.Update(r, true)
+			_ = l.writableSegment.Update(ctx, r, true)
 			return
 		}
 	}
 
-	segment, err := newLogSegment(r, true)
+	segment, err := newLogSegment(ctx, r, true)
 	if err != nil {
 		// TODO: create failed, to log
 		return
@@ -200,7 +208,7 @@ func (l *distributedEventLog) refreshWritableSegment(ctx context.Context) {
 	_ = l.writableWatcher.Refresh(ctx)
 }
 
-func (l *distributedEventLog) updateReadableSegments(rs []*vdr.LogSegment) {
+func (l *distributedEventLog) updateReadableSegments(ctx context.Context, rs []*vdr.LogSegment) {
 	segments := make([]*logSegment, 0, len(rs))
 	for _, r := range rs {
 		// TODO: find
@@ -214,9 +222,9 @@ func (l *distributedEventLog) updateReadableSegments(rs []*vdr.LogSegment) {
 		}()
 		var err error
 		if segment == nil {
-			segment, err = newLogSegment(r, false)
+			segment, err = newLogSegment(ctx, r, false)
 		} else {
-			err = segment.Update(r, false)
+			err = segment.Update(ctx, r, false)
 		}
 		if err != nil {
 			// FIXME: create or update segment failed
@@ -285,8 +293,8 @@ func (w *logWriter) Log() eventlog.EventLog {
 	return w.elog
 }
 
-func (w *logWriter) Close() {
-	eventlog.Put(w.elog)
+func (w *logWriter) Close(ctx context.Context) {
+	eventlog.Put(ctx, w.elog)
 }
 
 func (w *logWriter) Append(ctx context.Context, event *ce.Event) (int64, error) {
@@ -368,8 +376,8 @@ func (r *logReader) Log() eventlog.EventLog {
 	return r.elog
 }
 
-func (r *logReader) Close() {
-	eventlog.Put(r.elog)
+func (r *logReader) Close(ctx context.Context) {
+	eventlog.Put(ctx, r.elog)
 }
 
 func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {

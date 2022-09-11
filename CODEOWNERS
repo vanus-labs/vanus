@@ -17,7 +17,8 @@
 /internal/kv/ @xdlbdy
 /internal/raft/ @ifplusor
 /internal/store/ @ifplusor
-/internal/trigger/  @xdlbdy
+/internal/trigger/ @xdlbdy
+/internal/timer/ @hwjiangkai
 
 /raft/ @ifplusor
 

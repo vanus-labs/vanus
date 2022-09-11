@@ -15,6 +15,10 @@
 package store
 
 import (
+	"context"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"go.opentelemetry.io/otel/trace"
+
 	// standard libraries.
 	"sync"
 
@@ -26,19 +30,24 @@ func NewAllocator() *Allocator {
 	return &Allocator{
 		stores: make(map[string]*BlockStore),
 		mu:     sync.RWMutex{},
+		tracer: tracing.NewTracer("internal.store.allocator", trace.SpanKindClient),
 	}
 }
 
 type Allocator struct {
 	stores map[string]*BlockStore
 	mu     sync.RWMutex
+	tracer *tracing.Tracer
 }
 
 // Get acquire BlockStore.
-func (a *Allocator) Get(endpoint string) (*BlockStore, error) {
+func (a *Allocator) Get(ctx context.Context, endpoint string) (*BlockStore, error) {
 	if endpoint == "" {
 		return nil, errors.ErrNoEndpoint
 	}
+
+	_, span := a.tracer.Start(ctx, "Get")
+	defer span.End()
 
 	bs := func() *BlockStore {
 		a.mu.RLock()
@@ -70,7 +79,10 @@ func (a *Allocator) Get(endpoint string) (*BlockStore, error) {
 }
 
 // Put release BlockStore.
-func (a *Allocator) Put(bs *BlockStore) {
+func (a *Allocator) Put(ctx context.Context, bs *BlockStore) {
+	_, span := a.tracer.Start(ctx, "Get")
+	defer span.End()
+
 	d := false
 	if bs.Release() {
 		func() {

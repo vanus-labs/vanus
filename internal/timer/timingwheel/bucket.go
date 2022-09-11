@@ -108,7 +108,7 @@ type bucket struct {
 	mu             sync.Mutex
 	wg             sync.WaitGroup
 	kvStore        kv.Client
-	client         *ctrlClient
+	client         ctrlpb.EventBusControllerClient
 	eventbusWriter eventbus.BusWriter
 	eventlogReader eventlog.LogReader
 
@@ -276,7 +276,7 @@ func (b *bucket) push(ctx context.Context, tm *timingMsg) error {
 }
 
 func (b *bucket) isExistEventbus(ctx context.Context) bool {
-	_, err := b.client.leaderClient.GetEventBus(ctx, &meta.EventBus{Name: b.eventbus})
+	_, err := b.client.GetEventBus(ctx, &meta.EventBus{Name: b.eventbus})
 	return err == nil
 }
 
@@ -286,7 +286,7 @@ func (b *bucket) createEventbus(ctx context.Context) error {
 	if !b.isLeader() || b.isExistEventbus(ctx) {
 		return nil
 	}
-	_, err := b.client.leaderClient.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
+	_, err := b.client.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
 		Name: b.eventbus,
 	})
 	if err != nil {
@@ -310,7 +310,7 @@ func (b *bucket) connectEventbus(ctx context.Context) error {
 
 	vrn = fmt.Sprintf("vanus:///eventbus/%s?controllers=%s", b.eventbus, strings.Join(b.config.CtrlEndpoints, ","))
 	// new eventbus writer
-	b.eventbusWriter, err = openBusWriter(vrn)
+	b.eventbusWriter, err = openBusWriter(ctx, vrn)
 	if err != nil {
 		log.Error(ctx, "open eventbus writer failed", map[string]interface{}{
 			log.KeyError: err,
@@ -325,7 +325,7 @@ func (b *bucket) connectEventbus(ctx context.Context) error {
 		return err
 	}
 	// new eventlog reader
-	b.eventlogReader, err = openLogReader(ls[defaultIndexOfEventlogReader].VRN)
+	b.eventlogReader, err = openLogReader(ctx, ls[defaultIndexOfEventlogReader].VRN)
 	if err != nil {
 		log.Error(ctx, "open log reader failed", map[string]interface{}{
 			log.KeyError: err,

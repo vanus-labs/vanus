@@ -14,14 +14,24 @@
 
 package eventlog
 
-var allocator = NewAllocator()
+import (
+	"context"
+	"github.com/linkall-labs/vanus/observability/tracing"
+)
+
+var allocator *Allocator
+
+func init() {
+	tracing.Init()
+	allocator = NewAllocator()
+}
 
 // Get acquire EventLog.
-func Get(vrn string) (EventLog, error) {
-	return allocator.Get(vrn)
+func Get(ctx context.Context, vrn string) (EventLog, error) {
+	return allocator.Get(ctx, vrn)
 }
 
 // Put release EventLog.
-func Put(el EventLog) {
-	allocator.Put(el)
+func Put(ctx context.Context, el EventLog) {
+	allocator.Put(ctx, el)
 }

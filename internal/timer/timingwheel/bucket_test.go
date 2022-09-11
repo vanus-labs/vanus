@@ -81,7 +81,7 @@ func TestBucket_start(t *testing.T) {
 		bucket.timingwheel.leader = true
 		mockCtrl := gomock.NewController(t)
 		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
-		bucket.client.leaderClient = mockEventbusCtrlCli
+		bucket.client = mockEventbusCtrlCli
 		ls := make([]*record.EventLog, 1)
 		ls[0] = &record.EventLog{
 			VRN: "testvrn",
@@ -212,7 +212,7 @@ func TestBucket_createEventBus(t *testing.T) {
 		bucket.timingwheel = tw
 		mockCtrl := gomock.NewController(t)
 		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
-		bucket.client.leaderClient = mockEventbusCtrlCli
+		bucket.client = mockEventbusCtrlCli
 
 		Convey("test bucket create with eventbus exist", func() {
 			mockEventbusCtrlCli.EXPECT().GetEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)

@@ -21,11 +21,13 @@ import (
 	"os"
 	"path/filepath"
 
+	// first-party libraries.
+	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
+
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
-	errutil "github.com/linkall-labs/vanus/internal/util/errors"
 )
 
 const (

@@ -23,8 +23,8 @@ import (
 	"sync"
 	"time"
 
+	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/client/pkg/eventbus"
-
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -34,11 +34,9 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
 	"github.com/linkall-labs/vanus/internal/trigger/reader"
 	"github.com/linkall-labs/vanus/internal/trigger/transform"
-	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
-
-	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/vanus/pkg/util"
 	"go.uber.org/ratelimit"
 )
 
@@ -485,8 +483,8 @@ func (t *trigger) Stop(ctx context.Context) error {
 	close(t.eventCh)
 	close(t.sendCh)
 	close(t.retryEventCh)
-	t.timerEventWriter.Close()
-	t.dlEventWriter.Close()
+	t.timerEventWriter.Close(ctx)
+	t.dlEventWriter.Close(ctx)
 	t.state = TriggerStopped
 	log.Info(ctx, "trigger stopped", map[string]interface{}{
 		log.KeySubscriptionID: t.subscription.ID,
@@ -504,7 +502,7 @@ func (t *trigger) Change(ctx context.Context, subscription *primitive.Subscripti
 		}
 	}
 	if !reflect.DeepEqual(t.subscription.Filters, subscription.Filters) {
-		t.changeFilter(subscription.Filters)
+		t.changeFilter(subscription.Filters) //nolint:contextcheck // wrong advice
 	}
 	if !reflect.DeepEqual(t.subscription.Transformer, subscription.Transformer) {
 		t.changeTransformer(subscription.Transformer)

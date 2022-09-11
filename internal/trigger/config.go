@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/util"
+	"github.com/linkall-labs/vanus/pkg/util"
 )
 
 type Config struct {

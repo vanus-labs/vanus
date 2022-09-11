@@ -20,6 +20,7 @@ import (
 	"context"
 	stderr "errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -30,6 +31,15 @@ import (
 
 	// third-party libraries.
 	cepb "cloudevents.io/genproto/v1"
+
+	// first-party libraries.
+	"github.com/linkall-labs/vanus/pkg/util"
+
+	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
+	"github.com/linkall-labs/vanus/internal/store/errors"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -37,6 +47,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"github.com/linkall-labs/vanus/pkg/controller"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	rpcerr "github.com/linkall-labs/vanus/proto/pkg/errors"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
@@ -51,11 +64,9 @@ import (
 	"github.com/linkall-labs/vanus/internal/store"
 	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/block/raft"
-	"github.com/linkall-labs/vanus/internal/store/errors"
 	"github.com/linkall-labs/vanus/internal/store/meta"
 	ceconv "github.com/linkall-labs/vanus/internal/store/schema/ce/convert"
 	"github.com/linkall-labs/vanus/internal/store/vsb"
-	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
 )
@@ -110,12 +121,13 @@ func NewServer(cfg store.Config) Server {
 		host:         host,
 		ctrlAddress:  cfg.ControllerAddresses,
 		credentials:  insecure.NewCredentials(),
-		cc:           NewClient(cfg.ControllerAddresses),
 		leaderc:      make(chan leaderInfo, defaultLeaderInfoBufferSize),
 		closec:       make(chan struct{}),
 		pm:           &pollingMgr{},
+		tracer:       tracing.NewTracer("segment.server", trace.SpanKindServer),
 	}
 
+	srv.cc = controller.NewSegmentClient(cfg.ControllerAddresses, srv.credentials)
 	return srv
 }
 
@@ -146,13 +158,14 @@ type server struct {
 
 	ctrlAddress []string
 	credentials credentials.TransportCredentials
-	cc          *ctrlClient
+	cc          ctrlpb.SegmentControllerClient
 	leaderc     chan leaderInfo
 
 	grpcSrv *grpc.Server
 	closec  chan struct{}
 
-	pm pollingManager
+	pm     pollingManager
+	tracer *tracing.Tracer
 }
 
 // Make sure server implements Server.
@@ -164,8 +177,21 @@ func (s *server) Serve(lis net.Listener) error {
 	}
 
 	raftSrv := transport.NewServer(s.host)
-
-	srv := grpc.NewServer(grpc.InTapHandle(s.preGrpcStream))
+	srv := grpc.NewServer(
+		grpc.InTapHandle(s.preGrpcStream),
+		grpc.ChainStreamInterceptor(
+			recovery.StreamServerInterceptor(),
+			errinterceptor.StreamServerInterceptor(),
+			otelgrpc.StreamServerInterceptor(),
+		),
+		grpc.ChainUnaryInterceptor(
+			recovery.UnaryServerInterceptor(),
+			errinterceptor.UnaryServerInterceptor(),
+			otelgrpc.UnaryServerInterceptor(
+				otelgrpc.WithPropagators(propagation.TraceContext{}),
+			),
+		),
+	)
 	segpb.RegisterSegmentServerServer(srv, segSrv)
 	raftpb.RegisterRaftServerServer(srv, raftSrv)
 	s.grpcSrv = srv
@@ -236,7 +262,7 @@ func (s *server) reconcileBlocks(ctx context.Context) error {
 
 func (s *server) registerSelf(ctx context.Context) error {
 	// TODO(james.yin): pass information of blocks.
-	res, err := s.cc.registerSegmentServer(ctx, &ctrlpb.RegisterSegmentServerRequest{
+	res, err := s.cc.RegisterSegmentServer(ctx, &ctrlpb.RegisterSegmentServerRequest{
 		Address:  s.localAddress,
 		VolumeId: s.volumeID.Uint64(),
 		Capacity: s.cfg.Volume.Capacity,
@@ -307,11 +333,14 @@ func (s *server) registerReplicas(ctx context.Context, segmentpb *metapb.Segment
 				continue
 			}
 		}
-		s.resolver.Register(blockID, blockpb.Endpoint)
+		s.resolver.Register(blockID, blockpb.Endpoint) //nolint:contextcheck // wrong advice
 	}
 }
 
 func (s *server) Start(ctx context.Context) error {
+	ctx, span := s.tracer.Start(ctx, "Start")
+	defer span.End()
+
 	if s.state != primitive.ServerStateStarted {
 		return errors.ErrServiceState.WithMessage(
 			"start failed, server state is not created")
@@ -331,55 +360,54 @@ func (s *server) startHeartbeatTask(ctx context.Context) error {
 		return nil
 	}
 
-	go s.runHeartbeat(ctx)
-	return nil
+	return s.runHeartbeat(ctx)
 }
 
-func (s *server) runHeartbeat(ctx context.Context) {
+func (s *server) runHeartbeat(_ context.Context) error {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-s.closec:
-			return
-		case <-ticker.C:
-			infos := make([]*metapb.SegmentHealthInfo, 0)
-			s.replicas.Range(func(key, value interface{}) bool {
-				b, _ := value.(Replica)
-				infos = append(infos, b.Status())
-				return true
-			})
-			req := &ctrlpb.SegmentHeartbeatRequest{
-				ServerId:   s.id.Uint64(),
-				VolumeId:   s.volumeID.Uint64(),
-				HealthInfo: infos,
-				ReportTime: util.FormatTime(time.Now()),
-				ServerAddr: s.localAddress,
-			}
-			if err := s.cc.heartbeat(context.Background(), req); err != nil {
-				log.Warning(
-					ctx,
-					"Send heartbeat to controller failed, connection lost. try to reconnecting",
-					map[string]interface{}{
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		for {
+			select {
+			case <-s.closec:
+				cancel()
+				return
+			case info := <-s.leaderc:
+				// TODO(james.yin): move to other goroutine.
+				req := &ctrlpb.ReportSegmentLeaderRequest{
+					LeaderId: info.leader.Uint64(),
+					Term:     info.term,
+				}
+				if _, err := s.cc.ReportSegmentLeader(context.Background(), req); err != nil {
+					log.Debug(ctx, "Report segment leader to controller failed.", map[string]interface{}{
+						"leader":     info.leader,
+						"term":       info.term,
 						log.KeyError: err,
 					})
-			}
-		case info := <-s.leaderc:
-			// TODO(james.yin): move to other goroutine.
-			req := &ctrlpb.ReportSegmentLeaderRequest{
-				LeaderId: info.leader.Uint64(),
-				Term:     info.term,
-			}
-			if err := s.cc.reportSegmentLeader(context.Background(), req); err != nil {
-				log.Debug(ctx, "Report segment leader to controller failed.", map[string]interface{}{
-					"leader":     info.leader,
-					"term":       info.term,
-					log.KeyError: err,
-				})
+				}
 			}
 		}
+	}()
+
+	f := func() interface{} {
+		infos := make([]*metapb.SegmentHealthInfo, 0)
+		s.replicas.Range(func(key, value interface{}) bool {
+			b, _ := value.(Replica)
+			infos = append(infos, b.Status())
+			return true
+		})
+		return &ctrlpb.SegmentHeartbeatRequest{
+			ServerId:   s.id.Uint64(),
+			VolumeId:   s.volumeID.Uint64(),
+			HealthInfo: infos,
+			ReportTime: util.FormatTime(time.Now()),
+			ServerAddr: s.localAddress,
+		}
 	}
+
+	return controller.RegisterHeartbeat(ctx, time.Second, s.cc, f)
 }
 
 func (s *server) leaderChanged(blockID, leaderID vanus.ID, term uint64) {
@@ -397,6 +425,8 @@ func (s *server) leaderChanged(blockID, leaderID vanus.ID, term uint64) {
 }
 
 func (s *server) Stop(ctx context.Context) error {
+	ctx, span := s.tracer.Start(ctx, "Stop")
+	defer span.End()
 	if s.state != primitive.ServerStateRunning {
 		return errors.ErrServiceState.WithMessage(fmt.Sprintf(
 			"the server isn't running, current state:%s", s.state))
@@ -436,7 +466,7 @@ func (s *server) stop(ctx context.Context) error {
 	s.offsetStore.Close()
 	// Make sure WAL is closed before close metaStore.
 	s.wal.Wait()
-	s.metaStore.Close()
+	s.metaStore.Close(ctx)
 
 	// Stop heartbeat task, etc.
 	close(s.closec)
@@ -444,7 +474,9 @@ func (s *server) stop(ctx context.Context) error {
 	// Close grpc connections for raft.
 	s.host.Stop()
 
-	s.cc.Close(ctx)
+	if closer, ok := s.cc.(io.Closer); ok {
+		_ = closer.Close()
+	}
 
 	return nil
 }
@@ -454,6 +486,9 @@ func (s *server) Status() primitive.ServerState {
 }
 
 func (s *server) CreateBlock(ctx context.Context, id vanus.ID, size int64) error {
+	ctx, span := s.tracer.Start(ctx, "CreateBlock")
+	defer span.End()
+
 	if id == 0 {
 		log.Warning(ctx, "Can not create block with id(0).", nil)
 		return errors.ErrInvalidRequest.WithMessage("can not create block with id(0)")
@@ -487,6 +522,9 @@ func (s *server) CreateBlock(ctx context.Context, id vanus.ID, size int64) error
 }
 
 func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
+	ctx, span := s.tracer.Start(ctx, "RemoveBlock")
+	defer span.End()
+
 	if err := s.checkState(); err != nil {
 		return err
 	}
@@ -524,6 +562,9 @@ func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
 func (s *server) ActivateSegment(
 	ctx context.Context, logID vanus.ID, segID vanus.ID, replicas map[vanus.ID]string,
 ) error {
+	ctx, span := s.tracer.Start(ctx, "ActivateSegment")
+	defer span.End()
+
 	if err := s.checkState(); err != nil {
 		return err
 	}
@@ -567,7 +608,7 @@ func (s *server) ActivateSegment(
 	// Register peers.
 	for i := range peers {
 		peer := &peers[i]
-		s.resolver.Register(peer.ID.Uint64(), peer.Endpoint)
+		s.resolver.Register(peer.ID.Uint64(), peer.Endpoint) //nolint:contextcheck // wrong advice
 	}
 
 	log.Info(ctx, "Bootstrap replica.", map[string]interface{}{
@@ -577,7 +618,7 @@ func (s *server) ActivateSegment(
 
 	// Bootstrap raft.
 	b, _ := v.(Replica)
-	if err := b.Bootstrap(peers); err != nil {
+	if err := b.Bootstrap(ctx, peers); err != nil {
 		return err
 	}
 
@@ -593,6 +634,9 @@ func (s *server) InactivateSegment(ctx context.Context) error {
 }
 
 func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]int64, error) {
+	ctx, span := s.tracer.Start(ctx, "AppendToBlock")
+	defer span.End()
+
 	if len(events) == 0 {
 		return nil, errors.ErrInvalidRequest.WithMessage("event list is empty")
 	}
@@ -670,7 +714,7 @@ func (s *server) onBlockArchived(stat block.Statistics) {
 
 	// report to controller
 	go func() {
-		_, _ = s.cc.reportSegmentBlockIsFull(context.Background(), &ctrlpb.SegmentHeartbeatRequest{
+		_, _ = s.cc.ReportSegmentBlockIsFull(context.Background(), &ctrlpb.SegmentHeartbeatRequest{
 			ServerId:   s.id.Uint64(),
 			VolumeId:   s.volumeID.Uint64(),
 			HealthInfo: []*metapb.SegmentHealthInfo{info},
@@ -684,6 +728,9 @@ func (s *server) onBlockArchived(stat block.Statistics) {
 func (s *server) ReadFromBlock(
 	ctx context.Context, id vanus.ID, seq int64, num int, pollingTimeout uint32,
 ) ([]*cepb.CloudEvent, error) {
+	ctx, span := s.tracer.Start(ctx, "ReadFromBlock")
+	defer span.End()
+
 	if err := s.checkState(); err != nil {
 		return nil, err
 	}

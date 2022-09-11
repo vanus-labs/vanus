@@ -20,9 +20,11 @@ import (
 	"hash/crc32"
 	"io"
 
+	// first-party project.
+	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
+
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
-	errutil "github.com/linkall-labs/vanus/internal/util/errors"
 )
 
 const (

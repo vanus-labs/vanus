@@ -14,14 +14,16 @@
 
 package eventbus
 
+import "context"
+
 var allocator = NewAllocator()
 
 // Get acquire EventBus.
-func Get(vrn string) (EventBus, error) {
-	return allocator.Get(vrn)
+func Get(ctx context.Context, vrn string) (EventBus, error) {
+	return allocator.Get(ctx, vrn)
 }
 
 // Put release EventBus.
-func Put(eb EventBus) {
-	allocator.Put(eb)
+func Put(ctx context.Context, eb EventBus) {
+	allocator.Put(ctx, eb)
 }

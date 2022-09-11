@@ -17,6 +17,7 @@ package trigger
 
 import (
 	"context"
+	"io"
 	"sync"
 	"time"
 
@@ -28,8 +29,10 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/trigger"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
+	"github.com/linkall-labs/vanus/pkg/controller"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type Worker interface {
@@ -60,16 +63,17 @@ type worker struct {
 	wg         sync.WaitGroup
 	lock       sync.RWMutex
 	tgLock     sync.RWMutex
-	client     *ctrlClient
+	client     ctrlpb.TriggerControllerClient
 }
 
 func NewWorker(config Config) Worker {
 	if config.HeartbeatInterval == 0 {
 		config.HeartbeatInterval = defaultHeartbeatInterval
 	}
+
 	m := &worker{
 		config:     config,
-		client:     NewClient(config.ControllerAddr),
+		client:     controller.NewTriggerClient(config.ControllerAddr, insecure.NewCredentials()),
 		triggerMap: make(map[vanus.ID]trigger.Trigger),
 		newTrigger: trigger.NewTrigger,
 	}
@@ -97,22 +101,21 @@ func (w *worker) deleteTrigger(id vanus.ID) {
 }
 
 func (w *worker) Register(ctx context.Context) error {
-	_, err := w.client.registerTriggerWorker(ctx, &ctrlpb.RegisterTriggerWorkerRequest{
+	_, err := w.client.RegisterTriggerWorker(ctx, &ctrlpb.RegisterTriggerWorkerRequest{
 		Address: w.config.TriggerAddr,
 	})
 	return err
 }
 
 func (w *worker) Unregister(ctx context.Context) error {
-	_, err := w.client.unregisterTriggerWorker(ctx, &ctrlpb.UnregisterTriggerWorkerRequest{
+	_, err := w.client.UnregisterTriggerWorker(ctx, &ctrlpb.UnregisterTriggerWorkerRequest{
 		Address: w.config.TriggerAddr,
 	})
 	return err
 }
 
 func (w *worker) Start(ctx context.Context) error {
-	go w.startHeartbeat(w.ctx)
-	return nil
+	return w.startHeartbeat(w.ctx)
 }
 
 func (w *worker) Stop(ctx context.Context) error {
@@ -141,6 +144,9 @@ func (w *worker) Stop(ctx context.Context) error {
 		delete(w.triggerMap, id)
 	}
 	w.wg.Wait()
+	if closer, ok := w.client.(io.Closer); ok {
+		_ = closer.Close()
+	}
 	return nil
 }
 
@@ -215,27 +221,16 @@ func (w *worker) ResetOffsetToTimestamp(ctx context.Context,
 	return nil
 }
 
-func (w *worker) startHeartbeat(ctx context.Context) {
+func (w *worker) startHeartbeat(ctx context.Context) error {
 	w.wg.Add(1)
 	defer w.wg.Done()
-	ticker := time.NewTicker(w.config.HeartbeatInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			w.client.closeHeartBeat(ctx)
-			return
-		case <-ticker.C:
-			if err := w.client.heartbeat(ctx, &ctrlpb.TriggerWorkerHeartbeatRequest{
-				Address:          w.config.TriggerAddr,
-				SubscriptionInfo: w.getAllSubscriptionInfo(ctx),
-			}); err != nil {
-				log.Warning(ctx, "heartbeat error", map[string]interface{}{
-					log.KeyError: err,
-				})
-			}
+	f := func() interface{} {
+		return &ctrlpb.TriggerWorkerHeartbeatRequest{
+			Address:          w.config.TriggerAddr,
+			SubscriptionInfo: w.getAllSubscriptionInfo(ctx),
 		}
 	}
+	return controller.RegisterHeartbeat(ctx, w.config.HeartbeatInterval, w.client, f)
 }
 
 func (w *worker) stopSubscription(ctx context.Context, id vanus.ID) error {
@@ -259,20 +254,22 @@ func (w *worker) startSubscription(ctx context.Context, id vanus.ID) error {
 }
 
 func (w *worker) commitOffset(ctx context.Context, id vanus.ID, offsets info.ListOffsetInfo) error {
-	return w.client.commitOffset(ctx, &ctrlpb.CommitOffsetRequest{
+	_, err := w.client.CommitOffset(ctx, &ctrlpb.CommitOffsetRequest{
 		ForceCommit: true,
 		SubscriptionInfo: []*metapb.SubscriptionInfo{convert.ToPbSubscriptionInfo(info.SubscriptionInfo{
 			SubscriptionID: id,
 			Offsets:        offsets,
 		})},
 	})
+	return err
 }
 
 func (w *worker) commitOffsets(ctx context.Context) error {
-	return w.client.commitOffset(ctx, &ctrlpb.CommitOffsetRequest{
+	_, err := w.client.CommitOffset(ctx, &ctrlpb.CommitOffsetRequest{
 		ForceCommit:      true,
 		SubscriptionInfo: w.getAllSubscriptionInfo(ctx),
 	})
+	return err
 }
 
 func (w *worker) getAllSubscriptionInfo(ctx context.Context) []*metapb.SubscriptionInfo {

@@ -33,9 +33,9 @@ import (
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
-	"github.com/linkall-labs/vanus/internal/util"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
+	"github.com/linkall-labs/vanus/pkg/util"
 )
 
 const (
@@ -274,7 +274,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 			case nil:
 				continue
 			case context.Canceled:
-				lr.Close()
+				lr.Close(ctx)
 				return
 			case context.DeadlineExceeded:
 			case errReadNoEvent:
@@ -337,7 +337,7 @@ func readEvents(ctx context.Context, lr eventlog.LogReader) ([]*ce.Event, error)
 }
 
 func (elReader *eventLogReader) init(ctx context.Context) (eventlog.LogReader, error) {
-	lr, err := eb.OpenLogReader(elReader.eventLogVrn)
+	lr, err := eb.OpenLogReader(ctx, elReader.eventLogVrn)
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +345,7 @@ func (elReader *eventLogReader) init(ctx context.Context) (eventlog.LogReader, e
 	defer cancel()
 	_, err = lr.Seek(timeout, int64(elReader.offset), io.SeekStart)
 	if err != nil {
-		lr.Close()
+		lr.Close(ctx)
 		return nil, err
 	}
 	return lr, nil

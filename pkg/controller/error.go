@@ -12,31 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package timingwheel
+package controller
 
-import (
-	"context"
-	"testing"
+import rpcerr "github.com/linkall-labs/vanus/proto/pkg/errors"
 
-	. "github.com/smartystreets/goconvey/convey"
+var (
+	ErrNoControllerLeader      = rpcerr.New("no leader controller found").WithGRPCCode(rpcerr.ErrorCode_NOT_LEADER)
+	ErrInvalidHeartBeatRequest = rpcerr.New("invalid heartbeat request").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
+	ErrInvalidHeartBeat        = rpcerr.New("invalid heartbeat").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
 )
-
-func TestCtrlClient_Close(t *testing.T) {
-	Convey("test controller client close", t, func() {
-		ctx := context.Background()
-		cli := NewClient([]string{"127.0.0.1"})
-		Convey("test controller client close", func() {
-			cli.Close(ctx)
-		})
-	})
-}
-
-func TestCtrlClient_makeSureClient(t *testing.T) {
-	Convey("test controller client close", t, func() {
-	})
-}
-
-func TestCtrlClient_getGRPCConn(t *testing.T) {
-	Convey("test controller client close", t, func() {
-	})
-}

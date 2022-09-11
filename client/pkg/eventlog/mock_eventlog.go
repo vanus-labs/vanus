@@ -49,15 +49,15 @@ func (mr *MockEventLogMockRecorder) Acquire() *gomock.Call {
 }
 
 // Close mocks base method.
-func (m *MockEventLog) Close() {
+func (m *MockEventLog) Close(ctx context.Context) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Close")
+	m.ctrl.Call(m, "Close", ctx)
 }
 
 // Close indicates an expected call of Close.
-func (mr *MockEventLogMockRecorder) Close() *gomock.Call {
+func (mr *MockEventLogMockRecorder) Close(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockEventLog)(nil).Close))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockEventLog)(nil).Close), ctx)
 }
 
 // Reader mocks base method.
@@ -171,15 +171,15 @@ func (mr *MockLogWriterMockRecorder) Append(ctx, event interface{}) *gomock.Call
 }
 
 // Close mocks base method.
-func (m *MockLogWriter) Close() {
+func (m *MockLogWriter) Close(ctx context.Context) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Close")
+	m.ctrl.Call(m, "Close", ctx)
 }
 
 // Close indicates an expected call of Close.
-func (mr *MockLogWriterMockRecorder) Close() *gomock.Call {
+func (mr *MockLogWriterMockRecorder) Close(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockLogWriter)(nil).Close))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockLogWriter)(nil).Close), ctx)
 }
 
 // Log mocks base method.
@@ -220,15 +220,15 @@ func (m *MockLogReader) EXPECT() *MockLogReaderMockRecorder {
 }
 
 // Close mocks base method.
-func (m *MockLogReader) Close() {
+func (m *MockLogReader) Close(ctx context.Context) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Close")
+	m.ctrl.Call(m, "Close", ctx)
 }
 
 // Close indicates an expected call of Close.
-func (mr *MockLogReaderMockRecorder) Close() *gomock.Call {
+func (mr *MockLogReaderMockRecorder) Close(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockLogReader)(nil).Close))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockLogReader)(nil).Close), ctx)
 }
 
 // Log mocks base method.

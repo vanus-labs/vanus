@@ -25,7 +25,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/util/crypto"
+	"github.com/linkall-labs/vanus/pkg/util/crypto"
 )
 
 func NewSecretStorage(config primitive.KvStorageConfig, encryption string) (secret.Storage, error) {

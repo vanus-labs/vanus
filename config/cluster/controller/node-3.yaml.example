@@ -10,14 +10,17 @@ topology:
   test-2: 127.0.0.1:3048
   test-3: 127.0.0.1:4048
 data_dir: "/Users/wenfeng/tmp/data/vanus/cluster"
-replicas: 1
 metadata:
   key_prefix: "/wenfeng"
 embed_etcd:
   # relative path to ${data_dir} above
   data_dir: "etcd/node3"
-  client_addr: "127.0.0.1:4379"
-  peer_addr: "127.0.0.1:4380"
+  listen_client_addr: 127.0.0.1:4379
+  listen_peer_addr: 127.0.0.1:4380
+  advertise_client_addr: 127.0.0.1:4379
+  advertise_peer_addr: 127.0.0.1:4380
+  heartbeat-interval: 600000
+  election-timeout: 600000
   clusters:
     - test-1=http://127.0.0.1:2380
     - test-2=http://127.0.0.1:3380

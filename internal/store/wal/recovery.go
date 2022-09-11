@@ -21,8 +21,12 @@ import (
 	"path/filepath"
 	"strconv"
 
-	// this project.
+	// third-party project.
+	oteltracer "go.opentelemetry.io/otel/trace"
+
+	// first-party project.
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/tracing"
 )
 
 const (
@@ -30,13 +34,13 @@ const (
 )
 
 // recoverLogStream rebuilds log stream from specified directory.
-func recoverLogStream(dir string, cfg config) (*logStream, error) {
+func recoverLogStream(ctx context.Context, dir string, cfg config) (*logStream, error) {
 	// Make sure the WAL directory exists.
 	if err := os.MkdirAll(dir, defaultDirPerm); err != nil {
 		return nil, err
 	}
 
-	files, err := scanLogFiles(dir, cfg.blockSize)
+	files, err := scanLogFiles(ctx, dir, cfg.blockSize)
 	if err != nil {
 		return nil, err
 	}
@@ -46,11 +50,12 @@ func recoverLogStream(dir string, cfg config) (*logStream, error) {
 		dir:       dir,
 		blockSize: cfg.blockSize,
 		fileSize:  cfg.fileSize,
+		tracer:    tracing.NewTracer("store.wal.recovery", oteltracer.SpanKindInternal),
 	}
 	return stream, nil
 }
 
-func scanLogFiles(dir string, blockSize int64) (stream []*logFile, err error) {
+func scanLogFiles(ctx context.Context, dir string, blockSize int64) (stream []*logFile, err error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -70,7 +75,7 @@ func scanLogFiles(dir string, blockSize int64) (stream []*logFile, err error) {
 		if last != nil {
 			// discontinuous log file
 			if so != last.eo {
-				log.Warning(context.Background(), "Discontinuous log file, discard before.",
+				log.Warning(ctx, "Discontinuous log file, discard before.",
 					map[string]interface{}{
 						"last_end":   last.eo,
 						"next_start": so,

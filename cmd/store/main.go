@@ -19,6 +19,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/linkall-labs/vanus/observability/tracing"
 	"net"
 	"net/http"
 	"os"
@@ -44,6 +45,7 @@ func main() {
 		os.Exit(-1)
 	}
 
+	tracing.Init("Vanus-Store")
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
 		log.Error(context.Background(), "Listen tcp port failed.", map[string]interface{}{

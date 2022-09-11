@@ -14,13 +14,15 @@
 
 package eventbus
 
+import "context"
+
 // OpenWriter open a Writer of EventBus identified by vrn.
-func OpenWriter(vrn string) (BusWriter, error) {
-	eb, err := Get(vrn)
+func OpenWriter(ctx context.Context, vrn string) (BusWriter, error) {
+	eb, err := Get(ctx, vrn)
 	if err != nil {
 		return nil, err
 	}
-	defer Put(eb)
+	defer Put(ctx, eb)
 
 	w, err := eb.Writer()
 	if err != nil {

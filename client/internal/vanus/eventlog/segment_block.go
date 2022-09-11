@@ -17,7 +17,6 @@ package eventlog
 import (
 	// third-party libraries
 	"context"
-
 	ce "github.com/cloudevents/sdk-go/v2"
 
 	// this project
@@ -26,8 +25,8 @@ import (
 	"github.com/linkall-labs/vanus/client/pkg/errors"
 )
 
-func newSegmentBlock(r *record.SegmentBlock) (*segmentBlock, error) {
-	store, err := store.Get(r.Endpoint)
+func newSegmentBlock(ctx context.Context, r *record.SegmentBlock) (*segmentBlock, error) {
+	store, err := store.Get(ctx, r.Endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -43,8 +42,8 @@ type segmentBlock struct {
 	store *store.BlockStore
 }
 
-func (s *segmentBlock) Close() {
-	store.Put(s.store)
+func (s *segmentBlock) Close(ctx context.Context) {
+	store.Put(ctx, s.store)
 }
 
 func (s *segmentBlock) Append(ctx context.Context, event *ce.Event) (int64, error) {

@@ -17,13 +17,13 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/linkall-labs/vanus/pkg/util/signal"
 	"net/http"
 	"os"
 
 	"github.com/linkall-labs/vanus/internal/timer"
 	"github.com/linkall-labs/vanus/internal/timer/leaderelection"
 	"github.com/linkall-labs/vanus/internal/timer/timingwheel"
-	"github.com/linkall-labs/vanus/internal/util/signal"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

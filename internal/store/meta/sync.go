@@ -16,15 +16,18 @@ package meta
 
 import (
 	// standard libraries.
+	"context"
 	"errors"
 	"time"
 
 	// third-party libraries.
 	"github.com/huandu/skiplist"
+	"go.opentelemetry.io/otel/trace"
 
 	// this project.
 	storecfg "github.com/linkall-labs/vanus/internal/store"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
+	"github.com/linkall-labs/vanus/observability/tracing"
 )
 
 const (
@@ -38,7 +41,8 @@ type SyncStore struct {
 	donec     chan struct{}
 }
 
-func newSyncStore(wal *walog.WAL, committed *skiplist.SkipList, version, snapshot int64) *SyncStore {
+func newSyncStore(ctx context.Context, wal *walog.WAL,
+	committed *skiplist.SkipList, version, snapshot int64) *SyncStore {
 	s := &SyncStore{
 		store: store{
 			committed: committed,
@@ -46,17 +50,21 @@ func newSyncStore(wal *walog.WAL, committed *skiplist.SkipList, version, snapsho
 			wal:       wal,
 			snapshot:  snapshot,
 			marshaler: defaultCodec,
+			tracer:    tracing.NewTracer("store.meta.sync", trace.SpanKindInternal),
 		},
 		snapshotc: make(chan struct{}, 1),
 		donec:     make(chan struct{}),
 	}
 
-	go s.runSnapshot()
+	go s.runSnapshot(ctx)
 
 	return s
 }
 
-func (s *SyncStore) Close() {
+func (s *SyncStore) Close(ctx context.Context) {
+	_, span := s.tracer.Start(ctx, "Close")
+	defer span.End()
+
 	// Close WAL.
 	s.wal.Close()
 	s.wal.Wait()
@@ -73,25 +81,28 @@ func (s *SyncStore) Load(key []byte) (interface{}, bool) {
 	return s.load(key)
 }
 
-func (s *SyncStore) Store(key []byte, value interface{}) {
-	if err := s.set(KVRange(key, value)); err != nil {
+func (s *SyncStore) Store(ctx context.Context, key []byte, value interface{}) {
+	if err := s.set(ctx, KVRange(key, value)); err != nil {
 		panic(err)
 	}
 }
 
-func (s *SyncStore) BatchStore(kvs Ranger) {
-	if err := s.set(kvs); err != nil {
+func (s *SyncStore) BatchStore(ctx context.Context, kvs Ranger) {
+	if err := s.set(ctx, kvs); err != nil {
 		panic(err)
 	}
 }
 
-func (s *SyncStore) Delete(key []byte) {
-	if err := s.set(KVRange(key, deletedMark)); err != nil {
+func (s *SyncStore) Delete(ctx context.Context, key []byte) {
+	if err := s.set(ctx, KVRange(key, deletedMark)); err != nil {
 		panic(err)
 	}
 }
 
-func (s *SyncStore) set(kvs Ranger) error {
+func (s *SyncStore) set(ctx context.Context, kvs Ranger) error {
+	_, span := s.tracer.Start(ctx, "set")
+	defer span.End()
+
 	entry, err := s.marshaler.Marshal(kvs)
 	if err != nil {
 		return err
@@ -99,7 +110,7 @@ func (s *SyncStore) set(kvs Ranger) error {
 
 	ch := make(chan error, 1)
 	// Use callbacks for ordering guarantees.
-	s.wal.AppendOne(entry, walog.WithCallback(func(re walog.Result) {
+	s.wal.AppendOne(ctx, entry, walog.WithCallback(func(re walog.Result) {
 		if re.Err != nil {
 			ch <- re.Err
 			return
@@ -135,13 +146,12 @@ func (s *SyncStore) set(kvs Ranger) error {
 	return err
 }
 
-func (s *SyncStore) runSnapshot() {
+func (s *SyncStore) runSnapshot(ctx context.Context) {
 	ticker := time.NewTicker(runSnapshotInterval)
 	defer func() {
 		ticker.Stop()
 		close(s.donec)
 	}()
-
 	for {
 		select {
 		case _, ok := <-s.snapshotc:
@@ -150,12 +160,15 @@ func (s *SyncStore) runSnapshot() {
 			}
 		case <-ticker.C:
 		}
-		s.tryCreateSnapshot()
+		s.tryCreateSnapshot(ctx)
 	}
 }
 
-func RecoverSyncStore(cfg storecfg.SyncStoreConfig, walDir string) (*SyncStore, error) {
-	committed, snapshot, err := recoverLatestSnapshot(walDir, defaultCodec)
+func RecoverSyncStore(ctx context.Context, cfg storecfg.SyncStoreConfig, walDir string) (*SyncStore, error) {
+	ctx, span := tracing.Start(ctx, "store.meta.async", "RecoverSyncStore")
+	defer span.End()
+
+	committed, snapshot, err := recoverLatestSnapshot(ctx, walDir, defaultCodec)
 	if err != nil {
 		return nil, err
 	}
@@ -175,10 +188,10 @@ func RecoverSyncStore(cfg storecfg.SyncStoreConfig, walDir string) (*SyncStore, 
 			return nil
 		}),
 	}, cfg.WAL.Options()...)
-	wal, err := walog.Open(walDir, opts...)
+	wal, err := walog.Open(ctx, walDir, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	return newSyncStore(wal, committed, version, snapshot), nil
+	return newSyncStore(ctx, wal, committed, version, snapshot), nil
 }

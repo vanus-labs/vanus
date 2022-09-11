@@ -22,12 +22,14 @@ import (
 	"math"
 	"os"
 
+	// first-party libraries.
+	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
+
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
 	"github.com/linkall-labs/vanus/internal/store/vsb/index"
-	errutil "github.com/linkall-labs/vanus/internal/util/errors"
 )
 
 var (

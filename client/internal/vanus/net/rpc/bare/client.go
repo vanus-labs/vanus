@@ -17,6 +17,8 @@ package bare
 import (
 	// standard libraries
 	"context"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"go.opentelemetry.io/otel/trace"
 	"sync"
 	"time"
 
@@ -41,6 +43,7 @@ func New(endpoint string, creator rpc.ClientCreator) rpc.Client {
 		closed:   atomic.Bool{},
 		mu:       sync.RWMutex{},
 		creator:  creator,
+		tracer:   tracing.NewTracer("internal.net.rpc.Client", trace.SpanKindClient),
 	}
 }
 
@@ -53,6 +56,7 @@ type client struct {
 	conn    *grpc.ClientConn
 	client  interface{}
 	creator rpc.ClientCreator
+	tracer  *tracing.Tracer
 }
 
 // make sure client implements rpc.Client.
@@ -66,10 +70,13 @@ func (c *client) Get(ctx context.Context) (interface{}, error) {
 	if c.closed.Load() {
 		return nil, errors.ErrClosed
 	}
+	_ctx, span := c.tracer.Start(ctx, "Get")
+	defer span.End()
+
 	if client := c.cachedClient(); client != nil {
 		return client, nil
 	}
-	return c.refreshClient(ctx, false)
+	return c.refreshClient(_ctx, false)
 }
 
 func (c *client) cachedClient() interface{} {

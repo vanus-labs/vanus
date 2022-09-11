@@ -26,11 +26,14 @@ import (
 	// third-party libraries.
 	"github.com/ncw/directio"
 
+	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
+
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/io"
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
-	errutil "github.com/linkall-labs/vanus/internal/util/errors"
-	"github.com/linkall-labs/vanus/observability/log"
 )
 
 var (
@@ -46,12 +49,13 @@ type logStream struct {
 	blockSize int64
 	fileSize  int64
 	mu        sync.RWMutex
+	tracer    *tracing.Tracer
 }
 
-func (s *logStream) Close() {
+func (s *logStream) Close(ctx context.Context) {
 	for _, f := range s.stream {
 		if err := f.Close(); err != nil {
-			log.Error(context.Background(), "Close log file failed.", map[string]interface{}{
+			log.Error(ctx, "Close log file failed.", map[string]interface{}{
 				"path":       f.path,
 				log.KeyError: err,
 			})
@@ -143,7 +147,7 @@ type scanContext struct {
 	cb     OnEntryCallback
 }
 
-func (s *logStream) Range(from int64, cb OnEntryCallback) (int64, error) {
+func (s *logStream) Range(ctx context.Context, from int64, cb OnEntryCallback) (int64, error) {
 	if len(s.stream) == 0 {
 		if from == 0 {
 			return 0, nil
@@ -154,7 +158,7 @@ func (s *logStream) Range(from int64, cb OnEntryCallback) (int64, error) {
 		return -1, ErrOutOfRange
 	}
 
-	ctx := scanContext{
+	sCtx := scanContext{
 		buf:    directio.AlignedBlock(int(s.blockSize)),
 		buffer: bytes.NewBuffer(nil),
 		last:   record.Zero,
@@ -169,7 +173,7 @@ func (s *logStream) Range(from int64, cb OnEntryCallback) (int64, error) {
 			continue
 		}
 
-		err := s.scanFile(&ctx, f)
+		err := s.scanFile(ctx, &sCtx, f)
 		if err == nil {
 			continue
 		}
@@ -181,14 +185,14 @@ func (s *logStream) Range(from int64, cb OnEntryCallback) (int64, error) {
 			}
 
 			// TODO(james.yin): Has incomplete entry, truncate it.
-			if ctx.last.IsNonTerminal() {
+			if sCtx.last.IsNonTerminal() {
 				log.Info(context.Background(), "Found incomplete entry, truncate it.",
 					map[string]interface{}{
-						"last_type": ctx.last,
+						"last_type": sCtx.last,
 					})
 			}
 
-			return ctx.eo, nil
+			return sCtx.eo, nil
 		}
 
 		return -1, err
@@ -197,7 +201,10 @@ func (s *logStream) Range(from int64, cb OnEntryCallback) (int64, error) {
 	panic("WAL: no zero record, the WAL is incomplete.")
 }
 
-func (s *logStream) scanFile(ctx *scanContext, lf *logFile) (err error) {
+func (s *logStream) scanFile(ctx context.Context, sCtx *scanContext, lf *logFile) (err error) {
+	_, span := s.tracer.Start(ctx, "scanFile")
+	defer span.End()
+
 	f, err := io.OpenFile(lf.path, false, false)
 	if err != nil {
 		return err
@@ -213,14 +220,14 @@ func (s *logStream) scanFile(ctx *scanContext, lf *logFile) (err error) {
 		}
 	}()
 
-	for at := s.firstBlockOffset(lf.so, lf.size, ctx.from); at < lf.size; at += s.blockSize {
-		if _, err = f.ReadAt(ctx.buf, at); err != nil {
+	for at := s.firstBlockOffset(lf.so, lf.size, sCtx.from); at < lf.size; at += s.blockSize {
+		if _, err = f.ReadAt(sCtx.buf, at); err != nil {
 			return err
 		}
 
 		bso := lf.so + at
-		for so := s.firstRecordOffset(lf.so+at, ctx.from); so <= s.blockSize-record.HeaderSize; {
-			r, err2 := record.Unmarshal(ctx.buf[so:])
+		for so := s.firstRecordOffset(lf.so+at, sCtx.from); so <= s.blockSize-record.HeaderSize; {
+			r, err2 := record.Unmarshal(sCtx.buf[so:])
 			if err2 != nil {
 				// TODO(james.yin): handle parse error
 				err = err2
@@ -237,7 +244,7 @@ func (s *logStream) scanFile(ctx *scanContext, lf *logFile) (err error) {
 
 			sz := int64(r.Size())
 			reo := bso + so + sz
-			if err = onRecord(ctx, r, reo); err != nil {
+			if err = onRecord(sCtx, r, reo); err != nil {
 				return err
 			}
 			so += sz

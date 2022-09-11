@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/linkall-labs/vanus/observability/tracing"
 	"os"
 
 	"github.com/linkall-labs/vanus/internal/gateway"
@@ -32,11 +33,13 @@ func main() {
 
 	cfg, err := gateway.InitConfig(*configPath)
 	if err != nil {
-		log.Error(nil, "init config error", map[string]interface{}{
+		log.Error(context.Background(), "init config error", map[string]interface{}{
 			log.KeyError: err,
 		})
 		os.Exit(-1)
 	}
+
+	tracing.Init("Vanus-Gateway")
 
 	go gateway.MustStartHTTP(*cfg)
 

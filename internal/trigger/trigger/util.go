@@ -44,7 +44,7 @@ func newEventClient(sink primitive.URI,
 
 func newEventbusWriter(ctx context.Context, eventbus string, endpoints []string) (eventbus.BusWriter, error) {
 	vrn := fmt.Sprintf("vanus:///eventbus/%s?controllers=%s", eventbus, strings.Join(endpoints, ","))
-	busWriter, err := eb.OpenBusWriter(vrn)
+	busWriter, err := eb.OpenBusWriter(ctx, vrn)
 	if err != nil {
 		log.Error(ctx, "open bus writer failed", map[string]interface{}{
 			log.KeyError:        err,
