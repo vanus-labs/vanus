@@ -113,6 +113,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, pr
 		return nil, v2.NewHTTPResult(http.StatusBadRequest, err.Error())
 	}
 
+	event.SetExtension(primitive.XVanusEventbus, ebName)
 	if eventTime, ok := extensions[primitive.XVanusDeliveryTime]; ok {
 		// validate event time
 		if _, err := types.ParseTime(eventTime.(string)); err != nil {
@@ -124,7 +125,6 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, pr
 		}
 		ebName = primitive.TimerEventbusName
 	}
-	event.SetExtension(primitive.XVanusEventbus, ebName)
 
 	vrn := fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s", ga.config.ControllerAddr[0],
 		ebName, strings.Join(ga.config.ControllerAddr, ","))
