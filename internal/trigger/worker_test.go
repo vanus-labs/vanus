@@ -167,6 +167,7 @@ func TestResetOffsetToTimestamp(t *testing.T) {
 		tg := trigger.NewMockTrigger(ctrl)
 		m := NewWorker(Config{}).(*worker)
 		m.newTrigger = testNewTrigger(tg)
+		m.Init(ctx)
 		Convey("reset offset no exist subscription", func() {
 			err := m.ResetOffsetToTimestamp(ctx, id, time.Now().Unix())
 			So(err, ShouldNotBeNil)
@@ -198,6 +199,7 @@ func TestWorker_Stop(t *testing.T) {
 		tg := trigger.NewMockTrigger(ctrl)
 		m := NewWorker(Config{}).(*worker)
 		m.newTrigger = testNewTrigger(tg)
+		m.Init(ctx)
 		id := vanus.NewID()
 		tg.EXPECT().Init(gomock.Any()).Return(nil)
 		tg.EXPECT().Start(gomock.Any()).AnyTimes().Return(nil)
@@ -229,6 +231,7 @@ func TestWorker_Register(t *testing.T) {
 		defer ctrl.Finish()
 		addr := "test"
 		m := NewWorker(Config{TriggerAddr: addr}).(*worker)
+		m.Init(ctx)
 		triggerClient := controller.NewMockTriggerControllerClient(ctrl)
 		m.client = triggerClient
 		triggerClient.EXPECT().RegisterTriggerWorker(gomock.Any(), gomock.Any()).Return(nil, nil)
@@ -244,6 +247,7 @@ func TestWorker_Unregister(t *testing.T) {
 		defer ctrl.Finish()
 		addr := "test"
 		m := NewWorker(Config{TriggerAddr: addr}).(*worker)
+		m.Init(ctx)
 		triggerClient := controller.NewMockTriggerControllerClient(ctrl)
 		m.client = triggerClient
 		triggerClient.EXPECT().UnregisterTriggerWorker(gomock.Any(), gomock.Any()).Return(nil, nil)

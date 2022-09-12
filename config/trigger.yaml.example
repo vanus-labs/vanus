@@ -3,3 +3,7 @@ ip: ""
 controllers:
   - 127.0.0.1:2048
 rateLimit: 0
+tls:
+  cert_file: ""
+  key_file: ""
+  trusted-ca-file: ""

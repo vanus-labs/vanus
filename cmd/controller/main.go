@@ -18,16 +18,18 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/linkall-labs/vanus/pkg/util/signal"
 	"net"
 	"net/http"
 	"os"
 	"sync"
 
+	"github.com/linkall-labs/vanus/pkg/util/signal"
+
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
 	"github.com/linkall-labs/vanus/internal/controller/trigger"
+	"github.com/linkall-labs/vanus/internal/primitive/credential"
 	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
 	"github.com/linkall-labs/vanus/internal/primitive/interceptor/memberinterceptor"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -38,6 +40,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -64,7 +67,13 @@ func main() {
 	}
 
 	ctx := signal.SetupSignalContext()
-	go startMetrics()
+	err = startMetrics(cfg.TLS)
+	if err != nil {
+		log.Error(context.Background(), "start metric server fail", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
 	etcd := embedetcd.New(cfg.Topology)
 	if err = etcd.Init(ctx, cfg.GetEtcdConfig()); err != nil {
 		log.Error(ctx, "failed to init etcd", map[string]interface{}{
@@ -99,7 +108,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	grpcServer := grpc.NewServer(
+	grpcServer, err := newGrpcServer(cfg.TLS,
 		grpc.ChainStreamInterceptor(
 			recovery.StreamServerInterceptor(),
 			errinterceptor.StreamServerInterceptor(),
@@ -113,6 +122,12 @@ func main() {
 			otelgrpc.UnaryServerInterceptor(),
 		),
 	)
+	if err != nil {
+		log.Error(context.Background(), "new grpc server fail", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
 
 	// for debug in developing stage
 	if cfg.GRPCReflectionEnable {
@@ -152,9 +167,34 @@ func main() {
 	log.Info(ctx, "the controller has been shutdown gracefully", nil)
 }
 
-func startMetrics() {
-	metrics.RegisterControllerMetrics()
-
+func startMetrics(tlsInfo credential.TLSInfo) error {
+	metrics.RegisterTriggerMetrics()
+	listen, err := net.Listen("tcp", fmt.Sprintf(":2112"))
+	if err != nil {
+		return err
+	}
+	metricServer := &http.Server{}
+	if !tlsInfo.Empty() {
+		tlsCfg, err := tlsInfo.ServerConfig()
+		if err != nil {
+			return err
+		}
+		metricServer.TLSConfig = tlsCfg
+	}
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(":2112", nil)
+	go metricServer.Serve(listen)
+	return nil
+}
+
+func newGrpcServer(tlsInfo credential.TLSInfo, opt ...grpc.ServerOption) (*grpc.Server, error) {
+	var opts []grpc.ServerOption
+	if !tlsInfo.Empty() {
+		tlsCfg, err := tlsInfo.ServerConfig()
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, grpc.Creds(credentials.NewTLS(tlsCfg)))
+	}
+	grpcServer := grpc.NewServer(append(opts, opt...)...)
+	return grpcServer, nil
 }

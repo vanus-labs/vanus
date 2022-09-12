@@ -16,15 +16,15 @@ package controller
 
 import (
 	"context"
-	"github.com/linkall-labs/vanus/observability/log"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"io"
 
+	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 

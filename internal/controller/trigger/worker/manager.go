@@ -25,6 +25,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
+	"github.com/linkall-labs/vanus/internal/primitive/credential"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/pkg/util"
@@ -65,6 +66,8 @@ type Config struct {
 
 	StartWorkerDuration       time.Duration
 	StartSubscriptionDuration time.Duration
+
+	WorkerClientTLS credential.TLSInfo
 }
 
 func (c *Config) init() {
@@ -130,7 +133,7 @@ func (m *manager) AddTriggerWorker(ctx context.Context, addr string) error {
 	defer m.lock.Unlock()
 	tWorker, exist := m.triggerWorkers[addr]
 	if !exist {
-		tWorker = NewTriggerWorkerByAddr(addr, m.subscriptionManager)
+		tWorker = NewTLSTriggerWorker(addr, m.config.WorkerClientTLS, m.subscriptionManager)
 		if err := tWorker.Start(ctx); err != nil {
 			return err
 		}
@@ -302,7 +305,7 @@ func (m *manager) Init(ctx context.Context) error {
 	log.Info(ctx, "trigger worker size", map[string]interface{}{"size": len(tWorkerInfos)})
 	for i := range tWorkerInfos {
 		twInfo := tWorkerInfos[i]
-		tWorker := newTriggerWorker(twInfo, m.subscriptionManager)
+		tWorker := newTriggerWorker(twInfo, m.config.WorkerClientTLS, m.subscriptionManager)
 		if err = tWorker.Start(ctx); err != nil {
 			return err
 		}

@@ -102,6 +102,7 @@ func TestServerInitAndClose(t *testing.T) {
 		s := NewTriggerServer(Config{}).(*server)
 		s.worker = w
 		Convey("test init", func() {
+			w.EXPECT().Init(gomock.Any()).Return(nil)
 			w.EXPECT().Register(gomock.Any()).Return(nil)
 			err := s.Initialize(ctx)
 			So(err, ShouldBeNil)

@@ -449,6 +449,9 @@ issues:
     - path: "errors\\.go"
       linters:
         - lll
+    - path: "tls\\.go"
+      linters:
+        - gosec
     - path: "_test\\.go"
       linters:
         - lll

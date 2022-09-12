@@ -21,6 +21,8 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc/credentials"
+
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
@@ -36,6 +38,7 @@ import (
 )
 
 type Worker interface {
+	Init(ctx context.Context) error
 	Register(ctx context.Context) error
 	Unregister(ctx context.Context) error
 	Start(ctx context.Context) error
@@ -73,7 +76,6 @@ func NewWorker(config Config) Worker {
 
 	m := &worker{
 		config:     config,
-		client:     controller.NewTriggerClient(config.ControllerAddr, insecure.NewCredentials()),
 		triggerMap: make(map[vanus.ID]trigger.Trigger),
 		newTrigger: trigger.NewTrigger,
 	}
@@ -98,6 +100,21 @@ func (w *worker) deleteTrigger(id vanus.ID) {
 	w.tgLock.Lock()
 	defer w.tgLock.Unlock()
 	delete(w.triggerMap, id)
+}
+
+func (w *worker) Init(ctx context.Context) error {
+	var cred credentials.TransportCredentials
+	if !w.config.TLS.Empty() {
+		tlsCfg, err := w.config.TLS.ClientConfig()
+		if err != nil {
+			return err
+		}
+		cred = credentials.NewTLS(tlsCfg)
+	} else {
+		cred = insecure.NewCredentials()
+	}
+	w.client = controller.NewTriggerClient(w.config.ControllerAddr, cred)
+	return nil
 }
 
 func (w *worker) Register(ctx context.Context) error {

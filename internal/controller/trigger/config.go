@@ -16,11 +16,13 @@ package trigger
 
 import (
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/credential"
 )
 
 type Config struct {
 	// etcd storage config
 	Storage primitive.KvStorageConfig
+	TLS     credential.TLSInfo
 
 	SecretEncryptionSalt string
 }

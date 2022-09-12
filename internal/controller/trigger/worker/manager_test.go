@@ -20,6 +20,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/linkall-labs/vanus/internal/primitive/credential"
+
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
@@ -71,7 +73,7 @@ func TestInit(t *testing.T) {
 			sub,
 		})
 		tWorker := NewMockTriggerWorker(ctrl)
-		gostub.Stub(&newTriggerWorker, func(_ *metadata.TriggerWorkerInfo, _ subscription.Manager) TriggerWorker {
+		gostub.Stub(&newTriggerWorker, func(_ *metadata.TriggerWorkerInfo, _ credential.TLSInfo, _ subscription.Manager) TriggerWorker {
 			return tWorker
 		})
 		tWorker.EXPECT().Start(gomock.Any()).Return(nil)

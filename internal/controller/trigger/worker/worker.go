@@ -25,12 +25,14 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/credential"
 	"github.com/linkall-labs/vanus/internal/primitive/queue"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/proto/pkg/trigger"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -59,6 +61,7 @@ type triggerWorker struct {
 	info                  *metadata.TriggerWorkerInfo
 	cc                    *grpc.ClientConn
 	client                trigger.TriggerWorkerClient
+	clientTLS             credential.TLSInfo
 	lock                  sync.RWMutex
 	assignSubscriptionIDs sync.Map
 	pendingTime           time.Time
@@ -72,13 +75,23 @@ type triggerWorker struct {
 var newTriggerWorker = NewTriggerWorker
 
 func NewTriggerWorkerByAddr(addr string, subscriptionManager subscription.Manager) TriggerWorker {
-	tw := NewTriggerWorker(metadata.NewTriggerWorkerInfo(addr), subscriptionManager)
+	tw := NewTriggerWorker(metadata.NewTriggerWorkerInfo(addr), credential.TLSInfo{}, subscriptionManager)
 	return tw
 }
 
-func NewTriggerWorker(twInfo *metadata.TriggerWorkerInfo, subscriptionManager subscription.Manager) TriggerWorker {
+func NewTLSTriggerWorker(addr string,
+	tlsInfo credential.TLSInfo,
+	subscriptionManager subscription.Manager) TriggerWorker {
+	tw := NewTriggerWorker(metadata.NewTriggerWorkerInfo(addr), tlsInfo, subscriptionManager)
+	return tw
+}
+
+func NewTriggerWorker(twInfo *metadata.TriggerWorkerInfo,
+	tlsInfo credential.TLSInfo,
+	subscriptionManager subscription.Manager) TriggerWorker {
 	tw := &triggerWorker{
 		info:                twInfo,
+		clientTLS:           tlsInfo,
 		subscriptionManager: subscriptionManager,
 		subscriptionQueue:   queue.New(),
 		pendingTime:         time.Now(),
@@ -289,13 +302,17 @@ func (tw *triggerWorker) GetHeartbeatTime() time.Time {
 	return tw.heartbeatTime
 }
 
-func (tw *triggerWorker) init(ctx context.Context) error {
-	if tw.cc != nil {
-		return nil
-	}
-	var err error
+func (tw *triggerWorker) init(ctx context.Context) (err error) {
 	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if !tw.clientTLS.Empty() {
+		tlsCfg, err := tw.clientTLS.ClientConfig()
+		if err != nil {
+			return err
+		}
+		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg)))
+	} else {
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	}
 	tw.cc, err = grpc.DialContext(ctx, tw.info.Addr, opts...)
 	if err != nil {
 		return errors.ErrTriggerWorker.WithMessage("grpc dial error").Wrap(err)

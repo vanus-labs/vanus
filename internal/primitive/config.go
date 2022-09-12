@@ -18,12 +18,22 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/linkall-labs/vanus/internal/primitive/credential"
+
 	"gopkg.in/yaml.v3"
 )
 
 type KvStorageConfig struct {
-	KeyPrefix  string   `yaml:"key_prefix" json:"keyPrefix"`
-	ServerList []string `yaml:"server_list" json:"serverList"`
+	KeyPrefix  string   `yaml:"key_prefix" json:"key_prefix"`
+	ServerList []string `yaml:"server_list" json:"server_list"`
+}
+
+type TLSConfig struct {
+	CertFile       string `yaml:"cert_file" json:"cert_file"`
+	KeyFile        string `yaml:"key_file" json:"key_file"`
+	ClientCertFile string `yaml:"client_cert_file" json:"client_cert_file"`
+	ClientKeyFile  string `yaml:"client_key_file" json:"client_key_file"`
+	TrustedCAFile  string `yaml:"trusted_ca_file" json:"trusted_ca_file"`
 }
 
 func LoadConfig(filename string, config interface{}) error {
@@ -37,4 +47,15 @@ func LoadConfig(filename string, config interface{}) error {
 		return err
 	}
 	return nil
+}
+
+func ConvertTLSInfo(cfg TLSConfig) credential.TLSInfo {
+	tlsInfo := credential.TLSInfo{
+		CertFile:       cfg.CertFile,
+		KeyFile:        cfg.KeyFile,
+		ClientCertFile: cfg.ClientKeyFile,
+		ClientKeyFile:  cfg.ClientKeyFile,
+		TrustedCAFile:  cfg.TrustedCAFile,
+	}
+	return tlsInfo
 }

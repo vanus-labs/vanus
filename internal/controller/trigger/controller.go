@@ -383,8 +383,12 @@ func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, ad
 
 func (ctrl *controller) init(ctx context.Context) error {
 	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage, ctrl.secretStorage)
-	ctrl.workerManager = worker.NewTriggerWorkerManager(worker.Config{}, ctrl.storage,
-		ctrl.subscriptionManager, ctrl.requeueSubscription)
+	ctrl.workerManager = worker.NewTriggerWorkerManager(worker.Config{
+		WorkerClientTLS: ctrl.config.TLS,
+	},
+		ctrl.storage,
+		ctrl.subscriptionManager,
+		ctrl.requeueSubscription)
 	ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
 	err := ctrl.subscriptionManager.Init(ctx)
 	if err != nil {

@@ -22,17 +22,17 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"sync"
-
-	"github.com/linkall-labs/vanus/observability/metrics"
 
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/credential"
 	"github.com/linkall-labs/vanus/internal/trigger"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 var (
@@ -49,24 +49,71 @@ func main() {
 		})
 		os.Exit(-1)
 	}
-	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
+	ctx := signal.SetupSignalContext()
+	err = startMetrics(cfg.TLS)
 	if err != nil {
-		log.Error(context.Background(), "failed to listen", map[string]interface{}{
+		log.Error(context.Background(), "start metric server fail", map[string]interface{}{
 			log.KeyError: err,
 		})
 		os.Exit(-1)
 	}
-	ctx := signal.SetupSignalContext()
-	metrics.RegisterTriggerMetrics()
-	go startMetrics()
-	var opts []grpc.ServerOption
-	grpcServer := grpc.NewServer(opts...)
 	srv := trigger.NewTriggerServer(*cfg)
+	grpcServer, err := startGrpcServer(ctx, cfg.TLS, cfg.Port, srv)
+	if err != nil {
+		log.Error(context.Background(), "start grpc server fail", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+	init := srv.(primitive.Initializer)
+	if err = init.Initialize(ctx); err != nil {
+		log.Error(ctx, "the trigger worker has initialized failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+	<-ctx.Done()
+	closer := srv.(primitive.Closer)
+	closer.Close(ctx)
+	grpcServer.GracefulStop()
+	log.Info(ctx, "trigger worker stopped", nil)
+}
+
+func startMetrics(tlsInfo credential.TLSInfo) error {
+	metrics.RegisterTriggerMetrics()
+	listen, err := net.Listen("tcp", fmt.Sprintf(":2112"))
+	if err != nil {
+		return err
+	}
+	metricServer := &http.Server{}
+	if !tlsInfo.Empty() {
+		tlsCfg, err := tlsInfo.ServerConfig()
+		if err != nil {
+			return err
+		}
+		metricServer.TLSConfig = tlsCfg
+	}
+	http.Handle("/metrics", promhttp.Handler())
+	go metricServer.Serve(listen)
+	return nil
+}
+
+func startGrpcServer(ctx context.Context, tlsInfo credential.TLSInfo, port int, srv pbtrigger.TriggerWorkerServer) (*grpc.Server, error) {
+	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return nil, err
+	}
+	var opts []grpc.ServerOption
+	if !tlsInfo.Empty() {
+		tlsCfg, err := tlsInfo.ServerConfig()
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, grpc.Creds(credentials.NewTLS(tlsCfg)))
+	}
+	grpcServer := grpc.NewServer(opts...)
 	pbtrigger.RegisterTriggerWorkerServer(grpcServer, srv)
-	var wg sync.WaitGroup
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
 		log.Info(ctx, "the grpc server ready to work", nil)
 		err = grpcServer.Serve(listen)
 		if err != nil {
@@ -75,22 +122,5 @@ func main() {
 			})
 		}
 	}()
-	init := srv.(primitive.Initializer)
-	if err = init.Initialize(ctx); err != nil {
-		log.Error(ctx, "the trigger worker has initialized failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(1)
-	}
-	<-ctx.Done()
-	closer := srv.(primitive.Closer)
-	closer.Close(ctx)
-	grpcServer.GracefulStop()
-	wg.Wait()
-	log.Info(ctx, "trigger worker stopped", nil)
-}
-
-func startMetrics() {
-	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(":2112", nil)
+	return grpcServer, nil
 }

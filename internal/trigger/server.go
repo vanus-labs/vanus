@@ -155,7 +155,11 @@ func (s *server) ResetOffsetToTimestamp(ctx context.Context,
 }
 
 func (s *server) Initialize(ctx context.Context) error {
-	err := s.worker.Register(ctx)
+	err := s.worker.Init(ctx)
+	if err != nil {
+		return err
+	}
+	err = s.worker.Register(ctx)
 	if err != nil {
 		log.Error(ctx, "register trigger worker error", map[string]interface{}{
 			"tcAddr":     s.config.ControllerAddr,

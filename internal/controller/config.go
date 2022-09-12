@@ -21,21 +21,24 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
 	"github.com/linkall-labs/vanus/internal/controller/trigger"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/credential"
 )
 
 type Config struct {
-	Name                 string            `yaml:"name"`
-	IP                   string            `yaml:"ip"`
-	Port                 int               `yaml:"port"`
-	GRPCReflectionEnable bool              `yaml:"grpc_reflection_enable"`
-	EtcdEndpoints        []string          `yaml:"etcd"`
-	DataDir              string            `yaml:"data_dir"`
-	MetadataConfig       MetadataConfig    `yaml:"metadata"`
-	EtcdConfig           embedetcd.Config  `yaml:"embed_etcd"`
-	Topology             map[string]string `yaml:"topology"`
-	Replicas             uint              `yaml:"replicas"`
-	SecretEncryptionSalt string            `yaml:"secret_encryption_salt"`
-	SegmentCapacity      int64             `yaml:"segment_capacity"`
+	Name                 string              `yaml:"name"`
+	IP                   string              `yaml:"ip"`
+	Port                 int                 `yaml:"port"`
+	GRPCReflectionEnable bool                `yaml:"grpc_reflection_enable"`
+	EtcdEndpoints        []string            `yaml:"etcd"`
+	DataDir              string              `yaml:"data_dir"`
+	MetadataConfig       MetadataConfig      `yaml:"metadata"`
+	EtcdConfig           embedetcd.Config    `yaml:"embed_etcd"`
+	Topology             map[string]string   `yaml:"topology"`
+	Replicas             uint                `yaml:"replicas"`
+	SecretEncryptionSalt string              `yaml:"secret_encryption_salt"`
+	SegmentCapacity      int64               `yaml:"segment_capacity"`
+	SecurityCfg          primitive.TLSConfig `yaml:"tls"`
+	TLS                  credential.TLSInfo
 }
 
 func (c *Config) GetEtcdConfig() embedetcd.Config {
@@ -67,6 +70,7 @@ func (c *Config) GetTriggerConfig() trigger.Config {
 			ServerList: c.EtcdEndpoints,
 		},
 		SecretEncryptionSalt: c.SecretEncryptionSalt,
+		TLS:                  c.TLS,
 	}
 }
 
@@ -74,6 +78,10 @@ func InitConfig(filename string) (*Config, error) {
 	c := new(Config)
 	err := primitive.LoadConfig(filename, c)
 	if err != nil {
+		return nil, err
+	}
+	c.TLS = primitive.ConvertTLSInfo(c.SecurityCfg)
+	if err = c.TLS.Validate(); err != nil {
 		return nil, err
 	}
 	return c, nil
