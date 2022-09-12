@@ -15,12 +15,16 @@
 package main
 
 import (
+	// standard libraries.
 	"context"
 	"fmt"
 	"io"
 	"log"
 
+	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
+
+	// this project.
 	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/discovery"
 	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
@@ -53,8 +57,8 @@ func init() {
 	ns.Register(vrn, br)
 }
 
-func doAppend() {
-	w, err := eb.OpenBusWriter(ebVRN)
+func doAppend(ctx context.Context) {
+	w, err := eb.OpenBusWriter(ctx, ebVRN)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -67,33 +71,33 @@ func doAppend() {
 		event.SetType("example.type")
 		event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world"})
 
-		_, err = w.Append(context.Background(), &event)
+		_, err = w.Append(ctx, &event)
 		if err != nil {
 			log.Print(err)
 		}
 	}
 
-	w.Close()
+	w.Close(ctx)
 }
 
-func doRead() {
-	ls, err := eb.LookupReadableLogs(context.Background(), ebVRN)
+func doRead(ctx context.Context) {
+	ls, err := eb.LookupReadableLogs(ctx, ebVRN)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	r, err := eb.OpenLogReader(ls[0].VRN, eb.DisablePolling())
+	r, err := eb.OpenLogReader(ctx, ls[0].VRN, eb.DisablePolling())
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	_, err = r.Seek(context.Background(), 3, io.SeekCurrent)
+	_, err = r.Seek(ctx, 3, io.SeekCurrent)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	for {
-		events, err := r.Read(context.Background(), 5)
+		events, err := r.Read(ctx, 5)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -107,10 +111,11 @@ func doRead() {
 		}
 	}
 
-	r.Close()
+	r.Close(ctx)
 }
 
 func main() {
-	doAppend()
-	doRead()
+	ctx := context.Background()
+	doAppend(ctx)
+	doRead(ctx)
 }
