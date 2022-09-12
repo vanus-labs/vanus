@@ -21,8 +21,6 @@ import (
 	"sync"
 	"time"
 
-	"google.golang.org/grpc/credentials"
-
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
@@ -34,6 +32,8 @@ import (
 	"github.com/linkall-labs/vanus/pkg/controller"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
+
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 

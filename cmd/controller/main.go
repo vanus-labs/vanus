@@ -23,8 +23,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/linkall-labs/vanus/pkg/util/signal"
-
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
@@ -34,6 +32,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/interceptor/memberinterceptor"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
+	"github.com/linkall-labs/vanus/pkg/util/signal"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
