@@ -25,12 +25,11 @@ import (
 
 type Config struct {
 	TriggerAddr    string
-	Port           int                 `yaml:"port"`
-	IP             string              `yaml:"ip"`
-	ControllerAddr []string            `yaml:"controllers"`
-	SecurityCfg    primitive.TLSConfig `yaml:"security_cfg"`
+	Port           int                `yaml:"port"`
+	IP             string             `yaml:"ip"`
+	ControllerAddr []string           `yaml:"controllers"`
+	TLSInfo        credential.TLSInfo `yaml:"tls"`
 
-	TLSInfo           credential.TLSInfo
 	HeartbeatInterval time.Duration
 }
 
@@ -44,7 +43,6 @@ func InitConfig(filename string) (*Config, error) {
 		c.IP = util.GetLocalIP()
 	}
 	c.TriggerAddr = fmt.Sprintf("%s:%d", c.IP, c.Port)
-	c.TLSInfo = primitive.ConvertTLSInfo(c.SecurityCfg)
 	if err = c.TLSInfo.Validate(); err != nil {
 		return nil, err
 	}

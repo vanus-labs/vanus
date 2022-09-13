@@ -23,16 +23,16 @@ import (
 
 type TLSInfo struct {
 	// CertFile is the _server_ cert, it will also be used as a _client_ certificate if ClientCertFile is empty
-	CertFile string
+	CertFile string `yaml:"cert_file" json:"cert_file"`
 	// KeyFile is the key for the CertFile
-	KeyFile string
+	KeyFile string `yaml:"key_file" json:"key_file"`
 	// ClientCertFile is a _client_ cert for initiating connections when ClientCertAuth is defined. If ClientCertAuth
 	// is true but this value is empty, the CertFile will be used instead.
-	ClientCertFile string
+	ClientCertFile string `yaml:"client_cert_file" json:"client_cert_file"`
 	// ClientKeyFile is the key for the ClientCertFile
-	ClientKeyFile string
+	ClientKeyFile string `yaml:"client_key_file" json:"client_key_file"`
 
-	TrustedCAFile string
+	TrustedCAFile string `yaml:"trusted_ca_file" json:"trusted_ca_file"`
 }
 
 func (info TLSInfo) Empty() bool {
