@@ -1,22 +1,15 @@
-FROM golang:1.17 as builder
+FROM --platform=$BUILDPLATFORM golang:1.18 as builder
 WORKDIR /workspace
 
-COPY go.mod go.mod
-COPY go.sum go.sum
-COPY Makefile Makefile
-COPY cmd/timer cmd/timer
-COPY internal internal
-COPY observability observability
-COPY proto proto
-COPY client client
+COPY . .
+RUN go mod download
 
 ARG TARGETOS
 ARG TARGETARCH
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-timer
 
-FROM centos:8.4.2105
-RUN mkdir -p /vanus
-COPY --from=builder /workspace/bin/timer /vanus/bin/timer
+FROM alpine:3.15.4
 WORKDIR /vanus
+COPY --from=builder /workspace/bin/timer bin/timer
 ENTRYPOINT ["bin/timer"]
 
