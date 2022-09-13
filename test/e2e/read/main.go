@@ -15,19 +15,23 @@
 package main
 
 import (
+	// standard libraries.
 	"context"
 	"fmt"
+
+	// first-party libraris.
 	"github.com/linkall-labs/vanus/client"
 )
 
 func main() {
+	ctx := context.Background()
 	vrn := fmt.Sprintf("vanus://%s/eventlog/%s?namespace=vanus", "127.0.0.1:2048", "df5aff09-9242-4b47-b9df-cf07c5868e3a")
-	r, err := client.OpenLogReader(vrn)
+	r, err := client.OpenLogReader(ctx, vrn)
 	if err != nil {
 		panic(err)
 	}
-	_, _ = r.Seek(context.Background(), 20, 0)
-	es, er := r.Read(context.Background(), 100)
+	_, _ = r.Seek(ctx, 20, 0)
+	es, er := r.Read(ctx, 100)
 	if err != nil {
 		panic(er)
 	}

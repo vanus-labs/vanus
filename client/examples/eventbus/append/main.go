@@ -15,15 +15,21 @@
 package main
 
 import (
+	// standard libraries.
 	"context"
 	"log"
 
+	// third-party project.
 	ce "github.com/cloudevents/sdk-go/v2"
+
+	// this project.
 	eb "github.com/linkall-labs/vanus/client"
 )
 
 func main() {
-	w, err := eb.OpenBusWriter("vanus://localhost:2048/eventbus/wwf123")
+	ctx := context.Background()
+
+	w, err := eb.OpenBusWriter(ctx, "vanus://localhost:2048/eventbus/wwf123")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -35,12 +41,12 @@ func main() {
 	event.SetType("example.type")
 	event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world"})
 
-	eventID, err := w.Append(context.Background(), &event)
+	eventID, err := w.Append(ctx, &event)
 	if err != nil {
 		log.Print(err.Error())
 	} else {
 		log.Printf("success! eventID:%s\n", eventID)
 	}
 
-	w.Close()
+	w.Close(ctx)
 }

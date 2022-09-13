@@ -15,33 +15,36 @@
 package main
 
 import (
+	// standard libraries.
 	"context"
 	"io"
 	"log"
 
+	// this project.
 	eb "github.com/linkall-labs/vanus/client"
 )
 
 func main() {
-	ls, err := eb.LookupReadableLogs(context.Background(),
-		"vanus:///eventbus/test?controllers=localhost:2048")
+	ctx := context.Background()
+
+	ls, err := eb.LookupReadableLogs(ctx, "vanus:///eventbus/test?controllers=localhost:2048")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	r, err := eb.OpenLogReader(ls[0].VRN)
+	r, err := eb.OpenLogReader(ctx, ls[0].VRN)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	_, err = r.Seek(context.Background(), 0, io.SeekStart)
+	_, err = r.Seek(ctx, 0, io.SeekStart)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	idx := 0
 	for {
-		events, err := r.Read(context.Background(), 5)
+		events, err := r.Read(ctx, 5)
 		if err != nil {
 			log.Printf("%s", err)
 			continue
@@ -58,5 +61,5 @@ func main() {
 		}
 	}
 
-	r.Close()
+	r.Close(ctx)
 }

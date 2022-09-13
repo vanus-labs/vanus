@@ -77,7 +77,7 @@ func (l *EventLog) VRN() *discovery.VRN {
 	return &l.cfg.VRN
 }
 
-func (l *EventLog) Close() {
+func (l *EventLog) Close(ctx context.Context) {
 }
 
 func (l *EventLog) Writer() (eventlog.LogWriter, error) {
@@ -110,8 +110,8 @@ func (w *logWriter) Log() eventlog.EventLog {
 	return w.elog
 }
 
-func (w *logWriter) Close() {
-	eventlog.Put(w.elog)
+func (w *logWriter) Close(ctx context.Context) {
+	eventlog.Put(ctx, w.elog)
 }
 
 func (w *logWriter) Append(ctx context.Context, event *ce.Event) (int64, error) {
@@ -135,8 +135,8 @@ func (r *logReader) Log() eventlog.EventLog {
 	return r.elog
 }
 
-func (r *logReader) Close() {
-	eventlog.Put(r.elog)
+func (r *logReader) Close(ctx context.Context) {
+	eventlog.Put(ctx, r.elog)
 }
 
 func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
