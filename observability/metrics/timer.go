@@ -39,4 +39,39 @@ var (
 		Name:      "timingwheel_layers",
 		Help:      "The layers of timingwheel.",
 	})
+
+	TimerPushEventTPSCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfTimer,
+		Name:      "push_scheduled_event_count",
+		Help:      "Total scheduled events for push",
+	}, []string{LabelTimer})
+
+	TimerDeliverEventTPSCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfTimer,
+		Name:      "deliver_scheduled_event_count",
+		Help:      "Total scheduled events for deliver",
+	}, []string{LabelTimer})
+
+	TimerScheduledEventDelayTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfTriggerWorker,
+		Name:      "scheduled_event_delay_time",
+		Help:      "The time of scheduled event delay deliver",
+	}, []string{LabelScheduledEventDelayTime})
+
+	TimerPushEventTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfTriggerWorker,
+		Name:      "push_scheduled_event_time",
+		Help:      "The time of timer push scheduled event",
+	}, []string{LabelTimerPushScheduledEventTime})
+
+	TimerDeliverEventTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfTriggerWorker,
+		Name:      "deliver_scheduled_event_time",
+		Help:      "The time of timer deliver scheduled event",
+	}, []string{LabelTimerDeliverScheduledEventTime})
 )

@@ -24,6 +24,8 @@ const (
 	LabelTrigger       = "trigger"
 	LabelResult        = "result"
 	LabelBlock         = "block"
+
+	LabelTimer = "timer"
 )
 
 const (
@@ -34,4 +36,10 @@ const (
 	LabelSegmentDeletedBecauseExpired      = "segment_expired"
 	LabelSegmentDeletedBecauseCreateFailed = "segment_create_failed"
 	LabelSegmentDeletedBecauseDeleted      = "segment_deleted"
+)
+
+const (
+	LabelScheduledEventDelayTime        = "scheduled_event_delay_time"
+	LabelTimerPushScheduledEventTime    = "push_scheduled_event_time"
+	LabelTimerDeliverScheduledEventTime = "deliver_scheduled_event_time"
 )

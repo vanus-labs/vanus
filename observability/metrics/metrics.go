@@ -50,6 +50,11 @@ func RegisterTimerMetrics() {
 	prometheus.MustRegister(TimingWheelTickGauge)
 	prometheus.MustRegister(TimingWheelSizeGauge)
 	prometheus.MustRegister(TimingWheelLayersGauge)
+	prometheus.MustRegister(TimerPushEventTPSCounterVec)
+	prometheus.MustRegister(TimerDeliverEventTPSCounterVec)
+	prometheus.MustRegister(TimerScheduledEventDelayTime)
+	prometheus.MustRegister(TimerPushEventTime)
+	prometheus.MustRegister(TimerDeliverEventTime)
 }
 
 func RegisterSegmentServerMetrics() {
