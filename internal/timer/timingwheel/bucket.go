@@ -325,7 +325,7 @@ func (b *bucket) connectEventbus(ctx context.Context) error {
 		return err
 	}
 	// new eventlog reader
-	b.eventlogReader, err = openLogReader(ctx, ls[defaultIndexOfEventlogReader].VRN, eventlog.DisablePolling())
+	b.eventlogReader, err = openLogReader(ctx, ls[defaultIndexOfEventlogReader].VRN)
 	if err != nil {
 		log.Error(ctx, "open log reader failed", map[string]interface{}{
 			log.KeyError: err,
