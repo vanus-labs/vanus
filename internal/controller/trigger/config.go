@@ -22,7 +22,7 @@ import (
 type Config struct {
 	// etcd storage config
 	Storage primitive.KvStorageConfig
-	TLS     credential.TLSInfo
+	TLSInfo credential.TLSInfo
 
 	SecretEncryptionSalt string
 }

@@ -37,8 +37,8 @@ type Config struct {
 	Replicas             uint                `yaml:"replicas"`
 	SecretEncryptionSalt string              `yaml:"secret_encryption_salt"`
 	SegmentCapacity      int64               `yaml:"segment_capacity"`
-	SecurityCfg          primitive.TLSConfig `yaml:"tls"`
-	TLS                  credential.TLSInfo
+	SecurityCfg          primitive.TLSConfig `yaml:"security_cfg"`
+	TLSInfo              credential.TLSInfo
 }
 
 func (c *Config) GetEtcdConfig() embedetcd.Config {
@@ -70,7 +70,7 @@ func (c *Config) GetTriggerConfig() trigger.Config {
 			ServerList: c.EtcdEndpoints,
 		},
 		SecretEncryptionSalt: c.SecretEncryptionSalt,
-		TLS:                  c.TLS,
+		TLSInfo:              c.TLSInfo,
 	}
 }
 
@@ -80,8 +80,8 @@ func InitConfig(filename string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.TLS = primitive.ConvertTLSInfo(c.SecurityCfg)
-	if err = c.TLS.Validate(); err != nil {
+	c.TLSInfo = primitive.ConvertTLSInfo(c.SecurityCfg)
+	if err = c.TLSInfo.Validate(); err != nil {
 		return nil, err
 	}
 	return c, nil

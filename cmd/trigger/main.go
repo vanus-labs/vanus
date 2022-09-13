@@ -18,10 +18,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/linkall-labs/vanus/pkg/util/signal"
 	"net"
 	"net/http"
 	"os"
+
+	"github.com/linkall-labs/vanus/pkg/util/signal"
 
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/credential"
@@ -50,7 +51,7 @@ func main() {
 		os.Exit(-1)
 	}
 	ctx := signal.SetupSignalContext()
-	err = startMetrics(cfg.TLS)
+	err = startMetrics(cfg.TLSInfo)
 	if err != nil {
 		log.Error(context.Background(), "start metric server fail", map[string]interface{}{
 			log.KeyError: err,
@@ -58,7 +59,7 @@ func main() {
 		os.Exit(-1)
 	}
 	srv := trigger.NewTriggerServer(*cfg)
-	grpcServer, err := startGrpcServer(ctx, cfg.TLS, cfg.Port, srv)
+	grpcServer, err := startGrpcServer(ctx, cfg.TLSInfo, cfg.Port, srv)
 	if err != nil {
 		log.Error(context.Background(), "start grpc server fail", map[string]interface{}{
 			log.KeyError: err,

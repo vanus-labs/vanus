@@ -104,8 +104,8 @@ func (w *worker) deleteTrigger(id vanus.ID) {
 
 func (w *worker) Init(ctx context.Context) error {
 	var cred credentials.TransportCredentials
-	if !w.config.TLS.Empty() {
-		tlsCfg, err := w.config.TLS.ClientConfig()
+	if !w.config.TLSInfo.Empty() {
+		tlsCfg, err := w.config.TLSInfo.ClientConfig()
 		if err != nil {
 			return err
 		}

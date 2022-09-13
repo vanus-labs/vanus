@@ -66,7 +66,7 @@ func main() {
 	}
 
 	ctx := signal.SetupSignalContext()
-	err = startMetrics(cfg.TLS)
+	err = startMetrics(cfg.TLSInfo)
 	if err != nil {
 		log.Error(context.Background(), "start metric server fail", map[string]interface{}{
 			log.KeyError: err,
@@ -107,7 +107,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	grpcServer, err := newGrpcServer(cfg.TLS,
+	grpcServer, err := newGrpcServer(cfg.TLSInfo,
 		grpc.ChainStreamInterceptor(
 			recovery.StreamServerInterceptor(),
 			errinterceptor.StreamServerInterceptor(),
