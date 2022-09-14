@@ -116,7 +116,7 @@ func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 	event.SetType(eventType)
 	if eventDeliveryTime != "" {
 		// validate event delivery time
-		if _, err := time.Parse(time.RFC3339, eventDeliveryTime); err != nil {
+		if _, err := time.Parse(time.RFC3339Nano, eventDeliveryTime); err != nil {
 			cmdFailedf(cmd, "invalid format of delivery-time: %s\n", err)
 		}
 		event.SetExtension(xceVanusDeliveryTime, eventDeliveryTime)
@@ -126,8 +126,8 @@ func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 		if err != nil {
 			cmdFailedf(cmd, "invalid format of delay-time: %s\n", err)
 		}
-		timeOfRFC3339 := time.Now().Add(time.Duration(timeOfInt64) * time.Second).UTC().Format(time.RFC3339)
-		event.SetExtension(xceVanusDeliveryTime, timeOfRFC3339)
+		timeOfRFC3339Nano := time.Now().Add(time.Duration(timeOfInt64) * time.Second).Format(time.RFC3339Nano)
+		event.SetExtension(xceVanusDeliveryTime, timeOfRFC3339Nano)
 	}
 	var err error
 	if strings.ToLower(dataFormat) == "json" {
