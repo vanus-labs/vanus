@@ -321,6 +321,9 @@ func (m *manager) Init(ctx context.Context) error {
 }
 
 func (m *manager) Stop() {
+	if m == nil {
+		return
+	}
 	m.stop()
 	m.lock.RLock()
 	defer m.lock.RUnlock()

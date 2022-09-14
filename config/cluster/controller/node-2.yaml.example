@@ -9,10 +9,10 @@ topology:
   test-1: 127.0.0.1:2048
   test-2: 127.0.0.1:3048
   test-3: 127.0.0.1:4048
-data_dir: "/Users/wenfeng/tmp/data/vanus/cluster"
+data_dir: "/tmp/vanus/data2/cluster"
 replicas: 1
 metadata:
-  key_prefix: "/wenfeng"
+  key_prefix: "/vanus"
 embed_etcd:
   # relative path to ${data_dir} above
   data_dir: "etcd/node2"

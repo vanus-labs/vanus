@@ -50,6 +50,10 @@ var (
 	ErrSubscriptionNotExist = fmt.Errorf("subscription not exist")
 )
 
+const (
+	defaultCommitInterval = time.Second
+)
+
 type manager struct {
 	secretStorage   secret.Storage
 	storage         storage.Storage
@@ -63,6 +67,7 @@ func NewSubscriptionManager(storage storage.Storage, secretStorage secret.Storag
 		storage:         storage,
 		secretStorage:   secretStorage,
 		subscriptionMap: map[vanus.ID]*metadata.Subscription{},
+		offsetManager:   offset.NewOffsetManager(storage, defaultCommitInterval),
 	}
 	return m
 }
@@ -193,15 +198,11 @@ func (m *manager) Heartbeat(ctx context.Context, id vanus.ID, addr string, time 
 }
 
 func (m *manager) Stop() {
-	if m.offsetManager == nil {
+	if m == nil {
 		return
 	}
 	m.offsetManager.Stop()
 }
-
-const (
-	defaultCommitInterval = time.Second
-)
 
 func (m *manager) Init(ctx context.Context) error {
 	subList, err := m.storage.ListSubscription(ctx)
@@ -229,7 +230,6 @@ func (m *manager) Init(ctx context.Context) error {
 			metrics.CtrlTriggerGauge.WithLabelValues(sub.TriggerWorker).Inc()
 		}
 	}
-	m.offsetManager = offset.NewOffsetManager(m.storage, defaultCommitInterval)
 	return nil
 }
 
