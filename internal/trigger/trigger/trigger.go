@@ -195,7 +195,9 @@ func (t *trigger) sendEvent(ctx context.Context, e *ce.Event) (int, error) {
 	if transformer != nil {
 		// transform will chang event which lost origin event
 		sendEvent = e.Clone()
+		startTime := time.Now()
 		err = transformer.Execute(&sendEvent)
+		metrics.TriggerTransformCostSecond.WithLabelValues(t.subscriptionIDStr).Observe(time.Since(startTime).Seconds())
 		if err != nil {
 			return -1, err
 		}
@@ -206,7 +208,7 @@ func (t *trigger) sendEvent(ctx context.Context, e *ce.Event) (int, error) {
 	startTime := time.Now()
 	r := t.getClient().Send(timeoutCtx, sendEvent)
 	if r == client.Success {
-		metrics.TriggerPushEventRtCounter.WithLabelValues(t.subscriptionIDStr).Observe(time.Since(startTime).Seconds())
+		metrics.TriggerPushEventTime.WithLabelValues(t.subscriptionIDStr).Observe(time.Since(startTime).Seconds())
 	}
 	return r.StatusCode, r.Err
 }
@@ -231,11 +233,15 @@ func (t *trigger) runRetryEventFilter(ctx context.Context) {
 				t.offsetManager.EventCommit(event.OffsetInfo)
 				continue
 			}
-			if res := filter.Run(t.getFilter(), *event.Event); res == filter.FailFilter {
+			startTime := time.Now()
+			res := filter.Run(t.getFilter(), *event.Event)
+			metrics.TriggerFilterCostSecond.WithLabelValues(t.subscriptionIDStr).Observe(time.Since(startTime).Seconds())
+			if res == filter.FailFilter {
 				t.offsetManager.EventCommit(event.OffsetInfo)
 				continue
 			}
 			t.sendCh <- event
+			metrics.TriggerFilterMatchRetryEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
 		}
 	}
 }
@@ -250,12 +256,15 @@ func (t *trigger) runEventFilter(ctx context.Context) {
 				return
 			}
 			t.offsetManager.EventReceive(event.OffsetInfo)
-			if res := filter.Run(t.getFilter(), *event.Event); res == filter.FailFilter {
+			startTime := time.Now()
+			res := filter.Run(t.getFilter(), *event.Event)
+			metrics.TriggerFilterCostSecond.WithLabelValues(t.subscriptionIDStr).Observe(time.Since(startTime).Seconds())
+			if res == filter.FailFilter {
 				t.offsetManager.EventCommit(event.OffsetInfo)
 				continue
 			}
 			t.sendCh <- event
-			metrics.TriggerFilterMatchCounter.WithLabelValues(t.subscriptionIDStr).Inc()
+			metrics.TriggerFilterMatchEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
 		}
 	}
 }
@@ -316,10 +325,12 @@ func (t *trigger) writeFailEvent(ctx context.Context, e *ce.Event, code int, sen
 	if !needRetry {
 		// dead letter
 		t.writeEventToDeadLetter(ctx, e, reason, sendErr.Error())
+		metrics.TriggerDeadLetterEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
 		return
 	}
 	// retry
 	t.writeEventToRetry(ctx, e, attempts)
+	metrics.TriggerRetryEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
 }
 
 func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts int32) {
@@ -331,7 +342,11 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 	ec.Extensions[primitive.XVanusSubscriptionID] = t.subscriptionIDStr
 	ec.Extensions[primitive.XVanusEventbus] = primitive.RetryEventbusName
 	for {
-		if _, err := t.timerEventWriter.Append(ctx, e); err != nil {
+		startTime := time.Now()
+		_, err := t.timerEventWriter.Append(ctx, e)
+		metrics.TriggerRetryEventAppendSecond.WithLabelValues(t.subscriptionIDStr).
+			Observe(time.Since(startTime).Seconds())
+		if err != nil {
 			log.Info(ctx, "write retry event error", map[string]interface{}{
 				log.KeyError:          err,
 				log.KeySubscriptionID: t.subscription.ID,
@@ -356,7 +371,11 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 	ec.Extensions[primitive.LastDeliveryError] = errorMsg
 	ec.Extensions[primitive.DeadLetterReason] = reason
 	for {
-		if _, err := t.dlEventWriter.Append(ctx, e); err != nil {
+		startTime := time.Now()
+		_, err := t.dlEventWriter.Append(ctx, e)
+		metrics.TriggerDeadLetterEventAppendSecond.WithLabelValues(t.subscriptionIDStr).
+			Observe(time.Since(startTime).Seconds())
+		if err != nil {
 			log.Info(ctx, "write dl event error", map[string]interface{}{
 				log.KeyError:          err,
 				log.KeySubscriptionID: t.subscription.ID,

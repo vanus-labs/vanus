@@ -116,6 +116,9 @@ func (m *manager) AddSubscription(ctx context.Context, subscription *metadata.Su
 	}
 	m.subscriptionMap[subscription.ID] = subscription
 	metrics.SubscriptionGauge.WithLabelValues(subscription.EventBus).Inc()
+	if subscription.Transformer.Exist() {
+		metrics.SubscriptionTransformerGauge.WithLabelValues(subscription.EventBus).Inc()
+	}
 	return nil
 }
 
@@ -166,6 +169,9 @@ func (m *manager) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 	}
 	delete(m.subscriptionMap, id)
 	metrics.SubscriptionGauge.WithLabelValues(subscription.EventBus).Dec()
+	if subscription.Transformer.Exist() {
+		metrics.SubscriptionTransformerGauge.WithLabelValues(subscription.EventBus).Dec()
+	}
 	return nil
 }
 
@@ -216,6 +222,9 @@ func (m *manager) Init(ctx context.Context) error {
 		}
 		m.subscriptionMap[sub.ID] = sub
 		metrics.SubscriptionGauge.WithLabelValues(sub.EventBus).Inc()
+		if sub.Transformer.Exist() {
+			metrics.SubscriptionTransformerGauge.WithLabelValues(sub.EventBus).Inc()
+		}
 		if sub.TriggerWorker != "" {
 			metrics.CtrlTriggerGauge.WithLabelValues(sub.TriggerWorker).Inc()
 		}

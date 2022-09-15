@@ -169,13 +169,23 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 			return nil, errors.ErrInvalidRequest.WithMessage("can not change dead letter eventbus")
 		}
 	}
-	change := sub.Update(convert.FromPbSubscriptionRequest(request.Subscription))
+	update := convert.FromPbSubscriptionRequest(request.Subscription)
+	transChange := 0
+	if !sub.Transformer.Exist() && update.Transformer.Exist() {
+		transChange = 1
+	} else if sub.Transformer.Exist() && !update.Transformer.Exist() {
+		transChange = -1
+	}
+	change := sub.Update(update)
 	if !change {
 		return nil, errors.ErrInvalidRequest.WithMessage("no change")
 	}
 	sub.Phase = metadata.SubscriptionPhasePending
 	if err := ctrl.subscriptionManager.UpdateSubscription(ctx, sub); err != nil {
 		return nil, err
+	}
+	if transChange != 0 {
+		metrics.SubscriptionTransformerGauge.WithLabelValues(sub.EventBus).Add(float64(transChange))
 	}
 	ctrl.scheduler.EnqueueNormalSubscription(sub.ID)
 	resp := convert.ToPbSubscription(sub, nil)

@@ -18,7 +18,6 @@ package reader
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -47,8 +46,6 @@ const (
 	readErrSleepTime          = 2 * time.Second
 	readSize                  = 5
 )
-
-var errReadNoEvent = fmt.Errorf("no event")
 
 type Config struct {
 	EventBusName      string
@@ -276,11 +273,9 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 			case context.Canceled:
 				lr.Close(ctx)
 				return
-			case context.DeadlineExceeded:
-			case errReadNoEvent:
-			case eberrors.ErrOnEnd:
+			case eberrors.ErrOnEnd, eberrors.ErrTryAgain:
 			case eberrors.ErrUnderflow:
-			case eberrors.ErrTimeout:
+				// todo reset offset timestamp
 			default:
 				log.Warning(ctx, "read event error", map[string]interface{}{
 					log.KeyEventlogID: elReader.eventLogVrn,
@@ -300,9 +295,6 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventlog.LogRe
 	if err != nil {
 		return err
 	}
-	if len(events) == 0 {
-		return errReadNoEvent
-	}
 	for i := range events {
 		ec, _ := events[i].Context.(*ce.EventContextV1)
 		offsetByte, _ := ec.Extensions[eb.XVanusLogOffset].([]byte)
@@ -317,7 +309,8 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventlog.LogRe
 		}
 		elReader.offset = offset
 	}
-	metrics.TriggerPullEventCounter.WithLabelValues(elReader.config.SubscriptionIDStr, elReader.eventLogIDStr).
+	metrics.TriggerPullEventCounter.WithLabelValues(
+		elReader.config.SubscriptionIDStr, elReader.config.EventBusName, elReader.eventLogIDStr).
 		Add(float64(len(events)))
 	return nil
 }
