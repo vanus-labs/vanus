@@ -283,6 +283,9 @@ func (tw *timingWheel) Push(ctx context.Context, e *ce.Event) bool {
 		"expiration": tm.getExpiration().Format(time.RFC3339Nano),
 	})
 
+	metrics.TimerScheduledEventDelayTime.WithLabelValues(metrics.LabelScheduledEventDelayTime).
+		Observe(time.Until(tm.getExpiration()).Seconds())
+
 	if tm.hasExpired() {
 		// Already expired
 		return tw.getDistributionStation().push(ctx, tm) == nil
@@ -400,7 +403,11 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 						defer wg.Done()
 						waitCtx, cancel := context.WithCancel(ctx)
 						wait.Until(func() {
+							startTime := time.Now()
 							if tw.Push(ctx, e) {
+								metrics.TimerPushEventTime.WithLabelValues(metrics.LabelTimerPushScheduledEventTime).
+									Observe(time.Since(startTime).Seconds())
+								metrics.TimerPushEventTPSCounterVec.WithLabelValues(metrics.LabelTimer).Inc()
 								cancel()
 							} else {
 								log.Warning(ctx, "push event to timingwheel failed, retry until it succeed", map[string]interface{}{
@@ -499,7 +506,11 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 						defer wg.Done()
 						waitCtx, cancel := context.WithCancel(ctx)
 						wait.Until(func() {
+							startTime := time.Now()
 							if err = tw.deliver(ctx, e); err == nil {
+								metrics.TimerDeliverEventTime.WithLabelValues(metrics.LabelTimerDeliverScheduledEventTime).
+									Observe(time.Since(startTime).Seconds())
+								metrics.TimerDeliverEventTPSCounterVec.WithLabelValues(metrics.LabelTimer).Inc()
 								cancel()
 							} else {
 								log.Warning(ctx, "deliver event failed, retry until it succeed", map[string]interface{}{
