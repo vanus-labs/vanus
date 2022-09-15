@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: quick-display
-          image: vancehub/display:1.0.0
+          image: vancehub/sink-display:latest
           imagePullPolicy: IfNotPresent
 ---
 apiVersion: v1
@@ -27,7 +27,7 @@ metadata:
 spec:
   ports:
     - port: 80
-      targetPort: 8080
+      targetPort: 8081
   selector:
     app: quick-display
   type: ClusterIP
