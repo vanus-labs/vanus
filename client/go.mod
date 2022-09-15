@@ -6,7 +6,7 @@ require (
 	cloudevents.io/genproto v1.0.2
 	github.com/cloudevents/sdk-go/v2 v2.11.0
 	github.com/golang/mock v1.6.0
-	github.com/linkall-labs/vanus/proto v0.3.0-alpha
+	github.com/linkall-labs/vanus/proto v0.3.0
 	github.com/scylladb/go-set v1.0.2
 	go.uber.org/atomic v1.9.0
 	google.golang.org/grpc v1.44.0
