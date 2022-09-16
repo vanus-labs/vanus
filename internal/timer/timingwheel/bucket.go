@@ -375,6 +375,8 @@ func (b *bucket) getEvent(ctx context.Context, number int16) (events []*ce.Event
 		}
 	}()
 	if !b.isLeader() {
+		// TODO(jiangkai): redesign here for reduce cpu overload, by jiangkai, 2022.09.16
+		time.Sleep(time.Second)
 		return []*ce.Event{}, es.ErrOnEnd
 	}
 	_, err = b.eventlogReader.Seek(ctx, b.offset, io.SeekStart)
