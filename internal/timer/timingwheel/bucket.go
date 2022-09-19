@@ -85,7 +85,7 @@ func newTimingMsg(ctx context.Context, e *ce.Event) *timingMsg {
 }
 
 func (tm *timingMsg) hasExpired() bool {
-	return time.Now().After(tm.expiration)
+	return !time.Now().Before(tm.expiration)
 }
 
 func (tm *timingMsg) getExpiration() time.Time {
@@ -114,10 +114,13 @@ type bucket struct {
 
 	timingwheel *timingWheel
 	element     *list.Element
+
+	waitingForReady func(ctx context.Context, events []*ce.Event)
+	eventHandler    func(ctx context.Context, event *ce.Event)
 }
 
 func newBucket(tw *timingWheel, element *list.Element, tick time.Duration, ebName string, layer, slot int64) *bucket {
-	return &bucket{
+	b := &bucket{
 		config:      tw.config,
 		tick:        tick,
 		layer:       layer,
@@ -130,6 +133,15 @@ func newBucket(tw *timingWheel, element *list.Element, tick time.Duration, ebNam
 		timingwheel: tw,
 		element:     element,
 	}
+
+	if layer == 1 {
+		b.waitingForReady = b.waitingForExpired
+		b.eventHandler = b.pushToDistributionStation
+	} else {
+		b.waitingForReady = b.waitingForFlow
+		b.eventHandler = b.pushToPrevTimingWheel
+	}
+	return b
 }
 
 func (b *bucket) start(ctx context.Context) error {
@@ -210,32 +222,11 @@ func (b *bucket) run(ctx context.Context) {
 					glimitC <- struct{}{}
 					go func(ctx context.Context, e *ce.Event) {
 						defer wg.Done()
-						tm := newTimingMsg(ctx, e)
-						waitCtx, cancel := context.WithCancel(ctx)
-						wait.Until(func() {
-							if b.layer == 1 || tm.hasExpired() {
-								if b.timingwheel.getDistributionStation().push(ctx, tm) == nil {
-									cancel()
-								} else {
-									log.Warning(ctx, "push event to distribution station failed, retry until it succeed", map[string]interface{}{
-										"eventbus": b.eventbus,
-										"event":    e.String(),
-									})
-								}
-							} else {
-								if b.getTimingWheelElement().prev().push(ctx, tm, true) {
-									cancel()
-								} else {
-									log.Warning(ctx, "push event to prev timingwheel failed, retry until it succeed", map[string]interface{}{
-										"eventbus": b.eventbus,
-										"event":    e.String(),
-									})
-								}
-							}
-						}, b.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
+						b.eventHandler(ctx, e)
 						<-glimitC
 					}(ctx, event)
 				}
+
 				// asynchronously update offset after the same batch of events are successfully written.
 				offsetC <- waitGroup{
 					wg:   &wg,
@@ -247,19 +238,62 @@ func (b *bucket) run(ctx context.Context) {
 	}()
 }
 
-func (b *bucket) waitingForReady(ctx context.Context, events []*ce.Event) {
+func (b *bucket) pushToDistributionStation(ctx context.Context, e *ce.Event) {
+	tm := newTimingMsg(ctx, e)
+	waitCtx, cancel := context.WithCancel(ctx)
+	wait.Until(func() {
+		if b.timingwheel.getDistributionStation().push(ctx, tm) {
+			cancel()
+		} else {
+			log.Warning(ctx, "push event to distribution station failed, retry until it succeed", map[string]interface{}{
+				"eventbus": b.eventbus,
+				"event":    e.String(),
+			})
+		}
+	}, b.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
+}
+
+func (b *bucket) pushToPrevTimingWheel(ctx context.Context, e *ce.Event) {
+	var handler func(ctx context.Context, tm *timingMsg) bool
+	tm := newTimingMsg(ctx, e)
+	if tm.hasExpired() {
+		handler = b.timingwheel.getDistributionStation().push
+	} else {
+		handler = b.getTimingWheelElement().prev().flow
+	}
+	waitCtx, cancel := context.WithCancel(ctx)
+	wait.Until(func() {
+		if handler(ctx, tm) {
+			cancel()
+		} else {
+			log.Warning(ctx, "push event failed, retry until it succeed", map[string]interface{}{
+				"eventbus": b.eventbus,
+				"event":    e.String(),
+			})
+		}
+	}, b.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
+}
+
+func (b *bucket) waitingForExpired(ctx context.Context, events []*ce.Event) {
 	tm := newTimingMsg(ctx, events[0])
 	blockCtx, blockCancel := context.WithCancel(ctx)
 	wait.Until(func() {
-		if tm.hasExpired() {
+		if b.isReadyToDeliver(tm) {
 			blockCancel()
 		}
-		if b.layer > 1 && b.isReadyToFlow(tm) {
-			log.Debug(ctx, "the bucket is ready to flow", map[string]interface{}{
-				"eventbus": b.eventbus,
-				"offset":   b.offset,
-				"layer":    b.layer,
-			})
+	}, b.tick/defaultFrequentCheckWaitingPeriodRatio, blockCtx.Done())
+}
+
+func (b *bucket) isReadyToDeliver(tm *timingMsg) bool {
+	startTimeOfBucket := tm.getExpiration().UnixNano() - (tm.getExpiration().UnixNano() % b.tick.Nanoseconds())
+	return time.Now().UnixNano() >= startTimeOfBucket
+}
+
+func (b *bucket) waitingForFlow(ctx context.Context, events []*ce.Event) {
+	tm := newTimingMsg(ctx, events[0])
+	blockCtx, blockCancel := context.WithCancel(ctx)
+	wait.Until(func() {
+		if b.isReadyToFlow(tm) {
 			blockCancel()
 		}
 	}, b.tick/defaultFrequentCheckWaitingPeriodRatio, blockCtx.Done())
@@ -267,12 +301,12 @@ func (b *bucket) waitingForReady(ctx context.Context, events []*ce.Event) {
 
 func (b *bucket) isReadyToFlow(tm *timingMsg) bool {
 	startTimeOfBucket := tm.getExpiration().UnixNano() - (tm.getExpiration().UnixNano() % b.tick.Nanoseconds())
-	advanceTimeOfFlow := defaultNumberOfTickLoadsInAdvance * b.getTimingWheelElement().prev().tick
-	return time.Now().UTC().Add(advanceTimeOfFlow).UnixNano() > startTimeOfBucket
+	advanceTimeOfFlow := defaultNumberOfTickFlowInAdvance * b.getTimingWheelElement().prev().tick
+	return time.Now().Add(advanceTimeOfFlow).UnixNano() >= startTimeOfBucket
 }
 
-func (b *bucket) push(ctx context.Context, tm *timingMsg) error {
-	return b.putEvent(ctx, tm)
+func (b *bucket) push(ctx context.Context, tm *timingMsg) bool {
+	return b.putEvent(ctx, tm) == nil
 }
 
 func (b *bucket) isExistEventbus(ctx context.Context) bool {

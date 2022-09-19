@@ -27,6 +27,7 @@ import (
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	errcli "github.com/linkall-labs/vanus/client/pkg/errors"
+	"github.com/linkall-labs/vanus/client/pkg/eventbus"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/timer/metadata"
@@ -45,8 +46,8 @@ const (
 	// frequent check waiting period every 1/defaultFrequentCheckWaitingPeriodRatio tick time by default.
 	defaultFrequentCheckWaitingPeriodRatio = 100
 
-	// number of tick loads in advance by default.
-	defaultNumberOfTickLoadsInAdvance = 1
+	// number of tick flow in advance by default.
+	defaultNumberOfTickFlowInAdvance = 1
 
 	// number of events read each time by default.
 	defaultNumberOfEventsRead = 10
@@ -132,12 +133,14 @@ func (tw *timingWheel) Init(ctx context.Context) error {
 		twe := newTimingWheelElement(tw, tick, layer)
 		twe.setElement(tw.twList.PushBack(twe))
 		if layer <= tw.config.Layers {
-			buckets := make(map[int64]*bucket, tw.config.WheelSize+defaultNumberOfTickLoadsInAdvance)
-			for i := int64(0); i < tw.config.WheelSize+defaultNumberOfTickLoadsInAdvance; i++ {
+			buckets := make(map[int64]*bucket, tw.config.WheelSize+defaultNumberOfTickFlowInAdvance)
+			for i := int64(0); i < tw.config.WheelSize+defaultNumberOfTickFlowInAdvance; i++ {
 				ebName := fmt.Sprintf(timerBuiltInEventbus, layer, i)
 				buckets[i] = newBucket(tw, twe.element, tick, ebName, layer, i)
 			}
 			twe.buckets = buckets
+		} else {
+			twe.buckets = make(map[int64]*bucket)
 		}
 	}
 	tw.receivingStation = newBucket(tw, nil, 0, timerBuiltInEventbusReceivingStation, 0, 0)
@@ -288,10 +291,10 @@ func (tw *timingWheel) Push(ctx context.Context, e *ce.Event) bool {
 
 	if tm.hasExpired() {
 		// Already expired
-		return tw.getDistributionStation().push(ctx, tm) == nil
+		return tw.getDistributionStation().push(ctx, tm)
 	}
 
-	return tw.twList.Front().Value.(*timingWheelElement).push(ctx, tm, false)
+	return tw.twList.Front().Value.(*timingWheelElement).pushHandler(ctx, tm)
 }
 
 func (tw *timingWheel) getReceivingStation() *bucket {
@@ -535,8 +538,9 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 
 func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 	var (
-		err    error
-		ebName string
+		err            error
+		ebName         string
+		eventbusWriter eventbus.BusWriter
 	)
 
 	err = e.ExtensionAs(xVanusEventbus, &ebName)
@@ -546,8 +550,9 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 		})
 		return err
 	}
+
 	vrn := fmt.Sprintf("vanus:///eventbus/%s?controllers=%s", ebName, strings.Join(tw.config.CtrlEndpoints, ","))
-	eventbusWriter, err := openBusWriter(ctx, vrn)
+	eventbusWriter, err = openBusWriter(ctx, vrn)
 	if err != nil {
 		log.Error(ctx, "open eventbus writer failed", map[string]interface{}{
 			log.KeyError: err,
@@ -589,11 +594,13 @@ type timingWheelElement struct {
 	buckets  map[int64]*bucket
 
 	exitC chan struct{}
-	mu    sync.Mutex
+	mu    sync.RWMutex
 	wg    sync.WaitGroup
 
 	timingwheel *timingWheel
 	element     *list.Element
+
+	pushHandler func(ctx context.Context, tm *timingMsg) bool
 }
 
 // newTimingWheel is an internal helper function that really creates an instance of TimingWheel.
@@ -602,7 +609,7 @@ func newTimingWheelElement(tw *timingWheel, tick time.Duration, layer int64) *ti
 		panic(errors.New("tick must be greater than or equal to 1s"))
 	}
 
-	return &timingWheelElement{
+	twe := &timingWheelElement{
 		config:      tw.config,
 		kvStore:     tw.kvStore,
 		client:      tw.client,
@@ -612,34 +619,36 @@ func newTimingWheelElement(tw *timingWheel, tick time.Duration, layer int64) *ti
 		exitC:       make(chan struct{}),
 		timingwheel: tw,
 	}
+
+	if layer > tw.config.Layers {
+		twe.pushHandler = twe.pushBack
+	} else {
+		twe.pushHandler = twe.push
+	}
+	return twe
 }
 
-func (twe *timingWheelElement) push(ctx context.Context, tm *timingMsg, isFlowing bool) bool {
-	if isFlowing || twe.allowPush(tm) || twe.layer > twe.config.Layers {
-		index := twe.calculateIndex(tm, isFlowing)
+func (twe *timingWheelElement) push(ctx context.Context, tm *timingMsg) bool {
+	if twe.allowPush(tm) {
+		index := tm.getExpiration().UnixNano() % twe.interval.Nanoseconds() / twe.tick.Nanoseconds()
 		// Put it into its own bucket
-		if twe.layer > twe.config.Layers && twe.makeSureBucketExist(ctx, index) != nil {
-			log.Error(ctx, "push timing message failed because bucket not exist", map[string]interface{}{
-				"eventbus":   twe.buckets[index].getEventbus(),
-				"expiration": tm.getExpiration().Format(time.RFC3339Nano),
-			})
-			return false
-		}
-		if err := twe.buckets[index].push(ctx, tm); err != nil {
-			log.Error(ctx, "push timing message failed", map[string]interface{}{
-				"eventbus":   twe.buckets[index].getEventbus(),
-				"expiration": tm.getExpiration().Format(time.RFC3339Nano),
-			})
-			return false
-		}
-		log.Debug(ctx, "push timing message success", map[string]interface{}{
+		return twe.buckets[index].push(ctx, tm)
+	}
+	// Out of the interval. Put it into the overflow wheel
+	return twe.next().pushHandler(ctx, tm)
+}
+
+func (twe *timingWheelElement) pushBack(ctx context.Context, tm *timingMsg) bool {
+	index := tm.getExpiration().UnixNano() / twe.tick.Nanoseconds()
+	// Put it into its own bucket
+	if twe.makeSureBucketExist(ctx, index) != nil {
+		log.Error(ctx, "push timing message failed because bucket not exist", map[string]interface{}{
 			"eventbus":   twe.buckets[index].getEventbus(),
 			"expiration": tm.getExpiration().Format(time.RFC3339Nano),
 		})
-		return true
+		return false
 	}
-	// Out of the interval. Put it into the overflow wheel
-	return twe.next().push(ctx, tm, false)
+	return twe.buckets[index].push(ctx, tm)
 }
 
 func (twe *timingWheelElement) allowPush(tm *timingMsg) bool {
@@ -648,34 +657,40 @@ func (twe *timingWheelElement) allowPush(tm *timingMsg) bool {
 	return tm.getExpiration().UnixNano() < timeOfBufferBoundaryLine
 }
 
-func (twe *timingWheelElement) calculateIndex(tm *timingMsg, isFlowing bool) int64 {
-	if isFlowing {
-		// the timing message comes from the timingwheel of the upper layer
-		startTimeOfBucket := tm.getExpiration().UnixNano() - (tm.getExpiration().UnixNano() % twe.interval.Nanoseconds())
-		timeOfEarlyFlow := defaultNumberOfTickLoadsInAdvance * twe.tick.Nanoseconds()
-		timeOfBufferBoundaryLine := startTimeOfBucket - timeOfEarlyFlow + twe.interval.Nanoseconds()
-		if tm.getExpiration().UnixNano() >= timeOfBufferBoundaryLine {
-			// Put it into its buffer bucket
-			return (tm.getExpiration().UnixNano()-timeOfBufferBoundaryLine)/twe.tick.Nanoseconds() + twe.config.WheelSize
-		}
+func (twe *timingWheelElement) flow(ctx context.Context, tm *timingMsg) bool {
+	index := twe.calculateIndex(tm)
+	// Put it into its own bucket
+	return twe.buckets[index].push(ctx, tm)
+}
+
+func (twe *timingWheelElement) calculateIndex(tm *timingMsg) int64 {
+	// the timing message comes from the timingwheel of the upper layer
+	startTimeOfBucket := tm.getExpiration().UnixNano() - (tm.getExpiration().UnixNano() % twe.interval.Nanoseconds())
+	timeOfEarlyFlow := defaultNumberOfTickFlowInAdvance * twe.tick.Nanoseconds()
+	timeOfBufferBoundaryLine := startTimeOfBucket - timeOfEarlyFlow + twe.interval.Nanoseconds()
+	if tm.getExpiration().UnixNano() >= timeOfBufferBoundaryLine {
+		// Put it into its buffer bucket
+		return (tm.getExpiration().UnixNano()-timeOfBufferBoundaryLine)/twe.tick.Nanoseconds() + twe.config.WheelSize
 	}
 	// Put it into its own bucket
-	if twe.layer > twe.config.Layers {
-		return tm.getExpiration().UnixNano() / twe.tick.Nanoseconds()
-	}
 	return tm.getExpiration().UnixNano() % twe.interval.Nanoseconds() / twe.tick.Nanoseconds()
 }
 
 func (twe *timingWheelElement) makeSureBucketExist(ctx context.Context, index int64) error {
+	// TODO(jiangkai): redesign locks if here is a performance bottleneck in the future, by jiangkai, 2022.09.16
+	// the segmented lock may solve the problem.
+	twe.mu.RLock()
+	if _, ok := twe.buckets[index]; ok {
+		twe.mu.RUnlock()
+		return nil
+	}
+	twe.mu.RUnlock()
 	twe.mu.Lock()
 	defer twe.mu.Unlock()
 	if _, ok := twe.buckets[index]; ok {
 		return nil
 	}
 	ebName := fmt.Sprintf(timerBuiltInEventbus, twe.layer, index)
-	if twe.buckets == nil {
-		twe.buckets = make(map[int64]*bucket)
-	}
 	twe.buckets[index] = newBucket(twe.timingwheel, twe.element, twe.tick, ebName, twe.layer, index)
 	if err := twe.buckets[index].start(ctx); err != nil {
 		log.Error(ctx, "start bucket failed when makesure bucket exist", map[string]interface{}{
