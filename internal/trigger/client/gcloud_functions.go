@@ -22,10 +22,9 @@ import (
 	nethttp "net/http"
 	"sync"
 
+	ce "github.com/cloudevents/sdk-go/v2"
 	"google.golang.org/api/idtoken"
 	"google.golang.org/api/option"
-
-	ce "github.com/cloudevents/sdk-go/v2"
 )
 
 type gcloudFunctions struct {

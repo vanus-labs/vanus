@@ -18,9 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	"google.golang.org/api/idtoken"
-	"google.golang.org/api/option"
-
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/cel"
@@ -29,6 +26,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	cesqlparser "github.com/cloudevents/sdk-go/sql/v2/parser"
+	"google.golang.org/api/idtoken"
+	"google.golang.org/api/option"
 )
 
 func ValidateSubscriptionRequest(ctx context.Context, request *ctrlpb.SubscriptionRequest) error {

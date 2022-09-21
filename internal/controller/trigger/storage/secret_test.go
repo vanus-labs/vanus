@@ -63,7 +63,8 @@ func TestSecretStorage(t *testing.T) {
 			subID := vanus.NewID()
 			Convey("test read", func() {
 				a, _ := crypto.AESEncrypt("{\"type\":\"service_account\"}", secret.cipherKey)
-				kvClient.EXPECT().Get(ctx, secret.getKey(subID)).Return([]byte(a), nil)
+				v, _ := json.Marshal(primitive.NewGCloudSinkCredential(a))
+				kvClient.EXPECT().Get(ctx, secret.getKey(subID)).Return(v, nil)
 				credential, err := secret.Read(ctx, subID, primitive.GCloud)
 				So(err, ShouldBeNil)
 				So(credential.GetType(), ShouldEqual, primitive.GCloud)
