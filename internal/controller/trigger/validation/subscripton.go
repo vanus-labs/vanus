@@ -18,6 +18,9 @@ import (
 	"context"
 	"fmt"
 
+	"google.golang.org/api/idtoken"
+	"google.golang.org/api/option"
+
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/cel"
@@ -35,13 +38,10 @@ func ValidateSubscriptionRequest(ctx context.Context, request *ctrlpb.Subscripti
 	if err := validateProtocol(ctx, request.Protocol); err != nil {
 		return err
 	}
-	if request.Sink == "" {
-		return errors.ErrInvalidRequest.WithMessage("sink is empty")
-	}
 	if err := ValidateSinkAndProtocol(ctx, request.Sink, request.Protocol, request.SinkCredential); err != nil {
 		return err
 	}
-	if err := validateSinkCredential(ctx, request.SinkCredential); err != nil {
+	if err := validateSinkCredential(ctx, request.Sink, request.SinkCredential); err != nil {
 		return err
 	}
 	if request.EventBus == "" {
@@ -57,6 +57,7 @@ func validateProtocol(ctx context.Context, protocol metapb.Protocol) error {
 	switch protocol {
 	case metapb.Protocol_HTTP:
 	case metapb.Protocol_AWS_LAMBDA:
+	case metapb.Protocol_GCLOUD_FUNCTIONS:
 	default:
 		return errors.ErrInvalidRequest.WithMessage("protocol is invalid")
 	}
@@ -67,22 +68,30 @@ func ValidateSinkAndProtocol(ctx context.Context,
 	sink string,
 	protocol metapb.Protocol,
 	credential *metapb.SinkCredential) error {
+	if sink == "" {
+		return errors.ErrInvalidRequest.WithMessage("sink is empty")
+	}
 	switch protocol {
 	case metapb.Protocol_AWS_LAMBDA:
 		if _, err := arn.Parse(sink); err != nil {
 			return errors.ErrInvalidRequest.
 				WithMessage("protocol is aws lambda, sink is arn, arn parse error").Wrap(err)
 		}
-		if credential.GetCredentialType() != metapb.SinkCredential_CLOUD {
+		if credential.GetCredentialType() != metapb.SinkCredential_AK_SK {
 			return errors.ErrInvalidRequest.
-				WithMessage("protocol is aws lambda, sink credential can not be nil and  credential type is cloud")
+				WithMessage("protocol is aws lambda, sink credential can not be nil and credential type is ak sk")
+		}
+	case metapb.Protocol_GCLOUD_FUNCTIONS:
+		if credential.GetCredentialType() != metapb.SinkCredential_GCLOUD {
+			return errors.ErrInvalidRequest.
+				WithMessage("protocol is gcloud functions, sink credential can not be nil and credential type is gcloud")
 		}
 	case metapb.Protocol_HTTP:
 	}
 	return nil
 }
 
-func validateSinkCredential(ctx context.Context, credential *metapb.SinkCredential) error {
+func validateSinkCredential(ctx context.Context, sink string, credential *metapb.SinkCredential) error {
 	if credential == nil {
 		return nil
 	}
@@ -92,10 +101,21 @@ func validateSinkCredential(ctx context.Context, credential *metapb.SinkCredenti
 		if credential.GetPlain().GetIdentifier() == "" || credential.GetPlain().GetSecret() == "" {
 			return errors.ErrInvalidRequest.WithMessage("sink credential type is plain,Identifier and Secret can not empty")
 		}
-	case metapb.SinkCredential_CLOUD:
-		if credential.GetCloud().GetAccessKeyId() == "" || credential.GetCloud().GetSecretAccessKey() == "" {
+	case metapb.SinkCredential_AK_SK:
+		if credential.GetAkSk().GetAccessKeyId() == "" || credential.GetAkSk().GetSecretAccessKey() == "" {
 			return errors.ErrInvalidRequest.
-				WithMessage("sink credential type is cloud,accessKeyId and SecretAccessKey can not empty")
+				WithMessage("sink credential type is ak sk,accessKeyId and SecretAccessKey can not empty")
+		}
+	case metapb.SinkCredential_GCLOUD:
+		credentialJSON := credential.GetGcloud().GetCredentialsJson()
+		if credentialJSON == "" {
+			return errors.ErrInvalidRequest.
+				WithMessage("sink credential type is gcloud,credential json can not empty")
+		}
+		_, err := idtoken.NewTokenSource(ctx, sink, option.WithCredentialsJSON([]byte(credentialJSON)))
+		if err != nil {
+			return errors.ErrInvalidRequest.
+				WithMessage("gcloud credential json invalid").Wrap(err)
 		}
 	default:
 		return errors.ErrInvalidRequest.WithMessage("sink credential type is invalid")

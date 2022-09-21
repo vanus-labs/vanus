@@ -39,13 +39,6 @@ func TestSubscriptionRequestValidator(t *testing.T) {
 		}
 		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
 	})
-	Convey("sink empty", t, func() {
-		request := &ctrlpb.SubscriptionRequest{
-			Sink:     "",
-			EventBus: "bus",
-		}
-		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
-	})
 	Convey("eventBus empty", t, func() {
 		request := &ctrlpb.SubscriptionRequest{
 			Sink:     "sink",
@@ -81,6 +74,9 @@ func TestValidateSubscriptionConfig(t *testing.T) {
 
 func TestValidateSinkAndProtocol(t *testing.T) {
 	ctx := context.Background()
+	Convey("sink is empty", t, func() {
+		So(ValidateSinkAndProtocol(ctx, "", metapb.Protocol_AWS_LAMBDA, nil), ShouldNotBeNil)
+	})
 	Convey("subscription protocol is lambda", t, func() {
 		Convey("arn is invalid", func() {
 			sink := "arn:aws:lambda"
@@ -96,32 +92,67 @@ func TestValidateSinkAndProtocol(t *testing.T) {
 			So(ValidateSinkAndProtocol(ctx, sink, metapb.Protocol_AWS_LAMBDA, credential), ShouldNotBeNil)
 		})
 		Convey("all valid", func() {
-			credential := &metapb.SinkCredential{CredentialType: metapb.SinkCredential_CLOUD}
+			credential := &metapb.SinkCredential{CredentialType: metapb.SinkCredential_AK_SK}
 			So(ValidateSinkAndProtocol(ctx, sink, metapb.Protocol_AWS_LAMBDA, credential), ShouldBeNil)
+		})
+	})
+	Convey("subscription protocol is gcloud", t, func() {
+		sink := "https://function-1-tvm6jmwz6a-uc.a.run.app"
+		Convey("sink credential is nil", func() {
+			So(ValidateSinkAndProtocol(ctx, sink, metapb.Protocol_GCLOUD_FUNCTIONS, nil), ShouldNotBeNil)
+		})
+		Convey("sink credential type is invalid", func() {
+			credential := &metapb.SinkCredential{CredentialType: metapb.SinkCredential_PLAIN}
+			So(ValidateSinkAndProtocol(ctx, sink, metapb.Protocol_GCLOUD_FUNCTIONS, credential), ShouldNotBeNil)
+		})
+		Convey("all valid", func() {
+			credential := &metapb.SinkCredential{CredentialType: metapb.SinkCredential_GCLOUD}
+			So(ValidateSinkAndProtocol(ctx, sink, metapb.Protocol_GCLOUD_FUNCTIONS, credential), ShouldBeNil)
 		})
 	})
 }
 
 func TestValidateSinkCredential(t *testing.T) {
 	ctx := context.Background()
-	Convey("subscription sink credential type is lambda", t, func() {
+	Convey("subscription sink credential type is ak sk", t, func() {
+		sink := "arn:aws:lambda:us-west-2:843378899134:function:xdltest"
 		Convey("ak or sk is empty", func() {
 			credential := &metapb.SinkCredential{
-				CredentialType: metapb.SinkCredential_CLOUD,
+				CredentialType: metapb.SinkCredential_AK_SK,
 			}
-			So(validateSinkCredential(ctx, credential), ShouldNotBeNil)
+			So(validateSinkCredential(ctx, sink, credential), ShouldNotBeNil)
 		})
 		Convey("all valid", func() {
 			credential := &metapb.SinkCredential{
-				CredentialType: metapb.SinkCredential_CLOUD,
-				Credential: &metapb.SinkCredential_Cloud{
-					Cloud: &metapb.CloudCredential{
+				CredentialType: metapb.SinkCredential_AK_SK,
+				Credential: &metapb.SinkCredential_AkSk{
+					AkSk: &metapb.AkSkCredential{
 						AccessKeyId:     "xxxxxx",
 						SecretAccessKey: "xxxxxx",
 					},
 				},
 			}
-			So(validateSinkCredential(ctx, credential), ShouldBeNil)
+			So(validateSinkCredential(ctx, sink, credential), ShouldBeNil)
+		})
+	})
+	Convey("subscription sink credential type is gcloud", t, func() {
+		sink := "https://example.com"
+		Convey("credential json is empty", func() {
+			credential := &metapb.SinkCredential{
+				CredentialType: metapb.SinkCredential_GCLOUD,
+			}
+			So(validateSinkCredential(ctx, sink, credential), ShouldNotBeNil)
+		})
+		Convey("invalid", func() {
+			credential := &metapb.SinkCredential{
+				CredentialType: metapb.SinkCredential_GCLOUD,
+				Credential: &metapb.SinkCredential_Gcloud{
+					Gcloud: &metapb.GCloudCredential{
+						CredentialsJson: "{\"type\":\"service_account\"}",
+					},
+				},
+			}
+			So(validateSinkCredential(ctx, sink, credential), ShouldNotBeNil)
 		})
 	})
 }

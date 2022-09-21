@@ -56,8 +56,8 @@ func (p *SecretStorage) Read(ctx context.Context,
 		return nil, err
 	}
 	switch credentialType {
-	case primitive.Cloud:
-		credential := &primitive.CloudSinkCredential{}
+	case primitive.AkSk:
+		credential := &primitive.AkSkSinkCredential{}
 		if err = json.Unmarshal(v, credential); err != nil {
 			return nil, errors.ErrJSONUnMarshal.Wrap(err)
 		}
@@ -65,13 +65,22 @@ func (p *SecretStorage) Read(ctx context.Context,
 		if err != nil {
 			return nil, errors.ErrAESDecrypt.Wrap(err)
 		}
-		credential.AccessKeyID = accessKeyID
 		secretAccessKey, err := crypto.AESDecrypt(credential.SecretAccessKey, p.cipherKey)
 		if err != nil {
 			return nil, errors.ErrAESDecrypt.Wrap(err)
 		}
-		credential.SecretAccessKey = secretAccessKey
-		return credential, nil
+		return primitive.NewAkSkSinkCredential(accessKeyID, secretAccessKey), nil
+	case primitive.GCloud:
+		credential := &primitive.GCloudSinkCredential{}
+		if err = json.Unmarshal(v, credential); err != nil {
+			return nil, errors.ErrJSONUnMarshal.Wrap(err)
+		}
+
+		credentialJSON, err := crypto.AESDecrypt(credential.CredentialJSON, p.cipherKey)
+		if err != nil {
+			return nil, errors.ErrAESDecrypt.Wrap(err)
+		}
+		return primitive.NewGCloudSinkCredential(credentialJSON), nil
 	case primitive.Plain:
 		credential := &primitive.PlainSinkCredential{}
 		if err = json.Unmarshal(v, credential); err != nil {
@@ -81,13 +90,11 @@ func (p *SecretStorage) Read(ctx context.Context,
 		if err != nil {
 			return nil, errors.ErrAESDecrypt.Wrap(err)
 		}
-		credential.Identifier = identifier
-		s, err := crypto.AESDecrypt(credential.Secret, p.cipherKey)
+		secret, err := crypto.AESDecrypt(credential.Secret, p.cipherKey)
 		if err != nil {
 			return nil, errors.ErrAESDecrypt.Wrap(err)
 		}
-		credential.Secret = s
-		return credential, nil
+		return primitive.NewPlainSinkCredential(identifier, secret), nil
 	}
 	return nil, errors.ErrInvalidRequest.WithMessage("unknown credential type")
 }
@@ -95,8 +102,8 @@ func (p *SecretStorage) Read(ctx context.Context,
 func (p *SecretStorage) Write(ctx context.Context, subID vanus.ID, credential primitive.SinkCredential) error {
 	var save primitive.SinkCredential
 	switch credential.GetType() {
-	case primitive.Cloud:
-		cloud, _ := credential.(*primitive.CloudSinkCredential)
+	case primitive.AkSk:
+		cloud, _ := credential.(*primitive.AkSkSinkCredential)
 		accessKeyID, err := crypto.AESEncrypt(cloud.AccessKeyID, p.cipherKey)
 		if err != nil {
 			return errors.ErrAESEncrypt.Wrap(err)
@@ -105,7 +112,14 @@ func (p *SecretStorage) Write(ctx context.Context, subID vanus.ID, credential pr
 		if err != nil {
 			return errors.ErrAESEncrypt.Wrap(err)
 		}
-		save = primitive.NewCloudSinkCredential(accessKeyID, secretAccessKey)
+		save = primitive.NewAkSkSinkCredential(accessKeyID, secretAccessKey)
+	case primitive.GCloud:
+		gcloud, _ := credential.(*primitive.GCloudSinkCredential)
+		credentialJSON, err := crypto.AESEncrypt(gcloud.CredentialJSON, p.cipherKey)
+		if err != nil {
+			return errors.ErrAESEncrypt.Wrap(err)
+		}
+		save = primitive.NewGCloudSinkCredential(credentialJSON)
 	case primitive.Plain:
 		plain, _ := credential.(*primitive.PlainSinkCredential)
 		identifier, err := crypto.AESEncrypt(plain.Identifier, p.cipherKey)
@@ -117,6 +131,8 @@ func (p *SecretStorage) Write(ctx context.Context, subID vanus.ID, credential pr
 			return errors.ErrAESEncrypt.Wrap(err)
 		}
 		save = primitive.NewPlainSinkCredential(identifier, s)
+	default:
+		return errors.ErrInvalidRequest.WithMessage("unknown credential type")
 	}
 
 	v, err := json.Marshal(save)

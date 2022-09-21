@@ -27,7 +27,7 @@ func TestNewEventClient(t *testing.T) {
 	Convey("test new event client", t, func() {
 		Convey("new lambda client", func() {
 			cli := newEventClient("test", primitive.AwsLambdaProtocol,
-				primitive.NewCloudSinkCredential("ak", "sk"))
+				primitive.NewAkSkSinkCredential("ak", "sk"))
 			So(cli, ShouldNotBeNil)
 		})
 		Convey("new http client", func() {

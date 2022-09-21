@@ -15,6 +15,9 @@
 package primitive
 
 import (
+	"encoding/json"
+	"fmt"
+
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
@@ -22,16 +25,22 @@ import (
 type URI string
 
 type Subscription struct {
-	ID              vanus.ID              `json:"id"`
-	Filters         []*SubscriptionFilter `json:"filters,omitempty"`
-	Sink            URI                   `json:"sink,omitempty"`
-	EventBus        string                `json:"eventbus"`
-	Offsets         info.ListOffsetInfo   `json:"offsets"`
-	Transformer     *Transformer          `json:"transformer,omitempty"`
-	Config          SubscriptionConfig    `json:"config,omitempty"`
-	Protocol        Protocol              `json:"protocol,omitempty"`
-	ProtocolSetting *ProtocolSetting      `json:"protocolSetting,omitempty"`
-	SinkCredential  SinkCredential        `json:"sink_credential,omitempty"`
+	ID              vanus.ID               `json:"id"`
+	Filters         ListSubscriptionFilter `json:"filters,omitempty"`
+	Sink            URI                    `json:"sink,omitempty"`
+	EventBus        string                 `json:"eventbus"`
+	Offsets         info.ListOffsetInfo    `json:"offsets"`
+	Transformer     *Transformer           `json:"transformer,omitempty"`
+	Config          SubscriptionConfig     `json:"config,omitempty"`
+	Protocol        Protocol               `json:"protocol,omitempty"`
+	ProtocolSetting *ProtocolSetting       `json:"protocolSetting,omitempty"`
+	SinkCredential  SinkCredential         `json:"sink_credential,omitempty"`
+}
+
+func (sub *Subscription) String() string {
+	return fmt.Sprintf("ID=%d, sink=%s, eventbus=%s, filters=%s, offsets=%s, transformer=%s, config=%s, protocol=%v",
+		sub.ID, sub.Sink, sub.EventBus, sub.Filters.String(), sub.Offsets.String(),
+		sub.Transformer.String(), sub.Config.String(), sub.Protocol)
 }
 
 type Protocol string
@@ -39,6 +48,7 @@ type Protocol string
 const (
 	HTTPProtocol      Protocol = "http"
 	AwsLambdaProtocol Protocol = "aws-lambda"
+	GCloudFunctions   Protocol = "gcloud-functions"
 )
 
 type ProtocolSetting struct {
@@ -63,20 +73,46 @@ type SubscriptionConfig struct {
 	DeadLetterEventbus string     `json:"dead_letter_eventbus,omitempty"`
 }
 
+func (c *SubscriptionConfig) String() string {
+	if c == nil {
+		return ""
+	}
+	b, _ := json.Marshal(c)
+	return string(b)
+}
+
 type SubscriptionFilter struct {
-	Exact  map[string]string     `json:"exact,omitempty"`
-	Prefix map[string]string     `json:"prefix,omitempty"`
-	Suffix map[string]string     `json:"suffix,omitempty"`
-	CeSQL  string                `json:"ce_sql,omitempty"`
-	Not    *SubscriptionFilter   `json:"not,omitempty"`
-	All    []*SubscriptionFilter `json:"all,omitempty"`
-	Any    []*SubscriptionFilter `json:"any,omitempty"`
-	CEL    string                `json:"cel,omitempty"`
+	Exact  map[string]string      `json:"exact,omitempty"`
+	Prefix map[string]string      `json:"prefix,omitempty"`
+	Suffix map[string]string      `json:"suffix,omitempty"`
+	CeSQL  string                 `json:"ce_sql,omitempty"`
+	Not    *SubscriptionFilter    `json:"not,omitempty"`
+	All    ListSubscriptionFilter `json:"all,omitempty"`
+	Any    ListSubscriptionFilter `json:"any,omitempty"`
+	CEL    string                 `json:"cel,omitempty"`
+}
+
+type ListSubscriptionFilter []*SubscriptionFilter
+
+func (l ListSubscriptionFilter) String() string {
+	if len(l) == 0 {
+		return ""
+	}
+	b, _ := json.Marshal(l)
+	return string(b)
 }
 
 type Transformer struct {
 	Define   map[string]string `json:"define,omitempty"`
 	Template string            `json:"template,omitempty"`
+}
+
+func (t *Transformer) String() string {
+	if t == nil {
+		return ""
+	}
+	b, _ := json.Marshal(t)
+	return string(b)
 }
 
 func (t *Transformer) Exist() bool {

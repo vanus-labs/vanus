@@ -43,9 +43,15 @@ var (
 	subProtocol        string
 	sinkCredentialType string
 	sinkCredential     string
+	sinkCredentialFile string
 	deliveryTimeout    int32
 	maxRetryAttempts   int32
 
 	showSegment bool
 	showBlock   bool
+)
+
+const (
+	AKSkCredentialType   = "aksk"
+	GCloudCredentialType = "gcloud"
 )

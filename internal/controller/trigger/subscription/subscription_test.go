@@ -40,12 +40,12 @@ func TestSubscriptionInit(t *testing.T) {
 
 	Convey("init ", t, func() {
 		subID := vanus.NewID()
-		credentialType := primitive.Cloud
+		credentialType := primitive.AkSk
 		storage.MockSubscriptionStorage.EXPECT().ListSubscription(ctx).Return([]*metadata.Subscription{
 			{ID: subID, SinkCredentialType: &credentialType},
 		}, nil)
 		secret.EXPECT().Read(gomock.Any(), gomock.Eq(subID), gomock.Any()).
-			Return(primitive.NewCloudSinkCredential("ak", "sk"), nil)
+			Return(primitive.NewAkSkSinkCredential("ak", "sk"), nil)
 		err := m.Init(ctx)
 		So(err, ShouldBeNil)
 	})
@@ -109,11 +109,11 @@ func TestSubscription(t *testing.T) {
 		Convey("test add subscription", func() {
 			storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).Return(nil)
 			secret.EXPECT().Write(gomock.Any(), gomock.Eq(subID), gomock.Any()).Return(nil)
-			credentialType := primitive.Cloud
+			credentialType := primitive.AkSk
 			err := m.AddSubscription(ctx, &metadata.Subscription{
 				ID:                 subID,
 				SinkCredentialType: &credentialType,
-				SinkCredential:     primitive.NewCloudSinkCredential("test_ak", "test_sk"),
+				SinkCredential:     primitive.NewAkSkSinkCredential("test_ak", "test_sk"),
 			})
 			So(err, ShouldBeNil)
 			Convey("test update subscription", func() {
@@ -122,7 +122,7 @@ func TestSubscription(t *testing.T) {
 					updateSub := &metadata.Subscription{
 						ID:                 subID,
 						SinkCredentialType: &credentialType,
-						SinkCredential:     primitive.NewCloudSinkCredential("test_ak", "test_sk"),
+						SinkCredential:     primitive.NewAkSkSinkCredential("test_ak", "test_sk"),
 						Sink:               "test",
 					}
 					err = m.UpdateSubscription(ctx, updateSub)
@@ -135,7 +135,7 @@ func TestSubscription(t *testing.T) {
 							ID:                 subID,
 							Sink:               "test",
 							SinkCredentialType: &credentialType,
-							SinkCredential:     primitive.NewCloudSinkCredential("test_new_ak", "test_new_sk"),
+							SinkCredential:     primitive.NewAkSkSinkCredential("test_new_ak", "test_new_sk"),
 						}
 						secret.EXPECT().Write(gomock.Any(), gomock.Eq(subID), gomock.Any()).Return(nil)
 						err = m.UpdateSubscription(ctx, updateSub)

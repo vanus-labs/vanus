@@ -35,8 +35,11 @@ func newEventClient(sink primitive.URI,
 	credential primitive.SinkCredential) client.EventClient {
 	switch protocol {
 	case primitive.AwsLambdaProtocol:
-		_credential, _ := credential.(*primitive.CloudSinkCredential)
+		_credential, _ := credential.(*primitive.AkSkSinkCredential)
 		return client.NewAwsLambdaClient(_credential.AccessKeyID, _credential.SecretAccessKey, string(sink))
+	case primitive.GCloudFunctions:
+		_credential, _ := credential.(*primitive.GCloudSinkCredential)
+		return client.NewGCloudFunctionClient(string(sink), _credential.CredentialJSON)
 	default:
 		return client.NewHTTPClient(string(sink))
 	}
