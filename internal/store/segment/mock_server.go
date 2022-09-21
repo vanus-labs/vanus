@@ -109,6 +109,21 @@ func (mr *MockServerMockRecorder) Initialize(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Initialize", reflect.TypeOf((*MockServer)(nil).Initialize), arg0)
 }
 
+// LookupOffsetInBlock mocks base method.
+func (m *MockServer) LookupOffsetInBlock(ctx context.Context, id vanus.ID, stime int64) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LookupOffsetInBlock", ctx, id, stime)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LookupOffsetInBlock indicates an expected call of LookupOffsetInBlock.
+func (mr *MockServerMockRecorder) LookupOffsetInBlock(ctx, id, stime interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LookupOffsetInBlock", reflect.TypeOf((*MockServer)(nil).LookupOffsetInBlock), ctx, id, stime)
+}
+
 // ReadFromBlock mocks base method.
 func (m *MockServer) ReadFromBlock(ctx context.Context, id vanus.ID, seq int64, num int, pollingTimeout uint32) ([]*v1.CloudEvent, error) {
 	m.ctrl.T.Helper()

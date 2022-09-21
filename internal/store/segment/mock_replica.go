@@ -143,6 +143,21 @@ func (mr *MockReplicaMockRecorder) Read(ctx, seq, num interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockReplica)(nil).Read), ctx, seq, num)
 }
 
+// Seek mocks base method.
+func (m *MockReplica) Seek(ctx context.Context, index int64, key block.Entry, flag block.SeekKeyFlag) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Seek", ctx, index, key, flag)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Seek indicates an expected call of Seek.
+func (mr *MockReplicaMockRecorder) Seek(ctx, index, key, flag interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Seek", reflect.TypeOf((*MockReplica)(nil).Seek), ctx, index, key, flag)
+}
+
 // Status mocks base method.
 func (m *MockReplica) Status() *meta.SegmentHealthInfo {
 	m.ctrl.T.Helper()

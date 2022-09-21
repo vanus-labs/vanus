@@ -114,7 +114,8 @@ func (s *segmentServer) InactivateSegment(
 }
 
 func (s *segmentServer) AppendToBlock(
-	ctx context.Context, req *segpb.AppendToBlockRequest) (*segpb.AppendToBlockResponse, error) {
+	ctx context.Context, req *segpb.AppendToBlockRequest,
+) (*segpb.AppendToBlockResponse, error) {
 	blockID := vanus.NewIDFromUint64(req.BlockId)
 	events := req.Events.GetEvents()
 	offs, err := s.srv.AppendToBlock(ctx, blockID, events)
@@ -126,7 +127,8 @@ func (s *segmentServer) AppendToBlock(
 }
 
 func (s *segmentServer) ReadFromBlock(
-	ctx context.Context, req *segpb.ReadFromBlockRequest) (*segpb.ReadFromBlockResponse, error) {
+	ctx context.Context, req *segpb.ReadFromBlockRequest,
+) (*segpb.ReadFromBlockResponse, error) {
 	blockID := vanus.NewIDFromUint64(req.BlockId)
 	events, err := s.srv.ReadFromBlock(ctx, blockID, req.Offset, int(req.Number), req.PollingTimeout)
 	if err != nil {
@@ -136,4 +138,16 @@ func (s *segmentServer) ReadFromBlock(
 	return &segpb.ReadFromBlockResponse{
 		Events: &cepb.CloudEventBatch{Events: events},
 	}, nil
+}
+
+func (s *segmentServer) LookupOffsetInBlock(
+	ctx context.Context, req *segpb.LookupOffsetInBlockRequest,
+) (*segpb.LookupOffsetInBlockResponse, error) {
+	blockID := vanus.NewIDFromUint64(req.BlockId)
+	off, err := s.srv.LookupOffsetInBlock(ctx, blockID, req.Stime)
+	if err != nil {
+		return nil, err
+	}
+
+	return &segpb.LookupOffsetInBlockResponse{Offset: off}, nil
 }
