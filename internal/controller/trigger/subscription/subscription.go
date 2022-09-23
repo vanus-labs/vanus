@@ -198,9 +198,6 @@ func (m *manager) Heartbeat(ctx context.Context, id vanus.ID, addr string, time 
 }
 
 func (m *manager) Stop() {
-	if m == nil {
-		return
-	}
 	m.offsetManager.Stop()
 }
 
