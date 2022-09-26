@@ -40,7 +40,7 @@ func TestSubscriptionInit(t *testing.T) {
 
 	Convey("init ", t, func() {
 		subID := vanus.NewID()
-		credentialType := primitive.AkSk
+		credentialType := primitive.AWS
 		storage.MockSubscriptionStorage.EXPECT().ListSubscription(ctx).Return([]*metadata.Subscription{
 			{ID: subID, SinkCredentialType: &credentialType},
 		}, nil)
@@ -109,7 +109,7 @@ func TestSubscription(t *testing.T) {
 		Convey("test add subscription", func() {
 			storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).Return(nil)
 			secret.EXPECT().Write(gomock.Any(), gomock.Eq(subID), gomock.Any()).Return(nil)
-			credentialType := primitive.AkSk
+			credentialType := primitive.AWS
 			err := m.AddSubscription(ctx, &metadata.Subscription{
 				ID:                 subID,
 				SinkCredentialType: &credentialType,

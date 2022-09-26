@@ -95,8 +95,8 @@ func fromPbSinkCredentialType(from *pb.SinkCredential) *primitive.CredentialType
 	switch from.CredentialType {
 	case pb.SinkCredential_None:
 		return nil
-	case pb.SinkCredential_AK_SK:
-		to = primitive.AkSk
+	case pb.SinkCredential_AWS:
+		to = primitive.AWS
 	case pb.SinkCredential_GCLOUD:
 		to = primitive.GCloud
 	case pb.SinkCredential_PLAIN:
@@ -112,8 +112,8 @@ func fromPbSinkCredential(from *pb.SinkCredential) primitive.SinkCredential {
 	switch from.CredentialType {
 	case pb.SinkCredential_None:
 		return nil
-	case pb.SinkCredential_AK_SK:
-		cloud := from.GetAkSk()
+	case pb.SinkCredential_AWS:
+		cloud := from.GetAws()
 		return primitive.NewAkSkSinkCredential(cloud.GetAccessKeyId(), cloud.GetSecretAccessKey())
 	case pb.SinkCredential_GCLOUD:
 		gcloud := from.GetGcloud()
@@ -131,10 +131,10 @@ func toPbSinkCredentialByType(credentialType *primitive.CredentialType) *pb.Sink
 	}
 	to := &pb.SinkCredential{}
 	switch *credentialType {
-	case primitive.AkSk:
-		to.CredentialType = pb.SinkCredential_AK_SK
-		to.Credential = &pb.SinkCredential_AkSk{
-			AkSk: &pb.AkSkCredential{
+	case primitive.AWS:
+		to.CredentialType = pb.SinkCredential_AWS
+		to.Credential = &pb.SinkCredential_Aws{
+			Aws: &pb.AKSKCredential{
 				AccessKeyId:     primitive.SecretsMask,
 				SecretAccessKey: primitive.SecretsMask,
 			},
@@ -164,11 +164,11 @@ func toPbSinkCredential(from primitive.SinkCredential) *pb.SinkCredential {
 	}
 	to := &pb.SinkCredential{}
 	switch from.GetType() {
-	case primitive.AkSk:
+	case primitive.AWS:
 		credential, _ := from.(*primitive.AkSkSinkCredential)
-		to.CredentialType = pb.SinkCredential_AK_SK
-		to.Credential = &pb.SinkCredential_AkSk{
-			AkSk: &pb.AkSkCredential{
+		to.CredentialType = pb.SinkCredential_AWS
+		to.Credential = &pb.SinkCredential_Aws{
+			Aws: &pb.AKSKCredential{
 				AccessKeyId:     credential.AccessKeyID,
 				SecretAccessKey: credential.SecretAccessKey,
 			},

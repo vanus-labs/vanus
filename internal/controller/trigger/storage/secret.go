@@ -56,7 +56,7 @@ func (p *SecretStorage) Read(ctx context.Context,
 		return nil, err
 	}
 	switch credentialType {
-	case primitive.AkSk:
+	case primitive.AWS:
 		credential := &primitive.AkSkSinkCredential{}
 		if err = json.Unmarshal(v, credential); err != nil {
 			return nil, errors.ErrJSONUnMarshal.Wrap(err)
@@ -102,7 +102,7 @@ func (p *SecretStorage) Read(ctx context.Context,
 func (p *SecretStorage) Write(ctx context.Context, subID vanus.ID, credential primitive.SinkCredential) error {
 	var save primitive.SinkCredential
 	switch credential.GetType() {
-	case primitive.AkSk:
+	case primitive.AWS:
 		cloud, _ := credential.(*primitive.AkSkSinkCredential)
 		accessKeyID, err := crypto.AESEncrypt(cloud.AccessKeyID, p.cipherKey)
 		if err != nil {

@@ -52,6 +52,6 @@ var (
 )
 
 const (
-	AKSkCredentialType   = "aksk"
+	AWSCredentialType    = "aws"
 	GCloudCredentialType = "gcloud"
 )

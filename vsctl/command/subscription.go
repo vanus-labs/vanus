@@ -64,8 +64,8 @@ func createSubscriptionCommand() *cobra.Command {
 				if _, err := arn.Parse(sink); err != nil {
 					cmdFailedf(cmd, "protocol is aws-lambda sink is aws arn, arn parse error: %s\n", err.Error())
 				}
-				if sinkCredentialType != AKSkCredentialType {
-					cmdFailedf(cmd, "protocol is aws-lambda, credential-type must be %s\n", AKSkCredentialType)
+				if sinkCredentialType != AWSCredentialType {
+					cmdFailedf(cmd, "protocol is aws-lambda, credential-type must be %s\n", AWSCredentialType)
 				}
 			case "gcloud-functions":
 				p = meta.Protocol_GCLOUD_FUNCTIONS
@@ -95,19 +95,19 @@ func createSubscriptionCommand() *cobra.Command {
 				// expand value from env
 				sinkCredential = os.ExpandEnv(sinkCredential)
 				switch sinkCredentialType {
-				case AKSkCredentialType:
-					var aksk *meta.AkSkCredential
-					err := json.Unmarshal([]byte(sinkCredential), &aksk)
+				case AWSCredentialType:
+					var ak_sk *meta.AKSKCredential
+					err := json.Unmarshal([]byte(sinkCredential), &ak_sk)
 					if err != nil {
 						cmdFailedf(cmd, "the sink credential unmarshal json error: %s", err.Error())
 					}
-					if aksk.AccessKeyId == "" || aksk.SecretAccessKey == "" {
-						cmdFailedf(cmd, "credential-type is aksk, access_key_id and secret_access_key must not be empty\n")
+					if ak_sk.AccessKeyId == "" || ak_sk.SecretAccessKey == "" {
+						cmdFailedf(cmd, "credential-type is aws, access_key_id and secret_access_key must not be empty\n")
 					}
 					credential = &meta.SinkCredential{
-						CredentialType: meta.SinkCredential_AK_SK,
-						Credential: &meta.SinkCredential_AkSk{
-							AkSk: aksk,
+						CredentialType: meta.SinkCredential_AWS,
+						Credential: &meta.SinkCredential_Aws{
+							Aws: ak_sk,
 						},
 					}
 				case GCloudCredentialType:
@@ -209,7 +209,7 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().Int32Var(&rateLimit, "rate-limit", 0, "rate limit")
 	cmd.Flags().StringVar(&from, "from", "", "consume events from, latest,earliest or RFC3339 format time")
 	cmd.Flags().StringVar(&subProtocol, "protocol", "http", "protocol,http or aws-lambda or gcloud-functions")
-	cmd.Flags().StringVar(&sinkCredentialType, "credential-type", "", "sink credential type: aksk or gcloud")
+	cmd.Flags().StringVar(&sinkCredentialType, "credential-type", "", "sink credential type: aws or gcloud")
 	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, JSON format")
 	cmd.Flags().StringVar(&sinkCredentialFile, "credential-file", "", "sink credential file")
 	cmd.Flags().Int32Var(&deliveryTimeout, "delivery-timeout", 0, "event delivery to sink timeout, unit millisecond")

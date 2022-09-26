@@ -231,7 +231,7 @@ func TestController_UpdateSubscription(t *testing.T) {
 						Sink:     "test-sink",
 						Protocol: metapb.Protocol_AWS_LAMBDA,
 						SinkCredential: &metapb.SinkCredential{
-							CredentialType: metapb.SinkCredential_AK_SK,
+							CredentialType: metapb.SinkCredential_AWS,
 						},
 					},
 				}
@@ -261,7 +261,7 @@ func TestController_UpdateSubscription(t *testing.T) {
 						Sink:     "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
 						Protocol: metapb.Protocol_AWS_LAMBDA,
 						SinkCredential: &metapb.SinkCredential{
-							CredentialType: metapb.SinkCredential_AK_SK,
+							CredentialType: metapb.SinkCredential_AWS,
 						},
 					},
 				}
@@ -276,9 +276,9 @@ func TestController_UpdateSubscription(t *testing.T) {
 						Sink:     "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
 						Protocol: metapb.Protocol_AWS_LAMBDA,
 						SinkCredential: &metapb.SinkCredential{
-							CredentialType: metapb.SinkCredential_AK_SK,
-							Credential: &metapb.SinkCredential_AkSk{
-								AkSk: &metapb.AkSkCredential{
+							CredentialType: metapb.SinkCredential_AWS,
+							Credential: &metapb.SinkCredential_Aws{
+								Aws: &metapb.AKSKCredential{
 									AccessKeyId:     "test_ak",
 									SecretAccessKey: "test_sk",
 								},
@@ -291,8 +291,8 @@ func TestController_UpdateSubscription(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(resp.Protocol, ShouldEqual, request.Subscription.Protocol)
 				So(resp.SinkCredential.CredentialType, ShouldEqual, request.Subscription.SinkCredential.CredentialType)
-				So(resp.SinkCredential.GetAkSk().AccessKeyId, ShouldEqual, primitive.SecretsMask)
-				So(resp.SinkCredential.GetAkSk().SecretAccessKey, ShouldEqual, primitive.SecretsMask)
+				So(resp.SinkCredential.GetAws().AccessKeyId, ShouldEqual, primitive.SecretsMask)
+				So(resp.SinkCredential.GetAws().SecretAccessKey, ShouldEqual, primitive.SecretsMask)
 			})
 		})
 		Convey("update rate limit", func() {

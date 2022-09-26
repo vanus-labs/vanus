@@ -39,16 +39,16 @@ func TestSecretStorage(t *testing.T) {
 		So(err, ShouldBeNil)
 		secret := p.(*SecretStorage)
 		secret.client = kvClient
-		Convey("test credential type ak sk", func() {
+		Convey("test credential type AK/SK", func() {
 			subID := vanus.NewID()
 			Convey("test read", func() {
 				a, _ := crypto.AESEncrypt("test_access_key_id", secret.cipherKey)
 				s, _ := crypto.AESEncrypt("test_secret_access_key", secret.cipherKey)
 				v, _ := json.Marshal(primitive.NewAkSkSinkCredential(a, s))
 				kvClient.EXPECT().Get(ctx, secret.getKey(subID)).Return(v, nil)
-				credential, err := secret.Read(ctx, subID, primitive.AkSk)
+				credential, err := secret.Read(ctx, subID, primitive.AWS)
 				So(err, ShouldBeNil)
-				So(credential.GetType(), ShouldEqual, primitive.AkSk)
+				So(credential.GetType(), ShouldEqual, primitive.AWS)
 				So(credential.(*primitive.AkSkSinkCredential).AccessKeyID, ShouldEqual, "test_access_key_id")
 				So(credential.(*primitive.AkSkSinkCredential).SecretAccessKey, ShouldEqual, "test_secret_access_key")
 			})

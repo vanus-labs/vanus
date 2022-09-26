@@ -18,7 +18,7 @@ type CredentialType string
 
 const (
 	Plain  CredentialType = "plain"
-	AkSk   CredentialType = "ak_sk"
+	AWS    CredentialType = "aws"
 	GCloud CredentialType = "gcloud"
 
 	SecretsMask = "******"
@@ -45,7 +45,7 @@ func FillSinkCredential(dst, src SinkCredential) {
 		if _dst.Secret == SecretsMask {
 			_dst.Secret = _src.Secret
 		}
-	case AkSk:
+	case AWS:
 		_dst, _ := src.(*AkSkSinkCredential)
 		_src, _ := dst.(*AkSkSinkCredential)
 		if _dst.AccessKeyID == SecretsMask {
@@ -92,7 +92,7 @@ func NewAkSkSinkCredential(accessKeyID, secretAccessKey string) SinkCredential {
 }
 
 func (c *AkSkSinkCredential) GetType() CredentialType {
-	return AkSk
+	return AWS
 }
 
 type GCloudSinkCredential struct {
