@@ -64,7 +64,7 @@ func TestBlock(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(n, ShouldEqual, r.Size())
 			So(b.Full(), ShouldBeTrue)
-			So(b.FullWithOff(n-1), ShouldBeFalse)
+			So(b.FullWithOffset(n-1), ShouldBeFalse)
 			So(b.Committed(), ShouldEqual, 0)
 			So(b.WriteOffset(), ShouldEqual, 4096+b.Size())
 

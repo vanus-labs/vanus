@@ -77,7 +77,7 @@ func (b *block) Full() bool {
 	return b.Remaining() < record.HeaderSize
 }
 
-func (b *block) FullWithOff(off int) bool {
+func (b *block) FullWithOffset(off int) bool {
 	return b.remaining(off) < record.HeaderSize
 }
 

@@ -21,7 +21,11 @@ import (
 	"os"
 	"path/filepath"
 
+	// third-party libraries.
+	"go.opentelemetry.io/otel/trace"
+
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/tracing"
 	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
 
 	// this project.
@@ -60,10 +64,11 @@ func (e *engine) Create(ctx context.Context, id vanus.ID, capacity int64) (block
 		actx: appendContext{
 			offset: headerBlockSize,
 		},
-		enc: codec.NewEncoder(),
-		dec: dec,
-		lis: e.lis,
-		f:   f,
+		enc:    codec.NewEncoder(),
+		dec:    dec,
+		lis:    e.lis,
+		f:      f,
+		tracer: tracing.NewTracer("store.vsb.vsBlock", trace.SpanKindInternal),
 	}
 
 	if err := b.persistHeader(ctx, b.fm); err != nil {
@@ -87,9 +92,10 @@ func (e *engine) Open(ctx context.Context, id vanus.ID) (block.Raw, error) {
 	path := e.resolvePath(id)
 
 	b := &vsBlock{
-		id:   id,
-		path: path,
-		lis:  e.lis,
+		id:     id,
+		path:   path,
+		lis:    e.lis,
+		tracer: tracing.NewTracer("store.vsb.vsBlock", trace.SpanKindInternal),
 	}
 
 	if err := b.Open(ctx); err != nil {

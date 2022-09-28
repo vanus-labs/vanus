@@ -15,8 +15,8 @@
 package log
 
 import (
-	stdCtx "context"
 	// standard libraries.
+	"context"
 	"os"
 	"testing"
 
@@ -33,6 +33,8 @@ import (
 )
 
 func TestLog_SnapshotStorage(t *testing.T) {
+	ctx := context.Background()
+
 	metaDir, err := os.MkdirTemp("", "meta-*")
 	if err != nil {
 		t.Fatal(err)
@@ -63,15 +65,15 @@ func TestLog_SnapshotStorage(t *testing.T) {
 		ctrl := NewController(t)
 		defer ctrl.Finish()
 
-		metaStore, err := meta.RecoverSyncStore(stdCtx.Background(), metaCfg, metaDir)
+		metaStore, err := meta.RecoverSyncStore(ctx, metaCfg, metaDir)
 		So(err, ShouldBeNil)
-		defer metaStore.Close(stdCtx.Background())
+		defer metaStore.Close(ctx)
 
-		offsetStore, err := meta.RecoverAsyncStore(stdCtx.Background(), offsetCfg, offsetDir)
+		offsetStore, err := meta.RecoverAsyncStore(ctx, offsetCfg, offsetDir)
 		So(err, ShouldBeNil)
 		defer offsetStore.Close()
 
-		rawWAL, err := walog.Open(stdCtx.Background(), walDir, walog.WithFileSize(int64(fileSize)))
+		rawWAL, err := walog.Open(ctx, walDir, walog.WithFileSize(int64(fileSize)))
 		So(err, ShouldBeNil)
 		wal := newWAL(rawWAL, metaStore)
 		defer wal.Close()
@@ -80,7 +82,7 @@ func TestLog_SnapshotStorage(t *testing.T) {
 		log := NewLog(nodeID1, wal, metaStore, offsetStore, snapOp)
 
 		ent := raftpb.Entry{Term: 1, Index: 1, Type: raftpb.EntryConfChange, Data: data1}
-		err = log.Append(stdCtx.Background(), []raftpb.Entry{ent})
+		err = log.Append(ctx, []raftpb.Entry{ent})
 		So(err, ShouldBeNil)
 
 		ents, err := log.Entries(1, 2, 0)
@@ -88,26 +90,28 @@ func TestLog_SnapshotStorage(t *testing.T) {
 		So(ents, ShouldHaveLength, 1)
 		So(ents[0], ShouldResemble, ent)
 
-		err = log.SetHardState(stdCtx.Background(), raftpb.HardState{Term: 1, Commit: 1})
+		err = log.SetHardState(ctx, raftpb.HardState{Term: 1, Commit: 1})
 		So(err, ShouldBeNil)
 
 		confSt := raftpb.ConfState{Voters: []uint64{nodeID1.Uint64()}}
-		err = log.SetConfState(stdCtx.Background(), confSt)
+		err = log.SetConfState(ctx, confSt)
 		So(err, ShouldBeNil)
 
-		log.SetApplied(1)
+		log.SetApplied(ctx, 1)
 
 		ent = raftpb.Entry{Term: 2, Index: 2, Type: raftpb.EntryNormal}
-		err = log.Append(stdCtx.Background(), []raftpb.Entry{ent})
+		err = log.Append(ctx, []raftpb.Entry{ent})
 		So(err, ShouldBeNil)
 
-		err = log.SetHardState(stdCtx.Background(), raftpb.HardState{Term: 2, Vote: nodeID1.Uint64(), Commit: 2})
+		err = log.SetHardState(ctx, raftpb.HardState{
+			Term: 2, Vote: nodeID1.Uint64(), Commit: 2,
+		})
 		So(err, ShouldBeNil)
 
-		log.SetApplied(2)
+		log.SetApplied(ctx, 2)
 
 		data := []byte("hello world!")
-		err = log.Append(stdCtx.Background(), []raftpb.Entry{{
+		err = log.Append(ctx, []raftpb.Entry{{
 			Term:  2,
 			Index: 3,
 			Type:  raftpb.EntryNormal,
@@ -115,10 +119,12 @@ func TestLog_SnapshotStorage(t *testing.T) {
 		}})
 		So(err, ShouldBeNil)
 
-		err = log.SetHardState(stdCtx.Background(), raftpb.HardState{Term: 2, Vote: nodeID1.Uint64(), Commit: 3})
+		err = log.SetHardState(ctx, raftpb.HardState{
+			Term: 2, Vote: nodeID1.Uint64(), Commit: 3,
+		})
 		So(err, ShouldBeNil)
 
-		log.SetApplied(3)
+		log.SetApplied(ctx, 3)
 
 		snapOp.EXPECT().GetSnapshot(Eq(uint64(3))).Return(data, nil)
 		snap, err := log.Snapshot()
@@ -133,7 +139,7 @@ func TestLog_SnapshotStorage(t *testing.T) {
 		})
 
 		snapOp.EXPECT().ApplySnapshot(Eq(data)).Return(nil)
-		log.ApplySnapshot(stdCtx.Background(), raftpb.Snapshot{
+		log.ApplySnapshot(ctx, raftpb.Snapshot{
 			Data: data,
 			Metadata: raftpb.SnapshotMetadata{
 				Term:  3,

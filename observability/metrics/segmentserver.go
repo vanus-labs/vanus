@@ -44,6 +44,34 @@ var (
 		Namespace: namespace,
 		Subsystem: moduleOfSegmentServer,
 		Name:      "read_byte_count",
-		Help:      "Total bytes for reading or reading",
+		Help:      "Total bytes for reading",
 	}, []string{LabelVolume, LabelBlock})
+
+	WALEntryWriteCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfSegmentServer,
+		Name:      "wal_entry_write_count",
+		Help:      "Total entries for wal writing",
+	})
+
+	WALEntryWriteSizeCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfSegmentServer,
+		Name:      "wal_entry_write_size",
+		Help:      "Total event size (in bytes) for wal writing",
+	})
+
+	WALRecordWriteCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfSegmentServer,
+		Name:      "wal_record_write_count",
+		Help:      "Total records for wal writing",
+	})
+
+	WALRecordWriteSizeCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: moduleOfSegmentServer,
+		Name:      "wal_record_write_size",
+		Help:      "Total record size (in bytes) for wal writing",
+	})
 )

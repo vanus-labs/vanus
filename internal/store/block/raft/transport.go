@@ -19,24 +19,32 @@ import (
 	"context"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/internal/raft/transport"
 	"github.com/linkall-labs/vanus/raft/raftpb"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
+	// this project.
+	"github.com/linkall-labs/vanus/internal/raft/transport"
 )
 
 // Make sure appender implements transport.Receiver.
 var _ transport.Receiver = (*appender)(nil)
 
-func (r *appender) send(msgs []raftpb.Message) {
+func (a *appender) send(ctx context.Context, msgs []raftpb.Message) {
+	ctx, span := a.tracer.Start(ctx, "send", trace.WithAttributes(
+		attribute.Int("message_count", len(msgs))))
+	defer span.End()
+
 	if len(msgs) == 0 {
 		return
 	}
 
 	if len(msgs) == 1 {
 		msg := &msgs[0]
-		endpoint := r.peerHint(msg.To)
-		r.host.Send(r.ctx, msg, msg.To, endpoint, func(err error) {
+		endpoint := a.peerHint(ctx, msg.To)
+		a.host.Send(ctx, msg, msg.To, endpoint, func(err error) {
 			if err != nil {
-				r.node.ReportUnreachable(msg.To)
+				a.node.ReportUnreachable(msg.To)
 			}
 		})
 		return
@@ -52,11 +60,11 @@ func (r *appender) send(msgs []raftpb.Message) {
 
 	// send to same node
 	if to != 0 {
-		endpoint := r.peerHint(to)
+		endpoint := a.peerHint(ctx, to)
 		for i := 0; i < len(msgs); i++ {
-			r.host.Send(r.ctx, &msgs[i], to, endpoint, func(err error) {
+			a.host.Send(ctx, &msgs[i], to, endpoint, func(err error) {
 				if err != nil {
-					r.node.ReportUnreachable(to)
+					a.node.ReportUnreachable(to)
 				}
 			})
 		}
@@ -69,22 +77,25 @@ func (r *appender) send(msgs []raftpb.Message) {
 		mm[msg.To] = append(mm[msg.To], msg)
 	}
 	for to, msgs := range mm {
-		endpoint := r.peerHint(to)
+		endpoint := a.peerHint(ctx, to)
 		for _, m := range msgs {
-			r.host.Send(r.ctx, m, to, endpoint, func(err error) {
+			a.host.Send(ctx, m, to, endpoint, func(err error) {
 				if err != nil {
-					r.node.ReportUnreachable(to)
+					a.node.ReportUnreachable(to)
 				}
 			})
 		}
 	}
 }
 
-func (r *appender) peerHint(to uint64) string {
-	r.hintMu.RLock()
-	defer r.hintMu.RUnlock()
-	for i := range r.hint {
-		p := &r.hint[i]
+func (a *appender) peerHint(ctx context.Context, to uint64) string {
+	_, span := a.tracer.Start(ctx, "hintPeer")
+	defer span.End()
+
+	a.hintMu.RLock()
+	defer a.hintMu.RUnlock()
+	for i := range a.hint {
+		p := &a.hint[i]
 		if p.id == to {
 			return p.endpoint
 		}
@@ -93,26 +104,32 @@ func (r *appender) peerHint(to uint64) string {
 }
 
 // Receive implements transport.Receiver.
-func (r *appender) Receive(ctx context.Context, msg *raftpb.Message, from uint64, endpoint string) {
+func (a *appender) Receive(ctx context.Context, msg *raftpb.Message, from uint64, endpoint string) {
+	ctx, span := a.tracer.Start(ctx, "Receive",
+		trace.WithAttributes(attribute.Int64("node_id", int64(a.ID())), attribute.Int64("from", int64(from))))
+	defer span.End()
+
 	if endpoint != "" {
-		r.hintPeer(from, endpoint)
+		a.hintPeer(ctx, from, endpoint)
 	}
 
-	// TODO(james.yin): check ctx.Done().
-	_ = r.node.Step(r.ctx, *msg)
+	_ = a.node.Step(ctx, *msg)
 }
 
-func (r *appender) hintPeer(from uint64, endpoint string) {
+func (a *appender) hintPeer(ctx context.Context, from uint64, endpoint string) {
+	_, span := a.tracer.Start(ctx, "hintPeer")
+	defer span.End()
+
 	if endpoint == "" {
 		return
 	}
 
 	// TODO(james.yin): optimize lock
-	r.hintMu.Lock()
-	defer r.hintMu.Unlock()
+	a.hintMu.Lock()
+	defer a.hintMu.Unlock()
 	p := func() *peer {
-		for i := range r.hint {
-			ep := &r.hint[i]
+		for i := range a.hint {
+			ep := &a.hint[i]
 			if ep.id == from {
 				return ep
 			}
@@ -120,7 +137,7 @@ func (r *appender) hintPeer(from uint64, endpoint string) {
 		return nil
 	}()
 	if p == nil {
-		r.hint = append(r.hint, peer{
+		a.hint = append(a.hint, peer{
 			id:       from,
 			endpoint: endpoint,
 		})

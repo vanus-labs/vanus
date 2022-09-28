@@ -26,19 +26,20 @@ import (
 // Make sure appender implements raftlog.SnapshotOperator.
 var _ raftlog.SnapshotOperator = (*appender)(nil)
 
-func (r *appender) GetSnapshot(index uint64) ([]byte, error) {
-	snap, err := r.raw.Snapshot(context.Background())
+func (a *appender) GetSnapshot(index uint64) ([]byte, error) {
+	ctx := context.Background()
+	snap, err := a.raw.Snapshot(ctx)
 	if err != nil {
 		return nil, err
 	}
-	data, err := block.MarshalFragment(snap)
+	data, err := block.MarshalFragment(ctx, snap)
 	if err != nil {
 		return nil, err
 	}
 	return data, nil
 }
 
-func (r *appender) ApplySnapshot(data []byte) error {
+func (a *appender) ApplySnapshot(data []byte) error {
 	snap := block.NewFragment(data)
-	return r.raw.ApplySnapshot(context.Background(), snap)
+	return a.raw.ApplySnapshot(context.Background(), snap)
 }

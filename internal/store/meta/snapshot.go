@@ -52,7 +52,7 @@ func (s *store) needCreateSnapshot() bool {
 	return s.snapshot-s.version > 4*1024*1024
 }
 
-func (s *store) createSnapshot(_ context.Context) {
+func (s *store) createSnapshot(ctx context.Context) {
 	data, err := s.marshaler.Marshal(SkiplistRange(s.committed))
 	if err != nil {
 		return
@@ -71,7 +71,7 @@ func (s *store) createSnapshot(_ context.Context) {
 	s.snapshot = s.version
 
 	// Compact expired wal.
-	_ = s.wal.Compact(s.snapshot)
+	_ = s.wal.Compact(ctx, s.snapshot)
 	_ = os.Remove(s.resolveSnapshotPath(lastSnapshot))
 }
 
@@ -79,8 +79,9 @@ func (s *store) resolveSnapshotPath(version int64) string {
 	return filepath.Join(s.wal.Dir(), fmt.Sprintf("%020d%s", version, snapshotExt))
 }
 
-func recoverLatestSnapshot(ctx context.Context, dir string,
-	unmarshaler Unmarshaler) (*skiplist.SkipList, int64, error) {
+func recoverLatestSnapshot(
+	ctx context.Context, dir string, unmarshaler Unmarshaler,
+) (*skiplist.SkipList, int64, error) {
 	// Make sure the snapshot directory exists.
 	_, span := tracing.Start(ctx, "store.meta.snapshot", "recoverLatestSnapshot")
 	defer span.End()

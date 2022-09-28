@@ -15,8 +15,8 @@
 package wal
 
 import (
-	stdCtx "context"
 	// standard libraries.
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -27,7 +27,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
 )
 
-const walTempDir = "/home/ec2-user/yinweihe/volume"
+const walTempDir = ""
 
 func BenchmarkWAL_AppendOneWithBatching(b *testing.B) {
 	walDir, err := os.MkdirTemp(walTempDir, "wal-*")
@@ -36,7 +36,7 @@ func BenchmarkWAL_AppendOneWithBatching(b *testing.B) {
 	}
 	defer os.RemoveAll(walDir)
 
-	wal, err := Open(stdCtx.Background(), walDir)
+	wal, err := Open(context.Background(), walDir)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -49,14 +49,14 @@ func BenchmarkWAL_AppendOneWithBatching(b *testing.B) {
 
 	// b.Run("WAL: append with batching", func(b *testing.B) {
 	// 	for i := 0; i < b.N; i++ {
-	// 		wal.AppendOne(stdCtx.Background(), []byte("foo")).Wait()
+	// 		wal.AppendOne(context.Background(), []byte("foo")).Wait()
 	// 	}
 	// })
 
 	b.Run("WAL: concurrent append with batching", func(b *testing.B) {
 		b.RunParallel(func(p *testing.PB) {
 			for p.Next() {
-				wal.AppendOne(stdCtx.Background(), []byte("foo")).Wait()
+				wal.AppendOne(context.Background(), []byte("foo")).Wait()
 			}
 		})
 	})
@@ -69,7 +69,7 @@ func BenchmarkWAL_AppendOneWithoutBatching(b *testing.B) {
 	}
 	defer os.RemoveAll(walDir)
 
-	wal, err := Open(stdCtx.Background(), walDir)
+	wal, err := Open(context.Background(), walDir)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -82,14 +82,14 @@ func BenchmarkWAL_AppendOneWithoutBatching(b *testing.B) {
 
 	b.Run("WAL: append without batching", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			wal.AppendOne(stdCtx.Background(), []byte("foo"), WithoutBatching()).Wait()
+			wal.AppendOne(context.Background(), []byte("foo"), WithoutBatching()).Wait()
 		}
 	})
 
 	// b.Run("WAL: concurrent append without batching", func(b *testing.B) {
 	// 	b.RunParallel(func(p *testing.PB) {
 	// 		for p.Next() {
-	// 			wal.AppendOne(stdCtx.Background(), []byte("foo"), WithoutBatching()).Wait()
+	// 			wal.AppendOne(context.Background(), []byte("foo"), WithoutBatching()).Wait()
 	// 		}
 	// 	})
 	// })
@@ -103,7 +103,7 @@ func BenchmarkWAL_AppendOneWithCallback(b *testing.B) {
 	}
 	defer os.RemoveAll(walDir)
 
-	wal, err := Open(stdCtx.Background(), walDir)
+	wal, err := Open(context.Background(), walDir)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -146,7 +146,7 @@ func BenchmarkWAL_AppendOneWithCallback(b *testing.B) {
 			wg := sync.WaitGroup{}
 			wg.Add(b.N)
 			for i := 0; i < b.N; i++ {
-				wal.AppendOne(stdCtx.Background(), tc.payload, WithCallback(func(re Result) {
+				wal.AppendOne(context.Background(), tc.payload, WithCallback(func(re Result) {
 					if re.Err != nil {
 						log.Printf("err: %v", re.Err)
 					}

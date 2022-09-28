@@ -15,8 +15,8 @@
 package meta
 
 import (
-	stdCtx "context"
 	// standard libraries.
+	"context"
 	"os"
 	"testing"
 
@@ -28,12 +28,14 @@ import (
 )
 
 func TestAsyncStore(t *testing.T) {
+	ctx := context.Background()
+
 	Convey("AsyncStore", t, func() {
 		walDir, err := os.MkdirTemp("", "async-*")
 		So(err, ShouldBeNil)
 
 		Convey("new empty AsyncStore by recovery", func() {
-			ss, err := RecoverAsyncStore(stdCtx.Background(), storecfg.AsyncStoreConfig{}, walDir)
+			ss, err := RecoverAsyncStore(ctx, storecfg.AsyncStoreConfig{}, walDir)
 
 			So(err, ShouldBeNil)
 			So(ss, ShouldNotBeNil)
@@ -42,14 +44,14 @@ func TestAsyncStore(t *testing.T) {
 		})
 
 		Convey("setup AsyncStore", func() {
-			ss, err := RecoverAsyncStore(stdCtx.Background(), storecfg.AsyncStoreConfig{}, walDir)
+			ss, err := RecoverAsyncStore(ctx, storecfg.AsyncStoreConfig{}, walDir)
 			So(err, ShouldBeNil)
-			ss.Store(key0, "value0")
-			ss.Store(key1, "value1")
+			ss.Store(ctx, key0, "value0")
+			ss.Store(ctx, key1, "value1")
 			ss.Close()
 
 			Convey("recover AsyncStore", func() {
-				ss, err = RecoverAsyncStore(stdCtx.Background(), storecfg.AsyncStoreConfig{}, walDir)
+				ss, err = RecoverAsyncStore(ctx, storecfg.AsyncStoreConfig{}, walDir)
 				So(err, ShouldBeNil)
 
 				value0, ok0 := ss.Load(key0)
@@ -68,7 +70,7 @@ func TestAsyncStore(t *testing.T) {
 					_, ok1 = ss.Load(key1)
 					So(ok1, ShouldBeFalse)
 
-					ss.Store(key2, "value2")
+					ss.Store(ctx, key2, "value2")
 					value2, ok2 := ss.Load(key2)
 					So(ok2, ShouldBeTrue)
 					So(value2, ShouldResemble, "value2")
@@ -76,7 +78,7 @@ func TestAsyncStore(t *testing.T) {
 					ss.Close()
 
 					Convey("recover AsyncStore again", func() {
-						ss, err = RecoverAsyncStore(stdCtx.Background(), storecfg.AsyncStoreConfig{}, walDir)
+						ss, err = RecoverAsyncStore(ctx, storecfg.AsyncStoreConfig{}, walDir)
 						So(err, ShouldBeNil)
 
 						value0, ok0 := ss.Load(key0)

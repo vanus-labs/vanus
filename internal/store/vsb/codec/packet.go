@@ -16,11 +16,13 @@ package codec
 
 import (
 	// standard libraries.
+	"context"
 	"encoding/binary"
 	"hash/crc32"
 	"io"
 
 	// first-party project.
+	"github.com/linkall-labs/vanus/observability/tracing"
 	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
 
 	// this project.
@@ -47,7 +49,8 @@ type PacketDataEncoder interface {
 }
 
 type packetEncoder struct {
-	pde PacketDataEncoder
+	pde    PacketDataEncoder
+	tracer *tracing.Tracer
 }
 
 // Make sure packetEncoder implements EntryEncoder.
@@ -57,7 +60,10 @@ func (e *packetEncoder) Size(entry block.Entry) int {
 	return packetMetaSize + e.pde.Size(entry)
 }
 
-func (e *packetEncoder) MarshalTo(entry block.Entry, buf []byte) (int, error) {
+func (e *packetEncoder) MarshalTo(ctx context.Context, entry block.Entry, buf []byte) (int, error) {
+	_, span := e.tracer.Start(ctx, "MarshalTo")
+	defer span.End()
+
 	n, err := e.pde.MarshalTo(entry, buf[packetPayloadOffset:])
 	if err != nil {
 		return 0, err

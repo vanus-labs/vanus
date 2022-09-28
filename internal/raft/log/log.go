@@ -20,7 +20,11 @@ import (
 	"fmt"
 	"sync"
 
+	// third-party libraries.
+	"go.opentelemetry.io/otel/trace"
+
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/raft"
 	"github.com/linkall-labs/vanus/raft/raftpb"
 
@@ -40,6 +44,8 @@ type Log struct {
 	stateStorage
 	logStorage
 	snapshotStorage
+
+	tracer *tracing.Tracer
 }
 
 // Make sure Log implements raft.Storage.
@@ -68,6 +74,7 @@ func NewLog(
 		snapshotStorage: snapshotStorage{
 			snapOp: snapOp,
 		},
+		tracer: tracing.NewTracer("raft.log.Log", trace.SpanKindInternal),
 	}
 }
 

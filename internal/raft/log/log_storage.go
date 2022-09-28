@@ -20,12 +20,14 @@ import (
 	"fmt"
 	"strings"
 
+	// third-party libraries.
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/raft"
 	"github.com/linkall-labs/vanus/raft/raftpb"
-
-	// this project.
-	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type logStorage struct {
@@ -155,15 +157,21 @@ func (l *Log) length() uint64 {
 
 // Append the new entries to storage.
 func (l *Log) Append(ctx context.Context, entries []raftpb.Entry) error {
+	ctx, span := l.tracer.Start(ctx, "Append")
+	defer span.End()
+
 	if len(entries) == 0 {
 		return nil
 	}
 
-	if err := l.prepareAppend(entries); err != nil { //nolint:contextcheck // wrong advice
+	if err := l.prepareAppend(ctx, entries); err != nil {
 		return err
 	}
 
+	span.AddEvent("Acquiring lock")
 	l.Lock()
+	span.AddEvent("Got lock")
+
 	defer l.Unlock()
 
 	term := entries[0].Term
@@ -222,6 +230,16 @@ func (l *Log) Append(ctx context.Context, entries []raftpb.Entry) error {
 	}
 
 	// Write to cache, and record offset in WAL.
+	span.SetAttributes(
+		attribute.Int64("index", int64(index)),
+		attribute.Int64("expected_index", int64(expectedIndex)),
+		attribute.Int("entry_count", len(entries)),
+		attribute.Int("cache_count", len(l.ents)-1),
+		attribute.Int("entry_cache_capacity", cap(l.ents)),
+		attribute.Int("offset_cache_capacity", cap(l.offs)),
+		attribute.Bool("truncate", index != expectedIndex),
+	)
+	span.AddEvent("Writing to cache")
 	if index == expectedIndex {
 		// append
 		l.ents = append(l.ents, entries...)
@@ -234,10 +252,16 @@ func (l *Log) Append(ctx context.Context, entries []raftpb.Entry) error {
 		l.offs = append([]int64{}, l.offs[:i]...)
 		l.offs = append(l.offs, offsets...)
 	}
+	span.AddEvent("Written to cache")
+	span.SetAttributes(
+		attribute.Int("entry_cache_capacity2", cap(l.ents)),
+		attribute.Int("offset_cache_capacity2", cap(l.offs)),
+	)
+
 	return nil
 
 ERROR:
-	log.Error(context.Background(), fmt.Sprintf("%s%s.", strings.ToUpper(reason[0:1]), reason[1:]), map[string]interface{}{
+	log.Error(ctx, fmt.Sprintf("%s%s.", strings.ToUpper(reason[0:1]), reason[1:]), map[string]interface{}{
 		"node_id":     l.nodeID,
 		"first_index": firstIndex,
 		"last_term":   lastTerm,
@@ -248,7 +272,10 @@ ERROR:
 	return err
 }
 
-func (l *Log) prepareAppend(entries []raftpb.Entry) error {
+func (l *Log) prepareAppend(ctx context.Context, entries []raftpb.Entry) error {
+	ctx, span := l.tracer.Start(ctx, "prepareAppend")
+	defer span.End()
+
 	for i := 1; i < len(entries); i++ {
 		entry, prev := &entries[i], &entries[i-1]
 		var reason string
@@ -258,7 +285,7 @@ func (l *Log) prepareAppend(entries []raftpb.Entry) error {
 			reason = "Term roll back."
 		}
 		if reason != "" {
-			log.Warning(context.Background(), reason, map[string]interface{}{
+			log.Warning(ctx, reason, map[string]interface{}{
 				"node_id":        l.nodeID,
 				"term":           entry.Term,
 				"index":          entry.Index,
@@ -276,8 +303,18 @@ func (l *Log) prepareAppend(entries []raftpb.Entry) error {
 }
 
 func (l *Log) appendToWAL(ctx context.Context, entries []raftpb.Entry, empty bool) ([]int64, error) {
+	ctx, span := l.tracer.Start(ctx, "appendToWAL",
+		trace.WithAttributes(attribute.Int("entry_count", len(entries)), attribute.Bool("empty", empty)))
+	defer span.End()
+
+	span.AddEvent("Releasing lock")
 	l.Unlock()
-	defer l.Lock()
+
+	defer func() {
+		span.AddEvent("Acquiring lock again")
+		l.Lock()
+		span.AddEvent("Got lock again")
+	}()
 
 	var offsets []int64
 	var err error
@@ -299,6 +336,9 @@ func (l *Log) appendToWAL(ctx context.Context, entries []raftpb.Entry, empty boo
 }
 
 func (l *Log) doAppendToWAL(ctx context.Context, entries []raftpb.Entry) ([]int64, error) {
+	ctx, span := l.tracer.Start(ctx, "doAppendToWAL")
+	defer span.End()
+
 	ents := make([][]byte, len(entries))
 	for i, entry := range entries {
 		// reset node ID.
@@ -309,7 +349,12 @@ func (l *Log) doAppendToWAL(ctx context.Context, entries []raftpb.Entry) ([]int6
 		}
 		ents[i] = ent
 	}
-	ranges, err := l.wal.Append(ctx, ents).Wait()
+	future := l.wal.Append(ctx, ents)
+
+	_, wSpan := l.tracer.Start(ctx, "waitAppendToWAL")
+	ranges, err := future.Wait()
+	wSpan.End()
+
 	if err != nil {
 		return nil, err
 	}

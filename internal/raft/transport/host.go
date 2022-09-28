@@ -20,6 +20,11 @@ import (
 	"sync"
 
 	// third-party libraries.
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
+	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/raft/raftpb"
 )
 
@@ -40,6 +45,7 @@ type host struct {
 	resolver  Resolver
 	callback  string
 	lo        Multiplexer
+	tracer    *tracing.Tracer
 }
 
 // Make sure host implements Host.
@@ -49,6 +55,7 @@ func NewHost(resolver Resolver, callback string) Host {
 	h := &host{
 		resolver: resolver,
 		callback: callback,
+		tracer:   tracing.NewTracer("raft.transport.host", trace.SpanKindInternal),
 	}
 	h.lo = &loopback{
 		addr: callback,
@@ -66,6 +73,10 @@ func (h *host) Stop() {
 }
 
 func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoint string, cb SendCallback) {
+	ctx, span := h.tracer.Start(ctx, "Send", trace.WithAttributes(
+		attribute.Int64("to", int64(to)), attribute.String("endpoint", endpoint)))
+	defer span.End()
+
 	mux := h.resolveMultiplexer(ctx, to, endpoint)
 	if mux == nil {
 		cb(ErrNotReachable)
@@ -79,6 +90,8 @@ func (h *host) resolveMultiplexer(ctx context.Context, to uint64, endpoint strin
 		if endpoint = h.resolver.Resolve(to); endpoint == "" {
 			return nil
 		}
+		span := trace.SpanFromContext(ctx)
+		span.SetAttributes(attribute.String("endpoint", endpoint))
 	}
 
 	if endpoint == h.callback {
@@ -100,6 +113,9 @@ func (h *host) resolveMultiplexer(ctx context.Context, to uint64, endpoint strin
 
 // Receive implements Demultiplexer.
 func (h *host) Receive(ctx context.Context, msg *raftpb.Message, endpoint string) error {
+	ctx, span := h.tracer.Start(ctx, "Receive")
+	defer span.End()
+
 	if receiver, ok := h.receivers.Load(msg.To); ok {
 		r, _ := receiver.(Receiver)
 		r.Receive(ctx, msg, msg.From, endpoint)

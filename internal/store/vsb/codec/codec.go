@@ -16,8 +16,15 @@ package codec
 
 import (
 	// standard libraries.
+	"context"
 	"errors"
 	"io"
+
+	// third-party libraries.
+	"go.opentelemetry.io/otel/trace"
+
+	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/tracing"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
@@ -36,7 +43,7 @@ var (
 
 type EntryEncoder interface {
 	Size(entry block.Entry) int
-	MarshalTo(entry block.Entry, buf []byte) (int, error)
+	MarshalTo(ctx context.Context, entry block.Entry, buf []byte) (int, error)
 }
 
 type EntryDecoder interface {
@@ -54,6 +61,7 @@ func NewEncoder() EntryEncoder {
 				},
 			},
 		},
+		tracer: tracing.NewTracer("store.vsb.codec.packetEncoder", trace.SpanKindInternal),
 	}
 }
 

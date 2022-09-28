@@ -51,6 +51,9 @@ func (l *Log) HardState() raftpb.HardState {
 
 // SetHardState saves the current HardState.
 func (l *Log) SetHardState(ctx context.Context, hs raftpb.HardState) (err error) {
+	ctx, span := l.tracer.Start(ctx, "SetHardState")
+	defer span.End()
+
 	if hs.Term != l.prevHardSt.Term || hs.Vote != l.prevHardSt.Vote {
 		var data []byte
 		if data, err = hs.Marshal(); err != nil {
@@ -59,7 +62,7 @@ func (l *Log) SetHardState(ctx context.Context, hs raftpb.HardState) (err error)
 		l.metaStore.Store(ctx, l.hsKey, data)
 		l.prevHardSt = hs
 	} else {
-		l.offsetStore.Store(l.offKey, hs.Commit)
+		l.offsetStore.Store(ctx, l.offKey, hs.Commit)
 		l.prevHardSt.Commit = hs.Commit
 	}
 	return nil
@@ -79,7 +82,7 @@ func (l *Log) Applied() uint64 {
 	return l.prevApply
 }
 
-func (l *Log) SetApplied(app uint64) {
-	l.offsetStore.Store(l.appKey, app)
+func (l *Log) SetApplied(ctx context.Context, app uint64) {
+	l.offsetStore.Store(ctx, l.appKey, app)
 	l.prevApply = app
 }

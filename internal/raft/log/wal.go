@@ -20,6 +20,8 @@ import (
 
 	// third-party libraries.
 	"github.com/huandu/skiplist"
+
+	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability/tracing"
 	oteltrace "go.opentelemetry.io/otel/trace"
 

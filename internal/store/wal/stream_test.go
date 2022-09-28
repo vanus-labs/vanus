@@ -15,8 +15,8 @@
 package wal
 
 import (
-	stdCtx "context"
 	// standard libraries.
+	"context"
 	"os"
 	"testing"
 
@@ -36,51 +36,51 @@ func TestLogStream_SelectFile(t *testing.T) {
 		}
 
 		Convey("select file", func() {
-			f := s.selectFile(0, false)
+			f := s.selectFile(context.Background(), 0, false)
 			So(f, ShouldBeNil)
 
 			So(func() {
-				_ = s.selectFile(1, false)
+				_ = s.selectFile(context.Background(), 1, false)
 			}, ShouldPanic)
 
-			f0 := s.selectFile(0, true)
+			f0 := s.selectFile(context.Background(), 0, true)
 			So(f0, ShouldNotBeNil)
 			So(s.stream, ShouldHaveLength, 1)
 
-			f = s.selectFile(fileSize-1, false)
+			f = s.selectFile(context.Background(), fileSize-1, false)
 			So(f, ShouldEqual, f0)
 
-			f = s.selectFile(fileSize, false)
+			f = s.selectFile(context.Background(), fileSize, false)
 			So(f, ShouldBeNil)
 
 			So(func() {
-				_ = s.selectFile(fileSize+1, false)
+				_ = s.selectFile(context.Background(), fileSize+1, false)
 			}, ShouldPanic)
 
-			f1 := s.selectFile(fileSize, true)
+			f1 := s.selectFile(context.Background(), fileSize, true)
 			So(f1, ShouldNotBeNil)
 			So(s.stream, ShouldHaveLength, 2)
 
-			f = s.selectFile(fileSize*2-1, false)
+			f = s.selectFile(context.Background(), fileSize*2-1, false)
 			So(f, ShouldEqual, f1)
 
-			f = s.selectFile(fileSize*2, false)
+			f = s.selectFile(context.Background(), fileSize*2, false)
 			So(f, ShouldBeNil)
 
 			So(func() {
-				_ = s.selectFile(fileSize*2+1, false)
+				_ = s.selectFile(context.Background(), fileSize*2+1, false)
 			}, ShouldPanic)
 
-			f = s.selectFile(fileSize-1, false)
+			f = s.selectFile(context.Background(), fileSize-1, false)
 			So(f, ShouldEqual, f0)
 
 			So(func() {
-				_ = s.selectFile(-1, false)
+				_ = s.selectFile(context.Background(), -1, false)
 			}, ShouldPanic)
 		})
 
 		Reset(func() {
-			s.Close(stdCtx.Background())
+			s.Close(context.Background())
 
 			err = os.RemoveAll(walDir)
 			So(err, ShouldBeNil)

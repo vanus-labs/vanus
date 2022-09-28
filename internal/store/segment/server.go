@@ -41,6 +41,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/controller"
 	"github.com/linkall-labs/vanus/pkg/util"
@@ -64,8 +66,6 @@ import (
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	ceconv "github.com/linkall-labs/vanus/internal/store/schema/ce/convert"
 	"github.com/linkall-labs/vanus/internal/store/vsb"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
 )
 
 const (
@@ -119,10 +119,10 @@ func NewServer(cfg store.Config) Server {
 		host:         host,
 		ctrlAddress:  cfg.ControllerAddresses,
 		credentials:  insecure.NewCredentials(),
-		leaderc:      make(chan leaderInfo, defaultLeaderInfoBufferSize),
-		closec:       make(chan struct{}),
+		leaderC:      make(chan leaderInfo, defaultLeaderInfoBufferSize),
+		closeC:       make(chan struct{}),
 		pm:           &pollingMgr{},
-		tracer:       tracing.NewTracer("segment.server", trace.SpanKindServer),
+		tracer:       tracing.NewTracer("store.segment.server", trace.SpanKindServer),
 	}
 
 	srv.cc = controller.NewSegmentClient(cfg.ControllerAddresses, srv.credentials)
@@ -157,10 +157,10 @@ type server struct {
 	ctrlAddress []string
 	credentials credentials.TransportCredentials
 	cc          ctrlpb.SegmentControllerClient
-	leaderc     chan leaderInfo
+	leaderC     chan leaderInfo
 
 	grpcSrv *grpc.Server
-	closec  chan struct{}
+	closeC  chan struct{}
 
 	pm     pollingManager
 	tracer *tracing.Tracer
@@ -199,15 +199,15 @@ func (s *server) Serve(lis net.Listener) error {
 
 func (s *server) preGrpcStream(ctx context.Context, info *tap.Info) (context.Context, error) {
 	if info.FullMethodName == "/linkall.vanus.raft.RaftServer/SendMessage" {
-		cctx, cancel := context.WithCancel(ctx)
+		cCtx, cancel := context.WithCancel(ctx)
 		go func() {
 			select {
-			case <-cctx.Done():
-			case <-s.closec:
+			case <-cCtx.Done():
+			case <-s.closeC:
 				cancel()
 			}
 		}()
-		return cctx, nil
+		return cCtx, nil
 	}
 	return ctx, nil
 }
@@ -282,21 +282,21 @@ func (s *server) registerSelf(ctx context.Context) error {
 	return nil
 }
 
-func (s *server) reconcileSegments(ctx context.Context, segmentpbs map[uint64]*metapb.Segment) {
-	for _, segmentpb := range segmentpbs {
-		if len(segmentpb.Replicas) == 0 {
+func (s *server) reconcileSegments(ctx context.Context, segments map[uint64]*metapb.Segment) {
+	for _, segment := range segments {
+		if len(segment.Replicas) == 0 {
 			continue
 		}
 		var myID vanus.ID
-		for blockID, blockpb := range segmentpb.Replicas {
+		for blockID, block := range segment.Replicas {
 			// Don't use address to compare.
-			if blockpb.VolumeID == s.volumeID {
+			if block.VolumeID == s.volumeID {
 				if myID != 0 {
 					// FIXME(james.yin): multiple blocks of same segment in this server.
 					log.Warning(ctx, "Multiple blocks of the same segment in this server.", map[string]interface{}{
 						"block_id":   blockID,
 						"other":      myID,
-						"segment_id": segmentpb.Id,
+						"segment_id": segment.Id,
 						"volume_id":  s.volumeID,
 					})
 				}
@@ -306,31 +306,31 @@ func (s *server) reconcileSegments(ctx context.Context, segmentpbs map[uint64]*m
 		if myID == 0 {
 			// TODO(james.yin): no my block
 			log.Warning(ctx, "No block of the specific segment in this server.", map[string]interface{}{
-				"segmentID": segmentpb.Id,
+				"segmentID": segment.Id,
 				"volumeID":  s.volumeID,
 			})
 			continue
 		}
-		s.registerReplicas(ctx, segmentpb)
+		s.registerReplicas(ctx, segment)
 	}
 }
 
-func (s *server) registerReplicas(ctx context.Context, segmentpb *metapb.Segment) {
-	for blockID, blockpb := range segmentpb.Replicas {
-		if blockpb.Endpoint == "" {
-			if blockpb.VolumeID == s.volumeID {
-				blockpb.Endpoint = s.localAddress
+func (s *server) registerReplicas(ctx context.Context, segment *metapb.Segment) {
+	for blockID, block := range segment.Replicas {
+		if block.Endpoint == "" {
+			if block.VolumeID == s.volumeID {
+				block.Endpoint = s.localAddress
 			} else {
 				log.Info(ctx, "Block is offline.", map[string]interface{}{
 					"block_id":    blockID,
-					"segment_id":  segmentpb.Id,
-					"eventlog_id": segmentpb.EventLogId,
-					"volume_id":   blockpb.VolumeID,
+					"segment_id":  segment.Id,
+					"eventlog_id": segment.EventLogId,
+					"volume_id":   block.VolumeID,
 				})
 				continue
 			}
 		}
-		s.resolver.Register(blockID, blockpb.Endpoint) //nolint:contextcheck // wrong advice
+		s.resolver.Register(blockID, block.Endpoint) //nolint:contextcheck // wrong advice
 	}
 }
 
@@ -368,10 +368,10 @@ func (s *server) runHeartbeat(_ context.Context) error {
 	go func() {
 		for {
 			select {
-			case <-s.closec:
+			case <-s.closeC:
 				cancel()
 				return
-			case info := <-s.leaderc:
+			case info := <-s.leaderC:
 				// TODO(james.yin): move to other goroutine.
 				req := &ctrlpb.ReportSegmentLeaderRequest{
 					LeaderId: info.leader.Uint64(),
@@ -415,7 +415,7 @@ func (s *server) leaderChanged(blockID, leaderID vanus.ID, term uint64) {
 		}
 
 		select {
-		case s.leaderc <- info:
+		case s.leaderC <- info:
 		default:
 		}
 	}
@@ -466,7 +466,7 @@ func (s *server) stop(ctx context.Context) error {
 	s.metaStore.Close(ctx)
 
 	// Stop heartbeat task, etc.
-	close(s.closec)
+	close(s.closeC)
 
 	// Close grpc connections for raft.
 	s.host.Stop()

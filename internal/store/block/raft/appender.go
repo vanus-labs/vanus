@@ -24,9 +24,11 @@ import (
 	"time"
 
 	// third-party libraries.
-	oteltracer "go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/raft"
 	"github.com/linkall-labs/vanus/raft/raftpb"
@@ -36,7 +38,6 @@ import (
 	raftlog "github.com/linkall-labs/vanus/internal/raft/log"
 	"github.com/linkall-labs/vanus/internal/raft/transport"
 	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/observability/log"
 )
 
 const (
@@ -80,15 +81,14 @@ type Appender interface {
 }
 
 type appender struct {
-	mu sync.RWMutex
-
-	raw  block.Raw
-	actx block.AppendContext
+	raw      block.Raw
+	actx     block.AppendContext
+	appendMu sync.RWMutex
 
 	waiters      []commitWaiter
 	commitIndex  uint64
 	commitOffset int64
-	mu2          sync.Mutex
+	waitMu       sync.Mutex
 
 	leaderID vanus.ID
 	listener LeaderChangedListener
@@ -100,9 +100,8 @@ type appender struct {
 	hint   []peer
 	hintMu sync.RWMutex
 
-	ctx    context.Context
 	cancel context.CancelFunc
-	donec  chan struct{}
+	doneC  chan struct{}
 	tracer *tracing.Tracer
 }
 
@@ -114,26 +113,25 @@ func NewAppender(
 ) Appender {
 	ctx, cancel := context.WithCancel(ctx)
 
-	r := &appender{
+	a := &appender{
 		raw:      raw,
 		waiters:  make([]commitWaiter, 0),
 		listener: listener,
 		log:      raftLog,
 		host:     host,
 		hint:     make([]peer, 0, defaultHintCapacity),
-		ctx:      ctx,
 		cancel:   cancel,
-		donec:    make(chan struct{}),
-		tracer:   tracing.NewTracer("store.block.replica.replica", oteltracer.SpanKindInternal),
+		doneC:    make(chan struct{}),
+		tracer:   tracing.NewTracer("store.block.raft.appender", trace.SpanKindInternal),
 	}
-	r.actx = r.raw.NewAppendContext(nil)
-	r.commitOffset = r.actx.WriteOffset()
+	a.actx = a.raw.NewAppendContext(nil)
+	a.commitOffset = a.actx.WriteOffset()
 
-	r.log.SetSnapshotOperator(r)
-	r.host.Register(r.ID().Uint64(), r)
+	a.log.SetSnapshotOperator(a)
+	a.host.Register(a.ID().Uint64(), a)
 
 	c := &raft.Config{
-		ID:                        r.ID().Uint64(),
+		ID:                        a.ID().Uint64(),
 		ElectionTick:              defaultElectionTick,
 		HeartbeatTick:             defaultHeartbeatTick,
 		Storage:                   raftLog,
@@ -144,34 +142,34 @@ func NewAppender(
 		PreVote:                   true,
 		DisableProposalForwarding: true,
 	}
-	r.node = raft.RestartNode(c)
+	a.node = raft.RestartNode(c)
 
 	// Access Commit after raft.RestartNode to ensure raft state is initialized.
-	r.commitIndex = r.log.HardState().Commit
+	a.commitIndex = a.log.HardState().Commit
 
-	go r.run(context.TODO())
+	go a.run(ctx)
 
-	return r
+	return a
 }
 
-func (r *appender) ID() vanus.ID {
-	return r.raw.ID()
+func (a *appender) ID() vanus.ID {
+	return a.raw.ID()
 }
 
-func (r *appender) Stop(ctx context.Context) {
-	r.cancel()
+func (a *appender) Stop(ctx context.Context) {
+	a.cancel()
 
 	// Block until the stop has been acknowledged.
-	<-r.donec
+	<-a.doneC
 
 	log.Info(ctx, "the raft node stopped", map[string]interface{}{
-		"node_id":   r.node,
-		"leader_id": r.leaderID,
+		"node_id":   a.ID(),
+		"leader_id": a.leaderID,
 	})
 }
 
-func (r *appender) Bootstrap(ctx context.Context, blocks []Peer) error {
-	_, span := r.tracer.Start(ctx, "Bootstrap")
+func (a *appender) Bootstrap(ctx context.Context, blocks []Peer) error {
+	_, span := a.tracer.Start(ctx, "Bootstrap")
 	defer span.End()
 
 	peers := make([]raft.Peer, 0, len(blocks))
@@ -185,18 +183,18 @@ func (r *appender) Bootstrap(ctx context.Context, blocks []Peer) error {
 	sort.Slice(peers, func(a, b int) bool {
 		return peers[a].ID < peers[b].ID
 	})
-	return r.node.Bootstrap(peers)
+	return a.node.Bootstrap(peers)
 }
 
-func (r *appender) Delete(ctx context.Context) {
-	ctx, span := r.tracer.Start(ctx, "Delete")
+func (a *appender) Delete(ctx context.Context) {
+	ctx, span := a.tracer.Start(ctx, "Delete")
 	defer span.End()
 
-	r.Stop(ctx)
-	r.log.Delete(ctx)
+	a.Stop(ctx)
+	a.log.Delete(ctx)
 }
 
-func (r *appender) run(ctx context.Context) {
+func (a *appender) run(ctx context.Context) {
 	// TODO(james.yin): reduce Ticker
 	t := time.NewTicker(defaultTickInterval)
 	defer t.Stop()
@@ -204,23 +202,24 @@ func (r *appender) run(ctx context.Context) {
 	for {
 		select {
 		case <-t.C:
-			r.node.Tick()
-		case rd := <-r.node.Ready():
-			ctx, span := r.tracer.Start(context.Background(), "RaftReady")
+			a.node.Tick()
+		case rd := <-a.node.Ready():
+			rCtx, span := a.tracer.Start(ctx, "RaftReady", trace.WithNewRoot())
+
 			var partial bool
 			stateChanged := !raft.IsEmptyHardState(rd.HardState)
 			if stateChanged {
 				// Wake up fast before writing logs.
-				partial = r.wakeup(rd.HardState.Commit) //nolint:contextcheck // wrong advice
+				partial = a.wakeup(rCtx, rd.HardState.Commit)
 			}
 
 			if len(rd.Entries) != 0 {
-				log.Debug(ctx, "Append entries to raft log.", map[string]interface{}{
-					"block_id":       r.ID(),
+				log.Debug(rCtx, "Append entries to raft log.", map[string]interface{}{
+					"node_id":        a.ID(),
 					"appended_index": rd.Entries[0].Index,
 					"entries_num":    len(rd.Entries),
 				})
-				if err := r.log.Append(ctx, rd.Entries); err != nil {
+				if err := a.log.Append(rCtx, rd.Entries); err != nil {
 					span.End()
 					panic(err)
 				}
@@ -229,58 +228,62 @@ func (r *appender) run(ctx context.Context) {
 			if stateChanged {
 				// Wake up after writing logs.
 				if partial {
-					_ = r.wakeup(rd.HardState.Commit) //nolint:contextcheck // wrong advice
+					_ = a.wakeup(rCtx, rd.HardState.Commit)
 				}
-				log.Debug(ctx, "Persist raft hard state.", map[string]interface{}{
-					"block_id":   r.ID(),
+				log.Debug(rCtx, "Persist raft hard state.", map[string]interface{}{
+					"node_id":    a.ID(),
 					"hard_state": rd.HardState,
 				})
-				if err := r.log.SetHardState(ctx, rd.HardState); err != nil {
+				if err := a.log.SetHardState(rCtx, rd.HardState); err != nil {
 					span.End()
 					panic(err)
 				}
 			}
 
 			if rd.SoftState != nil {
-				r.leaderID = vanus.NewIDFromUint64(rd.SoftState.Lead)
+				a.leaderID = vanus.NewIDFromUint64(rd.SoftState.Lead)
 				if rd.SoftState.RaftState == raft.StateLeader {
-					r.becomeLeader() //nolint:contextcheck // wrong advice
+					a.becomeLeader(rCtx)
 				}
 			}
 
 			// NOTE: Messages to be sent AFTER HardState and Entries are committed to stable storage.
-			r.send(rd.Messages)
+			a.send(rCtx, rd.Messages)
 
 			if !raft.IsEmptySnap(rd.Snapshot) {
-				_ = r.log.ApplySnapshot(ctx, rd.Snapshot)
+				_ = a.log.ApplySnapshot(rCtx, rd.Snapshot)
 			}
 
 			if len(rd.CommittedEntries) != 0 {
-				applied := r.applyEntries(ctx, rd.CommittedEntries)
-				log.Debug(ctx, "Store applied offset.", map[string]interface{}{
-					"block_id":       r.ID(),
+				applied := a.applyEntries(rCtx, rd.CommittedEntries)
+				log.Debug(rCtx, "Store applied offset.", map[string]interface{}{
+					"node_id":        a.ID(),
 					"applied_offset": applied,
 				})
 				// FIXME(james.yin): persist applied after flush block.
-				r.log.SetApplied(applied)
+				a.log.SetApplied(rCtx, applied)
 			}
 
+			// TODO(james.yin): optimize
 			if rd.Compact != 0 {
-				_ = r.log.Compact(ctx, rd.Compact)
+				_ = a.log.Compact(rCtx, rd.Compact)
 			}
 
-			r.node.Advance()
+			_, span2 := a.tracer.Start(rCtx, "Advance")
+			a.node.Advance()
+			span2.End()
+
 			span.End()
-		case <-r.ctx.Done():
-			r.node.Stop()
-			close(r.donec)
+		case <-ctx.Done():
+			a.node.Stop()
+			close(a.doneC)
 			return
 		}
 	}
 }
 
-func (r *appender) applyEntries(ctx context.Context, committedEntries []raftpb.Entry) uint64 {
-	ctx, span := r.tracer.Start(ctx, "applyEntries")
+func (a *appender) applyEntries(ctx context.Context, committedEntries []raftpb.Entry) uint64 {
+	ctx, span := a.tracer.Start(ctx, "applyEntries")
 	defer span.End()
 
 	num := len(committedEntries)
@@ -291,28 +294,28 @@ func (r *appender) applyEntries(ctx context.Context, committedEntries []raftpb.E
 	var cs *raftpb.ConfState
 	frags := make([]block.Fragment, 0, num)
 	for i := range committedEntries {
-		entrypb := &committedEntries[i]
+		pbEntry := &committedEntries[i]
 
-		if entrypb.Type == raftpb.EntryNormal {
+		if pbEntry.Type == raftpb.EntryNormal {
 			// Skip empty entry(raft heartbeat).
-			if len(entrypb.Data) != 0 {
-				frag := block.NewFragment(entrypb.Data)
+			if len(pbEntry.Data) != 0 {
+				frag := block.NewFragment(pbEntry.Data)
 				frags = append(frags, frag)
 			}
 			continue
 		}
 
 		// Change membership.
-		cs = r.applyConfChange(entrypb)
+		cs = a.applyConfChange(ctx, pbEntry)
 	}
 
 	if len(frags) != 0 {
-		r.doAppend(ctx, frags...)
+		a.doAppend(ctx, frags...)
 	}
 
 	// ConfState is changed.
 	if cs != nil {
-		if err := r.log.SetConfState(ctx, *cs); err != nil {
+		if err := a.log.SetConfState(ctx, *cs); err != nil {
 			panic(err)
 		}
 	}
@@ -321,28 +324,32 @@ func (r *appender) applyEntries(ctx context.Context, committedEntries []raftpb.E
 }
 
 // wakeup wakes up append requests to the smaller of the committed or last index.
-func (r *appender) wakeup(commit uint64) (partial bool) {
-	li, _ := r.log.LastIndex()
+func (a *appender) wakeup(ctx context.Context, commit uint64) (partial bool) {
+	_, span := a.tracer.Start(ctx, "wakeup", trace.WithAttributes(
+		attribute.Int64("commit", int64(commit))))
+	defer span.End()
+
+	li, _ := a.log.LastIndex()
 	if commit > li {
 		commit = li
 		partial = true
 	}
 
-	if commit <= r.commitIndex {
+	if commit <= a.commitIndex {
 		return
 	}
-	r.commitIndex = commit
+	a.commitIndex = commit
 
 	for off := commit; off > 0; off-- {
-		entrypbs, err := r.log.Entries(off, off+1, 0)
+		pbEntries, err := a.log.Entries(off, off+1, 0)
 		if err != nil {
 			return
 		}
 
-		entrypb := entrypbs[0]
-		if entrypb.Type == raftpb.EntryNormal && len(entrypb.Data) > 0 {
-			frag := block.NewFragment(entrypb.Data)
-			r.doWakeup(frag.EndOffset())
+		pbEntry := pbEntries[0]
+		if pbEntry.Type == raftpb.EntryNormal && len(pbEntry.Data) > 0 {
+			frag := block.NewFragment(pbEntry.Data)
+			a.doWakeup(ctx, frag.EndOffset())
 			return
 		}
 	}
@@ -350,73 +357,82 @@ func (r *appender) wakeup(commit uint64) (partial bool) {
 	return partial
 }
 
-func (r *appender) becomeLeader() {
-	// Reset when become leader.
-	r.reset()
+func (a *appender) becomeLeader(ctx context.Context) {
+	ctx, span := a.tracer.Start(ctx, "becomeLeader")
+	defer span.End()
 
-	r.leaderChanged()
+	// Reset when become leader.
+	a.reset(ctx)
+
+	a.leaderChanged()
 }
 
-func (r *appender) leaderChanged() {
-	if r.listener == nil {
+func (a *appender) leaderChanged() {
+	if a.listener == nil {
 		return
 	}
 
-	leader, term := r.leaderInfo()
-	r.listener(r.ID(), leader, term)
+	leader, term := a.leaderInfo()
+	a.listener(a.ID(), leader, term)
 }
 
-func (r *appender) applyConfChange(entrypb *raftpb.Entry) *raftpb.ConfState {
-	if entrypb.Type == raftpb.EntryNormal {
+func (a *appender) applyConfChange(ctx context.Context, pbEntry *raftpb.Entry) *raftpb.ConfState {
+	if pbEntry.Type == raftpb.EntryNormal {
 		// TODO(james.yin): return error
 		return nil
 	}
 
 	var cci raftpb.ConfChangeI
-	if entrypb.Type == raftpb.EntryConfChange {
+	if pbEntry.Type == raftpb.EntryConfChange {
 		var cc raftpb.ConfChange
-		if err := cc.Unmarshal(entrypb.Data); err != nil {
+		if err := cc.Unmarshal(pbEntry.Data); err != nil {
 			panic(err)
 		}
 		// TODO(james.yin): non-add
-		r.hintPeer(cc.NodeID, string(cc.Context))
+		a.hintPeer(ctx, cc.NodeID, string(cc.Context))
 		cci = cc
 	} else {
 		var cc raftpb.ConfChangeV2
-		if err := cc.Unmarshal(entrypb.Data); err != nil {
+		if err := cc.Unmarshal(pbEntry.Data); err != nil {
 			panic(err)
 		}
 		// TODO(james.yin): non-add
 		for _, ccs := range cc.Changes {
-			r.hintPeer(ccs.NodeID, string(cc.Context))
+			a.hintPeer(ctx, ccs.NodeID, string(cc.Context))
 		}
 		cci = cc
 	}
-	return r.node.ApplyConfChange(cci)
+	return a.node.ApplyConfChange(cci)
 }
 
-func (r *appender) reset() {
-	off, err := r.log.LastIndex()
+func (a *appender) reset(ctx context.Context) {
+	_, span := a.tracer.Start(ctx, "reset")
+	defer span.End()
+
+	off, err := a.log.LastIndex()
 	if err != nil {
-		off = r.log.HardState().Commit
+		off = a.log.HardState().Commit
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	span.AddEvent("Acquiring append lock.")
+	a.appendMu.Lock()
+	span.AddEvent("Got append lock.")
+
+	defer a.appendMu.Unlock()
 
 	for off > 0 {
-		entrypbs, err2 := r.log.Entries(off, off+1, 0)
+		pbEntries, err2 := a.log.Entries(off, off+1, 0)
 
 		// Entry has been compacted.
 		if err2 != nil {
-			r.actx = r.raw.NewAppendContext(nil)
+			a.actx = a.raw.NewAppendContext(nil)
 			break
 		}
 
-		entrypb := entrypbs[0]
-		if entrypb.Type == raftpb.EntryNormal && len(entrypb.Data) > 0 {
-			frag := block.NewFragment(entrypb.Data)
-			r.actx = r.raw.NewAppendContext(frag)
+		pbEntry := pbEntries[0]
+		if pbEntry.Type == raftpb.EntryNormal && len(pbEntry.Data) > 0 {
+			frag := block.NewFragment(pbEntry.Data)
+			a.actx = a.raw.NewAppendContext(frag)
 			break
 		}
 
@@ -425,25 +441,25 @@ func (r *appender) reset() {
 
 	// no normal entry
 	if off == 0 {
-		r.actx = r.raw.NewAppendContext(nil)
+		a.actx = a.raw.NewAppendContext(nil)
 	}
 }
 
 // Append implements block.raw.
-func (r *appender) Append(ctx context.Context, entries ...block.Entry) ([]int64, error) {
-	ctx, span := r.tracer.Start(ctx, "Append")
+func (a *appender) Append(ctx context.Context, entries ...block.Entry) ([]int64, error) {
+	ctx, span := a.tracer.Start(ctx, "Append")
 	defer span.End()
 
-	seqs, offset, err := r.append(ctx, entries)
+	seqs, offset, err := a.append(ctx, entries)
 	if err != nil {
 		if errors.Is(err, block.ErrFull) {
-			_ = r.waitCommit(ctx, offset)
+			_ = a.waitCommit(ctx, offset)
 		}
 		return nil, err
 	}
 
 	// Wait until entries is committed.
-	err = r.waitCommit(ctx, offset)
+	err = a.waitCommit(ctx, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -451,36 +467,39 @@ func (r *appender) Append(ctx context.Context, entries ...block.Entry) ([]int64,
 	return seqs, nil
 }
 
-func (r *appender) append(ctx context.Context, entries []block.Entry) ([]int64, int64, error) {
-	ctx, span := r.tracer.Start(ctx, "append")
+func (a *appender) append(ctx context.Context, entries []block.Entry) ([]int64, int64, error) {
+	ctx, span := a.tracer.Start(ctx, "append")
 	defer span.End()
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	span.AddEvent("Acquiring append lock")
+	a.appendMu.Lock()
+	span.AddEvent("Got append lock")
 
-	if !r.isLeader() {
+	defer a.appendMu.Unlock()
+
+	if !a.isLeader() {
 		return nil, 0, block.ErrNotLeader
 	}
 
-	if r.actx.Archived() {
-		return nil, r.actx.WriteOffset(), block.ErrFull
+	if a.actx.Archived() {
+		return nil, a.actx.WriteOffset(), block.ErrFull
 	}
 
-	seqs, frag, enough, err := r.raw.PrepareAppend(ctx, r.actx, entries...)
+	seqs, frag, enough, err := a.raw.PrepareAppend(ctx, a.actx, entries...)
 	if err != nil {
 		return nil, 0, err
 	}
-	off := r.actx.WriteOffset()
+	off := a.actx.WriteOffset()
 
-	data, _ := block.MarshalFragment(frag)
-	if err = r.node.Propose(ctx, data); err != nil {
+	data, _ := block.MarshalFragment(ctx, frag)
+	if err = a.node.Propose(ctx, data); err != nil {
 		return nil, 0, err
 	}
 
 	if enough {
-		if frag, err = r.raw.PrepareArchive(ctx, r.actx); err == nil {
-			data, _ := block.MarshalFragment(frag)
-			_ = r.node.Propose(ctx, data)
+		if frag, err = a.raw.PrepareArchive(ctx, a.actx); err == nil {
+			data, _ := block.MarshalFragment(ctx, frag)
+			_ = a.node.Propose(ctx, data)
 			// FIXME(james.yin): revert archived if propose failed.
 		}
 	}
@@ -488,30 +507,33 @@ func (r *appender) append(ctx context.Context, entries []block.Entry) ([]int64, 
 	return seqs, off, nil
 }
 
-func (r *appender) doAppend(ctx context.Context, frags ...block.Fragment) {
+func (a *appender) doAppend(ctx context.Context, frags ...block.Fragment) {
 	if len(frags) == 0 {
 		return
 	}
-	_, _ = r.raw.CommitAppend(ctx, frags...)
+	_, _ = a.raw.CommitAppend(ctx, frags...)
 }
 
-func (r *appender) waitCommit(ctx context.Context, offset int64) error {
-	ctx, span := r.tracer.Start(ctx, "waitCommit")
+func (a *appender) waitCommit(ctx context.Context, offset int64) error {
+	ctx, span := a.tracer.Start(ctx, "waitCommit")
 	defer span.End()
-	r.mu2.Lock()
 
-	if offset <= r.commitOffset {
-		r.mu2.Unlock()
+	span.AddEvent("Acquiring wait lock")
+	a.waitMu.Lock()
+	span.AddEvent("Got wait lock")
+
+	if offset <= a.commitOffset {
+		a.waitMu.Unlock()
 		return nil
 	}
 
 	ch := make(chan struct{})
-	r.waiters = append(r.waiters, commitWaiter{
+	a.waiters = append(a.waiters, commitWaiter{
 		offset: offset,
 		c:      ch,
 	})
 
-	r.mu2.Unlock()
+	a.waitMu.Unlock()
 
 	// FIXME(james.yin): lost leader
 	select {
@@ -522,34 +544,40 @@ func (r *appender) waitCommit(ctx context.Context, offset int64) error {
 	}
 }
 
-func (r *appender) doWakeup(commit int64) {
-	r.mu2.Lock()
-	defer r.mu2.Unlock()
+func (a *appender) doWakeup(ctx context.Context, commit int64) {
+	_, span := a.tracer.Start(ctx, "doWakeup")
+	defer span.End()
 
-	for len(r.waiters) != 0 {
-		waiter := r.waiters[0]
+	span.AddEvent("Acquiring wait lock")
+	a.waitMu.Lock()
+	span.AddEvent("Got wait lock")
+
+	defer a.waitMu.Unlock()
+
+	for len(a.waiters) != 0 {
+		waiter := a.waiters[0]
 		if waiter.offset > commit {
 			break
 		}
 		close(waiter.c)
-		r.waiters = r.waiters[1:]
+		a.waiters = a.waiters[1:]
 	}
-	r.commitOffset = commit
+	a.commitOffset = commit
 }
 
-func (r *appender) Status() ClusterStatus {
-	leader, term := r.leaderInfo()
+func (a *appender) Status() ClusterStatus {
+	leader, term := a.leaderInfo()
 	return ClusterStatus{
 		Leader: leader,
 		Term:   term,
 	}
 }
 
-func (r *appender) leaderInfo() (vanus.ID, uint64) {
+func (a *appender) leaderInfo() (vanus.ID, uint64) {
 	// FIXME(james.yin): avoid concurrent issue.
-	return r.leaderID, r.log.HardState().Term
+	return a.leaderID, a.log.HardState().Term
 }
 
-func (r *appender) isLeader() bool {
-	return r.leaderID == r.ID()
+func (a *appender) isLeader() bool {
+	return a.leaderID == a.ID()
 }

@@ -21,8 +21,10 @@ import (
 
 	// third-party libraries.
 	"github.com/huandu/skiplist"
+	"go.opentelemetry.io/otel/trace"
+
+	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability/tracing"
-	oteltracer "go.opentelemetry.io/otel/trace"
 
 	// this project.
 	storecfg "github.com/linkall-labs/vanus/internal/store"
@@ -38,16 +40,14 @@ type AsyncStore struct {
 
 	pending *skiplist.SkipList
 
-	commitc chan struct{}
-	closec  chan struct{}
-	donec   chan struct{}
+	commitC chan struct{}
+	closeC  chan struct{}
+	doneC   chan struct{}
 }
 
 func newAsyncStore(
-	ctx context.Context,
-	wal *walog.WAL,
-	committed *skiplist.SkipList,
-	version, snapshot int64) *AsyncStore {
+	ctx context.Context, wal *walog.WAL, committed *skiplist.SkipList, version, snapshot int64,
+) *AsyncStore {
 	_, span := tracing.Start(ctx, "store.meta.async", "newAsyncStore")
 	defer span.End()
 
@@ -58,12 +58,12 @@ func newAsyncStore(
 			wal:       wal,
 			snapshot:  snapshot,
 			marshaler: defaultCodec,
-			tracer:    tracing.NewTracer("store.meta.async", oteltracer.SpanKindInternal),
+			tracer:    tracing.NewTracer("store.meta.async", trace.SpanKindInternal),
 		},
 		pending: skiplist.New(skiplist.Bytes),
-		commitc: make(chan struct{}, 1),
-		closec:  make(chan struct{}),
-		donec:   make(chan struct{}),
+		commitC: make(chan struct{}, 1),
+		closeC:  make(chan struct{}),
+		doneC:   make(chan struct{}),
 	}
 
 	go s.runCommit() //nolint:contextcheck // wrong advice
@@ -73,10 +73,10 @@ func newAsyncStore(
 
 func (s *AsyncStore) Close() {
 	s.mu.Lock()
-	close(s.closec)
+	close(s.closeC)
 	s.mu.Unlock()
 
-	<-s.donec
+	<-s.doneC
 
 	// Close WAL.
 	s.wal.Close()
@@ -95,11 +95,17 @@ func (s *AsyncStore) Load(key []byte) (interface{}, bool) {
 	return s.load(key)
 }
 
-func (s *AsyncStore) Store(key []byte, value interface{}) {
+func (s *AsyncStore) Store(ctx context.Context, key []byte, value interface{}) {
+	_, span := s.tracer.Start(ctx, "Store")
+	defer span.End()
+
 	_ = s.set(KVRange(key, value))
 }
 
-func (s *AsyncStore) BatchStore(kvs Ranger) {
+func (s *AsyncStore) BatchStore(ctx context.Context, kvs Ranger) {
+	_, span := s.tracer.Start(ctx, "BatchStore")
+	defer span.End()
+
 	_ = s.set(kvs)
 }
 
@@ -112,7 +118,7 @@ func (s *AsyncStore) set(kvs Ranger) error {
 	defer s.mu.Unlock()
 
 	select {
-	case <-s.closec:
+	case <-s.closeC:
 		return ErrClosed
 	default:
 	}
@@ -133,7 +139,7 @@ func (s *AsyncStore) set(kvs Ranger) error {
 func (s *AsyncStore) tryCommit() {
 	if s.needCommit() {
 		select {
-		case s.commitc <- struct{}{}:
+		case s.commitC <- struct{}{}:
 		default:
 		}
 	}
@@ -149,14 +155,14 @@ func (s *AsyncStore) runCommit() {
 	defer func() {
 		ticker.Stop()
 		s.commit()
-		close(s.donec)
+		close(s.doneC)
 	}()
 
 	for {
 		select {
-		case <-s.closec:
+		case <-s.closeC:
 			return
-		case <-s.commitc:
+		case <-s.commitC:
 		case <-ticker.C:
 		}
 		s.commit()

@@ -21,12 +21,15 @@ import (
 	"sync/atomic"
 	"time"
 
+	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/log"
+	"go.opentelemetry.io/otel/attribute"
+
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/errors"
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	"github.com/linkall-labs/vanus/internal/store/vsb/index"
-	"github.com/linkall-labs/vanus/observability/log"
 )
 
 var errCorruptedFragment = stderr.New("vsb: corrupted fragment")
@@ -77,6 +80,9 @@ func (b *vsBlock) NewAppendContext(last block.Fragment) block.AppendContext {
 func (b *vsBlock) PrepareAppend(
 	ctx context.Context, appendCtx block.AppendContext, entries ...block.Entry,
 ) ([]int64, block.Fragment, bool, error) {
+	_, span := b.tracer.Start(ctx, "PrepareAppend")
+	defer span.End()
+
 	actx, _ := appendCtx.(*appendContext)
 
 	num := int64(len(entries))
@@ -100,6 +106,9 @@ func (b *vsBlock) PrepareAppend(
 }
 
 func (b *vsBlock) PrepareArchive(ctx context.Context, appendCtx block.AppendContext) (block.Fragment, error) {
+	_, span := b.tracer.Start(ctx, "PrepareArchive")
+	defer span.End()
+
 	actx, _ := appendCtx.(*appendContext)
 
 	end := wrapEntry(&block.EmptyEntryExt{}, ceschema.End, actx.seq, time.Now().UnixMilli())
@@ -113,6 +122,9 @@ func (b *vsBlock) PrepareArchive(ctx context.Context, appendCtx block.AppendCont
 }
 
 func (b *vsBlock) CommitAppend(ctx context.Context, frags ...block.Fragment) (bool, error) {
+	ctx, span := b.tracer.Start(ctx, "CommitAppend")
+	defer span.End()
+
 	frags, err := b.trimFragments(ctx, frags)
 	if err != nil {
 		return false, err
@@ -136,24 +148,89 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frags ...block.Fragment) (bo
 		copy(data[frag.StartOffset()-base:], frag.Payload())
 	}
 
+	indexes, entryCount, archived, err := b.buildIndexes(ctx, base, data)
+	if err != nil {
+		return false, err
+	}
+	if !archived && len(indexes) == 0 {
+		return false, nil
+	}
+
+	_, wSpan := b.tracer.Start(ctx, "writeFile")
+	entrySize, err := b.f.WriteAt(data[b.actx.offset-base:], b.actx.offset)
+	if err != nil {
+		wSpan.End()
+		return false, err
+	}
+	wSpan.End()
+
+	span.AddEvent("Acquiring lock")
+	b.mu.Lock()
+	span.AddEvent("Got lock")
+
+	span.SetAttributes(
+		attribute.Int("index_count", len(b.indexes)),
+		attribute.Int("index_capacity", cap(b.indexes)),
+	)
+
+	b.indexes = append(b.indexes, indexes...)
+	b.actx.seq += entryCount
+	b.actx.offset += int64(entrySize)
+	if archived {
+		atomic.StoreUint32(&b.actx.archived, 1)
+	}
+
+	span.AddEvent("Release lock")
+	b.mu.Unlock()
+
+	if archived {
+		m, i := makeSnapshot(b.actx, b.indexes)
+
+		b.wg.Add(1)
+		go func() {
+			defer b.wg.Done()
+			if n, err := b.appendIndexEntry(ctx, i, m.writeOffset); err == nil {
+				b.indexOffset = m.writeOffset
+				b.indexLength = n
+			}
+			_ = b.persistHeader(ctx, m)
+		}()
+
+		if b.lis != nil {
+			b.lis.OnArchived(b.stat(m, i))
+		}
+	}
+
+	span.SetAttributes(
+		attribute.Int("entry_count", int(entryCount)),
+		attribute.Int("entry_size", entrySize),
+		attribute.Bool("archived", archived))
+
+	return archived, nil
+}
+
+func (b *vsBlock) buildIndexes(ctx context.Context, base int64, data []byte) ([]index.Index, int64, bool, error) {
+	_, span := b.tracer.Start(ctx, "buildIndexes")
+	defer span.End()
+
 	var archived bool
 	indexes := make([]index.Index, 0, 1)
-	num := b.actx.seq
-	for off := 0; off < sz; {
+	expected := b.actx.seq
+	for off, sz := 0, len(data); off < sz; {
 		n, entry, _ := b.dec.Unmarshal(data[off:])
 		switch seq := ceschema.SequenceNumber(entry); {
-		case seq == num:
-			num++
-		case seq < num && len(indexes) == 0:
+		case seq == expected:
+			expected++
+		case seq < expected && len(indexes) == 0:
 			continue
 		default:
-			return false, errCorruptedFragment
+			return nil, 0, false, errCorruptedFragment
 		}
 
 		if ceschema.EntryType(entry) == ceschema.End {
 			// End entry must be the last.
 			if off+n != sz {
-				return false, errCorruptedFragment
+				return nil, 0, false, errCorruptedFragment
 			}
 			archived = true
 			break
@@ -165,49 +242,14 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frags ...block.Fragment) (bo
 		off += n
 	}
 
-	if !archived && len(indexes) == 0 {
-		return false, nil
-	}
-
-	if _, err := b.f.WriteAt(data[b.actx.offset-base:], b.actx.offset); err != nil {
-		return false, err
-	}
-
-	b.mu.Lock()
-	b.indexes = append(b.indexes, indexes...)
-	b.actx.seq = num
-	b.actx.offset = base + int64(sz)
-	if archived {
-		atomic.StoreUint32(&b.actx.archived, 1)
-	}
-	b.mu.Unlock()
-
-	if archived {
-		m, indexes := makeSnapshot(b.actx, b.indexes)
-
-		b.wg.Add(1)
-		go func() {
-			defer b.wg.Done()
-			if n, err := b.appendIndexEntry(indexes, m.writeOffset); err == nil {
-				b.indexOffset = m.writeOffset
-				b.indexLength = n
-			}
-			_ = b.persistHeader(ctx, m)
-		}()
-
-		if b.lis != nil {
-			b.lis.OnArchived(b.stat(m, indexes))
-		}
-	}
-
-	return archived, nil
+	return indexes, expected - b.actx.seq, archived, nil
 }
 
-func (b *vsBlock) appendIndexEntry(indexes []index.Index, off int64) (int, error) {
+func (b *vsBlock) appendIndexEntry(ctx context.Context, indexes []index.Index, off int64) (int, error) {
 	entry := index.NewEntry(indexes)
 	sz := b.enc.Size(entry)
 	data := make([]byte, sz)
-	if _, err := b.enc.MarshalTo(entry, data); err != nil {
+	if _, err := b.enc.MarshalTo(ctx, entry, data); err != nil {
 		return 0, err
 	}
 

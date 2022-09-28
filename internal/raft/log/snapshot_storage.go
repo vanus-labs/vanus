@@ -76,6 +76,9 @@ func (l *Log) Snapshot() (raftpb.Snapshot, error) {
 // ApplySnapshot overwrites the contents of this Storage object with
 // those of the given snapshot.
 func (l *Log) ApplySnapshot(ctx context.Context, snap raftpb.Snapshot) error {
+	ctx, span := l.tracer.Start(ctx, "ApplySnapshot")
+	defer span.End()
+
 	l.Lock()
 	defer l.Unlock()
 
@@ -93,7 +96,7 @@ func (l *Log) ApplySnapshot(ctx context.Context, snap raftpb.Snapshot) error {
 	l.ents = []raftpb.Entry{{Term: snap.Metadata.Term, Index: snap.Metadata.Index}}
 	l.offs = []int64{0}
 	l.wal.tryCompact(ctx, 0, last, l.nodeID, snap.Metadata.Index, snap.Metadata.Term)
-	l.SetApplied(snap.Metadata.Index)
+	l.SetApplied(ctx, snap.Metadata.Index)
 
 	return nil
 }

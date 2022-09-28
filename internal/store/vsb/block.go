@@ -82,7 +82,7 @@ func (b *vsBlock) Close(ctx context.Context) error {
 	m, indexes := b.makeSnapshot()
 
 	if b.indexOffset != m.writeOffset {
-		n, err := b.appendIndexEntry(indexes, m.writeOffset)
+		n, err := b.appendIndexEntry(ctx, indexes, m.writeOffset)
 		if err != nil {
 			return err
 		}
