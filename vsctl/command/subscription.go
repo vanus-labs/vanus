@@ -293,7 +293,7 @@ func getSubscriptionCommand() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().Uint64Var(&subscriptionID, "id", 0, "subscription id to deleting")
+	cmd.Flags().Uint64Var(&subscriptionID, "id", 0, "subscription id")
 	return cmd
 }
 
@@ -356,6 +356,8 @@ func getSubscriptionRow(sub *meta.Subscription, rows ...interface{}) table.Row {
 		protocol = "http"
 	case meta.Protocol_AWS_LAMBDA:
 		protocol = "aws-lambda"
+	case meta.Protocol_GCLOUD_FUNCTIONS:
+		protocol = "gcloud-functions"
 	}
 	rows = append(rows, sub.Id, sub.EventBus, sub.Sink, protocol, string(sinkCredential), string(filter),
 		string(trans), string(cfg), string(offsets))
