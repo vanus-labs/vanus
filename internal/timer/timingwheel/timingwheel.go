@@ -185,6 +185,9 @@ func (tw *timingWheel) Start(ctx context.Context) error {
 		return err
 	}
 
+	// start bucket recycling
+	tw.startRecycling(ctx)
+
 	// start controller client heartbeat
 	tw.startHeartBeat(ctx)
 
@@ -201,7 +204,7 @@ func (tw *timingWheel) Stop(ctx context.Context) {
 	// wait for all goroutine to end
 	for e := tw.twList.Front(); e != nil; e = e.Next() {
 		for _, bucket := range e.Value.(*timingWheelElement).getBuckets() {
-			bucket.wait(ctx)
+			bucket.stop(ctx)
 		}
 		e.Value.(*timingWheelElement).wait(ctx)
 	}
@@ -300,6 +303,30 @@ func (tw *timingWheel) getReceivingStation() *bucket {
 
 func (tw *timingWheel) getDistributionStation() *bucket {
 	return tw.distributionStation
+}
+
+func (tw *timingWheel) startRecycling(ctx context.Context) {
+	back := tw.twList.Back().Value.(*timingWheelElement)
+	tw.wg.Add(1)
+	go func() {
+		defer tw.wg.Done()
+		ticker := time.NewTicker(back.tick)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				log.Debug(ctx, "context canceled at timingwheel element heartbeat", nil)
+				return
+			case <-ticker.C:
+				for idx, bucket := range back.buckets {
+					if time.Now().UnixNano()/bucket.tick.Nanoseconds() > idx {
+						bucket.stop(ctx)
+						delete(back.buckets, idx)
+					}
+				}
+			}
+		}
+	}()
 }
 
 func (tw *timingWheel) startHeartBeat(ctx context.Context) {

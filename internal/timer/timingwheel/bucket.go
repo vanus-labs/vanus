@@ -107,6 +107,7 @@ type bucket struct {
 
 	mu             sync.Mutex
 	wg             sync.WaitGroup
+	exitC          chan struct{}
 	kvStore        kv.Client
 	client         ctrlpb.EventBusControllerClient
 	eventbusWriter eventbus.BusWriter
@@ -125,6 +126,7 @@ func newBucket(tw *timingWheel, element *list.Element, tick time.Duration, ebNam
 		offset:      0,
 		interval:    tick * time.Duration(tw.config.WheelSize),
 		eventbus:    ebName,
+		exitC:       make(chan struct{}),
 		kvStore:     tw.kvStore,
 		client:      tw.client,
 		timingwheel: tw,
@@ -146,6 +148,11 @@ func (b *bucket) start(ctx context.Context) error {
 	return nil
 }
 
+func (b *bucket) stop(ctx context.Context) {
+	close(b.exitC)
+	b.wait(ctx)
+}
+
 func (b *bucket) run(ctx context.Context) {
 	offsetC := make(chan waitGroup, defaultMaxNumberOfWorkers)
 	b.wg.Add(1)
@@ -156,6 +163,9 @@ func (b *bucket) run(ctx context.Context) {
 			select {
 			case <-ctx.Done():
 				log.Debug(ctx, "context canceled at bucket update offset metadata", nil)
+				return
+			case <-b.exitC:
+				log.Debug(ctx, "bucket exit at bucket update offset metadata", nil)
 				return
 			case offset := <-offsetC:
 				// wait for all goroutines to finish before updating offset metadata
@@ -177,6 +187,11 @@ func (b *bucket) run(ctx context.Context) {
 			select {
 			case <-ctx.Done():
 				log.Debug(ctx, "context canceled at bucket running", map[string]interface{}{
+					"eventbus": b.getEventbus(),
+				})
+				return
+			case <-b.exitC:
+				log.Debug(ctx, "bucket exit at bucket running", map[string]interface{}{
 					"eventbus": b.getEventbus(),
 				})
 				return
