@@ -15,18 +15,88 @@
 package eventbus
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
+	"time"
 
-	// this project
-	"github.com/linkall-labs/vanus/client/pkg/discovery"
-	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
+	// this project.
+
+	"github.com/linkall-labs/vanus/client/pkg/primitive"
+	"github.com/linkall-labs/vanus/client/pkg/record"
 )
 
-func LookupReadableLogs(ctx context.Context, vrn string) ([]*record.EventLog, error) {
-	cfg, err := ParseVRN(vrn)
-	if err != nil {
-		return nil, err
+type WritableLogsResult struct {
+	Eventlogs []*record.Eventlog
+	Err       error
+}
+
+type WritableLogsWatcher struct {
+	*primitive.Watcher
+	ch chan *WritableLogsResult
+}
+
+func (w *WritableLogsWatcher) Chan() <-chan *WritableLogsResult {
+	return w.ch
+}
+
+func (w *WritableLogsWatcher) Start() {
+	go w.Watcher.Run()
+}
+
+func WatchWritableLogs(bus *eventbusImpl) *WritableLogsWatcher {
+	// TODO: true watch
+	ch := make(chan *WritableLogsResult, 1)
+	w := primitive.NewWatcher(30*time.Second, func() {
+		rs, err := bus.nameService.LookupWritableLogs(context.Background(), bus.cfg.Name)
+		ch <- &WritableLogsResult{
+			Eventlogs: rs,
+			Err:       err,
+		}
+	}, func() {
+		close(ch)
+	})
+	watcher := &WritableLogsWatcher{
+		Watcher: w,
+		ch:      ch,
 	}
-	return discovery.LookupReadableLogs(ctx, &cfg.VRN)
+
+	return watcher
+}
+
+type ReadableLogsResult struct {
+	Eventlogs []*record.Eventlog
+	Err       error
+}
+
+type ReadableLogsWatcher struct {
+	*primitive.Watcher
+	ch chan *ReadableLogsResult
+}
+
+func (w *ReadableLogsWatcher) Chan() <-chan *ReadableLogsResult {
+	return w.ch
+}
+
+func (w *ReadableLogsWatcher) Start() {
+	go w.Watcher.Run()
+}
+
+func WatchReadableLogs(bus *eventbusImpl) *ReadableLogsWatcher {
+	// TODO: true watch
+	ch := make(chan *ReadableLogsResult, 1)
+	w := primitive.NewWatcher(30*time.Second, func() {
+		rs, err := bus.nameService.LookupReadableLogs(context.Background(), bus.cfg.Name)
+		ch <- &ReadableLogsResult{
+			Eventlogs: rs,
+			Err:       err,
+		}
+	}, func() {
+		close(ch)
+	})
+	watcher := &ReadableLogsWatcher{
+		Watcher: w,
+		ch:      ch,
+	}
+
+	return watcher
 }

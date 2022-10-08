@@ -17,54 +17,43 @@ package eventbus
 import (
 	// standard libraries
 	"context"
-	"fmt"
+
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"go.opentelemetry.io/otel/trace"
-	"sort"
-	"strings"
 
 	// third-party libraries
 	"github.com/linkall-labs/vanus/pkg/controller"
 	"google.golang.org/grpc/credentials/insecure"
 
 	// first-party libraries
-	"github.com/linkall-labs/vanus/client/pkg/discovery"
-	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
+	"github.com/linkall-labs/vanus/client/pkg/record"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 )
 
-func newNameServiceImpl(endpoints []string) (*nameServiceImpl, error) {
-	ns := &nameServiceImpl{
+func NewNameService(endpoints []string) *NameService {
+	// TODO: non-blocking now
+	// if _, err := ns.Client(); err != nil {
+	// 	return nil, err
+	// }
+	return &NameService{
 		client: controller.NewEventbusClient(endpoints, insecure.NewCredentials()),
 		tracer: tracing.NewTracer("internal.discovery.eventbus", trace.SpanKindClient),
 	}
-
-	return ns, nil
 }
 
-type nameServiceImpl struct {
+type NameService struct {
 	//client       rpc.Client
 	client ctrlpb.EventBusControllerClient
 	tracer *tracing.Tracer
 }
 
-// make sure nameServiceImpl implements discovery.NameService.
-var _ discovery.NameService = (*nameServiceImpl)(nil)
-
-func (ns *nameServiceImpl) LookupWritableLogs(ctx context.Context, eventbus *discovery.VRN) ([]*record.EventLog, error) {
-	// TODO: use list
-	// req := &ctlpb.ListEventLogsRequest{
-	// 	Parent:       eventbus,
-	// 	WritableOnly: true,
-	// }
-	// resp, err := ns.client.ListEventLogs(context.Background(), req)
+func (ns *NameService) LookupWritableLogs(ctx context.Context, eventbus string) ([]*record.Eventlog, error) {
 	ctx, span := ns.tracer.Start(ctx, "LookupWritableLogs")
 	defer span.End()
 
 	req := &metapb.EventBus{
-		Id:   eventbus.ID,
-		Name: eventbus.Name,
+		Name: eventbus,
 	}
 
 	resp, err := ns.client.GetEventBus(ctx, req)
@@ -75,19 +64,12 @@ func (ns *nameServiceImpl) LookupWritableLogs(ctx context.Context, eventbus *dis
 	return toLogs(resp.GetLogs()), nil
 }
 
-func (ns *nameServiceImpl) LookupReadableLogs(ctx context.Context, eventbus *discovery.VRN) ([]*record.EventLog, error) {
-	// TODO: use list
-	// req := &ctlpb.ListEventLogsRequest{
-	// 	Parent:       eventbus,
-	// 	ReadableOnly: true,
-	// }
-	// resp, err := ns.client.ListEventLogs(context.Background(), req)
+func (ns *NameService) LookupReadableLogs(ctx context.Context, eventbus string) ([]*record.Eventlog, error) {
 	ctx, span := ns.tracer.Start(ctx, "LookupReadableLogs")
 	defer span.End()
 
 	req := &metapb.EventBus{
-		Id:   eventbus.ID,
-		Name: eventbus.Name,
+		Name: eventbus,
 	}
 
 	resp, err := ns.client.GetEventBus(ctx, req)
@@ -98,28 +80,20 @@ func (ns *nameServiceImpl) LookupReadableLogs(ctx context.Context, eventbus *dis
 	return toLogs(resp.GetLogs()), nil
 }
 
-func toLogs(logpbs []*metapb.EventLog) []*record.EventLog {
+func toLogs(logpbs []*metapb.EventLog) []*record.Eventlog {
 	if len(logpbs) <= 0 {
-		return make([]*record.EventLog, 0, 0)
+		return make([]*record.Eventlog, 0)
 	}
-	logs := make([]*record.EventLog, 0, len(logpbs))
+	logs := make([]*record.Eventlog, 0, len(logpbs))
 	for _, logpb := range logpbs {
 		logs = append(logs, toLog(logpb))
 	}
 	return logs
 }
 
-func toLog(logpb *metapb.EventLog) *record.EventLog {
-	addrs := logpb.GetServerAddress()
-	if len(addrs) <= 0 {
-		// FIXME: missing address
-		addrs = []string{"localhost:2048"}
-	}
-	sort.Strings(addrs)
-	controllers := strings.Join(addrs, ",")
-	log := &record.EventLog{
-		// TODO: format of vrn
-		VRN:  fmt.Sprintf("vanus:///eventlog/%d?eventbus=%s&controllers=%s", logpb.GetEventLogId(), logpb.GetEventBusName(), controllers),
+func toLog(logpb *metapb.EventLog) *record.Eventlog {
+	log := &record.Eventlog{
+		ID:   logpb.GetEventLogId(),
 		Mode: record.PremWrite | record.PremRead,
 		// Mode: record.LogMode(logpb.GetMode()),
 	}

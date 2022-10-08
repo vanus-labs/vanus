@@ -23,17 +23,17 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 
 	// this project.
-	eb "github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/client/pkg/eventbus"
 )
 
 func main() {
 	ctx := context.Background()
 
-	w, err := eb.OpenBusWriter(ctx, "vanus://localhost:2048/eventbus/wwf123")
-	if err != nil {
-		log.Fatal(err)
-	}
+	c := client.Connect([]string{"localhost:2048"})
 
+	bus := c.Eventbus(ctx, "quick-start")
+	w := bus.Writer()
 	// Create an Event.
 	event := ce.NewEvent()
 	event.SetID("example-event")
@@ -41,12 +41,10 @@ func main() {
 	event.SetType("example.type")
 	event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world"})
 
-	eventID, err := w.Append(ctx, &event)
+	eventID, err := w.AppendOne(ctx, &event, eventbus.WithWritePolicy(eventbus.NewRoundRobinWritePolicy(bus)))
 	if err != nil {
 		log.Print(err.Error())
 	} else {
 		log.Printf("success! eventID:%s\n", eventID)
 	}
-
-	w.Close(ctx)
 }

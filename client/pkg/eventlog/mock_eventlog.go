@@ -10,73 +10,242 @@ import (
 
 	v2 "github.com/cloudevents/sdk-go/v2"
 	gomock "github.com/golang/mock/gomock"
-	discovery "github.com/linkall-labs/vanus/client/pkg/discovery"
 )
 
-// MockEventLog is a mock of EventLog interface.
-type MockEventLog struct {
+// MockEventlog is a mock of Eventlog interface.
+type MockEventlog struct {
 	ctrl     *gomock.Controller
-	recorder *MockEventLogMockRecorder
+	recorder *MockEventlogMockRecorder
 }
 
-// MockEventLogMockRecorder is the mock recorder for MockEventLog.
-type MockEventLogMockRecorder struct {
-	mock *MockEventLog
+// MockEventlogMockRecorder is the mock recorder for MockEventlog.
+type MockEventlogMockRecorder struct {
+	mock *MockEventlog
 }
 
-// NewMockEventLog creates a new mock instance.
-func NewMockEventLog(ctrl *gomock.Controller) *MockEventLog {
-	mock := &MockEventLog{ctrl: ctrl}
-	mock.recorder = &MockEventLogMockRecorder{mock}
+// NewMockEventlog creates a new mock instance.
+func NewMockEventlog(ctrl *gomock.Controller) *MockEventlog {
+	mock := &MockEventlog{ctrl: ctrl}
+	mock.recorder = &MockEventlogMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockEventLog) EXPECT() *MockEventLogMockRecorder {
+func (m *MockEventlog) EXPECT() *MockEventlogMockRecorder {
+	return m.recorder
+}
+
+// EarliestOffset mocks base method.
+func (m *MockEventlog) EarliestOffset(ctx context.Context) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EarliestOffset", ctx)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EarliestOffset indicates an expected call of EarliestOffset.
+func (mr *MockEventlogMockRecorder) EarliestOffset(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EarliestOffset", reflect.TypeOf((*MockEventlog)(nil).EarliestOffset), ctx)
+}
+
+// ID mocks base method.
+func (m *MockEventlog) ID() uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ID")
+	ret0, _ := ret[0].(uint64)
+	return ret0
+}
+
+// ID indicates an expected call of ID.
+func (mr *MockEventlogMockRecorder) ID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockEventlog)(nil).ID))
+}
+
+// LatestOffset mocks base method.
+func (m *MockEventlog) LatestOffset(ctx context.Context) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LatestOffset", ctx)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LatestOffset indicates an expected call of LatestOffset.
+func (mr *MockEventlogMockRecorder) LatestOffset(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LatestOffset", reflect.TypeOf((*MockEventlog)(nil).LatestOffset), ctx)
+}
+
+// Length mocks base method.
+func (m *MockEventlog) Length(ctx context.Context) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Length", ctx)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Length indicates an expected call of Length.
+func (mr *MockEventlogMockRecorder) Length(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Length", reflect.TypeOf((*MockEventlog)(nil).Length), ctx)
+}
+
+// QueryOffsetByTime mocks base method.
+func (m *MockEventlog) QueryOffsetByTime(ctx context.Context, timestamp int64) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryOffsetByTime", ctx, timestamp)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// QueryOffsetByTime indicates an expected call of QueryOffsetByTime.
+func (mr *MockEventlogMockRecorder) QueryOffsetByTime(ctx, timestamp interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryOffsetByTime", reflect.TypeOf((*MockEventlog)(nil).QueryOffsetByTime), ctx, timestamp)
+}
+
+// MockEventlogImpl is a mock of EventlogImpl interface.
+type MockEventlogImpl struct {
+	ctrl     *gomock.Controller
+	recorder *MockEventlogImplMockRecorder
+}
+
+// MockEventlogImplMockRecorder is the mock recorder for MockEventlogImpl.
+type MockEventlogImplMockRecorder struct {
+	mock *MockEventlogImpl
+}
+
+// NewMockEventlogImpl creates a new mock instance.
+func NewMockEventlogImpl(ctrl *gomock.Controller) *MockEventlogImpl {
+	mock := &MockEventlogImpl{ctrl: ctrl}
+	mock.recorder = &MockEventlogImplMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockEventlogImpl) EXPECT() *MockEventlogImplMockRecorder {
 	return m.recorder
 }
 
 // Acquire mocks base method.
-func (m *MockEventLog) Acquire() {
+func (m *MockEventlogImpl) Acquire() {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Acquire")
 }
 
 // Acquire indicates an expected call of Acquire.
-func (mr *MockEventLogMockRecorder) Acquire() *gomock.Call {
+func (mr *MockEventlogImplMockRecorder) Acquire() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Acquire", reflect.TypeOf((*MockEventLog)(nil).Acquire))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Acquire", reflect.TypeOf((*MockEventlogImpl)(nil).Acquire))
 }
 
 // Close mocks base method.
-func (m *MockEventLog) Close(ctx context.Context) {
+func (m *MockEventlogImpl) Close(ctx context.Context) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Close", ctx)
 }
 
 // Close indicates an expected call of Close.
-func (mr *MockEventLogMockRecorder) Close(ctx interface{}) *gomock.Call {
+func (mr *MockEventlogImplMockRecorder) Close(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockEventLog)(nil).Close), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockEventlogImpl)(nil).Close), ctx)
 }
 
-// Reader mocks base method.
-func (m *MockEventLog) Reader(cfg *ReaderConfig) (LogReader, error) {
+// EarliestOffset mocks base method.
+func (m *MockEventlogImpl) EarliestOffset(ctx context.Context) (int64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Reader", cfg)
-	ret0, _ := ret[0].(LogReader)
+	ret := m.ctrl.Call(m, "EarliestOffset", ctx)
+	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Reader indicates an expected call of Reader.
-func (mr *MockEventLogMockRecorder) Reader(cfg interface{}) *gomock.Call {
+// EarliestOffset indicates an expected call of EarliestOffset.
+func (mr *MockEventlogImplMockRecorder) EarliestOffset(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reader", reflect.TypeOf((*MockEventLog)(nil).Reader), cfg)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EarliestOffset", reflect.TypeOf((*MockEventlogImpl)(nil).EarliestOffset), ctx)
+}
+
+// ID mocks base method.
+func (m *MockEventlogImpl) ID() uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ID")
+	ret0, _ := ret[0].(uint64)
+	return ret0
+}
+
+// ID indicates an expected call of ID.
+func (mr *MockEventlogImplMockRecorder) ID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockEventlogImpl)(nil).ID))
+}
+
+// LatestOffset mocks base method.
+func (m *MockEventlogImpl) LatestOffset(ctx context.Context) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LatestOffset", ctx)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LatestOffset indicates an expected call of LatestOffset.
+func (mr *MockEventlogImplMockRecorder) LatestOffset(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LatestOffset", reflect.TypeOf((*MockEventlogImpl)(nil).LatestOffset), ctx)
+}
+
+// Length mocks base method.
+func (m *MockEventlogImpl) Length(ctx context.Context) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Length", ctx)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Length indicates an expected call of Length.
+func (mr *MockEventlogImplMockRecorder) Length(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Length", reflect.TypeOf((*MockEventlogImpl)(nil).Length), ctx)
+}
+
+// QueryOffsetByTime mocks base method.
+func (m *MockEventlogImpl) QueryOffsetByTime(ctx context.Context, timestamp int64) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "QueryOffsetByTime", ctx, timestamp)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// QueryOffsetByTime indicates an expected call of QueryOffsetByTime.
+func (mr *MockEventlogImplMockRecorder) QueryOffsetByTime(ctx, timestamp interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryOffsetByTime", reflect.TypeOf((*MockEventlogImpl)(nil).QueryOffsetByTime), ctx, timestamp)
+}
+
+// Reader mocks base method.
+func (m *MockEventlogImpl) Reader(cfg ReaderConfig) LogReader {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Reader", cfg)
+	ret0, _ := ret[0].(LogReader)
+	return ret0
+}
+
+// Reader indicates an expected call of Reader.
+func (mr *MockEventlogImplMockRecorder) Reader(cfg interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reader", reflect.TypeOf((*MockEventlogImpl)(nil).Reader), cfg)
 }
 
 // Release mocks base method.
-func (m *MockEventLog) Release() bool {
+func (m *MockEventlogImpl) Release() bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Release")
 	ret0, _ := ret[0].(bool)
@@ -84,13 +253,13 @@ func (m *MockEventLog) Release() bool {
 }
 
 // Release indicates an expected call of Release.
-func (mr *MockEventLogMockRecorder) Release() *gomock.Call {
+func (mr *MockEventlogImplMockRecorder) Release() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Release", reflect.TypeOf((*MockEventLog)(nil).Release))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Release", reflect.TypeOf((*MockEventlogImpl)(nil).Release))
 }
 
 // UseCount mocks base method.
-func (m *MockEventLog) UseCount() int32 {
+func (m *MockEventlogImpl) UseCount() int32 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UseCount")
 	ret0, _ := ret[0].(int32)
@@ -98,38 +267,23 @@ func (m *MockEventLog) UseCount() int32 {
 }
 
 // UseCount indicates an expected call of UseCount.
-func (mr *MockEventLogMockRecorder) UseCount() *gomock.Call {
+func (mr *MockEventlogImplMockRecorder) UseCount() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UseCount", reflect.TypeOf((*MockEventLog)(nil).UseCount))
-}
-
-// VRN mocks base method.
-func (m *MockEventLog) VRN() *discovery.VRN {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VRN")
-	ret0, _ := ret[0].(*discovery.VRN)
-	return ret0
-}
-
-// VRN indicates an expected call of VRN.
-func (mr *MockEventLogMockRecorder) VRN() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VRN", reflect.TypeOf((*MockEventLog)(nil).VRN))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UseCount", reflect.TypeOf((*MockEventlogImpl)(nil).UseCount))
 }
 
 // Writer mocks base method.
-func (m *MockEventLog) Writer() (LogWriter, error) {
+func (m *MockEventlogImpl) Writer() LogWriter {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Writer")
 	ret0, _ := ret[0].(LogWriter)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	return ret0
 }
 
 // Writer indicates an expected call of Writer.
-func (mr *MockEventLogMockRecorder) Writer() *gomock.Call {
+func (mr *MockEventlogImplMockRecorder) Writer() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Writer", reflect.TypeOf((*MockEventLog)(nil).Writer))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Writer", reflect.TypeOf((*MockEventlogImpl)(nil).Writer))
 }
 
 // MockLogWriter is a mock of LogWriter interface.
@@ -183,10 +337,10 @@ func (mr *MockLogWriterMockRecorder) Close(ctx interface{}) *gomock.Call {
 }
 
 // Log mocks base method.
-func (m *MockLogWriter) Log() EventLog {
+func (m *MockLogWriter) Log() EventlogImpl {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Log")
-	ret0, _ := ret[0].(EventLog)
+	ret0, _ := ret[0].(EventlogImpl)
 	return ret0
 }
 
@@ -232,10 +386,10 @@ func (mr *MockLogReaderMockRecorder) Close(ctx interface{}) *gomock.Call {
 }
 
 // Log mocks base method.
-func (m *MockLogReader) Log() EventLog {
+func (m *MockLogReader) Log() EventlogImpl {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Log")
-	ret0, _ := ret[0].(EventLog)
+	ret0, _ := ret[0].(EventlogImpl)
 	return ret0
 }
 

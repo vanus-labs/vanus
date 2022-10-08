@@ -18,23 +18,22 @@ import (
 	// standard libraries.
 	"context"
 	stderr "errors"
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"go.opentelemetry.io/otel/trace"
 	"io"
 	"sort"
 	"sync"
 	"time"
 
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"go.opentelemetry.io/otel/trace"
+
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
 
 	// this project.
-	veld "github.com/linkall-labs/vanus/client/internal/vanus/discovery/eventlog"
-	vdr "github.com/linkall-labs/vanus/client/internal/vanus/discovery/record"
-	"github.com/linkall-labs/vanus/client/pkg/discovery"
+	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/errors"
-	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
+	"github.com/linkall-labs/vanus/client/pkg/record"
 )
 
 const (
@@ -43,94 +42,81 @@ const (
 	pollingPostSpan   = 100 // in milliseconds.
 )
 
-func UseDistributedLog(scheme string) {
-	eventlog.Register(scheme, func(cfg *eventlog.Config) (eventlog.EventLog, error) {
-		return newDistributedLog(cfg)
-	})
-}
-
-func newDistributedLog(cfg *eventlog.Config) (*distributedEventLog, error) {
-	ww, err := veld.WatchWritableSegment(&cfg.VRN)
-	if err != nil {
-		return nil, err
-	}
-
-	rw, err := veld.WatchReadableSegments(&cfg.VRN)
-	if err != nil {
-		return nil, err
-	}
-
-	l := &distributedEventLog{
-		cfg:             cfg,
-		writableWatcher: ww,
-		readableWatcher: rw,
-		tracer: tracing.NewTracer("internal.eventlog.distributed",
+func NewEventLogImpl(cfg *el.Config) EventlogImpl {
+	log := &eventlogImpl{
+		cfg:         cfg,
+		nameService: el.NewNameService(cfg.Endpoints),
+		tracer: tracing.NewTracer("pkg.eventlog.impl",
 			trace.SpanKindClient),
 	}
 
+	log.writableWatcher = WatchWritableSegment(log)
+	log.readableWatcher = WatchReadableSegments(log)
+
 	go func() {
-		ch := ww.Chan()
+		ch := log.writableWatcher.Chan()
 		for {
 			r, ok := <-ch
 			if !ok {
 				break
 			}
 
-			ctx, span := l.tracer.Start(context.Background(), "updateReadableSegmentsTask")
+			ctx, span := log.tracer.Start(context.Background(), "updateReadableSegmentsTask")
 			if r != nil {
-				l.updateWritableSegment(ctx, r)
+				log.updateWritableSegment(ctx, r)
 			}
 
-			l.writableWatcher.Wakeup()
+			log.writableWatcher.Wakeup()
 			span.End()
 		}
 	}()
-	ww.Start()
+	log.writableWatcher.Start()
 
 	go func() {
-		ch := rw.Chan()
+		ch := log.readableWatcher.Chan()
 		for {
 			rs, ok := <-ch
 			if !ok {
 				break
 			}
-			ctx, span := l.tracer.Start(context.Background(), "updateReadableSegmentsTask")
+			ctx, span := log.tracer.Start(context.Background(), "updateReadableSegmentsTask")
 			if rs != nil {
-				l.updateReadableSegments(ctx, rs)
+				log.updateReadableSegments(ctx, rs)
 			}
 
-			l.readableWatcher.Wakeup()
+			log.readableWatcher.Wakeup()
 			span.End()
 		}
 	}()
-	rw.Start()
+	log.readableWatcher.Start()
 
-	return l, nil
+	return log
 }
 
-type distributedEventLog struct {
+type eventlogImpl struct {
 	primitive.RefCount
 
-	cfg *eventlog.Config
+	cfg         *el.Config
+	nameService *el.NameService
 
-	writableWatcher *veld.WritableSegmentWatcher
+	writableWatcher *WritableSegmentWatcher
 	writableSegment *logSegment
 	writableMu      sync.RWMutex
 
-	readableWatcher  *veld.ReadableSegmentsWatcher
+	readableWatcher  *ReadableSegmentsWatcher
 	readableSegments []*logSegment
 	readableMu       sync.RWMutex
 	tracer           *tracing.Tracer
 }
 
-// make sure distributedEventLog implements eventlog.EventLog.
-var _ eventlog.EventLog = (*distributedEventLog)(nil)
+// make sure eventlogImpl implements eventlog.EventLog.
+var _ EventlogImpl = (*eventlogImpl)(nil)
 
-func (l *distributedEventLog) VRN() *discovery.VRN {
-	return &l.cfg.VRN
+func (l *eventlogImpl) ID() uint64 {
+	return l.cfg.ID
 }
 
-func (l *distributedEventLog) Close(ctx context.Context) {
+func (l *eventlogImpl) Close(ctx context.Context) {
 	// TODO: stop discovery
 
 	// TODO: lock
@@ -142,25 +128,55 @@ func (l *distributedEventLog) Close(ctx context.Context) {
 	}
 }
 
-func (l *distributedEventLog) Writer() (eventlog.LogWriter, error) {
+func (l *eventlogImpl) Writer() LogWriter {
 	w := &logWriter{
 		elog: l,
 	}
 	l.Acquire()
-	return w, nil
+	return w
 }
 
-func (l *distributedEventLog) Reader(cfg eventlog.ReaderConfig) (eventlog.LogReader, error) {
+func (l *eventlogImpl) Reader(cfg ReaderConfig) LogReader {
 	r := &logReader{
 		elog: l,
 		pos:  0,
 		cfg:  cfg,
 	}
 	l.Acquire()
-	return r, nil
+	return r
 }
 
-func (l *distributedEventLog) updateWritableSegment(ctx context.Context, r *vdr.LogSegment) {
+func (l *eventlogImpl) EarliestOffset(ctx context.Context) (int64, error) {
+	rs, err := l.nameService.LookupReadableSegments(ctx, l.cfg.ID)
+	if err != nil {
+		return 0, err
+	}
+	if len(rs) == 0 {
+		return 0, errors.ErrNotReadable
+	}
+	return rs[0].StartOffset, nil
+}
+func (l *eventlogImpl) LatestOffset(ctx context.Context) (int64, error) {
+	rs, err := l.nameService.LookupReadableSegments(ctx, l.cfg.ID)
+	if err != nil {
+		return 0, err
+	}
+	if len(rs) == 0 {
+		return 0, errors.ErrNotReadable
+	}
+	return rs[len(rs)-1].EndOffset, nil
+}
+
+func (l *eventlogImpl) Length(ctx context.Context) (int64, error) {
+	// TODO(kai.jiangkai)
+	return 0, nil
+}
+func (l *eventlogImpl) QueryOffsetByTime(ctx context.Context, timestamp int64) (int64, error) {
+	// TODO(james.yin): lookup offset by timestamp
+	return 0, nil
+}
+
+func (l *eventlogImpl) updateWritableSegment(ctx context.Context, r *record.Segment) {
 	if l.writableSegment != nil {
 		if l.writableSegment.ID() == r.ID {
 			_ = l.writableSegment.Update(ctx, r, true)
@@ -180,7 +196,7 @@ func (l *distributedEventLog) updateWritableSegment(ctx context.Context, r *vdr.
 	l.writableSegment = segment
 }
 
-func (l *distributedEventLog) selectWritableSegment(ctx context.Context) (*logSegment, error) {
+func (l *eventlogImpl) selectWritableSegment(ctx context.Context) (*logSegment, error) {
 	segment := l.fetchWritableSegment(ctx)
 	if segment == nil {
 		return nil, errors.ErrNotWritable
@@ -188,7 +204,7 @@ func (l *distributedEventLog) selectWritableSegment(ctx context.Context) (*logSe
 	return segment, nil
 }
 
-func (l *distributedEventLog) fetchWritableSegment(ctx context.Context) *logSegment {
+func (l *eventlogImpl) fetchWritableSegment(ctx context.Context) *logSegment {
 	l.writableMu.RLock()
 	defer l.writableMu.RUnlock()
 
@@ -204,11 +220,11 @@ func (l *distributedEventLog) fetchWritableSegment(ctx context.Context) *logSegm
 	return l.writableSegment
 }
 
-func (l *distributedEventLog) refreshWritableSegment(ctx context.Context) {
+func (l *eventlogImpl) refreshWritableSegment(ctx context.Context) {
 	_ = l.writableWatcher.Refresh(ctx)
 }
 
-func (l *distributedEventLog) updateReadableSegments(ctx context.Context, rs []*vdr.LogSegment) {
+func (l *eventlogImpl) updateReadableSegments(ctx context.Context, rs []*record.Segment) {
 	segments := make([]*logSegment, 0, len(rs))
 	for _, r := range rs {
 		// TODO: find
@@ -239,7 +255,7 @@ func (l *distributedEventLog) updateReadableSegments(ctx context.Context, rs []*
 	l.readableSegments = segments
 }
 
-func (l *distributedEventLog) selectReadableSegment(ctx context.Context, offset int64) (*logSegment, error) {
+func (l *eventlogImpl) selectReadableSegment(ctx context.Context, offset int64) (*logSegment, error) {
 	segments := l.fetchReadableSegments(ctx)
 	if len(segments) == 0 {
 		return nil, errors.ErrNotReadable
@@ -260,7 +276,7 @@ func (l *distributedEventLog) selectReadableSegment(ctx context.Context, offset 
 	return nil, errors.ErrOverflow
 }
 
-func (l *distributedEventLog) fetchReadableSegments(ctx context.Context) []*logSegment {
+func (l *eventlogImpl) fetchReadableSegments(ctx context.Context) []*logSegment {
 	l.readableMu.RLock()
 	defer l.readableMu.RUnlock()
 
@@ -276,25 +292,25 @@ func (l *distributedEventLog) fetchReadableSegments(ctx context.Context) []*logS
 	return l.readableSegments
 }
 
-func (l *distributedEventLog) refreshReadableSegments(ctx context.Context) {
+func (l *eventlogImpl) refreshReadableSegments(ctx context.Context) {
 	_ = l.readableWatcher.Refresh(ctx)
 }
 
-// logWriter is the writer of distributedEventLog.
+// logWriter is the writer of eventlogImpl.
 //
 // Append is thread-safety.
 type logWriter struct {
-	elog *distributedEventLog
+	elog *eventlogImpl
 	cur  *logSegment
 	mu   sync.RWMutex
 }
 
-func (w *logWriter) Log() eventlog.EventLog {
+func (w *logWriter) Log() EventlogImpl {
 	return w.elog
 }
 
 func (w *logWriter) Close(ctx context.Context) {
-	eventlog.Put(ctx, w.elog)
+	// TODO: by jiangkai, 2022.10.19
 }
 
 func (w *logWriter) Append(ctx context.Context, event *ce.Event) (int64, error) {
@@ -366,18 +382,18 @@ func (w *logWriter) selectWritableSegment(ctx context.Context) (*logSegment, err
 }
 
 type logReader struct {
-	elog *distributedEventLog
+	elog *eventlogImpl
 	pos  int64
 	cur  *logSegment
-	cfg  eventlog.ReaderConfig
+	cfg  ReaderConfig
 }
 
-func (r *logReader) Log() eventlog.EventLog {
+func (r *logReader) Log() EventlogImpl {
 	return r.elog
 }
 
 func (r *logReader) Close(ctx context.Context) {
-	eventlog.Put(ctx, r.elog)
+	// TODO: by jiangkai, 2022.10.19
 }
 
 func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {

@@ -21,13 +21,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"sync"
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/vanus/client"
 	errcli "github.com/linkall-labs/vanus/client/pkg/errors"
-	"github.com/linkall-labs/vanus/client/pkg/eventbus"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/timer/metadata"
@@ -55,9 +54,6 @@ const (
 	// the max number of workers by default.
 	defaultMaxNumberOfWorkers = 1000
 
-	// index of eventlog reader by default.
-	defaultIndexOfEventlogReader = 0
-
 	heartbeatInterval = 5 * time.Second
 )
 
@@ -81,7 +77,8 @@ type Manager interface {
 type timingWheel struct {
 	config  *Config
 	kvStore kv.Client
-	client  ctrlpb.EventBusControllerClient
+	ctrlCli ctrlpb.EventBusControllerClient
+	client  client.Client
 	twList  *list.List // element: *timingWheelElement
 
 	receivingStation    *bucket
@@ -117,7 +114,8 @@ func NewTimingWheel(c *Config) Manager {
 	return &timingWheel{
 		config:  c,
 		kvStore: store,
-		client:  controller.NewEventbusClient(c.CtrlEndpoints, insecure.NewCredentials()),
+		ctrlCli: controller.NewEventbusClient(c.CtrlEndpoints, insecure.NewCredentials()),
+		client:  client.Connect(c.CtrlEndpoints),
 		twList:  list.New(),
 		leader:  false,
 		exitC:   make(chan struct{}),
@@ -212,7 +210,7 @@ func (tw *timingWheel) Stop(ctx context.Context) {
 	tw.distributionStation.wait(ctx)
 	close(tw.exitC)
 	tw.wg.Wait()
-	if closer, ok := tw.client.(io.Closer); ok {
+	if closer, ok := tw.ctrlCli.(io.Closer); ok {
 		_ = closer.Close()
 	}
 }
@@ -335,10 +333,7 @@ func (tw *timingWheel) startReceivingStation(ctx context.Context) error {
 		return err
 	}
 
-	if err = tw.getReceivingStation().connectEventbus(ctx); err != nil {
-		return err
-	}
-
+	tw.getReceivingStation().connectEventbus(ctx)
 	tw.runReceivingStation(ctx)
 	return nil
 }
@@ -439,10 +434,7 @@ func (tw *timingWheel) startDistributionStation(ctx context.Context) error {
 		return err
 	}
 
-	if err = tw.getDistributionStation().connectEventbus(ctx); err != nil {
-		return err
-	}
-
+	tw.getDistributionStation().connectEventbus(ctx)
 	tw.runDistributionStation(ctx)
 	return nil
 }
@@ -538,9 +530,8 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 
 func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 	var (
-		err            error
-		ebName         string
-		eventbusWriter eventbus.BusWriter
+		err    error
+		ebName string
 	)
 
 	err = e.ExtensionAs(xVanusEventbus, &ebName)
@@ -550,17 +541,7 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 		})
 		return err
 	}
-
-	vrn := fmt.Sprintf("vanus:///eventbus/%s?controllers=%s", ebName, strings.Join(tw.config.CtrlEndpoints, ","))
-	eventbusWriter, err = openBusWriter(ctx, vrn)
-	if err != nil {
-		log.Error(ctx, "open eventbus writer failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		return err
-	}
-	defer eventbusWriter.Close(ctx)
-	_, err = eventbusWriter.Append(ctx, e)
+	_, err = tw.client.Eventbus(ctx, ebName).Writer().AppendOne(ctx, e)
 	if err != nil {
 		if errors.Is(err, errcli.ErrNotFound) {
 			log.Warning(ctx, "eventbus not found, discard this event", map[string]interface{}{
@@ -587,7 +568,7 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 type timingWheelElement struct {
 	config   *Config
 	kvStore  kv.Client
-	client   ctrlpb.EventBusControllerClient
+	ctrlCli  ctrlpb.EventBusControllerClient
 	tick     time.Duration
 	layer    int64
 	interval time.Duration
@@ -612,7 +593,7 @@ func newTimingWheelElement(tw *timingWheel, tick time.Duration, layer int64) *ti
 	twe := &timingWheelElement{
 		config:      tw.config,
 		kvStore:     tw.kvStore,
-		client:      tw.client,
+		ctrlCli:     tw.ctrlCli,
 		tick:        tick,
 		layer:       layer,
 		interval:    tick * time.Duration(tw.config.WheelSize),

@@ -14,31 +14,31 @@
 
 package record
 
-type EventBus struct {
-	VRN  string
-	Logs []*EventLog
+type Eventbus struct {
+	Name string
+	Logs []*Eventlog
 }
 
-type EventLog struct {
-	VRN  string
+type Eventlog struct {
+	ID   uint64
 	Mode LogMode
 }
 
-func (l *EventLog) Readable() bool {
+func (l *Eventlog) Readable() bool {
 	return l.Mode.Readable()
 }
 
-func (l *EventLog) Writable() bool {
+func (l *Eventlog) Writable() bool {
 	return l.Mode.Writable()
 }
 
 // WritableLog return all writable logs.
-func (b *EventBus) WritableLog() []*EventLog {
+func (b *Eventbus) WritableLog() []*Eventlog {
 	if allWritable(b.Logs) {
 		return b.Logs
 	}
 
-	logs := make([]*EventLog, 0, len(b.Logs))
+	logs := make([]*Eventlog, 0, len(b.Logs))
 	for _, l := range b.Logs {
 		if l.Writable() {
 			logs = append(logs, l)
@@ -47,7 +47,7 @@ func (b *EventBus) WritableLog() []*EventLog {
 	return logs
 }
 
-func allWritable(ls []*EventLog) bool {
+func allWritable(ls []*Eventlog) bool {
 	for _, l := range ls {
 		if !l.Writable() {
 			return false
@@ -57,12 +57,12 @@ func allWritable(ls []*EventLog) bool {
 }
 
 // ReadableLog return all readable logs.
-func (b *EventBus) ReadableLog() []*EventLog {
+func (b *Eventbus) ReadableLog() []*Eventlog {
 	if allReadable(b.Logs) {
 		return b.Logs
 	}
 
-	logs := make([]*EventLog, 0, len(b.Logs))
+	logs := make([]*Eventlog, 0, len(b.Logs))
 	for _, l := range b.Logs {
 		if l.Readable() {
 			logs = append(logs, l)
@@ -71,11 +71,30 @@ func (b *EventBus) ReadableLog() []*EventLog {
 	return logs
 }
 
-func allReadable(ls []*EventLog) bool {
+func allReadable(ls []*Eventlog) bool {
 	for _, l := range ls {
 		if !l.Readable() {
 			return false
 		}
 	}
 	return true
+}
+
+type Segment struct {
+	ID          uint64
+	StartOffset int64
+	EndOffset   int64
+	Writable    bool
+
+	Blocks        map[uint64]*Block
+	LeaderBlockID uint64
+}
+
+type Block struct {
+	ID       uint64
+	Endpoint string
+}
+
+func (s *Segment) GetLeaderEndpoint() string {
+	return s.Blocks[s.LeaderBlockID].Endpoint
 }

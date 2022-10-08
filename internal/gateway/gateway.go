@@ -69,6 +69,7 @@ type ceGateway struct {
 	// ceClient  v2.Client
 	busWriter sync.Map
 	config    Config
+	client    eb.Client
 	cp        *ctrlProxy
 	tracer    *tracing.Tracer
 }
@@ -76,6 +77,7 @@ type ceGateway struct {
 func NewGateway(config Config) *ceGateway {
 	return &ceGateway{
 		config: config,
+		client: eb.Connect(config.ControllerAddr),
 		cp:     newCtrlProxy(config.Port+ctrlProxyPortShift, allowCtrlProxyList, config.ControllerAddr),
 		tracer: tracing.NewTracer("cloudevents", trace.SpanKindServer),
 	}
@@ -126,27 +128,16 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, pr
 		ebName = primitive.TimerEventbusName
 	}
 
-	vrn := fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s", ga.config.ControllerAddr[0],
-		ebName, strings.Join(ga.config.ControllerAddr, ","))
-	v, exist := ga.busWriter.Load(vrn)
+	v, exist := ga.busWriter.Load(ebName)
 	if !exist {
-		writer, err := eb.OpenBusWriter(_ctx, vrn)
-		if err != nil {
-			return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
-		}
-
-		var loaded bool
-		v, loaded = ga.busWriter.LoadOrStore(vrn, writer)
-		if loaded {
-			writer.Close(_ctx)
-		}
+		v, _ = ga.busWriter.LoadOrStore(ebName, ga.client.Eventbus(ctx, ebName).Writer())
 	}
 	writer, _ := v.(eventbus.BusWriter)
-	eventID, err := writer.Append(_ctx, &event)
+	eventID, err := writer.AppendOne(_ctx, &event)
 	if err != nil {
 		log.Warning(_ctx, "append to failed", map[string]interface{}{
 			log.KeyError: err,
-			"vrn":        vrn,
+			"eventbus":   ebName,
 		})
 		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}

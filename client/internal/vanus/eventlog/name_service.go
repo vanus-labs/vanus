@@ -30,37 +30,34 @@ import (
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 
 	// this project.
-	vdr "github.com/linkall-labs/vanus/client/internal/vanus/discovery/record"
-	"github.com/linkall-labs/vanus/client/pkg/discovery"
 	"github.com/linkall-labs/vanus/client/pkg/errors"
+	"github.com/linkall-labs/vanus/client/pkg/record"
 )
 
-func newNameServiceImpl(endpoints []string) (*nameServiceImpl, error) {
-	ns := &nameServiceImpl{
-		client: controller.NewEventlogClient(endpoints, insecure.NewCredentials()),
-		tracer: tracing.NewTracer("internal.discovery.eventlog", trace.SpanKindClient),
-	}
-
+func NewNameService(endpoints []string) *NameService {
 	// TODO: non-blocking now
 	// if _, err := ns.Client(); err != nil {
 	// 	return nil, err
 	// }
-	return ns, nil
+	return &NameService{
+		client: controller.NewEventlogClient(endpoints, insecure.NewCredentials()),
+		tracer: tracing.NewTracer("internal.discovery.eventlog", trace.SpanKindClient),
+	}
 }
 
-type nameServiceImpl struct {
+type NameService struct {
 	// client       rpc.Client
 	client ctlpb.EventLogControllerClient
 	tracer *tracing.Tracer
 }
 
-func (ns *nameServiceImpl) LookupWritableSegment(ctx context.Context, eventlog *discovery.VRN) (*vdr.LogSegment, error) {
+func (ns *NameService) LookupWritableSegment(ctx context.Context, logID uint64) (*record.Segment, error) {
 	ctx, span := ns.tracer.Start(ctx, "LookupWritableSegment")
 	defer span.End()
 
 	// TODO: use standby segments
 	req := &ctlpb.GetAppendableSegmentRequest{
-		EventLogId: eventlog.ID,
+		EventLogId: logID,
 		Limited:    1,
 	}
 
@@ -76,13 +73,13 @@ func (ns *nameServiceImpl) LookupWritableSegment(ctx context.Context, eventlog *
 	return segments[0], nil
 }
 
-func (ns *nameServiceImpl) LookupReadableSegments(ctx context.Context, eventlog *discovery.VRN) ([]*vdr.LogSegment, error) {
+func (ns *NameService) LookupReadableSegments(ctx context.Context, logID uint64) ([]*record.Segment, error) {
 	ctx, span := ns.tracer.Start(ctx, "LookupReadableSegments")
 	defer span.End()
 
 	// TODO: use range
 	req := &ctlpb.ListSegmentRequest{
-		EventLogId:  eventlog.ID,
+		EventLogId:  logID,
 		StartOffset: 0,
 		EndOffset:   math.MaxInt64,
 		Limited:     math.MaxInt32,
@@ -97,11 +94,11 @@ func (ns *nameServiceImpl) LookupReadableSegments(ctx context.Context, eventlog 
 	return segments, nil
 }
 
-func toSegments(segmentpbs []*metapb.Segment) []*vdr.LogSegment {
+func toSegments(segmentpbs []*metapb.Segment) []*record.Segment {
 	if len(segmentpbs) == 0 {
-		return make([]*vdr.LogSegment, 0)
+		return make([]*record.Segment, 0)
 	}
-	segments := make([]*vdr.LogSegment, 0, len(segmentpbs))
+	segments := make([]*record.Segment, 0, len(segmentpbs))
 	for _, segmentpb := range segmentpbs {
 		segment := toSegment(segmentpb)
 		segments = append(segments, segment)
@@ -113,15 +110,15 @@ func toSegments(segmentpbs []*metapb.Segment) []*vdr.LogSegment {
 	return segments
 }
 
-func toSegment(segmentpb *metapb.Segment) *vdr.LogSegment {
-	blocks := make(map[uint64]*vdr.SegmentBlock, len(segmentpb.Replicas))
+func toSegment(segmentpb *metapb.Segment) *record.Segment {
+	blocks := make(map[uint64]*record.Block, len(segmentpb.Replicas))
 	for blockID, blockpb := range segmentpb.Replicas {
-		blocks[blockID] = &vdr.SegmentBlock{
+		blocks[blockID] = &record.Block{
 			ID:       blockpb.Id,
 			Endpoint: blockpb.Endpoint,
 		}
 	}
-	segment := &vdr.LogSegment{
+	segment := &record.Segment{
 		ID:          segmentpb.GetId(),
 		StartOffset: segmentpb.GetStartOffsetInLog(),
 		// TODO align to server side

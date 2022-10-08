@@ -19,8 +19,8 @@ import (
 )
 
 func TestLogRecordRW(t *testing.T) {
-	l := EventLog{
-		VRN:  "",
+	l := Eventlog{
+		ID:   0,
 		Mode: PremWrite | PremRead,
 	}
 	if !l.Readable() {
@@ -32,8 +32,8 @@ func TestLogRecordRW(t *testing.T) {
 }
 
 func TestLogRecordRO(t *testing.T) {
-	l := EventLog{
-		VRN:  "",
+	l := Eventlog{
+		ID:   0,
 		Mode: PremRead,
 	}
 	if !l.Readable() {
@@ -45,8 +45,8 @@ func TestLogRecordRO(t *testing.T) {
 }
 
 func TestLogRecordWO(t *testing.T) {
-	l := EventLog{
-		VRN:  "",
+	l := Eventlog{
+		ID:   0,
 		Mode: PremWrite,
 	}
 	if l.Readable() {

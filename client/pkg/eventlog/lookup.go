@@ -17,34 +17,86 @@ package eventlog
 import (
 	// standard libraries.
 	"context"
+	"time"
 
 	// this project.
-	"github.com/linkall-labs/vanus/client/internal/vanus/discovery/eventlog"
+
+	"github.com/linkall-labs/vanus/client/pkg/primitive"
+	"github.com/linkall-labs/vanus/client/pkg/record"
 )
 
-func LookupEarliestOffset(ctx context.Context, vrn string) (int64, error) {
-	cfg, err := ParseVRN(vrn)
-	if err != nil {
-		return 0, err
-	}
-	// TODO(james.yin): check scheme.
-	return eventlog.LookupEarliestOffset(ctx, &cfg.VRN)
+const (
+	defaultWatchInterval = 30 * time.Second
+)
+
+type WritableSegmentWatcher struct {
+	*primitive.Watcher
+	ch chan *record.Segment
 }
 
-func LookupLatestOffset(ctx context.Context, vrn string) (int64, error) {
-	cfg, err := ParseVRN(vrn)
-	if err != nil {
-		return 0, err
-	}
-	// TODO(james.yin): check scheme.
-	return eventlog.LookupLatestOffset(ctx, &cfg.VRN)
+func (w *WritableSegmentWatcher) Chan() <-chan *record.Segment {
+	return w.ch
 }
 
-func LookupOffset(ctx context.Context, vrn string, ts int64) (int64, error) {
-	cfg, err := ParseVRN(vrn)
-	if err != nil {
-		return 0, err
+func (w *WritableSegmentWatcher) Start() {
+	go w.Watcher.Run()
+}
+
+func WatchWritableSegment(log *eventlogImpl) *WritableSegmentWatcher {
+	// TODO: true watch
+	ch := make(chan *record.Segment, 1)
+	w := primitive.NewWatcher(defaultWatchInterval, func() {
+		r, err := log.nameService.LookupWritableSegment(context.Background(), log.cfg.ID)
+		if err != nil {
+			// TODO: logging
+
+			// FIXME: notify
+			ch <- nil
+		} else {
+			ch <- r
+		}
+	}, func() {
+		close(ch)
+	})
+	watcher := &WritableSegmentWatcher{
+		Watcher: w,
+		ch:      ch,
 	}
-	// TODO(james.yin): check scheme.
-	return eventlog.LookupOffset(ctx, &cfg.VRN, ts)
+	return watcher
+}
+
+type ReadableSegmentsWatcher struct {
+	*primitive.Watcher
+	ch chan []*record.Segment
+}
+
+func (w *ReadableSegmentsWatcher) Chan() <-chan []*record.Segment {
+	return w.ch
+}
+
+func (w *ReadableSegmentsWatcher) Start() {
+	go w.Watcher.Run()
+}
+
+func WatchReadableSegments(log *eventlogImpl) *ReadableSegmentsWatcher {
+	// TODO: true watch
+	ch := make(chan []*record.Segment, 1)
+	w := primitive.NewWatcher(defaultWatchInterval, func() {
+		rs, err := log.nameService.LookupReadableSegments(context.Background(), log.cfg.ID)
+		if err != nil {
+			// TODO: logging
+
+			// FIXME: notify
+			ch <- nil
+		} else {
+			ch <- rs
+		}
+	}, func() {
+		close(ch)
+	})
+	watcher := &ReadableSegmentsWatcher{
+		Watcher: w,
+		ch:      ch,
+	}
+	return watcher
 }

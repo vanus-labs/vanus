@@ -18,10 +18,11 @@ import (
 	// standard libraries.
 	"context"
 	"encoding/binary"
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"go.opentelemetry.io/otel/trace"
 	"math"
 	"sync"
+
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"go.opentelemetry.io/otel/trace"
 
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
@@ -31,12 +32,12 @@ import (
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
 	// this project.
-	vdr "github.com/linkall-labs/vanus/client/internal/vanus/discovery/record"
+
 	"github.com/linkall-labs/vanus/client/pkg/errors"
-	"github.com/linkall-labs/vanus/client/pkg/eventlog"
+	"github.com/linkall-labs/vanus/client/pkg/record"
 )
 
-func newLogSegment(ctx context.Context, r *vdr.LogSegment, towrite bool) (*logSegment, error) {
+func newLogSegment(ctx context.Context, r *record.Segment, towrite bool) (*logSegment, error) {
 	prefer, err := newSegmentBlockExt(ctx, r, towrite)
 	if err != nil {
 		return nil, err
@@ -60,7 +61,7 @@ func newLogSegment(ctx context.Context, r *vdr.LogSegment, towrite bool) (*logSe
 	return segment, nil
 }
 
-func newSegmentBlockExt(ctx context.Context, r *vdr.LogSegment, leaderOnly bool) (*segmentBlock, error) {
+func newSegmentBlockExt(ctx context.Context, r *record.Segment, leaderOnly bool) (*segmentBlock, error) {
 	id := r.LeaderBlockID
 	if id == 0 {
 		if leaderOnly {
@@ -115,7 +116,7 @@ func (s *logSegment) Close(ctx context.Context) {
 	s.prefer.Close(ctx)
 }
 
-func (s *logSegment) Update(ctx context.Context, r *vdr.LogSegment, towrite bool) error {
+func (s *logSegment) Update(ctx context.Context, r *record.Segment, towrite bool) error {
 	// When a segment become read-only, the end offset needs to be set to the readlly value.
 	if s.Writable() && !r.Writable && s.writable.CAS(true, false) {
 		s.endOffset.Store(r.EndOffset)
@@ -200,7 +201,7 @@ func (s *logSegment) Read(ctx context.Context, from int64, size int16, pollingTi
 		offset := s.startOffset + int64(off)
 		buf := make([]byte, 8)
 		binary.BigEndian.PutUint64(buf, uint64(offset))
-		e.SetExtension(eventlog.XVanusLogOffset, buf)
+		e.SetExtension(XVanusLogOffset, buf)
 		e.SetExtension(segpb.XVanusBlockOffset, nil)
 	}
 

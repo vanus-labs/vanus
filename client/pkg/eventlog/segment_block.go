@@ -17,15 +17,16 @@ package eventlog
 import (
 	// third-party libraries
 	"context"
+
 	ce "github.com/cloudevents/sdk-go/v2"
 
 	// this project
-	"github.com/linkall-labs/vanus/client/internal/vanus/discovery/record"
 	"github.com/linkall-labs/vanus/client/internal/vanus/store"
 	"github.com/linkall-labs/vanus/client/pkg/errors"
+	"github.com/linkall-labs/vanus/client/pkg/record"
 )
 
-func newSegmentBlock(ctx context.Context, r *record.SegmentBlock) (*segmentBlock, error) {
+func newSegmentBlock(ctx context.Context, r *record.Block) (*segmentBlock, error) {
 	store, err := store.Get(ctx, r.Endpoint)
 	if err != nil {
 		return nil, err
@@ -57,7 +58,7 @@ func (s *segmentBlock) Read(ctx context.Context, offset int64, size int16, polli
 	if size > 0 {
 		// doRead
 	} else if size == 0 {
-		return make([]*ce.Event, 0, 0), nil
+		return make([]*ce.Event, 0), nil
 	} else if size < 0 {
 		return nil, errors.ErrInvalidArgument
 	}

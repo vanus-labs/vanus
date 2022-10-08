@@ -19,26 +19,26 @@ import (
 	"context"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/vanus/client/pkg/discovery"
-	"github.com/linkall-labs/vanus/client/pkg/primitive"
+	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 )
 
-// For write primitive, there is only EventBus and no Producer.
-type EventBus interface {
-	primitive.RefCounter
+const (
+	XVanusLogOffset = eventlog.XVanusLogOffset
+)
 
-	VRN() *discovery.VRN
+type Eventbus interface {
+	Writer(opts ...WriteOption) BusWriter
+	Reader(opts ...ReadOption) BusReader
 
-	Close(ctx context.Context)
-	Writer() (BusWriter, error)
+	GetLog(ctx context.Context, logID uint64, opts ...LogOption) (eventlog.Eventlog, error)
+	ListLog(ctx context.Context, opts ...LogOption) ([]eventlog.Eventlog, error)
 }
 
 type BusWriter interface {
-	Bus() EventBus
+	AppendOne(ctx context.Context, event *ce.Event, opts ...WriteOption) (eid string, err error)
+	AppendMany(ctx context.Context, events []*ce.Event, opts ...WriteOption) (eid string, err error)
+}
 
-	Close(ctx context.Context)
-
-	Append(ctx context.Context, event *ce.Event) (eid string, err error)
-
-	WithPicker(picker WriterPicker) BusWriter
+type BusReader interface {
+	Read(ctx context.Context, size int16, opts ...ReadOption) ([]*ce.Event, int64, uint64, error)
 }

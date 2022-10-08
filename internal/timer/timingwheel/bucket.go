@@ -20,8 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"strings"
 	"sync"
 	"time"
 
@@ -33,10 +31,9 @@ import (
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/types"
-	eb "github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/client"
 	es "github.com/linkall-labs/vanus/client/pkg/errors"
 	eventbus "github.com/linkall-labs/vanus/client/pkg/eventbus"
-	eventlog "github.com/linkall-labs/vanus/client/pkg/eventlog"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 )
 
@@ -46,12 +43,6 @@ const (
 	timerBuiltInEventbus                    = "__Timer_%d_%d"
 	xVanusEventbus                          = "xvanuseventbus"
 	xVanusDeliveryTime                      = "xvanusdeliverytime"
-)
-
-var (
-	openBusWriter      = eb.OpenBusWriter
-	lookupReadableLogs = eb.LookupReadableLogs
-	openLogReader      = eb.OpenLogReader
 )
 
 type timingMsg struct {
@@ -108,9 +99,10 @@ type bucket struct {
 	mu             sync.Mutex
 	wg             sync.WaitGroup
 	kvStore        kv.Client
-	client         ctrlpb.EventBusControllerClient
+	ctrlCli        ctrlpb.EventBusControllerClient
+	client         client.Client
 	eventbusWriter eventbus.BusWriter
-	eventlogReader eventlog.LogReader
+	eventbusReader eventbus.BusReader
 
 	timingwheel *timingWheel
 	element     *list.Element
@@ -129,6 +121,7 @@ func newBucket(tw *timingWheel, element *list.Element, tick time.Duration, ebNam
 		interval:    tick * time.Duration(tw.config.WheelSize),
 		eventbus:    ebName,
 		kvStore:     tw.kvStore,
+		ctrlCli:     tw.ctrlCli,
 		client:      tw.client,
 		timingwheel: tw,
 		element:     element,
@@ -150,10 +143,7 @@ func (b *bucket) start(ctx context.Context) error {
 		return err
 	}
 
-	if err = b.connectEventbus(ctx); err != nil {
-		return err
-	}
-
+	b.connectEventbus(ctx)
 	b.run(ctx)
 	return nil
 }
@@ -310,7 +300,7 @@ func (b *bucket) push(ctx context.Context, tm *timingMsg) bool {
 }
 
 func (b *bucket) isExistEventbus(ctx context.Context) bool {
-	_, err := b.client.GetEventBus(ctx, &meta.EventBus{Name: b.eventbus})
+	_, err := b.ctrlCli.GetEventBus(ctx, &meta.EventBus{Name: b.eventbus})
 	return err == nil
 }
 
@@ -320,7 +310,7 @@ func (b *bucket) createEventbus(ctx context.Context) error {
 	if !b.isLeader() || b.isExistEventbus(ctx) {
 		return nil
 	}
-	_, err := b.client.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
+	_, err := b.ctrlCli.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
 		Name: b.eventbus,
 	})
 	if err != nil {
@@ -336,38 +326,9 @@ func (b *bucket) createEventbus(ctx context.Context) error {
 	return nil
 }
 
-func (b *bucket) connectEventbus(ctx context.Context) error {
-	var (
-		err error
-		vrn string
-	)
-
-	vrn = fmt.Sprintf("vanus:///eventbus/%s?controllers=%s", b.eventbus, strings.Join(b.config.CtrlEndpoints, ","))
-	// new eventbus writer
-	b.eventbusWriter, err = openBusWriter(ctx, vrn)
-	if err != nil {
-		log.Error(ctx, "open eventbus writer failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		return err
-	}
-	ls, err := lookupReadableLogs(ctx, vrn)
-	if err != nil {
-		log.Error(ctx, "lookup readable logs failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		return err
-	}
-	// new eventlog reader
-	b.eventlogReader, err = openLogReader(ctx, ls[defaultIndexOfEventlogReader].VRN)
-	if err != nil {
-		log.Error(ctx, "open log reader failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		return err
-	}
-
-	return nil
+func (b *bucket) connectEventbus(ctx context.Context) {
+	b.eventbusWriter = b.client.Eventbus(ctx, b.eventbus).Writer()
+	b.eventbusReader = b.client.Eventbus(ctx, b.eventbus).Reader()
 }
 
 func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
@@ -382,7 +343,7 @@ func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
 	if !b.isLeader() {
 		return nil
 	}
-	_, err = b.eventbusWriter.Append(ctx, tm.getEvent())
+	_, err = b.eventbusWriter.AppendOne(ctx, tm.getEvent())
 	if err != nil {
 		log.Error(ctx, "append event to failed", map[string]interface{}{
 			log.KeyError: err,
@@ -413,16 +374,14 @@ func (b *bucket) getEvent(ctx context.Context, number int16) (events []*ce.Event
 		time.Sleep(time.Second)
 		return []*ce.Event{}, es.ErrOnEnd
 	}
-	_, err = b.eventlogReader.Seek(ctx, b.offset, io.SeekStart)
+
+	ls, err := b.client.Eventbus(ctx, b.eventbus).ListLog(ctx)
 	if err != nil {
-		log.Error(ctx, "seek failed", map[string]interface{}{
-			log.KeyError: err,
-			"offset":     b.offset,
-		})
-		return nil, err
+		return []*ce.Event{}, err
 	}
 
-	events, err = b.eventlogReader.Read(ctx, number)
+	readPolicy := eventbus.WithReadPolicy(eventbus.NewManuallyReadPolicy(ls[0], b.offset))
+	events, _, _, err = b.eventbusReader.Read(ctx, number, readPolicy)
 	if err != nil {
 		if !errors.Is(err, es.ErrOnEnd) && !errors.Is(ctx.Err(), context.Canceled) {
 			log.Error(ctx, "read failed", map[string]interface{}{

@@ -12,23 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package record
+package eventlog
 
-type LogSegment struct {
-	ID          uint64
-	StartOffset int64
-	EndOffset   int64
-	Writable    bool
-
-	Blocks        map[uint64]*SegmentBlock
-	LeaderBlockID uint64
-}
-
-type SegmentBlock struct {
-	ID       uint64
-	Endpoint string
-}
-
-func (s *LogSegment) GetLeaderEndpoint() string {
-	return s.Blocks[s.LeaderBlockID].Endpoint
+// Config is the configuration of EventLog.
+type Config struct {
+	Endpoints []string
+	ID        uint64
 }

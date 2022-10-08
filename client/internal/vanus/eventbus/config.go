@@ -12,29 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package eventlog
+package eventbus
 
-import (
-	"github.com/linkall-labs/vanus/client/pkg/discovery"
-	"github.com/linkall-labs/vanus/client/pkg/errors"
-)
-
-// Config is the configuration of EventLog.
+// Config is the configuration of EventBus.
 type Config struct {
-	discovery.VRN
-}
-
-func ParseVRN(rawVRN string) (*Config, error) {
-	vrn, err := discovery.ParseVRN(rawVRN)
-	if err != nil {
-		return nil, err
-	}
-
-	if vrn.Kind != "eventlog" {
-		return nil, errors.ErrInvalidArgument
-	}
-
-	return &Config{
-		*vrn,
-	}, nil
+	Endpoints []string
+	Name      string
 }

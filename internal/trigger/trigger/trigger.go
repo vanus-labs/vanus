@@ -17,13 +17,12 @@ package trigger
 
 import (
 	"context"
-	"fmt"
 	"reflect"
-	"strings"
 	"sync"
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
+	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/eventbus"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
@@ -69,7 +68,8 @@ type trigger struct {
 	reader        reader.Reader
 	eventCh       chan info.EventRecord
 	sendCh        chan info.EventRecord
-	client        client.EventClient
+	eventCli      client.EventClient
+	client        eb.Client
 	filter        filter.Filter
 	transformer   *transform.Transformer
 	rateLimiter   ratelimit.Limiter
@@ -119,7 +119,7 @@ func (t *trigger) getConfig() Config {
 func (t *trigger) getClient() client.EventClient {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
-	return t.client
+	return t.eventCli
 }
 
 func (t *trigger) changeTarget(sink primitive.URI,
@@ -128,7 +128,7 @@ func (t *trigger) changeTarget(sink primitive.URI,
 	eventCli := newEventClient(sink, protocol, credential)
 	t.lock.Lock()
 	defer t.lock.Unlock()
-	t.client = eventCli
+	t.eventCli = eventCli
 	t.subscription.Sink = sink
 	t.subscription.Protocol = protocol
 	t.subscription.SinkCredential = credential
@@ -343,7 +343,7 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 	ec.Extensions[primitive.XVanusEventbus] = primitive.RetryEventbusName
 	for {
 		startTime := time.Now()
-		_, err := t.timerEventWriter.Append(ctx, e)
+		_, err := t.timerEventWriter.AppendOne(ctx, e)
 		metrics.TriggerRetryEventAppendSecond.WithLabelValues(t.subscriptionIDStr).
 			Observe(time.Since(startTime).Seconds())
 		if err != nil {
@@ -372,7 +372,7 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 	ec.Extensions[primitive.DeadLetterReason] = reason
 	for {
 		startTime := time.Now()
-		_, err := t.dlEventWriter.Append(ctx, e)
+		_, err := t.dlEventWriter.AppendOne(ctx, e)
 		metrics.TriggerDeadLetterEventAppendSecond.WithLabelValues(t.subscriptionIDStr).
 			Observe(time.Since(startTime).Seconds())
 		if err != nil {
@@ -395,17 +395,14 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 func (t *trigger) getReaderConfig() reader.Config {
 	controllers := t.config.Controllers
 	sub := t.subscription
-	ebVrn := fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s",
-		controllers[0],
-		sub.EventBus,
-		strings.Join(controllers, ","))
 	var offsetTimestamp int64
 	if sub.Config.OffsetTimestamp != nil {
 		offsetTimestamp = int64(*sub.Config.OffsetTimestamp)
 	}
 	return reader.Config{
 		EventBusName:    sub.EventBus,
-		EventBusVRN:     ebVrn,
+		Controllers:     controllers,
+		Client:          t.client,
 		SubscriptionID:  sub.ID,
 		OffsetType:      sub.Config.OffsetType,
 		OffsetTimestamp: offsetTimestamp,
@@ -417,13 +414,10 @@ func (t *trigger) getRetryEventReaderConfig() reader.Config {
 	controllers := t.config.Controllers
 	sub := t.subscription
 	ebName := primitive.RetryEventbusName
-	ebVrn := fmt.Sprintf("vanus://%s/eventbus/%s?controllers=%s",
-		controllers[0],
-		ebName,
-		strings.Join(controllers, ","))
 	return reader.Config{
 		EventBusName:   ebName,
-		EventBusVRN:    ebVrn,
+		Controllers:    controllers,
+		Client:         t.client,
 		SubscriptionID: sub.ID,
 		OffsetType:     primitive.LatestOffset,
 		Offset:         getOffset(t.offsetManager, sub),
@@ -446,17 +440,11 @@ func getOffset(subscriptionOffset *offset.SubscriptionOffset, sub *primitive.Sub
 }
 
 func (t *trigger) Init(ctx context.Context) error {
-	t.client = newEventClient(t.subscription.Sink, t.subscription.Protocol, t.subscription.SinkCredential)
-	timerEventWriter, err := newEventbusWriter(ctx, primitive.TimerEventbusName, t.config.Controllers)
-	if err != nil {
-		return err
-	}
-	t.timerEventWriter = timerEventWriter
-	dlEventWriter, err := newEventbusWriter(ctx, t.config.DeadLetterEventbus, t.config.Controllers)
-	if err != nil {
-		return err
-	}
-	t.dlEventWriter = dlEventWriter
+	t.eventCli = newEventClient(t.subscription.Sink, t.subscription.Protocol, t.subscription.SinkCredential)
+	t.client = eb.Connect(t.config.Controllers)
+
+	t.timerEventWriter = t.client.Eventbus(ctx, primitive.TimerEventbusName).Writer()
+	t.dlEventWriter = t.client.Eventbus(ctx, t.config.DeadLetterEventbus).Writer()
 	t.eventCh = make(chan info.EventRecord, t.config.BufferSize)
 	t.sendCh = make(chan info.EventRecord, t.config.BufferSize)
 	t.reader = reader.NewReader(t.getReaderConfig(), t.eventCh)
@@ -502,8 +490,6 @@ func (t *trigger) Stop(ctx context.Context) error {
 	close(t.eventCh)
 	close(t.sendCh)
 	close(t.retryEventCh)
-	t.timerEventWriter.Close(ctx)
-	t.dlEventWriter.Close(ctx)
 	t.state = TriggerStopped
 	log.Info(ctx, "trigger stopped", map[string]interface{}{
 		log.KeySubscriptionID: t.subscription.ID,
