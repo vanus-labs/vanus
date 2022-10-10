@@ -63,7 +63,7 @@ func TestBlock(t *testing.T) {
 			So(b.WriteOffset(), ShouldEqual, 4096+b.Size())
 
 			Convey("flush", func() {
-				b.Flush(io.WriteAtFunc(func(b []byte, base int64, cb io.WriteCallback) {
+				b.Flush(io.WriteAtFunc(func(b []byte, base int64, so, eo int, cb io.WriteCallback) {
 					So(b[:n], ShouldResemble, r.Marshal())
 					So(base, ShouldEqual, 0)
 

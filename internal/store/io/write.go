@@ -17,14 +17,14 @@ package io
 type WriteCallback func(n int, err error)
 
 type WriterAt interface {
-	WriteAt(b []byte, off int64, cb WriteCallback)
+	WriteAt(b []byte, off int64, so, eo int, cb WriteCallback)
 }
 
-type WriteAtFunc func(b []byte, off int64, cb WriteCallback)
+type WriteAtFunc func(b []byte, off int64, so, eo int, cb WriteCallback)
 
-// Make sure WriteAtFunc implemets WriterAt.
+// Make sure WriteAtFunc implements WriterAt.
 var _ WriterAt = (WriteAtFunc)(nil)
 
-func (f WriteAtFunc) WriteAt(b []byte, off int64, cb WriteCallback) {
-	f(b, off, cb)
+func (f WriteAtFunc) WriteAt(b []byte, off int64, so, eo int, cb WriteCallback) {
+	f(b, off, so, eo, cb)
 }

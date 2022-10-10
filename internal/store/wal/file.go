@@ -71,7 +71,7 @@ func (l *logFile) Open(wronly bool) error {
 	return nil
 }
 
-func (l *logFile) WriteAt(e io.Engine, b []byte, off int64, cb io.WriteCallback) {
+func (l *logFile) WriteAt(e io.Engine, b []byte, off int64, so, eo int, cb io.WriteCallback) {
 	if off < l.so {
 		panic("underflow")
 	}
@@ -79,7 +79,7 @@ func (l *logFile) WriteAt(e io.Engine, b []byte, off int64, cb io.WriteCallback)
 		panic("overflow")
 	}
 
-	e.WriteAt(l.f, b, off-l.so, cb)
+	e.WriteAt(l.f, b, off-l.so, so, eo, cb)
 }
 
 func createLogFile(dir string, so, size int64, sync bool) (*logFile, error) {
