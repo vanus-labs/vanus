@@ -49,6 +49,10 @@ var (
 	_ ctrlpb.PingServerServer         = &controller{}
 )
 
+const (
+	maximumEventlogNum = 64
+)
+
 func NewController(cfg Config, member embedetcd.Member) *controller {
 	c := &controller{
 		cfg:         &cfg,
@@ -109,15 +113,19 @@ func (ctrl *controller) CreateEventBus(ctx context.Context,
 	req *ctrlpb.CreateEventBusRequest) (*metapb.EventBus, error) {
 	ctrl.mutex.Lock()
 	defer ctrl.mutex.Unlock()
-	if req.LogNumber == 0 {
-		req.LogNumber = 1
+	logNum := req.LogNumber
+	if logNum == 0 {
+		logNum = 1
 	}
-	elNum := 1 // force set to 1 temporary
+	if logNum > maximumEventlogNum {
+		logNum = maximumEventlogNum
+	}
+
 	eb := &metadata.Eventbus{
 		ID:        vanus.NewID(),
 		Name:      req.Name,
-		LogNumber: elNum,
-		EventLogs: make([]*metadata.Eventlog, elNum),
+		LogNumber: int(logNum),
+		EventLogs: make([]*metadata.Eventlog, int(logNum)),
 	}
 	exist, err := ctrl.kvStore.Exists(ctx, metadata.GetEventbusMetadataKey(eb.Name))
 	if err != nil {
