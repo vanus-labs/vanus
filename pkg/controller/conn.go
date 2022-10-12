@@ -19,6 +19,8 @@ import (
 	stderr "errors"
 	"github.com/linkall-labs/vanus/observability/log"
 	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -32,6 +34,10 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+const (
+	vanusConnBypass = "VANUS_CONN_BYPASS"
+)
+
 type conn struct {
 	mutex        sync.Mutex
 	leader       string
@@ -39,13 +45,17 @@ type conn struct {
 	endpoints    []string
 	credentials  credentials.TransportCredentials
 	grpcConn     map[string]*grpc.ClientConn
+	bypass       bool
 }
 
 func newConn(endpoints []string, credentials credentials.TransportCredentials) *conn {
+	// TODO temporary implement
+	v, _ := strconv.ParseBool(os.Getenv(vanusConnBypass))
 	return &conn{
 		endpoints:   endpoints,
 		grpcConn:    map[string]*grpc.ClientConn{},
 		credentials: credentials,
+		bypass:      v,
 	}
 }
 
@@ -82,7 +92,12 @@ func (c *conn) close() error {
 func (c *conn) makeSureClient(ctx context.Context, renew bool) *grpc.ClientConn {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
+
 	if c.leaderClient == nil || renew {
+		if c.bypass {
+			c.leaderClient = c.getGRPCConn(ctx, c.endpoints[0])
+			return c.leaderClient
+		}
 		for _, v := range c.endpoints {
 			conn := c.getGRPCConn(ctx, v)
 			if conn == nil {
