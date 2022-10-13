@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	stdErr "errors"
+	"fmt"
 	"io"
 	"path/filepath"
 	"sync"
@@ -119,6 +120,8 @@ func (ctrl *controller) CreateEventBus(ctx context.Context,
 	}
 	if logNum > maximumEventlogNum {
 		logNum = maximumEventlogNum
+		return nil, errors.ErrInvalidRequest.WithMessage(fmt.Sprintf("the number of eventlog exceeded,"+
+			" maximum is %d", maximumEventlogNum))
 	}
 
 	eb := &metadata.Eventbus{
