@@ -59,6 +59,8 @@ const (
 	defaultIndexOfEventlogReader = 0
 
 	heartbeatInterval = 5 * time.Second
+
+	recycleInterval = 60 * time.Second
 )
 
 var (
@@ -309,11 +311,10 @@ func (tw *timingWheel) getDistributionStation() *bucket {
 }
 
 func (tw *timingWheel) startRecycling(ctx context.Context) {
-	tick := tw.twList.Back().Value.(*timingWheelElement).tick
 	tw.wg.Add(1)
 	go func() {
 		defer tw.wg.Done()
-		ticker := time.NewTicker(tick)
+		ticker := time.NewTicker(recycleInterval)
 		defer ticker.Stop()
 		for {
 			select {
@@ -321,13 +322,10 @@ func (tw *timingWheel) startRecycling(ctx context.Context) {
 				log.Debug(ctx, "context canceled at timingwheel element heartbeat", nil)
 				return
 			case <-ticker.C:
-				buckets := tw.twList.Back().Value.(*timingWheelElement).getBuckets()
-				for idx, bucket := range buckets {
-					if time.Now().UnixNano()/bucket.tick.Nanoseconds() > idx {
-						bucket.stop(ctx)
-						delete(buckets, idx)
-					}
+				if !tw.IsLeader() {
+					break
 				}
+				tw.twList.Back().Value.(*timingWheelElement).recycling(ctx)
 			}
 		}
 	}()
@@ -727,7 +725,26 @@ func (twe *timingWheelElement) makeSureBucketExist(ctx context.Context, index in
 		})
 		return err
 	}
+	exist, err := twe.buckets[index].existsOffsetMeta(ctx)
+	if !exist && err == nil {
+		twe.buckets[index].updateOffsetMeta(ctx, twe.buckets[index].offset)
+	}
 	return nil
+}
+
+func (twe *timingWheelElement) recycling(ctx context.Context) {
+	twe.mu.Lock()
+	defer twe.mu.Unlock()
+	for idx, bucket := range twe.buckets {
+		if time.Now().UnixNano()/bucket.tick.Nanoseconds() > idx && bucket.hasOnEnd(ctx) {
+			log.Info(ctx, "recycle expired bucket", map[string]interface{}{
+				"bucket": bucket.eventbus,
+			})
+			bucket.stop(ctx)
+			bucket.recycle(ctx)
+			delete(twe.buckets, idx)
+		}
+	}
 }
 
 func (twe *timingWheelElement) wait(ctx context.Context) {
