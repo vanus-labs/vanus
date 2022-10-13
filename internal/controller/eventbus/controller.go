@@ -119,7 +119,6 @@ func (ctrl *controller) CreateEventBus(ctx context.Context,
 		logNum = 1
 	}
 	if logNum > maximumEventlogNum {
-		logNum = maximumEventlogNum
 		return nil, errors.ErrInvalidRequest.WithMessage(fmt.Sprintf("the number of eventlog exceeded,"+
 			" maximum is %d", maximumEventlogNum))
 	}
