@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	stdErr "errors"
+	"fmt"
 	"io"
 	"path/filepath"
 	"sync"
@@ -47,6 +48,10 @@ var (
 	_ ctrlpb.EventLogControllerServer = &controller{}
 	_ ctrlpb.SegmentControllerServer  = &controller{}
 	_ ctrlpb.PingServerServer         = &controller{}
+)
+
+const (
+	maximumEventlogNum = 64
 )
 
 func NewController(cfg Config, member embedetcd.Member) *controller {
@@ -109,15 +114,20 @@ func (ctrl *controller) CreateEventBus(ctx context.Context,
 	req *ctrlpb.CreateEventBusRequest) (*metapb.EventBus, error) {
 	ctrl.mutex.Lock()
 	defer ctrl.mutex.Unlock()
-	if req.LogNumber == 0 {
-		req.LogNumber = 1
+	logNum := req.LogNumber
+	if logNum == 0 {
+		logNum = 1
 	}
-	elNum := 1 // force set to 1 temporary
+	if logNum > maximumEventlogNum {
+		return nil, errors.ErrInvalidRequest.WithMessage(fmt.Sprintf("the number of eventlog exceeded,"+
+			" maximum is %d", maximumEventlogNum))
+	}
+
 	eb := &metadata.Eventbus{
 		ID:        vanus.NewID(),
 		Name:      req.Name,
-		LogNumber: elNum,
-		EventLogs: make([]*metadata.Eventlog, elNum),
+		LogNumber: int(logNum),
+		EventLogs: make([]*metadata.Eventlog, int(logNum)),
 	}
 	exist, err := ctrl.kvStore.Exists(ctx, metadata.GetEventbusMetadataKey(eb.Name))
 	if err != nil {
