@@ -115,7 +115,7 @@ func searchGE(indexes []index.Index, cmp func(index.Index) int) int64 {
 func searchGT(indexes []index.Index, cmp func(index.Index) int) int64 {
 	sz := len(indexes)
 	seq := sort.Search(sz, func(i int) bool {
-		return cmp(indexes[i]) >= 0
+		return cmp(indexes[i]) > 0
 	})
 	if seq < sz {
 		return int64(seq)
