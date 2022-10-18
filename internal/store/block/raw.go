@@ -43,6 +43,7 @@ type Snapshoter interface {
 }
 
 type Raw interface {
+	Seeker
 	Reader
 	TwoPCAppender
 	Snapshoter

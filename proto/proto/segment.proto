@@ -35,6 +35,8 @@ service SegmentServer {
 
   rpc AppendToBlock(AppendToBlockRequest) returns (AppendToBlockResponse);
   rpc ReadFromBlock(ReadFromBlockRequest) returns (ReadFromBlockResponse);
+  rpc LookupOffsetInBlock(LookupOffsetInBlockRequest) returns (LookupOffsetInBlockResponse);
+
   rpc Status(google.protobuf.Empty) returns (StatusResponse);
 }
 
@@ -97,6 +99,15 @@ message ReadFromBlockResponse {
   // Don't use this now, just used to optimize cpu overhead of SegmentServer in
   // the future for backward compatibility
   bytes payload = 2;
+}
+
+message LookupOffsetInBlockRequest {
+  uint64 block_id = 1;
+  int64 stime = 2;
+}
+
+message LookupOffsetInBlockResponse {
+  int64 offset = 1;
 }
 
 message StatusResponse {

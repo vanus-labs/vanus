@@ -72,6 +72,10 @@ func (r *replica) Delete(ctx context.Context) error {
 	return r.raw.Delete(ctx)
 }
 
+func (r *replica) Seek(ctx context.Context, index int64, key block.Entry, flag block.SeekKeyFlag) (int64, error) {
+	return r.raw.Seek(ctx, index, key, flag)
+}
+
 func (r *replica) Read(ctx context.Context, seq int64, num int) ([]block.Entry, error) {
 	return r.raw.Read(ctx, seq, num)
 }
