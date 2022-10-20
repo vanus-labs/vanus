@@ -111,9 +111,9 @@ enum Protocol{
 message SinkCredential {
   enum CredentialType {
     None = 0;
-    AWS = 1;
-    GCLOUD = 2;
-    PLAIN = 3;
+    PLAIN = 1;
+    AWS = 2;
+    GCLOUD = 3;
   }
   CredentialType credential_type = 1;
 
