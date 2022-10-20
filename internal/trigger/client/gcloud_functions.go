@@ -17,7 +17,6 @@ package client
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	nethttp "net/http"
 	"sync"
@@ -62,7 +61,7 @@ func (c *gcloudFunctions) Send(ctx context.Context, event ce.Event) Result {
 			return newUndefinedErr(err)
 		}
 	}
-	payload, err := json.Marshal(event)
+	payload, err := event.MarshalJSON()
 	if err != nil {
 		return newInternalErr(err)
 	}

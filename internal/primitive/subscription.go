@@ -26,7 +26,7 @@ type URI string
 
 type Subscription struct {
 	ID              vanus.ID               `json:"id"`
-	Filters         ListSubscriptionFilter `json:"filters,omitempty"`
+	Filters         SubscriptionFilterList `json:"filters,omitempty"`
 	Sink            URI                    `json:"sink,omitempty"`
 	EventBus        string                 `json:"eventbus"`
 	Offsets         info.ListOffsetInfo    `json:"offsets"`
@@ -87,14 +87,14 @@ type SubscriptionFilter struct {
 	Suffix map[string]string      `json:"suffix,omitempty"`
 	CeSQL  string                 `json:"ce_sql,omitempty"`
 	Not    *SubscriptionFilter    `json:"not,omitempty"`
-	All    ListSubscriptionFilter `json:"all,omitempty"`
-	Any    ListSubscriptionFilter `json:"any,omitempty"`
+	All    SubscriptionFilterList `json:"all,omitempty"`
+	Any    SubscriptionFilterList `json:"any,omitempty"`
 	CEL    string                 `json:"cel,omitempty"`
 }
 
-type ListSubscriptionFilter []*SubscriptionFilter
+type SubscriptionFilterList []*SubscriptionFilter
 
-func (l ListSubscriptionFilter) String() string {
+func (l SubscriptionFilterList) String() string {
 	if len(l) == 0 {
 		return ""
 	}

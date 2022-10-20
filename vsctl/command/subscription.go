@@ -17,6 +17,7 @@ package command
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"time"
@@ -78,19 +79,16 @@ func createSubscriptionCommand() *cobra.Command {
 
 			var credential *meta.SinkCredential
 			if sinkCredentialType != "" {
-				if sinkCredentialFile == "" {
-					if sinkCredential == "" {
-						cmdFailedf(cmd, "credential-type is set but credential-file and sinkCredential empty\n")
-					}
-				} else {
-					if sinkCredential != "" {
-						cmdFailedf(cmd, "credential-file and sinkCredential cant not both present\n")
-					}
-					credentialBytes, err := ioutil.ReadFile(sinkCredentialFile)
+				if sinkCredential == "" {
+					cmdFailedf(cmd, "credential-type is set but sinkCredential empty\n")
+				}
+				if sinkCredential[0] == '@' {
+					credentialBytes, err := ioutil.ReadFile(sinkCredential[1:])
 					if err != nil {
-						cmdFailedf(cmd, "read credential-file:%s error:%w\n", sinkCredentialFile, err)
+						cmdFailedf(cmd, "read sinkCredential file:%s error:%w\n", sinkCredential, err)
 					}
 					sinkCredential = string(credentialBytes)
+					fmt.Println(sinkCredential)
 				}
 				// expand value from env
 				sinkCredential = os.ExpandEnv(sinkCredential)
@@ -210,8 +208,7 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&from, "from", "", "consume events from, latest,earliest or RFC3339 format time")
 	cmd.Flags().StringVar(&subProtocol, "protocol", "http", "protocol,http or aws-lambda or gcloud-functions")
 	cmd.Flags().StringVar(&sinkCredentialType, "credential-type", "", "sink credential type: aws or gcloud")
-	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, JSON format")
-	cmd.Flags().StringVar(&sinkCredentialFile, "credential-file", "", "sink credential file")
+	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, JSON format or @file")
 	cmd.Flags().Int32Var(&deliveryTimeout, "delivery-timeout", 0, "event delivery to sink timeout, unit millisecond")
 	cmd.Flags().Int32Var(&maxRetryAttempts, "max-retry-attempts", 0, "event delivery fail max retry attempts")
 	return cmd

@@ -43,7 +43,6 @@ var (
 	subProtocol        string
 	sinkCredentialType string
 	sinkCredential     string
-	sinkCredentialFile string
 	deliveryTimeout    int32
 	maxRetryAttempts   int32
 

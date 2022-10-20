@@ -16,7 +16,6 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -45,7 +44,7 @@ func NewAwsLambdaClient(accessKeyID, secretKeyID, arnStr string) EventClient {
 }
 
 func (l *awsLambda) Send(ctx context.Context, event ce.Event) Result {
-	payload, err := json.Marshal(event)
+	payload, err := event.MarshalJSON()
 	if err != nil {
 		return newInternalErr(err)
 	}

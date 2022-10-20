@@ -80,7 +80,7 @@ var (
 )
 
 const (
-	errStatusCode = 400
+	errStatusCode = nethttp.StatusBadRequest
 
 	ErrDeliveryTimeout = 601
 	ErrUndefined       = 700
