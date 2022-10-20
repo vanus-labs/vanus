@@ -21,6 +21,7 @@ import (
 
 	"github.com/linkall-labs/vanus/internal/trigger/util"
 	"github.com/linkall-labs/vanus/observability/log"
+	pkgUtil "github.com/linkall-labs/vanus/pkg/util"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 )
@@ -45,7 +46,7 @@ func NewSuffixFilter(suffix map[string]string) Filter {
 func (filter *suffixFilter) Filter(event ce.Event) Result {
 	for attr, suffix := range filter.suffix {
 		value, ok := util.LookupAttribute(event, attr)
-		if !ok || !strings.HasSuffix(value, suffix) {
+		if !ok || !strings.HasSuffix(pkgUtil.StringValue(value), suffix) {
 			return FailFilter
 		}
 	}

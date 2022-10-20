@@ -12,25 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package context
 
-import (
-	"crypto/md5"
-	"fmt"
-)
+import ce "github.com/cloudevents/sdk-go/v2"
 
-func GetIDByAddr(addr string) string {
-	return fmt.Sprintf("%x", md5.Sum([]byte(addr)))
-}
-
-func IsSpace(c byte) bool {
-	return c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n')
-}
-
-func StringValue(value interface{}) string {
-	v, ok := value.(string)
-	if ok {
-		return v
-	}
-	return fmt.Sprintf("%v", value)
+type EventContext struct {
+	Event  *ce.Event
+	Define map[string]interface{}
+	Data   interface{}
 }

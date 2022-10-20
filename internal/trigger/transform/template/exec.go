@@ -15,94 +15,48 @@
 package template
 
 import (
-	"strings"
+	"bytes"
+
+	jsoniter "github.com/json-iterator/go"
 )
 
-type DataType int
-
-const (
-	Null = iota
-	Text
-	Other
-)
-
-type Data struct {
-	DataType
-	Raw []byte
-}
-
-func (d Data) String() string {
-	switch d.DataType {
-	case Null:
-		return "null"
-	default:
-		return string(d.Raw)
-	}
-}
-
-func NewNullData() Data {
-	return Data{DataType: Null}
-}
-
-func NewTextData(d []byte) Data {
-	return Data{Text, d}
-}
-
-func NewOtherData(d []byte) Data {
-	return Data{Other, d}
-}
-
-func (p *Parser) executeJSON(data map[string]Data) string {
-	var sb strings.Builder
-	for _, node := range p.GetNodes() {
+func (t *Template) Execute(data map[string]interface{}) []byte {
+	var sb bytes.Buffer
+	stream := jsoniter.ConfigFastest.BorrowStream(&sb)
+	defer jsoniter.ConfigFastest.ReturnStream(stream)
+	for _, node := range t.parser.getNodes() {
 		switch node.Type() {
 		case Constant:
-			sb.WriteString(node.Value())
+			stream.WriteRaw(node.Value())
 		case Variable:
 			v, exist := data[node.Value()]
-			if !exist || v.DataType == Null {
-				sb.WriteString("null")
+			if !exist {
+				stream.WriteString("<" + node.Value() + ">")
+				continue
 			}
-			if v.DataType == Text {
-				sb.WriteString("\"")
-			}
-			sb.Write(v.Raw)
-			if v.DataType == Text {
-				sb.WriteString("\"")
-			}
+			stream.WriteVal(v)
 		case StringVariable:
 			v, exist := data[node.Value()]
-			if !exist || v.DataType == Null {
+			if !exist {
+				stream.WriteRaw("<" + node.Value() + ">")
 				continue
 			}
-			sb.Write(v.Raw)
-		}
-	}
-	return sb.String()
-}
-
-func (p *Parser) executeText(data map[string]Data) string {
-	var sb strings.Builder
-	for _, node := range p.GetNodes() {
-		switch node.Type() {
-		case Constant:
-			sb.WriteString(node.Value())
-		case Variable, StringVariable:
-			v, exist := data[node.Value()]
-			if !exist || v.DataType == Null {
+			if v == nil {
 				continue
 			}
-			sb.Write(v.Raw)
+			// type string no need quota
+			switch v.(type) {
+			case string:
+				stream.WriteRaw(v.(string))
+			case []interface{}:
+				stream.WriteRaw("[]")
+			case map[string]interface{}:
+				stream.WriteRaw("{}")
+			default:
+				stream.WriteVal(v)
+			}
 		}
 	}
-	return sb.String()
-}
-
-func (p *Parser) Execute(data map[string]Data) string {
-	switch p.OutputType {
-	case JSON:
-		return p.executeJSON(data)
-	default:
-		return p.executeText(data)
-	}
+	stream.Flush()
+	return sb.Bytes()
 }

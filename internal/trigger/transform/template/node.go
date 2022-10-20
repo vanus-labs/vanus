@@ -22,8 +22,8 @@ func (t NodeType) Type() NodeType {
 
 const (
 	Constant       NodeType = iota // Plain text.
-	Variable                       // A ${var} variable.
-	StringVariable                 // A ${var} variable.
+	Variable                       // A <var> variable, example "key":<var>
+	StringVariable                 // A <var> variable, example "key":"<var>" or "key":"other <var>"
 )
 
 type Node interface {
@@ -36,7 +36,7 @@ type ConstantNode struct {
 	Text string
 }
 
-func (p *Parser) newConstant(text string) *ConstantNode {
+func (p *parser) newConstant(text string) *ConstantNode {
 	return &ConstantNode{Text: text, NodeType: Constant}
 }
 
@@ -49,23 +49,10 @@ type VariableNode struct {
 	Name string
 }
 
-func (p *Parser) newVariable(name string) *VariableNode {
-	return &VariableNode{Name: name, NodeType: Variable}
+func (p *parser) newVariable(name string, nodeType NodeType) *VariableNode {
+	return &VariableNode{Name: name, NodeType: nodeType}
 }
 
 func (t *VariableNode) Value() string {
-	return t.Name
-}
-
-type StringVariableNode struct {
-	NodeType
-	Name string
-}
-
-func (p *Parser) newStringVariable(name string) *VariableNode {
-	return &VariableNode{Name: name, NodeType: StringVariable}
-}
-
-func (t *StringVariableNode) Value() string {
 	return t.Name
 }

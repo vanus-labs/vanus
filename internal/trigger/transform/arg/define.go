@@ -12,25 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package arg
 
-import (
-	"crypto/md5"
-	"fmt"
-)
+import "github.com/linkall-labs/vanus/internal/trigger/context"
 
-func GetIDByAddr(addr string) string {
-	return fmt.Sprintf("%x", md5.Sum([]byte(addr)))
+type define struct {
+	name string
 }
 
-func IsSpace(c byte) bool {
-	return c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n')
-}
-
-func StringValue(value interface{}) string {
-	v, ok := value.(string)
-	if ok {
-		return v
+// newDefine name format is <var>
+func newDefine(name string) Arg {
+	return define{
+		name: name[1 : len(name)-1],
 	}
-	return fmt.Sprintf("%v", value)
+}
+
+func (arg define) Type() Type {
+	return Define
+}
+
+func (arg define) Name() string {
+	return arg.name
+}
+
+func (arg define) Evaluate(ceCtx *context.EventContext) (interface{}, error) {
+	if len(ceCtx.Define) == 0 {
+		return nil, nil
+	}
+	v, exist := ceCtx.Define[arg.name]
+	if !exist {
+		return nil, nil
+	}
+	return v, nil
 }

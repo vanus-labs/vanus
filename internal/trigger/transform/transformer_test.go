@@ -19,77 +19,8 @@ import (
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/trigger/transform/template"
 	. "github.com/smartystreets/goconvey/convey"
 )
-
-func TestParseDataVariable(t *testing.T) {
-	key := "key"
-	Convey("test parse data nil", t, func() {
-		d := parseDataVariable(nil, key)
-		So(d.DataType, ShouldEqual, template.Null)
-	})
-
-	Convey("test parse data no exist", t, func() {
-		d := parseDataVariable([]byte(`{"ke":"value"}`), key)
-		So(d.DataType, ShouldEqual, template.Null)
-	})
-
-	Convey("test parse data value nil", t, func() {
-		d := parseDataVariable([]byte(`{"key":null}`), key)
-		So(d.DataType, ShouldEqual, template.Null)
-	})
-
-	Convey("test parse data value string", t, func() {
-		d := parseDataVariable([]byte(`{"key":"value"}`), key)
-		So(d.DataType, ShouldEqual, template.Text)
-		So(d.String(), ShouldEqual, "value")
-	})
-
-	Convey("test parse data value other", t, func() {
-		d := parseDataVariable([]byte(`{"key": {"k":"v"}}`), key)
-		So(d.DataType, ShouldEqual, template.Other)
-		So(d.String(), ShouldEqual, `{"k":"v"}`)
-	})
-}
-
-func TestParseData(t *testing.T) {
-	e := ce.NewEvent()
-	e.SetType("testType")
-	e.SetSource("testSource")
-	e.SetID("testId")
-	e.SetExtension("vanusKey", "vanusValue")
-	_ = e.SetData(ce.ApplicationJSON, map[string]interface{}{
-		"key":  "value",
-		"key1": "value1",
-	})
-	Convey("test new transformer", t, func() {
-		it := NewTransformer(nil)
-		So(it, ShouldBeNil)
-	})
-	input := &primitive.Transformer{
-		Define: map[string]string{
-			"keyTest": "keyValue",
-			"ctxId":   "$.id",
-			"ctxKey":  "$.vanuskey",
-			"data":    "$.data",
-			"dataKey": "$.data.key",
-			"noExist": "$.noExist",
-		},
-		Template: "test ${keyTest} Id ${ctxId} type ${ctxType} data ${data} key ${noExist}",
-	}
-
-	Convey("test parse data", t, func() {
-		it := NewTransformer(input)
-		m := it.parseData(&e)
-		So(m["keyTest"].String(), ShouldEqual, "keyValue")
-		So(m["ctxId"].String(), ShouldEqual, e.ID())
-		So(m["ctxKey"].String(), ShouldEqual, "vanusValue")
-		So(m["dataKey"].String(), ShouldEqual, "value")
-		So(m["data"].String(), ShouldEqual, `{"key":"value","key1":"value1"}`)
-		So(m["noExist"].String(), ShouldEqual, `null`)
-	})
-}
 
 func TestExecute(t *testing.T) {
 	Convey("test execute", t, func() {
@@ -107,16 +38,6 @@ func TestExecute(t *testing.T) {
 				"dataKey": "$.data.key",
 			},
 		}
-		Convey("test execute text", func() {
-			_ = e.SetData(ce.ApplicationJSON, map[string]interface{}{
-				"key":  "value",
-				"key1": "value1",
-			})
-			input.Template = "${keyTest} ${ctxId} ${ctxType} ${data} ${dataKey}"
-			it := NewTransformer(input)
-			it.Execute(&e)
-			So(string(e.Data()), ShouldEqual, `keyValue testId  {"key":"value","key1":"value1"} value`)
-		})
 		Convey("test execute json signal value", func() {
 			_ = e.SetData(ce.ApplicationJSON, map[string]interface{}{
 				"key":  "value",
@@ -132,7 +53,7 @@ func TestExecute(t *testing.T) {
 				"key":  "value",
 				"key1": "value1",
 			})
-			input.Template = ` {"body": {"data": "source is ${dataKey}","data2": "source is ${noExist}"}}`
+			input.Template = ` {"body": {"data": "source is <dataKey>","data2": "source is <noExist>"}}`
 			it := NewTransformer(input)
 			it.Execute(&e)
 			So(string(e.Data()), ShouldEqual, ` {"body": {"data": "source is value","data2": "source is "}}`)
@@ -142,7 +63,7 @@ func TestExecute(t *testing.T) {
 				"key":  "value",
 				"key1": "value1",
 			})
-			input.Template = `{"body": {"data": ":${dataKey}","data2": "\":${dataKey}\"","data3": "::${dataKey} other:${ctxId}"}}`
+			input.Template = `{"body": {"data": ":${dataKey}","data2": "\":<dataKey>\"","data3": "::<dataKey> other:<ctxId>"}}`
 			it := NewTransformer(input)
 			it.Execute(&e)
 			So(string(e.Data()), ShouldEqual, `{"body": {"data": ":value","data2": "\":value\"","data3": "::value other:testId"}}`)

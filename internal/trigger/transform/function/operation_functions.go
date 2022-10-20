@@ -12,25 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package function
 
-import (
-	"crypto/md5"
-	"fmt"
-)
-
-func GetIDByAddr(addr string) string {
-	return fmt.Sprintf("%x", md5.Sum([]byte(addr)))
-}
-
-func IsSpace(c byte) bool {
-	return c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n')
-}
-
-func StringValue(value interface{}) string {
-	v, ok := value.(string)
-	if ok {
-		return v
-	}
-	return fmt.Sprintf("%v", value)
+var deleteFunction = function{
+	name:      "DELETE",
+	fixedArgs: []Type{String},
+	fn: func(args []interface{}) (interface{}, error) {
+		return nil, nil
+	},
 }

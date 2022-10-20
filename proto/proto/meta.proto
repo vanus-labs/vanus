@@ -16,6 +16,8 @@ syntax = "proto3";
 
 package linkall.vanus.meta;
 
+import "google/protobuf/struct.proto";
+
 option go_package = "github.com/linkall-labs/vanus/proto/pkg/meta";
 
 message VanusResourceName {
@@ -181,4 +183,10 @@ message OffsetInfo {
 message Transformer {
   map<string, string> define = 1;
   string template = 2;
+  repeated Action pipeline = 3;
 }
+
+message Action {
+  repeated google.protobuf.Value command = 1;
+}
+

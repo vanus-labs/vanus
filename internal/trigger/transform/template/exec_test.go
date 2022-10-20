@@ -20,116 +20,95 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestExecuteJsonString(t *testing.T) {
-	p := NewParser()
-	p.Parse(`{"key":"${str}"}`)
-	Convey("no data", t, func() {
-		m := make(map[string]Data)
-		v := p.Execute(m)
-		So(v, ShouldEqual, `{"key":""}`)
+func TestExecute(t *testing.T) {
+	Convey("test string var", t, func() {
+		p := NewTemplate()
+		p.Parse(`{"key":"<str>"}`)
+		Convey("no data", func() {
+			m := make(map[string]interface{})
+			v := p.Execute(m)
+			So(string(v), ShouldEqual, `{"key":"<str>"}`)
+		})
+		Convey("null", func() {
+			m := make(map[string]interface{})
+			m["str"] = nil
+			v := p.Execute(m)
+			So(string(v), ShouldEqual, `{"key":""}`)
+		})
+		Convey("string", func() {
+			m := make(map[string]interface{})
+			m["str"] = "str"
+			v := p.Execute(m)
+			So(string(v), ShouldEqual, `{"key":"str"}`)
+		})
+		Convey("number", func() {
+			m := make(map[string]interface{})
+			m["str"] = 123.456
+			v := p.Execute(m)
+			So(string(v), ShouldEqual, `{"key":"123.456"}`)
+		})
+		Convey("bool", func() {
+			m := make(map[string]interface{})
+			m["str"] = true
+			v := p.Execute(m)
+			So(string(v), ShouldEqual, `{"key":"true"}`)
+		})
+		Convey("object", func() {
+			m := make(map[string]interface{})
+			m["str"] = map[string]interface{}{"str": true}
+			v := p.Execute(m)
+			So(string(v), ShouldEqual, `{"key":"{}"}`)
+		})
+		Convey("array", func() {
+			m := make(map[string]interface{})
+			m["str"] = []interface{}{"str", true}
+			v := p.Execute(m)
+			So(string(v), ShouldEqual, `{"key":"[]"}`)
+		})
 	})
-	Convey("null", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewNullData()
-		v := p.Execute(m)
-		So(v, ShouldEqual, `{"key":""}`)
-	})
-	Convey("string", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewTextData([]byte("str"))
-		v := p.Execute(m)
-		So(v, ShouldEqual, `{"key":"str"}`)
-	})
-	Convey("other num", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewOtherData([]byte("123"))
-		v := p.Execute(m)
-		So(v, ShouldEqual, `{"key":"123"}`)
-	})
-}
-
-func TestExecuteJsonValue(t *testing.T) {
-	p := NewParser()
-	p.Parse(`{"key":${str}}`)
-	Convey("no data", t, func() {
-		m := make(map[string]Data)
-		v := p.Execute(m)
-		So(v, ShouldEqual, `{"key":null}`)
-	})
-	Convey("null", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewNullData()
-		v := p.Execute(m)
-		So(v, ShouldEqual, `{"key":null}`)
-	})
-	Convey("string", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewTextData([]byte("str"))
-		v := p.Execute(m)
-		So(v, ShouldEqual, `{"key":"str"}`)
-	})
-	Convey("other num", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewOtherData([]byte("123"))
-		v := p.Execute(m)
-		So(v, ShouldEqual, `{"key":123}`)
-	})
-	Convey("other bool", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewOtherData([]byte("true"))
-		v := p.Execute(m)
-		So(v, ShouldEqual, `{"key":true}`)
-	})
-
-	Convey("other obj", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewOtherData([]byte(`{"k":"v"}`))
-		v := p.Execute(m)
-		So(v, ShouldEqual, `{"key":{"k":"v"}}`)
-	})
-}
-
-func TestExecuteText(t *testing.T) {
-	p := NewParser()
-	Convey("no parse", t, func() {
-		v := p.Execute(nil)
-		So(v, ShouldEqual, "")
-	})
-	p.Parse(`abc ${str}`)
-	Convey("no data", t, func() {
-		m := make(map[string]Data)
-		v := p.Execute(m)
-		So(v, ShouldEqual, `abc `)
-	})
-	Convey("null", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewNullData()
-		v := p.Execute(m)
-		So(v, ShouldEqual, `abc `)
-	})
-	Convey("string", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewTextData([]byte("str"))
-		v := p.Execute(m)
-		So(v, ShouldEqual, `abc str`)
-	})
-	Convey("other num", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewOtherData([]byte("123"))
-		v := p.Execute(m)
-		So(v, ShouldEqual, `abc 123`)
-	})
-	Convey("other bool", t, func() {
-		m := make(map[string]Data)
-		m["str"] = NewOtherData([]byte("true"))
-		v := p.Execute(m)
-		So(v, ShouldEqual, `abc true`)
-	})
-}
-
-func TestDataString(t *testing.T) {
-	Convey("test string", t, func() {
-		So(NewNullData().String(), ShouldEqual, "null")
-		So(NewOtherData([]byte("str")).String(), ShouldEqual, "str")
+	Convey("test var", t, func() {
+		p := NewTemplate()
+		p.Parse(`{"key":<str>}`)
+		Convey("no data", func() {
+			m := make(map[string]interface{})
+			v := p.Execute(m)
+			So(string(v), ShouldEqual, `{"key":"<str>"}`)
+		})
+		Convey("null", func() {
+			m := make(map[string]interface{})
+			m["str"] = nil
+			v := p.Execute(m)
+			So(string(v), ShouldEqual, `{"key":null}`)
+		})
+		Convey("string", func() {
+			m := make(map[string]interface{})
+			m["str"] = "str"
+			v := p.Execute(m)
+			So(string(v), ShouldEqual, `{"key":"str"}`)
+		})
+		Convey("number", func() {
+			m := make(map[string]interface{})
+			m["str"] = 123.456
+			v := p.Execute(m)
+			So(string(v), ShouldEqual, `{"key":123.456}`)
+		})
+		Convey("bool", func() {
+			m := make(map[string]interface{})
+			m["str"] = true
+			v := p.Execute(m)
+			So(string(v), ShouldEqual, `{"key":true}`)
+		})
+		Convey("obj", func() {
+			m := make(map[string]interface{})
+			m["str"] = map[string]interface{}{"k": "v"}
+			v := p.Execute(m)
+			So(string(v), ShouldEqual, `{"key":{"k":"v"}}`)
+		})
+		Convey("array", func() {
+			m := make(map[string]interface{})
+			m["str"] = []interface{}{"str", 123.456}
+			v := p.Execute(m)
+			So(string(v), ShouldEqual, `{"key":["str",123.456]}`)
+		})
 	})
 }

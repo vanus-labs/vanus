@@ -12,25 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package function
 
-import (
-	"crypto/md5"
-	"fmt"
+type Type uint8
+
+const (
+	String Type = iota
+	Number
+	Bool
+	Object
+	StringArray
+	Array
+	Any
 )
 
-func GetIDByAddr(addr string) string {
-	return fmt.Sprintf("%x", md5.Sum([]byte(addr)))
+func TypePtr(t Type) *Type {
+	return &t
 }
 
-func IsSpace(c byte) bool {
-	return c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+func (t Type) IsSameType(val interface{}) bool {
+	return TypeFromVal(val) == t
 }
 
-func StringValue(value interface{}) string {
-	v, ok := value.(string)
-	if ok {
-		return v
+func TypeFromVal(val interface{}) Type {
+	switch val.(type) {
+	case string:
+		return String
+	case float64:
+		return Number
+	case bool:
+		return Bool
+	case map[string]interface{}:
+		return Object
+	case []interface{}:
+		return Array
 	}
-	return fmt.Sprintf("%v", value)
+	return Any
 }

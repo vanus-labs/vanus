@@ -15,15 +15,12 @@
 package util
 
 import (
-	"fmt"
-
 	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/oliveagle/jsonpath"
 )
 
-func LookupAttribute(event ce.Event, attr string) (string, bool) {
-	// Set standard context attributes. The attributes available may not be
-	// exactly the same as the attributes defined in the current version of the
-	// ce spec.
+// LookupAttribute lookup event attribute value by attribute name
+func LookupAttribute(event ce.Event, attr string) (interface{}, bool) {
 	switch attr {
 	case "specversion":
 		return event.SpecVersion(), true
@@ -42,11 +39,16 @@ func LookupAttribute(event ce.Event, attr string) (string, bool) {
 	case "datacontenttype":
 		return event.DataContentType(), true
 	default:
-		val, ok := event.Extensions()[attr]
-		var str string
-		if ok {
-			str = fmt.Sprintf("%v", val)
+		extensions := event.Context.AsV1().Extensions
+		if len(extensions) == 0 {
+			return nil, false
 		}
-		return str, ok
+		val, ok := extensions[attr]
+		return val, ok
 	}
+}
+
+// LookupData lookup event data value by JSON path
+func LookupData(data interface{}, path string) (interface{}, error) {
+	return jsonpath.JsonPathLookup(data, path)
 }

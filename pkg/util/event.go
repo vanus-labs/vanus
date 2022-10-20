@@ -14,23 +14,18 @@
 
 package util
 
-import (
-	"crypto/md5"
-	"fmt"
-)
+import "fmt"
 
-func GetIDByAddr(addr string) string {
-	return fmt.Sprintf("%x", md5.Sum([]byte(addr)))
-}
+const maxEventAttrNameLength = 20
 
-func IsSpace(c byte) bool {
-	return c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n')
-}
-
-func StringValue(value interface{}) string {
-	v, ok := value.(string)
-	if ok {
-		return v
+func ValidateEventAttrName(attr string) error {
+	if len(attr) > maxEventAttrNameLength {
+		return fmt.Errorf("CloudEvents attribute names length SHOULD NOT exceed 20 characters")
 	}
-	return fmt.Sprintf("%v", value)
+	for _, c := range attr {
+		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+			return fmt.Errorf("CloudEvents attribute names MUST consist of lower-case letters ('a' to 'z') or digits ('0' to '9') from the ASCII character set")
+		}
+	}
+	return nil
 }

@@ -104,6 +104,7 @@ func (l SubscriptionFilterList) String() string {
 
 type Transformer struct {
 	Define   map[string]string `json:"define,omitempty"`
+	Pipeline []*Action         `json:"pipeline,omitempty"`
 	Template string            `json:"template,omitempty"`
 }
 
@@ -119,10 +120,14 @@ func (t *Transformer) Exist() bool {
 	if t == nil {
 		return false
 	}
-	if t.Template == "" {
+	if t.Template == "" && len(t.Pipeline) == 0 {
 		return false
 	}
 	return true
+}
+
+type Action struct {
+	Command []interface{} `json:"command"`
 }
 
 /* annotation no use code .

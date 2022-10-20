@@ -12,25 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package arg
 
 import (
-	"crypto/md5"
 	"fmt"
+
+	"github.com/linkall-labs/vanus/internal/trigger/context"
 )
 
-func GetIDByAddr(addr string) string {
-	return fmt.Sprintf("%x", md5.Sum([]byte(addr)))
+type constant struct {
+	value interface{}
 }
 
-func IsSpace(c byte) bool {
-	return c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n')
-}
-
-func StringValue(value interface{}) string {
-	v, ok := value.(string)
-	if ok {
-		return v
+func newConstant(value interface{}) Arg {
+	return constant{
+		value: value,
 	}
-	return fmt.Sprintf("%v", value)
+}
+
+func (arg constant) Type() Type {
+	return Constant
+}
+func (arg constant) Name() string {
+	switch arg.value.(type) {
+	case string:
+		return arg.value.(string)
+	}
+	return fmt.Sprintf("%v", arg.value)
+}
+
+func (arg constant) Evaluate(*context.EventContext) (interface{}, error) {
+	return arg.value, nil
 }
