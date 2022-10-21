@@ -18,6 +18,8 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
+	nethttp "net/http"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 )
@@ -26,22 +28,60 @@ type Sender interface {
 	Send(ctx context.Context, event ce.Event) Result
 }
 
+type EventClient interface {
+	Sender
+}
+
 type Result struct {
 	StatusCode int
 	Err        error
 }
 
+func newResultByHTTPCode(httpCode int) Result {
+	return Result{
+		StatusCode: httpCode,
+		Err:        fmt.Errorf("%d %s", httpCode, nethttp.StatusText(httpCode)),
+	}
+}
+
+func newInternalErr(err error) Result {
+	return Result{
+		StatusCode: nethttp.StatusInternalServerError,
+		Err:        err,
+	}
+}
+
+func newUndefinedErr(err error) Result {
+	return Result{
+		StatusCode: ErrUndefined,
+		Err:        err,
+	}
+}
+
+func convertHTTPResponse(statusCode int, desc string, body []byte) Result {
+	switch statusCode {
+	case nethttp.StatusForbidden:
+		return Forbidden
+	case nethttp.StatusRequestEntityTooLarge:
+		return RequestEntityTooLarge
+	default:
+		return Result{
+			StatusCode: statusCode,
+			Err:        fmt.Errorf("%s response statusCode: %d, body: %s", desc, statusCode, string(body)),
+		}
+	}
+}
+
 var (
-	Success         = Result{}
-	DeliveryTimeout = Result{ErrDeliveryTimeout, errors.New("DeliveryTimeout")}
+	Success               = Result{}
+	DeliveryTimeout       = Result{ErrDeliveryTimeout, errors.New("DeliveryTimeout")}
+	Forbidden             = newResultByHTTPCode(nethttp.StatusForbidden)
+	RequestEntityTooLarge = newResultByHTTPCode(nethttp.StatusRequestEntityTooLarge)
 )
 
 const (
-	ErrInternalCode    = 600
+	errStatusCode = nethttp.StatusBadRequest
+
 	ErrDeliveryTimeout = 601
 	ErrUndefined       = 700
 )
-
-type EventClient interface {
-	Sender
-}

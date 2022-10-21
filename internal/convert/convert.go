@@ -48,6 +48,8 @@ func fromPbProtocol(from pb.Protocol) primitive.Protocol {
 		to = primitive.HTTPProtocol
 	case pb.Protocol_AWS_LAMBDA:
 		to = primitive.AwsLambdaProtocol
+	case pb.Protocol_GCLOUD_FUNCTIONS:
+		to = primitive.GCloudFunctions
 	}
 	return to
 }
@@ -59,6 +61,8 @@ func toPbProtocol(from primitive.Protocol) pb.Protocol {
 		to = pb.Protocol_HTTP
 	case primitive.AwsLambdaProtocol:
 		to = pb.Protocol_AWS_LAMBDA
+	case primitive.GCloudFunctions:
+		to = pb.Protocol_GCLOUD_FUNCTIONS
 	}
 	return to
 }
@@ -91,10 +95,12 @@ func fromPbSinkCredentialType(from *pb.SinkCredential) *primitive.CredentialType
 	switch from.CredentialType {
 	case pb.SinkCredential_None:
 		return nil
+	case pb.SinkCredential_AWS:
+		to = primitive.AWS
+	case pb.SinkCredential_GCLOUD:
+		to = primitive.GCloud
 	case pb.SinkCredential_PLAIN:
 		to = primitive.Plain
-	case pb.SinkCredential_CLOUD:
-		to = primitive.Cloud
 	}
 	return &to
 }
@@ -106,12 +112,15 @@ func fromPbSinkCredential(from *pb.SinkCredential) primitive.SinkCredential {
 	switch from.CredentialType {
 	case pb.SinkCredential_None:
 		return nil
+	case pb.SinkCredential_AWS:
+		cloud := from.GetAws()
+		return primitive.NewAkSkSinkCredential(cloud.GetAccessKeyId(), cloud.GetSecretAccessKey())
+	case pb.SinkCredential_GCLOUD:
+		gcloud := from.GetGcloud()
+		return primitive.NewGCloudSinkCredential(gcloud.GetCredentialsJson())
 	case pb.SinkCredential_PLAIN:
 		plain := from.GetPlain()
-		return primitive.NewPlainSinkCredential(plain.Identifier, plain.Secret)
-	case pb.SinkCredential_CLOUD:
-		cloud := from.GetCloud()
-		return primitive.NewCloudSinkCredential(cloud.AccessKeyId, cloud.SecretAccessKey)
+		return primitive.NewPlainSinkCredential(plain.GetIdentifier(), plain.GetSecret())
 	}
 	return nil
 }
@@ -122,20 +131,27 @@ func toPbSinkCredentialByType(credentialType *primitive.CredentialType) *pb.Sink
 	}
 	to := &pb.SinkCredential{}
 	switch *credentialType {
+	case primitive.AWS:
+		to.CredentialType = pb.SinkCredential_AWS
+		to.Credential = &pb.SinkCredential_Aws{
+			Aws: &pb.AKSKCredential{
+				AccessKeyId:     primitive.SecretsMask,
+				SecretAccessKey: primitive.SecretsMask,
+			},
+		}
+	case primitive.GCloud:
+		to.CredentialType = pb.SinkCredential_GCLOUD
+		to.Credential = &pb.SinkCredential_Gcloud{
+			Gcloud: &pb.GCloudCredential{
+				CredentialsJson: primitive.SecretsMask,
+			},
+		}
 	case primitive.Plain:
 		to.CredentialType = pb.SinkCredential_PLAIN
 		to.Credential = &pb.SinkCredential_Plain{
 			Plain: &pb.PlainCredential{
 				Identifier: primitive.SecretsMask,
 				Secret:     primitive.SecretsMask,
-			},
-		}
-	case primitive.Cloud:
-		to.CredentialType = pb.SinkCredential_CLOUD
-		to.Credential = &pb.SinkCredential_Cloud{
-			Cloud: &pb.CloudCredential{
-				AccessKeyId:     primitive.SecretsMask,
-				SecretAccessKey: primitive.SecretsMask,
 			},
 		}
 	}
@@ -148,6 +164,23 @@ func toPbSinkCredential(from primitive.SinkCredential) *pb.SinkCredential {
 	}
 	to := &pb.SinkCredential{}
 	switch from.GetType() {
+	case primitive.AWS:
+		credential, _ := from.(*primitive.AkSkSinkCredential)
+		to.CredentialType = pb.SinkCredential_AWS
+		to.Credential = &pb.SinkCredential_Aws{
+			Aws: &pb.AKSKCredential{
+				AccessKeyId:     credential.AccessKeyID,
+				SecretAccessKey: credential.SecretAccessKey,
+			},
+		}
+	case primitive.GCloud:
+		credential, _ := from.(*primitive.GCloudSinkCredential)
+		to.CredentialType = pb.SinkCredential_GCLOUD
+		to.Credential = &pb.SinkCredential_Gcloud{
+			Gcloud: &pb.GCloudCredential{
+				CredentialsJson: credential.CredentialJSON,
+			},
+		}
 	case primitive.Plain:
 		credential, _ := from.(*primitive.PlainSinkCredential)
 		to.CredentialType = pb.SinkCredential_PLAIN
@@ -155,15 +188,6 @@ func toPbSinkCredential(from primitive.SinkCredential) *pb.SinkCredential {
 			Plain: &pb.PlainCredential{
 				Identifier: credential.Identifier,
 				Secret:     credential.Secret,
-			},
-		}
-	case primitive.Cloud:
-		credential, _ := from.(*primitive.CloudSinkCredential)
-		to.CredentialType = pb.SinkCredential_CLOUD
-		to.Credential = &pb.SinkCredential_Cloud{
-			Cloud: &pb.CloudCredential{
-				AccessKeyId:     credential.AccessKeyID,
-				SecretAccessKey: credential.SecretAccessKey,
 			},
 		}
 	}
@@ -174,7 +198,6 @@ func fromPbSubscriptionConfig(config *pb.SubscriptionConfig) primitive.Subscript
 	if config == nil {
 		return primitive.SubscriptionConfig{}
 	}
-
 	to := primitive.SubscriptionConfig{
 		RateLimit:          config.RateLimit,
 		MaxRetryAttempts:   config.MaxRetryAttempts,

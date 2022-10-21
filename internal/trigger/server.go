@@ -72,11 +72,12 @@ func (s *server) Stop(ctx context.Context,
 
 func (s *server) AddSubscription(ctx context.Context,
 	request *pbtrigger.AddSubscriptionRequest) (*pbtrigger.AddSubscriptionResponse, error) {
-	log.Info(ctx, "subscription add ", map[string]interface{}{"request": request})
+	log.Info(ctx, "subscription add ", map[string]interface{}{"request": request.Id})
 	if s.state != primitive.ServerStateRunning {
 		return nil, errors.ErrWorkerNotStart
 	}
 	subscription := convert.FromPbAddSubscription(request)
+	log.Info(ctx, "subscription add info ", map[string]interface{}{"subscription": subscription})
 	err := s.worker.AddSubscription(ctx, subscription)
 	if err != nil {
 		log.Error(ctx, "add subscription error ", map[string]interface{}{

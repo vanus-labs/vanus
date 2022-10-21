@@ -49,3 +49,8 @@ var (
 	showSegment bool
 	showBlock   bool
 )
+
+const (
+	AWSCredentialType    = "aws"
+	GCloudCredentialType = "gcloud"
+)

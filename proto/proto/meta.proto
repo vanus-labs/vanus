@@ -105,19 +105,22 @@ message Subscription {
 enum Protocol{
   HTTP = 0;
   AWS_LAMBDA = 1;
+  GCLOUD_FUNCTIONS = 2;
 }
 
 message SinkCredential {
   enum CredentialType {
     None = 0;
     PLAIN = 1;
-    CLOUD = 2;
+    AWS = 2;
+    GCLOUD = 3;
   }
   CredentialType credential_type = 1;
 
   oneof credential {
     PlainCredential plain = 2;
-    CloudCredential cloud = 3;
+    AKSKCredential aws = 3;
+    GCloudCredential gcloud = 4;
   }
 }
 
@@ -126,9 +129,13 @@ message PlainCredential{
   string secret = 2;
 }
 
-message CloudCredential{
+message AKSKCredential{
   string access_key_id = 1;
   string secret_access_key = 2;
+}
+
+message GCloudCredential{
+  string credentials_json = 1;
 }
 
 message ProtocolSetting {

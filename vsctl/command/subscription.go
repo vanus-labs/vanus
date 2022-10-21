@@ -17,6 +17,8 @@ package command
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"time"
 
@@ -63,8 +65,13 @@ func createSubscriptionCommand() *cobra.Command {
 				if _, err := arn.Parse(sink); err != nil {
 					cmdFailedf(cmd, "protocol is aws-lambda sink is aws arn, arn parse error: %s\n", err.Error())
 				}
-				if sinkCredentialType != "cloud" {
-					cmdFailedf(cmd, "protocol is aws-lambda, credential-type must be cloud\n")
+				if sinkCredentialType != AWSCredentialType {
+					cmdFailedf(cmd, "protocol is aws-lambda, credential-type must be %s\n", AWSCredentialType)
+				}
+			case "gcloud-functions":
+				p = meta.Protocol_GCLOUD_FUNCTIONS
+				if sinkCredentialType != GCloudCredentialType {
+					cmdFailedf(cmd, "protocol is aws-lambda, credential-type must be %s\n", GCloudCredentialType)
 				}
 			default:
 				cmdFailedf(cmd, "protocol is invalid\n")
@@ -73,22 +80,46 @@ func createSubscriptionCommand() *cobra.Command {
 			var credential *meta.SinkCredential
 			if sinkCredentialType != "" {
 				if sinkCredential == "" {
-					cmdFailedf(cmd, "credential-type is set but credential empty\n")
+					cmdFailedf(cmd, "credential-type is set but sinkCredential empty\n")
 				}
+				if sinkCredential[0] == '@' {
+					credentialBytes, err := ioutil.ReadFile(sinkCredential[1:])
+					if err != nil {
+						cmdFailedf(cmd, "read sinkCredential file:%s error:%w\n", sinkCredential, err)
+					}
+					sinkCredential = string(credentialBytes)
+					fmt.Println(sinkCredential)
+				}
+				// expand value from env
+				sinkCredential = os.ExpandEnv(sinkCredential)
 				switch sinkCredentialType {
-				case "cloud":
-					var cloud *meta.CloudCredential
-					err := json.Unmarshal([]byte(sinkCredential), &cloud)
+				case AWSCredentialType:
+					var ak_sk *meta.AKSKCredential
+					err := json.Unmarshal([]byte(sinkCredential), &ak_sk)
 					if err != nil {
 						cmdFailedf(cmd, "the sink credential unmarshal json error: %s", err.Error())
 					}
-					if cloud.AccessKeyId == "" || cloud.SecretAccessKey == "" {
-						cmdFailedf(cmd, "credential-type is cloud, access_key_id and secret_access_key must not be empty\n")
+					if ak_sk.AccessKeyId == "" || ak_sk.SecretAccessKey == "" {
+						cmdFailedf(cmd, "credential-type is aws, access_key_id and secret_access_key must not be empty\n")
 					}
 					credential = &meta.SinkCredential{
-						CredentialType: meta.SinkCredential_CLOUD,
-						Credential: &meta.SinkCredential_Cloud{
-							Cloud: cloud,
+						CredentialType: meta.SinkCredential_AWS,
+						Credential: &meta.SinkCredential_Aws{
+							Aws: ak_sk,
+						},
+					}
+				case GCloudCredentialType:
+					var m map[string]string
+					err := json.Unmarshal([]byte(sinkCredential), &m)
+					if err != nil {
+						cmdFailedf(cmd, "the sink credential unmarshal json error: %w", err)
+					}
+					credential = &meta.SinkCredential{
+						CredentialType: meta.SinkCredential_GCLOUD,
+						Credential: &meta.SinkCredential_Gcloud{
+							Gcloud: &meta.GCloudCredential{
+								CredentialsJson: sinkCredential,
+							},
 						},
 					}
 				default:
@@ -175,10 +206,9 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&transformer, "transformer", "", "transformer, JSON format required")
 	cmd.Flags().Int32Var(&rateLimit, "rate-limit", 0, "rate limit")
 	cmd.Flags().StringVar(&from, "from", "", "consume events from, latest,earliest or RFC3339 format time")
-	cmd.Flags().StringVar(&subProtocol, "protocol", "http", "protocol,http or aws-lambda")
-	cmd.Flags().StringVar(&sinkCredentialType, "credential-type", "", "sink credential type, plain or cloud, now only support cloud")
-	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, JSON format, "+
-		"when credential-type is cloud, need access_key_id and secret_access_key")
+	cmd.Flags().StringVar(&subProtocol, "protocol", "http", "protocol,http or aws-lambda or gcloud-functions")
+	cmd.Flags().StringVar(&sinkCredentialType, "credential-type", "", "sink credential type: aws or gcloud")
+	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, JSON format or @file")
 	cmd.Flags().Int32Var(&deliveryTimeout, "delivery-timeout", 0, "event delivery to sink timeout, unit millisecond")
 	cmd.Flags().Int32Var(&maxRetryAttempts, "max-retry-attempts", 0, "event delivery fail max retry attempts")
 	return cmd
@@ -260,7 +290,7 @@ func getSubscriptionCommand() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().Uint64Var(&subscriptionID, "id", 0, "subscription id to deleting")
+	cmd.Flags().Uint64Var(&subscriptionID, "id", 0, "subscription id")
 	return cmd
 }
 
@@ -323,6 +353,8 @@ func getSubscriptionRow(sub *meta.Subscription, rows ...interface{}) table.Row {
 		protocol = "http"
 	case meta.Protocol_AWS_LAMBDA:
 		protocol = "aws-lambda"
+	case meta.Protocol_GCLOUD_FUNCTIONS:
+		protocol = "gcloud-functions"
 	}
 	rows = append(rows, sub.Id, sub.EventBus, sub.Sink, protocol, string(sinkCredential), string(filter),
 		string(trans), string(cfg), string(offsets))

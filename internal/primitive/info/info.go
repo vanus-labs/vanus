@@ -14,7 +14,11 @@
 
 package info
 
-import "github.com/linkall-labs/vanus/internal/primitive/vanus"
+import (
+	"encoding/json"
+
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+)
 
 type SubscriptionInfo struct {
 	SubscriptionID vanus.ID       `json:"subscriptionID"`
@@ -27,3 +31,11 @@ type OffsetInfo struct {
 }
 
 type ListOffsetInfo []OffsetInfo
+
+func (o ListOffsetInfo) String() string {
+	if len(o) == 0 {
+		return ""
+	}
+	v, _ := json.Marshal(o)
+	return string(v)
+}
