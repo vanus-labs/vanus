@@ -118,9 +118,9 @@ message SinkCredential {
   CredentialType credential_type = 1;
 
   oneof credential {
-    AKSKCredential aws = 2;
-    GCloudCredential gcloud = 3;
-    PlainCredential plain = 4;
+    PlainCredential plain = 2;
+    AKSKCredential aws = 3;
+    GCloudCredential gcloud = 4;
   }
 }
 
