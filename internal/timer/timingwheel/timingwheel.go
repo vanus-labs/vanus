@@ -55,6 +55,8 @@ const (
 	defaultMaxNumberOfWorkers = 1000
 
 	heartbeatInterval = 5 * time.Second
+
+	recycleInterval = 60 * time.Second
 )
 
 var (
@@ -186,6 +188,9 @@ func (tw *timingWheel) Start(ctx context.Context) error {
 		return err
 	}
 
+	// start bucket recycling
+	tw.startRecycling(ctx)
+
 	// start controller client heartbeat
 	tw.startHeartBeat(ctx)
 
@@ -202,7 +207,7 @@ func (tw *timingWheel) Stop(ctx context.Context) {
 	// wait for all goroutine to end
 	for e := tw.twList.Front(); e != nil; e = e.Next() {
 		for _, bucket := range e.Value.(*timingWheelElement).getBuckets() {
-			bucket.wait(ctx)
+			bucket.stop(ctx)
 		}
 		e.Value.(*timingWheelElement).wait(ctx)
 	}
@@ -301,6 +306,27 @@ func (tw *timingWheel) getReceivingStation() *bucket {
 
 func (tw *timingWheel) getDistributionStation() *bucket {
 	return tw.distributionStation
+}
+
+func (tw *timingWheel) startRecycling(ctx context.Context) {
+	tw.wg.Add(1)
+	go func() {
+		defer tw.wg.Done()
+		ticker := time.NewTicker(recycleInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				log.Debug(ctx, "context canceled at timingwheel element heartbeat", nil)
+				return
+			case <-ticker.C:
+				if !tw.IsLeader() {
+					break
+				}
+				tw.twList.Back().Value.(*timingWheelElement).recycling(ctx)
+			}
+		}
+	}()
 }
 
 func (tw *timingWheel) startHeartBeat(ctx context.Context) {
@@ -680,7 +706,26 @@ func (twe *timingWheelElement) makeSureBucketExist(ctx context.Context, index in
 		})
 		return err
 	}
+	exist, err := twe.buckets[index].existsOffsetMeta(ctx)
+	if !exist && err == nil {
+		twe.buckets[index].updateOffsetMeta(ctx, twe.buckets[index].offset)
+	}
 	return nil
+}
+
+func (twe *timingWheelElement) recycling(ctx context.Context) {
+	twe.mu.Lock()
+	defer twe.mu.Unlock()
+	for idx, bucket := range twe.buckets {
+		if time.Now().UnixNano()/bucket.tick.Nanoseconds() > idx && bucket.hasOnEnd(ctx) {
+			log.Info(ctx, "recycle expired bucket", map[string]interface{}{
+				"bucket": bucket.eventbus,
+			})
+			bucket.stop(ctx)
+			bucket.recycle(ctx)
+			delete(twe.buckets, idx)
+		}
+	}
 }
 
 func (twe *timingWheelElement) wait(ctx context.Context) {

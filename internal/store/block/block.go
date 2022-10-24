@@ -30,7 +30,25 @@ var (
 	ErrNotLeader      = errors.New("not leader")
 	ErrExceeded       = errors.New("the offset exceeded")
 	ErrOnEnd          = errors.New("the offset on end")
+	ErrNotSupported   = errors.New("not supported")
 )
+
+type SeekKeyFlag uint64
+
+const (
+	SeekKeyExact SeekKeyFlag = iota
+	SeekKeyOrNext
+	SeekKeyOrPrev
+	SeekAfterKey
+	SeekBeforeKey
+	SeekPrefix
+	SeekPrefixLast
+	SeekPrefixLastOrPrev
+)
+
+type Seeker interface {
+	Seek(ctx context.Context, index int64, key Entry, flag SeekKeyFlag) (int64, error)
+}
 
 type Reader interface {
 	Read(ctx context.Context, seq int64, num int) ([]Entry, error)
@@ -41,6 +59,7 @@ type Appender interface {
 }
 
 type Block interface {
+	Seeker
 	Reader
 	Appender
 

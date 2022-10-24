@@ -32,6 +32,7 @@ type SegmentServerClient interface {
 	InactivateSegment(ctx context.Context, in *InactivateSegmentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	AppendToBlock(ctx context.Context, in *AppendToBlockRequest, opts ...grpc.CallOption) (*AppendToBlockResponse, error)
 	ReadFromBlock(ctx context.Context, in *ReadFromBlockRequest, opts ...grpc.CallOption) (*ReadFromBlockResponse, error)
+	LookupOffsetInBlock(ctx context.Context, in *LookupOffsetInBlockRequest, opts ...grpc.CallOption) (*LookupOffsetInBlockResponse, error)
 	Status(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*StatusResponse, error)
 }
 
@@ -124,6 +125,15 @@ func (c *segmentServerClient) ReadFromBlock(ctx context.Context, in *ReadFromBlo
 	return out, nil
 }
 
+func (c *segmentServerClient) LookupOffsetInBlock(ctx context.Context, in *LookupOffsetInBlockRequest, opts ...grpc.CallOption) (*LookupOffsetInBlockResponse, error) {
+	out := new(LookupOffsetInBlockResponse)
+	err := c.cc.Invoke(ctx, "/linkall.vanus.segment.SegmentServer/LookupOffsetInBlock", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *segmentServerClient) Status(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*StatusResponse, error) {
 	out := new(StatusResponse)
 	err := c.cc.Invoke(ctx, "/linkall.vanus.segment.SegmentServer/Status", in, out, opts...)
@@ -146,6 +156,7 @@ type SegmentServerServer interface {
 	InactivateSegment(context.Context, *InactivateSegmentRequest) (*emptypb.Empty, error)
 	AppendToBlock(context.Context, *AppendToBlockRequest) (*AppendToBlockResponse, error)
 	ReadFromBlock(context.Context, *ReadFromBlockRequest) (*ReadFromBlockResponse, error)
+	LookupOffsetInBlock(context.Context, *LookupOffsetInBlockRequest) (*LookupOffsetInBlockResponse, error)
 	Status(context.Context, *emptypb.Empty) (*StatusResponse, error)
 }
 
@@ -179,6 +190,9 @@ func (UnimplementedSegmentServerServer) AppendToBlock(context.Context, *AppendTo
 }
 func (UnimplementedSegmentServerServer) ReadFromBlock(context.Context, *ReadFromBlockRequest) (*ReadFromBlockResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReadFromBlock not implemented")
+}
+func (UnimplementedSegmentServerServer) LookupOffsetInBlock(context.Context, *LookupOffsetInBlockRequest) (*LookupOffsetInBlockResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LookupOffsetInBlock not implemented")
 }
 func (UnimplementedSegmentServerServer) Status(context.Context, *emptypb.Empty) (*StatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Status not implemented")
@@ -357,6 +371,24 @@ func _SegmentServer_ReadFromBlock_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SegmentServer_LookupOffsetInBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LookupOffsetInBlockRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SegmentServerServer).LookupOffsetInBlock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/linkall.vanus.segment.SegmentServer/LookupOffsetInBlock",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SegmentServerServer).LookupOffsetInBlock(ctx, req.(*LookupOffsetInBlockRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SegmentServer_Status_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
@@ -417,6 +449,10 @@ var SegmentServer_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReadFromBlock",
 			Handler:    _SegmentServer_ReadFromBlock_Handler,
+		},
+		{
+			MethodName: "LookupOffsetInBlock",
+			Handler:    _SegmentServer_LookupOffsetInBlock_Handler,
 		},
 		{
 			MethodName: "Status",

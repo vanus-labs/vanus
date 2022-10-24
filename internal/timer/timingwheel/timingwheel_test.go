@@ -115,8 +115,22 @@ func TestTimingWheel_StopNotify(t *testing.T) {
 func TestTimingWheel_Stop(t *testing.T) {
 	Convey("test timingwheel stop", t, func() {
 		ctx := context.Background()
+		mockCtrl := gomock.NewController(t)
+		mockEventbusWriter := eventbus.NewMockBusWriter(mockCtrl)
+		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
 		tw := newtimingwheel(cfg())
-		tw.Stop(ctx)
+		for e := tw.twList.Front(); e != nil; e = e.Next() {
+			for _, bucket := range e.Value.(*timingWheelElement).getBuckets() {
+				bucket.eventbusWriter = mockEventbusWriter
+				bucket.eventlogReader = mockEventlogReader
+			}
+		}
+
+		Convey("test timingwheel start receiving station with create eventbus failed", func() {
+			mockEventlogReader.EXPECT().Close(gomock.Any()).AnyTimes().Return()
+			mockEventbusWriter.EXPECT().Close(gomock.Any()).AnyTimes().Return()
+			tw.Stop(ctx)
+		})
 	})
 }
 
@@ -574,6 +588,7 @@ func TestTimingWheelElement_pushBack(t *testing.T) {
 				bucket.eventbusWriter = mockBusWriter
 				bucket.eventbusReader = mockBusReader
 				bucket.timingwheel = tw
+				bucket.kvStore = mockStoreCli
 			}
 		}
 

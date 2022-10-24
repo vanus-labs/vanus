@@ -20,7 +20,7 @@ var (
 	dataFormat        string
 	eventSource       string
 	eventType         string
-	eventBody         string
+	eventData         string
 	eventDeliveryTime string
 	eventDelayTime    string
 	dataFile          string
@@ -48,4 +48,9 @@ var (
 
 	showSegment bool
 	showBlock   bool
+)
+
+const (
+	AWSCredentialType    = "aws"
+	GCloudCredentialType = "gcloud"
 )

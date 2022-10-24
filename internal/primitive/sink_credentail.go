@@ -17,8 +17,9 @@ package primitive
 type CredentialType string
 
 const (
-	Plain CredentialType = "plain"
-	Cloud CredentialType = "cloud"
+	Plain  CredentialType = "plain"
+	AWS    CredentialType = "aws"
+	GCloud CredentialType = "gcloud"
 
 	SecretsMask = "******"
 )
@@ -44,14 +45,20 @@ func FillSinkCredential(dst, src SinkCredential) {
 		if _dst.Secret == SecretsMask {
 			_dst.Secret = _src.Secret
 		}
-	case Cloud:
-		_dst, _ := src.(*CloudSinkCredential)
-		_src, _ := dst.(*CloudSinkCredential)
+	case AWS:
+		_dst, _ := src.(*AkSkSinkCredential)
+		_src, _ := dst.(*AkSkSinkCredential)
 		if _dst.AccessKeyID == SecretsMask {
 			_dst.AccessKeyID = _src.AccessKeyID
 		}
 		if _dst.SecretAccessKey == SecretsMask {
 			_dst.SecretAccessKey = _src.SecretAccessKey
+		}
+	case GCloud:
+		_dst, _ := src.(*GCloudSinkCredential)
+		_src, _ := dst.(*GCloudSinkCredential)
+		if _dst.CredentialJSON == SecretsMask {
+			_dst.CredentialJSON = _src.CredentialJSON
 		}
 	}
 }
@@ -72,18 +79,32 @@ func (c *PlainSinkCredential) GetType() CredentialType {
 	return Plain
 }
 
-type CloudSinkCredential struct {
+type AkSkSinkCredential struct {
 	AccessKeyID     string `json:"access_key_id"`
 	SecretAccessKey string `json:"secret_access_key"`
 }
 
-func NewCloudSinkCredential(accessKeyID, secretAccessKey string) SinkCredential {
-	return &CloudSinkCredential{
+func NewAkSkSinkCredential(accessKeyID, secretAccessKey string) SinkCredential {
+	return &AkSkSinkCredential{
 		AccessKeyID:     accessKeyID,
 		SecretAccessKey: secretAccessKey,
 	}
 }
 
-func (c *CloudSinkCredential) GetType() CredentialType {
-	return Cloud
+func (c *AkSkSinkCredential) GetType() CredentialType {
+	return AWS
+}
+
+type GCloudSinkCredential struct {
+	CredentialJSON string `json:"credential_json"`
+}
+
+func NewGCloudSinkCredential(credentialJSON string) SinkCredential {
+	return &GCloudSinkCredential{
+		CredentialJSON: credentialJSON,
+	}
+}
+
+func (c *GCloudSinkCredential) GetType() CredentialType {
+	return GCloud
 }

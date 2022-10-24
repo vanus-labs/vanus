@@ -28,9 +28,9 @@ jobs:
       - name: checkout-vanus
         uses: actions/checkout@v3
       - name: Generate coverage report
-        timeout-minutes: 2
+        timeout-minutes: 5
         run: |
-          go test -failfast -race -coverprofile=coverage.txt -covermode=atomic -timeout 60s ./internal/...
+          go test -failfast -race -coverprofile=coverage.txt -covermode=atomic -timeout 300s ./internal/...
       - uses: codecov/codecov-action@v2
         with:
           files: ./coverage.txt # optional

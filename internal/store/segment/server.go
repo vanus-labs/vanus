@@ -31,12 +31,7 @@ import (
 
 	// third-party libraries.
 	cepb "cloudevents.io/genproto/v1"
-
-	// first-party libraries.
-	"github.com/linkall-labs/vanus/pkg/util"
-
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
-	"github.com/linkall-labs/vanus/internal/store/errors"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
@@ -47,9 +42,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/controller"
+	"github.com/linkall-labs/vanus/pkg/util"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	rpcerr "github.com/linkall-labs/vanus/proto/pkg/errors"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
@@ -58,13 +53,16 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	raftlog "github.com/linkall-labs/vanus/internal/raft/log"
 	"github.com/linkall-labs/vanus/internal/raft/transport"
 	"github.com/linkall-labs/vanus/internal/store"
 	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/block/raft"
+	"github.com/linkall-labs/vanus/internal/store/errors"
 	"github.com/linkall-labs/vanus/internal/store/meta"
+	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	ceconv "github.com/linkall-labs/vanus/internal/store/schema/ce/convert"
 	"github.com/linkall-labs/vanus/internal/store/vsb"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -95,6 +93,7 @@ type Server interface {
 
 	AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]int64, error)
 	ReadFromBlock(ctx context.Context, id vanus.ID, seq int64, num int, pollingTimeout uint32) ([]*cepb.CloudEvent, error)
+	LookupOffsetInBlock(ctx context.Context, id vanus.ID, stime int64) (int64, error)
 }
 
 func NewServer(cfg store.Config) Server {
@@ -786,6 +785,25 @@ func (s *server) readEvents(ctx context.Context, b Replica, seq int64, num int) 
 	metrics.ReadThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(size))
 
 	return events, nil
+}
+
+func (s *server) LookupOffsetInBlock(ctx context.Context, id vanus.ID, stime int64) (int64, error) {
+	ctx, span := s.tracer.Start(ctx, "LookupOffsetInBlock")
+	defer span.End()
+
+	if err := s.checkState(); err != nil {
+		return -1, err
+	}
+
+	var b Replica
+	if v, ok := s.replicas.Load(id); ok {
+		b, _ = v.(Replica)
+	} else {
+		return -1, errors.ErrResourceNotFound.WithMessage(
+			"the segment doesn't exist on this server")
+	}
+
+	return b.Seek(ctx, 0, ceschema.StimeKey(stime), block.SeekKeyOrNext)
 }
 
 func (s *server) checkState() error {

@@ -275,6 +275,39 @@ func TestBucket_createEventBus(t *testing.T) {
 	})
 }
 
+func TestBucket_deleteEventBus(t *testing.T) {
+	Convey("test bucket delete eventbus", t, func() {
+		ctx := context.Background()
+		tw := newtimingwheel(cfg())
+		tw.SetLeader(true)
+		bucket := newBucket(tw, nil, time.Second, "", 1, 0)
+		bucket.timingwheel = tw
+		mockCtrl := gomock.NewController(t)
+		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
+		bucket.client = mockEventbusCtrlCli
+
+		Convey("eventbus has not exist", func() {
+			mockEventbusCtrlCli.EXPECT().GetEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, errors.New("test"))
+			err := bucket.deleteEventbus(ctx)
+			So(err, ShouldBeNil)
+		})
+
+		Convey("delete failed", func() {
+			mockEventbusCtrlCli.EXPECT().GetEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
+			mockEventbusCtrlCli.EXPECT().DeleteEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, errors.New("test"))
+			err := bucket.deleteEventbus(ctx)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("delete success", func() {
+			mockEventbusCtrlCli.EXPECT().GetEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
+			mockEventbusCtrlCli.EXPECT().DeleteEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
+			err := bucket.deleteEventbus(ctx)
+			So(err, ShouldBeNil)
+		})
+	})
+}
+
 func TestBucket_connectEventbus(t *testing.T) {
 	Convey("test bucket connect eventbus", t, func() {
 		ctx := context.Background()
@@ -313,6 +346,25 @@ func TestBucket_connectEventbus(t *testing.T) {
 
 		Convey("test bucket connect eventbus success", func() {
 			bucket.connectEventbus(ctx)
+		})
+	})
+}
+
+func TestBucket_disconnectEventbus(t *testing.T) {
+	Convey("test bucket disconnect eventbus", t, func() {
+		ctx := context.Background()
+		tw := newtimingwheel(cfg())
+		bucket := newBucket(tw, nil, 1, "", 1, 0)
+		mockCtrl := gomock.NewController(t)
+		mockEventbusWriter := eventbus.NewMockBusWriter(mockCtrl)
+		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
+		bucket.eventbusWriter = mockEventbusWriter
+		bucket.eventlogReader = mockEventlogReader
+
+		Convey("test bucket disconnect eventbus success", func() {
+			mockEventlogReader.EXPECT().Close(gomock.Any()).AnyTimes().Return()
+			mockEventbusWriter.EXPECT().Close(gomock.Any()).AnyTimes().Return()
+			bucket.disconnectEventbus(ctx)
 		})
 	})
 }
@@ -412,6 +464,38 @@ func TestBucket_updateOffsetMeta(t *testing.T) {
 		Convey("test bucket update offset metadata failure", func() {
 			mockStoreCli.EXPECT().Set(Any(), Any(), Any()).Times(1).Return(errors.New("test"))
 			bucket.updateOffsetMeta(ctx, bucket.offset)
+		})
+	})
+}
+
+func TestBucket_hasOnEnd(t *testing.T) {
+	Convey("test bucket on end", t, func() {
+		ctx := context.Background()
+		tw := newtimingwheel(cfg())
+		bucket := newBucket(tw, nil, 1, "", 1, 0)
+
+		Convey("test bucket has on end", func() {
+			ret := bucket.hasOnEnd(ctx)
+			So(ret, ShouldBeFalse)
+		})
+	})
+}
+
+func TestBucket_recycle(t *testing.T) {
+	Convey("test bucket recycle", t, func() {
+		ctx := context.Background()
+		tw := newtimingwheel(cfg())
+		bucket := newBucket(tw, nil, 1, "", 1, 0)
+		mockCtrl := gomock.NewController(t)
+		mockEventbusWriter := eventbus.NewMockBusWriter(mockCtrl)
+		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
+		bucket.eventbusWriter = mockEventbusWriter
+		bucket.eventlogReader = mockEventlogReader
+
+		Convey("test bucket wait success", func() {
+			mockEventlogReader.EXPECT().Close(gomock.Any()).AnyTimes().Return()
+			mockEventbusWriter.EXPECT().Close(gomock.Any()).AnyTimes().Return()
+			bucket.recycle(ctx)
 		})
 	})
 }
