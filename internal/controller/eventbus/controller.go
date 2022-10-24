@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -51,7 +52,8 @@ var (
 )
 
 const (
-	maximumEventlogNum = 64
+	maximumEventlogNum   = 64
+	systemEventbusPrefix = "__"
 )
 
 func NewController(cfg Config, member embedetcd.Member) *controller {
@@ -211,6 +213,9 @@ func (ctrl *controller) getEventbus(name string) (*metapb.EventBus, error) {
 func (ctrl *controller) ListEventBus(ctx context.Context, _ *emptypb.Empty) (*ctrlpb.ListEventbusResponse, error) {
 	eventbusList := make([]*metapb.EventBus, 0)
 	for _, v := range ctrl.eventBusMap {
+		if strings.HasPrefix(v.Name, systemEventbusPrefix) {
+			continue
+		}
 		ebMD := metadata.Convert2ProtoEventBus(v)[0]
 		eventbusList = append(eventbusList, ebMD)
 	}
