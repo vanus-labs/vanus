@@ -29,7 +29,7 @@ import (
 	"github.com/cloudevents/sdk-go/v2/types"
 	"github.com/google/uuid"
 	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/eventbus"
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/tracing"
@@ -132,7 +132,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, pr
 	if !exist {
 		v, _ = ga.busWriter.LoadOrStore(ebName, ga.client.Eventbus(ctx, ebName).Writer())
 	}
-	writer, _ := v.(eventbus.BusWriter)
+	writer, _ := v.(api.BusWriter)
 	eventID, err := writer.AppendOne(_ctx, &event)
 	if err != nil {
 		log.Warning(_ctx, "append to failed", map[string]interface{}{

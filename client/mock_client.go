@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	eventbus "github.com/linkall-labs/vanus/client/pkg/eventbus"
+	api "github.com/linkall-labs/vanus/client/pkg/api"
 )
 
 // MockClient is a mock of Client interface.
@@ -35,11 +35,23 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 	return m.recorder
 }
 
+// Disconnect mocks base method.
+func (m *MockClient) Disconnect(ctx context.Context) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Disconnect", ctx)
+}
+
+// Disconnect indicates an expected call of Disconnect.
+func (mr *MockClientMockRecorder) Disconnect(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Disconnect", reflect.TypeOf((*MockClient)(nil).Disconnect), ctx)
+}
+
 // Eventbus mocks base method.
-func (m *MockClient) Eventbus(ctx context.Context, ebName string) eventbus.Eventbus {
+func (m *MockClient) Eventbus(ctx context.Context, ebName string) api.Eventbus {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Eventbus", ctx, ebName)
-	ret0, _ := ret[0].(eventbus.Eventbus)
+	ret0, _ := ret[0].(api.Eventbus)
 	return ret0
 }
 

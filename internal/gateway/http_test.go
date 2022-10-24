@@ -26,8 +26,7 @@ import (
 
 	. "github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/eventbus"
-	"github.com/linkall-labs/vanus/client/pkg/eventlog"
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -45,17 +44,17 @@ func TestHTTP(t *testing.T) {
 
 	mockCtrl := NewController(t)
 	mockClient := client.NewMockClient(mockCtrl)
-	mockEventbus := eventbus.NewMockEventbus(mockCtrl)
-	mockEventlog := eventlog.NewMockEventlog(mockCtrl)
-	mockBusWriter := eventbus.NewMockBusWriter(mockCtrl)
-	mockBusReader := eventbus.NewMockBusReader(mockCtrl)
+	mockEventbus := api.NewMockEventbus(mockCtrl)
+	mockEventlog := api.NewMockEventlog(mockCtrl)
+	mockBusWriter := api.NewMockBusWriter(mockCtrl)
+	mockBusReader := api.NewMockBusReader(mockCtrl)
 	mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
 	mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
-	mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
+	mockEventbus.EXPECT().Reader(Any()).AnyTimes().Return(mockBusReader)
 	mockEventbus.EXPECT().GetLog(Any(), Any()).AnyTimes().Return(mockEventlog, nil)
-	mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]eventlog.Eventlog{mockEventlog}, nil)
+	mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
 	mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", nil)
-	mockBusReader.EXPECT().Read(Any(), Any(), Any(), Any()).AnyTimes().Return([]*ce.Event{&event}, int64(0), uint64(0), nil)
+	mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return([]*ce.Event{&event}, int64(0), uint64(0), nil)
 
 	s := NewHTTPServer(cfg)
 	s.client = mockClient

@@ -23,7 +23,8 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/eventbus"
+	"github.com/linkall-labs/vanus/client/pkg/option"
+	"github.com/linkall-labs/vanus/client/pkg/policy"
 )
 
 func main() {
@@ -31,9 +32,12 @@ func main() {
 
 	c := client.Connect([]string{"localhost:2048"})
 	eb := c.Eventbus(ctx, "quick-start")
-	el, _ := eb.GetLog(ctx, 0)
-	r := eb.Reader(eventbus.WithReadPolicy(eventbus.NewManuallyReadPolicy(el, 0)), eventbus.WithBatchSize(1))
-	events, offset, eventlogID, err := r.Read(ctx, 1)
+	ls, err := eb.ListLog(ctx)
+	if err != nil {
+		log.Print(err.Error())
+	}
+	r := eb.Reader(option.WithReadPolicy(policy.NewManuallyReadPolicy(ls[0], 0)))
+	events, offset, eventlogID, err := r.Read(ctx)
 	if err != nil {
 		log.Print(err.Error())
 	} else {

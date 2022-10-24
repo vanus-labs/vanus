@@ -26,7 +26,8 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	eb "github.com/linkall-labs/vanus/client"
-	bus "github.com/linkall-labs/vanus/client/pkg/eventbus"
+	"github.com/linkall-labs/vanus/client/pkg/option"
+	"github.com/linkall-labs/vanus/client/pkg/policy"
 )
 
 type Server struct {
@@ -89,8 +90,8 @@ func (s *Server) getEvents(c echo.Context) error {
 			})
 		}
 
-		readPolicy := bus.WithReadPolicy(bus.NewManuallyReadPolicy(l, off))
-		events, _, _, err := s.client.Eventbus(ctx, eventbus).Reader().Read(ctx, 1, readPolicy, bus.WithDisablePolling())
+		readPolicy := option.WithReadPolicy(policy.NewManuallyReadPolicy(l, off))
+		events, _, _, err := s.client.Eventbus(ctx, eventbus).Reader().Read(ctx, readPolicy, option.WithDisablePolling())
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{
 				"error": err.Error(),
@@ -141,8 +142,9 @@ func (s *Server) getEvents(c echo.Context) error {
 		})
 	}
 
-	readPolicy := bus.WithReadPolicy(bus.NewManuallyReadPolicy(ls[0], int64(offset)))
-	events, _, _, err := s.client.Eventbus(ctx, eventbus).Reader().Read(ctx, num, readPolicy, bus.WithDisablePolling())
+	events, _, _, err := s.client.Eventbus(ctx, eventbus).Reader(option.WithDisablePolling()).Read(ctx,
+		option.WithReadPolicy(policy.NewManuallyReadPolicy(ls[0], int64(offset))),
+		option.WithBatchSize(int(num)))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": err.Error(),

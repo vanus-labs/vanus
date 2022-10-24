@@ -32,8 +32,10 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/types"
 	"github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	es "github.com/linkall-labs/vanus/client/pkg/errors"
-	eventbus "github.com/linkall-labs/vanus/client/pkg/eventbus"
+	"github.com/linkall-labs/vanus/client/pkg/option"
+	"github.com/linkall-labs/vanus/client/pkg/policy"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 )
 
@@ -102,8 +104,8 @@ type bucket struct {
 	kvStore        kv.Client
 	ctrlCli        ctrlpb.EventBusControllerClient
 	client         client.Client
-	eventbusWriter eventbus.BusWriter
-	eventbusReader eventbus.BusReader
+	eventbusWriter api.BusWriter
+	eventbusReader api.BusReader
 
 	timingwheel *timingWheel
 	element     *list.Element
@@ -368,11 +370,6 @@ func (b *bucket) deleteEventbus(ctx context.Context) error {
 	return nil
 }
 
-// func (b *bucket) disconnectEventbus(ctx context.Context) {
-// 	b.eventbusWriter.Close(ctx)
-// 	b.eventbusReader.Close(ctx)
-// }
-
 func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
 	defer func() {
 		if errOfPanic := recover(); errOfPanic != nil {
@@ -421,8 +418,8 @@ func (b *bucket) getEvent(ctx context.Context, number int16) (events []*ce.Event
 		return []*ce.Event{}, err
 	}
 
-	readPolicy := eventbus.WithReadPolicy(eventbus.NewManuallyReadPolicy(ls[0], b.offset))
-	events, _, _, err = b.eventbusReader.Read(ctx, number, readPolicy)
+	readPolicy := option.WithReadPolicy(policy.NewManuallyReadPolicy(ls[0], b.offset))
+	events, _, _, err = b.eventbusReader.Read(ctx, readPolicy, option.WithBatchSize(int(number)))
 	if err != nil {
 		if !errors.Is(err, es.ErrOnEnd) && !errors.Is(ctx.Err(), context.Canceled) {
 			log.Error(ctx, "read failed", map[string]interface{}{
@@ -523,7 +520,6 @@ func (b *bucket) hasOnEnd(ctx context.Context) bool {
 func (b *bucket) recycle(ctx context.Context) {
 	_ = b.deleteEventbus(ctx)
 	_ = b.deleteOffsetMeta(ctx)
-	// b.disconnectEventbus(ctx)
 }
 
 func (b *bucket) wait(ctx context.Context) {

@@ -23,7 +23,7 @@ import (
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/eventbus"
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -77,8 +77,8 @@ type trigger struct {
 
 	retryEventCh     chan info.EventRecord
 	retryEventReader reader.Reader
-	timerEventWriter eventbus.BusWriter
-	dlEventWriter    eventbus.BusWriter
+	timerEventWriter api.BusWriter
+	dlEventWriter    api.BusWriter
 
 	state State
 	stop  context.CancelFunc

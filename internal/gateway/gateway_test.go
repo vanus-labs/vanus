@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/eventbus"
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/internal/primitive"
 
 	ce "github.com/cloudevents/sdk-go/v2"
@@ -150,8 +150,8 @@ func TestGateway_EventID(t *testing.T) {
 	)
 
 	mockClient := client.NewMockClient(ctrl)
-	mockEventbus := eventbus.NewMockEventbus(ctrl)
-	mockBusWriter := eventbus.NewMockBusWriter(ctrl)
+	mockEventbus := api.NewMockEventbus(ctrl)
+	mockBusWriter := api.NewMockBusWriter(ctrl)
 	mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
 	mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 	mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("AABBCC", nil)

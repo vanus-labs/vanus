@@ -24,7 +24,8 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/eventbus"
+	"github.com/linkall-labs/vanus/client/pkg/option"
+	"github.com/linkall-labs/vanus/client/pkg/policy"
 )
 
 func main() {
@@ -41,7 +42,7 @@ func main() {
 	event.SetType("example.type")
 	event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world"})
 
-	eventID, err := w.AppendOne(ctx, &event, eventbus.WithWritePolicy(eventbus.NewRoundRobinWritePolicy(bus)))
+	eventID, err := w.AppendOne(ctx, &event, option.WithWritePolicy(policy.NewRoundRobinWritePolicy(bus)))
 	if err != nil {
 		log.Print(err.Error())
 	} else {

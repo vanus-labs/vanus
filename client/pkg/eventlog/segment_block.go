@@ -26,32 +26,32 @@ import (
 	"github.com/linkall-labs/vanus/client/pkg/record"
 )
 
-func newSegmentBlock(ctx context.Context, r *record.Block) (*segmentBlock, error) {
+func newBlock(ctx context.Context, r *record.Block) (*block, error) {
 	store, err := store.Get(ctx, r.Endpoint)
 	if err != nil {
 		return nil, err
 	}
-	block := segmentBlock{
+	block := block{
 		id:    r.ID,
 		store: store,
 	}
 	return &block, nil
 }
 
-type segmentBlock struct {
+type block struct {
 	id    uint64
 	store *store.BlockStore
 }
 
-func (s *segmentBlock) Close(ctx context.Context) {
+func (s *block) Close(ctx context.Context) {
 	store.Put(ctx, s.store)
 }
 
-func (s *segmentBlock) Append(ctx context.Context, event *ce.Event) (int64, error) {
+func (s *block) Append(ctx context.Context, event *ce.Event) (int64, error) {
 	return s.store.Append(ctx, s.id, event)
 }
 
-func (s *segmentBlock) Read(ctx context.Context, offset int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
+func (s *block) Read(ctx context.Context, offset int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
 	if offset < 0 {
 		return nil, errors.ErrUnderflow
 	}

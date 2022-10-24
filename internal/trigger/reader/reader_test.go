@@ -24,7 +24,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/eventbus"
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -45,10 +45,10 @@ func TestGetOffsetByTimestamp(t *testing.T) {
 		offset := rand.Uint64()
 		mockCtrl := NewController(t)
 		mockClient := client.NewMockClient(mockCtrl)
-		mockEventbus := eventbus.NewMockEventbus(mockCtrl)
-		mockEventlog := eventlog.NewMockEventlog(mockCtrl)
-		mockBusWriter := eventbus.NewMockBusWriter(mockCtrl)
-		mockBusReader := eventbus.NewMockBusReader(mockCtrl)
+		mockEventbus := api.NewMockEventbus(mockCtrl)
+		mockEventlog := api.NewMockEventlog(mockCtrl)
+		mockBusWriter := api.NewMockBusWriter(mockCtrl)
+		mockBusReader := api.NewMockBusReader(mockCtrl)
 		mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
 		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
@@ -71,10 +71,10 @@ func TestGetOffset(t *testing.T) {
 		r.elReader = map[vanus.ID]struct{}{}
 		mockCtrl := NewController(t)
 		mockClient := client.NewMockClient(mockCtrl)
-		mockEventbus := eventbus.NewMockEventbus(mockCtrl)
-		mockEventlog := eventlog.NewMockEventlog(mockCtrl)
-		mockBusWriter := eventbus.NewMockBusWriter(mockCtrl)
-		mockBusReader := eventbus.NewMockBusReader(mockCtrl)
+		mockEventbus := api.NewMockEventbus(mockCtrl)
+		mockEventlog := api.NewMockEventlog(mockCtrl)
+		mockBusWriter := api.NewMockBusWriter(mockCtrl)
+		mockBusReader := api.NewMockBusReader(mockCtrl)
 		mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
 		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
@@ -124,15 +124,15 @@ func TestReaderStart(t *testing.T) {
 	mockCtrl := NewController(t)
 	defer mockCtrl.Finish()
 	mockClient := client.NewMockClient(mockCtrl)
-	mockEventbus := eventbus.NewMockEventbus(mockCtrl)
-	mockEventlog := eventlog.NewMockEventlog(mockCtrl)
-	mockBusWriter := eventbus.NewMockBusWriter(mockCtrl)
-	mockBusReader := eventbus.NewMockBusReader(mockCtrl)
+	mockEventbus := api.NewMockEventbus(mockCtrl)
+	mockEventlog := api.NewMockEventlog(mockCtrl)
+	mockBusWriter := api.NewMockBusWriter(mockCtrl)
+	mockBusReader := api.NewMockBusReader(mockCtrl)
 	mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
 	mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
-	mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
+	mockEventbus.EXPECT().Reader(Any()).AnyTimes().Return(mockBusReader)
 	mockEventbus.EXPECT().GetLog(Any(), Any()).AnyTimes().Return(mockEventlog, nil)
-	mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]eventlog.Eventlog{mockEventlog}, nil)
+	mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
 	mockEventlog.EXPECT().ID().AnyTimes().Return(uint64(0))
 
 	Convey("test start eventLogs", t, func() {
@@ -141,13 +141,13 @@ func TestReaderStart(t *testing.T) {
 		mockEventlog.EXPECT().LatestOffset(Any()).AnyTimes().Return(offset, nil)
 		mockEventlog.EXPECT().EarliestOffset(Any()).AnyTimes().Return(offset, nil)
 		mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().DoAndReturn(
-			func(ctx context.Context, size int16, opts ...eventbus.ReadOption) ([]*ce.Event, int64, uint64, error) {
+			func(ctx context.Context, opts ...api.ReadOption) ([]*ce.Event, int64, uint64, error) {
 				time.Sleep(time.Millisecond)
 				e := ce.NewEvent()
 				e.SetID(uuid.NewString())
 				buf := make([]byte, 8)
 				binary.BigEndian.PutUint64(buf, index)
-				e.SetExtension(client.XVanusLogOffset, buf)
+				e.SetExtension(eventlog.XVanusLogOffset, buf)
 				index++
 				return []*ce.Event{&e}, int64(0), uint64(0), nil
 			})

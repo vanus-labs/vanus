@@ -23,10 +23,9 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
-
 	// this project.
-	"github.com/linkall-labs/vanus/client/pkg/primitive"
 )
 
 const (
@@ -38,16 +37,7 @@ type ReaderConfig struct {
 }
 
 type Eventlog interface {
-	ID() uint64
-	EarliestOffset(ctx context.Context) (int64, error)
-	LatestOffset(ctx context.Context) (int64, error)
-	Length(ctx context.Context) (int64, error)
-	QueryOffsetByTime(ctx context.Context, timestamp int64) (int64, error)
-}
-
-type EventlogImpl interface {
-	primitive.RefCounter
-	Eventlog
+	api.Eventlog
 
 	Close(ctx context.Context)
 	Writer() LogWriter
@@ -55,7 +45,7 @@ type EventlogImpl interface {
 }
 
 type LogWriter interface {
-	Log() EventlogImpl
+	Log() Eventlog
 
 	Close(ctx context.Context)
 
@@ -63,7 +53,7 @@ type LogWriter interface {
 }
 
 type LogReader interface {
-	Log() EventlogImpl
+	Log() Eventlog
 
 	Close(ctx context.Context)
 

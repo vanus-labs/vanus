@@ -28,7 +28,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/eventbus"
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -83,9 +83,9 @@ func TestTriggerStartStop(t *testing.T) {
 		r2 := reader.NewMockReader(ctrl)
 		ctx := context.Background()
 		mockClient := eb.NewMockClient(ctrl)
-		mockEventbus := eventbus.NewMockEventbus(ctrl)
-		mockBusWriter := eventbus.NewMockBusWriter(ctrl)
-		mockBusReader := eventbus.NewMockBusReader(ctrl)
+		mockEventbus := api.NewMockEventbus(ctrl)
+		mockBusWriter := api.NewMockBusWriter(ctrl)
+		mockBusReader := api.NewMockBusReader(ctrl)
 		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus)
 		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
@@ -115,9 +115,9 @@ func TestTriggerWriteFailEvent(t *testing.T) {
 		id := vanus.NewID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
 		mockClient := eb.NewMockClient(ctrl)
-		mockEventbus := eventbus.NewMockEventbus(ctrl)
-		mockBusWriter := eventbus.NewMockBusWriter(ctrl)
-		mockBusReader := eventbus.NewMockBusReader(ctrl)
+		mockEventbus := api.NewMockEventbus(ctrl)
+		mockBusWriter := api.NewMockBusWriter(ctrl)
+		mockBusReader := api.NewMockBusReader(ctrl)
 		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus)
 		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
@@ -128,7 +128,7 @@ func TestTriggerWriteFailEvent(t *testing.T) {
 		tg.timerEventWriter = mockBusWriter
 		var callCount int
 		mockBusWriter.EXPECT().AppendOne(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(context.Context,
-			*ce.Event, ...eventbus.WriteOption) (string, error) {
+			*ce.Event, ...api.WriteOption) (string, error) {
 			callCount++
 			if callCount%2 != 0 {
 				return "", fmt.Errorf("append error")
@@ -172,9 +172,9 @@ func TestTriggerRunEventSend(t *testing.T) {
 		id := vanus.NewID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
 		mockClient := eb.NewMockClient(ctrl)
-		mockEventbus := eventbus.NewMockEventbus(ctrl)
-		mockBusWriter := eventbus.NewMockBusWriter(ctrl)
-		mockBusReader := eventbus.NewMockBusReader(ctrl)
+		mockEventbus := api.NewMockEventbus(ctrl)
+		mockBusWriter := api.NewMockBusWriter(ctrl)
+		mockBusReader := api.NewMockBusReader(ctrl)
 		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus)
 		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)

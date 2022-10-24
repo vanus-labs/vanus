@@ -37,13 +37,13 @@ import (
 	"github.com/linkall-labs/vanus/client/pkg/record"
 )
 
-func newLogSegment(ctx context.Context, r *record.Segment, towrite bool) (*logSegment, error) {
-	prefer, err := newSegmentBlockExt(ctx, r, towrite)
+func newSegment(ctx context.Context, r *record.Segment, towrite bool) (*segment, error) {
+	prefer, err := newBlockExt(ctx, r, towrite)
 	if err != nil {
 		return nil, err
 	}
 
-	segment := &logSegment{
+	segment := &segment{
 		id:          r.ID,
 		startOffset: r.StartOffset,
 		endOffset:   atomic.Int64{},
@@ -61,7 +61,7 @@ func newLogSegment(ctx context.Context, r *record.Segment, towrite bool) (*logSe
 	return segment, nil
 }
 
-func newSegmentBlockExt(ctx context.Context, r *record.Segment, leaderOnly bool) (*segmentBlock, error) {
+func newBlockExt(ctx context.Context, r *record.Segment, leaderOnly bool) (*block, error) {
 	id := r.LeaderBlockID
 	if id == 0 {
 		if leaderOnly {
@@ -78,45 +78,45 @@ func newSegmentBlockExt(ctx context.Context, r *record.Segment, leaderOnly bool)
 	if !ok {
 		return nil, errors.ErrNoBlock
 	}
-	return newSegmentBlock(ctx, b)
+	return newBlock(ctx, b)
 }
 
-type logSegment struct {
+type segment struct {
 	id          uint64
 	startOffset int64
 	endOffset   atomic.Int64
 	writable    atomic.Bool
 
-	prefer *segmentBlock
+	prefer *block
 	mu     sync.RWMutex
 	tracer *tracing.Tracer
 }
 
-func (s *logSegment) ID() uint64 {
+func (s *segment) ID() uint64 {
 	return s.id
 }
 
-func (s *logSegment) StartOffset() int64 {
+func (s *segment) StartOffset() int64 {
 	return s.startOffset
 }
 
-func (s *logSegment) EndOffset() int64 {
+func (s *segment) EndOffset() int64 {
 	return s.endOffset.Load()
 }
 
-func (s *logSegment) Writable() bool {
+func (s *segment) Writable() bool {
 	return s.writable.Load()
 }
 
-func (s *logSegment) SetNotWritable() {
+func (s *segment) SetNotWritable() {
 	s.writable.Store(false)
 }
 
-func (s *logSegment) Close(ctx context.Context) {
+func (s *segment) Close(ctx context.Context) {
 	s.prefer.Close(ctx)
 }
 
-func (s *logSegment) Update(ctx context.Context, r *record.Segment, towrite bool) error {
+func (s *segment) Update(ctx context.Context, r *record.Segment, towrite bool) error {
 	// When a segment become read-only, the end offset needs to be set to the readlly value.
 	if s.Writable() && !r.Writable && s.writable.CAS(true, false) {
 		s.endOffset.Store(r.EndOffset)
@@ -139,7 +139,7 @@ func (s *logSegment) Update(ctx context.Context, r *record.Segment, towrite bool
 		return false
 	}()
 	if switchBlock {
-		prefer, err := newSegmentBlockExt(ctx, r, true)
+		prefer, err := newBlockExt(ctx, r, true)
 		if err != nil {
 			return err
 		}
@@ -149,7 +149,7 @@ func (s *logSegment) Update(ctx context.Context, r *record.Segment, towrite bool
 	return nil
 }
 
-func (s *logSegment) Append(ctx context.Context, event *ce.Event) (int64, error) {
+func (s *segment) Append(ctx context.Context, event *ce.Event) (int64, error) {
 	_ctx, span := s.tracer.Start(ctx, "Append")
 	defer span.End()
 
@@ -164,7 +164,7 @@ func (s *logSegment) Append(ctx context.Context, event *ce.Event) (int64, error)
 	return off + s.startOffset, nil
 }
 
-func (s *logSegment) Read(ctx context.Context, from int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
+func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
 	if from < s.startOffset {
 		return nil, errors.ErrUnderflow
 	}
@@ -208,13 +208,13 @@ func (s *logSegment) Read(ctx context.Context, from int64, size int16, pollingTi
 	return events, err
 }
 
-func (s *logSegment) preferSegmentBlock() *segmentBlock {
+func (s *segment) preferSegmentBlock() *block {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.prefer
 }
 
-func (s *logSegment) setPreferSegmentBlock(prefer *segmentBlock) {
+func (s *segment) setPreferSegmentBlock(prefer *block) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.prefer = prefer

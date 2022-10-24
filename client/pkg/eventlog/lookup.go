@@ -42,15 +42,11 @@ func (w *WritableSegmentWatcher) Start() {
 	go w.Watcher.Run()
 }
 
-func WatchWritableSegment(log *eventlogImpl) *WritableSegmentWatcher {
-	// TODO: true watch
+func WatchWritableSegment(log *eventlog) *WritableSegmentWatcher {
 	ch := make(chan *record.Segment, 1)
 	w := primitive.NewWatcher(defaultWatchInterval, func() {
 		r, err := log.nameService.LookupWritableSegment(context.Background(), log.cfg.ID)
 		if err != nil {
-			// TODO: logging
-
-			// FIXME: notify
 			ch <- nil
 		} else {
 			ch <- r
@@ -78,15 +74,11 @@ func (w *ReadableSegmentsWatcher) Start() {
 	go w.Watcher.Run()
 }
 
-func WatchReadableSegments(log *eventlogImpl) *ReadableSegmentsWatcher {
-	// TODO: true watch
+func WatchReadableSegments(log *eventlog) *ReadableSegmentsWatcher {
 	ch := make(chan []*record.Segment, 1)
 	w := primitive.NewWatcher(defaultWatchInterval, func() {
 		rs, err := log.nameService.LookupReadableSegments(context.Background(), log.cfg.ID)
 		if err != nil {
-			// TODO: logging
-
-			// FIXME: notify
 			ch <- nil
 		} else {
 			ch <- rs

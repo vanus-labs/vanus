@@ -32,10 +32,6 @@ import (
 )
 
 func NewNameService(endpoints []string) *NameService {
-	// TODO: non-blocking now
-	// if _, err := ns.Client(); err != nil {
-	// 	return nil, err
-	// }
 	return &NameService{
 		client: controller.NewEventbusClient(endpoints, insecure.NewCredentials()),
 		tracer: tracing.NewTracer("internal.discovery.eventbus", trace.SpanKindClient),
@@ -43,7 +39,6 @@ func NewNameService(endpoints []string) *NameService {
 }
 
 type NameService struct {
-	//client       rpc.Client
 	client ctrlpb.EventBusControllerClient
 	tracer *tracing.Tracer
 }
@@ -95,7 +90,6 @@ func toLog(logpb *metapb.EventLog) *record.Eventlog {
 	log := &record.Eventlog{
 		ID:   logpb.GetEventLogId(),
 		Mode: record.PremWrite | record.PremRead,
-		// Mode: record.LogMode(logpb.GetMode()),
 	}
 	return log
 }

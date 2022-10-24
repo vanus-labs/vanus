@@ -35,10 +35,6 @@ import (
 )
 
 func NewNameService(endpoints []string) *NameService {
-	// TODO: non-blocking now
-	// if _, err := ns.Client(); err != nil {
-	// 	return nil, err
-	// }
 	return &NameService{
 		client: controller.NewEventlogClient(endpoints, insecure.NewCredentials()),
 		tracer: tracing.NewTracer("internal.discovery.eventlog", trace.SpanKindClient),
@@ -46,7 +42,6 @@ func NewNameService(endpoints []string) *NameService {
 }
 
 type NameService struct {
-	// client       rpc.Client
 	client ctlpb.EventLogControllerClient
 	tracer *tracing.Tracer
 }
@@ -55,7 +50,6 @@ func (ns *NameService) LookupWritableSegment(ctx context.Context, logID uint64) 
 	ctx, span := ns.tracer.Start(ctx, "LookupWritableSegment")
 	defer span.End()
 
-	// TODO: use standby segments
 	req := &ctlpb.GetAppendableSegmentRequest{
 		EventLogId: logID,
 		Limited:    1,
@@ -77,7 +71,6 @@ func (ns *NameService) LookupReadableSegments(ctx context.Context, logID uint64)
 	ctx, span := ns.tracer.Start(ctx, "LookupReadableSegments")
 	defer span.End()
 
-	// TODO: use range
 	req := &ctlpb.ListSegmentRequest{
 		EventLogId:  logID,
 		StartOffset: 0,

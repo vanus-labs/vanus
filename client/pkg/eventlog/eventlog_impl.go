@@ -32,8 +32,8 @@ import (
 	// this project.
 	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/errors"
-	"github.com/linkall-labs/vanus/client/pkg/primitive"
 	"github.com/linkall-labs/vanus/client/pkg/record"
+	vlog "github.com/linkall-labs/vanus/observability/log"
 )
 
 const (
@@ -42,8 +42,8 @@ const (
 	pollingPostSpan   = 100 // in milliseconds.
 )
 
-func NewEventLogImpl(cfg *el.Config) EventlogImpl {
-	log := &eventlogImpl{
+func NewEventLog(cfg *el.Config) Eventlog {
+	log := &eventlog{
 		cfg:         cfg,
 		nameService: el.NewNameService(cfg.Endpoints),
 		tracer: tracing.NewTracer("pkg.eventlog.impl",
@@ -58,6 +58,9 @@ func NewEventLogImpl(cfg *el.Config) EventlogImpl {
 		for {
 			r, ok := <-ch
 			if !ok {
+				vlog.Debug(context.Background(), "eventlog quits writable watcher", map[string]interface{}{
+					"eventlog": log.cfg.ID,
+				})
 				break
 			}
 
@@ -77,6 +80,9 @@ func NewEventLogImpl(cfg *el.Config) EventlogImpl {
 		for {
 			rs, ok := <-ch
 			if !ok {
+				vlog.Debug(context.Background(), "eventlog quits readable watcher", map[string]interface{}{
+					"eventlog": log.cfg.ID,
+				})
 				break
 			}
 			ctx, span := log.tracer.Start(context.Background(), "updateReadableSegmentsTask")
@@ -93,33 +99,31 @@ func NewEventLogImpl(cfg *el.Config) EventlogImpl {
 	return log
 }
 
-type eventlogImpl struct {
-	primitive.RefCount
-
+type eventlog struct {
 	cfg         *el.Config
 	nameService *el.NameService
 
 	writableWatcher *WritableSegmentWatcher
-	writableSegment *logSegment
+	writableSegment *segment
 	writableMu      sync.RWMutex
 
 	readableWatcher  *ReadableSegmentsWatcher
-	readableSegments []*logSegment
+	readableSegments []*segment
 	readableMu       sync.RWMutex
 	tracer           *tracing.Tracer
 }
 
-// make sure eventlogImpl implements eventlog.EventLog.
-var _ EventlogImpl = (*eventlogImpl)(nil)
+// make sure eventlog implements eventlog.EventLog.
+var _ Eventlog = (*eventlog)(nil)
 
-func (l *eventlogImpl) ID() uint64 {
+func (l *eventlog) ID() uint64 {
 	return l.cfg.ID
 }
 
-func (l *eventlogImpl) Close(ctx context.Context) {
-	// TODO: stop discovery
+func (l *eventlog) Close(ctx context.Context) {
+	l.writableWatcher.Close()
+	l.readableWatcher.Close()
 
-	// TODO: lock
 	if l.writableSegment != nil {
 		l.writableSegment.Close(ctx)
 	}
@@ -128,25 +132,23 @@ func (l *eventlogImpl) Close(ctx context.Context) {
 	}
 }
 
-func (l *eventlogImpl) Writer() LogWriter {
+func (l *eventlog) Writer() LogWriter {
 	w := &logWriter{
 		elog: l,
 	}
-	l.Acquire()
 	return w
 }
 
-func (l *eventlogImpl) Reader(cfg ReaderConfig) LogReader {
+func (l *eventlog) Reader(cfg ReaderConfig) LogReader {
 	r := &logReader{
 		elog: l,
 		pos:  0,
 		cfg:  cfg,
 	}
-	l.Acquire()
 	return r
 }
 
-func (l *eventlogImpl) EarliestOffset(ctx context.Context) (int64, error) {
+func (l *eventlog) EarliestOffset(ctx context.Context) (int64, error) {
 	rs, err := l.nameService.LookupReadableSegments(ctx, l.cfg.ID)
 	if err != nil {
 		return 0, err
@@ -156,7 +158,8 @@ func (l *eventlogImpl) EarliestOffset(ctx context.Context) (int64, error) {
 	}
 	return rs[0].StartOffset, nil
 }
-func (l *eventlogImpl) LatestOffset(ctx context.Context) (int64, error) {
+
+func (l *eventlog) LatestOffset(ctx context.Context) (int64, error) {
 	rs, err := l.nameService.LookupReadableSegments(ctx, l.cfg.ID)
 	if err != nil {
 		return 0, err
@@ -167,16 +170,16 @@ func (l *eventlogImpl) LatestOffset(ctx context.Context) (int64, error) {
 	return rs[len(rs)-1].EndOffset, nil
 }
 
-func (l *eventlogImpl) Length(ctx context.Context) (int64, error) {
+func (l *eventlog) Length(ctx context.Context) (int64, error) {
 	// TODO(kai.jiangkai)
 	return 0, nil
 }
-func (l *eventlogImpl) QueryOffsetByTime(ctx context.Context, timestamp int64) (int64, error) {
+func (l *eventlog) QueryOffsetByTime(ctx context.Context, timestamp int64) (int64, error) {
 	// TODO(james.yin): lookup offset by timestamp
 	return 0, nil
 }
 
-func (l *eventlogImpl) updateWritableSegment(ctx context.Context, r *record.Segment) {
+func (l *eventlog) updateWritableSegment(ctx context.Context, r *record.Segment) {
 	if l.writableSegment != nil {
 		if l.writableSegment.ID() == r.ID {
 			_ = l.writableSegment.Update(ctx, r, true)
@@ -184,9 +187,11 @@ func (l *eventlogImpl) updateWritableSegment(ctx context.Context, r *record.Segm
 		}
 	}
 
-	segment, err := newLogSegment(ctx, r, true)
+	segment, err := newSegment(ctx, r, true)
 	if err != nil {
-		// TODO: create failed, to log
+		vlog.Error(context.Background(), "new segment failed", map[string]interface{}{
+			vlog.KeyError: err,
+		})
 		return
 	}
 
@@ -196,7 +201,7 @@ func (l *eventlogImpl) updateWritableSegment(ctx context.Context, r *record.Segm
 	l.writableSegment = segment
 }
 
-func (l *eventlogImpl) selectWritableSegment(ctx context.Context) (*logSegment, error) {
+func (l *eventlog) selectWritableSegment(ctx context.Context) (*segment, error) {
 	segment := l.fetchWritableSegment(ctx)
 	if segment == nil {
 		return nil, errors.ErrNotWritable
@@ -204,7 +209,7 @@ func (l *eventlogImpl) selectWritableSegment(ctx context.Context) (*logSegment, 
 	return segment, nil
 }
 
-func (l *eventlogImpl) fetchWritableSegment(ctx context.Context) *logSegment {
+func (l *eventlog) fetchWritableSegment(ctx context.Context) *segment {
 	l.writableMu.RLock()
 	defer l.writableMu.RUnlock()
 
@@ -220,15 +225,15 @@ func (l *eventlogImpl) fetchWritableSegment(ctx context.Context) *logSegment {
 	return l.writableSegment
 }
 
-func (l *eventlogImpl) refreshWritableSegment(ctx context.Context) {
+func (l *eventlog) refreshWritableSegment(ctx context.Context) {
 	_ = l.writableWatcher.Refresh(ctx)
 }
 
-func (l *eventlogImpl) updateReadableSegments(ctx context.Context, rs []*record.Segment) {
-	segments := make([]*logSegment, 0, len(rs))
+func (l *eventlog) updateReadableSegments(ctx context.Context, rs []*record.Segment) {
+	segments := make([]*segment, 0, len(rs))
 	for _, r := range rs {
 		// TODO: find
-		segment := func() *logSegment {
+		segment := func() *segment {
 			for _, s := range l.readableSegments {
 				if s.ID() == r.ID {
 					return s
@@ -238,7 +243,7 @@ func (l *eventlogImpl) updateReadableSegments(ctx context.Context, rs []*record.
 		}()
 		var err error
 		if segment == nil {
-			segment, err = newLogSegment(ctx, r, false)
+			segment, err = newSegment(ctx, r, false)
 		} else {
 			err = segment.Update(ctx, r, false)
 		}
@@ -255,7 +260,7 @@ func (l *eventlogImpl) updateReadableSegments(ctx context.Context, rs []*record.
 	l.readableSegments = segments
 }
 
-func (l *eventlogImpl) selectReadableSegment(ctx context.Context, offset int64) (*logSegment, error) {
+func (l *eventlog) selectReadableSegment(ctx context.Context, offset int64) (*segment, error) {
 	segments := l.fetchReadableSegments(ctx)
 	if len(segments) == 0 {
 		return nil, errors.ErrNotReadable
@@ -276,7 +281,7 @@ func (l *eventlogImpl) selectReadableSegment(ctx context.Context, offset int64) 
 	return nil, errors.ErrOverflow
 }
 
-func (l *eventlogImpl) fetchReadableSegments(ctx context.Context) []*logSegment {
+func (l *eventlog) fetchReadableSegments(ctx context.Context) []*segment {
 	l.readableMu.RLock()
 	defer l.readableMu.RUnlock()
 
@@ -292,20 +297,20 @@ func (l *eventlogImpl) fetchReadableSegments(ctx context.Context) []*logSegment 
 	return l.readableSegments
 }
 
-func (l *eventlogImpl) refreshReadableSegments(ctx context.Context) {
+func (l *eventlog) refreshReadableSegments(ctx context.Context) {
 	_ = l.readableWatcher.Refresh(ctx)
 }
 
-// logWriter is the writer of eventlogImpl.
+// logWriter is the writer of eventlog.
 //
 // Append is thread-safety.
 type logWriter struct {
-	elog *eventlogImpl
-	cur  *logSegment
+	elog *eventlog
+	cur  *segment
 	mu   sync.RWMutex
 }
 
-func (w *logWriter) Log() EventlogImpl {
+func (w *logWriter) Log() Eventlog {
 	return w.elog
 }
 
@@ -353,8 +358,8 @@ func (w *logWriter) doAppend(ctx context.Context, event *ce.Event) (int64, error
 	return offset, nil
 }
 
-func (w *logWriter) selectWritableSegment(ctx context.Context) (*logSegment, error) {
-	segment := func() *logSegment {
+func (w *logWriter) selectWritableSegment(ctx context.Context) (*segment, error) {
+	segment := func() *segment {
 		w.mu.RLock()
 		defer w.mu.RUnlock()
 		if w.cur != nil && w.cur.Writable() {
@@ -382,13 +387,13 @@ func (w *logWriter) selectWritableSegment(ctx context.Context) (*logSegment, err
 }
 
 type logReader struct {
-	elog *eventlogImpl
+	elog *eventlog
 	pos  int64
-	cur  *logSegment
+	cur  *segment
 	cfg  ReaderConfig
 }
 
-func (r *logReader) Log() EventlogImpl {
+func (r *logReader) Log() Eventlog {
 	return r.elog
 }
 

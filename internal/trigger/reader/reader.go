@@ -23,9 +23,11 @@ import (
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	eb "github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	eberrors "github.com/linkall-labs/vanus/client/pkg/errors"
-	"github.com/linkall-labs/vanus/client/pkg/eventbus"
-	"github.com/linkall-labs/vanus/client/pkg/record"
+	"github.com/linkall-labs/vanus/client/pkg/eventlog"
+	"github.com/linkall-labs/vanus/client/pkg/option"
+	"github.com/linkall-labs/vanus/client/pkg/policy"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -147,12 +149,9 @@ func (r *reader) checkEventLogChange() {
 		})
 		return
 	}
-	els := make([]*record.Eventlog, len(ls))
+	els := make([]uint64, len(ls))
 	for idx, l := range ls {
-		els[idx] = &record.Eventlog{
-			ID:   l.ID(),
-			Mode: record.PremWrite | record.PremRead,
-		}
+		els[idx] = l.ID()
 	}
 	if len(els) != len(r.elReader) {
 		log.Info(ctx, "event eventlog change,will restart event eventlog reader", map[string]interface{}{
@@ -193,11 +192,11 @@ func (r *reader) getOffset(ctx context.Context, eventLogID vanus.ID) (uint64, er
 	return offset, nil
 }
 
-func (r *reader) start(els []*record.Eventlog) {
+func (r *reader) start(els []uint64) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	for _, el := range els {
-		eventLogID := vanus.ID(el.ID)
+		eventLogID := vanus.ID(el)
 		if _, exist := r.elReader[eventLogID]; exist {
 			continue
 		}
@@ -219,7 +218,7 @@ func (r *reader) start(els []*record.Eventlog) {
 			config:        r.config,
 			eventLogID:    eventLogID,
 			eventLogIDStr: eventLogID.String(),
-			policy:        eventbus.NewManuallyReadPolicy(l, int64(offset)),
+			policy:        policy.NewManuallyReadPolicy(l, int64(offset)),
 			events:        r.events,
 			offset:        offset,
 		}
@@ -245,7 +244,7 @@ type eventLogReader struct {
 	config        Config
 	eventLogID    vanus.ID
 	eventLogIDStr string
-	policy        eventbus.ReadPolicy
+	policy        api.ReadPolicy
 	events        chan<- info.EventRecord
 	offset        uint64
 }
@@ -303,20 +302,20 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 	}
 }
 
-func (elReader *eventLogReader) readEvent(ctx context.Context, lr eventbus.BusReader) error {
+func (elReader *eventLogReader) readEvent(ctx context.Context, lr api.BusReader) error {
 	events, err := readEvents(ctx, lr, elReader.policy)
 	if err != nil {
 		return err
 	}
 	for i := range events {
 		ec, _ := events[i].Context.(*ce.EventContextV1)
-		offsetByte, _ := ec.Extensions[eb.XVanusLogOffset].([]byte)
+		offsetByte, _ := ec.Extensions[eventlog.XVanusLogOffset].([]byte)
 		offset := binary.BigEndian.Uint64(offsetByte)
 		eo := info.EventRecord{Event: events[i], OffsetInfo: pInfo.OffsetInfo{
 			EventLogID: elReader.eventLogID,
 			Offset:     offset,
 		}}
-		delete(ec.Extensions, eb.XVanusLogOffset)
+		delete(ec.Extensions, eventlog.XVanusLogOffset)
 		if err = elReader.putEvent(ctx, eo); err != nil {
 			return err
 		}
@@ -337,14 +336,14 @@ func (elReader *eventLogReader) putEvent(ctx context.Context, event info.EventRe
 	}
 }
 
-func readEvents(ctx context.Context, lr eventbus.BusReader, p eventbus.ReadPolicy) ([]*ce.Event, error) {
+func readEvents(ctx context.Context, lr api.BusReader, p api.ReadPolicy) ([]*ce.Event, error) {
 	timeout, cancel := context.WithTimeout(ctx, readEventTimeout)
 	defer cancel()
-	events, _, _, err := lr.Read(timeout, readSize, eventbus.WithReadPolicy(p))
+	events, _, _, err := lr.Read(timeout, option.WithReadPolicy(p), option.WithBatchSize(int(readSize)))
 	return events, err
 }
 
-func (elReader *eventLogReader) init(ctx context.Context) (eventbus.BusReader, error) {
+func (elReader *eventLogReader) init(ctx context.Context) (api.BusReader, error) {
 	lr := elReader.config.Client.Eventbus(ctx, elReader.config.EventBusName).Reader()
 	return lr, nil
 }

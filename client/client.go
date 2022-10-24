@@ -19,33 +19,30 @@ import (
 	"sync"
 
 	eb "github.com/linkall-labs/vanus/client/internal/vanus/eventbus"
-
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/eventbus"
 	"github.com/linkall-labs/vanus/observability/tracing"
 )
 
-const (
-	XVanusLogOffset = eventbus.XVanusLogOffset
-)
-
 type Client interface {
-	Eventbus(ctx context.Context, ebName string) eventbus.Eventbus
+	Eventbus(ctx context.Context, ebName string) api.Eventbus
+	Disconnect(ctx context.Context)
 }
 
 type client struct {
 	// Endpoints is a list of URLs.
 	Endpoints  []string
-	eventbuses map[string]eventbus.Eventbus
+	eventbuses map[string]api.Eventbus
 
 	mu     sync.RWMutex
 	tracer *tracing.Tracer
 }
 
-func (c *client) Eventbus(ctx context.Context, ebName string) eventbus.Eventbus {
+func (c *client) Eventbus(ctx context.Context, ebName string) api.Eventbus {
 	_, span := c.tracer.Start(ctx, "Eventbus")
 	defer span.End()
 
-	bus := func() eventbus.Eventbus {
+	bus := func() api.Eventbus {
 		c.mu.RLock()
 		defer c.mu.RUnlock()
 		if bus, ok := c.eventbuses[ebName]; ok {
@@ -64,7 +61,7 @@ func (c *client) Eventbus(ctx context.Context, ebName string) eventbus.Eventbus 
 				Endpoints: c.Endpoints,
 				Name:      ebName,
 			}
-			bus = eventbus.NewEventBus(cfg)
+			bus = eventbus.NewEventbus(cfg)
 			c.eventbuses[cfg.Name] = bus
 		}
 	}
@@ -72,9 +69,21 @@ func (c *client) Eventbus(ctx context.Context, ebName string) eventbus.Eventbus 
 	return bus
 }
 
+func (c *client) Disconnect(ctx context.Context) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for ebName := range c.eventbuses {
+		c.eventbuses[ebName].Close(ctx)
+	}
+	c.eventbuses = make(map[string]api.Eventbus, 0)
+}
+
 func Connect(endpoints []string) Client {
+	if len(endpoints) == 0 {
+		return nil
+	}
 	return &client{
 		Endpoints:  endpoints,
-		eventbuses: make(map[string]eventbus.Eventbus, 0),
+		eventbuses: make(map[string]api.Eventbus, 0),
 	}
 }
