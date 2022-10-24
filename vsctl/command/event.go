@@ -98,8 +98,8 @@ func putEventCommand() *cobra.Command {
 	cmd.Flags().StringVar(&eventDeliveryTime, "delivery-time", "", "event delivery time of CloudEvent, only support the time layout of RFC3339, for example: 2022-01-01T08:00:00Z")
 	cmd.Flags().StringVar(&eventDelayTime, "delay-time", "", "event delay delivery time of CloudEvent, only support the unit of seconds, for example: 60")
 	cmd.Flags().StringVar(&eventType, "type", "cmd", "event type of CloudEvent")
-	cmd.Flags().StringVar(&eventBody, "body", "", "event body of CloudEvent")
-	cmd.Flags().StringVar(&dataFile, "data", "", "the data file to send, each line represent a event "+
+	cmd.Flags().StringVar(&eventData, "data", "", "event data of CloudEvent")
+	cmd.Flags().StringVar(&dataFile, "file", "", "the data file to send, each line represent a event "+
 		"and like [id],[source],[type],<body>")
 	cmd.Flags().BoolVar(&printDataTemplate, "print-template", false, "print data template file")
 	cmd.Flags().BoolVar(&detail, "detail", false, "show detail of persistence event")
@@ -132,13 +132,13 @@ func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 	var err error
 	if strings.ToLower(dataFormat) == "json" {
 		m := make(map[string]interface{})
-		if err := json.Unmarshal([]byte(eventBody), &m); err != nil {
-			color.White(eventBody)
-			cmdFailedf(cmd, "invalid format of data body: %s, err: %s", eventBody, err.Error())
+		if err := json.Unmarshal([]byte(eventData), &m); err != nil {
+			color.White(eventData)
+			cmdFailedf(cmd, "invalid format of data body: %s, err: %s", eventData, err.Error())
 		}
 		err = event.SetData(ce.ApplicationJSON, m)
 	} else {
-		err = event.SetData(ce.TextPlain, eventBody)
+		err = event.SetData(ce.TextPlain, eventData)
 	}
 
 	if err != nil {

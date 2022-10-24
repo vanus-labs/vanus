@@ -20,7 +20,7 @@ var (
 	dataFormat        string
 	eventSource       string
 	eventType         string
-	eventBody         string
+	eventData         string
 	eventDeliveryTime string
 	eventDelayTime    string
 	dataFile          string
