@@ -352,7 +352,7 @@ func (b *bucket) deleteEventbus(ctx context.Context) error {
 	if !b.isLeader() || !b.isExistEventbus(ctx) {
 		return nil
 	}
-	_, err := b.client.DeleteEventBus(ctx, &meta.EventBus{
+	_, err := b.ctrlCli.DeleteEventBus(ctx, &meta.EventBus{
 		Name: b.eventbus,
 	})
 	if err != nil {
@@ -368,10 +368,10 @@ func (b *bucket) deleteEventbus(ctx context.Context) error {
 	return nil
 }
 
-func (b *bucket) disconnectEventbus(ctx context.Context) {
-	b.eventbusWriter.Close(ctx)
-	b.eventlogReader.Close(ctx)
-}
+// func (b *bucket) disconnectEventbus(ctx context.Context) {
+// 	b.eventbusWriter.Close(ctx)
+// 	b.eventbusReader.Close(ctx)
+// }
 
 func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
 	defer func() {
@@ -523,7 +523,7 @@ func (b *bucket) hasOnEnd(ctx context.Context) bool {
 func (b *bucket) recycle(ctx context.Context) {
 	_ = b.deleteEventbus(ctx)
 	_ = b.deleteOffsetMeta(ctx)
-	b.disconnectEventbus(ctx)
+	// b.disconnectEventbus(ctx)
 }
 
 func (b *bucket) wait(ctx context.Context) {
