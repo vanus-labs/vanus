@@ -107,6 +107,7 @@ type bucket struct {
 
 	mu             sync.Mutex
 	wg             sync.WaitGroup
+	exitC          chan struct{}
 	kvStore        kv.Client
 	client         ctrlpb.EventBusControllerClient
 	eventbusWriter eventbus.BusWriter
@@ -128,6 +129,7 @@ func newBucket(tw *timingWheel, element *list.Element, tick time.Duration, ebNam
 		offset:      0,
 		interval:    tick * time.Duration(tw.config.WheelSize),
 		eventbus:    ebName,
+		exitC:       make(chan struct{}),
 		kvStore:     tw.kvStore,
 		client:      tw.client,
 		timingwheel: tw,
@@ -158,6 +160,11 @@ func (b *bucket) start(ctx context.Context) error {
 	return nil
 }
 
+func (b *bucket) stop(ctx context.Context) {
+	close(b.exitC)
+	b.wait(ctx)
+}
+
 func (b *bucket) run(ctx context.Context) {
 	offsetC := make(chan waitGroup, defaultMaxNumberOfWorkers)
 	b.wg.Add(1)
@@ -168,6 +175,9 @@ func (b *bucket) run(ctx context.Context) {
 			select {
 			case <-ctx.Done():
 				log.Debug(ctx, "context canceled at bucket update offset metadata", nil)
+				return
+			case <-b.exitC:
+				log.Debug(ctx, "bucket exit at bucket update offset metadata", nil)
 				return
 			case offset := <-offsetC:
 				// wait for all goroutines to finish before updating offset metadata
@@ -189,6 +199,11 @@ func (b *bucket) run(ctx context.Context) {
 			select {
 			case <-ctx.Done():
 				log.Debug(ctx, "context canceled at bucket running", map[string]interface{}{
+					"eventbus": b.getEventbus(),
+				})
+				return
+			case <-b.exitC:
+				log.Debug(ctx, "bucket exit at bucket running", map[string]interface{}{
 					"eventbus": b.getEventbus(),
 				})
 				return
@@ -336,6 +351,28 @@ func (b *bucket) createEventbus(ctx context.Context) error {
 	return nil
 }
 
+func (b *bucket) deleteEventbus(ctx context.Context) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if !b.isLeader() || !b.isExistEventbus(ctx) {
+		return nil
+	}
+	_, err := b.client.DeleteEventBus(ctx, &meta.EventBus{
+		Name: b.eventbus,
+	})
+	if err != nil {
+		log.Error(ctx, "delete eventbus failed", map[string]interface{}{
+			log.KeyError: err,
+			"eventbus":   b.eventbus,
+		})
+		return err
+	}
+	log.Info(ctx, "delete eventbus success.", map[string]interface{}{
+		"eventbus": b.eventbus,
+	})
+	return nil
+}
+
 func (b *bucket) connectEventbus(ctx context.Context) error {
 	var (
 		err error
@@ -368,6 +405,11 @@ func (b *bucket) connectEventbus(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (b *bucket) disconnectEventbus(ctx context.Context) {
+	b.eventbusWriter.Close(ctx)
+	b.eventlogReader.Close(ctx)
 }
 
 func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
@@ -413,6 +455,7 @@ func (b *bucket) getEvent(ctx context.Context, number int16) (events []*ce.Event
 		time.Sleep(time.Second)
 		return []*ce.Event{}, es.ErrOnEnd
 	}
+	// TODO(jiangkai): redesign here for concurrency scenario, by jiangkai, 2022.10.18
 	_, err = b.eventlogReader.Seek(ctx, b.offset, io.SeekStart)
 	if err != nil {
 		log.Error(ctx, "seek failed", map[string]interface{}{
@@ -464,6 +507,66 @@ func (b *bucket) updateOffsetMeta(ctx context.Context, offset int64) {
 			"eventbus":   b.eventbus,
 		})
 	}
+}
+
+func (b *bucket) existsOffsetMeta(ctx context.Context) (bool, error) {
+	key := fmt.Sprintf("%s/offset/%s", metadata.MetadataKeyPrefixInKVStore, b.eventbus)
+	return b.kvStore.Exists(ctx, key)
+}
+
+func (b *bucket) getOffsetMeta(ctx context.Context) (int64, error) {
+	if !b.isLeader() {
+		return -1, nil
+	}
+	key := fmt.Sprintf("%s/offset/%s", metadata.MetadataKeyPrefixInKVStore, b.eventbus)
+	value, err := b.kvStore.Get(ctx, key)
+	if err != nil {
+		log.Warning(ctx, "get offset metadata from kvstore failed", map[string]interface{}{
+			log.KeyError: err,
+			"key":        key,
+			"slot":       b.slot,
+			"layer":      b.layer,
+			"eventbus":   b.eventbus,
+		})
+		return -1, err
+	}
+	md := &metadata.OffsetMeta{}
+	_ = json.Unmarshal(value, md)
+	return md.Offset, nil
+}
+
+func (b *bucket) deleteOffsetMeta(ctx context.Context) error {
+	if !b.isLeader() {
+		return nil
+	}
+	key := fmt.Sprintf("%s/offset/%s", metadata.MetadataKeyPrefixInKVStore, b.eventbus)
+	err := b.kvStore.Delete(ctx, key)
+	if err != nil {
+		log.Warning(ctx, "delete offset metadata to kvstore failed", map[string]interface{}{
+			log.KeyError: err,
+			"key":        key,
+		})
+		return err
+	}
+	return nil
+}
+
+func (b *bucket) hasOnEnd(ctx context.Context) bool {
+	_, errOnEnd := b.getEvent(ctx, 1)
+	if !errors.Is(errOnEnd, es.ErrOnEnd) {
+		return false
+	}
+	off, err := b.getOffsetMeta(ctx)
+	if err != nil {
+		return false
+	}
+	return off == b.offset
+}
+
+func (b *bucket) recycle(ctx context.Context) {
+	_ = b.deleteEventbus(ctx)
+	_ = b.deleteOffsetMeta(ctx)
+	b.disconnectEventbus(ctx)
 }
 
 func (b *bucket) wait(ctx context.Context) {
