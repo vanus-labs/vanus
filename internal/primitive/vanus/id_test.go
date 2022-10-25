@@ -28,11 +28,11 @@ func TestNewID(t *testing.T) {
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			id1 = NewID()
+			id1, _ = NewID()
 		}()
 		go func() {
 			defer wg.Done()
-			id2 = NewID()
+			id2, _ = NewID()
 		}()
 		wg.Wait()
 		So(id1, ShouldNotEqual, id2)

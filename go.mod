@@ -23,7 +23,6 @@ require (
 	github.com/iceber/iouring-go v0.0.0-20220609112130-b1dc8dd9fbfd
 	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/labstack/echo/v4 v4.7.2
-	github.com/labstack/gommon v0.3.1
 	github.com/linkall-labs/embed-etcd v0.1.0
 	github.com/linkall-labs/vanus/client v0.3.0-alpha
 	github.com/linkall-labs/vanus/observability v0.4.0
@@ -35,6 +34,7 @@ require (
 	github.com/prashantv/gostub v1.1.0
 	github.com/prometheus/client_golang v1.13.0
 	github.com/smartystreets/goconvey v1.7.2
+	github.com/sony/sonyflake v1.1.0
 	github.com/spf13/cobra v1.4.0
 	github.com/tidwall/gjson v1.14.1
 	go.etcd.io/etcd/client/v3 v3.6.0-alpha.0
@@ -85,6 +85,7 @@ require (
 	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
+	github.com/labstack/gommon v0.3.1 // indirect
 	github.com/mattn/go-colorable v0.1.11 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect

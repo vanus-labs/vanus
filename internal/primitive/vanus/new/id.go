@@ -35,6 +35,10 @@ func EmptyID() ID {
 	return emptyID
 }
 
+func New() {
+
+}
+
 var (
 	generator *sonyflake.Sonyflake
 	once      sync.Once
