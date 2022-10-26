@@ -253,8 +253,9 @@ func (b *bucket) pushToDistributionStation(ctx context.Context, e *ce.Event) {
 			cancel()
 		} else {
 			log.Warning(ctx, "push event to distribution station failed, retry until it succeed", map[string]interface{}{
-				"eventbus": b.eventbus,
-				"event":    e.String(),
+				"eventbus":   b.eventbus,
+				"event_id":   e.ID(),
+				"expiration": tm.getExpiration().Format(time.RFC3339Nano),
 			})
 		}
 	}, b.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
@@ -274,8 +275,9 @@ func (b *bucket) pushToPrevTimingWheel(ctx context.Context, e *ce.Event) {
 			cancel()
 		} else {
 			log.Warning(ctx, "push event failed, retry until it succeed", map[string]interface{}{
-				"eventbus": b.eventbus,
-				"event":    e.String(),
+				"eventbus":   b.eventbus,
+				"event_id":   e.ID(),
+				"expiration": tm.getExpiration().Format(time.RFC3339Nano),
 			})
 		}
 	}, b.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
@@ -392,6 +394,7 @@ func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
 		return err
 	}
 	log.Debug(ctx, "put event success", map[string]interface{}{
+		"event_id":   tm.event.ID(),
 		"eventbus":   b.eventbus,
 		"expiration": tm.getExpiration().Format(time.RFC3339Nano),
 	})
@@ -429,12 +432,6 @@ func (b *bucket) getEvent(ctx context.Context, number int16) (events []*ce.Event
 		}
 		return nil, err
 	}
-
-	log.Debug(ctx, "get event success", map[string]interface{}{
-		"eventbus": b.eventbus,
-		"offset":   b.offset,
-		"number":   number,
-	})
 	return events, err
 }
 
