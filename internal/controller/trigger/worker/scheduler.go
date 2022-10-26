@@ -62,6 +62,9 @@ func (s *SubscriptionScheduler) EnqueueNormalSubscription(id vanus.ID) {
 }
 
 func (s *SubscriptionScheduler) Stop() {
+	if s == nil {
+		return
+	}
 	s.stop()
 	s.normalQueue.ShutDown()
 }

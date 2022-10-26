@@ -392,10 +392,6 @@ func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, ad
 }
 
 func (ctrl *controller) init(ctx context.Context) error {
-	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage, ctrl.secretStorage)
-	ctrl.workerManager = worker.NewTriggerWorkerManager(worker.Config{}, ctrl.storage,
-		ctrl.subscriptionManager, ctrl.requeueSubscription)
-	ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
 	err := ctrl.subscriptionManager.Init(ctx)
 	if err != nil {
 		return err
@@ -482,6 +478,11 @@ func (ctrl *controller) Start() error {
 		return err
 	}
 	ctrl.secretStorage = secretStorage
+	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage, ctrl.secretStorage)
+	ctrl.workerManager = worker.NewTriggerWorkerManager(worker.Config{}, ctrl.storage,
+		ctrl.subscriptionManager, ctrl.requeueSubscription)
+	ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
+
 	go ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
 	return nil
 }

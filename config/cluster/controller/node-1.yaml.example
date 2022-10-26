@@ -5,14 +5,14 @@ etcd:
   - "127.0.0.1:2379"
   - "127.0.0.1:3379"
   - "127.0.0.1:4379"
-data_dir: "/Users/wenfeng/tmp/data/vanus/cluster"
+data_dir: "/tmp/vanus/data1/cluster"
 replicas: 1
 topology:
   test-1: 127.0.0.1:2048
   test-2: 127.0.0.1:3048
   test-3: 127.0.0.1:4048
 metadata:
-  key_prefix: "/wenfeng"
+  key_prefix: "/vanus"
 embed_etcd:
   # relative path to ${data_dir} above
   data_dir: "etcd/node1"
