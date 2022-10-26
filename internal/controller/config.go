@@ -15,8 +15,9 @@
 package controller
 
 import (
-	"github.com/linkall-labs/vanus/internal/controller/snowflake"
 	"path/filepath"
+
+	"github.com/linkall-labs/vanus/internal/controller/snowflake"
 
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
@@ -66,7 +67,7 @@ func (c *Config) GetSnowflakeConfig() snowflake.Config {
 }
 
 func (c *Config) GetControllerAddrs() []string {
-	var addrs []string
+	addrs := make([]string, 0)
 	for _, v := range c.Topology {
 		addrs = append(addrs, v)
 	}

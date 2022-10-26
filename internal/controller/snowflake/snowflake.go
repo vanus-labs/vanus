@@ -35,6 +35,7 @@ import (
 const (
 	clusterStartAtKey = "/vanus/internal/cluster/start_at"
 	nodeIDKey         = "/vanus/internal/cluster/nodes"
+	spinInterval      = 100 * time.Millisecond
 )
 
 type Config struct {
@@ -42,7 +43,7 @@ type Config struct {
 	KVPrefix    string
 }
 
-func NewSnowflakeController(cfg Config, member embedetcd.Member) *snowflake {
+func NewSnowflakeController(cfg Config, member embedetcd.Member) *snowflake { //nolint:revive // it's ok
 	sf := &snowflake{
 		cfg:    cfg,
 		member: member,
@@ -90,7 +91,7 @@ func (sf *snowflake) RegisterNode(ctx context.Context, in *wrapperspb.UInt32Valu
 	defer sf.mutex.Lock()
 
 	for sf.member.GetLeaderID() == "" {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(spinInterval)
 	}
 
 	if !sf.isLeader {
@@ -98,12 +99,12 @@ func (sf *snowflake) RegisterNode(ctx context.Context, in *wrapperspb.UInt32Valu
 	}
 
 	id := uint16(in.Value)
-	n, exist := sf.nodes[id]
+	_, exist := sf.nodes[id]
 	if exist {
 		return nil, errors.New("node has been register")
 	}
 
-	n = &node{
+	n := &node{
 		ID:      id,
 		StartAt: time.Now(),
 	}
