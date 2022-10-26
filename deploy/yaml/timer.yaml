@@ -45,7 +45,7 @@ spec:
     spec:
       containers:
         - name: timer
-          image: public.ecr.aws/vanus/timer:v0.3.0
+          image: public.ecr.aws/vanus/timer:v0.4.0
           imagePullPolicy: IfNotPresent
           env:
             - name: VANUS_LOG_LEVEL

@@ -78,7 +78,7 @@ spec:
     spec:
       containers:
         - name: controller
-          image: public.ecr.aws/vanus/controller:v0.3.0
+          image: public.ecr.aws/vanus/controller:v0.4.0
           imagePullPolicy: IfNotPresent
           ports:
             - name: grpc
