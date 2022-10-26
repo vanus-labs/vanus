@@ -136,6 +136,7 @@ func TestController_CreateSubscription(t *testing.T) {
 				},
 			}
 			request := create.Subscription
+			vanus.InitFakeSnowflake()
 			resp, err := ctrl.CreateSubscription(ctx, create)
 			So(err, ShouldBeNil)
 			So(resp.Sink, ShouldEqual, request.Sink)

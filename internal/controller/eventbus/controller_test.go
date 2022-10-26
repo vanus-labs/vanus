@@ -58,6 +58,7 @@ func TestController_CreateEventBus(t *testing.T) {
 				return el, nil
 			})
 
+			vanus.InitFakeSnowflake()
 			res, err := ctrl.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
 				Name:      "test-1",
 				LogNumber: 0,

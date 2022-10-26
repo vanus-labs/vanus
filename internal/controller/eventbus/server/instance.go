@@ -54,15 +54,19 @@ func (ins *volumeInstance) GetMeta() *metadata.VolumeMetadata {
 }
 
 func (ins *volumeInstance) CreateBlock(ctx context.Context, capacity int64) (*metadata.Block, error) {
+	id, err := vanus.NewID()
+	if err != nil {
+		return nil, err
+	}
 	blk := &metadata.Block{
-		ID:       vanus.NewID(),
+		ID:       id,
 		Capacity: capacity,
 		VolumeID: ins.md.ID,
 	}
 	if ins.srv == nil {
 		return nil, errors.ErrVolumeInstanceNoServer
 	}
-	_, err := ins.srv.GetClient().CreateBlock(ctx, &segpb.CreateBlockRequest{
+	_, err = ins.srv.GetClient().CreateBlock(ctx, &segpb.CreateBlockRequest{
 		Size: blk.Capacity,
 		Id:   blk.ID.Uint64(),
 	})

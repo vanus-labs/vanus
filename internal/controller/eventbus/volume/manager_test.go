@@ -37,6 +37,7 @@ func TestVolumeMgr_Init(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		kvCli := kv.NewMockClient(ctrl)
 		srvMgr := server.NewMockManager(ctrl)
+		vanus.InitFakeSnowflake()
 
 		Convey("test load blocks of volume", func() {
 			mgr := &volumeMgr{serverMgr: srvMgr}
@@ -281,6 +282,7 @@ func TestVolumeMgr_Init(t *testing.T) {
 			kvCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
 			mgr := &volumeMgr{serverMgr: srvMgr}
 
+			vanus.InitFakeSnowflake()
 			err := mgr.Init(stdCtx.Background(), kvCli)
 			So(err, ShouldBeNil)
 

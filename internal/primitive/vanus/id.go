@@ -35,7 +35,7 @@ type ID uint64
 var (
 	emptyID = ID(0)
 	lock    = sync.Mutex{}
-	base    = 10
+	base    = 16
 	bitSize = 64
 )
 
@@ -54,6 +54,11 @@ type snowflake struct {
 	client   ctrlpb.SnowflakeControllerClient
 	ctrlAddr []string
 	nodeID   uint16
+}
+
+// InitFakeSnowflake just only used for Uint Test
+func InitFakeSnowflake() {
+	fake = true
 }
 
 func InitSnowflake(ctrlAddr []string, nodeID uint16) error {
@@ -97,6 +102,9 @@ func InitSnowflake(ctrlAddr []string, nodeID uint16) error {
 }
 
 func NewID() (ID, error) {
+	if fake {
+		return NewTestID(), nil
+	}
 	lock.Lock()
 	defer lock.Unlock()
 

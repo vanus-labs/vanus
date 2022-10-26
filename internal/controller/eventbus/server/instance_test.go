@@ -31,6 +31,7 @@ import (
 
 func TestVolumeInstance(t *testing.T) {
 	Convey("test volume instance", t, func() {
+		vanus.InitFakeSnowflake()
 		md := &metadata.VolumeMetadata{
 			ID:       vanus.NewTestID(),
 			Capacity: 32 * 1024 * 1024 * 1024,

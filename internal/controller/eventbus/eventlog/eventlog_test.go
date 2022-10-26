@@ -148,6 +148,7 @@ func TestEventlogManager_RunWithoutTask(t *testing.T) {
 				}
 				return nil, nil
 			})
+			vanus.InitFakeSnowflake()
 			err := utMgr.Run(stdCtx.Background(), kvCli, false)
 			So(err, ShouldBeNil)
 			So(util.MapLen(&utMgr.eventLogMap), ShouldEqual, 3)

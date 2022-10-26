@@ -28,11 +28,11 @@ func TestNewID(t *testing.T) {
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			id1, _ = NewID()
+			id1 = NewTestID() // TODO
 		}()
 		go func() {
 			defer wg.Done()
-			id2, _ = NewID()
+			id2 = NewTestID() // TODO
 		}()
 		wg.Wait()
 		So(id1, ShouldNotEqual, id2)
@@ -49,22 +49,26 @@ func TestNewID(t *testing.T) {
 	Convey("test new id form string", t, func() {
 		id1, err := NewIDFromString("100")
 		So(err, ShouldBeNil)
-		So(id1, ShouldEqual, NewIDFromUint64(100))
+		So(id1, ShouldEqual, NewIDFromUint64(256))
+
 		id2, err := NewIDFromString("100")
 		So(err, ShouldBeNil)
-		id3, err := NewIDFromString("1000")
-		So(err, ShouldBeNil)
 		So(id1, ShouldEqual, id2)
+
+		id3, err := NewIDFromString("100a")
+		So(err, ShouldBeNil)
+		So(id3, ShouldEqual, NewIDFromUint64(4106))
 		So(id1, ShouldNotEqual, id3)
-		_, err = NewIDFromString("100a")
+
+		_, err = NewIDFromString("100afegex")
 		So(err, ShouldNotBeNil)
 	})
 
 	Convey("test id other", t, func() {
-		id1 := NewIDFromUint64(100)
-		So(id1.Uint64(), ShouldEqual, 100)
-		So(id1.Key(), ShouldEqual, "100")
-		id2 := NewIDFromUint64(100)
+		id1 := NewIDFromUint64(10213234320)
+		So(id1.Uint64(), ShouldEqual, 10213234320)
+		So(id1.Key(), ShouldEqual, "260C19690")
+		id2 := NewIDFromUint64(10213234320)
 		So(id1.Equals(id2), ShouldBeTrue)
 		So(EmptyID(), ShouldEqual, 0)
 	})

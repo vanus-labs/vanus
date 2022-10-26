@@ -90,7 +90,10 @@ func (s *offsetStorage) GetOffsets(ctx context.Context, subscriptionID vanus.ID)
 	}
 	var infos info.ListOffsetInfo
 	for _, v := range l {
-		id, _ := vanus.NewIDFromString(filepath.Base(v.Key))
+		id, err := vanus.NewIDFromString(filepath.Base(v.Key))
+		if err != nil {
+			return nil, err
+		}
 		infos = append(infos, info.OffsetInfo{EventLogID: id, Offset: s.byteArrToUint64(v.Value)})
 	}
 	return infos, nil

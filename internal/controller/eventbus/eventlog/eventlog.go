@@ -166,8 +166,12 @@ func (mgr *eventlogManager) AcquireEventLog(ctx context.Context, eventbusID vanu
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 
+	id, err := vanus.NewID()
+	if err != nil {
+		return nil, err
+	}
 	elMD := &metadata.Eventlog{
-		ID:         vanus.NewID(),
+		ID:         id,
 		EventbusID: eventbusID,
 	}
 	data, _ := json.Marshal(elMD)
@@ -721,11 +725,20 @@ func (mgr *eventlogManager) generateSegment(ctx context.Context) (*Segment, erro
 	for _, v := range blocks {
 		blockMap[v.ID.Uint64()] = v
 	}
+
+	id1, err := vanus.NewID()
+	if err != nil {
+		return nil, err
+	}
+	id2, err := vanus.NewID()
+	if err != nil {
+		return nil, err
+	}
 	seg = &Segment{
-		ID:       vanus.NewID(),
+		ID:       id1,
 		Capacity: blocks[0].Capacity,
 		Replicas: &ReplicaGroup{
-			ID:        vanus.NewID(),
+			ID:        id2,
 			Peers:     blockMap,
 			CreateAt:  time.Now(),
 			DestroyAt: time.Now(),
