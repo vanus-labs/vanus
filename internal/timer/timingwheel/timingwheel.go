@@ -54,8 +54,6 @@ const (
 	// the max number of workers by default.
 	defaultMaxNumberOfWorkers = 1000
 
-	heartbeatInterval = 5 * time.Second
-
 	recycleInterval = 60 * time.Second
 )
 
@@ -161,8 +159,9 @@ func (tw *timingWheel) Start(ctx context.Context) error {
 	wait.Until(func() {
 		if tw.IsLeader() || tw.IsDeployed(ctx) {
 			cancel()
+		} else {
+			log.Info(ctx, "wait for the leader to be ready", nil)
 		}
-		log.Info(ctx, "wait for the leader to be ready", nil)
 	}, time.Second, waitCtx.Done())
 
 	// start distribution station for scheduled events distributing
@@ -190,9 +189,6 @@ func (tw *timingWheel) Start(ctx context.Context) error {
 
 	// start bucket recycling
 	tw.startRecycling(ctx)
-
-	// start controller client heartbeat
-	tw.startHeartBeat(ctx)
 
 	return nil
 }
@@ -285,7 +281,7 @@ func (tw *timingWheel) Recover(ctx context.Context) error {
 func (tw *timingWheel) Push(ctx context.Context, e *ce.Event) bool {
 	tm := newTimingMsg(ctx, e)
 	log.Info(ctx, "push event to timingwheel", map[string]interface{}{
-		"event":      e.String(),
+		"event_id":   e.ID(),
 		"expiration": tm.getExpiration().Format(time.RFC3339Nano),
 	})
 
@@ -317,37 +313,13 @@ func (tw *timingWheel) startRecycling(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Debug(ctx, "context canceled at timingwheel element heartbeat", nil)
+				log.Debug(ctx, "context canceled at timingwheel recycling", nil)
 				return
 			case <-ticker.C:
 				if !tw.IsLeader() {
 					break
 				}
 				tw.twList.Back().Value.(*timingWheelElement).recycling(ctx)
-			}
-		}
-	}()
-}
-
-func (tw *timingWheel) startHeartBeat(ctx context.Context) {
-	tw.wg.Add(1)
-	go func() {
-		defer tw.wg.Done()
-		ticker := time.NewTicker(heartbeatInterval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				log.Debug(ctx, "context canceled at timingwheel element heartbeat", nil)
-				return
-			case <-ticker.C:
-				// TODO redesign here, by wenfeng, 2022.09.05
-				// err := tw.client.Heartbeat(ctx)
-				// if err != nil {
-				// 	log.Warning(ctx, "heartbeat failed, connection lost. try to reconnecting", map[string]interface{}{
-				// 		log.KeyError: err,
-				// 	})
-				// }
 			}
 		}
 	}()
@@ -435,8 +407,9 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 								cancel()
 							} else {
 								log.Warning(ctx, "push event to timingwheel failed, retry until it succeed", map[string]interface{}{
-									"eventbus": tw.receivingStation.getEventbus(),
-									"event":    e.String(),
+									"event_id":      e.ID(),
+									"eventbus":      e.Extensions()[xVanusEventbus],
+									"delivery_time": newTimingMsg(ctx, e).getExpiration().Format(time.RFC3339Nano),
 								})
 							}
 						}, tw.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
@@ -535,8 +508,9 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 								cancel()
 							} else {
 								log.Warning(ctx, "deliver event failed, retry until it succeed", map[string]interface{}{
-									"eventbus": tw.distributionStation.getEventbus(),
-									"event":    e.String(),
+									"event_id":      e.ID(),
+									"eventbus":      e.Extensions()[xVanusEventbus],
+									"delivery_time": newTimingMsg(ctx, e).getExpiration().Format(time.RFC3339Nano),
 								})
 							}
 						}, tw.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
@@ -571,9 +545,10 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 	if err != nil {
 		if errors.Is(err, errcli.ErrNotFound) {
 			log.Warning(ctx, "eventbus not found, discard this event", map[string]interface{}{
-				log.KeyError: err,
-				"eventbus":   ebName,
-				"event":      e.String(),
+				log.KeyError:    err,
+				"eventbus":      ebName,
+				"event_id":      e.ID(),
+				"delivery_time": newTimingMsg(ctx, e).getExpiration().Format(time.RFC3339Nano),
 			})
 			return nil
 		}
@@ -584,8 +559,9 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 		return err
 	}
 	log.Debug(ctx, "event delivered", map[string]interface{}{
-		"delivery-time": e.Extensions()[xVanusDeliveryTime],
+		"event_id":      e.ID(),
 		"eventbus":      e.Extensions()[xVanusEventbus],
+		"delivery_time": newTimingMsg(ctx, e).getExpiration().Format(time.RFC3339Nano),
 	})
 	return nil
 }

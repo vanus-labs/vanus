@@ -499,22 +499,6 @@ func TestTimingWheel_deliver(t *testing.T) {
 	})
 }
 
-func TestTimingWheel_startHeartBeat(t *testing.T) {
-	Convey("test timingwheel start heartbeat", t, func() {
-		ctx, cancel := context.WithCancel(context.Background())
-		tw := newtimingwheel(cfg())
-
-		Convey("test timingwheel start heartbeat with ctx cancel", func() {
-			go func() {
-				time.Sleep(100 * time.Millisecond)
-				cancel()
-			}()
-			tw.startHeartBeat(ctx)
-			tw.wg.Wait()
-		})
-	})
-}
-
 func TestTimingWheelElement_push(t *testing.T) {
 	Convey("test timingwheelelement push", t, func() {
 		ctx := context.Background()
