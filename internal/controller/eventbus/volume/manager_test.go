@@ -41,17 +41,17 @@ func TestVolumeMgr_Init(t *testing.T) {
 		Convey("test load blocks of volume", func() {
 			mgr := &volumeMgr{serverMgr: srvMgr}
 			volume1 := &metadata.VolumeMetadata{
-				ID:       vanus.NewID(),
+				ID:       vanus.NewTestID(),
 				Capacity: 64 * 1024 * 1024 * 1024,
 				Used:     4 * 64 * 1024 * 1024,
 			}
 			volume2 := &metadata.VolumeMetadata{
-				ID:       vanus.NewID(),
+				ID:       vanus.NewTestID(),
 				Capacity: 64 * 1024 * 1024 * 1024,
 				Used:     3 * 64 * 1024 * 1024,
 			}
 			volume3 := &metadata.VolumeMetadata{
-				ID:       vanus.NewID(),
+				ID:       vanus.NewTestID(),
 				Capacity: 64 * 1024 * 1024 * 1024,
 				Used:     0,
 			}
@@ -73,22 +73,22 @@ func TestVolumeMgr_Init(t *testing.T) {
 				},
 			}, nil)
 			block1 := metadata.Block{
-				ID:       vanus.NewID(),
+				ID:       vanus.NewTestID(),
 				Capacity: 64 * 1024 * 1024,
 				VolumeID: volume1.ID,
 			}
 			block2 := metadata.Block{
-				ID:       vanus.NewID(),
+				ID:       vanus.NewTestID(),
 				Capacity: 64 * 1024 * 1024,
 				VolumeID: volume1.ID,
 			}
 			block3 := metadata.Block{
-				ID:       vanus.NewID(),
+				ID:       vanus.NewTestID(),
 				Capacity: 64 * 1024 * 1024,
 				VolumeID: volume1.ID,
 			}
 			block4 := metadata.Block{
-				ID:       vanus.NewID(),
+				ID:       vanus.NewTestID(),
 				Capacity: 64 * 1024 * 1024,
 				VolumeID: volume1.ID,
 			}
@@ -116,17 +116,17 @@ func TestVolumeMgr_Init(t *testing.T) {
 				},
 			}, nil)
 			block1 = metadata.Block{
-				ID:       vanus.NewID(),
+				ID:       vanus.NewTestID(),
 				Capacity: 64 * 1024 * 1024,
 				VolumeID: volume2.ID,
 			}
 			block2 = metadata.Block{
-				ID:       vanus.NewID(),
+				ID:       vanus.NewTestID(),
 				Capacity: 64 * 1024 * 1024,
 				VolumeID: volume2.ID,
 			}
 			block3 = metadata.Block{
-				ID:       vanus.NewID(),
+				ID:       vanus.NewTestID(),
 				Capacity: 64 * 1024 * 1024,
 				VolumeID: volume2.ID,
 			}
@@ -180,13 +180,13 @@ func TestVolumeMgr_Init(t *testing.T) {
 
 		Convey("test load the server of volume instance", func() {
 			volume1 := &metadata.VolumeMetadata{
-				ID:       vanus.NewID(),
+				ID:       vanus.NewTestID(),
 				Capacity: 64 * 1024 * 1024 * 1024,
 				Used:     4 * 64 * 1024 * 1024,
 				Blocks:   map[uint64]*metadata.Block{},
 			}
 			volume2 := &metadata.VolumeMetadata{
-				ID:       vanus.NewID(),
+				ID:       vanus.NewTestID(),
 				Capacity: 64 * 1024 * 1024 * 1024,
 				Used:     3 * 64 * 1024 * 1024,
 				Blocks:   map[uint64]*metadata.Block{},
@@ -212,19 +212,19 @@ func TestVolumeMgr_Init(t *testing.T) {
 				ServerID vanus.ID `json:"server_id"`
 			})
 			o1.Address = "127.0.0.1:10001"
-			o1.ServerID = vanus.NewID()
+			o1.ServerID = vanus.NewTestID()
 			o2 := new(struct {
 				Address  string   `json:"address"`
 				ServerID vanus.ID `json:"server_id"`
 			})
 			o2.Address = "127.0.0.1:10002"
-			o2.ServerID = vanus.NewID()
+			o2.ServerID = vanus.NewTestID()
 			o3 := new(struct {
 				Address  string   `json:"address"`
 				ServerID vanus.ID `json:"server_id"`
 			})
 			o3.Address = "127.0.0.1:10003"
-			o3.ServerID = vanus.NewID()
+			o3.ServerID = vanus.NewTestID()
 
 			data1, _ = stdJson.Marshal(o1)
 			data2, _ = stdJson.Marshal(o2)
@@ -244,11 +244,11 @@ func TestVolumeMgr_Init(t *testing.T) {
 					Value: data2,
 				},
 				{
-					Key:   filepath.Join(metadata.VolumeInstanceKeyPrefixInKVStore, vanus.NewID().String()),
+					Key:   filepath.Join(metadata.VolumeInstanceKeyPrefixInKVStore, vanus.NewTestID().String()),
 					Value: data3,
 				},
 				{
-					//Key:   filepath.Join(metadata.VolumeInstanceKeyPrefixInKVStore, vanus.NewID().String()),
+					//Key:   filepath.Join(metadata.VolumeInstanceKeyPrefixInKVStore, vanus.NewTestID().String()),
 					//Value: data4,
 				},
 			}, nil)
@@ -312,7 +312,7 @@ func TestVolumeMgr_RegisterVolume(t *testing.T) {
 
 		Convey("test RegisterVolume", func() {
 			volume := &metadata.VolumeMetadata{
-				ID:       vanus.NewID(),
+				ID:       vanus.NewTestID(),
 				Capacity: 64 * 1024 * 1024 * 1024,
 				Used:     4 * 64 * 1024 * 1024,
 			}
@@ -337,19 +337,19 @@ func TestVolumeMgr_GetAllActiveVolumes(t *testing.T) {
 		mgr := &volumeMgr{serverMgr: srvMgr, kvCli: kvCli}
 
 		ins1 := server.NewMockInstance(ctrl)
-		mgr.volInstanceMap.Store(vanus.NewID(), ins1)
+		mgr.volInstanceMap.Store(vanus.NewTestID(), ins1)
 		srv1 := server.NewMockServer(ctrl)
 		ins1.EXPECT().GetServer().Times(2).Return(srv1)
 		srv1.EXPECT().IsActive(gomock.Any()).Times(1).Return(true)
 
 		ins2 := server.NewMockInstance(ctrl)
-		mgr.volInstanceMap.Store(vanus.NewID(), ins2)
+		mgr.volInstanceMap.Store(vanus.NewTestID(), ins2)
 		srv2 := server.NewMockServer(ctrl)
 		ins2.EXPECT().GetServer().Times(2).Return(srv2)
 		srv2.EXPECT().IsActive(gomock.Any()).Times(1).Return(false)
 
 		ins3 := server.NewMockInstance(ctrl)
-		mgr.volInstanceMap.Store(vanus.NewID(), ins3)
+		mgr.volInstanceMap.Store(vanus.NewTestID(), ins3)
 		ins3.EXPECT().GetServer().Times(1).Return(nil)
 
 		So(mgr.GetAllActiveVolumes(), ShouldHaveLength, 1)
@@ -365,19 +365,19 @@ func TestVolumeMgr_UpdateRoutingAndLookup(t *testing.T) {
 
 		ins1 := server.NewMockInstance(ctrl)
 		srv1 := server.NewMockServer(ctrl)
-		ins1.EXPECT().ID().Times(1).Return(vanus.NewID())
+		ins1.EXPECT().ID().Times(1).Return(vanus.NewTestID())
 		srv1.EXPECT().IsActive(gomock.Any()).Times(1).Return(false)
 
 		ins2 := server.NewMockInstance(ctrl)
 		srv2 := server.NewMockServer(ctrl)
-		ins2.EXPECT().ID().Times(2).Return(vanus.NewID())
+		ins2.EXPECT().ID().Times(2).Return(vanus.NewTestID())
 		srv2.EXPECT().IsActive(gomock.Any()).Times(1).Return(true)
-		id := vanus.NewID()
+		id := vanus.NewTestID()
 		srv2.EXPECT().ID().Times(2).Return(id)
 		srv2.EXPECT().Address().Times(1).Return("127.0.0.1:10000")
 
 		ins3 := server.NewMockInstance(ctrl)
-		ins3.EXPECT().ID().Times(1).Return(vanus.NewID())
+		ins3.EXPECT().ID().Times(1).Return(vanus.NewTestID())
 
 		ctx := stdCtx.Background()
 		Convey("update routing", func() {
@@ -395,7 +395,7 @@ func TestVolumeMgr_UpdateRoutingAndLookup(t *testing.T) {
 			ins := mgr.LookupVolumeByServerID(id)
 			So(ins, ShouldEqual, ins2)
 
-			ins = mgr.LookupVolumeByServerID(vanus.NewID())
+			ins = mgr.LookupVolumeByServerID(vanus.NewTestID())
 			So(ins, ShouldBeEmpty)
 		})
 	})
@@ -411,31 +411,31 @@ func TestVolumeMgr_GetBlocksOfVolume(t *testing.T) {
 		_mgr.kvCli = kvCli
 
 		vol := &metadata.VolumeMetadata{
-			ID:       vanus.NewID(),
+			ID:       vanus.NewTestID(),
 			Capacity: 16 * 1024 * 1024 * 1024,
 			Blocks:   map[uint64]*metadata.Block{},
 		}
 		ins := server.NewInstance(vol)
 		ctx := stdCtx.Background()
-		vID := vanus.NewID()
+		vID := vanus.NewTestID()
 		key := strings.Join([]string{metadata.BlockKeyPrefixInKVStore, ins.ID().String()}, "/")
 		block1 := metadata.Block{
-			ID:       vanus.NewID(),
+			ID:       vanus.NewTestID(),
 			Capacity: 64 * 1024 * 1024,
 			VolumeID: vID,
 		}
 		block2 := metadata.Block{
-			ID:       vanus.NewID(),
+			ID:       vanus.NewTestID(),
 			Capacity: 64 * 1024 * 1024,
 			VolumeID: vID,
 		}
 		block3 := metadata.Block{
-			ID:       vanus.NewID(),
+			ID:       vanus.NewTestID(),
 			Capacity: 64 * 1024 * 1024,
 			VolumeID: vID,
 		}
 		block4 := metadata.Block{
-			ID:       vanus.NewID(),
+			ID:       vanus.NewTestID(),
 			Capacity: 64 * 1024 * 1024,
 			VolumeID: vID,
 		}

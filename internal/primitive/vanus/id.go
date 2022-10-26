@@ -46,6 +46,7 @@ func EmptyID() ID {
 var (
 	generator *snowflake
 	once      sync.Once
+	fake      bool
 )
 
 type snowflake struct {
@@ -104,6 +105,16 @@ func NewID() (ID, error) {
 		return EmptyID(), err
 	}
 	return ID(id), nil
+}
+
+// NewTestID only used for Uint Test
+func NewTestID() ID {
+	lock.Lock()
+	defer lock.Unlock()
+
+	// avoiding same id
+	time.Sleep(time.Microsecond)
+	return ID(time.Now().UnixNano())
 }
 
 func NewIDFromUint64(id uint64) ID {

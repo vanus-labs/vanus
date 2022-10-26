@@ -50,18 +50,18 @@ func TestEventlogManager_RunWithoutTask(t *testing.T) {
 			alloc.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
 
 			el1 := metadata.Eventlog{
-				ID:         vanus.NewID(),
-				EventbusID: vanus.NewID(),
+				ID:         vanus.NewTestID(),
+				EventbusID: vanus.NewTestID(),
 			}
 			data1, _ := stdJson.Marshal(el1)
 			el2 := metadata.Eventlog{
-				ID:         vanus.NewID(),
-				EventbusID: vanus.NewID(),
+				ID:         vanus.NewTestID(),
+				EventbusID: vanus.NewTestID(),
 			}
 			data2, _ := stdJson.Marshal(el2)
 			el3 := metadata.Eventlog{
-				ID:         vanus.NewID(),
-				EventbusID: vanus.NewID(),
+				ID:         vanus.NewTestID(),
+				EventbusID: vanus.NewTestID(),
 			}
 			data3, _ := stdJson.Marshal(el3)
 
@@ -83,19 +83,19 @@ func TestEventlogManager_RunWithoutTask(t *testing.T) {
 			seg1 := new(struct {
 				SegmentID vanus.ID `json:"segment_id"`
 			})
-			seg1.SegmentID = vanus.NewID()
+			seg1.SegmentID = vanus.NewTestID()
 			segData1, _ := stdJson.Marshal(seg1)
 
 			seg2 := new(struct {
 				SegmentID vanus.ID `json:"segment_id"`
 			})
-			seg2.SegmentID = vanus.NewID()
+			seg2.SegmentID = vanus.NewTestID()
 			segData2, _ := stdJson.Marshal(seg2)
 
 			seg3 := new(struct {
 				SegmentID vanus.ID `json:"segment_id"`
 			})
-			seg3.SegmentID = vanus.NewID()
+			seg3.SegmentID = vanus.NewTestID()
 			segData3, _ := stdJson.Marshal(seg3)
 			segPairs := []kv.Pair{
 				{
@@ -123,15 +123,15 @@ func TestEventlogManager_RunWithoutTask(t *testing.T) {
 				return []kv.Pair{}, nil
 			})
 
-			segment1 := createTestSegment(vanus.NewID())
+			segment1 := createTestSegment(vanus.NewTestID())
 			segment1.ID = seg1.SegmentID
 			_data1, _ := stdJson.Marshal(segment1)
 
-			segment2 := createTestSegment(vanus.NewID())
+			segment2 := createTestSegment(vanus.NewTestID())
 			segment2.ID = seg2.SegmentID
 			_data2, _ := stdJson.Marshal(segment2)
 
-			segment3 := createTestSegment(vanus.NewID())
+			segment3 := createTestSegment(vanus.NewTestID())
 			segment3.ID = seg3.SegmentID
 			_data3, _ := stdJson.Marshal(segment3)
 
@@ -182,24 +182,24 @@ func TestEventlogManager_ScaleSegmentTask(t *testing.T) {
 		alloc := block.NewMockAllocator(ctrl)
 		utMgr.allocator = alloc
 		vol1 := metadata.VolumeMetadata{
-			ID:       vanus.NewID(),
+			ID:       vanus.NewTestID(),
 			Capacity: 64 * 1024 * 1024 * 1024,
 		}
 		alloc.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
 		alloc.EXPECT().Pick(gomock.Any(), 3).AnyTimes().DoAndReturn(func(ctx stdCtx.Context, num int) ([]*metadata.Block, error) {
 			return []*metadata.Block{
 				{
-					ID:       vanus.NewID(),
+					ID:       vanus.NewTestID(),
 					Capacity: 64 * 1024 * 1024,
 					VolumeID: vol1.ID,
 				},
 				{
-					ID:       vanus.NewID(),
+					ID:       vanus.NewTestID(),
 					Capacity: 64 * 1024 * 1024,
 					VolumeID: vol1.ID,
 				},
 				{
-					ID:       vanus.NewID(),
+					ID:       vanus.NewTestID(),
 					Capacity: 64 * 1024 * 1024,
 					VolumeID: vol1.ID,
 				},
@@ -223,12 +223,12 @@ func TestEventlogManager_ScaleSegmentTask(t *testing.T) {
 		err := utMgr.Run(ctx, kvCli, true)
 		So(err, ShouldBeNil)
 		md1 := &metadata.Eventlog{
-			ID:         vanus.NewID(),
-			EventbusID: vanus.NewID(),
+			ID:         vanus.NewTestID(),
+			EventbusID: vanus.NewTestID(),
 		}
 		md2 := &metadata.Eventlog{
-			ID:         vanus.NewID(),
-			EventbusID: vanus.NewID(),
+			ID:         vanus.NewTestID(),
+			EventbusID: vanus.NewTestID(),
 		}
 
 		// Test allocate segment automatically
@@ -290,24 +290,24 @@ func TestEventlogManager_CleanSegmentTask(t *testing.T) {
 		alloc := block.NewMockAllocator(ctrl)
 		utMgr.allocator = alloc
 		vol1 := metadata.VolumeMetadata{
-			ID:       vanus.NewID(),
+			ID:       vanus.NewTestID(),
 			Capacity: 64 * 1024 * 1024 * 1024,
 		}
 		alloc.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
 		alloc.EXPECT().Pick(gomock.Any(), 3).AnyTimes().DoAndReturn(func(ctx stdCtx.Context, num int) ([]*metadata.Block, error) {
 			return []*metadata.Block{
 				{
-					ID:       vanus.NewID(),
+					ID:       vanus.NewTestID(),
 					Capacity: 64 * 1024 * 1024,
 					VolumeID: vol1.ID,
 				},
 				{
-					ID:       vanus.NewID(),
+					ID:       vanus.NewTestID(),
 					Capacity: 64 * 1024 * 1024,
 					VolumeID: vol1.ID,
 				},
 				{
-					ID:       vanus.NewID(),
+					ID:       vanus.NewTestID(),
 					Capacity: 64 * 1024 * 1024,
 					VolumeID: vol1.ID,
 				},
@@ -330,12 +330,12 @@ func TestEventlogManager_CleanSegmentTask(t *testing.T) {
 		err := utMgr.Run(ctx, kvCli, true)
 		So(err, ShouldBeNil)
 		md1 := &metadata.Eventlog{
-			ID:         vanus.NewID(),
-			EventbusID: vanus.NewID(),
+			ID:         vanus.NewTestID(),
+			EventbusID: vanus.NewTestID(),
 		}
 		md2 := &metadata.Eventlog{
-			ID:         vanus.NewID(),
-			EventbusID: vanus.NewID(),
+			ID:         vanus.NewTestID(),
+			EventbusID: vanus.NewTestID(),
 		}
 
 		// Test allocate segment automatically
@@ -384,23 +384,23 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 		alloc := block.NewMockAllocator(ctrl)
 		utMgr.allocator = alloc
 		vol1 := metadata.VolumeMetadata{
-			ID:       vanus.NewID(),
+			ID:       vanus.NewTestID(),
 			Capacity: 64 * 1024 * 1024 * 1024,
 		}
 		alloc.EXPECT().Pick(ctx, 3).Times(2).DoAndReturn(func(ctx stdCtx.Context, num int) ([]*metadata.Block, error) {
 			return []*metadata.Block{
 				{
-					ID:       vanus.NewID(),
+					ID:       vanus.NewTestID(),
 					Capacity: 64 * 1024 * 1024,
 					VolumeID: vol1.ID,
 				},
 				{
-					ID:       vanus.NewID(),
+					ID:       vanus.NewTestID(),
 					Capacity: 64 * 1024 * 1024,
 					VolumeID: vol1.ID,
 				},
 				{
-					ID:       vanus.NewID(),
+					ID:       vanus.NewTestID(),
 					Capacity: 64 * 1024 * 1024,
 					VolumeID: vol1.ID,
 				},
@@ -416,7 +416,7 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 		srv.EXPECT().GetClient().Times(2).Return(grpcCli)
 		grpcCli.EXPECT().ActivateSegment(ctx, gomock.Any()).Times(2).Return(nil, nil)
 
-		eventbusID := vanus.NewID()
+		eventbusID := vanus.NewTestID()
 		logMD, err := utMgr.AcquireEventLog(ctx, eventbusID)
 		Convey("validate metadata", func() {
 			So(err, ShouldBeNil)
@@ -474,11 +474,11 @@ func TestEventlogManager_DeleteEventlog(t *testing.T) {
 
 		Convey("test deleting", func() {
 			// the eventlog doesn't exist
-			utMgr.DeleteEventlog(ctx, vanus.NewID())
+			utMgr.DeleteEventlog(ctx, vanus.NewTestID())
 
 			md := &metadata.Eventlog{
-				ID:         vanus.NewID(),
-				EventbusID: vanus.NewID(),
+				ID:         vanus.NewTestID(),
+				EventbusID: vanus.NewTestID(),
 			}
 			el, err := newEventlog(ctx, md, kvCli, false)
 			So(err, ShouldBeNil)
@@ -499,11 +499,11 @@ func TestEventlogManager_DeleteEventlog(t *testing.T) {
 
 		Convey("make sure delete meta in kv", func() {
 			// the eventlog doesn't exist
-			utMgr.DeleteEventlog(ctx, vanus.NewID())
+			utMgr.DeleteEventlog(ctx, vanus.NewTestID())
 
 			md := &metadata.Eventlog{
-				ID:         vanus.NewID(),
-				EventbusID: vanus.NewID(),
+				ID:         vanus.NewTestID(),
+				EventbusID: vanus.NewTestID(),
 			}
 			el, err := newEventlog(ctx, md, kvCli, false)
 			So(err, ShouldBeNil)
@@ -531,23 +531,23 @@ func TestEventlogManager_GetAppendableSegment(t *testing.T) {
 		alloc := block.NewMockAllocator(ctrl)
 		mgr.allocator = alloc
 		vol1 := metadata.VolumeMetadata{
-			ID:       vanus.NewID(),
+			ID:       vanus.NewTestID(),
 			Capacity: 64 * 1024 * 1024 * 1024,
 		}
 		alloc.EXPECT().Pick(ctx, 3).Times(1).DoAndReturn(func(ctx stdCtx.Context, num int) ([]*metadata.Block, error) {
 			return []*metadata.Block{
 				{
-					ID:       vanus.NewID(),
+					ID:       vanus.NewTestID(),
 					Capacity: 64 * 1024 * 1024,
 					VolumeID: vol1.ID,
 				},
 				{
-					ID:       vanus.NewID(),
+					ID:       vanus.NewTestID(),
 					Capacity: 64 * 1024 * 1024,
 					VolumeID: vol1.ID,
 				},
 				{
-					ID:       vanus.NewID(),
+					ID:       vanus.NewTestID(),
 					Capacity: 64 * 1024 * 1024,
 					VolumeID: vol1.ID,
 				},
@@ -565,8 +565,8 @@ func TestEventlogManager_GetAppendableSegment(t *testing.T) {
 
 		Convey("case: no segment", func() {
 			md := &metadata.Eventlog{
-				ID:         vanus.NewID(),
-				EventbusID: vanus.NewID(),
+				ID:         vanus.NewTestID(),
+				EventbusID: vanus.NewTestID(),
 			}
 
 			el, err := newEventlog(ctx, md, kvCli, false)
@@ -593,24 +593,24 @@ func TestEventlogManager_UpdateSegment(t *testing.T) {
 			utMgr.UpdateSegment(ctx, map[string][]Segment{
 				"dont_exist": {
 					{
-						ID: vanus.NewID(),
+						ID: vanus.NewTestID(),
 					},
 					{
-						ID: vanus.NewID(),
+						ID: vanus.NewTestID(),
 					},
 				},
 			})
 		})
 
 		md := &metadata.Eventlog{
-			ID:         vanus.NewID(),
-			EventbusID: vanus.NewID(),
+			ID:         vanus.NewTestID(),
+			EventbusID: vanus.NewTestID(),
 		}
 
 		Convey("case: test segment doesn't need to be updated", func() {
 			elog, err := newEventlog(ctx, md, kvCli, false)
 			So(err, ShouldBeNil)
-			seg := createTestSegment(vanus.NewID())
+			seg := createTestSegment(vanus.NewTestID())
 			kvCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).Times(1).Return(nil)
 			err = elog.add(ctx, seg)
 			So(err, ShouldBeNil)
@@ -619,7 +619,7 @@ func TestEventlogManager_UpdateSegment(t *testing.T) {
 			utMgr.UpdateSegment(ctx, map[string][]Segment{
 				md.ID.String(): {
 					{
-						ID: vanus.NewID(),
+						ID: vanus.NewTestID(),
 					},
 				},
 			})
@@ -637,7 +637,7 @@ func TestEventlogManager_UpdateSegment(t *testing.T) {
 		Convey("case: test segment to be updated", func() {
 			elog, err := newEventlog(ctx, md, kvCli, false)
 			So(err, ShouldBeNil)
-			seg := createTestSegment(vanus.NewID())
+			seg := createTestSegment(vanus.NewTestID())
 			kvCli.EXPECT().Set(ctx, metadata.GetEventlogSegmentsMetadataKey(elog.md.ID, seg.ID), gomock.Any()).
 				Times(1).Return(nil)
 			err = elog.add(ctx, seg)
@@ -722,11 +722,11 @@ func TestEventlogManager_UpdateSegmentReplicas(t *testing.T) {
 		utMgr.kvClient = kvCli
 
 		blk := &metadata.Block{
-			ID:        vanus.NewID(),
+			ID:        vanus.NewTestID(),
 			Capacity:  64 * 1024 * 1024,
 			SegmentID: 0,
 		}
-		seg := createTestSegment(vanus.NewID())
+		seg := createTestSegment(vanus.NewTestID())
 		seg.Replicas.Term = 3
 		utMgr.globalSegmentMap.Store(seg.ID.Key(), seg)
 		utMgr.globalBlockMap.Store(blk.ID.Key(), blk)
@@ -735,7 +735,7 @@ func TestEventlogManager_UpdateSegmentReplicas(t *testing.T) {
 		kvCli.EXPECT().Set(ctx, filepath.Join(metadata.SegmentKeyPrefixInKVStore, seg.ID.String()),
 			gomock.Any()).Times(1).Return(nil)
 
-		err := utMgr.UpdateSegmentReplicas(ctx, vanus.NewID(), 3)
+		err := utMgr.UpdateSegmentReplicas(ctx, vanus.NewTestID(), 3)
 		So(err, ShouldEqual, errors.ErrBlockNotFound)
 
 		err = utMgr.UpdateSegmentReplicas(ctx, blk.ID, 3)
@@ -762,16 +762,16 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 		}
 
 		el1, err1 := newEventlog(ctx, &metadata.Eventlog{
-			ID:         vanus.NewID(),
-			EventbusID: vanus.NewID(),
+			ID:         vanus.NewTestID(),
+			EventbusID: vanus.NewTestID(),
 		}, kvCli, false)
 		el2, err2 := newEventlog(ctx, &metadata.Eventlog{
-			ID:         vanus.NewID(),
-			EventbusID: vanus.NewID(),
+			ID:         vanus.NewTestID(),
+			EventbusID: vanus.NewTestID(),
 		}, kvCli, false)
 		el3, err3 := newEventlog(ctx, &metadata.Eventlog{
-			ID:         vanus.NewID(),
-			EventbusID: vanus.NewID(),
+			ID:         vanus.NewTestID(),
+			EventbusID: vanus.NewTestID(),
 		}, kvCli, false)
 		So(err1, ShouldBeNil)
 		So(err2, ShouldBeNil)
@@ -785,7 +785,7 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 			kvCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 
 			s11 := &Segment{
-				ID:                 vanus.NewID(),
+				ID:                 vanus.NewTestID(),
 				FirstEventBornTime: time.Now().Add(-6 * time.Hour),
 				LastEventBornTime:  time.Now().Add(-3 * time.Hour),
 			}
@@ -793,13 +793,13 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 			el1.segments = []vanus.ID{s11.ID}
 
 			s21 := &Segment{
-				ID:                 vanus.NewID(),
+				ID:                 vanus.NewTestID(),
 				FirstEventBornTime: time.Now().Add(-6 * time.Hour),
 				LastEventBornTime:  time.Now().Add(-3 * time.Hour),
 				State:              StateFrozen,
 			}
 			s22 := &Segment{
-				ID:                 vanus.NewID(),
+				ID:                 vanus.NewTestID(),
 				FirstEventBornTime: time.Now().Add(-3 * time.Hour),
 				LastEventBornTime:  time.Now().Add(-1 * time.Minute),
 			}
@@ -808,25 +808,25 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 			el2.segments = []vanus.ID{s21.ID, s22.ID}
 
 			s31 := &Segment{
-				ID:                 vanus.NewID(),
+				ID:                 vanus.NewTestID(),
 				FirstEventBornTime: time.Now().Add(-6 * time.Hour),
 				LastEventBornTime:  time.Now().Add(-3 * time.Hour),
 				State:              StateFrozen,
 			}
 			s32 := &Segment{
-				ID:                 vanus.NewID(),
+				ID:                 vanus.NewTestID(),
 				FirstEventBornTime: time.Now().Add(-3 * time.Hour),
 				LastEventBornTime:  time.Now().Add(-1*time.Hour - time.Minute),
 				State:              StateFrozen,
 			}
 			s33 := &Segment{
-				ID:                 vanus.NewID(),
+				ID:                 vanus.NewTestID(),
 				FirstEventBornTime: time.Now().Add(-1 * time.Hour),
 				LastEventBornTime:  time.Now().Add(-1 * time.Minute),
 				State:              StateFrozen,
 			}
 			s34 := &Segment{
-				ID:                 vanus.NewID(),
+				ID:                 vanus.NewTestID(),
 				FirstEventBornTime: time.Now().Add(-1 * time.Minute),
 				LastEventBornTime:  time.Now().Add(-1 * time.Millisecond),
 				State:              StateFrozen,
@@ -865,32 +865,32 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 			kvCli.EXPECT().Delete(gomock.Any(), gomock.Any()).AnyTimes().Return(kv.ErrUnknown)
 
 			s11 := &Segment{
-				ID:    vanus.NewID(),
+				ID:    vanus.NewTestID(),
 				State: StateFrozen,
 			}
 			el1.segmentList.Set(s11.ID.Uint64(), s11)
 			el1.segments = []vanus.ID{s11.ID}
 
 			s31 := &Segment{
-				ID:                 vanus.NewID(),
+				ID:                 vanus.NewTestID(),
 				FirstEventBornTime: time.Now().Add(-6 * time.Hour),
 				LastEventBornTime:  time.Now().Add(-3 * time.Hour),
 				State:              StateFrozen,
 			}
 			s32 := &Segment{
-				ID:                 vanus.NewID(),
+				ID:                 vanus.NewTestID(),
 				FirstEventBornTime: time.Now().Add(-3 * time.Hour),
 				LastEventBornTime:  time.Now().Add(-1*time.Hour - time.Minute),
 				State:              StateFrozen,
 			}
 			s33 := &Segment{
-				ID:                 vanus.NewID(),
+				ID:                 vanus.NewTestID(),
 				FirstEventBornTime: time.Now().Add(-1 * time.Hour),
 				LastEventBornTime:  time.Now().Add(-1 * time.Minute),
 				State:              StateFrozen,
 			}
 			s34 := &Segment{
-				ID:                 vanus.NewID(),
+				ID:                 vanus.NewTestID(),
 				FirstEventBornTime: time.Now().Add(-1 * time.Minute),
 				LastEventBornTime:  time.Now().Add(-1 * time.Millisecond),
 				State:              StateFrozen,
@@ -922,7 +922,7 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 			kvCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
 
 			s11 := &Segment{
-				ID:    vanus.NewID(),
+				ID:    vanus.NewTestID(),
 				State: StateFrozen,
 			}
 			el1.segmentList.Set(s11.ID.Uint64(), s11)
@@ -952,15 +952,15 @@ func TestEventlog_All(t *testing.T) {
 		kvCli := kv.NewMockClient(ctrl)
 		ctx := stdCtx.Background()
 		md := &metadata.Eventlog{
-			ID:         vanus.NewID(),
-			EventbusID: vanus.NewID(),
+			ID:         vanus.NewTestID(),
+			EventbusID: vanus.NewTestID(),
 		}
 		el, _ := newEventlog(ctx, md, kvCli, false)
 
-		seg1 := createTestSegment(vanus.NewID())
-		seg2 := createTestSegment(vanus.NewID())
-		seg3 := createTestSegment(vanus.NewID())
-		seg4 := createTestSegment(vanus.NewID())
+		seg1 := createTestSegment(vanus.NewTestID())
+		seg2 := createTestSegment(vanus.NewTestID())
+		seg3 := createTestSegment(vanus.NewTestID())
+		seg4 := createTestSegment(vanus.NewTestID())
 
 		kvCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).Times(7).Return(nil)
 		_ = el.add(ctx, seg1)

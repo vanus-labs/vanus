@@ -79,7 +79,7 @@ func TestSegmentServer(t *testing.T) {
 			srv.EXPECT().CreateBlock(Any(), Any(), Eq(int64(0))).Return(errors.ErrInvalidRequest)
 
 			req := &segpb.CreateBlockRequest{
-				Id:   vanus.NewID().Uint64(),
+				Id:   vanus.NewTestID().Uint64(),
 				Size: 4 * 1024 * 1024,
 			}
 			resp, err := ss.CreateBlock(context.Background(), req)
@@ -87,7 +87,7 @@ func TestSegmentServer(t *testing.T) {
 			So(resp, ShouldNotBeNil)
 
 			req = &segpb.CreateBlockRequest{
-				Id:   vanus.NewID().Uint64(),
+				Id:   vanus.NewTestID().Uint64(),
 				Size: 0,
 			}
 			_, err = ss.CreateBlock(context.Background(), req)
@@ -106,7 +106,7 @@ func TestSegmentServer(t *testing.T) {
 			srv.EXPECT().RemoveBlock(Any(), Eq(vanus.EmptyID())).Return(errors.ErrInvalidRequest)
 
 			req := &segpb.RemoveBlockRequest{
-				Id: vanus.NewID().Uint64(),
+				Id: vanus.NewTestID().Uint64(),
 			}
 			resp, err := ss.RemoveBlock(context.Background(), req)
 			So(err, ShouldBeNil)
@@ -132,8 +132,8 @@ func TestSegmentServer(t *testing.T) {
 			srv.EXPECT().ActivateSegment(Any(), Any(), Any(), Any()).Return(nil)
 
 			req := &segpb.ActivateSegmentRequest{
-				EventLogId:     vanus.NewID().Uint64(),
-				ReplicaGroupId: vanus.NewID().Uint64(),
+				EventLogId:     vanus.NewTestID().Uint64(),
+				ReplicaGroupId: vanus.NewTestID().Uint64(),
 				Replicas: map[uint64]string{
 					1: "127.0.0.1:11811",
 				},
@@ -158,7 +158,7 @@ func TestSegmentServer(t *testing.T) {
 			srv.EXPECT().AppendToBlock(Any(), Any(), Len(0)).Return(nil, errors.ErrInvalidRequest)
 
 			req := &segpb.AppendToBlockRequest{
-				BlockId: vanus.NewID().Uint64(),
+				BlockId: vanus.NewTestID().Uint64(),
 				Events: &cepb.CloudEventBatch{
 					Events: make([]*cepb.CloudEvent, 1),
 				},
@@ -177,7 +177,7 @@ func TestSegmentServer(t *testing.T) {
 			So(err, ShouldEqual, errors.ErrInvalidRequest)
 
 			req = &segpb.AppendToBlockRequest{
-				BlockId: vanus.NewID().Uint64(),
+				BlockId: vanus.NewTestID().Uint64(),
 				Events:  &cepb.CloudEventBatch{},
 			}
 			_, err = ss.AppendToBlock(context.Background(), req)
@@ -185,7 +185,7 @@ func TestSegmentServer(t *testing.T) {
 		})
 
 		Convey("ReadFromBlock()", func() {
-			id := vanus.NewID()
+			id := vanus.NewTestID()
 			srv.EXPECT().ReadFromBlock(Any(), Not(vanus.EmptyID()), Any(), Not(0), Any()).Return(make([]*cepb.CloudEvent, 1), nil)
 			srv.EXPECT().ReadFromBlock(Any(), Eq(vanus.EmptyID()), Any(), Any(), Any()).Return(nil, errors.ErrInvalidRequest)
 			srv.EXPECT().ReadFromBlock(Any(), Any(), Any(), Eq(0), Any()).Return(nil, errors.ErrResourceNotFound)
@@ -205,7 +205,7 @@ func TestSegmentServer(t *testing.T) {
 			So(err, ShouldEqual, errors.ErrInvalidRequest)
 
 			req = &segpb.ReadFromBlockRequest{
-				BlockId: vanus.NewID().Uint64(),
+				BlockId: vanus.NewTestID().Uint64(),
 			}
 			_, err = ss.ReadFromBlock(context.Background(), req)
 			So(err, ShouldEqual, errors.ErrResourceNotFound)

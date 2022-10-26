@@ -32,7 +32,7 @@ import (
 func TestVolumeInstance(t *testing.T) {
 	Convey("test volume instance", t, func() {
 		md := &metadata.VolumeMetadata{
-			ID:       vanus.NewID(),
+			ID:       vanus.NewTestID(),
 			Capacity: 32 * 1024 * 1024 * 1024,
 			Used:     0,
 			Blocks:   map[uint64]*metadata.Block{},

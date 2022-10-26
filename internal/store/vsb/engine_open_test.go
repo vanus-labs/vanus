@@ -30,7 +30,7 @@ import (
 
 func TestEngine_ResolvePath(t *testing.T) {
 	dir := os.TempDir()
-	id := vanus.NewID()
+	id := vanus.NewTestID()
 
 	Convey("resolve path", t, func() {
 		e := engine{

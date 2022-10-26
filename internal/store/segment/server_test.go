@@ -48,7 +48,7 @@ func TestServer_RemoveBlock(t *testing.T) {
 		}
 
 		Convey("state checking", func() {
-			err := srv.RemoveBlock(context.Background(), vanus.NewID())
+			err := srv.RemoveBlock(context.Background(), vanus.NewTestID())
 			et := err.(*errors.ErrorType)
 			So(et.Description, ShouldEqual, "service state error")
 			So(et.Code, ShouldEqual, errors.ErrorCode_SERVICE_NOT_RUNNING)
@@ -60,7 +60,7 @@ func TestServer_RemoveBlock(t *testing.T) {
 		Convey("not found block", func() {
 			srv.state = primitive.ServerStateRunning
 
-			err := srv.RemoveBlock(context.Background(), vanus.NewID())
+			err := srv.RemoveBlock(context.Background(), vanus.NewTestID())
 			et := err.(*errors.ErrorType)
 			So(et.Description, ShouldEqual, "resource not found")
 			So(et.Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
@@ -71,7 +71,7 @@ func TestServer_RemoveBlock(t *testing.T) {
 			ctrl := NewController(t)
 			defer ctrl.Finish()
 
-			id := vanus.NewID()
+			id := vanus.NewTestID()
 			b := NewMockReplica(ctrl)
 			b.EXPECT().ID().AnyTimes().Return(id)
 			b.EXPECT().Delete(Any())
@@ -92,7 +92,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 			state: primitive.ServerStateRunning,
 		}
 
-		_, err := srv.ReadFromBlock(context.Background(), vanus.NewID(), 0, 3, uint32(0))
+		_, err := srv.ReadFromBlock(context.Background(), vanus.NewTestID(), 0, 3, uint32(0))
 		So(err, ShouldNotBeNil)
 		So(err.(*errors.ErrorType).Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
 	})
@@ -105,7 +105,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 			state: primitive.ServerStateRunning,
 		}
 
-		id := vanus.NewID()
+		id := vanus.NewTestID()
 		b := NewMockReplica(ctrl)
 		b.EXPECT().ID().AnyTimes().Return(id)
 		b.EXPECT().IDStr().AnyTimes().Return(id.String())

@@ -40,7 +40,7 @@ func TestTriggerWorker_ResetOffsetToTimestamp(t *testing.T) {
 		addr := "test"
 		tWorker := NewTriggerWorkerByAddr(addr, subscriptionManager).(*triggerWorker)
 		tWorker.client = client
-		id := vanus.NewID()
+		id := vanus.NewTestID()
 		client.EXPECT().ResetOffsetToTimestamp(gomock.Any(), gomock.Any()).Return(nil, nil)
 		err := tWorker.ResetOffsetToTimestamp(id, uint64(time.Now().Unix()))
 		So(err, ShouldBeNil)
@@ -57,12 +57,12 @@ func TestTriggerWorker_AssignSubscription(t *testing.T) {
 		subscriptionManager.EXPECT().GetSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 		tWorker := NewTriggerWorkerByAddr(addr, subscriptionManager).(*triggerWorker)
 		So(len(tWorker.GetAssignedSubscriptions()), ShouldEqual, 0)
-		id := vanus.NewID()
+		id := vanus.NewTestID()
 		tWorker.AssignSubscription(id)
 		So(len(tWorker.GetAssignedSubscriptions()), ShouldEqual, 1)
 		_, exist := tWorker.assignSubscriptionIDs.Load(id)
 		So(exist, ShouldBeTrue)
-		id2 := vanus.NewID()
+		id2 := vanus.NewTestID()
 		tWorker.AssignSubscription(id2)
 		So(len(tWorker.GetAssignedSubscriptions()), ShouldEqual, 2)
 		_, exist = tWorker.assignSubscriptionIDs.Load(id2)
@@ -82,7 +82,7 @@ func TestTriggerWorker_UnAssignSubscription(t *testing.T) {
 		tWorker.client = client
 		tWorker.SetPhase(metadata.TriggerWorkerPhaseRunning)
 		Convey("remove subscription no error", func() {
-			id := vanus.NewID()
+			id := vanus.NewTestID()
 			tWorker.assignSubscriptionIDs.Store(id, time.Now())
 			So(len(tWorker.GetAssignedSubscriptions()), ShouldEqual, 1)
 			client.EXPECT().RemoveSubscription(gomock.Any(), gomock.Any()).Return(nil, nil)
@@ -90,7 +90,7 @@ func TestTriggerWorker_UnAssignSubscription(t *testing.T) {
 			So(len(tWorker.GetAssignedSubscriptions()), ShouldEqual, 0)
 		})
 		Convey("remove subscription has error", func() {
-			id := vanus.NewID()
+			id := vanus.NewTestID()
 			tWorker.assignSubscriptionIDs.Store(id, time.Now())
 			So(len(tWorker.GetAssignedSubscriptions()), ShouldEqual, 1)
 			client.EXPECT().RemoveSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, fmt.Errorf("error"))
@@ -133,7 +133,7 @@ func TestTriggerWorker_Handler(t *testing.T) {
 		tWorker := NewTriggerWorkerByAddr(addr, subscriptionManager).(*triggerWorker)
 		tWorker.client = client
 		Convey("remove subscription", func() {
-			id := vanus.NewID()
+			id := vanus.NewTestID()
 			client.EXPECT().RemoveSubscription(gomock.Any(), gomock.Any()).Return(nil, nil)
 			err := tWorker.handler(ctx, id)
 			So(err, ShouldBeNil)
@@ -142,7 +142,7 @@ func TestTriggerWorker_Handler(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 		Convey("add subscription", func() {
-			id := vanus.NewID()
+			id := vanus.NewTestID()
 			tWorker.assignSubscriptionIDs.Store(id, time.Now())
 			sub := &metadata.Subscription{
 				ID:     id,

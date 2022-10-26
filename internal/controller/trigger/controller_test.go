@@ -45,14 +45,14 @@ func TestController_CommitOffset(t *testing.T) {
 		subManager := subscription.NewMockManager(mockCtrl)
 		ctrl.subscriptionManager = subManager
 
-		subID := vanus.NewID()
+		subID := vanus.NewTestID()
 		ctrl.state = primitive.ServerStateRunning
 		request := &ctrlpb.CommitOffsetRequest{
 			ForceCommit: true,
 			SubscriptionInfo: []*metapb.SubscriptionInfo{{
 				SubscriptionId: subID.Uint64(),
 				Offsets: []*metapb.OffsetInfo{{
-					EventLogId: vanus.NewID().Uint64(),
+					EventLogId: vanus.NewTestID().Uint64(),
 					Offset:     100,
 				}},
 			}},
@@ -85,7 +85,7 @@ func TestController_ResetOffsetToTimestamp(t *testing.T) {
 		ctrl.subscriptionManager = subManager
 
 		addr := "test"
-		subID := vanus.NewID()
+		subID := vanus.NewTestID()
 		ctrl.state = primitive.ServerStateRunning
 		Convey("reset offset subscription not exist", func() {
 			subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).AnyTimes().Return(nil)
@@ -161,7 +161,7 @@ func TestController_UpdateSubscription(t *testing.T) {
 		ctrl.subscriptionManager = subManager
 		ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
 
-		subID := vanus.NewID()
+		subID := vanus.NewTestID()
 		ctrl.state = primitive.ServerStateRunning
 		Convey("update subscription not exist", func() {
 			subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).Return(nil)
@@ -378,7 +378,7 @@ func TestController_DeleteSubscription(t *testing.T) {
 		ctrl.subscriptionManager = subManager
 		ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
 
-		subID := vanus.NewID()
+		subID := vanus.NewTestID()
 		request := &ctrlpb.DeleteSubscriptionRequest{
 			Id: subID.Uint64(),
 		}
@@ -437,7 +437,7 @@ func TestController_GetSubscription(t *testing.T) {
 		ctrl.subscriptionManager = subManager
 		ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
 
-		subID := vanus.NewID()
+		subID := vanus.NewTestID()
 		request := &ctrlpb.GetSubscriptionRequest{
 			Id: subID.Uint64(),
 		}
@@ -475,8 +475,8 @@ func TestController_ListSubscription(t *testing.T) {
 		ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
 		Convey("list subscription", func() {
 			list := []*metadata.Subscription{
-				{ID: vanus.NewID(), EventBus: "bus1"},
-				{ID: vanus.NewID(), EventBus: "bus2"},
+				{ID: vanus.NewTestID(), EventBus: "bus1"},
+				{ID: vanus.NewTestID(), EventBus: "bus2"},
 			}
 			subManager.EXPECT().ListSubscription(gomock.Any()).Return(list)
 			subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(info.ListOffsetInfo{}, nil)
@@ -498,27 +498,27 @@ func TestController_TriggerWorkerHeartbeat(t *testing.T) {
 		subManager := subscription.NewMockManager(mockCtrl)
 		ctrl.subscriptionManager = subManager
 		ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
-		subID1 := vanus.NewID()
+		subID1 := vanus.NewTestID()
 		sub1 := &metapb.SubscriptionInfo{
 			SubscriptionId: subID1.Uint64(),
 			Offsets: []*metapb.OffsetInfo{
 				{
-					EventLogId: vanus.NewID().Uint64(),
+					EventLogId: vanus.NewTestID().Uint64(),
 					Offset:     100,
 				},
 			},
 		}
-		subID2 := vanus.NewID()
+		subID2 := vanus.NewTestID()
 		sub2 := &metapb.SubscriptionInfo{
 			SubscriptionId: subID2.Uint64(),
 			Offsets: []*metapb.OffsetInfo{
 				{
-					EventLogId: vanus.NewID().Uint64(),
+					EventLogId: vanus.NewTestID().Uint64(),
 					Offset:     100,
 				},
 			},
 		}
-		subID3 := vanus.NewID()
+		subID3 := vanus.NewTestID()
 		sub3 := &metapb.SubscriptionInfo{
 			SubscriptionId: subID3.Uint64(),
 			Offsets:        []*metapb.OffsetInfo{},

@@ -25,8 +25,8 @@ import (
 
 func TestSubscriptionOffset(t *testing.T) {
 	Convey("subscription offset", t, func() {
-		eventLogID := vanus.NewID()
-		subOffset := NewSubscriptionOffset(vanus.NewID())
+		eventLogID := vanus.NewTestID()
+		subOffset := NewSubscriptionOffset(vanus.NewTestID())
 		Convey("commit with no receive", func() {
 			offsetBegin := uint64(1)
 			commitEnd := offsetBegin + 10

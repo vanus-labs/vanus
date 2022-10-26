@@ -33,7 +33,7 @@ import (
 
 func getTestSubscription() *metadata.Subscription {
 	return &metadata.Subscription{
-		ID:    vanus.NewID(),
+		ID:    vanus.NewTestID(),
 		Phase: metadata.SubscriptionPhaseCreated,
 	}
 }
@@ -201,7 +201,7 @@ func TestPendingTriggerWorkerHandler(t *testing.T) {
 		Convey("pending worker start", func() {
 			tWorker.EXPECT().GetPendingTime().AnyTimes().Return(time.Now().Add(twManager.config.StartWorkerDuration * -1))
 			time.Sleep(time.Millisecond)
-			tWorker.EXPECT().GetAssignedSubscriptions().AnyTimes().Return([]vanus.ID{vanus.NewID()})
+			tWorker.EXPECT().GetAssignedSubscriptions().AnyTimes().Return([]vanus.ID{vanus.NewTestID()})
 			tWorker.EXPECT().AssignSubscription(gomock.Any()).AnyTimes().Return()
 			tWorker.EXPECT().RemoteStart(ctx).Return(nil)
 			twManager.pendingTriggerWorkerHandler(ctx, tWorker)
