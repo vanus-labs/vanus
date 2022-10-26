@@ -15,8 +15,16 @@
 package vanus
 
 import (
+	"context"
 	"fmt"
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/pkg/controller"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/sony/sonyflake"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 	"strconv"
 	"sync"
 	"time"
@@ -36,12 +44,25 @@ func EmptyID() ID {
 }
 
 var (
-	generator *sonyflake.Sonyflake
+	generator *snowflake
 	once      sync.Once
 )
 
+type snowflake struct {
+	snow     *sonyflake.Sonyflake
+	client   ctrlpb.SnowflakeControllerClient
+	ctrlAddr []string
+	nodeID   uint16
+}
+
 func InitSnowflake(ctrlAddr []string, nodeID uint16) error {
+	var err error
 	once.Do(func() {
+		snow := &snowflake{
+			client:   controller.NewSnowflakeController(ctrlAddr, insecure.NewCredentials()),
+			ctrlAddr: ctrlAddr,
+			nodeID:   nodeID,
+		}
 		sonyflake.NewSonyflake(sonyflake.Settings{
 			StartTime: time.Time{},
 			MachineID: func() (uint16, error) {
@@ -49,15 +70,36 @@ func InitSnowflake(ctrlAddr []string, nodeID uint16) error {
 			},
 			CheckMachineID: nil,
 		})
+		var startTime *timestamppb.Timestamp
+		startTime, err = snow.client.GetClusterStartTime(context.Background(), &empty.Empty{})
+		if err != nil {
+			return
+		}
+		snow.snow = sonyflake.NewSonyflake(sonyflake.Settings{
+			StartTime: startTime.AsTime(),
+			MachineID: func() (uint16, error) {
+				return nodeID, nil
+			},
+			CheckMachineID: func(u uint16) bool {
+				val, err := snow.client.CheckNodeID(context.Background(), &wrapperspb.UInt32Value{Value: uint32(nodeID)})
+				if err != nil {
+					log.Warning(nil, "check node ID to controller failed", map[string]interface{}{
+						log.KeyError: err,
+					})
+					return false
+				}
+				return val.Value
+			},
+		})
 	})
-	return nil
+	return err
 }
 
 func NewID() (ID, error) {
 	lock.Lock()
 	defer lock.Unlock()
 
-	id, err := generator.NextID()
+	id, err := generator.snow.NextID()
 	if err != nil {
 		return EmptyID(), err
 	}
