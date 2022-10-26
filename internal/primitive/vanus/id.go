@@ -54,6 +54,7 @@ type snowflake struct {
 	client   ctrlpb.SnowflakeControllerClient
 	ctrlAddr []string
 	nodeID   uint16
+	secret   uint64
 }
 
 // InitFakeSnowflake just only used for Uint Test
@@ -61,6 +62,7 @@ func InitFakeSnowflake() {
 	fake = true
 }
 
+// InitSnowflake refactor in future
 func InitSnowflake(ctrlAddr []string, nodeID uint16) error {
 	var err error
 	once.Do(func() {
@@ -69,36 +71,42 @@ func InitSnowflake(ctrlAddr []string, nodeID uint16) error {
 			ctrlAddr: ctrlAddr,
 			nodeID:   nodeID,
 		}
-		sonyflake.NewSonyflake(sonyflake.Settings{
-			StartTime: time.Time{},
-			MachineID: func() (uint16, error) {
-				return nodeID, nil
-			},
-			CheckMachineID: nil,
-		})
 		var startTime *timestamppb.Timestamp
 		startTime, err = snow.client.GetClusterStartTime(context.Background(), &empty.Empty{})
 		if err != nil {
 			return
 		}
+
 		snow.snow = sonyflake.NewSonyflake(sonyflake.Settings{
 			StartTime: startTime.AsTime(),
 			MachineID: func() (uint16, error) {
 				return nodeID, nil
 			},
 			CheckMachineID: func(u uint16) bool {
-				val, err := snow.client.CheckNodeID(context.Background(), &wrapperspb.UInt32Value{Value: uint32(nodeID)})
+				_, err := snow.client.RegisterNode(context.Background(), &wrapperspb.UInt32Value{Value: uint32(u)})
 				if err != nil {
-					log.Warning(nil, "check node ID to controller failed", map[string]interface{}{
+					log.Error(nil, "register snowflake failed", map[string]interface{}{
 						log.KeyError: err,
 					})
 					return false
 				}
-				return val.Value
+				return true
 			},
 		})
+		if snow.snow == nil {
+			err = fmt.Errorf("init snowflake failed")
+		}
 	})
 	return err
+}
+
+func DestroySnowflake() {
+	_, err := generator.client.UnregisterNode(context.Background(), &wrapperspb.UInt32Value{Value: uint32(generator.nodeID)})
+	if err != nil {
+		log.Warning(nil, "failed to unregister snowflake", map[string]interface{}{
+			log.KeyError: err,
+		})
+	}
 }
 
 func NewID() (ID, error) {

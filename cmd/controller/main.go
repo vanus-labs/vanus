@@ -18,21 +18,22 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	embedetcd "github.com/linkall-labs/embed-etcd"
+	"github.com/linkall-labs/vanus/internal/controller"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus"
+	"github.com/linkall-labs/vanus/internal/controller/snowflake"
+	"github.com/linkall-labs/vanus/internal/controller/trigger"
+	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
+	"github.com/linkall-labs/vanus/internal/primitive/interceptor/memberinterceptor"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/linkall-labs/vanus/pkg/util/signal"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"net"
 	"net/http"
 	"os"
 	"sync"
-
-	embedetcd "github.com/linkall-labs/embed-etcd"
-	"github.com/linkall-labs/vanus/internal/controller"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus"
-	"github.com/linkall-labs/vanus/internal/controller/trigger"
-	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
-	"github.com/linkall-labs/vanus/internal/primitive/interceptor/memberinterceptor"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -74,6 +75,14 @@ func main() {
 	}
 
 	// TODO wait server ready
+	snowflakeCtrl := snowflake.NewSnowflakeController(cfg.GetSnowflakeConfig(), etcd)
+	if err = snowflakeCtrl.Start(ctx); err != nil {
+		log.Error(ctx, "start Snowflake Controller failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+
 	segmentCtrl := eventbus.NewController(cfg.GetEventbusCtrlConfig(), etcd)
 	if err = segmentCtrl.Start(ctx); err != nil {
 		log.Error(ctx, "start Eventbus Controller failed", map[string]interface{}{
@@ -119,6 +128,7 @@ func main() {
 		reflection.Register(grpcServer)
 	}
 
+	ctrlpb.RegisterSnowflakeControllerServer(grpcServer, snowflakeCtrl)
 	ctrlpb.RegisterEventBusControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterEventLogControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterSegmentControllerServer(grpcServer, segmentCtrl)
@@ -136,6 +146,21 @@ func main() {
 		}
 		wg.Done()
 	}()
+
+	exit := func() {
+		snowflakeCtrl.Stop()
+		triggerCtrlStv.Stop(ctx)
+		segmentCtrl.Stop()
+		etcd.Stop(ctx)
+		grpcServer.GracefulStop()
+		vanus.DestroySnowflake()
+	}
+
+	if err = vanus.InitSnowflake(cfg.GetControllerAddrs(), cfg.NodeID); err != nil {
+		exit()
+		panic("init id generator failed")
+	}
+
 	select {
 	case <-etcdStopCh:
 		log.Info(ctx, "received etcd ready to stop, preparing exit", nil)
@@ -144,10 +169,7 @@ func main() {
 	case <-segmentCtrl.StopNotify():
 		log.Info(ctx, "received segment controller ready to stop, preparing exit", nil)
 	}
-	triggerCtrlStv.Stop(ctx)
-	segmentCtrl.Stop()
-	etcd.Stop(ctx)
-	grpcServer.GracefulStop()
+	exit()
 	wg.Wait()
 	log.Info(ctx, "the controller has been shutdown gracefully", nil)
 }

@@ -2149,22 +2149,26 @@ var file_controller_proto_rawDesc = []byte{
 	0x73, 0x65, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x2e, 0x2e, 0x6c, 0x69, 0x6e,
 	0x6b, 0x61, 0x6c, 0x6c, 0x2e, 0x76, 0x61, 0x6e, 0x75, 0x73, 0x2e, 0x63, 0x6f, 0x6e, 0x74, 0x72,
 	0x6f, 0x6c, 0x6c, 0x65, 0x72, 0x2e, 0x43, 0x6f, 0x6d, 0x6d, 0x69, 0x74, 0x4f, 0x66, 0x66, 0x73,
-	0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0xa9, 0x01, 0x0a, 0x13, 0x53,
+	0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0xee, 0x01, 0x0a, 0x13, 0x53,
 	0x6e, 0x6f, 0x77, 0x66, 0x6c, 0x61, 0x6b, 0x65, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x6c,
 	0x65, 0x72, 0x12, 0x49, 0x0a, 0x13, 0x47, 0x65, 0x74, 0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72,
 	0x53, 0x74, 0x61, 0x72, 0x74, 0x54, 0x69, 0x6d, 0x65, 0x12, 0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67,
 	0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74,
 	0x79, 0x1a, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x12, 0x47, 0x0a,
-	0x0b, 0x43, 0x68, 0x65, 0x63, 0x6b, 0x4e, 0x6f, 0x64, 0x65, 0x49, 0x44, 0x12, 0x1c, 0x2e, 0x67,
-	0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x55,
-	0x49, 0x6e, 0x74, 0x33, 0x32, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x1a, 0x1a, 0x2e, 0x67, 0x6f, 0x6f,
-	0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x42, 0x6f, 0x6f,
-	0x6c, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x42, 0x34, 0x5a, 0x32, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62,
-	0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6c, 0x69, 0x6e, 0x6b, 0x61, 0x6c, 0x6c, 0x2d, 0x6c, 0x61, 0x62,
-	0x73, 0x2f, 0x76, 0x61, 0x6e, 0x75, 0x73, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x70, 0x6b,
-	0x67, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x6c, 0x65, 0x72, 0x62, 0x06, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x33,
+	0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x12, 0x44, 0x0a,
+	0x0c, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x4e, 0x6f, 0x64, 0x65, 0x12, 0x1c, 0x2e,
+	0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e,
+	0x55, 0x49, 0x6e, 0x74, 0x33, 0x32, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x1a, 0x16, 0x2e, 0x67, 0x6f,
+	0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d,
+	0x70, 0x74, 0x79, 0x12, 0x46, 0x0a, 0x0e, 0x55, 0x6e, 0x72, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65,
+	0x72, 0x4e, 0x6f, 0x64, 0x65, 0x12, 0x1c, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x55, 0x49, 0x6e, 0x74, 0x33, 0x32, 0x56, 0x61,
+	0x6c, 0x75, 0x65, 0x1a, 0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x42, 0x34, 0x5a, 0x32, 0x67,
+	0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6c, 0x69, 0x6e, 0x6b, 0x61, 0x6c,
+	0x6c, 0x2d, 0x6c, 0x61, 0x62, 0x73, 0x2f, 0x76, 0x61, 0x6e, 0x75, 0x73, 0x2f, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x6c, 0x65,
+	0x72, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -2228,7 +2232,6 @@ var file_controller_proto_goTypes = []interface{}{
 	(*emptypb.Empty)(nil),                   // 44: google.protobuf.Empty
 	(*wrapperspb.UInt32Value)(nil),          // 45: google.protobuf.UInt32Value
 	(*timestamppb.Timestamp)(nil),           // 46: google.protobuf.Timestamp
-	(*wrapperspb.BoolValue)(nil),            // 47: google.protobuf.BoolValue
 }
 var file_controller_proto_depIdxs = []int32{
 	33, // 0: linkall.vanus.controller.ListEventbusResponse.eventbus:type_name -> linkall.vanus.meta.EventBus
@@ -2273,35 +2276,37 @@ var file_controller_proto_depIdxs = []int32{
 	25, // 39: linkall.vanus.controller.TriggerController.ResetOffsetToTimestamp:input_type -> linkall.vanus.controller.ResetOffsetToTimestampRequest
 	26, // 40: linkall.vanus.controller.TriggerController.CommitOffset:input_type -> linkall.vanus.controller.CommitOffsetRequest
 	44, // 41: linkall.vanus.controller.SnowflakeController.GetClusterStartTime:input_type -> google.protobuf.Empty
-	45, // 42: linkall.vanus.controller.SnowflakeController.CheckNodeID:input_type -> google.protobuf.UInt32Value
-	0,  // 43: linkall.vanus.controller.PingServer.Ping:output_type -> linkall.vanus.controller.PingResponse
-	33, // 44: linkall.vanus.controller.EventBusController.CreateEventBus:output_type -> linkall.vanus.meta.EventBus
-	44, // 45: linkall.vanus.controller.EventBusController.DeleteEventBus:output_type -> google.protobuf.Empty
-	33, // 46: linkall.vanus.controller.EventBusController.GetEventBus:output_type -> linkall.vanus.meta.EventBus
-	2,  // 47: linkall.vanus.controller.EventBusController.ListEventBus:output_type -> linkall.vanus.controller.ListEventbusResponse
-	33, // 48: linkall.vanus.controller.EventBusController.UpdateEventBus:output_type -> linkall.vanus.meta.EventBus
-	29, // 49: linkall.vanus.controller.EventLogController.ListSegment:output_type -> linkall.vanus.controller.ListSegmentResponse
-	31, // 50: linkall.vanus.controller.EventLogController.GetAppendableSegment:output_type -> linkall.vanus.controller.GetAppendableSegmentResponse
-	5,  // 51: linkall.vanus.controller.SegmentController.QuerySegmentRouteInfo:output_type -> linkall.vanus.controller.QuerySegmentRouteInfoResponse
-	7,  // 52: linkall.vanus.controller.SegmentController.SegmentHeartbeat:output_type -> linkall.vanus.controller.SegmentHeartbeatResponse
-	9,  // 53: linkall.vanus.controller.SegmentController.RegisterSegmentServer:output_type -> linkall.vanus.controller.RegisterSegmentServerResponse
-	11, // 54: linkall.vanus.controller.SegmentController.UnregisterSegmentServer:output_type -> linkall.vanus.controller.UnregisterSegmentServerResponse
-	44, // 55: linkall.vanus.controller.SegmentController.ReportSegmentBlockIsFull:output_type -> google.protobuf.Empty
-	44, // 56: linkall.vanus.controller.SegmentController.ReportSegmentLeader:output_type -> google.protobuf.Empty
-	41, // 57: linkall.vanus.controller.TriggerController.CreateSubscription:output_type -> linkall.vanus.meta.Subscription
-	41, // 58: linkall.vanus.controller.TriggerController.UpdateSubscription:output_type -> linkall.vanus.meta.Subscription
-	44, // 59: linkall.vanus.controller.TriggerController.DeleteSubscription:output_type -> google.protobuf.Empty
-	41, // 60: linkall.vanus.controller.TriggerController.GetSubscription:output_type -> linkall.vanus.meta.Subscription
-	18, // 61: linkall.vanus.controller.TriggerController.ListSubscription:output_type -> linkall.vanus.controller.ListSubscriptionResponse
-	24, // 62: linkall.vanus.controller.TriggerController.TriggerWorkerHeartbeat:output_type -> linkall.vanus.controller.TriggerWorkerHeartbeatResponse
-	20, // 63: linkall.vanus.controller.TriggerController.RegisterTriggerWorker:output_type -> linkall.vanus.controller.RegisterTriggerWorkerResponse
-	22, // 64: linkall.vanus.controller.TriggerController.UnregisterTriggerWorker:output_type -> linkall.vanus.controller.UnregisterTriggerWorkerResponse
-	44, // 65: linkall.vanus.controller.TriggerController.ResetOffsetToTimestamp:output_type -> google.protobuf.Empty
-	27, // 66: linkall.vanus.controller.TriggerController.CommitOffset:output_type -> linkall.vanus.controller.CommitOffsetResponse
-	46, // 67: linkall.vanus.controller.SnowflakeController.GetClusterStartTime:output_type -> google.protobuf.Timestamp
-	47, // 68: linkall.vanus.controller.SnowflakeController.CheckNodeID:output_type -> google.protobuf.BoolValue
-	43, // [43:69] is the sub-list for method output_type
-	17, // [17:43] is the sub-list for method input_type
+	45, // 42: linkall.vanus.controller.SnowflakeController.RegisterNode:input_type -> google.protobuf.UInt32Value
+	45, // 43: linkall.vanus.controller.SnowflakeController.UnregisterNode:input_type -> google.protobuf.UInt32Value
+	0,  // 44: linkall.vanus.controller.PingServer.Ping:output_type -> linkall.vanus.controller.PingResponse
+	33, // 45: linkall.vanus.controller.EventBusController.CreateEventBus:output_type -> linkall.vanus.meta.EventBus
+	44, // 46: linkall.vanus.controller.EventBusController.DeleteEventBus:output_type -> google.protobuf.Empty
+	33, // 47: linkall.vanus.controller.EventBusController.GetEventBus:output_type -> linkall.vanus.meta.EventBus
+	2,  // 48: linkall.vanus.controller.EventBusController.ListEventBus:output_type -> linkall.vanus.controller.ListEventbusResponse
+	33, // 49: linkall.vanus.controller.EventBusController.UpdateEventBus:output_type -> linkall.vanus.meta.EventBus
+	29, // 50: linkall.vanus.controller.EventLogController.ListSegment:output_type -> linkall.vanus.controller.ListSegmentResponse
+	31, // 51: linkall.vanus.controller.EventLogController.GetAppendableSegment:output_type -> linkall.vanus.controller.GetAppendableSegmentResponse
+	5,  // 52: linkall.vanus.controller.SegmentController.QuerySegmentRouteInfo:output_type -> linkall.vanus.controller.QuerySegmentRouteInfoResponse
+	7,  // 53: linkall.vanus.controller.SegmentController.SegmentHeartbeat:output_type -> linkall.vanus.controller.SegmentHeartbeatResponse
+	9,  // 54: linkall.vanus.controller.SegmentController.RegisterSegmentServer:output_type -> linkall.vanus.controller.RegisterSegmentServerResponse
+	11, // 55: linkall.vanus.controller.SegmentController.UnregisterSegmentServer:output_type -> linkall.vanus.controller.UnregisterSegmentServerResponse
+	44, // 56: linkall.vanus.controller.SegmentController.ReportSegmentBlockIsFull:output_type -> google.protobuf.Empty
+	44, // 57: linkall.vanus.controller.SegmentController.ReportSegmentLeader:output_type -> google.protobuf.Empty
+	41, // 58: linkall.vanus.controller.TriggerController.CreateSubscription:output_type -> linkall.vanus.meta.Subscription
+	41, // 59: linkall.vanus.controller.TriggerController.UpdateSubscription:output_type -> linkall.vanus.meta.Subscription
+	44, // 60: linkall.vanus.controller.TriggerController.DeleteSubscription:output_type -> google.protobuf.Empty
+	41, // 61: linkall.vanus.controller.TriggerController.GetSubscription:output_type -> linkall.vanus.meta.Subscription
+	18, // 62: linkall.vanus.controller.TriggerController.ListSubscription:output_type -> linkall.vanus.controller.ListSubscriptionResponse
+	24, // 63: linkall.vanus.controller.TriggerController.TriggerWorkerHeartbeat:output_type -> linkall.vanus.controller.TriggerWorkerHeartbeatResponse
+	20, // 64: linkall.vanus.controller.TriggerController.RegisterTriggerWorker:output_type -> linkall.vanus.controller.RegisterTriggerWorkerResponse
+	22, // 65: linkall.vanus.controller.TriggerController.UnregisterTriggerWorker:output_type -> linkall.vanus.controller.UnregisterTriggerWorkerResponse
+	44, // 66: linkall.vanus.controller.TriggerController.ResetOffsetToTimestamp:output_type -> google.protobuf.Empty
+	27, // 67: linkall.vanus.controller.TriggerController.CommitOffset:output_type -> linkall.vanus.controller.CommitOffsetResponse
+	46, // 68: linkall.vanus.controller.SnowflakeController.GetClusterStartTime:output_type -> google.protobuf.Timestamp
+	44, // 69: linkall.vanus.controller.SnowflakeController.RegisterNode:output_type -> google.protobuf.Empty
+	44, // 70: linkall.vanus.controller.SnowflakeController.UnregisterNode:output_type -> google.protobuf.Empty
+	44, // [44:71] is the sub-list for method output_type
+	17, // [17:44] is the sub-list for method input_type
 	17, // [17:17] is the sub-list for extension type_name
 	17, // [17:17] is the sub-list for extension extendee
 	0,  // [0:17] is the sub-list for field type_name
@@ -3847,7 +3852,8 @@ var _TriggerController_serviceDesc = grpc.ServiceDesc{
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type SnowflakeControllerClient interface {
 	GetClusterStartTime(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*timestamppb.Timestamp, error)
-	CheckNodeID(ctx context.Context, in *wrapperspb.UInt32Value, opts ...grpc.CallOption) (*wrapperspb.BoolValue, error)
+	RegisterNode(ctx context.Context, in *wrapperspb.UInt32Value, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	UnregisterNode(ctx context.Context, in *wrapperspb.UInt32Value, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type snowflakeControllerClient struct {
@@ -3867,9 +3873,18 @@ func (c *snowflakeControllerClient) GetClusterStartTime(ctx context.Context, in 
 	return out, nil
 }
 
-func (c *snowflakeControllerClient) CheckNodeID(ctx context.Context, in *wrapperspb.UInt32Value, opts ...grpc.CallOption) (*wrapperspb.BoolValue, error) {
-	out := new(wrapperspb.BoolValue)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.SnowflakeController/CheckNodeID", in, out, opts...)
+func (c *snowflakeControllerClient) RegisterNode(ctx context.Context, in *wrapperspb.UInt32Value, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.SnowflakeController/RegisterNode", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *snowflakeControllerClient) UnregisterNode(ctx context.Context, in *wrapperspb.UInt32Value, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.SnowflakeController/UnregisterNode", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -3879,7 +3894,8 @@ func (c *snowflakeControllerClient) CheckNodeID(ctx context.Context, in *wrapper
 // SnowflakeControllerServer is the server API for SnowflakeController service.
 type SnowflakeControllerServer interface {
 	GetClusterStartTime(context.Context, *emptypb.Empty) (*timestamppb.Timestamp, error)
-	CheckNodeID(context.Context, *wrapperspb.UInt32Value) (*wrapperspb.BoolValue, error)
+	RegisterNode(context.Context, *wrapperspb.UInt32Value) (*emptypb.Empty, error)
+	UnregisterNode(context.Context, *wrapperspb.UInt32Value) (*emptypb.Empty, error)
 }
 
 // UnimplementedSnowflakeControllerServer can be embedded to have forward compatible implementations.
@@ -3889,8 +3905,11 @@ type UnimplementedSnowflakeControllerServer struct {
 func (*UnimplementedSnowflakeControllerServer) GetClusterStartTime(context.Context, *emptypb.Empty) (*timestamppb.Timestamp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetClusterStartTime not implemented")
 }
-func (*UnimplementedSnowflakeControllerServer) CheckNodeID(context.Context, *wrapperspb.UInt32Value) (*wrapperspb.BoolValue, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CheckNodeID not implemented")
+func (*UnimplementedSnowflakeControllerServer) RegisterNode(context.Context, *wrapperspb.UInt32Value) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RegisterNode not implemented")
+}
+func (*UnimplementedSnowflakeControllerServer) UnregisterNode(context.Context, *wrapperspb.UInt32Value) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnregisterNode not implemented")
 }
 
 func RegisterSnowflakeControllerServer(s *grpc.Server, srv SnowflakeControllerServer) {
@@ -3915,20 +3934,38 @@ func _SnowflakeController_GetClusterStartTime_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SnowflakeController_CheckNodeID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _SnowflakeController_RegisterNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(wrapperspb.UInt32Value)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SnowflakeControllerServer).CheckNodeID(ctx, in)
+		return srv.(SnowflakeControllerServer).RegisterNode(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.SnowflakeController/CheckNodeID",
+		FullMethod: "/linkall.vanus.controller.SnowflakeController/RegisterNode",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SnowflakeControllerServer).CheckNodeID(ctx, req.(*wrapperspb.UInt32Value))
+		return srv.(SnowflakeControllerServer).RegisterNode(ctx, req.(*wrapperspb.UInt32Value))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SnowflakeController_UnregisterNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(wrapperspb.UInt32Value)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SnowflakeControllerServer).UnregisterNode(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/linkall.vanus.controller.SnowflakeController/UnregisterNode",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SnowflakeControllerServer).UnregisterNode(ctx, req.(*wrapperspb.UInt32Value))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -3942,8 +3979,12 @@ var _SnowflakeController_serviceDesc = grpc.ServiceDesc{
 			Handler:    _SnowflakeController_GetClusterStartTime_Handler,
 		},
 		{
-			MethodName: "CheckNodeID",
-			Handler:    _SnowflakeController_CheckNodeID_Handler,
+			MethodName: "RegisterNode",
+			Handler:    _SnowflakeController_RegisterNode_Handler,
+		},
+		{
+			MethodName: "UnregisterNode",
+			Handler:    _SnowflakeController_UnregisterNode_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

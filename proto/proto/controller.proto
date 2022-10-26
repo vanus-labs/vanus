@@ -84,9 +84,9 @@ service TriggerController {
 }
 
 service SnowflakeController {
-  rpc GetClusterStartTime(google.protobuf.Empty)
-      returns (google.protobuf.Timestamp);
-  rpc CheckNodeID(google.protobuf.UInt32Value) returns (google.protobuf.BoolValue);
+  rpc GetClusterStartTime(google.protobuf.Empty)returns (google.protobuf.Timestamp);
+  rpc RegisterNode(google.protobuf.UInt32Value) returns (google.protobuf.Empty);
+  rpc UnregisterNode(google.protobuf.UInt32Value) returns (google.protobuf.Empty);
 }
 
 message PingResponse {

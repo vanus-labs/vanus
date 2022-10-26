@@ -15,6 +15,7 @@
 package controller
 
 import (
+	"github.com/linkall-labs/vanus/internal/controller/snowflake"
 	"path/filepath"
 
 	embedetcd "github.com/linkall-labs/embed-etcd"
@@ -24,6 +25,7 @@ import (
 )
 
 type Config struct {
+	NodeID               uint16            `yaml:"node_id"`
 	Name                 string            `yaml:"name"`
 	IP                   string            `yaml:"ip"`
 	Port                 int               `yaml:"port"`
@@ -54,6 +56,21 @@ func (c *Config) GetEventbusCtrlConfig() eventbus.Config {
 		Topology:         c.Topology,
 		SegmentCapacity:  c.SegmentCapacity,
 	}
+}
+
+func (c *Config) GetSnowflakeConfig() snowflake.Config {
+	return snowflake.Config{
+		KVEndpoints: c.EtcdEndpoints,
+		KVPrefix:    c.MetadataConfig.KeyPrefix,
+	}
+}
+
+func (c *Config) GetControllerAddrs() []string {
+	var addrs []string
+	for _, v := range c.Topology {
+		addrs = append(addrs, v)
+	}
+	return addrs
 }
 
 type MetadataConfig struct {

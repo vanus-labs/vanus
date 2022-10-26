@@ -48,13 +48,22 @@ func (sfc *snowflakeClient) GetClusterStartTime(ctx context.Context, in *emptypb
 	return out, nil
 }
 
-func (sfc *snowflakeClient) CheckNodeID(ctx context.Context, in *wrapperspb.UInt32Value,
-	opts ...grpc.CallOption) (*wrapperspb.BoolValue, error) {
-	out := &wrapperspb.BoolValue{}
-	err := sfc.cc.invoke(ctx, "/linkall.vanus.controller.SnowflakeController/CheckNodeID", in, out, opts...)
+func (sfc *snowflakeClient) RegisterNode(ctx context.Context, in *wrapperspb.UInt32Value,
+	opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := &emptypb.Empty{}
+	err := sfc.cc.invoke(ctx, "/linkall.vanus.controller.SnowflakeController/RegisterNode", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
+func (sfc *snowflakeClient) UnregisterNode(ctx context.Context, in *wrapperspb.UInt32Value,
+	opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := &emptypb.Empty{}
+	err := sfc.cc.invoke(ctx, "/linkall.vanus.controller.SnowflakeController/UnregisterNode", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
