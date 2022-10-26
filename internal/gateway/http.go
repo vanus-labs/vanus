@@ -16,51 +16,57 @@ package gateway
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/binary"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"strconv"
-	"strings"
 
-	v2 "github.com/cloudevents/sdk-go/v2"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	eb "github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/client/pkg/option"
+	"github.com/linkall-labs/vanus/client/pkg/policy"
 )
 
-type httpServer struct {
-	e   *echo.Echo
-	cfg Config
+type Server struct {
+	e      *echo.Echo
+	cfg    Config
+	client eb.Client
 }
 
-func MustStartHTTP(cfg Config) {
+func NewHTTPServer(cfg Config) *Server {
 	// Echo instance
 	e := echo.New()
-	srv := &httpServer{
-		e:   e,
-		cfg: cfg,
+	return &Server{
+		e:      e,
+		cfg:    cfg,
+		client: eb.Connect(cfg.ControllerAddr),
 	}
+}
+
+func (s *Server) MustStartHTTP() {
 	// Middleware
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
+	s.e.Use(middleware.Logger())
+	s.e.Use(middleware.Recover())
 
 	// Routes
-	e.GET("/getControllerEndpoints", srv.getControllerEndpoints)
-	e.GET("/getEvents", srv.getEvents)
+	s.e.GET("/getControllerEndpoints", s.getControllerEndpoints)
+	s.e.GET("/getEvents", s.getEvents)
 
 	// Start server
-	e.Logger.Fatal(e.Start(fmt.Sprintf(":%d", cfg.Port+1)))
+	s.e.Logger.Fatal(s.e.Start(fmt.Sprintf(":%d", s.cfg.Port+1)))
 }
 
 // getControllerAddrs return the endpoints of controller.
-func (srv *httpServer) getControllerEndpoints(c echo.Context) error {
+func (s *Server) getControllerEndpoints(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"endpoints": srv.cfg.ControllerAddr,
+		"endpoints": s.cfg.ControllerAddr,
 	})
 }
 
-func (srv *httpServer) getEvents(c echo.Context) error {
+func (s *Server) getEvents(c echo.Context) error {
 	ctx := context.Background()
 	eventid := c.QueryParam("eventid")
 	eventbus := c.QueryParam("eventbus")
@@ -70,21 +76,37 @@ func (srv *httpServer) getEvents(c echo.Context) error {
 		})
 	}
 	if eventid != "" {
-		event, err := eb.SearchEventByID(ctx, eventid, srv.cfg.ControllerAddr[0])
+		logID, off, err := decodeEventID(eventid)
 		if err != nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "can not query the event by event id",
+				"error": "decode event id failed",
+			})
+		}
+
+		l, err := s.client.Eventbus(ctx, eventbus).GetLog(ctx, logID)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": fmt.Sprintf("get eventlog failed: %s", err),
+			})
+		}
+
+		readPolicy := option.WithReadPolicy(policy.NewManuallyReadPolicy(l, off))
+		events, _, _, err := s.client.Eventbus(ctx, eventbus).Reader().Read(ctx, readPolicy, option.WithDisablePolling())
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": err.Error(),
 			})
 		}
 		return c.JSON(http.StatusOK, map[string]interface{}{
-			"events": []*v2.Event{event},
+			"events": events,
 		})
 	}
 
-	var offset int
-	var num int16
-	var err error
-
+	var (
+		offset int   // TODO use latest
+		num    int16 = 1
+		err    error
+	)
 	offsetStr := c.QueryParam("offset")
 	if offsetStr != "" {
 		offset, err = strconv.Atoi(offsetStr)
@@ -96,8 +118,6 @@ func (srv *httpServer) getEvents(c echo.Context) error {
 		if offset < 0 {
 			offset = 0
 		}
-	} else {
-		offset = 0 // TODO use latest
 	}
 	numStr := c.QueryParam("number")
 	if numStr != "" {
@@ -113,41 +133,37 @@ func (srv *httpServer) getEvents(c echo.Context) error {
 			})
 		}
 		num = int16(numPara)
-	} else {
-		num = 1
 	}
-	vrn := fmt.Sprintf("vanus:///eventbus/%s?controllers=%s",
-		eventbus, strings.Join(srv.cfg.ControllerAddr, ","))
-	ls, err := eb.LookupReadableLogs(ctx, vrn)
+
+	ls, err := s.client.Eventbus(ctx, eventbus).ListLog(ctx)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": fmt.Sprintf("lookup eventlog failed: %s", err),
+			"error": fmt.Sprintf("list eventlog failed: %s", err),
 		})
 	}
 
-	r, err := eb.OpenLogReader(ctx, ls[0].VRN, eb.DisablePolling())
+	events, _, _, err := s.client.Eventbus(ctx, eventbus).Reader(option.WithDisablePolling()).Read(ctx,
+		option.WithReadPolicy(policy.NewManuallyReadPolicy(ls[0], int64(offset))),
+		option.WithBatchSize(int(num)))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": fmt.Sprintf("open eventlog failed: %s", err),
+			"error": err.Error(),
 		})
 	}
-	defer r.Close(ctx)
-
-	_, err = r.Seek(context.Background(), int64(offset), io.SeekStart)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": fmt.Sprintf("seek offset failed: %s", err),
-		})
-	}
-
-	events, err := r.Read(context.Background(), num)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": fmt.Sprintf("read event failed: %s", err),
-		})
-	}
-
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"events": events,
 	})
+}
+
+func decodeEventID(eventID string) (uint64, int64, error) {
+	decoded, err := base64.StdEncoding.DecodeString(eventID)
+	if err != nil {
+		return 0, 0, err
+	}
+	if len(decoded) != 16 { // fixed length
+		return 0, 0, fmt.Errorf("invalid event id")
+	}
+	logID := binary.BigEndian.Uint64(decoded[0:8])
+	off := binary.BigEndian.Uint64(decoded[8:16])
+	return logID, int64(off), nil
 }

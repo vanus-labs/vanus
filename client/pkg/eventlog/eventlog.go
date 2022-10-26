@@ -23,29 +23,29 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
-
 	// this project.
-	"github.com/linkall-labs/vanus/client/pkg/discovery"
-	"github.com/linkall-labs/vanus/client/pkg/primitive"
 )
 
 const (
 	XVanusLogOffset = segpb.XVanusLogOffset
 )
 
-type EventLog interface {
-	primitive.RefCounter
+type ReaderConfig struct {
+	PollingTimeout int64
+}
 
-	VRN() *discovery.VRN
+type Eventlog interface {
+	api.Eventlog
 
 	Close(ctx context.Context)
-	Writer() (LogWriter, error)
-	Reader(cfg ReaderConfig) (LogReader, error)
+	Writer() LogWriter
+	Reader(cfg ReaderConfig) LogReader
 }
 
 type LogWriter interface {
-	Log() EventLog
+	Log() Eventlog
 
 	Close(ctx context.Context)
 
@@ -53,7 +53,7 @@ type LogWriter interface {
 }
 
 type LogReader interface {
-	Log() EventLog
+	Log() Eventlog
 
 	Close(ctx context.Context)
 

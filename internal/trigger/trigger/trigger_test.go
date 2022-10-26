@@ -28,14 +28,13 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/eventbus"
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/client"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/reader"
-	"github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -83,12 +82,14 @@ func TestTriggerStartStop(t *testing.T) {
 		r := reader.NewMockReader(ctrl)
 		r2 := reader.NewMockReader(ctrl)
 		ctx := context.Background()
-		busWriter := eventbus.NewMockBusWriter(ctrl)
-		stub := gostub.Stub(&eb.OpenBusWriter, func(_ context.Context, _ string) (eventbus.BusWriter, error) {
-			return busWriter, nil
-		})
-		defer stub.Reset()
-		busWriter.EXPECT().Close(context.Background()).Times(2).Return()
+		mockClient := eb.NewMockClient(ctrl)
+		mockEventbus := api.NewMockEventbus(ctrl)
+		mockBusWriter := api.NewMockBusWriter(ctrl)
+		mockBusReader := api.NewMockBusReader(ctrl)
+		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus)
+		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
+		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
+		tg.client = mockClient
 		err := tg.Init(ctx)
 		So(err, ShouldBeNil)
 		tg.reader = r
@@ -113,21 +114,26 @@ func TestTriggerWriteFailEvent(t *testing.T) {
 		ctx := context.Background()
 		id := vanus.NewID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
-		busWriter := eventbus.NewMockBusWriter(ctrl)
-		stub := gostub.Stub(&eb.OpenBusWriter, func(_ context.Context, _ string) (eventbus.BusWriter, error) {
-			return busWriter, nil
-		})
-		defer stub.Reset()
+		mockClient := eb.NewMockClient(ctrl)
+		mockEventbus := api.NewMockEventbus(ctrl)
+		mockBusWriter := api.NewMockBusWriter(ctrl)
+		mockBusReader := api.NewMockBusReader(ctrl)
+		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus)
+		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
+		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
+		tg.client = mockClient
 		_ = tg.Init(ctx)
 		e := makeEventRecord("type")
+		tg.dlEventWriter = mockBusWriter
+		tg.timerEventWriter = mockBusWriter
 		var callCount int
-		busWriter.EXPECT().Append(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(context.Context,
-			*ce.Event) (int64, error) {
+		mockBusWriter.EXPECT().AppendOne(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(context.Context,
+			*ce.Event, ...api.WriteOption) (string, error) {
 			callCount++
 			if callCount%2 != 0 {
-				return int64(-1), fmt.Errorf("append error")
+				return "", fmt.Errorf("append error")
 			}
-			return int64(1), nil
+			return "", nil
 		})
 		Convey("test no need retry,in dlq", func() {
 			tg.writeFailEvent(ctx, e.Event, 400, fmt.Errorf("400 error"))
@@ -165,13 +171,16 @@ func TestTriggerRunEventSend(t *testing.T) {
 		ctx := context.Background()
 		id := vanus.NewID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
-		busWriter := eventbus.NewMockBusWriter(ctrl)
-		stub := gostub.Stub(&eb.OpenBusWriter, func(ctx context.Context, _ string) (eventbus.BusWriter, error) {
-			return busWriter, nil
-		})
-		defer stub.Reset()
+		mockClient := eb.NewMockClient(ctrl)
+		mockEventbus := api.NewMockEventbus(ctrl)
+		mockBusWriter := api.NewMockBusWriter(ctrl)
+		mockBusReader := api.NewMockBusReader(ctrl)
+		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus)
+		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
+		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
+		tg.client = mockClient
 		_ = tg.Init(ctx)
-		tg.client = cli
+		tg.eventCli = cli
 		cli.EXPECT().Send(gomock.Any(), gomock.Any()).AnyTimes().Return(client.Success)
 		size := 10
 		for i := 0; i < size; i++ {
@@ -209,7 +218,7 @@ func TestTriggerRateLimit(t *testing.T) {
 		cli := client.NewMockEventClient(ctrl)
 		id := vanus.NewID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
-		tg.client = cli
+		tg.eventCli = cli
 		cli.EXPECT().Send(gomock.Any(), gomock.Any()).AnyTimes().Return(client.Success)
 		rateLimit := int32(10000)
 		Convey("test no rate limit", func() {

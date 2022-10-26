@@ -20,7 +20,6 @@ import (
 	"log"
 
 	// third-party project.
-	ce "github.com/cloudevents/sdk-go/v2"
 
 	// this project.
 	"github.com/linkall-labs/vanus/client"
@@ -32,20 +31,19 @@ func main() {
 	ctx := context.Background()
 
 	c := client.Connect([]string{"localhost:2048"})
-
-	bus := c.Eventbus(ctx, "quick-start")
-	w := bus.Writer()
-	// Create an Event.
-	event := ce.NewEvent()
-	event.SetID("example-event")
-	event.SetSource("example/uri")
-	event.SetType("example.type")
-	event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world"})
-
-	eventID, err := w.AppendOne(ctx, &event, option.WithWritePolicy(policy.NewRoundRobinWritePolicy(bus)))
+	eb := c.Eventbus(ctx, "quick-start")
+	ls, err := eb.ListLog(ctx)
+	if err != nil {
+		log.Print(err.Error())
+	}
+	r := eb.Reader(option.WithReadPolicy(policy.NewManuallyReadPolicy(ls[0], 0)))
+	events, offset, eventlogID, err := r.Read(ctx)
 	if err != nil {
 		log.Print(err.Error())
 	} else {
-		log.Printf("success! eventID:%s\n", eventID)
+		log.Println("success!")
+		log.Printf("events: %+v\n", events)
+		log.Printf("offset: %d\n", offset)
+		log.Printf("eventlog id: %d\n", eventlogID)
 	}
 }

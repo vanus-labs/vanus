@@ -20,16 +20,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"testing"
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/golang/mock/gomock"
-	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
+	. "github.com/golang/mock/gomock"
+	"github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	es "github.com/linkall-labs/vanus/client/pkg/errors"
-	"github.com/linkall-labs/vanus/client/pkg/eventbus"
-	eventlog "github.com/linkall-labs/vanus/client/pkg/eventlog"
+	"github.com/linkall-labs/vanus/client/pkg/record"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/timer/metadata"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
@@ -52,44 +51,51 @@ func TestTimingWheel_Start(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		tw := newtimingwheel(cfg())
 		tw.SetLeader(true)
-		mockCtrl := gomock.NewController(t)
+		mockCtrl := NewController(t)
+		mockClient := client.NewMockClient(mockCtrl)
+		mockEventbus := api.NewMockEventbus(mockCtrl)
+		mockEventlog := api.NewMockEventlog(mockCtrl)
+		mockBusWriter := api.NewMockBusWriter(mockCtrl)
+		mockBusReader := api.NewMockBusReader(mockCtrl)
+		mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
+		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
+		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
+		mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
+
 		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
-		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
 		for e := tw.twList.Front(); e != nil; {
 			for _, bucket := range e.Value.(*timingWheelElement).buckets {
-				bucket.eventlogReader = mockEventlogReader
-				bucket.client = mockEventbusCtrlCli
+				bucket.eventbusReader = mockBusReader
+				bucket.ctrlCli = mockEventbusCtrlCli
+				bucket.client = mockClient
 				bucket.timingwheel = tw
 			}
 			next := e.Next()
 			e = next
 		}
-		tw.receivingStation.client = mockEventbusCtrlCli
-		tw.distributionStation.client = mockEventbusCtrlCli
+		tw.client = mockClient
+		tw.receivingStation.ctrlCli = mockEventbusCtrlCli
+		tw.receivingStation.client = mockClient
+		tw.distributionStation.ctrlCli = mockEventbusCtrlCli
+		tw.distributionStation.client = mockClient
 		tw.receivingStation.timingwheel = tw
 		tw.distributionStation.timingwheel = tw
-		ls := make([]*record.EventLog, 1)
-		ls[0] = &record.EventLog{
-			VRN: "testvrn",
+		ls := make([]*record.Eventlog, 1)
+		ls[0] = &record.Eventlog{
+			ID: 1,
 		}
 
 		Convey("test timingwheel start bucket with start failure", func() {
-			mockEventbusCtrlCli.EXPECT().GetEventBus(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, errors.New("test"))
-			mockEventbusCtrlCli.EXPECT().CreateEventBus(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, errors.New("test"))
+			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).AnyTimes().Return(nil, errors.New("test"))
+			mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).AnyTimes().Return(nil, errors.New("test"))
 			err := tw.Start(ctx)
 			So(err, ShouldNotBeNil)
 		})
 
 		Convey("test timingwheel start bucket start success", func() {
 			tw.SetLeader(false)
-			mockEventbusCtrlCli.EXPECT().GetEventBus(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, nil)
-			mockEventbusCtrlCli.EXPECT().CreateEventBus(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, errors.New("test"))
-			stub1 := StubFunc(&openBusWriter, nil, nil)
-			defer stub1.Reset()
-			stub2 := StubFunc(&lookupReadableLogs, ls, nil)
-			defer stub2.Reset()
-			stub3 := StubFunc(&openLogReader, mockEventlogReader, nil)
-			defer stub3.Reset()
+			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).AnyTimes().Return(nil, nil)
+			mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).AnyTimes().Return(nil, errors.New("test"))
 			err := tw.Start(ctx)
 			cancel()
 			So(err, ShouldBeNil)
@@ -108,20 +114,18 @@ func TestTimingWheel_StopNotify(t *testing.T) {
 func TestTimingWheel_Stop(t *testing.T) {
 	Convey("test timingwheel stop", t, func() {
 		ctx := context.Background()
-		mockCtrl := gomock.NewController(t)
-		mockEventbusWriter := eventbus.NewMockBusWriter(mockCtrl)
-		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
+		mockCtrl := NewController(t)
+		mockEventbusWriter := api.NewMockBusWriter(mockCtrl)
+		mockEventbusReader := api.NewMockBusReader(mockCtrl)
 		tw := newtimingwheel(cfg())
 		for e := tw.twList.Front(); e != nil; e = e.Next() {
 			for _, bucket := range e.Value.(*timingWheelElement).getBuckets() {
 				bucket.eventbusWriter = mockEventbusWriter
-				bucket.eventlogReader = mockEventlogReader
+				bucket.eventbusReader = mockEventbusReader
 			}
 		}
 
 		Convey("test timingwheel start receiving station with create eventbus failed", func() {
-			mockEventlogReader.EXPECT().Close(gomock.Any()).AnyTimes().Return()
-			mockEventbusWriter.EXPECT().Close(gomock.Any()).AnyTimes().Return()
 			tw.Stop(ctx)
 		})
 	})
@@ -150,13 +154,13 @@ func TestTimingWheel_IsDeployed(t *testing.T) {
 	Convey("test timingwheel isdeployed", t, func() {
 		ctx := context.Background()
 		tw := newtimingwheel(cfg())
-		mockCtrl := gomock.NewController(t)
+		mockCtrl := NewController(t)
 		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
-		tw.receivingStation.client = mockEventbusCtrlCli
-		tw.distributionStation.client = mockEventbusCtrlCli
+		tw.receivingStation.ctrlCli = mockEventbusCtrlCli
+		tw.distributionStation.ctrlCli = mockEventbusCtrlCli
 
 		Convey("test timingwheel is not deployed", func() {
-			mockEventbusCtrlCli.EXPECT().GetEventBus(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, nil)
+			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).AnyTimes().Return(nil, nil)
 			ret := tw.IsDeployed(ctx)
 			So(ret, ShouldBeTrue)
 		})
@@ -167,18 +171,18 @@ func TestTimingWheel_Recover(t *testing.T) {
 	Convey("test timingwheel recover", t, func() {
 		ctx := context.Background()
 		tw := newtimingwheel(cfg())
-		mockCtrl := gomock.NewController(t)
+		mockCtrl := NewController(t)
 		mockStoreCli := kv.NewMockClient(mockCtrl)
 		tw.kvStore = mockStoreCli
 
 		Convey("test timingwheel recover with list failed", func() {
-			mockStoreCli.EXPECT().List(gomock.Any(), gomock.Any()).Times(1).Return(nil, errors.New("test"))
+			mockStoreCli.EXPECT().List(Any(), Any()).Times(1).Return(nil, errors.New("test"))
 			err := tw.Recover(ctx)
 			So(err, ShouldNotBeNil)
 		})
 
 		Convey("test timingwheel recover with no metadata", func() {
-			mockStoreCli.EXPECT().List(gomock.Any(), gomock.Any()).Times(1).Return([]kv.Pair{}, nil)
+			mockStoreCli.EXPECT().List(Any(), Any()).Times(1).Return([]kv.Pair{}, nil)
 			err := tw.Recover(ctx)
 			So(err, ShouldBeNil)
 		})
@@ -215,7 +219,7 @@ func TestTimingWheel_Recover(t *testing.T) {
 				Key:   "2",
 				Value: data,
 			}
-			mockStoreCli.EXPECT().List(gomock.Any(), gomock.Any()).Times(1).Return(offsetKvPairs, nil)
+			mockStoreCli.EXPECT().List(Any(), Any()).Times(1).Return(offsetKvPairs, nil)
 			err := tw.Recover(ctx)
 			So(err, ShouldBeNil)
 		})
@@ -226,8 +230,8 @@ func TestTimingWheel_Push(t *testing.T) {
 	Convey("test timingwheel push", t, func() {
 		ctx := context.Background()
 		tw := newtimingwheel(cfg())
-		mockCtrl := gomock.NewController(t)
-		mockEventbusWriter := eventbus.NewMockBusWriter(mockCtrl)
+		mockCtrl := NewController(t)
+		mockEventbusWriter := api.NewMockBusWriter(mockCtrl)
 		for e := tw.twList.Front(); e != nil; {
 			for _, bucket := range e.Value.(*timingWheelElement).buckets {
 				bucket.eventbusWriter = mockEventbusWriter
@@ -258,25 +262,32 @@ func TestTimingWheel_startReceivingStation(t *testing.T) {
 		ctx := context.Background()
 		tw := newtimingwheel(cfg())
 		tw.SetLeader(true)
-		mockCtrl := gomock.NewController(t)
+		mockCtrl := NewController(t)
+		mockClient := client.NewMockClient(mockCtrl)
+		// mockEventbus := eventbus.NewMockEventbus(mockCtrl)
+		// mockBusWriter := eventbus.NewMockBusWriter(mockCtrl)
+		// mockBusReader := eventbus.NewMockBusReader(mockCtrl)
 		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
-		tw.receivingStation.client = mockEventbusCtrlCli
+		tw.client = mockClient
+		tw.receivingStation.ctrlCli = mockEventbusCtrlCli
+		tw.receivingStation.client = mockClient
 
 		Convey("test timingwheel start receiving station with create eventbus failed", func() {
-			mockEventbusCtrlCli.EXPECT().GetEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, errors.New("test"))
-			mockEventbusCtrlCli.EXPECT().CreateEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, errors.New("test"))
+			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
+			mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
 			err := tw.startReceivingStation(ctx)
 			So(err, ShouldNotBeNil)
 		})
 
-		Convey("test timingwheel start receiving station with connect eventbus failed", func() {
-			mockEventbusCtrlCli.EXPECT().GetEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, errors.New("test"))
-			mockEventbusCtrlCli.EXPECT().CreateEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
-			stubs := StubFunc(&openBusWriter, nil, errors.New("test"))
-			defer stubs.Reset()
-			err := tw.startReceivingStation(ctx)
-			So(err, ShouldNotBeNil)
-		})
+		// Convey("test timingwheel start receiving station success", func() {
+		// 	mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
+		// 	mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, nil)
+		// 	mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
+		// 	mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
+		// 	mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
+		// 	err := tw.startReceivingStation(ctx)
+		// 	So(err, ShouldBeNil)
+		// })
 	})
 }
 
@@ -285,22 +296,30 @@ func TestTimingWheel_runReceivingStation(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		tw := newtimingwheel(cfg())
 		tw.SetLeader(true)
-		mockCtrl := gomock.NewController(t)
-		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
-		mockEventbusWriter := eventbus.NewMockBusWriter(mockCtrl)
+		mockCtrl := NewController(t)
+		mockClient := client.NewMockClient(mockCtrl)
+		mockEventbus := api.NewMockEventbus(mockCtrl)
+		mockEventlog := api.NewMockEventlog(mockCtrl)
+		mockBusWriter := api.NewMockBusWriter(mockCtrl)
+		mockBusReader := api.NewMockBusReader(mockCtrl)
 		mockStoreCli := kv.NewMockClient(mockCtrl)
-		tw.receivingStation.eventlogReader = mockEventlogReader
-		tw.receivingStation.eventbusWriter = mockEventbusWriter
-		tw.distributionStation.eventbusWriter = mockEventbusWriter
+		tw.receivingStation.client = mockClient
+		tw.receivingStation.eventbusReader = mockBusReader
+		tw.receivingStation.eventbusWriter = mockBusWriter
+		tw.distributionStation.client = mockClient
+		tw.distributionStation.eventbusWriter = mockBusWriter
 		tw.receivingStation.kvStore = mockStoreCli
 		tw.receivingStation.timingwheel = tw
 		tw.distributionStation.timingwheel = tw
+		mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
+		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
+		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
 		events := make([]*ce.Event, 1)
 		events[0] = event(0)
 
 		Convey("test bucket run receiving station with get event failed", func() {
-			mockEventlogReader.EXPECT().Seek(gomock.Any(), gomock.Any(), io.SeekStart).AnyTimes().Return(int64(0), nil)
-			mockEventlogReader.EXPECT().Read(gomock.Any(), gomock.Any()).AnyTimes().Return(events, errors.New("test"))
+			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), errors.New("test"))
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
@@ -310,10 +329,10 @@ func TestTimingWheel_runReceivingStation(t *testing.T) {
 		})
 
 		Convey("test timingwheel run receiving station with start failure", func() {
-			mockEventlogReader.EXPECT().Seek(gomock.Any(), gomock.Any(), io.SeekStart).AnyTimes().Return(int64(0), nil)
-			mockEventlogReader.EXPECT().Read(gomock.Any(), gomock.Any()).AnyTimes().Return(events, nil)
-			mockEventbusWriter.EXPECT().Append(gomock.Any(), gomock.Any()).AnyTimes().Return("", errors.New("test"))
-			mockStoreCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
+			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", errors.New("test"))
+			mockStoreCli.EXPECT().Set(Any(), Any(), Any()).AnyTimes().Return(nil)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
@@ -323,10 +342,10 @@ func TestTimingWheel_runReceivingStation(t *testing.T) {
 		})
 
 		Convey("test timingwheel run receiving station with start success", func() {
-			mockEventlogReader.EXPECT().Seek(gomock.Any(), gomock.Any(), io.SeekStart).AnyTimes().Return(int64(0), nil)
-			mockEventlogReader.EXPECT().Read(gomock.Any(), gomock.Any()).AnyTimes().Return(events, nil)
-			mockEventbusWriter.EXPECT().Append(gomock.Any(), gomock.Any()).AnyTimes().Return("", nil)
-			mockStoreCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
+			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", nil)
+			mockStoreCli.EXPECT().Set(Any(), Any(), Any()).AnyTimes().Return(nil)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
@@ -341,28 +360,39 @@ func TestTimingWheel_startDistributionStation(t *testing.T) {
 		ctx := context.Background()
 		tw := newtimingwheel(cfg())
 		tw.SetLeader(true)
-		mockCtrl := gomock.NewController(t)
+		mockCtrl := NewController(t)
+		mockClient := client.NewMockClient(mockCtrl)
+		mockEventbus := api.NewMockEventbus(mockCtrl)
+		// mockEventlog := eventlog.NewMockEventlog(mockCtrl)
+		mockBusWriter := api.NewMockBusWriter(mockCtrl)
+		mockBusReader := api.NewMockBusReader(mockCtrl)
+		mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
+		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
+		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
 		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
-		tw.client = mockEventbusCtrlCli
-		tw.receivingStation.client = mockEventbusCtrlCli
+		tw.client = mockClient
+		tw.ctrlCli = mockEventbusCtrlCli
+		tw.receivingStation.ctrlCli = mockEventbusCtrlCli
+		tw.receivingStation.client = mockClient
+		tw.distributionStation.ctrlCli = mockEventbusCtrlCli
+		tw.distributionStation.client = mockClient
 
 		Convey("test timingwheel start distribution station with create eventbus failed", func() {
-			mockEventbusCtrlCli.EXPECT().GetEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, errors.New("test"))
-			mockEventbusCtrlCli.EXPECT().CreateEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, errors.New("test"))
-			tw.distributionStation.client = mockEventbusCtrlCli
+			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
+			mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
 			err := tw.startDistributionStation(ctx)
 			So(err, ShouldNotBeNil)
 		})
 
-		Convey("test timingwheel start distribution station with connect eventbus failed", func() {
-			mockEventbusCtrlCli.EXPECT().GetEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, errors.New("test"))
-			mockEventbusCtrlCli.EXPECT().CreateEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
-			stubs := StubFunc(&openBusWriter, nil, errors.New("test"))
-			defer stubs.Reset()
-			tw.distributionStation.client = mockEventbusCtrlCli
-			err := tw.startDistributionStation(ctx)
-			So(err, ShouldNotBeNil)
-		})
+		// Convey("test timingwheel start distribution station success", func() {
+		// 	mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
+		// 	mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, nil)
+		// 	mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]eventlog.Eventlog{mockEventlog}, nil)
+		// 	mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
+		// 	mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
+		// 	err := tw.startDistributionStation(ctx)
+		// 	So(err, ShouldBeNil)
+		// })
 	})
 }
 
@@ -371,19 +401,27 @@ func TestTimingWheel_runDistributionStation(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		tw := newtimingwheel(cfg())
 		tw.SetLeader(true)
-		mockCtrl := gomock.NewController(t)
-		mockEventbusWriter := eventbus.NewMockBusWriter(mockCtrl)
-		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
+		mockCtrl := NewController(t)
+		mockClient := client.NewMockClient(mockCtrl)
+		mockEventbus := api.NewMockEventbus(mockCtrl)
+		mockEventlog := api.NewMockEventlog(mockCtrl)
+		mockBusWriter := api.NewMockBusWriter(mockCtrl)
+		mockBusReader := api.NewMockBusReader(mockCtrl)
 		mockStoreCli := kv.NewMockClient(mockCtrl)
-		tw.distributionStation.eventlogReader = mockEventlogReader
+		mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
+		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
+		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
+		tw.client = mockClient
+		tw.distributionStation.eventbusReader = mockBusReader
 		tw.distributionStation.kvStore = mockStoreCli
 		tw.distributionStation.timingwheel = tw
+		tw.distributionStation.client = mockClient
 		events := make([]*ce.Event, 1)
 		events[0] = event(0)
 
 		Convey("test timingwheel run distribution station with get event failed", func() {
-			mockEventlogReader.EXPECT().Seek(gomock.Any(), gomock.Any(), io.SeekStart).AnyTimes().Return(int64(0), nil)
-			mockEventlogReader.EXPECT().Read(gomock.Any(), gomock.Any()).AnyTimes().Return(events, errors.New("test"))
+			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), errors.New("test"))
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
@@ -393,12 +431,10 @@ func TestTimingWheel_runDistributionStation(t *testing.T) {
 		})
 
 		Convey("test timingwheel run distribution station with deliver failed", func() {
-			mockEventlogReader.EXPECT().Seek(gomock.Any(), gomock.Any(), io.SeekStart).AnyTimes().Return(int64(0), nil)
-			mockEventlogReader.EXPECT().Read(gomock.Any(), gomock.Any()).AnyTimes().Return(events, nil)
-			mockEventbusWriter.EXPECT().Append(gomock.Any(), gomock.Any()).AnyTimes().Return("", errors.New("test"))
-			mockStoreCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
-			stubs := StubFunc(&openBusWriter, mockEventbusWriter, errors.New("test"))
-			defer stubs.Reset()
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
+			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", errors.New("test"))
+			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
+			mockStoreCli.EXPECT().Set(Any(), Any(), Any()).AnyTimes().Return(nil)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
@@ -408,13 +444,10 @@ func TestTimingWheel_runDistributionStation(t *testing.T) {
 		})
 
 		Convey("test timingwheel run distribution station with deliver success", func() {
-			mockEventlogReader.EXPECT().Seek(gomock.Any(), gomock.Any(), io.SeekStart).AnyTimes().Return(int64(0), nil)
-			mockEventlogReader.EXPECT().Read(gomock.Any(), gomock.Any()).AnyTimes().Return(events, nil)
-			mockEventbusWriter.EXPECT().Append(gomock.Any(), gomock.Any()).AnyTimes().Return("", nil)
-			mockEventbusWriter.EXPECT().Close(gomock.Any()).AnyTimes().Return()
-			mockStoreCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
-			stubs := StubFunc(&openBusWriter, mockEventbusWriter, nil)
-			defer stubs.Reset()
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
+			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", nil)
+			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
+			mockStoreCli.EXPECT().Set(Any(), Any(), Any()).AnyTimes().Return(nil)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
@@ -430,8 +463,15 @@ func TestTimingWheel_deliver(t *testing.T) {
 		ctx := context.Background()
 		e := event(2000)
 		tw := newtimingwheel(cfg())
-		mockCtrl := gomock.NewController(t)
-		mockEventbusWriter := eventbus.NewMockBusWriter(mockCtrl)
+		mockCtrl := NewController(t)
+		mockClient := client.NewMockClient(mockCtrl)
+		mockEventbus := api.NewMockEventbus(mockCtrl)
+		mockBusWriter := api.NewMockBusWriter(mockCtrl)
+		mockBusReader := api.NewMockBusReader(mockCtrl)
+		mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
+		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
+		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
+		tw.client = mockClient
 
 		Convey("test timingwheel deliver failure with abnormal event", func() {
 			e.SetExtension(xVanusEventbus, time.Now())
@@ -439,36 +479,20 @@ func TestTimingWheel_deliver(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 
-		Convey("test timingwheel deliver failure with open eventbus writer failed", func() {
-			stubs := StubFunc(&openBusWriter, mockEventbusWriter, errors.New("test"))
-			defer stubs.Reset()
-			err := tw.deliver(ctx, e)
-			So(err, ShouldNotBeNil)
-		})
-
 		Convey("test timingwheel deliver failure with eventbus not found", func() {
-			stubs := StubFunc(&openBusWriter, mockEventbusWriter, nil)
-			defer stubs.Reset()
-			mockEventbusWriter.EXPECT().Append(ctx, gomock.Any()).Times(1).Return("", es.ErrNotFound)
-			mockEventbusWriter.EXPECT().Close(gomock.Any()).AnyTimes().Return()
+			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", es.ErrNotFound)
 			err := tw.deliver(ctx, e)
 			So(err, ShouldBeNil)
 		})
 
 		Convey("test timingwheel deliver failure with append failed", func() {
-			stubs := StubFunc(&openBusWriter, mockEventbusWriter, nil)
-			defer stubs.Reset()
-			mockEventbusWriter.EXPECT().Append(ctx, gomock.Any()).Times(1).Return("", errors.New("test"))
-			mockEventbusWriter.EXPECT().Close(gomock.Any()).AnyTimes().Return()
+			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", errors.New("test"))
 			err := tw.deliver(ctx, e)
 			So(err, ShouldNotBeNil)
 		})
 
 		Convey("test timingwheel deliver success", func() {
-			stubs := StubFunc(&openBusWriter, mockEventbusWriter, nil)
-			defer stubs.Reset()
-			mockEventbusWriter.EXPECT().Append(ctx, gomock.Any()).Times(1).Return("", nil)
-			mockEventbusWriter.EXPECT().Close(gomock.Any()).AnyTimes().Return()
+			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", nil)
 			err := tw.deliver(ctx, e)
 			So(err, ShouldBeNil)
 		})
@@ -495,11 +519,17 @@ func TestTimingWheelElement_push(t *testing.T) {
 	Convey("test timingwheelelement push", t, func() {
 		ctx := context.Background()
 		tw := newtimingwheel(cfg())
-		mockCtrl := gomock.NewController(t)
-		mockEventbusWriter := eventbus.NewMockBusWriter(mockCtrl)
+		mockCtrl := NewController(t)
+		mockClient := client.NewMockClient(mockCtrl)
+		mockEventbus := api.NewMockEventbus(mockCtrl)
+		mockBusWriter := api.NewMockBusWriter(mockCtrl)
+		mockBusReader := api.NewMockBusReader(mockCtrl)
+		mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
+		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
+		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
 		for e := tw.twList.Front(); e != nil; e = e.Next() {
 			for _, bucket := range e.Value.(*timingWheelElement).buckets {
-				bucket.eventbusWriter = mockEventbusWriter
+				bucket.eventbusWriter = mockBusWriter
 				bucket.timingwheel = tw
 			}
 		}
@@ -520,7 +550,7 @@ func TestTimingWheelElement_push(t *testing.T) {
 
 		Convey("push timing message to timingwheel failure", func() {
 			tw.SetLeader(true)
-			mockEventbusWriter.EXPECT().Append(gomock.Any(), gomock.Any()).Times(1).Return("", errors.New("test"))
+			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", errors.New("test"))
 			tm := newTimingMsg(ctx, event(1000))
 			twe := tw.twList.Front().Value.(*timingWheelElement)
 			result := twe.push(ctx, tm)
@@ -533,69 +563,62 @@ func TestTimingWheelElement_pushBack(t *testing.T) {
 	Convey("test timingwheelelement push back", t, func() {
 		ctx := context.Background()
 		tw := newtimingwheel(cfg())
-		mockCtrl := gomock.NewController(t)
+		mockCtrl := NewController(t)
+		mockClient := client.NewMockClient(mockCtrl)
 		mockStoreCli := kv.NewMockClient(mockCtrl)
-		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
-		mockEventbusWriter := eventbus.NewMockBusWriter(mockCtrl)
+		mockEventbus := api.NewMockEventbus(mockCtrl)
+		// mockEventlog := eventlog.NewMockEventlog(mockCtrl)
+		mockBusWriter := api.NewMockBusWriter(mockCtrl)
+		mockBusReader := api.NewMockBusReader(mockCtrl)
+		mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
+		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
+		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
 		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
-		tw.client = mockEventbusCtrlCli
-		tw.kvStore = mockStoreCli
-		ls := make([]*record.EventLog, 1)
-		ls[0] = &record.EventLog{
-			VRN: "testvrn",
+
+		tw.ctrlCli = mockEventbusCtrlCli
+		tw.client = mockClient
+		ls := make([]*record.Eventlog, 1)
+		ls[0] = &record.Eventlog{
+			ID: 0,
 		}
 
 		for e := tw.twList.Front(); e != nil; e = e.Next() {
 			for _, bucket := range e.Value.(*timingWheelElement).buckets {
-				bucket.eventbusWriter = mockEventbusWriter
-				bucket.eventlogReader = mockEventlogReader
+				bucket.eventbusWriter = mockBusWriter
+				bucket.eventbusReader = mockBusReader
 				bucket.timingwheel = tw
 				bucket.kvStore = mockStoreCli
 			}
 		}
 
-		Convey("push timing message failure causes bucket create failed", func() {
-			stub1 := StubFunc(&openBusWriter, nil, errors.New("test"))
-			defer stub1.Reset()
-			tm := newTimingMsg(ctx, event(1000))
-			twe := tw.twList.Back().Value.(*timingWheelElement)
-			result := twe.pushBack(ctx, tm)
-			So(result, ShouldEqual, false)
-		})
+		// Convey("push timing message failure causes bucket create failed", func() {
+		// 	tm := newTimingMsg(ctx, event(1000))
+		// 	twe := tw.twList.Back().Value.(*timingWheelElement)
+		// 	result := twe.pushBack(ctx, tm)
+		// 	So(result, ShouldEqual, true)
+		// })
 
-		Convey("push timing message failure causes append failed", func() {
+		// Convey("push timing message failure causes append failed", func() {
+		// 	tw.SetLeader(true)
+		// 	mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
+		// 	mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, nil)
+		// 	mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]eventlog.Eventlog{mockEventlog}, nil)
+		// 	mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return([]*ce.Event{}, int64(0), uint64(0), es.ErrOnEnd)
+		// 	mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", errors.New("test"))
+		// 	tm := newTimingMsg(ctx, event(1000))
+		// 	twe := tw.twList.Back().Value.(*timingWheelElement)
+		// 	result := twe.pushBack(ctx, tm)
+		// 	So(result, ShouldEqual, false)
+		// })
+
+		Convey("push timing message failure causes start failed", func() {
 			tw.SetLeader(true)
-			mockEventbusCtrlCli.EXPECT().GetEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, errors.New("test"))
-			mockEventbusCtrlCli.EXPECT().CreateEventBus(gomock.Any(), gomock.Any()).Times(1).Return(nil, nil)
-			mockEventlogReader.EXPECT().Seek(gomock.Any(), gomock.Any(), io.SeekStart).AnyTimes().Return(int64(0), nil)
-			mockEventlogReader.EXPECT().Read(gomock.Any(), gomock.Any()).AnyTimes().Return([]*ce.Event{}, es.ErrOnEnd)
-			mockEventbusWriter.EXPECT().Append(gomock.Any(), gomock.Any()).Times(1).Return("", errors.New("test"))
-			mockStoreCli.EXPECT().Exists(gomock.Any(), gomock.Any()).AnyTimes().Return(false, nil)
-			mockStoreCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
-			stub1 := StubFunc(&openBusWriter, mockEventbusWriter, nil)
-			defer stub1.Reset()
-			stub2 := StubFunc(&lookupReadableLogs, ls, nil)
-			defer stub2.Reset()
-			stub3 := StubFunc(&openLogReader, mockEventlogReader, nil)
-			defer stub3.Reset()
+			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
+			mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
 			tm := newTimingMsg(ctx, event(1000))
 			twe := tw.twList.Back().Value.(*timingWheelElement)
 			result := twe.pushBack(ctx, tm)
 			So(result, ShouldEqual, false)
-		})
-
-		Convey("push timing message success", func() {
-			stub1 := StubFunc(&openBusWriter, mockEventbusWriter, nil)
-			defer stub1.Reset()
-			stub2 := StubFunc(&lookupReadableLogs, ls, nil)
-			defer stub2.Reset()
-			stub3 := StubFunc(&openLogReader, mockEventlogReader, nil)
-			defer stub3.Reset()
-			mockStoreCli.EXPECT().Exists(gomock.Any(), gomock.Any()).AnyTimes().Return(true, nil)
-			tm := newTimingMsg(ctx, event(1000))
-			twe := tw.twList.Back().Value.(*timingWheelElement)
-			result := twe.pushBack(ctx, tm)
-			So(result, ShouldEqual, true)
 		})
 	})
 }
@@ -617,11 +640,17 @@ func TestTimingWheelElement_flow(t *testing.T) {
 	Convey("test timingwheelelement flow", t, func() {
 		ctx := context.Background()
 		tw := newtimingwheel(cfg())
-		mockCtrl := gomock.NewController(t)
-		mockEventbusWriter := eventbus.NewMockBusWriter(mockCtrl)
+		mockCtrl := NewController(t)
+		mockClient := client.NewMockClient(mockCtrl)
+		mockEventbus := api.NewMockEventbus(mockCtrl)
+		mockBusWriter := api.NewMockBusWriter(mockCtrl)
+		mockBusReader := api.NewMockBusReader(mockCtrl)
+		mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
+		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
+		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
 		for e := tw.twList.Front(); e != nil; e = e.Next() {
 			for _, bucket := range e.Value.(*timingWheelElement).buckets {
-				bucket.eventbusWriter = mockEventbusWriter
+				bucket.eventbusWriter = mockBusWriter
 				bucket.timingwheel = tw
 			}
 		}
@@ -629,7 +658,7 @@ func TestTimingWheelElement_flow(t *testing.T) {
 		Convey("flow timing message failure causes append failed", func() {
 			tw.SetLeader(true)
 			tm := newTimingMsg(ctx, event(1000))
-			mockEventbusWriter.EXPECT().Append(gomock.Any(), gomock.Any()).Times(1).Return("", errors.New("test"))
+			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", errors.New("test"))
 			result := tw.twList.Front().Value.(*timingWheelElement).flow(ctx, tm)
 			So(result, ShouldEqual, false)
 		})
@@ -671,22 +700,22 @@ func TestTimingWheelElement_makeSureBucketExist(t *testing.T) {
 	Convey("test timingwheelelement make sure bucket exist", t, func() {
 		ctx := context.Background()
 		tw := newtimingwheel(cfg())
-		mockCtrl := gomock.NewController(t)
-		mockEventbusWriter := eventbus.NewMockBusWriter(mockCtrl)
-		mockEventlogReader := eventlog.NewMockLogReader(mockCtrl)
+		mockCtrl := NewController(t)
+		mockEventbusWriter := api.NewMockBusWriter(mockCtrl)
+		mockEventbusReader := api.NewMockBusReader(mockCtrl)
 		mockStoreCli := kv.NewMockClient(mockCtrl)
 		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
-		tw.client = mockEventbusCtrlCli
+		tw.ctrlCli = mockEventbusCtrlCli
 		events := make([]*ce.Event, 1)
 		events[0] = event(0)
-		ls := make([]*record.EventLog, 1)
-		ls[0] = &record.EventLog{
-			VRN: "testvrn",
+		ls := make([]*record.Eventlog, 1)
+		ls[0] = &record.Eventlog{
+			ID: 1,
 		}
 		for e := tw.twList.Front(); e != nil; e = e.Next() {
 			for _, bucket := range e.Value.(*timingWheelElement).buckets {
 				bucket.eventbusWriter = mockEventbusWriter
-				bucket.eventlogReader = mockEventlogReader
+				bucket.eventbusReader = mockEventbusReader
 				bucket.kvStore = mockStoreCli
 				bucket.timingwheel = tw
 			}

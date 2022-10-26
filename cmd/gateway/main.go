@@ -17,11 +17,11 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/linkall-labs/vanus/observability/tracing"
 	"os"
 
 	"github.com/linkall-labs/vanus/internal/gateway"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/tracing"
 )
 
 var (
@@ -41,7 +41,7 @@ func main() {
 
 	tracing.Init("Vanus-Gateway")
 
-	go gateway.MustStartHTTP(*cfg)
+	go gateway.NewHTTPServer(*cfg).MustStartHTTP()
 
 	ga := gateway.NewGateway(*cfg)
 	err = ga.StartCtrlProxy(context.Background())

@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/eventbus"
+	"github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/internal/primitive"
 
 	ce "github.com/cloudevents/sdk-go/v2"
@@ -149,17 +149,19 @@ func TestGateway_EventID(t *testing.T) {
 		port        = 8080
 	)
 
-	writer := eventbus.NewMockBusWriter(ctrl)
-	writer.EXPECT().Append(Any(), Any()).Return(eventID, nil)
-
-	stub := StubFunc(&eb.OpenBusWriter, writer, nil)
-	defer stub.Reset()
+	mockClient := client.NewMockClient(ctrl)
+	mockEventbus := api.NewMockEventbus(ctrl)
+	mockBusWriter := api.NewMockBusWriter(ctrl)
+	mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
+	mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
+	mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("AABBCC", nil)
 
 	cfg := Config{
 		Port:           port,
 		ControllerAddr: controllers,
 	}
 	ga := NewGateway(cfg)
+	ga.client = mockClient
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go ga.StartReceive(ctx)

@@ -15,19 +15,13 @@
 package trigger
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"strconv"
-	"strings"
 	"time"
 
-	"github.com/linkall-labs/vanus/client/pkg/eventbus"
-
-	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger/client"
-	"github.com/linkall-labs/vanus/observability/log"
 )
 
 func newEventClient(sink primitive.URI,
@@ -43,19 +37,6 @@ func newEventClient(sink primitive.URI,
 	default:
 		return client.NewHTTPClient(string(sink))
 	}
-}
-
-func newEventbusWriter(ctx context.Context, eventbus string, endpoints []string) (eventbus.BusWriter, error) {
-	vrn := fmt.Sprintf("vanus:///eventbus/%s?controllers=%s", eventbus, strings.Join(endpoints, ","))
-	busWriter, err := eb.OpenBusWriter(ctx, vrn)
-	if err != nil {
-		log.Error(ctx, "open bus writer failed", map[string]interface{}{
-			log.KeyError:        err,
-			log.KeyEventbusName: eventbus,
-		})
-		return nil, err
-	}
-	return busWriter, nil
 }
 
 func isShouldRetry(statusCode int) (bool, string) {

@@ -15,7 +15,6 @@
 package gateway
 
 import (
-	stdCtx "context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -24,11 +23,10 @@ import (
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/go-resty/resty/v2"
+
 	. "github.com/golang/mock/gomock"
-	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/discovery/record"
-	el "github.com/linkall-labs/vanus/client/pkg/eventlog"
-	"github.com/prashantv/gostub"
+	"github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -44,14 +42,28 @@ func TestHTTP(t *testing.T) {
 		ControllerAddr: []string{"127.0.0.1:2048"},
 	}
 
-	go MustStartHTTP(cfg)
+	mockCtrl := NewController(t)
+	mockClient := client.NewMockClient(mockCtrl)
+	mockEventbus := api.NewMockEventbus(mockCtrl)
+	mockEventlog := api.NewMockEventlog(mockCtrl)
+	mockBusWriter := api.NewMockBusWriter(mockCtrl)
+	mockBusReader := api.NewMockBusReader(mockCtrl)
+	mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
+	mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
+	mockEventbus.EXPECT().Reader(Any()).AnyTimes().Return(mockBusReader)
+	mockEventbus.EXPECT().GetLog(Any(), Any()).AnyTimes().Return(mockEventlog, nil)
+	mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
+	mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", nil)
+	mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return([]*ce.Event{&event}, int64(0), uint64(0), nil)
+
+	s := NewHTTPServer(cfg)
+	s.client = mockClient
+	go s.MustStartHTTP()
 	time.Sleep(50 * time.Millisecond)
 	httpClient := resty.New()
 
 	Convey("test get events by event id", t, func() {
-		stub1 := gostub.StubFunc(&eb.SearchEventByID, &event, nil)
-		defer stub1.Reset()
-		res, err := httpClient.NewRequest().Get(fmt.Sprintf("http://127.0.0.1:%d/getEvents?eventid=%s", cfg.Port+1, "AABBCC"))
+		res, err := httpClient.NewRequest().Get(fmt.Sprintf("http://127.0.0.1:%d/getEvents?eventid=%s", cfg.Port+1, "YWJjZGVmZ2hpamtsbW5vCg=="))
 		So(err, ShouldBeNil)
 		So(res.StatusCode(), ShouldEqual, http.StatusOK)
 		data := new(struct {
@@ -63,20 +75,6 @@ func TestHTTP(t *testing.T) {
 	})
 
 	Convey("test get events by eventbus name, offset and num", t, func() {
-		ctrl := NewController(t)
-		defer ctrl.Finish()
-		r := el.NewMockLogReader(ctrl)
-		r.EXPECT().Seek(Any(), Any(), Any()).Return(int64(0), nil)
-		r.EXPECT().Read(Any(), Any()).Return([]*ce.Event{&event}, nil)
-		r.EXPECT().Close(stdCtx.Background()).Return()
-
-		el := &record.EventLog{}
-
-		stub1 := gostub.StubFunc(&eb.LookupReadableLogs, []*record.EventLog{el}, nil)
-		defer stub1.Reset()
-		stub2 := gostub.StubFunc(&eb.OpenLogReader, r, nil)
-		defer stub2.Reset()
-
 		res, err := httpClient.NewRequest().Get(fmt.Sprintf("http://127.0.0.1:%d/getEvents?eventbus=%s&offset=%d&number=%d",
 			cfg.Port+1, "test", 0, 1))
 		So(err, ShouldBeNil)
