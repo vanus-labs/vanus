@@ -24,7 +24,7 @@ import (
 
 func TestQueue(t *testing.T) {
 	Convey("test queue", t, func() {
-		id := vanus.NewID()
+		id := vanus.NewTestID()
 		q := New()
 		q.Add(id)
 		So(q.Len(), ShouldEqual, 1)
@@ -38,7 +38,7 @@ func TestQueue(t *testing.T) {
 
 func TestQueueReAdd(t *testing.T) {
 	Convey("test queue", t, func() {
-		id := vanus.NewID()
+		id := vanus.NewTestID()
 		q := New()
 		q.Add(id)
 		So(q.Len(), ShouldEqual, 1)

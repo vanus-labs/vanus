@@ -62,36 +62,36 @@ func TestAllocator_RunWithoutDynamic(t *testing.T) {
 
 		ctx := stdCtx.Background()
 		block1 := metadata.Block{
-			ID:         vanus.NewID(),
+			ID:         vanus.NewTestID(),
 			Capacity:   defaultBlockSize,
 			VolumeID:   vanus.NewIDFromUint64(1),
-			EventlogID: vanus.NewID(),
-			SegmentID:  vanus.NewID(),
+			EventlogID: vanus.NewTestID(),
+			SegmentID:  vanus.NewTestID(),
 		}
 		block2 := metadata.Block{
-			ID:         vanus.NewID(),
+			ID:         vanus.NewTestID(),
 			Capacity:   defaultBlockSize,
 			VolumeID:   vanus.NewIDFromUint64(2),
-			EventlogID: vanus.NewID(),
-			SegmentID:  vanus.NewID(),
+			EventlogID: vanus.NewTestID(),
+			SegmentID:  vanus.NewTestID(),
 		}
 		block3 := metadata.Block{
-			ID:       vanus.NewID(),
+			ID:       vanus.NewTestID(),
 			Capacity: defaultBlockSize,
 			VolumeID: vanus.NewIDFromUint64(3),
 		}
 		block4 := metadata.Block{
-			ID:       vanus.NewID(),
+			ID:       vanus.NewTestID(),
 			Capacity: defaultBlockSize,
 			VolumeID: vanus.NewIDFromUint64(1),
 		}
 		block5 := metadata.Block{
-			ID:       vanus.NewID(),
+			ID:       vanus.NewTestID(),
 			Capacity: defaultBlockSize,
 			VolumeID: vanus.NewIDFromUint64(2),
 		}
 		block6 := metadata.Block{
-			ID:       vanus.NewID(),
+			ID:       vanus.NewTestID(),
 			Capacity: defaultBlockSize,
 			VolumeID: vanus.NewIDFromUint64(3),
 		}
@@ -172,7 +172,7 @@ func TestAllocator_RunWithDynamic(t *testing.T) {
 		srv1.EXPECT().CreateBlock(gomock.Any(), defaultBlockSize).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
 			size int64) (*metadata.Block, error) {
 			return &metadata.Block{
-				ID:       vanus.NewID(),
+				ID:       vanus.NewTestID(),
 				Capacity: size,
 				VolumeID: vanus.NewIDFromUint64(1),
 			}, nil
@@ -187,7 +187,7 @@ func TestAllocator_RunWithDynamic(t *testing.T) {
 		srv2.EXPECT().CreateBlock(gomock.Any(), defaultBlockSize).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
 			size int64) (*metadata.Block, error) {
 			return &metadata.Block{
-				ID:       vanus.NewID(),
+				ID:       vanus.NewTestID(),
 				Capacity: size,
 				VolumeID: vanus.NewIDFromUint64(2),
 			}, nil
@@ -202,7 +202,7 @@ func TestAllocator_RunWithDynamic(t *testing.T) {
 		srv3.EXPECT().CreateBlock(gomock.Any(), defaultBlockSize).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
 			size int64) (*metadata.Block, error) {
 			return &metadata.Block{
-				ID:       vanus.NewID(),
+				ID:       vanus.NewTestID(),
 				Capacity: size,
 				VolumeID: vanus.NewIDFromUint64(3),
 			}, nil
@@ -259,8 +259,8 @@ func TestAllocator_UpdateBlock(t *testing.T) {
 		alloc.kvClient = kvMock
 		ctx := stdCtx.Background()
 		block := &metadata.Block{
-			ID:       vanus.NewID(),
-			VolumeID: vanus.NewID(),
+			ID:       vanus.NewTestID(),
+			VolumeID: vanus.NewTestID(),
 			Capacity: defaultBlockSize,
 		}
 		data, _ := stdJson.Marshal(block)
@@ -281,7 +281,7 @@ func getAllocator(ctrl *gomock.Controller) *allocator {
 	srv1.EXPECT().CreateBlock(gomock.Any(), defaultBlockSize).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
 		size int64) (*metadata.Block, error) {
 		return &metadata.Block{
-			ID:       vanus.NewID(),
+			ID:       vanus.NewTestID(),
 			Capacity: size,
 			VolumeID: vanus.NewIDFromUint64(1),
 		}, nil
@@ -296,7 +296,7 @@ func getAllocator(ctrl *gomock.Controller) *allocator {
 	srv2.EXPECT().CreateBlock(gomock.Any(), defaultBlockSize).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
 		size int64) (*metadata.Block, error) {
 		return &metadata.Block{
-			ID:       vanus.NewID(),
+			ID:       vanus.NewTestID(),
 			Capacity: size,
 			VolumeID: vanus.NewIDFromUint64(2),
 		}, nil
@@ -311,7 +311,7 @@ func getAllocator(ctrl *gomock.Controller) *allocator {
 	srv3.EXPECT().CreateBlock(gomock.Any(), defaultBlockSize).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
 		size int64) (*metadata.Block, error) {
 		return &metadata.Block{
-			ID:       vanus.NewID(),
+			ID:       vanus.NewTestID(),
 			Capacity: size,
 			VolumeID: vanus.NewIDFromUint64(3),
 		}, nil

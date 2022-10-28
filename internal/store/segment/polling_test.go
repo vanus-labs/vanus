@@ -26,7 +26,7 @@ import (
 
 func TestPollingManager_All(t *testing.T) {
 	Convey("test polling manager", t, func() {
-		blkID := vanus.NewID()
+		blkID := vanus.NewTestID()
 		pm := &pollingMgr{}
 		ctx := stdCtx.Background()
 		ch := pm.Add(ctx, blkID)
@@ -43,7 +43,7 @@ func TestPollingManager_All(t *testing.T) {
 		ch2 := pm.Add(tCtx, blkID)
 		So(ch, ShouldEqual, ch2)
 
-		pm.NewMessageArrived(vanus.NewID())
+		pm.NewMessageArrived(vanus.NewTestID())
 		pm.NewMessageArrived(blkID)
 		_, ok := <-ch
 		So(ok, ShouldBeFalse)

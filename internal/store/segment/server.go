@@ -24,7 +24,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -113,9 +112,9 @@ func NewServer(cfg store.Config) Server {
 		cfg:          cfg,
 		isDebugMode:  debugModel,
 		localAddress: localAddress,
-		volumeID:     cfg.Volume.ID,
+		volumeID:     uint64(cfg.Volume.ID),
 		volumeDir:    cfg.Volume.Dir,
-		volumeIDStr:  strconv.FormatUint(cfg.Volume.ID.Uint64(), 10),
+		volumeIDStr:  fmt.Sprintf("%d", cfg.Volume.ID),
 		resolver:     resolver,
 		host:         host,
 		ctrlAddress:  cfg.ControllerAddresses,
@@ -151,7 +150,7 @@ type server struct {
 	cfg          store.Config
 	localAddress string
 
-	volumeID    vanus.ID
+	volumeID    uint64
 	volumeIDStr string
 	volumeDir   string
 
@@ -237,9 +236,11 @@ func (s *server) Initialize(ctx context.Context) error {
 		}
 	} else {
 		log.Info(ctx, "the segment server debug mode enabled", nil)
-
-		s.id = vanus.NewID()
-		if err := s.Start(ctx); err != nil {
+		var err error
+		if s.id, err = vanus.NewID(); err != nil {
+			return err
+		}
+		if err = s.Start(ctx); err != nil {
 			return err
 		}
 		s.state = primitive.ServerStateRunning
@@ -263,7 +264,7 @@ func (s *server) registerSelf(ctx context.Context) error {
 	// TODO(james.yin): pass information of blocks.
 	res, err := s.cc.RegisterSegmentServer(ctx, &ctrlpb.RegisterSegmentServerRequest{
 		Address:  s.localAddress,
-		VolumeId: s.volumeID.Uint64(),
+		VolumeId: s.volumeID,
 		Capacity: s.cfg.Volume.Capacity,
 	})
 	if err != nil {
@@ -292,7 +293,7 @@ func (s *server) reconcileSegments(ctx context.Context, segmentpbs map[uint64]*m
 		var myID vanus.ID
 		for blockID, blockpb := range segmentpb.Replicas {
 			// Don't use address to compare.
-			if blockpb.VolumeID == s.volumeID.Uint64() {
+			if blockpb.VolumeID == s.volumeID {
 				if myID != 0 {
 					// FIXME(james.yin): multiple blocks of same segment in this server.
 					log.Warning(ctx, "Multiple blocks of the same segment in this server.", map[string]interface{}{
@@ -320,7 +321,7 @@ func (s *server) reconcileSegments(ctx context.Context, segmentpbs map[uint64]*m
 func (s *server) registerReplicas(ctx context.Context, segmentpb *metapb.Segment) {
 	for blockID, blockpb := range segmentpb.Replicas {
 		if blockpb.Endpoint == "" {
-			if blockpb.VolumeID == s.volumeID.Uint64() {
+			if blockpb.VolumeID == s.volumeID {
 				blockpb.Endpoint = s.localAddress
 			} else {
 				log.Info(ctx, "Block is offline.", map[string]interface{}{
@@ -399,7 +400,7 @@ func (s *server) runHeartbeat(_ context.Context) error {
 		})
 		return &ctrlpb.SegmentHeartbeatRequest{
 			ServerId:   s.id.Uint64(),
-			VolumeId:   s.volumeID.Uint64(),
+			VolumeId:   s.volumeID,
 			HealthInfo: infos,
 			ReportTime: util.FormatTime(time.Now()),
 			ServerAddr: s.localAddress,
@@ -715,7 +716,7 @@ func (s *server) onBlockArchived(stat block.Statistics) {
 	go func() {
 		_, _ = s.cc.ReportSegmentBlockIsFull(context.Background(), &ctrlpb.SegmentHeartbeatRequest{
 			ServerId:   s.id.Uint64(),
-			VolumeId:   s.volumeID.Uint64(),
+			VolumeId:   s.volumeID,
 			HealthInfo: []*metapb.SegmentHealthInfo{info},
 			ReportTime: util.FormatTime(time.Now()),
 			ServerAddr: s.localAddress,

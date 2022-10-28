@@ -225,8 +225,12 @@ func newSegmentServerWithID(id vanus.ID, addr string) (Server, error) {
 }
 
 func NewSegmentServer(addr string) (Server, error) {
+	id, err := vanus.NewID()
+	if err != nil {
+		return nil, err
+	}
 	srv := &segmentServer{
-		id:                vanus.NewID(),
+		id:                id,
 		addr:              addr,
 		uptime:            time.Now(),
 		lastHeartbeatTime: time.Now(),

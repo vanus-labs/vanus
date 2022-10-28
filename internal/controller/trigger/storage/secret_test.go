@@ -40,7 +40,7 @@ func TestSecretStorage(t *testing.T) {
 		secret := p.(*SecretStorage)
 		secret.client = kvClient
 		Convey("test credential type AK/SK", func() {
-			subID := vanus.NewID()
+			subID := vanus.NewTestID()
 			Convey("test read", func() {
 				a, _ := crypto.AESEncrypt("test_access_key_id", secret.cipherKey)
 				s, _ := crypto.AESEncrypt("test_secret_access_key", secret.cipherKey)
@@ -60,7 +60,7 @@ func TestSecretStorage(t *testing.T) {
 			})
 		})
 		Convey("test credential type gcloud", func() {
-			subID := vanus.NewID()
+			subID := vanus.NewTestID()
 			Convey("test read", func() {
 				a, _ := crypto.AESEncrypt("{\"type\":\"service_account\"}", secret.cipherKey)
 				v, _ := json.Marshal(primitive.NewGCloudSinkCredential(a))
@@ -78,7 +78,7 @@ func TestSecretStorage(t *testing.T) {
 			})
 		})
 		Convey("test credential type plain", func() {
-			subID := vanus.NewID()
+			subID := vanus.NewTestID()
 			Convey("test read", func() {
 				a, _ := crypto.AESEncrypt("test_identifier", secret.cipherKey)
 				s, _ := crypto.AESEncrypt("test_secret", secret.cipherKey)
@@ -98,7 +98,7 @@ func TestSecretStorage(t *testing.T) {
 			})
 		})
 		Convey("test delete", func() {
-			subID := vanus.NewID()
+			subID := vanus.NewTestID()
 			kvClient.EXPECT().Delete(ctx, secret.getKey(subID)).Return(nil)
 			err := secret.Delete(ctx, subID)
 			So(err, ShouldBeNil)

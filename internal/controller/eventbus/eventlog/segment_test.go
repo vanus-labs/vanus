@@ -33,27 +33,27 @@ func TestConvert2ProtoSegment(t *testing.T) {
 		volMgr := volume.NewMockManager(ctrl)
 		mgr.volMgr = volMgr
 
-		segID := vanus.NewID()
-		eID := vanus.NewID()
-		block1 := vanus.NewID()
-		block2 := vanus.NewID()
-		block3 := vanus.NewID()
+		segID := vanus.NewTestID()
+		eID := vanus.NewTestID()
+		block1 := vanus.NewTestID()
+		block2 := vanus.NewTestID()
+		block3 := vanus.NewTestID()
 		seg := &Segment{
 			ID:                segID,
 			Capacity:          64 * 1024 * 1024,
 			EventLogID:        eID,
-			PreviousSegmentID: vanus.NewID(),
-			NextSegmentID:     vanus.NewID(),
+			PreviousSegmentID: vanus.NewTestID(),
+			NextSegmentID:     vanus.NewTestID(),
 			StartOffsetInLog:  1000,
 			Replicas: &ReplicaGroup{
-				ID:     vanus.NewID(),
+				ID:     vanus.NewTestID(),
 				Leader: block1.Uint64(),
 				Peers: map[uint64]*metadata.Block{
 					block1.Uint64(): {
 						ID:         block1,
 						Capacity:   64 * 1024 * 1024,
 						Size:       1234,
-						VolumeID:   vanus.NewID(),
+						VolumeID:   vanus.NewTestID(),
 						EventlogID: eID,
 						SegmentID:  segID,
 					},
@@ -61,7 +61,7 @@ func TestConvert2ProtoSegment(t *testing.T) {
 						ID:         block2,
 						Capacity:   64 * 1024 * 1024,
 						Size:       1234,
-						VolumeID:   vanus.NewID(),
+						VolumeID:   vanus.NewTestID(),
 						EventlogID: eID,
 						SegmentID:  segID,
 					},
@@ -69,7 +69,7 @@ func TestConvert2ProtoSegment(t *testing.T) {
 						ID:         block3,
 						Capacity:   64 * 1024 * 1024,
 						Size:       1234,
-						VolumeID:   vanus.NewID(),
+						VolumeID:   vanus.NewTestID(),
 						EventlogID: eID,
 						SegmentID:  segID,
 					},
@@ -131,11 +131,11 @@ func TestConvert2ProtoSegment(t *testing.T) {
 
 func TestSegment_Copy(t *testing.T) {
 	Convey("test segment copy", t, func() {
-		seg := createTestSegment(vanus.NewID())
+		seg := createTestSegment(vanus.NewTestID())
 		seg.Capacity = 12345678
-		seg.EventLogID = vanus.NewID()
-		seg.PreviousSegmentID = vanus.NewID()
-		seg.NextSegmentID = vanus.NewID()
+		seg.EventLogID = vanus.NewTestID()
+		seg.PreviousSegmentID = vanus.NewTestID()
+		seg.NextSegmentID = vanus.NewTestID()
 		seg.StartOffsetInLog = 12345
 		seg.State = StateCreated
 		seg.Size = 1234567
@@ -166,13 +166,13 @@ func TestSegment_Copy(t *testing.T) {
 }
 
 func createTestSegment(volID vanus.ID) *Segment {
-	leader := vanus.NewID()
-	fo1 := vanus.NewID()
-	fo2 := vanus.NewID()
+	leader := vanus.NewTestID()
+	fo1 := vanus.NewTestID()
+	fo2 := vanus.NewTestID()
 	return &Segment{
-		ID: vanus.NewID(),
+		ID: vanus.NewTestID(),
 		Replicas: &ReplicaGroup{
-			ID:     vanus.NewID(),
+			ID:     vanus.NewTestID(),
 			Leader: leader.Uint64(),
 			Peers: map[uint64]*metadata.Block{
 				leader.Uint64(): {

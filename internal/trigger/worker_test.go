@@ -34,6 +34,7 @@ func testNewTrigger(t trigger.Trigger) newTrigger {
 		return t
 	}
 }
+
 func TestAddSubscription(t *testing.T) {
 	ctx := context.Background()
 	Convey("add subscription", t, func() {
@@ -43,7 +44,7 @@ func TestAddSubscription(t *testing.T) {
 		m := NewWorker(Config{ControllerAddr: []string{"test"}}).(*worker)
 		m.newTrigger = testNewTrigger(tg)
 		Convey("add subscription", func() {
-			id := vanus.NewID()
+			id := vanus.NewTestID()
 			tg.EXPECT().Init(gomock.Any()).Return(nil)
 			tg.EXPECT().Start(gomock.Any()).Return(nil)
 			err := m.AddSubscription(ctx, &primitive.Subscription{
@@ -63,7 +64,7 @@ func TestAddSubscription(t *testing.T) {
 			})
 		})
 		Convey("add subscription has error", func() {
-			id := vanus.NewID()
+			id := vanus.NewTestID()
 			tg.EXPECT().Init(gomock.Any()).Return(nil)
 			tg.EXPECT().Start(gomock.Any()).Return(fmt.Errorf("error"))
 			err := m.AddSubscription(ctx, &primitive.Subscription{
@@ -80,7 +81,7 @@ func TestAddSubscription(t *testing.T) {
 func TestRemoveSubscription(t *testing.T) {
 	ctx := context.Background()
 	Convey("remove subscription", t, func() {
-		id := vanus.NewID()
+		id := vanus.NewTestID()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		tg := trigger.NewMockTrigger(ctrl)
@@ -122,7 +123,7 @@ func TestPauseStartSubscription(t *testing.T) {
 		tg := trigger.NewMockTrigger(ctrl)
 		m := NewWorker(Config{}).(*worker)
 		m.newTrigger = testNewTrigger(tg)
-		id := vanus.NewID()
+		id := vanus.NewTestID()
 		Convey("pause no exist subscription", func() {
 			err := m.PauseSubscription(ctx, id)
 			So(err, ShouldBeNil)
@@ -161,7 +162,7 @@ func TestPauseStartSubscription(t *testing.T) {
 func TestResetOffsetToTimestamp(t *testing.T) {
 	ctx := context.Background()
 	Convey("test reset offset to timestamp", t, func() {
-		id := vanus.NewID()
+		id := vanus.NewTestID()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		tg := trigger.NewMockTrigger(ctrl)
@@ -179,7 +180,7 @@ func TestResetOffsetToTimestamp(t *testing.T) {
 			})
 			So(err, ShouldBeNil)
 			tg.EXPECT().Stop(gomock.Any()).Return(nil)
-			offsets := info.ListOffsetInfo{{EventLogID: vanus.NewID(), Offset: uint64(100)}}
+			offsets := info.ListOffsetInfo{{EventLogID: vanus.NewTestID(), Offset: uint64(100)}}
 			tg.EXPECT().ResetOffsetToTimestamp(gomock.Any(), gomock.Any()).Return(offsets, nil)
 			triggerClient := controller.NewMockTriggerControllerClient(ctrl)
 			m.client = triggerClient
@@ -198,7 +199,7 @@ func TestWorker_Stop(t *testing.T) {
 		tg := trigger.NewMockTrigger(ctrl)
 		m := NewWorker(Config{}).(*worker)
 		m.newTrigger = testNewTrigger(tg)
-		id := vanus.NewID()
+		id := vanus.NewTestID()
 		tg.EXPECT().Init(gomock.Any()).Return(nil)
 		tg.EXPECT().Start(gomock.Any()).AnyTimes().Return(nil)
 		err := m.AddSubscription(ctx, &primitive.Subscription{
@@ -211,7 +212,7 @@ func TestWorker_Stop(t *testing.T) {
 		triggerClient := controller.NewMockTriggerControllerClient(ctrl)
 		m.client = triggerClient
 		tg.EXPECT().Stop(gomock.Any()).AnyTimes().Return(nil)
-		offsets := info.ListOffsetInfo{{EventLogID: vanus.NewID(), Offset: uint64(100)}}
+		offsets := info.ListOffsetInfo{{EventLogID: vanus.NewTestID(), Offset: uint64(100)}}
 		tg.EXPECT().GetOffsets(gomock.Any()).AnyTimes().Return(offsets)
 		triggerClient.EXPECT().CommitOffset(gomock.Any(), gomock.Any()).Return(nil, nil)
 		err = m.Stop(ctx)
