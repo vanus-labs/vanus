@@ -25,7 +25,6 @@ import (
 	"github.com/linkall-labs/vanus/raft/raftpb"
 
 	// this project.
-	walog "github.com/linkall-labs/vanus/internal/store/wal"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
@@ -313,7 +312,7 @@ func (l *Log) doAppendToWAL(ctx context.Context, entries []raftpb.Entry) ([]int6
 		}
 		ents[i] = ent
 	}
-	ranges, err := l.wal.Append(ctx, ents, walog.WithoutBatching()).Wait()
+	ranges, err := l.wal.Append(ctx, ents).Wait()
 	if err != nil {
 		return nil, err
 	}
