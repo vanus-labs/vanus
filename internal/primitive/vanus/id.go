@@ -96,6 +96,7 @@ func InitSnowflake(ctrlAddr []string, nodeID uint16) error {
 		if snow.snow == nil {
 			err = fmt.Errorf("init snowflake failed")
 		}
+		generator = snow
 	})
 	return err
 }

@@ -168,6 +168,10 @@ func (mgr *eventlogManager) AcquireEventLog(ctx context.Context, eventbusID vanu
 
 	id, err := vanus.NewID()
 	if err != nil {
+		log.Warning(ctx, "failed to create eventlog ID", map[string]interface{}{
+			log.KeyError:  err,
+			"eventbus_id": eventbusID,
+		})
 		return nil, err
 	}
 	elMD := &metadata.Eventlog{
@@ -728,10 +732,16 @@ func (mgr *eventlogManager) generateSegment(ctx context.Context) (*Segment, erro
 
 	id1, err := vanus.NewID()
 	if err != nil {
+		log.Warning(ctx, "failed to create segment ID", map[string]interface{}{
+			log.KeyError: err,
+		})
 		return nil, err
 	}
 	id2, err := vanus.NewID()
 	if err != nil {
+		log.Warning(ctx, "failed to create raft replica ID", map[string]interface{}{
+			log.KeyError: err,
+		})
 		return nil, err
 	}
 	seg = &Segment{

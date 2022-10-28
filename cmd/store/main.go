@@ -75,7 +75,11 @@ func main() {
 	})
 
 	if err = vanus.InitSnowflake(cfg.ControllerAddresses, cfg.Volume.ID); err != nil {
-		panic("init id generator failed")
+		log.Error(context.Background(), "init id generator failed", map[string]interface{}{
+			log.KeyError: err,
+			"port":       cfg.Port,
+		})
+		os.Exit(-3)
 	}
 
 	if err = srv.Serve(listener); err != nil {

@@ -125,6 +125,9 @@ func (ctrl *controller) CreateEventBus(ctx context.Context,
 
 	id, err := vanus.NewID()
 	if err != nil {
+		log.Warning(ctx, "failed to create eventbus ID", map[string]interface{}{
+			log.KeyError: err,
+		})
 		return nil, err
 	}
 	eb := &metadata.Eventbus{
