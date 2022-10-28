@@ -148,12 +148,12 @@ func main() {
 	}()
 
 	exit := func() {
+		vanus.DestroySnowflake()
 		snowflakeCtrl.Stop()
 		triggerCtrlStv.Stop(ctx)
 		segmentCtrl.Stop()
 		etcd.Stop(ctx)
 		grpcServer.GracefulStop()
-		vanus.DestroySnowflake()
 	}
 
 	if err = vanus.InitSnowflake(cfg.GetControllerAddrs(), cfg.NodeID); err != nil {

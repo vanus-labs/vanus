@@ -140,6 +140,9 @@ func (sf *snowflake) Stop() {
 }
 
 func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event embedetcd.MembershipChangedEvent) error {
+	sf.mutex.Lock()
+	defer sf.mutex.Unlock()
+
 	switch event.Type {
 	case embedetcd.EventBecomeLeader:
 		if sf.isLeader {
@@ -171,9 +174,6 @@ func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event embed
 		if err != nil {
 			return err
 		}
-
-		sf.mutex.Lock()
-		defer sf.mutex.Unlock()
 
 		sf.nodes = map[uint16]*node{}
 		for _, v := range pairs {

@@ -81,6 +81,7 @@ func main() {
 		})
 		os.Exit(-3)
 	}
+	defer vanus.DestroySnowflake()
 
 	if err = srv.Serve(listener); err != nil {
 		log.Error(ctx, "The SegmentServer occurred an error.", map[string]interface{}{
@@ -88,7 +89,7 @@ func main() {
 		})
 		return
 	}
-	vanus.DestroySnowflake()
+
 	// TODO is it gracefully?
 	log.Info(ctx, "The SegmentServer has been shutdown.", nil)
 }
