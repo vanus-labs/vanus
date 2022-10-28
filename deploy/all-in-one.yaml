@@ -6,6 +6,7 @@ metadata:
 apiVersion: v1
 data:
   controller.yaml: |-
+    node_id: ${NODE_ID}
     name: ${POD_NAME}
     ip: ${POD_IP}
     port: 2048
@@ -294,7 +295,11 @@ spec:
         app: vanus-controller
     spec:
       containers:
-      - env:
+      - command:
+        - /bin/sh
+        - -c
+        - NODE_ID=${HOSTNAME##*-} /vanus/bin/controller
+        env:
         - name: VANUS_LOG_LEVEL
           value: DEBUG
         - name: POD_NAME

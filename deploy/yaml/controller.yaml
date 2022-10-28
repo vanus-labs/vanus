@@ -5,6 +5,7 @@ metadata:
   namespace: vanus
 data:
   controller.yaml: |-
+    node_id: ${NODE_ID}
     name: ${POD_NAME}
     ip: ${POD_IP}
     port: 2048
@@ -80,6 +81,8 @@ spec:
         - name: controller
           image: public.ecr.aws/vanus/controller:v0.4.0
           imagePullPolicy: IfNotPresent
+          command:
+            [ "/bin/sh", "-c", "NODE_ID=${HOSTNAME##*-} /vanus/bin/controller" ]
           ports:
             - name: grpc
               containerPort: 2048

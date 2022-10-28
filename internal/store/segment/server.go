@@ -236,11 +236,8 @@ func (s *server) Initialize(ctx context.Context) error {
 		}
 	} else {
 		log.Info(ctx, "the segment server debug mode enabled", nil)
-		var err error
-		if s.id, err = vanus.NewID(); err != nil {
-			return err
-		}
-		if err = s.Start(ctx); err != nil {
+		s.id = vanus.NewTestID()
+		if err := s.Start(ctx); err != nil {
 			return err
 		}
 		s.state = primitive.ServerStateRunning

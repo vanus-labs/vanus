@@ -18,6 +18,15 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"net"
+	"net/http"
+	"os"
+	"runtime/debug"
+	"sync"
+
+	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
@@ -30,12 +39,6 @@ import (
 	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/linkall-labs/vanus/pkg/util/signal"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	"net"
-	"net/http"
-	"os"
-	"sync"
-
-	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -105,19 +108,29 @@ func main() {
 		log.Error(ctx, "failed to start etcd", map[string]interface{}{
 			log.KeyError: err,
 		})
-		os.Exit(-1)
+		os.Exit(-2)
 	}
+
+	recoveryOpt := recovery.WithRecoveryHandlerContext(
+		func(ctx context.Context, p interface{}) error {
+			log.Error(ctx, "goroutine panicked", map[string]interface{}{
+				log.KeyError: fmt.Sprintf("%v", p),
+				"stack":      string(debug.Stack()),
+			})
+			return status.Errorf(codes.Internal, "%v", p)
+		},
+	)
 
 	grpcServer := grpc.NewServer(
 		grpc.ChainStreamInterceptor(
-			recovery.StreamServerInterceptor(),
 			errinterceptor.StreamServerInterceptor(),
+			recovery.StreamServerInterceptor(recoveryOpt),
 			memberinterceptor.StreamServerInterceptor(etcd),
 			otelgrpc.StreamServerInterceptor(),
 		),
 		grpc.ChainUnaryInterceptor(
-			recovery.UnaryServerInterceptor(),
 			errinterceptor.UnaryServerInterceptor(),
+			recovery.UnaryServerInterceptor(recoveryOpt),
 			memberinterceptor.UnaryServerInterceptor(etcd),
 			otelgrpc.UnaryServerInterceptor(),
 		),
@@ -156,9 +169,12 @@ func main() {
 		grpcServer.GracefulStop()
 	}
 
-	if err = vanus.InitSnowflake(cfg.GetControllerAddrs(), cfg.NodeID); err != nil {
-		exit()
-		panic("init id generator failed")
+	if err = vanus.InitSnowflake(ctx, cfg.GetControllerAddrs(),
+		vanus.NewNode(vanus.ControllerService, cfg.NodeID)); err != nil {
+		log.Error(ctx, "failed to init id generator", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-3)
 	}
 
 	select {
