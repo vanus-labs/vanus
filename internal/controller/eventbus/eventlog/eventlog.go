@@ -191,8 +191,8 @@ func (mgr *eventlogManager) AcquireEventLog(ctx context.Context, eventbusID vanu
 
 	mgr.eventLogMap.Store(el.md.ID.Key(), el)
 	log.Info(ctx, "an eventlog created", map[string]interface{}{
-		"key": elMD.ID.Key(),
-		"id":  elMD.EventbusID.Key(),
+		"eventbus_id": elMD.EventbusID.Key(),
+		"eventlog_id": elMD.ID.Key(),
 	})
 	metrics.EventlogGaugeVec.Set(float64(util.MapLen(&mgr.eventLogMap)))
 	return elMD, nil
