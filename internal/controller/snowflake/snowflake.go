@@ -119,6 +119,9 @@ func (sf *snowflake) RegisterNode(ctx context.Context, in *wrapperspb.UInt32Valu
 }
 
 func (sf *snowflake) UnregisterNode(ctx context.Context, in *wrapperspb.UInt32Value) (*emptypb.Empty, error) {
+	sf.mutex.Lock()
+	defer sf.mutex.Lock()
+
 	if !sf.isLeader {
 		return nil, errors.New("i'm not leader")
 	}
@@ -127,6 +130,8 @@ func (sf *snowflake) UnregisterNode(ctx context.Context, in *wrapperspb.UInt32Va
 	if !exist {
 		return &emptypb.Empty{}, nil
 	}
+
+	delete(sf.nodes, uint16(in.Value))
 
 	if err := sf.kvStore.Delete(ctx, GetNodeIDKey(node.ID)); err != nil {
 		return nil, errors.New("delete node from kv failed")
@@ -189,6 +194,7 @@ func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event embed
 			return nil
 		}
 		sf.isLeader = false
+		sf.nodes = nil
 	}
 	return nil
 }
