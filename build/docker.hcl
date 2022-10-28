@@ -1,4 +1,4 @@
-# docker-bake.hcl
+# docker.hcl
 
 group "dev" {
   targets = ["controller", "gateway", "store", "timer", "trigger"]
