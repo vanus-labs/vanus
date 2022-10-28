@@ -64,7 +64,7 @@ docker-build-trigger:
 build-trigger:
 	$(GO_BUILD)  -o bin/trigger cmd/trigger/main.go
 
-docker-push-timer: docker-build-timer
+docker-push-timer:
 	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/timer:${IMAGE_TAG} -f build/images/timer/Dockerfile . --push
 docker-build-timer:
 	docker build -t ${DOCKER_REPO}/timer:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/timer/Dockerfile .
