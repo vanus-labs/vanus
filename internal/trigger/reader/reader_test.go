@@ -39,7 +39,7 @@ func TestGetOffsetByTimestamp(t *testing.T) {
 	Convey("test get offset by timestamp", t, func() {
 		events := make(chan info.EventRecord, 10)
 		r := NewReader(Config{}, events).(*reader)
-		eventLogID := vanus.NewID()
+		eventLogID := vanus.NewTestID()
 		r.elReader[eventLogID] = struct{}{}
 		rand.Seed(time.Now().Unix())
 		offset := rand.Uint64()
@@ -67,7 +67,7 @@ func TestGetOffset(t *testing.T) {
 	Convey("test get offset", t, func() {
 		events := make(chan info.EventRecord, 10)
 		r := NewReader(Config{}, events).(*reader)
-		eventLogID := vanus.NewID()
+		eventLogID := vanus.NewTestID()
 		r.elReader = map[vanus.ID]struct{}{}
 		mockCtrl := NewController(t)
 		mockClient := client.NewMockClient(mockCtrl)

@@ -75,7 +75,7 @@ func TestTrigger_Options(t *testing.T) {
 
 func TestTriggerStartStop(t *testing.T) {
 	Convey("test start and stop", t, func() {
-		id := vanus.NewID()
+		id := vanus.NewTestID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -112,7 +112,7 @@ func TestTriggerWriteFailEvent(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		ctx := context.Background()
-		id := vanus.NewID()
+		id := vanus.NewTestID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
 		mockClient := eb.NewMockClient(ctrl)
 		mockEventbus := api.NewMockEventbus(ctrl)
@@ -169,7 +169,7 @@ func TestTriggerRunEventSend(t *testing.T) {
 		defer ctrl.Finish()
 		cli := client.NewMockEventClient(ctrl)
 		ctx := context.Background()
-		id := vanus.NewID()
+		id := vanus.NewTestID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
 		mockClient := eb.NewMockClient(ctrl)
 		mockEventbus := api.NewMockEventbus(ctrl)
@@ -216,7 +216,7 @@ func TestTriggerRateLimit(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		cli := client.NewMockEventClient(ctrl)
-		id := vanus.NewID()
+		id := vanus.NewTestID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
 		tg.eventCli = cli
 		cli.EXPECT().Send(gomock.Any(), gomock.Any()).AnyTimes().Return(client.Success)
@@ -286,7 +286,7 @@ func makeEventRecord(t string) info.EventRecord {
 func TestChangeSubscription(t *testing.T) {
 	Convey("test change subscription", t, func() {
 		ctx := context.Background()
-		id := vanus.NewID()
+		id := vanus.NewTestID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
 		Convey("change target", func() {
 			err := tg.Change(ctx, &primitive.Subscription{Sink: "test_sink"})
@@ -314,12 +314,12 @@ func TestResetOffset(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		ctx := context.Background()
-		id := vanus.NewID()
+		id := vanus.NewTestID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
 		r := reader.NewMockReader(ctrl)
 		tg.reader = r
 		Convey("reset offset to timestamp", func() {
-			offsets := pInfo.ListOffsetInfo{{EventLogID: vanus.NewID(), Offset: uint64(100)}}
+			offsets := pInfo.ListOffsetInfo{{EventLogID: vanus.NewTestID(), Offset: uint64(100)}}
 			r.EXPECT().GetOffsetByTimestamp(gomock.Any(), gomock.Any()).Return(offsets, nil)
 			v, err := tg.ResetOffsetToTimestamp(ctx, time.Now().Unix())
 			So(err, ShouldBeNil)

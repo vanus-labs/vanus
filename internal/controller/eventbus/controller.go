@@ -125,8 +125,15 @@ func (ctrl *controller) CreateEventBus(ctx context.Context,
 			" maximum is %d", maximumEventlogNum))
 	}
 
+	id, err := vanus.NewID()
+	if err != nil {
+		log.Warning(ctx, "failed to create eventbus ID", map[string]interface{}{
+			log.KeyError: err,
+		})
+		return nil, err
+	}
 	eb := &metadata.Eventbus{
-		ID:        vanus.NewID(),
+		ID:        id,
 		Name:      req.Name,
 		LogNumber: int(logNum),
 		EventLogs: make([]*metadata.Eventlog, int(logNum)),

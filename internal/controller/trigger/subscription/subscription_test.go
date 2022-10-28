@@ -39,7 +39,7 @@ func TestSubscriptionInit(t *testing.T) {
 	m := NewSubscriptionManager(storage, secret)
 
 	Convey("init ", t, func() {
-		subID := vanus.NewID()
+		subID := vanus.NewTestID()
 		credentialType := primitive.AWS
 		storage.MockSubscriptionStorage.EXPECT().ListSubscription(ctx).Return([]*metadata.Subscription{
 			{ID: subID, SinkCredentialType: &credentialType},
@@ -64,7 +64,7 @@ func TestGetListSubscription(t *testing.T) {
 		storage := storage.NewMockStorage(ctrl)
 		secret := secret.NewMockStorage(ctrl)
 		m := NewSubscriptionManager(storage, secret)
-		id := vanus.NewID()
+		id := vanus.NewTestID()
 		Convey("list subscription size 0", func() {
 			subscriptions := m.ListSubscription(ctx)
 			So(len(subscriptions), ShouldEqual, 0)
@@ -105,7 +105,7 @@ func TestSubscription(t *testing.T) {
 		storage := storage.NewMockStorage(ctrl)
 		secret := secret.NewMockStorage(ctrl)
 		m := NewSubscriptionManager(storage, secret)
-		subID := vanus.NewID()
+		subID := vanus.NewTestID()
 		Convey("test add subscription", func() {
 			storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).Return(nil)
 			secret.EXPECT().Write(gomock.Any(), gomock.Eq(subID), gomock.Any()).Return(nil)

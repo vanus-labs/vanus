@@ -118,7 +118,10 @@ func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 			continue
 		}
 
-		volumeID, _ := vanus.NewIDFromString(filepath.Base(v.Key))
+		volumeID, err := vanus.NewIDFromString(filepath.Base(v.Key))
+		if err != nil {
+			return err
+		}
 		ins, exist := mgr.volInstanceMap.Load(volumeID.Key())
 		if !exist {
 			log.Warning(ctx, "the invalid segment server info founded", map[string]interface{}{
@@ -185,7 +188,7 @@ func (mgr *volumeMgr) GetAllActiveVolumes() []server.Instance {
 }
 
 func (mgr *volumeMgr) UpdateRouting(ctx context.Context, ins server.Instance, srv server.Server) {
-	// TODO when to persist to kv
+	// TODO when persist to kv
 	key := filepath.Join(metadata.VolumeInstanceKeyPrefixInKVStore, ins.ID().String())
 	if srv == nil {
 		if err := mgr.kvCli.Delete(ctx, key); err != nil {

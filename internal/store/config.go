@@ -19,7 +19,6 @@ import (
 	"errors"
 
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store/io"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
 	"github.com/linkall-labs/vanus/pkg/util"
@@ -55,9 +54,9 @@ func (c *Config) Validate() error {
 }
 
 type VolumeInfo struct {
-	ID       vanus.ID `json:"id"`
-	Dir      string   `json:"dir"`
-	Capacity uint64   `json:"capacity"`
+	ID       uint16 `json:"id"`
+	Dir      string `json:"dir"`
+	Capacity uint64 `json:"capacity"`
 }
 
 type SyncStoreConfig struct {

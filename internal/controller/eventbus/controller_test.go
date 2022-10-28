@@ -49,7 +49,7 @@ func TestController_CreateEventBus(t *testing.T) {
 			kvCli.EXPECT().Set(ctx, metadata.GetEventbusMetadataKey("test-1"), gomock.Any()).
 				Times(1).Return(nil)
 			el := &metadata.Eventlog{
-				ID: vanus.NewID(),
+				ID: vanus.NewTestID(),
 			}
 			elMgr.EXPECT().AcquireEventLog(ctx, gomock.Any()).Times(1).DoAndReturn(func(ctx stdCtx.Context,
 				eventbusID vanus.ID) (*metadata.Eventlog, error) {
@@ -58,6 +58,7 @@ func TestController_CreateEventBus(t *testing.T) {
 				return el, nil
 			})
 
+			vanus.InitFakeSnowflake()
 			res, err := ctrl.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
 				Name:      "test-1",
 				LogNumber: 0,
@@ -118,15 +119,15 @@ func TestController_DeleteEventBus(t *testing.T) {
 		})
 
 		md := &metadata.Eventbus{
-			ID:        vanus.NewID(),
+			ID:        vanus.NewTestID(),
 			Name:      "test-1",
 			LogNumber: 2,
 			EventLogs: []*metadata.Eventlog{
 				{
-					ID: vanus.NewID(),
+					ID: vanus.NewTestID(),
 				},
 				{
-					ID: vanus.NewID(),
+					ID: vanus.NewTestID(),
 				},
 			},
 		}

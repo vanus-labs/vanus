@@ -19,6 +19,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"net"
 	"net/http"
@@ -73,6 +74,15 @@ func main() {
 		"listen_port": cfg.Port,
 	})
 
+	if err = vanus.InitSnowflake(cfg.ControllerAddresses, cfg.Volume.ID); err != nil {
+		log.Error(context.Background(), "init id generator failed", map[string]interface{}{
+			log.KeyError: err,
+			"port":       cfg.Port,
+		})
+		os.Exit(-3)
+	}
+	defer vanus.DestroySnowflake()
+
 	if err = srv.Serve(listener); err != nil {
 		log.Error(ctx, "The SegmentServer occurred an error.", map[string]interface{}{
 			log.KeyError: err,
@@ -80,6 +90,7 @@ func main() {
 		return
 	}
 
+	// TODO is it gracefully?
 	log.Info(ctx, "The SegmentServer has been shutdown.", nil)
 }
 

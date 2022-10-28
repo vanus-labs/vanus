@@ -137,7 +137,10 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 		return nil, err
 	}
 	sub := convert.FromPbSubscriptionRequest(request.Subscription)
-	sub.ID = vanus.NewID()
+	sub.ID, err = vanus.NewID()
+	if err != nil {
+		return nil, err
+	}
 	sub.Phase = metadata.SubscriptionPhaseCreated
 	err = ctrl.subscriptionManager.AddSubscription(ctx, sub)
 	if err != nil {

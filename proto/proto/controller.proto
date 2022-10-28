@@ -17,6 +17,8 @@ syntax = "proto3";
 package linkall.vanus.controller;
 
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
 import "meta.proto";
 
 option go_package = "github.com/linkall-labs/vanus/proto/pkg/controller";
@@ -79,6 +81,12 @@ service TriggerController {
       returns (google.protobuf.Empty);
   rpc CommitOffset(CommitOffsetRequest)
       returns (CommitOffsetResponse);
+}
+
+service SnowflakeController {
+  rpc GetClusterStartTime(google.protobuf.Empty)returns (google.protobuf.Timestamp);
+  rpc RegisterNode(google.protobuf.UInt32Value) returns (google.protobuf.Empty);
+  rpc UnregisterNode(google.protobuf.UInt32Value) returns (google.protobuf.Empty);
 }
 
 message PingResponse {
