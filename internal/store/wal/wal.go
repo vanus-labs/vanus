@@ -399,8 +399,8 @@ func (w *WAL) runFlush() {
 
 func (w *WAL) logWriter(offset int64) io.WriterAt {
 	f := w.stream.selectFile(offset, true)
-	return io.WriteAtFunc(func(b []byte, off int64, cb io.WriteCallback) {
-		f.WriteAt(w.engine, b, off, cb)
+	return io.WriteAtFunc(func(b []byte, off int64, so, eo int, cb io.WriteCallback) {
+		f.WriteAt(w.engine, b, off, so, eo, cb)
 	})
 }
 

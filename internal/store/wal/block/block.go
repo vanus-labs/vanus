@@ -78,9 +78,11 @@ func (b *block) Flush(writer io.WriterAt, offset int, base int64, cb FlushCallba
 		cb(int64(b.fp), nil)
 		return
 	}
+
+	fp := b.fp
 	b.fp = offset
 
-	writer.WriteAt(b.buf, base, func(_ int, err error) {
+	writer.WriteAt(b.buf, base, fp, offset, func(_ int, err error) {
 		if err != nil {
 			cb(0, err)
 		} else {

@@ -24,22 +24,22 @@ import (
 
 func TestWriteAtFunc(t *testing.T) {
 	Convey("WriteAtFunc", t, func() {
-		var f0 WriteAtFunc = func(b []byte, off int64, cb WriteCallback) {
+		var f0 WriteAtFunc = func(b []byte, off int64, so, eo int, cb WriteCallback) {
 			So(b, ShouldBeNil)
 			So(off, ShouldEqual, 0)
 			So(cb, ShouldBeNil)
 		}
 		var w0 WriterAt = f0
-		w0.WriteAt(nil, 0, nil)
+		w0.WriteAt(nil, 0, 0, 0, nil)
 
 		buf := []byte{0x00}
 		var callback WriteCallback = func(n int, err error) {}
-		var f1 WriteAtFunc = func(b []byte, off int64, cb WriteCallback) {
+		var f1 WriteAtFunc = func(b []byte, off int64, so, eo int, cb WriteCallback) {
 			So(b, ShouldResemble, buf)
 			So(off, ShouldEqual, 1)
 			So(cb, ShouldEqual, callback)
 		}
 		var w1 WriterAt = f1
-		w1.WriteAt(buf, 1, callback)
+		w1.WriteAt(buf, 1, 0, 0, callback)
 	})
 }
