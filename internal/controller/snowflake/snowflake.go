@@ -146,7 +146,6 @@ func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event embed
 			return nil
 		}
 
-		sf.isLeader = true
 		exist, err := sf.kvStore.Exists(ctx, clusterStartAtKey)
 		if err != nil {
 			return err
@@ -172,6 +171,10 @@ func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event embed
 		if err != nil {
 			return err
 		}
+
+		sf.mutex.Lock()
+		defer sf.mutex.Unlock()
+
 		sf.nodes = map[uint16]*node{}
 		for _, v := range pairs {
 			n := &node{}
@@ -180,6 +183,7 @@ func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event embed
 			}
 			sf.nodes[n.ID] = n
 		}
+		sf.isLeader = true
 	case embedetcd.EventBecomeFollower:
 		if !sf.isLeader {
 			return nil

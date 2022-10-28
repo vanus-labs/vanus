@@ -88,7 +88,7 @@ func main() {
 		})
 		return
 	}
-
+	vanus.DestroySnowflake()
 	// TODO is it gracefully?
 	log.Info(ctx, "The SegmentServer has been shutdown.", nil)
 }

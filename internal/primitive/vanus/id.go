@@ -115,8 +115,6 @@ func NewID() (ID, error) {
 	if fake {
 		return NewTestID(), nil
 	}
-	lock.Lock()
-	defer lock.Unlock()
 
 	id, err := generator.snow.NextID()
 	if err != nil {
