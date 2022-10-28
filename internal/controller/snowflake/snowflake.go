@@ -27,6 +27,7 @@ import (
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
+	"github.com/linkall-labs/vanus/observability/log"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -80,6 +81,13 @@ func (sf *snowflake) Start(_ context.Context) error {
 }
 
 func (sf *snowflake) GetClusterStartTime(_ context.Context, _ *emptypb.Empty) (*timestamppb.Timestamp, error) {
+	sf.mutex.Lock()
+	defer sf.mutex.Unlock()
+
+	for sf.member.GetLeaderID() == "" {
+		time.Sleep(spinInterval)
+	}
+
 	if !sf.isLeader {
 		return nil, errors.New("i'm not leader")
 	}
@@ -88,7 +96,7 @@ func (sf *snowflake) GetClusterStartTime(_ context.Context, _ *emptypb.Empty) (*
 
 func (sf *snowflake) RegisterNode(ctx context.Context, in *wrapperspb.UInt32Value) (*emptypb.Empty, error) {
 	sf.mutex.Lock()
-	defer sf.mutex.Lock()
+	defer sf.mutex.Unlock()
 
 	for sf.member.GetLeaderID() == "" {
 		time.Sleep(spinInterval)
@@ -115,12 +123,15 @@ func (sf *snowflake) RegisterNode(ctx context.Context, in *wrapperspb.UInt32Valu
 	if err := sf.kvStore.Set(ctx, GetNodeIDKey(n.ID), data); err != nil {
 		return nil, errors.New("save node to kv failed")
 	}
+	log.Info(ctx, "a new node registered", map[string]interface{}{
+		"node_id": id,
+	})
 	return &emptypb.Empty{}, nil
 }
 
 func (sf *snowflake) UnregisterNode(ctx context.Context, in *wrapperspb.UInt32Value) (*emptypb.Empty, error) {
 	sf.mutex.Lock()
-	defer sf.mutex.Lock()
+	defer sf.mutex.Unlock()
 
 	if !sf.isLeader {
 		return nil, errors.New("i'm not leader")
@@ -137,6 +148,9 @@ func (sf *snowflake) UnregisterNode(ctx context.Context, in *wrapperspb.UInt32Va
 		return nil, errors.New("delete node from kv failed")
 	}
 
+	log.Info(ctx, "a node unregistered", map[string]interface{}{
+		"node_id": node.ID,
+	})
 	return &emptypb.Empty{}, nil
 }
 
@@ -158,10 +172,13 @@ func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event embed
 		if err != nil {
 			return err
 		}
+
 		if !exist {
 			now := time.Now()
 			data, _ := now.MarshalJSON()
-			_ = sf.kvStore.CompareAndSwap(ctx, clusterStartAtKey, []byte{}, data)
+			if err = sf.kvStore.Set(ctx, clusterStartAtKey, data); err != nil {
+				return err
+			}
 		}
 
 		val, err := sf.kvStore.Get(ctx, clusterStartAtKey)
