@@ -26,10 +26,78 @@ import (
 	"github.com/linkall-labs/vanus/pkg/controller"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/sony/sonyflake"
+	"go.uber.org/atomic"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
+
+type node struct {
+	start uint16
+	end   uint16
+	id    uint16
+	svc   Service
+}
+
+type Service int
+
+const (
+	ControllerService Service = iota
+	StoreService
+	UnknownService
+
+	// NodeID space: [0, 65535], DON'T CHANGE THEM!!!
+	controllerNodeIDStart           = uint16(16)
+	reservedControlPanelNodeIDStart = uint16(32)
+	storeNodeIDStart                = uint16(1024)
+	reservedNodeIDStart             = uint16(8192)
+
+	waitFinishInitSpinInterval = 50 * time.Millisecond
+)
+
+func (s Service) Name() string {
+	switch s {
+	case ControllerService:
+		return "ControllerService"
+	case StoreService:
+		return "StoreService"
+	default:
+		return "UnknownService"
+	}
+}
+
+func NewNode(svc Service, id uint16) *node { //nolint: revive // it's ok
+	switch svc {
+	case ControllerService:
+		return &node{
+			start: controllerNodeIDStart,
+			end:   reservedControlPanelNodeIDStart,
+			svc:   svc,
+			id:    id,
+		}
+	case StoreService:
+		return &node{
+			start: storeNodeIDStart,
+			end:   reservedNodeIDStart,
+			svc:   svc,
+			id:    id,
+		}
+	}
+	return &node{
+		start: reservedNodeIDStart,
+		end:   reservedNodeIDStart,
+		svc:   UnknownService,
+		id:    id,
+	}
+}
+
+func (n *node) logicID() uint16 {
+	return n.start + n.id
+}
+
+func (n *node) valid() bool {
+	return n.logicID() < n.end
+}
 
 type ID uint64
 
@@ -45,16 +113,17 @@ func EmptyID() ID {
 }
 
 var (
-	generator *snowflake
-	once      sync.Once
-	fake      bool
+	generator   *snowflake
+	once        sync.Once
+	fake        bool
+	initialized atomic.Bool
 )
 
 type snowflake struct {
 	snow     *sonyflake.Sonyflake
 	client   ctrlpb.SnowflakeControllerClient
 	ctrlAddr []string
-	nodeID   uint16
+	n        *node
 }
 
 // InitFakeSnowflake just only used for Uint Test.
@@ -62,17 +131,22 @@ func InitFakeSnowflake() {
 	fake = true
 }
 
-// InitSnowflake refactor in future.
-func InitSnowflake(ctrlAddr []string, nodeID uint16) error {
+// InitSnowflake refactor in the future.
+func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
+	if !n.valid() {
+		return fmt.Errorf("the nodeID number exceeded, range of %s is [%d, %d)",
+			n.svc.Name(), n.start, n.end-1)
+	}
+
 	var err error
 	once.Do(func() {
 		snow := &snowflake{
 			client:   controller.NewSnowflakeController(ctrlAddr, insecure.NewCredentials()),
 			ctrlAddr: ctrlAddr,
-			nodeID:   nodeID,
+			n:        n,
 		}
 		var startTime *timestamppb.Timestamp
-		startTime, err = snow.client.GetClusterStartTime(context.Background(), &empty.Empty{})
+		startTime, err = snow.client.GetClusterStartTime(ctx, &empty.Empty{})
 		if err != nil {
 			return
 		}
@@ -80,12 +154,12 @@ func InitSnowflake(ctrlAddr []string, nodeID uint16) error {
 		snow.snow = sonyflake.NewSonyflake(sonyflake.Settings{
 			StartTime: startTime.AsTime(),
 			MachineID: func() (uint16, error) {
-				return nodeID, nil
+				return n.logicID(), nil
 			},
 			CheckMachineID: func(u uint16) bool {
-				_, err := snow.client.RegisterNode(context.Background(), &wrapperspb.UInt32Value{Value: uint32(u)})
+				_, err := snow.client.RegisterNode(ctx, &wrapperspb.UInt32Value{Value: uint32(u)})
 				if err != nil {
-					log.Error(context.TODO(), "register snowflake failed", map[string]interface{}{
+					log.Error(ctx, "register snowflake failed", map[string]interface{}{
 						log.KeyError: err,
 					})
 					return false
@@ -95,25 +169,36 @@ func InitSnowflake(ctrlAddr []string, nodeID uint16) error {
 		})
 		if snow.snow == nil {
 			err = fmt.Errorf("init snowflake failed")
+			return
 		}
 		generator = snow
+		initialized.Store(true)
+		log.Info(ctx, "succeed to init ID generator", map[string]interface{}{
+			"node_id": snow.n.logicID(),
+		})
 	})
 	return err
 }
 
 func DestroySnowflake() {
-	_, err := generator.client.UnregisterNode(context.Background(),
-		&wrapperspb.UInt32Value{Value: uint32(generator.nodeID)})
-	if err != nil {
-		log.Warning(context.TODO(), "failed to unregister snowflake", map[string]interface{}{
-			log.KeyError: err,
-		})
+	if generator != nil {
+		_, err := generator.client.UnregisterNode(context.Background(),
+			&wrapperspb.UInt32Value{Value: uint32(generator.n.logicID())})
+		if err != nil {
+			log.Warning(context.TODO(), "failed to unregister snowflake", map[string]interface{}{
+				log.KeyError: err,
+			})
+		}
 	}
 }
 
 func NewID() (ID, error) {
 	if fake {
 		return NewTestID(), nil
+	}
+
+	for !initialized.Load() {
+		time.Sleep(waitFinishInitSpinInterval)
 	}
 
 	id, err := generator.snow.NextID()

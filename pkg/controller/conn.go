@@ -144,7 +144,7 @@ func (c *conn) getGRPCConn(ctx context.Context, addr string) *grpc.ClientConn {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(c.credentials))
 	opts = append(opts, grpc.WithBlock())
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	conn, err = grpc.DialContext(ctx, addr, opts...)
 	if err != nil {
