@@ -18,7 +18,10 @@ import "os"
 
 type Engine interface {
 	Close()
-	WriteAt(f *os.File, b []byte, off int64, cb WriteCallback)
+	// WriteAt writes block b to the File starting at byte offset off.
+	// If only partial data is changed, offset so and eo are used to hint it.
+	// WriteCallback cb is called with the number of bytes written and an error when the operation completes.
+	WriteAt(f *os.File, b []byte, off int64, so, eo int, cb WriteCallback)
 }
 
 type engine struct{}
@@ -32,6 +35,6 @@ func NewEngine() Engine {
 
 func (e *engine) Close() {}
 
-func (e *engine) WriteAt(f *os.File, b []byte, off int64, cb WriteCallback) {
+func (e *engine) WriteAt(f *os.File, b []byte, off int64, so, eo int, cb WriteCallback) {
 	cb(f.WriteAt(b, off))
 }

@@ -36,7 +36,7 @@ func doEngineTest(e Engine, f *os.File) {
 	var rerr error
 
 	wg.Add(1)
-	e.WriteAt(f, data0, 0, func(n int, err error) {
+	e.WriteAt(f, data0, 0, 0, 0, func(n int, err error) {
 		rn = n
 		rerr = err
 		wg.Done()
@@ -47,7 +47,7 @@ func doEngineTest(e Engine, f *os.File) {
 	So(rn, ShouldEqual, len(data0))
 
 	wg.Add(1)
-	e.WriteAt(f, data1, 0, func(n int, err error) {
+	e.WriteAt(f, data1, 0, 0, 0, func(n int, err error) {
 		rn = n
 		rerr = err
 		wg.Done()

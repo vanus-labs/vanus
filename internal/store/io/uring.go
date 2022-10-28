@@ -36,9 +36,9 @@ const (
 )
 
 type uRing struct {
-	uring     *iouring.IOURing
-	resultc   chan iouring.Result
-	inflightc chan uint64
+	ring      *iouring.IOURing
+	resultC   chan iouring.Result
+	inflightC chan uint64
 	seq       uint64
 }
 
@@ -46,7 +46,7 @@ type uRing struct {
 var _ Engine = (*uRing)(nil)
 
 func NewURing() Engine {
-	uring, err := iouring.New(defaultResultBufferSize)
+	ring, err := iouring.New(defaultResultBufferSize)
 	if err != nil {
 		log.Error(context.Background(), "Create iouring failed.", map[string]interface{}{
 			log.KeyError: err,
@@ -55,9 +55,9 @@ func NewURing() Engine {
 	}
 
 	e := &uRing{
-		uring:     uring,
-		resultc:   make(chan iouring.Result, defaultResultBufferSize),
-		inflightc: make(chan uint64, defaultInflightBufferSize),
+		ring:      ring,
+		resultC:   make(chan iouring.Result, defaultResultBufferSize),
+		inflightC: make(chan uint64, defaultInflightBufferSize),
 	}
 
 	go e.runCallback()
@@ -66,12 +66,12 @@ func NewURing() Engine {
 }
 
 func (e *uRing) Close() {
-	if err := e.uring.Close(); err != nil {
+	if err := e.ring.Close(); err != nil {
 		log.Error(context.Background(), "Encounter error when close iouring.", map[string]interface{}{
 			log.KeyError: err,
 		})
 	}
-	close(e.resultc)
+	close(e.resultC)
 }
 
 type pendingResult struct {
@@ -83,9 +83,9 @@ func (e *uRing) runCallback() {
 	results := make(map[uint64]iouring.Result)
 	pendingResults := make([]pendingResult, 0, defaultInflightBufferSize)
 
-	for result := range e.resultc {
+	for result := range e.resultC {
 		seq, _ := result.GetRequestInfo().(uint64)
-		need := <-e.inflightc
+		need := <-e.inflightC
 
 		if seq == need {
 			if len(pendingResults) == 0 {
@@ -133,23 +133,23 @@ func (e *uRing) runCallback() {
 	}
 }
 
-func (e *uRing) WriteAt(f *os.File, b []byte, off int64, cb WriteCallback) {
+func (e *uRing) WriteAt(f *os.File, b []byte, off int64, so, eo int, cb WriteCallback) {
 	seq := e.generateSeq()
 
-	preq := iouring.Pwrite(int(f.Fd()), b, uint64(off)).
+	pr := iouring.Pwrite(int(f.Fd()), b, uint64(off)).
 		WithInfo(seq).
 		WithCallback(func(result iouring.Result) error {
 			cb(result.ReturnInt())
 			return nil
 		})
 
-	_, err := e.uring.SubmitRequest(preq, e.resultc)
+	_, err := e.ring.SubmitRequest(pr, e.resultC)
 	if err != nil {
 		cb(0, err)
 		return
 	}
 
-	e.inflightc <- seq
+	e.inflightC <- seq
 }
 
 func (e *uRing) generateSeq() uint64 {
