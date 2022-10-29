@@ -231,7 +231,7 @@ func NewIDFromString(id string) (ID, error) {
 }
 
 func (id ID) String() string {
-	return fmt.Sprintf("%X", uint64(id))
+	return fmt.Sprintf("%016X", uint64(id))
 }
 
 func (id ID) Uint64() uint64 {

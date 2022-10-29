@@ -37,7 +37,14 @@ func TestEngine_ResolvePath(t *testing.T) {
 			dir: dir,
 		}
 		path := e.resolvePath(id)
-		So(path, ShouldEqual, filepath.Join(dir,
-			fmt.Sprintf("%020d.vsb", id.Uint64())))
+		So(path, ShouldEqual, filepath.Join(dir, fmt.Sprintf("%s.vsb", id.String())))
+
+		filename := filepath.Base(path)
+		So(len(filename), ShouldEqual, 20)
+		So(filename[16:], ShouldEqual, ".vsb")
+
+		id2, err := vanus.NewIDFromString(filename[:16])
+		So(err, ShouldBeNil)
+		So(id2, ShouldEqual, id)
 	})
 }
