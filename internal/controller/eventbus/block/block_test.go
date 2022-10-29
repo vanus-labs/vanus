@@ -235,13 +235,13 @@ func TestAllocator_RunWithDynamic(t *testing.T) {
 		instanceList = []server.Instance{srv1, srv2, srv3}
 		mutex.Unlock()
 		time.Sleep(time.Second)
-		v, exist := alloc.volumeBlockBuffer.Load("1")
+		v, exist := alloc.volumeBlockBuffer.Load("0000000000000001")
 		So(exist, ShouldBeTrue)
 		list1 := v.(*skiplist.SkipList)
-		v, exist = alloc.volumeBlockBuffer.Load("2")
+		v, exist = alloc.volumeBlockBuffer.Load("0000000000000002")
 		So(exist, ShouldBeTrue)
 		list2 := v.(*skiplist.SkipList)
-		v, exist = alloc.volumeBlockBuffer.Load("3")
+		v, exist = alloc.volumeBlockBuffer.Load("0000000000000003")
 		So(exist, ShouldBeTrue)
 		list3 := v.(*skiplist.SkipList)
 
