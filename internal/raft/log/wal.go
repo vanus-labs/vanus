@@ -15,6 +15,9 @@
 package log
 
 import (
+	// standard libraries.
+	"sync"
+
 	// third-party libraries.
 	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/observability/tracing"
@@ -47,7 +50,7 @@ type executeCallback func() (compactTask, error)
 
 type executeTask struct {
 	cb     executeCallback
-	result chan error
+	result chan<- error
 }
 
 type WAL struct {
@@ -55,11 +58,12 @@ type WAL struct {
 
 	metaStore *meta.SyncStore
 
-	barrier  *skiplist.SkipList
-	executec chan executeTask
-	compactc chan compactTask
-	donec    chan struct{}
-	tracer   *tracing.Tracer
+	barrier   *skiplist.SkipList
+	executec  chan executeTask
+	executeMu sync.RWMutex
+	compactc  chan compactTask
+	donec     chan struct{}
+	tracer    *tracing.Tracer
 }
 
 func newWAL(wal *walog.WAL, metaStore *meta.SyncStore) *WAL {

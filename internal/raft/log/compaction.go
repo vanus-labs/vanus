@@ -83,12 +83,14 @@ func (l *Log) Compact(ctx context.Context, i uint64) error {
 }
 
 func (w *WAL) suppressCompact(cb executeCallback) error {
-	result := make(chan error, 1)
-	w.executec <- executeTask{
-		cb:     cb,
-		result: result,
+	w.executeMu.RLock()
+	defer w.executeMu.RUnlock()
+	ct, err := cb()
+	if err != nil {
+		return err
 	}
-	return <-result
+	w.compactc <- ct
+	return nil
 }
 
 func (w *WAL) tryCompact(ctx context.Context, offset, last int64, nodeID vanus.ID, index, term uint64) {
@@ -179,19 +181,26 @@ var emptyMark = struct{}{}
 
 func (w *WAL) run() {
 	for task := range w.executec {
-		ct, err := task.cb()
-		if task.result != nil {
-			if err != nil {
-				task.result <- err
-				continue
-			}
-			w.compactc <- ct
-			close(task.result)
-		} else if err == nil {
-			w.compactc <- ct
-		}
+		w.executeMu.Lock()
+		w.doExecute(task.cb, task.result)
+		w.executeMu.Unlock()
 	}
+
 	close(w.compactc)
+}
+
+func (w *WAL) doExecute(cb executeCallback, rc chan<- error) {
+	ct, err := cb()
+	if rc != nil {
+		if err != nil {
+			rc <- err
+			return
+		}
+		w.compactc <- ct
+		close(rc)
+	} else if err == nil {
+		w.compactc <- ct
+	}
 }
 
 func (w *WAL) runCompact() {
