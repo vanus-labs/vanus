@@ -100,5 +100,5 @@ func (e *engine) Open(ctx context.Context, id vanus.ID) (block.Raw, error) {
 }
 
 func (e *engine) resolvePath(id vanus.ID) string {
-	return filepath.Join(e.dir, fmt.Sprintf("%020d%s", id.Uint64(), vsbExt))
+	return filepath.Join(e.dir, fmt.Sprintf("%s%s", id.String(), vsbExt))
 }
