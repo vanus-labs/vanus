@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	defaultExecuteTaskBufferSize = 256
+	defaultUpdateTaskBufferSize  = 256
 	defaultCompactTaskBufferSize = 256
 )
 
@@ -66,7 +66,7 @@ func newWAL(wal *walog.WAL, metaStore *meta.SyncStore) *WAL {
 		WAL:       wal,
 		metaStore: metaStore,
 		barrier:   skiplist.New(skiplist.Int64),
-		updateC:   make(chan compactTask, defaultExecuteTaskBufferSize),
+		updateC:   make(chan compactTask, defaultUpdateTaskBufferSize),
 		compactC:  make(chan compactTask, defaultCompactTaskBufferSize),
 		doneC:     make(chan struct{}),
 		tracer:    tracing.NewTracer("raft.log.wal", oteltrace.SpanKindInternal),
