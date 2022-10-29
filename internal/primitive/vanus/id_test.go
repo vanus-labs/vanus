@@ -67,7 +67,7 @@ func TestNewID(t *testing.T) {
 	Convey("test id other", t, func() {
 		id1 := NewIDFromUint64(10213234320)
 		So(id1.Uint64(), ShouldEqual, 10213234320)
-		So(id1.Key(), ShouldEqual, "260C19690")
+		So(id1.Key(), ShouldEqual, "0000000260C19690")
 		id2 := NewIDFromUint64(10213234320)
 		So(id1.Equals(id2), ShouldBeTrue)
 		So(EmptyID(), ShouldEqual, 0)
