@@ -24,11 +24,11 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/labstack/echo/v4 v4.7.2
 	github.com/linkall-labs/embed-etcd v0.1.1
-	github.com/linkall-labs/vanus/client v0.4.0-alpha
-	github.com/linkall-labs/vanus/observability v0.4.0-alpha
-	github.com/linkall-labs/vanus/pkg v0.4.0-alpha
-	github.com/linkall-labs/vanus/proto v0.4.0-alpha
-	github.com/linkall-labs/vanus/raft v0.4.0-alpha
+	github.com/linkall-labs/vanus/client v0.4.0
+	github.com/linkall-labs/vanus/observability v0.4.0
+	github.com/linkall-labs/vanus/pkg v0.4.0
+	github.com/linkall-labs/vanus/proto v0.4.0
+	github.com/linkall-labs/vanus/raft v0.4.0
 	github.com/mwitkow/grpc-proxy v0.0.0
 	github.com/ncw/directio v1.0.5
 	github.com/prashantv/gostub v1.1.0
