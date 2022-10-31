@@ -48,7 +48,7 @@ func (l *Log) Compact(ctx context.Context, i uint64) error {
 		return raft.ErrCompacted
 	}
 	if i > l.lastIndex() {
-		log.Error(context.Background(), "conpactedIndex is out of bound lastIndex", map[string]interface{}{
+		log.Error(context.Background(), "compactedIndex is out of bound lastIndex", map[string]interface{}{
 			"compacted_index": i,
 			"last_index":      l.lastIndex(),
 		})
@@ -82,27 +82,27 @@ func (l *Log) Compact(ctx context.Context, i uint64) error {
 	return nil
 }
 
-func (w *WAL) suppressCompact(cb executeCallback) error {
-	result := make(chan error, 1)
-	w.executec <- executeTask{
-		cb:     cb,
-		result: result,
+func (w *WAL) reserve(cb reserveCallback) error {
+	w.compactMu.RLock()
+	defer w.compactMu.RUnlock()
+	off, err := cb()
+	if err != nil {
+		return err
 	}
-	return <-result
+	w.compactC <- compactTask{
+		offset: off,
+	}
+	return nil
 }
 
 func (w *WAL) tryCompact(ctx context.Context, offset, last int64, nodeID vanus.ID, index, term uint64) {
-	w.executec <- executeTask{
-		cb: func() (compactTask, error) {
-			return compactTask{
-				offset: offset,
-				last:   last,
-				nodeID: nodeID,
-				info: compactInfo{
-					index: index,
-					term:  term,
-				},
-			}, nil
+	w.updateC <- compactTask{
+		offset: offset,
+		last:   last,
+		nodeID: nodeID,
+		info: compactInfo{
+			index: index,
+			term:  term,
 		},
 	}
 }
@@ -151,15 +151,15 @@ type compactContext struct {
 }
 
 func loadCompactContext(metaStore *meta.SyncStore) *compactContext {
-	cctx := &compactContext{
+	cCtx := &compactContext{
 		infos:     make(logCompactInfos),
 		metaStore: metaStore,
 	}
 	if v, ok := metaStore.Load(walCompactKey); ok {
-		cctx.compacted, _ = v.(int64)
+		cCtx.compacted, _ = v.(int64)
 	}
-	cctx.toCompact = cctx.compacted
-	return cctx
+	cCtx.toCompact = cCtx.compacted
+	return cCtx
 }
 
 func (c *compactContext) stale() bool {
@@ -177,47 +177,40 @@ func (c *compactContext) sync(ctx context.Context) {
 
 var emptyMark = struct{}{}
 
-func (w *WAL) run() {
-	for task := range w.executec {
-		ct, err := task.cb()
-		if task.result != nil {
-			if err != nil {
-				task.result <- err
-				continue
-			}
-			w.compactc <- ct
-			close(task.result)
-		} else if err == nil {
-			w.compactc <- ct
-		}
+func (w *WAL) runBarrierUpdate() {
+	for task := range w.updateC {
+		w.compactMu.Lock()
+		w.compactC <- task
+		w.compactMu.Unlock()
 	}
-	close(w.compactc)
+
+	close(w.compactC)
 }
 
 func (w *WAL) runCompact() {
 	ticker := time.NewTicker(defaultCompactInterval)
 	defer ticker.Stop()
 
-	cctx := loadCompactContext(w.metaStore)
+	cCtx := loadCompactContext(w.metaStore)
 	for {
 		select {
-		case task, ok := <-w.compactc:
+		case task, ok := <-w.compactC:
 			if !ok {
-				for task := range w.compactc {
-					w.compact(cctx, task)
+				for task := range w.compactC {
+					w.compact(cCtx, task)
 				}
-				w.doCompact(cctx)
-				close(w.donec)
+				w.doCompact(cCtx)
+				close(w.doneC)
 				return
 			}
-			w.compact(cctx, task)
+			w.compact(cCtx, task)
 		case <-ticker.C:
-			w.doCompact(cctx)
+			w.doCompact(cCtx)
 		}
 	}
 }
 
-func (w *WAL) compact(cctx *compactContext, compact compactTask) {
+func (w *WAL) compact(cCtx *compactContext, compact compactTask) {
 	// Discard last barrier.
 	if compact.last != 0 {
 		w.barrier.Remove(compact.last)
@@ -226,27 +219,27 @@ func (w *WAL) compact(cctx *compactContext, compact compactTask) {
 	if compact.offset != 0 {
 		w.barrier.Set(compact.offset, emptyMark)
 	}
-	// Set compation info.
+	// Set compaction info.
 	if compact.nodeID != 0 {
-		cctx.infos[compact.nodeID] = compact.info
+		cCtx.infos[compact.nodeID] = compact.info
 	}
 	if front := w.barrier.Front(); front != nil {
 		offset, _ := front.Key().(int64)
-		cctx.toCompact = offset
+		cCtx.toCompact = offset
 	}
 	// TODO(james.yin): no log entry in WAL.
 }
 
-func (w *WAL) doCompact(cctx *compactContext) {
+func (w *WAL) doCompact(cCtx *compactContext) {
 	ctx, span := w.tracer.Start(context.Background(), "doCompact")
 	defer span.End()
-	if cctx.stale() {
+	if cCtx.stale() {
 		log.Debug(context.TODO(), "compact WAL of raft log.", map[string]interface{}{
-			"offset": cctx.toCompact,
+			"offset": cCtx.toCompact,
 		})
 		// Store compacted info and offset.
-		cctx.sync(ctx)
+		cCtx.sync(ctx)
 		// Compact underlying WAL.
-		_ = w.WAL.Compact(cctx.compacted)
+		_ = w.WAL.Compact(cCtx.compacted)
 	}
 }
