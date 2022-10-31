@@ -242,7 +242,7 @@ ERROR:
 		"node_id":     l.nodeID,
 		"first_index": firstIndex,
 		"last_term":   lastTerm,
-		"last_lndex":  lastIndex,
+		"last_index":  lastIndex,
 		"next_term":   term,
 		"next_index":  index,
 	})
@@ -276,22 +276,19 @@ func (l *Log) prepareAppend(entries []raftpb.Entry) error {
 	return nil
 }
 
-func (l *Log) appendToWAL(ctx context.Context, entries []raftpb.Entry, suppress bool) ([]int64, error) {
+func (l *Log) appendToWAL(ctx context.Context, entries []raftpb.Entry, empty bool) ([]int64, error) {
 	l.Unlock()
 	defer l.Lock()
 
 	var offsets []int64
 	var err error
-	if suppress {
-		_ = l.wal.suppressCompact(func() (compactTask, error) {
+	if empty {
+		_ = l.wal.reserve(func() (int64, error) {
 			offsets, err = l.doAppendToWAL(ctx, entries)
 			if err != nil {
-				return compactTask{}, err
+				return 0, err
 			}
-			return compactTask{
-				offset: offsets[0],
-				last:   l.offs[0],
-			}, nil
+			return offsets[0], nil
 		})
 	} else {
 		offsets, err = l.doAppendToWAL(ctx, entries)

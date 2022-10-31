@@ -15,10 +15,13 @@
 package log
 
 import (
+	// standard libraries.
+	"sync"
+
 	// third-party libraries.
 	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/observability/tracing"
-	oteltracer "go.opentelemetry.io/otel/trace"
+	oteltrace "go.opentelemetry.io/otel/trace"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -27,7 +30,7 @@ import (
 )
 
 const (
-	defaultExecuteTaskBufferSize = 256
+	defaultUpdateTaskBufferSize  = 256
 	defaultCompactTaskBufferSize = 256
 )
 
@@ -43,23 +46,19 @@ type compactTask struct {
 	info         compactInfo
 }
 
-type executeCallback func() (compactTask, error)
-
-type executeTask struct {
-	cb     executeCallback
-	result chan error
-}
+type reserveCallback func() (int64, error)
 
 type WAL struct {
 	*walog.WAL
 
 	metaStore *meta.SyncStore
 
-	barrier  *skiplist.SkipList
-	executec chan executeTask
-	compactc chan compactTask
-	donec    chan struct{}
-	tracer   *tracing.Tracer
+	barrier   *skiplist.SkipList
+	updateC   chan compactTask
+	compactC  chan compactTask
+	compactMu sync.RWMutex
+	doneC     chan struct{}
+	tracer    *tracing.Tracer
 }
 
 func newWAL(wal *walog.WAL, metaStore *meta.SyncStore) *WAL {
@@ -67,13 +66,13 @@ func newWAL(wal *walog.WAL, metaStore *meta.SyncStore) *WAL {
 		WAL:       wal,
 		metaStore: metaStore,
 		barrier:   skiplist.New(skiplist.Int64),
-		executec:  make(chan executeTask, defaultExecuteTaskBufferSize),
-		compactc:  make(chan compactTask, defaultCompactTaskBufferSize),
-		donec:     make(chan struct{}),
-		tracer:    tracing.NewTracer("raft.log.wal", oteltracer.SpanKindInternal),
+		updateC:   make(chan compactTask, defaultUpdateTaskBufferSize),
+		compactC:  make(chan compactTask, defaultCompactTaskBufferSize),
+		doneC:     make(chan struct{}),
+		tracer:    tracing.NewTracer("raft.log.wal", oteltrace.SpanKindInternal),
 	}
 
-	go w.run()
+	go w.runBarrierUpdate()
 	go w.runCompact()
 
 	return w
@@ -83,10 +82,10 @@ func (w *WAL) Close() {
 	w.WAL.Close()
 	go func() {
 		w.WAL.Wait()
-		close(w.executec)
+		close(w.updateC)
 	}()
 }
 
 func (w *WAL) Wait() {
-	<-w.donec
+	<-w.doneC
 }
