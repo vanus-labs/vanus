@@ -17,6 +17,8 @@ package block
 import (
 	// standard libraries.
 	"os"
+	"sync/atomic"
+	"unsafe"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/io"
@@ -24,6 +26,20 @@ import (
 )
 
 type FlushCallback func(off int64, err error)
+
+type flushTask struct {
+	writer io.WriterAt
+	offset int
+	cb     FlushCallback
+	next   *flushTask
+}
+
+func (ft *flushTask) invokeCallback(err error) {
+	if ft.next != nil {
+		ft.next.invokeCallback(err)
+	}
+	ft.cb(int64(ft.offset), err)
+}
 
 type block struct {
 	buf []byte
@@ -33,6 +49,8 @@ type block struct {
 	fp int
 	// cp is commit pointer
 	cp int
+	// nf is next flush task
+	nf unsafe.Pointer
 }
 
 func (b *block) Capacity() int {
@@ -82,15 +100,61 @@ func (b *block) Flush(writer io.WriterAt, offset int, base int64, cb FlushCallba
 	fp := b.fp
 	b.fp = offset
 
-	writer.WriteAt(b.buf, base, fp, offset, func(_ int, err error) {
-		if err != nil {
-			cb(0, err)
-		} else {
-			if offset > b.cp {
-				b.cp = offset
-			}
-			cb(int64(b.cp), nil)
+	task := &flushTask{
+		writer: writer,
+		offset: offset,
+		cb:     cb,
+	}
+
+	p := atomic.LoadPointer(&b.nf)
+	task.next = (*flushTask)(p)
+	for !atomic.CompareAndSwapPointer(&b.nf, p, unsafe.Pointer(task)) {
+		p = atomic.LoadPointer(&b.nf)
+		task.next = (*flushTask)(p)
+	}
+
+	if p != nil {
+		return
+	}
+
+	b.doFlush(task, base, fp)
+}
+
+func (b *block) doFlush(task *flushTask, base int64, so int) {
+	offset := task.offset
+	task.writer.WriteAt(b.buf, base, so, offset, func(_ int, err error) {
+		if err == nil {
+			b.cp = offset
 		}
+
+		p := atomic.LoadPointer(&b.nf)
+		ft := (*flushTask)(p)
+
+		var last *flushTask
+		for ft.offset != offset {
+			last = ft
+			ft = ft.next
+		}
+
+		ft.invokeCallback(err)
+
+		if last == nil {
+			if atomic.CompareAndSwapPointer(&b.nf, p, nil) {
+				return
+			}
+
+			// reload
+			p = atomic.LoadPointer(&b.nf)
+			last = (*flushTask)(p)
+			for last.next.offset != offset {
+				last = last.next
+			}
+		}
+
+		// truncate task list
+		last.next = nil
+
+		go b.doFlush((*flushTask)(p), base, offset)
 	})
 }
 
