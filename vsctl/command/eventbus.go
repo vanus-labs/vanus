@@ -58,7 +58,8 @@ func createEventbusCommand() *cobra.Command {
 
 			cli := ctrlpb.NewEventBusControllerClient(grpcConn)
 			_, err := cli.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
-				Name: eventbus,
+				Name:      eventbus,
+				LogNumber: eventlogNum,
 			})
 			if err != nil {
 				cmdFailedf(cmd, "create eventbus failed: %s", err)
@@ -80,6 +81,7 @@ func createEventbusCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&eventbus, "name", "", "eventbus name to deleting")
+	cmd.Flags().Int32Var(&eventlogNum, "eventlog", 1, "number of eventlog")
 	return cmd
 }
 
