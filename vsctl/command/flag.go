@@ -32,6 +32,7 @@ var (
 
 	// for vsctl eventbus and subscription.
 	eventbus       string
+	eventlogNum    int32
 	source         string
 	sink           string
 	filters        string

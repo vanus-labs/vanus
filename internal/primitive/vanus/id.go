@@ -96,7 +96,7 @@ func (n *node) logicID() uint16 {
 }
 
 func (n *node) valid() bool {
-	return n.logicID() < n.end
+	return n.logicID() < n.end && n.logicID() >= n.start
 }
 
 type ID uint64
@@ -134,8 +134,8 @@ func InitFakeSnowflake() {
 // InitSnowflake refactor in the future.
 func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 	if !n.valid() {
-		return fmt.Errorf("the nodeID number exceeded, range of %s is [%d, %d)",
-			n.svc.Name(), n.start, n.end-1)
+		return fmt.Errorf("the nodeID number: %d exceeded, range of %s is [%d, %d)",
+			n.logicID(), n.svc.Name(), n.start, n.end)
 	}
 
 	var err error
