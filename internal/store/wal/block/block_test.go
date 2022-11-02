@@ -126,6 +126,7 @@ func TestBlock(t *testing.T) {
 					})
 				}
 				wg.Wait()
+				close(ch)
 
 				So(resultC, ShouldHaveLength, 100)
 				for i := 1; i <= 100; i++ {
