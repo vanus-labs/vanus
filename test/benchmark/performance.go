@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package performance
+package main
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/cloudevents/sdk-go/v2/client"
 	"github.com/cloudevents/sdk-go/v2/protocol"
@@ -50,81 +51,191 @@ const (
 )
 
 var (
-	number      int64
-	eventbusNum int
-	parallelism int
-	payloadSize int
-	eventbus    string
+	name         string
+	unit         int
+	eventbusList []string
+	number       int64
+	parallelism  int
+	payloadSize  int
 
-	port        int
-	benchmarkID string
-	benchType   string
+	port      int
+	benchType string
 )
 
-func NewPerformanceCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "performance SUB-COMMAND",
-		Short: "vanus performance benchmark program",
-	}
-	cmd.AddCommand(runCommand())
-	cmd.AddCommand(receiveCommand())
-	cmd.AddCommand(analyseCommand())
-	return cmd
-}
+var ebCh = make(chan string, 1024)
 
 func runCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run SUB-COMMAND",
 		Short: "vanus performance benchmark program",
 		Run: func(cmd *cobra.Command, args []string) {
+			initRedis()
 			endpoint := mustGetGatewayEndpoint(cmd)
-			benchmarkID = genStr(rand.New(rand.NewSource(time.Now().UnixNano())), 16)
+
+			if len(eventbusList) == 0 {
+				panic("eventbus list is empty")
+			}
+
 			log.Info(context.Background(), "benchmark", map[string]interface{}{
-				"id": benchmarkID,
+				"id": getBenchmarkID(),
 			})
 
 			// start
-			var success int64
-			wg := sync.WaitGroup{}
-			wg.Add(eventbusNum * parallelism)
-			ctx, cancel := context.WithCancel(context.Background())
-			for idx := 1; idx <= eventbusNum; idx++ {
-				eb := fmt.Sprintf("performance-%d", idx)
-				for p := 0; p < parallelism; p++ {
-					go func() {
-						run(cmd, endpoint, eb, int(number)/(eventbusNum*parallelism), &success, false)
-						wg.Done()
-					}()
+			start := time.Now()
+			cnt := int64(0)
+			go func() {
+				for atomic.LoadInt64(&cnt) < number {
+					for idx := 0; idx < len(eventbusList); idx++ {
+						ebCh <- eventbusList[idx]
+						atomic.AddInt64(&cnt, 1)
+					}
 				}
+				close(ebCh)
+				log.Info(context.Background(), "all events were made", map[string]interface{}{
+					"num": number,
+				})
+			}()
+
+			p, err := ce.NewHTTP()
+			if err != nil {
+				cmdFailedf(cmd, "init ce protocol error: %s\n", err)
+			}
+			c, err := ce.NewClient(p, ce.WithTimeNow(), ce.WithUUIDs())
+			if err != nil {
+				cmdFailedf(cmd, "create ce client error: %s\n", err)
 			}
 
+			var success int64
+			wg := sync.WaitGroup{}
+			for idx := 0; idx < parallelism; idx++ {
+				wg.Add(1)
+				go func() {
+					for {
+						eb, ok := <-ebCh
+						if !ok && eb == "" {
+							break
+						}
+						var target string
+						if strings.HasPrefix(endpoint, httpPrefix) {
+							target = fmt.Sprintf("%s/gateway/%s", endpoint, eb)
+						} else {
+							target = fmt.Sprintf("%s%s/gateway/%s", httpPrefix, endpoint, eb)
+						}
+						r, e := send(c, target)
+						if e != nil {
+							panic(e)
+						}
+						if r {
+							atomic.AddInt64(&success, 1)
+						}
+					}
+					wg.Done()
+				}()
+			}
+
+			ctx, can := context.WithCancel(context.Background())
+			m := make(map[int]int, 0)
+			wg2 := sync.WaitGroup{}
+			wg2.Add(1)
 			go func() {
 				var prev int64
 				tick := time.NewTicker(time.Second)
-				defer tick.Stop()
+				c := 1
+				defer func() {
+					tick.Stop()
+					tps := success - prev
+					log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", success, tps), nil)
+					m[c] = int(tps)
+					wg2.Done()
+				}()
 				for prev < number {
 					select {
 					case <-tick.C:
 						cur := atomic.LoadInt64(&success)
 						tps := cur - prev
+						m[c] = int(tps)
 						log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", cur, tps), nil)
 						prev = cur
+						c++
 					case <-ctx.Done():
 						return
 					}
 				}
 			}()
 			wg.Wait()
-			cancel()
+			can()
+			wg2.Wait()
+			saveTPS(m, "produce")
+			log.Info(nil, "all message were sent", map[string]interface{}{
+				"success": success,
+				"failed":  number - success,
+				"used":    time.Now().Sub(start),
+			})
 			_ = rdb.Close()
 		},
 	}
+	cmd.Flags().StringVar(&name, "name", "", "task name")
+	cmd.Flags().IntVar(&unit, "unit", 0, "")
+	cmd.Flags().StringArrayVar(&eventbusList, "eventbus", []string{}, "the eventbus name used to")
 	cmd.Flags().Int64Var(&number, "number", 100000, "the event number")
-	cmd.Flags().IntVar(&eventbusNum, "eventbus-number", 1, "")
-	cmd.Flags().IntVar(&parallelism, "parallelism", 4, "")
+	cmd.Flags().IntVar(&parallelism, "parallelism", 1, "")
 	cmd.Flags().IntVar(&payloadSize, "payload-size", 64, "byte")
-	cmd.Flags().StringVar(&eventbus, "eventbus", "performance-test", "the eventbus name used to")
 	return cmd
+}
+
+func initRedis() {
+	rdb = redis.NewClient(&redis.Options{
+		Addr: redisAddr,
+	})
+	cmd := rdb.Ping(context.Background())
+	if cmd.Err() != nil {
+		panic("failed to connect redis: " + cmd.Err().Error())
+	}
+	log.Info(nil, "connect to redis success", map[string]interface{}{
+		"addr": redisAddr,
+	})
+}
+
+func saveTPS(m map[int]int, t string) {
+	d, _ := json.Marshal(m)
+	_ = rdb.Set(context.Background(), getTPSKey(t), d, 0)
+}
+
+func getTPSKey(t string) string {
+	return path.Join(redisKey, fmt.Sprintf("tps-%s", t), getBenchmarkID())
+}
+
+func send(c ce.Client, target string) (bool, error) {
+	ctx := ce.ContextWithTarget(context.Background(), target)
+	r := &Record{
+		BornAt: time.Now(),
+	}
+	event := ce.NewEvent()
+
+	event.SetID(uuid.NewString())
+	event.SetSource("performance.benchmark.vanus")
+	event.SetType("performance.benchmark.vanus")
+	event.SetTime(r.BornAt)
+
+	err := event.SetData(ce.ApplicationJSON, genData())
+	if err != nil {
+		return false, errors.New("failed to set data: " + err.Error())
+	}
+	res := c.Send(ctx, event)
+	if ce.IsUndelivered(res) {
+		return false, errors.New("failed to send: " + res.Error())
+	} else {
+		var httpResult *cehttp.Result
+		ce.ResultAs(res, &httpResult)
+		if httpResult != nil && httpResult.StatusCode == http.StatusOK {
+			r.SentAt = time.Now()
+			event.SetExtension(eventSentAt, time.Now())
+			cache(r, "send")
+		} else {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func receiveCommand() *cobra.Command {
@@ -132,24 +243,26 @@ func receiveCommand() *cobra.Command {
 		Use:   "receive",
 		Short: "vanus performance benchmark program",
 		Run: func(cmd *cobra.Command, args []string) {
+			initRedis()
 			ls, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 			if err != nil {
 				cmdFailedf(cmd, "init network error: %s", err)
 			}
-			benchmarkID = genStr(rand.New(rand.NewSource(time.Now().UnixNano())), 16)
 
 			c, err := client.NewHTTP(cehttp.WithListener(ls), cehttp.WithRequestDataAtContextMiddleware())
 			if err != nil {
 				cmdFailedf(cmd, "init ce http error: %s", err)
 			}
 			log.Info(context.TODO(), fmt.Sprintf("the receiver ready to work at %d", port), map[string]interface{}{
-				"benchmark_id": benchmarkID,
+				"benchmark_id": getBenchmarkID(),
 			})
 			if err := c.StartReceiver(context.Background(), receive); err != nil {
 				cmdFailedf(cmd, "start cloudevents receiver error: %s", err)
 			}
 		},
 	}
+	cmd.Flags().StringVar(&name, "name", "", "task name")
+	cmd.Flags().IntVar(&unit, "unit", 0, "")
 	cmd.Flags().IntVar(&port, "port", 8080, "the port the receive server running")
 	return cmd
 }
@@ -159,10 +272,11 @@ func analyseCommand() *cobra.Command {
 		Use:   "analyse",
 		Short: "vanus performance benchmark program",
 		Run: func(cmd *cobra.Command, args []string) {
+			initRedis()
 			if benchType == "" {
 				cmdFailedf(cmd, "benchmark-type can't be empty")
 			}
-			ch := make(chan *ce.Event, 64)
+			ch := make(chan *Record, 64)
 			wg := sync.WaitGroup{}
 			wg.Add(1)
 			f := func(his *hdrhistogram.Histogram, unit string) {
@@ -176,24 +290,47 @@ func analyseCommand() *cobra.Command {
 				}
 
 				fmt.Printf("Total: %d\n", his.TotalCount())
-				fmt.Printf("Mean: %.2f %s\n", his.Mean(), unit)
-				fmt.Printf("StdDev: %.2f\n", his.StdDev())
-				fmt.Printf("Max: %d %s, Min: %d %s\n", his.Max(), unit, his.Min(), unit)
+				fmt.Printf("Latency Mean: %.2f %s\n", his.Mean(), unit)
+				fmt.Printf("Latency StdDev: %.2f\n", his.StdDev())
+				fmt.Printf("Latency Max: %d %s, Latency Min: %d %s\n", his.Max(), unit, his.Min(), unit)
 				fmt.Println()
+
+				tps := hdrhistogram.New(1, 100000, 50)
+
+				cmd := rdb.Get(context.Background(), getTPSKey(benchType))
+				m := make(map[int]int, 0)
+				_ = json.Unmarshal([]byte(cmd.Val()), &m)
+				for _, v := range m {
+					if err := tps.RecordValue(int64(v)); err != nil {
+						fmt.Println("error: TPS " + err.Error())
+					}
+				}
+				res = tps.CumulativeDistribution()
+				for _, v := range res {
+					if v.Count == 0 {
+						continue
+					}
+
+					fmt.Printf("%3.2f pct - %d, count: %d\n", v.Quantile, v.ValueAt, v.Count)
+				}
+				fmt.Printf("Used: %d s\n", tps.TotalCount())
+				fmt.Printf("TPS Mean: %.2f/s\n", tps.Mean())
+				fmt.Printf("TPS StdDev: %.2f\n", tps.StdDev())
+				fmt.Printf("TPS Max: %d, TPS Min: %d\n", tps.Max(), tps.Min())
 				wg.Done()
 			}
 			dataKey := ""
 			if benchType == "produce" {
-				dataKey = path.Join(redisKey, "send", benchmarkID)
+				dataKey = path.Join(redisKey, "send", getBenchmarkID())
 				go analyseProduction(ch, f)
 			} else {
-				dataKey = path.Join(redisKey, "receive", benchmarkID)
+				dataKey = path.Join(redisKey, "receive", getBenchmarkID())
 				go analyseConsumption(ch, f)
 			}
 			ctx := context.Background()
 			num := rdb.LLen(ctx, dataKey).Val()
 			for idx := 0; idx < int(num); idx++ {
-				strCMD := rdb.LIndex(ctx, dataKey, int64(idx))
+				strCMD := rdb.LPop(ctx, dataKey)
 				if strCMD.Err() != nil {
 					if strCMD.Err() == redis.Nil {
 						break
@@ -204,15 +341,15 @@ func analyseCommand() *cobra.Command {
 					})
 					break
 				}
-				e := ce.NewEvent()
 				data, _ := strCMD.Bytes()
-				if err := e.UnmarshalJSON(data); err != nil {
+				r := &Record{}
+				if err := json.Unmarshal(data, r); err != nil {
 					log.Warning(ctx, "unmarshall cloud event failed", map[string]interface{}{
 						log.KeyError: err,
 						"data":       strCMD.Val(),
 					})
 				}
-				ch <- &e
+				ch <- r
 			}
 			for len(ch) > 0 {
 				time.Sleep(time.Second)
@@ -222,64 +359,10 @@ func analyseCommand() *cobra.Command {
 			_ = rdb.Close()
 		},
 	}
-	cmd.Flags().StringVar(&benchmarkID, "benchmark-id", "", "the benchmark id to analyse")
+	cmd.Flags().StringVar(&name, "name", "", "task name")
+	cmd.Flags().IntVar(&unit, "unit", 0, "")
 	cmd.Flags().StringVar(&benchType, "benchmark-type", "", "the type of benchmark, produce or consume")
 	return cmd
-}
-
-func run(cmd *cobra.Command, endpoint, eventbus string, number int, cnt *int64, fastFailure bool) {
-	p, err := ce.NewHTTP()
-	if err != nil {
-		cmdFailedf(cmd, "init ce protocol error: %s\n", err)
-	}
-	c, err := ce.NewClient(p, ce.WithTimeNow(), ce.WithUUIDs())
-	if err != nil {
-		cmdFailedf(cmd, "create ce client error: %s\n", err)
-	}
-	var target string
-	if strings.HasPrefix(endpoint, httpPrefix) {
-		target = fmt.Sprintf("%s/gateway/%s", endpoint, eventbus)
-	} else {
-		target = fmt.Sprintf("%s%s/gateway/%s", httpPrefix, endpoint, eventbus)
-	}
-
-	failed := 0
-	for idx := 0; idx < number; idx++ {
-		ctx := ce.ContextWithTarget(context.Background(), target)
-		event := ce.NewEvent()
-
-		event.SetID(uuid.NewString())
-		event.SetSource("performance.benchmark.vanus")
-		event.SetType("performance.benchmark.vanus")
-		event.SetTime(time.Now())
-
-		err = event.SetData(ce.ApplicationJSON, genData())
-		if err != nil {
-			cmdFailedf(cmd, "set data failed: %s\n", err)
-		}
-		res := c.Send(ctx, event)
-		if ce.IsUndelivered(res) {
-			cmdFailedf(cmd, "failed to send: %s\n", res.Error())
-		} else {
-			var httpResult *cehttp.Result
-			ce.ResultAs(res, &httpResult)
-			if httpResult == nil {
-				failed++
-			} else if httpResult.StatusCode != http.StatusOK {
-				failed++
-			} else {
-				event.SetExtension(eventSentAt, time.Now())
-				cache(&event, "send")
-				atomic.AddInt64(cnt, 1)
-			}
-		}
-	}
-
-	if fastFailure && failed != 0 {
-		cmdFailedf(cmd, "send failed number: %d\n", failed)
-	} else {
-		fmt.Printf("%s sent done, failed number: %d\n", eventbus, failed)
-	}
 }
 
 var receiveOnce = sync.Once{}
@@ -299,7 +382,12 @@ func receive(_ context.Context, event ce.Event) protocol.Result {
 		}()
 	})
 	event.SetExtension(eventReceivedAt, time.Now())
-	cache(&event, "receive")
+	r := &Record{
+		ID:         event.ID(),
+		BornAt:     event.Time(),
+		ReceivedAt: time.Now(),
+	}
+	cache(r, "receive")
 	atomic.AddInt64(&consumingCnt, 1)
 	return ce.ResultACK
 }
@@ -312,13 +400,12 @@ func isOutputFormatJSON(cmd *cobra.Command) bool {
 	return strings.ToLower(v) == "json"
 }
 
-var rdb = redis.NewClient(&redis.Options{
-	Addr: "localhost:6379",
-})
+var rdb *redis.Client
 
-func cache(e *ce.Event, key string) {
-	data, _ := e.MarshalJSON()
-	cmd := rdb.LPush(context.Background(), path.Join(redisKey, key, benchmarkID), data)
+func cache(r *Record, key string) {
+	key = path.Join(redisKey, key, getBenchmarkID())
+	data, _ := json.Marshal(r)
+	cmd := rdb.LPush(context.Background(), key, data)
 	if cmd.Err() != nil {
 		log.Warning(context.Background(), "set event to redis failed", map[string]interface{}{
 			log.KeyError: cmd.Err(),
@@ -326,26 +413,23 @@ func cache(e *ce.Event, key string) {
 	}
 }
 
-func analyseProduction(ch <-chan *ce.Event, f func(his *hdrhistogram.Histogram, unit string)) {
-	his := hdrhistogram.New(1, 100, 50)
-	for e := range ch {
-		sentAtStr := e.Extensions()["xsentat"].(string)
-		t, _ := time.Parse(time.RFC3339, sentAtStr)
-
-		latency := t.Sub(e.Time())
-		_ = his.RecordValue(latency.Microseconds())
+func analyseProduction(ch <-chan *Record, f func(his *hdrhistogram.Histogram, unit string)) {
+	his := hdrhistogram.New(1, 10000, 50)
+	for r := range ch {
+		latency := r.SentAt.Sub(r.BornAt)
+		if err := his.RecordValue(latency.Milliseconds()); err != nil {
+			fmt.Println(err)
+		}
 	}
-	f(his, "us")
+	f(his, "ms")
 }
 
-func analyseConsumption(ch <-chan *ce.Event, f func(his *hdrhistogram.Histogram, unit string)) {
+func analyseConsumption(ch <-chan *Record, f func(his *hdrhistogram.Histogram, unit string)) {
 	his := hdrhistogram.New(1, 1000, 50)
 	cnt := 0
-	for e := range ch {
+	for r := range ch {
 		cnt++
-		receiveAtStr := e.Extensions()[eventReceivedAt].(string)
-		t, _ := time.Parse(time.RFC3339, receiveAtStr)
-		latency := t.Sub(e.Time())
+		latency := r.ReceivedAt.Sub(r.BornAt)
 		if err := his.RecordValue(latency.Milliseconds()); err != nil {
 			log.Warning(context.Background(), "histogram error", map[string]interface{}{
 				log.KeyError: err,
@@ -371,17 +455,15 @@ var (
 
 func genData() map[string]interface{} {
 	once.Do(func() {
-		for idx := 0; idx < eventbusNum; idx++ {
-			go func() {
-				rd := rand.New(rand.NewSource(time.Now().UnixNano()))
-				for {
-					m := map[string]interface{}{
-						"data": genStr(rd, payloadSize),
-					}
-					ch <- m
+		go func() {
+			rd := rand.New(rand.NewSource(time.Now().UnixNano()))
+			for {
+				m := map[string]interface{}{
+					"data": genStr(rd, payloadSize),
 				}
-			}()
-		}
+				ch <- m
+			}
+		}()
 	})
 	return <-ch
 }
@@ -417,4 +499,15 @@ func cmdFailedf(cmd *cobra.Command, format string, a ...interface{}) {
 	}
 
 	os.Exit(-1)
+}
+
+func getBenchmarkID() string {
+	if name == "" {
+		panic("name list is empty")
+	}
+
+	if unit == 0 {
+		panic("unit must great than 0")
+	}
+	return fmt.Sprintf("%s-%d", name, unit)
 }

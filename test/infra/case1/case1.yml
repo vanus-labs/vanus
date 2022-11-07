@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: vanus-bench-case1
+  name: vanus-bench-case1
+  namespace: vanus-test
+spec:
+  parallelism: 1
+  completions: 1
+  backoffLimit: 3
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        app: vanus-bench-case1
+    spec:
+      restartPolicy: Never
+      containers:
+        - image: public.ecr.aws/vanus/test-infra:dev
+          imagePullPolicy: Always
+          name: vanus-bench-case1
+          env:
+            - name: CASE_NAME
+              value: case1
+            - name: PAYLOAD_SIZE
+              value: "1024"
+            - name: EVENTBUS
+              value: case1
+            - name: VANUS_GATEWAY
+              value: "vanus-gateway.vanus:8080"
+            - name: REDIS_ADDR
+              value: "redis.vanus-test:6379"
+            - name: UNIT1_NUMBER
+              value: "500"
+            - name: UNIT2_NUMBER
+              value: "5000"
