@@ -60,4 +60,4 @@ jobs:
       - name: Build and Push
         timeout-minutes: 120
         run: |
-          make docker-push IMAGE_TAG=dev
+          make docker-push DOCKER_REGISTRY=linkall.tencentcloudcr.com IMAGE_TAG=dev
