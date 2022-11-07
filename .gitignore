@@ -30,3 +30,5 @@ bin
 *coverage*
 
 .run
+
+vanus-bench

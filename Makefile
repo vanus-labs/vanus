@@ -41,6 +41,10 @@ docker-build-gateway:
 build-gateway:
 	$(GO_BUILD)  -o bin/gateway cmd/gateway/main.go
 
+docker-push-test-infra:
+	docker build -t ${DOCKER_REPO}/test-infra:${IMAGE_TAG} -f test/infra/Dockerfile .
+	docker push ${DOCKER_REPO}/test-infra:${IMAGE_TAG}
+
 t1=-X 'main.Version=${VERSION}'
 t2=${t1} -X 'main.GitCommit=${GIT_COMMIT}'
 t3=${t2} -X 'main.BuildDate=${DATE}'
