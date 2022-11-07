@@ -30,8 +30,8 @@ jobs:
       - name: Log into registry ${{ env.REGISTRY }}
         uses: docker/login-action@v2
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ env.USERNAME }}
+          registry: ${{ env.REGISTRY_AWS }}
+          username: ${{ env.USERNAME_AWS }}
           password: ${{ secrets.AWS_ECR_TOKEN }}
 
       - name: Build and Push

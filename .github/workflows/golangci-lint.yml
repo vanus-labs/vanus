@@ -17,6 +17,10 @@ jobs:
         go: [ 1.18 ]
         os: [ ubuntu-latest ]
     name: lint
+    if: |
+      startsWith(github.event.pull_request.title, 'fix') ||
+      startsWith(github.event.pull_request.title, 'feat') ||
+      startsWith(github.event.pull_request.title, 'refactor')
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/setup-go@v3
