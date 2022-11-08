@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	defaultRetryTimes = 3
+	defaultRetryTimes = 10
 	pollingThreshold  = 200 // in milliseconds.
 	pollingPostSpan   = 100 // in milliseconds.
 )
