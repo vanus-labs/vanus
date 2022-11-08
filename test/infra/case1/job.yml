@@ -4,7 +4,7 @@ metadata:
   labels:
     app: vanus-bench-case1
   name: vanus-bench-case1
-  namespace: vanus-test
+  namespace: vanus-bench
 spec:
   parallelism: 1
   completions: 1
@@ -17,7 +17,8 @@ spec:
     spec:
       restartPolicy: Never
       containers:
-        - image: public.ecr.aws/vanus/test-infra:dev
+        - image: linkall.tencentcloudcr.com/vanus/test-infra:dev
+          command: ["bash", "-c", "sleep 10000"]
           imagePullPolicy: Always
           name: vanus-bench-case1
           env:
@@ -30,7 +31,7 @@ spec:
             - name: VANUS_GATEWAY
               value: "vanus-gateway.vanus:8080"
             - name: REDIS_ADDR
-              value: "redis.vanus-test:6379"
+              value: "redis.vanus-bench:6379"
             - name: UNIT1_NUMBER
               value: "500"
             - name: UNIT2_NUMBER

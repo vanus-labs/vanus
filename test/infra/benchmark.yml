@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: vanus-test
+  name: vanus-bench
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -9,7 +9,7 @@ metadata:
   labels:
     app: redis
   name: redis
-  namespace: vanus-test
+  namespace: vanus-bench
 spec:
   replicas: 1
   selector:
@@ -31,7 +31,7 @@ metadata:
   labels:
     app: redis
   name: redis
-  namespace: vanus-test
+  namespace: vanus-bench
 spec:
   ports:
     - port: 6379
