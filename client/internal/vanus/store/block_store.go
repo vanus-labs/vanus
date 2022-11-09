@@ -17,9 +17,10 @@ package store
 import (
 	// standard libraries
 	"context"
+	"strings"
+
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"go.opentelemetry.io/otel/trace"
-	"strings"
 
 	// third-party libraries
 	cepb "cloudevents.io/genproto/v1"
@@ -29,7 +30,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	// first-party libraries
-	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
+
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
 	// this project
@@ -92,15 +93,12 @@ func (s *BlockStore) Append(ctx context.Context, block uint64, event *ce.Event) 
 
 	res, err := client.(segpb.SegmentServerClient).AppendToBlock(_ctx, req)
 	if err != nil {
-		if errStatus, ok := status.FromError(err); ok {
-			if errType, ok := errpb.Convert(errStatus.Message()); ok {
-				if errType.Code == errpb.ErrorCode_SEGMENT_FULL {
-					return -1, errors.ErrNoSpace
-				}
-				return -1, errors.ErrNotWritable
-			}
+		sts := status.Convert(err)
+		// TODO: temporary scheme, wait for error code reconstruction
+		if strings.Contains(sts.Message(), "SEGMENT_FULL") {
+			return -1, errors.ErrNoSpace
 		}
-		return -1, err
+		return -1, errors.ErrNotWritable
 	}
 	// TODO(Y. F. Zhang): batch events
 	return res.GetOffsets()[0], nil
