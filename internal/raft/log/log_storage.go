@@ -17,8 +17,7 @@ package log
 import (
 	// standard libraries.
 	"context"
-	"fmt"
-	"strings"
+	"errors"
 
 	// third-party libraries.
 	"go.opentelemetry.io/otel/attribute"
@@ -28,6 +27,16 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/raft"
 	"github.com/linkall-labs/vanus/raft/raftpb"
+
+	// this project.
+	walog "github.com/linkall-labs/vanus/internal/store/wal"
+)
+
+var (
+	ErrNoEntry   = errors.New("no entry")
+	ErrBadEntry  = errors.New("bad entry")
+	ErrCompacted = errors.New("appending entries has been compacted")
+	ErrTruncated = errors.New("appending entries has been truncated")
 )
 
 type logStorage struct {
@@ -37,6 +46,8 @@ type logStorage struct {
 	// offs[0] is a dummy entry, which records last offset where the barrier was set.
 	// offs[i] is the start offset of ents[i] in WAL.
 	offs []int64
+
+	appendResultC chan appendTask
 
 	wal *WAL
 }
@@ -116,6 +127,10 @@ func (l *Log) lastTerm() uint64 {
 	return l.ents[l.length()].Term
 }
 
+func (l *Log) lastStableTerm() uint64 {
+	return l.ents[l.stableLength()].Term
+}
+
 func (l *Log) compactedTerm() uint64 {
 	return l.ents[0].Term
 }
@@ -130,6 +145,10 @@ func (l *Log) LastIndex() (uint64, error) {
 
 func (l *Log) lastIndex() uint64 {
 	return l.compactedIndex() + l.length()
+}
+
+func (l *Log) lastStableIndex() uint64 {
+	return l.compactedIndex() + l.stableLength()
 }
 
 // FirstIndex returns the index of the first log entry that is
@@ -155,24 +174,50 @@ func (l *Log) length() uint64 {
 	return uint64(len(l.ents)) - 1
 }
 
+func (l *Log) stableLength() uint64 {
+	return uint64(len(l.offs)) - 1
+}
+
+type AppendResult struct {
+	Term  uint64
+	Index uint64
+}
+
+type appendTask struct {
+	entries []raftpb.Entry
+	offsets []int64
+	err     error
+	cb      func(AppendResult, error)
+}
+
+type AppendCallback = func(AppendResult, error)
+
 // Append the new entries to storage.
-func (l *Log) Append(ctx context.Context, entries []raftpb.Entry) error {
+func (l *Log) Append(ctx context.Context, entries []raftpb.Entry, cb AppendCallback) {
 	ctx, span := l.tracer.Start(ctx, "Append")
 	defer span.End()
 
 	if len(entries) == 0 {
-		return nil
+		t := appendTask{
+			err: ErrNoEntry,
+			cb:  cb,
+		}
+		l.appendResultC <- t
+		return
 	}
 
 	if err := l.prepareAppend(ctx, entries); err != nil {
-		return err
+		t := appendTask{
+			err: err,
+			cb:  cb,
+		}
+		l.appendResultC <- t
+		return
 	}
 
 	span.AddEvent("Acquiring lock")
 	l.Lock()
 	span.AddEvent("Got lock")
-
-	defer l.Unlock()
 
 	term := entries[0].Term
 	index := entries[0].Index
@@ -183,20 +228,33 @@ func (l *Log) Append(ctx context.Context, entries []raftpb.Entry) error {
 	lastIndex := l.lastIndex()
 	expectedIndex := lastIndex + 1
 
-	var err error
-	var reason string
-	var offsets []int64
-
 	if expectedIndex < index {
-		// FIXME(james.yin): correct error
-		err = raft.ErrUnavailable
-		reason = "missing log entries"
-		goto ERROR
+		l.Unlock()
+		log.Error(ctx, "Missing log entries.", map[string]interface{}{
+			"node_id":     l.nodeID,
+			"first_index": firstIndex,
+			"last_term":   lastTerm,
+			"last_index":  lastIndex,
+			"next_term":   term,
+			"next_index":  index,
+		})
+		t := appendTask{
+			err: ErrBadEntry,
+			cb:  cb,
+		}
+		l.appendResultC <- t
+		return
 	}
 
 	// Shortcut if there is no new entry.
 	if rindex < firstIndex {
-		return nil
+		l.Unlock()
+		t := appendTask{
+			err: ErrCompacted,
+			cb:  cb,
+		}
+		l.appendResultC <- t
+		return
 	}
 
 	// Truncate compacted entries.
@@ -207,69 +265,108 @@ func (l *Log) Append(ctx context.Context, entries []raftpb.Entry) error {
 	}
 
 	if term < lastTerm {
-		// FIXME(james.yin): correct error
-		err = raft.ErrUnavailable
-		reason = "term roll back"
-		goto ERROR
+		l.Unlock()
+		log.Error(ctx, "Term roll back.", map[string]interface{}{
+			"node_id":     l.nodeID,
+			"first_index": firstIndex,
+			"last_term":   lastTerm,
+			"last_index":  lastIndex,
+			"next_term":   term,
+			"next_index":  index,
+		})
+		t := appendTask{
+			err: ErrBadEntry,
+			cb:  cb,
+		}
+		l.appendResultC <- t
+		return
 	}
 
 	if prev := &l.ents[index-firstIndex]; term != prev.Term {
 		entries[0].PrevTerm = prev.Term
 	}
 
-	// Append to WAL.
-	offsets, err = l.appendToWAL(ctx, entries, index == firstIndex)
-	if err != nil {
-		// FIXME(james.yin): correct error
-		return err
-	}
-
-	// Record offset of first entry in WAL.
-	if index == firstIndex {
-		l.offs[0] = offsets[0]
-	}
-
-	// Write to cache, and record offset in WAL.
-	span.SetAttributes(
-		attribute.Int64("index", int64(index)),
-		attribute.Int64("expected_index", int64(expectedIndex)),
-		attribute.Int("entry_count", len(entries)),
-		attribute.Int("cache_count", len(l.ents)-1),
-		attribute.Int("entry_cache_capacity", cap(l.ents)),
-		attribute.Int("offset_cache_capacity", cap(l.offs)),
-		attribute.Bool("truncate", index != expectedIndex),
-	)
-	span.AddEvent("Writing to cache")
 	if index == expectedIndex {
 		// append
 		l.ents = append(l.ents, entries...)
-		l.offs = append(l.offs, offsets...)
 	} else {
 		// truncate then append: term > lastTerm
 		i := index - firstIndex + 1
 		l.ents = append([]raftpb.Entry{}, l.ents[:i]...)
 		l.ents = append(l.ents, entries...)
-		l.offs = append([]int64{}, l.offs[:i]...)
-		l.offs = append(l.offs, offsets...)
+		// truncate offsets
+		if index < l.lastStableIndex() {
+			l.offs = append([]int64{}, l.offs[:i]...)
+		}
 	}
-	span.AddEvent("Written to cache")
-	span.SetAttributes(
-		attribute.Int("entry_cache_capacity2", cap(l.ents)),
-		attribute.Int("offset_cache_capacity2", cap(l.offs)),
-	)
 
-	return nil
+	span.AddEvent("Releasing lock")
+	l.Unlock()
 
-ERROR:
-	log.Error(ctx, fmt.Sprintf("%s%s.", strings.ToUpper(reason[0:1]), reason[1:]), map[string]interface{}{
-		"node_id":     l.nodeID,
-		"first_index": firstIndex,
-		"last_term":   lastTerm,
-		"last_index":  lastIndex,
-		"next_term":   term,
-		"next_index":  index,
+	// Append to WAL.
+	l.appendToWAL(ctx, entries, index == firstIndex, func(offsets []int64, err error) {
+		if err != nil {
+			l.appendResultC <- appendTask{
+				err: err,
+				cb:  cb,
+			}
+		} else {
+			l.appendResultC <- appendTask{
+				entries: entries,
+				offsets: offsets,
+				cb:      cb,
+			}
+		}
 	})
-	return err
+}
+
+func (l *Log) runPostAppend() {
+	for task := range l.appendResultC {
+		if task.err != nil {
+			task.cb(AppendResult{}, task.err)
+			continue
+		}
+
+		l.Lock()
+
+		end := len(task.entries) - 1
+		for ; end >= 0; end-- {
+			e := task.entries[end]
+			gt, err := l.term(e.Index)
+			if err == nil && gt == e.Term {
+				break
+			}
+		}
+
+		if end < 0 {
+			// All entries has been truncated.
+			l.Unlock()
+			task.cb(AppendResult{}, ErrTruncated)
+			continue
+		}
+
+		index := task.entries[0].Index
+		fi := l.firstIndex()
+		li := l.lastStableIndex()
+
+		if index == li+1 {
+			// append
+			l.offs = append(l.offs, task.offsets[:end+1]...)
+		} else {
+			// truncate then append: term > lastTerm
+			after := index - fi + 1
+			l.offs = append([]int64{}, l.offs[:after]...)
+			l.offs = append(l.offs, task.offsets[:end+1]...)
+		}
+
+		l.Unlock()
+
+		e := task.entries[end]
+		task.cb(AppendResult{
+			Term:  e.Term,
+			Index: e.Index,
+		}, nil)
+	}
 }
 
 func (l *Log) prepareAppend(ctx context.Context, entries []raftpb.Entry) error {
@@ -292,8 +389,7 @@ func (l *Log) prepareAppend(ctx context.Context, entries []raftpb.Entry) error {
 				"previous_term":  prev.Term,
 				"previous_index": prev.Index,
 			})
-			// FIXME(james.yin): error
-			return raft.ErrUnavailable
+			return ErrBadEntry
 		}
 		if entry.Term != prev.Term {
 			entry.PrevTerm = prev.Term
@@ -302,42 +398,49 @@ func (l *Log) prepareAppend(ctx context.Context, entries []raftpb.Entry) error {
 	return nil
 }
 
-func (l *Log) appendToWAL(ctx context.Context, entries []raftpb.Entry, empty bool) ([]int64, error) {
+func (l *Log) appendToWAL(ctx context.Context, entries []raftpb.Entry, remark bool, cb func([]int64, error)) {
 	ctx, span := l.tracer.Start(ctx, "appendToWAL",
-		trace.WithAttributes(attribute.Int("entry_count", len(entries)), attribute.Bool("empty", empty)))
+		trace.WithAttributes(attribute.Int("entry_count", len(entries)), attribute.Bool("remark", remark)))
 	defer span.End()
 
-	span.AddEvent("Releasing lock")
-	l.Unlock()
+	if remark {
+		// TODO(james.yin): async
+		_ = l.wal.reserve(func() (int64, int64, error) {
+			ch := make(chan struct {
+				Offset []int64
+				Err    error
+			}, 1)
 
-	defer func() {
-		span.AddEvent("Acquiring lock again")
-		l.Lock()
-		span.AddEvent("Got lock again")
-	}()
+			l.doAppendToWAL(ctx, entries, func(offsets []int64, err error) {
+				ch <- struct {
+					Offset []int64
+					Err    error
+				}{offsets, err}
+				cb(offsets, err)
+			})
 
-	var offsets []int64
-	var err error
-	if empty {
-		_ = l.wal.reserve(func() (int64, error) {
-			offsets, err = l.doAppendToWAL(ctx, entries)
-			if err != nil {
-				return 0, err
+			re := <-ch
+			if re.Err != nil {
+				return 0, 0, re.Err
 			}
-			return offsets[0], nil
+			off := re.Offset[0]
+
+			l.Lock()
+			defer l.Unlock()
+
+			// Record offset of first entry in WAL.
+			old := l.offs[0]
+			l.offs[0] = off
+
+			return off, old, nil
 		})
 	} else {
-		offsets, err = l.doAppendToWAL(ctx, entries)
+		l.doAppendToWAL(ctx, entries, cb)
 	}
-	if err != nil {
-		return nil, err
-	}
-	return offsets, nil
 }
 
-func (l *Log) doAppendToWAL(ctx context.Context, entries []raftpb.Entry) ([]int64, error) {
+func (l *Log) doAppendToWAL(ctx context.Context, entries []raftpb.Entry, cb func([]int64, error)) {
 	ctx, span := l.tracer.Start(ctx, "doAppendToWAL")
-	defer span.End()
 
 	ents := make([][]byte, len(entries))
 	for i, entry := range entries {
@@ -345,22 +448,24 @@ func (l *Log) doAppendToWAL(ctx context.Context, entries []raftpb.Entry) ([]int6
 		entry.NodeId = l.nodeID.Uint64()
 		ent, err := entry.Marshal()
 		if err != nil {
-			return nil, err
+			cb(nil, err)
+			return
 		}
 		ents[i] = ent
 	}
-	future := l.wal.Append(ctx, ents)
 
-	_, wSpan := l.tracer.Start(ctx, "waitAppendToWAL")
-	ranges, err := future.Wait()
-	wSpan.End()
+	l.wal.Append(ctx, ents, walog.WithCallback(func(re walog.Result) {
+		span.End()
 
-	if err != nil {
-		return nil, err
-	}
-	offsets := make([]int64, len(ranges))
-	for i, r := range ranges {
-		offsets[i] = r.SO
-	}
-	return offsets, nil
+		if re.Err != nil {
+			cb(nil, re.Err)
+			return
+		}
+
+		offsets := make([]int64, len(re.Ranges))
+		for i, r := range re.Ranges {
+			offsets[i] = r.SO
+		}
+		cb(offsets, nil)
+	}))
 }

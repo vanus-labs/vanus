@@ -81,9 +81,14 @@ func TestLog_SnapshotStorage(t *testing.T) {
 		snapOp := NewMockSnapshotOperator(ctrl)
 		log := NewLog(nodeID1, wal, metaStore, offsetStore, snapOp)
 
+		ch := make(chan error, 1)
+		cb := func(_ AppendResult, err error) {
+			ch <- err
+		}
+
 		ent := raftpb.Entry{Term: 1, Index: 1, Type: raftpb.EntryConfChange, Data: data1}
-		err = log.Append(ctx, []raftpb.Entry{ent})
-		So(err, ShouldBeNil)
+		log.Append(ctx, []raftpb.Entry{ent}, cb)
+		So(<-ch, ShouldBeNil)
 
 		ents, err := log.Entries(1, 2, 0)
 		So(err, ShouldBeNil)
@@ -100,8 +105,8 @@ func TestLog_SnapshotStorage(t *testing.T) {
 		log.SetApplied(ctx, 1)
 
 		ent = raftpb.Entry{Term: 2, Index: 2, Type: raftpb.EntryNormal}
-		err = log.Append(ctx, []raftpb.Entry{ent})
-		So(err, ShouldBeNil)
+		log.Append(ctx, []raftpb.Entry{ent}, cb)
+		So(<-ch, ShouldBeNil)
 
 		err = log.SetHardState(ctx, raftpb.HardState{
 			Term: 2, Vote: nodeID1.Uint64(), Commit: 2,
@@ -111,13 +116,13 @@ func TestLog_SnapshotStorage(t *testing.T) {
 		log.SetApplied(ctx, 2)
 
 		data := []byte("hello world!")
-		err = log.Append(ctx, []raftpb.Entry{{
+		log.Append(ctx, []raftpb.Entry{{
 			Term:  2,
 			Index: 3,
 			Type:  raftpb.EntryNormal,
 			Data:  data,
-		}})
-		So(err, ShouldBeNil)
+		}}, cb)
+		So(<-ch, ShouldBeNil)
 
 		err = log.SetHardState(ctx, raftpb.HardState{
 			Term: 2, Vote: nodeID1.Uint64(), Commit: 3,

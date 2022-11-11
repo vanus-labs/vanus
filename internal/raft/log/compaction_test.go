@@ -72,35 +72,40 @@ func TestLog_Compact(t *testing.T) {
 		log2 := NewLog(nodeID2, wal, metaStore, offsetStore, nil)
 		log3 := NewLog(nodeID3, wal, metaStore, offsetStore, nil)
 
+		ch := make(chan error, 1)
+		cb := func(_ AppendResult, err error) {
+			ch <- err
+		}
+
 		data1, err := (&raftpb.ConfChange{
 			Type: raftpb.ConfChangeAddNode, NodeID: nodeID1.Uint64(),
 		}).Marshal()
 		So(err, ShouldBeNil)
-		err = log1.Append(stdCtx.Background(), []raftpb.Entry{
+		log1.Append(stdCtx.Background(), []raftpb.Entry{
 			{Term: 1, Index: 1, Type: raftpb.EntryConfChange, Data: data1},
 			{Term: 2, Index: 2, Type: raftpb.EntryNormal},
-		})
-		So(err, ShouldBeNil)
+		}, cb)
+		So(<-ch, ShouldBeNil)
 
 		data2, err := (&raftpb.ConfChange{
 			Type: raftpb.ConfChangeAddNode, NodeID: nodeID2.Uint64(),
 		}).Marshal()
 		So(err, ShouldBeNil)
-		err = log2.Append(stdCtx.Background(), []raftpb.Entry{
+		log2.Append(stdCtx.Background(), []raftpb.Entry{
 			{Term: 1, Index: 1, Type: raftpb.EntryConfChange, Data: data2},
 			{Term: 2, Index: 2, Type: raftpb.EntryNormal},
-		})
-		So(err, ShouldBeNil)
+		}, cb)
+		So(<-ch, ShouldBeNil)
 
 		data3, err := (&raftpb.ConfChange{
 			Type: raftpb.ConfChangeAddNode, NodeID: nodeID3.Uint64(),
 		}).Marshal()
 		So(err, ShouldBeNil)
-		err = log3.Append(stdCtx.Background(), []raftpb.Entry{
+		log3.Append(stdCtx.Background(), []raftpb.Entry{
 			{Term: 1, Index: 1, Type: raftpb.EntryConfChange, Data: data3},
 			{Term: 2, Index: 2, Type: raftpb.EntryNormal},
-		})
-		So(err, ShouldBeNil)
+		}, cb)
+		So(<-ch, ShouldBeNil)
 
 		err = log1.Compact(stdCtx.Background(), 2)
 		So(err, ShouldBeNil)
@@ -108,14 +113,20 @@ func TestLog_Compact(t *testing.T) {
 		err = log2.Compact(stdCtx.Background(), 2)
 		So(err, ShouldBeNil)
 
-		err = log1.Append(stdCtx.Background(), []raftpb.Entry{{Term: 2, Index: 3, Type: raftpb.EntryNormal, Data: data}})
-		So(err, ShouldBeNil)
+		log1.Append(stdCtx.Background(), []raftpb.Entry{{
+			Term: 2, Index: 3, Type: raftpb.EntryNormal, Data: data,
+		}}, cb)
+		So(<-ch, ShouldBeNil)
 
-		err = log2.Append(stdCtx.Background(), []raftpb.Entry{{Term: 2, Index: 3, Type: raftpb.EntryNormal, Data: data}})
-		So(err, ShouldBeNil)
+		log2.Append(stdCtx.Background(), []raftpb.Entry{{
+			Term: 2, Index: 3, Type: raftpb.EntryNormal, Data: data,
+		}}, cb)
+		So(<-ch, ShouldBeNil)
 
-		err = log3.Append(stdCtx.Background(), []raftpb.Entry{{Term: 2, Index: 3, Type: raftpb.EntryNormal, Data: data}})
-		So(err, ShouldBeNil)
+		log3.Append(stdCtx.Background(), []raftpb.Entry{{
+			Term: 2, Index: 3, Type: raftpb.EntryNormal, Data: data,
+		}}, cb)
+		So(<-ch, ShouldBeNil)
 
 		err = log3.Compact(stdCtx.Background(), 2)
 		So(err, ShouldBeNil)

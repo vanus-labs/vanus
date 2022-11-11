@@ -219,10 +219,22 @@ func (a *appender) run(ctx context.Context) {
 					"appended_index": rd.Entries[0].Index,
 					"entries_num":    len(rd.Entries),
 				})
-				if err := a.log.Append(rCtx, rd.Entries); err != nil {
-					span.End()
-					panic(err)
-				}
+				a.log.Append(rCtx, rd.Entries, func(re raftlog.AppendResult, err error) {
+					if err != nil {
+						if errors.Is(err, raftlog.ErrCompacted) || errors.Is(err, raftlog.ErrTruncated) {
+							// FIXME(james.yin): report to raft?
+							return
+						}
+						panic(err)
+					}
+
+					// Report entries has been persisted.
+					_ = a.node.Step(ctx, raftpb.Message{
+						Type:    raftpb.MsgLogResp,
+						LogTerm: re.Term,
+						Index:   re.Index,
+					})
+				})
 			}
 
 			if stateChanged {

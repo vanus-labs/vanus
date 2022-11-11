@@ -54,7 +54,7 @@ func (l *Log) Compact(ctx context.Context, i uint64) error {
 	defer l.Unlock()
 
 	ci := l.compactedIndex()
-	li := l.lastIndex()
+	li := l.lastStableIndex()
 	span.SetAttributes(
 		attribute.Int64("compacted_index", int64(ci)),
 		attribute.Int64("last_index", int64(li)),
@@ -79,11 +79,13 @@ func (l *Log) Compact(ctx context.Context, i uint64) error {
 
 	sz := i - ci
 	remaining := l.length() - sz
-	span.SetAttributes(attribute.Int64("remaining", int64(remaining)))
+	sr := l.stableLength() - sz
+	span.SetAttributes(attribute.Int64("remaining", int64(remaining)),
+		attribute.Int64("stable_remaining", int64(sr)))
 
 	span.AddEvent("Allocating cache")
 	ents := make([]raftpb.Entry, 1, 1+remaining)
-	offs := make([]int64, 1, 1+remaining)
+	offs := make([]int64, 1, 1+sr)
 
 	// Save compact information to dummy entry.
 	ents[0].Index = l.ents[sz].Index
@@ -93,9 +95,12 @@ func (l *Log) Compact(ctx context.Context, i uint64) error {
 	if remaining != 0 {
 		span.AddEvent("Coping remained entries")
 		ents = append(ents, l.ents[sz+1:]...)
-		offs = append(offs, l.offs[sz+1:]...)
+		// NOTE: sr <= remaining
+		if sr != 0 {
+			offs = append(offs, l.offs[sz+1:]...)
+			offs[0] = offs[1]
+		}
 		span.AddEvent("Copied remained entries")
-		offs[0] = offs[1]
 	}
 
 	// Compact WAL.
@@ -111,12 +116,13 @@ func (l *Log) Compact(ctx context.Context, i uint64) error {
 func (w *WAL) reserve(cb reserveCallback) error {
 	w.compactMu.RLock()
 	defer w.compactMu.RUnlock()
-	off, err := cb()
+	off, old, err := cb()
 	if err != nil {
 		return err
 	}
 	w.compactC <- compactTask{
 		offset: off,
+		last:   old,
 	}
 	return nil
 }

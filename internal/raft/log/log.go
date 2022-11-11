@@ -33,6 +33,8 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/meta"
 )
 
+var defaultAppendResultBufferSize = 64
+
 type Log struct {
 	// Protects access to all fields. Most methods of Log are
 	// run on the raft goroutine, but Append() and Compact() is run on an
@@ -55,13 +57,14 @@ var _ raft.Storage = (*Log)(nil)
 func NewLog(
 	nodeID vanus.ID, wal *WAL, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore, snapOp SnapshotOperator,
 ) *Log {
-	return &Log{
+	l := &Log{
 		nodeID: nodeID,
 		logStorage: logStorage{
 			// When starting from scratch populate the list with a dummy entry at term zero.
-			ents: make([]raftpb.Entry, 1),
-			offs: make([]int64, 1),
-			wal:  wal,
+			ents:          make([]raftpb.Entry, 1),
+			offs:          make([]int64, 1),
+			appendResultC: make(chan appendTask, defaultAppendResultBufferSize),
+			wal:           wal,
 		},
 		stateStorage: stateStorage{
 			metaStore:   metaStore,
@@ -76,9 +79,17 @@ func NewLog(
 		},
 		tracer: tracing.NewTracer("raft.log.Log", trace.SpanKindInternal),
 	}
+
+	// TODO(james.yin): optimize
+	go l.runPostAppend()
+
+	return l
 }
 
 func (l *Log) Delete(ctx context.Context) {
+	// FIXME(james.yin): stop runPostAppend in graceful exit
+	close(l.appendResultC)
+
 	l.metaStore.Delete(ctx, l.hsKey)
 	l.metaStore.Delete(ctx, l.csKey)
 	l.metaStore.Delete(ctx, []byte(fmt.Sprintf("block/%020d/compact", l.nodeID.Uint64())))

@@ -125,9 +125,13 @@ func TestLog(t *testing.T) {
 			So(hardSt, ShouldResemble, raftpb.HardState{})
 			So(confSt, ShouldResemble, raftpb.ConfState{})
 
+			ch := make(chan error, 1)
+
 			ent := raftpb.Entry{Term: 1, Index: 1, Type: raftpb.EntryConfChange, Data: data1}
-			err = log.Append(ctx, []raftpb.Entry{ent})
-			So(err, ShouldBeNil)
+			log.Append(ctx, []raftpb.Entry{ent}, func(_ AppendResult, err error) {
+				ch <- err
+			})
+			So(<-ch, ShouldBeNil)
 
 			ents, err := log.Entries(1, 2, 0)
 			So(err, ShouldBeNil)
@@ -145,8 +149,10 @@ func TestLog(t *testing.T) {
 			log.SetApplied(ctx, 1)
 
 			ent = raftpb.Entry{Term: 2, Index: 2, Type: raftpb.EntryNormal}
-			err = log.Append(ctx, []raftpb.Entry{ent})
-			So(err, ShouldBeNil)
+			log.Append(ctx, []raftpb.Entry{ent}, func(_ AppendResult, err error) {
+				ch <- err
+			})
+			So(<-ch, ShouldBeNil)
 
 			err = log.SetHardState(ctx, raftpb.HardState{
 				Term: 2, Vote: nodeID1.Uint64(), Commit: 2,
@@ -216,23 +222,28 @@ func TestLog(t *testing.T) {
 			So(err, ShouldEqual, raft.ErrUnavailable)
 
 			Convey("add new members, and truncate", func() {
-				err = log.Append(ctx, []raftpb.Entry{
+				ch := make(chan error, 1)
+				cb := func(_ AppendResult, err error) {
+					ch <- err
+				}
+
+				log.Append(ctx, []raftpb.Entry{
 					{Term: 3, Index: 3, Type: raftpb.EntryNormal},
-				})
-				So(err, ShouldBeNil)
+				}, cb)
+				So(<-ch, ShouldBeNil)
 
 				err = log.SetHardState(ctx, raftpb.HardState{
 					Term: 3, Vote: nodeID1.Uint64(), Commit: 3,
 				})
 				So(err, ShouldBeNil)
 
-				err = log.Append(ctx, []raftpb.Entry{{
+				log.Append(ctx, []raftpb.Entry{{
 					Term:  3,
 					Index: 4,
 					Type:  raftpb.EntryConfChange,
 					Data:  data2,
-				}})
-				So(err, ShouldBeNil)
+				}}, cb)
+				So(<-ch, ShouldBeNil)
 
 				err = log.SetHardState(ctx, raftpb.HardState{
 					Term: 3, Vote: nodeID1.Uint64(), Commit: 4,
@@ -246,20 +257,20 @@ func TestLog(t *testing.T) {
 
 				log.SetApplied(ctx, 4)
 
-				err = log.Append(ctx, []raftpb.Entry{{
+				log.Append(ctx, []raftpb.Entry{{
 					Term:  3,
 					Index: 5,
 					Type:  raftpb.EntryNormal,
 					Data:  []byte("hello world!"),
-				}})
-				So(err, ShouldBeNil)
+				}}, cb)
+				So(<-ch, ShouldBeNil)
 
-				err = log.Append(ctx, []raftpb.Entry{{
+				log.Append(ctx, []raftpb.Entry{{
 					Term:  4,
 					Index: 5,
 					Type:  raftpb.EntryNormal,
-				}})
-				So(err, ShouldBeNil)
+				}}, cb)
+				So(<-ch, ShouldBeNil)
 
 				err = log.SetHardState(ctx, raftpb.HardState{
 					Term: 4, Vote: nodeID2.Uint64(), Commit: 5,
@@ -268,13 +279,13 @@ func TestLog(t *testing.T) {
 
 				log.SetApplied(ctx, 5)
 
-				err = log.Append(ctx, []raftpb.Entry{{
+				log.Append(ctx, []raftpb.Entry{{
 					Term:  4,
 					Index: 6,
 					Type:  raftpb.EntryNormal,
 					Data:  []byte("nice job!"),
-				}})
-				So(err, ShouldBeNil)
+				}}, cb)
+				So(<-ch, ShouldBeNil)
 
 				err = log.SetHardState(ctx, raftpb.HardState{
 					Term: 4, Vote: nodeID2.Uint64(), Commit: 6,

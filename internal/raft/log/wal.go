@@ -48,7 +48,7 @@ type compactTask struct {
 	info         compactInfo
 }
 
-type reserveCallback func() (int64, error)
+type reserveCallback func() (int64, int64, error)
 
 type WAL struct {
 	*walog.WAL

@@ -72,10 +72,10 @@ func (u *unstable) maybeTerm(i uint64) (uint64, bool) {
 	return u.entries[i-u.offset].Term, true
 }
 
-func (u *unstable) stableTo(i, t uint64) {
+func (u *unstable) stableTo(i, t uint64) bool {
 	gt, ok := u.maybeTerm(i)
 	if !ok {
-		return
+		return false
 	}
 	// if i < offset, term is matched with the snapshot
 	// only update the unstable entries if term is matched with
@@ -84,7 +84,9 @@ func (u *unstable) stableTo(i, t uint64) {
 		u.entries = u.entries[i+1-u.offset:]
 		u.offset = i + 1
 		u.shrinkEntriesArray()
+		return true
 	}
+	return false
 }
 
 // shrinkEntriesArray discards the underlying array used by the entries slice

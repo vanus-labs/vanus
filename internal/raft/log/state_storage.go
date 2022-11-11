@@ -44,7 +44,7 @@ func (l *Log) InitialState() (raftpb.HardState, raftpb.ConfState, error) {
 
 // HardState returns the saved HardState.
 //
-// NOTE: This method is not thread-safty, it must be used in goroutine which call SetHardState!!!
+// NOTE: This method is not thread-safety, it must be used in goroutine which call SetHardState!!!
 func (l *Log) HardState() raftpb.HardState {
 	return l.prevHardSt
 }
