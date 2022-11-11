@@ -15,10 +15,19 @@
 package main
 
 import (
-	cloudevents "cloudevents.io/genproto/v1"
+	v1 "cloudevents.io/genproto/v1"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/go-redis/redis/v8"
+	"math/rand"
+	"net"
+	"net/http"
+	"os"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store"
 	"github.com/linkall-labs/vanus/internal/store/segment"
@@ -28,9 +37,6 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"net"
-	"net/http"
-	"os"
 )
 
 const (
@@ -41,6 +47,8 @@ var (
 	volumeID       int64
 	segmentNumbers int
 	storeAddrs     []string
+	totalSent      int64
+	noCleanCache   bool
 )
 
 func localCommand() *cobra.Command {
@@ -198,14 +206,19 @@ func sendCommand() *cobra.Command {
 			le := int(rCmd.Val())
 			brs := make([]BlocKRecord, le)
 			for i := 0; i < le; i++ {
-				sCmd := rdb.LPop(context.Background(), blockInfoKeyInRedis)
+				var sCmd *redis.StringCmd
+				if noCleanCache {
+					sCmd = rdb.LIndex(context.Background(), blockInfoKeyInRedis, int64(i))
+				} else {
+					sCmd = rdb.LPop(context.Background(), blockInfoKeyInRedis)
+				}
 				if rCmd.Err() != nil {
 					panic("failed to read block records from redis: " + rCmd.Err().Error())
 				}
 				br := BlocKRecord{}
 				_ = json.Unmarshal([]byte(sCmd.Val()), &br)
 				brs[i] = br
-				fmt.Printf("found a block, ID: %d, addr: %s\n", br.LeaderID, br.LeaderAddr)
+				fmt.Printf("found a block, ID: %s, addr: %s\n", vanus.ID(br.LeaderID).String(), br.LeaderAddr)
 			}
 
 			conns := make(map[string]*grpc.ClientConn, 0)
@@ -231,22 +244,45 @@ func sendCommand() *cobra.Command {
 				}
 			}()
 
-			for _, v := range brs {
-				cli := clis[v.LeaderAddr]
-				res, err := cli.AppendToBlock(context.Background(), &segpb.AppendToBlockRequest{
-					BlockId: v.LeaderID,
-					Events:  &cloudevents.CloudEventBatch{Events: []*cloudevents.CloudEvent{}},
-				})
-				if err != nil {
-					fmt.Printf("failed to append events to block: %s\n", err.Error())
-				} else {
-					fmt.Printf("success to append events to block: %d\n", res.Offsets)
+			count := int64(0)
+			failed := int64(0)
+			for _, abr := range brs {
+				cli := clis[abr.LeaderAddr]
+				for idx := 0; idx < parallelism; idx++ {
+					go func(br BlocKRecord, c segpb.SegmentServerClient) {
+						for atomic.LoadInt64(&count)+atomic.LoadInt64(&failed) < totalSent {
+							_, err := c.AppendToBlock(context.Background(), &segpb.AppendToBlockRequest{
+								BlockId: br.LeaderID,
+								Events:  &v1.CloudEventBatch{Events: generateEvents()},
+							})
+							if err != nil {
+								atomic.AddInt64(&failed, 1)
+								time.Sleep(time.Second)
+								fmt.Printf("failed to append events to %s, block [%s], error: [%s]\n",
+									br.LeaderAddr, vanus.ID(br.LeaderID).String(), err.Error())
+							} else {
+								atomic.AddInt64(&count, 1)
+							}
+						}
+					}(abr, cli)
 				}
 			}
-
+			pre := int64(0)
+			for atomic.LoadInt64(&count)+atomic.LoadInt64(&failed) < totalSent {
+				cur := atomic.LoadInt64(&count)
+				fmt.Printf("success: %d, failed: %d, TPS: %d\n",
+					cur, atomic.LoadInt64(&failed), cur-pre)
+				pre = cur
+				time.Sleep(time.Second)
+			}
+			fmt.Printf("success: %d, failed: %d, TPS: %d\n",
+				count, atomic.LoadInt64(&failed), count-pre)
 		},
 	}
-
+	cmd.Flags().BoolVar(&noCleanCache, "no-clean-cache", false, "")
+	cmd.Flags().Int64Var(&totalSent, "total-number", 100000, "")
+	cmd.Flags().IntVar(&parallelism, "parallelism", 4, "")
+	cmd.Flags().IntVar(&payloadSize, "payload-size", 1024, "")
 	return cmd
 }
 
@@ -283,6 +319,25 @@ func runStore(cfg store.Config) {
 	}
 
 	log.Info(ctx, "The SegmentServer has been shutdown.", nil)
+}
+
+var (
+	gOnce sync.Once
+	rd    = rand.New(rand.NewSource(time.Now().UnixNano()))
+	e     []*v1.CloudEvent
+)
+
+func generateEvents() []*v1.CloudEvent {
+	gOnce.Do(func() {
+		e = []*v1.CloudEvent{{
+			Id:          "example-event",
+			Source:      "example/uri",
+			SpecVersion: "1.0",
+			Type:        "example.type",
+			Data:        &v1.CloudEvent_TextData{TextData: genStr(rd, 10)},
+		}}
+	})
+	return e
 }
 
 func startMetrics() {
