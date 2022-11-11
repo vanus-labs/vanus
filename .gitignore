@@ -32,3 +32,5 @@ bin
 .run
 
 vanus-bench
+
+*.log

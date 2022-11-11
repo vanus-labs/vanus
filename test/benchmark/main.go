@@ -38,6 +38,7 @@ func main() {
 	rootCmd.AddCommand(runCommand())
 	rootCmd.AddCommand(receiveCommand())
 	rootCmd.AddCommand(analyseCommand())
+	rootCmd.AddCommand(localCommand())
 
 	rootCmd.PersistentFlags().StringVar(&endpoint, "endpoint",
 		"127.0.0.1:8080", "the endpoints of vanus controller")
