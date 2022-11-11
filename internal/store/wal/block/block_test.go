@@ -16,7 +16,11 @@ package block
 
 import (
 	// standard libraries.
+	"math/rand"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	// third-party libraries.
 	. "github.com/smartystreets/goconvey/convey"
@@ -31,6 +35,8 @@ const (
 )
 
 func TestBlock(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+
 	Convey("wal block", t, func() {
 		b := Block{
 			block: block{
@@ -79,6 +85,54 @@ func TestBlock(t *testing.T) {
 					So(err, ShouldBeNil)
 					So(commit, ShouldEqual, n)
 				})
+			})
+
+			Convey("partial flush", func() {
+				type writeTask struct {
+					so, eo int
+					cb     io.WriteCallback
+				}
+
+				var flushCount int64
+				ch := make(chan writeTask, 16)
+				doWrite := func() {
+					for t := range ch {
+						time.Sleep(time.Duration(rand.Int63n(10)*100) * time.Microsecond)
+						t.cb(t.eo-t.so, nil)
+						atomic.AddInt64(&flushCount, 1)
+					}
+				}
+				go doWrite()
+				go doWrite()
+
+				writer := io.WriteAtFunc(func(b []byte, base int64, so, eo int, cb io.WriteCallback) {
+					ch <- writeTask{
+						so: so,
+						eo: eo,
+						cb: cb,
+					}
+				})
+
+				resultC := make(chan int64, 100)
+				wg := sync.WaitGroup{}
+				wg.Add(100)
+				for i := 1; i <= 100; i++ {
+					time.Sleep(time.Duration(rand.Int63n(100)*10) * time.Microsecond)
+					b.Flush(writer, i, 0, func(off int64, err error) {
+						if err == nil {
+							resultC <- off
+						}
+						wg.Done()
+					})
+				}
+				wg.Wait()
+				close(ch)
+
+				So(resultC, ShouldHaveLength, 100)
+				for i := 1; i <= 100; i++ {
+					So(<-resultC, ShouldEqual, i)
+				}
+				So(atomic.LoadInt64(&flushCount), ShouldBeLessThanOrEqualTo, 100)
 			})
 		})
 
