@@ -68,110 +68,6 @@ func E2ECommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "e2e SUB-COMMAND",
 		Short: "run e2e performance test",
-		Run: func(cmd *cobra.Command, args []string) {
-			endpoint := mustGetGatewayEndpoint(cmd)
-
-			if len(eventbusList) == 0 {
-				panic("eventbus list is empty")
-			}
-
-			log.Info(context.Background(), "benchmark", map[string]interface{}{
-				"id": getBenchmarkID(),
-			})
-
-			// start
-			start := time.Now()
-			cnt := int64(0)
-			go func() {
-				for atomic.LoadInt64(&cnt) < number {
-					for idx := 0; idx < len(eventbusList); idx++ {
-						ebCh <- eventbusList[idx]
-						atomic.AddInt64(&cnt, 1)
-					}
-				}
-				close(ebCh)
-				log.Info(context.Background(), "all events were made", map[string]interface{}{
-					"num": number,
-				})
-			}()
-
-			p, err := ce.NewHTTP()
-			if err != nil {
-				cmdFailedf(cmd, "init ce protocol error: %s\n", err)
-			}
-			c, err := ce.NewClient(p, ce.WithTimeNow(), ce.WithUUIDs())
-			if err != nil {
-				cmdFailedf(cmd, "create ce client error: %s\n", err)
-			}
-
-			var success int64
-			wg := sync.WaitGroup{}
-			for idx := 0; idx < parallelism; idx++ {
-				wg.Add(1)
-				go func() {
-					for {
-						eb, ok := <-ebCh
-						if !ok && eb == "" {
-							break
-						}
-						var target string
-						if strings.HasPrefix(endpoint, httpPrefix) {
-							target = fmt.Sprintf("%s/gateway/%s", endpoint, eb)
-						} else {
-							target = fmt.Sprintf("%s%s/gateway/%s", httpPrefix, endpoint, eb)
-						}
-						r, e := send(c, target)
-						if e != nil {
-							panic(e)
-						}
-						if r {
-							atomic.AddInt64(&success, 1)
-						}
-					}
-					wg.Done()
-				}()
-			}
-
-			ctx, can := context.WithCancel(context.Background())
-			m := make(map[int]int, 0)
-			wg2 := sync.WaitGroup{}
-			wg2.Add(1)
-			go func() {
-				var prev int64
-				tick := time.NewTicker(time.Second)
-				c := 1
-				defer func() {
-					tick.Stop()
-					tps := success - prev
-					log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", success, tps), nil)
-					m[c] = int(tps)
-					wg2.Done()
-				}()
-				for prev < number {
-					select {
-					case <-tick.C:
-						cur := atomic.LoadInt64(&success)
-						tps := cur - prev
-						m[c] = int(tps)
-						log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", cur, tps), nil)
-						prev = cur
-						c++
-					case <-ctx.Done():
-						return
-					}
-				}
-			}()
-			wg.Wait()
-			can()
-			wg2.Wait()
-			saveTPS(m, "produce")
-			log.Info(nil, "all message were sent", map[string]interface{}{
-				"success": success,
-				"failed":  number - success,
-				"used":    time.Now().Sub(start),
-			})
-			_ = rdb.Close()
-		},
 	}
 	cmd.AddCommand(runCommand())
 	cmd.AddCommand(analyseCommand())
@@ -288,7 +184,6 @@ func runCommand() *cobra.Command {
 			_ = rdb.Close()
 		},
 	}
-	cmd.Flags().StringVar(&name, "name", "", "task name")
 	cmd.Flags().StringArrayVar(&eventbusList, "eventbus", []string{}, "the eventbus name used to")
 	cmd.Flags().Int64Var(&number, "number", 100000, "the event number")
 	cmd.Flags().IntVar(&parallelism, "parallelism", 1, "")
@@ -360,7 +255,6 @@ func receiveCommand() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringVar(&name, "name", "", "task name")
 	cmd.Flags().IntVar(&port, "port", 8080, "the port the receive server running")
 	return cmd
 }
@@ -420,22 +314,21 @@ func analyseCommand() *cobra.Command {
 				cmd := rdb.Get(context.Background(), getTPSKey(benchType))
 				m := make(map[int]int, 0)
 				_ = json.Unmarshal([]byte(cmd.Val()), &m)
-				for _, v := range m {
+				result = map[string]map[string]interface{}{}
+				for idx, v := range m {
+					result[fmt.Sprintf("%d", idx)] = map[string]interface{}{
+						"value": v,
+					}
 					if err := tps.RecordValue(int64(v)); err != nil {
 						fmt.Println("error: TPS " + err.Error())
 					}
 				}
 				res = tps.CumulativeDistribution()
-				result = map[string]map[string]interface{}{}
 				for _, v := range res {
 					if v.Count == 0 {
 						continue
 					}
 
-					result[fmt.Sprintf("%.2f", v.Quantile)] = map[string]interface{}{
-						"value": v.ValueAt,
-						"count": v.Count,
-					}
 					fmt.Printf("%3.2f pct - %d, count: %d\n", v.Quantile, v.ValueAt, v.Count)
 				}
 				fmt.Printf("Used: %d s\n", tps.TotalCount())
@@ -502,7 +395,6 @@ func analyseCommand() *cobra.Command {
 			_ = rdb.Close()
 		},
 	}
-	cmd.Flags().StringVar(&name, "name", "", "task name")
 	cmd.Flags().StringVar(&benchType, "benchmark-type", "", "the type of benchmark, produce or consume")
 	return cmd
 }

@@ -53,12 +53,29 @@ func InitDatabase(redisAddr string, mongodb string, begin bool) {
 
 	cli, err := mongo.Connect(context.Background(), options.Client().ApplyURI(mongodb))
 	if err != nil {
-		panic("failed to connect mongodb: " + cmd.Err().Error())
+		panic("failed to connect mongodb: " + err.Error())
 	}
+	log.Info(nil, "connect to mongodb success", nil)
 	mgo = cli
 	taskColl = cli.Database(database).Collection("tasks")
 	resultColl = cli.Database(database).Collection("results")
+	c, err := taskColl.Find(context.Background(), bson.M{
+		"running": true,
+	})
+	if err != nil {
+		panic("failed to count tasks: " + err.Error())
+	}
+	tasks := make([]*Task, 0)
+	for c.Next(context.Background()) {
+		t := &Task{}
+		_ = c.Decode(t)
+		tasks = append(tasks, t)
+	}
+
 	if begin {
+		if len(tasks) != 0 {
+			panic(fmt.Sprintf("invalid taks numbers: %d", len(tasks)))
+		}
 		t := &Task{
 			ID:       primitive.NewObjectID(),
 			CreateAt: time.Now(),
@@ -69,29 +86,23 @@ func InitDatabase(redisAddr string, mongodb string, begin bool) {
 			panic("failed to create task into mongodb: " + err.Error())
 		}
 		taskID = t.ID
-	} else {
-		c, err := taskColl.Find(context.Background(), bson.M{
-			"running": true,
+		log.Info(nil, "create a new task", map[string]interface{}{
+			"task_id": taskID.Hex(),
 		})
-		if err != nil {
-			panic("failed to count tasks: " + err.Error())
-		}
-		tasks := make([]*Task, 0)
-		for c.Next(context.Background()) {
-			t := &Task{}
-			_ = c.Decode(t)
-			tasks = append(tasks, t)
-		}
+	} else {
 		if len(tasks) != 1 {
 			panic(fmt.Sprintf("invalid taks numbers: %d", len(tasks)))
 		}
 		taskID = tasks[0].ID
+		log.Info(nil, "find a existed task", map[string]interface{}{
+			"task_id": taskID.Hex(),
+		})
 	}
 }
 
 func CloseDatabases(end bool) {
 	if end {
-		_, err := taskColl.UpdateMany(context.Background(), bson.M{
+		res, err := taskColl.UpdateMany(context.Background(), bson.M{
 			"running": true,
 		}, bson.M{
 			"$set": bson.M{
@@ -104,6 +115,9 @@ func CloseDatabases(end bool) {
 				log.KeyError: err,
 			})
 		}
+		log.Info(nil, "task is completed", map[string]interface{}{
+			"task_id": res.UpsertedID,
+		})
 	}
 	_ = rdb.Close()
 	_ = mgo.Disconnect(context.Background())

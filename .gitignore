@@ -34,3 +34,5 @@ bin
 vanus-bench
 
 *.log
+
+secret.yml

@@ -33,19 +33,13 @@ type BlockRecord struct {
 	Replicas   map[uint64]string
 }
 
-var caseNames = map[string]bool{
-	"e2e-1-eventbus-1-eventlog-1-client-1-parallelism":  true,
-	"e2e-1-eventbus-1-eventlog-1-client-16-parallelism": true,
+func SetCaseName(_name string) {
+	name = _name
 }
-
-type BType string
 
 type ResultType string
 
 const (
-	BenchmarkProduce = BType("produce")
-	BenchmarkConsume = BType("consume")
-
 	ResultLatency    = ResultType("latency")
 	ResultThroughput = ResultType("throughput")
 )
