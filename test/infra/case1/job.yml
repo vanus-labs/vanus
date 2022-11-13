@@ -2,8 +2,8 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   labels:
-    app: vanus-bench-case1-1
-  name: vanus-bench-case1-1
+    app: vanus-bench-case1
+  name: vanus-bench-case1
   namespace: vanus-bench
 spec:
   parallelism: 1
@@ -13,14 +13,14 @@ spec:
   template:
     metadata:
       labels:
-        app: vanus-bench-case1-1
+        app: vanus-bench-case1
     spec:
       restartPolicy: Never
       containers:
-        - image: linkall.tencentcloudcr.com/vanus/test-infra:dev
+        - image: linkall.tencentcloudcr.com/vanus/test-infra:1539435
           imagePullPolicy: Always
-          command: ["bash", "-c", "sleep 100000"]
-          name: vanus-bench-case1-1
+          command: ["bash", "-c", "sleep 1000000"]
+          name: vanus-bench-case1
           env:
             - name: CASE_NAME
               value: "case1"

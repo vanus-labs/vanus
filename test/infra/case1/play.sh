@@ -2,9 +2,9 @@
 set -ex
 
 vsctl eventbus create --name "${JOB_NAME}"
-vanus-bench run --name \
-  "${JOB_NAME}" \
-  --eventbus "${EVENTBUS}" \
+vanus-bench e2e run \
+  --name "${JOB_NAME}" \
+  --eventbus "${JOB_NAME}" \
   --number "${TOTAL_NUMBER}" \
   --parallelism "${PARALLELISM}"  \
   --endpoint "${VANUS_GATEWAY}" \
@@ -13,7 +13,7 @@ vanus-bench run --name \
   --mongodb-password "${MONGODB_PASSWORD}" \
   --begin
 
-vanus-bench analyse \
+vanus-bench e2e analyse \
   --name "${JOB_NAME}" \
   --benchmark-type produce \
   --redis-addr "${REDIS_ADDR}" \
