@@ -32,8 +32,9 @@ var rootCmd = &cobra.Command{
 var (
 	defaultMongoDBURI = "mongodb+srv://vanus:%s@cluster0.ywakulp.mongodb.net/?retryWrites=true&w=majority"
 	caseNames         = map[string]bool{
-		"e2e-1eventbus-1eventlog-1client-1parallelism":  true,
-		"e2e-1eventbus-1eventlog-1client-16parallelism": true,
+		"e2e-1eventbus-1eventlog-1client-1parallelism":   true,
+		"e2e-1eventbus-1eventlog-1client-16parallelism":  true,
+		"e2e-1eventbus-16eventlog-1client-16parallelism": true,
 	}
 
 	name        string
