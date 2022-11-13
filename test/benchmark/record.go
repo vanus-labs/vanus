@@ -22,3 +22,9 @@ type Record struct {
 	SentAt     time.Time
 	ReceivedAt time.Time
 }
+
+type BlocKRecord struct {
+	LeaderID   uint64
+	LeaderAddr string
+	Replicas   map[uint64]string
+}
