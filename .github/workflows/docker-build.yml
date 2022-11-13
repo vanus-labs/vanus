@@ -16,6 +16,8 @@ env:
 jobs:
   aws:
     runs-on: ubuntu-latest
+    if: |
+      startsWith(github.event.release.title, 'v') ||
     permissions:
       contents: read
     steps:

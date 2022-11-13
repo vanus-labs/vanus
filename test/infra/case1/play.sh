@@ -1,25 +1,23 @@
 #!/bin/bash
 set -ex
 
-vsctl eventbus create --name "${CASE_NAME}"
-vanus-bench run --name "${CASE_NAME}" --unit 1 --eventbus "${EVENTBUS}" \
-  --number "${UNIT1_NUMBER}" \
-  --parallelism 1  \
+vsctl eventbus create --name "${JOB_NAME}" --eventlog "${EVENTLOG_NUMBER}"
+vanus-bench e2e run \
+  --name "${JOB_NAME}" \
+  --eventbus "${JOB_NAME}" \
+  --number "${TOTAL_NUMBER}" \
+  --parallelism "${PARALLELISM}"  \
   --endpoint "${VANUS_GATEWAY}" \
+  --payload-size "${PAYLOAD_SIZE}" \
   --redis-addr "${REDIS_ADDR}" \
-  --payload-size "${PAYLOAD_SIZE}"
+  --mongodb-password "${MONGODB_PASSWORD}" \
+  --begin
 
-vanus-bench run --name "${CASE_NAME}" --unit 2 --eventbus "${CASE_NAME}" \
-  --number "${UNIT2_NUMBER}" \
-  --parallelism 16  \
-  --endpoint "${VANUS_GATEWAY}" \
+vanus-bench e2e analyse \
+  --name "${JOB_NAME}" \
+  --benchmark-type produce \
   --redis-addr "${REDIS_ADDR}" \
-  --payload-size "${PAYLOAD_SIZE}"
+  --mongodb-password "${MONGODB_PASSWORD}" \
+  --end
 
-vanus-bench analyse --name "${CASE_NAME}" --unit 1  --benchmark-type produce \
-  --redis-addr "${REDIS_ADDR}"
-
-vanus-bench analyse --name "${CASE_NAME}" --unit 2  --benchmark-type produce \
-  --redis-addr "${REDIS_ADDR}"
-
-vsctl eventbus delete --name "${CASE_NAME}"
+vsctl eventbus delete --name "${JOB_NAME}"

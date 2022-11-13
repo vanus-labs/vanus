@@ -15,9 +15,11 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/fatih/color"
+	"github.com/linkall-labs/vanus/test/benchmark/command"
 	"github.com/spf13/cobra"
 )
 
@@ -28,24 +30,49 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	endpoint      string
-	redisAddr     string
-	bypassGateway bool
+	defaultMongoDBURI = "mongodb+srv://vanus:%s@cluster0.ywakulp.mongodb.net/?retryWrites=true&w=majority"
+	caseNames         = map[string]bool{
+		"e2e-1eventbus-1eventlog-1client-1parallelism":   true,
+		"e2e-1eventbus-1eventlog-1client-16parallelism":  true,
+		"e2e-1eventbus-16eventlog-1client-16parallelism": true,
+	}
+
+	name        string
+	endpoint    string
+	redisAddr   string
+	mongodbPass string
+	begin       bool
+	end         bool
 )
 
 func main() {
 
-	rootCmd.AddCommand(runCommand())
-	rootCmd.AddCommand(receiveCommand())
-	rootCmd.AddCommand(analyseCommand())
-	rootCmd.AddCommand(localCommand())
+	rootCmd.AddCommand(command.E2ECommand())
+	rootCmd.AddCommand(command.ComponentCommand())
+	rootCmd.PersistentPreRun = func(_ *cobra.Command, _ []string) {
+		if !caseNames[name] {
+			panic("invalid case name: " + name)
+		}
+		command.SetCaseName(name)
+		command.InitDatabase(redisAddr, fmt.Sprintf(defaultMongoDBURI, mongodbPass), begin)
+	}
+	rootCmd.PersistentPostRun = func(_ *cobra.Command, _ []string) {
+		command.CloseDatabases(end)
+	}
 
 	rootCmd.PersistentFlags().StringVar(&endpoint, "endpoint",
 		"127.0.0.1:8080", "the endpoints of vanus controller")
 	rootCmd.PersistentFlags().StringVar(&redisAddr, "redis-addr",
 		"127.0.0.1:6379", "address of redis")
-	rootCmd.PersistentFlags().BoolVar(&bypassGateway, "bypass-gateway",
-		false, "using client directly connect to store")
+	rootCmd.PersistentFlags().StringVar(&defaultMongoDBURI, "mongodb-uri",
+		defaultMongoDBURI, "uri of mongo")
+	rootCmd.PersistentFlags().StringVar(&mongodbPass, "mongodb-password",
+		mongodbPass, "password for mongo")
+	rootCmd.PersistentFlags().StringVar(&name, "name", "", "task name")
+
+	rootCmd.PersistentFlags().BoolVar(&begin, "begin", false, "if the begin of a playbook")
+	rootCmd.PersistentFlags().BoolVar(&end, "end", false, "if the end of a playbook")
+
 	if err := rootCmd.Execute(); err != nil {
 		color.Red("vsctl-bench run error: %s", err)
 		os.Exit(-1)
