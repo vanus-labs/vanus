@@ -342,8 +342,8 @@ func analyseCommand() *cobra.Command {
 					CaseName: name,
 					RType:    ResultThroughput,
 					Values:   result,
-					Mean:     his.Mean(),
-					Stdev:    his.StdDev(),
+					Mean:     tps.Mean(),
+					Stdev:    tps.StdDev(),
 					CreateAt: time.Now(),
 				}
 				_, err = resultColl.InsertOne(context.Background(), r)

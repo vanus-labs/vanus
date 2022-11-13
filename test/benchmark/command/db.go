@@ -106,8 +106,8 @@ func CloseDatabases(end bool) {
 			"running": true,
 		}, bson.M{
 			"$set": bson.M{
-				"running":   false,
-				"update_at": time.Now(),
+				"running":      false,
+				"completed_at": time.Now(),
 			},
 		})
 		if err != nil {

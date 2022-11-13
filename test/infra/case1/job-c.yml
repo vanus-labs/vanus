@@ -2,8 +2,8 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   labels:
-    app: vanus-bench-case1
-  name: vanus-bench-case1
+    app: vanus-bench-case1-b
+  name: vanus-bench-case1-b
   namespace: vanus-bench
 spec:
   parallelism: 1
@@ -13,19 +13,18 @@ spec:
   template:
     metadata:
       labels:
-        app: vanus-bench-case1
+        app: vanus-bench-case1-b
     spec:
       restartPolicy: Never
       containers:
-        - image: linkall.tencentcloudcr.com/vanus/test-infra:1539435
+        - image: linkall.tencentcloudcr.com/vanus/test-infra:dev
           imagePullPolicy: Always
-          command: ["bash", "-c", "sleep 1000000"]
-          name: vanus-bench-case1
+          name: vanus-bench-case1-b
           env:
             - name: CASE_NAME
               value: "case1"
             - name: JOB_NAME
-              value: "e2e-1eventbus-1eventlog-1client-1parallelism"
+              value: "e2e-1eventbus-16eventlog-1client-16parallelism"
             - name: PAYLOAD_SIZE
               value: "1024"
             - name: VANUS_GATEWAY
@@ -37,7 +36,9 @@ spec:
                 secretKeyRef:
                   name: benchmark-credentials
                   key: mongodb_password
+            - name: EVENTLOG_NUMBER
+              value: "16"
             - name: PARALLELISM
-              value: "1"
+              value: "16"
             - name: TOTAL_NUMBER
-              value: "500"
+              value: "200000"

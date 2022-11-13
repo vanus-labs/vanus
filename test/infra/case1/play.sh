@@ -1,7 +1,7 @@
 #!/bin/bash
 set -ex
 
-vsctl eventbus create --name "${JOB_NAME}"
+vsctl eventbus create --name "${JOB_NAME}" --eventlog "${EVENTLOG_NUMBER}"
 vanus-bench e2e run \
   --name "${JOB_NAME}" \
   --eventbus "${JOB_NAME}" \
