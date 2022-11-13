@@ -12,16 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package command
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cloudevents/sdk-go/v2/client"
-	"github.com/cloudevents/sdk-go/v2/protocol"
-	"github.com/linkall-labs/vanus/observability/log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -34,13 +31,17 @@ import (
 
 	"github.com/HdrHistogram/hdrhistogram-go"
 	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/cloudevents/sdk-go/v2/client"
+	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"github.com/fatih/color"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
+	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/spf13/cobra"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 const (
@@ -52,7 +53,6 @@ const (
 
 var (
 	name         string
-	unit         int
 	eventbusList []string
 	number       int64
 	parallelism  int
@@ -64,12 +64,126 @@ var (
 
 var ebCh = make(chan string, 1024)
 
+func E2ECommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "e2e SUB-COMMAND",
+		Short: "run e2e performance test",
+		Run: func(cmd *cobra.Command, args []string) {
+			endpoint := mustGetGatewayEndpoint(cmd)
+
+			if len(eventbusList) == 0 {
+				panic("eventbus list is empty")
+			}
+
+			log.Info(context.Background(), "benchmark", map[string]interface{}{
+				"id": getBenchmarkID(),
+			})
+
+			// start
+			start := time.Now()
+			cnt := int64(0)
+			go func() {
+				for atomic.LoadInt64(&cnt) < number {
+					for idx := 0; idx < len(eventbusList); idx++ {
+						ebCh <- eventbusList[idx]
+						atomic.AddInt64(&cnt, 1)
+					}
+				}
+				close(ebCh)
+				log.Info(context.Background(), "all events were made", map[string]interface{}{
+					"num": number,
+				})
+			}()
+
+			p, err := ce.NewHTTP()
+			if err != nil {
+				cmdFailedf(cmd, "init ce protocol error: %s\n", err)
+			}
+			c, err := ce.NewClient(p, ce.WithTimeNow(), ce.WithUUIDs())
+			if err != nil {
+				cmdFailedf(cmd, "create ce client error: %s\n", err)
+			}
+
+			var success int64
+			wg := sync.WaitGroup{}
+			for idx := 0; idx < parallelism; idx++ {
+				wg.Add(1)
+				go func() {
+					for {
+						eb, ok := <-ebCh
+						if !ok && eb == "" {
+							break
+						}
+						var target string
+						if strings.HasPrefix(endpoint, httpPrefix) {
+							target = fmt.Sprintf("%s/gateway/%s", endpoint, eb)
+						} else {
+							target = fmt.Sprintf("%s%s/gateway/%s", httpPrefix, endpoint, eb)
+						}
+						r, e := send(c, target)
+						if e != nil {
+							panic(e)
+						}
+						if r {
+							atomic.AddInt64(&success, 1)
+						}
+					}
+					wg.Done()
+				}()
+			}
+
+			ctx, can := context.WithCancel(context.Background())
+			m := make(map[int]int, 0)
+			wg2 := sync.WaitGroup{}
+			wg2.Add(1)
+			go func() {
+				var prev int64
+				tick := time.NewTicker(time.Second)
+				c := 1
+				defer func() {
+					tick.Stop()
+					tps := success - prev
+					log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", success, tps), nil)
+					m[c] = int(tps)
+					wg2.Done()
+				}()
+				for prev < number {
+					select {
+					case <-tick.C:
+						cur := atomic.LoadInt64(&success)
+						tps := cur - prev
+						m[c] = int(tps)
+						log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", cur, tps), nil)
+						prev = cur
+						c++
+					case <-ctx.Done():
+						return
+					}
+				}
+			}()
+			wg.Wait()
+			can()
+			wg2.Wait()
+			saveTPS(m, "produce")
+			log.Info(nil, "all message were sent", map[string]interface{}{
+				"success": success,
+				"failed":  number - success,
+				"used":    time.Now().Sub(start),
+			})
+			_ = rdb.Close()
+		},
+	}
+	cmd.AddCommand(runCommand())
+	cmd.AddCommand(analyseCommand())
+	cmd.AddCommand(receiveCommand())
+	return cmd
+}
+
 func runCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run SUB-COMMAND",
 		Short: "vanus performance benchmark program",
 		Run: func(cmd *cobra.Command, args []string) {
-			initRedis()
 			endpoint := mustGetGatewayEndpoint(cmd)
 
 			if len(eventbusList) == 0 {
@@ -175,25 +289,11 @@ func runCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "task name")
-	cmd.Flags().IntVar(&unit, "unit", 0, "")
 	cmd.Flags().StringArrayVar(&eventbusList, "eventbus", []string{}, "the eventbus name used to")
 	cmd.Flags().Int64Var(&number, "number", 100000, "the event number")
 	cmd.Flags().IntVar(&parallelism, "parallelism", 1, "")
 	cmd.Flags().IntVar(&payloadSize, "payload-size", 64, "byte")
 	return cmd
-}
-
-func initRedis() {
-	rdb = redis.NewClient(&redis.Options{
-		Addr: redisAddr,
-	})
-	cmd := rdb.Ping(context.Background())
-	if cmd.Err() != nil {
-		panic("failed to connect redis: " + cmd.Err().Error())
-	}
-	log.Info(nil, "connect to redis success", map[string]interface{}{
-		"addr": redisAddr,
-	})
 }
 
 func saveTPS(m map[int]int, t string) {
@@ -243,7 +343,6 @@ func receiveCommand() *cobra.Command {
 		Use:   "receive",
 		Short: "vanus performance benchmark program",
 		Run: func(cmd *cobra.Command, args []string) {
-			initRedis()
 			ls, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 			if err != nil {
 				cmdFailedf(cmd, "init network error: %s", err)
@@ -262,7 +361,6 @@ func receiveCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "task name")
-	cmd.Flags().IntVar(&unit, "unit", 0, "")
 	cmd.Flags().IntVar(&port, "port", 8080, "the port the receive server running")
 	return cmd
 }
@@ -272,7 +370,6 @@ func analyseCommand() *cobra.Command {
 		Use:   "analyse",
 		Short: "vanus performance benchmark program",
 		Run: func(cmd *cobra.Command, args []string) {
-			initRedis()
 			if benchType == "" {
 				cmdFailedf(cmd, "benchmark-type can't be empty")
 			}
@@ -281,11 +378,17 @@ func analyseCommand() *cobra.Command {
 			wg.Add(1)
 			f := func(his *hdrhistogram.Histogram, unit string) {
 				res := his.CumulativeDistribution()
+				result := map[string]map[string]interface{}{}
 				for _, v := range res {
 					if v.Count == 0 {
 						continue
 					}
 
+					result[fmt.Sprintf("%.2f", v.Quantile)] = map[string]interface{}{
+						"value": v.ValueAt,
+						"unit":  unit,
+						"count": v.Count,
+					}
 					fmt.Printf("%.2f pct - %d %s, count: %d\n", v.Quantile, v.ValueAt, unit, v.Count)
 				}
 
@@ -294,6 +397,23 @@ func analyseCommand() *cobra.Command {
 				fmt.Printf("Latency StdDev: %.2f\n", his.StdDev())
 				fmt.Printf("Latency Max: %d %s, Latency Min: %d %s\n", his.Max(), unit, his.Min(), unit)
 				fmt.Println()
+
+				r := &BenchmarkResult{
+					ID:       primitive.NewObjectID(),
+					TaskID:   taskID,
+					CaseName: name,
+					RType:    ResultLatency,
+					Values:   result,
+					Mean:     his.Mean(),
+					Stdev:    his.StdDev(),
+					CreateAt: time.Now(),
+				}
+				_, err := resultColl.InsertOne(context.Background(), r)
+				if err != nil {
+					log.Error(nil, "failed to save latency result to mongodb", map[string]interface{}{
+						log.KeyError: err,
+					})
+				}
 
 				tps := hdrhistogram.New(1, 100000, 50)
 
@@ -306,17 +426,40 @@ func analyseCommand() *cobra.Command {
 					}
 				}
 				res = tps.CumulativeDistribution()
+				result = map[string]map[string]interface{}{}
 				for _, v := range res {
 					if v.Count == 0 {
 						continue
 					}
 
+					result[fmt.Sprintf("%.2f", v.Quantile)] = map[string]interface{}{
+						"value": v.ValueAt,
+						"count": v.Count,
+					}
 					fmt.Printf("%3.2f pct - %d, count: %d\n", v.Quantile, v.ValueAt, v.Count)
 				}
 				fmt.Printf("Used: %d s\n", tps.TotalCount())
 				fmt.Printf("TPS Mean: %.2f/s\n", tps.Mean())
 				fmt.Printf("TPS StdDev: %.2f\n", tps.StdDev())
 				fmt.Printf("TPS Max: %d, TPS Min: %d\n", tps.Max(), tps.Min())
+
+				r = &BenchmarkResult{
+					ID:       primitive.NewObjectID(),
+					TaskID:   taskID,
+					CaseName: name,
+					RType:    ResultThroughput,
+					Values:   result,
+					Mean:     his.Mean(),
+					Stdev:    his.StdDev(),
+					CreateAt: time.Now(),
+				}
+				_, err = resultColl.InsertOne(context.Background(), r)
+				if err != nil {
+					log.Error(nil, "failed to save latency result to mongodb", map[string]interface{}{
+						log.KeyError: err,
+					})
+				}
+
 				wg.Done()
 			}
 			dataKey := ""
@@ -360,7 +503,6 @@ func analyseCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "task name")
-	cmd.Flags().IntVar(&unit, "unit", 0, "")
 	cmd.Flags().StringVar(&benchType, "benchmark-type", "", "the type of benchmark, produce or consume")
 	return cmd
 }
@@ -399,8 +541,6 @@ func isOutputFormatJSON(cmd *cobra.Command) bool {
 	}
 	return strings.ToLower(v) == "json"
 }
-
-var rdb *redis.Client
 
 func cache(r *Record, key string) {
 	key = path.Join(redisKey, key, getBenchmarkID())
@@ -502,12 +642,5 @@ func cmdFailedf(cmd *cobra.Command, format string, a ...interface{}) {
 }
 
 func getBenchmarkID() string {
-	if name == "" {
-		panic("name list is empty")
-	}
-
-	if unit == 0 {
-		panic("unit must great than 0")
-	}
-	return fmt.Sprintf("%s-%d", name, unit)
+	return taskID.Hex()
 }

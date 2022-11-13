@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package command
 
 import (
-	v1 "cloudevents.io/genproto/v1"
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-redis/redis/v8"
 	"math/rand"
 	"net"
 	"net/http"
@@ -28,6 +26,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	v1 "cloudevents.io/genproto/v1"
+	"github.com/go-redis/redis/v8"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store"
 	"github.com/linkall-labs/vanus/internal/store/segment"
@@ -51,10 +51,10 @@ var (
 	noCleanCache   bool
 )
 
-func localCommand() *cobra.Command {
+func ComponentCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "local",
-		Short: "start local server",
+		Use:   "component",
+		Short: "start component test",
 	}
 	cmd.AddCommand(storeCommand())
 	return cmd
@@ -64,9 +64,6 @@ func storeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "store",
 		Short: "start local store",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			initRedis()
-		},
 	}
 	cmd.AddCommand(runStoreCommand())
 	cmd.AddCommand(createBlockCommand())
@@ -165,7 +162,7 @@ func createBlockCommand() *cobra.Command {
 					panic("failed to activate segment to: " + err.Error())
 				}
 
-				br := &BlocKRecord{
+				br := &BlockRecord{
 					LeaderID:   0,
 					LeaderAddr: storeAddrs[idx%len(clis)],
 					Replicas:   replicas,
@@ -204,7 +201,7 @@ func sendCommand() *cobra.Command {
 			}
 
 			le := int(rCmd.Val())
-			brs := make([]BlocKRecord, le)
+			brs := make([]BlockRecord, le)
 			for i := 0; i < le; i++ {
 				var sCmd *redis.StringCmd
 				if noCleanCache {
@@ -215,7 +212,7 @@ func sendCommand() *cobra.Command {
 				if rCmd.Err() != nil {
 					panic("failed to read block records from redis: " + rCmd.Err().Error())
 				}
-				br := BlocKRecord{}
+				br := BlockRecord{}
 				_ = json.Unmarshal([]byte(sCmd.Val()), &br)
 				brs[i] = br
 				fmt.Printf("found a block, ID: %s, addr: %s\n", vanus.ID(br.LeaderID).String(), br.LeaderAddr)
@@ -249,7 +246,7 @@ func sendCommand() *cobra.Command {
 			for _, abr := range brs {
 				cli := clis[abr.LeaderAddr]
 				for idx := 0; idx < parallelism; idx++ {
-					go func(br BlocKRecord, c segpb.SegmentServerClient) {
+					go func(br BlockRecord, c segpb.SegmentServerClient) {
 						for atomic.LoadInt64(&count)+atomic.LoadInt64(&failed) < totalSent {
 							_, err := c.AppendToBlock(context.Background(), &segpb.AppendToBlockRequest{
 								BlockId: br.LeaderID,

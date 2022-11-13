@@ -18,6 +18,7 @@ import (
 	"os"
 
 	"github.com/fatih/color"
+	"github.com/linkall-labs/vanus/test/benchmark/command"
 	"github.com/spf13/cobra"
 )
 
@@ -28,24 +29,33 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	endpoint      string
-	redisAddr     string
-	bypassGateway bool
+	endpoint   string
+	redisAddr  string
+	mongodbURI string
+	begin      bool
+	end        bool
 )
 
 func main() {
 
-	rootCmd.AddCommand(runCommand())
-	rootCmd.AddCommand(receiveCommand())
-	rootCmd.AddCommand(analyseCommand())
-	rootCmd.AddCommand(localCommand())
+	rootCmd.AddCommand(command.E2ECommand())
+	rootCmd.AddCommand(command.ComponentCommand())
+	rootCmd.PersistentPreRun = func(_ *cobra.Command, _ []string) {
+		command.InitDatabase(redisAddr, "", begin)
+	}
+	rootCmd.PersistentPostRun = func(_ *cobra.Command, _ []string) {
+		command.CloseDatabases(end)
+	}
 
 	rootCmd.PersistentFlags().StringVar(&endpoint, "endpoint",
 		"127.0.0.1:8080", "the endpoints of vanus controller")
 	rootCmd.PersistentFlags().StringVar(&redisAddr, "redis-addr",
 		"127.0.0.1:6379", "address of redis")
-	rootCmd.PersistentFlags().BoolVar(&bypassGateway, "bypass-gateway",
-		false, "using client directly connect to store")
+	rootCmd.PersistentFlags().StringVar(&mongodbURI, "mongodb-addr",
+		"127.0.0.1:27017", "uri of mongo")
+	rootCmd.PersistentFlags().BoolVar(&begin, "begin", false, "if the begin of a playbook")
+	rootCmd.PersistentFlags().BoolVar(&end, "end", false, "if the end of a playbook")
+
 	if err := rootCmd.Execute(); err != nil {
 		color.Red("vsctl-bench run error: %s", err)
 		os.Exit(-1)
