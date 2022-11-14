@@ -35,6 +35,8 @@ var (
 		"e2e-1eventbus-1eventlog-1client-1parallelism":   true,
 		"e2e-1eventbus-1eventlog-1client-16parallelism":  true,
 		"e2e-1eventbus-16eventlog-1client-16parallelism": true,
+		"e2e-component-store-1replicas":                  true,
+		"e2e-component-store-3replicas":                  true,
 	}
 
 	name        string
@@ -43,6 +45,7 @@ var (
 	mongodbPass string
 	begin       bool
 	end         bool
+	withMongoDB bool
 )
 
 func main() {
@@ -54,7 +57,7 @@ func main() {
 			panic("invalid case name: " + name)
 		}
 		command.SetCaseName(name)
-		command.InitDatabase(redisAddr, fmt.Sprintf(defaultMongoDBURI, mongodbPass), begin)
+		command.InitDatabase(redisAddr, fmt.Sprintf(defaultMongoDBURI, mongodbPass), begin, withMongoDB)
 	}
 	rootCmd.PersistentPostRun = func(_ *cobra.Command, _ []string) {
 		command.CloseDatabases(end)
@@ -72,6 +75,7 @@ func main() {
 
 	rootCmd.PersistentFlags().BoolVar(&begin, "begin", false, "if the begin of a playbook")
 	rootCmd.PersistentFlags().BoolVar(&end, "end", false, "if the end of a playbook")
+	rootCmd.PersistentFlags().BoolVar(&withMongoDB, "without-mongodb", false, "if using mongodb")
 
 	if err := rootCmd.Execute(); err != nil {
 		color.Red("vsctl-bench run error: %s", err)

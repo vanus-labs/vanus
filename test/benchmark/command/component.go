@@ -49,6 +49,7 @@ var (
 	storeAddrs     []string
 	totalSent      int64
 	noCleanCache   bool
+	replicaNum     int
 )
 
 func ComponentCommand() *cobra.Command {
@@ -103,6 +104,7 @@ func runStoreCommand() *cobra.Command {
 				},
 				Raft: store.RaftConfig{
 					WAL: store.WALConfig{
+						BlockSize: 32 * 1024,
 						IO: store.IOConfig{
 							Engine: "psync",
 						},
@@ -123,7 +125,6 @@ func createBlockCommand() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			addrs := make(map[string]*grpc.ClientConn)
 			clis := make([]segpb.SegmentServerClient, len(storeAddrs))
-			blocks := map[int][]uint64{}
 			for idx, addr := range storeAddrs {
 				var opts []grpc.DialOption
 				opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -135,13 +136,15 @@ func createBlockCommand() *cobra.Command {
 				addrs[addr] = conn
 
 				clis[idx] = segpb.NewSegmentServerClient(conn)
-				blocks[idx] = make([]uint64, 0)
 			}
 
+			cnt := 0
+			leaderCnt := 0
 			for idx := 0; idx < segmentNumbers; idx++ {
 				replicas := map[uint64]string{}
-				for j, cli := range clis {
+				for j := 0; j < replicaNum; j++ {
 					id := vanus.NewTestID()
+					cli := clis[cnt%len(clis)]
 					_, err := cli.CreateBlock(context.Background(), &segpb.CreateBlockRequest{
 						Id:   id.Uint64(),
 						Size: 64 * 1024 * 1024,
@@ -149,22 +152,25 @@ func createBlockCommand() *cobra.Command {
 					if err != nil {
 						panic("failed to create block to: " + err.Error())
 					}
-					replicas[id.Uint64()] = storeAddrs[j]
-					blocks[j] = append(blocks[j], id.Uint64())
+					replicas[id.Uint64()] = storeAddrs[cnt%len(clis)]
+					cnt++
+					if len(replicas) >= replicaNum {
+						break
+					}
 				}
 				req := &segpb.ActivateSegmentRequest{
 					EventLogId:     vanus.NewTestID().Uint64(),
 					ReplicaGroupId: vanus.NewTestID().Uint64(),
 					Replicas:       replicas,
 				}
-				_, err := clis[idx%len(clis)].ActivateSegment(context.Background(), req)
+				leaderAddr := leaderCnt % len(clis)
+				_, err := clis[leaderAddr].ActivateSegment(context.Background(), req)
 				if err != nil {
 					panic("failed to activate segment to: " + err.Error())
 				}
-
 				br := &BlockRecord{
 					LeaderID:   0,
-					LeaderAddr: storeAddrs[idx%len(clis)],
+					LeaderAddr: storeAddrs[leaderAddr],
 					Replicas:   replicas,
 				}
 				for id, addr := range br.Replicas {
@@ -178,13 +184,15 @@ func createBlockCommand() *cobra.Command {
 				if rCmd.Err() != nil {
 					fmt.Printf("failed to save block info to redis: %s\n", err)
 				}
-				fmt.Printf("the segment: %d activated to %s\n", req.ReplicaGroupId, storeAddrs[idx%len(clis)])
+				fmt.Printf("the segment: %d activated to %s\n", req.ReplicaGroupId, storeAddrs[leaderAddr])
+				leaderCnt++
 			}
 
 			return
 		},
 	}
 	cmd.Flags().IntVar(&segmentNumbers, "number", 1, "")
+	cmd.Flags().IntVar(&replicaNum, "replicas", 3, "")
 	cmd.Flags().StringArrayVar(&storeAddrs, "store-address", []string{
 		"127.0.0.1:2149", "127.0.0.1:2150", "127.0.0.1:2151"}, "")
 	return cmd

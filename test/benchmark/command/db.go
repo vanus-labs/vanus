@@ -39,7 +39,7 @@ const (
 	database = "vanus-benchmark"
 )
 
-func InitDatabase(redisAddr string, mongodb string, begin bool) {
+func InitDatabase(redisAddr string, mongodb string, begin bool, withoutMongoDB bool) {
 	rdb = redis.NewClient(&redis.Options{
 		Addr: redisAddr,
 	})
@@ -51,6 +51,9 @@ func InitDatabase(redisAddr string, mongodb string, begin bool) {
 		"addr": redisAddr,
 	})
 
+	if withoutMongoDB {
+		return
+	}
 	cli, err := mongo.Connect(context.Background(), options.Client().ApplyURI(mongodb))
 	if err != nil {
 		panic("failed to connect mongodb: " + err.Error())
@@ -120,5 +123,7 @@ func CloseDatabases(end bool) {
 		})
 	}
 	_ = rdb.Close()
-	_ = mgo.Disconnect(context.Background())
+	if mgo != nil {
+		_ = mgo.Disconnect(context.Background())
+	}
 }
