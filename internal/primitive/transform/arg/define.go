@@ -17,13 +17,15 @@ package arg
 import "github.com/linkall-labs/vanus/internal/trigger/context"
 
 type define struct {
-	name string
+	name     string
+	original string
 }
 
 // newDefine name format is <var>
 func newDefine(name string) Arg {
 	return define{
-		name: name[1 : len(name)-1],
+		name:     name[1 : len(name)-1],
+		original: name,
 	}
 }
 
@@ -35,6 +37,10 @@ func (arg define) Name() string {
 	return arg.name
 }
 
+func (arg define) Original() string {
+	return arg.original
+}
+
 func (arg define) Evaluate(ceCtx *context.EventContext) (interface{}, error) {
 	if len(ceCtx.Define) == 0 {
 		return nil, nil
@@ -44,4 +50,12 @@ func (arg define) Evaluate(ceCtx *context.EventContext) (interface{}, error) {
 		return nil, nil
 	}
 	return v, nil
+}
+
+func (arg define) SetValue(*context.EventContext, interface{}) error {
+	return ErrOperationNotSupport
+}
+
+func (arg define) DeleteValue(*context.EventContext) error {
+	return ErrOperationNotSupport
 }

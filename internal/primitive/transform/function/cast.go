@@ -60,20 +60,6 @@ func Cast(val interface{}, target Type) (interface{}, error) {
 			return false, fmt.Errorf("cannot cast String to Bool, actual value: %v", val)
 		}
 		return false, fmt.Errorf("undefined cast from %v to %v", TypeFromVal(val), target)
-	case StringArray:
-		switch val.(type) {
-		case []interface{}:
-			vars := make([]string, len(val.([]interface{})))
-			for i, _val := range val.([]interface{}) {
-				v, err := Cast(_val, String)
-				if err != nil {
-					return nil, fmt.Errorf("undefined cast from []interface to []string at %d, actual value:%v", i, _val)
-				}
-				vars[i] = v.(string)
-			}
-			return vars, nil
-		}
-		return nil, fmt.Errorf("undefined cast from %v to %v", TypeFromVal(val), target)
 	}
 
 	// AnyType doesn't need casting

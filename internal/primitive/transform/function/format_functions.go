@@ -14,30 +14,27 @@
 
 package function
 
-import "strings"
+import "time"
 
-var mergeFunction = function{
-	name:           "MERGE",
-	fixedArgs:      []Type{StringArray, String, String},
-	targetArgIndex: 2,
+var formatDateFunction = function{
+	name:             "FORMAT_DATE",
+	fixedArgs:        []Type{String, String, String},
+	sourceTargetSame: true,
 	fn: func(args []interface{}) (interface{}, error) {
-		separator := args[1].(string)
-		var sb strings.Builder
-		elems := args[0].([]string)
-		for i := 0; i < len(elems); i++ {
-			if i != 0 {
-				sb.WriteString(separator)
-			}
-			sb.WriteString(elems[i])
+		t, err := time.Parse(args[1].(string), args[0].(string))
+		if err != nil {
+			return nil, err
 		}
-		return sb.String(), nil
+		return t.Format(args[2].(string)), nil
 	},
 }
 
-var replaceValueFunction = function{
-	name:      "REPLACE_VALUE",
-	fixedArgs: []Type{String, String, String},
+var formatUnixTimeFunction = function{
+	name:             "FORMAT_UNIX_TIME",
+	fixedArgs:        []Type{Number, String},
+	sourceTargetSame: true,
 	fn: func(args []interface{}) (interface{}, error) {
-		return strings.ReplaceAll(args[0].(string), args[0].(string), args[0].(string)), nil
+		t := time.UnixMilli(int64(args[0].(float64)))
+		return t.Format(args[1].(string)), nil
 	},
 }

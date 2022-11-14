@@ -14,33 +14,8 @@
 
 package arg
 
-import (
-	"fmt"
+import "fmt"
 
-	"github.com/linkall-labs/vanus/internal/trigger/context"
+var (
+	ErrOperationNotSupport = fmt.Errorf("operation not support")
 )
-
-type constant struct {
-	value interface{}
-}
-
-func newConstant(value interface{}) Arg {
-	return constant{
-		value: value,
-	}
-}
-
-func (arg constant) Type() Type {
-	return Constant
-}
-func (arg constant) Name() string {
-	switch arg.value.(type) {
-	case string:
-		return arg.value.(string)
-	}
-	return fmt.Sprintf("%v", arg.value)
-}
-
-func (arg constant) Evaluate(*context.EventContext) (interface{}, error) {
-	return arg.value, nil
-}

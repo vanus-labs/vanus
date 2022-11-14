@@ -23,7 +23,8 @@ import (
 )
 
 type eventAttribute struct {
-	attr string
+	attr     string
+	original string
 }
 
 // newEventAttribute name format is $.source
@@ -34,7 +35,8 @@ func newEventAttribute(name string) (Arg, error) {
 		return nil, err
 	}
 	return eventAttribute{
-		attr: attr,
+		attr:     attr,
+		original: name,
 	}, nil
 }
 
@@ -45,6 +47,10 @@ func (arg eventAttribute) Name() string {
 	return arg.attr
 }
 
+func (arg eventAttribute) Original() string {
+	return arg.original
+}
+
 func (arg eventAttribute) Evaluate(ceCtx *context.EventContext) (interface{}, error) {
 	v, exist := util.LookupAttribute(*ceCtx.Event, arg.attr)
 	if !exist {
@@ -53,24 +59,48 @@ func (arg eventAttribute) Evaluate(ceCtx *context.EventContext) (interface{}, er
 	return v, nil
 }
 
+func (arg eventAttribute) SetValue(ceCtx *context.EventContext, value interface{}) error {
+	return util.SetAttribute(ceCtx.Event, arg.attr, value)
+}
+
+func (arg eventAttribute) DeleteValue(ceCtx *context.EventContext) error {
+	return util.DeleteAttribute(ceCtx.Event, arg.attr)
+}
+
 type eventData struct {
-	path string
+	path     string
+	original string
 }
 
 // newEventData name format is $.data.key
 func newEventData(name string) Arg {
 	return eventData{
-		path: name[7:],
+		path:     name[7:],
+		original: name,
 	}
 }
 
 func (arg eventData) Type() Type {
 	return EventData
 }
+
 func (arg eventData) Name() string {
 	return arg.path
 }
 
+func (arg eventData) Original() string {
+	return arg.original
+}
+
 func (arg eventData) Evaluate(ceCtx *context.EventContext) (interface{}, error) {
 	return util.LookupData(ceCtx.Data, "$."+arg.path)
+}
+
+func (arg eventData) SetValue(ceCtx *context.EventContext, value interface{}) error {
+	util.SetData(ceCtx.Data, arg.path, value)
+	return nil
+}
+
+func (arg eventData) DeleteValue(ceCtx *context.EventContext) error {
+	return util.DeleteData(ceCtx.Data, arg.path)
 }

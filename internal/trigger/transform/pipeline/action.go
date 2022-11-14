@@ -17,27 +17,30 @@ package pipeline
 import (
 	"fmt"
 
+	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
 	"github.com/linkall-labs/vanus/internal/trigger/context"
-	"github.com/linkall-labs/vanus/internal/trigger/transform/arg"
-	"github.com/linkall-labs/vanus/internal/trigger/transform/function"
+	"github.com/pkg/errors"
 )
 
+type Action interface {
+	Execute(ceCtx *context.EventContext) error
+}
+
 type action struct {
-	args       []arg.Arg
-	targetPath arg.Arg
-	fn         function.Function
+	args      []arg.Arg
+	targetArg arg.Arg
+	fn        function.Function
 }
 
 func newAction(command []interface{}) (*action, error) {
 	funcName := command[0].(string)
-	fn := function.GetFunction(funcName)
-	if fn == nil {
-		return nil, fmt.Errorf("function %s not exist", funcName)
+	argNum := len(command) - 1
+	fn, err := function.GetFunction(funcName, argNum)
+	if err != nil {
+		return nil, errors.Wrapf(err, "function %s error", funcName)
 	}
-	if fn.Arity() > len(command)-1 {
-		return nil, fmt.Errorf("function %s has %d args,but now is %d", funcName, fn.Arity(), len(command)-1)
-	}
-	args := make([]arg.Arg, len(command)-1)
+	args := make([]arg.Arg, argNum)
 	for i := 1; i < len(command); i++ {
 		_arg, err := arg.NewArg(command[i])
 		if err != nil {
@@ -46,36 +49,30 @@ func newAction(command []interface{}) (*action, error) {
 		args[i-1] = _arg
 	}
 	return &action{
-		args:       args,
-		targetPath: args[fn.TargetArgIndex()],
-		fn:         fn,
+		args:      args,
+		targetArg: args[fn.TargetArgIndex()],
+		fn:        fn,
 	}, nil
 }
 
 func (a *action) Execute(ceCtx *context.EventContext) error {
-	if a.fn.Name() == "DELETE" {
-		if a.targetPath.Type() == arg.EventAttribute {
-			err := DeleteAttribute(ceCtx.Event, a.targetPath.Name())
-			if err != nil {
-				return err
-			}
-		} else if a.targetPath.Type() == arg.EventData {
-			err := DeleteData(ceCtx.Data, a.targetPath.Name())
-			if err != nil {
-				return err
-			}
-		}
-		return nil
+	funcName := a.fn.Name()
+	switch funcName {
+	case "DELETE":
+		return a.targetArg.DeleteValue(ceCtx)
 	}
 	args := make([]interface{}, len(a.args))
 	for i, _arg := range a.args {
 		var v interface{}
-		if a.fn.TargetArgIndex() == i && !a.fn.IsSourceTarget() {
-			v = _arg.Name()
+		if a.fn.TargetArgIndex() == i && !a.fn.IsSourceTargetSame() {
+			v = _arg.Original()
 		} else {
 			value, err := _arg.Evaluate(ceCtx)
 			if err != nil {
 				return err
+			}
+			if value == nil {
+				return fmt.Errorf("arg %s value is nil", _arg.Original())
 			}
 			v, err = function.Cast(value, *a.fn.ArgType(i))
 			if err != nil {
@@ -88,14 +85,24 @@ func (a *action) Execute(ceCtx *context.EventContext) error {
 	if err != nil {
 		return err
 	}
-	// write value to data
-	if a.targetPath.Type() == arg.EventAttribute {
-		err = SetAttribute(ceCtx.Event, a.targetPath.Name(), fnValue)
-		if err != nil {
-			return err
+	if funcName == "CREATE" || a.fn.Name() == "MOVE" || a.fn.Name() == "RENAME" {
+		v, _ := a.targetArg.Evaluate(ceCtx)
+		if v != nil {
+			return fmt.Errorf("key %s exist", a.targetArg.Original())
 		}
-	} else if a.targetPath.Type() == arg.EventData {
-		SetData(ceCtx.Data, a.targetPath.Name(), fnValue)
+	} else if funcName == "REPLACE" {
+		v, _ := a.targetArg.Evaluate(ceCtx)
+		if v == nil {
+			return fmt.Errorf("key %s no exist", a.targetArg.Original())
+		}
+	}
+	// set value to event
+	if err = a.targetArg.SetValue(ceCtx, fnValue); err != nil {
+		return err
+	}
+	// move(sourcePath,targetArg) delete original key
+	if a.fn.Name() == "MOVE" || a.fn.Name() == "RENAME" {
+		return a.args[0].DeleteValue(ceCtx)
 	}
 	return nil
 }

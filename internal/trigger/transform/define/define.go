@@ -15,8 +15,8 @@
 package define
 
 import (
+	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
 	"github.com/linkall-labs/vanus/internal/trigger/context"
-	"github.com/linkall-labs/vanus/internal/trigger/transform/arg"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
@@ -54,7 +54,7 @@ func (d *Define) EvaluateValue(ceCtx *context.EventContext) (map[string]interfac
 		if err != nil {
 			log.Warning(nil, "define var evaluate error", map[string]interface{}{
 				log.KeyError: err,
-				"name":       v.Name(),
+				"name":       v.Original(),
 				"type":       v.Type(),
 			})
 		}

@@ -21,3 +21,38 @@ var deleteFunction = function{
 		return nil, nil
 	},
 }
+
+var createFunction = function{
+	name:      "CREATE",
+	fixedArgs: []Type{String, Any},
+	fn: func(args []interface{}) (interface{}, error) {
+		return args[1], nil
+	},
+}
+
+var replaceFunction = function{
+	name:           "REPLACE",
+	targetArgIndex: 1,
+	fixedArgs:      []Type{String, Any},
+	fn: func(args []interface{}) (interface{}, error) {
+		return args[1], nil
+	},
+}
+
+var moveFunction = function{
+	name:           "MOVE",
+	targetArgIndex: 1,
+	fixedArgs:      []Type{Any, String},
+	fn: func(args []interface{}) (interface{}, error) {
+		return args[0], nil
+	},
+}
+
+var renameFunction = function{
+	name:           "RENAME",
+	targetArgIndex: 1,
+	fixedArgs:      []Type{Any, String},
+	fn: func(args []interface{}) (interface{}, error) {
+		return args[0], nil
+	},
+}

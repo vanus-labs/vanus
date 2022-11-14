@@ -14,7 +14,10 @@
 
 package function
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 type Function interface {
 	// Name func name
@@ -23,20 +26,23 @@ type Function interface {
 	Arity() int
 	// ArgType arg type
 	ArgType(index int) *Type
+	// IsVariadic is exist variadic
+	IsVariadic() bool
 	// TargetArgIndex target path arg in arg index
 	TargetArgIndex() int
-	// IsSourceTarget tart path is also source
-	IsSourceTarget() bool
+	// IsSourceTargetSame source path is also target path
+	IsSourceTargetSame() bool
 	// Execute cal func result
 	Execute(args []interface{}) (interface{}, error)
 }
 
 type function struct {
-	name           string
-	fixedArgs      []Type
-	targetArgIndex int
-	sourceTarget   bool
-	fn             func(args []interface{}) (interface{}, error)
+	name             string
+	fixedArgs        []Type
+	variadicArgs     *Type
+	targetArgIndex   int
+	sourceTargetSame bool
+	fn               func(args []interface{}) (interface{}, error)
 }
 
 func (f function) Name() string {
@@ -51,15 +57,19 @@ func (f function) ArgType(index int) *Type {
 	if index < len(f.fixedArgs) {
 		return &f.fixedArgs[index]
 	}
-	return nil
+	return f.variadicArgs
+}
+
+func (f function) IsVariadic() bool {
+	return f.variadicArgs != nil
 }
 
 func (f function) TargetArgIndex() int {
 	return f.targetArgIndex
 }
 
-func (f function) IsSourceTarget() bool {
-	return f.sourceTarget
+func (f function) IsSourceTargetSame() bool {
+	return f.sourceTargetSame
 }
 
 func (f function) Execute(args []interface{}) (interface{}, error) {
@@ -72,15 +82,26 @@ func AddFunction(fn Function) {
 	funcMap[fn.Name()] = fn
 }
 
-func GetFunction(name string) Function {
+func GetFunction(name string, args int) (Function, error) {
 	f, exist := funcMap[strings.ToUpper(name)]
 	if !exist {
-		return nil
+		return nil, ErrNoExist
 	}
-	return f
+	if args < f.Arity() {
+		return nil, ErrArgNumber
+	}
+	if f.Arity() != args && !f.IsVariadic() {
+		return nil, ErrArgNumber
+	}
+	return f, nil
 }
 
 func init() {
 	funcMap = make(map[string]Function)
-	AddFunction(mergeFunction)
+	AddFunction(joinFunction)
 }
+
+var (
+	ErrNoExist   = fmt.Errorf("function no exist")
+	ErrArgNumber = fmt.Errorf("function arg number invalid")
+)

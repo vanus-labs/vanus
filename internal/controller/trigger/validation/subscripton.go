@@ -17,6 +17,11 @@ package validation
 import (
 	"context"
 	"fmt"
+	"net/url"
+
+	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
+
+	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
 
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/primitive"
@@ -47,6 +52,9 @@ func ValidateSubscriptionRequest(ctx context.Context, request *ctrlpb.Subscripti
 		return errors.ErrInvalidRequest.WithMessage("eventBus is empty")
 	}
 	if err := validateSubscriptionConfig(ctx, request.Config); err != nil {
+		return err
+	}
+	if err := validateTransformer(ctx, request.Transformer); err != nil {
 		return err
 	}
 	return nil
@@ -86,6 +94,10 @@ func ValidateSinkAndProtocol(ctx context.Context,
 				WithMessage("protocol is gcloud functions, sink credential can not be nil and credential type is gcloud")
 		}
 	case metapb.Protocol_HTTP:
+		if _, err := url.Parse(sink); err != nil {
+			return errors.ErrInvalidRequest.
+				WithMessage("protocol is http, sink is url,url parse error").Wrap(err)
+		}
 	}
 	return nil
 }
@@ -147,6 +159,44 @@ func validateSubscriptionConfig(ctx context.Context, cfg *metapb.SubscriptionCon
 	}
 	return nil
 }
+
+func validateTransformer(ctx context.Context, transformer *metapb.Transformer) error {
+	if transformer == nil {
+		return nil
+	}
+	if len(transformer.Define) > 0 {
+		for key, value := range transformer.Define {
+			_, err := arg.NewArg(value)
+			if err != nil {
+				return errors.ErrInvalidRequest.WithMessage(
+					fmt.Sprintf("transformer define %s:%s invalid", key, value)).Wrap(err)
+			}
+		}
+	}
+	if len(transformer.Pipeline) > 0 {
+		for n, action := range transformer.Pipeline {
+			var funcName string
+			for i, command := range action.GetCommand() {
+				if i == 0 {
+					funcName = command.GetStringValue()
+					_, err := function.GetFunction(funcName, len(action.GetCommand())-1)
+					if err != nil {
+						return errors.ErrInvalidRequest.WithMessage(
+							fmt.Sprintf("transformer define %d command %s invalid", n, funcName)).Wrap(err)
+					}
+				} else {
+					_, err := arg.NewArg(command.AsInterface())
+					if err != nil {
+						return errors.ErrInvalidRequest.WithMessage(
+							fmt.Sprintf("transformer define %d command %s arg %d [%s] invalid", n, funcName, i, command.AsInterface())).Wrap(err)
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func ValidateFilterList(ctx context.Context, filters []*metapb.Filter) error {
 	if len(filters) == 0 {
 		return nil

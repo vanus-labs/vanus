@@ -46,8 +46,11 @@ func (t Type) String() string {
 type Arg interface {
 	Type() Type
 	Name() string
+	Original() string
 	// Evaluate arg value
 	Evaluate(ceCtx *context.EventContext) (interface{}, error)
+	SetValue(ceCtx *context.EventContext, v interface{}) error
+	DeleteValue(ceCtx *context.EventContext) error
 }
 
 func NewArg(arg interface{}) (Arg, error) {
@@ -65,7 +68,6 @@ func NewArg(arg interface{}) (Arg, error) {
 		if argLen >= 3 && argName[0] == '<' && argName[argLen-1] == '>' {
 			return newDefine(argName), nil
 		}
-
 	}
 	return newConstant(arg), nil
 }

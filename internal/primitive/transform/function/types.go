@@ -21,7 +21,6 @@ const (
 	Number
 	Bool
 	Object
-	StringArray
 	Array
 	Any
 )
