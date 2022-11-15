@@ -23,7 +23,8 @@ var MathAddFunction = function{
 	fn: func(args []interface{}) (interface{}, error) {
 		var sum float64
 		for i := 0; i < len(args); i++ {
-			sum += args[i].(float64)
+			v, _ := args[i].(float64)
+			sum += v
 		}
 		return sum, nil
 	},
@@ -44,7 +45,8 @@ var MathMulFunction = function{
 	fn: func(args []interface{}) (interface{}, error) {
 		sum := float64(1)
 		for i := 0; i < len(args); i++ {
-			sum *= args[i].(float64)
+			v, _ := args[i].(float64)
+			sum *= v
 		}
 		return sum, nil
 	},

@@ -26,34 +26,33 @@ func Cast(val interface{}, target Type) (interface{}, error) {
 	}
 	switch target {
 	case String:
-		switch val.(type) {
+		switch value := val.(type) {
 		case int32: // ce attribute
-			return strconv.Itoa(int(val.(int32))), nil
+			return strconv.Itoa(int(value)), nil
 		case float64: // ce data json marshal
-			return strconv.FormatFloat(val.(float64), 'f', -1, 64), nil
+			return strconv.FormatFloat(value, 'f', -1, 64), nil
 		case bool:
-			return strconv.FormatBool(val.(bool)), nil
+			return strconv.FormatBool(value), nil
 		}
 		// Casting to string is always defined
 		return fmt.Sprintf("%v", val), nil
 	case Number:
-		switch val.(type) {
+		switch value := val.(type) {
 		case string:
-			v, err := strconv.ParseFloat(val.(string), 64)
+			v, err := strconv.ParseFloat(value, 64)
 			if err != nil {
 				err = fmt.Errorf("cannot cast from String to Float: %w", err)
 			}
 			return v, err
 		case int32:
-			return float64(val.(int32)), nil
+			return float64(value), nil
 		case int64:
-			return float64(val.(int64)), nil
+			return float64(value), nil
 		}
 		return 0, fmt.Errorf("undefined cast from %v to %v", TypeFromVal(val), target)
 	case Bool:
-		switch val.(type) {
-		case string:
-			lowerCase := strings.ToLower(val.(string))
+		if value, ok := val.(string); ok {
+			lowerCase := strings.ToLower(value)
 			if lowerCase == "true" {
 				return true, nil
 			} else if lowerCase == "false" {

@@ -19,7 +19,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
 )
 
-// ["math_add", "toKey","key1","key2"]
+// ["math_add", "toKey","key1","key2"].
 func newMathAddActionAction() Action {
 	return &commonAction{
 		fixedArgs:   []arg.TypeList{arg.EventList, arg.All, arg.All},
@@ -28,7 +28,7 @@ func newMathAddActionAction() Action {
 	}
 }
 
-// ["math_sub", "toKey","key1","key2"]
+// ["math_sub", "toKey","key1","key2"].
 func newMathSubActionAction() Action {
 	return &commonAction{
 		fixedArgs: []arg.TypeList{arg.EventList, arg.All, arg.All},
@@ -36,7 +36,7 @@ func newMathSubActionAction() Action {
 	}
 }
 
-// ["math_mul", "toKey","key1","key2"]
+// ["math_mul", "toKey","key1","key2"].
 func newMathMulActionAction() Action {
 	return &commonAction{
 		fixedArgs:   []arg.TypeList{arg.EventList, arg.All, arg.All},
@@ -45,7 +45,7 @@ func newMathMulActionAction() Action {
 	}
 }
 
-// ["math_div", "toKey","key1","key2"]
+// ["math_div", "toKey","key1","key2"].
 func newMathDivActionAction() Action {
 	return &commonAction{
 		fixedArgs: []arg.TypeList{arg.EventList, arg.All, arg.All},

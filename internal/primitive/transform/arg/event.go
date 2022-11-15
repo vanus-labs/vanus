@@ -17,6 +17,8 @@ package arg
 import (
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 
 	"github.com/linkall-labs/vanus/internal/trigger/util"
@@ -28,7 +30,7 @@ type eventAttribute struct {
 	original string
 }
 
-// newEventAttribute name format is $.source
+// newEventAttribute name format is $.source .
 func newEventAttribute(name string) (Arg, error) {
 	attr := strings.ToLower(name[2:])
 	err := pkgUtil.ValidateEventAttrName(attr)
@@ -55,7 +57,7 @@ func (arg eventAttribute) Original() string {
 func (arg eventAttribute) Evaluate(ceCtx *context.EventContext) (interface{}, error) {
 	v, exist := util.LookupAttribute(*ceCtx.Event, arg.attr)
 	if !exist {
-		return nil, nil
+		return nil, ErrArgValueNil
 	}
 	return v, nil
 }
@@ -71,12 +73,22 @@ func (arg eventAttribute) DeleteValue(ceCtx *context.EventContext) error {
 type eventData struct {
 	path     string
 	original string
+	data     bool
 }
 
-// newEventData name format is $.data.key
+// newEventData name format is $.data.key .
 func newEventData(name string) Arg {
+	var data bool
+	var path string
+	if name == "$.data" {
+		data = true
+		path = name
+	} else {
+		path = name[7:]
+	}
 	return eventData{
-		path:     name[7:],
+		data:     data,
+		path:     path,
 		original: name,
 	}
 }
@@ -94,14 +106,35 @@ func (arg eventData) Original() string {
 }
 
 func (arg eventData) Evaluate(ceCtx *context.EventContext) (interface{}, error) {
-	return util.LookupData(ceCtx.Data, "$."+arg.path)
+	if arg.data {
+		return ceCtx.Data, nil
+	}
+	v, err := util.LookupData(ceCtx.Data, "$."+arg.path)
+	if err != nil {
+		if errors.Is(err, util.ErrKeyNotFound) {
+			return nil, ErrArgValueNil
+		}
+		return nil, err
+	}
+	if v == nil {
+		return nil, ErrArgValueNil
+	}
+	return v, nil
 }
 
 func (arg eventData) SetValue(ceCtx *context.EventContext, value interface{}) error {
+	if arg.data {
+		ceCtx.Data = value
+		return nil
+	}
 	util.SetData(ceCtx.Data, arg.path, value)
 	return nil
 }
 
 func (arg eventData) DeleteValue(ceCtx *context.EventContext) error {
+	if arg.data {
+		ceCtx.Data = map[string]interface{}{}
+		return nil
+	}
 	return util.DeleteData(ceCtx.Data, arg.path)
 }

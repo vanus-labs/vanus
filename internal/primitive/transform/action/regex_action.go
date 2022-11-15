@@ -34,7 +34,7 @@ type replaceWithRegexAction struct {
 	lock    sync.RWMutex
 }
 
-// ["replace_with_regex", "key", "pattern", "value"]
+// ["replace_with_regex", "key", "pattern", "value"].
 func newReplaceWithRegexAction() Action {
 	return &replaceWithRegexAction{
 		commonAction: commonAction{
@@ -56,9 +56,9 @@ func (a *replaceWithRegexAction) Execute(ceCtx *context.EventContext) error {
 	if err != nil {
 		return err
 	}
-	originalValue := args[0].(string)
-	value := args[2].(string)
-	expr := args[1].(string)
+	originalValue, _ := args[0].(string)
+	value, _ := args[2].(string)
+	expr, _ := args[1].(string)
 	if expr != a.expr {
 		err = a.setPattern(expr)
 		if err != nil {

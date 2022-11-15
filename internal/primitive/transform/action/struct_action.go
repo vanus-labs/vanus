@@ -23,7 +23,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
 )
 
-// ["delete", "key"]
+// ["delete", "key"].
 type deleteAction struct {
 	commonAction
 }
@@ -50,7 +50,7 @@ type createAction struct {
 	commonAction
 }
 
-// ["create", "toKey", value]
+// ["create", "toKey", value].
 func newCreateActionAction() Action {
 	return &createAction{
 		commonAction{
@@ -83,7 +83,7 @@ type replaceAction struct {
 	commonAction
 }
 
-// ["replace", "toKey", value]
+// ["replace", "toKey", value].
 func newReplaceAction() Action {
 	return &replaceAction{
 		commonAction{
@@ -116,7 +116,7 @@ type moveAction struct {
 	commonAction
 }
 
-// ["move", "fromKey", "toKey"]
+// ["move", "fromKey", "toKey"].
 func newMoveActionAction() Action {
 	return &moveAction{
 		commonAction{
@@ -153,7 +153,7 @@ type renameAction struct {
 	commonAction
 }
 
-// ["rename", "key", "newKey"]
+// ["rename", "key", "newKey"].
 func newRenameActionAction() Action {
 	return &renameAction{
 		commonAction{

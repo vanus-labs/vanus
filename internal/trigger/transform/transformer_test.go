@@ -43,10 +43,10 @@ func TestExecute(t *testing.T) {
 				"key":  "value",
 				"key1": "value1",
 			})
-			input.Template = `{"body": {"data": ${dataKey},"data2": "${dataKey}","data3": ${noExist},"data4": "${noExist}"}}`
+			input.Template = `{"body": {"data": <dataKey>,"data2": "<dataKey>","data3": <noExist>,"data4": "<noExist>"}}`
 			it := NewTransformer(input)
 			it.Execute(&e)
-			So(string(e.Data()), ShouldEqual, `{"body": {"data": "value","data2": "value","data3": null,"data4": ""}}`)
+			So(string(e.Data()), ShouldEqual, `{"body": {"data": "value","data2": "value","data3": "<noExist>","data4": "<noExist>"}}`)
 		})
 		Convey("test execute json with a part of value", func() {
 			_ = e.SetData(ce.ApplicationJSON, map[string]interface{}{
@@ -56,14 +56,14 @@ func TestExecute(t *testing.T) {
 			input.Template = ` {"body": {"data": "source is <dataKey>","data2": "source is <noExist>"}}`
 			it := NewTransformer(input)
 			it.Execute(&e)
-			So(string(e.Data()), ShouldEqual, ` {"body": {"data": "source is value","data2": "source is "}}`)
+			So(string(e.Data()), ShouldEqual, ` {"body": {"data": "source is value","data2": "source is <noExist>"}}`)
 		})
 		Convey("test execute json with a part of value has colon", func() {
 			_ = e.SetData(ce.ApplicationJSON, map[string]interface{}{
 				"key":  "value",
 				"key1": "value1",
 			})
-			input.Template = `{"body": {"data": ":${dataKey}","data2": "\":<dataKey>\"","data3": "::<dataKey> other:<ctxId>"}}`
+			input.Template = `{"body": {"data": ":<dataKey>","data2": "\":<dataKey>\"","data3": "::<dataKey> other:<ctxId>"}}`
 			it := NewTransformer(input)
 			it.Execute(&e)
 			So(string(e.Data()), ShouldEqual, `{"body": {"data": ":value","data2": "\":value\"","data3": "::value other:testId"}}`)
@@ -73,10 +73,10 @@ func TestExecute(t *testing.T) {
 				"key":  "value",
 				"key1": "value1",
 			})
-			input.Template = `{"body": {"data": "source is \"${dataKey}\"","data2": "source is \"${noExist}\""}}`
+			input.Template = `{"body": {"data": "source is \"<dataKey>\"","data2": "source is \"<noExist>\""}}`
 			it := NewTransformer(input)
 			it.Execute(&e)
-			So(string(e.Data()), ShouldEqual, `{"body": {"data": "source is \"value\"","data2": "source is \"\""}}`)
+			So(string(e.Data()), ShouldEqual, `{"body": {"data": "source is \"value\"","data2": "source is \"<noExist>\""}}`)
 		})
 	})
 }

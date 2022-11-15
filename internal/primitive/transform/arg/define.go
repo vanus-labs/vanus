@@ -23,7 +23,7 @@ type define struct {
 	original string
 }
 
-// newDefine name format is <var>
+// newDefine name format is <var> .
 func newDefine(name string) Arg {
 	return define{
 		name:     name[1 : len(name)-1],
@@ -45,11 +45,11 @@ func (arg define) Original() string {
 
 func (arg define) Evaluate(ceCtx *context.EventContext) (interface{}, error) {
 	if len(ceCtx.Define) == 0 {
-		return nil, nil
+		return nil, ErrArgValueNil
 	}
 	v, exist := ceCtx.Define[arg.name]
 	if !exist {
-		return nil, nil
+		return nil, ErrArgValueNil
 	}
 	return v, nil
 }

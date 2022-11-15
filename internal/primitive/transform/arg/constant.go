@@ -37,9 +37,8 @@ func (arg constant) Name() string {
 	return arg.Original()
 }
 func (arg constant) Original() string {
-	switch arg.value.(type) {
-	case string:
-		return arg.value.(string)
+	if v, ok := arg.value.(string); ok {
+		return v
 	}
 	return fmt.Sprintf("%v", arg.value)
 }

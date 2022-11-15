@@ -36,7 +36,7 @@ func TestNewArg(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(arg.Type(), ShouldEqual, EventAttribute)
 			So(arg.Name(), ShouldEqual, "source")
-			arg, err = NewArg("$.source_")
+			_, err = NewArg("$.source_")
 			So(err, ShouldNotBeNil)
 		})
 		Convey("test new define", func() {
@@ -104,7 +104,7 @@ func TestArgEvaluate(t *testing.T) {
 			arg, err = NewArg("$.abc")
 			So(err, ShouldBeNil)
 			v, err = arg.Evaluate(ceCtx)
-			So(err, ShouldBeNil)
+			So(err, ShouldNotBeNil)
 			So(v, ShouldBeNil)
 		})
 		Convey("test define", func() {
@@ -123,13 +123,13 @@ func TestArgEvaluate(t *testing.T) {
 			arg, err := NewArg("<var100>")
 			So(err, ShouldBeNil)
 			v, err := arg.Evaluate(ceCtx)
-			So(err, ShouldBeNil)
+			So(err, ShouldNotBeNil)
 			So(v, ShouldBeNil)
 			ceCtx.Define = map[string]interface{}{}
 			arg, err = NewArg("<var2>")
 			So(err, ShouldBeNil)
 			v, err = arg.Evaluate(ceCtx)
-			So(err, ShouldBeNil)
+			So(err, ShouldNotBeNil)
 			So(v, ShouldBeNil)
 		})
 		Convey("test constants string", func() {

@@ -74,9 +74,7 @@ type Arg interface {
 }
 
 func NewArg(arg interface{}) (Arg, error) {
-	switch arg.(type) {
-	case string:
-		argName := arg.(string)
+	if argName, ok := arg.(string); ok {
 		argName = strings.TrimSpace(argName)
 		argLen := len(argName)
 		if argLen >= 6 && argName[:6] == "$.data" {

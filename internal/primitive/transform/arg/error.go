@@ -18,4 +18,5 @@ import "fmt"
 
 var (
 	ErrOperationNotSupport = fmt.Errorf("operation not support")
+	ErrArgValueNil         = fmt.Errorf("arg value is nil")
 )

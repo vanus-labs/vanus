@@ -23,7 +23,7 @@ import (
 	"github.com/oliveagle/jsonpath"
 )
 
-// LookupAttribute lookup event attribute value by attribute name
+// LookupAttribute lookup event attribute value by attribute name.
 func LookupAttribute(event ce.Event, attr string) (interface{}, bool) {
 	switch attr {
 	case "specversion":
@@ -52,12 +52,12 @@ func LookupAttribute(event ce.Event, attr string) (interface{}, bool) {
 	}
 }
 
-// LookupData lookup event data value by JSON path
+// LookupData lookup event data value by JSON path.
 func LookupData(data interface{}, path string) (interface{}, error) {
 	v, err := jsonpath.JsonPathLookup(data, path)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found in object") {
-			return nil, nil
+			return nil, ErrKeyNotFound
 		}
 		return nil, err
 	}
@@ -65,6 +65,7 @@ func LookupData(data interface{}, path string) (interface{}, error) {
 }
 
 var (
+	ErrKeyNotFound          = fmt.Errorf("data key not found")
 	errValueIsNil           = fmt.Errorf("value is nil")
 	errAttributeValue       = fmt.Errorf("attribute value is invalid")
 	errDeleteAttrNotSupport = fmt.Errorf("delete attribute not support")
@@ -109,19 +110,19 @@ func SetAttribute(e *ce.Event, attr string, value interface{}) error {
 		return event.SetID(v)
 	case "time":
 		var v time.Time
-		switch value.(type) {
+		switch val := value.(type) {
 		case string:
-			ts, err := time.Parse(time.RFC3339Nano, value.(string))
+			ts, err := time.Parse(time.RFC3339Nano, val)
 			if err != nil {
 				return errAttributeValue
 			}
 			v = ts
 		case ce.Timestamp:
-			v = value.(ce.Timestamp).Time
+			v = val.Time
 		case time.Time:
-			v = value.(time.Time)
+			v = val
 		case *time.Time:
-			v = *value.(*time.Time)
+			v = *val
 		default:
 			return errAttributeValue
 		}
@@ -143,7 +144,7 @@ func DeleteAttribute(e *ce.Event, attr string) error {
 	if _, exist := specAttributes[attr]; exist {
 		return errDeleteAttrNotSupport
 	}
-	event := e.Context.(*ce.EventContextV1)
+	event, _ := e.Context.(*ce.EventContextV1)
 	if len(event.Extensions) == 0 {
 		return nil
 	}
@@ -151,7 +152,7 @@ func DeleteAttribute(e *ce.Event, attr string) error {
 	return nil
 }
 
-// SetData set value to data path, now data must is map, not support array
+// SetData set value to data path, now data must is map, not support array.
 func SetData(data interface{}, path string, value interface{}) {
 	paths := strings.Split(path, ".")
 	switch data.(type) {
@@ -163,9 +164,8 @@ func SetData(data interface{}, path string, value interface{}) {
 }
 
 func setData(data interface{}, paths []string, value interface{}) {
-	switch data.(type) {
+	switch m := data.(type) {
 	case map[string]interface{}:
-		m := data.(map[string]interface{})
 		if len(paths) == 1 {
 			m[paths[0]] = value
 			return
@@ -193,9 +193,8 @@ func DeleteData(data interface{}, path string) error {
 }
 
 func deleteData(data interface{}, paths []string) {
-	switch data.(type) {
+	switch m := data.(type) {
 	case map[string]interface{}:
-		m := data.(map[string]interface{})
 		if len(paths) == 1 {
 			delete(m, paths[0])
 			return

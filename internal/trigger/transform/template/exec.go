@@ -45,9 +45,9 @@ func (t *Template) Execute(data map[string]interface{}) []byte {
 				continue
 			}
 			// type string no need quota
-			switch v.(type) {
+			switch val := v.(type) {
 			case string:
-				stream.WriteRaw(v.(string))
+				stream.WriteRaw(val)
 			case []interface{}:
 				stream.WriteRaw("[]")
 			case map[string]interface{}:

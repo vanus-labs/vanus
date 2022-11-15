@@ -73,6 +73,5 @@ func TestMathAction(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(e.Extensions()["test"], ShouldEqual, int32(111))
 		})
-
 	})
 }

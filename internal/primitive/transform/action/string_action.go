@@ -19,7 +19,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
 )
 
-// ["join", "toKey", "separator","key1","key2"]
+// ["join", "toKey", "separator","key1","key2"].
 func newJoinAction() Action {
 	return &commonAction{
 		fixedArgs:   []arg.TypeList{arg.EventList, arg.All, arg.All, arg.All},
@@ -28,7 +28,7 @@ func newJoinAction() Action {
 	}
 }
 
-// ["upper_case", "key"]
+// ["upper_case", "key"].
 func newUpperAction() Action {
 	return &sourceTargetSameAction{
 		commonAction{
@@ -38,7 +38,7 @@ func newUpperAction() Action {
 	}
 }
 
-// ["lower_case", "key"]
+// ["lower_case", "key"].
 func newLowerAction() Action {
 	return &sourceTargetSameAction{
 		commonAction{
@@ -48,7 +48,7 @@ func newLowerAction() Action {
 	}
 }
 
-// ["add_prefix", "key", "value"]
+// ["add_prefix", "key", "value"].
 func newAddPrefixAction() Action {
 	return &sourceTargetSameAction{
 		commonAction{
@@ -58,7 +58,7 @@ func newAddPrefixAction() Action {
 	}
 }
 
-// ["add_suffix", "key", "value"]
+// ["add_suffix", "key", "value"].
 func newAddSuffixAction() Action {
 	return &sourceTargetSameAction{
 		commonAction{

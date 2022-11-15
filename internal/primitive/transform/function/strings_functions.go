@@ -21,7 +21,7 @@ var JoinFunction = function{
 	fixedArgs:    []Type{String, String, String},
 	variadicArgs: TypePtr(String),
 	fn: func(args []interface{}) (interface{}, error) {
-		separator := args[0].(string)
+		separator, _ := args[0].(string)
 		var sb strings.Builder
 		for i := 1; i < len(args)-1; i++ {
 			sb.WriteString(args[i].(string))
@@ -69,8 +69,8 @@ var SplitWithSepFunction = function{
 	fixedArgs:    []Type{String, String},
 	variadicArgs: TypePtr(Number),
 	fn: func(args []interface{}) (interface{}, error) {
-		s := args[0].(string)
-		sep := args[1].(string)
+		s, _ := args[0].(string)
+		sep, _ := args[1].(string)
 		if len(args) == 2 {
 			return strings.Split(s, sep), nil
 		}

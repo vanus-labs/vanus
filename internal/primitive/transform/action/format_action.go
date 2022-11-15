@@ -19,7 +19,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
 )
 
-// ["format_date", "key", "oldFormat","newFormat"]
+// ["format_date", "key", "oldFormat","newFormat"].
 func newFormatDateAction() Action {
 	return &sourceTargetSameAction{
 		commonAction{
@@ -29,7 +29,7 @@ func newFormatDateAction() Action {
 	}
 }
 
-// ["format_unix_time", "key", "format"]
+// ["format_unix_time", "key", "format"].
 func newFormatUnixTimeAction() Action {
 	return &sourceTargetSameAction{
 		commonAction{

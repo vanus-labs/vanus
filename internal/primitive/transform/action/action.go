@@ -124,10 +124,7 @@ func (a *commonAction) runArgs(ceCtx *context.EventContext) ([]interface{}, erro
 	for i, _arg := range a.args {
 		value, err := _arg.Evaluate(ceCtx)
 		if err != nil {
-			return nil, err
-		}
-		if value == nil {
-			return nil, fmt.Errorf("arg %s value is nil", _arg.Original())
+			return nil, errors.Wrapf(err, "arg  %s evaluate error", _arg.Original())
 		}
 		v, err := function.Cast(value, a.argTypes[i])
 		if err != nil {
@@ -201,7 +198,8 @@ func NewAction(command []interface{}) (Action, error) {
 	a := actionFn()
 	argNum := len(command) - 1
 	if argNum < a.Arity() {
-		return nil, fmt.Errorf("command %s arg number is not enough, it need %d but only have %d", funcName, a.Arity(), argNum)
+		return nil, fmt.Errorf("command %s arg number is not enough, it need %d but only have %d",
+			funcName, a.Arity(), argNum)
 	}
 	if argNum > a.Arity() && !a.IsVariadic() {
 		return nil, fmt.Errorf("command %s arg number is too many, it need %d but have %d", funcName, a.Arity(), argNum)

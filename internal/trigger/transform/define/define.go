@@ -15,6 +15,8 @@
 package define
 
 import (
+	stdCtx "context"
+
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -37,7 +39,7 @@ func (d *Define) Parse(define map[string]string) {
 	for key, value := range define {
 		_arg, err := arg.NewArg(value)
 		if err != nil {
-			log.Warning(nil, "arg is invalid", map[string]interface{}{
+			log.Warning(stdCtx.TODO(), "arg is invalid", map[string]interface{}{
 				log.KeyError: err,
 				"argName":    value,
 			})
@@ -52,7 +54,7 @@ func (d *Define) EvaluateValue(ceCtx *context.EventContext) (map[string]interfac
 	for k, v := range d.args {
 		value, err := v.Evaluate(ceCtx)
 		if err != nil {
-			log.Warning(nil, "define var evaluate error", map[string]interface{}{
+			log.Warning(stdCtx.TODO(), "define var evaluate error", map[string]interface{}{
 				log.KeyError: err,
 				"name":       v.Original(),
 				"type":       v.Type(),
