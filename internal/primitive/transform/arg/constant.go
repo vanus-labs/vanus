@@ -17,7 +17,7 @@ package arg
 import (
 	"fmt"
 
-	"github.com/linkall-labs/vanus/internal/trigger/context"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 )
 
 type constant struct {

@@ -16,47 +16,47 @@ package function
 
 import "fmt"
 
-var mathAddFunction = function{
+var MathAddFunction = function{
 	name:         "MATH_ADD",
-	fixedArgs:    []Type{String, Number, Number},
+	fixedArgs:    []Type{Number, Number},
 	variadicArgs: TypePtr(Number),
 	fn: func(args []interface{}) (interface{}, error) {
 		var sum float64
-		for i := 1; i < len(args); i++ {
+		for i := 0; i < len(args); i++ {
 			sum += args[i].(float64)
 		}
 		return sum, nil
 	},
 }
 
-var mathSubFunction = function{
+var MathSubFunction = function{
 	name:      "MATH_SUB",
-	fixedArgs: []Type{String, Number, Number},
+	fixedArgs: []Type{Number, Number},
 	fn: func(args []interface{}) (interface{}, error) {
-		return args[1].(float64) - args[2].(float64), nil
+		return args[0].(float64) - args[1].(float64), nil
 	},
 }
 
-var mathMulFunction = function{
+var MathMulFunction = function{
 	name:         "MATH_MUL",
-	fixedArgs:    []Type{String, Number, Number},
+	fixedArgs:    []Type{Number, Number},
 	variadicArgs: TypePtr(Number),
 	fn: func(args []interface{}) (interface{}, error) {
 		sum := float64(1)
-		for i := 1; i < len(args); i++ {
+		for i := 0; i < len(args); i++ {
 			sum *= args[i].(float64)
 		}
 		return sum, nil
 	},
 }
 
-var mathDivFunction = function{
+var MathDivFunction = function{
 	name:      "MATH_DIV",
-	fixedArgs: []Type{String, Number, Number},
+	fixedArgs: []Type{Number, Number},
 	fn: func(args []interface{}) (interface{}, error) {
-		if args[2].(float64) == 0 {
+		if args[1].(float64) == 0 {
 			return nil, fmt.Errorf("division by zero")
 		}
-		return args[1].(float64) / args[2].(float64), nil
+		return args[0].(float64) / args[1].(float64), nil
 	},
 }

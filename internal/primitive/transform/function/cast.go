@@ -46,6 +46,8 @@ func Cast(val interface{}, target Type) (interface{}, error) {
 			return v, err
 		case int32:
 			return float64(val.(int32)), nil
+		case int64:
+			return float64(val.(int64)), nil
 		}
 		return 0, fmt.Errorf("undefined cast from %v to %v", TypeFromVal(val), target)
 	case Bool:

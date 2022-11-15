@@ -17,9 +17,10 @@ package transform
 import (
 	"encoding/json"
 
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/trigger/context"
 	"github.com/linkall-labs/vanus/internal/trigger/transform/define"
 	"github.com/linkall-labs/vanus/internal/trigger/transform/pipeline"
 	"github.com/linkall-labs/vanus/internal/trigger/transform/template"

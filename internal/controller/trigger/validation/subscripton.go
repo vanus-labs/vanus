@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
 
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
 
@@ -174,23 +174,14 @@ func validateTransformer(ctx context.Context, transformer *metapb.Transformer) e
 		}
 	}
 	if len(transformer.Pipeline) > 0 {
-		for n, action := range transformer.Pipeline {
-			var funcName string
-			for i, command := range action.GetCommand() {
-				if i == 0 {
-					funcName = command.GetStringValue()
-					_, err := function.GetFunction(funcName, len(action.GetCommand())-1)
-					if err != nil {
-						return errors.ErrInvalidRequest.WithMessage(
-							fmt.Sprintf("transformer define %d command %s invalid", n, funcName)).Wrap(err)
-					}
-				} else {
-					_, err := arg.NewArg(command.AsInterface())
-					if err != nil {
-						return errors.ErrInvalidRequest.WithMessage(
-							fmt.Sprintf("transformer define %d command %s arg %d [%s] invalid", n, funcName, i, command.AsInterface())).Wrap(err)
-					}
-				}
+		for n, a := range transformer.Pipeline {
+			commands := make([]interface{}, len(a.Command))
+			for i, command := range a.Command {
+				commands[i] = command.AsInterface()
+			}
+			if _, err := action.NewAction(commands); err != nil {
+				return errors.ErrInvalidRequest.WithMessage(
+					fmt.Sprintf("transformer pipeline %d command %v invalid", n, commands[0])).Wrap(err)
 			}
 		}
 	}

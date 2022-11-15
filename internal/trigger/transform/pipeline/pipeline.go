@@ -16,25 +16,27 @@ package pipeline
 
 import (
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/trigger/context"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type Pipeline struct {
-	actions []*action
+	actions []action.Action
 }
 
 func NewPipeline() *Pipeline {
 	return &Pipeline{
-		actions: make([]*action, 0),
+		actions: make([]action.Action, 0),
 	}
 }
 
 func (p *Pipeline) Parse(actions []*primitive.Action) {
-	p.actions = make([]*action, 0, len(actions))
+	p.actions = make([]action.Action, 0, len(actions))
 	for i := range actions {
-		_action, err := newAction(actions[i].Command)
+		_action, err := action.NewAction(actions[i].Command)
 		if err != nil {
+			// it has check in controller so err must be nil otherwise controller check has bug
 			log.Warning(nil, "new action error", map[string]interface{}{
 				log.KeyError: err,
 				"command":    actions[i].Command,
@@ -51,7 +53,7 @@ func (p *Pipeline) Run(ceCtx *context.EventContext) error {
 		if err != nil {
 			log.Warning(nil, "action execute error", map[string]interface{}{
 				log.KeyError: err,
-				"command":    a.fn.Name(),
+				"command":    a.Name(),
 			})
 		}
 	}

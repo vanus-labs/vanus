@@ -14,7 +14,9 @@
 
 package arg
 
-import "github.com/linkall-labs/vanus/internal/trigger/context"
+import (
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+)
 
 type define struct {
 	name     string

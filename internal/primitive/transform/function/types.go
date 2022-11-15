@@ -25,6 +25,24 @@ const (
 	Any
 )
 
+func (t Type) String() string {
+	switch t {
+	case String:
+		return "string"
+	case Number:
+		return "number"
+	case Bool:
+		return "bool"
+	case Object:
+		return "map"
+	case Array:
+		return "array"
+	case Any:
+		return "any"
+	}
+	return "unknown"
+}
+
 func TypePtr(t Type) *Type {
 	return &t
 }

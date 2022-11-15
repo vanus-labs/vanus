@@ -17,9 +17,9 @@ package arg
 import (
 	"testing"
 
-	ce "github.com/cloudevents/sdk-go/v2"
-	vContext "github.com/linkall-labs/vanus/internal/trigger/context"
+	vContext "github.com/linkall-labs/vanus/internal/primitive/transform/context"
 
+	ce "github.com/cloudevents/sdk-go/v2"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

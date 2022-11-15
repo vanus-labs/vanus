@@ -17,7 +17,7 @@ package arg
 import (
 	"strings"
 
-	"github.com/linkall-labs/vanus/internal/trigger/context"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 )
 
 type Type uint8
@@ -27,6 +27,7 @@ const (
 	EventAttribute
 	EventData
 	Define
+	Any
 )
 
 func (t Type) String() string {
@@ -42,6 +43,25 @@ func (t Type) String() string {
 	}
 	return "unknown"
 }
+
+type TypeList []Type
+
+func (list TypeList) Contains(arg Arg) bool {
+	if len(list) == 0 {
+		return false
+	}
+	for _, t := range list {
+		if arg.Type() == t {
+			return true
+		}
+	}
+	return false
+}
+
+var (
+	EventList = []Type{EventAttribute, EventData}
+	All       = []Type{EventAttribute, EventData, Constant, Define}
+)
 
 type Arg interface {
 	Type() Type

@@ -17,7 +17,8 @@ package arg
 import (
 	"strings"
 
-	"github.com/linkall-labs/vanus/internal/trigger/context"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+
 	"github.com/linkall-labs/vanus/internal/trigger/util"
 	pkgUtil "github.com/linkall-labs/vanus/pkg/util"
 )

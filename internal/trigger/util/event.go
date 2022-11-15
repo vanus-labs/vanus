@@ -54,7 +54,14 @@ func LookupAttribute(event ce.Event, attr string) (interface{}, bool) {
 
 // LookupData lookup event data value by JSON path
 func LookupData(data interface{}, path string) (interface{}, error) {
-	return jsonpath.JsonPathLookup(data, path)
+	v, err := jsonpath.JsonPathLookup(data, path)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found in object") {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return v, nil
 }
 
 var (

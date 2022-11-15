@@ -16,14 +16,14 @@ package function
 
 import "strings"
 
-var joinFunction = function{
+var JoinFunction = function{
 	name:         "JOIN",
-	fixedArgs:    []Type{String, String, String, String},
+	fixedArgs:    []Type{String, String, String},
 	variadicArgs: TypePtr(String),
 	fn: func(args []interface{}) (interface{}, error) {
-		separator := args[1].(string)
+		separator := args[0].(string)
 		var sb strings.Builder
-		for i := 2; i < len(args)-1; i++ {
+		for i := 1; i < len(args)-1; i++ {
 			sb.WriteString(args[i].(string))
 			sb.WriteString(separator)
 		}
@@ -32,47 +32,48 @@ var joinFunction = function{
 	},
 }
 
-var upperFunction = function{
-	name:             "UPPER_CASE",
-	fixedArgs:        []Type{String},
-	sourceTargetSame: true,
+var UpperFunction = function{
+	name:      "UPPER_CASE",
+	fixedArgs: []Type{String},
 	fn: func(args []interface{}) (interface{}, error) {
 		return strings.ToUpper(args[0].(string)), nil
 	},
 }
 
-var lowerFunction = function{
-	name:             "LOWER_CASE",
-	fixedArgs:        []Type{String},
-	sourceTargetSame: true,
+var LowerFunction = function{
+	name:      "LOWER_CASE",
+	fixedArgs: []Type{String},
 	fn: func(args []interface{}) (interface{}, error) {
 		return strings.ToLower(args[0].(string)), nil
 	},
 }
 
-var addPrefixFunction = function{
-	name:             "ADD_PREFIX",
-	fixedArgs:        []Type{String, String},
-	sourceTargetSame: true,
+var AddPrefixFunction = function{
+	name:      "ADD_PREFIX",
+	fixedArgs: []Type{String, String},
 	fn: func(args []interface{}) (interface{}, error) {
 		return args[1].(string) + args[0].(string), nil
 	},
 }
 
-var addSuffixFunction = function{
-	name:             "ADD_SUFFIX",
-	fixedArgs:        []Type{String, String},
-	sourceTargetSame: true,
+var AddSuffixFunction = function{
+	name:      "ADD_SUFFIX",
+	fixedArgs: []Type{String, String},
 	fn: func(args []interface{}) (interface{}, error) {
 		return args[0].(string) + args[1].(string), nil
 	},
 }
 
-var replaceWithRegexFunction = function{
-	name:             "REPLACE_WITH_REGEX",
-	fixedArgs:        []Type{String, String, String},
-	sourceTargetSame: true,
+var SplitWithSepFunction = function{
+	name:         "SPLIT_WITH_SEP",
+	fixedArgs:    []Type{String, String},
+	variadicArgs: TypePtr(Number),
 	fn: func(args []interface{}) (interface{}, error) {
-		return strings.ReplaceAll(args[0].(string), args[1].(string), args[2].(string)), nil
+		s := args[0].(string)
+		sep := args[1].(string)
+		if len(args) == 2 {
+			return strings.Split(s, sep), nil
+		}
+		return strings.SplitN(s, sep, int(args[2].(float64))), nil
 	},
 }

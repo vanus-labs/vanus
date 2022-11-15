@@ -16,7 +16,7 @@ package define
 
 import (
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
-	"github.com/linkall-labs/vanus/internal/trigger/context"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 

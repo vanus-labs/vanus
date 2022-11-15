@@ -16,10 +16,9 @@ package function
 
 import "time"
 
-var formatDateFunction = function{
-	name:             "FORMAT_DATE",
-	fixedArgs:        []Type{String, String, String},
-	sourceTargetSame: true,
+var FormatDateFunction = function{
+	name:      "FORMAT_DATE",
+	fixedArgs: []Type{String, String, String},
 	fn: func(args []interface{}) (interface{}, error) {
 		t, err := time.Parse(args[1].(string), args[0].(string))
 		if err != nil {
@@ -29,10 +28,9 @@ var formatDateFunction = function{
 	},
 }
 
-var formatUnixTimeFunction = function{
-	name:             "FORMAT_UNIX_TIME",
-	fixedArgs:        []Type{Number, String},
-	sourceTargetSame: true,
+var FormatUnixTimeFunction = function{
+	name:      "FORMAT_UNIX_TIME",
+	fixedArgs: []Type{Number, String},
 	fn: func(args []interface{}) (interface{}, error) {
 		t := time.UnixMilli(int64(args[0].(float64)))
 		return t.Format(args[1].(string)), nil
