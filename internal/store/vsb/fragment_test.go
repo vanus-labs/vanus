@@ -15,6 +15,11 @@
 package vsb
 
 import (
+	cepb "cloudevents.io/genproto/v1"
+	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
+	"github.com/linkall-labs/vanus/internal/store/schema/ce/convert"
+	"time"
+
 	// standard libraries.
 	"encoding/binary"
 	"testing"
@@ -78,4 +83,42 @@ func TestFragment(t *testing.T) {
 		binary.LittleEndian.PutUint64(offBuf[:], uint64(vsbtest.EntryOffset0))
 		So(data2, ShouldResemble, append(append(offBuf[:], vsbtest.EntryData0...), vsbtest.EntryData1...))
 	})
+}
+
+func TestSize(t *testing.T) {
+	c := codec.NewEncoder()
+	e := getEntry()
+	c.Size(e)
+}
+
+func BenchmarkSize(b *testing.B) {
+	c := codec.NewEncoder()
+	e := getEntry()
+	b.Run("Size", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			c.Size(e)
+		}
+	})
+}
+
+func getEntry() block.Entry {
+	ce := &cepb.CloudEvent{
+		Id:          "benchmark1",
+		Source:      "benchmark2",
+		SpecVersion: "1.0",
+		Type:        "benchmark3",
+		Data: &cepb.CloudEvent_TextData{
+			TextData: "benchmark4",
+		},
+	}
+	e := convert.ToEntry(ce)
+
+	return &entryExtWrapper{
+		EntryExtWrapper: block.EntryExtWrapper{
+			E: e,
+		},
+		t:     ceschema.CloudEvent,
+		seq:   111,
+		stime: time.Now().UnixMilli(),
+	}
 }

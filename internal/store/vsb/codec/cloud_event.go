@@ -15,7 +15,6 @@
 package codec
 
 import (
-	// standard libraries.
 	"encoding/binary"
 	"time"
 
@@ -49,6 +48,8 @@ func (e *ceEntryEncoder) Size(entry block.Entry) int {
 		default:
 			switch v := val.(type) {
 			case bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
+			case *string:
+				sz += alignment(len(*v))
 			case []byte:
 				sz += alignment(len(v))
 			case string:
@@ -58,7 +59,6 @@ func (e *ceEntryEncoder) Size(entry block.Entry) int {
 			}
 		}
 	})
-
 	ext.RangeExtensionAttributes(func(attr, val []byte) {
 		sz += 16 + alignment(len(attr)) + alignment(len(val))
 	})

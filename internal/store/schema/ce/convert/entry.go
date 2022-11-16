@@ -15,6 +15,9 @@
 package convert
 
 import (
+	"reflect"
+	"unsafe"
+
 	// standard libraries.
 	"sort"
 	"strconv"
@@ -102,16 +105,16 @@ func (e *ceEntry) GetTime(ordinal int) time.Time {
 
 func (e *ceEntry) RangeOptionalAttributes(f func(ordinal int, val interface{})) {
 	// id, source, specversion, type, datacontenttype, dataschema, subject, time
-	f(ceschema.IDOrdinal, e.ce.Id)
-	f(ceschema.SourceOrdinal, e.ce.Source)
-	f(ceschema.SpecVersionOrdinal, e.ce.SpecVersion)
-	f(ceschema.TypeOrdinal, e.ce.Type)
+	f(ceschema.IDOrdinal, &e.ce.Id)
+	f(ceschema.SourceOrdinal, &e.ce.Source)
+	f(ceschema.SpecVersionOrdinal, &e.ce.SpecVersion)
+	f(ceschema.TypeOrdinal, &e.ce.Type)
 	if e.ce.Data != nil {
 		switch data := e.ce.Data.(type) {
 		case *cepb.CloudEvent_BinaryData:
 			f(ceschema.DataOrdinal, data.BinaryData)
 		case *cepb.CloudEvent_TextData:
-			f(ceschema.DataOrdinal, data.TextData)
+			f(ceschema.DataOrdinal, &data.TextData)
 		case *cepb.CloudEvent_ProtoData:
 			// TODO(james.yin): TypeUrl
 			f(ceschema.DataOrdinal, data.ProtoData.Value)
@@ -119,18 +122,64 @@ func (e *ceEntry) RangeOptionalAttributes(f func(ordinal int, val interface{})) 
 	}
 	if e.ce.Attributes != nil {
 		if v, ok := e.ce.Attributes[dataContentTypeAttr]; ok {
-			f(ceschema.DataContentTypeOrdinal, v.GetCeString())
+			_v := v.GetCeString()
+			f(ceschema.DataContentTypeOrdinal, &_v)
 		}
 		if v, ok := e.ce.Attributes[dataSchemaAttr]; ok {
-			f(ceschema.DataSchemaOrdinal, v.GetCeString())
+			_v := v.GetCeString()
+			f(ceschema.DataSchemaOrdinal, &_v)
 		}
 		if v, ok := e.ce.Attributes[subjectAttr]; ok {
-			f(ceschema.SubjectOrdinal, v.GetCeString())
+			_v := v.GetCeString()
+			f(ceschema.SubjectOrdinal, &_v)
 		}
 		if v, ok := e.ce.Attributes[timeAttr]; ok {
 			f(ceschema.TimeOrdinal, v.GetCeTimestamp().AsTime())
 		}
 	}
+}
+
+const (
+	byteAligned   int = 8
+	alignAddition     = byteAligned - 1
+	alignMask         = -byteAligned
+)
+
+func alignment(n int) int {
+	return (n + alignAddition) & alignMask
+}
+
+func (e *ceEntry) GetOptionalAttrSize() int32 {
+	sz := 8 + alignment(len(e.ce.Id)) +
+		8 + alignment(len(e.ce.Source)) +
+		8 + alignment(len(e.ce.SpecVersion)) +
+		8 + alignment(len(e.ce.Type))
+	if e.ce.Data != nil {
+		switch data := e.ce.Data.(type) {
+		case *cepb.CloudEvent_BinaryData:
+			sz += 8 + alignment(len(data.BinaryData))
+		case *cepb.CloudEvent_TextData:
+			sz += 8 + alignment(len(data.TextData))
+		case *cepb.CloudEvent_ProtoData:
+			// TODO(james.yin): TypeUrl
+			sz += 8 + alignment(len(data.ProtoData.Value))
+		}
+	}
+	if e.ce.Attributes != nil {
+		if v, ok := e.ce.Attributes[dataContentTypeAttr]; ok {
+			sz += 8 + alignment(len(v.GetCeString()))
+		}
+		if v, ok := e.ce.Attributes[dataSchemaAttr]; ok {
+			sz += 8 + alignment(len(v.GetCeString()))
+		}
+		if v, ok := e.ce.Attributes[subjectAttr]; ok {
+			sz += 8 + alignment(len(v.GetCeString()))
+		}
+		if _, ok := e.ce.Attributes[timeAttr]; ok {
+			sz += 8 + 8
+		}
+	}
+	return int32(sz)
 }
 
 func (e *ceEntry) OptionalAttributeCount() int {
@@ -175,8 +224,18 @@ func (e *ceEntry) RangeExtensionAttributes(f func(attr, val []byte)) {
 	sort.Strings(attrs)
 
 	for _, attr := range attrs {
-		f([]byte(attr), attrValue(e.ce.Attributes[attr]))
+		f(str2bytes(attr), attrValue(e.ce.Attributes[attr]))
 	}
+}
+
+func str2bytes(s string) []byte {
+	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
+	bh := reflect.SliceHeader{
+		Data: sh.Data,
+		Len:  sh.Len,
+		Cap:  sh.Len,
+	}
+	return *(*[]byte)(unsafe.Pointer(&bh))
 }
 
 func (e *ceEntry) ExtensionAttributeCount() int {

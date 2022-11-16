@@ -15,7 +15,9 @@
 //go:generate mockgen -source=entry.go  -destination=testing/mock_entry.go -package=testing
 package block
 
-import "time"
+import (
+	"time"
+)
 
 type Entry interface {
 	Get(ordinal int) interface{}

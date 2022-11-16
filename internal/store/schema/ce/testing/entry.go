@@ -104,7 +104,6 @@ func MakeStoredEntry1(ctrl *Controller) block.EntryExt {
 	entry.EXPECT().GetString(ceschema.SourceOrdinal).AnyTimes().Return(ceSource)
 	entry.EXPECT().GetString(ceschema.SpecVersionOrdinal).AnyTimes().Return(ceSpecVersion)
 	entry.EXPECT().GetString(ceschema.TypeOrdinal).AnyTimes().Return(ceType)
-	entry.EXPECT().GetBytes(ceschema.DataOrdinal).AnyTimes().Return(ceData)
 	entry.EXPECT().GetString(ceschema.DataContentTypeOrdinal).AnyTimes().Return(ceDataContentType)
 	entry.EXPECT().GetString(ceschema.DataSchemaOrdinal).AnyTimes().Return("")
 	entry.EXPECT().GetString(ceschema.SubjectOrdinal).AnyTimes().Return(ceSubject)
