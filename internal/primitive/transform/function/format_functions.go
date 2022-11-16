@@ -19,14 +19,14 @@ import (
 	"time"
 )
 
-// convertTimeFormat2Go convert "yyyy-mm-dd HH:MM:SS" to "2006-01-02 15:04:05"
+// convertTimeFormat2Go convert "yyyy-mm-dd HH:MM:SS" to "2006-01-02 15:04:05".
 func convertTimeFormat2Go(format string) string {
-	v := strings.Replace(format, "yyyy", "2006", -1)
-	v = strings.Replace(v, "mm", "01", -1)
-	v = strings.Replace(v, "dd", "02", -1)
-	v = strings.Replace(v, "HH", "15", -1)
-	v = strings.Replace(v, "MM", "04", -1)
-	v = strings.Replace(v, "SS", "05", -1)
+	v := strings.ReplaceAll(format, "yyyy", "2006")
+	v = strings.ReplaceAll(v, "mm", "01")
+	v = strings.ReplaceAll(v, "dd", "02")
+	v = strings.ReplaceAll(v, "HH", "15")
+	v = strings.ReplaceAll(v, "MM", "04")
+	v = strings.ReplaceAll(v, "SS", "05")
 	return v
 }
 
