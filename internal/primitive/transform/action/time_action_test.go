@@ -16,7 +16,6 @@ package action
 
 import (
 	"testing"
-	"time"
 
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 
@@ -34,25 +33,25 @@ func newEvent() *ce.Event {
 
 func TestFormatAction(t *testing.T) {
 	Convey("test format date", t, func() {
-		a, err := NewAction([]interface{}{newFormatDateAction().Name(), "$.test", time.RFC3339, "2006-01-02T15:04:05"})
+		a, err := NewAction([]interface{}{newFormatDateAction().Name(), "$.test", "yyyy-mm-ddTHH:MM:SSZ", "yyyy-mm-dd HH:MM:SS"})
 		So(err, ShouldBeNil)
 		e := newEvent()
-		e.SetExtension("test", "2022-11-15T15:41:25+08:00")
+		e.SetExtension("test", "2022-11-15T15:41:25Z")
 		err = a.Execute(&context.EventContext{
 			Event: e,
 		})
 		So(err, ShouldBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "2022-11-15T15:41:25")
+		So(e.Extensions()["test"], ShouldEqual, "2022-11-15 15:41:25")
 	})
 	Convey("test format unix time", t, func() {
-		a, err := NewAction([]interface{}{newFormatUnixTimeAction().Name(), "$.data.time", "2006-01-02T15:04:05Z"})
+		a, err := NewAction([]interface{}{newFormatUnixTimeAction().Name(), "$.data.time", "yyyy-mm-ddTHH:MM:SSZ"})
 		So(err, ShouldBeNil)
 		ceCtx := &context.EventContext{
 			Event: newEvent(),
-			Data:  map[string]interface{}{"time": float64(1668498285798)},
+			Data:  map[string]interface{}{"time": float64(1668498285)},
 		}
 		err = a.Execute(ceCtx)
 		So(err, ShouldBeNil)
-		So(ceCtx.Data.(map[string]interface{})["time"], ShouldEqual, "2022-11-15T15:44:45Z")
+		So(ceCtx.Data.(map[string]interface{})["time"], ShouldEqual, "2022-11-15T07:44:45Z")
 	})
 }

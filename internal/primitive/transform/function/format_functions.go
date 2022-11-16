@@ -14,17 +14,33 @@
 
 package function
 
-import "time"
+import (
+	"strings"
+	"time"
+)
+
+// convertTimeFormat2Go convert "yyyy-mm-dd HH:MM:SS" to "2006-01-02 15:04:05"
+func convertTimeFormat2Go(format string) string {
+	v := strings.Replace(format, "yyyy", "2006", -1)
+	v = strings.Replace(v, "mm", "01", -1)
+	v = strings.Replace(v, "dd", "02", -1)
+	v = strings.Replace(v, "HH", "15", -1)
+	v = strings.Replace(v, "MM", "04", -1)
+	v = strings.Replace(v, "SS", "05", -1)
+	return v
+}
 
 var FormatDateFunction = function{
 	name:      "FORMAT_DATE",
 	fixedArgs: []Type{String, String, String},
 	fn: func(args []interface{}) (interface{}, error) {
-		t, err := time.Parse(args[1].(string), args[0].(string))
+		fromFormat := convertTimeFormat2Go(args[1].(string))
+		t, err := time.Parse(fromFormat, args[0].(string))
 		if err != nil {
 			return nil, err
 		}
-		return t.Format(args[2].(string)), nil
+		toFormat := convertTimeFormat2Go(args[2].(string))
+		return t.Format(toFormat), nil
 	},
 }
 
@@ -32,7 +48,8 @@ var FormatUnixTimeFunction = function{
 	name:      "FORMAT_UNIX_TIME",
 	fixedArgs: []Type{Number, String},
 	fn: func(args []interface{}) (interface{}, error) {
-		t := time.UnixMilli(int64(args[0].(float64)))
-		return t.Format(args[1].(string)), nil
+		t := time.Unix(int64(args[0].(float64)), 0)
+		toFormat := convertTimeFormat2Go(args[1].(string))
+		return t.UTC().Format(toFormat), nil
 	},
 }
