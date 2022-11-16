@@ -85,10 +85,10 @@ func (e *ceEntryEncoder) MarshalTo(entry block.Entry, buf []byte) (int, int, err
 				binary.LittleEndian.PutUint64(field, uint64(val.(int64)))
 			case ceschema.IDOrdinal, ceschema.SourceOrdinal,
 				ceschema.SpecVersionOrdinal, ceschema.TypeOrdinal:
-				offsetAndSize := uint64(nextAlloc)<<offsetOffset | uint64(len(val.(string)))
+				offsetAndSize := uint64(nextAlloc)<<offsetOffset | uint64(len(*val.(*string)))
 				binary.LittleEndian.PutUint64(field, offsetAndSize)
-				copy(buf[nextAlloc:], val.(string))
-				nextAlloc += alignment(len(val.(string)))
+				copy(buf[nextAlloc:], *val.(*string))
+				nextAlloc += alignment(len(*val.(*string)))
 			}
 		}
 	})
@@ -103,6 +103,11 @@ func (e *ceEntryEncoder) MarshalTo(entry block.Entry, buf []byte) (int, int, err
 			fo := valueOffset(idx)
 			field := buf[fo : fo+8]
 			switch v := val.(type) {
+			case *string:
+				offsetAndSize := uint64(nextAlloc)<<offsetOffset | uint64(len(*v))
+				binary.LittleEndian.PutUint64(field, offsetAndSize)
+				copy(buf[nextAlloc:], *v)
+				nextAlloc += alignment(len(*v))
 			case string:
 				offsetAndSize := uint64(nextAlloc)<<offsetOffset | uint64(len(v))
 				binary.LittleEndian.PutUint64(field, offsetAndSize)

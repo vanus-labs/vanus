@@ -94,6 +94,17 @@ func BenchmarkSize(b *testing.B) {
 	})
 }
 
+func BenchmarkFragment_MarshalFragment(b *testing.B) {
+	c := codec.NewEncoder()
+	e := getEntry()
+	buf := make([]byte, c.Size(e))
+	b.Run("MarshalFragment", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_, _ = c.MarshalTo(e, buf)
+		}
+	})
+}
+
 func getEntry() block.Entry {
 	ce := &cepb.CloudEvent{
 		Id:          "benchmark1",
