@@ -182,23 +182,23 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frags ...block.Fragment) (bo
 	}
 	b.mu.Unlock()
 
-	if archived {
-		m, indexes := makeSnapshot(b.actx, b.indexes)
-
-		b.wg.Add(1)
-		go func() {
-			defer b.wg.Done()
-			if n, err := b.appendIndexEntry(indexes, m.writeOffset); err == nil {
-				b.indexOffset = m.writeOffset
-				b.indexLength = n
-			}
-			_ = b.persistHeader(ctx, m)
-		}()
-
-		if b.lis != nil {
-			b.lis.OnArchived(b.stat(m, indexes))
-		}
-	}
+	//if archived {
+	//	m, indexes := makeSnapshot(b.actx, b.indexes)
+	//
+	//	b.wg.Add(1)
+	//	go func() {
+	//		defer b.wg.Done()
+	//		if n, err := b.appendIndexEntry(indexes, m.writeOffset); err == nil {
+	//			b.indexOffset = m.writeOffset
+	//			b.indexLength = n
+	//		}
+	//		_ = b.persistHeader(ctx, m)
+	//	}()
+	//
+	//	if b.lis != nil {
+	//		b.lis.OnArchived(b.stat(m, indexes))
+	//	}
+	//}
 
 	return archived, nil
 }

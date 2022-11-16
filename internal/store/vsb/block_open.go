@@ -43,7 +43,7 @@ func (b *vsBlock) Open(ctx context.Context) error {
 	}
 
 	// TODO(james.yin): use direct IO
-	f, err := os.OpenFile(b.path, os.O_RDWR|os.O_SYNC, 0)
+	f, err := os.OpenFile(b.path, os.O_RDWR, 0) //|os.O_SYNC
 	if err != nil {
 		return err
 	}

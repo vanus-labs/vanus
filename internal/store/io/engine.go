@@ -36,5 +36,6 @@ func NewEngine() Engine {
 func (e *engine) Close() {}
 
 func (e *engine) WriteAt(f *os.File, b []byte, off int64, so, eo int, cb WriteCallback) {
-	cb(f.WriteAt(b, off))
+	cb(len(b), nil)
+	//cb(f.WriteAt(b, off))
 }
