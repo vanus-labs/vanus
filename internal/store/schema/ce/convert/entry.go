@@ -114,7 +114,7 @@ func (e *ceEntry) RangeOptionalAttributes(f func(ordinal int, val interface{})) 
 		case *cepb.CloudEvent_BinaryData:
 			f(ceschema.DataOrdinal, data.BinaryData)
 		case *cepb.CloudEvent_TextData:
-			f(ceschema.DataOrdinal, &data.TextData)
+			f(ceschema.DataOrdinal, str2bytes(data.TextData))
 		case *cepb.CloudEvent_ProtoData:
 			// TODO(james.yin): TypeUrl
 			f(ceschema.DataOrdinal, data.ProtoData.Value)

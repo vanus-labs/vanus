@@ -172,13 +172,13 @@ func CheckEntryExt0(entry block.EntryExt) {
 
 		switch ordinal {
 		case ceschema.IDOrdinal:
-			So(val, ShouldEqual, ceID0)
+			So(*(val.(*string)), ShouldEqual, ceID0)
 		case ceschema.SourceOrdinal:
-			So(val, ShouldEqual, ceSource)
+			So(*(val.(*string)), ShouldEqual, ceSource)
 		case ceschema.SpecVersionOrdinal:
-			So(val, ShouldEqual, ceSpecVersion)
+			So(*(val.(*string)), ShouldEqual, ceSpecVersion)
 		case ceschema.TypeOrdinal:
-			So(val, ShouldEqual, ceType)
+			So(*(val.(*string)), ShouldEqual, ceType)
 		default:
 			So(false, ShouldBeTrue)
 		}
@@ -238,19 +238,19 @@ func CheckEntryExt1(entry block.EntryExt) {
 
 		switch ordinal {
 		case ceschema.IDOrdinal:
-			So(val, ShouldEqual, ceID1)
+			So(*(val.(*string)), ShouldEqual, ceID1)
 		case ceschema.SourceOrdinal:
-			So(val, ShouldEqual, ceSource)
+			So(*(val.(*string)), ShouldEqual, ceSource)
 		case ceschema.SpecVersionOrdinal:
-			So(val, ShouldEqual, ceSpecVersion)
+			So(*(val.(*string)), ShouldEqual, ceSpecVersion)
 		case ceschema.TypeOrdinal:
-			So(val, ShouldEqual, ceType)
+			So(*(val.(*string)), ShouldEqual, ceType)
 		case ceschema.DataOrdinal:
 			So(val, ShouldResemble, ceData)
 		case ceschema.DataContentTypeOrdinal:
-			So(val, ShouldEqual, ceDataContentType)
+			So(*(val.(*string)), ShouldEqual, ceDataContentType)
 		case ceschema.SubjectOrdinal:
-			So(val, ShouldEqual, ceSubject)
+			So(*(val.(*string)), ShouldEqual, ceSubject)
 		case ceschema.TimeOrdinal:
 			So(val, ShouldEqual, ceTime)
 		default:
