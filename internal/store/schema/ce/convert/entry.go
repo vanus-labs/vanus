@@ -15,9 +15,6 @@
 package convert
 
 import (
-	"reflect"
-	"unsafe"
-
 	// standard libraries.
 	"sort"
 	"strconv"
@@ -114,7 +111,7 @@ func (e *ceEntry) RangeOptionalAttributes(f func(ordinal int, val interface{})) 
 		case *cepb.CloudEvent_BinaryData:
 			f(ceschema.DataOrdinal, data.BinaryData)
 		case *cepb.CloudEvent_TextData:
-			f(ceschema.DataOrdinal, str2bytes(data.TextData))
+			f(ceschema.DataOrdinal, &data.TextData)
 		case *cepb.CloudEvent_ProtoData:
 			// TODO(james.yin): TypeUrl
 			f(ceschema.DataOrdinal, data.ProtoData.Value)
@@ -181,18 +178,8 @@ func (e *ceEntry) RangeExtensionAttributes(f func(attr, val []byte)) {
 	sort.Strings(attrs)
 
 	for _, attr := range attrs {
-		f(str2bytes(attr), attrValue(e.ce.Attributes[attr]))
+		f([]byte(attr), attrValue(e.ce.Attributes[attr]))
 	}
-}
-
-func str2bytes(s string) []byte {
-	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
-	bh := reflect.SliceHeader{
-		Data: sh.Data,
-		Len:  sh.Len,
-		Cap:  sh.Len,
-	}
-	return *(*[]byte)(unsafe.Pointer(&bh)) //nolint:govet // it's ok
 }
 
 func (e *ceEntry) ExtensionAttributeCount() int {
