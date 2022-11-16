@@ -139,49 +139,6 @@ func (e *ceEntry) RangeOptionalAttributes(f func(ordinal int, val interface{})) 
 	}
 }
 
-const (
-	byteAligned   int = 8
-	alignAddition     = byteAligned - 1
-	alignMask         = -byteAligned
-)
-
-func alignment(n int) int {
-	return (n + alignAddition) & alignMask
-}
-
-func (e *ceEntry) GetOptionalAttrSize() int32 {
-	sz := 8 + alignment(len(e.ce.Id)) +
-		8 + alignment(len(e.ce.Source)) +
-		8 + alignment(len(e.ce.SpecVersion)) +
-		8 + alignment(len(e.ce.Type))
-	if e.ce.Data != nil {
-		switch data := e.ce.Data.(type) {
-		case *cepb.CloudEvent_BinaryData:
-			sz += 8 + alignment(len(data.BinaryData))
-		case *cepb.CloudEvent_TextData:
-			sz += 8 + alignment(len(data.TextData))
-		case *cepb.CloudEvent_ProtoData:
-			// TODO(james.yin): TypeUrl
-			sz += 8 + alignment(len(data.ProtoData.Value))
-		}
-	}
-	if e.ce.Attributes != nil {
-		if v, ok := e.ce.Attributes[dataContentTypeAttr]; ok {
-			sz += 8 + alignment(len(v.GetCeString()))
-		}
-		if v, ok := e.ce.Attributes[dataSchemaAttr]; ok {
-			sz += 8 + alignment(len(v.GetCeString()))
-		}
-		if v, ok := e.ce.Attributes[subjectAttr]; ok {
-			sz += 8 + alignment(len(v.GetCeString()))
-		}
-		if _, ok := e.ce.Attributes[timeAttr]; ok {
-			sz += 8 + 8
-		}
-	}
-	return int32(sz)
-}
-
 func (e *ceEntry) OptionalAttributeCount() int {
 	sz := 4
 	if e.ce.Data != nil {
@@ -235,7 +192,7 @@ func str2bytes(s string) []byte {
 		Len:  sh.Len,
 		Cap:  sh.Len,
 	}
-	return *(*[]byte)(unsafe.Pointer(&bh))
+	return *(*[]byte)(unsafe.Pointer(&bh)) //nolint:govet // it's ok
 }
 
 func (e *ceEntry) ExtensionAttributeCount() int {

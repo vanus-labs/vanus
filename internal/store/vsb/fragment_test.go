@@ -15,21 +15,20 @@
 package vsb
 
 import (
-	cepb "cloudevents.io/genproto/v1"
-	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
-	"github.com/linkall-labs/vanus/internal/store/schema/ce/convert"
-	"time"
-
 	// standard libraries.
 	"encoding/binary"
 	"testing"
+	"time"
 
 	// third-party libraries.
+	cepb "cloudevents.io/genproto/v1"
 	. "github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
-	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
+	// this project.
+	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
+	"github.com/linkall-labs/vanus/internal/store/schema/ce/convert"
 	cetest "github.com/linkall-labs/vanus/internal/store/schema/ce/testing"
 	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
 	vsbtest "github.com/linkall-labs/vanus/internal/store/vsb/testing"
@@ -83,12 +82,6 @@ func TestFragment(t *testing.T) {
 		binary.LittleEndian.PutUint64(offBuf[:], uint64(vsbtest.EntryOffset0))
 		So(data2, ShouldResemble, append(append(offBuf[:], vsbtest.EntryData0...), vsbtest.EntryData1...))
 	})
-}
-
-func TestSize(t *testing.T) {
-	c := codec.NewEncoder()
-	e := getEntry()
-	c.Size(e)
 }
 
 func BenchmarkSize(b *testing.B) {
