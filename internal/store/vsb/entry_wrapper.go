@@ -51,10 +51,10 @@ func (w *entryExtWrapper) GetInt64(ordinal int) int64 {
 	return w.EntryExtWrapper.GetInt64(ordinal)
 }
 
-func (w *entryExtWrapper) RangeOptionalAttributes(f func(ordinal int, val interface{})) {
-	f(ceschema.SequenceNumberOrdinal, w.seq)
-	f(ceschema.StimeOrdinal, w.stime)
-	w.EntryExtWrapper.RangeOptionalAttributes(f)
+func (w *entryExtWrapper) RangeOptionalAttributes(cb block.OptionalAttributeCallback) {
+	cb.OnInt64(ceschema.SequenceNumberOrdinal, w.seq)
+	cb.OnInt64(ceschema.StimeOrdinal, w.stime)
+	w.EntryExtWrapper.RangeOptionalAttributes(cb)
 }
 
 func (w *entryExtWrapper) OptionalAttributeCount() int {

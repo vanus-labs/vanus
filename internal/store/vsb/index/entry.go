@@ -55,8 +55,8 @@ func (e *entry) OptionalAttributeCount() int {
 	return len(e.indexes)
 }
 
-func (e *entry) RangeOptionalAttributes(f func(ordinal int, val interface{})) {
+func (e *entry) RangeOptionalAttributes(cb block.OptionalAttributeCallback) {
 	for i, idx := range e.indexes {
-		f(i, idx)
+		cb.OnAttribute(i, idx)
 	}
 }

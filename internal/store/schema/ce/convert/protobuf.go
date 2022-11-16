@@ -118,14 +118,14 @@ func ToPb(e block.Entry) *cepb.CloudEvent {
 			},
 		}
 	}
-	w.e.RangeExtensionAttributes(func(attr, val []byte) {
+	w.e.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr, val []byte) {
 		// TODO(james.yin): support native type.
 		event.Attributes[string(attr)] = &cepb.CloudEventAttributeValue{
 			Attr: &cepb.CloudEventAttributeValue_CeString{
 				CeString: string(val),
 			},
 		}
-	})
+	}))
 	// Overwrite XVanusBlockOffset and XVanusStime if exists.
 	event.Attributes[segpb.XVanusBlockOffset] = &cepb.CloudEventAttributeValue{
 		Attr: &cepb.CloudEventAttributeValue_CeInteger{

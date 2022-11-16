@@ -100,35 +100,35 @@ func (e *ceEntry) GetTime(ordinal int) time.Time {
 	return attr.GetCeTimestamp().AsTime()
 }
 
-func (e *ceEntry) RangeOptionalAttributes(f func(ordinal int, val interface{})) {
+func (e *ceEntry) RangeOptionalAttributes(cb block.OptionalAttributeCallback) {
 	// id, source, specversion, type, datacontenttype, dataschema, subject, time
-	f(ceschema.IDOrdinal, e.ce.Id)
-	f(ceschema.SourceOrdinal, e.ce.Source)
-	f(ceschema.SpecVersionOrdinal, e.ce.SpecVersion)
-	f(ceschema.TypeOrdinal, e.ce.Type)
+	cb.OnString(ceschema.IDOrdinal, e.ce.Id)
+	cb.OnString(ceschema.SourceOrdinal, e.ce.Source)
+	cb.OnString(ceschema.SpecVersionOrdinal, e.ce.SpecVersion)
+	cb.OnString(ceschema.TypeOrdinal, e.ce.Type)
 	if e.ce.Data != nil {
 		switch data := e.ce.Data.(type) {
 		case *cepb.CloudEvent_BinaryData:
-			f(ceschema.DataOrdinal, data.BinaryData)
+			cb.OnBytes(ceschema.DataOrdinal, data.BinaryData)
 		case *cepb.CloudEvent_TextData:
-			f(ceschema.DataOrdinal, data.TextData)
+			cb.OnString(ceschema.DataOrdinal, data.TextData)
 		case *cepb.CloudEvent_ProtoData:
 			// TODO(james.yin): TypeUrl
-			f(ceschema.DataOrdinal, data.ProtoData.Value)
+			cb.OnBytes(ceschema.DataOrdinal, data.ProtoData.Value)
 		}
 	}
 	if e.ce.Attributes != nil {
 		if v, ok := e.ce.Attributes[dataContentTypeAttr]; ok {
-			f(ceschema.DataContentTypeOrdinal, v.GetCeString())
+			cb.OnString(ceschema.DataContentTypeOrdinal, v.GetCeString())
 		}
 		if v, ok := e.ce.Attributes[dataSchemaAttr]; ok {
-			f(ceschema.DataSchemaOrdinal, v.GetCeString())
+			cb.OnString(ceschema.DataSchemaOrdinal, v.GetCeString())
 		}
 		if v, ok := e.ce.Attributes[subjectAttr]; ok {
-			f(ceschema.SubjectOrdinal, v.GetCeString())
+			cb.OnString(ceschema.SubjectOrdinal, v.GetCeString())
 		}
 		if v, ok := e.ce.Attributes[timeAttr]; ok {
-			f(ceschema.TimeOrdinal, v.GetCeTimestamp().AsTime())
+			cb.OnTime(ceschema.TimeOrdinal, v.GetCeTimestamp().AsTime())
 		}
 	}
 }
@@ -158,7 +158,7 @@ func (e *ceEntry) GetExtensionAttribute(attr []byte) []byte {
 	return nil
 }
 
-func (e *ceEntry) RangeExtensionAttributes(f func(attr, val []byte)) {
+func (e *ceEntry) RangeExtensionAttributes(cb block.ExtensionAttributeCallback) {
 	if len(e.ce.Attributes) == 0 {
 		return
 	}
@@ -175,7 +175,7 @@ func (e *ceEntry) RangeExtensionAttributes(f func(attr, val []byte)) {
 	sort.Strings(attrs)
 
 	for _, attr := range attrs {
-		f([]byte(attr), attrValue(e.ce.Attributes[attr]))
+		cb.OnAttribute([]byte(attr), attrValue(e.ce.Attributes[attr]))
 	}
 }
 

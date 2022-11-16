@@ -37,6 +37,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	_ "net/http/pprof"
 )
 
 const (
@@ -79,7 +80,9 @@ func runStoreCommand() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			vanus.InitFakeSnowflake()
 			_ = os.Setenv("SEGMENT_SERVER_DEBUG_MODE", "true")
-
+			go func() {
+				_ = http.ListenAndServe("0.0.0.0:8080", nil)
+			}()
 			cfg := store.Config{
 				IP:   "127.0.0.1",
 				Port: 2148 + int(volumeID),

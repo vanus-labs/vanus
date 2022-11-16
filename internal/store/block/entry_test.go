@@ -59,9 +59,9 @@ func TestEmptyEntry(t *testing.T) {
 		// So(ent.GetExtensionAttribute(nil), ShouldBeNil)
 
 		var count int
-		ent.RangeExtensionAttributes(func(attr, val []byte) {
+		ent.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr, val []byte) {
 			count++
-		})
+		}))
 		So(count, ShouldEqual, 0)
 	})
 
@@ -82,9 +82,9 @@ func TestEmptyEntry(t *testing.T) {
 		}
 
 		count := 0
-		ext.RangeOptionalAttributes(func(ordinal int, val interface{}) {
+		ext.RangeOptionalAttributes(block.OnOptionalAttributeFunc(func(ordinal int, val interface{}) {
 			count++
-		})
+		}))
 		So(count, ShouldEqual, 0)
 
 		So(ext.ExtensionAttributeCount(), ShouldEqual, 0)
@@ -92,9 +92,9 @@ func TestEmptyEntry(t *testing.T) {
 		// So(ent.GetExtensionAttribute(nil), ShouldBeNil)
 
 		count = 0
-		ext.RangeExtensionAttributes(func(attr, val []byte) {
+		ext.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr, val []byte) {
 			count++
-		})
+		}))
 		So(count, ShouldEqual, 0)
 	})
 
@@ -162,7 +162,7 @@ func TestEmptyEntry(t *testing.T) {
 			So(w.GetTime(ord), ShouldEqual, t)
 		}
 
-		fn0 := func(int, interface{}) {}
+		fn0 := block.OnOptionalAttributeFunc(func(int, interface{}) {})
 		ext.EXPECT().RangeOptionalAttributes(Any()).Times(1).DoAndReturn(func(f func(int, interface{})) {
 			So(f, ShouldEqual, fn0)
 		})
@@ -179,7 +179,7 @@ func TestEmptyEntry(t *testing.T) {
 		})
 		So(w.GetExtensionAttribute(attr), ShouldResemble, attr)
 
-		fn1 := func([]byte, []byte) {}
+		fn1 := block.OnExtensionAttributeFunc(func([]byte, []byte) {})
 		ext.EXPECT().RangeExtensionAttributes(Any()).Times(1).DoAndReturn(func(f func([]byte, []byte)) {
 			So(f, ShouldEqual, fn1)
 		})

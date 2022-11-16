@@ -31,11 +31,11 @@ import (
 func MakeEntry0(ctrl *Controller) block.EntryExt {
 	entry := blktest.NewMockEntryExt(ctrl)
 	entry.EXPECT().OptionalAttributeCount().AnyTimes().Return(4)
-	entry.EXPECT().RangeOptionalAttributes(Any()).AnyTimes().DoAndReturn(func(f func(ordinal int, val interface{})) {
-		f(ceschema.IDOrdinal, ceID0)
-		f(ceschema.SourceOrdinal, ceSource)
-		f(ceschema.SpecVersionOrdinal, ceSpecVersion)
-		f(ceschema.TypeOrdinal, ceType)
+	entry.EXPECT().RangeOptionalAttributes(Any()).AnyTimes().DoAndReturn(func(cb block.OptionalAttributeCallback) {
+		cb.OnString(ceschema.IDOrdinal, ceID0)
+		cb.OnString(ceschema.SourceOrdinal, ceSource)
+		cb.OnString(ceschema.SpecVersionOrdinal, ceSpecVersion)
+		cb.OnString(ceschema.TypeOrdinal, ceType)
 	})
 	entry.EXPECT().ExtensionAttributeCount().AnyTimes().Return(0)
 	entry.EXPECT().RangeExtensionAttributes(Any()).AnyTimes().Return()
@@ -46,21 +46,21 @@ func MakeEntry1(ctrl *Controller) block.EntryExt {
 	entry := blktest.NewMockEntryExt(ctrl)
 	entry.EXPECT().OptionalAttributeCount().AnyTimes().Return(8)
 	entry.EXPECT().GetBytes(ceschema.DataOrdinal).AnyTimes().Return(ceData)
-	entry.EXPECT().RangeOptionalAttributes(Any()).AnyTimes().DoAndReturn(func(f func(ordinal int, val interface{})) {
-		f(ceschema.IDOrdinal, ceID1)
-		f(ceschema.SourceOrdinal, ceSource)
-		f(ceschema.SpecVersionOrdinal, ceSpecVersion)
-		f(ceschema.TypeOrdinal, ceType)
-		f(ceschema.DataOrdinal, ceData)
-		f(ceschema.DataContentTypeOrdinal, ceDataContentType)
-		f(ceschema.SubjectOrdinal, ceSubject)
-		f(ceschema.TimeOrdinal, ceTime)
+	entry.EXPECT().RangeOptionalAttributes(Any()).AnyTimes().DoAndReturn(func(cb block.OptionalAttributeCallback) {
+		cb.OnString(ceschema.IDOrdinal, ceID1)
+		cb.OnString(ceschema.SourceOrdinal, ceSource)
+		cb.OnString(ceschema.SpecVersionOrdinal, ceSpecVersion)
+		cb.OnString(ceschema.TypeOrdinal, ceType)
+		cb.OnBytes(ceschema.DataOrdinal, ceData)
+		cb.OnString(ceschema.DataContentTypeOrdinal, ceDataContentType)
+		cb.OnString(ceschema.SubjectOrdinal, ceSubject)
+		cb.OnTime(ceschema.TimeOrdinal, ceTime)
 	})
 	entry.EXPECT().ExtensionAttributeCount().AnyTimes().Return(3)
-	entry.EXPECT().RangeExtensionAttributes(Any()).AnyTimes().DoAndReturn(func(f func(attr, val []byte)) {
-		f([]byte("attr0"), []byte("value0"))
-		f([]byte("attr1"), []byte("value1"))
-		f([]byte("attr2"), []byte("value2"))
+	entry.EXPECT().RangeExtensionAttributes(Any()).AnyTimes().DoAndReturn(func(cb block.ExtensionAttributeCallback) {
+		cb.OnAttribute([]byte("attr0"), []byte("value0"))
+		cb.OnAttribute([]byte("attr1"), []byte("value1"))
+		cb.OnAttribute([]byte("attr2"), []byte("value2"))
 	})
 	return entry
 }
@@ -80,13 +80,13 @@ func MakeStoredEntry0(ctrl *Controller) block.EntryExt {
 	entry.EXPECT().GetString(ceschema.DataSchemaOrdinal).AnyTimes().Return("")
 	entry.EXPECT().GetString(ceschema.SubjectOrdinal).AnyTimes().Return("")
 	entry.EXPECT().GetTime(ceschema.TimeOrdinal).AnyTimes().Return(time.Time{})
-	entry.EXPECT().RangeOptionalAttributes(Any()).AnyTimes().DoAndReturn(func(f func(ordinal int, val interface{})) {
-		f(ceschema.SequenceNumberOrdinal, seq0)
-		f(ceschema.StimeOrdinal, Stime)
-		f(ceschema.IDOrdinal, ceID0)
-		f(ceschema.SourceOrdinal, ceSource)
-		f(ceschema.SpecVersionOrdinal, ceSpecVersion)
-		f(ceschema.TypeOrdinal, ceType)
+	entry.EXPECT().RangeOptionalAttributes(Any()).AnyTimes().DoAndReturn(func(cb block.OptionalAttributeCallback) {
+		cb.OnInt64(ceschema.SequenceNumberOrdinal, seq0)
+		cb.OnInt64(ceschema.StimeOrdinal, Stime)
+		cb.OnString(ceschema.IDOrdinal, ceID0)
+		cb.OnString(ceschema.SourceOrdinal, ceSource)
+		cb.OnString(ceschema.SpecVersionOrdinal, ceSpecVersion)
+		cb.OnString(ceschema.TypeOrdinal, ceType)
 	})
 	entry.EXPECT().ExtensionAttributeCount().AnyTimes().Return(0)
 	entry.EXPECT().RangeExtensionAttributes(Any()).AnyTimes().Return()
@@ -109,23 +109,23 @@ func MakeStoredEntry1(ctrl *Controller) block.EntryExt {
 	entry.EXPECT().GetString(ceschema.DataSchemaOrdinal).AnyTimes().Return("")
 	entry.EXPECT().GetString(ceschema.SubjectOrdinal).AnyTimes().Return(ceSubject)
 	entry.EXPECT().GetTime(ceschema.TimeOrdinal).AnyTimes().Return(ceTime)
-	entry.EXPECT().RangeOptionalAttributes(Any()).AnyTimes().DoAndReturn(func(f func(ordinal int, val interface{})) {
-		f(ceschema.SequenceNumberOrdinal, seq1)
-		f(ceschema.StimeOrdinal, Stime)
-		f(ceschema.IDOrdinal, ceID1)
-		f(ceschema.SourceOrdinal, ceSource)
-		f(ceschema.SpecVersionOrdinal, ceSpecVersion)
-		f(ceschema.TypeOrdinal, ceType)
-		f(ceschema.DataOrdinal, ceData)
-		f(ceschema.DataContentTypeOrdinal, ceDataContentType)
-		f(ceschema.SubjectOrdinal, ceSubject)
-		f(ceschema.TimeOrdinal, ceTime)
+	entry.EXPECT().RangeOptionalAttributes(Any()).AnyTimes().DoAndReturn(func(cb block.OptionalAttributeCallback) {
+		cb.OnInt64(ceschema.SequenceNumberOrdinal, seq1)
+		cb.OnInt64(ceschema.StimeOrdinal, Stime)
+		cb.OnString(ceschema.IDOrdinal, ceID1)
+		cb.OnString(ceschema.SourceOrdinal, ceSource)
+		cb.OnString(ceschema.SpecVersionOrdinal, ceSpecVersion)
+		cb.OnString(ceschema.TypeOrdinal, ceType)
+		cb.OnBytes(ceschema.DataOrdinal, ceData)
+		cb.OnString(ceschema.DataContentTypeOrdinal, ceDataContentType)
+		cb.OnString(ceschema.SubjectOrdinal, ceSubject)
+		cb.OnTime(ceschema.TimeOrdinal, ceTime)
 	})
 	entry.EXPECT().ExtensionAttributeCount().AnyTimes().Return(3)
-	entry.EXPECT().RangeExtensionAttributes(Any()).AnyTimes().DoAndReturn(func(f func(attr, val []byte)) {
-		f([]byte("attr0"), []byte("value0"))
-		f([]byte("attr1"), []byte("value1"))
-		f([]byte("attr2"), []byte("value2"))
+	entry.EXPECT().RangeExtensionAttributes(Any()).AnyTimes().DoAndReturn(func(cb block.ExtensionAttributeCallback) {
+		cb.OnAttribute([]byte("attr0"), []byte("value0"))
+		cb.OnAttribute([]byte("attr1"), []byte("value1"))
+		cb.OnAttribute([]byte("attr2"), []byte("value2"))
 	})
 	return entry
 }
@@ -136,9 +136,9 @@ func MakeStoredEndEntry(ctrl *Controller) block.EntryExt {
 	entry.EXPECT().GetUint16(ceschema.EntryTypeOrdinal).AnyTimes().Return(ceschema.End)
 	entry.EXPECT().GetInt64(ceschema.SequenceNumberOrdinal).AnyTimes().Return(seq2)
 	entry.EXPECT().GetInt64(ceschema.StimeOrdinal).AnyTimes().Return(Stime)
-	entry.EXPECT().RangeOptionalAttributes(Any()).AnyTimes().DoAndReturn(func(f func(ordinal int, val interface{})) {
-		f(ceschema.SequenceNumberOrdinal, seq2)
-		f(ceschema.StimeOrdinal, Stime)
+	entry.EXPECT().RangeOptionalAttributes(Any()).AnyTimes().DoAndReturn(func(cb block.OptionalAttributeCallback) {
+		cb.OnInt64(ceschema.SequenceNumberOrdinal, seq2)
+		cb.OnInt64(ceschema.StimeOrdinal, Stime)
 	})
 	entry.EXPECT().ExtensionAttributeCount().AnyTimes().Return(0)
 	entry.EXPECT().RangeExtensionAttributes(Any()).AnyTimes().Return()
@@ -156,9 +156,9 @@ func CheckEntry0(entry block.Entry, ignoreSeq, ignoreStime bool) {
 	So(entry.GetString(ceschema.SourceOrdinal), ShouldEqual, ceSource)
 	So(entry.GetString(ceschema.SpecVersionOrdinal), ShouldEqual, ceSpecVersion)
 	So(entry.GetString(ceschema.TypeOrdinal), ShouldEqual, ceType)
-	entry.RangeExtensionAttributes(func(attr, val []byte) {
+	entry.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr, val []byte) {
 		So(false, ShouldBeTrue)
-	})
+	}))
 }
 
 func CheckEntryExt0(entry block.EntryExt) {
@@ -167,23 +167,23 @@ func CheckEntryExt0(entry block.EntryExt) {
 	So(entry.OptionalAttributeCount(), ShouldEqual, 4)
 
 	ord := 0
-	entry.RangeOptionalAttributes(func(ordinal int, val interface{}) {
+	entry.RangeOptionalAttributes(block.OnOptionalAttributeFunc(func(ordinal int, val interface{}) {
 		So(ordinal, ShouldBeGreaterThan, ord)
 		ord = ordinal
 
 		switch ordinal {
 		case ceschema.IDOrdinal:
-			So(val, ShouldEqual, ceID0)
+			So(val.(string), ShouldEqual, ceID0)
 		case ceschema.SourceOrdinal:
-			So(val, ShouldEqual, ceSource)
+			So(val.(string), ShouldEqual, ceSource)
 		case ceschema.SpecVersionOrdinal:
-			So(val, ShouldEqual, ceSpecVersion)
+			So(val.(string), ShouldEqual, ceSpecVersion)
 		case ceschema.TypeOrdinal:
-			So(val, ShouldEqual, ceType)
+			So(val.(string), ShouldEqual, ceType)
 		default:
 			So(false, ShouldBeTrue)
 		}
-	})
+	}))
 
 	So(entry.ExtensionAttributeCount(), ShouldEqual, 0)
 }
@@ -209,7 +209,7 @@ func CheckEntry1(entry block.Entry, ignoreSeq, ignoreStime bool) {
 	So(entry.GetExtensionAttribute([]byte("attr2")), ShouldResemble, []byte("value2"))
 
 	last := ""
-	entry.RangeExtensionAttributes(func(attr, val []byte) {
+	entry.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr, val []byte) {
 		str := string(attr)
 		So(str, ShouldBeGreaterThan, last)
 		last = str
@@ -224,7 +224,7 @@ func CheckEntry1(entry block.Entry, ignoreSeq, ignoreStime bool) {
 		default:
 			So(false, ShouldBeTrue)
 		}
-	})
+	}))
 }
 
 func CheckEntryExt1(entry block.EntryExt) {
@@ -233,31 +233,31 @@ func CheckEntryExt1(entry block.EntryExt) {
 	So(entry.OptionalAttributeCount(), ShouldEqual, 8)
 
 	ord := 0
-	entry.RangeOptionalAttributes(func(ordinal int, val interface{}) {
+	entry.RangeOptionalAttributes(block.OnOptionalAttributeFunc(func(ordinal int, val interface{}) {
 		So(ordinal, ShouldBeGreaterThan, ord)
 		ord = ordinal
 
 		switch ordinal {
 		case ceschema.IDOrdinal:
-			So(val, ShouldEqual, ceID1)
+			So(val.(string), ShouldEqual, ceID1)
 		case ceschema.SourceOrdinal:
-			So(val, ShouldEqual, ceSource)
+			So(val.(string), ShouldEqual, ceSource)
 		case ceschema.SpecVersionOrdinal:
-			So(val, ShouldEqual, ceSpecVersion)
+			So(val.(string), ShouldEqual, ceSpecVersion)
 		case ceschema.TypeOrdinal:
-			So(val, ShouldEqual, ceType)
+			So(val.(string), ShouldEqual, ceType)
 		case ceschema.DataOrdinal:
 			So(val, ShouldResemble, ceData)
 		case ceschema.DataContentTypeOrdinal:
-			So(val, ShouldEqual, ceDataContentType)
+			So(val.(string), ShouldEqual, ceDataContentType)
 		case ceschema.SubjectOrdinal:
-			So(val, ShouldEqual, ceSubject)
+			So(val.(string), ShouldEqual, ceSubject)
 		case ceschema.TimeOrdinal:
 			So(val, ShouldEqual, ceTime)
 		default:
 			So(false, ShouldBeTrue)
 		}
-	})
+	}))
 
 	So(entry.ExtensionAttributeCount(), ShouldEqual, 3)
 }
