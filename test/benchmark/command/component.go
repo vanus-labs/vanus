@@ -50,6 +50,7 @@ var (
 	totalSent      int64
 	noCleanCache   bool
 	replicaNum     int
+	blockSize      int64
 )
 
 func ComponentCommand() *cobra.Command {
@@ -147,7 +148,7 @@ func createBlockCommand() *cobra.Command {
 					cli := clis[cnt%len(clis)]
 					_, err := cli.CreateBlock(context.Background(), &segpb.CreateBlockRequest{
 						Id:   id.Uint64(),
-						Size: 64 * 1024 * 1024,
+						Size: blockSize * 1024 * 1024,
 					})
 					if err != nil {
 						panic("failed to create block to: " + err.Error())
@@ -191,6 +192,7 @@ func createBlockCommand() *cobra.Command {
 			return
 		},
 	}
+	cmd.Flags().Int64Var(&blockSize, "block-size", 64, "MB")
 	cmd.Flags().IntVar(&segmentNumbers, "number", 1, "")
 	cmd.Flags().IntVar(&replicaNum, "replicas", 3, "")
 	cmd.Flags().StringArrayVar(&storeAddrs, "store-address", []string{
@@ -339,7 +341,7 @@ func generateEvents() []*v1.CloudEvent {
 			Source:      "example/uri",
 			SpecVersion: "1.0",
 			Type:        "example.type",
-			Data:        &v1.CloudEvent_TextData{TextData: genStr(rd, 10)},
+			Data:        &v1.CloudEvent_TextData{TextData: genStr(rd, payloadSize)},
 		}}
 	})
 	return e
