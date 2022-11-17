@@ -10,10 +10,10 @@ nohup vanus-bench component store run --volume-id 3 --name e2e-component-store-3
 
 # The maximum TPS between 12K to 14K with high shake, and TPS isn't sensitive with payload-size [10B, 1024B]
 # BUG: it need to wait a seconds to make sure write successfully after a Segment is activated
-# vanus-bench component store create-block --number 32 --replicas 1 --name e2e-component-store-1replicas --without-mongodb
-# vanus-bench component store send --total-number 1000000 --parallelism 8 --payload-size 1024 --name e2e-component-store-1replicas --without-mongodb
+# vanus-bench component store create-block --name e2e-component-store-1replicas --without-mongodb --replicas 1 --block-size 512 --store-address 127.0.0.1:2149 --number 24
+# vanus-bench component store send --name e2e-component-store-1replicas --without-mongodb  --no-clean-cache --total-number 1000000 --parallelism 1 --payload-size 1024
 
-# vanus-bench component store create-block --number 16 --replicas 3 --name e2e-component-store-3replicas --without-mongodb
-# vanus-bench component store send --total-number 100000 --parallelism 16 --no-clean-cache --payload-size 1024 --name e2e-component-store-3replicas --without-mongodb
+# vanus-bench component store create-block --name e2e-component-store-3replicas --without-mongodb --replicas 3  --block-size 512 --number 16
+# vanus-bench component store send --total-number 100000 --parallelism 16 --no-clean-cache --payload-size 10240 --name e2e-component-store-3replicas --without-mongodb
 # ps -ef | grep bench | grep -v "auto" | awk '{print $2}' | xargs kill && rm -rf /Users/wenfeng/tmp/data/test/vanus && rm *.log
 # redis-cli LTRIM /vanus/test/store/block_records 1 0
