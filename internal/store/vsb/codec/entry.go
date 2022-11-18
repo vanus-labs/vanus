@@ -134,7 +134,7 @@ func (e *entry) GetExtensionAttribute(attr []byte) []byte {
 	return nil
 }
 
-func (e *entry) RangeExtensionAttributes(f func(attr, val []byte)) {
+func (e *entry) RangeExtensionAttributes(cb block.ExtensionAttributeCallback) {
 	sz := e.extCount()
 	if sz == 0 {
 		return
@@ -144,7 +144,7 @@ func (e *entry) RangeExtensionAttributes(f func(attr, val []byte)) {
 	for i := 0; i < sz; i++ {
 		attr := e.deref(attrKeyOffset(base, i))
 		val := e.deref(attrValueOffset(base, i))
-		f(attr, val)
+		cb.OnAttribute(attr, val)
 	}
 }
 

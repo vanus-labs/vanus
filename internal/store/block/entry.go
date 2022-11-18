@@ -15,7 +15,13 @@
 //go:generate mockgen -source=entry.go  -destination=testing/mock_entry.go -package=testing
 package block
 
-import "time"
+import (
+	"time"
+)
+
+type ExtensionAttributeCallback interface {
+	OnAttribute(attr, val []byte)
+}
 
 type Entry interface {
 	Get(ordinal int) interface{}
@@ -25,9 +31,21 @@ type Entry interface {
 	GetUint64(ordinal int) uint64
 	GetInt64(ordinal int) int64
 	GetTime(ordinal int) time.Time
+	// TODO(james.yin): more types
 
 	GetExtensionAttribute([]byte) []byte
-	RangeExtensionAttributes(f func(attr, val []byte))
+	RangeExtensionAttributes(cb ExtensionAttributeCallback)
+}
+
+type OptionalAttributeCallback interface {
+	OnBytes(ordinal int, val []byte)
+	OnString(ordinal int, val string)
+	OnUint16(ordinal int, val uint16)
+	OnUint64(ordinal int, val uint64)
+	OnInt64(ordinal int, val int64)
+	OnTime(ordinal int, val time.Time)
+	// TODO(james.yin): more types
+	OnAttribute(ordinal int, val interface{})
 }
 
 type EntryExt interface {
@@ -36,7 +54,7 @@ type EntryExt interface {
 	OptionalAttributeCount() int
 	ExtensionAttributeCount() int
 
-	RangeOptionalAttributes(f func(ordinal int, val interface{}))
+	RangeOptionalAttributes(cb OptionalAttributeCallback)
 }
 
 type EmptyEntry struct{}
@@ -76,7 +94,7 @@ func (e *EmptyEntry) GetExtensionAttribute([]byte) []byte {
 	return nil
 }
 
-func (e *EmptyEntry) RangeExtensionAttributes(f func(attr, val []byte)) {
+func (e *EmptyEntry) RangeExtensionAttributes(cb ExtensionAttributeCallback) {
 }
 
 type EmptyEntryExt struct {
@@ -90,7 +108,7 @@ func (e *EmptyEntryExt) OptionalAttributeCount() int {
 	return 0
 }
 
-func (e *EmptyEntryExt) RangeOptionalAttributes(f func(ordinal int, val interface{})) {
+func (e *EmptyEntryExt) RangeOptionalAttributes(cb OptionalAttributeCallback) {
 }
 
 func (e *EmptyEntryExt) ExtensionAttributeCount() int {
@@ -132,8 +150,8 @@ func (w *EntryExtWrapper) GetTime(ordinal int) time.Time {
 	return w.E.GetTime(ordinal)
 }
 
-func (w *EntryExtWrapper) RangeOptionalAttributes(f func(ordinal int, val interface{})) {
-	w.E.RangeOptionalAttributes(f)
+func (w *EntryExtWrapper) RangeOptionalAttributes(cb OptionalAttributeCallback) {
+	w.E.RangeOptionalAttributes(cb)
 }
 
 func (w *EntryExtWrapper) OptionalAttributeCount() int {
@@ -144,10 +162,52 @@ func (w *EntryExtWrapper) GetExtensionAttribute(attr []byte) []byte {
 	return w.E.GetExtensionAttribute(attr)
 }
 
-func (w *EntryExtWrapper) RangeExtensionAttributes(f func(attr, val []byte)) {
-	w.E.RangeExtensionAttributes(f)
+func (w *EntryExtWrapper) RangeExtensionAttributes(cb ExtensionAttributeCallback) {
+	w.E.RangeExtensionAttributes(cb)
 }
 
 func (w *EntryExtWrapper) ExtensionAttributeCount() int {
 	return w.E.ExtensionAttributeCount()
+}
+
+type OnExtensionAttributeFunc func(attr, val []byte)
+
+// Make sure ExtensionAttributesFunc implements OptionalAttributesCallback.
+var _ ExtensionAttributeCallback = (OnExtensionAttributeFunc)(nil)
+
+func (f OnExtensionAttributeFunc) OnAttribute(attr, val []byte) {
+	f(attr, val)
+}
+
+type OnOptionalAttributeFunc func(ordinal int, val interface{})
+
+// Make sure OptionalAttributesFunc implements OptionalAttributesCallback.
+var _ OptionalAttributeCallback = (OnOptionalAttributeFunc)(nil)
+
+func (f OnOptionalAttributeFunc) OnBytes(ordinal int, val []byte) {
+	f.OnAttribute(ordinal, val)
+}
+
+func (f OnOptionalAttributeFunc) OnString(ordinal int, val string) {
+	f.OnAttribute(ordinal, val)
+}
+
+func (f OnOptionalAttributeFunc) OnUint16(ordinal int, val uint16) {
+	f.OnAttribute(ordinal, val)
+}
+
+func (f OnOptionalAttributeFunc) OnUint64(ordinal int, val uint64) {
+	f.OnAttribute(ordinal, val)
+}
+
+func (f OnOptionalAttributeFunc) OnInt64(ordinal int, val int64) {
+	f.OnAttribute(ordinal, val)
+}
+
+func (f OnOptionalAttributeFunc) OnTime(ordinal int, val time.Time) {
+	f.OnAttribute(ordinal, val)
+}
+
+func (f OnOptionalAttributeFunc) OnAttribute(ordinal int, val interface{}) {
+	f(ordinal, val)
 }

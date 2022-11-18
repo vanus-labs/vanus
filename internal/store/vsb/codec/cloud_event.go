@@ -28,6 +28,8 @@ const (
 	byteAligned   int = 8
 	alignAddition     = byteAligned - 1
 	alignMask         = -byteAligned
+	baseAttrSize      = refSize
+	timeAttrSize      = refSize + 8
 )
 
 type ceEntryEncoder struct{}
@@ -35,33 +37,69 @@ type ceEntryEncoder struct{}
 // Make sure ceEntryEncoder implements RecordDataEncoder.
 var _ RecordDataEncoder = (*ceEntryEncoder)(nil)
 
+type sizeOptAttrCallback struct {
+	size int
+}
+
+// Make sure sizeOptAttrCallback implements block.OptionalAttributeCallback.
+var _ block.OptionalAttributeCallback = (*sizeOptAttrCallback)(nil)
+
+func (cb *sizeOptAttrCallback) OnBytes(ordinal int, val []byte) {
+	cb.size += refSize + alignment(len(val))
+}
+
+func (cb *sizeOptAttrCallback) OnString(ordinal int, val string) {
+	cb.size += refSize + alignment(len(val))
+}
+
+func (cb *sizeOptAttrCallback) OnUint16(ordinal int, val uint16) {
+	cb.size += baseAttrSize
+}
+
+func (cb *sizeOptAttrCallback) OnUint64(ordinal int, val uint64) {
+	cb.size += baseAttrSize
+}
+
+func (cb *sizeOptAttrCallback) OnInt64(ordinal int, val int64) {
+	cb.size += baseAttrSize
+}
+
+func (cb *sizeOptAttrCallback) OnTime(ordinal int, val time.Time) {
+	cb.size += timeAttrSize
+}
+
+func (cb *sizeOptAttrCallback) OnAttribute(ordinal int, val interface{}) {
+	switch val.(type) {
+	case bool, int, int8, int16, int32, uint, uint8, uint32, float32, float64:
+		cb.size += baseAttrSize
+	default:
+		panic("not supported type")
+	}
+}
+
+type sizeExtAttrCallback struct {
+	size int
+}
+
+// Make sure sizeExtAttrCallback implements block.ExtensionAttributesCallback.
+var _ block.ExtensionAttributeCallback = (*sizeExtAttrCallback)(nil)
+
+func (cb *sizeExtAttrCallback) OnAttribute(attr, val []byte) {
+	cb.size += 16 + alignment(len(attr)) + alignment(len(val))
+}
+
 func (e *ceEntryEncoder) Size(entry block.Entry) int {
 	ext, _ := entry.(block.EntryExt)
 
 	sz := 8 // ext count + non-null bitmap
 
-	ext.RangeOptionalAttributes(func(ordinal int, val interface{}) {
-		sz += 8
-		switch ordinal {
-		case ceschema.SequenceNumberOrdinal, ceschema.StimeOrdinal:
-		case ceschema.TimeOrdinal:
-			sz += 8
-		default:
-			switch v := val.(type) {
-			case bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
-			case []byte:
-				sz += alignment(len(v))
-			case string:
-				sz += alignment(len(v))
-			case time.Time:
-				sz += 8
-			}
-		}
-	})
+	optCb := &sizeOptAttrCallback{}
+	ext.RangeOptionalAttributes(optCb)
+	sz += optCb.size
 
-	ext.RangeExtensionAttributes(func(attr, val []byte) {
-		sz += 16 + alignment(len(attr)) + alignment(len(val))
-	})
+	extCb := &sizeExtAttrCallback{}
+	ext.RangeExtensionAttributes(extCb)
+	sz += extCb.size
 
 	return sz
 }
@@ -73,7 +111,7 @@ func (e *ceEntryEncoder) MarshalTo(entry block.Entry, buf []byte) (int, int, err
 	nextAlloc := vlvrOffset(optCnt, extCnt)
 
 	var bitmap uint64
-	ext.RangeOptionalAttributes(func(ordinal int, val interface{}) {
+	ext.RangeOptionalAttributes(block.OnOptionalAttributeFunc(func(ordinal int, val interface{}) {
 		bitmap |= 1 << ordinal
 		switch ordinal {
 		case ceschema.SequenceNumberOrdinal, ceschema.StimeOrdinal,
@@ -91,9 +129,9 @@ func (e *ceEntryEncoder) MarshalTo(entry block.Entry, buf []byte) (int, int, err
 				nextAlloc += alignment(len(val.(string)))
 			}
 		}
-	})
+	}))
 	binary.LittleEndian.PutUint64(buf[:8], bitmap<<16|uint64(extCnt))
-	ext.RangeOptionalAttributes(func(ordinal int, val interface{}) {
+	ext.RangeOptionalAttributes(block.OnOptionalAttributeFunc(func(ordinal int, val interface{}) {
 		switch ordinal {
 		case ceschema.SequenceNumberOrdinal, ceschema.StimeOrdinal,
 			ceschema.IDOrdinal, ceschema.SourceOrdinal, ceschema.SpecVersionOrdinal,
@@ -115,11 +153,11 @@ func (e *ceEntryEncoder) MarshalTo(entry block.Entry, buf []byte) (int, int, err
 				nextAlloc += 8
 			}
 		}
-	})
+	}))
 
 	// Fill attribute keys.
 	var i int
-	ext.RangeExtensionAttributes(func(attr, _ []byte) {
+	ext.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr, _ []byte) {
 		fo := attrKeyOffset(valueOffset(optCnt), i)
 		field := buf[fo : fo+8]
 		offsetAndSize := uint64(nextAlloc)<<32 | uint64(len(attr))
@@ -127,10 +165,10 @@ func (e *ceEntryEncoder) MarshalTo(entry block.Entry, buf []byte) (int, int, err
 		copy(buf[nextAlloc:], attr)
 		nextAlloc += alignment(len(attr))
 		i++
-	})
+	}))
 	// Fill attribute values.
 	i = 0
-	ext.RangeExtensionAttributes(func(_, val []byte) {
+	ext.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(_, val []byte) {
 		fo := attrValueOffset(valueOffset(optCnt), i)
 		field := buf[fo : fo+8]
 		offsetAndSize := uint64(nextAlloc)<<32 | uint64(len(val))
@@ -138,7 +176,7 @@ func (e *ceEntryEncoder) MarshalTo(entry block.Entry, buf []byte) (int, int, err
 		copy(buf[nextAlloc:], val)
 		nextAlloc += alignment(len(val))
 		i++
-	})
+	}))
 
 	if bitmap&(1<<ceschema.DataOrdinal) != 0 {
 		data := ext.GetBytes(ceschema.DataOrdinal)

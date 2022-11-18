@@ -18,13 +18,17 @@ import (
 	// standard libraries.
 	"encoding/binary"
 	"testing"
+	"time"
 
 	// third-party libraries.
+	cepb "cloudevents.io/genproto/v1"
 	. "github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
+	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
+	"github.com/linkall-labs/vanus/internal/store/schema/ce/convert"
 	cetest "github.com/linkall-labs/vanus/internal/store/schema/ce/testing"
 	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
 	vsbtest "github.com/linkall-labs/vanus/internal/store/vsb/testing"
@@ -78,4 +82,47 @@ func TestFragment(t *testing.T) {
 		binary.LittleEndian.PutUint64(offBuf[:], uint64(vsbtest.EntryOffset0))
 		So(data2, ShouldResemble, append(append(offBuf[:], vsbtest.EntryData0...), vsbtest.EntryData1...))
 	})
+}
+
+func BenchmarkSize(b *testing.B) {
+	c := codec.NewEncoder()
+	e := getEntry()
+	b.Run("Size", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			c.Size(e)
+		}
+	})
+}
+
+func BenchmarkFragment_MarshalFragment(b *testing.B) {
+	c := codec.NewEncoder()
+	e := getEntry()
+	buf := make([]byte, c.Size(e))
+	b.Run("MarshalFragment", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_, _ = c.MarshalTo(e, buf)
+		}
+	})
+}
+
+func getEntry() block.Entry {
+	ce := &cepb.CloudEvent{
+		Id:          "benchmark1",
+		Source:      "benchmark2",
+		SpecVersion: "1.0",
+		Type:        "benchmark3",
+		Data: &cepb.CloudEvent_TextData{
+			TextData: "benchmark4",
+		},
+	}
+	e := convert.ToEntry(ce)
+
+	return &entryExtWrapper{
+		EntryExtWrapper: block.EntryExtWrapper{
+			E: e,
+		},
+		t:     ceschema.CloudEvent,
+		seq:   111,
+		stime: time.Now().UnixMilli(),
+	}
 }

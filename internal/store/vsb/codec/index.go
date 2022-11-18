@@ -38,7 +38,7 @@ func (e *indexEntryEncoder) Size(entry block.Entry) int {
 func (e *indexEntryEncoder) MarshalTo(entry block.Entry, buf []byte) (int, int, error) {
 	ext, _ := entry.(block.EntryExt)
 	var num int
-	ext.RangeOptionalAttributes(func(ordinal int, val interface{}) {
+	ext.RangeOptionalAttributes(block.OnOptionalAttributeFunc(func(ordinal int, val interface{}) {
 		idx, _ := val.(index.Index)
 		data := buf[ordinal*e.indexSize : (ordinal+1)*e.indexSize]
 		binary.LittleEndian.PutUint64(data[0:], uint64(idx.StartOffset())) // offset
@@ -46,7 +46,7 @@ func (e *indexEntryEncoder) MarshalTo(entry block.Entry, buf []byte) (int, int, 
 		binary.LittleEndian.PutUint32(data[12:], 0)                        // reserved
 		binary.LittleEndian.PutUint64(data[16:], uint64(idx.Stime()))      // stime
 		num++
-	})
+	}))
 	return e.indexSize * num, 0, nil
 }
 

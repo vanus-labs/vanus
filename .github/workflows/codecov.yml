@@ -20,7 +20,8 @@ jobs:
     if: |
       startsWith(github.event.pull_request.title, 'fix') ||
       startsWith(github.event.pull_request.title, 'feat') ||
-      startsWith(github.event.pull_request.title, 'refactor')
+      startsWith(github.event.pull_request.title, 'refactor') ||
+      startsWith(github.event.pull_request.title, 'perf')
     runs-on: ${{ matrix.os }}
     env:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
