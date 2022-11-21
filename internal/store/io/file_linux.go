@@ -18,16 +18,16 @@
 package io
 
 import (
-	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
 	// standard libraries.
 	"os"
 	"syscall"
 
 	// third-party libraries.
 	"github.com/ncw/directio"
-)
 
-const FALLOC_FL_ZERO_RANGE uint32 = 0x10
+	// first-party libraries.
+	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
+)
 
 func OpenFile(path string, wronly bool, sync bool) (*os.File, error) {
 	flag := makeFlag(syscall.O_NOATIME, wronly, sync)
@@ -41,7 +41,7 @@ func CreateFile(path string, size int64, wronly bool, sync bool) (*os.File, erro
 		return nil, err
 	}
 	// Resize file.
-	if err = syscall.Fallocate(int(f.Fd()), FALLOC_FL_ZERO_RANGE, 0, size); err != nil {
+	if err = f.Truncate(size); err != nil {
 		if err2 := f.Close(); err2 != nil {
 			return f, errutil.Chain(err, err2)
 		}
