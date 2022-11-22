@@ -80,7 +80,7 @@ func NewArg(arg interface{}) (Arg, error) {
 		if argLen >= 6 && argName[:6] == EventDataArgPrefix {
 			return newEventData(argName), nil
 		}
-		if argLen >= 2 && argName[:2] == EventAttribute {
+		if argLen >= 2 && argName[:2] == EventArgPrefix {
 			return newEventAttribute(argName)
 		}
 		if argLen >= 3 && argName[0] == '<' && argName[argLen-1] == '>' {
