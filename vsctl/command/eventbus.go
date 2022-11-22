@@ -34,6 +34,12 @@ func NewEventbusCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "eventbus sub-command",
 		Short: "sub-commands for eventbus operations",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			InitGatewayClient(cmd)
+		},
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			DestroyGatewayClient()
+		},
 	}
 	cmd.AddCommand(createEventbusCommand())
 	cmd.AddCommand(deleteEventbusCommand())
@@ -50,14 +56,7 @@ func createEventbusCommand() *cobra.Command {
 			if eventbus == "" {
 				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
-			ctx := context.Background()
-			grpcConn := mustGetControllerProxyConn(ctx, cmd)
-			defer func() {
-				_ = grpcConn.Close()
-			}()
-
-			cli := ctrlpb.NewEventBusControllerClient(grpcConn)
-			_, err := cli.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
+			_, err := client.CreateEventBus(context.Background(), &ctrlpb.CreateEventBusRequest{
 				Name:      eventbus,
 				LogNumber: eventlogNum,
 			})
@@ -93,14 +92,8 @@ func deleteEventbusCommand() *cobra.Command {
 			if eventbus == "" {
 				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
-			ctx := context.Background()
-			grpcConn := mustGetControllerProxyConn(ctx, cmd)
-			defer func() {
-				_ = grpcConn.Close()
-			}()
 
-			cli := ctrlpb.NewEventBusControllerClient(grpcConn)
-			_, err := cli.DeleteEventBus(ctx, &metapb.EventBus{Name: eventbus})
+			_, err := client.DeleteEventBus(context.Background(), &metapb.EventBus{Name: eventbus})
 			if err != nil {
 				cmdFailedf(cmd, "delete eventbus failed: %s", err)
 			}
@@ -138,27 +131,21 @@ func getEventbusInfoCommand() *cobra.Command {
 			} else {
 				buses = strings.Split(eventbus, ",")
 			}
-			ctx := context.Background()
-			grpcConn := mustGetControllerProxyConn(ctx, cmd)
-			defer func() {
-				_ = grpcConn.Close()
-			}()
 
-			cli := ctrlpb.NewEventBusControllerClient(grpcConn)
 			busMetas := make([]*metapb.EventBus, 0)
 			segs := make(map[uint64][]*metapb.Segment)
+			ctx := context.Background()
 			for idx := range buses {
-				res, err := cli.GetEventBus(ctx, &metapb.EventBus{Name: buses[idx]})
+				res, err := client.GetEventBus(ctx, &metapb.EventBus{Name: buses[idx]})
 				if err != nil {
 					cmdFailedf(cmd, "get eventbus failed: %s", err)
 				}
 
 				busMetas = append(busMetas, res)
 				if showSegment || showBlock {
-					logCli := ctrlpb.NewEventLogControllerClient(grpcConn)
 					logs := res.GetLogs()
 					for idx := range logs {
-						segRes, err := logCli.ListSegment(ctx, &ctrlpb.ListSegmentRequest{
+						segRes, err := client.ListSegment(ctx, &ctrlpb.ListSegmentRequest{
 							EventBusId: res.Id,
 							EventLogId: logs[idx].EventLogId,
 						})
@@ -307,14 +294,7 @@ func listEventbusInfoCommand() *cobra.Command {
 		Use:   "list",
 		Short: "list the eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx := context.Background()
-			grpcConn := mustGetControllerProxyConn(ctx, cmd)
-			defer func() {
-				_ = grpcConn.Close()
-			}()
-
-			cli := ctrlpb.NewEventBusControllerClient(grpcConn)
-			res, err := cli.ListEventBus(ctx, &empty.Empty{})
+			res, err := client.ListEventBus(context.Background(), &empty.Empty{})
 			if err != nil {
 				cmdFailedf(cmd, "list eventbus failed: %s", err)
 			}

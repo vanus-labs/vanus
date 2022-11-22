@@ -20,21 +20,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	ce "github.com/cloudevents/sdk-go/v2"
+	v2 "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"github.com/fatih/color"
-	"github.com/go-resty/resty/v2"
 	"github.com/google/uuid"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
+	proxypb "github.com/linkall-labs/vanus/proto/pkg/proxy"
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 const (
@@ -47,6 +47,12 @@ func NewEventCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "event sub-command ",
 		Short: "convenient operations for pub/sub",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			InitGatewayClient(cmd)
+		},
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			DestroyGatewayClient()
+		},
 	}
 	cmd.AddCommand(getEventCommand())
 	cmd.AddCommand(putEventCommand())
@@ -67,12 +73,12 @@ func putEventCommand() *cobra.Command {
 			if len(args) == 0 {
 				cmdFailedWithHelpNotice(cmd, "eventbus name can't be empty\n")
 			}
-			endpoint := mustGetGatewayEndpoint(cmd)
-			p, err := ce.NewHTTP()
+			endpoint := mustGetGatewayCloudEventsEndpoint(cmd)
+			p, err := v2.NewHTTP()
 			if err != nil {
 				cmdFailedf(cmd, "init ce protocol error: %s\n", err)
 			}
-			c, err := ce.NewClient(p, ce.WithTimeNow(), ce.WithUUIDs())
+			c, err := v2.NewClient(p, v2.WithTimeNow(), v2.WithUUIDs())
 			if err != nil {
 				cmdFailedf(cmd, "create ce client error: %s\n", err)
 			}
@@ -83,20 +89,22 @@ func putEventCommand() *cobra.Command {
 				target = fmt.Sprintf("%s%s/gateway/%s", httpPrefix, endpoint, args[0])
 			}
 
-			ctx := ce.ContextWithTarget(context.Background(), target)
+			ctx := v2.ContextWithTarget(context.Background(), target)
 
 			if dataFile == "" {
-				sendOne(cmd, ctx, c)
+				sendOne(ctx, cmd, c)
 			} else {
-				sendFile(cmd, ctx, c)
+				sendFile(ctx, cmd, c)
 			}
 		},
 	}
 	cmd.Flags().StringVar(&id, "id", "", "event id of CloudEvent")
 	cmd.Flags().StringVar(&dataFormat, "data-format", "json", "the format of event body, JSON or plain")
 	cmd.Flags().StringVar(&eventSource, "source", "cmd", "event source of CloudEvent")
-	cmd.Flags().StringVar(&eventDeliveryTime, "delivery-time", "", "event delivery time of CloudEvent, only support the time layout of RFC3339, for example: 2022-01-01T08:00:00Z")
-	cmd.Flags().StringVar(&eventDelayTime, "delay-time", "", "event delay delivery time of CloudEvent, only support the unit of seconds, for example: 60")
+	cmd.Flags().StringVar(&eventDeliveryTime, "delivery-time", "",
+		"event delivery time of CloudEvent, only support the time layout of RFC3339, for example: 2022-01-01T08:00:00Z")
+	cmd.Flags().StringVar(&eventDelayTime, "delay-time", "",
+		"event delay delivery time of CloudEvent, only support the unit of seconds, for example: 60")
 	cmd.Flags().StringVar(&eventType, "type", "cmd", "event type of CloudEvent")
 	cmd.Flags().StringVar(&eventData, "data", "", "event data of CloudEvent")
 	cmd.Flags().StringVar(&dataFile, "file", "", "the data file to send, each line represent a event "+
@@ -106,8 +114,8 @@ func putEventCommand() *cobra.Command {
 	return cmd
 }
 
-func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
-	event := ce.NewEvent()
+func sendOne(ctx context.Context, cmd *cobra.Command, ceClient v2.Client) {
+	event := v2.NewEvent()
 	if id == "" {
 		id = uuid.NewString()
 	}
@@ -136,9 +144,9 @@ func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 			color.White(eventData)
 			cmdFailedf(cmd, "invalid format of data body: %s, err: %s", eventData, err.Error())
 		}
-		err = event.SetData(ce.ApplicationJSON, m)
+		err = event.SetData(v2.ApplicationJSON, m)
 	} else {
-		err = event.SetData(ce.TextPlain, eventData)
+		err = event.SetData(v2.TextPlain, eventData)
 	}
 
 	if err != nil {
@@ -146,18 +154,18 @@ func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 	}
 
 	var res protocol.Result
-	var resEvent *ce.Event
+	var resEvent *v2.Event
 	if !detail {
 		res = ceClient.Send(ctx, event)
 	} else {
 		resEvent, res = ceClient.Request(ctx, event)
 	}
 
-	if ce.IsUndelivered(res) {
+	if v2.IsUndelivered(res) {
 		cmdFailedf(cmd, "failed to send: %s\n", res.Error())
 	} else {
 		var httpResult *cehttp.Result
-		ce.ResultAs(res, &httpResult)
+		v2.ResultAs(res, &httpResult)
 		if httpResult == nil {
 			cmdFailedf(cmd, "failed to send: %s\n", res.Error())
 		} else {
@@ -189,7 +197,7 @@ func sendOne(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 	}
 }
 
-func sendFile(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
+func sendFile(ctx context.Context, cmd *cobra.Command, ceClient v2.Client) {
 	f, err := os.Open(dataFile)
 	defer func() {
 		_ = f.Close()
@@ -235,28 +243,28 @@ func sendFile(cmd *cobra.Command, ctx context.Context, ceClient ce.Client) {
 	t.SetColumnConfigs(tbcfg)
 	t.SetOutputMirror(os.Stdout)
 	for idx, v := range events {
-		event := ce.NewEvent()
+		event := v2.NewEvent()
 		event.SetID(v[0])
 		event.SetSource(v[1])
 		event.SetType(v[2])
-		err = event.SetData(ce.ApplicationJSON, v[3])
+		err = event.SetData(v2.ApplicationJSON, v[3])
 		if err != nil {
 			cmdFailedf(cmd, "set data failed: %s\n", err)
 		}
 
 		var res protocol.Result
-		var resEvent *ce.Event
+		var resEvent *v2.Event
 		if !detail {
 			resEvent, res = nil, ceClient.Send(ctx, event)
 		} else {
 			resEvent, res = ceClient.Request(ctx, event)
 		}
 
-		if ce.IsUndelivered(res) {
+		if v2.IsUndelivered(res) {
 			cmdFailedf(cmd, "failed to send: %s\n", res.Error())
 		} else {
 			var httpResult *cehttp.Result
-			ce.ResultAs(res, &httpResult)
+			v2.ResultAs(res, &httpResult)
 			if httpResult == nil {
 				cmdFailedf(cmd, "failed to send: %s\n", res.Error())
 			} else {
@@ -288,43 +296,24 @@ func getEventCommand() *cobra.Command {
 			if len(args) == 0 && eventID == "" {
 				cmdFailedWithHelpNotice(cmd, "eventbus name and eventID can't be both empty\n")
 			}
-			endpoint := mustGetGatewayEndpoint(cmd)
-			if !strings.HasPrefix(endpoint, httpPrefix) {
-				endpoint = httpPrefix + endpoint
-			}
-			idx := strings.LastIndex(endpoint, ":")
-			port, err := strconv.Atoi(endpoint[idx+1:])
-			if err != nil {
-				cmdFailedf(cmd, "parse gateway port failed: %s, endpoint: %s", err, endpoint)
-			}
-			endpoint = fmt.Sprintf("%s:%d", endpoint[:idx], port+1)
 
-			var res *resty.Response
-			if eventID != "" {
-				res, err = newHTTPRequest().Get(fmt.Sprintf("%s/getEvents?eventid=%s", endpoint, eventID))
-			} else {
-				res, err = newHTTPRequest().Get(fmt.Sprintf("%s/getEvents?eventbus=%s&offset=%d&number=%d",
-					endpoint, args[0], offset, number))
-			}
+			res, err := client.GetEvent(context.Background(), &proxypb.GetEventRequest{
+				Eventbus:   args[0],
+				EventlogId: eventlogID,
+				Offset:     offset,
+				EventId:    eventID,
+				Number:     int32(number),
+			})
 
 			if err != nil {
 				cmdFailedf(cmd, "send request to gateway failed: %s", err)
 			}
-			if res.StatusCode() != http.StatusOK {
-				cmdFailedf(cmd, "got response, but no 200 OK: %d", res.StatusCode())
-			}
-			data := new(struct {
-				Events []ce.Event
-			})
-			err = json.Unmarshal(res.Body(), data)
-			if err != nil {
-				cmdFailedf(cmd, "unmarshal http response data failed: %s", err)
-			}
+
 			if IsFormatJSON(cmd) {
-				for idx := range data.Events {
+				for idx := range res.Events {
 					data, _ := json.Marshal(map[string]interface{}{
 						"No.":   idx,
-						"Event": data.Events[idx].String(),
+						"Event": res.Events[idx].String(),
 					})
 
 					color.Yellow(string(data))
@@ -332,8 +321,8 @@ func getEventCommand() *cobra.Command {
 			} else {
 				t := table.NewWriter()
 				t.AppendHeader(table.Row{"No.", "Event"})
-				for idx := range data.Events {
-					t.AppendRow(table.Row{idx, data.Events[idx].String()})
+				for idx := range res.Events {
+					t.AppendRow(table.Row{idx, format(res.Events[idx])})
 					t.AppendSeparator()
 				}
 				t.SetColumnConfigs([]table.ColumnConfig{
@@ -346,10 +335,15 @@ func getEventCommand() *cobra.Command {
 		},
 	}
 
-	// TODO cmd.Flags().String("eventlog", "", "specified eventlog id get from")
-
 	cmd.Flags().Int64Var(&offset, "offset", 0, "which position you want to start get")
 	cmd.Flags().Int16Var(&number, "number", 1, "the number of event you want to get")
-	cmd.Flags().StringVar(&eventID, "eventid", "", "get event by event ID")
+	cmd.Flags().StringVar(&eventID, "event-id", "", "get event by event ID")
+	cmd.Flags().StringVar(&eventlogID, "eventlog-id", "", "get events from a specified eventlog")
 	return cmd
+}
+
+func format(value *wrapperspb.BytesValue) string {
+	e := v2.NewEvent()
+	_ = e.UnmarshalJSON(value.Value)
+	return e.String()
 }

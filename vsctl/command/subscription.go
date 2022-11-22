@@ -33,12 +33,19 @@ import (
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/linkall-labs/vanus/proto/pkg/meta"
 	"github.com/spf13/cobra"
+	"k8s.io/utils/strings/slices"
 )
 
 func NewSubscriptionCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "subscription sub-command ",
 		Short: "sub-commands for subscription operations",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			InitGatewayClient(cmd)
+		},
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			DestroyGatewayClient()
+		},
 	}
 	cmd.AddCommand(createSubscriptionCommand())
 	cmd.AddCommand(deleteSubscriptionCommand())
@@ -88,34 +95,33 @@ func createSubscriptionCommand() *cobra.Command {
 				if sinkCredential[0] == '@' {
 					credentialBytes, err := ioutil.ReadFile(sinkCredential[1:])
 					if err != nil {
-						cmdFailedf(cmd, "read sinkCredential file:%s error:%w\n", sinkCredential, err)
+						cmdFailedf(cmd, "read sinkCredential file:%s error:%s\n", sinkCredential, err.Error())
 					}
-					sinkCredential = string(credentialBytes)
-					fmt.Println(sinkCredential)
+					fmt.Println(string(credentialBytes))
 				}
 				// expand value from env
 				sinkCredential = os.ExpandEnv(sinkCredential)
 				switch sinkCredentialType {
 				case AWSCredentialType:
-					var ak_sk *meta.AKSKCredential
-					err := json.Unmarshal([]byte(sinkCredential), &ak_sk)
+					var akSK *meta.AKSKCredential
+					err := json.Unmarshal([]byte(sinkCredential), &akSK)
 					if err != nil {
 						cmdFailedf(cmd, "the sink credential unmarshal json error: %s", err.Error())
 					}
-					if ak_sk.AccessKeyId == "" || ak_sk.SecretAccessKey == "" {
+					if akSK.AccessKeyId == "" || akSK.SecretAccessKey == "" {
 						cmdFailedf(cmd, "credential-type is aws, access_key_id and secret_access_key must not be empty\n")
 					}
 					credential = &meta.SinkCredential{
 						CredentialType: meta.SinkCredential_AWS,
 						Credential: &meta.SinkCredential_Aws{
-							Aws: ak_sk,
+							Aws: akSK,
 						},
 					}
 				case GCloudCredentialType:
 					var m map[string]string
 					err := json.Unmarshal([]byte(sinkCredential), &m)
 					if err != nil {
-						cmdFailedf(cmd, "the sink credential unmarshal json error: %w", err)
+						cmdFailedf(cmd, "the sink credential unmarshal json error: %s", err.Error())
 					}
 					credential = &meta.SinkCredential{
 						CredentialType: meta.SinkCredential_GCLOUD,
@@ -171,13 +177,7 @@ func createSubscriptionCommand() *cobra.Command {
 				}
 			}
 
-			ctx := context.Background()
-			grpcConn := mustGetControllerProxyConn(ctx, cmd)
-			defer func() {
-				_ = grpcConn.Close()
-			}()
-			cli := ctrlpb.NewTriggerControllerClient(grpcConn)
-			res, err := cli.CreateSubscription(ctx, &ctrlpb.CreateSubscriptionRequest{
+			res, err := client.CreateSubscription(context.Background(), &ctrlpb.CreateSubscriptionRequest{
 				Subscription: &ctrlpb.SubscriptionRequest{
 					Source:         source,
 					Filters:        filter,
@@ -227,14 +227,8 @@ func deleteSubscriptionCommand() *cobra.Command {
 			if subscriptionID == 0 {
 				cmdFailedWithHelpNotice(cmd, "subscriptionID name can't be empty\n")
 			}
-			ctx := context.Background()
-			grpcConn := mustGetControllerProxyConn(ctx, cmd)
-			defer func() {
-				_ = grpcConn.Close()
-			}()
 
-			cli := ctrlpb.NewTriggerControllerClient(grpcConn)
-			_, err := cli.DeleteSubscription(ctx, &ctrlpb.DeleteSubscriptionRequest{
+			_, err := client.DeleteSubscription(context.Background(), &ctrlpb.DeleteSubscriptionRequest{
 				Id: subscriptionID,
 			})
 			if err != nil {
@@ -269,14 +263,8 @@ func getSubscriptionCommand() *cobra.Command {
 			if subscriptionID == 0 {
 				cmdFailedWithHelpNotice(cmd, "subscriptionID name can't be empty\n")
 			}
-			ctx := context.Background()
-			grpcConn := mustGetControllerProxyConn(ctx, cmd)
-			defer func() {
-				_ = grpcConn.Close()
-			}()
 
-			cli := ctrlpb.NewTriggerControllerClient(grpcConn)
-			res, err := cli.GetSubscription(ctx, &ctrlpb.GetSubscriptionRequest{
+			res, err := client.GetSubscription(context.Background(), &ctrlpb.GetSubscriptionRequest{
 				Id: subscriptionID,
 			})
 			if err != nil {
@@ -304,14 +292,7 @@ func listSubscriptionCommand() *cobra.Command {
 		Use:   "list",
 		Short: "list the subscription ",
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx := context.Background()
-			grpcConn := mustGetControllerProxyConn(ctx, cmd)
-			defer func() {
-				_ = grpcConn.Close()
-			}()
-
-			cli := ctrlpb.NewTriggerControllerClient(grpcConn)
-			res, err := cli.ListSubscription(ctx, &empty.Empty{})
+			res, err := client.ListSubscription(context.Background(), &empty.Empty{})
 			if err != nil {
 				cmdFailedf(cmd, "list subscription failed: %s", err)
 			}
@@ -337,7 +318,8 @@ func listSubscriptionCommand() *cobra.Command {
 	return cmd
 }
 
-var subscriptionHeaders = []string{"id", "eventbus", "sink", "protocol", "sinkCredential", "filter", "transformer", "config", "offsets"}
+var subscriptionHeaders = []string{"id", "eventbus", "sink", "protocol", "sinkCredential",
+	"filter", "transformer", "config", "offsets"}
 
 func getSubscriptionHeader(headers ...interface{}) table.Row {
 	for _, k := range subscriptionHeaders {
@@ -367,9 +349,20 @@ func getSubscriptionRow(sub *meta.Subscription, rows ...interface{}) table.Row {
 }
 
 func getSubscriptionColumnConfig(columnConfigs ...table.ColumnConfig) []table.ColumnConfig {
-	//num := len(columnConfigs)
 	for i := 0; i < len(subscriptionHeaders); i++ {
-		columnConfigs = append(columnConfigs, table.ColumnConfig{VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter})
+		if slices.Contains([]string{"filter", "transformer"}, subscriptionHeaders[i]) {
+			columnConfigs = append(columnConfigs, table.ColumnConfig{
+				Number:      i + 1,
+				VAlign:      text.VAlignMiddle,
+				AlignHeader: text.AlignCenter,
+			})
+		} else {
+			columnConfigs = append(columnConfigs, table.ColumnConfig{
+				Number: i + 1, VAlign: text.VAlignMiddle,
+				Align:       text.AlignCenter,
+				AlignHeader: text.AlignCenter,
+			})
+		}
 	}
 	return columnConfigs
 }

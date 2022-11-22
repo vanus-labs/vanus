@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/linkall-labs/vanus/pkg/util/signal"
 	"os"
 
 	"github.com/linkall-labs/vanus/internal/gateway"
@@ -41,22 +42,20 @@ func main() {
 
 	tracing.Init("Vanus-Gateway")
 
-	go gateway.NewHTTPServer(*cfg).MustStartHTTP()
-
+	ctx := signal.SetupSignalContext()
 	ga := gateway.NewGateway(*cfg)
-	err = ga.StartCtrlProxy(context.Background())
-	if err != nil {
-		log.Error(context.Background(), "start controller proxy failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(-1)
-	}
 
-	err = ga.StartReceive(context.Background())
-	if err != nil {
-		log.Error(context.Background(), "start CloudEvents gateway failed", map[string]interface{}{
+	if err = ga.Start(ctx); err != nil {
+		log.Error(context.Background(), "start gateway failed", map[string]interface{}{
 			log.KeyError: err,
 		})
 		os.Exit(-1)
 	}
+	log.Info(ctx, "Gateway has started", nil)
+	select {
+	case <-ctx.Done():
+		log.Info(ctx, "received system signal, preparing exit", nil)
+	}
+	ga.Stop()
+	log.Info(ctx, "the gateway has been shutdown gracefully", nil)
 }

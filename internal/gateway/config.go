@@ -14,12 +14,31 @@
 
 package gateway
 
-import "github.com/linkall-labs/vanus/internal/primitive"
+import (
+	"github.com/linkall-labs/vanus/internal/gateway/proxy"
+	"github.com/linkall-labs/vanus/internal/primitive"
+	"google.golang.org/grpc/credentials/insecure"
+)
 
 type Config struct {
-	Port           int      `yaml:"port"`
-	ControllerAddr []string `yaml:"controllers"`
-	TracingURL     string   `yaml:"tracing_url"`
+	Port                 int      `yaml:"port"`
+	ControllerAddr       []string `yaml:"controllers"`
+	TracingURL           string   `yaml:"tracing_url"`
+	GRPCReflectionEnable bool     `yaml:"grpc_reflection_enable"`
+}
+
+func (c Config) GetProxyConfig() proxy.Config {
+	return proxy.Config{
+		Endpoints:              c.ControllerAddr,
+		ProxyPort:              c.Port,
+		CloudEventReceiverPort: c.GetCloudEventReceiverPort(),
+		GRPCReflectionEnable:   c.GRPCReflectionEnable,
+		Credentials:            insecure.NewCredentials(),
+	}
+}
+
+func (c Config) GetCloudEventReceiverPort() int {
+	return c.Port + 1
 }
 
 func InitConfig(filename string) (*Config, error) {

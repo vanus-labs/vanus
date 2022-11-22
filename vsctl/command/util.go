@@ -17,22 +17,18 @@ package command
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+
 	"github.com/fatih/color"
-	"github.com/go-resty/resty/v2"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
-	"os"
-)
-
-var (
-	httpClient = resty.New()
 )
 
 func cmdFailedf(cmd *cobra.Command, format string, a ...interface{}) {
 	errStr := format
 	if a != nil {
-		errStr = fmt.Sprintf(format, a)
+		errStr = fmt.Sprintf(format, a...)
 	}
 	if IsFormatJSON(cmd) {
 		m := map[string]string{"ERROR": errStr}
@@ -58,8 +54,4 @@ func cmdFailedWithHelpNotice(cmd *cobra.Command, format string) {
 	color.Cyan("\n============ see below for right usage ============\n\n")
 	_ = cmd.Help()
 	os.Exit(-1)
-}
-
-func newHTTPRequest() *resty.Request {
-	return httpClient.NewRequest()
 }

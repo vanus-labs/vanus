@@ -52,7 +52,7 @@ func TestGateway_StartReceive(t *testing.T) {
 			time.Sleep(100 * time.Millisecond)
 			cancel()
 		}()
-		err := ga.StartReceive(ctx)
+		err := ga.startCloudEventsReceiver(ctx)
 		So(err, ShouldBeNil)
 	})
 }
@@ -118,6 +118,7 @@ func TestGateway_checkExtension(t *testing.T) {
 		So(err, ShouldNotBeNil)
 	})
 }
+
 func TestGateway_getEventBusFromPath(t *testing.T) {
 	Convey("test get eventbus from path return nil ", t, func() {
 		reqData := &cehttp.RequestData{
@@ -146,7 +147,7 @@ func TestGateway_EventID(t *testing.T) {
 		eventID     = "AABBCC"
 		busName     = "test"
 		controllers = []string{"127.0.0.1:2048"}
-		port        = 8080
+		port        = 8087
 	)
 
 	mockClient := client.NewMockClient(ctrl)
@@ -161,10 +162,13 @@ func TestGateway_EventID(t *testing.T) {
 		ControllerAddr: controllers,
 	}
 	ga := NewGateway(cfg)
+	defer ga.Stop()
+
 	ga.client = mockClient
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go ga.StartReceive(ctx)
+	_ = ga.startCloudEventsReceiver(ctx)
+
 	time.Sleep(50 * time.Millisecond)
 
 	Convey("test put event and receive response event", t, func() {
@@ -177,9 +181,9 @@ func TestGateway_EventID(t *testing.T) {
 		event.SetID("example-event")
 		event.SetSource("example/uri")
 		event.SetType("example.type")
-		event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world"})
+		_ = event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world"})
 
-		ctx := ce.ContextWithTarget(context.Background(), fmt.Sprintf("http://127.0.0.1:%d/gateway/%s", port, busName))
+		ctx := ce.ContextWithTarget(context.Background(), fmt.Sprintf("http://127.0.0.1:%d/gateway/%s", cfg.GetCloudEventReceiverPort(), busName))
 		resEvent, res := c.Request(ctx, event)
 		So(ce.IsACK(res), ShouldBeTrue)
 		var httpResult *cehttp.Result
