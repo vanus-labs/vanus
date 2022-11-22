@@ -46,7 +46,11 @@ func TestGateway_NewGateway(t *testing.T) {
 
 func TestGateway_StartReceive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	ga := &ceGateway{}
+	ga := &ceGateway{
+		config: Config{
+			Port: 8080,
+		},
+	}
 	Convey("test start receive ", t, func() {
 		go func() {
 			time.Sleep(100 * time.Millisecond)

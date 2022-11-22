@@ -13,7 +13,7 @@
 
 /internal/controller/ @xdlbdy
 /internal/controller/eventbus/ @ifplusor
-/internal/gateway/ @ifplusor
+/internal/gateway/ @hwjiangkai
 /internal/kv/ @xdlbdy
 /internal/raft/ @ifplusor
 /internal/store/ @ifplusor
