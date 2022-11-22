@@ -108,9 +108,9 @@ func (sf *snowflake) RegisterNode(ctx context.Context, in *wrapperspb.UInt32Valu
 
 	id := uint16(in.Value)
 	// TODO(wenfeng) find a good solution in future
-	//_, exist := sf.nodes[id]
+	// _, exist := sf.nodes[id]
 	//
-	//if exist {
+	// if exist {
 	//	return nil, errors.New("node has been register")
 	//}
 
