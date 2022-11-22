@@ -80,7 +80,7 @@ type eventData struct {
 func newEventData(name string) Arg {
 	var data bool
 	var path string
-	if name == "$.data" {
+	if name == EventDataArgPrefix {
 		data = true
 		path = name
 	} else {
@@ -109,7 +109,7 @@ func (arg eventData) Evaluate(ceCtx *context.EventContext) (interface{}, error) 
 	if arg.data {
 		return ceCtx.Data, nil
 	}
-	v, err := util.LookupData(ceCtx.Data, "$."+arg.path)
+	v, err := util.LookupData(ceCtx.Data, EventArgPrefix+arg.path)
 	if err != nil {
 		if errors.Is(err, util.ErrKeyNotFound) {
 			return nil, ErrArgValueNil

@@ -77,10 +77,10 @@ func NewArg(arg interface{}) (Arg, error) {
 	if argName, ok := arg.(string); ok {
 		argName = strings.TrimSpace(argName)
 		argLen := len(argName)
-		if argLen >= 6 && argName[:6] == "$.data" {
+		if argLen >= 6 && argName[:6] == EventDataArgPrefix {
 			return newEventData(argName), nil
 		}
-		if argLen >= 2 && argName[:2] == "$." {
+		if argLen >= 2 && argName[:2] == EventAttribute {
 			return newEventAttribute(argName)
 		}
 		if argLen >= 3 && argName[0] == '<' && argName[argLen-1] == '>' {
@@ -89,3 +89,8 @@ func NewArg(arg interface{}) (Arg, error) {
 	}
 	return newConstant(arg), nil
 }
+
+const (
+	EventArgPrefix     = "$."
+	EventDataArgPrefix = EventArgPrefix + "data"
+)

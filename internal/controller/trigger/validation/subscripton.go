@@ -169,7 +169,7 @@ func validateTransformer(ctx context.Context, transformer *metapb.Transformer) e
 			_, err := arg.NewArg(value)
 			if err != nil {
 				return errors.ErrInvalidRequest.WithMessage(
-					fmt.Sprintf("transformer define %s:%s invalid", key, value)).Wrap(err)
+					fmt.Sprintf("transformer define %s:%s is invalid:[%s]", key, value, err.Error()))
 			}
 		}
 	}
@@ -181,7 +181,7 @@ func validateTransformer(ctx context.Context, transformer *metapb.Transformer) e
 			}
 			if _, err := action.NewAction(commands); err != nil {
 				return errors.ErrInvalidRequest.WithMessage(
-					fmt.Sprintf("transformer pipeline %d command %v invalid", n, commands[0])).Wrap(err)
+					fmt.Sprintf("transformer pipeline %dst command %s is invalid:[%s]", n+1, commands[0], err.Error()))
 			}
 		}
 	}

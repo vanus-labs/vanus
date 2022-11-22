@@ -90,7 +90,7 @@ func (a *commonAction) setArgTypes() error {
 	if len(a.args) < a.fn.Arity() {
 		return ErrArgNumber
 	}
-	if a.fn.Arity() != len(a.args) && !a.fn.IsVariadic() {
+	if len(a.args) > a.fn.Arity() && !a.fn.IsVariadic() {
 		return ErrArgNumber
 	}
 	argTypes := make([]function.Type, len(a.args))
