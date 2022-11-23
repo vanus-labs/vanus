@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=api.go  -destination=mock_api.go -package=api
+//go:generate mockgen -source=client.go  -destination=mock_client.go -package=api
 package api
 
 import (

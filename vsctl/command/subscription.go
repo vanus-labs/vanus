@@ -97,7 +97,8 @@ func createSubscriptionCommand() *cobra.Command {
 					if err != nil {
 						cmdFailedf(cmd, "read sinkCredential file:%s error:%s\n", sinkCredential, err.Error())
 					}
-					fmt.Println(string(credentialBytes))
+					sinkCredential = string(credentialBytes)
+					fmt.Println(sinkCredential)
 				}
 				// expand value from env
 				sinkCredential = os.ExpandEnv(sinkCredential)
@@ -358,7 +359,8 @@ func getSubscriptionColumnConfig(columnConfigs ...table.ColumnConfig) []table.Co
 			})
 		} else {
 			columnConfigs = append(columnConfigs, table.ColumnConfig{
-				Number: i + 1, VAlign: text.VAlignMiddle,
+				Number:      i + 1,
+				VAlign:      text.VAlignMiddle,
 				Align:       text.AlignCenter,
 				AlignHeader: text.AlignCenter,
 			})

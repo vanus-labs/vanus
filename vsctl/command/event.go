@@ -73,16 +73,12 @@ func putEventCommand() *cobra.Command {
 			if len(args) == 0 {
 				cmdFailedWithHelpNotice(cmd, "eventbus name can't be empty\n")
 			}
-			endpoint := mustGetGatewayCloudEventsEndpoint(cmd)
-			p, err := v2.NewHTTP()
-			if err != nil {
-				cmdFailedf(cmd, "init ce protocol error: %s\n", err)
-			}
-			c, err := v2.NewClient(p, v2.WithTimeNow(), v2.WithUUIDs())
+			c, err := v2.NewClientHTTP()
 			if err != nil {
 				cmdFailedf(cmd, "create ce client error: %s\n", err)
 			}
 			var target string
+			endpoint := mustGetGatewayCloudEventsEndpoint(cmd)
 			if strings.HasPrefix(endpoint, httpPrefix) {
 				target = fmt.Sprintf("%s/gateway/%s", endpoint, args[0])
 			} else {

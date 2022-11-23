@@ -54,7 +54,7 @@ service ControllerProxy {
 
 message LookupOffsetRequest {
   string eventbus = 1;
-  string eventlog_id = 2;
+  uint64 eventlog_id = 2;
   int64 timestamp = 3;
 }
 

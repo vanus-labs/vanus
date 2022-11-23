@@ -17,12 +17,12 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/linkall-labs/vanus/pkg/util/signal"
 	"os"
 
 	"github.com/linkall-labs/vanus/internal/gateway"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/tracing"
+	"github.com/linkall-labs/vanus/pkg/util/signal"
 )
 
 var (

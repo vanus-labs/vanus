@@ -149,11 +149,8 @@ func (cp *ControllerProxy) ClusterInfo(_ context.Context, _ *emptypb.Empty) (*pr
 func (cp *ControllerProxy) LookupOffset(ctx context.Context,
 	req *proxypb.LookupOffsetRequest) (*proxypb.LookupOffsetResponse, error) {
 	elList := make([]api.Eventlog, 0)
-	if req.EventlogId != "" {
-		id, err := vanus.NewIDFromString(req.EventlogId)
-		if err != nil {
-			return nil, fmt.Errorf("invalid eventlog id: %w", err)
-		}
+	if req.EventlogId > 0 {
+		id := vanus.NewIDFromUint64(req.EventlogId)
 		l, err := cp.client.Eventbus(ctx, req.GetEventbus()).GetLog(ctx, id.Uint64())
 		if err != nil {
 			return nil, err
