@@ -22,6 +22,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/linkall-labs/vanus/internal/convert"
+	"github.com/linkall-labs/vanus/internal/primitive"
+
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/fatih/color"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -137,10 +140,12 @@ func createSubscriptionCommand() *cobra.Command {
 
 			var trans *meta.Transformer
 			if transformer != "" {
-				err := json.Unmarshal([]byte(transformer), &trans)
+				var _transformer *primitive.Transformer
+				err := json.Unmarshal([]byte(transformer), &_transformer)
 				if err != nil {
 					cmdFailedf(cmd, "the transformer invalid: %s", err)
 				}
+				trans = convert.ToPbTransformer(_transformer)
 			}
 
 			// subscription config

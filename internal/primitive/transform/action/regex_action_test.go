@@ -12,25 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package action
 
 import (
-	"crypto/md5"
-	"fmt"
+	"testing"
+
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-func GetIDByAddr(addr string) string {
-	return fmt.Sprintf("%x", md5.Sum([]byte(addr)))
-}
-
-func IsSpace(c byte) bool {
-	return c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n')
-}
-
-func StringValue(value interface{}) string {
-	v, ok := value.(string)
-	if ok {
-		return v
-	}
-	return fmt.Sprintf("%v", value)
+func TestRegexAction(t *testing.T) {
+	Convey("test replace with regex", t, func() {
+		a, err := NewAction([]interface{}{newReplaceWithRegexAction().Name(), "$.test", "a", "value"})
+		So(err, ShouldBeNil)
+		e := newEvent()
+		e.SetExtension("test", "a-a")
+		err = a.Execute(&context.EventContext{
+			Event: e,
+		})
+		So(err, ShouldBeNil)
+		So(e.Extensions()["test"], ShouldEqual, "value-value")
+	})
 }

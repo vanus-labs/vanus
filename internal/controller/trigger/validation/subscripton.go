@@ -17,6 +17,11 @@ package validation
 import (
 	"context"
 	"fmt"
+	"net/url"
+
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
+
+	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
 
 	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/primitive"
@@ -47,6 +52,9 @@ func ValidateSubscriptionRequest(ctx context.Context, request *ctrlpb.Subscripti
 		return errors.ErrInvalidRequest.WithMessage("eventBus is empty")
 	}
 	if err := validateSubscriptionConfig(ctx, request.Config); err != nil {
+		return err
+	}
+	if err := validateTransformer(ctx, request.Transformer); err != nil {
 		return err
 	}
 	return nil
@@ -86,6 +94,10 @@ func ValidateSinkAndProtocol(ctx context.Context,
 				WithMessage("protocol is gcloud functions, sink credential can not be nil and credential type is gcloud")
 		}
 	case metapb.Protocol_HTTP:
+		if _, err := url.Parse(sink); err != nil {
+			return errors.ErrInvalidRequest.
+				WithMessage("protocol is http, sink is url,url parse error").Wrap(err)
+		}
 	}
 	return nil
 }
@@ -147,6 +159,35 @@ func validateSubscriptionConfig(ctx context.Context, cfg *metapb.SubscriptionCon
 	}
 	return nil
 }
+
+func validateTransformer(ctx context.Context, transformer *metapb.Transformer) error {
+	if transformer == nil {
+		return nil
+	}
+	if len(transformer.Define) > 0 {
+		for key, value := range transformer.Define {
+			_, err := arg.NewArg(value)
+			if err != nil {
+				return errors.ErrInvalidRequest.WithMessage(
+					fmt.Sprintf("transformer define %s:%s is invalid:[%s]", key, value, err.Error()))
+			}
+		}
+	}
+	if len(transformer.Pipeline) > 0 {
+		for n, a := range transformer.Pipeline {
+			commands := make([]interface{}, len(a.Command))
+			for i, command := range a.Command {
+				commands[i] = command.AsInterface()
+			}
+			if _, err := action.NewAction(commands); err != nil {
+				return errors.ErrInvalidRequest.WithMessage(
+					fmt.Sprintf("transformer pipeline %dst command %s is invalid:[%s]", n+1, commands[0], err.Error()))
+			}
+		}
+	}
+	return nil
+}
+
 func ValidateFilterList(ctx context.Context, filters []*metapb.Filter) error {
 	if len(filters) == 0 {
 		return nil

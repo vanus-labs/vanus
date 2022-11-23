@@ -20,61 +20,62 @@ import (
 	"github.com/linkall-labs/vanus/pkg/util"
 )
 
-type OutputType int
+type Template struct {
+	parser *parser
+	exist  bool
+}
 
-const (
-	TEXT = iota
-	JSON
-)
+func NewTemplate() *Template {
+	return &Template{
+		parser: newParser(),
+	}
+}
 
-type Parser struct {
+func (t *Template) Exist() bool {
+	return t.exist
+}
+
+func (t *Template) Parse(text string) {
+	if text == "" {
+		t.exist = false
+		return
+	}
+	t.exist = true
+	t.parser.parse(text)
+}
+
+type parser struct {
 	leftDelim  string
 	rightDelim string
 	nodes      []Node
-	OutputType OutputType
 }
 
-func NewParser() *Parser {
-	p := &Parser{}
+func newParser() *parser {
+	p := &parser{}
 	p.init()
 	return p
 }
 
-func (p *Parser) init() {
-	p.leftDelim = "${"
-	p.rightDelim = "}"
+func (p *parser) init() {
+	p.leftDelim = "<"
+	p.rightDelim = ">"
 }
 
-func (p *Parser) GetNodes() []Node {
+func (p *parser) getNodes() []Node {
 	return p.nodes
 }
 
-func (p *Parser) addNode(node Node) {
+func (p *parser) addNode(node Node) {
 	p.nodes = append(p.nodes, node)
 }
 
-func (p *Parser) parseType(text string) {
-	for pos := 0; pos < len(text); pos++ {
-		c := text[pos]
-		if util.IsSpace(c) {
-			continue
-		}
-		if c == '{' {
-			p.OutputType = JSON
-		} else {
-			p.OutputType = TEXT
-		}
-		break
-	}
-}
-
 // isJSONKeyColon check colon is key end colon,maybe:
-// "key": ${v}
-// "key": ":${v}"
-// "key": "other:${v}"
-// "key": "\":${v}" .
+// "key": <v>
+// "key": ":<v>"
+// "key": "other:<v>"
+// "key": "\":<v>" .
 func isJSONKeyColon(text string, pos int) bool {
-	var hasQuota bool
+	var hasQuote bool
 	for i := pos; i >= 0; i-- {
 		c := text[i]
 		if util.IsSpace(c) {
@@ -82,19 +83,20 @@ func isJSONKeyColon(text string, pos int) bool {
 		}
 		switch c {
 		case '"':
-			if hasQuota {
+			if hasQuote {
 				return false
 			}
-			hasQuota = true
+			hasQuote = true
 		case '\\', ':':
 			return false
 		default:
-			return hasQuota
+			return hasQuote
 		}
 	}
 	return false
 }
-func isStringVar(text string, pos int) bool {
+
+func (p *parser) parseVarNodeType(text string, pos int) NodeType {
 	for i := pos; i >= 0; i-- {
 		c := text[i]
 		if util.IsSpace(c) {
@@ -102,18 +104,20 @@ func isStringVar(text string, pos int) bool {
 		}
 		switch c {
 		case '"':
-			return true
+			return StringVariable
 		case ':':
 			// 是否是json key后面的冒号
 			b := isJSONKeyColon(text, i-1)
-			return !b
+			if b {
+				return Variable
+			}
+			return StringVariable
 		}
 	}
-	return false
+	return Variable
 }
 
-func (p *Parser) Parse(text string) {
-	p.parseType(text)
+func (p *parser) parse(text string) {
 	var pos int
 	leftDelimLen := len(p.leftDelim)
 	rightDelimLen := len(p.rightDelim)
@@ -126,20 +130,14 @@ func (p *Parser) Parse(text string) {
 		ldp := pos + x + leftDelimLen
 		y := strings.Index(text[ldp:], p.rightDelim)
 		if y < 0 {
-			continue
+			p.addNode(p.newConstant(text[pos:]))
+			break
 		}
-		var stringVar bool
-		if p.OutputType == JSON {
-			stringVar = isStringVar(text, pos+x-1)
-		}
+		varNodeType := p.parseVarNodeType(text, pos+x-1)
 		if x > 0 {
 			p.addNode(p.newConstant(text[pos : pos+x]))
 		}
-		if stringVar {
-			p.addNode(p.newStringVariable(text[ldp : ldp+y]))
-		} else {
-			p.addNode(p.newVariable(text[ldp : ldp+y]))
-		}
+		p.addNode(p.newVariable(text[ldp:ldp+y], varNodeType))
 		pos = ldp + y + rightDelimLen
 		if pos == len(text) {
 			break

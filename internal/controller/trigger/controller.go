@@ -134,6 +134,9 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 	}
 	err := validation.ValidateSubscriptionRequest(ctx, request.Subscription)
 	if err != nil {
+		log.Info(ctx, "create subscription validate fail", map[string]interface{}{
+			log.KeyError: err,
+		})
 		return nil, err
 	}
 	sub := convert.FromPbSubscriptionRequest(request.Subscription)

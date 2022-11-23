@@ -22,7 +22,9 @@ require (
 	github.com/huandu/skiplist v1.2.0
 	github.com/iceber/iouring-go v0.0.0-20220609112130-b1dc8dd9fbfd
 	github.com/jedib0t/go-pretty/v6 v6.3.1
+	github.com/json-iterator/go v1.1.12
 	github.com/labstack/echo/v4 v4.7.2
+	github.com/labstack/gommon v0.3.1
 	github.com/linkall-labs/embed-etcd v0.1.1
 	github.com/linkall-labs/vanus/client v0.4.0-alpha
 	github.com/linkall-labs/vanus/observability v0.4.0-alpha
@@ -31,6 +33,7 @@ require (
 	github.com/linkall-labs/vanus/raft v0.4.0-alpha
 	github.com/mwitkow/grpc-proxy v0.0.0
 	github.com/ncw/directio v1.0.5
+	github.com/oliveagle/jsonpath v0.0.0-20180606110733-2e52cf6e6852
 	github.com/prashantv/gostub v1.1.0
 	github.com/prometheus/client_golang v1.13.0
 	github.com/smartystreets/goconvey v1.7.2
@@ -86,10 +89,8 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/jonboulle/clockwork v0.2.2 // indirect
-	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
-	github.com/labstack/gommon v0.3.1 // indirect
 	github.com/mattn/go-colorable v0.1.11 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect

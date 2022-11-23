@@ -18,6 +18,8 @@ import (
 	"context"
 	"testing"
 
+	"google.golang.org/protobuf/types/known/structpb"
+
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 
@@ -68,6 +70,46 @@ func TestValidateSubscriptionConfig(t *testing.T) {
 				MaxRetryAttempts: 10000,
 			}
 			So(validateSubscriptionConfig(ctx, config), ShouldNotBeNil)
+		})
+	})
+}
+
+func TestValidateTransformer(t *testing.T) {
+	ctx := context.Background()
+	Convey("test validate transformer ", t, func() {
+		Convey("test define valid", func() {
+			trans := &metapb.Transformer{
+				Define: map[string]string{
+					"var1": "var",
+					"var2": "$.id",
+					"var3": "$.data.id",
+				},
+			}
+			So(validateTransformer(ctx, trans), ShouldBeNil)
+		})
+		Convey("test define invalid", func() {
+			trans := &metapb.Transformer{
+				Define: map[string]string{
+					"var2": "$.a-bc",
+				},
+			}
+			So(validateTransformer(ctx, trans), ShouldNotBeNil)
+		})
+		Convey("test pipeline valid", func() {
+			trans := &metapb.Transformer{
+				Pipeline: []*metapb.Action{
+					{Command: []*structpb.Value{structpb.NewStringValue("delete"), structpb.NewStringValue("$.id")}},
+				},
+			}
+			So(validateTransformer(ctx, trans), ShouldBeNil)
+		})
+		Convey("test pipeline invalid", func() {
+			trans := &metapb.Transformer{
+				Pipeline: []*metapb.Action{
+					{Command: []*structpb.Value{structpb.NewStringValue("noExistActionName")}},
+				},
+			}
+			So(validateTransformer(ctx, trans), ShouldNotBeNil)
 		})
 	})
 }

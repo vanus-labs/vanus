@@ -412,6 +412,9 @@ issues:
       linters:
         - gosec
         - gomnd
+    - path: "action.go"
+      linters:
+        - gochecknoinits
     - path: "^vsctl"
       linters:
         - gomnd

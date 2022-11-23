@@ -22,6 +22,7 @@ import (
 	ctrl "github.com/linkall-labs/vanus/proto/pkg/controller"
 	pb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func FromPbSubscriptionRequest(sub *ctrl.SubscriptionRequest) *metadata.Subscription {
@@ -259,7 +260,7 @@ func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscription
 		EventBus:         sub.EventBus,
 		Offsets:          ToPbOffsetInfos(sub.Offsets),
 		Filters:          toPbFilters(sub.Filters),
-		Transformer:      toPbTransformer(sub.Transformer),
+		Transformer:      ToPbTransformer(sub.Transformer),
 		Config:           toPbSubscriptionConfig(sub.Config),
 		Protocol:         toPbProtocol(sub.Protocol),
 		ProtocolSettings: toPbProtocolSettings(sub.ProtocolSetting),
@@ -279,7 +280,7 @@ func ToPbSubscription(sub *metadata.Subscription, offsets info.ListOffsetInfo) *
 		ProtocolSettings: toPbProtocolSettings(sub.ProtocolSetting),
 		EventBus:         sub.EventBus,
 		Filters:          toPbFilters(sub.Filters),
-		Transformer:      toPbTransformer(sub.Transformer),
+		Transformer:      ToPbTransformer(sub.Transformer),
 		Offsets:          ToPbOffsetInfos(offsets),
 	}
 	return to
@@ -409,15 +410,54 @@ func fromPbTransformer(transformer *pb.Transformer) *primitive.Transformer {
 	return &primitive.Transformer{
 		Define:   transformer.Define,
 		Template: transformer.Template,
+		Pipeline: fromPbActions(transformer.Pipeline),
 	}
 }
 
-func toPbTransformer(transformer *primitive.Transformer) *pb.Transformer {
+func fromPbActions(actions []*pb.Action) []*primitive.Action {
+	to := make([]*primitive.Action, 0, len(actions))
+	for _, action := range actions {
+		to = append(to, fromPbCommand(action))
+	}
+	return to
+}
+
+func fromPbCommand(action *pb.Action) *primitive.Action {
+	to := &primitive.Action{}
+	commands := make([]interface{}, len(action.Command))
+	for i, command := range action.Command {
+		commands[i] = command.AsInterface()
+	}
+	to.Command = commands
+	return to
+}
+
+func toPbActions(actions []*primitive.Action) []*pb.Action {
+	to := make([]*pb.Action, len(actions))
+	for i, action := range actions {
+		to[i] = toPbCommand(action)
+	}
+	return to
+}
+
+func toPbCommand(action *primitive.Action) *pb.Action {
+	to := &pb.Action{}
+	commands := make([]*structpb.Value, len(action.Command))
+	for i, command := range action.Command {
+		c, _ := structpb.NewValue(command)
+		commands[i] = c
+	}
+	to.Command = commands
+	return to
+}
+
+func ToPbTransformer(transformer *primitive.Transformer) *pb.Transformer {
 	if transformer == nil {
 		return nil
 	}
 	return &pb.Transformer{
 		Define:   transformer.Define,
 		Template: transformer.Template,
+		Pipeline: toPbActions(transformer.Pipeline),
 	}
 }

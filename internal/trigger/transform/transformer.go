@@ -15,18 +15,21 @@
 package transform
 
 import (
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/trigger/transform/define"
-	"github.com/linkall-labs/vanus/internal/trigger/transform/template"
-	"github.com/linkall-labs/vanus/internal/trigger/util"
-	"github.com/tidwall/gjson"
+	"encoding/json"
+
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 
 	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/trigger/transform/define"
+	"github.com/linkall-labs/vanus/internal/trigger/transform/pipeline"
+	"github.com/linkall-labs/vanus/internal/trigger/transform/template"
 )
 
 type Transformer struct {
-	define   *define.Parser
-	template *template.Parser
+	define   *define.Define
+	pipeline *pipeline.Pipeline
+	template *template.Template
 }
 
 func NewTransformer(transformer *primitive.Transformer) *Transformer {
@@ -34,59 +37,40 @@ func NewTransformer(transformer *primitive.Transformer) *Transformer {
 		return nil
 	}
 	tf := &Transformer{
-		define:   define.NewParse(),
-		template: template.NewParser(),
+		define:   define.NewDefine(),
+		pipeline: pipeline.NewPipeline(),
+		template: template.NewTemplate(),
 	}
 	tf.define.Parse(transformer.Define)
+	tf.pipeline.Parse(transformer.Pipeline)
 	tf.template.Parse(transformer.Template)
 	return tf
 }
 
 func (tf *Transformer) Execute(event *ce.Event) error {
-	dataMap := tf.parseData(event)
-	newData := tf.template.Execute(dataMap)
-	switch tf.template.OutputType {
-	case template.JSON:
+	var data interface{}
+	err := json.Unmarshal(event.Data(), &data)
+	if err != nil {
+		return err
+	}
+	ceCtx := &context.EventContext{
+		Event: event,
+		Data:  data,
+	}
+	defineValue, err := tf.define.EvaluateValue(ceCtx)
+	if err != nil {
+		return err
+	}
+	ceCtx.Define = defineValue
+	err = tf.pipeline.Run(ceCtx)
+	if err != nil {
+		return err
+	}
+	if tf.template.Exist() {
+		d := tf.template.Execute(ceCtx.Define)
+		event.DataEncoded = d
 		event.SetDataContentType(ce.ApplicationJSON)
-	default:
-		event.SetDataContentType("")
+		return nil
 	}
-	event.DataEncoded = []byte(newData)
-	return nil
-}
-
-func (tf *Transformer) parseData(event *ce.Event) map[string]template.Data {
-	dataMap := make(map[string]template.Data)
-	for k, n := range tf.define.GetNodes() {
-		switch n.Type {
-		case define.Constant:
-			dataMap[k] = template.NewTextData([]byte(n.Value))
-		case define.ContextVariable:
-			v, exist := util.LookupAttribute(*event, n.Value)
-			if !exist {
-				dataMap[k] = template.NewNullData()
-				continue
-			}
-			dataMap[k] = template.NewTextData([]byte(v))
-		case define.DataVariable:
-			if n.Value == "" {
-				dataMap[k] = template.NewOtherData(event.Data())
-			} else {
-				dataMap[k] = parseDataVariable(event.Data(), n.Value)
-			}
-		}
-	}
-	return dataMap
-}
-
-func parseDataVariable(json []byte, path string) template.Data {
-	r := gjson.GetBytes(json, path)
-	switch r.Type {
-	case gjson.Null:
-		return template.NewNullData()
-	case gjson.String:
-		return template.NewTextData([]byte(r.Str))
-	default:
-		return template.NewOtherData([]byte(r.Raw))
-	}
+	return event.SetData(ce.ApplicationJSON, ceCtx.Data)
 }

@@ -22,73 +22,74 @@ import (
 
 func TestParse(t *testing.T) {
 	Convey("parse constants", t, func() {
-		p := NewParser()
-		p.Parse("constants")
-		So(len(p.GetNodes()), ShouldEqual, 1)
-		n := p.GetNodes()[0]
+		p := newParser()
+		p.parse("constants")
+		So(len(p.getNodes()), ShouldEqual, 1)
+		n := p.getNodes()[0]
 		So(n.Type(), ShouldEqual, Constant)
 	})
 	Convey("parse variable", t, func() {
-		p := NewParser()
-		p.Parse("${str}")
-		So(len(p.GetNodes()), ShouldEqual, 1)
-		n := p.GetNodes()[0]
+		p := newParser()
+		p.parse("<str>")
+		So(len(p.getNodes()), ShouldEqual, 1)
+		n := p.getNodes()[0]
 		So(n.Type(), ShouldEqual, Variable)
 		So(n.Value(), ShouldEqual, "str")
 	})
-
 	Convey("parse text", t, func() {
-		p := NewParser()
-		p.Parse("begin ${str} end")
-		So(len(p.GetNodes()), ShouldEqual, 3)
-		n := p.GetNodes()[1]
+		p := newParser()
+		p.parse("begin <str> end")
+		So(len(p.getNodes()), ShouldEqual, 3)
+		n := p.getNodes()[1]
 		So(n.Type(), ShouldEqual, Variable)
 		So(n.Value(), ShouldEqual, "str")
 	})
-
 	Convey("parse json", t, func() {
-		p := NewParser()
-		p.Parse(`{"key":"${str}","key2":${str2}}`)
-		So(len(p.GetNodes()), ShouldEqual, 5)
-		n := p.GetNodes()[1]
+		p := newParser()
+		p.parse(`{"key":"<str>","key2":<str2>}`)
+		So(len(p.getNodes()), ShouldEqual, 5)
+		n := p.getNodes()[1]
 		So(n.Type(), ShouldEqual, StringVariable)
 		So(n.Value(), ShouldEqual, "str")
-		n = p.GetNodes()[2]
+		n = p.getNodes()[2]
 		So(n.Type(), ShouldEqual, Constant)
 		So(n.Value(), ShouldEqual, `","key2":`)
-		n = p.GetNodes()[3]
+		n = p.getNodes()[3]
 		So(n.Type(), ShouldEqual, Variable)
 		So(n.Value(), ShouldEqual, "str2")
 	})
 	Convey("parse json with special symbol 1", t, func() {
-		p := NewParser()
-		p.Parse(` {"key": ":${str}"}`)
-		n := p.GetNodes()[1]
+		p := newParser()
+		p.parse(` {"key": ":<str>"}`)
+		n := p.getNodes()[1]
 		So(n.Type(), ShouldEqual, StringVariable)
 		So(n.Value(), ShouldEqual, "str")
 	})
 	Convey("parse json with special symbol 2", t, func() {
-		p := NewParser()
-		p.Parse(` {"key": "abc:${str}"}`)
-		n := p.GetNodes()[1]
+		p := newParser()
+		p.parse(` {"key": "abc:<str>">`)
+		n := p.getNodes()[1]
 		So(n.Type(), ShouldEqual, StringVariable)
 		So(n.Value(), ShouldEqual, "str")
 	})
 	Convey("parse json with special symbol 3", t, func() {
-		p := NewParser()
-		p.Parse(` {"key": "\":${str}"}`)
-		n := p.GetNodes()[1]
+		p := newParser()
+		p.parse(` {"key": "\":<str>"}`)
+		n := p.getNodes()[1]
 		So(n.Type(), ShouldEqual, StringVariable)
 		So(n.Value(), ShouldEqual, "str")
 	})
 	Convey("parse json with special symbol 4", t, func() {
-		p := NewParser()
-		p.Parse(` {"key": "\":${str} sdf: ${str2}"}`)
-		n := p.GetNodes()[1]
+		p := newParser()
+		p.parse(` {"key": "\":<str> sdf: <str2> <abc"}`)
+		n := p.getNodes()[1]
 		So(n.Type(), ShouldEqual, StringVariable)
 		So(n.Value(), ShouldEqual, "str")
-		n = p.GetNodes()[3]
+		n = p.getNodes()[3]
 		So(n.Type(), ShouldEqual, StringVariable)
 		So(n.Value(), ShouldEqual, "str2")
+		n = p.getNodes()[4]
+		So(n.Type(), ShouldEqual, Constant)
+		So(n.Value(), ShouldEqual, " <abc\"}")
 	})
 }

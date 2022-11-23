@@ -21,6 +21,7 @@ import (
 
 	"github.com/linkall-labs/vanus/internal/trigger/util"
 	"github.com/linkall-labs/vanus/observability/log"
+	pkgUtil "github.com/linkall-labs/vanus/pkg/util"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 )
@@ -45,7 +46,7 @@ func NewPrefixFilter(prefix map[string]string) Filter {
 func (filter *prefixFilter) Filter(event ce.Event) Result {
 	for attr, prefix := range filter.prefix {
 		value, ok := util.LookupAttribute(event, attr)
-		if !ok || !strings.HasPrefix(value, prefix) {
+		if !ok || !strings.HasPrefix(pkgUtil.StringValue(value), prefix) {
 			return FailFilter
 		}
 	}
