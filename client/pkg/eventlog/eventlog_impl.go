@@ -182,7 +182,7 @@ func (l *eventlog) QueryOffsetByTime(ctx context.Context, timestamp int64) (int6
 	segs := l.fetchReadableSegments(ctx)
 
 	if len(segs) == 0 || segs[0].firstEventBornAt.After(t) {
-		return -1, errors.ErrNotFound
+		return -1, nil
 	}
 
 	if segs[len(segs)-1].lastEventBornAt.Before(t) {
@@ -205,7 +205,7 @@ func (l *eventlog) QueryOffsetByTime(ctx context.Context, timestamp int64) (int6
 
 	if target == nil {
 		// not found
-		return -1, errors.ErrNotFound
+		return -1, nil
 	}
 
 	return target.prefer.LookupOffset(ctx, t)
