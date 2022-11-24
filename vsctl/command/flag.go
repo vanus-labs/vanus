@@ -38,14 +38,14 @@ var (
 	sink           string
 	filters        string
 	transformer    string
-	rateLimit      int32
+	rateLimit      uint32
 	from           string
 	subscriptionID uint64
 
 	subProtocol        string
 	sinkCredentialType string
 	sinkCredential     string
-	deliveryTimeout    int32
+	deliveryTimeout    uint32
 	maxRetryAttempts   int32
 
 	showSegment bool

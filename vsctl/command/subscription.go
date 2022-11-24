@@ -157,9 +157,12 @@ func createSubscriptionCommand() *cobra.Command {
 
 			// subscription config
 			config := &meta.SubscriptionConfig{
-				RateLimit:        rateLimit,
-				DeliveryTimeout:  deliveryTimeout,
-				MaxRetryAttempts: maxRetryAttempts,
+				RateLimit:       rateLimit,
+				DeliveryTimeout: deliveryTimeout,
+			}
+			if maxRetryAttempts >= 0 {
+				value := uint32(maxRetryAttempts)
+				config.MaxRetryAttempts = &value
 			}
 			if from != "" {
 				switch from {
@@ -210,13 +213,13 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&sink, "sink", "", "the event you want to send to")
 	cmd.Flags().StringVar(&filters, "filters", "", "filter event you interested, JSON format required")
 	cmd.Flags().StringVar(&transformer, "transformer", "", "transformer, JSON format required")
-	cmd.Flags().Int32Var(&rateLimit, "rate-limit", 0, "rate limit")
+	cmd.Flags().Uint32Var(&rateLimit, "rate-limit", 0, "rate limit")
 	cmd.Flags().StringVar(&from, "from", "", "consume events from, latest,earliest or RFC3339 format time")
 	cmd.Flags().StringVar(&subProtocol, "protocol", "http", "protocol,http or aws-lambda or gcloud-functions")
 	cmd.Flags().StringVar(&sinkCredentialType, "credential-type", "", "sink credential type: aws or gcloud")
 	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, JSON format or @file")
-	cmd.Flags().Int32Var(&deliveryTimeout, "delivery-timeout", 0, "event delivery to sink timeout, unit millisecond")
-	cmd.Flags().Int32Var(&maxRetryAttempts, "max-retry-attempts", 0, "event delivery fail max retry attempts")
+	cmd.Flags().Uint32Var(&deliveryTimeout, "delivery-timeout", 0, "event delivery to sink timeout, unit millisecond")
+	cmd.Flags().Int32Var(&maxRetryAttempts, "max-retry-attempts", -1, "event delivery fail max retry attempts")
 	return cmd
 }
 

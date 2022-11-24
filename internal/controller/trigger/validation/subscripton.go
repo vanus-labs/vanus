@@ -138,9 +138,6 @@ func validateSubscriptionConfig(ctx context.Context, cfg *metapb.SubscriptionCon
 	if cfg == nil {
 		return nil
 	}
-	if cfg.RateLimit < -1 {
-		return errors.ErrInvalidRequest.WithMessage("rate limit is -1 or gt than 0")
-	}
 	switch cfg.OffsetType {
 	case metapb.SubscriptionConfig_LATEST, metapb.SubscriptionConfig_EARLIEST:
 	case metapb.SubscriptionConfig_TIMESTAMP:
@@ -153,7 +150,7 @@ func validateSubscriptionConfig(ctx context.Context, cfg *metapb.SubscriptionCon
 	if cfg.DeadLetterEventbus != "" {
 		return errors.ErrInvalidRequest.WithMessage("no support to set dead letter eventbus")
 	}
-	if cfg.MaxRetryAttempts > primitive.MaxRetryAttempts {
+	if cfg.GetMaxRetryAttempts() > primitive.MaxRetryAttempts {
 		return errors.ErrInvalidRequest.WithMessage(
 			fmt.Sprintf("could not set max retry attempts greater than %d", primitive.MaxRetryAttempts))
 	}

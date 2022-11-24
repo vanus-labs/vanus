@@ -296,22 +296,6 @@ func TestController_UpdateSubscription(t *testing.T) {
 				So(resp.SinkCredential.GetAws().SecretAccessKey, ShouldEqual, primitive.SecretsMask)
 			})
 		})
-		Convey("update rate limit", func() {
-			subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
-			request := &ctrlpb.UpdateSubscriptionRequest{
-				Id: subID.Uint64(),
-				Subscription: &ctrlpb.SubscriptionRequest{
-					EventBus: "test-eb",
-					Sink:     "test-sink",
-					Config: &metapb.SubscriptionConfig{
-						RateLimit: -1,
-					},
-				},
-			}
-			resp, err := ctrl.UpdateSubscription(ctx, request)
-			So(err, ShouldBeNil)
-			So(resp.Config.RateLimit, ShouldEqual, request.Subscription.Config.RateLimit)
-		})
 		Convey("update subscription sink", func() {
 			subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
 			request := &ctrlpb.UpdateSubscriptionRequest{
