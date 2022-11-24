@@ -163,6 +163,9 @@ func (cp *ControllerProxy) LookupOffset(ctx context.Context,
 		}
 		elList = ls
 	}
+	if len(elList) == 0 {
+		return nil, errors.New("eventbus not found")
+	}
 	res := &proxypb.LookupOffsetResponse{
 		Offsets: map[uint64]int64{},
 	}

@@ -801,7 +801,7 @@ func (s *server) LookupOffsetInBlock(ctx context.Context, id vanus.ID, stime int
 			"the segment doesn't exist on this server")
 	}
 
-	return b.Seek(ctx, 0, ceschema.StimeKey(stime), block.SeekKeyOrNext)
+	return b.Seek(ctx, 0, ceschema.StimeKey(stime), block.SeekBeforeKey)
 }
 
 func (s *server) checkState() error {

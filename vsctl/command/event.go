@@ -32,6 +32,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	proxypb "github.com/linkall-labs/vanus/proto/pkg/proxy"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -303,7 +304,7 @@ func getEventCommand() *cobra.Command {
 			})
 
 			if err != nil {
-				cmdFailedf(cmd, "send request to gateway failed: %s", err)
+				cmdFailedf(cmd, "failed to get event: %s", err)
 			}
 
 			if IsFormatJSON(cmd) {
@@ -334,8 +335,8 @@ func getEventCommand() *cobra.Command {
 
 	cmd.Flags().Int64Var(&offset, "offset", 0, "which position you want to start get")
 	cmd.Flags().Int16Var(&number, "number", 1, "the number of event you want to get")
+	cmd.Flags().Uint64Var(&eventlogID, "eventlog", 0, "get events from a specified eventlog")
 	cmd.Flags().StringVar(&eventID, "event-id", "", "get event by event ID")
-	cmd.Flags().Uint64Var(&eventlogID, "eventlog-id", 0, "get events from a specified eventlog")
 	return cmd
 }
 
@@ -353,42 +354,76 @@ func queryEventCommand() *cobra.Command {
 			if len(args) == 0 && eventID == "" {
 				cmdFailedWithHelpNotice(cmd, "eventbus name and eventID can't be both empty\n")
 			}
-			t, err := time.Parse(eventCreateTime, time.RFC3339)
+			t, err := time.Parse(time.RFC3339, eventCreateTime)
 			if err != nil {
-				cmdFailedWithHelpNotice(cmd, fmt.Sprintf("failed to parse time: %s, "+
-					"make sure your time pass in is format RFC3339.\n", err.Error()))
+				cmdFailedf(cmd, fmt.Sprintf("failed to parse time, make sure your time passed in is format "+
+					"RFC3339, like 2022-11-24T11:20:56+08:00."))
 			}
-			res, err := client.LookupOffset(context.Background(), &proxypb.LookupOffsetRequest{
+			ctx := context.Background()
+			res, err := client.LookupOffset(ctx, &proxypb.LookupOffsetRequest{
 				Eventbus:   args[0],
 				EventlogId: eventlogID,
 				Timestamp:  t.UnixMilli(),
 			})
 			if err != nil {
-				cmdFailedWithHelpNotice(cmd, fmt.Sprintf("failed to query: %s.\n", err.Error()))
+				cmdFailedf(cmd, fmt.Sprintf("failed to query: %s.", err.Error()))
+			}
+
+			result := make([]*QueryOutput, 0)
+			for k, v := range res.Offsets {
+				res, err := client.GetEvent(ctx, &proxypb.GetEventRequest{
+					Eventbus:   args[0],
+					EventlogId: k,
+					Offset:     v,
+					Number:     1,
+				})
+				if err != nil {
+					cmdFailedf(cmd, "failed to get event: %s", err)
+				}
+				result = append(result, &QueryOutput{
+					Eventlog: vanus.NewIDFromUint64(k).String(),
+					Offset:   v,
+					Event:    format(res.Events[0]),
+				})
+			}
+			for _, val := range result {
+				if val.Offset == -1 {
+					val.Event = "NOT FOUND"
+				}
 			}
 			if IsFormatJSON(cmd) {
-				data, _ := json.Marshal(res.Offsets)
+				data, _ := json.MarshalIndent(result, "", " ")
 				color.Yellow(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Eventlog", "Offset"})
-				for el, off := range res.Offsets {
-					t.AppendRow(table.Row{el, off})
+				t.AppendHeader(table.Row{"Eventlog", "Offset", "Event"})
+
+				for _, val := range result {
+					t.AppendRow(table.Row{val.Eventlog, val.Offset, val.Event})
 					t.AppendSeparator()
 				}
+
 				t.SetColumnConfigs([]table.ColumnConfig{
 					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 2, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 3, VAlign: text.VAlignMiddle, AlignHeader: text.AlignCenter},
 				})
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
 			}
 		},
 	}
-	cmd.Flags().StringVarP(&eventCreateTime, "time", "t", "0",
-		"query event by its created time with RFC3339")
+	cmd.Flags().StringVar(&eventCreateTime, "time", "-",
+		"query event by created time with RFC3339, like 2022-11-24T11:20:56+08:00.\n"+
+			"the offset of earliest event its created time great than or equals the specified time will be returned.\n"+
+			"if the specified time great than latest event's created time, the latest will be returned")
 	cmd.Flags().Uint64Var(&eventlogID, "eventlog", 0,
-		"which eventlog your want to query, if not set, all eventlog will be returned")
-	cmd.Flags().BoolVarP(&showEvent, "show-event", "s", false, "whether shows data content")
+		"which eventlog you query, if not set, all eventlog will be returned")
 	return cmd
+}
+
+type QueryOutput struct {
+	Eventlog string `json:"eventlog"`
+	Offset   int64  `json:"offset"`
+	Event    string `json:"event"`
 }

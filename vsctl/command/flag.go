@@ -30,7 +30,6 @@ var (
 	detail            bool
 	eventID           string
 	eventCreateTime   string
-	showEvent         bool
 
 	// for both of eventbus and subscription.
 	eventbus            string
