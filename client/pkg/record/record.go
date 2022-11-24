@@ -14,6 +14,8 @@
 
 package record
 
+import "time"
+
 type Eventbus struct {
 	Name string
 	Logs []*Eventlog
@@ -81,10 +83,12 @@ func allReadable(ls []*Eventlog) bool {
 }
 
 type Segment struct {
-	ID          uint64
-	StartOffset int64
-	EndOffset   int64
-	Writable    bool
+	ID               uint64
+	StartOffset      int64
+	EndOffset        int64
+	Writable         bool
+	FirstEventBornAt time.Time
+	LastEventBornAt  time.Time
 
 	Blocks        map[uint64]*Block
 	LeaderBlockID uint64

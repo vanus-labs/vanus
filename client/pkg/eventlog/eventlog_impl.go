@@ -174,9 +174,41 @@ func (l *eventlog) Length(ctx context.Context) (int64, error) {
 	// TODO(kai.jiangkai)
 	return 0, nil
 }
+
 func (l *eventlog) QueryOffsetByTime(ctx context.Context, timestamp int64) (int64, error) {
-	// TODO(james.yin): lookup offset by timestamp
-	return 0, nil
+	t := time.UnixMilli(timestamp)
+	// get all segments
+	var target *segment
+	segs := l.fetchReadableSegments(ctx)
+
+	if len(segs) == 0 || segs[0].firstEventBornAt.After(t) {
+		return -1, errors.ErrNotFound
+	}
+
+	if segs[len(segs)-1].lastEventBornAt.Before(t) {
+		// the target offset maybe in newer segment, refresh immediately
+		l.refreshReadableSegments(ctx)
+		segs = l.fetchReadableSegments(ctx)
+	}
+
+	for idx := range l.readableSegments {
+		s := l.readableSegments[idx]
+		if s.firstEventBornAt.Equal(t) {
+			return s.startOffset, nil
+		} else if s.lastEventBornAt.Equal(t) {
+			return s.endOffset.Load(), nil
+		} else if s.firstEventBornAt.Before(t) && s.lastEventBornAt.After(t) {
+			target = s
+			break
+		}
+	}
+
+	if target == nil {
+		// not found
+		return -1, errors.ErrNotFound
+	}
+
+	return target.prefer.LookupOffset(ctx, t)
 }
 
 func (l *eventlog) updateWritableSegment(ctx context.Context, r *record.Segment) {
@@ -286,12 +318,10 @@ func (l *eventlog) fetchReadableSegments(ctx context.Context) []*segment {
 	defer l.readableMu.RUnlock()
 
 	if len(l.readableSegments) == 0 {
+		l.readableMu.RUnlock()
+		defer l.readableMu.RLock()
 		// refresh
-		func() {
-			l.readableMu.RUnlock()
-			defer l.readableMu.RLock()
-			l.refreshReadableSegments(ctx)
-		}()
+		l.refreshReadableSegments(ctx)
 	}
 
 	return l.readableSegments

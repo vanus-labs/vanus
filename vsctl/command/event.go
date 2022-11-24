@@ -56,6 +56,7 @@ func NewEventCommand() *cobra.Command {
 	}
 	cmd.AddCommand(getEventCommand())
 	cmd.AddCommand(putEventCommand())
+	cmd.AddCommand(queryEventCommand())
 	return cmd
 }
 
@@ -342,4 +343,52 @@ func format(value *wrapperspb.BytesValue) string {
 	e := v2.NewEvent()
 	_ = e.UnmarshalJSON(value.Value)
 	return e.String()
+}
+
+func queryEventCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "query <eventbus-name> [conditions]",
+		Short: "query events by conditions",
+		Run: func(cmd *cobra.Command, args []string) {
+			if len(args) == 0 && eventID == "" {
+				cmdFailedWithHelpNotice(cmd, "eventbus name and eventID can't be both empty\n")
+			}
+			t, err := time.Parse(eventCreateTime, time.RFC3339)
+			if err != nil {
+				cmdFailedWithHelpNotice(cmd, fmt.Sprintf("failed to parse time: %s, "+
+					"make sure your time pass in is format RFC3339.\n", err.Error()))
+			}
+			res, err := client.LookupOffset(context.Background(), &proxypb.LookupOffsetRequest{
+				Eventbus:   args[0],
+				EventlogId: eventlogID,
+				Timestamp:  t.UnixMilli(),
+			})
+			if err != nil {
+				cmdFailedWithHelpNotice(cmd, fmt.Sprintf("failed to query: %s.\n", err.Error()))
+			}
+			if IsFormatJSON(cmd) {
+				data, _ := json.Marshal(res.Offsets)
+				color.Yellow(string(data))
+			} else {
+				t := table.NewWriter()
+				t.AppendHeader(table.Row{"Eventlog", "Offset"})
+				for el, off := range res.Offsets {
+					t.AppendRow(table.Row{el, off})
+					t.AppendSeparator()
+				}
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+				})
+				t.SetOutputMirror(os.Stdout)
+				t.Render()
+			}
+		},
+	}
+	cmd.Flags().StringVarP(&eventCreateTime, "time", "t", "0",
+		"query event by its created time with RFC3339")
+	cmd.Flags().Uint64Var(&eventlogID, "eventlog", 0,
+		"which eventlog your want to query, if not set, all eventlog will be returned")
+	cmd.Flags().BoolVarP(&showEvent, "show-event", "s", false, "whether shows data content")
+	return cmd
 }

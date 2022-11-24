@@ -79,26 +79,21 @@ func (w *Watcher) Run() {
 func (w *Watcher) Refresh(ctx context.Context) error {
 	// batch multi-refresh into a group
 
-	wg := func() *sync.WaitGroup {
-		w.mu.RLock()
-		defer w.mu.RUnlock()
-		return w.wg
-	}()
+	w.mu.RLock()
+	wg := w.wg
+	w.mu.RUnlock()
 
 	isLeader := false
 	if wg == nil {
-		wg = func() *sync.WaitGroup {
-			w.mu.Lock()
-			defer w.mu.Unlock()
-
-			if w.wg == nil { // double check
-				w.wg = &sync.WaitGroup{}
-				w.wg.Add(1)
-				isLeader = true
-			}
-
-			return w.wg
-		}()
+		w.mu.Lock()
+		// double check
+		if w.wg == nil {
+			w.wg = &sync.WaitGroup{}
+			w.wg.Add(1)
+			isLeader = true
+		}
+		wg = w.wg
+		w.mu.Unlock()
 	}
 
 	if isLeader {
@@ -108,8 +103,8 @@ func (w *Watcher) Refresh(ctx context.Context) error {
 
 	ch := make(chan struct{})
 	go func() {
-		defer close(ch)
 		wg.Wait()
+		close(ch)
 	}()
 
 	select {

@@ -17,6 +17,7 @@ package eventlog
 import (
 	// third-party libraries
 	"context"
+	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 
@@ -45,6 +46,10 @@ type block struct {
 
 func (s *block) Close(ctx context.Context) {
 	store.Put(ctx, s.store)
+}
+
+func (s *block) LookupOffset(ctx context.Context, t time.Time) (int64, error) {
+	return s.store.LookupOffset(ctx, s.id, t)
 }
 
 func (s *block) Append(ctx context.Context, event *ce.Event) (int64, error) {

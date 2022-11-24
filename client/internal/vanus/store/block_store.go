@@ -18,6 +18,7 @@ import (
 	// standard libraries
 	"context"
 	"strings"
+	"time"
 
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"go.opentelemetry.io/otel/trace"
@@ -154,4 +155,25 @@ func (s *BlockStore) Read(
 	}
 
 	return []*ce.Event{}, err
+}
+
+func (s *BlockStore) LookupOffset(ctx context.Context, blockID uint64, t time.Time) (int64, error) {
+	ctx, span := s.tracer.Start(ctx, "LookupOffset")
+	defer span.End()
+
+	req := &segpb.LookupOffsetInBlockRequest{
+		BlockId: blockID,
+		Stime:   t.UnixMilli(),
+	}
+
+	client, err := s.client.Get(ctx)
+	if err != nil {
+		return -1, err
+	}
+
+	res, err := client.(segpb.SegmentServerClient).LookupOffsetInBlock(ctx, req)
+	if err != nil {
+		return -1, err
+	}
+	return res.Offset, nil
 }

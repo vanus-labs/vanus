@@ -149,17 +149,19 @@ func Convert2ProtoSegment(ctx context.Context, ins ...*Segment) []*metapb.Segmen
 			}
 		}
 		segs[idx] = &metapb.Segment{
-			Id:                seg.ID.Uint64(),
-			PreviousSegmentId: seg.PreviousSegmentID.Uint64(),
-			NextSegmentId:     seg.NextSegmentID.Uint64(),
-			EventLogId:        seg.EventLogID.Uint64(),
-			StartOffsetInLog:  seg.StartOffsetInLog,
-			EndOffsetInLog:    seg.StartOffsetInLog + int64(seg.Number) - 1,
-			Size:              seg.Size,
-			Capacity:          seg.Capacity,
-			NumberEventStored: seg.Number,
-			Replicas:          blocks,
-			State:             string(seg.State),
+			Id:                       seg.ID.Uint64(),
+			PreviousSegmentId:        seg.PreviousSegmentID.Uint64(),
+			NextSegmentId:            seg.NextSegmentID.Uint64(),
+			EventLogId:               seg.EventLogID.Uint64(),
+			StartOffsetInLog:         seg.StartOffsetInLog,
+			EndOffsetInLog:           seg.StartOffsetInLog + int64(seg.Number),
+			Size:                     seg.Size,
+			Capacity:                 seg.Capacity,
+			NumberEventStored:        seg.Number,
+			Replicas:                 blocks,
+			State:                    string(seg.State),
+			FirstEventBornAtByUnixMs: seg.FirstEventBornTime.UnixMilli(),
+			LastEvnetBornAtByUnixMs:  seg.LastEventBornTime.UnixMilli(),
 		}
 		if seg.GetLeaderBlock() != nil {
 			segs[idx].LeaderBlockId = seg.GetLeaderBlock().ID.Uint64()
