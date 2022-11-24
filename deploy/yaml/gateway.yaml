@@ -11,15 +11,11 @@ spec:
     - port: 8080
       targetPort: 8080
       nodePort: 30001
-      name: put
+      name: proxy
     - port: 8081
       targetPort: 8081
       nodePort: 30002
-      name: get
-    - name: ctrl-proxy
-      nodePort: 30003
-      port: 8082
-      targetPort: 8082
+      name: cloudevents
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -58,12 +54,10 @@ spec:
           image: public.ecr.aws/vanus/gateway:v0.4.0
           imagePullPolicy: IfNotPresent
           ports:
-            - name: httpput
+            - name: proxy
               containerPort: 8080
-            - name: httpget
+            - name: cloudevents
               containerPort: 8081
-            - name: ctrl-proxy
-              containerPort: 8082
           volumeMounts:
             - name: config-gateway
               mountPath: /vanus/config

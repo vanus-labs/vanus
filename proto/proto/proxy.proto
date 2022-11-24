@@ -64,7 +64,7 @@ message LookupOffsetResponse {
 
 message GetEventRequest {
   string eventbus = 1;
-  string eventlog_id = 2;
+  uint64 eventlog_id = 2;
   int64 offset = 3;
   int32 number = 4;
   string event_id = 5;

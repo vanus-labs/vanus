@@ -334,7 +334,7 @@ func getEventCommand() *cobra.Command {
 	cmd.Flags().Int64Var(&offset, "offset", 0, "which position you want to start get")
 	cmd.Flags().Int16Var(&number, "number", 1, "the number of event you want to get")
 	cmd.Flags().StringVar(&eventID, "event-id", "", "get event by event ID")
-	cmd.Flags().StringVar(&eventlogID, "eventlog-id", "", "get events from a specified eventlog")
+	cmd.Flags().Uint64Var(&eventlogID, "eventlog-id", 0, "get events from a specified eventlog")
 	return cmd
 }
 
