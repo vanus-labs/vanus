@@ -16,10 +16,11 @@
 package main
 
 import (
+	"os"
+
 	"github.com/fatih/color"
 	"github.com/linkall-labs/vanus/vsctl/command"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 const (

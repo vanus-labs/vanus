@@ -112,7 +112,7 @@ func (sf *snowflake) RegisterNode(ctx context.Context, in *wrapperspb.UInt32Valu
 	//
 	// if exist {
 	//	return nil, errors.New("node has been register")
-	//}
+	// }
 
 	n := &node{
 		ID:      id,

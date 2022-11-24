@@ -16,12 +16,13 @@ package main
 
 import (
 	"encoding/json"
+	"os"
+
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/linkall-labs/vanus/vsctl/command"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 var (

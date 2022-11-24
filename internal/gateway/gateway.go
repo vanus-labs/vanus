@@ -30,6 +30,7 @@ import (
 	"github.com/google/uuid"
 	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/api"
+	"github.com/linkall-labs/vanus/internal/gateway/proxy"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/tracing"
@@ -37,23 +38,7 @@ import (
 )
 
 const (
-	httpRequestPrefix  = "/gateway"
-	ctrlProxyPortShift = 2
-)
-
-var (
-	allowCtrlProxyList = map[string]string{
-		"/linkall.vanus.controller.PingServer/Ping":                      "ALLOW",
-		"/linkall.vanus.controller.EventBusController/ListEventBus":      "ALLOW",
-		"/linkall.vanus.controller.EventBusController/CreateEventBus":    "ALLOW",
-		"/linkall.vanus.controller.EventBusController/DeleteEventBus":    "ALLOW",
-		"/linkall.vanus.controller.EventBusController/GetEventBus":       "ALLOW",
-		"/linkall.vanus.controller.EventLogController/ListSegment":       "ALLOW",
-		"/linkall.vanus.controller.TriggerController/CreateSubscription": "ALLOW",
-		"/linkall.vanus.controller.TriggerController/DeleteSubscription": "ALLOW",
-		"/linkall.vanus.controller.TriggerController/GetSubscription":    "ALLOW",
-		"/linkall.vanus.controller.TriggerController/ListSubscription":   "ALLOW",
-	}
+	httpRequestPrefix = "/gateway"
 )
 
 var (
@@ -67,28 +52,44 @@ type EventData struct {
 
 type ceGateway struct {
 	// ceClient  v2.Client
-	busWriter sync.Map
-	config    Config
-	client    eb.Client
-	cp        *ctrlProxy
-	tracer    *tracing.Tracer
+	busWriter  sync.Map
+	config     Config
+	client     eb.Client
+	proxySrv   *proxy.ControllerProxy
+	tracer     *tracing.Tracer
+	ceListener net.Listener
 }
 
 func NewGateway(config Config) *ceGateway {
 	return &ceGateway{
-		config: config,
-		client: eb.Connect(config.ControllerAddr),
-		cp:     newCtrlProxy(config.Port+ctrlProxyPortShift, allowCtrlProxyList, config.ControllerAddr),
-		tracer: tracing.NewTracer("cloudevents", trace.SpanKindServer),
+		config:   config,
+		client:   eb.Connect(config.ControllerAddr),
+		proxySrv: proxy.NewControllerProxy(config.GetProxyConfig()),
+		tracer:   tracing.NewTracer("cloudevents", trace.SpanKindServer),
 	}
 }
 
-func (ga *ceGateway) StartCtrlProxy(ctx context.Context) error {
-	return ga.cp.start(ctx)
+func (ga *ceGateway) Start(ctx context.Context) error {
+	if err := ga.startCloudEventsReceiver(ctx); err != nil {
+		return err
+	}
+	if err := ga.proxySrv.Start(); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (ga *ceGateway) StartReceive(ctx context.Context) error {
-	ls, err := net.Listen("tcp", fmt.Sprintf(":%d", ga.config.Port))
+func (ga *ceGateway) Stop() {
+	ga.proxySrv.Stop()
+	if err := ga.ceListener.Close(); err != nil {
+		log.Warning(context.Background(), "close CloudEvents listener error", map[string]interface{}{
+			log.KeyError: err,
+		})
+	}
+}
+
+func (ga *ceGateway) startCloudEventsReceiver(ctx context.Context) error {
+	ls, err := net.Listen("tcp", fmt.Sprintf(":%d", ga.config.GetCloudEventReceiverPort()))
 	if err != nil {
 		return err
 	}
@@ -97,7 +98,14 @@ func (ga *ceGateway) StartReceive(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return c.StartReceiver(ctx, ga.receive)
+
+	ga.ceListener = ls
+	go func() {
+		if err := c.StartReceiver(ctx, ga.receive); err != nil {
+			panic(fmt.Sprintf("start CloudEvents receiver failed: %s", err.Error()))
+		}
+	}()
+	return nil
 }
 
 func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, protocol.Result) {

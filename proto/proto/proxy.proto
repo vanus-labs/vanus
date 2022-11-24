@@ -1,0 +1,80 @@
+// Copyright 2022 Linkall Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package linkall.vanus.proxy;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+import "controller.proto";
+import "meta.proto";
+
+option go_package = "github.com/linkall-labs/vanus/proto/pkg/proxy";
+
+service ControllerProxy {
+  // Eventbus
+  rpc CreateEventBus(controller.CreateEventBusRequest)
+      returns (meta.EventBus);
+  rpc DeleteEventBus(meta.EventBus) returns (google.protobuf.Empty);
+  rpc GetEventBus(meta.EventBus) returns (meta.EventBus);
+  rpc ListEventBus(google.protobuf.Empty) returns (controller.ListEventbusResponse);
+  rpc UpdateEventBus(controller.UpdateEventBusRequest)
+      returns (meta.EventBus);
+  rpc ListSegment(controller.ListSegmentRequest) returns (controller.ListSegmentResponse);
+  
+  // Trigger
+  rpc CreateSubscription(controller.CreateSubscriptionRequest)
+      returns (meta.Subscription);
+  rpc UpdateSubscription(controller.UpdateSubscriptionRequest)
+      returns (meta.Subscription);
+  rpc DeleteSubscription(controller.DeleteSubscriptionRequest)
+      returns (google.protobuf.Empty);
+  rpc GetSubscription(controller.GetSubscriptionRequest)
+      returns (meta.Subscription);
+  rpc ListSubscription(google.protobuf.Empty)
+      returns (controller.ListSubscriptionResponse);
+
+  // custom
+  rpc ClusterInfo(google.protobuf.Empty) returns (ClusterInfoResponse);
+  rpc LookupOffset(LookupOffsetRequest) returns (LookupOffsetResponse);
+  rpc GetEvent(GetEventRequest) returns (GetEventResponse);
+}
+
+message LookupOffsetRequest {
+  string eventbus = 1;
+  uint64 eventlog_id = 2;
+  int64 timestamp = 3;
+}
+
+message LookupOffsetResponse {
+  map<uint64, int64> offsets = 1;
+}
+
+message GetEventRequest {
+  string eventbus = 1;
+  uint64 eventlog_id = 2;
+  int64 offset = 3;
+  int32 number = 4;
+  string event_id = 5;
+}
+
+message GetEventResponse {
+  repeated google.protobuf.BytesValue events = 1;
+}
+
+message ClusterInfoResponse {
+  int64 cloudevents_port = 1;
+  int64 proxy_port = 2;
+}

@@ -425,6 +425,7 @@ issues:
         - cyclop
         - gochecknoinits
         - gochecknoglobals
+        - forbidigo
     - text: "unexported-return: exported func (NewController|NewGateway) returns unexported type"
       linters:
         - revive

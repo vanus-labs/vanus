@@ -25,10 +25,16 @@ type WriteOptions struct {
 	Oneway bool
 }
 
-func (opts *WriteOptions) Copy() *WriteOptions {
+func (wo *WriteOptions) Apply(opts ...WriteOption) {
+	for i := range opts {
+		opts[i](wo)
+	}
+}
+
+func (wo *WriteOptions) Copy() *WriteOptions {
 	return &WriteOptions{
-		Oneway: opts.Oneway,
-		Policy: opts.Policy,
+		Oneway: wo.Oneway,
+		Policy: wo.Policy,
 	}
 }
 
@@ -40,11 +46,17 @@ type ReadOptions struct {
 	Policy         ReadPolicy
 }
 
-func (opts *ReadOptions) Copy() *ReadOptions {
+func (ro *ReadOptions) Apply(opts ...ReadOption) {
+	for i := range opts {
+		opts[i](ro)
+	}
+}
+
+func (ro *ReadOptions) Copy() *ReadOptions {
 	return &ReadOptions{
-		BatchSize:      opts.BatchSize,
-		PollingTimeout: opts.PollingTimeout,
-		Policy:         opts.Policy,
+		BatchSize:      ro.BatchSize,
+		PollingTimeout: ro.PollingTimeout,
+		Policy:         ro.Policy,
 	}
 }
 

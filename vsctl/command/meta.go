@@ -15,13 +15,10 @@
 package command
 
 import (
-	"context"
 	"os"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/spf13/cobra"
 )
 
@@ -29,6 +26,12 @@ func NewClusterCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cluster sub-command ",
 		Short: "vanus cluster operations",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			InitGatewayClient(cmd)
+		},
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			DestroyGatewayClient()
+		},
 	}
 	cmd.AddCommand(controllerCommand())
 	return cmd
@@ -48,27 +51,15 @@ func getControllerTopology() *cobra.Command {
 		Use:   "topology",
 		Short: "get topology",
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx := context.Background()
-			grpcConn := mustGetControllerProxyConn(ctx, cmd)
-			defer func() {
-				_ = grpcConn.Close()
-			}()
-			cli := ctrlpb.NewPingServerClient(grpcConn)
-			res, err := cli.Ping(ctx, &empty.Empty{})
-			if err != nil {
-				cmdFailedf(cmd, "get Gateway endpoint from controller failed: %s", err)
-			}
-
 			t := table.NewWriter()
-			t.AppendHeader(table.Row{"Name", "Leader", "Endpoint"})
+			t.AppendHeader(table.Row{"Name", "Endpoint"})
 			t.AppendRows([]table.Row{
-				{"Leader-controller", "TRUE", res.LeaderAddr},
-				{"Gateway", "-", res.GatewayAddr},
+				{"Gateway Endpoints", mustGetGatewayEndpoint(cmd)},
+				{"CloudEvents Endpoints", mustGetGatewayCloudEventsEndpoint(cmd)},
 			})
 			t.SetColumnConfigs([]table.ColumnConfig{
 				{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 				{Number: 2, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-				{Number: 3, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 			})
 			t.SetStyle(table.StyleLight)
 			t.Style().Options.SeparateRows = true
