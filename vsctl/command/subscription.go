@@ -213,13 +213,13 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&sink, "sink", "", "the event you want to send to")
 	cmd.Flags().StringVar(&filters, "filters", "", "filter event you interested, JSON format required")
 	cmd.Flags().StringVar(&transformer, "transformer", "", "transformer, JSON format required")
-	cmd.Flags().Uint32Var(&rateLimit, "rate-limit", 0, "rate limit")
+	cmd.Flags().Uint32Var(&rateLimit, "rate-limit", 0, "max event number pushing to sink per second, default is 0, means unlimited")
 	cmd.Flags().StringVar(&from, "from", "", "consume events from, latest,earliest or RFC3339 format time")
 	cmd.Flags().StringVar(&subProtocol, "protocol", "http", "protocol,http or aws-lambda or gcloud-functions")
 	cmd.Flags().StringVar(&sinkCredentialType, "credential-type", "", "sink credential type: aws or gcloud")
 	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, JSON format or @file")
-	cmd.Flags().Uint32Var(&deliveryTimeout, "delivery-timeout", 0, "event delivery to sink timeout, unit millisecond")
-	cmd.Flags().Int32Var(&maxRetryAttempts, "max-retry-attempts", -1, "event delivery fail max retry attempts")
+	cmd.Flags().Uint32Var(&deliveryTimeout, "delivery-timeout", 0, "event delivery to sink timeout by millisecond, default is 0, means using server-side default value: 5s")
+	cmd.Flags().Int32Var(&maxRetryAttempts, "max-retry-attempts", -1, "event delivery fail max retry attempts, default is -1, means using server-side max retry attempts: 32")
 	return cmd
 }
 
