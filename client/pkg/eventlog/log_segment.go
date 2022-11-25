@@ -123,6 +123,7 @@ func (s *segment) Close(ctx context.Context) {
 
 func (s *segment) Update(ctx context.Context, r *record.Segment, towrite bool) error {
 	// When a segment become read-only, the end offset needs to be set to the real value.
+	// TODO(wenfeng) data race?
 	s.lastEventBornAt = r.LastEventBornAt
 	if s.Writable() && !r.Writable && s.writable.CAS(true, false) {
 		s.endOffset.Store(r.EndOffset)
