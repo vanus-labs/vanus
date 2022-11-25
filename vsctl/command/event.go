@@ -371,25 +371,28 @@ func queryEventCommand() *cobra.Command {
 
 			result := make([]*QueryOutput, 0)
 			for k, v := range res.Offsets {
-				res, err := client.GetEvent(ctx, &proxypb.GetEventRequest{
-					Eventbus:   args[0],
-					EventlogId: k,
-					Offset:     v,
-					Number:     1,
-				})
-				if err != nil {
-					cmdFailedf(cmd, "failed to get event: %s", err)
-				}
-				result = append(result, &QueryOutput{
+				qo := &QueryOutput{
 					Eventlog: vanus.NewIDFromUint64(k).String(),
 					Offset:   v,
-					Event:    format(res.Events[0]),
-				})
-			}
-			for _, val := range result {
-				if val.Offset == -1 {
-					val.Event = "NOT FOUND"
+					Event:    "NOT FOUND",
 				}
+				if v >= 0 {
+					res, err := client.GetEvent(ctx, &proxypb.GetEventRequest{
+						Eventbus:   args[0],
+						EventlogId: k,
+						Offset:     v,
+						Number:     1,
+					})
+					if err != nil {
+						cmdFailedf(cmd, "failed to get event: %s", err)
+					}
+					if len(res.Events) >= 1 {
+						qo.Event = format(res.Events[0])
+					} else {
+						qo.Event = "EOF"
+					}
+				}
+				result = append(result, qo)
 			}
 			if IsFormatJSON(cmd) {
 				data, _ := json.MarshalIndent(result, "", " ")
@@ -414,9 +417,9 @@ func queryEventCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&eventCreateTime, "time", "-",
-		"query event by created time with RFC3339, like 2022-11-24T11:20:56+08:00.\n"+
-			"the offset of earliest event its created time great than or equals the specified time will be returned.\n"+
-			"if the specified time great than latest event's created time, the latest will be returned")
+		"fuzzily query event by created time with RFC3339 format, like 2022-11-24T11:20:56+08:00.\n"+
+			"the first event its created time >= the specified time will be returned.\n"+
+			"if the specified time great than latest event's created time, the offset [ latest + 1 ] will be returned")
 	cmd.Flags().Uint64Var(&eventlogID, "eventlog", 0,
 		"which eventlog you query, if not set, all eventlog will be returned")
 	return cmd

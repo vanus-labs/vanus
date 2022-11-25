@@ -122,13 +122,13 @@ func (s *segment) Close(ctx context.Context) {
 }
 
 func (s *segment) Update(ctx context.Context, r *record.Segment, towrite bool) error {
-	// When a segment become read-only, the end offset needs to be set to the readonly value.
+	// When a segment become read-only, the end offset needs to be set to the real value.
+	s.lastEventBornAt = r.LastEventBornAt
 	if s.Writable() && !r.Writable && s.writable.CAS(true, false) {
 		s.endOffset.Store(r.EndOffset)
 		return nil
 	}
 
-	s.lastEventBornAt = r.LastEventBornAt
 	_, span := s.tracer.Start(ctx, "Update")
 	defer span.End()
 
@@ -224,4 +224,8 @@ func (s *segment) setPreferSegmentBlock(prefer *block) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.prefer = prefer
+}
+
+func (s *segment) LookupOffset(ctx context.Context, t time.Time) (int64, error) {
+	return s.preferSegmentBlock().LookupOffset(ctx, t)
 }
