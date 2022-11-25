@@ -109,7 +109,7 @@ func TestConvert2ProtoSegment(t *testing.T) {
 		So(pbSegs[0].NextSegmentId, ShouldEqual, seg.NextSegmentID.Uint64())
 		So(pbSegs[0].EventLogId, ShouldEqual, eID.Uint64())
 		So(pbSegs[0].StartOffsetInLog, ShouldEqual, seg.StartOffsetInLog)
-		So(pbSegs[0].EndOffsetInLog, ShouldEqual, seg.StartOffsetInLog+int64(seg.Number)-1)
+		So(pbSegs[0].EndOffsetInLog, ShouldEqual, seg.StartOffsetInLog+int64(seg.Number))
 		So(pbSegs[0].Size, ShouldEqual, seg.Size)
 		So(pbSegs[0].Capacity, ShouldEqual, seg.Capacity)
 		So(pbSegs[0].NumberEventStored, ShouldEqual, seg.Number)

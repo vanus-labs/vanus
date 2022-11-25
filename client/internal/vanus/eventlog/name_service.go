@@ -18,6 +18,7 @@ import (
 	// standard libraries.
 	"context"
 	"math"
+	"time"
 
 	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
@@ -26,7 +27,7 @@ import (
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/controller"
-	ctlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 
 	// this project.
@@ -42,7 +43,7 @@ func NewNameService(endpoints []string) *NameService {
 }
 
 type NameService struct {
-	client ctlpb.EventLogControllerClient
+	client ctrlpb.EventLogControllerClient
 	tracer *tracing.Tracer
 }
 
@@ -50,7 +51,7 @@ func (ns *NameService) LookupWritableSegment(ctx context.Context, logID uint64) 
 	ctx, span := ns.tracer.Start(ctx, "LookupWritableSegment")
 	defer span.End()
 
-	req := &ctlpb.GetAppendableSegmentRequest{
+	req := &ctrlpb.GetAppendableSegmentRequest{
 		EventLogId: logID,
 		Limited:    1,
 	}
@@ -71,7 +72,7 @@ func (ns *NameService) LookupReadableSegments(ctx context.Context, logID uint64)
 	ctx, span := ns.tracer.Start(ctx, "LookupReadableSegments")
 	defer span.End()
 
-	req := &ctlpb.ListSegmentRequest{
+	req := &ctrlpb.ListSegmentRequest{
 		EventLogId:  logID,
 		StartOffset: 0,
 		EndOffset:   math.MaxInt64,
@@ -87,13 +88,13 @@ func (ns *NameService) LookupReadableSegments(ctx context.Context, logID uint64)
 	return segments, nil
 }
 
-func toSegments(segmentpbs []*metapb.Segment) []*record.Segment {
-	if len(segmentpbs) == 0 {
+func toSegments(pbs []*metapb.Segment) []*record.Segment {
+	if len(pbs) == 0 {
 		return make([]*record.Segment, 0)
 	}
-	segments := make([]*record.Segment, 0, len(segmentpbs))
-	for _, segmentpb := range segmentpbs {
-		segment := toSegment(segmentpb)
+	segments := make([]*record.Segment, 0, len(pbs))
+	for _, pb := range pbs {
+		segment := toSegment(pb)
 		segments = append(segments, segment)
 		// only return first working segment
 		if segment.Writable {
@@ -103,23 +104,22 @@ func toSegments(segmentpbs []*metapb.Segment) []*record.Segment {
 	return segments
 }
 
-func toSegment(segmentpb *metapb.Segment) *record.Segment {
-	blocks := make(map[uint64]*record.Block, len(segmentpb.Replicas))
-	for blockID, blockpb := range segmentpb.Replicas {
+func toSegment(segment *metapb.Segment) *record.Segment {
+	blocks := make(map[uint64]*record.Block, len(segment.Replicas))
+	for blockID, block := range segment.Replicas {
 		blocks[blockID] = &record.Block{
-			ID:       blockpb.Id,
-			Endpoint: blockpb.Endpoint,
+			ID:       block.Id,
+			Endpoint: block.Endpoint,
 		}
 	}
-	segment := &record.Segment{
-		ID:          segmentpb.GetId(),
-		StartOffset: segmentpb.GetStartOffsetInLog(),
-		// TODO align to server side
-		EndOffset: segmentpb.GetEndOffsetInLog() + 1,
-		// TODO: writable
-		Writable:      segmentpb.State == "working",
-		Blocks:        blocks,
-		LeaderBlockID: segmentpb.GetLeaderBlockId(),
+	return &record.Segment{
+		ID:               segment.GetId(),
+		StartOffset:      segment.GetStartOffsetInLog(),
+		EndOffset:        segment.GetEndOffsetInLog(),
+		FirstEventBornAt: time.UnixMilli(segment.FirstEventBornAtByUnixMs),
+		LastEventBornAt:  time.UnixMilli(segment.LastEvnetBornAtByUnixMs),
+		Writable:         segment.State == "working", // TODO: writable
+		Blocks:           blocks,
+		LeaderBlockID:    segment.GetLeaderBlockId(),
 	}
-	return segment
 }

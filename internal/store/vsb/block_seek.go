@@ -83,7 +83,7 @@ func (b *vsBlock) seekBeforeKey(ctx context.Context, idx int64, key block.Entry,
 	if seq >= 0 {
 		return seq - 1, nil
 	}
-	return -1, nil
+	return int64(len(indexes)) - 1, nil
 }
 
 func (b *vsBlock) selectComparer(idx int64, key block.Entry) func(index.Index) int {

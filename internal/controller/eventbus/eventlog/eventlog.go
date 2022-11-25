@@ -319,7 +319,7 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[string][]Se
 				})
 				continue
 			}
-			// TODO(wenfeng.wang) Don't update state in isNeedUpdate
+			// TODO(wenfeng.wang) Don't update state in isNeedUpdate, rename?
 			if seg.isNeedUpdate(newSeg) {
 				err := el.updateSegment(ctx, seg)
 				if err != nil {

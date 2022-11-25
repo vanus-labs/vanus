@@ -61,6 +61,8 @@ message Segment {
   string state = 11;
   map<uint64, Block> replicas = 12;
   uint64 leader_block_id = 13;
+  int64 first_event_born_at_by_unix_ms = 14;
+  int64 last_evnet_born_at_by_unix_ms = 15;
 }
 
 message SegmentHealthInfo {

@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"math"
 	"sync"
+	"time"
 
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"go.opentelemetry.io/otel/trace"
@@ -44,12 +45,14 @@ func newSegment(ctx context.Context, r *record.Segment, towrite bool) (*segment,
 	}
 
 	segment := &segment{
-		id:          r.ID,
-		startOffset: r.StartOffset,
-		endOffset:   atomic.Int64{},
-		writable:    atomic.Bool{},
-		prefer:      prefer,
-		tracer:      tracing.NewTracer("internal.eventlog.segment", trace.SpanKindClient),
+		id:               r.ID,
+		startOffset:      r.StartOffset,
+		endOffset:        atomic.Int64{},
+		writable:         atomic.Bool{},
+		firstEventBornAt: r.FirstEventBornAt,
+		lastEventBornAt:  r.LastEventBornAt,
+		prefer:           prefer,
+		tracer:           tracing.NewTracer("internal.eventlog.segment", trace.SpanKindClient),
 	}
 
 	if !r.Writable {
@@ -82,10 +85,12 @@ func newBlockExt(ctx context.Context, r *record.Segment, leaderOnly bool) (*bloc
 }
 
 type segment struct {
-	id          uint64
-	startOffset int64
-	endOffset   atomic.Int64
-	writable    atomic.Bool
+	id               uint64
+	startOffset      int64
+	endOffset        atomic.Int64
+	writable         atomic.Bool
+	firstEventBornAt time.Time
+	lastEventBornAt  time.Time
 
 	prefer *block
 	mu     sync.RWMutex
@@ -117,7 +122,9 @@ func (s *segment) Close(ctx context.Context) {
 }
 
 func (s *segment) Update(ctx context.Context, r *record.Segment, towrite bool) error {
-	// When a segment become read-only, the end offset needs to be set to the readlly value.
+	// When a segment become read-only, the end offset needs to be set to the real value.
+	// TODO(wenfeng) data race?
+	s.lastEventBornAt = r.LastEventBornAt
 	if s.Writable() && !r.Writable && s.writable.CAS(true, false) {
 		s.endOffset.Store(r.EndOffset)
 		return nil
@@ -218,4 +225,8 @@ func (s *segment) setPreferSegmentBlock(prefer *block) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.prefer = prefer
+}
+
+func (s *segment) LookupOffset(ctx context.Context, t time.Time) (int64, error) {
+	return s.preferSegmentBlock().LookupOffset(ctx, t)
 }
