@@ -33,7 +33,7 @@ type Config struct {
 	BufferSize         int
 	MaxRetryAttempts   int32
 	DeliveryTimeout    time.Duration
-	RateLimit          int32
+	RateLimit          uint32
 	Controllers        []string
 	DeadLetterEventbus string
 }
@@ -71,16 +71,16 @@ func WithBufferSize(size int) Option {
 
 func WithMaxRetryAttempts(attempts int32) Option {
 	return func(t *trigger) {
-		if attempts <= 0 {
+		if attempts < 0 {
 			attempts = primitive.MaxRetryAttempts
 		}
 		t.config.MaxRetryAttempts = attempts
 	}
 }
 
-func WithDeliveryTimeout(timeout int32) Option {
+func WithDeliveryTimeout(timeout uint32) Option {
 	return func(t *trigger) {
-		if timeout <= 0 {
+		if timeout == 0 {
 			t.config.DeliveryTimeout = defaultDeliveryTimeout
 			return
 		}
@@ -88,10 +88,10 @@ func WithDeliveryTimeout(timeout int32) Option {
 	}
 }
 
-func WithRateLimit(rateLimit int32) Option {
+func WithRateLimit(rateLimit uint32) Option {
 	return func(t *trigger) {
 		t.config.RateLimit = rateLimit
-		if rateLimit <= 0 {
+		if rateLimit == 0 {
 			t.rateLimiter = ratelimit.NewUnlimited()
 			return
 		}

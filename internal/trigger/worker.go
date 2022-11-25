@@ -290,7 +290,7 @@ func (w *worker) getTriggerOptions(subscription *primitive.Subscription) []trigg
 	config := subscription.Config
 	opts = append(opts, trigger.WithRateLimit(config.RateLimit),
 		trigger.WithDeliveryTimeout(config.DeliveryTimeout),
-		trigger.WithMaxRetryAttempts(config.MaxRetryAttempts),
+		trigger.WithMaxRetryAttempts(config.GetMaxRetryAttempts()),
 		trigger.WithDeadLetterEventbus(config.DeadLetterEventbus))
 	return opts
 }

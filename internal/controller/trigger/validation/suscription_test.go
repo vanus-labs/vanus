@@ -53,12 +53,6 @@ func TestSubscriptionRequestValidator(t *testing.T) {
 func TestValidateSubscriptionConfig(t *testing.T) {
 	ctx := context.Background()
 	Convey("test validate subscription config", t, func() {
-		Convey("test rate limit", func() {
-			config := &metapb.SubscriptionConfig{
-				RateLimit: -2,
-			}
-			So(validateSubscriptionConfig(ctx, config), ShouldNotBeNil)
-		})
 		Convey("test offset timestamp", func() {
 			config := &metapb.SubscriptionConfig{
 				OffsetType: metapb.SubscriptionConfig_TIMESTAMP,
@@ -66,8 +60,9 @@ func TestValidateSubscriptionConfig(t *testing.T) {
 			So(validateSubscriptionConfig(ctx, config), ShouldNotBeNil)
 		})
 		Convey("test max retry attempts", func() {
+			attempt := uint32(10000)
 			config := &metapb.SubscriptionConfig{
-				MaxRetryAttempts: 10000,
+				MaxRetryAttempts: &attempt,
 			}
 			So(validateSubscriptionConfig(ctx, config), ShouldNotBeNil)
 		})

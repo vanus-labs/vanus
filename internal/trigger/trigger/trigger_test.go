@@ -49,9 +49,9 @@ func TestTrigger_Options(t *testing.T) {
 		WithDeliveryTimeout(0)(tg)
 		So(tg.config.DeliveryTimeout, ShouldEqual, defaultDeliveryTimeout)
 		size = rand.Intn(1000) + size
-		WithDeliveryTimeout(int32(size))(tg)
+		WithDeliveryTimeout(uint32(size))(tg)
 		So(tg.config.DeliveryTimeout, ShouldEqual, time.Duration(size)*time.Millisecond)
-		WithMaxRetryAttempts(0)(tg)
+		WithMaxRetryAttempts(-1)(tg)
 		So(tg.config.MaxRetryAttempts, ShouldEqual, primitive.MaxRetryAttempts)
 		size = rand.Intn(1000) + size
 		WithMaxRetryAttempts(int32(size))(tg)
@@ -64,7 +64,7 @@ func TestTrigger_Options(t *testing.T) {
 		WithRateLimit(0)(tg)
 		So(tg.config.RateLimit, ShouldEqual, 0)
 		size = rand.Intn(1000) + size
-		WithRateLimit(int32(size))(tg)
+		WithRateLimit(uint32(size))(tg)
 		So(tg.config.RateLimit, ShouldEqual, size)
 		WithDeadLetterEventbus("")(tg)
 		So(tg.config.DeadLetterEventbus, ShouldEqual, primitive.DeadLetterEventbusName)
@@ -220,7 +220,7 @@ func TestTriggerRateLimit(t *testing.T) {
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
 		tg.eventCli = cli
 		cli.EXPECT().Send(gomock.Any(), gomock.Any()).AnyTimes().Return(client.Success)
-		rateLimit := int32(10000)
+		rateLimit := uint32(10000)
 		Convey("test no rate limit", func() {
 			c := testSendEvent(tg)
 			So(c, ShouldBeGreaterThan, rateLimit)

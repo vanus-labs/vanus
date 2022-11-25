@@ -172,8 +172,8 @@ func (t *trigger) changeConfig(config primitive.SubscriptionConfig) {
 	if config.DeliveryTimeout != t.subscription.Config.DeliveryTimeout {
 		t.applyOptions(WithDeliveryTimeout(config.DeliveryTimeout))
 	}
-	if config.MaxRetryAttempts != t.subscription.Config.MaxRetryAttempts {
-		t.applyOptions(WithMaxRetryAttempts(config.MaxRetryAttempts))
+	if config.GetMaxRetryAttempts() != t.subscription.Config.GetMaxRetryAttempts() {
+		t.applyOptions(WithMaxRetryAttempts(config.GetMaxRetryAttempts()))
 	}
 	t.subscription.Config = config
 }
