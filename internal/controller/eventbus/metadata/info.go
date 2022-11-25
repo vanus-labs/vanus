@@ -16,16 +16,20 @@ package metadata
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/proto/pkg/meta"
 )
 
 type Eventbus struct {
-	ID        vanus.ID    `json:"id"`
-	Name      string      `json:"name"`
-	LogNumber int         `json:"log_number"`
-	EventLogs []*Eventlog `json:"event_logs"`
+	ID          vanus.ID    `json:"id"`
+	Name        string      `json:"name"`
+	LogNumber   int         `json:"log_number"`
+	EventLogs   []*Eventlog `json:"event_logs"`
+	Description string      `json:"description"`
+	CreatedAt   time.Time   `json:"created_at"`
+	UpdatedAt   time.Time   `json:"updated_at"`
 }
 
 func Convert2ProtoEventBus(ins ...*Eventbus) []*meta.EventBus {
@@ -33,8 +37,13 @@ func Convert2ProtoEventBus(ins ...*Eventbus) []*meta.EventBus {
 	for idx := 0; idx < len(ins); idx++ {
 		eb := ins[idx]
 		pebs[idx] = &meta.EventBus{
-			Name:      eb.Name,
-			LogNumber: int32(eb.LogNumber),
+			Name:        eb.Name,
+			LogNumber:   int32(eb.LogNumber),
+			Logs:        Convert2ProtoEventLog(eb.EventLogs...),
+			Id:          eb.ID.Uint64(),
+			Description: eb.Description,
+			CreatedAt:   eb.CreatedAt.UnixMilli(),
+			UpdatedAt:   eb.UpdatedAt.UnixMilli(),
 		}
 	}
 	return pebs

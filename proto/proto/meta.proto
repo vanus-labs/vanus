@@ -29,6 +29,9 @@ message EventBus {
   int32 log_number = 2;
   repeated EventLog logs = 3;
   uint64 id = 4;
+  string description = 5;
+  int64 created_at = 6;
+  int64 updated_at = 7;
 }
 
 message EventLog {
@@ -99,6 +102,11 @@ message Subscription {
   meta.ProtocolSetting protocol_settings = 8;
   string event_bus = 9;
   meta.Transformer transformer = 10;
+  string name = 11;
+  string description = 12;
+  bool disable = 13;
+  int64 created_at = 14;
+  int64 updated_at = 15;
 
   uint64 id = 100;
   repeated OffsetInfo offsets = 101;
@@ -189,4 +197,3 @@ message Transformer {
 message Action {
   repeated google.protobuf.Value command = 1;
 }
-

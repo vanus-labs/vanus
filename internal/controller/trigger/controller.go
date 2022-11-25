@@ -141,6 +141,8 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 	}
 	sub := convert.FromPbSubscriptionRequest(request.Subscription)
 	sub.ID, err = vanus.NewID()
+	sub.CreatedAt = time.Now()
+	sub.UpdatedAt = time.Now()
 	if err != nil {
 		return nil, err
 	}
@@ -186,6 +188,7 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 	if !change {
 		return nil, errors.ErrInvalidRequest.WithMessage("no change")
 	}
+	sub.UpdatedAt = time.Now()
 	sub.Phase = metadata.SubscriptionPhasePending
 	if err := ctrl.subscriptionManager.UpdateSubscription(ctx, sub); err != nil {
 		return nil, err

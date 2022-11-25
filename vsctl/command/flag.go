@@ -30,17 +30,20 @@ var (
 	detail            bool
 	eventID           string
 
-	// for vsctl eventbus and subscription.
-	eventbus       string
-	eventlogID     uint64
-	eventlogNum    int32
-	source         string
-	sink           string
-	filters        string
-	transformer    string
-	rateLimit      uint32
-	from           string
-	subscriptionID uint64
+	// for both of eventbus and subscription.
+	eventbus            string
+	eventlogID          uint64
+	eventlogNum         int32
+	source              string
+	sink                string
+	filters             string
+	transformer         string
+	rateLimit           uint32
+	from                string
+	subscriptionIDStr   string
+	description         string
+	subscriptionName    string
+	disableSubscription bool
 
 	subProtocol        string
 	sinkCredentialType string

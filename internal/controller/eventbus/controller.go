@@ -133,10 +133,13 @@ func (ctrl *controller) CreateEventBus(ctx context.Context,
 		return nil, err
 	}
 	eb := &metadata.Eventbus{
-		ID:        id,
-		Name:      req.Name,
-		LogNumber: int(logNum),
-		EventLogs: make([]*metadata.Eventlog, int(logNum)),
+		ID:          id,
+		Name:        req.Name,
+		LogNumber:   int(logNum),
+		EventLogs:   make([]*metadata.Eventlog, int(logNum)),
+		Description: req.Description,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 	exist, err := ctrl.kvStore.Exists(ctx, metadata.GetEventbusMetadataKey(eb.Name))
 	if err != nil {
@@ -204,8 +207,6 @@ func (ctrl *controller) getEventbus(name string) (*metapb.EventBus, error) {
 	}
 
 	ebMD := metadata.Convert2ProtoEventBus(_eb)[0]
-	ebMD.Name = _eb.Name
-	ebMD.Logs = metadata.Convert2ProtoEventLog(_eb.EventLogs...)
 	addrs := make([]string, 0)
 	for _, v := range ctrl.cfg.Topology {
 		addrs = append(addrs, v)

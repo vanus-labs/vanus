@@ -16,6 +16,7 @@ package vanus
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -222,7 +223,14 @@ func NewIDFromUint64(id uint64) ID {
 	return ID(id)
 }
 
+var (
+	ErrEmptyID = errors.New("id: empty")
+)
+
 func NewIDFromString(id string) (ID, error) {
+	if id == "" {
+		return emptyID, ErrEmptyID
+	}
 	i, err := strconv.ParseUint(id, base, bitSize)
 	if err != nil {
 		return emptyID, err
