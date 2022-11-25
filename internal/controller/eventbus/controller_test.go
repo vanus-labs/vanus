@@ -65,7 +65,7 @@ func TestController_CreateEventBus(t *testing.T) {
 			})
 			So(err, ShouldBeNil)
 			So(res.Name, ShouldEqual, "test-1")
-			So(res.Id, ShouldEqual, el.EventbusID.Uint64())
+			So(res.Id, ShouldNotEqual, 0)
 			So(res.Logs, ShouldHaveLength, 1)
 			So(res.LogNumber, ShouldEqual, 1)
 			So(res.Logs[0].EventBusName, ShouldEqual, "test-1")

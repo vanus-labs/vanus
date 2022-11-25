@@ -38,6 +38,9 @@ func FromPbSubscriptionRequest(sub *ctrl.SubscriptionRequest) *metadata.Subscrip
 		Filters:            fromPbFilters(sub.Filters),
 		Transformer:        fromPbTransformer(sub.Transformer),
 		EventBus:           sub.EventBus,
+		Name:               sub.Name,
+		Disable:            sub.Disable,
+		Description:        sub.Description,
 	}
 	return to
 }
@@ -282,6 +285,11 @@ func ToPbSubscription(sub *metadata.Subscription, offsets info.ListOffsetInfo) *
 		Filters:          toPbFilters(sub.Filters),
 		Transformer:      ToPbTransformer(sub.Transformer),
 		Offsets:          ToPbOffsetInfos(offsets),
+		Name:             sub.Name,
+		Disable:          sub.Disable,
+		Description:      sub.Description,
+		CreatedAt:        sub.CreatedAt.UnixMilli(),
+		UpdatedAt:        sub.UpdatedAt.UnixMilli(),
 	}
 	return to
 }

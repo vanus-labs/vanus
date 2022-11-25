@@ -19,12 +19,14 @@ import (
 	"encoding/json"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/gogo/protobuf/sortkeys"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	"github.com/spf13/cobra"
@@ -57,8 +59,9 @@ func createEventbusCommand() *cobra.Command {
 				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
 			_, err := client.CreateEventBus(context.Background(), &ctrlpb.CreateEventBusRequest{
-				Name:      eventbus,
-				LogNumber: eventlogNum,
+				Name:        eventbus,
+				LogNumber:   eventlogNum,
+				Description: description,
 			})
 			if err != nil {
 				cmdFailedf(cmd, "create eventbus failed: %s", err)
@@ -81,6 +84,7 @@ func createEventbusCommand() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&eventbus, "name", "", "eventbus name to deleting")
 	cmd.Flags().Int32Var(&eventlogNum, "eventlog", 1, "number of eventlog")
+	cmd.Flags().StringVar(&description, "description", "", "subscription description")
 	return cmd
 }
 
@@ -162,62 +166,66 @@ func getEventbusInfoCommand() *cobra.Command {
 				color.Yellow("WARN: this command doesn't support --output-format\n")
 			}
 			if !showSegment && !showBlock {
-				t.AppendHeader(table.Row{"Eventbus", "Eventlog", "Segment Number"})
+				t.AppendHeader(table.Row{"Eventbus", "Description", "Created_At", "Updated_At",
+					"Eventlog", "Segment Number"})
 				for _, res := range busMetas {
 					for idx := 0; idx < len(res.Logs); idx++ {
 						if idx == 0 {
-							t.AppendRow(table.Row{res.Name, res.Logs[idx].EventLogId, res.Logs[idx].CurrentSegmentNumbers})
-						} else {
-							t.AppendRow(table.Row{"", res.Logs[idx].EventLogId, res.Logs[idx].CurrentSegmentNumbers})
+							t.AppendRow(table.Row{
+								res.Name,
+								res.Description,
+								time.UnixMilli(res.CreatedAt).Format(time.RFC3339),
+								time.UnixMilli(res.UpdatedAt).Format(time.RFC3339),
+								formatID(res.Logs[idx].EventLogId),
+								res.Logs[idx].CurrentSegmentNumbers,
+							})
 						}
 					}
-					t.SetColumnConfigs([]table.ColumnConfig{
-						{Number: 1, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 2, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					cfgs := eventbusColConfigs()
+					cfgs = append(cfgs, table.ColumnConfig{
+						Number:      len(cfgs) + 1,
+						VAlign:      text.VAlignMiddle,
+						Align:       text.AlignCenter,
+						AlignHeader: text.AlignCenter,
 					})
+					t.SetColumnConfigs(cfgs)
 				}
 			} else {
 				if !showBlock {
-					t.AppendHeader(table.Row{"Eventbus", "Eventlog", "Segment", "Capacity", "Size", "Start", "End"})
-					for _, res := range busMetas {
-						for idx := 0; idx < len(res.Logs); idx++ {
-							segOfEL := segs[res.Logs[idx].EventLogId]
-							for sIdx, v := range segOfEL {
-								switch {
-								case idx == 0 && sIdx == 0:
-									t.AppendRow(table.Row{res.Name, res.Logs[idx].EventLogId, v.Id, v.Capacity, v.Size,
-										v.StartOffsetInLog, v.EndOffsetInLog})
-								case sIdx == 0:
-									t.AppendRow(table.Row{"", res.Logs[idx].EventLogId, v.Id, v.Capacity, v.Size,
-										v.StartOffsetInLog, v.EndOffsetInLog})
-								default:
-									t.AppendRow(table.Row{"", "", v.Id, v.Capacity, v.Size, v.StartOffsetInLog,
-										v.EndOffsetInLog})
-								}
+					t.AppendHeader(table.Row{"Eventbus", "Description", "Created_At", "Updated_At",
+						"Eventlog", "Segment", "Capacity", "Size", "Start", "End"})
+					for _, eb := range busMetas {
+						for idx := 0; idx < len(eb.Logs); idx++ {
+							segOfEL := segs[eb.Logs[idx].EventLogId]
+							for _, v := range segOfEL {
+								t.AppendRow(table.Row{eb.Name, eb.Description, time.UnixMilli(eb.CreatedAt).Format(time.RFC3339),
+									time.UnixMilli(eb.UpdatedAt).Format(time.RFC3339), formatID(eb.Logs[idx].EventLogId), formatID(v.Id),
+									v.Capacity, v.Size, v.StartOffsetInLog, v.EndOffsetInLog})
 							}
 							t.AppendSeparator()
 						}
 					}
 
-					t.SetColumnConfigs([]table.ColumnConfig{
-						{Number: 1, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 2, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 3, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 4, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 5, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 6, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 7, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					})
+					cfgs := eventbusColConfigs()
+					cfgs = append(cfgs, []table.ColumnConfig{
+						{Number: len(cfgs) + 1, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter,
+							AlignHeader: text.AlignCenter},
+						{Number: len(cfgs) + 2, VAlign: text.VAlignMiddle, Align: text.AlignCenter,
+							AlignHeader: text.AlignCenter},
+						{Number: len(cfgs) + 3, VAlign: text.VAlignMiddle, Align: text.AlignCenter,
+							AlignHeader: text.AlignCenter},
+						{Number: len(cfgs) + 4, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: len(cfgs) + 5, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					}...)
+					t.SetColumnConfigs(cfgs)
 				} else {
-					t.AppendHeader(table.Row{"Eventbus", "Eventlog", "Segment", "Capacity", "Size", "Start", "End",
-						"Block", "Leader", "Volume", "Endpoint"})
+					t.AppendHeader(table.Row{"Eventbus", "Description", "Created_At", "Updated_At", "Eventlog",
+						"Segment", "Capacity", "Size", "Start", "End", "Block", "Leader", "Volume", "Endpoint"})
 					multiReplica := false
 					for _, res := range busMetas {
 						for idx := 0; idx < len(res.Logs); idx++ {
 							segOfEL := segs[res.Logs[idx].EventLogId]
-							for sIdx, seg := range segOfEL {
-								tIdx := 0
+							for _, seg := range segOfEL {
 								if !multiReplica && len(seg.Replicas) > 1 {
 									multiReplica = true
 								}
@@ -230,50 +238,38 @@ func getEventbusInfoCommand() *cobra.Command {
 								sortkeys.Uint64s(vols)
 								for _, k := range vols {
 									blk := volMap[k]
-									switch {
-									case idx == 0 && sIdx == 0 && tIdx == 0:
-										t.AppendRow(table.Row{res.Name, res.Logs[idx].EventLogId, seg.Id, seg.Capacity,
-											seg.Size, seg.StartOffsetInLog, seg.EndOffsetInLog, blk.Id,
-											blk.Id == seg.LeaderBlockId, blk.VolumeID, blk.Endpoint})
-									case sIdx == 0 && tIdx == 0:
-										t.AppendRow(table.Row{"", res.Logs[idx].EventLogId, seg.Id, seg.Capacity,
-											seg.Size, seg.StartOffsetInLog, seg.EndOffsetInLog, blk.Id,
-											blk.Id == seg.LeaderBlockId, blk.VolumeID, blk.Endpoint})
-									case tIdx == 0:
-										t.AppendRow(table.Row{"", "", seg.Id, seg.Capacity, seg.Size,
-											seg.StartOffsetInLog, seg.EndOffsetInLog, blk.Id,
-											blk.Id == seg.LeaderBlockId, blk.VolumeID, blk.Endpoint})
-									default:
-										t.AppendRow(table.Row{"", "", "", "", "", "", "", blk.Id,
-											blk.Id == seg.LeaderBlockId, blk.VolumeID, blk.Endpoint})
-									}
-
-									tIdx++
+									t.AppendRow(table.Row{res.Name, res.Description, time.UnixMilli(res.CreatedAt).Format(time.RFC3339),
+										time.UnixMilli(res.UpdatedAt).Format(time.RFC3339), formatID(res.Logs[idx].EventLogId),
+										formatID(seg.Id), seg.Capacity, seg.Size, seg.StartOffsetInLog,
+										seg.EndOffsetInLog, formatID(blk.Id), blk.Id == seg.LeaderBlockId,
+										blk.VolumeID, blk.Endpoint})
 								}
 							}
 							t.AppendSeparator()
 						}
 					}
-					t.SetColumnConfigs([]table.ColumnConfig{
-						{Number: 1, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter,
+					cfgs := eventbusColConfigs()
+					cfgs = append(cfgs, []table.ColumnConfig{
+						{Number: len(cfgs) + 1, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter,
 							AlignHeader: text.AlignCenter},
-						{Number: 2, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter,
+						{Number: len(cfgs) + 2, VAlign: text.VAlignMiddle, AutoMerge: multiReplica,
+							Align:       text.AlignCenter,
 							AlignHeader: text.AlignCenter},
-						{Number: 3, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter,
+						{Number: len(cfgs) + 3, VAlign: text.VAlignMiddle, AutoMerge: multiReplica,
+							Align:       text.AlignCenter,
 							AlignHeader: text.AlignCenter},
-						{Number: 4, VAlign: text.VAlignMiddle, AutoMerge: multiReplica, Align: text.AlignCenter,
+						{Number: len(cfgs) + 4, VAlign: text.VAlignMiddle, AutoMerge: multiReplica,
+							Align:       text.AlignCenter,
 							AlignHeader: text.AlignCenter},
-						{Number: 5, VAlign: text.VAlignMiddle, AutoMerge: multiReplica, Align: text.AlignCenter,
+						{Number: len(cfgs) + 5, VAlign: text.VAlignMiddle, AutoMerge: multiReplica,
+							Align:       text.AlignCenter,
 							AlignHeader: text.AlignCenter},
-						{Number: 6, VAlign: text.VAlignMiddle, AutoMerge: multiReplica, Align: text.AlignCenter,
-							AlignHeader: text.AlignCenter},
-						{Number: 7, VAlign: text.VAlignMiddle, AutoMerge: multiReplica, Align: text.AlignCenter,
-							AlignHeader: text.AlignCenter},
-						{Number: 8, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 9, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 10, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-						{Number: 11, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					})
+						{Number: len(cfgs) + 6, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: len(cfgs) + 7, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: len(cfgs) + 8, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: len(cfgs) + 9, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					}...)
+					t.SetColumnConfigs(cfgs)
 				}
 			}
 			t.SetStyle(table.StyleLight)
@@ -303,30 +299,42 @@ func listEventbusInfoCommand() *cobra.Command {
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Name", "ID", "Eventlog", "Segments"})
+				t.AppendHeader(table.Row{"Name", "Description", "Created_At",
+					"Updated_At", "Eventlog Number"})
 				for idx := range res.Eventbus {
 					eb := res.Eventbus[idx]
-					if len(eb.Logs) == 0 {
-						t.AppendRow(table.Row{eb.Name, eb.Id})
-					} else {
-						t.AppendRow(table.Row{eb.Name, eb.Id, eb.Logs[0].EventLogId, eb.Logs[0].CurrentSegmentNumbers})
-						for sIdx := 1; sIdx < len(eb.Logs); sIdx++ {
-							t.AppendSeparator()
-							t.AppendRow(table.Row{eb.Name, eb.Id, eb.Logs[idx].EventLogId, eb.Logs[idx].CurrentSegmentNumbers})
-						}
-					}
 					t.AppendSeparator()
+					t.AppendRow(table.Row{
+						eb.Name,
+						eb.Description,
+						time.UnixMilli(eb.CreatedAt).Format(time.RFC3339),
+						time.UnixMilli(eb.UpdatedAt).Format(time.RFC3339),
+						eb.LogNumber,
+					})
 				}
-				t.SetColumnConfigs([]table.ColumnConfig{
-					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 2, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 4, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-				})
+				cfgs := eventbusColConfigs()
+				for idx := range cfgs {
+					cfgs[idx].AutoMerge = false
+				}
+				t.SetColumnConfigs(cfgs)
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
 			}
 		},
 	}
 	return cmd
+}
+
+func eventbusColConfigs() []table.ColumnConfig {
+	return []table.ColumnConfig{
+		{Number: 1, AutoMerge: true, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+		{Number: 2, AutoMerge: true, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+		{Number: 3, AutoMerge: true, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+		{Number: 4, AutoMerge: true, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+		{Number: 5, AutoMerge: true, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+	}
+}
+
+func formatID(id uint64) string {
+	return vanus.NewIDFromUint64(id).String()
 }

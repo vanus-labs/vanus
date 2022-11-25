@@ -97,6 +97,7 @@ message PingResponse {
 message CreateEventBusRequest {
   string name = 1;
   int32 log_number = 2;
+  string description = 3;
 }
 
 message ListEventbusResponse {
@@ -156,6 +157,9 @@ message SubscriptionRequest {
   meta.ProtocolSetting protocol_settings = 8;
   string event_bus = 9;
   meta.Transformer transformer = 10;
+  string name = 11;
+  string description = 12;
+  bool disable = 13;
 }
 
 message CreateSubscriptionRequest {

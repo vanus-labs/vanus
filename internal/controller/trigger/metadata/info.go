@@ -75,6 +75,11 @@ type Subscription struct {
 	ProtocolSetting    *primitive.ProtocolSetting      `json:"protocol_settings,omitempty"`
 	EventBus           string                          `json:"eventbus"`
 	Transformer        *primitive.Transformer          `json:"transformer,omitempty"`
+	Name               string                          `json:"name"`
+	Disable            bool                            `json:"disable"`
+	Description        string                          `json:"description"`
+	CreatedAt          time.Time                       `json:"created_at"`
+	UpdatedAt          time.Time                       `json:"updated_at"`
 
 	// not from api
 	Phase         SubscriptionPhase `json:"phase"`
@@ -88,6 +93,14 @@ func (s *Subscription) Update(update *Subscription) bool {
 	if s.Source != update.Source {
 		change = true
 		s.Source = update.Source
+	}
+	if s.Description != update.Description {
+		change = true
+		s.Description = update.Description
+	}
+	if s.Disable != update.Disable {
+		change = true
+		s.Disable = update.Disable
 	}
 	if !reflect.DeepEqual(s.Types, update.Types) {
 		change = true
