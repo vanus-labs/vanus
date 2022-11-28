@@ -71,7 +71,10 @@ func (s *logStream) lastFile() *logFile {
 	return s.stream[len(s.stream)-1]
 }
 
-func (s *logStream) selectFile(offset int64, autoCreate bool) *logFile {
+func (s *logStream) selectFile(ctx context.Context, offset int64, autoCreate bool) *logFile {
+	ctx, span := s.tracer.Start(ctx, "selectFile")
+	defer span.End()
+
 	s.mu.RLock()
 
 	sz := len(s.stream)
@@ -82,7 +85,7 @@ func (s *logStream) selectFile(offset int64, autoCreate bool) *logFile {
 			if !autoCreate {
 				return nil
 			}
-			return s.createNextFile(nil)
+			return s.createNextFile(ctx, nil)
 		}
 		panic("log stream not begin from 0")
 	}
@@ -98,7 +101,7 @@ func (s *logStream) selectFile(offset int64, autoCreate bool) *logFile {
 			if !autoCreate {
 				return nil
 			}
-			return s.createNextFile(last)
+			return s.createNextFile(ctx, last)
 		}
 		panic("log stream overflow")
 	}
@@ -120,7 +123,10 @@ func (s *logStream) selectFile(offset int64, autoCreate bool) *logFile {
 	panic("unreachable")
 }
 
-func (s *logStream) createNextFile(last *logFile) *logFile {
+func (s *logStream) createNextFile(ctx context.Context, last *logFile) *logFile {
+	_, span := s.tracer.Start(ctx, "createNextFile")
+	defer span.End()
+
 	var off int64
 	if last != nil {
 		off = last.eo
@@ -321,7 +327,10 @@ func (s *logStream) firstRecordOffset(so, from int64) int64 {
 }
 
 // compact compacts all log files whose end offset is not after off.
-func (s *logStream) compact(off int64) error {
+func (s *logStream) compact(ctx context.Context, off int64) error {
+	_, span := s.tracer.Start(ctx, "compact")
+	defer span.End()
+
 	var compacted []*logFile
 	defer func() {
 		if compacted != nil {
@@ -329,7 +338,10 @@ func (s *logStream) compact(off int64) error {
 		}
 	}()
 
+	span.AddEvent("Acquiring lock")
 	s.mu.Lock()
+	span.AddEvent("Got lock")
+
 	defer s.mu.Unlock()
 
 	sz := len(s.stream)

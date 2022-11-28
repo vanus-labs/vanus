@@ -15,8 +15,8 @@
 package log
 
 import (
-	stdCtx "context"
 	// standard libraries.
+	"context"
 	"math"
 	"os"
 	"testing"
@@ -59,6 +59,8 @@ var (
 )
 
 func TestLog(t *testing.T) {
+	ctx := context.Background()
+
 	metaDir, err := os.MkdirTemp("", "meta-*")
 	if err != nil {
 		t.Fatal(err)
@@ -100,16 +102,16 @@ func TestLog(t *testing.T) {
 	}
 
 	Convey("raft log", t, func() {
-		metaStore, err := meta.RecoverSyncStore(stdCtx.Background(), metaCfg, metaDir)
+		metaStore, err := meta.RecoverSyncStore(ctx, metaCfg, metaDir)
 		So(err, ShouldBeNil)
-		defer metaStore.Close(stdCtx.Background())
+		defer metaStore.Close(ctx)
 
-		offsetStore, err := meta.RecoverAsyncStore(stdCtx.Background(), offsetCfg, offsetDir)
+		offsetStore, err := meta.RecoverAsyncStore(ctx, offsetCfg, offsetDir)
 		So(err, ShouldBeNil)
 		defer offsetStore.Close()
 
 		Convey("create raft log", func() {
-			rawWAL, err := walog.Open(stdCtx.Background(), walDir, walog.WithFileSize(int64(fileSize)))
+			rawWAL, err := walog.Open(ctx, walDir, walog.WithFileSize(int64(fileSize)))
 			So(err, ShouldBeNil)
 			wal := newWAL(rawWAL, metaStore)
 			defer func() {
@@ -123,33 +125,43 @@ func TestLog(t *testing.T) {
 			So(hardSt, ShouldResemble, raftpb.HardState{})
 			So(confSt, ShouldResemble, raftpb.ConfState{})
 
+			ch := make(chan error, 1)
+
 			ent := raftpb.Entry{Term: 1, Index: 1, Type: raftpb.EntryConfChange, Data: data1}
-			err = log.Append(stdCtx.Background(), []raftpb.Entry{ent})
-			So(err, ShouldBeNil)
+			log.Append(ctx, []raftpb.Entry{ent}, func(_ AppendResult, err error) {
+				ch <- err
+			})
+			So(<-ch, ShouldBeNil)
 
 			ents, err := log.Entries(1, 2, 0)
 			So(err, ShouldBeNil)
 			So(ents, ShouldHaveLength, 1)
 			So(ents[0], ShouldResemble, ent)
 
-			err = log.SetHardState(stdCtx.Background(), raftpb.HardState{Term: 1, Commit: 1})
+			err = log.SetHardState(ctx, raftpb.HardState{Term: 1, Commit: 1})
 			So(err, ShouldBeNil)
 
-			err = log.SetConfState(stdCtx.Background(), raftpb.ConfState{Voters: []uint64{nodeID1.Uint64()}})
+			err = log.SetConfState(ctx, raftpb.ConfState{
+				Voters: []uint64{nodeID1.Uint64()},
+			})
 			So(err, ShouldBeNil)
 
-			log.SetApplied(1)
+			log.SetApplied(ctx, 1)
 
 			ent = raftpb.Entry{Term: 2, Index: 2, Type: raftpb.EntryNormal}
-			err = log.Append(stdCtx.Background(), []raftpb.Entry{ent})
-			So(err, ShouldBeNil)
+			log.Append(ctx, []raftpb.Entry{ent}, func(_ AppendResult, err error) {
+				ch <- err
+			})
+			So(<-ch, ShouldBeNil)
 
-			err = log.SetHardState(stdCtx.Background(), raftpb.HardState{Term: 2, Vote: nodeID1.Uint64(), Commit: 2})
+			err = log.SetHardState(ctx, raftpb.HardState{
+				Term: 2, Vote: nodeID1.Uint64(), Commit: 2,
+			})
 			So(err, ShouldBeNil)
 		})
 
 		Convey("recover raft log", func() {
-			logs, wal, err := RecoverLogsAndWAL(stdCtx.Background(), raftCfg, walDir, metaStore, offsetStore)
+			logs, wal, err := RecoverLogsAndWAL(ctx, raftCfg, walDir, metaStore, offsetStore)
 			So(err, ShouldBeNil)
 			defer func() {
 				wal.Close()
@@ -210,67 +222,82 @@ func TestLog(t *testing.T) {
 			So(err, ShouldEqual, raft.ErrUnavailable)
 
 			Convey("add new members, and truncate", func() {
-				err = log.Append(stdCtx.Background(), []raftpb.Entry{{Term: 3, Index: 3, Type: raftpb.EntryNormal}})
+				ch := make(chan error, 1)
+				cb := func(_ AppendResult, err error) {
+					ch <- err
+				}
+
+				log.Append(ctx, []raftpb.Entry{
+					{Term: 3, Index: 3, Type: raftpb.EntryNormal},
+				}, cb)
+				So(<-ch, ShouldBeNil)
+
+				err = log.SetHardState(ctx, raftpb.HardState{
+					Term: 3, Vote: nodeID1.Uint64(), Commit: 3,
+				})
 				So(err, ShouldBeNil)
 
-				err = log.SetHardState(stdCtx.Background(), raftpb.HardState{Term: 3, Vote: nodeID1.Uint64(), Commit: 3})
-				So(err, ShouldBeNil)
-
-				err = log.Append(stdCtx.Background(), []raftpb.Entry{{
+				log.Append(ctx, []raftpb.Entry{{
 					Term:  3,
 					Index: 4,
 					Type:  raftpb.EntryConfChange,
 					Data:  data2,
-				}})
+				}}, cb)
+				So(<-ch, ShouldBeNil)
+
+				err = log.SetHardState(ctx, raftpb.HardState{
+					Term: 3, Vote: nodeID1.Uint64(), Commit: 4,
+				})
 				So(err, ShouldBeNil)
 
-				err = log.SetHardState(stdCtx.Background(), raftpb.HardState{Term: 3, Vote: nodeID1.Uint64(), Commit: 4})
-				So(err, ShouldBeNil)
-
-				err = log.SetConfState(stdCtx.Background(), raftpb.ConfState{
+				err = log.SetConfState(ctx, raftpb.ConfState{
 					Voters: []uint64{nodeID1.Uint64(), nodeID2.Uint64(), nodeID3.Uint64()},
 				})
 				So(err, ShouldBeNil)
 
-				log.SetApplied(4)
+				log.SetApplied(ctx, 4)
 
-				err = log.Append(stdCtx.Background(), []raftpb.Entry{{
+				log.Append(ctx, []raftpb.Entry{{
 					Term:  3,
 					Index: 5,
 					Type:  raftpb.EntryNormal,
 					Data:  []byte("hello world!"),
-				}})
-				So(err, ShouldBeNil)
+				}}, cb)
+				So(<-ch, ShouldBeNil)
 
-				err = log.Append(stdCtx.Background(), []raftpb.Entry{{
+				log.Append(ctx, []raftpb.Entry{{
 					Term:  4,
 					Index: 5,
 					Type:  raftpb.EntryNormal,
-				}})
+				}}, cb)
+				So(<-ch, ShouldBeNil)
+
+				err = log.SetHardState(ctx, raftpb.HardState{
+					Term: 4, Vote: nodeID2.Uint64(), Commit: 5,
+				})
 				So(err, ShouldBeNil)
 
-				err = log.SetHardState(stdCtx.Background(), raftpb.HardState{Term: 4, Vote: nodeID2.Uint64(), Commit: 5})
-				So(err, ShouldBeNil)
+				log.SetApplied(ctx, 5)
 
-				log.SetApplied(5)
-
-				err = log.Append(stdCtx.Background(), []raftpb.Entry{{
+				log.Append(ctx, []raftpb.Entry{{
 					Term:  4,
 					Index: 6,
 					Type:  raftpb.EntryNormal,
 					Data:  []byte("nice job!"),
-				}})
+				}}, cb)
+				So(<-ch, ShouldBeNil)
+
+				err = log.SetHardState(ctx, raftpb.HardState{
+					Term: 4, Vote: nodeID2.Uint64(), Commit: 6,
+				})
 				So(err, ShouldBeNil)
 
-				err = log.SetHardState(stdCtx.Background(), raftpb.HardState{Term: 4, Vote: nodeID2.Uint64(), Commit: 6})
-				So(err, ShouldBeNil)
-
-				log.SetApplied(6)
+				log.SetApplied(ctx, 6)
 			})
 		})
 
 		Convey("recover raft log again", func() {
-			logs, wal, err := RecoverLogsAndWAL(stdCtx.Background(), raftCfg, walDir, metaStore, offsetStore)
+			logs, wal, err := RecoverLogsAndWAL(ctx, raftCfg, walDir, metaStore, offsetStore)
 			So(err, ShouldBeNil)
 			defer func() {
 				wal.Close()

@@ -22,7 +22,7 @@ import (
 	"strconv"
 
 	// third-party project.
-	oteltracer "go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace"
 
 	// first-party project.
 	"github.com/linkall-labs/vanus/observability/log"
@@ -50,7 +50,7 @@ func recoverLogStream(ctx context.Context, dir string, cfg config) (*logStream, 
 		dir:       dir,
 		blockSize: cfg.blockSize,
 		fileSize:  cfg.fileSize,
-		tracer:    tracing.NewTracer("store.wal.recovery", oteltracer.SpanKindInternal),
+		tracer:    tracing.NewTracer("store.wal.logStream", trace.SpanKindInternal),
 	}
 	return stream, nil
 }

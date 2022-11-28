@@ -15,9 +15,17 @@
 package raft
 
 import (
+	// standard libraries.
 	"context"
 	"errors"
 
+	// third-party libraries.
+	"go.opentelemetry.io/otel/trace"
+
+	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/tracing"
+
+	// this project.
 	pb "github.com/linkall-labs/vanus/raft/raftpb"
 )
 
@@ -276,6 +284,8 @@ type node struct {
 	status     chan chan Status
 
 	rn *RawNode
+
+	tracer *tracing.Tracer
 }
 
 func newNode(rn *RawNode) node {
@@ -295,6 +305,7 @@ func newNode(rn *RawNode) node {
 		stop:   make(chan struct{}),
 		status: make(chan chan Status),
 		rn:     rn,
+		tracer: tracing.NewTracer("raft.node", trace.SpanKindInternal),
 	}
 }
 
@@ -463,10 +474,16 @@ func (n *node) Tick() {
 func (n *node) Campaign(ctx context.Context) error { return n.step(ctx, pb.Message{Type: pb.MsgHup}) }
 
 func (n *node) Propose(ctx context.Context, data []byte) error {
+	ctx, span := n.tracer.Start(ctx, "Propose")
+	defer span.End()
+
 	return n.stepWait(ctx, pb.Message{Type: pb.MsgProp, Entries: []pb.Entry{{Data: data}}})
 }
 
 func (n *node) Step(ctx context.Context, m pb.Message) error {
+	ctx, span := n.tracer.Start(ctx, "Step")
+	defer span.End()
+
 	// ignore unexpected local messages receiving over network
 	if IsLocalMsg(m.Type) {
 		// TODO: return an error?
@@ -603,7 +620,7 @@ func (n *node) ReadIndex(ctx context.Context, rctx []byte) error {
 
 func newReady(r *raft, prevSoftSt *SoftState, prevHardSt pb.HardState, prevCompact uint64) Ready {
 	rd := Ready{
-		Entries:          r.raftLog.unstableEntries(),
+		Entries:          r.raftLog.pendingEntries(),
 		CommittedEntries: r.raftLog.nextEnts(),
 		Messages:         r.msgs,
 	}

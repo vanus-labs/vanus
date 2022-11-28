@@ -253,6 +253,8 @@ type raft struct {
 	// the log
 	raftLog *raftLog
 
+	commit uint64
+
 	maxMsgSize         uint64
 	maxUncommittedSize uint64
 	// TODO(tbg): rename to trk.
@@ -581,10 +583,6 @@ func (r *raft) advance(rd Ready) {
 		}
 	}
 
-	if len(rd.Entries) > 0 {
-		e := rd.Entries[len(rd.Entries)-1]
-		r.raftLog.stableTo(e.Index, e.Term)
-	}
 	if !IsEmptySnap(rd.Snapshot) {
 		r.raftLog.stableSnapTo(rd.Snapshot.Metadata.Index)
 	}
@@ -649,11 +647,7 @@ func (r *raft) appendEntry(es ...pb.Entry) (accepted bool) {
 		// Drop the proposal.
 		return false
 	}
-	// use latest "last" index after truncate/append
-	li = r.raftLog.append(es...)
-	r.prs.Progress[r.id].MaybeUpdate(li)
-	// Regardless of maybeCommit's return, our caller will call bcastAppend.
-	r.maybeCommit()
+	_ = r.raftLog.append(es...)
 	return true
 }
 
@@ -1091,6 +1085,15 @@ func stepLeader(r *raft, m pb.Message) error {
 		}
 		r.bcastAppend()
 		return nil
+	case pb.MsgLogResp:
+		if r.raftLog.stableTo(m.Index, m.LogTerm) {
+			r.prs.Progress[r.id].MaybeUpdate(m.Index)
+			if r.maybeCommit() {
+				// TODO(james.yin): Send latest commit to follower nodes?
+				// r.bcastAppend()
+			}
+		}
+		return nil
 	case pb.MsgReadIndex:
 		// only one voting member (the leader) in the cluster
 		if r.prs.IsSingleton() {
@@ -1409,6 +1412,10 @@ func stepCandidate(r *raft, m pb.Message) error {
 	case pb.MsgApp:
 		r.becomeFollower(m.Term, m.From) // always m.Term == r.Term
 		r.handleAppendEntries(m)
+	case pb.MsgLogResp:
+		if r.raftLog.stableTo(m.Index, m.LogTerm) {
+			r.raftLog.commitTo(min(r.commit, m.Index))
+		}
 	case pb.MsgHeartbeat:
 		r.becomeFollower(m.Term, m.From) // always m.Term == r.Term
 		r.handleHeartbeat(m)
@@ -1453,6 +1460,11 @@ func stepFollower(r *raft, m pb.Message) error {
 		r.electionElapsed = 0
 		r.lead = m.From
 		r.handleAppendEntries(m)
+	case pb.MsgLogResp:
+		if r.raftLog.stableTo(m.Index, m.LogTerm) {
+			r.raftLog.commitTo(min(r.commit, m.Index))
+			r.send(pb.Message{To: r.lead, Type: pb.MsgAppResp, Index: m.Index})
+		}
 	case pb.MsgHeartbeat:
 		r.electionElapsed = 0
 		r.lead = m.From
@@ -1497,9 +1509,11 @@ func (r *raft) handleAppendEntries(m pb.Message) {
 		return
 	}
 
-	if mlastIndex, ok := r.raftLog.maybeAppend(m.Index, m.LogTerm, m.Commit, m.Entries...); ok {
-		r.send(pb.Message{To: m.From, Type: pb.MsgAppResp, Index: mlastIndex})
-	} else {
+	if m.Commit > r.commit {
+		r.commit = m.Commit
+	}
+
+	if ok := r.raftLog.maybeAppend(m.Index, m.LogTerm, m.Commit, m.Entries...); !ok {
 		r.logger.Debugf("%x [logterm: %d, index: %d] rejected MsgApp [logterm: %d, index: %d] from %x",
 			r.id, r.raftLog.zeroTermOnErrCompacted(r.raftLog.term(m.Index)), m.Index, m.LogTerm, m.Index, m.From)
 

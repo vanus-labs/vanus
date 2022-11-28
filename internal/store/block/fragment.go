@@ -15,7 +15,10 @@
 //go:generate mockgen -source=fragment.go  -destination=testing/mock_fragment.go -package=testing
 package block
 
-import "encoding/binary"
+import (
+	"context"
+	"encoding/binary"
+)
 
 // Fragment is a fragment of a block.
 //
@@ -37,12 +40,12 @@ type Fragment interface {
 }
 
 type FragmentMarshaler interface {
-	MarshalFragment() ([]byte, error)
+	MarshalFragment(ctx context.Context) ([]byte, error)
 }
 
-func MarshalFragment(frag Fragment) ([]byte, error) {
+func MarshalFragment(ctx context.Context, frag Fragment) ([]byte, error) {
 	if m, ok := frag.(FragmentMarshaler); ok {
-		return m.MarshalFragment()
+		return m.MarshalFragment(ctx)
 	}
 
 	buf := make([]byte, 8+frag.Size())
@@ -81,6 +84,6 @@ func (f *fragment) EndOffset() int64 {
 	return f.StartOffset() + int64(f.Size())
 }
 
-func (f *fragment) MarshalFragment() ([]byte, error) {
+func (f *fragment) MarshalFragment(ctx context.Context) ([]byte, error) {
 	return f.data, nil
 }

@@ -146,6 +146,10 @@ func (rn *RawNode) acceptReady(rd Ready) {
 	if len(rd.ReadStates) != 0 {
 		rn.raft.readStates = nil
 	}
+	if len(rd.Entries) > 0 {
+		e := rd.Entries[len(rd.Entries)-1]
+		rn.raft.raftLog.persistingTo(e.Index, e.Term)
+	}
 	rn.raft.msgs = nil
 }
 
@@ -162,7 +166,7 @@ func (rn *RawNode) HasReady() bool {
 	if r.raftLog.hasPendingSnapshot() {
 		return true
 	}
-	if len(r.msgs) > 0 || len(r.raftLog.unstableEntries()) > 0 || r.raftLog.hasNextEnts() {
+	if len(r.msgs) > 0 || len(r.raftLog.pendingEntries()) > 0 || r.raftLog.hasNextEnts() {
 		return true
 	}
 	if len(r.readStates) != 0 {

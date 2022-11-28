@@ -19,18 +19,22 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability/tracing"
 	"net"
 	"net/http"
 	"os"
 
-	// this project.
-	"github.com/linkall-labs/vanus/internal/store"
-	"github.com/linkall-labs/vanus/internal/store/segment"
+	// third-party libraries.
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/linkall-labs/vanus/observability/tracing"
+
+	// this project.
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/store"
+	"github.com/linkall-labs/vanus/internal/store/segment"
 )
 
 var configPath = flag.String("config", "./config/store.yaml", "store config file path")
@@ -47,6 +51,7 @@ func main() {
 	}
 
 	tracing.Init("Vanus-Store")
+
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
 		log.Error(context.Background(), "Listen tcp port failed.", map[string]interface{}{
@@ -97,8 +102,7 @@ func main() {
 
 func startMetrics() {
 	http.Handle("/metrics", promhttp.Handler())
-	err := http.ListenAndServe(":2112", nil)
-	if err != nil {
+	if err := http.ListenAndServe(":2112", nil); err != nil { //nolint:gosec // wrong advice
 		log.Error(context.Background(), "Metrics listen and serve failed.", map[string]interface{}{
 			log.KeyError: err,
 		})

@@ -29,7 +29,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
-	oteltracer "go.opentelemetry.io/otel/trace"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -39,9 +39,7 @@ const (
 	serverName    = "SERVER_NAME"
 )
 
-var (
-	tp *tracerProvider
-)
+var tp *tracerProvider
 
 func Init(name ...string) {
 	srvName := os.Getenv(serverName)
@@ -59,42 +57,42 @@ func Init(name ...string) {
 		}
 		p.p = provider
 	} else {
-		p.p = oteltracer.NewNoopTracerProvider()
+		p.p = oteltrace.NewNoopTracerProvider()
 	}
 	tp = p
 }
 
-func Start(ctx context.Context, pkgName, methodName string) (context.Context, oteltracer.Span) {
+func Start(ctx context.Context, pkgName, methodName string) (context.Context, oteltrace.Span) {
 	if tp == nil {
 		return ctx, emptySpan("test")
 	}
 	return tp.p.Tracer(pkgName).Start(ctx, strings.Join([]string{pkgName, methodName}, "/"),
-		oteltracer.WithSpanKind(oteltracer.SpanKindServer))
+		oteltrace.WithSpanKind(oteltrace.SpanKindServer))
 }
 
 type tracerProvider struct {
-	p          oteltracer.TracerProvider
+	p          oteltrace.TracerProvider
 	serverName string
 }
 
 type Tracer struct {
-	tracer     oteltracer.Tracer
-	kind       oteltracer.SpanKind
+	tracer     oteltrace.Tracer
+	kind       oteltrace.SpanKind
 	moduleName string
 }
 
-func (t *Tracer) Start(ctx context.Context, methodName string) (context.Context, oteltracer.Span) {
+func (t *Tracer) Start(ctx context.Context, methodName string, opts ...oteltrace.SpanStartOption) (context.Context, oteltrace.Span) {
 	if t == nil {
 		return ctx, emptySpan("test")
 	}
 	return t.tracer.Start(ctx, strings.Join([]string{t.moduleName, methodName}, "/"),
-		oteltracer.WithSpanKind(t.kind))
+		append(opts, oteltrace.WithSpanKind(t.kind))...)
 }
 
-func NewTracer(moduleName string, kind oteltracer.SpanKind) *Tracer {
+func NewTracer(moduleName string, kind oteltrace.SpanKind) *Tracer {
 	if tp == nil {
 		return &Tracer{
-			tracer:     oteltracer.NewNoopTracerProvider().Tracer(moduleName),
+			tracer:     oteltrace.NewNoopTracerProvider().Tracer(moduleName),
 			kind:       kind,
 			moduleName: moduleName,
 		}
@@ -130,7 +128,7 @@ func newTracerProvider(serviceName string, collectorEndpoint string) (*trace.Tra
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, collectorEndpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

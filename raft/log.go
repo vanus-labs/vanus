@@ -29,6 +29,7 @@ type raftLog struct {
 	// they will be saved into storage.
 	unstable unstable
 
+	pending uint64
 	// committed is the highest log position that is known to be in
 	// stable storage on a quorum of nodes.
 	committed uint64
@@ -38,6 +39,7 @@ type raftLog struct {
 	applied uint64
 	// compacted is the highest log position that the application can
 	// delete safety.
+	// Invariant: compacted <= applied
 	compacted uint64
 
 	logger Logger
@@ -75,6 +77,7 @@ func newLogWithSize(storage Storage, logger Logger, maxNextEntsSize uint64) *raf
 	}
 	log.unstable.offset = lastIndex + 1
 	log.unstable.logger = logger
+	log.pending = lastIndex + 1
 	// Initialize our committed and applied pointers to the time of the last compaction.
 	log.committed = firstIndex - 1
 	log.applied = firstIndex - 1
@@ -88,27 +91,30 @@ func (l *raftLog) String() string {
 		l.committed, l.applied, l.unstable.offset, len(l.unstable.entries))
 }
 
-// maybeAppend returns (0, false) if the entries cannot be appended. Otherwise,
-// it returns (last index of new entries, true).
-func (l *raftLog) maybeAppend(index, logTerm, committed uint64, ents ...pb.Entry) (lastnewi uint64, ok bool) {
-	if l.matchTerm(index, logTerm) {
-		lastnewi = index + uint64(len(ents))
-		ci := l.findConflict(ents)
-		switch {
-		case ci == 0:
-		case ci <= l.committed:
-			l.logger.Panicf("entry %d conflict with committed entry [committed(%d)]", ci, l.committed)
-		default:
-			offset := index + 1
-			if ci-offset > uint64(len(ents)) {
-				l.logger.Panicf("index, %d, is out of range [%d]", ci-offset, len(ents))
-			}
-			l.append(ents[ci-offset:]...)
-		}
-		l.commitTo(min(committed, lastnewi))
-		return lastnewi, true
+// maybeAppend returns false if the entries cannot be appended. Otherwise, it returns true.
+func (l *raftLog) maybeAppend(index, logTerm, committed uint64, ents ...pb.Entry) (ok bool) {
+	if !l.matchTerm(index, logTerm) {
+		return false
 	}
-	return 0, false
+
+	ci := l.findConflict(ents)
+	switch {
+	case ci == 0:
+	case ci <= l.committed:
+		l.logger.Panicf("entry %d conflict with committed entry [committed(%d)]", ci, l.committed)
+	default:
+		offset := index + 1
+		if ci-offset > uint64(len(ents)) {
+			l.logger.Panicf("index, %d, is out of range [%d]", ci-offset, len(ents))
+		}
+		l.append(ents[ci-offset:]...)
+	}
+
+	// FIXME: use stable
+	// li := l.lastIndex()
+	// l.commitTo(min(committed, li))
+
+	return true
 }
 
 func (l *raftLog) append(ents ...pb.Entry) uint64 {
@@ -119,6 +125,10 @@ func (l *raftLog) append(ents ...pb.Entry) uint64 {
 		l.logger.Panicf("after(%d) is out of range [committed(%d)]", after, l.committed)
 	}
 	l.unstable.truncateAndAppend(ents)
+	// Reset pending when any entry being persisted is truncated.
+	if start := ents[0].Index; l.pending > start {
+		l.pending = start
+	}
 	return l.lastIndex()
 }
 
@@ -180,6 +190,14 @@ func (l *raftLog) unstableEntries() []pb.Entry {
 		return nil
 	}
 	return l.unstable.entries
+}
+
+func (l *raftLog) pendingEntries() []pb.Entry {
+	so := int(l.pending - l.unstable.offset)
+	if so >= len(l.unstable.entries) {
+		return nil
+	}
+	return l.unstable.entries[so:]
 }
 
 // nextEnts returns all the available entries for execution.
@@ -268,7 +286,21 @@ func (l *raftLog) appliedTo(i uint64) {
 	l.applied = i
 }
 
-func (l *raftLog) stableTo(i, t uint64) { l.unstable.stableTo(i, t) }
+func (l *raftLog) persistingTo(i, t uint64) {
+	gt, ok := l.unstable.maybeTerm(i)
+	if !ok {
+		return
+	}
+	// if i < offset, term is matched with the snapshot
+	// only update the pending if term is matched with an unstable entry.
+	if gt == t && i >= l.unstable.offset {
+		l.pending = i + 1
+	}
+}
+
+func (l *raftLog) stableTo(i, t uint64) bool {
+	return l.unstable.stableTo(i, t)
+}
 
 func (l *raftLog) stableSnapTo(i uint64) {
 	if l.unstable.stableSnapTo(i) {
@@ -364,6 +396,7 @@ func (l *raftLog) restore(s pb.Snapshot) {
 	l.committed = s.Metadata.Index
 	// NOTE: applied and compacted will be reset in raft.advance().
 	l.unstable.restore(s)
+	l.pending = l.unstable.offset
 }
 
 // slice returns a slice of log entries from lo through hi-1, inclusive.

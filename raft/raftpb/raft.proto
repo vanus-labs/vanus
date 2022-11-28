@@ -2,28 +2,27 @@ syntax = "proto3";
 
 package raftpb;
 
-option go_package = "github.com/linkall-labs/vanus/raft/raftpb";
-
 import "gogoproto/gogo.proto";
 
+option go_package = "github.com/linkall-labs/vanus/raft/raftpb";
+option (gogoproto.goproto_enum_prefix_all) = false;
+option (gogoproto.goproto_getters_all) = false;
+option (gogoproto.goproto_sizecache_all) = false;
+option (gogoproto.goproto_unkeyed_all) = false;
+option (gogoproto.goproto_unrecognized_all) = false;
 option (gogoproto.marshaler_all) = true;
 option (gogoproto.sizer_all) = true;
 option (gogoproto.unmarshaler_all) = true;
-option (gogoproto.goproto_getters_all) = false;
-option (gogoproto.goproto_enum_prefix_all) = false;
-option (gogoproto.goproto_unkeyed_all) = false;
-option (gogoproto.goproto_unrecognized_all) = false;
-option (gogoproto.goproto_sizecache_all) = false;
 
 enum EntryType {
   EntryNormal = 0;
-  EntryConfChange = 1;    // corresponds to pb.ConfChange
-  EntryConfChangeV2 = 2;  // corresponds to pb.ConfChangeV2
+  EntryConfChange = 1; // corresponds to pb.ConfChange
+  EntryConfChangeV2 = 2; // corresponds to pb.ConfChangeV2
 }
 
 message Entry {
-  uint64 term = 2;   // must be 64-bit aligned for atomic operations
-  uint64 index = 3;  // must be 64-bit aligned for atomic operations
+  uint64 term = 2; // must be 64-bit aligned for atomic operations
+  uint64 index = 3; // must be 64-bit aligned for atomic operations
   EntryType type = 1;
   bytes data = 4;
   uint64 node_id = 5;
@@ -63,6 +62,7 @@ enum MessageType {
   MsgReadIndexResp = 16;
   MsgPreVote = 17;
   MsgPreVoteResp = 18;
+  MsgLogResp = 19;
 }
 
 message Message {

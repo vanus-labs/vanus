@@ -21,6 +21,10 @@ import (
 	"fmt"
 	"time"
 
+	// third-party libraries.
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/raft"
 	"github.com/linkall-labs/vanus/raft/raftpb"
@@ -39,18 +43,35 @@ const (
 // It is the application's responsibility to not attempt to compact an index
 // greater than raftLog.applied.
 func (l *Log) Compact(ctx context.Context, i uint64) error {
+	ctx, span := l.tracer.Start(ctx, "Compact",
+		trace.WithAttributes(attribute.Int64("to_compact", int64(i))))
+	defer span.End()
+
+	span.AddEvent("Acquiring lock")
 	l.Lock()
+	span.AddEvent("Got lock")
+
 	defer l.Unlock()
 
 	ci := l.compactedIndex()
+	li := l.lastStableIndex()
+	span.SetAttributes(
+		attribute.Int64("compacted_index", int64(ci)),
+		attribute.Int64("last_index", int64(li)),
+	)
 	if i <= ci {
-		log.Warning(context.Background(), "raft log has been compacted", map[string]interface{}{})
+		log.Warning(ctx, "raft log has been compacted", map[string]interface{}{
+			"block_id":        l.nodeID,
+			"to_compact":      i,
+			"compacted_index": ci,
+		})
 		return raft.ErrCompacted
 	}
-	if i > l.lastIndex() {
-		log.Error(context.Background(), "compactedIndex is out of bound lastIndex", map[string]interface{}{
-			"compacted_index": i,
-			"last_index":      l.lastIndex(),
+	if i > li {
+		log.Error(ctx, "compactedIndex is out of bound lastIndex", map[string]interface{}{
+			"block_id":   l.nodeID,
+			"to_compact": i,
+			"last_index": li,
 		})
 		// FIXME(james.yin): error
 		return raft.ErrCompacted
@@ -58,8 +79,13 @@ func (l *Log) Compact(ctx context.Context, i uint64) error {
 
 	sz := i - ci
 	remaining := l.length() - sz
+	sr := l.stableLength() - sz
+	span.SetAttributes(attribute.Int64("remaining", int64(remaining)),
+		attribute.Int64("stable_remaining", int64(sr)))
+
+	span.AddEvent("Allocating cache")
 	ents := make([]raftpb.Entry, 1, 1+remaining)
-	offs := make([]int64, 1, 1+remaining)
+	offs := make([]int64, 1, 1+sr)
 
 	// Save compact information to dummy entry.
 	ents[0].Index = l.ents[sz].Index
@@ -67,9 +93,14 @@ func (l *Log) Compact(ctx context.Context, i uint64) error {
 
 	// Copy remained entries.
 	if remaining != 0 {
+		span.AddEvent("Coping remained entries")
 		ents = append(ents, l.ents[sz+1:]...)
-		offs = append(offs, l.offs[sz+1:]...)
-		offs[0] = offs[1]
+		// NOTE: sr <= remaining
+		if sr != 0 {
+			offs = append(offs, l.offs[sz+1:]...)
+			offs[0] = offs[1]
+		}
+		span.AddEvent("Copied remained entries")
 	}
 
 	// Compact WAL.
@@ -85,17 +116,21 @@ func (l *Log) Compact(ctx context.Context, i uint64) error {
 func (w *WAL) reserve(cb reserveCallback) error {
 	w.compactMu.RLock()
 	defer w.compactMu.RUnlock()
-	off, err := cb()
+	off, old, err := cb()
 	if err != nil {
 		return err
 	}
 	w.compactC <- compactTask{
 		offset: off,
+		last:   old,
 	}
 	return nil
 }
 
 func (w *WAL) tryCompact(ctx context.Context, offset, last int64, nodeID vanus.ID, index, term uint64) {
+	_, span := w.tracer.Start(ctx, "tryCompact")
+	defer span.End()
+
 	w.updateC <- compactTask{
 		offset: offset,
 		last:   last,
@@ -188,6 +223,8 @@ func (w *WAL) runBarrierUpdate() {
 }
 
 func (w *WAL) runCompact() {
+	ctx := context.Background()
+
 	ticker := time.NewTicker(defaultCompactInterval)
 	defer ticker.Stop()
 
@@ -195,17 +232,26 @@ func (w *WAL) runCompact() {
 	for {
 		select {
 		case task, ok := <-w.compactC:
+			_, span := w.tracer.Start(ctx, "runCompactTask", trace.WithAttributes(
+				attribute.Bool("timeout", false),
+				attribute.Bool("closed", !ok),
+			))
+
 			if !ok {
 				for task := range w.compactC {
 					w.compact(cCtx, task)
 				}
-				w.doCompact(cCtx)
+				w.doCompact(ctx, cCtx)
 				close(w.doneC)
+				span.End()
 				return
 			}
+
 			w.compact(cCtx, task)
+
+			span.End()
 		case <-ticker.C:
-			w.doCompact(cCtx)
+			w.doCompact(ctx, cCtx)
 		}
 	}
 }
@@ -230,16 +276,16 @@ func (w *WAL) compact(cCtx *compactContext, compact compactTask) {
 	// TODO(james.yin): no log entry in WAL.
 }
 
-func (w *WAL) doCompact(cCtx *compactContext) {
-	ctx, span := w.tracer.Start(context.Background(), "doCompact")
+func (w *WAL) doCompact(ctx context.Context, cCtx *compactContext) {
+	ctx, span := w.tracer.Start(ctx, "doCompact")
 	defer span.End()
 	if cCtx.stale() {
-		log.Debug(context.TODO(), "compact WAL of raft log.", map[string]interface{}{
+		log.Debug(ctx, "compact WAL of raft log.", map[string]interface{}{
 			"offset": cCtx.toCompact,
 		})
 		// Store compacted info and offset.
 		cCtx.sync(ctx)
 		// Compact underlying WAL.
-		_ = w.WAL.Compact(cCtx.compacted)
+		_ = w.WAL.Compact(ctx, cCtx.compacted)
 	}
 }

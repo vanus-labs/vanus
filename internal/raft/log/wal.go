@@ -20,6 +20,8 @@ import (
 
 	// third-party libraries.
 	"github.com/huandu/skiplist"
+
+	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability/tracing"
 	oteltrace "go.opentelemetry.io/otel/trace"
 
@@ -46,7 +48,7 @@ type compactTask struct {
 	info         compactInfo
 }
 
-type reserveCallback func() (int64, error)
+type reserveCallback func() (int64, int64, error)
 
 type WAL struct {
 	*walog.WAL

@@ -37,12 +37,13 @@ const (
 type SyncStore struct {
 	store
 
-	snapshotc chan struct{}
-	donec     chan struct{}
+	snapshotC chan struct{}
+	doneC     chan struct{}
 }
 
 func newSyncStore(ctx context.Context, wal *walog.WAL,
-	committed *skiplist.SkipList, version, snapshot int64) *SyncStore {
+	committed *skiplist.SkipList, version, snapshot int64,
+) *SyncStore {
 	s := &SyncStore{
 		store: store{
 			committed: committed,
@@ -52,8 +53,8 @@ func newSyncStore(ctx context.Context, wal *walog.WAL,
 			marshaler: defaultCodec,
 			tracer:    tracing.NewTracer("store.meta.sync", trace.SpanKindInternal),
 		},
-		snapshotc: make(chan struct{}, 1),
-		donec:     make(chan struct{}),
+		snapshotC: make(chan struct{}, 1),
+		doneC:     make(chan struct{}),
 	}
 
 	go s.runSnapshot(ctx)
@@ -69,10 +70,10 @@ func (s *SyncStore) Close(ctx context.Context) {
 	s.wal.Close()
 	s.wal.Wait()
 
-	// NOTE: Can not close the snapshotc before close the WAL,
-	// because write to snapshotc in callback of WAL append.
-	close(s.snapshotc)
-	<-s.donec
+	// NOTE: Can not close the snapshotC before close the WAL,
+	// because write to snapshotC in callback of WAL append.
+	close(s.snapshotC)
+	<-s.doneC
 }
 
 func (s *SyncStore) Load(key []byte) (interface{}, bool) {
@@ -82,18 +83,27 @@ func (s *SyncStore) Load(key []byte) (interface{}, bool) {
 }
 
 func (s *SyncStore) Store(ctx context.Context, key []byte, value interface{}) {
+	ctx, span := s.tracer.Start(ctx, "Store")
+	defer span.End()
+
 	if err := s.set(ctx, KVRange(key, value)); err != nil {
 		panic(err)
 	}
 }
 
 func (s *SyncStore) BatchStore(ctx context.Context, kvs Ranger) {
+	ctx, span := s.tracer.Start(ctx, "BatchStore")
+	defer span.End()
+
 	if err := s.set(ctx, kvs); err != nil {
 		panic(err)
 	}
 }
 
 func (s *SyncStore) Delete(ctx context.Context, key []byte) {
+	ctx, span := s.tracer.Start(ctx, "Delete")
+	defer span.End()
+
 	if err := s.set(ctx, KVRange(key, deletedMark)); err != nil {
 		panic(err)
 	}
@@ -132,7 +142,7 @@ func (s *SyncStore) set(ctx context.Context, kvs Ranger) error {
 		close(ch)
 
 		select {
-		case s.snapshotc <- struct{}{}:
+		case s.snapshotC <- struct{}{}:
 		default:
 		}
 	}))
@@ -150,11 +160,11 @@ func (s *SyncStore) runSnapshot(ctx context.Context) {
 	ticker := time.NewTicker(runSnapshotInterval)
 	defer func() {
 		ticker.Stop()
-		close(s.donec)
+		close(s.doneC)
 	}()
 	for {
 		select {
-		case _, ok := <-s.snapshotc:
+		case _, ok := <-s.snapshotC:
 			if !ok {
 				return
 			}
