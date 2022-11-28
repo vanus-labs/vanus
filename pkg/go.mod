@@ -3,8 +3,8 @@ module github.com/linkall-labs/vanus/pkg
 go 1.17
 
 require (
-	github.com/linkall-labs/vanus/observability v0.4.0-alpha
-	github.com/linkall-labs/vanus/proto v0.4.0-alpha
+	github.com/linkall-labs/vanus/observability v0.5.0
+	github.com/linkall-labs/vanus/proto v0.5.0
 	github.com/smartystreets/goconvey v1.7.2
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
