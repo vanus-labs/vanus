@@ -11,11 +11,16 @@ It provides enterprises and organizations an innovative platform for collecting,
 
 ## Quick Start
 
-See [quick-start](https://github.com/linkall-labs/docs/blob/main/vanus/quick-start.md)
+See [quick-start](https://docs.linkall.com/getting-started/quick-start)
 
 ## Community
 
-[Join](https://join.slack.com/t/linkall-group/shared_invite/zt-1994ehs51-Yf5_EAvdfm4VH~o_djG7Sg) Slack Channel!
+We have a few channels for contact:
+
+- [Slack](https://join.slack.com/t/vanusworkspace/shared_invite/zt-1jilbbfo2-NxiFG0VOo8ABGCCNaeNfcA)
+- [@Vanus_dev](https://twitter.com/Vanus_dev) on Twitter
+- [GitHub Issues](https://github.com/linkall-labs/docs/issues)
+- Send emails to: [Vanus](mailto:contact@linkall.com)
 
 ## How to contribute
 
