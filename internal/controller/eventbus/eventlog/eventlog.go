@@ -54,11 +54,12 @@ type Manager interface {
 	GetEventLogSegmentList(elID vanus.ID) []*Segment
 	GetAppendableSegment(ctx context.Context, eli *metadata.Eventlog,
 		num int) ([]*Segment, error)
+	GetReadableSegment(ctx context.Context, eli *metadata.Eventlog) ([]*Segment, error)
 	UpdateSegment(ctx context.Context, m map[string][]Segment)
 	GetSegmentByBlockID(block *metadata.Block) (*Segment, error)
 	GetBlock(id vanus.ID) *metadata.Block
 	GetSegment(id vanus.ID) *Segment
-	UpdateSegmentReplicas(ctx context.Context, segID vanus.ID, term uint64) error
+	UpdateSegmentReplicas(ctx context.Context, segID vanus.ID, term uint64) (*Segment, error)
 }
 
 var mgr = &eventlogManager{
@@ -292,6 +293,26 @@ func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
 	return result, nil
 }
 
+func (mgr *eventlogManager) GetReadableSegment(ctx context.Context, eli *metadata.Eventlog) ([]*Segment, error) {
+	result := make([]*Segment, 0)
+
+	if eli == nil {
+		return result, nil
+	}
+
+	v, exist := mgr.eventLogMap.Load(eli.ID.Key())
+	if !exist {
+		return nil, errors.ErrEventLogNotFound
+	}
+
+	el, _ := v.(*eventlog)
+	segments := el.currentReadableSegments()
+	if segments == nil {
+		return nil, errors.ErrSegmentNotFound
+	}
+	return segments, nil
+}
+
 func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[string][]Segment) {
 	// iterate eventlog
 	for eventlogID, segments := range m {
@@ -366,19 +387,20 @@ func (mgr *eventlogManager) GetSegment(id vanus.ID) *Segment {
 	return v.(*Segment)
 }
 
-func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, leaderID vanus.ID, term uint64) error {
+func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context,
+	leaderID vanus.ID, term uint64) (*Segment, error) {
 	blk := mgr.GetBlock(leaderID)
 	if blk == nil {
-		return errors.ErrBlockNotFound
+		return nil, errors.ErrBlockNotFound
 	}
 
 	seg := mgr.GetSegment(blk.SegmentID)
 	if seg == nil {
-		return errors.ErrSegmentNotFound
+		return nil, errors.ErrSegmentNotFound
 	}
 
 	if seg.Replicas.Term >= term {
-		return nil
+		return seg, nil
 	}
 
 	seg.Replicas.Leader = leaderID.Uint64()
@@ -390,9 +412,9 @@ func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, leaderID 
 			log.KeyError: err,
 			"segment":    seg.String(),
 		})
-		return errors.ErrInvalidSegment.WithMessage("update segment to etcd error").Wrap(err)
+		return nil, errors.ErrInvalidSegment.WithMessage("update segment to etcd error").Wrap(err)
 	}
-	return nil
+	return seg, nil
 }
 
 func (mgr *eventlogManager) GetSegmentByBlockID(block *metadata.Block) (*Segment, error) {
@@ -881,6 +903,26 @@ func (el *eventlog) currentAppendableSegment() *Segment {
 	return el.writePtr
 }
 
+func (el *eventlog) currentReadableSegments() []*Segment {
+	segments := make([]*Segment, 0)
+	if el.size() == 0 {
+		return nil
+	}
+
+	head := el.segmentList.Front()
+	for head != nil {
+		seg, _ := head.Value.(*Segment)
+		if seg.IsReadable() {
+			segments = append(segments, seg)
+		}
+		if seg.isPreFull() {
+			break
+		}
+		head = head.Next()
+	}
+	return segments
+}
+
 // add a segment to eventlog, the metadata of this eventlog will be updated, but the segment's metadata should be
 // updated after call this method.
 func (el *eventlog) add(ctx context.Context, seg *Segment) error {
@@ -937,7 +979,7 @@ func (el *eventlog) markSegmentFull(ctx context.Context, seg *Segment) error {
 	next.StartOffsetInLog = seg.StartOffsetInLog + int64(seg.Number)
 	data, _ := json.Marshal(next)
 	// TODO(wenfeng.wang) update block info at the same time
-	log.Debug(context.TODO(), "segment is full", map[string]interface{}{
+	log.Debug(context.TODO(), "mark segment full", map[string]interface{}{
 		"data": string(data),
 	})
 	if err := el.kvClient.Set(ctx, metadata.GetSegmentMetadataKey(next.ID), data); err != nil {
@@ -1075,7 +1117,7 @@ func (el *eventlog) updateSegment(ctx context.Context, seg *Segment) error {
 	if err := el.kvClient.Set(ctx, key, data); err != nil {
 		return err
 	}
-	if seg.isFull() {
+	if seg.isFull() || seg.isPreFull() {
 		err := el.markSegmentFull(ctx, seg)
 		if err != nil {
 			return err

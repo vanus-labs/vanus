@@ -55,10 +55,19 @@ type Raw interface {
 	Delete(context.Context) error
 }
 
+type SegmentState string
+
+const (
+	StateWorking   = SegmentState("working")
+	StateFrozen    = SegmentState("frozen")
+	StatePreFrozen = SegmentState("prefrozen")
+)
+
 type Statistics struct {
 	ID        vanus.ID
 	Capacity  uint64
 	Archived  bool
+	State     SegmentState
 	EntryNum  uint32
 	EntrySize uint64
 	// FirstEntryStime is the millisecond timestamp when the first Entry will be written to Block.

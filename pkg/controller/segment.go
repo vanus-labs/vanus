@@ -17,10 +17,11 @@ package controller
 import (
 	// standard libraries.
 	"context"
+	"io"
+
 	"github.com/linkall-labs/vanus/observability/log"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io"
 
 	// third-party libraries.
 	"google.golang.org/grpc"
@@ -28,6 +29,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	"github.com/linkall-labs/vanus/proto/pkg/meta"
 )
 
 var (
@@ -134,8 +136,8 @@ func (sc *segmentClient) ReportSegmentBlockIsFull(ctx context.Context,
 }
 
 func (sc *segmentClient) ReportSegmentLeader(ctx context.Context,
-	in *ctrlpb.ReportSegmentLeaderRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
+	in *ctrlpb.ReportSegmentLeaderRequest, opts ...grpc.CallOption) (*meta.Segment, error) {
+	out := new(meta.Segment)
 	err := sc.cc.invoke(ctx, "/linkall.vanus.controller.SegmentController/ReportSegmentLeader", in, out, opts...)
 	if err != nil {
 		return nil, err

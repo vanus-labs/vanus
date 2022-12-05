@@ -106,14 +106,16 @@ func (b *vsBlock) Delete(context.Context) error {
 }
 
 func (b *vsBlock) status() block.Statistics {
-	return b.stat(b.makeSnapshot())
+	m, indexes := b.makeSnapshot()
+	return b.stat(m, indexes, block.StateWorking)
 }
 
-func (b *vsBlock) stat(m meta, indexes []index.Index) block.Statistics {
+func (b *vsBlock) stat(m meta, indexes []index.Index, state block.SegmentState) block.Statistics {
 	s := block.Statistics{
 		ID:              b.id,
 		Capacity:        uint64(b.capacity),
 		Archived:        m.archived,
+		State:           state,
 		EntryNum:        uint32(m.entryNum),
 		EntrySize:       uint64(m.entryLength),
 		FirstEntryStime: -1,

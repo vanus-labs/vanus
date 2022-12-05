@@ -17,8 +17,6 @@ package eventbus
 import (
 	// standard libraries.
 	"context"
-	"encoding/base64"
-	"encoding/binary"
 	stderrors "errors"
 	"io"
 	"strings"
@@ -37,7 +35,7 @@ import (
 	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/policy"
-	vlog "github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/log"
 
 	eb "github.com/linkall-labs/vanus/client/internal/vanus/eventbus"
 	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
@@ -66,7 +64,7 @@ func NewEventbus(cfg *eb.Config) *eventbus {
 		for {
 			re, ok := <-ch
 			if !ok {
-				vlog.Debug(context.Background(), "eventbus quits writable watcher", map[string]interface{}{
+				log.Debug(context.Background(), "eventbus quits writable watcher", map[string]interface{}{
 					"eventbus": bus.cfg.Name,
 				})
 				break
@@ -88,7 +86,7 @@ func NewEventbus(cfg *eb.Config) *eventbus {
 		for {
 			re, ok := <-ch
 			if !ok {
-				vlog.Debug(context.Background(), "eventbus quits readable watcher", map[string]interface{}{
+				log.Debug(context.Background(), "eventbus quits readable watcher", map[string]interface{}{
 					"eventbus": bus.cfg.Name,
 				})
 				break
@@ -187,16 +185,16 @@ func (b *eventbus) GetLog(ctx context.Context, logID uint64, opts ...api.LogOpti
 		if len(b.readableLogs) == 0 {
 			b.refreshReadableLogs(ctx)
 		}
-		if log, ok := b.readableLogs[logID]; ok {
-			return log, nil
+		if l, ok := b.readableLogs[logID]; ok {
+			return l, nil
 		}
 		return nil, errors.ErrNotFound
 	} else if op.Policy.AccessMode() == api.ReadWrite {
 		if len(b.writableLogs) == 0 {
 			b.refreshWritableLogs(ctx)
 		}
-		if log, ok := b.writableLogs[logID]; ok {
-			return log, nil
+		if l, ok := b.writableLogs[logID]; ok {
+			return l, nil
 		}
 		return nil, errors.ErrNotFound
 	} else {
@@ -312,8 +310,8 @@ func (b *eventbus) updateWritableLogs(ctx context.Context, re *WritableLogsResul
 			Endpoints: b.cfg.Endpoints,
 			ID:        logID,
 		}
-		log := eventlog.NewEventLog(cfg)
-		lws[logID] = log
+		l := eventlog.NewEventLog(cfg)
+		lws[logID] = l
 		return true
 	})
 	b.setWritableLogs(s, lws)
@@ -407,8 +405,8 @@ func (b *eventbus) updateReadableLogs(ctx context.Context, re *ReadableLogsResul
 			Endpoints: b.cfg.Endpoints,
 			ID:        logID,
 		}
-		log := eventlog.NewEventLog(cfg)
-		lws[logID] = log
+		l := eventlog.NewEventLog(cfg)
+		lws[logID] = l
 		return true
 	})
 	b.setReadableLogs(s, lws)
@@ -451,7 +449,7 @@ type busWriter struct {
 
 var _ api.BusWriter = (*busWriter)(nil)
 
-func (w *busWriter) AppendOne(ctx context.Context, event *ce.Event, opts ...api.WriteOption) (eid string, err error) {
+func (w *busWriter) AppendOne(ctx context.Context, event *ce.Event, opts ...api.WriteOption) (string, error) {
 	_ctx, span := w.tracer.Start(ctx, "AppendOne")
 	defer span.End()
 
@@ -470,21 +468,15 @@ func (w *busWriter) AppendOne(ctx context.Context, event *ce.Event, opts ...api.
 	}
 
 	// 2. append the event to the eventlog
-	off, err := lw.Append(_ctx, event)
+	eid, err := lw.Append(_ctx, event)
 	if err != nil {
 		return "", err
 	}
 
-	// 3. generate event ID
-	var buf [16]byte
-	binary.BigEndian.PutUint64(buf[0:8], lw.Log().ID())
-	binary.BigEndian.PutUint64(buf[8:16], uint64(off))
-	encoded := base64.StdEncoding.EncodeToString(buf[:])
-
-	return encoded, nil
+	return eid, nil
 }
 
-func (w *busWriter) AppendMany(ctx context.Context, events []*ce.Event, opts ...api.WriteOption) (eid string, err error) {
+func (w *busWriter) AppendMany(ctx context.Context, events []*ce.Event, opts ...api.WriteOption) (string, error) {
 	// TODO(jiangkai): implement this method, by jiangkai, 2022.10.24
 	return "", nil
 }
@@ -497,17 +489,17 @@ func (w *busWriter) pickWritableLog(ctx context.Context, opts *api.WriteOptions)
 	_ctx, span := w.tracer.Start(ctx, "pickWritableLog")
 	defer span.End()
 
-	log, err := opts.Policy.NextLog(ctx)
+	l, err := opts.Policy.NextLog(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	l := w.ebus.getWritableLog(_ctx, log.ID())
-	if l == nil {
+	lw := w.ebus.getWritableLog(_ctx, l.ID())
+	if lw == nil {
 		return nil, stderrors.New("can not pick writable log")
 	}
 
-	return l.Writer(), nil
+	return lw.Writer(), nil
 }
 
 type busReader struct {
@@ -558,11 +550,11 @@ func (r *busReader) pickReadableLog(ctx context.Context, opts *api.ReadOptions) 
 	_ctx, span := r.tracer.Start(ctx, "pickReadableLog")
 	defer span.End()
 
-	log, err := opts.Policy.NextLog(ctx)
+	l, err := opts.Policy.NextLog(ctx)
 	if err != nil {
 		return nil, err
 	}
-	lr := r.ebus.getReadableLog(_ctx, log.ID())
+	lr := r.ebus.getReadableLog(_ctx, l.ID())
 	if lr == nil {
 		return nil, stderrors.New("can not pick readable log")
 	}

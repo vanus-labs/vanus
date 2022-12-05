@@ -49,7 +49,7 @@ type LogWriter interface {
 
 	Close(ctx context.Context)
 
-	Append(ctx context.Context, event *ce.Event) (off int64, err error)
+	Append(ctx context.Context, event *ce.Event) (eid string, err error)
 }
 
 type LogReader interface {

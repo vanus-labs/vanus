@@ -377,13 +377,27 @@ func (s *server) runHeartbeat(_ context.Context) error {
 					LeaderId: info.leader.Uint64(),
 					Term:     info.term,
 				}
-				if _, err := s.cc.ReportSegmentLeader(context.Background(), req); err != nil {
+				segment, err := s.cc.ReportSegmentLeader(context.Background(), req)
+				if err != nil {
 					log.Debug(ctx, "Report segment leader to controller failed.", map[string]interface{}{
 						"leader":     info.leader,
 						"term":       info.term,
 						log.KeyError: err,
 					})
 				}
+
+				if segment.State != string(block.StatePreFrozen) {
+					break
+				}
+
+				s.replicas.Range(func(key, value interface{}) bool {
+					b, _ := value.(replica)
+					if b.appender.Status().Leader.Equals(vanus.ID(segment.LeaderBlockId)) {
+						b.appender.Frozen(context.Background())
+						return false
+					}
+					return true
+				})
 			}
 		}
 	}()
@@ -703,6 +717,7 @@ func (s *server) onBlockArchived(stat block.Statistics) {
 		Size:               int64(stat.EntrySize),
 		EventNumber:        int32(stat.EntryNum),
 		IsFull:             stat.Archived,
+		State:              string(stat.State),
 		FirstEventBornTime: stat.FirstEntryStime,
 	}
 	if stat.Archived {

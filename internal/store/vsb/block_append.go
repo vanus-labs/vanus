@@ -102,7 +102,13 @@ func (b *vsBlock) PrepareAppend(
 	actx.offset += int64(frag.Size())
 	actx.seq += num
 
-	return seqs, frag, actx.size(b.dataOffset) >= b.capacity, nil
+	full := actx.size(b.dataOffset) >= b.capacity
+	if full && b.lis != nil {
+		m, indexes := makeSnapshot(b.actx, b.indexes)
+		b.lis.OnArchived(b.stat(m, indexes, block.StatePreFrozen))
+	}
+
+	return seqs, frag, full, nil
 }
 
 func (b *vsBlock) PrepareArchive(ctx context.Context, appendCtx block.AppendContext) (block.Fragment, error) {
@@ -197,7 +203,7 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frags ...block.Fragment) (bo
 		}()
 
 		if b.lis != nil {
-			b.lis.OnArchived(b.stat(m, i))
+			b.lis.OnArchived(b.stat(m, i, block.StateFrozen))
 		}
 	}
 

@@ -76,6 +76,7 @@ type Appender interface {
 
 	Stop(ctx context.Context)
 	Bootstrap(ctx context.Context, blocks []Peer) error
+	Frozen(ctx context.Context)
 	Delete(ctx context.Context)
 	Status() ClusterStatus
 }
@@ -184,6 +185,13 @@ func (a *appender) Bootstrap(ctx context.Context, blocks []Peer) error {
 		return peers[a].ID < peers[b].ID
 	})
 	return a.node.Bootstrap(peers)
+}
+
+func (a *appender) Frozen(ctx context.Context) {
+	if frag, err := a.raw.PrepareArchive(ctx, a.actx); err == nil {
+		data, _ := block.MarshalFragment(ctx, frag)
+		_ = a.node.Propose(ctx, data)
+	}
 }
 
 func (a *appender) Delete(ctx context.Context) {

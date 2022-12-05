@@ -27,11 +27,12 @@ import (
 type SegmentState string
 
 const (
-	StateCreated  = SegmentState("created")
-	StateWorking  = SegmentState("working")
-	StateFrozen   = SegmentState("frozen")
-	StateArchived = SegmentState("archived")
-	StateExpired  = SegmentState("expired")
+	StateCreated   = SegmentState("created")
+	StateWorking   = SegmentState("working")
+	StateFrozen    = SegmentState("frozen")
+	StatePreFrozen = SegmentState("prefrozen")
+	StateArchived  = SegmentState("archived")
+	StateExpired   = SegmentState("expired")
 )
 
 type Segment struct {
@@ -53,6 +54,10 @@ func (seg *Segment) IsAppendable() bool {
 	return seg.isReady() && seg.State == StateWorking
 }
 
+func (seg *Segment) IsReadable() bool {
+	return seg.isReady()
+}
+
 func (seg *Segment) GetLeaderBlock() *metadata.Block {
 	if !seg.isReady() {
 		return nil
@@ -72,6 +77,10 @@ func (seg *Segment) isNeedUpdate(newSeg Segment) bool {
 	}
 	if seg.ID != newSeg.ID {
 		return false
+	}
+	if newSeg.isPreFull() && seg.State != newSeg.State {
+		seg.State = newSeg.State
+		return true
 	}
 	needed := false
 	if seg.Size < newSeg.Size {
@@ -97,6 +106,10 @@ func (seg *Segment) isNeedUpdate(newSeg Segment) bool {
 		needed = true
 	}
 	return needed
+}
+
+func (seg *Segment) isPreFull() bool {
+	return seg.State == StatePreFrozen
 }
 
 func (seg *Segment) isFull() bool {
@@ -160,6 +173,7 @@ func Convert2ProtoSegment(ctx context.Context, ins ...*Segment) []*metapb.Segmen
 			NumberEventStored:        seg.Number,
 			Replicas:                 blocks,
 			State:                    string(seg.State),
+			LeaderBlockId:            seg.Replicas.Leader,
 			FirstEventBornAtByUnixMs: seg.FirstEventBornTime.UnixMilli(),
 			LastEvnetBornAtByUnixMs:  seg.LastEventBornTime.UnixMilli(),
 		}

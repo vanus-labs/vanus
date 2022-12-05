@@ -31,10 +31,10 @@ const (
 
 type WritableSegmentWatcher struct {
 	*primitive.Watcher
-	ch chan *record.Segment
+	ch chan []*record.Segment
 }
 
-func (w *WritableSegmentWatcher) Chan() <-chan *record.Segment {
+func (w *WritableSegmentWatcher) Chan() <-chan []*record.Segment {
 	return w.ch
 }
 
@@ -43,13 +43,13 @@ func (w *WritableSegmentWatcher) Start() {
 }
 
 func WatchWritableSegment(log *eventlog) *WritableSegmentWatcher {
-	ch := make(chan *record.Segment, 1)
+	ch := make(chan []*record.Segment, 1)
 	w := primitive.NewWatcher(defaultWatchInterval, func() {
-		r, err := log.nameService.LookupWritableSegment(context.Background(), log.cfg.ID)
+		rs, err := log.nameService.LookupWritableSegment(context.Background(), log.cfg.ID)
 		if err != nil {
 			ch <- nil
 		} else {
-			ch <- r
+			ch <- rs
 		}
 	}, func() {
 		close(ch)

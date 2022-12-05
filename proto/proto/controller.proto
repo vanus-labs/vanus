@@ -41,8 +41,8 @@ service EventBusController {
 
 service EventLogController {
   rpc ListSegment(ListSegmentRequest) returns (ListSegmentResponse);
-  rpc GetAppendableSegment(GetAppendableSegmentRequest)
-      returns (GetAppendableSegmentResponse);
+  rpc GetAppendableSegment(GetAppendableSegmentRequest) returns (GetAppendableSegmentResponse);
+  rpc GetReadableSegment(GetReadableSegmentRequest) returns (GetReadableSegmentResponse);
 }
 
 service SegmentController {
@@ -57,7 +57,7 @@ service SegmentController {
   rpc ReportSegmentBlockIsFull(SegmentHeartbeatRequest)
       returns (google.protobuf.Empty);
   rpc ReportSegmentLeader(ReportSegmentLeaderRequest)
-      returns (google.protobuf.Empty);
+      returns (linkall.vanus.meta.Segment);
 }
 
 service TriggerController {
@@ -243,5 +243,15 @@ message GetAppendableSegmentRequest {
 }
 
 message GetAppendableSegmentResponse {
+  repeated linkall.vanus.meta.Segment segments = 3;
+}
+
+message GetReadableSegmentRequest {
+  uint64 event_bus_id = 1;
+  uint64 event_log_id = 2;
+  int32 limited = 3;
+}
+
+message GetReadableSegmentResponse {
   repeated linkall.vanus.meta.Segment segments = 3;
 }

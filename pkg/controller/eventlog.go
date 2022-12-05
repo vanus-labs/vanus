@@ -60,3 +60,13 @@ func (elc *eventlogClient) GetAppendableSegment(ctx context.Context,
 	}
 	return out, nil
 }
+
+func (elc *eventlogClient) GetReadableSegment(ctx context.Context,
+	in *ctrlpb.GetReadableSegmentRequest, opts ...grpc.CallOption) (*ctrlpb.GetReadableSegmentResponse, error) {
+	out := new(ctrlpb.GetReadableSegmentResponse)
+	err := elc.cc.invoke(ctx, "/linkall.vanus.controller.EventLogController/GetReadableSegment", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}

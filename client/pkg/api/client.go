@@ -31,8 +31,8 @@ type Eventbus interface {
 }
 
 type BusWriter interface {
-	AppendOne(ctx context.Context, event *ce.Event, opts ...WriteOption) (eid string, err error)
-	AppendMany(ctx context.Context, events []*ce.Event, opts ...WriteOption) (eid string, err error)
+	AppendOne(ctx context.Context, event *ce.Event, opts ...WriteOption) (string, error)
+	AppendMany(ctx context.Context, events []*ce.Event, opts ...WriteOption) (string, error)
 }
 
 type BusReader interface {
