@@ -27,7 +27,7 @@ import (
 	"github.com/linkall-labs/vanus/observability/tracing"
 
 	// this project.
-	storecfg "github.com/linkall-labs/vanus/internal/store"
+	"github.com/linkall-labs/vanus/internal/store/config"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
 )
 
@@ -206,7 +206,7 @@ func merge(dst, src *skiplist.SkipList) {
 	}
 }
 
-func RecoverAsyncStore(ctx context.Context, cfg storecfg.AsyncStoreConfig, walDir string) (*AsyncStore, error) {
+func RecoverAsyncStore(ctx context.Context, cfg config.AsyncStore, walDir string) (*AsyncStore, error) {
 	ctx, span := tracing.Start(ctx, "store.meta.async", "newAsyncStore")
 	defer span.End()
 	committed, snapshot, err := recoverLatestSnapshot(ctx, walDir, defaultCodec)

@@ -25,7 +25,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	// this project.
-	storecfg "github.com/linkall-labs/vanus/internal/store"
+	"github.com/linkall-labs/vanus/internal/store/config"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
 	"github.com/linkall-labs/vanus/observability/tracing"
 )
@@ -174,7 +174,7 @@ func (s *SyncStore) runSnapshot(ctx context.Context) {
 	}
 }
 
-func RecoverSyncStore(ctx context.Context, cfg storecfg.SyncStoreConfig, walDir string) (*SyncStore, error) {
+func RecoverSyncStore(ctx context.Context, cfg config.SyncStore, walDir string) (*SyncStore, error) {
 	ctx, span := tracing.Start(ctx, "store.meta.async", "RecoverSyncStore")
 	defer span.End()
 

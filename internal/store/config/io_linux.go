@@ -15,28 +15,17 @@
 //go:build linux
 // +build linux
 
-package io
+package config
 
 import (
-	// standard libraries.
-	"os"
-	"testing"
-
-	// third-party libraries.
-	. "github.com/smartystreets/goconvey/convey"
+	// this project.
+	"github.com/linkall-labs/vanus/internal/store/io/engine"
+	"github.com/linkall-labs/vanus/internal/store/io/engine/uring"
 )
 
-func TestURing(t *testing.T) {
-	f, err := os.CreateTemp("", "wal-engine-*")
-	if err != nil {
-		t.Fatal(err)
+func buildIOEngineEx(cfg IO) engine.Interface {
+	if cfg.Engine == Uring {
+		return uring.New()
 	}
-	defer os.Remove(f.Name())
-
-	e := NewURing()
-	defer e.Close()
-
-	Convey("uRing", t, func() {
-		doEngineTest(e, f)
-	})
+	panic("io engine is not supported")
 }

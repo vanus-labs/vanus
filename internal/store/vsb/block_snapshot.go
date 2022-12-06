@@ -40,7 +40,7 @@ func makeSnapshot(actx appendContext, indexes []index.Index) (meta, []index.Inde
 		writeOffset: actx.offset,
 		archived:    actx.Archived(),
 	}
-	if sz := len(indexes); sz > 0 {
+	if sz := len(indexes); sz != 0 {
 		m.entryLength = indexes[sz-1].EndOffset() - indexes[0].StartOffset()
 		m.entryNum = int64(sz)
 	}

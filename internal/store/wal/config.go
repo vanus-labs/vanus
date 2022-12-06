@@ -19,7 +19,7 @@ import (
 	"time"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/io"
+	ioengine "github.com/linkall-labs/vanus/internal/store/io/engine"
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
 )
 
@@ -42,10 +42,10 @@ type config struct {
 	callbackBufferSize int
 	flushBufferSize    int
 	wakeupBufferSize   int
-	engine             io.Engine
+	engine             ioengine.Interface
 }
 
-func defaultWALConfig() config {
+func defaultConfig() config {
 	cfg := config{
 		blockSize:          defaultBlockSize,
 		fileSize:           defaultFileSize,
@@ -54,7 +54,6 @@ func defaultWALConfig() config {
 		callbackBufferSize: (defaultBlockSize + record.HeaderSize - 1) / record.HeaderSize,
 		flushBufferSize:    defaultFlushBufferSize,
 		wakeupBufferSize:   defaultWakeupBufferSize,
-		engine:             defaultIOEngine(),
 	}
 	return cfg
 }
@@ -62,9 +61,12 @@ func defaultWALConfig() config {
 type Option func(*config)
 
 func makeConfig(opts ...Option) config {
-	cfg := defaultWALConfig()
+	cfg := defaultConfig()
 	for _, opt := range opts {
 		opt(&cfg)
+	}
+	if cfg.engine == nil {
+		cfg.engine = defaultIOEngine()
 	}
 	return cfg
 }
@@ -124,7 +126,7 @@ func WithWakeupBufferSize(size int) Option {
 	}
 }
 
-func WithIOEngine(engine io.Engine) Option {
+func WithIOEngine(engine ioengine.Interface) Option {
 	return func(cfg *config) {
 		cfg.engine = engine
 	}

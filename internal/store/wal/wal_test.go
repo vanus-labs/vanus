@@ -128,7 +128,8 @@ func TestWAL_AppendOne(t *testing.T) {
 		walDir, err := os.MkdirTemp("", "wal-*")
 		So(err, ShouldBeNil)
 
-		wal, err := Open(ctx, walDir, WithFileSize(fileSize))
+		flushTimeout := 100 * time.Millisecond
+		wal, err := Open(ctx, walDir, WithFileSize(fileSize), WithFlushTimeout(flushTimeout))
 		So(err, ShouldBeNil)
 
 		var inflight int32 = 100

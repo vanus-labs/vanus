@@ -17,9 +17,13 @@
 
 package wal
 
-import "github.com/linkall-labs/vanus/internal/store/io"
+import (
+	// this project.
+	"github.com/linkall-labs/vanus/internal/store/io/engine"
+	"github.com/linkall-labs/vanus/internal/store/io/engine/psync"
+)
 
-func defaultIOEngine() io.Engine {
-	// return io.NewURing()
-	return io.NewEngine()
+func defaultIOEngine() engine.Interface {
+	// return uring.New()
+	return psync.New()
 }

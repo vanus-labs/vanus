@@ -22,6 +22,7 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/io"
+	"github.com/linkall-labs/vanus/internal/store/io/engine"
 )
 
 const logFileExt = ".log"
@@ -71,7 +72,7 @@ func (l *logFile) Open(wronly bool) error {
 	return nil
 }
 
-func (l *logFile) WriteAt(e io.Engine, b []byte, off int64, so, eo int, cb io.WriteCallback) {
+func (l *logFile) WriteAt(e engine.Interface, b []byte, off int64, so, eo int, cb io.WriteCallback) {
 	if off < l.so {
 		panic("underflow")
 	}

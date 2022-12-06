@@ -27,6 +27,7 @@ import (
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store/block"
+	"github.com/linkall-labs/vanus/internal/store/io/stream"
 	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
 	"github.com/linkall-labs/vanus/internal/store/vsb/index"
 )
@@ -65,6 +66,7 @@ type vsBlock struct {
 	lis block.ArchivedListener
 
 	f      *os.File
+	s      stream.Stream
 	wg     sync.WaitGroup
 	tracer *tracing.Tracer
 }
@@ -82,12 +84,18 @@ func (b *vsBlock) Close(ctx context.Context) error {
 	m, indexes := b.makeSnapshot()
 
 	if b.indexOffset != m.writeOffset {
-		n, err := b.appendIndexEntry(ctx, indexes, m.writeOffset)
-		if err != nil {
+		ch := make(chan error)
+		b.appendIndexEntry(ctx, indexes, func(n int, err error) {
+			if err != nil {
+				ch <- err
+			}
+			b.indexOffset = m.writeOffset
+			b.indexLength = n
+			close(ch)
+		})
+		if err := <-ch; err != nil {
 			return err
 		}
-		b.indexOffset = m.writeOffset
-		b.indexLength = n
 	}
 
 	// Flush metadata.

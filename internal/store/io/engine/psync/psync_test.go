@@ -12,16 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !linux
-// +build !linux
-
-package store
+package psync
 
 import (
+	// standard libraries.
+	"os"
+	"testing"
+
+	// third-party libraries.
+	. "github.com/smartystreets/goconvey/convey"
+
 	// this project.
-	walog "github.com/linkall-labs/vanus/internal/store/wal"
+	enginetest "github.com/linkall-labs/vanus/internal/store/io/engine/testing"
 )
 
-func configWALIOEngineOptionEx(opts []walog.Option, cfg IOConfig) []walog.Option {
-	panic("io engine is not supported")
+func TestPsync(t *testing.T) {
+	f, err := os.CreateTemp("", "wal-engine-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+
+	e := New()
+	defer e.Close()
+
+	Convey("psync", t, func() {
+		enginetest.DoEngineTest(e, f)
+	})
 }

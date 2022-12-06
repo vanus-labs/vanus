@@ -123,7 +123,7 @@ func (rd Ready) containsUpdates() bool {
 // applied (once the Ready is confirmed via Advance). If no information is
 // contained in the Ready, returns zero.
 func (rd Ready) appliedCursor() uint64 {
-	if n := len(rd.CommittedEntries); n > 0 {
+	if n := len(rd.CommittedEntries); n != 0 {
 		return rd.CommittedEntries[n-1].Index
 	}
 	if index := rd.Snapshot.Metadata.Index; index > 0 {
@@ -184,6 +184,9 @@ type Node interface {
 	// Returns an opaque non-nil ConfState protobuf which must be recorded in
 	// snapshots.
 	ApplyConfChange(cc pb.ConfChangeI) *pb.ConfState
+
+	ReportLogged(ctx context.Context, index uint64, term uint64) error
+	ReportApplied(ctx context.Context, index uint64) error
 
 	// TransferLeadership attempts to transfer leadership to the given transferee.
 	TransferLeadership(ctx context.Context, lead, transferee uint64)
@@ -324,8 +327,6 @@ func (n *node) Bootstrap(peers []Peer) error {
 	}
 	select {
 	case ch <- bp:
-	// case <-ctx.Done():
-	//	return ctx.Err()
 	case <-n.done:
 		return ErrStopped
 	}
@@ -334,8 +335,6 @@ func (n *node) Bootstrap(peers []Peer) error {
 		if err != nil {
 			return err
 		}
-	// case <-ctx.Done():
-	//	return ctx.Err()
 	case <-n.done:
 		return ErrStopped
 	}
@@ -549,6 +548,21 @@ func (n *node) ApplyConfChange(cc pb.ConfChangeI) *pb.ConfState {
 	case <-n.done:
 	}
 	return &cs
+}
+
+func (n *node) ReportLogged(ctx context.Context, index uint64, term uint64) error {
+	return n.step(ctx, pb.Message{
+		Type:    pb.MsgLogResp,
+		LogTerm: term,
+		Index:   index,
+	})
+}
+
+func (n *node) ReportApplied(ctx context.Context, index uint64) error {
+	return n.step(ctx, pb.Message{
+		Type:  pb.MsgApplyResp,
+		Index: index,
+	})
 }
 
 func (n *node) Status() Status {

@@ -193,6 +193,7 @@ type appendTask struct {
 type AppendCallback = func(AppendResult, error)
 
 // Append the new entries to storage.
+// After the call returns, all entries are readable. After the AppendCallback cb fires, all entries are persisted.
 func (l *Log) Append(ctx context.Context, entries []raftpb.Entry, cb AppendCallback) { //nolint:funlen // ok
 	ctx, span := l.tracer.Start(ctx, "Append")
 	defer span.End()

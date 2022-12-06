@@ -15,7 +15,7 @@
 //go:build linux
 // +build linux
 
-package io
+package uring
 
 import (
 	// standard libraries.
@@ -27,6 +27,8 @@ import (
 	"github.com/iceber/iouring-go"
 
 	// this project.
+	"github.com/linkall-labs/vanus/internal/store/io"
+	"github.com/linkall-labs/vanus/internal/store/io/engine"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
@@ -42,10 +44,10 @@ type uRing struct {
 	seq       uint64
 }
 
-// Make sure uRing implements Engine.
-var _ Engine = (*uRing)(nil)
+// Make sure uRing implements engine.Interface.
+var _ engine.Interface = (*uRing)(nil)
 
-func NewURing() Engine {
+func New() engine.Interface {
 	ring, err := iouring.New(defaultResultBufferSize)
 	if err != nil {
 		log.Error(context.Background(), "Create iouring failed.", map[string]interface{}{
@@ -133,7 +135,7 @@ func (e *uRing) runCallback() {
 	}
 }
 
-func (e *uRing) WriteAt(f *os.File, b []byte, off int64, so, eo int, cb WriteCallback) {
+func (e *uRing) WriteAt(f *os.File, b []byte, off int64, so, eo int, cb io.WriteCallback) {
 	seq := e.generateSeq()
 
 	pr := iouring.Pwrite(int(f.Fd()), b, uint64(off)).

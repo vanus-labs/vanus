@@ -26,11 +26,13 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	// first-party project.
+	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/linkall-labs/vanus/observability/tracing"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/io"
+	"github.com/linkall-labs/vanus/internal/store/io/engine"
 	"github.com/linkall-labs/vanus/internal/store/wal/block"
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
 )
@@ -98,7 +100,7 @@ type WAL struct {
 	wb *block.Block
 
 	stream *logStream
-	engine io.Engine
+	engine engine.Interface
 
 	appendC   chan appendTask
 	callbackC chan callbackTask
@@ -122,6 +124,11 @@ func Open(ctx context.Context, dir string, opts ...Option) (*WAL, error) {
 }
 
 func open(ctx context.Context, dir string, cfg config) (*WAL, error) {
+	log.Info(ctx, "Open wal.", map[string]interface{}{
+		"dir": dir,
+		"pos": cfg.pos,
+	})
+
 	stream, err := recoverLogStream(ctx, dir, cfg)
 	if err != nil {
 		return nil, err

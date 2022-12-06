@@ -61,6 +61,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/store"
 	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/block/raft"
+	"github.com/linkall-labs/vanus/internal/store/config"
 	"github.com/linkall-labs/vanus/internal/store/meta"
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	ceconv "github.com/linkall-labs/vanus/internal/store/schema/ce/convert"
@@ -237,7 +238,8 @@ func (s *server) preGrpcStream(ctx context.Context, info *tap.Info) (context.Con
 }
 
 func (s *server) Initialize(ctx context.Context) error {
-	if err := s.loadEngine(ctx); err != nil {
+	// TODO(james.yin): how to organize block engine?
+	if err := s.loadVSBEngine(ctx, s.cfg.VSB); err != nil {
 		return err
 	}
 
@@ -270,10 +272,12 @@ func (s *server) Initialize(ctx context.Context) error {
 	return nil
 }
 
-func (s *server) loadEngine(ctx context.Context) error {
-	// TODO(james.yin): how to organize engine?
-	return vsb.Initialize(filepath.Join(s.cfg.Volume.Dir, "block"),
-		block.ArchivedCallback(s.onBlockArchived))
+func (s *server) loadVSBEngine(ctx context.Context, cfg config.VSB) error {
+	dir := filepath.Join(s.cfg.Volume.Dir, "block")
+	opts := append([]vsb.Option{
+		vsb.WithArchivedListener(block.ArchivedCallback(s.onBlockArchived)),
+	}, cfg.Options()...)
+	return vsb.Initialize(dir, opts...)
 }
 
 func (s *server) reconcileBlocks(ctx context.Context) error {

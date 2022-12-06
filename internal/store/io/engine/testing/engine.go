@@ -12,16 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io
+package testing
 
 import (
 	// standard libraries.
 	"os"
 	"sync"
-	"testing"
 
 	// third-party libraries.
 	. "github.com/smartystreets/goconvey/convey"
+
+	// this project.
+	"github.com/linkall-labs/vanus/internal/store/io/engine"
 )
 
 var (
@@ -29,7 +31,7 @@ var (
 	data1 = []byte{0x05, 0x06, 0x07}
 )
 
-func doEngineTest(e Engine, f *os.File) {
+func DoEngineTest(e engine.Interface, f *os.File) {
 	wg := sync.WaitGroup{}
 
 	var rn int
@@ -63,19 +65,4 @@ func doEngineTest(e Engine, f *os.File) {
 	So(err, ShouldBeNil)
 	So(n, ShouldEqual, len(buf))
 	So(buf, ShouldResemble, []byte{0x05, 0x06, 0x07, 0x04})
-}
-
-func TestEngine(t *testing.T) {
-	f, err := os.CreateTemp("", "wal-engine-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(f.Name())
-
-	e := NewEngine()
-	defer e.Close()
-
-	Convey("engine", t, func() {
-		doEngineTest(e, f)
-	})
 }

@@ -87,7 +87,8 @@ func (rn *RawNode) Propose(data []byte) error {
 		From: rn.raft.id,
 		Entries: []pb.Entry{
 			{Data: data},
-		}})
+		},
+	})
 }
 
 // ProposeConfChange proposes a config change. See (Node).ProposeConfChange for
@@ -146,9 +147,13 @@ func (rn *RawNode) acceptReady(rd Ready) {
 	if len(rd.ReadStates) != 0 {
 		rn.raft.readStates = nil
 	}
-	if len(rd.Entries) > 0 {
-		e := rd.Entries[len(rd.Entries)-1]
+	if n := len(rd.Entries); n != 0 {
+		e := rd.Entries[n-1]
 		rn.raft.raftLog.persistingTo(e.Index, e.Term)
+	}
+	if n := len(rd.CommittedEntries); n != 0 {
+		e := rd.CommittedEntries[n-1]
+		rn.raft.raftLog.applyingTo(e.Index)
 	}
 	rn.raft.msgs = nil
 }
@@ -187,7 +192,23 @@ func (rn *RawNode) Advance(rd Ready) {
 	if rd.Compact != 0 {
 		rn.prevCompact = rd.Compact
 	}
-	rn.raft.advance(rd)
+	// FIXME(james.yin): stableSnapTo
+	// rn.raft.advance(rd)
+}
+
+func (rn *RawNode) ReportLogged(index uint64, term uint64) error {
+	return rn.raft.Step(pb.Message{
+		Type:    pb.MsgLogResp,
+		LogTerm: term,
+		Index:   index,
+	})
+}
+
+func (rn *RawNode) ReportApplied(index uint64) error {
+	return rn.raft.Step(pb.Message{
+		Type:  pb.MsgApplyResp,
+		Index: index,
+	})
 }
 
 // Status returns the current status of the given group. This allocates, see

@@ -14,7 +14,7 @@
 
 package io
 
-type WriteCallback func(n int, err error)
+type WriteCallback = func(n int, err error)
 
 type WriterAt interface {
 	WriteAt(b []byte, off int64, so, eo int, cb WriteCallback)

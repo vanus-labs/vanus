@@ -75,6 +75,8 @@ func (e *engine) Create(ctx context.Context, id vanus.ID, capacity int64) (block
 		return nil, processError(err, f, path)
 	}
 
+	b.s = e.s.Register(f, b.actx.offset)
+
 	return b, nil
 }
 
@@ -101,6 +103,8 @@ func (e *engine) Open(ctx context.Context, id vanus.ID) (block.Raw, error) {
 	if err := b.Open(ctx); err != nil {
 		return nil, err
 	}
+
+	b.s = e.s.Register(b.f, b.actx.offset)
 
 	return b, nil
 }
