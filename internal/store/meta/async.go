@@ -76,7 +76,7 @@ func (s *AsyncStore) Load(key []byte) (interface{}, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if v, ok := s.pending.GetValue(key); ok {
-		if v == deletedMark {
+		if v == DeletedMark {
 			return nil, false
 		}
 		return v, true
@@ -93,7 +93,7 @@ func (s *AsyncStore) BatchStore(_ context.Context, kvs Ranger) {
 }
 
 func (s *AsyncStore) Delete(key []byte) {
-	_ = s.set(KVRange(key, deletedMark))
+	_ = s.set(KVRange(key, DeletedMark))
 }
 
 func (s *AsyncStore) BatchDelete(keys [][]byte) {

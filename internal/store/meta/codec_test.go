@@ -27,7 +27,7 @@ import (
 
 func TestCodec_AppendValue(t *testing.T) {
 	Convey("append deletedMark", t, func() {
-		out, err := appendValue(nil, deletedMark)
+		out, err := appendValue(nil, DeletedMark)
 		So(err, ShouldBeNil)
 		So(bytes.Equal(out, []byte{byte(Deleted)}), ShouldBeTrue)
 	})

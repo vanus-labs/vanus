@@ -108,8 +108,12 @@ func open(ctx context.Context, dir string, cfg config) (*WAL, error) {
 		doneC: make(chan struct{}),
 	}
 
-	w.appendQ.Init(false)
-	go w.runAppend()
+	if !cfg.readOnly {
+		w.appendQ.Init(false)
+		go w.runAppend()
+	} else {
+		close(w.doneC)
+	}
 
 	return w, nil
 }

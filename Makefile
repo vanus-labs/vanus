@@ -61,6 +61,9 @@ docker-push-toolbox:
 build-cmd:
 	$(GO_BUILD) -ldflags "${LD_FLAGS}" -o bin/vsctl ./vsctl/
 
+build-repair-tool:
+	$(GO_BUILD) -ldflags "${LD_FLAGS}" -o bin/vsrepair ./vsrepair/
+
 docker-push-root:
 	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/root-controller:${IMAGE_TAG} -f build/images/root-controller/Dockerfile . --push
 docker-build-root:

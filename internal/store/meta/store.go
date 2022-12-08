@@ -53,7 +53,7 @@ func (s *store) load(key []byte) (interface{}, bool) {
 // }
 
 func set(m *skiplist.SkipList, key []byte, value interface{}) {
-	if value == deletedMark {
+	if value == DeletedMark {
 		m.Remove(key)
 	} else {
 		m.Set(key, value)

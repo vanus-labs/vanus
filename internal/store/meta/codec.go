@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	deletedMark  deletedMarkType
+	DeletedMark  deletedMarkType
 	defaultCodec codec
 )
 
@@ -65,8 +65,10 @@ const (
 type codec struct{}
 
 // Make sure codec implements Marshaler and Unmarshaler.
-var _ Marshaler = (*codec)(nil)
-var _ Unmarshaler = (*codec)(nil)
+var (
+	_ Marshaler   = (*codec)(nil)
+	_ Unmarshaler = (*codec)(nil)
+)
 
 func (codec) Marshal(data Ranger) ([]byte, error) {
 	buf := make([]byte, 0)
@@ -118,7 +120,7 @@ func encodeKey(key, last []byte) (int, []byte) {
 }
 
 func appendValue(buf []byte, value interface{}) ([]byte, error) {
-	if value == deletedMark {
+	if value == DeletedMark {
 		buf = protowire.AppendVarint(buf, uint64(Deleted))
 		return buf, nil
 	}
@@ -232,7 +234,7 @@ func consumeValue(buf []byte) (interface{}, int) {
 	kind := Kind(k)
 	switch kind {
 	case Deleted:
-		return deletedMark, n
+		return DeletedMark, n
 	case True:
 		return true, n
 	case False:
