@@ -32,10 +32,13 @@ type raftLog struct {
 	pending uint64
 	// committed is the highest log position that is known to be in
 	// stable storage on a quorum of nodes.
+	// Invariant: committed < unstable.offset + len(unstable.entries)
 	committed uint64
+	// Invariant: localCommitted = min(committed, unstable.offset)
+	localCommitted uint64
 	// applied is the highest log position that the application has
 	// been instructed to apply to its state machine.
-	// Invariant: applied <= committed
+	// Invariant: applied <= localCommitted
 	applied uint64
 	// compacted is the highest log position that the application can
 	// delete safety.
@@ -80,6 +83,7 @@ func newLogWithSize(storage Storage, logger Logger, maxNextEntsSize uint64) *raf
 	log.pending = lastIndex + 1
 	// Initialize our committed and applied pointers to the time of the last compaction.
 	log.committed = firstIndex - 1
+	log.localCommitted = firstIndex - 1
 	log.applied = firstIndex - 1
 	log.compacted = firstIndex - 1
 
@@ -97,6 +101,7 @@ func (l *raftLog) maybeAppend(index, logTerm, committed uint64, ents ...pb.Entry
 		return false
 	}
 
+	li := index + uint64(len(ents))
 	ci := l.findConflict(ents)
 	switch {
 	case ci == 0:
@@ -109,11 +114,7 @@ func (l *raftLog) maybeAppend(index, logTerm, committed uint64, ents ...pb.Entry
 		}
 		l.append(ents[ci-offset:]...)
 	}
-
-	// FIXME: use stable
-	// li := l.lastIndex()
-	// l.commitTo(min(committed, li))
-
+	l.commitTo(min(committed, li))
 	return true
 }
 
@@ -204,9 +205,9 @@ func (l *raftLog) pendingEntries() []pb.Entry {
 // If applied is smaller than the index of snapshot, it returns all committed
 // entries after the index of snapshot.
 func (l *raftLog) nextEnts() (ents []pb.Entry) {
-	off := max(l.applied+1, l.firstIndex())
-	if l.committed+1 > off {
-		ents, err := l.slice(off, l.committed+1, l.maxNextEntsSize)
+	lo := max(l.applied+1, l.firstIndex())
+	if hi := l.localCommitted + 1; hi > lo {
+		ents, err := l.slice(lo, hi, l.maxNextEntsSize)
 		if err != nil {
 			l.logger.Panicf("unexpected error when getting unapplied entries (%v)", err)
 		}
@@ -219,7 +220,7 @@ func (l *raftLog) nextEnts() (ents []pb.Entry) {
 // is a fast check without heavy raftLog.slice() in raftLog.nextEnts().
 func (l *raftLog) hasNextEnts() bool {
 	off := max(l.applied+1, l.firstIndex())
-	return l.committed+1 > off
+	return l.localCommitted+1 > off
 }
 
 // hasPendingSnapshot returns if there is pending snapshot waiting for applying.
@@ -256,14 +257,12 @@ func (l *raftLog) lastIndex() uint64 {
 	return i
 }
 
-func (l *raftLog) commitTo(tocommit uint64) {
-	// never decrease commit
-	if l.committed < tocommit {
-		if l.lastIndex() < tocommit {
-			l.logger.Panicf("tocommit(%d) is out of range [lastIndex(%d)]. Was the raft log corrupted, truncated, or lost?", tocommit, l.lastIndex())
-		}
-		l.committed = tocommit
+func (l *raftLog) stableLastIndex() uint64 {
+	i, err := l.storage.LastIndex()
+	if err != nil {
+		panic(err) // TODO(james.yin)
 	}
+	return i
 }
 
 func (l *raftLog) compactTo(tocompact uint64) {
@@ -280,10 +279,34 @@ func (l *raftLog) appliedTo(i uint64) {
 	if i == 0 {
 		return
 	}
-	if l.committed < i || i < l.applied {
-		l.logger.Panicf("applied(%d) is out of range [prevApplied(%d), committed(%d)]", i, l.applied, l.committed)
+	if l.localCommitted < i || i < l.applied {
+		l.logger.Panicf("applied(%d) is out of range [prevApplied(%d), localCommitted(%d)]", i, l.applied, l.localCommitted)
 	}
 	l.applied = i
+}
+
+func (l *raftLog) localCommitTo(tocommit uint64) {
+	if tocommit >= l.unstable.offset {
+		tocommit = l.unstable.offset
+	}
+	// never decrease commit
+	if l.localCommitted < tocommit {
+		// if li := l.stableLastIndex(); li < tocommit {
+		// 	l.logger.Panicf("tocommit(%d) is out of range [lastIndex(%d)]. Was the raft log corrupted, truncated, or lost?", tocommit, li)
+		// }
+		l.localCommitted = tocommit
+	}
+}
+
+func (l *raftLog) commitTo(tocommit uint64) {
+	// never decrease commit
+	if l.committed < tocommit {
+		// if li := l.lastIndex(); li < tocommit {
+		// 	l.logger.Panicf("tocommit(%d) is out of range [lastIndex(%d)]. Was the raft log corrupted, truncated, or lost?", tocommit, li)
+		// }
+		l.committed = tocommit
+	}
+	l.localCommitTo(tocommit)
 }
 
 func (l *raftLog) persistingTo(i, t uint64) {
@@ -326,6 +349,24 @@ func (l *raftLog) term(i uint64) (uint64, error) {
 
 	if t, ok := l.unstable.maybeTerm(i); ok {
 		return t, nil
+	}
+
+	t, err := l.storage.Term(i)
+	if err == nil {
+		return t, nil
+	}
+	if err == ErrCompacted || err == ErrUnavailable {
+		return 0, err
+	}
+	panic(err) // TODO(bdarnell)
+}
+
+func (l *raftLog) stableTerm(i uint64) (uint64, error) {
+	// the valid term range is [index of dummy entry, last index]
+	dummyIndex := l.firstIndex() - 1
+	if i < dummyIndex || i > l.stableLastIndex() {
+		// TODO: return an error instead?
+		return 0, nil
 	}
 
 	t, err := l.storage.Term(i)
@@ -394,6 +435,7 @@ func (l *raftLog) maybeCompact(i uint64) {
 func (l *raftLog) restore(s pb.Snapshot) {
 	l.logger.Infof("log [%s] starts to restore snapshot [index: %d, term: %d]", l, s.Metadata.Index, s.Metadata.Term)
 	l.committed = s.Metadata.Index
+	l.localCommitted = s.Metadata.Index
 	// NOTE: applied and compacted will be reset in raft.advance().
 	l.unstable.restore(s)
 	l.pending = l.unstable.offset
@@ -445,15 +487,17 @@ func (l *raftLog) mustCheckOutOfBounds(lo, hi uint64) error {
 	if lo > hi {
 		l.logger.Panicf("invalid slice %d > %d", lo, hi)
 	}
+
 	fi := l.firstIndex()
 	if lo < fi {
 		return ErrCompacted
 	}
 
-	length := l.lastIndex() + 1 - fi
-	if hi > fi+length {
-		l.logger.Panicf("slice[%d,%d) out of bound [%d,%d]", lo, hi, fi, l.lastIndex())
+	li := l.lastIndex()
+	if hi > li+1 {
+		l.logger.Panicf("slice[%d,%d) out of bound [%d,%d]", lo, hi, fi, li)
 	}
+
 	return nil
 }
 
