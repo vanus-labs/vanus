@@ -380,7 +380,7 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 							"eventbus":   tw.receivingStation.getEventbus(),
 						})
 					}
-					time.Sleep(100 * time.Millisecond)
+					time.Sleep(sleepDuration)
 					log.Debug(ctx, "get msg error", map[string]interface{}{
 						log.KeyError: err,
 						"function":   "runReceivingStation",
@@ -388,7 +388,7 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 					break
 				}
 				if len(events) == 0 {
-					time.Sleep(100 * time.Millisecond)
+					time.Sleep(sleepDuration)
 					log.Info(ctx, "no more message", map[string]interface{}{
 						"function": "runReceivingStation",
 					})
@@ -494,7 +494,7 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 							"eventbus":   tw.distributionStation.getEventbus(),
 						})
 					}
-					time.Sleep(100 * time.Millisecond)
+					time.Sleep(sleepDuration)
 					log.Debug(ctx, "get msg error", map[string]interface{}{
 						log.KeyError: err,
 						"function":   "runDistributionStation",
@@ -502,7 +502,7 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 					break
 				}
 				if len(events) == 0 {
-					time.Sleep(100 * time.Millisecond)
+					time.Sleep(sleepDuration)
 					log.Debug(ctx, "no more message", map[string]interface{}{
 						"function": "runDistributionStation",
 					})

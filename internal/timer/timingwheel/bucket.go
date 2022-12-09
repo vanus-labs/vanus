@@ -45,6 +45,7 @@ const (
 	timerBuiltInEventbus                    = "__Timer_%d_%d"
 	xVanusEventbus                          = "xvanuseventbus"
 	xVanusDeliveryTime                      = "xvanusdeliverytime"
+	sleepDuration                           = 100 * time.Millisecond
 )
 
 type timingMsg struct {
@@ -209,7 +210,7 @@ func (b *bucket) run(ctx context.Context) {
 							log.KeyError: err,
 						})
 					}
-					time.Sleep(100 * time.Millisecond)
+					time.Sleep(sleepDuration)
 					log.Debug(ctx, "get msg error", map[string]interface{}{
 						log.KeyError: err,
 						"function":   "run",
@@ -217,7 +218,7 @@ func (b *bucket) run(ctx context.Context) {
 					break
 				}
 				if len(events) == 0 {
-					time.Sleep(100 * time.Millisecond)
+					time.Sleep(sleepDuration)
 					log.Debug(ctx, "no more message", map[string]interface{}{
 						"function": "run",
 					})
