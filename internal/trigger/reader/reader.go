@@ -188,8 +188,8 @@ func (r *reader) getOffset(ctx context.Context, eventLogID vanus.ID) (uint64, er
 			}
 		}
 		// fix offset is negative which convert to uint64 is big.
-		if offset < 0 {
-			offset = 0
+		if v < 0 {
+			v = 0
 		}
 		offset = uint64(v)
 	}
