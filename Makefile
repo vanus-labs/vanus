@@ -4,7 +4,7 @@ GIT_COMMIT=$(shell git log -1 --format='%h' | awk '{print $0}')
 DATE=$(shell date +%Y-%m-%d_%H:%M:%S%z)
 GO_VERSION=$(shell go version)
 
-export VANUS_LOG_LEVEL=debug
+export VANUS_LOG_LEVEL=info
 
 DOCKER_REGISTRY ?= public.ecr.aws
 DOCKER_REPO ?= ${DOCKER_REGISTRY}/vanus

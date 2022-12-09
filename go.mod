@@ -24,11 +24,11 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/json-iterator/go v1.1.12
 	github.com/linkall-labs/embed-etcd v0.1.1
-	github.com/linkall-labs/vanus/client v0.5.0
-	github.com/linkall-labs/vanus/observability v0.5.0
-	github.com/linkall-labs/vanus/pkg v0.5.0
-	github.com/linkall-labs/vanus/proto v0.5.0
-	github.com/linkall-labs/vanus/raft v0.5.0
+	github.com/linkall-labs/vanus/client v0.5.1
+	github.com/linkall-labs/vanus/observability v0.5.1
+	github.com/linkall-labs/vanus/pkg v0.5.1
+	github.com/linkall-labs/vanus/proto v0.5.1
+	github.com/linkall-labs/vanus/raft v0.5.1
 	github.com/ncw/directio v1.0.5
 	github.com/oliveagle/jsonpath v0.0.0-20180606110733-2e52cf6e6852
 	github.com/pkg/errors v0.9.1

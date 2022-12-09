@@ -124,6 +124,7 @@ func (l *defaultLogger) SetLogWriter(writer io.Writer) {
 func SetLogger(logger Logger) {
 	vLog = logger
 }
+
 func SetLogLevel(level string) {
 	if level == "" {
 		return

@@ -79,7 +79,7 @@ spec:
     spec:
       containers:
         - name: controller
-          image: public.ecr.aws/vanus/controller:v0.5.0
+          image: public.ecr.aws/vanus/controller:v0.5.1
           imagePullPolicy: IfNotPresent
           command:
             [ "/bin/sh", "-c", "NODE_ID=${HOSTNAME##*-} /vanus/bin/controller" ]
@@ -94,7 +94,7 @@ spec:
               containerPort: 2112
           env:
             - name: VANUS_LOG_LEVEL
-              value: DEBUG
+              value: INFO
             - name: POD_NAME
               valueFrom:
                 fieldRef:
