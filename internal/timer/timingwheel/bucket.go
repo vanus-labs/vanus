@@ -211,10 +211,6 @@ func (b *bucket) run(ctx context.Context) {
 						})
 					}
 					time.Sleep(sleepDuration)
-					log.Debug(ctx, "get msg error", map[string]interface{}{
-						log.KeyError: err,
-						"function":   "run",
-					})
 					break
 				}
 				if len(events) == 0 {

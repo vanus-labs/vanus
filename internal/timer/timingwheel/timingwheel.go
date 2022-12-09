@@ -381,10 +381,6 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 						})
 					}
 					time.Sleep(sleepDuration)
-					log.Debug(ctx, "get msg error", map[string]interface{}{
-						log.KeyError: err,
-						"function":   "runReceivingStation",
-					})
 					break
 				}
 				if len(events) == 0 {
@@ -495,10 +491,6 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 						})
 					}
 					time.Sleep(sleepDuration)
-					log.Debug(ctx, "get msg error", map[string]interface{}{
-						log.KeyError: err,
-						"function":   "runDistributionStation",
-					})
 					break
 				}
 				if len(events) == 0 {

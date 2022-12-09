@@ -94,7 +94,7 @@ func (s *BlockStore) Append(ctx context.Context, block uint64, event *ce.Event) 
 
 	res, err := client.(segpb.SegmentServerClient).AppendToBlock(_ctx, req)
 	if err != nil {
-		vlog.Debug(ctx, "failed to AppendToBlock", map[string]interface{}{
+		vlog.Warning(ctx, "failed to AppendToBlock", map[string]interface{}{
 			vlog.KeyError: err,
 			"block_id":    block,
 		})

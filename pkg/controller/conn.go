@@ -75,20 +75,20 @@ func (c *conn) invoke(ctx context.Context, method string, args, reply interface{
 	}
 	err := conn.Invoke(ctx, method, args, reply, opts...)
 	if err != nil {
-		log.Debug(ctx, "invoke error, try to retry", map[string]interface{}{
+		log.Warning(ctx, "invoke error, try to retry", map[string]interface{}{
 			log.KeyError: err,
 		})
 	}
 	if isNeedRetry(err) {
 		conn = c.makeSureClient(ctx, true)
 		if conn == nil {
-			log.Info(ctx, "not get client when try to renew client", map[string]interface{}{})
+			log.Warning(ctx, "not get client when try to renew client", map[string]interface{}{})
 			return ErrNoControllerLeader
 		}
 		err = conn.Invoke(ctx, method, args, reply, opts...)
 	}
 	if err != nil {
-		log.Info(ctx, "invoke error", map[string]interface{}{
+		log.Warning(ctx, "invoke error", map[string]interface{}{
 			log.KeyError: err,
 		})
 	}

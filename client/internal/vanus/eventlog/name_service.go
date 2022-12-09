@@ -59,7 +59,7 @@ func (ns *NameService) LookupWritableSegment(ctx context.Context, logID uint64) 
 
 	resp, err := ns.client.GetAppendableSegment(ctx, req)
 	if err != nil {
-		log.Debug(ctx, "failed to GetAppendableSegment", map[string]interface{}{
+		log.Warning(ctx, "failed to GetAppendableSegment", map[string]interface{}{
 			"req":        req,
 			"res":        resp,
 			log.KeyError: err,
