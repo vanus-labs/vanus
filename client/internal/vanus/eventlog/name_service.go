@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/controller"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
@@ -58,9 +59,18 @@ func (ns *NameService) LookupWritableSegment(ctx context.Context, logID uint64) 
 
 	resp, err := ns.client.GetAppendableSegment(ctx, req)
 	if err != nil {
+		log.Debug(ctx, "failed to GetAppendableSegment", map[string]interface{}{
+			"req":        req,
+			"res":        resp,
+			log.KeyError: err,
+		})
 		return nil, err
 	}
 
+	log.Debug(ctx, "GetAppendableSegment result", map[string]interface{}{
+		"req": req,
+		"res": resp,
+	})
 	segments := toSegments(resp.GetSegments())
 	if len(segments) == 0 {
 		return nil, errors.ErrNotWritable

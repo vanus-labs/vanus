@@ -1,10 +1,11 @@
 module github.com/linkall-labs/vanus/pkg
 
-go 1.17
+go 1.18
 
 require (
 	github.com/linkall-labs/vanus/observability v0.5.0
 	github.com/linkall-labs/vanus/proto v0.5.0
+	github.com/pkg/errors v0.9.1
 	github.com/smartystreets/goconvey v1.7.2
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
@@ -24,8 +25,8 @@ require (
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/smartystreets/assertions v1.2.0 // indirect
-	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
-	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
+	golang.org/x/net v0.0.0-20220909164309-bea034e7d591 // indirect
+	golang.org/x/sys v0.0.0-20220728004956-3c1f35247d10 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	google.golang.org/genproto v0.0.0-20220310185008-1973136f34c6 // indirect
+	google.golang.org/genproto v0.0.0-20220624142145-8cd45d7dbd1f // indirect
 )

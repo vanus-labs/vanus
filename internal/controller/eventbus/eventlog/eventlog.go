@@ -281,9 +281,8 @@ func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
 			return nil, err
 		}
 		metrics.SegmentCreationRuntimeCounterVec.WithLabelValues(metrics.LabelValueResourceManualCreate).Inc()
+		s = el.currentAppendableSegment()
 	}
-
-	s = el.currentAppendableSegment()
 
 	for len(result) < num && s != nil {
 		result = append(result, s)

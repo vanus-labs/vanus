@@ -17,15 +17,16 @@ package controller
 import (
 	"context"
 	stderr "errors"
-	"github.com/linkall-labs/vanus/observability/log"
-	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/linkall-labs/vanus/observability/log"
+	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
@@ -51,6 +52,9 @@ type conn struct {
 func newConn(endpoints []string, credentials credentials.TransportCredentials) *conn {
 	// TODO temporary implement
 	v, _ := strconv.ParseBool(os.Getenv(vanusConnBypass))
+	log.Info(context.Background(), "init conn", map[string]interface{}{
+		"endpoints": endpoints,
+	})
 	return &conn{
 		endpoints:   endpoints,
 		grpcConn:    map[string]*grpc.ClientConn{},
@@ -60,17 +64,33 @@ func newConn(endpoints []string, credentials credentials.TransportCredentials) *
 }
 
 func (c *conn) invoke(ctx context.Context, method string, args, reply interface{}, opts ...grpc.CallOption) error {
+	log.Debug(ctx, "grpc invoke", map[string]interface{}{
+		"method": method,
+		"args":   fmt.Sprintf("%v", args),
+	})
 	conn := c.makeSureClient(ctx, false)
 	if conn == nil {
+		log.Warning(ctx, "not get client for controller", map[string]interface{}{})
 		return ErrNoControllerLeader
 	}
 	err := conn.Invoke(ctx, method, args, reply, opts...)
+	if err != nil {
+		log.Debug(ctx, "invoke error, try to retry", map[string]interface{}{
+			log.KeyError: err,
+		})
+	}
 	if isNeedRetry(err) {
 		conn = c.makeSureClient(ctx, true)
 		if conn == nil {
+			log.Info(ctx, "not get client when try to renew client", map[string]interface{}{})
 			return ErrNoControllerLeader
 		}
 		err = conn.Invoke(ctx, method, args, reply, opts...)
+	}
+	if err != nil {
+		log.Info(ctx, "invoke error", map[string]interface{}{
+			log.KeyError: err,
+		})
 	}
 	return err
 }
@@ -79,7 +99,7 @@ func (c *conn) close() error {
 	var err error
 	for ip, conn := range c.grpcConn {
 		if _err := conn.Close(); _err != nil {
-			log.Warning(context.Background(), "close grpc connection failed", map[string]interface{}{
+			log.Info(context.Background(), "close grpc connection failed", map[string]interface{}{
 				log.KeyError:   _err,
 				"peer_address": ip,
 			})
@@ -98,6 +118,10 @@ func (c *conn) makeSureClient(ctx context.Context, renew bool) *grpc.ClientConn 
 			c.leaderClient = c.getGRPCConn(ctx, c.endpoints[0])
 			return c.leaderClient
 		}
+		log.Info(ctx, "try to create connection", map[string]interface{}{
+			"renew":     renew,
+			"endpoints": c.endpoints,
+		})
 		for _, v := range c.endpoints {
 			conn := c.getGRPCConn(ctx, v)
 			if conn == nil {
@@ -106,7 +130,7 @@ func (c *conn) makeSureClient(ctx context.Context, renew bool) *grpc.ClientConn 
 			pingClient := ctrlpb.NewPingServerClient(conn)
 			res, err := pingClient.Ping(context.Background(), &emptypb.Empty{})
 			if err != nil {
-				log.Warning(ctx, "failed to ping controller", map[string]interface{}{
+				log.Info(ctx, "failed to ping controller", map[string]interface{}{
 					"address":    v,
 					log.KeyError: err,
 				})
@@ -122,8 +146,12 @@ func (c *conn) makeSureClient(ctx context.Context, renew bool) *grpc.ClientConn 
 
 		conn := c.getGRPCConn(ctx, c.leader)
 		if conn == nil {
+			log.Info(ctx, "failed to get conn", map[string]interface{}{})
 			return nil
 		}
+		log.Info(ctx, "success to get connection", map[string]interface{}{
+			"leader": c.leader,
+		})
 		c.leaderClient = conn
 	}
 	return c.leaderClient
@@ -172,13 +200,20 @@ func isNeedRetry(err error) bool {
 	if sts.Code() == codes.Unavailable {
 		return true
 	}
-	errType, ok := errpb.Convert(sts.Message())
-	if !ok {
-		return false
-	}
-	if errType.Code == errpb.ErrorCode_NOT_LEADER {
+
+	if strings.Contains(sts.Message(), "NOT_LEADER") {
 		return true
 	}
+	//errType, ok := errpb.Convert(sts.Message())
+	//if !ok {
+	//	return false
+	//}
+	//if errType.Code == errpb.ErrorCode_NOT_LEADER {
+	//	log.Info(nil, "ErrorCode_NOT_LEADER", map[string]interface{}{
+	//		log.KeyError: err,
+	//	})
+	//	return true
+	//}
 	return false
 }
 

@@ -356,7 +356,10 @@ func (w *logWriter) Append(ctx context.Context, event *ce.Event) (int64, error) 
 		if err == nil {
 			return offset, nil
 		}
-
+		vlog.Debug(ctx, "failed to Append", map[string]interface{}{
+			vlog.KeyError: err,
+			"offset":      offset,
+		})
 		switch err {
 		case errors.ErrNotWritable, errors.ErrNotEnoughSpace, errors.ErrNoSpace:
 			// full
