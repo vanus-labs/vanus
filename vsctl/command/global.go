@@ -77,7 +77,7 @@ func mustGetGatewayCloudEventsEndpoint(cmd *cobra.Command) string {
 	//	cmdFailedf(cmd, "get cloudevents endpoint failed: %s", err)
 	//}
 	sp := strings.Split(mustGetGatewayEndpoint(cmd), ":")
-	v, _ := strconv.ParseInt(sp[0], 10, 64)
+	v, _ := strconv.ParseInt(sp[1], 10, 64)
 	return fmt.Sprintf("%s:%d", sp[0], v+1)
 }
 
