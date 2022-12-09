@@ -24,11 +24,11 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/json-iterator/go v1.1.12
 	github.com/linkall-labs/embed-etcd v0.1.1
-	github.com/linkall-labs/vanus/client v0.5.0
-	github.com/linkall-labs/vanus/observability v0.5.0
-	github.com/linkall-labs/vanus/pkg v0.5.0
-	github.com/linkall-labs/vanus/proto v0.5.0
-	github.com/linkall-labs/vanus/raft v0.5.0
+	github.com/linkall-labs/vanus/client v0.5.1
+	github.com/linkall-labs/vanus/observability v0.5.1
+	github.com/linkall-labs/vanus/pkg v0.5.1
+	github.com/linkall-labs/vanus/proto v0.5.1
+	github.com/linkall-labs/vanus/raft v0.5.1
 	github.com/ncw/directio v1.0.5
 	github.com/oliveagle/jsonpath v0.0.0-20180606110733-2e52cf6e6852
 	github.com/pkg/errors v0.9.1
@@ -46,6 +46,8 @@ require (
 	go.uber.org/atomic v1.9.0
 	go.uber.org/ratelimit v0.2.0
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8
+	google.golang.org/api v0.102.0
+	google.golang.org/genproto v0.0.0-20221027153422-115e99e71e1c
 	google.golang.org/grpc v1.50.1
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -53,8 +55,6 @@ require (
 	k8s.io/client-go v0.25.0
 	k8s.io/klog/v2 v2.80.0
 	k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed
-	google.golang.org/api v0.102.0
-	google.golang.org/genproto v0.0.0-20221027153422-115e99e71e1c
 )
 
 require (

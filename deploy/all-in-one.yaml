@@ -96,8 +96,8 @@ data:
       lease_duration: 15
     timingwheel:
       tick: 1
-      wheel_size: 32
-      layers: 4
+      wheel_size: 8
+      layers: 1
     controllers:
       - vanus-controller-0.vanus-controller.vanus.svc:2048
       - vanus-controller-1.vanus-controller.vanus.svc:2048
@@ -173,7 +173,10 @@ spec:
         app: vanus-gateway
     spec:
       containers:
-      - image: public.ecr.aws/vanus/gateway:v0.5.0
+      - env:
+        - name: VANUS_LOG_LEVEL
+          value: INFO
+        image: public.ecr.aws/vanus/gateway:v0.5.1
         imagePullPolicy: IfNotPresent
         name: gateway
         ports:
@@ -211,12 +214,12 @@ spec:
       containers:
       - env:
         - name: VANUS_LOG_LEVEL
-          value: DEBUG
+          value: INFO
         - name: POD_IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/timer:v0.5.0
+        image: public.ecr.aws/vanus/timer:v0.5.1
         imagePullPolicy: IfNotPresent
         name: timer
         volumeMounts:
@@ -249,12 +252,12 @@ spec:
       containers:
       - env:
         - name: VANUS_LOG_LEVEL
-          value: DEBUG
+          value: INFO
         - name: POD_IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/trigger:v0.5.0
+        image: public.ecr.aws/vanus/trigger:v0.5.1
         imagePullPolicy: IfNotPresent
         name: trigger
         ports:
@@ -295,7 +298,7 @@ spec:
         - NODE_ID=${HOSTNAME##*-} /vanus/bin/controller
         env:
         - name: VANUS_LOG_LEVEL
-          value: DEBUG
+          value: INFO
         - name: POD_NAME
           valueFrom:
             fieldRef:
@@ -304,7 +307,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/controller:v0.5.0
+        image: public.ecr.aws/vanus/controller:v0.5.1
         imagePullPolicy: IfNotPresent
         name: controller
         ports:
@@ -364,12 +367,12 @@ spec:
         - VOLUME_ID=${HOSTNAME##*-} /vanus/bin/store
         env:
         - name: VANUS_LOG_LEVEL
-          value: DEBUG
+          value: INFO
         - name: POD_IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/store:v0.5.0
+        image: public.ecr.aws/vanus/store:v0.5.1
         imagePullPolicy: IfNotPresent
         name: store
         ports:

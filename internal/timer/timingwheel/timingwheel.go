@@ -380,6 +380,14 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 							"eventbus":   tw.receivingStation.getEventbus(),
 						})
 					}
+					time.Sleep(sleepDuration)
+					break
+				}
+				if len(events) == 0 {
+					time.Sleep(sleepDuration)
+					log.Info(ctx, "no more message", map[string]interface{}{
+						"function": "runReceivingStation",
+					})
 					break
 				}
 
@@ -482,6 +490,14 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 							"eventbus":   tw.distributionStation.getEventbus(),
 						})
 					}
+					time.Sleep(sleepDuration)
+					break
+				}
+				if len(events) == 0 {
+					time.Sleep(sleepDuration)
+					log.Debug(ctx, "no more message", map[string]interface{}{
+						"function": "runDistributionStation",
+					})
 					break
 				}
 				// concurrent write

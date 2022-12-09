@@ -45,6 +45,7 @@ const (
 	timerBuiltInEventbus                    = "__Timer_%d_%d"
 	xVanusEventbus                          = "xvanuseventbus"
 	xVanusDeliveryTime                      = "xvanusdeliverytime"
+	sleepDuration                           = 100 * time.Millisecond
 )
 
 type timingMsg struct {
@@ -209,6 +210,14 @@ func (b *bucket) run(ctx context.Context) {
 							log.KeyError: err,
 						})
 					}
+					time.Sleep(sleepDuration)
+					break
+				}
+				if len(events) == 0 {
+					time.Sleep(sleepDuration)
+					log.Debug(ctx, "no more message", map[string]interface{}{
+						"function": "run",
+					})
 					break
 				}
 				// concurrent write
