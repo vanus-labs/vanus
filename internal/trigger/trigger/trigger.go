@@ -356,7 +356,7 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 				"event":               e,
 			})
 			if writeAttempt >= t.config.MaxWriteAttempt {
-				break
+				return
 			}
 			time.Sleep(time.Second)
 		} else {
@@ -391,7 +391,7 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 				"event":               e,
 			})
 			if writeAttempt >= t.config.MaxWriteAttempt {
-				break
+				return
 			}
 			time.Sleep(time.Second)
 		} else {
