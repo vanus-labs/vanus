@@ -497,10 +497,12 @@ func (mgr *eventlogManager) dynamicScaleUpEventLog(ctx context.Context) {
 					})
 					count++
 				}
+				/* log too many
 				log.Debug(ctx, "scale task completed", map[string]interface{}{
 					"segment_created": count,
 					"eventlog_id":     el.md.ID.String(),
 				})
+				*/
 				return true
 			})
 		}
