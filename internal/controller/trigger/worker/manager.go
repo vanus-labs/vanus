@@ -231,7 +231,14 @@ func (m *manager) cleanTriggerWorker(ctx context.Context, tWorker TriggerWorker)
 	log.Info(ctx, "do trigger worker leave success", map[string]interface{}{
 		log.KeyTriggerWorkerAddr: tWorker.GetAddr(),
 	})
-	err := m.storage.DeleteTriggerWorker(ctx, tWorker.GetInfo().ID)
+	err := tWorker.Close()
+	if err != nil {
+		log.Warning(ctx, "trigger worker close error", map[string]interface{}{
+			log.KeyError:             err,
+			log.KeyTriggerWorkerAddr: tWorker.GetAddr(),
+		})
+	}
+	err = m.storage.DeleteTriggerWorker(ctx, tWorker.GetInfo().ID)
 	if err != nil {
 		log.Warning(ctx, "storage delete trigger worker error", map[string]interface{}{
 			log.KeyError:             err,
