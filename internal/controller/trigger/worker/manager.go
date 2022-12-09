@@ -341,7 +341,7 @@ func (m *manager) Start() {
 }
 
 func (m *manager) check(ctx context.Context) {
-	log.Debug(ctx, "trigger worker check begin", nil)
+	//log.Debug(ctx, "trigger worker check begin", nil)
 	var wg sync.WaitGroup
 	now := time.Now()
 	workers := m.getTriggerWorkers()
@@ -374,7 +374,7 @@ func (m *manager) check(ctx context.Context) {
 		}(tWorker)
 	}
 	wg.Wait()
-	log.Debug(ctx, "trigger worker check complete", nil)
+	//log.Debug(ctx, "trigger worker check complete", nil)
 }
 
 func (m *manager) pendingTriggerWorkerHandler(ctx context.Context, tWorker TriggerWorker) {
