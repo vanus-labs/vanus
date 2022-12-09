@@ -27,12 +27,12 @@ import (
 type SegmentState string
 
 const (
-	StateCreated   = SegmentState("created")
-	StateWorking   = SegmentState("working")
-	StateFrozen    = SegmentState("frozen")
-	StatePreFrozen = SegmentState("prefrozen")
-	StateArchived  = SegmentState("archived")
-	StateExpired   = SegmentState("expired")
+	StateCreated  = SegmentState("created")
+	StateWorking  = SegmentState("working")
+	StateFrozen   = SegmentState("frozen")
+	StateFreezing = SegmentState("freezing")
+	StateArchived = SegmentState("archived")
+	StateExpired  = SegmentState("expired")
 )
 
 type Segment struct {
@@ -109,7 +109,7 @@ func (seg *Segment) isNeedUpdate(newSeg Segment) bool {
 }
 
 func (seg *Segment) isPreFull() bool {
-	return seg.State == StatePreFrozen
+	return seg.State == StateFreezing
 }
 
 func (seg *Segment) isFull() bool {

@@ -386,14 +386,14 @@ func (s *server) runHeartbeat(_ context.Context) error {
 					})
 				}
 
-				if segment.State != string(block.StatePreFrozen) {
+				if segment.State != "freezing" {
 					break
 				}
 
 				s.replicas.Range(func(key, value interface{}) bool {
 					b, _ := value.(replica)
 					if b.appender.Status().Leader.Equals(vanus.ID(segment.LeaderBlockId)) {
-						b.appender.Frozen(context.Background())
+						b.appender.Archive(context.Background())
 						return false
 					}
 					return true
@@ -716,11 +716,10 @@ func (s *server) onBlockArchived(stat block.Statistics) {
 		Capacity:           int64(stat.Capacity),
 		Size:               int64(stat.EntrySize),
 		EventNumber:        int32(stat.EntryNum),
-		IsFull:             stat.Archived,
 		State:              string(stat.State),
 		FirstEventBornTime: stat.FirstEntryStime,
 	}
-	if stat.Archived {
+	if stat.State == block.StateArchived {
 		info.LastEventBornTime = stat.LastEntryStime
 	}
 

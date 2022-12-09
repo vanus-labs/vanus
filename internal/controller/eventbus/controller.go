@@ -412,10 +412,15 @@ func (ctrl *controller) processHeartbeat(ctx context.Context, req *ctrlpb.Segmen
 			Capacity:           info.Capacity,
 			EventLogID:         block.EventlogID,
 			Size:               info.Size,
-			State:              eventlog.SegmentState(info.State),
 			Number:             info.EventNumber,
 			FirstEventBornTime: time.UnixMilli(info.FirstEventBornTime),
 			LastEventBornTime:  time.UnixMilli(info.LastEventBornTime),
+		}
+		// block state transfer to segment state
+		if info.State == "archiving" {
+			seg.State = eventlog.StateFreezing
+		} else if info.State == "archived" {
+			seg.State = eventlog.StateFrozen
 		}
 		logArr = append(logArr, seg)
 		segments[block.EventlogID.Key()] = logArr

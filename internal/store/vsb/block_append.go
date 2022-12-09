@@ -105,7 +105,7 @@ func (b *vsBlock) PrepareAppend(
 	full := actx.size(b.dataOffset) >= b.capacity
 	if full && b.lis != nil {
 		m, indexes := makeSnapshot(b.actx, b.indexes)
-		b.lis.OnArchived(b.stat(m, indexes, block.StatePreFrozen))
+		b.lis.OnArchived(b.stat(m, indexes, block.StateArchiving))
 	}
 
 	return seqs, frag, full, nil
@@ -203,7 +203,7 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frags ...block.Fragment) (bo
 		}()
 
 		if b.lis != nil {
-			b.lis.OnArchived(b.stat(m, i, block.StateFrozen))
+			b.lis.OnArchived(b.stat(m, i, block.StateArchived))
 		}
 	}
 
