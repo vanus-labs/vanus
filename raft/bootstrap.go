@@ -70,8 +70,9 @@ func (rn *RawNode) Bootstrap(peers []Peer) error {
 	// We do not set raftLog.applied so the application will be able
 	// to observe all conf changes via Ready.CommittedEntries.
 	//
-	// TODO(bdarnell): These entries are still unstable; do we need to preserve
-	// the invariant that committed < unstable?
+	// NOTE: These entries are still unstable.
+	//
+	// TODO(james.yin): Set localCommitted?
 	rn.raft.raftLog.committed = uint64(len(ents))
 	for _, peer := range peers {
 		rn.raft.applyConfChange(pb.ConfChange{NodeID: peer.ID, Type: pb.ConfChangeAddNode}.AsV2())
