@@ -341,7 +341,9 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 	ec.Extensions[primitive.XVanusDeliveryTime] = ce.Timestamp{Time: time.Now().Add(delayTime).UTC()}.Format(time.RFC3339)
 	ec.Extensions[primitive.XVanusSubscriptionID] = t.subscriptionIDStr
 	ec.Extensions[primitive.XVanusEventbus] = primitive.RetryEventbusName
+	var writeAttempt int
 	for {
+		writeAttempt++
 		startTime := time.Now()
 		_, err := t.timerEventWriter.AppendOne(ctx, e)
 		metrics.TriggerRetryEventAppendSecond.WithLabelValues(t.subscriptionIDStr).
@@ -350,8 +352,12 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 			log.Info(ctx, "write retry event error", map[string]interface{}{
 				log.KeyError:          err,
 				log.KeySubscriptionID: t.subscription.ID,
+				"attempt":             writeAttempt,
 				"event":               e,
 			})
+			if writeAttempt >= t.config.MaxWriteAttempt {
+				break
+			}
 			time.Sleep(time.Second)
 		} else {
 			break
@@ -370,7 +376,9 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 	ec.Extensions[primitive.LastDeliveryTime] = ce.Timestamp{Time: time.Now().UTC()}.Format(time.RFC3339)
 	ec.Extensions[primitive.LastDeliveryError] = errorMsg
 	ec.Extensions[primitive.DeadLetterReason] = reason
+	var writeAttempt int
 	for {
+		writeAttempt++
 		startTime := time.Now()
 		_, err := t.dlEventWriter.AppendOne(ctx, e)
 		metrics.TriggerDeadLetterEventAppendSecond.WithLabelValues(t.subscriptionIDStr).
@@ -379,8 +387,12 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 			log.Info(ctx, "write dl event error", map[string]interface{}{
 				log.KeyError:          err,
 				log.KeySubscriptionID: t.subscription.ID,
+				"attempt":             writeAttempt,
 				"event":               e,
 			})
+			if writeAttempt >= t.config.MaxWriteAttempt {
+				break
+			}
 			time.Sleep(time.Second)
 		} else {
 			break

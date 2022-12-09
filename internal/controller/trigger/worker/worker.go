@@ -303,13 +303,13 @@ func (tw *triggerWorker) init(ctx context.Context) error {
 }
 
 func (tw *triggerWorker) Close() error {
+	tw.stop()
+	tw.subscriptionQueue.ShutDown()
 	if tw.cc != nil {
 		tw.lock.Lock()
 		defer tw.lock.Unlock()
 		return tw.cc.Close()
 	}
-	tw.stop()
-	tw.subscriptionQueue.ShutDown()
 	return nil
 }
 

@@ -83,31 +83,54 @@ func TestGetOffset(t *testing.T) {
 		Convey("test latest", func() {
 			r.config.OffsetType = primitive.LatestOffset
 			rand.Seed(time.Now().Unix())
-			offset := rand.Uint64()
-			mockEventlog.EXPECT().LatestOffset(Any()).AnyTimes().Return(int64(offset), nil)
-
-			v, err := r.getOffset(context.Background(), eventLogID)
-			So(err, ShouldBeNil)
-			So(v, ShouldEqual, offset)
+			offset := rand.Uint32()
+			Convey("negative number", func() {
+				mockEventlog.EXPECT().LatestOffset(Any()).AnyTimes().Return(int64(offset)*-1, nil)
+				v, err := r.getOffset(context.Background(), eventLogID)
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 0)
+			})
+			Convey("non negative number", func() {
+				mockEventlog.EXPECT().LatestOffset(Any()).AnyTimes().Return(int64(offset), nil)
+				v, err := r.getOffset(context.Background(), eventLogID)
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, offset)
+			})
 		})
 		Convey("test earliest", func() {
 			r.config.OffsetType = primitive.EarliestOffset
 			rand.Seed(time.Now().Unix())
-			offset := rand.Uint64()
-			mockEventlog.EXPECT().EarliestOffset(Any()).AnyTimes().Return(int64(offset), nil)
-			v, err := r.getOffset(context.Background(), eventLogID)
-			So(err, ShouldBeNil)
-			So(v, ShouldEqual, offset)
+			offset := rand.Uint32()
+			Convey("negative number", func() {
+				mockEventlog.EXPECT().EarliestOffset(Any()).AnyTimes().Return(int64(offset)*-1, nil)
+				v, err := r.getOffset(context.Background(), eventLogID)
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 0)
+			})
+			Convey("non negative number", func() {
+				mockEventlog.EXPECT().EarliestOffset(Any()).AnyTimes().Return(int64(offset), nil)
+				v, err := r.getOffset(context.Background(), eventLogID)
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, offset)
+			})
 		})
 		Convey("test timestamp", func() {
 			r.config.OffsetType = primitive.Timestamp
 			r.config.OffsetTimestamp = time.Now().Unix()
 			rand.Seed(time.Now().Unix())
-			offset := rand.Uint64()
-			mockEventlog.EXPECT().QueryOffsetByTime(Any(), Any()).AnyTimes().Return(int64(offset), nil)
-			v, err := r.getOffset(context.Background(), eventLogID)
-			So(err, ShouldBeNil)
-			So(v, ShouldEqual, offset)
+			offset := rand.Uint32()
+			Convey("negative number", func() {
+				mockEventlog.EXPECT().QueryOffsetByTime(Any(), Any()).AnyTimes().Return(int64(offset)*-1, nil)
+				v, err := r.getOffset(context.Background(), eventLogID)
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 0)
+			})
+			Convey("non negative number", func() {
+				mockEventlog.EXPECT().QueryOffsetByTime(Any(), Any()).AnyTimes().Return(int64(offset), nil)
+				v, err := r.getOffset(context.Background(), eventLogID)
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, offset)
+			})
 		})
 		Convey("test exist", func() {
 			rand.Seed(time.Now().Unix())
