@@ -21,12 +21,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/linkall-labs/vanus/pkg/util"
 )
 

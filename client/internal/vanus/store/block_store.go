@@ -31,7 +31,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	// first-party libraries
-	vlog "github.com/linkall-labs/vanus/observability/log"
+	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
 	// this project
@@ -94,16 +94,15 @@ func (s *BlockStore) Append(ctx context.Context, block uint64, event *ce.Event) 
 
 	res, err := client.(segpb.SegmentServerClient).AppendToBlock(_ctx, req)
 	if err != nil {
-		vlog.Warning(ctx, "failed to AppendToBlock", map[string]interface{}{
-			vlog.KeyError: err,
-			"block_id":    block,
-		})
-		sts := status.Convert(err)
-		// TODO: temporary scheme, wait for error code reconstruction
-		if strings.Contains(sts.Message(), "SEGMENT_FULL") {
-			return -1, errors.ErrNoSpace
+		if errStatus, ok := status.FromError(err); ok {
+			if errType, ok := errpb.Convert(errStatus.Message()); ok {
+				if errType.Code == errpb.ErrorCode_SEGMENT_FULL {
+					return -1, errors.ErrNoSpace
+				}
+				return -1, errors.ErrNotWritable
+			}
 		}
-		return -1, errors.ErrNotWritable
+		return -1, err
 	}
 	// TODO(Y. F. Zhang): batch events
 	return res.GetOffsets()[0], nil

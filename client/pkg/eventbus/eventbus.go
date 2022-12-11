@@ -21,7 +21,6 @@ import (
 	"encoding/binary"
 	stderrors "errors"
 	"io"
-	"strings"
 	"sync"
 
 	"github.com/linkall-labs/vanus/observability/tracing"
@@ -31,6 +30,9 @@ import (
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/scylladb/go-set/u64set"
+
+	// first-party libraries
+	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 
 	// this project.
 	"github.com/linkall-labs/vanus/client/pkg/api"
@@ -270,11 +272,14 @@ func (b *eventbus) isNeedUpdateWritableLogs(err error) bool {
 		b.setWritableState(nil)
 		return true
 	}
-	sts := status.Convert(err)
-	// TODO: temporary scheme, wait for error code reconstruction
-	if strings.Contains(sts.Message(), "RESOURCE_NOT_FOUND") {
-		b.setWritableState(errors.ErrNotFound)
-		return true
+	if errStatus, ok := status.FromError(err); ok {
+		if errType, ok := errpb.Convert(errStatus.Message()); ok {
+			if errType.Code == errpb.ErrorCode_RESOURCE_NOT_FOUND {
+				b.setWritableState(errors.ErrNotFound)
+				return true
+			}
+			return false
+		}
 	}
 	return false
 }
@@ -365,11 +370,14 @@ func (b *eventbus) isNeedUpdateReadableLogs(err error) bool {
 		b.setReadableState(nil)
 		return true
 	}
-	sts := status.Convert(err)
-	// TODO: temporary scheme, wait for error code reconstruction
-	if strings.Contains(sts.Message(), "RESOURCE_NOT_FOUND") {
-		b.setReadableState(errors.ErrNotFound)
-		return true
+	if errStatus, ok := status.FromError(err); ok {
+		if errType, ok := errpb.Convert(errStatus.Message()); ok {
+			if errType.Code == errpb.ErrorCode_RESOURCE_NOT_FOUND {
+				b.setReadableState(errors.ErrNotFound)
+				return true
+			}
+			return false
+		}
 	}
 	return false
 }

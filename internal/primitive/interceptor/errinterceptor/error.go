@@ -60,6 +60,6 @@ func convertToGRPCError(err error) error {
 		grpcErr.Message = err.Error()
 	}
 
-	return fmt.Errorf("{\"code\":\"%v\",\"message\":\"%s\"}",
+	return fmt.Errorf("{\"code\":%d,\"message\":\"%s\"}",
 		grpcErr.Code, grpcErr.Message)
 }

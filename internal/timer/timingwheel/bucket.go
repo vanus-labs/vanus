@@ -18,7 +18,7 @@ import (
 	"container/list"
 	"context"
 	"encoding/json"
-	"errors"
+	stderr "errors"
 	"fmt"
 	"sync"
 	"time"
@@ -33,7 +33,7 @@ import (
 	"github.com/cloudevents/sdk-go/v2/types"
 	"github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/api"
-	es "github.com/linkall-labs/vanus/client/pkg/errors"
+	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/option"
 	"github.com/linkall-labs/vanus/client/pkg/policy"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
@@ -204,7 +204,7 @@ func (b *bucket) run(ctx context.Context) {
 				// batch read
 				events, err := b.getEvent(ctx, defaultNumberOfEventsRead)
 				if err != nil {
-					if !errors.Is(err, es.ErrOnEnd) && !errors.Is(err, es.ErrTryAgain) {
+					if !stderr.Is(err, errors.ErrOnEnd) && !stderr.Is(err, errors.ErrTryAgain) {
 						log.Error(ctx, "get event failed when bucket running", map[string]interface{}{
 							"eventbus":   b.getEventbus(),
 							log.KeyError: err,
@@ -387,7 +387,7 @@ func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
 			log.Warning(ctx, "panic when put event", map[string]interface{}{
 				log.KeyError: errOfPanic,
 			})
-			err = errors.New("panic when put event")
+			err = stderr.New("panic when put event")
 		}
 	}()
 	if !b.isLeader() {
@@ -417,13 +417,13 @@ func (b *bucket) getEvent(ctx context.Context, number int16) (events []*ce.Event
 				log.KeyError: errOfPanic,
 			})
 			events = []*ce.Event{}
-			err = es.ErrOnEnd
+			err = errors.ErrOnEnd
 		}
 	}()
 	if !b.isLeader() {
 		// TODO(jiangkai): redesign here for reduce cpu overload, by jiangkai, 2022.09.16
 		time.Sleep(time.Second)
-		return []*ce.Event{}, es.ErrOnEnd
+		return []*ce.Event{}, errors.ErrOnEnd
 	}
 	ls, err := b.client.Eventbus(ctx, b.eventbus).ListLog(ctx)
 	if err != nil {
@@ -433,7 +433,7 @@ func (b *bucket) getEvent(ctx context.Context, number int16) (events []*ce.Event
 	readPolicy := option.WithReadPolicy(policy.NewManuallyReadPolicy(ls[0], b.offset))
 	events, _, _, err = b.eventbusReader.Read(ctx, readPolicy, option.WithBatchSize(int(number)))
 	if err != nil {
-		if !errors.Is(err, es.ErrOnEnd) && !errors.Is(ctx.Err(), context.Canceled) {
+		if !stderr.Is(err, errors.ErrOnEnd) && !stderr.Is(ctx.Err(), context.Canceled) {
 			log.Error(ctx, "read failed", map[string]interface{}{
 				log.KeyError: err,
 				"offset":     b.offset,
@@ -513,7 +513,7 @@ func (b *bucket) deleteOffsetMeta(ctx context.Context) error {
 
 func (b *bucket) hasOnEnd(ctx context.Context) bool {
 	_, errOnEnd := b.getEvent(ctx, 1)
-	if !errors.Is(errOnEnd, es.ErrOnEnd) {
+	if !stderr.Is(errOnEnd, errors.ErrOnEnd) {
 		return false
 	}
 	off, err := b.getOffsetMeta(ctx)

@@ -26,7 +26,7 @@ import (
 	"github.com/ncw/directio"
 
 	// first-party libraries.
-	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
+	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 func OpenFile(path string, wronly bool, sync bool) (*os.File, error) {
@@ -43,7 +43,7 @@ func CreateFile(path string, size int64, wronly bool, sync bool) (*os.File, erro
 	// Resize file.
 	if err = f.Truncate(size); err != nil {
 		if err2 := f.Close(); err2 != nil {
-			return f, errutil.Chain(err, err2)
+			return f, errors.Chain(err, err2)
 		}
 		return nil, err
 	}

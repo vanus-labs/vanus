@@ -61,11 +61,11 @@ import (
 	"github.com/linkall-labs/vanus/internal/store"
 	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/block/raft"
-	"github.com/linkall-labs/vanus/internal/store/errors"
 	"github.com/linkall-labs/vanus/internal/store/meta"
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	ceconv "github.com/linkall-labs/vanus/internal/store/schema/ce/convert"
 	"github.com/linkall-labs/vanus/internal/store/vsb"
+	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 const (
