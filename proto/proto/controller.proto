@@ -29,6 +29,7 @@ service PingServer {
 
 service EventBusController {
   // grpc -> HTTP
+  rpc IsReady(google.protobuf.Empty) returns (IsReadyResponse);
   rpc CreateEventBus(CreateEventBusRequest)
       returns (linkall.vanus.meta.EventBus);
   rpc DeleteEventBus(meta.EventBus) returns (google.protobuf.Empty);
@@ -92,6 +93,10 @@ service SnowflakeController {
 message PingResponse {
   string leader_addr = 1;
   string gateway_addr = 2;
+}
+
+message IsReadyResponse {
+  bool is_ready = 1;
 }
 
 message CreateEventBusRequest {

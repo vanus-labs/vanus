@@ -35,6 +35,7 @@ import (
 	"github.com/linkall-labs/vanus/pkg/controller"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -154,8 +155,25 @@ func (tw *timingWheel) Start(ctx context.Context) error {
 		"leader": tw.leader,
 	})
 
-	// here is to wait for the leader to complete the creation of all eventbus
+	// here is to wait for controller is ready
 	waitCtx, cancel := context.WithCancel(ctx)
+	wait.Until(func() {
+		resp, err := tw.ctrlCli.IsReady(ctx, &emptypb.Empty{})
+		if err != nil {
+			log.Error(ctx, "get eventbus controller state failed", map[string]interface{}{
+				log.KeyError: err,
+			})
+			return
+		}
+		if resp.IsReady {
+			cancel()
+		} else {
+			log.Info(ctx, "wait for the controller to be ready", nil)
+		}
+	}, time.Second, waitCtx.Done())
+
+	// here is to wait for the leader to complete the creation of all eventbus
+	waitCtx, cancel = context.WithCancel(ctx)
 	wait.Until(func() {
 		if tw.IsLeader() || tw.IsDeployed(ctx) {
 			cancel()

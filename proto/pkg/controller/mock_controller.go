@@ -13,6 +13,8 @@ import (
 	grpc "google.golang.org/grpc"
 	metadata "google.golang.org/grpc/metadata"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // MockPingServerClient is a mock of PingServerClient interface.
@@ -179,6 +181,26 @@ func (mr *MockEventBusControllerClientMockRecorder) GetEventBus(ctx, in interfac
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventBus", reflect.TypeOf((*MockEventBusControllerClient)(nil).GetEventBus), varargs...)
 }
 
+// IsReady mocks base method.
+func (m *MockEventBusControllerClient) IsReady(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*IsReadyResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "IsReady", varargs...)
+	ret0, _ := ret[0].(*IsReadyResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsReady indicates an expected call of IsReady.
+func (mr *MockEventBusControllerClientMockRecorder) IsReady(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsReady", reflect.TypeOf((*MockEventBusControllerClient)(nil).IsReady), varargs...)
+}
+
 // ListEventBus mocks base method.
 func (m *MockEventBusControllerClient) ListEventBus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListEventbusResponse, error) {
 	m.ctrl.T.Helper()
@@ -285,6 +307,21 @@ func (m *MockEventBusControllerServer) GetEventBus(arg0 context.Context, arg1 *m
 func (mr *MockEventBusControllerServerMockRecorder) GetEventBus(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventBus", reflect.TypeOf((*MockEventBusControllerServer)(nil).GetEventBus), arg0, arg1)
+}
+
+// IsReady mocks base method.
+func (m *MockEventBusControllerServer) IsReady(arg0 context.Context, arg1 *emptypb.Empty) (*IsReadyResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsReady", arg0, arg1)
+	ret0, _ := ret[0].(*IsReadyResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsReady indicates an expected call of IsReady.
+func (mr *MockEventBusControllerServerMockRecorder) IsReady(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsReady", reflect.TypeOf((*MockEventBusControllerServer)(nil).IsReady), arg0, arg1)
 }
 
 // ListEventBus mocks base method.
@@ -1623,4 +1660,155 @@ func (m *MockTriggerController_TriggerWorkerHeartbeatServer) SetTrailer(arg0 met
 func (mr *MockTriggerController_TriggerWorkerHeartbeatServerMockRecorder) SetTrailer(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTrailer", reflect.TypeOf((*MockTriggerController_TriggerWorkerHeartbeatServer)(nil).SetTrailer), arg0)
+}
+
+// MockSnowflakeControllerClient is a mock of SnowflakeControllerClient interface.
+type MockSnowflakeControllerClient struct {
+	ctrl     *gomock.Controller
+	recorder *MockSnowflakeControllerClientMockRecorder
+}
+
+// MockSnowflakeControllerClientMockRecorder is the mock recorder for MockSnowflakeControllerClient.
+type MockSnowflakeControllerClientMockRecorder struct {
+	mock *MockSnowflakeControllerClient
+}
+
+// NewMockSnowflakeControllerClient creates a new mock instance.
+func NewMockSnowflakeControllerClient(ctrl *gomock.Controller) *MockSnowflakeControllerClient {
+	mock := &MockSnowflakeControllerClient{ctrl: ctrl}
+	mock.recorder = &MockSnowflakeControllerClientMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSnowflakeControllerClient) EXPECT() *MockSnowflakeControllerClientMockRecorder {
+	return m.recorder
+}
+
+// GetClusterStartTime mocks base method.
+func (m *MockSnowflakeControllerClient) GetClusterStartTime(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*timestamppb.Timestamp, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetClusterStartTime", varargs...)
+	ret0, _ := ret[0].(*timestamppb.Timestamp)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetClusterStartTime indicates an expected call of GetClusterStartTime.
+func (mr *MockSnowflakeControllerClientMockRecorder) GetClusterStartTime(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetClusterStartTime", reflect.TypeOf((*MockSnowflakeControllerClient)(nil).GetClusterStartTime), varargs...)
+}
+
+// RegisterNode mocks base method.
+func (m *MockSnowflakeControllerClient) RegisterNode(ctx context.Context, in *wrapperspb.UInt32Value, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "RegisterNode", varargs...)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RegisterNode indicates an expected call of RegisterNode.
+func (mr *MockSnowflakeControllerClientMockRecorder) RegisterNode(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterNode", reflect.TypeOf((*MockSnowflakeControllerClient)(nil).RegisterNode), varargs...)
+}
+
+// UnregisterNode mocks base method.
+func (m *MockSnowflakeControllerClient) UnregisterNode(ctx context.Context, in *wrapperspb.UInt32Value, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "UnregisterNode", varargs...)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UnregisterNode indicates an expected call of UnregisterNode.
+func (mr *MockSnowflakeControllerClientMockRecorder) UnregisterNode(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnregisterNode", reflect.TypeOf((*MockSnowflakeControllerClient)(nil).UnregisterNode), varargs...)
+}
+
+// MockSnowflakeControllerServer is a mock of SnowflakeControllerServer interface.
+type MockSnowflakeControllerServer struct {
+	ctrl     *gomock.Controller
+	recorder *MockSnowflakeControllerServerMockRecorder
+}
+
+// MockSnowflakeControllerServerMockRecorder is the mock recorder for MockSnowflakeControllerServer.
+type MockSnowflakeControllerServerMockRecorder struct {
+	mock *MockSnowflakeControllerServer
+}
+
+// NewMockSnowflakeControllerServer creates a new mock instance.
+func NewMockSnowflakeControllerServer(ctrl *gomock.Controller) *MockSnowflakeControllerServer {
+	mock := &MockSnowflakeControllerServer{ctrl: ctrl}
+	mock.recorder = &MockSnowflakeControllerServerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSnowflakeControllerServer) EXPECT() *MockSnowflakeControllerServerMockRecorder {
+	return m.recorder
+}
+
+// GetClusterStartTime mocks base method.
+func (m *MockSnowflakeControllerServer) GetClusterStartTime(arg0 context.Context, arg1 *emptypb.Empty) (*timestamppb.Timestamp, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetClusterStartTime", arg0, arg1)
+	ret0, _ := ret[0].(*timestamppb.Timestamp)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetClusterStartTime indicates an expected call of GetClusterStartTime.
+func (mr *MockSnowflakeControllerServerMockRecorder) GetClusterStartTime(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetClusterStartTime", reflect.TypeOf((*MockSnowflakeControllerServer)(nil).GetClusterStartTime), arg0, arg1)
+}
+
+// RegisterNode mocks base method.
+func (m *MockSnowflakeControllerServer) RegisterNode(arg0 context.Context, arg1 *wrapperspb.UInt32Value) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegisterNode", arg0, arg1)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RegisterNode indicates an expected call of RegisterNode.
+func (mr *MockSnowflakeControllerServerMockRecorder) RegisterNode(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterNode", reflect.TypeOf((*MockSnowflakeControllerServer)(nil).RegisterNode), arg0, arg1)
+}
+
+// UnregisterNode mocks base method.
+func (m *MockSnowflakeControllerServer) UnregisterNode(arg0 context.Context, arg1 *wrapperspb.UInt32Value) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UnregisterNode", arg0, arg1)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UnregisterNode indicates an expected call of UnregisterNode.
+func (mr *MockSnowflakeControllerServerMockRecorder) UnregisterNode(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnregisterNode", reflect.TypeOf((*MockSnowflakeControllerServer)(nil).UnregisterNode), arg0, arg1)
 }

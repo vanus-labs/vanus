@@ -43,6 +43,15 @@ func (ec *eventbusClient) Close() error {
 	return ec.cc.close()
 }
 
+func (ec *eventbusClient) IsReady(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ctrlpb.IsReadyResponse, error) {
+	out := new(ctrlpb.IsReadyResponse)
+	err := ec.cc.invoke(ctx, "/linkall.vanus.controller.EventBusController/IsReady", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (ec *eventbusClient) CreateEventBus(ctx context.Context, in *ctrlpb.CreateEventBusRequest, opts ...grpc.CallOption) (*metapb.EventBus, error) {
 	out := new(metapb.EventBus)
 	err := ec.cc.invoke(ctx, "/linkall.vanus.controller.EventBusController/CreateEventBus", in, out, opts...)

@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/huandu/skiplist"
+	ctrlerrors "github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/block"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/errors"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
@@ -173,6 +174,9 @@ func (mgr *eventlogManager) AcquireEventLog(ctx context.Context, eventbusID vanu
 			"eventbus_id": eventbusID,
 		})
 		return nil, err
+	}
+	if mgr.kvClient == nil {
+		return nil, ctrlerrors.ErrNotLeader
 	}
 	elMD := &metadata.Eventlog{
 		ID:         id,

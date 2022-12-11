@@ -63,6 +63,7 @@ func NewController(cfg Config, member embedetcd.Member) *controller {
 		eventBusMap: map[string]*metadata.Eventbus{},
 		member:      member,
 		isLeader:    false,
+		isReady:     false,
 		readyNotify: make(chan error, 1),
 		stopNotify:  make(chan error, 1),
 	}
@@ -83,6 +84,7 @@ type controller struct {
 	cancelFunc      context.CancelFunc
 	membershipMutex sync.Mutex
 	isLeader        bool
+	isReady         bool
 	readyNotify     chan error
 	stopNotify      chan error
 	mutex           sync.Mutex
@@ -457,6 +459,12 @@ func (ctrl *controller) Ping(_ context.Context, _ *emptypb.Empty) (*ctrlpb.PingR
 	}, nil
 }
 
+func (ctrl *controller) IsReady(_ context.Context, _ *emptypb.Empty) (*ctrlpb.IsReadyResponse, error) {
+	return &ctrlpb.IsReadyResponse{
+		IsReady: ctrl.isReady,
+	}, nil
+}
+
 func (ctrl *controller) ReportSegmentLeader(ctx context.Context,
 	req *ctrlpb.ReportSegmentLeaderRequest) (*emptypb.Empty, error) {
 	err := ctrl.eventLogMgr.UpdateSegmentReplicas(ctx, vanus.NewIDFromUint64(req.LeaderId), req.Term)
@@ -495,6 +503,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event em
 			ctrl.stop(ctx, err)
 			return err
 		}
+		ctrl.isReady = true
 	case embedetcd.EventBecomeFollower:
 		if !ctrl.isLeader {
 			return nil
