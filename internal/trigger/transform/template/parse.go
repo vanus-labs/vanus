@@ -21,8 +21,9 @@ import (
 )
 
 type Template struct {
-	parser *parser
-	exist  bool
+	parser      *parser
+	exist       bool
+	contentType string
 }
 
 func NewTemplate() *Template {
@@ -33,6 +34,10 @@ func NewTemplate() *Template {
 
 func (t *Template) Exist() bool {
 	return t.exist
+}
+
+func (t *Template) ContentType() string {
+	return t.contentType
 }
 
 func (t *Template) Parse(text string) {
