@@ -17,7 +17,9 @@ package template
 import (
 	"bytes"
 
+	ce "github.com/cloudevents/sdk-go/v2"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/tidwall/gjson"
 )
 
 func (t *Template) Execute(data map[string]interface{}) []byte {
@@ -58,5 +60,13 @@ func (t *Template) Execute(data map[string]interface{}) []byte {
 		}
 	}
 	stream.Flush()
-	return sb.Bytes()
+	bytes := sb.Bytes()
+	if t.contentType == "" {
+		if gjson.ValidBytes(bytes) {
+			t.contentType = ce.ApplicationJSON
+		} else {
+			t.contentType = ce.TextPlain
+		}
+	}
+	return bytes
 }

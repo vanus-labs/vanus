@@ -76,6 +76,7 @@ func TestExecute(t *testing.T) {
 			input.Template = `{"body": {"data": "source is \"<dataKey>\"","data2": "source is \"<noExist>\""}}`
 			it := NewTransformer(input)
 			it.Execute(&e)
+			So(e.DataContentType(), ShouldEqual, ce.ApplicationJSON)
 			So(string(e.Data()), ShouldEqual, `{"body": {"data": "source is \"value\"","data2": "source is \"<noExist>\""}}`)
 		})
 	})
