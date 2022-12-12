@@ -18,16 +18,16 @@ import "strings"
 
 var JoinFunction = function{
 	name:         "JOIN",
-	fixedArgs:    []Type{String, String, String},
-	variadicArgs: TypePtr(String),
+	fixedArgs:    []Type{String, StringArray},
+	variadicArgs: TypePtr(StringArray),
 	fn: func(args []interface{}) (interface{}, error) {
-		separator, _ := args[0].(string)
+		sep, _ := args[0].(string)
 		var sb strings.Builder
 		for i := 1; i < len(args)-1; i++ {
-			sb.WriteString(args[i].(string))
-			sb.WriteString(separator)
+			sb.WriteString(strings.Join(args[i].([]string), sep))
+			sb.WriteString(sep)
 		}
-		sb.WriteString(args[len(args)-1].(string))
+		sb.WriteString(strings.Join(args[len(args)-1].([]string), sep))
 		return sb.String(), nil
 	},
 }
