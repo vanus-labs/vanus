@@ -263,16 +263,21 @@ func (tw *timingWheel) Recover(ctx context.Context) error {
 		}
 	}
 
-	log.Info(ctx, "recover receiving station metadata", map[string]interface{}{
-		"offset":   offsetMetaMap[timerBuiltInEventbusReceivingStation].Offset,
-		"eventbus": tw.receivingStation.getEventbus(),
-	})
-	tw.receivingStation.offset = offsetMetaMap[timerBuiltInEventbusReceivingStation].Offset
-	log.Info(ctx, "recover distribution station metadata", map[string]interface{}{
-		"offset":   offsetMetaMap[timerBuiltInEventbusDistributionStation].Offset,
-		"eventbus": tw.distributionStation.getEventbus(),
-	})
-	tw.distributionStation.offset = offsetMetaMap[timerBuiltInEventbusDistributionStation].Offset
+	if _, ok := offsetMetaMap[timerBuiltInEventbusReceivingStation]; ok {
+		log.Info(ctx, "recover receiving station metadata", map[string]interface{}{
+			"offset":   offsetMetaMap[timerBuiltInEventbusReceivingStation].Offset,
+			"eventbus": tw.receivingStation.getEventbus(),
+		})
+		tw.receivingStation.offset = offsetMetaMap[timerBuiltInEventbusReceivingStation].Offset
+	}
+
+	if _, ok := offsetMetaMap[timerBuiltInEventbusDistributionStation]; ok {
+		log.Info(ctx, "recover distribution station metadata", map[string]interface{}{
+			"offset":   offsetMetaMap[timerBuiltInEventbusDistributionStation].Offset,
+			"eventbus": tw.distributionStation.getEventbus(),
+		})
+		tw.distributionStation.offset = offsetMetaMap[timerBuiltInEventbusDistributionStation].Offset
+	}
 
 	return nil
 }
