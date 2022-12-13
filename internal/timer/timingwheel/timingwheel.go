@@ -270,7 +270,6 @@ func (tw *timingWheel) Recover(ctx context.Context) error {
 		})
 		tw.receivingStation.offset = offsetMetaMap[timerBuiltInEventbusReceivingStation].Offset
 	}
-
 	if _, ok := offsetMetaMap[timerBuiltInEventbusDistributionStation]; ok {
 		log.Info(ctx, "recover distribution station metadata", map[string]interface{}{
 			"offset":   offsetMetaMap[timerBuiltInEventbusDistributionStation].Offset,
