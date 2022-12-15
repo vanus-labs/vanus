@@ -17,13 +17,12 @@ package tracing
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
+	"github.com/linkall-labs/vanus/observability/log"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/jaeger"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -34,23 +33,39 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const (
-	otelCollector = "OTEL_COLLECTOR_ENDPOINT"
-)
+type Config struct {
+	ServerName    string `yaml:"-"`
+	Enable        bool   `yaml:"enable"`
+	OtelCollector string `yaml:"otel_collector"`
+}
 
 var tp *tracerProvider
 
-func Init(name string) {
-	p := &tracerProvider{
-		serverName: name,
+func Init(cfg Config) {
+	if cfg.ServerName == "" {
+		log.Info(nil, "tracing name is empty, ignored", nil)
+		return
 	}
-	endpoint := os.Getenv(otelCollector)
-	if endpoint != "" {
-		provider, err := newTracerProvider(p.serverName, endpoint)
-		if err != nil {
-			panic("init tracer error: " + err.Error())
+	p := &tracerProvider{
+		serverName: cfg.ServerName,
+	}
+	if cfg.Enable {
+		if cfg.OtelCollector != "" {
+			provider, err := newTracerProvider(p.serverName, cfg.OtelCollector)
+			if err != nil {
+				panic("init tracer error: " + err.Error())
+			}
+			p.p = provider
+			log.Info(context.Background(), "tracing module started, OpenTelemetry is enable", map[string]interface{}{
+				"otel_collector": cfg.OtelCollector,
+			})
+		} else {
+			log.Warning(context.Background(), "tracing module is enabled,"+
+				" but otel_collector is empty, switch to noop tracer", map[string]interface{}{
+				"otel_collector": cfg.OtelCollector,
+			})
+			p.p = oteltrace.NewNoopTracerProvider()
 		}
-		p.p = provider
 	} else {
 		p.p = oteltrace.NewNoopTracerProvider()
 	}
@@ -115,7 +130,7 @@ func newTracerProvider(serviceName string, collectorEndpoint string) (*trace.Tra
 		resource.NewWithAttributes(
 			semconv.SchemaURL,
 			semconv.ServiceNameKey.String(serviceName),
-			semconv.ServiceVersionKey.String("v0.3.0"),
+			semconv.ServiceVersionKey.String("v0.5.0"),
 			attribute.String("environment", "local"),
 		),
 	)
@@ -152,27 +167,4 @@ func newTracerProvider(serviceName string, collectorEndpoint string) (*trace.Tra
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	return tracerProvider, nil
-}
-
-func newJaegerProvider(service string, jaegerURL string) (*trace.TracerProvider, error) {
-	// Create the Jaeger exporter
-	endpoint := jaeger.WithCollectorEndpoint()
-	if jaegerURL != "" {
-		endpoint = jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(jaegerURL))
-	}
-	exp, err := jaeger.New(endpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	tp := trace.NewTracerProvider(
-		// Always be sure to batch in production.
-		trace.WithBatcher(exp, trace.WithBatchTimeout(time.Second)),
-		// Record information about this application in a Resource.
-		trace.WithResource(resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceNameKey.String(service),
-		)),
-	)
-	return tp, nil
 }

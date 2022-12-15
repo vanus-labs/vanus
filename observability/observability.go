@@ -15,7 +15,9 @@
 package observability
 
 import (
+	"context"
 	"fmt"
+	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"net/http"
 
@@ -29,18 +31,24 @@ func Initialize(cfg Config, metricsFunc func()) error {
 		}
 		go func() {
 			http.Handle("/metrics", promhttp.Handler())
-			_ = http.ListenAndServe(fmt.Sprintf(":%d", cfg.M.GetPort()), nil)
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.M.GetPort()), nil); err != nil {
+				log.Error(context.Background(), "Metrics listen and serve failed.", map[string]interface{}{
+					log.KeyError: err,
+				})
+			}
 		}()
+		log.Info(context.Background(), "metrics module started", map[string]interface{}{
+			"port": cfg.M.Port,
+		})
 	}
-	if cfg.T.Enable {
-		tracing.Init(cfg.T.ServerName)
-	}
+
+	tracing.Init(cfg.T)
 	return nil
 }
 
 type Config struct {
-	M Metrics `yaml:"metrics"`
-	T Tracing `yaml:"tracing"`
+	M Metrics        `yaml:"metrics"`
+	T tracing.Config `yaml:"tracing"`
 }
 
 type Metrics struct {
@@ -53,10 +61,4 @@ func (m Metrics) GetPort() int {
 		return 2112
 	}
 	return m.Port
-}
-
-type Tracing struct {
-	ServerName    string `yaml:"-"`
-	Enable        bool   `yaml:"enable"`
-	OtelCollector string `yaml:"otel_collector"`
 }

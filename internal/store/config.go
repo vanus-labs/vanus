@@ -17,14 +17,16 @@ package store
 import (
 	// standard libraries.
 	"fmt"
-	"github.com/linkall-labs/vanus/observability"
 	"time"
 
-	// this project.
+	// first-party project.
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/observability"
+	"github.com/linkall-labs/vanus/pkg/util"
+
+	// this project.
 	"github.com/linkall-labs/vanus/internal/store/io"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
-	"github.com/linkall-labs/vanus/pkg/util"
 )
 
 const (

@@ -15,12 +15,12 @@
 package timer
 
 import (
-	"github.com/linkall-labs/vanus/observability"
 	"time"
 
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/timer/leaderelection"
 	"github.com/linkall-labs/vanus/internal/timer/timingwheel"
+	"github.com/linkall-labs/vanus/observability"
 )
 
 type Config struct {

@@ -15,15 +15,14 @@
 package controller
 
 import (
-	"github.com/linkall-labs/vanus/observability"
 	"path/filepath"
-
-	"github.com/linkall-labs/vanus/internal/controller/snowflake"
 
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
+	"github.com/linkall-labs/vanus/internal/controller/snowflake"
 	"github.com/linkall-labs/vanus/internal/controller/trigger"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/observability"
 )
 
 type Config struct {
