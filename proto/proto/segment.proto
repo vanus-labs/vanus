@@ -36,7 +36,6 @@ service SegmentServer {
   rpc AppendToBlock(AppendToBlockRequest) returns (AppendToBlockResponse);
   rpc ReadFromBlock(ReadFromBlockRequest) returns (ReadFromBlockResponse);
   rpc AppendToBlockStream(stream AppendToBlockStreamRequest) returns (stream AppendToBlockStreamResponse);
-  rpc ReadFromBlockStream(stream ReadFromBlockStreamRequest) returns (stream ReadFromBlockStreamResponse);
   rpc LookupOffsetInBlock(LookupOffsetInBlockRequest) returns (LookupOffsetInBlockResponse);
 
   rpc Status(google.protobuf.Empty) returns (StatusResponse);
@@ -110,36 +109,16 @@ message AppendToBlockStreamRequest {
   io.cloudevents.v1.CloudEventBatch events = 3;
 }
 
-enum AppendToBlockStreamResponseCode {
-  ResponseCodeSegmentFull = 0;
+enum ResponseCode {
+  SUCCESS = 0;
+  UNKNOWN = 1;
+  SegmentFull = 2;
 }
 
 message AppendToBlockStreamResponse {
   uint64 response_id = 1;
-  AppendToBlockStreamResponseCode response_code = 2;
+  ResponseCode response_code = 2;
   repeated int64 offsets = 3;
-}
-
-message ReadFromBlockStreamRequest {
-  uint64 request_id = 1;
-  uint64 block_id = 2;
-  int64 offset = 3;
-  int64 number = 4;
-  // polling timeout in milliseconds, 0 is disable.
-  uint32 polling_timeout = 5;
-}
-
-enum ReadFromBlockStreamResponseCode {
-  ResponseCodeOffsetOnEnd = 0;
-}
-
-message ReadFromBlockStreamResponse {
-  uint64 response_id = 1;
-  ReadFromBlockStreamResponseCode response_code = 2;
-  io.cloudevents.v1.CloudEventBatch events = 3;
-  // Don't use this now, just used to optimize cpu overhead of SegmentServer in
-  // the future for backward compatibility
-  bytes payload = 4;
 }
 
 message LookupOffsetInBlockRequest {

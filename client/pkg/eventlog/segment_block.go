@@ -74,17 +74,3 @@ func (s *block) Read(ctx context.Context, offset int64, size int16, pollingTimeo
 	}
 	return s.store.Read(ctx, s.id, offset, size, pollingTimeout)
 }
-
-func (s *block) ReadStream(ctx context.Context, offset int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
-	if offset < 0 {
-		return nil, errors.ErrOffsetUnderflow
-	}
-	if size > 0 {
-		// doRead
-	} else if size == 0 {
-		return make([]*ce.Event, 0), nil
-	} else if size < 0 {
-		return nil, errors.ErrInvalidArgument
-	}
-	return s.store.ReadStream(ctx, s.id, offset, size, pollingTimeout)
-}

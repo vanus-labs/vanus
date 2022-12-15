@@ -42,7 +42,6 @@ type BusWriter interface {
 
 type BusReader interface {
 	Read(ctx context.Context, opts ...ReadOption) ([]*ce.Event, int64, uint64, error)
-	ReadStream(ctx context.Context, opts ...ReadOption) ([]*ce.Event, int64, uint64, error)
 }
 
 type Eventlog interface {

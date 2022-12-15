@@ -69,6 +69,4 @@ type LogReader interface {
 	//
 	// Also see `io.Seeker`.
 	Seek(ctx context.Context, offset int64, whence int) (off int64, err error)
-
-	ReadStream(ctx context.Context, size int16) (events []*ce.Event, err error)
 }

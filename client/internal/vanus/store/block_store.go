@@ -17,6 +17,8 @@ package store
 import (
 	// standard libraries
 	"context"
+	stderr "errors"
+	"io"
 	"math/rand"
 	"sync"
 	"time"
@@ -41,6 +43,10 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
+const (
+	defaultTaskChannelBuffer = 512
+)
+
 func newBlockStore(endpoint string) (*BlockStore, error) {
 	var err error
 	s := &BlockStore{
@@ -50,29 +56,60 @@ func newBlockStore(endpoint string) (*BlockStore, error) {
 		})),
 		tracer: tracing.NewTracer("internal.store.BlockStore", trace.SpanKindClient),
 	}
-	s.appendStream, err = s.getAppendStream(context.Background())
+	s.stream, err = s.connect(context.Background())
 	if err != nil {
 		// TODO: check error
 		return nil, err
 	}
-	s.readStream, err = s.getReadStream(context.Background())
-	if err != nil {
-		// TODO: check error
-		return nil, err
-	}
-	s.receive(context.Background(), s.appendStream)
+	s.taskC = make(chan Task, defaultTaskChannelBuffer)
+	s.run(context.Background())
+	s.receive(context.Background(), s.stream)
 	return s, nil
 }
 
 type BlockStore struct {
 	primitive.RefCount
-	client       rpc.Client
-	tracer       *tracing.Tracer
-	appendStream segpb.SegmentServer_AppendToBlockStreamClient
-	readStream   segpb.SegmentServer_ReadFromBlockStreamClient
-	appendMu     sync.Mutex
-	readMu       sync.Mutex
-	callbacks    sync.Map
+	client    rpc.Client
+	tracer    *tracing.Tracer
+	stream    segpb.SegmentServer_AppendToBlockStreamClient
+	taskC     chan Task
+	callbacks sync.Map
+	mu        sync.Mutex
+}
+
+type Task struct {
+	request *segpb.AppendToBlockStreamRequest
+	cb      api.Callback
+}
+
+func (s *BlockStore) run(ctx context.Context) {
+	go func() {
+		for {
+			var err error
+			select {
+			case <-ctx.Done():
+				s.stream.CloseSend()
+				s.stream = nil
+				return
+			case task := <-s.taskC:
+				stream := s.stream
+				if stream == nil {
+					if stream, err = s.connect(ctx); err != nil {
+						task.cb(err)
+						break
+					}
+					s.receive(ctx, stream)
+					s.stream = stream
+				}
+				if err = stream.Send(task.request); err != nil {
+					log.Warning(ctx, "===Send failed===", map[string]interface{}{
+						log.KeyError: err,
+					})
+					s.processSendError(task, err)
+				}
+			}
+		}
+	}()
 }
 
 func (s *BlockStore) receive(ctx context.Context, stream segpb.SegmentServer_AppendToBlockStreamClient) {
@@ -80,30 +117,33 @@ func (s *BlockStore) receive(ctx context.Context, stream segpb.SegmentServer_App
 		for {
 			res, err := stream.Recv()
 			if err != nil {
-				log.Debug(context.Background(), "append stream receive failed", map[string]interface{}{
+				log.Warning(ctx, "===Recv failed===", map[string]interface{}{
 					log.KeyError: err,
-					"endpoint":   s.Endpoint(),
 				})
 				break
 			}
 			c, _ := s.callbacks.LoadAndDelete(res.ResponseId)
-			if c != nil {
-				c.(api.Callback)(err)
+			if c == nil {
+				// TODO(jiangkai): check err
+				continue
+			}
+			if res.ResponseCode != segpb.ResponseCode_SUCCESS {
+				c.(api.Callback)(stderr.New(res.ResponseCode.String()))
 			}
 		}
 	}()
 }
 
-func (s *BlockStore) getAppendStream(ctx context.Context) (segpb.SegmentServer_AppendToBlockStreamClient, error) {
-	if s.appendStream != nil {
-		return s.appendStream, nil
+func (s *BlockStore) connect(ctx context.Context) (segpb.SegmentServer_AppendToBlockStreamClient, error) {
+	if s.stream != nil {
+		return s.stream, nil
 	}
 
-	s.appendMu.Lock()
-	defer s.appendMu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	if s.appendStream != nil { //double check
-		return s.appendStream, nil
+	if s.stream != nil { //double check
+		return s.stream, nil
 	}
 
 	client, err := s.client.Get(ctx)
@@ -113,47 +153,23 @@ func (s *BlockStore) getAppendStream(ctx context.Context) (segpb.SegmentServer_A
 
 	stream, err := client.(segpb.SegmentServerClient).AppendToBlockStream(context.Background())
 	if err != nil {
+		log.Warning(ctx, "===Get Stream failed===", map[string]interface{}{
+			log.KeyError: err,
+		})
 		return nil, err
 	}
 	return stream, nil
 }
 
-func (s *BlockStore) getReadStream(ctx context.Context) (segpb.SegmentServer_ReadFromBlockStreamClient, error) {
-	if s.readStream != nil {
-		return s.readStream, nil
+func (s *BlockStore) processSendError(t Task, err error) {
+	cb, _ := s.callbacks.LoadAndDelete(t.request.RequestId)
+	if cb != nil {
+		cb.(api.Callback)(err)
 	}
-
-	s.readMu.Lock()
-	defer s.readMu.Unlock()
-
-	if s.readStream != nil { //double check
-		return s.readStream, nil
+	if stderr.Is(err, io.EOF) {
+		s.stream.CloseSend()
+		s.stream = nil
 	}
-
-	client, err := s.client.Get(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	stream, err := client.(segpb.SegmentServerClient).ReadFromBlockStream(context.Background())
-	if err != nil {
-		return nil, err
-	}
-	return stream, nil
-}
-
-func (s *BlockStore) closeAppendStream() {
-	s.appendMu.Lock()
-	defer s.appendMu.Unlock()
-	s.appendStream.CloseSend()
-	s.appendStream = nil
-}
-
-func (s *BlockStore) closeReadStream() {
-	s.readMu.Lock()
-	defer s.readMu.Unlock()
-	s.readStream.CloseSend()
-	s.readStream = nil
 }
 
 func (s *BlockStore) Endpoint() string {
@@ -192,53 +208,33 @@ func (s *BlockStore) Append(ctx context.Context, block uint64, event *ce.Event) 
 }
 
 func (s *BlockStore) AppendStream(ctx context.Context, block uint64, event *ce.Event, cb api.Callback) {
-	_ctx, span := s.tracer.Start(ctx, "AppendStream")
+	_, span := s.tracer.Start(ctx, "AppendStream")
 	defer span.End()
 
 	var (
 		err error
 	)
 
-	if s.appendStream == nil {
-		s.appendStream, err = s.getAppendStream(_ctx)
-		if err != nil {
-			cb(err)
-			return
-		}
-		s.receive(ctx, s.appendStream)
+	eventpb, err := codec.ToProto(event)
+	if err != nil {
+		cb(err)
+		return
 	}
 
 	// generate unique RequestId
 	requestID := rand.Uint64()
 	s.callbacks.Store(requestID, cb)
-
-	retFunc := func(err error) {
-		c, _ := s.callbacks.LoadAndDelete(requestID)
-		if c != nil {
-			c.(api.Callback)(err)
-		}
-	}
-	eventpb, err := codec.ToProto(event)
-	if err != nil {
-		retFunc(err)
-		return
-	}
-	req := &segpb.AppendToBlockStreamRequest{
-		RequestId: requestID,
-		BlockId:   block,
-		Events: &cepb.CloudEventBatch{
-			Events: []*cepb.CloudEvent{eventpb},
+	task := Task{
+		request: &segpb.AppendToBlockStreamRequest{
+			RequestId: requestID,
+			BlockId:   block,
+			Events: &cepb.CloudEventBatch{
+				Events: []*cepb.CloudEvent{eventpb},
+			},
 		},
+		cb: cb,
 	}
-	if err = s.appendStream.Send(req); err != nil {
-		log.Debug(context.Background(), "append stream send failed", map[string]interface{}{
-			log.KeyError: err,
-			"endpoint":   s.Endpoint(),
-		})
-		s.closeAppendStream()
-		retFunc(err)
-		return
-	}
+	s.taskC <- task
 }
 
 func (s *BlockStore) Read(
@@ -261,70 +257,6 @@ func (s *BlockStore) Read(
 
 	resp, err := client.(segpb.SegmentServerClient).ReadFromBlock(ctx, req)
 	if err != nil {
-		return nil, err
-	}
-
-	if batch := resp.GetEvents(); batch != nil {
-		if eventpbs := batch.GetEvents(); len(eventpbs) > 0 {
-			events := make([]*ce.Event, 0, len(eventpbs))
-			for _, eventpb := range eventpbs {
-				event, err2 := codec.FromProto(eventpb)
-				if err2 != nil {
-					// TODO: return events or error?
-					return events, err2
-				}
-				events = append(events, event)
-			}
-			return events, nil
-		}
-	}
-
-	return []*ce.Event{}, err
-}
-
-func (s *BlockStore) ReadStream(
-	ctx context.Context, block uint64, offset int64, size int16, pollingTimeout uint32,
-) ([]*ce.Event, error) {
-	ctx, span := s.tracer.Start(ctx, "ReadStream")
-	defer span.End()
-
-	var (
-		err error
-	)
-
-	if s.readStream == nil {
-		s.readStream, err = s.getReadStream(ctx)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// generate unique RequestId
-	requestID := rand.Uint64()
-	req := &segpb.ReadFromBlockStreamRequest{
-		RequestId:      requestID,
-		BlockId:        block,
-		Offset:         offset,
-		Number:         int64(size),
-		PollingTimeout: pollingTimeout,
-	}
-
-	if err = s.readStream.Send(req); err != nil {
-		log.Debug(context.Background(), "read stream send failed", map[string]interface{}{
-			log.KeyError: err,
-			"endpoint":   s.Endpoint(),
-		})
-		s.closeReadStream()
-		return nil, err
-	}
-
-	resp, err := s.readStream.Recv()
-	if err != nil {
-		log.Debug(context.Background(), "read stream receive failed", map[string]interface{}{
-			log.KeyError: err,
-			"endpoint":   s.Endpoint(),
-		})
-		s.closeReadStream()
 		return nil, err
 	}
 

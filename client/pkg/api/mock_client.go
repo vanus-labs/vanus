@@ -186,6 +186,23 @@ func (mr *MockBusWriterMockRecorder) AppendOne(ctx, event interface{}, opts ...i
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppendOne", reflect.TypeOf((*MockBusWriter)(nil).AppendOne), varargs...)
 }
 
+// AppendOneStream mocks base method.
+func (m *MockBusWriter) AppendOneStream(ctx context.Context, event *v2.Event, cb Callback, opts ...WriteOption) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, event, cb}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	m.ctrl.Call(m, "AppendOneStream", varargs...)
+}
+
+// AppendOneStream indicates an expected call of AppendOneStream.
+func (mr *MockBusWriterMockRecorder) AppendOneStream(ctx, event, cb interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, event, cb}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppendOneStream", reflect.TypeOf((*MockBusWriter)(nil).AppendOneStream), varargs...)
+}
+
 // MockBusReader is a mock of BusReader interface.
 type MockBusReader struct {
 	ctrl     *gomock.Controller
