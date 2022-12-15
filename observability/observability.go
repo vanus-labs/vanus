@@ -17,10 +17,10 @@ package observability
 import (
 	"context"
 	"fmt"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/tracing"
 	"net/http"
 
+	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 

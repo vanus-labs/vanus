@@ -33,6 +33,12 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+const (
+	vanusVersion     = "v0.5.0"
+	environmentKey   = "environment"
+	environmentValue = "local"
+)
+
 type Config struct {
 	ServerName    string `yaml:"-"`
 	Enable        bool   `yaml:"enable"`
@@ -130,8 +136,8 @@ func newTracerProvider(serviceName string, collectorEndpoint string) (*trace.Tra
 		resource.NewWithAttributes(
 			semconv.SchemaURL,
 			semconv.ServiceNameKey.String(serviceName),
-			semconv.ServiceVersionKey.String("v0.5.0"),
-			attribute.String("environment", "local"),
+			semconv.ServiceVersionKey.String(vanusVersion),
+			attribute.String(environmentKey, environmentValue),
 		),
 	)
 	if err != nil {
