@@ -16,6 +16,7 @@ package trigger
 
 import (
 	"fmt"
+	"github.com/linkall-labs/vanus/observability"
 	"time"
 
 	"github.com/linkall-labs/vanus/internal/primitive"
@@ -24,9 +25,10 @@ import (
 
 type Config struct {
 	TriggerAddr    string
-	Port           int      `yaml:"port"`
-	IP             string   `yaml:"ip"`
-	ControllerAddr []string `yaml:"controllers"`
+	Port           int                  `yaml:"port"`
+	IP             string               `yaml:"ip"`
+	ControllerAddr []string             `yaml:"controllers"`
+	Observability  observability.Config `yaml:"observability"`
 
 	HeartbeatInterval time.Duration
 }

@@ -36,18 +36,13 @@ import (
 
 const (
 	otelCollector = "OTEL_COLLECTOR_ENDPOINT"
-	serverName    = "SERVER_NAME"
 )
 
 var tp *tracerProvider
 
-func Init(name ...string) {
-	srvName := os.Getenv(serverName)
-	if len(name) > 0 {
-		srvName = name[0]
-	}
+func Init(name string) {
 	p := &tracerProvider{
-		serverName: srvName,
+		serverName: name,
 	}
 	endpoint := os.Getenv(otelCollector)
 	if endpoint != "" {

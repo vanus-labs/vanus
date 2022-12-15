@@ -18,20 +18,17 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/linkall-labs/vanus/pkg/util/signal"
 	"net"
-	"net/http"
 	"os"
 	"sync"
 
-	"github.com/linkall-labs/vanus/observability/metrics"
-
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger"
+	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
+	"github.com/linkall-labs/vanus/pkg/util/signal"
 	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
-
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 )
 
@@ -58,7 +55,7 @@ func main() {
 	}
 	ctx := signal.SetupSignalContext()
 	metrics.RegisterTriggerMetrics()
-	go startMetrics()
+	_ = observability.Initialize(cfg.Observability, metrics.RegisterTriggerMetrics)
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
 	srv := trigger.NewTriggerServer(*cfg)
@@ -88,9 +85,4 @@ func main() {
 	grpcServer.GracefulStop()
 	wg.Wait()
 	log.Info(ctx, "trigger worker stopped", nil)
-}
-
-func startMetrics() {
-	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(":2112", nil)
 }

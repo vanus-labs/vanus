@@ -17,6 +17,7 @@ package store
 import (
 	// standard libraries.
 	"fmt"
+	"github.com/linkall-labs/vanus/observability"
 	"time"
 
 	// this project.
@@ -37,13 +38,14 @@ const (
 )
 
 type Config struct {
-	ControllerAddresses []string         `yaml:"controllers"`
-	IP                  string           `yaml:"ip"`
-	Port                int              `yaml:"port"`
-	Volume              VolumeInfo       `yaml:"volume"`
-	MetaStore           SyncStoreConfig  `yaml:"meta_store"`
-	OffsetStore         AsyncStoreConfig `yaml:"offset_store"`
-	Raft                RaftConfig       `yaml:"raft"`
+	ControllerAddresses []string             `yaml:"controllers"`
+	IP                  string               `yaml:"ip"`
+	Port                int                  `yaml:"port"`
+	Volume              VolumeInfo           `yaml:"volume"`
+	MetaStore           SyncStoreConfig      `yaml:"meta_store"`
+	OffsetStore         AsyncStoreConfig     `yaml:"offset_store"`
+	Raft                RaftConfig           `yaml:"raft"`
+	Observability       observability.Config `yaml:"observability"`
 }
 
 func (c *Config) Validate() error {

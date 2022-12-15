@@ -15,6 +15,7 @@
 package controller
 
 import (
+	"github.com/linkall-labs/vanus/observability"
 	"path/filepath"
 
 	"github.com/linkall-labs/vanus/internal/controller/snowflake"
@@ -26,19 +27,20 @@ import (
 )
 
 type Config struct {
-	NodeID               uint16            `yaml:"node_id"`
-	Name                 string            `yaml:"name"`
-	IP                   string            `yaml:"ip"`
-	Port                 int               `yaml:"port"`
-	GRPCReflectionEnable bool              `yaml:"grpc_reflection_enable"`
-	EtcdEndpoints        []string          `yaml:"etcd"`
-	DataDir              string            `yaml:"data_dir"`
-	MetadataConfig       MetadataConfig    `yaml:"metadata"`
-	EtcdConfig           embedetcd.Config  `yaml:"embed_etcd"`
-	Topology             map[string]string `yaml:"topology"`
-	Replicas             uint              `yaml:"replicas"`
-	SecretEncryptionSalt string            `yaml:"secret_encryption_salt"`
-	SegmentCapacity      int64             `yaml:"segment_capacity"`
+	NodeID               uint16               `yaml:"node_id"`
+	Name                 string               `yaml:"name"`
+	IP                   string               `yaml:"ip"`
+	Port                 int                  `yaml:"port"`
+	GRPCReflectionEnable bool                 `yaml:"grpc_reflection_enable"`
+	EtcdEndpoints        []string             `yaml:"etcd"`
+	DataDir              string               `yaml:"data_dir"`
+	MetadataConfig       MetadataConfig       `yaml:"metadata"`
+	EtcdConfig           embedetcd.Config     `yaml:"embed_etcd"`
+	Topology             map[string]string    `yaml:"topology"`
+	Replicas             uint                 `yaml:"replicas"`
+	SecretEncryptionSalt string               `yaml:"secret_encryption_salt"`
+	SegmentCapacity      int64                `yaml:"segment_capacity"`
+	Observability        observability.Config `yaml:"observability"`
 }
 
 func (c *Config) GetEtcdConfig() embedetcd.Config {

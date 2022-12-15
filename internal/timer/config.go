@@ -15,6 +15,7 @@
 package timer
 
 import (
+	"github.com/linkall-labs/vanus/observability"
 	"time"
 
 	"github.com/linkall-labs/vanus/internal/primitive"
@@ -32,6 +33,7 @@ type Config struct {
 	MetadataConfig       MetadataConfig       `yaml:"metadata"`
 	LeaderElectionConfig LeaderElectionConfig `yaml:"leaderelection"`
 	TimingWheelConfig    TimingWheelConfig    `yaml:"timingwheel"`
+	Observability        observability.Config `yaml:"observability"`
 }
 
 const (
