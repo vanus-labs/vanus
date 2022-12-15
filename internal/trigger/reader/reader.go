@@ -284,15 +284,15 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 		})
 		for {
 			err = elReader.readEvent(ctx, lr)
-			switch err {
-			case nil:
+			if err == nil {
 				continue
-			case context.Canceled:
+			} else if err == context.Canceled {
 				return
-			case errors.ErrOffsetOnEnd, errors.ErrTryAgain:
-			case errors.ErrOffsetUnderflow:
+			} else if errors.Is(err, errors.ErrOffsetOnEnd) || errors.Is(err, errors.ErrTryAgain) {
+				continue
+			} else if errors.Is(err, errors.ErrOffsetUnderflow) {
 				// todo reset offset timestamp
-			default:
+			} else {
 				log.Warning(ctx, "read event error", map[string]interface{}{
 					log.KeyEventlogID: elReader.eventLogID,
 					"offset":          elReader.offset,
