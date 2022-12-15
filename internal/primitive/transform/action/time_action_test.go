@@ -38,7 +38,6 @@ func TestDateFormatAction(t *testing.T) {
 			e.SetExtension("test", "2022-11-15T15:41:25Z")
 			a, err := NewAction([]interface{}{newDateFormatAction().Name(), "$.test", "Y-m-d H:i:s"})
 			So(err, ShouldBeNil)
-
 			err = a.Execute(&context.EventContext{
 				Event: e,
 			})
@@ -50,7 +49,6 @@ func TestDateFormatAction(t *testing.T) {
 			e.SetExtension("test", "2022-11-15T15:41:25Z")
 			a, err := NewAction([]interface{}{newDateFormatAction().Name(), "$.test", "Y-m-d H:i:s", "EST"})
 			So(err, ShouldBeNil)
-
 			err = a.Execute(&context.EventContext{
 				Event: e,
 			})

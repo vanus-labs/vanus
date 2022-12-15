@@ -21,7 +21,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestStringAction(t *testing.T) {
+func TestJoinAction(t *testing.T) {
 	Convey("test join action", t, func() {
 		eventCtx := &context.EventContext{
 			Event: newEvent(),
@@ -66,6 +66,9 @@ func TestStringAction(t *testing.T) {
 			})
 		})
 	})
+}
+
+func TestUpperAction(t *testing.T) {
 	Convey("test upper", t, func() {
 		a, err := NewAction([]interface{}{newUpperAction().Name(), "$.test"})
 		So(err, ShouldBeNil)
@@ -78,6 +81,9 @@ func TestStringAction(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(e.Extensions()["test"], ShouldEqual, "TESTVALUE")
 	})
+}
+
+func TestLowerAction(t *testing.T) {
 	Convey("test lower", t, func() {
 		a, err := NewAction([]interface{}{newLowerAction().Name(), "$.test"})
 		So(err, ShouldBeNil)
@@ -90,6 +96,9 @@ func TestStringAction(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(e.Extensions()["test"], ShouldEqual, "testvalue")
 	})
+}
+
+func TestAddPrefixAction(t *testing.T) {
 	Convey("test add prefix", t, func() {
 		a, err := NewAction([]interface{}{newAddPrefixAction().Name(), "$.test", "prefix"})
 		So(err, ShouldBeNil)
@@ -102,6 +111,9 @@ func TestStringAction(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(e.Extensions()["test"], ShouldEqual, "prefixtestValue")
 	})
+}
+
+func TestAddSuffixAction(t *testing.T) {
 	Convey("test add suffix", t, func() {
 		a, err := NewAction([]interface{}{newAddSuffixAction().Name(), "$.test", "suffix"})
 		So(err, ShouldBeNil)

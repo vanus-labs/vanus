@@ -18,11 +18,10 @@ import (
 	"testing"
 
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestRegexAction(t *testing.T) {
+func TestReplaceWithRegexAction(t *testing.T) {
 	Convey("test replace with regex", t, func() {
 		a, err := NewAction([]interface{}{newReplaceWithRegexAction().Name(), "$.test", "a", "value"})
 		So(err, ShouldBeNil)
