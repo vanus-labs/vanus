@@ -18,19 +18,9 @@ package block
 import (
 	// standard libraries.
 	"context"
-	"errors"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-)
-
-var (
-	ErrNotEnoughSpace = errors.New("not enough space")
-	ErrFull           = errors.New("full")
-	ErrNotLeader      = errors.New("not leader")
-	ErrExceeded       = errors.New("the offset exceeded")
-	ErrOnEnd          = errors.New("the offset on end")
-	ErrNotSupported   = errors.New("not supported")
 )
 
 type SeekKeyFlag uint64

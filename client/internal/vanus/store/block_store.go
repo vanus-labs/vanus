@@ -17,7 +17,6 @@ package store
 import (
 	// standard libraries
 	"context"
-	"strings"
 	"time"
 
 	"github.com/linkall-labs/vanus/observability/tracing"
@@ -27,18 +26,14 @@ import (
 	cepb "cloudevents.io/genproto/v1"
 	ce "github.com/cloudevents/sdk-go/v2"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	// first-party libraries
-	vlog "github.com/linkall-labs/vanus/observability/log"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
 	// this project
 	"github.com/linkall-labs/vanus/client/internal/vanus/codec"
 	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc"
 	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc/bare"
-	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
 )
 
@@ -94,16 +89,7 @@ func (s *BlockStore) Append(ctx context.Context, block uint64, event *ce.Event) 
 
 	res, err := client.(segpb.SegmentServerClient).AppendToBlock(_ctx, req)
 	if err != nil {
-		vlog.Warning(ctx, "failed to AppendToBlock", map[string]interface{}{
-			vlog.KeyError: err,
-			"block_id":    block,
-		})
-		sts := status.Convert(err)
-		// TODO: temporary scheme, wait for error code reconstruction
-		if strings.Contains(sts.Message(), "SEGMENT_FULL") {
-			return -1, errors.ErrNoSpace
-		}
-		return -1, errors.ErrNotWritable
+		return -1, err
 	}
 	// TODO(Y. F. Zhang): batch events
 	return res.GetOffsets()[0], nil
@@ -129,17 +115,6 @@ func (s *BlockStore) Read(
 
 	resp, err := client.(segpb.SegmentServerClient).ReadFromBlock(ctx, req)
 	if err != nil {
-		// TODO: convert error
-		if errStatus, ok := status.FromError(err); ok {
-			errMsg := errStatus.Message()
-			if strings.Contains(errMsg, "the offset on end") {
-				err = errors.ErrOnEnd
-			} else if strings.Contains(errMsg, "the offset exceeded") {
-				err = errors.ErrOverflow
-			} else if errStatus.Code() == codes.DeadlineExceeded {
-				err = errors.ErrTimeout
-			}
-		}
 		return nil, err
 	}
 

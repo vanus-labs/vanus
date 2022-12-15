@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	embedetcd "github.com/linkall-labs/embed-etcd"
-	rpcerr "github.com/linkall-labs/vanus/proto/pkg/errors"
+	"github.com/linkall-labs/vanus/pkg/errors"
 	"google.golang.org/grpc"
 )
 
@@ -27,8 +27,8 @@ func StreamServerInterceptor(member embedetcd.Member) grpc.StreamServerIntercept
 	return func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		if !member.IsLeader() {
 			// TODO  read-only request bypass
-			return rpcerr.New(fmt.Sprintf("i'm not leader, please connect to: %s",
-				member.GetLeaderAddr())).WithGRPCCode(rpcerr.ErrorCode_NOT_LEADER)
+			return errors.ErrNotLeader.WithMessage(
+				fmt.Sprintf("i'm not leader, please connect to: %s", member.GetLeaderAddr()))
 		}
 		return handler(srv, stream)
 	}
@@ -40,8 +40,8 @@ func UnaryServerInterceptor(member embedetcd.Member) grpc.UnaryServerInterceptor
 		if info.FullMethod != "/linkall.vanus.controller.PingServer/Ping" &&
 			!member.IsLeader() {
 			// TODO  read-only request bypass
-			return nil, rpcerr.New(fmt.Sprintf("i'm not leader, please connect to: %s",
-				member.GetLeaderAddr())).WithGRPCCode(rpcerr.ErrorCode_NOT_LEADER)
+			return nil, errors.ErrNotLeader.WithMessage(
+				fmt.Sprintf("i'm not leader, please connect to: %s", member.GetLeaderAddr()))
 		}
 		return handler(ctx, req)
 	}

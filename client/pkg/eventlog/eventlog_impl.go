@@ -17,7 +17,6 @@ package eventlog
 import (
 	// standard libraries.
 	"context"
-	stderr "errors"
 	"io"
 	"sort"
 	"sync"
@@ -31,9 +30,9 @@ import (
 
 	// this project.
 	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
-	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/record"
 	vlog "github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 const (
@@ -304,12 +303,12 @@ func (l *eventlog) selectReadableSegment(ctx context.Context, offset int64) (*se
 		return segments[n], nil
 	}
 	if offset < segments[0].StartOffset() {
-		return nil, errors.ErrUnderflow
+		return nil, errors.ErrOffsetUnderflow
 	}
 	if offset == segments[len(segments)-1].EndOffset() {
-		return nil, errors.ErrOnEnd
+		return nil, errors.ErrOffsetOnEnd
 	}
-	return nil, errors.ErrOverflow
+	return nil, errors.ErrOffsetOverflow
 }
 
 func (l *eventlog) fetchReadableSegments(ctx context.Context) []*segment {
@@ -360,14 +359,11 @@ func (w *logWriter) Append(ctx context.Context, event *ce.Event) (int64, error) 
 			vlog.KeyError: err,
 			"offset":      offset,
 		})
-		switch err {
-		case errors.ErrNotWritable, errors.ErrNotEnoughSpace, errors.ErrNoSpace:
-			// full
+		if errors.Is(err, errors.ErrSegmentFull) {
 			if i < retryTimes {
 				continue
 			}
 		}
-
 		return -1, err
 	}
 
@@ -381,8 +377,7 @@ func (w *logWriter) doAppend(ctx context.Context, event *ce.Event) (int64, error
 	}
 	offset, err := segment.Append(ctx, event)
 	if err != nil {
-		switch err {
-		case errors.ErrNotWritable, errors.ErrNotEnoughSpace, errors.ErrNoSpace:
+		if errors.Is(err, errors.ErrSegmentFull) {
 			segment.SetNotWritable()
 		}
 		return -1, err
@@ -436,7 +431,7 @@ func (r *logReader) Close(ctx context.Context) {
 func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 	if r.cur == nil {
 		segment, err := r.elog.selectReadableSegment(ctx, r.pos)
-		if stderr.Is(err, errors.ErrOnEnd) {
+		if errors.Is(err, errors.ErrOffsetOnEnd) {
 			r.elog.refreshReadableSegments(ctx)
 			segment, err = r.elog.selectReadableSegment(ctx, r.pos)
 		}
@@ -448,7 +443,7 @@ func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 
 	events, err := r.cur.Read(ctx, r.pos, size, uint32(r.pollingTimeout(ctx)))
 	if err != nil {
-		if stderr.Is(err, errors.ErrOverflow) {
+		if errors.Is(err, errors.ErrOffsetOverflow) {
 			r.elog.refreshReadableSegments(ctx)
 			if r.switchSegment(ctx) {
 				return nil, errors.ErrTryAgain

@@ -15,7 +15,10 @@
 package errors
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
+	"google.golang.org/grpc/status"
 )
 
 // Chain method can group many errors as a single error. this is a helpful method if there are many errors
@@ -46,4 +49,35 @@ func Chain(errs ...error) error {
 		err = errors.Wrap(err, errs[_idx].Error())
 	}
 	return err
+}
+
+func Is(err error, target error) bool {
+	targetType, ok := target.(*ErrorType)
+	if !ok {
+		return false
+	}
+
+	errType, ok := err.(*ErrorType)
+	if !ok {
+		if errStatus, ok := status.FromError(err); ok {
+			if errType, ok := Convert(errStatus.Message()); ok {
+				return errType.Code == targetType.Code
+			}
+		}
+	}
+	return errType != nil && errType.Code == targetType.Code
+}
+
+// ConvertToGRPCError convert an internal error to an exported error defined in gRPC.
+func ConvertToGRPCError(err error) error {
+	if err == nil {
+		return nil
+	}
+	e, ok := err.(*ErrorType)
+	if ok {
+		return fmt.Errorf("{\"code\":%d,\"message\":\"%s\"}",
+			e.Code, e.Message)
+	}
+	return fmt.Errorf("{\"code\":%d,\"message\":\"%s\"}",
+		ErrorCode_UNKNOWN, err.Error())
 }

@@ -18,7 +18,7 @@ import (
 	"container/list"
 	"context"
 	"encoding/json"
-	"errors"
+	stderr "errors"
 	"fmt"
 	"io"
 	"sync"
@@ -26,13 +26,13 @@ import (
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/client"
-	errcli "github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/timer/metadata"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/linkall-labs/vanus/pkg/controller"
+	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -378,7 +378,7 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 				// batch read
 				events, err := tw.receivingStation.getEvent(ctx, defaultNumberOfEventsRead)
 				if err != nil {
-					if !errors.Is(err, errcli.ErrOnEnd) {
+					if !errors.Is(err, errors.ErrOffsetOnEnd) {
 						log.Error(ctx, "get event failed when receiving station running", map[string]interface{}{
 							log.KeyError: err,
 							"eventbus":   tw.receivingStation.getEventbus(),
@@ -488,7 +488,7 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 				// batch read
 				events, err := tw.distributionStation.getEvent(ctx, defaultNumberOfEventsRead)
 				if err != nil {
-					if !errors.Is(err, errcli.ErrOnEnd) {
+					if !errors.Is(err, errors.ErrOffsetOnEnd) {
 						log.Error(ctx, "get event failed when distribution station running", map[string]interface{}{
 							log.KeyError: err,
 							"eventbus":   tw.distributionStation.getEventbus(),
@@ -563,7 +563,7 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 	}
 	_, err = tw.client.Eventbus(ctx, ebName).Writer().AppendOne(ctx, e)
 	if err != nil {
-		if errors.Is(err, errcli.ErrNotFound) {
+		if errors.Is(err, errors.ErrOffsetOnEnd) {
 			log.Warning(ctx, "eventbus not found, discard this event", map[string]interface{}{
 				log.KeyError:    err,
 				"eventbus":      ebName,
@@ -609,7 +609,7 @@ type timingWheelElement struct {
 // newTimingWheel is an internal helper function that really creates an instance of TimingWheel.
 func newTimingWheelElement(tw *timingWheel, tick time.Duration, layer int64) *timingWheelElement {
 	if tick <= 0 {
-		panic(errors.New("tick must be greater than or equal to 1s"))
+		panic(stderr.New("tick must be greater than or equal to 1s"))
 	}
 
 	twe := &timingWheelElement{

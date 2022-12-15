@@ -24,8 +24,8 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	"github.com/linkall-labs/vanus/proto/pkg/errors"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 
 	"github.com/golang/mock/gomock"

@@ -47,7 +47,6 @@ import (
 	"github.com/linkall-labs/vanus/pkg/controller"
 	"github.com/linkall-labs/vanus/pkg/util"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	rpcerr "github.com/linkall-labs/vanus/proto/pkg/errors"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	raftpb "github.com/linkall-labs/vanus/proto/pkg/raft"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
@@ -61,11 +60,11 @@ import (
 	"github.com/linkall-labs/vanus/internal/store"
 	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/block/raft"
-	"github.com/linkall-labs/vanus/internal/store/errors"
 	"github.com/linkall-labs/vanus/internal/store/meta"
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	ceconv "github.com/linkall-labs/vanus/internal/store/schema/ce/convert"
 	"github.com/linkall-labs/vanus/internal/store/vsb"
+	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 const (
@@ -671,11 +670,11 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 }
 
 func (s *server) processAppendError(ctx context.Context, b Replica, err error) error {
-	if stderr.As(err, &rpcerr.ErrorType{}) {
+	if stderr.As(err, &errors.ErrorType{}) {
 		return err
 	}
 
-	if stderr.Is(err, block.ErrFull) {
+	if errors.Is(err, errors.ErrSegmentFull) {
 		log.Debug(ctx, "Append failed: block is full.", map[string]interface{}{
 			"block_id": b.ID(),
 		})
@@ -742,13 +741,13 @@ func (s *server) ReadFromBlock(
 
 	if events, err := s.readEvents(ctx, b, seq, num); err == nil {
 		return events, nil
-	} else if !stderr.Is(err, block.ErrOnEnd) || pollingTimeout == 0 {
+	} else if !errors.Is(err, errors.ErrOffsetOnEnd) || pollingTimeout == 0 {
 		return nil, err
 	}
 
 	doneC := s.pm.Add(ctx, id)
 	if doneC == nil {
-		return nil, block.ErrOnEnd
+		return nil, errors.ErrOffsetOnEnd
 	}
 
 	t := time.NewTimer(time.Duration(pollingTimeout) * time.Millisecond)
@@ -759,7 +758,7 @@ func (s *server) ReadFromBlock(
 		// FIXME(james.yin) It can't read message immediately because of async apply.
 		return s.readEvents(ctx, b, seq, num)
 	case <-t.C:
-		return nil, block.ErrOnEnd
+		return nil, errors.ErrOffsetOnEnd
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}

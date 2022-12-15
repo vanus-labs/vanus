@@ -24,7 +24,6 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/api"
-	eberrors "github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/option"
 	"github.com/linkall-labs/vanus/client/pkg/policy"
@@ -34,6 +33,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
+	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/linkall-labs/vanus/pkg/util"
 )
 
@@ -289,8 +289,8 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 				continue
 			case context.Canceled:
 				return
-			case eberrors.ErrOnEnd, eberrors.ErrTryAgain:
-			case eberrors.ErrUnderflow:
+			case errors.ErrOffsetOnEnd, errors.ErrTryAgain:
+			case errors.ErrOffsetUnderflow:
 				// todo reset offset timestamp
 			default:
 				log.Warning(ctx, "read event error", map[string]interface{}{

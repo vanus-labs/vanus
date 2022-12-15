@@ -16,7 +16,7 @@ package timingwheel
 
 import (
 	"context"
-	"errors"
+	stderr "errors"
 	"testing"
 	"time"
 
@@ -24,9 +24,9 @@ import (
 	. "github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/api"
-	es "github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/record"
 	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -95,8 +95,8 @@ func TestBucket_start(t *testing.T) {
 		}
 
 		Convey("test bucket start with create eventbus failed", func() {
-			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
-			mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
+			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, stderr.New("test"))
+			mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, stderr.New("test"))
 			err := bucket.start(ctx)
 			So(err, ShouldNotBeNil)
 		})
@@ -157,7 +157,7 @@ func TestBucket_run(t *testing.T) {
 
 		Convey("get event failed", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), errors.New("test"))
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), stderr.New("test"))
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
@@ -168,7 +168,7 @@ func TestBucket_run(t *testing.T) {
 
 		Convey("get event on end", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), es.ErrOnEnd)
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), errors.ErrOffsetOnEnd)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
@@ -179,7 +179,7 @@ func TestBucket_run(t *testing.T) {
 
 		Convey("bucket exit", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), es.ErrOnEnd)
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), errors.ErrOffsetOnEnd)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				close(bucket.exitC)
@@ -191,7 +191,7 @@ func TestBucket_run(t *testing.T) {
 		Convey("push failed", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
 			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
-			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", errors.New("test"))
+			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", stderr.New("test"))
 			mockStoreCli.EXPECT().Set(Any(), Any(), Any()).AnyTimes().Return(nil)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
@@ -209,7 +209,7 @@ func TestBucket_run(t *testing.T) {
 			bucket.element = tw.twList.Front().Next()
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
 			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
-			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", errors.New("test"))
+			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", stderr.New("test"))
 			mockStoreCli.EXPECT().Set(Any(), Any(), Any()).AnyTimes().Return(nil)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
@@ -270,14 +270,14 @@ func TestBucket_createEventBus(t *testing.T) {
 		})
 
 		Convey("create failed", func() {
-			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
-			mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
+			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, stderr.New("test"))
+			mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, stderr.New("test"))
 			err := bucket.createEventbus(ctx)
 			So(err, ShouldNotBeNil)
 		})
 
 		Convey("create success", func() {
-			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
+			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, stderr.New("test"))
 			mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, nil)
 			err := bucket.createEventbus(ctx)
 			So(err, ShouldBeNil)
@@ -297,14 +297,14 @@ func TestBucket_deleteEventBus(t *testing.T) {
 		bucket.ctrlCli = mockEventbusCtrlCli
 
 		Convey("eventbus has not exist", func() {
-			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
+			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, stderr.New("test"))
 			err := bucket.deleteEventbus(ctx)
 			So(err, ShouldBeNil)
 		})
 
 		Convey("delete failed", func() {
 			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, nil)
-			mockEventbusCtrlCli.EXPECT().DeleteEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
+			mockEventbusCtrlCli.EXPECT().DeleteEventBus(Any(), Any()).Times(1).Return(nil, stderr.New("test"))
 			err := bucket.deleteEventbus(ctx)
 			So(err, ShouldNotBeNil)
 		})
@@ -407,7 +407,7 @@ func TestBucket_getEvent(t *testing.T) {
 			events := make([]*ce.Event, 1)
 			events[0] = event(10000)
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), errors.New("test"))
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), stderr.New("test"))
 			_, err := bucket.getEvent(ctx, 1)
 			So(err, ShouldNotBeNil)
 		})
@@ -436,7 +436,7 @@ func TestBucket_updateOffsetMeta(t *testing.T) {
 		})
 
 		Convey("test bucket update offset metadata failure", func() {
-			mockStoreCli.EXPECT().Set(Any(), Any(), Any()).Times(1).Return(errors.New("test"))
+			mockStoreCli.EXPECT().Set(Any(), Any(), Any()).Times(1).Return(stderr.New("test"))
 			bucket.updateOffsetMeta(ctx, bucket.offset)
 		})
 	})
@@ -481,7 +481,7 @@ func TestBucket_getOffsetMeta(t *testing.T) {
 		})
 
 		Convey("test bucket get offset metadata failure", func() {
-			mockStoreCli.EXPECT().Get(Any(), Any()).Times(1).Return([]byte{}, errors.New("test"))
+			mockStoreCli.EXPECT().Get(Any(), Any()).Times(1).Return([]byte{}, stderr.New("test"))
 			ret, err := bucket.getOffsetMeta(ctx)
 			So(ret, ShouldEqual, -1)
 			So(err, ShouldNotBeNil)
@@ -507,7 +507,7 @@ func TestBucket_deleteOffsetMeta(t *testing.T) {
 		})
 
 		Convey("test bucket delete offset metadata failure", func() {
-			mockStoreCli.EXPECT().Delete(Any(), Any()).Times(1).Return(errors.New("test"))
+			mockStoreCli.EXPECT().Delete(Any(), Any()).Times(1).Return(stderr.New("test"))
 			err := bucket.deleteOffsetMeta(ctx)
 			So(err, ShouldNotBeNil)
 		})
@@ -536,8 +536,8 @@ func TestBucket_hasOnEnd(t *testing.T) {
 		events[0] = event(0)
 
 		Convey("test bucket has on end1", func() {
-			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, errors.New("test"))
-			mockStoreCli.EXPECT().Get(Any(), Any()).Times(1).Return([]byte{}, errors.New("test"))
+			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, stderr.New("test"))
+			mockStoreCli.EXPECT().Get(Any(), Any()).Times(1).Return([]byte{}, stderr.New("test"))
 			ret := bucket.hasOnEnd(ctx)
 			So(ret, ShouldBeFalse)
 		})
@@ -545,7 +545,7 @@ func TestBucket_hasOnEnd(t *testing.T) {
 		Convey("test bucket has on end2", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
 			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
-			mockStoreCli.EXPECT().Get(Any(), Any()).Times(1).Return([]byte{}, errors.New("test"))
+			mockStoreCli.EXPECT().Get(Any(), Any()).Times(1).Return([]byte{}, stderr.New("test"))
 			ret := bucket.hasOnEnd(ctx)
 			So(ret, ShouldBeFalse)
 		})

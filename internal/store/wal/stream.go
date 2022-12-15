@@ -18,7 +18,7 @@ import (
 	// standard libraries.
 	"bytes"
 	"context"
-	"errors"
+	stderr "errors"
 	"os"
 	"sort"
 	"sync"
@@ -29,7 +29,7 @@ import (
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/tracing"
-	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
+	"github.com/linkall-labs/vanus/pkg/errors"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/io"
@@ -37,8 +37,8 @@ import (
 )
 
 var (
-	ErrOutOfRange = errors.New("WAL: out of range")
-	errEndOfLog   = errors.New("WAL: end of log")
+	ErrOutOfRange = stderr.New("WAL: out of range")
+	errEndOfLog   = stderr.New("WAL: end of log")
 )
 
 type OnEntryCallback func(entry []byte, r Range) error
@@ -184,7 +184,7 @@ func (s *logStream) Range(ctx context.Context, from int64, cb OnEntryCallback) (
 			continue
 		}
 
-		if errors.Is(err, errEndOfLog) {
+		if stderr.Is(err, errEndOfLog) {
 			// TODO(james.yin): has empty log file(s).
 			if i != len(s.stream)-1 {
 				panic("has empty log file")
@@ -222,7 +222,7 @@ func (s *logStream) scanFile(ctx context.Context, sCtx *scanContext, lf *logFile
 				"path":       lf.path,
 				log.KeyError: err2,
 			})
-			err = errutil.Chain(err, err2)
+			err = errors.Chain(err, err2)
 		}
 	}()
 

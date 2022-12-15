@@ -17,16 +17,18 @@ package controller
 import (
 	// standard libraries.
 	"context"
+	"io"
+
 	"github.com/linkall-labs/vanus/observability/log"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io"
 
 	// third-party libraries.
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 )
 
@@ -52,7 +54,7 @@ func (sc *segmentClient) Beat(ctx context.Context, v interface{}) error {
 	})
 	req, ok := v.(*ctrlpb.SegmentHeartbeatRequest)
 	if !ok {
-		return ErrInvalidHeartBeatRequest
+		return errors.ErrInvalidHeartBeatRequest
 	}
 	var err error
 	makeSureClient := func() error {
@@ -63,7 +65,7 @@ func (sc *segmentClient) Beat(ctx context.Context, v interface{}) error {
 			if sts.Code() == codes.Unavailable {
 				client = ctrlpb.NewSegmentControllerClient(sc.cc.makeSureClient(ctx, true))
 				if client == nil {
-					return ErrNoControllerLeader
+					return errors.ErrNoControllerLeader
 				}
 				sc.heartBeatClient, err = client.SegmentHeartbeat(ctx)
 				if err != nil {
