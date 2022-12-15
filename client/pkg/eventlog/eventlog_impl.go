@@ -17,6 +17,7 @@ package eventlog
 import (
 	// standard libraries.
 	"context"
+	stderr "errors"
 	"io"
 	"sort"
 	"sync"
@@ -30,6 +31,7 @@ import (
 
 	// this project.
 	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/record"
 	vlog "github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/pkg/errors"
@@ -385,6 +387,15 @@ func (w *logWriter) doAppend(ctx context.Context, event *ce.Event) (int64, error
 	return offset, nil
 }
 
+func (w *logWriter) AppendStream(ctx context.Context, event *ce.Event, cb api.Callback) {
+	segment, err := w.selectWritableSegment(ctx)
+	if err != nil {
+		cb(err)
+		return
+	}
+	segment.AppendStream(ctx, event, cb)
+}
+
 func (w *logWriter) selectWritableSegment(ctx context.Context) (*segment, error) {
 	segment := func() *segment {
 		w.mu.RLock()
@@ -447,6 +458,38 @@ func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 			r.elog.refreshReadableSegments(ctx)
 			if r.switchSegment(ctx) {
 				return nil, errors.ErrTryAgain
+			}
+		}
+		return nil, err
+	}
+
+	r.pos += int64(len(events))
+	if r.pos == r.cur.EndOffset() {
+		r.switchSegment(ctx)
+	}
+
+	return events, nil
+}
+
+func (r *logReader) ReadStream(ctx context.Context, size int16) ([]*ce.Event, error) {
+	if r.cur == nil {
+		segment, err := r.elog.selectReadableSegment(ctx, r.pos)
+		if stderr.Is(err, errors.ErrOffsetOnEnd) {
+			r.elog.refreshReadableSegments(ctx)
+			segment, err = r.elog.selectReadableSegment(ctx, r.pos)
+		}
+		if err != nil {
+			return nil, err
+		}
+		r.cur = segment
+	}
+
+	events, err := r.cur.ReadStream(ctx, r.pos, size, uint32(r.pollingTimeout(ctx)))
+	if err != nil {
+		if stderr.Is(err, errors.ErrOffsetOverflow) {
+			r.elog.refreshReadableSegments(ctx)
+			if r.switchSegment(ctx) {
+				return nil, err
 			}
 		}
 		return nil, err

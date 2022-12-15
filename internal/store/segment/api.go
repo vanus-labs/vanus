@@ -126,6 +126,41 @@ func (s *segmentServer) AppendToBlock(
 	return &segpb.AppendToBlockResponse{Offsets: offs}, nil
 }
 
+func (s *segmentServer) AppendToBlockStream(stream segpb.SegmentServer_AppendToBlockStreamServer) error {
+	errc := make(chan error, 1)
+	go func() {
+		for {
+			request, err := stream.Recv()
+			if err != nil {
+				errc <- err
+				return
+			}
+			offsets, err := s.srv.AppendToBlock(context.Background(), vanus.ID(request.BlockId), request.Events.Events)
+			if err != nil {
+				errc <- err
+				return
+			}
+
+			err = stream.Send(&segpb.AppendToBlockStreamResponse{
+				ResponseId: request.RequestId,
+				Offsets:    offsets,
+			})
+			if err != nil {
+				errc <- err
+				return
+			}
+		}
+	}()
+
+	var err error
+	select {
+	case err = <-errc:
+	case <-stream.Context().Done():
+		err = stream.Context().Err()
+	}
+	return err
+}
+
 func (s *segmentServer) ReadFromBlock(
 	ctx context.Context, req *segpb.ReadFromBlockRequest,
 ) (*segpb.ReadFromBlockResponse, error) {
@@ -138,6 +173,40 @@ func (s *segmentServer) ReadFromBlock(
 	return &segpb.ReadFromBlockResponse{
 		Events: &cepb.CloudEventBatch{Events: events},
 	}, nil
+}
+
+func (s *segmentServer) ReadFromBlockStream(stream segpb.SegmentServer_ReadFromBlockStreamServer) error {
+	errc := make(chan error, 1)
+	go func() {
+		for {
+			request, err := stream.Recv()
+			if err != nil {
+				errc <- err
+				return
+			}
+			events, err := s.srv.ReadFromBlock(context.Background(), vanus.ID(request.BlockId), request.Offset, int(request.Number), request.PollingTimeout)
+			if err != nil {
+				errc <- err
+				return
+			}
+			err = stream.Send(&segpb.ReadFromBlockStreamResponse{
+				ResponseId: request.RequestId,
+				Events:     &cepb.CloudEventBatch{Events: events},
+			})
+			if err != nil {
+				errc <- err
+				return
+			}
+		}
+	}()
+
+	var err error
+	select {
+	case err = <-errc:
+	case <-stream.Context().Done():
+		err = stream.Context().Err()
+	}
+	return err
 }
 
 func (s *segmentServer) LookupOffsetInBlock(

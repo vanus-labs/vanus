@@ -32,6 +32,8 @@ type SegmentServerClient interface {
 	InactivateSegment(ctx context.Context, in *InactivateSegmentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	AppendToBlock(ctx context.Context, in *AppendToBlockRequest, opts ...grpc.CallOption) (*AppendToBlockResponse, error)
 	ReadFromBlock(ctx context.Context, in *ReadFromBlockRequest, opts ...grpc.CallOption) (*ReadFromBlockResponse, error)
+	AppendToBlockStream(ctx context.Context, opts ...grpc.CallOption) (SegmentServer_AppendToBlockStreamClient, error)
+	ReadFromBlockStream(ctx context.Context, opts ...grpc.CallOption) (SegmentServer_ReadFromBlockStreamClient, error)
 	LookupOffsetInBlock(ctx context.Context, in *LookupOffsetInBlockRequest, opts ...grpc.CallOption) (*LookupOffsetInBlockResponse, error)
 	Status(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*StatusResponse, error)
 }
@@ -125,6 +127,68 @@ func (c *segmentServerClient) ReadFromBlock(ctx context.Context, in *ReadFromBlo
 	return out, nil
 }
 
+func (c *segmentServerClient) AppendToBlockStream(ctx context.Context, opts ...grpc.CallOption) (SegmentServer_AppendToBlockStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &SegmentServer_ServiceDesc.Streams[0], "/linkall.vanus.segment.SegmentServer/AppendToBlockStream", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &segmentServerAppendToBlockStreamClient{stream}
+	return x, nil
+}
+
+type SegmentServer_AppendToBlockStreamClient interface {
+	Send(*AppendToBlockStreamRequest) error
+	Recv() (*AppendToBlockStreamResponse, error)
+	grpc.ClientStream
+}
+
+type segmentServerAppendToBlockStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *segmentServerAppendToBlockStreamClient) Send(m *AppendToBlockStreamRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *segmentServerAppendToBlockStreamClient) Recv() (*AppendToBlockStreamResponse, error) {
+	m := new(AppendToBlockStreamResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *segmentServerClient) ReadFromBlockStream(ctx context.Context, opts ...grpc.CallOption) (SegmentServer_ReadFromBlockStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &SegmentServer_ServiceDesc.Streams[1], "/linkall.vanus.segment.SegmentServer/ReadFromBlockStream", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &segmentServerReadFromBlockStreamClient{stream}
+	return x, nil
+}
+
+type SegmentServer_ReadFromBlockStreamClient interface {
+	Send(*ReadFromBlockStreamRequest) error
+	Recv() (*ReadFromBlockStreamResponse, error)
+	grpc.ClientStream
+}
+
+type segmentServerReadFromBlockStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *segmentServerReadFromBlockStreamClient) Send(m *ReadFromBlockStreamRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *segmentServerReadFromBlockStreamClient) Recv() (*ReadFromBlockStreamResponse, error) {
+	m := new(ReadFromBlockStreamResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *segmentServerClient) LookupOffsetInBlock(ctx context.Context, in *LookupOffsetInBlockRequest, opts ...grpc.CallOption) (*LookupOffsetInBlockResponse, error) {
 	out := new(LookupOffsetInBlockResponse)
 	err := c.cc.Invoke(ctx, "/linkall.vanus.segment.SegmentServer/LookupOffsetInBlock", in, out, opts...)
@@ -156,6 +220,8 @@ type SegmentServerServer interface {
 	InactivateSegment(context.Context, *InactivateSegmentRequest) (*emptypb.Empty, error)
 	AppendToBlock(context.Context, *AppendToBlockRequest) (*AppendToBlockResponse, error)
 	ReadFromBlock(context.Context, *ReadFromBlockRequest) (*ReadFromBlockResponse, error)
+	AppendToBlockStream(SegmentServer_AppendToBlockStreamServer) error
+	ReadFromBlockStream(SegmentServer_ReadFromBlockStreamServer) error
 	LookupOffsetInBlock(context.Context, *LookupOffsetInBlockRequest) (*LookupOffsetInBlockResponse, error)
 	Status(context.Context, *emptypb.Empty) (*StatusResponse, error)
 }
@@ -190,6 +256,12 @@ func (UnimplementedSegmentServerServer) AppendToBlock(context.Context, *AppendTo
 }
 func (UnimplementedSegmentServerServer) ReadFromBlock(context.Context, *ReadFromBlockRequest) (*ReadFromBlockResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReadFromBlock not implemented")
+}
+func (UnimplementedSegmentServerServer) AppendToBlockStream(SegmentServer_AppendToBlockStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method AppendToBlockStream not implemented")
+}
+func (UnimplementedSegmentServerServer) ReadFromBlockStream(SegmentServer_ReadFromBlockStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method ReadFromBlockStream not implemented")
 }
 func (UnimplementedSegmentServerServer) LookupOffsetInBlock(context.Context, *LookupOffsetInBlockRequest) (*LookupOffsetInBlockResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LookupOffsetInBlock not implemented")
@@ -371,6 +443,58 @@ func _SegmentServer_ReadFromBlock_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SegmentServer_AppendToBlockStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(SegmentServerServer).AppendToBlockStream(&segmentServerAppendToBlockStreamServer{stream})
+}
+
+type SegmentServer_AppendToBlockStreamServer interface {
+	Send(*AppendToBlockStreamResponse) error
+	Recv() (*AppendToBlockStreamRequest, error)
+	grpc.ServerStream
+}
+
+type segmentServerAppendToBlockStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *segmentServerAppendToBlockStreamServer) Send(m *AppendToBlockStreamResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *segmentServerAppendToBlockStreamServer) Recv() (*AppendToBlockStreamRequest, error) {
+	m := new(AppendToBlockStreamRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func _SegmentServer_ReadFromBlockStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(SegmentServerServer).ReadFromBlockStream(&segmentServerReadFromBlockStreamServer{stream})
+}
+
+type SegmentServer_ReadFromBlockStreamServer interface {
+	Send(*ReadFromBlockStreamResponse) error
+	Recv() (*ReadFromBlockStreamRequest, error)
+	grpc.ServerStream
+}
+
+type segmentServerReadFromBlockStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *segmentServerReadFromBlockStreamServer) Send(m *ReadFromBlockStreamResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *segmentServerReadFromBlockStreamServer) Recv() (*ReadFromBlockStreamRequest, error) {
+	m := new(ReadFromBlockStreamRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func _SegmentServer_LookupOffsetInBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(LookupOffsetInBlockRequest)
 	if err := dec(in); err != nil {
@@ -459,6 +583,19 @@ var SegmentServer_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _SegmentServer_Status_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "AppendToBlockStream",
+			Handler:       _SegmentServer_AppendToBlockStream_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "ReadFromBlockStream",
+			Handler:       _SegmentServer_ReadFromBlockStream_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "segment.proto",
 }

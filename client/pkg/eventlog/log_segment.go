@@ -33,7 +33,7 @@ import (
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
 	// this project.
-
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/record"
 	"github.com/linkall-labs/vanus/pkg/errors"
 )
@@ -171,6 +171,18 @@ func (s *segment) Append(ctx context.Context, event *ce.Event) (int64, error) {
 	return off + s.startOffset, nil
 }
 
+func (s *segment) AppendStream(ctx context.Context, event *ce.Event, cb api.Callback) {
+	_ctx, span := s.tracer.Start(ctx, "AppendStream")
+	defer span.End()
+
+	b := s.preferSegmentBlock()
+	if b == nil {
+		cb(errors.ErrNotLeader)
+		return
+	}
+	b.AppendStream(_ctx, event, cb)
+}
+
 func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
 	if from < s.startOffset {
 		return nil, errors.ErrOffsetUnderflow
@@ -192,6 +204,50 @@ func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeo
 		return nil, errors.ErrBlockNotFound
 	}
 	events, err := b.Read(ctx, from-s.startOffset, size, pollingTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, e := range events {
+		v, ok := e.Extensions()[segpb.XVanusBlockOffset]
+		if !ok {
+			continue
+		}
+		off, ok := v.(int32)
+		if !ok {
+			return events, errors.ErrCorruptedEvent
+		}
+		offset := s.startOffset + int64(off)
+		buf := make([]byte, 8)
+		binary.BigEndian.PutUint64(buf, uint64(offset))
+		e.SetExtension(XVanusLogOffset, buf)
+		e.SetExtension(segpb.XVanusBlockOffset, nil)
+	}
+
+	return events, err
+}
+
+func (s *segment) ReadStream(ctx context.Context, from int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
+	if from < s.startOffset {
+		return nil, errors.ErrOffsetUnderflow
+	}
+	ctx, span := s.tracer.Start(ctx, "ReadStream")
+	defer span.End()
+
+	if eo := s.endOffset.Load(); eo >= 0 {
+		if from > eo {
+			return nil, errors.ErrOffsetOverflow
+		}
+		if int64(size) > eo-from {
+			size = int16(eo - from)
+		}
+	}
+	// TODO: cached read
+	b := s.preferSegmentBlock()
+	if b == nil {
+		return nil, errors.ErrBlockNotFound
+	}
+	events, err := b.ReadStream(ctx, from-s.startOffset, size, pollingTimeout)
 	if err != nil {
 		return nil, err
 	}

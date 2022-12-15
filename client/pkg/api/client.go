@@ -21,6 +21,10 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 )
 
+// TODO(jiangkai): currently, only business layer error is returned, because
+// the eventlogid cannot be obtained here, so the eventid cannot be generated.
+type Callback func(error)
+
 type Eventbus interface {
 	Writer(opts ...WriteOption) BusWriter
 	Reader(opts ...ReadOption) BusReader
@@ -33,10 +37,12 @@ type Eventbus interface {
 type BusWriter interface {
 	AppendOne(ctx context.Context, event *ce.Event, opts ...WriteOption) (eid string, err error)
 	AppendMany(ctx context.Context, events []*ce.Event, opts ...WriteOption) (eid string, err error)
+	AppendOneStream(ctx context.Context, event *ce.Event, cb Callback, opts ...WriteOption)
 }
 
 type BusReader interface {
 	Read(ctx context.Context, opts ...ReadOption) ([]*ce.Event, int64, uint64, error)
+	ReadStream(ctx context.Context, opts ...ReadOption) ([]*ce.Event, int64, uint64, error)
 }
 
 type Eventlog interface {

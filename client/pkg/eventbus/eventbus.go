@@ -30,8 +30,6 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/scylladb/go-set/u64set"
 
-	// first-party libraries
-
 	// this project.
 	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
@@ -480,6 +478,29 @@ func (w *busWriter) AppendOne(ctx context.Context, event *ce.Event, opts ...api.
 	return encoded, nil
 }
 
+func (w *busWriter) AppendOneStream(ctx context.Context, event *ce.Event, cb api.Callback, opts ...api.WriteOption) {
+	_ctx, span := w.tracer.Start(ctx, "AppendOneStream")
+	defer span.End()
+
+	var writeOpts *api.WriteOptions = w.opts
+	if len(opts) > 0 {
+		writeOpts = w.opts.Copy()
+		for _, opt := range opts {
+			opt(writeOpts)
+		}
+	}
+
+	// 1. pick a writer of eventlog
+	lw, err := w.pickWritableLog(_ctx, writeOpts)
+	if err != nil {
+		cb(err)
+		return
+	}
+
+	// 2. append the event to the eventlog
+	lw.AppendStream(_ctx, event, cb)
+}
+
 func (w *busWriter) AppendMany(ctx context.Context, events []*ce.Event, opts ...api.WriteOption) (eid string, err error) {
 	// TODO(jiangkai): implement this method, by jiangkai, 2022.10.24
 	return "", nil
@@ -540,6 +561,38 @@ func (r *busReader) Read(ctx context.Context, opts ...api.ReadOption) ([]*ce.Eve
 
 	// 2. read the event to the eventlog
 	events, err := lr.Read(_ctx, int16(readOpts.BatchSize))
+	if err != nil {
+		return []*ce.Event{}, 0, 0, err
+	}
+	return events, off, lr.Log().ID(), nil
+}
+
+func (r *busReader) ReadStream(ctx context.Context, opts ...api.ReadOption) ([]*ce.Event, int64, uint64, error) {
+	_ctx, span := r.tracer.Start(ctx, "Read")
+	defer span.End()
+
+	var readOpts *api.ReadOptions = r.opts
+	if len(opts) > 0 {
+		readOpts = r.opts.Copy()
+		for _, opt := range opts {
+			opt(readOpts)
+		}
+	}
+
+	// 1. pick a reader of eventlog
+	lr, err := r.pickReadableLog(_ctx, readOpts)
+	if err != nil {
+		return []*ce.Event{}, 0, 0, err
+	}
+
+	// TODO(jiangkai): refactor eventlog interface to avoid seek every time, by jiangkai, 2022.10.24
+	off, err := lr.Seek(_ctx, readOpts.Policy.Offset(), io.SeekStart)
+	if err != nil {
+		return []*ce.Event{}, 0, 0, err
+	}
+
+	// 2. read the event to the eventlog
+	events, err := lr.ReadStream(_ctx, int16(readOpts.BatchSize))
 	if err != nil {
 		return []*ce.Event{}, 0, 0, err
 	}

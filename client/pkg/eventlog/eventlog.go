@@ -50,6 +50,8 @@ type LogWriter interface {
 	Close(ctx context.Context)
 
 	Append(ctx context.Context, event *ce.Event) (off int64, err error)
+
+	AppendStream(ctx context.Context, event *ce.Event, cb api.Callback)
 }
 
 type LogReader interface {
@@ -67,4 +69,6 @@ type LogReader interface {
 	//
 	// Also see `io.Seeker`.
 	Seek(ctx context.Context, offset int64, whence int) (off int64, err error)
+
+	ReadStream(ctx context.Context, size int16) (events []*ce.Event, err error)
 }
