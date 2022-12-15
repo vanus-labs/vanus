@@ -17,12 +17,12 @@ package util
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ohler55/ojg/jp"
-	"github.com/ohler55/ojg/oj"
 	"strings"
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/ohler55/ojg/jp"
+	"github.com/ohler55/ojg/oj"
 )
 
 // LookupAttribute lookup event attribute value by attribute name.
