@@ -25,12 +25,13 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/block"
+
 	cetest "github.com/linkall-labs/vanus/internal/store/schema/ce/testing"
 	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
 	"github.com/linkall-labs/vanus/internal/store/vsb/index"
 	idxtest "github.com/linkall-labs/vanus/internal/store/vsb/index/testing"
 	vsbtest "github.com/linkall-labs/vanus/internal/store/vsb/testing"
+	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 func TestVSBlock_Read(t *testing.T) {
@@ -85,16 +86,16 @@ func TestVSBlock_Read(t *testing.T) {
 		cetest.CheckEntry1(entries[0], false, false)
 
 		_, err = b.Read(context.Background(), 2, 1)
-		So(err, ShouldBeError, block.ErrOnEnd)
+		So(err, ShouldBeError, errors.ErrOffsetOnEnd)
 
 		_, err = b.Read(context.Background(), 3, 1)
-		So(err, ShouldBeError, block.ErrExceeded)
+		So(err, ShouldBeError, errors.ErrOffsetOverflow)
 
 		Convey("after block is full", func() {
 			b.actx.archived = 1
 
 			_, err = b.Read(context.Background(), 2, 1)
-			So(err, ShouldBeError, block.ErrExceeded)
+			So(err, ShouldBeError, errors.ErrOffsetOverflow)
 		})
 	})
 }

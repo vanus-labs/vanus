@@ -73,19 +73,6 @@ func (e *ErrorType) Wrap(err error) *ErrorType {
 	return _e
 }
 
-// GRPCError convert ErrorType to a gRPC error, if ErrorType.Code hasn't been set,
-// the default gRPC error is UNKNOWN.
-func (e *ErrorType) GRPCError() *Error {
-	er := &Error{
-		Message: e.Message,
-		Code:    e.Code,
-	}
-	if e.Code == ErrorCode_UNKNOWN {
-		e.Code = ErrorCode_INTERNAL
-	}
-	return er
-}
-
 func (e *ErrorType) JSON() string {
 	data, _ := json.Marshal(e)
 	return string(data)

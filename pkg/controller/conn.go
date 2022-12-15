@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/linkall-labs/vanus/observability/log"
-	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
+	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -71,7 +71,7 @@ func (c *conn) invoke(ctx context.Context, method string, args, reply interface{
 	conn := c.makeSureClient(ctx, false)
 	if conn == nil {
 		log.Warning(ctx, "not get client for controller", map[string]interface{}{})
-		return ErrNoControllerLeader
+		return errors.ErrNoControllerLeader
 	}
 	err := conn.Invoke(ctx, method, args, reply, opts...)
 	if err != nil {
@@ -83,7 +83,7 @@ func (c *conn) invoke(ctx context.Context, method string, args, reply interface{
 		conn = c.makeSureClient(ctx, true)
 		if conn == nil {
 			log.Warning(ctx, "not get client when try to renew client", map[string]interface{}{})
-			return ErrNoControllerLeader
+			return errors.ErrNoControllerLeader
 		}
 		err = conn.Invoke(ctx, method, args, reply, opts...)
 	}
@@ -103,7 +103,7 @@ func (c *conn) close() error {
 				log.KeyError:   _err,
 				"peer_address": ip,
 			})
-			err = errutil.Chain(err, _err)
+			err = errors.Chain(err, _err)
 		}
 	}
 	return err
@@ -190,7 +190,7 @@ func isNeedRetry(err error) bool {
 	if err == nil {
 		return false
 	}
-	if stderr.Is(err, ErrNoControllerLeader) {
+	if stderr.Is(err, errors.ErrNoControllerLeader) {
 		return true
 	}
 	sts := status.Convert(err)

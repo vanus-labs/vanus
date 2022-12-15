@@ -34,8 +34,8 @@ import (
 
 	// this project.
 
-	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/record"
+	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 func newSegment(ctx context.Context, r *record.Segment, towrite bool) (*segment, error) {
@@ -68,7 +68,7 @@ func newBlockExt(ctx context.Context, r *record.Segment, leaderOnly bool) (*bloc
 	id := r.LeaderBlockID
 	if id == 0 {
 		if leaderOnly {
-			return nil, errors.ErrNoLeader
+			return nil, errors.ErrNotLeader
 		}
 		for _, b := range r.Blocks {
 			if b.Endpoint != "" {
@@ -79,7 +79,7 @@ func newBlockExt(ctx context.Context, r *record.Segment, leaderOnly bool) (*bloc
 	}
 	b, ok := r.Blocks[id]
 	if !ok {
-		return nil, errors.ErrNoBlock
+		return nil, errors.ErrBlockNotFound
 	}
 	return newBlock(ctx, b)
 }
@@ -162,7 +162,7 @@ func (s *segment) Append(ctx context.Context, event *ce.Event) (int64, error) {
 
 	b := s.preferSegmentBlock()
 	if b == nil {
-		return -1, errors.ErrNoLeader
+		return -1, errors.ErrNotLeader
 	}
 	off, err := b.Append(_ctx, event)
 	if err != nil {
@@ -173,14 +173,14 @@ func (s *segment) Append(ctx context.Context, event *ce.Event) (int64, error) {
 
 func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
 	if from < s.startOffset {
-		return nil, errors.ErrUnderflow
+		return nil, errors.ErrOffsetUnderflow
 	}
 	ctx, span := s.tracer.Start(ctx, "Read")
 	defer span.End()
 
 	if eo := s.endOffset.Load(); eo >= 0 {
 		if from > eo {
-			return nil, errors.ErrOverflow
+			return nil, errors.ErrOffsetOverflow
 		}
 		if int64(size) > eo-from {
 			size = int16(eo - from)
@@ -189,7 +189,7 @@ func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeo
 	// TODO: cached read
 	b := s.preferSegmentBlock()
 	if b == nil {
-		return nil, errors.ErrNoBlock
+		return nil, errors.ErrBlockNotFound
 	}
 	events, err := b.Read(ctx, from-s.startOffset, size, pollingTimeout)
 	if err != nil {

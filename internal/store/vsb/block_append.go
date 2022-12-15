@@ -27,9 +27,9 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/internal/store/errors"
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	"github.com/linkall-labs/vanus/internal/store/vsb/index"
+	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 var errCorruptedFragment = stderr.New("vsb: corrupted fragment")

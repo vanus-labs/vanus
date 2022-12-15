@@ -16,11 +16,13 @@ package controller
 
 import (
 	"context"
+	"io"
+
 	"github.com/linkall-labs/vanus/observability/log"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io"
 
+	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	"google.golang.org/grpc"
@@ -50,7 +52,7 @@ func (tc *triggerClient) Beat(ctx context.Context, v interface{}) error {
 	})
 	req, ok := v.(*ctrlpb.TriggerWorkerHeartbeatRequest)
 	if !ok {
-		return ErrInvalidHeartBeatRequest
+		return errors.ErrInvalidHeartBeatRequest
 	}
 	var err error
 	makeSureClient := func() error {
@@ -61,7 +63,7 @@ func (tc *triggerClient) Beat(ctx context.Context, v interface{}) error {
 			if sts.Code() == codes.Unavailable {
 				client = ctrlpb.NewTriggerControllerClient(tc.cc.makeSureClient(ctx, true))
 				if client == nil {
-					return ErrNoControllerLeader
+					return errors.ErrNoControllerLeader
 				}
 				tc.heartBeatClient, err = client.TriggerWorkerHeartbeat(ctx)
 				if err != nil {

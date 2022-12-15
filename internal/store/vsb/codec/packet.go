@@ -23,7 +23,7 @@ import (
 
 	// first-party project.
 	"github.com/linkall-labs/vanus/observability/tracing"
-	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
+	"github.com/linkall-labs/vanus/pkg/errors"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
@@ -124,7 +124,7 @@ func (pd *packetDecoder) UnmarshalLast(data []byte) (int, block.Entry, error) {
 func (pd *packetDecoder) UnmarshalReader(r io.ReadSeeker) (int, block.Entry, error) {
 	var lb [packetLengthSize]byte
 	if _, err := r.Read(lb[:]); err != nil {
-		return -1, nil, errutil.Chain(ErrIncompletePacket, err)
+		return -1, nil, errors.Chain(ErrIncompletePacket, err)
 	}
 
 	length := int(binary.LittleEndian.Uint32(lb[:]))
@@ -156,7 +156,7 @@ func (pd *packetDecoder) UnmarshalReader(r io.ReadSeeker) (int, block.Entry, err
 
 	buf := make([]byte, length)
 	if _, err := r.Read(buf); err != nil {
-		return -1, nil, errutil.Chain(ErrIncompletePacket, err)
+		return -1, nil, errors.Chain(ErrIncompletePacket, err)
 	}
 
 	// FIXME(james.yin): persisted data is partial.
