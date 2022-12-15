@@ -18,11 +18,10 @@ import (
 	"testing"
 
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestStructAction(t *testing.T) {
+func TestDeleteAction(t *testing.T) {
 	Convey("test delete", t, func() {
 		Convey("delete cant not delete key", func() {
 			a, err := NewAction([]interface{}{newDeleteAction().Name(), "$.id"})
@@ -45,6 +44,9 @@ func TestStructAction(t *testing.T) {
 			So(len(e.Extensions()), ShouldEqual, 0)
 		})
 	})
+}
+
+func TestCreateAction(t *testing.T) {
 	Convey("test create", t, func() {
 		Convey("create exist key", func() {
 			a, err := NewAction([]interface{}{newCreateActionAction().Name(), "$.test", "newValue"})
@@ -76,6 +78,9 @@ func TestStructAction(t *testing.T) {
 			So(e.Extensions()["test"], ShouldEqual, "testValue")
 		})
 	})
+}
+
+func TestReplaceAction(t *testing.T) {
 	Convey("test replace", t, func() {
 		Convey("replace no exist key", func() {
 			a, err := NewAction([]interface{}{newReplaceAction().Name(), "$.test", "newValue"})
@@ -98,6 +103,9 @@ func TestStructAction(t *testing.T) {
 			So(e.Extensions()["test"], ShouldEqual, "testValue")
 		})
 	})
+}
+
+func TestMoveAction(t *testing.T) {
 	Convey("test move", t, func() {
 		Convey("move target key exist", func() {
 			a, err := NewAction([]interface{}{newMoveActionAction().Name(), "$.test", "$.data.abc.test"})
@@ -129,6 +137,9 @@ func TestStructAction(t *testing.T) {
 			So(ceCtx.Data.(map[string]interface{})["abc"].(map[string]interface{})["test"], ShouldEqual, "abc")
 		})
 	})
+}
+
+func TestRenameAction(t *testing.T) {
 	Convey("test rename", t, func() {
 		Convey("rename target key exist", func() {
 			a, err := NewAction([]interface{}{newRenameActionAction().Name(), "$.test", "$.test2"})

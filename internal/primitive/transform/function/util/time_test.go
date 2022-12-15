@@ -12,25 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package action
+package util
 
 import (
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestReplaceWithRegexAction(t *testing.T) {
-	Convey("test replace with regex", t, func() {
-		a, err := NewAction([]interface{}{newReplaceWithRegexAction().Name(), "$.test", "a", "value"})
-		So(err, ShouldBeNil)
-		e := newEvent()
-		e.SetExtension("test", "a-a")
-		err = a.Execute(&context.EventContext{
-			Event: e,
-		})
-		So(err, ShouldBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "value-value")
+func TestFormat2layout(t *testing.T) {
+	Convey("test format 2 layout", t, func() {
+		format := "Y-m-dTH:i:s"
+		layout := ConvertFormat2Go(format)
+		So(layout, ShouldEqual, "2006-01-02T15:04:05")
 	})
 }

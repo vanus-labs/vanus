@@ -18,11 +18,10 @@ import (
 	"testing"
 
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestMathAction(t *testing.T) {
+func TestMathAddAction(t *testing.T) {
 	Convey("test math add", t, func() {
 		a, err := NewAction([]interface{}{newMathAddActionAction().Name(), "$.test", "123", "456", "321"})
 		So(err, ShouldBeNil)
@@ -33,6 +32,9 @@ func TestMathAction(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(e.Extensions()["test"], ShouldEqual, int32(900))
 	})
+}
+
+func TestMathSubAction(t *testing.T) {
 	Convey("test math sub", t, func() {
 		a, err := NewAction([]interface{}{newMathSubActionAction().Name(), "$.test", "456", "123"})
 		So(err, ShouldBeNil)
@@ -43,6 +45,9 @@ func TestMathAction(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(e.Extensions()["test"], ShouldEqual, int32(333))
 	})
+}
+
+func TestMathMulAction(t *testing.T) {
 	Convey("test math mul", t, func() {
 		a, err := NewAction([]interface{}{newMathMulActionAction().Name(), "$.test", "111", "2", "3"})
 		So(err, ShouldBeNil)
@@ -53,6 +58,9 @@ func TestMathAction(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(e.Extensions()["test"], ShouldEqual, int32(666))
 	})
+}
+
+func TestMathDivAction(t *testing.T) {
 	Convey("test math div", t, func() {
 		Convey("div zero", func() {
 			a, err := NewAction([]interface{}{newMathDivActionAction().Name(), "$.test", "333", "0"})

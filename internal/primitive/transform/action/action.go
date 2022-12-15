@@ -18,12 +18,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-
-	"github.com/pkg/errors"
-
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
+	"github.com/pkg/errors"
 )
 
 type newAction func() Action
@@ -170,8 +168,8 @@ func init() {
 		newMathMulActionAction,
 		newMathDivActionAction,
 		// format
-		newFormatDateAction,
-		newFormatUnixTimeAction,
+		newDateFormatAction,
+		newUnixTimeFormatAction,
 		// string
 		newJoinAction,
 		newUpperAction,
