@@ -86,7 +86,7 @@ func TestTimingWheel_Start(t *testing.T) {
 		tw.ctrl = mockCl
 		mockSvc := cluster.NewMockEventbusService(mockCtrl)
 		mockCl.EXPECT().EventbusService().AnyTimes().Return(mockSvc)
-		mockSvc.EXPECT().CreateSystemEventbusIfNotExist(Any(), Any(), Any(), Any()).AnyTimes().Return(nil)
+		mockSvc.EXPECT().CreateSystemEventbusIfNotExist(Any(), Any(), Any()).AnyTimes().Return(nil)
 		mockSvc.EXPECT().IsExist(Any(), Any()).AnyTimes().Return(true)
 
 		Convey("test timingwheel start bucket start success", func() {
@@ -265,7 +265,7 @@ func TestTimingWheel_startReceivingStation(t *testing.T) {
 		mockCl.EXPECT().EventbusService().AnyTimes().Return(mockSvc)
 
 		Convey("test timingwheel start receiving station with create eventbus failed", func() {
-			mockSvc.EXPECT().CreateSystemEventbusIfNotExist(Any(), Any(), Any(), Any()).Times(1).Return(errors.New("test"))
+			mockSvc.EXPECT().CreateSystemEventbusIfNotExist(Any(), Any(), Any()).Times(1).Return(errors.New("test"))
 			err := tw.startReceivingStation(ctx)
 			So(err, ShouldNotBeNil)
 		})
@@ -371,7 +371,7 @@ func TestTimingWheel_startDistributionStation(t *testing.T) {
 		mockCl.EXPECT().EventbusService().AnyTimes().Return(mockSvc)
 
 		Convey("test timingwheel start distribution station with create eventbus failed", func() {
-			mockSvc.EXPECT().CreateSystemEventbusIfNotExist(Any(), Any(), Any(), Any()).Times(1).Return(errors.New("test"))
+			mockSvc.EXPECT().CreateSystemEventbusIfNotExist(Any(), Any(), Any()).Times(1).Return(errors.New("test"))
 			err := tw.startDistributionStation(ctx)
 			So(err, ShouldNotBeNil)
 		})
@@ -591,7 +591,7 @@ func TestTimingWheelElement_pushBack(t *testing.T) {
 
 		Convey("push timing message failure causes start failed", func() {
 			tw.SetLeader(true)
-			mockSvc.EXPECT().CreateSystemEventbusIfNotExist(Any(), Any(), Any(), Any()).Times(1).Return(errors.New("test"))
+			mockSvc.EXPECT().CreateSystemEventbusIfNotExist(Any(), Any(), Any()).Times(1).Return(errors.New("test"))
 			tm := newTimingMsg(ctx, event(1000))
 			twe := tw.twList.Back().Value.(*timingWheelElement)
 			result := twe.pushBack(ctx, tm)

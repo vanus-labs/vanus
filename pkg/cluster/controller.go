@@ -18,7 +18,6 @@ package cluster
 import (
 	"context"
 	"errors"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"sync"
 	"time"
 
@@ -26,6 +25,7 @@ import (
 	"github.com/linkall-labs/vanus/pkg/cluster/raw_client"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -51,7 +51,7 @@ type Cluster interface {
 
 type EventbusService interface {
 	IsExist(ctx context.Context, name string) bool
-	CreateSystemEventbusIfNotExist(ctx context.Context, name string, logNum int, desc string) error
+	CreateSystemEventbusIfNotExist(ctx context.Context, name string, desc string) error
 	Delete(ctx context.Context, name string) error
 	RawClient() ctrlpb.EventBusControllerClient
 }

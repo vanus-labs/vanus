@@ -329,7 +329,7 @@ func (b *bucket) createEventbus(ctx context.Context) error {
 		return nil
 	}
 	return b.timingwheel.ctrl.EventbusService().CreateSystemEventbusIfNotExist(ctx, b.eventbus,
-		1, "System Eventbus For Timing Service")
+		"System Eventbus For Timing Service")
 }
 
 func (b *bucket) connectEventbus(ctx context.Context) {

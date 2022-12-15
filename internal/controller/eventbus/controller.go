@@ -121,6 +121,7 @@ func (ctrl *controller) CreateEventBus(ctx context.Context,
 }
 
 func isValidEventbusName(name string) error {
+	name = strings.ToLower(name)
 	for _, v := range name {
 		if v == '.' || v == '_' || v == '-' {
 			continue

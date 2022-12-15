@@ -48,7 +48,6 @@ var (
 
 const (
 	defaultGcSubscriptionInterval = time.Second * 10
-	defaultSystemEventbusEventlog = 1
 )
 
 func NewController(config Config, member embedetcd.Member) *controller {
@@ -521,7 +520,7 @@ func (ctrl *controller) initTriggerSystemEventbus() {
 		}
 
 		if err := ctrl.cl.EventbusService().CreateSystemEventbusIfNotExist(ctx, primitive.RetryEventbusName,
-			defaultSystemEventbusEventlog, "System Eventbus For Trigger Service"); err != nil {
+			"System Eventbus For Trigger Service"); err != nil {
 			log.Error(context.Background(), "failed to create RetryEventbus, exit", map[string]interface{}{
 				log.KeyError: err,
 			})
@@ -529,7 +528,7 @@ func (ctrl *controller) initTriggerSystemEventbus() {
 		}
 
 		if err := ctrl.cl.EventbusService().CreateSystemEventbusIfNotExist(ctx, primitive.DeadLetterEventbusName,
-			defaultSystemEventbusEventlog, "System Eventbus For Trigger Service"); err != nil {
+			"System Eventbus For Trigger Service"); err != nil {
 			log.Error(context.Background(), "failed to create DeadLetterEventbus, exit", map[string]interface{}{
 				log.KeyError: err,
 			})

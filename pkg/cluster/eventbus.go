@@ -10,7 +10,8 @@ import (
 )
 
 var (
-	systemEventbusPrefix = "__"
+	systemEventbusPrefix          = "__"
+	defaultSystemEventbusEventlog = 1
 )
 
 type eventbusService struct {
@@ -28,7 +29,7 @@ func (es *eventbusService) IsExist(ctx context.Context, name string) bool {
 	return err == nil
 }
 
-func (es *eventbusService) CreateSystemEventbusIfNotExist(ctx context.Context, name string, logNum int, desc string) error {
+func (es *eventbusService) CreateSystemEventbusIfNotExist(ctx context.Context, name string, desc string) error {
 	if es.IsExist(ctx, name) {
 		return nil
 	}
@@ -36,7 +37,7 @@ func (es *eventbusService) CreateSystemEventbusIfNotExist(ctx context.Context, n
 	// TODO 创建前需要等到Store就绪，而store的就绪在controller之后，创建又在controller就绪过程中
 	_, err := es.client.CreateSystemEventBus(ctx, &ctrlpb.CreateEventBusRequest{
 		Name:        name,
-		LogNumber:   int32(logNum),
+		LogNumber:   int32(defaultSystemEventbusEventlog),
 		Description: desc,
 	})
 	return err

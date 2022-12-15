@@ -172,17 +172,17 @@ func (m *MockEventbusService) EXPECT() *MockEventbusServiceMockRecorder {
 }
 
 // CreateSystemEventbusIfNotExist mocks base method.
-func (m *MockEventbusService) CreateSystemEventbusIfNotExist(ctx context.Context, name string, logNum int, desc string) error {
+func (m *MockEventbusService) CreateSystemEventbusIfNotExist(ctx context.Context, name, desc string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateSystemEventbusIfNotExist", ctx, name, logNum, desc)
+	ret := m.ctrl.Call(m, "CreateSystemEventbusIfNotExist", ctx, name, desc)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // CreateSystemEventbusIfNotExist indicates an expected call of CreateSystemEventbusIfNotExist.
-func (mr *MockEventbusServiceMockRecorder) CreateSystemEventbusIfNotExist(ctx, name, logNum, desc interface{}) *gomock.Call {
+func (mr *MockEventbusServiceMockRecorder) CreateSystemEventbusIfNotExist(ctx, name, desc interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSystemEventbusIfNotExist", reflect.TypeOf((*MockEventbusService)(nil).CreateSystemEventbusIfNotExist), ctx, name, logNum, desc)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSystemEventbusIfNotExist", reflect.TypeOf((*MockEventbusService)(nil).CreateSystemEventbusIfNotExist), ctx, name, desc)
 }
 
 // Delete mocks base method.

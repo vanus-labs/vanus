@@ -20,6 +20,9 @@ import (
 	"encoding/json"
 	stderr "errors"
 	"fmt"
+	"io"
+	"sync"
+	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/client"
@@ -32,10 +35,7 @@ import (
 	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc/credentials/insecure"
-	"io"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"sync"
-	"time"
 )
 
 const (

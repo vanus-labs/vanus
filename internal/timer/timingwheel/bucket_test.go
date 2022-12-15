@@ -256,7 +256,7 @@ func TestBucket_createEventBus(t *testing.T) {
 		tw.ctrl = mockCl
 		mockSvc := cluster.NewMockEventbusService(mockCtrl)
 		mockCl.EXPECT().EventbusService().Times(1).Return(mockSvc)
-		mockSvc.EXPECT().CreateSystemEventbusIfNotExist(Any(), Any(), Any(), Any()).Times(1).Return(nil)
+		mockSvc.EXPECT().CreateSystemEventbusIfNotExist(Any(), Any(), Any()).Times(1).Return(nil)
 
 		err := bucket.createEventbus(ctx)
 		So(err, ShouldBeNil)
