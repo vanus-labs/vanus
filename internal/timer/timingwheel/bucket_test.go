@@ -26,9 +26,8 @@ import (
 	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/record"
 	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/linkall-labs/vanus/pkg/cluster"
 	"github.com/linkall-labs/vanus/pkg/errors"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -86,20 +85,11 @@ func TestBucket_start(t *testing.T) {
 		mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
 		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
-		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
 		bucket.client = mockClient
-		bucket.ctrlCli = mockEventbusCtrlCli
 		ls := make([]*record.Eventlog, 1)
 		ls[0] = &record.Eventlog{
 			ID: 1,
 		}
-
-		Convey("test bucket start with create eventbus failed", func() {
-			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, stderr.New("test"))
-			mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, stderr.New("test"))
-			err := bucket.start(ctx)
-			So(err, ShouldNotBeNil)
-		})
 
 		// Convey("test bucket start with connect eventbus failed", func() {
 		// 	mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
@@ -257,64 +247,19 @@ func TestBucket_createEventBus(t *testing.T) {
 		ctx := context.Background()
 		tw := newtimingwheel(cfg())
 		tw.SetLeader(true)
+
 		bucket := newBucket(tw, nil, time.Second, "", 1, 0)
 		bucket.timingwheel = tw
 		mockCtrl := NewController(t)
-		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
-		bucket.ctrlCli = mockEventbusCtrlCli
 
-		Convey("eventbus has exist", func() {
-			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, nil)
-			err := bucket.createEventbus(ctx)
-			So(err, ShouldBeNil)
-		})
+		mockCl := cluster.NewMockCluster(mockCtrl)
+		tw.ctrl = mockCl
+		mockSvc := cluster.NewMockEventbusService(mockCtrl)
+		mockCl.EXPECT().EventbusService().Times(1).Return(mockSvc)
+		mockSvc.EXPECT().CreateSystemEventbusIfNotExist(Any(), Any(), Any(), Any()).Times(1).Return(nil)
 
-		Convey("create failed", func() {
-			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, stderr.New("test"))
-			mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, stderr.New("test"))
-			err := bucket.createEventbus(ctx)
-			So(err, ShouldNotBeNil)
-		})
-
-		Convey("create success", func() {
-			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, stderr.New("test"))
-			mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, nil)
-			err := bucket.createEventbus(ctx)
-			So(err, ShouldBeNil)
-		})
-	})
-}
-
-func TestBucket_deleteEventBus(t *testing.T) {
-	Convey("test bucket delete eventbus", t, func() {
-		ctx := context.Background()
-		tw := newtimingwheel(cfg())
-		tw.SetLeader(true)
-		bucket := newBucket(tw, nil, time.Second, "", 1, 0)
-		bucket.timingwheel = tw
-		mockCtrl := NewController(t)
-		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
-		bucket.ctrlCli = mockEventbusCtrlCli
-
-		Convey("eventbus has not exist", func() {
-			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, stderr.New("test"))
-			err := bucket.deleteEventbus(ctx)
-			So(err, ShouldBeNil)
-		})
-
-		Convey("delete failed", func() {
-			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, nil)
-			mockEventbusCtrlCli.EXPECT().DeleteEventBus(Any(), Any()).Times(1).Return(nil, stderr.New("test"))
-			err := bucket.deleteEventbus(ctx)
-			So(err, ShouldNotBeNil)
-		})
-
-		Convey("delete success", func() {
-			mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, nil)
-			mockEventbusCtrlCli.EXPECT().DeleteEventBus(Any(), Any()).Times(1).Return(nil, nil)
-			err := bucket.deleteEventbus(ctx)
-			So(err, ShouldBeNil)
-		})
+		err := bucket.createEventbus(ctx)
+		So(err, ShouldBeNil)
 	})
 }
 
@@ -570,6 +515,12 @@ func TestBucket_recycle(t *testing.T) {
 		mockEventbusReader := api.NewMockBusReader(mockCtrl)
 		bucket.eventbusWriter = mockEventbusWriter
 		bucket.eventbusReader = mockEventbusReader
+
+		mockCl := cluster.NewMockCluster(mockCtrl)
+		tw.ctrl = mockCl
+		mockSvc := cluster.NewMockEventbusService(mockCtrl)
+		mockCl.EXPECT().EventbusService().Times(1).Return(mockSvc)
+		mockSvc.EXPECT().Delete(Any(), Any()).Times(1).Return(nil)
 
 		Convey("test bucket wait success", func() {
 			bucket.recycle(ctx)

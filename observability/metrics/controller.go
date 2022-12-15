@@ -23,7 +23,7 @@ var (
 		Namespace: namespace,
 		Subsystem: moduleOfController,
 		Name:      "eventbus_number_total",
-		Help:      "The number of Eventbus.",
+		Help:      "The number of EventbusService.",
 	})
 
 	EventlogGaugeVec = prometheus.NewGauge(prometheus.GaugeOpts{

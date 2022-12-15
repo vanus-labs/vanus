@@ -1,4 +1,4 @@
-package controller
+package raw_client
 
 import (
 	"errors"

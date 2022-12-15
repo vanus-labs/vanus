@@ -644,7 +644,7 @@ const _ = grpc.SupportPackageIsVersion6
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ControllerProxyClient interface {
-	// Eventbus
+	// EventbusService
 	CreateEventBus(ctx context.Context, in *controller.CreateEventBusRequest, opts ...grpc.CallOption) (*meta.EventBus, error)
 	DeleteEventBus(ctx context.Context, in *meta.EventBus, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetEventBus(ctx context.Context, in *meta.EventBus, opts ...grpc.CallOption) (*meta.EventBus, error)
@@ -799,7 +799,7 @@ func (c *controllerProxyClient) GetEvent(ctx context.Context, in *GetEventReques
 
 // ControllerProxyServer is the server API for ControllerProxy service.
 type ControllerProxyServer interface {
-	// Eventbus
+	// EventbusService
 	CreateEventBus(context.Context, *controller.CreateEventBusRequest) (*meta.EventBus, error)
 	DeleteEventBus(context.Context, *meta.EventBus) (*emptypb.Empty, error)
 	GetEventBus(context.Context, *meta.EventBus) (*meta.EventBus, error)

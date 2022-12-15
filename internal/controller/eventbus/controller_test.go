@@ -20,6 +20,8 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/golang/mock/gomock"
+	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/eventlog"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/kv"
@@ -27,8 +29,6 @@ import (
 	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
-
-	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -43,6 +43,12 @@ func TestController_CreateEventBus(t *testing.T) {
 		elMgr := eventlog.NewMockManager(mockCtrl)
 		ctrl.eventLogMgr = elMgr
 		ctx := stdCtx.Background()
+
+		mockMember := embedetcd.NewMockMember(mockCtrl)
+		ctrl.member = mockMember
+		mockMember.EXPECT().IsLeader().AnyTimes().Return(true)
+		mockMember.EXPECT().IsReady().AnyTimes().Return(true)
+		mockMember.EXPECT().GetLeaderAddr().AnyTimes().Return("test")
 
 		Convey("test create a eventbus two times", func() {
 			kvCli.EXPECT().Exists(ctx, metadata.GetEventbusMetadataKey("test-1")).Times(1).Return(false, nil)

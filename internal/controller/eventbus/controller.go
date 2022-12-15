@@ -32,6 +32,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
+	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
@@ -94,7 +95,6 @@ func (ctrl *controller) Start(_ context.Context) error {
 		return err
 	}
 	ctrl.kvStore = store
-
 	ctrl.cancelCtx, ctrl.cancelFunc = context.WithCancel(context.Background())
 	go ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
 	return nil
@@ -114,8 +114,46 @@ func (ctrl *controller) StopNotify() <-chan error {
 
 func (ctrl *controller) CreateEventBus(ctx context.Context,
 	req *ctrlpb.CreateEventBusRequest) (*metapb.EventBus, error) {
+	if err := isValidEventbusName(req.Name); err != nil {
+		return nil, err
+	}
+	return ctrl.createEventBus(ctx, req)
+}
+
+func isValidEventbusName(name string) error {
+	for _, v := range name {
+		if v == '.' || v == '_' || v == '-' {
+			continue
+		}
+		c := v - 'a'
+		if c >= 0 || c <= 26 {
+			continue
+		} else {
+			c = v - '0'
+			if c >= 0 || c <= 9 {
+				continue
+			}
+			return errors.ErrInvalidRequest.WithMessage("eventbus name must be insist of 0-9a-zA-Z.-_")
+		}
+	}
+	return nil
+}
+
+func (ctrl *controller) CreateSystemEventBus(ctx context.Context,
+	req *ctrlpb.CreateEventBusRequest) (*metapb.EventBus, error) {
+	if !strings.HasPrefix(req.Name, primitive.SystemEventbusNamePrefix) {
+		return nil, errors.ErrInvalidRequest.WithMessage("system eventbus must start with __")
+	}
+	return ctrl.createEventBus(ctx, req)
+}
+
+func (ctrl *controller) createEventBus(ctx context.Context,
+	req *ctrlpb.CreateEventBusRequest) (*metapb.EventBus, error) {
 	ctrl.mutex.Lock()
 	defer ctrl.mutex.Unlock()
+	if !ctrl.isReady(ctx) {
+		return nil, errors.ErrResourceCanNotOp.WithMessage("the cluster isn't ready to create eventbus")
+	}
 	logNum := req.LogNumber
 	if logNum == 0 {
 		logNum = 1
@@ -451,10 +489,21 @@ func (ctrl *controller) ReportSegmentBlockIsFull(ctx context.Context,
 	return &emptypb.Empty{}, nil
 }
 
-func (ctrl *controller) Ping(_ context.Context, _ *emptypb.Empty) (*ctrlpb.PingResponse, error) {
+func (ctrl *controller) Ping(ctx context.Context, _ *emptypb.Empty) (*ctrlpb.PingResponse, error) {
 	return &ctrlpb.PingResponse{
-		LeaderAddr: ctrl.member.GetLeaderAddr(),
+		LeaderAddr:      ctrl.member.GetLeaderAddr(),
+		IsEventbusReady: ctrl.isReady(ctx),
 	}, nil
+}
+
+func (ctrl *controller) isReady(ctx context.Context) bool {
+	if ctrl.member == nil {
+		return false
+	}
+	if !ctrl.member.IsLeader() && !ctrl.member.IsReady() || ctrl.member.GetLeaderAddr() == "" {
+		return false
+	}
+	return ctrl.ssMgr.CanCreateEventbus(ctx, int(ctrl.cfg.Replicas))
 }
 
 func (ctrl *controller) ReportSegmentLeader(ctx context.Context,

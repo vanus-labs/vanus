@@ -17,6 +17,7 @@ package eventlog
 import (
 	// standard libraries.
 	"context"
+	"github.com/linkall-labs/vanus/pkg/cluster"
 	"math"
 	"time"
 
@@ -27,7 +28,6 @@ import (
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/tracing"
-	"github.com/linkall-labs/vanus/pkg/controller"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 
@@ -38,7 +38,7 @@ import (
 
 func NewNameService(endpoints []string) *NameService {
 	return &NameService{
-		client: controller.NewEventlogClient(endpoints, insecure.NewCredentials()),
+		client: cluster.NewClusterController(endpoints, insecure.NewCredentials()).EventlogService().RawClient(),
 		tracer: tracing.NewTracer("internal.discovery.eventlog", trace.SpanKindClient),
 	}
 }

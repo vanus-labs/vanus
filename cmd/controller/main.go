@@ -87,7 +87,7 @@ func main() {
 
 	segmentCtrl := eventbus.NewController(cfg.GetEventbusCtrlConfig(), etcd)
 	if err = segmentCtrl.Start(ctx); err != nil {
-		log.Error(ctx, "start Eventbus Controller failed", map[string]interface{}{
+		log.Error(ctx, "start EventbusService Controller failed", map[string]interface{}{
 			log.KeyError: err,
 		})
 		os.Exit(-1)

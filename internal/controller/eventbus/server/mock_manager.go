@@ -51,6 +51,20 @@ func (mr *MockManagerMockRecorder) AddServer(ctx, srv interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddServer", reflect.TypeOf((*MockManager)(nil).AddServer), ctx, srv)
 }
 
+// CanCreateEventbus mocks base method.
+func (m *MockManager) CanCreateEventbus(ctx context.Context, replicaNum int) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CanCreateEventbus", ctx, replicaNum)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// CanCreateEventbus indicates an expected call of CanCreateEventbus.
+func (mr *MockManagerMockRecorder) CanCreateEventbus(ctx, replicaNum interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CanCreateEventbus", reflect.TypeOf((*MockManager)(nil).CanCreateEventbus), ctx, replicaNum)
+}
+
 // GetServerByAddress mocks base method.
 func (m *MockManager) GetServerByAddress(addr string) Server {
 	m.ctrl.T.Helper()

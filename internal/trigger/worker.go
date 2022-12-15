@@ -28,7 +28,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/trigger"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/pkg/controller"
+	"github.com/linkall-labs/vanus/pkg/cluster"
 	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
@@ -64,6 +64,7 @@ type worker struct {
 	lock       sync.RWMutex
 	tgLock     sync.RWMutex
 	client     ctrlpb.TriggerControllerClient
+	ctrl       cluster.Cluster
 }
 
 func NewWorker(config Config) Worker {
@@ -73,10 +74,12 @@ func NewWorker(config Config) Worker {
 
 	m := &worker{
 		config:     config,
-		client:     controller.NewTriggerClient(config.ControllerAddr, insecure.NewCredentials()),
+		ctrl:       cluster.NewClusterController(config.ControllerAddr, insecure.NewCredentials()),
 		triggerMap: make(map[vanus.ID]trigger.Trigger),
 		newTrigger: trigger.NewTrigger,
 	}
+	m.client = m.ctrl.TriggerService().RawClient()
+
 	m.ctx, m.stop = context.WithCancel(context.Background())
 	return m
 }
@@ -230,7 +233,7 @@ func (w *worker) startHeartbeat(ctx context.Context) error {
 			SubscriptionInfo: w.getAllSubscriptionInfo(ctx),
 		}
 	}
-	return controller.RegisterHeartbeat(ctx, w.config.HeartbeatInterval, w.client, f)
+	return w.ctrl.TriggerService().RegisterHeartbeat(ctx, w.config.HeartbeatInterval, f)
 }
 
 func (w *worker) stopSubscription(ctx context.Context, id vanus.ID) error {

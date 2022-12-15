@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controller
+package raw_client
 
 import (
 	"context"
@@ -26,7 +26,6 @@ import (
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -35,14 +34,14 @@ var (
 	_ Heartbeat = (*triggerClient)(nil)
 )
 
-func NewTriggerClient(ctrlAddrs []string, credentials credentials.TransportCredentials) ctrlpb.TriggerControllerClient {
+func NewTriggerClient(cc *Conn) ctrlpb.TriggerControllerClient {
 	return &triggerClient{
-		cc: newConn(ctrlAddrs, credentials),
+		cc: cc,
 	}
 }
 
 type triggerClient struct {
-	cc              *conn
+	cc              *Conn
 	heartBeatClient ctrlpb.TriggerController_TriggerWorkerHeartbeatClient
 }
 

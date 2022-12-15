@@ -18,6 +18,7 @@ import (
 	"context"
 	stdErr "errors"
 	"io"
+	"os"
 	"sync"
 	"time"
 
@@ -33,6 +34,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
+	"github.com/linkall-labs/vanus/pkg/cluster"
 	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/linkall-labs/vanus/pkg/util"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
@@ -46,6 +48,7 @@ var (
 
 const (
 	defaultGcSubscriptionInterval = time.Second * 10
+	defaultSystemEventbusEventlog = 1
 )
 
 func NewController(config Config, member embedetcd.Member) *controller {
@@ -74,6 +77,7 @@ type controller struct {
 	ctx                   context.Context
 	stopFunc              context.CancelFunc
 	state                 primitive.ServerState
+	cl                    cluster.Cluster
 }
 
 func (ctrl *controller) CommitOffset(ctx context.Context,
@@ -401,6 +405,7 @@ func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, ad
 }
 
 func (ctrl *controller) init(ctx context.Context) error {
+	ctrl.initTriggerSystemEventbus()
 	err := ctrl.subscriptionManager.Init(ctx)
 	if err != nil {
 		return err
@@ -464,7 +469,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context,
 	return nil
 }
 
-func (ctrl *controller) stop(ctx context.Context) error {
+func (ctrl *controller) stop(_ context.Context) error {
 	ctrl.member.ResignIfLeader()
 	ctrl.state = primitive.ServerStateStopping
 	ctrl.stopFunc()
@@ -502,4 +507,33 @@ func (ctrl *controller) Stop(ctx context.Context) {
 			log.KeyError: err,
 		})
 	}
+}
+
+func (ctrl *controller) initTriggerSystemEventbus() {
+	// avoid blocking starting
+	go func() {
+		ctx := context.Background()
+		log.Info(ctx, "trigger controller is ready to check system eventbus", nil)
+		if err := ctrl.cl.WaitForControllerReady(true); err != nil {
+			log.Error(context.Background(), "trigger controller try to create system eventbus, "+
+				"but Vanus cluster hasn't ready, exit", nil)
+			os.Exit(-1)
+		}
+
+		if err := ctrl.cl.EventbusService().CreateSystemEventbusIfNotExist(ctx, primitive.RetryEventbusName,
+			defaultSystemEventbusEventlog, "System Eventbus For Trigger Service"); err != nil {
+			log.Error(context.Background(), "failed to create RetryEventbus, exit", map[string]interface{}{
+				log.KeyError: err,
+			})
+			os.Exit(-1)
+		}
+
+		if err := ctrl.cl.EventbusService().CreateSystemEventbusIfNotExist(ctx, primitive.DeadLetterEventbusName,
+			defaultSystemEventbusEventlog, "System Eventbus For Trigger Service"); err != nil {
+			log.Error(context.Background(), "failed to create DeadLetterEventbus, exit", map[string]interface{}{
+				log.KeyError: err,
+			})
+		}
+		log.Info(ctx, "trigger controller has finished for checking system eventbus", nil)
+	}()
 }
