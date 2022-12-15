@@ -20,8 +20,8 @@ import (
 	"os"
 
 	"github.com/linkall-labs/vanus/internal/gateway"
+	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/util/signal"
 )
 
@@ -40,8 +40,6 @@ func main() {
 		os.Exit(-1)
 	}
 
-	tracing.Init("Vanus-Gateway")
-
 	ctx := signal.SetupSignalContext()
 	ga := gateway.NewGateway(*cfg)
 
@@ -51,6 +49,9 @@ func main() {
 		})
 		os.Exit(-1)
 	}
+	
+	cfg.Observability.T.ServerName = "Vanus Gateway"
+	_ = observability.Initialize(cfg.Observability, nil)
 	log.Info(ctx, "Gateway has started", nil)
 	select {
 	case <-ctx.Done():

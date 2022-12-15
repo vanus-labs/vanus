@@ -20,17 +20,12 @@ import (
 	"flag"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 
-	// third-party libraries.
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/observability/tracing"
-
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store"
@@ -50,8 +45,6 @@ func main() {
 		os.Exit(-1)
 	}
 
-	tracing.Init("Vanus-Store")
-
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
 		log.Error(context.Background(), "Listen tcp port failed.", map[string]interface{}{
@@ -61,8 +54,8 @@ func main() {
 		os.Exit(-1)
 	}
 
-	metrics.RegisterSegmentServerMetrics()
-	go startMetrics()
+	cfg.Observability.T.ServerName = "Vanus Store"
+	_ = observability.Initialize(cfg.Observability, metrics.RegisterSegmentServerMetrics)
 
 	ctx := context.Background()
 	srv := segment.NewServer(*cfg)
@@ -98,13 +91,4 @@ func main() {
 
 	// TODO is it gracefully?
 	log.Info(ctx, "The SegmentServer has been shutdown.", nil)
-}
-
-func startMetrics() {
-	http.Handle("/metrics", promhttp.Handler())
-	if err := http.ListenAndServe(":2112", nil); err != nil { //nolint:gosec // wrong advice
-		log.Error(context.Background(), "Metrics listen and serve failed.", map[string]interface{}{
-			log.KeyError: err,
-		})
-	}
 }

@@ -1,11 +1,29 @@
+port: 11811
+ip : localhost
 controllers:
-  - 127.0.0.1:2048
-  - 127.0.0.1:3048
-  - 127.0.0.1:4048
-ip: 127.0.0.1
-port: 2148
+  - localhost:2048
 volume:
-  id: 123456
-  dir: /Users/wenfeng/tmp/data/vanus/segment_server/123456
-  # 128G
-  capacity: 137975824384
+  id: 1
+  dir: /Users/wenfeng/tmp/data/vanus/store-standalone
+  capacity: 1073741824
+meta_store:
+  wal:
+    io:
+      engine: psync
+offset_store:
+  wal:
+    io:
+      engine: psync
+raft:
+  wal:
+    io:
+      engine: psync
+observability:
+  metrics:
+    enable: true
+    # metrics for prometheus scratch data
+    port: 2112
+  tracing:
+    enable: false
+    # OpenTelemetry Collector endpoint, https://opentelemetry.io/docs/collector/getting-started/
+    otel_collector: http://127.0.0.1:4318

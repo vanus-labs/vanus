@@ -17,14 +17,15 @@ package gateway
 import (
 	"github.com/linkall-labs/vanus/internal/gateway/proxy"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/observability"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 type Config struct {
-	Port                 int      `yaml:"port"`
-	ControllerAddr       []string `yaml:"controllers"`
-	TracingURL           string   `yaml:"tracing_url"`
-	GRPCReflectionEnable bool     `yaml:"grpc_reflection_enable"`
+	Port                 int                  `yaml:"port"`
+	Observability        observability.Config `yaml:"observability"`
+	ControllerAddr       []string             `yaml:"controllers"`
+	GRPCReflectionEnable bool                 `yaml:"grpc_reflection_enable"`
 }
 
 func (c Config) GetProxyConfig() proxy.Config {

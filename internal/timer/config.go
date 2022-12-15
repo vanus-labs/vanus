@@ -20,6 +20,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/timer/leaderelection"
 	"github.com/linkall-labs/vanus/internal/timer/timingwheel"
+	"github.com/linkall-labs/vanus/observability"
 )
 
 type Config struct {
@@ -32,6 +33,7 @@ type Config struct {
 	MetadataConfig       MetadataConfig       `yaml:"metadata"`
 	LeaderElectionConfig LeaderElectionConfig `yaml:"leaderelection"`
 	TimingWheelConfig    TimingWheelConfig    `yaml:"timingwheel"`
+	Observability        observability.Config `yaml:"observability"`
 }
 
 const (
