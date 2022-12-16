@@ -43,41 +43,41 @@ func TestExecute(t *testing.T) {
 				"key":  "value",
 				"key1": "value1",
 			})
-			input.Template = `{"body": {"data": <dataKey>,"data2": "<dataKey>","data3": <noExist>,"data4": "<noExist>"}}`
+			input.Template = `{"define": <dataKey>, "data": <$.data.key>,"attribute": <$.id>, "noExist": <noExist>, "noExistStr": "<noExist>"}`
 			it := NewTransformer(input)
 			it.Execute(&e)
-			So(string(e.Data()), ShouldEqual, `{"body": {"data": "value","data2": "value","data3": "<noExist>","data4": "<noExist>"}}`)
+			So(string(e.Data()), ShouldEqual, `{"define": "value", "data": "value","attribute": "testId", "noExist": "<noExist>", "noExistStr": "<noExist>"}`)
 		})
 		Convey("test execute json with a part of value", func() {
 			_ = e.SetData(ce.ApplicationJSON, map[string]interface{}{
 				"key":  "value",
 				"key1": "value1",
 			})
-			input.Template = ` {"body": {"data": "source is <dataKey>","data2": "source is <noExist>"}}`
+			input.Template = `{"data": "source is <dataKey>","data2": "source is <noExist>"}`
 			it := NewTransformer(input)
 			it.Execute(&e)
-			So(string(e.Data()), ShouldEqual, ` {"body": {"data": "source is value","data2": "source is <noExist>"}}`)
+			So(string(e.Data()), ShouldEqual, `{"data": "source is value","data2": "source is <noExist>"}`)
 		})
 		Convey("test execute json with a part of value has colon", func() {
 			_ = e.SetData(ce.ApplicationJSON, map[string]interface{}{
 				"key":  "value",
 				"key1": "value1",
 			})
-			input.Template = `{"body": {"data": ":<dataKey>","data2": "\":<dataKey>\"","data3": "::<dataKey> other:<ctxId>"}}`
+			input.Template = `{"data": ":<dataKey>","data2": "\":<dataKey>\"","data3": "::<dataKey> other:<ctxId>"}`
 			it := NewTransformer(input)
 			it.Execute(&e)
-			So(string(e.Data()), ShouldEqual, `{"body": {"data": ":value","data2": "\":value\"","data3": "::value other:testId"}}`)
+			So(string(e.Data()), ShouldEqual, `{"data": ":value","data2": "\":value\"","data3": "::value other:testId"}`)
 		})
 		Convey("test execute json with a part of value has quota", func() {
 			_ = e.SetData(ce.ApplicationJSON, map[string]interface{}{
 				"key":  "value",
 				"key1": "value1",
 			})
-			input.Template = `{"body": {"data": "source is \"<dataKey>\"","data2": "source is \"<noExist>\""}}`
+			input.Template = `{"data": "source is \"<dataKey>\"","data2": "source is \"<noExist>\""}`
 			it := NewTransformer(input)
 			it.Execute(&e)
 			So(e.DataContentType(), ShouldEqual, ce.ApplicationJSON)
-			So(string(e.Data()), ShouldEqual, `{"body": {"data": "source is \"value\"","data2": "source is \"<noExist>\""}}`)
+			So(string(e.Data()), ShouldEqual, `{"data": "source is \"value\"","data2": "source is \"<noExist>\""}`)
 		})
 	})
 }

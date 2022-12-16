@@ -14,6 +14,15 @@
 
 package template
 
+import (
+	stdCtx "context"
+	"errors"
+
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+	"github.com/linkall-labs/vanus/internal/trigger/util"
+	"github.com/linkall-labs/vanus/observability/log"
+)
+
 type NodeType int
 
 func (t NodeType) Type() NodeType {
@@ -21,38 +30,127 @@ func (t NodeType) Type() NodeType {
 }
 
 const (
-	Constant       NodeType = iota // Plain text.
-	Variable                       // A <var> variable, example "key":<var>
-	StringVariable                 // A <var> variable, example "key":"<var>" or "key":"other <var>"
+	Constant             NodeType = iota // Plain text.
+	Define                               // A <var> variable, example "key":<var>
+	DefineString                         // A <var> variable, example "key":"<var>" or "key":"other <var>"
+	EventAttribute                       // A $.attributeName, example "key": $.id
+	EventAttributeString                 // A $.attributeName, example "key": "$.id" or "key":"other $.id"
+	EventData                            // A $.data.path, example "key": $.data.key
+	EventDataString                      // A $.data.path, example "key": "$.data.key" or "key":"other $.data.key"
 )
 
 type Node interface {
 	Type() NodeType
-	Value() string
+	Name() string
+	Value(ctx *context.EventContext) (interface{}, bool)
 }
 
-type ConstantNode struct {
+type constantNode struct {
 	NodeType
-	Text string
+	text string
 }
 
-func (p *parser) newConstant(text string) *ConstantNode {
-	return &ConstantNode{Text: text, NodeType: Constant}
+func (t *constantNode) Name() string {
+	return t.text
 }
 
-func (t *ConstantNode) Value() string {
-	return t.Text
+func (p *parser) newConstant(text string) Node {
+	return &constantNode{text: text, NodeType: Constant}
 }
 
-type VariableNode struct {
+func (t *constantNode) Value(_ *context.EventContext) (interface{}, bool) {
+	return t.text, true
+}
+
+type defineNode struct {
 	NodeType
-	Name string
+	name string
 }
 
-func (p *parser) newVariable(name string, nodeType NodeType) *VariableNode {
-	return &VariableNode{Name: name, NodeType: nodeType}
+func newDefine(name string, valueIsStr bool) Node {
+	if valueIsStr {
+		return &defineNode{name: name, NodeType: DefineString}
+	}
+	return &defineNode{name: name, NodeType: Define}
 }
 
-func (t *VariableNode) Value() string {
-	return t.Name
+func (t *defineNode) Name() string {
+	return t.name
+}
+
+func (t *defineNode) Value(ceCtx *context.EventContext) (interface{}, bool) {
+	v, exist := ceCtx.Define[t.name]
+	return v, exist
+}
+
+type eventAttributeNode struct {
+	NodeType
+	attributeName string
+}
+
+// newEventAttributeNode name format $.id.
+func newEventAttributeNode(name string, valueIsStr bool) Node {
+	name = name[2:]
+	if valueIsStr {
+		return &eventAttributeNode{attributeName: name, NodeType: EventAttributeString}
+	}
+	return &eventAttributeNode{attributeName: name, NodeType: EventAttribute}
+}
+
+func (t *eventAttributeNode) Name() string {
+	return EventArgPrefix + t.attributeName
+}
+
+func (t *eventAttributeNode) Value(ceCtx *context.EventContext) (interface{}, bool) {
+	return util.LookupAttribute(*ceCtx.Event, t.attributeName)
+}
+
+type eventDataNode struct {
+	NodeType
+	path string
+	data bool
+}
+
+// newEventDataNode name format: $.data.key.
+func newEventDataNode(name string, valueIsStr bool) Node {
+	var data bool
+	var path string
+	if name == EventDataArgPrefix {
+		data = true
+		path = ""
+	} else {
+		path = name[7:]
+	}
+	n := &eventDataNode{path: path, data: data}
+	if valueIsStr {
+		n.NodeType = EventDataString
+	} else {
+		n.NodeType = EventData
+	}
+	return n
+}
+
+func (t *eventDataNode) Name() string {
+	if t.data {
+		return EventDataArgPrefix
+	}
+	return EventDataArgPrefix + "." + t.path
+}
+
+func (t *eventDataNode) Value(ceCtx *context.EventContext) (interface{}, bool) {
+	if t.data {
+		return ceCtx.Data, true
+	}
+	v, err := util.LookupData(ceCtx.Data, EventArgPrefix+t.path)
+	if err != nil {
+		if errors.Is(err, util.ErrKeyNotFound) {
+			return nil, false
+		}
+		log.Info(stdCtx.TODO(), "transformer template get data value error", map[string]interface{}{
+			log.KeyError: err,
+			"name":       t.Name(),
+		})
+		return nil, false
+	}
+	return v, true
 }

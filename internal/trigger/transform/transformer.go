@@ -67,7 +67,7 @@ func (tf *Transformer) Execute(event *ce.Event) error {
 		return err
 	}
 	if tf.template.Exist() {
-		d := tf.template.Execute(ceCtx.Define)
+		d := tf.template.Execute(ceCtx)
 		event.DataEncoded = d
 		event.SetDataContentType(tf.template.ContentType())
 		return nil
