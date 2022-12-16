@@ -186,21 +186,24 @@ func (mr *MockBusWriterMockRecorder) AppendOne(ctx, event interface{}, opts ...i
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppendOne", reflect.TypeOf((*MockBusWriter)(nil).AppendOne), varargs...)
 }
 
-// AppendOneStream mocks base method.
-func (m *MockBusWriter) AppendOneStream(ctx context.Context, event *v2.Event, cb Callback, opts ...WriteOption) {
+// SyncAppendOneStream mocks base method.
+func (m *MockBusWriter) SyncAppendOneStream(ctx context.Context, event *v2.Event, opts ...WriteOption) (string, error) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{ctx, event, cb}
+	varargs := []interface{}{ctx, event}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
-	m.ctrl.Call(m, "AppendOneStream", varargs...)
+	ret := m.ctrl.Call(m, "SyncAppendOneStream", varargs...)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
-// AppendOneStream indicates an expected call of AppendOneStream.
-func (mr *MockBusWriterMockRecorder) AppendOneStream(ctx, event, cb interface{}, opts ...interface{}) *gomock.Call {
+// SyncAppendOneStream indicates an expected call of SyncAppendOneStream.
+func (mr *MockBusWriterMockRecorder) SyncAppendOneStream(ctx, event interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{ctx, event, cb}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppendOneStream", reflect.TypeOf((*MockBusWriter)(nil).AppendOneStream), varargs...)
+	varargs := append([]interface{}{ctx, event}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncAppendOneStream", reflect.TypeOf((*MockBusWriter)(nil).SyncAppendOneStream), varargs...)
 }
 
 // MockBusReader is a mock of BusReader interface.
@@ -246,6 +249,28 @@ func (mr *MockBusReaderMockRecorder) Read(ctx interface{}, opts ...interface{}) 
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx}, opts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockBusReader)(nil).Read), varargs...)
+}
+
+// SyncReadStream mocks base method.
+func (m *MockBusReader) SyncReadStream(ctx context.Context, opts ...ReadOption) ([]*v2.Event, int64, uint64, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "SyncReadStream", varargs...)
+	ret0, _ := ret[0].([]*v2.Event)
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(uint64)
+	ret3, _ := ret[3].(error)
+	return ret0, ret1, ret2, ret3
+}
+
+// SyncReadStream indicates an expected call of SyncReadStream.
+func (mr *MockBusReaderMockRecorder) SyncReadStream(ctx interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncReadStream", reflect.TypeOf((*MockBusReader)(nil).SyncReadStream), varargs...)
 }
 
 // MockEventlog is a mock of Eventlog interface.

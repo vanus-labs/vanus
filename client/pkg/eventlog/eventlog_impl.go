@@ -30,7 +30,6 @@ import (
 
 	// this project.
 	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
-	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/record"
 	vlog "github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/pkg/errors"
@@ -386,13 +385,43 @@ func (w *logWriter) doAppend(ctx context.Context, event *ce.Event) (int64, error
 	return offset, nil
 }
 
-func (w *logWriter) AppendStream(ctx context.Context, event *ce.Event, cb api.Callback) {
+func (w *logWriter) SyncAppendStream(ctx context.Context, event *ce.Event) (int64, error) {
+	// TODO: async for throughput
+
+	retryTimes := defaultRetryTimes
+	for i := 1; i <= retryTimes; i++ {
+		offset, err := w.doSyncAppendStream(ctx, event)
+		if err == nil {
+			return offset, nil
+		}
+		vlog.Warning(ctx, "failed to Append", map[string]interface{}{
+			vlog.KeyError: err,
+			"offset":      offset,
+		})
+		if errors.Is(err, errors.ErrSegmentFull) {
+			if i < retryTimes {
+				continue
+			}
+		}
+		return -1, err
+	}
+
+	return -1, errors.ErrUnknown
+}
+
+func (w *logWriter) doSyncAppendStream(ctx context.Context, event *ce.Event) (int64, error) {
 	segment, err := w.selectWritableSegment(ctx)
 	if err != nil {
-		cb(err)
-		return
+		return -1, err
 	}
-	segment.AppendStream(ctx, event, cb)
+	offset, err := segment.SyncAppendStream(ctx, event)
+	if err != nil {
+		if errors.Is(err, errors.ErrSegmentFull) {
+			segment.SetNotWritable()
+		}
+		return -1, err
+	}
+	return offset, nil
 }
 
 func (w *logWriter) selectWritableSegment(ctx context.Context) (*segment, error) {
@@ -452,6 +481,38 @@ func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 	}
 
 	events, err := r.cur.Read(ctx, r.pos, size, uint32(r.pollingTimeout(ctx)))
+	if err != nil {
+		if errors.Is(err, errors.ErrOffsetOverflow) {
+			r.elog.refreshReadableSegments(ctx)
+			if r.switchSegment(ctx) {
+				return nil, errors.ErrTryAgain
+			}
+		}
+		return nil, err
+	}
+
+	r.pos += int64(len(events))
+	if r.pos == r.cur.EndOffset() {
+		r.switchSegment(ctx)
+	}
+
+	return events, nil
+}
+
+func (r *logReader) SyncReadStream(ctx context.Context, size int16) ([]*ce.Event, error) {
+	if r.cur == nil {
+		segment, err := r.elog.selectReadableSegment(ctx, r.pos)
+		if errors.Is(err, errors.ErrOffsetOnEnd) {
+			r.elog.refreshReadableSegments(ctx)
+			segment, err = r.elog.selectReadableSegment(ctx, r.pos)
+		}
+		if err != nil {
+			return nil, err
+		}
+		r.cur = segment
+	}
+
+	events, err := r.cur.SyncReadStream(ctx, r.pos, size, uint32(r.pollingTimeout(ctx)))
 	if err != nil {
 		if errors.Is(err, errors.ErrOffsetOverflow) {
 			r.elog.refreshReadableSegments(ctx)

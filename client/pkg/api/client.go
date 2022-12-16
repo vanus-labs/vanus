@@ -37,11 +37,12 @@ type Eventbus interface {
 type BusWriter interface {
 	AppendOne(ctx context.Context, event *ce.Event, opts ...WriteOption) (eid string, err error)
 	AppendMany(ctx context.Context, events []*ce.Event, opts ...WriteOption) (eid string, err error)
-	AppendOneStream(ctx context.Context, event *ce.Event, cb Callback, opts ...WriteOption)
+	SyncAppendOneStream(ctx context.Context, event *ce.Event, opts ...WriteOption) (eid string, err error)
 }
 
 type BusReader interface {
 	Read(ctx context.Context, opts ...ReadOption) ([]*ce.Event, int64, uint64, error)
+	SyncReadStream(ctx context.Context, opts ...ReadOption) ([]*ce.Event, int64, uint64, error)
 }
 
 type Eventlog interface {

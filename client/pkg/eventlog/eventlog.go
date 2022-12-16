@@ -51,7 +51,7 @@ type LogWriter interface {
 
 	Append(ctx context.Context, event *ce.Event) (off int64, err error)
 
-	AppendStream(ctx context.Context, event *ce.Event, cb api.Callback)
+	SyncAppendStream(ctx context.Context, event *ce.Event) (int64, error)
 }
 
 type LogReader interface {
@@ -61,6 +61,8 @@ type LogReader interface {
 
 	// TODO: async
 	Read(ctx context.Context, size int16) (events []*ce.Event, err error)
+
+	SyncReadStream(ctx context.Context, size int16) (events []*ce.Event, err error)
 
 	// Seek sets the offset for the next Read to offset,
 	// interpreted according to whence.

@@ -77,6 +77,26 @@ func (mr *MockSegmentServerClientMockRecorder) AppendToBlock(ctx, in interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppendToBlock", reflect.TypeOf((*MockSegmentServerClient)(nil).AppendToBlock), varargs...)
 }
 
+// AppendToBlockAsyncStream mocks base method.
+func (m *MockSegmentServerClient) AppendToBlockAsyncStream(ctx context.Context, opts ...grpc.CallOption) (SegmentServer_AppendToBlockAsyncStreamClient, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "AppendToBlockAsyncStream", varargs...)
+	ret0, _ := ret[0].(SegmentServer_AppendToBlockAsyncStreamClient)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AppendToBlockAsyncStream indicates an expected call of AppendToBlockAsyncStream.
+func (mr *MockSegmentServerClientMockRecorder) AppendToBlockAsyncStream(ctx interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppendToBlockAsyncStream", reflect.TypeOf((*MockSegmentServerClient)(nil).AppendToBlockAsyncStream), varargs...)
+}
+
 // AppendToBlockStream mocks base method.
 func (m *MockSegmentServerClient) AppendToBlockStream(ctx context.Context, opts ...grpc.CallOption) (SegmentServer_AppendToBlockStreamClient, error) {
 	m.ctrl.T.Helper()
@@ -195,6 +215,26 @@ func (mr *MockSegmentServerClientMockRecorder) ReadFromBlock(ctx, in interface{}
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, in}, opts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFromBlock", reflect.TypeOf((*MockSegmentServerClient)(nil).ReadFromBlock), varargs...)
+}
+
+// ReadFromBlockStream mocks base method.
+func (m *MockSegmentServerClient) ReadFromBlockStream(ctx context.Context, opts ...grpc.CallOption) (SegmentServer_ReadFromBlockStreamClient, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ReadFromBlockStream", varargs...)
+	ret0, _ := ret[0].(SegmentServer_ReadFromBlockStreamClient)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ReadFromBlockStream indicates an expected call of ReadFromBlockStream.
+func (mr *MockSegmentServerClientMockRecorder) ReadFromBlockStream(ctx interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFromBlockStream", reflect.TypeOf((*MockSegmentServerClient)(nil).ReadFromBlockStream), varargs...)
 }
 
 // RemoveBlock mocks base method.
@@ -414,6 +454,280 @@ func (mr *MockSegmentServer_AppendToBlockStreamClientMockRecorder) Trailer() *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trailer", reflect.TypeOf((*MockSegmentServer_AppendToBlockStreamClient)(nil).Trailer))
 }
 
+// MockSegmentServer_ReadFromBlockStreamClient is a mock of SegmentServer_ReadFromBlockStreamClient interface.
+type MockSegmentServer_ReadFromBlockStreamClient struct {
+	ctrl     *gomock.Controller
+	recorder *MockSegmentServer_ReadFromBlockStreamClientMockRecorder
+}
+
+// MockSegmentServer_ReadFromBlockStreamClientMockRecorder is the mock recorder for MockSegmentServer_ReadFromBlockStreamClient.
+type MockSegmentServer_ReadFromBlockStreamClientMockRecorder struct {
+	mock *MockSegmentServer_ReadFromBlockStreamClient
+}
+
+// NewMockSegmentServer_ReadFromBlockStreamClient creates a new mock instance.
+func NewMockSegmentServer_ReadFromBlockStreamClient(ctrl *gomock.Controller) *MockSegmentServer_ReadFromBlockStreamClient {
+	mock := &MockSegmentServer_ReadFromBlockStreamClient{ctrl: ctrl}
+	mock.recorder = &MockSegmentServer_ReadFromBlockStreamClientMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSegmentServer_ReadFromBlockStreamClient) EXPECT() *MockSegmentServer_ReadFromBlockStreamClientMockRecorder {
+	return m.recorder
+}
+
+// CloseSend mocks base method.
+func (m *MockSegmentServer_ReadFromBlockStreamClient) CloseSend() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CloseSend")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CloseSend indicates an expected call of CloseSend.
+func (mr *MockSegmentServer_ReadFromBlockStreamClientMockRecorder) CloseSend() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseSend", reflect.TypeOf((*MockSegmentServer_ReadFromBlockStreamClient)(nil).CloseSend))
+}
+
+// Context mocks base method.
+func (m *MockSegmentServer_ReadFromBlockStreamClient) Context() context.Context {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Context")
+	ret0, _ := ret[0].(context.Context)
+	return ret0
+}
+
+// Context indicates an expected call of Context.
+func (mr *MockSegmentServer_ReadFromBlockStreamClientMockRecorder) Context() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Context", reflect.TypeOf((*MockSegmentServer_ReadFromBlockStreamClient)(nil).Context))
+}
+
+// Header mocks base method.
+func (m *MockSegmentServer_ReadFromBlockStreamClient) Header() (metadata.MD, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Header")
+	ret0, _ := ret[0].(metadata.MD)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Header indicates an expected call of Header.
+func (mr *MockSegmentServer_ReadFromBlockStreamClientMockRecorder) Header() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Header", reflect.TypeOf((*MockSegmentServer_ReadFromBlockStreamClient)(nil).Header))
+}
+
+// Recv mocks base method.
+func (m *MockSegmentServer_ReadFromBlockStreamClient) Recv() (*ReadFromBlockStreamResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Recv")
+	ret0, _ := ret[0].(*ReadFromBlockStreamResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Recv indicates an expected call of Recv.
+func (mr *MockSegmentServer_ReadFromBlockStreamClientMockRecorder) Recv() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Recv", reflect.TypeOf((*MockSegmentServer_ReadFromBlockStreamClient)(nil).Recv))
+}
+
+// RecvMsg mocks base method.
+func (m_2 *MockSegmentServer_ReadFromBlockStreamClient) RecvMsg(m interface{}) error {
+	m_2.ctrl.T.Helper()
+	ret := m_2.ctrl.Call(m_2, "RecvMsg", m)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RecvMsg indicates an expected call of RecvMsg.
+func (mr *MockSegmentServer_ReadFromBlockStreamClientMockRecorder) RecvMsg(m interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecvMsg", reflect.TypeOf((*MockSegmentServer_ReadFromBlockStreamClient)(nil).RecvMsg), m)
+}
+
+// Send mocks base method.
+func (m *MockSegmentServer_ReadFromBlockStreamClient) Send(arg0 *ReadFromBlockStreamRequest) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Send", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Send indicates an expected call of Send.
+func (mr *MockSegmentServer_ReadFromBlockStreamClientMockRecorder) Send(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockSegmentServer_ReadFromBlockStreamClient)(nil).Send), arg0)
+}
+
+// SendMsg mocks base method.
+func (m_2 *MockSegmentServer_ReadFromBlockStreamClient) SendMsg(m interface{}) error {
+	m_2.ctrl.T.Helper()
+	ret := m_2.ctrl.Call(m_2, "SendMsg", m)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendMsg indicates an expected call of SendMsg.
+func (mr *MockSegmentServer_ReadFromBlockStreamClientMockRecorder) SendMsg(m interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMsg", reflect.TypeOf((*MockSegmentServer_ReadFromBlockStreamClient)(nil).SendMsg), m)
+}
+
+// Trailer mocks base method.
+func (m *MockSegmentServer_ReadFromBlockStreamClient) Trailer() metadata.MD {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Trailer")
+	ret0, _ := ret[0].(metadata.MD)
+	return ret0
+}
+
+// Trailer indicates an expected call of Trailer.
+func (mr *MockSegmentServer_ReadFromBlockStreamClientMockRecorder) Trailer() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trailer", reflect.TypeOf((*MockSegmentServer_ReadFromBlockStreamClient)(nil).Trailer))
+}
+
+// MockSegmentServer_AppendToBlockAsyncStreamClient is a mock of SegmentServer_AppendToBlockAsyncStreamClient interface.
+type MockSegmentServer_AppendToBlockAsyncStreamClient struct {
+	ctrl     *gomock.Controller
+	recorder *MockSegmentServer_AppendToBlockAsyncStreamClientMockRecorder
+}
+
+// MockSegmentServer_AppendToBlockAsyncStreamClientMockRecorder is the mock recorder for MockSegmentServer_AppendToBlockAsyncStreamClient.
+type MockSegmentServer_AppendToBlockAsyncStreamClientMockRecorder struct {
+	mock *MockSegmentServer_AppendToBlockAsyncStreamClient
+}
+
+// NewMockSegmentServer_AppendToBlockAsyncStreamClient creates a new mock instance.
+func NewMockSegmentServer_AppendToBlockAsyncStreamClient(ctrl *gomock.Controller) *MockSegmentServer_AppendToBlockAsyncStreamClient {
+	mock := &MockSegmentServer_AppendToBlockAsyncStreamClient{ctrl: ctrl}
+	mock.recorder = &MockSegmentServer_AppendToBlockAsyncStreamClientMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSegmentServer_AppendToBlockAsyncStreamClient) EXPECT() *MockSegmentServer_AppendToBlockAsyncStreamClientMockRecorder {
+	return m.recorder
+}
+
+// CloseSend mocks base method.
+func (m *MockSegmentServer_AppendToBlockAsyncStreamClient) CloseSend() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CloseSend")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CloseSend indicates an expected call of CloseSend.
+func (mr *MockSegmentServer_AppendToBlockAsyncStreamClientMockRecorder) CloseSend() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseSend", reflect.TypeOf((*MockSegmentServer_AppendToBlockAsyncStreamClient)(nil).CloseSend))
+}
+
+// Context mocks base method.
+func (m *MockSegmentServer_AppendToBlockAsyncStreamClient) Context() context.Context {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Context")
+	ret0, _ := ret[0].(context.Context)
+	return ret0
+}
+
+// Context indicates an expected call of Context.
+func (mr *MockSegmentServer_AppendToBlockAsyncStreamClientMockRecorder) Context() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Context", reflect.TypeOf((*MockSegmentServer_AppendToBlockAsyncStreamClient)(nil).Context))
+}
+
+// Header mocks base method.
+func (m *MockSegmentServer_AppendToBlockAsyncStreamClient) Header() (metadata.MD, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Header")
+	ret0, _ := ret[0].(metadata.MD)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Header indicates an expected call of Header.
+func (mr *MockSegmentServer_AppendToBlockAsyncStreamClientMockRecorder) Header() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Header", reflect.TypeOf((*MockSegmentServer_AppendToBlockAsyncStreamClient)(nil).Header))
+}
+
+// Recv mocks base method.
+func (m *MockSegmentServer_AppendToBlockAsyncStreamClient) Recv() (*AppendToBlockAsyncStreamResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Recv")
+	ret0, _ := ret[0].(*AppendToBlockAsyncStreamResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Recv indicates an expected call of Recv.
+func (mr *MockSegmentServer_AppendToBlockAsyncStreamClientMockRecorder) Recv() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Recv", reflect.TypeOf((*MockSegmentServer_AppendToBlockAsyncStreamClient)(nil).Recv))
+}
+
+// RecvMsg mocks base method.
+func (m_2 *MockSegmentServer_AppendToBlockAsyncStreamClient) RecvMsg(m interface{}) error {
+	m_2.ctrl.T.Helper()
+	ret := m_2.ctrl.Call(m_2, "RecvMsg", m)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RecvMsg indicates an expected call of RecvMsg.
+func (mr *MockSegmentServer_AppendToBlockAsyncStreamClientMockRecorder) RecvMsg(m interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecvMsg", reflect.TypeOf((*MockSegmentServer_AppendToBlockAsyncStreamClient)(nil).RecvMsg), m)
+}
+
+// Send mocks base method.
+func (m *MockSegmentServer_AppendToBlockAsyncStreamClient) Send(arg0 *AppendToBlockAsyncStreamRequest) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Send", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Send indicates an expected call of Send.
+func (mr *MockSegmentServer_AppendToBlockAsyncStreamClientMockRecorder) Send(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockSegmentServer_AppendToBlockAsyncStreamClient)(nil).Send), arg0)
+}
+
+// SendMsg mocks base method.
+func (m_2 *MockSegmentServer_AppendToBlockAsyncStreamClient) SendMsg(m interface{}) error {
+	m_2.ctrl.T.Helper()
+	ret := m_2.ctrl.Call(m_2, "SendMsg", m)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendMsg indicates an expected call of SendMsg.
+func (mr *MockSegmentServer_AppendToBlockAsyncStreamClientMockRecorder) SendMsg(m interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMsg", reflect.TypeOf((*MockSegmentServer_AppendToBlockAsyncStreamClient)(nil).SendMsg), m)
+}
+
+// Trailer mocks base method.
+func (m *MockSegmentServer_AppendToBlockAsyncStreamClient) Trailer() metadata.MD {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Trailer")
+	ret0, _ := ret[0].(metadata.MD)
+	return ret0
+}
+
+// Trailer indicates an expected call of Trailer.
+func (mr *MockSegmentServer_AppendToBlockAsyncStreamClientMockRecorder) Trailer() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trailer", reflect.TypeOf((*MockSegmentServer_AppendToBlockAsyncStreamClient)(nil).Trailer))
+}
+
 // MockSegmentServerServer is a mock of SegmentServerServer interface.
 type MockSegmentServerServer struct {
 	ctrl     *gomock.Controller
@@ -465,6 +779,20 @@ func (m *MockSegmentServerServer) AppendToBlock(arg0 context.Context, arg1 *Appe
 func (mr *MockSegmentServerServerMockRecorder) AppendToBlock(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppendToBlock", reflect.TypeOf((*MockSegmentServerServer)(nil).AppendToBlock), arg0, arg1)
+}
+
+// AppendToBlockAsyncStream mocks base method.
+func (m *MockSegmentServerServer) AppendToBlockAsyncStream(arg0 SegmentServer_AppendToBlockAsyncStreamServer) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AppendToBlockAsyncStream", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AppendToBlockAsyncStream indicates an expected call of AppendToBlockAsyncStream.
+func (mr *MockSegmentServerServerMockRecorder) AppendToBlockAsyncStream(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppendToBlockAsyncStream", reflect.TypeOf((*MockSegmentServerServer)(nil).AppendToBlockAsyncStream), arg0)
 }
 
 // AppendToBlockStream mocks base method.
@@ -554,6 +882,20 @@ func (m *MockSegmentServerServer) ReadFromBlock(arg0 context.Context, arg1 *Read
 func (mr *MockSegmentServerServerMockRecorder) ReadFromBlock(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFromBlock", reflect.TypeOf((*MockSegmentServerServer)(nil).ReadFromBlock), arg0, arg1)
+}
+
+// ReadFromBlockStream mocks base method.
+func (m *MockSegmentServerServer) ReadFromBlockStream(arg0 SegmentServer_ReadFromBlockStreamServer) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReadFromBlockStream", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ReadFromBlockStream indicates an expected call of ReadFromBlockStream.
+func (mr *MockSegmentServerServerMockRecorder) ReadFromBlockStream(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFromBlockStream", reflect.TypeOf((*MockSegmentServerServer)(nil).ReadFromBlockStream), arg0)
 }
 
 // RemoveBlock mocks base method.
@@ -783,4 +1125,272 @@ func (m *MockSegmentServer_AppendToBlockStreamServer) SetTrailer(arg0 metadata.M
 func (mr *MockSegmentServer_AppendToBlockStreamServerMockRecorder) SetTrailer(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTrailer", reflect.TypeOf((*MockSegmentServer_AppendToBlockStreamServer)(nil).SetTrailer), arg0)
+}
+
+// MockSegmentServer_ReadFromBlockStreamServer is a mock of SegmentServer_ReadFromBlockStreamServer interface.
+type MockSegmentServer_ReadFromBlockStreamServer struct {
+	ctrl     *gomock.Controller
+	recorder *MockSegmentServer_ReadFromBlockStreamServerMockRecorder
+}
+
+// MockSegmentServer_ReadFromBlockStreamServerMockRecorder is the mock recorder for MockSegmentServer_ReadFromBlockStreamServer.
+type MockSegmentServer_ReadFromBlockStreamServerMockRecorder struct {
+	mock *MockSegmentServer_ReadFromBlockStreamServer
+}
+
+// NewMockSegmentServer_ReadFromBlockStreamServer creates a new mock instance.
+func NewMockSegmentServer_ReadFromBlockStreamServer(ctrl *gomock.Controller) *MockSegmentServer_ReadFromBlockStreamServer {
+	mock := &MockSegmentServer_ReadFromBlockStreamServer{ctrl: ctrl}
+	mock.recorder = &MockSegmentServer_ReadFromBlockStreamServerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSegmentServer_ReadFromBlockStreamServer) EXPECT() *MockSegmentServer_ReadFromBlockStreamServerMockRecorder {
+	return m.recorder
+}
+
+// Context mocks base method.
+func (m *MockSegmentServer_ReadFromBlockStreamServer) Context() context.Context {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Context")
+	ret0, _ := ret[0].(context.Context)
+	return ret0
+}
+
+// Context indicates an expected call of Context.
+func (mr *MockSegmentServer_ReadFromBlockStreamServerMockRecorder) Context() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Context", reflect.TypeOf((*MockSegmentServer_ReadFromBlockStreamServer)(nil).Context))
+}
+
+// Recv mocks base method.
+func (m *MockSegmentServer_ReadFromBlockStreamServer) Recv() (*ReadFromBlockStreamRequest, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Recv")
+	ret0, _ := ret[0].(*ReadFromBlockStreamRequest)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Recv indicates an expected call of Recv.
+func (mr *MockSegmentServer_ReadFromBlockStreamServerMockRecorder) Recv() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Recv", reflect.TypeOf((*MockSegmentServer_ReadFromBlockStreamServer)(nil).Recv))
+}
+
+// RecvMsg mocks base method.
+func (m_2 *MockSegmentServer_ReadFromBlockStreamServer) RecvMsg(m interface{}) error {
+	m_2.ctrl.T.Helper()
+	ret := m_2.ctrl.Call(m_2, "RecvMsg", m)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RecvMsg indicates an expected call of RecvMsg.
+func (mr *MockSegmentServer_ReadFromBlockStreamServerMockRecorder) RecvMsg(m interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecvMsg", reflect.TypeOf((*MockSegmentServer_ReadFromBlockStreamServer)(nil).RecvMsg), m)
+}
+
+// Send mocks base method.
+func (m *MockSegmentServer_ReadFromBlockStreamServer) Send(arg0 *ReadFromBlockStreamResponse) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Send", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Send indicates an expected call of Send.
+func (mr *MockSegmentServer_ReadFromBlockStreamServerMockRecorder) Send(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockSegmentServer_ReadFromBlockStreamServer)(nil).Send), arg0)
+}
+
+// SendHeader mocks base method.
+func (m *MockSegmentServer_ReadFromBlockStreamServer) SendHeader(arg0 metadata.MD) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendHeader", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendHeader indicates an expected call of SendHeader.
+func (mr *MockSegmentServer_ReadFromBlockStreamServerMockRecorder) SendHeader(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendHeader", reflect.TypeOf((*MockSegmentServer_ReadFromBlockStreamServer)(nil).SendHeader), arg0)
+}
+
+// SendMsg mocks base method.
+func (m_2 *MockSegmentServer_ReadFromBlockStreamServer) SendMsg(m interface{}) error {
+	m_2.ctrl.T.Helper()
+	ret := m_2.ctrl.Call(m_2, "SendMsg", m)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendMsg indicates an expected call of SendMsg.
+func (mr *MockSegmentServer_ReadFromBlockStreamServerMockRecorder) SendMsg(m interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMsg", reflect.TypeOf((*MockSegmentServer_ReadFromBlockStreamServer)(nil).SendMsg), m)
+}
+
+// SetHeader mocks base method.
+func (m *MockSegmentServer_ReadFromBlockStreamServer) SetHeader(arg0 metadata.MD) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetHeader", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetHeader indicates an expected call of SetHeader.
+func (mr *MockSegmentServer_ReadFromBlockStreamServerMockRecorder) SetHeader(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetHeader", reflect.TypeOf((*MockSegmentServer_ReadFromBlockStreamServer)(nil).SetHeader), arg0)
+}
+
+// SetTrailer mocks base method.
+func (m *MockSegmentServer_ReadFromBlockStreamServer) SetTrailer(arg0 metadata.MD) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetTrailer", arg0)
+}
+
+// SetTrailer indicates an expected call of SetTrailer.
+func (mr *MockSegmentServer_ReadFromBlockStreamServerMockRecorder) SetTrailer(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTrailer", reflect.TypeOf((*MockSegmentServer_ReadFromBlockStreamServer)(nil).SetTrailer), arg0)
+}
+
+// MockSegmentServer_AppendToBlockAsyncStreamServer is a mock of SegmentServer_AppendToBlockAsyncStreamServer interface.
+type MockSegmentServer_AppendToBlockAsyncStreamServer struct {
+	ctrl     *gomock.Controller
+	recorder *MockSegmentServer_AppendToBlockAsyncStreamServerMockRecorder
+}
+
+// MockSegmentServer_AppendToBlockAsyncStreamServerMockRecorder is the mock recorder for MockSegmentServer_AppendToBlockAsyncStreamServer.
+type MockSegmentServer_AppendToBlockAsyncStreamServerMockRecorder struct {
+	mock *MockSegmentServer_AppendToBlockAsyncStreamServer
+}
+
+// NewMockSegmentServer_AppendToBlockAsyncStreamServer creates a new mock instance.
+func NewMockSegmentServer_AppendToBlockAsyncStreamServer(ctrl *gomock.Controller) *MockSegmentServer_AppendToBlockAsyncStreamServer {
+	mock := &MockSegmentServer_AppendToBlockAsyncStreamServer{ctrl: ctrl}
+	mock.recorder = &MockSegmentServer_AppendToBlockAsyncStreamServerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSegmentServer_AppendToBlockAsyncStreamServer) EXPECT() *MockSegmentServer_AppendToBlockAsyncStreamServerMockRecorder {
+	return m.recorder
+}
+
+// Context mocks base method.
+func (m *MockSegmentServer_AppendToBlockAsyncStreamServer) Context() context.Context {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Context")
+	ret0, _ := ret[0].(context.Context)
+	return ret0
+}
+
+// Context indicates an expected call of Context.
+func (mr *MockSegmentServer_AppendToBlockAsyncStreamServerMockRecorder) Context() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Context", reflect.TypeOf((*MockSegmentServer_AppendToBlockAsyncStreamServer)(nil).Context))
+}
+
+// Recv mocks base method.
+func (m *MockSegmentServer_AppendToBlockAsyncStreamServer) Recv() (*AppendToBlockAsyncStreamRequest, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Recv")
+	ret0, _ := ret[0].(*AppendToBlockAsyncStreamRequest)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Recv indicates an expected call of Recv.
+func (mr *MockSegmentServer_AppendToBlockAsyncStreamServerMockRecorder) Recv() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Recv", reflect.TypeOf((*MockSegmentServer_AppendToBlockAsyncStreamServer)(nil).Recv))
+}
+
+// RecvMsg mocks base method.
+func (m_2 *MockSegmentServer_AppendToBlockAsyncStreamServer) RecvMsg(m interface{}) error {
+	m_2.ctrl.T.Helper()
+	ret := m_2.ctrl.Call(m_2, "RecvMsg", m)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RecvMsg indicates an expected call of RecvMsg.
+func (mr *MockSegmentServer_AppendToBlockAsyncStreamServerMockRecorder) RecvMsg(m interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecvMsg", reflect.TypeOf((*MockSegmentServer_AppendToBlockAsyncStreamServer)(nil).RecvMsg), m)
+}
+
+// Send mocks base method.
+func (m *MockSegmentServer_AppendToBlockAsyncStreamServer) Send(arg0 *AppendToBlockAsyncStreamResponse) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Send", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Send indicates an expected call of Send.
+func (mr *MockSegmentServer_AppendToBlockAsyncStreamServerMockRecorder) Send(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockSegmentServer_AppendToBlockAsyncStreamServer)(nil).Send), arg0)
+}
+
+// SendHeader mocks base method.
+func (m *MockSegmentServer_AppendToBlockAsyncStreamServer) SendHeader(arg0 metadata.MD) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendHeader", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendHeader indicates an expected call of SendHeader.
+func (mr *MockSegmentServer_AppendToBlockAsyncStreamServerMockRecorder) SendHeader(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendHeader", reflect.TypeOf((*MockSegmentServer_AppendToBlockAsyncStreamServer)(nil).SendHeader), arg0)
+}
+
+// SendMsg mocks base method.
+func (m_2 *MockSegmentServer_AppendToBlockAsyncStreamServer) SendMsg(m interface{}) error {
+	m_2.ctrl.T.Helper()
+	ret := m_2.ctrl.Call(m_2, "SendMsg", m)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendMsg indicates an expected call of SendMsg.
+func (mr *MockSegmentServer_AppendToBlockAsyncStreamServerMockRecorder) SendMsg(m interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMsg", reflect.TypeOf((*MockSegmentServer_AppendToBlockAsyncStreamServer)(nil).SendMsg), m)
+}
+
+// SetHeader mocks base method.
+func (m *MockSegmentServer_AppendToBlockAsyncStreamServer) SetHeader(arg0 metadata.MD) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetHeader", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetHeader indicates an expected call of SetHeader.
+func (mr *MockSegmentServer_AppendToBlockAsyncStreamServerMockRecorder) SetHeader(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetHeader", reflect.TypeOf((*MockSegmentServer_AppendToBlockAsyncStreamServer)(nil).SetHeader), arg0)
+}
+
+// SetTrailer mocks base method.
+func (m *MockSegmentServer_AppendToBlockAsyncStreamServer) SetTrailer(arg0 metadata.MD) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetTrailer", arg0)
+}
+
+// SetTrailer indicates an expected call of SetTrailer.
+func (mr *MockSegmentServer_AppendToBlockAsyncStreamServerMockRecorder) SetTrailer(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTrailer", reflect.TypeOf((*MockSegmentServer_AppendToBlockAsyncStreamServer)(nil).SetTrailer), arg0)
 }

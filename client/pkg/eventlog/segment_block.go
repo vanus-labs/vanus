@@ -23,7 +23,6 @@ import (
 
 	// this project
 	"github.com/linkall-labs/vanus/client/internal/vanus/store"
-	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/record"
 	"github.com/linkall-labs/vanus/pkg/errors"
 )
@@ -57,8 +56,8 @@ func (s *block) Append(ctx context.Context, event *ce.Event) (int64, error) {
 	return s.store.Append(ctx, s.id, event)
 }
 
-func (s *block) AppendStream(ctx context.Context, event *ce.Event, cb api.Callback) {
-	s.store.AppendStream(ctx, s.id, event, cb)
+func (s *block) SyncAppendStream(ctx context.Context, event *ce.Event) (int64, error) {
+	return s.store.SyncAppendStream(ctx, s.id, event)
 }
 
 func (s *block) Read(ctx context.Context, offset int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
@@ -73,4 +72,18 @@ func (s *block) Read(ctx context.Context, offset int64, size int16, pollingTimeo
 		return nil, errors.ErrInvalidArgument
 	}
 	return s.store.Read(ctx, s.id, offset, size, pollingTimeout)
+}
+
+func (s *block) SyncReadStream(ctx context.Context, offset int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
+	if offset < 0 {
+		return nil, errors.ErrOffsetUnderflow
+	}
+	if size > 0 {
+		// doRead
+	} else if size == 0 {
+		return make([]*ce.Event, 0), nil
+	} else if size < 0 {
+		return nil, errors.ErrInvalidArgument
+	}
+	return s.store.SyncReadStream(ctx, s.id, offset, size, pollingTimeout)
 }

@@ -17,19 +17,18 @@ package segment
 import (
 	// standard libraries.
 	"context"
-	"sync"
 
 	// third-party libraries.
 	cepb "cloudevents.io/genproto/v1"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/pkg/errors"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 type segmentServer struct {
@@ -125,77 +124,89 @@ func (s *segmentServer) AppendToBlock(
 	if err != nil {
 		return nil, err
 	}
-
 	return &segpb.AppendToBlockResponse{Offsets: offs}, nil
 }
 
 func (s *segmentServer) AppendToBlockStream(stream segpb.SegmentServer_AppendToBlockStreamServer) error {
-	var (
-		wg   sync.WaitGroup
-		errc chan error
-	)
-	errc = make(chan error, 1)
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				request, err := stream.Recv()
-				if err != nil {
-					log.Warning(ctx, "===Recv failed===", map[string]interface{}{
-						log.KeyError: err,
-					})
-					errc <- err
-					return
-				}
-
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					offsets, err := s.srv.AppendToBlock(ctx, vanus.ID(request.BlockId), request.Events.Events)
-					responseCode := segpb.ResponseCode_SUCCESS
-					if err != nil {
-						log.Warning(ctx, "===AppendToBlock failed===", map[string]interface{}{
-							log.KeyError: err,
-						})
-						if errors.Is(err, errors.ErrSegmentFull) {
-							responseCode = segpb.ResponseCode_SegmentFull
-						}
-						responseCode = segpb.ResponseCode_UNKNOWN
-					}
-
-					err = stream.Send(&segpb.AppendToBlockStreamResponse{
-						ResponseId:   request.RequestId,
-						ResponseCode: responseCode,
-						Offsets:      offsets,
-					})
-					if err != nil {
-						log.Warning(ctx, "===Send failed===", map[string]interface{}{
-							log.KeyError: err,
-						})
-						errc <- err
-						cancel()
-						return
-					}
-				}()
-			}
+	ctx := context.Background()
+	for {
+		request, err := stream.Recv()
+		if err != nil {
+			log.Warning(ctx, "append stream recv failed", map[string]interface{}{
+				log.KeyError: err,
+			})
+			return err
 		}
-	}()
 
-	var err error
-	select {
-	case err = <-errc:
-		log.Warning(ctx, "===AppendToBlockStream Exit===", map[string]interface{}{
-			log.KeyError: err,
-		})
-	case <-stream.Context().Done():
-		err = stream.Context().Err()
+		go func(stream segpb.SegmentServer_AppendToBlockStreamServer, req *segpb.AppendToBlockStreamRequest) {
+			responseCode := segpb.ResponseCode_SUCCESS
+			offsets, err := s.srv.AppendToBlock(ctx, vanus.ID(request.BlockId), request.Events.Events)
+			if err != nil {
+				if errors.Is(err, errors.ErrSegmentFull) {
+					responseCode = segpb.ResponseCode_SegmentFull
+				} else {
+					responseCode = segpb.ResponseCode_UNKNOWN
+				}
+				log.Error(ctx, "append to block failed", map[string]interface{}{
+					log.KeyError: err,
+				})
+			}
+
+			err = stream.Send(&segpb.AppendToBlockStreamResponse{
+				ResponseId:   request.RequestId,
+				ResponseCode: responseCode,
+				Offsets:      offsets,
+			})
+			if err != nil {
+				log.Warning(ctx, "read stream send failed", map[string]interface{}{
+					log.KeyError: err,
+				})
+				return
+			}
+		}(stream, request)
 	}
-	wg.Wait()
-	return err
+}
+
+func (s *segmentServer) ReadFromBlockStream(stream segpb.SegmentServer_ReadFromBlockStreamServer) error {
+	ctx := context.Background()
+	for {
+		request, err := stream.Recv()
+		if err != nil {
+			log.Error(ctx, "read stream recv failed", map[string]interface{}{
+				log.KeyError: err,
+			})
+			return err
+		}
+
+		go func(stream segpb.SegmentServer_ReadFromBlockStreamServer, req *segpb.ReadFromBlockStreamRequest) {
+			responseCode := segpb.ResponseCode_SUCCESS
+			blockID := vanus.NewIDFromUint64(req.BlockId)
+			events, err := s.srv.ReadFromBlock(ctx, blockID, req.Offset, int(req.Number), req.PollingTimeout)
+			if err != nil {
+				responseCode = segpb.ResponseCode_UNKNOWN
+				log.Error(ctx, "read from block failed", map[string]interface{}{
+					log.KeyError: err,
+				})
+			}
+
+			err = stream.Send(&segpb.ReadFromBlockStreamResponse{
+				ResponseId:   request.RequestId,
+				ResponseCode: responseCode,
+				Events:       &cepb.CloudEventBatch{Events: events},
+			})
+			if err != nil {
+				log.Error(ctx, "read stream send failed", map[string]interface{}{
+					log.KeyError: err,
+				})
+				return
+			}
+		}(stream, request)
+	}
+}
+
+func (s *segmentServer) AppendToBlockAsyncStream(stream segpb.SegmentServer_AppendToBlockAsyncStreamServer) error {
+	// TODO(jiangkai): implementation AppendToBlockAsyncStream()
+	return nil
 }
 
 func (s *segmentServer) ReadFromBlock(
