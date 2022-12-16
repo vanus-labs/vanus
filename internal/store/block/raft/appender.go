@@ -18,7 +18,7 @@ package raft
 import (
 	// standard libraries.
 	"context"
-	stderr "errors"
+	"errors"
 	"sort"
 	"sync"
 	"time"
@@ -37,7 +37,6 @@ import (
 	raftlog "github.com/linkall-labs/vanus/internal/raft/log"
 	"github.com/linkall-labs/vanus/internal/raft/transport"
 	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 const (
@@ -199,7 +198,7 @@ func (a *appender) run(ctx context.Context) {
 				})
 				a.log.Append(rCtx, rd.Entries, func(re raftlog.AppendResult, err error) {
 					if err != nil {
-						if stderr.Is(err, raftlog.ErrCompacted) || stderr.Is(err, raftlog.ErrTruncated) {
+						if errors.Is(err, raftlog.ErrCompacted) || errors.Is(err, raftlog.ErrTruncated) {
 							// FIXME(james.yin): report to raft?
 							return
 						}
@@ -397,7 +396,7 @@ func (a *appender) reset(ctx context.Context) {
 	}
 }
 
-// Append implements block.raw.
+// Append implements block.Appender.
 func (a *appender) Append(ctx context.Context, entries []block.Entry, cb block.AppendCallback) {
 	ctx, span := a.tracer.Start(ctx, "Append")
 	defer span.End()
@@ -408,13 +407,13 @@ func (a *appender) Append(ctx context.Context, entries []block.Entry, cb block.A
 
 	if !a.isLeader() {
 		a.appendMu.Unlock()
-		cb(nil, errors.ErrNotLeader)
+		cb(nil, block.ErrNotLeader)
 		return
 	}
 
 	if a.actx.Archived() {
 		a.appendMu.Unlock()
-		cb(nil, errors.ErrSegmentFull)
+		cb(nil, block.ErrFull)
 		return
 	}
 

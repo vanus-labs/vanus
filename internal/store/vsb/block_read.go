@@ -20,7 +20,6 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 // Make sure block implements block.Reader.
@@ -61,9 +60,9 @@ func (b *vsBlock) entryRange(start, num int) (int64, int64, int, error) {
 
 	if start >= sz {
 		if start == sz && !b.full() {
-			return -1, -1, 0, errors.ErrOffsetOnEnd
+			return -1, -1, 0, block.ErrOnEnd
 		}
-		return -1, -1, 0, errors.ErrOffsetOverflow
+		return -1, -1, 0, block.ErrExceeded
 	}
 
 	end := start + num - 1

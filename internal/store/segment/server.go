@@ -44,6 +44,7 @@ import (
 	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/cluster"
+	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/linkall-labs/vanus/pkg/util"
 	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
@@ -64,7 +65,6 @@ import (
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	ceconv "github.com/linkall-labs/vanus/internal/store/schema/ce/convert"
 	"github.com/linkall-labs/vanus/internal/store/vsb"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 const (
@@ -708,11 +708,18 @@ func (s *server) processAppendError(ctx context.Context, b Replica, err error) e
 		return err
 	}
 
-	if errors.Is(err, errors.ErrSegmentFull) {
+	if stderr.Is(err, block.ErrFull) {
 		log.Debug(ctx, "Append failed: block is full.", map[string]interface{}{
 			"block_id": b.ID(),
 		})
 		return errors.ErrSegmentFull
+	}
+
+	if stderr.Is(err, block.ErrNotLeader) {
+		log.Debug(ctx, "Append failed: block is not leader.", map[string]interface{}{
+			"block_id": b.ID(),
+		})
+		return errors.ErrNotLeader
 	}
 
 	log.Warning(ctx, "Append failed.", map[string]interface{}{
@@ -775,8 +782,8 @@ func (s *server) ReadFromBlock(
 
 	if events, err := s.readEvents(ctx, b, seq, num); err == nil {
 		return events, nil
-	} else if !errors.Is(err, errors.ErrOffsetOnEnd) || pollingTimeout == 0 {
-		return nil, err
+	} else if !stderr.Is(err, block.ErrOnEnd) || pollingTimeout == 0 {
+		return nil, s.processReadError(ctx, b, err)
 	}
 
 	doneC := s.pm.Add(ctx, id)
@@ -790,7 +797,11 @@ func (s *server) ReadFromBlock(
 	select {
 	case <-doneC:
 		// FIXME(james.yin) It can't read message immediately because of async apply.
-		return s.readEvents(ctx, b, seq, num)
+		events, err := s.readEvents(ctx, b, seq, num)
+		if err != nil {
+			return nil, s.processReadError(ctx, b, err)
+		}
+		return events, nil
 	case <-t.C:
 		return nil, errors.ErrOffsetOnEnd
 	case <-ctx.Done():
@@ -818,6 +829,32 @@ func (s *server) readEvents(ctx context.Context, b Replica, seq int64, num int) 
 	return events, nil
 }
 
+func (s *server) processReadError(ctx context.Context, b Replica, err error) error {
+	if stderr.As(err, &errors.ErrorType{}) {
+		return err
+	}
+
+	if stderr.Is(err, block.ErrOnEnd) {
+		log.Debug(ctx, "Read: arrive segment end.", map[string]interface{}{
+			"block_id": b.ID(),
+		})
+		return errors.ErrOffsetOnEnd
+	}
+
+	if stderr.Is(err, block.ErrExceeded) {
+		log.Debug(ctx, "Read failed: offset overflow.", map[string]interface{}{
+			"block_id": b.ID(),
+		})
+		return errors.ErrOffsetOverflow
+	}
+
+	log.Warning(ctx, "Read failed.", map[string]interface{}{
+		"block_id":   b.ID(),
+		log.KeyError: err,
+	})
+	return errors.ErrInternal.WithMessage("read from storage failed").Wrap(err)
+}
+
 func (s *server) LookupOffsetInBlock(ctx context.Context, id vanus.ID, stime int64) (int64, error) {
 	ctx, span := s.tracer.Start(ctx, "LookupOffsetInBlock")
 	defer span.End()
@@ -836,7 +873,7 @@ func (s *server) LookupOffsetInBlock(ctx context.Context, id vanus.ID, stime int
 
 	off, err := b.Seek(ctx, 0, ceschema.StimeKey(stime), block.SeekBeforeKey)
 	if err != nil {
-		return -1, err
+		return -1, errors.ErrInternal.WithMessage("lookup offset failed").Wrap(err)
 	}
 	return off + 1, nil
 }

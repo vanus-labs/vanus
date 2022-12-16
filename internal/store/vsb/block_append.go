@@ -21,15 +21,17 @@ import (
 	"sync/atomic"
 	"time"
 
+	// third-party libraries.
+	"go.opentelemetry.io/otel/attribute"
+
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability/log"
-	"go.opentelemetry.io/otel/attribute"
+	"github.com/linkall-labs/vanus/pkg/errors"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	"github.com/linkall-labs/vanus/internal/store/vsb/index"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 var errCorruptedFragment = stderr.New("vsb: corrupted fragment")
