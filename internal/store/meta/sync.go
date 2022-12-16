@@ -63,8 +63,9 @@ func newSyncStore(ctx context.Context, wal *walog.WAL,
 }
 
 func (s *SyncStore) Close(ctx context.Context) {
-	_, span := s.tracer.Start(ctx, "Close")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.meta.SyncStore.Close() Start")
+	defer span.AddEvent("store.meta.SyncStore.Close() End")
 
 	// Close WAL.
 	s.wal.Close()
@@ -83,8 +84,9 @@ func (s *SyncStore) Load(key []byte) (interface{}, bool) {
 }
 
 func (s *SyncStore) Store(ctx context.Context, key []byte, value interface{}) {
-	ctx, span := s.tracer.Start(ctx, "Store")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.meta.SyncStore.Store() Start")
+	defer span.AddEvent("store.meta.SyncStore.Store() End")
 
 	if err := s.set(ctx, KVRange(key, value)); err != nil {
 		panic(err)
@@ -92,8 +94,9 @@ func (s *SyncStore) Store(ctx context.Context, key []byte, value interface{}) {
 }
 
 func (s *SyncStore) BatchStore(ctx context.Context, kvs Ranger) {
-	ctx, span := s.tracer.Start(ctx, "BatchStore")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.meta.SyncStore.BatchStore() Start")
+	defer span.AddEvent("store.meta.SyncStore.BatchStore() End")
 
 	if err := s.set(ctx, kvs); err != nil {
 		panic(err)
@@ -101,8 +104,9 @@ func (s *SyncStore) BatchStore(ctx context.Context, kvs Ranger) {
 }
 
 func (s *SyncStore) Delete(ctx context.Context, key []byte) {
-	ctx, span := s.tracer.Start(ctx, "Delete")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.meta.SyncStore.Delete() Start")
+	defer span.AddEvent("store.meta.SyncStore.Delete() End")
 
 	if err := s.set(ctx, KVRange(key, deletedMark)); err != nil {
 		panic(err)
@@ -110,8 +114,9 @@ func (s *SyncStore) Delete(ctx context.Context, key []byte) {
 }
 
 func (s *SyncStore) set(ctx context.Context, kvs Ranger) error {
-	_, span := s.tracer.Start(ctx, "set")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.meta.SyncStore.set() Start")
+	defer span.AddEvent("store.meta.SyncStore.set() End")
 
 	entry, err := s.marshaler.Marshal(kvs)
 	if err != nil {
@@ -175,8 +180,9 @@ func (s *SyncStore) runSnapshot(ctx context.Context) {
 }
 
 func RecoverSyncStore(ctx context.Context, cfg config.SyncStore, walDir string) (*SyncStore, error) {
-	ctx, span := tracing.Start(ctx, "store.meta.async", "RecoverSyncStore")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.meta.RecoverSyncStore() Start")
+	defer span.AddEvent("store.meta.RecoverSyncStore() End")
 
 	committed, snapshot, err := recoverLatestSnapshot(ctx, walDir, defaultCodec)
 	if err != nil {

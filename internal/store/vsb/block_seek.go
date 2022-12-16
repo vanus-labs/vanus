@@ -19,6 +19,9 @@ import (
 	"context"
 	"sort"
 
+	// third-party libraries.
+	"go.opentelemetry.io/otel/trace"
+
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
@@ -29,8 +32,9 @@ import (
 var _ block.Seeker = (*vsBlock)(nil)
 
 func (b *vsBlock) Seek(ctx context.Context, index int64, key block.Entry, flag block.SeekKeyFlag) (int64, error) {
-	_, span := b.tracer.Start(ctx, "Seek")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.vsb.vsBlock.Seek() Start")
+	defer span.AddEvent("store.vsb.vsBlock.Seek() End")
 
 	b.mu.RLock()
 	indexes := b.indexes

@@ -73,9 +73,10 @@ func (h *host) Stop() {
 }
 
 func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoint string, cb SendCallback) {
-	ctx, span := h.tracer.Start(ctx, "Send", trace.WithAttributes(
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("raft.transport.host.Send() Start", trace.WithAttributes(
 		attribute.Int64("to", int64(to)), attribute.String("endpoint", endpoint)))
-	defer span.End()
+	defer span.AddEvent("raft.transport.host.Send() End")
 
 	mux := h.resolveMultiplexer(ctx, to, endpoint)
 	if mux == nil {

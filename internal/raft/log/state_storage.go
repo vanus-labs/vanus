@@ -15,7 +15,12 @@
 package log
 
 import (
+	// standard libraries.
 	"context"
+
+	// third-party libraries.
+	"go.opentelemetry.io/otel/trace"
+
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/raft/raftpb"
 
@@ -51,8 +56,9 @@ func (l *Log) HardState() raftpb.HardState {
 
 // SetHardState saves the current HardState.
 func (l *Log) SetHardState(ctx context.Context, hs raftpb.HardState) (err error) {
-	ctx, span := l.tracer.Start(ctx, "SetHardState")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("raft.log.Log.SetHardState() Start")
+	defer span.AddEvent("raft.log.Log.SetHardState() End")
 
 	if hs.Term != l.prevHardSt.Term || hs.Vote != l.prevHardSt.Vote {
 		var data []byte

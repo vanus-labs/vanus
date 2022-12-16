@@ -153,8 +153,9 @@ func (a *appender) Stop(ctx context.Context) {
 }
 
 func (a *appender) Bootstrap(ctx context.Context, blocks []Peer) error {
-	_, span := a.tracer.Start(ctx, "Bootstrap")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.block.raft.appender.Bootstrap() Start")
+	defer span.AddEvent("store.block.raft.appender.Bootstrap() End")
 
 	peers := make([]raft.Peer, 0, len(blocks))
 	for _, ep := range blocks {
@@ -171,8 +172,9 @@ func (a *appender) Bootstrap(ctx context.Context, blocks []Peer) error {
 }
 
 func (a *appender) Delete(ctx context.Context) {
-	ctx, span := a.tracer.Start(ctx, "Delete")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.block.raft.appender.Delete() Start")
+	defer span.AddEvent("store.block.raft.appender.Delete() End")
 
 	a.Stop(ctx)
 	a.log.Delete(ctx)
@@ -243,8 +245,9 @@ func (a *appender) run(ctx context.Context) {
 }
 
 func (a *appender) persistEntries(ctx context.Context, entries []raftpb.Entry) {
-	ctx, span := a.tracer.Start(ctx, "persistEntries")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.block.raft.appender.persistEntries() Start")
+	defer span.AddEvent("store.block.raft.appender.persistEntries() End")
 
 	log.Debug(ctx, "Append entries to raft log.", map[string]interface{}{
 		"node_id":        a.ID(),
@@ -267,8 +270,9 @@ func (a *appender) persistEntries(ctx context.Context, entries []raftpb.Entry) {
 }
 
 func (a *appender) applyEntries(ctx context.Context, committedEntries []raftpb.Entry) {
-	ctx, span := a.tracer.Start(ctx, "applyEntries")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.block.raft.appender.applyEntries() Start")
+	defer span.AddEvent("store.block.raft.appender.applyEntries() End")
 
 	var cs *raftpb.ConfState
 	for i := 0; i < len(committedEntries); i++ {
@@ -318,8 +322,9 @@ func (a *appender) onAppend(ctx context.Context, index uint64) {
 }
 
 func (a *appender) becomeLeader(ctx context.Context) {
-	ctx, span := a.tracer.Start(ctx, "becomeLeader")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.block.raft.appender.becomeLeader() Start")
+	defer span.AddEvent("store.block.raft.appender.becomeLeader() End")
 
 	// Reset when become leader.
 	a.reset(ctx)
@@ -366,8 +371,9 @@ func (a *appender) applyConfChange(ctx context.Context, pbEntry *raftpb.Entry) *
 }
 
 func (a *appender) reset(ctx context.Context) {
-	_, span := a.tracer.Start(ctx, "reset")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.block.raft.appender.reset() Start")
+	defer span.AddEvent("store.block.raft.appender.reset() End")
 
 	off, err := a.log.LastIndex()
 	if err != nil {
@@ -407,8 +413,9 @@ func (a *appender) reset(ctx context.Context) {
 
 // Append implements block.Appender.
 func (a *appender) Append(ctx context.Context, entries []block.Entry, cb block.AppendCallback) {
-	ctx, span := a.tracer.Start(ctx, "Append")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.block.raft.appender.Append() Start")
+	defer span.AddEvent("store.block.raft.appender.Append() End")
 
 	span.AddEvent("Acquiring append lock")
 	a.appendMu.Lock()

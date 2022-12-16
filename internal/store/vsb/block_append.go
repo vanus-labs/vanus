@@ -19,6 +19,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	// third-party libraries.
+	"go.opentelemetry.io/otel/trace"
+
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability/log"
 
@@ -77,8 +80,9 @@ func (b *vsBlock) NewAppendContext(last block.Fragment) block.AppendContext {
 func (b *vsBlock) PrepareAppend(
 	ctx context.Context, appendCtx block.AppendContext, entries ...block.Entry,
 ) ([]int64, block.Fragment, bool, error) {
-	_, span := b.tracer.Start(ctx, "PrepareAppend")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.vsb.vsBlock.PrepareAppend() Start")
+	defer span.AddEvent("store.vsb.vsBlock.PrepareAppend() End")
 
 	actx, _ := appendCtx.(*appendContext)
 
@@ -103,8 +107,9 @@ func (b *vsBlock) PrepareAppend(
 }
 
 func (b *vsBlock) PrepareArchive(ctx context.Context, appendCtx block.AppendContext) (block.Fragment, error) {
-	_, span := b.tracer.Start(ctx, "PrepareArchive")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.vsb.vsBlock.PrepareArchive() Start")
+	defer span.AddEvent("store.vsb.vsBlock.PrepareArchive() End")
 
 	actx, _ := appendCtx.(*appendContext)
 
@@ -119,8 +124,9 @@ func (b *vsBlock) PrepareArchive(ctx context.Context, appendCtx block.AppendCont
 }
 
 func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb block.CommitAppendCallback) {
-	ctx, span := b.tracer.Start(ctx, "CommitAppend")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.vsb.vsBlock.CommitAppend() Start")
+	defer span.AddEvent("store.vsb.vsBlock.CommitAppend() End")
 
 	if frag == nil {
 		b.s.Append(nil, func(n int, err error) {
@@ -197,8 +203,9 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 func (b *vsBlock) buildIndexes(
 	ctx context.Context, expected int64, frag block.Fragment,
 ) ([]index.Index, int64, bool, error) {
-	_, span := b.tracer.Start(ctx, "buildIndexes")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.vsb.vsBlock.buildIndexes() Start")
+	defer span.AddEvent("store.vsb.vsBlock.buildIndexes() End")
 
 	base := frag.StartOffset()
 	data := frag.Payload()

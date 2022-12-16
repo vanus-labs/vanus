@@ -21,9 +21,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	// first-party.
-	"github.com/linkall-labs/vanus/observability/tracing"
-
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store/block"
@@ -65,10 +62,9 @@ type vsBlock struct {
 	dec codec.EntryDecoder
 	lis block.ArchivedListener
 
-	f      *os.File
-	s      stream.Stream
-	wg     sync.WaitGroup
-	tracer *tracing.Tracer
+	f  *os.File
+	s  stream.Stream
+	wg sync.WaitGroup
 }
 
 // Make sure vsBlock implements block.File.

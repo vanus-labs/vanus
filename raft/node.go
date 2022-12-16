@@ -22,9 +22,6 @@ import (
 	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
 
-	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/tracing"
-
 	// this project.
 	pb "github.com/linkall-labs/vanus/raft/raftpb"
 )
@@ -281,8 +278,6 @@ type node struct {
 	status     chan chan Status
 
 	rn *RawNode
-
-	tracer *tracing.Tracer
 }
 
 func newNode(rn *RawNode) node {
@@ -302,7 +297,6 @@ func newNode(rn *RawNode) node {
 		stop:   make(chan struct{}),
 		status: make(chan chan Status),
 		rn:     rn,
-		tracer: tracing.NewTracer("raft.node", trace.SpanKindInternal),
 	}
 }
 
@@ -488,8 +482,9 @@ func (n *node) Propose(ctx context.Context, pds ...ProposeData) {
 }
 
 func (n *node) Step(ctx context.Context, m pb.Message) error {
-	ctx, span := n.tracer.Start(ctx, "Step")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("raft.node.Step() Start")
+	defer span.AddEvent("raft.node.Step() End")
 
 	// ignore unexpected local messages receiving over network
 	if IsLocalMsg(m.Type) {

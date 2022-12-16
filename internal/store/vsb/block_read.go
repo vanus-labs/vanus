@@ -18,6 +18,9 @@ import (
 	// standard libraries.
 	"context"
 
+	// third-party libraries.
+	"go.opentelemetry.io/otel/trace"
+
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
 )
@@ -27,8 +30,9 @@ var _ block.Reader = (*vsBlock)(nil)
 
 // Read date from file.
 func (b *vsBlock) Read(ctx context.Context, seq int64, num int) ([]block.Entry, error) {
-	_, span := b.tracer.Start(ctx, "Read")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.vsb.vsBlock.Read() Start")
+	defer span.AddEvent("store.vsb.vsBlock.Read() End")
 
 	from, to, num, err := b.entryRange(int(seq), num)
 	if err != nil {
