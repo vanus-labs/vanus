@@ -66,19 +66,32 @@ func Cast(val interface{}, target Type) (interface{}, error) {
 		case string:
 			return []string{value}, nil
 		case []interface{}:
-			stringArr := make([]string, len(value))
-			for i := range value {
-				v, err := Cast(value[i], String)
-				if err != nil {
-					return nil, err
-				}
-				str, _ := v.(string)
-				stringArr[i] = str
-			}
-			return stringArr, nil
+			arr, err := arrayCastString(value)
+			return arr, err
 		}
 	}
 
 	// AnyType doesn't need casting
 	return val, nil
+}
+
+func arrayCastString(value []interface{}) ([]string, error) {
+	stringArr := make([]string, 0, len(value))
+	for i := range value {
+		switch vv := value[i].(type) {
+		case []interface{}:
+			innerArray, err := arrayCastString(vv)
+			if err != nil {
+				return nil, err
+			}
+			stringArr = append(stringArr, innerArray...)
+		default:
+			v, err := Cast(value[i], String)
+			if err != nil {
+				return nil, err
+			}
+			stringArr = append(stringArr, v.(string))
+		}
+	}
+	return stringArr, nil
 }

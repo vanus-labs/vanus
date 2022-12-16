@@ -15,14 +15,12 @@
 package util
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/ohler55/ojg/jp"
-	"github.com/ohler55/ojg/oj"
+	"github.com/oliveagle/jsonpath"
 )
 
 // LookupAttribute lookup event attribute value by attribute name.
@@ -56,25 +54,14 @@ func LookupAttribute(event ce.Event, attr string) (interface{}, bool) {
 
 // LookupData lookup event data value by JSON path.
 func LookupData(data interface{}, path string) (interface{}, error) {
-	d, err := json.Marshal(data)
+	v, err := jsonpath.JsonPathLookup(data, path)
 	if err != nil {
+		if strings.Contains(err.Error(), "not found in object") {
+			return nil, ErrKeyNotFound
+		}
 		return nil, err
 	}
-	p, err := jp.ParseString(path)
-	if err != nil {
-		return nil, err
-	}
-	obj, err := oj.Parse(d)
-	if err != nil {
-		return nil, err
-	}
-	res := p.Get(obj)
-	if len(res) == 0 {
-		return nil, ErrKeyNotFound
-	} else if len(res) == 1 {
-		return res[0], nil
-	}
-	return res, nil
+	return v, nil
 }
 
 var (
