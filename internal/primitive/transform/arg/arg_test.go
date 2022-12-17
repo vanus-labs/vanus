@@ -17,9 +17,8 @@ package arg
 import (
 	"testing"
 
-	vContext "github.com/linkall-labs/vanus/internal/primitive/transform/context"
-
 	ce "github.com/cloudevents/sdk-go/v2"
+	vContext "github.com/linkall-labs/vanus/internal/primitive/transform/context"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -30,12 +29,20 @@ func TestNewArg(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(arg.Type(), ShouldEqual, EventData)
 			So(arg.Name(), ShouldEqual, "key")
+			arg, err = NewArg("$.data")
+			So(err, ShouldBeNil)
+			So(arg.Type(), ShouldEqual, EventData)
+			So(arg.Name(), ShouldEqual, "")
 		})
 		Convey("test new event attribute", func() {
 			arg, err := NewArg("$.source")
 			So(err, ShouldBeNil)
 			So(arg.Type(), ShouldEqual, EventAttribute)
 			So(arg.Name(), ShouldEqual, "source")
+			arg, err = NewArg("$.dataxx")
+			So(err, ShouldBeNil)
+			So(arg.Type(), ShouldEqual, EventAttribute)
+			So(arg.Name(), ShouldEqual, "dataxx")
 			_, err = NewArg("$.source_")
 			So(err, ShouldNotBeNil)
 		})

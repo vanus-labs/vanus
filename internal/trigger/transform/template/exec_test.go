@@ -17,98 +17,92 @@ package template
 import (
 	"testing"
 
+	cetest "github.com/cloudevents/sdk-go/v2/test"
+
+	vContext "github.com/linkall-labs/vanus/internal/primitive/transform/context"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestExecute(t *testing.T) {
-	Convey("test string var", t, func() {
-		p := NewTemplate()
-		p.Parse(`{"key":"<str>"}`)
-		Convey("no data", func() {
-			m := make(map[string]interface{})
-			v := p.Execute(m)
-			So(string(v), ShouldEqual, `{"key":"<str>"}`)
+	Convey("test define", t, func() {
+		m := make(map[string]interface{})
+		ceCtx := &vContext.EventContext{
+			Define: m,
+		}
+		tp := NewTemplate()
+		tp.Parse(`{"key":<str>,"key2":"<str2>"}`)
+		Convey("no exist", func() {
+			v := tp.Execute(ceCtx)
+			So(string(v), ShouldEqual, `{"key":"<str>","key2":"<str2>"}`)
 		})
-		Convey("null", func() {
-			m := make(map[string]interface{})
+		newTestExecFunc(tp, ceCtx, m)()
+	})
+	Convey("test event attribute", t, func() {
+		event := cetest.FullEvent()
+		m := event.Context.AsV1().Extensions
+		ceCtx := &vContext.EventContext{
+			Event: &event,
+		}
+		tp := NewTemplate()
+		tp.Parse(`{"key":<$.str>,"key2":"<$.str2>"}`)
+		Convey("no exist", func() {
+			v := tp.Execute(ceCtx)
+			So(string(v), ShouldEqual, `{"key":"<$.str>","key2":"<$.str2>"}`)
+		})
+		newTestExecFunc(tp, ceCtx, m)()
+	})
+	Convey("test event data", t, func() {
+		m := make(map[string]interface{})
+		ceCtx := &vContext.EventContext{
+			Data: m,
+		}
+		tp := NewTemplate()
+		tp.Parse(`{"key":<$.data.str>,"key2":"<$.data.str2>"}`)
+		Convey("no exist", func() {
+			v := tp.Execute(ceCtx)
+			So(string(v), ShouldEqual, `{"key":"<$.data.str>","key2":"<$.data.str2>"}`)
+		})
+		newTestExecFunc(tp, ceCtx, m)()
+	})
+}
+
+func newTestExecFunc(tp *Template, ceCtx *vContext.EventContext, m map[string]interface{}) func() {
+	return func() {
+		Convey("nil value", func() {
 			m["str"] = nil
-			v := p.Execute(m)
-			So(string(v), ShouldEqual, `{"key":""}`)
+			m["str2"] = nil
+			v := tp.Execute(ceCtx)
+			So(string(v), ShouldEqual, `{"key":null,"key2":""}`)
 		})
-		Convey("string", func() {
-			m := make(map[string]interface{})
+		Convey("string value", func() {
 			m["str"] = "str"
-			v := p.Execute(m)
-			So(string(v), ShouldEqual, `{"key":"str"}`)
+			m["str2"] = "str2"
+			v := tp.Execute(ceCtx)
+			So(string(v), ShouldEqual, `{"key":"str","key2":"str2"}`)
 		})
-		Convey("number", func() {
-			m := make(map[string]interface{})
+		Convey("number value", func() {
 			m["str"] = 123.456
-			v := p.Execute(m)
-			So(string(v), ShouldEqual, `{"key":"123.456"}`)
+			m["str2"] = 321.654
+			v := tp.Execute(ceCtx)
+			So(string(v), ShouldEqual, `{"key":123.456,"key2":"321.654"}`)
 		})
-		Convey("bool", func() {
-			m := make(map[string]interface{})
+		Convey("bool value", func() {
 			m["str"] = true
-			v := p.Execute(m)
-			So(string(v), ShouldEqual, `{"key":"true"}`)
+			m["str2"] = true
+			v := tp.Execute(ceCtx)
+			So(string(v), ShouldEqual, `{"key":true,"key2":"true"}`)
 		})
-		Convey("object", func() {
-			m := make(map[string]interface{})
+		Convey("object value", func() {
 			m["str"] = map[string]interface{}{"str": true}
-			v := p.Execute(m)
-			So(string(v), ShouldEqual, `{"key":"{}"}`)
+			m["str2"] = map[string]interface{}{"str2": true}
+			v := tp.Execute(ceCtx)
+			So(string(v), ShouldEqual, `{"key":{"str":true},"key2":"{}"}`)
 		})
-		Convey("array", func() {
-			m := make(map[string]interface{})
+		Convey("array value", func() {
 			m["str"] = []interface{}{"str", true}
-			v := p.Execute(m)
-			So(string(v), ShouldEqual, `{"key":"[]"}`)
+			m["str2"] = []interface{}{"str2", true}
+			v := tp.Execute(ceCtx)
+			So(string(v), ShouldEqual, `{"key":["str",true],"key2":"[]"}`)
 		})
-	})
-	Convey("test var", t, func() {
-		p := NewTemplate()
-		p.Parse(`{"key":<str>}`)
-		Convey("no data", func() {
-			m := make(map[string]interface{})
-			v := p.Execute(m)
-			So(string(v), ShouldEqual, `{"key":"<str>"}`)
-		})
-		Convey("null", func() {
-			m := make(map[string]interface{})
-			m["str"] = nil
-			v := p.Execute(m)
-			So(string(v), ShouldEqual, `{"key":null}`)
-		})
-		Convey("string", func() {
-			m := make(map[string]interface{})
-			m["str"] = "str"
-			v := p.Execute(m)
-			So(string(v), ShouldEqual, `{"key":"str"}`)
-		})
-		Convey("number", func() {
-			m := make(map[string]interface{})
-			m["str"] = 123.456
-			v := p.Execute(m)
-			So(string(v), ShouldEqual, `{"key":123.456}`)
-		})
-		Convey("bool", func() {
-			m := make(map[string]interface{})
-			m["str"] = true
-			v := p.Execute(m)
-			So(string(v), ShouldEqual, `{"key":true}`)
-		})
-		Convey("obj", func() {
-			m := make(map[string]interface{})
-			m["str"] = map[string]interface{}{"k": "v"}
-			v := p.Execute(m)
-			So(string(v), ShouldEqual, `{"key":{"k":"v"}}`)
-		})
-		Convey("array", func() {
-			m := make(map[string]interface{})
-			m["str"] = []interface{}{"str", 123.456}
-			v := p.Execute(m)
-			So(string(v), ShouldEqual, `{"key":["str",123.456]}`)
-		})
-	})
+	}
 }
