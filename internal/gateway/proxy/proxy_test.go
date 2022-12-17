@@ -18,6 +18,7 @@ import (
 	stdCtx "context"
 	"encoding/base64"
 	"encoding/binary"
+	stdJson "encoding/json"
 	"fmt"
 	"testing"
 
@@ -26,9 +27,14 @@ import (
 	"github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/policy"
+	"github.com/linkall-labs/vanus/internal/convert"
+	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	proxypb "github.com/linkall-labs/vanus/proto/pkg/proxy"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/tidwall/gjson"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -248,5 +254,131 @@ func TestControllerProxy_StartAndStop(t *testing.T) {
 func TestControllerProxy_LookLookupOffset(t *testing.T) {
 	Convey("test lookup offset by timestamp/earliest/latest", t, func() {
 
+	})
+}
+
+func TestControllerProxy_ValidateSubscription(t *testing.T) {
+	Convey("test ValidateSubscription", t, func() {
+		cp := NewControllerProxy(Config{
+			Endpoints: []string{"127.0.0.1:20001",
+				"127.0.0.1:20002", "127.0.0.1:20003"},
+			CloudEventReceiverPort: 18080,
+			ProxyPort:              18082,
+			Credentials:            insecure.NewCredentials(),
+		})
+
+		data := `{
+    "id":"13b719a4-ada9-436a-9fb1-fc2bc82dc647",
+    "source":"prometheus",
+    "specversion":"1.0",
+    "type":"naive-http-request",
+    "datacontenttype":"application/json",
+    "subject":"operator",
+    "time":"2022-12-12T08:31:54.936803649Z",
+    "data":{"body":{"alerts":[{"annotations":{"feishuUrls":[{"URL":"https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx",
+"signature":"yyyy"},{"URL":"https://open.feishu.cn/open-apis/bot/v2/hook/yyyyy","signature":""},
+{"URL":"https://open.feishu.cn/open-apis/bot/v2/hook/zzzzz","signature":"zzzz"}]},
+"labels":{"forward":"test-server","severity":"P1"},"startsAt":"2022-12-12T07:55:24.893471163Z","status":"resolved"}],
+"commonLabels":{"cluster":"txprod","forward":"notify-server","groups":"koyomi-bot","severity":"P1"}},
+"headers":{"Content-Type":"application/json","Host":"webhook-source.vanus:80","User-Agent":"Alertmanager/0.24.0"},
+"method":"POST","query_args":{"source":"prometheus","subject":"alert-operator"}}
+}`
+		e := v2.NewEvent()
+		_ = e.UnmarshalJSON([]byte(data))
+
+		trans := `{"pipeline":[{"command":["create","$.xvfeishuservice","bot"]},{"command":["create",
+				"$.xvfeishumsgtype","interactive"]},{"command":["join","$.xvfeishuboturls",",",
+				"$.data.body.alerts[0].annotations.feishuUrls[:].URL"]},{"command":["join",
+				"$.xvfeishubotsigns",",","$.data.body.alerts[0].annotations.feishuUrls[:].signature"]}]}`
+		var _transformer *primitive.Transformer
+		_ = stdJson.Unmarshal([]byte(trans), &_transformer)
+		transPb := convert.ToPbTransformer(_transformer)
+		s := &ctrlpb.SubscriptionRequest{
+			Filters: []*metapb.Filter{
+				{
+					Exact: map[string]string{
+						"source": "test",
+					},
+				},
+			},
+			Transformer: transPb,
+		}
+		Convey("test with event and subscription", func() {
+			ctx := stdCtx.Background()
+			res, err := cp.ValidateSubscription(ctx, &proxypb.ValidateSubscriptionRequest{
+				Event:        []byte(data),
+				Subscription: s,
+			})
+			So(err, ShouldBeNil)
+			So(res.Matched, ShouldBeFalse)
+
+			s.Filters = []*metapb.Filter{
+				{
+					Exact: map[string]string{
+						"source": "prometheus",
+					},
+				},
+			}
+			res, err = cp.ValidateSubscription(ctx, &proxypb.ValidateSubscriptionRequest{
+				Event:        []byte(data),
+				Subscription: s,
+			})
+			So(err, ShouldBeNil)
+			So(res.Matched, ShouldBeTrue)
+			result := gjson.ParseBytes(res.FinalTransformed)
+			urls := "https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx,https://open" +
+				".feishu.cn/open-apis/bot/v2/hook/yyyyy,https://open.feishu.cn/open-apis/bot/v2/hook/zzzzz"
+			So(result.Get("xvfeishumsgtype").String(), ShouldEqual, "interactive")
+			So(result.Get("xvfeishuboturls").String(), ShouldEqual, urls)
+			So(result.Get("xvfeishubotsigns").String(), ShouldEqual, "yyyy,,zzzz")
+			So(result.Get("xvfeishuservice").String(), ShouldEqual, "bot")
+		})
+
+		ctrl := gomock.NewController(t)
+		cli := client.NewMockClient(ctrl)
+		cp.client = cli
+		eb := api.NewMockEventbus(ctrl)
+		mockTriggerCtrl := ctrlpb.NewMockTriggerControllerClient(ctrl)
+		cp.triggerCtrl = mockTriggerCtrl
+		Convey("test with eventlog, offset and subscriptionID", func() {
+			ctx := stdCtx.Background()
+
+			// mock eventbus
+			cli.EXPECT().Eventbus(gomock.Any(), gomock.Any()).Times(2).Return(eb)
+			eb.EXPECT().ListLog(gomock.Any()).Times(1).Return([]api.Eventlog{nil}, nil)
+			rd := api.NewMockBusReader(ctrl)
+			eb.EXPECT().Reader(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(rd)
+			rd.EXPECT().Read(gomock.Any()).Times(1).Return([]*v2.Event{&e}, int64(0), uint64(0), nil)
+
+			// mock subscription
+			pb := &metapb.Subscription{
+				Filters: []*metapb.Filter{
+					{
+						Exact: map[string]string{
+							"source": "prometheus",
+						},
+					},
+				},
+				Transformer: s.Transformer,
+			}
+			mockTriggerCtrl.EXPECT().GetSubscription(ctx, gomock.Any()).Times(1).Return(pb, nil)
+
+			res, err := cp.ValidateSubscription(ctx, &proxypb.ValidateSubscriptionRequest{
+				SubscriptionId: vanus.NewTestID().Uint64(),
+				Eventbus:       "test",
+				Eventlog:       vanus.NewTestID().Uint64(),
+				Offset:         123,
+			})
+
+			So(err, ShouldBeNil)
+			So(res.Matched, ShouldBeTrue)
+			result := gjson.ParseBytes(res.FinalTransformed)
+			urls := "https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx,https://open" +
+				".feishu.cn/open-apis/bot/v2/hook/yyyyy,https://open.feishu.cn/open-apis/bot/v2/hook/zzzzz"
+			So(result.Get("xvfeishumsgtype").String(), ShouldEqual, "interactive")
+			So(result.Get("xvfeishuboturls").String(), ShouldEqual, urls)
+			So(result.Get("xvfeishubotsigns").String(), ShouldEqual, "yyyy,,zzzz")
+			So(result.Get("xvfeishuservice").String(), ShouldEqual, "bot")
+		})
 	})
 }
