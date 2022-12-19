@@ -33,7 +33,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/tracing"
-	"github.com/linkall-labs/vanus/pkg/controller"
+	"github.com/linkall-labs/vanus/pkg/cluster"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	proxypb "github.com/linkall-labs/vanus/proto/pkg/proxy"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -41,6 +41,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -71,16 +72,19 @@ type ControllerProxy struct {
 	eventlogCtrl ctrlpb.EventLogControllerClient
 	triggerCtrl  ctrlpb.TriggerControllerClient
 	grpcSrv      *grpc.Server
+	ctrl         cluster.Cluster
 }
 
 func NewControllerProxy(cfg Config) *ControllerProxy {
+	ctrl := cluster.NewClusterController(cfg.Endpoints, insecure.NewCredentials())
 	return &ControllerProxy{
 		cfg:          cfg,
+		ctrl:         ctrl,
 		client:       eb.Connect(cfg.Endpoints),
 		tracer:       tracing.NewTracer("controller-proxy", trace.SpanKindServer),
-		eventbusCtrl: controller.NewEventbusClient(cfg.Endpoints, cfg.Credentials),
-		eventlogCtrl: controller.NewEventlogClient(cfg.Endpoints, cfg.Credentials),
-		triggerCtrl:  controller.NewTriggerClient(cfg.Endpoints, cfg.Credentials),
+		eventbusCtrl: ctrl.EventbusService().RawClient(),
+		eventlogCtrl: ctrl.EventlogService().RawClient(),
+		triggerCtrl:  ctrl.TriggerService().RawClient(),
 	}
 }
 

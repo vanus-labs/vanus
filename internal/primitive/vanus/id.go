@@ -24,7 +24,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/controller"
+	"github.com/linkall-labs/vanus/pkg/cluster"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/sony/sonyflake"
 	"go.uber.org/atomic"
@@ -141,8 +141,9 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 
 	var err error
 	once.Do(func() {
+		ctrl := cluster.NewClusterController(ctrlAddr, insecure.NewCredentials())
 		snow := &snowflake{
-			client:   controller.NewSnowflakeController(ctrlAddr, insecure.NewCredentials()),
+			client:   ctrl.IDService().RawClient(),
 			ctrlAddr: ctrlAddr,
 			n:        n,
 		}

@@ -23,20 +23,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/timer/metadata"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/proto/pkg/meta"
-	"k8s.io/apimachinery/pkg/util/wait"
-
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/types"
 	"github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/option"
 	"github.com/linkall-labs/vanus/client/pkg/policy"
+	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/linkall-labs/vanus/internal/timer/metadata"
+	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/pkg/errors"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 const (
@@ -103,7 +100,6 @@ type bucket struct {
 	wg             sync.WaitGroup
 	exitC          chan struct{}
 	kvStore        kv.Client
-	ctrlCli        ctrlpb.EventBusControllerClient
 	client         client.Client
 	eventbusWriter api.BusWriter
 	eventbusReader api.BusReader
@@ -126,7 +122,6 @@ func newBucket(tw *timingWheel, element *list.Element, tick time.Duration, ebNam
 		eventbus:    ebName,
 		exitC:       make(chan struct{}),
 		kvStore:     tw.kvStore,
-		ctrlCli:     tw.ctrlCli,
 		client:      tw.client,
 		timingwheel: tw,
 		element:     element,
@@ -327,58 +322,19 @@ func (b *bucket) push(ctx context.Context, tm *timingMsg) bool {
 	return b.putEvent(ctx, tm) == nil
 }
 
-func (b *bucket) isExistEventbus(ctx context.Context) bool {
-	_, err := b.ctrlCli.GetEventBus(ctx, &meta.EventBus{Name: b.eventbus})
-	return err == nil
-}
-
 func (b *bucket) createEventbus(ctx context.Context) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if !b.isLeader() || b.isExistEventbus(ctx) {
+	if !b.isLeader() {
 		return nil
 	}
-	_, err := b.ctrlCli.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
-		Name: b.eventbus,
-	})
-	if err != nil {
-		log.Error(ctx, "create eventbus failed", map[string]interface{}{
-			log.KeyError: err,
-			"eventbus":   b.eventbus,
-		})
-		return err
-	}
-	log.Info(ctx, "create eventbus success.", map[string]interface{}{
-		"eventbus": b.eventbus,
-	})
-	return nil
+	return b.timingwheel.ctrl.EventbusService().CreateSystemEventbusIfNotExist(ctx, b.eventbus,
+		"System Eventbus For Timing Service")
 }
 
 func (b *bucket) connectEventbus(ctx context.Context) {
 	b.eventbusWriter = b.client.Eventbus(ctx, b.eventbus).Writer()
 	b.eventbusReader = b.client.Eventbus(ctx, b.eventbus).Reader()
-}
-
-func (b *bucket) deleteEventbus(ctx context.Context) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if !b.isLeader() || !b.isExistEventbus(ctx) {
-		return nil
-	}
-	_, err := b.ctrlCli.DeleteEventBus(ctx, &meta.EventBus{
-		Name: b.eventbus,
-	})
-	if err != nil {
-		log.Error(ctx, "delete eventbus failed", map[string]interface{}{
-			log.KeyError: err,
-			"eventbus":   b.eventbus,
-		})
-		return err
-	}
-	log.Info(ctx, "delete eventbus success.", map[string]interface{}{
-		"eventbus": b.eventbus,
-	})
-	return nil
 }
 
 func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
@@ -524,7 +480,7 @@ func (b *bucket) hasOnEnd(ctx context.Context) bool {
 }
 
 func (b *bucket) recycle(ctx context.Context) {
-	_ = b.deleteEventbus(ctx)
+	_ = b.timingwheel.ctrl.EventbusService().Delete(ctx, b.eventbus)
 	_ = b.deleteOffsetMeta(ctx)
 }
 

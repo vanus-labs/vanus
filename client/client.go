@@ -40,7 +40,7 @@ type client struct {
 }
 
 func (c *client) Eventbus(ctx context.Context, ebName string) api.Eventbus {
-	_, span := c.tracer.Start(ctx, "Eventbus")
+	_, span := c.tracer.Start(ctx, "EventbusService")
 	defer span.End()
 
 	bus := func() api.Eventbus {

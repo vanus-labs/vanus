@@ -15,9 +15,10 @@
 package primitive
 
 const (
-	RetryEventbusName      = "__retry_eb"
-	DeadLetterEventbusName = "__dl_eb"
-	TimerEventbusName      = "__Timer_RS"
+	SystemEventbusNamePrefix = "__"
+	RetryEventbusName        = "__retry_eb"
+	DeadLetterEventbusName   = "__dl_eb"
+	TimerEventbusName        = "__Timer_RS"
 
 	XVanus               = "xvanus"
 	XVanusEventbus       = XVanus + "eventbus"

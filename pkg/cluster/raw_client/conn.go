@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controller
+package raw_client
 
 import (
 	"context"
@@ -39,7 +39,7 @@ const (
 	vanusConnBypass = "VANUS_CONN_BYPASS"
 )
 
-type conn struct {
+type Conn struct {
 	mutex        sync.Mutex
 	leader       string
 	leaderClient *grpc.ClientConn
@@ -49,13 +49,13 @@ type conn struct {
 	bypass       bool
 }
 
-func newConn(endpoints []string, credentials credentials.TransportCredentials) *conn {
+func NewConnection(endpoints []string, credentials credentials.TransportCredentials) *Conn {
 	// TODO temporary implement
 	v, _ := strconv.ParseBool(os.Getenv(vanusConnBypass))
-	log.Info(context.Background(), "init conn", map[string]interface{}{
+	log.Info(context.Background(), "init Conn", map[string]interface{}{
 		"endpoints": endpoints,
 	})
-	return &conn{
+	return &Conn{
 		endpoints:   endpoints,
 		grpcConn:    map[string]*grpc.ClientConn{},
 		credentials: credentials,
@@ -63,7 +63,7 @@ func newConn(endpoints []string, credentials credentials.TransportCredentials) *
 	}
 }
 
-func (c *conn) invoke(ctx context.Context, method string, args, reply interface{}, opts ...grpc.CallOption) error {
+func (c *Conn) invoke(ctx context.Context, method string, args, reply interface{}, opts ...grpc.CallOption) error {
 	log.Debug(ctx, "grpc invoke", map[string]interface{}{
 		"method": method,
 		"args":   fmt.Sprintf("%v", args),
@@ -95,7 +95,7 @@ func (c *conn) invoke(ctx context.Context, method string, args, reply interface{
 	return err
 }
 
-func (c *conn) close() error {
+func (c *Conn) close() error {
 	var err error
 	for ip, conn := range c.grpcConn {
 		if _err := conn.Close(); _err != nil {
@@ -109,7 +109,7 @@ func (c *conn) close() error {
 	return err
 }
 
-func (c *conn) makeSureClient(ctx context.Context, renew bool) *grpc.ClientConn {
+func (c *Conn) makeSureClient(ctx context.Context, renew bool) *grpc.ClientConn {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -146,7 +146,7 @@ func (c *conn) makeSureClient(ctx context.Context, renew bool) *grpc.ClientConn 
 
 		conn := c.getGRPCConn(ctx, c.leader)
 		if conn == nil {
-			log.Info(ctx, "failed to get conn", map[string]interface{}{})
+			log.Info(ctx, "failed to get Conn", map[string]interface{}{})
 			return nil
 		}
 		log.Info(ctx, "success to get connection", map[string]interface{}{
@@ -157,7 +157,7 @@ func (c *conn) makeSureClient(ctx context.Context, renew bool) *grpc.ClientConn 
 	return c.leaderClient
 }
 
-func (c *conn) getGRPCConn(ctx context.Context, addr string) *grpc.ClientConn {
+func (c *Conn) getGRPCConn(ctx context.Context, addr string) *grpc.ClientConn {
 	if addr == "" {
 		return nil
 	}
