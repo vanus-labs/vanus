@@ -77,7 +77,7 @@ func NewArg(arg interface{}) (Arg, error) {
 	if argName, ok := arg.(string); ok {
 		argName = strings.TrimSpace(argName)
 		argLen := len(argName)
-		if argLen >= 6 && argName[:6] == EventDataArgPrefix {
+		if argName == EventDataArgPrefix || (argLen > 6 && argName[:7] == EventDataArgPrefix+".") {
 			return newEventData(argName), nil
 		}
 		if argLen >= 2 && argName[:2] == EventArgPrefix {

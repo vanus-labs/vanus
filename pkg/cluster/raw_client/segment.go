@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controller
+package raw_client
 
 import (
 	// standard libraries.
@@ -25,7 +25,6 @@ import (
 
 	// third-party libraries.
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/linkall-labs/vanus/pkg/errors"
@@ -38,13 +37,13 @@ var (
 )
 
 type segmentClient struct {
-	cc              *conn
+	cc              *Conn
 	heartBeatClient ctrlpb.SegmentController_SegmentHeartbeatClient
 }
 
-func NewSegmentClient(ctrlAddrs []string, credentials credentials.TransportCredentials) ctrlpb.SegmentControllerClient {
+func NewSegmentClient(cc *Conn) ctrlpb.SegmentControllerClient {
 	return &segmentClient{
-		cc: newConn(ctrlAddrs, credentials),
+		cc: cc,
 	}
 }
 

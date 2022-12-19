@@ -44,7 +44,7 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/linkall-labs/vanus/observability/tracing"
-	"github.com/linkall-labs/vanus/pkg/controller"
+	"github.com/linkall-labs/vanus/pkg/cluster"
 	"github.com/linkall-labs/vanus/pkg/util"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
@@ -89,7 +89,7 @@ type Server interface {
 	ActivateSegment(ctx context.Context, logID vanus.ID, segID vanus.ID, replicas map[vanus.ID]string) error
 	InactivateSegment(ctx context.Context) error
 
-	AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]int64, error)
+	AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent, cb func([]int64, error))
 	ReadFromBlock(ctx context.Context, id vanus.ID, seq int64, num int, pollingTimeout uint32) ([]*cepb.CloudEvent, error)
 	LookupOffsetInBlock(ctx context.Context, id vanus.ID, stime int64) (int64, error)
 }
@@ -124,7 +124,8 @@ func NewServer(cfg store.Config) Server {
 		tracer:       tracing.NewTracer("store.segment.server", trace.SpanKindServer),
 	}
 
-	srv.cc = controller.NewSegmentClient(cfg.ControllerAddresses, srv.credentials)
+	srv.ctrl = cluster.NewClusterController(cfg.ControllerAddresses, srv.credentials)
+	srv.cc = srv.ctrl.SegmentService().RawClient()
 	return srv
 }
 
@@ -155,6 +156,7 @@ type server struct {
 
 	ctrlAddress []string
 	credentials credentials.TransportCredentials
+	ctrl        cluster.Cluster
 	cc          ctrlpb.SegmentControllerClient
 	leaderC     chan leaderInfo
 
@@ -258,6 +260,9 @@ func (s *server) reconcileBlocks(ctx context.Context) error {
 
 func (s *server) registerSelf(ctx context.Context) error {
 	// TODO(james.yin): pass information of blocks.
+	if err := s.ctrl.WaitForControllerReady(false); err != nil {
+		return err
+	}
 	res, err := s.cc.RegisterSegmentServer(ctx, &ctrlpb.RegisterSegmentServerRequest{
 		Address:  s.localAddress,
 		VolumeId: s.volumeID,
@@ -402,7 +407,7 @@ func (s *server) runHeartbeat(_ context.Context) error {
 		}
 	}
 
-	return controller.RegisterHeartbeat(ctx, time.Second, s.cc, f)
+	return s.ctrl.SegmentService().RegisterHeartbeat(ctx, time.Second, f)
 }
 
 func (s *server) leaderChanged(blockID, leaderID vanus.ID, term uint64) {
@@ -628,23 +633,23 @@ func (s *server) InactivateSegment(ctx context.Context) error {
 	return nil
 }
 
-func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]int64, error) {
+func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent, cb func([]int64, error)) {
 	ctx, span := s.tracer.Start(ctx, "AppendToBlock")
 	defer span.End()
 
 	if len(events) == 0 {
-		return nil, errors.ErrInvalidRequest.WithMessage("event list is empty")
+		cb(nil, errors.ErrInvalidRequest.WithMessage("event list is empty"))
 	}
 
 	if err := s.checkState(); err != nil {
-		return nil, err
+		cb(nil, err)
 	}
 
 	var b Replica
 	if v, ok := s.replicas.Load(id); ok {
 		b, _ = v.(Replica)
 	} else {
-		return nil, errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
+		cb(nil, errors.ErrResourceNotFound.WithMessage("the block doesn't exist"))
 	}
 
 	var size int
@@ -657,16 +662,51 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 	metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(len(events)))
 	metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(size))
 
-	seqs, err := b.Append(ctx, entries...)
-	if err != nil {
-		return nil, s.processAppendError(ctx, b, err)
-	}
+	b.Append(ctx, cb, entries...)
 
 	// TODO(weihe.yin) make this method deep to code
 	s.pm.NewMessageArrived(id)
-
-	return seqs, nil
 }
+
+// func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]int64, error) {
+// 	ctx, span := s.tracer.Start(ctx, "AppendToBlock")
+// 	defer span.End()
+
+// 	if len(events) == 0 {
+// 		return nil, errors.ErrInvalidRequest.WithMessage("event list is empty")
+// 	}
+
+// 	if err := s.checkState(); err != nil {
+// 		return nil, err
+// 	}
+
+// 	var b Replica
+// 	if v, ok := s.replicas.Load(id); ok {
+// 		b, _ = v.(Replica)
+// 	} else {
+// 		return nil, errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
+// 	}
+
+// 	var size int
+// 	entries := make([]block.Entry, len(events))
+// 	for i, event := range events {
+// 		entries[i] = ceconv.ToEntry(event)
+// 		size += proto.Size(event)
+// 	}
+
+// 	metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(len(events)))
+// 	metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(size))
+
+// 	seqs, err := b.Append(ctx, entries...)
+// 	if err != nil {
+// 		return nil, s.processAppendError(ctx, b, err)
+// 	}
+
+// 	// TODO(weihe.yin) make this method deep to code
+// 	s.pm.NewMessageArrived(id)
+
+// 	return seqs, nil
+// }
 
 func (s *server) processAppendError(ctx context.Context, b Replica, err error) error {
 	if stderr.As(err, &errors.ErrorType{}) {

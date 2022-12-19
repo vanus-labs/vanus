@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=manager.go  -destination=mock_manager.go -package=server
 package server
 
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -36,6 +38,7 @@ type Manager interface {
 	GetServerByServerID(id vanus.ID) Server
 	Run(ctx context.Context) error
 	Stop(ctx context.Context)
+	CanCreateEventbus(ctx context.Context, replicaNum int) bool
 }
 
 const (
@@ -59,6 +62,7 @@ type segmentServerManager struct {
 	cancelCtx            context.Context
 	cancel               func()
 	ticker               *time.Ticker
+	onlineServerNumber   int64
 }
 
 func (mgr *segmentServerManager) AddServer(ctx context.Context, srv Server) error {
@@ -78,9 +82,11 @@ func (mgr *segmentServerManager) AddServer(ctx context.Context, srv Server) erro
 	}
 	mgr.segmentServerMapByIP.Store(srv.Address(), srv)
 	mgr.segmentServerMapByID.Store(srv.ID().Key(), srv)
+	atomic.AddInt64(&mgr.onlineServerNumber, 1)
 	log.Info(ctx, "the segment server added", map[string]interface{}{
 		"server_id": srv.ID(),
 		"addr":      srv.Address(),
+		"online":    atomic.LoadInt64(&mgr.onlineServerNumber),
 	})
 	return nil
 }
@@ -93,6 +99,12 @@ func (mgr *segmentServerManager) RemoveServer(ctx context.Context, srv Server) e
 	defer mgr.mutex.Unlock()
 	mgr.segmentServerMapByIP.Delete(srv.Address())
 	mgr.segmentServerMapByID.Delete(srv.ID().Key())
+	atomic.AddInt64(&mgr.onlineServerNumber, -1)
+	log.Info(ctx, "the segment server was removed", map[string]interface{}{
+		"server_id": srv.ID(),
+		"addr":      srv.Address(),
+		"online":    atomic.LoadInt64(&mgr.onlineServerNumber),
+	})
 	return nil
 }
 
@@ -169,6 +181,18 @@ func (mgr *segmentServerManager) Stop(ctx context.Context) {
 
 		return true
 	})
+}
+
+func (mgr *segmentServerManager) CanCreateEventbus(ctx context.Context, replicaNum int) bool {
+	activeNum := 0
+	mgr.segmentServerMapByID.Range(func(_, value any) bool {
+		s, _ := value.(Server)
+		if s.IsActive(ctx) {
+			activeNum++
+		}
+		return true
+	})
+	return activeNum >= replicaNum
 }
 
 type Server interface {

@@ -12,26 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controller
+package raw_client
 
 import (
 	"context"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-func NewSnowflakeController(endpoints []string, credentials credentials.TransportCredentials) ctrlpb.SnowflakeControllerClient {
+func NewSnowflakeController(cc *Conn) ctrlpb.SnowflakeControllerClient {
 	return &snowflakeClient{
-		cc: newConn(endpoints, credentials),
+		cc: cc,
 	}
 }
 
 type snowflakeClient struct {
-	cc *conn
+	cc *Conn
 }
 
 func (sfc *snowflakeClient) Close() error {

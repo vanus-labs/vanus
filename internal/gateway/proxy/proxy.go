@@ -18,22 +18,26 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"net"
 	"runtime/debug"
 	"sync"
 
+	v2 "github.com/cloudevents/sdk-go/v2"
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/option"
 	"github.com/linkall-labs/vanus/client/pkg/policy"
+	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/trigger/filter"
+	"github.com/linkall-labs/vanus/internal/trigger/transform"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/tracing"
-	"github.com/linkall-labs/vanus/pkg/controller"
+	"github.com/linkall-labs/vanus/pkg/cluster"
+	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	proxypb "github.com/linkall-labs/vanus/proto/pkg/proxy"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -41,6 +45,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -71,16 +76,19 @@ type ControllerProxy struct {
 	eventlogCtrl ctrlpb.EventLogControllerClient
 	triggerCtrl  ctrlpb.TriggerControllerClient
 	grpcSrv      *grpc.Server
+	ctrl         cluster.Cluster
 }
 
 func NewControllerProxy(cfg Config) *ControllerProxy {
+	ctrl := cluster.NewClusterController(cfg.Endpoints, insecure.NewCredentials())
 	return &ControllerProxy{
 		cfg:          cfg,
+		ctrl:         ctrl,
 		client:       eb.Connect(cfg.Endpoints),
 		tracer:       tracing.NewTracer("controller-proxy", trace.SpanKindServer),
-		eventbusCtrl: controller.NewEventbusClient(cfg.Endpoints, cfg.Credentials),
-		eventlogCtrl: controller.NewEventlogClient(cfg.Endpoints, cfg.Credentials),
-		triggerCtrl:  controller.NewTriggerClient(cfg.Endpoints, cfg.Credentials),
+		eventbusCtrl: ctrl.EventbusService().RawClient(),
+		eventlogCtrl: ctrl.EventlogService().RawClient(),
+		triggerCtrl:  ctrl.TriggerService().RawClient(),
 	}
 }
 
@@ -225,6 +233,57 @@ func (cp *ControllerProxy) GetEvent(ctx context.Context,
 	return &proxypb.GetEventResponse{
 		Events: results,
 	}, nil
+}
+
+func (cp *ControllerProxy) ValidateSubscription(ctx context.Context,
+	req *proxypb.ValidateSubscriptionRequest) (*proxypb.ValidateSubscriptionResponse, error) {
+	if req.GetEvent() == nil {
+		res, err := cp.GetEvent(ctx, &proxypb.GetEventRequest{
+			Eventbus:   req.Eventbus,
+			EventlogId: req.Eventlog,
+			Offset:     req.Offset,
+			Number:     1,
+		})
+		if err != nil {
+			return nil, err
+		}
+		req.Event = res.GetEvents()[0].Value
+	}
+
+	e := v2.NewEvent()
+	if err := e.UnmarshalJSON(req.GetEvent()); err != nil {
+		return nil, errors.ErrInvalidRequest.WithMessage("failed to unmarshall event to CloudEvent").Wrap(err)
+	}
+
+	if req.GetSubscription() == nil {
+		sub, err := cp.GetSubscription(ctx, &ctrlpb.GetSubscriptionRequest{Id: req.SubscriptionId})
+		if err != nil {
+			return nil, err
+		}
+		req.Subscription = &ctrlpb.SubscriptionRequest{
+			Filters:     sub.Filters,
+			Transformer: sub.Transformer,
+		}
+	}
+
+	sub := convert.FromPbSubscriptionRequest(req.Subscription)
+	res := &proxypb.ValidateSubscriptionResponse{}
+	f := filter.GetFilter(sub.Filters)
+	r := f.Filter(e)
+	if !r {
+		return res, nil
+	}
+
+	res.FilterResult = true
+	t := transform.NewTransformer(sub.Transformer)
+	if t != nil {
+		if err := t.Execute(&e); err != nil {
+			return nil, errors.ErrTransformInputParse.Wrap(err)
+		}
+	}
+	data, _ := e.MarshalJSON()
+	res.TransformerResult = data
+	return res, nil
 }
 
 // getByEventID why added this? can it be deleted?

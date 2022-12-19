@@ -20,15 +20,16 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/golang/mock/gomock"
+	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/eventlog"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
-
-	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -43,6 +44,12 @@ func TestController_CreateEventBus(t *testing.T) {
 		elMgr := eventlog.NewMockManager(mockCtrl)
 		ctrl.eventLogMgr = elMgr
 		ctx := stdCtx.Background()
+
+		mockMember := embedetcd.NewMockMember(mockCtrl)
+		ctrl.member = mockMember
+		mockMember.EXPECT().IsLeader().AnyTimes().Return(true)
+		mockMember.EXPECT().IsReady().AnyTimes().Return(true)
+		mockMember.EXPECT().GetLeaderAddr().AnyTimes().Return("test")
 
 		Convey("test create a eventbus two times", func() {
 			kvCli.EXPECT().Exists(ctx, metadata.GetEventbusMetadataKey("test-1")).Times(1).Return(false, nil)
@@ -88,7 +95,7 @@ func TestController_CreateEventBus(t *testing.T) {
 			So(res, ShouldBeNil)
 			et, ok := err.(*errors.ErrorType)
 			So(ok, ShouldBeTrue)
-			So(et.Code, ShouldEqual, errors.ErrorCode_RESOURCE_EXIST)
+			So(et.Code, ShouldEqual, errpb.ErrorCode_RESOURCE_EXIST)
 			So(et.Description, ShouldEqual, "resource already exist")
 			So(et.Message, ShouldEqual, "the eventbus already exist")
 		})
@@ -113,7 +120,7 @@ func TestController_DeleteEventBus(t *testing.T) {
 			So(res, ShouldBeNil)
 			et, ok := err.(*errors.ErrorType)
 			So(ok, ShouldBeTrue)
-			So(et.Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
+			So(et.Code, ShouldEqual, errpb.ErrorCode_RESOURCE_EXIST)
 			So(et.Description, ShouldEqual, "resource not found")
 			So(et.Message, ShouldEqual, "the eventbus doesn't exist")
 		})
@@ -142,7 +149,7 @@ func TestController_DeleteEventBus(t *testing.T) {
 			So(res, ShouldBeNil)
 			et, ok := err.(*errors.ErrorType)
 			So(ok, ShouldBeTrue)
-			So(et.Code, ShouldEqual, errors.ErrorCode_INTERNAL)
+			So(et.Code, ShouldEqual, errpb.ErrorCode_INTERNAL)
 			So(et.Description, ShouldEqual, "internal error")
 			So(et.Message, ShouldEqual, "delete eventbus metadata in kv failed")
 		})

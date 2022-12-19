@@ -68,8 +68,10 @@ type peer struct {
 type LeaderChangedListener func(block, leader vanus.ID, term uint64)
 
 type commitWaiter struct {
-	offset int64
-	c      chan struct{}
+	seqs     []int64
+	offset   int64
+	err      error
+	callback func([]int64, error)
 }
 
 type Appender interface {
@@ -87,6 +89,7 @@ type appender struct {
 	appendMu sync.RWMutex
 
 	waiters      []commitWaiter
+	waiterC      chan commitWaiter
 	commitIndex  uint64
 	commitOffset int64
 	waitMu       sync.Mutex
@@ -117,6 +120,7 @@ func NewAppender(
 	a := &appender{
 		raw:      raw,
 		waiters:  make([]commitWaiter, 0),
+		waiterC:  make(chan commitWaiter),
 		listener: listener,
 		log:      raftLog,
 		host:     host,
@@ -199,6 +203,20 @@ func (a *appender) run(ctx context.Context) {
 	// TODO(james.yin): reduce Ticker
 	t := time.NewTicker(defaultTickInterval)
 	defer t.Stop()
+
+	for i := 0; i < 10; i++ {
+		go func() {
+			for {
+				select {
+				case waiter := <-a.waiterC:
+					waiter.callback(waiter.seqs, waiter.err)
+				case <-ctx.Done():
+					close(a.waiterC)
+					return
+				}
+			}
+		}()
+	}
 
 	for {
 		select {
@@ -458,26 +476,18 @@ func (a *appender) reset(ctx context.Context) {
 	}
 }
 
-// Append implements block.raw.
-func (a *appender) Append(ctx context.Context, entries ...block.Entry) ([]int64, error) {
+// Append implements async block.raw.
+func (a *appender) Append(ctx context.Context, cb func([]int64, error), entries ...block.Entry) {
 	ctx, span := a.tracer.Start(ctx, "Append")
 	defer span.End()
 
 	seqs, offset, err := a.append(ctx, entries)
-	if err != nil {
-		if errors.Is(err, errors.ErrFull) {
-			_ = a.waitCommit(ctx, offset)
-		}
-		return nil, err
+	if err != nil && !errors.Is(err, errors.ErrFull) {
+		cb(nil, err)
 	}
 
-	// Wait until entries is committed.
-	err = a.waitCommit(ctx, offset)
-	if err != nil {
-		return nil, err
-	}
-
-	return seqs, nil
+	// register callback and wait until entries is committed.
+	a.registerCallback(ctx, seqs, offset, err, cb)
 }
 
 func (a *appender) append(ctx context.Context, entries []block.Entry) ([]int64, int64, error) {
@@ -527,35 +537,56 @@ func (a *appender) doAppend(ctx context.Context, frags ...block.Fragment) {
 	_, _ = a.raw.CommitAppend(ctx, frags...)
 }
 
-func (a *appender) waitCommit(ctx context.Context, offset int64) error {
-	ctx, span := a.tracer.Start(ctx, "waitCommit")
+func (a *appender) registerCallback(ctx context.Context, seqs []int64, offset int64, err error, cb func([]int64, error)) {
+	_, span := a.tracer.Start(ctx, "waitCommit")
 	defer span.End()
 
 	span.AddEvent("Acquiring wait lock")
 	a.waitMu.Lock()
+	defer a.waitMu.Unlock()
 	span.AddEvent("Got wait lock")
 
 	if offset <= a.commitOffset {
-		a.waitMu.Unlock()
-		return nil
+		return
 	}
 
-	ch := make(chan struct{})
 	a.waiters = append(a.waiters, commitWaiter{
-		offset: offset,
-		c:      ch,
+		seqs:     seqs,
+		offset:   offset,
+		err:      err,
+		callback: cb,
 	})
-
-	a.waitMu.Unlock()
-
-	// FIXME(james.yin): lost leader
-	select {
-	case <-ch:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
 }
+
+// func (a *appender) waitCommit(ctx context.Context, offset int64) error {
+// 	ctx, span := a.tracer.Start(ctx, "waitCommit")
+// 	defer span.End()
+
+// 	span.AddEvent("Acquiring wait lock")
+// 	a.waitMu.Lock()
+// 	span.AddEvent("Got wait lock")
+
+// 	if offset <= a.commitOffset {
+// 		a.waitMu.Unlock()
+// 		return nil
+// 	}
+
+// 	ch := make(chan struct{})
+// 	a.waiters = append(a.waiters, commitWaiter{
+// 		offset: offset,
+// 		c:      ch,
+// 	})
+
+// 	a.waitMu.Unlock()
+
+// 	// FIXME(james.yin): lost leader
+// 	select {
+// 	case <-ch:
+// 		return nil
+// 	case <-ctx.Done():
+// 		return ctx.Err()
+// 	}
+// }
 
 func (a *appender) doWakeup(ctx context.Context, commit int64) {
 	_, span := a.tracer.Start(ctx, "doWakeup")
@@ -572,7 +603,7 @@ func (a *appender) doWakeup(ctx context.Context, commit int64) {
 		if waiter.offset > commit {
 			break
 		}
-		close(waiter.c)
+		a.waiterC <- waiter
 		a.waiters = a.waiters[1:]
 	}
 	a.commitOffset = commit

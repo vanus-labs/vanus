@@ -17,12 +17,11 @@ package eventbus
 import (
 	// standard libraries
 	"context"
+	"github.com/linkall-labs/vanus/pkg/cluster"
 
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"go.opentelemetry.io/otel/trace"
 
-	// third-party libraries
-	"github.com/linkall-labs/vanus/pkg/controller"
 	"google.golang.org/grpc/credentials/insecure"
 
 	// first-party libraries
@@ -33,7 +32,7 @@ import (
 
 func NewNameService(endpoints []string) *NameService {
 	return &NameService{
-		client: controller.NewEventbusClient(endpoints, insecure.NewCredentials()),
+		client: cluster.NewClusterController(endpoints, insecure.NewCredentials()).EventbusService().RawClient(),
 		tracer: tracing.NewTracer("internal.discovery.eventbus", trace.SpanKindClient),
 	}
 }

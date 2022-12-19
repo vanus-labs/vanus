@@ -18,6 +18,7 @@ package reader
 import (
 	"context"
 	"encoding/binary"
+	stderr "errors"
 	"sync"
 	"time"
 
@@ -284,13 +285,11 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 		})
 		for {
 			err = elReader.readEvent(ctx, lr)
-			switch err {
-			case nil:
-				continue
-			case context.Canceled:
+			switch {
+			case err == nil, errors.Is(err, errors.ErrOffsetOnEnd), errors.Is(err, errors.ErrOffsetOverflow):
+			case stderr.Is(err, context.Canceled):
 				return
-			case errors.ErrOffsetOnEnd, errors.ErrOffsetOverflow:
-			case errors.ErrOffsetUnderflow:
+			case errors.Is(err, errors.ErrOffsetUnderflow):
 				// todo reset offset timestamp
 			default:
 				log.Warning(ctx, "read event error", map[string]interface{}{

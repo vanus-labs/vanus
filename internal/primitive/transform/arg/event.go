@@ -82,7 +82,7 @@ func newEventData(name string) Arg {
 	var path string
 	if name == EventDataArgPrefix {
 		data = true
-		path = name
+		path = ""
 	} else {
 		path = name[7:]
 	}

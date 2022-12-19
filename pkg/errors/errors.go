@@ -23,8 +23,9 @@ var (
 	ErrUnknown = New("unknown").WithGRPCCode(errpb.ErrorCode_UNKNOWN)
 
 	// INVALID_REQUEST
-	ErrInvalidRequest = New("invalid request").WithGRPCCode(errpb.ErrorCode_INVALID_REQUEST)
-	ErrNoEndpoint     = New("no endpoint").WithGRPCCode(errpb.ErrorCode_NO_ENDPOINT)
+	ErrInvalidRequest      = New("invalid request").WithGRPCCode(errpb.ErrorCode_INVALID_REQUEST)
+	ErrTransformInputParse = New("transform input invalid").WithGRPCCode(errpb.ErrorCode_TRANSFORM_INPUT_PARSE)
+	ErrNoEndpoint          = New("no endpoint").WithGRPCCode(errpb.ErrorCode_NO_ENDPOINT)
 
 	// INTERNAL
 	ErrInternal = New("internal error").WithGRPCCode(errpb.ErrorCode_INTERNAL)

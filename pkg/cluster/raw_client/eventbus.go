@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controller
+package raw_client
 
 import (
 	"context"
@@ -21,7 +21,6 @@ import (
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -30,12 +29,12 @@ var (
 )
 
 type eventbusClient struct {
-	cc *conn
+	cc *Conn
 }
 
-func NewEventbusClient(endpoints []string, credentials credentials.TransportCredentials) ctrlpb.EventBusControllerClient {
+func NewEventbusClient(cc *Conn) ctrlpb.EventBusControllerClient {
 	return &eventbusClient{
-		cc: newConn(endpoints, credentials),
+		cc: cc,
 	}
 }
 
@@ -46,6 +45,15 @@ func (ec *eventbusClient) Close() error {
 func (ec *eventbusClient) CreateEventBus(ctx context.Context, in *ctrlpb.CreateEventBusRequest, opts ...grpc.CallOption) (*metapb.EventBus, error) {
 	out := new(metapb.EventBus)
 	err := ec.cc.invoke(ctx, "/linkall.vanus.controller.EventBusController/CreateEventBus", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (ec *eventbusClient) CreateSystemEventBus(ctx context.Context, in *ctrlpb.CreateEventBusRequest, opts ...grpc.CallOption) (*metapb.EventBus, error) {
+	out := new(metapb.EventBus)
+	err := ec.cc.invoke(ctx, "/linkall.vanus.controller.EventBusController/CreateSystemEventBus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}

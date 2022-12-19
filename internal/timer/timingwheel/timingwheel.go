@@ -31,7 +31,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/timer/metadata"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/pkg/controller"
+	"github.com/linkall-labs/vanus/pkg/cluster"
 	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc/credentials/insecure"
@@ -81,6 +81,8 @@ type timingWheel struct {
 	client  client.Client
 	twList  *list.List // element: *timingWheelElement
 
+	ctrl cluster.Cluster
+
 	receivingStation    *bucket
 	distributionStation *bucket
 
@@ -90,16 +92,6 @@ type timingWheel struct {
 }
 
 func NewTimingWheel(c *Config) Manager {
-	store, err := newEtcdClientV3(c.EtcdEndpoints, c.KeyPrefix)
-	if err != nil {
-		log.Error(context.Background(), "new etcd client v3 failed", map[string]interface{}{
-			log.KeyError: err,
-			"endpoints":  c.EtcdEndpoints,
-			"key_prefix": c.KeyPrefix,
-		})
-		panic("new etcd client failed")
-	}
-
 	log.Info(context.Background(), "new timingwheel manager", map[string]interface{}{
 		"tick":           c.Tick,
 		"layers":         c.Layers,
@@ -112,20 +104,36 @@ func NewTimingWheel(c *Config) Manager {
 	metrics.TimingWheelSizeGauge.Set(float64(c.WheelSize))
 	metrics.TimingWheelLayersGauge.Set(float64(c.Layers))
 	return &timingWheel{
-		config:  c,
-		kvStore: store,
-		ctrlCli: controller.NewEventbusClient(c.CtrlEndpoints, insecure.NewCredentials()),
-		client:  client.Connect(c.CtrlEndpoints),
-		twList:  list.New(),
-		leader:  false,
-		exitC:   make(chan struct{}),
+		config: c,
+		client: client.Connect(c.CtrlEndpoints),
+		twList: list.New(),
+		leader: false,
+		exitC:  make(chan struct{}),
 	}
 }
 
-// Init init the current timing wheel.
+// Init the current timing wheel.
 func (tw *timingWheel) Init(ctx context.Context) error {
 	log.Info(ctx, "init timingwheel", nil)
 	// Init Hierarchical Timing Wheels.
+	ctrl := cluster.NewClusterController(tw.config.CtrlEndpoints, insecure.NewCredentials())
+	if err := ctrl.WaitForControllerReady(true); err != nil {
+		panic("wait for controller ready timeout")
+	}
+	tw.ctrl = ctrl
+	tw.ctrlCli = ctrl.EventbusService().RawClient()
+
+	store, err := newEtcdClientV3(tw.config.EtcdEndpoints, tw.config.KeyPrefix)
+	if err != nil {
+		log.Error(context.Background(), "new etcd client v3 failed", map[string]interface{}{
+			log.KeyError: err,
+			"endpoints":  tw.config.EtcdEndpoints,
+			"key_prefix": tw.config.KeyPrefix,
+		})
+		panic("new etcd client failed")
+	}
+	tw.kvStore = store
+
 	for layer := int64(1); layer <= tw.config.Layers+1; layer++ {
 		tick := exponent(tw.config.Tick, tw.config.WheelSize, layer-1)
 		twe := newTimingWheelElement(tw, tick, layer)
@@ -182,7 +190,7 @@ func (tw *timingWheel) Start(ctx context.Context) error {
 		}
 	}
 
-	// start receving station for scheduled events receiving
+	// start receiving station for scheduled events receiving
 	if err = tw.startReceivingStation(ctx); err != nil {
 		return err
 	}
@@ -225,7 +233,8 @@ func (tw *timingWheel) IsLeader() bool {
 }
 
 func (tw *timingWheel) IsDeployed(ctx context.Context) bool {
-	return tw.receivingStation.isExistEventbus(ctx) && tw.distributionStation.isExistEventbus(ctx)
+	return tw.ctrl.EventbusService().IsExist(ctx, tw.receivingStation.eventbus) &&
+		tw.ctrl.EventbusService().IsExist(ctx, tw.distributionStation.eventbus)
 }
 
 func (tw *timingWheel) Recover(ctx context.Context) error {

@@ -214,6 +214,7 @@ func (s *BlockStore) AppendManyStream(ctx context.Context, block uint64, events 
 	_ctx, span := s.tracer.Start(ctx, "AppendManyStream")
 	defer span.End()
 
+	log.Error(ctx, "===jk1===", nil)
 	var (
 		err  error
 		wg   sync.WaitGroup
@@ -239,7 +240,7 @@ func (s *BlockStore) AppendManyStream(ctx context.Context, block uint64, events 
 		if err != nil {
 			return nil, err
 		}
-		eventpbs = append(eventpbs, eventpb)
+		eventpbs[idx] = eventpb
 	}
 
 	s.appendCallbacks.Store(requestID, appendCallback(func(res *segpb.AppendToBlockStreamResponse) {
@@ -254,6 +255,10 @@ func (s *BlockStore) AppendManyStream(ctx context.Context, block uint64, events 
 			Events: eventpbs,
 		},
 	}
+
+	log.Error(ctx, "===jk2===", map[string]interface{}{
+		"RequestId": requestID,
+	})
 
 	if err = s.appendStream.Send(req); err != nil {
 		log.Error(ctx, "append stream send failed", map[string]interface{}{
@@ -276,6 +281,10 @@ func (s *BlockStore) AppendManyStream(ctx context.Context, block uint64, events 
 	}
 
 	wg.Wait()
+
+	log.Error(ctx, "===jk3===", map[string]interface{}{
+		"ResponseId": resp.ResponseId,
+	})
 
 	if resp.ResponseCode == errpb.ErrorCode_FULL {
 		log.Warning(ctx, "block append failed cause the segment is full", nil)

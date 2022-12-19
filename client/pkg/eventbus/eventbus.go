@@ -512,7 +512,7 @@ func (w *busWriter) AppendMany(ctx context.Context, events []*ce.Event, opts ...
 		return encoded
 	}
 
-	eventIDs := make([]string, len(eid))
+	eventIDs := make([]string, len(offsets))
 	for idx := range offsets {
 		eventIDs[idx] = genFunc(offsets[idx])
 	}

@@ -127,7 +127,7 @@ func (l *Log) lastTerm() uint64 {
 	return l.ents[l.length()].Term
 }
 
-func (l *Log) lastStableTerm() uint64 {
+func (l *Log) lastStableTerm() uint64 { //nolint:unused // ok
 	return l.ents[l.stableLength()].Term
 }
 
@@ -193,7 +193,7 @@ type appendTask struct {
 type AppendCallback = func(AppendResult, error)
 
 // Append the new entries to storage.
-func (l *Log) Append(ctx context.Context, entries []raftpb.Entry, cb AppendCallback) {
+func (l *Log) Append(ctx context.Context, entries []raftpb.Entry, cb AppendCallback) { //nolint:funlen // ok
 	ctx, span := l.tracer.Start(ctx, "Append")
 	defer span.End()
 
