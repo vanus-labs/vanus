@@ -34,7 +34,6 @@ func (es *eventbusService) CreateSystemEventbusIfNotExist(ctx context.Context, n
 		return nil
 	}
 
-	// TODO 创建前需要等到Store就绪，而store的就绪在controller之后，创建又在controller就绪过程中
 	_, err := es.client.CreateSystemEventBus(ctx, &ctrlpb.CreateEventBusRequest{
 		Name:        name,
 		LogNumber:   int32(defaultSystemEventbusEventlog),

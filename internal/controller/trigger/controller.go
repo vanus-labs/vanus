@@ -514,14 +514,14 @@ func (ctrl *controller) initTriggerSystemEventbus() {
 		ctx := context.Background()
 		log.Info(ctx, "trigger controller is ready to check system eventbus", nil)
 		if err := ctrl.cl.WaitForControllerReady(true); err != nil {
-			log.Error(context.Background(), "trigger controller try to create system eventbus, "+
+			log.Error(ctx, "trigger controller try to create system eventbus, "+
 				"but Vanus cluster hasn't ready, exit", nil)
 			os.Exit(-1)
 		}
 
 		if err := ctrl.cl.EventbusService().CreateSystemEventbusIfNotExist(ctx, primitive.RetryEventbusName,
 			"System Eventbus For Trigger Service"); err != nil {
-			log.Error(context.Background(), "failed to create RetryEventbus, exit", map[string]interface{}{
+			log.Error(ctx, "failed to create RetryEventbus, exit", map[string]interface{}{
 				log.KeyError: err,
 			})
 			os.Exit(-1)
@@ -529,9 +529,10 @@ func (ctrl *controller) initTriggerSystemEventbus() {
 
 		if err := ctrl.cl.EventbusService().CreateSystemEventbusIfNotExist(ctx, primitive.DeadLetterEventbusName,
 			"System Eventbus For Trigger Service"); err != nil {
-			log.Error(context.Background(), "failed to create DeadLetterEventbus, exit", map[string]interface{}{
+			log.Error(ctx, "failed to create DeadLetterEventbus, exit", map[string]interface{}{
 				log.KeyError: err,
 			})
+			os.Exit(-1)
 		}
 		log.Info(ctx, "trigger controller has finished for checking system eventbus", nil)
 	}()
