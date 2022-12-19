@@ -310,7 +310,7 @@ func TestControllerProxy_ValidateSubscription(t *testing.T) {
 				Subscription: s,
 			})
 			So(err, ShouldBeNil)
-			So(res.Matched, ShouldBeFalse)
+			So(res.FilterResult, ShouldBeFalse)
 
 			s.Filters = []*metapb.Filter{
 				{
@@ -324,8 +324,8 @@ func TestControllerProxy_ValidateSubscription(t *testing.T) {
 				Subscription: s,
 			})
 			So(err, ShouldBeNil)
-			So(res.Matched, ShouldBeTrue)
-			result := gjson.ParseBytes(res.FinalTransformed)
+			So(res.FilterResult, ShouldBeTrue)
+			result := gjson.ParseBytes(res.TransformerResult)
 			urls := "https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx,https://open" +
 				".feishu.cn/open-apis/bot/v2/hook/yyyyy,https://open.feishu.cn/open-apis/bot/v2/hook/zzzzz"
 			So(result.Get("xvfeishumsgtype").String(), ShouldEqual, "interactive")
@@ -371,8 +371,8 @@ func TestControllerProxy_ValidateSubscription(t *testing.T) {
 			})
 
 			So(err, ShouldBeNil)
-			So(res.Matched, ShouldBeTrue)
-			result := gjson.ParseBytes(res.FinalTransformed)
+			So(res.FilterResult, ShouldBeTrue)
+			result := gjson.ParseBytes(res.TransformerResult)
 			urls := "https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx,https://open" +
 				".feishu.cn/open-apis/bot/v2/hook/yyyyy,https://open.feishu.cn/open-apis/bot/v2/hook/zzzzz"
 			So(result.Get("xvfeishumsgtype").String(), ShouldEqual, "interactive")

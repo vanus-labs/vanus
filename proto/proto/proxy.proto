@@ -91,6 +91,6 @@ message ValidateSubscriptionRequest {
 }
 
 message  ValidateSubscriptionResponse {
-  bool matched = 1;
-  bytes final_transformed = 2;
+  bool filter_result = 1;
+  bytes transformer_result = 2;
 }
