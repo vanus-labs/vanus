@@ -279,9 +279,9 @@ func TestControllerProxy_ValidateSubscription(t *testing.T) {
 "signature":"yyyy"},{"URL":"https://open.feishu.cn/open-apis/bot/v2/hook/yyyyy","signature":""},
 {"URL":"https://open.feishu.cn/open-apis/bot/v2/hook/zzzzz","signature":"zzzz"}]},
 "labels":{"forward":"test-server","severity":"P1"},"startsAt":"2022-12-12T07:55:24.893471163Z","status":"resolved"}],
-"commonLabels":{"cluster":"txprod","forward":"notify-server","groups":"koyomi-bot","severity":"P1"}},
+"commonLabels":{"cluster":"test","forward":"test-server","groups":"test-bot","severity":"P1"}},
 "headers":{"Content-Type":"application/json","Host":"webhook-source.vanus:80","User-Agent":"Alertmanager/0.24.0"},
-"method":"POST","query_args":{"source":"prometheus","subject":"alert-operator"}}
+"method":"POST","query_args":{"source":"prometheus","subject":"operator"}}
 }`
 		e := v2.NewEvent()
 		_ = e.UnmarshalJSON([]byte(data))
