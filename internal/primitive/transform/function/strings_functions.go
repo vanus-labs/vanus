@@ -14,12 +14,16 @@
 
 package function
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
+)
 
 var JoinFunction = function{
 	name:         "JOIN",
-	fixedArgs:    []Type{String, StringArray},
-	variadicArgs: TypePtr(StringArray),
+	fixedArgs:    []common.Type{common.String, common.StringArray},
+	variadicArgs: common.TypePtr(common.StringArray),
 	fn: func(args []interface{}) (interface{}, error) {
 		sep, _ := args[0].(string)
 		var sb strings.Builder
@@ -34,7 +38,7 @@ var JoinFunction = function{
 
 var UpperFunction = function{
 	name:      "UPPER_CASE",
-	fixedArgs: []Type{String},
+	fixedArgs: []common.Type{common.String},
 	fn: func(args []interface{}) (interface{}, error) {
 		return strings.ToUpper(args[0].(string)), nil
 	},
@@ -42,7 +46,7 @@ var UpperFunction = function{
 
 var LowerFunction = function{
 	name:      "LOWER_CASE",
-	fixedArgs: []Type{String},
+	fixedArgs: []common.Type{common.String},
 	fn: func(args []interface{}) (interface{}, error) {
 		return strings.ToLower(args[0].(string)), nil
 	},
@@ -50,7 +54,7 @@ var LowerFunction = function{
 
 var AddPrefixFunction = function{
 	name:      "ADD_PREFIX",
-	fixedArgs: []Type{String, String},
+	fixedArgs: []common.Type{common.String, common.String},
 	fn: func(args []interface{}) (interface{}, error) {
 		return args[1].(string) + args[0].(string), nil
 	},
@@ -58,7 +62,7 @@ var AddPrefixFunction = function{
 
 var AddSuffixFunction = function{
 	name:      "ADD_SUFFIX",
-	fixedArgs: []Type{String, String},
+	fixedArgs: []common.Type{common.String, common.String},
 	fn: func(args []interface{}) (interface{}, error) {
 		return args[0].(string) + args[1].(string), nil
 	},
@@ -66,8 +70,8 @@ var AddSuffixFunction = function{
 
 var SplitWithSepFunction = function{
 	name:         "SPLIT_WITH_SEP",
-	fixedArgs:    []Type{String, String},
-	variadicArgs: TypePtr(Number),
+	fixedArgs:    []common.Type{common.String, common.String},
+	variadicArgs: common.TypePtr(common.Number),
 	fn: func(args []interface{}) (interface{}, error) {
 		s, _ := args[0].(string)
 		sep, _ := args[1].(string)

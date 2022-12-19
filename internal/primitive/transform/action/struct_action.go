@@ -17,10 +17,9 @@ package action
 import (
 	"fmt"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 )
 
 // ["delete", "key"].
@@ -63,7 +62,7 @@ func newCreateActionAction() Action {
 func (a *createAction) Init(args []arg.Arg) error {
 	a.targetArg = args[0]
 	a.args = args[1:]
-	a.argTypes = []function.Type{function.Any}
+	a.argTypes = []common.Type{common.Any}
 	return nil
 }
 
@@ -96,7 +95,7 @@ func newReplaceAction() Action {
 func (a *replaceAction) Init(args []arg.Arg) error {
 	a.targetArg = args[0]
 	a.args = args[1:]
-	a.argTypes = []function.Type{function.Any}
+	a.argTypes = []common.Type{common.Any}
 	return nil
 }
 
@@ -129,7 +128,7 @@ func newMoveActionAction() Action {
 func (a *moveAction) Init(args []arg.Arg) error {
 	a.targetArg = args[1]
 	a.args = args[:1]
-	a.argTypes = []function.Type{function.Any}
+	a.argTypes = []common.Type{common.Any}
 	return nil
 }
 
@@ -166,7 +165,7 @@ func newRenameActionAction() Action {
 func (a *renameAction) Init(args []arg.Arg) error {
 	a.targetArg = args[1]
 	a.args = args[:1]
-	a.argTypes = []function.Type{function.Any}
+	a.argTypes = []common.Type{common.Any}
 	return nil
 }
 
