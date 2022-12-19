@@ -276,8 +276,10 @@ func (cp *ControllerProxy) ValidateSubscription(ctx context.Context,
 
 	res.FilterResult = true
 	t := transform.NewTransformer(sub.Transformer)
-	if err := t.Execute(&e); err != nil {
-		return nil, errors.ErrTransformInputParse.Wrap(err)
+	if t != nil {
+		if err := t.Execute(&e); err != nil {
+			return nil, errors.ErrTransformInputParse.Wrap(err)
+		}
 	}
 	data, _ := e.MarshalJSON()
 	res.TransformerResult = data
