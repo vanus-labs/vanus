@@ -50,6 +50,7 @@ service ControllerProxy {
   rpc ClusterInfo(google.protobuf.Empty) returns (ClusterInfoResponse);
   rpc LookupOffset(LookupOffsetRequest) returns (LookupOffsetResponse);
   rpc GetEvent(GetEventRequest) returns (GetEventResponse);
+  rpc ValidateSubscription(ValidateSubscriptionRequest) returns (ValidateSubscriptionResponse);
 }
 
 message LookupOffsetRequest {
@@ -77,4 +78,19 @@ message GetEventResponse {
 message ClusterInfoResponse {
   int64 cloudevents_port = 1;
   int64 proxy_port = 2;
+}
+
+message ValidateSubscriptionRequest {
+  string eventbus = 1;
+  uint64 eventlog = 2;
+  int64 offset=3;
+  uint64 subscription_id = 4;
+
+  bytes event = 100;
+  controller.SubscriptionRequest subscription = 101;
+}
+
+message  ValidateSubscriptionResponse {
+  bool filter_result = 1;
+  bytes transformer_result = 2;
 }
