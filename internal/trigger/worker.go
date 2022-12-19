@@ -78,6 +78,9 @@ func NewWorker(config Config) Worker {
 		triggerMap: make(map[vanus.ID]trigger.Trigger),
 		newTrigger: trigger.NewTrigger,
 	}
+	if err := m.ctrl.WaitForControllerReady(false); err != nil {
+		panic("wait for controller ready timeout")
+	}
 	m.client = m.ctrl.TriggerService().RawClient()
 
 	m.ctx, m.stop = context.WithCancel(context.Background())
