@@ -147,14 +147,14 @@ func (m *MockBusWriter) EXPECT() *MockBusWriterMockRecorder {
 }
 
 // AppendMany mocks base method.
-func (m *MockBusWriter) AppendMany(ctx context.Context, events []*v2.Event, opts ...WriteOption) (string, error) {
+func (m *MockBusWriter) AppendMany(ctx context.Context, events []*v2.Event, opts ...WriteOption) ([]string, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, events}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "AppendMany", varargs...)
-	ret0, _ := ret[0].(string)
+	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -184,26 +184,6 @@ func (mr *MockBusWriterMockRecorder) AppendOne(ctx, event interface{}, opts ...i
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, event}, opts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppendOne", reflect.TypeOf((*MockBusWriter)(nil).AppendOne), varargs...)
-}
-
-// SyncAppendOneStream mocks base method.
-func (m *MockBusWriter) SyncAppendOneStream(ctx context.Context, event *v2.Event, opts ...WriteOption) (string, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{ctx, event}
-	for _, a := range opts {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "SyncAppendOneStream", varargs...)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// SyncAppendOneStream indicates an expected call of SyncAppendOneStream.
-func (mr *MockBusWriterMockRecorder) SyncAppendOneStream(ctx, event interface{}, opts ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{ctx, event}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncAppendOneStream", reflect.TypeOf((*MockBusWriter)(nil).SyncAppendOneStream), varargs...)
 }
 
 // MockBusReader is a mock of BusReader interface.
@@ -251,14 +231,14 @@ func (mr *MockBusReaderMockRecorder) Read(ctx interface{}, opts ...interface{}) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockBusReader)(nil).Read), varargs...)
 }
 
-// SyncReadStream mocks base method.
-func (m *MockBusReader) SyncReadStream(ctx context.Context, opts ...ReadOption) ([]*v2.Event, int64, uint64, error) {
+// ReadStream mocks base method.
+func (m *MockBusReader) ReadStream(ctx context.Context, opts ...ReadOption) ([]*v2.Event, int64, uint64, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "SyncReadStream", varargs...)
+	ret := m.ctrl.Call(m, "ReadStream", varargs...)
 	ret0, _ := ret[0].([]*v2.Event)
 	ret1, _ := ret[1].(int64)
 	ret2, _ := ret[2].(uint64)
@@ -266,11 +246,11 @@ func (m *MockBusReader) SyncReadStream(ctx context.Context, opts ...ReadOption) 
 	return ret0, ret1, ret2, ret3
 }
 
-// SyncReadStream indicates an expected call of SyncReadStream.
-func (mr *MockBusReaderMockRecorder) SyncReadStream(ctx interface{}, opts ...interface{}) *gomock.Call {
+// ReadStream indicates an expected call of ReadStream.
+func (mr *MockBusReaderMockRecorder) ReadStream(ctx interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncReadStream", reflect.TypeOf((*MockBusReader)(nil).SyncReadStream), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadStream", reflect.TypeOf((*MockBusReader)(nil).ReadStream), varargs...)
 }
 
 // MockEventlog is a mock of Eventlog interface.

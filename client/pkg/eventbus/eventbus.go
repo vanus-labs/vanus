@@ -478,7 +478,8 @@ func (w *busWriter) AppendOne(ctx context.Context, event *ce.Event, opts ...api.
 	return encoded, nil
 }
 
-func (w *busWriter) SyncAppendOneStream(ctx context.Context, event *ce.Event, opts ...api.WriteOption) (eid string, err error) {
+func (w *busWriter) AppendMany(ctx context.Context, events []*ce.Event, opts ...api.WriteOption) (eid []string, err error) {
+	// TODO(jiangkai): implement this method, by jiangkai, 2022.10.24
 	_ctx, span := w.tracer.Start(ctx, "SyncAppendOneStream")
 	defer span.End()
 
@@ -493,27 +494,30 @@ func (w *busWriter) SyncAppendOneStream(ctx context.Context, event *ce.Event, op
 	// 1. pick a writer of eventlog
 	lw, err := w.pickWritableLog(_ctx, writeOpts)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// 2. append the event to the eventlog
-	off, err := lw.SyncAppendStream(_ctx, event)
+	offsets, err := lw.AppendManyStream(_ctx, events)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// 3. generate event ID
-	var buf [16]byte
-	binary.BigEndian.PutUint64(buf[0:8], lw.Log().ID())
-	binary.BigEndian.PutUint64(buf[8:16], uint64(off))
-	encoded := base64.StdEncoding.EncodeToString(buf[:])
+	genFunc := func(off int64) string {
+		var buf [16]byte
+		binary.BigEndian.PutUint64(buf[0:8], lw.Log().ID())
+		binary.BigEndian.PutUint64(buf[8:16], uint64(off))
+		encoded := base64.StdEncoding.EncodeToString(buf[:])
+		return encoded
+	}
 
-	return encoded, nil
-}
+	eventIDs := make([]string, len(eid))
+	for idx := range offsets {
+		eventIDs[idx] = genFunc(offsets[idx])
+	}
 
-func (w *busWriter) AppendMany(ctx context.Context, events []*ce.Event, opts ...api.WriteOption) (eid string, err error) {
-	// TODO(jiangkai): implement this method, by jiangkai, 2022.10.24
-	return "", nil
+	return eventIDs, nil
 }
 
 func (w *busWriter) Bus() api.Eventbus {
@@ -577,7 +581,7 @@ func (r *busReader) Read(ctx context.Context, opts ...api.ReadOption) ([]*ce.Eve
 	return events, off, lr.Log().ID(), nil
 }
 
-func (r *busReader) SyncReadStream(ctx context.Context, opts ...api.ReadOption) ([]*ce.Event, int64, uint64, error) {
+func (r *busReader) ReadStream(ctx context.Context, opts ...api.ReadOption) ([]*ce.Event, int64, uint64, error) {
 	_ctx, span := r.tracer.Start(ctx, "Read")
 	defer span.End()
 
@@ -602,7 +606,7 @@ func (r *busReader) SyncReadStream(ctx context.Context, opts ...api.ReadOption) 
 	}
 
 	// 2. read the event to the eventlog
-	events, err := lr.SyncReadStream(_ctx, int16(readOpts.BatchSize))
+	events, err := lr.ReadStream(_ctx, int16(readOpts.BatchSize))
 	if err != nil {
 		return []*ce.Event{}, 0, 0, err
 	}

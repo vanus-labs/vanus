@@ -67,13 +67,17 @@ func (ns *NameService) LookupWritableSegment(ctx context.Context, logID uint64) 
 		return nil, err
 	}
 
+	if len(resp.Segments) == 0 {
+		return nil, errors.ErrResourceNotFound.WithMessage("segment not found")
+	}
+
 	log.Debug(ctx, "GetAppendableSegment result", map[string]interface{}{
 		"req": req,
 		"res": resp,
 	})
 	segments := toSegments(resp.GetSegments())
 	if len(segments) == 0 {
-		return nil, errors.ErrNotWritable
+		return nil, errors.ErrNotWritable.WithMessage("no writable segment")
 	}
 	return segments[0], nil
 }

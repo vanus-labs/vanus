@@ -338,8 +338,7 @@ func (s *server) Start(ctx context.Context) error {
 	defer span.End()
 
 	if s.state != primitive.ServerStateStarted {
-		return errors.ErrServiceState.WithMessage(
-			"start failed, server state is not created")
+		return errors.ErrServerNotRunning.WithMessage("server not created")
 	}
 
 	log.Info(ctx, "Start SegmentServer.", nil)
@@ -424,7 +423,7 @@ func (s *server) Stop(ctx context.Context) error {
 	ctx, span := s.tracer.Start(ctx, "Stop")
 	defer span.End()
 	if s.state != primitive.ServerStateRunning {
-		return errors.ErrServiceState.WithMessage(fmt.Sprintf(
+		return errors.ErrServerNotRunning.WithMessage(fmt.Sprintf(
 			"the server isn't running, current state:%s", s.state))
 	}
 
@@ -674,11 +673,11 @@ func (s *server) processAppendError(ctx context.Context, b Replica, err error) e
 		return err
 	}
 
-	if errors.Is(err, errors.ErrSegmentFull) {
+	if errors.Is(err, errors.ErrFull) {
 		log.Debug(ctx, "Append failed: block is full.", map[string]interface{}{
 			"block_id": b.ID(),
 		})
-		return errors.ErrSegmentFull
+		return errors.ErrFull.WithMessage("block is full")
 	}
 
 	log.Warning(ctx, "Append failed.", map[string]interface{}{
@@ -809,7 +808,7 @@ func (s *server) LookupOffsetInBlock(ctx context.Context, id vanus.ID, stime int
 
 func (s *server) checkState() error {
 	if s.state != primitive.ServerStateRunning {
-		return errors.ErrServiceState.WithMessage(fmt.Sprintf(
+		return errors.ErrServerNotRunning.WithMessage(fmt.Sprintf(
 			"the server isn't ready to work, current state: %s", s.state))
 	}
 	return nil

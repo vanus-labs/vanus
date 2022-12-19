@@ -19,6 +19,8 @@ import (
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/status"
+
+	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 )
 
 // Chain method can group many errors as a single error. this is a helpful method if there are many errors
@@ -79,5 +81,5 @@ func ConvertToGRPCError(err error) error {
 			e.Code, e.Message)
 	}
 	return fmt.Errorf("{\"code\":%d,\"message\":\"%s\"}",
-		ErrorCode_UNKNOWN, err.Error())
+		errpb.ErrorCode_UNKNOWN, err.Error())
 }

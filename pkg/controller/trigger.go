@@ -52,7 +52,7 @@ func (tc *triggerClient) Beat(ctx context.Context, v interface{}) error {
 	})
 	req, ok := v.(*ctrlpb.TriggerWorkerHeartbeatRequest)
 	if !ok {
-		return errors.ErrInvalidHeartBeatRequest
+		return errors.ErrInvalidRequest.WithMessage("trigger worker heartbeat request invalid")
 	}
 	var err error
 	makeSureClient := func() error {

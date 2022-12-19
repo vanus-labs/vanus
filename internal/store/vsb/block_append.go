@@ -278,7 +278,7 @@ func (b *vsBlock) trimFragments(ctx context.Context, frags []block.Fragment) ([]
 				"expected": off,
 				"found":    frag.StartOffset(),
 			})
-			return nil, errors.ErrInternal
+			return nil, errors.ErrInternal.WithMessage("vsb: missing some fragments")
 		}
 		if i != 0 {
 			return frags[i:], nil
@@ -307,7 +307,7 @@ func (b *vsBlock) checkFragments(ctx context.Context, frags []block.Fragment) er
 				"next_start_offset":   nextSo,
 				"previous_end_offset": prevEo,
 			})
-			return errors.ErrInternal
+			return errors.ErrInternal.WithMessage("vsb: fragments is discontinuous")
 		}
 	}
 

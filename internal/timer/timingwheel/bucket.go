@@ -204,7 +204,7 @@ func (b *bucket) run(ctx context.Context) {
 				// batch read
 				events, err := b.getEvent(ctx, defaultNumberOfEventsRead)
 				if err != nil {
-					if !errors.Is(err, errors.ErrOffsetOnEnd) && !errors.Is(err, errors.ErrTryAgain) {
+					if !errors.Is(err, errors.ErrOffsetOnEnd) && !errors.Is(err, errors.ErrOffsetOverflow) {
 						log.Error(ctx, "get event failed when bucket running", map[string]interface{}{
 							"eventbus":   b.getEventbus(),
 							log.KeyError: err,

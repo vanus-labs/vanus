@@ -74,7 +74,7 @@ func (s *server) AddSubscription(ctx context.Context,
 	request *pbtrigger.AddSubscriptionRequest) (*pbtrigger.AddSubscriptionResponse, error) {
 	log.Info(ctx, "subscription add ", map[string]interface{}{"request": request.Id})
 	if s.state != primitive.ServerStateRunning {
-		return nil, errors.ErrWorkerNotStart
+		return nil, errors.ErrServerNotRunning.WithMessage("worker not running")
 	}
 	subscription := convert.FromPbAddSubscription(request)
 	log.Info(ctx, "subscription add info ", map[string]interface{}{"subscription": subscription})
@@ -93,7 +93,7 @@ func (s *server) RemoveSubscription(ctx context.Context,
 	request *pbtrigger.RemoveSubscriptionRequest) (*pbtrigger.RemoveSubscriptionResponse, error) {
 	log.Info(ctx, "subscription remove ", map[string]interface{}{"request": request})
 	if s.state != primitive.ServerStateRunning {
-		return nil, errors.ErrWorkerNotStart
+		return nil, errors.ErrServerNotRunning.WithMessage("worker not running")
 	}
 	err := s.worker.RemoveSubscription(ctx, vanus.NewIDFromUint64(request.SubscriptionId))
 	if err != nil {
@@ -110,7 +110,7 @@ func (s *server) PauseSubscription(ctx context.Context,
 	request *pbtrigger.PauseSubscriptionRequest) (*pbtrigger.PauseSubscriptionResponse, error) {
 	log.Info(ctx, "subscription pause ", map[string]interface{}{"request": request})
 	if s.state != primitive.ServerStateRunning {
-		return nil, errors.ErrWorkerNotStart
+		return nil, errors.ErrServerNotRunning.WithMessage("worker not running")
 	}
 	err := s.worker.PauseSubscription(ctx, vanus.NewIDFromUint64(request.SubscriptionId))
 	if err != nil {
@@ -127,7 +127,7 @@ func (s *server) ResumeSubscription(ctx context.Context,
 	request *pbtrigger.ResumeSubscriptionRequest) (*pbtrigger.ResumeSubscriptionResponse, error) {
 	log.Info(ctx, "subscription resume ", map[string]interface{}{"request": request})
 	if s.state != primitive.ServerStateRunning {
-		return nil, errors.ErrWorkerNotStart
+		return nil, errors.ErrServerNotRunning.WithMessage("worker not running")
 	}
 	err := s.worker.StartSubscription(ctx, vanus.NewIDFromUint64(request.SubscriptionId))
 	if err != nil {

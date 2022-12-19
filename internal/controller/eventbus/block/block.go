@@ -103,7 +103,7 @@ func (al *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, erro
 
 	instances := al.selector.Select(num, al.blockCapacity)
 	if len(instances) == 0 {
-		return nil, errors.ErrVolumeInstanceNotFound
+		return nil, errors.ErrResourceNotFound.WithMessage("volume instance not found")
 	}
 	for idx := 0; idx < num; idx++ {
 		ins := instances[idx]

@@ -14,7 +14,9 @@
 
 package errors
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestErrorType_Error(t *testing.T) {
 	// TODO

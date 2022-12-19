@@ -737,10 +737,10 @@ func TestEventlogManager_UpdateSegmentReplicas(t *testing.T) {
 			gomock.Any()).Times(1).Return(nil)
 
 		err := utMgr.UpdateSegmentReplicas(ctx, vanus.NewTestID(), 3)
-		So(err, ShouldEqual, errors.ErrBlockNotFound)
+		So(err, ShouldEqual, errors.ErrResourceNotFound.WithMessage("block not found"))
 
 		err = utMgr.UpdateSegmentReplicas(ctx, blk.ID, 3)
-		So(err, ShouldEqual, errors.ErrSegmentNotFound)
+		So(err, ShouldEqual, errors.ErrResourceNotFound.WithMessage("segment not found"))
 
 		blk.SegmentID = seg.ID
 		err = utMgr.UpdateSegmentReplicas(ctx, blk.ID, 3)

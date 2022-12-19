@@ -68,7 +68,7 @@ func newBlockExt(ctx context.Context, r *record.Segment, leaderOnly bool) (*bloc
 	id := r.LeaderBlockID
 	if id == 0 {
 		if leaderOnly {
-			return nil, errors.ErrNotLeader
+			return nil, errors.ErrNotLeader.WithMessage("the block is not leader")
 		}
 		for _, b := range r.Blocks {
 			if b.Endpoint != "" {
@@ -79,7 +79,7 @@ func newBlockExt(ctx context.Context, r *record.Segment, leaderOnly bool) (*bloc
 	}
 	b, ok := r.Blocks[id]
 	if !ok {
-		return nil, errors.ErrBlockNotFound
+		return nil, errors.ErrResourceNotFound.WithMessage("block not found")
 	}
 	return newBlock(ctx, b)
 }
@@ -162,7 +162,7 @@ func (s *segment) Append(ctx context.Context, event *ce.Event) (int64, error) {
 
 	b := s.preferSegmentBlock()
 	if b == nil {
-		return -1, errors.ErrNotLeader
+		return -1, errors.ErrNotLeader.WithMessage("the block is not leader")
 	}
 	off, err := b.Append(_ctx, event)
 	if err != nil {
@@ -171,19 +171,22 @@ func (s *segment) Append(ctx context.Context, event *ce.Event) (int64, error) {
 	return off + s.startOffset, nil
 }
 
-func (s *segment) SyncAppendStream(ctx context.Context, event *ce.Event) (int64, error) {
-	_ctx, span := s.tracer.Start(ctx, "AppendStream")
+func (s *segment) AppendManyStream(ctx context.Context, events []*ce.Event) ([]int64, error) {
+	_ctx, span := s.tracer.Start(ctx, "AppendManyStream")
 	defer span.End()
 
 	b := s.preferSegmentBlock()
 	if b == nil {
-		return -1, errors.ErrNotLeader
+		return nil, errors.ErrNotLeader.WithMessage("the block is not leader")
 	}
-	off, err := b.SyncAppendStream(_ctx, event)
+	offsets, err := b.AppendManyStream(_ctx, events)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
-	return off + s.startOffset, nil
+	for idx := range offsets {
+		offsets[idx] = offsets[idx] + s.startOffset
+	}
+	return offsets, nil
 }
 
 func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
@@ -204,7 +207,7 @@ func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeo
 	// TODO: cached read
 	b := s.preferSegmentBlock()
 	if b == nil {
-		return nil, errors.ErrBlockNotFound
+		return nil, errors.ErrResourceNotFound.WithMessage("block not found")
 	}
 	events, err := b.Read(ctx, from-s.startOffset, size, pollingTimeout)
 	if err != nil {
@@ -218,7 +221,7 @@ func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeo
 		}
 		off, ok := v.(int32)
 		if !ok {
-			return events, errors.ErrCorruptedEvent
+			return events, errors.ErrInvalidRequest.WithMessage("corrupted event")
 		}
 		offset := s.startOffset + int64(off)
 		buf := make([]byte, 8)
@@ -230,11 +233,11 @@ func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeo
 	return events, err
 }
 
-func (s *segment) SyncReadStream(ctx context.Context, from int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
+func (s *segment) ReadStream(ctx context.Context, from int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
 	if from < s.startOffset {
 		return nil, errors.ErrOffsetUnderflow
 	}
-	ctx, span := s.tracer.Start(ctx, "Read")
+	ctx, span := s.tracer.Start(ctx, "ReadStream")
 	defer span.End()
 
 	if eo := s.endOffset.Load(); eo >= 0 {
@@ -248,9 +251,9 @@ func (s *segment) SyncReadStream(ctx context.Context, from int64, size int16, po
 	// TODO: cached read
 	b := s.preferSegmentBlock()
 	if b == nil {
-		return nil, errors.ErrBlockNotFound
+		return nil, errors.ErrResourceNotFound.WithMessage("block not found")
 	}
-	events, err := b.SyncReadStream(ctx, from-s.startOffset, size, pollingTimeout)
+	events, err := b.ReadStream(ctx, from-s.startOffset, size, pollingTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +265,7 @@ func (s *segment) SyncReadStream(ctx context.Context, from int64, size int16, po
 		}
 		off, ok := v.(int32)
 		if !ok {
-			return events, errors.ErrCorruptedEvent
+			return events, errors.ErrInvalidRequest.WithMessage("corrupted event")
 		}
 		offset := s.startOffset + int64(off)
 		buf := make([]byte, 8)

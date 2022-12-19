@@ -465,7 +465,7 @@ func (a *appender) Append(ctx context.Context, entries ...block.Entry) ([]int64,
 
 	seqs, offset, err := a.append(ctx, entries)
 	if err != nil {
-		if errors.Is(err, errors.ErrSegmentFull) {
+		if errors.Is(err, errors.ErrFull) {
 			_ = a.waitCommit(ctx, offset)
 		}
 		return nil, err
@@ -491,11 +491,11 @@ func (a *appender) append(ctx context.Context, entries []block.Entry) ([]int64, 
 	defer a.appendMu.Unlock()
 
 	if !a.isLeader() {
-		return nil, 0, errors.ErrNotLeader
+		return nil, 0, errors.ErrNotLeader.WithMessage("the appender is not leader")
 	}
 
 	if a.actx.Archived() {
-		return nil, a.actx.WriteOffset(), errors.ErrSegmentFull
+		return nil, a.actx.WriteOffset(), errors.ErrFull.WithMessage("block is full")
 	}
 
 	seqs, frag, enough, err := a.raw.PrepareAppend(ctx, a.actx, entries...)

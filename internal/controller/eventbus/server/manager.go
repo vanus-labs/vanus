@@ -74,7 +74,7 @@ func (mgr *segmentServerManager) AddServer(ctx context.Context, srv Server) erro
 		if srv.ID().Equals(srvOld.ID()) {
 			return nil
 		}
-		return errors.ErrSegmentServerHasBeenAdded
+		return errors.ErrResourceAlreadyExist.WithMessage("the segment server has been added")
 	}
 	mgr.segmentServerMapByIP.Store(srv.Address(), srv)
 	mgr.segmentServerMapByID.Store(srv.ID().Key(), srv)

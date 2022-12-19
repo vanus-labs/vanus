@@ -364,7 +364,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 }
 func (ctrl *controller) processHeartbeat(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error {
 	if !ctrl.member.IsLeader() {
-		return errors.ErrNotLeader
+		return errors.ErrNotLeader.WithMessage("the controller is not leader")
 	}
 
 	t, err := util.ParseTime(req.ReportTime)

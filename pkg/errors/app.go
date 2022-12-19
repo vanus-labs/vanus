@@ -17,6 +17,8 @@ package errors
 import (
 	"encoding/json"
 	"fmt"
+
+	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 )
 
 func New(desc string) *ErrorType {
@@ -34,13 +36,13 @@ func Convert(str string) (*ErrorType, bool) {
 }
 
 type ErrorType struct {
-	Description    string    `json:"description"`
-	Message        string    `json:"message"`
-	Code           ErrorCode `json:"code"`
+	Description    string          `json:"description"`
+	Message        string          `json:"message"`
+	Code           errpb.ErrorCode `json:"code"`
 	underlayErrors []error
 }
 
-func (e *ErrorType) WithGRPCCode(c ErrorCode) *ErrorType {
+func (e *ErrorType) WithGRPCCode(c errpb.ErrorCode) *ErrorType {
 	_e := e.copy()
 	_e.Code = c
 	return _e

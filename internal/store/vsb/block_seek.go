@@ -49,7 +49,7 @@ func (b *vsBlock) Seek(ctx context.Context, index int64, key block.Entry, flag b
 	case block.SeekBeforeKey:
 		return b.seekBeforeKey(ctx, index, key, indexes)
 	default:
-		return -1, errors.ErrBlockNotSupported
+		return -1, errors.ErrInvalidRequest.WithMessage("block seek key not supported")
 	}
 }
 

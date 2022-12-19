@@ -289,7 +289,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 				continue
 			case context.Canceled:
 				return
-			case errors.ErrOffsetOnEnd, errors.ErrTryAgain:
+			case errors.ErrOffsetOnEnd, errors.ErrOffsetOverflow:
 			case errors.ErrOffsetUnderflow:
 				// todo reset offset timestamp
 			default:

@@ -32,6 +32,7 @@ import (
 	"google.golang.org/grpc"
 
 	// first-party libraries
+	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
 	// this project
@@ -62,8 +63,6 @@ func newBlockStore(endpoint string) (*BlockStore, error) {
 		// TODO: check error
 		return nil, err
 	}
-	s.runAppendStreamRecv(context.Background(), s.appendStream)
-	s.runReadStreamRecv(context.Background(), s.readStream)
 	return s, nil
 }
 
@@ -142,6 +141,8 @@ func (s *BlockStore) connectAppendStream(ctx context.Context) (segpb.SegmentServ
 		})
 		return nil, err
 	}
+
+	s.runAppendStreamRecv(context.Background(), stream)
 	return stream, nil
 }
 
@@ -169,6 +170,8 @@ func (s *BlockStore) connectReadStream(ctx context.Context) (segpb.SegmentServer
 		})
 		return nil, err
 	}
+
+	s.runReadStreamRecv(ctx, stream)
 	return stream, nil
 }
 
@@ -207,8 +210,8 @@ func (s *BlockStore) Append(ctx context.Context, block uint64, event *ce.Event) 
 	return res.GetOffsets()[0], nil
 }
 
-func (s *BlockStore) SyncAppendStream(ctx context.Context, block uint64, event *ce.Event) (int64, error) {
-	_ctx, span := s.tracer.Start(ctx, "SyncAppendStream")
+func (s *BlockStore) AppendManyStream(ctx context.Context, block uint64, events []*ce.Event) ([]int64, error) {
+	_ctx, span := s.tracer.Start(ctx, "AppendManyStream")
 	defer span.End()
 
 	var (
@@ -220,19 +223,23 @@ func (s *BlockStore) SyncAppendStream(ctx context.Context, block uint64, event *
 	if s.appendStream == nil {
 		s.appendStream, err = s.connectAppendStream(_ctx)
 		if err != nil {
-			return -1, err
+			return nil, err
 		}
-		s.runAppendStreamRecv(_ctx, s.appendStream)
 	}
 
 	// generate unique RequestId
-	requestID := rand.Uint64()
+	requestID := rand.New(rand.NewSource(time.Now().UnixNano())).Uint64()
 
 	wg.Add(1)
 
-	eventpb, err := codec.ToProto(event)
-	if err != nil {
-		return -1, err
+	//TODO(jiangkai): delete the reference of CloudEvents/v2 in Vanus
+	eventpbs := make([]*cepb.CloudEvent, len(events))
+	for idx := range events {
+		eventpb, err := codec.ToProto(events[idx])
+		if err != nil {
+			return nil, err
+		}
+		eventpbs = append(eventpbs, eventpb)
 	}
 
 	s.appendCallbacks.Store(requestID, appendCallback(func(res *segpb.AppendToBlockStreamResponse) {
@@ -244,7 +251,7 @@ func (s *BlockStore) SyncAppendStream(ctx context.Context, block uint64, event *
 		RequestId: requestID,
 		BlockId:   block,
 		Events: &cepb.CloudEventBatch{
-			Events: []*cepb.CloudEvent{eventpb},
+			Events: eventpbs,
 		},
 	}
 
@@ -259,27 +266,28 @@ func (s *BlockStore) SyncAppendStream(ctx context.Context, block uint64, event *
 			if c != nil {
 				c.(appendCallback)(&segpb.AppendToBlockStreamResponse{
 					ResponseId:   requestID,
-					ResponseCode: segpb.ResponseCode_UNKNOWN,
+					ResponseCode: errpb.ErrorCode_CLOSED,
+					ResponseMsg:  "append stream closed",
 					Offsets:      []int64{},
 				})
 			}
 		}
-		return -1, err
+		return nil, err
 	}
 
 	wg.Wait()
 
-	if resp.ResponseCode == segpb.ResponseCode_SegmentFull {
+	if resp.ResponseCode == errpb.ErrorCode_FULL {
 		log.Warning(ctx, "block append failed cause the segment is full", nil)
-		return -1, errors.ErrSegmentFull
+		return nil, errors.ErrFull.WithMessage("segment is full")
 	}
 
-	if resp.ResponseCode != segpb.ResponseCode_SUCCESS {
+	if resp.ResponseCode != errpb.ErrorCode_SUCCESS {
 		log.Warning(ctx, "block append failed cause unknown error", nil)
-		return -1, errors.ErrUnknown
+		return nil, errors.ErrUnknown.WithMessage("append many stream failed")
 	}
 
-	return resp.Offsets[0], nil
+	return resp.Offsets, nil
 }
 
 func (s *BlockStore) Read(
@@ -289,10 +297,10 @@ func (s *BlockStore) Read(
 	defer span.End()
 
 	req := &segpb.ReadFromBlockRequest{
-		BlockId:        block,
-		Offset:         offset,
-		Number:         int64(size),
-		PollingTimeout: pollingTimeout,
+		BlockId:                     block,
+		Offset:                      offset,
+		Number:                      int64(size),
+		PollingTimeoutInMillisecond: pollingTimeout,
 	}
 
 	client, err := s.client.Get(ctx)
@@ -323,10 +331,10 @@ func (s *BlockStore) Read(
 	return []*ce.Event{}, err
 }
 
-func (s *BlockStore) SyncReadStream(
+func (s *BlockStore) ReadStream(
 	ctx context.Context, block uint64, offset int64, size int16, pollingTimeout uint32,
 ) ([]*ce.Event, error) {
-	_ctx, span := s.tracer.Start(ctx, "SyncReadStream")
+	_ctx, span := s.tracer.Start(ctx, "ReadStream")
 	defer span.End()
 
 	var (
@@ -340,7 +348,6 @@ func (s *BlockStore) SyncReadStream(
 		if err != nil {
 			return []*ce.Event{}, err
 		}
-		s.runReadStreamRecv(_ctx, s.readStream)
 	}
 
 	// generate unique RequestId
@@ -354,10 +361,10 @@ func (s *BlockStore) SyncReadStream(
 	}))
 
 	req := &segpb.ReadFromBlockStreamRequest{
-		BlockId:        block,
-		Offset:         offset,
-		Number:         int64(size),
-		PollingTimeout: pollingTimeout,
+		BlockId:                     block,
+		Offset:                      offset,
+		Number:                      int64(size),
+		PollingTimeoutInMillisecond: pollingTimeout,
 	}
 
 	if err = s.readStream.Send(req); err != nil {
@@ -371,7 +378,8 @@ func (s *BlockStore) SyncReadStream(
 			if c != nil {
 				c.(readCallback)(&segpb.ReadFromBlockStreamResponse{
 					ResponseId:   requestID,
-					ResponseCode: segpb.ResponseCode_UNKNOWN,
+					ResponseCode: errpb.ErrorCode_CLOSED,
+					ResponseMsg:  "read stream closed",
 					Events: &cepb.CloudEventBatch{
 						Events: []*cepb.CloudEvent{},
 					},
@@ -383,9 +391,9 @@ func (s *BlockStore) SyncReadStream(
 
 	wg.Wait()
 
-	if resp.ResponseCode != segpb.ResponseCode_SUCCESS {
-		log.Warning(ctx, "block append failed cause unknown error", nil)
-		return []*ce.Event{}, errors.ErrUnknown
+	if resp.ResponseCode != errpb.ErrorCode_SUCCESS {
+		log.Warning(ctx, "block read failed cause unknown error", nil)
+		return []*ce.Event{}, errors.ErrUnknown.WithMessage("read stream failed")
 	}
 
 	if batch := resp.GetEvents(); batch != nil {
