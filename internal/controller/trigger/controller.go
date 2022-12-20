@@ -17,7 +17,6 @@ package trigger
 import (
 	"context"
 	stdErr "errors"
-	"google.golang.org/grpc/credentials/insecure"
 	"io"
 	"os"
 	"sync"
@@ -40,6 +39,7 @@ import (
 	"github.com/linkall-labs/vanus/pkg/util"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/linkall-labs/vanus/proto/pkg/meta"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 

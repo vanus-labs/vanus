@@ -274,7 +274,7 @@ func (s *server) registerSelf(ctx context.Context) error {
 		return err
 	}
 	log.Info(ctx, "connected to controller", map[string]interface{}{
-		"used": time.Now().Sub(start),
+		"used": time.Since(start),
 	})
 	s.id = vanus.NewIDFromUint64(res.ServerId)
 
