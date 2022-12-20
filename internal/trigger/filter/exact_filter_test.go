@@ -28,6 +28,10 @@ func TestExactFilter(t *testing.T) {
 	event.SetID("testID")
 	event.SetSource("testSource")
 	event.SetExtension("key", "value")
+	event.SetData(ce.ApplicationJSON, map[string]interface{}{
+		"str":    "strValue",
+		"number": 123,
+	})
 	Convey("exact filter nil", t, func() {
 		f := filter.NewExactFilter(map[string]string{
 			"": "testID",
@@ -38,18 +42,43 @@ func TestExactFilter(t *testing.T) {
 		})
 		So(f, ShouldBeNil)
 	})
-	Convey("exact filter pass", t, func() {
-		f := filter.NewExactFilter(map[string]string{
-			"key": "value",
+	Convey("exact filter attribute", t, func() {
+		Convey("exact filter pass", func() {
+			f := filter.NewExactFilter(map[string]string{
+				"key": "value",
+			})
+			result := f.Filter(event)
+			So(result, ShouldEqual, filter.PassFilter)
 		})
-		result := f.Filter(event)
-		So(result, ShouldEqual, filter.PassFilter)
+		Convey("exact filter fail", func() {
+			f := filter.NewExactFilter(map[string]string{
+				"key": "unknown",
+			})
+			result := f.Filter(event)
+			So(result, ShouldEqual, filter.FailFilter)
+		})
 	})
-	Convey("exact filter fail", t, func() {
-		f := filter.NewExactFilter(map[string]string{
-			"key": "unknown",
+	Convey("exact data", t, func() {
+		Convey("exact filter pass", func() {
+			f := filter.NewExactFilter(map[string]string{
+				"data.str": "strValue",
+			})
+			result := f.Filter(event)
+			So(result, ShouldEqual, filter.PassFilter)
 		})
-		result := f.Filter(event)
-		So(result, ShouldEqual, filter.FailFilter)
+		Convey("exact filter fail", func() {
+			f := filter.NewExactFilter(map[string]string{
+				"data.str": "unknown",
+			})
+			result := f.Filter(event)
+			So(result, ShouldEqual, filter.FailFilter)
+		})
+		Convey("exact filter data", func() {
+			f := filter.NewExactFilter(map[string]string{
+				"data": "unknown",
+			})
+			result := f.Filter(event)
+			So(result, ShouldEqual, filter.FailFilter)
+		})
 	})
 }
