@@ -17,6 +17,7 @@ package trigger
 import (
 	"context"
 	stdErr "errors"
+	"google.golang.org/grpc/credentials/insecure"
 	"io"
 	"os"
 	"sync"
@@ -50,12 +51,13 @@ const (
 	defaultGcSubscriptionInterval = time.Second * 10
 )
 
-func NewController(config Config, member embedetcd.Member) *controller {
+func NewController(config Config, controllerAddr []string, member embedetcd.Member) *controller {
 	ctrl := &controller{
 		config:                config,
 		member:                member,
 		needCleanSubscription: map[vanus.ID]string{},
 		state:                 primitive.ServerStateCreated,
+		cl:                    cluster.NewClusterController(controllerAddr, insecure.NewCredentials()),
 	}
 	ctrl.ctx, ctrl.stopFunc = context.WithCancel(context.Background())
 	return ctrl

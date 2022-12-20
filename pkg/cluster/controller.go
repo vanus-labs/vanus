@@ -142,7 +142,7 @@ func (c *cluster) IsReady(createEventbus bool) bool {
 	if res.LeaderAddr == "" {
 		return false
 	}
-	return createEventbus && res.GetIsEventbusReady()
+	return !createEventbus || (createEventbus && res.GetIsEventbusReady())
 }
 
 func (c *cluster) Status() Topology {
