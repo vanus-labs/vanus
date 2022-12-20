@@ -18,12 +18,14 @@ import (
 	"time"
 
 	"github.com/linkall-labs/vanus/internal/primitive/transform/function/util"
+
+	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
 )
 
 var DateFormatFunction = function{
 	name:         "DATE_FORMAT",
-	fixedArgs:    []Type{String, String},
-	variadicArgs: TypePtr(String),
+	fixedArgs:    []common.Type{common.String, common.String},
+	variadicArgs: common.TypePtr(common.String),
 	fn: func(args []interface{}) (interface{}, error) {
 		t, err := time.ParseInLocation(time.RFC3339, args[0].(string), time.UTC)
 		if err != nil {
@@ -43,8 +45,8 @@ var DateFormatFunction = function{
 
 var UnixTimeFormatFunction = function{
 	name:         "UNIX_TIME_FORMAT",
-	fixedArgs:    []Type{Number, String},
-	variadicArgs: TypePtr(String),
+	fixedArgs:    []common.Type{common.Number, common.String},
+	variadicArgs: common.TypePtr(common.String),
 	fn: func(args []interface{}) (interface{}, error) {
 		t := time.Unix(int64(args[0].(float64)), 0)
 		loc := time.UTC

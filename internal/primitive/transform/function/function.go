@@ -14,13 +14,15 @@
 
 package function
 
+import "github.com/linkall-labs/vanus/internal/primitive/transform/common"
+
 type Function interface {
 	// Name func name
 	Name() string
 	// Arity arg number
 	Arity() int
 	// ArgType arg type
-	ArgType(index int) *Type
+	ArgType(index int) *common.Type
 	// IsVariadic is exist variadic
 	IsVariadic() bool
 	// Execute cal func result
@@ -29,8 +31,8 @@ type Function interface {
 
 type function struct {
 	name         string
-	fixedArgs    []Type
-	variadicArgs *Type
+	fixedArgs    []common.Type
+	variadicArgs *common.Type
 	fn           func(args []interface{}) (interface{}, error)
 }
 
@@ -42,7 +44,7 @@ func (f function) Arity() int {
 	return len(f.fixedArgs)
 }
 
-func (f function) ArgType(index int) *Type {
+func (f function) ArgType(index int) *common.Type {
 	if index < len(f.fixedArgs) {
 		return &f.fixedArgs[index]
 	}

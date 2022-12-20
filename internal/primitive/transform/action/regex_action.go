@@ -18,13 +18,10 @@ import (
 	"regexp"
 	"sync"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-
-	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
-
-	"github.com/pkg/errors"
-
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+	"github.com/pkg/errors"
 )
 
 type replaceWithRegexAction struct {
@@ -47,7 +44,7 @@ func newReplaceWithRegexAction() Action {
 func (a *replaceWithRegexAction) Init(args []arg.Arg) error {
 	a.targetArg = args[0]
 	a.args = args
-	a.argTypes = []function.Type{function.String, function.String, function.String}
+	a.argTypes = []common.Type{common.String, common.String, common.String}
 	return nil
 }
 
