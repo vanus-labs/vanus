@@ -39,6 +39,7 @@ import (
 	"github.com/linkall-labs/vanus/pkg/util"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/linkall-labs/vanus/proto/pkg/meta"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -50,12 +51,13 @@ const (
 	defaultGcSubscriptionInterval = time.Second * 10
 )
 
-func NewController(config Config, member embedetcd.Member) *controller {
+func NewController(config Config, controllerAddr []string, member embedetcd.Member) *controller {
 	ctrl := &controller{
 		config:                config,
 		member:                member,
 		needCleanSubscription: map[vanus.ID]string{},
 		state:                 primitive.ServerStateCreated,
+		cl:                    cluster.NewClusterController(controllerAddr, insecure.NewCredentials()),
 	}
 	ctrl.ctx, ctrl.stopFunc = context.WithCancel(context.Background())
 	return ctrl

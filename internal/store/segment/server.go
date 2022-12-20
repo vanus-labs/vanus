@@ -260,6 +260,8 @@ func (s *server) reconcileBlocks(ctx context.Context) error {
 
 func (s *server) registerSelf(ctx context.Context) error {
 	// TODO(james.yin): pass information of blocks.
+	start := time.Now()
+	log.Info(ctx, "connecting to controller", nil)
 	if err := s.ctrl.WaitForControllerReady(false); err != nil {
 		return err
 	}
@@ -271,7 +273,9 @@ func (s *server) registerSelf(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
+	log.Info(ctx, "connected to controller", map[string]interface{}{
+		"used": time.Since(start),
+	})
 	s.id = vanus.NewIDFromUint64(res.ServerId)
 
 	// FIXME(james.yin): some blocks may not be bound to segment.
