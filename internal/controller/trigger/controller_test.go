@@ -38,7 +38,7 @@ func TestController_CommitOffset(t *testing.T) {
 	Convey("test reset offset", t, func() {
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
-		ctrl := NewController(Config{}, nil)
+		ctrl := NewController(Config{}, nil, nil)
 		ctx := context.Background()
 		workerManager := worker.NewMockManager(mockCtrl)
 		ctrl.workerManager = workerManager
@@ -77,7 +77,7 @@ func TestController_ResetOffsetToTimestamp(t *testing.T) {
 	Convey("test reset offset", t, func() {
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
-		ctrl := NewController(Config{}, nil)
+		ctrl := NewController(Config{}, nil, nil)
 		ctx := context.Background()
 		workerManager := worker.NewMockManager(mockCtrl)
 		ctrl.workerManager = workerManager
@@ -118,7 +118,7 @@ func TestController_CreateSubscription(t *testing.T) {
 	Convey("test create subscription", t, func() {
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
-		ctrl := NewController(Config{}, nil)
+		ctrl := NewController(Config{}, nil, nil)
 		ctx := context.Background()
 		workerManager := worker.NewMockManager(mockCtrl)
 		ctrl.workerManager = workerManager
@@ -154,7 +154,7 @@ func TestController_UpdateSubscription(t *testing.T) {
 	Convey("test update subscription", t, func() {
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
-		ctrl := NewController(Config{}, nil)
+		ctrl := NewController(Config{}, nil, nil)
 		ctx := context.Background()
 		workerManager := worker.NewMockManager(mockCtrl)
 		ctrl.workerManager = workerManager
@@ -355,7 +355,7 @@ func TestController_DeleteSubscription(t *testing.T) {
 	Convey("test delete subscription", t, func() {
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
-		ctrl := NewController(Config{}, nil)
+		ctrl := NewController(Config{}, nil, nil)
 		ctx := context.Background()
 		workerManager := worker.NewMockManager(mockCtrl)
 		ctrl.workerManager = workerManager
@@ -414,7 +414,7 @@ func TestController_GetSubscription(t *testing.T) {
 	Convey("test get subscription", t, func() {
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
-		ctrl := NewController(Config{}, nil)
+		ctrl := NewController(Config{}, nil, nil)
 		ctx := context.Background()
 		workerManager := worker.NewMockManager(mockCtrl)
 		ctrl.workerManager = workerManager
@@ -451,7 +451,7 @@ func TestController_ListSubscription(t *testing.T) {
 	Convey("test list subscription", t, func() {
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
-		ctrl := NewController(Config{}, nil)
+		ctrl := NewController(Config{}, nil, nil)
 		ctx := context.Background()
 		workerManager := worker.NewMockManager(mockCtrl)
 		ctrl.workerManager = workerManager
@@ -476,7 +476,7 @@ func TestController_TriggerWorkerHeartbeat(t *testing.T) {
 	Convey("test trigger worker heartbeat", t, func() {
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
-		ctrl := NewController(Config{}, nil)
+		ctrl := NewController(Config{}, nil, nil)
 		ctx := context.Background()
 		workerManager := worker.NewMockManager(mockCtrl)
 		ctrl.workerManager = workerManager
