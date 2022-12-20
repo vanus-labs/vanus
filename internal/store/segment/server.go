@@ -672,65 +672,6 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 	s.pm.NewMessageArrived(id)
 }
 
-// func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]int64, error) {
-// 	ctx, span := s.tracer.Start(ctx, "AppendToBlock")
-// 	defer span.End()
-
-// 	if len(events) == 0 {
-// 		return nil, errors.ErrInvalidRequest.WithMessage("event list is empty")
-// 	}
-
-// 	if err := s.checkState(); err != nil {
-// 		return nil, err
-// 	}
-
-// 	var b Replica
-// 	if v, ok := s.replicas.Load(id); ok {
-// 		b, _ = v.(Replica)
-// 	} else {
-// 		return nil, errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
-// 	}
-
-// 	var size int
-// 	entries := make([]block.Entry, len(events))
-// 	for i, event := range events {
-// 		entries[i] = ceconv.ToEntry(event)
-// 		size += proto.Size(event)
-// 	}
-
-// 	metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(len(events)))
-// 	metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(size))
-
-// 	seqs, err := b.Append(ctx, entries...)
-// 	if err != nil {
-// 		return nil, s.processAppendError(ctx, b, err)
-// 	}
-
-// 	// TODO(weihe.yin) make this method deep to code
-// 	s.pm.NewMessageArrived(id)
-
-// 	return seqs, nil
-// }
-
-func (s *server) processAppendError(ctx context.Context, b Replica, err error) error {
-	if stderr.As(err, &errors.ErrorType{}) {
-		return err
-	}
-
-	if errors.Is(err, errors.ErrFull) {
-		log.Debug(ctx, "Append failed: block is full.", map[string]interface{}{
-			"block_id": b.ID(),
-		})
-		return errors.ErrFull.WithMessage("block is full")
-	}
-
-	log.Warning(ctx, "Append failed.", map[string]interface{}{
-		"block_id":   b.ID(),
-		log.KeyError: err,
-	})
-	return errors.ErrInternal.WithMessage("write to storage failed").Wrap(err)
-}
-
 func (s *server) onBlockArchived(stat block.Statistics) {
 	id := stat.ID
 

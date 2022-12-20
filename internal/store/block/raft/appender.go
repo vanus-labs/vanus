@@ -48,6 +48,7 @@ const (
 	defaultHeartbeatTick   = 3
 	defaultMaxSizePerMsg   = 4096
 	defaultMaxInflightMsgs = 256
+	defaultWaiterWorker    = 8
 )
 
 type Peer struct {
@@ -204,7 +205,7 @@ func (a *appender) run(ctx context.Context) {
 	t := time.NewTicker(defaultTickInterval)
 	defer t.Stop()
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < defaultWaiterWorker; i++ {
 		go func() {
 			for {
 				select {
@@ -484,10 +485,16 @@ func (a *appender) Append(ctx context.Context, cb func([]int64, error), entries 
 	seqs, offset, err := a.append(ctx, entries)
 	if err != nil && !errors.Is(err, errors.ErrFull) {
 		cb(nil, err)
+		return
 	}
 
 	// register callback and wait until entries is committed.
-	a.registerCallback(ctx, seqs, offset, err, cb)
+	a.registerCommitWaiter(ctx, commitWaiter{
+		seqs:     seqs,
+		offset:   offset,
+		err:      err,
+		callback: cb,
+	})
 }
 
 func (a *appender) append(ctx context.Context, entries []block.Entry) ([]int64, int64, error) {
@@ -537,7 +544,7 @@ func (a *appender) doAppend(ctx context.Context, frags ...block.Fragment) {
 	_, _ = a.raw.CommitAppend(ctx, frags...)
 }
 
-func (a *appender) registerCallback(ctx context.Context, seqs []int64, offset int64, err error, cb func([]int64, error)) {
+func (a *appender) registerCommitWaiter(ctx context.Context, waiter commitWaiter) {
 	_, span := a.tracer.Start(ctx, "waitCommit")
 	defer span.End()
 
@@ -546,47 +553,12 @@ func (a *appender) registerCallback(ctx context.Context, seqs []int64, offset in
 	defer a.waitMu.Unlock()
 	span.AddEvent("Got wait lock")
 
-	if offset <= a.commitOffset {
+	if waiter.offset <= a.commitOffset {
+		waiter.callback(waiter.seqs, waiter.err)
 		return
 	}
-
-	a.waiters = append(a.waiters, commitWaiter{
-		seqs:     seqs,
-		offset:   offset,
-		err:      err,
-		callback: cb,
-	})
+	a.waiters = append(a.waiters, waiter)
 }
-
-// func (a *appender) waitCommit(ctx context.Context, offset int64) error {
-// 	ctx, span := a.tracer.Start(ctx, "waitCommit")
-// 	defer span.End()
-
-// 	span.AddEvent("Acquiring wait lock")
-// 	a.waitMu.Lock()
-// 	span.AddEvent("Got wait lock")
-
-// 	if offset <= a.commitOffset {
-// 		a.waitMu.Unlock()
-// 		return nil
-// 	}
-
-// 	ch := make(chan struct{})
-// 	a.waiters = append(a.waiters, commitWaiter{
-// 		offset: offset,
-// 		c:      ch,
-// 	})
-
-// 	a.waitMu.Unlock()
-
-// 	// FIXME(james.yin): lost leader
-// 	select {
-// 	case <-ch:
-// 		return nil
-// 	case <-ctx.Done():
-// 		return ctx.Err()
-// 	}
-// }
 
 func (a *appender) doWakeup(ctx context.Context, commit int64) {
 	_, span := a.tracer.Start(ctx, "doWakeup")
