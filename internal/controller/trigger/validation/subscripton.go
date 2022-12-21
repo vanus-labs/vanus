@@ -19,12 +19,10 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
-
-	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
-
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/cel"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
 	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
@@ -176,7 +174,7 @@ func validateTransformer(ctx context.Context, transformer *metapb.Transformer) e
 			for i, command := range a.Command {
 				commands[i] = command.AsInterface()
 			}
-			if _, err := action.NewAction(commands); err != nil {
+			if _, err := runtime.NewAction(commands); err != nil {
 				return errors.ErrInvalidRequest.WithMessage(
 					fmt.Sprintf("transformer pipeline %dst command %s is invalid:[%s]", n+1, commands[0], err.Error()))
 			}

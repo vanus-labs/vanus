@@ -12,27 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package action_test
+package strings_test
 
 import (
 	"testing"
 
 	cetest "github.com/cloudevents/sdk-go/v2/test"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action/strings"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestActionExecute(t *testing.T) {
-	Convey("test action", t, func() {
-		a, err := runtime.NewAction([]interface{}{"delete", "$.test"})
+func TestReplaceWithRegexAction(t *testing.T) {
+	funcName := strings.NewReplaceWithRegexAction().Name()
+	Convey("test replace with regex", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test", "a", "value"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
-		e.SetExtension("test", "abc")
+		e.SetExtension("test", "a-a")
 		err = a.Execute(&context.EventContext{
 			Event: &e,
 		})
 		So(err, ShouldBeNil)
-		So(len(e.Extensions()), ShouldEqual, 0)
+		So(e.Extensions()["test"], ShouldEqual, "value-value")
 	})
 }

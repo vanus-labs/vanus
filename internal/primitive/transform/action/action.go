@@ -16,7 +16,6 @@ package action
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
@@ -138,57 +137,6 @@ func (a *SourceTargetSameAction) Init(args []arg.Arg) error {
 	a.TargetArg = args[0]
 	a.Args = args
 	return a.setArgTypes()
-}
-
-type newAction func() Action
-
-var actionMap = map[string]newAction{}
-
-func AddAction(actionFn newAction) error {
-	a := actionFn()
-	name := strings.ToUpper(a.Name())
-	if _, exist := actionMap[name]; exist {
-		panic(fmt.Errorf("action %s has exist", name))
-	}
-	actionMap[name] = actionFn
-	return nil
-}
-
-func NewAction(command []interface{}) (Action, error) {
-	funcName, ok := command[0].(string)
-	if !ok {
-		return nil, fmt.Errorf("command name must be stirng")
-	}
-	actionFn, exist := actionMap[strings.ToUpper(funcName)]
-	if !exist {
-		return nil, fmt.Errorf("command %s not exist", funcName)
-	}
-	a := actionFn()
-	argNum := len(command) - 1
-	if argNum < a.Arity() {
-		return nil, fmt.Errorf("command %s arg number is not enough, it need %d but only have %d",
-			funcName, a.Arity(), argNum)
-	}
-	if argNum > a.Arity() && !a.IsVariadic() {
-		return nil, fmt.Errorf("command %s arg number is too many, it need %d but have %d", funcName, a.Arity(), argNum)
-	}
-	args := make([]arg.Arg, argNum)
-	for i := 1; i < len(command); i++ {
-		_arg, err := arg.NewArg(command[i])
-		if err != nil {
-			return nil, errors.Wrapf(err, "command %s arg %d is invalid", funcName, i)
-		}
-		argType := a.ArgType(i - 1)
-		if !argType.Contains(_arg) {
-			return nil, fmt.Errorf("command %s arg %d not support type %s", funcName, i, _arg.Type())
-		}
-		args[i-1] = _arg
-	}
-	err := a.Init(args)
-	if err != nil {
-		return nil, errors.Wrapf(err, "command %s init error", funcName)
-	}
-	return a, nil
 }
 
 var (
