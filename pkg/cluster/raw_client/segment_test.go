@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controller
+package raw_client
 
 import (
 	"fmt"
 	"testing"
 
-	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
+	"github.com/linkall-labs/vanus/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -26,7 +26,7 @@ func TestCtrlClientIsNeedRetry(t *testing.T) {
 	Convey("test isNeedRetry", t, func() {
 		//cli := NewSegmentClient([]string{"127.0.0.1:2048", "127.0.0.1:2148", "127.0.0.1:2248"}, insecure.NewCredentials())
 		Convey("test error internal", func() {
-			var err = error(ErrNoControllerLeader)
+			var err = error(errors.ErrNoControllerLeader)
 			So(isNeedRetry(err), ShouldBeTrue)
 
 			err = fmt.Errorf("test error")
@@ -37,10 +37,10 @@ func TestCtrlClientIsNeedRetry(t *testing.T) {
 			err := fmt.Errorf("xxxxx, please connect to: 127.a.0.1 ")
 			So(isNeedRetry(err), ShouldBeFalse)
 
-			err = errpb.New("xxxxx: 1111111111 ")
+			err = errors.New("xxxxx: 1111111111 ")
 			So(isNeedRetry(err), ShouldBeFalse)
 
-			err = errpb.New("balabala, please connect to: 127.0.0.1:2048 ").WithGRPCCode(errpb.ErrorCode_NOT_LEADER)
+			err = errors.New("balabala, please connect to: 127.0.0.1:2048 ").WithGRPCCode(errors.ErrorCode_NOT_LEADER)
 			So(isNeedRetry(err), ShouldBeTrue)
 		})
 	})

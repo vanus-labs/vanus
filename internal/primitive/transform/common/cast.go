@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package function
+package common
 
 import (
 	"fmt"
@@ -61,6 +61,22 @@ func Cast(val interface{}, target Type) (interface{}, error) {
 			return false, fmt.Errorf("cannot cast String to Bool, actual value: %v", val)
 		}
 		return false, fmt.Errorf("undefined cast from %v to %v", TypeFromVal(val), target)
+	case StringArray:
+		switch value := val.(type) {
+		case string:
+			return []string{value}, nil
+		case []interface{}:
+			stringArr := make([]string, len(value))
+			for i := range value {
+				v, err := Cast(value[i], String)
+				if err != nil {
+					return nil, err
+				}
+				str, _ := v.(string)
+				stringArr[i] = str
+			}
+			return stringArr, nil
+		}
 	}
 
 	// AnyType doesn't need casting

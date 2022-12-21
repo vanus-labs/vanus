@@ -21,12 +21,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/errors"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/linkall-labs/vanus/pkg/util"
 )
 
@@ -231,7 +231,14 @@ func (m *manager) cleanTriggerWorker(ctx context.Context, tWorker TriggerWorker)
 	log.Info(ctx, "do trigger worker leave success", map[string]interface{}{
 		log.KeyTriggerWorkerAddr: tWorker.GetAddr(),
 	})
-	err := m.storage.DeleteTriggerWorker(ctx, tWorker.GetInfo().ID)
+	err := tWorker.Close()
+	if err != nil {
+		log.Warning(ctx, "trigger worker close error", map[string]interface{}{
+			log.KeyError:             err,
+			log.KeyTriggerWorkerAddr: tWorker.GetAddr(),
+		})
+	}
+	err = m.storage.DeleteTriggerWorker(ctx, tWorker.GetInfo().ID)
 	if err != nil {
 		log.Warning(ctx, "storage delete trigger worker error", map[string]interface{}{
 			log.KeyError:             err,
@@ -334,7 +341,7 @@ func (m *manager) Start() {
 }
 
 func (m *manager) check(ctx context.Context) {
-	log.Debug(ctx, "trigger worker check begin", nil)
+	// log.Debug(ctx, "trigger worker check begin", nil)
 	var wg sync.WaitGroup
 	now := time.Now()
 	workers := m.getTriggerWorkers()
@@ -367,7 +374,7 @@ func (m *manager) check(ctx context.Context) {
 		}(tWorker)
 	}
 	wg.Wait()
-	log.Debug(ctx, "trigger worker check complete", nil)
+	// log.Debug(ctx, "trigger worker check complete", nil)
 }
 
 func (m *manager) pendingTriggerWorkerHandler(ctx context.Context, tWorker TriggerWorker) {

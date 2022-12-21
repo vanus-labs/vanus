@@ -19,7 +19,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
-	stderr "errors"
 	"io"
 	"sort"
 	"sync"
@@ -33,9 +32,9 @@ import (
 
 	// this project.
 	elns "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
-	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/record"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 const (
@@ -282,7 +281,7 @@ func (l *eventlog) nextWritableSegment(ctx context.Context, seg *segment) (*segm
 	if s, ok := l.writableSegments[seg.nextSegmentId]; ok {
 		return s, nil
 	}
-	return nil, errors.ErrNotFound
+	return nil, errors.ErrResourceNotFound
 }
 
 func (l *eventlog) fetchWritableSegment(ctx context.Context) *segment {
@@ -351,15 +350,15 @@ func (l *eventlog) selectReadableSegment(ctx context.Context, offset int64) (*se
 	var target *segment
 	target = fetchTailSegment(ctx, segs)
 	if offset == target.EndOffset() {
-		return nil, errors.ErrOnEnd
+		return nil, errors.ErrOffsetOnEnd
 	}
 	if offset > target.EndOffset() {
-		return nil, errors.ErrOverflow
+		return nil, errors.ErrOffsetOverflow
 	}
 
 	target = fetchHeadSegment(ctx, segs)
 	if offset < target.StartOffset() {
-		return nil, errors.ErrUnderflow
+		return nil, errors.ErrOffsetUnderflow
 	}
 
 	segmentNum := len(l.readableSegments)
@@ -415,24 +414,16 @@ func (w *logWriter) Append(ctx context.Context, event *ce.Event) (string, error)
 		if err == nil {
 			return eid, nil
 		}
-
-		switch err {
-		case errors.ErrNotWritable, errors.ErrNotEnoughSpace:
-			if i < retryTimes {
-				continue
-			}
-		case errors.ErrNoSpace:
-			// full
+		log.Warning(ctx, "failed to append", map[string]interface{}{
+			log.KeyError: err,
+			"retryTimes": i,
+		})
+		if errors.Is(err, errors.ErrSegmentFull) {
 			w.switchNextWritableSegment(ctx)
 			if i < retryTimes {
 				continue
 			}
 		}
-
-		log.Error(ctx, "Append failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-
 		return "", err
 	}
 	return "", errors.ErrUnknown
@@ -445,8 +436,7 @@ func (w *logWriter) doAppend(ctx context.Context, event *ce.Event) (string, erro
 	}
 	offset, err := segment.Append(ctx, event)
 	if err != nil {
-		switch err {
-		case errors.ErrNotWritable, errors.ErrNotEnoughSpace, errors.ErrNoSpace:
+		if errors.Is(err, errors.ErrSegmentFull) {
 			segment.SetNotWritable()
 		}
 		return "", err
@@ -517,7 +507,7 @@ func (r *logReader) Close(ctx context.Context) {
 func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 	if r.cur == nil {
 		segment, err := r.elog.selectReadableSegment(ctx, r.pos)
-		if stderr.Is(err, errors.ErrOnEnd) {
+		if errors.Is(err, errors.ErrOffsetOnEnd) {
 			r.elog.refreshReadableSegments(ctx)
 			segment, err = r.elog.selectReadableSegment(ctx, r.pos)
 		}
@@ -529,7 +519,7 @@ func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 
 	events, err := r.cur.Read(ctx, r.pos, size, uint32(r.pollingTimeout(ctx)))
 	if err != nil {
-		if stderr.Is(err, errors.ErrOverflow) {
+		if errors.Is(err, errors.ErrOffsetOverflow) {
 			r.elog.refreshReadableSegments(ctx)
 			if r.switchSegment(ctx) {
 				return nil, errors.ErrTryAgain

@@ -23,8 +23,8 @@ import (
 
 	// this project
 	"github.com/linkall-labs/vanus/client/internal/vanus/store"
-	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/record"
+	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 func newBlock(ctx context.Context, r *record.Block) (*block, error) {
@@ -58,7 +58,7 @@ func (s *block) Append(ctx context.Context, event *ce.Event) (int64, error) {
 
 func (s *block) Read(ctx context.Context, offset int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
 	if offset < 0 {
-		return nil, errors.ErrUnderflow
+		return nil, errors.ErrOffsetUnderflow
 	}
 	if size > 0 {
 		// doRead

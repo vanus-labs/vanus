@@ -15,41 +15,49 @@
 package function
 
 import (
-	"strings"
 	"time"
+
+	"github.com/linkall-labs/vanus/internal/primitive/transform/function/util"
+
+	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
 )
 
-// convertTimeFormat2Go convert "yyyy-mm-dd HH:MM:SS" to "2006-01-02 15:04:05".
-func convertTimeFormat2Go(format string) string {
-	v := strings.ReplaceAll(format, "yyyy", "2006")
-	v = strings.ReplaceAll(v, "mm", "01")
-	v = strings.ReplaceAll(v, "dd", "02")
-	v = strings.ReplaceAll(v, "HH", "15")
-	v = strings.ReplaceAll(v, "MM", "04")
-	v = strings.ReplaceAll(v, "SS", "05")
-	return v
-}
-
-var FormatDateFunction = function{
-	name:      "FORMAT_DATE",
-	fixedArgs: []Type{String, String, String},
+var DateFormatFunction = function{
+	name:         "DATE_FORMAT",
+	fixedArgs:    []common.Type{common.String, common.String},
+	variadicArgs: common.TypePtr(common.String),
 	fn: func(args []interface{}) (interface{}, error) {
-		fromFormat := convertTimeFormat2Go(args[1].(string))
-		t, err := time.Parse(fromFormat, args[0].(string))
+		t, err := time.ParseInLocation(time.RFC3339, args[0].(string), time.UTC)
 		if err != nil {
 			return nil, err
 		}
-		toFormat := convertTimeFormat2Go(args[2].(string))
-		return t.Format(toFormat), nil
+		loc := time.UTC
+		if len(args) > 2 && args[2].(string) != "" {
+			loc, err = time.LoadLocation(args[2].(string))
+			if err != nil {
+				return nil, err
+			}
+		}
+		format := util.ConvertFormat2Go(args[1].(string))
+		return t.In(loc).Format(format), nil
 	},
 }
 
-var FormatUnixTimeFunction = function{
-	name:      "FORMAT_UNIX_TIME",
-	fixedArgs: []Type{Number, String},
+var UnixTimeFormatFunction = function{
+	name:         "UNIX_TIME_FORMAT",
+	fixedArgs:    []common.Type{common.Number, common.String},
+	variadicArgs: common.TypePtr(common.String),
 	fn: func(args []interface{}) (interface{}, error) {
 		t := time.Unix(int64(args[0].(float64)), 0)
-		toFormat := convertTimeFormat2Go(args[1].(string))
-		return t.UTC().Format(toFormat), nil
+		loc := time.UTC
+		if len(args) > 2 && args[2].(string) != "" {
+			var err error
+			loc, err = time.LoadLocation(args[2].(string))
+			if err != nil {
+				return nil, err
+			}
+		}
+		format := util.ConvertFormat2Go(args[1].(string))
+		return t.In(loc).Format(format), nil
 	},
 }

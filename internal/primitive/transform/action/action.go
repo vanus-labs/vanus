@@ -18,12 +18,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-
-	"github.com/pkg/errors"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
 
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+	"github.com/pkg/errors"
 )
 
 type newAction func() Action
@@ -48,7 +48,7 @@ type commonAction struct {
 	fn          function.Function
 
 	args      []arg.Arg
-	argTypes  []function.Type
+	argTypes  []common.Type
 	targetArg arg.Arg
 }
 
@@ -93,7 +93,7 @@ func (a *commonAction) setArgTypes() error {
 	if len(a.args) > a.fn.Arity() && !a.fn.IsVariadic() {
 		return ErrArgNumber
 	}
-	argTypes := make([]function.Type, len(a.args))
+	argTypes := make([]common.Type, len(a.args))
 	for i := 0; i < len(a.args); i++ {
 		argTypes[i] = *a.fn.ArgType(i)
 	}
@@ -126,7 +126,7 @@ func (a *commonAction) runArgs(ceCtx *context.EventContext) ([]interface{}, erro
 		if err != nil {
 			return nil, errors.Wrapf(err, "arg  %s evaluate error", _arg.Original())
 		}
-		v, err := function.Cast(value, a.argTypes[i])
+		v, err := common.Cast(value, a.argTypes[i])
 		if err != nil {
 			return nil, err
 		}
@@ -170,8 +170,8 @@ func init() {
 		newMathMulActionAction,
 		newMathDivActionAction,
 		// format
-		newFormatDateAction,
-		newFormatUnixTimeAction,
+		newDateFormatAction,
+		newUnixTimeFormatAction,
 		// string
 		newJoinAction,
 		newUpperAction,
@@ -179,6 +179,8 @@ func init() {
 		newAddPrefixAction,
 		newAddSuffixAction,
 		newReplaceWithRegexAction,
+		// condition
+		newConditionIfAction,
 	} {
 		if err := AddAction(fn); err != nil {
 			panic(err)

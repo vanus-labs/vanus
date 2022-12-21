@@ -19,11 +19,14 @@ import (
 	"fmt"
 	"time"
 
-	// this project.
+	// first-party project.
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/observability"
+	"github.com/linkall-labs/vanus/pkg/util"
+
+	// this project.
 	"github.com/linkall-labs/vanus/internal/store/io"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
-	"github.com/linkall-labs/vanus/pkg/util"
 )
 
 const (
@@ -37,13 +40,14 @@ const (
 )
 
 type Config struct {
-	ControllerAddresses []string         `yaml:"controllers"`
-	IP                  string           `yaml:"ip"`
-	Port                int              `yaml:"port"`
-	Volume              VolumeInfo       `yaml:"volume"`
-	MetaStore           SyncStoreConfig  `yaml:"meta_store"`
-	OffsetStore         AsyncStoreConfig `yaml:"offset_store"`
-	Raft                RaftConfig       `yaml:"raft"`
+	ControllerAddresses []string             `yaml:"controllers"`
+	IP                  string               `yaml:"ip"`
+	Port                int                  `yaml:"port"`
+	Volume              VolumeInfo           `yaml:"volume"`
+	MetaStore           SyncStoreConfig      `yaml:"meta_store"`
+	OffsetStore         AsyncStoreConfig     `yaml:"offset_store"`
+	Raft                RaftConfig           `yaml:"raft"`
+	Observability       observability.Config `yaml:"observability"`
 }
 
 func (c *Config) Validate() error {

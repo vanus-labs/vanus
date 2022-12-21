@@ -12,12 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controller
+package util
 
-import rpcerr "github.com/linkall-labs/vanus/proto/pkg/errors"
+import (
+	"testing"
 
-var (
-	ErrNoControllerLeader      = rpcerr.New("no leader controller found").WithGRPCCode(rpcerr.ErrorCode_NOT_LEADER)
-	ErrInvalidHeartBeatRequest = rpcerr.New("invalid heartbeat request").WithGRPCCode(rpcerr.ErrorCode_INVALID_REQUEST)
-	ErrInvalidHeartBeat        = rpcerr.New("invalid heartbeat").WithGRPCCode(rpcerr.ErrorCode_INTERNAL)
+	. "github.com/smartystreets/goconvey/convey"
 )
+
+func TestFormat2layout(t *testing.T) {
+	Convey("test format 2 layout", t, func() {
+		format := "Y-m-dTH:i:s"
+		layout := ConvertFormat2Go(format)
+		So(layout, ShouldEqual, "2006-01-02T15:04:05")
+	})
+}

@@ -25,13 +25,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/block"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/errors"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
+	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/linkall-labs/vanus/pkg/util"
 	"github.com/linkall-labs/vanus/proto/pkg/segment"
 )
@@ -282,9 +282,8 @@ func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
 			return nil, err
 		}
 		metrics.SegmentCreationRuntimeCounterVec.WithLabelValues(metrics.LabelValueResourceManualCreate).Inc()
+		s = el.currentAppendableSegment()
 	}
-
-	s = el.currentAppendableSegment()
 
 	for len(result) < num && s != nil {
 		result = append(result, s)
@@ -519,10 +518,12 @@ func (mgr *eventlogManager) dynamicScaleUpEventLog(ctx context.Context) {
 					})
 					count++
 				}
+				/* log too many
 				log.Debug(ctx, "scale task completed", map[string]interface{}{
 					"segment_created": count,
 					"eventlog_id":     el.md.ID.String(),
 				})
+				*/
 				return true
 			})
 		}

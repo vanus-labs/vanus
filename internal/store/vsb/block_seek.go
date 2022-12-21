@@ -23,6 +23,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/block"
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	"github.com/linkall-labs/vanus/internal/store/vsb/index"
+	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 // Make sure block implements block.Reader.
@@ -48,7 +49,7 @@ func (b *vsBlock) Seek(ctx context.Context, index int64, key block.Entry, flag b
 	case block.SeekBeforeKey:
 		return b.seekBeforeKey(ctx, index, key, indexes)
 	default:
-		return -1, block.ErrNotSupported
+		return -1, errors.ErrBlockNotSupported
 	}
 }
 

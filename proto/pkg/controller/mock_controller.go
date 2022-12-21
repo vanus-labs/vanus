@@ -141,6 +141,26 @@ func (mr *MockEventBusControllerClientMockRecorder) CreateEventBus(ctx, in inter
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateEventBus", reflect.TypeOf((*MockEventBusControllerClient)(nil).CreateEventBus), varargs...)
 }
 
+// CreateSystemEventBus mocks base method.
+func (m *MockEventBusControllerClient) CreateSystemEventBus(ctx context.Context, in *CreateEventBusRequest, opts ...grpc.CallOption) (*meta.EventBus, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "CreateSystemEventBus", varargs...)
+	ret0, _ := ret[0].(*meta.EventBus)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateSystemEventBus indicates an expected call of CreateSystemEventBus.
+func (mr *MockEventBusControllerClientMockRecorder) CreateSystemEventBus(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSystemEventBus", reflect.TypeOf((*MockEventBusControllerClient)(nil).CreateSystemEventBus), varargs...)
+}
+
 // DeleteEventBus mocks base method.
 func (m *MockEventBusControllerClient) DeleteEventBus(ctx context.Context, in *meta.EventBus, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	m.ctrl.T.Helper()
@@ -257,6 +277,21 @@ func (m *MockEventBusControllerServer) CreateEventBus(arg0 context.Context, arg1
 func (mr *MockEventBusControllerServerMockRecorder) CreateEventBus(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateEventBus", reflect.TypeOf((*MockEventBusControllerServer)(nil).CreateEventBus), arg0, arg1)
+}
+
+// CreateSystemEventBus mocks base method.
+func (m *MockEventBusControllerServer) CreateSystemEventBus(arg0 context.Context, arg1 *CreateEventBusRequest) (*meta.EventBus, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateSystemEventBus", arg0, arg1)
+	ret0, _ := ret[0].(*meta.EventBus)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateSystemEventBus indicates an expected call of CreateSystemEventBus.
+func (mr *MockEventBusControllerServerMockRecorder) CreateSystemEventBus(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSystemEventBus", reflect.TypeOf((*MockEventBusControllerServer)(nil).CreateSystemEventBus), arg0, arg1)
 }
 
 // DeleteEventBus mocks base method.

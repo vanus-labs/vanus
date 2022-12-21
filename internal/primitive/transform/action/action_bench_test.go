@@ -56,7 +56,7 @@ func newEventContext(event ce.Event) *context.EventContext {
 			"str":    "dataStr",
 			"number": 456.654,
 			"second": float64(1669120748),
-			"time":   "2022/11/22 20:40:30",
+			"time":   "2022-11-22T20:40:30Z",
 		},
 	}
 }
@@ -71,8 +71,8 @@ func BenchmarkAction(b *testing.B) {
 	b.Run("math_sub", actionBenchmark([]interface{}{"math_sub", "$.data.math_sub", "$.data.number", "<number>"}))
 	b.Run("math_mul", actionBenchmark([]interface{}{"math_mul", "$.data.math_mul", "$.data.number", "<number>"}))
 	b.Run("math_div", actionBenchmark([]interface{}{"math_div", "$.data.math_div", "$.data.number", "<number>"}))
-	b.Run("format_unix_time", actionBenchmark([]interface{}{"format_unix_time", "$.data.second", "yyyy-mm-dd HH:MM:SS"}))
-	b.Run("format_date", actionBenchmark([]interface{}{"format_date", "$.data.time", "yyyy/mm/dd HH:MM:SS", "yyyy-mm-dd HH:MM:SS"}))
+	b.Run("unix_time_format", actionBenchmark([]interface{}{"unix_time_format", "$.data.second", "Y-m-d H:i:s"}))
+	b.Run("date_format", actionBenchmark([]interface{}{"date_format", "$.data.time", "Y-m-d H:i:s"}))
 	b.Run("join", actionBenchmark([]interface{}{"join", "$.data.join", ",", "$.data.str", "<str>"}))
 	b.Run("upper_case", actionBenchmark([]interface{}{"upper_case", "$.data.str"}))
 	b.Run("lower_case", actionBenchmark([]interface{}{"lower_case", "$.data.str"}))

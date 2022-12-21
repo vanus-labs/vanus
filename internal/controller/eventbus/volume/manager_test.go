@@ -27,8 +27,8 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/linkall-labs/vanus/pkg/util"
-	"github.com/linkall-labs/vanus/proto/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

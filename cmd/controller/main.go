@@ -18,10 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"net"
-	"net/http"
 	"os"
 	"runtime/debug"
 	"sync"
@@ -35,14 +32,16 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
 	"github.com/linkall-labs/vanus/internal/primitive/interceptor/memberinterceptor"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/linkall-labs/vanus/pkg/util/signal"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -68,7 +67,7 @@ func main() {
 	}
 
 	ctx := signal.SetupSignalContext()
-	go startMetrics()
+	_ = observability.Initialize(cfg.Observability, metrics.RegisterControllerMetrics)
 	etcd := embedetcd.New(cfg.Topology)
 	if err = etcd.Init(ctx, cfg.GetEtcdConfig()); err != nil {
 		log.Error(ctx, "failed to init etcd", map[string]interface{}{
@@ -88,14 +87,14 @@ func main() {
 
 	segmentCtrl := eventbus.NewController(cfg.GetEventbusCtrlConfig(), etcd)
 	if err = segmentCtrl.Start(ctx); err != nil {
-		log.Error(ctx, "start Eventbus Controller failed", map[string]interface{}{
+		log.Error(ctx, "start EventbusService Controller failed", map[string]interface{}{
 			log.KeyError: err,
 		})
 		os.Exit(-1)
 	}
 
 	//trigger controller
-	triggerCtrlStv := trigger.NewController(cfg.GetTriggerConfig(), etcd)
+	triggerCtrlStv := trigger.NewController(cfg.GetTriggerConfig(), cfg.GetControllerAddrs(), etcd)
 	if err = triggerCtrlStv.Start(); err != nil {
 		log.Error(ctx, "start trigger controller fail", map[string]interface{}{
 			log.KeyError: err,
@@ -188,11 +187,4 @@ func main() {
 	exit()
 	wg.Wait()
 	log.Info(ctx, "the controller has been shutdown gracefully", nil)
-}
-
-func startMetrics() {
-	metrics.RegisterControllerMetrics()
-
-	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(":2112", nil)
 }

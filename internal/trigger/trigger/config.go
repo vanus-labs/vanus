@@ -26,6 +26,7 @@ const (
 	defaultBufferSize        = 1 << 10
 	defaultFilterProcessSize = 2
 	defaultDeliveryTimeout   = 5 * time.Second
+	defaultMaxWriteAttempt   = 3
 )
 
 type Config struct {
@@ -36,6 +37,7 @@ type Config struct {
 	RateLimit          uint32
 	Controllers        []string
 	DeadLetterEventbus string
+	MaxWriteAttempt    int
 }
 
 func defaultConfig() Config {
@@ -45,6 +47,7 @@ func defaultConfig() Config {
 		MaxRetryAttempts:   primitive.MaxRetryAttempts,
 		DeliveryTimeout:    defaultDeliveryTimeout,
 		DeadLetterEventbus: primitive.DeadLetterEventbusName,
+		MaxWriteAttempt:    defaultMaxWriteAttempt,
 	}
 	return c
 }

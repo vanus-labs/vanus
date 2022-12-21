@@ -20,9 +20,15 @@ import (
 	"github.com/linkall-labs/vanus/pkg/util"
 )
 
+const (
+	EventArgPrefix     = "$."
+	EventDataArgPrefix = EventArgPrefix + "data"
+)
+
 type Template struct {
-	parser *parser
-	exist  bool
+	parser      *parser
+	exist       bool
+	contentType string
 }
 
 func NewTemplate() *Template {
@@ -33,6 +39,10 @@ func NewTemplate() *Template {
 
 func (t *Template) Exist() bool {
 	return t.exist
+}
+
+func (t *Template) ContentType() string {
+	return t.contentType
 }
 
 func (t *Template) Parse(text string) {
@@ -96,7 +106,7 @@ func isJSONKeyColon(text string, pos int) bool {
 	return false
 }
 
-func (p *parser) parseVarNodeType(text string, pos int) NodeType {
+func (p *parser) isStringValue(text string, pos int) bool {
 	for i := pos; i >= 0; i-- {
 		c := text[i]
 		if util.IsSpace(c) {
@@ -104,17 +114,30 @@ func (p *parser) parseVarNodeType(text string, pos int) NodeType {
 		}
 		switch c {
 		case '"':
-			return StringVariable
+			return true
 		case ':':
 			// 是否是json key后面的冒号
 			b := isJSONKeyColon(text, i-1)
 			if b {
-				return Variable
+				return false
 			}
-			return StringVariable
+			return true
 		}
 	}
-	return Variable
+	return false
+}
+
+func parseNode(name string, isValueStr bool) Node {
+	l := len(name)
+	eventArgLen := len(EventArgPrefix)
+	if l >= eventArgLen && name[:eventArgLen] == EventArgPrefix {
+		eventArgLen = len(EventDataArgPrefix)
+		if name == EventDataArgPrefix || (l > eventArgLen && name[:eventArgLen+1] == EventDataArgPrefix+".") {
+			return newEventDataNode(name, isValueStr)
+		}
+		return newEventAttributeNode(name, isValueStr)
+	}
+	return newDefine(name, isValueStr)
 }
 
 func (p *parser) parse(text string) {
@@ -127,17 +150,18 @@ func (p *parser) parse(text string) {
 			p.addNode(p.newConstant(text[pos:]))
 			break
 		}
+		// todo escape
 		ldp := pos + x + leftDelimLen
 		y := strings.Index(text[ldp:], p.rightDelim)
 		if y < 0 {
 			p.addNode(p.newConstant(text[pos:]))
 			break
 		}
-		varNodeType := p.parseVarNodeType(text, pos+x-1)
 		if x > 0 {
 			p.addNode(p.newConstant(text[pos : pos+x]))
 		}
-		p.addNode(p.newVariable(text[ldp:ldp+y], varNodeType))
+		strValue := p.isStringValue(text, pos+x-1)
+		p.addNode(parseNode(text[ldp:ldp+y], strValue))
 		pos = ldp + y + rightDelimLen
 		if pos == len(text) {
 			break

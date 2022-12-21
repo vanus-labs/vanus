@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controller
+package raw_client
 
 import (
 	// standard libraries.
@@ -25,9 +25,9 @@ import (
 
 	// third-party libraries.
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/linkall-labs/vanus/proto/pkg/meta"
 )
@@ -38,13 +38,13 @@ var (
 )
 
 type segmentClient struct {
-	cc              *conn
+	cc              *Conn
 	heartBeatClient ctrlpb.SegmentController_SegmentHeartbeatClient
 }
 
-func NewSegmentClient(ctrlAddrs []string, credentials credentials.TransportCredentials) ctrlpb.SegmentControllerClient {
+func NewSegmentClient(cc *Conn) ctrlpb.SegmentControllerClient {
 	return &segmentClient{
-		cc: newConn(ctrlAddrs, credentials),
+		cc: cc,
 	}
 }
 
@@ -54,7 +54,7 @@ func (sc *segmentClient) Beat(ctx context.Context, v interface{}) error {
 	})
 	req, ok := v.(*ctrlpb.SegmentHeartbeatRequest)
 	if !ok {
-		return ErrInvalidHeartBeatRequest
+		return errors.ErrInvalidHeartBeatRequest
 	}
 	var err error
 	makeSureClient := func() error {
@@ -65,7 +65,7 @@ func (sc *segmentClient) Beat(ctx context.Context, v interface{}) error {
 			if sts.Code() == codes.Unavailable {
 				client = ctrlpb.NewSegmentControllerClient(sc.cc.makeSureClient(ctx, true))
 				if client == nil {
-					return ErrNoControllerLeader
+					return errors.ErrNoControllerLeader
 				}
 				sc.heartBeatClient, err = client.SegmentHeartbeat(ctx)
 				if err != nil {

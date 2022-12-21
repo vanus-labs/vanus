@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controller
+package raw_client
 
 import (
 	"context"
@@ -20,21 +20,20 @@ import (
 
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 var (
 	_ io.Closer = (*eventlogClient)(nil)
 )
 
-func NewEventlogClient(endpoints []string, credentials credentials.TransportCredentials) ctrlpb.EventLogControllerClient {
+func NewEventlogClient(cc *Conn) ctrlpb.EventLogControllerClient {
 	return &eventlogClient{
-		cc: newConn(endpoints, credentials),
+		cc: cc,
 	}
 }
 
 type eventlogClient struct {
-	cc *conn
+	cc *Conn
 }
 
 func (elc *eventlogClient) Close() error {

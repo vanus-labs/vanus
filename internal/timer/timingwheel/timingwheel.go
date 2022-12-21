@@ -18,7 +18,7 @@ import (
 	"container/list"
 	"context"
 	"encoding/json"
-	"errors"
+	stderr "errors"
 	"fmt"
 	"io"
 	"sync"
@@ -26,13 +26,13 @@ import (
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/client"
-	errcli "github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/timer/metadata"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/pkg/controller"
+	"github.com/linkall-labs/vanus/pkg/cluster"
+	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -81,6 +81,8 @@ type timingWheel struct {
 	client  client.Client
 	twList  *list.List // element: *timingWheelElement
 
+	ctrl cluster.Cluster
+
 	receivingStation    *bucket
 	distributionStation *bucket
 
@@ -90,16 +92,6 @@ type timingWheel struct {
 }
 
 func NewTimingWheel(c *Config) Manager {
-	store, err := newEtcdClientV3(c.EtcdEndpoints, c.KeyPrefix)
-	if err != nil {
-		log.Error(context.Background(), "new etcd client v3 failed", map[string]interface{}{
-			log.KeyError: err,
-			"endpoints":  c.EtcdEndpoints,
-			"key_prefix": c.KeyPrefix,
-		})
-		panic("new etcd client failed")
-	}
-
 	log.Info(context.Background(), "new timingwheel manager", map[string]interface{}{
 		"tick":           c.Tick,
 		"layers":         c.Layers,
@@ -112,20 +104,36 @@ func NewTimingWheel(c *Config) Manager {
 	metrics.TimingWheelSizeGauge.Set(float64(c.WheelSize))
 	metrics.TimingWheelLayersGauge.Set(float64(c.Layers))
 	return &timingWheel{
-		config:  c,
-		kvStore: store,
-		ctrlCli: controller.NewEventbusClient(c.CtrlEndpoints, insecure.NewCredentials()),
-		client:  client.Connect(c.CtrlEndpoints),
-		twList:  list.New(),
-		leader:  false,
-		exitC:   make(chan struct{}),
+		config: c,
+		client: client.Connect(c.CtrlEndpoints),
+		twList: list.New(),
+		leader: false,
+		exitC:  make(chan struct{}),
 	}
 }
 
-// Init init the current timing wheel.
+// Init the current timing wheel.
 func (tw *timingWheel) Init(ctx context.Context) error {
 	log.Info(ctx, "init timingwheel", nil)
 	// Init Hierarchical Timing Wheels.
+	ctrl := cluster.NewClusterController(tw.config.CtrlEndpoints, insecure.NewCredentials())
+	if err := ctrl.WaitForControllerReady(true); err != nil {
+		panic("wait for controller ready timeout")
+	}
+	tw.ctrl = ctrl
+	tw.ctrlCli = ctrl.EventbusService().RawClient()
+
+	store, err := newEtcdClientV3(tw.config.EtcdEndpoints, tw.config.KeyPrefix)
+	if err != nil {
+		log.Error(context.Background(), "new etcd client v3 failed", map[string]interface{}{
+			log.KeyError: err,
+			"endpoints":  tw.config.EtcdEndpoints,
+			"key_prefix": tw.config.KeyPrefix,
+		})
+		panic("new etcd client failed")
+	}
+	tw.kvStore = store
+
 	for layer := int64(1); layer <= tw.config.Layers+1; layer++ {
 		tick := exponent(tw.config.Tick, tw.config.WheelSize, layer-1)
 		twe := newTimingWheelElement(tw, tick, layer)
@@ -182,7 +190,7 @@ func (tw *timingWheel) Start(ctx context.Context) error {
 		}
 	}
 
-	// start receving station for scheduled events receiving
+	// start receiving station for scheduled events receiving
 	if err = tw.startReceivingStation(ctx); err != nil {
 		return err
 	}
@@ -225,7 +233,8 @@ func (tw *timingWheel) IsLeader() bool {
 }
 
 func (tw *timingWheel) IsDeployed(ctx context.Context) bool {
-	return tw.receivingStation.isExistEventbus(ctx) && tw.distributionStation.isExistEventbus(ctx)
+	return tw.ctrl.EventbusService().IsExist(ctx, tw.receivingStation.eventbus) &&
+		tw.ctrl.EventbusService().IsExist(ctx, tw.distributionStation.eventbus)
 }
 
 func (tw *timingWheel) Recover(ctx context.Context) error {
@@ -263,16 +272,20 @@ func (tw *timingWheel) Recover(ctx context.Context) error {
 		}
 	}
 
-	log.Info(ctx, "recover receiving station metadata", map[string]interface{}{
-		"offset":   offsetMetaMap[timerBuiltInEventbusReceivingStation].Offset,
-		"eventbus": tw.receivingStation.getEventbus(),
-	})
-	tw.receivingStation.offset = offsetMetaMap[timerBuiltInEventbusReceivingStation].Offset
-	log.Info(ctx, "recover distribution station metadata", map[string]interface{}{
-		"offset":   offsetMetaMap[timerBuiltInEventbusDistributionStation].Offset,
-		"eventbus": tw.distributionStation.getEventbus(),
-	})
-	tw.distributionStation.offset = offsetMetaMap[timerBuiltInEventbusDistributionStation].Offset
+	if _, ok := offsetMetaMap[timerBuiltInEventbusReceivingStation]; ok {
+		log.Info(ctx, "recover receiving station metadata", map[string]interface{}{
+			"offset":   offsetMetaMap[timerBuiltInEventbusReceivingStation].Offset,
+			"eventbus": tw.receivingStation.getEventbus(),
+		})
+		tw.receivingStation.offset = offsetMetaMap[timerBuiltInEventbusReceivingStation].Offset
+	}
+	if _, ok := offsetMetaMap[timerBuiltInEventbusDistributionStation]; ok {
+		log.Info(ctx, "recover distribution station metadata", map[string]interface{}{
+			"offset":   offsetMetaMap[timerBuiltInEventbusDistributionStation].Offset,
+			"eventbus": tw.distributionStation.getEventbus(),
+		})
+		tw.distributionStation.offset = offsetMetaMap[timerBuiltInEventbusDistributionStation].Offset
+	}
 
 	return nil
 }
@@ -374,12 +387,20 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 				// batch read
 				events, err := tw.receivingStation.getEvent(ctx, defaultNumberOfEventsRead)
 				if err != nil {
-					if !errors.Is(err, errcli.ErrOnEnd) {
+					if !errors.Is(err, errors.ErrOffsetOnEnd) {
 						log.Error(ctx, "get event failed when receiving station running", map[string]interface{}{
 							log.KeyError: err,
 							"eventbus":   tw.receivingStation.getEventbus(),
 						})
 					}
+					time.Sleep(sleepDuration)
+					break
+				}
+				if len(events) == 0 {
+					time.Sleep(sleepDuration)
+					log.Info(ctx, "no more message", map[string]interface{}{
+						"function": "runReceivingStation",
+					})
 					break
 				}
 
@@ -476,12 +497,20 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 				// batch read
 				events, err := tw.distributionStation.getEvent(ctx, defaultNumberOfEventsRead)
 				if err != nil {
-					if !errors.Is(err, errcli.ErrOnEnd) {
+					if !errors.Is(err, errors.ErrOffsetOnEnd) {
 						log.Error(ctx, "get event failed when distribution station running", map[string]interface{}{
 							log.KeyError: err,
 							"eventbus":   tw.distributionStation.getEventbus(),
 						})
 					}
+					time.Sleep(sleepDuration)
+					break
+				}
+				if len(events) == 0 {
+					time.Sleep(sleepDuration)
+					log.Debug(ctx, "no more message", map[string]interface{}{
+						"function": "runDistributionStation",
+					})
 					break
 				}
 				// concurrent write
@@ -543,7 +572,7 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 	}
 	_, err = tw.client.Eventbus(ctx, ebName).Writer().AppendOne(ctx, e)
 	if err != nil {
-		if errors.Is(err, errcli.ErrNotFound) {
+		if errors.Is(err, errors.ErrOffsetOnEnd) {
 			log.Warning(ctx, "eventbus not found, discard this event", map[string]interface{}{
 				log.KeyError:    err,
 				"eventbus":      ebName,
@@ -589,7 +618,7 @@ type timingWheelElement struct {
 // newTimingWheel is an internal helper function that really creates an instance of TimingWheel.
 func newTimingWheelElement(tw *timingWheel, tick time.Duration, layer int64) *timingWheelElement {
 	if tick <= 0 {
-		panic(errors.New("tick must be greater than or equal to 1s"))
+		panic(stderr.New("tick must be greater than or equal to 1s"))
 	}
 
 	twe := &timingWheelElement{

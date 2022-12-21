@@ -17,6 +17,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,7 +26,6 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 const (
@@ -53,7 +53,7 @@ func InitGatewayClient(cmd *cobra.Command) {
 		grpc.WithBlock(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, endpoint, opts...)
 	if err != nil {
@@ -72,12 +72,13 @@ func DestroyGatewayClient() {
 }
 
 func mustGetGatewayCloudEventsEndpoint(cmd *cobra.Command) string {
-	res, err := client.ClusterInfo(context.Background(), &emptypb.Empty{})
-	if err != nil {
-		cmdFailedf(cmd, "get cloudevents endpoint failed: %s", err)
-	}
+	//res, err := client.ClusterInfo(context.Background(), &emptypb.Empty{})
+	//if err != nil {
+	//	cmdFailedf(cmd, "get cloudevents endpoint failed: %s", err)
+	//}
 	sp := strings.Split(mustGetGatewayEndpoint(cmd), ":")
-	return fmt.Sprintf("%s:%d", sp[0], res.CloudeventsPort)
+	v, _ := strconv.ParseInt(sp[1], 10, 64)
+	return fmt.Sprintf("%s:%d", sp[0], v+1)
 }
 
 func mustGetGatewayEndpoint(cmd *cobra.Command) string {

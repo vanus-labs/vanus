@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controller
+package raw_client
 
 import (
 	"context"
 	"time"
 
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 type Heartbeat interface {
@@ -29,7 +30,7 @@ func RegisterHeartbeat(ctx context.Context, interval time.Duration,
 	i interface{}, reqFunc func() interface{}) error {
 	hb, ok := i.(Heartbeat)
 	if !ok {
-		return ErrInvalidHeartBeat
+		return errors.ErrInvalidHeartBeat
 	}
 	go func() {
 		ticker := time.NewTicker(interval)

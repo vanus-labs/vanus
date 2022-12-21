@@ -18,13 +18,13 @@ package reader
 import (
 	"context"
 	"encoding/binary"
+	stderr "errors"
 	"sync"
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/api"
-	eberrors "github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/option"
 	"github.com/linkall-labs/vanus/client/pkg/policy"
@@ -34,6 +34,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
+	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/linkall-labs/vanus/pkg/util"
 )
 
@@ -187,6 +188,10 @@ func (r *reader) getOffset(ctx context.Context, eventLogID vanus.ID) (uint64, er
 				return 0, err
 			}
 		}
+		// fix offset is negative which convert to uint64 is big.
+		if v < 0 {
+			v = 0
+		}
 		offset = uint64(v)
 	}
 	return offset, nil
@@ -280,13 +285,11 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 		})
 		for {
 			err = elReader.readEvent(ctx, lr)
-			switch err {
-			case nil:
-				continue
-			case context.Canceled:
+			switch {
+			case err == nil, errors.Is(err, errors.ErrOffsetOnEnd), errors.Is(err, errors.ErrTryAgain):
+			case stderr.Is(err, context.Canceled):
 				return
-			case eberrors.ErrOnEnd, eberrors.ErrTryAgain:
-			case eberrors.ErrUnderflow:
+			case errors.Is(err, errors.ErrOffsetUnderflow):
 				// todo reset offset timestamp
 			default:
 				log.Warning(ctx, "read event error", map[string]interface{}{

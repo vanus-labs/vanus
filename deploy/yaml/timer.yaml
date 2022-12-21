@@ -17,8 +17,8 @@ data:
       lease_duration: 15
     timingwheel:
       tick: 1
-      wheel_size: 32
-      layers: 4
+      wheel_size: 8
+      layers: 1
     controllers:
       - vanus-controller-0.vanus-controller.vanus.svc:2048
       - vanus-controller-1.vanus-controller.vanus.svc:2048
@@ -45,11 +45,11 @@ spec:
     spec:
       containers:
         - name: timer
-          image: public.ecr.aws/vanus/timer:v0.5.0
+          image: public.ecr.aws/vanus/timer:v0.5.1
           imagePullPolicy: IfNotPresent
           env:
             - name: VANUS_LOG_LEVEL
-              value: DEBUG
+              value: INFO
             - name: POD_IP
               valueFrom:
                 fieldRef:

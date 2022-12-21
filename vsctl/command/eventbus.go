@@ -67,11 +67,11 @@ func createEventbusCommand() *cobra.Command {
 				cmdFailedf(cmd, "create eventbus failed: %s", err)
 			}
 			if IsFormatJSON(cmd) {
-				data, _ := json.Marshal(map[string]interface{}{"Result": "Create Success", "Eventbus": eventbus})
+				data, _ := json.Marshal(map[string]interface{}{"Result": "Create Success", "EventbusService": eventbus})
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Result", "Eventbus"})
+				t.AppendHeader(table.Row{"Result", "EventbusService"})
 				t.AppendRow(table.Row{"Create Success", eventbus})
 				t.SetColumnConfigs([]table.ColumnConfig{
 					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
@@ -102,11 +102,11 @@ func deleteEventbusCommand() *cobra.Command {
 				cmdFailedf(cmd, "delete eventbus failed: %s", err)
 			}
 			if IsFormatJSON(cmd) {
-				data, _ := json.Marshal(map[string]interface{}{"Result": "Delete Success", "Eventbus": eventbus})
+				data, _ := json.Marshal(map[string]interface{}{"Result": "Delete Success", "EventbusService": eventbus})
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Result", "Eventbus"})
+				t.AppendHeader(table.Row{"Result", "EventbusService"})
 				t.AppendRow(table.Row{"Delete Success", eventbus})
 				t.SetColumnConfigs([]table.ColumnConfig{
 					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
@@ -166,7 +166,7 @@ func getEventbusInfoCommand() *cobra.Command {
 				color.Yellow("WARN: this command doesn't support --output-format\n")
 			}
 			if !showSegment && !showBlock {
-				t.AppendHeader(table.Row{"Eventbus", "Description", "Created_At", "Updated_At",
+				t.AppendHeader(table.Row{"EventbusService", "Description", "Created_At", "Updated_At",
 					"Eventlog", "Segment Number"})
 				for _, res := range busMetas {
 					for idx := 0; idx < len(res.Logs); idx++ {
@@ -192,7 +192,7 @@ func getEventbusInfoCommand() *cobra.Command {
 				}
 			} else {
 				if !showBlock {
-					t.AppendHeader(table.Row{"Eventbus", "Description", "Created_At", "Updated_At",
+					t.AppendHeader(table.Row{"EventbusService", "Description", "Created_At", "Updated_At",
 						"Eventlog", "Segment", "Capacity", "Size", "Start", "End"})
 					for _, eb := range busMetas {
 						for idx := 0; idx < len(eb.Logs); idx++ {
@@ -219,7 +219,7 @@ func getEventbusInfoCommand() *cobra.Command {
 					}...)
 					t.SetColumnConfigs(cfgs)
 				} else {
-					t.AppendHeader(table.Row{"Eventbus", "Description", "Created_At", "Updated_At", "Eventlog",
+					t.AppendHeader(table.Row{"EventbusService", "Description", "Created_At", "Updated_At", "Eventlog",
 						"Segment", "Capacity", "Size", "Start", "End", "Block", "Leader", "Volume", "Endpoint"})
 					multiReplica := false
 					for _, res := range busMetas {

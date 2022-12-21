@@ -26,7 +26,7 @@ import (
 
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability/tracing"
-	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
+	"github.com/linkall-labs/vanus/pkg/errors"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -80,10 +80,10 @@ func (e *engine) Create(ctx context.Context, id vanus.ID, capacity int64) (block
 
 func processError(err error, f *os.File, path string) error {
 	if err2 := f.Close(); err2 != nil {
-		return errutil.Chain(err, err2)
+		return errors.Chain(err, err2)
 	}
 	if err2 := os.Remove(path); err2 != nil {
-		return errutil.Chain(err, err2)
+		return errors.Chain(err, err2)
 	}
 	return err
 }

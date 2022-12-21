@@ -19,23 +19,23 @@ import (
 	"context"
 	stderrors "errors"
 	"io"
-	"strings"
 	"sync"
 
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc/status"
 
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/scylladb/go-set/u64set"
 
+	// first-party libraries
+
 	// this project.
 	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/policy"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/pkg/errors"
 
 	eb "github.com/linkall-labs/vanus/client/internal/vanus/eventbus"
 	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
@@ -190,7 +190,7 @@ func (b *eventbus) GetLog(ctx context.Context, logID uint64, opts ...api.LogOpti
 		if l, ok := b.readableLogs[logID]; ok {
 			return l, nil
 		}
-		return nil, errors.ErrNotFound
+		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
 	} else if op.Policy.AccessMode() == api.ReadWrite {
 		if len(b.writableLogs) == 0 {
 			b.refreshWritableLogs(ctx)
@@ -200,9 +200,9 @@ func (b *eventbus) GetLog(ctx context.Context, logID uint64, opts ...api.LogOpti
 		if l, ok := b.writableLogs[logID]; ok {
 			return l, nil
 		}
-		return nil, errors.ErrNotFound
+		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
 	} else {
-		return nil, errors.ErrUnknown
+		return nil, errors.ErrUnknown.WithMessage("access mode not supported")
 	}
 }
 
@@ -239,7 +239,7 @@ func (b *eventbus) ListLog(ctx context.Context, opts ...api.LogOption) ([]api.Ev
 		}
 		return eventlogs, nil
 	} else {
-		return nil, errors.ErrUnknown
+		return nil, errors.ErrUnknown.WithMessage("access mode not supported")
 	}
 }
 
@@ -276,10 +276,8 @@ func (b *eventbus) isNeedUpdateWritableLogs(err error) bool {
 		b.setWritableState(nil)
 		return true
 	}
-	sts := status.Convert(err)
-	// TODO: temporary scheme, wait for error code reconstruction
-	if strings.Contains(sts.Message(), "RESOURCE_NOT_FOUND") {
-		b.setWritableState(errors.ErrNotFound)
+	if errors.Is(err, errors.ErrResourceNotFound) {
+		b.setWritableState(err)
 		return true
 	}
 	return false
@@ -371,10 +369,8 @@ func (b *eventbus) isNeedUpdateReadableLogs(err error) bool {
 		b.setReadableState(nil)
 		return true
 	}
-	sts := status.Convert(err)
-	// TODO: temporary scheme, wait for error code reconstruction
-	if strings.Contains(sts.Message(), "RESOURCE_NOT_FOUND") {
-		b.setReadableState(errors.ErrNotFound)
+	if errors.Is(err, errors.ErrResourceNotFound) {
+		b.setReadableState(err)
 		return true
 	}
 	return false

@@ -17,28 +17,30 @@ package template
 import (
 	"bytes"
 
+	ce "github.com/cloudevents/sdk-go/v2"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+	"github.com/tidwall/gjson"
 )
 
-func (t *Template) Execute(data map[string]interface{}) []byte {
+func (t *Template) Execute(ceCtx *context.EventContext) []byte {
 	var sb bytes.Buffer
 	stream := jsoniter.ConfigFastest.BorrowStream(&sb)
 	defer jsoniter.ConfigFastest.ReturnStream(stream)
 	for _, node := range t.parser.getNodes() {
+		v, exist := node.Value(ceCtx)
 		switch node.Type() {
 		case Constant:
-			stream.WriteRaw(node.Value())
-		case Variable:
-			v, exist := data[node.Value()]
+			stream.WriteRaw(v.(string))
+		case Define, EventAttribute, EventData:
 			if !exist {
-				stream.WriteString("<" + node.Value() + ">")
+				stream.WriteString("<" + node.Name() + ">")
 				continue
 			}
 			stream.WriteVal(v)
-		case StringVariable:
-			v, exist := data[node.Value()]
+		case DefineString, EventAttributeString, EventDataString:
 			if !exist {
-				stream.WriteRaw("<" + node.Value() + ">")
+				stream.WriteRaw("<" + node.Name() + ">")
 				continue
 			}
 			if v == nil {
@@ -58,5 +60,13 @@ func (t *Template) Execute(data map[string]interface{}) []byte {
 		}
 	}
 	stream.Flush()
-	return sb.Bytes()
+	bytes := sb.Bytes()
+	if t.contentType == "" {
+		if gjson.ValidBytes(bytes) {
+			t.contentType = ce.ApplicationJSON
+		} else {
+			t.contentType = ce.TextPlain
+		}
+	}
+	return bytes
 }

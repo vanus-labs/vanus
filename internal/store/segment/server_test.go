@@ -26,8 +26,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/linkall-labs/vanus/pkg/util"
-	"github.com/linkall-labs/vanus/proto/pkg/errors"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive"
@@ -51,7 +51,7 @@ func TestServer_RemoveBlock(t *testing.T) {
 			err := srv.RemoveBlock(context.Background(), vanus.NewTestID())
 			et := err.(*errors.ErrorType)
 			So(et.Description, ShouldEqual, "service state error")
-			So(et.Code, ShouldEqual, errors.ErrorCode_SERVICE_NOT_RUNNING)
+			So(et.Code, ShouldEqual, errors.ErrorCode_SERVICE_STATE_ERROR)
 			So(et.Message, ShouldEqual, fmt.Sprintf(
 				"the server isn't ready to work, current state: %s",
 				primitive.ServerStateCreated))
@@ -128,7 +128,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 		})
 
 		Convey("long-polling without timeout", func() {
-			b.EXPECT().Read(Any(), int64(0), 3).Return(nil, block.ErrOnEnd)
+			b.EXPECT().Read(Any(), int64(0), 3).Return(nil, errors.ErrOffsetOnEnd)
 			b.EXPECT().Read(Any(), int64(0), 3).Return([]block.Entry{ent0, ent1}, nil)
 
 			mgr := NewMockpollingManager(ctrl)
@@ -152,7 +152,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 		})
 
 		Convey("long-polling with timeout", func() {
-			b.EXPECT().Read(Any(), int64(0), 3).Return(nil, block.ErrOnEnd)
+			b.EXPECT().Read(Any(), int64(0), 3).Return(nil, errors.ErrOffsetOnEnd)
 
 			mgr := NewMockpollingManager(ctrl)
 			ch := make(chan struct{})
@@ -163,11 +163,11 @@ func TestServer_ReadFromBlock(t *testing.T) {
 			_, err := srv.ReadFromBlock(context.Background(), id, 0, 3,
 				uint32(shortDelayInTest.Milliseconds()))
 			So(time.Now(), ShouldHappenAfter, start.Add(shortDelayInTest))
-			So(err, ShouldBeError, block.ErrOnEnd)
+			So(err, ShouldBeError, errors.ErrOffsetOnEnd)
 		})
 
 		Convey("long-polling with canceled request", func() {
-			b.EXPECT().Read(Any(), int64(0), 3).Return(nil, block.ErrOnEnd)
+			b.EXPECT().Read(Any(), int64(0), 3).Return(nil, errors.ErrOffsetOnEnd)
 
 			mgr := NewMockpollingManager(ctrl)
 			ch := make(chan struct{})

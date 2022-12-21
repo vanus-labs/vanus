@@ -253,8 +253,6 @@ type raft struct {
 	// the log
 	raftLog *raftLog
 
-	commit uint64
-
 	maxMsgSize         uint64
 	maxUncommittedSize uint64
 	// TODO(tbg): rename to trk.
@@ -372,7 +370,8 @@ func newRaft(c *Config) *raft {
 	}
 
 	r.logger.Infof("newRaft %x [peers: [%s], term: %d, commit: %d, applied: %d, lastindex: %d, lastterm: %d]",
-		r.id, strings.Join(nodesStrs, ","), r.Term, r.raftLog.committed, r.raftLog.applied, r.raftLog.lastIndex(), r.raftLog.lastTerm())
+		r.id, strings.Join(nodesStrs, ","), r.Term, r.raftLog.committed, r.raftLog.applied,
+		r.raftLog.lastIndex(), r.raftLog.lastTerm())
 	return r
 }
 
@@ -384,7 +383,7 @@ func (r *raft) hardState() pb.HardState {
 	return pb.HardState{
 		Term:   r.Term,
 		Vote:   r.Vote,
-		Commit: r.raftLog.committed,
+		Commit: r.raftLog.localCommitted,
 	}
 }
 
@@ -470,7 +469,7 @@ func (r *raft) maybeSendAppend(to uint64, sendIfEmpty bool) bool {
 		}
 		m.Snapshot = snapshot
 		sindex, sterm := snapshot.Metadata.Index, snapshot.Metadata.Term
-		r.logger.Debugf("%x [firstindex: %d, commit: %d] sent snapshot[index: %d, term: %d] to %x [%s]",
+		r.logger.Debugf("%x [firstIndex: %d, commit: %d] sent snapshot[index: %d, term: %d] to %x [%s]",
 			r.id, r.raftLog.firstIndex(), r.raftLog.committed, sindex, sterm, to, pr)
 		pr.BecomeSnapshot(sindex)
 		r.logger.Debugf("%x paused sending replication messages to %x [%s]", r.id, to, pr)
@@ -840,7 +839,10 @@ func (r *raft) campaign(t CampaignType) {
 		if t == campaignTransfer {
 			ctx = []byte(t)
 		}
-		r.send(pb.Message{Term: term, To: id, Type: voteMsg, Index: r.raftLog.lastIndex(), LogTerm: r.raftLog.lastTerm(), Context: ctx})
+		r.send(pb.Message{
+			Term: term, To: id, Type: voteMsg, Index: r.raftLog.lastIndex(),
+			LogTerm: r.raftLog.lastTerm(), Context: ctx,
+		})
 	}
 }
 
@@ -867,7 +869,8 @@ func (r *raft) Step(m pb.Message) error {
 				// If a server receives a RequestVote request within the minimum election timeout
 				// of hearing from a current leader, it does not update its term or grant its vote
 				r.logger.Infof("%x [logterm: %d, index: %d, vote: %x] ignored %s from %x [logterm: %d, index: %d] at term %d: lease is not expired (remaining ticks: %d)",
-					r.id, r.raftLog.lastTerm(), r.raftLog.lastIndex(), r.Vote, m.Type, m.From, m.LogTerm, m.Index, r.Term, r.electionTimeout-r.electionElapsed)
+					r.id, r.raftLog.lastTerm(), r.raftLog.lastIndex(), r.Vote, m.Type,
+					m.From, m.LogTerm, m.Index, r.Term, r.electionTimeout-r.electionElapsed)
 				return nil
 			}
 		}
@@ -1414,7 +1417,7 @@ func stepCandidate(r *raft, m pb.Message) error {
 		r.handleAppendEntries(m)
 	case pb.MsgLogResp:
 		if r.raftLog.stableTo(m.Index, m.LogTerm) {
-			r.raftLog.commitTo(min(r.commit, m.Index))
+			r.raftLog.localCommitTo(r.raftLog.committed)
 		}
 	case pb.MsgHeartbeat:
 		r.becomeFollower(m.Term, m.From) // always m.Term == r.Term
@@ -1462,7 +1465,7 @@ func stepFollower(r *raft, m pb.Message) error {
 		r.handleAppendEntries(m)
 	case pb.MsgLogResp:
 		if r.raftLog.stableTo(m.Index, m.LogTerm) {
-			r.raftLog.commitTo(min(r.commit, m.Index))
+			r.raftLog.localCommitTo(r.raftLog.committed)
 			r.send(pb.Message{To: r.lead, Type: pb.MsgAppResp, Index: m.Index})
 		}
 	case pb.MsgHeartbeat:
@@ -1507,10 +1510,6 @@ func (r *raft) handleAppendEntries(m pb.Message) {
 	if m.Index < r.raftLog.committed {
 		r.send(pb.Message{To: m.From, Type: pb.MsgAppResp, Index: r.raftLog.committed})
 		return
-	}
-
-	if m.Commit > r.commit {
-		r.commit = m.Commit
 	}
 
 	if ok := r.raftLog.maybeAppend(m.Index, m.LogTerm, m.Commit, m.Entries...); !ok {
@@ -1630,7 +1629,6 @@ func (r *raft) restore(s pb.Snapshot) bool {
 		Tracker:   r.prs,
 		LastIndex: r.raftLog.lastIndex(),
 	}, cs)
-
 	if err != nil {
 		// This should never happen. Either there's a bug in our config change
 		// handling or the client corrupted the conf change.
@@ -1667,7 +1665,6 @@ func (r *raft) applyConfChange(cc pb.ConfChangeV2) pb.ConfState {
 		}
 		return changer.Simple(cc.Changes...)
 	}()
-
 	if err != nil {
 		// TODO(tbg): return the error to the caller.
 		panic(err)
@@ -1737,9 +1734,11 @@ func (r *raft) switchToConfig(cfg tracker.Config, prs tracker.ProgressMap) pb.Co
 }
 
 func (r *raft) loadState(state pb.HardState) {
-	if state.Commit < r.raftLog.committed || state.Commit > r.raftLog.lastIndex() {
-		r.logger.Panicf("%x state.commit %d is out of range [%d, %d]", r.id, state.Commit, r.raftLog.committed, r.raftLog.lastIndex())
+	if state.Commit < r.raftLog.localCommitted || state.Commit > r.raftLog.lastIndex() {
+		r.logger.Panicf("%x state.commit %d is out of range [%d, %d]", r.id, state.Commit,
+			r.raftLog.localCommitted, r.raftLog.lastIndex())
 	}
+	r.raftLog.localCommitted = state.Commit
 	r.raftLog.committed = state.Commit
 	r.Term = state.Term
 	r.Vote = state.Vote

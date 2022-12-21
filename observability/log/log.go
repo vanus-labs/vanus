@@ -36,7 +36,7 @@ type Logger interface {
 
 func init() {
 	logger := logrus.New()
-	logger.Formatter = &logrus.TextFormatter{TimestampFormat: time.RFC3339Nano, FullTimestamp: true}
+	logger.Formatter = &logrus.TextFormatter{TimestampFormat: time.RFC3339, FullTimestamp: true}
 	r := &defaultLogger{
 		logger: logger,
 	}
@@ -53,6 +53,7 @@ func init() {
 	default:
 		r.logger.SetLevel(logrus.InfoLevel)
 	}
+
 	vLog = r
 	vLog.Debug(context.Background(), "logger level has been set", map[string]interface{}{
 		"log_level": level,
@@ -124,6 +125,7 @@ func (l *defaultLogger) SetLogWriter(writer io.Writer) {
 func SetLogger(logger Logger) {
 	vLog = logger
 }
+
 func SetLogLevel(level string) {
 	if level == "" {
 		return

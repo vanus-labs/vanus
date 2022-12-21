@@ -31,27 +31,56 @@ func newEvent() *ce.Event {
 	return &e
 }
 
-func TestFormatAction(t *testing.T) {
+func TestDateFormatAction(t *testing.T) {
 	Convey("test format date", t, func() {
-		a, err := NewAction([]interface{}{newFormatDateAction().Name(), "$.test", "yyyy-mm-ddTHH:MM:SSZ", "yyyy-mm-dd HH:MM:SS"})
-		So(err, ShouldBeNil)
-		e := newEvent()
-		e.SetExtension("test", "2022-11-15T15:41:25Z")
-		err = a.Execute(&context.EventContext{
-			Event: e,
+		Convey("test default time zone", func() {
+			e := newEvent()
+			e.SetExtension("test", "2022-11-15T15:41:25Z")
+			a, err := NewAction([]interface{}{newDateFormatAction().Name(), "$.test", "Y-m-d H:i:s"})
+			So(err, ShouldBeNil)
+			err = a.Execute(&context.EventContext{
+				Event: e,
+			})
+			So(err, ShouldBeNil)
+			So(e.Extensions()["test"], ShouldEqual, "2022-11-15 15:41:25")
 		})
-		So(err, ShouldBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "2022-11-15 15:41:25")
+		Convey("test with time zone", func() {
+			e := newEvent()
+			e.SetExtension("test", "2022-11-15T15:41:25Z")
+			a, err := NewAction([]interface{}{newDateFormatAction().Name(), "$.test", "Y-m-d H:i:s", "EST"})
+			So(err, ShouldBeNil)
+			err = a.Execute(&context.EventContext{
+				Event: e,
+			})
+			So(err, ShouldBeNil)
+			So(e.Extensions()["test"], ShouldEqual, "2022-11-15 10:41:25")
+		})
 	})
+}
+
+func TestUnixTimeFormatAction(t *testing.T) {
 	Convey("test format unix time", t, func() {
-		a, err := NewAction([]interface{}{newFormatUnixTimeAction().Name(), "$.data.time", "yyyy-mm-ddTHH:MM:SSZ"})
-		So(err, ShouldBeNil)
-		ceCtx := &context.EventContext{
-			Event: newEvent(),
-			Data:  map[string]interface{}{"time": float64(1668498285)},
-		}
-		err = a.Execute(ceCtx)
-		So(err, ShouldBeNil)
-		So(ceCtx.Data.(map[string]interface{})["time"], ShouldEqual, "2022-11-15T07:44:45Z")
+		Convey("test with default time zone", func() {
+			a, err := NewAction([]interface{}{newUnixTimeFormatAction().Name(), "$.data.time", "Y-m-d H:i:s"})
+			So(err, ShouldBeNil)
+			ceCtx := &context.EventContext{
+				Event: newEvent(),
+				Data:  map[string]interface{}{"time": float64(1668498285)},
+			}
+			err = a.Execute(ceCtx)
+			So(err, ShouldBeNil)
+			So(ceCtx.Data.(map[string]interface{})["time"], ShouldEqual, "2022-11-15 07:44:45")
+		})
+		Convey("test with time zone", func() {
+			a, err := NewAction([]interface{}{newUnixTimeFormatAction().Name(), "$.data.time", "Y-m-d H:i:s", "EST"})
+			So(err, ShouldBeNil)
+			ceCtx := &context.EventContext{
+				Event: newEvent(),
+				Data:  map[string]interface{}{"time": float64(1668498285)},
+			}
+			err = a.Execute(ceCtx)
+			So(err, ShouldBeNil)
+			So(ceCtx.Data.(map[string]interface{})["time"], ShouldEqual, "2022-11-15 02:44:45")
+		})
 	})
 }

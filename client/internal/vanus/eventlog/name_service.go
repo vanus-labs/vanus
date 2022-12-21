@@ -25,19 +25,20 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/tracing"
-	"github.com/linkall-labs/vanus/pkg/controller"
+	"github.com/linkall-labs/vanus/pkg/cluster"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 
 	// this project.
-	"github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/record"
+	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 func NewNameService(endpoints []string) *NameService {
 	return &NameService{
-		client: controller.NewEventlogClient(endpoints, insecure.NewCredentials()),
+		client: cluster.NewClusterController(endpoints, insecure.NewCredentials()).EventlogService().RawClient(),
 		tracer: tracing.NewTracer("internal.discovery.eventlog", trace.SpanKindClient),
 	}
 }
@@ -58,9 +59,18 @@ func (ns *NameService) LookupWritableSegment(ctx context.Context, logID uint64) 
 
 	resp, err := ns.client.GetAppendableSegment(ctx, req)
 	if err != nil {
+		log.Warning(ctx, "failed to GetAppendableSegment", map[string]interface{}{
+			"req":        req,
+			"res":        resp,
+			log.KeyError: err,
+		})
 		return nil, err
 	}
 
+	log.Debug(ctx, "GetAppendableSegment result", map[string]interface{}{
+		"req": req,
+		"res": resp,
+	})
 	segments := toSegments(resp.GetSegments())
 	if len(segments) == 0 {
 		return nil, errors.ErrNotWritable

@@ -19,22 +19,24 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
 )
 
-// ["format_date", "key", "oldFormat","newFormat"].
-func newFormatDateAction() Action {
+// ["date_format", "key", "format"，"timeZone"].
+func newDateFormatAction() Action {
 	return &sourceTargetSameAction{
 		commonAction{
-			fixedArgs: []arg.TypeList{arg.EventList, arg.All, arg.All},
-			fn:        function.FormatDateFunction,
+			fixedArgs:   []arg.TypeList{arg.EventList, arg.All},
+			variadicArg: arg.All,
+			fn:          function.DateFormatFunction,
 		},
 	}
 }
 
-// ["format_unix_time", "key", "format"].
-func newFormatUnixTimeAction() Action {
+// ["unix_time_format", "key", "format","timeZone"].
+func newUnixTimeFormatAction() Action {
 	return &sourceTargetSameAction{
 		commonAction{
-			fixedArgs: []arg.TypeList{arg.EventList, arg.All},
-			fn:        function.FormatUnixTimeFunction,
+			fixedArgs:   []arg.TypeList{arg.EventList, arg.All},
+			variadicArg: arg.All,
+			fn:          function.UnixTimeFormatFunction,
 		},
 	}
 }

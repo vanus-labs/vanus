@@ -26,17 +26,13 @@ import (
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
-	rpcerr "github.com/linkall-labs/vanus/proto/pkg/errors"
+	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 const (
 	defaultBlockSize                = int64(64 * 1024 * 1024)
 	minimumBlockSize                = int64(4 * 1024 * 1024)
 	defaultBlockBufferSizePerVolume = 8
-)
-
-var (
-	ErrVolumeNotFound = rpcerr.New("volume not found").WithGRPCCode(rpcerr.ErrorCode_RESOURCE_NOT_FOUND)
 )
 
 type Allocator interface {
@@ -107,7 +103,7 @@ func (al *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, erro
 
 	instances := al.selector.Select(num, al.blockCapacity)
 	if len(instances) == 0 {
-		return nil, ErrVolumeNotFound
+		return nil, errors.ErrVolumeInstanceNotFound
 	}
 	for idx := 0; idx < num; idx++ {
 		ins := instances[idx]

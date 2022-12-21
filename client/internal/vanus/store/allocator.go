@@ -16,6 +16,7 @@ package store
 
 import (
 	"context"
+
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"go.opentelemetry.io/otel/trace"
 
@@ -23,7 +24,7 @@ import (
 	"sync"
 
 	// this project.
-	"github.com/linkall-labs/vanus/client/pkg/errors"
+	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 func NewAllocator() *Allocator {

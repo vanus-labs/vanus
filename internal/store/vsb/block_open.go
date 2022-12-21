@@ -17,13 +17,13 @@ package vsb
 import (
 	// standard libraries.
 	"context"
-	"errors"
+	stderr "errors"
 	"io"
 	"math"
 	"os"
 
 	// first-party libraries.
-	errutil "github.com/linkall-labs/vanus/pkg/util/errors"
+	"github.com/linkall-labs/vanus/pkg/errors"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
@@ -33,8 +33,8 @@ import (
 )
 
 var (
-	errCorrupted  = errors.New("corrupted vsb")
-	errIncomplete = errors.New("incomplete vsb")
+	errCorrupted  = stderr.New("corrupted vsb")
+	errIncomplete = stderr.New("incomplete vsb")
 )
 
 func (b *vsBlock) Open(ctx context.Context) error {
@@ -51,7 +51,7 @@ func (b *vsBlock) Open(ctx context.Context) error {
 
 	if err = b.init(ctx); err != nil {
 		if err2 := f.Close(); err2 != nil {
-			return errutil.Chain(err, err2)
+			return errors.Chain(err, err2)
 		}
 		b.f = nil
 		return err
@@ -176,10 +176,10 @@ func (b *vsBlock) rebuildIndexes(num int, tail []index.Index) error {
 	for {
 		n, entry, err := b.dec.UnmarshalReader(r)
 		if err != nil {
-			if errors.Is(err, codec.ErrIncompletePacket) {
+			if stderr.Is(err, codec.ErrIncompletePacket) {
 				break
 			}
-			return errutil.Chain(errCorrupted, err)
+			return errors.Chain(errCorrupted, err)
 		}
 
 		if ceschema.EntryType(entry) != ceschema.CloudEvent {

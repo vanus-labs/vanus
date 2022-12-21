@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package function
+package common
 
 type Type uint8
 
@@ -22,6 +22,7 @@ const (
 	Bool
 	Object
 	Array
+	StringArray
 	Any
 )
 
@@ -39,6 +40,8 @@ func (t Type) String() string {
 		return "array"
 	case Any:
 		return "any"
+	case StringArray:
+		return "stringArray"
 	}
 	return "unknown"
 }
@@ -61,6 +64,8 @@ func TypeFromVal(val interface{}) Type {
 		return Bool
 	case map[string]interface{}:
 		return Object
+	case []string:
+		return StringArray
 	case []interface{}:
 		return Array
 	}

@@ -19,10 +19,10 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
 )
 
-// ["join", "toKey", "separator","key1","key2"].
+// ["join", "toKey", "separator","key1",...].
 func newJoinAction() Action {
 	return &commonAction{
-		fixedArgs:   []arg.TypeList{arg.EventList, arg.All, arg.All, arg.All},
+		fixedArgs:   []arg.TypeList{arg.EventList, arg.All, arg.All},
 		variadicArg: arg.All,
 		fn:          function.JoinFunction,
 	}

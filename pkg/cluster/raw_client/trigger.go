@@ -12,19 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controller
+package raw_client
 
 import (
 	"context"
+	"io"
+
 	"github.com/linkall-labs/vanus/observability/log"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io"
 
+	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -33,14 +34,14 @@ var (
 	_ Heartbeat = (*triggerClient)(nil)
 )
 
-func NewTriggerClient(ctrlAddrs []string, credentials credentials.TransportCredentials) ctrlpb.TriggerControllerClient {
+func NewTriggerClient(cc *Conn) ctrlpb.TriggerControllerClient {
 	return &triggerClient{
-		cc: newConn(ctrlAddrs, credentials),
+		cc: cc,
 	}
 }
 
 type triggerClient struct {
-	cc              *conn
+	cc              *Conn
 	heartBeatClient ctrlpb.TriggerController_TriggerWorkerHeartbeatClient
 }
 
@@ -50,7 +51,7 @@ func (tc *triggerClient) Beat(ctx context.Context, v interface{}) error {
 	})
 	req, ok := v.(*ctrlpb.TriggerWorkerHeartbeatRequest)
 	if !ok {
-		return ErrInvalidHeartBeatRequest
+		return errors.ErrInvalidHeartBeatRequest
 	}
 	var err error
 	makeSureClient := func() error {
@@ -61,7 +62,7 @@ func (tc *triggerClient) Beat(ctx context.Context, v interface{}) error {
 			if sts.Code() == codes.Unavailable {
 				client = ctrlpb.NewTriggerControllerClient(tc.cc.makeSureClient(ctx, true))
 				if client == nil {
-					return ErrNoControllerLeader
+					return errors.ErrNoControllerLeader
 				}
 				tc.heartBeatClient, err = client.TriggerWorkerHeartbeat(ctx)
 				if err != nil {

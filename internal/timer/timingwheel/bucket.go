@@ -18,25 +18,22 @@ import (
 	"container/list"
 	"context"
 	"encoding/json"
-	"errors"
+	stderr "errors"
 	"fmt"
 	"sync"
 	"time"
-
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/timer/metadata"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/proto/pkg/meta"
-	"k8s.io/apimachinery/pkg/util/wait"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/types"
 	"github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/api"
-	es "github.com/linkall-labs/vanus/client/pkg/errors"
 	"github.com/linkall-labs/vanus/client/pkg/option"
 	"github.com/linkall-labs/vanus/client/pkg/policy"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/linkall-labs/vanus/internal/timer/metadata"
+	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/pkg/errors"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 const (
@@ -45,6 +42,7 @@ const (
 	timerBuiltInEventbus                    = "__Timer_%d_%d"
 	xVanusEventbus                          = "xvanuseventbus"
 	xVanusDeliveryTime                      = "xvanusdeliverytime"
+	sleepDuration                           = 100 * time.Millisecond
 )
 
 type timingMsg struct {
@@ -102,7 +100,6 @@ type bucket struct {
 	wg             sync.WaitGroup
 	exitC          chan struct{}
 	kvStore        kv.Client
-	ctrlCli        ctrlpb.EventBusControllerClient
 	client         client.Client
 	eventbusWriter api.BusWriter
 	eventbusReader api.BusReader
@@ -125,7 +122,6 @@ func newBucket(tw *timingWheel, element *list.Element, tick time.Duration, ebNam
 		eventbus:    ebName,
 		exitC:       make(chan struct{}),
 		kvStore:     tw.kvStore,
-		ctrlCli:     tw.ctrlCli,
 		client:      tw.client,
 		timingwheel: tw,
 		element:     element,
@@ -203,12 +199,20 @@ func (b *bucket) run(ctx context.Context) {
 				// batch read
 				events, err := b.getEvent(ctx, defaultNumberOfEventsRead)
 				if err != nil {
-					if !errors.Is(err, es.ErrOnEnd) && !errors.Is(err, es.ErrTryAgain) {
+					if !errors.Is(err, errors.ErrOffsetOnEnd) && !errors.Is(err, errors.ErrTryAgain) {
 						log.Error(ctx, "get event failed when bucket running", map[string]interface{}{
 							"eventbus":   b.getEventbus(),
 							log.KeyError: err,
 						})
 					}
+					time.Sleep(sleepDuration)
+					break
+				}
+				if len(events) == 0 {
+					time.Sleep(sleepDuration)
+					log.Debug(ctx, "no more message", map[string]interface{}{
+						"function": "run",
+					})
 					break
 				}
 				// concurrent write
@@ -318,58 +322,19 @@ func (b *bucket) push(ctx context.Context, tm *timingMsg) bool {
 	return b.putEvent(ctx, tm) == nil
 }
 
-func (b *bucket) isExistEventbus(ctx context.Context) bool {
-	_, err := b.ctrlCli.GetEventBus(ctx, &meta.EventBus{Name: b.eventbus})
-	return err == nil
-}
-
 func (b *bucket) createEventbus(ctx context.Context) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if !b.isLeader() || b.isExistEventbus(ctx) {
+	if !b.isLeader() {
 		return nil
 	}
-	_, err := b.ctrlCli.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
-		Name: b.eventbus,
-	})
-	if err != nil {
-		log.Error(ctx, "create eventbus failed", map[string]interface{}{
-			log.KeyError: err,
-			"eventbus":   b.eventbus,
-		})
-		return err
-	}
-	log.Info(ctx, "create eventbus success.", map[string]interface{}{
-		"eventbus": b.eventbus,
-	})
-	return nil
+	return b.timingwheel.ctrl.EventbusService().CreateSystemEventbusIfNotExist(ctx, b.eventbus,
+		"System Eventbus For Timing Service")
 }
 
 func (b *bucket) connectEventbus(ctx context.Context) {
 	b.eventbusWriter = b.client.Eventbus(ctx, b.eventbus).Writer()
 	b.eventbusReader = b.client.Eventbus(ctx, b.eventbus).Reader()
-}
-
-func (b *bucket) deleteEventbus(ctx context.Context) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if !b.isLeader() || !b.isExistEventbus(ctx) {
-		return nil
-	}
-	_, err := b.ctrlCli.DeleteEventBus(ctx, &meta.EventBus{
-		Name: b.eventbus,
-	})
-	if err != nil {
-		log.Error(ctx, "delete eventbus failed", map[string]interface{}{
-			log.KeyError: err,
-			"eventbus":   b.eventbus,
-		})
-		return err
-	}
-	log.Info(ctx, "delete eventbus success.", map[string]interface{}{
-		"eventbus": b.eventbus,
-	})
-	return nil
 }
 
 func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
@@ -378,7 +343,7 @@ func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
 			log.Warning(ctx, "panic when put event", map[string]interface{}{
 				log.KeyError: errOfPanic,
 			})
-			err = errors.New("panic when put event")
+			err = stderr.New("panic when put event")
 		}
 	}()
 	if !b.isLeader() {
@@ -408,13 +373,13 @@ func (b *bucket) getEvent(ctx context.Context, number int16) (events []*ce.Event
 				log.KeyError: errOfPanic,
 			})
 			events = []*ce.Event{}
-			err = es.ErrOnEnd
+			err = errors.ErrOffsetOnEnd
 		}
 	}()
 	if !b.isLeader() {
 		// TODO(jiangkai): redesign here for reduce cpu overload, by jiangkai, 2022.09.16
 		time.Sleep(time.Second)
-		return []*ce.Event{}, es.ErrOnEnd
+		return []*ce.Event{}, errors.ErrOffsetOnEnd
 	}
 	ls, err := b.client.Eventbus(ctx, b.eventbus).ListLog(ctx)
 	if err != nil {
@@ -424,7 +389,7 @@ func (b *bucket) getEvent(ctx context.Context, number int16) (events []*ce.Event
 	readPolicy := option.WithReadPolicy(policy.NewManuallyReadPolicy(ls[0], b.offset))
 	events, _, _, err = b.eventbusReader.Read(ctx, readPolicy, option.WithBatchSize(int(number)))
 	if err != nil {
-		if !errors.Is(err, es.ErrOnEnd) && !errors.Is(ctx.Err(), context.Canceled) {
+		if !errors.Is(err, errors.ErrOffsetOnEnd) && !stderr.Is(ctx.Err(), context.Canceled) {
 			log.Error(ctx, "read failed", map[string]interface{}{
 				log.KeyError: err,
 				"offset":     b.offset,
@@ -504,7 +469,7 @@ func (b *bucket) deleteOffsetMeta(ctx context.Context) error {
 
 func (b *bucket) hasOnEnd(ctx context.Context) bool {
 	_, errOnEnd := b.getEvent(ctx, 1)
-	if !errors.Is(errOnEnd, es.ErrOnEnd) {
+	if !errors.Is(errOnEnd, errors.ErrOffsetOnEnd) {
 		return false
 	}
 	off, err := b.getOffsetMeta(ctx)
@@ -515,7 +480,7 @@ func (b *bucket) hasOnEnd(ctx context.Context) bool {
 }
 
 func (b *bucket) recycle(ctx context.Context) {
-	_ = b.deleteEventbus(ctx)
+	_ = b.timingwheel.ctrl.EventbusService().Delete(ctx, b.eventbus)
 	_ = b.deleteOffsetMeta(ctx)
 }
 

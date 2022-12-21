@@ -64,11 +64,12 @@ const (
 )
 
 func (s State) ToSegmentState() string {
-	if s == StateArchiving {
+	switch s {
+	case StateArchiving:
 		return "freezing"
-	} else if s == StateArchived {
+	case StateArchived:
 		return "frozen"
-	} else {
+	default:
 		return string(s)
 	}
 }
