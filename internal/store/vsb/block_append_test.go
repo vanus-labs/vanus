@@ -107,6 +107,7 @@ func TestVSBlock_Append(t *testing.T) {
 			So(full, ShouldBeFalse)
 
 			stat := b.status()
+			So(stat.State, ShouldEqual, block.StateWorking)
 			So(stat.EntryNum, ShouldEqual, 0)
 			So(stat.EntrySize, ShouldEqual, 0)
 

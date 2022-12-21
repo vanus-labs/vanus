@@ -185,6 +185,8 @@ func (b *eventbus) GetLog(ctx context.Context, logID uint64, opts ...api.LogOpti
 		if len(b.readableLogs) == 0 {
 			b.refreshReadableLogs(ctx)
 		}
+		b.readableMu.RLock()
+		defer b.readableMu.RUnlock()
 		if l, ok := b.readableLogs[logID]; ok {
 			return l, nil
 		}
@@ -193,6 +195,8 @@ func (b *eventbus) GetLog(ctx context.Context, logID uint64, opts ...api.LogOpti
 		if len(b.writableLogs) == 0 {
 			b.refreshWritableLogs(ctx)
 		}
+		b.writableMu.RLock()
+		defer b.writableMu.RUnlock()
 		if l, ok := b.writableLogs[logID]; ok {
 			return l, nil
 		}
@@ -217,6 +221,8 @@ func (b *eventbus) ListLog(ctx context.Context, opts ...api.LogOption) ([]api.Ev
 			b.refreshReadableLogs(ctx)
 		}
 		eventlogs := make([]api.Eventlog, 0)
+		b.readableMu.RLock()
+		defer b.readableMu.RUnlock()
 		for _, el := range b.readableLogs {
 			eventlogs = append(eventlogs, el)
 		}
@@ -226,6 +232,8 @@ func (b *eventbus) ListLog(ctx context.Context, opts ...api.LogOption) ([]api.Ev
 			b.refreshWritableLogs(ctx)
 		}
 		eventlogs := make([]api.Eventlog, 0)
+		b.writableMu.RLock()
+		defer b.writableMu.RUnlock()
 		for _, el := range b.writableLogs {
 			eventlogs = append(eventlogs, el)
 		}
@@ -476,9 +484,9 @@ func (w *busWriter) AppendOne(ctx context.Context, event *ce.Event, opts ...api.
 	return eid, nil
 }
 
-func (w *busWriter) AppendMany(ctx context.Context, events []*ce.Event, opts ...api.WriteOption) (string, error) {
+func (w *busWriter) AppendMany(ctx context.Context, events []*ce.Event, opts ...api.WriteOption) ([]string, error) {
 	// TODO(jiangkai): implement this method, by jiangkai, 2022.10.24
-	return "", nil
+	return nil, nil
 }
 
 func (w *busWriter) Bus() api.Eventbus {

@@ -716,7 +716,7 @@ func (s *server) onBlockArchived(stat block.Statistics) {
 		Capacity:           int64(stat.Capacity),
 		Size:               int64(stat.EntrySize),
 		EventNumber:        int32(stat.EntryNum),
-		State:              string(stat.State),
+		State:              stat.State.ToSegmentState(),
 		FirstEventBornTime: stat.FirstEntryStime,
 	}
 	if stat.State == block.StateArchived {

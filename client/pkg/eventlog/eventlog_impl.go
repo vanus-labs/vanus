@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	stderr "errors"
 	"io"
+	"sort"
 	"sync"
 	"time"
 
@@ -110,11 +111,13 @@ type eventlog struct {
 	writableSegments map[uint64]*segment
 	writableMu       sync.RWMutex
 	logWriter        *logWriter
+	writerMu         sync.RWMutex
 
 	readableWatcher  *ReadableSegmentsWatcher
 	readableSegments map[uint64]*segment
 	readableMu       sync.RWMutex
 	logReader        *logReader
+	readerMu         sync.RWMutex
 	tracer           *tracing.Tracer
 }
 
@@ -128,6 +131,8 @@ func (l *eventlog) ID() uint64 {
 func (l *eventlog) Close(ctx context.Context) {
 	l.writableWatcher.Close()
 	l.readableWatcher.Close()
+	l.logWriter = nil
+	l.logReader = nil
 
 	for _, segment := range l.writableSegments {
 		segment.Close(ctx)
@@ -141,6 +146,11 @@ func (l *eventlog) Writer() LogWriter {
 	if l.logWriter != nil {
 		return l.logWriter
 	}
+	l.writerMu.Lock()
+	defer l.writerMu.Unlock()
+	if l.logWriter != nil {
+		return l.logWriter
+	}
 	l.logWriter = &logWriter{
 		elog: l,
 	}
@@ -149,6 +159,11 @@ func (l *eventlog) Writer() LogWriter {
 
 func (l *eventlog) Reader(cfg ReaderConfig) LogReader {
 	if l.logReader != nil {
+		return l.logReader
+	}
+	l.readerMu.Lock()
+	defer l.readerMu.Unlock()
+	if l.logWriter != nil {
 		return l.logReader
 	}
 	l.logReader = &logReader{
@@ -262,6 +277,8 @@ func (l *eventlog) selectWritableSegment(ctx context.Context) (*segment, error) 
 }
 
 func (l *eventlog) nextWritableSegment(ctx context.Context, seg *segment) (*segment, error) {
+	l.writableMu.RLock()
+	defer l.writableMu.RUnlock()
 	if s, ok := l.writableSegments[seg.nextSegmentId]; ok {
 		return s, nil
 	}
@@ -345,15 +362,14 @@ func (l *eventlog) selectReadableSegment(ctx context.Context, offset int64) (*se
 		return nil, errors.ErrUnderflow
 	}
 
-	for {
-		if offset >= target.EndOffset() {
-			target = l.writableSegments[target.nextSegmentId]
-		} else {
-			// got target segment
-			break
-		}
+	segmentNum := len(l.readableSegments)
+	n := sort.Search(segmentNum, func(i int) bool {
+		return l.readableSegments[uint64(i)].EndOffset() > offset
+	})
+	if n < segmentNum {
+		return l.readableSegments[uint64(n)], nil
 	}
-	return target, nil
+	return nil, errors.ErrNotReadable
 }
 
 func (l *eventlog) fetchReadableSegments(ctx context.Context) map[uint64]*segment {
@@ -395,9 +411,9 @@ func (w *logWriter) Append(ctx context.Context, event *ce.Event) (string, error)
 	// TODO: async for throughput
 	retryTimes := defaultRetryTimes
 	for i := 1; i <= retryTimes; i++ {
-		offset, err := w.doAppend(ctx, event)
+		eid, err := w.doAppend(ctx, event)
 		if err == nil {
-			return w.generateEventID(offset), nil
+			return eid, nil
 		}
 
 		switch err {
@@ -422,10 +438,10 @@ func (w *logWriter) Append(ctx context.Context, event *ce.Event) (string, error)
 	return "", errors.ErrUnknown
 }
 
-func (w *logWriter) doAppend(ctx context.Context, event *ce.Event) (int64, error) {
+func (w *logWriter) doAppend(ctx context.Context, event *ce.Event) (string, error) {
 	segment, err := w.selectWritableSegment(ctx)
 	if err != nil {
-		return -1, err
+		return "", err
 	}
 	offset, err := segment.Append(ctx, event)
 	if err != nil {
@@ -433,17 +449,17 @@ func (w *logWriter) doAppend(ctx context.Context, event *ce.Event) (int64, error
 		case errors.ErrNotWritable, errors.ErrNotEnoughSpace, errors.ErrNoSpace:
 			segment.SetNotWritable()
 		}
-		return -1, err
+		return "", err
 	}
-	return offset, nil
+	return w.generateEventID(segment, offset), nil
 }
 
-func (w *logWriter) generateEventID(offset int64) string {
+func (w *logWriter) generateEventID(s *segment, offset int64) string {
 	var buf [32]byte
-	binary.BigEndian.PutUint64(buf[0:8], w.cur.id)
+	binary.BigEndian.PutUint64(buf[0:8], s.id)
 	binary.BigEndian.PutUint64(buf[8:16], uint64(offset))
 	binary.BigEndian.PutUint64(buf[16:24], w.elog.ID())
-	binary.BigEndian.PutUint64(buf[24:32], uint64(offset+w.cur.startOffset))
+	binary.BigEndian.PutUint64(buf[24:32], uint64(offset+s.startOffset))
 	return base64.StdEncoding.EncodeToString(buf[:])
 }
 

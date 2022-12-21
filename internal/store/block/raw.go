@@ -63,6 +63,16 @@ const (
 	StateArchived  = State("archived")
 )
 
+func (s State) ToSegmentState() string {
+	if s == StateArchiving {
+		return "freezing"
+	} else if s == StateArchived {
+		return "frozen"
+	} else {
+		return string(s)
+	}
+}
+
 type Statistics struct {
 	ID        vanus.ID
 	Capacity  uint64

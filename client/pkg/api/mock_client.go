@@ -147,14 +147,14 @@ func (m *MockBusWriter) EXPECT() *MockBusWriterMockRecorder {
 }
 
 // AppendMany mocks base method.
-func (m *MockBusWriter) AppendMany(ctx context.Context, events []*v2.Event, opts ...WriteOption) (string, error) {
+func (m *MockBusWriter) AppendMany(ctx context.Context, events []*v2.Event, opts ...WriteOption) ([]string, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, events}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "AppendMany", varargs...)
-	ret0, _ := ret[0].(string)
+	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
