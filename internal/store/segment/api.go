@@ -34,10 +34,6 @@ import (
 	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
-const (
-	defaultChannelBuffer = 32
-)
-
 type segmentServer struct {
 	srv Server
 }
@@ -214,7 +210,8 @@ func (s *segmentServer) ReadFromBlockStream(stream segpb.SegmentServer_ReadFromB
 		errCode := errpb.ErrorCode_SUCCESS
 		errMsg := "success"
 		blockID := vanus.NewIDFromUint64(request.BlockId)
-		events, err := s.srv.ReadFromBlock(ctx, blockID, request.Offset, int(request.Number), request.PollingTimeoutInMillisecond)
+		events, err := s.srv.ReadFromBlock(
+			ctx, blockID, request.Offset, int(request.Number), request.PollingTimeoutInMillisecond)
 		if err != nil {
 			errCode = errpb.ErrorCode_UNKNOWN
 			errMsg = "unknown"

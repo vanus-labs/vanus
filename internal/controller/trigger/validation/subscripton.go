@@ -244,7 +244,8 @@ func validateCel(ctx context.Context, expression string) (err error) {
 		}
 	}()
 	if _, err = cel.Parse(expression); err != nil {
-		return errors.ErrInvalidRequest.WithMessage(fmt.Sprintf("ce sql expression invalid, expression: %s\n", expression)).Wrap(err)
+		return errors.ErrInvalidRequest.WithMessage(
+			fmt.Sprintf("ce sql expression invalid, expression: %s\n", expression)).Wrap(err)
 	}
 	return err
 }
@@ -256,7 +257,8 @@ func validateCeSQL(ctx context.Context, expression string) (err error) {
 		}
 	}()
 	if _, err = cesqlparser.Parse(expression); err != nil {
-		return errors.ErrInvalidRequest.WithMessage(fmt.Sprintf("ce sql expression invalid, expression: %s\n", expression)).Wrap(err)
+		return errors.ErrInvalidRequest.WithMessage(
+			fmt.Sprintf("ce sql expression invalid, expression: %s\n", expression)).Wrap(err)
 	}
 	return err
 }

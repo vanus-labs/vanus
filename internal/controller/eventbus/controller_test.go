@@ -120,7 +120,7 @@ func TestController_DeleteEventBus(t *testing.T) {
 			So(res, ShouldBeNil)
 			et, ok := err.(*errors.ErrorType)
 			So(ok, ShouldBeTrue)
-			So(et.Code, ShouldEqual, errpb.ErrorCode_RESOURCE_EXIST)
+			So(et.Code, ShouldEqual, errpb.ErrorCode_RESOURCE_NOT_FOUND)
 			So(et.Description, ShouldEqual, "resource not found")
 			So(et.Message, ShouldEqual, "the eventbus doesn't exist")
 		})

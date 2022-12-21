@@ -359,6 +359,11 @@ func (w *logWriter) Append(ctx context.Context, event *ce.Event) (int64, error) 
 			"offset":      offset,
 		})
 		if errors.Is(err, errors.ErrFull) {
+			vlog.Warning(ctx, "segment is full, retry", map[string]interface{}{
+				vlog.KeyError: err,
+				"offset":      offset,
+				"retry_num":   i,
+			})
 			if i < retryTimes {
 				continue
 			}

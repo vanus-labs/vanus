@@ -84,7 +84,7 @@ func TestSegmentServerManager_AddAndRemoveServer(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			err = mgr.AddServer(stdCtx.Background(), ss4)
-			So(err, ShouldEqual, errors.ErrResourceAlreadyExist.WithMessage("the segment server has been added"))
+			So(errors.Is(err, errors.ErrResourceAlreadyExist), ShouldBeTrue)
 			So(util.MapLen(&ssm.segmentServerMapByIP), ShouldEqual, 3)
 			So(util.MapLen(&ssm.segmentServerMapByID), ShouldEqual, 3)
 		})

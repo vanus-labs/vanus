@@ -200,11 +200,7 @@ func (a *appender) Delete(ctx context.Context) {
 	a.log.Delete(ctx)
 }
 
-func (a *appender) run(ctx context.Context) {
-	// TODO(james.yin): reduce Ticker
-	t := time.NewTicker(defaultTickInterval)
-	defer t.Stop()
-
+func (a *appender) runWaiterWorker(ctx context.Context) {
 	for i := 0; i < defaultWaiterWorker; i++ {
 		go func() {
 			for {
@@ -218,6 +214,14 @@ func (a *appender) run(ctx context.Context) {
 			}
 		}()
 	}
+}
+
+func (a *appender) run(ctx context.Context) {
+	// TODO(james.yin): reduce Ticker
+	t := time.NewTicker(defaultTickInterval)
+	defer t.Stop()
+
+	a.runWaiterWorker(ctx)
 
 	for {
 		select {

@@ -53,18 +53,15 @@ func (mr *MockServerMockRecorder) ActivateSegment(ctx, logID, segID, replicas in
 }
 
 // AppendToBlock mocks base method.
-func (m *MockServer) AppendToBlock(ctx context.Context, id vanus.ID, events []*v1.CloudEvent) ([]int64, error) {
+func (m *MockServer) AppendToBlock(ctx context.Context, id vanus.ID, events []*v1.CloudEvent, cb func([]int64, error)) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AppendToBlock", ctx, id, events)
-	ret0, _ := ret[0].([]int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	m.ctrl.Call(m, "AppendToBlock", ctx, id, events, cb)
 }
 
 // AppendToBlock indicates an expected call of AppendToBlock.
-func (mr *MockServerMockRecorder) AppendToBlock(ctx, id, events interface{}) *gomock.Call {
+func (mr *MockServerMockRecorder) AppendToBlock(ctx, id, events, cb interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppendToBlock", reflect.TypeOf((*MockServer)(nil).AppendToBlock), ctx, id, events)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppendToBlock", reflect.TypeOf((*MockServer)(nil).AppendToBlock), ctx, id, events, cb)
 }
 
 // CreateBlock mocks base method.

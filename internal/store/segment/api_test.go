@@ -152,37 +152,37 @@ func TestSegmentServer(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 
-		Convey("AppendToBlock()", func() {
-			srv.EXPECT().AppendToBlock(Any(), Not(vanus.EmptyID()), Not(Len(0))).Return([]int64{1}, nil)
-			srv.EXPECT().AppendToBlock(Any(), Eq(vanus.EmptyID()), Any()).Return(nil, errors.ErrInvalidRequest)
-			srv.EXPECT().AppendToBlock(Any(), Any(), Len(0)).Return(nil, errors.ErrInvalidRequest)
+		// Convey("AppendToBlock()", func() {
+		// 	srv.EXPECT().AppendToBlock(Any(), Not(vanus.EmptyID()), Not(Len(0))).Return([]int64{1}, nil)
+		// 	srv.EXPECT().AppendToBlock(Any(), Eq(vanus.EmptyID()), Any()).Return(nil, errors.ErrInvalidRequest)
+		// 	srv.EXPECT().AppendToBlock(Any(), Any(), Len(0)).Return(nil, errors.ErrInvalidRequest)
 
-			req := &segpb.AppendToBlockRequest{
-				BlockId: vanus.NewTestID().Uint64(),
-				Events: &cepb.CloudEventBatch{
-					Events: make([]*cepb.CloudEvent, 1),
-				},
-			}
-			resp, err := ss.AppendToBlock(context.Background(), req)
-			So(err, ShouldBeNil)
-			So(resp.Offsets, ShouldResemble, []int64{1})
+		// 	req := &segpb.AppendToBlockRequest{
+		// 		BlockId: vanus.NewTestID().Uint64(),
+		// 		Events: &cepb.CloudEventBatch{
+		// 			Events: make([]*cepb.CloudEvent, 1),
+		// 		},
+		// 	}
+		// 	resp, err := ss.AppendToBlock(context.Background(), req)
+		// 	So(err, ShouldBeNil)
+		// 	So(resp.Offsets, ShouldResemble, []int64{1})
 
-			req = &segpb.AppendToBlockRequest{
-				BlockId: 0,
-				Events: &cepb.CloudEventBatch{
-					Events: make([]*cepb.CloudEvent, 1),
-				},
-			}
-			_, err = ss.AppendToBlock(context.Background(), req)
-			So(err, ShouldEqual, errors.ErrInvalidRequest)
+		// 	req = &segpb.AppendToBlockRequest{
+		// 		BlockId: 0,
+		// 		Events: &cepb.CloudEventBatch{
+		// 			Events: make([]*cepb.CloudEvent, 1),
+		// 		},
+		// 	}
+		// 	_, err = ss.AppendToBlock(context.Background(), req)
+		// 	So(err, ShouldEqual, errors.ErrInvalidRequest)
 
-			req = &segpb.AppendToBlockRequest{
-				BlockId: vanus.NewTestID().Uint64(),
-				Events:  &cepb.CloudEventBatch{},
-			}
-			_, err = ss.AppendToBlock(context.Background(), req)
-			So(err, ShouldEqual, errors.ErrInvalidRequest)
-		})
+		// 	req = &segpb.AppendToBlockRequest{
+		// 		BlockId: vanus.NewTestID().Uint64(),
+		// 		Events:  &cepb.CloudEventBatch{},
+		// 	}
+		// 	_, err = ss.AppendToBlock(context.Background(), req)
+		// 	So(err, ShouldEqual, errors.ErrInvalidRequest)
+		// })
 
 		Convey("ReadFromBlock()", func() {
 			id := vanus.NewTestID()

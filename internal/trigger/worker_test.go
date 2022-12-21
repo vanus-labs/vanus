@@ -41,7 +41,10 @@ func TestAddSubscription(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		tg := trigger.NewMockTrigger(ctrl)
-		m := NewWorker(Config{ControllerAddr: []string{"test"}}).(*worker)
+		m := &worker{
+			config:     Config{ControllerAddr: []string{"test"}},
+			triggerMap: make(map[vanus.ID]trigger.Trigger),
+		}
 		m.newTrigger = testNewTrigger(tg)
 		Convey("add subscription", func() {
 			id := vanus.NewTestID()
@@ -85,7 +88,10 @@ func TestRemoveSubscription(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		tg := trigger.NewMockTrigger(ctrl)
-		m := NewWorker(Config{}).(*worker)
+		m := &worker{
+			config:     Config{},
+			triggerMap: make(map[vanus.ID]trigger.Trigger),
+		}
 		m.newTrigger = testNewTrigger(tg)
 
 		Convey("remove no exist subscription", func() {
@@ -121,7 +127,10 @@ func TestPauseStartSubscription(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		tg := trigger.NewMockTrigger(ctrl)
-		m := NewWorker(Config{}).(*worker)
+		m := &worker{
+			config:     Config{},
+			triggerMap: make(map[vanus.ID]trigger.Trigger),
+		}
 		m.newTrigger = testNewTrigger(tg)
 		id := vanus.NewTestID()
 		Convey("pause no exist subscription", func() {
@@ -166,7 +175,10 @@ func TestResetOffsetToTimestamp(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		tg := trigger.NewMockTrigger(ctrl)
-		m := NewWorker(Config{}).(*worker)
+		m := &worker{
+			config:     Config{},
+			triggerMap: make(map[vanus.ID]trigger.Trigger),
+		}
 		m.newTrigger = testNewTrigger(tg)
 		Convey("reset offset no exist subscription", func() {
 			err := m.ResetOffsetToTimestamp(ctx, id, time.Now().Unix())
@@ -192,12 +204,17 @@ func TestResetOffsetToTimestamp(t *testing.T) {
 }
 
 func TestWorker_Stop(t *testing.T) {
-	ctx := context.Background()
+	// ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	Convey("start stop", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		tg := trigger.NewMockTrigger(ctrl)
-		m := NewWorker(Config{}).(*worker)
+		m := &worker{
+			config:     Config{},
+			stop:       cancel,
+			triggerMap: make(map[vanus.ID]trigger.Trigger),
+		}
 		m.newTrigger = testNewTrigger(tg)
 		id := vanus.NewTestID()
 		tg.EXPECT().Init(gomock.Any()).Return(nil)
@@ -229,7 +246,10 @@ func TestWorker_Register(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		addr := "test"
-		m := NewWorker(Config{TriggerAddr: addr}).(*worker)
+		m := &worker{
+			config:     Config{TriggerAddr: addr},
+			triggerMap: make(map[vanus.ID]trigger.Trigger),
+		}
 		triggerClient := controller.NewMockTriggerControllerClient(ctrl)
 		m.client = triggerClient
 		triggerClient.EXPECT().RegisterTriggerWorker(gomock.Any(), gomock.Any()).Return(nil, nil)
@@ -244,7 +264,10 @@ func TestWorker_Unregister(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		addr := "test"
-		m := NewWorker(Config{TriggerAddr: addr}).(*worker)
+		m := &worker{
+			config:     Config{TriggerAddr: addr},
+			triggerMap: make(map[vanus.ID]trigger.Trigger),
+		}
 		triggerClient := controller.NewMockTriggerControllerClient(ctrl)
 		m.client = triggerClient
 		triggerClient.EXPECT().UnregisterTriggerWorker(gomock.Any(), gomock.Any()).Return(nil, nil)
