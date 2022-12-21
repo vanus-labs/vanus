@@ -17,14 +17,16 @@ package action
 import (
 	"testing"
 
+	cetest "github.com/cloudevents/sdk-go/v2/test"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestJoinAction(t *testing.T) {
 	Convey("test join action", t, func() {
+		e := cetest.FullEvent()
 		eventCtx := &context.EventContext{
-			Event: newEvent(),
+			Event: &e,
 			Data: map[string]interface{}{
 				"array": []map[string]interface{}{
 					{"key1": "value1"},
@@ -58,72 +60,12 @@ func TestJoinAction(t *testing.T) {
 				So(eventCtx.Event.Extensions()["array1"], ShouldEqual, "value1,value11,value111")
 			})
 			Convey("test many mixture param", func() {
-				a, err := NewAction([]interface{}{newJoinAction().Name(), "$.array2", ",", "$.data.array[:].key1", "$.source", "abc"})
+				a, err := NewAction([]interface{}{newJoinAction().Name(), "$.array2", ",", "$.data.array[:].key1", "abc"})
 				So(err, ShouldBeNil)
 				err = a.Execute(eventCtx)
 				So(err, ShouldBeNil)
-				So(eventCtx.Event.Extensions()["array2"], ShouldEqual, "value1,value11,value111,testSource,abc")
+				So(eventCtx.Event.Extensions()["array2"], ShouldEqual, "value1,value11,value111,abc")
 			})
 		})
-	})
-}
-
-func TestUpperAction(t *testing.T) {
-	Convey("test upper", t, func() {
-		a, err := NewAction([]interface{}{newUpperAction().Name(), "$.test"})
-		So(err, ShouldBeNil)
-		e := newEvent()
-		e.SetExtension("test", "testValue")
-		ceCtx := &context.EventContext{
-			Event: e,
-		}
-		err = a.Execute(ceCtx)
-		So(err, ShouldBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "TESTVALUE")
-	})
-}
-
-func TestLowerAction(t *testing.T) {
-	Convey("test lower", t, func() {
-		a, err := NewAction([]interface{}{newLowerAction().Name(), "$.test"})
-		So(err, ShouldBeNil)
-		e := newEvent()
-		e.SetExtension("test", "testValue")
-		ceCtx := &context.EventContext{
-			Event: e,
-		}
-		err = a.Execute(ceCtx)
-		So(err, ShouldBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "testvalue")
-	})
-}
-
-func TestAddPrefixAction(t *testing.T) {
-	Convey("test add prefix", t, func() {
-		a, err := NewAction([]interface{}{newAddPrefixAction().Name(), "$.test", "prefix"})
-		So(err, ShouldBeNil)
-		e := newEvent()
-		e.SetExtension("test", "testValue")
-		ceCtx := &context.EventContext{
-			Event: e,
-		}
-		err = a.Execute(ceCtx)
-		So(err, ShouldBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "prefixtestValue")
-	})
-}
-
-func TestAddSuffixAction(t *testing.T) {
-	Convey("test add suffix", t, func() {
-		a, err := NewAction([]interface{}{newAddSuffixAction().Name(), "$.test", "suffix"})
-		So(err, ShouldBeNil)
-		e := newEvent()
-		e.SetExtension("test", "testValue")
-		ceCtx := &context.EventContext{
-			Event: e,
-		}
-		err = a.Execute(ceCtx)
-		So(err, ShouldBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "testValuesuffix")
 	})
 }

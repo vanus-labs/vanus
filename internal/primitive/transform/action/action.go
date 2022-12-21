@@ -18,15 +18,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
-
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
 	"github.com/pkg/errors"
 )
-
-type newAction func() Action
 
 type Action interface {
 	// Name func name
@@ -41,92 +38,47 @@ type Action interface {
 	Execute(ceCtx *context.EventContext) error
 }
 
-type commonAction struct {
-	name        string
-	fixedArgs   []arg.TypeList
-	variadicArg arg.TypeList
-	fn          function.Function
+type CommonAction struct {
+	ActionName  string
+	FixedArgs   []arg.TypeList
+	VariadicArg arg.TypeList
+	Fn          function.Function
 
-	args      []arg.Arg
-	argTypes  []common.Type
-	targetArg arg.Arg
+	Args      []arg.Arg
+	ArgTypes  []common.Type
+	TargetArg arg.Arg
 }
 
-func (a *commonAction) Name() string {
-	if a.name != "" {
-		return a.name
-	}
-	if a.fn != nil {
-		return a.fn.Name()
-	}
-	return ""
+func (a *CommonAction) Name() string {
+	return a.ActionName
 }
 
-func (a *commonAction) Arity() int {
-	return len(a.fixedArgs)
+func (a *CommonAction) Arity() int {
+	return len(a.FixedArgs)
 }
 
-func (a *commonAction) ArgType(index int) arg.TypeList {
-	if index < len(a.fixedArgs) {
-		return a.fixedArgs[index]
+func (a *CommonAction) ArgType(index int) arg.TypeList {
+	if index < len(a.FixedArgs) {
+		return a.FixedArgs[index]
 	}
-	return a.variadicArg
+	return a.VariadicArg
 }
 
-func (a *commonAction) IsVariadic() bool {
-	return len(a.variadicArg) > 0
+func (a *CommonAction) IsVariadic() bool {
+	return len(a.VariadicArg) > 0
 }
 
-func (a *commonAction) Init(args []arg.Arg) error {
-	a.targetArg = args[0]
-	a.args = args[1:]
-	return a.setArgTypes()
-}
-
-func (a *commonAction) setArgTypes() error {
-	if a.fn == nil {
-		return fmt.Errorf("fn is nil")
+func (a *CommonAction) RunArgs(ceCtx *context.EventContext) ([]interface{}, error) {
+	args := make([]interface{}, len(a.Args))
+	if len(a.Args) != len(a.ArgTypes) {
+		return nil, fmt.Errorf("arg lenth %d not same arg type %d", len(a.Args), len(a.ArgTypes))
 	}
-	if len(a.args) < a.fn.Arity() {
-		return ErrArgNumber
-	}
-	if len(a.args) > a.fn.Arity() && !a.fn.IsVariadic() {
-		return ErrArgNumber
-	}
-	argTypes := make([]common.Type, len(a.args))
-	for i := 0; i < len(a.args); i++ {
-		argTypes[i] = *a.fn.ArgType(i)
-	}
-	a.argTypes = argTypes
-	return nil
-}
-
-func (a *commonAction) Execute(ceCtx *context.EventContext) error {
-	if a.fn == nil {
-		return fmt.Errorf("fn is nil")
-	}
-	args, err := a.runArgs(ceCtx)
-	if err != nil {
-		return err
-	}
-	fnValue, err := a.fn.Execute(args)
-	if err != nil {
-		return err
-	}
-	return a.targetArg.SetValue(ceCtx, fnValue)
-}
-
-func (a *commonAction) runArgs(ceCtx *context.EventContext) ([]interface{}, error) {
-	args := make([]interface{}, len(a.args))
-	if len(a.args) != len(a.argTypes) {
-		return nil, fmt.Errorf("arg lenth %d not same arg type %d", len(a.args), len(a.argTypes))
-	}
-	for i, _arg := range a.args {
+	for i, _arg := range a.Args {
 		value, err := _arg.Evaluate(ceCtx)
 		if err != nil {
 			return nil, errors.Wrapf(err, "arg  %s evaluate error", _arg.Original())
 		}
-		v, err := common.Cast(value, a.argTypes[i])
+		v, err := common.Cast(value, a.ArgTypes[i])
 		if err != nil {
 			return nil, err
 		}
@@ -135,57 +87,71 @@ func (a *commonAction) runArgs(ceCtx *context.EventContext) ([]interface{}, erro
 	return args, nil
 }
 
-type sourceTargetSameAction struct {
-	commonAction
+type FunctionAction struct {
+	CommonAction
 }
 
-func (a *sourceTargetSameAction) Init(args []arg.Arg) error {
-	a.targetArg = args[0]
-	a.args = args
+func (a *FunctionAction) Init(args []arg.Arg) error {
+	a.TargetArg = args[0]
+	a.Args = args[1:]
 	return a.setArgTypes()
 }
+
+func (a *FunctionAction) setArgTypes() error {
+	if a.Fn == nil {
+		return fmt.Errorf("fn is nil")
+	}
+	if len(a.Args) < a.Fn.Arity() {
+		return ErrArgNumber
+	}
+	if len(a.Args) > a.Fn.Arity() && !a.Fn.IsVariadic() {
+		return ErrArgNumber
+	}
+	argTypes := make([]common.Type, len(a.Args))
+	for i := 0; i < len(a.Args); i++ {
+		argTypes[i] = *a.Fn.ArgType(i)
+	}
+	a.ArgTypes = argTypes
+	return nil
+}
+
+func (a *FunctionAction) Execute(ceCtx *context.EventContext) error {
+	if a.Fn == nil {
+		return fmt.Errorf("fn is nil")
+	}
+	args, err := a.RunArgs(ceCtx)
+	if err != nil {
+		return err
+	}
+	fnValue, err := a.Fn.Execute(args)
+	if err != nil {
+		return err
+	}
+	return a.TargetArg.SetValue(ceCtx, fnValue)
+}
+
+type SourceTargetSameAction struct {
+	FunctionAction
+}
+
+func (a *SourceTargetSameAction) Init(args []arg.Arg) error {
+	a.TargetArg = args[0]
+	a.Args = args
+	return a.setArgTypes()
+}
+
+type newAction func() Action
 
 var actionMap = map[string]newAction{}
 
 func AddAction(actionFn newAction) error {
 	a := actionFn()
-	if _, exist := actionMap[a.Name()]; exist {
-		return ErrExist
+	name := strings.ToUpper(a.Name())
+	if _, exist := actionMap[name]; exist {
+		panic(fmt.Errorf("action %s has exist", name))
 	}
-	actionMap[a.Name()] = actionFn
+	actionMap[name] = actionFn
 	return nil
-}
-
-func init() {
-	for _, fn := range []newAction{
-		// struct
-		newCreateActionAction,
-		newDeleteAction,
-		newReplaceAction,
-		newMoveActionAction,
-		newRenameActionAction,
-		// math
-		newMathAddActionAction,
-		newMathSubActionAction,
-		newMathMulActionAction,
-		newMathDivActionAction,
-		// format
-		newDateFormatAction,
-		newUnixTimeFormatAction,
-		// string
-		newJoinAction,
-		newUpperAction,
-		newLowerAction,
-		newAddPrefixAction,
-		newAddSuffixAction,
-		newReplaceWithRegexAction,
-		// condition
-		newConditionIfAction,
-	} {
-		if err := AddAction(fn); err != nil {
-			panic(err)
-		}
-	}
 }
 
 func NewAction(command []interface{}) (Action, error) {

@@ -17,6 +17,7 @@ package action
 import (
 	"testing"
 
+	cetest "github.com/cloudevents/sdk-go/v2/test"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -26,10 +27,10 @@ func TestConditionIfAction(t *testing.T) {
 		Convey("test string", func() {
 			a, err := NewAction([]interface{}{newConditionIfAction().Name(), "$.test2", "$.test", "==", "test", true, false})
 			So(err, ShouldBeNil)
-			e := newEvent()
+			e := cetest.FullEvent()
 			e.SetExtension("test", "test")
 			err = a.Execute(&context.EventContext{
-				Event: e,
+				Event: &e,
 			})
 			So(err, ShouldBeNil)
 			So(e.Extensions()["test2"], ShouldEqual, true)
@@ -37,10 +38,10 @@ func TestConditionIfAction(t *testing.T) {
 		Convey("test number", func() {
 			a, err := NewAction([]interface{}{newConditionIfAction().Name(), "$.test2", "$.test", "==", 123, true, false})
 			So(err, ShouldBeNil)
-			e := newEvent()
+			e := cetest.FullEvent()
 			e.SetExtension("test", 123)
 			err = a.Execute(&context.EventContext{
-				Event: e,
+				Event: &e,
 			})
 			So(err, ShouldBeNil)
 			So(e.Extensions()["test2"], ShouldEqual, true)
@@ -49,10 +50,10 @@ func TestConditionIfAction(t *testing.T) {
 	Convey("test condition >=", t, func() {
 		a, err := NewAction([]interface{}{newConditionIfAction().Name(), "$.test2", "$.test", ">=", int32(123), true, false})
 		So(err, ShouldBeNil)
-		e := newEvent()
+		e := cetest.FullEvent()
 		e.SetExtension("test", "456")
 		err = a.Execute(&context.EventContext{
-			Event: e,
+			Event: &e,
 		})
 		So(err, ShouldBeNil)
 		So(e.Extensions()["test2"], ShouldEqual, true)
@@ -60,10 +61,10 @@ func TestConditionIfAction(t *testing.T) {
 	Convey("test condition >", t, func() {
 		a, err := NewAction([]interface{}{newConditionIfAction().Name(), "$.test2", "$.test", ">", int32(123), true, false})
 		So(err, ShouldBeNil)
-		e := newEvent()
+		e := cetest.FullEvent()
 		e.SetExtension("test", 456)
 		err = a.Execute(&context.EventContext{
-			Event: e,
+			Event: &e,
 		})
 		So(err, ShouldBeNil)
 		So(e.Extensions()["test2"], ShouldEqual, true)
@@ -71,10 +72,10 @@ func TestConditionIfAction(t *testing.T) {
 	Convey("test condition <=", t, func() {
 		a, err := NewAction([]interface{}{newConditionIfAction().Name(), "$.test2", "$.test", "<=", "123", true, false})
 		So(err, ShouldBeNil)
-		e := newEvent()
+		e := cetest.FullEvent()
 		e.SetExtension("test", 456)
 		err = a.Execute(&context.EventContext{
-			Event: e,
+			Event: &e,
 		})
 		So(err, ShouldBeNil)
 		So(e.Extensions()["test2"], ShouldEqual, false)
@@ -82,10 +83,10 @@ func TestConditionIfAction(t *testing.T) {
 	Convey("test condition <", t, func() {
 		a, err := NewAction([]interface{}{newConditionIfAction().Name(), "$.test2", "$.test", "<", "123", true, false})
 		So(err, ShouldBeNil)
-		e := newEvent()
+		e := cetest.FullEvent()
 		e.SetExtension("test", 456)
 		err = a.Execute(&context.EventContext{
-			Event: e,
+			Event: &e,
 		})
 		So(err, ShouldBeNil)
 		So(e.Extensions()["test2"], ShouldEqual, false)
@@ -93,10 +94,10 @@ func TestConditionIfAction(t *testing.T) {
 	Convey("test condition unDefine op invalid", t, func() {
 		a, err := NewAction([]interface{}{newConditionIfAction().Name(), "$.test2", "$.test", "<==", "123", true, false})
 		So(err, ShouldBeNil)
-		e := newEvent()
+		e := cetest.FullEvent()
 		e.SetExtension("test", 456)
 		err = a.Execute(&context.EventContext{
-			Event: e,
+			Event: &e,
 		})
 		So(err, ShouldNotBeNil)
 	})

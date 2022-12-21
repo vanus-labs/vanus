@@ -17,10 +17,27 @@ package action
 import (
 	"testing"
 
+	cetest "github.com/cloudevents/sdk-go/v2/test"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+func newTestAction() Action {
+	return &SourceTargetSameAction{
+		FunctionAction{
+			CommonAction{
+				ActionName: "test_func",
+				FixedArgs:  []arg.TypeList{arg.EventList},
+				Fn:         function.LowerFunction,
+			},
+		},
+	}
+}
+
 func TestNewAction(t *testing.T) {
+	AddAction(newTestAction)
 	Convey("test new action", t, func() {
 		Convey("func name is not string", func() {
 			_, err := NewAction([]interface{}{123})
@@ -31,23 +48,29 @@ func TestNewAction(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 		Convey("func arity not enough", func() {
-			_, err := NewAction([]interface{}{"delete"})
+			_, err := NewAction([]interface{}{"test_func"})
 			So(err, ShouldNotBeNil)
 		})
 		Convey("func arity number greater than", func() {
-			_, err := NewAction([]interface{}{"delete", "arg1", "arg2"})
+			_, err := NewAction([]interface{}{"test_func", "arg1", "arg2"})
 			So(err, ShouldNotBeNil)
 		})
 		Convey("func new arg error", func() {
-			_, err := NewAction([]interface{}{"delete", "$.a-b"})
+			_, err := NewAction([]interface{}{"test_func", "$.a-b"})
 			So(err, ShouldNotBeNil)
 		})
 		Convey("func new arg type is invalid", func() {
-			_, err := NewAction([]interface{}{"delete", "arg"})
+			_, err := NewAction([]interface{}{"test_func", "arg"})
 			So(err, ShouldNotBeNil)
 		})
 		Convey("func new valid", func() {
-			_, err := NewAction([]interface{}{"delete", "$.id"})
+			a, err := NewAction([]interface{}{"test_func", "$.id"})
+			So(err, ShouldBeNil)
+			e := cetest.MinEvent()
+			e.SetExtension("test", "abc")
+			err = a.Execute(&context.EventContext{
+				Event: &e,
+			})
 			So(err, ShouldBeNil)
 		})
 	})

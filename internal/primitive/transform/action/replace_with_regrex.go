@@ -25,7 +25,7 @@ import (
 )
 
 type replaceWithRegexAction struct {
-	commonAction
+	CommonAction
 	pattern *regexp.Regexp
 	expr    string
 	lock    sync.RWMutex
@@ -34,22 +34,22 @@ type replaceWithRegexAction struct {
 // ["replace_with_regex", "key", "pattern", "value"].
 func newReplaceWithRegexAction() Action {
 	return &replaceWithRegexAction{
-		commonAction: commonAction{
-			name:      "REPLACE_WITH_REGEX",
-			fixedArgs: []arg.TypeList{arg.EventList, arg.All, arg.All},
+		CommonAction: CommonAction{
+			ActionName: "REPLACE_WITH_REGEX",
+			FixedArgs:  []arg.TypeList{arg.EventList, arg.All, arg.All},
 		},
 	}
 }
 
 func (a *replaceWithRegexAction) Init(args []arg.Arg) error {
-	a.targetArg = args[0]
-	a.args = args
-	a.argTypes = []common.Type{common.String, common.String, common.String}
+	a.TargetArg = args[0]
+	a.Args = args
+	a.ArgTypes = []common.Type{common.String, common.String, common.String}
 	return nil
 }
 
 func (a *replaceWithRegexAction) Execute(ceCtx *context.EventContext) error {
-	args, err := a.runArgs(ceCtx)
+	args, err := a.RunArgs(ceCtx)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func (a *replaceWithRegexAction) Execute(ceCtx *context.EventContext) error {
 		}
 	}
 	newValue := a.getPattern().ReplaceAllString(originalValue, value)
-	return a.targetArg.SetValue(ceCtx, newValue)
+	return a.TargetArg.SetValue(ceCtx, newValue)
 }
 
 func (a *replaceWithRegexAction) setPattern(expr string) error {

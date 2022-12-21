@@ -15,22 +15,17 @@
 package action
 
 import (
-	"testing"
-
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
 )
 
-func TestReplaceWithRegexAction(t *testing.T) {
-	Convey("test replace with regex", t, func() {
-		a, err := NewAction([]interface{}{newReplaceWithRegexAction().Name(), "$.test", "a", "value"})
-		So(err, ShouldBeNil)
-		e := newEvent()
-		e.SetExtension("test", "a-a")
-		err = a.Execute(&context.EventContext{
-			Event: e,
-		})
-		So(err, ShouldBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "value-value")
-	})
+// ["lower_case", "key"].
+func newLowerAction() Action {
+	a := &SourceTargetSameAction{}
+	a.CommonAction = CommonAction{
+		ActionName: "LOWER_CASE",
+		FixedArgs:  []arg.TypeList{arg.EventList},
+		Fn:         function.LowerFunction,
+	}
+	return a
 }
