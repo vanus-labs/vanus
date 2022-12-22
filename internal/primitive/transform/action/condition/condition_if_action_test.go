@@ -12,91 +12,95 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package action
+package condition_test
 
 import (
 	"testing"
 
+	cetest "github.com/cloudevents/sdk-go/v2/test"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action/condition"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestConditionIfAction(t *testing.T) {
+	funcName := condition.NewConditionIfAction().Name()
 	Convey("test condition if ==", t, func() {
 		Convey("test string", func() {
-			a, err := NewAction([]interface{}{newConditionIfAction().Name(), "$.test2", "$.test", "==", "test", true, false})
+			a, err := runtime.NewAction([]interface{}{funcName, "$.test2", "$.test", "==", "test", true, false})
 			So(err, ShouldBeNil)
-			e := newEvent()
+			e := cetest.MinEvent()
 			e.SetExtension("test", "test")
 			err = a.Execute(&context.EventContext{
-				Event: e,
+				Event: &e,
 			})
 			So(err, ShouldBeNil)
 			So(e.Extensions()["test2"], ShouldEqual, true)
 		})
 		Convey("test number", func() {
-			a, err := NewAction([]interface{}{newConditionIfAction().Name(), "$.test2", "$.test", "==", 123, true, false})
+			a, err := runtime.NewAction([]interface{}{funcName, "$.test2", "$.test", "==", 123, true, false})
 			So(err, ShouldBeNil)
-			e := newEvent()
+			e := cetest.MinEvent()
 			e.SetExtension("test", 123)
 			err = a.Execute(&context.EventContext{
-				Event: e,
+				Event: &e,
 			})
 			So(err, ShouldBeNil)
 			So(e.Extensions()["test2"], ShouldEqual, true)
 		})
 	})
 	Convey("test condition >=", t, func() {
-		a, err := NewAction([]interface{}{newConditionIfAction().Name(), "$.test2", "$.test", ">=", int32(123), true, false})
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test2", "$.test", ">=", int32(123), true, false})
 		So(err, ShouldBeNil)
-		e := newEvent()
+		e := cetest.MinEvent()
 		e.SetExtension("test", "456")
 		err = a.Execute(&context.EventContext{
-			Event: e,
+			Event: &e,
 		})
 		So(err, ShouldBeNil)
 		So(e.Extensions()["test2"], ShouldEqual, true)
 	})
 	Convey("test condition >", t, func() {
-		a, err := NewAction([]interface{}{newConditionIfAction().Name(), "$.test2", "$.test", ">", int32(123), true, false})
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test2", "$.test", ">", int32(123), true, false})
 		So(err, ShouldBeNil)
-		e := newEvent()
+		e := cetest.MinEvent()
 		e.SetExtension("test", 456)
 		err = a.Execute(&context.EventContext{
-			Event: e,
+			Event: &e,
 		})
 		So(err, ShouldBeNil)
 		So(e.Extensions()["test2"], ShouldEqual, true)
 	})
 	Convey("test condition <=", t, func() {
-		a, err := NewAction([]interface{}{newConditionIfAction().Name(), "$.test2", "$.test", "<=", "123", true, false})
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test2", "$.test", "<=", "123", true, false})
 		So(err, ShouldBeNil)
-		e := newEvent()
+		e := cetest.MinEvent()
 		e.SetExtension("test", 456)
 		err = a.Execute(&context.EventContext{
-			Event: e,
+			Event: &e,
 		})
 		So(err, ShouldBeNil)
 		So(e.Extensions()["test2"], ShouldEqual, false)
 	})
 	Convey("test condition <", t, func() {
-		a, err := NewAction([]interface{}{newConditionIfAction().Name(), "$.test2", "$.test", "<", "123", true, false})
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test2", "$.test", "<", "123", true, false})
 		So(err, ShouldBeNil)
-		e := newEvent()
+		e := cetest.MinEvent()
 		e.SetExtension("test", 456)
 		err = a.Execute(&context.EventContext{
-			Event: e,
+			Event: &e,
 		})
 		So(err, ShouldBeNil)
 		So(e.Extensions()["test2"], ShouldEqual, false)
 	})
 	Convey("test condition unDefine op invalid", t, func() {
-		a, err := NewAction([]interface{}{newConditionIfAction().Name(), "$.test2", "$.test", "<==", "123", true, false})
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test2", "$.test", "<==", "123", true, false})
 		So(err, ShouldBeNil)
-		e := newEvent()
+		e := cetest.MinEvent()
 		e.SetExtension("test", 456)
 		err = a.Execute(&context.EventContext{
-			Event: e,
+			Event: &e,
 		})
 		So(err, ShouldNotBeNil)
 	})

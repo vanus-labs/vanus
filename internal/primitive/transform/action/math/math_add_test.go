@@ -12,27 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package action_test
+package math_test
 
 import (
 	"testing"
 
 	cetest "github.com/cloudevents/sdk-go/v2/test"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action/math"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestActionExecute(t *testing.T) {
-	Convey("test action", t, func() {
-		a, err := runtime.NewAction([]interface{}{"delete", "$.test"})
+func TestMathAddAction(t *testing.T) {
+	funcName := math.NewMathAddAction().Name()
+	Convey("test math add", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test", "123", "456", "321"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
-		e.SetExtension("test", "abc")
 		err = a.Execute(&context.EventContext{
 			Event: &e,
 		})
 		So(err, ShouldBeNil)
-		So(len(e.Extensions()), ShouldEqual, 0)
+		So(e.Extensions()["test"], ShouldEqual, int32(900))
 	})
 }

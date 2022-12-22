@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package action_test
+package runtime
 
 import (
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 
 	ce "github.com/cloudevents/sdk-go/v2"
@@ -25,7 +24,7 @@ import (
 )
 
 func actionBenchmark(command []interface{}) func(b *testing.B) {
-	a, err := action.NewAction(command)
+	a, err := NewAction(command)
 	if err != nil {
 		panic(err)
 	}

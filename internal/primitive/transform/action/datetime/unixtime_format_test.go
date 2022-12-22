@@ -12,59 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package action
+package datetime_test
 
 import (
 	"testing"
 
+	cetest "github.com/cloudevents/sdk-go/v2/test"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action/datetime"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-
-	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func newEvent() *ce.Event {
-	e := ce.NewEvent()
-	e.SetID("testID")
-	e.SetType("testType")
-	e.SetSource("testSource")
-	return &e
-}
-
-func TestDateFormatAction(t *testing.T) {
-	Convey("test format date", t, func() {
-		Convey("test default time zone", func() {
-			e := newEvent()
-			e.SetExtension("test", "2022-11-15T15:41:25Z")
-			a, err := NewAction([]interface{}{newDateFormatAction().Name(), "$.test", "Y-m-d H:i:s"})
-			So(err, ShouldBeNil)
-			err = a.Execute(&context.EventContext{
-				Event: e,
-			})
-			So(err, ShouldBeNil)
-			So(e.Extensions()["test"], ShouldEqual, "2022-11-15 15:41:25")
-		})
-		Convey("test with time zone", func() {
-			e := newEvent()
-			e.SetExtension("test", "2022-11-15T15:41:25Z")
-			a, err := NewAction([]interface{}{newDateFormatAction().Name(), "$.test", "Y-m-d H:i:s", "EST"})
-			So(err, ShouldBeNil)
-			err = a.Execute(&context.EventContext{
-				Event: e,
-			})
-			So(err, ShouldBeNil)
-			So(e.Extensions()["test"], ShouldEqual, "2022-11-15 10:41:25")
-		})
-	})
-}
-
 func TestUnixTimeFormatAction(t *testing.T) {
+	funcName := datetime.NewUnixTimeFormatAction().Name()
 	Convey("test format unix time", t, func() {
 		Convey("test with default time zone", func() {
-			a, err := NewAction([]interface{}{newUnixTimeFormatAction().Name(), "$.data.time", "Y-m-d H:i:s"})
+			a, err := runtime.NewAction([]interface{}{funcName, "$.data.time", "Y-m-d H:i:s"})
 			So(err, ShouldBeNil)
+			e := cetest.MinEvent()
 			ceCtx := &context.EventContext{
-				Event: newEvent(),
+				Event: &e,
 				Data:  map[string]interface{}{"time": float64(1668498285)},
 			}
 			err = a.Execute(ceCtx)
@@ -72,10 +40,11 @@ func TestUnixTimeFormatAction(t *testing.T) {
 			So(ceCtx.Data.(map[string]interface{})["time"], ShouldEqual, "2022-11-15 07:44:45")
 		})
 		Convey("test with time zone", func() {
-			a, err := NewAction([]interface{}{newUnixTimeFormatAction().Name(), "$.data.time", "Y-m-d H:i:s", "EST"})
+			a, err := runtime.NewAction([]interface{}{funcName, "$.data.time", "Y-m-d H:i:s", "EST"})
 			So(err, ShouldBeNil)
+			e := cetest.MinEvent()
 			ceCtx := &context.EventContext{
-				Event: newEvent(),
+				Event: &e,
 				Data:  map[string]interface{}{"time": float64(1668498285)},
 			}
 			err = a.Execute(ceCtx)

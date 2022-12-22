@@ -12,25 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package action
+package strings_test
 
 import (
 	"testing"
 
+	cetest "github.com/cloudevents/sdk-go/v2/test"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action/strings"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestReplaceWithRegexAction(t *testing.T) {
-	Convey("test replace with regex", t, func() {
-		a, err := NewAction([]interface{}{newReplaceWithRegexAction().Name(), "$.test", "a", "value"})
+func TestUpperAction(t *testing.T) {
+	funcName := strings.NewUpperAction().Name()
+	Convey("test upper", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test"})
 		So(err, ShouldBeNil)
-		e := newEvent()
-		e.SetExtension("test", "a-a")
-		err = a.Execute(&context.EventContext{
-			Event: e,
-		})
+		e := cetest.MinEvent()
+		e.SetExtension("test", "testValue")
+		ceCtx := &context.EventContext{
+			Event: &e,
+		}
+		err = a.Execute(ceCtx)
 		So(err, ShouldBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "value-value")
+		So(e.Extensions()["test"], ShouldEqual, "TESTVALUE")
 	})
 }

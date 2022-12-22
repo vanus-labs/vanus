@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package action
+package strings
 
 import (
 	"regexp"
 	"sync"
 
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
@@ -25,31 +26,31 @@ import (
 )
 
 type replaceWithRegexAction struct {
-	commonAction
+	action.CommonAction
 	pattern *regexp.Regexp
 	expr    string
 	lock    sync.RWMutex
 }
 
-// ["replace_with_regex", "key", "pattern", "value"].
-func newReplaceWithRegexAction() Action {
+// NewReplaceWithRegexAction ["replace_with_regex", "key", "pattern", "value"].
+func NewReplaceWithRegexAction() action.Action {
 	return &replaceWithRegexAction{
-		commonAction: commonAction{
-			name:      "REPLACE_WITH_REGEX",
-			fixedArgs: []arg.TypeList{arg.EventList, arg.All, arg.All},
+		CommonAction: action.CommonAction{
+			ActionName: "REPLACE_WITH_REGEX",
+			FixedArgs:  []arg.TypeList{arg.EventList, arg.All, arg.All},
 		},
 	}
 }
 
 func (a *replaceWithRegexAction) Init(args []arg.Arg) error {
-	a.targetArg = args[0]
-	a.args = args
-	a.argTypes = []common.Type{common.String, common.String, common.String}
+	a.TargetArg = args[0]
+	a.Args = args
+	a.ArgTypes = []common.Type{common.String, common.String, common.String}
 	return nil
 }
 
 func (a *replaceWithRegexAction) Execute(ceCtx *context.EventContext) error {
-	args, err := a.runArgs(ceCtx)
+	args, err := a.RunArgs(ceCtx)
 	if err != nil {
 		return err
 	}
@@ -63,7 +64,7 @@ func (a *replaceWithRegexAction) Execute(ceCtx *context.EventContext) error {
 		}
 	}
 	newValue := a.getPattern().ReplaceAllString(originalValue, value)
-	return a.targetArg.SetValue(ceCtx, newValue)
+	return a.TargetArg.SetValue(ceCtx, newValue)
 }
 
 func (a *replaceWithRegexAction) setPattern(expr string) error {

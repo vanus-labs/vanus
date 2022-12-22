@@ -36,6 +36,7 @@ import (
 )
 
 type Worker interface {
+	Init(ctx context.Context) error
 	Register(ctx context.Context) error
 	Unregister(ctx context.Context) error
 	Start(ctx context.Context) error
@@ -78,11 +79,7 @@ func NewWorker(config Config) Worker {
 		triggerMap: make(map[vanus.ID]trigger.Trigger),
 		newTrigger: trigger.NewTrigger,
 	}
-	if err := m.ctrl.WaitForControllerReady(false); err != nil {
-		panic("wait for controller ready timeout")
-	}
 	m.client = m.ctrl.TriggerService().RawClient()
-
 	m.ctx, m.stop = context.WithCancel(context.Background())
 	return m
 }
@@ -104,6 +101,11 @@ func (w *worker) deleteTrigger(id vanus.ID) {
 	w.tgLock.Lock()
 	defer w.tgLock.Unlock()
 	delete(w.triggerMap, id)
+}
+
+func (w *worker) Init(ctx context.Context) error {
+	err := w.ctrl.WaitForControllerReady(false)
+	return err
 }
 
 func (w *worker) Register(ctx context.Context) error {

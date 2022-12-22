@@ -12,31 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package action
+package math
 
 import (
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
 )
 
-// ["date_format", "key", "format"，"timeZone"].
-func newDateFormatAction() Action {
-	return &sourceTargetSameAction{
-		commonAction{
-			fixedArgs:   []arg.TypeList{arg.EventList, arg.All},
-			variadicArg: arg.All,
-			fn:          function.DateFormatFunction,
-		},
+// NewMathSubAction ["math_sub", "targetPath","value1","value2"].
+func NewMathSubAction() action.Action {
+	a := &action.FunctionAction{}
+	a.CommonAction = action.CommonAction{
+		ActionName: "MATH_SUB",
+		FixedArgs:  []arg.TypeList{arg.EventList, arg.All, arg.All},
+		Fn:         function.MathSubFunction,
 	}
-}
-
-// ["unix_time_format", "key", "format","timeZone"].
-func newUnixTimeFormatAction() Action {
-	return &sourceTargetSameAction{
-		commonAction{
-			fixedArgs:   []arg.TypeList{arg.EventList, arg.All},
-			variadicArg: arg.All,
-			fn:          function.UnixTimeFormatFunction,
-		},
-	}
+	return a
 }

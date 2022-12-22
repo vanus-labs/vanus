@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package action
+package condition
 
 import (
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
@@ -22,46 +23,46 @@ import (
 )
 
 type conditionIfAction struct {
-	commonAction
+	action.CommonAction
 }
 
-// ["condition_if","$.targetPath","$.path","op","compareValue","trueValue","falseValue"]
+// NewConditionIfAction ["condition_if","$.targetPath","$.path","op","compareValue","trueValue","falseValue"]
 // op must be string and only support ==,>=,>,<=,< .
-func newConditionIfAction() Action {
+func NewConditionIfAction() action.Action {
 	return &conditionIfAction{
-		commonAction{
-			name:      "CONDITION_IF",
-			fixedArgs: []arg.TypeList{arg.EventList, arg.All, arg.All, arg.All, arg.All, arg.All},
+		action.CommonAction{
+			ActionName: "CONDITION_IF",
+			FixedArgs:  []arg.TypeList{arg.EventList, arg.All, arg.All, arg.All, arg.All, arg.All},
 		},
 	}
 }
 
 func (a *conditionIfAction) Init(args []arg.Arg) error {
-	a.targetArg = args[0]
-	a.args = args[1:]
+	a.TargetArg = args[0]
+	a.Args = args[1:]
 	return nil
 }
 
 func (a *conditionIfAction) Execute(ceCtx *context.EventContext) error {
-	v, err := a.args[1].Evaluate(ceCtx)
+	v, err := a.Args[1].Evaluate(ceCtx)
 	if err != nil {
-		return errors.Wrapf(err, "arg %s evaluate error", a.args[1].Original())
+		return errors.Wrapf(err, "arg %s evaluate error", a.Args[1].Original())
 	}
 	op, ok := v.(string)
 	if !ok {
 		return errors.New("op type must be string")
 	}
 	if op == "==" {
-		a.argTypes = []common.Type{common.String, common.String, common.String, common.Any, common.Any}
+		a.ArgTypes = []common.Type{common.String, common.String, common.String, common.Any, common.Any}
 	} else {
 		switch op {
 		case ">=", ">", "<=", "<":
-			a.argTypes = []common.Type{common.Number, common.String, common.Number, common.Any, common.Any}
+			a.ArgTypes = []common.Type{common.Number, common.String, common.Number, common.Any, common.Any}
 		default:
 			return errors.Errorf("not support op [%s]", op)
 		}
 	}
-	args, err := a.runArgs(ceCtx)
+	args, err := a.RunArgs(ceCtx)
 	if err != nil {
 		return err
 	}
@@ -79,7 +80,7 @@ func (a *conditionIfAction) Execute(ceCtx *context.EventContext) error {
 		result = args[0].(float64) < args[2].(float64)
 	}
 	if result {
-		return a.targetArg.SetValue(ceCtx, args[3])
+		return a.TargetArg.SetValue(ceCtx, args[3])
 	}
-	return a.targetArg.SetValue(ceCtx, args[4])
+	return a.TargetArg.SetValue(ceCtx, args[4])
 }
