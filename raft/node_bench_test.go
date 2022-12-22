@@ -34,7 +34,7 @@ func BenchmarkOneNode(b *testing.B) {
 	n.Campaign(ctx)
 	go func() {
 		for i := 0; i < b.N; i++ {
-			n.Propose(ctx, []byte("foo"))
+			Propose1(ctx, &n, []byte("foo"))
 		}
 	}()
 

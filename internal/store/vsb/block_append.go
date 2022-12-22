@@ -85,10 +85,6 @@ func (b *vsBlock) NewAppendContext(last block.Fragment) block.AppendContext {
 func (b *vsBlock) PrepareAppend(
 	ctx context.Context, appendCtx block.AppendContext, entries ...block.Entry,
 ) ([]int64, block.Fragment, bool, error) {
-	span := trace.SpanFromContext(ctx)
-	span.AddEvent("store.vsb.vsBlock.PrepareAppend() Start")
-	defer span.AddEvent("store.vsb.vsBlock.PrepareAppend() End")
-
 	actx, _ := appendCtx.(*appendContext)
 
 	num := int64(len(entries))
@@ -129,10 +125,6 @@ func (b *vsBlock) PrepareArchive(ctx context.Context, appendCtx block.AppendCont
 }
 
 func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb block.CommitAppendCallback) {
-	span := trace.SpanFromContext(ctx)
-	span.AddEvent("store.vsb.vsBlock.CommitAppend() Start")
-	defer span.AddEvent("store.vsb.vsBlock.CommitAppend() End")
-
 	if frag == nil {
 		b.s.Append(dummyReader, func(n int, err error) {
 			cb()
@@ -149,16 +141,23 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 			"fragment_start_offset": frag.StartOffset(),
 			"fragment_end_offset":   frag.EndOffset(),
 		})
-		// TODO(james.yin): invoke callback.
+		// TODO(james.yin): use new method.
+		b.s.Append(dummyReader, func(n int, err error) {
+			cb()
+		})
 		return
 	}
 	if frag.StartOffset() != off {
 		log.Error(ctx, "vsb: missing some fragments.", map[string]interface{}{
-			"block_id": b.id,
-			"expected": off,
-			"found":    frag.StartOffset(),
+			"block_id":              b.id,
+			"expected":              off,
+			"fragment_start_offset": frag.StartOffset(),
+			"fragment_end_offset":   frag.EndOffset(),
 		})
-		// TODO(james.yin): invoke callback.
+		// TODO(james.yin): use new method.
+		b.s.Append(dummyReader, func(n int, err error) {
+			cb()
+		})
 		return
 	}
 
@@ -208,10 +207,6 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 func (b *vsBlock) buildIndexes(
 	ctx context.Context, expected int64, frag block.Fragment,
 ) ([]index.Index, int64, bool, error) {
-	span := trace.SpanFromContext(ctx)
-	span.AddEvent("store.vsb.vsBlock.buildIndexes() Start")
-	defer span.AddEvent("store.vsb.vsBlock.buildIndexes() End")
-
 	base := frag.StartOffset()
 	data := frag.Payload()
 

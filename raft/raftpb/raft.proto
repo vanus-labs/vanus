@@ -62,8 +62,9 @@ enum MessageType {
   MsgReadIndexResp = 16;
   MsgPreVote = 17;
   MsgPreVoteResp = 18;
-  MsgLogResp = 19;
-  MsgApplyResp = 20;
+  MsgLogStatus = 19;
+  MsgApplyStatus = 20;
+  MsgStateStatus = 21;
 }
 
 message Message {
@@ -81,6 +82,7 @@ message Message {
   uint64 index = 6;
   repeated Entry entries = 7 [(gogoproto.nullable) = false];
   uint64 commit = 8;
+  uint64 vote = 14;
   uint64 compact = 13;
   Snapshot snapshot = 9 [(gogoproto.nullable) = false];
   bool reject = 10;

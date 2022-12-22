@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=fragment.go  -destination=testing/mock_fragment.go -package=testing
+//go:generate mockgen -source=fragment.go -destination=testing/mock_fragment.go -package=testing
 package block
 
 import (

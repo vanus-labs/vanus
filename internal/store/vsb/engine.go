@@ -19,7 +19,6 @@ import (
 	"os"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/block/raw"
 	"github.com/linkall-labs/vanus/internal/store/io/stream"
@@ -43,15 +42,6 @@ func (e *engine) Close() {
 	e.s.Close()
 }
 
-func (e *engine) GetBlockStatistics(id vanus.ID, r block.Raw) (block.Statistics, error) {
-	if r != nil {
-		b, _ := r.(*vsBlock)
-		return b.status(), nil
-	}
-	// TODO(james.yin): get vsb by id.
-	return block.Statistics{}, nil
-}
-
 func Initialize(dir string, opts ...Option) error {
 	cfg := makeConfig(opts...)
 	return initialize(dir, cfg)
@@ -63,7 +53,7 @@ func initialize(dir string, cfg config) error {
 		return err
 	}
 
-	s := stream.NewScheduler(cfg.engine, cfg.flushBatchSize, cfg.flushDelayTime)
+	s := stream.NewScheduler(cfg.engine, cfg.streamSchedulerOptions()...)
 
 	return raw.RegisterEngine(raw.VSB, &engine{
 		dir: dir,

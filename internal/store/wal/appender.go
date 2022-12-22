@@ -19,19 +19,17 @@ import (
 	"context"
 	"io"
 
-	// third-party project.
-	"go.opentelemetry.io/otel/trace"
-
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
 )
 
-func (w *WAL) newAppender(ctx context.Context, entries [][]byte, callback AppendCallback) *appender {
+func (w *WAL) newAppender(ctx context.Context, entries [][]byte, direct bool, callback AppendCallback) *appender {
 	return &appender{
 		w:        w,
 		entries:  entries,
 		ranges:   make([]Range, len(entries)),
 		ctx:      ctx,
+		direct:   direct,
 		callback: callback,
 	}
 }
@@ -46,6 +44,7 @@ type appender struct {
 	ranges []Range
 
 	ctx      context.Context
+	direct   bool
 	callback AppendCallback
 }
 
@@ -53,24 +52,17 @@ type appender struct {
 var _ io.Reader = (*appender)(nil)
 
 func (a *appender) invoke() {
-	span := trace.SpanFromContext(a.ctx)
-	span.AddEvent("store.wal.appender.invoke() Start")
-	defer span.AddEvent("store.wal.appender.invoke() End")
-
 	a.w.appendWg.Add(1)
 
 	a.w.s.Append(a, a.onAppended)
+	if a.direct {
+		a.w.s.Sync()
+	}
 
 	// metrics.WALEntryWriteCounter.Add(float64(len(entries)))
 	// metrics.WALEntryWriteSizeCounter.Add(float64(entrySize))
 	// metrics.WALRecordWriteCounter.Add(float64(recordCount))
 	// metrics.WALRecordWriteSizeCounter.Add(float64(recordSize))
-
-	// span.SetAttributes(
-	// 	attribute.Int("entry_count", len(entries)),
-	// 	attribute.Int("entry_size", entrySize),
-	// 	attribute.Int("record_count", recordCount),
-	// 	attribute.Int("record_size", recordSize))
 }
 
 func (a *appender) Read(b []byte) (int, error) {

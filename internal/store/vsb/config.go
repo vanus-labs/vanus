@@ -22,25 +22,32 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/block"
 	ioengine "github.com/linkall-labs/vanus/internal/store/io/engine"
 	"github.com/linkall-labs/vanus/internal/store/io/engine/psync"
-)
-
-const (
-	defaultFlushBatchSize = 4 * 1024
-	defaultFlushDelayTime = 3 * time.Millisecond
+	"github.com/linkall-labs/vanus/internal/store/io/stream"
 )
 
 type config struct {
-	engine         ioengine.Interface
-	flushBatchSize int
-	flushDelayTime time.Duration
-	lis            block.ArchivedListener
+	engine           ioengine.Interface
+	flushBatchSize   int           // default: 16 * 1024
+	flushDelayTime   time.Duration // default: 3 * time.Millisecond
+	callbackParallel int           // default: 1
+	lis              block.ArchivedListener
+}
+
+func (cfg *config) streamSchedulerOptions() (opts []stream.Option) {
+	if cfg.flushBatchSize != 0 {
+		opts = append(opts, stream.WithFlushBatchSize(cfg.flushBatchSize))
+	}
+	if cfg.flushDelayTime != 0 {
+		opts = append(opts, stream.WithFlushDelayTime(cfg.flushDelayTime))
+	}
+	if cfg.callbackParallel != 0 {
+		opts = append(opts, stream.WithCallbackParallel(cfg.callbackParallel))
+	}
+	return opts
 }
 
 func defaultConfig() config {
-	cfg := config{
-		flushBatchSize: defaultFlushBatchSize,
-		flushDelayTime: defaultFlushDelayTime,
-	}
+	cfg := config{}
 	return cfg
 }
 
@@ -76,6 +83,12 @@ func WithFlushBatchSize(size int) Option {
 func WithFlushDelayTime(d time.Duration) Option {
 	return func(cfg *config) {
 		cfg.flushDelayTime = d
+	}
+}
+
+func WithCallbackParallel(parallel int) Option {
+	return func(cfg *config) {
+		cfg.callbackParallel = parallel
 	}
 }
 

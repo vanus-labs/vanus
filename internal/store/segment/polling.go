@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=polling.go  -destination=mock_polling.go -package=segment
+//go:generate mockgen -source=polling.go -destination=mock_polling.go -package=segment
 package segment
 
 import (

@@ -20,12 +20,14 @@ import (
 
 	// this project.
 	ioengine "github.com/linkall-labs/vanus/internal/store/io/engine"
+	"github.com/linkall-labs/vanus/internal/store/io/stream"
+	"github.com/linkall-labs/vanus/internal/store/io/zone/segmentedfile"
 )
 
 const (
+	logFileExt              = ".log"
 	defaultBlockSize        = 16 * 1024
 	defaultFileSize         = 128 * 1024 * 1024
-	defaultFlushTimeout     = 3 * time.Millisecond
 	defaultAppendBufferSize = 64
 )
 
@@ -34,16 +36,34 @@ type config struct {
 	cb               OnEntryCallback
 	blockSize        int
 	fileSize         int64
-	flushTimeout     time.Duration
+	flushDelayTime   time.Duration // default: 3 * time.Millisecond
 	appendBufferSize int
 	engine           ioengine.Interface
+}
+
+func (cfg *config) segmentedFileOptions() []segmentedfile.Option {
+	opts := []segmentedfile.Option{segmentedfile.WithExtension(logFileExt)}
+	if cfg.fileSize != 0 {
+		opts = append(opts, segmentedfile.WithSegmentSize(cfg.fileSize))
+	}
+	return opts
+}
+
+func (cfg *config) streamSchedulerOptions() []stream.Option {
+	opts := []stream.Option{stream.WithCallbackParallel(1)}
+	if cfg.blockSize != 0 {
+		opts = append(opts, stream.WithFlushBatchSize(cfg.blockSize))
+	}
+	if cfg.flushDelayTime != 0 {
+		opts = append(opts, stream.WithFlushDelayTime(cfg.flushDelayTime))
+	}
+	return opts
 }
 
 func defaultConfig() config {
 	cfg := config{
 		blockSize:        defaultBlockSize,
 		fileSize:         defaultFileSize,
-		flushTimeout:     defaultFlushTimeout,
 		appendBufferSize: defaultAppendBufferSize,
 	}
 	return cfg
@@ -86,9 +106,9 @@ func WithFileSize(fileSize int64) Option {
 	}
 }
 
-func WithFlushTimeout(d time.Duration) Option {
+func WithFlushDelayTime(d time.Duration) Option {
 	return func(cfg *config) {
-		cfg.flushTimeout = d
+		cfg.flushDelayTime = d
 	}
 }
 

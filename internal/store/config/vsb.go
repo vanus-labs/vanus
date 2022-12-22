@@ -15,13 +15,22 @@
 package config
 
 import (
+	// standard libraries.
+	"time"
+
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/vsb"
 )
 
+type VSBExecutorParallel struct {
+	Callback int `yaml:"callback"`
+}
+
 type VSB struct {
-	FlushBatchSize int `yaml:"flush_batch_size"`
-	IO             `yaml:"io"`
+	FlushBatchSize int                 `yaml:"flush_batch_size"`
+	FlushDelayTime string              `yaml:"flush_delay_time"`
+	Parallel       VSBExecutorParallel `yaml:"parallel"`
+	IO             IO                  `yaml:"io"`
 }
 
 func (c *VSB) Validate() error {
@@ -31,6 +40,16 @@ func (c *VSB) Validate() error {
 func (c *VSB) Options() (opts []vsb.Option) {
 	if c.FlushBatchSize != 0 {
 		opts = append(opts, vsb.WithFlushBatchSize(c.FlushBatchSize))
+	}
+	if c.FlushDelayTime != "" {
+		d, err := time.ParseDuration(c.FlushDelayTime)
+		if err != nil {
+			panic(err)
+		}
+		opts = append(opts, vsb.WithFlushDelayTime(d))
+	}
+	if c.Parallel.Callback != 0 {
+		opts = append(opts, vsb.WithCallbackParallel(c.Parallel.Callback))
 	}
 	if c.IO.Engine != "" {
 		opts = append(opts, vsb.WithIOEngine(buildIOEngine(c.IO)))

@@ -69,7 +69,7 @@ type vsBlock struct {
 	wg sync.WaitGroup
 }
 
-// Make sure vsBlock implements block.File.
+// Make sure vsBlock implements block.Raw.
 var _ block.Raw = (*vsBlock)(nil)
 
 func (b *vsBlock) ID() vanus.ID {
@@ -111,7 +111,7 @@ func (b *vsBlock) Delete(context.Context) error {
 	return os.Remove(b.path)
 }
 
-func (b *vsBlock) status() block.Statistics {
+func (b *vsBlock) Status() block.Statistics {
 	return b.stat(b.makeSnapshot())
 }
 

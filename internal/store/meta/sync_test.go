@@ -21,9 +21,6 @@ import (
 
 	// third-party libraries.
 	. "github.com/smartystreets/goconvey/convey"
-
-	// this project.
-	"github.com/linkall-labs/vanus/internal/store/config"
 )
 
 var (
@@ -34,10 +31,10 @@ var (
 
 func TestSyncStore(t *testing.T) {
 	Convey("SyncStore", t, func() {
-		walDir := t.TempDir()
+		dir := t.TempDir()
 
 		Convey("new empty SyncStore by recovery", func() {
-			ss, err := RecoverSyncStore(context.Background(), config.SyncStore{}, walDir)
+			ss, err := RecoverSyncStore(context.Background(), dir)
 
 			So(err, ShouldBeNil)
 			So(ss, ShouldNotBeNil)
@@ -46,14 +43,14 @@ func TestSyncStore(t *testing.T) {
 		})
 
 		Convey("setup SyncStore", func() {
-			ss, err := RecoverSyncStore(context.Background(), config.SyncStore{}, walDir)
+			ss, err := RecoverSyncStore(context.Background(), dir)
 			So(err, ShouldBeNil)
-			ss.Store(context.Background(), key0, "value0")
-			ss.Store(context.Background(), key1, "value1")
+			Store(context.Background(), ss, key0, "value0")
+			Store(context.Background(), ss, key1, "value1")
 			ss.Close(context.Background())
 
 			Convey("recover SyncStore", func() {
-				ss, err = RecoverSyncStore(context.Background(), config.SyncStore{}, walDir)
+				ss, err = RecoverSyncStore(context.Background(), dir)
 				So(err, ShouldBeNil)
 
 				value0, ok0 := ss.Load(key0)
@@ -68,11 +65,11 @@ func TestSyncStore(t *testing.T) {
 				So(ok2, ShouldBeFalse)
 
 				Convey("modify SyncStore", func() {
-					ss.Delete(context.Background(), key1)
+					Delete(context.Background(), ss, key1)
 					_, ok1 = ss.Load(key1)
 					So(ok1, ShouldBeFalse)
 
-					ss.Store(context.Background(), key2, "value2")
+					Store(context.Background(), ss, key2, "value2")
 					value2, ok2 := ss.Load(key2)
 					So(ok2, ShouldBeTrue)
 					So(value2, ShouldResemble, "value2")
@@ -80,7 +77,7 @@ func TestSyncStore(t *testing.T) {
 					ss.Close(context.Background())
 
 					Convey("recover SyncStore again", func() {
-						ss, err = RecoverSyncStore(context.Background(), config.SyncStore{}, walDir)
+						ss, err = RecoverSyncStore(context.Background(), dir)
 						So(err, ShouldBeNil)
 
 						value0, ok0 := ss.Load(key0)
