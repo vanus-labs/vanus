@@ -24,6 +24,7 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/io/engine"
+	"github.com/linkall-labs/vanus/internal/store/io/zone/file"
 )
 
 var (
@@ -37,8 +38,11 @@ func DoEngineTest(e engine.Interface, f *os.File) {
 	var rn int
 	var rerr error
 
+	z, err := file.New(f)
+	So(err, ShouldBeNil)
+
 	wg.Add(1)
-	e.WriteAt(f, data0, 0, 0, 0, func(n int, err error) {
+	e.WriteAt(z, data0, 0, 0, 0, func(n int, err error) {
 		rn = n
 		rerr = err
 		wg.Done()
@@ -49,7 +53,7 @@ func DoEngineTest(e engine.Interface, f *os.File) {
 	So(rn, ShouldEqual, len(data0))
 
 	wg.Add(1)
-	e.WriteAt(f, data1, 0, 0, 0, func(n int, err error) {
+	e.WriteAt(z, data1, 0, 0, 0, func(n int, err error) {
 		rn = n
 		rerr = err
 		wg.Done()

@@ -27,6 +27,7 @@ import (
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store/block"
+	"github.com/linkall-labs/vanus/internal/store/io/zone/file"
 	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
 )
 
@@ -70,7 +71,13 @@ func (e *engine) Create(ctx context.Context, id vanus.ID, capacity int64) (block
 		return nil, processError(err, f, path)
 	}
 
-	b.s = e.s.Register(f, b.actx.offset)
+	if z, err := file.New(f); err == nil {
+		b.z = z
+	} else {
+		return nil, processError(err, f, path)
+	}
+
+	b.s = e.s.Register(b.z, b.actx.offset)
 
 	return b, nil
 }
@@ -98,7 +105,13 @@ func (e *engine) Open(ctx context.Context, id vanus.ID) (block.Raw, error) {
 		return nil, err
 	}
 
-	b.s = e.s.Register(b.f, b.actx.offset)
+	if z, err := file.New(b.f); err == nil {
+		b.z = z
+	} else {
+		return nil, err
+	}
+
+	b.s = e.s.Register(b.z, b.actx.offset)
 
 	return b, nil
 }

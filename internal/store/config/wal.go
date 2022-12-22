@@ -24,14 +24,14 @@ import (
 )
 
 const (
-	baseKB                    = 1024
-	baseMB                    = 1024 * baseKB
-	baseWALBlockSize   uint64 = 4 * baseKB
-	minWALFlushTimeout        = 200 * time.Microsecond
+	baseKB             = 1024
+	baseMB             = 1024 * baseKB
+	baseWALBlockSize   = 4 * baseKB
+	minWALFlushTimeout = 200 * time.Microsecond
 )
 
 type WAL struct {
-	BlockSize    uint64 `yaml:"block_size"`
+	BlockSize    int    `yaml:"block_size"`
 	FileSize     uint64 `yaml:"file_size"`
 	FlushTimeout string `yaml:"flush_timeout"`
 	IO           `yaml:"io"`
@@ -58,7 +58,7 @@ func (c *WAL) Validate(minFileSize uint64) error {
 
 func (c *WAL) Options() (opts []wal.Option) {
 	if c.BlockSize != 0 {
-		opts = append(opts, wal.WithBlockSize(int64(c.BlockSize)))
+		opts = append(opts, wal.WithBlockSize(c.BlockSize))
 	}
 	if c.FileSize != 0 {
 		opts = append(opts, wal.WithFileSize(int64(c.FileSize)))

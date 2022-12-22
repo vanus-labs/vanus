@@ -26,7 +26,7 @@ import (
 const (
 	defaultBlockSize        = 4 * 1024
 	defaultFileSize         = 128 * 1024 * 1024
-	defaultFlushTimeout     = 200 * time.Microsecond
+	defaultFlushTimeout     = 3 * time.Millisecond
 	defaultAppendBufferSize = 64
 	defaultFlushBufferSize  = 64
 	defaultWakeupBufferSize = defaultFlushBufferSize * 2
@@ -35,7 +35,7 @@ const (
 type config struct {
 	pos                int64
 	cb                 OnEntryCallback
-	blockSize          int64
+	blockSize          int
 	fileSize           int64
 	flushTimeout       time.Duration
 	appendBufferSize   int
@@ -83,10 +83,10 @@ func WithRecoveryCallback(cb OnEntryCallback) Option {
 	}
 }
 
-func WithBlockSize(blockSize int64) Option {
+func WithBlockSize(blockSize int) Option {
 	return func(cfg *config) {
 		cfg.blockSize = blockSize
-		cfg.callbackBufferSize = int((blockSize + record.HeaderSize - 1) / record.HeaderSize)
+		cfg.callbackBufferSize = (blockSize + record.HeaderSize - 1) / record.HeaderSize
 	}
 }
 

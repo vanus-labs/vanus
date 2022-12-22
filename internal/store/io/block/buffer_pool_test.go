@@ -25,7 +25,7 @@ import (
 var emptyBuf = make([]byte, bufferSize)
 
 func TestBufferPool(t *testing.T) {
-	Convey("wal block allocator", t, func() {
+	Convey("buffer pool", t, func() {
 		pool := NewBufferPool(bufferSize)
 		So(pool, ShouldNotBeNil)
 		So(pool.BufferSize(), ShouldEqual, bufferSize)

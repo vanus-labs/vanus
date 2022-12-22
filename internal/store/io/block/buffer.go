@@ -83,13 +83,17 @@ func (b *Buffer) Full() bool {
 	return b.Remaining() == 0
 }
 
+func (b *Buffer) Empty() bool {
+	return b.Size() == 0
+}
+
 func (b *Buffer) Append(r stdio.Reader) (int, error) {
 	n, err := r.Read(b.buf[b.wp:])
 	if err != nil && err != stdio.EOF { //nolint:errorlint // compare to EOF is ok.
 		return 0, err
 	}
 	b.wp += n
-	return b.wp, nil
+	return b.wp, err
 }
 
 // Flush flushes data in the buffer to storage by writer.

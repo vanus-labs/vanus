@@ -126,9 +126,9 @@ func BenchmarkWAL_AppendOneWithCallback(b *testing.B) {
 		// {size: 128},
 		// {size: 256},
 		// {size: 512},
-		// {size: 1024},
+		{size: 1024},
 		// {size: 2048},
-		{size: 4096},
+		// {size: 4096},
 		// {size: 8192},
 	}
 	for i := range testCases {

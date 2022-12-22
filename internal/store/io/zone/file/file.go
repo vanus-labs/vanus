@@ -12,37 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package stream
+package file
 
-import "io"
+import (
+	// standard libraries.
+	"os"
 
-type input struct {
-	data []byte
-	wp   int
+	// this project.
+	"github.com/linkall-labs/vanus/internal/store/io/zone"
+)
+
+type file struct {
+	f *os.File
 }
 
-// Make sure Data implements io.Reader.
-var _ io.Reader = (*input)(nil)
+// Make sure file implements zone.Interface.
+var _ zone.Interface = (*file)(nil)
 
-func (in *input) remaining() int {
-	return len(in.data) - in.wp
+func New(f *os.File) (zone.Interface, error) {
+	return &file{
+		f: f,
+	}, nil
 }
 
-func (in *input) eof() bool {
-	return in.remaining() == 0
-}
-
-func (in *input) advance(sz int) []byte {
-	// if sz > in.remaining() {
-	// 	panic("no enough data")
-	// }
-	b := in.data[in.wp : in.wp+sz]
-	in.wp += sz
-	return b
-}
-
-func (in *input) Read(b []byte) (int, error) {
-	n := copy(b, in.data[in.wp:])
-	in.wp += n
-	return n, nil
+func (f *file) Raw(off int64) (*os.File, int64) {
+	return f.f, off
 }

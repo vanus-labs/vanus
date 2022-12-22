@@ -20,7 +20,6 @@ package uring
 import (
 	// standard libraries.
 	"context"
-	"os"
 	"sort"
 
 	// third-party libraries.
@@ -29,6 +28,7 @@ import (
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/io"
 	"github.com/linkall-labs/vanus/internal/store/io/engine"
+	"github.com/linkall-labs/vanus/internal/store/io/zone"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
@@ -135,10 +135,11 @@ func (e *uRing) runCallback() {
 	}
 }
 
-func (e *uRing) WriteAt(f *os.File, b []byte, off int64, so, eo int, cb io.WriteCallback) {
+func (e *uRing) WriteAt(z zone.Interface, b []byte, off int64, so, eo int, cb io.WriteCallback) {
 	seq := e.generateSeq()
 
-	pr := iouring.Pwrite(int(f.Fd()), b, uint64(off)).
+	f, offset := z.Raw(off)
+	pr := iouring.Pwrite(int(f.Fd()), b, uint64(offset)).
 		WithInfo(seq).
 		WithCallback(func(result iouring.Result) error {
 			cb(result.ReturnInt())

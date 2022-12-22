@@ -14,8 +14,10 @@ package vsb
 
 import (
 	// standard libraries.
+	"bytes"
 	"context"
 	stderr "errors"
+	stdio "io"
 	"sync/atomic"
 	"time"
 
@@ -32,7 +34,10 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/vsb/index"
 )
 
-var errCorruptedFragment = stderr.New("vsb: corrupted fragment")
+var (
+	errCorruptedFragment = stderr.New("vsb: corrupted fragment")
+	dummyReader          = stdio.LimitReader(nil, 0)
+)
 
 type appendContext struct {
 	seq      int64
@@ -129,7 +134,7 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 	defer span.AddEvent("store.vsb.vsBlock.CommitAppend() End")
 
 	if frag == nil {
-		b.s.Append(nil, func(n int, err error) {
+		b.s.Append(dummyReader, func(n int, err error) {
 			cb()
 		})
 		return
@@ -163,7 +168,7 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 	b.actx.offset = frag.EndOffset()
 
 	if !archived {
-		b.s.Append(frag.Payload(), func(n int, err error) {
+		b.s.Append(bytes.NewReader(frag.Payload()), func(n int, err error) {
 			b.mu.Lock()
 			b.indexes = append(b.indexes, indexes...)
 			b.mu.Unlock()
@@ -176,7 +181,7 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 	atomic.StoreUint32(&b.actx.archived, 1)
 
 	b.wg.Add(1)
-	b.s.Append(frag.Payload(), func(n int, err error) {
+	b.s.Append(bytes.NewReader(frag.Payload()), func(n int, err error) {
 		if len(indexes) != 0 {
 			b.mu.Lock()
 			b.indexes = append(b.indexes, indexes...)
@@ -244,6 +249,6 @@ func (b *vsBlock) appendIndexEntry(ctx context.Context, indexes []index.Index, c
 		return
 	}
 
-	b.s.Append(data, cb)
+	b.s.Append(bytes.NewReader(data), cb)
 	// return sz, nil
 }

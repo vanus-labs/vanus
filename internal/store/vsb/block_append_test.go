@@ -28,6 +28,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/io/engine/psync"
 	"github.com/linkall-labs/vanus/internal/store/io/stream"
+	"github.com/linkall-labs/vanus/internal/store/io/zone/file"
 	cetest "github.com/linkall-labs/vanus/internal/store/schema/ce/testing"
 	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
 	idxtest "github.com/linkall-labs/vanus/internal/store/vsb/index/testing"
@@ -90,7 +91,10 @@ func TestVSBlock_Append(t *testing.T) {
 		f, err := os.CreateTemp("", "*.vsb")
 		So(err, ShouldBeNil)
 
-		s := scheduler.Register(f, headerBlockSize)
+		z, err := file.New(f)
+		So(err, ShouldBeNil)
+
+		s := scheduler.Register(z, headerBlockSize)
 
 		dec, _ := codec.NewDecoder(false, codec.IndexSize)
 		b := &vsBlock{
@@ -227,7 +231,10 @@ func TestVSBlock_Append(t *testing.T) {
 		f, err := os.CreateTemp("", "*.vsb")
 		So(err, ShouldBeNil)
 
-		s := scheduler.Register(f, headerBlockSize)
+		z, err := file.New(f)
+		So(err, ShouldBeNil)
+
+		s := scheduler.Register(z, headerBlockSize)
 
 		defer func() {
 			scheduler.Unregister(s)

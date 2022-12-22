@@ -16,19 +16,20 @@ package stream
 
 import (
 	// standard libraries.
-	"os"
+	stdio "io"
 	"sync"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/io"
 	"github.com/linkall-labs/vanus/internal/store/io/block"
+	"github.com/linkall-labs/vanus/internal/store/io/zone"
 )
 
 type Stream interface {
-	File() *os.File
+	// Zone() zone.Interface
 	WriteOffset() int64
 
-	Append(b []byte, cb io.WriteCallback)
+	Append(r stdio.Reader, cb io.WriteCallback)
 }
 
 type flushTask struct {
@@ -39,7 +40,7 @@ type flushTask struct {
 
 type stream struct {
 	s *scheduler
-	f *os.File
+	z zone.Interface
 
 	mu  sync.Mutex
 	buf *block.Buffer
@@ -61,8 +62,8 @@ var (
 	_ PendingTask = (*stream)(nil)
 )
 
-func (s *stream) File() *os.File {
-	return s.f
+func (s *stream) Zone() zone.Interface {
+	return s.z
 }
 
 func (s *stream) WriteOffset() int64 {
@@ -72,65 +73,63 @@ func (s *stream) WriteOffset() int64 {
 	return s.off + int64(s.buf.Size())
 }
 
-func (s *stream) Append(b []byte, cb io.WriteCallback) {
+func (s *stream) Append(r stdio.Reader, cb io.WriteCallback) {
 	flushBatchSize := s.s.bufferSize()
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	in := &input{data: b}
+	var n int
+	var err error
+	var last *block.Buffer
 
-	if buf := s.buf; buf != nil {
-		_, _ = buf.Append(in)
-
-		eof := in.eof()
-		if eof {
-			s.waiting = append(s.waiting, cb)
+	for err == nil {
+		if s.buf == nil {
+			s.buf = s.s.getBuffer(s.off)
 		}
 
-		if buf.Full() {
-			// Flush block directly.
+		n, err = s.buf.Append(r)
+		if err != nil && err != stdio.EOF { //nolint:errorlint // compare to EOF is ok
+			panic(err)
+		}
 
+		if n == 0 {
+			continue
+		}
+
+		if s.buf.Full() {
 			if s.dirty {
 				s.dirty = false
 				s.cancelFlushTimer()
 			}
 
-			s.flushBuffer(buf, s.waiting)
+			if last != nil {
+				s.flushBuffer(last, s.waiting)
+				s.waiting = nil
+			}
+			last = s.buf
+
 			s.off += int64(flushBatchSize)
 			s.buf = nil
-			s.waiting = nil
-		} else if !s.dirty {
-			s.dirty = true
-			s.startFlushTimer()
-		}
-
-		if eof {
-			return
 		}
 	}
 
-	for {
-		switch remaining := in.remaining(); {
-		case remaining > flushBatchSize:
-			ob := block.Oneshot(s.off, in.advance(flushBatchSize))
-			s.flushBlock(ob, nil)
-			s.off += int64(flushBatchSize)
-		case remaining == flushBatchSize:
-			ob := block.Oneshot(s.off, in.advance(flushBatchSize))
-			s.flushBlock(ob, []io.WriteCallback{cb})
-			s.off += int64(flushBatchSize)
-			return
-		default:
-			buf := s.s.getBuffer(s.off)
-			_, _ = buf.Append(in)
+	empty := s.buf == nil || s.buf.Empty()
 
-			s.buf = buf
-			s.waiting = []io.WriteCallback{cb}
+	if empty {
+		s.waiting = append(s.waiting, cb)
+	}
+
+	if last != nil {
+		s.flushBuffer(last, s.waiting)
+		s.waiting = nil
+	}
+
+	if !empty {
+		s.waiting = append(s.waiting, cb)
+		if !s.dirty {
 			s.dirty = true
-
 			s.startFlushTimer()
-			return
 		}
 	}
 }
@@ -266,5 +265,5 @@ func invokeCallbacks(cbs []io.WriteCallback, n int, err error) {
 }
 
 func (s *stream) WriteAt(b []byte, off int64, so, eo int, cb io.WriteCallback) {
-	s.s.writeAt(s.f, b, off, so, eo, cb)
+	s.s.writeAt(s.z, b, off, so, eo, cb)
 }

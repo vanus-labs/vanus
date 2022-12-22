@@ -16,123 +16,188 @@ package wal
 
 import (
 	// standard libraries.
+	"bytes"
 	"context"
-	"os"
-	"path/filepath"
-	"strconv"
+	"errors"
 
 	// third-party project.
-	"go.opentelemetry.io/otel/trace"
+	"github.com/ncw/directio"
 
 	// first-party project.
 	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/tracing"
+
+	// this project.
+	"github.com/linkall-labs/vanus/internal/store/io/zone/segmentedfile"
+	"github.com/linkall-labs/vanus/internal/store/wal/record"
 )
 
-const (
-	defaultDirPerm = 0o755
+type OnEntryCallback = func(entry []byte, r Range) error
+
+var (
+	ErrOutOfRange = errors.New("WAL: out of range")
+	errEndOfLog   = errors.New("WAL: end of log")
 )
 
-// recoverLogStream rebuilds log stream from specified directory.
-func recoverLogStream(ctx context.Context, dir string, cfg config) (*logStream, error) {
-	// Make sure the WAL directory exists.
-	if err := os.MkdirAll(dir, defaultDirPerm); err != nil {
-		return nil, err
-	}
-
-	files, err := scanLogFiles(ctx, dir, cfg.blockSize)
-	if err != nil {
-		return nil, err
-	}
-
-	stream := &logStream{
-		stream:    files,
-		dir:       dir,
-		blockSize: cfg.blockSize,
-		fileSize:  cfg.fileSize,
-		tracer:    tracing.NewTracer("store.wal.logStream", trace.SpanKindInternal),
-	}
-	return stream, nil
-}
-
-func scanLogFiles(ctx context.Context, dir string, blockSize int64) (stream []*logFile, err error) {
-	files, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-	files = filterRegularLog(files)
-
-	// Rebuild log stream.
-	var discards []*logFile
-	var last *logFile
-	for _, file := range files {
-		filename := file.Name()
-		so, err2 := strconv.ParseInt(filename[:len(filename)-len(logFileExt)], 10, 64)
-		if err2 != nil {
-			return nil, err2
+func scanLogEntries(sf *segmentedfile.SegmentedFile, blockSize int, from int64, cb OnEntryCallback) (int64, error) {
+	s := sf.SelectSegment(from, false)
+	if s == nil {
+		if from == 0 {
+			return 0, nil
 		}
+		return -1, ErrOutOfRange
+	}
 
-		if last != nil {
-			// discontinuous log file
-			if so != last.eo {
-				log.Warning(ctx, "Discontinuous log file, discard before.",
-					map[string]interface{}{
-						"last_end":   last.eo,
-						"next_start": so,
-					})
-				discards = append(discards, stream...)
-				stream = nil
+	sc := scanner{
+		blockSize: int64(blockSize),
+		buf:       directio.AlignedBlock(blockSize),
+		buffer:    bytes.NewBuffer(nil),
+		last:      record.Zero,
+		eo:        from,
+		from:      from,
+		cb:        cb,
+	}
+
+	for {
+		err := sc.scanSegmentFile(s)
+		if err == nil {
+			s = sf.SelectSegment(s.EO(), false)
+			if s == nil {
+				break
 			}
+			continue
 		}
 
-		info, err2 := file.Info()
-		if err2 != nil {
-			return nil, err2
+		if errors.Is(err, errEndOfLog) {
+			// TODO(james.yin): has empty log file(s).
+			// if i != len(s.stream)-1 {
+			// 	panic("has empty log file")
+			// }
+
+			// TODO(james.yin): Has incomplete entry, truncate it.
+			if sc.last.IsNonTerminal() {
+				log.Info(context.Background(), "Found incomplete entry, truncate it.",
+					map[string]interface{}{
+						"last_type": sc.last,
+					})
+			}
+
+			return sc.eo, nil
 		}
 
-		path := filepath.Join(dir, filename)
-		size := info.Size()
-
-		if size%blockSize != 0 {
-			// TODO(james.yin): return error
-			truncated := size - size%blockSize
-			log.Warning(context.Background(), "The size of log file is not a multiple of blockSize, truncate it.",
-				map[string]interface{}{
-					"file":        path,
-					"origin_size": size,
-					"new_size":    truncated,
-				})
-			size = truncated
-		}
-
-		last = newLogFile(path, so, size, nil)
-		stream = append(stream, last)
+		return -1, err
 	}
 
-	// Delete discard files.
-	for _, f := range discards {
-		_ = os.Remove(f.path)
-	}
-
-	return stream, nil
+	return 0, nil
 }
 
-func filterRegularLog(entries []os.DirEntry) []os.DirEntry {
-	if len(entries) == 0 {
-		return entries
+type scanner struct {
+	blockSize int64
+	buf       []byte
+	buffer    *bytes.Buffer
+	last      record.Type
+	eo        int64 // end offset of entry
+	from      int64
+	cb        OnEntryCallback
+}
+
+func (sc *scanner) scanSegmentFile(s *segmentedfile.Segment) (err error) {
+	f := s.File()
+	for at := sc.firstBlockOffset(s); at < s.Size(); at += sc.blockSize {
+		if _, err = f.ReadAt(sc.buf, at); err != nil {
+			return err
+		}
+
+		bso := s.SO() + at
+		for so := sc.firstRecordOffset(bso); so <= sc.blockSize-record.HeaderSize; {
+			r, err2 := record.Unmarshal(sc.buf[so:])
+			if err2 != nil {
+				// TODO(james.yin): handle parse error
+				err = err2
+				return
+			}
+
+			// no new record
+			if r.Type == record.Zero {
+				err = errEndOfLog
+				return
+			}
+
+			// TODO(james.yin): check crc
+
+			sz := int64(r.Size())
+			reo := bso + so + sz
+			if err = onRecord(sc, r, reo); err != nil {
+				return err
+			}
+			so += sz
+		}
 	}
 
-	n := 0
-	for _, entry := range entries {
-		if !entry.Type().IsRegular() {
-			continue
+	return nil
+}
+
+func (sc *scanner) firstBlockOffset(s *segmentedfile.Segment) int64 {
+	if s.SO() < sc.from {
+		if s.EO() <= sc.from {
+			panic("WAL: so is out of range.")
 		}
-		if filepath.Ext(entry.Name()) != logFileExt {
-			continue
-		}
-		entries[n] = entry
-		n++
+		off := sc.from - s.SO()
+		off -= off % sc.blockSize
+		return off
 	}
-	entries = entries[:n]
-	return entries
+	return 0
+}
+
+func (sc *scanner) firstRecordOffset(so int64) int64 {
+	if so < sc.from {
+		if sc.from-so >= sc.blockSize {
+			panic("WAL: so is out of range.")
+		}
+		return sc.from % sc.blockSize
+	}
+	return 0
+}
+
+func onRecord(ctx *scanner, r record.Record, eo int64) error {
+	switch r.Type {
+	case record.Full:
+		if !ctx.last.IsTerminal() && ctx.last != record.Zero {
+			// TODO(james.yin): unexpected state
+			panic("WAL: unexpected state")
+		}
+		if err := ctx.cb(r.Data, Range{SO: ctx.eo, EO: eo}); err != nil {
+			return err
+		}
+	case record.First:
+		if !ctx.last.IsTerminal() && ctx.last != record.Zero {
+			// TODO(james.yin): unexpected state
+			panic("WAL: unexpected state")
+		}
+		ctx.buffer.Write(r.Data)
+	case record.Middle:
+		if !ctx.last.IsNonTerminal() {
+			// TODO(james.yin): unexpected state
+			panic("WAL: unexpected state")
+		}
+		ctx.buffer.Write(r.Data)
+	case record.Last:
+		if !ctx.last.IsNonTerminal() {
+			// TODO(james.yin): unexpected state
+			panic("WAL: unexpected state")
+		}
+		ctx.buffer.Write(r.Data)
+		if err := ctx.cb(ctx.buffer.Bytes(), Range{SO: ctx.eo, EO: eo}); err != nil {
+			return err
+		}
+		ctx.buffer.Reset()
+	case record.Zero:
+		panic("WAL: unexpected state")
+	}
+
+	ctx.last = r.Type
+	if ctx.last.IsTerminal() {
+		ctx.eo = eo
+	}
+
+	return nil
 }

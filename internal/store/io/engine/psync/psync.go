@@ -21,6 +21,7 @@ import (
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/io"
 	"github.com/linkall-labs/vanus/internal/store/io/engine"
+	"github.com/linkall-labs/vanus/internal/store/io/zone"
 )
 
 type writeTask struct {
@@ -58,7 +59,7 @@ func (e *psync) Close() {
 	close(e.taskC)
 }
 
-func (e *psync) WriteAt(f *os.File, b []byte, off int64, so, eo int, cb io.WriteCallback) {
+func (e *psync) WriteAt(z zone.Interface, b []byte, off int64, so, eo int, cb io.WriteCallback) {
 	// if eo != 0 && eo != len(b) {
 	// 	b = b[:eo]
 	// }
@@ -66,6 +67,7 @@ func (e *psync) WriteAt(f *os.File, b []byte, off int64, so, eo int, cb io.Write
 	// 	b = b[so:]
 	// 	off += int64(so)
 	// }
+	f, off := z.Raw(off)
 	e.taskC <- writeTask{f, b, off, cb}
 }
 

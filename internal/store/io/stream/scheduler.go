@@ -16,19 +16,19 @@ package stream
 
 import (
 	// standard libraries.
-	"os"
 	"time"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/io"
 	"github.com/linkall-labs/vanus/internal/store/io/block"
 	"github.com/linkall-labs/vanus/internal/store/io/engine"
+	"github.com/linkall-labs/vanus/internal/store/io/zone"
 )
 
 type Scheduler interface {
 	Close()
 
-	Register(f *os.File, off int64) Stream
+	Register(z zone.Interface, wo int64) Stream
 	Unregister(s Stream)
 }
 
@@ -57,21 +57,27 @@ func (s *scheduler) Close() {
 	s.e.Close()
 }
 
-func (s *scheduler) Register(f *os.File, off int64) Stream {
-	so := off % int64(s.bp.BufferSize())
-	base := off - so
+func (s *scheduler) Register(z zone.Interface, wo int64) Stream {
+	so := wo % int64(s.bp.BufferSize())
+	base := wo - so
 
 	var buf *block.Buffer
 	if so != 0 {
 		buf = s.getBuffer(base)
-		if err := buf.RecoverFromFile(f, base, int(so)); err != nil {
+		f, off := z.Raw(base)
+		if f == nil {
+			// TODO(james.yin)
+			panic("invalid zone")
+		}
+		if err := buf.RecoverFromFile(f, off, int(so)); err != nil {
 			panic(err)
 		}
+		// FIXME(james.yin): switch buf if it is full.
 	}
 
 	ss := &stream{
 		s:   s,
-		f:   f,
+		z:   z,
 		buf: buf,
 		off: base,
 	}
@@ -85,8 +91,8 @@ func (s *scheduler) Register(f *os.File, off int64) Stream {
 func (s *scheduler) Unregister(ss Stream) {
 }
 
-func (s *scheduler) writeAt(f *os.File, b []byte, off int64, so, eo int, cb io.WriteCallback) {
-	s.e.WriteAt(f, b, off, so, eo, cb)
+func (s *scheduler) writeAt(z zone.Interface, b []byte, off int64, so, eo int, cb io.WriteCallback) {
+	s.e.WriteAt(z, b, off, so, eo, cb)
 }
 
 func (s *scheduler) bufferSize() int {

@@ -15,11 +15,9 @@
 package engine
 
 import (
-	// standard libraries.
-	"os"
-
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/io"
+	"github.com/linkall-labs/vanus/internal/store/io/zone"
 )
 
 type Interface interface {
@@ -27,5 +25,5 @@ type Interface interface {
 	// WriteAt writes block b to the File starting at byte offset off.
 	// If only partial data is changed, offset so and eo are used to hint it.
 	// WriteCallback cb is called with the number of bytes written and an error when the operation completes.
-	WriteAt(f *os.File, b []byte, off int64, so, eo int, cb io.WriteCallback)
+	WriteAt(z zone.Interface, b []byte, off int64, so, eo int, cb io.WriteCallback)
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/io/stream"
+	"github.com/linkall-labs/vanus/internal/store/io/zone"
 	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
 	"github.com/linkall-labs/vanus/internal/store/vsb/index"
 )
@@ -63,6 +64,7 @@ type vsBlock struct {
 	lis block.ArchivedListener
 
 	f  *os.File
+	z  zone.Interface
 	s  stream.Stream
 	wg sync.WaitGroup
 }
