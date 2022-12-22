@@ -63,17 +63,6 @@ const (
 	StateArchived  = State("archived")
 )
 
-func (s State) ToSegmentState() string {
-	switch s {
-	case StateArchiving:
-		return "freezing"
-	case StateArchived:
-		return "frozen"
-	default:
-		return string(s)
-	}
-}
-
 type Statistics struct {
 	ID        vanus.ID
 	Capacity  uint64

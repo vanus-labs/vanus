@@ -724,7 +724,7 @@ func (s *server) onBlockArchived(stat block.Statistics) {
 		Capacity:           int64(stat.Capacity),
 		Size:               int64(stat.EntrySize),
 		EventNumber:        int32(stat.EntryNum),
-		State:              stat.State.ToSegmentState(),
+		State:              toSegmentState(stat.State),
 		FirstEventBornTime: stat.FirstEntryStime,
 	}
 	if stat.State == block.StateArchived {
@@ -836,4 +836,15 @@ func (s *server) checkState() error {
 			"the server isn't ready to work, current state: %s", s.state))
 	}
 	return nil
+}
+
+func toSegmentState(state block.State) string {
+	switch state {
+	case block.StateArchiving:
+		return "freezing"
+	case block.StateArchived:
+		return "frozen"
+	default:
+		return string(state)
+	}
 }

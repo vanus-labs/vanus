@@ -20,7 +20,6 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"io"
-	"sort"
 	"sync"
 	"time"
 
@@ -142,9 +141,12 @@ func (l *eventlog) Close(ctx context.Context) {
 }
 
 func (l *eventlog) Writer() LogWriter {
+	l.writerMu.RLock()
 	if l.logWriter != nil {
+		l.writerMu.RUnlock()
 		return l.logWriter
 	}
+	l.writerMu.RUnlock()
 	l.writerMu.Lock()
 	defer l.writerMu.Unlock()
 	if l.logWriter != nil {
@@ -157,9 +159,12 @@ func (l *eventlog) Writer() LogWriter {
 }
 
 func (l *eventlog) Reader(cfg ReaderConfig) LogReader {
+	l.readerMu.RLock()
 	if l.logReader != nil {
+		l.readerMu.RUnlock()
 		return l.logReader
 	}
+	l.readerMu.RUnlock()
 	l.readerMu.Lock()
 	defer l.readerMu.Unlock()
 	if l.logWriter != nil {
@@ -214,8 +219,10 @@ func (l *eventlog) QueryOffsetByTime(ctx context.Context, timestamp int64) (int6
 		return segs[0].startOffset, nil
 	}
 
+	// LastEntryStime
+	// time.UnixMilli
 	tailSeg := fetchTailSegment(ctx, segs)
-	if tailSeg.lastEventBornAt.Before(t) {
+	if tailSeg.firstEventBornAt.Before(t) {
 		// the target offset maybe in newer segment, refresh immediately
 		l.refreshReadableSegments(ctx)
 		segs = l.fetchReadableSegments(ctx)
@@ -223,6 +230,12 @@ func (l *eventlog) QueryOffsetByTime(ctx context.Context, timestamp int64) (int6
 
 	for idx := range segs {
 		seg := segs[idx]
+		// lastEventBornAt will be reported only when the segment is full,
+		// if it is equal to 0, the current segment is the latest segment.
+		if seg.lastEventBornAt == time.UnixMilli(0) {
+			target = seg
+			break
+		}
 		if !t.Before(seg.firstEventBornAt) && !t.After(seg.lastEventBornAt) {
 			target = seg
 			break
@@ -348,6 +361,10 @@ func (l *eventlog) selectReadableSegment(ctx context.Context, offset int64) (*se
 		return nil, errors.ErrNotReadable
 	}
 	var target *segment
+	target = fetchHeadSegment(ctx, segs)
+	if offset < target.StartOffset() {
+		return nil, errors.ErrOffsetUnderflow
+	}
 	target = fetchTailSegment(ctx, segs)
 	if offset == target.EndOffset() {
 		return nil, errors.ErrOffsetOnEnd
@@ -356,17 +373,17 @@ func (l *eventlog) selectReadableSegment(ctx context.Context, offset int64) (*se
 		return nil, errors.ErrOffsetOverflow
 	}
 
-	target = fetchHeadSegment(ctx, segs)
-	if offset < target.StartOffset() {
-		return nil, errors.ErrOffsetUnderflow
-	}
-
-	segmentNum := len(l.readableSegments)
-	n := sort.Search(segmentNum, func(i int) bool {
-		return l.readableSegments[uint64(i)].EndOffset() > offset
-	})
-	if n < segmentNum {
-		return l.readableSegments[uint64(n)], nil
+	// look from back to front
+	// TODO(jiangkai): implement a better search algorithm
+	for {
+		if target.StartOffset() <= offset && target.EndOffset() > offset {
+			return target, nil
+		} else {
+			if _, ok := l.readableSegments[target.previousSegmentId]; !ok {
+				break
+			}
+			target = l.readableSegments[target.previousSegmentId]
+		}
 	}
 	return nil, errors.ErrNotReadable
 }

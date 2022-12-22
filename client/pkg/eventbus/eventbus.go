@@ -182,21 +182,21 @@ func (b *eventbus) GetLog(ctx context.Context, logID uint64, opts ...api.LogOpti
 	}
 
 	if op.Policy.AccessMode() == api.ReadOnly {
+		b.readableMu.RLock()
+		defer b.readableMu.RUnlock()
 		if len(b.readableLogs) == 0 {
 			b.refreshReadableLogs(ctx)
 		}
-		b.readableMu.RLock()
-		defer b.readableMu.RUnlock()
 		if l, ok := b.readableLogs[logID]; ok {
 			return l, nil
 		}
 		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
 	} else if op.Policy.AccessMode() == api.ReadWrite {
+		b.writableMu.RLock()
+		defer b.writableMu.RUnlock()
 		if len(b.writableLogs) == 0 {
 			b.refreshWritableLogs(ctx)
 		}
-		b.writableMu.RLock()
-		defer b.writableMu.RUnlock()
 		if l, ok := b.writableLogs[logID]; ok {
 			return l, nil
 		}
@@ -217,23 +217,23 @@ func (b *eventbus) ListLog(ctx context.Context, opts ...api.LogOption) ([]api.Ev
 	}
 
 	if op.Policy.AccessMode() == api.ReadOnly {
+		b.readableMu.RLock()
+		defer b.readableMu.RUnlock()
 		if len(b.readableLogs) == 0 {
 			b.refreshReadableLogs(ctx)
 		}
 		eventlogs := make([]api.Eventlog, 0)
-		b.readableMu.RLock()
-		defer b.readableMu.RUnlock()
 		for _, el := range b.readableLogs {
 			eventlogs = append(eventlogs, el)
 		}
 		return eventlogs, nil
 	} else if op.Policy.AccessMode() == api.ReadWrite {
+		b.writableMu.RLock()
+		defer b.writableMu.RUnlock()
 		if len(b.writableLogs) == 0 {
 			b.refreshWritableLogs(ctx)
 		}
 		eventlogs := make([]api.Eventlog, 0)
-		b.writableMu.RLock()
-		defer b.writableMu.RUnlock()
 		for _, el := range b.writableLogs {
 			eventlogs = append(eventlogs, el)
 		}

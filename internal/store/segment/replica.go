@@ -94,7 +94,7 @@ func (r *replica) Status() *metapb.SegmentHealthInfo {
 		Capacity:           int64(stat.Capacity),
 		Size:               int64(stat.EntrySize),
 		EventNumber:        int32(stat.EntryNum),
-		State:              stat.State.ToSegmentState(),
+		State:              toSegmentState(stat.State),
 		Leader:             cs.Leader.Uint64(),
 		Term:               cs.Term,
 		FirstEventBornTime: stat.FirstEntryStime,

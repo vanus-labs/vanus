@@ -140,6 +140,7 @@ func TestVSBlock_Open(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		stat := b.status()
+		So(stat.State, ShouldEqual, block.StateWorking)
 		So(stat.Capacity, ShouldEqual, vsbtest.EntrySize0+vsbtest.EntrySize1)
 		So(stat.EntryNum, ShouldEqual, 2)
 		So(stat.EntrySize, ShouldEqual, vsbtest.EntrySize0+vsbtest.EntrySize1)
