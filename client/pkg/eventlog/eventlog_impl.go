@@ -354,15 +354,14 @@ func (w *logWriter) Append(ctx context.Context, event *ce.Event) (int64, error) 
 		if err == nil {
 			return offset, nil
 		}
-		vlog.Warning(ctx, "failed to Append", map[string]interface{}{
+		vlog.Warning(ctx, "append failed", map[string]interface{}{
 			vlog.KeyError: err,
 			"offset":      offset,
 		})
 		if errors.Is(err, errors.ErrFull) {
 			vlog.Warning(ctx, "segment is full, retry", map[string]interface{}{
 				vlog.KeyError: err,
-				"offset":      offset,
-				"retry_num":   i,
+				"retry_times": i,
 			})
 			if i < retryTimes {
 				continue
@@ -396,11 +395,15 @@ func (w *logWriter) AppendManyStream(ctx context.Context, events []*ce.Event) ([
 		if err == nil {
 			return offsets, nil
 		}
-		vlog.Warning(ctx, "failed to Append", map[string]interface{}{
+		vlog.Warning(ctx, "append failed", map[string]interface{}{
 			vlog.KeyError: err,
 			"offsets":     offsets,
 		})
 		if errors.Is(err, errors.ErrFull) {
+			vlog.Warning(ctx, "segment is full, retry", map[string]interface{}{
+				vlog.KeyError: err,
+				"retry_times": i,
+			})
 			if i < retryTimes {
 				continue
 			}

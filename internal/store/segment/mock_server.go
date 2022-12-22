@@ -121,6 +121,18 @@ func (mr *MockServerMockRecorder) LookupOffsetInBlock(ctx, id, stime interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LookupOffsetInBlock", reflect.TypeOf((*MockServer)(nil).LookupOffsetInBlock), ctx, id, stime)
 }
 
+// NewMessageArrived mocks base method.
+func (m *MockServer) NewMessageArrived(ctx context.Context, id vanus.ID) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "NewMessageArrived", ctx, id)
+}
+
+// NewMessageArrived indicates an expected call of NewMessageArrived.
+func (mr *MockServerMockRecorder) NewMessageArrived(ctx, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewMessageArrived", reflect.TypeOf((*MockServer)(nil).NewMessageArrived), ctx, id)
+}
+
 // ReadFromBlock mocks base method.
 func (m *MockServer) ReadFromBlock(ctx context.Context, id vanus.ID, seq int64, num int, pollingTimeout uint32) ([]*v1.CloudEvent, error) {
 	m.ctrl.T.Helper()

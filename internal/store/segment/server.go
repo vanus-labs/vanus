@@ -71,6 +71,7 @@ const (
 	debugModeENV                = "SEGMENT_SERVER_DEBUG_MODE"
 	defaultLeaderInfoBufferSize = 256
 	defaultForceStopTimeout     = 30 * time.Second
+	defaultWaiterWorker         = 8
 )
 
 type Server interface {
@@ -92,6 +93,8 @@ type Server interface {
 	AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent, cb func([]int64, error))
 	ReadFromBlock(ctx context.Context, id vanus.ID, seq int64, num int, pollingTimeout uint32) ([]*cepb.CloudEvent, error)
 	LookupOffsetInBlock(ctx context.Context, id vanus.ID, stime int64) (int64, error)
+
+	NewMessageArrived(ctx context.Context, id vanus.ID)
 }
 
 func NewServer(cfg store.Config) Server {
@@ -109,6 +112,7 @@ func NewServer(cfg store.Config) Server {
 	srv := &server{
 		state:        primitive.ServerStateCreated,
 		cfg:          cfg,
+		waiterC:      make(chan raft.CommitWaiter),
 		isDebugMode:  debugModel,
 		localAddress: localAddress,
 		volumeID:     uint64(cfg.Volume.ID),
@@ -159,6 +163,7 @@ type server struct {
 	ctrl        cluster.Cluster
 	cc          ctrlpb.SegmentControllerClient
 	leaderC     chan leaderInfo
+	waiterC     chan raft.CommitWaiter
 
 	grpcSrv *grpc.Server
 	closeC  chan struct{}
@@ -213,6 +218,22 @@ func (s *server) preGrpcStream(ctx context.Context, info *tap.Info) (context.Con
 	return ctx, nil
 }
 
+func (s *server) runWaiterWorker(ctx context.Context) {
+	for i := 0; i < defaultWaiterWorker; i++ {
+		go func() {
+			for {
+				select {
+				case waiter := <-s.waiterC:
+					waiter.Do()
+				case <-ctx.Done():
+					close(s.waiterC)
+					return
+				}
+			}
+		}()
+	}
+}
+
 func (s *server) Initialize(ctx context.Context) error {
 	if err := s.loadEngine(ctx); err != nil {
 		return err
@@ -243,6 +264,8 @@ func (s *server) Initialize(ctx context.Context) error {
 		}
 		s.state = primitive.ServerStateRunning
 	}
+
+	s.runWaiterWorker(ctx)
 
 	return nil
 }
@@ -537,7 +560,6 @@ func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
 	if !exist {
 		return errors.ErrResourceNotFound.WithMessage("the block not found")
 	}
-
 	b, _ := v.(Replica)
 	// TODO(james.yin): s.host.Unregister
 	if err := b.Delete(ctx); err != nil {
@@ -666,9 +688,13 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 	metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(len(events)))
 	metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(size))
 
-	b.Append(ctx, cb, entries...)
+	b.Append(ctx, entries, cb)
 
 	// TODO(weihe.yin) make this method deep to code
+	// s.pm.NewMessageArrived(id)
+}
+
+func (s *server) NewMessageArrived(_ context.Context, id vanus.ID) {
 	s.pm.NewMessageArrived(id)
 }
 

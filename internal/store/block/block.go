@@ -45,7 +45,7 @@ type Reader interface {
 }
 
 type Appender interface {
-	Append(ctx context.Context, cb func([]int64, error), entries ...Entry)
+	Append(ctx context.Context, entries []Entry, cb func([]int64, error))
 }
 
 type Block interface {

@@ -216,7 +216,6 @@ func (s *BlockStore) AppendManyStream(ctx context.Context, block uint64, events 
 
 	var (
 		err  error
-		wg   sync.WaitGroup
 		resp *segpb.AppendToBlockStreamResponse
 	)
 
@@ -230,8 +229,6 @@ func (s *BlockStore) AppendManyStream(ctx context.Context, block uint64, events 
 	// generate unique RequestId
 	requestID := rand.New(rand.NewSource(time.Now().UnixNano())).Uint64()
 
-	wg.Add(1)
-
 	//TODO(jiangkai): delete the reference of CloudEvents/v2 in Vanus
 	eventpbs := make([]*cepb.CloudEvent, len(events))
 	for idx := range events {
@@ -242,9 +239,10 @@ func (s *BlockStore) AppendManyStream(ctx context.Context, block uint64, events 
 		eventpbs[idx] = eventpb
 	}
 
+	donec := make(chan struct{}, 1)
 	s.appendCallbacks.Store(requestID, appendCallback(func(res *segpb.AppendToBlockStreamResponse) {
 		resp = res
-		wg.Done()
+		donec <- struct{}{}
 	}))
 
 	req := &segpb.AppendToBlockStreamRequest{
@@ -275,7 +273,7 @@ func (s *BlockStore) AppendManyStream(ctx context.Context, block uint64, events 
 		return nil, err
 	}
 
-	wg.Wait()
+	<-donec
 
 	if resp.ResponseCode == errpb.ErrorCode_FULL {
 		log.Warning(ctx, "block append failed cause the segment is full", nil)
@@ -339,7 +337,6 @@ func (s *BlockStore) ReadStream(
 
 	var (
 		err  error
-		wg   sync.WaitGroup
 		resp *segpb.ReadFromBlockStreamResponse
 	)
 
@@ -353,11 +350,10 @@ func (s *BlockStore) ReadStream(
 	// generate unique RequestId
 	requestID := rand.Uint64()
 
-	wg.Add(1)
-
-	s.appendCallbacks.Store(requestID, readCallback(func(res *segpb.ReadFromBlockStreamResponse) {
+	donec := make(chan struct{}, 1)
+	s.readCallbacks.Store(requestID, readCallback(func(res *segpb.ReadFromBlockStreamResponse) {
 		resp = res
-		wg.Done()
+		donec <- struct{}{}
 	}))
 
 	req := &segpb.ReadFromBlockStreamRequest{
@@ -389,7 +385,7 @@ func (s *BlockStore) ReadStream(
 		return []*ce.Event{}, err
 	}
 
-	wg.Wait()
+	<-donec
 
 	if resp.ResponseCode != errpb.ErrorCode_SUCCESS {
 		log.Warning(ctx, "block read failed cause unknown error", nil)

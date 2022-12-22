@@ -80,8 +80,8 @@ func (r *replica) Read(ctx context.Context, seq int64, num int) ([]block.Entry, 
 	return r.raw.Read(ctx, seq, num)
 }
 
-func (r *replica) Append(ctx context.Context, cb func([]int64, error), entries ...block.Entry) {
-	r.appender.Append(ctx, cb, entries...)
+func (r *replica) Append(ctx context.Context, entries []block.Entry, cb func([]int64, error)) {
+	r.appender.Append(ctx, entries, cb)
 }
 
 func (r *replica) Status() *metapb.SegmentHealthInfo {
@@ -116,7 +116,7 @@ func (s *server) createBlock(ctx context.Context, id vanus.ID, size int64) (Repl
 
 	// Create replica.
 	l := raftlog.NewLog(id, s.wal, s.metaStore, s.offsetStore, nil)
-	a := raft.NewAppender(context.TODO(), r, l, s.host, s.leaderChanged)
+	a := raft.NewAppender(context.TODO(), r, l, s.host, s.leaderChanged, s.waiterC)
 
 	return &replica{
 		id:       id,

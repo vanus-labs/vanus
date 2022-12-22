@@ -48,7 +48,6 @@ const (
 	defaultHeartbeatTick   = 3
 	defaultMaxSizePerMsg   = 4096
 	defaultMaxInflightMsgs = 256
-	defaultWaiterWorker    = 8
 )
 
 type Peer struct {
@@ -68,11 +67,15 @@ type peer struct {
 
 type LeaderChangedListener func(block, leader vanus.ID, term uint64)
 
-type commitWaiter struct {
+type CommitWaiter struct {
 	seqs     []int64
 	offset   int64
 	err      error
 	callback func([]int64, error)
+}
+
+func (w CommitWaiter) Do() {
+	w.callback(w.seqs, w.err)
 }
 
 type Appender interface {
@@ -89,8 +92,8 @@ type appender struct {
 	actx     block.AppendContext
 	appendMu sync.RWMutex
 
-	waiters      []commitWaiter
-	waiterC      chan commitWaiter
+	waiters      []CommitWaiter
+	waiterC      chan CommitWaiter
 	commitIndex  uint64
 	commitOffset int64
 	waitMu       sync.Mutex
@@ -114,14 +117,19 @@ type appender struct {
 var _ Appender = (*appender)(nil)
 
 func NewAppender(
-	ctx context.Context, raw block.Raw, raftLog *raftlog.Log, host transport.Host, listener LeaderChangedListener,
+	ctx context.Context,
+	raw block.Raw,
+	raftLog *raftlog.Log,
+	host transport.Host,
+	listener LeaderChangedListener,
+	waiterC chan CommitWaiter,
 ) Appender {
 	ctx, cancel := context.WithCancel(ctx)
 
 	a := &appender{
 		raw:      raw,
-		waiters:  make([]commitWaiter, 0),
-		waiterC:  make(chan commitWaiter),
+		waiters:  make([]CommitWaiter, 0),
+		waiterC:  waiterC,
 		listener: listener,
 		log:      raftLog,
 		host:     host,
@@ -200,28 +208,10 @@ func (a *appender) Delete(ctx context.Context) {
 	a.log.Delete(ctx)
 }
 
-func (a *appender) runWaiterWorker(ctx context.Context) {
-	for i := 0; i < defaultWaiterWorker; i++ {
-		go func() {
-			for {
-				select {
-				case waiter := <-a.waiterC:
-					waiter.callback(waiter.seqs, waiter.err)
-				case <-ctx.Done():
-					close(a.waiterC)
-					return
-				}
-			}
-		}()
-	}
-}
-
 func (a *appender) run(ctx context.Context) {
 	// TODO(james.yin): reduce Ticker
 	t := time.NewTicker(defaultTickInterval)
 	defer t.Stop()
-
-	a.runWaiterWorker(ctx)
 
 	for {
 		select {
@@ -482,9 +472,15 @@ func (a *appender) reset(ctx context.Context) {
 }
 
 // Append implements async block.raw.
-func (a *appender) Append(ctx context.Context, cb func([]int64, error), entries ...block.Entry) {
+func (a *appender) Append(ctx context.Context, entries []block.Entry, cb func([]int64, error)) {
 	ctx, span := a.tracer.Start(ctx, "Append")
 	defer span.End()
+
+	span.AddEvent("Acquiring append lock")
+	a.appendMu.Lock()
+	span.AddEvent("Got append lock")
+
+	defer a.appendMu.Unlock()
 
 	seqs, offset, err := a.append(ctx, entries)
 	if err != nil && !errors.Is(err, errors.ErrFull) {
@@ -493,7 +489,7 @@ func (a *appender) Append(ctx context.Context, cb func([]int64, error), entries 
 	}
 
 	// register callback and wait until entries is committed.
-	a.registerCommitWaiter(ctx, commitWaiter{
+	a.registerCommitWaiter(ctx, CommitWaiter{
 		seqs:     seqs,
 		offset:   offset,
 		err:      err,
@@ -504,12 +500,6 @@ func (a *appender) Append(ctx context.Context, cb func([]int64, error), entries 
 func (a *appender) append(ctx context.Context, entries []block.Entry) ([]int64, int64, error) {
 	ctx, span := a.tracer.Start(ctx, "append")
 	defer span.End()
-
-	span.AddEvent("Acquiring append lock")
-	a.appendMu.Lock()
-	span.AddEvent("Got append lock")
-
-	defer a.appendMu.Unlock()
 
 	if !a.isLeader() {
 		return nil, 0, errors.ErrNotLeader.WithMessage("the appender is not leader")
@@ -548,7 +538,7 @@ func (a *appender) doAppend(ctx context.Context, frags ...block.Fragment) {
 	_, _ = a.raw.CommitAppend(ctx, frags...)
 }
 
-func (a *appender) registerCommitWaiter(ctx context.Context, waiter commitWaiter) {
+func (a *appender) registerCommitWaiter(ctx context.Context, waiter CommitWaiter) {
 	_, span := a.tracer.Start(ctx, "waitCommit")
 	defer span.End()
 

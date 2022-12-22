@@ -17,7 +17,6 @@ package segment
 import (
 	// standard libraries.
 	"context"
-	"sync"
 
 	// third-party libraries.
 	cepb "cloudevents.io/genproto/v1"
@@ -124,17 +123,16 @@ func (s *segmentServer) AppendToBlock(
 	var (
 		err     error
 		offsets []int64
-		wg      sync.WaitGroup
 	)
-	wg.Add(1)
+	donec := make(chan struct{})
 	blockID := vanus.NewIDFromUint64(req.BlockId)
 	events := req.Events.GetEvents()
 	s.srv.AppendToBlock(ctx, blockID, events, func(offs []int64, e error) {
 		offsets = offs
 		err = e
-		wg.Done()
+		donec <- struct{}{}
 	})
-	wg.Wait()
+	<-donec
 	return &segpb.AppendToBlockResponse{Offsets: offsets}, err
 }
 
@@ -164,6 +162,8 @@ func (s *segmentServer) AppendToBlockStream(stream segpb.SegmentServer_AppendToB
 					log.KeyError: err,
 				})
 			}
+
+			s.srv.NewMessageArrived(ctx, vanus.ID(request.BlockId))
 
 			err = stream.Send(&segpb.AppendToBlockStreamResponse{
 				ResponseId:   request.RequestId,

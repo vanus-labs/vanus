@@ -469,13 +469,7 @@ func (w *busWriter) AppendOne(ctx context.Context, event *ce.Event, opts ...api.
 		return "", err
 	}
 
-	// 3. generate event ID
-	var buf [16]byte
-	binary.BigEndian.PutUint64(buf[0:8], lw.Log().ID())
-	binary.BigEndian.PutUint64(buf[8:16], uint64(off))
-	encoded := base64.StdEncoding.EncodeToString(buf[:])
-
-	return encoded, nil
+	return genEventID(lw.Log().ID(), off), nil
 }
 
 func (w *busWriter) AppendMany(ctx context.Context, events []*ce.Event, opts ...api.WriteOption) (eid []string, err error) {
@@ -504,20 +498,20 @@ func (w *busWriter) AppendMany(ctx context.Context, events []*ce.Event, opts ...
 	}
 
 	// 3. generate event ID
-	genFunc := func(off int64) string {
-		var buf [16]byte
-		binary.BigEndian.PutUint64(buf[0:8], lw.Log().ID())
-		binary.BigEndian.PutUint64(buf[8:16], uint64(off))
-		encoded := base64.StdEncoding.EncodeToString(buf[:])
-		return encoded
-	}
-
 	eventIDs := make([]string, len(offsets))
 	for idx := range offsets {
-		eventIDs[idx] = genFunc(offsets[idx])
+		eventIDs[idx] = genEventID(lw.Log().ID(), offsets[idx])
 	}
 
 	return eventIDs, nil
+}
+
+func genEventID(logID uint64, off int64) string {
+	var buf [16]byte
+	binary.BigEndian.PutUint64(buf[0:8], logID)
+	binary.BigEndian.PutUint64(buf[8:16], uint64(off))
+	encoded := base64.StdEncoding.EncodeToString(buf[:])
+	return encoded
 }
 
 func (w *busWriter) Bus() api.Eventbus {
