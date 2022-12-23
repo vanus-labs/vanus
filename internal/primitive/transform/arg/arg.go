@@ -83,7 +83,7 @@ func NewArg(arg interface{}) (Arg, error) {
 		if argLen >= 2 && argName[:2] == EventArgPrefix {
 			return newEventAttribute(argName)
 		}
-		if argLen >= 3 && argName[0] == '<' && argName[argLen-1] == '>' {
+		if argLen >= 3 && argName[0] == '<' && argName[argLen-1] == '>' && argName[1] != '@' {
 			return newDefine(argName), nil
 		}
 	}
