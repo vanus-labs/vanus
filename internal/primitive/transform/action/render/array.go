@@ -39,7 +39,7 @@ func NewRenderArrayAction() action.Action {
 		rightDelim: ">",
 	}
 	a.CommonAction = action.CommonAction{
-		ActionName: "render_array",
+		ActionName: "RENDER_ARRAY",
 		FixedArgs:  []arg.TypeList{arg.EventList, []arg.Type{arg.EventData}, []arg.Type{arg.Constant}},
 	}
 	return a
