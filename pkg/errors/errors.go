@@ -20,35 +20,37 @@ import (
 
 var (
 	// UNKNOWN
-	ErrUnknown = New("unknown").WithGRPCCode(errpb.ErrorCode_UNKNOWN)
+	ErrUnknown = New("unknown").WithCode(errpb.ErrorCode_UNKNOWN)
 
 	// INVALID_REQUEST
-	ErrInvalidRequest      = New("invalid request").WithGRPCCode(errpb.ErrorCode_INVALID_REQUEST)
-	ErrTransformInputParse = New("transform input invalid").WithGRPCCode(errpb.ErrorCode_TRANSFORM_INPUT_PARSE)
-	ErrNoEndpoint          = New("no endpoint").WithGRPCCode(errpb.ErrorCode_NO_ENDPOINT)
+	ErrInvalidRequest      = New("invalid request").WithCode(errpb.ErrorCode_INVALID_REQUEST)
+	ErrTransformInputParse = New("transform input invalid").WithCode(errpb.ErrorCode_TRANSFORM_INPUT_PARSE)
+	ErrNoEndpoint          = New("no endpoint").WithCode(errpb.ErrorCode_NO_ENDPOINT)
 
 	// INTERNAL
-	ErrInternal = New("internal error").WithGRPCCode(errpb.ErrorCode_INTERNAL)
+	ErrInternal = New("internal error").WithCode(errpb.ErrorCode_INTERNAL)
 
 	// FULL
-	ErrFull            = New("full").WithGRPCCode(errpb.ErrorCode_FULL)
-	ErrNotWritable     = New("not writable").WithGRPCCode(errpb.ErrorCode_NOT_WRITABLE)
-	ErrNotReadable     = New("not readable").WithGRPCCode(errpb.ErrorCode_NOT_READABLE)
-	ErrOffsetOnEnd     = New("the offset on end").WithGRPCCode(errpb.ErrorCode_OFFSET_ON_END)
-	ErrOffsetOverflow  = New("the offset overflow").WithGRPCCode(errpb.ErrorCode_OFFSET_OVERFLOW)
-	ErrOffsetUnderflow = New("the offset underflow").WithGRPCCode(errpb.ErrorCode_OFFSET_UNDERFLOW)
+	ErrFull            = New("full").WithCode(errpb.ErrorCode_FULL)
+	ErrNotWritable     = New("not writable").WithCode(errpb.ErrorCode_NOT_WRITABLE)
+	ErrNotReadable     = New("not readable").WithCode(errpb.ErrorCode_NOT_READABLE)
+	ErrOffsetOnEnd     = New("the offset on end").WithCode(errpb.ErrorCode_OFFSET_ON_END)
+	ErrOffsetOverflow  = New("the offset overflow").WithCode(errpb.ErrorCode_OFFSET_OVERFLOW)
+	ErrOffsetUnderflow = New("the offset underflow").WithCode(errpb.ErrorCode_OFFSET_UNDERFLOW)
+	ErrTryAgain        = New("try again").WithCode(errpb.ErrorCode_TRY_AGAIN)
 
 	// RESOURCE_NOT_FOUND
-	ErrResourceNotFound = New("resource not found").WithGRPCCode(errpb.ErrorCode_RESOURCE_NOT_FOUND)
+	ErrResourceNotFound = New("resource not found").WithCode(errpb.ErrorCode_RESOURCE_NOT_FOUND)
 
 	// RESOURCE_EXIST
-	ErrResourceAlreadyExist = New("resource already exist").WithGRPCCode(errpb.ErrorCode_RESOURCE_EXIST)
+	ErrResourceAlreadyExist = New("resource already exist").WithCode(errpb.ErrorCode_RESOURCE_EXIST)
 
 	// SERVICE_NOT_RUNNING
-	ErrServerNotRunning = New("server not running").WithGRPCCode(errpb.ErrorCode_SERVICE_NOT_RUNNING)
-	ErrClosed           = New("closed").WithGRPCCode(errpb.ErrorCode_CLOSED)
+	ErrServerNotRunning = New("server not running").WithCode(errpb.ErrorCode_SERVICE_NOT_RUNNING)
+	ErrClosed           = New("closed").WithCode(errpb.ErrorCode_CLOSED)
 
 	// NO_LEADER
-	ErrNotLeader          = New("not leader").WithGRPCCode(errpb.ErrorCode_NOT_LEADER)
-	ErrNoControllerLeader = New("no leader controller found").WithGRPCCode(errpb.ErrorCode_NO_CONTROLLER_LEADER)
+	ErrNoLeader           = New("no leader").WithCode(errpb.ErrorCode_NO_LEADER)
+	ErrNotLeader          = New("not leader").WithCode(errpb.ErrorCode_NOT_LEADER)
+	ErrNoControllerLeader = New("no leader controller found").WithCode(errpb.ErrorCode_NO_CONTROLLER_LEADER)
 )

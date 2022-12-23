@@ -130,7 +130,7 @@ func (s *segmentServer) AppendToBlock(
 	s.srv.AppendToBlock(ctx, blockID, events, func(offs []int64, e error) {
 		offsets = offs
 		err = e
-		donec <- struct{}{}
+		close(donec)
 	})
 	<-donec
 	return &segpb.AppendToBlockResponse{Offsets: offsets}, err
@@ -163,10 +163,8 @@ func (s *segmentServer) AppendToBlockStream(stream segpb.SegmentServer_AppendToB
 				})
 			}
 
-			s.srv.NewMessageArrived(ctx, vanus.ID(request.BlockId))
-
 			err = stream.Send(&segpb.AppendToBlockStreamResponse{
-				ResponseId:   request.RequestId,
+				Id:           request.Id,
 				ResponseCode: errCode,
 				ResponseMsg:  errMsg,
 				Offsets:      offsets,
@@ -221,7 +219,7 @@ func (s *segmentServer) ReadFromBlockStream(stream segpb.SegmentServer_ReadFromB
 		}
 
 		err = stream.Send(&segpb.ReadFromBlockStreamResponse{
-			ResponseId:   request.RequestId,
+			Id:           request.Id,
 			ResponseCode: errCode,
 			ResponseMsg:  errMsg,
 			Events:       &cepb.CloudEventBatch{Events: events},

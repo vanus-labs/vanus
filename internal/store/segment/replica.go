@@ -116,7 +116,7 @@ func (s *server) createBlock(ctx context.Context, id vanus.ID, size int64) (Repl
 
 	// Create replica.
 	l := raftlog.NewLog(id, s.wal, s.metaStore, s.offsetStore, nil)
-	a := raft.NewAppender(context.TODO(), r, l, s.host, s.leaderChanged, s.waiterC)
+	a := raft.NewAppender(context.TODO(), r, l, s.host, s.leaderChanged, s.callbackC)
 
 	return &replica{
 		id:       id,

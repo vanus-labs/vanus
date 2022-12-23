@@ -286,7 +286,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 		for {
 			err = elReader.readEvent(ctx, lr)
 			switch {
-			case err == nil, errors.Is(err, errors.ErrOffsetOnEnd), errors.Is(err, errors.ErrOffsetOverflow):
+			case err == nil, errors.Is(err, errors.ErrOffsetOnEnd), errors.Is(err, errors.ErrTryAgain):
 			case stderr.Is(err, context.Canceled):
 				return
 			case errors.Is(err, errors.ErrOffsetUnderflow):

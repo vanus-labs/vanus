@@ -42,7 +42,7 @@ type ErrorType struct {
 	underlayErrors []error
 }
 
-func (e *ErrorType) WithGRPCCode(c errpb.ErrorCode) *ErrorType {
+func (e *ErrorType) WithCode(c errpb.ErrorCode) *ErrorType {
 	_e := e.copy()
 	_e.Code = c
 	return _e

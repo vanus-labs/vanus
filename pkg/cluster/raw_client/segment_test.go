@@ -41,7 +41,7 @@ func TestCtrlClientIsNeedRetry(t *testing.T) {
 			err = errors.New("xxxxx: 1111111111 ")
 			So(isNeedRetry(err), ShouldBeFalse)
 
-			err = errors.New("balabala, please connect to: 127.0.0.1:2048 ").WithGRPCCode(errpb.ErrorCode_NOT_LEADER)
+			err = errors.New("balabala, please connect to: 127.0.0.1:2048 ").WithCode(errpb.ErrorCode_NOT_LEADER)
 			So(isNeedRetry(err), ShouldBeTrue)
 		})
 	})

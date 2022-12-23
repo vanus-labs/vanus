@@ -162,7 +162,7 @@ func (s *segment) Append(ctx context.Context, event *ce.Event) (int64, error) {
 
 	b := s.preferSegmentBlock()
 	if b == nil {
-		return -1, errors.ErrNotLeader.WithMessage("the block is not leader")
+		return -1, errors.ErrNoLeader.WithMessage("block no leader")
 	}
 	off, err := b.Append(_ctx, event)
 	if err != nil {
@@ -177,7 +177,7 @@ func (s *segment) AppendManyStream(ctx context.Context, events []*ce.Event) ([]i
 
 	b := s.preferSegmentBlock()
 	if b == nil {
-		return nil, errors.ErrNotLeader.WithMessage("the block is not leader")
+		return nil, errors.ErrNoLeader.WithMessage("block no leader")
 	}
 	offsets, err := b.AppendManyStream(_ctx, events)
 	if err != nil {

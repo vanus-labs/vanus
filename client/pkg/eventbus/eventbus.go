@@ -23,22 +23,23 @@ import (
 	"io"
 	"sync"
 
-	"github.com/linkall-labs/vanus/observability/tracing"
 	"go.opentelemetry.io/otel/trace"
 
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/scylladb/go-set/u64set"
 
+	// first-party libraries
+	vlog "github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"github.com/linkall-labs/vanus/pkg/errors"
+
 	// this project.
+	eb "github.com/linkall-labs/vanus/client/internal/vanus/eventbus"
+	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/policy"
-	vlog "github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/errors"
-
-	eb "github.com/linkall-labs/vanus/client/internal/vanus/eventbus"
-	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
 )
 
 func NewEventbus(cfg *eb.Config) *eventbus {

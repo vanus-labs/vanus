@@ -67,15 +67,11 @@ type peer struct {
 
 type LeaderChangedListener func(block, leader vanus.ID, term uint64)
 
-type CommitWaiter struct {
-	seqs     []int64
+type commitWaiter struct {
 	offset   int64
+	seqs     []int64
 	err      error
 	callback func([]int64, error)
-}
-
-func (w CommitWaiter) Do() {
-	w.callback(w.seqs, w.err)
 }
 
 type Appender interface {
@@ -92,8 +88,8 @@ type appender struct {
 	actx     block.AppendContext
 	appendMu sync.RWMutex
 
-	waiters      []CommitWaiter
-	waiterC      chan CommitWaiter
+	waiters      []commitWaiter
+	callbackC    chan func()
 	commitIndex  uint64
 	commitOffset int64
 	waitMu       sync.Mutex
@@ -122,21 +118,21 @@ func NewAppender(
 	raftLog *raftlog.Log,
 	host transport.Host,
 	listener LeaderChangedListener,
-	waiterC chan CommitWaiter,
+	callbackC chan func(),
 ) Appender {
 	ctx, cancel := context.WithCancel(ctx)
 
 	a := &appender{
-		raw:      raw,
-		waiters:  make([]CommitWaiter, 0),
-		waiterC:  waiterC,
-		listener: listener,
-		log:      raftLog,
-		host:     host,
-		hint:     make([]peer, 0, defaultHintCapacity),
-		cancel:   cancel,
-		doneC:    make(chan struct{}),
-		tracer:   tracing.NewTracer("store.block.raft.appender", trace.SpanKindInternal),
+		raw:       raw,
+		waiters:   make([]commitWaiter, 0),
+		callbackC: callbackC,
+		listener:  listener,
+		log:       raftLog,
+		host:      host,
+		hint:      make([]peer, 0, defaultHintCapacity),
+		cancel:    cancel,
+		doneC:     make(chan struct{}),
+		tracer:    tracing.NewTracer("store.block.raft.appender", trace.SpanKindInternal),
 	}
 	a.actx = a.raw.NewAppendContext(nil)
 	a.commitOffset = a.actx.WriteOffset()
@@ -489,9 +485,9 @@ func (a *appender) Append(ctx context.Context, entries []block.Entry, cb func([]
 	}
 
 	// register callback and wait until entries is committed.
-	a.registerCommitWaiter(ctx, CommitWaiter{
-		seqs:     seqs,
+	a.registerCommitWaiter(ctx, commitWaiter{
 		offset:   offset,
+		seqs:     seqs,
 		err:      err,
 		callback: cb,
 	})
@@ -538,20 +534,23 @@ func (a *appender) doAppend(ctx context.Context, frags ...block.Fragment) {
 	_, _ = a.raw.CommitAppend(ctx, frags...)
 }
 
-func (a *appender) registerCommitWaiter(ctx context.Context, waiter CommitWaiter) {
+func (a *appender) registerCommitWaiter(ctx context.Context, waiter commitWaiter) {
 	_, span := a.tracer.Start(ctx, "waitCommit")
 	defer span.End()
 
 	span.AddEvent("Acquiring wait lock")
 	a.waitMu.Lock()
-	defer a.waitMu.Unlock()
 	span.AddEvent("Got wait lock")
 
 	if waiter.offset <= a.commitOffset {
-		waiter.callback(waiter.seqs, waiter.err)
+		a.waitMu.Unlock()
+		a.callbackC <- func() {
+			waiter.callback(waiter.seqs, waiter.err)
+		}
 		return
 	}
 	a.waiters = append(a.waiters, waiter)
+	a.waitMu.Unlock()
 }
 
 func (a *appender) doWakeup(ctx context.Context, commit int64) {
@@ -569,7 +568,9 @@ func (a *appender) doWakeup(ctx context.Context, commit int64) {
 		if waiter.offset > commit {
 			break
 		}
-		a.waiterC <- waiter
+		a.callbackC <- func() {
+			waiter.callback(waiter.seqs, waiter.err)
+		}
 		a.waiters = a.waiters[1:]
 	}
 	a.commitOffset = commit

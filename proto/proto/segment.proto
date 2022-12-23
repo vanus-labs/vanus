@@ -105,20 +105,20 @@ message ReadFromBlockResponse {
 }
 
 message AppendToBlockStreamRequest {
-  uint64 request_id = 1;
+  uint64 id = 1;
   uint64 block_id = 2;
   io.cloudevents.v1.CloudEventBatch events = 3;
 }
 
 message AppendToBlockStreamResponse {
-  uint64 response_id = 1;
+  uint64 id = 1;
   linkall.vanus.errors.ErrorCode response_code = 2;
   string response_msg = 3;
   repeated int64 offsets = 4;
 }
 
 message ReadFromBlockStreamRequest {
-  uint64 request_id = 1;
+  uint64 id = 1;
   uint64 block_id = 2;
   int64 offset = 3;
   int64 number = 4;
@@ -127,7 +127,7 @@ message ReadFromBlockStreamRequest {
 }
 
 message ReadFromBlockStreamResponse {
-  uint64 response_id = 1;
+  uint64 id = 1;
   linkall.vanus.errors.ErrorCode response_code = 2;
   string response_msg = 3;
   io.cloudevents.v1.CloudEventBatch events = 4;

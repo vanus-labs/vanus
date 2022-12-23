@@ -482,7 +482,9 @@ func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 	if err != nil {
 		if errors.Is(err, errors.ErrOffsetOverflow) {
 			r.elog.refreshReadableSegments(ctx)
-			r.switchSegment(ctx)
+			if r.switchSegment(ctx) {
+				return nil, errors.ErrTryAgain
+			}
 		}
 		return nil, err
 	}
@@ -505,7 +507,9 @@ func (r *logReader) ReadStream(ctx context.Context, size int16) ([]*ce.Event, er
 	if err != nil {
 		if errors.Is(err, errors.ErrOffsetOverflow) {
 			r.elog.refreshReadableSegments(ctx)
-			r.switchSegment(ctx)
+			if r.switchSegment(ctx) {
+				return nil, errors.ErrTryAgain
+			}
 		}
 		return nil, err
 	}
@@ -522,10 +526,7 @@ func (r *logReader) selectReadableSegment(ctx context.Context) (*segment, error)
 	segment := func() *segment {
 		r.mu.RLock()
 		defer r.mu.RUnlock()
-		if r.cur != nil {
-			return r.cur
-		}
-		return nil
+		return r.cur
 	}()
 
 	if segment == nil {

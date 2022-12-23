@@ -77,9 +77,9 @@ func ConvertToGRPCError(err error) error {
 	}
 	e, ok := err.(*ErrorType)
 	if ok {
-		return fmt.Errorf("{\"code\":%d,\"message\":\"%s\"}",
+		return fmt.Errorf("{\"code\":\"%d\",\"message\":\"%s\"}",
 			e.Code, e.Message)
 	}
-	return fmt.Errorf("{\"code\":%d,\"message\":\"%s\"}",
+	return fmt.Errorf("{\"code\":\"%d\",\"message\":\"%s\"}",
 		errpb.ErrorCode_UNKNOWN, err.Error())
 }
