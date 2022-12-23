@@ -24,7 +24,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 )
 
-// ["render_array","targetPath","render root","render template"]
+// ["render_array","targetPath","render root","render template"].
 type renderArrayAction struct {
 	action.CommonAction
 	paths      []string
@@ -106,8 +106,7 @@ func (a *renderArrayAction) Execute(ceCtx *context.EventContext) error {
 	for i := 0; i < _len; i++ {
 		value := make([]interface{}, len(a.paths))
 		for j := 0; j < len(args); j++ {
-			v := args[j].([]interface{})
-			value[j] = v[i]
+			value[j] = args[j].([]interface{})[i]
 		}
 		target[i] = fmt.Sprintf(a.template, value...)
 	}

@@ -151,6 +151,5 @@ func TestRenderArrayAction(t *testing.T) {
 				So(render.([]string)[2], ShouldEqual, "Name: name3 Num: 3 <@abc")
 			})
 		})
-
 	})
 }
