@@ -71,6 +71,8 @@ type SubscriptionConfig struct {
 	DeliveryTimeout    uint32     `json:"delivery_timeout,omitempty"`
 	MaxRetryAttempts   *uint32    `json:"max_retry_attempts,omitempty"`
 	DeadLetterEventbus string     `json:"dead_letter_eventbus,omitempty"`
+	// send event with ordered
+	OrderedEvent bool `json:"ordered_event"`
 }
 
 // GetMaxRetryAttempts return MaxRetryAttempts if nil return -1.
