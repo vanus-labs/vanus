@@ -15,6 +15,7 @@
 package runtime
 
 import (
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action/common"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/condition"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/datetime"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/math"
@@ -50,6 +51,8 @@ func init() {
 		condition.NewConditionIfAction,
 		// render
 		render.NewRenderArrayAction,
+		// common
+		common.NewLengthAction,
 	} {
 		if err := AddAction(fn); err != nil {
 			panic(err)
