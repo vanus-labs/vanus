@@ -38,6 +38,7 @@ type Config struct {
 	Controllers        []string
 	DeadLetterEventbus string
 	MaxWriteAttempt    int
+	Ordered            bool
 }
 
 func defaultConfig() Config {
@@ -88,6 +89,13 @@ func WithDeliveryTimeout(timeout uint32) Option {
 			return
 		}
 		t.config.DeliveryTimeout = time.Duration(timeout) * time.Millisecond
+	}
+}
+
+func WithOrdered(ordered bool) Option {
+	return func(t *trigger) {
+		t.config.Ordered = ordered
+		t.config.FilterProcessSize = 1
 	}
 }
 

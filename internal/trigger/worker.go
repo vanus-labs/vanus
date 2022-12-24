@@ -299,6 +299,7 @@ func (w *worker) getTriggerOptions(subscription *primitive.Subscription) []trigg
 	opts = append(opts, trigger.WithRateLimit(config.RateLimit),
 		trigger.WithDeliveryTimeout(config.DeliveryTimeout),
 		trigger.WithMaxRetryAttempts(config.GetMaxRetryAttempts()),
-		trigger.WithDeadLetterEventbus(config.DeadLetterEventbus))
+		trigger.WithDeadLetterEventbus(config.DeadLetterEventbus),
+		trigger.WithOrdered(config.OrderedEvent))
 	return opts
 }
