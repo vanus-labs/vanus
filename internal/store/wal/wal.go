@@ -164,6 +164,11 @@ func open(ctx context.Context, dir string, cfg config) (*WAL, error) {
 		if err := w.wb.RecoverFromFile(f.f, w.wb.SO-f.so, int(off-w.wb.SO)); err != nil {
 			return nil, err
 		}
+		if w.wb.Full() {
+			// switch to next block
+			w.allocator.Free(w.wb)
+			w.wb = w.allocator.Next()
+		}
 	}
 
 	go w.runCallback() //nolint:contextcheck // wrong advice
