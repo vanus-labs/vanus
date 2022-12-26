@@ -16,14 +16,15 @@ package transform
 
 import (
 	"encoding/json"
-
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+	"runtime"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 	"github.com/linkall-labs/vanus/internal/trigger/transform/define"
 	"github.com/linkall-labs/vanus/internal/trigger/transform/pipeline"
 	"github.com/linkall-labs/vanus/internal/trigger/transform/template"
+	"github.com/pkg/errors"
 )
 
 type Transformer struct {
@@ -47,9 +48,18 @@ func NewTransformer(transformer *primitive.Transformer) *Transformer {
 	return tf
 }
 
-func (tf *Transformer) Execute(event *ce.Event) error {
+func (tf *Transformer) Execute(event *ce.Event) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			size := 1024
+			stacktrace := make([]byte, size)
+			stacktrace = stacktrace[:runtime.Stack(stacktrace, false)]
+			err = errors.New(string(stacktrace))
+		}
+	}()
+
 	var data interface{}
-	err := json.Unmarshal(event.Data(), &data)
+	err = json.Unmarshal(event.Data(), &data)
 	if err != nil {
 		return err
 	}
