@@ -152,4 +152,31 @@ func TestRenderArrayAction(t *testing.T) {
 			})
 		})
 	})
+	Convey("test array length 1", t, func() {
+		jsonStr := `{
+			  "array": [
+				{
+				  "name": "name1",
+				  "number": 1
+				}
+			  ]
+		}`
+		Convey("render other", func() {
+			a, err := runtime.NewAction([]interface{}{funcName, "$.data.render", "$.data.array", "Name: <@.name> Num: <@.number> <@abc"})
+			So(err, ShouldBeNil)
+			e := cetest.MinEvent()
+			var data map[string]interface{}
+			err = stdJson.Unmarshal([]byte(jsonStr), &data)
+			So(err, ShouldBeNil)
+			err = a.Execute(&context.EventContext{
+				Event: &e,
+				Data:  data,
+			})
+			So(err, ShouldBeNil)
+			render, exist := data["render"]
+			So(exist, ShouldBeTrue)
+			So(len(render.([]string)), ShouldEqual, 1)
+			So(render.([]string)[0], ShouldEqual, "Name: name1 Num: 1 <@abc")
+		})
+	})
 }
