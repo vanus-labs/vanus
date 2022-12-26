@@ -20,6 +20,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/datetime"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/math"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/render"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action/source"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/strings"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/structs"
 )
@@ -53,6 +54,8 @@ func init() {
 		render.NewRenderArrayAction,
 		// common
 		common.NewLengthAction,
+		// source
+		source.NewDebeziumConvertToMongoDBSink,
 	} {
 		if err := AddAction(fn); err != nil {
 			panic(err)
