@@ -28,9 +28,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
-	github.com/stretchr/objx v0.4.0 // indirect
 	go.opentelemetry.io/otel v1.11.1 // indirect
-	go.opentelemetry.io/otel/exporters/jaeger v1.9.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.9.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.9.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.9.0 // indirect
@@ -48,9 +46,9 @@ require (
 )
 
 replace (
+	cloud.google.com/go => cloud.google.com/go v0.100.2
 	github.com/linkall-labs/vanus/observability => ../observability
 	github.com/linkall-labs/vanus/pkg => ../pkg
 	github.com/linkall-labs/vanus/proto => ../proto
 	github.com/linkall-labs/vanus/raft => ../raft
-	github.com/cloudevents/sdk-go/binding/format/protobuf/v2 => ../../../github/sdk-go/binding/format/protobuf/v2
 )
