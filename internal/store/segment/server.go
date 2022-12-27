@@ -30,7 +30,6 @@ import (
 
 	// third-party libraries.
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
-	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
@@ -46,6 +45,7 @@ import (
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/cluster"
 	"github.com/linkall-labs/vanus/pkg/util"
+	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	raftpb "github.com/linkall-labs/vanus/proto/pkg/raft"
@@ -132,6 +132,29 @@ func NewServer(cfg store.Config) Server {
 type leaderInfo struct {
 	leader vanus.ID
 	term   uint64
+}
+
+type appendResult struct {
+	seqs []int64
+	err  error
+}
+
+type appendFuture chan appendResult
+
+func newAppendFuture() appendFuture {
+	return make(appendFuture, 1)
+}
+
+func (af appendFuture) onAppended(seqs []int64, err error) {
+	af <- appendResult{
+		seqs: seqs,
+		err:  err,
+	}
+}
+
+func (af appendFuture) wait() ([]int64, error) {
+	res := <-af
+	return res.seqs, res.err
 }
 
 type server struct {
@@ -667,7 +690,9 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 	metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(len(events)))
 	metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(size))
 
-	seqs, err := b.Append(ctx, entries...)
+	future := newAppendFuture()
+	b.Append(ctx, entries, future.onAppended)
+	seqs, err := future.wait()
 	if err != nil {
 		return nil, s.processAppendError(ctx, b, err)
 	}

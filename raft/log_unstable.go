@@ -122,7 +122,7 @@ func (u *unstable) restore(s pb.Snapshot) {
 	u.snapshot = &s
 }
 
-func (u *unstable) truncateAndAppend(ents []pb.Entry) {
+func (u *unstable) truncateAndAppend(ents []pb.Entry) (li uint64, truncated bool) {
 	after := ents[0].Index
 	switch {
 	case after == u.offset+uint64(len(u.entries)):
@@ -135,13 +135,17 @@ func (u *unstable) truncateAndAppend(ents []pb.Entry) {
 		// portion, so set the offset and replace the entries
 		u.offset = after
 		u.entries = ents
+		truncated = true
 	default:
 		// truncate to after and copy to u.entries
 		// then append
 		u.logger.Infof("truncate the unstable entries before index %d", after)
 		u.entries = append([]pb.Entry{}, u.slice(u.offset, after)...)
 		u.entries = append(u.entries, ents...)
+		truncated = true
 	}
+	li = ents[len(ents)-1].Index
+	return
 }
 
 func (u *unstable) slice(lo uint64, hi uint64) []pb.Entry {

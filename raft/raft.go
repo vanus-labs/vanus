@@ -32,8 +32,10 @@ import (
 )
 
 // None is a placeholder node ID used when there is no leader.
-const None uint64 = 0
-const noLimit = math.MaxUint64
+const (
+	None    uint64 = 0
+	noLimit        = math.MaxUint64
+)
 
 // Possible values for StateType.
 const (
@@ -258,6 +260,8 @@ type raft struct {
 	// TODO(tbg): rename to trk.
 	prs tracker.ProgressTracker
 
+	inflight inflight
+
 	state StateType
 
 	// isLearner is true if the local raft node is a learner.
@@ -305,8 +309,9 @@ type raft struct {
 	randomizedElectionTimeout int
 	disableProposalForwarding bool
 
-	tick func()
-	step stepFunc
+	tick    func()
+	step    stepFunc
+	propose proposeFunc
 
 	logger Logger
 
@@ -343,6 +348,7 @@ func newRaft(c *Config) *raft {
 		readOnly:                  newReadOnly(c.ReadOnlyOption),
 		disableProposalForwarding: c.DisableProposalForwarding,
 	}
+	raftlog.inflight = &r.inflight
 
 	cfg, prs, err := confchange.Restore(confchange.Changer{
 		Tracker:   r.prs,
@@ -693,6 +699,7 @@ func (r *raft) tickHeartbeat() {
 }
 
 func (r *raft) becomeFollower(term uint64, lead uint64) {
+	r.propose = proposeFollower
 	r.step = stepFollower
 	r.reset(term)
 	r.tick = r.tickElection
@@ -706,6 +713,7 @@ func (r *raft) becomeCandidate() {
 	if r.state == StateLeader {
 		panic("invalid transition [leader -> candidate]")
 	}
+	r.propose = proposeCandidate
 	r.step = stepCandidate
 	r.reset(r.Term + 1)
 	r.tick = r.tickElection
@@ -722,6 +730,7 @@ func (r *raft) becomePreCandidate() {
 	// Becoming a pre-candidate changes our step functions and state,
 	// but doesn't change anything else. In particular it does not increase
 	// r.Term or change r.Vote.
+	r.propose = proposeCandidate
 	r.step = stepCandidate
 	r.prs.ResetVotes()
 	r.tick = r.tickElection
@@ -735,6 +744,7 @@ func (r *raft) becomeLeader() {
 	if r.state == StateFollower {
 		panic("invalid transition [follower -> leader]")
 	}
+	r.propose = proposeLeader
 	r.step = stepLeader
 	r.reset(r.Term)
 	r.tick = r.tickHeartbeat
@@ -854,6 +864,116 @@ func (r *raft) poll(id uint64, t pb.MessageType, v bool) (granted int, rejected 
 	}
 	r.prs.RecordVote(id, v)
 	return r.prs.TallyVotes()
+}
+
+func (r *raft) Propose(pds ...ProposeData) {
+	ents := make([]pb.Entry, len(pds))
+	for i := range pds {
+		pd := &pds[i]
+		ents[i] = pb.Entry{
+			Type: pd.Type,
+			Data: pd.Data,
+		}
+	}
+	err := r.propose(r, pb.Message{
+		Type:    pb.MsgProp,
+		From:    r.id,
+		Entries: ents,
+	})
+	for i := range pds {
+		pd := &pds[i]
+		if pd.Callback == nil {
+			continue
+		}
+		if err != nil {
+			pd.Callback(err)
+		} else if pd.NoWaitCommit {
+			pd.Callback(nil)
+		} else {
+			r.inflight.append(ents[i].Index, pd.Callback)
+		}
+	}
+}
+
+type proposeFunc func(r *raft, m pb.Message) error
+
+func proposeLeader(r *raft, m pb.Message) error {
+	if len(m.Entries) == 0 {
+		r.logger.Panicf("%x stepped empty MsgProp", r.id)
+	}
+	if r.prs.Progress[r.id] == nil {
+		// If we are not currently a member of the range (i.e. this node
+		// was removed from the configuration while serving as leader),
+		// drop any new proposals.
+		return ErrProposalDropped
+	}
+	if r.leadTransferee != None {
+		r.logger.Debugf("%x [term %d] transfer leadership to %x is in progress; dropping proposal", r.id, r.Term, r.leadTransferee)
+		return ErrProposalDropped
+	}
+
+	for i := range m.Entries {
+		e := &m.Entries[i]
+		var cc pb.ConfChangeI
+		if e.Type == pb.EntryConfChange {
+			var ccc pb.ConfChange
+			if err := ccc.Unmarshal(e.Data); err != nil {
+				panic(err)
+			}
+			cc = ccc
+		} else if e.Type == pb.EntryConfChangeV2 {
+			var ccc pb.ConfChangeV2
+			if err := ccc.Unmarshal(e.Data); err != nil {
+				panic(err)
+			}
+			cc = ccc
+		}
+		if cc != nil {
+			alreadyPending := r.pendingConfIndex > r.raftLog.applied
+			alreadyJoint := len(r.prs.Config.Voters[1]) > 0
+			wantsLeaveJoint := len(cc.AsV2().Changes) == 0
+
+			var refused string
+			if alreadyPending {
+				refused = fmt.Sprintf("possible unapplied conf change at index %d (applied to %d)", r.pendingConfIndex, r.raftLog.applied)
+			} else if alreadyJoint && !wantsLeaveJoint {
+				refused = "must transition out of joint config first"
+			} else if !alreadyJoint && wantsLeaveJoint {
+				refused = "not in joint state; refusing empty conf change"
+			}
+
+			if refused != "" {
+				r.logger.Infof("%x ignoring conf change %v at config %s: %s", r.id, cc, r.prs.Config, refused)
+				m.Entries[i] = pb.Entry{Type: pb.EntryNormal}
+			} else {
+				r.pendingConfIndex = r.raftLog.lastIndex() + uint64(i) + 1
+			}
+		}
+	}
+
+	if !r.appendEntry(m.Entries...) {
+		return ErrProposalDropped
+	}
+	r.bcastAppend()
+	return nil
+}
+
+func proposeCandidate(r *raft, m pb.Message) error {
+	r.logger.Infof("%x no leader at term %d; dropping proposal", r.id, r.Term)
+	return ErrProposalDropped
+}
+
+func proposeFollower(r *raft, m pb.Message) error {
+	if r.lead == None {
+		r.logger.Infof("%x no leader at term %d; dropping proposal", r.id, r.Term)
+		return ErrProposalDropped
+	} else if r.disableProposalForwarding {
+		r.logger.Infof("%x not forwarding to leader %x at term %d; dropping proposal", r.id, r.lead, r.Term)
+		return ErrProposalDropped
+	}
+	m.To = r.lead
+	r.send(m)
+	return nil
 }
 
 func (r *raft) Step(m pb.Message) error {
@@ -1030,64 +1150,7 @@ func stepLeader(r *raft, m pb.Message) error {
 		})
 		return nil
 	case pb.MsgProp:
-		if len(m.Entries) == 0 {
-			r.logger.Panicf("%x stepped empty MsgProp", r.id)
-		}
-		if r.prs.Progress[r.id] == nil {
-			// If we are not currently a member of the range (i.e. this node
-			// was removed from the configuration while serving as leader),
-			// drop any new proposals.
-			return ErrProposalDropped
-		}
-		if r.leadTransferee != None {
-			r.logger.Debugf("%x [term %d] transfer leadership to %x is in progress; dropping proposal", r.id, r.Term, r.leadTransferee)
-			return ErrProposalDropped
-		}
-
-		for i := range m.Entries {
-			e := &m.Entries[i]
-			var cc pb.ConfChangeI
-			if e.Type == pb.EntryConfChange {
-				var ccc pb.ConfChange
-				if err := ccc.Unmarshal(e.Data); err != nil {
-					panic(err)
-				}
-				cc = ccc
-			} else if e.Type == pb.EntryConfChangeV2 {
-				var ccc pb.ConfChangeV2
-				if err := ccc.Unmarshal(e.Data); err != nil {
-					panic(err)
-				}
-				cc = ccc
-			}
-			if cc != nil {
-				alreadyPending := r.pendingConfIndex > r.raftLog.applied
-				alreadyJoint := len(r.prs.Config.Voters[1]) > 0
-				wantsLeaveJoint := len(cc.AsV2().Changes) == 0
-
-				var refused string
-				if alreadyPending {
-					refused = fmt.Sprintf("possible unapplied conf change at index %d (applied to %d)", r.pendingConfIndex, r.raftLog.applied)
-				} else if alreadyJoint && !wantsLeaveJoint {
-					refused = "must transition out of joint config first"
-				} else if !alreadyJoint && wantsLeaveJoint {
-					refused = "not in joint state; refusing empty conf change"
-				}
-
-				if refused != "" {
-					r.logger.Infof("%x ignoring conf change %v at config %s: %s", r.id, cc, r.prs.Config, refused)
-					m.Entries[i] = pb.Entry{Type: pb.EntryNormal}
-				} else {
-					r.pendingConfIndex = r.raftLog.lastIndex() + uint64(i) + 1
-				}
-			}
-		}
-
-		if !r.appendEntry(m.Entries...) {
-			return ErrProposalDropped
-		}
-		r.bcastAppend()
-		return nil
+		return proposeLeader(r, m)
 	case pb.MsgLogResp:
 		if r.raftLog.stableTo(m.Index, m.LogTerm) {
 			r.prs.Progress[r.id].MaybeUpdate(m.Index)
@@ -1410,8 +1473,7 @@ func stepCandidate(r *raft, m pb.Message) error {
 	}
 	switch m.Type {
 	case pb.MsgProp:
-		r.logger.Infof("%x no leader at term %d; dropping proposal", r.id, r.Term)
-		return ErrProposalDropped
+		return proposeCandidate(r, m)
 	case pb.MsgApp:
 		r.becomeFollower(m.Term, m.From) // always m.Term == r.Term
 		r.handleAppendEntries(m)
@@ -1450,15 +1512,7 @@ func stepCandidate(r *raft, m pb.Message) error {
 func stepFollower(r *raft, m pb.Message) error {
 	switch m.Type {
 	case pb.MsgProp:
-		if r.lead == None {
-			r.logger.Infof("%x no leader at term %d; dropping proposal", r.id, r.Term)
-			return ErrProposalDropped
-		} else if r.disableProposalForwarding {
-			r.logger.Infof("%x not forwarding to leader %x at term %d; dropping proposal", r.id, r.lead, r.Term)
-			return ErrProposalDropped
-		}
-		m.To = r.lead
-		r.send(m)
+		return proposeFollower(r, m)
 	case pb.MsgApp:
 		r.electionElapsed = 0
 		r.lead = m.From

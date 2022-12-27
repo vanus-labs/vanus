@@ -24,7 +24,6 @@ import (
 	"time"
 
 	// third-party libraries.
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
 	// first-party libraries.
@@ -67,11 +66,6 @@ type peer struct {
 
 type LeaderChangedListener func(block, leader vanus.ID, term uint64)
 
-type commitWaiter struct {
-	offset int64
-	c      chan struct{}
-}
-
 type Appender interface {
 	block.Appender
 
@@ -85,11 +79,6 @@ type appender struct {
 	raw      block.Raw
 	actx     block.AppendContext
 	appendMu sync.RWMutex
-
-	waiters      []commitWaiter
-	commitIndex  uint64
-	commitOffset int64
-	waitMu       sync.Mutex
 
 	leaderID vanus.ID
 	listener LeaderChangedListener
@@ -116,7 +105,6 @@ func NewAppender(
 
 	a := &appender{
 		raw:      raw,
-		waiters:  make([]commitWaiter, 0),
 		listener: listener,
 		log:      raftLog,
 		host:     host,
@@ -126,7 +114,6 @@ func NewAppender(
 		tracer:   tracing.NewTracer("store.block.raft.appender", trace.SpanKindInternal),
 	}
 	a.actx = a.raw.NewAppendContext(nil)
-	a.commitOffset = a.actx.WriteOffset()
 
 	a.log.SetSnapshotOperator(a)
 	a.host.Register(a.ID().Uint64(), a)
@@ -144,9 +131,6 @@ func NewAppender(
 		DisableProposalForwarding: true,
 	}
 	a.node = raft.RestartNode(c)
-
-	// Access Commit after raft.RestartNode to ensure raft state is initialized.
-	a.commitIndex = a.log.HardState().Commit
 
 	go a.run(ctx)
 
@@ -207,13 +191,6 @@ func (a *appender) run(ctx context.Context) {
 		case rd := <-a.node.Ready():
 			rCtx, span := a.tracer.Start(ctx, "RaftReady", trace.WithNewRoot())
 
-			var partial bool
-			stateChanged := !raft.IsEmptyHardState(rd.HardState)
-			if stateChanged {
-				// Wake up fast before writing logs.
-				partial = a.wakeup(rCtx, rd.HardState.Commit)
-			}
-
 			if len(rd.Entries) != 0 {
 				log.Debug(rCtx, "Append entries to raft log.", map[string]interface{}{
 					"node_id":        a.ID(),
@@ -238,11 +215,7 @@ func (a *appender) run(ctx context.Context) {
 				})
 			}
 
-			if stateChanged {
-				// Wake up after writing logs.
-				if partial {
-					_ = a.wakeup(rCtx, rd.HardState.Commit)
-				}
+			if !raft.IsEmptyHardState(rd.HardState) {
 				log.Debug(rCtx, "Persist raft hard state.", map[string]interface{}{
 					"node_id":    a.ID(),
 					"hard_state": rd.HardState,
@@ -336,40 +309,6 @@ func (a *appender) applyEntries(ctx context.Context, committedEntries []raftpb.E
 	return committedEntries[num-1].Index
 }
 
-// wakeup wakes up append requests to the smaller of the committed or last index.
-func (a *appender) wakeup(ctx context.Context, commit uint64) (partial bool) {
-	_, span := a.tracer.Start(ctx, "wakeup", trace.WithAttributes(
-		attribute.Int64("commit", int64(commit))))
-	defer span.End()
-
-	li, _ := a.log.LastIndex()
-	if commit > li {
-		commit = li
-		partial = true
-	}
-
-	if commit <= a.commitIndex {
-		return
-	}
-	a.commitIndex = commit
-
-	for off := commit; off > 0; off-- {
-		pbEntries, err := a.log.Entries(off, off+1, 0)
-		if err != nil {
-			return
-		}
-
-		pbEntry := pbEntries[0]
-		if pbEntry.Type == raftpb.EntryNormal && len(pbEntry.Data) > 0 {
-			frag := block.NewFragment(pbEntry.Data)
-			a.doWakeup(ctx, frag.EndOffset())
-			return
-		}
-	}
-
-	return partial
-}
-
 func (a *appender) becomeLeader(ctx context.Context) {
 	ctx, span := a.tracer.Start(ctx, "becomeLeader")
 	defer span.End()
@@ -459,65 +398,65 @@ func (a *appender) reset(ctx context.Context) {
 }
 
 // Append implements block.raw.
-func (a *appender) Append(ctx context.Context, entries ...block.Entry) ([]int64, error) {
+func (a *appender) Append(ctx context.Context, entries []block.Entry, cb block.AppendCallback) {
 	ctx, span := a.tracer.Start(ctx, "Append")
-	defer span.End()
-
-	seqs, offset, err := a.append(ctx, entries)
-	if err != nil {
-		if errors.Is(err, errors.ErrSegmentFull) {
-			_ = a.waitCommit(ctx, offset)
-		}
-		return nil, err
-	}
-
-	// Wait until entries is committed.
-	err = a.waitCommit(ctx, offset)
-	if err != nil {
-		return nil, err
-	}
-
-	return seqs, nil
-}
-
-func (a *appender) append(ctx context.Context, entries []block.Entry) ([]int64, int64, error) {
-	ctx, span := a.tracer.Start(ctx, "append")
 	defer span.End()
 
 	span.AddEvent("Acquiring append lock")
 	a.appendMu.Lock()
 	span.AddEvent("Got append lock")
 
-	defer a.appendMu.Unlock()
-
 	if !a.isLeader() {
-		return nil, 0, errors.ErrNotLeader
+		a.appendMu.Unlock()
+		cb(nil, errors.ErrNotLeader)
+		return
 	}
 
 	if a.actx.Archived() {
-		return nil, a.actx.WriteOffset(), errors.ErrSegmentFull
+		a.appendMu.Unlock()
+		cb(nil, errors.ErrSegmentFull)
+		return
 	}
 
 	seqs, frag, enough, err := a.raw.PrepareAppend(ctx, a.actx, entries...)
 	if err != nil {
-		return nil, 0, err
+		a.appendMu.Unlock()
+		cb(nil, err)
+		return
 	}
-	off := a.actx.WriteOffset()
 
 	data, _ := block.MarshalFragment(ctx, frag)
-	if err = a.node.Propose(ctx, data); err != nil {
-		return nil, 0, err
-	}
 
+	var pds []raft.ProposeData
 	if enough {
-		if frag, err = a.raw.PrepareArchive(ctx, a.actx); err == nil {
-			data, _ := block.MarshalFragment(ctx, frag)
-			_ = a.node.Propose(ctx, data)
+		if frag, err := a.raw.PrepareArchive(ctx, a.actx); err == nil {
+			archivedData, _ := block.MarshalFragment(ctx, frag)
+			pds = make([]raft.ProposeData, 2)
 			// FIXME(james.yin): revert archived if propose failed.
+			pds[1] = raft.ProposeData{
+				Data: archivedData,
+			}
+		} else {
+			pds = make([]raft.ProposeData, 1)
 		}
+	} else {
+		pds = make([]raft.ProposeData, 1)
 	}
 
-	return seqs, off, nil
+	pds[0] = raft.ProposeData{
+		Data: data,
+		Callback: func(err error) {
+			if err != nil {
+				cb(nil, err)
+			} else {
+				cb(seqs, nil)
+			}
+		},
+	}
+
+	a.node.Propose(ctx, pds...)
+
+	a.appendMu.Unlock()
 }
 
 func (a *appender) doAppend(ctx context.Context, frags ...block.Fragment) {
@@ -525,57 +464,6 @@ func (a *appender) doAppend(ctx context.Context, frags ...block.Fragment) {
 		return
 	}
 	_, _ = a.raw.CommitAppend(ctx, frags...)
-}
-
-func (a *appender) waitCommit(ctx context.Context, offset int64) error {
-	ctx, span := a.tracer.Start(ctx, "waitCommit")
-	defer span.End()
-
-	span.AddEvent("Acquiring wait lock")
-	a.waitMu.Lock()
-	span.AddEvent("Got wait lock")
-
-	if offset <= a.commitOffset {
-		a.waitMu.Unlock()
-		return nil
-	}
-
-	ch := make(chan struct{})
-	a.waiters = append(a.waiters, commitWaiter{
-		offset: offset,
-		c:      ch,
-	})
-
-	a.waitMu.Unlock()
-
-	// FIXME(james.yin): lost leader
-	select {
-	case <-ch:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
-func (a *appender) doWakeup(ctx context.Context, commit int64) {
-	_, span := a.tracer.Start(ctx, "doWakeup")
-	defer span.End()
-
-	span.AddEvent("Acquiring wait lock")
-	a.waitMu.Lock()
-	span.AddEvent("Got wait lock")
-
-	defer a.waitMu.Unlock()
-
-	for len(a.waiters) != 0 {
-		waiter := a.waiters[0]
-		if waiter.offset > commit {
-			break
-		}
-		close(waiter.c)
-		a.waiters = a.waiters[1:]
-	}
-	a.commitOffset = commit
 }
 
 func (a *appender) Status() ClusterStatus {

@@ -44,8 +44,10 @@ type Reader interface {
 	Read(ctx context.Context, seq int64, num int) ([]Entry, error)
 }
 
+type AppendCallback = func(seqs []int64, err error)
+
 type Appender interface {
-	Append(ctx context.Context, entries ...Entry) ([]int64, error)
+	Append(ctx context.Context, entries []Entry, cb AppendCallback)
 }
 
 type Block interface {
