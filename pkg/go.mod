@@ -12,7 +12,6 @@ require (
 )
 
 replace (
-	cloudevents.io/genproto => ../proto/include/cloudevents/pkg
 	github.com/linkall-labs/vanus/observability => ../observability
 	github.com/linkall-labs/vanus/proto => ../proto
 	github.com/linkall-labs/vanus/raft => ../raft

@@ -22,12 +22,12 @@ import (
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"go.opentelemetry.io/otel/trace"
 
-	// third-party libraries
-	cepb "cloudevents.io/genproto/v1"
 	ce "github.com/cloudevents/sdk-go/v2"
 	"google.golang.org/grpc"
 
 	// first-party libraries
+	// third-party libraries
+	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
 	// this project
@@ -155,4 +155,26 @@ func (s *BlockStore) LookupOffset(ctx context.Context, blockID uint64, t time.Ti
 		return -1, err
 	}
 	return res.Offset, nil
+}
+
+func (s *BlockStore) AppendBatch(ctx context.Context, block uint64, event *cepb.CloudEventBatch) (int64, error) {
+	_ctx, span := s.tracer.Start(ctx, "AppendBatch")
+	defer span.End()
+
+	req := &segpb.AppendToBlockRequest{
+		BlockId: block,
+		Events:  event,
+	}
+
+	client, err := s.client.Get(_ctx)
+	if err != nil {
+		return -1, err
+	}
+
+	res, err := client.(segpb.SegmentServerClient).AppendToBlock(_ctx, req)
+	if err != nil {
+		return -1, err
+	}
+	// TODO(Y. F. Zhang): batch events
+	return res.GetOffsets()[0], nil
 }

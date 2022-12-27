@@ -19,7 +19,7 @@ import (
 	"context"
 
 	// third-party libraries.
-	cepb "cloudevents.io/genproto/v1"
+	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	// first-party libraries.
