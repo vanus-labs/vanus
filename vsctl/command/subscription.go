@@ -87,6 +87,8 @@ func createSubscriptionCommand() *cobra.Command {
 				if sinkCredentialType != GCloudCredentialType {
 					cmdFailedf(cmd, "protocol is aws-lambda, credential-type must be %s\n", GCloudCredentialType)
 				}
+			case "grpc":
+				p = meta.Protocol_GRPC
 			default:
 				cmdFailedf(cmd, "protocol is invalid\n")
 			}
@@ -486,6 +488,8 @@ func getSubscriptionRow(sub *meta.Subscription) []interface{} {
 		protocol = "aws-lambda"
 	case meta.Protocol_GCLOUD_FUNCTIONS:
 		protocol = "gcloud-functions"
+	case meta.Protocol_GRPC:
+		protocol = "grpc"
 	}
 	result = append(result, protocol)
 

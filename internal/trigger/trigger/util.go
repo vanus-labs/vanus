@@ -34,6 +34,8 @@ func newEventClient(sink primitive.URI,
 	case primitive.GCloudFunctions:
 		_credential, _ := credential.(*primitive.GCloudSinkCredential)
 		return client.NewGCloudFunctionClient(string(sink), _credential.CredentialJSON)
+	case primitive.GRPC:
+		return client.NewGRPCClient(string(sink))
 	default:
 		return client.NewHTTPClient(string(sink))
 	}
