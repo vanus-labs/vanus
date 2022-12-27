@@ -69,6 +69,10 @@ service TriggerController {
       returns (linkall.vanus.meta.Subscription) {}
   rpc DeleteSubscription(DeleteSubscriptionRequest)
       returns (google.protobuf.Empty) {}
+  rpc DisableSubscription(DisableSubscriptionRequest)
+      returns (google.protobuf.Empty);
+  rpc ResumeSubscription(ResumeSubscriptionRequest)
+      returns (google.protobuf.Empty);
   rpc GetSubscription(GetSubscriptionRequest)
       returns (linkall.vanus.meta.Subscription) {}
   rpc ListSubscription(google.protobuf.Empty)
@@ -94,7 +98,7 @@ service SnowflakeController {
 message PingResponse {
   string leader_addr = 1;
   string gateway_addr = 2;
-  bool is_eventbus_ready=3;
+  bool is_eventbus_ready = 3;
 }
 
 message CreateEventBusRequest {
@@ -179,6 +183,14 @@ message GetSubscriptionRequest {
 }
 
 message DeleteSubscriptionRequest {
+  uint64 id = 1;
+}
+
+message DisableSubscriptionRequest {
+  uint64 id = 1;
+}
+
+message ResumeSubscriptionRequest {
   uint64 id = 1;
 }
 

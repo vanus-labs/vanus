@@ -17,6 +17,7 @@ package trigger
 import (
 	"context"
 	stdErr "errors"
+	"fmt"
 	"io"
 	"os"
 	"sync"
@@ -151,12 +152,18 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	sub.Phase = metadata.SubscriptionPhaseCreated
+	if request.Subscription.Disable {
+		sub.Phase = metadata.SubscriptionPhaseStopped
+	} else {
+		sub.Phase = metadata.SubscriptionPhaseCreated
+	}
 	err = ctrl.subscriptionManager.AddSubscription(ctx, sub)
 	if err != nil {
 		return nil, err
 	}
-	ctrl.scheduler.EnqueueNormalSubscription(sub.ID)
+	if request.Subscription.Disable {
+		ctrl.scheduler.EnqueueNormalSubscription(sub.ID)
+	}
 	resp := convert.ToPbSubscription(sub, nil)
 	return resp, nil
 }
@@ -170,6 +177,9 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
 	if sub == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("subscription not exist")
+	}
+	if sub.Phase != metadata.SubscriptionPhaseStopped {
+		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription must be disabled can update")
 	}
 	if err := validation.ValidateSubscriptionRequest(ctx, request.Subscription); err != nil {
 		return nil, err
@@ -194,14 +204,12 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 		return nil, errors.ErrInvalidRequest.WithMessage("no change")
 	}
 	sub.UpdatedAt = time.Now()
-	sub.Phase = metadata.SubscriptionPhasePending
 	if err := ctrl.subscriptionManager.UpdateSubscription(ctx, sub); err != nil {
 		return nil, err
 	}
 	if transChange != 0 {
 		metrics.SubscriptionTransformerGauge.WithLabelValues(sub.EventBus).Add(float64(transChange))
 	}
-	ctrl.scheduler.EnqueueNormalSubscription(sub.ID)
 	resp := convert.ToPbSubscription(sub, nil)
 	return resp, nil
 }
@@ -228,6 +236,50 @@ func (ctrl *controller) DeleteSubscription(ctx context.Context,
 			}
 		}(subID, sub.TriggerWorker)
 	}
+	return &emptypb.Empty{}, nil
+}
+
+func (ctrl *controller) DisableSubscription(ctx context.Context,
+	request *ctrlpb.DisableSubscriptionRequest) (*emptypb.Empty, error) {
+	if ctrl.state != primitive.ServerStateRunning {
+		return nil, errors.ErrServerNotStart
+	}
+	subID := vanus.ID(request.Id)
+	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
+	if sub == nil {
+		return nil, errors.ErrResourceNotFound.WithMessage(fmt.Sprintf("subscrption %d not exist", subID))
+	}
+	if sub.Phase == metadata.SubscriptionPhaseStopped {
+		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription is disable")
+	}
+	sub.Phase = metadata.SubscriptionPhaseStopped
+	err := ctrl.subscriptionManager.UpdateSubscription(ctx, sub)
+	if err != nil {
+		return nil, err
+	}
+	ctrl.scheduler.EnqueueSubscription(sub.ID)
+	return &emptypb.Empty{}, nil
+}
+
+func (ctrl *controller) ResumeSubscription(ctx context.Context,
+	request *ctrlpb.ResumeSubscriptionRequest) (*emptypb.Empty, error) {
+	if ctrl.state != primitive.ServerStateRunning {
+		return nil, errors.ErrServerNotStart
+	}
+	subID := vanus.ID(request.Id)
+	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
+	if sub == nil {
+		return nil, errors.ErrResourceNotFound.WithMessage(fmt.Sprintf("subscrption %d not exist", subID))
+	}
+	if sub.Phase != metadata.SubscriptionPhaseStopped {
+		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription is not disable")
+	}
+	sub.Phase = metadata.SubscriptionPhasePending
+	err := ctrl.subscriptionManager.UpdateSubscription(ctx, sub)
+	if err != nil {
+		return nil, err
+	}
+	ctrl.scheduler.EnqueueSubscription(sub.ID)
 	return &emptypb.Empty{}, nil
 }
 

@@ -59,6 +59,7 @@ const (
 	SubscriptionPhasePending   = "pending"
 	SubscriptionPhaseScheduled = "scheduled"
 	SubscriptionPhaseRunning   = "running"
+	SubscriptionPhaseStopped   = "stopped"
 	SubscriptionPhaseToDelete  = "toDelete"
 )
 
@@ -76,7 +77,6 @@ type Subscription struct {
 	EventBus           string                          `json:"eventbus"`
 	Transformer        *primitive.Transformer          `json:"transformer,omitempty"`
 	Name               string                          `json:"name"`
-	Disable            bool                            `json:"disable"`
 	Description        string                          `json:"description"`
 	CreatedAt          time.Time                       `json:"created_at"`
 	UpdatedAt          time.Time                       `json:"updated_at"`
@@ -97,10 +97,6 @@ func (s *Subscription) Update(update *Subscription) bool {
 	if s.Description != update.Description {
 		change = true
 		s.Description = update.Description
-	}
-	if s.Disable != update.Disable {
-		change = true
-		s.Disable = update.Disable
 	}
 	if !reflect.DeepEqual(s.Types, update.Types) {
 		change = true
