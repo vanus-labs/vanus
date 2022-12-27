@@ -17,6 +17,7 @@ package eventlog
 import (
 	// standard libraries.
 	"context"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"io"
 	"sort"
 	"sync"
@@ -329,6 +330,10 @@ func (l *eventlog) refreshReadableSegments(ctx context.Context) {
 	_ = l.readableWatcher.Refresh(ctx)
 }
 
+var (
+	_ LogWriter = &logWriter{}
+)
+
 // logWriter is the writer of eventlog.
 //
 // Append is thread-safety.
@@ -336,6 +341,28 @@ type logWriter struct {
 	elog *eventlog
 	cur  *segment
 	mu   sync.RWMutex
+}
+
+func (w *logWriter) AppendMany(ctx context.Context, events *cloudevents.CloudEventBatch) (off int64, err error) {
+	retryTimes := defaultRetryTimes
+	for i := 1; i <= retryTimes; i++ {
+		offset, err := w.doAppendBatch(ctx, events)
+		if err == nil {
+			return offset, nil
+		}
+		vlog.Warning(ctx, "failed to Append", map[string]interface{}{
+			vlog.KeyError: err,
+			"offset":      offset,
+		})
+		if errors.Is(err, errors.ErrSegmentFull) {
+			if i < retryTimes {
+				continue
+			}
+		}
+		return -1, err
+	}
+
+	return -1, errors.ErrUnknown
 }
 
 func (w *logWriter) Log() Eventlog {
@@ -376,6 +403,21 @@ func (w *logWriter) doAppend(ctx context.Context, event *ce.Event) (int64, error
 		return -1, err
 	}
 	offset, err := segment.Append(ctx, event)
+	if err != nil {
+		if errors.Is(err, errors.ErrSegmentFull) {
+			segment.SetNotWritable()
+		}
+		return -1, err
+	}
+	return offset, nil
+}
+
+func (w *logWriter) doAppendBatch(ctx context.Context, event *cloudevents.CloudEventBatch) (int64, error) {
+	segment, err := w.selectWritableSegment(ctx)
+	if err != nil {
+		return -1, err
+	}
+	offset, err := segment.AppendBatch(ctx, event)
 	if err != nil {
 		if errors.Is(err, errors.ErrSegmentFull) {
 			segment.SetNotWritable()

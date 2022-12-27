@@ -3,7 +3,6 @@ module github.com/linkall-labs/vanus/client
 go 1.18
 
 require (
-	cloudevents.io/genproto v1.0.2
 	github.com/cloudevents/sdk-go/v2 v2.11.0
 	github.com/golang/mock v1.6.0
 	github.com/linkall-labs/vanus/observability v0.5.1
@@ -49,9 +48,9 @@ require (
 )
 
 replace (
-	cloudevents.io/genproto => ../proto/include/cloudevents/pkg
 	github.com/linkall-labs/vanus/observability => ../observability
 	github.com/linkall-labs/vanus/pkg => ../pkg
 	github.com/linkall-labs/vanus/proto => ../proto
 	github.com/linkall-labs/vanus/raft => ../raft
+	github.com/cloudevents/sdk-go/binding/format/protobuf/v2 => ../../../github/sdk-go/binding/format/protobuf/v2
 )

@@ -19,8 +19,8 @@ import (
 	"time"
 
 	// third-party libraries.
-	cepb "cloudevents.io/genproto/v1"
 	ce "github.com/cloudevents/sdk-go/v2"
+	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	. "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -63,34 +63,34 @@ func MakeEvent1() *cepb.CloudEvent {
 		Source:      ceSource,
 		SpecVersion: ceSpecVersion,
 		Type:        ceType,
-		Attributes: map[string]*cepb.CloudEventAttributeValue{
+		Attributes: map[string]*cepb.CloudEvent_CloudEventAttributeValue{
 			"datacontenttype": {
-				Attr: &cepb.CloudEventAttributeValue_CeString{
+				Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeString{
 					CeString: ceDataContentType,
 				},
 			},
 			"subject": {
-				Attr: &cepb.CloudEventAttributeValue_CeString{
+				Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeString{
 					CeString: ceSubject,
 				},
 			},
 			"time": {
-				Attr: &cepb.CloudEventAttributeValue_CeTimestamp{
+				Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeTimestamp{
 					CeTimestamp: timestamppb.New(ceTime),
 				},
 			},
 			"attr0": {
-				Attr: &cepb.CloudEventAttributeValue_CeString{
+				Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeString{
 					CeString: "value0",
 				},
 			},
 			"attr1": {
-				Attr: &cepb.CloudEventAttributeValue_CeString{
+				Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeString{
 					CeString: "value1",
 				},
 			},
 			"attr2": {
-				Attr: &cepb.CloudEventAttributeValue_CeString{
+				Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeString{
 					CeString: "value2",
 				},
 			},

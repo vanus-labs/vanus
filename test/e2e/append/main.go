@@ -15,9 +15,10 @@
 package main
 
 import (
-	v1 "cloudevents.io/genproto/v1"
 	"context"
 	"fmt"
+
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"github.com/linkall-labs/vanus/proto/pkg/segment"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -42,15 +43,15 @@ func TestAppend(cli segment.SegmentServerClient) {
 		cnt++
 		_, err := cli.AppendToBlock(context.Background(), &segment.AppendToBlockRequest{
 			BlockId: id,
-			Events: &v1.CloudEventBatch{
-				Events: []*v1.CloudEvent{
+			Events: &cloudevents.CloudEventBatch{
+				Events: []*cloudevents.CloudEvent{
 					{
 						Id:          "asdsadsadasdsadsadasdsadsad",
 						Source:      "asdsadsadasdsadsadasdsadsad",
 						SpecVersion: "1.0",
 						Type:        "test1",
 						Attributes:  nil,
-						Data:        &v1.CloudEvent_TextData{TextData: fmt.Sprintf("Hello DingJie %d", idx)},
+						Data:        &cloudevents.CloudEvent_TextData{TextData: fmt.Sprintf("Hello DingJie %d", idx)},
 					},
 				},
 			},
