@@ -20,6 +20,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	stderrors "errors"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"io"
 	"sync"
 
@@ -442,6 +443,29 @@ type busWriter struct {
 	ebus   *eventbus
 	opts   *api.WriteOptions
 	tracer *tracing.Tracer
+}
+
+func (w *busWriter) AppendBatch(ctx context.Context, events *cloudevents.CloudEventBatch, opts ...api.WriteOption) (err error) {
+	_ctx, span := w.tracer.Start(ctx, "CloudEventBatch")
+	defer span.End()
+
+	var writeOpts *api.WriteOptions = w.opts
+	if len(opts) > 0 {
+		writeOpts = w.opts.Copy()
+		for _, opt := range opts {
+			opt(writeOpts)
+		}
+	}
+
+	// 1. pick a writer of eventlog
+	lw, err := w.pickWritableLog(_ctx, writeOpts)
+	if err != nil {
+		return err
+	}
+
+	// 2. append the event to the eventlog
+	_, err = lw.AppendMany(_ctx, events)
+	return err
 }
 
 var _ api.BusWriter = (*busWriter)(nil)

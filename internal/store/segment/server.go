@@ -29,8 +29,8 @@ import (
 	"time"
 
 	// third-party libraries.
-	cepb "cloudevents.io/genproto/v1"
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
+	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"

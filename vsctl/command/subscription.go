@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"io/ioutil"
 	"os"
 	"time"
@@ -30,6 +29,7 @@ import (
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/linkall-labs/vanus/proto/pkg/meta"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
@@ -160,6 +160,7 @@ func createSubscriptionCommand() *cobra.Command {
 			config := &meta.SubscriptionConfig{
 				RateLimit:       rateLimit,
 				DeliveryTimeout: deliveryTimeout,
+				OrderedEvent:    orderedPushEvent,
 			}
 			if maxRetryAttempts >= 0 {
 				value := uint32(maxRetryAttempts)
@@ -218,6 +219,8 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&description, "description", "", "subscription description")
 	cmd.Flags().BoolVar(&disableSubscription, "disable", false, "whether disable the "+
 		"subscription (just create if disable=true)")
+	cmd.Flags().BoolVar(&orderedPushEvent, "ordered-event", false, "whether push the "+
+		"event with ordered")
 	return cmd
 }
 

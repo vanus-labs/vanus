@@ -287,7 +287,7 @@ func (l *raftLog) appliedTo(i uint64) {
 
 func (l *raftLog) localCommitTo(tocommit uint64) {
 	if tocommit >= l.unstable.offset {
-		tocommit = l.unstable.offset
+		tocommit = l.unstable.offset - 1
 	}
 	// never decrease commit
 	if l.localCommitted < tocommit {

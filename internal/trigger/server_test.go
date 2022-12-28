@@ -108,6 +108,7 @@ func TestServerInitAndClose(t *testing.T) {
 			state:  primitive.ServerStateCreated,
 		}
 		Convey("test init", func() {
+			w.EXPECT().Init(gomock.Any()).Return(nil)
 			w.EXPECT().Register(gomock.Any()).Return(nil)
 			err := s.Initialize(ctx)
 			So(err, ShouldBeNil)

@@ -3,7 +3,6 @@ module github.com/linkall-labs/vanus/client
 go 1.18
 
 require (
-	cloudevents.io/genproto v1.0.2
 	github.com/cloudevents/sdk-go/v2 v2.11.0
 	github.com/golang/mock v1.6.0
 	github.com/linkall-labs/vanus/observability v0.5.1
@@ -29,9 +28,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
-	github.com/stretchr/objx v0.4.0 // indirect
 	go.opentelemetry.io/otel v1.11.1 // indirect
-	go.opentelemetry.io/otel/exporters/jaeger v1.9.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.9.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.9.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.9.0 // indirect
@@ -49,7 +46,7 @@ require (
 )
 
 replace (
-	cloudevents.io/genproto => ../proto/include/cloudevents/pkg
+	cloud.google.com/go => cloud.google.com/go v0.100.2
 	github.com/linkall-labs/vanus/observability => ../observability
 	github.com/linkall-labs/vanus/pkg => ../pkg
 	github.com/linkall-labs/vanus/proto => ../proto

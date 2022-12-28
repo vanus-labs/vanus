@@ -39,8 +39,12 @@ func newEventClient(sink primitive.URI,
 	}
 }
 
+const NoNeedRetryCode = -1
+
 func isShouldRetry(statusCode int) (bool, string) {
 	switch statusCode {
+	case NoNeedRetryCode:
+		return false, "NoNeedRetry"
 	case 400:
 		return false, "BadRequest"
 	case 403:

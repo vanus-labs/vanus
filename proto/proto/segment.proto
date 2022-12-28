@@ -16,7 +16,7 @@ syntax = "proto3";
 
 package linkall.vanus.segment;
 
-import "cloudevents/cloudevents.proto";
+import "cloudevents.proto";
 import "config.proto";
 import "errors.proto";
 import "google/protobuf/empty.proto";
@@ -44,7 +44,7 @@ service SegmentServer {
 }
 
 message StartSegmentServerRequest {
-  linkall.vanus.config.ServerConfig config = 1;
+  config.ServerConfig config = 1;
   uint64 server_id = 2;
 }
 
@@ -82,7 +82,7 @@ message InactivateSegmentResponse {}
 
 message AppendToBlockRequest {
   uint64 block_id = 1;
-  io.cloudevents.v1.CloudEventBatch events = 2;
+  cloudevents.CloudEventBatch events = 2;
 }
 
 message AppendToBlockResponse {
@@ -98,7 +98,7 @@ message ReadFromBlockRequest {
 }
 
 message ReadFromBlockResponse {
-  io.cloudevents.v1.CloudEventBatch events = 1;
+  cloudevents.CloudEventBatch events = 1;
   // Don't use this now, just used to optimize cpu overhead of SegmentServer in
   // the future for backward compatibility
   bytes payload = 2;
@@ -107,7 +107,7 @@ message ReadFromBlockResponse {
 message AppendToBlockStreamRequest {
   uint64 id = 1;
   uint64 block_id = 2;
-  io.cloudevents.v1.CloudEventBatch events = 3;
+  cloudevents.CloudEventBatch events = 3;
 }
 
 message AppendToBlockStreamResponse {
@@ -130,7 +130,7 @@ message ReadFromBlockStreamResponse {
   uint64 id = 1;
   linkall.vanus.errors.ErrorCode response_code = 2;
   string response_msg = 3;
-  io.cloudevents.v1.CloudEventBatch events = 4;
+  cloudevents.CloudEventBatch events = 4;
   // Don't use this now, just used to optimize cpu overhead of SegmentServer in
   // the future for backward compatibility
   bytes payload = 5;

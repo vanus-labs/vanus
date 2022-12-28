@@ -19,6 +19,8 @@ import (
 	// standard libraries.
 	"context"
 
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
 
@@ -50,6 +52,8 @@ type LogWriter interface {
 	Close(ctx context.Context)
 
 	Append(ctx context.Context, event *ce.Event) (off int64, err error)
+
+	AppendMany(ctx context.Context, events *cloudevents.CloudEventBatch) (off int64, err error)
 
 	AppendManyStream(ctx context.Context, events []*ce.Event) ([]int64, error)
 }

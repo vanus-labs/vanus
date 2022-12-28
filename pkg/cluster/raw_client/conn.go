@@ -16,11 +16,9 @@ package raw_client
 
 import (
 	"context"
-	stderr "errors"
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -190,7 +188,7 @@ func isNeedRetry(err error) bool {
 	if err == nil {
 		return false
 	}
-	if stderr.Is(err, errors.ErrNoControllerLeader) {
+	if errors.Is(err, errors.ErrNotLeader) {
 		return true
 	}
 	sts := status.Convert(err)
@@ -200,20 +198,6 @@ func isNeedRetry(err error) bool {
 	if sts.Code() == codes.Unavailable {
 		return true
 	}
-
-	if strings.Contains(sts.Message(), "NOT_LEADER") {
-		return true
-	}
-	//errType, ok := errpb.Convert(sts.Message())
-	//if !ok {
-	//	return false
-	//}
-	//if errType.Code == errpb.ErrorCode_NOT_LEADER {
-	//	log.Info(nil, "ErrorCode_NOT_LEADER", map[string]interface{}{
-	//		log.KeyError: err,
-	//	})
-	//	return true
-	//}
 	return false
 }
 

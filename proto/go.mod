@@ -3,7 +3,6 @@ module github.com/linkall-labs/vanus/proto
 go 1.17
 
 require (
-	cloudevents.io/genproto v1.0.2
 	github.com/golang/mock v1.6.0
 	github.com/linkall-labs/vanus/raft v0.5.1
 	google.golang.org/grpc v1.49.0
@@ -11,7 +10,6 @@ require (
 )
 
 replace (
-	cloudevents.io/genproto => ./include/cloudevents/pkg
 	github.com/linkall-labs/vanus/raft => ../raft
 )
 

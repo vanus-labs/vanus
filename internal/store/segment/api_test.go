@@ -19,9 +19,8 @@ import (
 	"context"
 	"testing"
 
-	// third-party libraries.
-	cepb "cloudevents.io/genproto/v1"
 	. "github.com/golang/mock/gomock"
+	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	. "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/protobuf/types/known/emptypb"
 

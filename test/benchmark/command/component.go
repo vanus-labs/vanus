@@ -26,12 +26,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	v1 "cloudevents.io/genproto/v1"
 	"github.com/go-redis/redis/v8"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store"
 	"github.com/linkall-labs/vanus/internal/store/segment"
 	"github.com/linkall-labs/vanus/observability/log"
+	v1 "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"

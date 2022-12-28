@@ -20,16 +20,20 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"net/http"
 	"runtime/debug"
+	"strings"
 	"sync"
 
 	v2 "github.com/cloudevents/sdk-go/v2"
+	"github.com/cloudevents/sdk-go/v2/types"
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/option"
 	"github.com/linkall-labs/vanus/client/pkg/policy"
 	"github.com/linkall-labs/vanus/internal/convert"
+	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/filter"
@@ -38,6 +42,7 @@ import (
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/cluster"
 	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	proxypb "github.com/linkall-labs/vanus/proto/pkg/proxy"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -68,6 +73,10 @@ type Config struct {
 	GRPCReflectionEnable   bool
 }
 
+var (
+	_ cloudevents.CloudEventsServer = &ControllerProxy{}
+)
+
 type ControllerProxy struct {
 	cfg          Config
 	tracer       *tracing.Tracer
@@ -77,6 +86,65 @@ type ControllerProxy struct {
 	triggerCtrl  ctrlpb.TriggerControllerClient
 	grpcSrv      *grpc.Server
 	ctrl         cluster.Cluster
+}
+
+func (cp *ControllerProxy) Send(ctx context.Context, batch *cloudevents.BatchEvent) (*emptypb.Empty, error) {
+	_ctx, span := cp.tracer.Start(ctx, "Send")
+	defer span.End()
+
+	if batch.EventbusName == "" {
+		return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid eventbus name")
+	}
+
+	for idx := range batch.Events.Events {
+		e := batch.Events.Events[idx]
+		err := checkExtension(e.Attributes)
+		if err != nil {
+			return nil, v2.NewHTTPResult(http.StatusBadRequest, err.Error())
+		}
+		e.Attributes[primitive.XVanusEventbus] = &cloudevents.CloudEvent_CloudEventAttributeValue{
+			Attr: &cloudevents.CloudEvent_CloudEventAttributeValue_CeString{CeString: batch.EventbusName},
+		}
+		if eventTime, ok := e.Attributes[primitive.XVanusDeliveryTime]; ok {
+			// validate event time
+			if _, err := types.ParseTime(eventTime.String()); err != nil {
+				log.Error(_ctx, "invalid format of event time", map[string]interface{}{
+					log.KeyError: err,
+					"eventTime":  eventTime.String(),
+				})
+				return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid delivery time")
+			}
+			// TODO process delay message
+			// ebName = primitive.TimerEventbusName
+		}
+	}
+
+	err := cp.client.Eventbus(ctx, batch.GetEventbusName()).Writer().AppendBatch(_ctx, batch.GetEvents())
+	if err != nil {
+		log.Warning(_ctx, "append to failed", map[string]interface{}{
+			log.KeyError: err,
+			"eventbus":   batch.EventbusName,
+		})
+		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
+	}
+
+	return &emptypb.Empty{}, nil
+}
+
+func checkExtension(extensions map[string]*cloudevents.CloudEvent_CloudEventAttributeValue) error {
+	if len(extensions) == 0 {
+		return nil
+	}
+	for name := range extensions {
+		if name == primitive.XVanusDeliveryTime {
+			continue
+		}
+		// event attribute can not prefix with vanus system use
+		if strings.HasPrefix(name, primitive.XVanus) {
+			return fmt.Errorf("invalid ce attribute [%s] perfix %s", name, primitive.XVanus)
+		}
+	}
+	return nil
 }
 
 func NewControllerProxy(cfg Config) *ControllerProxy {
@@ -122,6 +190,7 @@ func (cp *ControllerProxy) Start() error {
 	}
 
 	proxypb.RegisterControllerProxyServer(cp.grpcSrv, cp)
+	cloudevents.RegisterCloudEventsServer(cp.grpcSrv, cp)
 
 	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cp.cfg.ProxyPort))
 	if err != nil {

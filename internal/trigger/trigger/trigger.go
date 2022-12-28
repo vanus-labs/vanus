@@ -278,27 +278,38 @@ func (t *trigger) runEventSend(ctx context.Context) {
 			if !ok {
 				return
 			}
-			go func(event info.EventRecord) {
-				code, err := t.sendEvent(ctx, event.Event)
-				if err != nil {
-					metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelValuePushEventFail).Inc()
-					log.Info(ctx, "send event fail", map[string]interface{}{
-						log.KeyError: err,
-						"event":      event.Event,
-					})
-					t.writeFailEvent(ctx, event.Event, code, err)
-				} else {
-					metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelValuePushEventSuccess).Inc()
-					log.Debug(ctx, "send event success", map[string]interface{}{
-						"event": event.Event,
-					})
-				}
-				t.offsetManager.EventCommit(event.OffsetInfo)
-			}(event)
+			if t.config.Ordered {
+				t.processEvent(ctx, event)
+			} else {
+				go func(event info.EventRecord) {
+					t.processEvent(ctx, event)
+				}(event)
+			}
 		}
 	}
 }
 
+func (t *trigger) processEvent(ctx context.Context, event info.EventRecord) {
+	code, err := t.sendEvent(ctx, event.Event)
+	if err != nil {
+		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelValuePushEventFail).Inc()
+		log.Info(ctx, "send event fail", map[string]interface{}{
+			log.KeyError: err,
+			"event":      event.Event,
+		})
+		if t.config.Ordered {
+			// ordered event no need retry direct into dead letter
+			code = NoNeedRetryCode
+		}
+		t.writeFailEvent(ctx, event.Event, code, err)
+	} else {
+		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelValuePushEventSuccess).Inc()
+		log.Debug(ctx, "send event success", map[string]interface{}{
+			"event": event.Event,
+		})
+	}
+	t.offsetManager.EventCommit(event.OffsetInfo)
+}
 func (t *trigger) writeFailEvent(ctx context.Context, e *ce.Event, code int, sendErr error) {
 	needRetry, reason := isShouldRetry(code)
 	ec, _ := e.Context.(*ce.EventContextV1)

@@ -9,7 +9,7 @@ import (
 	net "net"
 	reflect "reflect"
 
-	v1 "cloudevents.io/genproto/v1"
+	v1 "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	gomock "github.com/golang/mock/gomock"
 	primitive "github.com/linkall-labs/vanus/internal/primitive"
 	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"

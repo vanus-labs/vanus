@@ -19,6 +19,7 @@ import (
 	"context"
 
 	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 )
 
 type Eventbus interface {
@@ -33,6 +34,7 @@ type Eventbus interface {
 type BusWriter interface {
 	AppendOne(ctx context.Context, event *ce.Event, opts ...WriteOption) (eid string, err error)
 	AppendMany(ctx context.Context, events []*ce.Event, opts ...WriteOption) (eid []string, err error)
+	AppendBatch(ctx context.Context, events *cloudevents.CloudEventBatch, opts ...WriteOption) (err error)
 }
 
 type BusReader interface {
