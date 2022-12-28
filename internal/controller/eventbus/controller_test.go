@@ -95,7 +95,7 @@ func TestController_CreateEventBus(t *testing.T) {
 			So(res, ShouldBeNil)
 			et, ok := err.(*errors.ErrorType)
 			So(ok, ShouldBeTrue)
-			So(et.Code, ShouldEqual, errpb.ErrorCode_RESOURCE_EXIST)
+			So(et.Code, ShouldEqual, errpb.ErrorCode_RESOURCE_ALREADY_EXIST)
 			So(et.Description, ShouldEqual, "resource already exist")
 			So(et.Message, ShouldEqual, "the eventbus already exist")
 		})

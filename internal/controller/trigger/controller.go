@@ -119,7 +119,7 @@ func (ctrl *controller) ResetOffsetToTimestamp(ctx context.Context,
 		return nil, errors.ErrResourceNotFound.WithMessage("subscription not exist")
 	}
 	if sub.Phase != metadata.SubscriptionPhaseRunning {
-		return nil, errors.ErrServerNotRunning.WithMessage("subscription is not running")
+		return nil, errors.ErrResourceNotReady.WithMessage("subscription is not running")
 	}
 	tWorker := ctrl.workerManager.GetTriggerWorker(sub.TriggerWorker)
 	if tWorker == nil {

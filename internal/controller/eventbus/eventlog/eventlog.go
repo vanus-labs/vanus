@@ -670,7 +670,7 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 		ins := mgr.volMgr.GetVolumeInstanceByID(seg.GetLeaderBlock().VolumeID)
 		srv := ins.GetServer()
 		if srv == nil {
-			return nil, errors.ErrServerNotRunning.WithMessage("volume instance no server")
+			return nil, errors.ErrResourceNotReady.WithMessage("volume instance no server")
 		}
 		_, err = srv.GetClient().ActivateSegment(ctx, &segment.ActivateSegmentRequest{
 			EventLogId:     seg.EventLogID.Uint64(),
@@ -888,7 +888,7 @@ func (el *eventlog) add(ctx context.Context, seg *Segment) error {
 	el.mutex.Lock()
 	defer el.mutex.Unlock()
 	if !seg.isReady() {
-		return errors.ErrServerNotRunning.WithMessage("the segment not ready")
+		return errors.ErrResourceNotReady.WithMessage("the segment not ready")
 	}
 	if el.get(seg.ID) != nil {
 		return nil

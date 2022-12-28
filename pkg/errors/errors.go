@@ -28,7 +28,8 @@ var (
 	ErrNoEndpoint          = New("no endpoint").WithCode(errpb.ErrorCode_NO_ENDPOINT)
 
 	// INTERNAL
-	ErrInternal = New("internal error").WithCode(errpb.ErrorCode_INTERNAL)
+	ErrInternal       = New("internal error").WithCode(errpb.ErrorCode_INTERNAL)
+	ErrCorruptedEvent = New("corrupted event").WithCode(errpb.ErrorCode_CORRUPTED_EVENT)
 
 	// FULL
 	ErrFull            = New("full").WithCode(errpb.ErrorCode_FULL)
@@ -39,11 +40,10 @@ var (
 	ErrOffsetUnderflow = New("the offset underflow").WithCode(errpb.ErrorCode_OFFSET_UNDERFLOW)
 	ErrTryAgain        = New("try again").WithCode(errpb.ErrorCode_TRY_AGAIN)
 
-	// RESOURCE_NOT_FOUND
-	ErrResourceNotFound = New("resource not found").WithCode(errpb.ErrorCode_RESOURCE_NOT_FOUND)
-
-	// RESOURCE_EXIST
-	ErrResourceAlreadyExist = New("resource already exist").WithCode(errpb.ErrorCode_RESOURCE_EXIST)
+	// RESOURCE
+	ErrResourceAlreadyExist = New("resource already exist").WithCode(errpb.ErrorCode_RESOURCE_ALREADY_EXIST)
+	ErrResourceNotFound     = New("resource not found").WithCode(errpb.ErrorCode_RESOURCE_NOT_FOUND)
+	ErrResourceNotReady     = New("resource not ready").WithCode(errpb.ErrorCode_RESOURCE_NOT_READY)
 
 	// SERVICE_NOT_RUNNING
 	ErrServerNotRunning = New("server not running").WithCode(errpb.ErrorCode_SERVICE_NOT_RUNNING)

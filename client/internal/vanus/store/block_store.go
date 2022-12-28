@@ -18,8 +18,8 @@ import (
 	// standard libraries
 	"context"
 	"io"
-	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/linkall-labs/vanus/observability/tracing"
@@ -66,17 +66,18 @@ func newBlockStore(endpoint string) (*BlockStore, error) {
 	return s, nil
 }
 
-type streamstate string
+type streamState string
 
 var (
-	stateRunning streamstate = "running"
-	stateCLosed  streamstate = "closed"
+	stateRunning streamState = "running"
+	stateClosed  streamState = "closed"
 )
 
 type appendStreamCache struct {
+	opaqueID  uint64
 	stream    segpb.SegmentServer_AppendToBlockStreamClient
 	callbacks sync.Map
-	state     streamstate
+	state     streamState
 	once      sync.Once
 }
 
@@ -85,7 +86,7 @@ func (a *appendStreamCache) isRunning() bool {
 }
 
 func (a *appendStreamCache) isClosed() bool {
-	return a.state == stateCLosed
+	return a.state == stateClosed
 }
 
 func (a *appendStreamCache) release() {
@@ -96,27 +97,26 @@ func (a *appendStreamCache) release() {
 func (a *appendStreamCache) releaseStream() {
 	a.once.Do(func() {
 		a.stream.CloseSend()
-		a.state = stateCLosed
+		a.state = stateClosed
 	})
 }
 
 func (a *appendStreamCache) releaseCallbacks() {
 	a.callbacks.Range(func(key, value interface{}) bool {
-		if value != nil {
-			value.(appendCallback)(&segpb.AppendToBlockStreamResponse{
-				ResponseCode: errpb.ErrorCode_CLOSED,
-				ResponseMsg:  "append stream closed",
-				Offsets:      []int64{},
-			})
-		}
+		value.(appendCallback)(&segpb.AppendToBlockStreamResponse{
+			ResponseCode: errpb.ErrorCode_CLOSED,
+			ResponseMsg:  "append stream closed",
+			Offsets:      []int64{},
+		})
 		return true
 	})
 }
 
 type readStreamCache struct {
+	opaqueID  uint64
 	stream    segpb.SegmentServer_ReadFromBlockStreamClient
 	callbacks sync.Map
-	state     streamstate
+	state     streamState
 	once      sync.Once
 }
 
@@ -125,7 +125,7 @@ func (r *readStreamCache) isRunning() bool {
 }
 
 func (r *readStreamCache) isClosed() bool {
-	return r.state == stateCLosed
+	return r.state == stateClosed
 }
 
 func (r *readStreamCache) release() {
@@ -136,21 +136,19 @@ func (r *readStreamCache) release() {
 func (r *readStreamCache) releaseStream() {
 	r.once.Do(func() {
 		r.stream.CloseSend()
-		r.state = stateCLosed
+		r.state = stateClosed
 	})
 }
 
 func (r *readStreamCache) releaseCallbacks() {
 	r.callbacks.Range(func(key, value interface{}) bool {
-		if value != nil {
-			value.(readCallback)(&segpb.ReadFromBlockStreamResponse{
-				ResponseCode: errpb.ErrorCode_CLOSED,
-				ResponseMsg:  "read stream closed",
-				Events: &cepb.CloudEventBatch{
-					Events: []*cepb.CloudEvent{},
-				},
-			})
-		}
+		value.(readCallback)(&segpb.ReadFromBlockStreamResponse{
+			ResponseCode: errpb.ErrorCode_CLOSED,
+			ResponseMsg:  "read stream closed",
+			Events: &cepb.CloudEventBatch{
+				Events: []*cepb.CloudEvent{},
+			},
+		})
 		return true
 	})
 }
@@ -335,7 +333,7 @@ func (s *BlockStore) AppendManyStream(ctx context.Context, block uint64, events 
 	}
 
 	// generate unique opaqueID
-	opaqueID := rand.New(rand.NewSource(time.Now().UnixNano())).Uint64()
+	atomic.AddUint64(&append.opaqueID, 1)
 
 	//TODO(jiangkai): delete the reference of CloudEvents/v2 in Vanus
 	eventpbs := make([]*cepb.CloudEvent, len(events))
@@ -348,13 +346,13 @@ func (s *BlockStore) AppendManyStream(ctx context.Context, block uint64, events 
 	}
 
 	donec := make(chan struct{})
-	append.callbacks.Store(opaqueID, appendCallback(func(res *segpb.AppendToBlockStreamResponse) {
+	append.callbacks.Store(append.opaqueID, appendCallback(func(res *segpb.AppendToBlockStreamResponse) {
 		resp = res
 		close(donec)
 	}))
 
 	req := &segpb.AppendToBlockStreamRequest{
-		Id:      opaqueID,
+		Id:      append.opaqueID,
 		BlockId: block,
 		Events: &cepb.CloudEventBatch{
 			Events: eventpbs,
@@ -369,10 +367,10 @@ func (s *BlockStore) AppendManyStream(ctx context.Context, block uint64, events 
 		append.releaseStream()
 		// reset new stream connections
 		s.connectAppendStream(ctx)
-		c, _ := append.callbacks.LoadAndDelete(opaqueID)
+		c, _ := append.callbacks.LoadAndDelete(append.opaqueID)
 		if c != nil {
 			c.(appendCallback)(&segpb.AppendToBlockStreamResponse{
-				Id:           opaqueID,
+				Id:           append.opaqueID,
 				ResponseCode: errpb.ErrorCode_CLOSED,
 				ResponseMsg:  "append stream closed",
 				Offsets:      []int64{},
@@ -384,10 +382,10 @@ func (s *BlockStore) AppendManyStream(ctx context.Context, block uint64, events 
 	select {
 	case <-donec:
 	case <-_ctx.Done():
-		c, _ := append.callbacks.LoadAndDelete(opaqueID)
+		c, _ := append.callbacks.LoadAndDelete(append.opaqueID)
 		if c != nil {
 			c.(appendCallback)(&segpb.AppendToBlockStreamResponse{
-				Id:           opaqueID,
+				Id:           append.opaqueID,
 				ResponseCode: errpb.ErrorCode_CONTEXT_CANCELED,
 				ResponseMsg:  "append stream context canceled",
 				Offsets:      []int64{},
@@ -465,10 +463,10 @@ func (s *BlockStore) ReadStream(
 	}
 
 	// generate unique RequestId
-	opaqueID := rand.New(rand.NewSource(time.Now().UnixNano())).Uint64()
+	atomic.AddUint64(&read.opaqueID, 1)
 
 	donec := make(chan struct{})
-	read.callbacks.Store(opaqueID, readCallback(func(res *segpb.ReadFromBlockStreamResponse) {
+	read.callbacks.Store(read.opaqueID, readCallback(func(res *segpb.ReadFromBlockStreamResponse) {
 		resp = res
 		close(donec)
 	}))
@@ -486,10 +484,10 @@ func (s *BlockStore) ReadStream(
 		})
 		read.releaseStream()
 		s.connectReadStream(ctx)
-		c, _ := read.callbacks.LoadAndDelete(opaqueID)
+		c, _ := read.callbacks.LoadAndDelete(read.opaqueID)
 		if c != nil {
 			c.(readCallback)(&segpb.ReadFromBlockStreamResponse{
-				Id:           opaqueID,
+				Id:           read.opaqueID,
 				ResponseCode: errpb.ErrorCode_CLOSED,
 				ResponseMsg:  "read stream closed",
 				Events: &cepb.CloudEventBatch{
@@ -503,10 +501,10 @@ func (s *BlockStore) ReadStream(
 	select {
 	case <-donec:
 	case <-_ctx.Done():
-		c, _ := read.callbacks.LoadAndDelete(opaqueID)
+		c, _ := read.callbacks.LoadAndDelete(read.opaqueID)
 		if c != nil {
 			c.(readCallback)(&segpb.ReadFromBlockStreamResponse{
-				Id:           opaqueID,
+				Id:           read.opaqueID,
 				ResponseCode: errpb.ErrorCode_CONTEXT_CANCELED,
 				ResponseMsg:  "read stream context canceled",
 				Events: &cepb.CloudEventBatch{

@@ -9,10 +9,10 @@ import (
 	net "net"
 	reflect "reflect"
 
-	v1 "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	gomock "github.com/golang/mock/gomock"
 	primitive "github.com/linkall-labs/vanus/internal/primitive"
 	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
+	cloudevents "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 )
 
 // MockServer is a mock of Server interface.
@@ -53,7 +53,7 @@ func (mr *MockServerMockRecorder) ActivateSegment(ctx, logID, segID, replicas in
 }
 
 // AppendToBlock mocks base method.
-func (m *MockServer) AppendToBlock(ctx context.Context, id vanus.ID, events []*v1.CloudEvent, cb func([]int64, error)) {
+func (m *MockServer) AppendToBlock(ctx context.Context, id vanus.ID, events []*cloudevents.CloudEvent, cb func([]int64, error)) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "AppendToBlock", ctx, id, events, cb)
 }
@@ -121,23 +121,11 @@ func (mr *MockServerMockRecorder) LookupOffsetInBlock(ctx, id, stime interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LookupOffsetInBlock", reflect.TypeOf((*MockServer)(nil).LookupOffsetInBlock), ctx, id, stime)
 }
 
-// NewMessageArrived mocks base method.
-func (m *MockServer) NewMessageArrived(ctx context.Context, id vanus.ID) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "NewMessageArrived", ctx, id)
-}
-
-// NewMessageArrived indicates an expected call of NewMessageArrived.
-func (mr *MockServerMockRecorder) NewMessageArrived(ctx, id interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewMessageArrived", reflect.TypeOf((*MockServer)(nil).NewMessageArrived), ctx, id)
-}
-
 // ReadFromBlock mocks base method.
-func (m *MockServer) ReadFromBlock(ctx context.Context, id vanus.ID, seq int64, num int, pollingTimeout uint32) ([]*v1.CloudEvent, error) {
+func (m *MockServer) ReadFromBlock(ctx context.Context, id vanus.ID, seq int64, num int, pollingTimeout uint32) ([]*cloudevents.CloudEvent, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReadFromBlock", ctx, id, seq, num, pollingTimeout)
-	ret0, _ := ret[0].([]*v1.CloudEvent)
+	ret0, _ := ret[0].([]*cloudevents.CloudEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

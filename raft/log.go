@@ -25,6 +25,8 @@ type raftLog struct {
 	// storage contains all stable entries since the last snapshot.
 	storage Storage
 
+	inflight *inflight
+
 	// unstable contains all unstable entries and snapshot.
 	// they will be saved into storage.
 	unstable unstable
@@ -125,12 +127,17 @@ func (l *raftLog) append(ents ...pb.Entry) uint64 {
 	if after := ents[0].Index - 1; after < l.committed {
 		l.logger.Panicf("after(%d) is out of range [committed(%d)]", after, l.committed)
 	}
-	l.unstable.truncateAndAppend(ents)
+
+	li, truncated := l.unstable.truncateAndAppend(ents)
+	start := ents[0].Index
+	if truncated {
+		l.inflight.truncateFrom(start)
+	}
 	// Reset pending when any entry being persisted is truncated.
-	if start := ents[0].Index; l.pending > start {
+	if l.pending > start {
 		l.pending = start
 	}
-	return l.lastIndex()
+	return li
 }
 
 // findConflict finds the index of the conflict.
@@ -295,6 +302,7 @@ func (l *raftLog) localCommitTo(tocommit uint64) {
 		// 	l.logger.Panicf("tocommit(%d) is out of range [lastIndex(%d)]. Was the raft log corrupted, truncated, or lost?", tocommit, li)
 		// }
 		l.localCommitted = tocommit
+		l.inflight.commitTo(tocommit)
 	}
 }
 

@@ -39,7 +39,7 @@ func (m *MockReplica) EXPECT() *MockReplicaMockRecorder {
 }
 
 // Append mocks base method.
-func (m *MockReplica) Append(ctx context.Context, entries []block.Entry, cb func([]int64, error)) {
+func (m *MockReplica) Append(ctx context.Context, entries []block.Entry, cb block.AppendCallback) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Append", ctx, entries, cb)
 }

@@ -239,7 +239,7 @@ func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeo
 		}
 		off, ok := v.(int32)
 		if !ok {
-			return events, errors.ErrInvalidRequest.WithMessage("corrupted event")
+			return events, errors.ErrCorruptedEvent.WithMessage("corrupted event")
 		}
 		offset := s.startOffset + int64(off)
 		buf := make([]byte, 8)

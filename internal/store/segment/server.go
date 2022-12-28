@@ -30,7 +30,6 @@ import (
 
 	// third-party libraries.
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
-	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
@@ -46,6 +45,7 @@ import (
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/cluster"
 	"github.com/linkall-labs/vanus/pkg/util"
+	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	raftpb "github.com/linkall-labs/vanus/proto/pkg/raft"
@@ -134,6 +134,29 @@ func NewServer(cfg store.Config) Server {
 type leaderInfo struct {
 	leader vanus.ID
 	term   uint64
+}
+
+type appendResult struct {
+	seqs []int64
+	err  error
+}
+
+type appendFuture chan appendResult
+
+func newAppendFuture() appendFuture {
+	return make(appendFuture, 1)
+}
+
+func (af appendFuture) onAppended(seqs []int64, err error) {
+	af <- appendResult{
+		seqs: seqs,
+		err:  err,
+	}
+}
+
+func (af appendFuture) wait() ([]int64, error) {
+	res := <-af
+	return res.seqs, res.err
 }
 
 type server struct {
@@ -664,10 +687,12 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 
 	if len(events) == 0 {
 		cb(nil, errors.ErrInvalidRequest.WithMessage("event list is empty"))
+		return
 	}
 
 	if err := s.checkState(); err != nil {
 		cb(nil, err)
+		return
 	}
 
 	var b Replica
@@ -675,6 +700,7 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 		b, _ = v.(Replica)
 	} else {
 		cb(nil, errors.ErrResourceNotFound.WithMessage("the block doesn't exist"))
+		return
 	}
 
 	var size int
@@ -687,12 +713,36 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 	metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(len(events)))
 	metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(size))
 
-	b.Append(ctx, entries, func(offsets []int64, err error) {
-		if err == nil {
-			s.pm.NewMessageArrived(id)
-		}
-		cb(offsets, err)
+	future := newAppendFuture()
+	b.Append(ctx, entries, future.onAppended)
+	seqs, err := future.wait()
+	if err != nil {
+		cb(nil, s.processAppendError(ctx, b, err))
+		return
+	}
+
+	// TODO(weihe.yin) make this method deep to code
+	s.pm.NewMessageArrived(id)
+	cb(seqs, nil)
+}
+
+func (s *server) processAppendError(ctx context.Context, b Replica, err error) error {
+	if stderr.As(err, &errors.ErrorType{}) {
+		return err
+	}
+
+	if errors.Is(err, errors.ErrFull) {
+		log.Debug(ctx, "Append failed: block is full.", map[string]interface{}{
+			"block_id": b.ID(),
+		})
+		return errors.ErrFull
+	}
+
+	log.Warning(ctx, "Append failed.", map[string]interface{}{
+		"block_id":   b.ID(),
+		log.KeyError: err,
 	})
+	return errors.ErrInternal.WithMessage("write to storage failed").Wrap(err)
 }
 
 func (s *server) onBlockArchived(stat block.Statistics) {

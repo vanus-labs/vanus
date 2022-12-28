@@ -80,7 +80,7 @@ func (r *replica) Read(ctx context.Context, seq int64, num int) ([]block.Entry, 
 	return r.raw.Read(ctx, seq, num)
 }
 
-func (r *replica) Append(ctx context.Context, entries []block.Entry, cb func([]int64, error)) {
+func (r *replica) Append(ctx context.Context, entries []block.Entry, cb block.AppendCallback) {
 	r.appender.Append(ctx, entries, cb)
 }
 
