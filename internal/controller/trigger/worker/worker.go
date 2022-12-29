@@ -49,7 +49,7 @@ type TriggerWorker interface {
 	GetHeartbeatTime() time.Time
 	Polish()
 	AssignSubscription(id vanus.ID)
-	UnAssignSubscription(id vanus.ID)
+	UnAssignSubscription(id vanus.ID) error
 	GetAssignedSubscriptions() []vanus.ID
 	ResetOffsetToTimestamp(id vanus.ID, timestamp uint64) error
 }
@@ -131,6 +131,23 @@ func (tw *triggerWorker) handler(ctx context.Context, subscriptionID vanus.ID) e
 	}
 	sub := tw.subscriptionManager.GetSubscription(ctx, subscriptionID)
 	if sub == nil {
+		return nil
+	}
+	switch sub.Phase {
+	case metadata.SubscriptionPhaseStopping, metadata.SubscriptionPhaseStopped:
+		err := tw.removeSubscription(ctx, subscriptionID)
+		if err != nil {
+			return err
+		}
+		if sub.Phase != metadata.SubscriptionPhaseStopped {
+			// modify phase to stopped.
+			sub.Phase = metadata.SubscriptionPhaseStopped
+			sub.TriggerWorker = ""
+			err = tw.subscriptionManager.UpdateSubscription(ctx, sub)
+			if err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 	offsets, err := tw.subscriptionManager.GetOffset(ctx, subscriptionID)
@@ -246,7 +263,7 @@ func (tw *triggerWorker) AssignSubscription(id vanus.ID) {
 	tw.subscriptionQueue.Add(id)
 }
 
-func (tw *triggerWorker) UnAssignSubscription(id vanus.ID) {
+func (tw *triggerWorker) UnAssignSubscription(id vanus.ID) error {
 	log.Info(context.Background(), "trigger worker remove a subscription", map[string]interface{}{
 		log.KeyTriggerWorkerAddr: tw.info.Addr,
 		log.KeySubscriptionID:    id,
@@ -260,9 +277,10 @@ func (tw *triggerWorker) UnAssignSubscription(id vanus.ID) {
 				log.KeyTriggerWorkerAddr: tw.info.Addr,
 				log.KeySubscriptionID:    id,
 			})
-			tw.subscriptionQueue.Add(id)
+			return err
 		}
 	}
+	return nil
 }
 
 func (tw *triggerWorker) GetAssignedSubscriptions() []vanus.ID {

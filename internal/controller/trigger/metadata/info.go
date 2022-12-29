@@ -55,12 +55,12 @@ func (tw *TriggerWorkerInfo) String() string {
 type SubscriptionPhase string
 
 const (
-	SubscriptionPhaseCreated   = "created"
-	SubscriptionPhasePending   = "pending"
-	SubscriptionPhaseScheduled = "scheduled"
-	SubscriptionPhaseRunning   = "running"
-	SubscriptionPhaseStopped   = "stopped"
-	SubscriptionPhaseToDelete  = "toDelete"
+	SubscriptionPhaseCreated  = "created"
+	SubscriptionPhasePending  = "pending"
+	SubscriptionPhaseRunning  = "running"
+	SubscriptionPhaseStopping = "stopping"
+	SubscriptionPhaseStopped  = "stopped"
+	SubscriptionPhaseToDelete = "toDelete"
 )
 
 type Subscription struct {

@@ -119,8 +119,8 @@ func (ctrl *controller) ResetOffsetToTimestamp(ctx context.Context,
 	if sub == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("subscription not exist")
 	}
-	if sub.Phase != metadata.SubscriptionPhaseRunning {
-		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription is not running")
+	if sub.Phase != metadata.SubscriptionPhaseStopped {
+		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription must be disable can reset offset")
 	}
 	tWorker := ctrl.workerManager.GetTriggerWorker(sub.TriggerWorker)
 	if tWorker == nil {
@@ -252,7 +252,10 @@ func (ctrl *controller) DisableSubscription(ctx context.Context,
 	if sub.Phase == metadata.SubscriptionPhaseStopped {
 		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription is disable")
 	}
-	sub.Phase = metadata.SubscriptionPhaseStopped
+	if sub.Phase == metadata.SubscriptionPhaseStopping {
+		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription is disabling")
+	}
+	sub.Phase = metadata.SubscriptionPhaseStopping
 	err := ctrl.subscriptionManager.UpdateSubscription(ctx, sub)
 	if err != nil {
 		return nil, err
@@ -412,7 +415,10 @@ func (ctrl *controller) ListSubscription(ctx context.Context,
 func (ctrl *controller) gcSubscription(ctx context.Context, id vanus.ID, addr string) error {
 	tWorker := ctrl.workerManager.GetTriggerWorker(addr)
 	if tWorker != nil {
-		tWorker.UnAssignSubscription(id)
+		err := tWorker.UnAssignSubscription(id)
+		if err != nil {
+			return err
+		}
 	}
 	err := ctrl.subscriptionManager.DeleteSubscription(ctx, id)
 	if err != nil {
@@ -472,7 +478,7 @@ func (ctrl *controller) init(ctx context.Context) error {
 		switch sub.Phase {
 		case metadata.SubscriptionPhaseCreated:
 			ctrl.scheduler.EnqueueNormalSubscription(sub.ID)
-		case metadata.SubscriptionPhasePending:
+		case metadata.SubscriptionPhasePending, metadata.SubscriptionPhaseStopping:
 			ctrl.scheduler.EnqueueSubscription(sub.ID)
 		case metadata.SubscriptionPhaseToDelete:
 			ctrl.needCleanSubscription[sub.ID] = sub.TriggerWorker
@@ -490,7 +496,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context,
 		if ctrl.isLeader {
 			return nil
 		}
-		log.Info(context.TODO(), "become leader", nil)
+		log.Info(context.TODO(), "trigger become leader", nil)
 		err := ctrl.init(ctx)
 		if err != nil {
 			_err := ctrl.stop(ctx)
@@ -499,6 +505,9 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context,
 					log.KeyError: _err,
 				})
 			}
+			log.Error(ctx, "controller init has error", map[string]interface{}{
+				log.KeyError: err,
+			})
 			return err
 		}
 		ctrl.workerManager.Start()
