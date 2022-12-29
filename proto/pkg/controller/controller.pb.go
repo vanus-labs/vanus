@@ -18,10 +18,14 @@
 // 	protoc        v3.19.1
 // source: controller.proto
 
+//go:generate mockgen -source=controller.pb.go  -destination=mock_controller.go -package=controller
 package controller
 
 import (
 	context "context"
+	reflect "reflect"
+	sync "sync"
+
 	meta "github.com/linkall-labs/vanus/proto/pkg/meta"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
@@ -31,8 +35,6 @@ import (
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
-	reflect "reflect"
-	sync "sync"
 )
 
 const (
