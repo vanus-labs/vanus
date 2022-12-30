@@ -1157,6 +1157,8 @@ func stepLeader(r *raft, m pb.Message) error {
 			if r.maybeCommit() {
 				// TODO(james.yin): Send latest commit to follower nodes?
 				// r.bcastAppend()
+			} else {
+				r.raftLog.localCommitTo(r.raftLog.committed)
 			}
 		}
 		return nil
