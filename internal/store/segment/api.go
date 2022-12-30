@@ -19,12 +19,13 @@ import (
 	"context"
 
 	// third-party libraries.
-	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/pkg/errors"
+	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 

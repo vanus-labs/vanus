@@ -44,6 +44,7 @@ import (
 	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/cluster"
+	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/linkall-labs/vanus/pkg/util"
 	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
@@ -64,7 +65,6 @@ import (
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	ceconv "github.com/linkall-labs/vanus/internal/store/schema/ce/convert"
 	"github.com/linkall-labs/vanus/internal/store/vsb"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 const (
@@ -134,29 +134,6 @@ func NewServer(cfg store.Config) Server {
 type leaderInfo struct {
 	leader vanus.ID
 	term   uint64
-}
-
-type appendResult struct {
-	seqs []int64
-	err  error
-}
-
-type appendFuture chan appendResult
-
-func newAppendFuture() appendFuture {
-	return make(appendFuture, 1)
-}
-
-func (af appendFuture) onAppended(seqs []int64, err error) {
-	af <- appendResult{
-		seqs: seqs,
-		err:  err,
-	}
-}
-
-func (af appendFuture) wait() ([]int64, error) {
-	res := <-af
-	return res.seqs, res.err
 }
 
 type server struct {
@@ -712,37 +689,15 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 
 	metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(len(events)))
 	metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(size))
-
-	future := newAppendFuture()
-	b.Append(ctx, entries, future.onAppended)
-	seqs, err := future.wait()
-	if err != nil {
-		cb(nil, s.processAppendError(ctx, b, err))
-		return
-	}
-
-	// TODO(weihe.yin) make this method deep to code
-	s.pm.NewMessageArrived(id)
-	cb(seqs, nil)
-}
-
-func (s *server) processAppendError(ctx context.Context, b Replica, err error) error {
-	if stderr.As(err, &errors.ErrorType{}) {
-		return err
-	}
-
-	if errors.Is(err, errors.ErrFull) {
-		log.Debug(ctx, "Append failed: block is full.", map[string]interface{}{
-			"block_id": b.ID(),
-		})
-		return errors.ErrFull
-	}
-
-	log.Warning(ctx, "Append failed.", map[string]interface{}{
-		"block_id":   b.ID(),
-		log.KeyError: err,
+	b.Append(ctx, entries, func(seqs []int64, err error) {
+		s.callbackC <- func() {
+			if err == nil {
+				// TODO(weihe.yin) make this method deep to code
+				s.pm.NewMessageArrived(id)
+			}
+			cb(seqs, err)
+		}
 	})
-	return errors.ErrInternal.WithMessage("write to storage failed").Wrap(err)
 }
 
 func (s *server) onBlockArchived(stat block.Statistics) {

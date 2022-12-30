@@ -78,7 +78,7 @@ func (s *server) recoverBlocks(ctx context.Context, logs map[vanus.ID]*raftlog.L
 				return err
 			}
 		}
-		a := raft.NewAppender(context.TODO(), r, l, s.host, s.leaderChanged, s.callbackC)
+		a := raft.NewAppender(context.TODO(), r, l, s.host, s.leaderChanged)
 		s.replicas.Store(id, &replica{
 			id:       id,
 			idStr:    id.String(),

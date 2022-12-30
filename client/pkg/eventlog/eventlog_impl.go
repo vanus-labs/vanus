@@ -22,19 +22,19 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"go.opentelemetry.io/otel/trace"
-
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
+	"go.opentelemetry.io/otel/trace"
+
+	// first-party libraries
+	vlog "github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 
 	// this project.
 	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/record"
-	vlog "github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 const (

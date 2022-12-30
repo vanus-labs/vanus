@@ -104,7 +104,6 @@ func NewAppender(
 	raftLog *raftlog.Log,
 	host transport.Host,
 	listener LeaderChangedListener,
-	callbackC chan func(),
 ) Appender {
 	ctx, cancel := context.WithCancel(ctx)
 

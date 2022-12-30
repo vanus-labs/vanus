@@ -22,22 +22,19 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"go.opentelemetry.io/otel/trace"
-
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/atomic"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
 	// this project.
-
 	"github.com/linkall-labs/vanus/client/pkg/record"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 func newSegment(ctx context.Context, r *record.Segment, towrite bool) (*segment, error) {
@@ -70,7 +67,7 @@ func newBlockExt(ctx context.Context, r *record.Segment, leaderOnly bool) (*bloc
 	id := r.LeaderBlockID
 	if id == 0 {
 		if leaderOnly {
-			return nil, errors.ErrNotLeader.WithMessage("the block is not leader")
+			return nil, errors.ErrNoLeader.WithMessage("the block no leader")
 		}
 		for _, b := range r.Blocks {
 			if b.Endpoint != "" {
@@ -283,7 +280,7 @@ func (s *segment) ReadStream(ctx context.Context, from int64, size int16, pollin
 		}
 		off, ok := v.(int32)
 		if !ok {
-			return events, errors.ErrInvalidRequest.WithMessage("corrupted event")
+			return events, errors.ErrCorruptedEvent.WithMessage("corrupted event")
 		}
 		offset := s.startOffset + int64(off)
 		buf := make([]byte, 8)
