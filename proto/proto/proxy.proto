@@ -45,6 +45,12 @@ service ControllerProxy {
       returns (meta.Subscription);
   rpc ListSubscription(google.protobuf.Empty)
       returns (controller.ListSubscriptionResponse);
+  rpc DisableSubscription(controller.DisableSubscriptionRequest)
+      returns (google.protobuf.Empty);
+  rpc ResumeSubscription(controller.ResumeSubscriptionRequest)
+      returns (google.protobuf.Empty);
+  rpc ResetOffsetToTimestamp(controller.ResetOffsetToTimestampRequest)
+      returns (google.protobuf.Empty);
 
   // custom
   rpc ClusterInfo(google.protobuf.Empty) returns (ClusterInfoResponse);
