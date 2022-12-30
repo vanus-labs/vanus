@@ -17,131 +17,19 @@ package reader
 import (
 	"context"
 	"encoding/binary"
-	"math/rand"
 	"sync"
 	"testing"
 	"time"
 
+	ce "github.com/cloudevents/sdk-go/v2"
+	. "github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
-
-	ce "github.com/cloudevents/sdk-go/v2"
-	. "github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 )
-
-func TestGetOffsetByTimestamp(t *testing.T) {
-	Convey("test get offset by timestamp", t, func() {
-		events := make(chan info.EventRecord, 10)
-		r := NewReader(Config{}, events).(*reader)
-		eventLogID := vanus.NewTestID()
-		r.elReader[eventLogID] = struct{}{}
-		rand.Seed(time.Now().Unix())
-		offset := rand.Uint64()
-		mockCtrl := NewController(t)
-		mockClient := client.NewMockClient(mockCtrl)
-		mockEventbus := api.NewMockEventbus(mockCtrl)
-		mockEventlog := api.NewMockEventlog(mockCtrl)
-		mockBusWriter := api.NewMockBusWriter(mockCtrl)
-		mockBusReader := api.NewMockBusReader(mockCtrl)
-		mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
-		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
-		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
-		mockEventbus.EXPECT().GetLog(Any(), Any()).AnyTimes().Return(mockEventlog, nil)
-		mockEventlog.EXPECT().QueryOffsetByTime(Any(), Any()).AnyTimes().Return(int64(offset), nil)
-		r.config.Client = mockClient
-		offsets, err := r.GetOffsetByTimestamp(context.Background(), time.Now().Unix())
-		So(err, ShouldBeNil)
-		So(len(offsets), ShouldEqual, 1)
-		So(offsets[0].EventLogID, ShouldEqual, eventLogID)
-		So(offsets[0].Offset, ShouldEqual, offset)
-	})
-}
-
-func TestGetOffset(t *testing.T) {
-	Convey("test get offset", t, func() {
-		events := make(chan info.EventRecord, 10)
-		r := NewReader(Config{}, events).(*reader)
-		eventLogID := vanus.NewTestID()
-		r.elReader = map[vanus.ID]struct{}{}
-		mockCtrl := NewController(t)
-		mockClient := client.NewMockClient(mockCtrl)
-		mockEventbus := api.NewMockEventbus(mockCtrl)
-		mockEventlog := api.NewMockEventlog(mockCtrl)
-		mockBusWriter := api.NewMockBusWriter(mockCtrl)
-		mockBusReader := api.NewMockBusReader(mockCtrl)
-		mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
-		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
-		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
-		mockEventbus.EXPECT().GetLog(Any(), Any()).AnyTimes().Return(mockEventlog, nil)
-		r.config.Client = mockClient
-		Convey("test latest", func() {
-			r.config.OffsetType = primitive.LatestOffset
-			rand.Seed(time.Now().Unix())
-			offset := rand.Uint32()
-			Convey("negative number", func() {
-				mockEventlog.EXPECT().LatestOffset(Any()).AnyTimes().Return(int64(offset)*-1, nil)
-				v, err := r.getOffset(context.Background(), eventLogID)
-				So(err, ShouldBeNil)
-				So(v, ShouldEqual, 0)
-			})
-			Convey("non negative number", func() {
-				mockEventlog.EXPECT().LatestOffset(Any()).AnyTimes().Return(int64(offset), nil)
-				v, err := r.getOffset(context.Background(), eventLogID)
-				So(err, ShouldBeNil)
-				So(v, ShouldEqual, offset)
-			})
-		})
-		Convey("test earliest", func() {
-			r.config.OffsetType = primitive.EarliestOffset
-			rand.Seed(time.Now().Unix())
-			offset := rand.Uint32()
-			Convey("negative number", func() {
-				mockEventlog.EXPECT().EarliestOffset(Any()).AnyTimes().Return(int64(offset)*-1, nil)
-				v, err := r.getOffset(context.Background(), eventLogID)
-				So(err, ShouldBeNil)
-				So(v, ShouldEqual, 0)
-			})
-			Convey("non negative number", func() {
-				mockEventlog.EXPECT().EarliestOffset(Any()).AnyTimes().Return(int64(offset), nil)
-				v, err := r.getOffset(context.Background(), eventLogID)
-				So(err, ShouldBeNil)
-				So(v, ShouldEqual, offset)
-			})
-		})
-		Convey("test timestamp", func() {
-			r.config.OffsetType = primitive.Timestamp
-			r.config.OffsetTimestamp = time.Now().Unix()
-			rand.Seed(time.Now().Unix())
-			offset := rand.Uint32()
-			Convey("negative number", func() {
-				mockEventlog.EXPECT().QueryOffsetByTime(Any(), Any()).AnyTimes().Return(int64(offset)*-1, nil)
-				v, err := r.getOffset(context.Background(), eventLogID)
-				So(err, ShouldBeNil)
-				So(v, ShouldEqual, 0)
-			})
-			Convey("non negative number", func() {
-				mockEventlog.EXPECT().QueryOffsetByTime(Any(), Any()).AnyTimes().Return(int64(offset), nil)
-				v, err := r.getOffset(context.Background(), eventLogID)
-				So(err, ShouldBeNil)
-				So(v, ShouldEqual, offset)
-			})
-		})
-		Convey("test exist", func() {
-			rand.Seed(time.Now().Unix())
-			offset := rand.Uint64()
-			r.config.Offset = map[vanus.ID]uint64{eventLogID: offset}
-			v, err := r.getOffset(context.Background(), eventLogID)
-			So(err, ShouldBeNil)
-			So(v, ShouldEqual, offset)
-		})
-	})
-}
 
 func TestReaderStart(t *testing.T) {
 	mockCtrl := NewController(t)

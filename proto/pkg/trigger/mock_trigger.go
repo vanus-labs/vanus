@@ -10,7 +10,6 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	grpc "google.golang.org/grpc"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // MockTriggerWorkerClient is a mock of TriggerWorkerClient interface.
@@ -94,26 +93,6 @@ func (mr *MockTriggerWorkerClientMockRecorder) RemoveSubscription(ctx, in interf
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, in}, opts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveSubscription", reflect.TypeOf((*MockTriggerWorkerClient)(nil).RemoveSubscription), varargs...)
-}
-
-// ResetOffsetToTimestamp mocks base method.
-func (m *MockTriggerWorkerClient) ResetOffsetToTimestamp(ctx context.Context, in *ResetOffsetToTimestampRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{ctx, in}
-	for _, a := range opts {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "ResetOffsetToTimestamp", varargs...)
-	ret0, _ := ret[0].(*emptypb.Empty)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ResetOffsetToTimestamp indicates an expected call of ResetOffsetToTimestamp.
-func (mr *MockTriggerWorkerClientMockRecorder) ResetOffsetToTimestamp(ctx, in interface{}, opts ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{ctx, in}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetOffsetToTimestamp", reflect.TypeOf((*MockTriggerWorkerClient)(nil).ResetOffsetToTimestamp), varargs...)
 }
 
 // ResumeSubscription mocks base method.
@@ -242,21 +221,6 @@ func (m *MockTriggerWorkerServer) RemoveSubscription(arg0 context.Context, arg1 
 func (mr *MockTriggerWorkerServerMockRecorder) RemoveSubscription(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveSubscription", reflect.TypeOf((*MockTriggerWorkerServer)(nil).RemoveSubscription), arg0, arg1)
-}
-
-// ResetOffsetToTimestamp mocks base method.
-func (m *MockTriggerWorkerServer) ResetOffsetToTimestamp(arg0 context.Context, arg1 *ResetOffsetToTimestampRequest) (*emptypb.Empty, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResetOffsetToTimestamp", arg0, arg1)
-	ret0, _ := ret[0].(*emptypb.Empty)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ResetOffsetToTimestamp indicates an expected call of ResetOffsetToTimestamp.
-func (mr *MockTriggerWorkerServerMockRecorder) ResetOffsetToTimestamp(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetOffsetToTimestamp", reflect.TypeOf((*MockTriggerWorkerServer)(nil).ResetOffsetToTimestamp), arg0, arg1)
 }
 
 // ResumeSubscription mocks base method.

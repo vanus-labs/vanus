@@ -23,4 +23,6 @@ type Config struct {
 	Storage primitive.KvStorageConfig
 
 	SecretEncryptionSalt string
+
+	ControllerAddr []string
 }

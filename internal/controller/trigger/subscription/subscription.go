@@ -22,19 +22,25 @@ import (
 	"sync"
 	"time"
 
+	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription/offset"
-	iInfo "github.com/linkall-labs/vanus/internal/primitive/info"
+	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
 )
 
 type Manager interface {
-	SaveOffset(ctx context.Context, id vanus.ID, offsets iInfo.ListOffsetInfo, commit bool) error
-	GetOffset(ctx context.Context, id vanus.ID) (iInfo.ListOffsetInfo, error)
+	SaveOffset(ctx context.Context, id vanus.ID, offsets info.ListOffsetInfo, commit bool) error
+	// GetOrSaveOffset get offset only from etcd, if it isn't exist will get from cli and save to etcd,
+	// and it contains retry eb offset
+	GetOrSaveOffset(ctx context.Context, id vanus.ID) (info.ListOffsetInfo, error)
+	// GetOffset get offset only from etcd, it doesn't contain retry eb offset
+	GetOffset(ctx context.Context, id vanus.ID) (info.ListOffsetInfo, error)
+	ResetOffsetByTimestamp(ctx context.Context, id vanus.ID, timestamp uint64) error
 	ListSubscription(ctx context.Context) []*metadata.Subscription
 	GetSubscription(ctx context.Context, id vanus.ID) *metadata.Subscription
 	AddSubscription(ctx context.Context, subscription *metadata.Subscription) error
@@ -55,6 +61,7 @@ const (
 )
 
 type manager struct {
+	ebCli           eb.Client
 	secretStorage   secret.Storage
 	storage         storage.Storage
 	offsetManager   offset.Manager
@@ -62,8 +69,9 @@ type manager struct {
 	subscriptionMap map[vanus.ID]*metadata.Subscription
 }
 
-func NewSubscriptionManager(storage storage.Storage, secretStorage secret.Storage) Manager {
+func NewSubscriptionManager(storage storage.Storage, secretStorage secret.Storage, ebCli eb.Client) Manager {
 	m := &manager{
+		ebCli:           ebCli,
 		storage:         storage,
 		secretStorage:   secretStorage,
 		subscriptionMap: map[vanus.ID]*metadata.Subscription{},
@@ -72,23 +80,7 @@ func NewSubscriptionManager(storage storage.Storage, secretStorage secret.Storag
 	return m
 }
 
-func (m *manager) SaveOffset(ctx context.Context, id vanus.ID, offsets iInfo.ListOffsetInfo, commit bool) error {
-	subscription := m.GetSubscription(ctx, id)
-	if subscription == nil {
-		return nil
-	}
-	return m.offsetManager.Offset(ctx, id, offsets, commit)
-}
-
-func (m *manager) GetOffset(ctx context.Context, id vanus.ID) (iInfo.ListOffsetInfo, error) {
-	subscription := m.GetSubscription(ctx, id)
-	if subscription == nil {
-		return iInfo.ListOffsetInfo{}, ErrSubscriptionNotExist
-	}
-	return m.offsetManager.GetOffset(ctx, id)
-}
-
-func (m *manager) ListSubscription(ctx context.Context) []*metadata.Subscription {
+func (m *manager) ListSubscription(_ context.Context) []*metadata.Subscription {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	list := make([]*metadata.Subscription, 0, len(m.subscriptionMap))

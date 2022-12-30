@@ -192,6 +192,24 @@ func (tc *triggerClient) CommitOffset(ctx context.Context, in *ctrlpb.CommitOffs
 	return out, nil
 }
 
+func (tc *triggerClient) DisableSubscription(ctx context.Context, in *ctrlpb.DisableSubscriptionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/DisableSubscription", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (tc *triggerClient) ResumeSubscription(ctx context.Context, in *ctrlpb.ResumeSubscriptionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/ResumeSubscription", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (tc *triggerClient) TriggerWorkerHeartbeat(_ context.Context,
 	_ ...grpc.CallOption) (ctrlpb.TriggerController_TriggerWorkerHeartbeatClient, error) {
 	panic("unsupported method, please use controller.RegisterHeartbeat")

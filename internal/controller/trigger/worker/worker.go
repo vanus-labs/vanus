@@ -51,7 +51,6 @@ type TriggerWorker interface {
 	AssignSubscription(id vanus.ID)
 	UnAssignSubscription(id vanus.ID) error
 	GetAssignedSubscriptions() []vanus.ID
-	ResetOffsetToTimestamp(id vanus.ID, timestamp uint64) error
 }
 
 // triggerWorker send subscription to trigger worker server.
@@ -150,7 +149,7 @@ func (tw *triggerWorker) handler(ctx context.Context, subscriptionID vanus.ID) e
 		}
 		return nil
 	}
-	offsets, err := tw.subscriptionManager.GetOffset(ctx, subscriptionID)
+	offsets, err := tw.subscriptionManager.GetOrSaveOffset(ctx, subscriptionID)
 	if err != nil {
 		return err
 	}
@@ -343,15 +342,6 @@ func (tw *triggerWorker) RemoteStart(ctx context.Context) error {
 	_, err := tw.client.Start(ctx, &trigger.StartTriggerWorkerRequest{})
 	if err != nil {
 		return errors.ErrTriggerWorker.WithMessage("start error").Wrap(err)
-	}
-	return nil
-}
-
-func (tw *triggerWorker) ResetOffsetToTimestamp(id vanus.ID, timestamp uint64) error {
-	request := &trigger.ResetOffsetToTimestampRequest{SubscriptionId: id.Uint64(), Timestamp: timestamp}
-	_, err := tw.client.ResetOffsetToTimestamp(tw.ctx, request)
-	if err != nil {
-		return errors.ErrTriggerWorker.WithMessage("reset offset to timestamp").Wrap(err)
 	}
 	return nil
 }

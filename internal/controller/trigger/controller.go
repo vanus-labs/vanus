@@ -24,6 +24,7 @@ import (
 	"time"
 
 	embedetcd "github.com/linkall-labs/embed-etcd"
+	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
@@ -52,13 +53,14 @@ const (
 	defaultGcSubscriptionInterval = time.Second * 10
 )
 
-func NewController(config Config, controllerAddr []string, member embedetcd.Member) *controller {
+func NewController(config Config, member embedetcd.Member) *controller {
 	ctrl := &controller{
 		config:                config,
 		member:                member,
 		needCleanSubscription: map[vanus.ID]string{},
 		state:                 primitive.ServerStateCreated,
-		cl:                    cluster.NewClusterController(controllerAddr, insecure.NewCredentials()),
+		cl:                    cluster.NewClusterController(config.ControllerAddr, insecure.NewCredentials()),
+		ebClient:              eb.Connect(config.ControllerAddr),
 	}
 	ctrl.ctx, ctrl.stopFunc = context.WithCancel(context.Background())
 	return ctrl
@@ -80,6 +82,7 @@ type controller struct {
 	stopFunc              context.CancelFunc
 	state                 primitive.ServerState
 	cl                    cluster.Cluster
+	ebClient              eb.Client
 }
 
 func (ctrl *controller) CommitOffset(ctx context.Context,
@@ -122,13 +125,9 @@ func (ctrl *controller) ResetOffsetToTimestamp(ctx context.Context,
 	if sub.Phase != metadata.SubscriptionPhaseStopped {
 		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription must be disable can reset offset")
 	}
-	tWorker := ctrl.workerManager.GetTriggerWorker(sub.TriggerWorker)
-	if tWorker == nil {
-		return nil, errors.ErrInternal.WithMessage("trigger worker is not running")
-	}
-	err := tWorker.ResetOffsetToTimestamp(subID, request.Timestamp)
+	err := ctrl.subscriptionManager.ResetOffsetByTimestamp(ctx, subID, request.Timestamp)
 	if err != nil {
-		return nil, err
+		return nil, errors.ErrInternal.WithMessage("reset offset by timestamp error").Wrap(err)
 	}
 	return &emptypb.Empty{}, nil
 }
@@ -554,7 +553,7 @@ func (ctrl *controller) Start() error {
 		return err
 	}
 	ctrl.secretStorage = secretStorage
-	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage, ctrl.secretStorage)
+	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage, ctrl.secretStorage, ctrl.ebClient)
 	ctrl.workerManager = worker.NewTriggerWorkerManager(worker.Config{}, ctrl.storage,
 		ctrl.subscriptionManager, ctrl.requeueSubscription)
 	ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)

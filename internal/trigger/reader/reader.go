@@ -28,7 +28,6 @@ import (
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/option"
 	"github.com/linkall-labs/vanus/client/pkg/policy"
-	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
@@ -50,13 +49,10 @@ const (
 
 type Config struct {
 	EventBusName      string
-	Controllers       []string
 	Client            eb.Client
 	SubscriptionID    vanus.ID
 	SubscriptionIDStr string
 	Offset            EventLogOffset
-	OffsetType        primitive.OffsetType
-	OffsetTimestamp   int64
 
 	CheckEventLogInterval time.Duration
 }
@@ -64,7 +60,6 @@ type EventLogOffset map[vanus.ID]uint64
 
 type Reader interface {
 	Start() error
-	GetOffsetByTimestamp(ctx context.Context, timestamp int64) (pInfo.ListOffsetInfo, error)
 	Close()
 }
 
@@ -90,26 +85,6 @@ func NewReader(config Config, events chan<- info.EventRecord) Reader {
 	}
 	r.stctx, r.stop = context.WithCancel(context.Background())
 	return r
-}
-
-func (r *reader) GetOffsetByTimestamp(ctx context.Context, timestamp int64) (pInfo.ListOffsetInfo, error) {
-	offsets := make(pInfo.ListOffsetInfo, 0, len(r.elReader))
-	bus := r.config.Client.Eventbus(ctx, r.config.EventBusName)
-	for id := range r.elReader {
-		log, err := bus.GetLog(ctx, id.Uint64())
-		if err != nil {
-			return offsets, err
-		}
-		offset, err := log.QueryOffsetByTime(ctx, timestamp)
-		if err != nil {
-			return offsets, err
-		}
-		offsets = append(offsets, pInfo.OffsetInfo{
-			EventLogID: id,
-			Offset:     uint64(offset),
-		})
-	}
-	return offsets, nil
 }
 
 func (r *reader) Close() {
@@ -165,36 +140,17 @@ func (r *reader) checkEventLogChange() {
 	}
 }
 
-func (r *reader) getOffset(ctx context.Context, eventLogID vanus.ID) (uint64, error) {
-	l, err := r.config.Client.Eventbus(ctx, r.config.EventBusName).GetLog(ctx, eventLogID.Uint64())
-	if err != nil {
-		return 0, err
+func (r *reader) getOffset(eventLogID vanus.ID) uint64 {
+	v, exist := r.config.Offset[eventLogID]
+	if exist {
+		return v
 	}
-	offset, exist := r.config.Offset[eventLogID]
-	if !exist {
-		var err error
-		var v int64
-		switch r.config.OffsetType {
-		case primitive.LatestOffset:
-			if v, err = l.LatestOffset(ctx); err != nil {
-				return 0, err
-			}
-		case primitive.EarliestOffset:
-			if v, err = l.EarliestOffset(ctx); err != nil {
-				return 0, err
-			}
-		case primitive.Timestamp:
-			if v, err = l.QueryOffsetByTime(ctx, r.config.OffsetTimestamp); err != nil {
-				return 0, err
-			}
-		}
-		// fix offset is negative which convert to uint64 is big.
-		if v < 0 {
-			v = 0
-		}
-		offset = uint64(v)
-	}
-	return offset, nil
+	log.Warning(r.stctx, "offset no exist, will use 0", map[string]interface{}{
+		log.KeyEventbusName:   r.config.EventBusName,
+		log.KeySubscriptionID: r.config.SubscriptionID,
+		log.KeyEventlogID:     eventLogID,
+	})
+	return 0
 }
 
 func (r *reader) start(els []uint64) {
@@ -205,13 +161,7 @@ func (r *reader) start(els []uint64) {
 		if _, exist := r.elReader[eventLogID]; exist {
 			continue
 		}
-		offset, err := r.getOffset(r.stctx, eventLogID)
-		if err != nil {
-			log.Error(r.stctx, "event log get offset error", map[string]interface{}{
-				log.KeyError: err,
-			})
-			continue
-		}
+		offset := r.getOffset(eventLogID)
 		l, err := r.config.Client.Eventbus(r.stctx, r.config.EventBusName).GetLog(r.stctx, eventLogID.Uint64())
 		if err != nil {
 			log.Error(r.stctx, "get eventlog error", map[string]interface{}{

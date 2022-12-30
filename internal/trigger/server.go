@@ -25,7 +25,6 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/pkg/errors"
 	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -138,21 +137,6 @@ func (s *server) ResumeSubscription(ctx context.Context,
 		return nil, err
 	}
 	return &pbtrigger.ResumeSubscriptionResponse{}, nil
-}
-
-func (s *server) ResetOffsetToTimestamp(ctx context.Context,
-	request *pbtrigger.ResetOffsetToTimestampRequest) (*emptypb.Empty, error) {
-	log.Info(ctx, "subscription reset offset ", map[string]interface{}{"request": request})
-	id := vanus.NewIDFromUint64(request.SubscriptionId)
-	err := s.worker.ResetOffsetToTimestamp(ctx, id, int64(request.Timestamp))
-	if err != nil {
-		log.Error(ctx, "reset offset error", map[string]interface{}{
-			log.KeySubscriptionID: id,
-			log.KeyError:          err,
-		})
-		return nil, err
-	}
-	return &emptypb.Empty{}, nil
 }
 
 func (s *server) Initialize(ctx context.Context) error {
