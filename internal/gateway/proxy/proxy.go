@@ -102,6 +102,9 @@ func (cp *ControllerProxy) Send(ctx context.Context, batch *cloudevents.BatchEve
 		if err != nil {
 			return nil, v2.NewHTTPResult(http.StatusBadRequest, err.Error())
 		}
+		if e.Attributes == nil {
+			e.Attributes = make(map[string]*cloudevents.CloudEvent_CloudEventAttributeValue, 0)
+		}
 		e.Attributes[primitive.XVanusEventbus] = &cloudevents.CloudEvent_CloudEventAttributeValue{
 			Attr: &cloudevents.CloudEvent_CloudEventAttributeValue_CeString{CeString: batch.EventbusName},
 		}

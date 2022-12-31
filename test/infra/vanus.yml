@@ -177,7 +177,7 @@ spec:
         app: vanus-gateway
     spec:
       containers:
-        - image: linkall.tencentcloudcr.com/vanus/gateway:dev
+        - image: public.ecr.aws/vanus/gateway:dev
           imagePullPolicy: IfNotPresent
           name: gateway
           ports:
@@ -222,7 +222,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: linkall.tencentcloudcr.com/vanus/timer:dev
+          image: public.ecr.aws/vanus/timer:dev
           imagePullPolicy: IfNotPresent
           name: timer
           volumeMounts:
@@ -260,7 +260,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: linkall.tencentcloudcr.com/vanus/trigger:dev
+          image: public.ecr.aws/vanus/trigger:dev
           imagePullPolicy: IfNotPresent
           name: trigger
           ports:
@@ -310,7 +310,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: linkall.tencentcloudcr.com/vanus/controller:dev
+          image: public.ecr.aws/vanus/controller:dev
           imagePullPolicy: IfNotPresent
           name: controller
           ports:
@@ -376,7 +376,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: linkall.tencentcloudcr.com/vanus/store:dev
+          image: public.ecr.aws/vanus/store:dev
           imagePullPolicy: IfNotPresent
           name: store
           ports:

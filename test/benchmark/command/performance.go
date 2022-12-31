@@ -19,6 +19,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cloudevents/sdk-go/v2/client"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"math/rand"
 	"net"
 	"net/http"
@@ -31,7 +35,6 @@ import (
 
 	"github.com/HdrHistogram/hdrhistogram-go"
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/cloudevents/sdk-go/v2/client"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"github.com/fatih/color"
@@ -58,8 +61,9 @@ var (
 	parallelism  int
 	payloadSize  int
 
-	port      int
-	benchType string
+	port           int
+	benchType      string
+	clientProtocol string
 )
 
 var ebCh = make(chan string, 1024)
@@ -80,8 +84,6 @@ func runCommand() *cobra.Command {
 		Use:   "run SUB-COMMAND",
 		Short: "vanus performance benchmark program",
 		Run: func(cmd *cobra.Command, args []string) {
-			endpoint := mustGetGatewayEndpoint(cmd)
-
 			if len(eventbusList) == 0 {
 				panic("eventbus list is empty")
 			}
@@ -90,105 +92,218 @@ func runCommand() *cobra.Command {
 				"id": getBenchmarkID(),
 			})
 
-			// start
-			start := time.Now()
-			cnt := int64(0)
-			go func() {
-				for atomic.LoadInt64(&cnt) < number {
-					for idx := 0; idx < len(eventbusList); idx++ {
-						ebCh <- eventbusList[idx]
-						atomic.AddInt64(&cnt, 1)
-					}
-				}
-				close(ebCh)
-				log.Info(context.Background(), "all events were made", map[string]interface{}{
-					"num": number,
-				})
-			}()
-
-			p, err := ce.NewHTTP()
-			if err != nil {
-				cmdFailedf(cmd, "init ce protocol error: %s\n", err)
+			if clientProtocol == "grpc" {
+				sendWithGRPC(cmd)
+			} else {
+				sendWithHTTP(cmd)
 			}
-			c, err := ce.NewClient(p, ce.WithTimeNow(), ce.WithUUIDs())
-			if err != nil {
-				cmdFailedf(cmd, "create ce client error: %s\n", err)
-			}
-
-			var success int64
-			wg := sync.WaitGroup{}
-			for idx := 0; idx < parallelism; idx++ {
-				wg.Add(1)
-				go func() {
-					for {
-						eb, ok := <-ebCh
-						if !ok && eb == "" {
-							break
-						}
-						var target string
-						if strings.HasPrefix(endpoint, httpPrefix) {
-							target = fmt.Sprintf("%s/gateway/%s", endpoint, eb)
-						} else {
-							target = fmt.Sprintf("%s%s/gateway/%s", httpPrefix, endpoint, eb)
-						}
-						r, e := send(c, target)
-						if e != nil {
-							panic(e)
-						}
-						if r {
-							atomic.AddInt64(&success, 1)
-						}
-					}
-					wg.Done()
-				}()
-			}
-
-			ctx, can := context.WithCancel(context.Background())
-			m := make(map[int]int, 0)
-			wg2 := sync.WaitGroup{}
-			wg2.Add(1)
-			go func() {
-				var prev int64
-				tick := time.NewTicker(time.Second)
-				c := 1
-				defer func() {
-					tick.Stop()
-					tps := success - prev
-					log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", success, tps), nil)
-					m[c] = int(tps)
-					wg2.Done()
-				}()
-				for prev < number {
-					select {
-					case <-tick.C:
-						cur := atomic.LoadInt64(&success)
-						tps := cur - prev
-						m[c] = int(tps)
-						log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", cur, tps), nil)
-						prev = cur
-						c++
-					case <-ctx.Done():
-						return
-					}
-				}
-			}()
-			wg.Wait()
-			can()
-			wg2.Wait()
-			saveTPS(m, "produce")
-			log.Info(nil, "all message were sent", map[string]interface{}{
-				"success": success,
-				"failed":  number - success,
-				"used":    time.Now().Sub(start),
-			})
-			_ = rdb.Close()
 		},
 	}
 	cmd.Flags().StringArrayVar(&eventbusList, "eventbus", []string{}, "the eventbus name used to")
 	cmd.Flags().Int64Var(&number, "number", 100000, "the event number")
 	cmd.Flags().IntVar(&parallelism, "parallelism", 1, "")
 	cmd.Flags().IntVar(&payloadSize, "payload-size", 64, "byte")
+	cmd.Flags().StringVar(&clientProtocol, "protocol", "grpc", "")
+	cmd.Flags().IntVar(&batchSize, "batch-size", 1, "")
 	return cmd
+}
+
+func sendWithGRPC(cmd *cobra.Command) {
+	endpoint := mustGetGatewayEndpoint(cmd)
+
+	// start
+	start := time.Now()
+	cnt := int64(0)
+	go func() {
+		for atomic.LoadInt64(&cnt) < number {
+			for idx := 0; idx < len(eventbusList); idx++ {
+				ebCh <- eventbusList[idx]
+				atomic.AddInt64(&cnt, 1)
+			}
+		}
+		close(ebCh)
+		log.Info(context.Background(), "all events were made", map[string]interface{}{
+			"num": number,
+		})
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	opts := []grpc.DialOption{
+		grpc.WithBlock(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+	conn, err := grpc.DialContext(ctx, endpoint, opts...)
+	if err != nil {
+		cmdFailedf(cmd, "failed to connect to gateway")
+	}
+
+	batchClient := cloudevents.NewCloudEventsClient(conn)
+
+	var success int64
+	wg := sync.WaitGroup{}
+	for idx := 0; idx < parallelism; idx++ {
+		wg.Add(1)
+		go func() {
+			for {
+				eb, ok := <-ebCh
+				if !ok && eb == "" {
+					break
+				}
+				events := generateEvents()
+				_, err := batchClient.Send(context.Background(), &cloudevents.BatchEvent{
+					EventbusName: eb,
+					Events:       &cloudevents.CloudEventBatch{Events: events},
+				})
+				if err != nil {
+					log.Warning(context.Background(), "failed to send events", map[string]interface{}{
+						log.KeyError: err,
+					})
+				} else {
+					atomic.AddInt64(&success, int64(len(events)))
+				}
+			}
+			wg.Done()
+		}()
+	}
+
+	ctx, can := context.WithCancel(context.Background())
+	m := make(map[int]int, 0)
+	wg2 := sync.WaitGroup{}
+	wg2.Add(1)
+	go func() {
+		var prev int64
+		tick := time.NewTicker(time.Second)
+		c := 1
+		defer func() {
+			tick.Stop()
+			tps := success - prev
+			log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", success, tps), nil)
+			m[c] = int(tps)
+			wg2.Done()
+		}()
+		for prev < number {
+			select {
+			case <-tick.C:
+				cur := atomic.LoadInt64(&success)
+				tps := cur - prev
+				m[c] = int(tps)
+				log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", cur, tps), nil)
+				prev = cur
+				c++
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	wg.Wait()
+	can()
+	wg2.Wait()
+	saveTPS(m, "produce")
+	log.Info(nil, "all message were sent", map[string]interface{}{
+		"success": success,
+		"failed":  number - success,
+		"used":    time.Now().Sub(start),
+	})
+	_ = rdb.Close()
+}
+
+func sendWithHTTP(cmd *cobra.Command) {
+	endpoint := mustGetGatewayEndpoint(cmd)
+
+	// start
+	start := time.Now()
+	cnt := int64(0)
+	go func() {
+		for atomic.LoadInt64(&cnt) < number {
+			for idx := 0; idx < len(eventbusList); idx++ {
+				ebCh <- eventbusList[idx]
+				atomic.AddInt64(&cnt, 1)
+			}
+		}
+		close(ebCh)
+		log.Info(context.Background(), "all events were made", map[string]interface{}{
+			"num": number,
+		})
+	}()
+
+	p, err := ce.NewHTTP()
+	if err != nil {
+		cmdFailedf(cmd, "init ce protocol error: %s\n", err)
+	}
+	c, err := ce.NewClient(p, ce.WithTimeNow(), ce.WithUUIDs())
+	if err != nil {
+		cmdFailedf(cmd, "create ce client error: %s\n", err)
+	}
+
+	var success int64
+	wg := sync.WaitGroup{}
+	for idx := 0; idx < parallelism; idx++ {
+		wg.Add(1)
+		go func() {
+			for {
+				eb, ok := <-ebCh
+				if !ok && eb == "" {
+					break
+				}
+				var target string
+				if strings.HasPrefix(endpoint, httpPrefix) {
+					target = fmt.Sprintf("%s/gateway/%s", endpoint, eb)
+				} else {
+					target = fmt.Sprintf("%s%s/gateway/%s", httpPrefix, endpoint, eb)
+				}
+				r, e := send(c, target)
+				if e != nil {
+					panic(e)
+				}
+				if r {
+					atomic.AddInt64(&success, 1)
+				}
+			}
+			wg.Done()
+		}()
+	}
+
+	ctx, can := context.WithCancel(context.Background())
+	m := make(map[int]int, 0)
+	wg2 := sync.WaitGroup{}
+	wg2.Add(1)
+	go func() {
+		var prev int64
+		tick := time.NewTicker(time.Second)
+		c := 1
+		defer func() {
+			tick.Stop()
+			tps := success - prev
+			log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", success, tps), nil)
+			m[c] = int(tps)
+			wg2.Done()
+		}()
+		for prev < number {
+			select {
+			case <-tick.C:
+				cur := atomic.LoadInt64(&success)
+				tps := cur - prev
+				m[c] = int(tps)
+				log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", cur, tps), nil)
+				prev = cur
+				c++
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	wg.Wait()
+	can()
+	wg2.Wait()
+	saveTPS(m, "produce")
+	log.Info(nil, "all message were sent", map[string]interface{}{
+		"success": success,
+		"failed":  number - success,
+		"used":    time.Now().Sub(start),
+	})
+	_ = rdb.Close()
 }
 
 func saveTPS(m map[int]int, t string) {

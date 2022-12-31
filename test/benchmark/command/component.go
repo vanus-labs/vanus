@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"math/rand"
 	"net"
 	"net/http"
@@ -55,6 +56,7 @@ var (
 	noCleanCache   bool
 	replicaNum     int
 	blockSize      int64
+	batchSize      int
 )
 
 func ComponentCommand() *cobra.Command {
@@ -266,9 +268,10 @@ func sendCommand() *cobra.Command {
 				for idx := 0; idx < parallelism; idx++ {
 					go func(br BlockRecord, c segpb.SegmentServerClient) {
 						for atomic.LoadInt64(&count)+atomic.LoadInt64(&failed) < totalSent {
+							events := generateEvents()
 							_, err := c.AppendToBlock(context.Background(), &segpb.AppendToBlockRequest{
 								BlockId: br.LeaderID,
-								Events:  &v1.CloudEventBatch{Events: generateEvents()},
+								Events:  &v1.CloudEventBatch{Events: events},
 							})
 							if err != nil {
 								atomic.AddInt64(&failed, 1)
@@ -276,7 +279,7 @@ func sendCommand() *cobra.Command {
 								fmt.Printf("failed to append events to %s, block [%s], error: [%s]\n",
 									br.LeaderAddr, vanus.ID(br.LeaderID).String(), err.Error())
 							} else {
-								atomic.AddInt64(&count, 1)
+								atomic.AddInt64(&count, int64(len(events)))
 							}
 						}
 					}(abr, cli)
@@ -298,6 +301,7 @@ func sendCommand() *cobra.Command {
 	cmd.Flags().Int64Var(&totalSent, "total-number", 100000, "")
 	cmd.Flags().IntVar(&parallelism, "parallelism", 4, "")
 	cmd.Flags().IntVar(&payloadSize, "payload-size", 1024, "")
+	cmd.Flags().IntVar(&batchSize, "batch-size", 1, "")
 	return cmd
 }
 
@@ -344,13 +348,15 @@ var (
 
 func generateEvents() []*v1.CloudEvent {
 	gOnce.Do(func() {
-		e = []*v1.CloudEvent{{
-			Id:          "example-event",
-			Source:      "example/uri",
-			SpecVersion: "1.0",
-			Type:        "example.type",
-			Data:        &v1.CloudEvent_TextData{TextData: genStr(rd, payloadSize)},
-		}}
+		for idx := 0; idx < batchSize; idx++ {
+			e = append(e, &v1.CloudEvent{
+				Id:          "example-event",
+				Source:      "example/uri",
+				SpecVersion: "1.0",
+				Type:        "example.type",
+				Data:        &v1.CloudEvent_TextData{TextData: genStr(rd, payloadSize)},
+			})
+		}
 	})
 	return e
 }
