@@ -105,7 +105,7 @@ func (l *Log) Compact(ctx context.Context, i uint64) error {
 	}
 
 	// Compact WAL.
-	l.wal.tryCompact(ctx, offs[0], l.offs[0], l.nodeID, ents[0].Index, ents[0].Term)
+	_ = l.wal.tryCompact(ctx, offs[0], l.offs[0], l.nodeID, ents[0].Index, ents[0].Term)
 
 	// Reset log entries and offsets.
 	l.ents = ents
@@ -114,26 +114,12 @@ func (l *Log) Compact(ctx context.Context, i uint64) error {
 	return nil
 }
 
-func (w *WAL) reserve(cb reserveCallback) error {
-	w.compactMu.RLock()
-	defer w.compactMu.RUnlock()
-	off, old, err := cb()
-	if err != nil {
-		return err
-	}
-	w.compactC <- compactTask{
-		offset: off,
-		last:   old,
-	}
-	return nil
-}
-
-func (w *WAL) tryCompact(ctx context.Context, offset, last int64, nodeID vanus.ID, index, term uint64) {
+func (w *WAL) tryCompact(ctx context.Context, offset, last int64, nodeID vanus.ID, index, term uint64) error {
 	span := trace.SpanFromContext(ctx)
 	span.AddEvent("raft.log.WAL.tryCompact() Start")
 	defer span.AddEvent("raft.log.WAL.tryCompact() End")
 
-	w.updateC <- compactTask{
+	task := compactTask{
 		offset: offset,
 		last:   last,
 		nodeID: nodeID,
@@ -142,6 +128,25 @@ func (w *WAL) tryCompact(ctx context.Context, offset, last int64, nodeID vanus.I
 			term:  term,
 		},
 	}
+	select {
+	case w.compactC <- task:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	return nil
+}
+
+func (w *WAL) makeBarrier(ctx context.Context, offset, last int64) error {
+	task := compactTask{
+		offset: offset,
+		last:   last,
+	}
+	select {
+	case w.compactC <- task:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	return nil
 }
 
 type logCompactInfos map[vanus.ID]compactInfo
@@ -213,16 +218,6 @@ func (c *compactContext) sync(ctx context.Context) {
 }
 
 var emptyMark = struct{}{}
-
-func (w *WAL) runBarrierUpdate() {
-	for task := range w.updateC {
-		w.compactMu.Lock()
-		w.compactC <- task
-		w.compactMu.Unlock()
-	}
-
-	close(w.compactC)
-}
 
 func (w *WAL) runCompact() {
 	ctx := context.Background()

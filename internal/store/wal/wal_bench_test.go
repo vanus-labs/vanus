@@ -131,9 +131,9 @@ func BenchmarkWAL_AppendOneWithCallback(b *testing.B) {
 			wg := sync.WaitGroup{}
 			wg.Add(b.N)
 			for i := 0; i < b.N; i++ {
-				wal.AppendOne(context.Background(), tc.payload, WithCallback(func(re Result) {
-					if re.Err != nil {
-						log.Printf("err: %v", re.Err)
+				wal.AppendOne(context.Background(), tc.payload, WithCallback(func(_ []Range, err error) {
+					if err != nil {
+						log.Printf("err: %v", err)
 					}
 					wg.Done()
 				}))

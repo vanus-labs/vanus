@@ -125,9 +125,9 @@ func (s *SyncStore) set(ctx context.Context, kvs Ranger) error {
 
 	ch := make(chan error, 1)
 	// Use callbacks for ordering guarantees.
-	s.wal.AppendOne(ctx, entry, walog.WithCallback(func(re walog.Result) {
-		if re.Err != nil {
-			ch <- re.Err
+	s.wal.AppendOne(ctx, entry, walog.WithCallback(func(ranges []walog.Range, err error) {
+		if err != nil {
+			ch <- err
 			return
 		}
 
@@ -141,7 +141,7 @@ func (s *SyncStore) set(ctx context.Context, kvs Ranger) error {
 			}
 			return nil
 		})
-		s.version = re.Range().EO
+		s.version = ranges[0].EO
 		s.mu.Unlock()
 
 		close(ch)

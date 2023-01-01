@@ -57,7 +57,7 @@ func (re *Result) Range() Range {
 	return re.Ranges[0]
 }
 
-type AppendCallback func(Result)
+type AppendCallback = func([]Range, error)
 
 type appendTask struct {
 	ctx      context.Context
@@ -228,14 +228,17 @@ func (w *WAL) Append(ctx context.Context, entries [][]byte, opts ...AppendOption
 	var ch chan Result
 	if task.callback == nil {
 		ch = make(chan Result, 1)
-		task.callback = func(re Result) {
-			ch <- re
+		task.callback = func(ranges []Range, err error) {
+			ch <- Result{
+				Ranges: ranges,
+				Err:    err,
+			}
 		}
 	}
 
 	// Check entries.
 	if len(entries) == 0 {
-		task.callback(Result{})
+		task.callback(nil, nil)
 	}
 
 	// NOTE: Can not close the WAL while writing to appendC.
@@ -243,9 +246,7 @@ func (w *WAL) Append(ctx context.Context, entries [][]byte, opts ...AppendOption
 	select {
 	case <-w.closeC:
 		// TODO(james.yin): invoke callback in another goroutine.
-		task.callback(Result{
-			Err: ErrClosed,
-		})
+		task.callback(nil, ErrClosed)
 	default:
 		w.appendC <- task
 	}
@@ -256,7 +257,6 @@ func (w *WAL) Append(ctx context.Context, entries [][]byte, opts ...AppendOption
 
 func (w *WAL) runAppend() {
 	for task := range w.appendC {
-		w.appendWg.Add(1)
 		w.newAppender(task.ctx, task.entries, task.callback).invoke()
 	}
 
@@ -268,9 +268,7 @@ func (w *WAL) runCallback() {
 	for task := range w.callbackC {
 		span := trace.SpanFromContext(task.ctx)
 		span.AddEvent("store.wal.WAL.doCallback() Start")
-		task.callback(Result{
-			Ranges: task.ranges,
-		})
+		task.callback(task.ranges, nil)
 		span.AddEvent("store.wal.WAL.doCallback() End")
 	}
 
