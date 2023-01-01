@@ -50,7 +50,7 @@ func TestWAL_AppendOne(t *testing.T) {
 		Convey("append one with callback", func() {
 			var done bool
 
-			wal.AppendOne(ctx, data0, WithCallback(func(_ Result) {
+			wal.AppendOne(ctx, data0, WithCallback(func([]Range, error) {
 				done = true
 			}))
 			n, _ := wal.AppendOne(ctx, data1).Wait()
@@ -104,10 +104,10 @@ func TestWAL_AppendOne(t *testing.T) {
 
 		startTime := time.Now()
 		var t0, t1 time.Time
-		wal.AppendOne(ctx, data0, WithCallback(func(_ Result) {
+		wal.AppendOne(ctx, data0, WithCallback(func([]Range, error) {
 			t0 = time.Now()
 		}))
-		wal.AppendOne(ctx, data, WithCallback(func(_ Result) {
+		wal.AppendOne(ctx, data, WithCallback(func([]Range, error) {
 			t1 = time.Now()
 		}))
 		wal.AppendOne(ctx, data1).Wait()
@@ -135,7 +135,7 @@ func TestWAL_AppendOne(t *testing.T) {
 
 		var inflight int32 = 100
 		for i := inflight; i > 0; i-- {
-			wal.AppendOne(ctx, data0, WithCallback(func(_ Result) {
+			wal.AppendOne(ctx, data0, WithCallback(func([]Range, error) {
 				atomic.AddInt32(&inflight, -1)
 			}))
 		}

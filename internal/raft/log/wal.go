@@ -15,9 +15,6 @@
 package log
 
 import (
-	// standard libraries.
-	"sync"
-
 	// third-party libraries.
 	"github.com/huandu/skiplist"
 
@@ -32,7 +29,6 @@ import (
 )
 
 const (
-	defaultUpdateTaskBufferSize  = 256
 	defaultCompactTaskBufferSize = 256
 )
 
@@ -55,12 +51,10 @@ type WAL struct {
 
 	metaStore *meta.SyncStore
 
-	barrier   *skiplist.SkipList
-	updateC   chan compactTask
-	compactC  chan compactTask
-	compactMu sync.RWMutex
-	doneC     chan struct{}
-	tracer    *tracing.Tracer
+	barrier  *skiplist.SkipList
+	compactC chan compactTask
+	doneC    chan struct{}
+	tracer   *tracing.Tracer
 }
 
 func newWAL(wal *walog.WAL, metaStore *meta.SyncStore) *WAL {
@@ -68,13 +62,11 @@ func newWAL(wal *walog.WAL, metaStore *meta.SyncStore) *WAL {
 		WAL:       wal,
 		metaStore: metaStore,
 		barrier:   skiplist.New(skiplist.Int64),
-		updateC:   make(chan compactTask, defaultUpdateTaskBufferSize),
 		compactC:  make(chan compactTask, defaultCompactTaskBufferSize),
 		doneC:     make(chan struct{}),
 		tracer:    tracing.NewTracer("raft.log.wal", oteltrace.SpanKindInternal),
 	}
 
-	go w.runBarrierUpdate()
 	go w.runCompact()
 
 	return w
@@ -84,7 +76,7 @@ func (w *WAL) Close() {
 	w.WAL.Close()
 	go func() {
 		w.WAL.Wait()
-		close(w.updateC)
+		close(w.compactC)
 	}()
 }
 

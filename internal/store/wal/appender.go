@@ -57,6 +57,8 @@ func (a *appender) invoke() {
 	span.AddEvent("store.wal.appender.invoke() Start")
 	defer span.AddEvent("store.wal.appender.invoke() End")
 
+	a.w.appendWg.Add(1)
+
 	a.w.s.Append(a, a.onAppended)
 
 	// metrics.WALEntryWriteCounter.Add(float64(len(entries)))
