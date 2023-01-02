@@ -260,11 +260,12 @@ func (l *raftLog) lastIndex() uint64 {
 	if i, ok := l.unstable.maybeLastIndex(); ok {
 		return i
 	}
-	i, err := l.storage.LastIndex()
-	if err != nil {
-		panic(err) // TODO(bdarnell)
-	}
-	return i
+	return l.unstable.offset - 1
+	// i, err := l.storage.LastIndex()
+	// if err != nil {
+	// 	panic(err) // TODO(bdarnell)
+	// }
+	// return i
 }
 
 func (l *raftLog) stableLastIndex() uint64 {
@@ -439,7 +440,7 @@ func (l *raftLog) matchTerm(i, term uint64) bool {
 }
 
 func (l *raftLog) maybeCommit(maxIndex, term uint64) bool {
-	if maxIndex > l.committed && l.zeroTermOnErrCompacted(l.term(maxIndex)) == term {
+	if maxIndex > l.committed /* && l.zeroTermOnErrCompacted(l.term(maxIndex)) == term */ {
 		l.commitTo(maxIndex)
 		return true
 	}

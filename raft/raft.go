@@ -250,6 +250,7 @@ type raft struct {
 	Term uint64
 	Vote uint64
 
+	termStart uint64
 	receiving bool
 
 	readStates []ReadState
@@ -601,7 +602,10 @@ func (r *raft) advance(rd Ready) {
 // r.bcastAppend).
 func (r *raft) maybeCommit() bool {
 	mci := r.prs.Committed()
-	return r.raftLog.maybeCommit(mci, r.Term)
+	if mci >= r.termStart {
+		return r.raftLog.maybeCommit(mci, r.Term)
+	}
+	return false
 }
 
 func (r *raft) maybeCompact() {
@@ -772,6 +776,7 @@ func (r *raft) becomeLeader() {
 		// This won't happen because we just called reset() above.
 		r.logger.Panic("empty entry was dropped")
 	}
+	r.termStart = r.raftLog.lastIndex()
 	// As a special case, don't count the initial empty entry towards the
 	// uncommitted log quota. This is because we want to preserve the
 	// behavior of allowing one entry larger than quota if the current
