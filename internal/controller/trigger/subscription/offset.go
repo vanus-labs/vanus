@@ -17,6 +17,8 @@ package subscription
 import (
 	"context"
 
+	"github.com/linkall-labs/vanus/observability/log"
+
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -30,19 +32,26 @@ func (m *manager) SaveOffset(ctx context.Context, id vanus.ID, offsets info.List
 	return m.offsetManager.Offset(ctx, id, offsets, commit)
 }
 
-func (m *manager) ResetOffsetByTimestamp(ctx context.Context, id vanus.ID, timestamp uint64) error {
+func (m *manager) ResetOffsetByTimestamp(ctx context.Context, id vanus.ID, timestamp uint64) (info.ListOffsetInfo, error) {
 	subscription := m.GetSubscription(ctx, id)
 	if subscription == nil {
-		return nil
+		return nil, ErrSubscriptionNotExist
 	}
 	offsets, err := m.getOffsetFromCli(ctx, subscription.EventBus, primitive.SubscriptionConfig{
 		OffsetTimestamp: &timestamp,
 		OffsetType:      primitive.Timestamp,
 	}, false)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return m.offsetManager.Offset(ctx, id, offsets, true)
+	err = m.offsetManager.Offset(ctx, id, offsets, true)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(ctx, "reset offset by timestamp", map[string]interface{}{
+		"offsets": offsets,
+	})
+	return offsets, err
 }
 
 func (m *manager) GetOffset(ctx context.Context, id vanus.ID) (info.ListOffsetInfo, error) {
@@ -96,6 +105,9 @@ func (m *manager) GetOrSaveOffset(ctx context.Context, id vanus.ID) (info.ListOf
 	if err != nil {
 		return nil, err
 	}
+	log.Info(ctx, "save offset from cli", map[string]interface{}{
+		"offsets": offsets,
+	})
 	return offsets, nil
 }
 

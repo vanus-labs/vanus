@@ -173,8 +173,8 @@ func (tc *triggerClient) UnregisterTriggerWorker(ctx context.Context, in *ctrlpb
 }
 
 func (tc *triggerClient) ResetOffsetToTimestamp(ctx context.Context, in *ctrlpb.ResetOffsetToTimestampRequest,
-	opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
+	opts ...grpc.CallOption) (*ctrlpb.ResetOffsetToTimestampResponse, error) {
+	out := new(ctrlpb.ResetOffsetToTimestampResponse)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/ResetOffsetToTimestamp", in, out, opts...)
 	if err != nil {
 		return nil, err

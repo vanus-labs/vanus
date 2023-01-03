@@ -93,6 +93,6 @@ func (cp *ControllerProxy) ResumeSubscription(ctx context.Context,
 }
 
 func (cp *ControllerProxy) ResetOffsetToTimestamp(ctx context.Context,
-	req *ctrlpb.ResetOffsetToTimestampRequest) (*emptypb.Empty, error) {
+	req *ctrlpb.ResetOffsetToTimestampRequest) (*ctrlpb.ResetOffsetToTimestampResponse, error) {
 	return cp.triggerCtrl.ResetOffsetToTimestamp(ctx, req)
 }

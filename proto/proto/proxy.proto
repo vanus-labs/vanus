@@ -50,7 +50,7 @@ service ControllerProxy {
   rpc ResumeSubscription(controller.ResumeSubscriptionRequest)
       returns (google.protobuf.Empty);
   rpc ResetOffsetToTimestamp(controller.ResetOffsetToTimestampRequest)
-      returns (google.protobuf.Empty);
+      returns (controller.ResetOffsetToTimestampResponse);
 
   // custom
   rpc ClusterInfo(google.protobuf.Empty) returns (ClusterInfoResponse);

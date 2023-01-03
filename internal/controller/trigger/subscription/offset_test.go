@@ -178,7 +178,7 @@ func TestResetOffsetByTimestamp(t *testing.T) {
 		mockEventLog.EXPECT().ID().AnyTimes().Return(logID.Uint64())
 		time := uint64(time.Now().Unix())
 		mockEventLog.EXPECT().QueryOffsetByTime(gomock.Any(), int64(time)).Return(int64(100), nil)
-		err := m.ResetOffsetByTimestamp(ctx, id, time)
+		_, err := m.ResetOffsetByTimestamp(ctx, id, time)
 		So(err, ShouldBeNil)
 	})
 }

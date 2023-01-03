@@ -40,7 +40,7 @@ type Manager interface {
 	GetOrSaveOffset(ctx context.Context, id vanus.ID) (info.ListOffsetInfo, error)
 	// GetOffset get offset only from etcd, it doesn't contain retry eb offset
 	GetOffset(ctx context.Context, id vanus.ID) (info.ListOffsetInfo, error)
-	ResetOffsetByTimestamp(ctx context.Context, id vanus.ID, timestamp uint64) error
+	ResetOffsetByTimestamp(ctx context.Context, id vanus.ID, timestamp uint64) (info.ListOffsetInfo, error)
 	ListSubscription(ctx context.Context) []*metadata.Subscription
 	GetSubscription(ctx context.Context, id vanus.ID) *metadata.Subscription
 	AddSubscription(ctx context.Context, subscription *metadata.Subscription) error

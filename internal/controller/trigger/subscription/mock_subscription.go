@@ -153,11 +153,12 @@ func (mr *MockManagerMockRecorder) ListSubscription(ctx interface{}) *gomock.Cal
 }
 
 // ResetOffsetByTimestamp mocks base method.
-func (m *MockManager) ResetOffsetByTimestamp(ctx context.Context, id vanus.ID, timestamp uint64) error {
+func (m *MockManager) ResetOffsetByTimestamp(ctx context.Context, id vanus.ID, timestamp uint64) (info.ListOffsetInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResetOffsetByTimestamp", ctx, id, timestamp)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(info.ListOffsetInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // ResetOffsetByTimestamp indicates an expected call of ResetOffsetByTimestamp.

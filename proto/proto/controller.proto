@@ -84,7 +84,7 @@ service TriggerController {
   rpc UnregisterTriggerWorker(UnregisterTriggerWorkerRequest)
       returns (UnregisterTriggerWorkerResponse);
   rpc ResetOffsetToTimestamp(ResetOffsetToTimestampRequest)
-      returns (google.protobuf.Empty);
+      returns (ResetOffsetToTimestampResponse);
   rpc CommitOffset(CommitOffsetRequest)
       returns (CommitOffsetResponse);
 }
@@ -223,6 +223,11 @@ message ResetOffsetToTimestampRequest {
   // utc time seconds
   uint64 timestamp = 2;
 }
+
+message ResetOffsetToTimestampResponse {
+  repeated meta.OffsetInfo offsets = 1;
+}
+
 
 message CommitOffsetRequest {
   repeated meta.SubscriptionInfo subscription_info = 1;

@@ -110,7 +110,7 @@ func (ctrl *controller) CommitOffset(ctx context.Context,
 }
 
 func (ctrl *controller) ResetOffsetToTimestamp(ctx context.Context,
-	request *ctrlpb.ResetOffsetToTimestampRequest) (*emptypb.Empty, error) {
+	request *ctrlpb.ResetOffsetToTimestampRequest) (*ctrlpb.ResetOffsetToTimestampResponse, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
@@ -125,11 +125,13 @@ func (ctrl *controller) ResetOffsetToTimestamp(ctx context.Context,
 	if sub.Phase != metadata.SubscriptionPhaseStopped {
 		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription must be disable can reset offset")
 	}
-	err := ctrl.subscriptionManager.ResetOffsetByTimestamp(ctx, subID, request.Timestamp)
+	offsets, err := ctrl.subscriptionManager.ResetOffsetByTimestamp(ctx, subID, request.Timestamp)
 	if err != nil {
 		return nil, errors.ErrInternal.WithMessage("reset offset by timestamp error").Wrap(err)
 	}
-	return &emptypb.Empty{}, nil
+	return &ctrlpb.ResetOffsetToTimestampResponse{
+		Offsets: convert.ToPbOffsetInfos(offsets),
+	}, nil
 }
 
 func (ctrl *controller) CreateSubscription(ctx context.Context,
@@ -160,7 +162,7 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	if request.Subscription.Disable {
+	if !request.Subscription.Disable {
 		ctrl.scheduler.EnqueueNormalSubscription(sub.ID)
 	}
 	resp := convert.ToPbSubscription(sub, nil)

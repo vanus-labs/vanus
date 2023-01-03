@@ -1160,14 +1160,14 @@ func (mr *MockTriggerControllerClientMockRecorder) RegisterTriggerWorker(ctx, in
 }
 
 // ResetOffsetToTimestamp mocks base method.
-func (m *MockTriggerControllerClient) ResetOffsetToTimestamp(ctx context.Context, in *ResetOffsetToTimestampRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (m *MockTriggerControllerClient) ResetOffsetToTimestamp(ctx context.Context, in *ResetOffsetToTimestampRequest, opts ...grpc.CallOption) (*ResetOffsetToTimestampResponse, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "ResetOffsetToTimestamp", varargs...)
-	ret0, _ := ret[0].(*emptypb.Empty)
+	ret0, _ := ret[0].(*ResetOffsetToTimestampResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1525,10 +1525,10 @@ func (mr *MockTriggerControllerServerMockRecorder) RegisterTriggerWorker(arg0, a
 }
 
 // ResetOffsetToTimestamp mocks base method.
-func (m *MockTriggerControllerServer) ResetOffsetToTimestamp(arg0 context.Context, arg1 *ResetOffsetToTimestampRequest) (*emptypb.Empty, error) {
+func (m *MockTriggerControllerServer) ResetOffsetToTimestamp(arg0 context.Context, arg1 *ResetOffsetToTimestampRequest) (*ResetOffsetToTimestampResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResetOffsetToTimestamp", arg0, arg1)
-	ret0, _ := ret[0].(*emptypb.Empty)
+	ret0, _ := ret[0].(*ResetOffsetToTimestampResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

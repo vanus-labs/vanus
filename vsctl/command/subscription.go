@@ -54,6 +54,7 @@ func NewSubscriptionCommand() *cobra.Command {
 	cmd.AddCommand(resumeSubscriptionCommand())
 	cmd.AddCommand(getSubscriptionCommand())
 	cmd.AddCommand(listSubscriptionCommand())
+	cmd.AddCommand(resetOffsetCommand())
 	return cmd
 }
 
@@ -334,6 +335,48 @@ func disableSubscriptionCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&subscriptionIDStr, "id", "", "subscription id to disable")
+	return cmd
+}
+
+func resetOffsetCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "reset-offset",
+		Short: "reset offset a subscription",
+		Run: func(cmd *cobra.Command, args []string) {
+			id, err := vanus.NewIDFromString(subscriptionIDStr)
+			if err != nil {
+				cmdFailedWithHelpNotice(cmd, fmt.Sprintf("invalid subscription id: %s\n", err.Error()))
+			}
+			if offsetTimestamp == 0 {
+				cmdFailedf(cmd, "reset offset timestamp must gt 0")
+			}
+			res, err := client.ResetOffsetToTimestamp(context.Background(), &ctrlpb.ResetOffsetToTimestampRequest{
+				SubscriptionId: id.Uint64(),
+				Timestamp:      offsetTimestamp,
+			})
+			if err != nil {
+				cmdFailedf(cmd, "reset offset subscription failed: %s", err)
+			}
+			data, _ := json.MarshalIndent(res.Offsets, "", "  ")
+			if IsFormatJSON(cmd) {
+				color.Green(string(data))
+			} else {
+				t := table.NewWriter()
+				t.AppendHeader(table.Row{"subscription_id", "filters"})
+				t.AppendSeparator()
+				t.AppendRow(table.Row{subscriptionIDStr, string(data)})
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, VAlign: text.VAlignMiddle, AlignHeader: text.AlignCenter},
+					{Number: 2, VAlign: text.VAlignMiddle, AlignHeader: text.AlignCenter},
+				})
+				t.SetOutputMirror(os.Stdout)
+				t.Render()
+			}
+			color.Green("reset offset by subscription: %s success\n", subscriptionIDStr)
+		},
+	}
+	cmd.Flags().StringVar(&subscriptionIDStr, "id", "", "subscription id to disable")
+	cmd.Flags().Uint64Var(&offsetTimestamp, "timestamp", 0, "reset offset to UTC second")
 	return cmd
 }
 
