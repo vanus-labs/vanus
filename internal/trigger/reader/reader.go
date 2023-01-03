@@ -48,7 +48,6 @@ const (
 
 type Config struct {
 	EventBusName      string
-	Retry             bool
 	Client            eb.Client
 	SubscriptionID    vanus.ID
 	SubscriptionIDStr string
@@ -267,7 +266,6 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr api.BusReader)
 		eo := info.EventRecord{Event: events[i], OffsetInfo: pInfo.OffsetInfo{
 			EventLogID: elReader.eventLogID,
 			Offset:     offset,
-			Retry:      elReader.config.Retry,
 		}}
 		delete(ec.Extensions, eventlog.XVanusLogOffset)
 		if err = elReader.putEvent(ctx, eo); err != nil {

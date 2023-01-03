@@ -28,7 +28,6 @@ type SubscriptionInfo struct {
 type OffsetInfo struct {
 	EventLogID vanus.ID `json:"eventLogID"`
 	Offset     uint64   `json:"offset"`
-	Retry      bool     `json:"retry"`
 }
 
 type ListOffsetInfo []OffsetInfo

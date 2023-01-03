@@ -429,7 +429,6 @@ func (t *trigger) getRetryEventReaderConfig() reader.Config {
 	ebName := primitive.RetryEventbusName
 	return reader.Config{
 		EventBusName:   ebName,
-		Retry:          true,
 		Client:         t.client,
 		SubscriptionID: sub.ID,
 		Offset:         getOffset(t.offsetManager, sub),

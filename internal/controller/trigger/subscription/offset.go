@@ -17,11 +17,10 @@ package subscription
 import (
 	"context"
 
-	"github.com/linkall-labs/vanus/observability/log"
-
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/observability/log"
 )
 
 func (m *manager) SaveOffset(ctx context.Context, id vanus.ID, offsets info.ListOffsetInfo, commit bool) error {
@@ -64,16 +63,7 @@ func (m *manager) GetOffset(ctx context.Context, id vanus.ID) (info.ListOffsetIn
 	if err != nil {
 		return nil, err
 	}
-	if len(offsets) > 0 {
-		var resp info.ListOffsetInfo
-		for _, offset := range offsets {
-			if offset.Retry {
-				continue
-			}
-			resp = append(resp, offset)
-		}
-		return resp, nil
-	}
+	// todo filter retry eventlog
 	return offsets, nil
 }
 
@@ -143,7 +133,6 @@ func (m *manager) getOffsetFromCli(ctx context.Context, eventbus string,
 		offsets[i] = info.OffsetInfo{
 			EventLogID: vanus.NewIDFromUint64(l.ID()),
 			Offset:     uint64(v),
-			Retry:      retryEventBus,
 		}
 	}
 	return offsets, nil
