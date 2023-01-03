@@ -72,7 +72,6 @@ func (s *scheduler) Register(z zone.Interface, wo int64) Stream {
 		if err := buf.RecoverFromFile(f, off, int(so)); err != nil {
 			panic(err)
 		}
-		// FIXME(james.yin): switch buf if it is full.
 	}
 
 	ss := &stream{

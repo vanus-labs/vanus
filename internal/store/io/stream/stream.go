@@ -118,9 +118,10 @@ func (s *stream) Append(r stdio.Reader, cb io.WriteCallback) {
 
 	if empty {
 		s.waiting = append(s.waiting, cb)
-		if last == nil && !s.dirty {
+		if last == nil {
 			s.dirty = true
 			s.startFlushTimer()
+			return
 		}
 	}
 

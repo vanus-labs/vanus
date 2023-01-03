@@ -277,7 +277,6 @@ func (a *appender) applyEntries(ctx context.Context, committedEntries []raftpb.E
 	span.AddEvent("store.block.raft.appender.applyEntries() Start")
 	defer span.AddEvent("store.block.raft.appender.applyEntries() End")
 
-	var cs *raftpb.ConfState
 	for i := 0; i < len(committedEntries); i++ {
 		pbEntry := &committedEntries[i]
 		index := pbEntry.Index
@@ -299,7 +298,7 @@ func (a *appender) applyEntries(ctx context.Context, committedEntries []raftpb.E
 		}
 
 		// Change membership.
-		cs = a.applyConfChange(ctx, pbEntry)
+		cs := a.applyConfChange(ctx, pbEntry)
 		ch := make(chan struct{})
 		go func() {
 			if err := a.log.SetConfState(ctx, *cs); err != nil {
