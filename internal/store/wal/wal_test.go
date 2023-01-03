@@ -41,8 +41,7 @@ func TestWAL_AppendOne(t *testing.T) {
 	ctx := context.Background()
 
 	Convey("wal append one", t, func() {
-		walDir, err := os.MkdirTemp("", "wal-*")
-		So(err, ShouldBeNil)
+		walDir := t.TempDir()
 
 		wal, err := Open(ctx, walDir, WithFileSize(fileSize))
 		So(err, ShouldBeNil)
@@ -86,15 +85,11 @@ func TestWAL_AppendOne(t *testing.T) {
 		Reset(func() {
 			wal.Close()
 			wal.Wait()
-
-			err := os.RemoveAll(walDir)
-			So(err, ShouldBeNil)
 		})
 	})
 
 	Convey("flush wal when timeout", t, func() {
-		walDir, err := os.MkdirTemp("", "wal-*")
-		So(err, ShouldBeNil)
+		walDir := t.TempDir()
 
 		flushTimeout := time.Second
 		wal, err := Open(ctx, walDir, WithFileSize(fileSize), WithFlushTimeout(flushTimeout))
@@ -120,14 +115,10 @@ func TestWAL_AppendOne(t *testing.T) {
 
 		wal.Close()
 		wal.Wait()
-
-		err = os.RemoveAll(walDir)
-		So(err, ShouldBeNil)
 	})
 
 	Convey("wal append one after close", t, func() {
-		walDir, err := os.MkdirTemp("", "wal-*")
-		So(err, ShouldBeNil)
+		walDir := t.TempDir()
 
 		flushTimeout := 100 * time.Millisecond
 		wal, err := Open(ctx, walDir, WithFileSize(fileSize), WithFlushTimeout(flushTimeout))
@@ -153,9 +144,6 @@ func TestWAL_AppendOne(t *testing.T) {
 		// NOTE: There is no guarantee that data0 will be successfully written.
 		// So(wal.wb.Size(), ShouldEqual, 10)
 		// So(wal.wb.Committed(), ShouldEqual, 10)
-
-		err = os.RemoveAll(walDir)
-		So(err, ShouldBeNil)
 	})
 }
 
@@ -163,8 +151,7 @@ func TestWAL_Append(t *testing.T) {
 	ctx := context.Background()
 
 	Convey("wal append", t, func() {
-		walDir, err := os.MkdirTemp("", "wal-*")
-		So(err, ShouldBeNil)
+		walDir := t.TempDir()
 
 		wal, err := Open(ctx, walDir, WithFileSize(fileSize))
 		So(err, ShouldBeNil)
@@ -194,9 +181,6 @@ func TestWAL_Append(t *testing.T) {
 		Reset(func() {
 			wal.Close()
 			wal.Wait()
-
-			err := os.RemoveAll(walDir)
-			So(err, ShouldBeNil)
 		})
 	})
 }
@@ -207,8 +191,7 @@ func TestWAL_Compact(t *testing.T) {
 	copy(data, []byte("hello world!"))
 
 	Convey("wal compaction", t, func() {
-		walDir, err := os.MkdirTemp("", "wal-*")
-		So(err, ShouldBeNil)
+		walDir := t.TempDir()
 
 		wal, err := Open(ctx, walDir, WithFileSize(fileSize))
 		So(err, ShouldBeNil)
@@ -244,8 +227,5 @@ func TestWAL_Compact(t *testing.T) {
 
 		wal.Close()
 		wal.Wait()
-
-		err = os.RemoveAll(walDir)
-		So(err, ShouldBeNil)
 	})
 }

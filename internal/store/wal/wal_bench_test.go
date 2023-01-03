@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"sync"
 	"testing"
 
@@ -30,11 +29,7 @@ import (
 const walTempDir = ""
 
 func BenchmarkWAL_AppendOneWithBatching(b *testing.B) {
-	walDir, err := os.MkdirTemp(walTempDir, "wal-*")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.RemoveAll(walDir)
+	walDir := b.TempDir()
 
 	wal, err := Open(context.Background(), walDir)
 	if err != nil {
@@ -63,11 +58,7 @@ func BenchmarkWAL_AppendOneWithBatching(b *testing.B) {
 }
 
 func BenchmarkWAL_AppendOneWithoutBatching(b *testing.B) {
-	walDir, err := os.MkdirTemp(walTempDir, "wal-*")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.RemoveAll(walDir)
+	walDir := b.TempDir()
 
 	wal, err := Open(context.Background(), walDir)
 	if err != nil {
@@ -97,11 +88,7 @@ func BenchmarkWAL_AppendOneWithoutBatching(b *testing.B) {
 
 func BenchmarkWAL_AppendOneWithCallback(b *testing.B) {
 	// walDir := filepath.Join(walTempDir, "wal-test")
-	walDir, err := os.MkdirTemp(walTempDir, "wal-*")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.RemoveAll(walDir)
+	walDir := b.TempDir()
 
 	wal, err := Open(context.Background(), walDir)
 	if err != nil {

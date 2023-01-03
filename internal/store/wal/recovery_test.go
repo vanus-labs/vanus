@@ -17,7 +17,6 @@ package wal
 import (
 	// standard libraries.
 	"context"
-	"os"
 	"testing"
 
 	// third-party libraries.
@@ -28,8 +27,7 @@ func TestOpen(t *testing.T) {
 	ctx := context.Background()
 
 	Convey("open wal in recover mode", t, func() {
-		walDir, err := os.MkdirTemp("", "wal-*")
-		So(err, ShouldBeNil)
+		walDir := t.TempDir()
 
 		Convey("create empty wal", func() {
 			var entryNum int
@@ -106,11 +104,6 @@ func TestOpen(t *testing.T) {
 
 			wal.Close()
 			wal.Wait()
-		})
-
-		Reset(func() {
-			err := os.RemoveAll(walDir)
-			So(err, ShouldBeNil)
 		})
 	})
 }
