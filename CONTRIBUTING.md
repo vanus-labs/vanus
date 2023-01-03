@@ -29,7 +29,7 @@ resources to make it easier to get your contribution accepted.
 ## Before you get started
 
 ### Sign the CLA
-Click [here](https://cla-assistant.io/linkall-labs/) to sign the CLA, and click the `Sign in with GitHub to agree` button to sign.
+Click [here](https://cla-assistant.io/linkall-labs/vanus) to sign the CLA, and click the `Sign in with GitHub to agree` button to sign.
 
 What is [CLA](https://en.wikipedia.org/wiki/Contributor_License_Agreement).
 
@@ -51,7 +51,7 @@ assigned to someone.
 
 #### First Contribution
 You can start by finding existing issues with the 
-[good-first-issue](https://github.com/linkall-labs/vanus/issues?q=is%3Aopen+is%3Aissue+label%3Agood-first-issue) label. 
+[good-first-issue](https://github.com/linkall-labs/vanus/issues?q=is%3Aopen+is%3Aissue+label%3A"good+first+issue") label. 
 These issues are well suited for a new contributor.
 
 #### Further Contributions
@@ -113,6 +113,3 @@ There are some automated tasks to ensure each PR's reach high quality in Vanus. 
 ### Code Review
 The Code Review can be started until all checking were passed. Each PR will automatically assign reviewers. After getting 
 at least one `Approve` from reviewers, the PR can be merged.
-
-## Reward
-Once your PR has been merged, you become a Vanus Contributor. Thanks for your contribution! please fill the [form](#) to get you reward
