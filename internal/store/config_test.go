@@ -22,9 +22,14 @@ import (
 
 	// third-party libraries.
 	. "github.com/smartystreets/goconvey/convey"
+
+	// this project.
+	"github.com/linkall-labs/vanus/internal/store/config"
 )
 
-func TestWAL_AppendOne(t *testing.T) {
+const fileSize = 4*1024*1024 - 1
+
+func TestConfig(t *testing.T) {
 	Convey("store configuration", t, func() {
 		f, err := os.CreateTemp("", "store-*.yaml")
 		So(err, ShouldBeNil)
@@ -69,13 +74,13 @@ raft:
 		So(cfg.Volume.Capacity, ShouldEqual, 536870912)
 
 		So(cfg.MetaStore.WAL.FileSize, ShouldEqual, 4194304)
-		So(cfg.MetaStore.WAL.IO.Engine, ShouldEqual, "psync")
+		So(cfg.MetaStore.WAL.IO.Engine, ShouldEqual, config.Psync)
 		So(len(cfg.MetaStore.WAL.Options()), ShouldEqual, 2)
 
 		So(cfg.OffsetStore.WAL.IO.Engine, ShouldEqual, "")
 		So(len(cfg.OffsetStore.WAL.Options()), ShouldEqual, 0)
 
-		So(cfg.Raft.WAL.IO.Engine, ShouldEqual, "io_uring")
+		So(cfg.Raft.WAL.IO.Engine, ShouldEqual, config.Uring)
 		if runtime.GOOS == "linux" {
 			So(len(cfg.Raft.WAL.Options()), ShouldEqual, 1)
 		} else {
@@ -87,9 +92,9 @@ raft:
 
 	Convey("store config validation", t, func() {
 		cfg := Config{
-			MetaStore: SyncStoreConfig{
-				WAL: WALConfig{
-					FileSize: minMetaStoreWALFileSize - 1,
+			MetaStore: config.SyncStore{
+				WAL: config.WAL{
+					FileSize: fileSize,
 				},
 			},
 		}
@@ -97,9 +102,9 @@ raft:
 		So(err, ShouldNotBeNil)
 
 		cfg = Config{
-			OffsetStore: AsyncStoreConfig{
-				WAL: WALConfig{
-					FileSize: minMetaStoreWALFileSize - 1,
+			OffsetStore: config.AsyncStore{
+				WAL: config.WAL{
+					FileSize: fileSize,
 				},
 			},
 		}
@@ -107,9 +112,9 @@ raft:
 		So(err, ShouldNotBeNil)
 
 		cfg = Config{
-			Raft: RaftConfig{
-				WAL: WALConfig{
-					FileSize: minMetaStoreWALFileSize - 1,
+			Raft: config.Raft{
+				WAL: config.WAL{
+					FileSize: fileSize,
 				},
 			},
 		}

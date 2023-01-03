@@ -193,9 +193,11 @@ type appendTask struct {
 type AppendCallback = func(AppendResult, error)
 
 // Append the new entries to storage.
+// After the call returns, all entries are readable. After the AppendCallback cb fires, all entries are persisted.
 func (l *Log) Append(ctx context.Context, entries []raftpb.Entry, cb AppendCallback) { //nolint:funlen // ok
-	ctx, span := l.tracer.Start(ctx, "Append")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("raft.log.Log.Append() Start")
+	defer span.AddEvent("raft.log.Log.Append() End")
 
 	if len(entries) == 0 {
 		t := appendTask{
@@ -370,8 +372,9 @@ func (l *Log) runPostAppend() {
 }
 
 func (l *Log) prepareAppend(ctx context.Context, entries []raftpb.Entry) error {
-	ctx, span := l.tracer.Start(ctx, "prepareAppend")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("raft.log.Log.prepareAppend() Start")
+	defer span.AddEvent("raft.log.Log.prepareAppend() End")
 
 	for i := 1; i < len(entries); i++ {
 		entry, prev := &entries[i], &entries[i-1]
@@ -399,9 +402,10 @@ func (l *Log) prepareAppend(ctx context.Context, entries []raftpb.Entry) error {
 }
 
 func (l *Log) appendToWAL(ctx context.Context, entries []raftpb.Entry, remark bool, cb func([]int64, error)) {
-	ctx, span := l.tracer.Start(ctx, "appendToWAL",
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("raft.log.Log.appendToWAL() Start",
 		trace.WithAttributes(attribute.Int("entry_count", len(entries)), attribute.Bool("remark", remark)))
-	defer span.End()
+	defer span.AddEvent("raft.log.Log.appendToWAL() End")
 
 	if remark {
 		// TODO(james.yin): async

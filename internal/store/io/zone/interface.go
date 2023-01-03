@@ -12,16 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !linux
-// +build !linux
+package zone
 
-package store
+import "os"
 
-import (
-	// this project.
-	walog "github.com/linkall-labs/vanus/internal/store/wal"
-)
+type Interface interface {
+	// TODO: Close?
 
-func configWALIOEngineOptionEx(opts []walog.Option, cfg IOConfig) []walog.Option {
-	panic("io engine is not supported")
+	Raw(off int64) (*os.File, int64)
 }

@@ -14,10 +14,15 @@
 
 package record
 
-func Pack(entry []byte, firstSize, otherSize int) []Record {
+func Pack(entry []byte, firstSize, otherSize int) ([]Record, int) {
 	num := calPacketNum(entry, firstSize, otherSize)
 	if num == 1 {
-		return []Record{makePacket(Full, entry)}
+		packet := makePacket(Full, entry)
+		padding := firstSize - packet.Size()
+		if padding > HeaderSize {
+			padding = 0
+		}
+		return []Record{packet}, padding
 	}
 
 	packets := make([]Record, 0, num)
@@ -34,9 +39,15 @@ func Pack(entry []byte, firstSize, otherSize int) []Record {
 	}
 
 	// last packet
-	packets = append(packets, makePacket(Last, entry[fo:]))
+	last := makePacket(Last, entry[fo:])
+	packets = append(packets, last)
 
-	return packets
+	padding := otherSize - last.Size()
+	if padding > HeaderSize {
+		padding = 0
+	}
+
+	return packets, padding
 }
 
 func calPacketNum(entry []byte, firstSize, otherSize int) int {

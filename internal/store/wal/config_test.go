@@ -23,12 +23,14 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/io"
+	"github.com/linkall-labs/vanus/internal/store/io/engine/psync"
 )
 
 func TestConfig(t *testing.T) {
 	Convey("wal config", t, func() {
-		engine := io.NewEngine()
+		engine := psync.New()
+		defer engine.Close()
+
 		cfg := makeConfig(
 			FromPosition(1024),
 			WithBlockSize(1024),

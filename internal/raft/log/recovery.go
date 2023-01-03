@@ -26,18 +26,14 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	storecfg "github.com/linkall-labs/vanus/internal/store"
+	"github.com/linkall-labs/vanus/internal/store/config"
 	"github.com/linkall-labs/vanus/internal/store/meta"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
 func RecoverLogsAndWAL(
-	ctx context.Context,
-	cfg storecfg.RaftConfig,
-	walDir string,
-	metaStore *meta.SyncStore,
-	offsetStore *meta.AsyncStore,
+	ctx context.Context, cfg config.Raft, walDir string, metaStore *meta.SyncStore, offsetStore *meta.AsyncStore,
 ) (map[vanus.ID]*Log, *WAL, error) {
 	var compacted int64
 	if v, exist := metaStore.Load(walCompactKey); exist {

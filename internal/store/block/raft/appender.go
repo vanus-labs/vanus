@@ -18,7 +18,7 @@ package raft
 import (
 	// standard libraries.
 	"context"
-	stderr "errors"
+	"errors"
 	"sort"
 	"sync"
 	"time"
@@ -37,7 +37,6 @@ import (
 	raftlog "github.com/linkall-labs/vanus/internal/raft/log"
 	"github.com/linkall-labs/vanus/internal/raft/transport"
 	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 const (
@@ -154,8 +153,9 @@ func (a *appender) Stop(ctx context.Context) {
 }
 
 func (a *appender) Bootstrap(ctx context.Context, blocks []Peer) error {
-	_, span := a.tracer.Start(ctx, "Bootstrap")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.block.raft.appender.Bootstrap() Start")
+	defer span.AddEvent("store.block.raft.appender.Bootstrap() End")
 
 	peers := make([]raft.Peer, 0, len(blocks))
 	for _, ep := range blocks {
@@ -172,8 +172,9 @@ func (a *appender) Bootstrap(ctx context.Context, blocks []Peer) error {
 }
 
 func (a *appender) Delete(ctx context.Context) {
-	ctx, span := a.tracer.Start(ctx, "Delete")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.block.raft.appender.Delete() Start")
+	defer span.AddEvent("store.block.raft.appender.Delete() End")
 
 	a.Stop(ctx)
 	a.log.Delete(ctx)
@@ -192,27 +193,7 @@ func (a *appender) run(ctx context.Context) {
 			rCtx, span := a.tracer.Start(ctx, "RaftReady", trace.WithNewRoot())
 
 			if len(rd.Entries) != 0 {
-				log.Debug(rCtx, "Append entries to raft log.", map[string]interface{}{
-					"node_id":        a.ID(),
-					"appended_index": rd.Entries[0].Index,
-					"entries_num":    len(rd.Entries),
-				})
-				a.log.Append(rCtx, rd.Entries, func(re raftlog.AppendResult, err error) {
-					if err != nil {
-						if stderr.Is(err, raftlog.ErrCompacted) || stderr.Is(err, raftlog.ErrTruncated) {
-							// FIXME(james.yin): report to raft?
-							return
-						}
-						panic(err)
-					}
-
-					// Report entries has been persisted.
-					_ = a.node.Step(ctx, raftpb.Message{
-						Type:    raftpb.MsgLogResp,
-						LogTerm: re.Term,
-						Index:   re.Index,
-					})
-				})
+				a.persistEntries(rCtx, rd.Entries)
 			}
 
 			if !raft.IsEmptyHardState(rd.HardState) {
@@ -236,18 +217,13 @@ func (a *appender) run(ctx context.Context) {
 			// NOTE: Messages to be sent AFTER HardState and Entries are committed to stable storage.
 			a.send(rCtx, rd.Messages)
 
+			// TODO(james.yin): snapshot
 			if !raft.IsEmptySnap(rd.Snapshot) {
 				_ = a.log.ApplySnapshot(rCtx, rd.Snapshot)
 			}
 
 			if len(rd.CommittedEntries) != 0 {
-				applied := a.applyEntries(rCtx, rd.CommittedEntries)
-				log.Debug(rCtx, "Store applied offset.", map[string]interface{}{
-					"node_id":        a.ID(),
-					"applied_offset": applied,
-				})
-				// FIXME(james.yin): persist applied after flush block.
-				a.log.SetApplied(rCtx, applied)
+				a.applyEntries(rCtx, rd.CommittedEntries)
 			}
 
 			// TODO(james.yin): optimize
@@ -268,50 +244,87 @@ func (a *appender) run(ctx context.Context) {
 	}
 }
 
-func (a *appender) applyEntries(ctx context.Context, committedEntries []raftpb.Entry) uint64 {
-	ctx, span := a.tracer.Start(ctx, "applyEntries")
-	defer span.End()
+func (a *appender) persistEntries(ctx context.Context, entries []raftpb.Entry) {
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.block.raft.appender.persistEntries() Start")
+	defer span.AddEvent("store.block.raft.appender.persistEntries() End")
 
-	num := len(committedEntries)
-	if num == 0 {
-		return 0
-	}
+	log.Debug(ctx, "Append entries to raft log.", map[string]interface{}{
+		"node_id":        a.ID(),
+		"appended_index": entries[0].Index,
+		"entries_num":    len(entries),
+	})
+
+	a.log.Append(ctx, entries, func(re raftlog.AppendResult, err error) {
+		if err != nil {
+			if errors.Is(err, raftlog.ErrCompacted) || errors.Is(err, raftlog.ErrTruncated) {
+				// FIXME(james.yin): report to raft?
+				return
+			}
+			panic(err)
+		}
+
+		// Report entries has been persisted.
+		_ = a.node.ReportLogged(ctx, re.Index, re.Term)
+	})
+}
+
+func (a *appender) applyEntries(ctx context.Context, committedEntries []raftpb.Entry) {
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.block.raft.appender.applyEntries() Start")
+	defer span.AddEvent("store.block.raft.appender.applyEntries() End")
 
 	var cs *raftpb.ConfState
-	frags := make([]block.Fragment, 0, num)
-	for i := range committedEntries {
+	for i := 0; i < len(committedEntries); i++ {
 		pbEntry := &committedEntries[i]
+		index := pbEntry.Index
 
 		if pbEntry.Type == raftpb.EntryNormal {
-			// Skip empty entry(raft heartbeat).
+			var frag block.Fragment
 			if len(pbEntry.Data) != 0 {
-				frag := block.NewFragment(pbEntry.Data)
-				frags = append(frags, frag)
+				frag = block.NewFragment(pbEntry.Data)
 			}
+			// FIXME(james.yin): do not pass frag with nil value?
+			a.raw.CommitAppend(ctx, frag, func() {
+				log.Debug(ctx, "Store applied offset.", map[string]interface{}{
+					"node_id":        a.ID(),
+					"applied_offset": index,
+				})
+				a.onAppend(ctx, index)
+			})
 			continue
 		}
 
 		// Change membership.
 		cs = a.applyConfChange(ctx, pbEntry)
+		ch := make(chan struct{})
+		go func() {
+			if err := a.log.SetConfState(ctx, *cs); err != nil {
+				panic(err)
+			}
+			close(ch)
+		}()
+		// FIXME(james.yin): do not pass frag with nil value?
+		a.raw.CommitAppend(ctx, nil, func() {
+			<-ch
+			log.Debug(ctx, "Store applied offset for conf change.", map[string]interface{}{
+				"node_id":        a.ID(),
+				"applied_offset": index,
+			})
+			a.onAppend(ctx, index)
+		})
 	}
+}
 
-	if len(frags) != 0 {
-		a.doAppend(ctx, frags...)
-	}
-
-	// ConfState is changed.
-	if cs != nil {
-		if err := a.log.SetConfState(ctx, *cs); err != nil {
-			panic(err)
-		}
-	}
-
-	return committedEntries[num-1].Index
+func (a *appender) onAppend(ctx context.Context, index uint64) {
+	a.log.SetApplied(ctx, index)
+	_ = a.node.ReportApplied(ctx, index)
 }
 
 func (a *appender) becomeLeader(ctx context.Context) {
-	ctx, span := a.tracer.Start(ctx, "becomeLeader")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.block.raft.appender.becomeLeader() Start")
+	defer span.AddEvent("store.block.raft.appender.becomeLeader() End")
 
 	// Reset when become leader.
 	a.reset(ctx)
@@ -358,8 +371,9 @@ func (a *appender) applyConfChange(ctx context.Context, pbEntry *raftpb.Entry) *
 }
 
 func (a *appender) reset(ctx context.Context) {
-	_, span := a.tracer.Start(ctx, "reset")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.block.raft.appender.reset() Start")
+	defer span.AddEvent("store.block.raft.appender.reset() End")
 
 	off, err := a.log.LastIndex()
 	if err != nil {
@@ -397,10 +411,11 @@ func (a *appender) reset(ctx context.Context) {
 	}
 }
 
-// Append implements block.raw.
+// Append implements block.Appender.
 func (a *appender) Append(ctx context.Context, entries []block.Entry, cb block.AppendCallback) {
-	ctx, span := a.tracer.Start(ctx, "Append")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.block.raft.appender.Append() Start")
+	defer span.AddEvent("store.block.raft.appender.Append() End")
 
 	span.AddEvent("Acquiring append lock")
 	a.appendMu.Lock()
@@ -408,13 +423,13 @@ func (a *appender) Append(ctx context.Context, entries []block.Entry, cb block.A
 
 	if !a.isLeader() {
 		a.appendMu.Unlock()
-		cb(nil, errors.ErrNotLeader)
+		cb(nil, block.ErrNotLeader)
 		return
 	}
 
 	if a.actx.Archived() {
 		a.appendMu.Unlock()
-		cb(nil, errors.ErrSegmentFull)
+		cb(nil, block.ErrFull)
 		return
 	}
 
@@ -457,13 +472,6 @@ func (a *appender) Append(ctx context.Context, entries []block.Entry, cb block.A
 	a.node.Propose(ctx, pds...)
 
 	a.appendMu.Unlock()
-}
-
-func (a *appender) doAppend(ctx context.Context, frags ...block.Fragment) {
-	if len(frags) == 0 {
-		return
-	}
-	_, _ = a.raw.CommitAppend(ctx, frags...)
 }
 
 func (a *appender) Status() ClusterStatus {

@@ -63,6 +63,7 @@ enum MessageType {
   MsgPreVote = 17;
   MsgPreVoteResp = 18;
   MsgLogResp = 19;
+  MsgApplyResp = 20;
 }
 
 message Message {

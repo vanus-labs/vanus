@@ -128,7 +128,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 		})
 
 		Convey("long-polling without timeout", func() {
-			b.EXPECT().Read(Any(), int64(0), 3).Return(nil, errors.ErrOffsetOnEnd)
+			b.EXPECT().Read(Any(), int64(0), 3).Return(nil, block.ErrOnEnd)
 			b.EXPECT().Read(Any(), int64(0), 3).Return([]block.Entry{ent0, ent1}, nil)
 
 			mgr := NewMockpollingManager(ctrl)
@@ -152,7 +152,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 		})
 
 		Convey("long-polling with timeout", func() {
-			b.EXPECT().Read(Any(), int64(0), 3).Return(nil, errors.ErrOffsetOnEnd)
+			b.EXPECT().Read(Any(), int64(0), 3).Return(nil, block.ErrOnEnd)
 
 			mgr := NewMockpollingManager(ctrl)
 			ch := make(chan struct{})
@@ -167,7 +167,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 		})
 
 		Convey("long-polling with canceled request", func() {
-			b.EXPECT().Read(Any(), int64(0), 3).Return(nil, errors.ErrOffsetOnEnd)
+			b.EXPECT().Read(Any(), int64(0), 3).Return(nil, block.ErrOnEnd)
 
 			mgr := NewMockpollingManager(ctrl)
 			ch := make(chan struct{})

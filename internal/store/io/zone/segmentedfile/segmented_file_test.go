@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package wal
+package segmentedfile
 
 import (
 	// standard libraries.
-	"context"
 	"os"
 	"testing"
 
@@ -24,65 +23,64 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestLogStream_SelectFile(t *testing.T) {
-	Convey("log stream", t, func() {
-		walDir, err := os.MkdirTemp("", "wal-*")
+const fileSize = 32 * 1024
+
+func TestSegmentedFile_SelectSegment(t *testing.T) {
+	Convey("segmented file", t, func() {
+		dir, err := os.MkdirTemp("", "sf-*")
 		So(err, ShouldBeNil)
 
-		s := logStream{
-			dir:       walDir,
-			blockSize: defaultBlockSize,
-			fileSize:  fileSize,
-		}
+		sf, err := Open(dir, WithSegmentSize(fileSize))
+		So(err, ShouldBeNil)
 
-		Convey("select file", func() {
-			f := s.selectFile(context.Background(), 0, false)
+		Convey("select segment", func() {
+			f := sf.SelectSegment(0, false)
 			So(f, ShouldBeNil)
 
 			So(func() {
-				_ = s.selectFile(context.Background(), 1, false)
+				_ = sf.SelectSegment(1, false)
 			}, ShouldPanic)
 
-			f0 := s.selectFile(context.Background(), 0, true)
+			f0 := sf.SelectSegment(0, true)
 			So(f0, ShouldNotBeNil)
-			So(s.stream, ShouldHaveLength, 1)
+			So(sf.segments, ShouldHaveLength, 1)
 
-			f = s.selectFile(context.Background(), fileSize-1, false)
+			f = sf.SelectSegment(fileSize-1, false)
 			So(f, ShouldEqual, f0)
 
-			f = s.selectFile(context.Background(), fileSize, false)
+			f = sf.SelectSegment(fileSize, false)
 			So(f, ShouldBeNil)
 
 			So(func() {
-				_ = s.selectFile(context.Background(), fileSize+1, false)
+				_ = sf.SelectSegment(fileSize+1, false)
 			}, ShouldPanic)
 
-			f1 := s.selectFile(context.Background(), fileSize, true)
+			f1 := sf.SelectSegment(fileSize, true)
 			So(f1, ShouldNotBeNil)
-			So(s.stream, ShouldHaveLength, 2)
+			So(sf.segments, ShouldHaveLength, 2)
 
-			f = s.selectFile(context.Background(), fileSize*2-1, false)
+			f = sf.SelectSegment(fileSize*2-1, false)
 			So(f, ShouldEqual, f1)
 
-			f = s.selectFile(context.Background(), fileSize*2, false)
+			f = sf.SelectSegment(fileSize*2, false)
 			So(f, ShouldBeNil)
 
 			So(func() {
-				_ = s.selectFile(context.Background(), fileSize*2+1, false)
+				_ = sf.SelectSegment(fileSize*2+1, false)
 			}, ShouldPanic)
 
-			f = s.selectFile(context.Background(), fileSize-1, false)
+			f = sf.SelectSegment(fileSize-1, false)
 			So(f, ShouldEqual, f0)
 
 			So(func() {
-				_ = s.selectFile(context.Background(), -1, false)
+				_ = sf.SelectSegment(-1, false)
 			}, ShouldPanic)
 		})
 
 		Reset(func() {
-			s.Close(context.Background())
+			sf.Close()
 
-			err = os.RemoveAll(walDir)
+			err = os.RemoveAll(dir)
 			So(err, ShouldBeNil)
 		})
 	})

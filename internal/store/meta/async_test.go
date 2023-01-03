@@ -24,7 +24,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	storecfg "github.com/linkall-labs/vanus/internal/store"
+	"github.com/linkall-labs/vanus/internal/store/config"
 )
 
 func TestAsyncStore(t *testing.T) {
@@ -35,7 +35,7 @@ func TestAsyncStore(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("new empty AsyncStore by recovery", func() {
-			ss, err := RecoverAsyncStore(ctx, storecfg.AsyncStoreConfig{}, walDir)
+			ss, err := RecoverAsyncStore(ctx, config.AsyncStore{}, walDir)
 
 			So(err, ShouldBeNil)
 			So(ss, ShouldNotBeNil)
@@ -44,14 +44,14 @@ func TestAsyncStore(t *testing.T) {
 		})
 
 		Convey("setup AsyncStore", func() {
-			ss, err := RecoverAsyncStore(ctx, storecfg.AsyncStoreConfig{}, walDir)
+			ss, err := RecoverAsyncStore(ctx, config.AsyncStore{}, walDir)
 			So(err, ShouldBeNil)
 			ss.Store(ctx, key0, "value0")
 			ss.Store(ctx, key1, "value1")
 			ss.Close()
 
 			Convey("recover AsyncStore", func() {
-				ss, err = RecoverAsyncStore(ctx, storecfg.AsyncStoreConfig{}, walDir)
+				ss, err = RecoverAsyncStore(ctx, config.AsyncStore{}, walDir)
 				So(err, ShouldBeNil)
 
 				value0, ok0 := ss.Load(key0)
@@ -78,7 +78,7 @@ func TestAsyncStore(t *testing.T) {
 					ss.Close()
 
 					Convey("recover AsyncStore again", func() {
-						ss, err = RecoverAsyncStore(ctx, storecfg.AsyncStoreConfig{}, walDir)
+						ss, err = RecoverAsyncStore(ctx, config.AsyncStore{}, walDir)
 						So(err, ShouldBeNil)
 
 						value0, ok0 := ss.Load(key0)

@@ -21,22 +21,26 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/linkall-labs/vanus/internal/store"
-	"github.com/linkall-labs/vanus/internal/store/segment"
-	"github.com/linkall-labs/vanus/observability/log"
-	v1 "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	_ "net/http/pprof"
+
+	"github.com/linkall-labs/vanus/observability/log"
+	v1 "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
+
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/store"
+	"github.com/linkall-labs/vanus/internal/store/config"
+	"github.com/linkall-labs/vanus/internal/store/segment"
 )
 
 const (
@@ -91,24 +95,24 @@ func runStoreCommand() *cobra.Command {
 					Dir:      fmt.Sprintf("/Users/wenfeng/tmp/data/test/vanus/store-%d", uint16(volumeID)),
 					Capacity: 1073741824,
 				},
-				MetaStore: store.SyncStoreConfig{
-					WAL: store.WALConfig{
-						IO: store.IOConfig{
+				MetaStore: config.SyncStore{
+					WAL: config.WAL{
+						IO: config.IO{
 							Engine: "psync",
 						},
 					},
 				},
-				OffsetStore: store.AsyncStoreConfig{
-					WAL: store.WALConfig{
-						IO: store.IOConfig{
+				OffsetStore: config.AsyncStore{
+					WAL: config.WAL{
+						IO: config.IO{
 							Engine: "psync",
 						},
 					},
 				},
-				Raft: store.RaftConfig{
-					WAL: store.WALConfig{
+				Raft: config.Raft{
+					WAL: config.WAL{
 						BlockSize: 32 * 1024,
-						IO: store.IOConfig{
+						IO: config.IO{
 							Engine: "psync",
 						},
 					},
@@ -198,7 +202,8 @@ func createBlockCommand() *cobra.Command {
 	cmd.Flags().IntVar(&segmentNumbers, "number", 1, "")
 	cmd.Flags().IntVar(&replicaNum, "replicas", 3, "")
 	cmd.Flags().StringArrayVar(&storeAddrs, "store-address", []string{
-		"127.0.0.1:2149", "127.0.0.1:2150", "127.0.0.1:2151"}, "")
+		"127.0.0.1:2149", "127.0.0.1:2150", "127.0.0.1:2151",
+	}, "")
 	return cmd
 }
 
@@ -227,7 +232,8 @@ func sendCommand() *cobra.Command {
 				br := BlockRecord{}
 				_ = json.Unmarshal([]byte(sCmd.Val()), &br)
 				brs[i] = br
-				fmt.Printf("found a block, ID: %s, addr: %s\n", vanus.ID(br.LeaderID).String(), br.LeaderAddr)
+				fmt.Printf("found a block, ID: %s, addr: %s\n",
+					vanus.ID(br.LeaderID).String(), br.LeaderAddr)
 			}
 
 			conns := make(map[string]*grpc.ClientConn, 0)

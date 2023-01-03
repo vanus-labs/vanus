@@ -46,7 +46,7 @@ func TestServer_recover(t *testing.T) {
 				},
 			},
 		}
-		err = srv.loadEngine(context.Background())
+		err = srv.loadVSBEngine(context.Background(), srv.cfg.VSB)
 		So(err, ShouldBeNil)
 
 		err = srv.recover(context.Background())

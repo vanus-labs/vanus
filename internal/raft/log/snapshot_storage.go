@@ -19,6 +19,9 @@ import (
 	// standard libraries.
 	"context"
 
+	// third-party libraries.
+	"go.opentelemetry.io/otel/trace"
+
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/raft"
 	"github.com/linkall-labs/vanus/raft/raftpb"
@@ -76,8 +79,9 @@ func (l *Log) Snapshot() (raftpb.Snapshot, error) {
 // ApplySnapshot overwrites the contents of this Storage object with
 // those of the given snapshot.
 func (l *Log) ApplySnapshot(ctx context.Context, snap raftpb.Snapshot) error {
-	ctx, span := l.tracer.Start(ctx, "ApplySnapshot")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("raft.log.Log.ApplySnapshot() Start")
+	defer span.AddEvent("raft.log.Log.ApplySnapshot() End")
 
 	l.Lock()
 	defer l.Unlock()

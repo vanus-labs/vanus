@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build linux
-// +build linux
-
-package io
+package psync
 
 import (
 	// standard libraries.
@@ -24,19 +21,22 @@ import (
 
 	// third-party libraries.
 	. "github.com/smartystreets/goconvey/convey"
+
+	// this project.
+	enginetest "github.com/linkall-labs/vanus/internal/store/io/engine/testing"
 )
 
-func TestURing(t *testing.T) {
+func TestPsync(t *testing.T) {
 	f, err := os.CreateTemp("", "wal-engine-*")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.Remove(f.Name())
 
-	e := NewURing()
+	e := New()
 	defer e.Close()
 
-	Convey("uRing", t, func() {
-		doEngineTest(e, f)
+	Convey("psync", t, func() {
+		enginetest.DoEngineTest(e, f)
 	})
 }
