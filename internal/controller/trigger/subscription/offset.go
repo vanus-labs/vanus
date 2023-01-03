@@ -32,7 +32,8 @@ func (m *manager) SaveOffset(ctx context.Context, id vanus.ID, offsets info.List
 	return m.offsetManager.Offset(ctx, id, offsets, commit)
 }
 
-func (m *manager) ResetOffsetByTimestamp(ctx context.Context, id vanus.ID, timestamp uint64) (info.ListOffsetInfo, error) {
+func (m *manager) ResetOffsetByTimestamp(ctx context.Context, id vanus.ID,
+	timestamp uint64) (info.ListOffsetInfo, error) {
 	subscription := m.GetSubscription(ctx, id)
 	if subscription == nil {
 		return nil, ErrSubscriptionNotExist

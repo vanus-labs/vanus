@@ -100,7 +100,7 @@ func TestController_ResetOffsetToTimestamp(t *testing.T) {
 				Phase: metadata.SubscriptionPhaseStopped,
 			}
 			subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).AnyTimes().Return(sub)
-			subManager.EXPECT().ResetOffsetByTimestamp(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+			subManager.EXPECT().ResetOffsetByTimestamp(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
 			_, err := ctrl.ResetOffsetToTimestamp(ctx, &ctrlpb.ResetOffsetToTimestampRequest{
 				SubscriptionId: subID.Uint64(),
 				Timestamp:      uint64(time.Now().Unix()),
