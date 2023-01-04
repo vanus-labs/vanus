@@ -23,7 +23,6 @@ import (
 
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/trigger"
 	"github.com/linkall-labs/vanus/observability/log"
@@ -45,7 +44,6 @@ type Worker interface {
 	RemoveSubscription(ctx context.Context, id vanus.ID) error
 	PauseSubscription(ctx context.Context, id vanus.ID) error
 	StartSubscription(ctx context.Context, id vanus.ID) error
-	ResetOffsetToTimestamp(ctx context.Context, id vanus.ID, timestamp int64) error
 }
 
 const (
@@ -197,38 +195,6 @@ func (w *worker) StartSubscription(ctx context.Context, id vanus.ID) error {
 	return w.startSubscription(ctx, id)
 }
 
-func (w *worker) ResetOffsetToTimestamp(ctx context.Context,
-	id vanus.ID,
-	timestamp int64) error {
-	t, exist := w.getTrigger(id)
-	if !exist {
-		return errors.ErrResourceNotFound.WithMessage("subscription not exist")
-	}
-	// pause subscription
-	_ = w.stopSubscription(ctx, id)
-	// reset offset
-	offsets, err := t.ResetOffsetToTimestamp(ctx, timestamp)
-	if err != nil {
-		return err
-	}
-	// commit offset
-	log.Info(ctx, "reset offset to timestamp offsets info", map[string]interface{}{
-		log.KeySubscriptionID: id,
-		"offsets":             offsets,
-	})
-	err = w.commitOffset(ctx, id, offsets)
-	if err != nil {
-		return err
-	}
-	// start subscription
-	err = w.startSubscription(ctx, id)
-	if err != nil {
-		// todo process start fail
-		return err
-	}
-	return nil
-}
-
 func (w *worker) startHeartbeat(ctx context.Context) error {
 	w.wg.Add(1)
 	defer w.wg.Done()
@@ -259,17 +225,6 @@ func (w *worker) startSubscription(ctx context.Context, id vanus.ID) error {
 		return err
 	}
 	return t.Start(ctx)
-}
-
-func (w *worker) commitOffset(ctx context.Context, id vanus.ID, offsets info.ListOffsetInfo) error {
-	_, err := w.client.CommitOffset(ctx, &ctrlpb.CommitOffsetRequest{
-		ForceCommit: true,
-		SubscriptionInfo: []*metapb.SubscriptionInfo{convert.ToPbSubscriptionInfo(info.SubscriptionInfo{
-			SubscriptionID: id,
-			Offsets:        offsets,
-		})},
-	})
-	return err
 }
 
 func (w *worker) commitOffsets(ctx context.Context) error {

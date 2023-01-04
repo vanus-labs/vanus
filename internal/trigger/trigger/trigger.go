@@ -57,7 +57,6 @@ type Trigger interface {
 	Stop(ctx context.Context) error
 	Change(ctx context.Context, subscription *primitive.Subscription) error
 	GetOffsets(ctx context.Context) pInfo.ListOffsetInfo
-	ResetOffsetToTimestamp(ctx context.Context, timestamp int64) (pInfo.ListOffsetInfo, error)
 }
 
 type trigger struct {
@@ -416,33 +415,22 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 }
 
 func (t *trigger) getReaderConfig() reader.Config {
-	controllers := t.config.Controllers
 	sub := t.subscription
-	var offsetTimestamp int64
-	if sub.Config.OffsetTimestamp != nil {
-		offsetTimestamp = int64(*sub.Config.OffsetTimestamp)
-	}
 	return reader.Config{
-		EventBusName:    sub.EventBus,
-		Controllers:     controllers,
-		Client:          t.client,
-		SubscriptionID:  sub.ID,
-		OffsetType:      sub.Config.OffsetType,
-		OffsetTimestamp: offsetTimestamp,
-		Offset:          getOffset(t.offsetManager, sub),
+		EventBusName:   sub.EventBus,
+		Client:         t.client,
+		SubscriptionID: sub.ID,
+		Offset:         getOffset(t.offsetManager, sub),
 	}
 }
 
 func (t *trigger) getRetryEventReaderConfig() reader.Config {
-	controllers := t.config.Controllers
 	sub := t.subscription
 	ebName := primitive.RetryEventbusName
 	return reader.Config{
 		EventBusName:   ebName,
-		Controllers:    controllers,
 		Client:         t.client,
 		SubscriptionID: sub.ID,
-		OffsetType:     primitive.LatestOffset,
 		Offset:         getOffset(t.offsetManager, sub),
 	}
 }
@@ -539,16 +527,6 @@ func (t *trigger) Change(ctx context.Context, subscription *primitive.Subscripti
 		t.changeConfig(subscription.Config)
 	}
 	return nil
-}
-
-func (t *trigger) ResetOffsetToTimestamp(ctx context.Context, timestamp int64) (pInfo.ListOffsetInfo, error) {
-	offsets, err := t.reader.GetOffsetByTimestamp(ctx, timestamp)
-	if err != nil {
-		return nil, err
-	}
-	t.subscription.Offsets = offsets
-	t.offsetManager.Clear()
-	return offsets, nil
 }
 
 // GetOffsets contains retry eventlog.

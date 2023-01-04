@@ -18,7 +18,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/primitive/queue"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -119,14 +118,12 @@ func (s *SubscriptionScheduler) handler(ctx context.Context, subscriptionID vanu
 		return ErrTriggerWorkerNotFound
 	}
 	if subscription.TriggerWorker == "" {
+		subscription.TriggerWorker = twAddr
+		err := s.subscriptionManager.UpdateSubscription(ctx, subscription)
+		if err != nil {
+			return err
+		}
 		metrics.CtrlTriggerGauge.WithLabelValues(twAddr).Inc()
-	}
-	subscription.TriggerWorker = twAddr
-	subscription.Phase = metadata.SubscriptionPhaseScheduled
-	subscription.HeartbeatTime = time.Now()
-	err := s.subscriptionManager.UpdateSubscription(ctx, subscription)
-	if err != nil {
-		return err
 	}
 	tWorker.AssignSubscription(subscriptionID)
 	return nil

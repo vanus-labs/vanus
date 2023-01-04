@@ -39,7 +39,6 @@ func FromPbSubscriptionRequest(sub *ctrl.SubscriptionRequest) *metadata.Subscrip
 		Transformer:        fromPbTransformer(sub.Transformer),
 		EventBus:           sub.EventBus,
 		Name:               sub.Name,
-		Disable:            sub.Disable,
 		Description:        sub.Description,
 	}
 	return to
@@ -288,10 +287,12 @@ func ToPbSubscription(sub *metadata.Subscription, offsets info.ListOffsetInfo) *
 		Transformer:      ToPbTransformer(sub.Transformer),
 		Offsets:          ToPbOffsetInfos(offsets),
 		Name:             sub.Name,
-		Disable:          sub.Disable,
 		Description:      sub.Description,
 		CreatedAt:        sub.CreatedAt.UnixMilli(),
 		UpdatedAt:        sub.UpdatedAt.UnixMilli(),
+	}
+	if sub.Phase == metadata.SubscriptionPhaseStopped {
+		to.Disable = true
 	}
 	return to
 }

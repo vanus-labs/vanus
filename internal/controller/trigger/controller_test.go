@@ -38,7 +38,7 @@ func TestController_CommitOffset(t *testing.T) {
 	Convey("test reset offset", t, func() {
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
-		ctrl := NewController(Config{}, nil, nil)
+		ctrl := NewController(Config{}, nil)
 		ctx := context.Background()
 		workerManager := worker.NewMockManager(mockCtrl)
 		ctrl.workerManager = workerManager
@@ -77,14 +77,13 @@ func TestController_ResetOffsetToTimestamp(t *testing.T) {
 	Convey("test reset offset", t, func() {
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
-		ctrl := NewController(Config{}, nil, nil)
+		ctrl := NewController(Config{}, nil)
 		ctx := context.Background()
 		workerManager := worker.NewMockManager(mockCtrl)
 		ctrl.workerManager = workerManager
 		subManager := subscription.NewMockManager(mockCtrl)
 		ctrl.subscriptionManager = subManager
 
-		addr := "test"
 		subID := vanus.NewTestID()
 		ctrl.state = primitive.ServerStateRunning
 		Convey("reset offset subscription not exist", func() {
@@ -97,14 +96,11 @@ func TestController_ResetOffsetToTimestamp(t *testing.T) {
 		})
 		Convey("reset offset subscription exist", func() {
 			sub := &metadata.Subscription{
-				ID:            subID,
-				Phase:         metadata.SubscriptionPhaseRunning,
-				TriggerWorker: addr,
+				ID:    subID,
+				Phase: metadata.SubscriptionPhaseStopped,
 			}
 			subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).AnyTimes().Return(sub)
-			tWorker := worker.NewMockTriggerWorker(mockCtrl)
-			tWorker.EXPECT().ResetOffsetToTimestamp(gomock.Eq(subID), gomock.Any()).Return(nil)
-			workerManager.EXPECT().GetTriggerWorker(addr).Return(tWorker)
+			subManager.EXPECT().ResetOffsetByTimestamp(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
 			_, err := ctrl.ResetOffsetToTimestamp(ctx, &ctrlpb.ResetOffsetToTimestampRequest{
 				SubscriptionId: subID.Uint64(),
 				Timestamp:      uint64(time.Now().Unix()),
@@ -118,7 +114,7 @@ func TestController_CreateSubscription(t *testing.T) {
 	Convey("test create subscription", t, func() {
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
-		ctrl := NewController(Config{}, nil, nil)
+		ctrl := NewController(Config{}, nil)
 		ctx := context.Background()
 		workerManager := worker.NewMockManager(mockCtrl)
 		ctrl.workerManager = workerManager
@@ -154,7 +150,7 @@ func TestController_UpdateSubscription(t *testing.T) {
 	Convey("test update subscription", t, func() {
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
-		ctrl := NewController(Config{}, nil, nil)
+		ctrl := NewController(Config{}, nil)
 		ctx := context.Background()
 		workerManager := worker.NewMockManager(mockCtrl)
 		ctrl.workerManager = workerManager
@@ -177,7 +173,7 @@ func TestController_UpdateSubscription(t *testing.T) {
 		})
 		sub := metadata.Subscription{
 			ID:            subID,
-			Phase:         metadata.SubscriptionPhaseRunning,
+			Phase:         metadata.SubscriptionPhaseStopped,
 			TriggerWorker: "test-addr",
 			EventBus:      "test-eb",
 			Sink:          "test-sink",
@@ -355,7 +351,7 @@ func TestController_DeleteSubscription(t *testing.T) {
 	Convey("test delete subscription", t, func() {
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
-		ctrl := NewController(Config{}, nil, nil)
+		ctrl := NewController(Config{}, nil)
 		ctx := context.Background()
 		workerManager := worker.NewMockManager(mockCtrl)
 		ctrl.workerManager = workerManager
@@ -383,7 +379,7 @@ func TestController_DeleteSubscription(t *testing.T) {
 			subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).Return(sub)
 			subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
 			workerManager.EXPECT().GetTriggerWorker(addr).Return(tWorker)
-			tWorker.EXPECT().UnAssignSubscription(gomock.Eq(subID)).Return()
+			tWorker.EXPECT().UnAssignSubscription(gomock.Eq(subID)).Return(nil)
 			Convey("delete subscription success", func() {
 				subManager.EXPECT().DeleteSubscription(gomock.Any(), gomock.Eq(subID)).Return(nil)
 				_, err := ctrl.DeleteSubscription(ctx, request)
@@ -414,7 +410,7 @@ func TestController_GetSubscription(t *testing.T) {
 	Convey("test get subscription", t, func() {
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
-		ctrl := NewController(Config{}, nil, nil)
+		ctrl := NewController(Config{}, nil)
 		ctx := context.Background()
 		workerManager := worker.NewMockManager(mockCtrl)
 		ctrl.workerManager = workerManager
@@ -451,7 +447,7 @@ func TestController_ListSubscription(t *testing.T) {
 	Convey("test list subscription", t, func() {
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
-		ctrl := NewController(Config{}, nil, nil)
+		ctrl := NewController(Config{}, nil)
 		ctx := context.Background()
 		workerManager := worker.NewMockManager(mockCtrl)
 		ctrl.workerManager = workerManager
@@ -476,7 +472,7 @@ func TestController_TriggerWorkerHeartbeat(t *testing.T) {
 	Convey("test trigger worker heartbeat", t, func() {
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
-		ctrl := NewController(Config{}, nil, nil)
+		ctrl := NewController(Config{}, nil)
 		ctx := context.Background()
 		workerManager := worker.NewMockManager(mockCtrl)
 		ctrl.workerManager = workerManager
