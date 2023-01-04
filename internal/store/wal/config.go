@@ -20,7 +20,6 @@ import (
 
 	// this project.
 	ioengine "github.com/linkall-labs/vanus/internal/store/io/engine"
-	"github.com/linkall-labs/vanus/internal/store/wal/record"
 )
 
 const (
@@ -33,27 +32,25 @@ const (
 )
 
 type config struct {
-	pos                int64
-	cb                 OnEntryCallback
-	blockSize          int
-	fileSize           int64
-	flushTimeout       time.Duration
-	appendBufferSize   int
-	callbackBufferSize int
-	flushBufferSize    int
-	wakeupBufferSize   int
-	engine             ioengine.Interface
+	pos              int64
+	cb               OnEntryCallback
+	blockSize        int
+	fileSize         int64
+	flushTimeout     time.Duration
+	appendBufferSize int
+	flushBufferSize  int
+	wakeupBufferSize int
+	engine           ioengine.Interface
 }
 
 func defaultConfig() config {
 	cfg := config{
-		blockSize:          defaultBlockSize,
-		fileSize:           defaultFileSize,
-		flushTimeout:       defaultFlushTimeout,
-		appendBufferSize:   defaultAppendBufferSize,
-		callbackBufferSize: (defaultBlockSize + record.HeaderSize - 1) / record.HeaderSize,
-		flushBufferSize:    defaultFlushBufferSize,
-		wakeupBufferSize:   defaultWakeupBufferSize,
+		blockSize:        defaultBlockSize,
+		fileSize:         defaultFileSize,
+		flushTimeout:     defaultFlushTimeout,
+		appendBufferSize: defaultAppendBufferSize,
+		flushBufferSize:  defaultFlushBufferSize,
+		wakeupBufferSize: defaultWakeupBufferSize,
 	}
 	return cfg
 }
@@ -86,7 +83,6 @@ func WithRecoveryCallback(cb OnEntryCallback) Option {
 func WithBlockSize(blockSize int) Option {
 	return func(cfg *config) {
 		cfg.blockSize = blockSize
-		cfg.callbackBufferSize = (blockSize + record.HeaderSize - 1) / record.HeaderSize
 	}
 }
 
@@ -105,12 +101,6 @@ func WithFlushTimeout(d time.Duration) Option {
 func WithAppendBufferSize(size int) Option {
 	return func(cfg *config) {
 		cfg.appendBufferSize = size
-	}
-}
-
-func WithCallbackBufferSize(size int) Option {
-	return func(cfg *config) {
-		cfg.callbackBufferSize = size
 	}
 }
 

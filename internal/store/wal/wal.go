@@ -80,12 +80,6 @@ func WithCallback(callback AppendCallback) AppendOption {
 	}
 }
 
-type callbackTask struct {
-	ctx      context.Context
-	callback AppendCallback
-	ranges   []Range
-}
-
 // WAL is write-ahead log.
 type WAL struct {
 	sf *segmentedfile.SegmentedFile
@@ -96,16 +90,13 @@ type WAL struct {
 
 	blockSize int
 
-	appendC   chan appendTask
-	callbackC chan callbackTask
+	appendC chan appendTask
 
 	closeMu  sync.RWMutex
 	appendWg sync.WaitGroup
 
 	closeC chan struct{}
 	doneC  chan struct{}
-
-	tracer *tracing.Tracer
 }
 
 func Open(ctx context.Context, dir string, opts ...Option) (*WAL, error) {
@@ -149,14 +140,11 @@ func open(ctx context.Context, dir string, cfg config) (*WAL, error) {
 		scheduler: scheduler,
 		blockSize: cfg.blockSize,
 
-		appendC:   make(chan appendTask, cfg.appendBufferSize),
-		callbackC: make(chan callbackTask, cfg.callbackBufferSize),
-		closeC:    make(chan struct{}),
-		doneC:     make(chan struct{}),
-		tracer:    tracing.NewTracer("store.wal.walog", trace.SpanKindInternal),
+		appendC: make(chan appendTask, cfg.appendBufferSize),
+		closeC:  make(chan struct{}),
+		doneC:   make(chan struct{}),
 	}
 
-	go w.runCallback() //nolint:contextcheck // wrong advice
 	go w.runAppend()
 
 	return w, nil
@@ -261,16 +249,6 @@ func (w *WAL) runAppend() {
 	}
 
 	w.appendWg.Wait()
-	close(w.callbackC)
-}
-
-func (w *WAL) runCallback() {
-	for task := range w.callbackC {
-		span := trace.SpanFromContext(task.ctx)
-		span.AddEvent("store.wal.WAL.doCallback() Start")
-		task.callback(task.ranges, nil)
-		span.AddEvent("store.wal.WAL.doCallback() End")
-	}
 
 	w.doClose()
 }

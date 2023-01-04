@@ -111,11 +111,7 @@ func (a *appender) onAppended(_ int, err error) {
 		panic(err)
 	}
 
-	a.w.callbackC <- callbackTask{
-		ctx:      a.ctx,
-		callback: a.callback,
-		ranges:   a.ranges,
-	}
+	a.callback(a.ranges, nil)
 
 	a.w.appendWg.Done()
 }
