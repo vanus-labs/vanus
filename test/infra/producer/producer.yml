@@ -1,30 +1,31 @@
-apiVersion: batch/v1
-kind: Job
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   labels:
-    app: vanus-bench-case1-a
-  name: vanus-bench-case1-a
+    app: vanus-benchmark-producer
+  name: vanus-benchmark-producer
   namespace: vanus
 spec:
-  parallelism: 1
-  completions: 1
-  backoffLimit: 3
-  activeDeadlineSeconds: 3600
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vanus-benchmark-producer
   template:
     metadata:
+      annotations:
+        vanus.dev/metrics.port: "2112"
       labels:
-        app: vanus-bench-case1-a
+        app: vanus-benchmark-producer
     spec:
-      restartPolicy: Never
       containers:
         - image: public.ecr.aws/vanus/test-infra:dev
           imagePullPolicy: Always
-          name: vanus-bench-case1-a
+          name: benchmark-producer
+#          command: ["sh", "/vanus-bench/producer/play.sh"]
+          command: ["bash", "-c", "sleep 1000000"]
           env:
-            - name: CASE_NAME
-              value: "case1"
             - name: JOB_NAME
-              value: "e2e-1eventbus-1eventlog-1client-1parallelism"
+              value: "e2e-benchmark-producer"
             - name: PAYLOAD_SIZE
               value: "1024"
             - name: VANUS_GATEWAY
@@ -37,8 +38,10 @@ spec:
                   name: benchmark-credentials
                   key: mongodb_password
             - name: EVENTLOG_NUMBER
-              value: "1"
+              value: "16"
             - name: PARALLELISM
-              value: "1"
+              value: "16"
+            - name: BATCH_SIZE
+              value: "16"
             - name: TOTAL_NUMBER
-              value: "5000"
+              value: "1000000"

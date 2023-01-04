@@ -4,9 +4,9 @@ set -ex
 go build -o vanus-bench ../../benchmark
 mv vanus-bench ../../../bin/
 
-#nohup vanus-bench component store run --volume-id 1 --name e2e-component-store-3replicas --without-mongodb > node1.log &
-#nohup vanus-bench component store run --volume-id 2 --name e2e-component-store-3replicas --without-mongodb > node2.log &
-#nohup vanus-bench component store run --volume-id 3 --name e2e-component-store-3replicas --without-mongodb > node3.log &
+nohup vanus-bench component store run --volume-id 1 --name e2e-component-store-3replicas --without-mongodb > node1.log &
+nohup vanus-bench component store run --volume-id 2 --name e2e-component-store-3replicas --without-mongodb > node2.log &
+nohup vanus-bench component store run --volume-id 3 --name e2e-component-store-3replicas --without-mongodb > node3.log &
 
 # The maximum TPS between 12K to 14K with high shake, and TPS isn't sensitive with payload-size [10B, 1024B]
 # BUG: it need to wait a seconds to make sure write successfully after a Segment is activated

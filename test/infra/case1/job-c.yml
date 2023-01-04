@@ -4,12 +4,12 @@ metadata:
   labels:
     app: vanus-bench-case1-c
   name: vanus-bench-case1-c
-  namespace: vanus-bench
+  namespace: vanus
 spec:
   parallelism: 1
   completions: 1
   backoffLimit: 3
-  activeDeadlineSeconds: 3600
+  activeDeadlineSeconds: 10000
   template:
     metadata:
       labels:
@@ -17,9 +17,10 @@ spec:
     spec:
       restartPolicy: Never
       containers:
-        - image: linkall.tencentcloudcr.com/vanus/test-infra:dev
+        - image: public.ecr.aws/vanus/test-infra:dev
           imagePullPolicy: Always
           name: vanus-bench-case1-c
+          command: ["bash", "-c", "sleep 10000"]
           env:
             - name: CASE_NAME
               value: "case1"
@@ -30,7 +31,7 @@ spec:
             - name: VANUS_GATEWAY
               value: "vanus-gateway.vanus:8080"
             - name: REDIS_ADDR
-              value: "redis.vanus-bench:6379"
+              value: "redis.vanus:6379"
             - name: MONGODB_PASSWORD
               valueFrom:
                 secretKeyRef:

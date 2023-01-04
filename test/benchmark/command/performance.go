@@ -55,7 +55,6 @@ const (
 )
 
 var (
-	name         string
 	eventbusList []string
 	number       int64
 	parallelism  int
@@ -65,8 +64,6 @@ var (
 	benchType      string
 	clientProtocol string
 )
-
-var ebCh = make(chan string, 1024)
 
 func E2ECommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -113,20 +110,6 @@ func sendWithGRPC(cmd *cobra.Command) {
 
 	// start
 	start := time.Now()
-	cnt := int64(0)
-	go func() {
-		for atomic.LoadInt64(&cnt) < number {
-			for idx := 0; idx < len(eventbusList); idx++ {
-				ebCh <- eventbusList[idx]
-				atomic.AddInt64(&cnt, 1)
-			}
-		}
-		close(ebCh)
-		log.Info(context.Background(), "all events were made", map[string]interface{}{
-			"num": number,
-		})
-	}()
-
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -143,29 +126,32 @@ func sendWithGRPC(cmd *cobra.Command) {
 
 	var success int64
 	wg := sync.WaitGroup{}
-	for idx := 0; idx < parallelism; idx++ {
-		wg.Add(1)
-		go func() {
-			for {
-				eb, ok := <-ebCh
-				if !ok && eb == "" {
-					break
-				}
-				events := generateEvents()
-				_, err := batchClient.Send(context.Background(), &cloudevents.BatchEvent{
-					EventbusName: eb,
-					Events:       &cloudevents.CloudEventBatch{Events: events},
-				})
-				if err != nil {
-					log.Warning(context.Background(), "failed to send events", map[string]interface{}{
-						log.KeyError: err,
+	latency := hdrhistogram.New(1, 1000000, 10000)
+	for _, eb := range eventbusList {
+		for idx := 0; idx < parallelism; idx++ {
+			wg.Add(1)
+			go func() {
+				for atomic.LoadInt64(&success) < number {
+					s := time.Now()
+					events := generateEvents()
+					_, err := batchClient.Send(context.Background(), &cloudevents.BatchEvent{
+						EventbusName: eb,
+						Events:       &cloudevents.CloudEventBatch{Events: events},
 					})
-				} else {
-					atomic.AddInt64(&success, int64(len(events)))
+					if err != nil {
+						log.Warning(context.Background(), "failed to send events", map[string]interface{}{
+							log.KeyError: err,
+						})
+					} else {
+						atomic.AddInt64(&success, int64(len(events)))
+						if err := latency.RecordValue(time.Now().Sub(s).Microseconds()); err != nil {
+							panic(err)
+						}
+					}
 				}
-			}
-			wg.Done()
-		}()
+				wg.Done()
+			}()
+		}
 	}
 
 	ctx, can := context.WithCancel(context.Background())
@@ -201,6 +187,27 @@ func sendWithGRPC(cmd *cobra.Command) {
 	can()
 	wg2.Wait()
 	saveTPS(m, "produce")
+	res := latency.CumulativeDistribution()
+	unit := "us"
+	result := map[string]map[string]interface{}{}
+	for _, v := range res {
+		if v.Count == 0 {
+			continue
+		}
+
+		result[fmt.Sprintf("%.2f", v.Quantile)] = map[string]interface{}{
+			"value": v.ValueAt,
+			"unit":  unit,
+			"count": v.Count,
+		}
+		fmt.Printf("%.2f pct - %d %s, count: %d\n", v.Quantile, v.ValueAt, unit, v.Count)
+	}
+
+	fmt.Printf("Total: %d\n", latency.TotalCount())
+	fmt.Printf("Latency Mean: %.2f %s\n", latency.Mean(), unit)
+	fmt.Printf("Latency StdDev: %.2f\n", latency.StdDev())
+	fmt.Printf("Latency Max: %d %s, Latency Min: %d %s\n", latency.Max(), unit, latency.Min(), "ms")
+	fmt.Println()
 	log.Info(nil, "all message were sent", map[string]interface{}{
 		"success": success,
 		"failed":  number - success,
@@ -214,20 +221,6 @@ func sendWithHTTP(cmd *cobra.Command) {
 
 	// start
 	start := time.Now()
-	cnt := int64(0)
-	go func() {
-		for atomic.LoadInt64(&cnt) < number {
-			for idx := 0; idx < len(eventbusList); idx++ {
-				ebCh <- eventbusList[idx]
-				atomic.AddInt64(&cnt, 1)
-			}
-		}
-		close(ebCh)
-		log.Info(context.Background(), "all events were made", map[string]interface{}{
-			"num": number,
-		})
-	}()
-
 	p, err := ce.NewHTTP()
 	if err != nil {
 		cmdFailedf(cmd, "init ce protocol error: %s\n", err)
@@ -239,30 +232,28 @@ func sendWithHTTP(cmd *cobra.Command) {
 
 	var success int64
 	wg := sync.WaitGroup{}
-	for idx := 0; idx < parallelism; idx++ {
-		wg.Add(1)
-		go func() {
-			for {
-				eb, ok := <-ebCh
-				if !ok && eb == "" {
-					break
+	for _, eb := range eventbusList {
+		for idx := 0; idx < parallelism; idx++ {
+			wg.Add(1)
+			go func() {
+				for atomic.LoadInt64(&success) < number {
+					var target string
+					if strings.HasPrefix(endpoint, httpPrefix) {
+						target = fmt.Sprintf("%s/gateway/%s", endpoint, eb)
+					} else {
+						target = fmt.Sprintf("%s%s/gateway/%s", httpPrefix, endpoint, eb)
+					}
+					r, e := send(c, target)
+					if e != nil {
+						panic(e)
+					}
+					if r {
+						atomic.AddInt64(&success, 1)
+					}
 				}
-				var target string
-				if strings.HasPrefix(endpoint, httpPrefix) {
-					target = fmt.Sprintf("%s/gateway/%s", endpoint, eb)
-				} else {
-					target = fmt.Sprintf("%s%s/gateway/%s", httpPrefix, endpoint, eb)
-				}
-				r, e := send(c, target)
-				if e != nil {
-					panic(e)
-				}
-				if r {
-					atomic.AddInt64(&success, 1)
-				}
-			}
-			wg.Done()
-		}()
+				wg.Done()
+			}()
+		}
 	}
 
 	ctx, can := context.WithCancel(context.Background())
@@ -410,7 +401,6 @@ func analyseCommand() *cobra.Command {
 				r := &BenchmarkResult{
 					ID:       primitive.NewObjectID(),
 					TaskID:   taskID,
-					CaseName: name,
 					RType:    ResultLatency,
 					Values:   result,
 					Mean:     his.Mean(),
@@ -454,7 +444,6 @@ func analyseCommand() *cobra.Command {
 				r = &BenchmarkResult{
 					ID:       primitive.NewObjectID(),
 					TaskID:   taskID,
-					CaseName: name,
 					RType:    ResultThroughput,
 					Values:   result,
 					Mean:     tps.Mean(),
@@ -648,6 +637,13 @@ func cmdFailedf(cmd *cobra.Command, format string, a ...interface{}) {
 	os.Exit(-1)
 }
 
+var (
+	tmpID = uuid.NewString()
+)
+
 func getBenchmarkID() string {
+	if taskID.IsZero() {
+		return tmpID
+	}
 	return taskID.Hex()
 }

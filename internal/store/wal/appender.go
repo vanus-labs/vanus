@@ -88,7 +88,7 @@ func (a *appender) Read(b []byte) (int, error) {
 		a.ranges[a.i-1].EO += a.w.s.WriteOffset()
 	}
 
-	if a.i < len(a.entries) {
+	if a.i < len(a.entries) { // && len(a.entries[a.i]) > 0
 		a.ranges[a.i].SO = a.w.s.WriteOffset()
 		a.records, a.padding = record.Pack(a.entries[a.i], len(b), a.w.blockSize)
 		a.ranges[a.i].EO = -int64(a.padding)

@@ -1,9 +1,4 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: vanus
----
-apiVersion: v1
 data:
   controller.yaml: |-
     node_id: ${NODE_ID}
@@ -15,6 +10,7 @@ data:
       - vanus-controller-1.vanus-controller:2379
       - vanus-controller-2.vanus-controller:2379
     data_dir: /data
+    segment_capacity: 268435456
     replicas: 3
     metadata:
       key_prefix: /vanus
@@ -74,8 +70,16 @@ data:
           engine: psync
     raft:
       wal:
+        block_size: 16384
         io:
           engine: psync
+          parallel: 16
+    vsb:
+      flush_batch_size: 16384
+      io:
+        engine: psync
+        parallel: 16
+
 kind: ConfigMap
 metadata:
   name: config-store
@@ -177,7 +181,7 @@ spec:
         app: vanus-gateway
     spec:
       containers:
-        - image: public.ecr.aws/vanus/gateway:dev
+        - image: public.ecr.aws/vanus/gateway:b7d1157
           imagePullPolicy: IfNotPresent
           name: gateway
           ports:
@@ -222,7 +226,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: public.ecr.aws/vanus/timer:dev
+          image: public.ecr.aws/vanus/timer:b7d1157
           imagePullPolicy: IfNotPresent
           name: timer
           volumeMounts:
@@ -260,7 +264,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: public.ecr.aws/vanus/trigger:dev
+          image: public.ecr.aws/vanus/trigger:b7d1157
           imagePullPolicy: IfNotPresent
           name: trigger
           ports:
@@ -310,7 +314,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: public.ecr.aws/vanus/controller:dev
+          image: public.ecr.aws/vanus/controller:b7d1157
           imagePullPolicy: IfNotPresent
           name: controller
           ports:
@@ -339,7 +343,8 @@ spec:
       spec:
         accessModes:
           - ReadWriteOnce
-        storageClassName: ssd
+#        storageClassName: ssd
+        storageClassName: local-storage
         resources:
           requests:
             storage: 20Gi
@@ -352,7 +357,7 @@ metadata:
   name: vanus-store
   namespace: vanus
 spec:
-  replicas: 3
+  replicas: 4
   selector:
     matchLabels:
       app: vanus-store
@@ -376,7 +381,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: public.ecr.aws/vanus/store:dev
+          image: public.ecr.aws/vanus/store:b7d1157
           imagePullPolicy: IfNotPresent
           name: store
           ports:
@@ -399,7 +404,8 @@ spec:
       spec:
         accessModes:
           - ReadWriteOnce
-        storageClassName: ssd
+#        storageClassName: ssd
+        storageClassName: local-storage
         resources:
           requests:
-            storage: 20Gi
+            storage: 200Gi

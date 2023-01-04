@@ -38,7 +38,7 @@ import (
 	v1 "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	//"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store"
 	"github.com/linkall-labs/vanus/internal/store/config"
 	"github.com/linkall-labs/vanus/internal/store/segment"
