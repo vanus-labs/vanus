@@ -18,6 +18,7 @@ import (
 	// standard libraries.
 	"sort"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	// third-party libraries.
@@ -39,9 +40,12 @@ const (
 	timeAttr            = "time"
 )
 
+var emptyAttrs = make([]string, 0)
+
 type ceEntry struct {
 	block.EmptyEntry
-	ce *cepb.CloudEvent
+	ce       *cepb.CloudEvent
+	extAttrs atomic.Value
 }
 
 // Make sure ceEntry implements block.EntryExt.
@@ -139,10 +143,21 @@ func (e *ceEntry) OptionalAttributeCount() int {
 		sz++
 	}
 	if e.ce.Attributes != nil {
-		for _, attr := range []string{dataContentTypeAttr, dataSchemaAttr, subjectAttr, timeAttr} {
-			if _, ok := e.ce.Attributes[attr]; ok {
-				sz++
-			}
+		if v := e.extAttrs.Load(); v != nil {
+			return sz + len(e.ce.Attributes) - len(v.([]string))
+		}
+
+		if _, ok := e.ce.Attributes[dataContentTypeAttr]; ok {
+			sz++
+		}
+		if _, ok := e.ce.Attributes[dataSchemaAttr]; ok {
+			sz++
+		}
+		if _, ok := e.ce.Attributes[subjectAttr]; ok {
+			sz++
+		}
+		if _, ok := e.ce.Attributes[timeAttr]; ok {
+			sz++
 		}
 	}
 	return sz
@@ -163,16 +178,26 @@ func (e *ceEntry) RangeExtensionAttributes(cb block.ExtensionAttributeCallback) 
 		return
 	}
 
-	// Make sure the order of attributes.
-	attrs := make([]string, 0, len(e.ce.Attributes))
-	for attr := range e.ce.Attributes {
-		switch attr {
-		case dataContentTypeAttr, dataSchemaAttr, subjectAttr, timeAttr:
-		default:
-			attrs = append(attrs, attr)
+	var attrs []string
+	if v := e.extAttrs.Load(); v != nil {
+		attrs, _ = v.([]string)
+	} else {
+		// Make sure the order of attributes.
+		attrs = make([]string, 0, len(e.ce.Attributes))
+		for attr := range e.ce.Attributes {
+			switch attr {
+			case dataContentTypeAttr, dataSchemaAttr, subjectAttr, timeAttr:
+			default:
+				attrs = append(attrs, attr)
+			}
 		}
+		if len(attrs) == 0 {
+			e.extAttrs.Store(emptyAttrs)
+			return
+		}
+		sort.Strings(attrs)
+		e.extAttrs.Store(attrs)
 	}
-	sort.Strings(attrs)
 
 	for _, attr := range attrs {
 		cb.OnAttribute([]byte(attr), attrValue(e.ce.Attributes[attr]))
@@ -180,15 +205,33 @@ func (e *ceEntry) RangeExtensionAttributes(cb block.ExtensionAttributeCallback) 
 }
 
 func (e *ceEntry) ExtensionAttributeCount() int {
+	if v := e.extAttrs.Load(); v != nil {
+		return len(v.([]string))
+	}
+
 	sz := len(e.ce.Attributes)
 	if sz == 0 {
+		e.extAttrs.Store(emptyAttrs)
 		return 0
 	}
-	for _, attr := range []string{dataContentTypeAttr, dataSchemaAttr, subjectAttr, timeAttr} {
-		if _, ok := e.ce.Attributes[attr]; ok {
-			sz--
-		}
+
+	if _, ok := e.ce.Attributes[dataContentTypeAttr]; ok {
+		sz--
 	}
+	if _, ok := e.ce.Attributes[dataSchemaAttr]; ok {
+		sz--
+	}
+	if _, ok := e.ce.Attributes[subjectAttr]; ok {
+		sz--
+	}
+	if _, ok := e.ce.Attributes[timeAttr]; ok {
+		sz++
+	}
+
+	if sz == 0 {
+		e.extAttrs.Store(emptyAttrs)
+	}
+
 	return sz
 }
 
