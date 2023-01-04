@@ -83,5 +83,5 @@ const (
 	errStatusCode = nethttp.StatusBadRequest
 
 	ErrDeliveryTimeout = 601
-	ErrUndefined       = 700
+	ErrUndefined       = 602
 )

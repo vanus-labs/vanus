@@ -255,7 +255,9 @@ func (t *trigger) runRetryEventFilterTransform(ctx context.Context) {
 			metrics.TriggerFilterMatchRetryEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
 			event, err := t.transformEvent(record)
 			if err != nil {
-				t.writeFailEvent(ctx, record.Event, NoNeedRetryCode, err)
+				t.writeFailEvent(ctx, record.Event, ErrTransformCode, err)
+				t.offsetManager.EventCommit(record.OffsetInfo)
+				continue
 			}
 			t.sendCh <- event
 		}
@@ -282,7 +284,9 @@ func (t *trigger) runEventFilterTransform(ctx context.Context) {
 			metrics.TriggerFilterMatchEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
 			event, err := t.transformEvent(record)
 			if err != nil {
-				t.writeFailEvent(ctx, record.Event, NoNeedRetryCode, err)
+				t.writeFailEvent(ctx, record.Event, ErrTransformCode, err)
+				t.offsetManager.EventCommit(record.OffsetInfo)
+				continue
 			}
 			t.sendCh <- event
 		}
@@ -335,7 +339,7 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 		})
 		if t.config.Ordered {
 			// ordered event no need retry direct into dead letter
-			code = NoNeedRetryCode
+			code = OrderEventCode
 		}
 		for _, event := range events {
 			t.writeFailEvent(ctx, event.record.Event, code, err)
@@ -350,7 +354,7 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 		t.offsetManager.EventCommit(event.record.OffsetInfo)
 	}
 }
-func (t *trigger) writeFailEvent(ctx context.Context, e *ce.Event, code int, sendErr error) {
+func (t *trigger) writeFailEvent(ctx context.Context, e *ce.Event, code int, err error) {
 	needRetry, reason := isShouldRetry(code)
 	ec, _ := e.Context.(*ce.EventContextV1)
 	if ec.Extensions == nil {
@@ -375,7 +379,7 @@ func (t *trigger) writeFailEvent(ctx context.Context, e *ce.Event, code int, sen
 	}
 	if !needRetry {
 		// dead letter
-		t.writeEventToDeadLetter(ctx, e, reason, sendErr.Error())
+		t.writeEventToDeadLetter(ctx, e, reason, err.Error())
 		metrics.TriggerDeadLetterEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
 		return
 	}

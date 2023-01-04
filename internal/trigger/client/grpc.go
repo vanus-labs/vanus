@@ -16,11 +16,11 @@ package client
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/linkall-labs/vanus/client/pkg/codec"
 
-	"github.com/linkall-labs/vanus/observability/log"
 	"google.golang.org/grpc/credentials/insecure"
 
 	ce "github.com/cloudevents/sdk-go/v2"
@@ -30,30 +30,38 @@ import (
 
 type grpc struct {
 	client cloudevents.CloudEventsClient
+	url    string
+	lock   sync.Mutex
 }
 
 func NewGRPCClient(url string) EventClient {
+	return &grpc{
+		url: url,
+	}
+}
+
+func (c *grpc) init() error {
 	opts := []stdGrpc.DialOption{
 		stdGrpc.WithBlock(),
 		stdGrpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	conn, err := stdGrpc.DialContext(ctx, url, opts...)
+	conn, err := stdGrpc.DialContext(ctx, c.url, opts...)
 	if err != nil {
-		log.Error(context.TODO(), "failed to connector url", map[string]interface{}{
-			log.KeyError: err,
-			"url":        url,
-		})
-		return nil
+		return err
 	}
-	c := cloudevents.NewCloudEventsClient(conn)
-	return &grpc{
-		client: c,
-	}
+	c.client = cloudevents.NewCloudEventsClient(conn)
+	return nil
 }
 
 func (c *grpc) Send(ctx context.Context, events ...*ce.Event) Result {
+	if c.client == nil {
+		err := c.init()
+		if err != nil {
+			return newUndefinedErr(err)
+		}
+	}
 	es := make([]*cloudevents.CloudEvent, len(events))
 	for idx := range events {
 		es[idx], _ = codec.ToProto(events[idx])
