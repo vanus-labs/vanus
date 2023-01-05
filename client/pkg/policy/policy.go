@@ -16,6 +16,8 @@ package policy
 
 import (
 	"context"
+	"sort"
+	"sync"
 	"sync/atomic"
 
 	"github.com/linkall-labs/vanus/client/pkg/api"
@@ -30,8 +32,10 @@ func NewRoundRobinWritePolicy(eb api.Eventbus) api.WritePolicy {
 }
 
 type roundRobinWritePolicy struct {
-	bus api.Eventbus
-	idx uint64
+	bus    api.Eventbus
+	idx    uint64
+	cached []api.Eventlog
+	mutex  sync.Mutex
 }
 
 func (w *roundRobinWritePolicy) Type() api.PolicyType {
@@ -47,6 +51,21 @@ func (w *roundRobinWritePolicy) NextLog(ctx context.Context) (api.Eventlog, erro
 		if len(logs) == 0 {
 			continue
 		}
+		if len(logs) == 0 {
+			continue
+		}
+
+		if len(logs) == len(w.cached) {
+			logs = w.cached
+		} else {
+			w.mutex.Lock()
+			sort.Slice(logs, func(i, j int) bool {
+				return logs[i].ID() > logs[j].ID()
+			})
+			w.cached = logs
+			w.mutex.Unlock()
+		}
+
 		l := len(logs)
 		i := atomic.AddUint64(&w.idx, 1) % uint64(l)
 		return logs[i], nil
@@ -82,28 +101,43 @@ type roundRobinReadPolicy struct {
 	bus    api.Eventbus
 	idx    uint64
 	offset int64
+	cached []api.Eventlog
+	mutex  sync.Mutex
 }
 
-func (r roundRobinReadPolicy) Type() api.PolicyType {
+func (r *roundRobinReadPolicy) Type() api.PolicyType {
 	return api.RoundRobin
 }
 
-func (r roundRobinReadPolicy) NextLog(ctx context.Context) (api.Eventlog, error) {
+func (r *roundRobinReadPolicy) NextLog(ctx context.Context) (api.Eventlog, error) {
 	for {
 		logs, err := r.bus.ListLog(ctx)
 		if err != nil {
 			return nil, err
 		}
+
 		if len(logs) == 0 {
 			continue
 		}
+
+		if len(logs) == len(r.cached) {
+			logs = r.cached
+		} else {
+			r.mutex.Lock()
+			sort.Slice(logs, func(i, j int) bool {
+				return logs[i].ID() > logs[j].ID()
+			})
+			r.cached = logs
+			r.mutex.Unlock()
+		}
+
 		l := len(logs)
 		i := atomic.AddUint64(&r.idx, 1) % uint64(l)
 		return logs[i], nil
 	}
 }
 
-func (r roundRobinReadPolicy) Offset() int64 {
+func (r *roundRobinReadPolicy) Offset() int64 {
 	return atomic.LoadInt64(&r.offset)
 }
 
