@@ -40,11 +40,7 @@ import (
 func TestTrigger_Options(t *testing.T) {
 	Convey("test trigger option", t, func() {
 		tg := &trigger{}
-		WithFilterProcessSize(0)(tg)
-		So(tg.config.FilterProcessSize, ShouldEqual, 0)
 		size := rand.Intn(1000) + 1
-		WithFilterProcessSize(size)(tg)
-		So(tg.config.FilterProcessSize, ShouldEqual, size)
 		WithDeliveryTimeout(0)(tg)
 		So(tg.config.DeliveryTimeout, ShouldEqual, defaultDeliveryTimeout)
 		size = rand.Intn(1000) + size
