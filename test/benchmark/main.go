@@ -53,10 +53,6 @@ func main() {
 	rootCmd.AddCommand(command.E2ECommand())
 	rootCmd.AddCommand(command.ComponentCommand())
 	rootCmd.PersistentPreRun = func(_ *cobra.Command, _ []string) {
-		if !caseNames[name] {
-			panic("invalid case name: " + name)
-		}
-		command.SetCaseName(name)
 		command.InitDatabase(redisAddr, fmt.Sprintf(defaultMongoDBURI, mongodbPass), begin, withMongoDB)
 	}
 	rootCmd.PersistentPostRun = func(_ *cobra.Command, _ []string) {

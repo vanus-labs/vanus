@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/golang/mock v1.6.0
-	github.com/linkall-labs/vanus/raft v0.5.1
+	github.com/linkall-labs/vanus/raft v0.5.6
 	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
 )

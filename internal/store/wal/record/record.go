@@ -23,12 +23,12 @@ import (
 
 const (
 	crcFieldSO    = 0
-	crcFieldEO    = crcFieldSO + 4
+	crcFieldEO    = crcFieldSO + 4 // [0,4)
 	lengthFieldSO = crcFieldEO
-	lengthFieldEO = lengthFieldSO + 2
+	lengthFieldEO = lengthFieldSO + 2 // [4,6)
 	typeFieldSO   = lengthFieldEO
-	typeFieldEO   = typeFieldSO + 1
-	dataFieldSO   = typeFieldEO
+	typeFieldEO   = typeFieldSO + 1 // [6,7)
+	dataFieldSO   = typeFieldEO     // [7,n)
 )
 
 const HeaderSize = dataFieldSO

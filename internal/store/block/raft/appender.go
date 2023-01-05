@@ -46,6 +46,7 @@ const (
 	defaultHeartbeatTick   = 3
 	defaultMaxSizePerMsg   = 4096
 	defaultMaxInflightMsgs = 256
+	defaultSendTimeout     = 80 * time.Millisecond
 )
 
 type Peer struct {
@@ -215,7 +216,9 @@ func (a *appender) run(ctx context.Context) {
 			}
 
 			// NOTE: Messages to be sent AFTER HardState and Entries are committed to stable storage.
-			a.send(rCtx, rd.Messages)
+			sCtx, cancel := context.WithTimeout(rCtx, defaultSendTimeout)
+			a.send(sCtx, rd.Messages)
+			cancel()
 
 			// TODO(james.yin): snapshot
 			if !raft.IsEmptySnap(rd.Snapshot) {

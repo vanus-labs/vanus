@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vanus-benchmark-consumer
+  namespace: vanus
+spec:
+  ports:
+    - name: receiver
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: vanus-benchmark-consumer
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: vanus-benchmark-consumer
+  name: vanus-benchmark-consumer
+  namespace: vanus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vanus-benchmark-consumer
+  template:
+    metadata:
+      annotations:
+        vanus.dev/metrics.port: "2112"
+      labels:
+        app: vanus-benchmark-consumer
+    spec:
+      containers:
+        - image: public.ecr.aws/vanus/test-infra:dev
+          imagePullPolicy: Always
+          name: benchmark-consumer
+#         command: ["sh", "/vanus-bench/consumer/play.sh"]
+          command: ["bash", "-c", "sleep 1000000"]
+          env:
+            - name: JOB_NAME
+              value: "e2e-benchmark-consumer"
+            - name: VANUS_GATEWAY
+              value: "vanus-gateway.vanus:8080"
+            - name: REDIS_ADDR
+              value: "redis.vanus:6379"
+            - name: MONGODB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: benchmark-credentials
+                  key: mongodb_password
