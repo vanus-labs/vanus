@@ -41,7 +41,7 @@ func TestReaderStart(t *testing.T) {
 	mockBusReader := api.NewMockBusReader(mockCtrl)
 	mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
 	mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
-	mockEventbus.EXPECT().Reader(Any()).AnyTimes().Return(mockBusReader)
+	mockEventbus.EXPECT().Reader(Any(), Any()).AnyTimes().Return(mockBusReader)
 	mockEventbus.EXPECT().GetLog(Any(), Any()).AnyTimes().Return(mockEventlog, nil)
 	mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
 	mockEventlog.EXPECT().ID().AnyTimes().Return(uint64(0))
@@ -51,7 +51,7 @@ func TestReaderStart(t *testing.T) {
 		index := uint64(offset)
 		mockEventlog.EXPECT().LatestOffset(Any()).AnyTimes().Return(offset, nil)
 		mockEventlog.EXPECT().EarliestOffset(Any()).AnyTimes().Return(offset, nil)
-		mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().DoAndReturn(
+		mockBusReader.EXPECT().Read(Any()).AnyTimes().DoAndReturn(
 			func(ctx context.Context, opts ...api.ReadOption) ([]*ce.Event, int64, uint64, error) {
 				time.Sleep(time.Millisecond)
 				e := ce.NewEvent()
@@ -63,7 +63,7 @@ func TestReaderStart(t *testing.T) {
 				return []*ce.Event{&e}, int64(0), uint64(0), nil
 			})
 		eventCh := make(chan info.EventRecord, 100)
-		r := NewReader(Config{EventBusName: "test"}, eventCh).(*reader)
+		r := NewReader(Config{EventBusName: "test", BatchSize: 1}, eventCh).(*reader)
 		r.config.Client = mockClient
 		r.Start()
 		var wg sync.WaitGroup

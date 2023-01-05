@@ -23,16 +23,15 @@ import (
 )
 
 const (
-	defaultBufferSize        = 1 << 10
-	defaultFilterProcessSize = 2
-	defaultDeliveryTimeout   = 5 * time.Second
-	defaultMaxWriteAttempt   = 3
-	defaultGoroutineSize     = 10000
-	defaultBatchSize         = 32
+	defaultBufferSize      = 1 << 10
+	defaultDeliveryTimeout = 5 * time.Second
+	defaultMaxWriteAttempt = 3
+	defaultGoroutineSize   = 10000
+	defaultMaxNoACKNumber  = 10000
+	defaultBatchSize       = 32
 )
 
 type Config struct {
-	FilterProcessSize  int
 	BufferSize         int
 	MaxRetryAttempts   int32
 	DeliveryTimeout    time.Duration
@@ -42,34 +41,28 @@ type Config struct {
 	MaxWriteAttempt    int
 	Ordered            bool
 
-	GoroutineSize int
-	BatchSize     int
+	GoroutineSize  int
+	SendBatchSize  int
+	PullBatchSize  int
+	MaxNoACKNumber int
 }
 
 func defaultConfig() Config {
 	c := Config{
-		FilterProcessSize:  defaultFilterProcessSize,
 		BufferSize:         defaultBufferSize,
 		MaxRetryAttempts:   primitive.MaxRetryAttempts,
 		DeliveryTimeout:    defaultDeliveryTimeout,
 		DeadLetterEventbus: primitive.DeadLetterEventbusName,
 		MaxWriteAttempt:    defaultMaxWriteAttempt,
 		GoroutineSize:      defaultGoroutineSize,
-		BatchSize:          defaultBatchSize,
+		SendBatchSize:      defaultBatchSize,
+		MaxNoACKNumber:     defaultMaxNoACKNumber,
+		PullBatchSize:      defaultBatchSize,
 	}
 	return c
 }
 
 type Option func(t *trigger)
-
-func WithFilterProcessSize(size int) Option {
-	return func(t *trigger) {
-		if size <= 0 {
-			return
-		}
-		t.config.FilterProcessSize = size
-	}
-}
 
 func WithBufferSize(size int) Option {
 	return func(t *trigger) {
@@ -102,7 +95,6 @@ func WithDeliveryTimeout(timeout uint32) Option {
 func WithOrdered(ordered bool) Option {
 	return func(t *trigger) {
 		t.config.Ordered = ordered
-		t.config.FilterProcessSize = 1
 	}
 }
 
@@ -129,5 +121,41 @@ func WithDeadLetterEventbus(eventbus string) Option {
 			eventbus = primitive.DeadLetterEventbusName
 		}
 		t.config.DeadLetterEventbus = eventbus
+	}
+}
+
+func WithGoroutineSize(size int) Option {
+	return func(t *trigger) {
+		if size <= 0 {
+			return
+		}
+		t.config.GoroutineSize = size
+	}
+}
+
+func WithSendBatchSize(batchSize int) Option {
+	return func(t *trigger) {
+		if batchSize <= 0 {
+			return
+		}
+		t.config.SendBatchSize = batchSize
+	}
+}
+
+func WithPullBatchSize(batchSize int) Option {
+	return func(t *trigger) {
+		if batchSize <= 0 {
+			return
+		}
+		t.config.PullBatchSize = batchSize
+	}
+}
+
+func WithMaxNoACKNumber(maxNoACKNumber int) Option {
+	return func(t *trigger) {
+		if t.config.MaxNoACKNumber <= 0 {
+			return
+		}
+		t.config.MaxNoACKNumber = maxNoACKNumber
 	}
 }

@@ -26,8 +26,8 @@ import (
 func TestSubscriptionOffset(t *testing.T) {
 	Convey("subscription offset", t, func() {
 		eventLogID := vanus.NewTestID()
-		subOffset := NewSubscriptionOffset(vanus.NewTestID())
-		Convey("commit with no receive", func() {
+		Convey("commit with no exist eventlog", func() {
+			subOffset := NewSubscriptionOffset(vanus.NewTestID(), 100, info.ListOffsetInfo{})
 			offsetBegin := uint64(1)
 			commitEnd := offsetBegin + 10
 			for offset := offsetBegin; offset < commitEnd; offset++ {
@@ -40,6 +40,7 @@ func TestSubscriptionOffset(t *testing.T) {
 			So(0, ShouldEqual, len(commits))
 		})
 		Convey("commit with receive", func() {
+			subOffset := NewSubscriptionOffset(vanus.NewTestID(), 100, info.ListOffsetInfo{})
 			offsetBegin := uint64(1)
 			offsetEnd := uint64(100)
 			var wg sync.WaitGroup
@@ -88,9 +89,9 @@ func TestSubscriptionOffset(t *testing.T) {
 			commits = subOffset.GetCommit()
 			So(1, ShouldEqual, len(commits))
 			So(offsetEnd, ShouldEqual, commits[0].Offset)
-			subOffset.Clear()
+			subOffset.Close()
 			commits = subOffset.GetCommit()
-			So(0, ShouldEqual, len(commits))
+			So(1, ShouldEqual, len(commits))
 		})
 	})
 }

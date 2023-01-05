@@ -52,6 +52,7 @@ type Config struct {
 	SubscriptionID    vanus.ID
 	SubscriptionIDStr string
 	Offset            EventLogOffset
+	BatchSize         int
 
 	CheckEventLogInterval time.Duration
 }
@@ -255,7 +256,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 }
 
 func (elReader *eventLogReader) readEvent(ctx context.Context, lr api.BusReader) error {
-	events, err := readEvents(ctx, lr, elReader.policy)
+	events, err := readEvents(ctx, lr)
 	if err != nil {
 		return err
 	}
@@ -272,13 +273,14 @@ func (elReader *eventLogReader) readEvent(ctx context.Context, lr api.BusReader)
 			return err
 		}
 		elReader.offset = offset
-		elReader.policy.Forward(1)
 	}
+	elReader.policy.Forward(len(events))
 	metrics.TriggerPullEventCounter.WithLabelValues(
 		elReader.config.SubscriptionIDStr, elReader.config.EventBusName, elReader.eventLogIDStr).
 		Add(float64(len(events)))
 	return nil
 }
+
 func (elReader *eventLogReader) putEvent(ctx context.Context, event info.EventRecord) error {
 	select {
 	case elReader.events <- event:
@@ -288,14 +290,15 @@ func (elReader *eventLogReader) putEvent(ctx context.Context, event info.EventRe
 	}
 }
 
-func readEvents(ctx context.Context, lr api.BusReader, p api.ReadPolicy) ([]*ce.Event, error) {
+func readEvents(ctx context.Context, lr api.BusReader) ([]*ce.Event, error) {
 	timeout, cancel := context.WithTimeout(ctx, readEventTimeout)
 	defer cancel()
-	events, _, _, err := lr.Read(timeout, option.WithReadPolicy(p), option.WithBatchSize(int(readSize)))
+	events, _, _, err := lr.Read(timeout)
 	return events, err
 }
 
 func (elReader *eventLogReader) init(ctx context.Context) (api.BusReader, error) {
-	lr := elReader.config.Client.Eventbus(ctx, elReader.config.EventBusName).Reader()
+	lr := elReader.config.Client.Eventbus(ctx, elReader.config.EventBusName).Reader(
+		option.WithReadPolicy(elReader.policy), option.WithBatchSize(elReader.config.BatchSize))
 	return lr, nil
 }

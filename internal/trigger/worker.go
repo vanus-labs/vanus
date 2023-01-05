@@ -255,6 +255,10 @@ func (w *worker) getTriggerOptions(subscription *primitive.Subscription) []trigg
 		trigger.WithDeliveryTimeout(config.DeliveryTimeout),
 		trigger.WithMaxRetryAttempts(config.GetMaxRetryAttempts()),
 		trigger.WithDeadLetterEventbus(config.DeadLetterEventbus),
-		trigger.WithOrdered(config.OrderedEvent))
+		trigger.WithOrdered(config.OrderedEvent),
+		trigger.WithGoroutineSize(w.config.SendEventGoroutineSize),
+		trigger.WithSendBatchSize(w.config.SendEventBatchSize),
+		trigger.WithPullBatchSize(w.config.PullEventBatchSize),
+		trigger.WithMaxNoACKNumber(w.config.MaxNoAckEventNumber))
 	return opts
 }

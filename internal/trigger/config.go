@@ -30,7 +30,15 @@ type Config struct {
 	ControllerAddr []string             `yaml:"controllers"`
 	Observability  observability.Config `yaml:"observability"`
 
-	HeartbeatInterval time.Duration
+	HeartbeatInterval time.Duration `yaml:"heartbeat_interval"`
+	// send event goroutine size
+	SendEventGoroutineSize int `yaml:"send_event_goroutine_size"`
+	// push event batch size when use grpc
+	SendEventBatchSize int `yaml:"send_event_batch_size"`
+	// var client read event from segment batch size.
+	PullEventBatchSize int `yaml:"pull_event_batch_size"`
+	// max no ack event number
+	MaxNoAckEventNumber int `yaml:"max_no_ack_event_number"`
 }
 
 func InitConfig(filename string) (*Config, error) {

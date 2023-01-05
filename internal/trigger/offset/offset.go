@@ -15,7 +15,6 @@
 package offset
 
 import (
-	"math"
 	"sync"
 
 	"github.com/huandu/skiplist"
@@ -23,55 +22,82 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
-func NewSubscriptionOffset(id vanus.ID) *SubscriptionOffset {
-	return &SubscriptionOffset{
+func NewSubscriptionOffset(id vanus.ID, maxNoACKNumber int, initOffsets info.ListOffsetInfo) *SubscriptionOffset {
+	sub := &SubscriptionOffset{
 		subscriptionID: id,
+		cond:           sync.NewCond(&sync.Mutex{}),
+		maxNoACKNumber: maxNoACKNumber,
+		elOffsets:      make(map[vanus.ID]*offsetTracker, len(initOffsets)),
 	}
+	for _, offset := range initOffsets {
+		sub.elOffsets[offset.EventLogID] = initOffset(offset.Offset)
+	}
+	return sub
 }
 
 type SubscriptionOffset struct {
 	subscriptionID vanus.ID
-	elOffset       sync.Map
+	cond           *sync.Cond
+	maxNoACKNumber int
+	noACKNumber    int
+	elOffsets      map[vanus.ID]*offsetTracker
+	closed         bool
 }
 
-func (offset *SubscriptionOffset) Clear() {
-	offset.elOffset.Range(func(key, value interface{}) bool {
-		offset.elOffset.Delete(key)
-		return true
-	})
+func (offset *SubscriptionOffset) Close() {
+	offset.cond.L.Lock()
+	defer offset.cond.L.Unlock()
+	offset.closed = true
+	offset.cond.Broadcast()
 }
 
 func (offset *SubscriptionOffset) EventReceive(info info.OffsetInfo) {
-	o, exist := offset.elOffset.Load(info.EventLogID)
-	if !exist {
-		o, _ = offset.elOffset.LoadOrStore(info.EventLogID, initOffset(info.Offset))
+	offset.cond.L.Lock()
+	defer offset.cond.L.Unlock()
+	for offset.noACKNumber >= offset.maxNoACKNumber && !offset.closed {
+		offset.cond.Wait()
 	}
-	o.(*offsetTracker).putOffset(info.Offset)
+	if offset.closed {
+		return
+	}
+	offset.noACKNumber++
+	tracker, exist := offset.elOffsets[info.EventLogID]
+	if !exist {
+		tracker = initOffset(info.Offset)
+		offset.elOffsets[info.EventLogID] = tracker
+	}
+	tracker.putOffset(info.Offset)
 }
 
 func (offset *SubscriptionOffset) EventCommit(info info.OffsetInfo) {
-	o, exist := offset.elOffset.Load(info.EventLogID)
+	offset.cond.L.Lock()
+	defer offset.cond.L.Unlock()
+	if offset.closed {
+		return
+	}
+	tracker, exist := offset.elOffsets[info.EventLogID]
 	if !exist {
 		return
 	}
-	o.(*offsetTracker).commitOffset(info.Offset)
+	offset.noACKNumber--
+	offset.cond.Signal()
+	tracker.commitOffset(info.Offset)
 }
 
 func (offset *SubscriptionOffset) GetCommit() info.ListOffsetInfo {
+	offset.cond.L.Lock()
+	defer offset.cond.L.Unlock()
 	var commit info.ListOffsetInfo
-	offset.elOffset.Range(func(key, value interface{}) bool {
-		tracker, _ := value.(*offsetTracker)
+	for id, tracker := range offset.elOffsets {
 		commit = append(commit, info.OffsetInfo{
-			EventLogID: key.(vanus.ID),
+			EventLogID: id,
 			Offset:     tracker.offsetToCommit(),
 		})
-		return true
-	})
+	}
 	return commit
 }
 
 type offsetTracker struct {
-	mutex      sync.Mutex
 	maxOffset  uint64
 	initOffset uint64
 	list       *skiplist.SkipList
@@ -80,7 +106,7 @@ type offsetTracker struct {
 func initOffset(initOffset uint64) *offsetTracker {
 	return &offsetTracker{
 		initOffset: initOffset,
-		maxOffset:  math.MaxUint64,
+		maxOffset:  initOffset,
 		list: skiplist.New(skiplist.GreaterThanFunc(func(lhs, rhs interface{}) int {
 			v1, _ := lhs.(uint64)
 			v2, _ := rhs.(uint64)
@@ -95,23 +121,17 @@ func initOffset(initOffset uint64) *offsetTracker {
 }
 
 func (o *offsetTracker) putOffset(offset uint64) {
-	o.mutex.Lock()
-	defer o.mutex.Unlock()
 	o.list.Set(offset, offset)
 	o.maxOffset, _ = o.list.Back().Key().(uint64)
 }
 
 func (o *offsetTracker) commitOffset(offset uint64) {
-	o.mutex.Lock()
-	defer o.mutex.Unlock()
 	o.list.Remove(offset)
 }
 
 func (o *offsetTracker) offsetToCommit() uint64 {
-	o.mutex.Lock()
-	defer o.mutex.Unlock()
 	if o.list.Len() == 0 {
-		if o.maxOffset == math.MaxUint64 {
+		if o.maxOffset == o.initOffset {
 			return o.initOffset
 		}
 		return o.maxOffset + 1
