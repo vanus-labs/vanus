@@ -204,7 +204,7 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 
 		m, i := makeSnapshot(b.actx, b.indexes)
 
-		b.appendIndexEntry(ctx, i, func(n int, err error) {
+		go b.appendIndexEntry(ctx, i, func(n int, err error) {
 			defer b.wg.Done()
 			b.indexOffset = m.writeOffset
 			b.indexLength = n
