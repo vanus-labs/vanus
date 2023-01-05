@@ -51,9 +51,6 @@ func (w *roundRobinWritePolicy) NextLog(ctx context.Context) (api.Eventlog, erro
 		if len(logs) == 0 {
 			continue
 		}
-		if len(logs) == 0 {
-			continue
-		}
 
 		if len(logs) == len(w.cached) {
 			logs = w.cached
