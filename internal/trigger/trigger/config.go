@@ -153,7 +153,7 @@ func WithPullBatchSize(batchSize int) Option {
 
 func WithMaxUnACKNumber(maxUnACKNumber int) Option {
 	return func(t *trigger) {
-		if t.config.MaxUnACKNumber <= 0 {
+		if maxUnACKNumber <= 0 {
 			return
 		}
 		t.config.MaxUnACKNumber = maxUnACKNumber
