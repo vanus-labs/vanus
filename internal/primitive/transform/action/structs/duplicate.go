@@ -32,7 +32,7 @@ func NewDuplicateAction() action.Action {
 	return &duplicateAction{
 		action.CommonAction{
 			ActionName: "DUPLICATE",
-			FixedArgs:  []arg.TypeList{arg.EventList, arg.All},
+			FixedArgs:  []arg.TypeList{arg.EventList, arg.EventList},
 		},
 	}
 }
