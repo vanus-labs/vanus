@@ -24,6 +24,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -34,8 +35,10 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/tap"
 	"google.golang.org/protobuf/proto"
 
@@ -200,15 +203,24 @@ func (s *server) Serve(lis net.Listener) error {
 	}
 
 	raftSrv := transport.NewServer(s.host)
+
+	recoveryOpt := recovery.WithRecoveryHandlerContext(func(ctx context.Context, p interface{}) error {
+		log.Error(ctx, "goroutine panicked", map[string]interface{}{
+			log.KeyError: fmt.Sprintf("%v", p),
+			"stack":      string(debug.Stack()),
+		})
+		return status.Errorf(codes.Internal, "%v", p)
+	})
+
 	srv := grpc.NewServer(
 		grpc.InTapHandle(s.preGrpcStream),
 		grpc.ChainStreamInterceptor(
-			recovery.StreamServerInterceptor(),
+			recovery.StreamServerInterceptor(recoveryOpt),
 			errinterceptor.StreamServerInterceptor(),
 			otelgrpc.StreamServerInterceptor(),
 		),
 		grpc.ChainUnaryInterceptor(
-			recovery.UnaryServerInterceptor(),
+			recovery.UnaryServerInterceptor(recoveryOpt),
 			errinterceptor.UnaryServerInterceptor(),
 			otelgrpc.UnaryServerInterceptor(
 				otelgrpc.WithPropagators(propagation.TraceContext{}),
