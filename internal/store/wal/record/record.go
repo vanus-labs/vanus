@@ -28,7 +28,7 @@ const (
 	lengthFieldEO = lengthFieldSO + 2 // [4,6)
 	typeFieldSO   = lengthFieldEO
 	typeFieldEO   = typeFieldSO + 1 // [6,7)
-	dataFieldSO   = typeFieldEO     // [7,8)
+	dataFieldSO   = typeFieldEO     // [7,n)
 )
 
 const HeaderSize = dataFieldSO
