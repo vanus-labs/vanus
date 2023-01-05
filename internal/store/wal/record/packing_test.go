@@ -41,7 +41,7 @@ func TestPack(t *testing.T) {
 	Convey("pack with just enough space in first block", t, func() {
 		records, padding := Pack(rawData, HeaderSize*2+len(rawData), blockSize)
 		So(records, ShouldHaveLength, 1)
-		So(padding, ShouldEqual, HeaderSize)
+		So(padding, ShouldEqual, 0)
 		r0 := &records[0]
 		So(r0.Type, ShouldEqual, Full)
 		So(r0.Length, ShouldEqual, len(rawData))

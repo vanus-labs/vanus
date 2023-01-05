@@ -19,7 +19,7 @@ func Pack(entry []byte, firstSize, otherSize int) ([]Record, int) {
 	if num == 1 {
 		packet := makePacket(Full, entry)
 		padding := firstSize - packet.Size()
-		if padding > HeaderSize {
+		if padding >= HeaderSize {
 			padding = 0
 		}
 		return []Record{packet}, padding
@@ -43,7 +43,7 @@ func Pack(entry []byte, firstSize, otherSize int) ([]Record, int) {
 	packets = append(packets, last)
 
 	padding := otherSize - last.Size()
-	if padding > HeaderSize {
+	if padding >= HeaderSize {
 		padding = 0
 	}
 
