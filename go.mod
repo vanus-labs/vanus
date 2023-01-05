@@ -22,7 +22,6 @@ require (
 	github.com/iceber/iouring-go v0.0.0-20220609112130-b1dc8dd9fbfd
 	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/json-iterator/go v1.1.12
-	github.com/labstack/gommon v0.4.0
 	github.com/linkall-labs/embed-etcd v0.1.2
 	github.com/linkall-labs/vanus/client v0.5.1
 	github.com/linkall-labs/vanus/observability v0.5.1
@@ -31,6 +30,7 @@ require (
 	github.com/linkall-labs/vanus/raft v0.5.1
 	github.com/ncw/directio v1.0.5
 	github.com/ohler55/ojg v1.14.5
+	github.com/panjf2000/ants/v2 v2.7.1
 	github.com/pkg/errors v0.9.1
 	github.com/prashantv/gostub v1.1.0
 	github.com/prometheus/client_golang v1.14.0
@@ -98,7 +98,6 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe // indirect
-	github.com/panjf2000/ants/v2 v2.7.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
