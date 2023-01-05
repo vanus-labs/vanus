@@ -27,7 +27,7 @@ const (
 	defaultDeliveryTimeout = 5 * time.Second
 	defaultMaxWriteAttempt = 3
 	defaultGoroutineSize   = 10000
-	defaultMaxNoACKNumber  = 10000
+	defaultMaxUnACKNumber  = 10000
 	defaultBatchSize       = 32
 )
 
@@ -44,7 +44,7 @@ type Config struct {
 	GoroutineSize  int
 	SendBatchSize  int
 	PullBatchSize  int
-	MaxNoACKNumber int
+	MaxUnACKNumber int
 }
 
 func defaultConfig() Config {
@@ -56,7 +56,7 @@ func defaultConfig() Config {
 		MaxWriteAttempt:    defaultMaxWriteAttempt,
 		GoroutineSize:      defaultGoroutineSize,
 		SendBatchSize:      defaultBatchSize,
-		MaxNoACKNumber:     defaultMaxNoACKNumber,
+		MaxUnACKNumber:     defaultMaxUnACKNumber,
 		PullBatchSize:      defaultBatchSize,
 	}
 	return c
@@ -151,11 +151,11 @@ func WithPullBatchSize(batchSize int) Option {
 	}
 }
 
-func WithMaxNoACKNumber(maxNoACKNumber int) Option {
+func WithMaxUnACKNumber(maxUnACKNumber int) Option {
 	return func(t *trigger) {
-		if t.config.MaxNoACKNumber <= 0 {
+		if t.config.MaxUnACKNumber <= 0 {
 			return
 		}
-		t.config.MaxNoACKNumber = maxNoACKNumber
+		t.config.MaxUnACKNumber = maxUnACKNumber
 	}
 }

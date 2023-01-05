@@ -37,8 +37,8 @@ type Config struct {
 	SendEventBatchSize int `yaml:"send_event_batch_size"`
 	// var client read event from segment batch size.
 	PullEventBatchSize int `yaml:"pull_event_batch_size"`
-	// max no ack event number
-	MaxNoAckEventNumber int `yaml:"max_no_ack_event_number"`
+	// max un ack event number
+	MaxUnAckEventNumber int `yaml:"max_un_ack_event_number"`
 }
 
 func InitConfig(filename string) (*Config, error) {
