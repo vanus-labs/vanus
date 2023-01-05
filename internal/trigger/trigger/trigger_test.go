@@ -202,7 +202,7 @@ func TestTriggerRunEventSend(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tg.runEventSend(ctx)
+			tg.runEventToBatch(ctx)
 		}()
 		time.Sleep(100 * time.Millisecond)
 		close(tg.sendCh)

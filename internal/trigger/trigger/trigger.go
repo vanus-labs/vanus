@@ -36,6 +36,7 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/linkall-labs/vanus/pkg/util"
+	"github.com/panjf2000/ants/v2"
 	"go.uber.org/ratelimit"
 )
 
@@ -67,6 +68,7 @@ type trigger struct {
 	reader        reader.Reader
 	eventCh       chan info.EventRecord
 	sendCh        chan *toSendEvent
+	batchSendCh   chan []*toSendEvent
 	eventCli      client.EventClient
 	client        eb.Client
 	filter        filter.Filter
@@ -84,6 +86,8 @@ type trigger struct {
 	stop  context.CancelFunc
 	lock  sync.RWMutex
 	wg    util.Group
+
+	pool *ants.Pool
 }
 
 type toSendEvent struct {
@@ -109,6 +113,7 @@ func NewTrigger(subscription *primitive.Subscription, opts ...Option) Trigger {
 	if t.rateLimiter == nil {
 		t.rateLimiter = ratelimit.NewUnlimited()
 	}
+	t.pool, _ = ants.NewPool(t.config.GoroutineSize)
 	return t
 }
 
@@ -234,32 +239,34 @@ func (t *trigger) runRetryEventFilterTransform(ctx context.Context) {
 			if !ok {
 				return
 			}
-			t.offsetManager.EventReceive(record.OffsetInfo)
-			ec, _ := record.Event.Context.(*ce.EventContextV1)
-			if len(ec.Extensions) == 0 {
-				t.offsetManager.EventCommit(record.OffsetInfo)
-				continue
-			}
-			v, exist := ec.Extensions[primitive.XVanusSubscriptionID]
-			if !exist || t.subscriptionIDStr != v.(string) {
-				t.offsetManager.EventCommit(record.OffsetInfo)
-				continue
-			}
-			startTime := time.Now()
-			res := filter.Run(t.getFilter(), *record.Event)
-			metrics.TriggerFilterCostSecond.WithLabelValues(t.subscriptionIDStr).Observe(time.Since(startTime).Seconds())
-			if res == filter.FailFilter {
-				t.offsetManager.EventCommit(record.OffsetInfo)
-				continue
-			}
-			metrics.TriggerFilterMatchRetryEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
-			event, err := t.transformEvent(record)
-			if err != nil {
-				t.writeFailEvent(ctx, record.Event, ErrTransformCode, err)
-				t.offsetManager.EventCommit(record.OffsetInfo)
-				continue
-			}
-			t.sendCh <- event
+			_ = t.pool.Submit(func() {
+				t.offsetManager.EventReceive(record.OffsetInfo)
+				ec, _ := record.Event.Context.(*ce.EventContextV1)
+				if len(ec.Extensions) == 0 {
+					t.offsetManager.EventCommit(record.OffsetInfo)
+					return
+				}
+				v, exist := ec.Extensions[primitive.XVanusSubscriptionID]
+				if !exist || t.subscriptionIDStr != v.(string) {
+					t.offsetManager.EventCommit(record.OffsetInfo)
+					return
+				}
+				startTime := time.Now()
+				res := filter.Run(t.getFilter(), *record.Event)
+				metrics.TriggerFilterCostSecond.WithLabelValues(t.subscriptionIDStr).Observe(time.Since(startTime).Seconds())
+				if res == filter.FailFilter {
+					t.offsetManager.EventCommit(record.OffsetInfo)
+					return
+				}
+				metrics.TriggerFilterMatchRetryEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
+				event, err := t.transformEvent(record)
+				if err != nil {
+					t.writeFailEvent(ctx, record.Event, ErrTransformCode, err)
+					t.offsetManager.EventCommit(record.OffsetInfo)
+					return
+				}
+				t.sendCh <- event
+			})
 		}
 	}
 }
@@ -273,53 +280,78 @@ func (t *trigger) runEventFilterTransform(ctx context.Context) {
 			if !ok {
 				return
 			}
-			t.offsetManager.EventReceive(record.OffsetInfo)
-			startTime := time.Now()
-			res := filter.Run(t.getFilter(), *record.Event)
-			metrics.TriggerFilterCostSecond.WithLabelValues(t.subscriptionIDStr).Observe(time.Since(startTime).Seconds())
-			if res == filter.FailFilter {
-				t.offsetManager.EventCommit(record.OffsetInfo)
-				continue
+			_ = t.pool.Submit(func() {
+				t.offsetManager.EventReceive(record.OffsetInfo)
+				startTime := time.Now()
+				res := filter.Run(t.getFilter(), *record.Event)
+				metrics.TriggerFilterCostSecond.WithLabelValues(t.subscriptionIDStr).Observe(time.Since(startTime).Seconds())
+				if res == filter.FailFilter {
+					t.offsetManager.EventCommit(record.OffsetInfo)
+					return
+				}
+				metrics.TriggerFilterMatchEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
+				event, err := t.transformEvent(record)
+				if err != nil {
+					t.writeFailEvent(ctx, record.Event, ErrTransformCode, err)
+					t.offsetManager.EventCommit(record.OffsetInfo)
+					return
+				}
+				t.sendCh <- event
+			})
+		}
+	}
+}
+
+func (t *trigger) runEventToBatch(ctx context.Context) {
+	var events []*toSendEvent
+	ticker := time.NewTicker(500 * time.Millisecond) ////nolint:gomnd
+	defer ticker.Stop()
+	var lock sync.Mutex
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			lock.Lock()
+			if len(events) != 0 {
+				e := make([]*toSendEvent, len(events))
+				copy(e, events)
+				t.batchSendCh <- e
+				events = nil
 			}
-			metrics.TriggerFilterMatchEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
-			event, err := t.transformEvent(record)
-			if err != nil {
-				t.writeFailEvent(ctx, record.Event, ErrTransformCode, err)
-				t.offsetManager.EventCommit(record.OffsetInfo)
-				continue
+			lock.Unlock()
+		case event, ok := <-t.sendCh:
+			if !ok {
+				return
 			}
-			t.sendCh <- event
+			lock.Lock()
+			events = append(events, event)
+			if !t.batch || len(events) >= t.config.BatchSize {
+				e := make([]*toSendEvent, len(events))
+				copy(e, events)
+				t.batchSendCh <- e
+				events = nil
+			}
+			lock.Unlock()
 		}
 	}
 }
 
 func (t *trigger) runEventSend(ctx context.Context) {
-	var events []*toSendEvent
-	lastSend := time.Now()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case event, ok := <-t.sendCh:
+		case events, ok := <-t.batchSendCh:
 			if !ok {
 				return
 			}
-			if !t.batch {
-				if t.config.Ordered {
-					t.processEvent(ctx, event)
-				} else {
-					go func(event *toSendEvent) {
-						t.processEvent(ctx, event)
-					}(event)
-				}
+			if t.config.Ordered {
+				t.processEvent(ctx, events...)
 			} else {
-				events = append(events, event)
-				now := time.Now()
-				if len(events) >= 32 || now.Sub(lastSend) > 10*time.Millisecond {
+				_ = t.pool.Submit(func() {
 					t.processEvent(ctx, events...)
-					events = nil
-					lastSend = now
-				}
+				})
 			}
 		}
 	}
@@ -335,7 +367,7 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelValuePushEventFail).Inc()
 		log.Info(ctx, "send event fail", map[string]interface{}{
 			log.KeyError: err,
-			"event":      events,
+			"count":      len(es),
 		})
 		if t.config.Ordered {
 			// ordered event no need retry direct into dead letter
@@ -347,13 +379,14 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 	} else {
 		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelValuePushEventSuccess).Inc()
 		log.Debug(ctx, "send event success", map[string]interface{}{
-			"event": events,
+			"count": len(es),
 		})
 	}
 	for _, event := range events {
 		t.offsetManager.EventCommit(event.record.OffsetInfo)
 	}
 }
+
 func (t *trigger) writeFailEvent(ctx context.Context, e *ce.Event, code int, err error) {
 	needRetry, reason := isShouldRetry(code)
 	ec, _ := e.Context.(*ce.EventContextV1)
@@ -503,6 +536,7 @@ func (t *trigger) Init(ctx context.Context) error {
 	t.dlEventWriter = t.client.Eventbus(ctx, t.config.DeadLetterEventbus).Writer()
 	t.eventCh = make(chan info.EventRecord, t.config.BufferSize)
 	t.sendCh = make(chan *toSendEvent, t.config.BufferSize)
+	t.batchSendCh = make(chan []*toSendEvent, t.config.BufferSize)
 	t.reader = reader.NewReader(t.getReaderConfig(), t.eventCh)
 	t.retryEventCh = make(chan info.EventRecord, t.config.BufferSize)
 	t.retryEventReader = reader.NewReader(t.getRetryEventReaderConfig(), t.retryEventCh)
@@ -518,9 +552,8 @@ func (t *trigger) Start(ctx context.Context) error {
 	t.stop = cancel
 	// eb event
 	_ = t.reader.Start()
-	for i := 0; i < t.config.FilterProcessSize; i++ {
-		t.wg.StartWithContext(ctx, t.runEventFilterTransform)
-	}
+	t.wg.StartWithContext(ctx, t.runEventFilterTransform)
+	t.wg.StartWithContext(ctx, t.runEventToBatch)
 	t.wg.StartWithContext(ctx, t.runEventSend)
 	// retry event
 	_ = t.retryEventReader.Start()
@@ -544,8 +577,10 @@ func (t *trigger) Stop(ctx context.Context) error {
 	t.retryEventReader.Close()
 	t.wg.Wait()
 	close(t.eventCh)
-	close(t.sendCh)
 	close(t.retryEventCh)
+	close(t.sendCh)
+	close(t.batchSendCh)
+	t.pool.Release()
 	t.state = TriggerStopped
 	log.Info(ctx, "trigger stopped", map[string]interface{}{
 		log.KeySubscriptionID: t.subscription.ID,

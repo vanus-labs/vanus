@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/linkall-labs/vanus/client/pkg/codec"
 
 	"google.golang.org/grpc/credentials/insecure"
@@ -41,10 +43,16 @@ func NewGRPCClient(url string) EventClient {
 }
 
 func (c *grpc) init() error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if c.client != nil {
+		return nil
+	}
 	opts := []stdGrpc.DialOption{
 		stdGrpc.WithBlock(),
 		stdGrpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
+	//nolint:gomnd //wrong check
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	conn, err := stdGrpc.DialContext(ctx, c.url, opts...)
@@ -66,8 +74,14 @@ func (c *grpc) Send(ctx context.Context, events ...*ce.Event) Result {
 	for idx := range events {
 		es[idx], _ = codec.ToProto(events[idx])
 	}
-	c.client.Send(ctx, &cloudevents.BatchEvent{
+	_, err := c.client.Send(ctx, &cloudevents.BatchEvent{
 		Events: &cloudevents.CloudEventBatch{Events: es},
 	})
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return DeliveryTimeout
+		}
+		return newUndefinedErr(err)
+	}
 	return Success
 }

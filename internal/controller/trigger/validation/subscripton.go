@@ -99,7 +99,6 @@ func ValidateSinkAndProtocol(ctx context.Context,
 				WithMessage("protocol is http, sink is url,url parse error").Wrap(err)
 		}
 	case metapb.Protocol_GRPC:
-
 	}
 	return nil
 }

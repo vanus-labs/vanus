@@ -27,6 +27,8 @@ const (
 	defaultFilterProcessSize = 2
 	defaultDeliveryTimeout   = 5 * time.Second
 	defaultMaxWriteAttempt   = 3
+	defaultGoroutineSize     = 10000
+	defaultBatchSize         = 32
 )
 
 type Config struct {
@@ -39,6 +41,9 @@ type Config struct {
 	DeadLetterEventbus string
 	MaxWriteAttempt    int
 	Ordered            bool
+
+	GoroutineSize int
+	BatchSize     int
 }
 
 func defaultConfig() Config {
@@ -49,6 +54,8 @@ func defaultConfig() Config {
 		DeliveryTimeout:    defaultDeliveryTimeout,
 		DeadLetterEventbus: primitive.DeadLetterEventbusName,
 		MaxWriteAttempt:    defaultMaxWriteAttempt,
+		GoroutineSize:      defaultGoroutineSize,
+		BatchSize:          defaultBatchSize,
 	}
 	return c
 }
