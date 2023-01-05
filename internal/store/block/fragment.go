@@ -16,7 +16,6 @@
 package block
 
 import (
-	"context"
 	"encoding/binary"
 )
 
@@ -40,12 +39,12 @@ type Fragment interface {
 }
 
 type FragmentMarshaler interface {
-	MarshalFragment(ctx context.Context) ([]byte, error)
+	MarshalFragment() ([]byte, error)
 }
 
-func MarshalFragment(ctx context.Context, frag Fragment) ([]byte, error) {
+func MarshalFragment(frag Fragment) ([]byte, error) {
 	if m, ok := frag.(FragmentMarshaler); ok {
-		return m.MarshalFragment(ctx)
+		return m.MarshalFragment()
 	}
 
 	buf := make([]byte, 8+frag.Size())
@@ -84,6 +83,6 @@ func (f *fragment) EndOffset() int64 {
 	return f.StartOffset() + int64(f.Size())
 }
 
-func (f *fragment) MarshalFragment(ctx context.Context) ([]byte, error) {
+func (f *fragment) MarshalFragment() ([]byte, error) {
 	return f.data, nil
 }

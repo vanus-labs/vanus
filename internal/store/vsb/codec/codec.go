@@ -16,7 +16,6 @@ package codec
 
 import (
 	// standard libraries.
-	"context"
 	"errors"
 	"io"
 
@@ -43,7 +42,7 @@ var (
 
 type EntryEncoder interface {
 	Size(entry block.Entry) int
-	MarshalTo(ctx context.Context, entry block.Entry, buf []byte) (int, error)
+	MarshalTo(entry block.Entry, buf []byte) (int, error)
 }
 
 type EntryDecoder interface {

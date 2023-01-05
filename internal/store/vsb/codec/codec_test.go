@@ -16,7 +16,6 @@ package codec
 
 import (
 	// standard libraries.
-	"context"
 	"testing"
 
 	// third-party libraries.
@@ -74,13 +73,13 @@ func TestEntryEncoder(t *testing.T) {
 
 		Convey("marshal ce entry", func() {
 			buf0 := make([]byte, vsbtest.EntrySize0)
-			n0, err0 := enc.MarshalTo(context.Background(), entry0, buf0)
+			n0, err0 := enc.MarshalTo(entry0, buf0)
 			So(err0, ShouldBeNil)
 			So(n0, ShouldEqual, vsbtest.EntrySize0)
 			So(buf0, ShouldResemble, vsbtest.EntryData0)
 
 			buf1 := make([]byte, vsbtest.EntrySize1)
-			n1, err1 := enc.MarshalTo(context.Background(), entry1, buf1)
+			n1, err1 := enc.MarshalTo(entry1, buf1)
 			So(err1, ShouldBeNil)
 			So(n1, ShouldEqual, vsbtest.EntrySize1)
 			So(buf1, ShouldResemble, vsbtest.EntryData1)
@@ -88,7 +87,7 @@ func TestEntryEncoder(t *testing.T) {
 
 		Convey("marshal end entry", func() {
 			buf := make([]byte, vsbtest.EndEntrySize)
-			n, err := enc.MarshalTo(context.Background(), endEntry, buf)
+			n, err := enc.MarshalTo(endEntry, buf)
 			So(err, ShouldBeNil)
 			So(n, ShouldEqual, vsbtest.EndEntrySize)
 			So(buf, ShouldResemble, vsbtest.EndEntryData)
@@ -96,7 +95,7 @@ func TestEntryEncoder(t *testing.T) {
 
 		Convey("marshal index entry", func() {
 			buf := make([]byte, vsbtest.IndexEntrySize)
-			n, err := enc.MarshalTo(context.Background(), indexEntry, buf)
+			n, err := enc.MarshalTo(indexEntry, buf)
 			So(err, ShouldBeNil)
 			So(n, ShouldEqual, vsbtest.IndexEntrySize)
 			So(buf, ShouldResemble, vsbtest.IndexEntryData)
