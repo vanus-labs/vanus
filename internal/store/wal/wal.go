@@ -31,6 +31,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/io/engine"
 	"github.com/linkall-labs/vanus/internal/store/io/stream"
 	"github.com/linkall-labs/vanus/internal/store/io/zone/segmentedfile"
+	"github.com/linkall-labs/vanus/internal/store/wal/record"
 )
 
 const (
@@ -130,6 +131,11 @@ func open(ctx context.Context, dir string, cfg config) (*WAL, error) {
 	off, err := scanLogEntries(sf, cfg.blockSize, cfg.pos, cfg.cb)
 	if err != nil {
 		return nil, err
+	}
+
+	// Skip padding.
+	if padding := int64(cfg.blockSize) - off%int64(cfg.blockSize); padding < record.HeaderSize {
+		off += padding
 	}
 
 	scheduler := stream.NewScheduler(cfg.engine, cfg.blockSize, cfg.flushTimeout)
