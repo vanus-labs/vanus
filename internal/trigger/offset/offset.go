@@ -22,11 +22,11 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
-func NewSubscriptionOffset(id vanus.ID, maxUnACKNumber int, initOffsets info.ListOffsetInfo) *SubscriptionOffset {
+func NewSubscriptionOffset(id vanus.ID, maxUACKNumber int, initOffsets info.ListOffsetInfo) *SubscriptionOffset {
 	sub := &SubscriptionOffset{
 		subscriptionID: id,
 		cond:           sync.NewCond(&sync.Mutex{}),
-		maxUnACKNumber: maxUnACKNumber,
+		maxUACKNumber:  maxUACKNumber,
 		elOffsets:      make(map[vanus.ID]*offsetTracker, len(initOffsets)),
 	}
 	for _, offset := range initOffsets {
@@ -38,8 +38,8 @@ func NewSubscriptionOffset(id vanus.ID, maxUnACKNumber int, initOffsets info.Lis
 type SubscriptionOffset struct {
 	subscriptionID vanus.ID
 	cond           *sync.Cond
-	maxUnACKNumber int
-	unACKNumber    int
+	maxUACKNumber  int
+	uACKNumber     int
 	elOffsets      map[vanus.ID]*offsetTracker
 	closed         bool
 }
@@ -54,13 +54,13 @@ func (offset *SubscriptionOffset) Close() {
 func (offset *SubscriptionOffset) EventReceive(info info.OffsetInfo) {
 	offset.cond.L.Lock()
 	defer offset.cond.L.Unlock()
-	for offset.unACKNumber >= offset.maxUnACKNumber && !offset.closed {
+	for offset.uACKNumber >= offset.maxUACKNumber && !offset.closed {
 		offset.cond.Wait()
 	}
 	if offset.closed {
 		return
 	}
-	offset.unACKNumber++
+	offset.uACKNumber++
 	tracker, exist := offset.elOffsets[info.EventLogID]
 	if !exist {
 		tracker = initOffset(info.Offset)
@@ -79,7 +79,7 @@ func (offset *SubscriptionOffset) EventCommit(info info.OffsetInfo) {
 	if !exist {
 		return
 	}
-	offset.unACKNumber--
+	offset.uACKNumber--
 	offset.cond.Signal()
 	tracker.commitOffset(info.Offset)
 }

@@ -112,7 +112,7 @@ func NewTrigger(subscription *primitive.Subscription, opts ...Option) Trigger {
 	if t.rateLimiter == nil {
 		t.rateLimiter = ratelimit.NewUnlimited()
 	}
-	t.offsetManager = offset.NewSubscriptionOffset(subscription.ID, t.config.MaxUnACKNumber, subscription.Offsets)
+	t.offsetManager = offset.NewSubscriptionOffset(subscription.ID, t.config.MaxUACKNumber, subscription.Offsets)
 	t.pool, _ = ants.NewPool(t.config.GoroutineSize)
 	return t
 }
