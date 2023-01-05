@@ -18,7 +18,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"math/rand"
 	"net"
 	"net/http"
@@ -341,23 +343,40 @@ func runStore(cfg store.Config) {
 }
 
 var (
-	gOnce sync.Once
-	rd    = rand.New(rand.NewSource(time.Now().UnixNano()))
-	e     []*v1.CloudEvent
+	rd      = rand.New(rand.NewSource(time.Now().UnixNano()))
+	payload string
+	mutex   sync.RWMutex
 )
 
 func generateEvents() []*v1.CloudEvent {
-	gOnce.Do(func() {
-		for idx := 0; idx < batchSize; idx++ {
-			e = append(e, &v1.CloudEvent{
-				Id:          "example-event",
-				Source:      "example/uri",
-				SpecVersion: "1.0",
-				Type:        "example.type",
-				Data:        &v1.CloudEvent_TextData{TextData: genStr(rd, payloadSize)},
-			})
+	mutex.RLock()
+	defer mutex.RUnlock()
+	if payload == "" {
+		mutex.RUnlock()
+		mutex.Lock()
+		if payload == "" {
+			payload = genStr(rd, payloadSize)
 		}
-	})
+		mutex.Unlock()
+		mutex.RLock()
+	}
+	var e []*v1.CloudEvent
+	for idx := 0; idx < batchSize; idx++ {
+		e = append(e, &v1.CloudEvent{
+			Id:          uuid.NewString(),
+			Source:      "performance.benchmark.vanus",
+			SpecVersion: "1.0",
+			Type:        "performance.benchmark.vanus",
+			Data:        &v1.CloudEvent_TextData{TextData: payload},
+			Attributes: map[string]*v1.CloudEvent_CloudEventAttributeValue{
+				"time": {
+					Attr: &v1.CloudEvent_CloudEventAttributeValue_CeTimestamp{
+						CeTimestamp: timestamppb.New(time.Now()),
+					},
+				},
+			},
+		})
+	}
 	return e
 }
 

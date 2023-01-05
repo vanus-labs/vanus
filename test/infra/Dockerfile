@@ -18,6 +18,3 @@ RUN curl -O https://download.linkall.com/vsctl/v0.5.4/linux-amd64/vsctl && \
     mv vsctl /usr/bin/vsctl
 RUN chmod a+x /usr/bin/vsctl
 RUN chmod a+x /usr/bin/vanus-bench
-RUN chmod a+x /vanus-bench/run.sh
-
-ENTRYPOINT ["/vanus-bench/run.sh"]

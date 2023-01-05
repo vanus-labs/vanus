@@ -18,10 +18,13 @@ import (
 	// standard libraries.
 	"context"
 
-	// first-party libraries.
-	"github.com/linkall-labs/vanus/raft/raftpb"
+	// third-party libraries.
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+
+	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/raft/raftpb"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/raft/transport"
@@ -41,9 +44,15 @@ func (a *appender) send(ctx context.Context, msgs []raftpb.Message) {
 
 	if len(msgs) == 1 {
 		msg := &msgs[0]
-		endpoint := a.peerHint(ctx, msg.To)
-		a.host.Send(ctx, msg, msg.To, endpoint, func(err error) {
+		to := msg.To
+		endpoint := a.peerHint(ctx, to)
+		a.host.Send(ctx, msg, to, endpoint, func(err error) {
 			if err != nil {
+				log.Warning(ctx, "send message failed", map[string]interface{}{
+					log.KeyError: err,
+					"to":         to,
+					"endpoint":   endpoint,
+				})
 				a.node.ReportUnreachable(msg.To)
 			}
 		})
@@ -64,6 +73,11 @@ func (a *appender) send(ctx context.Context, msgs []raftpb.Message) {
 		for i := 0; i < len(msgs); i++ {
 			a.host.Send(ctx, &msgs[i], to, endpoint, func(err error) {
 				if err != nil {
+					log.Warning(ctx, "send message failed", map[string]interface{}{
+						log.KeyError: err,
+						"to":         to,
+						"endpoint":   endpoint,
+					})
 					a.node.ReportUnreachable(to)
 				}
 			})
@@ -81,6 +95,11 @@ func (a *appender) send(ctx context.Context, msgs []raftpb.Message) {
 		for _, m := range msgs {
 			a.host.Send(ctx, m, to, endpoint, func(err error) {
 				if err != nil {
+					log.Warning(ctx, "send message failed", map[string]interface{}{
+						log.KeyError: err,
+						"to":         to,
+						"endpoint":   endpoint,
+					})
 					a.node.ReportUnreachable(to)
 				}
 			})

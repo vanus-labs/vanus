@@ -8,7 +8,7 @@ ARG TARGETOS
 ARG TARGETARCH
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-timer
 
-FROM alpine:3.15.4
+FROM ubuntu:22.10
 WORKDIR /vanus
 COPY --from=builder /workspace/bin/timer bin/timer
 ENTRYPOINT ["bin/timer"]

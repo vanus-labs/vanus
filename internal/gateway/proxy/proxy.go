@@ -86,6 +86,7 @@ type ControllerProxy struct {
 	triggerCtrl  ctrlpb.TriggerControllerClient
 	grpcSrv      *grpc.Server
 	ctrl         cluster.Cluster
+	writerMap    sync.Map
 }
 
 func (cp *ControllerProxy) Send(ctx context.Context, batch *cloudevents.BatchEvent) (*emptypb.Empty, error) {
@@ -122,7 +123,14 @@ func (cp *ControllerProxy) Send(ctx context.Context, batch *cloudevents.BatchEve
 		}
 	}
 
-	err := cp.client.Eventbus(ctx, batch.GetEventbusName()).Writer().AppendBatch(_ctx, batch.GetEvents())
+	val, exist := cp.writerMap.Load(batch.GetEventbusName())
+	if !exist {
+		val, _ = cp.writerMap.LoadOrStore(batch.GetEventbusName(),
+			cp.client.Eventbus(ctx, batch.GetEventbusName()).Writer())
+	}
+
+	w, _ := val.(api.BusWriter)
+	err := w.AppendBatch(_ctx, batch.GetEvents())
 	if err != nil {
 		log.Warning(_ctx, "append to failed", map[string]interface{}{
 			log.KeyError: err,

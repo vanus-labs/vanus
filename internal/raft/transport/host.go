@@ -17,6 +17,7 @@ package transport
 import (
 	// standard libraries.
 	"context"
+	"github.com/linkall-labs/vanus/observability/log"
 	"sync"
 
 	// third-party libraries.
@@ -80,6 +81,10 @@ func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoin
 
 	mux := h.resolveMultiplexer(ctx, to, endpoint)
 	if mux == nil {
+		log.Info(ctx, "found not mux", map[string]interface{}{
+			"to":       to,
+			"endpoint": endpoint,
+		})
 		cb(ErrNotReachable)
 		return
 	}

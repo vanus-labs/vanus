@@ -19,10 +19,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cloudevents/sdk-go/v2/client"
 	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"math/rand"
 	"net"
 	"net/http"
@@ -35,7 +35,6 @@ import (
 
 	"github.com/HdrHistogram/hdrhistogram-go"
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"github.com/fatih/color"
 	"github.com/go-redis/redis/v8"
@@ -349,20 +348,37 @@ func receiveCommand() *cobra.Command {
 				cmdFailedf(cmd, "init network error: %s", err)
 			}
 
-			c, err := client.NewHTTP(cehttp.WithListener(ls), cehttp.WithRequestDataAtContextMiddleware())
-			if err != nil {
-				cmdFailedf(cmd, "init ce http error: %s", err)
-			}
+			grpcServer := grpc.NewServer()
+
+			cloudevents.RegisterCloudEventsServer(grpcServer, &testReceiver{})
+
 			log.Info(context.TODO(), fmt.Sprintf("the receiver ready to work at %d", port), map[string]interface{}{
 				"benchmark_id": getBenchmarkID(),
 			})
-			if err := c.StartReceiver(context.Background(), receive); err != nil {
-				cmdFailedf(cmd, "start cloudevents receiver error: %s", err)
+			err = grpcServer.Serve(ls)
+			if err != nil {
+				log.Error(nil, "grpc server occurred an error", map[string]interface{}{
+					log.KeyError: err,
+				})
 			}
 		},
 	}
 	cmd.Flags().IntVar(&port, "port", 8080, "the port the receive server running")
 	return cmd
+}
+
+type testReceiver struct{}
+
+func (t testReceiver) Send(ctx context.Context, event *cloudevents.BatchEvent) (*emptypb.Empty, error) {
+	for idx := range event.Events.GetEvents() {
+		e := event.Events.GetEvents()[idx]
+		attr := e.GetAttributes()["time"]
+
+		if err := receive(ctx, e.Id, attr.GetCeTimestamp().AsTime()); err != nil {
+			return nil, err
+		}
+	}
+	return &emptypb.Empty{}, nil
 }
 
 func analyseCommand() *cobra.Command {
@@ -503,10 +519,13 @@ func analyseCommand() *cobra.Command {
 	return cmd
 }
 
-var receiveOnce = sync.Once{}
-var consumingCnt = int64(0)
+var (
+	receiveOnce  = sync.Once{}
+	consumingCnt = int64(0)
+	totalTime    = int64(0)
+)
 
-func receive(_ context.Context, event ce.Event) protocol.Result {
+func receive(_ context.Context, id string, t time.Time) error {
 	receiveOnce.Do(func() {
 		prev := int64(0)
 		go func() {
@@ -514,20 +533,21 @@ func receive(_ context.Context, event ce.Event) protocol.Result {
 				cur := atomic.LoadInt64(&consumingCnt)
 				tps := cur - prev
 				prev = cur
-				log.Info(nil, fmt.Sprintf("Received: %d, TPS: %d\n", cur, tps), nil)
+				log.Info(nil, fmt.Sprintf("Received: %d, TPS: %d, Average Latency: %d us\n", cur, tps,
+					atomic.LoadInt64(&totalTime)/atomic.LoadInt64(&consumingCnt)), nil)
 				time.Sleep(time.Second)
 			}
 		}()
 	})
-	event.SetExtension(eventReceivedAt, time.Now())
+	atomic.AddInt64(&totalTime, time.Now().Sub(t).Microseconds())
 	r := &Record{
-		ID:         event.ID(),
-		BornAt:     event.Time(),
+		ID:         id,
+		BornAt:     t,
 		ReceivedAt: time.Now(),
 	}
 	cache(r, "receive")
 	atomic.AddInt64(&consumingCnt, 1)
-	return ce.ResultACK
+	return nil
 }
 
 func isOutputFormatJSON(cmd *cobra.Command) bool {
@@ -539,14 +559,14 @@ func isOutputFormatJSON(cmd *cobra.Command) bool {
 }
 
 func cache(r *Record, key string) {
-	key = path.Join(redisKey, key, getBenchmarkID())
-	data, _ := json.Marshal(r)
-	cmd := rdb.LPush(context.Background(), key, data)
-	if cmd.Err() != nil {
-		log.Warning(context.Background(), "set event to redis failed", map[string]interface{}{
-			log.KeyError: cmd.Err(),
-		})
-	}
+	//key = path.Join(redisKey, key, getBenchmarkID())
+	//data, _ := json.Marshal(r)
+	//cmd := rdb.LPush(context.Background(), key, data)
+	//if cmd.Err() != nil {
+	//	log.Warning(context.Background(), "set event to redis failed", map[string]interface{}{
+	//		log.KeyError: cmd.Err(),
+	//	})
+	//}
 }
 
 func analyseProduction(ch <-chan *Record, f func(his *hdrhistogram.Histogram, unit string)) {
