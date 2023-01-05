@@ -23,15 +23,15 @@ import (
 
 const (
 	crcFieldSO    = 0
-	crcFieldEO    = crcFieldSO + 4 // [0,4)
-	lengthFieldSO = crcFieldEO
+	crcFieldEO    = crcFieldSO + 4    // [0,4)
+	lengthFieldSO = crcFieldEO        // 4
 	lengthFieldEO = lengthFieldSO + 2 // [4,6)
-	typeFieldSO   = lengthFieldEO
-	typeFieldEO   = typeFieldSO + 1 // [6,7)
-	dataFieldSO   = typeFieldEO     // [7,n)
+	typeFieldSO   = lengthFieldEO     // 6
+	typeFieldEO   = typeFieldSO + 1   // [6,7)
+	dataFieldSO   = typeFieldEO       // [7,n)
 )
 
-const HeaderSize = dataFieldSO
+const HeaderSize = dataFieldSO // 7
 
 var crc32q = crc32.MakeTable(crc32.Castagnoli)
 
