@@ -16,7 +16,6 @@ package vsb
 
 import (
 	// standard libraries.
-	"context"
 	"encoding/binary"
 	"sync/atomic"
 
@@ -54,7 +53,7 @@ func newFragment(offset int64, entries []block.Entry, enc codec.EntryEncoder) bl
 }
 
 func (f *fragment) Payload() []byte {
-	data, err := f.MarshalFragment(context.Background())
+	data, err := f.MarshalFragment()
 	if err != nil {
 		panic(err)
 	}
@@ -78,12 +77,12 @@ func (f *fragment) EndOffset() int64 {
 	return f.StartOffset() + int64(f.Size())
 }
 
-func (f *fragment) MarshalFragment(ctx context.Context) ([]byte, error) {
+func (f *fragment) MarshalFragment() ([]byte, error) {
 	if f.data != nil {
 		return f.data, nil
 	}
 
-	data, err := f.doMarshal(ctx)
+	data, err := f.doMarshal()
 	if err != nil {
 		return nil, err
 	}
@@ -99,14 +98,14 @@ func (f *fragment) size() int {
 	return sz
 }
 
-func (f *fragment) doMarshal(ctx context.Context) ([]byte, error) {
+func (f *fragment) doMarshal() ([]byte, error) {
 	data := make([]byte, OffsetSize+f.Size())
 
 	binary.LittleEndian.PutUint64(data, uint64(f.offset))
 
 	off := PayloadOffset
 	for _, entry := range f.entries {
-		n, _ := f.enc.MarshalTo(ctx, entry, data[off:])
+		n, _ := f.enc.MarshalTo(entry, data[off:])
 		off += n
 	}
 

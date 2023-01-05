@@ -442,12 +442,12 @@ func (a *appender) Append(ctx context.Context, entries []block.Entry, cb block.A
 		return
 	}
 
-	data, _ := block.MarshalFragment(ctx, frag)
+	data, _ := block.MarshalFragment(frag)
 
 	var pds []raft.ProposeData
 	if enough {
 		if frag, err := a.raw.PrepareArchive(ctx, a.actx); err == nil {
-			archivedData, _ := block.MarshalFragment(ctx, frag)
+			archivedData, _ := block.MarshalFragment(frag)
 			pds = make([]raft.ProposeData, 2)
 			// FIXME(james.yin): revert archived if propose failed.
 			pds[1] = raft.ProposeData{

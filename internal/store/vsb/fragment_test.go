@@ -16,7 +16,6 @@ package vsb
 
 import (
 	// standard libraries.
-	"context"
 	"encoding/binary"
 	"testing"
 	"time"
@@ -56,7 +55,7 @@ func TestFragment(t *testing.T) {
 		So(frag0.EndOffset(), ShouldEqual, vsbtest.EntryOffset0+vsbtest.EntrySize0)
 		mshl0, ok0 := frag0.(block.FragmentMarshaler)
 		So(ok0, ShouldBeTrue)
-		data0, err0 := mshl0.MarshalFragment(context.Background())
+		data0, err0 := mshl0.MarshalFragment()
 		So(err0, ShouldBeNil)
 		binary.LittleEndian.PutUint64(offBuf[:], uint64(vsbtest.EntryOffset0))
 		So(data0, ShouldResemble, append(offBuf[:], vsbtest.EntryData0...))
@@ -68,7 +67,7 @@ func TestFragment(t *testing.T) {
 		So(frag1.EndOffset(), ShouldEqual, vsbtest.EntryOffset1+vsbtest.EntrySize1)
 		mshl1, ok1 := frag1.(block.FragmentMarshaler)
 		So(ok1, ShouldBeTrue)
-		data1, err1 := mshl1.MarshalFragment(context.Background())
+		data1, err1 := mshl1.MarshalFragment()
 		So(err1, ShouldBeNil)
 		binary.LittleEndian.PutUint64(offBuf[:], uint64(vsbtest.EntryOffset1))
 		So(data1, ShouldResemble, append(offBuf[:], vsbtest.EntryData1...))
@@ -80,7 +79,7 @@ func TestFragment(t *testing.T) {
 		So(frag2.EndOffset(), ShouldEqual, vsbtest.EntryOffset0+vsbtest.EntrySize0+vsbtest.EntrySize1)
 		mshl2, ok2 := frag2.(block.FragmentMarshaler)
 		So(ok2, ShouldBeTrue)
-		data2, err2 := mshl2.MarshalFragment(context.Background())
+		data2, err2 := mshl2.MarshalFragment()
 		So(err2, ShouldBeNil)
 		binary.LittleEndian.PutUint64(offBuf[:], uint64(vsbtest.EntryOffset0))
 		So(data2, ShouldResemble, append(append(offBuf[:], vsbtest.EntryData0...), vsbtest.EntryData1...))
@@ -103,7 +102,7 @@ func BenchmarkFragment_MarshalFragment(b *testing.B) {
 	buf := make([]byte, c.Size(e))
 	b.Run("MarshalFragment", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			_, _ = c.MarshalTo(context.Background(), e, buf)
+			_, _ = c.MarshalTo(e, buf)
 		}
 	})
 }

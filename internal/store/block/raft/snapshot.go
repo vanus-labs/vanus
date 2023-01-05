@@ -32,7 +32,7 @@ func (a *appender) GetSnapshot(index uint64) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	data, err := block.MarshalFragment(ctx, snap)
+	data, err := block.MarshalFragment(snap)
 	if err != nil {
 		return nil, err
 	}

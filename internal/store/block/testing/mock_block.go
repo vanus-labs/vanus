@@ -13,6 +13,44 @@ import (
 	block "github.com/linkall-labs/vanus/internal/store/block"
 )
 
+// MockSeeker is a mock of Seeker interface.
+type MockSeeker struct {
+	ctrl     *gomock.Controller
+	recorder *MockSeekerMockRecorder
+}
+
+// MockSeekerMockRecorder is the mock recorder for MockSeeker.
+type MockSeekerMockRecorder struct {
+	mock *MockSeeker
+}
+
+// NewMockSeeker creates a new mock instance.
+func NewMockSeeker(ctrl *gomock.Controller) *MockSeeker {
+	mock := &MockSeeker{ctrl: ctrl}
+	mock.recorder = &MockSeekerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSeeker) EXPECT() *MockSeekerMockRecorder {
+	return m.recorder
+}
+
+// Seek mocks base method.
+func (m *MockSeeker) Seek(ctx context.Context, index int64, key block.Entry, flag block.SeekKeyFlag) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Seek", ctx, index, key, flag)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Seek indicates an expected call of Seek.
+func (mr *MockSeekerMockRecorder) Seek(ctx, index, key, flag interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Seek", reflect.TypeOf((*MockSeeker)(nil).Seek), ctx, index, key, flag)
+}
+
 // MockReader is a mock of Reader interface.
 type MockReader struct {
 	ctrl     *gomock.Controller
@@ -75,23 +113,15 @@ func (m *MockAppender) EXPECT() *MockAppenderMockRecorder {
 }
 
 // Append mocks base method.
-func (m *MockAppender) Append(ctx context.Context, entries ...block.Entry) ([]int64, error) {
+func (m *MockAppender) Append(ctx context.Context, entries []block.Entry, cb block.AppendCallback) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{ctx}
-	for _, a := range entries {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "Append", varargs...)
-	ret0, _ := ret[0].([]int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	m.ctrl.Call(m, "Append", ctx, entries, cb)
 }
 
 // Append indicates an expected call of Append.
-func (mr *MockAppenderMockRecorder) Append(ctx interface{}, entries ...interface{}) *gomock.Call {
+func (mr *MockAppenderMockRecorder) Append(ctx, entries, cb interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{ctx}, entries...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Append", reflect.TypeOf((*MockAppender)(nil).Append), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Append", reflect.TypeOf((*MockAppender)(nil).Append), ctx, entries, cb)
 }
 
 // MockBlock is a mock of Block interface.
@@ -118,23 +148,15 @@ func (m *MockBlock) EXPECT() *MockBlockMockRecorder {
 }
 
 // Append mocks base method.
-func (m *MockBlock) Append(ctx context.Context, entries ...block.Entry) ([]int64, error) {
+func (m *MockBlock) Append(ctx context.Context, entries []block.Entry, cb block.AppendCallback) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{ctx}
-	for _, a := range entries {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "Append", varargs...)
-	ret0, _ := ret[0].([]int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	m.ctrl.Call(m, "Append", ctx, entries, cb)
 }
 
 // Append indicates an expected call of Append.
-func (mr *MockBlockMockRecorder) Append(ctx interface{}, entries ...interface{}) *gomock.Call {
+func (mr *MockBlockMockRecorder) Append(ctx, entries, cb interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{ctx}, entries...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Append", reflect.TypeOf((*MockBlock)(nil).Append), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Append", reflect.TypeOf((*MockBlock)(nil).Append), ctx, entries, cb)
 }
 
 // ID mocks base method.
@@ -164,4 +186,19 @@ func (m *MockBlock) Read(ctx context.Context, seq int64, num int) ([]block.Entry
 func (mr *MockBlockMockRecorder) Read(ctx, seq, num interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockBlock)(nil).Read), ctx, seq, num)
+}
+
+// Seek mocks base method.
+func (m *MockBlock) Seek(ctx context.Context, index int64, key block.Entry, flag block.SeekKeyFlag) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Seek", ctx, index, key, flag)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Seek indicates an expected call of Seek.
+func (mr *MockBlockMockRecorder) Seek(ctx, index, key, flag interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Seek", reflect.TypeOf((*MockBlock)(nil).Seek), ctx, index, key, flag)
 }

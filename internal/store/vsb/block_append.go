@@ -256,7 +256,7 @@ func (b *vsBlock) appendIndexEntry(ctx context.Context, indexes []index.Index, c
 	entry := index.NewEntry(indexes)
 	sz := b.enc.Size(entry)
 	data := make([]byte, sz)
-	if _, err := b.enc.MarshalTo(ctx, entry, data); err != nil {
+	if _, err := b.enc.MarshalTo(entry, data); err != nil {
 		cb(0, err)
 		return
 	}
