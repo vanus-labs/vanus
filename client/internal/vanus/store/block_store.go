@@ -19,6 +19,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/linkall-labs/vanus/client/pkg/codec"
+
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"go.opentelemetry.io/otel/trace"
 
@@ -30,8 +32,6 @@ import (
 	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
-	// this project
-	"github.com/linkall-labs/vanus/client/internal/vanus/codec"
 	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc"
 	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc/bare"
 	"github.com/linkall-labs/vanus/client/pkg/primitive"

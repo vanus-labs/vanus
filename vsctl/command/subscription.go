@@ -87,6 +87,8 @@ func createSubscriptionCommand() *cobra.Command {
 				if sinkCredentialType != GCloudCredentialType {
 					cmdFailedf(cmd, "protocol is aws-lambda, credential-type must be %s\n", GCloudCredentialType)
 				}
+			case "grpc":
+				p = meta.Protocol_GRPC
 			default:
 				cmdFailedf(cmd, "protocol is invalid\n")
 			}
@@ -213,7 +215,7 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&transformer, "transformer", "", "transformer, JSON format required")
 	cmd.Flags().Uint32Var(&rateLimit, "rate-limit", 0, "max event number pushing to sink per second, default is 0, means unlimited")
 	cmd.Flags().StringVar(&from, "from", "", "consume events from, latest,earliest or RFC3339 format time")
-	cmd.Flags().StringVar(&subProtocol, "protocol", "http", "protocol,http or aws-lambda or gcloud-functions")
+	cmd.Flags().StringVar(&subProtocol, "protocol", "http", "protocol,http or aws-lambda or gcloud-functions or grpc")
 	cmd.Flags().StringVar(&sinkCredentialType, "credential-type", "", "sink credential type: aws or gcloud")
 	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, JSON format or @file")
 	cmd.Flags().Uint32Var(&deliveryTimeout, "delivery-timeout", 0, "event delivery to sink timeout by millisecond, default is 0, means using server-side default value: 5s")
@@ -486,6 +488,8 @@ func getSubscriptionRow(sub *meta.Subscription) []interface{} {
 		protocol = "aws-lambda"
 	case meta.Protocol_GCLOUD_FUNCTIONS:
 		protocol = "gcloud-functions"
+	case meta.Protocol_GRPC:
+		protocol = "grpc"
 	}
 	result = append(result, protocol)
 

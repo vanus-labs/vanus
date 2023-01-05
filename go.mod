@@ -30,6 +30,7 @@ require (
 	github.com/linkall-labs/vanus/raft v0.5.1
 	github.com/ncw/directio v1.0.5
 	github.com/ohler55/ojg v1.14.5
+	github.com/panjf2000/ants/v2 v2.7.1
 	github.com/pkg/errors v0.9.1
 	github.com/prashantv/gostub v1.1.0
 	github.com/prometheus/client_golang v1.14.0

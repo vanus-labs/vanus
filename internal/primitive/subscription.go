@@ -49,6 +49,7 @@ const (
 	HTTPProtocol      Protocol = "http"
 	AwsLambdaProtocol Protocol = "aws-lambda"
 	GCloudFunctions   Protocol = "gcloud-functions"
+	GRPC              Protocol = "grpc"
 )
 
 type ProtocolSetting struct {

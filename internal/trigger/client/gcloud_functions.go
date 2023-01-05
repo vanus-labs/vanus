@@ -54,7 +54,8 @@ func (c *gcloudFunctions) init(ctx context.Context) error {
 	return nil
 }
 
-func (c *gcloudFunctions) Send(ctx context.Context, event ce.Event) Result {
+func (c *gcloudFunctions) Send(ctx context.Context, events ...*ce.Event) Result {
+	event := events[0]
 	if c.client == nil {
 		err := c.init(ctx)
 		if err != nil {
