@@ -26,8 +26,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
 )
 
-const walTempDir = ""
-
 func BenchmarkWAL_AppendOneWithBatching(b *testing.B) {
 	walDir := b.TempDir()
 
