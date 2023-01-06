@@ -6,7 +6,7 @@ require (
 	github.com/cockroachdb/datadriven v0.0.0-20200714090401-bf6692d28da5
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.2
-	github.com/linkall-labs/vanus/observability v0.5.6
+	github.com/linkall-labs/vanus/observability v0.5.7
 	go.etcd.io/etcd/client/pkg/v3 v3.6.0-alpha.0
 	go.opentelemetry.io/otel/trace v1.11.2
 )

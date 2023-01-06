@@ -79,7 +79,7 @@ spec:
     spec:
       containers:
         - name: controller
-          image: public.ecr.aws/vanus/controller:v0.5.1
+          image: public.ecr.aws/vanus/controller:v0.5.7
           imagePullPolicy: IfNotPresent
           command:
             [ "/bin/sh", "-c", "NODE_ID=${HOSTNAME##*-} /vanus/bin/controller" ]

@@ -23,11 +23,12 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/json-iterator/go v1.1.12
 	github.com/linkall-labs/embed-etcd v0.1.2
-	github.com/linkall-labs/vanus/client v0.5.6
-	github.com/linkall-labs/vanus/observability v0.5.6
-	github.com/linkall-labs/vanus/pkg v0.5.6
-	github.com/linkall-labs/vanus/proto v0.5.6
-	github.com/linkall-labs/vanus/raft v0.5.6
+	github.com/linkall-labs/sdk/proto v0.0.0-20230106022440-7302e243c0b6
+	github.com/linkall-labs/vanus/client v0.5.7
+	github.com/linkall-labs/vanus/observability v0.5.7
+	github.com/linkall-labs/vanus/pkg v0.5.7
+	github.com/linkall-labs/vanus/proto v0.5.7
+	github.com/linkall-labs/vanus/raft v0.5.7
 	github.com/ncw/directio v1.0.5
 	github.com/ohler55/ojg v1.14.5
 	github.com/panjf2000/ants/v2 v2.7.1
@@ -92,7 +93,6 @@ require (
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
-	github.com/linkall-labs/sdk/proto v0.0.0-20230106022440-7302e243c0b6 // indirect
 	github.com/mattn/go-colorable v0.1.11 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect

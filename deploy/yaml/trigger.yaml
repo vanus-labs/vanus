@@ -33,7 +33,7 @@ spec:
     spec:
       containers:
         - name: trigger
-          image: public.ecr.aws/vanus/trigger:v0.5.1
+          image: public.ecr.aws/vanus/trigger:v0.5.7
           imagePullPolicy: IfNotPresent
           ports:
             - name: grpc
