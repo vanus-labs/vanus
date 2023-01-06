@@ -68,6 +68,7 @@ import (
 
 const (
 	maximumNumberPerGetRequest = 64
+	eventChanCache             = 10
 	ContentTypeProtobuf        = "application/protobuf"
 	httpRequestPrefix          = "/gatewaysink"
 	datacontenttype            = "datacontenttype"
@@ -99,7 +100,7 @@ type ackCallback func(bool)
 
 type message struct {
 	sequenceID uint64
-	event      v2.Event
+	event      *v2.Event
 }
 
 type subscribeCache struct {
@@ -116,7 +117,7 @@ func newSubscribeCache(subscriptionID string, stream vanuspb.Client_SubscribeSer
 		subscriptionID:  subscriptionID,
 		subscribeStream: stream,
 		acks:            sync.Map{},
-		eventc:          make(chan message),
+		eventc:          make(chan message, eventChanCache),
 	}
 }
 
@@ -247,7 +248,7 @@ func (cp *ControllerProxy) Subscribe(req *vanuspb.SubscribeRequest, stream vanus
 		case <-_ctx.Done():
 			return errors.ErrInternal.WithMessage("subscribe stream context done")
 		case msg := <-subscribe.ch():
-			eventpb, err := ToProto(&msg.event)
+			eventpb, err := ToProto(msg.event)
 			if err != nil {
 				// TODO(jiangkai): err check
 				log.Error(_ctx, "to eventpb failed", map[string]interface{}{
@@ -573,7 +574,7 @@ func (cp *ControllerProxy) receive(ctx context.Context, event v2.Event) (*v2.Eve
 	}))
 	cache.(*subscribeCache).eventc <- message{
 		sequenceID: sequenceID,
-		event:      event,
+		event:      &event,
 	}
 	<-donec
 
