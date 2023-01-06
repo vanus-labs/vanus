@@ -74,13 +74,14 @@ func NewReader(config Config, events chan<- info.EventRecord) Reader {
 		config:   config,
 		events:   events,
 		elReader: make(map[vanus.ID]struct{}),
-		stop:     func() {},
 	}
 	return r
 }
 
 func (r *reader) Close() {
-	r.stop()
+	if r.stop != nil {
+		r.stop()
+	}
 	r.wg.Wait()
 	log.Info(context.TODO(), "reader closed", map[string]interface{}{
 		log.KeyEventbusName: r.config.EventBusName,
