@@ -179,7 +179,7 @@ spec:
         app: vanus-gateway
     spec:
       containers:
-        - image: public.ecr.aws/vanus/gateway:bb93cdc
+        - image: public.ecr.aws/vanus/gateway:7b1a23d
           imagePullPolicy: IfNotPresent
           name: gateway
           resources:
@@ -229,7 +229,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: public.ecr.aws/vanus/timer:bb93cdc
+          image: public.ecr.aws/vanus/timer:7b1a23d
           imagePullPolicy: IfNotPresent
           name: timer
           volumeMounts:
@@ -274,16 +274,16 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: public.ecr.aws/vanus/trigger:bb93cdc
+          image: public.ecr.aws/vanus/trigger:7b1a23d
           imagePullPolicy: IfNotPresent
           name: trigger
           resources:
             limits:
-              cpu: 16000m
-              memory: 16000Mi
+              cpu: 12000m
+              memory: 12000Mi
             requests:
-              cpu: 16000m
-              memory: 16000Mi
+              cpu: 12000m
+              memory: 12000Mi
           ports:
             - containerPort: 2148
               name: grpc
@@ -331,7 +331,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: public.ecr.aws/vanus/controller:bb93cdc
+          image: public.ecr.aws/vanus/controller:7b1a23d
           imagePullPolicy: IfNotPresent
           name: controller
           resources:
@@ -405,7 +405,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: public.ecr.aws/vanus/store:64c8fde
+          image: public.ecr.aws/vanus/store:7b1a23d
           imagePullPolicy: IfNotPresent
           name: store
           resources:
