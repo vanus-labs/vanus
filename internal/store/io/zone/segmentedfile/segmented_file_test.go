@@ -15,6 +15,7 @@
 package segmentedfile
 
 import (
+	// standard libraries.
 	"testing"
 
 	// third-party libraries.
