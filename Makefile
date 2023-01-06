@@ -74,39 +74,3 @@ docker-build-timer:
 	docker build -t ${DOCKER_REPO}/timer:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/timer/Dockerfile .
 build-timer:
 	$(GO_BUILD)  -o bin/timer cmd/timer/main.go
-
-controller-start:
-	go run ${VANUS_ROOT}/cmd/controller/main.go
-
-build-ctrl-bin:
-	$(GO_BUILD) -o bin/ctrl cmd/controller/main.go
-
-build-gw-util:
-	go build -o bin/gw-util test/gateway/main.go
-
-build-e2e:
-	go build -o bin/e2e test/e2e/quick-start/main.go
-
-build-destruct:
-	go build -o bin/destruct test/e2e/destruct/main.go
-
-controller-start:
-	go run ${VANUS_ROOT}/cmd/controller/${module}/main.go
-
-controller-api-test:
-	grpcui --import-path=${VSPROTO_ROOT}/include \
-           --import-path=${VSPROTO_ROOT}/proto \
-           --plaintext \
-           --proto=controller.proto 127.0.0.1:2048
-
-store-start:
-	go run ${VANUS_ROOT}/cmd/store/main.go
-
-store-api-test:
-	grpcui --import-path=${VSPROTO_ROOT}/include \
-           --import-path=${VSPROTO_ROOT}/proto \
-           --plaintext \
-           --proto=segment.proto 127.0.0.1:11831
-
-trigger-start:
-	go run ${VANUS_ROOT}/cmd/trigger/main.go

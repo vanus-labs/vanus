@@ -179,7 +179,7 @@ spec:
         app: vanus-gateway
     spec:
       containers:
-        - image: public.ecr.aws/vanus/gateway:7b1a23d
+        - image: public.ecr.aws/vanus/gateway:6b23e5a
           imagePullPolicy: IfNotPresent
           name: gateway
           resources:
@@ -229,7 +229,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: public.ecr.aws/vanus/timer:7b1a23d
+          image: public.ecr.aws/vanus/timer:6b23e5a
           imagePullPolicy: IfNotPresent
           name: timer
           volumeMounts:
@@ -274,7 +274,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: public.ecr.aws/vanus/trigger:7b1a23d
+          image: public.ecr.aws/vanus/trigger:6b23e5a
           imagePullPolicy: IfNotPresent
           name: trigger
           resources:
@@ -331,7 +331,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: public.ecr.aws/vanus/controller:7b1a23d
+          image: public.ecr.aws/vanus/controller:6b23e5a
           imagePullPolicy: IfNotPresent
           name: controller
           resources:
@@ -381,7 +381,7 @@ metadata:
   name: vanus-store
   namespace: vanus
 spec:
-  replicas: 6
+  replicas: 4
   selector:
     matchLabels:
       app: vanus-store
@@ -405,16 +405,16 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: public.ecr.aws/vanus/store:7b1a23d
+          image: public.ecr.aws/vanus/store:6b23e5a
           imagePullPolicy: IfNotPresent
           name: store
           resources:
             limits:
-              cpu: 2000m
-              memory: 4000Mi
+              cpu: 4000m
+              memory: 8000Mi
             requests:
-              cpu: 2000m
-              memory: 4000Mi
+              cpu: 4000m
+              memory: 8000Mi
           ports:
             - containerPort: 11811
               name: grpc
