@@ -1,4 +1,4 @@
-// Copyright 2022 Linkall Inc.
+// Copyright 2023 Linkall Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,12 +42,13 @@ func newCommonFilter(value map[string]string, meetCondition meetCondition) *comm
 			})
 			return nil
 		}
-		if attr == "data" {
+		switch {
+		case attr == "data":
 			data[""] = v
-		} else if len(attr) > 4 && attr[:5] == "data." {
+		case len(attr) > 4 && attr[:5] == "data.":
 			attr = attr[5:]
 			data[attr] = v
-		} else {
+		default:
 			// event attribute.
 			attribute[attr] = v
 		}
