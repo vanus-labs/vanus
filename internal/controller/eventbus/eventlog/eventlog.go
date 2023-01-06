@@ -816,9 +816,9 @@ func (mgr *eventlogManager) whichIsLeader(raftGroup map[uint64]*metadata.Block) 
 	mgr.globalSegmentMap.Range(func(key, value any) bool {
 		seg, _ := value.(*Segment)
 		if seg.State == StateWorking {
-			vId := seg.GetLeaderBlock().VolumeID.Uint64()
-			count := countMap[vId]
-			countMap[vId] = count + 1
+			vID := seg.GetLeaderBlock().VolumeID.Uint64()
+			count := countMap[vID]
+			countMap[vID] = count + 1
 		}
 		return true
 	})

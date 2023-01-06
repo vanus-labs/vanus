@@ -15,13 +15,14 @@
 package block
 
 import (
+	"context"
 	"fmt"
-	"github.com/linkall-labs/vanus/observability/log"
 	"sort"
 	"sync"
 
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/observability/log"
 )
 
 // VolumeSelector selector for Block creating. The implementation based on different algorithm, typical
@@ -85,7 +86,7 @@ func (s *volumeRoundRobinSelector) Select(num int, size int64) []server.Instance
 	for idx := 0; idx < num; idx++ {
 		instances = append(instances, m[keys[(s.count+int64(idx))%int64(len(keys))]])
 	}
-	log.Info(nil, "picked instances", map[string]interface{}{
+	log.Info(context.TODO(), "picked instances", map[string]interface{}{
 		"instances": fmt.Sprintf("%v", instances),
 	})
 	s.count++

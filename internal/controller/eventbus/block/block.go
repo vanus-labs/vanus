@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=block.go  -destination=mock_block.go -package=block
 package block
 
 import (
 	"context"
 	"encoding/json"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/huandu/skiplist"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
