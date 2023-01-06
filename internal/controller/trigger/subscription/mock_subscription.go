@@ -81,6 +81,21 @@ func (mr *MockManagerMockRecorder) GetOffset(ctx, id interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOffset", reflect.TypeOf((*MockManager)(nil).GetOffset), ctx, id)
 }
 
+// GetOrSaveOffset mocks base method.
+func (m *MockManager) GetOrSaveOffset(ctx context.Context, id vanus.ID) (info.ListOffsetInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOrSaveOffset", ctx, id)
+	ret0, _ := ret[0].(info.ListOffsetInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOrSaveOffset indicates an expected call of GetOrSaveOffset.
+func (mr *MockManagerMockRecorder) GetOrSaveOffset(ctx, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrSaveOffset", reflect.TypeOf((*MockManager)(nil).GetOrSaveOffset), ctx, id)
+}
+
 // GetSubscription mocks base method.
 func (m *MockManager) GetSubscription(ctx context.Context, id vanus.ID) *metadata.Subscription {
 	m.ctrl.T.Helper()
@@ -135,6 +150,21 @@ func (m *MockManager) ListSubscription(ctx context.Context) []*metadata.Subscrip
 func (mr *MockManagerMockRecorder) ListSubscription(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSubscription", reflect.TypeOf((*MockManager)(nil).ListSubscription), ctx)
+}
+
+// ResetOffsetByTimestamp mocks base method.
+func (m *MockManager) ResetOffsetByTimestamp(ctx context.Context, id vanus.ID, timestamp uint64) (info.ListOffsetInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResetOffsetByTimestamp", ctx, id, timestamp)
+	ret0, _ := ret[0].(info.ListOffsetInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResetOffsetByTimestamp indicates an expected call of ResetOffsetByTimestamp.
+func (mr *MockManagerMockRecorder) ResetOffsetByTimestamp(ctx, id, timestamp interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetOffsetByTimestamp", reflect.TypeOf((*MockManager)(nil).ResetOffsetByTimestamp), ctx, id, timestamp)
 }
 
 // SaveOffset mocks base method.

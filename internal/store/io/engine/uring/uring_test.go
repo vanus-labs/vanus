@@ -15,19 +15,31 @@
 //go:build linux
 // +build linux
 
-package store
+package uring
 
 import (
+	// standard libraries.
+	"os"
+	"testing"
+
+	// third-party libraries.
+	. "github.com/smartystreets/goconvey/convey"
+
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/io"
-	walog "github.com/linkall-labs/vanus/internal/store/wal"
+	enginetest "github.com/linkall-labs/vanus/internal/store/io/engine/testing"
 )
 
-const ioEngineUring = "io_uring"
-
-func configWALIOEngineOptionEx(opts []walog.Option, cfg IOConfig) []walog.Option {
-	if cfg.Engine == ioEngineUring {
-		opts = append(opts, walog.WithIOEngine(io.NewURing()))
+func TestURing(t *testing.T) {
+	f, err := os.CreateTemp("", "wal-engine-*")
+	if err != nil {
+		t.Fatal(err)
 	}
-	return opts
+	defer os.Remove(f.Name())
+
+	e := New()
+	defer e.Close()
+
+	Convey("uRing", t, func() {
+		enginetest.DoEngineTest(e, f)
+	})
 }

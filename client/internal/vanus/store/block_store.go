@@ -28,6 +28,7 @@ import (
 	"google.golang.org/grpc"
 
 	// first-party libraries
+  "github.com/linkall-labs/vanus/client/pkg/codec"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/errors"
@@ -35,8 +36,6 @@ import (
 	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
-	// this project
-	"github.com/linkall-labs/vanus/client/internal/vanus/codec"
 	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc"
 	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc/bare"
 	"github.com/linkall-labs/vanus/client/pkg/primitive"

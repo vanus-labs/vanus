@@ -44,6 +44,7 @@ var (
 	ErrResourceAlreadyExist = New("resource already exist").WithCode(errpb.ErrorCode_RESOURCE_ALREADY_EXIST)
 	ErrResourceNotFound     = New("resource not found").WithCode(errpb.ErrorCode_RESOURCE_NOT_FOUND)
 	ErrResourceNotReady     = New("resource not ready").WithCode(errpb.ErrorCode_RESOURCE_NOT_READY)
+	ErrResourceCanNotOp     = New("resource can not operation").WithCode(errpb.ErrorCode_RESOURCE_CAN_NOT_OP)
 
 	// SERVICE_NOT_RUNNING
 	ErrServerNotRunning = New("server not running").WithCode(errpb.ErrorCode_SERVICE_NOT_RUNNING)

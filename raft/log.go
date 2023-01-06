@@ -31,16 +31,18 @@ type raftLog struct {
 	// they will be saved into storage.
 	unstable unstable
 
-	pending uint64
+	persisting uint64
 	// committed is the highest log position that is known to be in
 	// stable storage on a quorum of nodes.
 	// Invariant: committed < unstable.offset + len(unstable.entries)
 	committed uint64
 	// Invariant: localCommitted = min(committed, unstable.offset)
 	localCommitted uint64
+	// Invariant: applying <= localCommitted
+	applying uint64
 	// applied is the highest log position that the application has
 	// been instructed to apply to its state machine.
-	// Invariant: applied <= localCommitted
+	// Invariant: applied <= applying
 	applied uint64
 	// compacted is the highest log position that the application can
 	// delete safety.
@@ -82,10 +84,11 @@ func newLogWithSize(storage Storage, logger Logger, maxNextEntsSize uint64) *raf
 	}
 	log.unstable.offset = lastIndex + 1
 	log.unstable.logger = logger
-	log.pending = lastIndex + 1
+	log.persisting = lastIndex + 1
 	// Initialize our committed and applied pointers to the time of the last compaction.
 	log.committed = firstIndex - 1
 	log.localCommitted = firstIndex - 1
+	log.applying = firstIndex - 1
 	log.applied = firstIndex - 1
 	log.compacted = firstIndex - 1
 
@@ -134,8 +137,8 @@ func (l *raftLog) append(ents ...pb.Entry) uint64 {
 		l.inflight.truncateFrom(start)
 	}
 	// Reset pending when any entry being persisted is truncated.
-	if l.pending > start {
-		l.pending = start
+	if l.persisting > start {
+		l.persisting = start
 	}
 	return li
 }
@@ -201,7 +204,7 @@ func (l *raftLog) unstableEntries() []pb.Entry {
 }
 
 func (l *raftLog) pendingEntries() []pb.Entry {
-	so := int(l.pending - l.unstable.offset)
+	so := int(l.persisting - l.unstable.offset)
 	if so >= len(l.unstable.entries) {
 		return nil
 	}
@@ -212,7 +215,7 @@ func (l *raftLog) pendingEntries() []pb.Entry {
 // If applied is smaller than the index of snapshot, it returns all committed
 // entries after the index of snapshot.
 func (l *raftLog) nextEnts() (ents []pb.Entry) {
-	lo := max(l.applied+1, l.firstIndex())
+	lo := max(l.applying+1, l.firstIndex())
 	if hi := l.localCommitted + 1; hi > lo {
 		ents, err := l.slice(lo, hi, l.maxNextEntsSize)
 		if err != nil {
@@ -226,7 +229,7 @@ func (l *raftLog) nextEnts() (ents []pb.Entry) {
 // hasNextEnts returns if there is any available entries for execution. This
 // is a fast check without heavy raftLog.slice() in raftLog.nextEnts().
 func (l *raftLog) hasNextEnts() bool {
-	off := max(l.applied+1, l.firstIndex())
+	off := max(l.applying+1, l.firstIndex())
 	return l.localCommitted+1 > off
 }
 
@@ -286,10 +289,20 @@ func (l *raftLog) appliedTo(i uint64) {
 	if i == 0 {
 		return
 	}
-	if l.localCommitted < i || i < l.applied {
-		l.logger.Panicf("applied(%d) is out of range [prevApplied(%d), localCommitted(%d)]", i, l.applied, l.localCommitted)
+	if l.applying < i || i < l.applied {
+		l.logger.Panicf("applied(%d) is out of range [prevApplied(%d), applying(%d)]", i, l.applied, l.applying)
 	}
 	l.applied = i
+}
+
+func (l *raftLog) applyingTo(i uint64) {
+	if i == 0 {
+		return
+	}
+	if l.localCommitted < i || i < l.applying {
+		l.logger.Panicf("applied(%d) is out of range [prevApplying(%d), localCommitted(%d)]", i, l.applying, l.localCommitted)
+	}
+	l.applying = i
 }
 
 func (l *raftLog) localCommitTo(tocommit uint64) {
@@ -325,7 +338,7 @@ func (l *raftLog) persistingTo(i, t uint64) {
 	// if i < offset, term is matched with the snapshot
 	// only update the pending if term is matched with an unstable entry.
 	if gt == t && i >= l.unstable.offset {
-		l.pending = i + 1
+		l.persisting = i + 1
 	}
 }
 
@@ -446,7 +459,7 @@ func (l *raftLog) restore(s pb.Snapshot) {
 	l.localCommitted = s.Metadata.Index
 	// NOTE: applied and compacted will be reset in raft.advance().
 	l.unstable.restore(s)
-	l.pending = l.unstable.offset
+	l.persisting = l.unstable.offset
 }
 
 // slice returns a slice of log entries from lo through hi-1, inclusive.

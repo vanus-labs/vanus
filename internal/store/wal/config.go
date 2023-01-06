@@ -19,14 +19,14 @@ import (
 	"time"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/io"
+	ioengine "github.com/linkall-labs/vanus/internal/store/io/engine"
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
 )
 
 const (
 	defaultBlockSize        = 4 * 1024
 	defaultFileSize         = 128 * 1024 * 1024
-	defaultFlushTimeout     = 200 * time.Microsecond
+	defaultFlushTimeout     = 3 * time.Millisecond
 	defaultAppendBufferSize = 64
 	defaultFlushBufferSize  = 64
 	defaultWakeupBufferSize = defaultFlushBufferSize * 2
@@ -35,17 +35,17 @@ const (
 type config struct {
 	pos                int64
 	cb                 OnEntryCallback
-	blockSize          int64
+	blockSize          int
 	fileSize           int64
 	flushTimeout       time.Duration
 	appendBufferSize   int
 	callbackBufferSize int
 	flushBufferSize    int
 	wakeupBufferSize   int
-	engine             io.Engine
+	engine             ioengine.Interface
 }
 
-func defaultWALConfig() config {
+func defaultConfig() config {
 	cfg := config{
 		blockSize:          defaultBlockSize,
 		fileSize:           defaultFileSize,
@@ -54,7 +54,6 @@ func defaultWALConfig() config {
 		callbackBufferSize: (defaultBlockSize + record.HeaderSize - 1) / record.HeaderSize,
 		flushBufferSize:    defaultFlushBufferSize,
 		wakeupBufferSize:   defaultWakeupBufferSize,
-		engine:             defaultIOEngine(),
 	}
 	return cfg
 }
@@ -62,9 +61,12 @@ func defaultWALConfig() config {
 type Option func(*config)
 
 func makeConfig(opts ...Option) config {
-	cfg := defaultWALConfig()
+	cfg := defaultConfig()
 	for _, opt := range opts {
 		opt(&cfg)
+	}
+	if cfg.engine == nil {
+		cfg.engine = defaultIOEngine()
 	}
 	return cfg
 }
@@ -81,10 +83,10 @@ func WithRecoveryCallback(cb OnEntryCallback) Option {
 	}
 }
 
-func WithBlockSize(blockSize int64) Option {
+func WithBlockSize(blockSize int) Option {
 	return func(cfg *config) {
 		cfg.blockSize = blockSize
-		cfg.callbackBufferSize = int((blockSize + record.HeaderSize - 1) / record.HeaderSize)
+		cfg.callbackBufferSize = (blockSize + record.HeaderSize - 1) / record.HeaderSize
 	}
 }
 
@@ -124,7 +126,7 @@ func WithWakeupBufferSize(size int) Option {
 	}
 }
 
-func WithIOEngine(engine io.Engine) Option {
+func WithIOEngine(engine ioengine.Interface) Option {
 	return func(cfg *config) {
 		cfg.engine = engine
 	}

@@ -449,7 +449,7 @@ func (w *busWriter) AppendBatch(ctx context.Context, events *cloudevents.CloudEv
 	_ctx, span := w.tracer.Start(ctx, "CloudEventBatch")
 	defer span.End()
 
-	var writeOpts *api.WriteOptions = w.opts
+	var writeOpts = w.opts
 	if len(opts) > 0 {
 		writeOpts = w.opts.Copy()
 		for _, opt := range opts {
@@ -474,7 +474,7 @@ func (w *busWriter) AppendOne(ctx context.Context, event *ce.Event, opts ...api.
 	_ctx, span := w.tracer.Start(ctx, "AppendOne")
 	defer span.End()
 
-	var writeOpts *api.WriteOptions = w.opts
+	var writeOpts = w.opts
 	if len(opts) > 0 {
 		writeOpts = w.opts.Copy()
 		for _, opt := range opts {

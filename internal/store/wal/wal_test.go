@@ -58,8 +58,8 @@ func TestWAL_AppendOne(t *testing.T) {
 			// Invoke callback of append data0, before append data1 return.
 			So(done, ShouldBeTrue)
 			So(n.EO, ShouldEqual, 21)
-			So(wal.wb.Size(), ShouldEqual, 21)
-			So(wal.wb.Committed(), ShouldEqual, 21)
+			So(wal.s.WriteOffset(), ShouldEqual, 21)
+			// So(wal.wb.Committed(), ShouldEqual, 21)
 
 			filePath := filepath.Join(walDir, fmt.Sprintf("%020d.log", 0))
 			data, err2 := os.ReadFile(filePath)
@@ -80,7 +80,7 @@ func TestWAL_AppendOne(t *testing.T) {
 
 			So(err, ShouldBeNil)
 			So(n.EO, ShouldEqual, fileSize+9*record.HeaderSize)
-			So(len(wal.stream.stream), ShouldEqual, 2)
+			So(wal.sf.Len(), ShouldEqual, 2)
 		})
 
 		Reset(func() {
@@ -115,6 +115,7 @@ func TestWAL_AppendOne(t *testing.T) {
 
 		So(t0, ShouldHappenBefore, startTime.Add(flushTimeout))
 		So(t1, ShouldHappenAfter, startTime.Add(flushTimeout))
+		So(t1, ShouldHappenAfter, t0)
 		So(t2, ShouldHappenAfter, t1)
 
 		wal.Close()
@@ -128,7 +129,8 @@ func TestWAL_AppendOne(t *testing.T) {
 		walDir, err := os.MkdirTemp("", "wal-*")
 		So(err, ShouldBeNil)
 
-		wal, err := Open(ctx, walDir, WithFileSize(fileSize))
+		flushTimeout := 100 * time.Millisecond
+		wal, err := Open(ctx, walDir, WithFileSize(fileSize), WithFlushTimeout(flushTimeout))
 		So(err, ShouldBeNil)
 
 		var inflight int32 = 100
@@ -174,8 +176,8 @@ func TestWAL_Append(t *testing.T) {
 			So(len(ranges), ShouldEqual, 2)
 			So(ranges[0].EO, ShouldEqual, 10)
 			So(ranges[1].EO, ShouldEqual, 21)
-			So(wal.wb.Size(), ShouldEqual, 21)
-			So(wal.wb.Committed(), ShouldEqual, 21)
+			So(wal.s.WriteOffset(), ShouldEqual, 21)
+			// So(wal.wb.Committed(), ShouldEqual, 21)
 
 			filePath := filepath.Join(walDir, fmt.Sprintf("%020d.log", 0))
 			data, err2 := os.ReadFile(filePath)
@@ -187,15 +189,6 @@ func TestWAL_Append(t *testing.T) {
 					0x52, 0x74, 0x2F, 0x51, 0x00, 0x04, 0x01, 0x44, 0x45, 0x46, 0x47,
 					0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 				})
-		})
-
-		Convey("append without entry", func() {
-			ranges, err := wal.Append(ctx, [][]byte{}).Wait()
-
-			So(err, ShouldBeNil)
-			So(len(ranges), ShouldEqual, 0)
-			So(wal.wb.Size(), ShouldEqual, 0)
-			So(wal.wb.Committed(), ShouldEqual, 0)
 		})
 
 		Reset(func() {
@@ -222,20 +215,20 @@ func TestWAL_Compact(t *testing.T) {
 
 		_, err = wal.Append(ctx, [][]byte{data, data, data, data, data, data, data, data}).Wait()
 		So(err, ShouldBeNil)
-		So(wal.stream.stream, ShouldHaveLength, 1)
+		So(wal.sf.Len(), ShouldEqual, 1)
 
 		r, err := wal.AppendOne(ctx, data).Wait()
 		So(err, ShouldBeNil)
 		So(r, ShouldResemble, Range{SO: fileSize, EO: fileSize + defaultBlockSize})
-		So(wal.stream.stream, ShouldHaveLength, 2)
+		So(wal.sf.Len(), ShouldEqual, 2)
 
 		err = wal.Compact(ctx, r.SO)
 		So(err, ShouldBeNil)
-		So(wal.stream.stream, ShouldHaveLength, 1)
+		So(wal.sf.Len(), ShouldEqual, 1)
 
 		err = wal.Compact(ctx, r.EO)
 		So(err, ShouldBeNil)
-		So(wal.stream.stream, ShouldHaveLength, 1)
+		So(wal.sf.Len(), ShouldEqual, 1)
 
 		ranges, err := wal.Append(ctx, [][]byte{
 			data, data, data, data, data, data, data, data,
@@ -243,11 +236,11 @@ func TestWAL_Compact(t *testing.T) {
 		}).Wait()
 		So(err, ShouldBeNil)
 		So(ranges[len(ranges)-1].EO, ShouldEqual, fileSize*3+defaultBlockSize)
-		So(wal.stream.stream, ShouldHaveLength, 3)
+		So(wal.sf.Len(), ShouldEqual, 3)
 
 		err = wal.Compact(ctx, fileSize*2)
 		So(err, ShouldBeNil)
-		So(wal.stream.stream, ShouldHaveLength, 2)
+		So(wal.sf.Len(), ShouldEqual, 2)
 
 		wal.Close()
 		wal.Wait()

@@ -22,17 +22,15 @@ import (
 	"github.com/ncw/directio"
 )
 
-type Allocator struct {
+type BufferPool struct {
 	size     int
-	next     int64
 	emptyBuf []byte
 	pool     sync.Pool
 }
 
-func NewAllocator(size int, so int64) *Allocator {
-	a := &Allocator{
+func NewBufferPool(size int) *BufferPool {
+	a := &BufferPool{
 		size:     size,
-		next:     so,
 		emptyBuf: make([]byte, size),
 	}
 	a.pool = sync.Pool{
@@ -43,31 +41,28 @@ func NewAllocator(size int, so int64) *Allocator {
 	return a
 }
 
-func (a *Allocator) BlockSize() int {
+func (a *BufferPool) BufferSize() int {
 	return a.size
 }
 
-func (a *Allocator) rawAlloc() *Block {
+func (a *BufferPool) rawAlloc() *Buffer {
 	buf := directio.AlignedBlock(a.size)
-	return &Block{
-		block: block{
-			buf: buf,
-		},
+	return &Buffer{
+		buf: buf,
 	}
 }
 
-func (a *Allocator) Next() *Block {
-	b, _ := a.pool.Get().(*Block)
+func (a *BufferPool) Get(base int64) *Buffer {
+	b, _ := a.pool.Get().(*Buffer)
 	// Reset block.
+	b.base = base
 	copy(b.buf, a.emptyBuf)
 	b.wp = 0
 	b.fp = 0
 	b.cp = 0
-	b.SO = a.next
-	a.next += int64(a.size)
 	return b
 }
 
-func (a *Allocator) Free(b *Block) {
+func (a *BufferPool) Put(b *Buffer) {
 	a.pool.Put(b)
 }

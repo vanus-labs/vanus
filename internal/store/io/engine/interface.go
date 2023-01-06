@@ -12,29 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io
+package engine
 
-import "os"
+import (
+	// this project.
+	"github.com/linkall-labs/vanus/internal/store/io"
+	"github.com/linkall-labs/vanus/internal/store/io/zone"
+)
 
-type Engine interface {
+type Interface interface {
 	Close()
 	// WriteAt writes block b to the File starting at byte offset off.
 	// If only partial data is changed, offset so and eo are used to hint it.
 	// WriteCallback cb is called with the number of bytes written and an error when the operation completes.
-	WriteAt(f *os.File, b []byte, off int64, so, eo int, cb WriteCallback)
-}
-
-type engine struct{}
-
-// Make sure engine implements Engine.
-var _ Engine = (*engine)(nil)
-
-func NewEngine() Engine {
-	return &engine{}
-}
-
-func (e *engine) Close() {}
-
-func (e *engine) WriteAt(f *os.File, b []byte, off int64, so, eo int, cb WriteCallback) {
-	cb(f.WriteAt(b, off))
+	WriteAt(z zone.Interface, b []byte, off int64, so, eo int, cb io.WriteCallback)
 }

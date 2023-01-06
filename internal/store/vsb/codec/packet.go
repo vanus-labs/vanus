@@ -21,6 +21,9 @@ import (
 	"hash/crc32"
 	"io"
 
+	// third-party libraries.
+	"go.opentelemetry.io/otel/trace"
+
 	// first-party project.
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/errors"
@@ -61,8 +64,9 @@ func (e *packetEncoder) Size(entry block.Entry) int {
 }
 
 func (e *packetEncoder) MarshalTo(ctx context.Context, entry block.Entry, buf []byte) (int, error) {
-	_, span := e.tracer.Start(ctx, "MarshalTo")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.vsb.codec.packetEncoder.MarshalTo() Start")
+	defer span.AddEvent("store.vsb.codec.packetEncoder.MarshalTo() End")
 
 	n, err := e.pde.MarshalTo(entry, buf[packetPayloadOffset:])
 	if err != nil {

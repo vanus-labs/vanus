@@ -86,6 +86,7 @@ func (c *Config) GetTriggerConfig() trigger.Config {
 			ServerList: c.EtcdEndpoints,
 		},
 		SecretEncryptionSalt: c.SecretEncryptionSalt,
+		ControllerAddr:       c.GetControllerAddrs(),
 	}
 }
 

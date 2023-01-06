@@ -25,7 +25,7 @@ import (
 )
 
 type Sender interface {
-	Send(ctx context.Context, event ce.Event) Result
+	Send(ctx context.Context, events ...*ce.Event) Result
 }
 
 type EventClient interface {
@@ -83,5 +83,5 @@ const (
 	errStatusCode = nethttp.StatusBadRequest
 
 	ErrDeliveryTimeout = 601
-	ErrUndefined       = 700
+	ErrUndefined       = 602
 )

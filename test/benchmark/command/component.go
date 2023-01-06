@@ -18,25 +18,32 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"math/rand"
 	"net"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/linkall-labs/vanus/internal/store"
-	"github.com/linkall-labs/vanus/internal/store/segment"
-	"github.com/linkall-labs/vanus/observability/log"
-	v1 "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	_ "net/http/pprof"
+
+	"github.com/linkall-labs/vanus/observability/log"
+	v1 "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
+
+	//"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/store"
+	"github.com/linkall-labs/vanus/internal/store/config"
+	"github.com/linkall-labs/vanus/internal/store/segment"
 )
 
 const (
@@ -51,6 +58,7 @@ var (
 	noCleanCache   bool
 	replicaNum     int
 	blockSize      int64
+	batchSize      int
 )
 
 func ComponentCommand() *cobra.Command {
@@ -91,24 +99,24 @@ func runStoreCommand() *cobra.Command {
 					Dir:      fmt.Sprintf("/Users/wenfeng/tmp/data/test/vanus/store-%d", uint16(volumeID)),
 					Capacity: 1073741824,
 				},
-				MetaStore: store.SyncStoreConfig{
-					WAL: store.WALConfig{
-						IO: store.IOConfig{
+				MetaStore: config.SyncStore{
+					WAL: config.WAL{
+						IO: config.IO{
 							Engine: "psync",
 						},
 					},
 				},
-				OffsetStore: store.AsyncStoreConfig{
-					WAL: store.WALConfig{
-						IO: store.IOConfig{
+				OffsetStore: config.AsyncStore{
+					WAL: config.WAL{
+						IO: config.IO{
 							Engine: "psync",
 						},
 					},
 				},
-				Raft: store.RaftConfig{
-					WAL: store.WALConfig{
+				Raft: config.Raft{
+					WAL: config.WAL{
 						BlockSize: 32 * 1024,
-						IO: store.IOConfig{
+						IO: config.IO{
 							Engine: "psync",
 						},
 					},
@@ -198,7 +206,8 @@ func createBlockCommand() *cobra.Command {
 	cmd.Flags().IntVar(&segmentNumbers, "number", 1, "")
 	cmd.Flags().IntVar(&replicaNum, "replicas", 3, "")
 	cmd.Flags().StringArrayVar(&storeAddrs, "store-address", []string{
-		"127.0.0.1:2149", "127.0.0.1:2150", "127.0.0.1:2151"}, "")
+		"127.0.0.1:2149", "127.0.0.1:2150", "127.0.0.1:2151",
+	}, "")
 	return cmd
 }
 
@@ -227,7 +236,8 @@ func sendCommand() *cobra.Command {
 				br := BlockRecord{}
 				_ = json.Unmarshal([]byte(sCmd.Val()), &br)
 				brs[i] = br
-				fmt.Printf("found a block, ID: %s, addr: %s\n", vanus.ID(br.LeaderID).String(), br.LeaderAddr)
+				fmt.Printf("found a block, ID: %s, addr: %s\n",
+					vanus.ID(br.LeaderID).String(), br.LeaderAddr)
 			}
 
 			conns := make(map[string]*grpc.ClientConn, 0)
@@ -260,9 +270,10 @@ func sendCommand() *cobra.Command {
 				for idx := 0; idx < parallelism; idx++ {
 					go func(br BlockRecord, c segpb.SegmentServerClient) {
 						for atomic.LoadInt64(&count)+atomic.LoadInt64(&failed) < totalSent {
+							events := generateEvents()
 							_, err := c.AppendToBlock(context.Background(), &segpb.AppendToBlockRequest{
 								BlockId: br.LeaderID,
-								Events:  &v1.CloudEventBatch{Events: generateEvents()},
+								Events:  &v1.CloudEventBatch{Events: events},
 							})
 							if err != nil {
 								atomic.AddInt64(&failed, 1)
@@ -270,7 +281,7 @@ func sendCommand() *cobra.Command {
 								fmt.Printf("failed to append events to %s, block [%s], error: [%s]\n",
 									br.LeaderAddr, vanus.ID(br.LeaderID).String(), err.Error())
 							} else {
-								atomic.AddInt64(&count, 1)
+								atomic.AddInt64(&count, int64(len(events)))
 							}
 						}
 					}(abr, cli)
@@ -292,6 +303,7 @@ func sendCommand() *cobra.Command {
 	cmd.Flags().Int64Var(&totalSent, "total-number", 100000, "")
 	cmd.Flags().IntVar(&parallelism, "parallelism", 4, "")
 	cmd.Flags().IntVar(&payloadSize, "payload-size", 1024, "")
+	cmd.Flags().IntVar(&batchSize, "batch-size", 1, "")
 	return cmd
 }
 
@@ -331,21 +343,40 @@ func runStore(cfg store.Config) {
 }
 
 var (
-	gOnce sync.Once
-	rd    = rand.New(rand.NewSource(time.Now().UnixNano()))
-	e     []*v1.CloudEvent
+	rd      = rand.New(rand.NewSource(time.Now().UnixNano()))
+	payload string
+	mutex   sync.RWMutex
 )
 
 func generateEvents() []*v1.CloudEvent {
-	gOnce.Do(func() {
-		e = []*v1.CloudEvent{{
-			Id:          "example-event",
-			Source:      "example/uri",
+	mutex.RLock()
+	defer mutex.RUnlock()
+	if payload == "" {
+		mutex.RUnlock()
+		mutex.Lock()
+		if payload == "" {
+			payload = genStr(rd, payloadSize)
+		}
+		mutex.Unlock()
+		mutex.RLock()
+	}
+	var e []*v1.CloudEvent
+	for idx := 0; idx < batchSize; idx++ {
+		e = append(e, &v1.CloudEvent{
+			Id:          uuid.NewString(),
+			Source:      "performance.benchmark.vanus",
 			SpecVersion: "1.0",
-			Type:        "example.type",
-			Data:        &v1.CloudEvent_TextData{TextData: genStr(rd, payloadSize)},
-		}}
-	})
+			Type:        "performance.benchmark.vanus",
+			Data:        &v1.CloudEvent_TextData{TextData: payload},
+			Attributes: map[string]*v1.CloudEvent_CloudEventAttributeValue{
+				"time": {
+					Attr: &v1.CloudEvent_CloudEventAttributeValue_CeTimestamp{
+						CeTimestamp: timestamppb.New(time.Now()),
+					},
+				},
+			},
+		})
+	}
 	return e
 }
 

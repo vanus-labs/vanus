@@ -33,7 +33,7 @@ func TestWriteAtFunc(t *testing.T) {
 		w0.WriteAt(nil, 0, 0, 0, nil)
 
 		buf := []byte{0x00}
-		var callback WriteCallback = func(n int, err error) {}
+		callback := func(n int, err error) {}
 		var f1 WriteAtFunc = func(b []byte, off int64, so, eo int, cb WriteCallback) {
 			So(b, ShouldResemble, buf)
 			So(off, ShouldEqual, 1)

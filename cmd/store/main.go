@@ -29,6 +29,7 @@ import (
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store"
+	"github.com/linkall-labs/vanus/internal/store/block/raw"
 	"github.com/linkall-labs/vanus/internal/store/segment"
 )
 
@@ -89,6 +90,8 @@ func main() {
 		return
 	}
 
-	// TODO is it gracefully?
+	raw.CloseAllEngine()
+
+	// TODO: is it gracefully?
 	log.Info(ctx, "The SegmentServer has been shutdown.", nil)
 }

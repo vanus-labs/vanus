@@ -25,7 +25,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription/offset"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -36,7 +35,7 @@ func TestSubscriptionInit(t *testing.T) {
 	defer ctrl.Finish()
 	storage := storage.NewMockStorage(ctrl)
 	secret := secret.NewMockStorage(ctrl)
-	m := NewSubscriptionManager(storage, secret)
+	m := NewSubscriptionManager(storage, secret, nil)
 
 	Convey("init ", t, func() {
 		subID := vanus.NewTestID()
@@ -63,7 +62,7 @@ func TestGetListSubscription(t *testing.T) {
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
 		secret := secret.NewMockStorage(ctrl)
-		m := NewSubscriptionManager(storage, secret)
+		m := NewSubscriptionManager(storage, secret, nil)
 		id := vanus.NewTestID()
 		Convey("list subscription size 0", func() {
 			subscriptions := m.ListSubscription(ctx)
@@ -104,7 +103,7 @@ func TestSubscription(t *testing.T) {
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
 		secret := secret.NewMockStorage(ctrl)
-		m := NewSubscriptionManager(storage, secret)
+		m := NewSubscriptionManager(storage, secret, nil)
 		subID := vanus.NewTestID()
 		Convey("test add subscription", func() {
 			storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).Return(nil)
@@ -165,48 +164,6 @@ func TestSubscription(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(m.GetSubscription(ctx, subID), ShouldBeNil)
 			})
-		})
-	})
-}
-
-func TestOffset(t *testing.T) {
-	Convey("test offset", t, func() {
-		ctx := context.Background()
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		storage := storage.NewMockStorage(ctrl)
-		secret := secret.NewMockStorage(ctrl)
-		m := NewSubscriptionManager(storage, secret).(*manager)
-		offsetManager := offset.NewMockManager(ctrl)
-		m.offsetManager = offsetManager
-		storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).Return(nil)
-		m.AddSubscription(ctx, &metadata.Subscription{})
-		subscriptions := m.ListSubscription(ctx)
-		id := subscriptions[0].ID
-		listOffsetInfo := info.ListOffsetInfo{
-			{EventLogID: 1, Offset: 10},
-		}
-		Convey("set offset subscription no exist", func() {
-			err := m.SaveOffset(ctx, 1, listOffsetInfo, false)
-			So(err, ShouldBeNil)
-		})
-		Convey("set offset ", func() {
-			offsetManager.EXPECT().Offset(ctx, id, listOffsetInfo, false).Return(nil)
-			err := m.SaveOffset(ctx, id, listOffsetInfo, false)
-			So(err, ShouldBeNil)
-		})
-		Convey("get offset subscription no exist", func() {
-			offsets, err := m.GetOffset(ctx, 1)
-			So(err, ShouldNotBeNil)
-			So(len(offsets), ShouldEqual, 0)
-		})
-		Convey("get offset", func() {
-			offsetManager.EXPECT().GetOffset(ctx, id).Return(listOffsetInfo, nil)
-			offsets, err := m.GetOffset(ctx, id)
-			So(err, ShouldBeNil)
-			So(len(offsets), ShouldEqual, 1)
-			So(offsets[0].EventLogID, ShouldEqual, 1)
-			So(offsets[0].Offset, ShouldEqual, 10)
 		})
 	})
 }

@@ -30,7 +30,6 @@ import (
 	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/internal/primitive"
-	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/client"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
@@ -41,11 +40,7 @@ import (
 func TestTrigger_Options(t *testing.T) {
 	Convey("test trigger option", t, func() {
 		tg := &trigger{}
-		WithFilterProcessSize(0)(tg)
-		So(tg.config.FilterProcessSize, ShouldEqual, 0)
 		size := rand.Intn(1000) + 1
-		WithFilterProcessSize(size)(tg)
-		So(tg.config.FilterProcessSize, ShouldEqual, size)
 		WithDeliveryTimeout(0)(tg)
 		So(tg.config.DeliveryTimeout, ShouldEqual, defaultDeliveryTimeout)
 		size = rand.Intn(1000) + size
@@ -191,7 +186,7 @@ func TestTriggerRunEventSend(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tg.runEventFilter(ctx)
+			tg.runEventFilterTransform(ctx)
 		}()
 		time.Sleep(100 * time.Millisecond)
 		So(len(tg.sendCh), ShouldEqual, size)
@@ -203,7 +198,7 @@ func TestTriggerRunEventSend(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tg.runEventSend(ctx)
+			tg.runEventToBatch(ctx)
 		}()
 		time.Sleep(100 * time.Millisecond)
 		close(tg.sendCh)
@@ -305,25 +300,6 @@ func TestChangeSubscription(t *testing.T) {
 		Convey("change config", func() {
 			err := tg.Change(ctx, &primitive.Subscription{Config: primitive.SubscriptionConfig{RateLimit: 100}})
 			So(err, ShouldBeNil)
-		})
-	})
-}
-
-func TestResetOffset(t *testing.T) {
-	Convey("test reset offset", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		ctx := context.Background()
-		id := vanus.NewTestID()
-		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
-		r := reader.NewMockReader(ctrl)
-		tg.reader = r
-		Convey("reset offset to timestamp", func() {
-			offsets := pInfo.ListOffsetInfo{{EventLogID: vanus.NewTestID(), Offset: uint64(100)}}
-			r.EXPECT().GetOffsetByTimestamp(gomock.Any(), gomock.Any()).Return(offsets, nil)
-			v, err := tg.ResetOffsetToTimestamp(ctx, time.Now().Unix())
-			So(err, ShouldBeNil)
-			So(len(v), ShouldEqual, len(offsets))
 		})
 	})
 }

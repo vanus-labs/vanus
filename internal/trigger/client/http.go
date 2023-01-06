@@ -33,8 +33,9 @@ func NewHTTPClient(url string) EventClient {
 	}
 }
 
-func (c *http) Send(ctx context.Context, event ce.Event) Result {
-	res := c.client.Send(ctx, event)
+func (c *http) Send(ctx context.Context, events ...*ce.Event) Result {
+	event := events[0]
+	res := c.client.Send(ctx, *event)
 	if ce.IsACK(res) {
 		return Success
 	}

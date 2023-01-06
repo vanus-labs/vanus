@@ -18,6 +18,7 @@ import (
 	// standard libraries.
 	"context"
 	"encoding/binary"
+	"sync/atomic"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
@@ -35,6 +36,7 @@ type fragment struct {
 	entries []block.Entry
 	enc     codec.EntryEncoder
 	data    []byte
+	sz      uint32
 }
 
 // Make sure fragment implements block.Fragment and block.FragmentMarshaler.
@@ -60,10 +62,12 @@ func (f *fragment) Payload() []byte {
 }
 
 func (f *fragment) Size() int {
-	if f.data != nil {
-		return len(f.data) - OffsetSize
+	if sz := atomic.LoadUint32(&f.sz); sz != 0 {
+		return int(sz)
 	}
-	return f.size()
+	sz := f.size()
+	atomic.StoreUint32(&f.sz, uint32(sz))
+	return sz
 }
 
 func (f *fragment) StartOffset() int64 {
@@ -96,7 +100,7 @@ func (f *fragment) size() int {
 }
 
 func (f *fragment) doMarshal(ctx context.Context) ([]byte, error) {
-	data := make([]byte, OffsetSize+f.size())
+	data := make([]byte, OffsetSize+f.Size())
 
 	binary.LittleEndian.PutUint64(data, uint64(f.offset))
 

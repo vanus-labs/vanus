@@ -22,37 +22,37 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-var emptyBuf = make([]byte, blockSize)
+var emptyBuf = make([]byte, bufferSize)
 
-func TestAllocator(t *testing.T) {
-	Convey("wal block allocator", t, func() {
-		allocator := NewAllocator(blockSize, blockSize)
-		So(allocator, ShouldNotBeNil)
-		So(allocator.BlockSize(), ShouldEqual, blockSize)
+func TestBufferPool(t *testing.T) {
+	Convey("buffer pool", t, func() {
+		pool := NewBufferPool(bufferSize)
+		So(pool, ShouldNotBeNil)
+		So(pool.BufferSize(), ShouldEqual, bufferSize)
 
-		b0 := allocator.Next()
-		So(b0.Capacity(), ShouldEqual, blockSize)
+		b0 := pool.Get(0)
+		So(b0.Base(), ShouldEqual, 0)
+		So(b0.Capacity(), ShouldEqual, bufferSize)
 		So(b0.Size(), ShouldEqual, 0)
 		So(b0.Committed(), ShouldEqual, 0)
-		So(b0.SO, ShouldEqual, blockSize)
 		So(b0.fp, ShouldEqual, 0)
 		So(b0.buf, ShouldResemble, emptyBuf)
 
-		b1 := allocator.Next()
-		So(b1.Capacity(), ShouldEqual, blockSize)
+		b1 := pool.Get(bufferSize)
+		So(b1.Base(), ShouldEqual, bufferSize)
+		So(b1.Capacity(), ShouldEqual, bufferSize)
 		So(b1.Size(), ShouldEqual, 0)
 		So(b1.Committed(), ShouldEqual, 0)
-		So(b1.SO, ShouldEqual, 2*blockSize)
 		So(b1.fp, ShouldEqual, 0)
 		So(b1.buf, ShouldResemble, emptyBuf)
 
-		allocator.Free(b0)
+		pool.Put(b0)
 
-		b2 := allocator.Next()
-		So(b2.Capacity(), ShouldEqual, blockSize)
+		b2 := pool.Get(2 * bufferSize)
+		So(b2.Base(), ShouldEqual, 2*bufferSize)
+		So(b2.Capacity(), ShouldEqual, bufferSize)
 		So(b2.Size(), ShouldEqual, 0)
 		So(b2.Committed(), ShouldEqual, 0)
-		So(b2.SO, ShouldEqual, 3*blockSize)
 		So(b2.fp, ShouldEqual, 0)
 		So(b2.buf, ShouldResemble, emptyBuf)
 	})

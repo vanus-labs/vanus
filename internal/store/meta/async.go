@@ -27,7 +27,7 @@ import (
 	"github.com/linkall-labs/vanus/observability/tracing"
 
 	// this project.
-	storecfg "github.com/linkall-labs/vanus/internal/store"
+	"github.com/linkall-labs/vanus/internal/store/config"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
 )
 
@@ -96,15 +96,17 @@ func (s *AsyncStore) Load(key []byte) (interface{}, bool) {
 }
 
 func (s *AsyncStore) Store(ctx context.Context, key []byte, value interface{}) {
-	_, span := s.tracer.Start(ctx, "Store")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.meta.AsyncStore.Store() Start")
+	defer span.AddEvent("store.meta.AsyncStore.Store() End")
 
 	_ = s.set(KVRange(key, value))
 }
 
 func (s *AsyncStore) BatchStore(ctx context.Context, kvs Ranger) {
-	_, span := s.tracer.Start(ctx, "BatchStore")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.meta.AsyncStore.BatchStore() Start")
+	defer span.AddEvent("store.meta.AsyncStore.BatchStore() End")
 
 	_ = s.set(kvs)
 }
@@ -176,28 +178,34 @@ func (s *AsyncStore) commit() {
 		span.End()
 	}()
 
+	s.mu.Lock()
+
 	if s.pending.Len() == 0 {
+		s.mu.Unlock()
 		return
 	}
 
-	// Write WAL.
-	s.mu.RLock()
+	// Marshal changed data.
 	data, err := s.marshaler.Marshal(SkiplistRange(s.pending))
-	s.mu.RUnlock()
-	if err != nil {
-		panic(err)
-	}
-	r, err := s.wal.AppendOne(ctx, data, walog.WithoutBatching()).Wait()
 	if err != nil {
 		panic(err)
 	}
 
 	// Update state.
+	merge(s.committed, s.pending)
+	s.pending.Init()
+
+	s.mu.Unlock()
+
+	// Write WAL.
+	r, err := s.wal.AppendOne(ctx, data, walog.WithoutBatching()).Wait()
+	if err != nil {
+		panic(err)
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	merge(s.committed, s.pending)
 	s.version = r.EO
-	s.pending.Init()
 }
 
 func merge(dst, src *skiplist.SkipList) {
@@ -206,9 +214,11 @@ func merge(dst, src *skiplist.SkipList) {
 	}
 }
 
-func RecoverAsyncStore(ctx context.Context, cfg storecfg.AsyncStoreConfig, walDir string) (*AsyncStore, error) {
-	ctx, span := tracing.Start(ctx, "store.meta.async", "newAsyncStore")
-	defer span.End()
+func RecoverAsyncStore(ctx context.Context, cfg config.AsyncStore, walDir string) (*AsyncStore, error) {
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.meta.RecoverAsyncStore() Start")
+	defer span.AddEvent("store.meta.RecoverAsyncStore() End")
+
 	committed, snapshot, err := recoverLatestSnapshot(ctx, walDir, defaultCodec)
 	if err != nil {
 		return nil, err

@@ -15,8 +15,8 @@
 package meta
 
 import (
-	stdCtx "context"
 	// standard libraries.
+	"context"
 	"os"
 	"testing"
 
@@ -24,7 +24,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	storecfg "github.com/linkall-labs/vanus/internal/store"
+	"github.com/linkall-labs/vanus/internal/store/config"
 )
 
 var (
@@ -39,23 +39,23 @@ func TestSyncStore(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("new empty SyncStore by recovery", func() {
-			ss, err := RecoverSyncStore(stdCtx.Background(), storecfg.SyncStoreConfig{}, walDir)
+			ss, err := RecoverSyncStore(context.Background(), config.SyncStore{}, walDir)
 
 			So(err, ShouldBeNil)
 			So(ss, ShouldNotBeNil)
 
-			ss.Close(stdCtx.Background())
+			ss.Close(context.Background())
 		})
 
 		Convey("setup SyncStore", func() {
-			ss, err := RecoverSyncStore(stdCtx.Background(), storecfg.SyncStoreConfig{}, walDir)
+			ss, err := RecoverSyncStore(context.Background(), config.SyncStore{}, walDir)
 			So(err, ShouldBeNil)
-			ss.Store(stdCtx.Background(), key0, "value0")
-			ss.Store(stdCtx.Background(), key1, "value1")
-			ss.Close(stdCtx.Background())
+			ss.Store(context.Background(), key0, "value0")
+			ss.Store(context.Background(), key1, "value1")
+			ss.Close(context.Background())
 
 			Convey("recover SyncStore", func() {
-				ss, err = RecoverSyncStore(stdCtx.Background(), storecfg.SyncStoreConfig{}, walDir)
+				ss, err = RecoverSyncStore(context.Background(), config.SyncStore{}, walDir)
 				So(err, ShouldBeNil)
 
 				value0, ok0 := ss.Load(key0)
@@ -70,19 +70,19 @@ func TestSyncStore(t *testing.T) {
 				So(ok2, ShouldBeFalse)
 
 				Convey("modify SyncStore", func() {
-					ss.Delete(stdCtx.Background(), key1)
+					ss.Delete(context.Background(), key1)
 					_, ok1 = ss.Load(key1)
 					So(ok1, ShouldBeFalse)
 
-					ss.Store(stdCtx.Background(), key2, "value2")
+					ss.Store(context.Background(), key2, "value2")
 					value2, ok2 := ss.Load(key2)
 					So(ok2, ShouldBeTrue)
 					So(value2, ShouldResemble, "value2")
 
-					ss.Close(stdCtx.Background())
+					ss.Close(context.Background())
 
 					Convey("recover SyncStore again", func() {
-						ss, err = RecoverSyncStore(stdCtx.Background(), storecfg.SyncStoreConfig{}, walDir)
+						ss, err = RecoverSyncStore(context.Background(), config.SyncStore{}, walDir)
 						So(err, ShouldBeNil)
 
 						value0, ok0 := ss.Load(key0)
@@ -96,7 +96,7 @@ func TestSyncStore(t *testing.T) {
 						So(ok2, ShouldBeTrue)
 						So(value2, ShouldResemble, "value2")
 
-						ss.Close(stdCtx.Background())
+						ss.Close(context.Background())
 					})
 				})
 			})

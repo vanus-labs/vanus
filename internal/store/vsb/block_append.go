@@ -1,5 +1,3 @@
-// Copyright 2022 Linkall Inc.
-//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -16,23 +14,30 @@ package vsb
 
 import (
 	// standard libraries.
+	"bytes"
 	"context"
 	stderr "errors"
+	stdio "io"
 	"sync/atomic"
 	"time"
 
+	// third-party libraries.
+	"go.opentelemetry.io/otel/trace"
+
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability/log"
-	"go.opentelemetry.io/otel/attribute"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
+	"github.com/linkall-labs/vanus/internal/store/io"
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	"github.com/linkall-labs/vanus/internal/store/vsb/index"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
-var errCorruptedFragment = stderr.New("vsb: corrupted fragment")
+var (
+	errCorruptedFragment = stderr.New("vsb: corrupted fragment")
+	dummyReader          = stdio.LimitReader(nil, 0)
+)
 
 type appendContext struct {
 	seq      int64
@@ -80,8 +85,9 @@ func (b *vsBlock) NewAppendContext(last block.Fragment) block.AppendContext {
 func (b *vsBlock) PrepareAppend(
 	ctx context.Context, appendCtx block.AppendContext, entries ...block.Entry,
 ) ([]int64, block.Fragment, bool, error) {
-	_, span := b.tracer.Start(ctx, "PrepareAppend")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.vsb.vsBlock.PrepareAppend() Start")
+	defer span.AddEvent("store.vsb.vsBlock.PrepareAppend() End")
 
 	actx, _ := appendCtx.(*appendContext)
 
@@ -106,8 +112,9 @@ func (b *vsBlock) PrepareAppend(
 }
 
 func (b *vsBlock) PrepareArchive(ctx context.Context, appendCtx block.AppendContext) (block.Fragment, error) {
-	_, span := b.tracer.Start(ctx, "PrepareArchive")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.vsb.vsBlock.PrepareArchive() Start")
+	defer span.AddEvent("store.vsb.vsBlock.PrepareArchive() End")
 
 	actx, _ := appendCtx.(*appendContext)
 
@@ -121,119 +128,119 @@ func (b *vsBlock) PrepareArchive(ctx context.Context, appendCtx block.AppendCont
 	return frag, nil
 }
 
-func (b *vsBlock) CommitAppend(ctx context.Context, frags ...block.Fragment) (bool, error) {
-	ctx, span := b.tracer.Start(ctx, "CommitAppend")
-	defer span.End()
+func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb block.CommitAppendCallback) {
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.vsb.vsBlock.CommitAppend() Start")
+	defer span.AddEvent("store.vsb.vsBlock.CommitAppend() End")
 
-	frags, err := b.trimFragments(ctx, frags)
-	if err != nil {
-		return false, err
+	if frag == nil {
+		b.s.Append(dummyReader, func(n int, err error) {
+			cb()
+		})
+		return
 	}
 
-	if len(frags) == 0 {
-		return false, nil
+	// TODO(james.yin): get offset from Stream or AppendContext?
+	off := b.s.WriteOffset() // b.actx.offset
+	if frag.EndOffset() <= off {
+		log.Info(ctx, "vsb: data of fragment has been written, skip this entry.", map[string]interface{}{
+			"block_id":              b.id,
+			"expected":              off,
+			"fragment_start_offset": frag.StartOffset(),
+			"fragment_end_offset":   frag.EndOffset(),
+		})
+		// TODO(james.yin): invoke callback.
+		return
+	}
+	if frag.StartOffset() != off {
+		log.Error(ctx, "vsb: missing some fragments.", map[string]interface{}{
+			"block_id": b.id,
+			"expected": off,
+			"found":    frag.StartOffset(),
+		})
+		// TODO(james.yin): invoke callback.
+		return
 	}
 
-	if err = b.checkFragments(ctx, frags); err != nil {
-		return false, err
+	indexes, seq, archived, _ := b.buildIndexes(ctx, b.actx.seq, frag)
+
+	b.actx.seq = seq
+	b.actx.offset = frag.EndOffset()
+
+	if !archived {
+		b.s.Append(bytes.NewReader(frag.Payload()), func(n int, err error) {
+			log.Debug(context.Background(), "acquiring index write lock", map[string]interface{}{
+				"block_id": b.id,
+			})
+			b.mu.Lock()
+			b.indexes = append(b.indexes, indexes...)
+			log.Info(context.Background(), "release index write lock", map[string]interface{}{
+				"block_id": b.id,
+			})
+			b.mu.Unlock()
+
+			cb()
+		})
+		return
 	}
 
-	var sz int
-	for _, frag := range frags {
-		sz += frag.Size()
-	}
-	data := make([]byte, sz)
-	base := frags[0].StartOffset()
-	for _, frag := range frags {
-		copy(data[frag.StartOffset()-base:], frag.Payload())
-	}
+	atomic.StoreUint32(&b.actx.archived, 1)
 
-	indexes, entryCount, archived, err := b.buildIndexes(ctx, base, data)
-	if err != nil {
-		return false, err
-	}
-	if !archived && len(indexes) == 0 {
-		return false, nil
-	}
+	b.wg.Add(1)
+	b.s.Append(bytes.NewReader(frag.Payload()), func(n int, err error) {
+		if len(indexes) != 0 {
+			log.Debug(context.Background(), "acquiring index write lock", map[string]interface{}{
+				"block_id": b.id,
+			})
+			b.mu.Lock()
+			b.indexes = append(b.indexes, indexes...)
+			log.Info(context.Background(), "release index write lock", map[string]interface{}{
+				"block_id": b.id,
+			})
+			b.mu.Unlock()
+		}
 
-	_, wSpan := b.tracer.Start(ctx, "writeFile")
-	entrySize, err := b.f.WriteAt(data[b.actx.offset-base:], b.actx.offset)
-	if err != nil {
-		wSpan.End()
-		return false, err
-	}
-	wSpan.End()
+		cb()
 
-	span.AddEvent("Acquiring lock")
-	b.mu.Lock()
-	span.AddEvent("Got lock")
-
-	span.SetAttributes(
-		attribute.Int("index_count", len(b.indexes)),
-		attribute.Int("index_capacity", cap(b.indexes)),
-	)
-
-	b.indexes = append(b.indexes, indexes...)
-	b.actx.seq += entryCount
-	b.actx.offset += int64(entrySize)
-	if archived {
-		atomic.StoreUint32(&b.actx.archived, 1)
-	}
-
-	span.AddEvent("Release lock")
-	b.mu.Unlock()
-
-	if archived {
 		m, i := makeSnapshot(b.actx, b.indexes)
 
-		b.wg.Add(1)
-		go func() {
+		go b.appendIndexEntry(ctx, i, func(n int, err error) {
 			defer b.wg.Done()
-			if n, err := b.appendIndexEntry(ctx, i, m.writeOffset); err == nil {
-				b.indexOffset = m.writeOffset
-				b.indexLength = n
-			}
+			b.indexOffset = m.writeOffset
+			b.indexLength = n
 			_ = b.persistHeader(ctx, m)
-		}()
+		})
 
 		if b.lis != nil {
 			b.lis.OnArchived(b.stat(m, i))
 		}
-	}
-
-	span.SetAttributes(
-		attribute.Int("entry_count", int(entryCount)),
-		attribute.Int("entry_size", entrySize),
-		attribute.Bool("archived", archived))
-
-	return archived, nil
+	})
 }
 
-func (b *vsBlock) buildIndexes(ctx context.Context, base int64, data []byte) ([]index.Index, int64, bool, error) {
-	_, span := b.tracer.Start(ctx, "buildIndexes")
-	defer span.End()
+func (b *vsBlock) buildIndexes(
+	ctx context.Context, expected int64, frag block.Fragment,
+) ([]index.Index, int64, bool, error) {
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.vsb.vsBlock.buildIndexes() Start")
+	defer span.AddEvent("store.vsb.vsBlock.buildIndexes() End")
 
-	var archived bool
-	indexes := make([]index.Index, 0, 1)
-	expected := b.actx.seq
+	base := frag.StartOffset()
+	data := frag.Payload()
+
+	var indexes []index.Index
 	for off, sz := 0, len(data); off < sz; {
 		n, entry, _ := b.dec.Unmarshal(data[off:])
-		switch seq := ceschema.SequenceNumber(entry); {
-		case seq == expected:
-			expected++
-		case seq < expected && len(indexes) == 0:
-			continue
-		default:
+		if seq := ceschema.SequenceNumber(entry); seq != expected {
 			return nil, 0, false, errCorruptedFragment
 		}
+		expected++
 
 		if ceschema.EntryType(entry) == ceschema.End {
 			// End entry must be the last.
 			if off+n != sz {
 				return nil, 0, false, errCorruptedFragment
 			}
-			archived = true
-			break
+			return indexes, expected, true, nil
 		}
 
 		idx := index.NewIndex(base+int64(off), int32(n), index.WithEntry(entry))
@@ -242,74 +249,18 @@ func (b *vsBlock) buildIndexes(ctx context.Context, base int64, data []byte) ([]
 		off += n
 	}
 
-	return indexes, expected - b.actx.seq, archived, nil
+	return indexes, expected, false, nil
 }
 
-func (b *vsBlock) appendIndexEntry(ctx context.Context, indexes []index.Index, off int64) (int, error) {
+func (b *vsBlock) appendIndexEntry(ctx context.Context, indexes []index.Index, cb io.WriteCallback) {
 	entry := index.NewEntry(indexes)
 	sz := b.enc.Size(entry)
 	data := make([]byte, sz)
 	if _, err := b.enc.MarshalTo(ctx, entry, data); err != nil {
-		return 0, err
+		cb(0, err)
+		return
 	}
 
-	if _, err := b.f.WriteAt(data, off); err != nil {
-		return 0, err
-	}
-
-	return sz, nil
-}
-
-func (b *vsBlock) trimFragments(ctx context.Context, frags []block.Fragment) ([]block.Fragment, error) {
-	off := b.actx.offset
-	for i := 0; i < len(frags); i++ {
-		switch frag := frags[i]; {
-		case frag.EndOffset() <= off:
-			log.Info(ctx, "vsb: data of fragment has been written, skip this entry.", map[string]interface{}{
-				"block_id":              b.id,
-				"expected":              off,
-				"fragment_start_offset": frag.StartOffset(),
-				"fragment_end_offset":   frag.EndOffset(),
-			})
-			continue
-		case frag.StartOffset() > off:
-			log.Error(ctx, "vsb: missing some fragments.", map[string]interface{}{
-				"block_id": b.id,
-				"expected": off,
-				"found":    frag.StartOffset(),
-			})
-			return nil, errors.ErrInternal.WithMessage("vsb: missing some fragments")
-		}
-		if i != 0 {
-			return frags[i:], nil
-		}
-		return frags, nil
-	}
-	return nil, nil
-}
-
-func (b *vsBlock) checkFragments(ctx context.Context, frags []block.Fragment) error {
-	// if firstSo := frags[0].StartOffset(); firstSo > int64(b.actx.offset) {
-	// 	log.Error(ctx, "vsb: missing some fragments.", map[string]interface{}{
-	// 		"block_id": b.id,
-	// 		"expected": b.actx.offset,
-	// 		"found":    firstSo,
-	// 	})
-	// 	return errors.ErrInternal
-	// }
-
-	for i := 1; i < len(frags); i++ {
-		prevEo := frags[i-1].EndOffset()
-		nextSo := frags[i].StartOffset()
-		if prevEo != nextSo {
-			log.Error(ctx, "vsb: fragments is discontinuous.", map[string]interface{}{
-				"block_id":            b.id,
-				"next_start_offset":   nextSo,
-				"previous_end_offset": prevEo,
-			})
-			return errors.ErrInternal.WithMessage("vsb: fragments is discontinuous")
-		}
-	}
-
-	return nil
+	b.s.Append(bytes.NewReader(data), cb)
+	// return sz, nil
 }

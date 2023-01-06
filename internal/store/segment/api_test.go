@@ -25,12 +25,12 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/pkg/errors"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 func TestSegmentServer(t *testing.T) {
@@ -185,7 +185,8 @@ func TestSegmentServer(t *testing.T) {
 
 		Convey("ReadFromBlock()", func() {
 			id := vanus.NewTestID()
-			srv.EXPECT().ReadFromBlock(Any(), Not(vanus.EmptyID()), Any(), Not(0), Any()).Return(make([]*cepb.CloudEvent, 1), nil)
+			srv.EXPECT().ReadFromBlock(Any(), Not(vanus.EmptyID()), Any(), Not(0),
+				Any()).Return(make([]*cepb.CloudEvent, 1), nil)
 			srv.EXPECT().ReadFromBlock(Any(), Eq(vanus.EmptyID()), Any(), Any(), Any()).Return(nil, errors.ErrInvalidRequest)
 			srv.EXPECT().ReadFromBlock(Any(), Any(), Any(), Eq(0), Any()).Return(nil, errors.ErrResourceNotFound)
 

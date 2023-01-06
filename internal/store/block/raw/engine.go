@@ -35,6 +35,8 @@ var (
 )
 
 type Engine interface {
+	Close()
+
 	Recover(ctx context.Context) (map[vanus.ID]block.Raw, error)
 
 	Create(ctx context.Context, id vanus.ID, capacity int64) (block.Raw, error)
@@ -58,4 +60,10 @@ func ResolveEngine(engine string) (Engine, error) {
 		return e, nil
 	}
 	return nil, ErrNotSupported
+}
+
+func CloseAllEngine() {
+	for _, e := range engines {
+		e.Close()
+	}
 }

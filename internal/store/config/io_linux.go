@@ -12,4 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package wal
+//go:build linux
+// +build linux
+
+package config
+
+import (
+	// this project.
+	"github.com/linkall-labs/vanus/internal/store/io/engine"
+	"github.com/linkall-labs/vanus/internal/store/io/engine/uring"
+)
+
+func buildIOEngineEx(cfg IO) engine.Interface {
+	if cfg.Engine == Uring {
+		return uring.New()
+	}
+	panic("io engine is not supported")
+}

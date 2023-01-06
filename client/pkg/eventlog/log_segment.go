@@ -67,7 +67,7 @@ func newBlockExt(ctx context.Context, r *record.Segment, leaderOnly bool) (*bloc
 	id := r.LeaderBlockID
 	if id == 0 {
 		if leaderOnly {
-			return nil, errors.ErrNoLeader.WithMessage("the block no leader")
+			return nil, errors.ErrNotLeader
 		}
 		for _, b := range r.Blocks {
 			if b.Endpoint != "" {
@@ -161,7 +161,7 @@ func (s *segment) Append(ctx context.Context, event *ce.Event) (int64, error) {
 
 	b := s.preferSegmentBlock()
 	if b == nil {
-		return -1, errors.ErrNoLeader.WithMessage("block no leader")
+		return -1, errors.ErrNotLeader
 	}
 	off, err := b.Append(_ctx, event)
 	if err != nil {
@@ -177,7 +177,7 @@ func (s *segment) AppendManyStream(ctx context.Context, events []*ce.Event) ([]i
 
 	b := s.preferSegmentBlock()
 	if b == nil {
-		return nil, errors.ErrNoLeader.WithMessage("block no leader")
+		return nil, errors.ErrNotLeader
 	}
 	offsets, err := b.AppendManyStream(_ctx, events)
 	if err != nil {

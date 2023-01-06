@@ -22,9 +22,6 @@ import (
 	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
 
-	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/tracing"
-
 	// this project.
 	pb "github.com/linkall-labs/vanus/raft/raftpb"
 )
@@ -123,7 +120,7 @@ func (rd Ready) containsUpdates() bool {
 // applied (once the Ready is confirmed via Advance). If no information is
 // contained in the Ready, returns zero.
 func (rd Ready) appliedCursor() uint64 {
-	if n := len(rd.CommittedEntries); n > 0 {
+	if n := len(rd.CommittedEntries); n != 0 {
 		return rd.CommittedEntries[n-1].Index
 	}
 	if index := rd.Snapshot.Metadata.Index; index > 0 {
@@ -184,6 +181,9 @@ type Node interface {
 	// Returns an opaque non-nil ConfState protobuf which must be recorded in
 	// snapshots.
 	ApplyConfChange(cc pb.ConfChangeI) *pb.ConfState
+
+	ReportLogged(ctx context.Context, index uint64, term uint64) error
+	ReportApplied(ctx context.Context, index uint64) error
 
 	// TransferLeadership attempts to transfer leadership to the given transferee.
 	TransferLeadership(ctx context.Context, lead, transferee uint64)
@@ -278,8 +278,6 @@ type node struct {
 	status     chan chan Status
 
 	rn *RawNode
-
-	tracer *tracing.Tracer
 }
 
 func newNode(rn *RawNode) node {
@@ -299,7 +297,6 @@ func newNode(rn *RawNode) node {
 		stop:   make(chan struct{}),
 		status: make(chan chan Status),
 		rn:     rn,
-		tracer: tracing.NewTracer("raft.node", trace.SpanKindInternal),
 	}
 }
 
@@ -324,8 +321,6 @@ func (n *node) Bootstrap(peers []Peer) error {
 	}
 	select {
 	case ch <- bp:
-	// case <-ctx.Done():
-	//	return ctx.Err()
 	case <-n.done:
 		return ErrStopped
 	}
@@ -334,8 +329,6 @@ func (n *node) Bootstrap(peers []Peer) error {
 		if err != nil {
 			return err
 		}
-	// case <-ctx.Done():
-	//	return ctx.Err()
 	case <-n.done:
 		return ErrStopped
 	}
@@ -489,8 +482,9 @@ func (n *node) Propose(ctx context.Context, pds ...ProposeData) {
 }
 
 func (n *node) Step(ctx context.Context, m pb.Message) error {
-	ctx, span := n.tracer.Start(ctx, "Step")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("raft.node.Step() Start")
+	defer span.AddEvent("raft.node.Step() End")
 
 	// ignore unexpected local messages receiving over network
 	if IsLocalMsg(m.Type) {
@@ -549,6 +543,21 @@ func (n *node) ApplyConfChange(cc pb.ConfChangeI) *pb.ConfState {
 	case <-n.done:
 	}
 	return &cs
+}
+
+func (n *node) ReportLogged(ctx context.Context, index uint64, term uint64) error {
+	return n.step(ctx, pb.Message{
+		Type:    pb.MsgLogResp,
+		LogTerm: term,
+		Index:   index,
+	})
+}
+
+func (n *node) ReportApplied(ctx context.Context, index uint64) error {
+	return n.step(ctx, pb.Message{
+		Type:  pb.MsgApplyResp,
+		Index: index,
+	})
 }
 
 func (n *node) Status() Status {

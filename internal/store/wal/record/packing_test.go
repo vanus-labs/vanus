@@ -29,8 +29,19 @@ const (
 
 func TestPack(t *testing.T) {
 	Convey("pack with enough space in first block", t, func() {
-		records := Pack(rawData, blockSize, blockSize)
-		So(len(records), ShouldEqual, 1)
+		records, padding := Pack(rawData, blockSize, blockSize)
+		So(records, ShouldHaveLength, 1)
+		So(padding, ShouldEqual, 0)
+		r0 := &records[0]
+		So(r0.Type, ShouldEqual, Full)
+		So(r0.Length, ShouldEqual, len(rawData))
+		So(bytes.Equal(r0.Data, rawData), ShouldBeTrue)
+	})
+
+	Convey("pack with just enough space in first block", t, func() {
+		records, padding := Pack(rawData, HeaderSize*2+len(rawData), blockSize)
+		So(records, ShouldHaveLength, 1)
+		So(padding, ShouldEqual, 0)
 		r0 := &records[0]
 		So(r0.Type, ShouldEqual, Full)
 		So(r0.Length, ShouldEqual, len(rawData))
@@ -38,8 +49,9 @@ func TestPack(t *testing.T) {
 	})
 
 	Convey("pack with not enough space in first block", t, func() {
-		records := Pack(rawData, HeaderSize+1, blockSize)
-		So(len(records), ShouldEqual, 2)
+		records, padding := Pack(rawData, HeaderSize+1, blockSize)
+		So(records, ShouldHaveLength, 2)
+		So(padding, ShouldEqual, 0)
 		r0 := &records[0]
 		So(r0.Type, ShouldEqual, First)
 		So(r0.Length, ShouldEqual, 1)
@@ -51,8 +63,9 @@ func TestPack(t *testing.T) {
 	})
 
 	Convey("pack with no space in first block", t, func() {
-		records := Pack(rawData, HeaderSize, blockSize)
-		So(len(records), ShouldEqual, 2)
+		records, padding := Pack(rawData, HeaderSize, blockSize)
+		So(records, ShouldHaveLength, 2)
+		So(padding, ShouldEqual, 0)
 		r0 := &records[0]
 		So(r0.Type, ShouldEqual, First)
 		So(r0.Length, ShouldEqual, 0)
@@ -70,8 +83,9 @@ func TestPack(t *testing.T) {
 		}
 		bigData := []byte(str)
 
-		records := Pack(bigData, blockSize, blockSize)
-		So(len(records), ShouldEqual, 3)
+		records, padding := Pack(bigData, blockSize, blockSize)
+		So(records, ShouldHaveLength, 3)
+		So(padding, ShouldEqual, 0)
 		r0 := &records[0]
 		So(r0.Type, ShouldEqual, First)
 		So(r0.Length, ShouldEqual, blockSize-HeaderSize)

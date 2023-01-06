@@ -363,6 +363,7 @@ func newRaft(c *Config) *raft {
 		r.loadState(hs)
 	}
 	if c.Applied > 0 {
+		raftlog.applyingTo(c.Applied)
 		raftlog.appliedTo(c.Applied)
 	}
 	if c.Compacted > 0 {
@@ -1157,8 +1158,38 @@ func stepLeader(r *raft, m pb.Message) error {
 			if r.maybeCommit() {
 				// TODO(james.yin): Send latest commit to follower nodes?
 				// r.bcastAppend()
+			} else {
+				r.raftLog.localCommitTo(r.raftLog.committed)
 			}
 		}
+		return nil
+	case pb.MsgApplyResp:
+		// TODO(james.yin): reduce uncommitted size
+
+		newApplied := m.Index
+		oldApplied := r.raftLog.applied
+		r.raftLog.appliedTo(m.Index)
+
+		// Config change
+		if r.prs.Config.AutoLeave && oldApplied <= r.pendingConfIndex && newApplied >= r.pendingConfIndex {
+			// If the current (and most recent, at least for this leader's term)
+			// configuration should be auto-left, initiate that now. We use a
+			// nil Data which unmarshals into an empty ConfChangeV2 and has the
+			// benefit that appendEntry can never refuse it based on its size
+			// (which registers as zero).
+			ent := pb.Entry{
+				Type: pb.EntryConfChangeV2,
+				Data: nil,
+			}
+			// There's no way in which this proposal should be able to be rejected.
+			if !r.appendEntry(ent) {
+				panic("refused un-refusable auto-leaving ConfChangeV2")
+			}
+			r.pendingConfIndex = r.raftLog.lastIndex()
+			r.logger.Infof("initiating automatic transition out of joint configuration %s", r.prs.Config)
+		}
+
+		r.maybeCompact()
 		return nil
 	case pb.MsgReadIndex:
 		// only one voting member (the leader) in the cluster
@@ -1481,6 +1512,9 @@ func stepCandidate(r *raft, m pb.Message) error {
 		if r.raftLog.stableTo(m.Index, m.LogTerm) {
 			r.raftLog.localCommitTo(r.raftLog.committed)
 		}
+	case pb.MsgApplyResp:
+		// TODO(james.yin):
+		r.raftLog.appliedTo(m.Index)
 	case pb.MsgHeartbeat:
 		r.becomeFollower(m.Term, m.From) // always m.Term == r.Term
 		r.handleHeartbeat(m)
@@ -1522,6 +1556,9 @@ func stepFollower(r *raft, m pb.Message) error {
 			r.raftLog.localCommitTo(r.raftLog.committed)
 			r.send(pb.Message{To: r.lead, Type: pb.MsgAppResp, Index: m.Index})
 		}
+	case pb.MsgApplyResp:
+		// TODO(james.yin):
+		r.raftLog.appliedTo(m.Index)
 	case pb.MsgHeartbeat:
 		r.electionElapsed = 0
 		r.lead = m.From

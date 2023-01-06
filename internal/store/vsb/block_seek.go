@@ -19,19 +19,22 @@ import (
 	"context"
 	"sort"
 
+	// third-party libraries.
+	"go.opentelemetry.io/otel/trace"
+
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	"github.com/linkall-labs/vanus/internal/store/vsb/index"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 // Make sure block implements block.Reader.
 var _ block.Seeker = (*vsBlock)(nil)
 
 func (b *vsBlock) Seek(ctx context.Context, index int64, key block.Entry, flag block.SeekKeyFlag) (int64, error) {
-	_, span := b.tracer.Start(ctx, "Seek")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.vsb.vsBlock.Seek() Start")
+	defer span.AddEvent("store.vsb.vsBlock.Seek() End")
 
 	b.mu.RLock()
 	indexes := b.indexes
@@ -49,7 +52,7 @@ func (b *vsBlock) Seek(ctx context.Context, index int64, key block.Entry, flag b
 	case block.SeekBeforeKey:
 		return b.seekBeforeKey(ctx, index, key, indexes)
 	default:
-		return -1, errors.ErrInvalidRequest.WithMessage("block seek key not supported")
+		return -1, block.ErrNotSupported
 	}
 }
 
