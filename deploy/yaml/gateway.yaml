@@ -25,6 +25,7 @@ metadata:
 data:
   gateway.yaml: |-
     port: 8080
+    sink_port: 8082
     controllers:
       - vanus-controller-0.vanus-controller:2048
       - vanus-controller-1.vanus-controller:2048
@@ -58,9 +59,15 @@ spec:
               containerPort: 8080
             - name: cloudevents
               containerPort: 8081
+            - name: sinkproxy
+              containerPort: 8082
           env:
             - name: VANUS_LOG_LEVEL
               value: INFO
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           volumeMounts:
             - name: config-gateway
               mountPath: /vanus/config
