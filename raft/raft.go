@@ -250,6 +250,8 @@ type raft struct {
 	Term uint64
 	Vote uint64
 
+	receiving bool
+
 	readStates []ReadState
 
 	// the log
@@ -613,6 +615,7 @@ func (r *raft) reset(term uint64) {
 		r.Vote = None
 	}
 	r.lead = None
+	r.receiving = false
 
 	r.electionElapsed = 0
 	r.heartbeatElapsed = 0
@@ -1554,7 +1557,9 @@ func stepFollower(r *raft, m pb.Message) error {
 	case pb.MsgLogResp:
 		if r.raftLog.stableTo(m.Index, m.LogTerm) {
 			r.raftLog.localCommitTo(r.raftLog.committed)
-			r.send(pb.Message{To: r.lead, Type: pb.MsgAppResp, Index: m.Index})
+			if r.receiving {
+				r.send(pb.Message{To: r.lead, Type: pb.MsgAppResp, Index: m.Index, LogTerm: m.LogTerm})
+			}
 		}
 	case pb.MsgApplyResp:
 		// TODO(james.yin):
@@ -1630,6 +1635,8 @@ func (r *raft) handleAppendEntries(m pb.Message) {
 			RejectHint: hintIndex,
 			LogTerm:    hintTerm,
 		})
+	} else if !r.receiving {
+		r.receiving = true
 	}
 }
 
