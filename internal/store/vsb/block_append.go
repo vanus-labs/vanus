@@ -169,7 +169,7 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 
 	if !archived {
 		b.s.Append(bytes.NewReader(frag.Payload()), func(n int, err error) {
-			log.Info(context.Background(), "acquiring index write lock", map[string]interface{}{
+			log.Debug(context.Background(), "acquiring index write lock", map[string]interface{}{
 				"block_id": b.id,
 			})
 			b.mu.Lock()
@@ -189,7 +189,7 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 	b.wg.Add(1)
 	b.s.Append(bytes.NewReader(frag.Payload()), func(n int, err error) {
 		if len(indexes) != 0 {
-			log.Info(context.Background(), "acquiring index write lock", map[string]interface{}{
+			log.Debug(context.Background(), "acquiring index write lock", map[string]interface{}{
 				"block_id": b.id,
 			})
 			b.mu.Lock()

@@ -33,12 +33,12 @@ import (
 var _ block.Snapshoter = (*vsBlock)(nil)
 
 func (b *vsBlock) makeSnapshot() (meta, []index.Index) {
-	log.Info(context.Background(), "acquiring index read lock", map[string]interface{}{
+	log.Debug(context.Background(), "acquiring index read lock", map[string]interface{}{
 		"block_id": b.id,
 	})
 	b.mu.RLock()
 	defer func() {
-		log.Info(context.Background(), "release index read lock", map[string]interface{}{
+		log.Debug(context.Background(), "release index read lock", map[string]interface{}{
 			"block_id": b.id,
 		})
 		b.mu.RUnlock()

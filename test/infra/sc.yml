@@ -206,6 +206,52 @@ spec:
               values:
                 - 10.0.32.6
 ---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: store-pv5
+  namespace: vanus
+spec:
+  capacity:
+    storage: 200Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  local:
+    path: /var/lib/docker/data/volumes/store-pv5
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - 10.0.32.6
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: store-pv6
+  namespace: vanus
+spec:
+  capacity:
+    storage: 200Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  local:
+    path: /var/lib/docker/data/volumes/store-pv6
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - 10.0.32.6
+---
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
@@ -249,6 +295,32 @@ kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
   name: data-vanus-store-3
+  namespace: vanus
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-storage
+  resources:
+    requests:
+      storage: 200Gi
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: data-vanus-store-4
+  namespace: vanus
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-storage
+  resources:
+    requests:
+      storage: 200Gi
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: data-vanus-store-5
   namespace: vanus
 spec:
   accessModes:

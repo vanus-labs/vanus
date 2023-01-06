@@ -153,7 +153,7 @@ func (p *peer) connect(ctx context.Context, opts ...grpc.DialOption) (vsraftpb.R
 		cancelCtx, cancel := context.WithTimeout(ctx, defaultConnectTimeout)
 		defer cancel()
 		ctx = cancelCtx
-	} else if dl.Sub(time.Now()) < minConnectTimeout {
+	} else if time.Until(dl) < minConnectTimeout {
 		cancelCtx, cancel := context.WithTimeout(context.Background(), minConnectTimeout)
 		defer cancel()
 		ctx = cancelCtx
