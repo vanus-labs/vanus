@@ -550,12 +550,19 @@ func (t *trigger) Start(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.stop = cancel
 	// eb event
-	_ = t.reader.Start()
+	err := t.reader.Start()
+	if err != nil {
+		return err
+	}
+	// retry event
+	err = t.retryEventReader.Start()
+	if err != nil {
+		t.reader.Close()
+		return err
+	}
 	t.wg.StartWithContext(ctx, t.runEventFilterTransform)
 	t.wg.StartWithContext(ctx, t.runEventToBatch)
 	t.wg.StartWithContext(ctx, t.runEventSend)
-	// retry event
-	_ = t.retryEventReader.Start()
 	t.wg.StartWithContext(ctx, t.runRetryEventFilterTransform)
 	t.state = TriggerRunning
 	log.Info(ctx, "trigger started", map[string]interface{}{
@@ -571,9 +578,9 @@ func (t *trigger) Stop(ctx context.Context) error {
 	if t.state == TriggerStopped {
 		return nil
 	}
-	t.stop()
 	t.reader.Close()
 	t.retryEventReader.Close()
+	t.stop()
 	close(t.eventCh)
 	close(t.retryEventCh)
 	close(t.sendCh)
