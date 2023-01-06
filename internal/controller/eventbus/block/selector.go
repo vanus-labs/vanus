@@ -15,6 +15,8 @@
 package block
 
 import (
+	"fmt"
+	"github.com/linkall-labs/vanus/observability/log"
 	"sort"
 	"sync"
 
@@ -83,6 +85,9 @@ func (s *volumeRoundRobinSelector) Select(num int, size int64) []server.Instance
 	for idx := 0; idx < num; idx++ {
 		instances = append(instances, m[keys[(s.count+int64(idx))%int64(len(keys))]])
 	}
+	log.Info(nil, "picked instances", map[string]interface{}{
+		"instances": fmt.Sprintf("%v", instances),
+	})
 	s.count++
 	return instances
 }

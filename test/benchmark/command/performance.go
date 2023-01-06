@@ -116,12 +116,6 @@ func sendWithGRPC(cmd *cobra.Command) {
 		grpc.WithBlock(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
-	conn, err := grpc.DialContext(ctx, endpoint, opts...)
-	if err != nil {
-		cmdFailedf(cmd, "failed to connect to gateway")
-	}
-
-	batchClient := cloudevents.NewCloudEventsClient(conn)
 
 	var success int64
 	wg := sync.WaitGroup{}
@@ -130,6 +124,11 @@ func sendWithGRPC(cmd *cobra.Command) {
 		for idx := 0; idx < parallelism; idx++ {
 			wg.Add(1)
 			go func() {
+				conn, err := grpc.DialContext(ctx, endpoint, opts...)
+				if err != nil {
+					cmdFailedf(cmd, "failed to connect to gateway")
+				}
+				batchClient := cloudevents.NewCloudEventsClient(conn)
 				for atomic.LoadInt64(&success) < number {
 					s := time.Now()
 					events := generateEvents()
@@ -199,7 +198,7 @@ func sendWithGRPC(cmd *cobra.Command) {
 			"unit":  unit,
 			"count": v.Count,
 		}
-		fmt.Printf("%.2f pct - %d %s, count: %d\n", v.Quantile, v.ValueAt, unit, v.Count)
+		fmt.Printf("%.2f pct - %d %s\n", v.Quantile, v.ValueAt, unit)
 	}
 
 	fmt.Printf("Total: %d\n", latency.TotalCount())
@@ -405,7 +404,7 @@ func analyseCommand() *cobra.Command {
 						"unit":  unit,
 						"count": v.Count,
 					}
-					fmt.Printf("%.2f pct - %d %s, count: %d\n", v.Quantile, v.ValueAt, unit, v.Count)
+					fmt.Printf("%.2f pct - %d %s\n", v.Quantile, v.ValueAt, unit)
 				}
 
 				fmt.Printf("Total: %d\n", his.TotalCount())
@@ -450,7 +449,7 @@ func analyseCommand() *cobra.Command {
 						continue
 					}
 
-					fmt.Printf("%3.2f pct - %d, count: %d\n", v.Quantile, v.ValueAt, v.Count)
+					fmt.Printf("%3.2f pct - %d\n", v.Quantile, v.ValueAt)
 				}
 				fmt.Printf("Used: %d s\n", tps.TotalCount())
 				fmt.Printf("TPS Mean: %.2f/s\n", tps.Mean())

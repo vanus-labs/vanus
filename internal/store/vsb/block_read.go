@@ -60,14 +60,14 @@ func (b *vsBlock) Read(ctx context.Context, seq int64, num int) ([]block.Entry, 
 
 func (b *vsBlock) entryRange(start, num int) (int64, int64, int, error) {
 	// TODO(james.yin): optimize lock.
-	log.Info(context.Background(), "acquiring index read lock", map[string]interface{}{
+	log.Debug(context.Background(), "acquiring index read lock", map[string]interface{}{
 		"block_id": b.id,
 		"start":    start,
 		"num":      num,
 	})
 	b.mu.RLock()
 	defer func() {
-		log.Info(context.Background(), "release index read lock", map[string]interface{}{
+		log.Debug(context.Background(), "release index read lock", map[string]interface{}{
 			"block_id": b.id,
 		})
 		b.mu.RUnlock()

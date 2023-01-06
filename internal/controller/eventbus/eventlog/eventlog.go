@@ -18,7 +18,9 @@ package eventlog
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
@@ -92,6 +94,7 @@ type eventlogManager struct {
 	cleanInterval               time.Duration
 	checkSegmentExpiredInterval time.Duration
 	segmentExpiredTime          time.Duration
+	createSegmentMutex          sync.Mutex
 }
 
 func NewManager(volMgr volume.Manager, replicaNum uint, defaultBlockSize int64) Manager {
@@ -496,12 +499,6 @@ func (mgr *eventlogManager) dynamicScaleUpEventLog(ctx context.Context) {
 					})
 					count++
 				}
-				/* log too many
-				log.Debug(ctx, "scale task completed", map[string]interface{}{
-					"segment_created": count,
-					"eventlog_id":     el.md.ID.String(),
-				})
-				*/
 				return true
 			})
 		}
@@ -648,7 +645,10 @@ func (mgr *eventlogManager) checkSegmentExpired(ctx context.Context) {
 }
 
 func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*Segment, error) {
-	seg, err := mgr.generateSegment(ctx)
+	mgr.createSegmentMutex.Lock()
+	defer mgr.createSegmentMutex.Unlock()
+
+	seg, err := mgr.generateSegment(ctx, el)
 	defer func() {
 		// preparing to cleaning
 		if err != nil {
@@ -665,26 +665,49 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 	}
 	seg.EventLogID = el.md.ID
 
-	for i := range seg.Replicas.Peers {
-		seg.Replicas.Leader = i
-		ins := mgr.volMgr.GetVolumeInstanceByID(seg.GetLeaderBlock().VolumeID)
-		srv := ins.GetServer()
-		if srv == nil {
-			return nil, errors.ErrVolumeInstanceNoServer
+	cur := el.currentAppendableSegment()
+	if cur == nil {
+		blk, err := mgr.whichIsLeader(seg.Replicas.Peers)
+		if err != nil {
+			return nil, err
 		}
-		_, err = srv.GetClient().ActivateSegment(ctx, &segment.ActivateSegmentRequest{
-			EventLogId:     seg.EventLogID.Uint64(),
-			ReplicaGroupId: seg.Replicas.ID.Uint64(),
-			Replicas:       mgr.getSegmentTopology(ctx, seg),
-		})
-		if err == nil {
-			break
+		seg.Replicas.Leader = blk.ID.Uint64()
+	} else {
+		set := false
+		for _, blk := range seg.Replicas.Peers {
+			if blk.VolumeID.Equals(cur.GetLeaderBlock().VolumeID) {
+				seg.Replicas.Leader = blk.ID.Uint64()
+				set = true
+				break
+			}
 		}
+		if !set {
+			log.Error(ctx, "failed to set leader block", map[string]interface{}{
+				"eventlog":                   el.md.ID.Key(),
+				"eventbus":                   el.md.EventbusName,
+				"previous_segment_volume_id": cur.GetLeaderBlock().VolumeID,
+				"replicas":                   fmt.Sprintf("%v", seg.Replicas),
+				"segment":                    seg.ID.Key(),
+			})
+			return nil, errors.ErrInvalidSegment
+		}
+	}
+
+	ins := mgr.volMgr.GetVolumeInstanceByID(seg.GetLeaderBlock().VolumeID)
+	srv := ins.GetServer()
+	if srv == nil {
+		return nil, errors.ErrVolumeInstanceNoServer
+	}
+	_, err = srv.GetClient().ActivateSegment(ctx, &segment.ActivateSegmentRequest{
+		EventLogId:     seg.EventLogID.Uint64(),
+		ReplicaGroupId: seg.Replicas.ID.Uint64(),
+		Replicas:       mgr.getSegmentTopology(ctx, seg),
+	})
+
+	if err != nil {
 		log.Warning(context.TODO(), "activate segment failed", map[string]interface{}{
 			log.KeyError: err,
 		})
-	}
-	if err != nil {
 		return nil, err
 	}
 
@@ -720,9 +743,22 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 	return seg, nil
 }
 
-func (mgr *eventlogManager) generateSegment(ctx context.Context) (*Segment, error) {
+func (mgr *eventlogManager) generateSegment(ctx context.Context, el *eventlog) (*Segment, error) {
 	var seg *Segment
-	blocks, err := mgr.allocator.Pick(ctx, int(mgr.segmentReplicaNum))
+	cur := el.currentAppendableSegment()
+	var blocks []*metadata.Block
+	var err error
+	if cur == nil {
+		blocks, err = mgr.allocator.Pick(ctx, int(mgr.segmentReplicaNum))
+	} else {
+		// make sure segments of one eventlog located in one SegmentServer
+		volumes := make([]vanus.ID, 0)
+		for _, peer := range cur.Replicas.Peers {
+			volumes = append(volumes, peer.VolumeID)
+		}
+		blocks, err = mgr.allocator.PickByVolumes(ctx, volumes)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -773,6 +809,32 @@ func (mgr *eventlogManager) generateSegment(ctx context.Context) (*Segment, erro
 		return nil, err
 	}
 	return seg, nil
+}
+
+func (mgr *eventlogManager) whichIsLeader(raftGroup map[uint64]*metadata.Block) (*metadata.Block, error) {
+	countMap := map[uint64]int{}
+	mgr.globalSegmentMap.Range(func(key, value any) bool {
+		seg, _ := value.(*Segment)
+		if seg.State == StateWorking {
+			vId := seg.GetLeaderBlock().VolumeID.Uint64()
+			count := countMap[vId]
+			countMap[vId] = count + 1
+		}
+		return true
+	})
+
+	volumeMap := make(map[uint64]*metadata.Block, len(raftGroup))
+	orderArr := make([]uint64, 0)
+	for _, node := range raftGroup {
+		volumeMap[node.VolumeID.Uint64()] = node
+		orderArr = append(orderArr, node.VolumeID.Uint64())
+	}
+	sort.Slice(orderArr, func(i, j int) bool {
+		return countMap[orderArr[i]] < countMap[orderArr[j]] ||
+			orderArr[i] < orderArr[j]
+	})
+
+	return volumeMap[orderArr[0]], nil
 }
 
 type eventlog struct {

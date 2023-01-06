@@ -17,6 +17,7 @@ package block
 import (
 	"context"
 	"encoding/json"
+	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"strings"
 	"sync"
 	"time"
@@ -38,6 +39,7 @@ const (
 type Allocator interface {
 	Run(ctx context.Context, kvCli kv.Client, dynamicAllocate bool) error
 	Pick(ctx context.Context, num int) ([]*metadata.Block, error)
+	PickByVolumes(ctx context.Context, volumes []vanus.ID) ([]*metadata.Block, error)
 	Stop()
 }
 
@@ -64,6 +66,18 @@ type allocator struct {
 	cancelCtx         context.Context
 	allocateTicker    *time.Ticker
 	blockCapacity     int64
+}
+
+func (al *allocator) PickByVolumes(ctx context.Context, volumes []vanus.ID) ([]*metadata.Block, error) {
+	instances := make([]server.Instance, len(volumes))
+	for idx := range volumes {
+		i := al.selector.SelectByID(volumes[idx])
+		if i == nil {
+			return nil, errors.ErrVolumeInstanceNoServer
+		}
+		instances[idx] = i
+	}
+	return al.pick(ctx, instances)
 }
 
 func (al *allocator) Run(ctx context.Context, kvCli kv.Client, startDynamicAllocate bool) error {
@@ -99,15 +113,19 @@ func (al *allocator) Run(ctx context.Context, kvCli kv.Client, startDynamicAlloc
 func (al *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, error) {
 	al.mutex.Lock()
 	defer al.mutex.Unlock()
-	blockArr := make([]*metadata.Block, num)
-
 	instances := al.selector.Select(num, al.blockCapacity)
 	if len(instances) == 0 {
 		return nil, errors.ErrVolumeInstanceNotFound
 	}
-	for idx := 0; idx < num; idx++ {
-		ins := instances[idx]
+
+	return al.pick(ctx, instances)
+}
+
+func (al *allocator) pick(ctx context.Context, volumes []server.Instance) ([]*metadata.Block, error) {
+	blockArr := make([]*metadata.Block, len(volumes))
+	for idx := range volumes {
 		var skipList *skiplist.SkipList
+		ins := volumes[idx]
 		v, exist := al.volumeBlockBuffer.Load(ins.GetMeta().ID.Key())
 		var err error
 		var block *metadata.Block
