@@ -98,22 +98,22 @@ var (
 type ackCallback func(bool)
 
 type message struct {
-	sequenceId uint64
+	sequenceID uint64
 	event      v2.Event
 }
 
 type subscribeCache struct {
-	sequenceId      uint64
-	subscriptionId  string
+	sequenceID      uint64
+	subscriptionID  string
 	subscribeStream vanuspb.Client_SubscribeServer
 	acks            sync.Map
 	eventc          chan message
 }
 
-func newSubscribeCache(subscriptionId string, stream vanuspb.Client_SubscribeServer) *subscribeCache {
+func newSubscribeCache(subscriptionID string, stream vanuspb.Client_SubscribeServer) *subscribeCache {
 	return &subscribeCache{
-		sequenceId:      0,
-		subscriptionId:  subscriptionId,
+		sequenceID:      0,
+		subscriptionID:  subscriptionID,
 		subscribeStream: stream,
 		acks:            sync.Map{},
 		eventc:          make(chan message),
@@ -187,7 +187,7 @@ func (cp *ControllerProxy) Subscribe(req *vanuspb.SubscribeRequest, stream vanus
 	defer span.End()
 
 	// 1. modify subscription sink
-	subscriptionId, err := vanus.NewIDFromString(req.SubscriptionId)
+	subscriptionID, err := vanus.NewIDFromString(req.SubscriptionId)
 	if err != nil {
 		log.Error(_ctx, "parse subscription id failed", map[string]interface{}{
 			log.KeyError: err,
@@ -197,7 +197,7 @@ func (cp *ControllerProxy) Subscribe(req *vanuspb.SubscribeRequest, stream vanus
 	}
 
 	getSubscriptionReq := &ctrlpb.GetSubscriptionRequest{
-		Id: subscriptionId.Uint64(),
+		Id: subscriptionID.Uint64(),
 	}
 	meta, err := cp.triggerCtrl.GetSubscription(context.Background(), getSubscriptionReq)
 	if err != nil {
@@ -208,10 +208,11 @@ func (cp *ControllerProxy) Subscribe(req *vanuspb.SubscribeRequest, stream vanus
 		return err
 	}
 
-	newSink := fmt.Sprintf("http://%s:%d%s/%s", os.Getenv("POD_IP"), cp.cfg.SinkPort, httpRequestPrefix, req.SubscriptionId)
+	newSink := fmt.Sprintf("http://%s:%d%s/%s",
+		os.Getenv("POD_IP"), cp.cfg.SinkPort, httpRequestPrefix, req.SubscriptionId)
 	if meta.Sink != newSink {
 		updateSubscriptionReq := &ctrlpb.UpdateSubscriptionRequest{
-			Id: subscriptionId.Uint64(),
+			Id: subscriptionID.Uint64(),
 			Subscription: &ctrlpb.SubscriptionRequest{
 				Source:      meta.Source,
 				Types:       meta.Types,
@@ -260,13 +261,13 @@ func (cp *ControllerProxy) Subscribe(req *vanuspb.SubscribeRequest, stream vanus
 				"eventpb":    eventpb.String(),
 			})
 			err = subscribe.stream().Send(&vanuspb.SubscribeResponse{
-				SequenceId: msg.sequenceId,
+				SequenceId: msg.sequenceID,
 				Events: &cloudevents.CloudEventBatch{
 					Events: []*cloudevents.CloudEvent{eventpb},
 				},
 			})
 			if err != nil {
-				cache, _ := cp.cache.LoadAndDelete(subscribe.subscriptionId)
+				cache, _ := cp.cache.LoadAndDelete(subscribe.subscriptionID)
 				if cache != nil {
 					cache.(*subscribeCache).acks.Range(func(key, value interface{}) bool {
 						value.(ackCallback)(false)
@@ -277,7 +278,6 @@ func (cp *ControllerProxy) Subscribe(req *vanuspb.SubscribeRequest, stream vanus
 			}
 		}
 	}
-	return nil
 }
 
 func (cp *ControllerProxy) Ack(stream vanuspb.Client_AckServer) error {
@@ -297,7 +297,7 @@ func (cp *ControllerProxy) Ack(stream vanuspb.Client_AckServer) error {
 		})
 		cache, ok := cp.cache.Load(rsp.SubscriptionId)
 		if !ok {
-			//TODO(jiangkai): err check
+			// TODO(jiangkai): err check
 			log.Error(_ctx, "subscription not found", map[string]interface{}{
 				log.KeyError:      err,
 				"subscription-id": rsp.SubscriptionId,
@@ -309,7 +309,6 @@ func (cp *ControllerProxy) Ack(stream vanuspb.Client_AckServer) error {
 			cb.(ackCallback)(rsp.Success)
 		}
 	}
-	return nil
 }
 
 func ToProto(e *v2.Event) (*cloudevents.CloudEvent, error) {
@@ -335,7 +334,7 @@ func ToProto(e *v2.Event) (*cloudevents.CloudEvent, error) {
 	for name, value := range e.Extensions() {
 		attr, err := attributeFor(value)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode attribute %s: %s", name, err)
+			return nil, fmt.Errorf("failed to encode attribute %s: %w", name, err)
 		}
 		container.Attributes[name] = attr
 	}
@@ -550,11 +549,11 @@ func (cp *ControllerProxy) Start() error {
 func (cp *ControllerProxy) receive(ctx context.Context, event v2.Event) (*v2.Event, protocol.Result) {
 	_ctx, span := cp.tracer.Start(ctx, "receive")
 	defer span.End()
-	subscriptionId := getSubscriptionIdFromPath(requestDataFromContext(_ctx))
-	if subscriptionId == "" {
+	subscriptionID := getSubscriptionIDFromPath(requestDataFromContext(_ctx))
+	if subscriptionID == "" {
 		return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid subscription id")
 	}
-	cache, ok := cp.cache.Load(subscriptionId)
+	cache, ok := cp.cache.Load(subscriptionID)
 	if !ok {
 		// retry
 		return nil, v2.NewHTTPResult(http.StatusInternalServerError, "subscription not exist")
@@ -562,10 +561,10 @@ func (cp *ControllerProxy) receive(ctx context.Context, event v2.Event) (*v2.Eve
 	log.Debug(_ctx, "sink proxy received a event", map[string]interface{}{
 		"event": event.String(),
 	})
-	sequenceId := atomic.AddUint64(&cache.(*subscribeCache).sequenceId, 1)
+	sequenceID := atomic.AddUint64(&cache.(*subscribeCache).sequenceID, 1)
 	var success bool
 	donec := make(chan struct{})
-	cache.(*subscribeCache).acks.Store(sequenceId, ackCallback(func(result bool) {
+	cache.(*subscribeCache).acks.Store(sequenceID, ackCallback(func(result bool) {
 		log.Info(_ctx, "ack callback", map[string]interface{}{
 			"result": result,
 		})
@@ -573,7 +572,7 @@ func (cp *ControllerProxy) receive(ctx context.Context, event v2.Event) (*v2.Eve
 		close(donec)
 	}))
 	cache.(*subscribeCache).eventc <- message{
-		sequenceId: sequenceId,
+		sequenceID: sequenceID,
 		event:      event,
 	}
 	<-donec
@@ -584,7 +583,7 @@ func (cp *ControllerProxy) receive(ctx context.Context, event v2.Event) (*v2.Eve
 	return nil, v2.ResultACK
 }
 
-func getSubscriptionIdFromPath(reqData *cehttp.RequestData) string {
+func getSubscriptionIDFromPath(reqData *cehttp.RequestData) string {
 	// TODO validate
 	reqPathStr := reqData.URL.String()
 	if !strings.HasPrefix(reqPathStr, httpRequestPrefix) {
