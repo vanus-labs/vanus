@@ -52,6 +52,7 @@ var (
 	sinkCredential     string
 	deliveryTimeout    uint32
 	maxRetryAttempts   int32
+	offsetTimestamp    uint64
 
 	showSegment bool
 	showBlock   bool

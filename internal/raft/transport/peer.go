@@ -31,8 +31,9 @@ import (
 )
 
 const (
+	minConnectTimeout       = 100 * time.Millisecond
 	defaultConnectTimeout   = 300 * time.Millisecond
-	defaultMessageChainSize = 32
+	defaultMessageChainSize = 2048
 )
 
 type task struct {
@@ -148,8 +149,15 @@ func (p *peer) Send(ctx context.Context, msg *raftpb.Message, cb SendCallback) {
 }
 
 func (p *peer) connect(ctx context.Context, opts ...grpc.DialOption) (vsraftpb.RaftServer_SendMessageClient, error) {
-	ctx, cancel := context.WithTimeout(ctx, defaultConnectTimeout)
-	defer cancel()
+	if dl, ok := ctx.Deadline(); !ok {
+		cancelCtx, cancel := context.WithTimeout(ctx, defaultConnectTimeout)
+		defer cancel()
+		ctx = cancelCtx
+	} else if dl.Sub(time.Now()) < minConnectTimeout {
+		cancelCtx, cancel := context.WithTimeout(context.Background(), minConnectTimeout)
+		defer cancel()
+		ctx = cancelCtx
+	}
 
 	conn, err := grpc.DialContext(ctx, p.addr, opts...)
 	if err != nil {

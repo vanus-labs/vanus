@@ -63,6 +63,8 @@ func validateProtocol(ctx context.Context, protocol metapb.Protocol) error {
 	case metapb.Protocol_HTTP:
 	case metapb.Protocol_AWS_LAMBDA:
 	case metapb.Protocol_GCLOUD_FUNCTIONS:
+	case metapb.Protocol_GRPC:
+
 	default:
 		return errors.ErrInvalidRequest.WithMessage("protocol is invalid")
 	}
@@ -96,6 +98,7 @@ func ValidateSinkAndProtocol(ctx context.Context,
 			return errors.ErrInvalidRequest.
 				WithMessage("protocol is http, sink is url,url parse error").Wrap(err)
 		}
+	case metapb.Protocol_GRPC:
 	}
 	return nil
 }

@@ -78,21 +78,6 @@ func (mr *MockTriggerMockRecorder) Init(ctx interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Init", reflect.TypeOf((*MockTrigger)(nil).Init), ctx)
 }
 
-// ResetOffsetToTimestamp mocks base method.
-func (m *MockTrigger) ResetOffsetToTimestamp(ctx context.Context, timestamp int64) (info.ListOffsetInfo, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResetOffsetToTimestamp", ctx, timestamp)
-	ret0, _ := ret[0].(info.ListOffsetInfo)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ResetOffsetToTimestamp indicates an expected call of ResetOffsetToTimestamp.
-func (mr *MockTriggerMockRecorder) ResetOffsetToTimestamp(ctx, timestamp interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetOffsetToTimestamp", reflect.TypeOf((*MockTrigger)(nil).ResetOffsetToTimestamp), ctx, timestamp)
-}
-
 // Start mocks base method.
 func (m *MockTrigger) Start(ctx context.Context) error {
 	m.ctrl.T.Helper()

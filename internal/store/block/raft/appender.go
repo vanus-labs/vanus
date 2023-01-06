@@ -46,6 +46,7 @@ const (
 	defaultHeartbeatTick   = 3
 	defaultMaxSizePerMsg   = 4096
 	defaultMaxInflightMsgs = 256
+	defaultSendTimeout     = 80 * time.Millisecond
 )
 
 type Peer struct {
@@ -215,7 +216,9 @@ func (a *appender) run(ctx context.Context) {
 			}
 
 			// NOTE: Messages to be sent AFTER HardState and Entries are committed to stable storage.
-			a.send(rCtx, rd.Messages)
+			sCtx, cancel := context.WithTimeout(rCtx, defaultSendTimeout)
+			a.send(sCtx, rd.Messages)
+			cancel()
 
 			// TODO(james.yin): snapshot
 			if !raft.IsEmptySnap(rd.Snapshot) {
@@ -274,7 +277,6 @@ func (a *appender) applyEntries(ctx context.Context, committedEntries []raftpb.E
 	span.AddEvent("store.block.raft.appender.applyEntries() Start")
 	defer span.AddEvent("store.block.raft.appender.applyEntries() End")
 
-	var cs *raftpb.ConfState
 	for i := 0; i < len(committedEntries); i++ {
 		pbEntry := &committedEntries[i]
 		index := pbEntry.Index
@@ -296,7 +298,7 @@ func (a *appender) applyEntries(ctx context.Context, committedEntries []raftpb.E
 		}
 
 		// Change membership.
-		cs = a.applyConfChange(ctx, pbEntry)
+		cs := a.applyConfChange(ctx, pbEntry)
 		ch := make(chan struct{})
 		go func() {
 			if err := a.log.SetConfState(ctx, *cs); err != nil {

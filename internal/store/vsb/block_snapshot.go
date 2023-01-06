@@ -20,6 +20,9 @@ import (
 	"encoding/binary"
 	"sync/atomic"
 
+	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/log"
+
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
@@ -30,8 +33,16 @@ import (
 var _ block.Snapshoter = (*vsBlock)(nil)
 
 func (b *vsBlock) makeSnapshot() (meta, []index.Index) {
+	log.Info(context.Background(), "acquiring index read lock", map[string]interface{}{
+		"block_id": b.id,
+	})
 	b.mu.RLock()
-	defer b.mu.RUnlock()
+	defer func() {
+		log.Info(context.Background(), "release index read lock", map[string]interface{}{
+			"block_id": b.id,
+		})
+		b.mu.RUnlock()
+	}()
 	return makeSnapshot(b.actx, b.indexes)
 }
 

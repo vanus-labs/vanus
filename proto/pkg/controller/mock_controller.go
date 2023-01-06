@@ -1079,6 +1079,26 @@ func (mr *MockTriggerControllerClientMockRecorder) DeleteSubscription(ctx, in in
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteSubscription", reflect.TypeOf((*MockTriggerControllerClient)(nil).DeleteSubscription), varargs...)
 }
 
+// DisableSubscription mocks base method.
+func (m *MockTriggerControllerClient) DisableSubscription(ctx context.Context, in *DisableSubscriptionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "DisableSubscription", varargs...)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DisableSubscription indicates an expected call of DisableSubscription.
+func (mr *MockTriggerControllerClientMockRecorder) DisableSubscription(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DisableSubscription", reflect.TypeOf((*MockTriggerControllerClient)(nil).DisableSubscription), varargs...)
+}
+
 // GetSubscription mocks base method.
 func (m *MockTriggerControllerClient) GetSubscription(ctx context.Context, in *GetSubscriptionRequest, opts ...grpc.CallOption) (*meta.Subscription, error) {
 	m.ctrl.T.Helper()
@@ -1140,14 +1160,14 @@ func (mr *MockTriggerControllerClientMockRecorder) RegisterTriggerWorker(ctx, in
 }
 
 // ResetOffsetToTimestamp mocks base method.
-func (m *MockTriggerControllerClient) ResetOffsetToTimestamp(ctx context.Context, in *ResetOffsetToTimestampRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (m *MockTriggerControllerClient) ResetOffsetToTimestamp(ctx context.Context, in *ResetOffsetToTimestampRequest, opts ...grpc.CallOption) (*ResetOffsetToTimestampResponse, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "ResetOffsetToTimestamp", varargs...)
-	ret0, _ := ret[0].(*emptypb.Empty)
+	ret0, _ := ret[0].(*ResetOffsetToTimestampResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1157,6 +1177,26 @@ func (mr *MockTriggerControllerClientMockRecorder) ResetOffsetToTimestamp(ctx, i
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, in}, opts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetOffsetToTimestamp", reflect.TypeOf((*MockTriggerControllerClient)(nil).ResetOffsetToTimestamp), varargs...)
+}
+
+// ResumeSubscription mocks base method.
+func (m *MockTriggerControllerClient) ResumeSubscription(ctx context.Context, in *ResumeSubscriptionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ResumeSubscription", varargs...)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResumeSubscription indicates an expected call of ResumeSubscription.
+func (mr *MockTriggerControllerClientMockRecorder) ResumeSubscription(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResumeSubscription", reflect.TypeOf((*MockTriggerControllerClient)(nil).ResumeSubscription), varargs...)
 }
 
 // TriggerWorkerHeartbeat mocks base method.
@@ -1424,6 +1464,21 @@ func (mr *MockTriggerControllerServerMockRecorder) DeleteSubscription(arg0, arg1
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteSubscription", reflect.TypeOf((*MockTriggerControllerServer)(nil).DeleteSubscription), arg0, arg1)
 }
 
+// DisableSubscription mocks base method.
+func (m *MockTriggerControllerServer) DisableSubscription(arg0 context.Context, arg1 *DisableSubscriptionRequest) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DisableSubscription", arg0, arg1)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DisableSubscription indicates an expected call of DisableSubscription.
+func (mr *MockTriggerControllerServerMockRecorder) DisableSubscription(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DisableSubscription", reflect.TypeOf((*MockTriggerControllerServer)(nil).DisableSubscription), arg0, arg1)
+}
+
 // GetSubscription mocks base method.
 func (m *MockTriggerControllerServer) GetSubscription(arg0 context.Context, arg1 *GetSubscriptionRequest) (*meta.Subscription, error) {
 	m.ctrl.T.Helper()
@@ -1470,10 +1525,10 @@ func (mr *MockTriggerControllerServerMockRecorder) RegisterTriggerWorker(arg0, a
 }
 
 // ResetOffsetToTimestamp mocks base method.
-func (m *MockTriggerControllerServer) ResetOffsetToTimestamp(arg0 context.Context, arg1 *ResetOffsetToTimestampRequest) (*emptypb.Empty, error) {
+func (m *MockTriggerControllerServer) ResetOffsetToTimestamp(arg0 context.Context, arg1 *ResetOffsetToTimestampRequest) (*ResetOffsetToTimestampResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResetOffsetToTimestamp", arg0, arg1)
-	ret0, _ := ret[0].(*emptypb.Empty)
+	ret0, _ := ret[0].(*ResetOffsetToTimestampResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1482,6 +1537,21 @@ func (m *MockTriggerControllerServer) ResetOffsetToTimestamp(arg0 context.Contex
 func (mr *MockTriggerControllerServerMockRecorder) ResetOffsetToTimestamp(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetOffsetToTimestamp", reflect.TypeOf((*MockTriggerControllerServer)(nil).ResetOffsetToTimestamp), arg0, arg1)
+}
+
+// ResumeSubscription mocks base method.
+func (m *MockTriggerControllerServer) ResumeSubscription(arg0 context.Context, arg1 *ResumeSubscriptionRequest) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResumeSubscription", arg0, arg1)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResumeSubscription indicates an expected call of ResumeSubscription.
+func (mr *MockTriggerControllerServerMockRecorder) ResumeSubscription(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResumeSubscription", reflect.TypeOf((*MockTriggerControllerServer)(nil).ResumeSubscription), arg0, arg1)
 }
 
 // TriggerWorkerHeartbeat mocks base method.

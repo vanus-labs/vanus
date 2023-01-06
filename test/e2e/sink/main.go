@@ -16,14 +16,18 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"net"
+	"sync/atomic"
+
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/client"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"github.com/linkall-labs/vanus/observability/log"
-	"net"
 )
 
 func main() {
+	var total int64
 	ls, err := net.Listen("tcp4", ":18080")
 	if err != nil {
 		panic(err)
@@ -34,8 +38,7 @@ func main() {
 	}
 	log.Info(context.Background(), "start success", nil)
 	c.StartReceiver(context.Background(), func(e ce.Event) {
-		log.Info(context.Background(), "receive event", map[string]interface{}{
-			"event": e,
-		})
+		fmt.Println(fmt.Sprintf("---total: %d", atomic.AddInt64(&total, 1)))
+		fmt.Println(e)
 	})
 }

@@ -213,20 +213,6 @@ func (mr *MockTriggerWorkerMockRecorder) Reset() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reset", reflect.TypeOf((*MockTriggerWorker)(nil).Reset))
 }
 
-// ResetOffsetToTimestamp mocks base method.
-func (m *MockTriggerWorker) ResetOffsetToTimestamp(id vanus.ID, timestamp uint64) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResetOffsetToTimestamp", id, timestamp)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// ResetOffsetToTimestamp indicates an expected call of ResetOffsetToTimestamp.
-func (mr *MockTriggerWorkerMockRecorder) ResetOffsetToTimestamp(id, timestamp interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetOffsetToTimestamp", reflect.TypeOf((*MockTriggerWorker)(nil).ResetOffsetToTimestamp), id, timestamp)
-}
-
 // SetPhase mocks base method.
 func (m *MockTriggerWorker) SetPhase(arg0 metadata.TriggerWorkerPhase) {
 	m.ctrl.T.Helper()
@@ -254,9 +240,11 @@ func (mr *MockTriggerWorkerMockRecorder) Start(ctx interface{}) *gomock.Call {
 }
 
 // UnAssignSubscription mocks base method.
-func (m *MockTriggerWorker) UnAssignSubscription(id vanus.ID) {
+func (m *MockTriggerWorker) UnAssignSubscription(id vanus.ID) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "UnAssignSubscription", id)
+	ret := m.ctrl.Call(m, "UnAssignSubscription", id)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // UnAssignSubscription indicates an expected call of UnAssignSubscription.

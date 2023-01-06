@@ -31,23 +31,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestTriggerWorker_ResetOffsetToTimestamp(t *testing.T) {
-	Convey("test reset offset to timestamp", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		subscriptionManager := subscription.NewMockManager(ctrl)
-		client := pbtrigger.NewMockTriggerWorkerClient(ctrl)
-		addr := "test"
-		tWorker := NewTriggerWorkerByAddr(addr, subscriptionManager).(*triggerWorker)
-		tWorker.client = client
-		id := vanus.NewTestID()
-		client.EXPECT().ResetOffsetToTimestamp(gomock.Any(), gomock.Any()).Return(nil, nil)
-		err := tWorker.ResetOffsetToTimestamp(id, uint64(time.Now().Unix()))
-		So(err, ShouldBeNil)
-		_ = tWorker.Close()
-	})
-}
-
 func TestTriggerWorker_AssignSubscription(t *testing.T) {
 	Convey("test assign subscription", t, func() {
 		ctrl := gomock.NewController(t)
@@ -153,7 +136,7 @@ func TestTriggerWorker_Handler(t *testing.T) {
 				},
 			}
 			subscriptionManager.EXPECT().GetSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(sub)
-			subscriptionManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(info.ListOffsetInfo{}, nil)
+			subscriptionManager.EXPECT().GetOrSaveOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(info.ListOffsetInfo{}, nil)
 			client.EXPECT().AddSubscription(gomock.Any(), gomock.Any()).Return(nil, nil)
 			subscriptionManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 			err := tWorker.handler(ctx, id)

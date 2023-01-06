@@ -178,28 +178,34 @@ func (s *AsyncStore) commit() {
 		span.End()
 	}()
 
+	s.mu.Lock()
+
 	if s.pending.Len() == 0 {
+		s.mu.Unlock()
 		return
 	}
 
-	// Write WAL.
-	s.mu.RLock()
+	// Marshal changed data.
 	data, err := s.marshaler.Marshal(SkiplistRange(s.pending))
-	s.mu.RUnlock()
-	if err != nil {
-		panic(err)
-	}
-	r, err := s.wal.AppendOne(ctx, data, walog.WithoutBatching()).Wait()
 	if err != nil {
 		panic(err)
 	}
 
 	// Update state.
+	merge(s.committed, s.pending)
+	s.pending.Init()
+
+	s.mu.Unlock()
+
+	// Write WAL.
+	r, err := s.wal.AppendOne(ctx, data, walog.WithoutBatching()).Wait()
+	if err != nil {
+		panic(err)
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	merge(s.committed, s.pending)
 	s.version = r.EO
-	s.pending.Init()
 }
 
 func merge(dst, src *skiplist.SkipList) {
