@@ -33,6 +33,7 @@ func init() {
 		structs.NewReplaceAction,
 		structs.NewMoveAction,
 		structs.NewRenameAction,
+		structs.NewDuplicateAction,
 		// math
 		math.NewMathAddAction,
 		math.NewMathSubAction,
