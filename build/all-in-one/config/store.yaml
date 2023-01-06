@@ -1,0 +1,30 @@
+port: 11811
+ip : 127.0.0.1
+controllers:
+  - 127.0.0.1:2048
+volume:
+  id: 1
+  dir: /vanus/data/store
+  capacity: 1073741824 # 1GB
+meta_store:
+  wal:
+    io:
+      engine: psync
+offset_store:
+  wal:
+    io:
+      engine: psync
+raft:
+  wal:
+    block_size: 32768
+    io:
+      engine: psync
+observability:
+  metrics:
+    enable: false
+    # metrics for prometheus scratch data
+    port: 2114
+  tracing:
+    enable: false
+    # OpenTelemetry Collector endpoint, https://opentelemetry.io/docs/collector/getting-started/
+    otel_collector: http://127.0.0.1:4318

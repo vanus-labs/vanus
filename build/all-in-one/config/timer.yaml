@@ -1,0 +1,24 @@
+name: "timer"
+ip: "127.0.0.1"
+etcd:
+  - "127.0.0.1:2379"
+replicas: 1
+metadata:
+  key_prefix: "/standalone"
+leaderelection:
+  lease_duration: 15
+timingwheel:
+  tick: 1
+  wheel_size: 32
+  layers: 4
+controllers:
+  - 127.0.0.1:2048
+observability:
+  metrics:
+    enable: false
+    # metrics for prometheus scratch data
+    port: 2115
+  tracing:
+    enable: false
+    # OpenTelemetry Collector endpoint, https://opentelemetry.io/docs/collector/getting-started/
+    otel_collector: http://127.0.0.1:4318
