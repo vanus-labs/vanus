@@ -35,6 +35,8 @@ import (
 	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/linkall-labs/vanus/pkg/util"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -64,7 +66,6 @@ type reader struct {
 	events   chan<- info.EventRecord
 	stop     context.CancelFunc
 	wg       sync.WaitGroup
-	lock     sync.Mutex
 }
 
 func NewReader(config Config, events chan<- info.EventRecord) Reader {
@@ -169,7 +170,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 		switch {
 		case err == nil, errors.Is(err, errors.ErrOffsetOnEnd), errors.Is(err, errors.ErrTryAgain):
 			continue
-		case stderr.Is(err, context.Canceled):
+		case stderr.Is(err, context.Canceled), status.Convert(err).Code() == codes.Canceled:
 			return
 		case errors.Is(err, errors.ErrOffsetUnderflow):
 			// todo reset offset timestamp
