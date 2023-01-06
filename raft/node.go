@@ -383,10 +383,11 @@ func (n *node) run() {
 		case pds := <-propc:
 			r.Propose(pds...)
 		case m := <-n.recvc:
-			// filter out response message from unknown From.
-			if pr := r.prs.Progress[m.From]; pr != nil || !IsResponseMsg(m.Type) {
-				r.Step(m)
+			if IsResponseMsg(m.Type) && r.prs.Progress[m.From] == nil {
+				// Filter out response message from unknown From.
+				break
 			}
+			r.Step(m)
 		case cc := <-n.confc:
 			_, okBefore := r.prs.Progress[r.id]
 			cs := r.applyConfChange(cc)
