@@ -74,3 +74,6 @@ docker-build-timer:
 	docker build -t ${DOCKER_REPO}/timer:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/timer/Dockerfile .
 build-timer:
 	$(GO_BUILD)  -o bin/timer cmd/timer/main.go
+
+docker-push-aio:
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/all-in-one:${IMAGE_TAG} -f build/all-in-one/Dockerfile . --push
