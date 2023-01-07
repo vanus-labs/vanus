@@ -15,46 +15,26 @@
 package filter
 
 import (
-	"context"
-	"fmt"
 	"strings"
 
-	"github.com/linkall-labs/vanus/internal/trigger/util"
-	"github.com/linkall-labs/vanus/observability/log"
 	pkgUtil "github.com/linkall-labs/vanus/pkg/util"
-
-	ce "github.com/cloudevents/sdk-go/v2"
 )
 
 type prefixFilter struct {
-	prefix map[string]string
+	commonFilter
 }
 
 func NewPrefixFilter(prefix map[string]string) Filter {
-	for attr, v := range prefix {
-		if attr == "" || v == "" {
-			log.Info(context.Background(), "new prefix filter but has empty ", map[string]interface{}{
-				"attr":  attr,
-				"value": v,
-			})
-			return nil
+	f := newCommonFilter(prefix, func(exist bool, value interface{}, compareValue string) bool {
+		if !exist {
+			return false
 		}
+		return strings.HasPrefix(pkgUtil.StringValue(value), compareValue)
+	})
+	if f == nil {
+		return nil
 	}
-	return &prefixFilter{prefix: prefix}
-}
-
-func (filter *prefixFilter) Filter(event ce.Event) Result {
-	for attr, prefix := range filter.prefix {
-		value, ok := util.LookupAttribute(event, attr)
-		if !ok || !strings.HasPrefix(pkgUtil.StringValue(value), prefix) {
-			return FailFilter
-		}
-	}
-	return PassFilter
-}
-
-func (filter *prefixFilter) String() string {
-	return fmt.Sprintf("prefix:%v", filter.prefix)
+	return &prefixFilter{commonFilter: *f}
 }
 
 var _ Filter = (*prefixFilter)(nil)
