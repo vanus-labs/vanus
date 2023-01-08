@@ -43,7 +43,7 @@ service ControllerProxy {
       returns (google.protobuf.Empty);
   rpc GetSubscription(controller.GetSubscriptionRequest)
       returns (meta.Subscription);
-  rpc ListSubscription(google.protobuf.Empty)
+  rpc ListSubscription(controller.ListSubscriptionRequest)
       returns (controller.ListSubscriptionResponse);
   rpc DisableSubscription(controller.DisableSubscriptionRequest)
       returns (google.protobuf.Empty);

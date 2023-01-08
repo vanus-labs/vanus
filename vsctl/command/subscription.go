@@ -24,7 +24,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/fatih/color"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/linkall-labs/vanus/internal/convert"
@@ -410,13 +409,18 @@ func listSubscriptionCommand() *cobra.Command {
 		Use:   "list",
 		Short: "list the subscription ",
 		Run: func(cmd *cobra.Command, args []string) {
-			res, err := client.ListSubscription(context.Background(), &empty.Empty{})
+			res, err := client.ListSubscription(context.Background(), &ctrlpb.ListSubscriptionRequest{
+				Eventbus: eventbus,
+				Name:     subscriptionName,
+			})
 			if err != nil {
 				cmdFailedf(cmd, "list subscription failed: %s", err)
 			}
 			printSubscription(cmd, true, false, false, res.Subscription...)
 		},
 	}
+	cmd.Flags().StringVar(&eventbus, "eventbus", "", "eventbus name to consuming")
+	cmd.Flags().StringVar(&subscriptionName, "name", "", "subscription name")
 	return cmd
 }
 

@@ -47,7 +47,10 @@ func ValidateSubscriptionRequest(ctx context.Context, request *ctrlpb.Subscripti
 		return err
 	}
 	if request.EventBus == "" {
-		return errors.ErrInvalidRequest.WithMessage("eventBus is empty")
+		return errors.ErrInvalidRequest.WithMessage("eventbus is empty")
+	}
+	if request.Name == "" {
+		return errors.ErrInvalidRequest.WithMessage("name is empty")
 	}
 	if err := validateSubscriptionConfig(ctx, request.Config); err != nil {
 		return err

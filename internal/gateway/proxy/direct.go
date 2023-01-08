@@ -78,7 +78,7 @@ func (cp *ControllerProxy) GetSubscription(ctx context.Context,
 }
 
 func (cp *ControllerProxy) ListSubscription(ctx context.Context,
-	req *emptypb.Empty) (*ctrlpb.ListSubscriptionResponse, error) {
+	req *ctrlpb.ListSubscriptionRequest) (*ctrlpb.ListSubscriptionResponse, error) {
 	return cp.triggerCtrl.ListSubscription(ctx, req)
 }
 

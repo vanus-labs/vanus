@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -146,6 +147,12 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 		})
 		return nil, err
 	}
+	// subscription name can't be repeated in an eventbus
+	_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, request.Subscription.EventBus, request.Subscription.Name)
+	if _sub != nil {
+		return nil, errors.ErrInvalidRequest.WithMessage(
+			fmt.Sprintf("subscription name %s has exist", request.Subscription.Name))
+	}
 	sub := convert.FromPbSubscriptionRequest(request.Subscription)
 	sub.ID, err = vanus.NewID()
 	sub.CreatedAt = time.Now()
@@ -187,6 +194,14 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 	}
 	if request.Subscription.EventBus != sub.EventBus {
 		return nil, errors.ErrInvalidRequest.WithMessage("can not change eventbus")
+	}
+	if request.Subscription.Name != sub.Name {
+		// subscription name can't be repeated in an eventbus
+		_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, sub.EventBus, request.Subscription.Name)
+		if _sub != nil {
+			return nil, errors.ErrInvalidRequest.WithMessage(
+				fmt.Sprintf("subscription name %s has exist", request.Subscription.Name))
+		}
 	}
 	if request.Subscription.Config != nil {
 		if request.Subscription.Config.DeadLetterEventbus != sub.Config.DeadLetterEventbus {
@@ -398,10 +413,16 @@ func (ctrl *controller) UnregisterTriggerWorker(ctx context.Context,
 }
 
 func (ctrl *controller) ListSubscription(ctx context.Context,
-	_ *emptypb.Empty) (*ctrlpb.ListSubscriptionResponse, error) {
+	request *ctrlpb.ListSubscriptionRequest) (*ctrlpb.ListSubscriptionResponse, error) {
 	subscriptions := ctrl.subscriptionManager.ListSubscription(ctx)
 	list := make([]*meta.Subscription, 0, len(subscriptions))
 	for _, sub := range subscriptions {
+		if request.Eventbus != "" && request.Eventbus != sub.EventBus {
+			continue
+		}
+		if request.Name != "" && !strings.Contains(sub.Name, request.Name) {
+			continue
+		}
 		offsets, _ := ctrl.subscriptionManager.GetOffset(ctx, sub.ID)
 		list = append(list, convert.ToPbSubscription(sub, offsets))
 	}
