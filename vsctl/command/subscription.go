@@ -80,7 +80,9 @@ func createSubscriptionCommand() *cobra.Command {
 			trans := getTransformer(cmd)
 
 			// subscription config
-			config := &meta.SubscriptionConfig{}
+			config := &meta.SubscriptionConfig{
+				OrderedEvent: orderedPushEvent,
+			}
 			getSubscriptionConfig(cmd, config)
 			res, err := client.CreateSubscription(context.Background(), &ctrlpb.CreateSubscriptionRequest{
 				Subscription: &ctrlpb.SubscriptionRequest{
@@ -226,7 +228,6 @@ func getTransformer(cmd *cobra.Command) *meta.Transformer {
 }
 
 func getSubscriptionConfig(cmd *cobra.Command, config *meta.SubscriptionConfig) {
-	config.OrderedEvent = orderedPushEvent
 	if rateLimit >= 0 {
 		config.RateLimit = uint32(rateLimit)
 	}
