@@ -16,201 +16,100 @@ package metrics
 
 import (
 	"context"
-	"sync"
-
+	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
-	"go.opentelemetry.io/otel/attribute"
+	"github.com/prometheus/client_golang/prometheus/push"
+	"time"
 )
 
 const (
 	namespace = "vanus"
 )
 
-func RegisterControllerMetrics() {
-	registerGoRuntimeMetrics()
-	prometheus.MustRegister(EventbusGauge)
-	prometheus.MustRegister(EventlogGaugeVec)
-	prometheus.MustRegister(SegmentGaugeVec)
-	prometheus.MustRegister(SegmentCreationRuntimeCounterVec)
-	prometheus.MustRegister(SegmentDeletedCounterVec)
-	prometheus.MustRegister(SubscriptionGauge)
-	prometheus.MustRegister(SubscriptionTransformerGauge)
-	prometheus.MustRegister(CtrlTriggerGauge)
-}
-
-func RegisterTriggerMetrics() {
-	registerGoRuntimeMetrics()
-	prometheus.MustRegister(TriggerGauge)
-	prometheus.MustRegister(TriggerPullEventCounter)
-	prometheus.MustRegister(TriggerFilterCostSecond)
-	prometheus.MustRegister(TriggerTransformCostSecond)
-	prometheus.MustRegister(TriggerFilterMatchEventCounter)
-	prometheus.MustRegister(TriggerFilterMatchRetryEventCounter)
-	prometheus.MustRegister(TriggerRetryEventCounter)
-	prometheus.MustRegister(TriggerRetryEventAppendSecond)
-	prometheus.MustRegister(TriggerDeadLetterEventCounter)
-	prometheus.MustRegister(TriggerDeadLetterEventAppendSecond)
-	prometheus.MustRegister(TriggerPushEventCounter)
-	prometheus.MustRegister(TriggerPushEventTime)
-}
-
-func RegisterTimerMetrics() {
-	prometheus.MustRegister(TimingWheelTickGauge)
-	prometheus.MustRegister(TimingWheelSizeGauge)
-	prometheus.MustRegister(TimingWheelLayersGauge)
-	prometheus.MustRegister(TimerPushEventTPSCounterVec)
-	prometheus.MustRegister(TimerDeliverEventTPSCounterVec)
-	prometheus.MustRegister(TimerScheduledEventDelayTime)
-	prometheus.MustRegister(TimerPushEventTime)
-	prometheus.MustRegister(TimerDeliverEventTime)
-}
-
-func RegisterSegmentServerMetrics() {
-	prometheus.MustRegister(WriteTPSCounterVec)
-	prometheus.MustRegister(WriteThroughputCounterVec)
-	prometheus.MustRegister(ReadTPSCounterVec)
-	prometheus.MustRegister(ReadThroughputCounterVec)
-}
-
-func registerGoRuntimeMetrics() {
-	collectors.NewBuildInfoCollector()
-	collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})
-	collectors.NewGoCollector(collectors.WithGoCollections(collectors.GoRuntimeMetricsCollection))
-}
-
-type Config struct {
-	ModuleName string
-}
-
-var mCfg Config
-
-func Init(cfg Config) {
-	mCfg = cfg
-}
-
-type unit string
-
-const (
-	UnitMillisecond   = unit("ms")
-	UnitByte          = unit("byte")
-	UnitDimensionless = unit("1")
-)
-
-var (
-	metricCreateMutex = sync.Mutex{}
-	countMap          = make(map[string]ICounter, 0)
-	gaugeMap          = make(map[string]IGauge, 0)
-	histogramMap      = make(map[string]IHistogram, 0)
-	emptyCount        = &promCounter{}
-	emptyGauge        = &promGauge{}
-	emptyHistogram    = &promHistogram{}
-)
-
-type metricKey struct {
-	name        string
-	description string
-	unit        unit
-}
-
-func NewMetricKey(name string, u unit, desc string) *metricKey {
-	return &metricKey{
-		name:        name,
-		description: desc,
-		unit:        u,
+func PushMetrics(ctx context.Context, url, jobName string, coll []prometheus.Collector) {
+	if len(coll) == 0 {
+		return
 	}
-}
-
-type ICounter interface {
-	IncrInt(int64, ...attribute.KeyValue)
-	IncrFloat(float64, ...attribute.KeyValue)
-	Async(func(context.Context, ICounter))
-}
-
-func newCounter(k *metricKey) ICounter {
-	return emptyCount
-}
-
-type IGauge interface {
-	IncrInt(int64, ...attribute.KeyValue)
-	IncrFloat(float64, ...attribute.KeyValue)
-	Async(func(context.Context, IGauge))
-}
-
-func newGauge(k *metricKey) IGauge {
-	return emptyGauge
-}
-
-type IHistogram interface {
-	RecordInt(int64, ...attribute.KeyValue)
-	RecordFloat(float64, ...attribute.KeyValue)
-	Async(func(context.Context, IHistogram))
-}
-
-func newHistogram(k *metricKey) IHistogram {
-	return emptyHistogram
-}
-
-func GetCounter(key *metricKey) ICounter {
-	if !isValidKey(key) {
-		return emptyCount
+	p := push.New(url, jobName)
+	for idx := range coll {
+		p.Collector(coll[idx])
 	}
-	v, exist := countMap[key.name]
-	if !exist {
-		metricCreateMutex.Lock()
-		v, exist = countMap[key.name]
-		if !exist {
-			v = newCounter(key)
-			countMap[key.name] = v
+	t := time.NewTimer(time.Second)
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info(ctx, "shutdown metrics pushing", nil)
+		case <-t.C:
+			if err := p.Push(); err != nil {
+				log.Warning(ctx, "failed to push metrics", map[string]interface{}{
+					log.KeyError: err,
+				})
+			}
 		}
-		metricCreateMutex.Unlock()
 	}
-	return v
 }
 
-func GetGauge(key *metricKey) IGauge {
-	if !isValidKey(key) {
-		return emptyGauge
+func GetControllerMetrics() []prometheus.Collector {
+	coll := []prometheus.Collector{
+		EventbusGauge,
+		EventlogGaugeVec,
+		SegmentGaugeVec,
+		SegmentCreationRuntimeCounterVec,
+		SegmentDeletedCounterVec,
+		SubscriptionGauge,
+		SubscriptionTransformerGauge,
+		CtrlTriggerGauge,
 	}
-	v, exist := gaugeMap[key.name]
-	if !exist {
-		metricCreateMutex.Lock()
-		v, exist = gaugeMap[key.name]
-		if !exist {
-			v = newGauge(key)
-			gaugeMap[key.name] = v
-		}
-		metricCreateMutex.Unlock()
-	}
-	return v
+	return append(coll, getGoRuntimeMetrics()...)
 }
 
-func GetHistogram(key *metricKey) IHistogram {
-	if !isValidKey(key) {
-		return emptyHistogram
+func GetTriggerMetrics() []prometheus.Collector {
+	coll := []prometheus.Collector{
+		TriggerGauge,
+		TriggerPullEventCounter,
+		TriggerFilterCostSecond,
+		TriggerTransformCostSecond,
+		TriggerFilterMatchEventCounter,
+		TriggerFilterMatchRetryEventCounter,
+		TriggerRetryEventCounter,
+		TriggerRetryEventAppendSecond,
+		TriggerDeadLetterEventCounter,
+		TriggerDeadLetterEventAppendSecond,
+		TriggerPushEventCounter,
+		TriggerPushEventTime,
 	}
-	v, exist := histogramMap[key.name]
-	if !exist {
-		metricCreateMutex.Lock()
-		v, exist = histogramMap[key.name]
-		if !exist {
-			v = newHistogram(key)
-			histogramMap[key.name] = v
-		}
-		metricCreateMutex.Unlock()
-	}
-	return v
+	return append(coll, getGoRuntimeMetrics()...)
 }
 
-func isValidKey(k *metricKey) bool {
-	if k == nil {
-		return false
+func GetTimerMetrics() []prometheus.Collector {
+	coll := []prometheus.Collector{
+		TimingWheelTickGauge,
+		TimingWheelSizeGauge,
+		TimingWheelLayersGauge,
+		TimerPushEventTPSCounterVec,
+		TimerDeliverEventTPSCounterVec,
+		TimerScheduledEventDelayTime,
+		TimerPushEventTime,
+		TimerDeliverEventTime,
 	}
-	if k.name == "" {
-		return false
+	return append(coll, getGoRuntimeMetrics()...)
+}
+
+func GetSegmentServerMetrics() []prometheus.Collector {
+	coll := []prometheus.Collector{
+		WriteThroughputCounterVec,
+		WriteTPSCounterVec,
+		ReadTPSCounterVec,
+		ReadThroughputCounterVec,
 	}
-	if k.unit == "" {
-		return false
+	return append(coll, getGoRuntimeMetrics()...)
+}
+
+func getGoRuntimeMetrics() []prometheus.Collector {
+	return []prometheus.Collector{
+		collectors.NewBuildInfoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		collectors.NewGoCollector(collectors.WithGoCollectorRuntimeMetrics()),
 	}
-	return true
 }

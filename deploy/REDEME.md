@@ -7,8 +7,8 @@ Vanus is runtime in Kubernetes cluster
 File structure:
 
 > ```text
-> ├── all-in-one.yaml
-> └── yaml
+> ├── vanus.yaml
+> └── vanus
 >     ├── controller.yaml
 >     ├── gateway.yaml
 >     ├── namespace.yaml
@@ -28,10 +28,10 @@ File structure:
   
   - trigger.yaml is yaml file of vanus triggerWorker which process events and route them to user workload or Sink Connector
 
-- all-in-one.yaml is yaml file auto generate by [kustomize]  use below command
+- vanus.yaml is yaml file auto generate by [kustomize]  use below command
 
 ```shell
-kubectl kustomize deploy > deploy/all-in-one.yaml
+kubectl kustomize deploy > deploy/vanus.yaml
 ```
 
 ## Installation
@@ -43,7 +43,7 @@ kubectl kustomize deploy > deploy/all-in-one.yaml
 ### Install
 
 ```shell
-kubectl apply -f all-in-one.yml
+kubectl apply -f vanus.yml
 ```
 
 ### Verifying the installation
@@ -70,7 +70,7 @@ Output format:
 ### Uninstall
 
 ```shell
-kubectl delete -f all-in-one.yml
+kubectl delete -f vanus.yml
 ```
 
 ## Install step by step

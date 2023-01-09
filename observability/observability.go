@@ -16,32 +16,15 @@ package observability
 
 import (
 	"context"
-	"fmt"
-	"net/http"
-
-	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/linkall-labs/vanus/observability/tracing"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
-func Initialize(cfg Config, metricsFunc func()) error {
-	if cfg.M.Enable {
-		if metricsFunc != nil {
-			metricsFunc()
-		}
-		go func() {
-			http.Handle("/metrics", promhttp.Handler())
-			if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.M.GetPort()), nil); err != nil {
-				log.Error(context.Background(), "Metrics listen and serve failed.", map[string]interface{}{
-					log.KeyError: err,
-				})
-			}
-		}()
-		log.Info(context.Background(), "metrics module started", map[string]interface{}{
-			"port": cfg.M.Port,
-		})
+func Initialize(ctx context.Context, cfg Config, getCollectors func() []prometheus.Collector) error {
+	if cfg.M.Enable && getCollectors != nil {
+		go metrics.PushMetrics(ctx, cfg.M.PushGateway, cfg.M.JobName, getCollectors())
 	}
-
 	tracing.Init(cfg.T)
 	return nil
 }
@@ -52,13 +35,7 @@ type Config struct {
 }
 
 type Metrics struct {
-	Enable bool `yaml:"enable"`
-	Port   int  `yaml:"port"`
-}
-
-func (m Metrics) GetPort() int {
-	if m.Port == 0 {
-		return 2112
-	}
-	return m.Port
+	Enable      bool   `yaml:"enable"`
+	PushGateway string `yaml:"push_gateway"`
+	JobName     string `yaml:"job_name"`
 }
