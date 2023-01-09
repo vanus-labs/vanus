@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
@@ -48,6 +49,7 @@ func NewSubscriptionCommand() *cobra.Command {
 		},
 	}
 	cmd.AddCommand(createSubscriptionCommand())
+	cmd.AddCommand(updateSubscriptionCommand())
 	cmd.AddCommand(deleteSubscriptionCommand())
 	cmd.AddCommand(disableSubscriptionCommand())
 	cmd.AddCommand(resumeSubscriptionCommand())
@@ -68,128 +70,20 @@ func createSubscriptionCommand() *cobra.Command {
 			if sink == "" {
 				cmdFailedWithHelpNotice(cmd, "sink name can't be empty\n")
 			}
-
-			var p meta.Protocol
-			switch subProtocol {
-			case "http", "":
-				p = meta.Protocol_HTTP
-			case "aws-lambda":
-				p = meta.Protocol_AWS_LAMBDA
-				if _, err := arn.Parse(sink); err != nil {
-					cmdFailedf(cmd, "protocol is aws-lambda sink is aws arn, arn parse error: %s\n", err.Error())
-				}
-				if sinkCredentialType != AWSCredentialType {
-					cmdFailedf(cmd, "protocol is aws-lambda, credential-type must be %s\n", AWSCredentialType)
-				}
-			case "gcloud-functions":
-				p = meta.Protocol_GCLOUD_FUNCTIONS
-				if sinkCredentialType != GCloudCredentialType {
-					cmdFailedf(cmd, "protocol is aws-lambda, credential-type must be %s\n", GCloudCredentialType)
-				}
-			case "grpc":
-				p = meta.Protocol_GRPC
-			default:
-				cmdFailedf(cmd, "protocol is invalid\n")
+			if subscriptionName == "" {
+				cmdFailedWithHelpNotice(cmd, "subscription name can't be empty\n")
 			}
 
-			var credential *meta.SinkCredential
-			if sinkCredentialType != "" {
-				if sinkCredential == "" {
-					cmdFailedf(cmd, "credential-type is set but sinkCredential empty\n")
-				}
-				if sinkCredential[0] == '@' {
-					credentialBytes, err := ioutil.ReadFile(sinkCredential[1:])
-					if err != nil {
-						cmdFailedf(cmd, "read sinkCredential file:%s error:%s\n", sinkCredential, err.Error())
-					}
-					sinkCredential = string(credentialBytes)
-					fmt.Println(sinkCredential)
-				}
-				// expand value from env
-				sinkCredential = os.ExpandEnv(sinkCredential)
-				switch sinkCredentialType {
-				case AWSCredentialType:
-					var akSK *meta.AKSKCredential
-					err := json.Unmarshal([]byte(sinkCredential), &akSK)
-					if err != nil {
-						cmdFailedf(cmd, "the sink credential unmarshal json error: %s", err.Error())
-					}
-					if akSK.AccessKeyId == "" || akSK.SecretAccessKey == "" {
-						cmdFailedf(cmd, "credential-type is aws, access_key_id and secret_access_key must not be empty\n")
-					}
-					credential = &meta.SinkCredential{
-						CredentialType: meta.SinkCredential_AWS,
-						Credential: &meta.SinkCredential_Aws{
-							Aws: akSK,
-						},
-					}
-				case GCloudCredentialType:
-					var m map[string]string
-					err := json.Unmarshal([]byte(sinkCredential), &m)
-					if err != nil {
-						cmdFailedf(cmd, "the sink credential unmarshal json error: %s", err.Error())
-					}
-					credential = &meta.SinkCredential{
-						CredentialType: meta.SinkCredential_GCLOUD,
-						Credential: &meta.SinkCredential_Gcloud{
-							Gcloud: &meta.GCloudCredential{
-								CredentialsJson: sinkCredential,
-							},
-						},
-					}
-				default:
-					cmdFailedf(cmd, "credential-type is invalid\n")
-				}
-			}
-
-			var filter []*meta.Filter
-			if filters != "" {
-				err := json.Unmarshal([]byte(filters), &filter)
-				if err != nil {
-					cmdFailedf(cmd, "the filter invalid: %s", err)
-				}
-			}
-
-			var trans *meta.Transformer
-			if transformer != "" {
-				var _transformer *primitive.Transformer
-				err := json.Unmarshal([]byte(transformer), &_transformer)
-				if err != nil {
-					cmdFailedf(cmd, "the transformer invalid: %s", err)
-				}
-				trans = convert.ToPbTransformer(_transformer)
-			}
+			p := getProtocol(cmd)
+			credential := getSinkCredential(cmd)
+			filter := getFilters(cmd)
+			trans := getTransformer(cmd)
 
 			// subscription config
-			config := &meta.SubscriptionConfig{
-				RateLimit:       rateLimit,
-				DeliveryTimeout: deliveryTimeout,
-				OrderedEvent:    orderedPushEvent,
-			}
-			if maxRetryAttempts >= 0 {
-				value := uint32(maxRetryAttempts)
-				config.MaxRetryAttempts = &value
-			}
-			if from != "" {
-				switch from {
-				case "latest":
-					config.OffsetType = meta.SubscriptionConfig_LATEST
-				case "earliest":
-					config.OffsetType = meta.SubscriptionConfig_EARLIEST
-				default:
-					t, err := time.Parse(time.RFC3339, from)
-					if err != nil {
-						cmdFailedf(cmd, "consumer from time format is invalid: %s", err)
-					}
-					ts := uint64(t.Unix())
-					config.OffsetTimestamp = &ts
-					config.OffsetType = meta.SubscriptionConfig_TIMESTAMP
-				}
-			}
-
+			config := &meta.SubscriptionConfig{}
+			getSubscriptionConfig(cmd, config)
 			res, err := client.CreateSubscription(context.Background(), &ctrlpb.CreateSubscriptionRequest{
 				Subscription: &ctrlpb.SubscriptionRequest{
-					Source:         source,
 					Config:         config,
 					Filters:        filter,
 					Sink:           sink,
@@ -212,12 +106,12 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&sink, "sink", "", "the event you want to send to")
 	cmd.Flags().StringVar(&filters, "filters", "", "filter event you interested, JSON format required")
 	cmd.Flags().StringVar(&transformer, "transformer", "", "transformer, JSON format required")
-	cmd.Flags().Uint32Var(&rateLimit, "rate-limit", 0, "max event number pushing to sink per second, default is 0, means unlimited")
+	cmd.Flags().Int32Var(&rateLimit, "rate-limit", 0, "max event number pushing to sink per second, default is 0, means unlimited")
 	cmd.Flags().StringVar(&from, "from", "", "consume events from, latest,earliest or RFC3339 format time")
 	cmd.Flags().StringVar(&subProtocol, "protocol", "http", "protocol,http or aws-lambda or gcloud-functions or grpc")
 	cmd.Flags().StringVar(&sinkCredentialType, "credential-type", "", "sink credential type: aws or gcloud")
 	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, JSON format or @file")
-	cmd.Flags().Uint32Var(&deliveryTimeout, "delivery-timeout", 0, "event delivery to sink timeout by millisecond, default is 0, means using server-side default value: 5s")
+	cmd.Flags().Int32Var(&deliveryTimeout, "delivery-timeout", 0, "event delivery to sink timeout by millisecond, default is 0, means using server-side default value: 5s")
 	cmd.Flags().Int32Var(&maxRetryAttempts, "max-retry-attempts", -1, "event delivery fail max retry attempts, default is -1, means using server-side max retry attempts: 32")
 	cmd.Flags().StringVar(&subscriptionName, "name", "", "subscription name")
 	cmd.Flags().StringVar(&description, "description", "", "subscription description")
@@ -225,6 +119,247 @@ func createSubscriptionCommand() *cobra.Command {
 		"subscription (just create if disable=true)")
 	cmd.Flags().BoolVar(&orderedPushEvent, "ordered-event", false, "whether push the "+
 		"event with ordered")
+	return cmd
+}
+
+func getProtocol(cmd *cobra.Command) meta.Protocol {
+	var p meta.Protocol
+	switch subProtocol {
+	case "http", "":
+		p = meta.Protocol_HTTP
+	case "aws-lambda":
+		p = meta.Protocol_AWS_LAMBDA
+		if _, err := arn.Parse(sink); err != nil {
+			cmdFailedf(cmd, "protocol is aws-lambda sink is aws arn, arn parse error: %s\n", err.Error())
+		}
+		if sinkCredentialType != AWSCredentialType {
+			cmdFailedf(cmd, "protocol is aws-lambda, credential-type must be %s\n", AWSCredentialType)
+		}
+	case "gcloud-functions":
+		p = meta.Protocol_GCLOUD_FUNCTIONS
+		if sinkCredentialType != GCloudCredentialType {
+			cmdFailedf(cmd, "protocol is aws-lambda, credential-type must be %s\n", GCloudCredentialType)
+		}
+	case "grpc":
+		p = meta.Protocol_GRPC
+	default:
+		cmdFailedf(cmd, "protocol is invalid\n")
+	}
+	return p
+}
+
+func getSinkCredential(cmd *cobra.Command) *meta.SinkCredential {
+	if sinkCredentialType == "" {
+		return nil
+	}
+	if sinkCredential == "" {
+		cmdFailedf(cmd, "credential-type is set but sinkCredential empty\n")
+	}
+	if sinkCredential[0] == '@' {
+		credentialBytes, err := ioutil.ReadFile(sinkCredential[1:])
+		if err != nil {
+			cmdFailedf(cmd, "read sinkCredential file:%s error:%s\n", sinkCredential, err.Error())
+		}
+		sinkCredential = string(credentialBytes)
+		fmt.Println(sinkCredential)
+	}
+	// expand value from env
+	sinkCredential = os.ExpandEnv(sinkCredential)
+	switch sinkCredentialType {
+	case AWSCredentialType:
+		var akSK *meta.AKSKCredential
+		err := json.Unmarshal([]byte(sinkCredential), &akSK)
+		if err != nil {
+			cmdFailedf(cmd, "the sink credential unmarshal json error: %s", err.Error())
+		}
+		if akSK.AccessKeyId == "" || akSK.SecretAccessKey == "" {
+			cmdFailedf(cmd, "credential-type is aws, access_key_id and secret_access_key must not be empty\n")
+		}
+		return &meta.SinkCredential{
+			CredentialType: meta.SinkCredential_AWS,
+			Credential: &meta.SinkCredential_Aws{
+				Aws: akSK,
+			},
+		}
+	case GCloudCredentialType:
+		var m map[string]string
+		err := json.Unmarshal([]byte(sinkCredential), &m)
+		if err != nil {
+			cmdFailedf(cmd, "the sink credential unmarshal json error: %s", err.Error())
+		}
+		return &meta.SinkCredential{
+			CredentialType: meta.SinkCredential_GCLOUD,
+			Credential: &meta.SinkCredential_Gcloud{
+				Gcloud: &meta.GCloudCredential{
+					CredentialsJson: sinkCredential,
+				},
+			},
+		}
+	default:
+		cmdFailedf(cmd, "credential-type is invalid\n")
+	}
+	return nil
+}
+
+func getFilters(cmd *cobra.Command) []*meta.Filter {
+	if filters == "" {
+		return nil
+	}
+	var filter []*meta.Filter
+	err := json.Unmarshal([]byte(filters), &filter)
+	if err != nil {
+		cmdFailedf(cmd, "the filter invalid: %s", err)
+	}
+	return filter
+}
+
+func getTransformer(cmd *cobra.Command) *meta.Transformer {
+	if transformer == "" {
+		return nil
+	}
+	var _transformer *primitive.Transformer
+	err := json.Unmarshal([]byte(transformer), &_transformer)
+	if err != nil {
+		cmdFailedf(cmd, "the transformer invalid: %s", err)
+	}
+	return convert.ToPbTransformer(_transformer)
+}
+
+func getSubscriptionConfig(cmd *cobra.Command, config *meta.SubscriptionConfig) {
+	config.OrderedEvent = orderedPushEvent
+	if rateLimit >= 0 {
+		config.RateLimit = uint32(rateLimit)
+	}
+	if deliveryTimeout >= 0 {
+		config.DeliveryTimeout = uint32(deliveryTimeout)
+	}
+	if maxRetryAttempts >= 0 {
+		value := uint32(maxRetryAttempts)
+		config.MaxRetryAttempts = &value
+	}
+	if from != "" {
+		switch from {
+		case "latest":
+			config.OffsetType = meta.SubscriptionConfig_LATEST
+		case "earliest":
+			config.OffsetType = meta.SubscriptionConfig_EARLIEST
+		default:
+			t, err := time.Parse(time.RFC3339, from)
+			if err != nil {
+				cmdFailedf(cmd, "consumer from time format is invalid: %s", err)
+			}
+			ts := uint64(t.Unix())
+			config.OffsetTimestamp = &ts
+			config.OffsetType = meta.SubscriptionConfig_TIMESTAMP
+		}
+	}
+}
+
+func updateSubscriptionCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "update",
+		Short: "update a subscription",
+		Run: func(cmd *cobra.Command, args []string) {
+			id, err := vanus.NewIDFromString(subscriptionIDStr)
+			if err != nil {
+				cmdFailedWithHelpNotice(cmd, fmt.Sprintf("invalid subscription id: %s\n", err.Error()))
+			}
+			sub, err := client.GetSubscription(context.Background(), &ctrlpb.GetSubscriptionRequest{
+				Id: id.Uint64(),
+			})
+			if err != nil {
+				cmdFailedf(cmd, "get subscription %s error: %s", subscriptionIDStr, err)
+			}
+			var change bool
+			if sink != "" && sink != sub.Sink {
+				change = true
+				sub.Sink = sink
+			}
+			if subscriptionName != "" && subscriptionName != sub.Name {
+				change = true
+				sub.Name = subscriptionName
+			}
+			if description != "" && description != sub.Description {
+				sub.Description = description
+			}
+			if subProtocol != "" {
+				p := getProtocol(cmd)
+				if p != sub.Protocol {
+					change = true
+					sub.Protocol = p
+				}
+			}
+			if sinkCredentialType != "" {
+				credential := getSinkCredential(cmd)
+				if credential != sub.SinkCredential {
+					change = true
+					sub.SinkCredential = credential
+				}
+			}
+			if filters != "" {
+				filter := getFilters(cmd)
+				if !reflect.DeepEqual(filter, sub.Filters) {
+					change = true
+					sub.Filters = filter
+				}
+			}
+			if transformer != "" {
+				trans := getTransformer(cmd)
+				if !reflect.DeepEqual(trans, sub.Transformer) {
+					change = true
+					sub.Transformer = trans
+				}
+			}
+
+			// subscription config
+			config := sub.Config
+			if config == nil {
+				config = &meta.SubscriptionConfig{}
+			}
+			getSubscriptionConfig(cmd, config)
+			if !reflect.DeepEqual(config, sub.Config) {
+				change = true
+			}
+			if !change {
+				cmdFailedf(cmd, "update subscription no change")
+			}
+			res, err := client.UpdateSubscription(context.Background(), &ctrlpb.UpdateSubscriptionRequest{
+				Id: id.Uint64(),
+				Subscription: &ctrlpb.SubscriptionRequest{
+					Source:         sub.Source,
+					Types:          sub.Types,
+					Config:         config,
+					Filters:        sub.Filters,
+					Sink:           sub.Sink,
+					SinkCredential: sub.SinkCredential,
+					Protocol:       sub.Protocol,
+					EventBus:       sub.EventBus,
+					Transformer:    sub.Transformer,
+					Name:           sub.Name,
+					Description:    sub.Description,
+				},
+			})
+			if err != nil {
+				cmdFailedf(cmd, "update subscription failed: %s", err)
+			}
+			printSubscription(cmd, false, true, true, res)
+		},
+	}
+	cmd.Flags().StringVar(&subscriptionIDStr, "id", "", "subscription id to update")
+	cmd.Flags().StringVar(&sink, "sink", "", "the event you want to send to")
+	cmd.Flags().StringVar(&filters, "filters", "", "filter event you interested, JSON format required")
+	cmd.Flags().StringVar(&transformer, "transformer", "", "transformer, JSON format required")
+	cmd.Flags().Int32Var(&rateLimit, "rate-limit", -1, "max event number pushing to sink per second, 0 means unlimited")
+	cmd.Flags().StringVar(&subProtocol, "protocol", "", "protocol,http or aws-lambda or gcloud-functions or grpc")
+	cmd.Flags().StringVar(&sinkCredentialType, "credential-type", "", "sink credential type: aws or gcloud")
+	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, JSON format or @file")
+	cmd.Flags().Int32Var(&deliveryTimeout, "delivery-timeout", -1, "event delivery to sink timeout by millisecond, 0 means using server-side default value: 5s")
+	cmd.Flags().Int32Var(&maxRetryAttempts, "max-retry-attempts", -1, "event delivery fail max retry attempts")
+	cmd.Flags().StringVar(&subscriptionName, "name", "", "subscription name")
+	cmd.Flags().StringVar(&description, "description", "", "subscription description")
+	// todo the value is user set or default value
+	//cmd.Flags().BoolVar(&orderedPushEvent, "ordered-event", false, "whether push the "+
+	//	"event with ordered")
 	return cmd
 }
 
