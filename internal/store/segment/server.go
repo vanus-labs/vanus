@@ -72,7 +72,6 @@ const (
 	debugModeENV                = "SEGMENT_SERVER_DEBUG_MODE"
 	defaultLeaderInfoBufferSize = 256
 	defaultForceStopTimeout     = 30 * time.Second
-	defaultWaiterWorker         = 8
 )
 
 type Server interface {
@@ -111,7 +110,6 @@ func NewServer(cfg store.Config) Server {
 	srv := &server{
 		state:        primitive.ServerStateCreated,
 		cfg:          cfg,
-		callbackC:    make(chan func()),
 		isDebugMode:  debugModel,
 		localAddress: localAddress,
 		volumeID:     uint64(cfg.Volume.ID),
@@ -162,7 +160,6 @@ type server struct {
 	ctrl        cluster.Cluster
 	cc          ctrlpb.SegmentControllerClient
 	leaderC     chan leaderInfo
-	callbackC   chan func()
 
 	grpcSrv *grpc.Server
 	closeC  chan struct{}
@@ -217,23 +214,6 @@ func (s *server) preGrpcStream(ctx context.Context, info *tap.Info) (context.Con
 	return ctx, nil
 }
 
-func (s *server) runCallbackWorkPool(ctx context.Context) {
-	for i := 0; i < defaultWaiterWorker; i++ {
-		go s.runCallbackWorker(ctx)
-	}
-}
-
-func (s *server) runCallbackWorker(_ context.Context) {
-	for {
-		select {
-		case cb := <-s.callbackC:
-			cb()
-		case <-s.closeC:
-			return
-		}
-	}
-}
-
 func (s *server) Initialize(ctx context.Context) error {
 	// TODO(james.yin): how to organize block engine?
 	if err := s.loadVSBEngine(ctx, s.cfg.VSB); err != nil {
@@ -265,8 +245,6 @@ func (s *server) Initialize(ctx context.Context) error {
 		}
 		s.state = primitive.ServerStateRunning
 	}
-
-	s.runCallbackWorkPool(ctx)
 
 	return nil
 }
@@ -695,7 +673,11 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 	metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(size))
 
 	b.Append(ctx, entries, func(seqs []int64, err error) {
-		s.callbackC <- func() {
+		select {
+		case <-s.closeC:
+			// TODO(jiangkai): graceful close
+			return
+		default:
 			if err == nil {
 				// TODO(weihe.yin) make this method deep to code
 				s.pm.NewMessageArrived(id)

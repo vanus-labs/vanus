@@ -24,12 +24,14 @@ var (
 
 	// INVALID_REQUEST
 	ErrInvalidRequest      = New("invalid request").WithCode(errpb.ErrorCode_INVALID_REQUEST)
-	ErrTransformInputParse = New("transform input invalid").WithCode(errpb.ErrorCode_TRANSFORM_INPUT_PARSE)
+	ErrTransformInputParse = New("transform input invalid").WithCode(errpb.ErrorCode_PARSE_TRANSFORM_INPUT)
 	ErrNoEndpoint          = New("no endpoint").WithCode(errpb.ErrorCode_NO_ENDPOINT)
 
 	// INTERNAL
 	ErrInternal       = New("internal error").WithCode(errpb.ErrorCode_INTERNAL)
 	ErrCorruptedEvent = New("corrupted event").WithCode(errpb.ErrorCode_CORRUPTED_EVENT)
+	ErrAppendToBlock  = New("append to block failed").WithCode(errpb.ErrorCode_APPEND_TO_BLOCK_FAILED)
+	ErrReadFromBlock  = New("read from block failed").WithCode(errpb.ErrorCode_READ_FROM_BLOCK_FAILED)
 
 	// FULL
 	ErrFull            = New("full").WithCode(errpb.ErrorCode_FULL)

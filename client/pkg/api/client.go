@@ -33,6 +33,7 @@ type Eventbus interface {
 
 type BusWriter interface {
 	AppendOne(ctx context.Context, event *ce.Event, opts ...WriteOption) (eid string, err error)
+	// TODO(jiangkai): just keep one or make their difference more obvious.
 	AppendMany(ctx context.Context, events []*ce.Event, opts ...WriteOption) (eid []string, err error)
 	AppendBatch(ctx context.Context, events *cloudevents.CloudEventBatch, opts ...WriteOption) (err error)
 }

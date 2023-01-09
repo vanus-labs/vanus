@@ -17,9 +17,10 @@ package segment
 import (
 	// standard libraries.
 	"context"
+	stderr "errors"
+	"io"
 
 	// third-party libraries.
-
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	// first-party libraries.
@@ -137,10 +138,35 @@ func (s *segmentServer) AppendToBlock(
 }
 
 func (s *segmentServer) AppendToBlockStream(stream segpb.SegmentServer_AppendToBlockStreamServer) error {
-	ctx := context.Background()
+	ctx := stream.Context()
+	respc := make(chan *segpb.AppendToBlockStreamResponse, 32)
+	go func() {
+		for {
+			resp, ok := <-respc
+			if !ok {
+				log.Warning(ctx, "append stream closed", nil)
+				return
+			}
+			err := stream.Send(resp)
+			if err != nil {
+				log.Error(ctx, "append stream send failed", map[string]interface{}{
+					log.KeyError: err,
+				})
+				return
+			}
+		}
+	}()
+	defer close(respc)
 	for {
+		// TODO(jiangkai): Fix for send failed and needs to exit the stream
 		request, err := stream.Recv()
 		if err != nil {
+			if stderr.Is(err, io.EOF) {
+				log.Info(ctx, "append stream closed", map[string]interface{}{
+					log.KeyError: err,
+				})
+				return nil
+			}
 			log.Error(ctx, "append stream recv failed", map[string]interface{}{
 				log.KeyError: err,
 			})
@@ -151,29 +177,17 @@ func (s *segmentServer) AppendToBlockStream(stream segpb.SegmentServer_AppendToB
 			errCode := errpb.ErrorCode_SUCCESS
 			errMsg := "success"
 			if err != nil {
-				if errors.Is(err, errors.ErrFull) {
-					errCode = err.(*errors.ErrorType).Code
-					errMsg = err.(*errors.ErrorType).Message
-				} else {
-					errCode = errpb.ErrorCode_UNKNOWN
-					errMsg = "unknown"
-				}
-				log.Error(ctx, "append to block failed", map[string]interface{}{
+				errCode = err.(*errors.ErrorType).Code
+				errMsg = err.(*errors.ErrorType).Message
+				log.Warning(ctx, "append to block failed", map[string]interface{}{
 					log.KeyError: err,
 				})
 			}
-
-			err = stream.Send(&segpb.AppendToBlockStreamResponse{
+			respc <- &segpb.AppendToBlockStreamResponse{
 				Id:           request.Id,
 				ResponseCode: errCode,
 				ResponseMsg:  errMsg,
 				Offsets:      offsets,
-			})
-			if err != nil {
-				log.Error(ctx, "read stream send failed", map[string]interface{}{
-					log.KeyError: err,
-				})
-				return
 			}
 		}
 		s.srv.AppendToBlock(ctx, vanus.ID(request.BlockId), request.Events.Events, callbackFunc)
@@ -195,10 +209,16 @@ func (s *segmentServer) ReadFromBlock(
 }
 
 func (s *segmentServer) ReadFromBlockStream(stream segpb.SegmentServer_ReadFromBlockStreamServer) error {
-	ctx := context.Background()
+	ctx := stream.Context()
 	for {
 		request, err := stream.Recv()
 		if err != nil {
+			if stderr.Is(err, io.EOF) {
+				log.Info(ctx, "read stream closed", map[string]interface{}{
+					log.KeyError: err,
+				})
+				return nil
+			}
 			log.Error(ctx, "read stream recv failed", map[string]interface{}{
 				log.KeyError: err,
 			})
@@ -211,9 +231,9 @@ func (s *segmentServer) ReadFromBlockStream(stream segpb.SegmentServer_ReadFromB
 		events, err := s.srv.ReadFromBlock(
 			ctx, blockID, request.Offset, int(request.Number), request.PollingTimeoutInMillisecond)
 		if err != nil {
-			errCode = errpb.ErrorCode_UNKNOWN
-			errMsg = "unknown"
-			log.Error(ctx, "read from block failed", map[string]interface{}{
+			errCode = err.(*errors.ErrorType).Code
+			errMsg = err.(*errors.ErrorType).Message
+			log.Warning(ctx, "read from block failed", map[string]interface{}{
 				log.KeyError: err,
 			})
 		}

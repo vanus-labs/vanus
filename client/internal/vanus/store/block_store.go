@@ -28,7 +28,6 @@ import (
 	"google.golang.org/grpc"
 
 	// first-party libraries
-  "github.com/linkall-labs/vanus/client/pkg/codec"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/errors"
@@ -36,8 +35,10 @@ import (
 	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
+	// this project
 	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc"
 	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc/bare"
+	"github.com/linkall-labs/vanus/client/pkg/codec"
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
 )
 
@@ -80,17 +81,29 @@ var (
 type appendStreamCache struct {
 	opaqueID  uint64
 	stream    segpb.SegmentServer_AppendToBlockStreamClient
+	reqc      chan *segpb.AppendToBlockStreamRequest
 	callbacks sync.Map
 	state     streamState
 	once      sync.Once
+	mu        sync.RWMutex
 }
 
 func (a *appendStreamCache) isRunning() bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	return a.state == stateRunning
 }
 
 func (a *appendStreamCache) isClosed() bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	return a.state == stateClosed
+}
+
+func (a *appendStreamCache) setState(state streamState) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.state = state
 }
 
 func (a *appendStreamCache) release() {
@@ -101,6 +114,7 @@ func (a *appendStreamCache) release() {
 func (a *appendStreamCache) releaseStream() {
 	a.once.Do(func() {
 		a.stream.CloseSend()
+		close(a.reqc)
 		a.state = stateClosed
 	})
 }
@@ -119,17 +133,29 @@ func (a *appendStreamCache) releaseCallbacks() {
 type readStreamCache struct {
 	opaqueID  uint64
 	stream    segpb.SegmentServer_ReadFromBlockStreamClient
+	reqc      chan *segpb.ReadFromBlockStreamRequest
 	callbacks sync.Map
 	state     streamState
 	once      sync.Once
+	mu        sync.RWMutex
 }
 
 func (r *readStreamCache) isRunning() bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	return r.state == stateRunning
 }
 
 func (r *readStreamCache) isClosed() bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	return r.state == stateClosed
+}
+
+func (r *readStreamCache) setState(state streamState) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.state = state
 }
 
 func (r *readStreamCache) release() {
@@ -140,6 +166,7 @@ func (r *readStreamCache) release() {
 func (r *readStreamCache) releaseStream() {
 	r.once.Do(func() {
 		r.stream.CloseSend()
+		close(r.reqc)
 		r.state = stateClosed
 	})
 }
@@ -182,11 +209,27 @@ func (s *BlockStore) runAppendStreamRecv(ctx context.Context, append *appendStre
 				append.releaseCallbacks()
 				return
 			}
+			append.setState(stateClosed)
 			break
 		}
 		c, _ := append.callbacks.LoadAndDelete(res.Id)
 		if c != nil {
 			c.(appendCallback)(res)
+		}
+	}
+}
+
+func (s *BlockStore) runAppendStreamSend(ctx context.Context, append *appendStreamCache) {
+	for req := range append.reqc {
+		if err := append.stream.Send(req); err != nil {
+			log.Error(ctx, "append stream send failed", map[string]interface{}{
+				log.KeyError: err,
+			})
+			// close the current stream connection
+			append.releaseStream()
+			// reset new stream connections
+			s.connectAppendStream(ctx)
+			return
 		}
 	}
 }
@@ -203,11 +246,27 @@ func (s *BlockStore) runReadStreamRecv(ctx context.Context, read *readStreamCach
 				read.releaseCallbacks()
 				return
 			}
+			read.setState(stateClosed)
 			break
 		}
 		c, _ := read.callbacks.LoadAndDelete(res.Id)
 		if c != nil {
 			c.(readCallback)(res)
+		}
+	}
+}
+
+func (s *BlockStore) runReadStreamSend(ctx context.Context, read *readStreamCache) {
+	for req := range read.reqc {
+		if err := read.stream.Send(req); err != nil {
+			log.Error(ctx, "read stream send failed", map[string]interface{}{
+				log.KeyError: err,
+			})
+			// close the current stream connection
+			read.releaseStream()
+			// reset new stream connections
+			s.connectReadStream(ctx)
+			return
 		}
 	}
 }
@@ -240,11 +299,13 @@ func (s *BlockStore) connectAppendStream(ctx context.Context) (*appendStreamCach
 
 	cache := &appendStreamCache{
 		stream:    stream,
+		reqc:      make(chan *segpb.AppendToBlockStreamRequest, 32),
 		state:     stateRunning,
 		callbacks: sync.Map{},
 	}
 	s.append = cache
 	go s.runAppendStreamRecv(ctx, cache)
+	go s.runAppendStreamSend(ctx, cache)
 	return cache, nil
 }
 
@@ -277,11 +338,13 @@ func (s *BlockStore) connectReadStream(ctx context.Context) (*readStreamCache, e
 
 	cache := &readStreamCache{
 		stream:    stream,
+		reqc:      make(chan *segpb.ReadFromBlockStreamRequest, 32),
 		state:     stateRunning,
 		callbacks: sync.Map{},
 	}
 	s.read = cache
 	go s.runReadStreamRecv(ctx, cache)
+	go s.runReadStreamSend(ctx, cache)
 	return cache, nil
 }
 
@@ -355,32 +418,12 @@ func (s *BlockStore) AppendManyStream(ctx context.Context, block uint64, events 
 		close(donec)
 	}))
 
-	req := &segpb.AppendToBlockStreamRequest{
+	append.reqc <- &segpb.AppendToBlockStreamRequest{
 		Id:      opaqueID,
 		BlockId: block,
 		Events: &cepb.CloudEventBatch{
 			Events: eventpbs,
 		},
-	}
-
-	if err = append.stream.Send(req); err != nil {
-		log.Error(ctx, "append stream send failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		// close the current stream connection
-		append.releaseStream()
-		// reset new stream connections
-		s.connectAppendStream(ctx)
-		c, _ := append.callbacks.LoadAndDelete(opaqueID)
-		if c != nil {
-			c.(appendCallback)(&segpb.AppendToBlockStreamResponse{
-				Id:           opaqueID,
-				ResponseCode: errpb.ErrorCode_CLOSED,
-				ResponseMsg:  "append stream closed",
-				Offsets:      []int64{},
-			})
-		}
-		return nil, err
 	}
 
 	select {
@@ -394,6 +437,8 @@ func (s *BlockStore) AppendManyStream(ctx context.Context, block uint64, events 
 				ResponseMsg:  "append stream context canceled",
 				Offsets:      []int64{},
 			})
+		} else {
+			<-donec
 		}
 	}
 
@@ -475,32 +520,12 @@ func (s *BlockStore) ReadStream(
 		close(donec)
 	}))
 
-	req := &segpb.ReadFromBlockStreamRequest{
+	read.reqc <- &segpb.ReadFromBlockStreamRequest{
 		Id:                          opaqueID,
 		BlockId:                     block,
 		Offset:                      offset,
 		Number:                      int64(size),
 		PollingTimeoutInMillisecond: pollingTimeout,
-	}
-
-	if err = s.read.stream.Send(req); err != nil {
-		log.Error(ctx, "read stream send failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		read.releaseStream()
-		s.connectReadStream(ctx)
-		c, _ := read.callbacks.LoadAndDelete(opaqueID)
-		if c != nil {
-			c.(readCallback)(&segpb.ReadFromBlockStreamResponse{
-				Id:           opaqueID,
-				ResponseCode: errpb.ErrorCode_CLOSED,
-				ResponseMsg:  "read stream closed",
-				Events: &cepb.CloudEventBatch{
-					Events: []*cepb.CloudEvent{},
-				},
-			})
-		}
-		return []*ce.Event{}, err
 	}
 
 	select {
@@ -516,6 +541,8 @@ func (s *BlockStore) ReadStream(
 					Events: []*cepb.CloudEvent{},
 				},
 			})
+		} else {
+			<-donec
 		}
 	}
 

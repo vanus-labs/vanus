@@ -579,7 +579,7 @@ func (r *logReader) selectReadableSegment(ctx context.Context) (*segment, error)
 		segment = r.cur
 		if segment == nil { // double check
 			var err error
-			segment, err := r.elog.selectReadableSegment(ctx, r.pos)
+			segment, err = r.elog.selectReadableSegment(ctx, r.pos)
 			if errors.Is(err, errors.ErrOffsetOnEnd) {
 				r.elog.refreshReadableSegments(ctx)
 				segment, err = r.elog.selectReadableSegment(ctx, r.pos)
