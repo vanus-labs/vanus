@@ -32,7 +32,7 @@ type foreachArrayAction struct {
 func NewForeachArrayAction() action.Action {
 	a := &foreachArrayAction{}
 	a.CommonAction = action.CommonAction{
-		ActionName:  "REPLACE_ARRAY",
+		ActionName:  "FOREACH_ARRAY",
 		FixedArgs:   []arg.TypeList{[]arg.Type{arg.EventData}, []arg.Type{arg.Constant}},
 		VariadicArg: arg.TypeList{arg.Constant},
 	}
