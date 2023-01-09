@@ -12,21 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package runtime
+package transform
 
 import (
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action/array"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/common"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/condition"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/datetime"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/math"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/action/render"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/source"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/strings"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/structs"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
 )
 
 func init() {
-	for _, fn := range []newAction{
+	for _, fn := range []func() action.Action{
 		// struct
 		structs.NewCreateAction,
 		structs.NewDeleteAction,
@@ -54,13 +56,14 @@ func init() {
 		// condition
 		condition.NewConditionIfAction,
 		// render
-		render.NewRenderArrayAction,
+		array.NewRenderArrayAction,
+		array.NewForeachArrayAction,
 		// common
 		common.NewLengthAction,
 		// source
 		source.NewDebeziumConvertToMongoDBSink,
 	} {
-		if err := AddAction(fn); err != nil {
+		if err := runtime.AddAction(fn); err != nil {
 			panic(err)
 		}
 	}

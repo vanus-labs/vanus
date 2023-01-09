@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package runtime
+package runtime_test
 
 import (
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-
 	ce "github.com/cloudevents/sdk-go/v2"
 	cetest "github.com/cloudevents/sdk-go/v2/test"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
 )
 
 func actionBenchmark(command []interface{}) func(b *testing.B) {
-	a, err := NewAction(command)
+	a, err := runtime.NewAction(command)
 	if err != nil {
 		panic(err)
 	}

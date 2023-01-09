@@ -151,6 +151,24 @@ func TestSetData(t *testing.T) {
 			},
 			"str":   "stringV",
 			"array": []interface{}{1.1, "str"},
+			"arrayObj": []interface{}{
+				map[string]interface{}{
+					"map": map[string]interface{}{
+						"number": 123.4,
+						"str":    "str",
+					},
+					"str":   "stringV",
+					"array": []interface{}{1.1, "str"},
+				},
+				map[string]interface{}{
+					"map": map[string]interface{}{
+						"number": 123.4,
+						"str":    "str",
+					},
+					"str":   "stringV",
+					"array": []interface{}{1.1, "str"},
+				},
+			},
 		}
 		Convey("test add root key", func() {
 			Convey("add common", func() {
@@ -173,10 +191,18 @@ func TestSetData(t *testing.T) {
 				So(exist, ShouldBeTrue)
 				So(v, ShouldEqual, "v")
 			})
-			Convey("add array", func() {
+			Convey("add array value", func() {
 				SetData(data, "addKey", []interface{}{123, "str"})
 				v, exist := data["addKey"].([]interface{})
 				So(exist, ShouldBeTrue)
+				So(v[0], ShouldEqual, 123)
+				So(v[1], ShouldEqual, "str")
+			})
+			Convey("array value add element", func() {
+				SetData(data, "array[3]", []interface{}{123, "str"})
+				vv, exist := data["array"].([]interface{})
+				So(exist, ShouldBeTrue)
+				v := vv[3].([]interface{})
 				So(v[0], ShouldEqual, 123)
 				So(v[1], ShouldEqual, "str")
 			})
@@ -208,18 +234,41 @@ func TestSetData(t *testing.T) {
 				So(exist, ShouldBeTrue)
 				So(v, ShouldEqual, "v")
 			})
-			Convey("add array", func() {
+			Convey("add value array", func() {
 				SetData(data, "map.addKey", []interface{}{123, "string"})
 				v, exist := data["map"].(map[string]interface{})["addKey"].([]interface{})
 				So(exist, ShouldBeTrue)
 				So(v[0], ShouldEqual, 123)
 				So(v[1], ShouldEqual, "string")
 			})
+			Convey("add no exist array with object", func() {
+				SetData(data, "map.addKey[0].array", []interface{}{123, "string"})
+				v, exist := data["map"].(map[string]interface{})["addKey"].([]interface{})[0].(map[string]interface{})["array"].([]interface{})
+				So(exist, ShouldBeTrue)
+				So(v[0], ShouldEqual, 123)
+				So(v[1], ShouldEqual, "string")
+			})
+			Convey("array object value add key", func() {
+				SetData(data, "arrayObj[0].addArray", []interface{}{123, "string"})
+				v, exist := data["arrayObj"].([]interface{})[0].(map[string]interface{})["addArray"].([]interface{})
+				So(exist, ShouldBeTrue)
+				So(v[0], ShouldEqual, 123)
+				So(v[1], ShouldEqual, "string")
+			})
 		})
 		Convey("test replace second key", func() {
-			SetData(data, "map.str", map[string]interface{}{"k": "v"})
-			_, exist := data["map"].(map[string]interface{})["str"]
-			So(exist, ShouldBeTrue)
+			Convey("replace str", func() {
+				SetData(data, "map.str", map[string]interface{}{"k": "v"})
+				v, exist := data["map"].(map[string]interface{})["str"]
+				So(exist, ShouldBeTrue)
+				So(v.(map[string]interface{})["k"], ShouldEqual, "v")
+			})
+			Convey("array object value replace key", func() {
+				SetData(data, "arrayObj[1].str", map[string]interface{}{"k": "v"})
+				v, exist := data["arrayObj"].([]interface{})[1].(map[string]interface{})["str"]
+				So(exist, ShouldBeTrue)
+				So(v.(map[string]interface{})["k"], ShouldEqual, "v")
+			})
 		})
 		Convey("test add third key", func() {
 			Convey("add map", func() {
