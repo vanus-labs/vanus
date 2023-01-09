@@ -43,6 +43,7 @@ type Manager interface {
 	ResetOffsetByTimestamp(ctx context.Context, id vanus.ID, timestamp uint64) (info.ListOffsetInfo, error)
 	ListSubscription(ctx context.Context) []*metadata.Subscription
 	GetSubscription(ctx context.Context, id vanus.ID) *metadata.Subscription
+	GetSubscriptionByName(ctx context.Context, eventbus, name string) *metadata.Subscription
 	AddSubscription(ctx context.Context, subscription *metadata.Subscription) error
 	UpdateSubscription(ctx context.Context, subscription *metadata.Subscription) error
 	Heartbeat(ctx context.Context, id vanus.ID, addr string, time time.Time) error
@@ -88,6 +89,20 @@ func (m *manager) ListSubscription(_ context.Context) []*metadata.Subscription {
 		list = append(list, subscription)
 	}
 	return list
+}
+
+func (m *manager) GetSubscriptionByName(ctx context.Context, eventbus, name string) *metadata.Subscription {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	for _, sub := range m.subscriptionMap {
+		if sub.EventBus != eventbus {
+			continue
+		}
+		if sub.Name == name {
+			return sub
+		}
+	}
+	return nil
 }
 
 func (m *manager) GetSubscription(ctx context.Context, id vanus.ID) *metadata.Subscription {
