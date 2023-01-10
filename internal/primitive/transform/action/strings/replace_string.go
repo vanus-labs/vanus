@@ -1,4 +1,4 @@
-// Copyright 2022 Linkall Inc.
+// Copyright 2023 Linkall Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,6 +52,6 @@ func (a *replaceStringAction) Execute(ceCtx *context.EventContext) error {
 	originalString, _ := args[0].(string)
 	subVal, _ := args[1].(string)
 	targetVal, _ := args[2].(string)
-	newString := strings.Replace(originalString, subVal, targetVal, -1)
+	newString := strings.ReplaceAll(originalString, subVal, targetVal)
 	return a.TargetArg.SetValue(ceCtx, newString)
 }
