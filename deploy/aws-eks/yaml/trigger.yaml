@@ -1,0 +1,100 @@
+apiVersion: v1
+data:
+  trigger.yaml: |-
+    port: 2148
+    ip : ${POD_IP}
+    send_event_goroutine_size: 1000
+    send_event_batch_size: 32
+    pull_event_batch_size: 32
+    max_uack_event_number: 10000
+    controllers:
+      - vanus-controller-0.vanus-controller.vanus.svc:2048
+      - vanus-controller-1.vanus-controller.vanus.svc:2048
+      - vanus-controller-2.vanus-controller.vanus.svc:2048
+    observability:
+      metrics:
+        enable: true
+      tracing:
+        enable: false
+kind: ConfigMap
+metadata:
+  name: config-trigger
+  namespace: vanus
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: vanus-trigger
+  name: vanus-trigger
+  namespace: vanus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vanus-trigger
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: 'true'
+      labels:
+        app: vanus-trigger
+    spec:
+      initContainers:
+        - name: set-system-parameters
+          image: busybox
+          securityContext:
+            capabilities: { }
+            privileged: true
+          command: ["/bin/sh", "-c", "sysctl -w net.ipv4.tcp_tw_reuse=1 && sysctl -w net.ipv4.tcp_fin_timeout=10 && sysctl -w net.ipv4.ip_local_port_range='4096 65000' && sysctl -p"]
+      nodeSelector:
+        type: storage
+      containers:
+        - env:
+            - name: VANUS_LOG_LEVEL
+              value: INFO
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          image: public.ecr.aws/vanus/trigger:6b23e5a
+          imagePullPolicy: IfNotPresent
+          name: trigger
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 2000Mi
+            requests:
+              cpu: 2000m
+              memory: 2000Mi
+          ports:
+            - containerPort: 2148
+              name: grpc
+            - containerPort: 2112
+              protocol: TCP
+              name: metrics
+          volumeMounts:
+            - mountPath: /vanus/config
+              name: config-trigger
+        - name: node-exporter
+          image: prom/node-exporter
+          args:
+            - --no-collector.wifi
+            - --no-collector.hwmon
+            - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
+            - --collector.netclass.ignored-devices=^(veth.*)$
+          ports:
+            - containerPort: 9100
+              protocol: TCP
+              name: metrics
+          resources:
+            limits:
+              cpu: 250m
+              memory: 180Mi
+            requests:
+              cpu: 102m
+              memory: 180Mi
+      volumes:
+        - configMap:
+            name: config-trigger
+          name: config-trigger

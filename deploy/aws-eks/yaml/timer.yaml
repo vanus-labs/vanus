@@ -19,6 +19,11 @@ data:
       - vanus-controller-0.vanus-controller.vanus.svc:2048
       - vanus-controller-1.vanus-controller.vanus.svc:2048
       - vanus-controller-2.vanus-controller.vanus.svc:2048
+    observability:
+      metrics:
+        enable: true
+      tracing:
+        enable: false
 kind: ConfigMap
 metadata:
   name: config-timer
@@ -39,7 +44,7 @@ spec:
   template:
     metadata:
       annotations:
-        vanus.dev/metrics.port: "2112"
+        prometheus.io/scrape: 'true'
       labels:
         app: vanus-timer
     spec:
@@ -59,6 +64,10 @@ spec:
           volumeMounts:
             - mountPath: /vanus/config
               name: config-timer
+          ports:
+            - containerPort: 2112
+              protocol: TCP
+              name: metrics
           resources:
             limits:
               cpu: 2000m
@@ -66,6 +75,24 @@ spec:
             requests:
               cpu: 2000m
               memory: 4000Mi
+        - name: node-exporter
+          image: prom/node-exporter
+          args:
+            - --no-collector.wifi
+            - --no-collector.hwmon
+            - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
+            - --collector.netclass.ignored-devices=^(veth.*)$
+          ports:
+            - containerPort: 9100
+              protocol: TCP
+              name: metrics
+          resources:
+            limits:
+              cpu: 250m
+              memory: 180Mi
+            requests:
+              cpu: 102m
+              memory: 180Mi
       volumes:
         - configMap:
             name: config-timer

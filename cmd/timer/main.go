@@ -48,7 +48,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	_ = observability.Initialize(cfg.Observability, metrics.RegisterTimerMetrics)
+	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetTimerMetrics)
 
 	// new leaderelection manager
 	leaderelectionMgr := leaderelection.NewLeaderElection(cfg.GetLeaderElectionConfig())
