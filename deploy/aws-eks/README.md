@@ -1,1 +1,1 @@
-# How to deploy Vanus to AWS EKS
+# How to deploy Vanus on AWS EKS
