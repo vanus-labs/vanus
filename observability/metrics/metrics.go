@@ -16,38 +16,44 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/prometheus/client_golang/prometheus/push"
-	"time"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"net/http"
 )
 
 const (
 	namespace = "vanus"
 )
 
-func PushMetrics(ctx context.Context, url, jobName string, coll []prometheus.Collector) {
-	if len(coll) == 0 {
+func Init(ctx context.Context, cfg Config, getCollectors func() []prometheus.Collector) {
+	if !cfg.Enable {
+		log.Info(ctx, "metrics module has been disabled", nil)
 		return
 	}
-	p := push.New(url, jobName)
-	for idx := range coll {
-		p.Collector(coll[idx])
+	if getCollectors == nil {
+		log.Info(ctx, "metrics module has been disabled due to empty collectors", nil)
+		return
 	}
-	t := time.NewTimer(time.Second)
-	for {
-		select {
-		case <-ctx.Done():
-			log.Info(ctx, "shutdown metrics pushing", nil)
-		case <-t.C:
-			if err := p.Push(); err != nil {
-				log.Warning(ctx, "failed to push metrics", map[string]interface{}{
-					log.KeyError: err,
-				})
-			}
+	colls := getCollectors()
+	if len(colls) == 0 {
+		log.Info(ctx, "metrics module has been disabled due to empty collectors", nil)
+		return
+	}
+	prometheus.MustRegister(colls...)
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.GetPort()), nil); err != nil {
+			log.Error(context.Background(), "Metrics listen and serve failed.", map[string]interface{}{
+				log.KeyError: err,
+			})
 		}
-	}
+	}()
+	log.Info(context.Background(), "metrics module started", map[string]interface{}{
+		"port": cfg.GetPort,
+	})
 }
 
 func GetControllerMetrics() []prometheus.Collector {

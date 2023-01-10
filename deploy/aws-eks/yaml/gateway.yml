@@ -10,6 +10,11 @@ data:
       - vanus-controller-0.vanus-controller:2048
       - vanus-controller-1.vanus-controller:2048
       - vanus-controller-2.vanus-controller:2048
+    observability:
+      metrics:
+        enable: true
+      tracing:
+        enable: false
 ---
 apiVersion: v1
 kind: Service
@@ -43,7 +48,7 @@ spec:
   template:
     metadata:
       annotations:
-        vanus.dev/metrics.port: "2112"
+        prometheus.io/scrape: 'true'
       labels:
         app: vanus-gateway
     spec:
@@ -65,9 +70,30 @@ spec:
               name: proxy
             - containerPort: 8081
               name: cloudevents
+            - containerPort: 2112
+              protocol: TCP
+              name: prometheus-metrics
           volumeMounts:
             - mountPath: /vanus/config
               name: config-gateway
+        - name: node-exporter
+          image: prom/node-exporter
+          args:
+            - --no-collector.wifi
+            - --no-collector.hwmon
+            - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
+            - --collector.netclass.ignored-devices=^(veth.*)$
+          ports:
+            - containerPort: 9100
+              protocol: TCP
+              name: prometheus-metrics
+          resources:
+            limits:
+              cpu: 250m
+              memory: 180Mi
+            requests:
+              cpu: 102m
+              memory: 180Mi
       volumes:
         - configMap:
             name: config-gateway

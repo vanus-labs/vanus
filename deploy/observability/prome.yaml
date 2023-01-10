@@ -14,9 +14,20 @@ data:
       scrape_interval:     10s
       evaluation_interval: 10s
     scrape_configs:
-      - job_name: 'prometheus-push-gateway'
-        static_configs:
-          - targets: ['localhost:9091']
+      - job_name: 'node-exporter'
+      - job_name: 'kubernetes-pod'
+        kubernetes_sd_configs:
+        - role: pod
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+        - source_labels: [__meta_kubernetes_namespace]
+          action: keep
+          regex: vanus
+        - source_labels: [__meta_kubernetes_pod_container_port_name]
+          action: keep
+          regex: node-exporter
 ---
 apiVersion: v1
 kind: Service
@@ -34,9 +45,6 @@ spec:
     - name: prometheus
       port: 9090
       targetPort: 9090
-    - name: push-gateway
-      port: 9091
-      targetPort: 9091
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -63,6 +71,7 @@ spec:
         prometheus.io/scrape: "true"
         prometheus.io/port: "9090"
     spec:
+      serviceAccountName: prometheus
       containers:
         - name: prometheus
           image: prom/prometheus
@@ -78,11 +87,6 @@ spec:
               mountPath: /etc/prometheus
             - name: prometheus-storage-volume
               mountPath: "/prometheus"
-        - name: push-gateway
-          image: prom/pushgateway
-          ports:
-            - name: listen
-              containerPort: 9091
       restartPolicy: Always
       volumes:
         - name: prometheus-config-volume

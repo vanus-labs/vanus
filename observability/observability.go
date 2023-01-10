@@ -22,20 +22,12 @@ import (
 )
 
 func Initialize(ctx context.Context, cfg Config, getCollectors func() []prometheus.Collector) error {
-	if cfg.M.Enable && getCollectors != nil {
-		go metrics.PushMetrics(ctx, cfg.M.PushGateway, cfg.M.JobName, getCollectors())
-	}
+	metrics.Init(ctx, cfg.M, getCollectors)
 	tracing.Init(cfg.T)
 	return nil
 }
 
 type Config struct {
-	M Metrics        `yaml:"metrics"`
+	M metrics.Config `yaml:"metrics"`
 	T tracing.Config `yaml:"tracing"`
-}
-
-type Metrics struct {
-	Enable      bool   `yaml:"enable"`
-	PushGateway string `yaml:"push_gateway"`
-	JobName     string `yaml:"job_name"`
 }

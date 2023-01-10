@@ -34,6 +34,11 @@ data:
       io:
         engine: psync
         parallel: 16
+    observability:
+      metrics:
+        enable: true
+      tracing:
+        enable: false
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -51,7 +56,7 @@ spec:
   template:
     metadata:
       annotations:
-        vanus.dev/metrics.port: "2112"
+        prometheus.io/scrape: 'true'
       labels:
         app: vanus-store
     spec:
@@ -82,11 +87,32 @@ spec:
           ports:
             - containerPort: 11811
               name: grpc
+            - containerPort: 2112
+              protocol: TCP
+              name: prometheus-metrics
           volumeMounts:
             - mountPath: /vanus/config
               name: config-store
             - mountPath: /data
               name: data
+        - name: node-exporter
+          image: prom/node-exporter
+          args:
+            - --no-collector.wifi
+            - --no-collector.hwmon
+            - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
+            - --collector.netclass.ignored-devices=^(veth.*)$
+          ports:
+            - containerPort: 9100
+              protocol: TCP
+              name: prometheus-metrics
+          resources:
+            limits:
+              cpu: 250m
+              memory: 180Mi
+            requests:
+              cpu: 102m
+              memory: 180Mi
       volumes:
         - configMap:
             name: config-store
