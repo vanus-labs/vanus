@@ -81,3 +81,15 @@ var SplitWithSepFunction = function{
 		return strings.SplitN(s, sep, int(args[2].(float64))), nil
 	},
 }
+
+var ReplaceBetweenPositionsFunction = function{
+	name:		"REPLACE_BETWEEN_POSITIONS",
+	fixedArgs: 	[]common.Type{common.String, common.String},
+	fn: func(args []interface{}) (interface{}, error) {
+		path, _ := args[0].(string)
+		startPosition := args[1].(int)
+		endPosition := args[2].(int)
+		targetValue := args[3].(string)
+		return path[:startPosition] + targetValue + path[endPosition:], nil
+	}
+}
