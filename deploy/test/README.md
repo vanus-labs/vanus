@@ -1,1 +1,1 @@
-# How to deploy Vanus to Tencent Cloud
+# How to deploy Vanus for Testing
