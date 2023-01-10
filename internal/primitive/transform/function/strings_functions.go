@@ -15,6 +15,7 @@
 package function
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
@@ -84,12 +85,20 @@ var SplitWithSepFunction = function{
 
 var ReplaceBetweenPositionsFunction = function{
 	name:		"REPLACE_BETWEEN_POSITIONS",
-	fixedArgs: 	[]common.Type{common.String, common.String},
+	fixedArgs: 	[]common.Type{common.String, common.Number, common.Number, common.String},
 	fn: func(args []interface{}) (interface{}, error) {
 		path, _ := args[0].(string)
-		startPosition := args[1].(int)
-		endPosition := args[2].(int)
+		startPosition := args[1].(float64)
+		endPosition := args[2].(float64)
 		targetValue := args[3].(string)
-		return path[:startPosition] + targetValue + path[endPosition:], nil
+		if startPosition >= len(path) {
+		    return nil, fmt.Errorf("Start position must be less than the length of the string")
+		}
+
+		if startPosition >= endPosition {
+		    return nil, fmt.Errorf("Start position must be less than end position")
+		}
+
+		return path[:int(startPosition)] + targetValue + path[int(endPosition):], nil
 	}
 }

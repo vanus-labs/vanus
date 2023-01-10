@@ -1,4 +1,4 @@
-// Copyright 2022 Linkall Inc.
+// Copyright 2023 Linkall Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ func NewReplaceBetweenPositionsAction() action.Action {
 	a := &action.SourceTargetSameAction{}
 	a.CommonAction = action.CommonAction{
 		ActionName: "REPLACE_BETWEEN_POSITIONS",
-		FixedArgs:  []arg.TypeList{arg.EventList},
+		FixedArgs:  []arg.TypeList{arg.EventList, arg.All, arg.All, arg.All},
 		Fn:         function.ReplaceBetweenPositionsFunction,
 	}
 	return a

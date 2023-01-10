@@ -1,4 +1,4 @@
-// Copyright 2022 Linkall Inc.
+// Copyright 2023 Linkall Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,9 +36,29 @@ func TestReplaceBetweenPositionsAction(t *testing.T) {
 		ceCtx := &context.EventContext{
 			Event: &e,
 		}
+
+		// Positive test case
 		args := []interface{}{"$.test", 7, 11, "Vanus"}
 		err := a.Execute(ceCtx, args)
 		So(err, ShouldBeNil)
 		So(e.Extensions()["test"], ShouldEqual, "Hello, Vanus!")
-	})
+
+        	// Negative test case: startPosition greater than length of string
+        	args = []interface{}{"$.test", 100, 110, "Vanus"}
+        	err = a.Execute(ceCtx, args)
+        	So(err, ShouldNotBeNil)
+        	So(err.Error(), ShouldEqual, "Start position must be less than the length of the string")
+
+        	// Negative test case: endPosition greater than length of string
+        	args = []interface{}{"$.test", 7, 110, "Vanus"}
+        	err = a.Execute(ceCtx, args)
+        	So(err, ShouldNotBeNil)
+        	So(err.Error(), ShouldEqual, "End position must be less than the length of the string")
+
+        	// Negative test case: startPosition greater than endPosition
+        	args = []interface{}{"$.test", 11, 7, "Vanus"}
+        	err = a.Execute(ceCtx, args)
+        	So(err, ShouldNotBeNil)
+        	So(err.Error(), ShouldEqual, "Start position must be less than end position")
+    	})
 }
