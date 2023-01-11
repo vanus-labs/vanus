@@ -28,7 +28,7 @@ func TestReplaceBetweenPositionsAction(t *testing.T) {
 	funcName := strings.NewReplaceBetweenPositionsAction().Name()
 
 	Convey("test Positive testcase", t, func() {
-		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 7, 11, "Vanus"})
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 7, 12, "Vanus"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
 		e.SetExtension("test", "Hello, World!")
@@ -44,7 +44,7 @@ func TestReplaceBetweenPositionsAction(t *testing.T) {
 		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 100, 8, "Dan"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
-		e.SetExtension("test","Start position must be less than the length of the string")
+		e.SetExtension("test", "Start position must be less than the length of the string")
 		ceCtx := &context.EventContext{
 			Event: &e,
 		}
@@ -57,7 +57,7 @@ func TestReplaceBetweenPositionsAction(t *testing.T) {
 		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 8, 60, "free to use"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
-		e.SetExtension("test","End position must be less than the length of the string")
+		e.SetExtension("test", "End position must be less than the length of the string")
 		ceCtx := &context.EventContext{
 			Event: &e,
 		}
@@ -67,7 +67,7 @@ func TestReplaceBetweenPositionsAction(t *testing.T) {
 	})
 
 	Convey("test Negative testcase: startPosition greater than endPosition", t, func() {
-		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 12, 5,"Python"})
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 12, 5, "Python"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
 		e.SetExtension("test", "Start position must be less than end position")

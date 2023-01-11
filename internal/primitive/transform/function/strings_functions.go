@@ -84,25 +84,22 @@ var SplitWithSepFunction = function{
 }
 
 var ReplaceBetweenPositionsFunction = function{
-	name:		"REPLACE_BETWEEN_POSITIONS",
-	fixedArgs: 	[]common.Type{common.String, common.Number, common.Number, common.String},
+	name:      "REPLACE_BETWEEN_POSITIONS",
+	fixedArgs: []common.Type{common.String, common.Number, common.Number, common.String},
 	fn: func(args []interface{}) (interface{}, error) {
 		path, _ := args[0].(string)
-		startPosition := args[1].(float64)
-		endPosition := args[2].(float64)
-		targetValue := args[3].(string)
+		startPosition := int(args[1].(float64))
+		endPosition := int(args[2].(float64))
+		targetValue, _ := args[3].(string)
 		if startPosition >= len(path) {
-		    return nil, fmt.Errorf("start position must be less than the length of the string")
+			return nil, fmt.Errorf("start position must be less than the length of the string")
 		}
-
-		if startPosition >= endPosition {
-		    return nil, fmt.Errorf("start position must be less than end position")
-		}
-
 		if endPosition >= len(path) {
-		    return nil, fmt.Errorf("end position must be less than the length of the string")
+			return nil, fmt.Errorf("end position must be less than the length of the string")
 		}
-
-		return path[:int(startPosition)] + targetValue + path[int(endPosition):], nil
+		if startPosition >= endPosition {
+			return nil, fmt.Errorf("start position must be less than end position")
+		}
+		return path[:startPosition] + targetValue + path[endPosition:], nil
 	},
 }
