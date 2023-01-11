@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package runtime_test
+package transform_test
 
 import (
 	"testing"

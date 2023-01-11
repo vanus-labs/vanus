@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package runtime_test
+package runtime
 
 import (
 	"testing"
 
-	_ "github.com/linkall-labs/vanus/internal/primitive/transform"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -38,34 +36,34 @@ func newTestAction() action.Action {
 }
 
 func TestNewAction(t *testing.T) {
-	_ = runtime.AddAction(newTestAction)
+	_ = AddAction(newTestAction)
 	Convey("test new action", t, func() {
 		Convey("func name is not string", func() {
-			_, err := runtime.NewAction([]interface{}{123})
+			_, err := NewAction([]interface{}{123})
 			So(err, ShouldNotBeNil)
 		})
 		Convey("func name no exist", func() {
-			_, err := runtime.NewAction([]interface{}{"UnknownCommand"})
+			_, err := NewAction([]interface{}{"UnknownCommand"})
 			So(err, ShouldNotBeNil)
 		})
 		Convey("func arity not enough", func() {
-			_, err := runtime.NewAction([]interface{}{"test_func"})
+			_, err := NewAction([]interface{}{"test_func"})
 			So(err, ShouldNotBeNil)
 		})
 		Convey("func arity number greater than", func() {
-			_, err := runtime.NewAction([]interface{}{"test_func", "arg1", "arg2"})
+			_, err := NewAction([]interface{}{"test_func", "arg1", "arg2"})
 			So(err, ShouldNotBeNil)
 		})
 		Convey("func new arg error", func() {
-			_, err := runtime.NewAction([]interface{}{"test_func", "$.a-b"})
+			_, err := NewAction([]interface{}{"test_func", "$.a-b"})
 			So(err, ShouldNotBeNil)
 		})
 		Convey("func new arg type is invalid", func() {
-			_, err := runtime.NewAction([]interface{}{"test_func", "arg"})
+			_, err := NewAction([]interface{}{"test_func", "arg"})
 			So(err, ShouldNotBeNil)
 		})
 		Convey("func new valid", func() {
-			_, err := runtime.NewAction([]interface{}{"test_func", "$.id"})
+			_, err := NewAction([]interface{}{"test_func", "$.id"})
 			So(err, ShouldBeNil)
 		})
 	})
