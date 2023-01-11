@@ -25,40 +25,57 @@ import (
 )
 
 func TestReplaceBetweenPositionsAction(t *testing.T) {
-	Convey("test ReplaceBetweenPositionsAction", t, func() {
-		a := NewReplaceBetweenPositionsAction()
-		So(a, ShouldNotBeNil)
-		So(a.Name(), ShouldEqual, "REPLACE_BETWEEN_POSITIONS")
-		So(a.FixedArgs(), ShouldResemble, []arg.TypeList{arg.EventList})
+	funcName := strings.NewReplaceBetweenPositionsAction().Name()
 
+	Convey("test Positive testcase", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 7, 11, "Vanus"})
+		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
 		e.SetExtension("test", "Hello, World!")
 		ceCtx := &context.EventContext{
 			Event: &e,
 		}
-
-		// Positive test case
-		args := []interface{}{"$.test", 7, 11, "Vanus"}
-		err := a.Execute(ceCtx, args)
+		err = a.Execute(ceCtx)
 		So(err, ShouldBeNil)
 		So(e.Extensions()["test"], ShouldEqual, "Hello, Vanus!")
+	})
 
-        	// Negative test case: startPosition greater than length of string
-        	args = []interface{}{"$.test", 100, 110, "Vanus"}
-        	err = a.Execute(ceCtx, args)
-        	So(err, ShouldNotBeNil)
-        	So(err.Error(), ShouldEqual, "Start position must be less than the length of the string")
+	Convey("test Negative testcase: startPosition greater than string length", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 100, 8, "Dan"})
+		So(err, ShouldBeNil)
+		e := cetest.MinEvent()
+		e.SetExtension("test","Hello Joe, Vanus is an amazing technology")
+		ceCtx := &context.EventContext{
+			Event: &e,
+		}
+		err = a.Execute(ceCtx)
+		So(err, ShouldBeNil)
+		So(e.Extensions()["test"], ShouldEqual, "Start position must be less than the length of the string")
+	})
 
-        	// Negative test case: endPosition greater than length of string
-        	args = []interface{}{"$.test", 7, 110, "Vanus"}
-        	err = a.Execute(ceCtx, args)
-        	So(err, ShouldNotBeNil)
-        	So(err.Error(), ShouldEqual, "End position must be less than the length of the string")
+	Convey("test Negative testcase: endPosition greater than string length", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 8, 60, "free to use"})
+		So(err, ShouldBeNil)
+		e := cetest.MinEvent()
+		e.SetExtension("test", "Vanus is an opensource technology")
+		ceCtx := &context.EventContext{
+			Event: &e,
+		}
+		err = a.Execute(ceCtx)
+		So(err, ShouldBeNil)
+		So(e.Extensions()["test"], ShouldEqual, "End position must be less than the length of the string")
+	})
 
-        	// Negative test case: startPosition greater than endPosition
-        	args = []interface{}{"$.test", 11, 7, "Vanus"}
-        	err = a.Execute(ceCtx, args)
-        	So(err, ShouldNotBeNil)
-        	So(err.Error(), ShouldEqual, "Start position must be less than end position")
-    	})
+	Convey("test Negative testcase: startPosition greater than endPosition", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 12, 5,"Python"})
+		So(err, ShouldBeNil)
+		e := cetest.MinEvent()
+		e.SetExtension("test", "Golang is an opensource language")
+		ceCtx := &context.EventContext{
+			Event: &e,
+		}
+		err = a.Execute(ceCtx)
+		So(err, ShouldBeNil)
+		So(e.Extensions()["test"], ShouldEqual, "Start position must be less than end position")
+	})
 }

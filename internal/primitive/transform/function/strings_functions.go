@@ -99,6 +99,10 @@ var ReplaceBetweenPositionsFunction = function{
 		    return nil, fmt.Errorf("Start position must be less than end position")
 		}
 
+		if endPosition >= len(path) {
+		    return nil, fmt.Errorf("End position must be less than the length of the string")
+		}
+
 		return path[:int(startPosition)] + targetValue + path[int(endPosition):], nil
-	}
+	},
 }
