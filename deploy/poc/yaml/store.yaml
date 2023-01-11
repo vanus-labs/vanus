@@ -72,7 +72,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: public.ecr.aws/vanus/store:6b23e5a
+          image: public.ecr.aws/vanus/store:6b76eb8
           imagePullPolicy: IfNotPresent
           name: store
           ports:

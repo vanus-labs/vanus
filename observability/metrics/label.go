@@ -15,10 +15,12 @@
 package metrics
 
 const (
-	LabelType     = "type"
-	LabelVolume   = "volume"
-	LabelEventbus = "eventbus"
-	LabelEventlog = "eventlog"
+	LabelDeletedReason = "deleted_reason"
+	LabelVolume        = "volume"
+	LabelEventbus      = "eventbus"
+	LabelEventlog      = "eventlog"
+	LabelSegmentState  = "segment_state"
+	LabelIsLeader      = "is_leader"
 
 	LabelTriggerWorker = "trigger_worker"
 	LabelTrigger       = "trigger"
@@ -29,8 +31,6 @@ const (
 )
 
 const (
-	LabelValueResourceDynamicCreate        = "dynamic"
-	LabelValueResourceManualCreate         = "manual"
 	LabelValuePushEventSuccess             = "success"
 	LabelValuePushEventFail                = "fail"
 	LabelSegmentDeletedBecauseExpired      = "segment_expired"

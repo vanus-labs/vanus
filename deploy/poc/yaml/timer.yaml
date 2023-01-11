@@ -56,7 +56,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: public.ecr.aws/vanus/timer:6b23e5a
+          image: public.ecr.aws/vanus/timer:6b76eb8
           imagePullPolicy: IfNotPresent
           name: timer
           volumeMounts:

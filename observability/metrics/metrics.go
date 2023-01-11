@@ -60,16 +60,23 @@ func Init(ctx context.Context, cfg Config, getCollectors func() []prometheus.Col
 		}
 	}()
 	log.Info(context.Background(), "metrics module started", map[string]interface{}{
-		"port": cfg.GetPort,
+		"port": cfg.GetPort(),
 	})
 }
 
 func GetControllerMetrics() []prometheus.Collector {
 	coll := []prometheus.Collector{
+		ControllerLeaderGaugeVec,
 		EventbusGauge,
+		EventbusUpdatedGauge,
+		EventbusDeletedGauge,
 		EventlogGaugeVec,
 		SegmentGaugeVec,
-		SegmentCreationRuntimeCounterVec,
+		SegmentSizeGaugeVec,
+		SegmentCapacityGaugeVec,
+		SegmentEventNumberGaugeVec,
+		SegmentCreatedByCacheMissing,
+		SegmentCreatedByScaleTask,
 		SegmentDeletedCounterVec,
 		SubscriptionGauge,
 		SubscriptionTransformerGauge,
