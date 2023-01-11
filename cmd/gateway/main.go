@@ -49,9 +49,9 @@ func main() {
 		})
 		os.Exit(-1)
 	}
-	
+
 	cfg.Observability.T.ServerName = "Vanus Gateway"
-	_ = observability.Initialize(cfg.Observability, nil)
+	_ = observability.Initialize(ctx, cfg.Observability, nil)
 	log.Info(ctx, "Gateway has started", nil)
 	select {
 	case <-ctx.Done():

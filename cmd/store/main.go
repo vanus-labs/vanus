@@ -19,6 +19,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/linkall-labs/vanus/pkg/util/signal"
 	"net"
 	"os"
 
@@ -55,10 +56,9 @@ func main() {
 		os.Exit(-1)
 	}
 
+	ctx := signal.SetupSignalContext()
 	cfg.Observability.T.ServerName = "Vanus Store"
-	_ = observability.Initialize(cfg.Observability, metrics.RegisterSegmentServerMetrics)
-
-	ctx := context.Background()
+	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetSegmentServerMetrics)
 	srv := segment.NewServer(*cfg)
 
 	if err = srv.Initialize(ctx); err != nil {
@@ -83,15 +83,19 @@ func main() {
 	}
 	defer vanus.DestroySnowflake()
 
-	if err = srv.Serve(listener); err != nil {
-		log.Error(ctx, "The SegmentServer occurred an error.", map[string]interface{}{
-			log.KeyError: err,
-		})
-		return
+	go func() {
+		if err = srv.Serve(listener); err != nil {
+			log.Error(ctx, "The SegmentServer occurred an error.", map[string]interface{}{
+				log.KeyError: err,
+			})
+			return
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		log.Info(ctx, "received system signal, preparing exit", nil)
 	}
-
 	raw.CloseAllEngine()
-
-	// TODO: is it gracefully?
 	log.Info(ctx, "The SegmentServer has been shutdown.", nil)
 }

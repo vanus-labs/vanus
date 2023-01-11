@@ -54,7 +54,7 @@ func main() {
 		os.Exit(-1)
 	}
 	ctx := signal.SetupSignalContext()
-	_ = observability.Initialize(cfg.Observability, metrics.RegisterTriggerMetrics)
+	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetTriggerMetrics)
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
 	srv := trigger.NewTriggerServer(*cfg)

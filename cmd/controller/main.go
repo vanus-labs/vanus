@@ -67,7 +67,7 @@ func main() {
 	}
 
 	ctx := signal.SetupSignalContext()
-	_ = observability.Initialize(cfg.Observability, metrics.RegisterControllerMetrics)
+	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetControllerMetrics)
 	etcd := embedetcd.New(cfg.Topology)
 	if err = etcd.Init(ctx, cfg.GetEtcdConfig()); err != nil {
 		log.Error(ctx, "failed to init etcd", map[string]interface{}{
