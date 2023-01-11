@@ -50,7 +50,7 @@ func TestReplaceBetweenPositionsAction(t *testing.T) {
 		}
 		err = a.Execute(ceCtx)
 		So(err, ShouldNotBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "Hello Joe, Vanus is an amazing technology")
+		So(e.Extensions()["test"], ShouldEqual, "Start position must be less than the length of the string")
 	})
 
 	Convey("test Negative testcase: endPosition greater than string length", t, func() {
@@ -63,7 +63,7 @@ func TestReplaceBetweenPositionsAction(t *testing.T) {
 		}
 		err = a.Execute(ceCtx)
 		So(err, ShouldNotBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "Vanus is an opensource technology")
+		So(e.Extensions()["test"], ShouldEqual, "End position must be less than the length of the string")
 	})
 
 	Convey("test Negative testcase: startPosition greater than endPosition", t, func() {
@@ -76,6 +76,6 @@ func TestReplaceBetweenPositionsAction(t *testing.T) {
 		}
 		err = a.Execute(ceCtx)
 		So(err, ShouldNotBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "Golang is an opensource language")
+		So(e.Extensions()["test"], ShouldEqual, "Start position must be less than end position")
 	})
 }
