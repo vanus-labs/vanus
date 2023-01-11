@@ -44,38 +44,38 @@ func TestReplaceBetweenPositionsAction(t *testing.T) {
 		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 100, 8, "Dan"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
-		e.SetExtension("test","Hello Joe, Vanus is an amazing technology")
+		e.SetExtension("test","Start position must be less than the length of the string")
 		ceCtx := &context.EventContext{
 			Event: &e,
 		}
 		err = a.Execute(ceCtx)
-		So(err, ShouldBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "Start position must be less than the length of the string")
+		So(err, ShouldNotBeNil)
+		So(e.Extensions()["test"], ShouldEqual, "Hello Joe, Vanus is an amazing technology")
 	})
 
 	Convey("test Negative testcase: endPosition greater than string length", t, func() {
 		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 8, 60, "free to use"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
-		e.SetExtension("test", "Vanus is an opensource technology")
+		e.SetExtension("test","End position must be less than the length of the string")
 		ceCtx := &context.EventContext{
 			Event: &e,
 		}
 		err = a.Execute(ceCtx)
-		So(err, ShouldBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "End position must be less than the length of the string")
+		So(err, ShouldNotBeNil)
+		So(e.Extensions()["test"], ShouldEqual, "Vanus is an opensource technology")
 	})
 
 	Convey("test Negative testcase: startPosition greater than endPosition", t, func() {
 		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 12, 5,"Python"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
-		e.SetExtension("test", "Golang is an opensource language")
+		e.SetExtension("test", "Start position must be less than end position")
 		ceCtx := &context.EventContext{
 			Event: &e,
 		}
 		err = a.Execute(ceCtx)
-		So(err, ShouldBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "Start position must be less than end position")
+		So(err, ShouldNotBeNil)
+		So(e.Extensions()["test"], ShouldEqual, "Golang is an opensource language")
 	})
 }
