@@ -247,22 +247,23 @@ const (
 
 func getPathIndex(path string) (pathType, string, int, error) {
 	x := strings.Index(path, "[")
-	if x >= 0 {
-		y := strings.Index(path[x+1:], "]")
-		if y > 0 {
-			index := path[x+1 : x+1+y]
-			v, err := strconv.ParseInt(index, 10, 32)
-			if err != nil {
-				// todo map or array
-				return pathMap, path, 0, errors.Wrapf(err, "json path %s get array index error, get a not number value", path)
-			}
-			if v < 0 {
-				return pathArray, path[:x], 0, errors.Errorf("json path %s get array index get a negative number", path)
-			}
-			return pathArray, path[:x], int(v), nil
-		}
+	if x <= 0 {
+		return pathMap, path, 0, nil
 	}
-	return pathMap, path, 0, nil
+	y := strings.Index(path[x+1:], "]")
+	if y <= 0 {
+		return pathMap, path, 0, nil
+	}
+	index := path[x+1 : x+1+y]
+	v, err := strconv.ParseInt(index, 10, 32)
+	if err != nil {
+		// todo map or array
+		return pathMap, path, 0, errors.Wrapf(err, "json path %s get array index error, get a not number value", path)
+	}
+	if v < 0 {
+		return pathArray, path[:x], 0, errors.Errorf("json path %s get array index get a negative number", path)
+	}
+	return pathArray, path[:x], int(v), nil
 }
 
 func DeleteData(data interface{}, path string) error {
