@@ -50,6 +50,7 @@ func init() {
 		strings.NewAddSuffixAction,
 		strings.NewReplaceWithRegexAction,
 		strings.NewReplaceStringAction,
+		strings.NewReplaceBetweenPositionsAction,
 		// condition
 		condition.NewConditionIfAction,
 		// render
