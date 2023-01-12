@@ -85,6 +85,15 @@ func GetControllerMetrics() []prometheus.Collector {
 	return append(coll, getGoRuntimeMetrics()...)
 }
 
+func GetGatewayMetrics() []prometheus.Collector {
+	coll := []prometheus.Collector{
+		GatewayEventReceivedCountVec,
+		//GatewayEventWriteLatencyHistogramVec,
+		GatewayEventWriteLatencySummaryVec,
+	}
+	return append(coll, getGoRuntimeMetrics()...)
+}
+
 func GetTriggerMetrics() []prometheus.Collector {
 	coll := []prometheus.Collector{
 		TriggerGauge,

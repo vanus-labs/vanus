@@ -19,8 +19,10 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	v2 "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/client"
@@ -33,6 +35,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/gateway/proxy"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -108,10 +111,27 @@ func (ga *ceGateway) startCloudEventsReceiver(ctx context.Context) error {
 	return nil
 }
 
-func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, protocol.Result) {
+func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event, result protocol.Result) {
 	_ctx, span := ga.tracer.Start(ctx, "receive")
-	defer span.End()
+
+	start := time.Now()
 	ebName := getEventBusFromPath(requestDataFromContext(_ctx))
+	defer func() {
+		used := float64(time.Now().Sub(start)) / float64(time.Millisecond)
+		metrics.GatewayEventReceivedCountVec.WithLabelValues(
+			ebName,
+			metrics.LabelValueProtocolHTTP,
+			strconv.FormatInt(1, 10),
+			"unknown",
+		).Inc()
+
+		metrics.GatewayEventWriteLatencySummaryVec.WithLabelValues(
+			ebName,
+			metrics.LabelValueProtocolHTTP,
+			strconv.FormatInt(1, 10),
+		).Observe(used)
+		span.End()
+	}()
 
 	if ebName == "" {
 		return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid eventbus name")
@@ -153,11 +173,11 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (*v2.Event, pr
 		BusName: ebName,
 		EventID: eventID,
 	}
-	resEvent, err := createResponseEvent(eventData)
+	re, err = createResponseEvent(eventData)
 	if err != nil {
 		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
-	return resEvent, v2.ResultACK
+	return re, v2.ResultACK
 }
 
 func checkExtension(extensions map[string]interface{}) error {
