@@ -29,6 +29,7 @@ import (
 	"github.com/linkall-labs/vanus/client/pkg/policy"
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
+	_ "github.com/linkall-labs/vanus/internal/primitive/transform"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
