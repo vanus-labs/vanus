@@ -117,7 +117,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 	start := time.Now()
 	ebName := getEventBusFromPath(requestDataFromContext(_ctx))
 	defer func() {
-		used := float64(time.Now().Sub(start)) / float64(time.Millisecond)
+		used := float64(time.Since(start)) / float64(time.Millisecond)
 		metrics.GatewayEventReceivedCountVec.WithLabelValues(
 			ebName,
 			metrics.LabelValueProtocolHTTP,

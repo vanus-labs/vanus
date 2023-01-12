@@ -164,7 +164,8 @@ func (mgr *eventlogManager) Stop() {
 	mgr.allocator.Stop()
 }
 
-func (mgr *eventlogManager) AcquireEventLog(ctx context.Context, eventbusID vanus.ID, eventbusName string) (*metadata.Eventlog, error) {
+func (mgr *eventlogManager) AcquireEventLog(ctx context.Context, eventbusID vanus.ID,
+	eventbusName string) (*metadata.Eventlog, error) {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 
@@ -656,7 +657,7 @@ func (mgr *eventlogManager) recordMetrics(ctx context.Context) {
 			nameMap := map[string]string{}
 			metrics.EventlogGaugeVec.Reset()
 			mgr.eventLogMap.Range(func(_, value any) bool {
-				el := value.(*eventlog)
+				el, _ := value.(*eventlog)
 				metrics.EventlogGaugeVec.WithLabelValues(el.md.Eventbus()).Inc()
 				nameMap[el.md.ID.Key()] = el.md.EventbusName
 				return true
@@ -667,7 +668,7 @@ func (mgr *eventlogManager) recordMetrics(ctx context.Context) {
 			metrics.SegmentSizeGaugeVec.Reset()
 			metrics.SegmentEventNumberGaugeVec.Reset()
 			mgr.globalSegmentMap.Range(func(key, value any) bool {
-				seg := value.(*Segment)
+				seg, _ := value.(*Segment)
 				elID := seg.EventLogID.Key()
 
 				metrics.SegmentGaugeVec.WithLabelValues(nameMap[elID], elID, string(seg.State)).Inc()

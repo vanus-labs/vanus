@@ -19,7 +19,6 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
-	"github.com/linkall-labs/vanus/observability/metrics"
 	"net"
 	"net/http"
 	"os"
@@ -48,6 +47,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/filter"
 	"github.com/linkall-labs/vanus/internal/trigger/transform"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/cluster"
 	"github.com/linkall-labs/vanus/pkg/errors"
@@ -153,7 +153,7 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *vanuspb.PublishRequ
 	start := stdtime.Now()
 	defer func() {
 		span.End()
-		used := float64(stdtime.Now().Sub(start)) / float64(stdtime.Millisecond)
+		used := float64(stdtime.Since(start)) / float64(stdtime.Millisecond)
 		metrics.GatewayEventReceivedCountVec.WithLabelValues(
 			req.EventbusName,
 			metrics.LabelValueProtocolHTTP,
