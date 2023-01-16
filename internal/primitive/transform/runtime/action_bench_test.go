@@ -17,10 +17,9 @@ package runtime
 import (
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-
 	ce "github.com/cloudevents/sdk-go/v2"
 	cetest "github.com/cloudevents/sdk-go/v2/test"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 )
 
 func actionBenchmark(command []interface{}) func(b *testing.B) {

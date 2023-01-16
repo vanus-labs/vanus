@@ -115,8 +115,7 @@ func (arg eventData) Evaluate(ceCtx *context.EventContext) (interface{}, error) 
 }
 
 func (arg eventData) SetValue(ceCtx *context.EventContext, value interface{}) error {
-	util.SetData(ceCtx.Data, arg.path, value)
-	return nil
+	return util.SetData(ceCtx.Data, arg.path, value)
 }
 
 func (arg eventData) DeleteValue(ceCtx *context.EventContext) error {

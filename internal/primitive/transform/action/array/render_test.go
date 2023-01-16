@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package render_test
+package array_test
 
 import (
 	stdJson "encoding/json"
 	"testing"
 
 	cetest "github.com/cloudevents/sdk-go/v2/test"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/action/render"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action/array"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestRenderArrayAction(t *testing.T) {
-	funcName := render.NewRenderArrayAction().Name()
+	funcName := array.NewRenderArrayAction().Name()
 	Convey("test render array invalid", t, func() {
 		jsonStr := `{
 			  "array": [

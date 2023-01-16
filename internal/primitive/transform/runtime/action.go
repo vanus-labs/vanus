@@ -15,8 +15,7 @@
 package runtime
 
 import (
-	"fmt"
-	stdStrs "strings"
+	"strings"
 
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
@@ -29,9 +28,9 @@ var actionMap = map[string]newAction{}
 
 func AddAction(actionFn newAction) error {
 	a := actionFn()
-	name := stdStrs.ToUpper(a.Name())
+	name := strings.ToUpper(a.Name())
 	if _, exist := actionMap[name]; exist {
-		return fmt.Errorf("action %s has exist", name)
+		return errors.Errorf("action %s has exist", name)
 	}
 	actionMap[name] = actionFn
 	return nil
@@ -40,36 +39,64 @@ func AddAction(actionFn newAction) error {
 func NewAction(command []interface{}) (action.Action, error) {
 	funcName, ok := command[0].(string)
 	if !ok {
-		return nil, fmt.Errorf("command name must be string")
+		return nil, errors.Errorf("command name must be string")
 	}
-	actionFn, exist := actionMap[stdStrs.ToUpper(funcName)]
+	actionFn, exist := actionMap[strings.ToUpper(funcName)]
 	if !exist {
-		return nil, fmt.Errorf("command %s not exist", funcName)
+		return nil, errors.Errorf("command %s not exist", funcName)
 	}
 	a := actionFn()
 	argNum := len(command) - 1
 	if argNum < a.Arity() {
-		return nil, fmt.Errorf("command %s arg number is not enough, it need %d but only have %d",
+		return nil, errors.Errorf("command %s arg number is not enough, it need %d but only have %d",
 			funcName, a.Arity(), argNum)
 	}
-	if argNum > a.Arity() && !a.IsVariadic() {
-		return nil, fmt.Errorf("command %s arg number is too many, it need %d but have %d", funcName, a.Arity(), argNum)
+	nestAction, isNestAction := a.(action.NestAction)
+	if !isNestAction {
+		if argNum > a.Arity() && !a.IsVariadic() {
+			return nil, errors.Errorf("command %s arg number is too many, it need %d but have %d", funcName, a.Arity(), argNum)
+		}
+	} else {
+		argNum = a.Arity()
 	}
 	args := make([]arg.Arg, argNum)
-	for i := 1; i < len(command); i++ {
-		_arg, err := arg.NewArg(command[i])
+	for i := 0; i < len(args); i++ {
+		index := i + 1
+		_arg, err := arg.NewArg(command[index])
 		if err != nil {
-			return nil, errors.Wrapf(err, "command %s arg %d is invalid", funcName, i)
+			return nil, errors.Wrapf(err, "command %s arg %d is invalid", funcName, index)
 		}
-		argType := a.ArgType(i - 1)
+		argType := a.ArgType(i)
 		if !argType.Contains(_arg) {
-			return nil, fmt.Errorf("command %s arg %d not support type %s", funcName, i, _arg.Type())
+			return nil, errors.Errorf("command %s arg %d not support type %s", funcName, index, _arg.Type())
 		}
-		args[i-1] = _arg
+		args[i] = _arg
 	}
 	err := a.Init(args)
 	if err != nil {
 		return nil, errors.Wrapf(err, "command %s init error", funcName)
+	}
+	if isNestAction {
+		actions := make([]action.Action, len(command)-1-argNum)
+		if len(actions) == 0 {
+			return nil, errors.Errorf("command %s arg number is not enough, lost function arg", funcName)
+		}
+		for i := 0; i < len(actions); i++ {
+			index := i + 1 + argNum
+			if arr, ok := command[index].([]interface{}); ok {
+				_a, err := NewAction(arr)
+				if err != nil {
+					return nil, errors.Wrapf(err, "action %s arg %d new action failed", funcName, index)
+				}
+				actions[i] = _a
+			} else {
+				return nil, errors.Errorf("arg %d is invalid", index)
+			}
+		}
+		err = nestAction.InitAction(actions)
+		if err != nil {
+			return nil, errors.Wrapf(err, "command %s init action error", funcName)
+		}
 	}
 	return a, nil
 }

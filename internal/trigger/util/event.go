@@ -17,12 +17,14 @@ package util
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/ohler55/ojg/jp"
 	"github.com/ohler55/ojg/oj"
+	"github.com/pkg/errors"
 )
 
 // LookupAttribute lookup event attribute value by attribute name.
@@ -147,7 +149,7 @@ func SetAttribute(e *ce.Event, attr string, value interface{}) error {
 		}
 		return event.SetDataSchema(v)
 	case "datacontenttype", "specversion":
-		return fmt.Errorf("attribute %s not support modify", attr)
+		return errors.Errorf("attribute %s not support modify", attr)
 	default:
 		return event.SetExtension(attr, value)
 	}
@@ -166,32 +168,101 @@ func DeleteAttribute(e *ce.Event, attr string) error {
 }
 
 // SetData set value to data path, now data must is map, not support array.
-func SetData(data interface{}, path string, value interface{}) {
+func SetData(data interface{}, path string, value interface{}) error {
 	paths := strings.Split(path, ".")
 	switch data.(type) {
 	case map[string]interface{}:
-		setData(data, paths, value)
+		return setData(data, paths, value)
 	case []interface{}:
 		// todo ,now not support
 	}
+	return errors.New("not support")
 }
 
-func setData(data interface{}, paths []string, value interface{}) {
+func setData(data interface{}, paths []string, value interface{}) error {
+	pathType, key, index, err := getPathIndex(paths[0])
+	if err != nil {
+		return err
+	}
 	switch m := data.(type) {
 	case map[string]interface{}:
-		if len(paths) == 1 {
-			m[paths[0]] = value
-			return
+		switch pathType {
+		case pathMap:
+			// key .
+			if len(paths) == 1 {
+				m[key] = value
+				return nil
+			}
+			v, ok := m[key]
+			if !ok || v == nil {
+				v = map[string]interface{}{}
+				m[key] = v
+			}
+			return setData(v, paths[1:], value)
+		case pathArray:
+			// arr[2] .
+			v, ok := m[key]
+			if !ok || v == nil {
+				m[key] = make([]interface{}, index+1)
+			} else {
+				vv, ok := v.([]interface{})
+				if !ok {
+					return errors.Errorf("json path %s is array, but value is not array", paths[0])
+				}
+				for i := len(vv); i <= index; i++ {
+					vv = append(vv, nil)
+				}
+				m[key] = vv
+			}
+			return setData(m[key], paths, value)
 		}
-		v, ok := m[paths[0]]
-		if !ok {
-			v = make(map[string]interface{})
-			m[paths[0]] = v
-		}
-		setData(v, paths[1:], value)
 	case []interface{}:
-		// todo ,now not support
+		if len(paths) == 1 {
+			// arr[2].
+			m[index] = value
+			return nil
+		}
+		v := m[index]
+		if v == nil {
+			m[index] = map[string]interface{}{}
+		} else {
+			_, ok := v.(map[string]interface{})
+			if !ok {
+				// todo multidimensional array
+				return errors.Errorf("json path %s is array, but index %d value is not map", paths[0], index)
+			}
+		}
+		return setData(m[index], paths[1:], value)
 	}
+	return errors.New("not support")
+}
+
+type pathType string
+
+const (
+	pathMap   pathType = "map"
+	pathArray pathType = "array"
+)
+
+func getPathIndex(path string) (pathType, string, int, error) {
+	x := strings.Index(path, "[")
+	if x <= 0 {
+		return pathMap, path, 0, nil
+	}
+	y := strings.Index(path[x+1:], "]")
+	if y <= 0 {
+		return pathMap, path, 0, nil
+	}
+	index := path[x+1 : x+1+y]
+	v, err := strconv.ParseInt(index, 10, 32)
+	if err != nil {
+		// todo map or array
+		return pathMap, path, 0, errors.Wrapf(err, "json path %s get array index error, get a not number value", path)
+	}
+	if v < 0 {
+		return pathArray, path[:x], 0, errors.Errorf("json path %s get array index get a negative number", path)
+	}
+	return pathArray, path[:x], int(v), nil
 }
 
 func DeleteData(data interface{}, path string) error {
