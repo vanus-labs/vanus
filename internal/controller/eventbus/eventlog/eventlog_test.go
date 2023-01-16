@@ -479,7 +479,7 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 		grpcCli.EXPECT().ActivateSegment(ctx, gomock.Any()).Times(2).Return(nil, nil)
 
 		eventbusID := vanus.NewTestID()
-		logMD, err := utMgr.AcquireEventLog(ctx, eventbusID)
+		logMD, err := utMgr.AcquireEventLog(ctx, eventbusID, "ut")
 		Convey("validate metadata", func() {
 			So(err, ShouldBeNil)
 			So(logMD.EventbusID, ShouldEqual, eventbusID)

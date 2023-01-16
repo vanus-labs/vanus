@@ -38,18 +38,18 @@ func (m *MockManager) EXPECT() *MockManagerMockRecorder {
 }
 
 // AcquireEventLog mocks base method.
-func (m *MockManager) AcquireEventLog(ctx context.Context, eventbusID vanus.ID) (*metadata.Eventlog, error) {
+func (m *MockManager) AcquireEventLog(ctx context.Context, eventbusID vanus.ID, eventbusName string) (*metadata.Eventlog, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AcquireEventLog", ctx, eventbusID)
+	ret := m.ctrl.Call(m, "AcquireEventLog", ctx, eventbusID, eventbusName)
 	ret0, _ := ret[0].(*metadata.Eventlog)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AcquireEventLog indicates an expected call of AcquireEventLog.
-func (mr *MockManagerMockRecorder) AcquireEventLog(ctx, eventbusID interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) AcquireEventLog(ctx, eventbusID, eventbusName interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AcquireEventLog", reflect.TypeOf((*MockManager)(nil).AcquireEventLog), ctx, eventbusID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AcquireEventLog", reflect.TypeOf((*MockManager)(nil).AcquireEventLog), ctx, eventbusID, eventbusName)
 }
 
 // DeleteEventlog mocks base method.

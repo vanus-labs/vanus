@@ -208,7 +208,7 @@ spec:
         app: vanus-gateway
     spec:
       containers:
-      - image: public.ecr.aws/vanus/gateway:6b23e5a
+      - image: public.ecr.aws/vanus/gateway:6b76eb8
         imagePullPolicy: IfNotPresent
         name: gateway
         ports:
@@ -269,7 +269,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/timer:6b23e5a
+        image: public.ecr.aws/vanus/timer:6b76eb8
         imagePullPolicy: IfNotPresent
         name: timer
         ports:
@@ -329,7 +329,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/trigger:6b23e5a
+        image: public.ecr.aws/vanus/trigger:6b76eb8
         imagePullPolicy: IfNotPresent
         name: trigger
         ports:
@@ -411,7 +411,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/controller:6b23e5a
+        image: public.ecr.aws/vanus/controller:6b76eb8
         imagePullPolicy: IfNotPresent
         name: controller
         ports:
@@ -495,7 +495,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/store:6b23e5a
+        image: public.ecr.aws/vanus/store:6b76eb8
         imagePullPolicy: IfNotPresent
         name: store
         ports:

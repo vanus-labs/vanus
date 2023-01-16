@@ -57,9 +57,10 @@ func TestController_CreateEventBus(t *testing.T) {
 			el := &metadata.Eventlog{
 				ID: vanus.NewTestID(),
 			}
-			elMgr.EXPECT().AcquireEventLog(ctx, gomock.Any()).Times(1).DoAndReturn(func(ctx stdCtx.Context,
-				eventbusID vanus.ID) (*metadata.Eventlog, error) {
+			elMgr.EXPECT().AcquireEventLog(ctx, gomock.Any(), gomock.Any()).Times(1).DoAndReturn(func(ctx stdCtx.Context,
+				eventbusID vanus.ID, ebName string) (*metadata.Eventlog, error) {
 				el.ID = eventbusID
+				el.EventbusName = ebName
 				el.SegmentNumber = 2
 				return el, nil
 			})

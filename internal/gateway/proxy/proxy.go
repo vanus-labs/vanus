@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"os"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -46,6 +47,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/filter"
 	"github.com/linkall-labs/vanus/internal/trigger/transform"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/cluster"
 	"github.com/linkall-labs/vanus/pkg/errors"
@@ -143,12 +145,28 @@ type ControllerProxy struct {
 }
 
 func (cp *ControllerProxy) Publish(ctx context.Context, req *vanuspb.PublishRequest) (*emptypb.Empty, error) {
-	_ctx, span := cp.tracer.Start(ctx, "Publish")
-	defer span.End()
-
 	if req.EventbusName == "" {
 		return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid eventbus name")
 	}
+
+	_ctx, span := cp.tracer.Start(ctx, "Publish")
+	start := stdtime.Now()
+	defer func() {
+		span.End()
+		used := float64(stdtime.Since(start)) / float64(stdtime.Millisecond)
+		metrics.GatewayEventReceivedCountVec.WithLabelValues(
+			req.EventbusName,
+			metrics.LabelValueProtocolHTTP,
+			strconv.FormatInt(int64(len(req.Events.Events)), 10),
+			"unknown",
+		).Inc()
+
+		metrics.GatewayEventWriteLatencySummaryVec.WithLabelValues(
+			req.EventbusName,
+			metrics.LabelValueProtocolHTTP,
+			strconv.FormatInt(int64(len(req.Events.Events)), 10),
+		).Observe(used)
+	}()
 
 	for idx := range req.Events.Events {
 		e := req.Events.Events[idx]

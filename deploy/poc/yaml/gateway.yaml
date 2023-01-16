@@ -53,7 +53,7 @@ spec:
         app: vanus-gateway
     spec:
       containers:
-        - image: public.ecr.aws/vanus/gateway:6b23e5a
+        - image: public.ecr.aws/vanus/gateway:6b76eb8
           imagePullPolicy: IfNotPresent
           name: gateway
           ports:
