@@ -31,7 +31,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/trigger"
 	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
 	"github.com/linkall-labs/vanus/internal/primitive/interceptor/memberinterceptor"
-	_ "github.com/linkall-labs/vanus/internal/primitive/transform"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/observability/log"

@@ -23,7 +23,6 @@ import (
 	"sync"
 
 	"github.com/linkall-labs/vanus/internal/primitive"
-	_ "github.com/linkall-labs/vanus/internal/primitive/transform"
 	"github.com/linkall-labs/vanus/internal/trigger"
 	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/observability/log"

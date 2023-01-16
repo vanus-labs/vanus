@@ -143,3 +143,18 @@ var (
 	ErrExist     = fmt.Errorf("action have exist")
 	ErrArgNumber = fmt.Errorf("action arg number invalid")
 )
+
+type NestAction interface {
+	Action
+	InitAction(actions []Action) error
+}
+
+type NestActionImpl struct {
+	CommonAction
+	Actions []Action
+}
+
+func (c *NestActionImpl) InitAction(actions []Action) error {
+	c.Actions = actions
+	return nil
+}

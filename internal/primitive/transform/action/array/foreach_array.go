@@ -19,42 +19,27 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
 	"github.com/pkg/errors"
 )
 
 // ["foreach_array","array root", function].
 type foreachArrayAction struct {
-	action.CommonAction
-	actions []action.Action
+	action.NestActionImpl
 }
 
 func NewForeachArrayAction() action.Action {
 	a := &foreachArrayAction{}
 	a.CommonAction = action.CommonAction{
-		ActionName:  "FOREACH_ARRAY",
-		FixedArgs:   []arg.TypeList{[]arg.Type{arg.EventData}, []arg.Type{arg.Constant}},
-		VariadicArg: arg.TypeList{arg.Constant},
+		ActionName: "FOREACH_ARRAY",
+		FixedArgs:  []arg.TypeList{[]arg.Type{arg.EventData}},
 	}
 	return a
 }
 
 func (a *foreachArrayAction) Init(args []arg.Arg) error {
 	a.TargetArg = args[0]
-	a.Args = args[:1]
+	a.Args = args
 	a.ArgTypes = []common.Type{common.Array}
-	for i := 1; i < len(args); i++ {
-		v, _ := args[i].Evaluate(nil)
-		commands, ok := v.([]interface{})
-		if !ok {
-			return errors.Errorf("arg %d %s is invalid", i, args[i].Original())
-		}
-		_action, err := runtime.NewAction(commands)
-		if err != nil {
-			return errors.Wrapf(err, "arg %d %s new action error", i, args[i].Original())
-		}
-		a.actions = append(a.actions, _action)
-	}
 	return nil
 }
 
@@ -68,8 +53,8 @@ func (a *foreachArrayAction) Execute(ceCtx *context.EventContext) error {
 		newCtx := &context.EventContext{
 			Data: arrayValue[i],
 		}
-		for i := range a.actions {
-			err = a.actions[i].Execute(newCtx)
+		for i := range a.Actions {
+			err = a.Actions[i].Execute(newCtx)
 			if err != nil {
 				return errors.Wrapf(err, "action %dst execute error", i+1)
 			}
