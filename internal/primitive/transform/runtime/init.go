@@ -53,7 +53,7 @@ func init() {
 		strings.NewReplaceBetweenPositionsAction,
 		// condition
 		condition.NewConditionIfAction,
-		// render
+		// array
 		array.NewRenderArrayAction,
 		array.NewForeachArrayAction,
 		// common
