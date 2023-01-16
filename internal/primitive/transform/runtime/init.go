@@ -55,7 +55,7 @@ func init() {
 		condition.NewConditionIfAction,
 		// array
 		array.NewRenderArrayAction,
-		array.NewForeachArrayAction,
+		array.NewArrayForeachAction,
 		// common
 		common.NewLengthAction,
 		// source

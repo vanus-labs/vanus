@@ -26,7 +26,7 @@ import (
 )
 
 func TestReplaceArrayAction(t *testing.T) {
-	funcName := array.NewForeachArrayAction().Name()
+	funcName := array.NewArrayForeachAction().Name()
 	Convey("test replace array valid", t, func() {
 		jsonStr := `{
 			  "array": [
@@ -61,6 +61,8 @@ func TestReplaceArrayAction(t *testing.T) {
 			So(exist, ShouldBeTrue)
 			So(len(value.([]interface{})), ShouldEqual, 3)
 			So(value.([]interface{})[0].(map[string]interface{})["name"], ShouldEqual, "prefixname1")
+			So(value.([]interface{})[1].(map[string]interface{})["name"], ShouldEqual, "prefixname2")
+			So(value.([]interface{})[2].(map[string]interface{})["name"], ShouldEqual, "prefixname3")
 		})
 	})
 }

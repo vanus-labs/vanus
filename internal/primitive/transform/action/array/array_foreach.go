@@ -22,28 +22,28 @@ import (
 	"github.com/pkg/errors"
 )
 
-// ["foreach_array","array root", function].
-type foreachArrayAction struct {
+// ["array_foreach","array root", function].
+type arrayForeachAction struct {
 	action.NestActionImpl
 }
 
-func NewForeachArrayAction() action.Action {
-	a := &foreachArrayAction{}
+func NewArrayForeachAction() action.Action {
+	a := &arrayForeachAction{}
 	a.CommonAction = action.CommonAction{
-		ActionName: "FOREACH_ARRAY",
+		ActionName: "ARRAY_FOREACH",
 		FixedArgs:  []arg.TypeList{[]arg.Type{arg.EventData}},
 	}
 	return a
 }
 
-func (a *foreachArrayAction) Init(args []arg.Arg) error {
+func (a *arrayForeachAction) Init(args []arg.Arg) error {
 	a.TargetArg = args[0]
 	a.Args = args
 	a.ArgTypes = []common.Type{common.Array}
 	return nil
 }
 
-func (a *foreachArrayAction) Execute(ceCtx *context.EventContext) error {
+func (a *arrayForeachAction) Execute(ceCtx *context.EventContext) error {
 	args, err := a.RunArgs(ceCtx)
 	if err != nil {
 		return err
