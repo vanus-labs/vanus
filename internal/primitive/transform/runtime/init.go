@@ -48,6 +48,7 @@ func init() {
 		strings.NewAddPrefixAction,
 		strings.NewAddSuffixAction,
 		strings.NewReplaceWithRegexAction,
+		strings.NewCapitalizeSentenceAction,
 		// condition
 		condition.NewConditionIfAction,
 		// render
