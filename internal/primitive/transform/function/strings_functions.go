@@ -81,3 +81,12 @@ var SplitWithSepFunction = function{
 		return strings.SplitN(s, sep, int(args[2].(float64))), nil
 	},
 }
+var CapitalizeSentence = function{
+	name:      "CAPITALIZE_SENTENCE",
+	fixedArgs: []common.Type{common.String},
+	fn: func(args []interface{}) (interface{}, error) {
+		trimmedSentence := strings.TrimSpace(args[0].(string))
+		capFisrtLetter :=  string(trimmedSentence[0] - 32)
+		return capFisrtLetter + trimmedSentence[1:], nil
+	},
+}
