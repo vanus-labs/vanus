@@ -78,4 +78,5 @@ func BenchmarkAction(b *testing.B) {
 	b.Run("add_prefix", actionBenchmark([]interface{}{"add_prefix", "$.data.str", "prefix"}))
 	b.Run("add_suffix", actionBenchmark([]interface{}{"add_suffix", "$.data.str", "suffix"}))
 	b.Run("replace_with_regex", actionBenchmark([]interface{}{"replace_with_regex", "$.data.str", "a", "Aa"}))
+	b.Run("capitalize_sentence", actionBenchmark([]interface{}{"capitalize_sentence", "$.data.str"}))
 }
