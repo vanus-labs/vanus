@@ -1,4 +1,4 @@
-// Copyright 2022 Linkall Inc.
+// Copyright 2023 Linkall Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,6 +36,6 @@ func TestCapitalizeSentenceAction(t *testing.T) {
 		}
 		err = a.Execute(ceCtx)
 		So(err, ShouldBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "test value")
+		So(e.Extensions()["test"], ShouldEqual, "Test value")
 	})
 }
