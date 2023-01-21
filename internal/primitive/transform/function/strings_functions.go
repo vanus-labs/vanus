@@ -85,8 +85,13 @@ var CapitalizeSentence = function{
 	name:      "CAPITALIZE_SENTENCE",
 	fixedArgs: []common.Type{common.String},
 	fn: func(args []interface{}) (interface{}, error) {
-		trimmedSentence := strings.TrimSpace(args[0].(string))
-		capFisrtLetter :=  string(trimmedSentence[0] - 32)
-		return capFisrtLetter + trimmedSentence[1:], nil
+		value, _ := args[0].(string)
+        	if len(value) == 0 {
+            		return value, nil
+        	}
+        	if len(value) == 1 {
+            		return strings.ToUpper(string(value[0])), nil
+        	}
+        	return strings.ToUpper(string(value[0]))+value[1:], nil
 	},
 }
