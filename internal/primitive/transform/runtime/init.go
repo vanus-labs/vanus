@@ -15,11 +15,11 @@
 package runtime
 
 import (
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action/array"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/common"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/condition"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/datetime"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/math"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/action/render"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/source"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/strings"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/structs"
@@ -33,6 +33,7 @@ func init() {
 		structs.NewReplaceAction,
 		structs.NewMoveAction,
 		structs.NewRenameAction,
+		structs.NewDuplicateAction,
 		// math
 		math.NewMathAddAction,
 		math.NewMathSubAction,
@@ -48,11 +49,14 @@ func init() {
 		strings.NewAddPrefixAction,
 		strings.NewAddSuffixAction,
 		strings.NewReplaceWithRegexAction,
+		strings.NewReplaceStringAction,
+		strings.NewReplaceBetweenPositionsAction,
 		strings.NewCapitalizeSentenceAction,
 		// condition
 		condition.NewConditionIfAction,
-		// render
-		render.NewRenderArrayAction,
+		// array
+		array.NewRenderArrayAction,
+		array.NewArrayForeachAction,
 		// common
 		common.NewLengthAction,
 		// source

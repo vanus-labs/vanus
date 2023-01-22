@@ -19,7 +19,6 @@ import (
 	// standard libraries.
 	"encoding/binary"
 	"fmt"
-	"os"
 	"testing"
 
 	// third-party libraries.
@@ -37,23 +36,9 @@ func TestLog_Compact(t *testing.T) {
 	data := make([]byte, blockSize)
 	copy(data, []byte("hello world!"))
 
-	metaDir, err := os.MkdirTemp("", "meta-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(metaDir)
-
-	offsetDir, err := os.MkdirTemp("", "offset-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(offsetDir)
-
-	walDir, err := os.MkdirTemp("", "wal-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(walDir)
+	metaDir := t.TempDir()
+	offsetDir := t.TempDir()
+	walDir := t.TempDir()
 
 	Convey("raft log compaction", t, func() {
 		metaStore, err := meta.RecoverSyncStore(stdCtx.Background(), metaCfg, metaDir)

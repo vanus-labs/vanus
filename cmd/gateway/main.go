@@ -22,6 +22,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/gateway"
 	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/linkall-labs/vanus/pkg/util/signal"
 )
 
@@ -49,9 +50,9 @@ func main() {
 		})
 		os.Exit(-1)
 	}
-	
+
 	cfg.Observability.T.ServerName = "Vanus Gateway"
-	_ = observability.Initialize(cfg.Observability, nil)
+	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetGatewayMetrics)
 	log.Info(ctx, "Gateway has started", nil)
 	select {
 	case <-ctx.Done():

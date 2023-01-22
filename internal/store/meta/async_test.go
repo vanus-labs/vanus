@@ -17,7 +17,6 @@ package meta
 import (
 	// standard libraries.
 	"context"
-	"os"
 	"testing"
 
 	// third-party libraries.
@@ -31,8 +30,7 @@ func TestAsyncStore(t *testing.T) {
 	ctx := context.Background()
 
 	Convey("AsyncStore", t, func() {
-		walDir, err := os.MkdirTemp("", "async-*")
-		So(err, ShouldBeNil)
+		walDir := t.TempDir()
 
 		Convey("new empty AsyncStore by recovery", func() {
 			ss, err := RecoverAsyncStore(ctx, config.AsyncStore{}, walDir)
@@ -96,11 +94,6 @@ func TestAsyncStore(t *testing.T) {
 					})
 				})
 			})
-		})
-
-		Reset(func() {
-			err := os.RemoveAll(walDir)
-			So(err, ShouldBeNil)
 		})
 	})
 }

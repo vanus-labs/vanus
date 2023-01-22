@@ -17,7 +17,6 @@ package meta
 import (
 	// standard libraries.
 	"context"
-	"os"
 	"testing"
 
 	// third-party libraries.
@@ -35,8 +34,7 @@ var (
 
 func TestSyncStore(t *testing.T) {
 	Convey("SyncStore", t, func() {
-		walDir, err := os.MkdirTemp("", "sync-*")
-		So(err, ShouldBeNil)
+		walDir := t.TempDir()
 
 		Convey("new empty SyncStore by recovery", func() {
 			ss, err := RecoverSyncStore(context.Background(), config.SyncStore{}, walDir)
@@ -100,11 +98,6 @@ func TestSyncStore(t *testing.T) {
 					})
 				})
 			})
-		})
-
-		Reset(func() {
-			err := os.RemoveAll(walDir)
-			So(err, ShouldBeNil)
 		})
 	})
 }

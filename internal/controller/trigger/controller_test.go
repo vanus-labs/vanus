@@ -124,10 +124,12 @@ func TestController_CreateSubscription(t *testing.T) {
 
 		ctrl.state = primitive.ServerStateRunning
 		Convey("create subscription", func() {
+			subManager.EXPECT().GetSubscriptionByName(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 			subManager.EXPECT().AddSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 			create := &ctrlpb.CreateSubscriptionRequest{
 				Subscription: &ctrlpb.SubscriptionRequest{
 					EventBus: "test-bus",
+					Name:     "test-name",
 					Sink:     "test-sink",
 				},
 			}
@@ -176,12 +178,14 @@ func TestController_UpdateSubscription(t *testing.T) {
 			Phase:         metadata.SubscriptionPhaseStopped,
 			TriggerWorker: "test-addr",
 			EventBus:      "test-eb",
+			Name:          "test-name",
 			Sink:          "test-sink",
 			Protocol:      primitive.HTTPProtocol,
 		}
 		b, _ := stdJson.Marshal(sub)
 		var _sub *metadata.Subscription
 		_ = stdJson.Unmarshal(b, &_sub)
+		subManager.EXPECT().GetSubscriptionByName(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 		subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).AnyTimes().Return(_sub)
 		Convey("no change", func() {
 			request := &ctrlpb.UpdateSubscriptionRequest{
@@ -270,6 +274,7 @@ func TestController_UpdateSubscription(t *testing.T) {
 					Id: subID.Uint64(),
 					Subscription: &ctrlpb.SubscriptionRequest{
 						EventBus: "test-eb",
+						Name:     "test-name",
 						Sink:     "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
 						Protocol: metapb.Protocol_AWS_LAMBDA,
 						SinkCredential: &metapb.SinkCredential{
@@ -298,6 +303,7 @@ func TestController_UpdateSubscription(t *testing.T) {
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
 					EventBus: "test-eb",
+					Name:     "test-name",
 					Sink:     "modify-sink",
 				},
 			}
@@ -313,6 +319,7 @@ func TestController_UpdateSubscription(t *testing.T) {
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
 					EventBus: "test-eb",
+					Name:     "test-name",
 					Sink:     "test-sink",
 					Filters: []*metapb.Filter{
 						{
@@ -332,6 +339,7 @@ func TestController_UpdateSubscription(t *testing.T) {
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
 					EventBus: "test-eb",
+					Name:     "test-name",
 					Sink:     "test-sink",
 					Transformer: &metapb.Transformer{
 						Define:   map[string]string{"k": "v"},
@@ -461,7 +469,7 @@ func TestController_ListSubscription(t *testing.T) {
 			}
 			subManager.EXPECT().ListSubscription(gomock.Any()).Return(list)
 			subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(info.ListOffsetInfo{}, nil)
-			resp, err := ctrl.ListSubscription(ctx, nil)
+			resp, err := ctrl.ListSubscription(ctx, &ctrlpb.ListSubscriptionRequest{})
 			So(err, ShouldBeNil)
 			So(len(resp.Subscription), ShouldEqual, 2)
 		})

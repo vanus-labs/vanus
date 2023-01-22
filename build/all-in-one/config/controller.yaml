@@ -1,0 +1,34 @@
+name: "standalone"
+ip: "127.0.0.1"
+port: 2048
+etcd:
+  - "127.0.0.1:2379"
+data_dir: "/vanus/data/controller"
+gateway_endpoint: "127.0.0.1:18080"
+segment_capacity: 8388604 # 8MB
+topology:
+  standalone: 127.0.0.1:2048
+replicas: 1
+metadata:
+  key_prefix: "/standalone"
+embed_etcd:
+  # relative path to ${data_dir} above
+  data_dir: "etcd"
+  listen_client_addr: 127.0.0.1:2379
+  listen_peer_addr: 127.0.0.1:2380
+  advertise_client_addr: 127.0.0.1:2379
+  advertise_peer_addr: 127.0.0.1:2380
+  heartbeat-interval: 600000
+  election-timeout: 600000
+  clusters:
+    - standalone=http://127.0.0.1:2380
+secret_encryption_salt: "encryption_salt"
+observability:
+  metrics:
+    enable: false
+    # metrics for prometheus scratch data
+    port: 2112
+  tracing:
+    enable: false
+    # OpenTelemetry Collector endpoint, https://opentelemetry.io/docs/collector/getting-started/
+    otel_collector: http://127.0.0.1:4318

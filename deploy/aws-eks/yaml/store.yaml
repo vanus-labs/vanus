@@ -1,0 +1,131 @@
+kind: ConfigMap
+metadata:
+  name: config-store
+  namespace: vanus
+apiVersion: v1
+data:
+  store.yaml: |-
+    port: 11811
+    ip: ${POD_IP}
+    controllers:
+      - vanus-controller-0.vanus-controller:2048
+      - vanus-controller-1.vanus-controller:2048
+      - vanus-controller-2.vanus-controller:2048
+    volume:
+      id: ${VOLUME_ID}
+      dir: /data
+      capacity: 1073741824
+    meta_store:
+      wal:
+        io:
+          engine: psync
+    offset_store:
+      wal:
+        io:
+          engine: psync
+    raft:
+      wal:
+        block_size: 16384
+        io:
+          engine: psync
+          parallel: 16
+    vsb:
+      flush_batch_size: 16384
+      io:
+        engine: psync
+        parallel: 16
+    observability:
+      metrics:
+        enable: true
+      tracing:
+        enable: false
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: vanus-store
+  name: vanus-store
+  namespace: vanus
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: vanus-store
+  serviceName: vanus-store
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: 'true'
+      labels:
+        app: vanus-store
+    spec:
+      nodeSelector:
+        type: storage
+      containers:
+        - command:
+            - /bin/sh
+            - -c
+            - VOLUME_ID=${HOSTNAME##*-} /vanus/bin/store
+          env:
+            - name: VANUS_LOG_LEVEL
+              value: INFO
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          image: public.ecr.aws/vanus/store:6b23e5a
+          imagePullPolicy: IfNotPresent
+          name: store
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 8000Mi
+            requests:
+              cpu: 2000m
+              memory: 8000Mi
+          ports:
+            - containerPort: 11811
+              name: grpc
+            - containerPort: 2112
+              protocol: TCP
+              name: metrics
+          volumeMounts:
+            - mountPath: /vanus/config
+              name: config-store
+            - mountPath: /data
+              name: data
+        - name: node-exporter
+          image: prom/node-exporter
+          args:
+            - --no-collector.wifi
+            - --no-collector.hwmon
+            - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
+            - --collector.netclass.ignored-devices=^(veth.*)$
+          ports:
+            - containerPort: 9100
+              protocol: TCP
+              name: metrics
+          resources:
+            limits:
+              cpu: 250m
+              memory: 180Mi
+            requests:
+              cpu: 102m
+              memory: 180Mi
+      volumes:
+        - configMap:
+            name: config-store
+          name: config-store
+  volumeClaimTemplates:
+    - metadata:
+        labels:
+          app: vanus-store
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: gp3
+        resources:
+          requests:
+            storage: 200Gi

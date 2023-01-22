@@ -19,40 +19,79 @@ import "github.com/prometheus/client_golang/prometheus"
 var (
 	moduleOfController = "controller"
 
-	EventbusGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+	ControllerLeaderGaugeVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{ // visualized
+		Namespace: namespace,
+		Subsystem: moduleOfController,
+		Name:      "leader_flag",
+		Help:      "if is this controller leader",
+	}, []string{LabelIsLeader})
+
+	EventbusGauge = prometheus.NewGauge(prometheus.GaugeOpts{ // visualized
 		Namespace: namespace,
 		Subsystem: moduleOfController,
 		Name:      "eventbus_number_total",
-		Help:      "The number of EventbusService.",
 	})
 
-	EventlogGaugeVec = prometheus.NewGauge(prometheus.GaugeOpts{
+	EventbusUpdatedGauge = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfController,
-		Name:      "eventlog_number_total",
-		Help:      "The Eventlog number.",
+		Name:      "eventbus_number_updated_total",
 	})
 
-	SegmentGaugeVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	EventbusDeletedGauge = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfController,
-		Name:      "segment_number_per_eventbus_total",
-		Help:      "The Segment's number of each eventbus .",
+		Name:      "eventbus_number_deleted_total",
+	})
+
+	// EventlogGaugeVec TODO wenfeng clean values?
+	EventlogGaugeVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{ // visualized
+		Namespace: namespace,
+		Subsystem: moduleOfController,
+		Name:      "eventlog_number_total_per_eventbus",
 	}, []string{LabelEventbus})
 
-	SegmentCreationRuntimeCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
+	SegmentGaugeVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{ // visualized
 		Namespace: namespace,
 		Subsystem: moduleOfController,
-		Name:      "segment_creation_runtime",
-		Help:      "The runtime info about segment creation.",
-	}, []string{LabelType})
+		Name:      "segment_number_total_per_eventlog",
+	}, []string{LabelEventbus, LabelEventlog, LabelSegmentState})
+
+	SegmentSizeGaugeVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{ // visualized
+		Namespace: namespace,
+		Subsystem: moduleOfController,
+		Name:      "segment_size_total_per_eventlog",
+	}, []string{LabelEventbus, LabelEventlog, LabelSegmentState})
+
+	SegmentCapacityGaugeVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{ // visualized
+		Namespace: namespace,
+		Subsystem: moduleOfController,
+		Name:      "segment_capacity_total_per_eventlog",
+	}, []string{LabelEventbus, LabelEventlog, LabelSegmentState})
+
+	SegmentEventNumberGaugeVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{ // visualized
+		Namespace: namespace,
+		Subsystem: moduleOfController,
+		Name:      "segment_event_number_total_per_eventlog",
+	}, []string{LabelEventbus, LabelEventlog, LabelSegmentState})
+
+	SegmentCreatedByCacheMissing = prometheus.NewGauge(prometheus.GaugeOpts{ // visualized
+		Namespace: namespace,
+		Subsystem: moduleOfController,
+		Name:      "segment_created_by_cache_missing_total",
+	})
+
+	SegmentCreatedByScaleTask = prometheus.NewGauge(prometheus.GaugeOpts{ // visualized
+		Namespace: namespace,
+		Subsystem: moduleOfController,
+		Name:      "segment_created_by_scale_task_total",
+	})
 
 	SegmentDeletedCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: namespace,
 		Subsystem: moduleOfController,
-		Name:      "deleted_segment_number_runtime",
-		Help:      "The number of deleted Segment.",
-	}, []string{LabelType})
+		Name:      "segment_deleted_number_runtime",
+	}, []string{LabelDeletedReason})
 
 	SubscriptionGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,

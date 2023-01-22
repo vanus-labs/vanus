@@ -1,0 +1,447 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vanus
+---
+apiVersion: v1
+data:
+  controller.yaml: |-
+    node_id: ${NODE_ID}
+    name: ${POD_NAME}
+    ip: ${POD_IP}
+    port: 2048
+    etcd:
+      - vanus-controller-0.vanus-controller:2379
+      - vanus-controller-1.vanus-controller:2379
+      - vanus-controller-2.vanus-controller:2379
+    data_dir: /data
+    segment_capacity: 268435456
+    replicas: 3
+    metadata:
+      key_prefix: /vanus
+    topology:
+      vanus-controller-0: vanus-controller-0.vanus-controller.vanus.svc:2048
+      vanus-controller-1: vanus-controller-1.vanus-controller.vanus.svc:2048
+      vanus-controller-2: vanus-controller-2.vanus-controller.vanus.svc:2048
+    embed_etcd:
+      # relative path to ${data_dir} above
+      data_dir: etcd/data
+      listen_client_addr: 0.0.0.0:2379
+      listen_peer_addr: 0.0.0.0:2380
+      advertise_client_addr: ${POD_NAME}.vanus-controller:2379
+      advertise_peer_addr: ${POD_NAME}.vanus-controller:2380
+      clusters:
+        - vanus-controller-0=http://vanus-controller-0.vanus-controller:2380
+        - vanus-controller-1=http://vanus-controller-1.vanus-controller:2380
+        - vanus-controller-2=http://vanus-controller-2.vanus-controller:2380
+kind: ConfigMap
+metadata:
+  name: config-controller
+  namespace: vanus
+---
+apiVersion: v1
+data:
+  gateway.yaml: |-
+    port: 8080
+    controllers:
+      - vanus-controller-0.vanus-controller:2048
+      - vanus-controller-1.vanus-controller:2048
+      - vanus-controller-2.vanus-controller:2048
+kind: ConfigMap
+metadata:
+  name: config-gateway
+  namespace: vanus
+---
+apiVersion: v1
+data:
+  store.yaml: |-
+    port: 11811
+    ip: ${POD_IP}
+    controllers:
+      - vanus-controller-0.vanus-controller:2048
+      - vanus-controller-1.vanus-controller:2048
+      - vanus-controller-2.vanus-controller:2048
+    volume:
+      id: ${VOLUME_ID}
+      dir: /data
+      capacity: 1073741824
+    meta_store:
+      wal:
+        io:
+          engine: psync
+    offset_store:
+      wal:
+        io:
+          engine: psync
+    raft:
+      wal:
+        block_size: 16384
+        io:
+          engine: psync
+          parallel: 16
+    vsb:
+      flush_batch_size: 16384
+      io:
+        engine: psync
+        parallel: 16
+
+kind: ConfigMap
+metadata:
+  name: config-store
+  namespace: vanus
+---
+apiVersion: v1
+data:
+  timer.yaml: |-
+    name: "timer"
+    ip: ${POD_IP}
+    etcd:
+      - vanus-controller-0.vanus-controller:2379
+      - vanus-controller-1.vanus-controller:2379
+      - vanus-controller-2.vanus-controller:2379
+    metadata:
+      key_prefix: "/vanus"
+    leaderelection:
+      lease_duration: 15
+    timingwheel:
+      tick: 1
+      wheel_size: 32
+      layers: 4
+    controllers:
+      - vanus-controller-0.vanus-controller.vanus.svc:2048
+      - vanus-controller-1.vanus-controller.vanus.svc:2048
+      - vanus-controller-2.vanus-controller.vanus.svc:2048
+kind: ConfigMap
+metadata:
+  name: config-timer
+  namespace: vanus
+---
+apiVersion: v1
+data:
+  trigger.yaml: |-
+    port: 2148
+    ip : ${POD_IP}
+    send_event_goroutine_size: 1000
+    send_event_batch_size: 32
+    pull_event_batch_size: 32
+    max_uack_event_number: 10000
+    controllers:
+      - vanus-controller-0.vanus-controller.vanus.svc:2048
+      - vanus-controller-1.vanus-controller.vanus.svc:2048
+      - vanus-controller-2.vanus-controller.vanus.svc:2048
+kind: ConfigMap
+metadata:
+  name: config-trigger
+  namespace: vanus
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vanus-controller
+  namespace: vanus
+spec:
+  clusterIP: None
+  ports:
+    - name: vanus-controller
+      port: 2048
+  selector:
+    app: vanus-controller
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vanus-gateway
+  namespace: vanus
+spec:
+  ports:
+    - name: proxy
+      targetPort: 8080
+      port: 8080
+    - name: cloudevents
+      targetPort: 8081
+      port: 8081
+  selector:
+    app: vanus-gateway
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: vanus-gateway
+  name: vanus-gateway
+  namespace: vanus
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vanus-gateway
+  template:
+    metadata:
+      annotations:
+        vanus.dev/metrics.port: "2112"
+      labels:
+        app: vanus-gateway
+    spec:
+      containers:
+        - image: public.ecr.aws/vanus/gateway:6b23e5a
+          imagePullPolicy: IfNotPresent
+          name: gateway
+          resources:
+            limits:
+              cpu: 4000m
+              memory: 4000Mi
+            requests:
+              cpu: 4000m
+              memory: 4000Mi
+          ports:
+            - containerPort: 8080
+              name: proxy
+            - containerPort: 8081
+              name: cloudevents
+          volumeMounts:
+            - mountPath: /vanus/config
+              name: config-gateway
+      volumes:
+        - configMap:
+            name: config-gateway
+          name: config-gateway
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: vanus-timer
+  name: vanus-timer
+  namespace: vanus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vanus-timer
+  template:
+    metadata:
+      annotations:
+        vanus.dev/metrics.port: "2112"
+      labels:
+        app: vanus-timer
+    spec:
+      containers:
+        - env:
+            - name: VANUS_LOG_LEVEL
+              value: DEBUG
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          image: public.ecr.aws/vanus/timer:6b23e5a
+          imagePullPolicy: IfNotPresent
+          name: timer
+          volumeMounts:
+            - mountPath: /vanus/config
+              name: config-timer
+      volumes:
+        - configMap:
+            name: config-timer
+          name: config-timer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: vanus-trigger
+  name: vanus-trigger
+  namespace: vanus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vanus-trigger
+  template:
+    metadata:
+      annotations:
+        vanus.dev/metrics.port: "2112"
+      labels:
+        app: vanus-trigger
+    spec:
+      initContainers:
+        - name: set-system-parameters
+          image: busybox
+          securityContext:
+            capabilities: { }
+            privileged: true
+          command: ["/bin/sh", "-c", "sysctl -w net.ipv4.tcp_tw_reuse=1 && sysctl -w net.ipv4.tcp_fin_timeout=10 && sysctl -w net.ipv4.ip_local_port_range='4096 65000' && sysctl -p"]
+      containers:
+        - env:
+            - name: VANUS_LOG_LEVEL
+              value: INFO
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          image: public.ecr.aws/vanus/trigger:6b23e5a
+          imagePullPolicy: IfNotPresent
+          name: trigger
+          resources:
+            limits:
+              cpu: 12000m
+              memory: 12000Mi
+            requests:
+              cpu: 12000m
+              memory: 12000Mi
+          ports:
+            - containerPort: 2148
+              name: grpc
+          volumeMounts:
+            - mountPath: /vanus/config
+              name: config-trigger
+      volumes:
+        - configMap:
+            name: config-trigger
+          name: config-trigger
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: vanus-controller
+  name: vanus-controller
+  namespace: vanus
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: vanus-controller
+  serviceName: vanus-controller
+  template:
+    metadata:
+      annotations:
+        vanus.dev/metrics.port: "2112"
+      labels:
+        app: vanus-controller
+    spec:
+      containers:
+        - command:
+            - /bin/sh
+            - -c
+            - NODE_ID=${HOSTNAME##*-} /vanus/bin/controller
+          env:
+            - name: VANUS_LOG_LEVEL
+              value: DEBUG
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          image: public.ecr.aws/vanus/controller:6b23e5a
+          imagePullPolicy: IfNotPresent
+          name: controller
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 4000Mi
+            requests:
+              cpu: 1000m
+              memory: 4000Mi
+          ports:
+            - containerPort: 2048
+              name: grpc
+            - containerPort: 2379
+              name: etcd-client
+            - containerPort: 2380
+              name: etcd-peer
+            - containerPort: 2112
+              name: metrics
+          volumeMounts:
+            - mountPath: /vanus/config
+              name: config-controller
+            - mountPath: /data
+              name: data
+      volumes:
+        - configMap:
+            name: config-controller
+          name: config-controller
+  volumeClaimTemplates:
+    - metadata:
+        labels:
+          app: vanus-controller
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+#        storageClassName: ssd
+        storageClassName: local-storage
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: vanus-store
+  name: vanus-store
+  namespace: vanus
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: vanus-store
+  serviceName: vanus-store
+  template:
+    metadata:
+      annotations:
+        vanus.dev/metrics.port: "2112"
+      labels:
+        app: vanus-store
+    spec:
+      containers:
+        - command:
+            - /bin/sh
+            - -c
+            - VOLUME_ID=${HOSTNAME##*-} /vanus/bin/store
+          env:
+            - name: VANUS_LOG_LEVEL
+              value: INFO
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          image: public.ecr.aws/vanus/store:6b23e5a
+          imagePullPolicy: IfNotPresent
+          name: store
+          resources:
+            limits:
+              cpu: 4000m
+              memory: 8000Mi
+            requests:
+              cpu: 4000m
+              memory: 8000Mi
+          ports:
+            - containerPort: 11811
+              name: grpc
+          volumeMounts:
+            - mountPath: /vanus/config
+              name: config-store
+            - mountPath: /data
+              name: data
+      volumes:
+        - configMap:
+            name: config-store
+          name: config-store
+  volumeClaimTemplates:
+    - metadata:
+        labels:
+          app: vanus-store
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+#        storageClassName: ssd
+        storageClassName: local-storage
+        resources:
+          requests:
+            storage: 200Gi

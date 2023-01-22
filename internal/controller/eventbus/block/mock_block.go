@@ -11,6 +11,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	metadata "github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	kv "github.com/linkall-labs/vanus/internal/kv"
+	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
 // MockAllocator is a mock of Allocator interface.
@@ -49,6 +50,21 @@ func (m *MockAllocator) Pick(ctx context.Context, num int) ([]*metadata.Block, e
 func (mr *MockAllocatorMockRecorder) Pick(ctx, num interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Pick", reflect.TypeOf((*MockAllocator)(nil).Pick), ctx, num)
+}
+
+// PickByVolumes mocks base method.
+func (m *MockAllocator) PickByVolumes(ctx context.Context, volumes []vanus.ID) ([]*metadata.Block, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PickByVolumes", ctx, volumes)
+	ret0, _ := ret[0].([]*metadata.Block)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PickByVolumes indicates an expected call of PickByVolumes.
+func (mr *MockAllocatorMockRecorder) PickByVolumes(ctx, volumes interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PickByVolumes", reflect.TypeOf((*MockAllocator)(nil).PickByVolumes), ctx, volumes)
 }
 
 // Run mocks base method.

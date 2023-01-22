@@ -83,6 +83,9 @@ func NewArg(arg interface{}) (Arg, error) {
 		if argLen >= 2 && argName[:2] == EventArgPrefix {
 			return newEventAttribute(argName)
 		}
+		if argLen >= 2 && argName[:2] == EventDataSubArgPrefix {
+			return newEventData(EventDataArgPrefix + "." + argName[2:]), nil
+		}
 		if argLen >= 3 && argName[0] == '<' && argName[argLen-1] == '>' && argName[1] != '@' {
 			return newDefine(argName), nil
 		}
@@ -91,6 +94,7 @@ func NewArg(arg interface{}) (Arg, error) {
 }
 
 const (
-	EventArgPrefix     = "$."
-	EventDataArgPrefix = EventArgPrefix + "data"
+	EventArgPrefix        = "$."
+	EventDataArgPrefix    = EventArgPrefix + "data"
+	EventDataSubArgPrefix = "@."
 )

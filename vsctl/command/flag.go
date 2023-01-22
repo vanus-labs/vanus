@@ -35,11 +35,10 @@ var (
 	eventbus            string
 	eventlogID          uint64
 	eventlogNum         int32
-	source              string
 	sink                string
 	filters             string
 	transformer         string
-	rateLimit           uint32
+	rateLimit           int32
 	from                string
 	subscriptionIDStr   string
 	description         string
@@ -50,7 +49,7 @@ var (
 	subProtocol        string
 	sinkCredentialType string
 	sinkCredential     string
-	deliveryTimeout    uint32
+	deliveryTimeout    int32
 	maxRetryAttempts   int32
 	offsetTimestamp    uint64
 

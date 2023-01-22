@@ -16,7 +16,6 @@ package segmentedfile
 
 import (
 	// standard libraries.
-	"os"
 	"testing"
 
 	// third-party libraries.
@@ -27,8 +26,7 @@ const fileSize = 32 * 1024
 
 func TestSegmentedFile_SelectSegment(t *testing.T) {
 	Convey("segmented file", t, func() {
-		dir, err := os.MkdirTemp("", "sf-*")
-		So(err, ShouldBeNil)
+		dir := t.TempDir()
 
 		sf, err := Open(dir, WithSegmentSize(fileSize))
 		So(err, ShouldBeNil)
@@ -79,9 +77,6 @@ func TestSegmentedFile_SelectSegment(t *testing.T) {
 
 		Reset(func() {
 			sf.Close()
-
-			err = os.RemoveAll(dir)
-			So(err, ShouldBeNil)
 		})
 	})
 }

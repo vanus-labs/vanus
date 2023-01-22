@@ -53,6 +53,8 @@ func fromPbProtocol(from pb.Protocol) primitive.Protocol {
 		to = primitive.AwsLambdaProtocol
 	case pb.Protocol_GCLOUD_FUNCTIONS:
 		to = primitive.GCloudFunctions
+	case pb.Protocol_GRPC:
+		to = primitive.GRPC
 	}
 	return to
 }
@@ -66,6 +68,8 @@ func toPbProtocol(from primitive.Protocol) pb.Protocol {
 		to = pb.Protocol_AWS_LAMBDA
 	case primitive.GCloudFunctions:
 		to = pb.Protocol_GCLOUD_FUNCTIONS
+	case primitive.GRPC:
+		to = pb.Protocol_GRPC
 	}
 	return to
 }

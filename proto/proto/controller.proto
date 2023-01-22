@@ -75,7 +75,7 @@ service TriggerController {
       returns (google.protobuf.Empty);
   rpc GetSubscription(GetSubscriptionRequest)
       returns (linkall.vanus.meta.Subscription) {}
-  rpc ListSubscription(google.protobuf.Empty)
+  rpc ListSubscription(ListSubscriptionRequest)
       returns (ListSubscriptionResponse) {}
   rpc TriggerWorkerHeartbeat(stream TriggerWorkerHeartbeatRequest)
       returns (TriggerWorkerHeartbeatResponse);
@@ -192,6 +192,11 @@ message DisableSubscriptionRequest {
 
 message ResumeSubscriptionRequest {
   uint64 id = 1;
+}
+
+message ListSubscriptionRequest {
+  string eventbus = 1;
+  string name = 2;
 }
 
 message ListSubscriptionResponse {

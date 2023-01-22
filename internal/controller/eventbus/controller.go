@@ -21,8 +21,10 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	embedetcd "github.com/linkall-labs/embed-etcd"
@@ -73,20 +75,22 @@ func NewController(cfg Config, member embedetcd.Member) *controller {
 }
 
 type controller struct {
-	cfg             *Config
-	kvStore         kv.Client
-	volumeMgr       volume.Manager
-	eventLogMgr     eventlog.Manager
-	ssMgr           server.Manager
-	eventBusMap     map[string]*metadata.Eventbus
-	member          embedetcd.Member
-	cancelCtx       context.Context
-	cancelFunc      context.CancelFunc
-	membershipMutex sync.Mutex
-	isLeader        bool
-	readyNotify     chan error
-	stopNotify      chan error
-	mutex           sync.Mutex
+	cfg                  *Config
+	kvStore              kv.Client
+	volumeMgr            volume.Manager
+	eventLogMgr          eventlog.Manager
+	ssMgr                server.Manager
+	eventBusMap          map[string]*metadata.Eventbus
+	member               embedetcd.Member
+	cancelCtx            context.Context
+	cancelFunc           context.CancelFunc
+	membershipMutex      sync.Mutex
+	isLeader             bool
+	readyNotify          chan error
+	stopNotify           chan error
+	mutex                sync.Mutex
+	eventbusUpdatedCount int64
+	eventbusDeletedCount int64
 }
 
 func (ctrl *controller) Start(_ context.Context) error {
@@ -97,6 +101,7 @@ func (ctrl *controller) Start(_ context.Context) error {
 	ctrl.kvStore = store
 	ctrl.cancelCtx, ctrl.cancelFunc = context.WithCancel(context.Background())
 	go ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
+	go ctrl.recordMetrics()
 	return nil
 }
 
@@ -188,7 +193,7 @@ func (ctrl *controller) createEventBus(ctx context.Context,
 		return nil, errors.ErrResourceAlreadyExist.WithMessage("the eventbus already exist")
 	}
 	for idx := 0; idx < eb.LogNumber; idx++ {
-		el, err := ctrl.eventLogMgr.AcquireEventLog(ctx, eb.ID)
+		el, err := ctrl.eventLogMgr.AcquireEventLog(ctx, eb.ID, eb.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -202,7 +207,6 @@ func (ctrl *controller) createEventBus(ctx context.Context,
 			return nil, err
 		}
 	}
-	metrics.EventbusGauge.Set(float64(len(ctrl.eventBusMap)))
 	return ctrl.getEventbus(eb.Name)
 }
 
@@ -231,7 +235,7 @@ func (ctrl *controller) DeleteEventBus(ctx context.Context, eb *metapb.EventBus)
 		}(v.ID)
 	}
 	wg.Wait()
-	metrics.EventbusGauge.Set(float64(len(ctrl.eventBusMap)))
+	atomic.AddInt64(&ctrl.eventbusDeletedCount, 1)
 	return &emptypb.Empty{}, nil
 }
 
@@ -271,6 +275,7 @@ func (ctrl *controller) ListEventBus(ctx context.Context, _ *emptypb.Empty) (*ct
 
 func (ctrl *controller) UpdateEventBus(ctx context.Context,
 	req *ctrlpb.UpdateEventBusRequest) (*metapb.EventBus, error) {
+	atomic.AddInt64(&ctrl.eventbusUpdatedCount, 1)
 	return &metapb.EventBus{}, nil
 }
 
@@ -516,6 +521,33 @@ func (ctrl *controller) ReportSegmentLeader(ctx context.Context,
 	return &emptypb.Empty{}, nil
 }
 
+func (ctrl *controller) recordMetrics() {
+	t := time.NewTicker(time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-t.C:
+			ctrl.membershipMutex.Lock()
+			if ctrl.isLeader {
+				metrics.ControllerLeaderGaugeVec.DeleteLabelValues(strconv.FormatBool(!ctrl.isLeader))
+				metrics.ControllerLeaderGaugeVec.WithLabelValues(strconv.FormatBool(ctrl.isLeader)).Set(1)
+			} else {
+				metrics.ControllerLeaderGaugeVec.WithLabelValues(strconv.FormatBool(!ctrl.isLeader)).Set(0)
+			}
+			ctrl.membershipMutex.Unlock()
+
+			ctrl.mutex.Lock()
+			metrics.EventbusGauge.Set(float64(len(ctrl.eventBusMap)))
+			metrics.EventbusUpdatedGauge.Set(float64(atomic.LoadInt64(&ctrl.eventbusUpdatedCount)))
+			metrics.EventbusDeletedGauge.Set(float64(atomic.LoadInt64(&ctrl.eventbusDeletedCount)))
+			ctrl.mutex.Unlock()
+		case <-ctrl.cancelCtx.Done():
+			log.Info(ctrl.cancelCtx, "record leadership exiting...", nil)
+			return
+		}
+	}
+}
+
 func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event embedetcd.MembershipChangedEvent) error {
 	ctrl.membershipMutex.Lock()
 	defer ctrl.membershipMutex.Unlock()
@@ -571,7 +603,6 @@ func (ctrl *controller) loadEventbus(ctx context.Context) error {
 		}
 		ctrl.eventBusMap[filepath.Base(pair.Key)] = busInfo
 	}
-	metrics.EventbusGauge.Set(float64(len(ctrl.eventBusMap)))
 	return nil
 }
 

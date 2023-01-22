@@ -142,7 +142,7 @@ func (tc *triggerClient) GetSubscription(ctx context.Context, in *ctrlpb.GetSubs
 	return out, nil
 }
 
-func (tc *triggerClient) ListSubscription(ctx context.Context, in *emptypb.Empty,
+func (tc *triggerClient) ListSubscription(ctx context.Context, in *ctrlpb.ListSubscriptionRequest,
 	opts ...grpc.CallOption) (*ctrlpb.ListSubscriptionResponse, error) {
 	out := new(ctrlpb.ListSubscriptionResponse)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/ListSubscription", in, out, opts...)

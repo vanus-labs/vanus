@@ -94,6 +94,10 @@ func (s *Subscription) Update(update *Subscription) bool {
 		change = true
 		s.Source = update.Source
 	}
+	if s.Name != update.Name {
+		change = true
+		s.Name = update.Name
+	}
 	if s.Description != update.Description {
 		change = true
 		s.Description = update.Description

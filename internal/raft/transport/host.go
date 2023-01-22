@@ -24,6 +24,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/raft/raftpb"
 )
@@ -80,6 +81,10 @@ func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoin
 
 	mux := h.resolveMultiplexer(ctx, to, endpoint)
 	if mux == nil {
+		log.Info(ctx, "found not mux", map[string]interface{}{
+			"to":       to,
+			"endpoint": endpoint,
+		})
 		cb(ErrNotReachable)
 		return
 	}

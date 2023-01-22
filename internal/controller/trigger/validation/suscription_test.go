@@ -18,12 +18,10 @@ import (
 	"context"
 	"testing"
 
-	"google.golang.org/protobuf/types/known/structpb"
-
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
-
 	. "github.com/smartystreets/goconvey/convey"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func TestSubscriptionRequestValidator(t *testing.T) {

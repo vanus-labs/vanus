@@ -118,6 +118,7 @@ enum Protocol{
   HTTP = 0;
   AWS_LAMBDA = 1;
   GCLOUD_FUNCTIONS = 2;
+  GRPC = 3;
 }
 
 message SinkCredential {

@@ -43,7 +43,8 @@ func NewAwsLambdaClient(accessKeyID, secretKeyID, arnStr string) EventClient {
 	}
 }
 
-func (l *awsLambda) Send(ctx context.Context, event ce.Event) Result {
+func (l *awsLambda) Send(ctx context.Context, events ...*ce.Event) Result {
+	event := events[0]
 	payload, err := event.MarshalJSON()
 	if err != nil {
 		return newInternalErr(err)

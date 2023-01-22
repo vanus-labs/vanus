@@ -15,6 +15,7 @@
 package function
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
@@ -81,6 +82,28 @@ var SplitWithSepFunction = function{
 		return strings.SplitN(s, sep, int(args[2].(float64))), nil
 	},
 }
+
+var ReplaceBetweenPositionsFunction = function{
+	name:      "REPLACE_BETWEEN_POSITIONS",
+	fixedArgs: []common.Type{common.String, common.Number, common.Number, common.String},
+	fn: func(args []interface{}) (interface{}, error) {
+		path, _ := args[0].(string)
+		startPosition := int(args[1].(float64))
+		endPosition := int(args[2].(float64))
+		targetValue, _ := args[3].(string)
+		if startPosition >= len(path) {
+			return nil, fmt.Errorf("start position must be less than the length of the string")
+		}
+		if endPosition >= len(path) {
+			return nil, fmt.Errorf("end position must be less than the length of the string")
+		}
+		if startPosition >= endPosition {
+			return nil, fmt.Errorf("start position must be less than end position")
+		}
+		return path[:startPosition] + targetValue + path[endPosition:], nil
+	},
+}
+
 var CapitalizeSentence = function{
 	name:      "CAPITALIZE_SENTENCE",
 	fixedArgs: []common.Type{common.String},
@@ -93,5 +116,5 @@ var CapitalizeSentence = function{
             		return strings.ToUpper(string(value[0])), nil
         	}
         	return strings.ToUpper(string(value[0]))+value[1:], nil
-	},
+  },
 }

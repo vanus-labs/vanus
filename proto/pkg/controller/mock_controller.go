@@ -1120,7 +1120,7 @@ func (mr *MockTriggerControllerClientMockRecorder) GetSubscription(ctx, in inter
 }
 
 // ListSubscription mocks base method.
-func (m *MockTriggerControllerClient) ListSubscription(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListSubscriptionResponse, error) {
+func (m *MockTriggerControllerClient) ListSubscription(ctx context.Context, in *ListSubscriptionRequest, opts ...grpc.CallOption) (*ListSubscriptionResponse, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
@@ -1495,7 +1495,7 @@ func (mr *MockTriggerControllerServerMockRecorder) GetSubscription(arg0, arg1 in
 }
 
 // ListSubscription mocks base method.
-func (m *MockTriggerControllerServer) ListSubscription(arg0 context.Context, arg1 *emptypb.Empty) (*ListSubscriptionResponse, error) {
+func (m *MockTriggerControllerServer) ListSubscription(arg0 context.Context, arg1 *ListSubscriptionRequest) (*ListSubscriptionResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListSubscription", arg0, arg1)
 	ret0, _ := ret[0].(*ListSubscriptionResponse)

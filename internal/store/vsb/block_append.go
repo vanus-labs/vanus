@@ -169,8 +169,14 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 
 	if !archived {
 		b.s.Append(bytes.NewReader(frag.Payload()), func(n int, err error) {
+			log.Debug(context.Background(), "acquiring index write lock", map[string]interface{}{
+				"block_id": b.id,
+			})
 			b.mu.Lock()
 			b.indexes = append(b.indexes, indexes...)
+			log.Info(context.Background(), "release index write lock", map[string]interface{}{
+				"block_id": b.id,
+			})
 			b.mu.Unlock()
 
 			cb()
@@ -183,8 +189,14 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 	b.wg.Add(1)
 	b.s.Append(bytes.NewReader(frag.Payload()), func(n int, err error) {
 		if len(indexes) != 0 {
+			log.Debug(context.Background(), "acquiring index write lock", map[string]interface{}{
+				"block_id": b.id,
+			})
 			b.mu.Lock()
 			b.indexes = append(b.indexes, indexes...)
+			log.Info(context.Background(), "release index write lock", map[string]interface{}{
+				"block_id": b.id,
+			})
 			b.mu.Unlock()
 		}
 
@@ -192,7 +204,7 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 
 		m, i := makeSnapshot(b.actx, b.indexes)
 
-		b.appendIndexEntry(ctx, i, func(n int, err error) {
+		go b.appendIndexEntry(ctx, i, func(n int, err error) {
 			defer b.wg.Done()
 			b.indexOffset = m.writeOffset
 			b.indexLength = n

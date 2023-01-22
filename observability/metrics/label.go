@@ -15,10 +15,15 @@
 package metrics
 
 const (
-	LabelType     = "type"
-	LabelVolume   = "volume"
-	LabelEventbus = "eventbus"
-	LabelEventlog = "eventlog"
+	LabelDeletedReason = "deleted_reason"
+	LabelVolume        = "volume"
+	LabelEventbus      = "eventbus"
+	LabelEventlog      = "eventlog"
+	LabelSegmentState  = "segment_state"
+	LabelIsLeader      = "is_leader"
+	LabelProtocol      = "protocol"
+	LabelBatchSize     = "batch_size"
+	LabelResponseCode  = "response_code"
 
 	LabelTriggerWorker = "trigger_worker"
 	LabelTrigger       = "trigger"
@@ -29,13 +34,13 @@ const (
 )
 
 const (
-	LabelValueResourceDynamicCreate        = "dynamic"
-	LabelValueResourceManualCreate         = "manual"
 	LabelValuePushEventSuccess             = "success"
 	LabelValuePushEventFail                = "fail"
 	LabelSegmentDeletedBecauseExpired      = "segment_expired"
 	LabelSegmentDeletedBecauseCreateFailed = "segment_create_failed"
 	LabelSegmentDeletedBecauseDeleted      = "segment_deleted"
+	LabelValueProtocolHTTP                 = "http"
+	LabelValueProtocolGRPC                 = "grpc"
 )
 
 const (
