@@ -30,7 +30,7 @@ func TestCapitalizeSentenceAction(t *testing.T) {
 		a, err := runtime.NewAction([]interface{}{funcName, "$.test"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
-		e.SetExtension("test", "test Value")
+		e.SetExtension("test", "test value")
 		ceCtx := &context.EventContext{
 			Event: &e,
 		}
