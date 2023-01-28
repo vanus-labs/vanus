@@ -109,12 +109,24 @@ var CapitalizeSentence = function{
 	fixedArgs: []common.Type{common.String},
 	fn: func(args []interface{}) (interface{}, error) {
 		value, _ := args[0].(string)
-        	if len(value) == 0 {
-            		return value, nil
-        	}
-        	if len(value) == 1 {
-            		return strings.ToUpper(string(value[0])), nil
-        	}
-        	return strings.ToUpper(string(value[0]))+value[1:], nil
-  },
+		if len(value) == 0 {
+			return value, nil
+		}
+		if len(value) == 1 {
+			return strings.ToUpper(string(value[0])), nil
+		}
+		if value[0] >= 65 && value[0] <= 90 {
+			return value, nil
+		} else if (value[0] >= 97) && (value[0] <= 122) {
+			return strings.ToUpper(string(value[0])) + value[1:], nil
+		} else {
+			for i := 0; i < len(value); i++ {
+				if (value[i] >= 65 && value[i] <= 90) || (value[i] >= 97 && value[i] <= 122) {
+					return strings.ToUpper(string(value[i])) + value[i+1:], nil
+				}
+
+			}
+		}
+		return value, nil
+	},
 }
