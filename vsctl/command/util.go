@@ -1,4 +1,4 @@
-// Copyright 2022 Linkall Inc.
+// Copyright 2023 Linkall Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,8 +15,10 @@
 package command
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/fatih/color"
@@ -54,4 +56,21 @@ func cmdFailedWithHelpNotice(cmd *cobra.Command, format string) {
 	color.Cyan("\n============ see below for right usage ============\n\n")
 	_ = cmd.Help()
 	os.Exit(-1)
+}
+
+func operatorIsDeployed(cmd *cobra.Command, endpoint string) bool {
+	client := &http.Client{}
+	url := fmt.Sprintf("http://%s/api/v1/vanus/healthz", endpoint)
+	req, err := http.NewRequest("GET", url, &bytes.Reader{})
+	if err != nil {
+		return false
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return true
 }

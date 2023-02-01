@@ -1,4 +1,4 @@
-// Copyright 2022 Linkall Inc.
+// Copyright 2023 Linkall Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,6 +55,22 @@ var (
 
 	showSegment bool
 	showBlock   bool
+
+	// for cluster
+	clusterVersion        string
+	controllerReplicas    int32
+	controllerStorageSize string
+	storeReplicas         int32
+	storeStorageSize      string
+	triggerReplicas       int32
+
+	// for connector
+	configfile       string
+	kind             string
+	name             string
+	ctype            string
+	connectorVersion string
+	showConnectors   bool
 )
 
 const (
