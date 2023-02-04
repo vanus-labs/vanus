@@ -1,0 +1,14 @@
+port: 2148
+ip: "trigger"
+controllers:
+  - controller:2048
+rateLimit: 0
+observability:
+  metrics:
+    enable: true
+    # metrics for prometheus scratch data
+    port: 2116
+  tracing:
+    enable: false
+    # OpenTelemetry Collector endpoint, https://opentelemetry.io/docs/collector/getting-started/
+    otel_collector: http://127.0.0.1:4318

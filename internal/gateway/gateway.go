@@ -114,6 +114,7 @@ func (ga *ceGateway) startCloudEventsReceiver(ctx context.Context) error {
 func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event, result protocol.Result) {
 	_ctx, span := ga.tracer.Start(ctx, "receive")
 
+	responseCode := 200
 	start := time.Now()
 	ebName := getEventBusFromPath(requestDataFromContext(_ctx))
 	defer func() {
@@ -122,7 +123,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 			ebName,
 			metrics.LabelValueProtocolHTTP,
 			strconv.FormatInt(1, 10),
-			"unknown",
+			strconv.Itoa(responseCode),
 		).Inc()
 
 		metrics.GatewayEventWriteLatencySummaryVec.WithLabelValues(
@@ -134,12 +135,14 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 	}()
 
 	if ebName == "" {
+		responseCode = http.StatusBadRequest
 		return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid eventbus name")
 	}
 
 	extensions := event.Extensions()
 	err := checkExtension(extensions)
 	if err != nil {
+		responseCode = http.StatusBadRequest
 		return nil, v2.NewHTTPResult(http.StatusBadRequest, err.Error())
 	}
 
@@ -151,6 +154,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 				log.KeyError: err,
 				"eventTime":  eventTime.(string),
 			})
+			responseCode = http.StatusBadRequest
 			return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid delivery time")
 		}
 		ebName = primitive.TimerEventbusName
@@ -167,6 +171,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 			log.KeyError: err,
 			"eventbus":   ebName,
 		})
+		responseCode = http.StatusInternalServerError
 		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
 	eventData := EventData{
@@ -175,6 +180,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 	}
 	re, err = createResponseEvent(eventData)
 	if err != nil {
+		responseCode = http.StatusInternalServerError
 		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
 	return re, v2.ResultACK

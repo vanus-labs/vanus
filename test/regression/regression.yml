@@ -2,27 +2,27 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: vanus-benchmark-producer
-  name: vanus-benchmark-producer
+    app: vanus-regression-test
+  name: vanus-regression-test
   namespace: vanus
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: vanus-benchmark-producer
+      app: vanus-regression-test
   template:
     metadata:
       annotations:
         vanus.dev/metrics.port: "2112"
       labels:
-        app: vanus-benchmark-producer
+        app: vanus-regression-test
     spec:
       containers:
-        - image: public.ecr.aws/vanus/test-infra:dev
+        - image: public.ecr.aws/vanus/test-regression:latest
           imagePullPolicy: Always
-          name: benchmark-producer
-#          command: ["sh", "/vanus-bench/producer/play.sh"]
-          command: ["bash", "-c", "sleep 1000000"]
+          name: vanus-regression-test
+          command: ["sh", "/vanus/test/regression/run.sh"]
+#          command: ["bash", "-c", "sleep 1000000"]
           env:
             - name: JOB_NAME
               value: "e2e-benchmark-producer"

@@ -132,6 +132,8 @@ func GetSegmentServerMetrics() []prometheus.Collector {
 		WriteTPSCounterVec,
 		ReadTPSCounterVec,
 		ReadThroughputCounterVec,
+		CommitAppendGaugeVec,
+		RaftPrepareAppendCountVec,
 	}
 	return append(coll, getGoRuntimeMetrics()...)
 }

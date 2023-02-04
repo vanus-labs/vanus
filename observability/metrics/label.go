@@ -34,8 +34,9 @@ const (
 )
 
 const (
-	LabelValuePushEventSuccess             = "success"
-	LabelValuePushEventFail                = "fail"
+	LabelOperationResult                   = "op_result"
+	LabelSuccess                           = "success"
+	LabelFailed                            = "failed"
 	LabelSegmentDeletedBecauseExpired      = "segment_expired"
 	LabelSegmentDeletedBecauseCreateFailed = "segment_create_failed"
 	LabelSegmentDeletedBecauseDeleted      = "segment_deleted"

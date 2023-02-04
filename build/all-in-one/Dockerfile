@@ -12,7 +12,7 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-trigger
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-timer
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-gateway
 
-FROM centos:latest
+FROM ubuntu:22.04
 WORKDIR /vanus
 
 ARG VERSION
@@ -23,10 +23,16 @@ COPY --from=builder /workspace/bin/timer bin/timer
 COPY --from=builder /workspace/bin/gateway bin/gateway
 COPY --from=builder /workspace/build/all-in-one/config config
 COPY --from=builder /workspace/build/all-in-one/run.sh run.sh
+#COPY --from=builder /workspace/build/all-in-one/install-observability.sh install-observability.sh
+#
+#RUN chmod a+x /vanus/install-observability.sh
+#RUN sh /vanus/install-observability.sh
+#
+#WORKDIR /vanus
+#ENV GF_PATHS_PROVISIONING "/vanus/observability/grafana/provisioning"
 
 RUN chmod a+x /vanus/run.sh
 RUN mkdir /vanus/logs
-
 ENV VERSION=$VERSION
 
 ENTRYPOINT ["/vanus/run.sh"]
