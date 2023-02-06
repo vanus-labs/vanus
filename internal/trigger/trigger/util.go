@@ -34,13 +34,24 @@ func newEventClient(sink primitive.URI,
 	case primitive.GCloudFunctions:
 		_credential, _ := credential.(*primitive.GCloudSinkCredential)
 		return client.NewGCloudFunctionClient(string(sink), _credential.CredentialJSON)
+	case primitive.GRPC:
+		return client.NewGRPCClient(string(sink))
 	default:
 		return client.NewHTTPClient(string(sink))
 	}
 }
 
+const (
+	OrderEventCode   = -1
+	ErrTransformCode = 1
+)
+
 func isShouldRetry(statusCode int) (bool, string) {
 	switch statusCode {
+	case ErrTransformCode:
+		return false, "TransformError"
+	case OrderEventCode:
+		return false, "OrderEvent"
 	case 400:
 		return false, "BadRequest"
 	case 403:

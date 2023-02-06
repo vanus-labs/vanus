@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: vanus-benchmark-producer
+  name: vanus-benchmark-producer
+  namespace: vanus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vanus-benchmark-producer
+  template:
+    metadata:
+      annotations:
+        vanus.dev/metrics.port: "2112"
+      labels:
+        app: vanus-benchmark-producer
+    spec:
+      containers:
+        - image: public.ecr.aws/vanus/test-infra:dev
+          imagePullPolicy: Always
+          name: benchmark-producer
+#          command: ["sh", "/vanus-bench/producer/play.sh"]
+          command: ["bash", "-c", "sleep 1000000"]
+          env:
+            - name: JOB_NAME
+              value: "e2e-benchmark-producer"
+            - name: PAYLOAD_SIZE
+              value: "1024"
+            - name: VANUS_GATEWAY
+              value: "vanus-gateway.vanus:8080"
+            - name: REDIS_ADDR
+              value: "redis.vanus:6379"
+            - name: MONGODB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: benchmark-credentials
+                  key: mongodb_password
+            - name: EVENTLOG_NUMBER
+              value: "16"
+            - name: PARALLELISM
+              value: "16"
+            - name: BATCH_SIZE
+              value: "16"
+            - name: TOTAL_NUMBER
+              value: "1000000"

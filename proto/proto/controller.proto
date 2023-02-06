@@ -69,9 +69,13 @@ service TriggerController {
       returns (linkall.vanus.meta.Subscription) {}
   rpc DeleteSubscription(DeleteSubscriptionRequest)
       returns (google.protobuf.Empty) {}
+  rpc DisableSubscription(DisableSubscriptionRequest)
+      returns (google.protobuf.Empty);
+  rpc ResumeSubscription(ResumeSubscriptionRequest)
+      returns (google.protobuf.Empty);
   rpc GetSubscription(GetSubscriptionRequest)
       returns (linkall.vanus.meta.Subscription) {}
-  rpc ListSubscription(google.protobuf.Empty)
+  rpc ListSubscription(ListSubscriptionRequest)
       returns (ListSubscriptionResponse) {}
   rpc TriggerWorkerHeartbeat(stream TriggerWorkerHeartbeatRequest)
       returns (TriggerWorkerHeartbeatResponse);
@@ -80,7 +84,7 @@ service TriggerController {
   rpc UnregisterTriggerWorker(UnregisterTriggerWorkerRequest)
       returns (UnregisterTriggerWorkerResponse);
   rpc ResetOffsetToTimestamp(ResetOffsetToTimestampRequest)
-      returns (google.protobuf.Empty);
+      returns (ResetOffsetToTimestampResponse);
   rpc CommitOffset(CommitOffsetRequest)
       returns (CommitOffsetResponse);
 }
@@ -94,7 +98,7 @@ service SnowflakeController {
 message PingResponse {
   string leader_addr = 1;
   string gateway_addr = 2;
-  bool is_eventbus_ready=3;
+  bool is_eventbus_ready = 3;
 }
 
 message CreateEventBusRequest {
@@ -182,6 +186,19 @@ message DeleteSubscriptionRequest {
   uint64 id = 1;
 }
 
+message DisableSubscriptionRequest {
+  uint64 id = 1;
+}
+
+message ResumeSubscriptionRequest {
+  uint64 id = 1;
+}
+
+message ListSubscriptionRequest {
+  string eventbus = 1;
+  string name = 2;
+}
+
 message ListSubscriptionResponse {
   repeated linkall.vanus.meta.Subscription subscription = 1;
 }
@@ -211,6 +228,11 @@ message ResetOffsetToTimestampRequest {
   // utc time seconds
   uint64 timestamp = 2;
 }
+
+message ResetOffsetToTimestampResponse {
+  repeated meta.OffsetInfo offsets = 1;
+}
+
 
 message CommitOffsetRequest {
   repeated meta.SubscriptionInfo subscription_info = 1;

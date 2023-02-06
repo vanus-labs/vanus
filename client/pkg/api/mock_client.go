@@ -10,6 +10,7 @@ import (
 
 	v2 "github.com/cloudevents/sdk-go/v2"
 	gomock "github.com/golang/mock/gomock"
+	cloudevents "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 )
 
 // MockEventbus is a mock of Eventbus interface.
@@ -146,17 +147,35 @@ func (m *MockBusWriter) EXPECT() *MockBusWriterMockRecorder {
 	return m.recorder
 }
 
+// AppendBatch mocks base method.
+func (m *MockBusWriter) AppendBatch(ctx context.Context, events *cloudevents.CloudEventBatch, opts ...WriteOption) error {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, events}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "AppendBatch", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AppendBatch indicates an expected call of AppendBatch.
+func (mr *MockBusWriterMockRecorder) AppendBatch(ctx, events interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, events}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppendBatch", reflect.TypeOf((*MockBusWriter)(nil).AppendBatch), varargs...)
+}
+
 // AppendMany mocks base method.
-func (m *MockBusWriter) AppendMany(ctx context.Context, events []*v2.Event, opts ...WriteOption) ([]string, error) {
+func (m *MockBusWriter) AppendMany(ctx context.Context, events []*v2.Event, opts ...WriteOption) error {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, events}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "AppendMany", varargs...)
-	ret0, _ := ret[0].([]string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // AppendMany indicates an expected call of AppendMany.

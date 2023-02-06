@@ -21,6 +21,8 @@ import (
 	"io"
 	"sync"
 
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"go.opentelemetry.io/otel/trace"
 
@@ -451,13 +453,36 @@ type busWriter struct {
 	tracer *tracing.Tracer
 }
 
+func (w *busWriter) AppendBatch(ctx context.Context, events *cloudevents.CloudEventBatch, opts ...api.WriteOption) (err error) {
+	_ctx, span := w.tracer.Start(ctx, "CloudEventBatch")
+	defer span.End()
+
+	var writeOpts = w.opts
+	if len(opts) > 0 {
+		writeOpts = w.opts.Copy()
+		for _, opt := range opts {
+			opt(writeOpts)
+		}
+	}
+
+	// 1. pick a writer of eventlog
+	lw, err := w.pickWritableLog(_ctx, writeOpts)
+	if err != nil {
+		return err
+	}
+
+	// 2. append the event to the eventlog
+	_, err = lw.AppendMany(_ctx, events)
+	return err
+}
+
 var _ api.BusWriter = (*busWriter)(nil)
 
 func (w *busWriter) AppendOne(ctx context.Context, event *ce.Event, opts ...api.WriteOption) (string, error) {
 	_ctx, span := w.tracer.Start(ctx, "AppendOne")
 	defer span.End()
 
-	var writeOpts *api.WriteOptions = w.opts
+	var writeOpts = w.opts
 	if len(opts) > 0 {
 		writeOpts = w.opts.Copy()
 		for _, opt := range opts {
@@ -480,9 +505,9 @@ func (w *busWriter) AppendOne(ctx context.Context, event *ce.Event, opts ...api.
 	return eid, nil
 }
 
-func (w *busWriter) AppendMany(ctx context.Context, events []*ce.Event, opts ...api.WriteOption) ([]string, error) {
+func (w *busWriter) AppendMany(ctx context.Context, events []*ce.Event, opts ...api.WriteOption) (err error) {
 	// TODO(jiangkai): implement this method, by jiangkai, 2022.10.24
-	return nil, nil
+	return nil
 }
 
 func (w *busWriter) Bus() api.Eventbus {

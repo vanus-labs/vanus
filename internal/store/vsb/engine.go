@@ -22,6 +22,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/block/raw"
+	"github.com/linkall-labs/vanus/internal/store/io/stream"
 )
 
 const (
@@ -30,11 +31,17 @@ const (
 
 type engine struct {
 	dir string
+	s   stream.Scheduler
 	lis block.ArchivedListener
 }
 
 // Make sure engine implements raw.Engine.
 var _ raw.Engine = (*engine)(nil)
+
+func (e *engine) Close() {
+	// TODO(james.yin): check me
+	e.s.Close()
+}
 
 func (e *engine) GetBlockStatistics(id vanus.ID, r block.Raw) (block.Statistics, error) {
 	if r != nil {
@@ -45,14 +52,22 @@ func (e *engine) GetBlockStatistics(id vanus.ID, r block.Raw) (block.Statistics,
 	return block.Statistics{}, nil
 }
 
-func Initialize(dir string, lis block.ArchivedListener) error {
+func Initialize(dir string, opts ...Option) error {
+	cfg := makeConfig(opts...)
+	return initialize(dir, cfg)
+}
+
+func initialize(dir string, cfg config) error {
 	// Make sure the block directory exists.
 	if err := os.MkdirAll(dir, defaultDirPerm); err != nil {
 		return err
 	}
 
+	s := stream.NewScheduler(cfg.engine, cfg.flushBatchSize, cfg.flushDelayTime)
+
 	return raw.RegisterEngine(raw.VSB, &engine{
 		dir: dir,
-		lis: lis,
+		s:   s,
+		lis: cfg.lis,
 	})
 }

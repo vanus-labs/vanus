@@ -12,43 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package action
+package action_test
 
 import (
 	"testing"
 
+	cetest "github.com/cloudevents/sdk-go/v2/test"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestNewAction(t *testing.T) {
-	Convey("test new action", t, func() {
-		Convey("func name is not string", func() {
-			_, err := NewAction([]interface{}{123})
-			So(err, ShouldNotBeNil)
+func TestActionExecute(t *testing.T) {
+	Convey("test action", t, func() {
+		a, err := runtime.NewAction([]interface{}{"delete", "$.test"})
+		So(err, ShouldBeNil)
+		e := cetest.MinEvent()
+		e.SetExtension("test", "abc")
+		err = a.Execute(&context.EventContext{
+			Event: &e,
 		})
-		Convey("func name no exist", func() {
-			_, err := NewAction([]interface{}{"UnknownCommand"})
-			So(err, ShouldNotBeNil)
-		})
-		Convey("func arity not enough", func() {
-			_, err := NewAction([]interface{}{"delete"})
-			So(err, ShouldNotBeNil)
-		})
-		Convey("func arity number greater than", func() {
-			_, err := NewAction([]interface{}{"delete", "arg1", "arg2"})
-			So(err, ShouldNotBeNil)
-		})
-		Convey("func new arg error", func() {
-			_, err := NewAction([]interface{}{"delete", "$.a-b"})
-			So(err, ShouldNotBeNil)
-		})
-		Convey("func new arg type is invalid", func() {
-			_, err := NewAction([]interface{}{"delete", "arg"})
-			So(err, ShouldNotBeNil)
-		})
-		Convey("func new valid", func() {
-			_, err := NewAction([]interface{}{"delete", "$.id"})
-			So(err, ShouldBeNil)
-		})
+		So(err, ShouldBeNil)
+		So(len(e.Extensions()), ShouldEqual, 0)
 	})
 }

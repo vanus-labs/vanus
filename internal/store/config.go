@@ -15,28 +15,13 @@
 package store
 
 import (
-	// standard libraries.
-	"fmt"
-	"time"
-
-	// first-party project.
-	"github.com/linkall-labs/vanus/internal/primitive"
+	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/pkg/util"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/io"
-	walog "github.com/linkall-labs/vanus/internal/store/wal"
-)
-
-const (
-	baseKB                         = 1024
-	baseMB                         = 1024 * baseKB
-	ioEnginePsync                  = "psync"
-	baseWALBlockSize        uint64 = 4 * baseKB
-	minMetaStoreWALFileSize uint64 = 4 * baseMB
-	minRaftLogWALFileSize   uint64 = 32 * baseMB
-	minWALFlushTimeout             = 200 * time.Microsecond
+	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/store/config"
 )
 
 type Config struct {
@@ -44,20 +29,24 @@ type Config struct {
 	IP                  string               `yaml:"ip"`
 	Port                int                  `yaml:"port"`
 	Volume              VolumeInfo           `yaml:"volume"`
-	MetaStore           SyncStoreConfig      `yaml:"meta_store"`
-	OffsetStore         AsyncStoreConfig     `yaml:"offset_store"`
-	Raft                RaftConfig           `yaml:"raft"`
+	MetaStore           config.SyncStore     `yaml:"meta_store"`
+	OffsetStore         config.AsyncStore    `yaml:"offset_store"`
+	Raft                config.Raft          `yaml:"raft"`
+	VSB                 config.VSB           `yaml:"vsb"`
 	Observability       observability.Config `yaml:"observability"`
 }
 
 func (c *Config) Validate() error {
-	if err := c.MetaStore.validate(); err != nil {
+	if err := c.MetaStore.Validate(); err != nil {
 		return err
 	}
-	if err := c.OffsetStore.validate(); err != nil {
+	if err := c.OffsetStore.Validate(); err != nil {
 		return err
 	}
-	if err := c.Raft.validate(); err != nil {
+	if err := c.Raft.Validate(); err != nil {
+		return err
+	}
+	if err := c.VSB.Validate(); err != nil {
 		return err
 	}
 	return nil
@@ -67,82 +56,6 @@ type VolumeInfo struct {
 	ID       uint16 `json:"id"`
 	Dir      string `json:"dir"`
 	Capacity uint64 `json:"capacity"`
-}
-
-type SyncStoreConfig struct {
-	WAL WALConfig `yaml:"wal"`
-}
-
-func (c *SyncStoreConfig) validate() error {
-	return c.WAL.validate(minMetaStoreWALFileSize)
-}
-
-type AsyncStoreConfig struct {
-	WAL WALConfig `yaml:"wal"`
-}
-
-func (c *AsyncStoreConfig) validate() error {
-	return c.WAL.validate(minMetaStoreWALFileSize)
-}
-
-type RaftConfig struct {
-	WAL WALConfig `yaml:"wal"`
-}
-
-func (c *RaftConfig) validate() error {
-	return c.WAL.validate(minRaftLogWALFileSize)
-}
-
-type WALConfig struct {
-	BlockSize    uint64   `yaml:"block_size"`
-	FileSize     uint64   `yaml:"file_size"`
-	FlushTimeout string   `yaml:"flush_timeout"`
-	IO           IOConfig `yaml:"io"`
-}
-
-func (c *WALConfig) validate(minFileSize uint64) error {
-	if c.BlockSize != 0 && c.BlockSize%baseWALBlockSize != 0 {
-		return fmt.Errorf("wal block size must be a multiple of %dKB", baseWALBlockSize/baseKB)
-	}
-	if c.FileSize != 0 && c.FileSize < minFileSize {
-		return fmt.Errorf("wal file size must not less than %dMB", minFileSize/baseMB)
-	}
-	if c.FlushTimeout != "" {
-		d, err := time.ParseDuration(c.FlushTimeout)
-		if err != nil {
-			return err
-		}
-		if d < minWALFlushTimeout {
-			return fmt.Errorf("wal flush timeout must not less than %v", minWALFlushTimeout)
-		}
-	}
-	return nil
-}
-
-type IOConfig struct {
-	Engine string `yaml:"engine"`
-}
-
-func (c *WALConfig) Options() (opts []walog.Option) {
-	if c.BlockSize != 0 {
-		opts = append(opts, walog.WithBlockSize(int64(c.BlockSize)))
-	}
-	if c.FileSize != 0 {
-		opts = append(opts, walog.WithFileSize(int64(c.FileSize)))
-	}
-	if c.FlushTimeout != "" {
-		d, _ := time.ParseDuration(c.FlushTimeout)
-		opts = append(opts, walog.WithFlushTimeout(d))
-	}
-	if c.IO.Engine != "" {
-		switch c.IO.Engine {
-		case ioEnginePsync:
-			opts = append(opts, walog.WithIOEngine(io.NewEngine()))
-		default:
-			opts = configWALIOEngineOptionEx(opts, c.IO)
-		}
-	}
-	return opts
 }
 
 func InitConfig(filename string) (*Config, error) {

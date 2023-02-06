@@ -1,4 +1,4 @@
-// Copyright 2022 Linkall Inc.
+// Copyright 2023 Linkall Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,11 +32,17 @@ const (
 	FormatJSON = "json"
 )
 
+const (
+	HttpPrefix = "http://"
+	BaseUrl    = "/api/v1"
+)
+
 type GlobalFlags struct {
-	Endpoint   string
-	Debug      bool
-	ConfigFile string
-	Format     string
+	Endpoint         string
+	OperatorEndpoint string
+	Debug            bool
+	ConfigFile       string
+	Format           string
 }
 
 var (

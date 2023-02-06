@@ -17,7 +17,6 @@ package log
 import (
 	// standard libraries.
 	"context"
-	"os"
 	"testing"
 
 	// third-party libraries.
@@ -35,23 +34,9 @@ import (
 func TestLog_SnapshotStorage(t *testing.T) {
 	ctx := context.Background()
 
-	metaDir, err := os.MkdirTemp("", "meta-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(metaDir)
-
-	offsetDir, err := os.MkdirTemp("", "offset-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(offsetDir)
-
-	walDir, err := os.MkdirTemp("", "wal-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(walDir)
+	metaDir := t.TempDir()
+	offsetDir := t.TempDir()
+	walDir := t.TempDir()
 
 	cc1 := raftpb.ConfChange{
 		Type: raftpb.ConfChangeAddNode, NodeID: nodeID1.Uint64(),

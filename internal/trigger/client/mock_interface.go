@@ -36,17 +36,22 @@ func (m *MockSender) EXPECT() *MockSenderMockRecorder {
 }
 
 // Send mocks base method.
-func (m *MockSender) Send(ctx context.Context, event v2.Event) Result {
+func (m *MockSender) Send(ctx context.Context, events ...*v2.Event) Result {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Send", ctx, event)
+	varargs := []interface{}{ctx}
+	for _, a := range events {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Send", varargs...)
 	ret0, _ := ret[0].(Result)
 	return ret0
 }
 
 // Send indicates an expected call of Send.
-func (mr *MockSenderMockRecorder) Send(ctx, event interface{}) *gomock.Call {
+func (mr *MockSenderMockRecorder) Send(ctx interface{}, events ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockSender)(nil).Send), ctx, event)
+	varargs := append([]interface{}{ctx}, events...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockSender)(nil).Send), varargs...)
 }
 
 // MockEventClient is a mock of EventClient interface.
@@ -73,15 +78,20 @@ func (m *MockEventClient) EXPECT() *MockEventClientMockRecorder {
 }
 
 // Send mocks base method.
-func (m *MockEventClient) Send(ctx context.Context, event v2.Event) Result {
+func (m *MockEventClient) Send(ctx context.Context, events ...*v2.Event) Result {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Send", ctx, event)
+	varargs := []interface{}{ctx}
+	for _, a := range events {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Send", varargs...)
 	ret0, _ := ret[0].(Result)
 	return ret0
 }
 
 // Send indicates an expected call of Send.
-func (mr *MockEventClientMockRecorder) Send(ctx, event interface{}) *gomock.Call {
+func (mr *MockEventClientMockRecorder) Send(ctx interface{}, events ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockEventClient)(nil).Send), ctx, event)
+	varargs := append([]interface{}{ctx}, events...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockEventClient)(nil).Send), varargs...)
 }

@@ -23,6 +23,7 @@ import (
 
 type Config struct {
 	Port                 int                  `yaml:"port"`
+	SinkPort             int                  `yaml:"sink_port"`
 	Observability        observability.Config `yaml:"observability"`
 	ControllerAddr       []string             `yaml:"controllers"`
 	GRPCReflectionEnable bool                 `yaml:"grpc_reflection_enable"`
@@ -31,6 +32,7 @@ type Config struct {
 func (c Config) GetProxyConfig() proxy.Config {
 	return proxy.Config{
 		Endpoints:              c.ControllerAddr,
+		SinkPort:               c.SinkPort,
 		ProxyPort:              c.Port,
 		CloudEventReceiverPort: c.GetCloudEventReceiverPort(),
 		GRPCReflectionEnable:   c.GRPCReflectionEnable,

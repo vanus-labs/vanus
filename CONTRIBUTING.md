@@ -29,7 +29,7 @@ resources to make it easier to get your contribution accepted.
 ## Before you get started
 
 ### Sign the CLA
-Click [here](https://cla-assistant.io/linkall-labs/) to sign the CLA, and click the `Sign in with GitHub to agree` button to sign.
+Click [here](https://cla-assistant.io/linkall-labs/vanus) to sign the CLA, and click the `Sign in with GitHub to agree` button to sign.
 
 What is [CLA](https://en.wikipedia.org/wiki/Contributor_License_Agreement).
 
@@ -39,7 +39,7 @@ If you want to contribute to the codebase of Vanus, it's better to set up a deve
 1. Install Go version 1.17 or above. Refer to [How to Write Go Code](https://go.dev/doc/code) for more information.
 2. Install [minikube](https://minikube.sigs.k8s.io/docs/start/)(Users from China mainland may have network issues that need to be addressed for using minikube). 
 Vanus is a k8s based project.
-3. Learning [QuickStart](https://github.com/linkall-labs/docs/blob/main/vanus/quick-start.md) how to deploy the Vanus to k8s. Deploying a specified component to minikube for testing. 
+3. Learning [QuickStart](https://docs.linkall.com/getting-started/quick-start) how to deploy the Vanus to k8s. Deploying a specified component to minikube for testing. 
 Click [here](#) for details.
 
 ## Issues
@@ -51,7 +51,7 @@ assigned to someone.
 
 #### First Contribution
 You can start by finding existing issues with the 
-[good-first-issue](https://github.com/linkall-labs/vanus/issues?q=is%3Aopen+is%3Aissue+label%3Agood-first-issue) label. 
+[good-first-issue](https://github.com/linkall-labs/vanus/issues?q=is%3Aopen+is%3Aissue+label%3A"good+first+issue") label. 
 These issues are well suited for a new contributor.
 
 #### Further Contributions
@@ -113,6 +113,3 @@ There are some automated tasks to ensure each PR's reach high quality in Vanus. 
 ### Code Review
 The Code Review can be started until all checking were passed. Each PR will automatically assign reviewers. After getting 
 at least one `Approve` from reviewers, the PR can be merged.
-
-## Reward
-Once your PR has been merged, you become a Vanus Contributor. Thanks for your contribution! please fill the [form](#) to get you reward

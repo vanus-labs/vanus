@@ -55,11 +55,12 @@ func (tw *TriggerWorkerInfo) String() string {
 type SubscriptionPhase string
 
 const (
-	SubscriptionPhaseCreated   = "created"
-	SubscriptionPhasePending   = "pending"
-	SubscriptionPhaseScheduled = "scheduled"
-	SubscriptionPhaseRunning   = "running"
-	SubscriptionPhaseToDelete  = "toDelete"
+	SubscriptionPhaseCreated  = "created"
+	SubscriptionPhasePending  = "pending"
+	SubscriptionPhaseRunning  = "running"
+	SubscriptionPhaseStopping = "stopping"
+	SubscriptionPhaseStopped  = "stopped"
+	SubscriptionPhaseToDelete = "toDelete"
 )
 
 type Subscription struct {
@@ -76,7 +77,6 @@ type Subscription struct {
 	EventBus           string                          `json:"eventbus"`
 	Transformer        *primitive.Transformer          `json:"transformer,omitempty"`
 	Name               string                          `json:"name"`
-	Disable            bool                            `json:"disable"`
 	Description        string                          `json:"description"`
 	CreatedAt          time.Time                       `json:"created_at"`
 	UpdatedAt          time.Time                       `json:"updated_at"`
@@ -94,13 +94,13 @@ func (s *Subscription) Update(update *Subscription) bool {
 		change = true
 		s.Source = update.Source
 	}
+	if s.Name != update.Name {
+		change = true
+		s.Name = update.Name
+	}
 	if s.Description != update.Description {
 		change = true
 		s.Description = update.Description
-	}
-	if s.Disable != update.Disable {
-		change = true
-		s.Disable = update.Disable
 	}
 	if !reflect.DeepEqual(s.Types, update.Types) {
 		change = true

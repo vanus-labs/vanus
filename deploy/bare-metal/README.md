@@ -1,0 +1,1 @@
+# How to deploy Vanus on bare-metal machine

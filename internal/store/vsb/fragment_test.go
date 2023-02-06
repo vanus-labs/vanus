@@ -22,9 +22,11 @@ import (
 	"time"
 
 	// third-party libraries.
-	cepb "cloudevents.io/genproto/v1"
 	. "github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+
+	// first-party libraries.
+	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"

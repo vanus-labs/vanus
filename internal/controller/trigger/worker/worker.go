@@ -49,9 +49,8 @@ type TriggerWorker interface {
 	GetHeartbeatTime() time.Time
 	Polish()
 	AssignSubscription(id vanus.ID)
-	UnAssignSubscription(id vanus.ID)
+	UnAssignSubscription(id vanus.ID) error
 	GetAssignedSubscriptions() []vanus.ID
-	ResetOffsetToTimestamp(id vanus.ID, timestamp uint64) error
 }
 
 // triggerWorker send subscription to trigger worker server.
@@ -133,7 +132,24 @@ func (tw *triggerWorker) handler(ctx context.Context, subscriptionID vanus.ID) e
 	if sub == nil {
 		return nil
 	}
-	offsets, err := tw.subscriptionManager.GetOffset(ctx, subscriptionID)
+	switch sub.Phase {
+	case metadata.SubscriptionPhaseStopping, metadata.SubscriptionPhaseStopped:
+		err := tw.removeSubscription(ctx, subscriptionID)
+		if err != nil {
+			return err
+		}
+		if sub.Phase != metadata.SubscriptionPhaseStopped {
+			// modify phase to stopped.
+			sub.Phase = metadata.SubscriptionPhaseStopped
+			sub.TriggerWorker = ""
+			err = tw.subscriptionManager.UpdateSubscription(ctx, sub)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	offsets, err := tw.subscriptionManager.GetOrSaveOffset(ctx, subscriptionID)
 	if err != nil {
 		return err
 	}
@@ -246,7 +262,7 @@ func (tw *triggerWorker) AssignSubscription(id vanus.ID) {
 	tw.subscriptionQueue.Add(id)
 }
 
-func (tw *triggerWorker) UnAssignSubscription(id vanus.ID) {
+func (tw *triggerWorker) UnAssignSubscription(id vanus.ID) error {
 	log.Info(context.Background(), "trigger worker remove a subscription", map[string]interface{}{
 		log.KeyTriggerWorkerAddr: tw.info.Addr,
 		log.KeySubscriptionID:    id,
@@ -260,9 +276,10 @@ func (tw *triggerWorker) UnAssignSubscription(id vanus.ID) {
 				log.KeyTriggerWorkerAddr: tw.info.Addr,
 				log.KeySubscriptionID:    id,
 			})
-			tw.subscriptionQueue.Add(id)
+			return err
 		}
 	}
+	return nil
 }
 
 func (tw *triggerWorker) GetAssignedSubscriptions() []vanus.ID {
@@ -325,15 +342,6 @@ func (tw *triggerWorker) RemoteStart(ctx context.Context) error {
 	_, err := tw.client.Start(ctx, &trigger.StartTriggerWorkerRequest{})
 	if err != nil {
 		return errors.ErrTriggerWorker.WithMessage("start error").Wrap(err)
-	}
-	return nil
-}
-
-func (tw *triggerWorker) ResetOffsetToTimestamp(id vanus.ID, timestamp uint64) error {
-	request := &trigger.ResetOffsetToTimestampRequest{SubscriptionId: id.Uint64(), Timestamp: timestamp}
-	_, err := tw.client.ResetOffsetToTimestamp(tw.ctx, request)
-	if err != nil {
-		return errors.ErrTriggerWorker.WithMessage("reset offset to timestamp").Wrap(err)
 	}
 	return nil
 }

@@ -57,17 +57,31 @@ func (a *rawNodeAdapter) Ready() <-chan Ready { return nil }
 // Node takes more contexts. Easy enough to fix.
 
 func (a *rawNodeAdapter) Campaign(context.Context) error { return a.RawNode.Campaign() }
+
 func (a *rawNodeAdapter) ReadIndex(_ context.Context, rctx []byte) error {
 	a.RawNode.ReadIndex(rctx)
 	// RawNode swallowed the error in ReadIndex, it probably should not do that.
 	return nil
 }
-func (a *rawNodeAdapter) Step(_ context.Context, m pb.Message) error { return a.RawNode.Step(m) }
+
+func (a *rawNodeAdapter) Step(_ context.Context, m pb.Message) error {
+	return a.RawNode.Step(m)
+}
+
 func (a *rawNodeAdapter) Propose(_ context.Context, data []byte) error {
 	return a.RawNode.Propose(data)
 }
+
 func (a *rawNodeAdapter) ProposeConfChange(_ context.Context, cc pb.ConfChangeI) error {
 	return a.RawNode.ProposeConfChange(cc)
+}
+
+func (a *rawNodeAdapter) ReportLogged(_ context.Context, index uint64, term uint64) error {
+	return a.RawNode.ReportLogged(index, term)
+}
+
+func (a *rawNodeAdapter) ReportApplied(_ context.Context, index uint64) error {
+	return a.RawNode.ReportApplied(index)
 }
 
 // TestRawNodeStep ensures that RawNode.Step ignore local message.
@@ -126,27 +140,30 @@ func TestRawNodeProposeAndConfChange(t *testing.T) {
 		// Proposing the same as a V2 change works just the same, without entering
 		// a joint config.
 		{
-			pb.ConfChangeV2{Changes: []pb.ConfChangeSingle{
-				{Type: pb.ConfChangeAddNode, NodeID: 2},
-			},
+			pb.ConfChangeV2{
+				Changes: []pb.ConfChangeSingle{
+					{Type: pb.ConfChangeAddNode, NodeID: 2},
+				},
 			},
 			pb.ConfState{Voters: []uint64{1, 2}},
 			nil,
 		},
 		// Ditto if we add it as a learner instead.
 		{
-			pb.ConfChangeV2{Changes: []pb.ConfChangeSingle{
-				{Type: pb.ConfChangeAddLearnerNode, NodeID: 2},
-			},
+			pb.ConfChangeV2{
+				Changes: []pb.ConfChangeSingle{
+					{Type: pb.ConfChangeAddLearnerNode, NodeID: 2},
+				},
 			},
 			pb.ConfState{Voters: []uint64{1}, Learners: []uint64{2}},
 			nil,
 		},
 		// We can ask explicitly for joint consensus if we want it.
 		{
-			pb.ConfChangeV2{Changes: []pb.ConfChangeSingle{
-				{Type: pb.ConfChangeAddLearnerNode, NodeID: 2},
-			},
+			pb.ConfChangeV2{
+				Changes: []pb.ConfChangeSingle{
+					{Type: pb.ConfChangeAddLearnerNode, NodeID: 2},
+				},
 				Transition: pb.ConfChangeTransitionJointExplicit,
 			},
 			pb.ConfState{Voters: []uint64{1}, VotersOutgoing: []uint64{1}, Learners: []uint64{2}},
@@ -154,9 +171,10 @@ func TestRawNodeProposeAndConfChange(t *testing.T) {
 		},
 		// Ditto, but with implicit transition (the harness checks this).
 		{
-			pb.ConfChangeV2{Changes: []pb.ConfChangeSingle{
-				{Type: pb.ConfChangeAddLearnerNode, NodeID: 2},
-			},
+			pb.ConfChangeV2{
+				Changes: []pb.ConfChangeSingle{
+					{Type: pb.ConfChangeAddLearnerNode, NodeID: 2},
+				},
 				Transition: pb.ConfChangeTransitionJointImplicit,
 			},
 			pb.ConfState{
@@ -168,11 +186,12 @@ func TestRawNodeProposeAndConfChange(t *testing.T) {
 		// Add a new node and demote n1. This exercises the interesting case in
 		// which we really need joint config changes and also need LearnersNext.
 		{
-			pb.ConfChangeV2{Changes: []pb.ConfChangeSingle{
-				{NodeID: 2, Type: pb.ConfChangeAddNode},
-				{NodeID: 1, Type: pb.ConfChangeAddLearnerNode},
-				{NodeID: 3, Type: pb.ConfChangeAddLearnerNode},
-			},
+			pb.ConfChangeV2{
+				Changes: []pb.ConfChangeSingle{
+					{NodeID: 2, Type: pb.ConfChangeAddNode},
+					{NodeID: 1, Type: pb.ConfChangeAddLearnerNode},
+					{NodeID: 3, Type: pb.ConfChangeAddLearnerNode},
+				},
 			},
 			pb.ConfState{
 				Voters:         []uint64{2},
@@ -185,11 +204,12 @@ func TestRawNodeProposeAndConfChange(t *testing.T) {
 		},
 		// Ditto explicit.
 		{
-			pb.ConfChangeV2{Changes: []pb.ConfChangeSingle{
-				{NodeID: 2, Type: pb.ConfChangeAddNode},
-				{NodeID: 1, Type: pb.ConfChangeAddLearnerNode},
-				{NodeID: 3, Type: pb.ConfChangeAddLearnerNode},
-			},
+			pb.ConfChangeV2{
+				Changes: []pb.ConfChangeSingle{
+					{NodeID: 2, Type: pb.ConfChangeAddNode},
+					{NodeID: 1, Type: pb.ConfChangeAddLearnerNode},
+					{NodeID: 3, Type: pb.ConfChangeAddLearnerNode},
+				},
 				Transition: pb.ConfChangeTransitionJointExplicit,
 			},
 			pb.ConfState{
@@ -377,9 +397,10 @@ func TestRawNodeProposeAndConfChange(t *testing.T) {
 // TestRawNodeJointAutoLeave tests the configuration change auto leave even leader
 // lost leadership.
 func TestRawNodeJointAutoLeave(t *testing.T) {
-	testCc := pb.ConfChangeV2{Changes: []pb.ConfChangeSingle{
-		{Type: pb.ConfChangeAddLearnerNode, NodeID: 2},
-	},
+	testCc := pb.ConfChangeV2{
+		Changes: []pb.ConfChangeSingle{
+			{Type: pb.ConfChangeAddLearnerNode, NodeID: 2},
+		},
 		Transition: pb.ConfChangeTransitionJointImplicit,
 	}
 	expCs := pb.ConfState{
@@ -868,17 +889,17 @@ func TestRawNodeStatus(t *testing.T) {
 // TestNodeCommitPaginationAfterRestart. The anomaly here was even worse as the
 // Raft group would forget to apply entries:
 //
-// - node learns that index 11 is committed
-// - nextEnts returns index 1..10 in CommittedEntries (but index 10 already
-//   exceeds maxBytes), which isn't noticed internally by Raft
-// - Commit index gets bumped to 10
-// - the node persists the HardState, but crashes before applying the entries
-// - upon restart, the storage returns the same entries, but `slice` takes a
-//   different code path and removes the last entry.
-// - Raft does not emit a HardState, but when the app calls Advance(), it bumps
-//   its internal applied index cursor to 10 (when it should be 9)
-// - the next Ready asks the app to apply index 11 (omitting index 10), losing a
-//    write.
+//   - node learns that index 11 is committed
+//   - nextEnts returns index 1..10 in CommittedEntries (but index 10 already
+//     exceeds maxBytes), which isn't noticed internally by Raft
+//   - Commit index gets bumped to 10
+//   - the node persists the HardState, but crashes before applying the entries
+//   - upon restart, the storage returns the same entries, but `slice` takes a
+//     different code path and removes the last entry.
+//   - Raft does not emit a HardState, but when the app calls Advance(), it bumps
+//     its internal applied index cursor to 10 (when it should be 9)
+//   - the next Ready asks the app to apply index 11 (omitting index 10), losing a
+//     write.
 func TestRawNodeCommitPaginationAfterRestart(t *testing.T) {
 	s := &ignoreSizeHintMemStorage{
 		MemoryStorage: newTestMemoryStorage(withPeers(1)),

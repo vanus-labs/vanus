@@ -80,8 +80,8 @@ func (r *replica) Read(ctx context.Context, seq int64, num int) ([]block.Entry, 
 	return r.raw.Read(ctx, seq, num)
 }
 
-func (r *replica) Append(ctx context.Context, entries ...block.Entry) ([]int64, error) {
-	return r.appender.Append(ctx, entries...)
+func (r *replica) Append(ctx context.Context, entries []block.Entry, cb block.AppendCallback) {
+	r.appender.Append(ctx, entries, cb)
 }
 
 func (r *replica) Status() *metapb.SegmentHealthInfo {

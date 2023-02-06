@@ -14,45 +14,21 @@
 
 package filter
 
-import (
-	"context"
-	"fmt"
-
-	"github.com/linkall-labs/vanus/internal/trigger/util"
-	"github.com/linkall-labs/vanus/observability/log"
-
-	ce "github.com/cloudevents/sdk-go/v2"
-)
-
 type exactFilter struct {
-	exact map[string]string
+	commonFilter
 }
 
 func NewExactFilter(exact map[string]string) Filter {
-	for attr, v := range exact {
-		if attr == "" || v == "" {
-			log.Info(context.Background(), "new exact filter but has empty ", map[string]interface{}{
-				"attr":  attr,
-				"value": v,
-			})
-			return nil
+	f := newCommonFilter(exact, func(exist bool, value interface{}, compareValue string) bool {
+		if !exist {
+			return false
 		}
+		return value == compareValue
+	})
+	if f == nil {
+		return nil
 	}
-	return &exactFilter{exact: exact}
-}
-
-func (filter *exactFilter) Filter(event ce.Event) Result {
-	for attr, v := range filter.exact {
-		value, ok := util.LookupAttribute(event, attr)
-		if !ok || value != v {
-			return FailFilter
-		}
-	}
-	return PassFilter
-}
-
-func (filter *exactFilter) String() string {
-	return fmt.Sprintf("exact:%v", filter.exact)
+	return &exactFilter{commonFilter: *f}
 }
 
 var _ Filter = (*exactFilter)(nil)

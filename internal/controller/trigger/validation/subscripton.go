@@ -19,12 +19,10 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
-
-	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
-
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/cel"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
 	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
@@ -49,7 +47,10 @@ func ValidateSubscriptionRequest(ctx context.Context, request *ctrlpb.Subscripti
 		return err
 	}
 	if request.EventBus == "" {
-		return errors.ErrInvalidRequest.WithMessage("eventBus is empty")
+		return errors.ErrInvalidRequest.WithMessage("eventbus is empty")
+	}
+	if request.Name == "" {
+		return errors.ErrInvalidRequest.WithMessage("name is empty")
 	}
 	if err := validateSubscriptionConfig(ctx, request.Config); err != nil {
 		return err
@@ -65,6 +66,8 @@ func validateProtocol(ctx context.Context, protocol metapb.Protocol) error {
 	case metapb.Protocol_HTTP:
 	case metapb.Protocol_AWS_LAMBDA:
 	case metapb.Protocol_GCLOUD_FUNCTIONS:
+	case metapb.Protocol_GRPC:
+
 	default:
 		return errors.ErrInvalidRequest.WithMessage("protocol is invalid")
 	}
@@ -98,6 +101,7 @@ func ValidateSinkAndProtocol(ctx context.Context,
 			return errors.ErrInvalidRequest.
 				WithMessage("protocol is http, sink is url,url parse error").Wrap(err)
 		}
+	case metapb.Protocol_GRPC:
 	}
 	return nil
 }
@@ -176,7 +180,7 @@ func validateTransformer(ctx context.Context, transformer *metapb.Transformer) e
 			for i, command := range a.Command {
 				commands[i] = command.AsInterface()
 			}
-			if _, err := action.NewAction(commands); err != nil {
+			if _, err := runtime.NewAction(commands); err != nil {
 				return errors.ErrInvalidRequest.WithMessage(
 					fmt.Sprintf("transformer pipeline %dst command %s is invalid:[%s]", n+1, commands[0], err.Error()))
 			}

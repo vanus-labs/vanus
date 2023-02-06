@@ -20,6 +20,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
 	"github.com/linkall-labs/vanus/observability/log"
 )
 
@@ -36,7 +37,7 @@ func NewPipeline() *Pipeline {
 func (p *Pipeline) Parse(actions []*primitive.Action) {
 	p.actions = make([]action.Action, 0, len(actions))
 	for i := range actions {
-		_action, err := action.NewAction(actions[i].Command)
+		_action, err := runtime.NewAction(actions[i].Command)
 		if err != nil {
 			// it has check in controller so err must be nil otherwise controller check has bug
 			log.Warning(stdCtx.TODO(), "new action error", map[string]interface{}{

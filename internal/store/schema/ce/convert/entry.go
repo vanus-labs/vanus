@@ -21,7 +21,7 @@ import (
 	"time"
 
 	// third-party libraries.
-	cepb "cloudevents.io/genproto/v1"
+	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"google.golang.org/protobuf/proto"
 
 	// first-party libraries.
@@ -80,7 +80,7 @@ func (e *ceEntry) GetString(ordinal int) string {
 		return ""
 	}
 
-	var attr *cepb.CloudEventAttributeValue
+	var attr *cepb.CloudEvent_CloudEventAttributeValue
 	switch ordinal {
 	case ceschema.DataContentTypeOrdinal:
 		attr = e.ce.Attributes[dataContentTypeAttr]
@@ -192,22 +192,22 @@ func (e *ceEntry) ExtensionAttributeCount() int {
 	return sz
 }
 
-func attrValue(v *cepb.CloudEventAttributeValue) []byte {
+func attrValue(v *cepb.CloudEvent_CloudEventAttributeValue) []byte {
 	// FIXME(james.yin): support native types.
 	switch val := v.GetAttr().(type) {
-	case *cepb.CloudEventAttributeValue_CeBoolean:
+	case *cepb.CloudEvent_CloudEventAttributeValue_CeBoolean:
 		return []byte(strconv.FormatBool(val.CeBoolean))
-	case *cepb.CloudEventAttributeValue_CeInteger:
+	case *cepb.CloudEvent_CloudEventAttributeValue_CeInteger:
 		return []byte(strconv.FormatInt(int64(val.CeInteger), 10))
-	case *cepb.CloudEventAttributeValue_CeString:
+	case *cepb.CloudEvent_CloudEventAttributeValue_CeString:
 		return []byte(val.CeString)
-	case *cepb.CloudEventAttributeValue_CeBytes:
+	case *cepb.CloudEvent_CloudEventAttributeValue_CeBytes:
 		return val.CeBytes
-	case *cepb.CloudEventAttributeValue_CeUri:
+	case *cepb.CloudEvent_CloudEventAttributeValue_CeUri:
 		return []byte(val.CeUri)
-	case *cepb.CloudEventAttributeValue_CeUriRef:
+	case *cepb.CloudEvent_CloudEventAttributeValue_CeUriRef:
 		return []byte(val.CeUriRef)
-	case *cepb.CloudEventAttributeValue_CeTimestamp:
+	case *cepb.CloudEvent_CloudEventAttributeValue_CeTimestamp:
 		return []byte(val.CeTimestamp.AsTime().Format(time.RFC3339Nano))
 	}
 	return nil

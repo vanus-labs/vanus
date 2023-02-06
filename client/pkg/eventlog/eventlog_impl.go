@@ -23,17 +23,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"go.opentelemetry.io/otel/trace"
-
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
+	"go.opentelemetry.io/otel/trace"
 
 	// this project.
 	elns "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/record"
 	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 )
 
 const (
@@ -406,6 +406,10 @@ func (l *eventlog) refreshReadableSegments(ctx context.Context) {
 	_ = l.readableWatcher.Refresh(ctx)
 }
 
+var (
+	_ LogWriter = &logWriter{}
+)
+
 // logWriter is the writer of eventlog.
 //
 // Append is thread-safety.
@@ -413,6 +417,28 @@ type logWriter struct {
 	elog *eventlog
 	cur  *segment
 	mu   sync.RWMutex
+}
+
+func (w *logWriter) AppendMany(ctx context.Context, events *cloudevents.CloudEventBatch) (off int64, err error) {
+	retryTimes := defaultRetryTimes
+	for i := 1; i <= retryTimes; i++ {
+		offset, err := w.doAppendBatch(ctx, events)
+		if err == nil {
+			return offset, nil
+		}
+		log.Warning(ctx, "failed to Append", map[string]interface{}{
+			log.KeyError: err,
+			"offset":     offset,
+		})
+		if errors.Is(err, errors.ErrSegmentFull) {
+			if i < retryTimes {
+				continue
+			}
+		}
+		return -1, err
+	}
+
+	return -1, errors.ErrUnknown
 }
 
 func (w *logWriter) Log() Eventlog {
@@ -468,6 +494,21 @@ func (w *logWriter) generateEventID(s *segment, offset int64) string {
 	binary.BigEndian.PutUint64(buf[16:24], w.elog.ID())
 	binary.BigEndian.PutUint64(buf[24:32], uint64(offset+s.startOffset))
 	return base64.StdEncoding.EncodeToString(buf[:])
+}
+
+func (w *logWriter) doAppendBatch(ctx context.Context, event *cloudevents.CloudEventBatch) (int64, error) {
+	segment, err := w.selectWritableSegment(ctx)
+	if err != nil {
+		return -1, err
+	}
+	offset, err := segment.AppendBatch(ctx, event)
+	if err != nil {
+		if errors.Is(err, errors.ErrSegmentFull) {
+			segment.SetNotWritable()
+		}
+		return -1, err
+	}
+	return offset, nil
 }
 
 func (w *logWriter) selectWritableSegment(ctx context.Context) (*segment, error) {

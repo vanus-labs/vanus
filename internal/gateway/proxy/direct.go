@@ -78,6 +78,21 @@ func (cp *ControllerProxy) GetSubscription(ctx context.Context,
 }
 
 func (cp *ControllerProxy) ListSubscription(ctx context.Context,
-	req *emptypb.Empty) (*ctrlpb.ListSubscriptionResponse, error) {
+	req *ctrlpb.ListSubscriptionRequest) (*ctrlpb.ListSubscriptionResponse, error) {
 	return cp.triggerCtrl.ListSubscription(ctx, req)
+}
+
+func (cp *ControllerProxy) DisableSubscription(ctx context.Context,
+	req *ctrlpb.DisableSubscriptionRequest) (*emptypb.Empty, error) {
+	return cp.triggerCtrl.DisableSubscription(ctx, req)
+}
+
+func (cp *ControllerProxy) ResumeSubscription(ctx context.Context,
+	req *ctrlpb.ResumeSubscriptionRequest) (*emptypb.Empty, error) {
+	return cp.triggerCtrl.ResumeSubscription(ctx, req)
+}
+
+func (cp *ControllerProxy) ResetOffsetToTimestamp(ctx context.Context,
+	req *ctrlpb.ResetOffsetToTimestampRequest) (*ctrlpb.ResetOffsetToTimestampResponse, error) {
+	return cp.triggerCtrl.ResetOffsetToTimestamp(ctx, req)
 }

@@ -18,9 +18,19 @@ package block
 import (
 	// standard libraries.
 	"context"
+	"errors"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+)
+
+var (
+	ErrNotEnoughSpace = errors.New("not enough space")
+	ErrFull           = errors.New("full")
+	ErrNotLeader      = errors.New("not leader")
+	ErrExceeded       = errors.New("the offset exceeded")
+	ErrOnEnd          = errors.New("the offset on end")
+	ErrNotSupported   = errors.New("not supported")
 )
 
 type SeekKeyFlag uint64
@@ -44,8 +54,10 @@ type Reader interface {
 	Read(ctx context.Context, seq int64, num int) ([]Entry, error)
 }
 
+type AppendCallback = func(seqs []int64, err error)
+
 type Appender interface {
-	Append(ctx context.Context, entries ...Entry) ([]int64, error)
+	Append(ctx context.Context, entries []Entry, cb AppendCallback)
 }
 
 type Block interface {

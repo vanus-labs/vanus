@@ -15,46 +15,26 @@
 package filter
 
 import (
-	"context"
-	"fmt"
 	"strings"
 
-	"github.com/linkall-labs/vanus/internal/trigger/util"
-	"github.com/linkall-labs/vanus/observability/log"
 	pkgUtil "github.com/linkall-labs/vanus/pkg/util"
-
-	ce "github.com/cloudevents/sdk-go/v2"
 )
 
 type suffixFilter struct {
-	suffix map[string]string
+	commonFilter
 }
 
 func NewSuffixFilter(suffix map[string]string) Filter {
-	for attr, v := range suffix {
-		if attr == "" || v == "" {
-			log.Info(context.TODO(), "new suffix filter but has empty ", map[string]interface{}{
-				"attr":  attr,
-				"value": v,
-			})
-			return nil
+	f := newCommonFilter(suffix, func(exist bool, value interface{}, compareValue string) bool {
+		if !exist {
+			return false
 		}
+		return strings.HasSuffix(pkgUtil.StringValue(value), compareValue)
+	})
+	if f == nil {
+		return nil
 	}
-	return &suffixFilter{suffix: suffix}
-}
-
-func (filter *suffixFilter) Filter(event ce.Event) Result {
-	for attr, suffix := range filter.suffix {
-		value, ok := util.LookupAttribute(event, attr)
-		if !ok || !strings.HasSuffix(pkgUtil.StringValue(value), suffix) {
-			return FailFilter
-		}
-	}
-	return PassFilter
-}
-
-func (filter *suffixFilter) String() string {
-	return fmt.Sprintf("suffix:%v", filter.suffix)
+	return &suffixFilter{commonFilter: *f}
 }
 
 var _ Filter = (*suffixFilter)(nil)

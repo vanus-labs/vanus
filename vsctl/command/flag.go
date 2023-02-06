@@ -1,4 +1,4 @@
-// Copyright 2022 Linkall Inc.
+// Copyright 2023 Linkall Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,25 +35,42 @@ var (
 	eventbus            string
 	eventlogID          uint64
 	eventlogNum         int32
-	source              string
 	sink                string
 	filters             string
 	transformer         string
-	rateLimit           uint32
+	rateLimit           int32
 	from                string
 	subscriptionIDStr   string
 	description         string
 	subscriptionName    string
 	disableSubscription bool
+	orderedPushEvent    bool
 
 	subProtocol        string
 	sinkCredentialType string
 	sinkCredential     string
-	deliveryTimeout    uint32
+	deliveryTimeout    int32
 	maxRetryAttempts   int32
+	offsetTimestamp    uint64
 
 	showSegment bool
 	showBlock   bool
+
+	// for cluster
+	clusterVersion        string
+	controllerReplicas    int32
+	controllerStorageSize string
+	storeReplicas         int32
+	storeStorageSize      string
+	triggerReplicas       int32
+
+	// for connector
+	configfile       string
+	kind             string
+	name             string
+	ctype            string
+	connectorVersion string
+	showConnectors   bool
 )
 
 const (

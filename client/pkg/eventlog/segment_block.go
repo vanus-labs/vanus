@@ -25,6 +25,7 @@ import (
 	"github.com/linkall-labs/vanus/client/internal/vanus/store"
 	"github.com/linkall-labs/vanus/client/pkg/record"
 	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 )
 
 func newBlock(ctx context.Context, r *record.Block) (*block, error) {
@@ -54,6 +55,10 @@ func (s *block) LookupOffset(ctx context.Context, t time.Time) (int64, error) {
 
 func (s *block) Append(ctx context.Context, event *ce.Event) (int64, error) {
 	return s.store.Append(ctx, s.id, event)
+}
+
+func (s *block) AppendBatch(ctx context.Context, event *cloudevents.CloudEventBatch) (int64, error) {
+	return s.store.AppendBatch(ctx, s.id, event)
 }
 
 func (s *block) Read(ctx context.Context, offset int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {

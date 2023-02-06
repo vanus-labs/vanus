@@ -30,11 +30,13 @@ type AppendContext interface {
 	Archived() bool
 }
 
+type CommitAppendCallback = func()
+
 type TwoPCAppender interface {
 	NewAppendContext(last Fragment) AppendContext
 	PrepareAppend(ctx context.Context, appendCtx AppendContext, entries ...Entry) ([]int64, Fragment, bool, error)
 	PrepareArchive(ctx context.Context, appendCtx AppendContext) (Fragment, error)
-	CommitAppend(ctx context.Context, frags ...Fragment) (bool, error)
+	CommitAppend(ctx context.Context, frag Fragment, cb CommitAppendCallback)
 }
 
 type Snapshoter interface {

@@ -18,6 +18,7 @@ import (
 	// standard libraries.
 	"context"
 	"encoding/binary"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"math"
 	"sync"
 	"time"
@@ -173,6 +174,21 @@ func (s *segment) Append(ctx context.Context, event *ce.Event) (int64, error) {
 		return -1, err
 	}
 	return off, nil
+}
+
+func (s *segment) AppendBatch(ctx context.Context, event *cloudevents.CloudEventBatch) (int64, error) {
+	_ctx, span := s.tracer.Start(ctx, "AppendBatch")
+	defer span.End()
+
+	b := s.preferSegmentBlock()
+	if b == nil {
+		return -1, errors.ErrNotLeader
+	}
+	off, err := b.AppendBatch(_ctx, event)
+	if err != nil {
+		return -1, err
+	}
+	return off + s.startOffset, nil
 }
 
 func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {

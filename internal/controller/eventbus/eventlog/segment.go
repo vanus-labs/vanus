@@ -138,8 +138,10 @@ func (seg *Segment) Copy() Segment {
 }
 
 type ReplicaGroup struct {
-	ID        vanus.ID                   `json:"id"`
-	Leader    uint64                     `json:"leader"`
+	ID vanus.ID `json:"id"`
+	// the id of LeaderBlock
+	Leader uint64 `json:"leader"`
+	// blockID *metadata.Block
 	Peers     map[uint64]*metadata.Block `json:"blocks"`
 	Term      uint64                     `json:"term"`
 	CreateAt  time.Time                  `json:"create_at"`

@@ -22,9 +22,6 @@ import (
 	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
 
-	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/tracing"
-
 	// this project.
 	pb "github.com/linkall-labs/vanus/raft/raftpb"
 )
@@ -123,7 +120,7 @@ func (rd Ready) containsUpdates() bool {
 // applied (once the Ready is confirmed via Advance). If no information is
 // contained in the Ready, returns zero.
 func (rd Ready) appliedCursor() uint64 {
-	if n := len(rd.CommittedEntries); n > 0 {
+	if n := len(rd.CommittedEntries); n != 0 {
 		return rd.CommittedEntries[n-1].Index
 	}
 	if index := rd.Snapshot.Metadata.Index; index > 0 {
@@ -139,9 +136,8 @@ type Node interface {
 	Tick()
 	// Campaign causes the Node to transition to candidate state and start campaigning to become leader.
 	Campaign(ctx context.Context) error
-	// Propose proposes that data be appended to the log. Note that proposals can be lost without
-	// notice, therefore it is user's job to ensure proposal retries.
-	Propose(ctx context.Context, data []byte) error
+	// Propose proposes that data be appended to the log.
+	Propose(ctx context.Context, pds ...ProposeData)
 	// ProposeConfChange proposes a configuration change. Like any proposal, the
 	// configuration change may be dropped with or without an error being
 	// returned. In particular, configuration changes are dropped unless the
@@ -185,6 +181,9 @@ type Node interface {
 	// Returns an opaque non-nil ConfState protobuf which must be recorded in
 	// snapshots.
 	ApplyConfChange(cc pb.ConfChangeI) *pb.ConfState
+
+	ReportLogged(ctx context.Context, index uint64, term uint64) error
+	ReportApplied(ctx context.Context, index uint64) error
 
 	// TransferLeadership attempts to transfer leadership to the given transferee.
 	TransferLeadership(ctx context.Context, lead, transferee uint64)
@@ -259,11 +258,6 @@ func RestartNode(c *Config) Node {
 	return &n
 }
 
-type msgWithResult struct {
-	m      pb.Message
-	result chan error
-}
-
 type peersWithResult struct {
 	peers  []Peer
 	result chan error
@@ -271,7 +265,7 @@ type peersWithResult struct {
 
 // node is the canonical implementation of the Node interface
 type node struct {
-	propc      chan msgWithResult
+	propc      chan []ProposeData
 	recvc      chan pb.Message
 	confc      chan pb.ConfChangeV2
 	confstatec chan pb.ConfState
@@ -284,13 +278,11 @@ type node struct {
 	status     chan chan Status
 
 	rn *RawNode
-
-	tracer *tracing.Tracer
 }
 
 func newNode(rn *RawNode) node {
 	return node{
-		propc:      make(chan msgWithResult),
+		propc:      make(chan []ProposeData),
 		recvc:      make(chan pb.Message),
 		confc:      make(chan pb.ConfChangeV2),
 		confstatec: make(chan pb.ConfState),
@@ -305,7 +297,6 @@ func newNode(rn *RawNode) node {
 		stop:   make(chan struct{}),
 		status: make(chan chan Status),
 		rn:     rn,
-		tracer: tracing.NewTracer("raft.node", trace.SpanKindInternal),
 	}
 }
 
@@ -330,8 +321,6 @@ func (n *node) Bootstrap(peers []Peer) error {
 	}
 	select {
 	case ch <- bp:
-	//case <-ctx.Done():
-	//	return ctx.Err()
 	case <-n.done:
 		return ErrStopped
 	}
@@ -340,8 +329,6 @@ func (n *node) Bootstrap(peers []Peer) error {
 		if err != nil {
 			return err
 		}
-	//case <-ctx.Done():
-	//	return ctx.Err()
 	case <-n.done:
 		return ErrStopped
 	}
@@ -349,7 +336,7 @@ func (n *node) Bootstrap(peers []Peer) error {
 }
 
 func (n *node) run() {
-	var propc chan msgWithResult
+	var propc chan []ProposeData
 	var readyc chan Ready
 	var advancec chan struct{}
 	var rd Ready
@@ -393,14 +380,8 @@ func (n *node) run() {
 		// TODO: maybe buffer the config propose if there exists one (the way
 		// described in raft dissertation)
 		// Currently it is dropped in Step silently.
-		case pm := <-propc:
-			m := pm.m
-			m.From = r.id
-			err := r.Step(m)
-			if pm.result != nil {
-				pm.result <- err
-				close(pm.result)
-			}
+		case pds := <-propc:
+			r.Propose(pds...)
 		case m := <-n.recvc:
 			// filter out response message from unknown From.
 			if pr := r.prs.Progress[m.From]; pr != nil || !IsResponseMsg(m.Type) {
@@ -471,18 +452,39 @@ func (n *node) Tick() {
 	}
 }
 
-func (n *node) Campaign(ctx context.Context) error { return n.step(ctx, pb.Message{Type: pb.MsgHup}) }
+func (n *node) Campaign(ctx context.Context) error {
+	return n.step(ctx, pb.Message{Type: pb.MsgHup})
+}
 
-func (n *node) Propose(ctx context.Context, data []byte) error {
-	ctx, span := n.tracer.Start(ctx, "Propose")
-	defer span.End()
+func (n *node) Propose(ctx context.Context, pds ...ProposeData) {
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("raft.node.Propose() Start")
+	defer span.AddEvent("raft.node.Propose() End")
 
-	return n.stepWait(ctx, pb.Message{Type: pb.MsgProp, Entries: []pb.Entry{{Data: data}}})
+	select {
+	case n.propc <- pds:
+	case <-ctx.Done():
+		err := ctx.Err()
+		for i := range pds {
+			pd := &pds[i]
+			if pd.Callback != nil {
+				pd.Callback(err)
+			}
+		}
+	case <-n.done:
+		for i := range pds {
+			pd := &pds[i]
+			if pd.Callback != nil {
+				pd.Callback(ErrStopped)
+			}
+		}
+	}
 }
 
 func (n *node) Step(ctx context.Context, m pb.Message) error {
-	ctx, span := n.tracer.Start(ctx, "Step")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("raft.node.Step() Start")
+	defer span.AddEvent("raft.node.Step() End")
 
 	// ignore unexpected local messages receiving over network
 	if IsLocalMsg(m.Type) {
@@ -508,53 +510,17 @@ func (n *node) ProposeConfChange(ctx context.Context, cc pb.ConfChangeI) error {
 	return n.Step(ctx, msg)
 }
 
-func (n *node) step(ctx context.Context, m pb.Message) error {
-	return n.stepWithWaitOption(ctx, m, false)
-}
-
-func (n *node) stepWait(ctx context.Context, m pb.Message) error {
-	return n.stepWithWaitOption(ctx, m, true)
-}
-
 // Step advances the state machine using msgs. The ctx.Err() will be returned,
 // if any.
-func (n *node) stepWithWaitOption(ctx context.Context, m pb.Message, wait bool) error {
-	if m.Type != pb.MsgProp {
-		select {
-		case n.recvc <- m:
-			return nil
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-n.done:
-			return ErrStopped
-		}
-	}
-	ch := n.propc
-	pm := msgWithResult{m: m}
-	if wait {
-		pm.result = make(chan error, 1)
-	}
+func (n *node) step(ctx context.Context, m pb.Message) error {
 	select {
-	case ch <- pm:
-		if !wait {
-			return nil
-		}
+	case n.recvc <- m:
+		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-n.done:
 		return ErrStopped
 	}
-	select {
-	case err := <-pm.result:
-		if err != nil {
-			return err
-		}
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-n.done:
-		return ErrStopped
-	}
-	return nil
 }
 
 func (n *node) Ready() <-chan Ready { return n.readyc }
@@ -577,6 +543,21 @@ func (n *node) ApplyConfChange(cc pb.ConfChangeI) *pb.ConfState {
 	case <-n.done:
 	}
 	return &cs
+}
+
+func (n *node) ReportLogged(ctx context.Context, index uint64, term uint64) error {
+	return n.step(ctx, pb.Message{
+		Type:    pb.MsgLogResp,
+		LogTerm: term,
+		Index:   index,
+	})
+}
+
+func (n *node) ReportApplied(ctx context.Context, index uint64) error {
+	return n.step(ctx, pb.Message{
+		Type:  pb.MsgApplyResp,
+		Index: index,
+	})
 }
 
 func (n *node) Status() Status {

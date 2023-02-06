@@ -50,6 +50,20 @@ func (mr *MockWorkerMockRecorder) AddSubscription(ctx, subscription interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddSubscription", reflect.TypeOf((*MockWorker)(nil).AddSubscription), ctx, subscription)
 }
 
+// Init mocks base method.
+func (m *MockWorker) Init(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Init", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Init indicates an expected call of Init.
+func (mr *MockWorkerMockRecorder) Init(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Init", reflect.TypeOf((*MockWorker)(nil).Init), ctx)
+}
+
 // PauseSubscription mocks base method.
 func (m *MockWorker) PauseSubscription(ctx context.Context, id vanus.ID) error {
 	m.ctrl.T.Helper()
@@ -90,20 +104,6 @@ func (m *MockWorker) RemoveSubscription(ctx context.Context, id vanus.ID) error 
 func (mr *MockWorkerMockRecorder) RemoveSubscription(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveSubscription", reflect.TypeOf((*MockWorker)(nil).RemoveSubscription), ctx, id)
-}
-
-// ResetOffsetToTimestamp mocks base method.
-func (m *MockWorker) ResetOffsetToTimestamp(ctx context.Context, id vanus.ID, timestamp int64) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResetOffsetToTimestamp", ctx, id, timestamp)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// ResetOffsetToTimestamp indicates an expected call of ResetOffsetToTimestamp.
-func (mr *MockWorkerMockRecorder) ResetOffsetToTimestamp(ctx, id, timestamp interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetOffsetToTimestamp", reflect.TypeOf((*MockWorker)(nil).ResetOffsetToTimestamp), ctx, id, timestamp)
 }
 
 // Start mocks base method.

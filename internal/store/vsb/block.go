@@ -21,12 +21,11 @@ import (
 	"sync"
 	"sync/atomic"
 
-	// first-party.
-	"github.com/linkall-labs/vanus/observability/tracing"
-
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store/block"
+	"github.com/linkall-labs/vanus/internal/store/io/stream"
+	"github.com/linkall-labs/vanus/internal/store/io/zone"
 	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
 	"github.com/linkall-labs/vanus/internal/store/vsb/index"
 )
@@ -64,9 +63,10 @@ type vsBlock struct {
 	dec codec.EntryDecoder
 	lis block.ArchivedListener
 
-	f      *os.File
-	wg     sync.WaitGroup
-	tracer *tracing.Tracer
+	f  *os.File
+	z  zone.Interface
+	s  stream.Stream
+	wg sync.WaitGroup
 }
 
 // Make sure vsBlock implements block.File.
@@ -82,12 +82,18 @@ func (b *vsBlock) Close(ctx context.Context) error {
 	m, indexes := b.makeSnapshot()
 
 	if b.indexOffset != m.writeOffset {
-		n, err := b.appendIndexEntry(ctx, indexes, m.writeOffset)
-		if err != nil {
+		ch := make(chan error)
+		b.appendIndexEntry(ctx, indexes, func(n int, err error) {
+			if err != nil {
+				ch <- err
+			}
+			b.indexOffset = m.writeOffset
+			b.indexLength = n
+			close(ch)
+		})
+		if err := <-ch; err != nil {
 			return err
 		}
-		b.indexOffset = m.writeOffset
-		b.indexLength = n
 	}
 
 	// Flush metadata.
@@ -106,8 +112,12 @@ func (b *vsBlock) Delete(context.Context) error {
 }
 
 func (b *vsBlock) status() block.Statistics {
+	state := block.StateWorking
 	m, indexes := b.makeSnapshot()
-	return b.stat(m, indexes, block.StateWorking)
+	if m.archived {
+		state = block.StateArchiving
+	}
+	return b.stat(m, indexes, state)
 }
 
 func (b *vsBlock) stat(m meta, indexes []index.Index, state block.State) block.Statistics {

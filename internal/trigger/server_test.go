@@ -83,16 +83,6 @@ func TestServerApi(t *testing.T) {
 			_, err := s.ResumeSubscription(ctx, &pbtrigger.ResumeSubscriptionRequest{})
 			So(err, ShouldNotBeNil)
 		})
-		Convey("test reset offset to timestamp", func() {
-			w.EXPECT().ResetOffsetToTimestamp(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
-			_, err := s.ResetOffsetToTimestamp(ctx, &pbtrigger.ResetOffsetToTimestampRequest{})
-			So(err, ShouldBeNil)
-		})
-		Convey("test reset offset to timestamp has error", func() {
-			w.EXPECT().ResetOffsetToTimestamp(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("test error"))
-			_, err := s.ResetOffsetToTimestamp(ctx, &pbtrigger.ResetOffsetToTimestampRequest{})
-			So(err, ShouldNotBeNil)
-		})
 	})
 }
 
@@ -108,6 +98,7 @@ func TestServerInitAndClose(t *testing.T) {
 			state:  primitive.ServerStateCreated,
 		}
 		Convey("test init", func() {
+			w.EXPECT().Init(gomock.Any()).Return(nil)
 			w.EXPECT().Register(gomock.Any()).Return(nil)
 			err := s.Initialize(ctx)
 			So(err, ShouldBeNil)

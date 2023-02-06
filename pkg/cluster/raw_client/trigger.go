@@ -142,7 +142,7 @@ func (tc *triggerClient) GetSubscription(ctx context.Context, in *ctrlpb.GetSubs
 	return out, nil
 }
 
-func (tc *triggerClient) ListSubscription(ctx context.Context, in *emptypb.Empty,
+func (tc *triggerClient) ListSubscription(ctx context.Context, in *ctrlpb.ListSubscriptionRequest,
 	opts ...grpc.CallOption) (*ctrlpb.ListSubscriptionResponse, error) {
 	out := new(ctrlpb.ListSubscriptionResponse)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/ListSubscription", in, out, opts...)
@@ -173,8 +173,8 @@ func (tc *triggerClient) UnregisterTriggerWorker(ctx context.Context, in *ctrlpb
 }
 
 func (tc *triggerClient) ResetOffsetToTimestamp(ctx context.Context, in *ctrlpb.ResetOffsetToTimestampRequest,
-	opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
+	opts ...grpc.CallOption) (*ctrlpb.ResetOffsetToTimestampResponse, error) {
+	out := new(ctrlpb.ResetOffsetToTimestampResponse)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/ResetOffsetToTimestamp", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -186,6 +186,24 @@ func (tc *triggerClient) CommitOffset(ctx context.Context, in *ctrlpb.CommitOffs
 	opts ...grpc.CallOption) (*ctrlpb.CommitOffsetResponse, error) {
 	out := new(ctrlpb.CommitOffsetResponse)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/CommitOffset", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (tc *triggerClient) DisableSubscription(ctx context.Context, in *ctrlpb.DisableSubscriptionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/DisableSubscription", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (tc *triggerClient) ResumeSubscription(ctx context.Context, in *ctrlpb.ResumeSubscriptionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/ResumeSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}

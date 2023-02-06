@@ -19,20 +19,23 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"time"
 
 	// third-party project.
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
 	// first-party project.
-	"github.com/linkall-labs/vanus/observability/metrics"
+	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/tracing"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/io"
-	"github.com/linkall-labs/vanus/internal/store/wal/block"
+	"github.com/linkall-labs/vanus/internal/store/io/engine"
+	"github.com/linkall-labs/vanus/internal/store/io/stream"
+	"github.com/linkall-labs/vanus/internal/store/io/zone/segmentedfile"
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
+)
+
+const (
+	logFileExt = ".log"
 )
 
 var (
@@ -77,36 +80,27 @@ func WithCallback(callback AppendCallback) AppendOption {
 	}
 }
 
-type flushTask struct {
-	ctx    context.Context
-	block  *block.Block
-	offset int
-	own    bool
-}
-
 type callbackTask struct {
-	ctx       context.Context
-	callback  AppendCallback
-	ranges    []Range
-	threshold int64
+	ctx      context.Context
+	callback AppendCallback
+	ranges   []Range
 }
 
 // WAL is write-ahead log.
 type WAL struct {
-	allocator *block.Allocator
-	// wb is the block currently being written to.
-	wb *block.Block
+	sf *segmentedfile.SegmentedFile
+	s  stream.Stream
 
-	stream *logStream
-	engine io.Engine
+	engine    engine.Interface
+	scheduler stream.Scheduler
+
+	blockSize int
 
 	appendC   chan appendTask
 	callbackC chan callbackTask
-	flushC    chan flushTask
-	wakeupC   chan int64
 
-	closeMu sync.RWMutex
-	flushWg sync.WaitGroup
+	closeMu  sync.RWMutex
+	appendWg sync.WaitGroup
 
 	closeC chan struct{}
 	doneC  chan struct{}
@@ -122,59 +116,54 @@ func Open(ctx context.Context, dir string, opts ...Option) (*WAL, error) {
 }
 
 func open(ctx context.Context, dir string, cfg config) (*WAL, error) {
-	stream, err := recoverLogStream(ctx, dir, cfg)
+	log.Info(ctx, "Open wal.", map[string]interface{}{
+		"dir": dir,
+		"pos": cfg.pos,
+	})
+
+	sf, err := segmentedfile.Open(dir, segmentedfile.WithExtension(logFileExt),
+		segmentedfile.WithSegmentSize(cfg.fileSize))
 	if err != nil {
 		return nil, err
 	}
 
 	// Check wal entries from pos.
-	off, err := stream.Range(ctx, cfg.pos, cfg.cb)
+	off, err := scanLogEntries(sf, cfg.blockSize, cfg.pos, cfg.cb)
 	if err != nil {
 		return nil, err
 	}
 
-	// Start offset of writable block.
-	so := off
-	so -= off % cfg.blockSize
+	// Skip padding.
+	if padding := int64(cfg.blockSize) - off%int64(cfg.blockSize); padding < record.HeaderSize {
+		off += padding
+	}
+
+	scheduler := stream.NewScheduler(cfg.engine, cfg.blockSize, cfg.flushTimeout)
+	s := scheduler.Register(sf, off)
 
 	w := &WAL{
-		allocator: block.NewAllocator(int(cfg.blockSize), so),
-		stream:    stream,
+		sf: sf,
+		s:  s,
+
 		engine:    cfg.engine,
+		scheduler: scheduler,
+		blockSize: cfg.blockSize,
+
 		appendC:   make(chan appendTask, cfg.appendBufferSize),
 		callbackC: make(chan callbackTask, cfg.callbackBufferSize),
-		flushC:    make(chan flushTask, cfg.flushBufferSize),
-		wakeupC:   make(chan int64, cfg.wakeupBufferSize),
 		closeC:    make(chan struct{}),
 		doneC:     make(chan struct{}),
 		tracer:    tracing.NewTracer("store.wal.walog", trace.SpanKindInternal),
 	}
 
-	w.wb = w.allocator.Next()
-
-	// Recover write block
-	if off > 0 {
-		f := w.stream.selectFile(ctx, w.wb.SO, false)
-		if f == nil {
-			return nil, ErrNotFoundLogFile
-		}
-		if err := f.Open(false); err != nil {
-			return nil, err
-		}
-		if err := w.wb.RecoverFromFile(f.f, w.wb.SO-f.so, int(off-w.wb.SO)); err != nil {
-			return nil, err
-		}
-	}
-
 	go w.runCallback() //nolint:contextcheck // wrong advice
-	go w.runFlush()
-	go w.runAppend(cfg.flushTimeout)
+	go w.runAppend()
 
 	return w, nil
 }
 
 func (w *WAL) Dir() string {
-	return w.stream.dir
+	return w.sf.Dir()
 }
 
 func (w *WAL) Close() {
@@ -185,15 +174,13 @@ func (w *WAL) Close() {
 	case <-w.closeC:
 	default:
 		close(w.closeC)
+		close(w.appendC)
 	}
 }
 
 func (w *WAL) doClose() {
-	ctx, span := w.tracer.Start(context.Background(), "doClose")
-	defer span.End()
-
 	w.engine.Close()
-	w.stream.Close(ctx)
+	w.sf.Close()
 	close(w.doneC)
 }
 
@@ -224,8 +211,9 @@ func (f AppendFuture) Wait() ([]Range, error) {
 
 // Append appends entries to WAL.
 func (w *WAL) Append(ctx context.Context, entries [][]byte, opts ...AppendOption) AppendFuture {
-	_, span := w.tracer.Start(ctx, "Append")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.wal.WAL.Append() Start")
+	defer span.AddEvent("store.wal.WAL.Append() End")
 
 	task := appendTask{
 		ctx:      ctx,
@@ -266,267 +254,29 @@ func (w *WAL) Append(ctx context.Context, entries [][]byte, opts ...AppendOption
 	return ch
 }
 
-func (w *WAL) runAppend(flushTimeout time.Duration) {
-	// Create flush timer.
-	timer := time.NewTimer(flushTimeout)
-	running, waiting := true, false
-	var start time.Time
-
-	aCtx := context.Background()
-	for {
-		select {
-		case task := <-w.appendC:
-			aCtx = task.ctx
-			full, goahead := w.doAppend(aCtx, task.entries, task.callback)
-			switch {
-			case full || !task.batching:
-				if !full {
-					w.flushWritableBlock(aCtx, false)
-				}
-				// stop timer
-				trace.SpanFromContext(aCtx).AddEvent("Discard flush timer")
-				waiting = false
-			case goahead || !waiting:
-				// reset timer
-				waiting = true
-				start = time.Now()
-				if !running {
-					trace.SpanFromContext(aCtx).AddEvent("Start flush timer")
-					timer.Reset(flushTimeout)
-					running = true
-				}
-			}
-		case <-timer.C:
-			// timer stopped
-			if !waiting {
-				running = false
-				break
-			}
-
-			d := time.Since(start)
-			if d < flushTimeout {
-				timer.Reset(flushTimeout - d)
-				break
-			}
-
-			// timeout, flush
-			w.flushWritableBlock(aCtx, true)
-			waiting = false
-			running = false
-		case <-w.closeC:
-			if running {
-				timer.Stop()
-			}
-			// flush, then stop
-			if waiting {
-				w.flushWritableBlock(aCtx, false)
-			}
-			close(w.flushC)
-			return
-		}
-	}
-}
-
-func (w *WAL) flushWritableBlock(ctx context.Context, timeout bool) {
-	span := trace.SpanFromContext(ctx)
-
-	span.AddEvent("Publishing flush task", trace.WithAttributes(attribute.Bool("timeout", timeout)))
-	w.flushC <- flushTask{
-		ctx:    ctx,
-		block:  w.wb,
-		offset: w.wb.Size(),
-		own:    false,
-	}
-	span.AddEvent("Notified flush task")
-}
-
-// doAppend writes entries to block(s). And return two flags: full and goahead.
-// The full flag indicate last written block is full, and the
-// goahead flag indicate switching to a new block.
-func (w *WAL) doAppend(ctx context.Context, entries [][]byte, callback AppendCallback) (bool, bool) {
-	_, span := w.tracer.Start(ctx, "doAppend")
-	defer span.End()
-
-	var entrySize, recordCount, recordSize int
-
-	var full, goahead bool
-	ranges := make([]Range, len(entries))
-	for i, entry := range entries {
-		ranges[i].SO = w.wb.WriteOffset()
-		records := record.Pack(entry, w.wb.Remaining(), w.allocator.BlockSize())
-		for j, record := range records {
-			n, err := w.wb.Append(record)
-			if err != nil {
-				callback(Result{nil, err})
-				return full, goahead
-			}
-			if j == len(records)-1 {
-				offset := w.wb.SO + int64(n)
-				ranges[i].EO = offset
-				if i == len(entries)-1 {
-					// register callback
-					w.callbackC <- callbackTask{
-						ctx:       ctx,
-						callback:  callback,
-						ranges:    ranges,
-						threshold: offset,
-					}
-				}
-			}
-			if full = w.wb.FullWithOffset(n); full {
-				// notify to flush
-				span.AddEvent("Publishing flush task",
-					trace.WithAttributes(attribute.Bool("timeout", false)))
-				w.flushC <- flushTask{
-					ctx:    ctx,
-					block:  w.wb,
-					offset: w.wb.Capacity(),
-					own:    true,
-				}
-				span.AddEvent("Notified flush task")
-
-				// switch wb
-				w.wb = w.allocator.Next()
-				goahead = true
-			}
-
-			recordSize += record.Size()
-		}
-
-		recordCount += len(records)
-		entrySize += len(entry)
+func (w *WAL) runAppend() {
+	for task := range w.appendC {
+		w.appendWg.Add(1)
+		w.newAppender(task.ctx, task.entries, task.callback).invoke()
 	}
 
-	metrics.WALEntryWriteCounter.Add(float64(len(entries)))
-	metrics.WALEntryWriteSizeCounter.Add(float64(entrySize))
-	metrics.WALRecordWriteCounter.Add(float64(recordCount))
-	metrics.WALRecordWriteSizeCounter.Add(float64(recordSize))
-
-	span.SetAttributes(
-		attribute.Int("entry_count", len(entries)),
-		attribute.Int("entry_size", entrySize),
-		attribute.Int("record_count", recordCount),
-		attribute.Int("record_size", recordSize))
-
-	return full, goahead
-}
-
-func (w *WAL) runFlush() {
-	for task := range w.flushC {
-		ctx, span := w.tracer.Start(task.ctx, "doFlush")
-
-		// Copy
-		fb := task.block
-		own := task.own
-
-		writer := w.logWriter(ctx, fb.SO)
-
-		w.flushWg.Add(1)
-		fb.Flush(writer, task.offset, fb.SO, func(off int64, err error) {
-			span.End()
-
-			if err != nil {
-				panic(err)
-			}
-
-			// Wakeup callbacks.
-			w.wakeupC <- fb.SO + off
-
-			w.flushWg.Done()
-
-			if own {
-				w.allocator.Free(fb)
-			}
-		})
-	}
-
-	// Wait in-flight flush tasks.
-	w.flushWg.Wait()
-
-	close(w.wakeupC)
-}
-
-func (w *WAL) logWriter(ctx context.Context, offset int64) io.WriterAt {
-	f := w.stream.selectFile(ctx, offset, true)
-
-	return io.WriteAtFunc(func(b []byte, off int64, so, eo int, cb io.WriteCallback) {
-		span := trace.SpanFromContext(ctx)
-		span.SetAttributes(
-			attribute.Int("real_so", so),
-			attribute.Int("real_eo", eo),
-			attribute.Int("real_size", eo-so),
-			attribute.Int("block_size", len(b)),
-			attribute.Bool("block_full", eo == 0 || eo == len(b)))
-
-		f.WriteAt(w.engine, b, off, so, eo, cb)
-	})
+	w.appendWg.Wait()
+	close(w.callbackC)
 }
 
 func (w *WAL) runCallback() {
-	var task *callbackTask
-	for offset := range w.wakeupC {
-		// NOTE: write cb to callbackC before writing offset to wakeupC.
-		if task == nil {
-			task = w.nextCallbackTask()
-		}
-		for task != nil {
-			if task.threshold > offset {
-				break
-			}
-
-			_, span := w.tracer.Start(task.ctx, "doCallback")
-			task.callback(Result{
-				Ranges: task.ranges,
-			})
-			span.End()
-
-			task = w.nextCallbackTask()
-		}
+	for task := range w.callbackC {
+		span := trace.SpanFromContext(task.ctx)
+		span.AddEvent("store.wal.WAL.doCallback() Start")
+		task.callback(Result{
+			Ranges: task.ranges,
+		})
+		span.AddEvent("store.wal.WAL.doCallback() End")
 	}
-
-	// Wakeup in-flight append tasks.
-	w.wakeupPendingTasks(task)
 
 	w.doClose()
 }
 
-func (w *WAL) wakeupPendingTasks(task *callbackTask) {
-	if task != nil {
-		task.callback(Result{
-			Err: ErrClosed,
-		})
-	}
-	for {
-		task = w.nextCallbackTask()
-		if task == nil {
-			break
-		}
-		task.callback(Result{
-			Err: ErrClosed,
-		})
-	}
-	for {
-		select {
-		case at := <-w.appendC:
-			at.callback(Result{
-				Err: ErrClosed,
-			})
-			continue
-		default:
-		}
-		break
-	}
-}
-
-func (w *WAL) nextCallbackTask() *callbackTask {
-	select {
-	case c := <-w.callbackC:
-		return &c
-	default:
-		return nil
-	}
-}
-
 func (w *WAL) Compact(ctx context.Context, off int64) error {
-	return w.stream.compact(ctx, off)
+	return w.sf.Compact(off)
 }

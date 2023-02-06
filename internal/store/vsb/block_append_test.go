@@ -26,6 +26,9 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
+	"github.com/linkall-labs/vanus/internal/store/io/engine/psync"
+	"github.com/linkall-labs/vanus/internal/store/io/stream"
+	"github.com/linkall-labs/vanus/internal/store/io/zone/file"
 	cetest "github.com/linkall-labs/vanus/internal/store/schema/ce/testing"
 	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
 	idxtest "github.com/linkall-labs/vanus/internal/store/vsb/index/testing"
@@ -33,6 +36,11 @@ import (
 )
 
 func TestVSBlock_Append(t *testing.T) {
+	ctx := context.Background()
+
+	scheduler := stream.NewScheduler(psync.New(), defaultFlushBatchSize, defaultFlushDelayTime)
+	defer scheduler.Close()
+
 	Convey("append context", t, func() {
 		ctrl := NewController(t)
 		defer ctrl.Finish()
@@ -83,6 +91,11 @@ func TestVSBlock_Append(t *testing.T) {
 		f, err := os.CreateTemp("", "*.vsb")
 		So(err, ShouldBeNil)
 
+		z, err := file.New(f)
+		So(err, ShouldBeNil)
+
+		s := scheduler.Register(z, headerBlockSize)
+
 		dec, _ := codec.NewDecoder(false, codec.IndexSize)
 		b := &vsBlock{
 			capacity:   vsbtest.EntrySize0 + vsbtest.EntrySize1,
@@ -93,13 +106,15 @@ func TestVSBlock_Append(t *testing.T) {
 			enc: codec.NewEncoder(),
 			dec: dec,
 			f:   f,
+			s:   s,
 		}
+		ch := make(chan struct{}, 1)
 
 		Convey("append single entry, commit single fragment", func() {
 			actx := b.NewAppendContext(nil)
 			So(actx, ShouldNotBeNil)
 
-			seqs, frag, full, err := b.PrepareAppend(context.Background(), actx, ent0)
+			seqs, frag, full, err := b.PrepareAppend(ctx, actx, ent0)
 			So(err, ShouldBeNil)
 			So(seqs, ShouldResemble, []int64{0})
 			So(frag.StartOffset(), ShouldEqual, headerBlockSize)
@@ -111,9 +126,10 @@ func TestVSBlock_Append(t *testing.T) {
 			So(stat.EntryNum, ShouldEqual, 0)
 			So(stat.EntrySize, ShouldEqual, 0)
 
-			archived, err := b.CommitAppend(context.Background(), frag)
-			So(err, ShouldBeNil)
-			So(archived, ShouldBeFalse)
+			b.CommitAppend(ctx, frag, func() {
+				ch <- struct{}{}
+			})
+			<-ch
 
 			stat = b.status()
 			So(stat.State, ShouldEqual, block.StateWorking)
@@ -123,7 +139,7 @@ func TestVSBlock_Append(t *testing.T) {
 			So(b.indexes, ShouldHaveLength, 1)
 			idxtest.CheckIndex0(b.indexes[0], true)
 
-			seqs, frag, full, err = b.PrepareAppend(context.Background(), actx, ent1)
+			seqs, frag, full, err = b.PrepareAppend(ctx, actx, ent1)
 			So(err, ShouldBeNil)
 			So(seqs, ShouldResemble, []int64{1})
 			So(frag.StartOffset(), ShouldEqual, headerBlockSize+vsbtest.EntrySize0)
@@ -135,51 +151,10 @@ func TestVSBlock_Append(t *testing.T) {
 			So(stat.EntryNum, ShouldEqual, 1)
 			So(stat.EntrySize, ShouldEqual, vsbtest.EntrySize0)
 
-			archived, err = b.CommitAppend(context.Background(), frag)
-			So(err, ShouldBeNil)
-			So(archived, ShouldBeFalse)
-
-			stat = b.status()
-			So(stat.State, ShouldEqual, block.StateWorking)
-			So(stat.EntryNum, ShouldEqual, 2)
-			So(stat.EntrySize, ShouldEqual, vsbtest.EntrySize0+vsbtest.EntrySize1)
-
-			So(b.indexes, ShouldHaveLength, 2)
-			idxtest.CheckIndex0(b.indexes[0], true)
-			idxtest.CheckIndex1(b.indexes[1], true)
-		})
-
-		Convey("append single entry, commit multiple fragments", func() {
-			actx := b.NewAppendContext(nil)
-			So(actx, ShouldNotBeNil)
-
-			seqs, frag0, full, err := b.PrepareAppend(context.Background(), actx, ent0)
-			So(err, ShouldBeNil)
-			So(seqs, ShouldResemble, []int64{0})
-			So(frag0.StartOffset(), ShouldEqual, headerBlockSize)
-			So(frag0.Size(), ShouldEqual, vsbtest.EntrySize0)
-			So(full, ShouldBeFalse)
-
-			stat := b.status()
-			So(stat.State, ShouldEqual, block.StateWorking)
-			So(stat.EntryNum, ShouldEqual, 0)
-			So(stat.EntrySize, ShouldEqual, 0)
-
-			seqs, frag1, full, err := b.PrepareAppend(context.Background(), actx, ent1)
-			So(err, ShouldBeNil)
-			So(seqs, ShouldResemble, []int64{1})
-			So(frag1.StartOffset(), ShouldEqual, headerBlockSize+vsbtest.EntrySize0)
-			So(frag1.Size(), ShouldEqual, vsbtest.EntrySize1)
-			So(full, ShouldBeTrue)
-
-			stat = b.status()
-			So(stat.State, ShouldEqual, block.StateWorking)
-			So(stat.EntryNum, ShouldEqual, 0)
-			So(stat.EntrySize, ShouldEqual, 0)
-
-			archived, err := b.CommitAppend(context.Background(), frag0, frag1)
-			So(err, ShouldBeNil)
-			So(archived, ShouldBeFalse)
+			b.CommitAppend(ctx, frag, func() {
+				ch <- struct{}{}
+			})
+			<-ch
 
 			stat = b.status()
 			So(stat.State, ShouldEqual, block.StateWorking)
@@ -195,7 +170,7 @@ func TestVSBlock_Append(t *testing.T) {
 			actx := b.NewAppendContext(nil)
 			So(actx, ShouldNotBeNil)
 
-			seqs, frag, full, err := b.PrepareAppend(context.Background(), actx, ent0, ent1)
+			seqs, frag, full, err := b.PrepareAppend(ctx, actx, ent0, ent1)
 			So(err, ShouldBeNil)
 			So(seqs, ShouldResemble, []int64{0, 1})
 			So(frag.StartOffset(), ShouldEqual, headerBlockSize)
@@ -207,9 +182,10 @@ func TestVSBlock_Append(t *testing.T) {
 			So(stat.EntryNum, ShouldEqual, 0)
 			So(stat.EntrySize, ShouldEqual, 0)
 
-			archived, err := b.CommitAppend(context.Background(), frag)
-			So(err, ShouldBeNil)
-			So(archived, ShouldBeFalse)
+			b.CommitAppend(ctx, frag, func() {
+				ch <- struct{}{}
+			})
+			<-ch
 
 			stat = b.status()
 			So(stat.State, ShouldEqual, block.StateWorking)
@@ -236,6 +212,8 @@ func TestVSBlock_Append(t *testing.T) {
 			So(n1, ShouldEqual, vsbtest.EntrySize1)
 			cetest.CheckEntry1(entry1, false, true)
 
+			scheduler.Unregister(s)
+
 			err = f.Close()
 			So(err, ShouldBeNil)
 			err = os.Remove(f.Name())
@@ -253,7 +231,14 @@ func TestVSBlock_Append(t *testing.T) {
 		f, err := os.CreateTemp("", "*.vsb")
 		So(err, ShouldBeNil)
 
+		z, err := file.New(f)
+		So(err, ShouldBeNil)
+
+		s := scheduler.Register(z, headerBlockSize)
+
 		defer func() {
+			scheduler.Unregister(s)
+
 			err = f.Close()
 			So(err, ShouldBeNil)
 			err = os.Remove(f.Name())
@@ -271,19 +256,21 @@ func TestVSBlock_Append(t *testing.T) {
 			enc: codec.NewEncoder(),
 			dec: dec,
 			f:   f,
+			s:   s,
 		}
+		ch := make(chan struct{}, 2)
 
 		actx := b.NewAppendContext(nil)
 		So(actx, ShouldNotBeNil)
 
-		seqs, frag0, full, err := b.PrepareAppend(context.Background(), actx, ent0, ent1)
+		seqs, frag0, full, err := b.PrepareAppend(ctx, actx, ent0, ent1)
 		So(err, ShouldBeNil)
 		So(seqs, ShouldResemble, []int64{0, 1})
 		So(frag0.StartOffset(), ShouldEqual, vsbtest.EntryOffset0)
 		So(frag0.Size(), ShouldEqual, vsbtest.EntrySize0+vsbtest.EntrySize1)
 		So(full, ShouldBeTrue)
 
-		frag1, err := b.PrepareArchive(context.Background(), actx)
+		frag1, err := b.PrepareArchive(ctx, actx)
 		So(err, ShouldBeNil)
 		So(frag1.StartOffset(), ShouldEqual, vsbtest.EndEntryOffset)
 
@@ -291,12 +278,17 @@ func TestVSBlock_Append(t *testing.T) {
 		So(stat.EntryNum, ShouldEqual, 0)
 		So(stat.EntrySize, ShouldEqual, 0)
 
-		archived, err := b.CommitAppend(context.Background(), frag0, frag1)
-		So(err, ShouldBeNil)
-		So(archived, ShouldBeTrue)
+		b.CommitAppend(ctx, frag0, func() {
+			ch <- struct{}{}
+		})
+		b.CommitAppend(ctx, frag1, func() {
+			ch <- struct{}{}
+		})
+		<-ch
+		<-ch
 
 		stat = b.status()
-		So(stat.State, ShouldEqual, block.StateWorking)
+		So(stat.State, ShouldEqual, block.StateArchiving)
 		So(stat.EntryNum, ShouldEqual, 2)
 		So(stat.EntrySize, ShouldEqual, vsbtest.EntrySize0+vsbtest.EntrySize1)
 

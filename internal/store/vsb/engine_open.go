@@ -21,16 +21,13 @@ import (
 	"os"
 	"path/filepath"
 
-	// third-party libraries.
-	"go.opentelemetry.io/otel/trace"
-
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/errors"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store/block"
+	"github.com/linkall-labs/vanus/internal/store/io/zone/file"
 	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
 )
 
@@ -64,16 +61,23 @@ func (e *engine) Create(ctx context.Context, id vanus.ID, capacity int64) (block
 		actx: appendContext{
 			offset: headerBlockSize,
 		},
-		enc:    codec.NewEncoder(),
-		dec:    dec,
-		lis:    e.lis,
-		f:      f,
-		tracer: tracing.NewTracer("store.vsb.vsBlock", trace.SpanKindInternal),
+		enc: codec.NewEncoder(),
+		dec: dec,
+		lis: e.lis,
+		f:   f,
 	}
 
 	if err := b.persistHeader(ctx, b.fm); err != nil {
 		return nil, processError(err, f, path)
 	}
+
+	if z, err := file.New(f); err == nil {
+		b.z = z
+	} else {
+		return nil, processError(err, f, path)
+	}
+
+	b.s = e.s.Register(b.z, b.actx.offset)
 
 	return b, nil
 }
@@ -92,15 +96,22 @@ func (e *engine) Open(ctx context.Context, id vanus.ID) (block.Raw, error) {
 	path := e.resolvePath(id)
 
 	b := &vsBlock{
-		id:     id,
-		path:   path,
-		lis:    e.lis,
-		tracer: tracing.NewTracer("store.vsb.vsBlock", trace.SpanKindInternal),
+		id:   id,
+		path: path,
+		lis:  e.lis,
 	}
 
 	if err := b.Open(ctx); err != nil {
 		return nil, err
 	}
+
+	if z, err := file.New(b.f); err == nil {
+		b.z = z
+	} else {
+		return nil, err
+	}
+
+	b.s = e.s.Register(b.z, b.actx.offset)
 
 	return b, nil
 }

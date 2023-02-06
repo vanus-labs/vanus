@@ -43,9 +43,10 @@ const (
 // It is the application's responsibility to not attempt to compact an index
 // greater than raftLog.applied.
 func (l *Log) Compact(ctx context.Context, i uint64) error {
-	ctx, span := l.tracer.Start(ctx, "Compact",
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("raft.log.Log.Compact() Start",
 		trace.WithAttributes(attribute.Int64("to_compact", int64(i))))
-	defer span.End()
+	defer span.AddEvent("raft.log.Log.Compact() End")
 
 	span.AddEvent("Acquiring lock")
 	l.Lock()
@@ -128,8 +129,9 @@ func (w *WAL) reserve(cb reserveCallback) error {
 }
 
 func (w *WAL) tryCompact(ctx context.Context, offset, last int64, nodeID vanus.ID, index, term uint64) {
-	_, span := w.tracer.Start(ctx, "tryCompact")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("raft.log.WAL.tryCompact() Start")
+	defer span.AddEvent("raft.log.WAL.tryCompact() End")
 
 	w.updateC <- compactTask{
 		offset: offset,
@@ -277,8 +279,10 @@ func (w *WAL) compact(cCtx *compactContext, compact compactTask) {
 }
 
 func (w *WAL) doCompact(ctx context.Context, cCtx *compactContext) {
-	ctx, span := w.tracer.Start(ctx, "doCompact")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("raft.log.WAL.doCompact() Start")
+	defer span.AddEvent("raft.log.WAL.doCompact() End")
+
 	if cCtx.stale() {
 		log.Debug(ctx, "compact WAL of raft log.", map[string]interface{}{
 			"offset": cCtx.toCompact,

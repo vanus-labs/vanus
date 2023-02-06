@@ -19,7 +19,7 @@ import (
 	"time"
 
 	// third-party libraries.
-	cepb "cloudevents.io/genproto/v1"
+	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	// first-party libraries.
@@ -89,51 +89,51 @@ func ToPb(e block.Entry) *cepb.CloudEvent {
 	event.SpecVersion = w.SpecVersion()
 	event.Type = w.Type()
 
-	event.Attributes = make(map[string]*cepb.CloudEventAttributeValue)
+	event.Attributes = make(map[string]*cepb.CloudEvent_CloudEventAttributeValue)
 	if s := w.DataContentType(); s != "" {
-		event.Attributes[dataContentTypeAttr] = &cepb.CloudEventAttributeValue{
-			Attr: &cepb.CloudEventAttributeValue_CeString{
+		event.Attributes[dataContentTypeAttr] = &cepb.CloudEvent_CloudEventAttributeValue{
+			Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeString{
 				CeString: s,
 			},
 		}
 	}
 	if s := w.DataSchema(); s != "" {
-		event.Attributes[dataSchemaAttr] = &cepb.CloudEventAttributeValue{
-			Attr: &cepb.CloudEventAttributeValue_CeString{
+		event.Attributes[dataSchemaAttr] = &cepb.CloudEvent_CloudEventAttributeValue{
+			Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeString{
 				CeString: s,
 			},
 		}
 	}
 	if s := w.Subject(); s != "" {
-		event.Attributes[subjectAttr] = &cepb.CloudEventAttributeValue{
-			Attr: &cepb.CloudEventAttributeValue_CeString{
+		event.Attributes[subjectAttr] = &cepb.CloudEvent_CloudEventAttributeValue{
+			Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeString{
 				CeString: s,
 			},
 		}
 	}
 	if t := w.Time(); !t.IsZero() {
-		event.Attributes[timeAttr] = &cepb.CloudEventAttributeValue{
-			Attr: &cepb.CloudEventAttributeValue_CeTimestamp{
+		event.Attributes[timeAttr] = &cepb.CloudEvent_CloudEventAttributeValue{
+			Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeTimestamp{
 				CeTimestamp: timestamppb.New(t),
 			},
 		}
 	}
 	w.e.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr, val []byte) {
 		// TODO(james.yin): support native type.
-		event.Attributes[string(attr)] = &cepb.CloudEventAttributeValue{
-			Attr: &cepb.CloudEventAttributeValue_CeString{
+		event.Attributes[string(attr)] = &cepb.CloudEvent_CloudEventAttributeValue{
+			Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeString{
 				CeString: string(val),
 			},
 		}
 	}))
 	// Overwrite XVanusBlockOffset and XVanusStime if exists.
-	event.Attributes[segpb.XVanusBlockOffset] = &cepb.CloudEventAttributeValue{
-		Attr: &cepb.CloudEventAttributeValue_CeInteger{
+	event.Attributes[segpb.XVanusBlockOffset] = &cepb.CloudEvent_CloudEventAttributeValue{
+		Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeInteger{
 			CeInteger: int32(ceschema.SequenceNumber(e)),
 		},
 	}
-	event.Attributes[segpb.XVanusStime] = &cepb.CloudEventAttributeValue{
-		Attr: &cepb.CloudEventAttributeValue_CeTimestamp{
+	event.Attributes[segpb.XVanusStime] = &cepb.CloudEvent_CloudEventAttributeValue{
+		Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeTimestamp{
 			CeTimestamp: timestamppb.New(time.UnixMilli(ceschema.Stime(e))),
 		},
 	}

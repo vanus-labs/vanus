@@ -39,7 +39,6 @@ func FromPbSubscriptionRequest(sub *ctrl.SubscriptionRequest) *metadata.Subscrip
 		Transformer:        fromPbTransformer(sub.Transformer),
 		EventBus:           sub.EventBus,
 		Name:               sub.Name,
-		Disable:            sub.Disable,
 		Description:        sub.Description,
 	}
 	return to
@@ -54,6 +53,8 @@ func fromPbProtocol(from pb.Protocol) primitive.Protocol {
 		to = primitive.AwsLambdaProtocol
 	case pb.Protocol_GCLOUD_FUNCTIONS:
 		to = primitive.GCloudFunctions
+	case pb.Protocol_GRPC:
+		to = primitive.GRPC
 	}
 	return to
 }
@@ -67,6 +68,8 @@ func toPbProtocol(from primitive.Protocol) pb.Protocol {
 		to = pb.Protocol_AWS_LAMBDA
 	case primitive.GCloudFunctions:
 		to = pb.Protocol_GCLOUD_FUNCTIONS
+	case primitive.GRPC:
+		to = pb.Protocol_GRPC
 	}
 	return to
 }
@@ -207,6 +210,7 @@ func fromPbSubscriptionConfig(config *pb.SubscriptionConfig) primitive.Subscript
 		MaxRetryAttempts:   config.MaxRetryAttempts,
 		DeliveryTimeout:    config.DeliveryTimeout,
 		DeadLetterEventbus: config.DeadLetterEventbus,
+		OrderedEvent:       config.OrderedEvent,
 	}
 	switch config.OffsetType {
 	case pb.SubscriptionConfig_LATEST:
@@ -226,6 +230,7 @@ func toPbSubscriptionConfig(config primitive.SubscriptionConfig) *pb.Subscriptio
 		MaxRetryAttempts:   config.MaxRetryAttempts,
 		DeliveryTimeout:    config.DeliveryTimeout,
 		DeadLetterEventbus: config.DeadLetterEventbus,
+		OrderedEvent:       config.OrderedEvent,
 	}
 	switch config.OffsetType {
 	case primitive.LatestOffset:
@@ -286,10 +291,12 @@ func ToPbSubscription(sub *metadata.Subscription, offsets info.ListOffsetInfo) *
 		Transformer:      ToPbTransformer(sub.Transformer),
 		Offsets:          ToPbOffsetInfos(offsets),
 		Name:             sub.Name,
-		Disable:          sub.Disable,
 		Description:      sub.Description,
 		CreatedAt:        sub.CreatedAt.UnixMilli(),
 		UpdatedAt:        sub.UpdatedAt.UnixMilli(),
+	}
+	if sub.Phase == metadata.SubscriptionPhaseStopped {
+		to.Disable = true
 	}
 	return to
 }

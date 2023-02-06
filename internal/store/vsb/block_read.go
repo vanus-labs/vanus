@@ -18,9 +18,14 @@ import (
 	// standard libraries.
 	"context"
 
+	// third-party libraries.
+	"go.opentelemetry.io/otel/trace"
+
+	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/log"
+
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 // Make sure block implements block.Reader.
@@ -28,8 +33,9 @@ var _ block.Reader = (*vsBlock)(nil)
 
 // Read date from file.
 func (b *vsBlock) Read(ctx context.Context, seq int64, num int) ([]block.Entry, error) {
-	_, span := b.tracer.Start(ctx, "Read")
-	defer span.End()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("store.vsb.vsBlock.Read() Start")
+	defer span.AddEvent("store.vsb.vsBlock.Read() End")
 
 	from, to, num, err := b.entryRange(int(seq), num)
 	if err != nil {
@@ -54,16 +60,26 @@ func (b *vsBlock) Read(ctx context.Context, seq int64, num int) ([]block.Entry, 
 
 func (b *vsBlock) entryRange(start, num int) (int64, int64, int, error) {
 	// TODO(james.yin): optimize lock.
+	log.Debug(context.Background(), "acquiring index read lock", map[string]interface{}{
+		"block_id": b.id,
+		"start":    start,
+		"num":      num,
+	})
 	b.mu.RLock()
-	defer b.mu.RUnlock()
+	defer func() {
+		log.Debug(context.Background(), "release index read lock", map[string]interface{}{
+			"block_id": b.id,
+		})
+		b.mu.RUnlock()
+	}()
 
 	sz := len(b.indexes)
 
 	if start >= sz {
 		if start == sz && !b.full() {
-			return -1, -1, 0, errors.ErrOffsetOnEnd
+			return -1, -1, 0, block.ErrOnEnd
 		}
-		return -1, -1, 0, errors.ErrOffsetOverflow
+		return -1, -1, 0, block.ErrExceeded
 	}
 
 	end := start + num - 1

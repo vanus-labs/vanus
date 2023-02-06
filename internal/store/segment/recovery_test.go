@@ -17,7 +17,6 @@ package segment
 import (
 	// standard libraries.
 	"context"
-	"os"
 	"testing"
 
 	// third-party libraries.
@@ -33,11 +32,7 @@ func TestServer_recover(t *testing.T) {
 	defer ctrl.Finish()
 
 	Convey("recover", t, func() {
-		dir, err := os.MkdirTemp("", "volume-*")
-		So(err, ShouldBeNil)
-		defer func() {
-			So(os.RemoveAll(dir), ShouldBeNil)
-		}()
+		dir := t.TempDir()
 
 		srv := &server{
 			cfg: store.Config{
@@ -46,7 +41,7 @@ func TestServer_recover(t *testing.T) {
 				},
 			},
 		}
-		err = srv.loadEngine(context.Background())
+		err := srv.loadVSBEngine(context.Background(), srv.cfg.VSB)
 		So(err, ShouldBeNil)
 
 		err = srv.recover(context.Background())

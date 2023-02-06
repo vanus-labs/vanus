@@ -255,7 +255,7 @@ func (o *eventLogOffset) commitOffset(ctx context.Context, storage storage.Offse
 		if err != nil {
 			return err
 		}
-		log.Debug(ctx, "create offset", map[string]interface{}{
+		log.Info(ctx, "create offset", map[string]interface{}{
 			log.KeySubscriptionID: o.subscriptionID,
 			log.KeyEventlogID:     o.eventLogID,
 			"offset":              offset,

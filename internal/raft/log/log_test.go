@@ -18,7 +18,6 @@ import (
 	// standard libraries.
 	"context"
 	"math"
-	"os"
 	"testing"
 
 	// third-party libraries.
@@ -30,7 +29,7 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	storecfg "github.com/linkall-labs/vanus/internal/store"
+	"github.com/linkall-labs/vanus/internal/store/config"
 	"github.com/linkall-labs/vanus/internal/store/meta"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
 )
@@ -38,18 +37,18 @@ import (
 var (
 	blockSize uint64 = 4 * 1024
 	fileSize         = 8 * blockSize
-	metaCfg          = storecfg.SyncStoreConfig{
-		WAL: storecfg.WALConfig{
+	metaCfg          = config.SyncStore{
+		WAL: config.WAL{
 			FileSize: fileSize,
 		},
 	}
-	offsetCfg = storecfg.AsyncStoreConfig{
-		WAL: storecfg.WALConfig{
+	offsetCfg = config.AsyncStore{
+		WAL: config.WAL{
 			FileSize: fileSize,
 		},
 	}
-	raftCfg = storecfg.RaftConfig{
-		WAL: storecfg.WALConfig{
+	raftCfg = config.Raft{
+		WAL: config.WAL{
 			FileSize: fileSize,
 		},
 	}
@@ -61,23 +60,9 @@ var (
 func TestLog(t *testing.T) {
 	ctx := context.Background()
 
-	metaDir, err := os.MkdirTemp("", "meta-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(metaDir)
-
-	offsetDir, err := os.MkdirTemp("", "offset-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(offsetDir)
-
-	walDir, err := os.MkdirTemp("", "wal-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(walDir)
+	metaDir := t.TempDir()
+	offsetDir := t.TempDir()
+	walDir := t.TempDir()
 
 	cc1 := raftpb.ConfChange{
 		Type: raftpb.ConfChangeAddNode, NodeID: nodeID1.Uint64(),

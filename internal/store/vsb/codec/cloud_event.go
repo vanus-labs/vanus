@@ -128,14 +128,7 @@ func (e *ceEntryEncoder) MarshalTo(entry block.Entry, buf []byte) (int, int, err
 				copy(buf[nextAlloc:], val.(string))
 				nextAlloc += alignment(len(val.(string)))
 			}
-		}
-	}))
-	binary.LittleEndian.PutUint64(buf[:8], bitmap<<16|uint64(extCnt))
-	ext.RangeOptionalAttributes(block.OnOptionalAttributeFunc(func(ordinal int, val interface{}) {
-		switch ordinal {
-		case ceschema.SequenceNumberOrdinal, ceschema.StimeOrdinal,
-			ceschema.IDOrdinal, ceschema.SourceOrdinal, ceschema.SpecVersionOrdinal,
-			ceschema.TypeOrdinal, ceschema.DataOrdinal:
+		case ceschema.DataOrdinal:
 		default:
 			idx := doValueIndex(bitmap, 1<<ordinal)
 			fo := valueOffset(idx)
@@ -154,6 +147,7 @@ func (e *ceEntryEncoder) MarshalTo(entry block.Entry, buf []byte) (int, int, err
 			}
 		}
 	}))
+	binary.LittleEndian.PutUint64(buf[:8], bitmap<<16|uint64(extCnt))
 
 	// Fill attribute keys.
 	var i int

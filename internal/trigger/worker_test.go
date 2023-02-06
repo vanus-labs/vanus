@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/linkall-labs/vanus/internal/primitive"
@@ -164,41 +163,6 @@ func TestPauseStartSubscription(t *testing.T) {
 				So(exist, ShouldBeTrue)
 				So(v, ShouldNotBeNil)
 			})
-		})
-	})
-}
-
-func TestResetOffsetToTimestamp(t *testing.T) {
-	ctx := context.Background()
-	Convey("test reset offset to timestamp", t, func() {
-		id := vanus.NewTestID()
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		tg := trigger.NewMockTrigger(ctrl)
-		m := &worker{
-			config:     Config{},
-			triggerMap: make(map[vanus.ID]trigger.Trigger),
-		}
-		m.newTrigger = testNewTrigger(tg)
-		Convey("reset offset no exist subscription", func() {
-			err := m.ResetOffsetToTimestamp(ctx, id, time.Now().Unix())
-			So(err, ShouldNotBeNil)
-		})
-		Convey("reset offset exist subscription", func() {
-			tg.EXPECT().Init(gomock.Any()).AnyTimes().Return(nil)
-			tg.EXPECT().Start(gomock.Any()).AnyTimes().Return(nil)
-			err := m.AddSubscription(ctx, &primitive.Subscription{
-				ID: id,
-			})
-			So(err, ShouldBeNil)
-			tg.EXPECT().Stop(gomock.Any()).Return(nil)
-			offsets := info.ListOffsetInfo{{EventLogID: vanus.NewTestID(), Offset: uint64(100)}}
-			tg.EXPECT().ResetOffsetToTimestamp(gomock.Any(), gomock.Any()).Return(offsets, nil)
-			triggerClient := controller.NewMockTriggerControllerClient(ctrl)
-			m.client = triggerClient
-			triggerClient.EXPECT().CommitOffset(gomock.Any(), gomock.Any()).Return(nil, nil)
-			err = m.ResetOffsetToTimestamp(ctx, id, time.Now().Unix())
-			So(err, ShouldBeNil)
 		})
 	})
 }

@@ -396,6 +396,9 @@ issues:
     - source: "strconv|make|len|math"
       linters:
         - gomnd
+    - path: "action"
+      linters:
+        - dupl
     - path: "convert.go"
       linters:
         - dupl
@@ -412,7 +415,7 @@ issues:
       linters:
         - gosec
         - gomnd
-    - path: "action.go"
+    - path: "init.go"
       linters:
         - gochecknoinits
     - path: "^vsctl"

@@ -23,6 +23,8 @@ type ExtensionAttributeCallback interface {
 	OnAttribute(attr, val []byte)
 }
 
+// Entry is a record of data stored in a Block.
+// An Entry has some optional attributes and arbitrary extension attributes.
 type Entry interface {
 	Get(ordinal int) interface{}
 	GetBytes(ordinal int) []byte

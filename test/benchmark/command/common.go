@@ -33,10 +33,6 @@ type BlockRecord struct {
 	Replicas   map[uint64]string
 }
 
-func SetCaseName(_name string) {
-	name = _name
-}
-
 type ResultType string
 
 const (

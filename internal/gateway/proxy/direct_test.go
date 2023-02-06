@@ -52,6 +52,6 @@ func TestControllerProxy_ProxyMethod(t *testing.T) {
 		_, _ = cp.UpdateSubscription(stdCtx.Background(), &ctrlpb.UpdateSubscriptionRequest{})
 		_, _ = cp.DeleteSubscription(stdCtx.Background(), &ctrlpb.DeleteSubscriptionRequest{})
 		_, _ = cp.GetSubscription(stdCtx.Background(), &ctrlpb.GetSubscriptionRequest{})
-		_, _ = cp.ListSubscription(stdCtx.Background(), &emptypb.Empty{})
+		_, _ = cp.ListSubscription(stdCtx.Background(), &ctrlpb.ListSubscriptionRequest{})
 	})
 }

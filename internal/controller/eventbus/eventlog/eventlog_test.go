@@ -186,8 +186,29 @@ func TestEventlogManager_ScaleSegmentTask(t *testing.T) {
 			ID:       vanus.NewTestID(),
 			Capacity: 64 * 1024 * 1024 * 1024,
 		}
+		vanus.InitFakeSnowflake()
 		alloc.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
 		alloc.EXPECT().Pick(gomock.Any(), 3).AnyTimes().DoAndReturn(func(ctx stdCtx.Context, num int) ([]*metadata.Block, error) {
+			return []*metadata.Block{
+				{
+					ID:       vanus.NewTestID(),
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: vol1.ID,
+				},
+				{
+					ID:       vanus.NewTestID(),
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: vol1.ID,
+				},
+				{
+					ID:       vanus.NewTestID(),
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: vol1.ID,
+				},
+			}, nil
+		})
+
+		alloc.EXPECT().PickByVolumes(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(ctx stdCtx.Context, volumes []vanus.ID) ([]*metadata.Block, error) {
 			return []*metadata.Block{
 				{
 					ID:       vanus.NewTestID(),
@@ -285,6 +306,7 @@ func TestEventlogManager_CleanSegmentTask(t *testing.T) {
 		utMgr.volMgr = volMgr
 		kvCli := kv.NewMockClient(ctrl)
 		utMgr.kvClient = kvCli
+		vanus.InitFakeSnowflake()
 
 		ctx := stdCtx.Background()
 		kvCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
@@ -296,6 +318,25 @@ func TestEventlogManager_CleanSegmentTask(t *testing.T) {
 		}
 		alloc.EXPECT().Run(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
 		alloc.EXPECT().Pick(gomock.Any(), 3).AnyTimes().DoAndReturn(func(ctx stdCtx.Context, num int) ([]*metadata.Block, error) {
+			return []*metadata.Block{
+				{
+					ID:       vanus.NewTestID(),
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: vol1.ID,
+				},
+				{
+					ID:       vanus.NewTestID(),
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: vol1.ID,
+				},
+				{
+					ID:       vanus.NewTestID(),
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: vol1.ID,
+				},
+			}, nil
+		})
+		alloc.EXPECT().PickByVolumes(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(ctx stdCtx.Context, volumes []vanus.ID) ([]*metadata.Block, error) {
 			return []*metadata.Block{
 				{
 					ID:       vanus.NewTestID(),
@@ -380,6 +421,7 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 		kvCli := kv.NewMockClient(ctrl)
 		utMgr.kvClient = kvCli
 
+		vanus.InitFakeSnowflake()
 		ctx := stdCtx.Background()
 		kvCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Times(14).Return(nil)
 		alloc := block.NewMockAllocator(ctrl)
@@ -388,7 +430,26 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 			ID:       vanus.NewTestID(),
 			Capacity: 64 * 1024 * 1024 * 1024,
 		}
-		alloc.EXPECT().Pick(ctx, 3).Times(2).DoAndReturn(func(ctx stdCtx.Context, num int) ([]*metadata.Block, error) {
+		alloc.EXPECT().Pick(ctx, 3).Times(1).DoAndReturn(func(ctx stdCtx.Context, num int) ([]*metadata.Block, error) {
+			return []*metadata.Block{
+				{
+					ID:       vanus.NewTestID(),
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: vol1.ID,
+				},
+				{
+					ID:       vanus.NewTestID(),
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: vol1.ID,
+				},
+				{
+					ID:       vanus.NewTestID(),
+					Capacity: 64 * 1024 * 1024,
+					VolumeID: vol1.ID,
+				},
+			}, nil
+		})
+		alloc.EXPECT().PickByVolumes(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(func(ctx stdCtx.Context, volumes []vanus.ID) ([]*metadata.Block, error) {
 			return []*metadata.Block{
 				{
 					ID:       vanus.NewTestID(),
@@ -418,7 +479,7 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 		grpcCli.EXPECT().ActivateSegment(ctx, gomock.Any()).Times(2).Return(nil, nil)
 
 		eventbusID := vanus.NewTestID()
-		logMD, err := utMgr.AcquireEventLog(ctx, eventbusID)
+		logMD, err := utMgr.AcquireEventLog(ctx, eventbusID, "ut")
 		Convey("validate metadata", func() {
 			So(err, ShouldBeNil)
 			So(logMD.EventbusID, ShouldEqual, eventbusID)
