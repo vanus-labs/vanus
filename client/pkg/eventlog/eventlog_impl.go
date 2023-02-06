@@ -129,8 +129,8 @@ func (l *eventlog) ID() uint64 {
 func (l *eventlog) Close(ctx context.Context) {
 	l.writableWatcher.Close()
 	l.readableWatcher.Close()
-	l.logWriter = nil
-	l.logReader = nil
+	l.logWriter.Close(ctx)
+	l.logReader.Close(ctx)
 
 	for _, segment := range l.writableSegments {
 		segment.Close(ctx)
@@ -222,11 +222,6 @@ func (l *eventlog) QueryOffsetByTime(ctx context.Context, timestamp int64) (int6
 	// LastEntryStime
 	// time.UnixMilli
 	tailSeg := fetchTailSegment(ctx, segs)
-	if tailSeg.firstEventBornAt.Before(t) {
-		// the target offset maybe in newer segment, refresh immediately
-		l.refreshReadableSegments(ctx)
-		segs = l.fetchReadableSegments(ctx)
-	}
 
 	for idx := range segs {
 		seg := segs[idx]

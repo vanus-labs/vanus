@@ -425,14 +425,17 @@ func (s *server) runHeartbeat(_ context.Context) error {
 					break
 				}
 
-				s.replicas.Range(func(key, value interface{}) bool {
+				value, ok := s.replicas.Load(info.leader.Uint64())
+				if ok {
 					b, _ := value.(replica)
-					if b.appender.Status().Leader.Equals(vanus.ID(segment.LeaderBlockId)) {
-						b.appender.Archive(context.Background())
-						return false
+					if b.appender.Status().Term != info.term {
+						break
 					}
-					return true
-				})
+					if info.leader.Uint64() != segment.LeaderBlockId {
+						break
+					}
+					b.appender.Archive(context.Background())
+				}
 			}
 		}
 	}()
@@ -904,13 +907,15 @@ func (s *server) checkState() error {
 	return nil
 }
 
-func toSegmentState(state block.State) string {
+func toSegmentState(state uint32) string {
 	switch state {
-	case block.StateArchiving:
-		return "freezing"
+	case block.StateWorking:
+		return "working"
 	case block.StateArchived:
 		return "frozen"
+	case block.StateArchiving:
+		return "freezing"
 	default:
-		return string(state)
+		return "working"
 	}
 }

@@ -67,7 +67,7 @@ func TestVSBlock_Open(t *testing.T) {
 		stat := b.status()
 		So(stat.Capacity, ShouldEqual, vsbtest.EntrySize0+vsbtest.EntrySize1)
 		So(stat.EntryNum, ShouldEqual, 2)
-		So(stat.State, ShouldEqual, block.StateArchiving)
+		So(stat.State, ShouldEqual, block.StateArchived)
 		So(stat.EntrySize, ShouldEqual, vsbtest.EntrySize0+vsbtest.EntrySize1)
 
 		So(b.indexes, ShouldHaveLength, 2)
@@ -133,6 +133,9 @@ func TestVSBlock_Open(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		b := &vsBlock{
+			actx: appendContext{
+				state: block.StateWorking,
+			},
 			path: f.Name(),
 		}
 

@@ -86,9 +86,9 @@ func (b *vsBlock) init(ctx context.Context) error {
 func (b *vsBlock) repairMeta() error {
 	off := b.dataOffset + b.fm.entryLength
 	seq := b.fm.entryNum
-	full := b.fm.archived
 
 	var entry block.Entry
+	var full bool
 	var err error
 	var n, en int
 
@@ -96,7 +96,7 @@ func (b *vsBlock) repairMeta() error {
 	indexes := make([]index.Index, 0)
 	// Note: use math.MaxInt64-off to avoid overflow.
 	r := io.NewSectionReader(b.f, off, math.MaxInt64-off)
-	if full {
+	if b.fm.state == block.StateArchiving || b.fm.state == block.StateArchived {
 		n, entry, err = b.dec.UnmarshalReader(r)
 		if err != nil || ceschema.EntryType(entry) != ceschema.End {
 			return errCorrupted
@@ -161,7 +161,7 @@ SET_META:
 	b.actx.seq = seq
 	b.actx.offset = off
 	if full {
-		b.actx.archived = 1
+		b.actx.state = block.StateArchived
 	}
 
 	return nil

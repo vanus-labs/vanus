@@ -18,7 +18,6 @@ import (
 	// standard libraries.
 	"context"
 	"encoding/binary"
-	"sync/atomic"
 
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability/log"
@@ -49,7 +48,7 @@ func (b *vsBlock) makeSnapshot() (meta, []index.Index) {
 func makeSnapshot(actx appendContext, indexes []index.Index) (meta, []index.Index) {
 	m := meta{
 		writeOffset: actx.offset,
-		archived:    actx.Archived(),
+		state:       actx.state,
 	}
 	if sz := len(indexes); sz != 0 {
 		m.entryLength = indexes[sz-1].EndOffset() - indexes[0].StartOffset()
@@ -102,7 +101,7 @@ func (b *vsBlock) ApplySnapshot(ctx context.Context, snap block.Fragment) error 
 		n, entry, _ := b.dec.Unmarshal(payload[off-headerBlockSize:])
 
 		if ceschema.EntryType(entry) == ceschema.End {
-			atomic.StoreUint32(&b.actx.archived, 1)
+			b.actx.state = block.StateArchived
 			break
 		}
 

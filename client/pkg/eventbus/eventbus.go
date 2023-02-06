@@ -187,7 +187,11 @@ func (b *eventbus) GetLog(ctx context.Context, logID uint64, opts ...api.LogOpti
 		b.readableMu.RLock()
 		defer b.readableMu.RUnlock()
 		if len(b.readableLogs) == 0 {
-			b.refreshReadableLogs(ctx)
+			func() {
+				b.readableMu.RUnlock()
+				defer b.readableMu.RLock()
+				b.refreshReadableLogs(ctx)
+			}()
 		}
 		if l, ok := b.readableLogs[logID]; ok {
 			return l, nil
@@ -197,7 +201,11 @@ func (b *eventbus) GetLog(ctx context.Context, logID uint64, opts ...api.LogOpti
 		b.writableMu.RLock()
 		defer b.writableMu.RUnlock()
 		if len(b.writableLogs) == 0 {
-			b.refreshWritableLogs(ctx)
+			func() {
+				b.writableMu.RUnlock()
+				defer b.writableMu.RLock()
+				b.refreshWritableLogs(ctx)
+			}()
 		}
 		if l, ok := b.writableLogs[logID]; ok {
 			return l, nil
@@ -222,7 +230,11 @@ func (b *eventbus) ListLog(ctx context.Context, opts ...api.LogOption) ([]api.Ev
 		b.readableMu.RLock()
 		defer b.readableMu.RUnlock()
 		if len(b.readableLogs) == 0 {
-			b.refreshReadableLogs(ctx)
+			func() {
+				b.readableMu.RUnlock()
+				defer b.readableMu.RLock()
+				b.refreshReadableLogs(ctx)
+			}()
 		}
 		eventlogs := make([]api.Eventlog, 0)
 		for _, el := range b.readableLogs {
@@ -233,7 +245,11 @@ func (b *eventbus) ListLog(ctx context.Context, opts ...api.LogOption) ([]api.Ev
 		b.writableMu.RLock()
 		defer b.writableMu.RUnlock()
 		if len(b.writableLogs) == 0 {
-			b.refreshWritableLogs(ctx)
+			func() {
+				b.writableMu.RUnlock()
+				defer b.writableMu.RLock()
+				b.refreshWritableLogs(ctx)
+			}()
 		}
 		eventlogs := make([]api.Eventlog, 0)
 		for _, el := range b.writableLogs {
