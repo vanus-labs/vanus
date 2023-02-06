@@ -33,8 +33,13 @@ const (
 )
 
 const (
-	HttpPrefix = "http://"
-	BaseUrl    = "/api/v1"
+	DefaultOperatorPort = 30009
+	HttpPrefix          = "http://"
+	BaseUrl             = "/api/v1"
+)
+
+var (
+	retryTime = 30
 )
 
 type GlobalFlags struct {

@@ -57,20 +57,21 @@ var (
 	showBlock   bool
 
 	// for cluster
-	clusterVersion        string
-	controllerReplicas    int32
-	controllerStorageSize string
-	storeReplicas         int32
-	storeStorageSize      string
-	triggerReplicas       int32
+	clusterConfigFile   string
+	clusterVersion      string
+	showInstallableList bool
+	showUpgradeableList bool
+	controllerReplicas  int32
+	storeReplicas       int32
+	triggerReplicas     int32
 
 	// for connector
-	configfile       string
-	kind             string
-	name             string
-	ctype            string
-	connectorVersion string
-	showConnectors   bool
+	connectorConfigFile string
+	kind                string
+	name                string
+	ctype               string
+	connectorVersion    string
+	showConnectors      bool
 )
 
 const (

@@ -73,8 +73,10 @@ type ConnectorPatch struct {
 type ConnectorInfo struct {
 	Kind    string `json:"kind,omitempty"`
 	Name    string `json:"name,omitempty"`
+	Type    string `json:"type,omitempty"`
 	Version string `json:"version,omitempty"`
 	Status  string `json:"status,omitempty"`
+	Reason  string `json:"reason,omitempty"`
 }
 
 type GetConnectorOKBody struct {
@@ -96,8 +98,8 @@ func NewConnectorCommand() *cobra.Command {
 	}
 	cmd.AddCommand(installConnectorCommand())
 	cmd.AddCommand(uninstallConnectorCommand())
-	cmd.AddCommand(getConnectorCommand())
 	cmd.AddCommand(listConnectorCommand())
+	cmd.AddCommand(getConnectorCommand())
 	return cmd
 }
 
@@ -106,9 +108,12 @@ func installConnectorCommand() *cobra.Command {
 		Use:   "install",
 		Short: "install a connector",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operator_endpoint, err := getOperatorEndpoint()
 			if err != nil {
-				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				if err != nil {
+					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				}
 			}
 
 			if showConnectors {
@@ -147,7 +152,7 @@ func installConnectorCommand() *cobra.Command {
 			if ctype == "" {
 				cmdFailedf(cmd, "the --ctype flag MUST be set")
 			}
-			if configfile == "" {
+			if connectorConfigFile == "" {
 				cmdFailedf(cmd, "the --config-file flag MUST be set")
 			}
 
@@ -161,9 +166,9 @@ func installConnectorCommand() *cobra.Command {
 
 			client := &http.Client{}
 			url := fmt.Sprintf("%s%s%s/connectors", HttpPrefix, operator_endpoint, BaseUrl)
-			data, err := getConfig(configfile)
+			data, err := getConfig(connectorConfigFile)
 			if err != nil {
-				cmdFailedf(cmd, "get config failed, file: %s, err: %s", configfile, err)
+				cmdFailedf(cmd, "get config failed, file: %s, err: %s", connectorConfigFile, err)
 			}
 			connector := ConnectorCreate{
 				Config:  data,
@@ -206,7 +211,7 @@ func installConnectorCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&connectorVersion, "version", "latest", "connector version")
-	cmd.Flags().StringVar(&configfile, "config-file", "", "connector config file")
+	cmd.Flags().StringVar(&connectorConfigFile, "config-file", "", "connector config file")
 	cmd.Flags().StringVar(&kind, "kind", "", "connector kind, support 'source' or 'sink'")
 	cmd.Flags().StringVar(&name, "name", "", "connector name")
 	cmd.Flags().StringVar(&ctype, "type", "", "connector type")
@@ -219,9 +224,12 @@ func uninstallConnectorCommand() *cobra.Command {
 		Use:   "uninstall",
 		Short: "uninstall a connector",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operator_endpoint, err := getOperatorEndpoint()
 			if err != nil {
-				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				if err != nil {
+					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				}
 			}
 
 			if name == "" {
@@ -267,9 +275,12 @@ func listConnectorCommand() *cobra.Command {
 		Use:   "list",
 		Short: "list connectors",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operator_endpoint, err := getOperatorEndpoint()
 			if err != nil {
-				cmdFailedf(cmd, "list operator endpoint failed: %s", err)
+				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				if err != nil {
+					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				}
 			}
 
 			if !operatorIsDeployed(cmd, operator_endpoint) {
@@ -303,13 +314,15 @@ func listConnectorCommand() *cobra.Command {
 				color.Yellow("WARN: this command doesn't support --output-format\n")
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Connector", "Result"})
+				t.AppendHeader(table.Row{"Kind", "Name", "Type", "Version", "Status", "Reason"})
 				for i := range info.Data {
-					t.AppendRows([]table.Row{
-						{"Kind", info.Data[i].Kind},
-						{"Name", info.Data[i].Name},
-						{"Version", info.Data[i].Version},
-						{"Status", info.Data[i].Status},
+					t.AppendRow(table.Row{
+						info.Data[i].Kind,
+						info.Data[i].Name,
+						info.Data[i].Type,
+						info.Data[i].Version,
+						info.Data[i].Status,
+						info.Data[i].Reason,
 					})
 				}
 				t.SetColumnConfigs([]table.ColumnConfig{
@@ -332,9 +345,12 @@ func getConnectorCommand() *cobra.Command {
 		Use:   "info",
 		Short: "get connector info",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operator_endpoint, err := getOperatorEndpoint()
 			if err != nil {
-				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				if err != nil {
+					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				}
 			}
 
 			if name == "" {
@@ -368,12 +384,16 @@ func getConnectorCommand() *cobra.Command {
 				color.Yellow("WARN: this command doesn't support --output-format\n")
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Connector", "Result"})
+				t.AppendHeader(table.Row{"Kind", "Name", "Type", "Version", "Status", "Reason"})
 				t.AppendRows([]table.Row{
-					{"Kind", info.Data.Kind},
-					{"Name", info.Data.Name},
-					{"Version", info.Data.Version},
-					{"Status", info.Data.Status},
+					{
+						info.Data.Kind,
+						info.Data.Name,
+						info.Data.Type,
+						info.Data.Version,
+						info.Data.Status,
+						info.Data.Reason,
+					},
 				})
 				t.SetColumnConfigs([]table.ColumnConfig{
 					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},

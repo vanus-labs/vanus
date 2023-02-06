@@ -15,17 +15,29 @@
 package command
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
+)
+
+var (
+	clusterVersionList = []string{
+		"v0.5.0", "v0.5.1", "v0.5.2", "v0.5.3", "v0.5.4", "v0.5.5", "v0.5.6", "v0.5.7",
+		"v0.6.0",
+	}
 )
 
 type ClusterCreate struct {
@@ -58,6 +70,27 @@ type GetClusterOKBody struct {
 	Message *string      `json:"message"`
 }
 
+type ClusterSpec struct {
+	Version    string      `yaml:"version"`
+	Controller *Controller `yaml:"controller"`
+	Store      *Store      `yaml:"store"`
+	Trigger    *Trigger    `yaml:"trigger"`
+}
+
+type Controller struct {
+	Replicas    int32  `yaml:"replicas"`
+	StorageSize string `yaml:"storage_size"`
+}
+
+type Store struct {
+	Replicas    int32  `yaml:"replicas"`
+	StorageSize string `yaml:"storage_size"`
+}
+
+type Trigger struct {
+	Replicas int32 `yaml:"replicas"`
+}
+
 func NewClusterCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cluster sub-command ",
@@ -68,6 +101,7 @@ func NewClusterCommand() *cobra.Command {
 	cmd.AddCommand(upgradeClusterCommand())
 	cmd.AddCommand(scaleClusterCommand())
 	cmd.AddCommand(getClusterCommand())
+	cmd.AddCommand(genClusterCommand())
 	return cmd
 }
 
@@ -76,23 +110,108 @@ func createClusterCommand() *cobra.Command {
 		Use:   "create",
 		Short: "create a cluster",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operator_endpoint, err := getOperatorEndpoint()
 			if err != nil {
-				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				if err != nil {
+					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				}
+			}
+
+			if showInstallableList {
+				if IsFormatJSON(cmd) {
+					color.Yellow("WARN: this command doesn't support --output-format\n")
+				} else {
+					t := table.NewWriter()
+					t.AppendHeader(table.Row{"Version"})
+					row := make([]table.Row, len(clusterVersionList))
+					for idx := range clusterVersionList {
+						row[idx] = table.Row{clusterVersionList[idx]}
+					}
+					t.AppendRows(row)
+					t.SetColumnConfigs([]table.ColumnConfig{
+						{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 2, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 3, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					})
+					t.SetStyle(table.StyleLight)
+					t.Style().Options.SeparateRows = true
+					t.Style().Box = table.StyleBoxDefault
+					t.SetOutputMirror(os.Stdout)
+					t.Render()
+				}
+				return
 			}
 
 			if !operatorIsDeployed(cmd, operator_endpoint) {
-				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://download.linkall.com/vanus/operator/latest.yml")
+				fmt.Println("You haven't deployed the operator yet. It will be automatically deployed for you in 3s...")
+				time.Sleep(time.Second)
+				fmt.Println("remaining 3s...")
+				time.Sleep(time.Second)
+				fmt.Println("remaining 2s...")
+				time.Sleep(time.Second)
+				fmt.Println("remaining 1s...")
+				time.Sleep(time.Second)
+				fmt.Println("Start deploy operator...")
+				operator := exec.Command("kubectl", "apply", "-f", "https://download.linkall.com/vanus/operator/latest.yml")
+				err = operator.Run()
+				if err != nil {
+					cmdFailedf(cmd, "deploy operator failed: %s", err)
+				}
+				result := "failure"
+				for i := 0; i < retryTime; i++ {
+					time.Sleep(time.Second)
+					if operatorIsDeployed(cmd, operator_endpoint) {
+						result = "success"
+						break
+					}
+				}
+				if result == "failure" {
+					cmdFailedf(cmd, "deploy operator not finished.")
+				}
+				fmt.Println("Deploy operator finish, and then start create vanus cluster...")
+			}
+
+			if clusterConfigFile == "" {
+				cmdFailedf(cmd, "the --config-file flag MUST be set")
+			}
+
+			c := new(ClusterSpec)
+			err = LoadConfig(clusterConfigFile, c)
+			if err != nil {
+				cmdFailedf(cmd, "load cluster config file failed: %s", err)
+			}
+
+			clusterspec := table.NewWriter()
+			clusterspec.AppendHeader(table.Row{"Cluster", "Version", "Component", "Replicas", "StorageSize"})
+			clusterspec.AppendRow(table.Row{"vanus", c.Version, "controller", c.Controller.Replicas, c.Controller.StorageSize})
+			clusterspec.AppendSeparator()
+			clusterspec.AppendRow(table.Row{"vanus", c.Version, "store", c.Store.Replicas, c.Store.StorageSize})
+			clusterspec.AppendSeparator()
+			clusterspec.AppendRow(table.Row{"vanus", c.Version, "trigger", c.Trigger.Replicas})
+			clusterspec.AppendSeparator()
+			clusterspec.SetColumnConfigs(clusterColConfigs())
+			fmt.Println(clusterspec.Render())
+			fmt.Print("The cluster specifications are shown in the above table. Please confirm whether you want to create the cluster(y/n):")
+			reader := bufio.NewReader(os.Stdin)
+			ack, err := reader.ReadString('\n')
+			if err != nil {
+				cmdFailedf(cmd, "read failed: %s", err)
+			}
+			ack = strings.Trim(ack, "\n")
+			if ack != "y" {
+				fmt.Println("Exit vanus cluster deployment...")
+				return
 			}
 
 			client := &http.Client{}
 			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operator_endpoint, BaseUrl)
 			cluster := ClusterCreate{
-				ControllerReplicas:    controllerReplicas,
-				ControllerStorageSize: controllerStorageSize,
-				StoreReplicas:         storeReplicas,
-				StoreStorageSize:      storeStorageSize,
-				Version:               clusterVersion,
+				ControllerReplicas:    c.Controller.Replicas,
+				ControllerStorageSize: c.Controller.StorageSize,
+				StoreReplicas:         c.Store.Replicas,
+				StoreStorageSize:      c.Store.StorageSize,
+				Version:               c.Version,
 			}
 			dataByte, err := json.Marshal(cluster)
 			if err != nil {
@@ -128,10 +247,8 @@ func createClusterCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&clusterVersion, "version", "v0.6.0", "cluster version")
-	cmd.Flags().Int32Var(&controllerReplicas, "controller-replicas", 3, "controller replicas")
-	cmd.Flags().StringVar(&controllerStorageSize, "controller-storage-size", "1Gi", "controller storage size")
-	cmd.Flags().Int32Var(&storeReplicas, "store-replicas", 3, "store replicas")
-	cmd.Flags().StringVar(&storeStorageSize, "store-storage-size", "1Gi", "store storage size")
+	cmd.Flags().StringVar(&clusterConfigFile, "config-file", "", "cluster config file")
+	cmd.Flags().BoolVar(&showInstallableList, "list", false, "if show all version of installable")
 	return cmd
 }
 
@@ -140,9 +257,24 @@ func deleteClusterCommand() *cobra.Command {
 		Use:   "delete",
 		Short: "delete a cluster",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operator_endpoint, err := getOperatorEndpoint()
 			if err != nil {
-				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				if err != nil {
+					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				}
+			}
+
+			fmt.Print("Deleting a cluster will lose all cluster data, sure you want to delete the vanus cluster(y/n):")
+			reader := bufio.NewReader(os.Stdin)
+			ack, err := reader.ReadString('\n')
+			if err != nil {
+				cmdFailedf(cmd, "read failed: %s", err)
+			}
+			ack = strings.Trim(ack, "\n")
+			if ack != "y" {
+				fmt.Println("Exit vanus cluster deleting...")
+				return
 			}
 
 			client := &http.Client{}
@@ -192,9 +324,50 @@ func upgradeClusterCommand() *cobra.Command {
 		Use:   "upgrade",
 		Short: "upgeade cluster",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operator_endpoint, err := getOperatorEndpoint()
 			if err != nil {
-				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				if err != nil {
+					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				}
+			}
+
+			if showUpgradeableList {
+				info, err := getCluster(cmd, operator_endpoint)
+				if err != nil {
+					cmdFailedf(cmd, "get the current version of the cluster failed: %s", err)
+				}
+				result := getUpgradableVersionList(info.Data.Version)
+				if IsFormatJSON(cmd) {
+					color.Yellow("WARN: this command doesn't support --output-format\n")
+				} else {
+					t := table.NewWriter()
+					t.AppendHeader(table.Row{"Version"})
+					if len(result) == 0 {
+						t.AppendRow(table.Row{"No Upgradeable Version"})
+					} else {
+						row := make([]table.Row, len(result))
+						for idx := range result {
+							row[idx] = table.Row{result[idx]}
+						}
+						t.AppendRows(row)
+					}
+					t.SetColumnConfigs([]table.ColumnConfig{
+						{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 2, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+						{Number: 3, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					})
+					t.SetStyle(table.StyleLight)
+					t.Style().Options.SeparateRows = true
+					t.Style().Box = table.StyleBoxDefault
+					t.SetOutputMirror(os.Stdout)
+					t.Render()
+				}
+				return
+			}
+
+			if clusterVersion == "" {
+				cmdFailedf(cmd, "the --version flag MUST be set")
 			}
 
 			client := &http.Client{}
@@ -235,7 +408,9 @@ func upgradeClusterCommand() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringVar(&clusterVersion, "version", "v0.6.0", "cluster version")
+	cmd.Flags().StringVar(&clusterVersion, "version", "", "cluster version")
+	cmd.Flags().BoolVar(&showUpgradeableList, "list", false, "if show all version of upgradeable")
+
 	return cmd
 }
 
@@ -255,9 +430,12 @@ func scaleControllerReplicas() *cobra.Command {
 		Use:   "controller",
 		Short: "scale controller replicas",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operator_endpoint, err := getOperatorEndpoint()
 			if err != nil {
-				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				if err != nil {
+					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				}
 			}
 
 			client := &http.Client{}
@@ -307,9 +485,12 @@ func scaleStoreReplicas() *cobra.Command {
 		Use:   "store",
 		Short: "scale store replicas",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operator_endpoint, err := getOperatorEndpoint()
 			if err != nil {
-				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				if err != nil {
+					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				}
 			}
 
 			client := &http.Client{}
@@ -359,9 +540,12 @@ func scaleTriggerReplicas() *cobra.Command {
 		Use:   "trigger",
 		Short: "scale trigger replicas",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operator_endpoint, err := getOperatorEndpoint()
 			if err != nil {
-				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				if err != nil {
+					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				}
 			}
 
 			client := &http.Client{}
@@ -411,9 +595,12 @@ func getClusterCommand() *cobra.Command {
 		Use:   "status",
 		Short: "get cluster status",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operator_endpoint, err := getOperatorEndpoint()
 			if err != nil {
-				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				if err != nil {
+					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
+				}
 			}
 
 			client := &http.Client{}
@@ -463,4 +650,102 @@ func getClusterCommand() *cobra.Command {
 		},
 	}
 	return cmd
+}
+
+func genClusterCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "generate-config-template",
+		Short: "generate cluster config file",
+		Run: func(cmd *cobra.Command, args []string) {
+			cluster := &ClusterSpec{
+				Version: "v0.6.0",
+				Controller: &Controller{
+					Replicas:    3,
+					StorageSize: "1Gi",
+				},
+				Store: &Store{
+					Replicas:    3,
+					StorageSize: "1Gi",
+				},
+				Trigger: &Trigger{
+					Replicas: 1,
+				},
+			}
+			data, err := yaml.Marshal(cluster)
+			if err != nil {
+				cmdFailedf(cmd, "yaml marshal failed: %s", err)
+			}
+
+			fileName := "cluster.yaml.example"
+			err = ioutil.WriteFile(fileName, data, 0644)
+			if err != nil {
+				cmdFailedf(cmd, "generate cluster config file template failed: %s", err)
+			}
+
+			if IsFormatJSON(cmd) {
+				color.Yellow("WARN: this command doesn't support --output-format\n")
+			} else {
+				t := table.NewWriter()
+				t.AppendHeader(table.Row{"Result", "Output"})
+				t.AppendRow(table.Row{"Generate Cluster Config File Template Success", "cluster.yaml.example"})
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+				})
+				t.SetStyle(table.StyleLight)
+				t.Style().Options.SeparateRows = true
+				t.Style().Box = table.StyleBoxDefault
+				t.SetOutputMirror(os.Stdout)
+				t.Render()
+			}
+		},
+	}
+	return cmd
+}
+
+func getCluster(cmd *cobra.Command, endpoint string) (*GetClusterOKBody, error) {
+	client := &http.Client{}
+	url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, endpoint, BaseUrl)
+	req, err := http.NewRequest("GET", url, &bytes.Reader{})
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	info := &GetClusterOKBody{}
+	err = json.Unmarshal(body, info)
+	if err != nil {
+		return nil, err
+	}
+	return info, nil
+}
+
+func clusterColConfigs() []table.ColumnConfig {
+	return []table.ColumnConfig{
+		{Number: 1, AutoMerge: true, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+		{Number: 2, AutoMerge: true, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+		{Number: 3, AutoMerge: false, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+		{Number: 4, AutoMerge: false, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+		{Number: 5, AutoMerge: false, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+	}
+}
+
+func getUpgradableVersionList(curVersion string) []string {
+	var curIdx int
+	for idx := range clusterVersionList {
+		if strings.Compare(curVersion, clusterVersionList[idx]) == 0 {
+			curIdx = idx
+			break
+		}
+	}
+	return clusterVersionList[curIdx+1:]
 }
