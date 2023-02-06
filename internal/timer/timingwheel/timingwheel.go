@@ -26,6 +26,7 @@ import (
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/timer/metadata"
@@ -79,6 +80,7 @@ type timingWheel struct {
 	kvStore kv.Client
 	ctrlCli ctrlpb.EventBusControllerClient
 	client  client.Client
+	cache   sync.Map
 	twList  *list.List // element: *timingWheelElement
 
 	ctrl cluster.Cluster
@@ -570,7 +572,12 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 		})
 		return err
 	}
-	_, err = tw.client.Eventbus(ctx, ebName).Writer().AppendOne(ctx, e)
+	v, exist := tw.cache.Load(ebName)
+	if !exist {
+		v, _ = tw.cache.LoadOrStore(ebName, tw.client.Eventbus(ctx, ebName).Writer())
+	}
+	writer, _ := v.(api.BusWriter)
+	_, err = writer.AppendOne(ctx, e)
 	if err != nil {
 		if errors.Is(err, errors.ErrOffsetOnEnd) {
 			log.Warning(ctx, "eventbus not found, discard this event", map[string]interface{}{
