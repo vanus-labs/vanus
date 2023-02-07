@@ -24,24 +24,7 @@ spec:
           command: ["sh", "/vanus/test/regression/run.sh"]
 #          command: ["bash", "-c", "sleep 1000000"]
           env:
-            - name: JOB_NAME
-              value: "e2e-benchmark-producer"
             - name: PAYLOAD_SIZE
               value: "1024"
             - name: VANUS_GATEWAY
               value: "vanus-gateway.vanus:8080"
-            - name: REDIS_ADDR
-              value: "redis.vanus:6379"
-            - name: MONGODB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: benchmark-credentials
-                  key: mongodb_password
-            - name: EVENTLOG_NUMBER
-              value: "16"
-            - name: PARALLELISM
-              value: "16"
-            - name: BATCH_SIZE
-              value: "16"
-            - name: TOTAL_NUMBER
-              value: "1000000"
