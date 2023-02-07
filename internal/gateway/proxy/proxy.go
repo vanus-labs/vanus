@@ -169,6 +169,7 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 		).Observe(used)
 	}()
 
+	eventbusName := req.EventbusName
 	for idx := range req.Events.Events {
 		e := req.Events.Events[idx]
 		err := checkExtension(e.Attributes)
@@ -180,11 +181,11 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 			e.Attributes = make(map[string]*cloudevents.CloudEvent_CloudEventAttributeValue, 0)
 		}
 		e.Attributes[primitive.XVanusEventbus] = &cloudevents.CloudEvent_CloudEventAttributeValue{
-			Attr: &cloudevents.CloudEvent_CloudEventAttributeValue_CeString{CeString: req.EventbusName},
+			Attr: &cloudevents.CloudEvent_CloudEventAttributeValue_CeString{CeString: eventbusName},
 		}
 		if eventTime, ok := e.Attributes[primitive.XVanusDeliveryTime]; ok {
 			// validate event time
-			if _, err := types.ParseTime(eventTime.String()); err != nil {
+			if _, err := types.ParseTime(eventTime.GetCeString()); err != nil {
 				log.Error(_ctx, "invalid format of event time", map[string]interface{}{
 					log.KeyError: err,
 					"eventTime":  eventTime.String(),
@@ -192,8 +193,7 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 				responseCode = http.StatusBadRequest
 				return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid delivery time")
 			}
-			// TODO process delay message
-			// ebName = primitive.TimerEventbusName
+			req.EventbusName = primitive.TimerEventbusName
 		}
 	}
 

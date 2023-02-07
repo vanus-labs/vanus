@@ -48,7 +48,7 @@ func TestGateway_StartReceive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	ga := &ceGateway{
 		config: Config{
-			Port: 8080,
+			Port: 18080,
 		},
 	}
 	Convey("test start receive ", t, func() {

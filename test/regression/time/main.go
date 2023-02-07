@@ -17,6 +17,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/linkall-labs/vanus/internal/primitive"
+	"math/rand"
 	"net"
 	"os"
 	"sync"
@@ -36,14 +38,16 @@ var (
 	sentFailed     int64
 	receivedNumber int64
 
-	totalNumber        = int64(1 << 19) // 1024*1024
-	parallelism        = 4
-	batchSize          = 8
-	maximumPayloadSize = 4 * 1024
-	receiveEventPort   = 18080
-	waitTimeout        = 30 * time.Second
-	totalLatency       = int64(0)
-	caseName           = "vanus.regression.pubsub"
+	totalNumber          = int64(1 << 20) // 1024*1024
+	parallelism          = 4
+	batchSize            = 8
+	maximumPayloadSize   = 4 * 1024
+	receiveEventPort     = 18080
+	waitTimeout          = 10 * time.Second
+	totalLatency         = int64(0)
+	caseName             = "vanus.regression.time"
+	maximumDelayInSecond = int32(600)
+	maxDelayTime         = atomic.Value{}
 
 	eventbus = os.Getenv("EVENTBUS")
 	endpoint = os.Getenv("VANUS_GATEWAY")
@@ -62,17 +66,16 @@ func main() {
 	})
 
 	publishEvents(ctx)
-	now := time.Now()
-	for time.Since(now) < waitTimeout && len(cache) > 0 {
+	maxDelayTime := maxDelayTime.Load().(time.Time)
+	for time.Since(maxDelayTime) < waitTimeout && len(cache) > 0 {
 		for k := range unmatch {
 			delete(cache, k)
 		}
 		time.Sleep(time.Second)
 	}
 	cancel()
-
 	if len(cache) != 0 {
-		log.Error(ctx, "failed to run pubsub case because of timeout after finished sending", map[string]interface{}{
+		log.Error(ctx, "failed to run schedule case because of timeout after finished sending", map[string]interface{}{
 			"success":  sentSuccess,
 			"received": receivedNumber,
 			"lost":     len(cache),
@@ -83,7 +86,7 @@ func main() {
 		}
 		os.Exit(1)
 	}
-	log.Info(ctx, "success to run publish and subscribe case", map[string]interface{}{
+	log.Info(ctx, "success to run schedule events case", map[string]interface{}{
 		"success":     sentSuccess,
 		"sent_failed": sentFailed,
 		"received":    receivedNumber,
@@ -93,6 +96,8 @@ func main() {
 func publishEvents(ctx context.Context) {
 	wg := sync.WaitGroup{}
 	start := time.Now()
+	rd := rand.New(rand.NewSource(time.Now().UnixNano()))
+	maxDelayTime.Store(time.Now())
 	for p := 0; p < parallelism; p++ {
 		wg.Add(1)
 		go func() {
@@ -103,6 +108,16 @@ func publishEvents(ctx context.Context) {
 				events := make([]*cloudevents.CloudEvent, batchSize)
 				for n := 0; n < batchSize; n++ {
 					events[n] = <-ch
+					delayTime := time.Now().Add(time.Duration(rd.Int31n(maximumDelayInSecond)) * time.Second)
+					events[n].Attributes[primitive.XVanusDeliveryTime] = &cloudevents.CloudEvent_CloudEventAttributeValue{
+						Attr: &cloudevents.CloudEvent_CloudEventAttributeValue_CeString{
+							CeString: delayTime.Format(time.RFC3339Nano),
+						},
+					}
+					max := maxDelayTime.Load().(time.Time)
+					for max.Before(delayTime) && !maxDelayTime.CompareAndSwap(max, delayTime) {
+						max = maxDelayTime.Load().(time.Time)
+					}
 				}
 				_, err := batchClient.Publish(context.Background(), &vanus.PublishRequest{
 					EventbusName: eventbus,

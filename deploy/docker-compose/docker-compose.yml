@@ -12,7 +12,7 @@ services:
       - vanus
   store:
     container_name: store
-    image: public.ecr.aws/vanus/store:17a9e4d
+    image: public.ecr.aws/vanus/store:b7cb025
     volumes:
       - ./config/store.yaml:/vanus/config/store.yaml
     expose:
@@ -22,18 +22,18 @@ services:
       - vanus
     depends_on:
       - controller
-#  timer:
-#    container_name: timer
-#    image: public.ecr.aws/vanus/timer:v0.6.0
-#    volumes:
-#      - ./config/timer.yaml:/vanus/config/timer.yaml
-#    expose:
-#      - 2115
-#    networks:
-#      - vanus
-#    depends_on:
-#      - controller
-#      - store
+  timer:
+    container_name: timer
+    image: public.ecr.aws/vanus/timer:357a882
+    volumes:
+      - ./config/timer.yaml:/vanus/config/timer.yaml
+    expose:
+      - 2115
+    networks:
+      - vanus
+    depends_on:
+      - controller
+      - store
   trigger:
     container_name: trigger
     image: public.ecr.aws/vanus/trigger:v0.6.0
@@ -47,7 +47,7 @@ services:
       - controller
   gateway:
     container_name: gateway
-    image: public.ecr.aws/vanus/gateway:6603ccb
+    image: public.ecr.aws/vanus/gateway:2e7d052
     ports:
       - "8080:8080"
       - "8081:8081"
