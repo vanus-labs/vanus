@@ -46,14 +46,16 @@ func newSegment(ctx context.Context, r *record.Segment, towrite bool) (*segment,
 	}
 
 	segment := &segment{
-		id:               r.ID,
-		startOffset:      r.StartOffset,
-		endOffset:        atomic.Int64{},
-		writable:         atomic.Bool{},
-		firstEventBornAt: r.FirstEventBornAt,
-		lastEventBornAt:  r.LastEventBornAt,
-		prefer:           prefer,
-		tracer:           tracing.NewTracer("internal.eventlog.segment", trace.SpanKindClient),
+		id:                r.ID,
+		previousSegmentId: r.PreviousSegmentId,
+		nextSegmentId:     r.NextSegmentId,
+		startOffset:       r.StartOffset,
+		endOffset:         atomic.Int64{},
+		writable:          atomic.Bool{},
+		firstEventBornAt:  r.FirstEventBornAt,
+		lastEventBornAt:   r.LastEventBornAt,
+		prefer:            prefer,
+		tracer:            tracing.NewTracer("internal.eventlog.segment", trace.SpanKindClient),
 	}
 
 	if !r.Writable {
@@ -86,12 +88,14 @@ func newBlockExt(ctx context.Context, r *record.Segment, leaderOnly bool) (*bloc
 }
 
 type segment struct {
-	id               uint64
-	startOffset      int64
-	endOffset        atomic.Int64
-	writable         atomic.Bool
-	firstEventBornAt time.Time
-	lastEventBornAt  time.Time
+	id                uint64
+	previousSegmentId uint64
+	nextSegmentId     uint64
+	startOffset       int64
+	endOffset         atomic.Int64
+	writable          atomic.Bool
+	firstEventBornAt  time.Time
+	lastEventBornAt   time.Time
 
 	prefer *block
 	mu     sync.RWMutex
@@ -169,7 +173,7 @@ func (s *segment) Append(ctx context.Context, event *ce.Event) (int64, error) {
 	if err != nil {
 		return -1, err
 	}
-	return off + s.startOffset, nil
+	return off, nil
 }
 
 func (s *segment) AppendBatch(ctx context.Context, event *cloudevents.CloudEventBatch) (int64, error) {

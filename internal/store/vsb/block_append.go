@@ -40,9 +40,9 @@ var (
 )
 
 type appendContext struct {
-	seq      int64
-	offset   int64
-	archived uint32
+	seq    int64
+	offset int64
+	state  uint32
 }
 
 // Make sure appendContext implements block.AppendContext.
@@ -56,8 +56,12 @@ func (c *appendContext) WriteOffset() int64 {
 	return c.offset
 }
 
+func (c *appendContext) Archiving() bool {
+	return c.state == block.StateArchiving
+}
+
 func (c *appendContext) Archived() bool {
-	return c.archived != 0
+	return c.state == block.StateArchived
 }
 
 // Make sure vsBlock implements block.TwoPCAppender.
@@ -70,9 +74,10 @@ func (b *vsBlock) NewAppendContext(last block.Fragment) block.AppendContext {
 		actx := &appendContext{
 			seq:    seq + 1,
 			offset: last.EndOffset(),
+			state:  block.StateWorking,
 		}
 		if ceschema.EntryType(entry) == ceschema.End {
-			actx.archived = 1
+			actx.state = block.StateArchived
 		}
 		return actx
 	}
@@ -108,7 +113,12 @@ func (b *vsBlock) PrepareAppend(
 	actx.offset += int64(frag.Size())
 	actx.seq += num
 
-	return seqs, frag, actx.size(b.dataOffset) >= b.capacity, nil
+	full := actx.size(b.dataOffset) >= b.capacity
+	if full && b.lis != nil {
+		b.lis.OnArchived(b.prefull(block.StateArchiving))
+	}
+
+	return seqs, frag, full, nil
 }
 
 func (b *vsBlock) PrepareArchive(ctx context.Context, appendCtx block.AppendContext) (block.Fragment, error) {
@@ -123,7 +133,7 @@ func (b *vsBlock) PrepareArchive(ctx context.Context, appendCtx block.AppendCont
 
 	actx.offset += int64(frag.Size())
 	actx.seq++
-	actx.archived = 1
+	actx.state = block.StateArchiving
 
 	return frag, nil
 }
@@ -184,7 +194,7 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 		return
 	}
 
-	atomic.StoreUint32(&b.actx.archived, 1)
+	atomic.StoreUint32(&b.actx.state, block.StateArchived)
 
 	b.wg.Add(1)
 	b.s.Append(bytes.NewReader(frag.Payload()), func(n int, err error) {
@@ -212,7 +222,7 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 		})
 
 		if b.lis != nil {
-			b.lis.OnArchived(b.stat(m, i))
+			b.lis.OnArchived(b.stat(m, i, block.StateArchived))
 		}
 	})
 }

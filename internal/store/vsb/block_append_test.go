@@ -74,7 +74,7 @@ func TestVSBlock_Append(t *testing.T) {
 		So(actx.WriteOffset(), ShouldEqual, vsbtest.EndEntryOffset+vsbtest.EndEntrySize)
 		So(actx.Archived(), ShouldBeTrue)
 
-		b.actx.archived = 1
+		b.actx.state = block.StateArchived
 		actx = b.NewAppendContext(nil)
 		So(actx, ShouldNotBeNil)
 		So(actx.WriteOffset(), ShouldEqual, headerBlockSize)
@@ -102,6 +102,7 @@ func TestVSBlock_Append(t *testing.T) {
 			dataOffset: headerBlockSize,
 			actx: appendContext{
 				offset: headerBlockSize,
+				state:  block.StateWorking,
 			},
 			enc: codec.NewEncoder(),
 			dec: dec,
@@ -122,7 +123,7 @@ func TestVSBlock_Append(t *testing.T) {
 			So(full, ShouldBeFalse)
 
 			stat := b.status()
-			So(stat.Archived, ShouldBeFalse)
+			So(stat.State, ShouldEqual, block.StateWorking)
 			So(stat.EntryNum, ShouldEqual, 0)
 			So(stat.EntrySize, ShouldEqual, 0)
 
@@ -132,7 +133,7 @@ func TestVSBlock_Append(t *testing.T) {
 			<-ch
 
 			stat = b.status()
-			So(stat.Archived, ShouldBeFalse)
+			So(stat.State, ShouldEqual, block.StateWorking)
 			So(stat.EntryNum, ShouldEqual, 1)
 			So(stat.EntrySize, ShouldEqual, vsbtest.EntrySize0)
 
@@ -147,7 +148,7 @@ func TestVSBlock_Append(t *testing.T) {
 			So(full, ShouldBeTrue)
 
 			stat = b.status()
-			So(stat.Archived, ShouldBeFalse)
+			So(stat.State, ShouldEqual, block.StateWorking)
 			So(stat.EntryNum, ShouldEqual, 1)
 			So(stat.EntrySize, ShouldEqual, vsbtest.EntrySize0)
 
@@ -157,7 +158,7 @@ func TestVSBlock_Append(t *testing.T) {
 			<-ch
 
 			stat = b.status()
-			So(stat.Archived, ShouldBeFalse)
+			So(stat.State, ShouldEqual, block.StateWorking)
 			So(stat.EntryNum, ShouldEqual, 2)
 			So(stat.EntrySize, ShouldEqual, vsbtest.EntrySize0+vsbtest.EntrySize1)
 
@@ -178,7 +179,7 @@ func TestVSBlock_Append(t *testing.T) {
 			So(full, ShouldBeTrue)
 
 			stat := b.status()
-			So(stat.Archived, ShouldBeFalse)
+			So(stat.State, ShouldEqual, block.StateWorking)
 			So(stat.EntryNum, ShouldEqual, 0)
 			So(stat.EntrySize, ShouldEqual, 0)
 
@@ -188,7 +189,7 @@ func TestVSBlock_Append(t *testing.T) {
 			<-ch
 
 			stat = b.status()
-			So(stat.Archived, ShouldBeFalse)
+			So(stat.State, ShouldEqual, block.StateWorking)
 			So(stat.EntryNum, ShouldEqual, 2)
 			So(stat.EntrySize, ShouldEqual, vsbtest.EntrySize0+vsbtest.EntrySize1)
 
@@ -275,7 +276,6 @@ func TestVSBlock_Append(t *testing.T) {
 		So(frag1.StartOffset(), ShouldEqual, vsbtest.EndEntryOffset)
 
 		stat := b.status()
-		So(stat.Archived, ShouldBeFalse)
 		So(stat.EntryNum, ShouldEqual, 0)
 		So(stat.EntrySize, ShouldEqual, 0)
 
@@ -289,7 +289,7 @@ func TestVSBlock_Append(t *testing.T) {
 		<-ch
 
 		stat = b.status()
-		So(stat.Archived, ShouldBeTrue)
+		So(stat.State, ShouldEqual, block.StateArchived)
 		So(stat.EntryNum, ShouldEqual, 2)
 		So(stat.EntrySize, ShouldEqual, vsbtest.EntrySize0+vsbtest.EntrySize1)
 

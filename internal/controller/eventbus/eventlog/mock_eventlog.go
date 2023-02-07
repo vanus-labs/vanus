@@ -121,6 +121,21 @@ func (mr *MockManagerMockRecorder) GetEventLogSegmentList(elID interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventLogSegmentList", reflect.TypeOf((*MockManager)(nil).GetEventLogSegmentList), elID)
 }
 
+// GetReadableSegment mocks base method.
+func (m *MockManager) GetReadableSegment(ctx context.Context, eli *metadata.Eventlog) ([]*Segment, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetReadableSegment", ctx, eli)
+	ret0, _ := ret[0].([]*Segment)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetReadableSegment indicates an expected call of GetReadableSegment.
+func (mr *MockManagerMockRecorder) GetReadableSegment(ctx, eli interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReadableSegment", reflect.TypeOf((*MockManager)(nil).GetReadableSegment), ctx, eli)
+}
+
 // GetSegment mocks base method.
 func (m *MockManager) GetSegment(id vanus.ID) *Segment {
 	m.ctrl.T.Helper()
@@ -189,11 +204,12 @@ func (mr *MockManagerMockRecorder) UpdateSegment(ctx, m interface{}) *gomock.Cal
 }
 
 // UpdateSegmentReplicas mocks base method.
-func (m *MockManager) UpdateSegmentReplicas(ctx context.Context, segID vanus.ID, term uint64) error {
+func (m *MockManager) UpdateSegmentReplicas(ctx context.Context, segID vanus.ID, term uint64) (*Segment, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateSegmentReplicas", ctx, segID, term)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(*Segment)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // UpdateSegmentReplicas indicates an expected call of UpdateSegmentReplicas.

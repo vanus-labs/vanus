@@ -72,7 +72,7 @@ message SegmentHealthInfo {
   int64 size = 4;
   int32 event_number = 5;
   int32 serialization_version = 6;
-  bool is_full = 7;
+  string state = 7;
   uint64 leader = 8;
   uint64 term = 9;
   // Unix timestamp, unit is millisecond

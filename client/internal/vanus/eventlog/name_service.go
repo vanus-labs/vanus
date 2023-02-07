@@ -48,13 +48,13 @@ type NameService struct {
 	tracer *tracing.Tracer
 }
 
-func (ns *NameService) LookupWritableSegment(ctx context.Context, logID uint64) (*record.Segment, error) {
+func (ns *NameService) LookupWritableSegment(ctx context.Context, logID uint64) ([]*record.Segment, error) {
 	ctx, span := ns.tracer.Start(ctx, "LookupWritableSegment")
 	defer span.End()
 
 	req := &ctrlpb.GetAppendableSegmentRequest{
 		EventLogId: logID,
-		Limited:    1,
+		Limited:    2,
 	}
 
 	resp, err := ns.client.GetAppendableSegment(ctx, req)
@@ -75,26 +75,28 @@ func (ns *NameService) LookupWritableSegment(ctx context.Context, logID uint64) 
 	if len(segments) == 0 {
 		return nil, errors.ErrNotWritable
 	}
-	return segments[0], nil
+	return segments, nil
 }
 
 func (ns *NameService) LookupReadableSegments(ctx context.Context, logID uint64) ([]*record.Segment, error) {
 	ctx, span := ns.tracer.Start(ctx, "LookupReadableSegments")
 	defer span.End()
 
-	req := &ctrlpb.ListSegmentRequest{
-		EventLogId:  logID,
-		StartOffset: 0,
-		EndOffset:   math.MaxInt64,
-		Limited:     math.MaxInt32,
+	req := &ctrlpb.GetReadableSegmentRequest{
+		EventLogId: logID,
+		Limited:    math.MaxInt32,
 	}
 
-	resp, err := ns.client.ListSegment(ctx, req)
+	resp, err := ns.client.GetReadableSegment(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
 	segments := toSegments(resp.GetSegments())
+	if len(segments) == 0 {
+		return nil, errors.ErrNotReadable
+	}
+
 	return segments, nil
 }
 
@@ -107,9 +109,9 @@ func toSegments(pbs []*metapb.Segment) []*record.Segment {
 		segment := toSegment(pb)
 		segments = append(segments, segment)
 		// only return first working segment
-		if segment.Writable {
-			break
-		}
+		// if segment.Writable {
+		// 	break
+		// }
 	}
 	return segments
 }
@@ -123,13 +125,15 @@ func toSegment(segment *metapb.Segment) *record.Segment {
 		}
 	}
 	return &record.Segment{
-		ID:               segment.GetId(),
-		StartOffset:      segment.GetStartOffsetInLog(),
-		EndOffset:        segment.GetEndOffsetInLog(),
-		FirstEventBornAt: time.UnixMilli(segment.FirstEventBornAtByUnixMs),
-		LastEventBornAt:  time.UnixMilli(segment.LastEvnetBornAtByUnixMs),
-		Writable:         segment.State == "working", // TODO: writable
-		Blocks:           blocks,
-		LeaderBlockID:    segment.GetLeaderBlockId(),
+		ID:                segment.GetId(),
+		PreviousSegmentId: segment.GetPreviousSegmentId(),
+		NextSegmentId:     segment.GetNextSegmentId(),
+		StartOffset:       segment.GetStartOffsetInLog(),
+		EndOffset:         segment.GetEndOffsetInLog(),
+		FirstEventBornAt:  time.UnixMilli(segment.FirstEventBornAtByUnixMs),
+		LastEventBornAt:   time.UnixMilli(segment.LastEvnetBornAtByUnixMs),
+		Writable:          segment.State == "working", // TODO: writable
+		Blocks:            blocks,
+		LeaderBlockID:     segment.GetLeaderBlockId(),
 	}
 }

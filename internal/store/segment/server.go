@@ -412,12 +412,29 @@ func (s *server) runHeartbeat(_ context.Context) error {
 					LeaderId: info.leader.Uint64(),
 					Term:     info.term,
 				}
-				if _, err := s.cc.ReportSegmentLeader(context.Background(), req); err != nil {
+				segment, err := s.cc.ReportSegmentLeader(context.Background(), req)
+				if err != nil {
 					log.Debug(ctx, "Report segment leader to controller failed.", map[string]interface{}{
 						"leader":     info.leader,
 						"term":       info.term,
 						log.KeyError: err,
 					})
+				}
+
+				if segment.State != "freezing" {
+					break
+				}
+
+				value, ok := s.replicas.Load(info.leader.Uint64())
+				if ok {
+					b, _ := value.(replica)
+					if b.appender.Status().Term != info.term {
+						break
+					}
+					if info.leader.Uint64() != segment.LeaderBlockId {
+						break
+					}
+					b.appender.Archive(context.Background())
 				}
 			}
 		}
@@ -746,10 +763,10 @@ func (s *server) onBlockArchived(stat block.Statistics) {
 		Capacity:           int64(stat.Capacity),
 		Size:               int64(stat.EntrySize),
 		EventNumber:        int32(stat.EntryNum),
-		IsFull:             stat.Archived,
+		State:              toSegmentState(stat.State),
 		FirstEventBornTime: stat.FirstEntryStime,
 	}
-	if stat.Archived {
+	if stat.State == block.StateArchived {
 		info.LastEventBornTime = stat.LastEntryStime
 	}
 
@@ -888,4 +905,17 @@ func (s *server) checkState() error {
 			"the server isn't ready to work, current state: %s", s.state))
 	}
 	return nil
+}
+
+func toSegmentState(state uint32) string {
+	switch state {
+	case block.StateWorking:
+		return "working"
+	case block.StateArchived:
+		return "frozen"
+	case block.StateArchiving:
+		return "freezing"
+	default:
+		return "working"
+	}
 }

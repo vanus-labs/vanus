@@ -29,6 +29,7 @@ import (
 
 	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	"github.com/linkall-labs/vanus/proto/pkg/meta"
 )
 
 var (
@@ -135,8 +136,8 @@ func (sc *segmentClient) ReportSegmentBlockIsFull(ctx context.Context,
 }
 
 func (sc *segmentClient) ReportSegmentLeader(ctx context.Context,
-	in *ctrlpb.ReportSegmentLeaderRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
+	in *ctrlpb.ReportSegmentLeaderRequest, opts ...grpc.CallOption) (*meta.Segment, error) {
+	out := new(meta.Segment)
 	err := sc.cc.invoke(ctx, "/linkall.vanus.controller.SegmentController/ReportSegmentLeader", in, out, opts...)
 	if err != nil {
 		return nil, err

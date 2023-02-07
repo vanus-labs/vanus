@@ -797,17 +797,17 @@ func TestEventlogManager_UpdateSegmentReplicas(t *testing.T) {
 		kvCli.EXPECT().Set(ctx, filepath.Join(metadata.SegmentKeyPrefixInKVStore, seg.ID.String()),
 			gomock.Any()).Times(1).Return(nil)
 
-		err := utMgr.UpdateSegmentReplicas(ctx, vanus.NewTestID(), 3)
+		_, err := utMgr.UpdateSegmentReplicas(ctx, vanus.NewTestID(), 3)
 		So(err, ShouldEqual, errors.ErrBlockNotFound)
 
-		err = utMgr.UpdateSegmentReplicas(ctx, blk.ID, 3)
+		_, err = utMgr.UpdateSegmentReplicas(ctx, blk.ID, 3)
 		So(err, ShouldEqual, errors.ErrSegmentNotFound)
 
 		blk.SegmentID = seg.ID
-		err = utMgr.UpdateSegmentReplicas(ctx, blk.ID, 3)
+		_, err = utMgr.UpdateSegmentReplicas(ctx, blk.ID, 3)
 		So(err, ShouldBeNil)
 
-		err = utMgr.UpdateSegmentReplicas(ctx, blk.ID, 4)
+		_, err = utMgr.UpdateSegmentReplicas(ctx, blk.ID, 4)
 		So(err, ShouldBeNil)
 	})
 }

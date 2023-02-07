@@ -397,6 +397,26 @@ func (mr *MockEventLogControllerClientMockRecorder) GetAppendableSegment(ctx, in
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppendableSegment", reflect.TypeOf((*MockEventLogControllerClient)(nil).GetAppendableSegment), varargs...)
 }
 
+// GetReadableSegment mocks base method.
+func (m *MockEventLogControllerClient) GetReadableSegment(ctx context.Context, in *GetReadableSegmentRequest, opts ...grpc.CallOption) (*GetReadableSegmentResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetReadableSegment", varargs...)
+	ret0, _ := ret[0].(*GetReadableSegmentResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetReadableSegment indicates an expected call of GetReadableSegment.
+func (mr *MockEventLogControllerClientMockRecorder) GetReadableSegment(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReadableSegment", reflect.TypeOf((*MockEventLogControllerClient)(nil).GetReadableSegment), varargs...)
+}
+
 // ListSegment mocks base method.
 func (m *MockEventLogControllerClient) ListSegment(ctx context.Context, in *ListSegmentRequest, opts ...grpc.CallOption) (*ListSegmentResponse, error) {
 	m.ctrl.T.Helper()
@@ -453,6 +473,21 @@ func (m *MockEventLogControllerServer) GetAppendableSegment(arg0 context.Context
 func (mr *MockEventLogControllerServerMockRecorder) GetAppendableSegment(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppendableSegment", reflect.TypeOf((*MockEventLogControllerServer)(nil).GetAppendableSegment), arg0, arg1)
+}
+
+// GetReadableSegment mocks base method.
+func (m *MockEventLogControllerServer) GetReadableSegment(arg0 context.Context, arg1 *GetReadableSegmentRequest) (*GetReadableSegmentResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetReadableSegment", arg0, arg1)
+	ret0, _ := ret[0].(*GetReadableSegmentResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetReadableSegment indicates an expected call of GetReadableSegment.
+func (mr *MockEventLogControllerServerMockRecorder) GetReadableSegment(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReadableSegment", reflect.TypeOf((*MockEventLogControllerServer)(nil).GetReadableSegment), arg0, arg1)
 }
 
 // ListSegment mocks base method.
@@ -554,14 +589,14 @@ func (mr *MockSegmentControllerClientMockRecorder) ReportSegmentBlockIsFull(ctx,
 }
 
 // ReportSegmentLeader mocks base method.
-func (m *MockSegmentControllerClient) ReportSegmentLeader(ctx context.Context, in *ReportSegmentLeaderRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (m *MockSegmentControllerClient) ReportSegmentLeader(ctx context.Context, in *ReportSegmentLeaderRequest, opts ...grpc.CallOption) (*meta.Segment, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "ReportSegmentLeader", varargs...)
-	ret0, _ := ret[0].(*emptypb.Empty)
+	ret0, _ := ret[0].(*meta.Segment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -819,10 +854,10 @@ func (mr *MockSegmentControllerServerMockRecorder) ReportSegmentBlockIsFull(arg0
 }
 
 // ReportSegmentLeader mocks base method.
-func (m *MockSegmentControllerServer) ReportSegmentLeader(arg0 context.Context, arg1 *ReportSegmentLeaderRequest) (*emptypb.Empty, error) {
+func (m *MockSegmentControllerServer) ReportSegmentLeader(arg0 context.Context, arg1 *ReportSegmentLeaderRequest) (*meta.Segment, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReportSegmentLeader", arg0, arg1)
-	ret0, _ := ret[0].(*emptypb.Empty)
+	ret0, _ := ret[0].(*meta.Segment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

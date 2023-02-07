@@ -17,23 +17,23 @@ package eventlog
 import (
 	// standard libraries.
 	"context"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	"encoding/base64"
+	"encoding/binary"
 	"io"
-	"sort"
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"go.opentelemetry.io/otel/trace"
-
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
+	"go.opentelemetry.io/otel/trace"
 
 	// this project.
-	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
+	elns "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/record"
-	vlog "github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 )
 
 const (
@@ -42,74 +42,80 @@ const (
 	pollingPostSpan   = 100 // in milliseconds.
 )
 
-func NewEventLog(cfg *el.Config) Eventlog {
-	log := &eventlog{
-		cfg:         cfg,
-		nameService: el.NewNameService(cfg.Endpoints),
+func NewEventLog(cfg *elns.Config) Eventlog {
+	el := &eventlog{
+		cfg:              cfg,
+		nameService:      elns.NewNameService(cfg.Endpoints),
+		writableSegments: make(map[uint64]*segment, 0),
+		readableSegments: make(map[uint64]*segment, 0),
 		tracer: tracing.NewTracer("pkg.eventlog.impl",
 			trace.SpanKindClient),
 	}
 
-	log.writableWatcher = WatchWritableSegment(log)
-	log.readableWatcher = WatchReadableSegments(log)
+	el.writableWatcher = WatchWritableSegment(el)
+	el.readableWatcher = WatchReadableSegments(el)
 
 	go func() {
-		ch := log.writableWatcher.Chan()
-		for {
-			r, ok := <-ch
-			if !ok {
-				vlog.Debug(context.Background(), "eventlog quits writable watcher", map[string]interface{}{
-					"eventlog": log.cfg.ID,
-				})
-				break
-			}
-
-			ctx, span := log.tracer.Start(context.Background(), "updateReadableSegmentsTask")
-			if r != nil {
-				log.updateWritableSegment(ctx, r)
-			}
-
-			log.writableWatcher.Wakeup()
-			span.End()
-		}
-	}()
-	log.writableWatcher.Start()
-
-	go func() {
-		ch := log.readableWatcher.Chan()
+		ch := el.writableWatcher.Chan()
 		for {
 			rs, ok := <-ch
 			if !ok {
-				vlog.Debug(context.Background(), "eventlog quits readable watcher", map[string]interface{}{
-					"eventlog": log.cfg.ID,
+				log.Debug(context.Background(), "eventlog quits writable watcher", map[string]interface{}{
+					"eventlog": el.cfg.ID,
 				})
 				break
 			}
-			ctx, span := log.tracer.Start(context.Background(), "updateReadableSegmentsTask")
+
+			ctx, span := el.tracer.Start(context.Background(), "updateReadableSegmentsTask")
 			if rs != nil {
-				log.updateReadableSegments(ctx, rs)
+				el.updateWritableSegment(ctx, rs)
 			}
 
-			log.readableWatcher.Wakeup()
+			el.writableWatcher.Wakeup()
 			span.End()
 		}
 	}()
-	log.readableWatcher.Start()
+	el.writableWatcher.Start()
 
-	return log
+	go func() {
+		ch := el.readableWatcher.Chan()
+		for {
+			rs, ok := <-ch
+			if !ok {
+				log.Debug(context.Background(), "eventlog quits readable watcher", map[string]interface{}{
+					"eventlog": el.cfg.ID,
+				})
+				break
+			}
+			ctx, span := el.tracer.Start(context.Background(), "updateReadableSegmentsTask")
+			if rs != nil {
+				el.updateReadableSegments(ctx, rs)
+			}
+
+			el.readableWatcher.Wakeup()
+			span.End()
+		}
+	}()
+	el.readableWatcher.Start()
+
+	return el
 }
 
 type eventlog struct {
-	cfg         *el.Config
-	nameService *el.NameService
+	cfg         *elns.Config
+	nameService *elns.NameService
 
-	writableWatcher *WritableSegmentWatcher
-	writableSegment *segment
-	writableMu      sync.RWMutex
+	writableWatcher  *WritableSegmentWatcher
+	writableSegments map[uint64]*segment
+	writableMu       sync.RWMutex
+	logWriter        *logWriter
+	writerMu         sync.RWMutex
 
 	readableWatcher  *ReadableSegmentsWatcher
-	readableSegments []*segment
+	readableSegments map[uint64]*segment
 	readableMu       sync.RWMutex
+	logReader        *logReader
+	readerMu         sync.RWMutex
 	tracer           *tracing.Tracer
 }
 
@@ -123,9 +129,11 @@ func (l *eventlog) ID() uint64 {
 func (l *eventlog) Close(ctx context.Context) {
 	l.writableWatcher.Close()
 	l.readableWatcher.Close()
+	l.logWriter.Close(ctx)
+	l.logReader.Close(ctx)
 
-	if l.writableSegment != nil {
-		l.writableSegment.Close(ctx)
+	for _, segment := range l.writableSegments {
+		segment.Close(ctx)
 	}
 	for _, segment := range l.readableSegments {
 		segment.Close(ctx)
@@ -133,19 +141,41 @@ func (l *eventlog) Close(ctx context.Context) {
 }
 
 func (l *eventlog) Writer() LogWriter {
-	w := &logWriter{
+	l.writerMu.RLock()
+	if l.logWriter != nil {
+		l.writerMu.RUnlock()
+		return l.logWriter
+	}
+	l.writerMu.RUnlock()
+	l.writerMu.Lock()
+	defer l.writerMu.Unlock()
+	if l.logWriter != nil {
+		return l.logWriter
+	}
+	l.logWriter = &logWriter{
 		elog: l,
 	}
-	return w
+	return l.logWriter
 }
 
 func (l *eventlog) Reader(cfg ReaderConfig) LogReader {
-	r := &logReader{
+	l.readerMu.RLock()
+	if l.logReader != nil {
+		l.readerMu.RUnlock()
+		return l.logReader
+	}
+	l.readerMu.RUnlock()
+	l.readerMu.Lock()
+	defer l.readerMu.Unlock()
+	if l.logWriter != nil {
+		return l.logReader
+	}
+	l.logReader = &logReader{
 		elog: l,
 		pos:  0,
 		cfg:  cfg,
 	}
-	return r
+	return l.logReader
 }
 
 func (l *eventlog) EarliestOffset(ctx context.Context) (int64, error) {
@@ -189,47 +219,60 @@ func (l *eventlog) QueryOffsetByTime(ctx context.Context, timestamp int64) (int6
 		return segs[0].startOffset, nil
 	}
 
-	if segs[len(segs)-1].lastEventBornAt.Before(t) {
-		// the target offset maybe in newer segment, refresh immediately
-		l.refreshReadableSegments(ctx)
-		segs = l.fetchReadableSegments(ctx)
-	}
+	// LastEntryStime
+	// time.UnixMilli
+	tailSeg := fetchTailSegment(ctx, segs)
 
 	for idx := range segs {
-		s := segs[idx]
-		if !t.Before(s.firstEventBornAt) && !t.After(s.lastEventBornAt) {
-			target = s
+		seg := segs[idx]
+		// lastEventBornAt will be reported only when the segment is full,
+		// if it is equal to 0, the current segment is the latest segment.
+		if seg.lastEventBornAt == time.UnixMilli(0) {
+			target = seg
+			break
+		}
+		if !t.Before(seg.firstEventBornAt) && !t.After(seg.lastEventBornAt) {
+			target = seg
 			break
 		}
 	}
 
 	if target == nil {
-		target = segs[len(segs)-1]
+		target = tailSeg
 	}
 
 	return target.LookupOffset(ctx, t)
 }
 
-func (l *eventlog) updateWritableSegment(ctx context.Context, r *record.Segment) {
-	if l.writableSegment != nil {
-		if l.writableSegment.ID() == r.ID {
-			_ = l.writableSegment.Update(ctx, r, true)
-			return
+func (l *eventlog) updateWritableSegment(ctx context.Context, rs []*record.Segment) {
+	segments := make(map[uint64]*segment, len(rs))
+	for _, r := range rs {
+		// TODO: find
+		segment := func() *segment {
+			for _, s := range l.writableSegments {
+				if s.ID() == r.ID {
+					return s
+				}
+			}
+			return nil
+		}()
+		var err error
+		if segment == nil {
+			segment, err = newSegment(ctx, r, false)
+		} else {
+			err = segment.Update(ctx, r, false)
 		}
-	}
-
-	segment, err := newSegment(ctx, r, true)
-	if err != nil {
-		vlog.Error(context.Background(), "new segment failed", map[string]interface{}{
-			vlog.KeyError: err,
-		})
-		return
+		if err != nil {
+			// FIXME: create or update segment failed
+			continue
+		}
+		segments[segment.id] = segment
 	}
 
 	l.writableMu.Lock()
 	defer l.writableMu.Unlock()
 
-	l.writableSegment = segment
+	l.writableSegments = segments
 }
 
 func (l *eventlog) selectWritableSegment(ctx context.Context) (*segment, error) {
@@ -240,11 +283,20 @@ func (l *eventlog) selectWritableSegment(ctx context.Context) (*segment, error) 
 	return segment, nil
 }
 
+func (l *eventlog) nextWritableSegment(ctx context.Context, seg *segment) (*segment, error) {
+	l.writableMu.RLock()
+	defer l.writableMu.RUnlock()
+	if s, ok := l.writableSegments[seg.nextSegmentId]; ok {
+		return s, nil
+	}
+	return nil, errors.ErrResourceNotFound
+}
+
 func (l *eventlog) fetchWritableSegment(ctx context.Context) *segment {
 	l.writableMu.RLock()
 	defer l.writableMu.RUnlock()
 
-	if l.writableSegment == nil || !l.writableSegment.Writable() {
+	if len(l.writableSegments) == 0 {
 		// refresh
 		func() {
 			l.writableMu.RUnlock()
@@ -253,7 +305,14 @@ func (l *eventlog) fetchWritableSegment(ctx context.Context) *segment {
 		}()
 	}
 
-	return l.writableSegment
+	// fetch the front segment by previousSegmentId
+	for _, segment := range l.writableSegments {
+		if _, ok := l.writableSegments[segment.previousSegmentId]; !ok {
+			return segment
+		}
+	}
+
+	return nil
 }
 
 func (l *eventlog) refreshWritableSegment(ctx context.Context) {
@@ -261,7 +320,7 @@ func (l *eventlog) refreshWritableSegment(ctx context.Context) {
 }
 
 func (l *eventlog) updateReadableSegments(ctx context.Context, rs []*record.Segment) {
-	segments := make([]*segment, 0, len(rs))
+	segments := make(map[uint64]*segment, len(rs))
 	for _, r := range rs {
 		// TODO: find
 		segment := func() *segment {
@@ -282,37 +341,49 @@ func (l *eventlog) updateReadableSegments(ctx context.Context, rs []*record.Segm
 			// FIXME: create or update segment failed
 			continue
 		}
-		segments = append(segments, segment)
+		segments[segment.id] = segment
 	}
 
-	l.writableMu.Lock()
-	defer l.writableMu.Unlock()
+	l.readableMu.Lock()
+	defer l.readableMu.Unlock()
 
 	l.readableSegments = segments
 }
 
 func (l *eventlog) selectReadableSegment(ctx context.Context, offset int64) (*segment, error) {
-	segments := l.fetchReadableSegments(ctx)
-	if len(segments) == 0 {
+	segs := l.fetchReadableSegments(ctx)
+	if len(segs) == 0 {
 		return nil, errors.ErrNotReadable
 	}
-	// TODO: make sure the segments are in order.
-	n := sort.Search(len(segments), func(i int) bool {
-		return segments[i].EndOffset() > offset
-	})
-	if n < len(segments) {
-		return segments[n], nil
-	}
-	if offset < segments[0].StartOffset() {
+	var target *segment
+	target = fetchHeadSegment(ctx, segs)
+	if offset < target.StartOffset() {
 		return nil, errors.ErrOffsetUnderflow
 	}
-	if offset == segments[len(segments)-1].EndOffset() {
+	target = fetchTailSegment(ctx, segs)
+	if offset == target.EndOffset() {
 		return nil, errors.ErrOffsetOnEnd
 	}
-	return nil, errors.ErrOffsetOverflow
+	if offset > target.EndOffset() {
+		return nil, errors.ErrOffsetOverflow
+	}
+
+	// look from back to front
+	// TODO(jiangkai): implement a better search algorithm
+	for {
+		if target.StartOffset() <= offset && target.EndOffset() > offset {
+			return target, nil
+		} else {
+			if _, ok := l.readableSegments[target.previousSegmentId]; !ok {
+				break
+			}
+			target = l.readableSegments[target.previousSegmentId]
+		}
+	}
+	return nil, errors.ErrNotReadable
 }
 
-func (l *eventlog) fetchReadableSegments(ctx context.Context) []*segment {
+func (l *eventlog) fetchReadableSegments(ctx context.Context) map[uint64]*segment {
 	l.readableMu.RLock()
 	defer l.readableMu.RUnlock()
 
@@ -350,9 +421,9 @@ func (w *logWriter) AppendMany(ctx context.Context, events *cloudevents.CloudEve
 		if err == nil {
 			return offset, nil
 		}
-		vlog.Warning(ctx, "failed to Append", map[string]interface{}{
-			vlog.KeyError: err,
-			"offset":      offset,
+		log.Warning(ctx, "failed to Append", map[string]interface{}{
+			log.KeyError: err,
+			"offset":     offset,
 		})
 		if errors.Is(err, errors.ErrSegmentFull) {
 			if i < retryTimes {
@@ -373,43 +444,51 @@ func (w *logWriter) Close(ctx context.Context) {
 	// TODO: by jiangkai, 2022.10.19
 }
 
-func (w *logWriter) Append(ctx context.Context, event *ce.Event) (int64, error) {
+func (w *logWriter) Append(ctx context.Context, event *ce.Event) (string, error) {
 	// TODO: async for throughput
-
 	retryTimes := defaultRetryTimes
 	for i := 1; i <= retryTimes; i++ {
-		offset, err := w.doAppend(ctx, event)
+		eid, err := w.doAppend(ctx, event)
 		if err == nil {
-			return offset, nil
+			return eid, nil
 		}
-		vlog.Warning(ctx, "failed to Append", map[string]interface{}{
-			vlog.KeyError: err,
-			"offset":      offset,
+		log.Warning(ctx, "failed to append", map[string]interface{}{
+			log.KeyError: err,
+			"retryTimes": i,
 		})
 		if errors.Is(err, errors.ErrSegmentFull) {
+			w.switchNextWritableSegment(ctx)
 			if i < retryTimes {
 				continue
 			}
 		}
-		return -1, err
+		return "", err
 	}
-
-	return -1, errors.ErrUnknown
+	return "", errors.ErrUnknown
 }
 
-func (w *logWriter) doAppend(ctx context.Context, event *ce.Event) (int64, error) {
+func (w *logWriter) doAppend(ctx context.Context, event *ce.Event) (string, error) {
 	segment, err := w.selectWritableSegment(ctx)
 	if err != nil {
-		return -1, err
+		return "", err
 	}
 	offset, err := segment.Append(ctx, event)
 	if err != nil {
 		if errors.Is(err, errors.ErrSegmentFull) {
 			segment.SetNotWritable()
 		}
-		return -1, err
+		return "", err
 	}
-	return offset, nil
+	return w.generateEventID(segment, offset), nil
+}
+
+func (w *logWriter) generateEventID(s *segment, offset int64) string {
+	var buf [32]byte
+	binary.BigEndian.PutUint64(buf[0:8], s.id)
+	binary.BigEndian.PutUint64(buf[8:16], uint64(offset))
+	binary.BigEndian.PutUint64(buf[16:24], w.elog.ID())
+	binary.BigEndian.PutUint64(buf[24:32], uint64(offset+s.startOffset))
+	return base64.StdEncoding.EncodeToString(buf[:])
 }
 
 func (w *logWriter) doAppendBatch(ctx context.Context, event *cloudevents.CloudEventBatch) (int64, error) {
@@ -453,6 +532,14 @@ func (w *logWriter) selectWritableSegment(ctx context.Context) (*segment, error)
 	}
 
 	return segment, nil
+}
+
+func (w *logWriter) switchNextWritableSegment(ctx context.Context) {
+	nextSeg, err := w.elog.nextWritableSegment(ctx, w.cur)
+	if err != nil {
+		return
+	}
+	w.cur = nextSeg
 }
 
 type logReader struct {
@@ -536,4 +623,22 @@ func (r *logReader) Seek(ctx context.Context, offset int64, whence int) (int64, 
 		return offset, nil
 	}
 	return -1, errors.ErrInvalidArgument
+}
+
+func fetchHeadSegment(ctx context.Context, segments map[uint64]*segment) *segment {
+	for _, segment := range segments {
+		if _, ok := segments[segment.previousSegmentId]; !ok {
+			return segment
+		}
+	}
+	return nil
+}
+
+func fetchTailSegment(ctx context.Context, segments map[uint64]*segment) *segment {
+	for _, segment := range segments {
+		if _, ok := segments[segment.nextSegmentId]; !ok {
+			return segment
+		}
+	}
+	return nil
 }

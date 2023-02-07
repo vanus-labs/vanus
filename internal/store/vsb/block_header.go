@@ -21,6 +21,7 @@ import (
 	"hash/crc32"
 
 	// this project.
+	"github.com/linkall-labs/vanus/internal/store/block"
 	"github.com/linkall-labs/vanus/internal/store/block/raw"
 )
 
@@ -52,8 +53,10 @@ func (b *vsBlock) persistHeader(ctx context.Context, m meta) error {
 	binary.LittleEndian.PutUint32(buf[flagsOffset:], 0)                         // flags
 	binary.LittleEndian.PutUint32(buf[breakFlagsOffset:], 0)                    // break flags
 	binary.LittleEndian.PutUint32(buf[dataOffsetOffset:], uint32(b.dataOffset)) // data offset
-	if m.archived {                                                             // state
+	if m.state == block.StateArchived {                                         // state
 		buf[stateOffset] = 1
+	} else if m.state == block.StateArchiving {
+		buf[stateOffset] = 2
 	}
 	binary.LittleEndian.PutUint16(buf[indexSizeOffset:], b.indexSize)             // index size
 	binary.LittleEndian.PutUint64(buf[capacityOffset:], uint64(b.capacity))       // capacity
@@ -94,8 +97,15 @@ func (b *vsBlock) loadHeader(ctx context.Context) error {
 		return errIncomplete
 	}
 
-	b.dataOffset = int64(binary.LittleEndian.Uint32(buf[dataOffsetOffset:]))      // data offset
-	b.fm.archived = buf[stateOffset] != 0                                         // state
+	b.dataOffset = int64(binary.LittleEndian.Uint32(buf[dataOffsetOffset:])) // data offset
+	switch buf[stateOffset] {                                                // state
+	case block.Working:
+		b.fm.state = block.StateWorking
+	case block.Archived:
+		b.fm.state = block.StateArchived
+	case block.Archiving:
+		b.fm.state = block.StateArchived
+	}
 	b.indexSize = binary.LittleEndian.Uint16(buf[indexSizeOffset:])               // index size
 	b.capacity = int64(binary.LittleEndian.Uint64(buf[capacityOffset:]))          // capacity
 	b.fm.entryLength = int64(binary.LittleEndian.Uint64(buf[entryLengthOffset:])) // entry length

@@ -83,12 +83,14 @@ func allReadable(ls []*Eventlog) bool {
 }
 
 type Segment struct {
-	ID               uint64
-	StartOffset      int64
-	EndOffset        int64
-	Writable         bool
-	FirstEventBornAt time.Time
-	LastEventBornAt  time.Time
+	ID                uint64
+	PreviousSegmentId uint64
+	NextSegmentId     uint64
+	StartOffset       int64
+	EndOffset         int64
+	Writable          bool
+	FirstEventBornAt  time.Time
+	LastEventBornAt   time.Time
 
 	Blocks        map[uint64]*Block
 	LeaderBlockID uint64

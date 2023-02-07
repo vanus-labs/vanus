@@ -91,7 +91,7 @@ func TestVSBlock_Read(t *testing.T) {
 		So(err, ShouldBeError, block.ErrExceeded)
 
 		Convey("after block is full", func() {
-			b.actx.archived = 1
+			b.actx.state = block.StateArchived
 
 			_, err = b.Read(context.Background(), 2, 1)
 			So(err, ShouldBeError, block.ErrExceeded)

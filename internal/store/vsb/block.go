@@ -38,8 +38,8 @@ type meta struct {
 	entryLength int64
 	// entryNum is the number of persisted entries.
 	entryNum int64
-	// archived is the flag indicating Block is archived.
-	archived bool
+	// state is the flag indicating Block state.
+	state uint32
 }
 
 // vsBlock is Vanus block file.
@@ -97,7 +97,7 @@ func (b *vsBlock) Close(ctx context.Context) error {
 	}
 
 	// Flush metadata.
-	if b.fm.archived != m.archived || b.fm.entryLength != m.entryLength {
+	if b.fm.state != m.state || b.fm.entryLength != m.entryLength {
 		if err := b.persistHeader(ctx, m); err != nil {
 			return err
 		}
@@ -112,14 +112,15 @@ func (b *vsBlock) Delete(context.Context) error {
 }
 
 func (b *vsBlock) status() block.Statistics {
-	return b.stat(b.makeSnapshot())
+	m, indexes := b.makeSnapshot()
+	return b.stat(m, indexes, m.state)
 }
 
-func (b *vsBlock) stat(m meta, indexes []index.Index) block.Statistics {
+func (b *vsBlock) stat(m meta, indexes []index.Index, state uint32) block.Statistics {
 	s := block.Statistics{
 		ID:              b.id,
 		Capacity:        uint64(b.capacity),
-		Archived:        m.archived,
+		State:           state,
 		EntryNum:        uint32(m.entryNum),
 		EntrySize:       uint64(m.entryLength),
 		FirstEntryStime: -1,
@@ -132,6 +133,14 @@ func (b *vsBlock) stat(m meta, indexes []index.Index) block.Statistics {
 	return s
 }
 
+func (b *vsBlock) prefull(state uint32) block.Statistics {
+	s := block.Statistics{
+		ID:    b.id,
+		State: state,
+	}
+	return s
+}
+
 func (b *vsBlock) full() bool {
-	return atomic.LoadUint32(&b.actx.archived) != 0
+	return atomic.LoadUint32(&b.actx.state) != block.StateWorking
 }

@@ -455,13 +455,11 @@ func (ctrl *controller) processHeartbeat(ctx context.Context, req *ctrlpb.Segmen
 			ID:                 block.SegmentID,
 			Capacity:           info.Capacity,
 			EventLogID:         block.EventlogID,
+			State:              eventlog.SegmentState(info.State),
 			Size:               info.Size,
 			Number:             info.EventNumber,
 			FirstEventBornTime: time.UnixMilli(info.FirstEventBornTime),
 			LastEventBornTime:  time.UnixMilli(info.LastEventBornTime),
-		}
-		if info.IsFull {
-			seg.State = eventlog.StateFrozen
 		}
 		logArr = append(logArr, seg)
 		segments[block.EventlogID.Key()] = logArr
@@ -478,13 +476,26 @@ func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 	}
 	num := int(req.Limited)
 	if num == 0 {
-		num = 1
+		num = 2
 	}
 	segInfos, err := ctrl.eventLogMgr.GetAppendableSegment(ctx, eli, num)
 	if err != nil {
 		return nil, err
 	}
 	return &ctrlpb.GetAppendableSegmentResponse{Segments: eventlog.Convert2ProtoSegment(ctx, segInfos...)}, nil
+}
+
+func (ctrl *controller) GetReadableSegment(ctx context.Context,
+	req *ctrlpb.GetReadableSegmentRequest) (*ctrlpb.GetReadableSegmentResponse, error) {
+	eli := ctrl.eventLogMgr.GetEventLog(ctx, vanus.NewIDFromUint64(req.EventLogId))
+	if eli == nil {
+		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
+	}
+	segInfos, err := ctrl.eventLogMgr.GetReadableSegment(ctx, eli)
+	if err != nil {
+		return nil, err
+	}
+	return &ctrlpb.GetReadableSegmentResponse{Segments: eventlog.Convert2ProtoSegment(ctx, segInfos...)}, nil
 }
 
 func (ctrl *controller) ReportSegmentBlockIsFull(ctx context.Context,
@@ -513,12 +524,12 @@ func (ctrl *controller) isReady(ctx context.Context) bool {
 }
 
 func (ctrl *controller) ReportSegmentLeader(ctx context.Context,
-	req *ctrlpb.ReportSegmentLeaderRequest) (*emptypb.Empty, error) {
-	err := ctrl.eventLogMgr.UpdateSegmentReplicas(ctx, vanus.NewIDFromUint64(req.LeaderId), req.Term)
+	req *ctrlpb.ReportSegmentLeaderRequest) (*metapb.Segment, error) {
+	segment, err := ctrl.eventLogMgr.UpdateSegmentReplicas(ctx, vanus.NewIDFromUint64(req.LeaderId), req.Term)
 	if err != nil {
 		return nil, err
 	}
-	return &emptypb.Empty{}, nil
+	return eventlog.Convert2ProtoSegment(ctx, segment)[0], nil
 }
 
 func (ctrl *controller) recordMetrics() {

@@ -31,8 +31,11 @@ func TestServerApi(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		w := NewMockWorker(ctrl)
-		s := NewTriggerServer(Config{}).(*server)
-		s.worker = w
+		s := &server{
+			config: Config{},
+			worker: w,
+			state:  primitive.ServerStateCreated,
+		}
 		Convey("test start", func() {
 			w.EXPECT().Start(gomock.Any()).Return(nil)
 			_, err := s.Start(ctx, &pbtrigger.StartTriggerWorkerRequest{})
@@ -89,8 +92,11 @@ func TestServerInitAndClose(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		w := NewMockWorker(ctrl)
-		s := NewTriggerServer(Config{}).(*server)
-		s.worker = w
+		s := &server{
+			config: Config{},
+			worker: w,
+			state:  primitive.ServerStateCreated,
+		}
 		Convey("test init", func() {
 			w.EXPECT().Init(gomock.Any()).Return(nil)
 			w.EXPECT().Register(gomock.Any()).Return(nil)

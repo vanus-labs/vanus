@@ -18,6 +18,7 @@ package eventlog
 import (
 	// standard libraries.
 	"context"
+
 	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 
 	// third-party libraries.
@@ -50,7 +51,7 @@ type LogWriter interface {
 
 	Close(ctx context.Context)
 
-	Append(ctx context.Context, event *ce.Event) (off int64, err error)
+	Append(ctx context.Context, event *ce.Event) (eid string, err error)
 	AppendMany(ctx context.Context, events *cloudevents.CloudEventBatch) (off int64, err error)
 }
 
