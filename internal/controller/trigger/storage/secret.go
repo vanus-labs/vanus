@@ -59,40 +59,40 @@ func (p *SecretStorage) Read(ctx context.Context,
 	case primitive.AWS:
 		credential := &primitive.AkSkSinkCredential{}
 		if err = json.Unmarshal(v, credential); err != nil {
-			return nil, errors.ErrJSONUnMarshal.Wrap(err)
+			return nil, errors.ErrInternal.WithMessage("json unmarshal error").Wrap(err)
 		}
 		accessKeyID, err := crypto.AESDecrypt(credential.AccessKeyID, p.cipherKey)
 		if err != nil {
-			return nil, errors.ErrAESDecrypt.Wrap(err)
+			return nil, errors.ErrInternal.WithMessage("aes decrypt error").Wrap(err)
 		}
 		secretAccessKey, err := crypto.AESDecrypt(credential.SecretAccessKey, p.cipherKey)
 		if err != nil {
-			return nil, errors.ErrAESDecrypt.Wrap(err)
+			return nil, errors.ErrInternal.WithMessage("aes decrypt error").Wrap(err)
 		}
 		return primitive.NewAkSkSinkCredential(accessKeyID, secretAccessKey), nil
 	case primitive.GCloud:
 		credential := &primitive.GCloudSinkCredential{}
 		if err = json.Unmarshal(v, credential); err != nil {
-			return nil, errors.ErrJSONUnMarshal.Wrap(err)
+			return nil, errors.ErrInternal.WithMessage("json unmarshal error").Wrap(err)
 		}
 
 		credentialJSON, err := crypto.AESDecrypt(credential.CredentialJSON, p.cipherKey)
 		if err != nil {
-			return nil, errors.ErrAESDecrypt.Wrap(err)
+			return nil, errors.ErrInternal.WithMessage("aes decrypt error").Wrap(err)
 		}
 		return primitive.NewGCloudSinkCredential(credentialJSON), nil
 	case primitive.Plain:
 		credential := &primitive.PlainSinkCredential{}
 		if err = json.Unmarshal(v, credential); err != nil {
-			return nil, errors.ErrJSONUnMarshal.Wrap(err)
+			return nil, errors.ErrInternal.WithMessage("json unmarshal error").Wrap(err)
 		}
 		identifier, err := crypto.AESDecrypt(credential.Identifier, p.cipherKey)
 		if err != nil {
-			return nil, errors.ErrAESDecrypt.Wrap(err)
+			return nil, errors.ErrInternal.WithMessage("aes decrypt error").Wrap(err)
 		}
 		secret, err := crypto.AESDecrypt(credential.Secret, p.cipherKey)
 		if err != nil {
-			return nil, errors.ErrAESDecrypt.Wrap(err)
+			return nil, errors.ErrInternal.WithMessage("aes decrypt error").Wrap(err)
 		}
 		return primitive.NewPlainSinkCredential(identifier, secret), nil
 	}
@@ -106,29 +106,29 @@ func (p *SecretStorage) Write(ctx context.Context, subID vanus.ID, credential pr
 		cloud, _ := credential.(*primitive.AkSkSinkCredential)
 		accessKeyID, err := crypto.AESEncrypt(cloud.AccessKeyID, p.cipherKey)
 		if err != nil {
-			return errors.ErrAESEncrypt.Wrap(err)
+			return errors.ErrInternal.WithMessage("aes encrypt error").Wrap(err)
 		}
 		secretAccessKey, err := crypto.AESEncrypt(cloud.SecretAccessKey, p.cipherKey)
 		if err != nil {
-			return errors.ErrAESEncrypt.Wrap(err)
+			return errors.ErrInternal.WithMessage("aes encrypt error").Wrap(err)
 		}
 		save = primitive.NewAkSkSinkCredential(accessKeyID, secretAccessKey)
 	case primitive.GCloud:
 		gcloud, _ := credential.(*primitive.GCloudSinkCredential)
 		credentialJSON, err := crypto.AESEncrypt(gcloud.CredentialJSON, p.cipherKey)
 		if err != nil {
-			return errors.ErrAESEncrypt.Wrap(err)
+			return errors.ErrInternal.WithMessage("aes encrypt error").Wrap(err)
 		}
 		save = primitive.NewGCloudSinkCredential(credentialJSON)
 	case primitive.Plain:
 		plain, _ := credential.(*primitive.PlainSinkCredential)
 		identifier, err := crypto.AESEncrypt(plain.Identifier, p.cipherKey)
 		if err != nil {
-			return errors.ErrAESEncrypt.Wrap(err)
+			return errors.ErrInternal.WithMessage("aes encrypt error").Wrap(err)
 		}
 		s, err := crypto.AESEncrypt(plain.Secret, p.cipherKey)
 		if err != nil {
-			return errors.ErrAESEncrypt.Wrap(err)
+			return errors.ErrInternal.WithMessage("aes encrypt error").Wrap(err)
 		}
 		save = primitive.NewPlainSinkCredential(identifier, s)
 	default:
@@ -137,7 +137,7 @@ func (p *SecretStorage) Write(ctx context.Context, subID vanus.ID, credential pr
 
 	v, err := json.Marshal(save)
 	if err != nil {
-		return errors.ErrJSONMarshal.Wrap(err)
+		return errors.ErrInternal.WithMessage("json marshal error").Wrap(err)
 	}
 	key := p.getKey(subID)
 	return p.client.Set(ctx, key, v)

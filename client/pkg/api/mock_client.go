@@ -167,14 +167,14 @@ func (mr *MockBusWriterMockRecorder) AppendBatch(ctx, events interface{}, opts .
 }
 
 // AppendMany mocks base method.
-func (m *MockBusWriter) AppendMany(ctx context.Context, events []*v2.Event, opts ...WriteOption) (string, error) {
+func (m *MockBusWriter) AppendMany(ctx context.Context, events []*v2.Event, opts ...WriteOption) ([]string, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, events}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "AppendMany", varargs...)
-	ret0, _ := ret[0].(string)
+	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -249,6 +249,28 @@ func (mr *MockBusReaderMockRecorder) Read(ctx interface{}, opts ...interface{}) 
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx}, opts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockBusReader)(nil).Read), varargs...)
+}
+
+// ReadStream mocks base method.
+func (m *MockBusReader) ReadStream(ctx context.Context, opts ...ReadOption) ([]*v2.Event, int64, uint64, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ReadStream", varargs...)
+	ret0, _ := ret[0].([]*v2.Event)
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(uint64)
+	ret3, _ := ret[3].(error)
+	return ret0, ret1, ret2, ret3
+}
+
+// ReadStream indicates an expected call of ReadStream.
+func (mr *MockBusReaderMockRecorder) ReadStream(ctx interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadStream", reflect.TypeOf((*MockBusReader)(nil).ReadStream), varargs...)
 }
 
 // MockEventlog is a mock of Eventlog interface.

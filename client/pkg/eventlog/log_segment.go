@@ -18,25 +18,23 @@ import (
 	// standard libraries.
 	"context"
 	"encoding/binary"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"math"
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"go.opentelemetry.io/otel/trace"
-
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/atomic"
 
 	// first-party libraries.
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
 	// this project.
-
 	"github.com/linkall-labs/vanus/client/pkg/record"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 func newSegment(ctx context.Context, r *record.Segment, towrite bool) (*segment, error) {
@@ -80,7 +78,7 @@ func newBlockExt(ctx context.Context, r *record.Segment, leaderOnly bool) (*bloc
 	}
 	b, ok := r.Blocks[id]
 	if !ok {
-		return nil, errors.ErrBlockNotFound
+		return nil, errors.ErrResourceNotFound.WithMessage("block not found")
 	}
 	return newBlock(ctx, b)
 }
@@ -172,6 +170,25 @@ func (s *segment) Append(ctx context.Context, event *ce.Event) (int64, error) {
 	return off + s.startOffset, nil
 }
 
+func (s *segment) AppendManyStream(ctx context.Context, events []*ce.Event) ([]int64, error) {
+	_ctx, span := s.tracer.Start(ctx, "AppendManyStream")
+
+	defer span.End()
+
+	b := s.preferSegmentBlock()
+	if b == nil {
+		return nil, errors.ErrNotLeader
+	}
+	offsets, err := b.AppendManyStream(_ctx, events)
+	if err != nil {
+		return nil, err
+	}
+	for idx := range offsets {
+		offsets[idx] = offsets[idx] + s.startOffset
+	}
+	return offsets, nil
+}
+
 func (s *segment) AppendBatch(ctx context.Context, event *cloudevents.CloudEventBatch) (int64, error) {
 	_ctx, span := s.tracer.Start(ctx, "AppendBatch")
 	defer span.End()
@@ -205,7 +222,7 @@ func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeo
 	// TODO: cached read
 	b := s.preferSegmentBlock()
 	if b == nil {
-		return nil, errors.ErrBlockNotFound
+		return nil, errors.ErrResourceNotFound.WithMessage("block not found")
 	}
 	events, err := b.Read(ctx, from-s.startOffset, size, pollingTimeout)
 	if err != nil {
@@ -219,7 +236,51 @@ func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeo
 		}
 		off, ok := v.(int32)
 		if !ok {
-			return events, errors.ErrCorruptedEvent
+			return events, errors.ErrCorruptedEvent.WithMessage("corrupted event")
+		}
+		offset := s.startOffset + int64(off)
+		buf := make([]byte, 8)
+		binary.BigEndian.PutUint64(buf, uint64(offset))
+		e.SetExtension(XVanusLogOffset, buf)
+		e.SetExtension(segpb.XVanusBlockOffset, nil)
+	}
+
+	return events, err
+}
+
+func (s *segment) ReadStream(ctx context.Context, from int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
+	if from < s.startOffset {
+		return nil, errors.ErrOffsetUnderflow
+	}
+	ctx, span := s.tracer.Start(ctx, "ReadStream")
+	defer span.End()
+
+	if eo := s.endOffset.Load(); eo >= 0 {
+		if from > eo {
+			return nil, errors.ErrOffsetOverflow
+		}
+		if int64(size) > eo-from {
+			size = int16(eo - from)
+		}
+	}
+	// TODO: cached read
+	b := s.preferSegmentBlock()
+	if b == nil {
+		return nil, errors.ErrResourceNotFound.WithMessage("block not found")
+	}
+	events, err := b.ReadStream(ctx, from-s.startOffset, size, pollingTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, e := range events {
+		v, ok := e.Extensions()[segpb.XVanusBlockOffset]
+		if !ok {
+			continue
+		}
+		off, ok := v.(int32)
+		if !ok {
+			return events, errors.ErrCorruptedEvent.WithMessage("corrupted event")
 		}
 		offset := s.startOffset + int64(off)
 		buf := make([]byte, 8)

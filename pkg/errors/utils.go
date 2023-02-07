@@ -15,8 +15,6 @@
 package errors
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/status"
 )
@@ -75,9 +73,7 @@ func ConvertToGRPCError(err error) error {
 	}
 	e, ok := err.(*ErrorType)
 	if ok {
-		return fmt.Errorf("{\"code\":%d,\"message\":\"%s\"}",
-			e.Code, e.Message)
+		return errors.New(e.JSON())
 	}
-	return fmt.Errorf("{\"code\":%d,\"message\":\"%s\"}",
-		ErrorCode_UNKNOWN, err.Error())
+	return errors.New(ErrUnknown.WithMessage(err.Error()).JSON())
 }

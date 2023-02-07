@@ -51,7 +51,7 @@ func (s *subscriptionStorage) getKey(subID vanus.ID) string {
 func (s *subscriptionStorage) CreateSubscription(ctx context.Context, sub *metadata.Subscription) error {
 	v, err := json.Marshal(sub)
 	if err != nil {
-		return errors.ErrJSONMarshal
+		return errors.ErrInternal.WithMessage("json marshal error")
 	}
 	err = s.client.Create(ctx, s.getKey(sub.ID), v)
 	if err != nil {
@@ -63,7 +63,7 @@ func (s *subscriptionStorage) CreateSubscription(ctx context.Context, sub *metad
 func (s *subscriptionStorage) UpdateSubscription(ctx context.Context, sub *metadata.Subscription) error {
 	v, err := json.Marshal(sub)
 	if err != nil {
-		return errors.ErrJSONMarshal
+		return errors.ErrInternal.WithMessage("json marshal error")
 	}
 	err = s.client.Update(ctx, s.getKey(sub.ID), v)
 	if err != nil {
@@ -84,7 +84,7 @@ func (s *subscriptionStorage) GetSubscription(ctx context.Context, id vanus.ID) 
 	sub := &metadata.Subscription{}
 	err = json.Unmarshal(v, sub)
 	if err != nil {
-		return nil, errors.ErrJSONUnMarshal
+		return nil, errors.ErrInternal.WithMessage("json unmarshal error")
 	}
 	return sub, nil
 }
@@ -99,7 +99,7 @@ func (s *subscriptionStorage) ListSubscription(ctx context.Context) ([]*metadata
 		sub := &metadata.Subscription{}
 		err = json.Unmarshal(v.Value, sub)
 		if err != nil {
-			return nil, errors.ErrJSONUnMarshal
+			return nil, errors.ErrInternal.WithMessage("json unmarshal error")
 		}
 		list = append(list, sub)
 	}

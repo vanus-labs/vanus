@@ -28,6 +28,7 @@ import (
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/linkall-labs/vanus/pkg/util"
+	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive"
@@ -50,8 +51,8 @@ func TestServer_RemoveBlock(t *testing.T) {
 		Convey("state checking", func() {
 			err := srv.RemoveBlock(context.Background(), vanus.NewTestID())
 			et := err.(*errors.ErrorType)
-			So(et.Description, ShouldEqual, "service state error")
-			So(et.Code, ShouldEqual, errors.ErrorCode_SERVICE_STATE_ERROR)
+			So(et.Description, ShouldEqual, "server not running")
+			So(et.Code, ShouldEqual, errpb.ErrorCode_SERVICE_NOT_RUNNING)
 			So(et.Message, ShouldEqual, fmt.Sprintf(
 				"the server isn't ready to work, current state: %s",
 				primitive.ServerStateCreated))
@@ -63,7 +64,7 @@ func TestServer_RemoveBlock(t *testing.T) {
 			err := srv.RemoveBlock(context.Background(), vanus.NewTestID())
 			et := err.(*errors.ErrorType)
 			So(et.Description, ShouldEqual, "resource not found")
-			So(et.Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
+			So(et.Code, ShouldEqual, errpb.ErrorCode_RESOURCE_NOT_FOUND)
 			So(et.Message, ShouldEqual, "the block not found")
 		})
 
@@ -94,7 +95,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 
 		_, err := srv.ReadFromBlock(context.Background(), vanus.NewTestID(), 0, 3, uint32(0))
 		So(err, ShouldNotBeNil)
-		So(err.(*errors.ErrorType).Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
+		So(err.(*errors.ErrorType).Code, ShouldEqual, errpb.ErrorCode_RESOURCE_NOT_FOUND)
 	})
 
 	Convey("read from block", t, func() {

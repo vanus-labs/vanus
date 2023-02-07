@@ -28,6 +28,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	errpb "github.com/linkall-labs/vanus/proto/pkg/errors"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -95,7 +96,7 @@ func TestController_CreateEventBus(t *testing.T) {
 			So(res, ShouldBeNil)
 			et, ok := err.(*errors.ErrorType)
 			So(ok, ShouldBeTrue)
-			So(et.Code, ShouldEqual, errors.ErrorCode_RESOURCE_EXIST)
+			So(et.Code, ShouldEqual, errpb.ErrorCode_RESOURCE_ALREADY_EXIST)
 			So(et.Description, ShouldEqual, "resource already exist")
 			So(et.Message, ShouldEqual, "the eventbus already exist")
 		})
@@ -120,7 +121,7 @@ func TestController_DeleteEventBus(t *testing.T) {
 			So(res, ShouldBeNil)
 			et, ok := err.(*errors.ErrorType)
 			So(ok, ShouldBeTrue)
-			So(et.Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
+			So(et.Code, ShouldEqual, errpb.ErrorCode_RESOURCE_NOT_FOUND)
 			So(et.Description, ShouldEqual, "resource not found")
 			So(et.Message, ShouldEqual, "the eventbus doesn't exist")
 		})
@@ -149,7 +150,7 @@ func TestController_DeleteEventBus(t *testing.T) {
 			So(res, ShouldBeNil)
 			et, ok := err.(*errors.ErrorType)
 			So(ok, ShouldBeTrue)
-			So(et.Code, ShouldEqual, errors.ErrorCode_INTERNAL)
+			So(et.Code, ShouldEqual, errpb.ErrorCode_INTERNAL)
 			So(et.Description, ShouldEqual, "internal error")
 			So(et.Message, ShouldEqual, "delete eventbus metadata in kv failed")
 		})

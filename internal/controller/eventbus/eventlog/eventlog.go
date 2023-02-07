@@ -259,7 +259,7 @@ func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
 
 	v, exist := mgr.eventLogMap.Load(eli.ID.Key())
 	if !exist {
-		return nil, errors.ErrEventLogNotFound
+		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
 	}
 
 	el, _ := v.(*eventlog)
@@ -370,12 +370,12 @@ func (mgr *eventlogManager) GetSegment(id vanus.ID) *Segment {
 func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, leaderID vanus.ID, term uint64) error {
 	blk := mgr.GetBlock(leaderID)
 	if blk == nil {
-		return errors.ErrBlockNotFound
+		return errors.ErrResourceNotFound.WithMessage("block not found")
 	}
 
 	seg := mgr.GetSegment(blk.SegmentID)
 	if seg == nil {
-		return errors.ErrSegmentNotFound
+		return errors.ErrResourceNotFound.WithMessage("segment not found")
 	}
 
 	if seg.Replicas.Term >= term {
@@ -391,7 +391,7 @@ func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, leaderID 
 			log.KeyError: err,
 			"segment":    seg.String(),
 		})
-		return errors.ErrInvalidSegment.WithMessage("update segment to etcd error").Wrap(err)
+		return errors.ErrInvalidRequest.WithMessage("update segment to etcd error").Wrap(err)
 	}
 	return nil
 }
@@ -399,7 +399,7 @@ func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, leaderID 
 func (mgr *eventlogManager) GetSegmentByBlockID(block *metadata.Block) (*Segment, error) {
 	v, exist := mgr.eventLogMap.Load(block.EventlogID.Key())
 	if !exist {
-		return nil, errors.ErrEventLogNotFound
+		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
 	}
 	el, _ := v.(*eventlog)
 	return el.get(block.SegmentID), nil
@@ -730,14 +730,14 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 				"replicas":                   fmt.Sprintf("%v", seg.Replicas),
 				"segment":                    seg.ID.Key(),
 			})
-			return nil, errors.ErrInvalidSegment
+			return nil, errors.ErrInvalidRequest.WithMessage("invalid segment")
 		}
 	}
 
 	ins := mgr.volMgr.GetVolumeInstanceByID(seg.GetLeaderBlock().VolumeID)
 	srv := ins.GetServer()
 	if srv == nil {
-		return nil, errors.ErrVolumeInstanceNoServer
+		return nil, errors.ErrResourceNotReady.WithMessage("volume instance no server")
 	}
 	_, err = srv.GetClient().ActivateSegment(ctx, &segment.ActivateSegmentRequest{
 		EventLogId:     seg.EventLogID.Uint64(),
@@ -912,7 +912,7 @@ func newEventlog(ctx context.Context, md *metadata.Eventlog, kvClient kv.Client,
 			SegmentID vanus.ID `json:"segment_id"`
 		})
 		if err1 := json.Unmarshal(v.Value, id); err1 != nil {
-			return nil, errors.ErrUnmarshall.Wrap(err1)
+			return nil, errors.ErrInternal.WithMessage("json unmarshal error").Wrap(err1)
 		}
 		segmentIDs = append(segmentIDs, id.SegmentID)
 	}
@@ -990,7 +990,7 @@ func (el *eventlog) add(ctx context.Context, seg *Segment) error {
 	el.mutex.Lock()
 	defer el.mutex.Unlock()
 	if !seg.isReady() {
-		return errors.ErrInvalidSegment
+		return errors.ErrResourceNotReady.WithMessage("the segment not ready")
 	}
 	if el.get(seg.ID) != nil {
 		return nil

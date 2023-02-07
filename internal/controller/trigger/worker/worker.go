@@ -313,7 +313,7 @@ func (tw *triggerWorker) init(ctx context.Context) error {
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	tw.cc, err = grpc.DialContext(ctx, tw.info.Addr, opts...)
 	if err != nil {
-		return errors.ErrTriggerWorker.WithMessage("grpc dial error").Wrap(err)
+		return errors.ErrInternal.WithMessage("trigger worker grpc dial error").Wrap(err)
 	}
 	tw.client = trigger.NewTriggerWorkerClient(tw.cc)
 	return nil
@@ -333,7 +333,7 @@ func (tw *triggerWorker) Close() error {
 func (tw *triggerWorker) RemoteStop(ctx context.Context) error {
 	_, err := tw.client.Stop(ctx, &trigger.StopTriggerWorkerRequest{})
 	if err != nil {
-		return errors.ErrTriggerWorker.WithMessage("stop error").Wrap(err)
+		return errors.ErrInternal.WithMessage("trigger worker stop error").Wrap(err)
 	}
 	return nil
 }
@@ -341,7 +341,7 @@ func (tw *triggerWorker) RemoteStop(ctx context.Context) error {
 func (tw *triggerWorker) RemoteStart(ctx context.Context) error {
 	_, err := tw.client.Start(ctx, &trigger.StartTriggerWorkerRequest{})
 	if err != nil {
-		return errors.ErrTriggerWorker.WithMessage("start error").Wrap(err)
+		return errors.ErrInternal.WithMessage("trigger worker start error").Wrap(err)
 	}
 	return nil
 }
@@ -350,7 +350,7 @@ func (tw *triggerWorker) addSubscription(ctx context.Context, sub *primitive.Sub
 	request := convert.ToPbAddSubscription(sub)
 	_, err := tw.client.AddSubscription(ctx, request)
 	if err != nil {
-		return errors.ErrTriggerWorker.WithMessage("add subscription error").Wrap(err)
+		return errors.ErrInternal.WithMessage("trigger worker add subscription error").Wrap(err)
 	}
 	return nil
 }
@@ -359,7 +359,7 @@ func (tw *triggerWorker) removeSubscription(ctx context.Context, id vanus.ID) er
 	request := &trigger.RemoveSubscriptionRequest{SubscriptionId: uint64(id)}
 	_, err := tw.client.RemoveSubscription(ctx, request)
 	if err != nil {
-		return errors.ErrTriggerWorker.WithMessage("remove subscription error").Wrap(err)
+		return errors.ErrInternal.WithMessage("trigger worker remove subscription error").Wrap(err)
 	}
 	return nil
 }

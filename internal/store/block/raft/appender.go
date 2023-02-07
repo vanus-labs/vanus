@@ -99,7 +99,11 @@ type appender struct {
 var _ Appender = (*appender)(nil)
 
 func NewAppender(
-	ctx context.Context, raw block.Raw, raftLog *raftlog.Log, host transport.Host, listener LeaderChangedListener,
+	ctx context.Context,
+	raw block.Raw,
+	raftLog *raftlog.Log,
+	host transport.Host,
+	listener LeaderChangedListener,
 ) Appender {
 	ctx, cancel := context.WithCancel(ctx)
 

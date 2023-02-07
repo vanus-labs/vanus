@@ -1,0 +1,54 @@
+// Copyright 2022 Linkall Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package linkall.vanus.errors;
+
+option go_package = "github.com/linkall-labs/vanus/proto/pkg/errors";
+
+enum ErrorCode {
+  SUCCESS = 0;
+  UNKNOWN = 9000;
+
+  INVALID_REQUEST = 9100;
+  PARSE_TRANSFORM_INPUT = 9101;
+  NO_ENDPOINT = 9102;
+
+  INTERNAL = 9200;
+  CORRUPTED_EVENT = 9201;
+  APPEND_TO_BLOCK_FAILED = 9202;
+  READ_FROM_BLOCK_FAILED = 9203;
+
+  FULL = 9300;
+  NOT_WRITABLE = 9301;
+  NOT_READABLE = 9302;
+  OFFSET_ON_END = 9303;
+  OFFSET_OVERFLOW = 9304;
+  OFFSET_UNDERFLOW = 9305;
+  TRY_AGAIN = 9306;
+
+  RESOURCE_ALREADY_EXIST = 9400;
+  RESOURCE_NOT_FOUND = 9401;
+  RESOURCE_NOT_READY = 9402;
+  RESOURCE_CAN_NOT_OP = 9403;
+
+  SERVICE_NOT_RUNNING = 9500;
+  CLOSED = 9501;
+  CONTEXT_CANCELED = 9502;
+
+  NO_LEADER = 9600;
+  NOT_LEADER = 9601;
+  NO_CONTROLLER_LEADER = 9602;
+}

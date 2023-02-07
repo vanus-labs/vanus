@@ -68,7 +68,7 @@ func (c *client) Endpoint() string {
 
 func (c *client) Get(ctx context.Context) (interface{}, error) {
 	if c.closed.Load() {
-		return nil, errors.ErrClosed
+		return nil, errors.ErrClosed.WithMessage("client closed")
 	}
 	_ctx, span := c.tracer.Start(ctx, "Get")
 	defer span.End()
@@ -95,7 +95,7 @@ func (c *client) refreshClient(ctx context.Context, force bool) (interface{}, er
 	defer c.mu.Unlock()
 
 	if c.closed.Load() {
-		return nil, errors.ErrClosed
+		return nil, errors.ErrClosed.WithMessage("client closed")
 	}
 
 	if !force && c.Ready() {

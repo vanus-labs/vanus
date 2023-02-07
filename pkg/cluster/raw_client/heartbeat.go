@@ -30,7 +30,7 @@ func RegisterHeartbeat(ctx context.Context, interval time.Duration,
 	i interface{}, reqFunc func() interface{}) error {
 	hb, ok := i.(Heartbeat)
 	if !ok {
-		return errors.ErrInvalidHeartBeat
+		return errors.ErrInvalidRequest.WithMessage("heartbeat type error")
 	}
 	go func() {
 		ticker := time.NewTicker(interval)

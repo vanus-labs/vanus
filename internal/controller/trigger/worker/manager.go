@@ -139,7 +139,7 @@ func (m *manager) AddTriggerWorker(ctx context.Context, addr string) error {
 		phase := tWorker.GetPhase()
 		if phase == metadata.TriggerWorkerPhasePaused {
 			// wait clean
-			return errors.ErrResourceAlreadyExist
+			return errors.ErrResourceAlreadyExist.WithMessage("the trigger worker already exist")
 		}
 		log.Info(ctx, "repeat add trigger worker", map[string]interface{}{
 			log.KeyTriggerWorkerAddr: tWorker.GetAddr(),

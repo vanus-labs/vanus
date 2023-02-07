@@ -24,7 +24,6 @@ import (
 	"io"
 	"sync"
 
-	"github.com/linkall-labs/vanus/observability/tracing"
 	"go.opentelemetry.io/otel/trace"
 
 	// third-party libraries.
@@ -32,16 +31,16 @@ import (
 	"github.com/scylladb/go-set/u64set"
 
 	// first-party libraries
+	vlog "github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"github.com/linkall-labs/vanus/pkg/errors"
 
 	// this project.
+	eb "github.com/linkall-labs/vanus/client/internal/vanus/eventbus"
+	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/policy"
-	vlog "github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/errors"
-
-	eb "github.com/linkall-labs/vanus/client/internal/vanus/eventbus"
-	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
 )
 
 func NewEventbus(cfg *eb.Config) *eventbus {
@@ -495,18 +494,49 @@ func (w *busWriter) AppendOne(ctx context.Context, event *ce.Event, opts ...api.
 		return "", err
 	}
 
-	// 3. generate event ID
-	var buf [16]byte
-	binary.BigEndian.PutUint64(buf[0:8], lw.Log().ID())
-	binary.BigEndian.PutUint64(buf[8:16], uint64(off))
-	encoded := base64.StdEncoding.EncodeToString(buf[:])
-
-	return encoded, nil
+	return genEventID(lw.Log().ID(), off), nil
 }
 
-func (w *busWriter) AppendMany(ctx context.Context, events []*ce.Event, opts ...api.WriteOption) (eid string, err error) {
+func (w *busWriter) AppendMany(ctx context.Context, events []*ce.Event, opts ...api.WriteOption) (eid []string, err error) {
 	// TODO(jiangkai): implement this method, by jiangkai, 2022.10.24
-	return "", nil
+	_ctx, span := w.tracer.Start(ctx, "SyncAppendOneStream")
+	defer span.End()
+
+	var writeOpts *api.WriteOptions = w.opts
+	if len(opts) > 0 {
+		writeOpts = w.opts.Copy()
+		for _, opt := range opts {
+			opt(writeOpts)
+		}
+	}
+
+	// 1. pick a writer of eventlog
+	lw, err := w.pickWritableLog(_ctx, writeOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. append the event to the eventlog
+	offsets, err := lw.AppendManyStream(_ctx, events)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. generate event ID
+	eventIDs := make([]string, len(offsets))
+	for idx := range offsets {
+		eventIDs[idx] = genEventID(lw.Log().ID(), offsets[idx])
+	}
+
+	return eventIDs, nil
+}
+
+func genEventID(logID uint64, off int64) string {
+	var buf [16]byte
+	binary.BigEndian.PutUint64(buf[0:8], logID)
+	binary.BigEndian.PutUint64(buf[8:16], uint64(off))
+	encoded := base64.StdEncoding.EncodeToString(buf[:])
+	return encoded
 }
 
 func (w *busWriter) Bus() api.Eventbus {
@@ -564,6 +594,38 @@ func (r *busReader) Read(ctx context.Context, opts ...api.ReadOption) ([]*ce.Eve
 
 	// 2. read the event to the eventlog
 	events, err := lr.Read(_ctx, int16(readOpts.BatchSize))
+	if err != nil {
+		return []*ce.Event{}, 0, 0, err
+	}
+	return events, off, lr.Log().ID(), nil
+}
+
+func (r *busReader) ReadStream(ctx context.Context, opts ...api.ReadOption) ([]*ce.Event, int64, uint64, error) {
+	_ctx, span := r.tracer.Start(ctx, "Read")
+	defer span.End()
+
+	var readOpts *api.ReadOptions = r.opts
+	if len(opts) > 0 {
+		readOpts = r.opts.Copy()
+		for _, opt := range opts {
+			opt(readOpts)
+		}
+	}
+
+	// 1. pick a reader of eventlog
+	lr, err := r.pickReadableLog(_ctx, readOpts)
+	if err != nil {
+		return []*ce.Event{}, 0, 0, err
+	}
+
+	// TODO(jiangkai): refactor eventlog interface to avoid seek every time, by jiangkai, 2022.10.24
+	off, err := lr.Seek(_ctx, readOpts.Policy.Offset(), io.SeekStart)
+	if err != nil {
+		return []*ce.Event{}, 0, 0, err
+	}
+
+	// 2. read the event to the eventlog
+	events, err := lr.ReadStream(_ctx, int16(readOpts.BatchSize))
 	if err != nil {
 		return []*ce.Event{}, 0, 0, err
 	}

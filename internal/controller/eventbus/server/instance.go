@@ -64,7 +64,7 @@ func (ins *volumeInstance) CreateBlock(ctx context.Context, capacity int64) (*me
 		VolumeID: ins.md.ID,
 	}
 	if ins.srv == nil {
-		return nil, errors.ErrVolumeInstanceNoServer
+		return nil, errors.ErrResourceNotReady.WithMessage("volume instance no server")
 	}
 	_, err = ins.srv.GetClient().CreateBlock(ctx, &segpb.CreateBlockRequest{
 		Size: blk.Capacity,
@@ -83,7 +83,7 @@ func (ins *volumeInstance) CreateBlock(ctx context.Context, capacity int64) (*me
 
 func (ins *volumeInstance) DeleteBlock(ctx context.Context, id vanus.ID) error {
 	if ins.srv == nil {
-		return errors.ErrVolumeInstanceNoServer
+		return errors.ErrResourceNotReady.WithMessage("volume instance no server")
 	}
 	blk := ins.md.Blocks[id.Uint64()]
 	if blk == nil {

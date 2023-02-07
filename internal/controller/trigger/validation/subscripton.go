@@ -206,7 +206,7 @@ func ValidateFilterList(ctx context.Context, filters []*metapb.Filter) error {
 
 func ValidateFilter(ctx context.Context, f *metapb.Filter) error {
 	if hasMultipleDialects(f) {
-		return errors.ErrFilterMultiple.WithMessage("filters can have only one dialect")
+		return errors.ErrInvalidRequest.WithMessage("filters can have only one dialect")
 	}
 	if err := validateAttributeMap("exact", f.Exact); err != nil {
 		return err
@@ -244,11 +244,12 @@ func ValidateFilter(ctx context.Context, f *metapb.Filter) error {
 func validateCel(ctx context.Context, expression string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = errors.ErrCelExpression.WithMessage(expression)
+			err = errors.ErrInvalidRequest.WithMessage(fmt.Sprintf("cel expression invalid, expression: %s\n", expression))
 		}
 	}()
 	if _, err = cel.Parse(expression); err != nil {
-		return errors.ErrCelExpression.WithMessage(expression).Wrap(err)
+		return errors.ErrInvalidRequest.WithMessage(
+			fmt.Sprintf("ce sql expression invalid, expression: %s\n", expression)).Wrap(err)
 	}
 	return err
 }
@@ -256,11 +257,12 @@ func validateCel(ctx context.Context, expression string) (err error) {
 func validateCeSQL(ctx context.Context, expression string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = errors.ErrCeSQLExpression.WithMessage(expression)
+			err = errors.ErrInvalidRequest.WithMessage(fmt.Sprintf("ce sql expression invalid, expression: %s\n", expression))
 		}
 	}()
 	if _, err = cesqlparser.Parse(expression); err != nil {
-		return errors.ErrCeSQLExpression.WithMessage(expression).Wrap(err)
+		return errors.ErrInvalidRequest.WithMessage(
+			fmt.Sprintf("ce sql expression invalid, expression: %s\n", expression)).Wrap(err)
 	}
 	return err
 }
@@ -271,10 +273,10 @@ func validateAttributeMap(attributeName string, attribute map[string]string) err
 	}
 	for k, v := range attribute {
 		if k == "" {
-			return errors.ErrFilterAttributeIsEmpty.WithMessage(attributeName + " filter dialect attribute name must not empty")
+			return errors.ErrInvalidRequest.WithMessage(attributeName + " filter dialect attribute name must not empty")
 		}
 		if v == "" {
-			return errors.ErrFilterAttributeIsEmpty.WithMessage(attributeName + " filter dialect attribute value must not empty")
+			return errors.ErrInvalidRequest.WithMessage(attributeName + " filter dialect attribute value must not empty")
 		}
 	}
 	return nil

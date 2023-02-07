@@ -158,7 +158,7 @@ func (ctrl *controller) createEventBus(ctx context.Context,
 	ctrl.mutex.Lock()
 	defer ctrl.mutex.Unlock()
 	if !ctrl.isReady(ctx) {
-		return nil, errors.ErrResourceCanNotOp.WithMessage("the cluster isn't ready to create eventbus")
+		return nil, errors.ErrResourceNotReady.WithMessage("the cluster isn't ready to create eventbus")
 	}
 	logNum := req.LogNumber
 	if logNum == 0 {
@@ -408,7 +408,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 }
 func (ctrl *controller) processHeartbeat(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error {
 	if !ctrl.member.IsLeader() {
-		return errors.ErrNotLeader
+		return errors.ErrNotLeader.WithMessage("the controller is not leader")
 	}
 
 	t, err := util.ParseTime(req.ReportTime)

@@ -89,7 +89,7 @@ type controller struct {
 func (ctrl *controller) CommitOffset(ctx context.Context,
 	request *ctrlpb.CommitOffsetRequest) (*ctrlpb.CommitOffsetResponse, error) {
 	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
+		return nil, errors.ErrServerNotRunning
 	}
 	resp := new(ctrlpb.CommitOffsetResponse)
 	for _, subInfo := range request.SubscriptionInfo {
@@ -113,7 +113,7 @@ func (ctrl *controller) CommitOffset(ctx context.Context,
 func (ctrl *controller) ResetOffsetToTimestamp(ctx context.Context,
 	request *ctrlpb.ResetOffsetToTimestampRequest) (*ctrlpb.ResetOffsetToTimestampResponse, error) {
 	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
+		return nil, errors.ErrServerNotRunning
 	}
 	if request.Timestamp == 0 {
 		return nil, errors.ErrInvalidRequest.WithMessage("timestamp is invalid")
@@ -123,6 +123,7 @@ func (ctrl *controller) ResetOffsetToTimestamp(ctx context.Context,
 	if sub == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("subscription not exist")
 	}
+
 	if sub.Phase != metadata.SubscriptionPhaseStopped {
 		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription must be disable can reset offset")
 	}
@@ -138,7 +139,7 @@ func (ctrl *controller) ResetOffsetToTimestamp(ctx context.Context,
 func (ctrl *controller) CreateSubscription(ctx context.Context,
 	request *ctrlpb.CreateSubscriptionRequest) (*meta.Subscription, error) {
 	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
+		return nil, errors.ErrServerNotRunning
 	}
 	err := validation.ValidateSubscriptionRequest(ctx, request.Subscription)
 	if err != nil {
@@ -179,7 +180,7 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 func (ctrl *controller) UpdateSubscription(ctx context.Context,
 	request *ctrlpb.UpdateSubscriptionRequest) (*meta.Subscription, error) {
 	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
+		return nil, errors.ErrServerNotRunning
 	}
 	subID := vanus.ID(request.Id)
 	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
@@ -233,7 +234,7 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 func (ctrl *controller) DeleteSubscription(ctx context.Context,
 	request *ctrlpb.DeleteSubscriptionRequest) (*emptypb.Empty, error) {
 	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
+		return nil, errors.ErrServerNotRunning
 	}
 	subID := vanus.ID(request.Id)
 	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
@@ -258,7 +259,7 @@ func (ctrl *controller) DeleteSubscription(ctx context.Context,
 func (ctrl *controller) DisableSubscription(ctx context.Context,
 	request *ctrlpb.DisableSubscriptionRequest) (*emptypb.Empty, error) {
 	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
+		return nil, errors.ErrServerNotRunning
 	}
 	subID := vanus.ID(request.Id)
 	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
@@ -283,7 +284,7 @@ func (ctrl *controller) DisableSubscription(ctx context.Context,
 func (ctrl *controller) ResumeSubscription(ctx context.Context,
 	request *ctrlpb.ResumeSubscriptionRequest) (*emptypb.Empty, error) {
 	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
+		return nil, errors.ErrServerNotRunning
 	}
 	subID := vanus.ID(request.Id)
 	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
@@ -305,7 +306,7 @@ func (ctrl *controller) ResumeSubscription(ctx context.Context,
 func (ctrl *controller) GetSubscription(ctx context.Context,
 	request *ctrlpb.GetSubscriptionRequest) (*meta.Subscription, error) {
 	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
+		return nil, errors.ErrServerNotRunning
 	}
 	sub := ctrl.subscriptionManager.GetSubscription(ctx, vanus.ID(request.Id))
 	if sub == nil {

@@ -74,7 +74,7 @@ func (al *allocator) PickByVolumes(ctx context.Context, volumes []vanus.ID) ([]*
 	for idx := range volumes {
 		i := al.selector.SelectByID(volumes[idx])
 		if i == nil {
-			return nil, errors.ErrVolumeInstanceNoServer
+			return nil, errors.ErrResourceNotReady.WithMessage("volume instance no server")
 		}
 		instances[idx] = i
 	}
@@ -116,7 +116,7 @@ func (al *allocator) Pick(ctx context.Context, num int) ([]*metadata.Block, erro
 	defer al.mutex.Unlock()
 	instances := al.selector.Select(num, al.blockCapacity)
 	if len(instances) == 0 {
-		return nil, errors.ErrVolumeInstanceNotFound
+		return nil, errors.ErrResourceNotFound.WithMessage("volume instance not found")
 	}
 
 	return al.pick(ctx, instances)

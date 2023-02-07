@@ -17,23 +17,24 @@ package eventlog
 import (
 	// standard libraries.
 	"context"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"io"
 	"sort"
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"go.opentelemetry.io/otel/trace"
-
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
+	"go.opentelemetry.io/otel/trace"
+
+	// first-party libraries
+	vlog "github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 
 	// this project.
 	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/record"
-	vlog "github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 const (
@@ -154,7 +155,7 @@ func (l *eventlog) EarliestOffset(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	if len(rs) == 0 {
-		return 0, errors.ErrNotReadable
+		return 0, errors.ErrNotReadable.WithMessage("no readable segment")
 	}
 	return rs[0].StartOffset, nil
 }
@@ -165,7 +166,7 @@ func (l *eventlog) LatestOffset(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	if len(rs) == 0 {
-		return 0, errors.ErrNotReadable
+		return 0, errors.ErrNotReadable.WithMessage("no readable segment")
 	}
 	return rs[len(rs)-1].EndOffset, nil
 }
@@ -235,7 +236,7 @@ func (l *eventlog) updateWritableSegment(ctx context.Context, r *record.Segment)
 func (l *eventlog) selectWritableSegment(ctx context.Context) (*segment, error) {
 	segment := l.fetchWritableSegment(ctx)
 	if segment == nil {
-		return nil, errors.ErrNotWritable
+		return nil, errors.ErrNotWritable.WithMessage("no writable segment")
 	}
 	return segment, nil
 }
@@ -294,7 +295,7 @@ func (l *eventlog) updateReadableSegments(ctx context.Context, rs []*record.Segm
 func (l *eventlog) selectReadableSegment(ctx context.Context, offset int64) (*segment, error) {
 	segments := l.fetchReadableSegments(ctx)
 	if len(segments) == 0 {
-		return nil, errors.ErrNotReadable
+		return nil, errors.ErrNotReadable.WithMessage("no readable segment")
 	}
 	// TODO: make sure the segments are in order.
 	n := sort.Search(len(segments), func(i int) bool {
@@ -354,7 +355,7 @@ func (w *logWriter) AppendMany(ctx context.Context, events *cloudevents.CloudEve
 			vlog.KeyError: err,
 			"offset":      offset,
 		})
-		if errors.Is(err, errors.ErrSegmentFull) {
+		if errors.Is(err, errors.ErrFull) {
 			if i < retryTimes {
 				continue
 			}
@@ -375,25 +376,27 @@ func (w *logWriter) Close(ctx context.Context) {
 
 func (w *logWriter) Append(ctx context.Context, event *ce.Event) (int64, error) {
 	// TODO: async for throughput
-
 	retryTimes := defaultRetryTimes
 	for i := 1; i <= retryTimes; i++ {
 		offset, err := w.doAppend(ctx, event)
 		if err == nil {
 			return offset, nil
 		}
-		vlog.Warning(ctx, "failed to Append", map[string]interface{}{
+		vlog.Warning(ctx, "append failed", map[string]interface{}{
 			vlog.KeyError: err,
 			"offset":      offset,
 		})
-		if errors.Is(err, errors.ErrSegmentFull) {
+		if errors.Is(err, errors.ErrFull) {
+			vlog.Warning(ctx, "segment is full, retry", map[string]interface{}{
+				vlog.KeyError: err,
+				"retry_times": i,
+			})
 			if i < retryTimes {
 				continue
 			}
 		}
 		return -1, err
 	}
-
 	return -1, errors.ErrUnknown
 }
 
@@ -404,12 +407,53 @@ func (w *logWriter) doAppend(ctx context.Context, event *ce.Event) (int64, error
 	}
 	offset, err := segment.Append(ctx, event)
 	if err != nil {
-		if errors.Is(err, errors.ErrSegmentFull) {
+		if errors.Is(err, errors.ErrFull) {
 			segment.SetNotWritable()
 		}
 		return -1, err
 	}
 	return offset, nil
+}
+
+func (w *logWriter) AppendManyStream(ctx context.Context, events []*ce.Event) ([]int64, error) {
+	// TODO: async for throughput
+	retryTimes := defaultRetryTimes
+	for i := 1; i <= retryTimes; i++ {
+		offsets, err := w.doSyncAppendStream(ctx, events)
+		if err == nil {
+			return offsets, nil
+		}
+		vlog.Warning(ctx, "append failed", map[string]interface{}{
+			vlog.KeyError: err,
+			"offsets":     offsets,
+		})
+		if errors.Is(err, errors.ErrFull) {
+			vlog.Warning(ctx, "segment is full, retry", map[string]interface{}{
+				vlog.KeyError: err,
+				"retry_times": i,
+			})
+			if i < retryTimes {
+				continue
+			}
+		}
+		return nil, err
+	}
+	return nil, errors.ErrUnknown
+}
+
+func (w *logWriter) doSyncAppendStream(ctx context.Context, events []*ce.Event) ([]int64, error) {
+	segment, err := w.selectWritableSegment(ctx)
+	if err != nil {
+		return nil, err
+	}
+	offsets, err := segment.AppendManyStream(ctx, events)
+	if err != nil {
+		if errors.Is(err, errors.ErrFull) {
+			segment.SetNotWritable()
+		}
+		return nil, err
+	}
+	return offsets, nil
 }
 
 func (w *logWriter) doAppendBatch(ctx context.Context, event *cloudevents.CloudEventBatch) (int64, error) {
@@ -419,7 +463,7 @@ func (w *logWriter) doAppendBatch(ctx context.Context, event *cloudevents.CloudE
 	}
 	offset, err := segment.AppendBatch(ctx, event)
 	if err != nil {
-		if errors.Is(err, errors.ErrSegmentFull) {
+		if errors.Is(err, errors.ErrFull) {
 			segment.SetNotWritable()
 		}
 		return -1, err
@@ -459,6 +503,7 @@ type logReader struct {
 	elog *eventlog
 	pos  int64
 	cur  *segment
+	mu   sync.RWMutex
 	cfg  ReaderConfig
 }
 
@@ -471,19 +516,12 @@ func (r *logReader) Close(ctx context.Context) {
 }
 
 func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
-	if r.cur == nil {
-		segment, err := r.elog.selectReadableSegment(ctx, r.pos)
-		if errors.Is(err, errors.ErrOffsetOnEnd) {
-			r.elog.refreshReadableSegments(ctx)
-			segment, err = r.elog.selectReadableSegment(ctx, r.pos)
-		}
-		if err != nil {
-			return nil, err
-		}
-		r.cur = segment
+	segment, err := r.selectReadableSegment(ctx)
+	if err != nil {
+		return nil, err
 	}
 
-	events, err := r.cur.Read(ctx, r.pos, size, uint32(r.pollingTimeout(ctx)))
+	events, err := segment.Read(ctx, r.pos, size, uint32(r.pollingTimeout(ctx)))
 	if err != nil {
 		if errors.Is(err, errors.ErrOffsetOverflow) {
 			r.elog.refreshReadableSegments(ctx)
@@ -495,11 +533,65 @@ func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 	}
 
 	r.pos += int64(len(events))
-	if r.pos == r.cur.EndOffset() {
+	if r.pos == segment.EndOffset() {
 		r.switchSegment(ctx)
 	}
 
 	return events, nil
+}
+
+func (r *logReader) ReadStream(ctx context.Context, size int16) ([]*ce.Event, error) {
+	segment, err := r.selectReadableSegment(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	events, err := segment.ReadStream(ctx, r.pos, size, uint32(r.pollingTimeout(ctx)))
+	if err != nil {
+		if errors.Is(err, errors.ErrOffsetOverflow) {
+			r.elog.refreshReadableSegments(ctx)
+			if r.switchSegment(ctx) {
+				return nil, errors.ErrTryAgain
+			}
+		}
+		return nil, err
+	}
+
+	r.pos += int64(len(events))
+	if r.pos == segment.EndOffset() {
+		r.switchSegment(ctx)
+	}
+
+	return events, nil
+}
+
+func (r *logReader) selectReadableSegment(ctx context.Context) (*segment, error) {
+	segment := func() *segment {
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+		return r.cur
+	}()
+
+	if segment == nil {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+
+		segment = r.cur
+		if segment == nil { // double check
+			var err error
+			segment, err = r.elog.selectReadableSegment(ctx, r.pos)
+			if errors.Is(err, errors.ErrOffsetOnEnd) {
+				r.elog.refreshReadableSegments(ctx)
+				segment, err = r.elog.selectReadableSegment(ctx, r.pos)
+			}
+			if err != nil {
+				return nil, err
+			}
+			r.cur = segment
+		}
+	}
+
+	return segment, nil
 }
 
 func (r *logReader) pollingTimeout(ctx context.Context) int64 {
@@ -535,5 +627,5 @@ func (r *logReader) Seek(ctx context.Context, offset int64, whence int) (int64, 
 		r.cur = nil
 		return offset, nil
 	}
-	return -1, errors.ErrInvalidArgument
+	return -1, errors.ErrInvalidRequest.WithMessage("seek whence values not supported")
 }

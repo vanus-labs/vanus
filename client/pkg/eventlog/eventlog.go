@@ -18,15 +18,16 @@ package eventlog
 import (
 	// standard libraries.
 	"context"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/client/pkg/api"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
+
 	// this project.
+	"github.com/linkall-labs/vanus/client/pkg/api"
 )
 
 const (
@@ -51,7 +52,11 @@ type LogWriter interface {
 	Close(ctx context.Context)
 
 	Append(ctx context.Context, event *ce.Event) (off int64, err error)
+
 	AppendMany(ctx context.Context, events *cloudevents.CloudEventBatch) (off int64, err error)
+
+	// TODO(jiangkai): unified event data format and maybe make stream as a option of writer is better
+	AppendManyStream(ctx context.Context, events []*ce.Event) ([]int64, error)
 }
 
 type LogReader interface {
@@ -61,6 +66,8 @@ type LogReader interface {
 
 	// TODO: async
 	Read(ctx context.Context, size int16) (events []*ce.Event, err error)
+
+	ReadStream(ctx context.Context, size int16) (events []*ce.Event, err error)
 
 	// Seek sets the offset for the next Read to offset,
 	// interpreted according to whence.

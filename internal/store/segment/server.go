@@ -90,7 +90,7 @@ type Server interface {
 	ActivateSegment(ctx context.Context, logID vanus.ID, segID vanus.ID, replicas map[vanus.ID]string) error
 	InactivateSegment(ctx context.Context) error
 
-	AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]int64, error)
+	AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent, cb func([]int64, error))
 	ReadFromBlock(ctx context.Context, id vanus.ID, seq int64, num int, pollingTimeout uint32) ([]*cepb.CloudEvent, error)
 	LookupOffsetInBlock(ctx context.Context, id vanus.ID, stime int64) (int64, error)
 }
@@ -133,29 +133,6 @@ func NewServer(cfg store.Config) Server {
 type leaderInfo struct {
 	leader vanus.ID
 	term   uint64
-}
-
-type appendResult struct {
-	seqs []int64
-	err  error
-}
-
-type appendFuture chan appendResult
-
-func newAppendFuture() appendFuture {
-	return make(appendFuture, 1)
-}
-
-func (af appendFuture) onAppended(seqs []int64, err error) {
-	af <- appendResult{
-		seqs: seqs,
-		err:  err,
-	}
-}
-
-func (af appendFuture) wait() ([]int64, error) {
-	res := <-af
-	return res.seqs, res.err
 }
 
 type server struct {
@@ -374,8 +351,7 @@ func (s *server) Start(ctx context.Context) error {
 	defer span.End()
 
 	if s.state != primitive.ServerStateStarted {
-		return errors.ErrServiceState.WithMessage(
-			"start failed, server state is not created")
+		return errors.ErrServerNotRunning.WithMessage("server not created")
 	}
 
 	log.Info(ctx, "Start SegmentServer.", nil)
@@ -460,7 +436,7 @@ func (s *server) Stop(ctx context.Context) error {
 	ctx, span := s.tracer.Start(ctx, "Stop")
 	defer span.End()
 	if s.state != primitive.ServerStateRunning {
-		return errors.ErrServiceState.WithMessage(fmt.Sprintf(
+		return errors.ErrServerNotRunning.WithMessage(fmt.Sprintf(
 			"the server isn't running, current state:%s", s.state))
 	}
 
@@ -565,7 +541,6 @@ func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
 	if !exist {
 		return errors.ErrResourceNotFound.WithMessage("the block not found")
 	}
-
 	b, _ := v.(Replica)
 	// TODO(james.yin): s.host.Unregister
 	if err := b.Delete(ctx); err != nil {
@@ -665,23 +640,26 @@ func (s *server) InactivateSegment(ctx context.Context) error {
 	return nil
 }
 
-func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]int64, error) {
+func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent, cb func([]int64, error)) {
 	ctx, span := s.tracer.Start(ctx, "AppendToBlock")
 	defer span.End()
 
 	if len(events) == 0 {
-		return nil, errors.ErrInvalidRequest.WithMessage("event list is empty")
+		cb(nil, errors.ErrInvalidRequest.WithMessage("event list is empty"))
+		return
 	}
 
 	if err := s.checkState(); err != nil {
-		return nil, err
+		cb(nil, err)
+		return
 	}
 
 	var b Replica
 	if v, ok := s.replicas.Load(id); ok {
 		b, _ = v.(Replica)
 	} else {
-		return nil, errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
+		cb(nil, errors.ErrResourceNotFound.WithMessage("the block doesn't exist"))
+		return
 	}
 
 	var size int
@@ -694,17 +672,19 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 	metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(len(events)))
 	metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(size))
 
-	future := newAppendFuture()
-	b.Append(ctx, entries, future.onAppended)
-	seqs, err := future.wait()
-	if err != nil {
-		return nil, s.processAppendError(ctx, b, err)
-	}
-
-	// TODO(weihe.yin) make this method deep to code
-	s.pm.NewMessageArrived(id)
-
-	return seqs, nil
+	b.Append(ctx, entries, func(seqs []int64, err error) {
+		select {
+		case <-s.closeC:
+			// TODO(jiangkai): graceful close
+			return
+		default:
+			if err == nil {
+				// TODO(weihe.yin) make this method deep to code
+				s.pm.NewMessageArrived(id)
+			}
+			cb(seqs, s.processAppendError(ctx, b, err))
+		}
+	})
 }
 
 func (s *server) processAppendError(ctx context.Context, b Replica, err error) error {
@@ -716,7 +696,7 @@ func (s *server) processAppendError(ctx context.Context, b Replica, err error) e
 		log.Debug(ctx, "Append failed: block is full.", map[string]interface{}{
 			"block_id": b.ID(),
 		})
-		return errors.ErrSegmentFull
+		return errors.ErrFull
 	}
 
 	if stderr.Is(err, block.ErrNotLeader) {
@@ -884,7 +864,7 @@ func (s *server) LookupOffsetInBlock(ctx context.Context, id vanus.ID, stime int
 
 func (s *server) checkState() error {
 	if s.state != primitive.ServerStateRunning {
-		return errors.ErrServiceState.WithMessage(fmt.Sprintf(
+		return errors.ErrServerNotRunning.WithMessage(fmt.Sprintf(
 			"the server isn't ready to work, current state: %s", s.state))
 	}
 	return nil

@@ -18,6 +18,7 @@ package linkall.vanus.segment;
 
 import "cloudevents.proto";
 import "config.proto";
+import "errors.proto";
 import "google/protobuf/empty.proto";
 
 option go_package = "github.com/linkall-labs/vanus/proto/pkg/segment";
@@ -35,6 +36,8 @@ service SegmentServer {
 
   rpc AppendToBlock(AppendToBlockRequest) returns (AppendToBlockResponse);
   rpc ReadFromBlock(ReadFromBlockRequest) returns (ReadFromBlockResponse);
+  rpc AppendToBlockStream(stream AppendToBlockStreamRequest) returns (stream AppendToBlockStreamResponse);
+  rpc ReadFromBlockStream(stream ReadFromBlockStreamRequest) returns (stream ReadFromBlockStreamResponse);
   rpc LookupOffsetInBlock(LookupOffsetInBlockRequest) returns (LookupOffsetInBlockResponse);
 
   rpc Status(google.protobuf.Empty) returns (StatusResponse);
@@ -91,7 +94,7 @@ message ReadFromBlockRequest {
   int64 offset = 2;
   int64 number = 3;
   // polling timeout in milliseconds, 0 is disable.
-  uint32 polling_timeout = 4;
+  uint32 polling_timeout_in_millisecond = 4;
 }
 
 message ReadFromBlockResponse {
@@ -99,6 +102,38 @@ message ReadFromBlockResponse {
   // Don't use this now, just used to optimize cpu overhead of SegmentServer in
   // the future for backward compatibility
   bytes payload = 2;
+}
+
+message AppendToBlockStreamRequest {
+  uint64 id = 1;
+  uint64 block_id = 2;
+  cloudevents.CloudEventBatch events = 3;
+}
+
+message AppendToBlockStreamResponse {
+  uint64 id = 1;
+  linkall.vanus.errors.ErrorCode response_code = 2;
+  string response_msg = 3;
+  repeated int64 offsets = 4;
+}
+
+message ReadFromBlockStreamRequest {
+  uint64 id = 1;
+  uint64 block_id = 2;
+  int64 offset = 3;
+  int64 number = 4;
+  // polling timeout in milliseconds, 0 is disable.
+  uint32 polling_timeout_in_millisecond = 5;
+}
+
+message ReadFromBlockStreamResponse {
+  uint64 id = 1;
+  linkall.vanus.errors.ErrorCode response_code = 2;
+  string response_msg = 3;
+  cloudevents.CloudEventBatch events = 4;
+  // Don't use this now, just used to optimize cpu overhead of SegmentServer in
+  // the future for backward compatibility
+  bytes payload = 5;
 }
 
 message LookupOffsetInBlockRequest {

@@ -53,7 +53,7 @@ func (sc *segmentClient) Beat(ctx context.Context, v interface{}) error {
 	})
 	req, ok := v.(*ctrlpb.SegmentHeartbeatRequest)
 	if !ok {
-		return errors.ErrInvalidHeartBeatRequest
+		return errors.ErrInvalidRequest.WithMessage("segment heartbeat request invalid")
 	}
 	var err error
 	makeSureClient := func() error {
