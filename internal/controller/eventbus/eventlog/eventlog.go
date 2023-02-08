@@ -343,6 +343,8 @@ func (mgr *eventlogManager) GetEventLogSegmentList(elID vanus.ID) []*Segment {
 		return result
 	}
 	el, _ := v.(*eventlog)
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
 	s := el.head()
 	for s != nil {
 		result = append(result, s)
