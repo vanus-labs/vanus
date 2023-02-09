@@ -20,7 +20,7 @@ import (
 	"errors"
 	"sync"
 
-	// first-party project.
+	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability/log"
 
 	// this project.

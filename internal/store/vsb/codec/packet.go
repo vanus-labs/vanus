@@ -20,7 +20,7 @@ import (
 	"hash/crc32"
 	"io"
 
-	// first-party project.
+	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/errors"
 

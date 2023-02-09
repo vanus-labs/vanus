@@ -593,8 +593,10 @@ func (s *server) onEntryAppended(block vanus.ID) {
 func (s *server) onBlockArchived(stat block.Statistics) {
 	id := stat.ID
 
-	log.Debug(context.Background(), "Block is full.", map[string]interface{}{
-		"block_id": id,
+	log.Info(context.Background(), "Block is full.", map[string]interface{}{
+		"block_id":   id,
+		"event_num":  stat.EntryNum,
+		"event_size": stat.EntrySize,
 	})
 
 	// FIXME(james.yin): leader info.

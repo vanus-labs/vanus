@@ -177,15 +177,16 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 		return
 	}
 
-	atomic.StoreUint32(&b.actx.archived, 1)
-
 	b.wg.Add(1)
 	b.s.Append(bytes.NewReader(frag.Payload()), func(n int, err error) {
-		if len(indexes) != 0 {
+		if len(indexes) != 0 { // always false currently.
 			b.mu.Lock()
 			b.indexes = append(b.indexes, indexes...)
 			b.mu.Unlock()
 		}
+
+		// NOTE: must update archived flag after append all indexes.
+		atomic.StoreUint32(&b.actx.archived, 1)
 
 		cb()
 
@@ -202,6 +203,8 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 			b.lis.OnArchived(b.stat(m, i))
 		}
 	})
+	// No more data, so call Sync() to avoid waiting.
+	b.s.Sync()
 }
 
 func (b *vsBlock) buildIndexes(

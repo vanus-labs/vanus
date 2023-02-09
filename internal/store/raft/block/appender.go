@@ -200,7 +200,7 @@ func (a *appender) applyEntries(ctx context.Context, committedEntries []raftpb.E
 			// })
 			a.onAppend(ctx, index)
 
-			if a.appendLis != nil {
+			if frag != nil && a.appendLis != nil {
 				a.appendLis(a.ID())
 			}
 		})

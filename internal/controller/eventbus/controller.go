@@ -406,6 +406,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 	}
 	return nil
 }
+
 func (ctrl *controller) processHeartbeat(ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest) error {
 	if !ctrl.member.IsLeader() {
 		return errors.ErrNotLeader
@@ -488,7 +489,15 @@ func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 }
 
 func (ctrl *controller) ReportSegmentBlockIsFull(ctx context.Context,
-	req *ctrlpb.SegmentHeartbeatRequest) (*emptypb.Empty, error) {
+	req *ctrlpb.SegmentHeartbeatRequest,
+) (*emptypb.Empty, error) {
+	for _, info := range req.GetHealthInfo() {
+		log.Info(ctx, "Received segment block is full report.", map[string]interface{}{
+			"block_id":   vanus.NewIDFromUint64(info.GetId()),
+			"event_num":  info.GetEventNumber(),
+			"event_size": info.GetSize(),
+		})
+	}
 	if err := ctrl.processHeartbeat(ctx, req); err != nil {
 		return nil, err
 	}
