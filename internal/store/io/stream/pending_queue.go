@@ -15,8 +15,12 @@
 package stream
 
 import (
-	"sync"
+	// standard library.
+	"sync/atomic"
 	"time"
+
+	// this project.
+	"github.com/linkall-labs/vanus/internal/primitive/container/conque/blocking"
 )
 
 type PendingTask interface {
@@ -28,8 +32,7 @@ type PendingID interface{}
 type pendingNode struct {
 	task     PendingTask
 	deadline time.Time
-	prev     *pendingNode
-	next     *pendingNode
+	state    int32
 }
 
 func (pn *pendingNode) onTimeout() {
@@ -37,17 +40,13 @@ func (pn *pendingNode) onTimeout() {
 }
 
 type pendingQueue struct {
-	mu    sync.Mutex
-	tasks pendingNode
+	q     blocking.Queue[*pendingNode]
 	delay time.Duration
 }
 
-func newPendingQueue(delay time.Duration) *pendingQueue {
-	pq := &pendingQueue{
-		delay: delay,
-	}
-	pq.tasks.prev = &pq.tasks
-	pq.tasks.next = &pq.tasks
+func (pq *pendingQueue) init(delay time.Duration) *pendingQueue {
+	// NOTE: delay is short.
+	pq.delay = delay
 
 	go pq.run()
 
@@ -55,64 +54,52 @@ func newPendingQueue(delay time.Duration) *pendingQueue {
 }
 
 func (pq *pendingQueue) Close() {
-	// TODO(james.yin): close
+	pq.q.Close()
 }
 
 func (pq *pendingQueue) run() {
-	// TODO(james.yin): optimize
-	pq.mu.Lock()
+	now := time.Now()
 	for {
-		now := time.Now()
-		node := pq.tasks.next
-		if node == &pq.tasks {
-			pq.mu.Unlock()
-			time.Sleep(pq.delay)
-			pq.mu.Lock()
-			continue
+		node, ok := pq.q.UniquePop()
+		if !ok {
+			return
 		}
-		if now.Before(node.deadline) {
-			pq.mu.Unlock()
-			time.Sleep(node.deadline.Sub(now))
-			pq.mu.Lock()
-			continue
-		}
-		removeNode(node)
 
-		pq.mu.Unlock()
+		// Shortcut if task is canceled.
+		if atomic.LoadInt32(&node.state) != 0 {
+			continue
+		}
+
+		if now.Before(node.deadline) {
+			// refresh time
+			now = time.Now()
+			if now.Before(node.deadline) {
+				time.Sleep(node.deadline.Sub(now))
+
+				// refresh time
+				now = time.Now()
+
+				// recheck node state
+				if atomic.LoadInt32(&node.state) != 0 {
+					continue
+				}
+			}
+		}
+
 		node.onTimeout()
-		pq.mu.Lock()
 	}
 }
 
 func (pq *pendingQueue) Push(t PendingTask) PendingID {
-	// TODO(james.yin): optimize lock
-	pq.mu.Lock()
-	defer pq.mu.Unlock()
 	node := &pendingNode{
 		task:     t,
 		deadline: time.Now().Add(pq.delay),
-		prev:     pq.tasks.prev,
-		next:     &pq.tasks,
 	}
-	pq.tasks.prev.next = node
-	pq.tasks.prev = node
+	pq.q.Push(node)
 	return node
 }
 
 func (pq *pendingQueue) Cancel(pid PendingID) {
 	node, _ := pid.(*pendingNode)
-	// TODO(james.yin): optimize lock
-	pq.mu.Lock()
-	defer pq.mu.Unlock()
-	removeNode(node)
-}
-
-func removeNode(node *pendingNode) {
-	if node.next == node {
-		return
-	}
-	node.next.prev = node.prev
-	node.prev.next = node.next
-	node.next = node
-	node.prev = node
+	atomic.StoreInt32(&node.state, 1)
 }

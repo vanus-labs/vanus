@@ -16,15 +16,11 @@ package codec
 
 import (
 	// standard libraries.
-	"context"
 	"encoding/binary"
 	"hash/crc32"
 	"io"
 
-	// third-party libraries.
-	"go.opentelemetry.io/otel/trace"
-
-	// first-party project.
+	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/errors"
 
@@ -63,11 +59,7 @@ func (e *packetEncoder) Size(entry block.Entry) int {
 	return packetMetaSize + e.pde.Size(entry)
 }
 
-func (e *packetEncoder) MarshalTo(ctx context.Context, entry block.Entry, buf []byte) (int, error) {
-	span := trace.SpanFromContext(ctx)
-	span.AddEvent("store.vsb.codec.packetEncoder.MarshalTo() Start")
-	defer span.AddEvent("store.vsb.codec.packetEncoder.MarshalTo() End")
-
+func (e *packetEncoder) MarshalTo(entry block.Entry, buf []byte) (int, error) {
 	n, err := e.pde.MarshalTo(entry, buf[packetPayloadOffset:])
 	if err != nil {
 		return 0, err

@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/cockroachdb/datadriven"
+	"github.com/linkall-labs/vanus/raft"
 )
 
 func (env *InteractionEnv) handlePropose(t *testing.T, d datadriven.TestData) error {
@@ -30,5 +31,7 @@ func (env *InteractionEnv) handlePropose(t *testing.T, d datadriven.TestData) er
 
 // Propose a regular entry.
 func (env *InteractionEnv) Propose(idx int, data []byte) error {
-	return env.Nodes[idx].Propose(data)
+	ch := make(chan error, 1)
+	env.Nodes[idx].Propose(raft.ProposeData{Data: data, Callback: func(err error) { ch <- err }, NoWaitCommit: true})
+	return <-ch
 }

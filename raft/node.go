@@ -155,23 +155,6 @@ type Node interface {
 	// Step advances the state machine using the given message. ctx.Err() will be returned, if any.
 	Step(ctx context.Context, msg pb.Message) error
 
-	// Ready returns a channel that returns the current point-in-time state.
-	// Users of the Node must call Advance after retrieving the state returned by Ready.
-	//
-	// NOTE: No committed entries from the next Ready may be applied until all committed entries
-	// and snapshots from the previous one have finished.
-	Ready() <-chan Ready
-
-	// Advance notifies the Node that the application has saved progress up to the last Ready.
-	// It prepares the node to return the next available Ready.
-	//
-	// The application should generally call Advance after it applies the entries in last Ready.
-	//
-	// However, as an optimization, the application may call Advance while it is applying the
-	// commands. For example. when the last Ready contains a snapshot, the application might take
-	// a long time to apply the snapshot data. To continue receiving Ready without blocking raft
-	// progress, it can call Advance before finishing applying the last ready.
-	Advance()
 	// ApplyConfChange applies a config change (previously passed to
 	// ProposeConfChange) to the node. This must be called whenever a config
 	// change is observed in Ready.CommittedEntries, except when the app decides
@@ -182,8 +165,9 @@ type Node interface {
 	// snapshots.
 	ApplyConfChange(cc pb.ConfChangeI) *pb.ConfState
 
-	ReportLogged(ctx context.Context, index uint64, term uint64) error
-	ReportApplied(ctx context.Context, index uint64) error
+	ReportStateStatus(ctx context.Context, term uint64, vote uint64) error
+	ReportLogStatus(ctx context.Context, index uint64, term uint64) error
+	ReportApplyStatus(ctx context.Context, index uint64) error
 
 	// TransferLeadership attempts to transfer leadership to the given transferee.
 	TransferLeadership(ctx context.Context, lead, transferee uint64)
@@ -270,8 +254,6 @@ type node struct {
 	confc      chan pb.ConfChangeV2
 	confstatec chan pb.ConfState
 	bootstrapc chan peersWithResult
-	readyc     chan Ready
-	advancec   chan struct{}
 	tickc      chan struct{}
 	done       chan struct{}
 	stop       chan struct{}
@@ -287,8 +269,6 @@ func newNode(rn *RawNode) node {
 		confc:      make(chan pb.ConfChangeV2),
 		confstatec: make(chan pb.ConfState),
 		bootstrapc: make(chan peersWithResult),
-		readyc:     make(chan Ready),
-		advancec:   make(chan struct{}),
 		// make tickc a buffered chan, so raft node can buffer some ticks when the node
 		// is busy processing raft messages. Raft node will resume process buffered
 		// ticks when it becomes idle.
@@ -335,32 +315,14 @@ func (n *node) Bootstrap(peers []Peer) error {
 	return nil
 }
 
-func (n *node) run() {
+func (n *node) run() { //nolint:funlen // ok
 	var propc chan []ProposeData
-	var readyc chan Ready
-	var advancec chan struct{}
-	var rd Ready
 
 	r := n.rn.raft
 
 	lead := None
 
 	for {
-		if advancec != nil {
-			readyc = nil
-		} else if n.rn.HasReady() {
-			// Populate a Ready. Note that this Ready is not guaranteed to
-			// actually be handled. We will arm readyc, but there's no guarantee
-			// that we will actually send on it. It's possible that we will
-			// service another channel instead, loop around, and then populate
-			// the Ready again. We could instead force the previous Ready to be
-			// handled first, but it's generally good to emit larger Readys plus
-			// it simplifies testing (by emitting less frequently and more
-			// predictably).
-			rd = n.rn.readyWithoutAccept()
-			readyc = n.readyc
-		}
-
 		if lead != r.lead {
 			if r.hasLeader() {
 				if lead == None {
@@ -383,10 +345,11 @@ func (n *node) run() {
 		case pds := <-propc:
 			r.Propose(pds...)
 		case m := <-n.recvc:
-			// filter out response message from unknown From.
-			if pr := r.prs.Progress[m.From]; pr != nil || !IsResponseMsg(m.Type) {
-				r.Step(m)
+			if IsResponseMsg(m.Type) && r.prs.Progress[m.From] == nil {
+				// Filter out response message from unknown From.
+				break
 			}
+			r.Step(m)
 		case cc := <-n.confc:
 			_, okBefore := r.prs.Progress[r.id]
 			cs := r.applyConfChange(cc)
@@ -425,13 +388,6 @@ func (n *node) run() {
 			close(bp.result)
 		case <-n.tickc:
 			n.rn.Tick()
-		case readyc <- rd:
-			n.rn.acceptReady(rd)
-			advancec = n.advancec
-		case <-advancec:
-			n.rn.Advance(rd)
-			rd = Ready{}
-			advancec = nil
 		case c := <-n.status:
 			c <- getStatus(r)
 		case <-n.stop:
@@ -457,10 +413,6 @@ func (n *node) Campaign(ctx context.Context) error {
 }
 
 func (n *node) Propose(ctx context.Context, pds ...ProposeData) {
-	span := trace.SpanFromContext(ctx)
-	span.AddEvent("raft.node.Propose() Start")
-	defer span.AddEvent("raft.node.Propose() End")
-
 	select {
 	case n.propc <- pds:
 	case <-ctx.Done():
@@ -523,15 +475,6 @@ func (n *node) step(ctx context.Context, m pb.Message) error {
 	}
 }
 
-func (n *node) Ready() <-chan Ready { return n.readyc }
-
-func (n *node) Advance() {
-	select {
-	case n.advancec <- struct{}{}:
-	case <-n.done:
-	}
-}
-
 func (n *node) ApplyConfChange(cc pb.ConfChangeI) *pb.ConfState {
 	var cs pb.ConfState
 	select {
@@ -545,17 +488,25 @@ func (n *node) ApplyConfChange(cc pb.ConfChangeI) *pb.ConfState {
 	return &cs
 }
 
-func (n *node) ReportLogged(ctx context.Context, index uint64, term uint64) error {
+func (n *node) ReportStateStatus(ctx context.Context, term uint64, vote uint64) error {
 	return n.step(ctx, pb.Message{
-		Type:    pb.MsgLogResp,
+		Type:    pb.MsgStateStatus,
+		LogTerm: term,
+		Vote:    vote,
+	})
+}
+
+func (n *node) ReportLogStatus(ctx context.Context, index uint64, term uint64) error {
+	return n.step(ctx, pb.Message{
+		Type:    pb.MsgLogStatus,
 		LogTerm: term,
 		Index:   index,
 	})
 }
 
-func (n *node) ReportApplied(ctx context.Context, index uint64) error {
+func (n *node) ReportApplyStatus(ctx context.Context, index uint64) error {
 	return n.step(ctx, pb.Message{
-		Type:  pb.MsgApplyResp,
+		Type:  pb.MsgApplyStatus,
 		Index: index,
 	})
 }
@@ -597,40 +548,4 @@ func (n *node) TransferLeadership(ctx context.Context, lead, transferee uint64) 
 
 func (n *node) ReadIndex(ctx context.Context, rctx []byte) error {
 	return n.step(ctx, pb.Message{Type: pb.MsgReadIndex, Entries: []pb.Entry{{Data: rctx}}})
-}
-
-func newReady(r *raft, prevSoftSt *SoftState, prevHardSt pb.HardState, prevCompact uint64) Ready {
-	rd := Ready{
-		Entries:          r.raftLog.pendingEntries(),
-		CommittedEntries: r.raftLog.nextEnts(),
-		Messages:         r.msgs,
-	}
-	if softSt := r.softState(); !softSt.equal(prevSoftSt) {
-		rd.SoftState = softSt
-	}
-	if hardSt := r.hardState(); !isHardStateEqual(hardSt, prevHardSt) {
-		rd.HardState = hardSt
-	}
-	if r.raftLog.unstable.snapshot != nil {
-		rd.Snapshot = *r.raftLog.unstable.snapshot
-	}
-	if len(r.readStates) != 0 {
-		rd.ReadStates = r.readStates
-	}
-	rd.MustSync = MustSync(r.hardState(), prevHardSt, len(rd.Entries))
-	if r.raftLog.compacted != prevCompact {
-		rd.Compact = r.raftLog.compacted
-	}
-	return rd
-}
-
-// MustSync returns true if the hard state and count of Raft entries indicate
-// that a synchronous write to persistent storage is required.
-func MustSync(st, prevst pb.HardState, entsnum int) bool {
-	// Persistent state on all servers:
-	// (Updated on stable storage before responding to RPCs)
-	// currentTerm
-	// votedFor
-	// log entries[]
-	return entsnum != 0 || st.Vote != prevst.Vote || st.Term != prevst.Term
 }

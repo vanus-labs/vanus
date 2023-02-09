@@ -63,9 +63,13 @@ func TestProgressLeader(t *testing.T) {
 	r.prs.Progress[2].BecomeReplicate()
 
 	// Send proposals to r1. The first 5 entries should be appended to the log.
-	propMsg := pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("foo")}}}
+	propMsg := pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("foo")}},
+	}
 	for i := 0; i < 5; i++ {
-		if pr := r.prs.Progress[r.id]; pr.State != tracker.StateReplicate || pr.Match != uint64(i+1) || pr.Next != pr.Match+1 {
+		if pr := r.prs.Progress[r.id]; pr.State != tracker.StateReplicate ||
+			pr.Match != uint64(i+1) || pr.Next != pr.Match+1 {
 			t.Errorf("unexpected progress %v", pr)
 		}
 		if err := r.Step(propMsg); err != nil {
@@ -98,9 +102,18 @@ func TestProgressPaused(t *testing.T) {
 	r := newTestRaft(1, 5, 1, newTestMemoryStorage(withPeers(1, 2)))
 	r.becomeCandidate()
 	r.becomeLeader()
-	r.Step(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("somedata")}}})
-	r.Step(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("somedata")}}})
-	r.Step(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("somedata")}}})
+	r.Step(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("somedata")}},
+	})
+	r.Step(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("somedata")}},
+	})
+	r.Step(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("somedata")}},
+	})
 
 	ms := r.readMessages()
 	if len(ms) != 1 {
@@ -302,9 +315,11 @@ func testLeaderElection(t *testing.T, preVote bool) {
 
 		// three logs further along than 0, but in the same term so rejections
 		// are returned instead of the votes being ignored.
-		{newNetworkWithConfig(cfg,
-			nil, entsWithConfig(cfg, 1), entsWithConfig(cfg, 1), entsWithConfig(cfg, 1, 1), nil),
-			StateFollower, 1},
+		{
+			newNetworkWithConfig(cfg,
+				nil, entsWithConfig(cfg, 1), entsWithConfig(cfg, 1), entsWithConfig(cfg, 1, 1), nil),
+			StateFollower, 1,
+		},
 	}
 
 	for i, tt := range tests {
@@ -687,7 +702,10 @@ func TestLearnerLogReplication(t *testing.T) {
 	}
 
 	nextCommitted := n1.raftLog.committed + 1
-	nt.send(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("somedata")}}})
+	nt.send(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("somedata")}},
+	})
 	if n1.raftLog.committed != nextCommitted {
 		t.Errorf("peer 1 wants committed to %d, but still %d", nextCommitted, n1.raftLog.committed)
 	}
@@ -705,8 +723,14 @@ func TestLearnerLogReplication(t *testing.T) {
 func TestSingleNodeCommit(t *testing.T) {
 	tt := newNetwork(nil)
 	tt.send(pb.Message{From: 1, To: 1, Type: pb.MsgHup})
-	tt.send(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("some data")}}})
-	tt.send(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("some data")}}})
+	tt.send(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("some data")}},
+	})
+	tt.send(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("some data")}},
+	})
 
 	sm := tt.peers[1].(*raft)
 	if sm.raftLog.committed != 3 {
@@ -726,8 +750,14 @@ func TestCannotCommitWithoutNewTermEntry(t *testing.T) {
 	tt.cut(1, 4)
 	tt.cut(1, 5)
 
-	tt.send(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("some data")}}})
-	tt.send(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("some data")}}})
+	tt.send(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("some data")}},
+	})
+	tt.send(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("some data")}},
+	})
 
 	sm := tt.peers[1].(*raft)
 	if sm.raftLog.committed != 1 {
@@ -752,7 +782,10 @@ func TestCannotCommitWithoutNewTermEntry(t *testing.T) {
 	// send heartbeat; reset wait
 	tt.send(pb.Message{From: 2, To: 2, Type: pb.MsgBeat})
 	// append an entry at current term
-	tt.send(pb.Message{From: 2, To: 2, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("some data")}}})
+	tt.send(pb.Message{
+		From: 2, To: 2, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("some data")}},
+	})
 	// expect the committed to be advanced
 	if sm.raftLog.committed != 5 {
 		t.Errorf("committed = %d, want %d", sm.raftLog.committed, 5)
@@ -770,8 +803,14 @@ func TestCommitWithoutNewTermEntry(t *testing.T) {
 	tt.cut(1, 4)
 	tt.cut(1, 5)
 
-	tt.send(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("some data")}}})
-	tt.send(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("some data")}}})
+	tt.send(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("some data")}},
+	})
+	tt.send(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("some data")}},
+	})
 
 	sm := tt.peers[1].(*raft)
 	if sm.raftLog.committed != 1 {
@@ -834,7 +873,7 @@ func TestDuelingCandidates(t *testing.T) {
 	}{
 		{a, StateFollower, 2, wlog},
 		{b, StateFollower, 2, wlog},
-		{c, StateFollower, 2, newLog(NewMemoryStorage(), raftLogger)},
+		{c, StateFollower, 2, newLog(NewMemoryStorage(), nil, raftLogger)},
 	}
 
 	for i, tt := range tests {
@@ -904,7 +943,7 @@ func TestDuelingPreCandidates(t *testing.T) {
 	}{
 		{a, StateLeader, 1, wlog},
 		{b, StateFollower, 1, wlog},
-		{c, StateFollower, 1, newLog(NewMemoryStorage(), raftLogger)},
+		{c, StateFollower, 1, newLog(NewMemoryStorage(), nil, raftLogger)},
 	}
 
 	for i, tt := range tests {
@@ -997,15 +1036,23 @@ func TestOldMessages(t *testing.T) {
 	tt.send(pb.Message{From: 2, To: 2, Type: pb.MsgHup})
 	tt.send(pb.Message{From: 1, To: 1, Type: pb.MsgHup})
 	// pretend we're an old leader trying to make progress; this entry is expected to be ignored.
-	tt.send(pb.Message{From: 2, To: 1, Type: pb.MsgApp, Term: 2, Entries: []pb.Entry{{Index: 3, Term: 2}}})
+	tt.send(pb.Message{
+		From: 2, To: 1, Type: pb.MsgApp, Term: 2,
+		Entries: []pb.Entry{{Index: 3, Term: 2}},
+	})
 	// commit a new entry
-	tt.send(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("somedata")}}})
+	tt.send(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("somedata")}},
+	})
 
 	ilog := &raftLog{
 		storage: &MemoryStorage{
 			ents: []pb.Entry{
-				{}, {Data: nil, Term: 1, Index: 1},
-				{Data: nil, Term: 2, Index: 2}, {Data: nil, Term: 3, Index: 3},
+				{},
+				{Data: nil, Term: 1, Index: 1},
+				{Data: nil, Term: 2, Index: 2},
+				{Data: nil, Term: 3, Index: 3},
 				{Data: []byte("somedata"), Term: 3, Index: 4},
 			},
 		},
@@ -1059,14 +1106,15 @@ func TestProposal(t *testing.T) {
 		send(pb.Message{From: 1, To: 1, Type: pb.MsgHup})
 		send(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: data}}})
 
-		wantLog := newLog(NewMemoryStorage(), raftLogger)
+		wantLog := newLog(NewMemoryStorage(), nil, raftLogger)
 		if tt.success {
 			wantLog = &raftLog{
 				storage: &MemoryStorage{
 					ents: []pb.Entry{{}, {Data: nil, Term: 1, Index: 1}, {Term: 1, Index: 2, Data: data}},
 				},
 				unstable:  unstable{offset: 3},
-				committed: 2}
+				committed: 2,
+			}
 		}
 		base := ltoa(wantLog)
 		for i, p := range tt.peers {
@@ -1098,14 +1146,18 @@ func TestProposalByProxy(t *testing.T) {
 		tt.send(pb.Message{From: 1, To: 1, Type: pb.MsgHup})
 
 		// propose via follower
-		tt.send(pb.Message{From: 2, To: 2, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("somedata")}}})
+		tt.send(pb.Message{
+			From: 2, To: 2, Type: pb.MsgProp,
+			Entries: []pb.Entry{{Data: []byte("somedata")}},
+		})
 
 		wantLog := &raftLog{
 			storage: &MemoryStorage{
 				ents: []pb.Entry{{}, {Data: nil, Term: 1, Index: 1}, {Term: 1, Data: data, Index: 2}},
 			},
 			unstable:  unstable{offset: 3},
-			committed: 2}
+			committed: 2,
+		}
 		base := ltoa(wantLog)
 		for i, p := range tt.peers {
 			if sm, ok := p.(*raft); ok {
@@ -1225,10 +1277,10 @@ func TestStepIgnoreOldTermMsg(t *testing.T) {
 }
 
 // TestHandleMsgApp ensures:
-// 1. Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm.
-// 2. If an existing entry conflicts with a new one (same index but different terms),
-//    delete the existing entry and all that follow it; append any new entries not already in the log.
-// 3. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry).
+//  1. Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm.
+//  2. If an existing entry conflicts with a new one (same index but different terms),
+//     delete the existing entry and all that follow it; append any new entries not already in the log.
+//  3. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry).
 func TestHandleMsgApp(t *testing.T) {
 	tests := []struct {
 		m       pb.Message
@@ -1242,16 +1294,31 @@ func TestHandleMsgApp(t *testing.T) {
 
 		// Ensure 2
 		{pb.Message{Type: pb.MsgApp, Term: 2, LogTerm: 1, Index: 1, Commit: 1}, 2, 1, false},
-		{pb.Message{Type: pb.MsgApp, Term: 2, LogTerm: 0, Index: 0, Commit: 1, Entries: []pb.Entry{{Index: 1, Term: 2}}}, 1, 1, false},
-		{pb.Message{Type: pb.MsgApp, Term: 2, LogTerm: 2, Index: 2, Commit: 3, Entries: []pb.Entry{{Index: 3, Term: 2}, {Index: 4, Term: 2}}}, 4, 3, false},
-		{pb.Message{Type: pb.MsgApp, Term: 2, LogTerm: 2, Index: 2, Commit: 4, Entries: []pb.Entry{{Index: 3, Term: 2}}}, 3, 3, false},
-		{pb.Message{Type: pb.MsgApp, Term: 2, LogTerm: 1, Index: 1, Commit: 4, Entries: []pb.Entry{{Index: 2, Term: 2}}}, 2, 2, false},
+		{pb.Message{
+			Type: pb.MsgApp, Term: 2, LogTerm: 0, Index: 0, Commit: 1,
+			Entries: []pb.Entry{{Index: 1, Term: 2}},
+		}, 1, 1, false},
+		{pb.Message{
+			Type: pb.MsgApp, Term: 2, LogTerm: 2, Index: 2, Commit: 3,
+			Entries: []pb.Entry{{Index: 3, Term: 2}, {Index: 4, Term: 2}},
+		}, 4, 3, false},
+		{pb.Message{
+			Type: pb.MsgApp, Term: 2, LogTerm: 2, Index: 2, Commit: 4,
+			Entries: []pb.Entry{{Index: 3, Term: 2}},
+		}, 3, 3, false},
+		{pb.Message{
+			Type: pb.MsgApp, Term: 2, LogTerm: 1, Index: 1, Commit: 4,
+			Entries: []pb.Entry{{Index: 2, Term: 2}},
+		}, 2, 2, false},
 
 		// Ensure 3
-		{pb.Message{Type: pb.MsgApp, Term: 1, LogTerm: 1, Index: 1, Commit: 3}, 2, 1, false},                                           // match entry 1, commit up to last new entry 1
-		{pb.Message{Type: pb.MsgApp, Term: 1, LogTerm: 1, Index: 1, Commit: 3, Entries: []pb.Entry{{Index: 2, Term: 2}}}, 2, 2, false}, // match entry 1, commit up to last new entry 2
-		{pb.Message{Type: pb.MsgApp, Term: 2, LogTerm: 2, Index: 2, Commit: 3}, 2, 2, false},                                           // match entry 2, commit up to last new entry 2
-		{pb.Message{Type: pb.MsgApp, Term: 2, LogTerm: 2, Index: 2, Commit: 4}, 2, 2, false},                                           // commit up to log.last()
+		{pb.Message{Type: pb.MsgApp, Term: 1, LogTerm: 1, Index: 1, Commit: 3}, 2, 1, false}, // match entry 1, commit up to last new entry 1
+		{pb.Message{
+			Type: pb.MsgApp, Term: 1, LogTerm: 1, Index: 1, Commit: 3,
+			Entries: []pb.Entry{{Index: 2, Term: 2}},
+		}, 2, 2, false}, // match entry 1, commit up to last new entry 2
+		{pb.Message{Type: pb.MsgApp, Term: 2, LogTerm: 2, Index: 2, Commit: 3}, 2, 2, false}, // match entry 2, commit up to last new entry 2
+		{pb.Message{Type: pb.MsgApp, Term: 2, LogTerm: 2, Index: 2, Commit: 4}, 2, 2, false}, // commit up to log.last()
 	}
 
 	for i, tt := range tests {
@@ -1663,7 +1730,8 @@ func TestAllServerStepdown(t *testing.T) {
 				t.Errorf("#%d.%d index = %v , want %v", i, j, sm.raftLog.lastIndex(), tt.windex)
 			}
 			if uint64(len(sm.raftLog.allEntries())) != tt.windex {
-				t.Errorf("#%d.%d len(ents) = %v , want %v", i, j, len(sm.raftLog.allEntries()), tt.windex)
+				t.Errorf("#%d.%d len(ents) = %v , want %v", i, j,
+					len(sm.raftLog.allEntries()), tt.windex)
 			}
 			wlead := uint64(2)
 			if msgType == pb.MsgVote {
@@ -2130,9 +2198,18 @@ func TestDisruptiveFollowerPreVote(t *testing.T) {
 	}
 
 	nt.isolate(3)
-	nt.send(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("somedata")}}})
-	nt.send(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("somedata")}}})
-	nt.send(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("somedata")}}})
+	nt.send(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("somedata")}},
+	})
+	nt.send(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("somedata")}},
+	})
+	nt.send(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("somedata")}},
+	})
 	n1.preVote = true
 	n2.preVote = true
 	n3.preVote = true
@@ -2452,7 +2529,10 @@ func TestLeaderAppResp(t *testing.T) {
 		sm.becomeCandidate()
 		sm.becomeLeader()
 		sm.readMessages()
-		sm.Step(pb.Message{From: 2, Type: pb.MsgAppResp, Index: tt.index, Term: sm.Term, Reject: tt.reject, RejectHint: tt.index})
+		sm.Step(pb.Message{
+			From: 2, Type: pb.MsgAppResp, Index: tt.index, Term: sm.Term,
+			Reject: tt.reject, RejectHint: tt.index,
+		})
 
 		p := sm.prs.Progress[2]
 		if p.Match != tt.wmatch {
@@ -2552,7 +2632,9 @@ func TestRecvMsgBeat(t *testing.T) {
 
 	for i, tt := range tests {
 		sm := newTestRaft(1, 10, 1, newTestMemoryStorage(withPeers(1, 2, 3)))
-		sm.raftLog = &raftLog{storage: &MemoryStorage{ents: []pb.Entry{{}, {Index: 1, Term: 0}, {Index: 2, Term: 1}}}}
+		sm.raftLog = &raftLog{storage: &MemoryStorage{
+			ents: []pb.Entry{{}, {Index: 1, Term: 0}, {Index: 2, Term: 1}},
+		}}
 		sm.Term = 1
 		sm.state = tt.state
 		switch tt.state {
@@ -2600,7 +2682,10 @@ func TestLeaderIncreaseNext(t *testing.T) {
 		sm.becomeLeader()
 		sm.prs.Progress[2].State = tt.state
 		sm.prs.Progress[2].Next = tt.next
-		sm.Step(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("somedata")}}})
+		sm.Step(pb.Message{
+			From: 1, To: 1, Type: pb.MsgProp,
+			Entries: []pb.Entry{{Data: []byte("somedata")}},
+		})
 
 		p := sm.prs.Progress[2]
 		if p.Next != tt.wnext {
@@ -2817,7 +2902,7 @@ func TestRestoreWithLearner(t *testing.T) {
 	}
 }
 
-/// Tests if outgoing voter can receive and apply snapshot correctly.
+// / Tests if outgoing voter can receive and apply snapshot correctly.
 func TestRestoreWithVotersOutgoing(t *testing.T) {
 	s := pb.Snapshot{
 		Metadata: pb.SnapshotMetadata{
@@ -3033,7 +3118,10 @@ func TestIgnoreProvidingSnap(t *testing.T) {
 	sm.prs.Progress[2].Next = sm.raftLog.firstIndex() - 1
 	sm.prs.Progress[2].RecentActive = false
 
-	sm.Step(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("somedata")}}})
+	sm.Step(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("somedata")}},
+	})
 
 	msgs := sm.readMessages()
 	if len(msgs) != 0 {
@@ -3104,7 +3192,10 @@ func TestStepConfig(t *testing.T) {
 	r.becomeCandidate()
 	r.becomeLeader()
 	index := r.raftLog.lastIndex()
-	r.Step(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Type: pb.EntryConfChange}}})
+	r.Step(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Type: pb.EntryConfChange}},
+	})
 	if g := r.raftLog.lastIndex(); g != index+1 {
 		t.Errorf("index = %d, want %d", g, index+1)
 	}
@@ -3121,10 +3212,16 @@ func TestStepIgnoreConfig(t *testing.T) {
 	r := newTestRaft(1, 10, 1, newTestMemoryStorage(withPeers(1, 2)))
 	r.becomeCandidate()
 	r.becomeLeader()
-	r.Step(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Type: pb.EntryConfChange}}})
+	r.Step(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Type: pb.EntryConfChange}},
+	})
 	index := r.raftLog.lastIndex()
 	pendingConfIndex := r.pendingConfIndex
-	r.Step(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Type: pb.EntryConfChange}}})
+	r.Step(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Type: pb.EntryConfChange}},
+	})
 	wents := []pb.Entry{{Type: pb.EntryNormal, Term: 1, Index: 3, Data: nil}}
 	ents, err := r.raftLog.entries(index+1, noLimit)
 	if err != nil {
@@ -4103,7 +4200,10 @@ func newPreVoteMigrationCluster(t *testing.T) *network {
 
 	// Cause a network partition to isolate n3.
 	nt.isolate(3)
-	nt.send(pb.Message{From: 1, To: 1, Type: pb.MsgProp, Entries: []pb.Entry{{Data: []byte("some data")}}})
+	nt.send(pb.Message{
+		From: 1, To: 1, Type: pb.MsgProp,
+		Entries: []pb.Entry{{Data: []byte("some data")}},
+	})
 	nt.send(pb.Message{From: 3, To: 3, Type: pb.MsgHup})
 	nt.send(pb.Message{From: 3, To: 3, Type: pb.MsgHup})
 
@@ -4583,7 +4683,8 @@ func TestFastLogRejection(t *testing.T) {
 				t.Fatalf("#%d expected hint log term = %d, but got %d", i, test.rejectHintTerm, msgs[0].LogTerm)
 			}
 			if msgs[0].RejectHint != test.rejectHintIndex {
-				t.Fatalf("#%d expected hint index = %d, but got %d", i, test.rejectHintIndex, msgs[0].RejectHint)
+				t.Fatalf("#%d expected hint index = %d, but got %d", i,
+					test.rejectHintIndex, msgs[0].RejectHint)
 			}
 
 			if n1.Step(msgs[0]) != nil {

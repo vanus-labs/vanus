@@ -14,12 +14,50 @@
 
 package config
 
+import (
+	// this project.
+	"github.com/linkall-labs/vanus/internal/store/raft/block"
+)
+
 const minRaftLogWALFileSize uint64 = 32 * baseMB
 
+type RaftExecutorParallel struct {
+	Raft      int `yaml:"raft"`
+	Append    int `yaml:"append"`
+	Commit    int `yaml:"commit"`
+	Persist   int `yaml:"persist"`
+	Apply     int `yaml:"apply"`
+	Transport int `yaml:"transport"`
+}
+
 type Raft struct {
-	WAL `yaml:"wal"`
+	WAL      WAL                  `yaml:"wal"`
+	Parallel RaftExecutorParallel `yaml:"parallel"`
 }
 
 func (c *Raft) Validate() error {
 	return c.WAL.Validate(minRaftLogWALFileSize)
+}
+
+func (c *Raft) Options() (opts []block.Option) {
+	opts = append(opts, block.WithWALOptions(c.WAL.Options()...))
+	if c.Parallel.Raft != 0 {
+		opts = append(opts, block.WithRaftExecutorParallel(c.Parallel.Raft))
+	}
+	if c.Parallel.Append != 0 {
+		opts = append(opts, block.WithAppendExecutorParallel(c.Parallel.Append))
+	}
+	if c.Parallel.Commit != 0 {
+		opts = append(opts, block.WithCommitExecutorParallel(c.Parallel.Commit))
+	}
+	if c.Parallel.Persist != 0 {
+		opts = append(opts, block.WithPersistExecutorParallel(c.Parallel.Persist))
+	}
+	if c.Parallel.Apply != 0 {
+		opts = append(opts, block.WithApplyExecutorParallel(c.Parallel.Append))
+	}
+	if c.Parallel.Transport != 0 {
+		opts = append(opts, block.WithTransportExecutorParallel(c.Parallel.Transport))
+	}
+	return opts
 }

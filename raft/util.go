@@ -41,8 +41,8 @@ func max(a, b uint64) uint64 {
 }
 
 func IsLocalMsg(msgt pb.MessageType) bool {
-	return msgt == pb.MsgHup || msgt == pb.MsgBeat || msgt == pb.MsgUnreachable || msgt == pb.MsgSnapStatus ||
-		msgt == pb.MsgCheckQuorum || msgt == pb.MsgLogResp || msgt == pb.MsgApplyResp
+	return msgt == pb.MsgLogStatus || msgt == pb.MsgApplyStatus || msgt == pb.MsgStateStatus || msgt == pb.MsgHup ||
+		msgt == pb.MsgBeat || msgt == pb.MsgUnreachable || msgt == pb.MsgSnapStatus || msgt == pb.MsgCheckQuorum
 }
 
 func IsResponseMsg(msgt pb.MessageType) bool {
@@ -211,9 +211,13 @@ func DescribeEntries(ents []pb.Entry, f EntryFormatter) string {
 }
 
 func limitSize(ents []pb.Entry, maxSize uint64) []pb.Entry {
-	if len(ents) == 0 {
+	if len(ents) == 0 || maxSize == noLimit {
 		return ents
 	}
+	return doLimitSize(ents, maxSize)
+}
+
+func doLimitSize(ents []pb.Entry, maxSize uint64) []pb.Entry {
 	size := ents[0].Size()
 	var limit int
 	for limit = 1; limit < len(ents); limit++ {

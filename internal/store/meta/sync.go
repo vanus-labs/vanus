@@ -22,12 +22,9 @@ import (
 
 	// third-party libraries.
 	"github.com/huandu/skiplist"
-	"go.opentelemetry.io/otel/trace"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/config"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
-	"github.com/linkall-labs/vanus/observability/tracing"
 )
 
 const (
@@ -41,9 +38,7 @@ type SyncStore struct {
 	doneC     chan struct{}
 }
 
-func newSyncStore(ctx context.Context, wal *walog.WAL,
-	committed *skiplist.SkipList, version, snapshot int64,
-) *SyncStore {
+func newSyncStore(wal *walog.WAL, committed *skiplist.SkipList, version, snapshot int64) *SyncStore {
 	s := &SyncStore{
 		store: store{
 			committed: committed,
@@ -51,22 +46,17 @@ func newSyncStore(ctx context.Context, wal *walog.WAL,
 			wal:       wal,
 			snapshot:  snapshot,
 			marshaler: defaultCodec,
-			tracer:    tracing.NewTracer("store.meta.sync", trace.SpanKindInternal),
 		},
 		snapshotC: make(chan struct{}, 1),
 		doneC:     make(chan struct{}),
 	}
 
-	go s.runSnapshot(ctx)
+	go s.runSnapshot()
 
 	return s
 }
 
 func (s *SyncStore) Close(ctx context.Context) {
-	span := trace.SpanFromContext(ctx)
-	span.AddEvent("store.meta.SyncStore.Close() Start")
-	defer span.AddEvent("store.meta.SyncStore.Close() End")
-
 	// Close WAL.
 	s.wal.Close()
 	s.wal.Wait()
@@ -83,51 +73,53 @@ func (s *SyncStore) Load(key []byte) (interface{}, bool) {
 	return s.load(key)
 }
 
-func (s *SyncStore) Store(ctx context.Context, key []byte, value interface{}) {
-	span := trace.SpanFromContext(ctx)
-	span.AddEvent("store.meta.SyncStore.Store() Start")
-	defer span.AddEvent("store.meta.SyncStore.Store() End")
-
-	if err := s.set(ctx, KVRange(key, value)); err != nil {
-		panic(err)
+func (s *SyncStore) Range(begin, end []byte, cb RangeCallback) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for el := s.committed.Find(begin); el != nil; el = el.Next() {
+		if skiplist.Bytes.Compare(el.Key(), end) >= 0 {
+			break
+		}
+		if err := cb(el.Key().([]byte), el.Value); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (s *SyncStore) BatchStore(ctx context.Context, kvs Ranger) {
-	span := trace.SpanFromContext(ctx)
-	span.AddEvent("store.meta.SyncStore.BatchStore() Start")
-	defer span.AddEvent("store.meta.SyncStore.BatchStore() End")
+type StoreCallback = func(error)
 
-	if err := s.set(ctx, kvs); err != nil {
-		panic(err)
-	}
+func (s *SyncStore) Store(ctx context.Context, key []byte, value interface{}, cb StoreCallback) {
+	s.set(ctx, KVRange(key, value), cb)
 }
 
-func (s *SyncStore) Delete(ctx context.Context, key []byte) {
-	span := trace.SpanFromContext(ctx)
-	span.AddEvent("store.meta.SyncStore.Delete() Start")
-	defer span.AddEvent("store.meta.SyncStore.Delete() End")
-
-	if err := s.set(ctx, KVRange(key, deletedMark)); err != nil {
-		panic(err)
-	}
+func (s *SyncStore) BatchStore(ctx context.Context, kvs Ranger, cb StoreCallback) {
+	s.set(ctx, kvs, cb)
 }
 
-func (s *SyncStore) set(ctx context.Context, kvs Ranger) error {
-	span := trace.SpanFromContext(ctx)
-	span.AddEvent("store.meta.SyncStore.set() Start")
-	defer span.AddEvent("store.meta.SyncStore.set() End")
+func (s *SyncStore) Delete(ctx context.Context, key []byte, cb StoreCallback) {
+	s.set(ctx, KVRange(key, deletedMark), cb)
+}
 
+func (s *SyncStore) BatchDelete(ctx context.Context, keys [][]byte, cb StoreCallback) {
+	s.set(ctx, &deleteRange{keys}, cb)
+}
+
+func (s *SyncStore) set(ctx context.Context, kvs Ranger, cb StoreCallback) {
 	entry, err := s.marshaler.Marshal(kvs)
 	if err != nil {
-		return err
+		cb(err)
+		return
 	}
 
-	ch := make(chan error, 1)
 	// Use callbacks for ordering guarantees.
-	s.wal.AppendOne(ctx, entry, walog.WithCallback(func(re walog.Result) {
-		if re.Err != nil {
-			ch <- re.Err
+	s.wal.AppendOne(ctx, entry, func(r walog.Range, err error) {
+		if err != nil {
+			// Convert ErrClosed.
+			if errors.Is(err, walog.ErrClosed) {
+				err = ErrClosed
+			}
+			cb(err)
 			return
 		}
 
@@ -141,27 +133,19 @@ func (s *SyncStore) set(ctx context.Context, kvs Ranger) error {
 			}
 			return nil
 		})
-		s.version = re.Range().EO
+		s.version = r.EO
 		s.mu.Unlock()
 
-		close(ch)
+		cb(nil)
 
 		select {
 		case s.snapshotC <- struct{}{}:
 		default:
 		}
-	}))
-	err = <-ch
-
-	// Convert ErrClosed.
-	if err != nil && errors.Is(err, walog.ErrClosed) {
-		return ErrClosed
-	}
-
-	return err
+	})
 }
 
-func (s *SyncStore) runSnapshot(ctx context.Context) {
+func (s *SyncStore) runSnapshot() {
 	ticker := time.NewTicker(runSnapshotInterval)
 	defer func() {
 		ticker.Stop()
@@ -175,22 +159,18 @@ func (s *SyncStore) runSnapshot(ctx context.Context) {
 			}
 		case <-ticker.C:
 		}
-		s.tryCreateSnapshot(ctx)
+		s.tryCreateSnapshot()
 	}
 }
 
-func RecoverSyncStore(ctx context.Context, cfg config.SyncStore, walDir string) (*SyncStore, error) {
-	span := trace.SpanFromContext(ctx)
-	span.AddEvent("store.meta.RecoverSyncStore() Start")
-	defer span.AddEvent("store.meta.RecoverSyncStore() End")
-
-	committed, snapshot, err := recoverLatestSnapshot(ctx, walDir, defaultCodec)
+func RecoverSyncStore(ctx context.Context, dir string, opts ...walog.Option) (*SyncStore, error) {
+	committed, snapshot, err := recoverLatestSnapshot(ctx, dir, defaultCodec)
 	if err != nil {
 		return nil, err
 	}
 
 	version := snapshot
-	opts := append([]walog.Option{
+	opts = append([]walog.Option{
 		walog.FromPosition(snapshot),
 		walog.WithRecoveryCallback(func(data []byte, r walog.Range) error {
 			err2 := defaultCodec.Unmarshal(data, func(key []byte, value interface{}) error {
@@ -203,11 +183,52 @@ func RecoverSyncStore(ctx context.Context, cfg config.SyncStore, walDir string) 
 			version = r.EO
 			return nil
 		}),
-	}, cfg.WAL.Options()...)
-	wal, err := walog.Open(ctx, walDir, opts...)
+	}, opts...)
+	wal, err := walog.Open(ctx, dir, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	return newSyncStore(ctx, wal, committed, version, snapshot), nil
+	return newSyncStore(wal, committed, version, snapshot), nil
+}
+
+type storeFuture chan error
+
+func newStoreFuture() storeFuture {
+	return make(storeFuture, 1)
+}
+
+func (sf storeFuture) onStored(err error) {
+	if err != nil {
+		sf <- err
+	}
+	close(sf)
+}
+
+func (sf storeFuture) wait() error {
+	return <-sf
+}
+
+func Store(ctx context.Context, s *SyncStore, key []byte, value interface{}) error {
+	future := newStoreFuture()
+	s.Store(ctx, key, value, future.onStored)
+	return future.wait()
+}
+
+func BatchStore(ctx context.Context, s *SyncStore, kvs Ranger) error {
+	future := newStoreFuture()
+	s.BatchStore(ctx, kvs, future.onStored)
+	return future.wait()
+}
+
+func Delete(ctx context.Context, s *SyncStore, key []byte) error {
+	future := newStoreFuture()
+	s.Delete(ctx, key, future.onStored)
+	return future.wait()
+}
+
+func BatchDelete(ctx context.Context, s *SyncStore, keys [][]byte) error {
+	future := newStoreFuture()
+	s.BatchDelete(ctx, keys, future.onStored)
+	return future.wait()
 }

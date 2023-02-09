@@ -64,3 +64,18 @@ func KVRange(key []byte, value interface{}) Ranger {
 func (r *kvRange) Range(cb RangeCallback) error {
 	return cb(r.key, r.value)
 }
+
+type deleteRange struct {
+	keys [][]byte
+}
+
+var _ Ranger = (*deleteRange)(nil)
+
+func (r *deleteRange) Range(cb RangeCallback) error {
+	for _, key := range r.keys {
+		if err := cb(key, deletedMark); err != nil {
+			return err
+		}
+	}
+	return nil
+}

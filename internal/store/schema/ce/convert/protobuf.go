@@ -19,10 +19,10 @@ import (
 	"time"
 
 	// third-party libraries.
-	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	// first-party libraries.
+	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
 	// this project.

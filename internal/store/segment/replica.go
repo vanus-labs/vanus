@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=replica.go  -destination=mock_replica.go -package=segment
+//go:generate mockgen -source=replica.go -destination=mock_replica.go -package=segment
 package segment
 
 import (
@@ -24,10 +24,9 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	raftlog "github.com/linkall-labs/vanus/internal/raft/log"
 	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/internal/store/block/raft"
 	"github.com/linkall-labs/vanus/internal/store/block/raw"
+	raft "github.com/linkall-labs/vanus/internal/store/raft/block"
 )
 
 type Replica interface {
@@ -43,7 +42,6 @@ type Replica interface {
 type replica struct {
 	id       vanus.ID
 	idStr    string
-	engine   raw.Engine
 	raw      block.Raw
 	appender raft.Appender
 }
@@ -58,8 +56,8 @@ func (r *replica) IDStr() string {
 	return r.idStr
 }
 
-func (r *replica) Bootstrap(ctx context.Context, blocks []raft.Peer) error {
-	return r.appender.Bootstrap(ctx, blocks)
+func (r *replica) Bootstrap(ctx context.Context, peers []raft.Peer) error {
+	return r.appender.Bootstrap(ctx, peers)
 }
 
 func (r *replica) Close(ctx context.Context) error {
@@ -85,7 +83,7 @@ func (r *replica) Append(ctx context.Context, entries []block.Entry, cb block.Ap
 }
 
 func (r *replica) Status() *metapb.SegmentHealthInfo {
-	stat, _ := r.engine.GetBlockStatistics(r.id, r.raw)
+	stat := r.raw.Status()
 	cs := r.appender.Status()
 
 	// TODO(james.yin): fill EntLogId and SerializationVersion.
@@ -106,22 +104,22 @@ func (r *replica) Status() *metapb.SegmentHealthInfo {
 }
 
 func (s *server) createBlock(ctx context.Context, id vanus.ID, size int64) (Replica, error) {
-	e, _ := raw.ResolveEngine(raw.VSB)
-
 	// Create block.
+	e, _ := raw.ResolveEngine(raw.VSB)
 	r, err := e.Create(ctx, id, size)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create replica.
-	l := raftlog.NewLog(id, s.wal, s.metaStore, s.offsetStore, nil)
-	a := raft.NewAppender(context.TODO(), r, l, s.host, s.leaderChanged)
+	// Create raft appender.
+	a, err := s.raftEngine.NewAppender(ctx, r)
+	if err != nil {
+		return nil, err
+	}
 
 	return &replica{
 		id:       id,
 		idStr:    id.String(),
-		engine:   e,
 		raw:      r,
 		appender: a,
 	}, nil

@@ -15,10 +15,8 @@
 package stream
 
 import (
-	// standard libraries.
-	"time"
-
 	// this project.
+	"github.com/linkall-labs/vanus/internal/primitive/executor"
 	"github.com/linkall-labs/vanus/internal/store/io"
 	"github.com/linkall-labs/vanus/internal/store/io/block"
 	"github.com/linkall-labs/vanus/internal/store/io/engine"
@@ -28,36 +26,41 @@ import (
 type Scheduler interface {
 	Close()
 
-	Register(z zone.Interface, wo int64) Stream
+	Register(z zone.Interface, wo int64, direct bool) Stream
 	Unregister(s Stream)
 }
 
 type scheduler struct {
 	e  engine.Interface
 	bp *block.BufferPool
-	pq *pendingQueue
+	pq pendingQueue
+
+	callbackExecutor executor.MultiFlow
 }
 
 // Make sure scheduler implements Scheduler.
 var _ Scheduler = (*scheduler)(nil)
 
-func NewScheduler(e engine.Interface, flushBatchSize int, flushDelayTime time.Duration) Scheduler {
-	bp := block.NewBufferPool(flushBatchSize)
-	pq := newPendingQueue(flushDelayTime)
-	s := &scheduler{
-		e:  e,
-		bp: bp,
-		pq: pq,
-	}
+func NewScheduler(e engine.Interface, opts ...Option) Scheduler {
+	cfg := makeConfig(opts...)
+	return new(scheduler).init(e, cfg)
+}
+
+func (s *scheduler) init(e engine.Interface, cfg config) *scheduler {
+	s.e = e
+	s.bp = block.NewBufferPool(cfg.flushBatchSize)
+	s.pq.init(cfg.flushDelayTime)
+	s.callbackExecutor.Init(cfg.callbackParallel, true)
 	return s
 }
 
 func (s *scheduler) Close() {
 	s.pq.Close()
 	s.e.Close()
+	s.callbackExecutor.Close()
 }
 
-func (s *scheduler) Register(z zone.Interface, wo int64) Stream {
+func (s *scheduler) Register(z zone.Interface, wo int64, direct bool) Stream {
 	so := wo % int64(s.bp.BufferSize())
 	base := wo - so
 
@@ -69,25 +72,32 @@ func (s *scheduler) Register(z zone.Interface, wo int64) Stream {
 			// TODO(james.yin)
 			panic("invalid zone")
 		}
-		if err := buf.RecoverFromFile(f, off, int(so)); err != nil {
+		if err := buf.RecoverFromFile(f, off, int(so), direct); err != nil {
 			panic(err)
 		}
 	}
 
 	ss := &stream{
-		s:   s,
-		z:   z,
-		buf: buf,
-		off: base,
+		s:                s,
+		z:                z,
+		buf:              buf,
+		off:              base,
+		pending:          make(map[int64]*flushTask, 4),
+		callbackExecutor: s.callbackExecutor.NewFlow(),
 	}
-	ss.pending.Store(base, &flushTask{
+	ss.pending[base] = &flushTask{
 		ready: true,
-	})
+	}
 
 	return ss
 }
 
 func (s *scheduler) Unregister(ss Stream) {
+	sss, _ := ss.(*stream)
+	sss.mu.Lock()
+	sss.cancelFlushTimer()
+	sss.mu.Unlock()
+	sss.callbackExecutor.Close()
 }
 
 func (s *scheduler) writeAt(z zone.Interface, b []byte, off int64, so, eo int, cb io.WriteCallback) {

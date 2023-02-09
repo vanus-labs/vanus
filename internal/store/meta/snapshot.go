@@ -25,9 +25,8 @@ import (
 	// third-party libraries.
 	"github.com/huandu/skiplist"
 
-	// this project.
+	// first-party libraries.
 	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/tracing"
 )
 
 const (
@@ -36,14 +35,11 @@ const (
 	defaultDirPerm      = 0o755
 )
 
-func (s *store) tryCreateSnapshot(ctx context.Context) {
-	ctx, span := s.tracer.Start(ctx, "tryCreateSnapshot")
-	defer span.End()
-
+func (s *store) tryCreateSnapshot() {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.needCreateSnapshot() {
-		s.createSnapshot(ctx)
+		s.createSnapshot()
 	}
 }
 
@@ -52,7 +48,7 @@ func (s *store) needCreateSnapshot() bool {
 	return s.snapshot-s.version > 4*1024*1024
 }
 
-func (s *store) createSnapshot(ctx context.Context) {
+func (s *store) createSnapshot() {
 	data, err := s.marshaler.Marshal(SkiplistRange(s.committed))
 	if err != nil {
 		return
@@ -71,7 +67,7 @@ func (s *store) createSnapshot(ctx context.Context) {
 	s.snapshot = s.version
 
 	// Compact expired wal.
-	_ = s.wal.Compact(ctx, s.snapshot)
+	_ = s.wal.Compact(context.Background(), s.snapshot)
 	_ = os.Remove(s.resolveSnapshotPath(lastSnapshot))
 }
 
@@ -83,9 +79,6 @@ func recoverLatestSnapshot(
 	ctx context.Context, dir string, unmarshaler Unmarshaler,
 ) (*skiplist.SkipList, int64, error) {
 	// Make sure the snapshot directory exists.
-	_, span := tracing.Start(ctx, "store.meta.snapshot", "recoverLatestSnapshot")
-	defer span.End()
-
 	if err := os.MkdirAll(dir, defaultDirPerm); err != nil {
 		return nil, 0, err
 	}
