@@ -62,7 +62,7 @@ func TestController_CreateEventBus(t *testing.T) {
 			el := &metadata.Eventlog{
 				ID: vanus.NewTestID(),
 			}
-			elMgr.EXPECT().AcquireEventLog(ctx, gomock.Any(), gomock.Any()).Times(1).DoAndReturn(func(ctx stdCtx.Context,
+			elMgr.EXPECT().AcquireEventLog(ctx, gomock.Any(), gomock.Any()).Times(2).DoAndReturn(func(ctx stdCtx.Context,
 				eventbusID vanus.ID, ebName string) (*metadata.Eventlog, error) {
 				el.ID = eventbusID
 				el.EventbusName = ebName
