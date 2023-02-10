@@ -59,7 +59,7 @@ func (c *gcloudFunctions) Send(ctx context.Context, events ...*ce.Event) Result 
 	if c.client == nil {
 		err := c.init(ctx)
 		if err != nil {
-			return newUndefinedErr(err)
+			return newUnknownErr(err)
 		}
 	}
 	payload, err := event.MarshalJSON()
@@ -68,7 +68,7 @@ func (c *gcloudFunctions) Send(ctx context.Context, events ...*ce.Event) Result 
 	}
 	req, err := nethttp.NewRequestWithContext(ctx, nethttp.MethodPost, c.url, bytes.NewReader(payload))
 	if err != nil {
-		return newUndefinedErr(err)
+		return newUnknownErr(err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.client.Do(req)
@@ -76,7 +76,7 @@ func (c *gcloudFunctions) Send(ctx context.Context, events ...*ce.Event) Result 
 		if errors.Is(err, context.DeadlineExceeded) {
 			return DeliveryTimeout
 		}
-		return newUndefinedErr(err)
+		return newUnknownErr(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= errStatusCode {

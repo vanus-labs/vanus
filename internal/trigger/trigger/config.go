@@ -38,6 +38,7 @@ type Config struct {
 	RateLimit          uint32
 	Controllers        []string
 	DeadLetterEventbus string
+	RetryEventbus      string
 	MaxWriteAttempt    int
 	Ordered            bool
 
@@ -49,15 +50,14 @@ type Config struct {
 
 func defaultConfig() Config {
 	c := Config{
-		BufferSize:         defaultBufferSize,
-		MaxRetryAttempts:   primitive.MaxRetryAttempts,
-		DeliveryTimeout:    defaultDeliveryTimeout,
-		DeadLetterEventbus: primitive.DeadLetterEventbusName,
-		MaxWriteAttempt:    defaultMaxWriteAttempt,
-		GoroutineSize:      defaultGoroutineSize,
-		SendBatchSize:      defaultBatchSize,
-		MaxUACKNumber:      defaultMaxUACKNumber,
-		PullBatchSize:      defaultBatchSize,
+		BufferSize:       defaultBufferSize,
+		MaxRetryAttempts: primitive.MaxRetryAttempts,
+		DeliveryTimeout:  defaultDeliveryTimeout,
+		MaxWriteAttempt:  defaultMaxWriteAttempt,
+		GoroutineSize:    defaultGoroutineSize,
+		SendBatchSize:    defaultBatchSize,
+		MaxUACKNumber:    defaultMaxUACKNumber,
+		PullBatchSize:    defaultBatchSize,
 	}
 	return c
 }
@@ -115,12 +115,10 @@ func WithControllers(controllers []string) Option {
 	}
 }
 
-func WithDeadLetterEventbus(eventbus string) Option {
+func WithEventbus(eventbus string) Option {
 	return func(t *trigger) {
-		if eventbus == "" {
-			eventbus = primitive.DeadLetterEventbusName
-		}
-		t.config.DeadLetterEventbus = eventbus
+		t.config.DeadLetterEventbus = primitive.GetDeadLetterEventbusName(eventbus)
+		t.config.RetryEventbus = primitive.GetRetryEventbusName(eventbus)
 	}
 }
 

@@ -64,7 +64,7 @@ func (c *grpc) Send(ctx context.Context, events ...*ce.Event) Result {
 	if c.client == nil {
 		err := c.init()
 		if err != nil {
-			return newUndefinedErr(err)
+			return newUnknownErr(err)
 		}
 	}
 	es := make([]*cloudevents.CloudEvent, len(events))
@@ -78,7 +78,7 @@ func (c *grpc) Send(ctx context.Context, events ...*ce.Event) Result {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return DeliveryTimeout
 		}
-		return newUndefinedErr(err)
+		return newUnknownErr(err)
 	}
 	return Success
 }

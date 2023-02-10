@@ -71,6 +71,9 @@ var (
 	ctype            string
 	connectorVersion string
 	showConnectors   bool
+
+	startOffset uint64
+	endOffset   uint64
 )
 
 const (

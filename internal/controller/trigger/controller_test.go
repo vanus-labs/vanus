@@ -209,20 +209,6 @@ func TestController_UpdateSubscription(t *testing.T) {
 			_, err := ctrl.UpdateSubscription(ctx, request)
 			So(err, ShouldNotBeNil)
 		})
-		Convey("update dead letter fail", func() {
-			request := &ctrlpb.UpdateSubscriptionRequest{
-				Id: subID.Uint64(),
-				Subscription: &ctrlpb.SubscriptionRequest{
-					EventBus: "test-eb",
-					Sink:     "test-sink",
-					Config: &metapb.SubscriptionConfig{
-						DeadLetterEventbus: "new-bus",
-					},
-				},
-			}
-			_, err := ctrl.UpdateSubscription(ctx, request)
-			So(err, ShouldNotBeNil)
-		})
 		Convey("test update sink credential", func() {
 			Convey("sink is invalid", func() {
 				request := &ctrlpb.UpdateSubscriptionRequest{

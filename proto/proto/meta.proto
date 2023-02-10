@@ -167,8 +167,7 @@ message SubscriptionConfig {
   // delivery timeout, unit milliseconds
   uint32 delivery_timeout = 4;
   optional uint32 max_retry_attempts = 5;
-  string dead_letter_eventbus = 6;
-  bool ordered_event = 7;
+  bool ordered_event = 6;
 }
 
 message Filter {

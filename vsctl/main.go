@@ -65,6 +65,7 @@ func init() {
 		command.NewSubscriptionCommand(),
 		command.NewClusterCommand(),
 		command.NewConnectorCommand(),
+		command.NewDeadLetterCommand(),
 		newVersionCommand(),
 	)
 	rootCmd.CompletionOptions.DisableDefaultCmd = true

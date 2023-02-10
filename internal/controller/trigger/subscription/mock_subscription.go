@@ -66,6 +66,21 @@ func (mr *MockManagerMockRecorder) DeleteSubscription(ctx, id interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteSubscription", reflect.TypeOf((*MockManager)(nil).DeleteSubscription), ctx, id)
 }
 
+// GetDeadLetterOffset mocks base method.
+func (m *MockManager) GetDeadLetterOffset(ctx context.Context, id vanus.ID) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDeadLetterOffset", ctx, id)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDeadLetterOffset indicates an expected call of GetDeadLetterOffset.
+func (mr *MockManagerMockRecorder) GetDeadLetterOffset(ctx, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeadLetterOffset", reflect.TypeOf((*MockManager)(nil).GetDeadLetterOffset), ctx, id)
+}
+
 // GetOffset mocks base method.
 func (m *MockManager) GetOffset(ctx context.Context, id vanus.ID) (info.ListOffsetInfo, error) {
 	m.ctrl.T.Helper()
@@ -179,6 +194,20 @@ func (m *MockManager) ResetOffsetByTimestamp(ctx context.Context, id vanus.ID, t
 func (mr *MockManagerMockRecorder) ResetOffsetByTimestamp(ctx, id, timestamp interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetOffsetByTimestamp", reflect.TypeOf((*MockManager)(nil).ResetOffsetByTimestamp), ctx, id, timestamp)
+}
+
+// SaveDeadLetterOffset mocks base method.
+func (m *MockManager) SaveDeadLetterOffset(ctx context.Context, id vanus.ID, offset uint64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveDeadLetterOffset", ctx, id, offset)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SaveDeadLetterOffset indicates an expected call of SaveDeadLetterOffset.
+func (mr *MockManagerMockRecorder) SaveDeadLetterOffset(ctx, id, offset interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveDeadLetterOffset", reflect.TypeOf((*MockManager)(nil).SaveDeadLetterOffset), ctx, id, offset)
 }
 
 // SaveOffset mocks base method.

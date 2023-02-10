@@ -1,4 +1,4 @@
-// Copyright 2022 Linkall Inc.
+// Copyright 2023 Linkall Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,19 +14,10 @@
 
 package primitive
 
-const (
-	SystemEventbusNamePrefix = "__"
-	TimerEventbusName        = SystemEventbusNamePrefix + "Timer_RS"
+func GetDeadLetterEventbusName(eventbusName string) string {
+	return SystemEventbusNamePrefix + "dl_" + eventbusName
+}
 
-	XVanus               = "xvanus"
-	XVanusEventbus       = XVanus + "eventbus"
-	XVanusDeliveryTime   = XVanus + "deliverytime"
-	XVanusRetryAttempts  = XVanus + "retryattempts"
-	XVanusSubscriptionID = XVanus + "subid"
-
-	LastDeliveryTime  = XVanus + "lastdltime"
-	LastDeliveryError = XVanus + "lastdlerror"
-	DeadLetterReason  = XVanus + "dlreason"
-
-	MaxRetryAttempts = 32
-)
+func GetRetryEventbusName(eventbusName string) string {
+	return SystemEventbusNamePrefix + "retry_eb"
+}
