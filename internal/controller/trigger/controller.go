@@ -41,7 +41,7 @@ import (
 	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/linkall-labs/vanus/pkg/util"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	"github.com/linkall-labs/vanus/proto/pkg/meta"
+	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -84,6 +84,32 @@ type controller struct {
 	state                 primitive.ServerState
 	cl                    cluster.Cluster
 	ebClient              eb.Client
+}
+
+func (ctrl *controller) SetDeadLetterEventOffset(ctx context.Context,
+	request *ctrlpb.SetDeadLetterEventOffsetRequest) (*emptypb.Empty, error) {
+	if ctrl.state != primitive.ServerStateRunning {
+		return nil, errors.ErrServerNotStart
+	}
+	subID := vanus.ID(request.SubscriptionId)
+	err := ctrl.subscriptionManager.SaveDeadLetterOffset(ctx, subID, request.GetOffset())
+	if err != nil {
+		return nil, err
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (ctrl *controller) GetDeadLetterEventOffset(ctx context.Context,
+	request *ctrlpb.GetDeadLetterEventOffsetRequest) (*ctrlpb.GetDeadLetterEventOffsetResponse, error) {
+	if ctrl.state != primitive.ServerStateRunning {
+		return nil, errors.ErrServerNotStart
+	}
+	subID := vanus.ID(request.SubscriptionId)
+	offset, err := ctrl.subscriptionManager.GetDeadLetterOffset(ctx, subID)
+	if err != nil {
+		return nil, err
+	}
+	return &ctrlpb.GetDeadLetterEventOffsetResponse{Offset: offset}, err
 }
 
 func (ctrl *controller) CommitOffset(ctx context.Context,
@@ -136,7 +162,7 @@ func (ctrl *controller) ResetOffsetToTimestamp(ctx context.Context,
 }
 
 func (ctrl *controller) CreateSubscription(ctx context.Context,
-	request *ctrlpb.CreateSubscriptionRequest) (*meta.Subscription, error) {
+	request *ctrlpb.CreateSubscriptionRequest) (*metapb.Subscription, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
@@ -177,7 +203,7 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 }
 
 func (ctrl *controller) UpdateSubscription(ctx context.Context,
-	request *ctrlpb.UpdateSubscriptionRequest) (*meta.Subscription, error) {
+	request *ctrlpb.UpdateSubscriptionRequest) (*metapb.Subscription, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
@@ -201,11 +227,6 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 		if _sub != nil {
 			return nil, errors.ErrInvalidRequest.WithMessage(
 				fmt.Sprintf("subscription name %s has exist", request.Subscription.Name))
-		}
-	}
-	if request.Subscription.Config != nil {
-		if request.Subscription.Config.DeadLetterEventbus != sub.Config.DeadLetterEventbus {
-			return nil, errors.ErrInvalidRequest.WithMessage("can not change dead letter eventbus")
 		}
 	}
 	update := convert.FromPbSubscriptionRequest(request.Subscription)
@@ -303,7 +324,7 @@ func (ctrl *controller) ResumeSubscription(ctx context.Context,
 }
 
 func (ctrl *controller) GetSubscription(ctx context.Context,
-	request *ctrlpb.GetSubscriptionRequest) (*meta.Subscription, error) {
+	request *ctrlpb.GetSubscriptionRequest) (*metapb.Subscription, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
@@ -415,7 +436,7 @@ func (ctrl *controller) UnregisterTriggerWorker(ctx context.Context,
 func (ctrl *controller) ListSubscription(ctx context.Context,
 	request *ctrlpb.ListSubscriptionRequest) (*ctrlpb.ListSubscriptionResponse, error) {
 	subscriptions := ctrl.subscriptionManager.ListSubscription(ctx)
-	list := make([]*meta.Subscription, 0, len(subscriptions))
+	list := make([]*metapb.Subscription, 0, len(subscriptions))
 	for _, sub := range subscriptions {
 		if request.Eventbus != "" && request.Eventbus != sub.EventBus {
 			continue
@@ -604,17 +625,9 @@ func (ctrl *controller) initTriggerSystemEventbus() {
 			os.Exit(-1)
 		}
 
-		if err := ctrl.cl.EventbusService().CreateSystemEventbusIfNotExist(ctx, primitive.RetryEventbusName,
+		if err := ctrl.cl.EventbusService().CreateSystemEventbusIfNotExist(ctx, primitive.GetRetryEventbusName(""),
 			"System Eventbus For Trigger Service"); err != nil {
 			log.Error(ctx, "failed to create RetryEventbus, exit", map[string]interface{}{
-				log.KeyError: err,
-			})
-			os.Exit(-1)
-		}
-
-		if err := ctrl.cl.EventbusService().CreateSystemEventbusIfNotExist(ctx, primitive.DeadLetterEventbusName,
-			"System Eventbus For Trigger Service"); err != nil {
-			log.Error(ctx, "failed to create DeadLetterEventbus, exit", map[string]interface{}{
 				log.KeyError: err,
 			})
 			os.Exit(-1)

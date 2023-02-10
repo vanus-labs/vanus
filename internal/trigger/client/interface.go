@@ -37,13 +37,6 @@ type Result struct {
 	Err        error
 }
 
-func newResultByHTTPCode(httpCode int) Result {
-	return Result{
-		StatusCode: httpCode,
-		Err:        fmt.Errorf("%d %s", httpCode, nethttp.StatusText(httpCode)),
-	}
-}
-
 func newInternalErr(err error) Result {
 	return Result{
 		StatusCode: nethttp.StatusInternalServerError,
@@ -51,37 +44,28 @@ func newInternalErr(err error) Result {
 	}
 }
 
-func newUndefinedErr(err error) Result {
+func newUnknownErr(err error) Result {
 	return Result{
-		StatusCode: ErrUndefined,
+		StatusCode: errUnknown,
 		Err:        err,
 	}
 }
 
 func convertHTTPResponse(statusCode int, desc string, body []byte) Result {
-	switch statusCode {
-	case nethttp.StatusForbidden:
-		return Forbidden
-	case nethttp.StatusRequestEntityTooLarge:
-		return RequestEntityTooLarge
-	default:
-		return Result{
-			StatusCode: statusCode,
-			Err:        fmt.Errorf("%s response statusCode: %d, body: %s", desc, statusCode, string(body)),
-		}
+	return Result{
+		StatusCode: statusCode,
+		Err:        fmt.Errorf("%s response statusCode: %d, body: %s", desc, statusCode, string(body)),
 	}
 }
 
 var (
-	Success               = Result{}
-	DeliveryTimeout       = Result{ErrDeliveryTimeout, errors.New("DeliveryTimeout")}
-	Forbidden             = newResultByHTTPCode(nethttp.StatusForbidden)
-	RequestEntityTooLarge = newResultByHTTPCode(nethttp.StatusRequestEntityTooLarge)
+	Success         = Result{}
+	DeliveryTimeout = Result{errDeliveryTimeout, errors.New("DeliveryTimeout")}
 )
 
 const (
 	errStatusCode = nethttp.StatusBadRequest
 
-	ErrDeliveryTimeout = 601
-	ErrUndefined       = 602
+	errUnknown         = 600
+	errDeliveryTimeout = 601
 )

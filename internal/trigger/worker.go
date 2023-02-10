@@ -254,7 +254,7 @@ func (w *worker) getTriggerOptions(subscription *primitive.Subscription) []trigg
 	opts = append(opts, trigger.WithRateLimit(config.RateLimit),
 		trigger.WithDeliveryTimeout(config.DeliveryTimeout),
 		trigger.WithMaxRetryAttempts(config.GetMaxRetryAttempts()),
-		trigger.WithDeadLetterEventbus(config.DeadLetterEventbus),
+		trigger.WithEventbus(subscription.EventBus),
 		trigger.WithOrdered(config.OrderedEvent),
 		trigger.WithGoroutineSize(w.config.SendEventGoroutineSize),
 		trigger.WithSendBatchSize(w.config.SendEventBatchSize),

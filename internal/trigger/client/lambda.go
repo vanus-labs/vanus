@@ -58,7 +58,7 @@ func (l *awsLambda) Send(ctx context.Context, events ...*ce.Event) Result {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return DeliveryTimeout
 		}
-		return newUndefinedErr(err)
+		return newUnknownErr(err)
 	}
 	if resp.StatusCode >= errStatusCode {
 		return convertHTTPResponse(int(resp.StatusCode), "aws lambda invoke", resp.Payload)

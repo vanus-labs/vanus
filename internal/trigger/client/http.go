@@ -47,7 +47,7 @@ func (c *http) Send(ctx context.Context, events ...*ce.Event) Result {
 	if ce.ResultAs(res, &httpResult) {
 		r.StatusCode = httpResult.StatusCode
 	} else {
-		r.StatusCode = ErrUndefined
+		r.StatusCode = errUnknown
 	}
 
 	return r

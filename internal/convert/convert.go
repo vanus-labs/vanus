@@ -206,11 +206,10 @@ func fromPbSubscriptionConfig(config *pb.SubscriptionConfig) primitive.Subscript
 		return primitive.SubscriptionConfig{}
 	}
 	to := primitive.SubscriptionConfig{
-		RateLimit:          config.RateLimit,
-		MaxRetryAttempts:   config.MaxRetryAttempts,
-		DeliveryTimeout:    config.DeliveryTimeout,
-		DeadLetterEventbus: config.DeadLetterEventbus,
-		OrderedEvent:       config.OrderedEvent,
+		RateLimit:        config.RateLimit,
+		MaxRetryAttempts: config.MaxRetryAttempts,
+		DeliveryTimeout:  config.DeliveryTimeout,
+		OrderedEvent:     config.OrderedEvent,
 	}
 	switch config.OffsetType {
 	case pb.SubscriptionConfig_LATEST:
@@ -226,11 +225,10 @@ func fromPbSubscriptionConfig(config *pb.SubscriptionConfig) primitive.Subscript
 
 func toPbSubscriptionConfig(config primitive.SubscriptionConfig) *pb.SubscriptionConfig {
 	to := &pb.SubscriptionConfig{
-		RateLimit:          config.RateLimit,
-		MaxRetryAttempts:   config.MaxRetryAttempts,
-		DeliveryTimeout:    config.DeliveryTimeout,
-		DeadLetterEventbus: config.DeadLetterEventbus,
-		OrderedEvent:       config.OrderedEvent,
+		RateLimit:        config.RateLimit,
+		MaxRetryAttempts: config.MaxRetryAttempts,
+		DeliveryTimeout:  config.DeliveryTimeout,
+		OrderedEvent:     config.OrderedEvent,
 	}
 	switch config.OffsetType {
 	case primitive.LatestOffset:
