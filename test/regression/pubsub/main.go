@@ -17,13 +17,14 @@ package main
 import (
 	"context"
 	"fmt"
+	v2 "github.com/cloudevents/sdk-go/v2"
 	"net"
 	"os"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/linkall-labs/sdk/proto/pkg/vanus"
+	vanus "github.com/linkall-labs/sdk/golang"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"github.com/linkall-labs/vanus/test/utils"
@@ -49,24 +50,38 @@ var (
 	endpoint = os.Getenv("VANUS_GATEWAY")
 
 	mutex   = sync.Mutex{}
-	cache   = map[string]*cloudevents.CloudEvent{}
-	unmatch = map[string]*cloudevents.CloudEvent{}
+	cache   = map[string]*v2.Event{}
+	unmatch = map[string]*v2.Event{}
 )
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
+
+	client, err := vanus.Connect(&vanus.ClientOptions{Endpoint: endpoint})
+	if err != nil {
+		panic(err)
+	}
+	//s, _ := client.Subscriber(nil) // Pull?
+	//s.Subscribe()
+
 	go subscribe(ctx, &receiver{}, receiveEventPort)
 	utils.PrintTotal(ctx, map[string]*int64{
 		"Sending":   &sentSuccess,
 		"Receiving": &receivedNumber,
 	})
 
-	publishEvents(ctx)
+	publishEvents(ctx, client)
 	now := time.Now()
-	for time.Since(now) < waitTimeout && len(cache) > 0 {
+	for time.Since(now) < waitTimeout {
+		mutex.Lock()
+		if len(cache) == 0 {
+			mutex.Unlock()
+			break
+		}
 		for k := range unmatch {
 			delete(cache, k)
 		}
+		mutex.Unlock()
 		time.Sleep(time.Second)
 	}
 	cancel()
@@ -90,24 +105,22 @@ func main() {
 	})
 }
 
-func publishEvents(ctx context.Context) {
+func publishEvents(ctx context.Context, client vanus.Client) {
 	wg := sync.WaitGroup{}
 	start := time.Now()
+
 	for p := 0; p < parallelism; p++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			batchClient := utils.NewClient(ctx, endpoint)
+			publisher := client.Publisher(&vanus.PublishOptions{Eventbus: eventbus})
 			ch := utils.CreateEventFactory(ctx, caseName, maximumPayloadSize)
 			for atomic.LoadInt64(&sentSuccess) < totalNumber {
-				events := make([]*cloudevents.CloudEvent, batchSize)
+				events := make([]*v2.Event, batchSize)
 				for n := 0; n < batchSize; n++ {
 					events[n] = <-ch
 				}
-				_, err := batchClient.Publish(context.Background(), &vanus.PublishRequest{
-					EventbusName: eventbus,
-					Events:       &cloudevents.CloudEventBatch{Events: events},
-				})
+				err := publisher.Publish(context.Background(), events...)
 				if err != nil {
 					log.Warning(context.Background(), "failed to send events", map[string]interface{}{
 						log.KeyError: err,
@@ -116,7 +129,7 @@ func publishEvents(ctx context.Context) {
 				} else {
 					mutex.Lock()
 					for _, e := range events {
-						cache[e.Id] = e
+						cache[e.ID()] = e
 					}
 					mutex.Unlock()
 					atomic.AddInt64(&sentSuccess, int64(len(events)))

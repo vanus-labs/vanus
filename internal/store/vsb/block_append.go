@@ -32,7 +32,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/io"
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	"github.com/linkall-labs/vanus/internal/store/vsb/index"
-	"github.com/linkall-labs/vanus/observability/metrics"
 )
 
 var (
