@@ -57,6 +57,7 @@ func NewSubscriptionCommand() *cobra.Command {
 	cmd.AddCommand(getSubscriptionCommand())
 	cmd.AddCommand(listSubscriptionCommand())
 	cmd.AddCommand(resetOffsetCommand())
+	cmd.AddCommand(newDeadLetterCommand())
 	return cmd
 }
 
