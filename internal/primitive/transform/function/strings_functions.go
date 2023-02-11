@@ -115,7 +115,6 @@ var CapitalizeSentence = function{
 		if len(value) == 1 {
 			return strings.ToUpper(string(value[0])), nil
 		}
-		return strings.ToUpper(string(value[0]))+value[1:], nil
-		
+		return strings.ToUpper(string(value[0])) + value[1:], nil
 	},
 }
