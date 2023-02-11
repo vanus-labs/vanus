@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
@@ -81,7 +82,8 @@ func createSubscriptionCommand() *cobra.Command {
 
 			// subscription config
 			config := &meta.SubscriptionConfig{
-				OrderedEvent: orderedPushEvent,
+				OrderedEvent:      orderedPushEvent,
+				DisableDeadLetter: disableDeadLetter,
 			}
 			getSubscriptionConfig(cmd, config)
 			res, err := client.CreateSubscription(context.Background(), &ctrlpb.CreateSubscriptionRequest{
@@ -121,6 +123,7 @@ func createSubscriptionCommand() *cobra.Command {
 		"subscription (just create if disable=true)")
 	cmd.Flags().BoolVar(&orderedPushEvent, "ordered-event", false, "whether push the "+
 		"event with ordered")
+	cmd.Flags().BoolVar(&disableDeadLetter, "disable-dead-letter", false, "whether disable the dead letter")
 	return cmd
 }
 
@@ -254,6 +257,20 @@ func getSubscriptionConfig(cmd *cobra.Command, config *meta.SubscriptionConfig) 
 			config.OffsetType = meta.SubscriptionConfig_TIMESTAMP
 		}
 	}
+	if orderedPushEventStr != "" {
+		v, err := strconv.ParseBool(orderedPushEventStr)
+		if err != nil {
+			cmdFailedf(cmd, "order-event is invalid: %s", err)
+		}
+		config.OrderedEvent = v
+	}
+	if disableDeadLetterStr != "" {
+		v, err := strconv.ParseBool(disableDeadLetterStr)
+		if err != nil {
+			cmdFailedf(cmd, "disable-dead-letter is invalid: %s", err)
+		}
+		config.DisableDeadLetter = v
+	}
 }
 
 func updateSubscriptionCommand() *cobra.Command {
@@ -358,9 +375,8 @@ func updateSubscriptionCommand() *cobra.Command {
 	cmd.Flags().Int32Var(&maxRetryAttempts, "max-retry-attempts", -1, "event delivery fail max retry attempts")
 	cmd.Flags().StringVar(&subscriptionName, "name", "", "subscription name")
 	cmd.Flags().StringVar(&description, "description", "", "subscription description")
-	// todo the value is user set or default value
-	//cmd.Flags().BoolVar(&orderedPushEvent, "ordered-event", false, "whether push the "+
-	//	"event with ordered")
+	cmd.Flags().StringVar(&orderedPushEventStr, "ordered-event", "", "whether push the event with ordered, true of false")
+	cmd.Flags().StringVar(&disableDeadLetterStr, "disable-dead-letter", "", "whether disable the dead letter, true of false")
 	return cmd
 }
 
