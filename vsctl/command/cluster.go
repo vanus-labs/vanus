@@ -144,14 +144,17 @@ func createClusterCommand() *cobra.Command {
 			}
 
 			if !operatorIsDeployed(cmd, operator_endpoint) {
-				fmt.Println("You haven't deployed the operator yet. It will be automatically deployed for you in 3s...")
-				time.Sleep(time.Second)
-				fmt.Println("remaining 3s...")
-				time.Sleep(time.Second)
-				fmt.Println("remaining 2s...")
-				time.Sleep(time.Second)
-				fmt.Println("remaining 1s...")
-				time.Sleep(time.Second)
+				fmt.Print("You haven't deployed the operator yet, but the vanus cluster is managed by operator. Please confirm whether you want to deploy the operator(y/n):")
+				reader := bufio.NewReader(os.Stdin)
+				ack, err := reader.ReadString('\n')
+				if err != nil {
+					cmdFailedf(cmd, "read failed: %s", err)
+				}
+				ack = strings.ToLower(strings.Trim(ack, "\n"))
+				if ack != "y" {
+					fmt.Println("Exit operator deployment...")
+					return
+				}
 				fmt.Println("Start deploy operator...")
 				operator := exec.Command("kubectl", "apply", "-f", "https://download.linkall.com/vanus/operator/latest.yml")
 				err = operator.Run()
@@ -198,7 +201,7 @@ func createClusterCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf(cmd, "read failed: %s", err)
 			}
-			ack = strings.Trim(ack, "\n")
+			ack = strings.ToLower(strings.Trim(ack, "\n"))
 			if ack != "y" {
 				fmt.Println("Exit vanus cluster deployment...")
 				return
@@ -265,13 +268,13 @@ func deleteClusterCommand() *cobra.Command {
 				}
 			}
 
-			fmt.Print("Deleting a cluster will lose all cluster data, sure you want to delete the vanus cluster(y/n):")
+			fmt.Print("Deleting a cluster will lose all cluster data and can't be recovered, do you still want to delete the vanus cluster(y/n):")
 			reader := bufio.NewReader(os.Stdin)
 			ack, err := reader.ReadString('\n')
 			if err != nil {
 				cmdFailedf(cmd, "read failed: %s", err)
 			}
-			ack = strings.Trim(ack, "\n")
+			ack = strings.ToLower(strings.Trim(ack, "\n"))
 			if ack != "y" {
 				fmt.Println("Exit vanus cluster deleting...")
 				return
@@ -314,6 +317,37 @@ func deleteClusterCommand() *cobra.Command {
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
 			}
+
+			fmt.Print("Do you want to delete the operator(y/n):")
+			ack, err = reader.ReadString('\n')
+			if err != nil {
+				cmdFailedf(cmd, "read failed: %s", err)
+			}
+			ack = strings.ToLower(strings.Trim(ack, "\n"))
+			if ack != "y" {
+				return
+			}
+			fmt.Println("Start delete operator...")
+			operator := exec.Command("kubectl", "delete", "-f", "https://download.linkall.com/vanus/operator/latest.yml")
+			err = operator.Run()
+			if err != nil {
+				cmdFailedf(cmd, "delete operator failed: %s", err)
+			}
+
+			if IsFormatJSON(cmd) {
+				data, _ := json.Marshal(map[string]interface{}{"Result": "Delete Operator Success"})
+				color.Green(string(data))
+			} else {
+				t := table.NewWriter()
+				t.AppendHeader(table.Row{"Result"})
+				t.AppendRow(table.Row{"Delete Operator Success"})
+				t.SetColumnConfigs([]table.ColumnConfig{
+					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+					{Number: 2, AlignHeader: text.AlignCenter},
+				})
+				t.SetOutputMirror(os.Stdout)
+				t.Render()
+			}
 		},
 	}
 	return cmd
@@ -322,7 +356,7 @@ func deleteClusterCommand() *cobra.Command {
 func upgradeClusterCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "upgrade",
-		Short: "upgeade cluster",
+		Short: "upgrade cluster",
 		Run: func(cmd *cobra.Command, args []string) {
 			operator_endpoint, err := getOperatorEndpoint()
 			if err != nil {
@@ -654,8 +688,8 @@ func getClusterCommand() *cobra.Command {
 
 func genClusterCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "generate-config-template",
-		Short: "generate cluster config file",
+		Use:   "generate",
+		Short: "generate cluster config file template",
 		Run: func(cmd *cobra.Command, args []string) {
 			cluster := &ClusterSpec{
 				Version: "v0.6.0",
