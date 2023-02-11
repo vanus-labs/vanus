@@ -16,20 +16,15 @@ package main
 
 import (
 	"context"
-	"fmt"
-	v2 "github.com/cloudevents/sdk-go/v2"
-	"net"
 	"os"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	vanus "github.com/linkall-labs/sdk/golang"
+	v2 "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/sdk/golang"
 	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"github.com/linkall-labs/vanus/test/utils"
-	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -37,7 +32,7 @@ var (
 	sentFailed     int64
 	receivedNumber int64
 
-	totalNumber        = int64(1 << 19) // 1024*1024
+	totalNumber        = int64(1 << 15) // 1024*1024
 	parallelism        = 4
 	batchSize          = 8
 	maximumPayloadSize = 4 * 1024
@@ -56,15 +51,12 @@ var (
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
-
 	client, err := vanus.Connect(&vanus.ClientOptions{Endpoint: endpoint})
 	if err != nil {
 		panic(err)
 	}
-	//s, _ := client.Subscriber(nil) // Pull?
-	//s.Subscribe()
 
-	go subscribe(ctx, &receiver{}, receiveEventPort)
+	go receiveEvents(ctx, client)
 	utils.PrintTotal(ctx, map[string]*int64{
 		"Sending":   &sentSuccess,
 		"Receiving": &receivedNumber,
@@ -98,7 +90,7 @@ func main() {
 		}
 		os.Exit(1)
 	}
-	log.Info(ctx, "success to run publish and subscribe case", map[string]interface{}{
+	log.Info(ctx, "success to run publish and receiveEvents case", map[string]interface{}{
 		"success":     sentSuccess,
 		"sent_failed": sentFailed,
 		"received":    receivedNumber,
@@ -113,7 +105,7 @@ func publishEvents(ctx context.Context, client vanus.Client) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			publisher := client.Publisher(&vanus.PublishOptions{Eventbus: eventbus})
+			publisher := client.Publisher(vanus.WithEventbus(eventbus))
 			ch := utils.CreateEventFactory(ctx, caseName, maximumPayloadSize)
 			for atomic.LoadInt64(&sentSuccess) < totalNumber {
 				events := make([]*v2.Event, batchSize)
@@ -146,49 +138,42 @@ func publishEvents(ctx context.Context, client vanus.Client) {
 	})
 }
 
-func subscribe(ctx context.Context, srv cloudevents.CloudEventsServer, port int) {
-	ls, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
-	if err != nil {
-		log.Error(ctx, "failed to send sending finished signal", map[string]interface{}{
-			"success":  sentSuccess,
-			"received": receivedNumber,
-		})
-		os.Exit(1)
-	}
+func receiveEvents(ctx context.Context, c vanus.Client) {
+	subscriber := c.Subscriber(
+		vanus.WithListenPort(receiveEventPort),
+		vanus.WithParallelism(8),
+		vanus.WithProtocol(vanus.ProtocolGRPC),
+		vanus.WithMaxBatchSize(32),
+	)
 
-	grpcServer := grpc.NewServer()
-	cloudevents.RegisterCloudEventsServer(grpcServer, srv)
-	err = grpcServer.Serve(ls)
+	err := subscriber.Listen(func(ctx context.Context, msgs ...vanus.Message) error {
+		mutex.Lock()
+		defer mutex.Unlock()
+		for _, msg := range msgs {
+			e := msg.GetEvent()
+			ce, exist := cache[e.ID()]
+			if !exist {
+				unmatch[e.ID()] = e
+				log.Warning(ctx, "received a event, but which isn't found in cache", map[string]interface{}{
+					"e": e.String(),
+				})
+				continue
+			}
+			if string(ce.Data()) != string(e.Data()) {
+				log.Error(ctx, "received a event, but data was corrupted", nil)
+				os.Exit(1)
+			}
+			delete(cache, e.ID())
+			atomic.AddInt64(&totalLatency, ce.Time().UnixMicro())
+			msg.Success()
+		}
+		atomic.AddInt64(&receivedNumber, int64(len(msgs)))
+		return nil
+	})
+
 	if err != nil {
-		log.Error(nil, "grpc server occurred an error", map[string]interface{}{
+		log.Error(ctx, "failed to start events listening", map[string]interface{}{
 			log.KeyError: err,
 		})
-		os.Exit(1)
 	}
-}
-
-type receiver struct {
-}
-
-func (r *receiver) Send(ctx context.Context, event *cloudevents.BatchEvent) (*emptypb.Empty, error) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	for _, e := range event.Events.Events {
-		ce, exist := cache[e.Id]
-		if !exist {
-			unmatch[e.Id] = e
-			log.Warning(ctx, "received a event, but which isn't found in cache", map[string]interface{}{
-				"e": e.String(),
-			})
-			continue
-		}
-		if ce.GetTextData() != string(e.GetBinaryData()) {
-			log.Error(ctx, "received a event, but data was corrupted", nil)
-			os.Exit(1)
-		}
-		delete(cache, e.Id)
-		atomic.AddInt64(&totalLatency, ce.Attributes["time"].GetCeTimestamp().AsTime().UnixMicro())
-	}
-	atomic.AddInt64(&receivedNumber, int64(len(event.Events.Events)))
-	return &emptypb.Empty{}, nil
 }

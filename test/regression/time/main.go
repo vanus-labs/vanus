@@ -16,21 +16,17 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"github.com/linkall-labs/vanus/internal/primitive"
 	"math/rand"
-	"net"
 	"os"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/linkall-labs/sdk/proto/pkg/vanus"
+	v2 "github.com/cloudevents/sdk-go/v2"
+	"github.com/linkall-labs/sdk/golang"
+	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"github.com/linkall-labs/vanus/test/utils"
-	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -38,34 +34,40 @@ var (
 	sentFailed     int64
 	receivedNumber int64
 
-	totalNumber          = int64(1 << 20) // 1024*1024
+	totalNumber          = int64(1 << 15) // 1024*1024
 	parallelism          = 4
 	batchSize            = 8
 	maximumPayloadSize   = 4 * 1024
-	receiveEventPort     = 18080
-	waitTimeout          = 10 * time.Second
+	receiveEventPort     = 18081
+	waitTimeout          = 30 * time.Second
 	totalLatency         = int64(0)
-	caseName             = "vanus.regression.time"
-	maximumDelayInSecond = int32(600)
+	caseName             = "vanus.regression.pubsub"
 	maxDelayTime         = atomic.Value{}
+	maximumDelayInSecond = int32(120)
 
 	eventbus = os.Getenv("EVENTBUS")
 	endpoint = os.Getenv("VANUS_GATEWAY")
 
 	mutex   = sync.Mutex{}
-	cache   = map[string]*cloudevents.CloudEvent{}
-	unmatch = map[string]*cloudevents.CloudEvent{}
+	cache   = map[string]*v2.Event{}
+	unmatch = map[string]*v2.Event{}
 )
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
-	go subscribe(ctx, &receiver{}, receiveEventPort)
+
+	client, err := vanus.Connect(&vanus.ClientOptions{Endpoint: endpoint})
+	if err != nil {
+		panic(err)
+	}
+
+	go receiveEvents(ctx, client)
 	utils.PrintTotal(ctx, map[string]*int64{
 		"Sending":   &sentSuccess,
 		"Receiving": &receivedNumber,
 	})
 
-	publishEvents(ctx)
+	publishEvents(ctx, client)
 	maxDelayTime := maxDelayTime.Load().(time.Time)
 	for time.Since(maxDelayTime) < waitTimeout && len(cache) > 0 {
 		for k := range unmatch {
@@ -74,6 +76,7 @@ func main() {
 		time.Sleep(time.Second)
 	}
 	cancel()
+
 	if len(cache) != 0 {
 		log.Error(ctx, "failed to run schedule case because of timeout after finished sending", map[string]interface{}{
 			"success":  sentSuccess,
@@ -93,7 +96,7 @@ func main() {
 	})
 }
 
-func publishEvents(ctx context.Context) {
+func publishEvents(ctx context.Context, client vanus.Client) {
 	wg := sync.WaitGroup{}
 	start := time.Now()
 	rd := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -102,27 +105,20 @@ func publishEvents(ctx context.Context) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			batchClient := utils.NewClient(ctx, endpoint)
+			publisher := client.Publisher(vanus.WithEventbus(eventbus))
 			ch := utils.CreateEventFactory(ctx, caseName, maximumPayloadSize)
 			for atomic.LoadInt64(&sentSuccess) < totalNumber {
-				events := make([]*cloudevents.CloudEvent, batchSize)
+				events := make([]*v2.Event, batchSize)
 				for n := 0; n < batchSize; n++ {
 					events[n] = <-ch
 					delayTime := time.Now().Add(time.Duration(rd.Int31n(maximumDelayInSecond)) * time.Second)
-					events[n].Attributes[primitive.XVanusDeliveryTime] = &cloudevents.CloudEvent_CloudEventAttributeValue{
-						Attr: &cloudevents.CloudEvent_CloudEventAttributeValue_CeString{
-							CeString: delayTime.Format(time.RFC3339Nano),
-						},
-					}
+					events[n].SetExtension(primitive.XVanusDeliveryTime, delayTime.Format(time.RFC3339Nano))
 					max := maxDelayTime.Load().(time.Time)
 					for max.Before(delayTime) && !maxDelayTime.CompareAndSwap(max, delayTime) {
 						max = maxDelayTime.Load().(time.Time)
 					}
 				}
-				_, err := batchClient.Publish(context.Background(), &vanus.PublishRequest{
-					EventbusName: eventbus,
-					Events:       &cloudevents.CloudEventBatch{Events: events},
-				})
+				err := publisher.Publish(context.Background(), events...)
 				if err != nil {
 					log.Warning(context.Background(), "failed to send events", map[string]interface{}{
 						log.KeyError: err,
@@ -131,7 +127,7 @@ func publishEvents(ctx context.Context) {
 				} else {
 					mutex.Lock()
 					for _, e := range events {
-						cache[e.Id] = e
+						cache[e.ID()] = e
 					}
 					mutex.Unlock()
 					atomic.AddInt64(&sentSuccess, int64(len(events)))
@@ -148,49 +144,42 @@ func publishEvents(ctx context.Context) {
 	})
 }
 
-func subscribe(ctx context.Context, srv cloudevents.CloudEventsServer, port int) {
-	ls, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
-	if err != nil {
-		log.Error(ctx, "failed to send sending finished signal", map[string]interface{}{
-			"success":  sentSuccess,
-			"received": receivedNumber,
-		})
-		os.Exit(1)
-	}
+func receiveEvents(ctx context.Context, c vanus.Client) {
+	subscriber := c.Subscriber(
+		vanus.WithListenPort(receiveEventPort),
+		vanus.WithParallelism(8),
+		vanus.WithProtocol(vanus.ProtocolGRPC),
+		vanus.WithMaxBatchSize(32),
+	)
 
-	grpcServer := grpc.NewServer()
-	cloudevents.RegisterCloudEventsServer(grpcServer, srv)
-	err = grpcServer.Serve(ls)
+	err := subscriber.Listen(func(ctx context.Context, msgs ...vanus.Message) error {
+		mutex.Lock()
+		defer mutex.Unlock()
+		for _, msg := range msgs {
+			e := msg.GetEvent()
+			ce, exist := cache[e.ID()]
+			if !exist {
+				unmatch[e.ID()] = e
+				log.Warning(ctx, "received a event, but which isn't found in cache", map[string]interface{}{
+					"e": e.String(),
+				})
+				continue
+			}
+			if string(ce.Data()) != string(e.Data()) {
+				log.Error(ctx, "received a event, but data was corrupted", nil)
+				os.Exit(1)
+			}
+			delete(cache, e.ID())
+			atomic.AddInt64(&totalLatency, ce.Time().UnixMicro())
+			msg.Success()
+		}
+		atomic.AddInt64(&receivedNumber, int64(len(msgs)))
+		return nil
+	})
+
 	if err != nil {
-		log.Error(nil, "grpc server occurred an error", map[string]interface{}{
+		log.Error(ctx, "failed to start events listening", map[string]interface{}{
 			log.KeyError: err,
 		})
-		os.Exit(1)
 	}
-}
-
-type receiver struct {
-}
-
-func (r *receiver) Send(ctx context.Context, event *cloudevents.BatchEvent) (*emptypb.Empty, error) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	for _, e := range event.Events.Events {
-		ce, exist := cache[e.Id]
-		if !exist {
-			unmatch[e.Id] = e
-			log.Warning(ctx, "received a event, but which isn't found in cache", map[string]interface{}{
-				"e": e.String(),
-			})
-			continue
-		}
-		if ce.GetTextData() != string(e.GetBinaryData()) {
-			log.Error(ctx, "received a event, but data was corrupted", nil)
-			os.Exit(1)
-		}
-		delete(cache, e.Id)
-		atomic.AddInt64(&totalLatency, ce.Attributes["time"].GetCeTimestamp().AsTime().UnixMicro())
-	}
-	atomic.AddInt64(&receivedNumber, int64(len(event.Events.Events)))
-	return &emptypb.Empty{}, nil
 }

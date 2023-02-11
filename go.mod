@@ -23,8 +23,7 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/json-iterator/go v1.1.12
 	github.com/linkall-labs/embed-etcd v0.1.2
-	github.com/linkall-labs/sdk/golang v0.0.0-20230206110035-11bb74375926
-	github.com/linkall-labs/sdk/proto v0.0.0-20230106050927-acdb8d84947c
+	github.com/linkall-labs/sdk/golang v0.2.0
 	github.com/linkall-labs/vanus/client v0.5.7
 	github.com/linkall-labs/vanus/observability v0.5.7
 	github.com/linkall-labs/vanus/pkg v0.5.7
@@ -155,5 +154,6 @@ replace (
 	github.com/linkall-labs/vanus/pkg => ./pkg
 	github.com/linkall-labs/vanus/proto => ./proto
 	github.com/linkall-labs/vanus/raft => ./raft
+	github.com/linkall-labs/sdk/golang => ../sdk/golang
 	github.com/mwitkow/grpc-proxy => github.com/linkall-labs/grpc-proxy v0.0.0-20220624142509-a3b0cb2bb86c
 )
