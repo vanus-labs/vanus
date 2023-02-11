@@ -44,7 +44,11 @@ var (
 	description         string
 	subscriptionName    string
 	disableSubscription bool
-	orderedPushEvent    bool
+
+	orderedPushEvent     bool
+	orderedPushEventStr  string
+	disableDeadLetter    bool
+	disableDeadLetterStr string
 
 	subProtocol        string
 	sinkCredentialType string

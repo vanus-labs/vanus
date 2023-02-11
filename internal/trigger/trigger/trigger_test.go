@@ -61,9 +61,12 @@ func TestTrigger_Options(t *testing.T) {
 		size = rand.Intn(1000) + size
 		WithRateLimit(uint32(size))(tg)
 		So(tg.config.RateLimit, ShouldEqual, size)
-		WithEventbus("test_eb")(tg)
-		So(tg.config.DeadLetterEventbus, ShouldEqual, primitive.GetDeadLetterEventbusName("test_eb"))
+		WithRetry("test_eb")(tg)
 		So(tg.config.RetryEventbus, ShouldEqual, primitive.GetRetryEventbusName("test_eb"))
+		WithDeadLetter("test_eb", true)(tg)
+		So(tg.config.DeadLetterEventbus, ShouldEqual, "")
+		WithDeadLetter("test_eb", false)(tg)
+		So(tg.config.DeadLetterEventbus, ShouldEqual, primitive.GetDeadLetterEventbusName("test_eb"))
 	})
 }
 

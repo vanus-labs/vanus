@@ -419,6 +419,9 @@ func (t *trigger) writeFailEvent(ctx context.Context, e *ce.Event, code int, err
 	}
 	if !needRetry {
 		// dead letter
+		if t.dlEventWriter == nil {
+			return
+		}
 		t.writeEventToDeadLetter(ctx, e, reason, err.Error())
 		metrics.TriggerDeadLetterEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
 		return
@@ -535,7 +538,9 @@ func (t *trigger) Init(ctx context.Context) error {
 	t.client = eb.Connect(t.config.Controllers)
 
 	t.timerEventWriter = t.client.Eventbus(ctx, primitive.TimerEventbusName).Writer()
-	t.dlEventWriter = t.client.Eventbus(ctx, t.config.DeadLetterEventbus).Writer()
+	if t.config.DeadLetterEventbus != "" {
+		t.dlEventWriter = t.client.Eventbus(ctx, t.config.DeadLetterEventbus).Writer()
+	}
 	t.eventCh = make(chan info.EventRecord, t.config.BufferSize)
 	t.sendCh = make(chan *toSendEvent, t.config.BufferSize)
 	t.batchSendCh = make(chan []*toSendEvent, t.config.BufferSize)

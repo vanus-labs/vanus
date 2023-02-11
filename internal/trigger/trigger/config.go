@@ -115,10 +115,19 @@ func WithControllers(controllers []string) Option {
 	}
 }
 
-func WithEventbus(eventbus string) Option {
+func WithRetry(eventbus string) Option {
 	return func(t *trigger) {
-		t.config.DeadLetterEventbus = primitive.GetDeadLetterEventbusName(eventbus)
 		t.config.RetryEventbus = primitive.GetRetryEventbusName(eventbus)
+	}
+}
+
+func WithDeadLetter(eventbus string, disable bool) Option {
+	return func(t *trigger) {
+		if disable {
+			t.config.DeadLetterEventbus = ""
+		} else {
+			t.config.DeadLetterEventbus = primitive.GetDeadLetterEventbusName(eventbus)
+		}
 	}
 }
 
