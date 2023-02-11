@@ -103,3 +103,18 @@ var ReplaceBetweenPositionsFunction = function{
 		return path[:startPosition] + targetValue + path[endPosition:], nil
 	},
 }
+
+var CapitalizeSentence = function{
+	name:      "CAPITALIZE_SENTENCE",
+	fixedArgs: []common.Type{common.String},
+	fn: func(args []interface{}) (interface{}, error) {
+		value, _ := args[0].(string)
+		if len(value) == 0 {
+			return value, nil
+		}
+		if len(value) == 1 {
+			return strings.ToUpper(string(value[0])), nil
+		}
+		return strings.ToUpper(string(value[0])) + value[1:], nil
+	},
+}
