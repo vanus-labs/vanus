@@ -28,10 +28,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewDeadLetterCommand() *cobra.Command {
+func newDeadLetterCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "dle sub-command ",
-		Short: "sub-commands for dle operations",
+		Use:   "dead-letter sub-command ",
+		Short: "sub-commands for dead letter operations",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			InitGatewayClient(cmd)
 		},
