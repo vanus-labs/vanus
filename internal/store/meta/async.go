@@ -21,13 +21,8 @@ import (
 
 	// third-party libraries.
 	"github.com/huandu/skiplist"
-	"go.opentelemetry.io/otel/trace"
-
-	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/tracing"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/config"
 	walog "github.com/linkall-labs/vanus/internal/store/wal"
 )
 
@@ -45,12 +40,7 @@ type AsyncStore struct {
 	doneC   chan struct{}
 }
 
-func newAsyncStore(
-	ctx context.Context, wal *walog.WAL, committed *skiplist.SkipList, version, snapshot int64,
-) *AsyncStore {
-	_, span := tracing.Start(ctx, "store.meta.async", "newAsyncStore")
-	defer span.End()
-
+func newAsyncStore(wal *walog.WAL, committed *skiplist.SkipList, version, snapshot int64) *AsyncStore {
 	s := &AsyncStore{
 		store: store{
 			committed: committed,
@@ -58,7 +48,6 @@ func newAsyncStore(
 			wal:       wal,
 			snapshot:  snapshot,
 			marshaler: defaultCodec,
-			tracer:    tracing.NewTracer("store.meta.async", trace.SpanKindInternal),
 		},
 		pending: skiplist.New(skiplist.Bytes),
 		commitC: make(chan struct{}, 1),
@@ -66,7 +55,7 @@ func newAsyncStore(
 		doneC:   make(chan struct{}),
 	}
 
-	go s.runCommit() //nolint:contextcheck // wrong advice
+	go s.runCommit()
 
 	return s
 }
@@ -96,23 +85,19 @@ func (s *AsyncStore) Load(key []byte) (interface{}, bool) {
 }
 
 func (s *AsyncStore) Store(ctx context.Context, key []byte, value interface{}) {
-	span := trace.SpanFromContext(ctx)
-	span.AddEvent("store.meta.AsyncStore.Store() Start")
-	defer span.AddEvent("store.meta.AsyncStore.Store() End")
-
 	_ = s.set(KVRange(key, value))
 }
 
 func (s *AsyncStore) BatchStore(ctx context.Context, kvs Ranger) {
-	span := trace.SpanFromContext(ctx)
-	span.AddEvent("store.meta.AsyncStore.BatchStore() Start")
-	defer span.AddEvent("store.meta.AsyncStore.BatchStore() End")
-
 	_ = s.set(kvs)
 }
 
 func (s *AsyncStore) Delete(key []byte) {
 	_ = s.set(KVRange(key, deletedMark))
+}
+
+func (s *AsyncStore) BatchDelete(keys [][]byte) {
+	_ = s.set(&deleteRange{keys})
 }
 
 func (s *AsyncStore) set(kvs Ranger) error {
@@ -172,11 +157,8 @@ func (s *AsyncStore) runCommit() {
 }
 
 func (s *AsyncStore) commit() {
-	ctx, span := s.tracer.Start(context.Background(), "commit")
-	defer func() {
-		s.tryCreateSnapshot(ctx)
-		span.End()
-	}()
+	ctx := context.Background()
+	defer s.tryCreateSnapshot()
 
 	s.mu.Lock()
 
@@ -198,7 +180,7 @@ func (s *AsyncStore) commit() {
 	s.mu.Unlock()
 
 	// Write WAL.
-	r, err := s.wal.AppendOne(ctx, data, walog.WithoutBatching()).Wait()
+	r, err := walog.DirectAppendOne(ctx, s.wal, data)
 	if err != nil {
 		panic(err)
 	}
@@ -214,18 +196,14 @@ func merge(dst, src *skiplist.SkipList) {
 	}
 }
 
-func RecoverAsyncStore(ctx context.Context, cfg config.AsyncStore, walDir string) (*AsyncStore, error) {
-	span := trace.SpanFromContext(ctx)
-	span.AddEvent("store.meta.RecoverAsyncStore() Start")
-	defer span.AddEvent("store.meta.RecoverAsyncStore() End")
-
-	committed, snapshot, err := recoverLatestSnapshot(ctx, walDir, defaultCodec)
+func RecoverAsyncStore(ctx context.Context, dir string, opts ...walog.Option) (*AsyncStore, error) {
+	committed, snapshot, err := recoverLatestSnapshot(ctx, dir, defaultCodec)
 	if err != nil {
 		return nil, err
 	}
 
 	version := snapshot
-	opts := append([]walog.Option{
+	opts = append([]walog.Option{
 		walog.FromPosition(snapshot),
 		walog.WithRecoveryCallback(func(data []byte, r walog.Range) error {
 			m := skiplist.New(skiplist.Bytes)
@@ -240,11 +218,11 @@ func RecoverAsyncStore(ctx context.Context, cfg config.AsyncStore, walDir string
 			version = r.EO
 			return nil
 		}),
-	}, cfg.WAL.Options()...)
-	wal, err := walog.Open(ctx, walDir, opts...)
+	}, opts...)
+	wal, err := walog.Open(ctx, dir, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	return newAsyncStore(ctx, wal, committed, version, snapshot), nil
+	return newAsyncStore(wal, committed, version, snapshot), nil
 }

@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	// this project.
+	"github.com/linkall-labs/vanus/internal/primitive/executor"
 	"github.com/linkall-labs/vanus/internal/store/io"
 	"github.com/linkall-labs/vanus/internal/store/io/block"
 	"github.com/linkall-labs/vanus/internal/store/io/zone"
@@ -30,6 +31,7 @@ type Stream interface {
 	WriteOffset() int64
 
 	Append(r stdio.Reader, cb io.WriteCallback)
+	Sync()
 }
 
 type flushTask struct {
@@ -52,7 +54,9 @@ type stream struct {
 
 	timer PendingID
 
-	pending sync.Map
+	pending map[int64]*flushTask
+
+	callbackExecutor executor.ExecuteCloser
 }
 
 // Make sure handle implements Stream and io.WriterAt.
@@ -71,6 +75,20 @@ func (s *stream) WriteOffset() int64 {
 		return s.off
 	}
 	return s.off + int64(s.buf.Size())
+}
+
+func (s *stream) Sync() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if !s.dirty {
+		return
+	}
+
+	s.dirty = false
+	s.cancelFlushTimer()
+	s.flushBlock(s.buf, s.waiting)
+	s.waiting = nil
 }
 
 func (s *stream) Append(r stdio.Reader, cb io.WriteCallback) {
@@ -157,12 +175,15 @@ func (s *stream) cancelFlushTimer() {
 func (s *stream) OnTimeout(pid PendingID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.timer == pid {
-		s.dirty = false
-		s.flushBlock(s.buf, s.waiting)
-		s.waiting = nil
-		s.timer = nil
+
+	if s.timer != pid {
+		return
 	}
+
+	s.dirty = false
+	s.flushBlock(s.buf, s.waiting)
+	s.waiting = nil
+	s.timer = nil
 }
 
 func (s *stream) flushBuffer(b *block.Buffer, cbs []io.WriteCallback) {
@@ -172,7 +193,9 @@ func (s *stream) flushBuffer(b *block.Buffer, cbs []io.WriteCallback) {
 		if err != nil && err != block.ErrAlreadyFlushed { //nolint:errorlint // compare to ErrAlreadyFlushed is ok
 			panic(err)
 		}
-		s.onFlushed(base, off, cbs)
+		s.callbackExecutor.Execute(func() {
+			s.onFlushed(base, off, cbs)
+		})
 	})
 }
 
@@ -182,37 +205,34 @@ func (s *stream) flushBlock(b block.Interface, cbs []io.WriteCallback) {
 		if err != nil && err != block.ErrAlreadyFlushed { //nolint:errorlint // compare to ErrAlreadyFlushed is ok
 			panic(err)
 		}
-		s.onFlushed(base, off, cbs)
+		s.callbackExecutor.Execute(func() {
+			s.onFlushed(base, off, cbs)
+		})
 	})
 }
 
 func (s *stream) onFlushed(base int64, off int, cbs []io.WriteCallback) {
-	var empty bool
-	v, loaded := s.pending.LoadAndDelete(base)
+	ft, ok := s.pending[base]
 
 	// Wait previous block flushed.
-	if !loaded {
-		_, loaded = s.pending.LoadOrStore(base, &flushTask{
+	if !ok {
+		s.pending[base] = &flushTask{
 			off: off,
 			cbs: cbs,
-		})
-		if !loaded {
-			return
 		}
-	} else {
-		ft, _ := v.(*flushTask)
-		if !ft.ready {
-			ft.off = off
-			ft.cbs = append(ft.cbs, cbs...)
-			// Write back
-			_, loaded = s.pending.LoadOrStore(base, ft)
-			if !loaded {
-				return
+		return
+	}
+
+	if !ft.ready {
+		ft.off = off
+		if len(cbs) != 0 {
+			if len(ft.cbs) != 0 {
+				ft.cbs = append(ft.cbs, cbs...)
+			} else {
+				ft.cbs = cbs
 			}
-			cbs = ft.cbs
-		} else {
-			empty = true
 		}
+		return
 	}
 
 	// FIXME(james.yin): pass n
@@ -222,42 +242,31 @@ func (s *stream) onFlushed(base int64, off int, cbs []io.WriteCallback) {
 
 	// Partial flush.
 	if off != flushBatchSize {
-		if empty {
-			s.pending.Store(base, &flushTask{
-				ready: true,
-			})
-		}
+		ft.off = off
 		return
 	}
 
-	if !empty {
-		s.pending.Delete(base)
-	}
-
 	for {
+		delete(s.pending, base)
+
 		// Check next block.
 		base += int64(flushBatchSize)
 
-		for {
-			_, loaded = s.pending.LoadOrStore(base, &flushTask{
+		ft, ok = s.pending[base]
+		if !ok {
+			s.pending[base] = &flushTask{
 				ready: true,
-			})
-			if !loaded {
-				return
 			}
+			return
+		}
 
-			v, loaded = s.pending.LoadAndDelete(base)
-			if !loaded {
-				continue
-			}
-			ft, _ := v.(*flushTask)
+		// FIXME(james.yin): pass n
+		invokeCallbacks(ft.cbs, 0, nil)
 
-			// FIXME(james.yin): pass n
-			invokeCallbacks(ft.cbs, 0, nil)
-
-			if ft.off == flushBatchSize {
-				break
-			}
+		if ft.off != flushBatchSize {
+			ft.ready = true
+			ft.cbs = nil
+			return
 		}
 	}
 }

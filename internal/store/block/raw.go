@@ -55,6 +55,7 @@ type Raw interface {
 	Open(context.Context) error
 	Close(context.Context) error
 	Delete(context.Context) error
+	Status() Statistics
 }
 
 type Statistics struct {

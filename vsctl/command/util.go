@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -83,7 +84,7 @@ func getOperatorEndpoint() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s:%d", nodeip, DefaultOperatorPort), nil
+	return fmt.Sprintf("%s:%d", strings.Trim(string(nodeip), "\n"), DefaultOperatorPort), nil
 }
 
 func LoadConfig(filename string, config interface{}) error {

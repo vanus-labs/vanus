@@ -374,7 +374,6 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 			}
 		}
 	}()
-
 	tw.wg.Add(1)
 	go func() {
 		defer tw.wg.Done()
@@ -405,7 +404,6 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 					})
 					break
 				}
-
 				// concurrent write
 				numberOfEvents := int64(len(events))
 				log.Debug(ctx, "got events when receiving station running", map[string]interface{}{
@@ -413,9 +411,16 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 					"offset":           tw.receivingStation.getOffset(),
 					"number_of_events": numberOfEvents,
 				})
-
 				wg := sync.WaitGroup{}
 				for _, event := range events {
+					if event.Extensions()[xVanusEventbus] == timerBuiltInEventbusReceivingStation {
+						log.Warning(ctx, "invalid destination eventbus, discard this event", map[string]interface{}{
+							"event_id":      event.ID(),
+							"eventbus":      event.Extensions()[xVanusEventbus],
+							"delivery_time": newTimingMsg(ctx, event).getExpiration().Format(time.RFC3339Nano),
+						})
+						continue
+					}
 					wg.Add(1)
 					glimitC <- struct{}{}
 					go func(ctx context.Context, e *ce.Event) {

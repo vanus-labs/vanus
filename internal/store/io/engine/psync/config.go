@@ -15,19 +15,16 @@
 package psync
 
 const (
-	defaultWriteTaskBufferSize = 64
-	defaultParallel            = 4
+	defaultParallel = 4
 )
 
 type config struct {
-	writeTaskBufferSize int
-	parallel            int
+	parallel int
 }
 
 func defaultConfig() config {
 	cfg := config{
-		writeTaskBufferSize: defaultWriteTaskBufferSize,
-		parallel:            defaultParallel,
+		parallel: defaultParallel,
 	}
 	return cfg
 }
@@ -40,12 +37,6 @@ func makeConfig(opts ...Option) config {
 		opt(&cfg)
 	}
 	return cfg
-}
-
-func WithWriteTaskBufferSize(size int) Option {
-	return func(cfg *config) {
-		cfg.writeTaskBufferSize = size
-	}
 }
 
 func WithParallel(parallel int) Option {

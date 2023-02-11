@@ -201,10 +201,22 @@ func (ft *flushTask) invokeCallback(err error) {
 	ft.cb(ft.off, err)
 }
 
-func (b *Buffer) RecoverFromFile(f *os.File, at int64, committed int) error {
-	if _, err := f.ReadAt(b.buf, at); err != nil {
-		return err
+func (b *Buffer) RecoverFromFile(f *os.File, at int64, committed int, direct bool) error {
+	if direct {
+		if _, err := f.ReadAt(b.buf, at); err != nil {
+			return err
+		}
+
+		// Fill zero.
+		if committed < len(b.buf) {
+			copy(b.buf[committed:], make([]byte, len(b.buf)-committed))
+		}
+	} else {
+		if _, err := f.ReadAt(b.buf[:committed], at); err != nil {
+			return err
+		}
 	}
+
 	b.wp = committed
 	b.fp = committed
 	b.cp = committed

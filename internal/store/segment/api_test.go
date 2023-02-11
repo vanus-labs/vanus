@@ -19,13 +19,14 @@ import (
 	"context"
 	"testing"
 
+	// third-party libraries.
 	. "github.com/golang/mock/gomock"
-	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	. "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/pkg/errors"
+	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
 	// this project.

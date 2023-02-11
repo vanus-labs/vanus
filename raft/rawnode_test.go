@@ -68,8 +68,8 @@ func (a *rawNodeAdapter) Step(_ context.Context, m pb.Message) error {
 	return a.RawNode.Step(m)
 }
 
-func (a *rawNodeAdapter) Propose(_ context.Context, data []byte) error {
-	return a.RawNode.Propose(data)
+func (a *rawNodeAdapter) Propose(_ context.Context, pds ...ProposeData) {
+	a.RawNode.Propose(pds...)
 }
 
 func (a *rawNodeAdapter) ProposeConfChange(_ context.Context, cc pb.ConfChangeI) error {
@@ -283,7 +283,12 @@ func TestRawNodeProposeAndConfChange(t *testing.T) {
 				rawNode.Advance(rd)
 				// Once we are the leader, propose a command and a ConfChange.
 				if !proposed && rd.SoftState.Lead == rawNode.raft.id {
-					if err = rawNode.Propose([]byte("somedata")); err != nil {
+					fu := newProposeFuture()
+					rawNode.Propose(ProposeData{
+						Data:     []byte("somedata"),
+						Callback: fu.onProposed, NoWaitCommit: true,
+					})
+					if err = fu.wait(); err != nil {
 						t.Fatal(err)
 					}
 					if ccv1, ok := tc.cc.AsV1(); ok {
@@ -446,7 +451,13 @@ func TestRawNodeJointAutoLeave(t *testing.T) {
 			rawNode.Advance(rd)
 			// Once we are the leader, propose a command and a ConfChange.
 			if !proposed && rd.SoftState.Lead == rawNode.raft.id {
-				if err = rawNode.Propose([]byte("somedata")); err != nil {
+				fu := newProposeFuture()
+				rawNode.Propose(ProposeData{
+					Data:         []byte("somedata"),
+					Callback:     fu.onProposed,
+					NoWaitCommit: true,
+				})
+				if err = fu.wait(); err != nil {
 					t.Fatal(err)
 				}
 				ccdata, err = testCc.Marshal()
@@ -763,7 +774,7 @@ func TestRawNodeStart(t *testing.T) {
 		t.Fatalf("unexpected ready: %+v", rawNode.Ready())
 	}
 	rawNode.Campaign()
-	rawNode.Propose([]byte("foo"))
+	rawNode.Propose(ProposeData{Data: []byte("foo")})
 	if !rawNode.HasReady() {
 		t.Fatal("expected a Ready")
 	}
@@ -1001,7 +1012,7 @@ func TestRawNodeBoundedLogGrowthWithPartition(t *testing.T) {
 	// committing anything. These proposals should not cause the leader's
 	// log to grow indefinitely.
 	for i := 0; i < 1024; i++ {
-		rawNode.Propose(data)
+		rawNode.Propose(ProposeData{Data: data})
 	}
 
 	// Check the size of leader's uncommitted log tail. It should not exceed the

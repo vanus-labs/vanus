@@ -75,11 +75,11 @@ func newProposeFuture() proposeFuture {
 	return make(proposeFuture, 1)
 }
 
-func (pr proposeFuture) onProposed(err error) {
+func (pf proposeFuture) onProposed(err error) {
 	if err != nil {
-		pr <- err
+		pf <- err
 	}
-	close(pr)
+	close(pf)
 }
 
 func (pf proposeFuture) wait() error {
