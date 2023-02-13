@@ -12,7 +12,7 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-trigger
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-timer
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-gateway
 
-FROM centos:latest
+FROM ubuntu:22.04
 WORKDIR /vanus
 
 ARG VERSION
@@ -26,7 +26,6 @@ COPY --from=builder /workspace/build/all-in-one/run.sh run.sh
 
 RUN chmod a+x /vanus/run.sh
 RUN mkdir /vanus/logs
-
 ENV VERSION=$VERSION
 
 ENTRYPOINT ["/vanus/run.sh"]

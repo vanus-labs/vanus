@@ -174,7 +174,7 @@ func (ctrl *controller) createEventBus(ctx context.Context,
 	ctrl.mutex.Lock()
 	defer ctrl.mutex.Unlock()
 	if !ctrl.isReady(ctx) {
-		return nil, errors.ErrResourceCanNotOp.WithMessage("the cluster isn't ready to create eventbus")
+		return nil, errors.ErrResourceCanNotOp.WithMessage("the cluster isn't ready for create eventbus")
 	}
 	logNum := req.LogNumber
 	if logNum == 0 {

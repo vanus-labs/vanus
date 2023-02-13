@@ -1,12 +1,12 @@
 // Copyright 2022 Linkall Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file exceptreq compliance with the License.
+// you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
-// Unless required by applicable law or agreed toreq writing, software
+// Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
@@ -151,6 +151,7 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 		return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid eventbus name")
 	}
 
+	responseCode := 200
 	_ctx, span := cp.tracer.Start(ctx, "Publish")
 	start := stdtime.Now()
 	defer func() {
@@ -160,8 +161,8 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 			req.EventbusName,
 			metrics.LabelValueProtocolHTTP,
 			strconv.FormatInt(int64(len(req.Events.Events)), 10),
-			"unknown",
-		).Inc()
+			strconv.Itoa(responseCode),
+		).Add(float64(len(req.Events.Events)))
 
 		metrics.GatewayEventWriteLatencySummaryVec.WithLabelValues(
 			req.EventbusName,
@@ -170,29 +171,31 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 		).Observe(used)
 	}()
 
+	eventbusName := req.EventbusName
 	for idx := range req.Events.Events {
 		e := req.Events.Events[idx]
 		err := checkExtension(e.Attributes)
 		if err != nil {
+			responseCode = http.StatusBadRequest
 			return nil, v2.NewHTTPResult(http.StatusBadRequest, err.Error())
 		}
 		if e.Attributes == nil {
 			e.Attributes = make(map[string]*cloudevents.CloudEvent_CloudEventAttributeValue, 0)
 		}
 		e.Attributes[primitive.XVanusEventbus] = &cloudevents.CloudEvent_CloudEventAttributeValue{
-			Attr: &cloudevents.CloudEvent_CloudEventAttributeValue_CeString{CeString: req.EventbusName},
+			Attr: &cloudevents.CloudEvent_CloudEventAttributeValue_CeString{CeString: eventbusName},
 		}
 		if eventTime, ok := e.Attributes[primitive.XVanusDeliveryTime]; ok {
 			// validate event time
-			if _, err := types.ParseTime(eventTime.String()); err != nil {
+			if _, err := types.ParseTime(eventTime.GetCeString()); err != nil {
 				log.Error(_ctx, "invalid format of event time", map[string]interface{}{
 					log.KeyError: err,
 					"eventTime":  eventTime.String(),
 				})
+				responseCode = http.StatusBadRequest
 				return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid delivery time")
 			}
-			// TODO process delay message
-			// ebName = primitive.TimerEventbusName
+			req.EventbusName = primitive.TimerEventbusName
 		}
 	}
 
@@ -217,7 +220,7 @@ func (cp *ControllerProxy) writeEvents(ctx context.Context,
 			log.KeyError: err,
 			"eventbus":   eventbusName,
 		})
-		return err
+		return v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
 	return nil
 }

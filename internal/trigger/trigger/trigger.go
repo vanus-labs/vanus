@@ -370,7 +370,7 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 	}
 	r := t.sendEvent(ctx, es...)
 	if r != client.Success {
-		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelValuePushEventFail).
+		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelFailed).
 			Add(float64(len(es)))
 		log.Info(ctx, "send event fail", map[string]interface{}{
 			log.KeyError: r.Err,
@@ -386,7 +386,7 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 			t.writeFailEvent(ctx, event.record.Event, code, r.Err)
 		}
 	} else {
-		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelValuePushEventSuccess).
+		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelSuccess).
 			Add(float64(len(es)))
 		log.Debug(ctx, "send event success", map[string]interface{}{
 			"count": len(es),

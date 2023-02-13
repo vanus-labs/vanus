@@ -547,14 +547,16 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 		size += proto.Size(event)
 	}
 
-	metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(len(events)))
-	metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr()).Add(float64(size))
-
 	future := newAppendFuture()
 	b.Append(ctx, entries, future.onAppended)
 	seqs, err := future.wait()
 	if err != nil {
+		metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr(), metrics.LabelFailed).Add(float64(len(events)))
+		metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr(), metrics.LabelFailed).Add(float64(size))
 		return nil, s.processAppendError(ctx, b, err)
+	} else {
+		metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr(), metrics.LabelSuccess).Add(float64(len(events)))
+		metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr(), metrics.LabelSuccess).Add(float64(size))
 	}
 
 	return seqs, nil

@@ -23,10 +23,11 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/json-iterator/go v1.1.12
 	github.com/linkall-labs/embed-etcd v0.1.2
+	github.com/linkall-labs/sdk/golang v0.2.0
 	github.com/linkall-labs/vanus/client v0.5.7
 	github.com/linkall-labs/vanus/observability v0.5.7
 	github.com/linkall-labs/vanus/pkg v0.5.7
-	github.com/linkall-labs/vanus/proto v0.5.7
+	github.com/linkall-labs/vanus/proto v0.5.8-0.20230202030707-115734791dcf
 	github.com/linkall-labs/vanus/raft v0.5.7
 	github.com/ncw/directio v1.0.5
 	github.com/ohler55/ojg v1.14.5
@@ -51,7 +52,6 @@ require (
 	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v3 v3.0.1
-	gvisor.dev/gvisor v0.0.0-20230123025956-fe562179fea1
 	k8s.io/apimachinery v0.25.0
 	k8s.io/client-go v0.25.0
 	k8s.io/klog/v2 v2.80.0
@@ -61,6 +61,7 @@ require (
 require (
 	cloud.google.com/go/compute v1.12.1 // indirect
 	cloud.google.com/go/compute/metadata v0.2.1 // indirect
+	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129 // indirect
 	github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20220209173558-ad29539cd2e9 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.18 // indirect

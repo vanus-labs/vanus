@@ -1,0 +1,90 @@
+version: '3'
+services:
+  controller:
+    image: public.ecr.aws/vanus/controller:v0.6.0
+    container_name: controller
+    volumes:
+      - ./config/controller.yaml:/vanus/config/controller.yaml
+    expose:
+      - 2048
+      - 2112
+    networks:
+      - vanus
+  store:
+    container_name: store
+    image: public.ecr.aws/vanus/store:b7cb025
+    volumes:
+      - ./config/store.yaml:/vanus/config/store.yaml
+    expose:
+      - 11811
+      - 2114
+    networks:
+      - vanus
+    depends_on:
+      - controller
+  timer:
+    container_name: timer
+    image: public.ecr.aws/vanus/timer:357a882
+    volumes:
+      - ./config/timer.yaml:/vanus/config/timer.yaml
+    expose:
+      - 2115
+    networks:
+      - vanus
+    depends_on:
+      - controller
+      - store
+  trigger:
+    container_name: trigger
+    image: public.ecr.aws/vanus/trigger:v0.6.0
+    volumes:
+      - ./config/trigger.yaml:/vanus/config/trigger.yaml
+    expose:
+      - 2116
+    networks:
+      - vanus
+    depends_on:
+      - controller
+  gateway:
+    container_name: gateway
+    image: public.ecr.aws/vanus/gateway:b52b795
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    volumes:
+      - ./config/gateway.yaml:/vanus/config/gateway.yaml
+    expose:
+      - 2113
+    networks:
+      - vanus
+    depends_on:
+      - controller
+      - store
+      - trigger
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus
+    expose:
+      - 9090
+    ports:
+      - "9090:9090"
+    command:
+      - --storage.tsdb.retention=6h
+      - --storage.tsdb.path=/prometheus
+      - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - vanus
+  grafana:
+    container_name: grafana
+    image: public.ecr.aws/vanus/observability/grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./config/datasource.yaml:/home/grafana/provisioning/datasources/prometheus.yaml
+    networks:
+      - vanus
+networks:
+  vanus:
+    driver: bridge

@@ -161,6 +161,7 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 		log.KeyEventlogID:   elReader.eventLogID,
 		"offset":            elReader.offset,
 	})
+	min := time.Now().Minute()
 	for {
 		select {
 		case <-ctx.Done():
@@ -168,6 +169,15 @@ func (elReader *eventLogReader) run(ctx context.Context) {
 		default:
 		}
 		err := elReader.loop(ctx, r)
+		if time.Now().Minute() != min {
+			min = time.Now().Minute()
+			log.Info(ctx, "read event", map[string]interface{}{
+				log.KeyEventbusName: elReader.config.EventBusName,
+				log.KeyEventlogID:   elReader.eventLogIDStr,
+				log.KeyError:        err,
+				"offset":            elReader.offset,
+			})
+		}
 		switch {
 		case err == nil, errors.Is(err, errors.ErrOffsetOnEnd), errors.Is(err, errors.ErrTryAgain):
 			continue

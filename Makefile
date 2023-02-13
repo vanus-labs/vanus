@@ -45,6 +45,10 @@ docker-push-test-infra:
 	docker build -t ${DOCKER_REPO}/test-infra:${IMAGE_TAG} -f test/infra/Dockerfile .
 	docker push ${DOCKER_REPO}/test-infra:${IMAGE_TAG}
 
+docker-push-test-regression:
+	docker build -t ${DOCKER_REPO}/test-regression:${IMAGE_TAG} -f test/regression/Dockerfile .
+	docker push ${DOCKER_REPO}/test-regression:${IMAGE_TAG}
+
 t1=-X 'main.Version=${VERSION}'
 t2=${t1} -X 'main.GitCommit=${GIT_COMMIT}'
 t3=${t2} -X 'main.BuildDate=${DATE}'

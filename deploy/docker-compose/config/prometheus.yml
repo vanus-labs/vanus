@@ -1,0 +1,12 @@
+global:
+  scrape_interval:     10s
+  evaluation_interval: 10s
+scrape_configs:
+  - job_name: 'vanus'
+    static_configs:
+      - targets:
+          - controller:2112
+          - gateway:2113
+          - store:2114
+          - timer:2115
+          - trigger:2116
