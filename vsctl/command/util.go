@@ -18,13 +18,17 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 func cmdFailedf(cmd *cobra.Command, format string, a ...interface{}) {
@@ -73,4 +77,25 @@ func operatorIsDeployed(cmd *cobra.Command, endpoint string) bool {
 	}
 	defer resp.Body.Close()
 	return true
+}
+
+func getOperatorEndpoint() (string, error) {
+	nodeip, err := exec.Command("bash", "-c", "kubectl get no --no-headers -o wide | awk '{print $6}' | head -n 1").Output()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s:%d", strings.Trim(string(nodeip), "\n"), DefaultOperatorPort), nil
+}
+
+func LoadConfig(filename string, config interface{}) error {
+	b, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	str := os.ExpandEnv(string(b))
+	err = yaml.Unmarshal([]byte(str), config)
+	if err != nil {
+		return err
+	}
+	return nil
 }
