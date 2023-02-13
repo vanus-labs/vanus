@@ -511,14 +511,14 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 			So(blockObj.VolumeID, ShouldEqual, vol1.ID)
 			So(blockObj.SegmentID, ShouldEqual, segments[0].ID)
 
-			seg := utMgr.GetSegment(segments2[1].ID)
+			seg := utMgr.getSegment(segments2[1].ID)
 			So(seg, ShouldNotBeNil)
 			So(seg.EventLogID, ShouldEqual, logMD.ID)
 
 			blockObj = utMgr.GetBlock(vanus.NewIDFromUint64(segments[1].Replicas.Leader))
 			segAnother, err := utMgr.GetSegmentByBlockID(blockObj)
 			So(err, ShouldBeNil)
-			So(segAnother, ShouldEqual, seg)
+			So(segAnother, ShouldResemble, *seg)
 		})
 	})
 }
