@@ -20,40 +20,51 @@ import (
 
 	// this project.
 	ioengine "github.com/linkall-labs/vanus/internal/store/io/engine"
-	"github.com/linkall-labs/vanus/internal/store/wal/record"
+	"github.com/linkall-labs/vanus/internal/store/io/stream"
+	"github.com/linkall-labs/vanus/internal/store/io/zone/segmentedfile"
 )
 
 const (
-	defaultBlockSize        = 4 * 1024
+	logFileExt              = ".log"
+	defaultBlockSize        = 16 * 1024
 	defaultFileSize         = 128 * 1024 * 1024
-	defaultFlushTimeout     = 3 * time.Millisecond
 	defaultAppendBufferSize = 64
-	defaultFlushBufferSize  = 64
-	defaultWakeupBufferSize = defaultFlushBufferSize * 2
 )
 
 type config struct {
-	pos                int64
-	cb                 OnEntryCallback
-	blockSize          int
-	fileSize           int64
-	flushTimeout       time.Duration
-	appendBufferSize   int
-	callbackBufferSize int
-	flushBufferSize    int
-	wakeupBufferSize   int
-	engine             ioengine.Interface
+	pos              int64
+	cb               OnEntryCallback
+	blockSize        int
+	fileSize         int64
+	flushDelayTime   time.Duration // default: 3 * time.Millisecond
+	appendBufferSize int
+	engine           ioengine.Interface
+}
+
+func (cfg *config) segmentedFileOptions() []segmentedfile.Option {
+	opts := []segmentedfile.Option{segmentedfile.WithExtension(logFileExt)}
+	if cfg.fileSize != 0 {
+		opts = append(opts, segmentedfile.WithSegmentSize(cfg.fileSize))
+	}
+	return opts
+}
+
+func (cfg *config) streamSchedulerOptions() []stream.Option {
+	opts := []stream.Option{stream.WithCallbackParallel(1)}
+	if cfg.blockSize != 0 {
+		opts = append(opts, stream.WithFlushBatchSize(cfg.blockSize))
+	}
+	if cfg.flushDelayTime != 0 {
+		opts = append(opts, stream.WithFlushDelayTime(cfg.flushDelayTime))
+	}
+	return opts
 }
 
 func defaultConfig() config {
 	cfg := config{
-		blockSize:          defaultBlockSize,
-		fileSize:           defaultFileSize,
-		flushTimeout:       defaultFlushTimeout,
-		appendBufferSize:   defaultAppendBufferSize,
-		callbackBufferSize: (defaultBlockSize + record.HeaderSize - 1) / record.HeaderSize,
-		flushBufferSize:    defaultFlushBufferSize,
-		wakeupBufferSize:   defaultWakeupBufferSize,
+		blockSize:        defaultBlockSize,
+		fileSize:         defaultFileSize,
+		appendBufferSize: defaultAppendBufferSize,
 	}
 	return cfg
 }
@@ -86,7 +97,6 @@ func WithRecoveryCallback(cb OnEntryCallback) Option {
 func WithBlockSize(blockSize int) Option {
 	return func(cfg *config) {
 		cfg.blockSize = blockSize
-		cfg.callbackBufferSize = (blockSize + record.HeaderSize - 1) / record.HeaderSize
 	}
 }
 
@@ -96,33 +106,15 @@ func WithFileSize(fileSize int64) Option {
 	}
 }
 
-func WithFlushTimeout(d time.Duration) Option {
+func WithFlushDelayTime(d time.Duration) Option {
 	return func(cfg *config) {
-		cfg.flushTimeout = d
+		cfg.flushDelayTime = d
 	}
 }
 
 func WithAppendBufferSize(size int) Option {
 	return func(cfg *config) {
 		cfg.appendBufferSize = size
-	}
-}
-
-func WithCallbackBufferSize(size int) Option {
-	return func(cfg *config) {
-		cfg.callbackBufferSize = size
-	}
-}
-
-func WithFlushBufferSize(size int) Option {
-	return func(cfg *config) {
-		cfg.flushBufferSize = size
-	}
-}
-
-func WithWakeupBufferSize(size int) Option {
-	return func(cfg *config) {
-		cfg.wakeupBufferSize = size
 	}
 }
 

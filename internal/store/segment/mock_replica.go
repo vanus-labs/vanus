@@ -11,7 +11,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
 	block "github.com/linkall-labs/vanus/internal/store/block"
-	raft "github.com/linkall-labs/vanus/internal/store/block/raft"
+	block0 "github.com/linkall-labs/vanus/internal/store/raft/block"
 	meta "github.com/linkall-labs/vanus/proto/pkg/meta"
 )
 
@@ -51,7 +51,7 @@ func (mr *MockReplicaMockRecorder) Append(ctx, entries, cb interface{}) *gomock.
 }
 
 // Bootstrap mocks base method.
-func (m *MockReplica) Bootstrap(ctx context.Context, blocks []raft.Peer) error {
+func (m *MockReplica) Bootstrap(ctx context.Context, blocks []block0.Peer) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Bootstrap", ctx, blocks)
 	ret0, _ := ret[0].(error)

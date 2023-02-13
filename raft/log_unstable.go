@@ -75,18 +75,27 @@ func (u *unstable) maybeTerm(i uint64) (uint64, bool) {
 func (u *unstable) stableTo(i, t uint64) bool {
 	gt, ok := u.maybeTerm(i)
 	if !ok {
+		// Unstable entry missing. Ignore.
+		u.logger.Infof("entry at index %d missing from unstable log; ignoring", i)
 		return false
 	}
-	// if i < offset, term is matched with the snapshot
-	// only update the unstable entries if term is matched with
-	// an unstable entry.
-	if gt == t && i >= u.offset {
-		u.entries = u.entries[i+1-u.offset:]
-		u.offset = i + 1
-		u.shrinkEntriesArray()
-		return true
+	if i < u.offset {
+		// Index matched unstable snapshot, not unstable entry. Ignore.
+		u.logger.Infof("entry at index %d matched unstable snapshot; ignoring", i)
+		return false
 	}
-	return false
+	if gt != t {
+		// Term mismatch between unstable entry and specified entry. Ignore.
+		// This is possible if part or all of the unstable log was replaced
+		// between that time that a set of entries started to be written to
+		// stable storage and when they finished.
+		u.logger.Infof("entry at (index,term)=(%d,%d) mismatched with entry at (%d,%d) in unstable log; ignoring", i, t, i, gt)
+		return false
+	}
+	u.entries = u.entries[i+1-u.offset:]
+	u.offset = i + 1
+	u.shrinkEntriesArray()
+	return true
 }
 
 // shrinkEntriesArray discards the underlying array used by the entries slice
@@ -123,24 +132,22 @@ func (u *unstable) restore(s pb.Snapshot) {
 }
 
 func (u *unstable) truncateAndAppend(ents []pb.Entry) (li uint64, truncated bool) {
-	after := ents[0].Index
+	start := ents[0].Index
 	switch {
-	case after == u.offset+uint64(len(u.entries)):
-		// after is the next index in the u.entries
-		// directly append
+	case start == u.offset+uint64(len(u.entries)):
+		// start is the next index in the u.entries, so append directly.
 		u.entries = append(u.entries, ents...)
-	case after <= u.offset:
-		u.logger.Infof("replace the unstable entries from index %d", after)
+	case start <= u.offset:
+		u.logger.Infof("replace the unstable entries from index %d", start)
 		// The log is being truncated to before our current offset
-		// portion, so set the offset and replace the entries
-		u.offset = after
+		// portion, so set the offset and replace the entries.
+		u.offset = start
 		u.entries = ents
 		truncated = true
 	default:
-		// truncate to after and copy to u.entries
-		// then append
-		u.logger.Infof("truncate the unstable entries before index %d", after)
-		u.entries = append([]pb.Entry{}, u.slice(u.offset, after)...)
+		// truncate to start and copy to u.entries then append.
+		u.logger.Infof("truncate the unstable entries before index %d", start)
+		u.entries = append([]pb.Entry{}, u.slice(u.offset, start)...)
 		u.entries = append(u.entries, ents...)
 		truncated = true
 	}

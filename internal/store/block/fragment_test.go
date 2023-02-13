@@ -16,7 +16,6 @@ package block_test
 
 import (
 	// standard libraries.
-	"context"
 	"testing"
 
 	// third-party libraries.
@@ -42,7 +41,7 @@ func TestFragment(t *testing.T) {
 
 		marshaler, ok := frag.(block.FragmentMarshaler)
 		So(ok, ShouldBeTrue)
-		data, err := marshaler.MarshalFragment(context.Background())
+		data, err := marshaler.MarshalFragment()
 		So(err, ShouldBeNil)
 		So(data, ShouldResemble, fragmentData)
 	})
@@ -59,7 +58,7 @@ func TestMarshalFragment(t *testing.T) {
 			frag.EXPECT().StartOffset().AnyTimes().Return(int64(4096))
 			frag.EXPECT().Payload().AnyTimes().Return(fragmentData[8:])
 
-			data, err := block.MarshalFragment(context.Background(), frag)
+			data, err := block.MarshalFragment(frag)
 			So(err, ShouldBeNil)
 			So(data, ShouldResemble, fragmentData)
 		})
@@ -72,9 +71,9 @@ func TestMarshalFragment(t *testing.T) {
 				MockFragment:          blktest.NewMockFragment(ctrl),
 				MockFragmentMarshaler: blktest.NewMockFragmentMarshaler(ctrl),
 			}
-			frag.MockFragmentMarshaler.EXPECT().MarshalFragment(Any()).Return(fragmentData, nil)
+			frag.MockFragmentMarshaler.EXPECT().MarshalFragment().Return(fragmentData, nil)
 
-			data, err := block.MarshalFragment(context.Background(), frag)
+			data, err := block.MarshalFragment(frag)
 			So(err, ShouldBeNil)
 			So(data, ShouldResemble, fragmentData)
 		})

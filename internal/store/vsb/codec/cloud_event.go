@@ -104,75 +104,172 @@ func (e *ceEntryEncoder) Size(entry block.Entry) int {
 	return sz
 }
 
+type marshalOptAttrCallback struct {
+	buf       []byte
+	bitmap    uint64
+	nextAlloc int
+}
+
+// Make sure marshalOptAttrCallback implements block.OptionalAttributeCallback.
+var _ block.OptionalAttributeCallback = (*marshalOptAttrCallback)(nil)
+
+func (cb *marshalOptAttrCallback) OnBytes(ordinal int, val []byte) {
+	cb.bitmap |= 1 << ordinal
+
+	if ordinal == ceschema.DataOrdinal {
+		return
+	}
+
+	// TODO(james.yin):
+	panic("not supported type")
+}
+
+func (cb *marshalOptAttrCallback) OnString(ordinal int, val string) {
+	cb.bitmap |= 1 << ordinal
+
+	var fo int
+	switch ordinal {
+	case ceschema.IDOrdinal, ceschema.SourceOrdinal, ceschema.SpecVersionOrdinal, ceschema.TypeOrdinal:
+		fo = valueOffset(ordinal)
+	case ceschema.DataOrdinal:
+		return
+	default:
+		idx := doValueIndex(cb.bitmap, 1<<ordinal)
+		fo = valueOffset(idx)
+	}
+
+	field := cb.buf[fo : fo+8]
+	offsetAndSize := uint64(cb.nextAlloc)<<offsetOffset | uint64(len(val))
+	binary.LittleEndian.PutUint64(field, offsetAndSize)
+	copy(cb.buf[cb.nextAlloc:], val)
+	cb.nextAlloc += alignment(len(val))
+}
+
+func (cb *marshalOptAttrCallback) OnUint16(ordinal int, val uint16) {
+	cb.bitmap |= 1 << ordinal
+
+	// TODO(james.yin):
+	panic("not supported type")
+}
+
+func (cb *marshalOptAttrCallback) OnUint64(ordinal int, val uint64) {
+	cb.bitmap |= 1 << ordinal
+
+	// TODO(james.yin):
+	panic("not supported type")
+}
+
+func (cb *marshalOptAttrCallback) OnInt64(ordinal int, val int64) {
+	cb.bitmap |= 1 << ordinal
+
+	var fo int
+	switch ordinal {
+	case ceschema.SequenceNumberOrdinal, ceschema.StimeOrdinal:
+		fo = valueOffset(ordinal)
+	default:
+		idx := doValueIndex(cb.bitmap, 1<<ordinal)
+		fo = valueOffset(idx)
+	}
+
+	field := cb.buf[fo : fo+8]
+	binary.LittleEndian.PutUint64(field, uint64(val))
+}
+
+func (cb *marshalOptAttrCallback) OnTime(ordinal int, val time.Time) {
+	cb.bitmap |= 1 << ordinal
+
+	idx := doValueIndex(cb.bitmap, 1<<ordinal)
+	fo := valueOffset(idx)
+	field := cb.buf[fo : fo+8]
+	offsetAndNano := uint64(cb.nextAlloc)<<offsetOffset | uint64(val.Nanosecond())&sizeMask
+	binary.LittleEndian.PutUint64(field, offsetAndNano)
+	binary.LittleEndian.PutUint64(cb.buf[cb.nextAlloc:], uint64(val.Unix()))
+	cb.nextAlloc += 8
+}
+
+func (cb *marshalOptAttrCallback) OnAttribute(ordinal int, val interface{}) {
+	cb.bitmap |= 1 << ordinal
+
+	// TODO(james.yin):
+	panic("not supported type")
+}
+
+type marshalExtAttrKeyCallback struct {
+	buf       []byte
+	i         int
+	optCnt    int
+	nextAlloc int
+}
+
+// Make sure marshalExtAttrCallback implements block.ExtensionAttributesCallback.
+var _ block.ExtensionAttributeCallback = (*marshalExtAttrKeyCallback)(nil)
+
+func (cb *marshalExtAttrKeyCallback) OnAttribute(attr, _ []byte) {
+	fo := attrKeyOffset(valueOffset(cb.optCnt), cb.i)
+	field := cb.buf[fo : fo+8]
+	offsetAndSize := uint64(cb.nextAlloc)<<32 | uint64(len(attr))
+	binary.LittleEndian.PutUint64(field, offsetAndSize)
+	copy(cb.buf[cb.nextAlloc:], attr)
+	cb.nextAlloc += alignment(len(attr))
+	cb.i++
+}
+
+type marshalExtAttrValCallback struct {
+	buf       []byte
+	i         int
+	optCnt    int
+	nextAlloc int
+}
+
+// Make sure marshalValExtAttrCallback implements block.ExtensionAttributesCallback.
+var _ block.ExtensionAttributeCallback = (*marshalExtAttrValCallback)(nil)
+
+func (cb *marshalExtAttrValCallback) OnAttribute(_, val []byte) {
+	fo := attrValueOffset(valueOffset(cb.optCnt), cb.i)
+	field := cb.buf[fo : fo+8]
+	offsetAndSize := uint64(cb.nextAlloc)<<32 | uint64(len(val))
+	binary.LittleEndian.PutUint64(field, offsetAndSize)
+	copy(cb.buf[cb.nextAlloc:], val)
+	cb.nextAlloc += alignment(len(val))
+	cb.i++
+}
+
 func (e *ceEntryEncoder) MarshalTo(entry block.Entry, buf []byte) (int, int, error) {
 	ext, _ := entry.(block.EntryExt)
 	optCnt := ext.OptionalAttributeCount()
 	extCnt := ext.ExtensionAttributeCount()
-	nextAlloc := vlvrOffset(optCnt, extCnt)
 
-	var bitmap uint64
-	ext.RangeOptionalAttributes(block.OnOptionalAttributeFunc(func(ordinal int, val interface{}) {
-		bitmap |= 1 << ordinal
-		switch ordinal {
-		case ceschema.SequenceNumberOrdinal, ceschema.StimeOrdinal,
-			ceschema.IDOrdinal, ceschema.SourceOrdinal, ceschema.SpecVersionOrdinal, ceschema.TypeOrdinal:
-			fo := valueOffset(ordinal)
-			field := buf[fo : fo+8]
-			switch ordinal {
-			case ceschema.SequenceNumberOrdinal, ceschema.StimeOrdinal:
-				binary.LittleEndian.PutUint64(field, uint64(val.(int64)))
-			case ceschema.IDOrdinal, ceschema.SourceOrdinal,
-				ceschema.SpecVersionOrdinal, ceschema.TypeOrdinal:
-				offsetAndSize := uint64(nextAlloc)<<offsetOffset | uint64(len(val.(string)))
-				binary.LittleEndian.PutUint64(field, offsetAndSize)
-				copy(buf[nextAlloc:], val.(string))
-				nextAlloc += alignment(len(val.(string)))
-			}
-		case ceschema.DataOrdinal:
-		default:
-			idx := doValueIndex(bitmap, 1<<ordinal)
-			fo := valueOffset(idx)
-			field := buf[fo : fo+8]
-			switch v := val.(type) {
-			case string:
-				offsetAndSize := uint64(nextAlloc)<<offsetOffset | uint64(len(v))
-				binary.LittleEndian.PutUint64(field, offsetAndSize)
-				copy(buf[nextAlloc:], v)
-				nextAlloc += alignment(len(v))
-			case time.Time:
-				offsetAndNano := uint64(nextAlloc)<<offsetOffset | uint64(v.Nanosecond())&sizeMask
-				binary.LittleEndian.PutUint64(field, offsetAndNano)
-				binary.LittleEndian.PutUint64(buf[nextAlloc:], uint64(v.Unix()))
-				nextAlloc += 8
-			}
+	optCb := &marshalOptAttrCallback{
+		buf:       buf,
+		nextAlloc: vlvrOffset(optCnt, extCnt),
+	}
+	ext.RangeOptionalAttributes(optCb)
+	binary.LittleEndian.PutUint64(buf[:8], optCb.bitmap<<16|uint64(extCnt))
+
+	var nextAlloc int
+	if extCnt != 0 {
+		// Fill attribute keys.
+		keyExtCb := &marshalExtAttrKeyCallback{
+			buf:       buf,
+			optCnt:    optCnt,
+			nextAlloc: optCb.nextAlloc,
 		}
-	}))
-	binary.LittleEndian.PutUint64(buf[:8], bitmap<<16|uint64(extCnt))
+		ext.RangeExtensionAttributes(keyExtCb)
 
-	// Fill attribute keys.
-	var i int
-	ext.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr, _ []byte) {
-		fo := attrKeyOffset(valueOffset(optCnt), i)
-		field := buf[fo : fo+8]
-		offsetAndSize := uint64(nextAlloc)<<32 | uint64(len(attr))
-		binary.LittleEndian.PutUint64(field, offsetAndSize)
-		copy(buf[nextAlloc:], attr)
-		nextAlloc += alignment(len(attr))
-		i++
-	}))
-	// Fill attribute values.
-	i = 0
-	ext.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(_, val []byte) {
-		fo := attrValueOffset(valueOffset(optCnt), i)
-		field := buf[fo : fo+8]
-		offsetAndSize := uint64(nextAlloc)<<32 | uint64(len(val))
-		binary.LittleEndian.PutUint64(field, offsetAndSize)
-		copy(buf[nextAlloc:], val)
-		nextAlloc += alignment(len(val))
-		i++
-	}))
+		// Fill attribute values.
+		valExtCb := &marshalExtAttrValCallback{
+			buf:       buf,
+			optCnt:    optCnt,
+			nextAlloc: keyExtCb.nextAlloc,
+		}
+		ext.RangeExtensionAttributes(valExtCb)
 
-	if bitmap&(1<<ceschema.DataOrdinal) != 0 {
+		nextAlloc = valExtCb.nextAlloc
+	} else {
+		nextAlloc = optCb.nextAlloc
+	}
+
+	if optCb.bitmap&(1<<ceschema.DataOrdinal) != 0 {
 		data := ext.GetBytes(ceschema.DataOrdinal)
 		fo := valueOffset(ceschema.DataOrdinal)
 		field := buf[fo : fo+8]

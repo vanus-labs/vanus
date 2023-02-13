@@ -46,7 +46,7 @@ func readyWithTimeout(n Node) Ready {
 func TestNodeStep(t *testing.T) {
 	for i, msgn := range raftpb.MessageType_name {
 		n := &node{
-			propc: make(chan msgWithResult, 1),
+			propc: make(chan []ProposeData, 1),
 			recvc: make(chan raftpb.Message, 1),
 		}
 		msgt := raftpb.MessageType(i)
@@ -80,7 +80,7 @@ func TestNodeStep(t *testing.T) {
 func TestNodeStepUnblock(t *testing.T) {
 	// a node without buffer to block step
 	n := &node{
-		propc: make(chan msgWithResult),
+		propc: make(chan []ProposeData),
 		done:  make(chan struct{}),
 	}
 
@@ -107,7 +107,7 @@ func TestNodeStepUnblock(t *testing.T) {
 			if err != tt.werr {
 				t.Errorf("#%d: err = %v, want %v", i, err, tt.werr)
 			}
-			//clean up side-effect
+			// clean up side-effect
 			if ctx.Err() != nil {
 				ctx = context.TODO()
 			}
@@ -149,7 +149,7 @@ func TestNodePropose(t *testing.T) {
 		}
 		n.Advance()
 	}
-	n.Propose(context.TODO(), []byte("somedata"))
+	n.Propose(context.TODO(), ProposeData{Data: []byte("somedata")})
 	n.Stop()
 
 	if len(msgs) != 1 {
@@ -225,7 +225,7 @@ func TestDisableProposalForwarding(t *testing.T) {
 	// elect r1 as leader
 	nt.send(raftpb.Message{From: 1, To: 1, Type: raftpb.MsgHup})
 
-	var testEntries = []raftpb.Entry{{Data: []byte("testdata")}}
+	testEntries := []raftpb.Entry{{Data: []byte("testdata")}}
 
 	// send proposal to r2(follower) where DisableProposalForwarding is false
 	r2.Step(raftpb.Message{From: 2, To: 2, Type: raftpb.MsgProp, Entries: testEntries})
@@ -256,7 +256,7 @@ func TestNodeReadIndexToOldLeader(t *testing.T) {
 	// elect r1 as leader
 	nt.send(raftpb.Message{From: 1, To: 1, Type: raftpb.MsgHup})
 
-	var testEntries = []raftpb.Entry{{Data: []byte("testdata")}}
+	testEntries := []raftpb.Entry{{Data: []byte("testdata")}}
 
 	// send readindex request to r2(follower)
 	r2.Step(raftpb.Message{From: 2, To: 2, Type: raftpb.MsgReadIndex, Entries: testEntries})
@@ -433,9 +433,9 @@ func TestBlockProposal(t *testing.T) {
 	defer n.Stop()
 
 	errc := make(chan error, 1)
-	go func() {
-		errc <- n.Propose(context.TODO(), []byte("somedata"))
-	}()
+	n.Propose(context.TODO(), ProposeData{Data: []byte("somedata"), Callback: func(err error) {
+		errc <- err
+	}, NoWaitCommit: true})
 
 	testutil.WaitSchedule()
 	select {
@@ -487,7 +487,7 @@ func TestNodeProposeWaitDropped(t *testing.T) {
 	proposalTimeout := time.Millisecond * 100
 	ctx, cancel := context.WithTimeout(context.Background(), proposalTimeout)
 	// propose with cancel should be cancelled earyly if dropped
-	err := n.Propose(ctx, droppingMsg)
+	err := Propose1(ctx, &n, droppingMsg)
 	if err != ErrProposalDropped {
 		t.Errorf("should drop proposal : %v", err)
 	}
@@ -632,7 +632,7 @@ func TestNodeStart(t *testing.T) {
 	storage.Append(rd.Entries)
 	n.Advance()
 
-	n.Propose(ctx, []byte("foo"))
+	Propose1(ctx, n, []byte("foo"))
 	if g2 := <-n.Ready(); !reflect.DeepEqual(g2, wants[1]) {
 		t.Errorf("#%d: g = %+v,\n             w   %+v", 2, g2, wants[1])
 	} else {
@@ -761,7 +761,7 @@ func TestNodeAdvance(t *testing.T) {
 	n.Campaign(ctx)
 	<-n.Ready()
 
-	n.Propose(ctx, []byte("foo"))
+	Propose1(ctx, n, []byte("foo"))
 	select {
 	case rd = <-n.Ready():
 		t.Fatalf("unexpected Ready before Advance: %+v", rd)
@@ -928,7 +928,7 @@ func TestCommitPagination(t *testing.T) {
 
 	blob := []byte(strings.Repeat("a", 1000))
 	for i := 0; i < 3; i++ {
-		if err := n.Propose(context.TODO(), blob); err != nil {
+		if err := Propose1(context.TODO(), &n, blob); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -961,14 +961,14 @@ func (s *ignoreSizeHintMemStorage) Entries(lo, hi uint64, maxSize uint64) ([]raf
 // Storage's Entries size limitation is slightly more permissive than Raft's
 // internal one. The original bug was the following:
 //
-// - node learns that index 11 (or 100, doesn't matter) is committed
-// - nextEnts returns index 1..10 in CommittedEntries due to size limiting. However,
-//   index 10 already exceeds maxBytes, due to a user-provided impl of Entries.
-// - Commit index gets bumped to 10
-// - the node persists the HardState, but crashes before applying the entries
-// - upon restart, the storage returns the same entries, but `slice` takes a different code path
-//   (since it is now called with an upper bound of 10) and removes the last entry.
-// - Raft emits a HardState with a regressing commit index.
+//   - node learns that index 11 (or 100, doesn't matter) is committed
+//   - nextEnts returns index 1..10 in CommittedEntries due to size limiting. However,
+//     index 10 already exceeds maxBytes, due to a user-provided impl of Entries.
+//   - Commit index gets bumped to 10
+//   - the node persists the HardState, but crashes before applying the entries
+//   - upon restart, the storage returns the same entries, but `slice` takes a different code path
+//     (since it is now called with an upper bound of 10) and removes the last entry.
+//   - Raft emits a HardState with a regressing commit index.
 //
 // A simpler version of this test would have the storage return a lot less entries than dictated
 // by maxSize (for example, exactly one entry) after the restart, resulting in a larger regression.

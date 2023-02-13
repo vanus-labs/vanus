@@ -24,13 +24,17 @@ import (
 type raftLog struct {
 	// storage contains all stable entries since the last snapshot.
 	storage Storage
+	// keeper writes entries to the stable storage.
+	keeper Keeper
 
-	inflight *inflight
+	inflight inflight
 
 	// unstable contains all unstable entries and snapshot.
 	// they will be saved into storage.
 	unstable unstable
 
+	// persisting is the next log position that will be persisted to storage.
+	// Invariant: unstable.offset <= persisting
 	persisting uint64
 	// committed is the highest log position that is known to be in
 	// stable storage on a quorum of nodes.
@@ -38,6 +42,8 @@ type raftLog struct {
 	committed uint64
 	// Invariant: localCommitted = min(committed, unstable.offset)
 	localCommitted uint64
+	// applying is the highest log position that the application has
+	// been instructed to be applying to its state machine.
 	// Invariant: applying <= localCommitted
 	applying uint64
 	// applied is the highest log position that the application has
@@ -59,18 +65,19 @@ type raftLog struct {
 // newLog returns log using the given storage and default options. It
 // recovers the log to the state that it just commits and applies the
 // latest snapshot.
-func newLog(storage Storage, logger Logger) *raftLog {
-	return newLogWithSize(storage, logger, noLimit)
+func newLog(storage Storage, keeper Keeper, logger Logger) *raftLog {
+	return newLogWithSize(storage, keeper, logger, noLimit)
 }
 
 // newLogWithSize returns a log using the given storage and max
 // message size.
-func newLogWithSize(storage Storage, logger Logger, maxNextEntsSize uint64) *raftLog {
+func newLogWithSize(storage Storage, keeper Keeper, logger Logger, maxNextEntsSize uint64) *raftLog {
 	if storage == nil {
 		log.Panic("storage must not be nil")
 	}
 	log := &raftLog{
 		storage:         storage,
+		keeper:          keeper,
 		logger:          logger,
 		maxNextEntsSize: maxNextEntsSize,
 	}
@@ -127,8 +134,8 @@ func (l *raftLog) append(ents ...pb.Entry) uint64 {
 	if len(ents) == 0 {
 		return l.lastIndex()
 	}
-	if after := ents[0].Index - 1; after < l.committed {
-		l.logger.Panicf("after(%d) is out of range [committed(%d)]", after, l.committed)
+	if prev := ents[0].Index - 1; prev < l.committed {
+		l.logger.Panicf("prev(%d) is out of range [committed(%d)]", prev, l.committed)
 	}
 
 	li, truncated := l.unstable.truncateAndAppend(ents)
@@ -140,6 +147,11 @@ func (l *raftLog) append(ents ...pb.Entry) uint64 {
 	if l.persisting > start {
 		l.persisting = start
 	}
+
+	// TODO(james.yin): limiting
+	l.keeper.TruncateAndAppend(ents)
+	l.persisting = li + 1
+
 	return li
 }
 
@@ -154,7 +166,8 @@ func (l *raftLog) append(ents ...pb.Entry) uint64 {
 // a different term.
 // The index of the given entries MUST be continuously increasing.
 func (l *raftLog) findConflict(ents []pb.Entry) uint64 {
-	for _, ne := range ents {
+	for i := range ents {
+		ne := &ents[i]
 		if !l.matchTerm(ne.Index, ne.Term) {
 			if ne.Index <= l.lastIndex() {
 				l.logger.Infof("found conflict at index %d [existing term: %d, conflicting term: %d]",
@@ -196,43 +209,6 @@ func (l *raftLog) findConflictByTerm(index uint64, term uint64) uint64 {
 	return index
 }
 
-func (l *raftLog) unstableEntries() []pb.Entry {
-	if len(l.unstable.entries) == 0 {
-		return nil
-	}
-	return l.unstable.entries
-}
-
-func (l *raftLog) pendingEntries() []pb.Entry {
-	so := int(l.persisting - l.unstable.offset)
-	if so >= len(l.unstable.entries) {
-		return nil
-	}
-	return l.unstable.entries[so:]
-}
-
-// nextEnts returns all the available entries for execution.
-// If applied is smaller than the index of snapshot, it returns all committed
-// entries after the index of snapshot.
-func (l *raftLog) nextEnts() (ents []pb.Entry) {
-	lo := max(l.applying+1, l.firstIndex())
-	if hi := l.localCommitted + 1; hi > lo {
-		ents, err := l.slice(lo, hi, l.maxNextEntsSize)
-		if err != nil {
-			l.logger.Panicf("unexpected error when getting unapplied entries (%v)", err)
-		}
-		return ents
-	}
-	return nil
-}
-
-// hasNextEnts returns if there is any available entries for execution. This
-// is a fast check without heavy raftLog.slice() in raftLog.nextEnts().
-func (l *raftLog) hasNextEnts() bool {
-	off := max(l.applying+1, l.firstIndex())
-	return l.localCommitted+1 > off
-}
-
 // hasPendingSnapshot returns if there is pending snapshot waiting for applying.
 func (l *raftLog) hasPendingSnapshot() bool {
 	return l.unstable.snapshot != nil && !IsEmptySnap(*l.unstable.snapshot)
@@ -260,14 +236,10 @@ func (l *raftLog) lastIndex() uint64 {
 	if i, ok := l.unstable.maybeLastIndex(); ok {
 		return i
 	}
-	i, err := l.storage.LastIndex()
-	if err != nil {
-		panic(err) // TODO(bdarnell)
-	}
-	return i
+	return l.unstable.offset - 1
 }
 
-func (l *raftLog) stableLastIndex() uint64 {
+func (l *raftLog) stableLastIndex() uint64 { //nolint:unused // ok
 	i, err := l.storage.LastIndex()
 	if err != nil {
 		panic(err) // TODO(james.yin)
@@ -282,6 +254,7 @@ func (l *raftLog) compactTo(tocompact uint64) {
 	}
 	if l.compacted < tocompact {
 		l.compacted = tocompact
+		l.keeper.CompactTo(tocompact)
 	}
 }
 
@@ -316,15 +289,24 @@ func (l *raftLog) localCommitTo(tocommit uint64) {
 		// }
 		l.localCommitted = tocommit
 		l.inflight.commitTo(tocommit)
+		l.keeper.CommitTo(tocommit)
+
+		// TODO(james.yin): limiting
+		ents, err := l.slice(l.applying+1, tocommit+1, noLimit)
+		if err != nil {
+			l.logger.Panicf("unexpected error when getting unapplied entries (%v)", err)
+		}
+		l.keeper.Apply(ents)
+		l.applying = tocommit
 	}
 }
 
 func (l *raftLog) commitTo(tocommit uint64) {
 	// never decrease commit
 	if l.committed < tocommit {
-		// if li := l.lastIndex(); li < tocommit {
-		// 	l.logger.Panicf("tocommit(%d) is out of range [lastIndex(%d)]. Was the raft log corrupted, truncated, or lost?", tocommit, li)
-		// }
+		if li := l.lastIndex(); li < tocommit {
+			l.logger.Panicf("tocommit(%d) is out of range [lastIndex(%d)]. Was the raft log corrupted, truncated, or lost?", tocommit, li)
+		}
 		l.committed = tocommit
 	}
 	l.localCommitTo(tocommit)
@@ -361,15 +343,18 @@ func (l *raftLog) lastTerm() uint64 {
 }
 
 func (l *raftLog) term(i uint64) (uint64, error) {
-	// the valid term range is [index of dummy entry, last index]
+	// Check the unstable log first, even before computing the valid term range,
+	// which may need to access stable Storage. If we find the entry's term in
+	// the unstable log, we know it was in the valid range.
+	if t, ok := l.unstable.maybeTerm(i); ok {
+		return t, nil
+	}
+
+	// The valid term range is [index of dummy entry, last index].
 	dummyIndex := l.firstIndex() - 1
 	if i < dummyIndex || i > l.lastIndex() {
 		// TODO: return an error instead?
 		return 0, nil
-	}
-
-	if t, ok := l.unstable.maybeTerm(i); ok {
-		return t, nil
 	}
 
 	t, err := l.storage.Term(i)
@@ -439,7 +424,7 @@ func (l *raftLog) matchTerm(i, term uint64) bool {
 }
 
 func (l *raftLog) maybeCommit(maxIndex, term uint64) bool {
-	if maxIndex > l.committed && l.zeroTermOnErrCompacted(l.term(maxIndex)) == term {
+	if maxIndex > l.committed /* && l.zeroTermOnErrCompacted(l.term(maxIndex)) == term */ {
 		l.commitTo(maxIndex)
 		return true
 	}
@@ -474,11 +459,12 @@ func (l *raftLog) slice(lo, hi, maxSize uint64) ([]pb.Entry, error) {
 	var ents []pb.Entry
 	if lo < l.unstable.offset {
 		storedEnts, err := l.storage.Entries(lo, min(hi, l.unstable.offset), maxSize)
-		if err == ErrCompacted {
+		switch {
+		case err == ErrCompacted: //nolint:errorlint // it's ok
 			return nil, err
-		} else if err == ErrUnavailable {
+		case err == ErrUnavailable: //nolint:errorlint // it's ok
 			l.logger.Panicf("entries[%d:%d) is unavailable from storage", lo, min(hi, l.unstable.offset))
-		} else if err != nil {
+		case err != nil:
 			panic(err) // TODO(bdarnell)
 		}
 
@@ -509,14 +495,14 @@ func (l *raftLog) mustCheckOutOfBounds(lo, hi uint64) error {
 		l.logger.Panicf("invalid slice %d > %d", lo, hi)
 	}
 
-	fi := l.firstIndex()
-	if lo < fi {
-		return ErrCompacted
-	}
+	// fi := l.firstIndex()
+	// if lo < fi {
+	// 	return ErrCompacted
+	// }
 
 	li := l.lastIndex()
 	if hi > li+1 {
-		l.logger.Panicf("slice[%d,%d) out of bound [%d,%d]", lo, hi, fi, li)
+		l.logger.Panicf("slice[%d,%d) out of bound [unknown,%d]", lo, hi /*fi,*/, li)
 	}
 
 	return nil
@@ -526,7 +512,7 @@ func (l *raftLog) zeroTermOnErrCompacted(t uint64, err error) uint64 {
 	if err == nil {
 		return t
 	}
-	if err == ErrCompacted {
+	if err == ErrCompacted { //nolint:errorlint // it's ok
 		return 0
 	}
 	l.logger.Panicf("unexpected error (%v)", err)

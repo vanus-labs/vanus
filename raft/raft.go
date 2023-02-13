@@ -136,6 +136,7 @@ type Config struct {
 	// Storage when it needs. raft reads out the previous state and configuration
 	// out of storage when restarting.
 	Storage Storage
+	Keeper  Keeper
 	// Applied is the last applied index. It should only be set when restarting
 	// raft. raft will not return entries to the application smaller or equal to
 	// Applied. If Applied is unset when restarting, raft might return previous
@@ -250,7 +251,9 @@ type raft struct {
 	Term uint64
 	Vote uint64
 
+	termStart uint64
 	receiving bool
+	voted     bool
 
 	readStates []ReadState
 
@@ -262,14 +265,10 @@ type raft struct {
 	// TODO(tbg): rename to trk.
 	prs tracker.ProgressTracker
 
-	inflight inflight
-
 	state StateType
 
 	// isLearner is true if the local raft node is a learner.
 	isLearner bool
-
-	msgs []pb.Message
 
 	// the leader id
 	lead uint64
@@ -328,7 +327,7 @@ func newRaft(c *Config) *raft {
 	if err := c.validate(); err != nil {
 		panic(err.Error())
 	}
-	raftlog := newLogWithSize(c.Storage, c.Logger, c.MaxCommittedSizePerReady)
+	raftlog := newLogWithSize(c.Storage, c.Keeper, c.Logger, c.MaxCommittedSizePerReady)
 	hs, cs, err := c.Storage.InitialState()
 	if err != nil {
 		panic(err) // TODO(bdarnell)
@@ -350,7 +349,6 @@ func newRaft(c *Config) *raft {
 		readOnly:                  newReadOnly(c.ReadOnlyOption),
 		disableProposalForwarding: c.DisableProposalForwarding,
 	}
-	raftlog.inflight = &r.inflight
 
 	cfg, prs, err := confchange.Restore(confchange.Changer{
 		Tracker:   r.prs,
@@ -362,6 +360,7 @@ func newRaft(c *Config) *raft {
 	assertConfStatesEquivalent(r.logger, cs, r.switchToConfig(cfg, prs))
 
 	if !IsEmptyHardState(hs) {
+		// FIXME(james.yin): fix term
 		r.loadState(hs)
 	}
 	if c.Applied > 0 {
@@ -384,9 +383,16 @@ func newRaft(c *Config) *raft {
 	return r
 }
 
-func (r *raft) hasLeader() bool { return r.lead != None }
+func (r *raft) hasLeader() bool {
+	return r.lead != None
+}
 
-func (r *raft) softState() *SoftState { return &SoftState{Lead: r.lead, RaftState: r.state} }
+func (r *raft) softState() SoftState {
+	return SoftState{
+		Lead:      r.lead,
+		RaftState: r.state,
+	}
+}
 
 func (r *raft) hardState() pb.HardState {
 	return pb.HardState{
@@ -430,7 +436,7 @@ func (r *raft) send(m pb.Message) {
 			m.Term = r.Term
 		}
 	}
-	r.msgs = append(r.msgs, m)
+	r.raftLog.keeper.Send(m)
 }
 
 // sendAppend sends an append RPC with new entries (if any) and the
@@ -601,7 +607,10 @@ func (r *raft) advance(rd Ready) {
 // r.bcastAppend).
 func (r *raft) maybeCommit() bool {
 	mci := r.prs.Committed()
-	return r.raftLog.maybeCommit(mci, r.Term)
+	if mci >= r.termStart {
+		return r.raftLog.maybeCommit(mci, r.Term)
+	}
+	return false
 }
 
 func (r *raft) maybeCompact() {
@@ -616,6 +625,7 @@ func (r *raft) reset(term uint64) {
 	}
 	r.lead = None
 	r.receiving = false
+	r.voted = false
 
 	r.electionElapsed = 0
 	r.heartbeatElapsed = 0
@@ -644,8 +654,9 @@ func (r *raft) reset(term uint64) {
 func (r *raft) appendEntry(es ...pb.Entry) (accepted bool) {
 	li := r.raftLog.lastIndex()
 	for i := range es {
-		es[i].Term = r.Term
-		es[i].Index = li + 1 + uint64(i)
+		ent := &es[i]
+		ent.Term = r.Term
+		ent.Index = li + 1 + uint64(i)
 	}
 	// Track the size of this uncommitted proposal.
 	if !r.increaseUncommittedSize(es) {
@@ -703,13 +714,22 @@ func (r *raft) tickHeartbeat() {
 }
 
 func (r *raft) becomeFollower(term uint64, lead uint64) {
-	r.propose = proposeFollower
-	r.step = stepFollower
-	r.reset(term)
 	r.tick = r.tickElection
+	r.step = stepFollower
+	r.propose = proposeFollower
+
+	r.reset(term)
 	r.lead = lead
 	r.state = StateFollower
+
 	r.logger.Infof("%x became follower at term %d", r.id, r.Term)
+
+	r.raftLog.keeper.SetSoftState(r.softState())
+}
+
+func (r *raft) becomeFollowerExt(term uint64, lead uint64) {
+	r.becomeFollower(term, lead)
+	r.raftLog.keeper.SetHardState(r.hardState())
 }
 
 func (r *raft) becomeCandidate() {
@@ -717,13 +737,23 @@ func (r *raft) becomeCandidate() {
 	if r.state == StateLeader {
 		panic("invalid transition [leader -> candidate]")
 	}
-	r.propose = proposeCandidate
-	r.step = stepCandidate
-	r.reset(r.Term + 1)
+
 	r.tick = r.tickElection
+	r.step = stepCandidate
+	r.propose = proposeCandidate
+
+	r.reset(r.Term + 1)
 	r.Vote = r.id
 	r.state = StateCandidate
+
 	r.logger.Infof("%x became candidate at term %d", r.id, r.Term)
+
+	r.raftLog.keeper.SetSoftState(r.softState())
+}
+
+func (r *raft) becomeCandidateExt() {
+	r.becomeCandidate()
+	r.raftLog.keeper.SetHardState(r.hardState())
 }
 
 func (r *raft) becomePreCandidate() {
@@ -731,16 +761,21 @@ func (r *raft) becomePreCandidate() {
 	if r.state == StateLeader {
 		panic("invalid transition [leader -> pre-candidate]")
 	}
+
 	// Becoming a pre-candidate changes our step functions and state,
 	// but doesn't change anything else. In particular it does not increase
 	// r.Term or change r.Vote.
-	r.propose = proposeCandidate
-	r.step = stepCandidate
-	r.prs.ResetVotes()
 	r.tick = r.tickElection
+	r.step = stepCandidate
+	r.propose = proposeCandidate
+
+	r.prs.ResetVotes()
 	r.lead = None
 	r.state = StatePreCandidate
+
 	r.logger.Infof("%x became pre-candidate at term %d", r.id, r.Term)
+
+	r.raftLog.keeper.SetSoftState(r.softState())
 }
 
 func (r *raft) becomeLeader() {
@@ -748,10 +783,12 @@ func (r *raft) becomeLeader() {
 	if r.state == StateFollower {
 		panic("invalid transition [follower -> leader]")
 	}
-	r.propose = proposeLeader
-	r.step = stepLeader
-	r.reset(r.Term)
+
 	r.tick = r.tickHeartbeat
+	r.step = stepLeader
+	r.propose = proposeLeader
+
+	r.reset(r.Term)
 	r.lead = r.id
 	r.state = StateLeader
 	// Followers enter replicate mode when they've been successfully probed
@@ -772,12 +809,16 @@ func (r *raft) becomeLeader() {
 		// This won't happen because we just called reset() above.
 		r.logger.Panic("empty entry was dropped")
 	}
+	r.termStart = r.raftLog.lastIndex()
 	// As a special case, don't count the initial empty entry towards the
 	// uncommitted log quota. This is because we want to preserve the
 	// behavior of allowing one entry larger than quota if the current
 	// usage is zero.
 	r.reduceUncommittedSize([]pb.Entry{emptyEnt})
+
 	r.logger.Infof("%x became leader at term %d", r.id, r.Term)
+
+	r.raftLog.keeper.SetSoftState(r.softState())
 }
 
 func (r *raft) hup(t CampaignType) {
@@ -811,28 +852,34 @@ func (r *raft) campaign(t CampaignType) {
 		// better safe than sorry.
 		r.logger.Warningf("%x is unpromotable; campaign() should have been called", r.id)
 	}
+
 	var term uint64
 	var voteMsg pb.MessageType
 	if t == campaignPreElection {
 		r.becomePreCandidate()
+
+		if _, _, res := r.poll(r.id, pb.MsgPreVoteResp, true); res == quorum.VoteWon {
+			// We won the election after voting for ourselves (which must mean that
+			// this is a single-node cluster). Advance to the next state.
+			r.campaign(campaignElection)
+			return
+		}
+
 		voteMsg = pb.MsgPreVote
 		// PreVote RPCs are sent for the next term before we've incremented r.Term.
 		term = r.Term + 1
 	} else {
-		r.becomeCandidate()
+		r.becomeCandidateExt()
+
 		voteMsg = pb.MsgVote
 		term = r.Term
 	}
-	if _, _, res := r.poll(r.id, voteRespMsgType(voteMsg), true); res == quorum.VoteWon {
-		// We won the election after voting for ourselves (which must mean that
-		// this is a single-node cluster). Advance to the next state.
-		if t == campaignPreElection {
-			r.campaign(campaignElection)
-		} else {
-			r.becomeLeader()
-		}
-		return
+
+	var ctx []byte
+	if t == campaignTransfer {
+		ctx = []byte(t)
 	}
+
 	var ids []uint64
 	{
 		idMap := r.prs.Voters.IDs()
@@ -846,13 +893,10 @@ func (r *raft) campaign(t CampaignType) {
 		if id == r.id {
 			continue
 		}
+
 		r.logger.Infof("%x [logterm: %d, index: %d] sent %s request to %x at term %d",
 			r.id, r.raftLog.lastTerm(), r.raftLog.lastIndex(), voteMsg, id, r.Term)
 
-		var ctx []byte
-		if t == campaignTransfer {
-			ctx = []byte(t)
-		}
 		r.send(pb.Message{
 			Term: term, To: id, Type: voteMsg, Index: r.raftLog.lastIndex(),
 			LogTerm: r.raftLog.lastTerm(), Context: ctx,
@@ -889,12 +933,13 @@ func (r *raft) Propose(pds ...ProposeData) {
 		if pd.Callback == nil {
 			continue
 		}
-		if err != nil {
+		switch {
+		case err != nil:
 			pd.Callback(err)
-		} else if pd.NoWaitCommit {
+		case pd.NoWaitCommit:
 			pd.Callback(nil)
-		} else {
-			r.inflight.append(ents[i].Index, pd.Callback)
+		default:
+			r.raftLog.inflight.append(ents[i].Index, pd.Callback)
 		}
 	}
 }
@@ -918,6 +963,11 @@ func proposeLeader(r *raft, m pb.Message) error {
 
 	for i := range m.Entries {
 		e := &m.Entries[i]
+
+		if e.Type == pb.EntryNormal {
+			continue
+		}
+
 		var cc pb.ConfChangeI
 		if e.Type == pb.EntryConfChange {
 			var ccc pb.ConfChange
@@ -925,33 +975,32 @@ func proposeLeader(r *raft, m pb.Message) error {
 				panic(err)
 			}
 			cc = ccc
-		} else if e.Type == pb.EntryConfChangeV2 {
+		} else { // e.Type == pb.EntryConfChangeV2
 			var ccc pb.ConfChangeV2
 			if err := ccc.Unmarshal(e.Data); err != nil {
 				panic(err)
 			}
 			cc = ccc
 		}
-		if cc != nil {
-			alreadyPending := r.pendingConfIndex > r.raftLog.applied
-			alreadyJoint := len(r.prs.Config.Voters[1]) > 0
-			wantsLeaveJoint := len(cc.AsV2().Changes) == 0
 
-			var refused string
-			if alreadyPending {
-				refused = fmt.Sprintf("possible unapplied conf change at index %d (applied to %d)", r.pendingConfIndex, r.raftLog.applied)
-			} else if alreadyJoint && !wantsLeaveJoint {
-				refused = "must transition out of joint config first"
-			} else if !alreadyJoint && wantsLeaveJoint {
-				refused = "not in joint state; refusing empty conf change"
-			}
+		alreadyPending := r.pendingConfIndex > r.raftLog.applied
+		alreadyJoint := len(r.prs.Config.Voters[1]) > 0
+		wantsLeaveJoint := len(cc.AsV2().Changes) == 0
 
-			if refused != "" {
-				r.logger.Infof("%x ignoring conf change %v at config %s: %s", r.id, cc, r.prs.Config, refused)
-				m.Entries[i] = pb.Entry{Type: pb.EntryNormal}
-			} else {
-				r.pendingConfIndex = r.raftLog.lastIndex() + uint64(i) + 1
-			}
+		var refused string
+		if alreadyPending {
+			refused = fmt.Sprintf("possible unapplied conf change at index %d (applied to %d)", r.pendingConfIndex, r.raftLog.applied)
+		} else if alreadyJoint && !wantsLeaveJoint {
+			refused = "must transition out of joint config first"
+		} else if !alreadyJoint && wantsLeaveJoint {
+			refused = "not in joint state; refusing empty conf change"
+		}
+
+		if refused != "" {
+			r.logger.Infof("%x ignoring conf change %v at config %s: %s", r.id, cc, r.prs.Config, refused)
+			m.Entries[i] = pb.Entry{Type: pb.EntryNormal}
+		} else {
+			r.pendingConfIndex = r.raftLog.lastIndex() + uint64(i) + 1
 		}
 	}
 
@@ -985,37 +1034,6 @@ func (r *raft) Step(m pb.Message) error {
 	switch {
 	case m.Term == 0:
 		// local message
-	case m.Term > r.Term:
-		if m.Type == pb.MsgVote || m.Type == pb.MsgPreVote {
-			force := bytes.Equal(m.Context, []byte(campaignTransfer))
-			inLease := r.checkQuorum && r.lead != None && r.electionElapsed < r.electionTimeout
-			if !force && inLease {
-				// If a server receives a RequestVote request within the minimum election timeout
-				// of hearing from a current leader, it does not update its term or grant its vote
-				r.logger.Infof("%x [logterm: %d, index: %d, vote: %x] ignored %s from %x [logterm: %d, index: %d] at term %d: lease is not expired (remaining ticks: %d)",
-					r.id, r.raftLog.lastTerm(), r.raftLog.lastIndex(), r.Vote, m.Type,
-					m.From, m.LogTerm, m.Index, r.Term, r.electionTimeout-r.electionElapsed)
-				return nil
-			}
-		}
-		switch {
-		case m.Type == pb.MsgPreVote:
-			// Never change our term in response to a PreVote
-		case m.Type == pb.MsgPreVoteResp && !m.Reject:
-			// We send pre-vote requests with a term in our future. If the
-			// pre-vote is granted, we will increment our term when we get a
-			// quorum. If it is not, the term comes from the node that
-			// rejected our vote so we should become a follower at the new
-			// term.
-		default:
-			r.logger.Infof("%x [term: %d] received a %s message with higher term from %x [term: %d]",
-				r.id, r.Term, m.Type, m.From, m.Term)
-			if m.Type == pb.MsgApp || m.Type == pb.MsgHeartbeat || m.Type == pb.MsgSnap {
-				r.becomeFollower(m.Term, m.From)
-			} else {
-				r.becomeFollower(m.Term, None)
-			}
-		}
 
 	case m.Term < r.Term:
 		if (r.checkQuorum || r.preVote) && (m.Type == pb.MsgHeartbeat || m.Type == pb.MsgApp) {
@@ -1054,6 +1072,44 @@ func (r *raft) Step(m pb.Message) error {
 				r.id, r.Term, m.Type, m.From, m.Term)
 		}
 		return nil
+
+	case m.Type == pb.MsgVote || m.Type == pb.MsgPreVote:
+		if m.Term > r.Term {
+			force := bytes.Equal(m.Context, []byte(campaignTransfer))
+			inLease := r.checkQuorum && r.lead != None && r.electionElapsed < r.electionTimeout
+			if !force && inLease {
+				// If a server receives a RequestVote request within the minimum election timeout
+				// of hearing from a current leader, it does not update its term or grant its vote
+				r.logger.Infof("%x [logterm: %d, index: %d, vote: %x] ignored %s from %x [logterm: %d, index: %d] at term %d: lease is not expired (remaining ticks: %d)",
+					r.id, r.raftLog.lastTerm(), r.raftLog.lastIndex(), r.Vote, m.Type,
+					m.From, m.LogTerm, m.Index, r.Term, r.electionTimeout-r.electionElapsed)
+				return nil
+			}
+		}
+		if m.Type == pb.MsgPreVote {
+			r.handlePreVote(m.From, m.Term, m.Index, m.LogTerm)
+		} else {
+			r.handleVote(m.From, m.Term, m.Index, m.LogTerm)
+		}
+		return nil
+
+	case m.Term > r.Term:
+		switch {
+		case m.Type == pb.MsgPreVoteResp && !m.Reject:
+			// We send pre-vote requests with a term in our future. If the
+			// pre-vote is granted, we will increment our term when we get a
+			// quorum. If it is not, the term comes from the node that
+			// rejected our vote so we should become a follower at the new
+			// term.
+		default:
+			r.logger.Infof("%x [term: %d] received a %s message with higher term from %x [term: %d]",
+				r.id, r.Term, m.Type, m.From, m.Term)
+			if m.Type == pb.MsgApp || m.Type == pb.MsgHeartbeat || m.Type == pb.MsgSnap {
+				r.becomeFollowerExt(m.Term, m.From)
+			} else {
+				r.becomeFollowerExt(m.Term, None)
+			}
+		}
 	}
 
 	switch m.Type {
@@ -1063,57 +1119,6 @@ func (r *raft) Step(m pb.Message) error {
 		} else {
 			r.hup(campaignElection)
 		}
-
-	case pb.MsgVote, pb.MsgPreVote:
-		// We can vote if this is a repeat of a vote we've already cast...
-		canVote := r.Vote == m.From ||
-			// ...we haven't voted and we don't think there's a leader yet in this term...
-			(r.Vote == None && r.lead == None) ||
-			// ...or this is a PreVote for a future term...
-			(m.Type == pb.MsgPreVote && m.Term > r.Term)
-		// ...and we believe the candidate is up to date.
-		if canVote && r.raftLog.isUpToDate(m.Index, m.LogTerm) {
-			// Note: it turns out that that learners must be allowed to cast votes.
-			// This seems counter- intuitive but is necessary in the situation in which
-			// a learner has been promoted (i.e. is now a voter) but has not learned
-			// about this yet.
-			// For example, consider a group in which id=1 is a learner and id=2 and
-			// id=3 are voters. A configuration change promoting 1 can be committed on
-			// the quorum `{2,3}` without the config change being appended to the
-			// learner's log. If the leader (say 2) fails, there are de facto two
-			// voters remaining. Only 3 can win an election (due to its log containing
-			// all committed entries), but to do so it will need 1 to vote. But 1
-			// considers itself a learner and will continue to do so until 3 has
-			// stepped up as leader, replicates the conf change to 1, and 1 applies it.
-			// Ultimately, by receiving a request to vote, the learner realizes that
-			// the candidate believes it to be a voter, and that it should act
-			// accordingly. The candidate's config may be stale, too; but in that case
-			// it won't win the election, at least in the absence of the bug discussed
-			// in:
-			// https://github.com/etcd-io/etcd/issues/7625#issuecomment-488798263.
-			r.logger.Infof("%x [logterm: %d, index: %d, vote: %x] cast %s for %x [logterm: %d, index: %d] at term %d",
-				r.id, r.raftLog.lastTerm(), r.raftLog.lastIndex(), r.Vote, m.Type, m.From, m.LogTerm, m.Index, r.Term)
-			// When responding to Msg{Pre,}Vote messages we include the term
-			// from the message, not the local term. To see why, consider the
-			// case where a single node was previously partitioned away and
-			// it's local term is now out of date. If we include the local term
-			// (recall that for pre-votes we don't update the local term), the
-			// (pre-)campaigning node on the other end will proceed to ignore
-			// the message (it ignores all out of date messages).
-			// The term in the original message and current local term are the
-			// same in the case of regular votes, but different for pre-votes.
-			r.send(pb.Message{To: m.From, Term: m.Term, Type: voteRespMsgType(m.Type)})
-			if m.Type == pb.MsgVote {
-				// Only record real votes.
-				r.electionElapsed = 0
-				r.Vote = m.From
-			}
-		} else {
-			r.logger.Infof("%x [logterm: %d, index: %d, vote: %x] rejected %s from %x [logterm: %d, index: %d] at term %d",
-				r.id, r.raftLog.lastTerm(), r.raftLog.lastIndex(), r.Vote, m.Type, m.From, m.LogTerm, m.Index, r.Term)
-			r.send(pb.Message{To: m.From, Term: r.Term, Type: voteRespMsgType(m.Type), Reject: true})
-		}
-
 	default:
 		err := r.step(r, m)
 		if err != nil {
@@ -1143,7 +1148,7 @@ func stepLeader(r *raft, m pb.Message) error {
 		}
 		if !r.prs.QuorumActive() {
 			r.logger.Warningf("%x stepped down to follower since quorum is not active", r.id)
-			r.becomeFollower(r.Term, None)
+			r.becomeFollowerExt(r.Term, None)
 		}
 		// Mark everyone (but ourselves) as inactive in preparation for the next
 		// CheckQuorum.
@@ -1155,18 +1160,17 @@ func stepLeader(r *raft, m pb.Message) error {
 		return nil
 	case pb.MsgProp:
 		return proposeLeader(r, m)
-	case pb.MsgLogResp:
+	case pb.MsgLogStatus:
 		if r.raftLog.stableTo(m.Index, m.LogTerm) {
 			r.prs.Progress[r.id].MaybeUpdate(m.Index)
 			if r.maybeCommit() {
-				// TODO(james.yin): Send latest commit to follower nodes?
-				// r.bcastAppend()
+				r.bcastAppend()
 			} else {
 				r.raftLog.localCommitTo(r.raftLog.committed)
 			}
 		}
 		return nil
-	case pb.MsgApplyResp:
+	case pb.MsgApplyStatus:
 		// TODO(james.yin): reduce uncommitted size
 
 		newApplied := m.Index
@@ -1511,11 +1515,11 @@ func stepCandidate(r *raft, m pb.Message) error {
 	case pb.MsgApp:
 		r.becomeFollower(m.Term, m.From) // always m.Term == r.Term
 		r.handleAppendEntries(m)
-	case pb.MsgLogResp:
+	case pb.MsgLogStatus:
 		if r.raftLog.stableTo(m.Index, m.LogTerm) {
 			r.raftLog.localCommitTo(r.raftLog.committed)
 		}
-	case pb.MsgApplyResp:
+	case pb.MsgApplyStatus:
 		// TODO(james.yin):
 		r.raftLog.appliedTo(m.Index)
 	case pb.MsgHeartbeat:
@@ -1524,6 +1528,8 @@ func stepCandidate(r *raft, m pb.Message) error {
 	case pb.MsgSnap:
 		r.becomeFollower(m.Term, m.From) // always m.Term == r.Term
 		r.handleSnapshot(m)
+	case pb.MsgStateStatus:
+		r.handleStatePersisted(m.LogTerm, m.Vote)
 	case myVoteRespType:
 		gr, rj, res := r.poll(m.From, m.Type, !m.Reject)
 		r.logger.Infof("%x has received %d %s votes and %d vote rejections", r.id, gr, m.Type, rj)
@@ -1538,7 +1544,7 @@ func stepCandidate(r *raft, m pb.Message) error {
 		case quorum.VoteLost:
 			// pb.MsgPreVoteResp contains future term of pre-candidate
 			// m.Term > r.Term; reuse r.Term
-			r.becomeFollower(r.Term, None)
+			r.becomeFollowerExt(r.Term, None)
 		}
 	case pb.MsgTimeoutNow:
 		r.logger.Debugf("%x [term %d state %v] ignored MsgTimeoutNow from %x", r.id, r.Term, r.state, m.From)
@@ -1552,16 +1558,19 @@ func stepFollower(r *raft, m pb.Message) error {
 		return proposeFollower(r, m)
 	case pb.MsgApp:
 		r.electionElapsed = 0
-		r.lead = m.From
+		if m.From != r.lead {
+			r.lead = m.From
+			r.raftLog.keeper.SetSoftState(r.softState())
+		}
 		r.handleAppendEntries(m)
-	case pb.MsgLogResp:
+	case pb.MsgLogStatus:
 		if r.raftLog.stableTo(m.Index, m.LogTerm) {
 			r.raftLog.localCommitTo(r.raftLog.committed)
 			if r.receiving {
-				r.send(pb.Message{To: r.lead, Type: pb.MsgAppResp, Index: m.Index, LogTerm: m.LogTerm})
+				r.send(pb.Message{To: r.lead, Type: pb.MsgAppResp, Index: m.Index})
 			}
 		}
-	case pb.MsgApplyResp:
+	case pb.MsgApplyStatus:
 		// TODO(james.yin):
 		r.raftLog.appliedTo(m.Index)
 	case pb.MsgHeartbeat:
@@ -1572,6 +1581,8 @@ func stepFollower(r *raft, m pb.Message) error {
 		r.electionElapsed = 0
 		r.lead = m.From
 		r.handleSnapshot(m)
+	case pb.MsgStateStatus:
+		r.handleStatePersisted(m.LogTerm, m.Vote)
 	case pb.MsgTransferLeader:
 		if r.lead == None {
 			r.logger.Infof("%x no leader at term %d; dropping leader transfer msg", r.id, r.Term)
@@ -1600,6 +1611,115 @@ func stepFollower(r *raft, m pb.Message) error {
 		r.readStates = append(r.readStates, ReadState{Index: m.Index, RequestCtx: m.Entries[0].Data})
 	}
 	return nil
+}
+
+func (r *raft) handlePreVote(from, term, index, logTerm uint64) {
+	r.logger.Infof("%x [term: %d] received a %s message from %x [term: %d]", r.id, r.Term, pb.MsgPreVote, from, term)
+
+	// TODO(james.yin): not received heartbeats from a valid leader for at least a baseline election timeout
+	// We can vote for a future term...
+	if (term > r.Term ||
+		// ...we can vote if this is a repeat of a vote we've already cast.
+		from == r.lead ||
+		// ...we haven't voted and we don't think there's a leader yet in this term...
+		(r.Vote == None && r.lead == None)) &&
+		// ...and we believe the candidate is up to date.
+		r.raftLog.isUpToDate(index, logTerm) {
+		r.logger.Infof("%x [logterm: %d, index: %d, vote: %x] cast %s for %x [logterm: %d, index: %d] at term %d",
+			r.id, r.raftLog.lastTerm(), r.raftLog.lastIndex(), r.Vote, pb.MsgPreVote, from, logTerm, index, r.Term)
+		r.send(pb.Message{To: from, Term: term, Type: pb.MsgPreVoteResp})
+	} else {
+		r.logger.Infof("%x [logterm: %d, index: %d, vote: %x] rejected %s from %x [logterm: %d, index: %d] at term %d",
+			r.id, r.raftLog.lastTerm(), r.raftLog.lastIndex(), r.Vote, pb.MsgPreVote, from, logTerm, index, r.Term)
+		r.send(pb.Message{To: from, Term: r.Term, Type: pb.MsgPreVoteResp, Reject: true})
+	}
+}
+
+func (r *raft) handleVote(from, term, index, logTerm uint64) {
+	r.logger.Infof("%x [term: %d] received a %s message from %x [term: %d]", r.id, r.Term, pb.MsgVote, from, term)
+
+	if term == r.Term {
+		// We can vote if this is a repeat of a vote we've already cast.
+		if from == r.lead {
+			r.logger.Infof("%x [logterm: %d, index: %d, vote: %x] cast %s for %x [logterm: %d, index: %d] at term %d",
+				r.id, r.raftLog.lastTerm(), r.raftLog.lastIndex(), r.Vote, pb.MsgVote, from, logTerm, index, r.Term)
+			r.electionElapsed = 0
+			if r.voted {
+				r.send(pb.Message{To: from, Term: r.Term, Type: pb.MsgVoteResp})
+			}
+		} else {
+			r.logger.Infof("%x [logterm: %d, index: %d, vote: %x] rejected %s from %x [logterm: %d, index: %d] at term %d",
+				r.id, r.raftLog.lastTerm(), r.raftLog.lastIndex(), r.Vote, pb.MsgVote, from, logTerm, index, r.Term)
+			r.send(pb.Message{To: from, Term: r.Term, Type: pb.MsgVoteResp, Reject: true})
+		}
+		return
+	}
+
+	// m.Term > r.Term
+	r.becomeFollower(term, None)
+
+	// We haven't voted and we don't think there's a leader yet in this term...
+	if (r.Vote == None && r.lead == None) &&
+		// ...and we believe the candidate is up to date.
+		r.raftLog.isUpToDate(index, logTerm) {
+		// Note: it turns out that that learners must be allowed to cast votes.
+		// This seems counter- intuitive but is necessary in the situation in which
+		// a learner has been promoted (i.e. is now a voter) but has not learned
+		// about this yet.
+		// For example, consider a group in which id=1 is a learner and id=2 and
+		// id=3 are voters. A configuration change promoting 1 can be committed on
+		// the quorum `{2,3}` without the config change being appended to the
+		// learner's log. If the leader (say 2) fails, there are de facto two
+		// voters remaining. Only 3 can win an election (due to its log containing
+		// all committed entries), but to do so it will need 1 to vote. But 1
+		// considers itself a learner and will continue to do so until 3 has
+		// stepped up as leader, replicates the conf change to 1, and 1 applies it.
+		// Ultimately, by receiving a request to vote, the learner realizes that
+		// the candidate believes it to be a voter, and that it should act
+		// accordingly. The candidate's config may be stale, too; but in that case
+		// it won't win the election, at least in the absence of the bug discussed
+		// in:
+		// https://github.com/etcd-io/etcd/issues/7625#issuecomment-488798263.
+		r.logger.Infof("%x [logterm: %d, index: %d, vote: %x] cast %s for %x [logterm: %d, index: %d] at term %d",
+			r.id, r.raftLog.lastTerm(), r.raftLog.lastIndex(), r.Vote, pb.MsgVote, from, logTerm, index, r.Term)
+		// When responding to Msg{Pre,}Vote messages we include the term
+		// from the message, not the local term. To see why, consider the
+		// case where a single node was previously partitioned away and
+		// it's local term is now out of date. If we include the local term
+		// (recall that for pre-votes we don't update the local term), the
+		// (pre-)campaigning node on the other end will proceed to ignore
+		// the message (it ignores all out of date messages).
+		// The term in the original message and current local term are the
+		// same in the case of regular votes, but different for pre-votes.
+		// Only record real votes.
+		r.electionElapsed = 0
+		r.Vote = from
+		r.raftLog.keeper.SetHardState(r.hardState())
+	} else {
+		r.logger.Infof("%x [logterm: %d, index: %d, vote: %x] rejected %s from %x [logterm: %d, index: %d] at term %d",
+			r.id, r.raftLog.lastTerm(), r.raftLog.lastIndex(), r.Vote, pb.MsgVote, from, logTerm, index, r.Term)
+		r.raftLog.keeper.SetHardState(r.hardState())
+		// TODO(james.yin): wait hard state is persisted?
+		r.send(pb.Message{To: from, Term: r.Term, Type: pb.MsgVoteResp, Reject: true})
+	}
+}
+
+func (r *raft) handleStatePersisted(term, vote uint64) {
+	switch {
+	case term != r.Term:
+	case vote == 0:
+	case vote == r.id:
+		if r.state == StateCandidate {
+			// Vote to ourself in current term.
+			if _, _, res := r.poll(r.id, pb.MsgVote, true); res == quorum.VoteWon {
+				r.becomeLeader()
+			}
+		}
+	default:
+		// Vote to other peer in current term.
+		r.voted = true
+		r.send(pb.Message{To: vote, Term: term, Type: pb.MsgVoteResp})
+	}
 }
 
 func (r *raft) handleAppendEntries(m pb.Message) {
@@ -1675,7 +1795,7 @@ func (r *raft) restore(s pb.Snapshot) bool {
 		// At the time of writing, the instance is guaranteed to be in follower
 		// state when this method is called.
 		r.logger.Warningf("%x attempted to restore snapshot as leader; should never happen", r.id)
-		r.becomeFollower(r.Term+1, None)
+		r.becomeFollowerExt(r.Term+1, None)
 		return false
 	}
 

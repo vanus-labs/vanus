@@ -64,8 +64,11 @@ func (c *WAL) Options() (opts []wal.Option) {
 		opts = append(opts, wal.WithFileSize(int64(c.FileSize)))
 	}
 	if c.FlushTimeout != "" {
-		d, _ := time.ParseDuration(c.FlushTimeout)
-		opts = append(opts, wal.WithFlushTimeout(d))
+		d, err := time.ParseDuration(c.FlushTimeout)
+		if err != nil {
+			panic(err) // unreachable
+		}
+		opts = append(opts, wal.WithFlushDelayTime(d))
 	}
 	if c.IO.Engine != "" {
 		opts = append(opts, wal.WithIOEngine(buildIOEngine(c.IO)))

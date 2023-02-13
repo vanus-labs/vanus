@@ -32,10 +32,7 @@ var ErrStepPeerNotFound = errors.New("raft: cannot step as peer not found")
 // The methods of this struct correspond to the methods of Node and are described
 // more fully there.
 type RawNode struct {
-	raft        *raft
-	prevSoftSt  *SoftState
-	prevHardSt  pb.HardState
-	prevCompact uint64
+	raft *raft
 }
 
 // NewRawNode instantiates a RawNode from the given configuration.
@@ -50,9 +47,6 @@ func NewRawNode(config *Config) (*RawNode, error) {
 	rn := &RawNode{
 		raft: r,
 	}
-	rn.prevSoftSt = r.softState()
-	rn.prevHardSt = r.hardState()
-	rn.prevCompact = r.raftLog.compacted
 	return rn, nil
 }
 
@@ -81,14 +75,8 @@ func (rn *RawNode) Campaign() error {
 }
 
 // Propose proposes data be appended to the raft log.
-func (rn *RawNode) Propose(data []byte) error {
-	return rn.raft.Step(pb.Message{
-		Type: pb.MsgProp,
-		From: rn.raft.id,
-		Entries: []pb.Entry{
-			{Data: data},
-		},
-	})
+func (rn *RawNode) Propose(pds ...ProposeData) {
+	rn.raft.Propose(pds...)
 }
 
 // ProposeConfChange proposes a config change. See (Node).ProposeConfChange for
@@ -109,6 +97,29 @@ func (rn *RawNode) ApplyConfChange(cc pb.ConfChangeI) *pb.ConfState {
 	return &cs
 }
 
+func (rn *RawNode) ReportStateStatus(term uint64, vote uint64) error {
+	return rn.raft.Step(pb.Message{
+		Type:    pb.MsgStateStatus,
+		LogTerm: term,
+		Vote:    vote,
+	})
+}
+
+func (rn *RawNode) ReportLogStatus(index uint64, term uint64) error {
+	return rn.raft.Step(pb.Message{
+		Type:    pb.MsgLogStatus,
+		LogTerm: term,
+		Index:   index,
+	})
+}
+
+func (rn *RawNode) ReportApplyStatus(index uint64) error {
+	return rn.raft.Step(pb.Message{
+		Type:  pb.MsgApplyStatus,
+		Index: index,
+	})
+}
+
 // Step advances the state machine using the given message.
 func (rn *RawNode) Step(m pb.Message) error {
 	// ignore unexpected local messages receiving over network
@@ -119,96 +130,6 @@ func (rn *RawNode) Step(m pb.Message) error {
 		return rn.raft.Step(m)
 	}
 	return ErrStepPeerNotFound
-}
-
-// Ready returns the outstanding work that the application needs to handle. This
-// includes appending and applying entries or a snapshot, updating the HardState,
-// and sending messages. The returned Ready() *must* be handled and subsequently
-// passed back via Advance().
-func (rn *RawNode) Ready() Ready {
-	rd := rn.readyWithoutAccept()
-	rn.acceptReady(rd)
-	return rd
-}
-
-// readyWithoutAccept returns a Ready. This is a read-only operation, i.e. there
-// is no obligation that the Ready must be handled.
-func (rn *RawNode) readyWithoutAccept() Ready {
-	return newReady(rn.raft, rn.prevSoftSt, rn.prevHardSt, rn.prevCompact)
-}
-
-// acceptReady is called when the consumer of the RawNode has decided to go
-// ahead and handle a Ready. Nothing must alter the state of the RawNode between
-// this call and the prior call to Ready().
-func (rn *RawNode) acceptReady(rd Ready) {
-	if rd.SoftState != nil {
-		rn.prevSoftSt = rd.SoftState
-	}
-	if len(rd.ReadStates) != 0 {
-		rn.raft.readStates = nil
-	}
-	if n := len(rd.Entries); n != 0 {
-		e := rd.Entries[n-1]
-		rn.raft.raftLog.persistingTo(e.Index, e.Term)
-	}
-	if n := len(rd.CommittedEntries); n != 0 {
-		e := rd.CommittedEntries[n-1]
-		rn.raft.raftLog.applyingTo(e.Index)
-	}
-	rn.raft.msgs = nil
-}
-
-// HasReady called when RawNode user need to check if any Ready pending.
-// Checking logic in this method should be consistent with Ready.containsUpdates().
-func (rn *RawNode) HasReady() bool {
-	r := rn.raft
-	if !r.softState().equal(rn.prevSoftSt) {
-		return true
-	}
-	if hardSt := r.hardState(); !IsEmptyHardState(hardSt) && !isHardStateEqual(hardSt, rn.prevHardSt) {
-		return true
-	}
-	if r.raftLog.hasPendingSnapshot() {
-		return true
-	}
-	if len(r.msgs) > 0 || len(r.raftLog.pendingEntries()) > 0 || r.raftLog.hasNextEnts() {
-		return true
-	}
-	if len(r.readStates) != 0 {
-		return true
-	}
-	if r.raftLog.compacted != rn.prevCompact {
-		return true
-	}
-	return false
-}
-
-// Advance notifies the RawNode that the application has applied and saved progress in the
-// last Ready results.
-func (rn *RawNode) Advance(rd Ready) {
-	if !IsEmptyHardState(rd.HardState) {
-		rn.prevHardSt = rd.HardState
-	}
-	if rd.Compact != 0 {
-		rn.prevCompact = rd.Compact
-	}
-	// FIXME(james.yin): stableSnapTo
-	// rn.raft.advance(rd)
-}
-
-func (rn *RawNode) ReportLogged(index uint64, term uint64) error {
-	return rn.raft.Step(pb.Message{
-		Type:    pb.MsgLogResp,
-		LogTerm: term,
-		Index:   index,
-	})
-}
-
-func (rn *RawNode) ReportApplied(index uint64) error {
-	return rn.raft.Step(pb.Message{
-		Type:  pb.MsgApplyResp,
-		Index: index,
-	})
 }
 
 // Status returns the current status of the given group. This allocates, see

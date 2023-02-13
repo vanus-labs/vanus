@@ -47,8 +47,8 @@ func TestOpen(t *testing.T) {
 		Convey("recover wal", func() {
 			wal, err := Open(ctx, walDir, WithFileSize(fileSize))
 			So(err, ShouldBeNil)
-			wal.AppendOne(ctx, data0).Wait()
-			wal.AppendOne(ctx, data1).Wait()
+			AppendOne(ctx, wal, data0)
+			AppendOne(ctx, wal, data1)
 			wal.Close()
 			wal.Wait()
 
@@ -89,7 +89,7 @@ func TestOpen(t *testing.T) {
 
 			wal, err := Open(ctx, walDir, WithFileSize(fileSize))
 			So(err, ShouldBeNil)
-			wal.AppendOne(ctx, data).Wait()
+			AppendOne(ctx, wal, data)
 			wal.Close()
 			wal.Wait()
 

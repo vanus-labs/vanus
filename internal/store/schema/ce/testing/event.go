@@ -20,11 +20,11 @@ import (
 
 	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
-	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	. "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	// first-party libraries.
+	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 )
 

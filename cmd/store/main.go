@@ -19,7 +19,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/linkall-labs/vanus/pkg/util/signal"
 	"net"
 	"os"
 
@@ -27,6 +26,8 @@ import (
 	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
+	"github.com/linkall-labs/vanus/pkg/util/signal"
+
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/store"

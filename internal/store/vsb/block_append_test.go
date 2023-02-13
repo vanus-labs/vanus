@@ -38,7 +38,7 @@ import (
 func TestVSBlock_Append(t *testing.T) {
 	ctx := context.Background()
 
-	scheduler := stream.NewScheduler(psync.New(), defaultFlushBatchSize, defaultFlushDelayTime)
+	scheduler := stream.NewScheduler(psync.New())
 	defer scheduler.Close()
 
 	Convey("append context", t, func() {
@@ -90,11 +90,12 @@ func TestVSBlock_Append(t *testing.T) {
 
 		f, err := os.CreateTemp("", "*.vsb")
 		So(err, ShouldBeNil)
+		So(f.Truncate(headerBlockSize), ShouldBeNil)
 
 		z, err := file.New(f)
 		So(err, ShouldBeNil)
 
-		s := scheduler.Register(z, headerBlockSize)
+		s := scheduler.Register(z, headerBlockSize, false)
 
 		dec, _ := codec.NewDecoder(false, codec.IndexSize)
 		b := &vsBlock{
@@ -121,7 +122,7 @@ func TestVSBlock_Append(t *testing.T) {
 			So(frag.Size(), ShouldEqual, vsbtest.EntrySize0)
 			So(full, ShouldBeFalse)
 
-			stat := b.status()
+			stat := b.Status()
 			So(stat.Archived, ShouldBeFalse)
 			So(stat.EntryNum, ShouldEqual, 0)
 			So(stat.EntrySize, ShouldEqual, 0)
@@ -131,7 +132,7 @@ func TestVSBlock_Append(t *testing.T) {
 			})
 			<-ch
 
-			stat = b.status()
+			stat = b.Status()
 			So(stat.Archived, ShouldBeFalse)
 			So(stat.EntryNum, ShouldEqual, 1)
 			So(stat.EntrySize, ShouldEqual, vsbtest.EntrySize0)
@@ -146,7 +147,7 @@ func TestVSBlock_Append(t *testing.T) {
 			So(frag.Size(), ShouldEqual, vsbtest.EntrySize1)
 			So(full, ShouldBeTrue)
 
-			stat = b.status()
+			stat = b.Status()
 			So(stat.Archived, ShouldBeFalse)
 			So(stat.EntryNum, ShouldEqual, 1)
 			So(stat.EntrySize, ShouldEqual, vsbtest.EntrySize0)
@@ -156,7 +157,7 @@ func TestVSBlock_Append(t *testing.T) {
 			})
 			<-ch
 
-			stat = b.status()
+			stat = b.Status()
 			So(stat.Archived, ShouldBeFalse)
 			So(stat.EntryNum, ShouldEqual, 2)
 			So(stat.EntrySize, ShouldEqual, vsbtest.EntrySize0+vsbtest.EntrySize1)
@@ -177,7 +178,7 @@ func TestVSBlock_Append(t *testing.T) {
 			So(frag.Size(), ShouldEqual, vsbtest.EntrySize0+vsbtest.EntrySize1)
 			So(full, ShouldBeTrue)
 
-			stat := b.status()
+			stat := b.Status()
 			So(stat.Archived, ShouldBeFalse)
 			So(stat.EntryNum, ShouldEqual, 0)
 			So(stat.EntrySize, ShouldEqual, 0)
@@ -187,7 +188,7 @@ func TestVSBlock_Append(t *testing.T) {
 			})
 			<-ch
 
-			stat = b.status()
+			stat = b.Status()
 			So(stat.Archived, ShouldBeFalse)
 			So(stat.EntryNum, ShouldEqual, 2)
 			So(stat.EntrySize, ShouldEqual, vsbtest.EntrySize0+vsbtest.EntrySize1)
@@ -230,11 +231,12 @@ func TestVSBlock_Append(t *testing.T) {
 
 		f, err := os.CreateTemp("", "*.vsb")
 		So(err, ShouldBeNil)
+		So(f.Truncate(headerBlockSize), ShouldBeNil)
 
 		z, err := file.New(f)
 		So(err, ShouldBeNil)
 
-		s := scheduler.Register(z, headerBlockSize)
+		s := scheduler.Register(z, headerBlockSize, false)
 
 		defer func() {
 			scheduler.Unregister(s)
@@ -274,7 +276,7 @@ func TestVSBlock_Append(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(frag1.StartOffset(), ShouldEqual, vsbtest.EndEntryOffset)
 
-		stat := b.status()
+		stat := b.Status()
 		So(stat.Archived, ShouldBeFalse)
 		So(stat.EntryNum, ShouldEqual, 0)
 		So(stat.EntrySize, ShouldEqual, 0)
@@ -288,7 +290,7 @@ func TestVSBlock_Append(t *testing.T) {
 		<-ch
 		<-ch
 
-		stat = b.status()
+		stat = b.Status()
 		So(stat.Archived, ShouldBeTrue)
 		So(stat.EntryNum, ShouldEqual, 2)
 		So(stat.EntrySize, ShouldEqual, vsbtest.EntrySize0+vsbtest.EntrySize1)

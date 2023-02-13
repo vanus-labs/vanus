@@ -26,6 +26,7 @@ import (
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/timer/metadata"
@@ -79,6 +80,7 @@ type timingWheel struct {
 	kvStore kv.Client
 	ctrlCli ctrlpb.EventBusControllerClient
 	client  client.Client
+	cache   sync.Map
 	twList  *list.List // element: *timingWheelElement
 
 	ctrl cluster.Cluster
@@ -372,7 +374,6 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 			}
 		}
 	}()
-
 	tw.wg.Add(1)
 	go func() {
 		defer tw.wg.Done()
@@ -403,7 +404,6 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 					})
 					break
 				}
-
 				// concurrent write
 				numberOfEvents := int64(len(events))
 				log.Debug(ctx, "got events when receiving station running", map[string]interface{}{
@@ -411,9 +411,16 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 					"offset":           tw.receivingStation.getOffset(),
 					"number_of_events": numberOfEvents,
 				})
-
 				wg := sync.WaitGroup{}
 				for _, event := range events {
+					if event.Extensions()[xVanusEventbus] == timerBuiltInEventbusReceivingStation {
+						log.Warning(ctx, "invalid destination eventbus, discard this event", map[string]interface{}{
+							"event_id":      event.ID(),
+							"eventbus":      event.Extensions()[xVanusEventbus],
+							"delivery_time": newTimingMsg(ctx, event).getExpiration().Format(time.RFC3339Nano),
+						})
+						continue
+					}
 					wg.Add(1)
 					glimitC <- struct{}{}
 					go func(ctx context.Context, e *ce.Event) {
@@ -570,7 +577,12 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 		})
 		return err
 	}
-	_, err = tw.client.Eventbus(ctx, ebName).Writer().AppendOne(ctx, e)
+	v, exist := tw.cache.Load(ebName)
+	if !exist {
+		v, _ = tw.cache.LoadOrStore(ebName, tw.client.Eventbus(ctx, ebName).Writer())
+	}
+	writer, _ := v.(api.BusWriter)
+	_, err = writer.AppendOne(ctx, e)
 	if err != nil {
 		if errors.Is(err, errors.ErrOffsetOnEnd) {
 			log.Warning(ctx, "eventbus not found, discard this event", map[string]interface{}{

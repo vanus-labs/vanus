@@ -35,22 +35,16 @@ func TestConfig(t *testing.T) {
 			FromPosition(1024),
 			WithBlockSize(1024),
 			WithFileSize(4*1024*1024),
-			WithFlushTimeout(5*time.Millisecond),
+			WithFlushDelayTime(5*time.Millisecond),
 			WithAppendBufferSize(1),
-			WithCallbackBufferSize(1),
-			WithFlushBufferSize(1),
-			WithWakeupBufferSize(1),
 			WithIOEngine(engine),
 		)
 
 		So(cfg.pos, ShouldEqual, 1024)
 		So(cfg.blockSize, ShouldEqual, 1024)
 		So(cfg.fileSize, ShouldEqual, 4*1024*1024)
-		So(cfg.flushTimeout, ShouldEqual, 5*time.Millisecond)
+		So(cfg.flushDelayTime, ShouldEqual, 5*time.Millisecond)
 		So(cfg.appendBufferSize, ShouldEqual, 1)
-		So(cfg.callbackBufferSize, ShouldEqual, 1)
-		So(cfg.flushBufferSize, ShouldEqual, 1)
-		So(cfg.wakeupBufferSize, ShouldEqual, 1)
 		So(cfg.engine, ShouldEqual, engine)
 	})
 }

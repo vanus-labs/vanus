@@ -5,7 +5,6 @@
 package testing
 
 import (
-	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -114,16 +113,16 @@ func (m *MockFragmentMarshaler) EXPECT() *MockFragmentMarshalerMockRecorder {
 }
 
 // MarshalFragment mocks base method.
-func (m *MockFragmentMarshaler) MarshalFragment(ctx context.Context) ([]byte, error) {
+func (m *MockFragmentMarshaler) MarshalFragment() ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "MarshalFragment", ctx)
+	ret := m.ctrl.Call(m, "MarshalFragment")
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // MarshalFragment indicates an expected call of MarshalFragment.
-func (mr *MockFragmentMarshalerMockRecorder) MarshalFragment(ctx interface{}) *gomock.Call {
+func (mr *MockFragmentMarshalerMockRecorder) MarshalFragment() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarshalFragment", reflect.TypeOf((*MockFragmentMarshaler)(nil).MarshalFragment), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarshalFragment", reflect.TypeOf((*MockFragmentMarshaler)(nil).MarshalFragment))
 }

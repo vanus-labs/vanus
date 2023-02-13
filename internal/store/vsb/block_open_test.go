@@ -63,7 +63,7 @@ func TestVSBlock_Open(t *testing.T) {
 		err = b.Open(context.Background())
 		So(err, ShouldBeNil)
 
-		stat := b.status()
+		stat := b.Status()
 		So(stat.Capacity, ShouldEqual, vsbtest.EntrySize0+vsbtest.EntrySize1)
 		So(stat.Archived, ShouldBeTrue)
 		So(stat.EntryNum, ShouldEqual, 2)
@@ -102,7 +102,7 @@ func TestVSBlock_Open(t *testing.T) {
 		err = b.Open(context.Background())
 		So(err, ShouldBeNil)
 
-		stat := b.status()
+		stat := b.Status()
 		So(stat.Capacity, ShouldEqual, vsbtest.EntrySize0+vsbtest.EntrySize1)
 		So(stat.Archived, ShouldBeTrue)
 		So(stat.EntryNum, ShouldEqual, 2)
@@ -139,7 +139,7 @@ func TestVSBlock_Open(t *testing.T) {
 		err = b.Open(context.Background())
 		So(err, ShouldBeNil)
 
-		stat := b.status()
+		stat := b.Status()
 		So(stat.Capacity, ShouldEqual, vsbtest.EntrySize0+vsbtest.EntrySize1)
 		So(stat.Archived, ShouldBeFalse)
 		So(stat.EntryNum, ShouldEqual, 2)

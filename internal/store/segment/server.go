@@ -23,7 +23,7 @@ import (
 	"io"
 	"net"
 	"os"
-	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -34,8 +34,10 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/tap"
 	"google.golang.org/protobuf/proto"
 
@@ -49,23 +51,17 @@ import (
 	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
-	raftpb "github.com/linkall-labs/vanus/proto/pkg/raft"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	raftlog "github.com/linkall-labs/vanus/internal/raft/log"
-	"github.com/linkall-labs/vanus/internal/raft/transport"
 	"github.com/linkall-labs/vanus/internal/store"
 	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/internal/store/block/raft"
-	"github.com/linkall-labs/vanus/internal/store/config"
-	"github.com/linkall-labs/vanus/internal/store/meta"
+	raft "github.com/linkall-labs/vanus/internal/store/raft/block"
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	ceconv "github.com/linkall-labs/vanus/internal/store/schema/ce/convert"
-	"github.com/linkall-labs/vanus/internal/store/vsb"
 )
 
 const (
@@ -101,28 +97,23 @@ func NewServer(cfg store.Config) Server {
 		debugModel = true
 	}
 
-	localAddress := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
-
-	// Setup raft.
-	resolver := transport.NewSimpleResolver()
-	host := transport.NewHost(resolver, localAddress)
+	// TODO(james.yin): support IPv6
+	localAddr := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
 
 	srv := &server{
-		state:        primitive.ServerStateCreated,
-		cfg:          cfg,
-		isDebugMode:  debugModel,
-		localAddress: localAddress,
-		volumeID:     uint64(cfg.Volume.ID),
-		volumeDir:    cfg.Volume.Dir,
-		volumeIDStr:  fmt.Sprintf("%d", cfg.Volume.ID),
-		resolver:     resolver,
-		host:         host,
-		ctrlAddress:  cfg.ControllerAddresses,
-		credentials:  insecure.NewCredentials(),
-		leaderC:      make(chan leaderInfo, defaultLeaderInfoBufferSize),
-		closeC:       make(chan struct{}),
-		pm:           &pollingMgr{},
-		tracer:       tracing.NewTracer("store.segment.server", trace.SpanKindServer),
+		state:       primitive.ServerStateCreated,
+		cfg:         cfg,
+		isDebugMode: debugModel,
+		localAddr:   localAddr,
+		volumeID:    uint64(cfg.Volume.ID),
+		volumeDir:   cfg.Volume.Dir,
+		volumeIDStr: fmt.Sprintf("%d", cfg.Volume.ID),
+		ctrlAddr:    cfg.ControllerAddresses,
+		credentials: insecure.NewCredentials(),
+		leaderC:     make(chan leaderInfo, defaultLeaderInfoBufferSize),
+		closeC:      make(chan struct{}),
+		pm:          &pollingMgr{},
+		tracer:      tracing.NewTracer("store.segment.server", trace.SpanKindServer),
 	}
 
 	srv.ctrl = cluster.NewClusterController(cfg.ControllerAddresses, srv.credentials)
@@ -159,26 +150,21 @@ func (af appendFuture) wait() ([]int64, error) {
 }
 
 type server struct {
-	replicas sync.Map // vanus.ID, Replica
+	replicas sync.Map // <vanus.ID, Replica>
 
-	wal         *raftlog.WAL
-	metaStore   *meta.SyncStore
-	offsetStore *meta.AsyncStore
+	raftEngine raft.Engine
 
-	resolver *transport.SimpleResolver
-	host     transport.Host
-
-	id           vanus.ID
-	state        primitive.ServerState
-	isDebugMode  bool
-	cfg          store.Config
-	localAddress string
+	id          vanus.ID
+	state       primitive.ServerState
+	isDebugMode bool
+	cfg         store.Config
+	localAddr   string
 
 	volumeID    uint64
 	volumeIDStr string
 	volumeDir   string
 
-	ctrlAddress []string
+	ctrlAddr    []string
 	credentials credentials.TransportCredentials
 	ctrl        cluster.Cluster
 	cc          ctrlpb.SegmentControllerClient
@@ -195,29 +181,37 @@ type server struct {
 var _ Server = (*server)(nil)
 
 func (s *server) Serve(lis net.Listener) error {
-	segSrv := &segmentServer{
-		srv: s,
-	}
+	recoveryOpt := recovery.WithRecoveryHandlerContext(func(ctx context.Context, p interface{}) error {
+		log.Error(ctx, "goroutine panicked", map[string]interface{}{
+			log.KeyError: fmt.Sprintf("%v", p),
+			"stack":      string(debug.Stack()),
+		})
+		return status.Errorf(codes.Internal, "%v", p)
+	})
 
-	raftSrv := transport.NewServer(s.host)
 	srv := grpc.NewServer(
 		grpc.InTapHandle(s.preGrpcStream),
 		grpc.ChainStreamInterceptor(
-			recovery.StreamServerInterceptor(),
+			recovery.StreamServerInterceptor(recoveryOpt),
 			errinterceptor.StreamServerInterceptor(),
 			otelgrpc.StreamServerInterceptor(),
 		),
 		grpc.ChainUnaryInterceptor(
-			recovery.UnaryServerInterceptor(),
+			recovery.UnaryServerInterceptor(recoveryOpt),
 			errinterceptor.UnaryServerInterceptor(),
 			otelgrpc.UnaryServerInterceptor(
 				otelgrpc.WithPropagators(propagation.TraceContext{}),
 			),
 		),
 	)
-	segpb.RegisterSegmentServerServer(srv, segSrv)
-	raftpb.RegisterRaftServerServer(srv, raftSrv)
 	s.grpcSrv = srv
+
+	segSrv := &segmentServer{
+		srv: s,
+	}
+	segpb.RegisterSegmentServerServer(srv, segSrv)
+
+	s.raftEngine.RegisterServer(srv)
 
 	return srv.Serve(lis)
 }
@@ -237,138 +231,6 @@ func (s *server) preGrpcStream(ctx context.Context, info *tap.Info) (context.Con
 	return ctx, nil
 }
 
-func (s *server) Initialize(ctx context.Context) error {
-	// TODO(james.yin): how to organize block engine?
-	if err := s.loadVSBEngine(ctx, s.cfg.VSB); err != nil {
-		return err
-	}
-
-	// Recover state from volume.
-	if err := s.recover(ctx); err != nil {
-		return err
-	}
-
-	// Fetch block information in volume from controller, and make state up to date.
-	if err := s.reconcileBlocks(ctx); err != nil {
-		return err
-	}
-
-	s.state = primitive.ServerStateStarted
-
-	if !s.isDebugMode {
-		// Register to controller.
-		if err := s.registerSelf(ctx); err != nil {
-			return err
-		}
-	} else {
-		log.Info(ctx, "the segment server debug mode enabled", nil)
-		s.id = vanus.NewTestID()
-		if err := s.Start(ctx); err != nil {
-			return err
-		}
-		s.state = primitive.ServerStateRunning
-	}
-
-	return nil
-}
-
-func (s *server) loadVSBEngine(ctx context.Context, cfg config.VSB) error {
-	dir := filepath.Join(s.cfg.Volume.Dir, "block")
-	opts := append([]vsb.Option{
-		vsb.WithArchivedListener(block.ArchivedCallback(s.onBlockArchived)),
-	}, cfg.Options()...)
-	return vsb.Initialize(dir, opts...)
-}
-
-func (s *server) reconcileBlocks(ctx context.Context) error {
-	// TODO(james.yin): Fetch block information in volume from controller, and make state up to date.
-	return nil
-}
-
-func (s *server) registerSelf(ctx context.Context) error {
-	// TODO(james.yin): pass information of blocks.
-	start := time.Now()
-	log.Info(ctx, "connecting to controller", nil)
-	if err := s.ctrl.WaitForControllerReady(false); err != nil {
-		return err
-	}
-	res, err := s.cc.RegisterSegmentServer(ctx, &ctrlpb.RegisterSegmentServerRequest{
-		Address:  s.localAddress,
-		VolumeId: s.volumeID,
-		Capacity: s.cfg.Volume.Capacity,
-	})
-	if err != nil {
-		return err
-	}
-	log.Info(ctx, "connected to controller", map[string]interface{}{
-		"used": time.Since(start),
-	})
-	s.id = vanus.NewIDFromUint64(res.ServerId)
-
-	// FIXME(james.yin): some blocks may not be bound to segment.
-
-	// No block in the volume of this server.
-	if len(res.Segments) == 0 {
-		return nil
-	}
-
-	s.reconcileSegments(ctx, res.Segments)
-
-	return nil
-}
-
-func (s *server) reconcileSegments(ctx context.Context, segments map[uint64]*metapb.Segment) {
-	for _, segment := range segments {
-		if len(segment.Replicas) == 0 {
-			continue
-		}
-		var myID vanus.ID
-		for blockID, block := range segment.Replicas {
-			// Don't use address to compare.
-			if block.VolumeID == s.volumeID {
-				if myID != 0 {
-					// FIXME(james.yin): multiple blocks of same segment in this server.
-					log.Warning(ctx, "Multiple blocks of the same segment in this server.", map[string]interface{}{
-						"block_id":   blockID,
-						"other":      myID,
-						"segment_id": segment.Id,
-						"volume_id":  s.volumeID,
-					})
-				}
-				myID = vanus.NewIDFromUint64(blockID)
-			}
-		}
-		if myID == 0 {
-			// TODO(james.yin): no my block
-			log.Warning(ctx, "No block of the specific segment in this server.", map[string]interface{}{
-				"segmentID": segment.Id,
-				"volumeID":  s.volumeID,
-			})
-			continue
-		}
-		s.registerReplicas(ctx, segment)
-	}
-}
-
-func (s *server) registerReplicas(ctx context.Context, segment *metapb.Segment) {
-	for blockID, block := range segment.Replicas {
-		if block.Endpoint == "" {
-			if block.VolumeID == s.volumeID {
-				block.Endpoint = s.localAddress
-			} else {
-				log.Info(ctx, "Block is offline.", map[string]interface{}{
-					"block_id":    blockID,
-					"segment_id":  segment.Id,
-					"eventlog_id": segment.EventLogId,
-					"volume_id":   block.VolumeID,
-				})
-				continue
-			}
-		}
-		s.resolver.Register(blockID, block.Endpoint) //nolint:contextcheck // wrong advice
-	}
-}
-
 func (s *server) Start(ctx context.Context) error {
 	ctx, span := s.tracer.Start(ctx, "Start")
 	defer span.End()
@@ -379,6 +241,7 @@ func (s *server) Start(ctx context.Context) error {
 	}
 
 	log.Info(ctx, "Start SegmentServer.", nil)
+
 	if err := s.startHeartbeatTask(ctx); err != nil {
 		return errors.ErrInternal.WithMessage("start heartbeat task failed")
 	}
@@ -435,14 +298,14 @@ func (s *server) runHeartbeat(_ context.Context) error {
 			VolumeId:   s.volumeID,
 			HealthInfo: infos,
 			ReportTime: util.FormatTime(time.Now()),
-			ServerAddr: s.localAddress,
+			ServerAddr: s.localAddr,
 		}
 	}
 
 	return s.ctrl.SegmentService().RegisterHeartbeat(ctx, time.Second, f)
 }
 
-func (s *server) leaderChanged(blockID, leaderID vanus.ID, term uint64) {
+func (s *server) onLeaderChanged(blockID, leaderID vanus.ID, term uint64) {
 	if blockID == leaderID {
 		info := leaderInfo{
 			leader: leaderID,
@@ -493,18 +356,11 @@ func (s *server) stop(ctx context.Context) error {
 		return true
 	})
 
-	// Close WAL, metaStore, offsetStore.
-	s.wal.Close()
-	s.offsetStore.Close()
-	// Make sure WAL is closed before close metaStore.
-	s.wal.Wait()
-	s.metaStore.Close(ctx)
-
 	// Stop heartbeat task, etc.
 	close(s.closeC)
 
-	// Close grpc connections for raft.
-	s.host.Stop()
+	// FIXME(james.yin): reorder
+	s.raftEngine.Close(ctx)
 
 	if closer, ok := s.cc.(io.Closer); ok {
 		_ = closer.Close()
@@ -623,7 +479,7 @@ func (s *server) ActivateSegment(
 			Endpoint: endpoint,
 		}
 		peers = append(peers, peer)
-		if endpoint == s.localAddress {
+		if endpoint == s.localAddr {
 			myID = blockID
 		}
 	}
@@ -640,7 +496,7 @@ func (s *server) ActivateSegment(
 	// Register peers.
 	for i := range peers {
 		peer := &peers[i]
-		s.resolver.Register(peer.ID.Uint64(), peer.Endpoint) //nolint:contextcheck // wrong advice
+		_ = s.raftEngine.RegisterNodeRecord(peer.ID.Uint64(), peer.Endpoint)
 	}
 
 	log.Info(ctx, "Bootstrap replica.", map[string]interface{}{
@@ -701,9 +557,6 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 		return nil, s.processAppendError(ctx, b, err)
 	}
 
-	// TODO(weihe.yin) make this method deep to code
-	s.pm.NewMessageArrived(id)
-
 	return seqs, nil
 }
 
@@ -733,11 +586,17 @@ func (s *server) processAppendError(ctx context.Context, b Replica, err error) e
 	return errors.ErrInternal.WithMessage("write to storage failed").Wrap(err)
 }
 
+func (s *server) onEntryAppended(block vanus.ID) {
+	s.pm.NewMessageArrived(block)
+}
+
 func (s *server) onBlockArchived(stat block.Statistics) {
 	id := stat.ID
 
-	log.Debug(context.Background(), "Block is full.", map[string]interface{}{
-		"block_id": id,
+	log.Info(context.Background(), "Block is full.", map[string]interface{}{
+		"block_id":   id,
+		"event_num":  stat.EntryNum,
+		"event_size": stat.EntrySize,
 	})
 
 	// FIXME(james.yin): leader info.
@@ -760,7 +619,7 @@ func (s *server) onBlockArchived(stat block.Statistics) {
 			VolumeId:   s.volumeID,
 			HealthInfo: []*metapb.SegmentHealthInfo{info},
 			ReportTime: util.FormatTime(time.Now()),
-			ServerAddr: s.localAddress,
+			ServerAddr: s.localAddr,
 		})
 	}()
 }

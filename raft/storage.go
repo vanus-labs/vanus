@@ -95,6 +95,9 @@ type MemoryStorage struct {
 	ents []pb.Entry
 }
 
+// Make sure MemoryStorage implements the Storage interface.
+var _ Storage = (*MemoryStorage)(nil)
+
 // NewMemoryStorage creates an empty MemoryStorage.
 func NewMemoryStorage() *MemoryStorage {
 	return &MemoryStorage{

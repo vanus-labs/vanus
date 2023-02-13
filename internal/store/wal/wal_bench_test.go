@@ -26,7 +26,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/store/wal/record"
 )
 
-func BenchmarkWAL_AppendOneWithBatching(b *testing.B) {
+func BenchmarkWAL_AppendOne(b *testing.B) {
 	walDir := b.TempDir()
 
 	wal, err := Open(context.Background(), walDir)
@@ -40,22 +40,22 @@ func BenchmarkWAL_AppendOneWithBatching(b *testing.B) {
 
 	b.ResetTimer()
 
-	// b.Run("WAL: append with batching", func(b *testing.B) {
+	// b.Run("WAL: batching append", func(b *testing.B) {
 	// 	for i := 0; i < b.N; i++ {
-	// 		wal.AppendOne(context.Background(), []byte("foo")).Wait()
+	// 		AppendOne(context.Background(), wal, []byte("foo"))
 	// 	}
 	// })
 
-	b.Run("WAL: concurrent append with batching", func(b *testing.B) {
+	b.Run("WAL: concurrent batching append", func(b *testing.B) {
 		b.RunParallel(func(p *testing.PB) {
 			for p.Next() {
-				wal.AppendOne(context.Background(), []byte("foo")).Wait()
+				AppendOne(context.Background(), wal, []byte("foo"))
 			}
 		})
 	})
 }
 
-func BenchmarkWAL_AppendOneWithoutBatching(b *testing.B) {
+func BenchmarkWAL_DirectAppendOne(b *testing.B) {
 	walDir := b.TempDir()
 
 	wal, err := Open(context.Background(), walDir)
@@ -69,16 +69,16 @@ func BenchmarkWAL_AppendOneWithoutBatching(b *testing.B) {
 
 	b.ResetTimer()
 
-	b.Run("WAL: append without batching", func(b *testing.B) {
+	b.Run("WAL: direct append", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			wal.AppendOne(context.Background(), []byte("foo"), WithoutBatching()).Wait()
+			DirectAppendOne(context.Background(), wal, []byte("foo"))
 		}
 	})
 
-	// b.Run("WAL: concurrent append without batching", func(b *testing.B) {
+	// b.Run("WAL: concurrent direct append", func(b *testing.B) {
 	// 	b.RunParallel(func(p *testing.PB) {
 	// 		for p.Next() {
-	// 			wal.AppendOne(context.Background(), []byte("foo"), WithoutBatching()).Wait()
+	// 			DirectAppendOne(context.Background(), wal, []byte("foo"))
 	// 		}
 	// 	})
 	// })
@@ -131,12 +131,12 @@ func BenchmarkWAL_AppendOneWithCallback(b *testing.B) {
 			wg := sync.WaitGroup{}
 			wg.Add(b.N)
 			for i := 0; i < b.N; i++ {
-				wal.AppendOne(context.Background(), tc.payload, WithCallback(func(re Result) {
-					if re.Err != nil {
-						log.Printf("err: %v", re.Err)
+				wal.AppendOne(context.Background(), tc.payload, func(_ Range, err error) {
+					if err != nil {
+						log.Printf("err: %v", err)
 					}
 					wg.Done()
-				}))
+				})
 			}
 			wg.Wait()
 		})

@@ -41,8 +41,6 @@ type Engine interface {
 
 	Create(ctx context.Context, id vanus.ID, capacity int64) (block.Raw, error)
 	// Open(ctx context.Context, id vanus.ID) (block.Raw, error)
-
-	GetBlockStatistics(id vanus.ID, block block.Raw) (block.Statistics, error)
 }
 
 var engines = map[string]Engine{}

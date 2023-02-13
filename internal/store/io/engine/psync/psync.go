@@ -19,6 +19,7 @@ import (
 	"os"
 
 	// this project.
+	"github.com/linkall-labs/vanus/internal/primitive/container/conque/blocking"
 	"github.com/linkall-labs/vanus/internal/store/io"
 	"github.com/linkall-labs/vanus/internal/store/io/engine"
 	"github.com/linkall-labs/vanus/internal/store/io/zone"
@@ -32,7 +33,7 @@ type writeTask struct {
 }
 
 type psync struct {
-	taskC chan writeTask
+	q blocking.Queue[writeTask]
 }
 
 // Make sure engine implements engine.Interface.
@@ -40,23 +41,18 @@ var _ engine.Interface = (*psync)(nil)
 
 func New(opts ...Option) engine.Interface {
 	cfg := makeConfig(opts...)
-	return newPsync(cfg)
+	return new(psync).init(cfg)
 }
 
-func newPsync(cfg config) engine.Interface {
-	e := &psync{
-		taskC: make(chan writeTask, cfg.writeTaskBufferSize),
-	}
-
+func (e *psync) init(cfg config) *psync {
 	for i := 0; i < cfg.parallel; i++ {
 		go e.run()
 	}
-
 	return e
 }
 
 func (e *psync) Close() {
-	close(e.taskC)
+	e.q.Close()
 }
 
 func (e *psync) WriteAt(z zone.Interface, b []byte, off int64, so, eo int, cb io.WriteCallback) {
@@ -68,11 +64,16 @@ func (e *psync) WriteAt(z zone.Interface, b []byte, off int64, so, eo int, cb io
 	// 	off += int64(so)
 	// }
 	f, off := z.Raw(off)
-	e.taskC <- writeTask{f, b, off, cb}
+	e.q.Push(writeTask{f, b, off, cb})
 }
 
 func (e *psync) run() {
-	for task := range e.taskC {
+	for {
+		task, ok := e.q.SharedPop()
+		if !ok {
+			return
+		}
+
 		task.invoke()
 	}
 }

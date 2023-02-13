@@ -51,6 +51,7 @@ func init() {
 		strings.NewReplaceWithRegexAction,
 		strings.NewReplaceStringAction,
 		strings.NewReplaceBetweenPositionsAction,
+		strings.NewCapitalizeSentenceAction,
 		// condition
 		condition.NewConditionIfAction,
 		// array
