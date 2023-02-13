@@ -133,13 +133,12 @@ func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client, startTa
 			return err2
 		}
 		mgr.eventLogMap.Store(elMD.ID.Key(), el)
-		ptr := el.head()
-		for ptr != nil {
+
+		for _, ptr := range el.getAllSegments() {
 			mgr.globalSegmentMap.Store(ptr.ID.Key(), ptr)
 			for _, v := range ptr.Replicas.Peers {
 				mgr.globalBlockMap.Store(v.ID.Key(), v)
 			}
-			ptr = el.nextOf(ptr)
 		}
 	}
 
@@ -246,8 +245,7 @@ func (mgr *eventlogManager) DeleteEventlog(ctx context.Context, id vanus.ID) {
 
 func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
 	eli *metadata.Eventlog, num int) ([]Segment, error) {
-	result := make([]Segment, 0)
-
+	result := make([]Segment, 0, num)
 	if eli == nil || num == 0 {
 		return result, nil
 	}
@@ -281,10 +279,16 @@ func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
 		s = el.currentAppendableSegment()
 	}
 
-	for len(result) < num && s != nil {
-		result = append(result, s.Copy())
-		s = el.nextOf(s)
+	list := el.listOfRight(s, true)
+	el.lock()
+	defer el.unlock()
+	for idx := range list {
+		if len(result) == num {
+			break
+		}
+		result = append(result, list[idx].Copy())
 	}
+
 	return result, nil
 }
 
@@ -337,11 +341,14 @@ func (mgr *eventlogManager) GetEventLogSegmentList(elID vanus.ID) []Segment {
 	if !exist {
 		return result
 	}
+
 	el, _ := v.(*eventlog)
-	s := el.head()
-	for s != nil {
-		result = append(result, s.Copy())
-		s = el.nextOf(s)
+	list := el.getAllSegments()
+	el.lock()
+	defer el.unlock()
+
+	for _, v := range list {
+		result = append(result, v.Copy())
 	}
 	return result
 }
@@ -940,12 +947,8 @@ func (el *eventlog) appendableSegmentNumber() int {
 	if cur == nil {
 		return 0
 	}
-	count := 0
-	for cur != nil {
-		count++
-		cur = el.nextOf(cur)
-	}
-	return count
+
+	return len(el.listOfRight(cur, true))
 }
 
 func (el *eventlog) currentAppendableSegment() *Segment {
@@ -954,6 +957,7 @@ func (el *eventlog) currentAppendableSegment() *Segment {
 	if el.size() == 0 {
 		return nil
 	}
+
 	if el.writePtr == nil {
 		head := el.segmentList.Front()
 		for head != nil {
@@ -984,6 +988,7 @@ func (el *eventlog) currentAppendableSegment() *Segment {
 func (el *eventlog) add(ctx context.Context, seg *Segment) error {
 	el.mutex.Lock()
 	defer el.mutex.Unlock()
+
 	if !seg.isReady() {
 		return errors.ErrInvalidSegment
 	}
@@ -1086,37 +1091,69 @@ func (el *eventlog) size() int {
 	return el.segmentList.Len()
 }
 
-func (el *eventlog) nextOf(seg *Segment) *Segment {
-	if seg == nil {
-		return nil
-	}
+func (el *eventlog) getAllSegments() []*Segment {
 	el.mutex.RLock()
 	defer el.mutex.RUnlock()
 
-	node := el.segmentList.Get(seg.ID.Uint64())
-	if node == nil {
-		return nil
+	segs := make([]*Segment, 0)
+
+	if el.size() == 0 {
+		return segs
 	}
-	next := node.Next()
-	if next == nil {
-		return nil
+	ptr := el.segmentList.Front()
+	for ptr != nil {
+		next := ptr.Value.(*Segment)
+		segs = append(segs, next)
+		ptr = ptr.Next()
 	}
-	return next.Value.(*Segment)
+	return segs
 }
 
-func (el *eventlog) previousOf(seg *Segment) *Segment {
-	if seg == nil {
-		return nil
-	}
+func (el *eventlog) listOfRight(seg *Segment, includeSelf bool) []*Segment {
 	el.mutex.RLock()
 	defer el.mutex.RUnlock()
-
-	node := el.segmentList.Get(seg.ID.Uint64())
-	prev := node.Prev()
-	if prev == nil {
-		return nil
+	segs := make([]*Segment, 0)
+	if seg == nil {
+		return segs
 	}
-	return prev.Value.(*Segment)
+	if includeSelf {
+		segs = append(segs, seg)
+	}
+	node := el.segmentList.Get(seg.ID.Uint64())
+	if node == nil {
+		return segs
+	}
+	v := node.Next()
+	for v != nil {
+		next := v.Value.(*Segment)
+		segs = append(segs, next)
+		v = v.Next()
+	}
+
+	return segs
+}
+
+func (el *eventlog) listOfPrevious(seg *Segment) []*Segment {
+	el.mutex.RLock()
+	defer el.mutex.RUnlock()
+	segs := make([]*Segment, 0)
+	node := el.segmentList.Get(seg.ID.Uint64())
+	if node == nil {
+		return segs
+	}
+	v := node.Prev()
+	for v != nil {
+		next := v.Value.(*Segment)
+		segs = append(segs, next)
+		v = v.Prev()
+	}
+
+	// reverse slice
+	for i, j := 0, len(segs)-1; i < j; i, j = i+1, j-1 {
+		segs[i], segs[j] = segs[j], segs[i]
+	}
+
+	return segs
 }
 
 func (el *eventlog) deleteHead(ctx context.Context) error {
