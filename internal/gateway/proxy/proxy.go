@@ -238,6 +238,30 @@ func (cp *ControllerProxy) Subscribe(req *proxypb.SubscribeRequest, stream proxy
 		return err
 	}
 
+	disableSubscriptionReq := &ctrlpb.DisableSubscriptionRequest{
+		Id: subscriptionID.Uint64(),
+	}
+	_, err = cp.triggerCtrl.DisableSubscription(context.Background(), disableSubscriptionReq)
+	if err != nil {
+		log.Error(_ctx, "disable subscription failed", map[string]interface{}{
+			log.KeyError: err,
+			"id":         req.SubscriptionId,
+		})
+		return err
+	}
+
+	// TODO(jiangkai): disable is an asynchronous operation
+	retryTime := 3
+	for i := 0; i < retryTime; i++ {
+		s, _ := cp.triggerCtrl.GetSubscription(context.Background(), &ctrlpb.GetSubscriptionRequest{
+			Id: subscriptionID.Uint64(),
+		})
+		if s.Disable {
+			break
+		}
+		stdtime.Sleep(stdtime.Second)
+	}
+
 	newSink := fmt.Sprintf("http://%s:%d%s/%s",
 		os.Getenv("POD_IP"), cp.cfg.SinkPort, httpRequestPrefix, req.SubscriptionId)
 	if meta.Sink != newSink {
@@ -267,6 +291,18 @@ func (cp *ControllerProxy) Subscribe(req *proxypb.SubscribeRequest, stream proxy
 		}
 	}
 
+	resumeSubscriptionReq := &ctrlpb.ResumeSubscriptionRequest{
+		Id: subscriptionID.Uint64(),
+	}
+	_, err = cp.triggerCtrl.ResumeSubscription(context.Background(), resumeSubscriptionReq)
+	if err != nil {
+		log.Error(_ctx, "resume subscription failed", map[string]interface{}{
+			log.KeyError: err,
+			"id":         req.SubscriptionId,
+		})
+		return err
+	}
+
 	// 2. cache subscribe info
 	subscribe := newSubscribeCache(req.SubscriptionId, stream)
 	cp.cache.Store(req.SubscriptionId, subscribe)
@@ -287,8 +323,7 @@ func (cp *ControllerProxy) Subscribe(req *proxypb.SubscribeRequest, stream proxy
 				break
 			}
 			log.Debug(_ctx, "subscribe stream send event", map[string]interface{}{
-				log.KeyError: err,
-				"eventpb":    eventpb.String(),
+				"eventpb": eventpb.String(),
 			})
 			err = subscribe.stream().Send(&proxypb.SubscribeResponse{
 				SequenceId: msg.sequenceID,
