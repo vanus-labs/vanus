@@ -154,6 +154,5 @@ replace (
 	github.com/linkall-labs/vanus/pkg => ./pkg
 	github.com/linkall-labs/vanus/proto => ./proto
 	github.com/linkall-labs/vanus/raft => ./raft
-	github.com/linkall-labs/sdk/golang => ../sdk/golang
 	github.com/mwitkow/grpc-proxy => github.com/linkall-labs/grpc-proxy v0.0.0-20220624142509-a3b0cb2bb86c
 )
