@@ -70,6 +70,7 @@ import (
 const (
 	maximumNumberPerGetRequest = 64
 	eventChanCache             = 10
+	readSize                   = 5
 	ContentTypeProtobuf        = "application/protobuf"
 	httpRequestPrefix          = "/gatewaysink"
 	datacontenttype            = "datacontenttype"
@@ -193,23 +194,30 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 		}
 	}
 
-	val, exist := cp.writerMap.Load(req.GetEventbusName())
-	if !exist {
-		val, _ = cp.writerMap.LoadOrStore(req.GetEventbusName(),
-			cp.client.Eventbus(ctx, req.GetEventbusName()).Writer())
-	}
-
-	w, _ := val.(api.BusWriter)
-
-	err := w.AppendBatch(_ctx, req.GetEvents())
+	err := cp.writeEvents(ctx, req.EventbusName, req.Events)
 	if err != nil {
-		log.Warning(_ctx, "append to failed", map[string]interface{}{
-			log.KeyError: err,
-			"eventbus":   req.EventbusName,
-		})
-		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
+		return nil, err
 	}
 	return &emptypb.Empty{}, nil
+}
+
+func (cp *ControllerProxy) writeEvents(ctx context.Context,
+	eventbusName string,
+	events *cloudevents.CloudEventBatch) error {
+	val, exist := cp.writerMap.Load(eventbusName)
+	if !exist {
+		val, _ = cp.writerMap.LoadOrStore(eventbusName, cp.client.Eventbus(ctx, eventbusName).Writer())
+	}
+	w, _ := val.(api.BusWriter)
+	err := w.AppendBatch(ctx, events)
+	if err != nil {
+		log.Warning(ctx, "append to failed", map[string]interface{}{
+			log.KeyError: err,
+			"eventbus":   eventbusName,
+		})
+		return err
+	}
+	return nil
 }
 
 func (cp *ControllerProxy) Subscribe(req *proxypb.SubscribeRequest, stream proxypb.StoreProxy_SubscribeServer) error {

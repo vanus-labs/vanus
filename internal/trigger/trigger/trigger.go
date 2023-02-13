@@ -218,7 +218,7 @@ func (t *trigger) transformEvent(record info.EventRecord) (*toSendEvent, error) 
 	return &toSendEvent{record: record, transform: event}, nil
 }
 
-func (t *trigger) sendEvent(ctx context.Context, events ...*ce.Event) (int, error) {
+func (t *trigger) sendEvent(ctx context.Context, events ...*ce.Event) client.Result {
 	timeoutCtx, cancel := context.WithTimeout(ctx, t.getConfig().DeliveryTimeout)
 	defer cancel()
 	t.rateLimiter.Take()
@@ -227,7 +227,7 @@ func (t *trigger) sendEvent(ctx context.Context, events ...*ce.Event) (int, erro
 	if r == client.Success {
 		metrics.TriggerPushEventTime.WithLabelValues(t.subscriptionIDStr).Observe(time.Since(startTime).Seconds())
 	}
-	return r.StatusCode, r.Err
+	return r
 }
 
 func (t *trigger) runRetryEventFilterTransform(ctx context.Context) {
@@ -368,20 +368,22 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 	for i := range events {
 		es[i] = events[i].transform
 	}
-	code, err := t.sendEvent(ctx, es...)
-	if err != nil {
+	r := t.sendEvent(ctx, es...)
+	if r != client.Success {
 		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelValuePushEventFail).
 			Add(float64(len(es)))
 		log.Info(ctx, "send event fail", map[string]interface{}{
-			log.KeyError: err,
+			log.KeyError: r.Err,
+			"code":       r.StatusCode,
 			"count":      len(es),
 		})
+		code := r.StatusCode
 		if t.config.Ordered {
-			// ordered event no need retry direct into dead letter
+			// todo retry util success, now ordered event no need retry direct into dead letter
 			code = OrderEventCode
 		}
 		for _, event := range events {
-			t.writeFailEvent(ctx, event.record.Event, code, err)
+			t.writeFailEvent(ctx, event.record.Event, code, r.Err)
 		}
 	} else {
 		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelValuePushEventSuccess).
@@ -417,6 +419,9 @@ func (t *trigger) writeFailEvent(ctx context.Context, e *ce.Event, code int, err
 	}
 	if !needRetry {
 		// dead letter
+		if t.dlEventWriter == nil {
+			return
+		}
 		t.writeEventToDeadLetter(ctx, e, reason, err.Error())
 		metrics.TriggerDeadLetterEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
 		return
@@ -433,7 +438,7 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 	delayTime := calDeliveryTime(attempts)
 	ec.Extensions[primitive.XVanusDeliveryTime] = ce.Timestamp{Time: time.Now().Add(delayTime).UTC()}.Format(time.RFC3339)
 	ec.Extensions[primitive.XVanusSubscriptionID] = t.subscriptionIDStr
-	ec.Extensions[primitive.XVanusEventbus] = primitive.RetryEventbusName
+	ec.Extensions[primitive.XVanusEventbus] = t.config.RetryEventbus
 	var writeAttempt int
 	for {
 		writeAttempt++
@@ -508,7 +513,7 @@ func (t *trigger) getReaderConfig() reader.Config {
 }
 
 func (t *trigger) getRetryEventReaderConfig() reader.Config {
-	ebName := primitive.RetryEventbusName
+	ebName := t.config.RetryEventbus
 	return reader.Config{
 		EventBusName:   ebName,
 		Client:         t.client,
@@ -533,7 +538,9 @@ func (t *trigger) Init(ctx context.Context) error {
 	t.client = eb.Connect(t.config.Controllers)
 
 	t.timerEventWriter = t.client.Eventbus(ctx, primitive.TimerEventbusName).Writer()
-	t.dlEventWriter = t.client.Eventbus(ctx, t.config.DeadLetterEventbus).Writer()
+	if t.config.DeadLetterEventbus != "" {
+		t.dlEventWriter = t.client.Eventbus(ctx, t.config.DeadLetterEventbus).Writer()
+	}
 	t.eventCh = make(chan info.EventRecord, t.config.BufferSize)
 	t.sendCh = make(chan *toSendEvent, t.config.BufferSize)
 	t.batchSendCh = make(chan []*toSendEvent, t.config.BufferSize)

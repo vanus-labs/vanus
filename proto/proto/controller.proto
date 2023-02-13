@@ -87,6 +87,10 @@ service TriggerController {
       returns (ResetOffsetToTimestampResponse);
   rpc CommitOffset(CommitOffsetRequest)
       returns (CommitOffsetResponse);
+  rpc SetDeadLetterEventOffset(SetDeadLetterEventOffsetRequest)
+      returns (google.protobuf.Empty);
+  rpc GetDeadLetterEventOffset(GetDeadLetterEventOffsetRequest)
+      returns (GetDeadLetterEventOffsetResponse);
 }
 
 service SnowflakeController {
@@ -203,6 +207,19 @@ message ListSubscriptionResponse {
   repeated linkall.vanus.meta.Subscription subscription = 1;
 }
 
+message SetDeadLetterEventOffsetRequest {
+  uint64 subscription_id = 1;
+  uint64 offset = 2;
+}
+
+message GetDeadLetterEventOffsetRequest {
+  uint64 subscription_id = 1;
+}
+
+message GetDeadLetterEventOffsetResponse {
+  uint64 offset = 1;
+}
+
 message RegisterTriggerWorkerRequest {
   string address = 1;
 }
@@ -232,7 +249,6 @@ message ResetOffsetToTimestampRequest {
 message ResetOffsetToTimestampResponse {
   repeated meta.OffsetInfo offsets = 1;
 }
-
 
 message CommitOffsetRequest {
   repeated meta.SubscriptionInfo subscription_info = 1;

@@ -55,8 +55,7 @@ var (
 )
 
 const (
-	maximumEventlogNum   = 64
-	systemEventbusPrefix = "__"
+	maximumEventlogNum = 64
 )
 
 func NewController(cfg Config, member embedetcd.Member) *controller {
@@ -122,7 +121,24 @@ func (ctrl *controller) CreateEventBus(ctx context.Context,
 	if err := isValidEventbusName(req.Name); err != nil {
 		return nil, err
 	}
-	return ctrl.createEventBus(ctx, req)
+	eb, err := ctrl.createEventBus(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	// TODO async create
+	// create dead letter eventbus
+	_, err = ctrl.createEventBus(context.Background(), &ctrlpb.CreateEventBusRequest{
+		Name:        primitive.GetDeadLetterEventbusName(req.Name),
+		LogNumber:   1,
+		Description: "System DeadLetter Eventbus For " + req.Name,
+	})
+	if err != nil {
+		log.Error(context.Background(), "create dead letter eventbus error", map[string]interface{}{
+			log.KeyError:        err,
+			log.KeyEventbusName: req.Name,
+		})
+	}
+	return eb, nil
 }
 
 func isValidEventbusName(name string) error {
@@ -213,18 +229,34 @@ func (ctrl *controller) createEventBus(ctx context.Context,
 func (ctrl *controller) DeleteEventBus(ctx context.Context, eb *metapb.EventBus) (*emptypb.Empty, error) {
 	ctrl.mutex.Lock()
 	defer ctrl.mutex.Unlock()
-
-	bus, exist := ctrl.eventBusMap[eb.Name]
-	if !exist {
-		return nil, errors.ErrResourceNotFound.WithMessage("the eventbus doesn't exist")
-	}
-	err := ctrl.kvStore.Delete(ctx, metadata.GetEventbusMetadataKey(eb.Name))
+	err := ctrl.deleteEventbus(ctx, eb.Name)
 	if err != nil {
-		return nil, errors.ErrInternal.WithMessage("delete eventbus metadata in kv failed").Wrap(err)
+		return nil, err
+	}
+	// TODO async delete
+	// delete dead letter eventbus
+	err = ctrl.deleteEventbus(context.Background(), primitive.GetDeadLetterEventbusName(eb.Name))
+	if err != nil {
+		log.Error(context.Background(), "delete dead letter eventbus error", map[string]interface{}{
+			log.KeyError:        err,
+			log.KeyEventbusName: eb.Name,
+		})
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (ctrl *controller) deleteEventbus(ctx context.Context, name string) error {
+	bus, exist := ctrl.eventBusMap[name]
+	if !exist {
+		return errors.ErrResourceNotFound.WithMessage("the eventbus doesn't exist")
+	}
+	err := ctrl.kvStore.Delete(ctx, metadata.GetEventbusMetadataKey(name))
+	if err != nil {
+		return errors.ErrInternal.WithMessage("delete eventbus metadata in kv failed").Wrap(err)
 	}
 
 	// TODO(wenfeng.wang) notify gateway to cut flow
-	delete(ctrl.eventBusMap, eb.Name)
+	delete(ctrl.eventBusMap, name)
 	wg := sync.WaitGroup{}
 
 	for _, v := range bus.EventLogs {
@@ -236,7 +268,7 @@ func (ctrl *controller) DeleteEventBus(ctx context.Context, eb *metapb.EventBus)
 	}
 	wg.Wait()
 	atomic.AddInt64(&ctrl.eventbusDeletedCount, 1)
-	return &emptypb.Empty{}, nil
+	return nil
 }
 
 func (ctrl *controller) GetEventBus(ctx context.Context, eb *metapb.EventBus) (*metapb.EventBus, error) {
@@ -264,7 +296,7 @@ func (ctrl *controller) getEventbus(name string) (*metapb.EventBus, error) {
 func (ctrl *controller) ListEventBus(ctx context.Context, _ *emptypb.Empty) (*ctrlpb.ListEventbusResponse, error) {
 	eventbusList := make([]*metapb.EventBus, 0)
 	for _, v := range ctrl.eventBusMap {
-		if strings.HasPrefix(v.Name, systemEventbusPrefix) {
+		if strings.HasPrefix(v.Name, primitive.SystemEventbusNamePrefix) {
 			continue
 		}
 		ebMD := metadata.Convert2ProtoEventBus(v)[0]

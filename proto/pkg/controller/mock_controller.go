@@ -1099,6 +1099,26 @@ func (mr *MockTriggerControllerClientMockRecorder) DisableSubscription(ctx, in i
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DisableSubscription", reflect.TypeOf((*MockTriggerControllerClient)(nil).DisableSubscription), varargs...)
 }
 
+// GetDeadLetterEventOffset mocks base method.
+func (m *MockTriggerControllerClient) GetDeadLetterEventOffset(ctx context.Context, in *GetDeadLetterEventOffsetRequest, opts ...grpc.CallOption) (*GetDeadLetterEventOffsetResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetDeadLetterEventOffset", varargs...)
+	ret0, _ := ret[0].(*GetDeadLetterEventOffsetResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDeadLetterEventOffset indicates an expected call of GetDeadLetterEventOffset.
+func (mr *MockTriggerControllerClientMockRecorder) GetDeadLetterEventOffset(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeadLetterEventOffset", reflect.TypeOf((*MockTriggerControllerClient)(nil).GetDeadLetterEventOffset), varargs...)
+}
+
 // GetSubscription mocks base method.
 func (m *MockTriggerControllerClient) GetSubscription(ctx context.Context, in *GetSubscriptionRequest, opts ...grpc.CallOption) (*meta.Subscription, error) {
 	m.ctrl.T.Helper()
@@ -1197,6 +1217,26 @@ func (mr *MockTriggerControllerClientMockRecorder) ResumeSubscription(ctx, in in
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, in}, opts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResumeSubscription", reflect.TypeOf((*MockTriggerControllerClient)(nil).ResumeSubscription), varargs...)
+}
+
+// SetDeadLetterEventOffset mocks base method.
+func (m *MockTriggerControllerClient) SetDeadLetterEventOffset(ctx context.Context, in *SetDeadLetterEventOffsetRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "SetDeadLetterEventOffset", varargs...)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetDeadLetterEventOffset indicates an expected call of SetDeadLetterEventOffset.
+func (mr *MockTriggerControllerClientMockRecorder) SetDeadLetterEventOffset(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDeadLetterEventOffset", reflect.TypeOf((*MockTriggerControllerClient)(nil).SetDeadLetterEventOffset), varargs...)
 }
 
 // TriggerWorkerHeartbeat mocks base method.
@@ -1479,6 +1519,21 @@ func (mr *MockTriggerControllerServerMockRecorder) DisableSubscription(arg0, arg
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DisableSubscription", reflect.TypeOf((*MockTriggerControllerServer)(nil).DisableSubscription), arg0, arg1)
 }
 
+// GetDeadLetterEventOffset mocks base method.
+func (m *MockTriggerControllerServer) GetDeadLetterEventOffset(arg0 context.Context, arg1 *GetDeadLetterEventOffsetRequest) (*GetDeadLetterEventOffsetResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDeadLetterEventOffset", arg0, arg1)
+	ret0, _ := ret[0].(*GetDeadLetterEventOffsetResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDeadLetterEventOffset indicates an expected call of GetDeadLetterEventOffset.
+func (mr *MockTriggerControllerServerMockRecorder) GetDeadLetterEventOffset(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeadLetterEventOffset", reflect.TypeOf((*MockTriggerControllerServer)(nil).GetDeadLetterEventOffset), arg0, arg1)
+}
+
 // GetSubscription mocks base method.
 func (m *MockTriggerControllerServer) GetSubscription(arg0 context.Context, arg1 *GetSubscriptionRequest) (*meta.Subscription, error) {
 	m.ctrl.T.Helper()
@@ -1552,6 +1607,21 @@ func (m *MockTriggerControllerServer) ResumeSubscription(arg0 context.Context, a
 func (mr *MockTriggerControllerServerMockRecorder) ResumeSubscription(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResumeSubscription", reflect.TypeOf((*MockTriggerControllerServer)(nil).ResumeSubscription), arg0, arg1)
+}
+
+// SetDeadLetterEventOffset mocks base method.
+func (m *MockTriggerControllerServer) SetDeadLetterEventOffset(arg0 context.Context, arg1 *SetDeadLetterEventOffsetRequest) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetDeadLetterEventOffset", arg0, arg1)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetDeadLetterEventOffset indicates an expected call of SetDeadLetterEventOffset.
+func (mr *MockTriggerControllerServerMockRecorder) SetDeadLetterEventOffset(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDeadLetterEventOffset", reflect.TypeOf((*MockTriggerControllerServer)(nil).SetDeadLetterEventOffset), arg0, arg1)
 }
 
 // TriggerWorkerHeartbeat mocks base method.

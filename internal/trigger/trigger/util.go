@@ -17,6 +17,7 @@ package trigger
 import (
 	"fmt"
 	"math"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -47,17 +48,16 @@ const (
 )
 
 func isShouldRetry(statusCode int) (bool, string) {
-	switch statusCode {
-	case ErrTransformCode:
+	switch {
+	case statusCode == ErrTransformCode:
 		return false, "TransformError"
-	case OrderEventCode:
+	case statusCode == OrderEventCode:
 		return false, "OrderEvent"
-	case 400:
-		return false, "BadRequest"
-	case 403:
-		return false, "Forbidden"
-	case 413:
-		return false, "RequestEntityTooLarge"
+	case statusCode >= http.StatusBadRequest && statusCode < http.StatusInternalServerError:
+		if statusCode == http.StatusTooManyRequests {
+			return true, ""
+		}
+		return false, fmt.Sprintf("Response%d", statusCode)
 	default:
 		return true, ""
 	}

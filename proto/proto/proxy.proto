@@ -58,6 +58,13 @@ service ControllerProxy {
   rpc LookupOffset(LookupOffsetRequest) returns (LookupOffsetResponse);
   rpc GetEvent(GetEventRequest) returns (GetEventResponse);
   rpc ValidateSubscription(ValidateSubscriptionRequest) returns (ValidateSubscriptionResponse);
+  // dead letter
+  rpc GetDeadLetterEvent(GetDeadLetterEventRequest)
+      returns (GetDeadLetterEventResponse);
+  rpc ResendDeadLetterEvent(ResendDeadLetterEventRequest)
+      returns (google.protobuf.Empty);
+  rpc SetDeadLetterEventOffset(controller.SetDeadLetterEventOffsetRequest)
+      returns (google.protobuf.Empty);
 }
 
 message LookupOffsetRequest {
@@ -97,7 +104,7 @@ message ValidateSubscriptionRequest {
   controller.SubscriptionRequest subscription = 101;
 }
 
-message  ValidateSubscriptionResponse {
+message ValidateSubscriptionResponse {
   bool filter_result = 1;
   bytes transformer_result = 2;
 }
@@ -127,4 +134,20 @@ message AckRequest {
   uint64 sequence_id = 1;
   string subscription_id = 2;
   bool success = 3;
+}
+
+message GetDeadLetterEventRequest {
+  uint64 subscription_id = 1;
+  uint64 offset = 2;
+  int32 number = 3;
+}
+
+message GetDeadLetterEventResponse {
+  repeated google.protobuf.BytesValue events = 1;
+}
+
+message ResendDeadLetterEventRequest {
+  uint64 subscription_id = 1;
+  uint64 start_offset = 2;
+  uint64 end_offset = 3;
 }

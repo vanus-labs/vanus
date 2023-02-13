@@ -96,3 +96,8 @@ func (cp *ControllerProxy) ResetOffsetToTimestamp(ctx context.Context,
 	req *ctrlpb.ResetOffsetToTimestampRequest) (*ctrlpb.ResetOffsetToTimestampResponse, error) {
 	return cp.triggerCtrl.ResetOffsetToTimestamp(ctx, req)
 }
+
+func (cp *ControllerProxy) SetDeadLetterEventOffset(ctx context.Context,
+	req *ctrlpb.SetDeadLetterEventOffsetRequest) (*emptypb.Empty, error) {
+	return cp.triggerCtrl.SetDeadLetterEventOffset(ctx, req)
+}

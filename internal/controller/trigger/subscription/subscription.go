@@ -17,7 +17,6 @@ package subscription
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"sync"
 	"time"
@@ -31,6 +30,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/observability/metrics"
+	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 type Manager interface {
@@ -40,6 +40,8 @@ type Manager interface {
 	GetOrSaveOffset(ctx context.Context, id vanus.ID) (info.ListOffsetInfo, error)
 	// GetOffset get offset only from etcd, it doesn't contain retry eb offset
 	GetOffset(ctx context.Context, id vanus.ID) (info.ListOffsetInfo, error)
+	GetDeadLetterOffset(ctx context.Context, id vanus.ID) (uint64, error)
+	SaveDeadLetterOffset(ctx context.Context, id vanus.ID, offset uint64) error
 	ResetOffsetByTimestamp(ctx context.Context, id vanus.ID, timestamp uint64) (info.ListOffsetInfo, error)
 	ListSubscription(ctx context.Context) []*metadata.Subscription
 	GetSubscription(ctx context.Context, id vanus.ID) *metadata.Subscription
@@ -53,21 +55,18 @@ type Manager interface {
 	Stop()
 }
 
-var (
-	ErrSubscriptionNotExist = fmt.Errorf("subscription not exist")
-)
-
 const (
 	defaultCommitInterval = time.Second
 )
 
 type manager struct {
-	ebCli           eb.Client
-	secretStorage   secret.Storage
-	storage         storage.Storage
-	offsetManager   offset.Manager
-	lock            sync.RWMutex
-	subscriptionMap map[vanus.ID]*metadata.Subscription
+	ebCli                eb.Client
+	secretStorage        secret.Storage
+	storage              storage.Storage
+	offsetManager        offset.Manager
+	lock                 sync.RWMutex
+	subscriptionMap      map[vanus.ID]*metadata.Subscription
+	deadLetterEventLogID vanus.ID
 }
 
 func NewSubscriptionManager(storage storage.Storage, secretStorage secret.Storage, ebCli eb.Client) Manager {
@@ -190,7 +189,7 @@ func (m *manager) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 func (m *manager) Heartbeat(ctx context.Context, id vanus.ID, addr string, time time.Time) error {
 	subscription := m.GetSubscription(ctx, id)
 	if subscription == nil {
-		return ErrSubscriptionNotExist
+		return errors.ErrResourceNotFound
 	}
 	if subscription.TriggerWorker != addr {
 		// data is not consistent, record

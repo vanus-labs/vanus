@@ -67,8 +67,8 @@ func TestSaveOffset(t *testing.T) {
 	})
 }
 
-func TestGetOffset(t *testing.T) {
-	Convey("test get offset", t, func() {
+func TestGetOrSaveOffsetOffset(t *testing.T) {
+	Convey("test get or save offset", t, func() {
 		ctx := context.Background()
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -92,20 +92,20 @@ func TestGetOffset(t *testing.T) {
 		listOffsetInfo := info.ListOffsetInfo{
 			{EventLogID: logID, Offset: offsetV},
 		}
-		Convey("get offset subscription no exist", func() {
-			offsets, err := m.GetOffset(ctx, noExistID)
+		Convey("get or save offset subscription no exist", func() {
+			offsets, err := m.GetOrSaveOffset(ctx, noExistID)
 			So(err, ShouldNotBeNil)
 			So(len(offsets), ShouldEqual, 0)
 		})
-		Convey("get offset from storage offset", func() {
+		Convey("get or save offset from storage offset", func() {
 			offsetManager.EXPECT().GetOffset(ctx, id).Return(listOffsetInfo, nil)
-			offsets, err := m.GetOffset(ctx, id)
+			offsets, err := m.GetOrSaveOffset(ctx, id)
 			So(err, ShouldBeNil)
 			So(len(offsets), ShouldEqual, len(listOffsetInfo))
 			So(offsets[0].EventLogID, ShouldEqual, logID)
 			So(offsets[0].Offset, ShouldEqual, offsetV)
 		})
-		Convey("get offset from client", func() {
+		Convey("get or save offset from client", func() {
 			offsetManager.EXPECT().GetOffset(ctx, id).AnyTimes().Return(nil, nil)
 			offsets, err := m.GetOffset(ctx, id)
 			So(err, ShouldBeNil)
@@ -150,6 +150,51 @@ func TestGetOffset(t *testing.T) {
 	})
 }
 
+func TestGetOffset(t *testing.T) {
+	Convey("test get offset", t, func() {
+		ctx := context.Background()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		storage := storage.NewMockStorage(ctrl)
+		secret := secret.NewMockStorage(ctrl)
+
+		m := NewSubscriptionManager(storage, secret, nil).(*manager)
+		offsetManager := offset.NewMockManager(ctrl)
+		m.offsetManager = offsetManager
+		storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).AnyTimes().Return(nil)
+		noExistID := vanus.NewTestID()
+		id := vanus.NewTestID()
+		sub := &metadata.Subscription{
+			ID: id,
+		}
+		m.AddSubscription(ctx, sub)
+		logID := vanus.NewTestID()
+		offsetV := uint64(10)
+		listOffsetInfo := info.ListOffsetInfo{
+			{EventLogID: logID, Offset: offsetV},
+		}
+		Convey("get offset subscription no exist", func() {
+			offsets, err := m.GetOffset(ctx, noExistID)
+			So(err, ShouldNotBeNil)
+			So(len(offsets), ShouldEqual, 0)
+		})
+		Convey("get offset from storage offset", func() {
+			offsetManager.EXPECT().GetOffset(ctx, id).Return(listOffsetInfo, nil)
+			offsets, err := m.GetOffset(ctx, id)
+			So(err, ShouldBeNil)
+			So(len(offsets), ShouldEqual, len(listOffsetInfo))
+			So(offsets[0].EventLogID, ShouldEqual, logID)
+			So(offsets[0].Offset, ShouldEqual, offsetV)
+		})
+		Convey("get offset from storage offset is empty", func() {
+			offsetManager.EXPECT().GetOffset(ctx, id).Return(nil, nil)
+			offsets, err := m.GetOffset(ctx, id)
+			So(err, ShouldBeNil)
+			So(len(offsets), ShouldEqual, 0)
+		})
+	})
+}
+
 func TestResetOffsetByTimestamp(t *testing.T) {
 	Convey("test reset offset by timestamp", t, func() {
 		ctx := context.Background()
@@ -180,5 +225,118 @@ func TestResetOffsetByTimestamp(t *testing.T) {
 		mockEventLog.EXPECT().QueryOffsetByTime(gomock.Any(), int64(time)).Return(int64(100), nil)
 		_, err := m.ResetOffsetByTimestamp(ctx, id, time)
 		So(err, ShouldBeNil)
+	})
+}
+
+func TestGetDeadLetterOffset(t *testing.T) {
+	Convey("test get dead letter offset", t, func() {
+		ctx := context.Background()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		storage := storage.NewMockStorage(ctrl)
+		secret := secret.NewMockStorage(ctrl)
+		mockClient := client.NewMockClient(ctrl)
+
+		m := NewSubscriptionManager(storage, secret, mockClient).(*manager)
+		offsetManager := offset.NewMockManager(ctrl)
+		m.offsetManager = offsetManager
+		storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).AnyTimes().Return(nil)
+		noExistID := vanus.NewTestID()
+		id := vanus.NewTestID()
+		sub := &metadata.Subscription{
+			ID:        id,
+			EventBus:  "test",
+			CreatedAt: time.Now(),
+		}
+		m.AddSubscription(ctx, sub)
+		logID := vanus.NewTestID()
+		offsetV := uint64(10)
+		listOffsetInfo := info.ListOffsetInfo{
+			{EventLogID: logID, Offset: offsetV},
+		}
+		Convey("get dead letter offset subscription no exist", func() {
+			offset, err := m.GetDeadLetterOffset(ctx, noExistID)
+			So(err, ShouldNotBeNil)
+			So(offset, ShouldEqual, 0)
+		})
+		Convey("get dead letter offset from storage offset", func() {
+			offsetManager.EXPECT().GetOffset(ctx, id).Return(listOffsetInfo, nil)
+			Convey("dead letter eventlogID has init", func() {
+				m.deadLetterEventLogID = logID
+				offset, err := m.GetDeadLetterOffset(ctx, id)
+				So(err, ShouldBeNil)
+				So(offset, ShouldEqual, offsetV)
+			})
+			Convey("dead letter eventlogID hasn't init", func() {
+				mockEventbus := api.NewMockEventbus(ctrl)
+				mockEventLog := api.NewMockEventlog(ctrl)
+				mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus)
+				mockEventbus.EXPECT().ListLog(gomock.Any()).AnyTimes().Return([]api.Eventlog{mockEventLog}, nil)
+				mockEventLog.EXPECT().ID().AnyTimes().Return(logID.Uint64())
+				offset, err := m.GetDeadLetterOffset(ctx, id)
+				So(err, ShouldBeNil)
+				So(offset, ShouldEqual, offsetV)
+			})
+		})
+		Convey("get dead letter offset from client", func() {
+			offsetManager.EXPECT().GetOffset(ctx, id).AnyTimes().Return(nil, nil)
+			offsetManager.EXPECT().Offset(gomock.Any(), gomock.Any(), gomock.Any(), true).AnyTimes().Return(nil)
+			mockEventbus := api.NewMockEventbus(ctrl)
+			mockEventLog := api.NewMockEventlog(ctrl)
+			mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus)
+			mockEventbus.EXPECT().ListLog(gomock.Any()).AnyTimes().Return([]api.Eventlog{mockEventLog}, nil)
+			mockEventLog.EXPECT().ID().AnyTimes().Return(logID.Uint64())
+
+			Convey("test get offset from timestamp", func() {
+				mockEventLog.EXPECT().QueryOffsetByTime(gomock.Any(), sub.CreatedAt.Unix()).Return(int64(offsetV), nil)
+				offset, err := m.GetDeadLetterOffset(ctx, id)
+				So(err, ShouldBeNil)
+				So(offset, ShouldEqual, offsetV)
+			})
+		})
+	})
+}
+
+func TestSaveDeadLetterOffset(t *testing.T) {
+	Convey("test save dead letter offset", t, func() {
+		ctx := context.Background()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		storage := storage.NewMockStorage(ctrl)
+		secret := secret.NewMockStorage(ctrl)
+		mockClient := client.NewMockClient(ctrl)
+
+		m := NewSubscriptionManager(storage, secret, mockClient).(*manager)
+		offsetManager := offset.NewMockManager(ctrl)
+		m.offsetManager = offsetManager
+		storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).AnyTimes().Return(nil)
+		id := vanus.NewTestID()
+		sub := &metadata.Subscription{
+			ID:        id,
+			EventBus:  "test",
+			CreatedAt: time.Now(),
+		}
+		m.AddSubscription(ctx, sub)
+		logID := vanus.NewTestID()
+		offsetV := uint64(10)
+		offsetManager.EXPECT().Offset(gomock.Any(), gomock.Any(), gomock.Any(), true).AnyTimes().Return(nil)
+		Convey("save dead letter offset subscription no exist", func() {
+			err := m.SaveDeadLetterOffset(ctx, vanus.NewTestID(), offsetV)
+			So(err, ShouldNotBeNil)
+		})
+		Convey("save dead letter offset eventlogID has init", func() {
+			m.deadLetterEventLogID = logID
+			err := m.SaveDeadLetterOffset(ctx, id, offsetV)
+			So(err, ShouldBeNil)
+		})
+		Convey("dead letter eventlogID hasn't init", func() {
+			mockEventbus := api.NewMockEventbus(ctrl)
+			mockEventLog := api.NewMockEventlog(ctrl)
+			mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus)
+			mockEventbus.EXPECT().ListLog(gomock.Any()).AnyTimes().Return([]api.Eventlog{mockEventLog}, nil)
+			mockEventLog.EXPECT().ID().AnyTimes().Return(logID.Uint64())
+			err := m.SaveDeadLetterOffset(ctx, id, offsetV)
+			So(err, ShouldBeNil)
+		})
 	})
 }

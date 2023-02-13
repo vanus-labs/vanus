@@ -45,6 +45,24 @@ type triggerClient struct {
 	heartBeatClient ctrlpb.TriggerController_TriggerWorkerHeartbeatClient
 }
 
+func (tc *triggerClient) SetDeadLetterEventOffset(ctx context.Context, in *ctrlpb.SetDeadLetterEventOffsetRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/SetDeadLetterEventOffset", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (tc *triggerClient) GetDeadLetterEventOffset(ctx context.Context, in *ctrlpb.GetDeadLetterEventOffsetRequest, opts ...grpc.CallOption) (*ctrlpb.GetDeadLetterEventOffsetResponse, error) {
+	out := new(ctrlpb.GetDeadLetterEventOffsetResponse)
+	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/GetDeadLetterEventOffset", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (tc *triggerClient) Beat(ctx context.Context, v interface{}) error {
 	log.Debug(ctx, "heartbeat", map[string]interface{}{
 		"leader": tc.cc.leader,

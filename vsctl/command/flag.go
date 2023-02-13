@@ -44,7 +44,11 @@ var (
 	description         string
 	subscriptionName    string
 	disableSubscription bool
-	orderedPushEvent    bool
+
+	orderedPushEvent     bool
+	orderedPushEventStr  string
+	disableDeadLetter    bool
+	disableDeadLetterStr string
 
 	subProtocol        string
 	sinkCredentialType string
@@ -67,11 +71,14 @@ var (
 
 	// for connector
 	connectorConfigFile string
-	kind                string
-	name                string
-	ctype               string
-	connectorVersion    string
-	showConnectors      bool
+	kind             string
+	name             string
+	ctype            string
+	connectorVersion string
+	showConnectors   bool
+
+	startOffset uint64
+	endOffset   uint64
 )
 
 const (

@@ -25,6 +25,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/eventlog"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
@@ -54,10 +55,14 @@ func TestController_CreateEventBus(t *testing.T) {
 			kvCli.EXPECT().Exists(ctx, metadata.GetEventbusMetadataKey("test-1")).Times(1).Return(false, nil)
 			kvCli.EXPECT().Set(ctx, metadata.GetEventbusMetadataKey("test-1"), gomock.Any()).
 				Times(1).Return(nil)
+			dlEventbusName := primitive.GetDeadLetterEventbusName("test-1")
+			kvCli.EXPECT().Exists(ctx, metadata.GetEventbusMetadataKey(dlEventbusName)).Times(1).Return(false, nil)
+			kvCli.EXPECT().Set(ctx, metadata.GetEventbusMetadataKey(dlEventbusName), gomock.Any()).
+				Times(1).Return(nil)
 			el := &metadata.Eventlog{
 				ID: vanus.NewTestID(),
 			}
-			elMgr.EXPECT().AcquireEventLog(ctx, gomock.Any(), gomock.Any()).Times(1).DoAndReturn(func(ctx stdCtx.Context,
+			elMgr.EXPECT().AcquireEventLog(ctx, gomock.Any(), gomock.Any()).Times(2).DoAndReturn(func(ctx stdCtx.Context,
 				eventbusID vanus.ID, ebName string) (*metadata.Eventlog, error) {
 				el.ID = eventbusID
 				el.EventbusName = ebName
