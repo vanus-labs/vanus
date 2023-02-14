@@ -443,7 +443,7 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 	for {
 		writeAttempt++
 		startTime := time.Now()
-		_, err := t.timerEventWriter.AppendOne(ctx, e)
+		_, err := api.Append(ctx, t.timerEventWriter, []*ce.Event{e})
 		metrics.TriggerRetryEventAppendSecond.WithLabelValues(t.subscriptionIDStr).
 			Observe(time.Since(startTime).Seconds())
 		if err != nil {
@@ -478,14 +478,13 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 	for {
 		writeAttempt++
 		startTime := time.Now()
-		_, err := t.dlEventWriter.AppendOne(ctx, e)
+		_, err := api.Append(ctx, t.dlEventWriter, []*ce.Event{e})
 		metrics.TriggerDeadLetterEventAppendSecond.WithLabelValues(t.subscriptionIDStr).
 			Observe(time.Since(startTime).Seconds())
 		if err != nil {
 			log.Info(ctx, "write dl event error", map[string]interface{}{
 				log.KeyError:          err,
 				log.KeySubscriptionID: t.subscription.ID,
-				"attempt":             writeAttempt,
 				"event":               e,
 			})
 			if writeAttempt >= t.config.MaxWriteAttempt {

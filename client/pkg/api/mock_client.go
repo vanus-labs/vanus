@@ -8,7 +8,6 @@ import (
 	context "context"
 	reflect "reflect"
 
-	v2 "github.com/cloudevents/sdk-go/v2"
 	gomock "github.com/golang/mock/gomock"
 	cloudevents "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 )
@@ -147,63 +146,24 @@ func (m *MockBusWriter) EXPECT() *MockBusWriterMockRecorder {
 	return m.recorder
 }
 
-// AppendBatch mocks base method.
-func (m *MockBusWriter) AppendBatch(ctx context.Context, events *cloudevents.CloudEventBatch, opts ...WriteOption) error {
+// Append mocks base method.
+func (m *MockBusWriter) Append(ctx context.Context, events *cloudevents.CloudEventBatch, opts ...WriteOption) ([]string, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, events}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "AppendBatch", varargs...)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AppendBatch indicates an expected call of AppendBatch.
-func (mr *MockBusWriterMockRecorder) AppendBatch(ctx, events interface{}, opts ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{ctx, events}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppendBatch", reflect.TypeOf((*MockBusWriter)(nil).AppendBatch), varargs...)
-}
-
-// AppendMany mocks base method.
-func (m *MockBusWriter) AppendMany(ctx context.Context, events []*v2.Event, opts ...WriteOption) (string, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{ctx, events}
-	for _, a := range opts {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "AppendMany", varargs...)
-	ret0, _ := ret[0].(string)
+	ret := m.ctrl.Call(m, "Append", varargs...)
+	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// AppendMany indicates an expected call of AppendMany.
-func (mr *MockBusWriterMockRecorder) AppendMany(ctx, events interface{}, opts ...interface{}) *gomock.Call {
+// Append indicates an expected call of Append.
+func (mr *MockBusWriterMockRecorder) Append(ctx, events interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, events}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppendMany", reflect.TypeOf((*MockBusWriter)(nil).AppendMany), varargs...)
-}
-
-// AppendOne mocks base method.
-func (m *MockBusWriter) AppendOne(ctx context.Context, event *v2.Event, opts ...WriteOption) (string, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{ctx, event}
-	for _, a := range opts {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "AppendOne", varargs...)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AppendOne indicates an expected call of AppendOne.
-func (mr *MockBusWriterMockRecorder) AppendOne(ctx, event interface{}, opts ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{ctx, event}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppendOne", reflect.TypeOf((*MockBusWriter)(nil).AppendOne), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Append", reflect.TypeOf((*MockBusWriter)(nil).Append), varargs...)
 }
 
 // MockBusReader is a mock of BusReader interface.
@@ -230,14 +190,14 @@ func (m *MockBusReader) EXPECT() *MockBusReaderMockRecorder {
 }
 
 // Read mocks base method.
-func (m *MockBusReader) Read(ctx context.Context, opts ...ReadOption) ([]*v2.Event, int64, uint64, error) {
+func (m *MockBusReader) Read(ctx context.Context, opts ...ReadOption) (*cloudevents.CloudEventBatch, int64, uint64, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "Read", varargs...)
-	ret0, _ := ret[0].([]*v2.Event)
+	ret0, _ := ret[0].(*cloudevents.CloudEventBatch)
 	ret1, _ := ret[1].(int64)
 	ret2, _ := ret[2].(uint64)
 	ret3, _ := ret[3].(error)

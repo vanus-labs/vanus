@@ -582,7 +582,7 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 		v, _ = tw.cache.LoadOrStore(ebName, tw.client.Eventbus(ctx, ebName).Writer())
 	}
 	writer, _ := v.(api.BusWriter)
-	_, err = writer.AppendOne(ctx, e)
+	_, err = api.Append(ctx, writer, []*ce.Event{e})
 	if err != nil {
 		if errors.Is(err, errors.ErrOffsetOnEnd) {
 			log.Warning(ctx, "eventbus not found, discard this event", map[string]interface{}{

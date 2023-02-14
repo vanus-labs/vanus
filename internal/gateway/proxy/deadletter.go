@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	v2 "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/vanus/client/pkg/codec"
+	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/option"
 	"github.com/linkall-labs/vanus/client/pkg/policy"
@@ -28,6 +28,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	"github.com/linkall-labs/vanus/proto/pkg/codec"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	proxypb "github.com/linkall-labs/vanus/proto/pkg/proxy"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -88,7 +89,7 @@ func (cp *ControllerProxy) GetDeadLetterEvent(ctx context.Context,
 	var events []*v2.Event
 loop:
 	for {
-		_events, _, _, err := busReader.Read(ctx)
+		_events, _, _, err := api.Read(ctx, busReader)
 		if err != nil {
 			if errors.Is(err, errors.ErrOffsetOnEnd) {
 				// read end
@@ -170,7 +171,7 @@ func (cp *ControllerProxy) ResendDeadLetterEvent(ctx context.Context,
 	var events []*cloudevents.CloudEvent
 loop:
 	for {
-		_events, _, _, err := busReader.Read(ctx)
+		_events, _, _, err := api.Read(ctx, busReader)
 		if err != nil {
 			if errors.Is(err, errors.ErrOffsetOnEnd) {
 				// read end

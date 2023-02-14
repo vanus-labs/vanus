@@ -62,7 +62,7 @@ func TestTimingWheel_Start(t *testing.T) {
 		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
 		mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-		mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return([]*ce.Event{}, int64(0), uint64(0), nil)
+		mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(0), int64(0), uint64(0), nil)
 		for e := tw.twList.Front(); e != nil; {
 			for _, bucket := range e.Value.(*timingWheelElement).buckets {
 				bucket.eventbusReader = mockBusReader
@@ -305,12 +305,10 @@ func TestTimingWheel_runReceivingStation(t *testing.T) {
 		mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
 		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
-		events := make([]*ce.Event, 1)
-		events[0] = event(0)
 
 		Convey("test bucket run receiving station with get event failed", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), stderr.New("test"))
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(0), int64(0), uint64(0), stderr.New("test"))
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
@@ -321,8 +319,8 @@ func TestTimingWheel_runReceivingStation(t *testing.T) {
 
 		Convey("test timingwheel run receiving station with start failure", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
-			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", stderr.New("test"))
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(0), int64(0), uint64(0), nil)
+			mockBusWriter.EXPECT().Append(Any(), Any()).AnyTimes().Return([]string{""}, stderr.New("test"))
 			mockStoreCli.EXPECT().Set(Any(), Any(), Any()).AnyTimes().Return(nil)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
@@ -334,8 +332,8 @@ func TestTimingWheel_runReceivingStation(t *testing.T) {
 
 		Convey("test timingwheel run receiving station with start success", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
-			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", nil)
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(0), int64(0), uint64(0), nil)
+			mockBusWriter.EXPECT().Append(Any(), Any()).AnyTimes().Return([]string{""}, nil)
 			mockStoreCli.EXPECT().Set(Any(), Any(), Any()).AnyTimes().Return(nil)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
@@ -408,12 +406,10 @@ func TestTimingWheel_runDistributionStation(t *testing.T) {
 		tw.distributionStation.kvStore = mockStoreCli
 		tw.distributionStation.timingwheel = tw
 		tw.distributionStation.client = mockClient
-		events := make([]*ce.Event, 1)
-		events[0] = event(0)
 
 		Convey("test timingwheel run distribution station with get event failed", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), stderr.New("test"))
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(0), int64(0), uint64(0), stderr.New("test"))
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
@@ -423,8 +419,8 @@ func TestTimingWheel_runDistributionStation(t *testing.T) {
 		})
 
 		Convey("test timingwheel run distribution station with deliver failed", func() {
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
-			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", errors.ErrNotWritable)
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(0), int64(0), uint64(0), nil)
+			mockBusWriter.EXPECT().Append(Any(), Any()).AnyTimes().Return([]string{""}, errors.ErrNotWritable)
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
 			mockStoreCli.EXPECT().Set(Any(), Any(), Any()).AnyTimes().Return(nil)
 			go func() {
@@ -436,8 +432,8 @@ func TestTimingWheel_runDistributionStation(t *testing.T) {
 		})
 
 		Convey("test timingwheel run distribution station with deliver success", func() {
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
-			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", nil)
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(0), int64(0), uint64(0), nil)
+			mockBusWriter.EXPECT().Append(Any(), Any()).AnyTimes().Return([]string{""}, nil)
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
 			mockStoreCli.EXPECT().Set(Any(), Any(), Any()).AnyTimes().Return(nil)
 			go func() {
@@ -472,19 +468,19 @@ func TestTimingWheel_deliver(t *testing.T) {
 		})
 
 		Convey("test timingwheel deliver failure with eventbus not found", func() {
-			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", errors.ErrOffsetOnEnd)
+			mockBusWriter.EXPECT().Append(Any(), Any()).AnyTimes().Return([]string{""}, errors.ErrOffsetOnEnd)
 			err := tw.deliver(ctx, e)
 			So(err, ShouldBeNil)
 		})
 
 		Convey("test timingwheel deliver failure with append failed", func() {
-			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", errors.ErrNotWritable)
+			mockBusWriter.EXPECT().Append(Any(), Any()).AnyTimes().Return([]string{""}, errors.ErrNotWritable)
 			err := tw.deliver(ctx, e)
 			So(err, ShouldNotBeNil)
 		})
 
 		Convey("test timingwheel deliver success", func() {
-			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", nil)
+			mockBusWriter.EXPECT().Append(Any(), Any()).AnyTimes().Return([]string{""}, nil)
 			err := tw.deliver(ctx, e)
 			So(err, ShouldBeNil)
 		})
@@ -526,7 +522,7 @@ func TestTimingWheelElement_push(t *testing.T) {
 
 		Convey("push timing message to timingwheel failure", func() {
 			tw.SetLeader(true)
-			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", stderr.New("test"))
+			mockBusWriter.EXPECT().Append(Any(), Any()).AnyTimes().Return([]string{""}, stderr.New("test"))
 			tm := newTimingMsg(ctx, event(1000))
 			twe := tw.twList.Front().Value.(*timingWheelElement)
 			result := twe.push(ctx, tm)
@@ -635,7 +631,7 @@ func TestTimingWheelElement_flow(t *testing.T) {
 		Convey("flow timing message failure causes append failed", func() {
 			tw.SetLeader(true)
 			tm := newTimingMsg(ctx, event(1000))
-			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", stderr.New("test"))
+			mockBusWriter.EXPECT().Append(Any(), Any()).AnyTimes().Return([]string{""}, stderr.New("test"))
 			result := tw.twList.Front().Value.(*timingWheelElement).flow(ctx, tm)
 			So(result, ShouldEqual, false)
 		})

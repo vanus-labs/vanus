@@ -148,7 +148,7 @@ func TestGateway_EventID(t *testing.T) {
 	ctrl := NewController(t)
 	defer ctrl.Finish()
 	var (
-		eventID     = "AABBCC"
+		eventIDs    = "AABBCC"
 		busName     = "test"
 		controllers = []string{"127.0.0.1:2048"}
 		port        = 8087
@@ -159,7 +159,7 @@ func TestGateway_EventID(t *testing.T) {
 	mockBusWriter := api.NewMockBusWriter(ctrl)
 	mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
 	mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
-	mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("AABBCC", nil)
+	mockBusWriter.EXPECT().Append(Any(), Any()).AnyTimes().Return([]string{"AABBCC"}, nil)
 
 	cfg := Config{
 		Port:           port,
@@ -198,6 +198,6 @@ func TestGateway_EventID(t *testing.T) {
 		err = resEvent.DataAs(&ed)
 		So(err, ShouldBeNil)
 		So(ed.BusName, ShouldEqual, busName)
-		So(ed.EventID, ShouldEqual, eventID)
+		So(ed.EventID, ShouldEqual, eventIDs)
 	})
 }

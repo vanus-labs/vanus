@@ -19,22 +19,20 @@ import (
 	"context"
 	"time"
 
-	"github.com/linkall-labs/vanus/client/pkg/codec"
+	// third-party libraries
 
-	"github.com/linkall-labs/vanus/observability/tracing"
 	"go.opentelemetry.io/otel/trace"
-
-	ce "github.com/cloudevents/sdk-go/v2"
 	"google.golang.org/grpc"
 
 	// first-party libraries
-	// third-party libraries
-	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	"github.com/linkall-labs/vanus/client/pkg/primitive"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
+	// this project
 	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc"
 	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc/bare"
-	"github.com/linkall-labs/vanus/client/pkg/primitive"
 )
 
 func newBlockStore(endpoint string) (*BlockStore, error) {
@@ -67,38 +65,10 @@ func (s *BlockStore) Close() {
 	s.client.Close()
 }
 
-func (s *BlockStore) Append(ctx context.Context, block uint64, event *ce.Event) (int64, error) {
-	_ctx, span := s.tracer.Start(ctx, "Append")
-	defer span.End()
-
-	eventpb, err := codec.ToProto(event)
-	if err != nil {
-		return -1, err
-	}
-	req := &segpb.AppendToBlockRequest{
-		BlockId: block,
-		Events: &cepb.CloudEventBatch{
-			Events: []*cepb.CloudEvent{eventpb},
-		},
-	}
-
-	client, err := s.client.Get(_ctx)
-	if err != nil {
-		return -1, err
-	}
-
-	res, err := client.(segpb.SegmentServerClient).AppendToBlock(_ctx, req)
-	if err != nil {
-		return -1, err
-	}
-	// TODO(Y. F. Zhang): batch events
-	return res.GetOffsets()[0], nil
-}
-
 func (s *BlockStore) Read(
 	ctx context.Context, block uint64, offset int64, size int16, pollingTimeout uint32,
-) ([]*ce.Event, error) {
-	ctx, span := s.tracer.Start(ctx, "Append")
+) (*cloudevents.CloudEventBatch, error) {
+	ctx, span := s.tracer.Start(ctx, "Read")
 	defer span.End()
 
 	req := &segpb.ReadFromBlockRequest{
@@ -117,23 +87,7 @@ func (s *BlockStore) Read(
 	if err != nil {
 		return nil, err
 	}
-
-	if batch := resp.GetEvents(); batch != nil {
-		if eventpbs := batch.GetEvents(); len(eventpbs) > 0 {
-			events := make([]*ce.Event, 0, len(eventpbs))
-			for _, eventpb := range eventpbs {
-				event, err2 := codec.FromProto(eventpb)
-				if err2 != nil {
-					// TODO: return events or error?
-					return events, err2
-				}
-				events = append(events, event)
-			}
-			return events, nil
-		}
-	}
-
-	return []*ce.Event{}, err
+	return resp.GetEvents(), err
 }
 
 func (s *BlockStore) LookupOffset(ctx context.Context, blockID uint64, t time.Time) (int64, error) {
@@ -157,24 +111,23 @@ func (s *BlockStore) LookupOffset(ctx context.Context, blockID uint64, t time.Ti
 	return res.Offset, nil
 }
 
-func (s *BlockStore) AppendBatch(ctx context.Context, block uint64, event *cepb.CloudEventBatch) (int64, error) {
-	_ctx, span := s.tracer.Start(ctx, "AppendBatch")
+func (s *BlockStore) Append(ctx context.Context, block uint64, events *cloudevents.CloudEventBatch) ([]int64, error) {
+	_ctx, span := s.tracer.Start(ctx, "Append")
 	defer span.End()
 
 	req := &segpb.AppendToBlockRequest{
 		BlockId: block,
-		Events:  event,
+		Events:  events,
 	}
 
 	client, err := s.client.Get(_ctx)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
 	res, err := client.(segpb.SegmentServerClient).AppendToBlock(_ctx, req)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
-	// TODO(Y. F. Zhang): batch events
-	return res.GetOffsets()[0], nil
+	return res.GetOffsets(), nil
 }

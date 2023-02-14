@@ -17,8 +17,10 @@ package api
 
 import (
 	"context"
+
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	"github.com/linkall-labs/vanus/proto/pkg/codec"
 )
 
 type Eventbus interface {
@@ -31,13 +33,11 @@ type Eventbus interface {
 }
 
 type BusWriter interface {
-	AppendOne(ctx context.Context, event *ce.Event, opts ...WriteOption) (eid string, err error)
-	AppendMany(ctx context.Context, events []*ce.Event, opts ...WriteOption) (eid string, err error)
-	AppendBatch(ctx context.Context, events *cloudevents.CloudEventBatch, opts ...WriteOption) (err error)
+	Append(ctx context.Context, events *cloudevents.CloudEventBatch, opts ...WriteOption) (eids []string, err error)
 }
 
 type BusReader interface {
-	Read(ctx context.Context, opts ...ReadOption) ([]*ce.Event, int64, uint64, error)
+	Read(ctx context.Context, opts ...ReadOption) (events *cloudevents.CloudEventBatch, off int64, logid uint64, err error)
 }
 
 type Eventlog interface {
@@ -46,4 +46,34 @@ type Eventlog interface {
 	LatestOffset(ctx context.Context) (int64, error)
 	Length(ctx context.Context) (int64, error)
 	QueryOffsetByTime(ctx context.Context, timestamp int64) (int64, error)
+}
+
+func Append(ctx context.Context, w BusWriter, events []*ce.Event, opts ...WriteOption) (eids []string, err error) {
+	eventpbs := make([]*cloudevents.CloudEvent, len(events))
+	for idx := range events {
+		eventpb, err := codec.ToProto(events[idx])
+		if err != nil {
+			return nil, err
+		}
+		eventpbs[idx] = eventpb
+	}
+	return w.Append(ctx, &cloudevents.CloudEventBatch{
+		Events: eventpbs,
+	}, opts...)
+}
+
+func Read(ctx context.Context, r BusReader, opts ...ReadOption) (events []*ce.Event, off int64, logid uint64, err error) {
+	batch, off, logid, err := r.Read(ctx, opts...)
+	if err != nil {
+		return nil, -1, 0, err
+	}
+	es := make([]*ce.Event, len(batch.Events))
+	for idx := range batch.Events {
+		e, err := codec.FromProto(batch.Events[idx])
+		if err != nil {
+			return nil, -1, 0, err
+		}
+		es[idx] = e
+	}
+	return es, off, logid, nil
 }
