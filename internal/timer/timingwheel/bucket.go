@@ -349,7 +349,7 @@ func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
 	if !b.isLeader() {
 		return nil
 	}
-	_, err = api.Append(ctx, b.eventbusWriter, []*ce.Event{tm.getEvent()})
+	_, err = api.AppendOne(ctx, b.eventbusWriter, tm.getEvent())
 	if err != nil {
 		log.Error(ctx, "append event to failed", map[string]interface{}{
 			log.KeyError: err,

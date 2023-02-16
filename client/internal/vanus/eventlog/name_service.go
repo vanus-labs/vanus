@@ -67,10 +67,6 @@ func (ns *NameService) LookupWritableSegment(ctx context.Context, logID uint64) 
 		return nil, err
 	}
 
-	log.Debug(ctx, "get appendable segment success", map[string]interface{}{
-		"eventlog": logID,
-		"resp":     resp.String(),
-	})
 	segments := toSegments(resp.GetSegments())
 	if len(segments) == 0 {
 		return nil, errors.ErrNotWritable
@@ -99,10 +95,6 @@ func (ns *NameService) LookupReadableSegments(ctx context.Context, logID uint64)
 		return nil, err
 	}
 
-	log.Debug(ctx, "get readable segment success", map[string]interface{}{
-		"eventlog": logID,
-		"resp":     resp.String(),
-	})
 	segments := toSegments(resp.GetSegments())
 	return segments, nil
 }

@@ -23,7 +23,6 @@ import (
 	"time"
 
 	// third-party libraries
-
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/atomic"
 
@@ -167,11 +166,10 @@ func (s *segment) Append(ctx context.Context, event *cloudevents.CloudEventBatch
 	if err != nil {
 		return nil, err
 	}
-	offsets := make([]int64, len(offs))
 	for idx := range offs {
-		offsets[idx] = offs[idx] + s.startOffset
+		offs[idx] = offs[idx] + s.startOffset
 	}
-	return offsets, nil
+	return offs, nil
 }
 
 func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeout uint32) (*cloudevents.CloudEventBatch, error) {
@@ -205,17 +203,17 @@ func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeo
 			continue
 		}
 
-		off := v.GetCeInteger()
-		if off == 0 {
+		_, ok = v.GetAttr().(*cloudevents.CloudEvent_CloudEventAttributeValue_CeInteger)
+		if !ok {
 			return events, errors.ErrCorruptedEvent
 		}
-		offset := s.startOffset + int64(off)
+		offset := s.startOffset + int64(v.GetCeInteger())
 		buf := make([]byte, 8)
 		binary.BigEndian.PutUint64(buf, uint64(offset))
 		e.Attributes[XVanusLogOffset] = &cloudevents.CloudEvent_CloudEventAttributeValue{
 			Attr: &cloudevents.CloudEvent_CloudEventAttributeValue_CeBytes{CeBytes: buf},
 		}
-		e.Attributes[segpb.XVanusBlockOffset] = nil
+		delete(e.Attributes, segpb.XVanusBlockOffset)
 	}
 
 	return events, err

@@ -19,8 +19,6 @@ import (
 	"context"
 	"time"
 
-	// third-party libraries
-
 	// first-party libraries
 	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"

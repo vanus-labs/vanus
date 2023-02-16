@@ -20,7 +20,6 @@ import (
 	"time"
 
 	// first-party libraries
-	"github.com/linkall-labs/vanus/observability/log"
 
 	// this project
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
@@ -48,11 +47,6 @@ func WatchWritableSegment(l *eventlog) *WritableSegmentWatcher {
 	ch := make(chan *record.Segment, 1)
 	w := primitive.NewWatcher(defaultWatchInterval, func() {
 		r, err := l.nameService.LookupWritableSegment(context.Background(), l.cfg.ID)
-		log.Debug(context.Background(), "lookup writable logs", map[string]interface{}{
-			log.KeyError: err,
-			"eventlog":   l.cfg.ID,
-			"segment":    r,
-		})
 		if err != nil {
 			ch <- nil
 		} else {
@@ -85,11 +79,6 @@ func WatchReadableSegments(l *eventlog) *ReadableSegmentsWatcher {
 	ch := make(chan []*record.Segment, 1)
 	w := primitive.NewWatcher(defaultWatchInterval, func() {
 		rs, err := l.nameService.LookupReadableSegments(context.Background(), l.cfg.ID)
-		log.Debug(context.Background(), "lookup writable logs", map[string]interface{}{
-			log.KeyError: err,
-			"eventlog":   l.cfg.ID,
-			"segments":   rs,
-		})
 		if err != nil {
 			ch <- nil
 		} else {

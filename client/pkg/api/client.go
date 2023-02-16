@@ -62,16 +62,26 @@ func Append(ctx context.Context, w BusWriter, events []*ce.Event, opts ...WriteO
 	}, opts...)
 }
 
+func AppendOne(ctx context.Context, w BusWriter, event *ce.Event, opts ...WriteOption) (eids []string, err error) {
+	eventpb, err := codec.ToProto(event)
+	if err != nil {
+		return nil, err
+	}
+	return w.Append(ctx, &cloudevents.CloudEventBatch{
+		Events: []*cloudevents.CloudEvent{eventpb},
+	}, opts...)
+}
+
 func Read(ctx context.Context, r BusReader, opts ...ReadOption) (events []*ce.Event, off int64, logid uint64, err error) {
 	batch, off, logid, err := r.Read(ctx, opts...)
 	if err != nil {
-		return nil, -1, 0, err
+		return nil, off, logid, err
 	}
 	es := make([]*ce.Event, len(batch.Events))
 	for idx := range batch.Events {
 		e, err := codec.FromProto(batch.Events[idx])
 		if err != nil {
-			return nil, -1, 0, err
+			return nil, 0, 0, err
 		}
 		es[idx] = e
 	}

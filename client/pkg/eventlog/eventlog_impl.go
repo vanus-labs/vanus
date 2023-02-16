@@ -23,7 +23,6 @@ import (
 	"time"
 
 	// third-party libraries
-
 	"go.opentelemetry.io/otel/trace"
 
 	// first-party libraries
@@ -363,7 +362,7 @@ func (w *logWriter) Append(ctx context.Context, events *cloudevents.CloudEventBa
 		log.Debug(ctx, "logwriter append failed cause segment full", map[string]interface{}{
 			log.KeyError: err,
 			"offsets":    offsets,
-			"retry-time": i,
+			"retry_time": i,
 		})
 	}
 	return nil, errors.ErrUnknown
