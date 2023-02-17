@@ -62,14 +62,18 @@ func Append(ctx context.Context, w BusWriter, events []*ce.Event, opts ...WriteO
 	}, opts...)
 }
 
-func AppendOne(ctx context.Context, w BusWriter, event *ce.Event, opts ...WriteOption) (eids []string, err error) {
+func AppendOne(ctx context.Context, w BusWriter, event *ce.Event, opts ...WriteOption) (eid string, err error) {
 	eventpb, err := codec.ToProto(event)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return w.Append(ctx, &cloudevents.CloudEventBatch{
+	eids, err := w.Append(ctx, &cloudevents.CloudEventBatch{
 		Events: []*cloudevents.CloudEvent{eventpb},
 	}, opts...)
+	if err != nil {
+		return "", err
+	}
+	return eids[0], nil
 }
 
 func Read(ctx context.Context, r BusReader, opts ...ReadOption) (events []*ce.Event, off int64, logid uint64, err error) {

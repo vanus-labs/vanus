@@ -167,7 +167,7 @@ func (s *segment) Append(ctx context.Context, event *cloudevents.CloudEventBatch
 		return nil, err
 	}
 	for idx := range offs {
-		offs[idx] = offs[idx] + s.startOffset
+		offs[idx] += s.startOffset
 	}
 	return offs, nil
 }

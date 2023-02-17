@@ -165,7 +165,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 		v, _ = ga.busWriter.LoadOrStore(ebName, ga.client.Eventbus(ctx, ebName).Writer())
 	}
 	writer, _ := v.(api.BusWriter)
-	eventIDs, err := api.AppendOne(ctx, writer, &event)
+	eventID, err := api.AppendOne(ctx, writer, &event)
 	if err != nil {
 		log.Warning(_ctx, "append to failed", map[string]interface{}{
 			log.KeyError: err,
@@ -176,7 +176,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 	}
 	eventData := EventData{
 		BusName: ebName,
-		EventID: eventIDs[0],
+		EventID: eventID,
 	}
 	re, err = createResponseEvent(eventData)
 	if err != nil {

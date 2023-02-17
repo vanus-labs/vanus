@@ -19,8 +19,6 @@ import (
 	"context"
 	"time"
 
-	// first-party libraries
-
 	// this project
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
 	"github.com/linkall-labs/vanus/client/pkg/record"
