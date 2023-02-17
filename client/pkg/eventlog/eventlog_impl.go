@@ -15,25 +15,25 @@
 package eventlog
 
 import (
-	// standard libraries.
+	// standard libraries
 	"context"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"io"
 	"sort"
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/observability/tracing"
+	// third-party libraries
 	"go.opentelemetry.io/otel/trace"
 
-	// third-party libraries.
-	ce "github.com/cloudevents/sdk-go/v2"
+	// first-party libraries
+	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 
-	// this project.
+	// this project
 	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/record"
-	vlog "github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 const (
@@ -43,60 +43,60 @@ const (
 )
 
 func NewEventLog(cfg *el.Config) Eventlog {
-	log := &eventlog{
+	l := &eventlog{
 		cfg:         cfg,
 		nameService: el.NewNameService(cfg.Endpoints),
 		tracer: tracing.NewTracer("pkg.eventlog.impl",
 			trace.SpanKindClient),
 	}
 
-	log.writableWatcher = WatchWritableSegment(log)
-	log.readableWatcher = WatchReadableSegments(log)
+	l.writableWatcher = WatchWritableSegment(l)
+	l.readableWatcher = WatchReadableSegments(l)
 
 	go func() {
-		ch := log.writableWatcher.Chan()
+		ch := l.writableWatcher.Chan()
 		for {
 			r, ok := <-ch
 			if !ok {
-				vlog.Debug(context.Background(), "eventlog quits writable watcher", map[string]interface{}{
-					"eventlog": log.cfg.ID,
+				log.Debug(context.Background(), "eventlog quits writable watcher", map[string]interface{}{
+					"eventlog": l.cfg.ID,
 				})
 				break
 			}
 
-			ctx, span := log.tracer.Start(context.Background(), "updateReadableSegmentsTask")
+			ctx, span := l.tracer.Start(context.Background(), "updateReadableSegmentsTask")
 			if r != nil {
-				log.updateWritableSegment(ctx, r)
+				l.updateWritableSegment(ctx, r)
 			}
 
-			log.writableWatcher.Wakeup()
+			l.writableWatcher.Wakeup()
 			span.End()
 		}
 	}()
-	log.writableWatcher.Start()
+	l.writableWatcher.Start()
 
 	go func() {
-		ch := log.readableWatcher.Chan()
+		ch := l.readableWatcher.Chan()
 		for {
 			rs, ok := <-ch
 			if !ok {
-				vlog.Debug(context.Background(), "eventlog quits readable watcher", map[string]interface{}{
-					"eventlog": log.cfg.ID,
+				log.Debug(context.Background(), "eventlog quits readable watcher", map[string]interface{}{
+					"eventlog": l.cfg.ID,
 				})
 				break
 			}
-			ctx, span := log.tracer.Start(context.Background(), "updateReadableSegmentsTask")
+			ctx, span := l.tracer.Start(context.Background(), "updateReadableSegmentsTask")
 			if rs != nil {
-				log.updateReadableSegments(ctx, rs)
+				l.updateReadableSegments(ctx, rs)
 			}
 
-			log.readableWatcher.Wakeup()
+			l.readableWatcher.Wakeup()
 			span.End()
 		}
 	}()
-	log.readableWatcher.Start()
+	l.readableWatcher.Start()
 
-	return log
+	return l
 }
 
 type eventlog struct {
@@ -220,8 +220,8 @@ func (l *eventlog) updateWritableSegment(ctx context.Context, r *record.Segment)
 
 	segment, err := newSegment(ctx, r, true)
 	if err != nil {
-		vlog.Error(context.Background(), "new segment failed", map[string]interface{}{
-			vlog.KeyError: err,
+		log.Error(context.Background(), "new segment failed", map[string]interface{}{
+			log.KeyError: err,
 		})
 		return
 	}
@@ -280,6 +280,9 @@ func (l *eventlog) updateReadableSegments(ctx context.Context, rs []*record.Segm
 		}
 		if err != nil {
 			// FIXME: create or update segment failed
+			log.Debug(context.Background(), "update readable segment failed", map[string]interface{}{
+				"segment": segment.id,
+			})
 			continue
 		}
 		segments = append(segments, segment)
@@ -343,26 +346,26 @@ type logWriter struct {
 	mu   sync.RWMutex
 }
 
-func (w *logWriter) AppendMany(ctx context.Context, events *cloudevents.CloudEventBatch) (off int64, err error) {
+func (w *logWriter) Append(ctx context.Context, events *cloudevents.CloudEventBatch) (offs []int64, err error) {
 	retryTimes := defaultRetryTimes
 	for i := 1; i <= retryTimes; i++ {
-		offset, err := w.doAppendBatch(ctx, events)
+		offsets, err := w.doAppend(ctx, events)
 		if err == nil {
-			return offset, nil
+			return offsets, nil
 		}
-		vlog.Warning(ctx, "failed to Append", map[string]interface{}{
-			vlog.KeyError: err,
-			"offset":      offset,
+		if !errors.Is(err, errors.ErrSegmentFull) {
+			log.Error(ctx, "logwriter append failed", map[string]interface{}{
+				log.KeyError: err,
+			})
+			return nil, err
+		}
+		log.Debug(ctx, "logwriter append failed cause segment full", map[string]interface{}{
+			log.KeyError: err,
+			"offsets":    offsets,
+			"retry_time": i,
 		})
-		if errors.Is(err, errors.ErrSegmentFull) {
-			if i < retryTimes {
-				continue
-			}
-		}
-		return -1, err
 	}
-
-	return -1, errors.ErrUnknown
+	return nil, errors.ErrUnknown
 }
 
 func (w *logWriter) Log() Eventlog {
@@ -373,58 +376,19 @@ func (w *logWriter) Close(ctx context.Context) {
 	// TODO: by jiangkai, 2022.10.19
 }
 
-func (w *logWriter) Append(ctx context.Context, event *ce.Event) (int64, error) {
-	// TODO: async for throughput
-
-	retryTimes := defaultRetryTimes
-	for i := 1; i <= retryTimes; i++ {
-		offset, err := w.doAppend(ctx, event)
-		if err == nil {
-			return offset, nil
-		}
-		vlog.Warning(ctx, "failed to Append", map[string]interface{}{
-			vlog.KeyError: err,
-			"offset":      offset,
-		})
-		if errors.Is(err, errors.ErrSegmentFull) {
-			if i < retryTimes {
-				continue
-			}
-		}
-		return -1, err
-	}
-
-	return -1, errors.ErrUnknown
-}
-
-func (w *logWriter) doAppend(ctx context.Context, event *ce.Event) (int64, error) {
+func (w *logWriter) doAppend(ctx context.Context, event *cloudevents.CloudEventBatch) ([]int64, error) {
 	segment, err := w.selectWritableSegment(ctx)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
-	offset, err := segment.Append(ctx, event)
+	offsets, err := segment.Append(ctx, event)
 	if err != nil {
 		if errors.Is(err, errors.ErrSegmentFull) {
 			segment.SetNotWritable()
 		}
-		return -1, err
+		return nil, err
 	}
-	return offset, nil
-}
-
-func (w *logWriter) doAppendBatch(ctx context.Context, event *cloudevents.CloudEventBatch) (int64, error) {
-	segment, err := w.selectWritableSegment(ctx)
-	if err != nil {
-		return -1, err
-	}
-	offset, err := segment.AppendBatch(ctx, event)
-	if err != nil {
-		if errors.Is(err, errors.ErrSegmentFull) {
-			segment.SetNotWritable()
-		}
-		return -1, err
-	}
-	return offset, nil
+	return offsets, nil
 }
 
 func (w *logWriter) selectWritableSegment(ctx context.Context) (*segment, error) {
@@ -470,7 +434,7 @@ func (r *logReader) Close(ctx context.Context) {
 	// TODO: by jiangkai, 2022.10.19
 }
 
-func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
+func (r *logReader) Read(ctx context.Context, size int16) (*cloudevents.CloudEventBatch, error) {
 	if r.cur == nil {
 		segment, err := r.elog.selectReadableSegment(ctx, r.pos)
 		if errors.Is(err, errors.ErrOffsetOnEnd) {
@@ -494,7 +458,7 @@ func (r *logReader) Read(ctx context.Context, size int16) ([]*ce.Event, error) {
 		return nil, err
 	}
 
-	r.pos += int64(len(events))
+	r.pos += int64(len(events.Events))
 	if r.pos == r.cur.EndOffset() {
 		r.switchSegment(ctx)
 	}

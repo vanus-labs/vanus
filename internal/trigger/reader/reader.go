@@ -237,6 +237,6 @@ func (elReader *eventLogReader) putEvent(ctx context.Context, event info.EventRe
 func readEvents(ctx context.Context, lr api.BusReader) ([]*ce.Event, error) {
 	timeout, cancel := context.WithTimeout(ctx, readEventTimeout)
 	defer cancel()
-	events, _, _, err := lr.Read(timeout)
+	events, _, _, err := api.Read(timeout, lr)
 	return events, err
 }

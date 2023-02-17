@@ -30,6 +30,8 @@ import (
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	"github.com/linkall-labs/vanus/proto/pkg/codec"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	proxypb "github.com/linkall-labs/vanus/proto/pkg/proxy"
@@ -105,7 +107,11 @@ func TestControllerProxy_GetEvent(t *testing.T) {
 				"string": "string",
 			})
 			So(err, ShouldBeNil)
-			reader.EXPECT().Read(gomock.Any()).Times(2).Return([]*v2.Event{&e1}, int64(0), id, nil)
+			epb1, _ := codec.ToProto(&e1)
+			batchret := &cloudevents.CloudEventBatch{
+				Events: []*cloudevents.CloudEvent{epb1},
+			}
+			reader.EXPECT().Read(gomock.Any()).Times(2).Return(batchret, int64(0), id, nil)
 			res, err := cp.GetEvent(stdCtx.Background(), &proxypb.GetEventRequest{
 				Eventbus: "ut1",
 				Offset:   -123,
@@ -145,6 +151,7 @@ func TestControllerProxy_GetEvent(t *testing.T) {
 			})
 
 			events := make([]*v2.Event, maximumNumberPerGetRequest)
+			eventpbs := make([]*cloudevents.CloudEvent, maximumNumberPerGetRequest)
 			for idx := 0; idx < maximumNumberPerGetRequest; idx++ {
 				e := v2.NewEvent()
 				e.SetID(fmt.Sprintf("ut%d", idx))
@@ -159,9 +166,14 @@ func TestControllerProxy_GetEvent(t *testing.T) {
 				})
 				So(err, ShouldBeNil)
 				events[idx] = &e
+				epb, _ := codec.ToProto(&e)
+				eventpbs[idx] = epb
 			}
 
-			reader.EXPECT().Read(gomock.Any()).Times(1).Return(events, int64(1234), id, nil)
+			ret := &cloudevents.CloudEventBatch{
+				Events: eventpbs,
+			}
+			reader.EXPECT().Read(gomock.Any()).Times(1).Return(ret, int64(1234), id, nil)
 			res, err := cp.GetEvent(stdCtx.Background(), &proxypb.GetEventRequest{
 				Eventbus: "ut1",
 				Offset:   1234,
@@ -208,8 +220,11 @@ func TestControllerProxy_GetEvent(t *testing.T) {
 				"string": "string",
 			})
 			So(err, ShouldBeNil)
-
-			reader.EXPECT().Read(gomock.Any()).Times(1).Return([]*v2.Event{&e}, offset, id, nil)
+			epb1, _ := codec.ToProto(&e)
+			ret := &cloudevents.CloudEventBatch{
+				Events: []*cloudevents.CloudEvent{epb1},
+			}
+			reader.EXPECT().Read(gomock.Any()).Times(1).Return(ret, offset, id, nil)
 			res, err := cp.GetEvent(stdCtx.Background(), &proxypb.GetEventRequest{
 				Eventbus: "ut1",
 				EventId:  base64.StdEncoding.EncodeToString(b),
@@ -348,7 +363,11 @@ func TestControllerProxy_ValidateSubscription(t *testing.T) {
 			eb.EXPECT().ListLog(gomock.Any()).Times(1).Return([]api.Eventlog{nil}, nil)
 			rd := api.NewMockBusReader(ctrl)
 			eb.EXPECT().Reader(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(rd)
-			rd.EXPECT().Read(gomock.Any()).Times(1).Return([]*v2.Event{&e}, int64(0), uint64(0), nil)
+			epb, _ := codec.ToProto(&e)
+			ret := &cloudevents.CloudEventBatch{
+				Events: []*cloudevents.CloudEvent{epb},
+			}
+			rd.EXPECT().Read(gomock.Any()).Times(1).Return(ret, int64(0), uint64(0), nil)
 
 			// mock subscription
 			pb := &metapb.Subscription{

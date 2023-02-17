@@ -15,12 +15,14 @@
 package eventbus
 
 import (
-	// standard libraries.
+	// standard libraries
 	"context"
 	"time"
 
-	// this project.
+	// first-party libraries
+	"github.com/linkall-labs/vanus/observability/log"
 
+	// this project
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
 	"github.com/linkall-labs/vanus/client/pkg/record"
 )
@@ -47,6 +49,11 @@ func WatchWritableLogs(bus *eventbus) *WritableLogsWatcher {
 	ch := make(chan *WritableLogsResult, 1)
 	w := primitive.NewWatcher(30*time.Second, func() {
 		rs, err := bus.nameService.LookupWritableLogs(context.Background(), bus.cfg.Name)
+		log.Debug(context.Background(), "lookup writable logs", map[string]interface{}{
+			log.KeyError: err,
+			"eventbus":   bus.cfg.Name,
+			"logs":       rs,
+		})
 		ch <- &WritableLogsResult{
 			Eventlogs: rs,
 			Err:       err,
@@ -84,6 +91,11 @@ func WatchReadableLogs(bus *eventbus) *ReadableLogsWatcher {
 	ch := make(chan *ReadableLogsResult, 1)
 	w := primitive.NewWatcher(30*time.Second, func() {
 		rs, err := bus.nameService.LookupReadableLogs(context.Background(), bus.cfg.Name)
+		log.Debug(context.Background(), "lookup readable logs", map[string]interface{}{
+			log.KeyError: err,
+			"eventbus":   bus.cfg.Name,
+			"logs":       rs,
+		})
 		ch <- &ReadableLogsResult{
 			Eventlogs: rs,
 			Err:       err,

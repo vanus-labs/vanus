@@ -16,17 +16,15 @@
 package eventlog
 
 import (
-	// standard libraries.
+	// standard libraries
 	"context"
+
+	// third-party libraries
 	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-
-	// third-party libraries.
-	ce "github.com/cloudevents/sdk-go/v2"
-
-	// first-party libraries.
-	"github.com/linkall-labs/vanus/client/pkg/api"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
-	// this project.
+
+	// first-party libraries
+	"github.com/linkall-labs/vanus/client/pkg/api"
 )
 
 const (
@@ -50,8 +48,7 @@ type LogWriter interface {
 
 	Close(ctx context.Context)
 
-	Append(ctx context.Context, event *ce.Event) (off int64, err error)
-	AppendMany(ctx context.Context, events *cloudevents.CloudEventBatch) (off int64, err error)
+	Append(ctx context.Context, events *cloudevents.CloudEventBatch) (offs []int64, err error)
 }
 
 type LogReader interface {
@@ -60,7 +57,7 @@ type LogReader interface {
 	Close(ctx context.Context)
 
 	// TODO: async
-	Read(ctx context.Context, size int16) (events []*ce.Event, err error)
+	Read(ctx context.Context, size int16) (events *cloudevents.CloudEventBatch, err error)
 
 	// Seek sets the offset for the next Read to offset,
 	// interpreted according to whence.

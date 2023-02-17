@@ -443,7 +443,7 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 	for {
 		writeAttempt++
 		startTime := time.Now()
-		_, err := t.timerEventWriter.AppendOne(ctx, e)
+		_, err := api.AppendOne(ctx, t.timerEventWriter, e)
 		metrics.TriggerRetryEventAppendSecond.WithLabelValues(t.subscriptionIDStr).
 			Observe(time.Since(startTime).Seconds())
 		if err != nil {
@@ -478,7 +478,7 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 	for {
 		writeAttempt++
 		startTime := time.Now()
-		_, err := t.dlEventWriter.AppendOne(ctx, e)
+		_, err := api.AppendOne(ctx, t.dlEventWriter, e)
 		metrics.TriggerDeadLetterEventAppendSecond.WithLabelValues(t.subscriptionIDStr).
 			Observe(time.Since(startTime).Seconds())
 		if err != nil {

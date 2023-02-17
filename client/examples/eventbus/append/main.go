@@ -26,6 +26,8 @@ import (
 	"github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/option"
 	"github.com/linkall-labs/vanus/client/pkg/policy"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	"github.com/linkall-labs/vanus/proto/pkg/codec"
 )
 
 func main() {
@@ -42,7 +44,14 @@ func main() {
 	event.SetType("example.type")
 	event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world"})
 
-	eventID, err := w.AppendOne(ctx, &event, option.WithWritePolicy(policy.NewRoundRobinWritePolicy(bus)))
+	eventpb, err := codec.ToProto(&event)
+	if err != nil {
+		return
+	}
+	ceBatch := &cloudevents.CloudEventBatch{
+		Events: []*cloudevents.CloudEvent{eventpb},
+	}
+	eventID, err := w.Append(ctx, ceBatch, option.WithWritePolicy(policy.NewRoundRobinWritePolicy(bus)))
 	if err != nil {
 		log.Print(err.Error())
 	} else {

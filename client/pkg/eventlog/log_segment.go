@@ -15,28 +15,25 @@
 package eventlog
 
 import (
-	// standard libraries.
+	// standard libraries
 	"context"
 	"encoding/binary"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"math"
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/observability/tracing"
+	// third-party libraries
 	"go.opentelemetry.io/otel/trace"
-
-	// third-party libraries.
-	ce "github.com/cloudevents/sdk-go/v2"
 	"go.uber.org/atomic"
 
-	// first-party libraries.
+	// first-party libraries
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 
-	// this project.
-
+	// this project
 	"github.com/linkall-labs/vanus/client/pkg/record"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 func newSegment(ctx context.Context, r *record.Segment, towrite bool) (*segment, error) {
@@ -157,37 +154,25 @@ func (s *segment) Update(ctx context.Context, r *record.Segment, towrite bool) e
 	return nil
 }
 
-func (s *segment) Append(ctx context.Context, event *ce.Event) (int64, error) {
+func (s *segment) Append(ctx context.Context, event *cloudevents.CloudEventBatch) ([]int64, error) {
 	_ctx, span := s.tracer.Start(ctx, "Append")
 	defer span.End()
 
 	b := s.preferSegmentBlock()
 	if b == nil {
-		return -1, errors.ErrNotLeader
+		return nil, errors.ErrNotLeader
 	}
-	off, err := b.Append(_ctx, event)
+	offs, err := b.Append(_ctx, event)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
-	return off + s.startOffset, nil
+	for idx := range offs {
+		offs[idx] += s.startOffset
+	}
+	return offs, nil
 }
 
-func (s *segment) AppendBatch(ctx context.Context, event *cloudevents.CloudEventBatch) (int64, error) {
-	_ctx, span := s.tracer.Start(ctx, "AppendBatch")
-	defer span.End()
-
-	b := s.preferSegmentBlock()
-	if b == nil {
-		return -1, errors.ErrNotLeader
-	}
-	off, err := b.AppendBatch(_ctx, event)
-	if err != nil {
-		return -1, err
-	}
-	return off + s.startOffset, nil
-}
-
-func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
+func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeout uint32) (*cloudevents.CloudEventBatch, error) {
 	if from < s.startOffset {
 		return nil, errors.ErrOffsetUnderflow
 	}
@@ -212,20 +197,23 @@ func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeo
 		return nil, err
 	}
 
-	for _, e := range events {
-		v, ok := e.Extensions()[segpb.XVanusBlockOffset]
+	for _, e := range events.Events {
+		v, ok := e.Attributes[segpb.XVanusBlockOffset]
 		if !ok {
 			continue
 		}
-		off, ok := v.(int32)
+
+		_, ok = v.GetAttr().(*cloudevents.CloudEvent_CloudEventAttributeValue_CeInteger)
 		if !ok {
 			return events, errors.ErrCorruptedEvent
 		}
-		offset := s.startOffset + int64(off)
+		offset := s.startOffset + int64(v.GetCeInteger())
 		buf := make([]byte, 8)
 		binary.BigEndian.PutUint64(buf, uint64(offset))
-		e.SetExtension(XVanusLogOffset, buf)
-		e.SetExtension(segpb.XVanusBlockOffset, nil)
+		e.Attributes[XVanusLogOffset] = &cloudevents.CloudEvent_CloudEventAttributeValue{
+			Attr: &cloudevents.CloudEvent_CloudEventAttributeValue_CeBytes{CeBytes: buf},
+		}
+		delete(e.Attributes, segpb.XVanusBlockOffset)
 	}
 
 	return events, err

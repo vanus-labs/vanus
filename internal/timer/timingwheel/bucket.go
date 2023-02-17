@@ -349,7 +349,7 @@ func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
 	if !b.isLeader() {
 		return nil
 	}
-	_, err = b.eventbusWriter.AppendOne(ctx, tm.getEvent())
+	_, err = api.AppendOne(ctx, b.eventbusWriter, tm.getEvent())
 	if err != nil {
 		log.Error(ctx, "append event to failed", map[string]interface{}{
 			log.KeyError: err,
@@ -387,7 +387,7 @@ func (b *bucket) getEvent(ctx context.Context, number int16) (events []*ce.Event
 	}
 
 	readPolicy := option.WithReadPolicy(policy.NewManuallyReadPolicy(ls[0], b.offset))
-	events, _, _, err = b.eventbusReader.Read(ctx, readPolicy, option.WithBatchSize(int(number)))
+	events, _, _, err = api.Read(ctx, b.eventbusReader, readPolicy, option.WithBatchSize(int(number)))
 	if err != nil {
 		if !errors.Is(err, errors.ErrOffsetOnEnd) && !stderr.Is(ctx.Err(), context.Canceled) {
 			log.Error(ctx, "read failed", map[string]interface{}{

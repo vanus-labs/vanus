@@ -28,6 +28,8 @@ import (
 	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	"github.com/linkall-labs/vanus/proto/pkg/codec"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -52,7 +54,7 @@ func TestReaderStart(t *testing.T) {
 		mockEventlog.EXPECT().LatestOffset(Any()).AnyTimes().Return(offset, nil)
 		mockEventlog.EXPECT().EarliestOffset(Any()).AnyTimes().Return(offset, nil)
 		mockBusReader.EXPECT().Read(Any()).AnyTimes().DoAndReturn(
-			func(ctx context.Context, opts ...api.ReadOption) ([]*ce.Event, int64, uint64, error) {
+			func(ctx context.Context, opts ...api.ReadOption) (*cloudevents.CloudEventBatch, int64, uint64, error) {
 				time.Sleep(time.Millisecond)
 				e := ce.NewEvent()
 				e.SetID(uuid.NewString())
@@ -60,7 +62,11 @@ func TestReaderStart(t *testing.T) {
 				binary.BigEndian.PutUint64(buf, index)
 				e.SetExtension(eventlog.XVanusLogOffset, buf)
 				index++
-				return []*ce.Event{&e}, int64(0), uint64(0), nil
+				epb, _ := codec.ToProto(&e)
+				return &cloudevents.CloudEventBatch{
+					Events: []*cloudevents.CloudEvent{epb},
+				}, int64(0), uint64(0), nil
+				// return []*ce.Event{&e}, int64(0), uint64(0), nil
 			})
 		eventCh := make(chan info.EventRecord, 100)
 		r := NewReader(Config{EventBusName: "test", BatchSize: 1}, eventCh).(*reader)
