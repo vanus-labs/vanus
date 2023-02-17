@@ -118,3 +118,25 @@ var CapitalizeSentence = function{
 		return strings.ToUpper(string(value[0])) + value[1:], nil
 	},
 }
+
+var ReplaceBetweenDelimitersFunction = function{
+	name:		"REPLACE_BETWEEN_DELIMITERS",
+	fixedArgs:	[]common.Type{common.String, common.String, common.String, common.String},
+	fn:	func(args []interface{}) (interface{}, error) {
+		path, _ := args[0].(string)
+		startPattern := args[1].(string)
+		endPattern := args[2].(string)
+		newValue := args[3].(string)
+
+		if (strings.Contains(path, startPattern) && strings.Contains(path, endPattern)) {
+			firstSplit := strings.Split(path, startPattern)
+			secondSplit := strings.Split(firstSplit[1], endPattern)
+
+			secondSplit[0] = newValue
+
+			return firstSplit[0] + secondSplit[0] + secondSplit[1]
+		} else {
+			return nil, fmt.Errorf("the start and/or end pattern is not present in the input string")
+	},
+}
+
