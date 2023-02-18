@@ -134,9 +134,10 @@ var ReplaceBetweenDelimitersFunction = function{
 
 			secondSplit[0] = newValue
 
-			return firstSplit[0] + secondSplit[0] + secondSplit[1]
+			return firstSplit[0] + secondSplit[0] + secondSplit[1], nil
 		} else {
 			return nil, fmt.Errorf("the start and/or end pattern is not present in the input string")
+		}
 	},
 }
 
