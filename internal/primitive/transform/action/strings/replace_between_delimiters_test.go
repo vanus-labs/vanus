@@ -63,6 +63,6 @@ func TestReplaceBetweenDelimitersAction(t *testing.T) {
 			}
 			err = a.Execute(ceCtx)
 			So(err, ShouldNotBeNil)
-			So(e.Extensions()["test"], ShouldEqual, "the start and/or end pattern is not present in the input string")
+			So(e.Extensions()["test"], ShouldEqual, "Contributing to Vanus Opensource project is %%an eye opener%%!")
 		})
 }
