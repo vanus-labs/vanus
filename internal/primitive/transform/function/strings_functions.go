@@ -128,13 +128,15 @@ var ReplaceBetweenDelimitersFunction = function{
 		endPattern := args[2].(string)
 		newValue := args[3].(string)
 
-		if (strings.Contains(path, startPattern) && strings.Contains(path, endPattern)) {
+		if (startPattern != endPattern && strings.Contains(path, startPattern) && strings.Contains(path, endPattern)) {
 			firstSplit := strings.Split(path, startPattern)
 			secondSplit := strings.Split(firstSplit[1], endPattern)
-
-			secondSplit[0] = newValue
-
+			secondSplit[0] = startPattern + newValue + endPattern
 			return firstSplit[0] + secondSplit[0] + secondSplit[1], nil
+		} else if startPattern == endPattern && strings.Contains(path, startPattern) {
+			firstSplit := strings.Split(path, startPattern)
+			firstSplit[1] = startPattern + newValue + endPattern
+			return firstSplit[0] + firstSplit[1] + firstSplit[2], nil
 		} else {
 			return nil, fmt.Errorf("the start and/or end pattern is not present in the input string")
 		}
