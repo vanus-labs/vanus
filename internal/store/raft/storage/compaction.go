@@ -383,17 +383,18 @@ func (c *compactContext) stale() bool {
 	return c.toCompact > c.compacted || len(c.infos) != 0
 }
 
-func (c *compactContext) sync(ctx context.Context, stateStore *meta.SyncStore) {
+func (c *compactContext) sync(ctx context.Context, stateStore *meta.SyncStore) bool {
 	err := meta.BatchStore(ctx, stateStore, &compactMeta{
 		infos:  c.infos,
 		offset: c.toCompact,
 	})
 	if err != nil {
 		log.Warning(ctx, "sync compaction information failed", nil)
-		return
+		return false
 	}
 	c.compacted = c.toCompact
 	c.infos = make(logCompactInfos)
+	return true
 }
 
 func (w *WAL) runCompact() {
@@ -447,10 +448,10 @@ func (w *WAL) doCompact(ctx context.Context, cCtx *compactContext) {
 		})
 
 		// Store compacted info and offset.
-		cCtx.sync(ctx, w.stateStore)
-
-		// Compact underlying WAL.
-		_ = w.WAL.Compact(ctx, cCtx.compacted)
+		if cCtx.sync(ctx, w.stateStore) {
+			// Compact underlying WAL.
+			_ = w.WAL.Compact(ctx, cCtx.compacted)
+		}
 	}
 }
 
