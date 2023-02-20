@@ -214,7 +214,7 @@ func (cp *ControllerProxy) writeEvents(ctx context.Context,
 		val, _ = cp.writerMap.LoadOrStore(eventbusName, cp.client.Eventbus(ctx, eventbusName).Writer())
 	}
 	w, _ := val.(api.BusWriter)
-	err := w.AppendBatch(ctx, events)
+	_, err := w.Append(ctx, events)
 	if err != nil {
 		log.Warning(ctx, "append to failed", map[string]interface{}{
 			log.KeyError: err,
@@ -713,12 +713,12 @@ func (cp *ControllerProxy) GetEvent(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-
-	events, _, _, err := cp.client.Eventbus(ctx, req.GetEventbus()).Reader(
+	reader := cp.client.Eventbus(ctx, req.GetEventbus()).Reader(
 		option.WithDisablePolling(),
 		option.WithReadPolicy(policy.NewManuallyReadPolicy(ls[0], offset)),
 		option.WithBatchSize(int(num)),
-	).Read(ctx)
+	)
+	events, _, _, err := api.Read(ctx, reader)
 	if err != nil {
 		return nil, err
 	}
@@ -797,10 +797,11 @@ func (cp *ControllerProxy) getByEventID(ctx context.Context,
 		return nil, err
 	}
 
-	events, _, _, err := cp.client.Eventbus(ctx, req.GetEventbus()).Reader(
+	reader := cp.client.Eventbus(ctx, req.GetEventbus()).Reader(
 		option.WithReadPolicy(policy.NewManuallyReadPolicy(l, off)),
 		option.WithDisablePolling(),
-	).Read(ctx)
+	)
+	events, _, _, err := api.Read(ctx, reader)
 	if err != nil {
 		return nil, err
 	}

@@ -28,6 +28,8 @@ import (
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/pkg/cluster"
 	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	"github.com/linkall-labs/vanus/proto/pkg/codec"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -135,8 +137,6 @@ func TestBucket_run(t *testing.T) {
 		bucket.client = mockClient
 		tw.client = mockClient
 		tw.distributionStation.eventbusWriter = mockBusWriter
-		events := make([]*ce.Event, 1)
-		events[0] = event(0)
 		for e := tw.twList.Front(); e != nil; e = e.Next() {
 			for _, bucket := range e.Value.(*timingWheelElement).buckets {
 				bucket.eventbusWriter = mockBusWriter
@@ -147,9 +147,9 @@ func TestBucket_run(t *testing.T) {
 
 		Convey("get event failed", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), stderr.New("test"))
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(0), int64(0), uint64(0), stderr.New("test"))
 			go func() {
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(200 * time.Millisecond)
 				cancel()
 			}()
 			bucket.run(ctx)
@@ -158,7 +158,7 @@ func TestBucket_run(t *testing.T) {
 
 		Convey("get event on end", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), errors.ErrOffsetOnEnd)
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(0), int64(0), uint64(0), errors.ErrOffsetOnEnd)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
@@ -169,7 +169,7 @@ func TestBucket_run(t *testing.T) {
 
 		Convey("bucket exit", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), errors.ErrOffsetOnEnd)
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(0), int64(0), uint64(0), errors.ErrOffsetOnEnd)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				close(bucket.exitC)
@@ -180,8 +180,8 @@ func TestBucket_run(t *testing.T) {
 
 		Convey("push failed", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
-			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", stderr.New("test"))
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(0), int64(0), uint64(0), nil)
+			mockBusWriter.EXPECT().Append(Any(), Any()).AnyTimes().Return([]string{""}, stderr.New("test"))
 			mockStoreCli.EXPECT().Set(Any(), Any(), Any()).AnyTimes().Return(nil)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
@@ -192,14 +192,13 @@ func TestBucket_run(t *testing.T) {
 		})
 
 		Convey("flow failed", func() {
-			events[0] = event(1000)
 			bucket.layer = 2
 			bucket.waitingForReady = bucket.waitingForFlow
 			bucket.eventHandler = bucket.pushToPrevTimingWheel
 			bucket.element = tw.twList.Front().Next()
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
-			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", stderr.New("test"))
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(1000), int64(0), uint64(0), nil)
+			mockBusWriter.EXPECT().Append(Any(), Any()).AnyTimes().Return([]string{""}, stderr.New("test"))
 			mockStoreCli.EXPECT().Set(Any(), Any(), Any()).AnyTimes().Return(nil)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
@@ -210,14 +209,13 @@ func TestBucket_run(t *testing.T) {
 		})
 
 		Convey("flow success", func() {
-			events[0] = event(1000)
 			bucket.layer = 2
 			bucket.waitingForReady = bucket.waitingForFlow
 			bucket.eventHandler = bucket.pushToPrevTimingWheel
 			bucket.element = tw.twList.Front().Next()
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
-			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", nil)
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(1000), int64(0), uint64(0), nil)
+			mockBusWriter.EXPECT().Append(Any(), Any()).AnyTimes().Return([]string{""}, nil)
 			mockStoreCli.EXPECT().Set(Any(), Any(), Any()).AnyTimes().Return(nil)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
@@ -229,8 +227,8 @@ func TestBucket_run(t *testing.T) {
 
 		Convey("push success", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
-			mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", nil)
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(1000), int64(0), uint64(0), nil)
+			mockBusWriter.EXPECT().Append(Any(), Any()).AnyTimes().Return([]string{""}, nil)
 			mockStoreCli.EXPECT().Set(Any(), Any(), Any()).AnyTimes().Return(nil)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
@@ -329,10 +327,8 @@ func TestBucket_getEvent(t *testing.T) {
 		bucket.client = mockClient
 
 		Convey("test bucket get event success", func() {
-			events := make([]*ce.Event, 1)
-			events[0] = event(10000)
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(10000), int64(0), uint64(0), nil)
 			result, err := bucket.getEvent(ctx, 1)
 			So(len(result), ShouldEqual, 0)
 			So(err, ShouldNotBeNil)
@@ -349,10 +345,8 @@ func TestBucket_getEvent(t *testing.T) {
 
 		Convey("test bucket get event failed", func() {
 			tw.SetLeader(true)
-			events := make([]*ce.Event, 1)
-			events[0] = event(10000)
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), stderr.New("test"))
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(10000), int64(0), uint64(0), stderr.New("test"))
 			_, err := bucket.getEvent(ctx, 1)
 			So(err, ShouldNotBeNil)
 		})
@@ -477,8 +471,6 @@ func TestBucket_hasOnEnd(t *testing.T) {
 		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
 		mockStoreCli := kv.NewMockClient(mockCtrl)
 		bucket.kvStore = mockStoreCli
-		events := make([]*ce.Event, 1)
-		events[0] = event(0)
 
 		Convey("test bucket has on end1", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, stderr.New("test"))
@@ -489,7 +481,7 @@ func TestBucket_hasOnEnd(t *testing.T) {
 
 		Convey("test bucket has on end2", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(0), int64(0), uint64(0), nil)
 			mockStoreCli.EXPECT().Get(Any(), Any()).Times(1).Return([]byte{}, stderr.New("test"))
 			ret := bucket.hasOnEnd(ctx)
 			So(ret, ShouldBeFalse)
@@ -497,7 +489,7 @@ func TestBucket_hasOnEnd(t *testing.T) {
 
 		Convey("test bucket has on end3", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(events, int64(0), uint64(0), nil)
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(0), int64(0), uint64(0), nil)
 			mockStoreCli.EXPECT().Get(Any(), Any()).Times(1).Return([]byte{}, nil)
 			ret := bucket.hasOnEnd(ctx)
 			So(ret, ShouldBeTrue)
@@ -558,4 +550,16 @@ func event(i int64) *ce.Event {
 	e.SetExtension(xVanusDeliveryTime, t)
 	e.SetExtension(xVanusEventbus, "quick-start")
 	return &e
+}
+
+func batch(i int64) *cloudevents.CloudEventBatch {
+	e := ce.NewEvent()
+	t := time.Now().Add(time.Duration(i) * time.Millisecond).UTC().Format(time.RFC3339)
+	e.SetExtension(xVanusDeliveryTime, t)
+	e.SetExtension(xVanusEventbus, "quick-start")
+	events := make([]*cloudevents.CloudEvent, 1)
+	events[0], _ = codec.ToProto(&e)
+	return &cloudevents.CloudEventBatch{
+		Events: events,
+	}
 }

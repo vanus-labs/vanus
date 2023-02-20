@@ -15,33 +15,31 @@
 package eventbus
 
 import (
-	// standard libraries.
+	// standard libraries
 	"context"
 	"encoding/base64"
 	"encoding/binary"
 	stderrors "errors"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"io"
 	"sync"
 
-	"github.com/linkall-labs/vanus/observability/tracing"
+	// third-party libraries
+
+	"github.com/scylladb/go-set/u64set"
 	"go.opentelemetry.io/otel/trace"
 
-	// third-party libraries.
-	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/scylladb/go-set/u64set"
-
 	// first-party libraries
+	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 
-	// this project.
+	// this project
+	eb "github.com/linkall-labs/vanus/client/internal/vanus/eventbus"
+	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/policy"
-	vlog "github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/errors"
-
-	eb "github.com/linkall-labs/vanus/client/internal/vanus/eventbus"
-	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
 )
 
 func NewEventbus(cfg *eb.Config) *eventbus {
@@ -67,7 +65,7 @@ func NewEventbus(cfg *eb.Config) *eventbus {
 		for {
 			re, ok := <-ch
 			if !ok {
-				vlog.Debug(context.Background(), "eventbus quits writable watcher", map[string]interface{}{
+				log.Debug(context.Background(), "eventbus quits writable watcher", map[string]interface{}{
 					"eventbus": bus.cfg.Name,
 				})
 				break
@@ -89,7 +87,7 @@ func NewEventbus(cfg *eb.Config) *eventbus {
 		for {
 			re, ok := <-ch
 			if !ok {
-				vlog.Debug(context.Background(), "eventbus quits readable watcher", map[string]interface{}{
+				log.Debug(context.Background(), "eventbus quits readable watcher", map[string]interface{}{
 					"eventbus": bus.cfg.Name,
 				})
 				break
@@ -188,16 +186,16 @@ func (b *eventbus) GetLog(ctx context.Context, logID uint64, opts ...api.LogOpti
 		if len(b.readableLogs) == 0 {
 			b.refreshReadableLogs(ctx)
 		}
-		if log, ok := b.readableLogs[logID]; ok {
-			return log, nil
+		if l, ok := b.readableLogs[logID]; ok {
+			return l, nil
 		}
 		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
 	} else if op.Policy.AccessMode() == api.ReadWrite {
 		if len(b.writableLogs) == 0 {
 			b.refreshWritableLogs(ctx)
 		}
-		if log, ok := b.writableLogs[logID]; ok {
-			return log, nil
+		if l, ok := b.writableLogs[logID]; ok {
+			return l, nil
 		}
 		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
 	} else {
@@ -311,8 +309,7 @@ func (b *eventbus) updateWritableLogs(ctx context.Context, re *WritableLogsResul
 			Endpoints: b.cfg.Endpoints,
 			ID:        logID,
 		}
-		log := eventlog.NewEventLog(cfg)
-		lws[logID] = log
+		lws[logID] = eventlog.NewEventLog(cfg)
 		return true
 	})
 	b.setWritableLogs(s, lws)
@@ -404,8 +401,7 @@ func (b *eventbus) updateReadableLogs(ctx context.Context, re *ReadableLogsResul
 			Endpoints: b.cfg.Endpoints,
 			ID:        logID,
 		}
-		log := eventlog.NewEventLog(cfg)
-		lws[logID] = log
+		lws[logID] = eventlog.NewEventLog(cfg)
 		return true
 	})
 	b.setReadableLogs(s, lws)
@@ -446,33 +442,10 @@ type busWriter struct {
 	tracer *tracing.Tracer
 }
 
-func (w *busWriter) AppendBatch(ctx context.Context, events *cloudevents.CloudEventBatch, opts ...api.WriteOption) (err error) {
-	_ctx, span := w.tracer.Start(ctx, "CloudEventBatch")
-	defer span.End()
-
-	var writeOpts = w.opts
-	if len(opts) > 0 {
-		writeOpts = w.opts.Copy()
-		for _, opt := range opts {
-			opt(writeOpts)
-		}
-	}
-
-	// 1. pick a writer of eventlog
-	lw, err := w.pickWritableLog(_ctx, writeOpts)
-	if err != nil {
-		return err
-	}
-
-	// 2. append the event to the eventlog
-	_, err = lw.AppendMany(_ctx, events)
-	return err
-}
-
 var _ api.BusWriter = (*busWriter)(nil)
 
-func (w *busWriter) AppendOne(ctx context.Context, event *ce.Event, opts ...api.WriteOption) (eid string, err error) {
-	_ctx, span := w.tracer.Start(ctx, "AppendOne")
+func (w *busWriter) Append(ctx context.Context, events *cloudevents.CloudEventBatch, opts ...api.WriteOption) (eids []string, err error) {
+	_ctx, span := w.tracer.Start(ctx, "Append")
 	defer span.End()
 
 	var writeOpts = w.opts
@@ -486,27 +459,29 @@ func (w *busWriter) AppendOne(ctx context.Context, event *ce.Event, opts ...api.
 	// 1. pick a writer of eventlog
 	lw, err := w.pickWritableLog(_ctx, writeOpts)
 	if err != nil {
-		return "", err
+		log.Error(context.Background(), "pick writable log failed", map[string]interface{}{
+			log.KeyError: err,
+			"eventbus":   w.ebus.Name(),
+		})
+		return nil, err
 	}
 
 	// 2. append the event to the eventlog
-	off, err := lw.Append(_ctx, event)
+	offsets, err := lw.Append(_ctx, events)
 	if err != nil {
-		return "", err
+		log.Error(context.Background(), "logwriter append failed", map[string]interface{}{
+			log.KeyError:  err,
+			"eventbus":    w.ebus.Name(),
+			"eventlog-id": lw.Log().ID(),
+		})
+		return nil, err
 	}
 
-	// 3. generate event ID
-	var buf [16]byte
-	binary.BigEndian.PutUint64(buf[0:8], lw.Log().ID())
-	binary.BigEndian.PutUint64(buf[8:16], uint64(off))
-	encoded := base64.StdEncoding.EncodeToString(buf[:])
-
-	return encoded, nil
-}
-
-func (w *busWriter) AppendMany(ctx context.Context, events []*ce.Event, opts ...api.WriteOption) (eid string, err error) {
-	// TODO(jiangkai): implement this method, by jiangkai, 2022.10.24
-	return "", nil
+	eventIDs := make([]string, len(offsets))
+	for idx := range offsets {
+		eventIDs[idx] = genEventID(lw.Log().ID(), offsets[idx])
+	}
+	return eventIDs, nil
 }
 
 func (w *busWriter) Bus() api.Eventbus {
@@ -517,17 +492,25 @@ func (w *busWriter) pickWritableLog(ctx context.Context, opts *api.WriteOptions)
 	_ctx, span := w.tracer.Start(ctx, "pickWritableLog")
 	defer span.End()
 
-	log, err := opts.Policy.NextLog(ctx)
+	l, err := opts.Policy.NextLog(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	l := w.ebus.getWritableLog(_ctx, log.ID())
-	if l == nil {
+	lw := w.ebus.getWritableLog(_ctx, l.ID())
+	if lw == nil {
 		return nil, stderrors.New("can not pick writable log")
 	}
 
-	return l.Writer(), nil
+	return lw.Writer(), nil
+}
+
+func genEventID(logID uint64, off int64) string {
+	var buf [16]byte
+	binary.BigEndian.PutUint64(buf[0:8], logID)
+	binary.BigEndian.PutUint64(buf[8:16], uint64(off))
+	encoded := base64.StdEncoding.EncodeToString(buf[:])
+	return encoded
 }
 
 type busReader struct {
@@ -538,7 +521,7 @@ type busReader struct {
 
 var _ api.BusReader = (*busReader)(nil)
 
-func (r *busReader) Read(ctx context.Context, opts ...api.ReadOption) ([]*ce.Event, int64, uint64, error) {
+func (r *busReader) Read(ctx context.Context, opts ...api.ReadOption) (events *cloudevents.CloudEventBatch, off int64, logid uint64, err error) {
 	_ctx, span := r.tracer.Start(ctx, "Read")
 	defer span.End()
 
@@ -553,19 +536,27 @@ func (r *busReader) Read(ctx context.Context, opts ...api.ReadOption) ([]*ce.Eve
 	// 1. pick a reader of eventlog
 	lr, err := r.pickReadableLog(_ctx, readOpts)
 	if err != nil {
-		return []*ce.Event{}, 0, 0, err
+		log.Error(context.Background(), "pick readable log failed", map[string]interface{}{
+			log.KeyError: err,
+			"eventbus":   r.ebus.Name(),
+		})
+		return nil, 0, 0, err
 	}
 
 	// TODO(jiangkai): refactor eventlog interface to avoid seek every time, by jiangkai, 2022.10.24
-	off, err := lr.Seek(_ctx, readOpts.Policy.Offset(), io.SeekStart)
+	off, err = lr.Seek(_ctx, readOpts.Policy.Offset(), io.SeekStart)
 	if err != nil {
-		return []*ce.Event{}, 0, 0, err
+		log.Error(context.Background(), "seek offset failed", map[string]interface{}{
+			log.KeyError: err,
+			"eventbus":   r.ebus.Name(),
+		})
+		return nil, 0, 0, err
 	}
 
 	// 2. read the event to the eventlog
-	events, err := lr.Read(_ctx, int16(readOpts.BatchSize))
+	events, err = lr.Read(_ctx, int16(readOpts.BatchSize))
 	if err != nil {
-		return []*ce.Event{}, 0, 0, err
+		return nil, 0, 0, err
 	}
 	return events, off, lr.Log().ID(), nil
 }
@@ -578,11 +569,11 @@ func (r *busReader) pickReadableLog(ctx context.Context, opts *api.ReadOptions) 
 	_ctx, span := r.tracer.Start(ctx, "pickReadableLog")
 	defer span.End()
 
-	log, err := opts.Policy.NextLog(ctx)
+	l, err := opts.Policy.NextLog(ctx)
 	if err != nil {
 		return nil, err
 	}
-	lr := r.ebus.getReadableLog(_ctx, log.ID())
+	lr := r.ebus.getReadableLog(_ctx, l.ID())
 	if lr == nil {
 		return nil, stderrors.New("can not pick readable log")
 	}

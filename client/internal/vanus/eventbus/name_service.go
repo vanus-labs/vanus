@@ -17,17 +17,20 @@ package eventbus
 import (
 	// standard libraries
 	"context"
-	"github.com/linkall-labs/vanus/pkg/cluster"
 
-	"github.com/linkall-labs/vanus/observability/tracing"
+	// third-party libraries
 	"go.opentelemetry.io/otel/trace"
-
 	"google.golang.org/grpc/credentials/insecure"
 
 	// first-party libraries
-	"github.com/linkall-labs/vanus/client/pkg/record"
+	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/linkall-labs/vanus/observability/tracing"
+	"github.com/linkall-labs/vanus/pkg/cluster"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
+
+	// this project
+	"github.com/linkall-labs/vanus/client/pkg/record"
 )
 
 func NewNameService(endpoints []string) *NameService {
@@ -51,8 +54,11 @@ func (ns *NameService) LookupWritableLogs(ctx context.Context, eventbus string) 
 	}
 
 	resp, err := ns.client.GetEventBus(ctx, req)
-
 	if err != nil {
+		log.Error(context.Background(), "get eventbus failed", map[string]interface{}{
+			log.KeyError: err,
+			"eventbus":   eventbus,
+		})
 		return nil, err
 	}
 	return toLogs(resp.GetLogs()), nil
@@ -68,6 +74,10 @@ func (ns *NameService) LookupReadableLogs(ctx context.Context, eventbus string) 
 
 	resp, err := ns.client.GetEventBus(ctx, req)
 	if err != nil {
+		log.Error(context.Background(), "get eventbus failed", map[string]interface{}{
+			log.KeyError: err,
+			"eventbus":   eventbus,
+		})
 		return nil, err
 	}
 

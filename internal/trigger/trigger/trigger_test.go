@@ -34,6 +34,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/client"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/reader"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -124,13 +125,13 @@ func TestTriggerWriteFailEvent(t *testing.T) {
 		tg.dlEventWriter = mockBusWriter
 		tg.timerEventWriter = mockBusWriter
 		var callCount int
-		mockBusWriter.EXPECT().AppendOne(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(context.Context,
-			*ce.Event, ...api.WriteOption) (string, error) {
+		mockBusWriter.EXPECT().Append(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(context.Context,
+			*cloudevents.CloudEventBatch, ...api.WriteOption) ([]string, error) {
 			callCount++
 			if callCount%2 != 0 {
-				return "", fmt.Errorf("append error")
+				return []string{""}, fmt.Errorf("append error")
 			}
-			return "", nil
+			return []string{""}, nil
 		})
 		Convey("test no need retry,in dlq", func() {
 			tg.writeFailEvent(ctx, e.Event, 400, fmt.Errorf("400 error"))

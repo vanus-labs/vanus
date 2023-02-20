@@ -133,11 +133,12 @@ func Recover(
 		nodeID := vanus.NewIDFromUint64(id)
 		storage.wal = wal2
 		// TODO(james.yin): move to compaction.go
+		var off int64
 		if storage.length() != 0 {
-			off := storage.offs[1]
+			off = storage.offs[1]
 			storage.offs[0] = off
-			wal2.recoverNode(nodeID, off)
 		}
+		wal2.recoverNode(nodeID, off)
 		storages[nodeID] = storage
 	}
 

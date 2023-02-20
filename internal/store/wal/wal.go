@@ -90,6 +90,11 @@ func open(ctx context.Context, dir string, cfg config) (*WAL, error) {
 		off += padding
 	}
 
+	log.Info(ctx, "Checking wal is done.", map[string]interface{}{
+		"dir": dir,
+		"off": off,
+	})
+
 	scheduler := stream.NewScheduler(cfg.engine, cfg.streamSchedulerOptions()...)
 	s := scheduler.Register(sf, off, true)
 

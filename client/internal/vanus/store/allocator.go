@@ -15,15 +15,15 @@
 package store
 
 import (
+	// standard libraries
 	"context"
-
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"go.opentelemetry.io/otel/trace"
-
-	// standard libraries.
 	"sync"
 
-	// this project.
+	// third-party libraries
+	"go.opentelemetry.io/otel/trace"
+
+	// first-party libraries
+	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/pkg/errors"
 )
 

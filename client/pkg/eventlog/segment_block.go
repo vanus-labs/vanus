@@ -15,17 +15,17 @@
 package eventlog
 
 import (
-	// third-party libraries
+	// standard libraries
 	"context"
 	"time"
 
-	ce "github.com/cloudevents/sdk-go/v2"
+	// first-party libraries
+	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 
 	// this project
 	"github.com/linkall-labs/vanus/client/internal/vanus/store"
 	"github.com/linkall-labs/vanus/client/pkg/record"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 )
 
 func newBlock(ctx context.Context, r *record.Block) (*block, error) {
@@ -53,22 +53,20 @@ func (s *block) LookupOffset(ctx context.Context, t time.Time) (int64, error) {
 	return s.store.LookupOffset(ctx, s.id, t)
 }
 
-func (s *block) Append(ctx context.Context, event *ce.Event) (int64, error) {
+func (s *block) Append(ctx context.Context, event *cloudevents.CloudEventBatch) ([]int64, error) {
 	return s.store.Append(ctx, s.id, event)
 }
 
-func (s *block) AppendBatch(ctx context.Context, event *cloudevents.CloudEventBatch) (int64, error) {
-	return s.store.AppendBatch(ctx, s.id, event)
-}
-
-func (s *block) Read(ctx context.Context, offset int64, size int16, pollingTimeout uint32) ([]*ce.Event, error) {
+func (s *block) Read(ctx context.Context, offset int64, size int16, pollingTimeout uint32) (*cloudevents.CloudEventBatch, error) {
 	if offset < 0 {
 		return nil, errors.ErrOffsetUnderflow
 	}
 	if size > 0 {
 		// doRead
 	} else if size == 0 {
-		return make([]*ce.Event, 0), nil
+		return &cloudevents.CloudEventBatch{
+			Events: []*cloudevents.CloudEvent{},
+		}, nil
 	} else if size < 0 {
 		return nil, errors.ErrInvalidArgument
 	}

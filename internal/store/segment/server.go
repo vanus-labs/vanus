@@ -554,11 +554,9 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 		metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr(), metrics.LabelFailed).Add(float64(len(events)))
 		metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr(), metrics.LabelFailed).Add(float64(size))
 		return nil, s.processAppendError(ctx, b, err)
-	} else {
-		metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr(), metrics.LabelSuccess).Add(float64(len(events)))
-		metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr(), metrics.LabelSuccess).Add(float64(size))
 	}
-
+	metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr(), metrics.LabelSuccess).Add(float64(len(events)))
+	metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr(), metrics.LabelSuccess).Add(float64(size))
 	return seqs, nil
 }
 
