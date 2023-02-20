@@ -25,8 +25,13 @@ type Queue[T any] struct {
 	sem sync.Semaphore
 }
 
-func New[T any]() *Queue[T] {
+func New[T any](handoff bool) *Queue[T] {
 	return new(Queue[T])
+}
+
+func (q *Queue[T]) Init(handoff bool) *Queue[T] {
+	q.sem.Init(handoff)
+	return q
 }
 
 func (q *Queue[T]) Close() {

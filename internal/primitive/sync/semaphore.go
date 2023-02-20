@@ -19,7 +19,13 @@ import (
 )
 
 type Semaphore struct {
-	sem uint32
+	sem     uint32
+	handoff bool
+}
+
+func (s *Semaphore) Init(handoff bool) *Semaphore {
+	s.handoff = handoff
+	return s
 }
 
 func (s *Semaphore) Acquire() {
@@ -27,7 +33,7 @@ func (s *Semaphore) Acquire() {
 }
 
 func (s *Semaphore) Release() {
-	semrelease(&s.sem, false, 0)
+	semrelease(&s.sem, s.handoff, 0)
 }
 
 //go:linkname semacquire sync.runtime_Semacquire
