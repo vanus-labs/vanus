@@ -26,6 +26,7 @@ import (
 
 	embedetcd "github.com/linkall-labs/embed-etcd"
 	eb "github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/internal/controller/member"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
@@ -54,10 +55,10 @@ const (
 	defaultGcSubscriptionInterval = time.Second * 10
 )
 
-func NewController(config Config, member embedetcd.Member) *controller {
+func NewController(config Config, mem member.Member) *controller {
 	ctrl := &controller{
 		config:                config,
-		member:                member,
+		member:                mem,
 		needCleanSubscription: map[vanus.ID]string{},
 		state:                 primitive.ServerStateCreated,
 		cl:                    cluster.NewClusterController(config.ControllerAddr, insecure.NewCredentials()),
@@ -69,7 +70,7 @@ func NewController(config Config, member embedetcd.Member) *controller {
 
 type controller struct {
 	config                Config
-	member                embedetcd.Member
+	member                member.Member
 	storage               storage.Storage
 	secretStorage         secret.Storage
 	subscriptionManager   subscription.Manager
@@ -531,7 +532,7 @@ func (ctrl *controller) init(ctx context.Context) error {
 }
 
 func (ctrl *controller) membershipChangedProcessor(ctx context.Context,
-	event embedetcd.MembershipChangedEvent) error {
+	event member.MembershipChangedEvent) error {
 	ctrl.membershipMutex.Lock()
 	defer ctrl.membershipMutex.Unlock()
 	switch event.Type {
@@ -621,7 +622,9 @@ func (ctrl *controller) initTriggerSystemEventbus() {
 		log.Info(ctx, "trigger controller is ready to check system eventbus", nil)
 		if err := ctrl.cl.WaitForControllerReady(true); err != nil {
 			log.Error(ctx, "trigger controller try to create system eventbus, "+
-				"but Vanus cluster hasn't ready, exit", nil)
+				"but Vanus cluster hasn't ready, exit", map[string]interface{}{
+				log.KeyError: err,
+			})
 			os.Exit(-1)
 		}
 

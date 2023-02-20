@@ -21,9 +21,9 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/eventlog"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/linkall-labs/vanus/internal/controller/member"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -45,7 +45,7 @@ func TestController_CreateEventBus(t *testing.T) {
 		ctrl.eventLogMgr = elMgr
 		ctx := stdCtx.Background()
 
-		mockMember := embedetcd.NewMockMember(mockCtrl)
+		mockMember := member.NewMockMember(mockCtrl)
 		ctrl.member = mockMember
 		mockMember.EXPECT().IsLeader().AnyTimes().Return(true)
 		mockMember.EXPECT().IsReady().AnyTimes().Return(true)

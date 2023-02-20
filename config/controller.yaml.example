@@ -11,17 +11,8 @@ topology:
 replicas: 1
 metadata:
   key_prefix: "/vanus"
-embed_etcd:
-  # relative path to ${data_dir} above
-  data_dir: "etcd"
-  listen_client_addr: 127.0.0.1:2379
-  listen_peer_addr: 127.0.0.1:2380
-  advertise_client_addr: 127.0.0.1:2379
-  advertise_peer_addr: 127.0.0.1:2380
-  heartbeat-interval: 600000
-  election-timeout: 600000
-  clusters:
-    - test-1=http://127.0.0.1:2380
+leaderelection:
+  lease_duration: 15
 secret_encryption_salt: "encryption_salt"
 observability:
   metrics:
