@@ -26,6 +26,8 @@ import (
 )
 
 func init() {
+	// Register the convert_timezone function by calling the RegisterStringAction function:
+	registry.RegisterStringAction("convert_timezone", strings.ConvertTimezone)
 	for _, fn := range []newAction{
 		// struct
 		structs.NewCreateAction,
@@ -66,4 +68,5 @@ func init() {
 			panic(err)
 		}
 	}
+	 
 }
