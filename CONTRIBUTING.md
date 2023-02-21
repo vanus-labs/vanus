@@ -1,7 +1,11 @@
 # How about contributing to Vanus
 
-Thanks for your focus on how to contribute to Vanus, we expect meet to you in Vanus Community. Any contributions including but 
-not only like submit issue/codebase/docs/tests/blogs are welcomed. Contributions to Vanus project are expected to adhere our
+Thank you for focusing on how to contribute to Vanus, we expect to meet you in Vanus Community. All contributions including: 
+- submitting an issue
+- reviewing the codebase for bugs
+- writing documentations
+- writing tests
+- publishing blogpost about Vanus, are welcomed. Contributions to Vanus project are expected to adhere our
 [Code of Conduct](CODE-OF-CONDUCT.md).
 
 This document outlines some conventions about development workflow, commit message formatting, contact points and other
@@ -43,10 +47,10 @@ Vanus is a k8s based project.
 Click [here](#) for details.
 
 ## Issues
-After set up done, the next step is to choose an issue to address. Issues are all problems of Vanus that need to be addressed.
+After set up is done, the next step is to choose an open issue to address. Issues are all problems of Vanus that need to be addressed.
 
 ### Choosing
-You can find all issues in [vanus-issues](https://github.com/linkall-labs/vanus/issues) and choose one which isn't
+You can find all open issues in [vanus-issues](https://github.com/linkall-labs/vanus/issues) and choose one which isn't
 assigned to someone.
 
 #### First Contribution
@@ -55,12 +59,11 @@ You can start by finding existing issues with the
 These issues are well suited for a new contributor.
 
 #### Further Contributions
-After your first contribution was done, you cloud choose other issues you are interested in to continue contributing. You also
+After your first contribution is done, you could choose other issues you are interested in to continue contributing. You also
 could create a PR directly to Vanus for fixing or improving.
 
 ### Submit an Issue
-Submitting an issue to Vanus is a pretty important contribution. Each issue whatever which about bug/feature request/improvement/
-blog/looking for help/confusing is ESSENTIAL for making Vanus greater.
+Submitting any issue to Vanus is an important contribution. All issues(bug, feature request, improvement, blog, looking for help, confusing, etc), is ESSENTIAL for making Vanus better.
 
 You could click the `New issue` button in (issues sub-page)[https://github.com/linkall-labs/vanus/issues] of Vanus project to 
 submit an issue for us.
@@ -70,7 +73,7 @@ After your work is done, you can create a `Pull Request` by clicking the `New pu
 [pull requests](https://github.com/linkall-labs/vanus/pulls) page to submit your contribution to Vanus.
 More about `Pull Request` you can find [here](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests).
 
-There are some constraints that in order to save reviewer's time you need to pay attention to.
+There are some constraints you need to pay attention to, in order to save reviewer's time.
 
 ### Style
 We strictly check PR title's style. The PR's title follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)
