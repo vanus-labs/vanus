@@ -64,6 +64,23 @@ func TestCheckCustomValuesAction(t *testing.T) {
 		So(ok, ShouldBeTrue)
 		So(res, ShouldEqual, "false")
 	})
+	Convey("contains, replacement int", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.data.source", "value", "$.data.target", 1, 0})
+		So(err, ShouldBeNil)
+		e := cetest.MinEvent()
+		var data map[string]interface{}
+		err = json.Unmarshal([]byte(jsonStr), &data)
+		So(err, ShouldBeNil)
+		ceCtx := &context.EventContext{
+			Event: &e,
+			Data:  data,
+		}
+		err = a.Execute(ceCtx)
+		So(err, ShouldBeNil)
+		res, ok := data["target"]
+		So(ok, ShouldBeTrue)
+		So(res, ShouldEqual, 1)
+	})
 	Convey("source don't exist, runArgs error", t, func() {
 		a, err := runtime.NewAction([]interface{}{funcName, "$.data.source2", "value", "$.data.target", "true", "false"})
 		So(err, ShouldBeNil)

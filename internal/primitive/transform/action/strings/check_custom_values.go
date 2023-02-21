@@ -59,8 +59,8 @@ func (a *checkCustomValueAction) Execute(ceCtx *context.EventContext) error {
 	}
 	str, _ := args[0].(string)
 	customValue, _ := args[1].(string)
-	trueFlagReplacement, _ := args[2].(string)
-	falseFlagReplacement, _ := args[3].(string)
+	trueFlagReplacement := args[2]
+	falseFlagReplacement := args[3]
 	if strings.Contains(str, customValue) {
 		return a.TargetArg.SetValue(ceCtx, trueFlagReplacement)
 	}
