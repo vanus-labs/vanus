@@ -1,7 +1,7 @@
 
 <div align="center">
     
-![Vanus](img/vanus-logo.jpg)
+<img src="img/vanus-logo.jpg" width="288" >
     
 <!-- 
 <img src="https://user-images.githubusercontent.capabilitiesom/68597908/206148625-43f14f58-f3c0-4042-82a0-9f9421c270fa.png" width="288" >
