@@ -48,7 +48,7 @@ func (a *checkCustomValueAction) Init(args []arg.Arg) error {
 	a.TargetArg = args[2]
 	a.Args = args[:2]
 	a.Args = append(a.Args, args[3:]...)
-	a.ArgTypes = []common.Type{common.String, common.String, common.String, common.String}
+	a.ArgTypes = []common.Type{common.String, common.String, common.Any, common.Any}
 	return nil
 }
 
