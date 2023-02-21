@@ -65,4 +65,17 @@ func TestReplaceBetweenDelimitersAction(t *testing.T) {
 			So(err, ShouldNotBeNil)
 			So(e.Extensions()["test"], ShouldEqual, "Contributing to Vanus Opensource project is %%an eye opener%%!")
 		})
+
+		Convey("test Positive testcase", t, func() {
+			a, err := runtime.NewAction([]interface{}{funcName, "$.test", "&&", "!!", "love"})
+			So(err, ShouldBeNil)
+			e := cetest.MinEvent()
+			e.SetExtension("test", "I !!like&& opensource contributions")
+			ceCtx := &context.EventContext{
+					Event: &e,
+			}
+			err = a.Execute(ceCtx)
+			So(err, ShouldBeNil)
+			So(e.Extensions()["test"], ShouldEqual, "I !!love&& opensource contributions")
+		})
 }
