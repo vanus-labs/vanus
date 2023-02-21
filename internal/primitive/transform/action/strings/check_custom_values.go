@@ -27,19 +27,27 @@ type checkCustomValueAction struct {
 	action.CommonAction
 }
 
-// NewCheckCustomValuesAction ["check_custom_values","sourceJsonPath", "customValue", "targetJsonPath", "trueFlagReplacement", "falseFlagReplacement"].
+// NewCheckCustomValuesAction ["check_custom_values","sourceJsonPath", "customValue",
+// "targetJsonPath", "trueFlagReplacement", "falseFlagReplacement"].
 func NewCheckCustomValuesAction() action.Action {
 	return &checkCustomValueAction{
 		CommonAction: action.CommonAction{
 			ActionName: "CHECK_CUSTOM_VALUES",
-			FixedArgs:  []arg.TypeList{arg.EventList, []arg.Type{arg.Constant}, arg.EventList, []arg.Type{arg.Constant}, []arg.Type{arg.Constant}},
+			FixedArgs: []arg.TypeList{
+				arg.EventList,
+				[]arg.Type{arg.Constant},
+				arg.EventList,
+				[]arg.Type{arg.Constant},
+				[]arg.Type{arg.Constant},
+			},
 		},
 	}
 }
 
 func (a *checkCustomValueAction) Init(args []arg.Arg) error {
 	a.TargetArg = args[2]
-	a.Args = append(args[:2], args[3:]...)
+	a.Args = args[:2]
+	a.Args = append(a.Args, args[3:]...)
 	a.ArgTypes = []common.Type{common.String, common.String, common.String, common.String}
 	return nil
 }
