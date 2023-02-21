@@ -52,6 +52,7 @@ func init() {
 		strings.NewReplaceStringAction,
 		strings.NewReplaceBetweenPositionsAction,
 		strings.NewCapitalizeSentenceAction,
+		strings.NewCheckCustomValuesAction,
 		// condition
 		condition.NewConditionIfAction,
 		// array
