@@ -129,6 +129,10 @@ var ReplaceBetweenDelimitersFunction = function{
 		newValue := args[3].(string)
 
 		if (startPattern != endPattern && strings.Contains(path, startPattern) && strings.Contains(path, endPattern)) {
+			if strings.Index(path, startPattern) > strings.Index(path, endPattern) {
+				startPattern, endPattern = endPattern, startPattern
+			}
+
 			firstSplit := strings.Split(path, startPattern)
 			secondSplit := strings.Split(firstSplit[1], endPattern)
 			secondSplit[0] = startPattern + newValue + endPattern
