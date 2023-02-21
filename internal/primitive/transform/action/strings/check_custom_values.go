@@ -50,10 +50,10 @@ func (a *checkCustomValueAction) Execute(ceCtx *context.EventContext) error {
 		return err
 	}
 	str, _ := args[0].(string)
-	checkStr, _ := args[1].(string)
+	customValue, _ := args[1].(string)
 	trueFlagReplacement, _ := args[2].(string)
 	falseFlagReplacement, _ := args[3].(string)
-	if strings.Contains(str, checkStr) {
+	if strings.Contains(str, customValue) {
 		return a.TargetArg.SetValue(ceCtx, trueFlagReplacement)
 	}
 	return a.TargetArg.SetValue(ceCtx, falseFlagReplacement)
