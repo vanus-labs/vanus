@@ -118,3 +118,23 @@ var CapitalizeSentence = function{
 		return strings.ToUpper(string(value[0])) + value[1:], nil
 	},
 }
+
+var CapitalizeWord = function{
+	name:      "CAPITALIZE_WORD",
+	fixedArgs: []common.Type{common.String},
+	fn: func(args []interface{}) (interface{}, error) {
+		value, _ := args[0].(string)
+		if len(value) == 0 {
+			return value, nil
+		}
+		if len(value) == 1 {
+			return strings.ToUpper(string(value[0])), nil
+		}
+		words := strings.Split(value, " ")
+		capWords := []string{}
+		for _, w := range words {
+			capWords = append(capWords, strings.ToUpper(string(w[0]))+w[1:])
+		}
+		return capWords, nil
+	},
+}
