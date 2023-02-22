@@ -237,7 +237,7 @@ func uninstallConnectorCommand() *cobra.Command {
 			}
 
 			client := &http.Client{}
-			url := fmt.Sprintf("%s%s%s/connectors?name=%s", HttpPrefix, operator_endpoint, BaseUrl, name)
+			url := fmt.Sprintf("%s%s%s/connectors/%s", HttpPrefix, operator_endpoint, BaseUrl, name)
 			req, err := http.NewRequest("DELETE", url, &bytes.Reader{})
 			if err != nil {
 				cmdFailedf(cmd, "new http request failed: %s", err)
@@ -358,7 +358,7 @@ func getConnectorCommand() *cobra.Command {
 			}
 
 			client := &http.Client{}
-			url := fmt.Sprintf("%s%s%s/connector/%s", HttpPrefix, operator_endpoint, BaseUrl, name)
+			url := fmt.Sprintf("%s%s%s/connectors/%s", HttpPrefix, operator_endpoint, BaseUrl, name)
 			req, err := http.NewRequest("GET", url, &bytes.Reader{})
 			if err != nil {
 				cmdFailedf(cmd, "new http request failed: %s", err)
