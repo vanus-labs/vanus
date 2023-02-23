@@ -92,6 +92,7 @@ type eventlogManager struct {
 	checkSegmentExpiredInterval time.Duration
 	segmentExpiredTime          time.Duration
 	createSegmentMutex          sync.Mutex
+	updateSegmentMutex          sync.Mutex
 }
 
 func NewManager(volMgr volume.Manager, replicaNum uint, defaultBlockSize int64) Manager {
@@ -293,6 +294,9 @@ func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
 }
 
 func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[string][]Segment) {
+	mgr.updateSegmentMutex.Lock()
+	defer mgr.updateSegmentMutex.Unlock()
+
 	// iterate eventlog
 	for eventlogID, segments := range m {
 		v, exist := mgr.eventLogMap.Load(eventlogID)
@@ -383,6 +387,9 @@ func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, leaderID 
 	if seg.Replicas.Term >= term {
 		return nil
 	}
+
+	mgr.updateSegmentMutex.Lock()
+	defer mgr.updateSegmentMutex.Unlock()
 
 	seg.Replicas.Leader = leaderID.Uint64()
 	seg.Replicas.Term = term
@@ -1109,15 +1116,15 @@ func (el *eventlog) getAllSegments() []*Segment {
 	return segs
 }
 
-func (el *eventlog) listOfRight(seg *Segment, includeSelf bool) []*Segment {
+func (el *eventlog) listOfRight(seg *Segment, includeSelf bool) []Segment {
 	el.mutex.RLock()
 	defer el.mutex.RUnlock()
-	segs := make([]*Segment, 0)
+	segs := make([]Segment, 0)
 	if seg == nil {
 		return segs
 	}
 	if includeSelf {
-		segs = append(segs, seg)
+		segs = append(segs, *seg)
 	}
 	node := el.segmentList.Get(seg.ID.Uint64())
 	if node == nil {
@@ -1126,7 +1133,7 @@ func (el *eventlog) listOfRight(seg *Segment, includeSelf bool) []*Segment {
 	v := node.Next()
 	for v != nil {
 		next := v.Value.(*Segment)
-		segs = append(segs, next)
+		segs = append(segs, *next)
 		v = v.Next()
 	}
 
