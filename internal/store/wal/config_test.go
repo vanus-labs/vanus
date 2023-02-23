@@ -36,7 +36,6 @@ func TestConfig(t *testing.T) {
 			WithBlockSize(1024),
 			WithFileSize(4*1024*1024),
 			WithFlushDelayTime(5*time.Millisecond),
-			WithAppendBufferSize(1),
 			WithIOEngine(engine),
 		)
 
@@ -44,7 +43,6 @@ func TestConfig(t *testing.T) {
 		So(cfg.blockSize, ShouldEqual, 1024)
 		So(cfg.fileSize, ShouldEqual, 4*1024*1024)
 		So(cfg.flushDelayTime, ShouldEqual, 5*time.Millisecond)
-		So(cfg.appendBufferSize, ShouldEqual, 1)
 		So(cfg.engine, ShouldEqual, engine)
 	})
 }
