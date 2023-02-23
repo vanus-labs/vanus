@@ -26,16 +26,64 @@ import (
 
 func TestCapitalizeWordAction(t *testing.T) {
 	funcName := strings.NewCapitalizeWordAction().Name()
-	Convey("test capitalize word", t, func() {
+	Convey("test capitalize word: several words", t, func() {
 		a, err := runtime.NewAction([]interface{}{funcName, "$.test"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
-		e.SetExtension("test", "test value")
+		e.SetExtension("test", "one two three")
 		ceCtx := &context.EventContext{
 			Event: &e,
 		}
 		err = a.Execute(ceCtx)
 		So(err, ShouldBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "Test Value")
+		So(e.Extensions()["test"], ShouldEqual, "One Two Three")
+	})
+	Convey("test capitalize word: extra spaces, numbers, other symbols", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test"})
+		So(err, ShouldBeNil)
+		e := cetest.MinEvent()
+		e.SetExtension("test", " . one, two,   three q four 111 плюс минус  ")
+		ceCtx := &context.EventContext{
+			Event: &e,
+		}
+		err = a.Execute(ceCtx)
+		So(err, ShouldBeNil)
+		So(e.Extensions()["test"], ShouldEqual, " . One, Two,   Three Q Four 111 Плюс Минус  ")
+	})
+	Convey("test capitalize word: empty string", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test"})
+		So(err, ShouldBeNil)
+		e := cetest.MinEvent()
+		e.SetExtension("test", "")
+		ceCtx := &context.EventContext{
+			Event: &e,
+		}
+		err = a.Execute(ceCtx)
+		So(err, ShouldBeNil)
+		So(e.Extensions()["test"], ShouldEqual, "")
+	})
+	Convey("test capitalize word: unicode ♬", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test"})
+		So(err, ShouldBeNil)
+		e := cetest.MinEvent()
+		e.SetExtension("test", "♬")
+		ceCtx := &context.EventContext{
+			Event: &e,
+		}
+		err = a.Execute(ceCtx)
+		So(err, ShouldBeNil)
+		So(e.Extensions()["test"], ShouldEqual, "♬")
+	})
+	Convey("test capitalize word: a", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test"})
+		So(err, ShouldBeNil)
+		e := cetest.MinEvent()
+		e.SetExtension("test", "a")
+		ceCtx := &context.EventContext{
+			Event: &e,
+		}
+		err = a.Execute(ceCtx)
+		So(err, ShouldBeNil)
+		So(e.Extensions()["test"], ShouldEqual, "A")
 	})
 }
