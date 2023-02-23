@@ -135,6 +135,6 @@ var CapitalizeWord = function{
 		for _, w := range words {
 			capWords = append(capWords, strings.ToUpper(string(w[0]))+w[1:])
 		}
-		return capWords, nil
+		return strings.Join(capWords, " "), nil
 	},
 }
