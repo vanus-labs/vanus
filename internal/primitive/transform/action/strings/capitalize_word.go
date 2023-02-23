@@ -20,7 +20,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
 )
 
-// NewCapitalizeSentence ["capitalize_sentence", "key"].
+// NewCapitalizeWord ["capitalize_word", "key"].
 func NewCapitalizeWordAction() action.Action {
 	a := &action.SourceTargetSameAction{}
 	a.CommonAction = action.CommonAction{
