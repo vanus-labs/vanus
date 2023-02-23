@@ -130,7 +130,7 @@ var CapitalizeWord = function{
 		if len(value) == 1 {
 			return strings.ToUpper(string(value[0])), nil
 		}
-		words := strings.Split(value, " ")
+		words := strings.Fields(value)
 		capWords := []string{}
 		for _, w := range words {
 			capWords = append(capWords, strings.ToUpper(string(w[0]))+w[1:])
