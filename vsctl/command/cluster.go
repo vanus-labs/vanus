@@ -110,9 +110,9 @@ func createClusterCommand() *cobra.Command {
 		Use:   "create",
 		Short: "create a cluster",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := getOperatorEndpoint()
+			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
 			if err != nil {
-				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				operatorEndpoint, err = getOperatorEndpoint()
 				if err != nil {
 					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 				}
@@ -143,7 +143,7 @@ func createClusterCommand() *cobra.Command {
 				return
 			}
 
-			if !operatorIsDeployed(cmd, operator_endpoint) {
+			if !operatorIsDeployed(cmd, operatorEndpoint) {
 				fmt.Print("You haven't deployed the operator yet, but the vanus cluster is managed by operator. Please confirm whether you want to deploy the operator(y/n):")
 				reader := bufio.NewReader(os.Stdin)
 				ack, err := reader.ReadString('\n')
@@ -164,7 +164,7 @@ func createClusterCommand() *cobra.Command {
 				result := "failure"
 				for i := 0; i < retryTime; i++ {
 					time.Sleep(time.Second)
-					if operatorIsDeployed(cmd, operator_endpoint) {
+					if operatorIsDeployed(cmd, operatorEndpoint) {
 						result = "success"
 						break
 					}
@@ -208,7 +208,7 @@ func createClusterCommand() *cobra.Command {
 			}
 
 			client := &http.Client{}
-			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operator_endpoint, BaseUrl)
+			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operatorEndpoint, BaseUrl)
 			cluster := ClusterCreate{
 				ControllerReplicas:    c.Controller.Replicas,
 				ControllerStorageSize: c.Controller.StorageSize,
@@ -260,9 +260,9 @@ func deleteClusterCommand() *cobra.Command {
 		Use:   "delete",
 		Short: "delete a cluster",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := getOperatorEndpoint()
+			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
 			if err != nil {
-				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				operatorEndpoint, err = getOperatorEndpoint()
 				if err != nil {
 					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 				}
@@ -281,7 +281,7 @@ func deleteClusterCommand() *cobra.Command {
 			}
 
 			client := &http.Client{}
-			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operator_endpoint, BaseUrl)
+			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operatorEndpoint, BaseUrl)
 			force := false
 			cluster := ClusterDelete{
 				Force: &force,
@@ -358,16 +358,16 @@ func upgradeClusterCommand() *cobra.Command {
 		Use:   "upgrade",
 		Short: "upgrade cluster",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := getOperatorEndpoint()
+			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
 			if err != nil {
-				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				operatorEndpoint, err = getOperatorEndpoint()
 				if err != nil {
 					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 				}
 			}
 
 			if showUpgradeableList {
-				info, err := getCluster(cmd, operator_endpoint)
+				info, err := getCluster(cmd, operatorEndpoint)
 				if err != nil {
 					cmdFailedf(cmd, "get the current version of the cluster failed: %s", err)
 				}
@@ -405,7 +405,7 @@ func upgradeClusterCommand() *cobra.Command {
 			}
 
 			client := &http.Client{}
-			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operator_endpoint, BaseUrl)
+			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operatorEndpoint, BaseUrl)
 			cluster := ClusterPatch{
 				Version: clusterVersion,
 			}
@@ -464,16 +464,16 @@ func scaleControllerReplicas() *cobra.Command {
 		Use:   "controller",
 		Short: "scale controller replicas",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := getOperatorEndpoint()
+			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
 			if err != nil {
-				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				operatorEndpoint, err = getOperatorEndpoint()
 				if err != nil {
 					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 				}
 			}
 
 			client := &http.Client{}
-			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operator_endpoint, BaseUrl)
+			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operatorEndpoint, BaseUrl)
 			cluster := ClusterPatch{
 				ControllerReplicas: controllerReplicas,
 			}
@@ -519,16 +519,16 @@ func scaleStoreReplicas() *cobra.Command {
 		Use:   "store",
 		Short: "scale store replicas",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := getOperatorEndpoint()
+			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
 			if err != nil {
-				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				operatorEndpoint, err = getOperatorEndpoint()
 				if err != nil {
 					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 				}
 			}
 
 			client := &http.Client{}
-			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operator_endpoint, BaseUrl)
+			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operatorEndpoint, BaseUrl)
 			cluster := ClusterPatch{
 				StoreReplicas: storeReplicas,
 			}
@@ -574,16 +574,16 @@ func scaleTriggerReplicas() *cobra.Command {
 		Use:   "trigger",
 		Short: "scale trigger replicas",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := getOperatorEndpoint()
+			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
 			if err != nil {
-				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				operatorEndpoint, err = getOperatorEndpoint()
 				if err != nil {
 					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 				}
 			}
 
 			client := &http.Client{}
-			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operator_endpoint, BaseUrl)
+			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operatorEndpoint, BaseUrl)
 			cluster := ClusterPatch{
 				TriggerReplicas: triggerReplicas,
 			}
@@ -629,16 +629,16 @@ func getClusterCommand() *cobra.Command {
 		Use:   "status",
 		Short: "get cluster status",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := getOperatorEndpoint()
+			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
 			if err != nil {
-				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				operatorEndpoint, err = getOperatorEndpoint()
 				if err != nil {
 					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 				}
 			}
 
 			client := &http.Client{}
-			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operator_endpoint, BaseUrl)
+			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operatorEndpoint, BaseUrl)
 			req, err := http.NewRequest("GET", url, &bytes.Reader{})
 			if err != nil {
 				cmdFailedf(cmd, "new http request failed: %s", err)
