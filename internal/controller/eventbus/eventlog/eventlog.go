@@ -92,7 +92,6 @@ type eventlogManager struct {
 	checkSegmentExpiredInterval time.Duration
 	segmentExpiredTime          time.Duration
 	createSegmentMutex          sync.Mutex
-	updateSegmentMutex          sync.Mutex
 }
 
 func NewManager(volMgr volume.Manager, replicaNum uint, defaultBlockSize int64) Manager {
@@ -294,8 +293,8 @@ func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
 }
 
 func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[string][]Segment) {
-	mgr.updateSegmentMutex.Lock()
-	defer mgr.updateSegmentMutex.Unlock()
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
 
 	// iterate eventlog
 	for eventlogID, segments := range m {
@@ -388,8 +387,8 @@ func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, leaderID 
 		return nil
 	}
 
-	mgr.updateSegmentMutex.Lock()
-	defer mgr.updateSegmentMutex.Unlock()
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
 
 	seg.Replicas.Leader = leaderID.Uint64()
 	seg.Replicas.Term = term
@@ -411,6 +410,8 @@ func (mgr *eventlogManager) GetSegmentByBlockID(block *metadata.Block) (Segment,
 		return Segment{}, errors.ErrEventLogNotFound
 	}
 	el, _ := v.(*eventlog)
+	el.rLock()
+	defer el.rUnlock()
 	return el.get(block.SegmentID).Copy(), nil
 }
 
@@ -1230,4 +1231,12 @@ func (el *eventlog) lock() {
 
 func (el *eventlog) unlock() {
 	el.mutex.Unlock()
+}
+
+func (el *eventlog) rLock() {
+	el.mutex.RLock()
+}
+
+func (el *eventlog) rUnlock() {
+	el.mutex.RUnlock()
 }
