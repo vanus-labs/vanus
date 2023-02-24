@@ -18,7 +18,6 @@ import (
 	"testing"
 
 	cetest "github.com/cloudevents/sdk-go/v2/test"
-	"github.com/cloudevents/sdk-go/v2/types"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action/strings"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
@@ -29,58 +28,69 @@ func TestSplitWithIntervalsAction(t *testing.T) {
 	funcName := strings.NewSplitWithIntervalsAction().Name()
 
 	Convey("test Positive testcase", t, func() {
-		a, err := runtime.NewAction([]interface{}{funcName, "$.appinfoA", 2, 2, "$.appinfoB"})
+		a, err := runtime.NewAction([]interface{}{funcName, "$.data.appinfoA", 2, 2, "$.data.appinfoB"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
-		e.SetExtension("appInfoA", "hello world!")
+		data := map[string]interface{}{
+			"appinfoA": "hello world!",
+		}
 		ceCtx := &context.EventContext{
 			Event: &e,
+			Data:  data,
 		}
 		err = a.Execute(ceCtx)
 		So(err, ShouldBeNil)
-		expected, err := types.ToBinary(e.Extensions()["appinfob"])
-		So(err, ShouldBeNil)
-		So(string(expected), ShouldEqual, `["he","ll","o ","wo","rl","d!"]`)
+		res, ok := data["appinfoB"]
+		So(ok, ShouldBeTrue)
+		So(res, ShouldResemble, []string{"he", "ll", "o ", "wo", "rl", "d!"})
 	})
 
 	Convey("test when start position is greater than the length of the string", t, func() {
-		a, err := runtime.NewAction([]interface{}{funcName, "$.appinfoA", 100, 2, "$.appinfoB"})
+		a, err := runtime.NewAction([]interface{}{funcName, "$.data.appinfoA", 100, 2, "$.data.appinfoB"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
-		e.SetExtension("appInfoA", "hello world!")
+		data := map[string]interface{}{
+			"appinfoA": "hello world!",
+		}
 		ceCtx := &context.EventContext{
 			Event: &e,
+			Data:  data,
 		}
 		err = a.Execute(ceCtx)
 		So(err.Error(), ShouldEqual, "start position must be less than the length of the string")
 	})
 
 	Convey("test when the string can't be split exactly into equal intervals", t, func() {
-		a, err := runtime.NewAction([]interface{}{funcName, "$.appinfoA", 1, 3, "$.appinfoB"})
+		a, err := runtime.NewAction([]interface{}{funcName, "$.data.appinfoA", 1, 3, "$.data.appinfoB"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
-		e.SetExtension("appInfoA", "hello world!")
+		data := map[string]interface{}{
+			"appinfoA": "hello world!",
+		}
 		ceCtx := &context.EventContext{
 			Event: &e,
+			Data:  data,
 		}
 		err = a.Execute(ceCtx)
 		So(err, ShouldBeNil)
-		expected, err := types.ToBinary(e.Extensions()["appinfob"])
-		So(err, ShouldBeNil)
-		So(string(expected), ShouldEqual, `["h","ell","o w","orl","d!"]`)
+		res, ok := data["appinfoB"]
+		So(ok, ShouldBeTrue)
+		So(res, ShouldResemble, []string{"h", "ell", "o w", "orl", "d!"})
 	})
 
 	Convey("test when target key exists", t, func() {
-		a, err := runtime.NewAction([]interface{}{funcName, "$.appinfoA", 2, 2, "$.appinfoB"})
+		a, err := runtime.NewAction([]interface{}{funcName, "$.data.appinfoA", 2, 2, "$.data.appinfoB"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
-		e.SetExtension("appInfoA", "hello world!")
-		// Set the target key to already exist
-		e.SetExtension("appinfoB", "existing value")
+		data := map[string]interface{}{
+			"appinfoA": "hello world!",
+			"appinfoB": "",
+		}
 		ceCtx := &context.EventContext{
 			Event: &e,
+			Data:  data,
 		}
 		err = a.Execute(ceCtx)
-		So(err.Error(), ShouldEqual, "key $.appinfoB exist")
+		So(err.Error(), ShouldEqual, "key $.data.appinfoB exists")
 	})
 }

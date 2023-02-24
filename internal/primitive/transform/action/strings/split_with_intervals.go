@@ -15,7 +15,6 @@
 package strings
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
@@ -33,7 +32,7 @@ func NewSplitWithIntervalsAction() action.Action {
 	return &splitWithIntervalsAction{
 		CommonAction: action.CommonAction{
 			ActionName: "SPLIT_WITH_INTERVALS",
-			FixedArgs:  []arg.TypeList{arg.EventList, arg.All, arg.All, arg.EventList},
+			FixedArgs:  []arg.TypeList{arg.EventList, arg.All, arg.All, []arg.Type{arg.EventData}},
 		},
 	}
 }
@@ -53,7 +52,7 @@ func (a *splitWithIntervalsAction) Execute(ceCtx *context.EventContext) error {
 
 	v, _ := a.TargetArg.Evaluate(ceCtx)
 	if v != nil {
-		return fmt.Errorf("key %s exist", a.TargetArg.Original())
+		return fmt.Errorf("key %s exists", a.TargetArg.Original())
 	}
 
 	sourceJSONPath, _ := args[0].(string)
@@ -77,10 +76,5 @@ func (a *splitWithIntervalsAction) Execute(ceCtx *context.EventContext) error {
 		substrings = append(substrings, sourceJSONPath[i:end])
 	}
 
-	j, err := json.Marshal(substrings)
-	if err != nil {
-		return fmt.Errorf("error: %w", err)
-	}
-
-	return a.TargetArg.SetValue(ceCtx, j)
+	return a.TargetArg.SetValue(ceCtx, substrings)
 }
