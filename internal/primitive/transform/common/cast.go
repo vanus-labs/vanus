@@ -29,7 +29,7 @@ func Cast(val interface{}, target Type) (interface{}, error) {
 		switch value := val.(type) {
 		case int32: // ce attribute
 			return strconv.FormatInt(int64(value), 10), nil
-		case int64: // ce attribute
+		case int64:
 			return strconv.FormatInt(value, 10), nil
 		case float64: // ce data json marshal
 			return fmt.Sprintf("%v", val), nil
@@ -38,7 +38,7 @@ func Cast(val interface{}, target Type) (interface{}, error) {
 		}
 		// Casting to string is always defined
 		return fmt.Sprintf("%v", val), nil
-	case Number:
+	case Float:
 		switch value := val.(type) {
 		case string:
 			v, err := strconv.ParseFloat(value, 64)
@@ -52,6 +52,22 @@ func Cast(val interface{}, target Type) (interface{}, error) {
 			return float64(value), nil
 		case int:
 			return float64(value), nil
+		}
+		return 0, fmt.Errorf("undefined cast from %v to %v", TypeFromVal(val), target)
+	case Int:
+		switch value := val.(type) {
+		case string:
+			v, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				err = fmt.Errorf("cannot cast from String to Int: %w", err)
+			}
+			return int(v), err
+		case float64:
+			return int(value), nil
+		case int32:
+			return int(value), nil
+		case int64:
+			return int(value), nil
 		}
 		return 0, fmt.Errorf("undefined cast from %v to %v", TypeFromVal(val), target)
 	case Bool:
