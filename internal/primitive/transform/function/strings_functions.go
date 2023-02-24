@@ -125,21 +125,18 @@ var CapitalizeWord = function{
 	fixedArgs: []common.Type{common.String},
 	fn: func(args []interface{}) (interface{}, error) {
 		value, _ := args[0].(string)
-		if len(value) == 0 {
-			return value, nil
-		}
-		if len(value) == 1 {
-			return strings.ToUpper(string(value[0])), nil
-		}
-		capWords := make([]rune, 0, len([]rune(value)))
-		prev := ' '
-		for _, v := range value {
-			if v != ' ' && prev == ' ' {
-				v = unicode.ToUpper(v)
+		rs := []rune(value)
+		inWord := false
+		for i, r := range rs {
+			if !unicode.IsSpace(r) {
+				if !inWord {
+					rs[i] = unicode.ToTitle(r)
+				}
+				inWord = true
+			} else {
+				inWord = false
 			}
-			capWords = append(capWords, v)
-			prev = v
 		}
-		return string(capWords), nil
+		return string(rs), nil
 	},
 }
