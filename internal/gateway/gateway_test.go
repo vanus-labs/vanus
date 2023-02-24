@@ -166,7 +166,7 @@ func TestGateway_EventID(t *testing.T) {
 		ControllerAddr: controllers,
 	}
 	ga := NewGateway(cfg)
-	defer ga.Stop()
+	//defer ga.Stop()
 
 	ga.client = mockClient
 	ctx, cancel := context.WithCancel(context.Background())
