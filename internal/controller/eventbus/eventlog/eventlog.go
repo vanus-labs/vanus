@@ -1110,7 +1110,7 @@ func (el *eventlog) getAllSegments() []*Segment {
 	}
 	ptr := el.segmentList.Front()
 	for ptr != nil {
-		next := ptr.Value.(*Segment)
+		next, _ := ptr.Value.(*Segment)
 		segs = append(segs, next)
 		ptr = ptr.Next()
 	}
@@ -1133,7 +1133,7 @@ func (el *eventlog) listOfRight(seg *Segment, includeSelf bool) []Segment {
 	}
 	v := node.Next()
 	for v != nil {
-		next := v.Value.(*Segment)
+		next, _ := v.Value.(*Segment)
 		segs = append(segs, *next)
 		v = v.Next()
 	}
@@ -1141,7 +1141,7 @@ func (el *eventlog) listOfRight(seg *Segment, includeSelf bool) []Segment {
 	return segs
 }
 
-func (el *eventlog) listOfPrevious(seg *Segment) []*Segment {
+func (el *eventlog) listOfPrevious(seg *Segment) []*Segment { //nolint:unused // ok
 	el.mutex.RLock()
 	defer el.mutex.RUnlock()
 	segs := make([]*Segment, 0)
@@ -1151,7 +1151,7 @@ func (el *eventlog) listOfPrevious(seg *Segment) []*Segment {
 	}
 	v := node.Prev()
 	for v != nil {
-		next := v.Value.(*Segment)
+		next, _ := v.Value.(*Segment)
 		segs = append(segs, next)
 		v = v.Prev()
 	}
