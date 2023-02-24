@@ -108,9 +108,9 @@ func installConnectorCommand() *cobra.Command {
 		Use:   "install",
 		Short: "install a connector",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := getOperatorEndpoint()
+			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
 			if err != nil {
-				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				operatorEndpoint, err = getOperatorEndpoint()
 				if err != nil {
 					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 				}
@@ -156,7 +156,7 @@ func installConnectorCommand() *cobra.Command {
 				cmdFailedf(cmd, "the --config-file flag MUST be set")
 			}
 
-			if !operatorIsDeployed(cmd, operator_endpoint) {
+			if !operatorIsDeployed(cmd, operatorEndpoint) {
 				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://download.linkall.com/vanus/operator/latest.yml")
 			}
 
@@ -165,7 +165,7 @@ func installConnectorCommand() *cobra.Command {
 			}
 
 			client := &http.Client{}
-			url := fmt.Sprintf("%s%s%s/connectors", HttpPrefix, operator_endpoint, BaseUrl)
+			url := fmt.Sprintf("%s%s%s/connectors", HttpPrefix, operatorEndpoint, BaseUrl)
 			data, err := getConfig(connectorConfigFile)
 			if err != nil {
 				cmdFailedf(cmd, "get config failed, file: %s, err: %s", connectorConfigFile, err)
@@ -224,9 +224,9 @@ func uninstallConnectorCommand() *cobra.Command {
 		Use:   "uninstall",
 		Short: "uninstall a connector",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := getOperatorEndpoint()
+			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
 			if err != nil {
-				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				operatorEndpoint, err = getOperatorEndpoint()
 				if err != nil {
 					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 				}
@@ -237,7 +237,7 @@ func uninstallConnectorCommand() *cobra.Command {
 			}
 
 			client := &http.Client{}
-			url := fmt.Sprintf("%s%s%s/connectors?name=%s", HttpPrefix, operator_endpoint, BaseUrl, name)
+			url := fmt.Sprintf("%s%s%s/connectors?name=%s", HttpPrefix, operatorEndpoint, BaseUrl, name)
 			req, err := http.NewRequest("DELETE", url, &bytes.Reader{})
 			if err != nil {
 				cmdFailedf(cmd, "new http request failed: %s", err)
@@ -275,20 +275,20 @@ func listConnectorCommand() *cobra.Command {
 		Use:   "list",
 		Short: "list connectors",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := getOperatorEndpoint()
+			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
 			if err != nil {
-				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				operatorEndpoint, err = getOperatorEndpoint()
 				if err != nil {
 					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 				}
 			}
 
-			if !operatorIsDeployed(cmd, operator_endpoint) {
+			if !operatorIsDeployed(cmd, operatorEndpoint) {
 				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://download.linkall.com/vanus/operator/latest.yml")
 			}
 
 			client := &http.Client{}
-			url := fmt.Sprintf("%s%s%s/connectors", HttpPrefix, operator_endpoint, BaseUrl)
+			url := fmt.Sprintf("%s%s%s/connectors", HttpPrefix, operatorEndpoint, BaseUrl)
 			req, err := http.NewRequest("GET", url, &bytes.Reader{})
 			if err != nil {
 				cmdFailedf(cmd, "new http request failed: %s", err)
@@ -345,9 +345,9 @@ func getConnectorCommand() *cobra.Command {
 		Use:   "info",
 		Short: "get connector info",
 		Run: func(cmd *cobra.Command, args []string) {
-			operator_endpoint, err := getOperatorEndpoint()
+			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
 			if err != nil {
-				operator_endpoint, err = cmd.Flags().GetString("operator-endpoint")
+				operatorEndpoint, err = getOperatorEndpoint()
 				if err != nil {
 					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 				}
@@ -358,7 +358,7 @@ func getConnectorCommand() *cobra.Command {
 			}
 
 			client := &http.Client{}
-			url := fmt.Sprintf("%s%s%s/connector/%s", HttpPrefix, operator_endpoint, BaseUrl, name)
+			url := fmt.Sprintf("%s%s%s/connector/%s", HttpPrefix, operatorEndpoint, BaseUrl, name)
 			req, err := http.NewRequest("GET", url, &bytes.Reader{})
 			if err != nil {
 				cmdFailedf(cmd, "new http request failed: %s", err)
