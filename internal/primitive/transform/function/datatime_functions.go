@@ -60,3 +60,24 @@ var UnixTimeFormatFunction = function{
 		return t.In(loc).Format(format), nil
 	},
 }
+
+var NowFunction = function{
+	name:         "NOW",
+	fixedArgs:    []common.Type{common.String, common.String},
+	variadicArgs: common.TypePtr(common.String),
+	fn: func(args []interface{}) (interface{}, error) {
+		t, err := time.ParseInLocation(time.RFC3339, args[0].(string), time.UTC)
+		if err != nil {
+			return nil, err
+		}
+		loc := time.UTC
+		if len(args) > 2 && args[2].(string) != "" {
+			loc, err = time.LoadLocation(args[2].(string))
+			if err != nil {
+				return nil, err
+			}
+		}
+		format := util.ConvertFormat2Go(args[1].(string))
+		return t.In(loc).Format(format), nil
+	},
+}
