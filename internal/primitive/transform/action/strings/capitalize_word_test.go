@@ -86,4 +86,16 @@ func TestCapitalizeWordAction(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(e.Extensions()["test"], ShouldEqual, "A")
 	})
+	Convey("test capitalize word: leading symbols", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test"})
+		So(err, ShouldBeNil)
+		e := cetest.MinEvent()
+		e.SetExtension("test", "let 'em go")
+		ceCtx := &context.EventContext{
+			Event: &e,
+		}
+		err = a.Execute(ceCtx)
+		So(err, ShouldBeNil)
+		So(e.Extensions()["test"], ShouldEqual, "Let 'em Go")
+	})
 }
