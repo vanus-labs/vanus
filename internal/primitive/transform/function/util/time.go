@@ -46,3 +46,8 @@ func ConvertFormat2Go(format string) string {
 	}
 	return buffer.String()
 }
+
+// GetYMDFormat returns yyyy-mm-dd format.
+func GetYMDFormat() string {
+	return ConvertFormat2Go("Y-m-d")
+}
