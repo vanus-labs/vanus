@@ -142,9 +142,9 @@ var ReplaceBetweenDelimitersFunction = function{
 				firstSplit := strings.Split(value, startPattern)
 				firstSplit[1] = startPattern + newValue + endPattern
 				return firstSplit[0] + firstSplit[1] + firstSplit[2], nil
-			case strings.Contains(value, startPattern) && strings.Contains(value, endPattern):
+			case strings.Contains(value, startPattern) && strings.Contains(value, endPattern) == false:
 				return nil, fmt.Errorf("only start pattern is found in the input string")
-			case strings.Contains(value, startPattern) && strings.Contains(value, endPattern):
+			case strings.Contains(value, startPattern) == false && strings.Contains(value, endPattern):
 				return nil, fmt.Errorf("only end pattern is found in the input string")
 			default:
 				return nil, fmt.Errorf("the start and end pattern is not present in the input string")
