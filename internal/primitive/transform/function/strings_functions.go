@@ -17,6 +17,7 @@ package function
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
 )
@@ -148,6 +149,27 @@ var ReplaceBetweenDelimitersFunction = function{
 			default:
 				return nil, fmt.Errorf("the start and end pattern is not present in the input string")
 		}
+	},
+}
+
+var CapitalizeWord = function{
+	name:      "CAPITALIZE_WORD",
+	fixedArgs: []common.Type{common.String},
+	fn: func(args []interface{}) (interface{}, error) {
+		value, _ := args[0].(string)
+		rs := []rune(value)
+		inWord := false
+		for i, r := range rs {
+			if !unicode.IsSpace(r) {
+				if !inWord {
+					rs[i] = unicode.ToTitle(r)
+				}
+				inWord = true
+			} else {
+				inWord = false
+			}
+		}
+		return string(rs), nil
 	},
 }
 
