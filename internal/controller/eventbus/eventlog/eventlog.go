@@ -279,17 +279,7 @@ func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
 		s = el.currentAppendableSegment()
 	}
 
-	list := el.listOfRight(s, true)
-	el.lock()
-	defer el.unlock()
-	for idx := range list {
-		if len(result) == num {
-			break
-		}
-		result = append(result, list[idx].Copy())
-	}
-
-	return result, nil
+	return el.listOfRight(s, true), nil
 }
 
 func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[string][]Segment) {
@@ -387,8 +377,12 @@ func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, leaderID 
 		return nil
 	}
 
-	mgr.mutex.Lock()
-	defer mgr.mutex.Unlock()
+	el := mgr.getEventLog(seg.EventLogID)
+	if el == nil {
+		return errors.ErrEventLogNotFound
+	}
+	el.lock()
+	defer el.unlock()
 
 	seg.Replicas.Leader = leaderID.Uint64()
 	seg.Replicas.Term = term
