@@ -15,18 +15,18 @@
 package strings
 
 import (
-        "github.com/linkall-labs/vanus/internal/primitive/transform/action"
-        "github.com/linkall-labs/vanus/internal/primitive/transform/arg"
-        "github.com/linkall-labs/vanus/internal/primitive/transform/function"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
 )
 
 // NewReplaceBetweenDelimitersAction ["path","startPattern","endPattern","newValue"].
 func NewReplaceBetweenDelimitersAction() action.Action {
 	a := &action.SourceTargetSameAction{}
 	a.CommonAction = action.CommonAction{
-		ActionName:	"REPLACE_BETWEEN_DELIMITERS",
-		FixedArgs:	[]arg.TypeList{arg.EventList, arg.All, arg.All, arg.All},
-		Fn:			function.ReplaceBetweenDelimitersFunction,
+		ActionName: "REPLACE_BETWEEN_DELIMITERS",
+		FixedArgs:  []arg.TypeList{arg.EventList, arg.All, arg.All, arg.All},
+		Fn:         function.ReplaceBetweenDelimitersFunction,
 	}
 	return a
 }

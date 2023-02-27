@@ -121,33 +121,33 @@ var CapitalizeSentence = function{
 }
 
 var ReplaceBetweenDelimitersFunction = function{
-	name:		"REPLACE_BETWEEN_DELIMITERS",
-	fixedArgs:	[]common.Type{common.String, common.String, common.String, common.String},
-	fn:	func(args []interface{}) (interface{}, error) {
+	name:      "REPLACE_BETWEEN_DELIMITERS",
+	fixedArgs: []common.Type{common.String, common.String, common.String, common.String},
+	fn: func(args []interface{}) (interface{}, error) {
 		value, _ := args[0].(string)
-		startPattern := args[1].(string)
-		endPattern := args[2].(string)
-		newValue := args[3].(string)
+		startPattern, _ := args[1].(string)
+		endPattern, _ := args[2].(string)
+		newValue, _ := args[3].(string)
 
 		switch {
-			case startPattern != endPattern && strings.Contains(value, startPattern) && strings.Contains(value, endPattern):
-				if strings.Index(value, startPattern) > strings.Index(value, endPattern) {
-					return nil, fmt.Errorf("the end pattern is before the start pattern in the input string")
-				}
-				firstSplit := strings.Split(value, startPattern)
-				secondSplit := strings.Split(firstSplit[1], endPattern)
-				secondSplit[0] = startPattern + newValue + endPattern
-				return firstSplit[0] + secondSplit[0] + secondSplit[1], nil
-			case startPattern == endPattern && strings.Contains(value, startPattern) && strings.Count(value, startPattern) == 2:
-				firstSplit := strings.Split(value, startPattern)
-				firstSplit[1] = startPattern + newValue + endPattern
-				return firstSplit[0] + firstSplit[1] + firstSplit[2], nil
-			case strings.Contains(value, startPattern) && strings.Contains(value, endPattern) == false:
-				return nil, fmt.Errorf("only start pattern is found in the input string")
-			case strings.Contains(value, startPattern) == false && strings.Contains(value, endPattern):
-				return nil, fmt.Errorf("only end pattern is found in the input string")
-			default:
-				return nil, fmt.Errorf("the start and end pattern is not present in the input string")
+		case startPattern != endPattern && strings.Contains(value, startPattern) && strings.Contains(value, endPattern):
+			if strings.Index(value, startPattern) > strings.Index(value, endPattern) {
+				return nil, fmt.Errorf("the end pattern is before the start pattern in the input string")
+			}
+			firstSplit := strings.Split(value, startPattern)
+			secondSplit := strings.Split(firstSplit[1], endPattern)
+			secondSplit[0] = startPattern + newValue + endPattern
+			return firstSplit[0] + secondSplit[0] + secondSplit[1], nil
+		case startPattern == endPattern && strings.Contains(value, startPattern) && strings.Count(value, startPattern) == 2:
+			firstSplit := strings.Split(value, startPattern)
+			firstSplit[1] = startPattern + newValue + endPattern
+			return firstSplit[0] + firstSplit[1] + firstSplit[2], nil
+		case strings.Contains(value, startPattern) && !strings.Contains(value, endPattern):
+			return nil, fmt.Errorf("only start pattern is found in the input string")
+		case !strings.Contains(value, startPattern) && strings.Contains(value, endPattern):
+			return nil, fmt.Errorf("only end pattern is found in the input string")
+		default:
+			return nil, fmt.Errorf("the start and end pattern is not present in the input string")
 		}
 	},
 }
@@ -172,4 +172,3 @@ var CapitalizeWord = function{
 		return string(rs), nil
 	},
 }
-
