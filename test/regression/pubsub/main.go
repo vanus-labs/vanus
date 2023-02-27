@@ -32,7 +32,7 @@ var (
 	sentFailed     int64
 	receivedNumber int64
 
-	totalNumber        = int64(1 << 15) // 1024*1024
+	totalNumber        = int64(1 << 20) // 1024*1024
 	parallelism        = 4
 	batchSize          = 8
 	maximumPayloadSize = 4 * 1024

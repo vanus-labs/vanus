@@ -38,7 +38,7 @@ func TestConvert2ProtoSegment(t *testing.T) {
 		block1 := vanus.NewTestID()
 		block2 := vanus.NewTestID()
 		block3 := vanus.NewTestID()
-		seg := &Segment{
+		seg := Segment{
 			ID:                segID,
 			Capacity:          64 * 1024 * 1024,
 			EventLogID:        eID,

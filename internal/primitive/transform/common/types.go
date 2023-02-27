@@ -18,7 +18,8 @@ type Type uint8
 
 const (
 	String Type = iota
-	Number
+	Float
+	Int
 	Bool
 	Object
 	Array
@@ -30,8 +31,10 @@ func (t Type) String() string {
 	switch t {
 	case String:
 		return "string"
-	case Number:
-		return "number"
+	case Float:
+		return "float"
+	case Int:
+		return "int"
 	case Bool:
 		return "bool"
 	case Object:
@@ -59,7 +62,9 @@ func TypeFromVal(val interface{}) Type {
 	case string:
 		return String
 	case float64:
-		return Number
+		return Float
+	case int:
+		return Int
 	case bool:
 		return Bool
 	case map[string]interface{}:
