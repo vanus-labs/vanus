@@ -232,6 +232,9 @@ func createClusterCommand() *cobra.Command {
 				cmdFailedf(cmd, "create cluster failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Create Cluster Failed: %s", resp.Status)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Create Cluster Success"})
@@ -302,6 +305,9 @@ func deleteClusterCommand() *cobra.Command {
 				cmdFailedf(cmd, "delete cluster failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Delete Cluster Failed: %s", resp.Status)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Delete Cluster Success"})
@@ -425,6 +431,9 @@ func upgradeClusterCommand() *cobra.Command {
 				cmdFailedf(cmd, "upgrade cluster failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Upgrade Cluster Failed: %s", resp.Status)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Upgrade Cluster Success"})
@@ -493,6 +502,9 @@ func scaleControllerReplicas() *cobra.Command {
 				cmdFailedf(cmd, "scale controller failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Scale Controller Failed: %s", resp.Status)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Scale Controller Success"})
@@ -548,6 +560,9 @@ func scaleStoreReplicas() *cobra.Command {
 				cmdFailedf(cmd, "scale Store failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Scale Store Failed: %s", resp.Status)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Scale Store Success"})
@@ -603,6 +618,9 @@ func scaleTriggerReplicas() *cobra.Command {
 				cmdFailedf(cmd, "scale trigger failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Scale Trigger Failed: %s", resp.Status)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Scale Trigger Success"})
@@ -650,6 +668,10 @@ func getClusterCommand() *cobra.Command {
 				cmdFailedf(cmd, "get cluster failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Get Cluster Failed: %s", resp.Status)
+			}
+
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
 				cmdFailedf(cmd, "read response body: %s", err)
