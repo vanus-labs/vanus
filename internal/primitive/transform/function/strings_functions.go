@@ -73,24 +73,24 @@ var AddSuffixFunction = function{
 var SplitWithSepFunction = function{
 	name:         "SPLIT_WITH_SEP",
 	fixedArgs:    []common.Type{common.String, common.String},
-	variadicArgs: common.TypePtr(common.Number),
+	variadicArgs: common.TypePtr(common.Int),
 	fn: func(args []interface{}) (interface{}, error) {
 		s, _ := args[0].(string)
 		sep, _ := args[1].(string)
 		if len(args) == 2 {
 			return strings.Split(s, sep), nil
 		}
-		return strings.SplitN(s, sep, int(args[2].(float64))), nil
+		return strings.SplitN(s, sep, args[2].(int)), nil
 	},
 }
 
 var ReplaceBetweenPositionsFunction = function{
 	name:      "REPLACE_BETWEEN_POSITIONS",
-	fixedArgs: []common.Type{common.String, common.Number, common.Number, common.String},
+	fixedArgs: []common.Type{common.String, common.Int, common.Int, common.String},
 	fn: func(args []interface{}) (interface{}, error) {
 		path, _ := args[0].(string)
-		startPosition := int(args[1].(float64))
-		endPosition := int(args[2].(float64))
+		startPosition, _ := args[1].(int)
+		endPosition, _ := args[2].(int)
 		targetValue, _ := args[3].(string)
 		if startPosition >= len(path) {
 			return nil, fmt.Errorf("start position must be less than the length of the string")

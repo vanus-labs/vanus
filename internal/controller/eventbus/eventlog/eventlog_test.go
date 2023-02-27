@@ -511,14 +511,14 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 			So(blockObj.VolumeID, ShouldEqual, vol1.ID)
 			So(blockObj.SegmentID, ShouldEqual, segments[0].ID)
 
-			seg := utMgr.GetSegment(segments2[1].ID)
+			seg := utMgr.getSegment(segments2[1].ID)
 			So(seg, ShouldNotBeNil)
 			So(seg.EventLogID, ShouldEqual, logMD.ID)
 
 			blockObj = utMgr.GetBlock(vanus.NewIDFromUint64(segments[1].Replicas.Leader))
 			segAnother, err := utMgr.GetSegmentByBlockID(blockObj)
 			So(err, ShouldBeNil)
-			So(segAnother, ShouldEqual, seg)
+			So(segAnother, ShouldResemble, *seg)
 		})
 	})
 }
@@ -1064,15 +1064,12 @@ func TestEventlog_All(t *testing.T) {
 			So(el.indexAt(4), ShouldBeNil)
 			So(el.indexAt(999), ShouldBeNil)
 
-			So(el.nextOf(el.indexAt(0)), ShouldEqual, seg2)
-			So(el.nextOf(el.indexAt(1)), ShouldEqual, seg3)
-			So(el.nextOf(el.indexAt(2)), ShouldEqual, seg4)
-			So(el.nextOf(el.indexAt(3)), ShouldBeNil)
+			list := el.getAllSegments()
 
-			So(el.previousOf(el.indexAt(0)), ShouldBeNil)
-			So(el.previousOf(el.indexAt(1)), ShouldEqual, seg1)
-			So(el.previousOf(el.indexAt(2)), ShouldEqual, seg2)
-			So(el.previousOf(el.indexAt(3)), ShouldEqual, seg3)
+			So(list[0], ShouldEqual, seg1)
+			So(list[1], ShouldEqual, seg2)
+			So(list[2], ShouldEqual, seg3)
+			So(list[3], ShouldEqual, seg4)
 		})
 	})
 }

@@ -65,10 +65,10 @@ func (mr *MockManagerMockRecorder) DeleteEventlog(ctx, id interface{}) *gomock.C
 }
 
 // GetAppendableSegment mocks base method.
-func (m *MockManager) GetAppendableSegment(ctx context.Context, eli *metadata.Eventlog, num int) ([]*Segment, error) {
+func (m *MockManager) GetAppendableSegment(ctx context.Context, eli *metadata.Eventlog, num int) ([]Segment, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAppendableSegment", ctx, eli, num)
-	ret0, _ := ret[0].([]*Segment)
+	ret0, _ := ret[0].([]Segment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -108,10 +108,10 @@ func (mr *MockManagerMockRecorder) GetEventLog(ctx, id interface{}) *gomock.Call
 }
 
 // GetEventLogSegmentList mocks base method.
-func (m *MockManager) GetEventLogSegmentList(elID vanus.ID) []*Segment {
+func (m *MockManager) GetEventLogSegmentList(elID vanus.ID) []Segment {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEventLogSegmentList", elID)
-	ret0, _ := ret[0].([]*Segment)
+	ret0, _ := ret[0].([]Segment)
 	return ret0
 }
 
@@ -121,25 +121,11 @@ func (mr *MockManagerMockRecorder) GetEventLogSegmentList(elID interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventLogSegmentList", reflect.TypeOf((*MockManager)(nil).GetEventLogSegmentList), elID)
 }
 
-// GetSegment mocks base method.
-func (m *MockManager) GetSegment(id vanus.ID) *Segment {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSegment", id)
-	ret0, _ := ret[0].(*Segment)
-	return ret0
-}
-
-// GetSegment indicates an expected call of GetSegment.
-func (mr *MockManagerMockRecorder) GetSegment(id interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSegment", reflect.TypeOf((*MockManager)(nil).GetSegment), id)
-}
-
 // GetSegmentByBlockID mocks base method.
-func (m *MockManager) GetSegmentByBlockID(block *metadata.Block) (*Segment, error) {
+func (m *MockManager) GetSegmentByBlockID(block *metadata.Block) (Segment, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSegmentByBlockID", block)
-	ret0, _ := ret[0].(*Segment)
+	ret0, _ := ret[0].(Segment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
