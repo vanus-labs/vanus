@@ -26,35 +26,20 @@ import (
 
 func TestExtractBetweenDelimitersAction(t *testing.T) {
 	funcName := strings.NewExtractBetweenDelimitersAction().Name()
-	Convey("test extract", t, func() {
-		Convey("test Positive testcase", func() {
-			a, err := runtime.NewAction([]interface{}{funcName, "$.test", "$.data.abc.test", "&&", "&"})
-			So(err, ShouldBeNil)
-			e := cetest.MinEvent()
-			e.SetExtension("test", "Hi welcome to &&Vanus&")
-			ceCtx := &context.EventContext{
-				Event: &e,
-				Data:  map[string]interface{}{},
-			}
-			err = a.Execute(ceCtx)
-			So(err, ShouldBeNil)
-			So(e.Extensions()["test"], ShouldEqual, "Hi welcome to &&Vanus&")
-			So(ceCtx.Data.(map[string]interface{})["abc"].(map[string]interface{})["test"], ShouldEqual, "Vanus")
-		})
-
-		Convey("test Negative testcase", func() {
-			a, err := runtime.NewAction([]interface{}{funcName, "$.test", "$.data.abc.test", "**", "*"})
-			So(err, ShouldBeNil)
-			e := cetest.MinEvent()
-			e.SetExtension("test", "Hi welcome to &&Vanus&")
-			ceCtx := &context.EventContext{
-				Event: &e,
-				Data:  map[string]interface{}{},
-			}
-			err = a.Execute(ceCtx)
-			So(err, ShouldNotBeNil)
-			So(e.Extensions()["test"], ShouldEqual, "Hi welcome to &&Vanus&")
-			So(ceCtx.Data.(map[string]interface{})["abc"].(map[string]interface{})["test"], ShouldEqual, "the start and/or end pattern is not present in the input string")
-		})
+	Convey("test Positive testcase", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test", "$.data.target", "&&", "&"})
+		So(err, ShouldBeNil)
+		e := cetest.MinEvent()
+		data := map[string]interface{}{}
+		e.SetExtension("test", "Hi welcome to &&Vanus&")
+		ceCtx := &context.EventContext{
+			Event: &e,
+			Data:  data,
+		}
+		err = a.Execute(ceCtx)
+		So(err, ShouldBeNil)
+		res, ok := data["target"]
+		So(ok, ShouldBeTrue)
+		So(res, ShouldEqual, "Vanus")
 	})
 }

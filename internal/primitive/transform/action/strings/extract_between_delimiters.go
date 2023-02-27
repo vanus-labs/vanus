@@ -16,7 +16,6 @@ package strings
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
@@ -34,15 +33,15 @@ func NewExtractBetweenDelimitersAction() action.Action {
 	return &ExtractBetweenDelimitersAction{
 		CommonAction: action.CommonAction{
 			ActionName: "EXTRACT_BETWEEN_DELIMITERS",
-			FixedArgs:  []arg.TypeList{arg.EventList, arg.All, arg.All, arg.All},
+			FixedArgs:  []arg.TypeList{arg.EventList, arg.EventList, arg.All, arg.All},
 		},
 	}
 }
 
 func (a *ExtractBetweenDelimitersAction) Init(args []arg.Arg) error {
 	a.TargetArg = args[1]
-	a.Args = args
-	a.ArgTypes = []common.Type{common.String, common.String, common.String, common.String}
+	a.Args = append(args[:1], args[2:]...)
+	a.ArgTypes = []common.Type{common.String, common.String, common.String}
 	return nil
 }
 
@@ -52,19 +51,15 @@ func (a *ExtractBetweenDelimitersAction) Execute(ceCtx *context.EventContext) er
 		return err
 	}
 	sourceJsonPath, _ := args[0].(string)
-	startDelimiter, _ := args[2].(string)
-	endDelimiter, _ := args[3].(string)
+	startDelimiter := args[1].(string)
+	endDelimiter := args[2].(string)
 
 	if strings.Contains(sourceJsonPath, startDelimiter) && strings.Contains(sourceJsonPath, endDelimiter) {
-		var newValue string
-		r := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(startDelimiter) + `(.*?)` + regexp.QuoteMeta(endDelimiter))
-		matches := r.FindAllStringSubmatch(sourceJsonPath, -1)
-		for _, v := range matches {
-			newValue = v[1]
-		}
+		firstSplit := strings.Split(sourceJsonPath, startDelimiter)
+		secondSplit := strings.Split(firstSplit[1], endDelimiter)
+		newValue := secondSplit[0]
 		return a.TargetArg.SetValue(ceCtx, newValue)
 	} else {
 		return fmt.Errorf("the start and/or end pattern is not present in the input string")
-
 	}
 }
