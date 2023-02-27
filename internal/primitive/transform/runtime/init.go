@@ -55,6 +55,7 @@ func init() {
 		strings.NewCheckCustomValuesAction,
 		strings.NewReplaceBetweenDelimitersAction,
 		strings.NewCapitalizeWordAction,
+		strings.NewSplitWithDelimiterAction,
 		// condition
 		condition.NewConditionIfAction,
 		// array

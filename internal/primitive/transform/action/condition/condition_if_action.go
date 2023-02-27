@@ -57,7 +57,7 @@ func (a *conditionIfAction) Execute(ceCtx *context.EventContext) error {
 	} else {
 		switch op {
 		case ">=", ">", "<=", "<":
-			a.ArgTypes = []common.Type{common.Number, common.String, common.Number, common.Any, common.Any}
+			a.ArgTypes = []common.Type{common.Float, common.String, common.Float, common.Any, common.Any}
 		default:
 			return errors.Errorf("not support op [%s]", op)
 		}
