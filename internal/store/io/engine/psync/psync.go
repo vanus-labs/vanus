@@ -45,6 +45,7 @@ func New(opts ...Option) engine.Interface {
 }
 
 func (e *psync) init(cfg config) *psync {
+	e.q.Init(false)
 	for i := 0; i < cfg.parallel; i++ {
 		go e.run()
 	}

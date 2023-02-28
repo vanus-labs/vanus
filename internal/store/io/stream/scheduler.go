@@ -50,7 +50,7 @@ func (s *scheduler) init(e engine.Interface, cfg config) *scheduler {
 	s.e = e
 	s.bp = block.NewBufferPool(cfg.flushBatchSize)
 	s.pq.init(cfg.flushDelayTime)
-	s.callbackExecutor.Init(cfg.callbackParallel, true)
+	s.callbackExecutor.Init(cfg.callbackParallel, false, true)
 	return s
 }
 

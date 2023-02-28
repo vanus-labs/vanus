@@ -21,43 +21,21 @@ import (
 	// standard libraries.
 	"os"
 	"syscall"
-
-	// third-party libraries.
-	"github.com/ncw/directio"
-
-	// first-party libraries.
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
-func OpenFile(path string, wronly bool, sync bool) (*os.File, error) {
-	flag := makeFlag(syscall.O_NOATIME, wronly, sync)
-	return directio.OpenFile(path, flag, 0)
+const (
+	openFileFlag   = syscall.O_NOATIME
+	createFileFlag = os.O_CREATE | os.O_EXCL | syscall.O_NOATIME
+	syncFlag       = syscall.O_DSYNC
+)
+
+func createFile(path string, size int64, flag int, sync bool, direct bool) (*os.File, error) {
+	if size > 0 && sync {
+		return doCreateFileAndWarm(path, size, flag, sync, direct)
+	}
+	return doCreateFile(path, size, flag, sync, direct)
 }
 
-func CreateFile(path string, size int64, wronly bool, sync bool) (*os.File, error) {
-	flag := makeFlag(os.O_CREATE|os.O_EXCL|syscall.O_NOATIME, wronly, sync)
-	f, err := directio.OpenFile(path, flag, defaultFilePerm)
-	if err != nil {
-		return nil, err
-	}
-	// Resize file.
-	if err = f.Truncate(size); err != nil {
-		if err2 := f.Close(); err2 != nil {
-			return f, errors.Chain(err, err2)
-		}
-		return nil, err
-	}
-	return f, nil
-}
-
-func makeFlag(flag int, wronly bool, sync bool) int {
-	if wronly {
-		flag |= os.O_WRONLY
-	} else {
-		flag |= os.O_RDWR
-	}
-	if sync {
-		flag |= syscall.O_DSYNC
-	}
-	return flag
+func resizeFile(f *os.File, size int64) error {
+	return syscall.Fallocate(int(f.Fd()), 0, 0, size)
 }
