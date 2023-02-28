@@ -288,8 +288,8 @@ func TestEventlogManager_ScaleSegmentTask(t *testing.T) {
 
 		utMgr.stop()
 		// avoid data race during UT
-		el2.lock()
 		head = el2.head()
+		el2.lock()
 		head.State = StateFrozen
 		el2.unlock()
 		So(err, ShouldBeNil)
