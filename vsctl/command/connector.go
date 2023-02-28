@@ -82,7 +82,7 @@ type ConnectorInfo struct {
 	Reason  string `json:"reason,omitempty"`
 }
 
-type GetConnectorOKBody struct {
+type ConnectorOKBody struct {
 	Code    *int32         `json:"code"`
 	Data    *ConnectorInfo `json:"data"`
 	Message *string        `json:"message"`
@@ -219,6 +219,19 @@ func installConnectorCommand() *cobra.Command {
 				cmdFailedf(cmd, "Install Connector Failed: %s", resp.Status)
 			}
 
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				cmdFailedf(cmd, "read response body: %s", err)
+			}
+			info := &ConnectorOKBody{}
+			err = json.Unmarshal(body, info)
+			if err != nil {
+				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Install Connector Failed: %s", *info.Message)
+			}
+
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Install Connector Success"})
 				color.Green(string(data))
@@ -277,6 +290,19 @@ func uninstallConnectorCommand() *cobra.Command {
 			defer resp.Body.Close()
 			if resp.StatusCode != http.StatusOK {
 				cmdFailedf(cmd, "Uninstall Connector Failed: %s", resp.Status)
+			}
+
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				cmdFailedf(cmd, "read response body: %s", err)
+			}
+			info := &ConnectorOKBody{}
+			err = json.Unmarshal(body, info)
+			if err != nil {
+				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Uninstall Connector Failed: %s", *info.Message)
 			}
 
 			if IsFormatJSON(cmd) {
@@ -341,6 +367,9 @@ func listConnectorCommand() *cobra.Command {
 			err = json.Unmarshal(body, info)
 			if err != nil {
 				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "List Connector Failed: %s", *info.Message)
 			}
 
 			if IsFormatJSON(cmd) {
@@ -411,10 +440,13 @@ func getConnectorCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf(cmd, "read response body: %s", err)
 			}
-			info := &GetConnectorOKBody{}
+			info := &ConnectorOKBody{}
 			err = json.Unmarshal(body, info)
 			if err != nil {
 				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Get Connector Failed: %s", *info.Message)
 			}
 
 			if IsFormatJSON(cmd) {
