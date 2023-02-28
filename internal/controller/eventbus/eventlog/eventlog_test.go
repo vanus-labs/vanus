@@ -287,8 +287,11 @@ func TestEventlogManager_ScaleSegmentTask(t *testing.T) {
 		So(util.MapLen(&utMgr.globalBlockMap), ShouldEqual, (defaultAppendableSegmentNumber*2+1)*3)
 
 		utMgr.stop()
+		// avoid data race during UT
+		el2.lock()
 		head = el2.head()
 		head.State = StateFrozen
+		el2.unlock()
 		So(err, ShouldBeNil)
 		time.Sleep(50 * time.Millisecond)
 		So(el.size(), ShouldEqual, defaultAppendableSegmentNumber+1)
