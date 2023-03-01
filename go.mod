@@ -38,7 +38,7 @@ require (
 	github.com/sony/sonyflake v1.1.0
 	github.com/spf13/cobra v1.4.0
 	github.com/tidwall/gjson v1.14.1
-	go.etcd.io/etcd/client/v3 v3.6.0-alpha.0
+	go.etcd.io/etcd/client/v3 v3.5.7
 	go.mongodb.org/mongo-driver v1.11.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.36.4
 	go.opentelemetry.io/otel v1.11.2
@@ -109,8 +109,8 @@ require (
 	github.com/xdg-go/scram v1.1.1 // indirect
 	github.com/xdg-go/stringprep v1.0.3 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
-	go.etcd.io/etcd/api/v3 v3.6.0-alpha.0 // indirect
-	go.etcd.io/etcd/client/pkg/v3 v3.6.0-alpha.0 // indirect
+	go.etcd.io/etcd/api/v3 v3.5.7 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.5.7 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.11.2 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.11.2 // indirect
