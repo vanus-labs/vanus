@@ -1,4 +1,4 @@
-// Copyright 2022 Linkall Inc.
+// Copyright 2023 Linkall Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -61,8 +61,8 @@ type LeaderInfo struct {
 type EventType string
 
 const (
-	EventBecomeLeader   = "leader"
-	EventBecomeFollower = "follower"
+	EventBecomeLeader   EventType = "leader"
+	EventBecomeFollower EventType = "follower"
 )
 
 type MembershipChangedEvent struct {
@@ -81,12 +81,9 @@ type member struct {
 	isLeader      atomic.Bool
 	handlers      []MembershipEventProcessor
 	topology      map[string]string
-	leaderID      string
-	leaderAddr    string
 	wg            sync.WaitGroup
 	handlerMu     sync.RWMutex
 	sessionMu     sync.RWMutex
-	leaderMu      sync.RWMutex
 	exit          chan struct{}
 	isReady       atomic.Bool
 }
@@ -237,9 +234,6 @@ func (m *member) tryLock(ctx context.Context) error {
 		return err
 	}
 
-	// watch LeaderInfoKeyPrefixInKVStore
-	go m.watch(ctx)
-
 	m.isLeader.Store(true)
 	m.isReady.Store(true)
 	log.Info(ctx, "controller become leader", nil)
@@ -250,43 +244,12 @@ func (m *member) tryLock(ctx context.Context) error {
 }
 
 func (m *member) setLeader(ctx context.Context) error {
-	m.leaderMu.Lock()
-	m.leaderID = os.Getenv("POD_NAME")
-	m.leaderAddr = m.topology[os.Getenv("POD_NAME")]
-	m.leaderMu.Unlock()
 	data, _ := json.Marshal(&LeaderInfo{
-		LeaderID:   m.leaderID,
-		LeaderAddr: m.leaderAddr,
+		LeaderID:   os.Getenv("POD_NAME"),
+		LeaderAddr: m.topology[os.Getenv("POD_NAME")],
 	})
 	_, err := m.client.Put(ctx, LeaderInfoKeyPrefixInKVStore, string(data))
 	return err
-}
-
-func (m *member) watch(ctx context.Context) {
-	watchc := m.client.Watch(ctx, LeaderInfoKeyPrefixInKVStore)
-	for {
-		select {
-		case <-ctx.Done():
-			log.Debug(ctx, "context canceled at watch leader info metadata", nil)
-			return
-		case resp := <-watchc:
-			log.Debug(ctx, "received leader changed event", nil)
-			if resp.Err() != nil {
-				log.Error(ctx, "watch error", nil)
-				return
-			}
-			for _, ev := range resp.Events {
-				if ev.IsModify() {
-					err := m.refreshLeaderInfo()
-					if err != nil {
-						log.Error(ctx, "refresh leader info failed", map[string]interface{}{
-							log.KeyError: err,
-						})
-					}
-				}
-			}
-		}
-	}
 }
 
 func (m *member) refresh(ctx context.Context) bool {
@@ -344,7 +307,10 @@ func (m *member) execHandlers(ctx context.Context, event MembershipChangedEvent)
 	for _, handler := range m.handlers {
 		err := handler(ctx, event)
 		if err != nil {
-			return err
+			log.Error(ctx, "exec handler failed and exit", map[string]interface{}{
+				log.KeyError: err,
+			})
+			panic("exec handler failed")
 		}
 	}
 	return nil
@@ -364,36 +330,38 @@ func (m *member) IsLeader() bool {
 	return m.isLeader.Load()
 }
 
-func (m *member) refreshLeaderInfo() error {
-	m.leaderMu.Lock()
-	defer m.leaderMu.Unlock()
+func (m *member) GetLeaderID() string {
+	// TODO(jiangkai): maybe lookup etcd per call has low performance.
 	resp, err := m.client.Get(context.Background(), LeaderInfoKeyPrefixInKVStore)
 	if err != nil {
 		log.Warning(context.Background(), "get leader info failed", map[string]interface{}{
 			log.KeyError: err,
 		})
-		return err
+		return ""
 	}
 	if len(resp.Kvs) == 0 {
-		return errors.New("leader info is not exist")
+		return ""
 	}
 	leader := &LeaderInfo{}
 	_ = json.Unmarshal(resp.Kvs[0].Value, leader)
-	m.leaderID = leader.LeaderID
-	m.leaderAddr = leader.LeaderAddr
-	return nil
-}
-
-func (m *member) GetLeaderID() string {
-	m.leaderMu.RLock()
-	defer m.leaderMu.RUnlock()
-	return m.leaderID
+	return leader.LeaderID
 }
 
 func (m *member) GetLeaderAddr() string {
-	m.leaderMu.RLock()
-	defer m.leaderMu.RUnlock()
-	return m.leaderAddr
+	// TODO(jiangkai): maybe lookup etcd per call has low performance.
+	resp, err := m.client.Get(context.Background(), LeaderInfoKeyPrefixInKVStore)
+	if err != nil {
+		log.Warning(context.Background(), "get leader info failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		return ""
+	}
+	if len(resp.Kvs) == 0 {
+		return ""
+	}
+	leader := &LeaderInfo{}
+	_ = json.Unmarshal(resp.Kvs[0].Value, leader)
+	return leader.LeaderAddr
 }
 
 func (m *member) IsReady() bool {

@@ -11,7 +11,7 @@ topology:
 replicas: 1
 metadata:
   key_prefix: "/vanus"
-leaderelection:
+leader_election:
   lease_duration: 15
 secret_encryption_salt: "encryption_salt"
 observability:

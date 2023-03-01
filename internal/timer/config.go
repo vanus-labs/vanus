@@ -31,7 +31,7 @@ type Config struct {
 	EtcdEndpoints        []string             `yaml:"etcd"`
 	CtrlEndpoints        []string             `yaml:"controllers"`
 	MetadataConfig       MetadataConfig       `yaml:"metadata"`
-	LeaderElectionConfig LeaderElectionConfig `yaml:"leaderelection"`
+	LeaderElectionConfig LeaderElectionConfig `yaml:"leader_election"`
 	TimingWheelConfig    TimingWheelConfig    `yaml:"timingwheel"`
 	Observability        observability.Config `yaml:"observability"`
 }

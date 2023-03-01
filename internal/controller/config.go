@@ -32,7 +32,7 @@ type Config struct {
 	EtcdEndpoints        []string             `yaml:"etcd"`
 	DataDir              string               `yaml:"data_dir"`
 	MetadataConfig       MetadataConfig       `yaml:"metadata"`
-	LeaderElectionConfig LeaderElectionConfig `yaml:"leaderelection"`
+	LeaderElectionConfig LeaderElectionConfig `yaml:"leader_election"`
 	Topology             map[string]string    `yaml:"topology"`
 	Replicas             uint                 `yaml:"replicas"`
 	SecretEncryptionSalt string               `yaml:"secret_encryption_salt"`
