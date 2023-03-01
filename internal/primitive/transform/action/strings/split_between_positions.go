@@ -61,14 +61,14 @@ func (a *splitBetweenPositionsAction) Execute(ceCtx *context.EventContext) error
 
 	var substrings []string
 
-	if startPosition + endPosition > len(sourceJSONPath){
+	if startPosition+endPosition > len(sourceJSONPath) {
 		// if sum of start position and end position is greater than the length of string, return an error
 		return fmt.Errorf("sum of start position and end position must be equal to or less than the length of the string")
 	}
 
 	substrings = []string{
 		sourceJSONPath[:startPosition],
-		sourceJSONPath[startPosition:len(sourceJSONPath)-endPosition],
+		sourceJSONPath[startPosition : len(sourceJSONPath)-endPosition],
 		sourceJSONPath[len(sourceJSONPath)-endPosition:],
 	}
 
