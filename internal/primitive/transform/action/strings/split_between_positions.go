@@ -35,7 +35,6 @@ func NewSplitBetweenPositionsAction() action.Action {
 			FixedArgs:  []arg.TypeList{arg.EventList, arg.All, arg.All, []arg.Type{arg.EventData}},
 		},
 	}
-	
 }
 
 func (a *splitBetweenPositionsAction) Init(args []arg.Arg) error {
