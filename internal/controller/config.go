@@ -52,7 +52,6 @@ func (c *Config) GetMemberConfig() member.Config {
 	return member.Config{
 		LeaseDuration: c.LeaderElectionConfig.LeaseDuration,
 		Name:          resourceLockName,
-		KeyPrefix:     c.MetadataConfig.KeyPrefix,
 		EtcdEndpoints: c.EtcdEndpoints,
 	}
 }

@@ -81,9 +81,12 @@ type member struct {
 	isLeader      atomic.Bool
 	handlers      []MembershipEventProcessor
 	topology      map[string]string
+	leaderID      string
+	leaderAddr    string
 	wg            sync.WaitGroup
 	handlerMu     sync.RWMutex
 	sessionMu     sync.RWMutex
+	leaderMu      sync.RWMutex
 	exit          chan struct{}
 	isReady       atomic.Bool
 }
@@ -181,7 +184,13 @@ func (m *member) tryAcquireLockLoop(ctx context.Context) (<-chan struct{}, error
 				_ = m.execHandlers(ctx, MembershipChangedEvent{
 					Type: EventBecomeFollower,
 				})
-				m.refresh(ctx)
+				// refresh session until success
+				for {
+					if m.refresh(ctx) {
+						break
+					}
+					time.Sleep(time.Second)
+				}
 			default:
 				_ = m.tryLock(ctx)
 				time.Sleep(acquireLockDuration * time.Second)
@@ -224,8 +233,12 @@ func (m *member) tryLock(ctx context.Context) error {
 			"leader_addr": m.topology[os.Getenv("POD_NAME")],
 			log.KeyError:  err,
 		})
+		_ = m.mutex.Unlock(ctx)
 		return err
 	}
+
+	// watch LeaderInfoKeyPrefixInKVStore
+	go m.watch(ctx)
 
 	m.isLeader.Store(true)
 	m.isReady.Store(true)
@@ -237,15 +250,46 @@ func (m *member) tryLock(ctx context.Context) error {
 }
 
 func (m *member) setLeader(ctx context.Context) error {
+	m.leaderMu.Lock()
+	m.leaderID = os.Getenv("POD_NAME")
+	m.leaderAddr = m.topology[os.Getenv("POD_NAME")]
+	m.leaderMu.Unlock()
 	data, _ := json.Marshal(&LeaderInfo{
-		LeaderID:   os.Getenv("POD_NAME"),
-		LeaderAddr: m.topology[os.Getenv("POD_NAME")],
+		LeaderID:   m.leaderID,
+		LeaderAddr: m.leaderAddr,
 	})
 	_, err := m.client.Put(ctx, LeaderInfoKeyPrefixInKVStore, string(data))
 	return err
 }
 
-func (m *member) refresh(ctx context.Context) {
+func (m *member) watch(ctx context.Context) {
+	watchc := m.client.Watch(ctx, LeaderInfoKeyPrefixInKVStore)
+	for {
+		select {
+		case <-ctx.Done():
+			log.Debug(ctx, "context canceled at watch leader info metadata", nil)
+			return
+		case resp := <-watchc:
+			log.Debug(ctx, "received leader changed event", nil)
+			if resp.Err() != nil {
+				log.Error(ctx, "watch error", nil)
+				return
+			}
+			for _, ev := range resp.Events {
+				if ev.IsModify() {
+					err := m.refreshLeaderInfo()
+					if err != nil {
+						log.Error(ctx, "refresh leader info failed", map[string]interface{}{
+							log.KeyError: err,
+						})
+					}
+				}
+			}
+		}
+	}
+}
+
+func (m *member) refresh(ctx context.Context) bool {
 	var err error
 	m.sessionMu.Lock()
 	defer m.sessionMu.Unlock()
@@ -255,9 +299,10 @@ func (m *member) refresh(ctx context.Context) {
 		log.Error(context.Background(), "refresh session failed", map[string]interface{}{
 			log.KeyError: err,
 		})
-		panic("refresh session failed")
+		return false
 	}
 	m.mutex = concurrency.NewMutex(m.session, m.resourcelock)
+	return true
 }
 
 func (m *member) Stop(ctx context.Context) {
@@ -319,36 +364,36 @@ func (m *member) IsLeader() bool {
 	return m.isLeader.Load()
 }
 
-func (m *member) GetLeaderID() string {
+func (m *member) refreshLeaderInfo() error {
+	m.leaderMu.Lock()
+	defer m.leaderMu.Unlock()
 	resp, err := m.client.Get(context.Background(), LeaderInfoKeyPrefixInKVStore)
 	if err != nil {
 		log.Warning(context.Background(), "get leader info failed", map[string]interface{}{
 			log.KeyError: err,
 		})
-		return ""
+		return err
 	}
 	if len(resp.Kvs) == 0 {
-		return ""
+		return errors.New("leader info is not exist")
 	}
 	leader := &LeaderInfo{}
 	_ = json.Unmarshal(resp.Kvs[0].Value, leader)
-	return leader.LeaderID
+	m.leaderID = leader.LeaderID
+	m.leaderAddr = leader.LeaderAddr
+	return nil
+}
+
+func (m *member) GetLeaderID() string {
+	m.leaderMu.RLock()
+	defer m.leaderMu.RUnlock()
+	return m.leaderID
 }
 
 func (m *member) GetLeaderAddr() string {
-	resp, err := m.client.Get(context.Background(), LeaderInfoKeyPrefixInKVStore)
-	if err != nil {
-		log.Warning(context.Background(), "get leader info failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		return ""
-	}
-	if len(resp.Kvs) == 0 {
-		return ""
-	}
-	leader := &LeaderInfo{}
-	_ = json.Unmarshal(resp.Kvs[0].Value, leader)
-	return leader.LeaderAddr
+	m.leaderMu.RLock()
+	defer m.leaderMu.RUnlock()
+	return m.leaderAddr
 }
 
 func (m *member) IsReady() bool {

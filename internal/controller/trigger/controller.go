@@ -24,7 +24,6 @@ import (
 	"sync"
 	"time"
 
-	embedetcd "github.com/linkall-labs/embed-etcd"
 	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/internal/controller/member"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
@@ -536,7 +535,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context,
 	ctrl.membershipMutex.Lock()
 	defer ctrl.membershipMutex.Unlock()
 	switch event.Type {
-	case embedetcd.EventBecomeLeader:
+	case member.EventBecomeLeader:
 		if ctrl.isLeader {
 			return nil
 		}
@@ -560,7 +559,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context,
 		go ctrl.gcSubscriptions(ctx)
 		ctrl.state = primitive.ServerStateRunning
 		ctrl.isLeader = true
-	case embedetcd.EventBecomeFollower:
+	case member.EventBecomeFollower:
 		if !ctrl.isLeader {
 			return nil
 		}

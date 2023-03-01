@@ -27,7 +27,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/eventlog"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
@@ -595,7 +594,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event me
 	defer ctrl.membershipMutex.Unlock()
 
 	switch event.Type {
-	case embedetcd.EventBecomeLeader:
+	case member.EventBecomeLeader:
 		if ctrl.isLeader {
 			return nil
 		}
@@ -619,7 +618,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event me
 			ctrl.stop(ctx, err)
 			return err
 		}
-	case embedetcd.EventBecomeFollower:
+	case member.EventBecomeFollower:
 		if !ctrl.isLeader {
 			return nil
 		}

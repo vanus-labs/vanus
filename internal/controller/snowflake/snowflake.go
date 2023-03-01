@@ -24,7 +24,6 @@ import (
 	"sync"
 	"time"
 
-	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/member"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
@@ -166,7 +165,7 @@ func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event membe
 	defer sf.mutex.Unlock()
 
 	switch event.Type {
-	case embedetcd.EventBecomeLeader:
+	case member.EventBecomeLeader:
 		if sf.isLeader {
 			return nil
 		}
@@ -209,7 +208,7 @@ func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event membe
 			sf.nodes[n.ID] = n
 		}
 		sf.isLeader = true
-	case embedetcd.EventBecomeFollower:
+	case member.EventBecomeFollower:
 		if !sf.isLeader {
 			return nil
 		}
