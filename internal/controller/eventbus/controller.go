@@ -27,11 +27,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/eventlog"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
+	"github.com/linkall-labs/vanus/internal/controller/member"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/kv/etcd"
 	"github.com/linkall-labs/vanus/internal/primitive"
@@ -58,12 +58,12 @@ const (
 	maximumEventlogNum = 64
 )
 
-func NewController(cfg Config, member embedetcd.Member) *controller {
+func NewController(cfg Config, mem member.Member) *controller {
 	c := &controller{
 		cfg:         &cfg,
 		ssMgr:       server.NewServerManager(),
 		eventBusMap: map[string]*metadata.Eventbus{},
-		member:      member,
+		member:      mem,
 		isLeader:    false,
 		readyNotify: make(chan error, 1),
 		stopNotify:  make(chan error, 1),
@@ -80,7 +80,7 @@ type controller struct {
 	eventLogMgr          eventlog.Manager
 	ssMgr                server.Manager
 	eventBusMap          map[string]*metadata.Eventbus
-	member               embedetcd.Member
+	member               member.Member
 	cancelCtx            context.Context
 	cancelFunc           context.CancelFunc
 	membershipMutex      sync.Mutex
@@ -589,12 +589,12 @@ func (ctrl *controller) recordMetrics() {
 	}
 }
 
-func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event embedetcd.MembershipChangedEvent) error {
+func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event member.MembershipChangedEvent) error {
 	ctrl.membershipMutex.Lock()
 	defer ctrl.membershipMutex.Unlock()
 
 	switch event.Type {
-	case embedetcd.EventBecomeLeader:
+	case member.EventBecomeLeader:
 		if ctrl.isLeader {
 			return nil
 		}
@@ -618,7 +618,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event em
 			ctrl.stop(ctx, err)
 			return err
 		}
-	case embedetcd.EventBecomeFollower:
+	case member.EventBecomeFollower:
 		if !ctrl.isLeader {
 			return nil
 		}
