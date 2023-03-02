@@ -44,8 +44,8 @@ func NewExtractMissingAction() action.Action {
 
 func (a *extractMissingAction) Init(args []arg.Arg) error {
 	a.TargetArg = args[1]
-	a.Args = args[0:2]
-	a.Args = append(a.Args, args[2:]...)
+	//a.Args = args[0:2]
+	a.Args = append(args[0], args[2:]...)
 	a.ArgTypes = []common.Type{common.String, common.String, common.Any, common.Any}
 	return nil
 }
