@@ -15,7 +15,6 @@
 package strings
 
 import (
-	//"strings"
 
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
@@ -23,12 +22,12 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 )
 
-
 type extractMissingAction struct {
 	action.CommonAction
 }
 
-//NewExtractMissingAction ["extract_missing", "sourceJsonPath", "targetJsonPath", "trueFlagReplacement", "falseFlagReplacement"].
+//NewExtractMissingAction ["extract_missing", "sourceJSONPath", "targetJSONPath", 
+//"trueFlagReplacement", "falseFlagReplacement"].
 func NewExtractMissingAction() action.Action {
 	return &extractMissingAction{
 		CommonAction: action.CommonAction{
@@ -45,7 +44,7 @@ func NewExtractMissingAction() action.Action {
 
 func (a *extractMissingAction) Init(args []arg.Arg) error {
 	a.TargetArg = args[1]
-	a.Args = args[:1]
+	a.Args = args[0:2]
 	a.Args = append(a.Args, args[2:]...)
 	a.ArgTypes = []common.Type{common.String, common.String, common.Any, common.Any}
 	return nil
@@ -56,14 +55,12 @@ func (a *extractMissingAction) Execute(ceCtx *context.EventContext) error {
 	if err != nil {
 		return err
 	}
-	sourceJsonPath, _ := args[0].(string)
-	//targetJsonPath := args[1].(string)
+	sourceJSONPath, _ := args[0].(string)
 	trueFlagReplacement := args[2]
 	falseFlagReplacement := args[3]
 
-	if sourceJsonPath == "" {
+	if sourceJSONPath == "" {
 		return a.TargetArg.SetValue(ceCtx, trueFlagReplacement)
 	}
 	return a.TargetArg.SetValue(ceCtx, falseFlagReplacement)
 }
-
