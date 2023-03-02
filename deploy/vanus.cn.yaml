@@ -88,8 +88,8 @@ data:
       lease_duration: 15
     timingwheel:
       tick: 1
-      wheel_size: 8
-      layers: 1
+      wheel_size: 32
+      layers: 4
     controllers:
       - vanus-controller-0.vanus-controller.vanus.svc:2048
       - vanus-controller-1.vanus-controller.vanus.svc:2048
