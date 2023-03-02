@@ -22,8 +22,8 @@ import (
 
 var MathAddFunction = function{
 	name:         "MATH_ADD",
-	fixedArgs:    []common.Type{common.Number, common.Number},
-	variadicArgs: common.TypePtr(common.Number),
+	fixedArgs:    []common.Type{common.Float, common.Float},
+	variadicArgs: common.TypePtr(common.Float),
 	fn: func(args []interface{}) (interface{}, error) {
 		var sum float64
 		for i := 0; i < len(args); i++ {
@@ -36,7 +36,7 @@ var MathAddFunction = function{
 
 var MathSubFunction = function{
 	name:      "MATH_SUB",
-	fixedArgs: []common.Type{common.Number, common.Number},
+	fixedArgs: []common.Type{common.Float, common.Float},
 	fn: func(args []interface{}) (interface{}, error) {
 		return args[0].(float64) - args[1].(float64), nil
 	},
@@ -44,8 +44,8 @@ var MathSubFunction = function{
 
 var MathMulFunction = function{
 	name:         "MATH_MUL",
-	fixedArgs:    []common.Type{common.Number, common.Number},
-	variadicArgs: common.TypePtr(common.Number),
+	fixedArgs:    []common.Type{common.Float, common.Float},
+	variadicArgs: common.TypePtr(common.Float),
 	fn: func(args []interface{}) (interface{}, error) {
 		sum := float64(1)
 		for i := 0; i < len(args); i++ {
@@ -58,7 +58,7 @@ var MathMulFunction = function{
 
 var MathDivFunction = function{
 	name:      "MATH_DIV",
-	fixedArgs: []common.Type{common.Number, common.Number},
+	fixedArgs: []common.Type{common.Float, common.Float},
 	fn: func(args []interface{}) (interface{}, error) {
 		if args[1].(float64) == 0 {
 			return nil, fmt.Errorf("division by zero")

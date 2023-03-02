@@ -10,29 +10,20 @@ data:
     ip: ${POD_IP}
     port: 2048
     etcd:
-      - vanus-controller-0.vanus-controller:2379
-      - vanus-controller-1.vanus-controller:2379
-      - vanus-controller-2.vanus-controller:2379
+      - vanus-etcd-0.vanus-etcd:2379
+      - vanus-etcd-1.vanus-etcd:2379
+      - vanus-etcd-2.vanus-etcd:2379
     data_dir: /data
     segment_capacity: 268435456
     replicas: 3
     metadata:
       key_prefix: /vanus
+    leader_election:
+      lease_duration: 15
     topology:
       vanus-controller-0: vanus-controller-0.vanus-controller.vanus.svc:2048
       vanus-controller-1: vanus-controller-1.vanus-controller.vanus.svc:2048
       vanus-controller-2: vanus-controller-2.vanus-controller.vanus.svc:2048
-    embed_etcd:
-      # relative path to ${data_dir} above
-      data_dir: etcd/data
-      listen_client_addr: 0.0.0.0:2379
-      listen_peer_addr: 0.0.0.0:2380
-      advertise_client_addr: ${POD_NAME}.vanus-controller:2379
-      advertise_peer_addr: ${POD_NAME}.vanus-controller:2380
-      clusters:
-        - vanus-controller-0=http://vanus-controller-0.vanus-controller:2380
-        - vanus-controller-1=http://vanus-controller-1.vanus-controller:2380
-        - vanus-controller-2=http://vanus-controller-2.vanus-controller:2380
     observability:
       metrics:
         enable: true
