@@ -78,4 +78,7 @@ func BenchmarkAction(b *testing.B) {
 	b.Run("add_suffix", actionBenchmark([]interface{}{"add_suffix", "$.data.str", "suffix"}))
 	b.Run("replace_with_regex", actionBenchmark([]interface{}{"replace_with_regex", "$.data.str", "a", "Aa"}))
 	b.Run("capitalize_sentence", actionBenchmark([]interface{}{"capitalize_sentence", "$.data.str"}))
+	b.Run("check_custom_values", actionBenchmark([]interface{}{"check_custom_values", "$.data.str", "value", "$.data.target", "true", "false"}))
+	b.Run("split_with_delimiter", actionBenchmark([]interface{}{"split_with_delimiter", "$.data.str", "a", "$.data.target"}))
+	b.Run("unfold_array", actionBenchmark([]interface{}{"unfold_array", "$.data.str", "$.data.target"}))
 }

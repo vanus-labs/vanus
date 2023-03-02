@@ -132,7 +132,7 @@ func (sf *SegmentedFile) createNextSegment(last *Segment) *Segment {
 		off = last.eo
 	}
 
-	next, err := createSegment(sf.dir, sf.ext, off, sf.segmentSize, true)
+	next, err := createSegment(sf.dir, sf.ext, off, sf.segmentSize)
 	if err != nil {
 		panic(err)
 	}
@@ -144,9 +144,9 @@ func (sf *SegmentedFile) createNextSegment(last *Segment) *Segment {
 	return next
 }
 
-func createSegment(dir, ext string, so, size int64, sync bool) (*Segment, error) {
+func createSegment(dir, ext string, so, size int64) (*Segment, error) {
 	path := filepath.Join(dir, fmt.Sprintf("%020d%s", so, ext))
-	f, err := io.CreateFile(path, size, true, sync)
+	f, err := io.CreateFile(path, size, os.O_WRONLY, true, true)
 	if err != nil {
 		return nil, err
 	}

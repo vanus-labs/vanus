@@ -52,14 +52,12 @@ type Manager interface {
 	AcquireEventLog(ctx context.Context, eventbusID vanus.ID, eventbusName string) (*metadata.Eventlog, error)
 	GetEventLog(ctx context.Context, id vanus.ID) *metadata.Eventlog
 	DeleteEventlog(ctx context.Context, id vanus.ID)
-	GetEventLogSegmentList(elID vanus.ID) []*Segment
-	GetAppendableSegment(ctx context.Context, eli *metadata.Eventlog,
-		num int) ([]*Segment, error)
-	UpdateSegment(ctx context.Context, m map[string][]Segment)
-	GetSegmentByBlockID(block *metadata.Block) (*Segment, error)
 	GetBlock(id vanus.ID) *metadata.Block
-	GetSegment(id vanus.ID) *Segment
 	UpdateSegmentReplicas(ctx context.Context, segID vanus.ID, term uint64) error
+	GetEventLogSegmentList(elID vanus.ID) []Segment
+	GetAppendableSegment(ctx context.Context, eli *metadata.Eventlog, num int) ([]Segment, error)
+	UpdateSegment(ctx context.Context, m map[string][]Segment)
+	GetSegmentByBlockID(block *metadata.Block) (Segment, error)
 }
 
 var mgr = &eventlogManager{
@@ -135,15 +133,11 @@ func (mgr *eventlogManager) Run(ctx context.Context, kvClient kv.Client, startTa
 			return err2
 		}
 		mgr.eventLogMap.Store(elMD.ID.Key(), el)
-		ptr := el.segmentList.Front()
-		if ptr != nil {
-			seg, _ := ptr.Value.(*Segment)
-			for seg != nil {
-				mgr.globalSegmentMap.Store(seg.ID.Key(), seg)
-				for _, v := range seg.Replicas.Peers {
-					mgr.globalBlockMap.Store(v.ID.Key(), v)
-				}
-				seg = el.nextOf(seg)
+
+		for _, ptr := range el.getAllSegments() {
+			mgr.globalSegmentMap.Store(ptr.ID.Key(), ptr)
+			for _, v := range ptr.Replicas.Peers {
+				mgr.globalBlockMap.Store(v.ID.Key(), v)
 			}
 		}
 	}
@@ -250,9 +244,8 @@ func (mgr *eventlogManager) DeleteEventlog(ctx context.Context, id vanus.ID) {
 }
 
 func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
-	eli *metadata.Eventlog, num int) ([]*Segment, error) {
-	result := make([]*Segment, 0)
-
+	eli *metadata.Eventlog, num int) ([]Segment, error) {
+	result := make([]Segment, 0, num)
 	if eli == nil || num == 0 {
 		return result, nil
 	}
@@ -286,14 +279,13 @@ func (mgr *eventlogManager) GetAppendableSegment(ctx context.Context,
 		s = el.currentAppendableSegment()
 	}
 
-	for len(result) < num && s != nil {
-		result = append(result, s)
-		s = el.nextOf(s)
-	}
-	return result, nil
+	return el.listOfRight(s, true), nil
 }
 
 func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[string][]Segment) {
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
+
 	// iterate eventlog
 	for eventlogID, segments := range m {
 		v, exist := mgr.eventLogMap.Load(eventlogID)
@@ -336,17 +328,20 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[string][]Se
 	}
 }
 
-func (mgr *eventlogManager) GetEventLogSegmentList(elID vanus.ID) []*Segment {
-	result := make([]*Segment, 0)
+func (mgr *eventlogManager) GetEventLogSegmentList(elID vanus.ID) []Segment {
+	result := make([]Segment, 0)
 	v, exist := mgr.eventLogMap.Load(elID.Key())
 	if !exist {
 		return result
 	}
+
 	el, _ := v.(*eventlog)
-	s := el.head()
-	for s != nil {
-		result = append(result, s)
-		s = el.nextOf(s)
+	list := el.getAllSegments()
+	el.lock()
+	defer el.unlock()
+
+	for _, v := range list {
+		result = append(result, v.Copy())
 	}
 	return result
 }
@@ -359,7 +354,7 @@ func (mgr *eventlogManager) GetBlock(id vanus.ID) *metadata.Block {
 	return v.(*metadata.Block)
 }
 
-func (mgr *eventlogManager) GetSegment(id vanus.ID) *Segment {
+func (mgr *eventlogManager) getSegment(id vanus.ID) *Segment {
 	v, exist := mgr.globalSegmentMap.Load(id.Key())
 	if !exist {
 		return nil
@@ -373,7 +368,7 @@ func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, leaderID 
 		return errors.ErrBlockNotFound
 	}
 
-	seg := mgr.GetSegment(blk.SegmentID)
+	seg := mgr.getSegment(blk.SegmentID)
 	if seg == nil {
 		return errors.ErrSegmentNotFound
 	}
@@ -381,6 +376,13 @@ func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, leaderID 
 	if seg.Replicas.Term >= term {
 		return nil
 	}
+
+	el := mgr.getEventLog(seg.EventLogID)
+	if el == nil {
+		return errors.ErrEventLogNotFound
+	}
+	el.lock()
+	defer el.unlock()
 
 	seg.Replicas.Leader = leaderID.Uint64()
 	seg.Replicas.Term = term
@@ -396,20 +398,22 @@ func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, leaderID 
 	return nil
 }
 
-func (mgr *eventlogManager) GetSegmentByBlockID(block *metadata.Block) (*Segment, error) {
+func (mgr *eventlogManager) GetSegmentByBlockID(block *metadata.Block) (Segment, error) {
 	v, exist := mgr.eventLogMap.Load(block.EventlogID.Key())
 	if !exist {
-		return nil, errors.ErrEventLogNotFound
+		return Segment{}, errors.ErrEventLogNotFound
 	}
 	el, _ := v.(*eventlog)
-	return el.get(block.SegmentID), nil
+	el.rLock()
+	defer el.rUnlock()
+	return el.get(block.SegmentID).Copy(), nil
 }
 
 func (mgr *eventlogManager) stop() {
 	mgr.cancel()
 }
 
-func (mgr *eventlogManager) getSegmentTopology(_ context.Context, seg *Segment) map[uint64]string {
+func (mgr *eventlogManager) getSegmentTopology(_ context.Context, seg Segment) map[uint64]string {
 	var addrs = map[uint64]string{}
 	for _, v := range seg.Replicas.Peers {
 		ins := mgr.volMgr.GetVolumeInstanceByID(v.VolumeID)
@@ -742,7 +746,7 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 	_, err = srv.GetClient().ActivateSegment(ctx, &segment.ActivateSegmentRequest{
 		EventLogId:     seg.EventLogID.Uint64(),
 		ReplicaGroupId: seg.Replicas.ID.Uint64(),
-		Replicas:       mgr.getSegmentTopology(ctx, seg),
+		Replicas:       mgr.getSegmentTopology(ctx, *seg),
 	})
 
 	if err != nil {
@@ -945,12 +949,8 @@ func (el *eventlog) appendableSegmentNumber() int {
 	if cur == nil {
 		return 0
 	}
-	count := 0
-	for cur != nil {
-		count++
-		cur = el.nextOf(cur)
-	}
-	return count
+
+	return len(el.listOfRight(cur, true))
 }
 
 func (el *eventlog) currentAppendableSegment() *Segment {
@@ -959,6 +959,7 @@ func (el *eventlog) currentAppendableSegment() *Segment {
 	if el.size() == 0 {
 		return nil
 	}
+
 	if el.writePtr == nil {
 		head := el.segmentList.Front()
 		for head != nil {
@@ -989,6 +990,7 @@ func (el *eventlog) currentAppendableSegment() *Segment {
 func (el *eventlog) add(ctx context.Context, seg *Segment) error {
 	el.mutex.Lock()
 	defer el.mutex.Unlock()
+
 	if !seg.isReady() {
 		return errors.ErrInvalidSegment
 	}
@@ -1091,37 +1093,69 @@ func (el *eventlog) size() int {
 	return el.segmentList.Len()
 }
 
-func (el *eventlog) nextOf(seg *Segment) *Segment {
-	if seg == nil {
-		return nil
-	}
+func (el *eventlog) getAllSegments() []*Segment {
 	el.mutex.RLock()
 	defer el.mutex.RUnlock()
 
-	node := el.segmentList.Get(seg.ID.Uint64())
-	if node == nil {
-		return nil
+	segs := make([]*Segment, 0)
+
+	if el.size() == 0 {
+		return segs
 	}
-	next := node.Next()
-	if next == nil {
-		return nil
+	ptr := el.segmentList.Front()
+	for ptr != nil {
+		next, _ := ptr.Value.(*Segment)
+		segs = append(segs, next)
+		ptr = ptr.Next()
 	}
-	return next.Value.(*Segment)
+	return segs
 }
 
-func (el *eventlog) previousOf(seg *Segment) *Segment {
-	if seg == nil {
-		return nil
-	}
+func (el *eventlog) listOfRight(seg *Segment, includeSelf bool) []Segment {
 	el.mutex.RLock()
 	defer el.mutex.RUnlock()
-
-	node := el.segmentList.Get(seg.ID.Uint64())
-	prev := node.Prev()
-	if prev == nil {
-		return nil
+	segs := make([]Segment, 0)
+	if seg == nil {
+		return segs
 	}
-	return prev.Value.(*Segment)
+	if includeSelf {
+		segs = append(segs, *seg)
+	}
+	node := el.segmentList.Get(seg.ID.Uint64())
+	if node == nil {
+		return segs
+	}
+	v := node.Next()
+	for v != nil {
+		next, _ := v.Value.(*Segment)
+		segs = append(segs, *next)
+		v = v.Next()
+	}
+
+	return segs
+}
+
+func (el *eventlog) listOfPrevious(seg *Segment) []*Segment { //nolint:unused // ok
+	el.mutex.RLock()
+	defer el.mutex.RUnlock()
+	segs := make([]*Segment, 0)
+	node := el.segmentList.Get(seg.ID.Uint64())
+	if node == nil {
+		return segs
+	}
+	v := node.Prev()
+	for v != nil {
+		next, _ := v.Value.(*Segment)
+		segs = append(segs, next)
+		v = v.Prev()
+	}
+
+	// reverse slice
+	for i, j := 0, len(segs)-1; i < j; i, j = i+1, j-1 {
+		segs[i], segs[j] = segs[j], segs[i]
+	}
+
+	return segs
 }
 
 func (el *eventlog) deleteHead(ctx context.Context) error {
@@ -1191,4 +1225,12 @@ func (el *eventlog) lock() {
 
 func (el *eventlog) unlock() {
 	el.mutex.Unlock()
+}
+
+func (el *eventlog) rLock() {
+	el.mutex.RLock()
+}
+
+func (el *eventlog) rUnlock() {
+	el.mutex.RUnlock()
 }

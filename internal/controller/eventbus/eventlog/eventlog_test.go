@@ -287,8 +287,11 @@ func TestEventlogManager_ScaleSegmentTask(t *testing.T) {
 		So(util.MapLen(&utMgr.globalBlockMap), ShouldEqual, (defaultAppendableSegmentNumber*2+1)*3)
 
 		utMgr.stop()
+		// avoid data race during UT
 		head = el2.head()
+		el2.lock()
 		head.State = StateFrozen
+		el2.unlock()
 		So(err, ShouldBeNil)
 		time.Sleep(50 * time.Millisecond)
 		So(el.size(), ShouldEqual, defaultAppendableSegmentNumber+1)
@@ -511,14 +514,14 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 			So(blockObj.VolumeID, ShouldEqual, vol1.ID)
 			So(blockObj.SegmentID, ShouldEqual, segments[0].ID)
 
-			seg := utMgr.GetSegment(segments2[1].ID)
+			seg := utMgr.getSegment(segments2[1].ID)
 			So(seg, ShouldNotBeNil)
 			So(seg.EventLogID, ShouldEqual, logMD.ID)
 
 			blockObj = utMgr.GetBlock(vanus.NewIDFromUint64(segments[1].Replicas.Leader))
 			segAnother, err := utMgr.GetSegmentByBlockID(blockObj)
 			So(err, ShouldBeNil)
-			So(segAnother, ShouldEqual, seg)
+			So(segAnother, ShouldResemble, *seg)
 		})
 	})
 }
@@ -783,21 +786,30 @@ func TestEventlogManager_UpdateSegmentReplicas(t *testing.T) {
 		kvCli := kv.NewMockClient(ctrl)
 		utMgr.kvClient = kvCli
 
+		ctx := stdCtx.Background()
+		el, err := newEventlog(ctx, &metadata.Eventlog{
+			ID:           vanus.NewTestID(),
+			EventbusID:   vanus.NewTestID(),
+			EventbusName: "ut",
+		}, kvCli, false)
+		So(err, ShouldBeNil)
+		utMgr.eventLogMap.Store(el.md.ID.Key(), el)
+
 		blk := &metadata.Block{
-			ID:        vanus.NewTestID(),
-			Capacity:  64 * 1024 * 1024,
-			SegmentID: 0,
+			ID:         vanus.NewTestID(),
+			Capacity:   64 * 1024 * 1024,
+			EventlogID: el.md.ID,
 		}
 		seg := createTestSegment(vanus.NewTestID())
+		seg.EventLogID = el.md.ID
 		seg.Replicas.Term = 3
 		utMgr.globalSegmentMap.Store(seg.ID.Key(), seg)
 		utMgr.globalBlockMap.Store(blk.ID.Key(), blk)
 
-		ctx := stdCtx.Background()
 		kvCli.EXPECT().Set(ctx, filepath.Join(metadata.SegmentKeyPrefixInKVStore, seg.ID.String()),
 			gomock.Any()).Times(1).Return(nil)
 
-		err := utMgr.UpdateSegmentReplicas(ctx, vanus.NewTestID(), 3)
+		err = utMgr.UpdateSegmentReplicas(ctx, vanus.NewTestID(), 3)
 		So(err, ShouldEqual, errors.ErrBlockNotFound)
 
 		err = utMgr.UpdateSegmentReplicas(ctx, blk.ID, 3)
@@ -1064,15 +1076,12 @@ func TestEventlog_All(t *testing.T) {
 			So(el.indexAt(4), ShouldBeNil)
 			So(el.indexAt(999), ShouldBeNil)
 
-			So(el.nextOf(el.indexAt(0)), ShouldEqual, seg2)
-			So(el.nextOf(el.indexAt(1)), ShouldEqual, seg3)
-			So(el.nextOf(el.indexAt(2)), ShouldEqual, seg4)
-			So(el.nextOf(el.indexAt(3)), ShouldBeNil)
+			list := el.getAllSegments()
 
-			So(el.previousOf(el.indexAt(0)), ShouldBeNil)
-			So(el.previousOf(el.indexAt(1)), ShouldEqual, seg1)
-			So(el.previousOf(el.indexAt(2)), ShouldEqual, seg2)
-			So(el.previousOf(el.indexAt(3)), ShouldEqual, seg3)
+			So(list[0], ShouldEqual, seg1)
+			So(list[1], ShouldEqual, seg2)
+			So(list[2], ShouldEqual, seg3)
+			So(list[3], ShouldEqual, seg4)
 		})
 	})
 }

@@ -1,4 +1,4 @@
-// Copyright 2022 Linkall Inc.
+// Copyright 2023 Linkall Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,26 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !linux
-// +build !linux
-
-package io
+package strings
 
 import (
-	// standard libraries.
-	"os"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
 )
 
-const (
-	openFileFlag   = 0
-	createFileFlag = os.O_CREATE | os.O_EXCL
-	syncFlag       = os.O_SYNC
-)
-
-func createFile(path string, size int64, flag int, sync bool, direct bool) (*os.File, error) {
-	return doCreateFile(path, size, flag, sync, direct)
-}
-
-func resizeFile(f *os.File, size int64) error {
-	return f.Truncate(size)
+// NewCapitalizeWord ["capitalize_word", "key"].
+func NewCapitalizeWordAction() action.Action {
+	a := &action.SourceTargetSameAction{}
+	a.CommonAction = action.CommonAction{
+		ActionName: "CAPITALIZE_WORD",
+		FixedArgs:  []arg.TypeList{arg.EventList},
+		Fn:         function.CapitalizeWord,
+	}
+	return a
 }

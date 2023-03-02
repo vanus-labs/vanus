@@ -18,7 +18,7 @@ import (
 	// standard libraries.
 	"context"
 	stderr "errors"
-	"io"
+	stdio "io"
 	"math"
 	"os"
 
@@ -27,6 +27,7 @@ import (
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"
+	"github.com/linkall-labs/vanus/internal/store/io"
 	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
 	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
 	"github.com/linkall-labs/vanus/internal/store/vsb/index"
@@ -43,7 +44,7 @@ func (b *vsBlock) Open(ctx context.Context) error {
 	}
 
 	// TODO(james.yin): use direct IO
-	f, err := os.OpenFile(b.path, os.O_RDWR|os.O_SYNC, 0)
+	f, err := io.OpenFile(b.path, os.O_RDWR, true, false)
 	if err != nil {
 		return err
 	}
@@ -95,7 +96,7 @@ func (b *vsBlock) repairMeta() error {
 	// Scan entries.
 	indexes := make([]index.Index, 0)
 	// Note: use math.MaxInt64-off to avoid overflow.
-	r := io.NewSectionReader(b.f, off, math.MaxInt64-off)
+	r := stdio.NewSectionReader(b.f, off, math.MaxInt64-off)
 	if full {
 		n, entry, err = b.dec.UnmarshalReader(r)
 		if err != nil || ceschema.EntryType(entry) != ceschema.End {
@@ -172,7 +173,7 @@ func (b *vsBlock) rebuildIndexes(num int, tail []index.Index) error {
 
 	// Scan entries.
 	off := b.dataOffset
-	r := io.NewSectionReader(b.f, off, b.fm.entryLength)
+	r := stdio.NewSectionReader(b.f, off, b.fm.entryLength)
 	for {
 		n, entry, err := b.dec.UnmarshalReader(r)
 		if err != nil {

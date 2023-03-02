@@ -52,11 +52,15 @@ func init() {
 		strings.NewReplaceStringAction,
 		strings.NewReplaceBetweenPositionsAction,
 		strings.NewCapitalizeSentenceAction,
+		strings.NewCheckCustomValuesAction,
+		strings.NewCapitalizeWordAction,
+		strings.NewSplitWithDelimiterAction,
 		// condition
 		condition.NewConditionIfAction,
 		// array
 		array.NewRenderArrayAction,
 		array.NewArrayForeachAction,
+		array.NewUnfoldArrayAction,
 		// common
 		common.NewLengthAction,
 		// source
