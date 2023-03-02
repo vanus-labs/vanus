@@ -18,7 +18,7 @@ data:
     replicas: 3
     metadata:
       key_prefix: /vanus
-    leaderelection:
+    leader_election:
       lease_duration: 15
     topology:
       vanus-controller-0: vanus-controller-0.vanus-controller.vanus.svc:2048
@@ -84,7 +84,7 @@ data:
       - vanus-etcd-2.vanus-etcd:2379
     metadata:
       key_prefix: "/vanus"
-    leaderelection:
+    leader_election:
       lease_duration: 15
     timingwheel:
       tick: 1

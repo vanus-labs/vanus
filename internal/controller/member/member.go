@@ -169,6 +169,8 @@ func (m *member) tryAcquireLockLoop(ctx context.Context) (<-chan struct{}, error
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
+		ticker := time.NewTicker(acquireLockDuration)
+		defer ticker.Stop()
 		for {
 			select {
 			case <-ctx.Done():
@@ -188,9 +190,8 @@ func (m *member) tryAcquireLockLoop(ctx context.Context) (<-chan struct{}, error
 					}
 					time.Sleep(time.Second)
 				}
-			default:
+			case <-ticker.C:
 				_ = m.tryLock(ctx)
-				time.Sleep(acquireLockDuration * time.Second)
 			}
 		}
 	}()
@@ -206,9 +207,9 @@ func (m *member) tryLock(ctx context.Context) error {
 	if err != nil {
 		if errors.Is(err, concurrency.ErrLocked) {
 			m.isReady.Store(true)
-			log.Info(ctx, "try acquire lock, already locked in another session", map[string]interface{}{
-				"identity":     m.cfg.Name,
-				"resourcelock": m.resourcelock,
+			log.Debug(ctx, "try acquire lock, already locked in another session", map[string]interface{}{
+				"identity":      m.cfg.Name,
+				"resource_lock": m.resourcelock,
 			})
 			return err
 		}
@@ -219,8 +220,8 @@ func (m *member) tryLock(ctx context.Context) error {
 	}
 
 	log.Info(ctx, "acquired lock", map[string]interface{}{
-		"identity":     m.cfg.Name,
-		"resourcelock": m.resourcelock,
+		"identity":      m.cfg.Name,
+		"resource_lock": m.resourcelock,
 	})
 
 	err = m.setLeader(ctx)
