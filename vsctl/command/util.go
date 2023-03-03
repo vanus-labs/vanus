@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/fatih/color"
@@ -30,6 +31,16 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
+
+const (
+	dns1123LabelFmt          string = "[a-z0-9]([-a-z0-9]*[a-z0-9])?"
+	dns1123SubdomainFmt      string = dns1123LabelFmt + "(\\." + dns1123LabelFmt + ")*"
+	dns1123SubdomainErrorMsg string = "a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character"
+	// DNS1123SubdomainMaxLength is a subdomain's max length in DNS (RFC 1123)
+	DNS1123SubdomainMaxLength int = 253
+)
+
+var dns1123SubdomainRegexp = regexp.MustCompile("^" + dns1123SubdomainFmt + "$")
 
 func cmdFailedf(cmd *cobra.Command, format string, a ...interface{}) {
 	errStr := format
@@ -64,7 +75,7 @@ func cmdFailedWithHelpNotice(cmd *cobra.Command, format string) {
 
 func operatorIsDeployed(cmd *cobra.Command, endpoint string) bool {
 	client := &http.Client{}
-	url := fmt.Sprintf("http://%s/api/v1/vanus/healthz", endpoint)
+	url := fmt.Sprintf("%s%s%s/healthz", HttpPrefix, endpoint, BaseUrl)
 	req, err := http.NewRequest("GET", url, &bytes.Reader{})
 	if err != nil {
 		return false
@@ -98,4 +109,16 @@ func LoadConfig(filename string, config interface{}) error {
 		return err
 	}
 	return nil
+}
+
+// IsDNS1123Subdomain tests for a string that conforms to the definition of a
+// subdomain in DNS (RFC 1123).
+func IsDNS1123Subdomain(value string) bool {
+	if len(value) > DNS1123SubdomainMaxLength {
+		return false
+	}
+	if !dns1123SubdomainRegexp.MatchString(value) {
+		return false
+	}
+	return true
 }
