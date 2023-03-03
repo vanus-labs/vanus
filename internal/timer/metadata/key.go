@@ -15,6 +15,6 @@
 package metadata
 
 const (
-	ResourceLockKeyPrefixInKVStore = "/vanus/internal/resource/resourcelock"
+	ResourceLockKeyPrefixInKVStore = "/vanus/internal/resource/resource_lock"
 	MetadataKeyPrefixInKVStore     = "/vanus/internal/resource/timer/metadata"
 )

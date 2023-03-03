@@ -6,7 +6,7 @@ etcd:
   # - "127.0.0.1:4379"
 metadata:
   key_prefix: "/vanus"
-leaderelection:
+leader_election:
   lease_duration: 15
 timingwheel:
   tick: 1

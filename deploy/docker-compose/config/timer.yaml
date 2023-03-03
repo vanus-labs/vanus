@@ -5,7 +5,7 @@ etcd:
 replicas: 1
 metadata:
   key_prefix: "/standalone"
-leaderelection:
+leader_election:
   lease_duration: 15
 timingwheel:
   tick: 1

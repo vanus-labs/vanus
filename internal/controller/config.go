@@ -15,10 +15,8 @@
 package controller
 
 import (
-	"path/filepath"
-
-	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
+	"github.com/linkall-labs/vanus/internal/controller/member"
 	"github.com/linkall-labs/vanus/internal/controller/snowflake"
 	"github.com/linkall-labs/vanus/internal/controller/trigger"
 	"github.com/linkall-labs/vanus/internal/primitive"
@@ -34,7 +32,7 @@ type Config struct {
 	EtcdEndpoints        []string             `yaml:"etcd"`
 	DataDir              string               `yaml:"data_dir"`
 	MetadataConfig       MetadataConfig       `yaml:"metadata"`
-	EtcdConfig           embedetcd.Config     `yaml:"embed_etcd"`
+	LeaderElectionConfig LeaderElectionConfig `yaml:"leader_election"`
 	Topology             map[string]string    `yaml:"topology"`
 	Replicas             uint                 `yaml:"replicas"`
 	SecretEncryptionSalt string               `yaml:"secret_encryption_salt"`
@@ -42,10 +40,20 @@ type Config struct {
 	Observability        observability.Config `yaml:"observability"`
 }
 
-func (c *Config) GetEtcdConfig() embedetcd.Config {
-	c.EtcdConfig.DataDir = filepath.Join(c.DataDir, c.EtcdConfig.DataDir)
-	c.EtcdConfig.Name = c.Name
-	return c.EtcdConfig
+type LeaderElectionConfig struct {
+	LeaseDuration int64 `yaml:"lease_duration"`
+}
+
+const (
+	resourceLockName = "controller"
+)
+
+func (c *Config) GetMemberConfig() member.Config {
+	return member.Config{
+		LeaseDuration: c.LeaderElectionConfig.LeaseDuration,
+		Name:          resourceLockName,
+		EtcdEndpoints: c.EtcdEndpoints,
+	}
 }
 
 func (c *Config) GetEventbusCtrlConfig() eventbus.Config {

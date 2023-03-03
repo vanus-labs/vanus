@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - yaml/ns.yaml
   - yaml/sc.yaml
+  - yaml/etcd.yaml
   - yaml/controller.yaml
   - yaml/trigger.yaml
   - yaml/gateway.yaml

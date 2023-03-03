@@ -47,6 +47,10 @@ func scanLogEntries(sf *segmentedfile.SegmentedFile, blockSize int, from int64, 
 		return -1, ErrOutOfRange
 	}
 
+	if cb == nil {
+		cb = noopOnEntry
+	}
+
 	sc := scanner{
 		blockSize: int64(blockSize),
 		buf:       directio.AlignedBlock(blockSize),
@@ -199,5 +203,9 @@ func onRecord(ctx *scanner, r record.Record, eo int64) error {
 		ctx.eo = eo
 	}
 
+	return nil
+}
+
+func noopOnEntry(entry []byte, r Range) error {
 	return nil
 }

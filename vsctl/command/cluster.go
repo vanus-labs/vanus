@@ -64,7 +64,7 @@ type ClusterInfo struct {
 	Version string `json:"version,omitempty"`
 }
 
-type GetClusterOKBody struct {
+type ClusterOKBody struct {
 	Code    *int32       `json:"code"`
 	Data    *ClusterInfo `json:"data"`
 	Message *string      `json:"message"`
@@ -232,6 +232,21 @@ func createClusterCommand() *cobra.Command {
 				cmdFailedf(cmd, "create cluster failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Create Cluster Failed: %s", resp.Status)
+			}
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				cmdFailedf(cmd, "read response body: %s", err)
+			}
+			info := &ClusterOKBody{}
+			err = json.Unmarshal(body, info)
+			if err != nil {
+				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Create Cluster Failed: %s", *info.Message)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Create Cluster Success"})
@@ -302,6 +317,21 @@ func deleteClusterCommand() *cobra.Command {
 				cmdFailedf(cmd, "delete cluster failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Delete Cluster Failed: %s", resp.Status)
+			}
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				cmdFailedf(cmd, "read response body: %s", err)
+			}
+			info := &ClusterOKBody{}
+			err = json.Unmarshal(body, info)
+			if err != nil {
+				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Delete Cluster Failed: %s", *info.Message)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Delete Cluster Success"})
@@ -371,6 +401,9 @@ func upgradeClusterCommand() *cobra.Command {
 				if err != nil {
 					cmdFailedf(cmd, "get the current version of the cluster failed: %s", err)
 				}
+				if *info.Code != RespCodeOK {
+					cmdFailedf(cmd, "get cluster failed: %s", *info.Message)
+				}
 				result := getUpgradableVersionList(info.Data.Version)
 				if IsFormatJSON(cmd) {
 					color.Yellow("WARN: this command doesn't support --output-format\n")
@@ -425,6 +458,21 @@ func upgradeClusterCommand() *cobra.Command {
 				cmdFailedf(cmd, "upgrade cluster failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Upgrade Cluster Failed: %s", resp.Status)
+			}
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				cmdFailedf(cmd, "read response body: %s", err)
+			}
+			info := &ClusterOKBody{}
+			err = json.Unmarshal(body, info)
+			if err != nil {
+				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Upgrade Cluster Failed: %s", *info.Message)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Upgrade Cluster Success"})
@@ -493,6 +541,21 @@ func scaleControllerReplicas() *cobra.Command {
 				cmdFailedf(cmd, "scale controller failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Scale Controller Failed: %s", resp.Status)
+			}
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				cmdFailedf(cmd, "read response body: %s", err)
+			}
+			info := &ClusterOKBody{}
+			err = json.Unmarshal(body, info)
+			if err != nil {
+				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Scale Controller Failed: %s", *info.Message)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Scale Controller Success"})
@@ -548,6 +611,21 @@ func scaleStoreReplicas() *cobra.Command {
 				cmdFailedf(cmd, "scale Store failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Scale Store Failed: %s", resp.Status)
+			}
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				cmdFailedf(cmd, "read response body: %s", err)
+			}
+			info := &ClusterOKBody{}
+			err = json.Unmarshal(body, info)
+			if err != nil {
+				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Scale Store Failed: %s", *info.Message)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Scale Store Success"})
@@ -603,6 +681,21 @@ func scaleTriggerReplicas() *cobra.Command {
 				cmdFailedf(cmd, "scale trigger failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Scale Trigger Failed: %s", resp.Status)
+			}
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				cmdFailedf(cmd, "read response body: %s", err)
+			}
+			info := &ClusterOKBody{}
+			err = json.Unmarshal(body, info)
+			if err != nil {
+				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Scale Trigger Failed: %s", *info.Message)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Scale Trigger Success"})
@@ -650,14 +743,21 @@ func getClusterCommand() *cobra.Command {
 				cmdFailedf(cmd, "get cluster failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Get Cluster Failed: %s", resp.Status)
+			}
+
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
 				cmdFailedf(cmd, "read response body: %s", err)
 			}
-			info := &GetClusterOKBody{}
+			info := &ClusterOKBody{}
 			err = json.Unmarshal(body, info)
 			if err != nil {
 				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Get Cluster Failed: %s", *info.Message)
 			}
 
 			if IsFormatJSON(cmd) {
@@ -737,7 +837,7 @@ func genClusterCommand() *cobra.Command {
 	return cmd
 }
 
-func getCluster(cmd *cobra.Command, endpoint string) (*GetClusterOKBody, error) {
+func getCluster(cmd *cobra.Command, endpoint string) (*ClusterOKBody, error) {
 	client := &http.Client{}
 	url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, endpoint, BaseUrl)
 	req, err := http.NewRequest("GET", url, &bytes.Reader{})
@@ -755,7 +855,7 @@ func getCluster(cmd *cobra.Command, endpoint string) (*GetClusterOKBody, error) 
 	if err != nil {
 		return nil, err
 	}
-	info := &GetClusterOKBody{}
+	info := &ClusterOKBody{}
 	err = json.Unmarshal(body, info)
 	if err != nil {
 		return nil, err

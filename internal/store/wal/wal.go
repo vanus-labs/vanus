@@ -24,6 +24,7 @@ import (
 	"github.com/linkall-labs/vanus/observability/log"
 
 	// this project.
+	"github.com/linkall-labs/vanus/internal/primitive/container/conque/blocking"
 	"github.com/linkall-labs/vanus/internal/store/io/engine"
 	"github.com/linkall-labs/vanus/internal/store/io/stream"
 	"github.com/linkall-labs/vanus/internal/store/io/zone/segmentedfile"
@@ -54,13 +55,11 @@ type WAL struct {
 
 	blockSize int
 
-	appendC chan *appender
+	appendQ blocking.Queue[*appender]
 
-	closeMu  sync.RWMutex
 	appendWg sync.WaitGroup
 
-	closeC chan struct{}
-	doneC  chan struct{}
+	doneC chan struct{}
 }
 
 func Open(ctx context.Context, dir string, opts ...Option) (*WAL, error) {
@@ -106,11 +105,10 @@ func open(ctx context.Context, dir string, cfg config) (*WAL, error) {
 		scheduler: scheduler,
 		blockSize: cfg.blockSize,
 
-		appendC: make(chan *appender, cfg.appendBufferSize),
-		closeC:  make(chan struct{}),
-		doneC:   make(chan struct{}),
+		doneC: make(chan struct{}),
 	}
 
+	w.appendQ.Init(false)
 	go w.runAppend()
 
 	return w, nil
@@ -121,15 +119,7 @@ func (w *WAL) Dir() string {
 }
 
 func (w *WAL) Close() {
-	w.closeMu.Lock()
-	defer w.closeMu.Unlock()
-
-	select {
-	case <-w.closeC:
-	default:
-		close(w.closeC)
-		close(w.appendC)
-	}
+	w.appendQ.Close()
 }
 
 func (w *WAL) doClose() {
@@ -164,20 +154,31 @@ func (w *WAL) append(ctx context.Context, entries [][]byte, direct bool, cb Appe
 		cb(nil, nil)
 	}
 
-	// NOTE: Can not close the WAL while writing to appendC.
-	w.closeMu.RLock()
-	select {
-	case <-w.closeC:
+	if !w.appendQ.Push(w.newAppender(ctx, entries, direct, cb)) {
 		// TODO(james.yin): invoke callback in another goroutine.
 		cb(nil, ErrClosed)
-	default:
-		w.appendC <- w.newAppender(ctx, entries, direct, cb)
 	}
-	w.closeMu.RUnlock()
 }
 
 func (w *WAL) runAppend() {
-	for task := range w.appendC {
+	for {
+		task, ok := w.appendQ.UniquePop()
+		if !ok {
+			break
+		}
+
+		task.invoke()
+	}
+
+	w.appendQ.Wait()
+
+	// Invoke remaind tasks in w.appendQ.
+	for {
+		task, ok := w.appendQ.RawPop()
+		if !ok {
+			break
+		}
+
 		task.invoke()
 	}
 
