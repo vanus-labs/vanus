@@ -17,16 +17,28 @@ package strings
 import (
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
+	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
 )
 
-// NewSplitFromStartAction ["split_from_start", "key"].
+type splitFromStartAction struct {
+	action.FunctionAction
+}
+
+// NewSplitFromStartAction ["split_from_start", "sourceJsonPath", "position", "targetJsonPath"].
 func NewSplitFromStartAction() action.Action {
-	a := &action.SourceTargetSameAction{}
+	a := &splitFromStartAction{}
 	a.CommonAction = action.CommonAction{
 		ActionName: "SPLIT_FROM_START",
-		FixedArgs:  []arg.TypeList{arg.EventList, arg.All},
+		FixedArgs:  []arg.TypeList{arg.EventList, []arg.Type{arg.Constant}, []arg.Type{arg.EventData}},
 		Fn:         function.SplitFromStart,
 	}
 	return a
+}
+
+func (a *splitFromStartAction) Init(args []arg.Arg) error {
+	a.TargetArg = args[2]
+	a.Args = args[:2]
+	a.ArgTypes = []common.Type{common.String, common.Int}
+	return nil
 }

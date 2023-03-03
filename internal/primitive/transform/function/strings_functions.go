@@ -156,6 +156,7 @@ var SplitFromStart = function{
 		if splitPosition >= len(value) {
 			return nil, fmt.Errorf("split position must be less than the length of the string")
 		}
-		return []string{value[:splitPosition], value[splitPosition:]}, nil
+		result := []string{value[:splitPosition], value[splitPosition:]}
+		return result, nil
 	},
 }
