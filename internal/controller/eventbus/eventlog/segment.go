@@ -143,7 +143,7 @@ type ReplicaGroup struct {
 	DestroyAt time.Time                  `json:"destroy_at"`
 }
 
-func Convert2ProtoSegment(ctx context.Context, ins ...*Segment) []*metapb.Segment {
+func Convert2ProtoSegment(ctx context.Context, ins ...Segment) []*metapb.Segment {
 	segs := make([]*metapb.Segment, len(ins))
 	for idx := 0; idx < len(ins); idx++ {
 		seg := ins[idx]

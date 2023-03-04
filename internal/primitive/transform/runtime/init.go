@@ -54,11 +54,14 @@ func init() {
 		strings.NewCapitalizeSentenceAction,
 		strings.NewCheckCustomValuesAction,
 		strings.NewExtractMissingAction,
+		strings.NewCapitalizeWordAction,
+		strings.NewSplitWithDelimiterAction,
 		// condition
 		condition.NewConditionIfAction,
 		// array
 		array.NewRenderArrayAction,
 		array.NewArrayForeachAction,
+		array.NewUnfoldArrayAction,
 		// common
 		common.NewLengthAction,
 		// source
