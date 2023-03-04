@@ -30,7 +30,10 @@ func TestExtractMissingAction(t *testing.T) {
         jsonStr := `{
                 "source": "Vanus"
 }`
-        Convey("source field exists", t, func() {
+		jsonStrTwo := `{
+				"source": ""
+}`
+        Convey("test source field using boolean", t, func() {
                 a, err := runtime.NewAction([]interface{}{funcName, "$.data.source", "$.data.target", "true", "false"})
                 So(err, ShouldBeNil)
                 e := cetest.MinEvent()
@@ -47,8 +50,8 @@ func TestExtractMissingAction(t *testing.T) {
                 So(ok, ShouldBeTrue)
                 So(res, ShouldEqual, "false")
         })
-        Convey("source field doesn't exist", t, func() {
-                a, err := runtime.NewAction([]interface{}{funcName, "$.data.source", "$.data.target", "true", "false"})
+        Convey("test source field using int", t, func() {
+                a, err := runtime.NewAction([]interface{}{funcName, "$.data.source", "$.data.target", 1, 0})
                 So(err, ShouldBeNil)
                 e := cetest.MinEvent()
                 var data map[string]interface{}
@@ -62,7 +65,24 @@ func TestExtractMissingAction(t *testing.T) {
                 So(err, ShouldBeNil)
                 res, ok := data["target"]
                 So(ok, ShouldBeTrue)
-                So(res, ShouldEqual, "true")
+                So(res, ShouldEqual, 0)
         })
+		Convey("test empty source field with boolean", t, func() {
+			a, err := runtime.NewAction([]interface{}{funcName, "$.data.source", "$.data.target", "true", "false"})
+			So(err, ShouldBeNil)
+			e := cetest.MinEvent()
+			var data map[string]interface{}
+			err = json.Unmarshal([]byte(jsonStrTwo), &data)
+			So(err, ShouldBeNil)
+			ceCtx := &context.EventContext{
+					Event:	&e,
+					Data:	data,
+			}
+			err = a.Execute(ceCtx)
+			So(err, ShouldBeNil)
+			res, ok := data["target"]
+			So(ok, ShouldBeTrue)
+			So(res, ShouldEqual, "true")
+		})
 }
 
