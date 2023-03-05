@@ -15,7 +15,6 @@
 package strings
 
 import (
-
 	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
@@ -26,8 +25,8 @@ type extractMissingAction struct {
 	action.CommonAction
 }
 
-//NewExtractMissingAction ["extract_missing", "sourceJSONPath", "targetJSONPath", 
-//"trueFlagReplacement", "falseFlagReplacement"].
+// NewExtractMissingAction ["extract_missing", "sourceJSONPath", "targetJSONPath",
+// "trueFlagReplacement", "falseFlagReplacement"].
 func NewExtractMissingAction() action.Action {
 	return &extractMissingAction{
 		CommonAction: action.CommonAction{
@@ -61,8 +60,6 @@ func (a *extractMissingAction) Execute(ceCtx *context.EventContext) error {
 
 	if sourceJSONPath == "" {
 		return a.TargetArg.SetValue(ceCtx, trueFlagReplacement)
-	} else {
-		return a.TargetArg.SetValue(ceCtx, falseFlagReplacement)
 	}
+	return a.TargetArg.SetValue(ceCtx, falseFlagReplacement)
 }
-
