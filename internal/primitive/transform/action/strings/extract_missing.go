@@ -56,11 +56,13 @@ func (a *extractMissingAction) Execute(ceCtx *context.EventContext) error {
 		return err
 	}
 	sourceJSONPath, _ := args[0].(string)
-	trueFlagReplacement := args[2]
-	falseFlagReplacement := args[3]
+	trueFlagReplacement := args[1]
+	falseFlagReplacement := args[2]
 
 	if sourceJSONPath == "" {
 		return a.TargetArg.SetValue(ceCtx, trueFlagReplacement)
+	} else {
+		return a.TargetArg.SetValue(ceCtx, falseFlagReplacement)
 	}
-	return a.TargetArg.SetValue(ceCtx, falseFlagReplacement)
 }
+
