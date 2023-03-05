@@ -140,4 +140,3 @@ var CapitalizeWord = function{
 		return string(rs), nil
 	},
 }
-
