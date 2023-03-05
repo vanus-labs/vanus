@@ -24,9 +24,9 @@ import (
 	"sync"
 
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
-	embedetcd "github.com/linkall-labs/embed-etcd"
 	"github.com/linkall-labs/vanus/internal/controller"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
+	"github.com/linkall-labs/vanus/internal/controller/member"
 	"github.com/linkall-labs/vanus/internal/controller/snowflake"
 	"github.com/linkall-labs/vanus/internal/controller/trigger"
 	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
@@ -68,16 +68,16 @@ func main() {
 
 	ctx := signal.SetupSignalContext()
 	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetControllerMetrics)
-	etcd := embedetcd.New(cfg.Topology)
-	if err = etcd.Init(ctx, cfg.GetEtcdConfig()); err != nil {
-		log.Error(ctx, "failed to init etcd", map[string]interface{}{
+	mem := member.New(cfg.Topology)
+	if err = mem.Init(ctx, cfg.GetMemberConfig()); err != nil {
+		log.Error(ctx, "failed to init member", map[string]interface{}{
 			log.KeyError: err,
 		})
 		os.Exit(-1)
 	}
 
 	// TODO wait server ready
-	snowflakeCtrl := snowflake.NewSnowflakeController(cfg.GetSnowflakeConfig(), etcd)
+	snowflakeCtrl := snowflake.NewSnowflakeController(cfg.GetSnowflakeConfig(), mem)
 	if err = snowflakeCtrl.Start(ctx); err != nil {
 		log.Error(ctx, "start Snowflake Controller failed", map[string]interface{}{
 			log.KeyError: err,
@@ -85,7 +85,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	segmentCtrl := eventbus.NewController(cfg.GetEventbusCtrlConfig(), etcd)
+	segmentCtrl := eventbus.NewController(cfg.GetEventbusCtrlConfig(), mem)
 	if err = segmentCtrl.Start(ctx); err != nil {
 		log.Error(ctx, "start EventbusService Controller failed", map[string]interface{}{
 			log.KeyError: err,
@@ -94,7 +94,7 @@ func main() {
 	}
 
 	//trigger controller
-	triggerCtrlStv := trigger.NewController(cfg.GetTriggerConfig(), etcd)
+	triggerCtrlStv := trigger.NewController(cfg.GetTriggerConfig(), mem)
 	if err = triggerCtrlStv.Start(); err != nil {
 		log.Error(ctx, "start trigger controller fail", map[string]interface{}{
 			log.KeyError: err,
@@ -102,9 +102,9 @@ func main() {
 		os.Exit(-1)
 	}
 
-	etcdStopCh, err := etcd.Start(ctx)
+	memStopCh, err := mem.Start(ctx)
 	if err != nil {
-		log.Error(ctx, "failed to start etcd", map[string]interface{}{
+		log.Error(ctx, "failed to start member", map[string]interface{}{
 			log.KeyError: err,
 		})
 		os.Exit(-2)
@@ -124,13 +124,13 @@ func main() {
 		grpc.ChainStreamInterceptor(
 			errinterceptor.StreamServerInterceptor(),
 			recovery.StreamServerInterceptor(recoveryOpt),
-			memberinterceptor.StreamServerInterceptor(etcd),
+			memberinterceptor.StreamServerInterceptor(mem),
 			otelgrpc.StreamServerInterceptor(),
 		),
 		grpc.ChainUnaryInterceptor(
 			errinterceptor.UnaryServerInterceptor(),
 			recovery.UnaryServerInterceptor(recoveryOpt),
-			memberinterceptor.UnaryServerInterceptor(etcd),
+			memberinterceptor.UnaryServerInterceptor(mem),
 			otelgrpc.UnaryServerInterceptor(),
 		),
 	)
@@ -164,7 +164,7 @@ func main() {
 		snowflakeCtrl.Stop()
 		triggerCtrlStv.Stop(ctx)
 		segmentCtrl.Stop()
-		etcd.Stop(ctx)
+		mem.Stop(ctx)
 		grpcServer.GracefulStop()
 	}
 
@@ -177,8 +177,8 @@ func main() {
 	}
 
 	select {
-	case <-etcdStopCh:
-		log.Info(ctx, "received etcd ready to stop, preparing exit", nil)
+	case <-memStopCh:
+		log.Info(ctx, "received member ready to stop, preparing exit", nil)
 	case <-ctx.Done():
 		log.Info(ctx, "received system signal, preparing exit", nil)
 	case <-segmentCtrl.StopNotify():

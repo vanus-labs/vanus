@@ -1,4 +1,4 @@
-// Copyright 2022 Linkall Inc.
+// Copyright 2023 Linkall Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package eventbus
+package member
 
 type Config struct {
-	IP               string            `yaml:"ip"`
-	Port             int               `yaml:"port"`
-	KVStoreEndpoints []string          `yaml:"kv_store_endpoints"`
-	KVKeyPrefix      string            `yaml:"kv_key_prefix"`
-	Replicas         uint              `yaml:"replicas"`
-	Topology         map[string]string `yaml:"topology"`
-	SegmentCapacity  int64             `yaml:"segment_capacity"`
+	LeaseDuration int64    `yaml:"lease_duration"`
+	Name          string   `yaml:"name"`
+	EtcdEndpoints []string `yaml:"etcd"`
 }
+
+const (
+	ResourceLockKeyPrefixInKVStore = "/vanus/internal/resource/resource_lock"
+	LeaderInfoKeyPrefixInKVStore   = "/vanus/internal/resource/leader_info"
+)

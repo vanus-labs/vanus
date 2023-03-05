@@ -61,6 +61,7 @@ func init() {
 		// array
 		array.NewRenderArrayAction,
 		array.NewArrayForeachAction,
+		array.NewUnfoldArrayAction,
 		// common
 		common.NewLengthAction,
 		// source
