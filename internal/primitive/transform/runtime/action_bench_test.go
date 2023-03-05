@@ -80,4 +80,5 @@ func BenchmarkAction(b *testing.B) {
 	b.Run("capitalize_sentence", actionBenchmark([]interface{}{"capitalize_sentence", "$.data.str"}))
 	b.Run("check_custom_values", actionBenchmark([]interface{}{"check_custom_values", "$.data.str", "value", "$.data.target", "true", "false"}))
 	b.Run("split_with_delimiter", actionBenchmark([]interface{}{"split_with_delimiter", "$.data.str", "a", "$.data.target"}))
+	b.Run("replace_between_delimiter", actionBenchmark([]interface{}{"replace_between_delimiter", "$.test", "&&", "&&", "Vanus"}))
 }

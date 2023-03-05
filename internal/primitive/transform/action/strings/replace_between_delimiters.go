@@ -20,7 +20,7 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
 )
 
-// NewReplaceBetweenDelimitersAction ["path","startPattern","endPattern","newValue"].
+// NewReplaceBetweenDelimitersAction ["path","startDelimiter","endDelimiter","newValue"].
 func NewReplaceBetweenDelimitersAction() action.Action {
 	a := &action.SourceTargetSameAction{}
 	a.CommonAction = action.CommonAction{

@@ -27,7 +27,7 @@ import (
 func TestReplaceBetweenDelimitersAction(t *testing.T) {
 	funcName := strings.NewReplaceBetweenDelimitersAction().Name()
 
-	Convey("test startPattern and endPattern present in string testcase", t, func() {
+	Convey("test startDelimiter and endDelimiter present in string testcase", t, func() {
 		a, err := runtime.NewAction([]interface{}{funcName, "$.test", "&&", "&&", "Vanus"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
@@ -37,10 +37,10 @@ func TestReplaceBetweenDelimitersAction(t *testing.T) {
 		}
 		err = a.Execute(ceCtx)
 		So(err, ShouldBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "Hello, &&Vanus&&!")
+		So(e.Extensions()["test"], ShouldEqual, "Hello, Vanus!")
 	})
 
-	Convey("test startPattern and endPattern present in string testcase", t, func() {
+	Convey("test startDelimiter and endDelimiter present in string testcase", t, func() {
 		a, err := runtime.NewAction([]interface{}{funcName, "$.test", "^^", "^^", "lots of"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
@@ -50,10 +50,10 @@ func TestReplaceBetweenDelimitersAction(t *testing.T) {
 		}
 		err = a.Execute(ceCtx)
 		So(err, ShouldBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "Vanus has ^^lots of^^ beginner friendly open issues!")
+		So(e.Extensions()["test"], ShouldEqual, "Vanus has lots of beginner friendly open issues!")
 	})
 
-	Convey("test startPattern and endPattern not present in string testcase", t, func() {
+	Convey("test startDelimiter and endDelimiter not present in string testcase", t, func() {
 		a, err := runtime.NewAction([]interface{}{funcName, "$.test", "**", "**", "fun"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
@@ -66,7 +66,7 @@ func TestReplaceBetweenDelimitersAction(t *testing.T) {
 		So(e.Extensions()["test"], ShouldEqual, "Contributing to Vanus Opensource project is %%an eye opener%%!")
 	})
 
-	Convey("test endPattern before startPattern in string testcase", t, func() {
+	Convey("test endDelimiter before startDelimiter in string testcase", t, func() {
 		a, err := runtime.NewAction([]interface{}{funcName, "$.test", "&&", "!!", "love"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
@@ -79,7 +79,7 @@ func TestReplaceBetweenDelimitersAction(t *testing.T) {
 		So(e.Extensions()["test"], ShouldEqual, "I !!like&& opensource contributions")
 	})
 
-	Convey("test Only endPattern present in string testcase", t, func() {
+	Convey("test Only endDelimiter present in string testcase", t, func() {
 		a, err := runtime.NewAction([]interface{}{funcName, "$.test", "&&", "**", "supported"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()

@@ -125,30 +125,23 @@ var ReplaceBetweenDelimitersFunction = function{
 	fixedArgs: []common.Type{common.String, common.String, common.String, common.String},
 	fn: func(args []interface{}) (interface{}, error) {
 		value, _ := args[0].(string)
-		startPattern, _ := args[1].(string)
-		endPattern, _ := args[2].(string)
-		newValue, _ := args[3].(string)
-
-		switch {
-		case startPattern != endPattern && strings.Contains(value, startPattern) && strings.Contains(value, endPattern):
-			if strings.Index(value, startPattern) > strings.Index(value, endPattern) {
-				return nil, fmt.Errorf("the end pattern is before the start pattern in the input string")
-			}
-			firstSplit := strings.Split(value, startPattern)
-			secondSplit := strings.Split(firstSplit[1], endPattern)
-			secondSplit[0] = startPattern + newValue + endPattern
-			return firstSplit[0] + secondSplit[0] + secondSplit[1], nil
-		case startPattern == endPattern && strings.Contains(value, startPattern) && strings.Count(value, startPattern) == 2:
-			firstSplit := strings.Split(value, startPattern)
-			firstSplit[1] = startPattern + newValue + endPattern
-			return firstSplit[0] + firstSplit[1] + firstSplit[2], nil
-		case strings.Contains(value, startPattern) && !strings.Contains(value, endPattern):
-			return nil, fmt.Errorf("only start pattern is found in the input string")
-		case !strings.Contains(value, startPattern) && strings.Contains(value, endPattern):
-			return nil, fmt.Errorf("only end pattern is found in the input string")
-		default:
-			return nil, fmt.Errorf("the start and end pattern is not present in the input string")
+		startDelimiter, _ := args[1].(string)
+		endDelimiter, _ := args[2].(string)
+		replaceValue, _ := args[3].(string)
+		if startDelimiter == "" || endDelimiter == "" {
+			return nil, fmt.Errorf("start or end delemiter is empty")
 		}
+		startIndex := strings.Index(value, startDelimiter)
+		if startIndex < 0 {
+			return nil, fmt.Errorf("start delemiter is not exist")
+		}
+		index := startIndex + len(startDelimiter)
+		endIndex := strings.Index(value[index:], endDelimiter)
+		if endIndex < 0 {
+			return nil, fmt.Errorf("end delemiter is not exist")
+		}
+		return value[:startIndex] + replaceValue + value[index+endIndex+len(endDelimiter):], nil
+
 	},
 }
 
