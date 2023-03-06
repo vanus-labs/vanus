@@ -28,8 +28,8 @@ import (
 	"github.com/spf13/cobra"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )

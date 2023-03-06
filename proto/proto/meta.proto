@@ -18,7 +18,7 @@ package linkall.vanus.meta;
 
 import "google/protobuf/struct.proto";
 
-option go_package = "github.com/linkall-labs/vanus/proto/pkg/meta";
+option go_package = "github.com/vanus-labs/vanus/proto/pkg/meta";
 
 message VanusResourceName {
   string value = 1;
@@ -114,7 +114,7 @@ message Subscription {
   repeated OffsetInfo offsets = 101;
 }
 
-enum Protocol{
+enum Protocol {
   HTTP = 0;
   AWS_LAMBDA = 1;
   GCLOUD_FUNCTIONS = 2;
@@ -137,17 +137,17 @@ message SinkCredential {
   }
 }
 
-message PlainCredential{
+message PlainCredential {
   string identifier = 1;
   string secret = 2;
 }
 
-message AKSKCredential{
+message AKSKCredential {
   string access_key_id = 1;
   string secret_access_key = 2;
 }
 
-message GCloudCredential{
+message GCloudCredential {
   string credentials_json = 1;
 }
 

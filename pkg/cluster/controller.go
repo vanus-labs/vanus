@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=controller.go  -destination=mock_controller.go -package=cluster
+//go:generate mockgen -source=controller.go -destination=mock_controller.go -package=cluster
 package cluster
 
 import (
@@ -24,8 +24,8 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/vanus-labs/vanus/observability/log"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 
 	"github.com/linkall-labs/vanus/pkg/cluster/raw_client"
 )

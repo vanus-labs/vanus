@@ -30,8 +30,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	// first-party libraries.
-	. "github.com/linkall-labs/vanus/proto/pkg/raft"
 	"github.com/vanus-labs/vanus/observability/log"
+	. "github.com/vanus-labs/vanus/proto/pkg/raft"
 	"github.com/vanus-labs/vanus/raft/raftpb"
 )
 

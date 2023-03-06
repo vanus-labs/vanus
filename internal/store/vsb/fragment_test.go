@@ -25,7 +25,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// first-party libraries.
-	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	cepb "github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"

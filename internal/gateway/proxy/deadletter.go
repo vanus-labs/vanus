@@ -20,23 +20,26 @@ import (
 	"fmt"
 
 	v2 "github.com/cloudevents/sdk-go/v2"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+
 	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/eventlog"
 	"github.com/linkall-labs/vanus/client/pkg/option"
 	"github.com/linkall-labs/vanus/client/pkg/policy"
+	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	"github.com/vanus-labs/vanus/proto/pkg/codec"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
+
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	"github.com/linkall-labs/vanus/proto/pkg/codec"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	proxypb "github.com/linkall-labs/vanus/proto/pkg/proxy"
-	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func (cp *ControllerProxy) GetDeadLetterEvent(ctx context.Context,
-	req *proxypb.GetDeadLetterEventRequest) (*proxypb.GetDeadLetterEventResponse, error) {
+	req *proxypb.GetDeadLetterEventRequest,
+) (*proxypb.GetDeadLetterEventResponse, error) {
 	if req.GetSubscriptionId() == 0 {
 		return nil, errors.ErrInvalidRequest.WithMessage("subscription is empty")
 	}
@@ -124,11 +127,14 @@ loop:
 }
 
 func (cp *ControllerProxy) ResendDeadLetterEvent(ctx context.Context,
-	req *proxypb.ResendDeadLetterEventRequest) (*emptypb.Empty, error) {
+	req *proxypb.ResendDeadLetterEventRequest,
+) (*emptypb.Empty, error) {
 	if req.GetSubscriptionId() == 0 {
 		return nil, errors.ErrInvalidRequest.WithMessage("subscription is empty")
 	}
-	subscription, err := cp.triggerCtrl.GetSubscription(ctx, &ctrlpb.GetSubscriptionRequest{Id: req.GetSubscriptionId()})
+	subscription, err := cp.triggerCtrl.GetSubscription(ctx, &ctrlpb.GetSubscriptionRequest{
+		Id: req.GetSubscriptionId(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -227,15 +233,19 @@ loop:
 func (cp *ControllerProxy) writeDeadLetterEvent(ctx context.Context,
 	subscriptionID uint64,
 	offset uint64,
-	events []*cloudevents.CloudEvent) error {
+	events []*cloudevents.CloudEvent,
+) error {
 	// write to retry eventbus
-	err := cp.writeEvents(ctx, primitive.GetRetryEventbusName(""), &cloudevents.CloudEventBatch{Events: events})
+	err := cp.writeEvents(ctx, primitive.GetRetryEventbusName(""), &cloudevents.CloudEventBatch{
+		Events: events,
+	})
 	if err != nil {
 		return errors.ErrInternal.Wrap(err).WithMessage("write event error")
 	}
 	// save offset
 	_, err = cp.triggerCtrl.SetDeadLetterEventOffset(ctx, &ctrlpb.SetDeadLetterEventOffsetRequest{
-		SubscriptionId: subscriptionID, Offset: offset})
+		SubscriptionId: subscriptionID, Offset: offset,
+	})
 	if err != nil {
 		return errors.ErrInternal.Wrap(err).WithMessage("save offset error")
 	}

@@ -19,18 +19,15 @@ package linkall.vanus.trigger;
 import "config.proto";
 import "meta.proto";
 
-option go_package = "github.com/linkall-labs/vanus/proto/pkg/trigger";
+option go_package = "github.com/vanus-labs/vanus/proto/pkg/trigger";
 
 service TriggerWorker {
   rpc Start(StartTriggerWorkerRequest) returns (StartTriggerWorkerResponse);
   rpc Stop(StopTriggerWorkerRequest) returns (StopTriggerWorkerResponse);
   rpc AddSubscription(AddSubscriptionRequest) returns (AddSubscriptionResponse);
-  rpc RemoveSubscription(RemoveSubscriptionRequest)
-      returns (RemoveSubscriptionResponse);
-  rpc PauseSubscription(PauseSubscriptionRequest)
-      returns (PauseSubscriptionResponse);
-  rpc ResumeSubscription(ResumeSubscriptionRequest)
-      returns (ResumeSubscriptionResponse);
+  rpc RemoveSubscription(RemoveSubscriptionRequest) returns (RemoveSubscriptionResponse);
+  rpc PauseSubscription(PauseSubscriptionRequest) returns (PauseSubscriptionResponse);
+  rpc ResumeSubscription(ResumeSubscriptionRequest) returns (ResumeSubscriptionResponse);
 }
 
 message StartTriggerWorkerRequest {

@@ -19,8 +19,8 @@ import (
 	"encoding/json"
 	"time"
 
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	"github.com/vanus-labs/vanus/observability/log"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"

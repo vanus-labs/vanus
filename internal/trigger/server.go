@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/linkall-labs/vanus/pkg/errors"
-	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
 	"github.com/vanus-labs/vanus/observability/log"
+	pbtrigger "github.com/vanus-labs/vanus/proto/pkg/trigger"
 
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"

@@ -29,9 +29,9 @@ import (
 
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/tracing"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 
 	// this project.
 	eb "github.com/linkall-labs/vanus/client/internal/vanus/eventbus"

@@ -24,8 +24,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/proto/pkg/trigger"
 	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/proto/pkg/trigger"
 
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"

@@ -43,8 +43,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 )
 
 const (

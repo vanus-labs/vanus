@@ -22,10 +22,11 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	proxypb "github.com/linkall-labs/vanus/proto/pkg/proxy"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
 )
 
 const (
@@ -39,9 +40,7 @@ const (
 	BaseUrl                   = "/api/v1"
 )
 
-var (
-	retryTime = 30
-)
+var retryTime = 30
 
 type GlobalFlags struct {
 	Endpoint         string

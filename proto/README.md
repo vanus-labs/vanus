@@ -1,4 +1,4 @@
-# vsproto
+# Vanus Proto
 
 Protobuf files for Vanus
 
@@ -13,31 +13,15 @@ Protobuf files for Vanus
 ### install `protogen`
 
 ```bash
-# download https://github.com/protocolbuffers/protobuf/releases/download/v3.19.4/protoc-3.19.4-osx-x86_64.zip
-unzip protoc-3.19.4-osx-x86_64.zip
+# 1. Install with Homebrew
+brew install protobuf
 
+# or download https://github.com/protocolbuffers/protobuf/releases/download/v3.19.4/protoc-3.19.4-osx-x86_64.zip
+unzip protoc-3.19.4-osx-x86_64.zip
 mv bin/protoc $GOPATH/bin/ 
 
-go install github.com/golang/protobuf/protoc-gen-go@v1.5.2
-```
-
-### import
-
-place `vsproto` on in the same directory in `vanus` project because of below
-
-```go.mod
-module github.com/linkall-labs/vanus
-
-go 1.17
-
-require (
-	// ...
-	github.com/linkall-labs/vanus/proto v0.0.0
-)
-
-replace (
-	github.com/linkall-labs/vanus/proto v0.0.0 => ../vsproto
-)
+# 2. Install protoc-gen-go
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 ```
 
 ### debug
@@ -47,8 +31,12 @@ replace (
 
 ## Makefile
 
-The makefile has pre-define some convenient methods to generate go file from proto,
-see file content for details.
+The makefile has pre-define some convenient methods to generate go file from proto, see file content for details.
+
+```bash
+# set package, such as controller, then generate code
+package=controller make generate-pb
+```
 
 ## Use Buf
 
@@ -61,11 +49,9 @@ brew install bufbuild/buf/buf
 ### Generate code
 
 ```bash
-# vanus
-buf generate proto
+cd proto/proto
 
-# cloudevents
-buf generate --template include/cloudevents/buf.gen.yaml --path include/cloudevents
+buf generate
 ```
 
 ### Editor integration

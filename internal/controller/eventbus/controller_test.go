@@ -21,16 +21,18 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/linkall-labs/vanus/pkg/errors"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/eventlog"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/member"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestController_CreateEventBus(t *testing.T) {
@@ -63,7 +65,8 @@ func TestController_CreateEventBus(t *testing.T) {
 				ID: vanus.NewTestID(),
 			}
 			elMgr.EXPECT().AcquireEventLog(ctx, gomock.Any(), gomock.Any()).Times(2).DoAndReturn(func(ctx stdCtx.Context,
-				eventbusID vanus.ID, ebName string) (*metadata.Eventlog, error) {
+				eventbusID vanus.ID, ebName string,
+			) (*metadata.Eventlog, error) {
 				el.ID = eventbusID
 				el.EventbusName = ebName
 				el.SegmentNumber = 2

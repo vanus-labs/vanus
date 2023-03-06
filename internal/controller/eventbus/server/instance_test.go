@@ -24,7 +24,7 @@ import (
 	"google.golang.org/grpc"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 
-	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
+	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"

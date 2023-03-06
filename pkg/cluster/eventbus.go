@@ -3,10 +3,12 @@ package cluster
 import (
 	"context"
 	"fmt"
-	"github.com/linkall-labs/vanus/pkg/cluster/raw_client"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	"strings"
+
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+
+	"github.com/linkall-labs/vanus/pkg/cluster/raw_client"
 )
 
 var (

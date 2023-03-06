@@ -12,7 +12,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	primitive "github.com/linkall-labs/vanus/internal/primitive"
 	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
-	cloudevents "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	cloudevents "github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 )
 
 // MockServer is a mock of Server interface.

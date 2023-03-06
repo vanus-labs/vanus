@@ -30,8 +30,8 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/linkall-labs/vanus/pkg/cluster"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/vanus-labs/vanus/observability/log"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 )
 
 type node struct {

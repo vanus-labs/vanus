@@ -12,7 +12,7 @@ import (
 	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
 	block "github.com/linkall-labs/vanus/internal/store/block"
 	block0 "github.com/linkall-labs/vanus/internal/store/raft/block"
-	meta "github.com/linkall-labs/vanus/proto/pkg/meta"
+	meta "github.com/vanus-labs/vanus/proto/pkg/meta"
 )
 
 // MockReplica is a mock of Replica interface.

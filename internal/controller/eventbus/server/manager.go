@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=manager.go  -destination=mock_manager.go -package=server
+//go:generate mockgen -source=manager.go -destination=mock_manager.go -package=server
 package server
 
 import (
@@ -27,8 +27,8 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/linkall-labs/vanus/pkg/errors"
-	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 	"github.com/vanus-labs/vanus/observability/log"
+	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )

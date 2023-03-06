@@ -18,8 +18,9 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/vanus-labs/vanus/proto/pkg/meta"
+
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/proto/pkg/meta"
 )
 
 type Eventbus struct {

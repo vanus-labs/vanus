@@ -23,9 +23,11 @@ import (
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	proxypb "github.com/linkall-labs/vanus/proto/pkg/proxy"
 	"github.com/spf13/cobra"
+
+	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
+
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
 func newDeadLetterCommand() *cobra.Command {
@@ -59,7 +61,6 @@ func getDeadLetterCommand() *cobra.Command {
 				Offset:         uint64(offset),
 				Number:         int32(number),
 			})
-
 			if err != nil {
 				cmdFailedf(cmd, "failed to get event: %s", err)
 			}

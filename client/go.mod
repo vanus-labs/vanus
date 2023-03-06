@@ -6,9 +6,9 @@ require (
 	github.com/cloudevents/sdk-go/v2 v2.13.0
 	github.com/golang/mock v1.6.0
 	github.com/linkall-labs/vanus/pkg v0.5.7
-	github.com/linkall-labs/vanus/proto v0.5.7
 	github.com/scylladb/go-set v1.0.2
 	github.com/vanus-labs/vanus/observability v0.5.7
+	github.com/vanus-labs/vanus/proto v0.5.7
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.36.4
 	go.opentelemetry.io/otel/trace v1.11.2
 	go.uber.org/atomic v1.9.0
@@ -48,7 +48,7 @@ require (
 
 replace (
 	github.com/linkall-labs/vanus/pkg => ../pkg
-	github.com/linkall-labs/vanus/proto => ../proto
 	github.com/vanus-labs/vanus/observability => ../observability
+	github.com/vanus-labs/vanus/proto => ../proto
 	github.com/vanus-labs/vanus/raft => ../raft
 )

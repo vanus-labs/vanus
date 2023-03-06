@@ -24,10 +24,10 @@ import (
 
 	// first-party libraries.
 	"github.com/linkall-labs/vanus/pkg/cluster"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/tracing"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
 	// this project.
 	"github.com/linkall-labs/vanus/client/pkg/record"

@@ -27,7 +27,7 @@ import (
 
 	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/linkall-labs/vanus/pkg/util"
-	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
+	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )

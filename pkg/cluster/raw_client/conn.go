@@ -29,8 +29,8 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/vanus-labs/vanus/observability/log"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 
 	"github.com/linkall-labs/vanus/pkg/errors"
 )

@@ -5,18 +5,21 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	. "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 )
 
 func TestControllerProxy_ProxyMethod(t *testing.T) {
 	Convey("test get event", t, func() {
 		cp := NewControllerProxy(Config{
-			Endpoints: []string{"127.0.0.1:20001",
-				"127.0.0.1:20002", "127.0.0.1:20003"},
+			Endpoints: []string{
+				"127.0.0.1:20001",
+				"127.0.0.1:20002", "127.0.0.1:20003",
+			},
 			ProxyPort:              18082,
 			CloudEventReceiverPort: 18080,
 			Credentials:            insecure.NewCredentials(),

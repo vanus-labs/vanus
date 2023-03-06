@@ -1,8 +1,9 @@
 package cluster
 
 import (
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+
 	"github.com/linkall-labs/vanus/pkg/cluster/raw_client"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 )
 
 type idService struct {

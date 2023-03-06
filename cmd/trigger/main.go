@@ -25,10 +25,10 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/linkall-labs/vanus/pkg/util/signal"
-	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
 	"github.com/vanus-labs/vanus/observability"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
+	pbtrigger "github.com/vanus-labs/vanus/proto/pkg/trigger"
 
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/trigger"

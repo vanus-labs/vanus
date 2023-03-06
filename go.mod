@@ -24,7 +24,6 @@ require (
 	github.com/linkall-labs/sdk/golang v0.2.0
 	github.com/linkall-labs/vanus/client v0.5.7
 	github.com/linkall-labs/vanus/pkg v0.5.7
-	github.com/linkall-labs/vanus/proto v0.5.8-0.20230202030707-115734791dcf
 	github.com/ncw/directio v1.0.5
 	github.com/ohler55/ojg v1.14.5
 	github.com/panjf2000/ants/v2 v2.7.1
@@ -36,6 +35,7 @@ require (
 	github.com/spf13/cobra v1.4.0
 	github.com/tidwall/gjson v1.14.1
 	github.com/vanus-labs/vanus/observability v0.5.7
+	github.com/vanus-labs/vanus/proto v0.5.7
 	github.com/vanus-labs/vanus/raft v0.5.7
 	go.etcd.io/etcd/client/v3 v3.5.7
 	go.mongodb.org/mongo-driver v1.11.0
@@ -85,6 +85,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
+	github.com/linkall-labs/vanus/proto v0.5.8-0.20230202030707-115734791dcf // indirect
 	github.com/mattn/go-colorable v0.1.11 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
@@ -131,8 +132,8 @@ require (
 replace (
 	github.com/linkall-labs/vanus/client => ./client
 	github.com/linkall-labs/vanus/pkg => ./pkg
-	github.com/linkall-labs/vanus/proto => ./proto
 	github.com/mwitkow/grpc-proxy => github.com/linkall-labs/grpc-proxy v0.0.0-20220624142509-a3b0cb2bb86c
 	github.com/vanus-labs/vanus/observability => ./observability
+	github.com/vanus-labs/vanus/proto => ./proto
 	github.com/vanus-labs/vanus/raft => ./raft
 )

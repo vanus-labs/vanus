@@ -10,7 +10,7 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
-	controller "github.com/linkall-labs/vanus/proto/pkg/controller"
+	controller "github.com/vanus-labs/vanus/proto/pkg/controller"
 )
 
 // MockCluster is a mock of Cluster interface.

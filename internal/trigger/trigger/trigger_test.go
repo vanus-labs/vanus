@@ -27,15 +27,17 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
+	. "github.com/smartystreets/goconvey/convey"
+
 	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/linkall-labs/vanus/internal/trigger/client"
 	"github.com/linkall-labs/vanus/internal/trigger/info"
 	"github.com/linkall-labs/vanus/internal/trigger/reader"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestTrigger_Options(t *testing.T) {
@@ -67,7 +69,8 @@ func TestTrigger_Options(t *testing.T) {
 		WithDeadLetter("test_eb", true)(tg)
 		So(tg.config.DeadLetterEventbus, ShouldEqual, "")
 		WithDeadLetter("test_eb", false)(tg)
-		So(tg.config.DeadLetterEventbus, ShouldEqual, primitive.GetDeadLetterEventbusName("test_eb"))
+		So(tg.config.DeadLetterEventbus, ShouldEqual,
+			primitive.GetDeadLetterEventbusName("test_eb"))
 	})
 }
 
@@ -126,7 +129,8 @@ func TestTriggerWriteFailEvent(t *testing.T) {
 		tg.timerEventWriter = mockBusWriter
 		var callCount int
 		mockBusWriter.EXPECT().Append(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(context.Context,
-			*cloudevents.CloudEventBatch, ...api.WriteOption) ([]string, error) {
+			*cloudevents.CloudEventBatch, ...api.WriteOption,
+		) ([]string, error) {
 			callCount++
 			if callCount%2 != 0 {
 				return []string{""}, fmt.Errorf("append error")
@@ -298,7 +302,9 @@ func TestChangeSubscription(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("change config", func() {
-			err := tg.Change(ctx, &primitive.Subscription{Config: primitive.SubscriptionConfig{RateLimit: 100}})
+			err := tg.Change(ctx, &primitive.Subscription{
+				Config: primitive.SubscriptionConfig{RateLimit: 100},
+			})
 			So(err, ShouldBeNil)
 		})
 	})

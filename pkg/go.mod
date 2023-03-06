@@ -4,10 +4,10 @@ go 1.18
 
 require (
 	github.com/golang/mock v1.6.0
-	github.com/linkall-labs/vanus/proto v0.5.7
 	github.com/pkg/errors v0.9.1
 	github.com/smartystreets/goconvey v1.7.2
 	github.com/vanus-labs/vanus/observability v0.5.7
+	github.com/vanus-labs/vanus/proto v0.5.7
 	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
 )
@@ -26,7 +26,7 @@ require (
 )
 
 replace (
-	github.com/linkall-labs/vanus/proto => ../proto
 	github.com/vanus-labs/vanus/observability => ../observability
+	github.com/vanus-labs/vanus/proto => ../proto
 	github.com/vanus-labs/vanus/raft => ../raft
 )

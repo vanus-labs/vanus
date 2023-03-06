@@ -20,8 +20,8 @@ import (
 	"context"
 
 	// third-party libraries
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
 	// first-party libraries
 	"github.com/linkall-labs/vanus/client/pkg/api"

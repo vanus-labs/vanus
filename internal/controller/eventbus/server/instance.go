@@ -19,8 +19,8 @@ import (
 	"sync"
 
 	"github.com/linkall-labs/vanus/pkg/errors"
-	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 	"github.com/vanus-labs/vanus/observability/log"
+	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"

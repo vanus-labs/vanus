@@ -1,4 +1,4 @@
-module github.com/linkall-labs/vanus/proto
+module github.com/vanus-labs/vanus/proto
 
 go 1.18
 
