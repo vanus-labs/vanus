@@ -15,7 +15,7 @@
 package raft
 
 import (
-	pb "github.com/linkall-labs/vanus/raft/raftpb"
+	pb "github.com/vanus-labs/vanus/raft/raftpb"
 )
 
 type Keeper interface {

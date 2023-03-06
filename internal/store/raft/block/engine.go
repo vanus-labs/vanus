@@ -26,8 +26,8 @@ import (
 
 	// first-party libraries.
 	raftpb "github.com/linkall-labs/vanus/proto/pkg/raft"
-	"github.com/linkall-labs/vanus/raft"
 	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/raft"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"

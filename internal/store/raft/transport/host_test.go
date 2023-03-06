@@ -15,13 +15,17 @@
 package transport
 
 import (
+	// standard libraries.
 	"context"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/raft/raftpb"
+	// third-party libraries.
 	. "github.com/smartystreets/goconvey/convey"
+
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/raft/raftpb"
 )
 
 func TestHost(t *testing.T) {

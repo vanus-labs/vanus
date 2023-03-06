@@ -1,6 +1,6 @@
-module github.com/linkall-labs/vanus/raft
+module github.com/vanus-labs/vanus/raft
 
-go 1.17
+go 1.18
 
 require (
 	github.com/cockroachdb/datadriven v0.0.0-20200714090401-bf6692d28da5

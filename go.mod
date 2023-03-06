@@ -14,7 +14,6 @@ require (
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/mock v1.6.0
-	github.com/golang/protobuf v1.5.2
 	github.com/google/cel-go v0.11.2
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
@@ -26,7 +25,6 @@ require (
 	github.com/linkall-labs/vanus/client v0.5.7
 	github.com/linkall-labs/vanus/pkg v0.5.7
 	github.com/linkall-labs/vanus/proto v0.5.8-0.20230202030707-115734791dcf
-	github.com/linkall-labs/vanus/raft v0.5.7
 	github.com/ncw/directio v1.0.5
 	github.com/ohler55/ojg v1.14.5
 	github.com/panjf2000/ants/v2 v2.7.1
@@ -38,6 +36,7 @@ require (
 	github.com/spf13/cobra v1.4.0
 	github.com/tidwall/gjson v1.14.1
 	github.com/vanus-labs/vanus/observability v0.5.7
+	github.com/vanus-labs/vanus/raft v0.5.7
 	go.etcd.io/etcd/client/v3 v3.5.7
 	go.mongodb.org/mongo-driver v1.11.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.36.4
@@ -76,6 +75,7 @@ require (
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.0 // indirect
@@ -132,7 +132,7 @@ replace (
 	github.com/linkall-labs/vanus/client => ./client
 	github.com/linkall-labs/vanus/pkg => ./pkg
 	github.com/linkall-labs/vanus/proto => ./proto
-	github.com/linkall-labs/vanus/raft => ./raft
 	github.com/mwitkow/grpc-proxy => github.com/linkall-labs/grpc-proxy v0.0.0-20220624142509-a3b0cb2bb86c
 	github.com/vanus-labs/vanus/observability => ./observability
+	github.com/vanus-labs/vanus/raft => ./raft
 )

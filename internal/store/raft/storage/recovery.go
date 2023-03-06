@@ -25,8 +25,8 @@ import (
 	"strings"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/raft/raftpb"
 	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/raft/raftpb"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"

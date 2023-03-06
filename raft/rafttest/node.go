@@ -21,8 +21,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/raft"
-	"github.com/linkall-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/raft"
+	"github.com/vanus-labs/vanus/raft/raftpb"
 )
 
 type node struct {

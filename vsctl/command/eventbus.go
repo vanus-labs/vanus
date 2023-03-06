@@ -23,13 +23,15 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/gogo/protobuf/sortkeys"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/spf13/cobra"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
+
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
-	"github.com/spf13/cobra"
+
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
 func NewEventbusCommand() *cobra.Command {
@@ -166,8 +168,10 @@ func getEventbusInfoCommand() *cobra.Command {
 				color.Yellow("WARN: this command doesn't support --output-format\n")
 			}
 			if !showSegment && !showBlock {
-				t.AppendHeader(table.Row{"EventbusService", "Description", "Created_At", "Updated_At",
-					"Eventlog", "Segment Number"})
+				t.AppendHeader(table.Row{
+					"EventbusService", "Description", "Created_At", "Updated_At",
+					"Eventlog", "Segment Number",
+				})
 				for _, res := range busMetas {
 					for idx := 0; idx < len(res.Logs); idx++ {
 						if idx == 0 {
@@ -192,15 +196,21 @@ func getEventbusInfoCommand() *cobra.Command {
 				}
 			} else {
 				if !showBlock {
-					t.AppendHeader(table.Row{"EventbusService", "Description", "Created_At", "Updated_At",
-						"Eventlog", "Segment", "Capacity", "Size", "Start", "End"})
+					t.AppendHeader(table.Row{
+						"EventbusService", "Description", "Created_At", "Updated_At",
+						"Eventlog", "Segment", "Capacity", "Size", "Start", "End",
+					})
 					for _, eb := range busMetas {
 						for idx := 0; idx < len(eb.Logs); idx++ {
 							segOfEL := segs[eb.Logs[idx].EventLogId]
 							for _, v := range segOfEL {
-								t.AppendRow(table.Row{eb.Name, eb.Description, time.UnixMilli(eb.CreatedAt).Format(time.RFC3339),
-									time.UnixMilli(eb.UpdatedAt).Format(time.RFC3339), formatID(eb.Logs[idx].EventLogId), formatID(v.Id),
-									v.Capacity, v.Size, v.StartOffsetInLog, v.EndOffsetInLog})
+								t.AppendRow(table.Row{
+									eb.Name, eb.Description,
+									time.UnixMilli(eb.CreatedAt).Format(time.RFC3339),
+									time.UnixMilli(eb.UpdatedAt).Format(time.RFC3339),
+									formatID(eb.Logs[idx].EventLogId), formatID(v.Id),
+									v.Capacity, v.Size, v.StartOffsetInLog, v.EndOffsetInLog,
+								})
 							}
 							t.AppendSeparator()
 						}
@@ -208,19 +218,28 @@ func getEventbusInfoCommand() *cobra.Command {
 
 					cfgs := eventbusColConfigs()
 					cfgs = append(cfgs, []table.ColumnConfig{
-						{Number: len(cfgs) + 1, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter,
-							AlignHeader: text.AlignCenter},
-						{Number: len(cfgs) + 2, VAlign: text.VAlignMiddle, Align: text.AlignCenter,
-							AlignHeader: text.AlignCenter},
-						{Number: len(cfgs) + 3, VAlign: text.VAlignMiddle, Align: text.AlignCenter,
-							AlignHeader: text.AlignCenter},
+						{
+							Number: len(cfgs) + 1, VAlign: text.VAlignMiddle,
+							AutoMerge: true, Align: text.AlignCenter,
+							AlignHeader: text.AlignCenter,
+						},
+						{
+							Number: len(cfgs) + 2, VAlign: text.VAlignMiddle, Align: text.AlignCenter,
+							AlignHeader: text.AlignCenter,
+						},
+						{
+							Number: len(cfgs) + 3, VAlign: text.VAlignMiddle, Align: text.AlignCenter,
+							AlignHeader: text.AlignCenter,
+						},
 						{Number: len(cfgs) + 4, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: len(cfgs) + 5, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					}...)
 					t.SetColumnConfigs(cfgs)
 				} else {
-					t.AppendHeader(table.Row{"EventbusService", "Description", "Created_At", "Updated_At", "Eventlog",
-						"Segment", "Capacity", "Size", "Start", "End", "Block", "Leader", "Volume", "Endpoint"})
+					t.AppendHeader(table.Row{
+						"EventbusService", "Description", "Created_At", "Updated_At", "Eventlog",
+						"Segment", "Capacity", "Size", "Start", "End", "Block", "Leader", "Volume", "Endpoint",
+					})
 					multiReplica := false
 					for _, res := range busMetas {
 						for idx := 0; idx < len(res.Logs); idx++ {
@@ -230,7 +249,7 @@ func getEventbusInfoCommand() *cobra.Command {
 									multiReplica = true
 								}
 								var vols []uint64
-								var volMap = map[uint64]*metapb.Block{}
+								volMap := map[uint64]*metapb.Block{}
 								for _, v := range seg.Replicas {
 									vols = append(vols, v.VolumeID)
 									volMap[v.VolumeID] = v
@@ -238,11 +257,15 @@ func getEventbusInfoCommand() *cobra.Command {
 								sortkeys.Uint64s(vols)
 								for _, k := range vols {
 									blk := volMap[k]
-									t.AppendRow(table.Row{res.Name, res.Description, time.UnixMilli(res.CreatedAt).Format(time.RFC3339),
-										time.UnixMilli(res.UpdatedAt).Format(time.RFC3339), formatID(res.Logs[idx].EventLogId),
+									t.AppendRow(table.Row{
+										res.Name, res.Description,
+										time.UnixMilli(res.CreatedAt).Format(time.RFC3339),
+										time.UnixMilli(res.UpdatedAt).Format(
+											time.RFC3339), formatID(res.Logs[idx].EventLogId),
 										formatID(seg.Id), seg.Capacity, seg.Size, seg.StartOffsetInLog,
 										seg.EndOffsetInLog, formatID(blk.Id), blk.Id == seg.LeaderBlockId,
-										blk.VolumeID, blk.Endpoint})
+										blk.VolumeID, blk.Endpoint,
+									})
 								}
 							}
 							t.AppendSeparator()
@@ -250,20 +273,31 @@ func getEventbusInfoCommand() *cobra.Command {
 					}
 					cfgs := eventbusColConfigs()
 					cfgs = append(cfgs, []table.ColumnConfig{
-						{Number: len(cfgs) + 1, VAlign: text.VAlignMiddle, AutoMerge: true, Align: text.AlignCenter,
-							AlignHeader: text.AlignCenter},
-						{Number: len(cfgs) + 2, VAlign: text.VAlignMiddle, AutoMerge: multiReplica,
+						{
+							Number: len(cfgs) + 1, VAlign: text.VAlignMiddle,
+							AutoMerge: true, Align: text.AlignCenter,
+							AlignHeader: text.AlignCenter,
+						},
+						{
+							Number: len(cfgs) + 2, VAlign: text.VAlignMiddle, AutoMerge: multiReplica,
 							Align:       text.AlignCenter,
-							AlignHeader: text.AlignCenter},
-						{Number: len(cfgs) + 3, VAlign: text.VAlignMiddle, AutoMerge: multiReplica,
+							AlignHeader: text.AlignCenter,
+						},
+						{
+							Number: len(cfgs) + 3, VAlign: text.VAlignMiddle, AutoMerge: multiReplica,
 							Align:       text.AlignCenter,
-							AlignHeader: text.AlignCenter},
-						{Number: len(cfgs) + 4, VAlign: text.VAlignMiddle, AutoMerge: multiReplica,
+							AlignHeader: text.AlignCenter,
+						},
+						{
+							Number: len(cfgs) + 4, VAlign: text.VAlignMiddle, AutoMerge: multiReplica,
 							Align:       text.AlignCenter,
-							AlignHeader: text.AlignCenter},
-						{Number: len(cfgs) + 5, VAlign: text.VAlignMiddle, AutoMerge: multiReplica,
+							AlignHeader: text.AlignCenter,
+						},
+						{
+							Number: len(cfgs) + 5, VAlign: text.VAlignMiddle, AutoMerge: multiReplica,
 							Align:       text.AlignCenter,
-							AlignHeader: text.AlignCenter},
+							AlignHeader: text.AlignCenter,
+						},
 						{Number: len(cfgs) + 6, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: len(cfgs) + 7, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 						{Number: len(cfgs) + 8, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
@@ -290,7 +324,7 @@ func listEventbusInfoCommand() *cobra.Command {
 		Use:   "list",
 		Short: "list the eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-			res, err := client.ListEventBus(context.Background(), &empty.Empty{})
+			res, err := client.ListEventBus(context.Background(), &emptypb.Empty{})
 			if err != nil {
 				cmdFailedf(cmd, "list eventbus failed: %s", err)
 			}
@@ -299,8 +333,10 @@ func listEventbusInfoCommand() *cobra.Command {
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Name", "Description", "Created_At",
-					"Updated_At", "Eventlog Number"})
+				t.AppendHeader(table.Row{
+					"Name", "Description", "Created_At",
+					"Updated_At", "Eventlog Number",
+				})
 				for idx := range res.Eventbus {
 					eb := res.Eventbus[idx]
 					t.AppendSeparator()

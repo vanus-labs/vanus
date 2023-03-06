@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/raft"
+	"github.com/vanus-labs/vanus/raft"
 )
 
 func TestBasicProgress(t *testing.T) {

@@ -24,8 +24,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/raft/raftpb"
 	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/raft/raftpb"
 )
 
 type SendCallback func(error)

@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/cloudevents/sdk-go/v2 v2.13.0
 	github.com/golang/mock v1.6.0
-	github.com/linkall-labs/vanus/raft v0.5.7
+	github.com/vanus-labs/vanus/raft v0.5.7
 	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
 )
@@ -25,6 +25,6 @@ require (
 )
 
 replace (
-	github.com/linkall-labs/vanus/raft => ../raft
 	github.com/vanus-labs/vanus/observability => ../observability
+	github.com/vanus-labs/vanus/raft => ../raft
 )

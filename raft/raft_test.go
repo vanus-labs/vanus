@@ -23,8 +23,8 @@ import (
 	"strings"
 	"testing"
 
-	pb "github.com/linkall-labs/vanus/raft/raftpb"
-	"github.com/linkall-labs/vanus/raft/tracker"
+	pb "github.com/vanus-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/raft/tracker"
 )
 
 // nextEnts returns the appliable entries and updates the applied index

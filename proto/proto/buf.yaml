@@ -1,7 +1,7 @@
 version: v1
 name: buf.build/linkall-labs/vanus-proto
 deps:
-  - buf.build/linkall-labs/vanus-raft
+  - buf.build/gogo/protobuf:b03c65ea87cdc3521ede29f62fe3ce239267c1bc
 lint:
   use:
     - DEFAULT

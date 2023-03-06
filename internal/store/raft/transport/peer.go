@@ -27,7 +27,7 @@ import (
 
 	// first-party libraries.
 	vsraftpb "github.com/linkall-labs/vanus/proto/pkg/raft"
-	"github.com/linkall-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/raft/raftpb"
 )
 
 const (

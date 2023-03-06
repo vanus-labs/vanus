@@ -49,6 +49,6 @@ require (
 replace (
 	github.com/linkall-labs/vanus/pkg => ../pkg
 	github.com/linkall-labs/vanus/proto => ../proto
-	github.com/linkall-labs/vanus/raft => ../raft
 	github.com/vanus-labs/vanus/observability => ../observability
+	github.com/vanus-labs/vanus/raft => ../raft
 )

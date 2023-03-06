@@ -21,13 +21,15 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	. "github.com/smartystreets/goconvey/convey"
+	"google.golang.org/grpc"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/linkall-labs/vanus/pkg/util"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
-	. "github.com/smartystreets/goconvey/convey"
-	"google.golang.org/grpc"
+
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 )
 
 func TestSegmentServerManager_AddAndRemoveServer(t *testing.T) {
@@ -128,14 +130,14 @@ func TestSegmentServerManager_Run(t *testing.T) {
 		mutex = sync.Mutex{}
 		status1 := "running"
 		status2 := "running"
-		f1 := func(ctx stdCtx.Context, empty *empty.Empty, opts ...grpc.CallOption) (*segpb.StatusResponse, error) {
+		f1 := func(ctx stdCtx.Context, empty *emptypb.Empty, opts ...grpc.CallOption) (*segpb.StatusResponse, error) {
 			mutex.Lock()
 			defer mutex.Unlock()
 			return &segpb.StatusResponse{
 				Status: status1,
 			}, nil
 		}
-		f2 := func(ctx stdCtx.Context, empty *empty.Empty, opts ...grpc.CallOption) (*segpb.StatusResponse, error) {
+		f2 := func(ctx stdCtx.Context, empty *emptypb.Empty, opts ...grpc.CallOption) (*segpb.StatusResponse, error) {
 			mutex.Lock()
 			defer mutex.Unlock()
 			return &segpb.StatusResponse{
@@ -180,7 +182,7 @@ func TestSegmentServer(t *testing.T) {
 		So(ss1.GetClient(), ShouldEqual, mockSSCli1)
 
 		status1 := "running"
-		f1 := func(ctx stdCtx.Context, empty *empty.Empty, opts ...grpc.CallOption) (*segpb.StatusResponse, error) {
+		f1 := func(ctx stdCtx.Context, empty *emptypb.Empty, opts ...grpc.CallOption) (*segpb.StatusResponse, error) {
 			return &segpb.StatusResponse{
 				Status: status1,
 			}, nil
@@ -193,7 +195,8 @@ func TestSegmentServer(t *testing.T) {
 
 		mockSSCli1.EXPECT().Start(ctx, gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
 			func(ctx stdCtx.Context, req *segpb.StartSegmentServerRequest,
-				opts ...grpc.CallOption) (*segpb.StartSegmentServerResponse, error) {
+				opts ...grpc.CallOption,
+			) (*segpb.StartSegmentServerResponse, error) {
 				So(req.ServerId, ShouldEqual, ss1.ID())
 				return &segpb.StartSegmentServerResponse{}, nil
 			})

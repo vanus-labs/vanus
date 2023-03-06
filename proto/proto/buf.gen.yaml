@@ -1,12 +1,12 @@
 version: v1
 plugins:
   - name: go
-    out: pkg
+    out: ../pkg
     opt:
       # - plugins=grpc
       - module=github.com/linkall-labs/vanus/proto/pkg
   - name: go-grpc
-    out: pkg
+    out: ../pkg
     opt:
       - module=github.com/linkall-labs/vanus/proto/pkg
       - require_unimplemented_servers=false

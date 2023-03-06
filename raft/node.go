@@ -23,7 +23,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	// this project.
-	pb "github.com/linkall-labs/vanus/raft/raftpb"
+	pb "github.com/vanus-labs/vanus/raft/raftpb"
 )
 
 type SnapshotStatus int

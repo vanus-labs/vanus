@@ -17,8 +17,8 @@ package raft
 import (
 	"errors"
 
-	pb "github.com/linkall-labs/vanus/raft/raftpb"
-	"github.com/linkall-labs/vanus/raft/tracker"
+	pb "github.com/vanus-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/raft/tracker"
 )
 
 // ErrStepLocalMsg is returned when try to step a local raft message
