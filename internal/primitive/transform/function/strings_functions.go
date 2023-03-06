@@ -147,15 +147,15 @@ var SplitFromStart = function{
 	fn: func(args []interface{}) (interface{}, error) {
 		value, _ := args[0].(string)
 		splitPosition, _ := args[1].(int)
-		if len(value) < 2 {
-			return []string{value}, nil
-		}
-		if splitPosition < 1 {
+
+		if splitPosition <= 0 {
 			return nil, fmt.Errorf("split position must be more than zero")
 		}
+
 		if splitPosition >= len(value) {
-			return nil, fmt.Errorf("split position must be less than the length of the string")
+			return []string{value, ""}, nil
 		}
+
 		result := []string{value[:splitPosition], value[splitPosition:]}
 		return result, nil
 	},

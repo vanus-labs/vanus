@@ -27,7 +27,7 @@ import (
 func TestSplitFromStartAction(t *testing.T) {
 	funcName := strings.NewSplitFromStartAction().Name()
 
-	Convey("test split from start: Positive testcase", t, func() {
+	Convey("test split from start: Positive testcase, common", t, func() {
 		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 5, "$.data.target"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
@@ -45,7 +45,7 @@ func TestSplitFromStartAction(t *testing.T) {
 	})
 
 	Convey("test split from start: Positive testcase, length 1", t, func() {
-		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 0, "$.data.target"})
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 1, "$.data.target"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
 		data := map[string]interface{}{}
@@ -58,7 +58,41 @@ func TestSplitFromStartAction(t *testing.T) {
 		So(err, ShouldBeNil)
 		res, ok := data["target"]
 		So(ok, ShouldBeTrue)
-		So(res, ShouldResemble, []string{"H"})
+		So(res, ShouldResemble, []string{"H", ""})
+	})
+
+	Convey("test split from start: Positive testcase, length 0", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 1, "$.data.target"})
+		So(err, ShouldBeNil)
+		e := cetest.MinEvent()
+		data := map[string]interface{}{}
+		e.SetExtension("test", "")
+		ceCtx := &context.EventContext{
+			Event: &e,
+			Data:  data,
+		}
+		err = a.Execute(ceCtx)
+		So(err, ShouldBeNil)
+		res, ok := data["target"]
+		So(ok, ShouldBeTrue)
+		So(res, ShouldResemble, []string{"", ""})
+	})
+
+	Convey("test split from start: Positive testcase, split position above value length", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 10, "$.data.target"})
+		So(err, ShouldBeNil)
+		e := cetest.MinEvent()
+		data := map[string]interface{}{}
+		e.SetExtension("test", "hello")
+		ceCtx := &context.EventContext{
+			Event: &e,
+			Data:  data,
+		}
+		err = a.Execute(ceCtx)
+		So(err, ShouldBeNil)
+		res, ok := data["target"]
+		So(ok, ShouldBeTrue)
+		So(res, ShouldResemble, []string{"hello", ""})
 	})
 
 	Convey("test split from start: Negative testcase, split position less than one", t, func() {
@@ -74,20 +108,5 @@ func TestSplitFromStartAction(t *testing.T) {
 		err = a.Execute(ceCtx)
 		So(err, ShouldNotBeNil)
 		So(e.Extensions()["test"], ShouldEqual, "split position must be more than zero")
-	})
-
-	Convey("test split from start: Negative testcase, split position greater than string length", t, func() {
-		a, err := runtime.NewAction([]interface{}{funcName, "$.test", 100, "$.data.target"})
-		So(err, ShouldBeNil)
-		e := cetest.MinEvent()
-		data := map[string]interface{}{}
-		e.SetExtension("test", "split position must be less than the length of the string")
-		ceCtx := &context.EventContext{
-			Event: &e,
-			Data:  data,
-		}
-		err = a.Execute(ceCtx)
-		So(err, ShouldNotBeNil)
-		So(e.Extensions()["test"], ShouldEqual, "split position must be less than the length of the string")
 	})
 }
