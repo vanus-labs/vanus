@@ -33,9 +33,10 @@ const (
 )
 
 const (
-	DefaultOperatorPort = 30009
-	HttpPrefix          = "http://"
-	BaseUrl             = "/api/v1"
+	RespCodeOK          int32 = 200
+	DefaultOperatorPort       = 30009
+	HttpPrefix                = "http://"
+	BaseUrl                   = "/api/v1"
 )
 
 var (

@@ -169,7 +169,7 @@ func (m *member) tryAcquireLockLoop(ctx context.Context) (<-chan struct{}, error
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
-		ticker := time.NewTicker(acquireLockDuration)
+		ticker := time.NewTicker(acquireLockDuration * time.Second)
 		defer ticker.Stop()
 		for {
 			select {

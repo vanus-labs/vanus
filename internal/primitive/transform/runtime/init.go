@@ -54,8 +54,12 @@ func init() {
 		strings.NewCapitalizeSentenceAction,
 		strings.NewCheckCustomValuesAction,
 		strings.NewExtractBetweenDelimitersAction,
+		strings.NewExtractMissingAction,
+		strings.NewReplaceBetweenDelimitersAction,
 		strings.NewCapitalizeWordAction,
 		strings.NewSplitWithDelimiterAction,
+		strings.NewSplitBetweenPositionsAction,
+		strings.NewSplitFromStartAction,
 		// condition
 		condition.NewConditionIfAction,
 		// array
