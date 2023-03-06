@@ -28,7 +28,7 @@ func TestSplitBetweenPositionsAction(t *testing.T) {
 	funcName := strings.NewSplitBetweenPositionsAction().Name()
 
 	Convey("test Positive testcase", t, func() {
-		a, err := runtime.NewAction([]interface{}{funcName, "$.data.appinfoA", 2, 2, "$.data.appinfoB"})
+		a, err := runtime.NewAction([]interface{}{funcName, "$.data.appinfoA", 2, 4, "$.data.appinfoB"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
 		data := map[string]interface{}{
@@ -42,10 +42,10 @@ func TestSplitBetweenPositionsAction(t *testing.T) {
 		So(err, ShouldBeNil)
 		res, ok := data["appinfoB"]
 		So(ok, ShouldBeTrue)
-		So(res, ShouldResemble, []string{"he", "llo worl", "d!"})
+		So(res, ShouldResemble, []string{"he", "ll", "o world!"})
 	})
 
-	Convey("test when sum of start pos and end pos is greater than the length of the string", t, func() {
+	Convey("test when start position is greater than the end position", t, func() {
 		a, err := runtime.NewAction([]interface{}{funcName, "$.data.appinfoA", 7, 6, "$.data.appinfoB"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
@@ -57,7 +57,43 @@ func TestSplitBetweenPositionsAction(t *testing.T) {
 			Data:  data,
 		}
 		err = a.Execute(ceCtx)
-		So(err.Error(), ShouldEqual, "sum of start position and end position must be equal to or less than the length of the string")
+		So(err.Error(), ShouldEqual, "start position must be less than the endPosition")
+	})
+
+	Convey("test when start position is greater than the length of the string", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.data.appinfoA", 100, 200, "$.data.appinfoB"})
+		So(err, ShouldBeNil)
+		e := cetest.MinEvent()
+		data := map[string]interface{}{
+			"appinfoA": "hello world!",
+		}
+		ceCtx := &context.EventContext{
+			Event: &e,
+			Data:  data,
+		}
+		err = a.Execute(ceCtx)
+		So(err, ShouldBeNil)
+		res, ok := data["appinfoB"]
+		So(ok, ShouldBeTrue)
+		So(res, ShouldResemble, []string{"hello world!", "", ""})
+	})
+
+	Convey("test when end position is greater than the length of the string", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.data.appinfoA", 4, 200, "$.data.appinfoB"})
+		So(err, ShouldBeNil)
+		e := cetest.MinEvent()
+		data := map[string]interface{}{
+			"appinfoA": "hello world!",
+		}
+		ceCtx := &context.EventContext{
+			Event: &e,
+			Data:  data,
+		}
+		err = a.Execute(ceCtx)
+		So(err, ShouldBeNil)
+		res, ok := data["appinfoB"]
+		So(ok, ShouldBeTrue)
+		So(res, ShouldResemble, []string{"hell", "o world!", ""})
 	})
 
 	Convey("test when target key exists", t, func() {
