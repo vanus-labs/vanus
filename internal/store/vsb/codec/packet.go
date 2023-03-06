@@ -25,7 +25,7 @@ import (
 	"github.com/vanus-labs/vanus/pkg/errors"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/block"
+	"github.com/vanus-labs/vanus/internal/store/block"
 )
 
 const (

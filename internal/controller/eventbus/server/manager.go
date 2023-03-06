@@ -30,7 +30,7 @@ import (
 	"github.com/vanus-labs/vanus/pkg/errors"
 	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type Manager interface {

@@ -24,7 +24,7 @@ import (
 
 	pbtrigger "github.com/vanus-labs/vanus/proto/pkg/trigger"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive"
 )
 
 func TestServerApi(t *testing.T) {

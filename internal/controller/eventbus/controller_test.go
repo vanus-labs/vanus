@@ -27,12 +27,12 @@ import (
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/eventlog"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/member"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/eventlog"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/member"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestController_CreateEventBus(t *testing.T) {

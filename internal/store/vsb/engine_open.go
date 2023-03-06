@@ -25,11 +25,11 @@ import (
 	"github.com/vanus-labs/vanus/pkg/errors"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/internal/store/io"
-	"github.com/linkall-labs/vanus/internal/store/io/zone/file"
-	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	"github.com/vanus-labs/vanus/internal/store/io"
+	"github.com/vanus-labs/vanus/internal/store/io/zone/file"
+	"github.com/vanus-labs/vanus/internal/store/vsb/codec"
 )
 
 const (

@@ -21,9 +21,9 @@ import (
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
-	"github.com/linkall-labs/vanus/internal/primitive/queue"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription"
+	"github.com/vanus-labs/vanus/internal/primitive/queue"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 const (

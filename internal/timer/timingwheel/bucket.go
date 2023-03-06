@@ -34,8 +34,8 @@ import (
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/errors"
 
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/timer/metadata"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/timer/metadata"
 )
 
 const (

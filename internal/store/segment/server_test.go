@@ -30,10 +30,10 @@ import (
 	"github.com/vanus-labs/vanus/pkg/util"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store/block"
-	cetest "github.com/linkall-labs/vanus/internal/store/schema/ce/testing"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	cetest "github.com/vanus-labs/vanus/internal/store/schema/ce/testing"
 )
 
 const (

@@ -17,7 +17,7 @@ package function
 import (
 	"fmt"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/common"
 )
 
 var LengthFunction = function{

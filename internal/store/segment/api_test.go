@@ -30,8 +30,8 @@ import (
 	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestSegmentServer(t *testing.T) {

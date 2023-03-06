@@ -9,9 +9,9 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	metadata "github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	kv "github.com/linkall-labs/vanus/internal/kv"
-	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
+	metadata "github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	kv "github.com/vanus-labs/vanus/internal/kv"
+	vanus "github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 // MockManager is a mock of Manager interface.

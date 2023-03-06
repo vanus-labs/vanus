@@ -20,7 +20,7 @@ import (
 	"time"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/wal"
+	"github.com/vanus-labs/vanus/internal/store/wal"
 )
 
 const (

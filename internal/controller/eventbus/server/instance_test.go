@@ -26,8 +26,8 @@ import (
 
 	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestVolumeInstance(t *testing.T) {

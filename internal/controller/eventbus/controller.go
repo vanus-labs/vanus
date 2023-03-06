@@ -38,15 +38,15 @@ import (
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/eventlog"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
-	"github.com/linkall-labs/vanus/internal/controller/member"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/kv/etcd"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/eventlog"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/server"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/volume"
+	"github.com/vanus-labs/vanus/internal/controller/member"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/kv/etcd"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 var (

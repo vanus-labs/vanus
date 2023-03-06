@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=instance.go -destination=mock_instance.go -package=server
 package server
 
 import (
@@ -22,8 +23,8 @@ import (
 	"github.com/vanus-labs/vanus/pkg/errors"
 	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type Instance interface {

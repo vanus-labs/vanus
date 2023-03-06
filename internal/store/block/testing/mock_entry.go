@@ -9,7 +9,7 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
-	block "github.com/linkall-labs/vanus/internal/store/block"
+	block "github.com/vanus-labs/vanus/internal/store/block"
 )
 
 // MockExtensionAttributeCallback is a mock of ExtensionAttributeCallback interface.

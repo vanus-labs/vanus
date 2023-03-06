@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=offset.go  -destination=mock_offset.go -package=offset
+//go:generate mockgen -source=offset.go -destination=mock_offset.go -package=offset
 package offset
 
 import (
@@ -22,9 +22,9 @@ import (
 
 	"github.com/vanus-labs/vanus/observability/log"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/storage"
+	"github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type Manager interface {

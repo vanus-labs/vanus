@@ -18,8 +18,9 @@ import (
 	"testing"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/vanus/internal/primitive"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/internal/primitive"
 )
 
 func TestExecute(t *testing.T) {

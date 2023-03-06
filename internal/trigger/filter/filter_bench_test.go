@@ -19,7 +19,8 @@ import (
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	cetest "github.com/cloudevents/sdk-go/v2/test"
-	"github.com/linkall-labs/vanus/internal/trigger/filter"
+
+	"github.com/vanus-labs/vanus/internal/trigger/filter"
 )
 
 func filterBenchmark(f filter.Filter, event ce.Event) func(b *testing.B) {
@@ -33,10 +34,17 @@ func filterBenchmark(f filter.Filter, event ce.Event) func(b *testing.B) {
 func BenchmarkFilter(b *testing.B) {
 	event := cetest.FullEvent()
 	b.Run("noFilter", filterBenchmark(filter.NewNoFilter(), event))
-	b.Run("exact", filterBenchmark(filter.NewExactFilter(map[string]string{"type": event.Type()}), event))
-	b.Run("not", filterBenchmark(filter.NewNotFilter(filter.NewExactFilter(map[string]string{"type": event.Type()})), event))
-	b.Run("suffix", filterBenchmark(filter.NewSuffixFilter(map[string]string{"type": event.Type()}), event))
-	b.Run("prefix", filterBenchmark(filter.NewPrefixFilter(map[string]string{"type": event.Type()}), event))
+	b.Run("exact", filterBenchmark(filter.NewExactFilter(map[string]string{
+		"type": event.Type(),
+	}), event))
+	b.Run("not", filterBenchmark(filter.NewNotFilter(
+		filter.NewExactFilter(map[string]string{"type": event.Type()})), event))
+	b.Run("suffix", filterBenchmark(filter.NewSuffixFilter(map[string]string{
+		"type": event.Type(),
+	}), event))
+	b.Run("prefix", filterBenchmark(filter.NewPrefixFilter(map[string]string{
+		"type": event.Type(),
+	}), event))
 	b.Run("ceSQL", filterBenchmark(filter.NewCESQLFilter("source = 'testSource'"), event))
 	event.SetData(ce.ApplicationJSON, map[string]interface{}{
 		"key": "value",

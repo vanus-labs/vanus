@@ -24,12 +24,12 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/huandu/skiplist"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/server"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestAllocator_Pick(t *testing.T) {
@@ -107,28 +107,38 @@ func TestAllocator_RunWithoutDynamic(t *testing.T) {
 				Value: data1,
 			},
 			{
-				Key: strings.Join([]string{metadata.BlockKeyPrefixInKVStore,
-					block2.VolumeID.String(), block2.ID.Key()}, ","),
+				Key: strings.Join([]string{
+					metadata.BlockKeyPrefixInKVStore,
+					block2.VolumeID.String(), block2.ID.Key(),
+				}, ","),
 				Value: data2,
 			},
 			{
-				Key: strings.Join([]string{metadata.BlockKeyPrefixInKVStore,
-					block3.VolumeID.String(), block3.ID.Key()}, ","),
+				Key: strings.Join([]string{
+					metadata.BlockKeyPrefixInKVStore,
+					block3.VolumeID.String(), block3.ID.Key(),
+				}, ","),
 				Value: data3,
 			},
 			{
-				Key: strings.Join([]string{metadata.BlockKeyPrefixInKVStore,
-					block4.VolumeID.String(), block4.ID.Key()}, ","),
+				Key: strings.Join([]string{
+					metadata.BlockKeyPrefixInKVStore,
+					block4.VolumeID.String(), block4.ID.Key(),
+				}, ","),
 				Value: data4,
 			},
 			{
-				Key: strings.Join([]string{metadata.BlockKeyPrefixInKVStore,
-					block5.VolumeID.String(), block5.ID.Key()}, ","),
+				Key: strings.Join([]string{
+					metadata.BlockKeyPrefixInKVStore,
+					block5.VolumeID.String(), block5.ID.Key(),
+				}, ","),
 				Value: data5,
 			},
 			{
-				Key: strings.Join([]string{metadata.BlockKeyPrefixInKVStore,
-					block6.VolumeID.String(), block6.ID.Key()}, ","),
+				Key: strings.Join([]string{
+					metadata.BlockKeyPrefixInKVStore,
+					block6.VolumeID.String(), block6.ID.Key(),
+				}, ","),
 				Value: data6,
 			},
 		}, nil)
@@ -170,7 +180,8 @@ func TestAllocator_RunWithDynamic(t *testing.T) {
 		})
 		srv1.EXPECT().ID().AnyTimes().Return(vanus.NewIDFromUint64(uint64(time.Now().UnixNano())))
 		srv1.EXPECT().CreateBlock(gomock.Any(), defaultBlockSize).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
-			size int64) (*metadata.Block, error) {
+			size int64,
+		) (*metadata.Block, error) {
 			return &metadata.Block{
 				ID:       vanus.NewTestID(),
 				Capacity: size,
@@ -185,7 +196,8 @@ func TestAllocator_RunWithDynamic(t *testing.T) {
 		})
 		srv2.EXPECT().ID().AnyTimes().Return(vanus.NewIDFromUint64(uint64(time.Now().UnixNano())))
 		srv2.EXPECT().CreateBlock(gomock.Any(), defaultBlockSize).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
-			size int64) (*metadata.Block, error) {
+			size int64,
+		) (*metadata.Block, error) {
 			return &metadata.Block{
 				ID:       vanus.NewTestID(),
 				Capacity: size,
@@ -200,7 +212,8 @@ func TestAllocator_RunWithDynamic(t *testing.T) {
 		})
 		srv3.EXPECT().ID().AnyTimes().Return(vanus.NewIDFromUint64(uint64(time.Now().UnixNano())))
 		srv3.EXPECT().CreateBlock(gomock.Any(), defaultBlockSize).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
-			size int64) (*metadata.Block, error) {
+			size int64,
+		) (*metadata.Block, error) {
 			return &metadata.Block{
 				ID:       vanus.NewTestID(),
 				Capacity: size,
@@ -279,7 +292,8 @@ func getAllocator(ctrl *gomock.Controller) *allocator {
 	})
 	srv1.EXPECT().ID().AnyTimes().Return(vanus.NewIDFromUint64(uint64(time.Now().UnixNano())))
 	srv1.EXPECT().CreateBlock(gomock.Any(), defaultBlockSize).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
-		size int64) (*metadata.Block, error) {
+		size int64,
+	) (*metadata.Block, error) {
 		return &metadata.Block{
 			ID:       vanus.NewTestID(),
 			Capacity: size,
@@ -294,7 +308,8 @@ func getAllocator(ctrl *gomock.Controller) *allocator {
 	})
 	srv2.EXPECT().ID().AnyTimes().Return(vanus.NewIDFromUint64(uint64(time.Now().UnixNano())))
 	srv2.EXPECT().CreateBlock(gomock.Any(), defaultBlockSize).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
-		size int64) (*metadata.Block, error) {
+		size int64,
+	) (*metadata.Block, error) {
 		return &metadata.Block{
 			ID:       vanus.NewTestID(),
 			Capacity: size,
@@ -309,7 +324,8 @@ func getAllocator(ctrl *gomock.Controller) *allocator {
 	})
 	srv3.EXPECT().ID().AnyTimes().Return(vanus.NewIDFromUint64(uint64(time.Now().UnixNano())))
 	srv3.EXPECT().CreateBlock(gomock.Any(), defaultBlockSize).AnyTimes().DoAndReturn(func(ctx stdCtx.Context,
-		size int64) (*metadata.Block, error) {
+		size int64,
+	) (*metadata.Block, error) {
 		return &metadata.Block{
 			ID:       vanus.NewTestID(),
 			Capacity: size,

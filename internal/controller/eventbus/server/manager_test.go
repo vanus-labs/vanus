@@ -29,7 +29,7 @@ import (
 	"github.com/vanus-labs/vanus/pkg/util"
 	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestSegmentServerManager_AddAndRemoveServer(t *testing.T) {

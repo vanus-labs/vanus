@@ -25,13 +25,13 @@ import (
 	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription/offset"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/secret"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/storage"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription/offset"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestSaveOffset(t *testing.T) {

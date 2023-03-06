@@ -30,11 +30,11 @@ import (
 	"github.com/vanus-labs/vanus/raft/raftpb"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/executor"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/internal/store/raft/storage"
-	"github.com/linkall-labs/vanus/internal/store/raft/transport"
+	"github.com/vanus-labs/vanus/internal/primitive/executor"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	"github.com/vanus-labs/vanus/internal/store/raft/storage"
+	"github.com/vanus-labs/vanus/internal/store/raft/transport"
 )
 
 const (

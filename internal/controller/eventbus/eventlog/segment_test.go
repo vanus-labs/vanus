@@ -20,11 +20,12 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/server"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/volume"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestConvert2ProtoSegment(t *testing.T) {
@@ -120,11 +121,15 @@ func TestConvert2ProtoSegment(t *testing.T) {
 		So(pbSegs[0].Replicas[block2.Uint64()], ShouldNotBeNil)
 		So(pbSegs[0].Replicas[block3.Uint64()], ShouldNotBeNil)
 
-		So(pbSegs[0].Replicas[block1.Uint64()].Id, ShouldEqual, seg.Replicas.Peers[block1.Uint64()].ID.Uint64())
-		So(pbSegs[0].Replicas[block1.Uint64()].VolumeID, ShouldEqual, seg.Replicas.Peers[block1.Uint64()].VolumeID.Uint64())
+		So(pbSegs[0].Replicas[block1.Uint64()].Id, ShouldEqual,
+			seg.Replicas.Peers[block1.Uint64()].ID.Uint64())
+		So(pbSegs[0].Replicas[block1.Uint64()].VolumeID, ShouldEqual,
+			seg.Replicas.Peers[block1.Uint64()].VolumeID.Uint64())
 		So(pbSegs[0].Replicas[block1.Uint64()].Endpoint, ShouldEqual, "127.0.0.1:10001")
-		So(pbSegs[0].Replicas[block3.Uint64()].Id, ShouldEqual, seg.Replicas.Peers[block3.Uint64()].ID.Uint64())
-		So(pbSegs[0].Replicas[block3.Uint64()].VolumeID, ShouldEqual, seg.Replicas.Peers[block3.Uint64()].VolumeID.Uint64())
+		So(pbSegs[0].Replicas[block3.Uint64()].Id, ShouldEqual,
+			seg.Replicas.Peers[block3.Uint64()].ID.Uint64())
+		So(pbSegs[0].Replicas[block3.Uint64()].VolumeID, ShouldEqual,
+			seg.Replicas.Peers[block3.Uint64()].VolumeID.Uint64())
 		So(pbSegs[0].Replicas[block3.Uint64()].Endpoint, ShouldEqual, "")
 	})
 }

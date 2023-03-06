@@ -23,7 +23,7 @@ import (
 
 	"github.com/vanus-labs/vanus/pkg/util"
 
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestPollingManager_All(t *testing.T) {

@@ -63,12 +63,12 @@ import (
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
 
-	"github.com/linkall-labs/vanus/internal/convert"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/trigger/filter"
-	"github.com/linkall-labs/vanus/internal/trigger/transform"
+	"github.com/vanus-labs/vanus/internal/convert"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/interceptor/errinterceptor"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/trigger/filter"
+	"github.com/vanus-labs/vanus/internal/trigger/transform"
 )
 
 const (

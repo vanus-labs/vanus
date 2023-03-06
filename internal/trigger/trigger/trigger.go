@@ -31,15 +31,15 @@ import (
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/pkg/util"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
-	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/trigger/client"
-	"github.com/linkall-labs/vanus/internal/trigger/filter"
-	"github.com/linkall-labs/vanus/internal/trigger/info"
-	"github.com/linkall-labs/vanus/internal/trigger/offset"
-	"github.com/linkall-labs/vanus/internal/trigger/reader"
-	"github.com/linkall-labs/vanus/internal/trigger/transform"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	pInfo "github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/trigger/client"
+	"github.com/vanus-labs/vanus/internal/trigger/filter"
+	"github.com/vanus-labs/vanus/internal/trigger/info"
+	"github.com/vanus-labs/vanus/internal/trigger/offset"
+	"github.com/vanus-labs/vanus/internal/trigger/reader"
+	"github.com/vanus-labs/vanus/internal/trigger/transform"
 )
 
 type State string

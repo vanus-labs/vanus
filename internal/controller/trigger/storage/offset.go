@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=offset.go  -destination=mock_offset.go -package=storage
+//go:generate mockgen -source=offset.go -destination=mock_offset.go -package=storage
 package storage
 
 import (
@@ -21,9 +21,9 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type OffsetStorage interface {

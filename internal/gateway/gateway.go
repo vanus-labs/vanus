@@ -38,8 +38,8 @@ import (
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/observability/tracing"
 
-	"github.com/linkall-labs/vanus/internal/gateway/proxy"
-	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/gateway/proxy"
+	"github.com/vanus-labs/vanus/internal/primitive"
 )
 
 const (

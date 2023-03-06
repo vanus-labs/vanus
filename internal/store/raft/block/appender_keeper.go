@@ -23,7 +23,7 @@ import (
 	"github.com/vanus-labs/vanus/raft/raftpb"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 // Make sure appender implements raft.Keeper.

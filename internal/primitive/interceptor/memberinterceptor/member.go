@@ -22,7 +22,7 @@ import (
 
 	"github.com/vanus-labs/vanus/pkg/errors"
 
-	"github.com/linkall-labs/vanus/internal/controller/member"
+	"github.com/vanus-labs/vanus/internal/controller/member"
 )
 
 func StreamServerInterceptor(mem member.Member) grpc.StreamServerInterceptor {

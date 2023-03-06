@@ -20,7 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
 )
 
 type TriggerWorkerPolicy interface {

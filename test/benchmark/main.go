@@ -19,8 +19,9 @@ import (
 	"os"
 
 	"github.com/fatih/color"
-	"github.com/linkall-labs/vanus/test/benchmark/command"
 	"github.com/spf13/cobra"
+
+	"github.com/vanus-labs/vanus/test/benchmark/command"
 )
 
 var rootCmd = &cobra.Command{
@@ -49,7 +50,6 @@ var (
 )
 
 func main() {
-
 	rootCmd.AddCommand(command.E2ECommand())
 	rootCmd.AddCommand(command.ComponentCommand())
 	rootCmd.PersistentPreRun = func(_ *cobra.Command, _ []string) {

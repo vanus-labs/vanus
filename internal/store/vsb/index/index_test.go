@@ -23,10 +23,10 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	cetest "github.com/linkall-labs/vanus/internal/store/schema/ce/testing"
-	"github.com/linkall-labs/vanus/internal/store/vsb/index"
-	idxtest "github.com/linkall-labs/vanus/internal/store/vsb/index/testing"
-	vsbtest "github.com/linkall-labs/vanus/internal/store/vsb/testing"
+	cetest "github.com/vanus-labs/vanus/internal/store/schema/ce/testing"
+	"github.com/vanus-labs/vanus/internal/store/vsb/index"
+	idxtest "github.com/vanus-labs/vanus/internal/store/vsb/index/testing"
+	vsbtest "github.com/vanus-labs/vanus/internal/store/vsb/testing"
 )
 
 func TestIndex(t *testing.T) {

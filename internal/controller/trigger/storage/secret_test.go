@@ -24,9 +24,9 @@ import (
 
 	"github.com/vanus-labs/vanus/pkg/util/crypto"
 
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestSecretStorage(t *testing.T) {

@@ -10,8 +10,8 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	primitive "github.com/linkall-labs/vanus/internal/primitive"
-	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
+	primitive "github.com/vanus-labs/vanus/internal/primitive"
+	vanus "github.com/vanus-labs/vanus/internal/primitive/vanus"
 	cloudevents "github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 )
 

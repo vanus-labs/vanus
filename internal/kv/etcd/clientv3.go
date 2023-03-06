@@ -24,7 +24,7 @@ import (
 
 	"github.com/vanus-labs/vanus/observability/log"
 
-	kvdef "github.com/linkall-labs/vanus/internal/kv"
+	kvdef "github.com/vanus-labs/vanus/internal/kv"
 )
 
 const (

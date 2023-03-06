@@ -27,14 +27,14 @@ import (
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/internal/store/block/raw"
-	"github.com/linkall-labs/vanus/internal/store/config"
-	"github.com/linkall-labs/vanus/internal/store/meta"
-	raft "github.com/linkall-labs/vanus/internal/store/raft/block"
-	"github.com/linkall-labs/vanus/internal/store/vsb"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	"github.com/vanus-labs/vanus/internal/store/block/raw"
+	"github.com/vanus-labs/vanus/internal/store/config"
+	"github.com/vanus-labs/vanus/internal/store/meta"
+	raft "github.com/vanus-labs/vanus/internal/store/raft/block"
+	"github.com/vanus-labs/vanus/internal/store/vsb"
 )
 
 func (s *server) Initialize(ctx context.Context) error {

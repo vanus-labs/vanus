@@ -24,9 +24,9 @@ import (
 	"github.com/vanus-labs/vanus/raft/raftpb"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/executor"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store/meta"
+	"github.com/vanus-labs/vanus/internal/primitive/executor"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/store/meta"
 )
 
 type Storage struct {

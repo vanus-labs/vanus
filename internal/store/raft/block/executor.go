@@ -16,7 +16,7 @@ package block
 
 import (
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/executor"
+	"github.com/vanus-labs/vanus/internal/primitive/executor"
 )
 
 type executorFactory struct {

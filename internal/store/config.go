@@ -20,8 +20,8 @@ import (
 	"github.com/vanus-labs/vanus/pkg/util"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/store/config"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/store/config"
 )
 
 type Config struct {

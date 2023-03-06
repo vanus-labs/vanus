@@ -10,7 +10,7 @@
 
 package ce
 
-import "github.com/linkall-labs/vanus/internal/store/block"
+import "github.com/vanus-labs/vanus/internal/store/block"
 
 type stimeKey struct {
 	block.EmptyEntry

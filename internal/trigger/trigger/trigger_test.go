@@ -33,11 +33,11 @@ import (
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/trigger/client"
-	"github.com/linkall-labs/vanus/internal/trigger/info"
-	"github.com/linkall-labs/vanus/internal/trigger/reader"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/trigger/client"
+	"github.com/vanus-labs/vanus/internal/trigger/info"
+	"github.com/vanus-labs/vanus/internal/trigger/reader"
 )
 
 func TestTrigger_Options(t *testing.T) {

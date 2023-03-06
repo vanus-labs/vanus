@@ -30,8 +30,8 @@ import (
 	"github.com/vanus-labs/vanus/pkg/util/signal"
 	pbtrigger "github.com/vanus-labs/vanus/proto/pkg/trigger"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/trigger"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/trigger"
 )
 
 var configPath = flag.String("config", "./config/trigger.yaml", "trigger worker config file path")

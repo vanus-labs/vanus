@@ -14,7 +14,7 @@
 
 package function
 
-import "github.com/linkall-labs/vanus/internal/primitive/transform/common"
+import "github.com/vanus-labs/vanus/internal/primitive/transform/common"
 
 type Function interface {
 	// Name func name

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=eventlog.go  -destination=mock_eventlog.go -package=eventlog
+//go:generate mockgen -source=eventlog.go -destination=mock_eventlog.go -package=eventlog
 package eventlog
 
 import (
@@ -32,11 +32,11 @@ import (
 	"github.com/vanus-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/proto/pkg/segment"
 
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/block"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/block"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/volume"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 const (

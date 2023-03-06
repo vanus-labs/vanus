@@ -24,7 +24,7 @@ import (
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/pkg/util/signal"
 
-	"github.com/linkall-labs/vanus/internal/gateway"
+	"github.com/vanus-labs/vanus/internal/gateway"
 )
 
 var configPath = flag.String("config", "./config/gateway.yaml", "gateway config file path")

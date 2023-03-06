@@ -16,8 +16,8 @@ package engine
 
 import (
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/io"
-	"github.com/linkall-labs/vanus/internal/store/io/zone"
+	"github.com/vanus-labs/vanus/internal/store/io"
+	"github.com/vanus-labs/vanus/internal/store/io/zone"
 )
 
 type Interface interface {

@@ -23,7 +23,7 @@ import (
 	"github.com/vanus-labs/vanus/raft/raftpb"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/raft/transport"
+	"github.com/vanus-labs/vanus/internal/store/raft/transport"
 )
 
 // Make sure appender implements transport.Receiver.

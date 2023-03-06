@@ -21,10 +21,11 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestCreateSubscription(t *testing.T) {

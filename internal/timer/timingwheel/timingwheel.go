@@ -36,9 +36,9 @@ import (
 	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/kv/etcd"
-	"github.com/linkall-labs/vanus/internal/timer/metadata"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/kv/etcd"
+	"github.com/vanus-labs/vanus/internal/timer/metadata"
 )
 
 const (

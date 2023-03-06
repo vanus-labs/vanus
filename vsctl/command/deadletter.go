@@ -27,7 +27,7 @@ import (
 
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
 
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func newDeadLetterCommand() *cobra.Command {

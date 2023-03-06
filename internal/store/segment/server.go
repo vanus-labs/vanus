@@ -54,14 +54,14 @@ import (
 	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store"
-	"github.com/linkall-labs/vanus/internal/store/block"
-	raft "github.com/linkall-labs/vanus/internal/store/raft/block"
-	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
-	ceconv "github.com/linkall-labs/vanus/internal/store/schema/ce/convert"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/interceptor/errinterceptor"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/store"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	raft "github.com/vanus-labs/vanus/internal/store/raft/block"
+	ceschema "github.com/vanus-labs/vanus/internal/store/schema/ce"
+	ceconv "github.com/vanus-labs/vanus/internal/store/schema/ce/convert"
 )
 
 const (

@@ -15,7 +15,7 @@
 package arg
 
 import (
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
 )
 
 type define struct {

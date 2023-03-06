@@ -33,8 +33,8 @@ import (
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func (cp *ControllerProxy) GetDeadLetterEvent(ctx context.Context,

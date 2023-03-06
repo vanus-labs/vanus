@@ -24,9 +24,9 @@ import (
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/pkg/util/signal"
 
-	"github.com/linkall-labs/vanus/internal/timer"
-	"github.com/linkall-labs/vanus/internal/timer/leaderelection"
-	"github.com/linkall-labs/vanus/internal/timer/timingwheel"
+	"github.com/vanus-labs/vanus/internal/timer"
+	"github.com/vanus-labs/vanus/internal/timer/leaderelection"
+	"github.com/vanus-labs/vanus/internal/timer/timingwheel"
 )
 
 var configPath = flag.String("config", "./config/timer.yaml", "the configuration file of timer")

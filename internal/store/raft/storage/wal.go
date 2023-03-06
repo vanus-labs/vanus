@@ -22,9 +22,9 @@ import (
 	"github.com/huandu/skiplist"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store/meta"
-	walog "github.com/linkall-labs/vanus/internal/store/wal"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/store/meta"
+	walog "github.com/vanus-labs/vanus/internal/store/wal"
 )
 
 const (

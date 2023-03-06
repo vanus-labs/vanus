@@ -26,7 +26,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	enginetest "github.com/linkall-labs/vanus/internal/store/io/engine/testing"
+	enginetest "github.com/vanus-labs/vanus/internal/store/io/engine/testing"
 )
 
 func TestURing(t *testing.T) {

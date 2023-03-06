@@ -23,9 +23,9 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	cetest "github.com/linkall-labs/vanus/internal/store/schema/ce/testing"
-	idxtest "github.com/linkall-labs/vanus/internal/store/vsb/index/testing"
-	vsbtest "github.com/linkall-labs/vanus/internal/store/vsb/testing"
+	cetest "github.com/vanus-labs/vanus/internal/store/schema/ce/testing"
+	idxtest "github.com/vanus-labs/vanus/internal/store/vsb/index/testing"
+	vsbtest "github.com/vanus-labs/vanus/internal/store/vsb/testing"
 )
 
 func TestAlignment(t *testing.T) {

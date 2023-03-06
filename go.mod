@@ -1,4 +1,4 @@
-module github.com/linkall-labs/vanus
+module github.com/vanus-labs/vanus
 
 go 1.18
 
@@ -21,7 +21,6 @@ require (
 	github.com/iceber/iouring-go v0.0.0-20220609112130-b1dc8dd9fbfd
 	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/json-iterator/go v1.1.12
-	github.com/linkall-labs/sdk/golang v0.2.0
 	github.com/ncw/directio v1.0.5
 	github.com/ohler55/ojg v1.14.5
 	github.com/panjf2000/ants/v2 v2.7.1
@@ -32,10 +31,11 @@ require (
 	github.com/sony/sonyflake v1.1.0
 	github.com/spf13/cobra v1.4.0
 	github.com/tidwall/gjson v1.14.1
+	github.com/vanus-labs/sdk/golang v0.2.0
 	github.com/vanus-labs/vanus/client v0.5.7
 	github.com/vanus-labs/vanus/observability v0.5.7
 	github.com/vanus-labs/vanus/pkg v0.5.7
-	github.com/vanus-labs/vanus/proto v0.5.7
+	github.com/vanus-labs/vanus/proto v0.5.8-0.20230202030707-115734791dcf
 	github.com/vanus-labs/vanus/raft v0.5.7
 	go.etcd.io/etcd/client/v3 v3.5.7
 	go.mongodb.org/mongo-driver v1.11.0
@@ -130,7 +130,8 @@ require (
 )
 
 replace (
-	github.com/mwitkow/grpc-proxy => github.com/linkall-labs/grpc-proxy v0.0.0-20220624142509-a3b0cb2bb86c
+	github.com/mwitkow/grpc-proxy => github.com/vanus-labs/grpc-proxy v0.0.0-20220624142509-a3b0cb2bb86c
+	github.com/vanus-labs/sdk/golang v0.2.0 => github.com/linkall-labs/sdk/golang v0.2.0
 	github.com/vanus-labs/vanus/client => ./client
 	github.com/vanus-labs/vanus/observability => ./observability
 	github.com/vanus-labs/vanus/pkg => ./pkg

@@ -25,7 +25,7 @@ import (
 	"github.com/vanus-labs/vanus/observability/log"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/io"
+	"github.com/vanus-labs/vanus/internal/store/io"
 )
 
 const (

@@ -28,10 +28,10 @@ import (
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/cel"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/cel"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/arg"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/runtime"
 )
 
 func ValidateSubscriptionRequest(ctx context.Context, request *ctrlpb.SubscriptionRequest) error {

@@ -22,8 +22,8 @@ import (
 	"github.com/vanus-labs/vanus/observability/log"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type SegmentState string

@@ -36,14 +36,14 @@ import (
 	"github.com/vanus-labs/vanus/pkg/util/signal"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 
-	"github.com/linkall-labs/vanus/internal/controller"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus"
-	"github.com/linkall-labs/vanus/internal/controller/member"
-	"github.com/linkall-labs/vanus/internal/controller/snowflake"
-	"github.com/linkall-labs/vanus/internal/controller/trigger"
-	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
-	"github.com/linkall-labs/vanus/internal/primitive/interceptor/memberinterceptor"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/controller"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus"
+	"github.com/vanus-labs/vanus/internal/controller/member"
+	"github.com/vanus-labs/vanus/internal/controller/snowflake"
+	"github.com/vanus-labs/vanus/internal/controller/trigger"
+	"github.com/vanus-labs/vanus/internal/primitive/interceptor/errinterceptor"
+	"github.com/vanus-labs/vanus/internal/primitive/interceptor/memberinterceptor"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 var configPath = flag.String("config", "./config/controller.yaml",

@@ -26,10 +26,10 @@ import (
 
 	"github.com/vanus-labs/vanus/observability/log"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/storage"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func getTestSubscription() *metadata.Subscription {

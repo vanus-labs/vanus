@@ -19,8 +19,8 @@ import (
 	"context"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/internal/store/raft/storage"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	"github.com/vanus-labs/vanus/internal/store/raft/storage"
 )
 
 // Make sure appender implements storage.SnapshotOperator.

@@ -17,10 +17,10 @@ package cel_test
 import (
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/primitive/cel"
-
 	ce "github.com/cloudevents/sdk-go/v2"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/internal/primitive/cel"
 )
 
 func TestParse(t *testing.T) {

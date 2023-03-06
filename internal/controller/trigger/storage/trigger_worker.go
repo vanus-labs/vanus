@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=trigger_worker.go  -destination=mock_trigger_worker.go -package=storage
+//go:generate mockgen -source=trigger_worker.go -destination=mock_trigger_worker.go -package=storage
 package storage
 
 import (
@@ -23,8 +23,8 @@ import (
 
 	"github.com/vanus-labs/vanus/pkg/errors"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/kv"
 )
 
 type TriggerWorkerStorage interface {

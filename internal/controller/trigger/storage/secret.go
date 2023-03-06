@@ -22,11 +22,11 @@ import (
 	"github.com/vanus-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/pkg/util/crypto"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/kv/etcd"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/secret"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/kv/etcd"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func NewSecretStorage(config primitive.KvStorageConfig, encryption string) (secret.Storage, error) {

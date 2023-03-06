@@ -30,9 +30,9 @@ import (
 
 	"github.com/vanus-labs/vanus/observability/log"
 
-	"github.com/linkall-labs/vanus/internal/controller/member"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/kv/etcd"
+	"github.com/vanus-labs/vanus/internal/controller/member"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/kv/etcd"
 )
 
 const (

@@ -20,8 +20,8 @@ import (
 
 	"github.com/vanus-labs/vanus/observability/log"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-	"github.com/linkall-labs/vanus/internal/trigger/util"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
+	"github.com/vanus-labs/vanus/internal/trigger/util"
 )
 
 type NodeType int

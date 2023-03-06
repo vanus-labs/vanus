@@ -9,8 +9,8 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	info "github.com/linkall-labs/vanus/internal/primitive/info"
-	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
+	info "github.com/vanus-labs/vanus/internal/primitive/info"
+	vanus "github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 // MockManager is a mock of Manager interface.
@@ -54,7 +54,7 @@ func (mr *MockManagerMockRecorder) GetOffset(ctx, subscriptionID interface{}) *g
 // Offset mocks base method.
 func (m *MockManager) Offset(ctx context.Context, subscriptionID vanus.ID, offsets info.ListOffsetInfo, commit bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveOffset", ctx, subscriptionID, offsets, commit)
+	ret := m.ctrl.Call(m, "Offset", ctx, subscriptionID, offsets, commit)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -62,7 +62,7 @@ func (m *MockManager) Offset(ctx context.Context, subscriptionID vanus.ID, offse
 // Offset indicates an expected call of Offset.
 func (mr *MockManagerMockRecorder) Offset(ctx, subscriptionID, offsets, commit interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveOffset", reflect.TypeOf((*MockManager)(nil).Offset), ctx, subscriptionID, offsets, commit)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Offset", reflect.TypeOf((*MockManager)(nil).Offset), ctx, subscriptionID, offsets, commit)
 }
 
 // RemoveRegisterSubscription mocks base method.

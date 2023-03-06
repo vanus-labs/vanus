@@ -36,16 +36,16 @@ import (
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
-	"github.com/linkall-labs/vanus/internal/controller/member"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/validation"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/worker"
-	"github.com/linkall-labs/vanus/internal/convert"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/controller/member"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/secret"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/storage"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/validation"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/worker"
+	"github.com/vanus-labs/vanus/internal/convert"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 var _ ctrlpb.TriggerControllerServer = &controller{}

@@ -21,7 +21,7 @@ import (
 
 	"github.com/vanus-labs/vanus/observability/log"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive"
 )
 
 func extractFilter(subscriptionFilter *primitive.SubscriptionFilter) Filter {

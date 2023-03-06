@@ -35,8 +35,8 @@ import (
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"github.com/vanus-labs/vanus/proto/pkg/meta"
 
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/kv/etcd"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/kv/etcd"
 )
 
 const (

@@ -21,15 +21,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/vanus-labs/vanus/client"
-	"github.com/vanus-labs/vanus/client/pkg/api"
-
 	ce "github.com/cloudevents/sdk-go/v2"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	. "github.com/golang/mock/gomock"
 	. "github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+
+	"github.com/vanus-labs/vanus/internal/primitive"
 )
 
 func TestGateway_NewGateway(t *testing.T) {
@@ -186,7 +187,8 @@ func TestGateway_EventID(t *testing.T) {
 		event.SetType("example.type")
 		_ = event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world"})
 
-		ctx := ce.ContextWithTarget(context.Background(), fmt.Sprintf("http://127.0.0.1:%d/gateway/%s", cfg.GetCloudEventReceiverPort(), busName))
+		ctx := ce.ContextWithTarget(context.Background(),
+			fmt.Sprintf("http://127.0.0.1:%d/gateway/%s", cfg.GetCloudEventReceiverPort(), busName))
 		resEvent, res := c.Request(ctx, event)
 		So(ce.IsACK(res), ShouldBeTrue)
 		var httpResult *cehttp.Result

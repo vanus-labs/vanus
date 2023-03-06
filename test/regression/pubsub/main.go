@@ -23,10 +23,10 @@ import (
 
 	v2 "github.com/cloudevents/sdk-go/v2"
 
-	vanus "github.com/linkall-labs/sdk/golang"
+	vanus "github.com/vanus-labs/sdk/golang"
 	"github.com/vanus-labs/vanus/observability/log"
 
-	"github.com/linkall-labs/vanus/test/utils"
+	"github.com/vanus-labs/vanus/test/utils"
 )
 
 var (

@@ -36,9 +36,9 @@ import (
 	"github.com/vanus-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/pkg/util"
 
-	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/trigger/info"
+	pInfo "github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/trigger/info"
 )
 
 const (

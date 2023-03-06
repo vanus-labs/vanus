@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=worker.go  -destination=mock_worker.go -package=worker
+//go:generate mockgen -source=worker.go -destination=mock_worker.go -package=worker
 package worker
 
 import (
@@ -27,12 +27,12 @@ import (
 	"github.com/vanus-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/proto/pkg/trigger"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
-	"github.com/linkall-labs/vanus/internal/convert"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/queue"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription"
+	"github.com/vanus-labs/vanus/internal/convert"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/queue"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type TriggerWorker interface {

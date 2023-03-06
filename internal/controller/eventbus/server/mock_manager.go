@@ -10,7 +10,7 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
-	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
+	vanus "github.com/vanus-labs/vanus/internal/primitive/vanus"
 	segment "github.com/vanus-labs/vanus/proto/pkg/segment"
 )
 

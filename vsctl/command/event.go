@@ -32,11 +32,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
+
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 const (

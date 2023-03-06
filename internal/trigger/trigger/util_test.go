@@ -18,9 +18,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
-
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/internal/primitive"
 )
 
 func TestNewEventClient(t *testing.T) {

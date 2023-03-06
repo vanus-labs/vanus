@@ -20,9 +20,9 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/tidwall/gjson"
 
-	"github.com/linkall-labs/vanus/internal/trigger/util"
-
 	"github.com/vanus-labs/vanus/observability/log"
+
+	"github.com/vanus-labs/vanus/internal/trigger/util"
 )
 
 type commonFilter struct {

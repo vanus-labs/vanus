@@ -21,8 +21,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/trigger/client"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/trigger/client"
 )
 
 func newEventClient(sink primitive.URI,

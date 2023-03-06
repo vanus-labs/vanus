@@ -28,7 +28,7 @@ import (
 
 	"github.com/vanus-labs/vanus/observability/log"
 
-	"github.com/linkall-labs/vanus/internal/timer/metadata"
+	"github.com/vanus-labs/vanus/internal/timer/metadata"
 )
 
 const (

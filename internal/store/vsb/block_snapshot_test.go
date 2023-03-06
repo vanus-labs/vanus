@@ -24,8 +24,8 @@ package vsb
 // 	. "github.com/smartystreets/goconvey/convey"
 
 // 	// this project.
-// 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-// 	"github.com/linkall-labs/vanus/internal/store/block"
+// 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+// 	"github.com/vanus-labs/vanus/internal/store/block"
 // )
 
 // func TestVSBlock_SnapshotOperator(t *testing.T) {

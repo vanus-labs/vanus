@@ -23,7 +23,7 @@ import (
 	"testing"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/wal/record"
+	"github.com/vanus-labs/vanus/internal/store/wal/record"
 )
 
 func BenchmarkWAL_AppendOne(b *testing.B) {

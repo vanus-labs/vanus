@@ -17,9 +17,9 @@ package runtime
 import (
 	"strings"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
 	"github.com/pkg/errors"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/action"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/arg"
 )
 
 type newAction func() action.Action

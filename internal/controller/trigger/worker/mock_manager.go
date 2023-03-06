@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	metadata "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
+	metadata "github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
 )
 
 // MockManager is a mock of Manager interface.

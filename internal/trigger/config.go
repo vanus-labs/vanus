@@ -21,7 +21,7 @@ import (
 	"github.com/vanus-labs/vanus/observability"
 	"github.com/vanus-labs/vanus/pkg/util"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive"
 )
 
 type Config struct {

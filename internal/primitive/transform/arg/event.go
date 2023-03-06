@@ -20,8 +20,8 @@ import (
 
 	pkgUtil "github.com/vanus-labs/vanus/pkg/util"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-	"github.com/linkall-labs/vanus/internal/trigger/util"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
+	"github.com/vanus-labs/vanus/internal/trigger/util"
 )
 
 type eventAttribute struct {

@@ -32,7 +32,7 @@ import (
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
 
-	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/kv"
 )
 
 func TestTimingMsg_newTimingMsg(t *testing.T) {
