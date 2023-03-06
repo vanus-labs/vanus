@@ -37,8 +37,8 @@ import (
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
-func (cp *ControllerProxy) GetDeadLetterEvent(ctx context.Context,
-	req *proxypb.GetDeadLetterEventRequest,
+func (cp *ControllerProxy) GetDeadLetterEvent(
+	ctx context.Context, req *proxypb.GetDeadLetterEventRequest,
 ) (*proxypb.GetDeadLetterEventResponse, error) {
 	if req.GetSubscriptionId() == 0 {
 		return nil, errors.ErrInvalidRequest.WithMessage("subscription is empty")
@@ -126,8 +126,8 @@ loop:
 	}, nil
 }
 
-func (cp *ControllerProxy) ResendDeadLetterEvent(ctx context.Context,
-	req *proxypb.ResendDeadLetterEventRequest,
+func (cp *ControllerProxy) ResendDeadLetterEvent(
+	ctx context.Context, req *proxypb.ResendDeadLetterEventRequest,
 ) (*emptypb.Empty, error) {
 	if req.GetSubscriptionId() == 0 {
 		return nil, errors.ErrInvalidRequest.WithMessage("subscription is empty")
@@ -177,14 +177,13 @@ func (cp *ControllerProxy) ResendDeadLetterEvent(ctx context.Context,
 	var events []*cloudevents.CloudEvent
 loop:
 	for {
-		_events, _, _, err := api.Read(ctx, busReader)
-		if err != nil {
-			if errors.Is(err, errors.ErrOffsetOnEnd) {
-				// read end
+		_events, _, _, err2 := api.Read(ctx, busReader)
+		if err2 != nil {
+			if errors.Is(err2, errors.ErrOffsetOnEnd) { // read end
 				break
 			}
 			// todo errors.ErrTryAgain maybe need retry read
-			return nil, err
+			return nil, err2
 		}
 		if len(_events) == 0 {
 			break
@@ -206,22 +205,22 @@ loop:
 			delete(ec.Extensions, primitive.LastDeliveryTime)
 			delete(ec.Extensions, primitive.LastDeliveryError)
 			delete(ec.Extensions, primitive.DeadLetterReason)
-			pbEvent, err := codec.ToProto(v)
-			if err != nil {
-				return nil, err
+			pbEvent, err3 := codec.ToProto(v)
+			if err3 != nil {
+				return nil, err3
 			}
 			events = append(events, pbEvent)
 		}
 		readPolicy.Forward(len(_events))
 		if len(events) > 10 {
-			err = cp.writeDeadLetterEvent(ctx, req.SubscriptionId, endOffset+1, events)
-			if err != nil {
-				return nil, err
+			err2 = cp.writeDeadLetterEvent(ctx, req.SubscriptionId, endOffset+1, events)
+			if err2 != nil {
+				return nil, err2
 			}
 			events = nil
 		}
 	}
-	if len(events) > 0 {
+	if len(events) != 0 {
 		err = cp.writeDeadLetterEvent(ctx, req.SubscriptionId, endOffset+1, events)
 		if err != nil {
 			return nil, err
@@ -230,10 +229,8 @@ loop:
 	return &emptypb.Empty{}, nil
 }
 
-func (cp *ControllerProxy) writeDeadLetterEvent(ctx context.Context,
-	subscriptionID uint64,
-	offset uint64,
-	events []*cloudevents.CloudEvent,
+func (cp *ControllerProxy) writeDeadLetterEvent(
+	ctx context.Context, subscriptionID uint64, offset uint64, events []*cloudevents.CloudEvent,
 ) error {
 	// write to retry eventbus
 	err := cp.writeEvents(ctx, primitive.GetRetryEventbusName(""), &cloudevents.CloudEventBatch{

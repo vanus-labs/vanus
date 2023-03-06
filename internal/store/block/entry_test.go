@@ -40,7 +40,7 @@ func randString(n int) string {
 }
 
 func TestEmptyEntry(t *testing.T) {
-	rand.Seed(time.Now().Unix())
+	rand := rand.New(rand.NewSource(time.Now().Unix()))
 
 	Convey("empty entry", t, func() {
 		ent := block.EmptyEntry{}

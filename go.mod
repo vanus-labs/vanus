@@ -14,7 +14,7 @@ require (
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/mock v1.6.0
-	github.com/google/cel-go v0.11.2
+	github.com/google/cel-go v0.13.0
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/huandu/skiplist v1.2.0

@@ -351,10 +351,12 @@ func (tw *timingWheel) startReceivingStation(ctx context.Context) error {
 	return nil
 }
 
+const receiveGoroutineNum = 2
+
 // runReceivingStation as the unified entrance of scheduled events and pushed to the timingwheel.
 func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 	offsetC := make(chan waitGroup, defaultMaxNumberOfWorkers)
-	tw.wg.Add(1)
+	tw.wg.Add(receiveGoroutineNum)
 	// update offset asynchronously
 	go func() {
 		defer tw.wg.Done()
@@ -374,7 +376,6 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 			}
 		}
 	}()
-	tw.wg.Add(1)
 	go func() {
 		defer tw.wg.Done()
 		// limit the number of goroutines to no more than defaultMaxNumberOfWorkers
