@@ -82,4 +82,5 @@ func BenchmarkAction(b *testing.B) {
 	b.Run("split_with_delimiter", actionBenchmark([]interface{}{"split_with_delimiter", "$.data.str", "a", "$.data.target"}))
 	b.Run("unfold_array", actionBenchmark([]interface{}{"unfold_array", "$.data.str", "$.data.target"}))
 	b.Run("extract_missing", actionBenchmark([]interface{}{"extract_missing", "$.data.source", "$.data.target", "true", "false"}))
+	b.Run("replace_between_delimiter", actionBenchmark([]interface{}{"replace_between_delimiter", "$.test", "&&", "&&", "Vanus"}))
 }
