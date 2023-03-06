@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=trigger.go  -destination=mock_trigger.go -package=trigger
+//go:generate mockgen -source=trigger.go -destination=mock_trigger.go -package=trigger
 package trigger
 
 import (
@@ -22,8 +22,15 @@ import (
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/panjf2000/ants/v2"
+	"go.uber.org/ratelimit"
+
 	eb "github.com/linkall-labs/vanus/client"
 	"github.com/linkall-labs/vanus/client/pkg/api"
+	"github.com/linkall-labs/vanus/pkg/util"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+
 	"github.com/linkall-labs/vanus/internal/primitive"
 	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
@@ -33,11 +40,6 @@ import (
 	"github.com/linkall-labs/vanus/internal/trigger/offset"
 	"github.com/linkall-labs/vanus/internal/trigger/reader"
 	"github.com/linkall-labs/vanus/internal/trigger/transform"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/pkg/util"
-	"github.com/panjf2000/ants/v2"
-	"go.uber.org/ratelimit"
 )
 
 type State string
@@ -137,7 +139,8 @@ func (t *trigger) getClient() client.EventClient {
 
 func (t *trigger) changeTarget(sink primitive.URI,
 	protocol primitive.Protocol,
-	credential primitive.SinkCredential) error {
+	credential primitive.SinkCredential,
+) error {
 	eventCli := newEventClient(sink, protocol, credential)
 	t.lock.Lock()
 	defer t.lock.Unlock()
@@ -436,7 +439,8 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 	attempts++
 	ec.Extensions[primitive.XVanusRetryAttempts] = attempts
 	delayTime := calDeliveryTime(attempts)
-	ec.Extensions[primitive.XVanusDeliveryTime] = ce.Timestamp{Time: time.Now().Add(delayTime).UTC()}.Format(time.RFC3339)
+	ec.Extensions[primitive.XVanusDeliveryTime] =
+		ce.Timestamp{Time: time.Now().Add(delayTime).UTC()}.Format(time.RFC3339)
 	ec.Extensions[primitive.XVanusSubscriptionID] = t.subscriptionIDStr
 	ec.Extensions[primitive.XVanusEventbus] = t.config.RetryEventbus
 	var writeAttempt int
@@ -471,7 +475,8 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 	ec, _ := e.Context.(*ce.EventContextV1)
 	delete(ec.Extensions, primitive.XVanusEventbus)
 	ec.Extensions[primitive.XVanusSubscriptionID] = t.subscriptionIDStr
-	ec.Extensions[primitive.LastDeliveryTime] = ce.Timestamp{Time: time.Now().UTC()}.Format(time.RFC3339)
+	ec.Extensions[primitive.LastDeliveryTime] =
+		ce.Timestamp{Time: time.Now().UTC()}.Format(time.RFC3339)
 	ec.Extensions[primitive.LastDeliveryError] = errorMsg
 	ec.Extensions[primitive.DeadLetterReason] = reason
 	var writeAttempt int

@@ -15,6 +15,7 @@
 package transport
 
 import (
+	// standard libraries.
 	"context"
 	"fmt"
 	"net"
@@ -22,11 +23,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/observability/log"
-	. "github.com/linkall-labs/vanus/proto/pkg/raft"
-	"github.com/linkall-labs/vanus/raft/raftpb"
+	// third-party libraries.
 	. "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc"
+
+	// first-party libraries.
+	. "github.com/linkall-labs/vanus/proto/pkg/raft"
+	"github.com/linkall-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 type receiver struct {

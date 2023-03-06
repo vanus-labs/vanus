@@ -20,18 +20,19 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/linkall-labs/vanus/proto/pkg/trigger"
+	"github.com/vanus-labs/vanus/observability/log"
+
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/queue"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/proto/pkg/trigger"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type TriggerWorker interface {
@@ -122,6 +123,7 @@ func (tw *triggerWorker) Start(ctx context.Context) error {
 	}()
 	return nil
 }
+
 func (tw *triggerWorker) handler(ctx context.Context, subscriptionID vanus.ID) error {
 	_, exist := tw.assignSubscriptionIDs.Load(subscriptionID)
 	if !exist {

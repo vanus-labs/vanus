@@ -23,10 +23,12 @@ import (
 	"sort"
 	"sync"
 
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/observability/log"
+
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/io"
 	"github.com/linkall-labs/vanus/internal/store/io/zone"
-	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type SegmentedFile struct {

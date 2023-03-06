@@ -22,8 +22,10 @@ import (
 	"time"
 
 	v2 "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/sdk/golang"
-	"github.com/linkall-labs/vanus/observability/log"
+
+	vanus "github.com/linkall-labs/sdk/golang"
+	"github.com/vanus-labs/vanus/observability/log"
+
 	"github.com/linkall-labs/vanus/test/utils"
 )
 
@@ -170,7 +172,6 @@ func receiveEvents(ctx context.Context, c vanus.Client) {
 		atomic.AddInt64(&receivedNumber, int64(len(msgs)))
 		return nil
 	})
-
 	if err != nil {
 		log.Error(ctx, "failed to start events listening", map[string]interface{}{
 			log.KeyError: err,

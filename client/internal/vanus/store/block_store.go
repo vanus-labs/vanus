@@ -15,22 +15,21 @@
 package store
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	"time"
 
-	// third-party libraries
-
+	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 
-	// first-party libraries
+	// first-party libraries.
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
-	"github.com/linkall-labs/vanus/observability/tracing"
 	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
+	"github.com/vanus-labs/vanus/observability/tracing"
 
-	// this project
+	// this project.
 	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc"
 	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc/bare"
 )

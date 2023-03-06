@@ -20,9 +20,10 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/vanus-labs/vanus/observability/log"
+
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability/log"
 )
 
 // VolumeSelector selector for Block creating. The implementation based on different algorithm, typical

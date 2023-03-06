@@ -23,7 +23,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/tracing"
+	"github.com/vanus-labs/vanus/observability/tracing"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"

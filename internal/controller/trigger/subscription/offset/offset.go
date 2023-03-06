@@ -20,10 +20,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vanus-labs/vanus/observability/log"
+
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/primitive/info"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type Manager interface {
@@ -152,7 +153,8 @@ type subscriptionOffset struct {
 
 func initSubscriptionOffset(ctx context.Context,
 	storage storage.OffsetStorage,
-	subscriptionID vanus.ID) (*subscriptionOffset, error) {
+	subscriptionID vanus.ID,
+) (*subscriptionOffset, error) {
 	list, err := storage.GetOffsets(ctx, subscriptionID)
 	if err != nil {
 		return nil, err

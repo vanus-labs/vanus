@@ -20,9 +20,9 @@ import (
 	"errors"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/linkall-labs/vanus/raft"
 	"github.com/linkall-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/observability/log"
 
 	// this project.
 	walog "github.com/linkall-labs/vanus/internal/store/wal"

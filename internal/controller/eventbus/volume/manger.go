@@ -21,11 +21,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/vanus-labs/vanus/observability/log"
+
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type Manager interface {
@@ -38,9 +39,7 @@ type Manager interface {
 	GetBlocksOfVolume(ctx context.Context, instance server.Instance) (map[uint64]*metadata.Block, error)
 }
 
-var (
-	mgr = &volumeMgr{}
-)
+var mgr = &volumeMgr{}
 
 func NewVolumeManager(serverMgr server.Manager) Manager {
 	mgr.serverMgr = serverMgr
@@ -83,7 +82,8 @@ func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 			return err
 		}
 		// load block meta in this volume
-		blockPairs, err := mgr.kvCli.List(ctx, filepath.Join(metadata.BlockKeyPrefixInKVStore, md.ID.Key()))
+		blockPairs, err := mgr.kvCli.List(ctx,
+			filepath.Join(metadata.BlockKeyPrefixInKVStore, md.ID.Key()))
 		if err != nil {
 			return err
 		}
@@ -223,9 +223,12 @@ func (mgr *volumeMgr) UpdateRouting(ctx context.Context, ins server.Instance, sr
 }
 
 func (mgr *volumeMgr) GetBlocksOfVolume(ctx context.Context,
-	instance server.Instance) (map[uint64]*metadata.Block, error) {
-	pairs, err := mgr.kvCli.List(ctx, strings.Join([]string{metadata.BlockKeyPrefixInKVStore,
-		instance.ID().String()}, "/"))
+	instance server.Instance,
+) (map[uint64]*metadata.Block, error) {
+	pairs, err := mgr.kvCli.List(ctx, strings.Join([]string{
+		metadata.BlockKeyPrefixInKVStore,
+		instance.ID().String(),
+	}, "/"))
 	if err != nil {
 		return nil, err
 	}

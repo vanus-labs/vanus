@@ -22,15 +22,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	"github.com/vanus-labs/vanus/observability/log"
+
+	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 const (

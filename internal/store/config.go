@@ -16,8 +16,8 @@ package store
 
 import (
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability"
 	"github.com/linkall-labs/vanus/pkg/util"
+	"github.com/vanus-labs/vanus/observability"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive"

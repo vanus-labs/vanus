@@ -24,7 +24,7 @@ import (
 	"github.com/ncw/directio"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/log"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/io/zone/segmentedfile"

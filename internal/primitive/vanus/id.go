@@ -22,15 +22,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/cluster"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/sony/sonyflake"
 	"go.uber.org/atomic"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	"github.com/linkall-labs/vanus/pkg/cluster"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 type node struct {
@@ -148,7 +149,7 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 			n:        n,
 		}
 		var startTime *timestamppb.Timestamp
-		startTime, err = snow.client.GetClusterStartTime(ctx, &empty.Empty{})
+		startTime, err = snow.client.GetClusterStartTime(ctx, &emptypb.Empty{})
 		if err != nil {
 			return
 		}
@@ -159,7 +160,9 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 				return n.logicID(), nil
 			},
 			CheckMachineID: func(u uint16) bool {
-				_, err := snow.client.RegisterNode(ctx, &wrapperspb.UInt32Value{Value: uint32(u)})
+				_, err := snow.client.RegisterNode(ctx, &wrapperspb.UInt32Value{
+					Value: uint32(u),
+				})
 				if err != nil {
 					log.Error(ctx, "register snowflake failed", map[string]interface{}{
 						log.KeyError: err,
@@ -224,9 +227,7 @@ func NewIDFromUint64(id uint64) ID {
 	return ID(id)
 }
 
-var (
-	ErrEmptyID = errors.New("id: empty")
-)
+var ErrEmptyID = errors.New("id: empty")
 
 func NewIDFromString(id string) (ID, error) {
 	if id == "" {

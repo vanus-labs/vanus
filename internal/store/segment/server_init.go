@@ -22,9 +22,9 @@ import (
 	"time"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/log"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
+	"github.com/vanus-labs/vanus/observability/log"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive"

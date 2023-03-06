@@ -18,9 +18,10 @@ import (
 	stdCtx "context"
 	"errors"
 
+	"github.com/vanus-labs/vanus/observability/log"
+
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 	"github.com/linkall-labs/vanus/internal/trigger/util"
-	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type NodeType int

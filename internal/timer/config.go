@@ -17,10 +17,11 @@ package timer
 import (
 	"time"
 
+	"github.com/vanus-labs/vanus/observability"
+
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/timer/leaderelection"
 	"github.com/linkall-labs/vanus/internal/timer/timingwheel"
-	"github.com/linkall-labs/vanus/observability"
 )
 
 type Config struct {

@@ -24,7 +24,18 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	eb "github.com/linkall-labs/vanus/client"
+	"github.com/linkall-labs/vanus/pkg/cluster"
+	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/linkall-labs/vanus/pkg/util"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+
 	"github.com/linkall-labs/vanus/internal/controller/member"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
@@ -35,20 +46,9 @@ import (
 	"github.com/linkall-labs/vanus/internal/convert"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/pkg/cluster"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/pkg/util"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-var (
-	_ ctrlpb.TriggerControllerServer = &controller{}
-)
+var _ ctrlpb.TriggerControllerServer = &controller{}
 
 const (
 	defaultGcSubscriptionInterval = time.Second * 10
@@ -87,7 +87,8 @@ type controller struct {
 }
 
 func (ctrl *controller) SetDeadLetterEventOffset(ctx context.Context,
-	request *ctrlpb.SetDeadLetterEventOffsetRequest) (*emptypb.Empty, error) {
+	request *ctrlpb.SetDeadLetterEventOffsetRequest,
+) (*emptypb.Empty, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
@@ -100,7 +101,8 @@ func (ctrl *controller) SetDeadLetterEventOffset(ctx context.Context,
 }
 
 func (ctrl *controller) GetDeadLetterEventOffset(ctx context.Context,
-	request *ctrlpb.GetDeadLetterEventOffsetRequest) (*ctrlpb.GetDeadLetterEventOffsetResponse, error) {
+	request *ctrlpb.GetDeadLetterEventOffsetRequest,
+) (*ctrlpb.GetDeadLetterEventOffsetResponse, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
@@ -113,7 +115,8 @@ func (ctrl *controller) GetDeadLetterEventOffset(ctx context.Context,
 }
 
 func (ctrl *controller) CommitOffset(ctx context.Context,
-	request *ctrlpb.CommitOffsetRequest) (*ctrlpb.CommitOffsetResponse, error) {
+	request *ctrlpb.CommitOffsetRequest,
+) (*ctrlpb.CommitOffsetResponse, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
@@ -137,7 +140,8 @@ func (ctrl *controller) CommitOffset(ctx context.Context,
 }
 
 func (ctrl *controller) ResetOffsetToTimestamp(ctx context.Context,
-	request *ctrlpb.ResetOffsetToTimestampRequest) (*ctrlpb.ResetOffsetToTimestampResponse, error) {
+	request *ctrlpb.ResetOffsetToTimestampRequest,
+) (*ctrlpb.ResetOffsetToTimestampResponse, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
@@ -150,7 +154,8 @@ func (ctrl *controller) ResetOffsetToTimestamp(ctx context.Context,
 		return nil, errors.ErrResourceNotFound.WithMessage("subscription not exist")
 	}
 	if sub.Phase != metadata.SubscriptionPhaseStopped {
-		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription must be disable can reset offset")
+		return nil, errors.ErrResourceCanNotOp.WithMessage(
+			"subscription must be disable can reset offset")
 	}
 	offsets, err := ctrl.subscriptionManager.ResetOffsetByTimestamp(ctx, subID, request.Timestamp)
 	if err != nil {
@@ -162,7 +167,8 @@ func (ctrl *controller) ResetOffsetToTimestamp(ctx context.Context,
 }
 
 func (ctrl *controller) CreateSubscription(ctx context.Context,
-	request *ctrlpb.CreateSubscriptionRequest) (*metapb.Subscription, error) {
+	request *ctrlpb.CreateSubscriptionRequest,
+) (*metapb.Subscription, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
@@ -203,7 +209,8 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 }
 
 func (ctrl *controller) UpdateSubscription(ctx context.Context,
-	request *ctrlpb.UpdateSubscriptionRequest) (*metapb.Subscription, error) {
+	request *ctrlpb.UpdateSubscriptionRequest,
+) (*metapb.Subscription, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
@@ -213,7 +220,8 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 		return nil, errors.ErrResourceNotFound.WithMessage("subscription not exist")
 	}
 	if sub.Phase != metadata.SubscriptionPhaseStopped {
-		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription must be disabled can update")
+		return nil, errors.ErrResourceCanNotOp.WithMessage(
+			"subscription must be disabled can update")
 	}
 	if err := validation.ValidateSubscriptionRequest(ctx, request.Subscription); err != nil {
 		return nil, err
@@ -252,7 +260,8 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 }
 
 func (ctrl *controller) DeleteSubscription(ctx context.Context,
-	request *ctrlpb.DeleteSubscriptionRequest) (*emptypb.Empty, error) {
+	request *ctrlpb.DeleteSubscriptionRequest,
+) (*emptypb.Empty, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
@@ -277,14 +286,16 @@ func (ctrl *controller) DeleteSubscription(ctx context.Context,
 }
 
 func (ctrl *controller) DisableSubscription(ctx context.Context,
-	request *ctrlpb.DisableSubscriptionRequest) (*emptypb.Empty, error) {
+	request *ctrlpb.DisableSubscriptionRequest,
+) (*emptypb.Empty, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
 	subID := vanus.ID(request.Id)
 	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
 	if sub == nil {
-		return nil, errors.ErrResourceNotFound.WithMessage(fmt.Sprintf("subscrption %d not exist", subID))
+		return nil, errors.ErrResourceNotFound.WithMessage(
+			fmt.Sprintf("subscrption %d not exist", subID))
 	}
 	if sub.Phase == metadata.SubscriptionPhaseStopped {
 		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription is disable")
@@ -302,14 +313,16 @@ func (ctrl *controller) DisableSubscription(ctx context.Context,
 }
 
 func (ctrl *controller) ResumeSubscription(ctx context.Context,
-	request *ctrlpb.ResumeSubscriptionRequest) (*emptypb.Empty, error) {
+	request *ctrlpb.ResumeSubscriptionRequest,
+) (*emptypb.Empty, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
 	subID := vanus.ID(request.Id)
 	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
 	if sub == nil {
-		return nil, errors.ErrResourceNotFound.WithMessage(fmt.Sprintf("subscrption %d not exist", subID))
+		return nil, errors.ErrResourceNotFound.WithMessage(
+			fmt.Sprintf("subscrption %d not exist", subID))
 	}
 	if sub.Phase != metadata.SubscriptionPhaseStopped {
 		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription is not disable")
@@ -324,7 +337,8 @@ func (ctrl *controller) ResumeSubscription(ctx context.Context,
 }
 
 func (ctrl *controller) GetSubscription(ctx context.Context,
-	request *ctrlpb.GetSubscriptionRequest) (*metapb.Subscription, error) {
+	request *ctrlpb.GetSubscriptionRequest,
+) (*metapb.Subscription, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
@@ -338,7 +352,8 @@ func (ctrl *controller) GetSubscription(ctx context.Context,
 }
 
 func (ctrl *controller) TriggerWorkerHeartbeat(
-	heartbeat ctrlpb.TriggerController_TriggerWorkerHeartbeatServer) error {
+	heartbeat ctrlpb.TriggerController_TriggerWorkerHeartbeatServer,
+) error {
 	ctx := ctrl.ctx
 	for {
 		select {
@@ -354,7 +369,9 @@ func (ctrl *controller) TriggerWorkerHeartbeat(
 		req, err := heartbeat.Recv()
 		if err != nil {
 			if !stdErr.Is(err, io.EOF) {
-				log.Warning(ctx, "heartbeat recv error", map[string]interface{}{log.KeyError: err})
+				log.Warning(ctx, "heartbeat recv error", map[string]interface{}{
+					log.KeyError: err,
+				})
 			}
 			log.Info(ctx, "heartbeat close", nil)
 			return nil
@@ -371,7 +388,8 @@ func (ctrl *controller) TriggerWorkerHeartbeat(
 }
 
 func (ctrl *controller) triggerWorkerHeartbeatRequest(ctx context.Context,
-	req *ctrlpb.TriggerWorkerHeartbeatRequest) error {
+	req *ctrlpb.TriggerWorkerHeartbeatRequest,
+) error {
 	now := time.Now()
 	for _, subInfo := range req.SubscriptionInfo {
 		subscriptionID := vanus.ID(subInfo.SubscriptionId)
@@ -408,7 +426,8 @@ func (ctrl *controller) triggerWorkerHeartbeatRequest(ctx context.Context,
 }
 
 func (ctrl *controller) RegisterTriggerWorker(ctx context.Context,
-	request *ctrlpb.RegisterTriggerWorkerRequest) (*ctrlpb.RegisterTriggerWorkerResponse, error) {
+	request *ctrlpb.RegisterTriggerWorkerRequest,
+) (*ctrlpb.RegisterTriggerWorkerResponse, error) {
 	log.Info(ctx, "register trigger worker", map[string]interface{}{
 		log.KeyTriggerWorkerAddr: request.Address,
 	})
@@ -424,7 +443,8 @@ func (ctrl *controller) RegisterTriggerWorker(ctx context.Context,
 }
 
 func (ctrl *controller) UnregisterTriggerWorker(ctx context.Context,
-	request *ctrlpb.UnregisterTriggerWorkerRequest) (*ctrlpb.UnregisterTriggerWorkerResponse, error) {
+	request *ctrlpb.UnregisterTriggerWorkerRequest,
+) (*ctrlpb.UnregisterTriggerWorkerResponse, error) {
 	log.Info(ctx, "unregister trigger worker", map[string]interface{}{
 		log.KeyTriggerWorkerAddr: request.Address,
 	})
@@ -434,7 +454,8 @@ func (ctrl *controller) UnregisterTriggerWorker(ctx context.Context,
 }
 
 func (ctrl *controller) ListSubscription(ctx context.Context,
-	request *ctrlpb.ListSubscriptionRequest) (*ctrlpb.ListSubscriptionResponse, error) {
+	request *ctrlpb.ListSubscriptionRequest,
+) (*ctrlpb.ListSubscriptionResponse, error) {
 	subscriptions := ctrl.subscriptionManager.ListSubscription(ctx)
 	list := make([]*metapb.Subscription, 0, len(subscriptions))
 	for _, sub := range subscriptions {
@@ -531,7 +552,8 @@ func (ctrl *controller) init(ctx context.Context) error {
 }
 
 func (ctrl *controller) membershipChangedProcessor(ctx context.Context,
-	event member.MembershipChangedEvent) error {
+	event member.MembershipChangedEvent,
+) error {
 	ctrl.membershipMutex.Lock()
 	defer ctrl.membershipMutex.Unlock()
 	switch event.Type {

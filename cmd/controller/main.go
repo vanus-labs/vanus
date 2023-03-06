@@ -24,6 +24,18 @@ import (
 	"sync"
 
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
+
+	"github.com/linkall-labs/vanus/pkg/util/signal"
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	"github.com/vanus-labs/vanus/observability"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+
 	"github.com/linkall-labs/vanus/internal/controller"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus"
 	"github.com/linkall-labs/vanus/internal/controller/member"
@@ -32,21 +44,10 @@ import (
 	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
 	"github.com/linkall-labs/vanus/internal/primitive/interceptor/memberinterceptor"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/pkg/util/signal"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/reflection"
-	"google.golang.org/grpc/status"
 )
 
-var (
-	configPath = flag.String("config", "./config/controller.yaml", "the configuration file of controller")
-)
+var configPath = flag.String("config", "./config/controller.yaml",
+	"the configuration file of controller")
 
 func main() {
 	flag.Parse()
@@ -93,7 +94,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	//trigger controller
+	// trigger controller
 	triggerCtrlStv := trigger.NewController(cfg.GetTriggerConfig(), mem)
 	if err = triggerCtrlStv.Start(); err != nil {
 		log.Error(ctx, "start trigger controller fail", map[string]interface{}{

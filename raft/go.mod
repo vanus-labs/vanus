@@ -29,4 +29,4 @@ replace go.etcd.io/etcd => ./FORBIDDEN_DEPENDENCY
 
 replace go.etcd.io/etcd/v3 => ./FORBIDDEN_DEPENDENCY
 
-replace github.com/linkall-labs/vanus/observability => ../observability
+replace github.com/vanus-labs/vanus/observability => ../observability

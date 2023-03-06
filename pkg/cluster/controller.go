@@ -21,16 +21,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/cluster/raw_client"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	"github.com/vanus-labs/vanus/observability/log"
+
+	"github.com/linkall-labs/vanus/pkg/cluster/raw_client"
 )
 
-var (
-	defaultClusterStartTimeout = 3 * time.Minute
-)
+var defaultClusterStartTimeout = 3 * time.Minute
 
 type Topology struct {
 	ControllerLeader string

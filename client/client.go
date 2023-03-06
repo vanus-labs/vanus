@@ -16,14 +16,14 @@
 package client
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	"sync"
 
-	// first-party libraries
-	"github.com/linkall-labs/vanus/observability/tracing"
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/observability/tracing"
 
-	// this project
+	// this project.
 	eb "github.com/linkall-labs/vanus/client/internal/vanus/eventbus"
 	"github.com/linkall-labs/vanus/client/pkg/api"
 	"github.com/linkall-labs/vanus/client/pkg/eventbus"

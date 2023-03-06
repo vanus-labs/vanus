@@ -21,7 +21,7 @@ import (
 	"sync"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/log"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/container/conque/blocking"

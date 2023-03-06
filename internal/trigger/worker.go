@@ -21,17 +21,19 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/convert"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/trigger/trigger"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/linkall-labs/vanus/pkg/cluster"
 	"github.com/linkall-labs/vanus/pkg/errors"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
-	"google.golang.org/grpc/credentials/insecure"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+
+	"github.com/linkall-labs/vanus/internal/convert"
+	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/linkall-labs/vanus/internal/trigger/trigger"
 )
 
 type Worker interface {

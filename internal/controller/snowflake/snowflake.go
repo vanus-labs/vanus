@@ -24,13 +24,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/member"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/kv/etcd"
-	"github.com/linkall-labs/vanus/observability/log"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	"github.com/vanus-labs/vanus/observability/log"
+
+	"github.com/linkall-labs/vanus/internal/controller/member"
+	"github.com/linkall-labs/vanus/internal/kv"
+	"github.com/linkall-labs/vanus/internal/kv/etcd"
 )
 
 const (

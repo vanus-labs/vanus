@@ -15,14 +15,14 @@
 package eventbus
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	"time"
 
-	// first-party libraries
-	"github.com/linkall-labs/vanus/observability/log"
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/observability/log"
 
-	// this project
+	// this project.
 	"github.com/linkall-labs/vanus/client/pkg/primitive"
 	"github.com/linkall-labs/vanus/client/pkg/record"
 )

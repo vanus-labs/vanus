@@ -20,15 +20,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
+	"github.com/prashantv/gostub"
+	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/observability/log"
+
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
 	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability/log"
-
-	"github.com/golang/mock/gomock"
-	"github.com/prashantv/gostub"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func getTestSubscription() *metadata.Subscription {
@@ -117,7 +118,8 @@ func TestRemoveTriggerWorker(t *testing.T) {
 		tWorker := NewMockTriggerWorker(ctrl)
 		workerStorage := storage.NewMockTriggerWorkerStorage(ctrl)
 		sub := getTestSubscription()
-		twManager := NewTriggerWorkerManager(Config{}, workerStorage, nil, getTestTriggerWorkerRemoveSubscription()).(*manager)
+		twManager := NewTriggerWorkerManager(Config{}, workerStorage, nil,
+			getTestTriggerWorkerRemoveSubscription()).(*manager)
 		Convey("test remove not exist", func() {
 			twManager.RemoveTriggerWorker(ctx, addr)
 			So(twManager.GetTriggerWorker(addr), ShouldBeNil)
@@ -155,7 +157,8 @@ func TestManager_UpdateTriggerWorkerInfo(t *testing.T) {
 		defer ctrl.Finish()
 		tWorker := NewMockTriggerWorker(ctrl)
 		workerStorage := storage.NewMockTriggerWorkerStorage(ctrl)
-		twManager := NewTriggerWorkerManager(Config{}, workerStorage, nil, getTestTriggerWorkerRemoveSubscription()).(*manager)
+		twManager := NewTriggerWorkerManager(Config{}, workerStorage, nil,
+			getTestTriggerWorkerRemoveSubscription()).(*manager)
 		Convey("trigger worker not exist", func() {
 			err := twManager.UpdateTriggerWorkerInfo(ctx, addr)
 			So(err, ShouldNotBeNil)
@@ -201,17 +204,20 @@ func TestPendingTriggerWorkerHandler(t *testing.T) {
 		tWorker.EXPECT().GetInfo().AnyTimes().Return(metadata.TriggerWorkerInfo{})
 		tWorker.EXPECT().Close().AnyTimes().Return(nil)
 		Convey("pending worker start", func() {
-			tWorker.EXPECT().GetPendingTime().AnyTimes().Return(time.Now().Add(twManager.config.StartWorkerDuration * -1))
+			tWorker.EXPECT().GetPendingTime().AnyTimes().Return(
+				time.Now().Add(twManager.config.StartWorkerDuration * -1))
 			time.Sleep(time.Millisecond)
 			tWorker.EXPECT().GetAssignedSubscriptions().AnyTimes().Return([]vanus.ID{vanus.NewTestID()})
 			tWorker.EXPECT().AssignSubscription(gomock.Any()).AnyTimes().Return()
 			tWorker.EXPECT().RemoteStart(ctx).Return(nil)
 			twManager.pendingTriggerWorkerHandler(ctx, tWorker)
-			tWorker.EXPECT().RemoteStart(ctx).Return(fmt.Errorf("start trigget worker error"))
+			tWorker.EXPECT().RemoteStart(ctx).Return(
+				fmt.Errorf("start trigget worker error"))
 			twManager.pendingTriggerWorkerHandler(ctx, tWorker)
 		})
 		Convey("pending worker clean", func() {
-			tWorker.EXPECT().GetPendingTime().Return(time.Now().Add(twManager.config.WaitRunningTimeout * -1))
+			tWorker.EXPECT().GetPendingTime().Return(
+				time.Now().Add(twManager.config.WaitRunningTimeout * -1))
 			tWorker.EXPECT().SetPhase(metadata.TriggerWorkerPhasePaused).Return()
 			tWorker.EXPECT().GetAssignedSubscriptions().Return([]vanus.ID{sub.ID})
 			workerStorage.EXPECT().DeleteTriggerWorker(ctx, gomock.Any()).Return(nil)
@@ -247,7 +253,8 @@ func TestRunningTriggerWorkerHandler(t *testing.T) {
 
 		Convey("running worker lost heartbeat ", func() {
 			tWorker.EXPECT().IsActive().Return(false)
-			tWorker.EXPECT().GetPendingTime().Return(time.Now().Add(twManager.config.LostHeartbeatTime * -1))
+			tWorker.EXPECT().GetPendingTime().Return(
+				time.Now().Add(twManager.config.LostHeartbeatTime * -1))
 			twManager.runningTriggerWorkerHandler(ctx, tWorker)
 		})
 	})

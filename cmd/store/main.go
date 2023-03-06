@@ -23,10 +23,10 @@ import (
 	"os"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
 	"github.com/linkall-labs/vanus/pkg/util/signal"
+	"github.com/vanus-labs/vanus/observability"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"

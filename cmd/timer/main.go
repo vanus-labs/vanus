@@ -19,18 +19,17 @@ import (
 	"flag"
 	"os"
 
+	"github.com/linkall-labs/vanus/pkg/util/signal"
+	"github.com/vanus-labs/vanus/observability"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+
 	"github.com/linkall-labs/vanus/internal/timer"
 	"github.com/linkall-labs/vanus/internal/timer/leaderelection"
 	"github.com/linkall-labs/vanus/internal/timer/timingwheel"
-	"github.com/linkall-labs/vanus/observability"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/pkg/util/signal"
 )
 
-var (
-	configPath = flag.String("config", "./config/timer.yaml", "the configuration file of timer")
-)
+var configPath = flag.String("config", "./config/timer.yaml", "the configuration file of timer")
 
 func main() {
 	var (

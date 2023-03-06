@@ -25,9 +25,9 @@ import (
 	"google.golang.org/grpc"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/log"
 	raftpb "github.com/linkall-labs/vanus/proto/pkg/raft"
 	"github.com/linkall-labs/vanus/raft"
+	"github.com/vanus-labs/vanus/observability/log"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"

@@ -19,16 +19,18 @@ import (
 	"context"
 	"io"
 
-	"github.com/linkall-labs/vanus/observability/log"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	// third-party libraries.
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/linkall-labs/vanus/pkg/errors"
+	// first-party libraries.
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	"github.com/vanus-labs/vanus/observability/log"
+
+	// this project.
+	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 var (
@@ -105,7 +107,8 @@ func (sc *segmentClient) Close() error {
 }
 
 func (sc *segmentClient) RegisterSegmentServer(ctx context.Context, in *ctrlpb.RegisterSegmentServerRequest,
-	opts ...grpc.CallOption) (*ctrlpb.RegisterSegmentServerResponse, error) {
+	opts ...grpc.CallOption,
+) (*ctrlpb.RegisterSegmentServerResponse, error) {
 	out := new(ctrlpb.RegisterSegmentServerResponse)
 	err := sc.cc.invoke(ctx, "/linkall.vanus.controller.SegmentController/RegisterSegmentServer", in, out, opts...)
 	if err != nil {
@@ -114,7 +117,9 @@ func (sc *segmentClient) RegisterSegmentServer(ctx context.Context, in *ctrlpb.R
 	return out, nil
 }
 
-func (sc *segmentClient) UnregisterSegmentServer(ctx context.Context, in *ctrlpb.UnregisterSegmentServerRequest, opts ...grpc.CallOption) (*ctrlpb.UnregisterSegmentServerResponse, error) {
+func (sc *segmentClient) UnregisterSegmentServer(ctx context.Context,
+	in *ctrlpb.UnregisterSegmentServerRequest, opts ...grpc.CallOption,
+) (*ctrlpb.UnregisterSegmentServerResponse, error) {
 	out := new(ctrlpb.UnregisterSegmentServerResponse)
 	err := sc.cc.invoke(ctx, "/linkall.vanus.controller.SegmentController/UnregisterSegmentServer", in, out, opts...)
 	if err != nil {
@@ -135,7 +140,8 @@ func (sc *segmentClient) ReportSegmentBlockIsFull(ctx context.Context,
 }
 
 func (sc *segmentClient) ReportSegmentLeader(ctx context.Context,
-	in *ctrlpb.ReportSegmentLeaderRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	in *ctrlpb.ReportSegmentLeaderRequest, opts ...grpc.CallOption,
+) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := sc.cc.invoke(ctx, "/linkall.vanus.controller.SegmentController/ReportSegmentLeader", in, out, opts...)
 	if err != nil {
@@ -145,7 +151,8 @@ func (sc *segmentClient) ReportSegmentLeader(ctx context.Context,
 }
 
 func (sc *segmentClient) QuerySegmentRouteInfo(ctx context.Context, in *ctrlpb.QuerySegmentRouteInfoRequest,
-	opts ...grpc.CallOption) (*ctrlpb.QuerySegmentRouteInfoResponse, error) {
+	opts ...grpc.CallOption,
+) (*ctrlpb.QuerySegmentRouteInfoResponse, error) {
 	out := new(ctrlpb.QuerySegmentRouteInfoResponse)
 	err := sc.cc.invoke(ctx, "/linkall.vanus.controller.SegmentController/QuerySegmentRouteInfo", in, out, opts...)
 	if err != nil {
@@ -155,6 +162,6 @@ func (sc *segmentClient) QuerySegmentRouteInfo(ctx context.Context, in *ctrlpb.Q
 }
 
 func (sc *segmentClient) SegmentHeartbeat(_ context.Context, _ ...grpc.CallOption) (ctrlpb.SegmentController_SegmentHeartbeatClient, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("unsupported method, please use controller.RegisterHeartbeat")
 }

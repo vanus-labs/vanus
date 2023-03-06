@@ -16,8 +16,9 @@ package otel
 
 import (
 	"context"
-	"go.opentelemetry.io/otel/attribute"
 	"sync"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 var (

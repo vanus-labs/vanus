@@ -17,10 +17,11 @@ package filter
 import (
 	"context"
 
-	"github.com/linkall-labs/vanus/internal/primitive/cel"
-	"github.com/linkall-labs/vanus/observability/log"
-
 	ce "github.com/cloudevents/sdk-go/v2"
+
+	"github.com/vanus-labs/vanus/observability/log"
+
+	"github.com/linkall-labs/vanus/internal/primitive/cel"
 )
 
 type CELFilter struct {
@@ -36,7 +37,8 @@ func NewCELFilter(expression string) Filter {
 	if err != nil {
 		log.Info(context.Background(), "parse cel expression error", map[string]interface{}{
 			"expression": expression,
-			log.KeyError: err})
+			log.KeyError: err,
+		})
 		return nil
 	}
 	return &CELFilter{rawExpression: expression, parsedExpression: cel}

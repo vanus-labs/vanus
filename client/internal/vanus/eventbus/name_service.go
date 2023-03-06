@@ -15,21 +15,21 @@
 package eventbus
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 
-	// third-party libraries
+	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/credentials/insecure"
 
-	// first-party libraries
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/tracing"
+	// first-party libraries.
 	"github.com/linkall-labs/vanus/pkg/cluster"
 	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/tracing"
 
-	// this project
+	// this project.
 	"github.com/linkall-labs/vanus/client/pkg/record"
 )
 

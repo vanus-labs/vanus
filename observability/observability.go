@@ -16,9 +16,11 @@ package observability
 
 import (
 	"context"
-	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/observability/tracing"
+
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/observability/tracing"
 )
 
 func Initialize(ctx context.Context, cfg Config, getCollectors func() []prometheus.Collector) error {

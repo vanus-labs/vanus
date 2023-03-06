@@ -17,9 +17,10 @@ package define
 import (
 	stdCtx "context"
 
+	"github.com/vanus-labs/vanus/observability/log"
+
 	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
 	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-	"github.com/linkall-labs/vanus/observability/log"
 )
 
 type Define struct {
