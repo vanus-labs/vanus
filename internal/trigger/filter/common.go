@@ -20,9 +20,9 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/tidwall/gjson"
 
-	"github.com/vanus-labs/vanus/observability/log"
-
 	"github.com/vanus-labs/vanus/internal/trigger/util"
+	"github.com/vanus-labs/vanus/observability/log"
+	pkgUtil "github.com/vanus-labs/vanus/pkg/util"
 )
 
 type commonFilter struct {
@@ -31,7 +31,7 @@ type commonFilter struct {
 	meetCondition meetCondition
 }
 
-type meetCondition func(exist bool, value interface{}, compareValue string) bool
+type meetCondition func(exist bool, value, compareValue string) bool
 
 func newCommonFilter(value map[string]string, meetCondition meetCondition) *commonFilter {
 	attribute := map[string]string{}
@@ -65,7 +65,7 @@ func newCommonFilter(value map[string]string, meetCondition meetCondition) *comm
 func (filter *commonFilter) Filter(event ce.Event) Result {
 	for attr, v := range filter.attribute {
 		value, ok := util.LookupAttribute(event, attr)
-		if !filter.meetCondition(ok, value, v) {
+		if !filter.meetCondition(ok, pkgUtil.StringValue(value), v) {
 			return FailFilter
 		}
 	}
@@ -78,7 +78,7 @@ func (filter *commonFilter) Filter(event ce.Event) Result {
 			continue
 		}
 		result := gjson.GetBytes(event.Data(), attr)
-		if !filter.meetCondition(result.Exists(), result.Value(), v) {
+		if !filter.meetCondition(result.Exists(), result.String(), v) {
 			return FailFilter
 		}
 	}

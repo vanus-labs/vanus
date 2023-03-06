@@ -16,8 +16,6 @@ package filter
 
 import (
 	"strings"
-
-	pkgUtil "github.com/vanus-labs/vanus/pkg/util"
 )
 
 type prefixFilter struct {
@@ -25,11 +23,11 @@ type prefixFilter struct {
 }
 
 func NewPrefixFilter(prefix map[string]string) Filter {
-	f := newCommonFilter(prefix, func(exist bool, value interface{}, compareValue string) bool {
+	f := newCommonFilter(prefix, func(exist bool, value, compareValue string) bool {
 		if !exist {
 			return false
 		}
-		return strings.HasPrefix(pkgUtil.StringValue(value), compareValue)
+		return strings.HasPrefix(value, compareValue)
 	})
 	if f == nil {
 		return nil
