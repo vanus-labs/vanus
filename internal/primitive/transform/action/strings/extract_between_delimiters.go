@@ -28,7 +28,7 @@ type ExtractBetweenDelimitersAction struct {
 	action.CommonAction
 }
 
-// NewExtractBetweenDelimitersAction [sourceJsonPath, targetJsonPath, startDelimiter, endDelimiter]
+// NewExtractBetweenDelimitersAction [sourceJSONPath, targetJSONPath, startDelimiter, endDelimiter].
 func NewExtractBetweenDelimitersAction() action.Action {
 	return &ExtractBetweenDelimitersAction{
 		CommonAction: action.CommonAction{
@@ -40,7 +40,8 @@ func NewExtractBetweenDelimitersAction() action.Action {
 
 func (a *ExtractBetweenDelimitersAction) Init(args []arg.Arg) error {
 	a.TargetArg = args[1]
-	a.Args = append(args[:1], args[2:]...)
+	a.Args = args[:1]
+	a.Args = append(a.Args, args[2:]...)
 	a.ArgTypes = []common.Type{common.String, common.String, common.String}
 	return nil
 }
@@ -50,16 +51,15 @@ func (a *ExtractBetweenDelimitersAction) Execute(ceCtx *context.EventContext) er
 	if err != nil {
 		return err
 	}
-	sourceJsonPath, _ := args[0].(string)
-	startDelimiter := args[1].(string)
-	endDelimiter := args[2].(string)
+	sourceJSONPath, _ := args[0].(string)
+	startDelimiter, _ := args[1].(string)
+	endDelimiter, _ := args[2].(string)
 
-	if strings.Contains(sourceJsonPath, startDelimiter) && strings.Contains(sourceJsonPath, endDelimiter) {
-		firstSplit := strings.Split(sourceJsonPath, startDelimiter)
+	if strings.Contains(sourceJSONPath, startDelimiter) && strings.Contains(sourceJSONPath, endDelimiter) {
+		firstSplit := strings.Split(sourceJSONPath, startDelimiter)
 		secondSplit := strings.Split(firstSplit[1], endDelimiter)
 		newValue := secondSplit[0]
 		return a.TargetArg.SetValue(ceCtx, newValue)
-	} else {
-		return fmt.Errorf("the start and/or end pattern is not present in the input string")
 	}
+	return fmt.Errorf("the start and/or end pattern is not present in the input string")
 }
