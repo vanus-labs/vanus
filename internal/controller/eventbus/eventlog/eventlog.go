@@ -27,9 +27,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/huandu/skiplist"
 
-	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/proto/pkg/segment"
 
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/block"

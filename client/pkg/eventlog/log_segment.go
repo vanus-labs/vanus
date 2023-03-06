@@ -27,8 +27,8 @@ import (
 	"go.uber.org/atomic"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/observability/tracing"
+	"github.com/vanus-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 

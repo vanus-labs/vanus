@@ -20,11 +20,13 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/pkg/util/crypto"
+
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/pkg/util/crypto"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestSecretStorage(t *testing.T) {
@@ -68,7 +70,8 @@ func TestSecretStorage(t *testing.T) {
 				credential, err := secret.Read(ctx, subID, primitive.GCloud)
 				So(err, ShouldBeNil)
 				So(credential.GetType(), ShouldEqual, primitive.GCloud)
-				So(credential.(*primitive.GCloudSinkCredential).CredentialJSON, ShouldEqual, "{\"type\":\"service_account\"}")
+				So(credential.(*primitive.GCloudSinkCredential).CredentialJSON,
+					ShouldEqual, "{\"type\":\"service_account\"}")
 			})
 			Convey("test write", func() {
 				credential := primitive.NewGCloudSinkCredential("{\"type\":\"service_account\"}")

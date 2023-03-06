@@ -6,7 +6,7 @@ import (
 
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 
-	"github.com/linkall-labs/vanus/pkg/cluster/raw_client"
+	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
 )
 
 type segmentService struct {

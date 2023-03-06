@@ -17,8 +17,8 @@ package subscription
 import (
 	"context"
 
-	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/errors"
 
 	"github.com/linkall-labs/vanus/internal/primitive"
 	"github.com/linkall-labs/vanus/internal/primitive/info"

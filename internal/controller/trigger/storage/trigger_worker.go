@@ -21,9 +21,10 @@ import (
 	"path"
 	"path/filepath"
 
+	"github.com/vanus-labs/vanus/pkg/errors"
+
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 type TriggerWorkerStorage interface {
@@ -55,6 +56,7 @@ func (s *triggerWorkerStorage) SaveTriggerWorker(ctx context.Context, info metad
 	}
 	return s.client.Set(ctx, key, v)
 }
+
 func (s *triggerWorkerStorage) GetTriggerWorker(ctx context.Context, id string) (*metadata.TriggerWorkerInfo, error) {
 	v, err := s.client.Get(ctx, s.getKey(id))
 	if err != nil {

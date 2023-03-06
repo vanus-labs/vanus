@@ -26,8 +26,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/pkg/util"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/util"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/primitive"

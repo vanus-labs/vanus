@@ -30,10 +30,10 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
-	"github.com/linkall-labs/vanus/pkg/util/signal"
 	"github.com/vanus-labs/vanus/observability"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/util/signal"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 
 	"github.com/linkall-labs/vanus/internal/controller"

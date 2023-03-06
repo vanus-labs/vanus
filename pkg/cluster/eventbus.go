@@ -8,7 +8,7 @@ import (
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
-	"github.com/linkall-labs/vanus/pkg/cluster/raw_client"
+	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
 )
 
 var (

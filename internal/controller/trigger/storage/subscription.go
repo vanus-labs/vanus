@@ -20,10 +20,11 @@ import (
 	"encoding/json"
 	"path"
 
+	"github.com/vanus-labs/vanus/pkg/errors"
+
 	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/pkg/errors"
 )
 
 type SubscriptionStorage interface {

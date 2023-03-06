@@ -18,8 +18,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/errors"
 	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"

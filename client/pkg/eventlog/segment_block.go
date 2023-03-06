@@ -20,7 +20,7 @@ import (
 	"time"
 
 	// first-party libraries
-	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 
 	// this project

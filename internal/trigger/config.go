@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/linkall-labs/vanus/pkg/util"
 	"github.com/vanus-labs/vanus/observability"
+	"github.com/vanus-labs/vanus/pkg/util"
 
 	"github.com/linkall-labs/vanus/internal/primitive"
 )

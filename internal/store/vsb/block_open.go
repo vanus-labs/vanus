@@ -23,7 +23,7 @@ import (
 	"os"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/errors"
 
 	// this project.
 	"github.com/linkall-labs/vanus/internal/store/block"

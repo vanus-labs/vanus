@@ -23,13 +23,15 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/util"
+
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
 	"github.com/linkall-labs/vanus/internal/kv"
 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/pkg/util"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestVolumeMgr_Init(t *testing.T) {
@@ -59,7 +61,8 @@ func TestVolumeMgr_Init(t *testing.T) {
 			data1, _ := stdJson.Marshal(volume1)
 			data2, _ := stdJson.Marshal(volume2)
 			data3, _ := stdJson.Marshal(volume3)
-			kvCli.EXPECT().List(gomock.Any(), gomock.Eq(metadata.VolumeKeyPrefixInKVStore)).Times(1).Return([]kv.Pair{
+			kvCli.EXPECT().List(gomock.Any(), gomock.Eq(
+				metadata.VolumeKeyPrefixInKVStore)).Times(1).Return([]kv.Pair{
 				{
 					Key:   filepath.Join(metadata.VolumeKeyPrefixInKVStore, volume1.ID.String()),
 					Value: data1,
@@ -100,19 +103,23 @@ func TestVolumeMgr_Init(t *testing.T) {
 			kvCli.EXPECT().List(gomock.Any(),
 				filepath.Join(metadata.BlockKeyPrefixInKVStore, volume1.ID.Key())).Times(1).Return([]kv.Pair{
 				{
-					Key:   filepath.Join(metadata.BlockKeyPrefixInKVStore, volume1.ID.String(), block1.ID.String()),
+					Key: filepath.Join(metadata.BlockKeyPrefixInKVStore,
+						volume1.ID.String(), block1.ID.String()),
 					Value: data1,
 				},
 				{
-					Key:   filepath.Join(metadata.BlockKeyPrefixInKVStore, volume1.ID.String(), block2.ID.String()),
+					Key: filepath.Join(metadata.BlockKeyPrefixInKVStore,
+						volume1.ID.String(), block2.ID.String()),
 					Value: data2,
 				},
 				{
-					Key:   filepath.Join(metadata.BlockKeyPrefixInKVStore, volume1.ID.String(), block3.ID.String()),
+					Key: filepath.Join(metadata.BlockKeyPrefixInKVStore,
+						volume1.ID.String(), block3.ID.String()),
 					Value: data3,
 				},
 				{
-					Key:   filepath.Join(metadata.BlockKeyPrefixInKVStore, volume1.ID.String(), block4.ID.String()),
+					Key: filepath.Join(metadata.BlockKeyPrefixInKVStore,
+						volume1.ID.String(), block4.ID.String()),
 					Value: data4,
 				},
 			}, nil)
@@ -138,19 +145,23 @@ func TestVolumeMgr_Init(t *testing.T) {
 			kvCli.EXPECT().List(gomock.Any(),
 				filepath.Join(metadata.BlockKeyPrefixInKVStore, volume2.ID.Key())).Times(1).Return([]kv.Pair{
 				{
-					Key:   filepath.Join(metadata.BlockKeyPrefixInKVStore, volume2.ID.String(), block1.ID.String()),
+					Key: filepath.Join(metadata.BlockKeyPrefixInKVStore,
+						volume2.ID.String(), block1.ID.String()),
 					Value: data1,
 				},
 				{
-					Key:   filepath.Join(metadata.BlockKeyPrefixInKVStore, volume2.ID.String(), block2.ID.String()),
+					Key: filepath.Join(metadata.BlockKeyPrefixInKVStore,
+						volume2.ID.String(), block2.ID.String()),
 					Value: data2,
 				},
 				{
-					Key:   filepath.Join(metadata.BlockKeyPrefixInKVStore, volume2.ID.String(), block3.ID.String()),
+					Key: filepath.Join(metadata.BlockKeyPrefixInKVStore,
+						volume2.ID.String(), block3.ID.String()),
 					Value: data3,
 				},
 			}, nil)
-			kvCli.EXPECT().List(gomock.Any(), filepath.Join(metadata.BlockKeyPrefixInKVStore, volume3.ID.Key())).
+			kvCli.EXPECT().List(gomock.Any(), filepath.Join(
+				metadata.BlockKeyPrefixInKVStore, volume3.ID.Key())).
 				Times(1).Return(nil, nil)
 			kvCli.EXPECT().List(gomock.Any(), metadata.VolumeInstanceKeyPrefixInKVStore).Times(1).Return(nil, nil)
 			err := mgr.Init(stdCtx.Background(), kvCli)
@@ -194,7 +205,8 @@ func TestVolumeMgr_Init(t *testing.T) {
 			}
 			data1, _ := stdJson.Marshal(volume1)
 			data2, _ := stdJson.Marshal(volume2)
-			kvCli.EXPECT().List(gomock.Any(), gomock.Eq(metadata.VolumeKeyPrefixInKVStore)).Times(1).Return([]kv.Pair{
+			kvCli.EXPECT().List(gomock.Any(), gomock.Eq(
+				metadata.VolumeKeyPrefixInKVStore)).Times(1).Return([]kv.Pair{
 				{
 					Key:   filepath.Join(metadata.VolumeKeyPrefixInKVStore, volume1.ID.String()),
 					Value: data1,
@@ -204,9 +216,11 @@ func TestVolumeMgr_Init(t *testing.T) {
 					Value: data2,
 				},
 			}, nil)
-			kvCli.EXPECT().List(gomock.Any(), filepath.Join(metadata.BlockKeyPrefixInKVStore, volume1.ID.Key())).
+			kvCli.EXPECT().List(gomock.Any(), filepath.Join(
+				metadata.BlockKeyPrefixInKVStore, volume1.ID.Key())).
 				Times(1).Return([]kv.Pair{}, nil)
-			kvCli.EXPECT().List(gomock.Any(), filepath.Join(metadata.BlockKeyPrefixInKVStore, volume2.ID.Key())).
+			kvCli.EXPECT().List(gomock.Any(), filepath.Join(
+				metadata.BlockKeyPrefixInKVStore, volume2.ID.Key())).
 				Times(1).Return([]kv.Pair{}, nil)
 			o1 := new(struct {
 				Address  string   `json:"address"`
@@ -249,8 +263,8 @@ func TestVolumeMgr_Init(t *testing.T) {
 					Value: data3,
 				},
 				{
-					//Key:   filepath.Join(metadata.VolumeInstanceKeyPrefixInKVStore, vanus.NewTestID().String()),
-					//Value: data4,
+					// Key:   filepath.Join(metadata.VolumeInstanceKeyPrefixInKVStore, vanus.NewTestID().String()),
+					// Value: data4,
 				},
 			}, nil)
 

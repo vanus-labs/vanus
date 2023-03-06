@@ -23,8 +23,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/observability/tracing"
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 func NewAllocator() *Allocator {

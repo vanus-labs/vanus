@@ -27,7 +27,7 @@ import (
 	"github.com/vanus-labs/vanus/observability/log"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 
-	"github.com/linkall-labs/vanus/pkg/cluster/raw_client"
+	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
 )
 
 var defaultClusterStartTimeout = 3 * time.Minute

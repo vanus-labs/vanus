@@ -19,8 +19,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/errors"
 	pbtrigger "github.com/vanus-labs/vanus/proto/pkg/trigger"
 
 	"github.com/linkall-labs/vanus/internal/convert"

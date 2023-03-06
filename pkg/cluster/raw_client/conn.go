@@ -32,7 +32,7 @@ import (
 	"github.com/vanus-labs/vanus/observability/log"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 
-	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 const (

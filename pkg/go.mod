@@ -1,4 +1,4 @@
-module github.com/linkall-labs/vanus/pkg
+module github.com/vanus-labs/vanus/pkg
 
 go 1.18
 

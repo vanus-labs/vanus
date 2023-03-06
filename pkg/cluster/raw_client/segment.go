@@ -30,7 +30,7 @@ import (
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 
 	// this project.
-	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 var (

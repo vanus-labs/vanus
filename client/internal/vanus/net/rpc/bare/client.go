@@ -27,8 +27,8 @@ import (
 	"google.golang.org/grpc/connectivity"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/observability/tracing"
+	"github.com/vanus-labs/vanus/pkg/errors"
 
 	// this project.
 	"github.com/linkall-labs/vanus/client/internal/vanus/net/connection"
