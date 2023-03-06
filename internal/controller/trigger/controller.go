@@ -27,7 +27,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	eb "github.com/linkall-labs/vanus/client"
+	eb "github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/pkg/cluster"

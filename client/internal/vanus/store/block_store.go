@@ -24,14 +24,14 @@ import (
 	"google.golang.org/grpc"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/client/pkg/primitive"
 	"github.com/vanus-labs/vanus/observability/tracing"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
 	// this project.
-	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc"
-	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc/bare"
+	"github.com/vanus-labs/vanus/client/internal/vanus/net/rpc"
+	"github.com/vanus-labs/vanus/client/internal/vanus/net/rpc/bare"
+	"github.com/vanus-labs/vanus/client/pkg/primitive"
 )
 
 func newBlockStore(endpoint string) (*BlockStore, error) {

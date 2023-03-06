@@ -34,11 +34,11 @@ import (
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 
 	// this project.
-	eb "github.com/linkall-labs/vanus/client/internal/vanus/eventbus"
-	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/client/pkg/eventlog"
-	"github.com/linkall-labs/vanus/client/pkg/policy"
+	eb "github.com/vanus-labs/vanus/client/internal/vanus/eventbus"
+	el "github.com/vanus-labs/vanus/client/internal/vanus/eventlog"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/client/pkg/eventlog"
+	"github.com/vanus-labs/vanus/client/pkg/policy"
 )
 
 func NewEventbus(cfg *eb.Config) *eventbus {

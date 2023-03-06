@@ -27,10 +27,10 @@ import (
 	"github.com/cloudevents/sdk-go/v2/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/client/pkg/option"
-	"github.com/linkall-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/client/pkg/option"
+	"github.com/vanus-labs/vanus/client/pkg/policy"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/errors"
 

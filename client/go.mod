@@ -1,4 +1,4 @@
-module github.com/linkall-labs/vanus/client
+module github.com/vanus-labs/vanus/client
 
 go 1.18
 

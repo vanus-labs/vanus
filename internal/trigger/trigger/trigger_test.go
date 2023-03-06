@@ -29,8 +29,8 @@ import (
 	"github.com/google/uuid"
 	. "github.com/smartystreets/goconvey/convey"
 
-	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
+	eb "github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 
 	"github.com/linkall-labs/vanus/internal/primitive"

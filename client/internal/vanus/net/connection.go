@@ -14,8 +14,6 @@
 
 package net
 
-import "github.com/linkall-labs/vanus/client/internal/vanus/net/connection"
+import "github.com/vanus-labs/vanus/client/internal/vanus/net/connection"
 
-var (
-	Connect = connection.Connect
-)
+var Connect = connection.Connect

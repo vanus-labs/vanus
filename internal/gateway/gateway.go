@@ -32,8 +32,8 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
 
-	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
+	eb "github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/observability/tracing"

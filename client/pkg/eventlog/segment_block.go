@@ -15,17 +15,17 @@
 package eventlog
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	"time"
 
-	// first-party libraries
+	// first-party libraries.
 	"github.com/vanus-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 
-	// this project
-	"github.com/linkall-labs/vanus/client/internal/vanus/store"
-	"github.com/linkall-labs/vanus/client/pkg/record"
+	// this project.
+	"github.com/vanus-labs/vanus/client/internal/vanus/store"
+	"github.com/vanus-labs/vanus/client/pkg/record"
 )
 
 func newBlock(ctx context.Context, r *record.Block) (*block, error) {

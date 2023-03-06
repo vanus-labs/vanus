@@ -30,7 +30,7 @@ import (
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
 	// this project.
-	"github.com/linkall-labs/vanus/client/pkg/record"
+	"github.com/vanus-labs/vanus/client/pkg/record"
 )
 
 func NewNameService(endpoints []string) *NameService {

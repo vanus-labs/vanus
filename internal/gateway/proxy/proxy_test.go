@@ -30,9 +30,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/client/pkg/policy"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"

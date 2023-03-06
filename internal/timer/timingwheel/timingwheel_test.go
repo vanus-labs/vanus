@@ -28,9 +28,9 @@ import (
 	. "github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/client/pkg/record"
+	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/client/pkg/record"
 	"github.com/vanus-labs/vanus/pkg/cluster"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"

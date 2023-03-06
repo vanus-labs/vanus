@@ -25,8 +25,8 @@ import (
 	"github.com/panjf2000/ants/v2"
 	"go.uber.org/ratelimit"
 
-	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
+	eb "github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/pkg/util"

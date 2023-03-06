@@ -32,8 +32,8 @@ import (
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 
 	// this project.
-	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
-	"github.com/linkall-labs/vanus/client/pkg/record"
+	el "github.com/vanus-labs/vanus/client/internal/vanus/eventlog"
+	"github.com/vanus-labs/vanus/client/pkg/record"
 )
 
 const (

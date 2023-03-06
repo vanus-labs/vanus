@@ -19,12 +19,10 @@ import (
 	"context"
 	"log"
 
-	// third-party project.
-
 	// this project.
-	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/option"
-	"github.com/linkall-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/option"
+	"github.com/vanus-labs/vanus/client/pkg/policy"
 )
 
 func main() {

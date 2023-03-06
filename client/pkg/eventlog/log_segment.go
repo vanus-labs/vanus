@@ -33,7 +33,7 @@ import (
 	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
 	// this project.
-	"github.com/linkall-labs/vanus/client/pkg/record"
+	"github.com/vanus-labs/vanus/client/pkg/record"
 )
 
 func newSegment(ctx context.Context, r *record.Segment, towrite bool) (*segment, error) {

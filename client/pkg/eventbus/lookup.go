@@ -23,8 +23,8 @@ import (
 	"github.com/vanus-labs/vanus/observability/log"
 
 	// this project.
-	"github.com/linkall-labs/vanus/client/pkg/primitive"
-	"github.com/linkall-labs/vanus/client/pkg/record"
+	"github.com/vanus-labs/vanus/client/pkg/primitive"
+	"github.com/vanus-labs/vanus/client/pkg/record"
 )
 
 type WritableLogsResult struct {
