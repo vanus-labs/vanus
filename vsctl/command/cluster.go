@@ -33,12 +33,9 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var (
-	clusterVersionList = []string{
-		"v0.5.0", "v0.5.1", "v0.5.2", "v0.5.3", "v0.5.4", "v0.5.5", "v0.5.6", "v0.5.7",
-		"v0.6.0",
-	}
-)
+var clusterVersionList = []string{
+	"v0.5.0", "v0.5.1", "v0.5.2", "v0.5.3", "v0.5.4", "v0.5.5", "v0.5.6", "v0.5.7", "v0.6.0",
+}
 
 type ClusterCreate struct {
 	ControllerReplicas    int32  `json:"controller_replicas,omitempty"`
@@ -156,7 +153,8 @@ func createClusterCommand() *cobra.Command {
 					return
 				}
 				fmt.Println("Start deploy operator...")
-				operator := exec.Command("kubectl", "apply", "-f", "https://download.linkall.com/vanus/operator/latest.yml")
+				operator := exec.Command("kubectl", "apply", "-f",
+					"https://dl.vanus.ai/vanus/operator/latest.yml")
 				err = operator.Run()
 				if err != nil {
 					cmdFailedf(cmd, "deploy operator failed: %s", err)
@@ -187,7 +185,10 @@ func createClusterCommand() *cobra.Command {
 
 			clusterspec := table.NewWriter()
 			clusterspec.AppendHeader(table.Row{"Cluster", "Version", "Component", "Replicas", "StorageSize"})
-			clusterspec.AppendRow(table.Row{"vanus", c.Version, "controller", c.Controller.Replicas, c.Controller.StorageSize})
+			clusterspec.AppendRow(table.Row{
+				"vanus", c.Version, "controller",
+				c.Controller.Replicas, c.Controller.StorageSize,
+			})
 			clusterspec.AppendSeparator()
 			clusterspec.AppendRow(table.Row{"vanus", c.Version, "store", c.Store.Replicas, c.Store.StorageSize})
 			clusterspec.AppendSeparator()
@@ -358,7 +359,8 @@ func deleteClusterCommand() *cobra.Command {
 				return
 			}
 			fmt.Println("Start delete operator...")
-			operator := exec.Command("kubectl", "delete", "-f", "https://download.linkall.com/vanus/operator/latest.yml")
+			operator := exec.Command("kubectl", "delete", "-f",
+				"https://dl.vanus.ai/vanus/operator/latest.yml")
 			err = operator.Run()
 			if err != nil {
 				cmdFailedf(cmd, "delete operator failed: %s", err)
@@ -811,7 +813,7 @@ func genClusterCommand() *cobra.Command {
 			}
 
 			fileName := "cluster.yaml.example"
-			err = ioutil.WriteFile(fileName, data, 0644)
+			err = ioutil.WriteFile(fileName, data, 0o644)
 			if err != nil {
 				cmdFailedf(cmd, "generate cluster config file template failed: %s", err)
 			}

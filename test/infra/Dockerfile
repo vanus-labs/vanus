@@ -14,7 +14,7 @@ COPY --from=builder /workspace/bin/vanus-bench /usr/bin/vanus-bench
 WORKDIR /vanus-bench
 
 RUN apt-get update && apt-get install -y curl
-RUN curl -O https://download.linkall.com/vsctl/latest/linux-amd64/vsctl && \
+RUN curl -O https://dl.vanus.ai/vsctl/latest/linux-amd64/vsctl && \
     mv vsctl /usr/bin/vsctl
 RUN chmod a+x /usr/bin/vsctl
 RUN chmod a+x /usr/bin/vanus-bench
