@@ -23,16 +23,18 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/block"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/pkg/util"
-	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/util"
+	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
+
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/block"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/server"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/volume"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestEventlogManager_RunWithoutTask(t *testing.T) {
@@ -113,7 +115,8 @@ func TestEventlogManager_RunWithoutTask(t *testing.T) {
 			}
 
 			kvCli.EXPECT().List(gomock.Any(), gomock.Any()).Times(4).DoAndReturn(func(
-				ctx stdCtx.Context, path string) ([]kv.Pair, error) {
+				ctx stdCtx.Context, path string,
+			) ([]kv.Pair, error) {
 				if path == metadata.EventlogKeyPrefixInKVStore {
 					return elPairs, nil
 				}
@@ -136,7 +139,8 @@ func TestEventlogManager_RunWithoutTask(t *testing.T) {
 			_data3, _ := stdJson.Marshal(segment3)
 
 			kvCli.EXPECT().Get(gomock.Any(), gomock.Any()).Times(3).DoAndReturn(func(
-				ctx stdCtx.Context, path string) ([]byte, error) {
+				ctx stdCtx.Context, path string,
+			) ([]byte, error) {
 				if path == filepath.Join(metadata.SegmentKeyPrefixInKVStore, segment1.ID.String()) {
 					return _data1, nil
 				}
@@ -208,7 +212,9 @@ func TestEventlogManager_ScaleSegmentTask(t *testing.T) {
 			}, nil
 		})
 
-		alloc.EXPECT().PickByVolumes(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(ctx stdCtx.Context, volumes []vanus.ID) ([]*metadata.Block, error) {
+		alloc.EXPECT().PickByVolumes(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(
+			ctx stdCtx.Context, volumes []vanus.ID,
+		) ([]*metadata.Block, error) {
 			return []*metadata.Block{
 				{
 					ID:       vanus.NewTestID(),
@@ -339,7 +345,9 @@ func TestEventlogManager_CleanSegmentTask(t *testing.T) {
 				},
 			}, nil
 		})
-		alloc.EXPECT().PickByVolumes(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(ctx stdCtx.Context, volumes []vanus.ID) ([]*metadata.Block, error) {
+		alloc.EXPECT().PickByVolumes(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(
+			ctx stdCtx.Context, volumes []vanus.ID,
+		) ([]*metadata.Block, error) {
 			return []*metadata.Block{
 				{
 					ID:       vanus.NewTestID(),
@@ -398,7 +406,8 @@ func TestEventlogManager_CleanSegmentTask(t *testing.T) {
 
 		head := el1.head()
 		kvCli.EXPECT().Delete(gomock.Any(), metadata.GetSegmentMetadataKey(head.ID)).Times(1).Return(nil)
-		kvCli.EXPECT().Delete(gomock.Any(), metadata.GetEventlogSegmentsMetadataKey(el1.md.ID, head.ID)).Times(1).Return(nil)
+		kvCli.EXPECT().Delete(gomock.Any(), metadata.GetEventlogSegmentsMetadataKey(
+			el1.md.ID, head.ID)).Times(1).Return(nil)
 		for _, v := range head.Replicas.Peers {
 			kvCli.EXPECT().Delete(gomock.Any(), metadata.GetBlockMetadataKey(v.VolumeID, v.ID)).Times(1).Return(nil)
 			volIns.EXPECT().DeleteBlock(gomock.Any(), v.ID).Times(1).Return(nil)
@@ -452,7 +461,9 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 				},
 			}, nil
 		})
-		alloc.EXPECT().PickByVolumes(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(func(ctx stdCtx.Context, volumes []vanus.ID) ([]*metadata.Block, error) {
+		alloc.EXPECT().PickByVolumes(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(func(
+			ctx stdCtx.Context, volumes []vanus.ID,
+		) ([]*metadata.Block, error) {
 			return []*metadata.Block{
 				{
 					ID:       vanus.NewTestID(),

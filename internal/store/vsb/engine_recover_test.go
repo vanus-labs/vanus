@@ -21,7 +21,7 @@ package vsb
 // 	"testing"
 
 // 	// third-party libraries.
-// 	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+// 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 // 	. "github.com/smartystreets/goconvey/convey"
 // )
 

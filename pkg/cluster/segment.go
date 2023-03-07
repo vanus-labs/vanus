@@ -2,9 +2,11 @@ package cluster
 
 import (
 	"context"
-	"github.com/linkall-labs/vanus/pkg/cluster/raw_client"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"time"
+
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+
+	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
 )
 
 type segmentService struct {

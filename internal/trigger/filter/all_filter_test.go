@@ -17,10 +17,10 @@ package filter_test
 import (
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/trigger/filter"
-
 	ce "github.com/cloudevents/sdk-go/v2"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/internal/trigger/filter"
 )
 
 func TestAllFilter(t *testing.T) {

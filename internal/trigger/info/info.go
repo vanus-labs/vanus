@@ -16,7 +16,8 @@ package info
 
 import (
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
+
+	"github.com/vanus-labs/vanus/internal/primitive/info"
 )
 
 type EventRecord struct {

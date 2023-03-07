@@ -17,7 +17,7 @@ package info
 import (
 	"encoding/json"
 
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type SubscriptionInfo struct {

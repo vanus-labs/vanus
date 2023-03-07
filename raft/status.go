@@ -17,8 +17,8 @@ package raft
 import (
 	"fmt"
 
-	pb "github.com/linkall-labs/vanus/raft/raftpb"
-	"github.com/linkall-labs/vanus/raft/tracker"
+	pb "github.com/vanus-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/raft/tracker"
 )
 
 // Status contains information about this Raft peer and its view of the system.

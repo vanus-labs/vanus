@@ -16,7 +16,7 @@ syntax = "proto3";
 
 package linkall.vanus.config;
 
-option go_package = "github.com/linkall-labs/vanus/proto/pkg/config";
+option go_package = "github.com/vanus-labs/vanus/proto/pkg/config";
 
 message ServerConfig {
   map<string, string> configs = 1;

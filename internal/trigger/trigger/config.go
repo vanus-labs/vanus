@@ -17,9 +17,9 @@ package trigger
 import (
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
-
 	"go.uber.org/ratelimit"
+
+	"github.com/vanus-labs/vanus/internal/primitive"
 )
 
 const (

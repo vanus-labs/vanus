@@ -20,12 +20,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestSubscriptionSchedulerHandler(t *testing.T) {
@@ -99,7 +99,8 @@ func TestSubscriptionSchedulerRun(t *testing.T) {
 					TriggerWorker: workerAddr,
 					Phase:         metadata.SubscriptionPhasePending,
 				})
-			workerManager.EXPECT().GetTriggerWorker(workerAddr).Return(NewTriggerWorkerByAddr(workerAddr, subscriptionManager))
+			workerManager.EXPECT().GetTriggerWorker(workerAddr).Return(
+				NewTriggerWorkerByAddr(workerAddr, subscriptionManager))
 			subscriptionManager.EXPECT().UpdateSubscription(ctx, gomock.Any()).AnyTimes().Return(errors.New("update error"))
 			scheduler.EnqueueSubscription(subscriptionID)
 			scheduler.Run()

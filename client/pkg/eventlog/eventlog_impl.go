@@ -15,25 +15,25 @@
 package eventlog
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	"io"
 	"sort"
 	"sync"
 	"time"
 
-	// third-party libraries
+	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
 
-	// first-party libraries
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/tracing"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 
-	// this project
-	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
-	"github.com/linkall-labs/vanus/client/pkg/record"
+	// this project.
+	el "github.com/vanus-labs/vanus/client/internal/vanus/eventlog"
+	"github.com/vanus-labs/vanus/client/pkg/record"
 )
 
 const (
@@ -333,9 +333,7 @@ func (l *eventlog) refreshReadableSegments(ctx context.Context) {
 	_ = l.readableWatcher.Refresh(ctx)
 }
 
-var (
-	_ LogWriter = &logWriter{}
-)
+var _ LogWriter = &logWriter{}
 
 // logWriter is the writer of eventlog.
 //

@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	"github.com/cockroachdb/datadriven"
-	"github.com/linkall-labs/vanus/raft"
-	pb "github.com/linkall-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/raft"
+	pb "github.com/vanus-labs/vanus/raft/raftpb"
 )
 
 func (env *InteractionEnv) handleAddNodes(t *testing.T, d datadriven.TestData) error {

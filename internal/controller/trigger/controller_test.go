@@ -21,17 +21,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/worker"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
-
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/worker"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestController_CommitOffset(t *testing.T) {
@@ -58,7 +59,8 @@ func TestController_CommitOffset(t *testing.T) {
 			}},
 		}
 		Convey("commit offset fail", func() {
-			subManager.EXPECT().SaveOffset(gomock.Any(), gomock.Eq(subID), gomock.Any(), gomock.Any()).Return(fmt.Errorf("test error"))
+			subManager.EXPECT().SaveOffset(gomock.Any(), gomock.Eq(subID), gomock.Any(),
+				gomock.Any()).Return(fmt.Errorf("test error"))
 			resp, err := ctrl.CommitOffset(ctx, request)
 			So(err, ShouldBeNil)
 			So(len(resp.FailSubscriptionId), ShouldEqual, 1)
@@ -278,7 +280,8 @@ func TestController_UpdateSubscription(t *testing.T) {
 				resp, err := ctrl.UpdateSubscription(ctx, request)
 				So(err, ShouldBeNil)
 				So(resp.Protocol, ShouldEqual, request.Subscription.Protocol)
-				So(resp.SinkCredential.CredentialType, ShouldEqual, request.Subscription.SinkCredential.CredentialType)
+				So(resp.SinkCredential.CredentialType, ShouldEqual,
+					request.Subscription.SinkCredential.CredentialType)
 				So(resp.SinkCredential.GetAws().AccessKeyId, ShouldEqual, primitive.SecretsMask)
 				So(resp.SinkCredential.GetAws().SecretAccessKey, ShouldEqual, primitive.SecretsMask)
 			})
@@ -386,7 +389,8 @@ func TestController_DeleteSubscription(t *testing.T) {
 				So(exist, ShouldBeFalse)
 			})
 			Convey("delete subscription fail", func() {
-				subManager.EXPECT().DeleteSubscription(gomock.Any(), gomock.Eq(subID)).Return(fmt.Errorf("error"))
+				subManager.EXPECT().DeleteSubscription(gomock.Any(),
+					gomock.Eq(subID)).Return(fmt.Errorf("error"))
 				_, err := ctrl.DeleteSubscription(ctx, request)
 				So(err, ShouldBeNil)
 				So(sub.Phase, ShouldEqual, metadata.SubscriptionPhaseToDelete)
@@ -502,18 +506,21 @@ func TestController_TriggerWorkerHeartbeat(t *testing.T) {
 			Address:          "test",
 			SubscriptionInfo: []*metapb.SubscriptionInfo{sub1, sub2, sub3},
 		}
-		subManager.EXPECT().Heartbeat(gomock.Any(), gomock.Eq(subID1), request.Address, gomock.Any()).AnyTimes().Return(fmt.Errorf("error"))
+		subManager.EXPECT().Heartbeat(gomock.Any(), gomock.Eq(subID1), request.Address,
+			gomock.Any()).AnyTimes().Return(fmt.Errorf("error"))
 		subManager.EXPECT().Heartbeat(gomock.Any(), gomock.Eq(subID2), request.Address, gomock.Any()).AnyTimes().Return(nil)
 		subManager.EXPECT().Heartbeat(gomock.Any(), gomock.Eq(subID3), request.Address, gomock.Any()).AnyTimes().Return(nil)
 		Convey("heartbeat error", func() {
-			workerManager.EXPECT().UpdateTriggerWorkerInfo(gomock.Any(), gomock.Eq(request.Address)).Return(fmt.Errorf("error"))
+			workerManager.EXPECT().UpdateTriggerWorkerInfo(gomock.Any(),
+				gomock.Eq(request.Address)).Return(fmt.Errorf("error"))
 			err := ctrl.triggerWorkerHeartbeatRequest(ctx, request)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("heartbeat success", func() {
 			workerManager.EXPECT().UpdateTriggerWorkerInfo(gomock.Any(), gomock.Eq(request.Address)).Return(nil)
 			subManager.EXPECT().SaveOffset(gomock.Any(), gomock.Eq(subID1), gomock.Any(), false).Return(nil)
-			subManager.EXPECT().SaveOffset(gomock.Any(), gomock.Eq(subID2), gomock.Any(), false).Return(fmt.Errorf("error"))
+			subManager.EXPECT().SaveOffset(gomock.Any(), gomock.Eq(subID2),
+				gomock.Any(), false).Return(fmt.Errorf("error"))
 			err := ctrl.triggerWorkerHeartbeatRequest(ctx, request)
 			So(err, ShouldBeNil)
 		})

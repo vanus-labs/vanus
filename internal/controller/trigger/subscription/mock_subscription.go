@@ -10,9 +10,9 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
-	metadata "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	info "github.com/linkall-labs/vanus/internal/primitive/info"
-	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
+	metadata "github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	info "github.com/vanus-labs/vanus/internal/primitive/info"
+	vanus "github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 // MockManager is a mock of Manager interface.

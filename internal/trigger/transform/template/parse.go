@@ -17,7 +17,7 @@ package template
 import (
 	"strings"
 
-	"github.com/linkall-labs/vanus/pkg/util"
+	"github.com/vanus-labs/vanus/pkg/util"
 )
 
 const (

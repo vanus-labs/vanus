@@ -20,10 +20,10 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/block"
-	blktest "github.com/linkall-labs/vanus/internal/store/block/testing"
-	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
-	"github.com/linkall-labs/vanus/internal/store/vsb/index"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	blktest "github.com/vanus-labs/vanus/internal/store/block/testing"
+	ceschema "github.com/vanus-labs/vanus/internal/store/schema/ce"
+	"github.com/vanus-labs/vanus/internal/store/vsb/index"
 )
 
 func MakeEntry(ctrl *Controller) block.EntryExt {

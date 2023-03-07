@@ -36,25 +36,6 @@ import (
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"github.com/cloudevents/sdk-go/v2/types"
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
-	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/client/pkg/option"
-	"github.com/linkall-labs/vanus/client/pkg/policy"
-	"github.com/linkall-labs/vanus/internal/convert"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/trigger/filter"
-	"github.com/linkall-labs/vanus/internal/trigger/transform"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"github.com/linkall-labs/vanus/pkg/cluster"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
-	proxypb "github.com/linkall-labs/vanus/proto/pkg/proxy"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
@@ -67,6 +48,27 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	eb "github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/client/pkg/option"
+	"github.com/vanus-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/observability/tracing"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
+
+	"github.com/vanus-labs/vanus/internal/convert"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/interceptor/errinterceptor"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/trigger/filter"
+	"github.com/vanus-labs/vanus/internal/trigger/transform"
 )
 
 const (
@@ -96,9 +98,7 @@ type Config struct {
 	GRPCReflectionEnable   bool
 }
 
-var (
-	_ proxypb.StoreProxyServer = &ControllerProxy{}
-)
+var _ proxypb.StoreProxyServer = &ControllerProxy{}
 
 type ackCallback func(bool)
 
@@ -208,10 +208,12 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 
 func (cp *ControllerProxy) writeEvents(ctx context.Context,
 	eventbusName string,
-	events *cloudevents.CloudEventBatch) error {
+	events *cloudevents.CloudEventBatch,
+) error {
 	val, exist := cp.writerMap.Load(eventbusName)
 	if !exist {
-		val, _ = cp.writerMap.LoadOrStore(eventbusName, cp.client.Eventbus(ctx, eventbusName).Writer())
+		val, _ = cp.writerMap.LoadOrStore(eventbusName,
+			cp.client.Eventbus(ctx, eventbusName).Writer())
 	}
 	w, _ := val.(api.BusWriter)
 	_, err := w.Append(ctx, events)
@@ -262,7 +264,8 @@ func (cp *ControllerProxy) Subscribe(req *proxypb.SubscribeRequest, stream proxy
 			return err
 		}
 
-		_, err = cp.triggerCtrl.UpdateSubscription(_ctx, newSubscription(meta, subscriptionID.Uint64(), newSink))
+		_, err = cp.triggerCtrl.UpdateSubscription(_ctx,
+			newSubscription(meta, subscriptionID.Uint64(), newSink))
 		if err != nil {
 			log.Error(_ctx, "update subscription sink failed", map[string]interface{}{
 				log.KeyError: err,
@@ -577,7 +580,8 @@ func (cp *ControllerProxy) Start() error {
 		return err
 	}
 
-	c, err := client.NewHTTP(cehttp.WithListener(sinkListen), cehttp.WithRequestDataAtContextMiddleware())
+	c, err := client.NewHTTP(cehttp.WithListener(sinkListen),
+		cehttp.WithRequestDataAtContextMiddleware())
 	if err != nil {
 		return err
 	}
@@ -653,7 +657,8 @@ func (cp *ControllerProxy) ClusterInfo(_ context.Context, _ *emptypb.Empty) (*pr
 }
 
 func (cp *ControllerProxy) LookupOffset(ctx context.Context,
-	req *proxypb.LookupOffsetRequest) (*proxypb.LookupOffsetResponse, error) {
+	req *proxypb.LookupOffsetRequest,
+) (*proxypb.LookupOffsetResponse, error) {
 	elList := make([]api.Eventlog, 0)
 	if req.EventlogId > 0 {
 		id := vanus.NewIDFromUint64(req.EventlogId)
@@ -687,7 +692,8 @@ func (cp *ControllerProxy) LookupOffset(ctx context.Context,
 }
 
 func (cp *ControllerProxy) GetEvent(ctx context.Context,
-	req *proxypb.GetEventRequest) (*proxypb.GetEventResponse, error) {
+	req *proxypb.GetEventRequest,
+) (*proxypb.GetEventResponse, error) {
 	if req.GetEventbus() == "" {
 		return nil, errInvalidEventbus
 	}
@@ -734,7 +740,8 @@ func (cp *ControllerProxy) GetEvent(ctx context.Context,
 }
 
 func (cp *ControllerProxy) ValidateSubscription(ctx context.Context,
-	req *proxypb.ValidateSubscriptionRequest) (*proxypb.ValidateSubscriptionResponse, error) {
+	req *proxypb.ValidateSubscriptionRequest,
+) (*proxypb.ValidateSubscriptionResponse, error) {
 	if req.GetEvent() == nil {
 		res, err := cp.GetEvent(ctx, &proxypb.GetEventRequest{
 			Eventbus:   req.Eventbus,
@@ -750,7 +757,8 @@ func (cp *ControllerProxy) ValidateSubscription(ctx context.Context,
 
 	e := v2.NewEvent()
 	if err := e.UnmarshalJSON(req.GetEvent()); err != nil {
-		return nil, errors.ErrInvalidRequest.WithMessage("failed to unmarshall event to CloudEvent").Wrap(err)
+		return nil, errors.ErrInvalidRequest.WithMessage(
+			"failed to unmarshall event to CloudEvent").Wrap(err)
 	}
 
 	if req.GetSubscription() == nil {
@@ -786,7 +794,8 @@ func (cp *ControllerProxy) ValidateSubscription(ctx context.Context,
 
 // getByEventID why added this? can it be deleted?
 func (cp *ControllerProxy) getByEventID(ctx context.Context,
-	req *proxypb.GetEventRequest) (*proxypb.GetEventResponse, error) {
+	req *proxypb.GetEventRequest,
+) (*proxypb.GetEventResponse, error) {
 	logID, off, err := decodeEventID(req.EventId)
 	if err != nil {
 		return nil, err

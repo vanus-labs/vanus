@@ -18,15 +18,14 @@ import (
 	"context"
 	"io"
 
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 )
 
-var (
-	_ io.Closer = (*eventbusClient)(nil)
-)
+var _ io.Closer = (*eventbusClient)(nil)
 
 type eventbusClient struct {
 	cc *Conn
@@ -51,7 +50,9 @@ func (ec *eventbusClient) CreateEventBus(ctx context.Context, in *ctrlpb.CreateE
 	return out, nil
 }
 
-func (ec *eventbusClient) CreateSystemEventBus(ctx context.Context, in *ctrlpb.CreateEventBusRequest, opts ...grpc.CallOption) (*metapb.EventBus, error) {
+func (ec *eventbusClient) CreateSystemEventBus(ctx context.Context,
+	in *ctrlpb.CreateEventBusRequest, opts ...grpc.CallOption,
+) (*metapb.EventBus, error) {
 	out := new(metapb.EventBus)
 	err := ec.cc.invoke(ctx, "/linkall.vanus.controller.EventBusController/CreateSystemEventBus", in, out, opts...)
 	if err != nil {
@@ -78,7 +79,9 @@ func (ec *eventbusClient) GetEventBus(ctx context.Context, in *metapb.EventBus, 
 	return out, nil
 }
 
-func (ec *eventbusClient) ListEventBus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ctrlpb.ListEventbusResponse, error) {
+func (ec *eventbusClient) ListEventBus(ctx context.Context, in *emptypb.Empty,
+	opts ...grpc.CallOption,
+) (*ctrlpb.ListEventbusResponse, error) {
 	out := new(ctrlpb.ListEventbusResponse)
 	err := ec.cc.invoke(ctx, "/linkall.vanus.controller.EventBusController/ListEventBus", in, out, opts...)
 	if err != nil {

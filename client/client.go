@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=client.go  -destination=mock_client.go -package=client
+//go:generate mockgen -source=client.go -destination=mock_client.go -package=client
 package client
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	"sync"
 
-	// first-party libraries
-	"github.com/linkall-labs/vanus/observability/tracing"
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/observability/tracing"
 
-	// this project
-	eb "github.com/linkall-labs/vanus/client/internal/vanus/eventbus"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/client/pkg/eventbus"
+	// this project.
+	eb "github.com/vanus-labs/vanus/client/internal/vanus/eventbus"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/client/pkg/eventbus"
 )
 
 type Client interface {

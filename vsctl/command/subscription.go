@@ -28,14 +28,16 @@ import (
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	"github.com/linkall-labs/vanus/internal/convert"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	"github.com/linkall-labs/vanus/proto/pkg/meta"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	"github.com/spf13/cobra"
 	"k8s.io/utils/strings/slices"
+
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	"github.com/vanus-labs/vanus/proto/pkg/meta"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+
+	"github.com/vanus-labs/vanus/internal/convert"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func NewSubscriptionCommand() *cobra.Command {
@@ -113,11 +115,15 @@ func createSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&transformer, "transformer", "", "transformer, JSON format required")
 	cmd.Flags().Int32Var(&rateLimit, "rate-limit", 0, "max event number pushing to sink per second, default is 0, means unlimited")
 	cmd.Flags().StringVar(&from, "from", "", "consume events from, latest,earliest or RFC3339 format time")
-	cmd.Flags().StringVar(&subProtocol, "protocol", "http", "protocol,http or aws-lambda or gcloud-functions or grpc")
+	cmd.Flags().StringVar(&subProtocol, "protocol", "http",
+		"protocol,http or aws-lambda or gcloud-functions or grpc")
 	cmd.Flags().StringVar(&sinkCredentialType, "credential-type", "", "sink credential type: aws or gcloud")
-	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, JSON format or @file")
-	cmd.Flags().Int32Var(&deliveryTimeout, "delivery-timeout", 0, "event delivery to sink timeout by millisecond, default is 0, means using server-side default value: 5s")
-	cmd.Flags().Int32Var(&maxRetryAttempts, "max-retry-attempts", -1, "event delivery fail max retry attempts, default is -1, means using server-side max retry attempts: 32")
+	cmd.Flags().StringVar(&sinkCredential, "credential", "",
+		"sink credential info, JSON format or @file")
+	cmd.Flags().Int32Var(&deliveryTimeout, "delivery-timeout", 0,
+		"event delivery to sink timeout by millisecond, default is 0, means using server-side default value: 5s")
+	cmd.Flags().Int32Var(&maxRetryAttempts, "max-retry-attempts", -1,
+		"event delivery fail max retry attempts, default is -1, means using server-side max retry attempts: 32")
 	cmd.Flags().StringVar(&subscriptionName, "name", "", "subscription name")
 	cmd.Flags().StringVar(&description, "description", "", "subscription description")
 	cmd.Flags().BoolVar(&disableSubscription, "disable", false, "whether disable the "+
@@ -369,15 +375,21 @@ func updateSubscriptionCommand() *cobra.Command {
 	cmd.Flags().StringVar(&filters, "filters", "", "filter event you interested, JSON format required")
 	cmd.Flags().StringVar(&transformer, "transformer", "", "transformer, JSON format required")
 	cmd.Flags().Int32Var(&rateLimit, "rate-limit", -1, "max event number pushing to sink per second, 0 means unlimited")
-	cmd.Flags().StringVar(&subProtocol, "protocol", "", "protocol,http or aws-lambda or gcloud-functions or grpc")
+	cmd.Flags().StringVar(&subProtocol, "protocol", "",
+		"protocol,http or aws-lambda or gcloud-functions or grpc")
 	cmd.Flags().StringVar(&sinkCredentialType, "credential-type", "", "sink credential type: aws or gcloud")
-	cmd.Flags().StringVar(&sinkCredential, "credential", "", "sink credential info, JSON format or @file")
-	cmd.Flags().Int32Var(&deliveryTimeout, "delivery-timeout", -1, "event delivery to sink timeout by millisecond, 0 means using server-side default value: 5s")
-	cmd.Flags().Int32Var(&maxRetryAttempts, "max-retry-attempts", -1, "event delivery fail max retry attempts")
+	cmd.Flags().StringVar(&sinkCredential, "credential", "",
+		"sink credential info, JSON format or @file")
+	cmd.Flags().Int32Var(&deliveryTimeout, "delivery-timeout", -1,
+		"event delivery to sink timeout by millisecond, 0 means using server-side default value: 5s")
+	cmd.Flags().Int32Var(&maxRetryAttempts, "max-retry-attempts", -1,
+		"event delivery fail max retry attempts")
 	cmd.Flags().StringVar(&subscriptionName, "name", "", "subscription name")
 	cmd.Flags().StringVar(&description, "description", "", "subscription description")
-	cmd.Flags().StringVar(&orderedPushEventStr, "ordered-event", "", "whether push the event with ordered, true of false")
-	cmd.Flags().StringVar(&disableDeadLetterStr, "disable-dead-letter", "", "whether disable the dead letter, true of false")
+	cmd.Flags().StringVar(&orderedPushEventStr, "ordered-event", "",
+		"whether push the event with ordered, true of false")
+	cmd.Flags().StringVar(&disableDeadLetterStr, "disable-dead-letter", "",
+		"whether disable the dead letter, true of false")
 	return cmd
 }
 
@@ -616,8 +628,10 @@ func printSubscription(cmd *cobra.Command, showNo, showFilters, showTransformer 
 	}
 }
 
-var subscriptionHeaders = []interface{}{"id", "name", "disable", "eventbus", "sink", "description", "protocol", "sinkCredential",
-	"config", "offsets", "filter", "transformer", "created_at", "updated_at"}
+var subscriptionHeaders = []interface{}{
+	"id", "name", "disable", "eventbus", "sink", "description", "protocol", "sinkCredential",
+	"config", "offsets", "filter", "transformer", "created_at", "updated_at",
+}
 
 func getSubscriptionHeader(showNo bool) table.Row {
 	var result []interface{}

@@ -16,14 +16,14 @@ package raw_client
 
 import (
 	"context"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 )
 
-var (
-	_ ctrlpb.PingServerClient = (*pingClient)(nil)
-)
+var _ ctrlpb.PingServerClient = (*pingClient)(nil)
 
 func NewPingClient(cc *Conn) ctrlpb.PingServerClient {
 	return &pingClient{

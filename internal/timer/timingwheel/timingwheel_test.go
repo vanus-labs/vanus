@@ -25,16 +25,18 @@ import (
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	. "github.com/golang/mock/gomock"
-	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/client/pkg/record"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/timer/metadata"
-	"github.com/linkall-labs/vanus/pkg/cluster"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	. "github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/client/pkg/record"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/timer/metadata"
 )
 
 func TestTimingWheel_NewTimingWheel(t *testing.T) {
@@ -308,7 +310,8 @@ func TestTimingWheel_runReceivingStation(t *testing.T) {
 
 		Convey("test bucket run receiving station with get event failed", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(0), int64(0), uint64(0), stderr.New("test"))
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(0),
+				int64(0), uint64(0), stderr.New("test"))
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
@@ -409,7 +412,8 @@ func TestTimingWheel_runDistributionStation(t *testing.T) {
 
 		Convey("test timingwheel run distribution station with get event failed", func() {
 			mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
-			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(0), int64(0), uint64(0), stderr.New("test"))
+			mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return(batch(0),
+				int64(0), uint64(0), stderr.New("test"))
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
@@ -734,8 +738,10 @@ func newtimingwheel(c *Config) *timingWheel {
 		} else {
 			twe.buckets = make(map[int64]*bucket)
 		}
-		timingWheelInstance.receivingStation = newBucket(timingWheelInstance, nil, 0, timerBuiltInEventbusReceivingStation, 0, 0)
-		timingWheelInstance.distributionStation = newBucket(timingWheelInstance, nil, 0, timerBuiltInEventbusDistributionStation, 0, 0)
+		timingWheelInstance.receivingStation =
+			newBucket(timingWheelInstance, nil, 0, timerBuiltInEventbusReceivingStation, 0, 0)
+		timingWheelInstance.distributionStation =
+			newBucket(timingWheelInstance, nil, 0, timerBuiltInEventbusDistributionStation, 0, 0)
 	}
 	return timingWheelInstance
 }

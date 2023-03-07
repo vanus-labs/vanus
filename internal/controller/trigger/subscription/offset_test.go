@@ -20,16 +20,18 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription/offset"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/secret"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/storage"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription/offset"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestSaveOffset(t *testing.T) {
@@ -288,7 +290,8 @@ func TestGetDeadLetterOffset(t *testing.T) {
 			mockEventLog.EXPECT().ID().AnyTimes().Return(logID.Uint64())
 
 			Convey("test get offset from timestamp", func() {
-				mockEventLog.EXPECT().QueryOffsetByTime(gomock.Any(), sub.CreatedAt.Unix()).Return(int64(offsetV), nil)
+				mockEventLog.EXPECT().QueryOffsetByTime(gomock.Any(),
+					sub.CreatedAt.Unix()).Return(int64(offsetV), nil)
 				offset, err := m.GetDeadLetterOffset(ctx, id)
 				So(err, ShouldBeNil)
 				So(offset, ShouldEqual, offsetV)

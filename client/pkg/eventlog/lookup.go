@@ -15,13 +15,13 @@
 package eventlog
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	"time"
 
-	// this project
-	"github.com/linkall-labs/vanus/client/pkg/primitive"
-	"github.com/linkall-labs/vanus/client/pkg/record"
+	// this project.
+	"github.com/vanus-labs/vanus/client/pkg/primitive"
+	"github.com/vanus-labs/vanus/client/pkg/record"
 )
 
 const (

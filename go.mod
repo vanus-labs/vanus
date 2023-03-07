@@ -1,4 +1,4 @@
-module github.com/linkall-labs/vanus
+module github.com/vanus-labs/vanus
 
 go 1.18
 
@@ -7,27 +7,20 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.16.11
 	github.com/aws/aws-sdk-go-v2/credentials v1.12.13
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.23.8
-	github.com/cloudevents/sdk-go/sql/v2 v2.12.0
-	github.com/cloudevents/sdk-go/v2 v2.12.0
+	github.com/cloudevents/sdk-go/sql/v2 v2.13.0
+	github.com/cloudevents/sdk-go/v2 v2.13.0
 	github.com/fatih/color v1.13.0
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/mock v1.6.0
-	github.com/golang/protobuf v1.5.2
-	github.com/google/cel-go v0.11.2
+	github.com/google/cel-go v0.13.0
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/huandu/skiplist v1.2.0
 	github.com/iceber/iouring-go v0.0.0-20220609112130-b1dc8dd9fbfd
 	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/json-iterator/go v1.1.12
-	github.com/linkall-labs/sdk/golang v0.2.0
-	github.com/linkall-labs/vanus/client v0.5.7
-	github.com/linkall-labs/vanus/observability v0.5.7
-	github.com/linkall-labs/vanus/pkg v0.5.7
-	github.com/linkall-labs/vanus/proto v0.5.8-0.20230202030707-115734791dcf
-	github.com/linkall-labs/vanus/raft v0.5.7
 	github.com/ncw/directio v1.0.5
 	github.com/ohler55/ojg v1.14.5
 	github.com/panjf2000/ants/v2 v2.7.1
@@ -38,6 +31,12 @@ require (
 	github.com/sony/sonyflake v1.1.0
 	github.com/spf13/cobra v1.4.0
 	github.com/tidwall/gjson v1.14.1
+	github.com/vanus-labs/sdk/golang v0.2.0
+	github.com/vanus-labs/vanus/client v0.5.7
+	github.com/vanus-labs/vanus/observability v0.5.7
+	github.com/vanus-labs/vanus/pkg v0.5.7
+	github.com/vanus-labs/vanus/proto v0.5.8-0.20230202030707-115734791dcf
+	github.com/vanus-labs/vanus/raft v0.5.7
 	go.etcd.io/etcd/client/v3 v3.5.7
 	go.mongodb.org/mongo-driver v1.11.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.36.4
@@ -62,7 +61,7 @@ require (
 	cloud.google.com/go/compute v1.12.1 // indirect
 	cloud.google.com/go/compute/metadata v0.2.1 // indirect
 	github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129 // indirect
-	github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20220209173558-ad29539cd2e9 // indirect
+	github.com/antlr/antlr4/runtime/Go/antlr v1.4.10 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.18 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.12 // indirect
 	github.com/aws/smithy-go v1.12.1 // indirect
@@ -76,6 +75,7 @@ require (
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.0 // indirect
@@ -85,6 +85,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
+	github.com/linkall-labs/vanus/proto v0.5.8-0.20230202030707-115734791dcf // indirect
 	github.com/mattn/go-colorable v0.1.11 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
@@ -126,16 +127,14 @@ require (
 	golang.org/x/sys v0.3.0 // indirect
 	golang.org/x/text v0.5.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
-	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
-	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
 replace (
-	github.com/linkall-labs/vanus/client => ./client
-	github.com/linkall-labs/vanus/observability => ./observability
-	github.com/linkall-labs/vanus/pkg => ./pkg
-	github.com/linkall-labs/vanus/proto => ./proto
-	github.com/linkall-labs/vanus/raft => ./raft
-	github.com/mwitkow/grpc-proxy => github.com/linkall-labs/grpc-proxy v0.0.0-20220624142509-a3b0cb2bb86c
+	github.com/mwitkow/grpc-proxy => github.com/vanus-labs/grpc-proxy v0.0.0-20220624142509-a3b0cb2bb86c
+	github.com/vanus-labs/sdk/golang v0.2.0 => github.com/linkall-labs/sdk/golang v0.2.0
+	github.com/vanus-labs/vanus/client => ./client
+	github.com/vanus-labs/vanus/observability => ./observability
+	github.com/vanus-labs/vanus/pkg => ./pkg
+	github.com/vanus-labs/vanus/proto => ./proto
+	github.com/vanus-labs/vanus/raft => ./raft
 )

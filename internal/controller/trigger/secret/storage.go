@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=storage.go  -destination=mock_storage.go -package=secret
+//go:generate mockgen -source=storage.go -destination=mock_storage.go -package=secret
 package secret
 
 import (
 	"context"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type Storage interface {

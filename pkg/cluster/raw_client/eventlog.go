@@ -18,13 +18,12 @@ import (
 	"context"
 	"io"
 
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc"
+
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 )
 
-var (
-	_ io.Closer = (*eventlogClient)(nil)
-)
+var _ io.Closer = (*eventlogClient)(nil)
 
 func NewEventlogClient(cc *Conn) ctrlpb.EventLogControllerClient {
 	return &eventlogClient{
@@ -41,7 +40,8 @@ func (elc *eventlogClient) Close() error {
 }
 
 func (elc *eventlogClient) ListSegment(ctx context.Context,
-	in *ctrlpb.ListSegmentRequest, opts ...grpc.CallOption) (*ctrlpb.ListSegmentResponse, error) {
+	in *ctrlpb.ListSegmentRequest, opts ...grpc.CallOption,
+) (*ctrlpb.ListSegmentResponse, error) {
 	out := new(ctrlpb.ListSegmentResponse)
 	err := elc.cc.invoke(ctx, "/linkall.vanus.controller.EventLogController/ListSegment", in, out, opts...)
 	if err != nil {
@@ -51,7 +51,8 @@ func (elc *eventlogClient) ListSegment(ctx context.Context,
 }
 
 func (elc *eventlogClient) GetAppendableSegment(ctx context.Context,
-	in *ctrlpb.GetAppendableSegmentRequest, opts ...grpc.CallOption) (*ctrlpb.GetAppendableSegmentResponse, error) {
+	in *ctrlpb.GetAppendableSegmentRequest, opts ...grpc.CallOption,
+) (*ctrlpb.GetAppendableSegmentResponse, error) {
 	out := new(ctrlpb.GetAppendableSegmentResponse)
 	err := elc.cc.invoke(ctx, "/linkall.vanus.controller.EventLogController/GetAppendableSegment", in, out, opts...)
 	if err != nil {

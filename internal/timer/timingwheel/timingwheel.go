@@ -25,18 +25,20 @@ import (
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/kv/etcd"
-	"github.com/linkall-labs/vanus/internal/timer/metadata"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/pkg/cluster"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/kv/etcd"
+	"github.com/vanus-labs/vanus/internal/timer/metadata"
 )
 
 const (
@@ -58,9 +60,7 @@ const (
 	recycleInterval = 60 * time.Second
 )
 
-var (
-	newEtcdClientV3 = etcd.NewEtcdClientV3
-)
+var newEtcdClientV3 = etcd.NewEtcdClientV3
 
 type Manager interface {
 	Init(ctx context.Context) error
@@ -351,10 +351,12 @@ func (tw *timingWheel) startReceivingStation(ctx context.Context) error {
 	return nil
 }
 
+const receiveGoroutineNum = 2
+
 // runReceivingStation as the unified entrance of scheduled events and pushed to the timingwheel.
 func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 	offsetC := make(chan waitGroup, defaultMaxNumberOfWorkers)
-	tw.wg.Add(1)
+	tw.wg.Add(receiveGoroutineNum)
 	// update offset asynchronously
 	go func() {
 		defer tw.wg.Done()
@@ -374,7 +376,6 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 			}
 		}
 	}()
-	tw.wg.Add(1)
 	go func() {
 		defer tw.wg.Done()
 		// limit the number of goroutines to no more than defaultMaxNumberOfWorkers
@@ -429,7 +430,8 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 						wait.Until(func() {
 							startTime := time.Now()
 							if tw.Push(ctx, e) {
-								metrics.TimerPushEventTime.WithLabelValues(metrics.LabelTimerPushScheduledEventTime).
+								metrics.TimerPushEventTime.WithLabelValues(
+									metrics.LabelTimerPushScheduledEventTime).
 									Observe(time.Since(startTime).Seconds())
 								metrics.TimerPushEventTPSCounterVec.WithLabelValues(metrics.LabelTimer).Inc()
 								cancel()
@@ -538,7 +540,8 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 						wait.Until(func() {
 							startTime := time.Now()
 							if err = tw.deliver(ctx, e); err == nil {
-								metrics.TimerDeliverEventTime.WithLabelValues(metrics.LabelTimerDeliverScheduledEventTime).
+								metrics.TimerDeliverEventTime.WithLabelValues(
+									metrics.LabelTimerDeliverScheduledEventTime).
 									Observe(time.Since(startTime).Seconds())
 								metrics.TimerDeliverEventTPSCounterVec.WithLabelValues(metrics.LabelTimer).Inc()
 								cancel()
@@ -689,12 +692,14 @@ func (twe *timingWheelElement) flow(ctx context.Context, tm *timingMsg) bool {
 
 func (twe *timingWheelElement) calculateIndex(tm *timingMsg) int64 {
 	// the timing message comes from the timingwheel of the upper layer
-	startTimeOfBucket := tm.getExpiration().UnixNano() - (tm.getExpiration().UnixNano() % twe.interval.Nanoseconds())
+	startTimeOfBucket := tm.getExpiration().UnixNano() -
+		(tm.getExpiration().UnixNano() % twe.interval.Nanoseconds())
 	timeOfEarlyFlow := defaultNumberOfTickFlowInAdvance * twe.tick.Nanoseconds()
 	timeOfBufferBoundaryLine := startTimeOfBucket - timeOfEarlyFlow + twe.interval.Nanoseconds()
 	if tm.getExpiration().UnixNano() >= timeOfBufferBoundaryLine {
 		// Put it into its buffer bucket
-		return (tm.getExpiration().UnixNano()-timeOfBufferBoundaryLine)/twe.tick.Nanoseconds() + twe.config.WheelSize
+		return (tm.getExpiration().UnixNano()-timeOfBufferBoundaryLine)/
+			twe.tick.Nanoseconds() + twe.config.WheelSize
 	}
 	// Put it into its own bucket
 	return tm.getExpiration().UnixNano() % twe.interval.Nanoseconds() / twe.tick.Nanoseconds()

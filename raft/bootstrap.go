@@ -17,7 +17,7 @@ package raft
 import (
 	"errors"
 
-	pb "github.com/linkall-labs/vanus/raft/raftpb"
+	pb "github.com/vanus-labs/vanus/raft/raftpb"
 )
 
 // Bootstrap initializes the RawNode for first use by appending configuration

@@ -21,8 +21,8 @@ import (
 	"testing"
 	"testing/quick"
 
-	pb "github.com/linkall-labs/vanus/raft/raftpb"
-	"github.com/linkall-labs/vanus/raft/tracker"
+	pb "github.com/vanus-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/raft/tracker"
 )
 
 // TestConfChangeQuick uses quickcheck to verify that simple and joint config

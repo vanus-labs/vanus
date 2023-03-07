@@ -1,8 +1,9 @@
 package cluster
 
 import (
-	"github.com/linkall-labs/vanus/pkg/cluster/raw_client"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+
+	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
 )
 
 type eventlogService struct {

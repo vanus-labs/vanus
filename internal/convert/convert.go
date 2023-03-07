@@ -15,14 +15,16 @@
 package convert
 
 import (
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	ctrl "github.com/linkall-labs/vanus/proto/pkg/controller"
-	pb "github.com/linkall-labs/vanus/proto/pkg/meta"
-	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
 	"google.golang.org/protobuf/types/known/structpb"
+
+	ctrl "github.com/vanus-labs/vanus/proto/pkg/controller"
+	pb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	pbtrigger "github.com/vanus-labs/vanus/proto/pkg/trigger"
+
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func FromPbSubscriptionRequest(sub *ctrl.SubscriptionRequest) *metadata.Subscription {
@@ -418,6 +420,7 @@ func toPbOffsetInfo(offset info.OffsetInfo) *pb.OffsetInfo {
 		Offset:     offset.Offset,
 	}
 }
+
 func fromPbTransformer(transformer *pb.Transformer) *primitive.Transformer {
 	if transformer == nil {
 		return nil

@@ -23,7 +23,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	cetest "github.com/linkall-labs/vanus/internal/store/schema/ce/testing"
+	cetest "github.com/vanus-labs/vanus/internal/store/schema/ce/testing"
 )
 
 func TestToPb(t *testing.T) {

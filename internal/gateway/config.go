@@ -15,10 +15,12 @@
 package gateway
 
 import (
-	"github.com/linkall-labs/vanus/internal/gateway/proxy"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/observability"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/vanus-labs/vanus/observability"
+
+	"github.com/vanus-labs/vanus/internal/gateway/proxy"
+	"github.com/vanus-labs/vanus/internal/primitive"
 )
 
 type Config struct {

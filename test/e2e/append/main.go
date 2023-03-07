@@ -18,10 +18,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	"github.com/linkall-labs/vanus/proto/pkg/segment"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	"github.com/vanus-labs/vanus/proto/pkg/segment"
 )
 
 func main() {
@@ -29,7 +30,7 @@ func main() {
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	conn, err := grpc.Dial("127.0.0.1:11811", opts...)
 	if err != nil {
-		//eventlog.Fatal(err.Error(), nil)
+		// eventlog.Fatal(err.Error(), nil)
 	}
 	cli := segment.NewSegmentServerClient(conn)
 	TestAppend(cli)
@@ -51,7 +52,9 @@ func TestAppend(cli segment.SegmentServerClient) {
 						SpecVersion: "1.0",
 						Type:        "test1",
 						Attributes:  nil,
-						Data:        &cloudevents.CloudEvent_TextData{TextData: fmt.Sprintf("Hello DingJie %d", idx)},
+						Data: &cloudevents.CloudEvent_TextData{
+							TextData: fmt.Sprintf("Hello DingJie %d", idx),
+						},
 					},
 				},
 			},
@@ -65,5 +68,4 @@ func TestAppend(cli segment.SegmentServerClient) {
 }
 
 func TestRead() {
-
 }

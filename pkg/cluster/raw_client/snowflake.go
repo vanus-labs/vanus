@@ -16,11 +16,13 @@ package raw_client
 
 import (
 	"context"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 )
 
 func NewSnowflakeController(cc *Conn) ctrlpb.SnowflakeControllerClient {
@@ -38,7 +40,8 @@ func (sfc *snowflakeClient) Close() error {
 }
 
 func (sfc *snowflakeClient) GetClusterStartTime(ctx context.Context, in *emptypb.Empty,
-	opts ...grpc.CallOption) (*timestamppb.Timestamp, error) {
+	opts ...grpc.CallOption,
+) (*timestamppb.Timestamp, error) {
 	out := &timestamppb.Timestamp{}
 	err := sfc.cc.invoke(ctx, "/linkall.vanus.controller.SnowflakeController/GetClusterStartTime", in, out, opts...)
 	if err != nil {
@@ -48,7 +51,8 @@ func (sfc *snowflakeClient) GetClusterStartTime(ctx context.Context, in *emptypb
 }
 
 func (sfc *snowflakeClient) RegisterNode(ctx context.Context, in *wrapperspb.UInt32Value,
-	opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	opts ...grpc.CallOption,
+) (*emptypb.Empty, error) {
 	out := &emptypb.Empty{}
 	err := sfc.cc.invoke(ctx, "/linkall.vanus.controller.SnowflakeController/RegisterNode", in, out, opts...)
 	if err != nil {
@@ -58,7 +62,8 @@ func (sfc *snowflakeClient) RegisterNode(ctx context.Context, in *wrapperspb.UIn
 }
 
 func (sfc *snowflakeClient) UnregisterNode(ctx context.Context, in *wrapperspb.UInt32Value,
-	opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	opts ...grpc.CallOption,
+) (*emptypb.Empty, error) {
 	out := &emptypb.Empty{}
 	err := sfc.cc.invoke(ctx, "/linkall.vanus.controller.SnowflakeController/UnregisterNode", in, out, opts...)
 	if err != nil {

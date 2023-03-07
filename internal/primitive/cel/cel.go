@@ -23,12 +23,9 @@ import (
 	"github.com/google/cel-go/checker/decls"
 	"github.com/tidwall/gjson"
 	exprpb "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
-	"google.golang.org/protobuf/proto"
 )
 
-var (
-	ErrInvalidExpression = fmt.Errorf("expression is invalid,format is: $json_path.(type)")
-)
+var ErrInvalidExpression = fmt.Errorf("expression is invalid,format is: $json_path.(type)")
 
 type Expression struct {
 	program   cel.Program
@@ -139,8 +136,8 @@ func newCelProgram(expr string, vars map[string]Variable) (cel.Program, error) {
 		return nil, iss.Err()
 	}
 
-	if !proto.Equal(ast.ResultType(), decls.Bool) {
-		return nil, fmt.Errorf("expression must return bool type,but got %s", ast.ResultType().String())
+	if ast.OutputType() != cel.BoolType {
+		return nil, fmt.Errorf("expression must return bool type, but got %s", ast.OutputType().String())
 	}
 
 	return env.Program(ast)

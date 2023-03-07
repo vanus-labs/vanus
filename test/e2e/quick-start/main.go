@@ -25,17 +25,18 @@ import (
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/fatih/color"
 	"github.com/go-resty/resty/v2"
 	"github.com/google/uuid"
-	log "k8s.io/klog/v2"
-
-	"github.com/fatih/color"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/kv/etcd"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	"github.com/linkall-labs/vanus/proto/pkg/meta"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	log "k8s.io/klog/v2"
+
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	"github.com/vanus-labs/vanus/proto/pkg/meta"
+
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/kv/etcd"
 )
 
 const (
@@ -204,7 +205,8 @@ func putEvent(eventbus, eventID, eventType, eventBody, eventSource string) error
 		eventID = uuid.NewString()
 	}
 
-	ceCtx := ce.ContextWithTarget(context.Background(), fmt.Sprintf("%s%s/gateway/%s", HttpPrefix, Endpoint, eventbus))
+	ceCtx := ce.ContextWithTarget(context.Background(),
+		fmt.Sprintf("%s%s/gateway/%s", HttpPrefix, Endpoint, eventbus))
 	event := ce.NewEvent()
 	event.SetID(eventID)
 	event.SetSource(eventSource)
@@ -255,7 +257,8 @@ func getEvent(eventbus, offset, number string) error {
 		log.Errorf("get event from eventbus[%s]&offset[%s]&number[%s] failed, err: %s\n", eventbus, offset, number, err)
 		return err
 	}
-	log.Infof("get event from eventbus[%s]&offset[%s]&number[%s] success, event: %s\n", eventbus, offset, number, event.String())
+	log.Infof("get event from eventbus[%s]&offset[%s]&number[%s] success, event: %s\n",
+		eventbus, offset, number, event.String())
 	return nil
 }
 

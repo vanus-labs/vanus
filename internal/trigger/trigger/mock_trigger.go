@@ -9,8 +9,8 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	primitive "github.com/linkall-labs/vanus/internal/primitive"
-	info "github.com/linkall-labs/vanus/internal/primitive/info"
+	primitive "github.com/vanus-labs/vanus/internal/primitive"
+	info "github.com/vanus-labs/vanus/internal/primitive/info"
 )
 
 // MockTrigger is a mock of Trigger interface.

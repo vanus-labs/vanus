@@ -9,8 +9,8 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	primitive "github.com/linkall-labs/vanus/internal/primitive"
-	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
+	primitive "github.com/vanus-labs/vanus/internal/primitive"
+	vanus "github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 // MockWorker is a mock of Worker interface.

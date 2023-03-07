@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=leaderelection.go  -destination=mock_leaderelection.go -package=leaderelection
+//go:generate mockgen -source=leaderelection.go -destination=mock_leaderelection.go -package=leaderelection
 package leaderelection
 
 import (
@@ -22,12 +22,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/timer/metadata"
-	"github.com/linkall-labs/vanus/observability/log"
-	"go.uber.org/atomic"
-
 	v3client "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
+	"go.uber.org/atomic"
+
+	"github.com/vanus-labs/vanus/observability/log"
+
+	"github.com/vanus-labs/vanus/internal/timer/metadata"
 )
 
 const (
@@ -222,7 +223,8 @@ func (le *leaderElection) refresh(ctx context.Context) bool {
 	le.mu.Lock()
 	defer le.mu.Unlock()
 	le.session.Close()
-	le.session, err = concurrency.NewSession(le.etcdClient, concurrency.WithTTL(int(le.leaseDuration)))
+	le.session, err = concurrency.NewSession(le.etcdClient,
+		concurrency.WithTTL(int(le.leaseDuration)))
 	if err != nil {
 		log.Error(context.Background(), "refresh session failed", map[string]interface{}{
 			log.KeyError: err,

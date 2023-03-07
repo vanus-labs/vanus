@@ -18,15 +18,16 @@ import (
 	"context"
 	"io"
 
-	"github.com/linkall-labs/vanus/observability/log"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	"github.com/linkall-labs/vanus/pkg/errors"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/vanus-labs/vanus/observability/log"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 var (
@@ -45,7 +46,9 @@ type triggerClient struct {
 	heartBeatClient ctrlpb.TriggerController_TriggerWorkerHeartbeatClient
 }
 
-func (tc *triggerClient) SetDeadLetterEventOffset(ctx context.Context, in *ctrlpb.SetDeadLetterEventOffsetRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (tc *triggerClient) SetDeadLetterEventOffset(ctx context.Context,
+	in *ctrlpb.SetDeadLetterEventOffsetRequest, opts ...grpc.CallOption,
+) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/SetDeadLetterEventOffset", in, out, opts...)
 	if err != nil {
@@ -54,7 +57,9 @@ func (tc *triggerClient) SetDeadLetterEventOffset(ctx context.Context, in *ctrlp
 	return out, nil
 }
 
-func (tc *triggerClient) GetDeadLetterEventOffset(ctx context.Context, in *ctrlpb.GetDeadLetterEventOffsetRequest, opts ...grpc.CallOption) (*ctrlpb.GetDeadLetterEventOffsetResponse, error) {
+func (tc *triggerClient) GetDeadLetterEventOffset(ctx context.Context,
+	in *ctrlpb.GetDeadLetterEventOffsetRequest, opts ...grpc.CallOption,
+) (*ctrlpb.GetDeadLetterEventOffsetResponse, error) {
 	out := new(ctrlpb.GetDeadLetterEventOffsetResponse)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/GetDeadLetterEventOffset", in, out, opts...)
 	if err != nil {
@@ -121,7 +126,8 @@ func (tc *triggerClient) Close() error {
 }
 
 func (tc *triggerClient) CreateSubscription(ctx context.Context, in *ctrlpb.CreateSubscriptionRequest,
-	opts ...grpc.CallOption) (*metapb.Subscription, error) {
+	opts ...grpc.CallOption,
+) (*metapb.Subscription, error) {
 	out := new(metapb.Subscription)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/CreateSubscription", in, out, opts...)
 	if err != nil {
@@ -131,7 +137,8 @@ func (tc *triggerClient) CreateSubscription(ctx context.Context, in *ctrlpb.Crea
 }
 
 func (tc *triggerClient) UpdateSubscription(ctx context.Context, in *ctrlpb.UpdateSubscriptionRequest,
-	opts ...grpc.CallOption) (*metapb.Subscription, error) {
+	opts ...grpc.CallOption,
+) (*metapb.Subscription, error) {
 	out := new(metapb.Subscription)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/UpdateSubscription", in, out, opts...)
 	if err != nil {
@@ -141,7 +148,8 @@ func (tc *triggerClient) UpdateSubscription(ctx context.Context, in *ctrlpb.Upda
 }
 
 func (tc *triggerClient) DeleteSubscription(ctx context.Context, in *ctrlpb.DeleteSubscriptionRequest,
-	opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	opts ...grpc.CallOption,
+) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/DeleteSubscription", in, out, opts...)
 	if err != nil {
@@ -151,7 +159,8 @@ func (tc *triggerClient) DeleteSubscription(ctx context.Context, in *ctrlpb.Dele
 }
 
 func (tc *triggerClient) GetSubscription(ctx context.Context, in *ctrlpb.GetSubscriptionRequest,
-	opts ...grpc.CallOption) (*metapb.Subscription, error) {
+	opts ...grpc.CallOption,
+) (*metapb.Subscription, error) {
 	out := new(metapb.Subscription)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/GetSubscription", in, out, opts...)
 	if err != nil {
@@ -161,7 +170,8 @@ func (tc *triggerClient) GetSubscription(ctx context.Context, in *ctrlpb.GetSubs
 }
 
 func (tc *triggerClient) ListSubscription(ctx context.Context, in *ctrlpb.ListSubscriptionRequest,
-	opts ...grpc.CallOption) (*ctrlpb.ListSubscriptionResponse, error) {
+	opts ...grpc.CallOption,
+) (*ctrlpb.ListSubscriptionResponse, error) {
 	out := new(ctrlpb.ListSubscriptionResponse)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/ListSubscription", in, out, opts...)
 	if err != nil {
@@ -171,7 +181,8 @@ func (tc *triggerClient) ListSubscription(ctx context.Context, in *ctrlpb.ListSu
 }
 
 func (tc *triggerClient) RegisterTriggerWorker(ctx context.Context, in *ctrlpb.RegisterTriggerWorkerRequest,
-	opts ...grpc.CallOption) (*ctrlpb.RegisterTriggerWorkerResponse, error) {
+	opts ...grpc.CallOption,
+) (*ctrlpb.RegisterTriggerWorkerResponse, error) {
 	out := new(ctrlpb.RegisterTriggerWorkerResponse)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/RegisterTriggerWorker", in, out, opts...)
 	if err != nil {
@@ -181,7 +192,8 @@ func (tc *triggerClient) RegisterTriggerWorker(ctx context.Context, in *ctrlpb.R
 }
 
 func (tc *triggerClient) UnregisterTriggerWorker(ctx context.Context, in *ctrlpb.UnregisterTriggerWorkerRequest,
-	opts ...grpc.CallOption) (*ctrlpb.UnregisterTriggerWorkerResponse, error) {
+	opts ...grpc.CallOption,
+) (*ctrlpb.UnregisterTriggerWorkerResponse, error) {
 	out := new(ctrlpb.UnregisterTriggerWorkerResponse)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/UnregisterTriggerWorker", in, out, opts...)
 	if err != nil {
@@ -191,7 +203,8 @@ func (tc *triggerClient) UnregisterTriggerWorker(ctx context.Context, in *ctrlpb
 }
 
 func (tc *triggerClient) ResetOffsetToTimestamp(ctx context.Context, in *ctrlpb.ResetOffsetToTimestampRequest,
-	opts ...grpc.CallOption) (*ctrlpb.ResetOffsetToTimestampResponse, error) {
+	opts ...grpc.CallOption,
+) (*ctrlpb.ResetOffsetToTimestampResponse, error) {
 	out := new(ctrlpb.ResetOffsetToTimestampResponse)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/ResetOffsetToTimestamp", in, out, opts...)
 	if err != nil {
@@ -201,7 +214,8 @@ func (tc *triggerClient) ResetOffsetToTimestamp(ctx context.Context, in *ctrlpb.
 }
 
 func (tc *triggerClient) CommitOffset(ctx context.Context, in *ctrlpb.CommitOffsetRequest,
-	opts ...grpc.CallOption) (*ctrlpb.CommitOffsetResponse, error) {
+	opts ...grpc.CallOption,
+) (*ctrlpb.CommitOffsetResponse, error) {
 	out := new(ctrlpb.CommitOffsetResponse)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/CommitOffset", in, out, opts...)
 	if err != nil {
@@ -210,7 +224,9 @@ func (tc *triggerClient) CommitOffset(ctx context.Context, in *ctrlpb.CommitOffs
 	return out, nil
 }
 
-func (tc *triggerClient) DisableSubscription(ctx context.Context, in *ctrlpb.DisableSubscriptionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (tc *triggerClient) DisableSubscription(ctx context.Context,
+	in *ctrlpb.DisableSubscriptionRequest, opts ...grpc.CallOption,
+) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/DisableSubscription", in, out, opts...)
 	if err != nil {
@@ -219,7 +235,9 @@ func (tc *triggerClient) DisableSubscription(ctx context.Context, in *ctrlpb.Dis
 	return out, nil
 }
 
-func (tc *triggerClient) ResumeSubscription(ctx context.Context, in *ctrlpb.ResumeSubscriptionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (tc *triggerClient) ResumeSubscription(ctx context.Context,
+	in *ctrlpb.ResumeSubscriptionRequest, opts ...grpc.CallOption,
+) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/ResumeSubscription", in, out, opts...)
 	if err != nil {
@@ -229,6 +247,7 @@ func (tc *triggerClient) ResumeSubscription(ctx context.Context, in *ctrlpb.Resu
 }
 
 func (tc *triggerClient) TriggerWorkerHeartbeat(_ context.Context,
-	_ ...grpc.CallOption) (ctrlpb.TriggerController_TriggerWorkerHeartbeatClient, error) {
+	_ ...grpc.CallOption,
+) (ctrlpb.TriggerController_TriggerWorkerHeartbeatClient, error) {
 	panic("unsupported method, please use controller.RegisterHeartbeat")
 }

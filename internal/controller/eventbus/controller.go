@@ -27,24 +27,26 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/eventlog"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
-	"github.com/linkall-labs/vanus/internal/controller/member"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/kv/etcd"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/pkg/util"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/util"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/eventlog"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/server"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/volume"
+	"github.com/vanus-labs/vanus/internal/controller/member"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/kv/etcd"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 var (
@@ -117,7 +119,8 @@ func (ctrl *controller) StopNotify() <-chan error {
 }
 
 func (ctrl *controller) CreateEventBus(ctx context.Context,
-	req *ctrlpb.CreateEventBusRequest) (*metapb.EventBus, error) {
+	req *ctrlpb.CreateEventBusRequest,
+) (*metapb.EventBus, error) {
 	if err := isValidEventbusName(req.Name); err != nil {
 		return nil, err
 	}
@@ -155,14 +158,16 @@ func isValidEventbusName(name string) error {
 			if c >= 0 || c <= 9 {
 				continue
 			}
-			return errors.ErrInvalidRequest.WithMessage("eventbus name must be insist of 0-9a-zA-Z.-_")
+			return errors.ErrInvalidRequest.WithMessage(
+				"eventbus name must be insist of 0-9a-zA-Z.-_")
 		}
 	}
 	return nil
 }
 
 func (ctrl *controller) CreateSystemEventBus(ctx context.Context,
-	req *ctrlpb.CreateEventBusRequest) (*metapb.EventBus, error) {
+	req *ctrlpb.CreateEventBusRequest,
+) (*metapb.EventBus, error) {
 	if !strings.HasPrefix(req.Name, primitive.SystemEventbusNamePrefix) {
 		return nil, errors.ErrInvalidRequest.WithMessage("system eventbus must start with __")
 	}
@@ -170,11 +175,13 @@ func (ctrl *controller) CreateSystemEventBus(ctx context.Context,
 }
 
 func (ctrl *controller) createEventBus(ctx context.Context,
-	req *ctrlpb.CreateEventBusRequest) (*metapb.EventBus, error) {
+	req *ctrlpb.CreateEventBusRequest,
+) (*metapb.EventBus, error) {
 	ctrl.mutex.Lock()
 	defer ctrl.mutex.Unlock()
 	if !ctrl.isReady(ctx) {
-		return nil, errors.ErrResourceCanNotOp.WithMessage("the cluster isn't ready for create eventbus")
+		return nil, errors.ErrResourceCanNotOp.WithMessage(
+			"the cluster isn't ready for create eventbus")
 	}
 	logNum := req.LogNumber
 	if logNum == 0 {
@@ -235,7 +242,8 @@ func (ctrl *controller) DeleteEventBus(ctx context.Context, eb *metapb.EventBus)
 	}
 	// TODO async delete
 	// delete dead letter eventbus
-	err = ctrl.deleteEventbus(context.Background(), primitive.GetDeadLetterEventbusName(eb.Name))
+	err = ctrl.deleteEventbus(context.Background(),
+		primitive.GetDeadLetterEventbusName(eb.Name))
 	if err != nil {
 		log.Error(context.Background(), "delete dead letter eventbus error", map[string]interface{}{
 			log.KeyError:        err,
@@ -306,25 +314,29 @@ func (ctrl *controller) ListEventBus(ctx context.Context, _ *emptypb.Empty) (*ct
 }
 
 func (ctrl *controller) UpdateEventBus(ctx context.Context,
-	req *ctrlpb.UpdateEventBusRequest) (*metapb.EventBus, error) {
+	req *ctrlpb.UpdateEventBusRequest,
+) (*metapb.EventBus, error) {
 	atomic.AddInt64(&ctrl.eventbusUpdatedCount, 1)
 	return &metapb.EventBus{}, nil
 }
 
 func (ctrl *controller) ListSegment(ctx context.Context,
-	req *ctrlpb.ListSegmentRequest) (*ctrlpb.ListSegmentResponse, error) {
+	req *ctrlpb.ListSegmentRequest,
+) (*ctrlpb.ListSegmentResponse, error) {
 	el := ctrl.eventLogMgr.GetEventLog(ctx, vanus.NewIDFromUint64(req.EventLogId))
 	if el == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
 	}
 
 	return &ctrlpb.ListSegmentResponse{
-		Segments: eventlog.Convert2ProtoSegment(ctx, ctrl.eventLogMgr.GetEventLogSegmentList(el.ID)...),
+		Segments: eventlog.Convert2ProtoSegment(ctx,
+			ctrl.eventLogMgr.GetEventLogSegmentList(el.ID)...),
 	}, nil
 }
 
 func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
-	req *ctrlpb.RegisterSegmentServerRequest) (*ctrlpb.RegisterSegmentServerResponse, error) {
+	req *ctrlpb.RegisterSegmentServerRequest,
+) (*ctrlpb.RegisterSegmentServerResponse, error) {
 	srv, err := server.NewSegmentServer(req.Address)
 	if err != nil {
 		return nil, err
@@ -379,7 +391,8 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 }
 
 func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
-	req *ctrlpb.UnregisterSegmentServerRequest) (*ctrlpb.UnregisterSegmentServerResponse, error) {
+	req *ctrlpb.UnregisterSegmentServerRequest,
+) (*ctrlpb.UnregisterSegmentServerResponse, error) {
 	srv := ctrl.ssMgr.GetServerByAddress(req.Address)
 
 	if srv == nil {
@@ -400,7 +413,8 @@ func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
 }
 
 func (ctrl *controller) QuerySegmentRouteInfo(ctx context.Context,
-	req *ctrlpb.QuerySegmentRouteInfoRequest) (*ctrlpb.QuerySegmentRouteInfoResponse, error) {
+	req *ctrlpb.QuerySegmentRouteInfoRequest,
+) (*ctrlpb.QuerySegmentRouteInfoResponse, error) {
 	return &ctrlpb.QuerySegmentRouteInfoResponse{}, nil
 }
 
@@ -504,7 +518,8 @@ func (ctrl *controller) processHeartbeat(ctx context.Context, req *ctrlpb.Segmen
 }
 
 func (ctrl *controller) GetAppendableSegment(ctx context.Context,
-	req *ctrlpb.GetAppendableSegmentRequest) (*ctrlpb.GetAppendableSegmentResponse, error) {
+	req *ctrlpb.GetAppendableSegmentRequest,
+) (*ctrlpb.GetAppendableSegmentResponse, error) {
 	eli := ctrl.eventLogMgr.GetEventLog(ctx, vanus.NewIDFromUint64(req.EventLogId))
 	if eli == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
@@ -554,7 +569,8 @@ func (ctrl *controller) isReady(ctx context.Context) bool {
 }
 
 func (ctrl *controller) ReportSegmentLeader(ctx context.Context,
-	req *ctrlpb.ReportSegmentLeaderRequest) (*emptypb.Empty, error) {
+	req *ctrlpb.ReportSegmentLeaderRequest,
+) (*emptypb.Empty, error) {
 	err := ctrl.eventLogMgr.UpdateSegmentReplicas(ctx, vanus.NewIDFromUint64(req.LeaderId), req.Term)
 	if err != nil {
 		return nil, err
@@ -571,16 +587,20 @@ func (ctrl *controller) recordMetrics() {
 			ctrl.membershipMutex.Lock()
 			if ctrl.isLeader {
 				metrics.ControllerLeaderGaugeVec.DeleteLabelValues(strconv.FormatBool(!ctrl.isLeader))
-				metrics.ControllerLeaderGaugeVec.WithLabelValues(strconv.FormatBool(ctrl.isLeader)).Set(1)
+				metrics.ControllerLeaderGaugeVec.WithLabelValues(
+					strconv.FormatBool(ctrl.isLeader)).Set(1)
 			} else {
-				metrics.ControllerLeaderGaugeVec.WithLabelValues(strconv.FormatBool(!ctrl.isLeader)).Set(0)
+				metrics.ControllerLeaderGaugeVec.WithLabelValues(
+					strconv.FormatBool(!ctrl.isLeader)).Set(0)
 			}
 			ctrl.membershipMutex.Unlock()
 
 			ctrl.mutex.Lock()
 			metrics.EventbusGauge.Set(float64(len(ctrl.eventBusMap)))
-			metrics.EventbusUpdatedGauge.Set(float64(atomic.LoadInt64(&ctrl.eventbusUpdatedCount)))
-			metrics.EventbusDeletedGauge.Set(float64(atomic.LoadInt64(&ctrl.eventbusDeletedCount)))
+			metrics.EventbusUpdatedGauge.Set(float64(
+				atomic.LoadInt64(&ctrl.eventbusUpdatedCount)))
+			metrics.EventbusDeletedGauge.Set(float64(
+				atomic.LoadInt64(&ctrl.eventbusDeletedCount)))
 			ctrl.mutex.Unlock()
 		case <-ctrl.cancelCtx.Done():
 			log.Info(ctrl.cancelCtx, "record leadership exiting...", nil)

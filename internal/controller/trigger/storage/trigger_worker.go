@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=trigger_worker.go  -destination=mock_trigger_worker.go -package=storage
+//go:generate mockgen -source=trigger_worker.go -destination=mock_trigger_worker.go -package=storage
 package storage
 
 import (
@@ -21,9 +21,10 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/errors"
+
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/kv"
 )
 
 type TriggerWorkerStorage interface {
@@ -55,6 +56,7 @@ func (s *triggerWorkerStorage) SaveTriggerWorker(ctx context.Context, info metad
 	}
 	return s.client.Set(ctx, key, v)
 }
+
 func (s *triggerWorkerStorage) GetTriggerWorker(ctx context.Context, id string) (*metadata.TriggerWorkerInfo, error) {
 	v, err := s.client.Get(ctx, s.getKey(id))
 	if err != nil {

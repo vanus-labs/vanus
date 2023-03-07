@@ -15,7 +15,7 @@
 package eventbus
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	"encoding/base64"
 	"encoding/binary"
@@ -23,23 +23,22 @@ import (
 	"io"
 	"sync"
 
-	// third-party libraries
-
+	// third-party libraries.
 	"github.com/scylladb/go-set/u64set"
 	"go.opentelemetry.io/otel/trace"
 
-	// first-party libraries
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/tracing"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 
-	// this project
-	eb "github.com/linkall-labs/vanus/client/internal/vanus/eventbus"
-	el "github.com/linkall-labs/vanus/client/internal/vanus/eventlog"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/client/pkg/eventlog"
-	"github.com/linkall-labs/vanus/client/pkg/policy"
+	// this project.
+	eb "github.com/vanus-labs/vanus/client/internal/vanus/eventbus"
+	el "github.com/vanus-labs/vanus/client/internal/vanus/eventlog"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/client/pkg/eventlog"
+	"github.com/vanus-labs/vanus/client/pkg/policy"
 )
 
 func NewEventbus(cfg *eb.Config) *eventbus {
@@ -448,7 +447,7 @@ func (w *busWriter) Append(ctx context.Context, events *cloudevents.CloudEventBa
 	_ctx, span := w.tracer.Start(ctx, "Append")
 	defer span.End()
 
-	var writeOpts = w.opts
+	writeOpts := w.opts
 	if len(opts) > 0 {
 		writeOpts = w.opts.Copy()
 		for _, opt := range opts {

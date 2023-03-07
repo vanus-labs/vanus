@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=manager.go -destination=mock_manager.go -package=volume
 package volume
 
 import (
@@ -21,11 +22,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/log"
+
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/server"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type Manager interface {
@@ -38,9 +40,7 @@ type Manager interface {
 	GetBlocksOfVolume(ctx context.Context, instance server.Instance) (map[uint64]*metadata.Block, error)
 }
 
-var (
-	mgr = &volumeMgr{}
-)
+var mgr = &volumeMgr{}
 
 func NewVolumeManager(serverMgr server.Manager) Manager {
 	mgr.serverMgr = serverMgr
@@ -83,7 +83,8 @@ func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 			return err
 		}
 		// load block meta in this volume
-		blockPairs, err := mgr.kvCli.List(ctx, filepath.Join(metadata.BlockKeyPrefixInKVStore, md.ID.Key()))
+		blockPairs, err := mgr.kvCli.List(ctx,
+			filepath.Join(metadata.BlockKeyPrefixInKVStore, md.ID.Key()))
 		if err != nil {
 			return err
 		}
@@ -223,9 +224,12 @@ func (mgr *volumeMgr) UpdateRouting(ctx context.Context, ins server.Instance, sr
 }
 
 func (mgr *volumeMgr) GetBlocksOfVolume(ctx context.Context,
-	instance server.Instance) (map[uint64]*metadata.Block, error) {
-	pairs, err := mgr.kvCli.List(ctx, strings.Join([]string{metadata.BlockKeyPrefixInKVStore,
-		instance.ID().String()}, "/"))
+	instance server.Instance,
+) (map[uint64]*metadata.Block, error) {
+	pairs, err := mgr.kvCli.List(ctx, strings.Join([]string{
+		metadata.BlockKeyPrefixInKVStore,
+		instance.ID().String(),
+	}, "/"))
 	if err != nil {
 		return nil, err
 	}

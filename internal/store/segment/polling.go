@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 var _ pollingManager = (*pollingMgr)(nil)

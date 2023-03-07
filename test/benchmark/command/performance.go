@@ -19,10 +19,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"math/rand"
 	"net"
 	"net/http"
@@ -41,9 +37,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	"github.com/linkall-labs/vanus/observability/log"
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 )
 
 const (
@@ -514,7 +515,8 @@ func analyseCommand() *cobra.Command {
 			_ = rdb.Close()
 		},
 	}
-	cmd.Flags().StringVar(&benchType, "benchmark-type", "", "the type of benchmark, produce or consume")
+	cmd.Flags().StringVar(&benchType, "benchmark-type", "",
+		"the type of benchmark, produce or consume")
 	return cmd
 }
 
@@ -656,9 +658,7 @@ func cmdFailedf(cmd *cobra.Command, format string, a ...interface{}) {
 	os.Exit(-1)
 }
 
-var (
-	tmpID = uuid.NewString()
-)
+var tmpID = uuid.NewString()
 
 func getBenchmarkID() string {
 	if taskID.IsZero() {

@@ -19,8 +19,8 @@ import (
 	"context"
 	"sync"
 
-	// this project.
-	"github.com/linkall-labs/vanus/observability/log"
+	// first-party project.
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 type Resolver interface {

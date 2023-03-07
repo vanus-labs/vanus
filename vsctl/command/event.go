@@ -32,10 +32,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	proxypb "github.com/linkall-labs/vanus/proto/pkg/proxy"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
+
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 const (
@@ -97,7 +99,8 @@ func putEventCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&id, "id", "", "event id of CloudEvent")
-	cmd.Flags().StringVar(&dataFormat, "data-format", "json", "the format of event body, JSON or plain")
+	cmd.Flags().StringVar(&dataFormat, "data-format", "json",
+		"the format of event body, JSON or plain")
 	cmd.Flags().StringVar(&eventSource, "source", "cmd", "event source of CloudEvent")
 	cmd.Flags().StringVar(&eventDeliveryTime, "delivery-time", "",
 		"event delivery time of CloudEvent, only support the time layout of RFC3339, for example: 2022-01-01T08:00:00Z")
@@ -182,10 +185,16 @@ func sendOne(ctx context.Context, cmd *cobra.Command, ceClient v2.Client) {
 				if detail {
 					t.AppendHeader(table.Row{"Result", "RESPONSE EVENT"})
 					t.AppendRow(table.Row{httpResult.StatusCode, resEvent})
-					tbcfg = append(tbcfg, table.ColumnConfig{Number: 2, Align: text.AlignCenter, AlignHeader: text.AlignCenter})
+					tbcfg = append(tbcfg, table.ColumnConfig{
+						Number: 2,
+						Align:  text.AlignCenter, AlignHeader: text.AlignCenter,
+					})
 				} else {
 					t.AppendHeader(table.Row{"Result", "Error"})
-					t.AppendRow(table.Row{httpResult.StatusCode, fmt.Errorf(httpResult.Format, httpResult.Args...)})
+					t.AppendRow(table.Row{
+						httpResult.StatusCode,
+						fmt.Errorf(httpResult.Format, httpResult.Args...),
+					})
 				}
 				t.SetColumnConfigs(tbcfg)
 				t.SetOutputMirror(os.Stdout)
@@ -302,7 +311,6 @@ func getEventCommand() *cobra.Command {
 				EventId:    eventID,
 				Number:     int32(number),
 			})
-
 			if err != nil {
 				cmdFailedf(cmd, "failed to get event: %s", err)
 			}

@@ -20,8 +20,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/linkall-labs/vanus/raft/quorum"
-	pb "github.com/linkall-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/raft/quorum"
+	pb "github.com/vanus-labs/vanus/raft/raftpb"
 )
 
 // Config reflects the configuration tracked in a ProgressTracker.

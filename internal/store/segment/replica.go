@@ -20,13 +20,13 @@ import (
 	"context"
 
 	// first-party libraries.
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/internal/store/block/raw"
-	raft "github.com/linkall-labs/vanus/internal/store/raft/block"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	"github.com/vanus-labs/vanus/internal/store/block/raw"
+	raft "github.com/vanus-labs/vanus/internal/store/raft/block"
 )
 
 type Replica interface {

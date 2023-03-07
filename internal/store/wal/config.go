@@ -19,9 +19,9 @@ import (
 	"time"
 
 	// this project.
-	ioengine "github.com/linkall-labs/vanus/internal/store/io/engine"
-	"github.com/linkall-labs/vanus/internal/store/io/stream"
-	"github.com/linkall-labs/vanus/internal/store/io/zone/segmentedfile"
+	ioengine "github.com/vanus-labs/vanus/internal/store/io/engine"
+	"github.com/vanus-labs/vanus/internal/store/io/stream"
+	"github.com/vanus-labs/vanus/internal/store/io/zone/segmentedfile"
 )
 
 const (

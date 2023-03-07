@@ -9,8 +9,8 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	info "github.com/linkall-labs/vanus/internal/primitive/info"
-	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
+	info "github.com/vanus-labs/vanus/internal/primitive/info"
+	vanus "github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 // MockOffsetStorage is a mock of OffsetStorage interface.
