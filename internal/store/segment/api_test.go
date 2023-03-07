@@ -132,7 +132,7 @@ func TestSegmentServer(t *testing.T) {
 			srv.EXPECT().ActivateSegment(Any(), Any(), Any(), Any()).Return(nil)
 
 			req := &segpb.ActivateSegmentRequest{
-				EventLogId:     vanus.NewTestID().Uint64(),
+				EventlogId:     vanus.NewTestID().Uint64(),
 				ReplicaGroupId: vanus.NewTestID().Uint64(),
 				Replicas: map[uint64]string{
 					1: "127.0.0.1:11811",

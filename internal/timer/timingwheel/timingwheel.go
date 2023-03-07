@@ -78,7 +78,7 @@ type Manager interface {
 type timingWheel struct {
 	config  *Config
 	kvStore kv.Client
-	ctrlCli ctrlpb.EventBusControllerClient
+	ctrlCli ctrlpb.EventbusControllerClient
 	client  client.Client
 	cache   sync.Map
 	twList  *list.List // element: *timingWheelElement
@@ -614,7 +614,7 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 type timingWheelElement struct {
 	config   *Config
 	kvStore  kv.Client
-	ctrlCli  ctrlpb.EventBusControllerClient
+	ctrlCli  ctrlpb.EventbusControllerClient
 	tick     time.Duration
 	layer    int64
 	interval time.Duration

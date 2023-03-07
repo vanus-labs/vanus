@@ -28,7 +28,7 @@ type Subscription struct {
 	ID              vanus.ID               `json:"id"`
 	Filters         SubscriptionFilterList `json:"filters,omitempty"`
 	Sink            URI                    `json:"sink,omitempty"`
-	EventBus        string                 `json:"eventbus"`
+	Eventbus        string                 `json:"eventbus"`
 	Offsets         info.ListOffsetInfo    `json:"offsets"`
 	Transformer     *Transformer           `json:"transformer,omitempty"`
 	Config          SubscriptionConfig     `json:"config,omitempty"`
@@ -39,7 +39,7 @@ type Subscription struct {
 
 func (sub *Subscription) String() string {
 	return fmt.Sprintf("ID=%d, sink=%s, eventbus=%s, filters=%s, offsets=%s, transformer=%s, config=%s, protocol=%v",
-		sub.ID, sub.Sink, sub.EventBus, sub.Filters.String(), sub.Offsets.String(),
+		sub.ID, sub.Sink, sub.Eventbus, sub.Filters.String(), sub.Offsets.String(),
 		sub.Transformer.String(), sub.Config.String(), sub.Protocol)
 }
 
@@ -169,7 +169,7 @@ type FilterSpec struct {
 }
 
 type SubscriptionSpec struct {
-	EventBuses []string
+	Eventbuses []string
 	Sinks      []SinkSpec
 	Filters    []FilterSpec
 }

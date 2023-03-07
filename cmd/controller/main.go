@@ -142,8 +142,8 @@ func main() {
 	}
 
 	ctrlpb.RegisterSnowflakeControllerServer(grpcServer, snowflakeCtrl)
-	ctrlpb.RegisterEventBusControllerServer(grpcServer, segmentCtrl)
-	ctrlpb.RegisterEventLogControllerServer(grpcServer, segmentCtrl)
+	ctrlpb.RegisterEventbusControllerServer(grpcServer, segmentCtrl)
+	ctrlpb.RegisterEventlogControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterSegmentControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterPingServerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterTriggerControllerServer(grpcServer, triggerCtrlStv)

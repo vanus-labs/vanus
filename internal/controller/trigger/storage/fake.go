@@ -75,7 +75,7 @@ func (f *fake) CreateOffset(ctx context.Context, subscriptionID vanus.ID, info p
 		sub = map[vanus.ID]pInfo.OffsetInfo{}
 		f.offset[subscriptionID] = sub
 	}
-	sub[info.EventLogID] = info
+	sub[info.EventlogID] = info
 	return nil
 }
 func (f *fake) UpdateOffset(ctx context.Context, subscriptionID vanus.ID, info pInfo.OffsetInfo) error {
@@ -83,7 +83,7 @@ func (f *fake) UpdateOffset(ctx context.Context, subscriptionID vanus.ID, info p
 	if !exist {
 		return kv.ErrKeyNotFound
 	}
-	sub[info.EventLogID] = info
+	sub[info.EventlogID] = info
 	return nil
 }
 func (f *fake) GetOffsets(ctx context.Context, subscriptionID vanus.ID) (pInfo.ListOffsetInfo, error) {

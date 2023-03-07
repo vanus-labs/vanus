@@ -46,7 +46,7 @@ func NewSegmentServerClient(cc grpc.ClientConnInterface) SegmentServerClient {
 
 func (c *segmentServerClient) Start(ctx context.Context, in *StartSegmentServerRequest, opts ...grpc.CallOption) (*StartSegmentServerResponse, error) {
 	out := new(StartSegmentServerResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.segment.SegmentServer/Start", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.segment.SegmentServer/Start", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (c *segmentServerClient) Start(ctx context.Context, in *StartSegmentServerR
 
 func (c *segmentServerClient) Stop(ctx context.Context, in *StopSegmentServerRequest, opts ...grpc.CallOption) (*StopSegmentServerResponse, error) {
 	out := new(StopSegmentServerResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.segment.SegmentServer/Stop", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.segment.SegmentServer/Stop", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (c *segmentServerClient) Stop(ctx context.Context, in *StopSegmentServerReq
 
 func (c *segmentServerClient) CreateBlock(ctx context.Context, in *CreateBlockRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.segment.SegmentServer/CreateBlock", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.segment.SegmentServer/CreateBlock", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (c *segmentServerClient) CreateBlock(ctx context.Context, in *CreateBlockRe
 
 func (c *segmentServerClient) RemoveBlock(ctx context.Context, in *RemoveBlockRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.segment.SegmentServer/RemoveBlock", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.segment.SegmentServer/RemoveBlock", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ func (c *segmentServerClient) RemoveBlock(ctx context.Context, in *RemoveBlockRe
 
 func (c *segmentServerClient) GetBlockInfo(ctx context.Context, in *GetBlockInfoRequest, opts ...grpc.CallOption) (*GetBlockInfoResponse, error) {
 	out := new(GetBlockInfoResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.segment.SegmentServer/GetBlockInfo", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.segment.SegmentServer/GetBlockInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (c *segmentServerClient) GetBlockInfo(ctx context.Context, in *GetBlockInfo
 
 func (c *segmentServerClient) ActivateSegment(ctx context.Context, in *ActivateSegmentRequest, opts ...grpc.CallOption) (*ActivateSegmentResponse, error) {
 	out := new(ActivateSegmentResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.segment.SegmentServer/ActivateSegment", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.segment.SegmentServer/ActivateSegment", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (c *segmentServerClient) ActivateSegment(ctx context.Context, in *ActivateS
 
 func (c *segmentServerClient) InactivateSegment(ctx context.Context, in *InactivateSegmentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.segment.SegmentServer/InactivateSegment", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.segment.SegmentServer/InactivateSegment", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (c *segmentServerClient) InactivateSegment(ctx context.Context, in *Inactiv
 
 func (c *segmentServerClient) AppendToBlock(ctx context.Context, in *AppendToBlockRequest, opts ...grpc.CallOption) (*AppendToBlockResponse, error) {
 	out := new(AppendToBlockResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.segment.SegmentServer/AppendToBlock", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.segment.SegmentServer/AppendToBlock", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func (c *segmentServerClient) AppendToBlock(ctx context.Context, in *AppendToBlo
 
 func (c *segmentServerClient) ReadFromBlock(ctx context.Context, in *ReadFromBlockRequest, opts ...grpc.CallOption) (*ReadFromBlockResponse, error) {
 	out := new(ReadFromBlockResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.segment.SegmentServer/ReadFromBlock", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.segment.SegmentServer/ReadFromBlock", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (c *segmentServerClient) ReadFromBlock(ctx context.Context, in *ReadFromBlo
 
 func (c *segmentServerClient) LookupOffsetInBlock(ctx context.Context, in *LookupOffsetInBlockRequest, opts ...grpc.CallOption) (*LookupOffsetInBlockResponse, error) {
 	out := new(LookupOffsetInBlockResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.segment.SegmentServer/LookupOffsetInBlock", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.segment.SegmentServer/LookupOffsetInBlock", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (c *segmentServerClient) LookupOffsetInBlock(ctx context.Context, in *Looku
 
 func (c *segmentServerClient) Status(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*StatusResponse, error) {
 	out := new(StatusResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.segment.SegmentServer/Status", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.segment.SegmentServer/Status", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +219,7 @@ func _SegmentServer_Start_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.segment.SegmentServer/Start",
+		FullMethod: "/vanus.core.segment.SegmentServer/Start",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SegmentServerServer).Start(ctx, req.(*StartSegmentServerRequest))
@@ -237,7 +237,7 @@ func _SegmentServer_Stop_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.segment.SegmentServer/Stop",
+		FullMethod: "/vanus.core.segment.SegmentServer/Stop",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SegmentServerServer).Stop(ctx, req.(*StopSegmentServerRequest))
@@ -255,7 +255,7 @@ func _SegmentServer_CreateBlock_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.segment.SegmentServer/CreateBlock",
+		FullMethod: "/vanus.core.segment.SegmentServer/CreateBlock",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SegmentServerServer).CreateBlock(ctx, req.(*CreateBlockRequest))
@@ -273,7 +273,7 @@ func _SegmentServer_RemoveBlock_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.segment.SegmentServer/RemoveBlock",
+		FullMethod: "/vanus.core.segment.SegmentServer/RemoveBlock",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SegmentServerServer).RemoveBlock(ctx, req.(*RemoveBlockRequest))
@@ -291,7 +291,7 @@ func _SegmentServer_GetBlockInfo_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.segment.SegmentServer/GetBlockInfo",
+		FullMethod: "/vanus.core.segment.SegmentServer/GetBlockInfo",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SegmentServerServer).GetBlockInfo(ctx, req.(*GetBlockInfoRequest))
@@ -309,7 +309,7 @@ func _SegmentServer_ActivateSegment_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.segment.SegmentServer/ActivateSegment",
+		FullMethod: "/vanus.core.segment.SegmentServer/ActivateSegment",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SegmentServerServer).ActivateSegment(ctx, req.(*ActivateSegmentRequest))
@@ -327,7 +327,7 @@ func _SegmentServer_InactivateSegment_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.segment.SegmentServer/InactivateSegment",
+		FullMethod: "/vanus.core.segment.SegmentServer/InactivateSegment",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SegmentServerServer).InactivateSegment(ctx, req.(*InactivateSegmentRequest))
@@ -345,7 +345,7 @@ func _SegmentServer_AppendToBlock_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.segment.SegmentServer/AppendToBlock",
+		FullMethod: "/vanus.core.segment.SegmentServer/AppendToBlock",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SegmentServerServer).AppendToBlock(ctx, req.(*AppendToBlockRequest))
@@ -363,7 +363,7 @@ func _SegmentServer_ReadFromBlock_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.segment.SegmentServer/ReadFromBlock",
+		FullMethod: "/vanus.core.segment.SegmentServer/ReadFromBlock",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SegmentServerServer).ReadFromBlock(ctx, req.(*ReadFromBlockRequest))
@@ -381,7 +381,7 @@ func _SegmentServer_LookupOffsetInBlock_Handler(srv interface{}, ctx context.Con
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.segment.SegmentServer/LookupOffsetInBlock",
+		FullMethod: "/vanus.core.segment.SegmentServer/LookupOffsetInBlock",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SegmentServerServer).LookupOffsetInBlock(ctx, req.(*LookupOffsetInBlockRequest))
@@ -399,7 +399,7 @@ func _SegmentServer_Status_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.segment.SegmentServer/Status",
+		FullMethod: "/vanus.core.segment.SegmentServer/Status",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SegmentServerServer).Status(ctx, req.(*emptypb.Empty))
@@ -411,7 +411,7 @@ func _SegmentServer_Status_Handler(srv interface{}, ctx context.Context, dec fun
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var SegmentServer_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "linkall.vanus.segment.SegmentServer",
+	ServiceName: "vanus.core.segment.SegmentServer",
 	HandlerType: (*SegmentServerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

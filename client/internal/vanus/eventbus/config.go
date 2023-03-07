@@ -14,7 +14,7 @@
 
 package eventbus
 
-// Config is the configuration of EventBus.
+// Config is the configuration of Eventbus.
 type Config struct {
 	Endpoints []string
 	Name      string

@@ -21,12 +21,12 @@ import (
 )
 
 type SubscriptionInfo struct {
-	SubscriptionID vanus.ID       `json:"subscriptionID"`
-	Offsets        ListOffsetInfo `json:"offsetInfos"`
+	SubscriptionID vanus.ID       `json:"subscription_id"`
+	Offsets        ListOffsetInfo `json:"offsets"`
 }
 
 type OffsetInfo struct {
-	EventLogID vanus.ID `json:"eventLogID"`
+	EventlogID vanus.ID `json:"eventlog_id"`
 	Offset     uint64   `json:"offset"`
 }
 

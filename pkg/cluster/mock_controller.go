@@ -214,10 +214,10 @@ func (mr *MockEventbusServiceMockRecorder) IsExist(ctx, name interface{}) *gomoc
 }
 
 // RawClient mocks base method.
-func (m *MockEventbusService) RawClient() controller.EventBusControllerClient {
+func (m *MockEventbusService) RawClient() controller.EventbusControllerClient {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RawClient")
-	ret0, _ := ret[0].(controller.EventBusControllerClient)
+	ret0, _ := ret[0].(controller.EventbusControllerClient)
 	return ret0
 }
 
@@ -251,10 +251,10 @@ func (m *MockEventlogService) EXPECT() *MockEventlogServiceMockRecorder {
 }
 
 // RawClient mocks base method.
-func (m *MockEventlogService) RawClient() controller.EventLogControllerClient {
+func (m *MockEventlogService) RawClient() controller.EventlogControllerClient {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RawClient")
-	ret0, _ := ret[0].(controller.EventLogControllerClient)
+	ret0, _ := ret[0].(controller.EventlogControllerClient)
 	return ret0
 }
 

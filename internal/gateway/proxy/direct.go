@@ -26,92 +26,92 @@ import (
 
 var errMethodNotImplemented = errors.New("the method hasn't implemented")
 
-func (cp *ControllerProxy) CreateEventBus(ctx context.Context,
-	req *ctrlpb.CreateEventBusRequest,
-) (*metapb.EventBus, error) {
-	return cp.eventbusCtrl.CreateEventBus(ctx, req)
+func (cp *ControllerProxy) CreateEventbus(
+	ctx context.Context, req *ctrlpb.CreateEventbusRequest,
+) (*metapb.Eventbus, error) {
+	return cp.eventbusCtrl.CreateEventbus(ctx, req)
 }
 
-func (cp *ControllerProxy) DeleteEventBus(ctx context.Context,
-	req *metapb.EventBus,
+func (cp *ControllerProxy) DeleteEventbus(
+	ctx context.Context, req *metapb.Eventbus,
 ) (*emptypb.Empty, error) {
-	return cp.eventbusCtrl.DeleteEventBus(ctx, req)
+	return cp.eventbusCtrl.DeleteEventbus(ctx, req)
 }
 
-func (cp *ControllerProxy) GetEventBus(ctx context.Context,
-	req *metapb.EventBus,
-) (*metapb.EventBus, error) {
-	return cp.eventbusCtrl.GetEventBus(ctx, req)
+func (cp *ControllerProxy) GetEventbus(
+	ctx context.Context, req *metapb.Eventbus,
+) (*metapb.Eventbus, error) {
+	return cp.eventbusCtrl.GetEventbus(ctx, req)
 }
 
-func (cp *ControllerProxy) ListEventBus(ctx context.Context,
-	req *emptypb.Empty,
+func (cp *ControllerProxy) ListEventbus(
+	ctx context.Context, req *emptypb.Empty,
 ) (*ctrlpb.ListEventbusResponse, error) {
-	return cp.eventbusCtrl.ListEventBus(ctx, req)
+	return cp.eventbusCtrl.ListEventbus(ctx, req)
 }
 
-func (cp *ControllerProxy) UpdateEventBus(_ context.Context,
-	_ *ctrlpb.UpdateEventBusRequest,
-) (*metapb.EventBus, error) {
+func (cp *ControllerProxy) UpdateEventbus(
+	_ context.Context, _ *ctrlpb.UpdateEventbusRequest,
+) (*metapb.Eventbus, error) {
 	return nil, errMethodNotImplemented
 }
 
-func (cp *ControllerProxy) ListSegment(ctx context.Context,
-	req *ctrlpb.ListSegmentRequest,
+func (cp *ControllerProxy) ListSegment(
+	ctx context.Context, req *ctrlpb.ListSegmentRequest,
 ) (*ctrlpb.ListSegmentResponse, error) {
 	return cp.eventlogCtrl.ListSegment(ctx, req)
 }
 
-func (cp *ControllerProxy) CreateSubscription(ctx context.Context,
-	req *ctrlpb.CreateSubscriptionRequest,
+func (cp *ControllerProxy) CreateSubscription(
+	ctx context.Context, req *ctrlpb.CreateSubscriptionRequest,
 ) (*metapb.Subscription, error) {
 	return cp.triggerCtrl.CreateSubscription(ctx, req)
 }
 
-func (cp *ControllerProxy) UpdateSubscription(ctx context.Context,
-	req *ctrlpb.UpdateSubscriptionRequest,
+func (cp *ControllerProxy) UpdateSubscription(
+	ctx context.Context, req *ctrlpb.UpdateSubscriptionRequest,
 ) (*metapb.Subscription, error) {
 	return cp.triggerCtrl.UpdateSubscription(ctx, req)
 }
 
-func (cp *ControllerProxy) DeleteSubscription(ctx context.Context,
-	req *ctrlpb.DeleteSubscriptionRequest,
+func (cp *ControllerProxy) DeleteSubscription(
+	ctx context.Context, req *ctrlpb.DeleteSubscriptionRequest,
 ) (*emptypb.Empty, error) {
 	return cp.triggerCtrl.DeleteSubscription(ctx, req)
 }
 
-func (cp *ControllerProxy) GetSubscription(ctx context.Context,
-	req *ctrlpb.GetSubscriptionRequest,
+func (cp *ControllerProxy) GetSubscription(
+	ctx context.Context, req *ctrlpb.GetSubscriptionRequest,
 ) (*metapb.Subscription, error) {
 	return cp.triggerCtrl.GetSubscription(ctx, req)
 }
 
-func (cp *ControllerProxy) ListSubscription(ctx context.Context,
-	req *ctrlpb.ListSubscriptionRequest,
+func (cp *ControllerProxy) ListSubscription(
+	ctx context.Context, req *ctrlpb.ListSubscriptionRequest,
 ) (*ctrlpb.ListSubscriptionResponse, error) {
 	return cp.triggerCtrl.ListSubscription(ctx, req)
 }
 
-func (cp *ControllerProxy) DisableSubscription(ctx context.Context,
-	req *ctrlpb.DisableSubscriptionRequest,
+func (cp *ControllerProxy) DisableSubscription(
+	ctx context.Context, req *ctrlpb.DisableSubscriptionRequest,
 ) (*emptypb.Empty, error) {
 	return cp.triggerCtrl.DisableSubscription(ctx, req)
 }
 
-func (cp *ControllerProxy) ResumeSubscription(ctx context.Context,
-	req *ctrlpb.ResumeSubscriptionRequest,
+func (cp *ControllerProxy) ResumeSubscription(
+	ctx context.Context, req *ctrlpb.ResumeSubscriptionRequest,
 ) (*emptypb.Empty, error) {
 	return cp.triggerCtrl.ResumeSubscription(ctx, req)
 }
 
-func (cp *ControllerProxy) ResetOffsetToTimestamp(ctx context.Context,
-	req *ctrlpb.ResetOffsetToTimestampRequest,
+func (cp *ControllerProxy) ResetOffsetToTimestamp(
+	ctx context.Context, req *ctrlpb.ResetOffsetToTimestampRequest,
 ) (*ctrlpb.ResetOffsetToTimestampResponse, error) {
 	return cp.triggerCtrl.ResetOffsetToTimestamp(ctx, req)
 }
 
-func (cp *ControllerProxy) SetDeadLetterEventOffset(ctx context.Context,
-	req *ctrlpb.SetDeadLetterEventOffsetRequest,
+func (cp *ControllerProxy) SetDeadLetterEventOffset(
+	ctx context.Context, req *ctrlpb.SetDeadLetterEventOffsetRequest,
 ) (*emptypb.Empty, error) {
 	return cp.triggerCtrl.SetDeadLetterEventOffset(ctx, req)
 }

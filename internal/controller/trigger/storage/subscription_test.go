@@ -70,13 +70,13 @@ func TestGetSubscription(t *testing.T) {
 	Convey("get subscription", t, func() {
 		expect := &metadata.Subscription{
 			ID:       subID,
-			EventBus: "bus",
+			Eventbus: "bus",
 		}
 		v, _ := json.Marshal(expect)
 		kvClient.EXPECT().Get(ctx, s.getKey(subID)).Return(v, nil)
 		data, err := s.GetSubscription(ctx, subID)
 		So(err, ShouldBeNil)
-		So(data.EventBus, ShouldEqual, expect.EventBus)
+		So(data.Eventbus, ShouldEqual, expect.Eventbus)
 	})
 }
 
@@ -104,7 +104,7 @@ func TestListSubscription(t *testing.T) {
 	Convey("list subscription", t, func() {
 		expect := &metadata.Subscription{
 			ID:       subID,
-			EventBus: "bus",
+			Eventbus: "bus",
 		}
 		v, _ := json.Marshal(expect)
 		kvClient.EXPECT().List(ctx, KeyPrefixSubscription.String()).Return([]kv.Pair{
@@ -113,6 +113,6 @@ func TestListSubscription(t *testing.T) {
 		list, err := s.ListSubscription(ctx)
 		So(err, ShouldBeNil)
 		So(len(list), ShouldEqual, 1)
-		So(list[0].EventBus, ShouldEqual, expect.EventBus)
+		So(list[0].Eventbus, ShouldEqual, expect.Eventbus)
 	})
 }

@@ -40,7 +40,7 @@ func (m *manager) ResetOffsetByTimestamp(ctx context.Context, id vanus.ID,
 	if subscription == nil {
 		return nil, errors.ErrResourceNotFound
 	}
-	offsets, err := m.getOffsetFromCli(ctx, subscription.EventBus, primitive.SubscriptionConfig{
+	offsets, err := m.getOffsetFromCli(ctx, subscription.Eventbus, primitive.SubscriptionConfig{
 		OffsetTimestamp: &timestamp,
 		OffsetType:      primitive.Timestamp,
 	})
@@ -83,13 +83,13 @@ func (m *manager) GetOrSaveOffset(ctx context.Context, id vanus.ID) (info.ListOf
 		return offsets, nil
 	}
 
-	offsets, err = m.getOffsetFromCli(ctx, subscription.EventBus, subscription.Config)
+	offsets, err = m.getOffsetFromCli(ctx, subscription.Eventbus, subscription.Config)
 	if err != nil {
 		return nil, err
 	}
 	// get retry eb offset.
 	retryOffset, err := m.getOffsetFromCli(ctx,
-		primitive.GetRetryEventbusName(subscription.EventBus),
+		primitive.GetRetryEventbusName(subscription.Eventbus),
 		primitive.SubscriptionConfig{
 			OffsetType: primitive.LatestOffset,
 		})
@@ -116,23 +116,23 @@ func (m *manager) GetDeadLetterOffset(ctx context.Context, id vanus.ID) (uint64,
 	if err != nil {
 		return 0, err
 	}
-	if m.deadLetterEventLogID == 0 {
+	if m.deadLetterEventlogID == 0 {
 		logIDs, err := m.getEventlogIDFromCli(ctx,
-			primitive.GetDeadLetterEventbusName(subscription.EventBus))
+			primitive.GetDeadLetterEventbusName(subscription.Eventbus))
 		if err != nil {
 			return 0, err
 		}
-		m.deadLetterEventLogID = logIDs[0]
+		m.deadLetterEventlogID = logIDs[0]
 	}
 	for _, offset := range offsets {
-		if offset.EventLogID == m.deadLetterEventLogID {
+		if offset.EventlogID == m.deadLetterEventlogID {
 			return offset.Offset, err
 		}
 	}
 	// storage offsets no exist
 	t := uint64(subscription.CreatedAt.Unix())
 	cliOffsets, err := m.getOffsetFromCli(ctx,
-		primitive.GetDeadLetterEventbusName(subscription.EventBus),
+		primitive.GetDeadLetterEventbusName(subscription.Eventbus),
 		primitive.SubscriptionConfig{
 			OffsetTimestamp: &t,
 			OffsetType:      primitive.Timestamp,
@@ -141,7 +141,7 @@ func (m *manager) GetDeadLetterOffset(ctx context.Context, id vanus.ID) (uint64,
 		return 0, err
 	}
 	_ = m.offsetManager.Offset(ctx, id, info.ListOffsetInfo{
-		{EventLogID: m.deadLetterEventLogID, Offset: cliOffsets[0].Offset},
+		{EventlogID: m.deadLetterEventlogID, Offset: cliOffsets[0].Offset},
 	}, true)
 	return cliOffsets[0].Offset, nil
 }
@@ -151,16 +151,16 @@ func (m *manager) SaveDeadLetterOffset(ctx context.Context, id vanus.ID, offset 
 	if subscription == nil {
 		return errors.ErrResourceNotFound
 	}
-	if m.deadLetterEventLogID == 0 {
+	if m.deadLetterEventlogID == 0 {
 		logIDs, err := m.getEventlogIDFromCli(ctx,
-			primitive.GetDeadLetterEventbusName(subscription.EventBus))
+			primitive.GetDeadLetterEventbusName(subscription.Eventbus))
 		if err != nil {
 			return err
 		}
-		m.deadLetterEventLogID = logIDs[0]
+		m.deadLetterEventlogID = logIDs[0]
 	}
 	return m.offsetManager.Offset(ctx, id, info.ListOffsetInfo{{
-		EventLogID: m.deadLetterEventLogID, Offset: offset,
+		EventlogID: m.deadLetterEventlogID, Offset: offset,
 	}}, true)
 }
 
@@ -206,7 +206,7 @@ func (m *manager) getOffsetFromCli(ctx context.Context, eventbus string,
 			v = 0
 		}
 		offsets[i] = info.OffsetInfo{
-			EventLogID: vanus.NewIDFromUint64(l.ID()),
+			EventlogID: vanus.NewIDFromUint64(l.ID()),
 			Offset:     uint64(v),
 		}
 	}

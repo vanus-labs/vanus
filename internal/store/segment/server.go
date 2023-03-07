@@ -217,7 +217,7 @@ func (s *server) Serve(lis net.Listener) error {
 }
 
 func (s *server) preGrpcStream(ctx context.Context, info *tap.Info) (context.Context, error) {
-	if info.FullMethodName == "/linkall.vanus.raft.RaftServer/SendMessage" {
+	if info.FullMethodName == "/vanus.core.raft.RaftServer/SendMessage" {
 		cCtx, cancel := context.WithCancel(ctx)
 		go func() {
 			select {

@@ -182,7 +182,7 @@ func (tw *triggerWorker) handler(ctx context.Context, subscriptionID vanus.ID) e
 		ID:              sub.ID,
 		Filters:         filters,
 		Sink:            sub.Sink,
-		EventBus:        sub.EventBus,
+		Eventbus:        sub.Eventbus,
 		Offsets:         offsets,
 		Transformer:     sub.Transformer,
 		Config:          sub.Config,

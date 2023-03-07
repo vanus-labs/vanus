@@ -42,7 +42,7 @@ func TestConvert2ProtoSegment(t *testing.T) {
 		seg := Segment{
 			ID:                segID,
 			Capacity:          64 * 1024 * 1024,
-			EventLogID:        eID,
+			EventlogID:        eID,
 			PreviousSegmentID: vanus.NewTestID(),
 			NextSegmentID:     vanus.NewTestID(),
 			StartOffsetInLog:  1000,
@@ -108,7 +108,7 @@ func TestConvert2ProtoSegment(t *testing.T) {
 		So(pbSegs[0].Id, ShouldEqual, seg.ID.Uint64())
 		So(pbSegs[0].PreviousSegmentId, ShouldEqual, seg.PreviousSegmentID.Uint64())
 		So(pbSegs[0].NextSegmentId, ShouldEqual, seg.NextSegmentID.Uint64())
-		So(pbSegs[0].EventLogId, ShouldEqual, eID.Uint64())
+		So(pbSegs[0].EventlogId, ShouldEqual, eID.Uint64())
 		So(pbSegs[0].StartOffsetInLog, ShouldEqual, seg.StartOffsetInLog)
 		So(pbSegs[0].EndOffsetInLog, ShouldEqual, seg.StartOffsetInLog+int64(seg.Number))
 		So(pbSegs[0].Size, ShouldEqual, seg.Size)
@@ -138,7 +138,7 @@ func TestSegment_Copy(t *testing.T) {
 	Convey("test segment copy", t, func() {
 		seg := createTestSegment(vanus.NewTestID())
 		seg.Capacity = 12345678
-		seg.EventLogID = vanus.NewTestID()
+		seg.EventlogID = vanus.NewTestID()
 		seg.PreviousSegmentID = vanus.NewTestID()
 		seg.NextSegmentID = vanus.NewTestID()
 		seg.StartOffsetInLog = 12345
@@ -150,7 +150,7 @@ func TestSegment_Copy(t *testing.T) {
 
 		segV1 := seg.Copy()
 		So(segV1.Capacity, ShouldEqual, seg.Capacity)
-		So(segV1.EventLogID, ShouldEqual, seg.EventLogID)
+		So(segV1.EventlogID, ShouldEqual, seg.EventlogID)
 		So(segV1.PreviousSegmentID, ShouldEqual, seg.PreviousSegmentID)
 		So(segV1.NextSegmentID, ShouldEqual, seg.NextSegmentID)
 		So(segV1.StartOffsetInLog, ShouldEqual, seg.StartOffsetInLog)

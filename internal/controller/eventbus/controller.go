@@ -50,8 +50,8 @@ import (
 )
 
 var (
-	_ ctrlpb.EventBusControllerServer = &controller{}
-	_ ctrlpb.EventLogControllerServer = &controller{}
+	_ ctrlpb.EventbusControllerServer = &controller{}
+	_ ctrlpb.EventlogControllerServer = &controller{}
 	_ ctrlpb.SegmentControllerServer  = &controller{}
 	_ ctrlpb.PingServerServer         = &controller{}
 )
@@ -64,14 +64,14 @@ func NewController(cfg Config, mem member.Member) *controller {
 	c := &controller{
 		cfg:         &cfg,
 		ssMgr:       server.NewServerManager(),
-		eventBusMap: map[string]*metadata.Eventbus{},
+		eventbusMap: map[string]*metadata.Eventbus{},
 		member:      mem,
 		isLeader:    false,
 		readyNotify: make(chan error, 1),
 		stopNotify:  make(chan error, 1),
 	}
 	c.volumeMgr = volume.NewVolumeManager(c.ssMgr)
-	c.eventLogMgr = eventlog.NewManager(c.volumeMgr, cfg.Replicas, cfg.SegmentCapacity)
+	c.eventlogMgr = eventlog.NewManager(c.volumeMgr, cfg.Replicas, cfg.SegmentCapacity)
 	return c
 }
 
@@ -79,9 +79,9 @@ type controller struct {
 	cfg                  *Config
 	kvStore              kv.Client
 	volumeMgr            volume.Manager
-	eventLogMgr          eventlog.Manager
+	eventlogMgr          eventlog.Manager
 	ssMgr                server.Manager
-	eventBusMap          map[string]*metadata.Eventbus
+	eventbusMap          map[string]*metadata.Eventbus
 	member               member.Member
 	cancelCtx            context.Context
 	cancelFunc           context.CancelFunc
@@ -118,19 +118,19 @@ func (ctrl *controller) StopNotify() <-chan error {
 	return ctrl.stopNotify
 }
 
-func (ctrl *controller) CreateEventBus(ctx context.Context,
-	req *ctrlpb.CreateEventBusRequest,
-) (*metapb.EventBus, error) {
+func (ctrl *controller) CreateEventbus(
+	ctx context.Context, req *ctrlpb.CreateEventbusRequest,
+) (*metapb.Eventbus, error) {
 	if err := isValidEventbusName(req.Name); err != nil {
 		return nil, err
 	}
-	eb, err := ctrl.createEventBus(ctx, req)
+	eb, err := ctrl.createEventbus(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 	// TODO async create
 	// create dead letter eventbus
-	_, err = ctrl.createEventBus(context.Background(), &ctrlpb.CreateEventBusRequest{
+	_, err = ctrl.createEventbus(context.Background(), &ctrlpb.CreateEventbusRequest{
 		Name:        primitive.GetDeadLetterEventbusName(req.Name),
 		LogNumber:   1,
 		Description: "System DeadLetter Eventbus For " + req.Name,
@@ -165,18 +165,18 @@ func isValidEventbusName(name string) error {
 	return nil
 }
 
-func (ctrl *controller) CreateSystemEventBus(ctx context.Context,
-	req *ctrlpb.CreateEventBusRequest,
-) (*metapb.EventBus, error) {
+func (ctrl *controller) CreateSystemEventbus(
+	ctx context.Context, req *ctrlpb.CreateEventbusRequest,
+) (*metapb.Eventbus, error) {
 	if !strings.HasPrefix(req.Name, primitive.SystemEventbusNamePrefix) {
 		return nil, errors.ErrInvalidRequest.WithMessage("system eventbus must start with __")
 	}
-	return ctrl.createEventBus(ctx, req)
+	return ctrl.createEventbus(ctx, req)
 }
 
-func (ctrl *controller) createEventBus(ctx context.Context,
-	req *ctrlpb.CreateEventBusRequest,
-) (*metapb.EventBus, error) {
+func (ctrl *controller) createEventbus(
+	ctx context.Context, req *ctrlpb.CreateEventbusRequest,
+) (*metapb.Eventbus, error) {
 	ctrl.mutex.Lock()
 	defer ctrl.mutex.Unlock()
 	if !ctrl.isReady(ctx) {
@@ -203,7 +203,7 @@ func (ctrl *controller) createEventBus(ctx context.Context,
 		ID:          id,
 		Name:        req.Name,
 		LogNumber:   int(logNum),
-		EventLogs:   make([]*metadata.Eventlog, int(logNum)),
+		Eventlogs:   make([]*metadata.Eventlog, int(logNum)),
 		Description: req.Description,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -216,13 +216,13 @@ func (ctrl *controller) createEventBus(ctx context.Context,
 		return nil, errors.ErrResourceAlreadyExist.WithMessage("the eventbus already exist")
 	}
 	for idx := 0; idx < eb.LogNumber; idx++ {
-		el, err := ctrl.eventLogMgr.AcquireEventLog(ctx, eb.ID, eb.Name)
+		el, err := ctrl.eventlogMgr.AcquireEventlog(ctx, eb.ID, eb.Name)
 		if err != nil {
 			return nil, err
 		}
-		eb.EventLogs[idx] = el
+		eb.Eventlogs[idx] = el
 	}
-	ctrl.eventBusMap[eb.Name] = eb
+	ctrl.eventbusMap[eb.Name] = eb
 
 	{
 		data, _ := json.Marshal(eb)
@@ -233,7 +233,7 @@ func (ctrl *controller) createEventBus(ctx context.Context,
 	return ctrl.getEventbus(eb.Name)
 }
 
-func (ctrl *controller) DeleteEventBus(ctx context.Context, eb *metapb.EventBus) (*emptypb.Empty, error) {
+func (ctrl *controller) DeleteEventbus(ctx context.Context, eb *metapb.Eventbus) (*emptypb.Empty, error) {
 	ctrl.mutex.Lock()
 	defer ctrl.mutex.Unlock()
 	err := ctrl.deleteEventbus(ctx, eb.Name)
@@ -254,7 +254,7 @@ func (ctrl *controller) DeleteEventBus(ctx context.Context, eb *metapb.EventBus)
 }
 
 func (ctrl *controller) deleteEventbus(ctx context.Context, name string) error {
-	bus, exist := ctrl.eventBusMap[name]
+	bus, exist := ctrl.eventbusMap[name]
 	if !exist {
 		return errors.ErrResourceNotFound.WithMessage("the eventbus doesn't exist")
 	}
@@ -264,13 +264,13 @@ func (ctrl *controller) deleteEventbus(ctx context.Context, name string) error {
 	}
 
 	// TODO(wenfeng.wang) notify gateway to cut flow
-	delete(ctrl.eventBusMap, name)
+	delete(ctrl.eventbusMap, name)
 	wg := sync.WaitGroup{}
 
-	for _, v := range bus.EventLogs {
+	for _, v := range bus.Eventlogs {
 		wg.Add(1)
 		go func(logID vanus.ID) {
-			ctrl.eventLogMgr.DeleteEventlog(ctx, logID)
+			ctrl.eventlogMgr.DeleteEventlog(ctx, logID)
 			wg.Done()
 		}(v.ID)
 	}
@@ -279,63 +279,63 @@ func (ctrl *controller) deleteEventbus(ctx context.Context, name string) error {
 	return nil
 }
 
-func (ctrl *controller) GetEventBus(ctx context.Context, eb *metapb.EventBus) (*metapb.EventBus, error) {
+func (ctrl *controller) GetEventbus(ctx context.Context, eb *metapb.Eventbus) (*metapb.Eventbus, error) {
 	return ctrl.getEventbus(eb.Name)
 }
 
-func (ctrl *controller) getEventbus(name string) (*metapb.EventBus, error) {
-	_eb, exist := ctrl.eventBusMap[name]
+func (ctrl *controller) getEventbus(name string) (*metapb.Eventbus, error) {
+	_eb, exist := ctrl.eventbusMap[name]
 	if !exist {
 		return nil, errors.ErrResourceNotFound.WithMessage("eventbus not found")
 	}
 
-	ebMD := metadata.Convert2ProtoEventBus(_eb)[0]
+	ebMD := metadata.Convert2ProtoEventbus(_eb)[0]
 	addrs := make([]string, 0)
 	for _, v := range ctrl.cfg.Topology {
 		addrs = append(addrs, v)
 	}
 	for _, v := range ebMD.Logs {
-		v.EventBusName = ebMD.Name
+		v.EventbusName = ebMD.Name
 		v.ServerAddress = addrs
 	}
 	return ebMD, nil
 }
 
-func (ctrl *controller) ListEventBus(ctx context.Context, _ *emptypb.Empty) (*ctrlpb.ListEventbusResponse, error) {
-	eventbusList := make([]*metapb.EventBus, 0)
-	for _, v := range ctrl.eventBusMap {
+func (ctrl *controller) ListEventbus(ctx context.Context, _ *emptypb.Empty) (*ctrlpb.ListEventbusResponse, error) {
+	eventbusList := make([]*metapb.Eventbus, 0)
+	for _, v := range ctrl.eventbusMap {
 		if strings.HasPrefix(v.Name, primitive.SystemEventbusNamePrefix) {
 			continue
 		}
-		ebMD := metadata.Convert2ProtoEventBus(v)[0]
+		ebMD := metadata.Convert2ProtoEventbus(v)[0]
 		eventbusList = append(eventbusList, ebMD)
 	}
 	return &ctrlpb.ListEventbusResponse{Eventbus: eventbusList}, nil
 }
 
-func (ctrl *controller) UpdateEventBus(ctx context.Context,
-	req *ctrlpb.UpdateEventBusRequest,
-) (*metapb.EventBus, error) {
+func (ctrl *controller) UpdateEventbus(
+	ctx context.Context, req *ctrlpb.UpdateEventbusRequest,
+) (*metapb.Eventbus, error) {
 	atomic.AddInt64(&ctrl.eventbusUpdatedCount, 1)
-	return &metapb.EventBus{}, nil
+	return &metapb.Eventbus{}, nil
 }
 
-func (ctrl *controller) ListSegment(ctx context.Context,
-	req *ctrlpb.ListSegmentRequest,
+func (ctrl *controller) ListSegment(
+	ctx context.Context, req *ctrlpb.ListSegmentRequest,
 ) (*ctrlpb.ListSegmentResponse, error) {
-	el := ctrl.eventLogMgr.GetEventLog(ctx, vanus.NewIDFromUint64(req.EventLogId))
+	el := ctrl.eventlogMgr.GetEventlog(ctx, vanus.NewIDFromUint64(req.EventlogId))
 	if el == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
 	}
 
 	return &ctrlpb.ListSegmentResponse{
 		Segments: eventlog.Convert2ProtoSegment(ctx,
-			ctrl.eventLogMgr.GetEventLogSegmentList(el.ID)...),
+			ctrl.eventlogMgr.GetEventlogSegmentList(el.ID)...),
 	}, nil
 }
 
-func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
-	req *ctrlpb.RegisterSegmentServerRequest,
+func (ctrl *controller) RegisterSegmentServer(
+	ctx context.Context, req *ctrlpb.RegisterSegmentServerRequest,
 ) (*ctrlpb.RegisterSegmentServerResponse, error) {
 	srv, err := server.NewSegmentServer(req.Address)
 	if err != nil {
@@ -370,7 +370,7 @@ func (ctrl *controller) RegisterSegmentServer(ctx context.Context,
 		if v.EventlogID == vanus.EmptyID() {
 			continue
 		}
-		seg, err := ctrl.eventLogMgr.GetSegmentByBlockID(v)
+		seg, err := ctrl.eventlogMgr.GetSegmentByBlockID(v)
 		if err != nil {
 			return nil, err
 		}
@@ -485,7 +485,7 @@ func (ctrl *controller) processHeartbeat(ctx context.Context, req *ctrlpb.Segmen
 	segments := make(map[string][]eventlog.Segment)
 	for _, info := range req.HealthInfo {
 		blockID := vanus.NewIDFromUint64(info.Id)
-		block := ctrl.eventLogMgr.GetBlock(blockID)
+		block := ctrl.eventlogMgr.GetBlock(blockID)
 		if block == nil {
 			continue
 		}
@@ -501,7 +501,7 @@ func (ctrl *controller) processHeartbeat(ctx context.Context, req *ctrlpb.Segmen
 		seg := eventlog.Segment{
 			ID:                 block.SegmentID,
 			Capacity:           info.Capacity,
-			EventLogID:         block.EventlogID,
+			EventlogID:         block.EventlogID,
 			Size:               info.Size,
 			Number:             info.EventNumber,
 			FirstEventBornTime: time.UnixMilli(info.FirstEventBornTime),
@@ -513,14 +513,14 @@ func (ctrl *controller) processHeartbeat(ctx context.Context, req *ctrlpb.Segmen
 		logArr = append(logArr, seg)
 		segments[block.EventlogID.Key()] = logArr
 	}
-	ctrl.eventLogMgr.UpdateSegment(ctx, segments)
+	ctrl.eventlogMgr.UpdateSegment(ctx, segments)
 	return nil
 }
 
-func (ctrl *controller) GetAppendableSegment(ctx context.Context,
-	req *ctrlpb.GetAppendableSegmentRequest,
+func (ctrl *controller) GetAppendableSegment(
+	ctx context.Context, req *ctrlpb.GetAppendableSegmentRequest,
 ) (*ctrlpb.GetAppendableSegmentResponse, error) {
-	eli := ctrl.eventLogMgr.GetEventLog(ctx, vanus.NewIDFromUint64(req.EventLogId))
+	eli := ctrl.eventlogMgr.GetEventlog(ctx, vanus.NewIDFromUint64(req.EventlogId))
 	if eli == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("eventlog not found")
 	}
@@ -528,15 +528,15 @@ func (ctrl *controller) GetAppendableSegment(ctx context.Context,
 	if num == 0 {
 		num = 1
 	}
-	segInfos, err := ctrl.eventLogMgr.GetAppendableSegment(ctx, eli, num)
+	segInfos, err := ctrl.eventlogMgr.GetAppendableSegment(ctx, eli, num)
 	if err != nil {
 		return nil, err
 	}
 	return &ctrlpb.GetAppendableSegmentResponse{Segments: eventlog.Convert2ProtoSegment(ctx, segInfos...)}, nil
 }
 
-func (ctrl *controller) ReportSegmentBlockIsFull(ctx context.Context,
-	req *ctrlpb.SegmentHeartbeatRequest,
+func (ctrl *controller) ReportSegmentBlockIsFull(
+	ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest,
 ) (*emptypb.Empty, error) {
 	for _, info := range req.GetHealthInfo() {
 		log.Info(ctx, "Received segment block is full report.", map[string]interface{}{
@@ -568,10 +568,10 @@ func (ctrl *controller) isReady(ctx context.Context) bool {
 	return ctrl.ssMgr.CanCreateEventbus(ctx, int(ctrl.cfg.Replicas))
 }
 
-func (ctrl *controller) ReportSegmentLeader(ctx context.Context,
-	req *ctrlpb.ReportSegmentLeaderRequest,
+func (ctrl *controller) ReportSegmentLeader(
+	ctx context.Context, req *ctrlpb.ReportSegmentLeaderRequest,
 ) (*emptypb.Empty, error) {
-	err := ctrl.eventLogMgr.UpdateSegmentReplicas(ctx, vanus.NewIDFromUint64(req.LeaderId), req.Term)
+	err := ctrl.eventlogMgr.UpdateSegmentReplicas(ctx, vanus.NewIDFromUint64(req.LeaderId), req.Term)
 	if err != nil {
 		return nil, err
 	}
@@ -596,7 +596,7 @@ func (ctrl *controller) recordMetrics() {
 			ctrl.membershipMutex.Unlock()
 
 			ctrl.mutex.Lock()
-			metrics.EventbusGauge.Set(float64(len(ctrl.eventBusMap)))
+			metrics.EventbusGauge.Set(float64(len(ctrl.eventbusMap)))
 			metrics.EventbusUpdatedGauge.Set(float64(
 				atomic.LoadInt64(&ctrl.eventbusUpdatedCount)))
 			metrics.EventbusDeletedGauge.Set(float64(
@@ -629,7 +629,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event me
 			return err
 		}
 
-		if err := ctrl.eventLogMgr.Run(ctx, ctrl.kvStore, true); err != nil {
+		if err := ctrl.eventlogMgr.Run(ctx, ctrl.kvStore, true); err != nil {
 			ctrl.stop(ctx, err)
 			return err
 		}
@@ -643,7 +643,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event me
 			return nil
 		}
 		ctrl.isLeader = false
-		ctrl.eventLogMgr.Stop()
+		ctrl.eventlogMgr.Stop()
 		ctrl.ssMgr.Stop(ctx)
 	}
 	return nil
@@ -662,7 +662,7 @@ func (ctrl *controller) loadEventbus(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		ctrl.eventBusMap[filepath.Base(pair.Key)] = busInfo
+		ctrl.eventbusMap[filepath.Base(pair.Key)] = busInfo
 	}
 	return nil
 }

@@ -125,7 +125,7 @@ type eventbus struct {
 	tracer *tracing.Tracer
 }
 
-// make sure eventbus implements EventBus.
+// make sure eventbus implements api.Eventbus.
 var _ api.Eventbus = (*eventbus)(nil)
 
 func (b *eventbus) defaultWriteOptions() *api.WriteOptions {
@@ -308,7 +308,7 @@ func (b *eventbus) updateWritableLogs(ctx context.Context, re *WritableLogsResul
 			Endpoints: b.cfg.Endpoints,
 			ID:        logID,
 		}
-		lws[logID] = eventlog.NewEventLog(cfg)
+		lws[logID] = eventlog.NewEventlog(cfg)
 		return true
 	})
 	b.setWritableLogs(s, lws)
@@ -400,7 +400,7 @@ func (b *eventbus) updateReadableLogs(ctx context.Context, re *ReadableLogsResul
 			Endpoints: b.cfg.Endpoints,
 			ID:        logID,
 		}
-		lws[logID] = eventlog.NewEventLog(cfg)
+		lws[logID] = eventlog.NewEventlog(cfg)
 		return true
 	})
 	b.setReadableLogs(s, lws)

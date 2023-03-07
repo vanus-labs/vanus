@@ -181,7 +181,7 @@ func TestWorker_Stop(t *testing.T) {
 		triggerClient := controller.NewMockTriggerControllerClient(ctrl)
 		m.client = triggerClient
 		tg.EXPECT().Stop(gomock.Any()).AnyTimes().Return(nil)
-		offsets := info.ListOffsetInfo{{EventLogID: vanus.NewTestID(), Offset: uint64(100)}}
+		offsets := info.ListOffsetInfo{{EventlogID: vanus.NewTestID(), Offset: uint64(100)}}
 		tg.EXPECT().GetOffsets(gomock.Any()).AnyTimes().Return(offsets)
 		triggerClient.EXPECT().CommitOffset(gomock.Any(), gomock.Any()).Return(nil, nil)
 		err = m.Stop(ctx)

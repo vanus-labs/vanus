@@ -92,7 +92,7 @@ func (s *segmentServer) GetBlockInfo(
 func (s *segmentServer) ActivateSegment(
 	ctx context.Context, req *segpb.ActivateSegmentRequest,
 ) (*segpb.ActivateSegmentResponse, error) {
-	logID := vanus.NewIDFromUint64(req.EventLogId)
+	logID := vanus.NewIDFromUint64(req.EventlogId)
 	segID := vanus.NewIDFromUint64(req.ReplicaGroupId)
 	replicas := make(map[vanus.ID]string, len(req.Replicas))
 	for id, endpoint := range req.Replicas {

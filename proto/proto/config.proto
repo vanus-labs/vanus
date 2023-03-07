@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-package linkall.vanus.config;
+package vanus.core.config;
 
 option go_package = "github.com/vanus-labs/vanus/proto/pkg/config";
 

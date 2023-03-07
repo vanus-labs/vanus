@@ -509,7 +509,7 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 
 func (t *trigger) getReaderConfig() reader.Config {
 	return reader.Config{
-		EventBusName:   t.subscription.EventBus,
+		EventbusName:   t.subscription.Eventbus,
 		Client:         t.client,
 		SubscriptionID: t.subscription.ID,
 		BatchSize:      t.config.PullBatchSize,
@@ -520,7 +520,7 @@ func (t *trigger) getReaderConfig() reader.Config {
 func (t *trigger) getRetryEventReaderConfig() reader.Config {
 	ebName := t.config.RetryEventbus
 	return reader.Config{
-		EventBusName:   ebName,
+		EventbusName:   ebName,
 		Client:         t.client,
 		SubscriptionID: t.subscription.ID,
 		BatchSize:      t.config.PullBatchSize,
@@ -533,7 +533,7 @@ func getOffset(sub *primitive.Subscription) map[vanus.ID]uint64 {
 	// get offset from subscription
 	offsetMap := make(map[vanus.ID]uint64)
 	for _, o := range sub.Offsets {
-		offsetMap[o.EventLogID] = o.Offset
+		offsetMap[o.EventlogID] = o.Offset
 	}
 	return offsetMap
 }

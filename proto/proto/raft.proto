@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-package linkall.vanus.raft;
+package vanus.core.raft;
 
 import "google/protobuf/empty.proto";
 import "raftpb/raft.proto";

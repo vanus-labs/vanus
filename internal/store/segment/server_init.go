@@ -229,7 +229,7 @@ func (s *server) registerReplicas(ctx context.Context, segment *metapb.Segment) 
 				log.Info(ctx, "Block is offline.", map[string]interface{}{
 					"block_id":    blockID,
 					"segment_id":  segment.Id,
-					"eventlog_id": segment.EventLogId,
+					"eventlog_id": segment.EventlogId,
 					"volume_id":   block.VolumeID,
 				})
 				continue

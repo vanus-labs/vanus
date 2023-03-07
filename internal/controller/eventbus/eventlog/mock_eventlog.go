@@ -37,19 +37,19 @@ func (m *MockManager) EXPECT() *MockManagerMockRecorder {
 	return m.recorder
 }
 
-// AcquireEventLog mocks base method.
-func (m *MockManager) AcquireEventLog(ctx context.Context, eventbusID vanus.ID, eventbusName string) (*metadata.Eventlog, error) {
+// AcquireEventlog mocks base method.
+func (m *MockManager) AcquireEventlog(ctx context.Context, eventbusID vanus.ID, eventbusName string) (*metadata.Eventlog, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AcquireEventLog", ctx, eventbusID, eventbusName)
+	ret := m.ctrl.Call(m, "AcquireEventlog", ctx, eventbusID, eventbusName)
 	ret0, _ := ret[0].(*metadata.Eventlog)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// AcquireEventLog indicates an expected call of AcquireEventLog.
-func (mr *MockManagerMockRecorder) AcquireEventLog(ctx, eventbusID, eventbusName interface{}) *gomock.Call {
+// AcquireEventlog indicates an expected call of AcquireEventlog.
+func (mr *MockManagerMockRecorder) AcquireEventlog(ctx, eventbusID, eventbusName interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AcquireEventLog", reflect.TypeOf((*MockManager)(nil).AcquireEventLog), ctx, eventbusID, eventbusName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AcquireEventlog", reflect.TypeOf((*MockManager)(nil).AcquireEventlog), ctx, eventbusID, eventbusName)
 }
 
 // DeleteEventlog mocks base method.
@@ -93,32 +93,32 @@ func (mr *MockManagerMockRecorder) GetBlock(id interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlock", reflect.TypeOf((*MockManager)(nil).GetBlock), id)
 }
 
-// GetEventLog mocks base method.
-func (m *MockManager) GetEventLog(ctx context.Context, id vanus.ID) *metadata.Eventlog {
+// GetEventlog mocks base method.
+func (m *MockManager) GetEventlog(ctx context.Context, id vanus.ID) *metadata.Eventlog {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetEventLog", ctx, id)
+	ret := m.ctrl.Call(m, "GetEventlog", ctx, id)
 	ret0, _ := ret[0].(*metadata.Eventlog)
 	return ret0
 }
 
-// GetEventLog indicates an expected call of GetEventLog.
-func (mr *MockManagerMockRecorder) GetEventLog(ctx, id interface{}) *gomock.Call {
+// GetEventlog indicates an expected call of GetEventlog.
+func (mr *MockManagerMockRecorder) GetEventlog(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventLog", reflect.TypeOf((*MockManager)(nil).GetEventLog), ctx, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventlog", reflect.TypeOf((*MockManager)(nil).GetEventlog), ctx, id)
 }
 
-// GetEventLogSegmentList mocks base method.
-func (m *MockManager) GetEventLogSegmentList(elID vanus.ID) []Segment {
+// GetEventlogSegmentList mocks base method.
+func (m *MockManager) GetEventlogSegmentList(elID vanus.ID) []Segment {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetEventLogSegmentList", elID)
+	ret := m.ctrl.Call(m, "GetEventlogSegmentList", elID)
 	ret0, _ := ret[0].([]Segment)
 	return ret0
 }
 
-// GetEventLogSegmentList indicates an expected call of GetEventLogSegmentList.
-func (mr *MockManagerMockRecorder) GetEventLogSegmentList(elID interface{}) *gomock.Call {
+// GetEventlogSegmentList indicates an expected call of GetEventlogSegmentList.
+func (mr *MockManagerMockRecorder) GetEventlogSegmentList(elID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventLogSegmentList", reflect.TypeOf((*MockManager)(nil).GetEventLogSegmentList), elID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventlogSegmentList", reflect.TypeOf((*MockManager)(nil).GetEventlogSegmentList), elID)
 }
 
 // GetSegmentByBlockID mocks base method.

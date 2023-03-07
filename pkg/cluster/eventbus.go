@@ -17,7 +17,7 @@ var (
 )
 
 type eventbusService struct {
-	client ctrlpb.EventBusControllerClient
+	client ctrlpb.EventbusControllerClient
 }
 
 func newEventbusService(cc *raw_client.Conn) EventbusService {
@@ -25,7 +25,7 @@ func newEventbusService(cc *raw_client.Conn) EventbusService {
 }
 
 func (es *eventbusService) IsExist(ctx context.Context, name string) bool {
-	_, err := es.client.GetEventBus(ctx, &metapb.EventBus{
+	_, err := es.client.GetEventbus(ctx, &metapb.Eventbus{
 		Name: name,
 	})
 	return err == nil
@@ -36,7 +36,7 @@ func (es *eventbusService) CreateSystemEventbusIfNotExist(ctx context.Context, n
 		return nil
 	}
 
-	_, err := es.client.CreateSystemEventBus(ctx, &ctrlpb.CreateEventBusRequest{
+	_, err := es.client.CreateSystemEventbus(ctx, &ctrlpb.CreateEventbusRequest{
 		Name:        name,
 		LogNumber:   int32(defaultSystemEventbusEventlog),
 		Description: desc,
@@ -49,12 +49,12 @@ func (es *eventbusService) Delete(ctx context.Context, name string) error {
 		return fmt.Errorf("the system eventbus must start with %s", systemEventbusPrefix)
 	}
 
-	_, err := es.client.DeleteEventBus(ctx, &metapb.EventBus{
+	_, err := es.client.DeleteEventbus(ctx, &metapb.Eventbus{
 		Name: name,
 	})
 	return err
 }
 
-func (es *eventbusService) RawClient() ctrlpb.EventBusControllerClient {
+func (es *eventbusService) RawClient() ctrlpb.EventbusControllerClient {
 	return es.client
 }

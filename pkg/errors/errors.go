@@ -94,16 +94,17 @@ var (
 
 	// RESOURCE_NOT_FOUND
 	ErrResourceNotFound       = New("resource not found").WithGRPCCode(ErrorCode_RESOURCE_NOT_FOUND)
-	ErrEventLogNotFound       = New("eventlog not found").WithGRPCCode(ErrorCode_EVENTLOG_NOT_FOUND)
+	ErrEventlogNotFound       = New("eventlog not found").WithGRPCCode(ErrorCode_EVENTLOG_NOT_FOUND)
 	ErrSegmentNotFound        = New("segment not found").WithGRPCCode(ErrorCode_SEGMENT_NOT_FOUND)
 	ErrBlockNotFound          = New("block not found").WithGRPCCode(ErrorCode_BLOCK_NOT_FOUND)
 	ErrVolumeInstanceNotFound = New("volume instance not found").WithGRPCCode(ErrorCode_VOLUME_NOT_FOUND)
 
 	// SERVICE_NOT_RUNNING
 	ErrServerNotStart            = New("server not start").WithGRPCCode(ErrorCode_SERVICE_NOT_RUNNING)
-	ErrSegmentServerHasBeenAdded = New("the segment server has been added").WithGRPCCode(ErrorCode_SEGMENT_SERVER_HAS_BEEN_ADDED)
-	ErrServiceState              = New("service state error").WithGRPCCode(ErrorCode_SERVICE_STATE_ERROR)
-	ErrWorkerNotStart            = New("worker not start").WithGRPCCode(ErrorCode_WORKER_NOT_RUNNING)
+	ErrSegmentServerHasBeenAdded = New("the segment server has been added").WithGRPCCode(
+		ErrorCode_SEGMENT_SERVER_HAS_BEEN_ADDED)
+	ErrServiceState   = New("service state error").WithGRPCCode(ErrorCode_SERVICE_STATE_ERROR)
+	ErrWorkerNotStart = New("worker not start").WithGRPCCode(ErrorCode_WORKER_NOT_RUNNING)
 
 	// SEGMENT_FULL
 	ErrSegmentFull           = New("segment full").WithGRPCCode(ErrorCode_SEGMENT_FULL)
@@ -153,7 +154,7 @@ var (
 	ErrNotRaftLeader      = New("the node is not raft leader").WithGRPCCode(ErrorCode_NOT_RAFT_LEADER)
 
 	// RESOURCE_EXHAUSTED
-	ErrNoAvailableEventLog = New("no eventlog available").WithGRPCCode(ErrorCode_RESOURCE_EXHAUSTED)
+	ErrNoAvailableEventlog = New("no eventlog available").WithGRPCCode(ErrorCode_RESOURCE_EXHAUSTED)
 
 	// NO_MORE_MESSAGE
 

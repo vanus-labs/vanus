@@ -37,7 +37,7 @@ type pingClient struct {
 
 func (p pingClient) Ping(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ctrlpb.PingResponse, error) {
 	out := new(ctrlpb.PingResponse)
-	err := p.cc.invoke(ctx, "/linkall.vanus.controller.PingServer/Ping", in, out, opts...)
+	err := p.cc.invoke(ctx, "/vanus.core.controller.PingServer/Ping", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}

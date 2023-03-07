@@ -124,14 +124,14 @@ func TestGateway_checkExtension(t *testing.T) {
 	})
 }
 
-func TestGateway_getEventBusFromPath(t *testing.T) {
+func TestGateway_getEventbusFromPath(t *testing.T) {
 	Convey("test get eventbus from path return nil ", t, func() {
 		reqData := &cehttp.RequestData{
 			URL: &url.URL{
 				Opaque: "/test",
 			},
 		}
-		ret := getEventBusFromPath(reqData)
+		ret := getEventbusFromPath(reqData)
 		So(ret, ShouldEqual, "")
 	})
 	Convey("test get eventbus from path return path ", t, func() {
@@ -140,7 +140,7 @@ func TestGateway_getEventBusFromPath(t *testing.T) {
 				Opaque: "/gateway/test",
 			},
 		}
-		ret := getEventBusFromPath(reqData)
+		ret := getEventbusFromPath(reqData)
 		So(ret, ShouldEqual, "test")
 	})
 }

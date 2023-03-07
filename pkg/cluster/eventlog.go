@@ -7,13 +7,13 @@ import (
 )
 
 type eventlogService struct {
-	client ctrlpb.EventLogControllerClient
+	client ctrlpb.EventlogControllerClient
 }
 
 func newEventlogService(cc *raw_client.Conn) EventlogService {
 	return &eventlogService{client: raw_client.NewEventlogClient(cc)}
 }
 
-func (es *eventlogService) RawClient() ctrlpb.EventLogControllerClient {
+func (es *eventlogService) RawClient() ctrlpb.EventlogControllerClient {
 	return es.client
 }

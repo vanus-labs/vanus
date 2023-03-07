@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-package linkall.vanus.trigger;
+package vanus.core.trigger;
 
 import "config.proto";
 import "meta.proto";
@@ -31,7 +31,7 @@ service TriggerWorker {
 }
 
 message StartTriggerWorkerRequest {
-  linkall.vanus.config.ServerConfig config = 1;
+  config.ServerConfig config = 1;
 }
 
 message StartTriggerWorkerResponse {}
@@ -48,7 +48,7 @@ message AddSubscriptionRequest {
   meta.SinkCredential sink_credential = 5;
   meta.Protocol protocol = 6;
   meta.ProtocolSetting protocol_settings = 7;
-  string event_bus = 8;
+  string eventbus = 8;
   meta.Transformer transformer = 9;
   repeated meta.OffsetInfo offsets = 10;
 }
