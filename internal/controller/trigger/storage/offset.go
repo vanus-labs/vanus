@@ -48,8 +48,8 @@ func NewOffsetStorage(client kv.Client) OffsetStorage {
 	}
 }
 
-func (s *offsetStorage) getKey(subscriptionID, eventLogID vanus.ID) string {
-	return path.Join(KeyPrefixOffset.String(), subscriptionID.String(), eventLogID.String())
+func (s *offsetStorage) getKey(subscriptionID, eventlogID vanus.ID) string {
+	return path.Join(KeyPrefixOffset.String(), subscriptionID.String(), eventlogID.String())
 }
 
 func (s *offsetStorage) getSubKey(subscriptionID vanus.ID) string {
@@ -76,11 +76,11 @@ func (s *offsetStorage) byteArrToUint64(b []byte) uint64 {
 }
 
 func (s *offsetStorage) CreateOffset(ctx context.Context, subscriptionID vanus.ID, info info.OffsetInfo) error {
-	return s.client.Create(ctx, s.getKey(subscriptionID, info.EventLogID), s.int64ToByteArr(info.Offset))
+	return s.client.Create(ctx, s.getKey(subscriptionID, info.EventlogID), s.int64ToByteArr(info.Offset))
 }
 
 func (s *offsetStorage) UpdateOffset(ctx context.Context, subscriptionID vanus.ID, info info.OffsetInfo) error {
-	return s.client.Update(ctx, s.getKey(subscriptionID, info.EventLogID), s.int64ToByteArr(info.Offset))
+	return s.client.Update(ctx, s.getKey(subscriptionID, info.EventlogID), s.int64ToByteArr(info.Offset))
 }
 
 func (s *offsetStorage) GetOffsets(ctx context.Context, subscriptionID vanus.ID) (info.ListOffsetInfo, error) {
@@ -94,7 +94,7 @@ func (s *offsetStorage) GetOffsets(ctx context.Context, subscriptionID vanus.ID)
 		if err != nil {
 			return nil, err
 		}
-		infos = append(infos, info.OffsetInfo{EventLogID: id, Offset: s.byteArrToUint64(v.Value)})
+		infos = append(infos, info.OffsetInfo{EventlogID: id, Offset: s.byteArrToUint64(v.Value)})
 	}
 	return infos, nil
 }

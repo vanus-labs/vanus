@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-package linkall.vanus.meta;
+package vanus.core.meta;
 
 import "google/protobuf/struct.proto";
 
@@ -24,19 +24,19 @@ message VanusResourceName {
   string value = 1;
 }
 
-message EventBus {
+message Eventbus {
   string name = 1;
   int32 log_number = 2;
-  repeated EventLog logs = 3;
+  repeated Eventlog logs = 3;
   uint64 id = 4;
   string description = 5;
   int64 created_at = 6;
   int64 updated_at = 7;
 }
 
-message EventLog {
-  string event_bus_name = 1;
-  uint64 event_log_id = 2;
+message Eventlog {
+  string eventbus_name = 1;
+  uint64 eventlog_id = 2;
   int32 current_segment_numbers = 3;
   repeated string server_address = 4;
 }
@@ -51,7 +51,7 @@ message Segment {
   uint64 id = 1;
   uint64 previous_segment_id = 2;
   uint64 next_segment_id = 3;
-  uint64 event_log_id = 4;
+  uint64 eventlog_id = 4;
   int64 start_offset_in_log = 5;
   int64 end_offset_in_log = 6;
   int64 size = 7;
@@ -67,7 +67,7 @@ message Segment {
 
 message SegmentHealthInfo {
   uint64 id = 1;
-  uint64 event_log_id = 2;
+  uint64 eventlog_id = 2;
   int64 capacity = 3;
   int64 size = 4;
   int32 event_number = 5;
@@ -102,7 +102,7 @@ message Subscription {
   meta.SinkCredential sink_credential = 6;
   meta.Protocol protocol = 7;
   meta.ProtocolSetting protocol_settings = 8;
-  string event_bus = 9;
+  string eventbus = 9;
   meta.Transformer transformer = 10;
   string name = 11;
   string description = 12;
@@ -189,7 +189,7 @@ message SubscriptionInfo {
 
 message OffsetInfo {
   uint64 offset = 1;
-  uint64 event_log_id = 2;
+  uint64 eventlog_id = 2;
 }
 
 message Transformer {

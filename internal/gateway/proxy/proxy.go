@@ -137,8 +137,8 @@ type ControllerProxy struct {
 	cfg          Config
 	tracer       *tracing.Tracer
 	client       eb.Client
-	eventbusCtrl ctrlpb.EventBusControllerClient
-	eventlogCtrl ctrlpb.EventLogControllerClient
+	eventbusCtrl ctrlpb.EventbusControllerClient
+	eventlogCtrl ctrlpb.EventlogControllerClient
 	triggerCtrl  ctrlpb.TriggerControllerClient
 	grpcSrv      *grpc.Server
 	ctrl         cluster.Cluster
@@ -448,7 +448,7 @@ func newSubscription(
 			Filters:     info.Filters,
 			Sink:        newsink,
 			Protocol:    info.Protocol,
-			EventBus:    info.EventBus,
+			Eventbus:    info.Eventbus,
 			Transformer: info.Transformer,
 			Name:        info.Name,
 			Description: info.Description,

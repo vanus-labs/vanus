@@ -67,7 +67,7 @@ type manager struct {
 	offsetManager        offset.Manager
 	lock                 sync.RWMutex
 	subscriptionMap      map[vanus.ID]*metadata.Subscription
-	deadLetterEventLogID vanus.ID
+	deadLetterEventlogID vanus.ID
 }
 
 func NewSubscriptionManager(storage storage.Storage, secretStorage secret.Storage, ebCli eb.Client) Manager {
@@ -95,7 +95,7 @@ func (m *manager) GetSubscriptionByName(ctx context.Context, eventbus, name stri
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	for _, sub := range m.subscriptionMap {
-		if sub.EventBus != eventbus {
+		if sub.Eventbus != eventbus {
 			continue
 		}
 		if sub.Name == name {
@@ -127,9 +127,9 @@ func (m *manager) AddSubscription(ctx context.Context, subscription *metadata.Su
 		return err
 	}
 	m.subscriptionMap[subscription.ID] = subscription
-	metrics.SubscriptionGauge.WithLabelValues(subscription.EventBus).Inc()
+	metrics.SubscriptionGauge.WithLabelValues(subscription.Eventbus).Inc()
 	if subscription.Transformer.Exist() {
-		metrics.SubscriptionTransformerGauge.WithLabelValues(subscription.EventBus).Inc()
+		metrics.SubscriptionTransformerGauge.WithLabelValues(subscription.Eventbus).Inc()
 	}
 	return nil
 }
@@ -180,9 +180,9 @@ func (m *manager) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 		return err
 	}
 	delete(m.subscriptionMap, id)
-	metrics.SubscriptionGauge.WithLabelValues(subscription.EventBus).Dec()
+	metrics.SubscriptionGauge.WithLabelValues(subscription.Eventbus).Dec()
 	if subscription.Transformer.Exist() {
-		metrics.SubscriptionTransformerGauge.WithLabelValues(subscription.EventBus).Dec()
+		metrics.SubscriptionTransformerGauge.WithLabelValues(subscription.Eventbus).Dec()
 	}
 	return nil
 }
@@ -226,9 +226,9 @@ func (m *manager) Init(ctx context.Context) error {
 			sub.SinkCredential = credential
 		}
 		m.subscriptionMap[sub.ID] = sub
-		metrics.SubscriptionGauge.WithLabelValues(sub.EventBus).Inc()
+		metrics.SubscriptionGauge.WithLabelValues(sub.Eventbus).Inc()
 		if sub.Transformer.Exist() {
-			metrics.SubscriptionTransformerGauge.WithLabelValues(sub.EventBus).Inc()
+			metrics.SubscriptionTransformerGauge.WithLabelValues(sub.Eventbus).Inc()
 		}
 		if sub.TriggerWorker != "" {
 			metrics.CtrlTriggerGauge.WithLabelValues(sub.TriggerWorker).Inc()

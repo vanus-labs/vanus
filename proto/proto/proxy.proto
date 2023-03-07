@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-package linkall.vanus.proxy;
+package vanus.core.proxy;
 
 import "cloudevents.proto";
 import "controller.proto";
@@ -26,11 +26,11 @@ option go_package = "github.com/vanus-labs/vanus/proto/pkg/proxy";
 
 service ControllerProxy {
   // Eventbus
-  rpc CreateEventBus(controller.CreateEventBusRequest) returns (meta.EventBus);
-  rpc DeleteEventBus(meta.EventBus) returns (google.protobuf.Empty);
-  rpc GetEventBus(meta.EventBus) returns (meta.EventBus);
-  rpc ListEventBus(google.protobuf.Empty) returns (controller.ListEventbusResponse);
-  rpc UpdateEventBus(controller.UpdateEventBusRequest) returns (meta.EventBus);
+  rpc CreateEventbus(controller.CreateEventbusRequest) returns (meta.Eventbus);
+  rpc DeleteEventbus(meta.Eventbus) returns (google.protobuf.Empty);
+  rpc GetEventbus(meta.Eventbus) returns (meta.Eventbus);
+  rpc ListEventbus(google.protobuf.Empty) returns (controller.ListEventbusResponse);
+  rpc UpdateEventbus(controller.UpdateEventbusRequest) returns (meta.Eventbus);
   rpc ListSegment(controller.ListSegmentRequest) returns (controller.ListSegmentResponse);
 
   // Trigger

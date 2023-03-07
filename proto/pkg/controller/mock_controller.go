@@ -133,322 +133,322 @@ func (mr *MockUnsafePingServerServerMockRecorder) mustEmbedUnimplementedPingServ
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "mustEmbedUnimplementedPingServerServer", reflect.TypeOf((*MockUnsafePingServerServer)(nil).mustEmbedUnimplementedPingServerServer))
 }
 
-// MockEventBusControllerClient is a mock of EventBusControllerClient interface.
-type MockEventBusControllerClient struct {
+// MockEventbusControllerClient is a mock of EventbusControllerClient interface.
+type MockEventbusControllerClient struct {
 	ctrl     *gomock.Controller
-	recorder *MockEventBusControllerClientMockRecorder
+	recorder *MockEventbusControllerClientMockRecorder
 }
 
-// MockEventBusControllerClientMockRecorder is the mock recorder for MockEventBusControllerClient.
-type MockEventBusControllerClientMockRecorder struct {
-	mock *MockEventBusControllerClient
+// MockEventbusControllerClientMockRecorder is the mock recorder for MockEventbusControllerClient.
+type MockEventbusControllerClientMockRecorder struct {
+	mock *MockEventbusControllerClient
 }
 
-// NewMockEventBusControllerClient creates a new mock instance.
-func NewMockEventBusControllerClient(ctrl *gomock.Controller) *MockEventBusControllerClient {
-	mock := &MockEventBusControllerClient{ctrl: ctrl}
-	mock.recorder = &MockEventBusControllerClientMockRecorder{mock}
+// NewMockEventbusControllerClient creates a new mock instance.
+func NewMockEventbusControllerClient(ctrl *gomock.Controller) *MockEventbusControllerClient {
+	mock := &MockEventbusControllerClient{ctrl: ctrl}
+	mock.recorder = &MockEventbusControllerClientMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockEventBusControllerClient) EXPECT() *MockEventBusControllerClientMockRecorder {
+func (m *MockEventbusControllerClient) EXPECT() *MockEventbusControllerClientMockRecorder {
 	return m.recorder
 }
 
-// CreateEventBus mocks base method.
-func (m *MockEventBusControllerClient) CreateEventBus(ctx context.Context, in *CreateEventBusRequest, opts ...grpc.CallOption) (*meta.EventBus, error) {
+// CreateEventbus mocks base method.
+func (m *MockEventbusControllerClient) CreateEventbus(ctx context.Context, in *CreateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "CreateEventBus", varargs...)
-	ret0, _ := ret[0].(*meta.EventBus)
+	ret := m.ctrl.Call(m, "CreateEventbus", varargs...)
+	ret0, _ := ret[0].(*meta.Eventbus)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CreateEventBus indicates an expected call of CreateEventBus.
-func (mr *MockEventBusControllerClientMockRecorder) CreateEventBus(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+// CreateEventbus indicates an expected call of CreateEventbus.
+func (mr *MockEventbusControllerClientMockRecorder) CreateEventbus(ctx, in interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, in}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateEventBus", reflect.TypeOf((*MockEventBusControllerClient)(nil).CreateEventBus), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateEventbus", reflect.TypeOf((*MockEventbusControllerClient)(nil).CreateEventbus), varargs...)
 }
 
-// CreateSystemEventBus mocks base method.
-func (m *MockEventBusControllerClient) CreateSystemEventBus(ctx context.Context, in *CreateEventBusRequest, opts ...grpc.CallOption) (*meta.EventBus, error) {
+// CreateSystemEventbus mocks base method.
+func (m *MockEventbusControllerClient) CreateSystemEventbus(ctx context.Context, in *CreateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "CreateSystemEventBus", varargs...)
-	ret0, _ := ret[0].(*meta.EventBus)
+	ret := m.ctrl.Call(m, "CreateSystemEventbus", varargs...)
+	ret0, _ := ret[0].(*meta.Eventbus)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CreateSystemEventBus indicates an expected call of CreateSystemEventBus.
-func (mr *MockEventBusControllerClientMockRecorder) CreateSystemEventBus(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+// CreateSystemEventbus indicates an expected call of CreateSystemEventbus.
+func (mr *MockEventbusControllerClientMockRecorder) CreateSystemEventbus(ctx, in interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, in}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSystemEventBus", reflect.TypeOf((*MockEventBusControllerClient)(nil).CreateSystemEventBus), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSystemEventbus", reflect.TypeOf((*MockEventbusControllerClient)(nil).CreateSystemEventbus), varargs...)
 }
 
-// DeleteEventBus mocks base method.
-func (m *MockEventBusControllerClient) DeleteEventBus(ctx context.Context, in *meta.EventBus, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+// DeleteEventbus mocks base method.
+func (m *MockEventbusControllerClient) DeleteEventbus(ctx context.Context, in *meta.Eventbus, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "DeleteEventBus", varargs...)
+	ret := m.ctrl.Call(m, "DeleteEventbus", varargs...)
 	ret0, _ := ret[0].(*emptypb.Empty)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DeleteEventBus indicates an expected call of DeleteEventBus.
-func (mr *MockEventBusControllerClientMockRecorder) DeleteEventBus(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+// DeleteEventbus indicates an expected call of DeleteEventbus.
+func (mr *MockEventbusControllerClientMockRecorder) DeleteEventbus(ctx, in interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, in}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEventBus", reflect.TypeOf((*MockEventBusControllerClient)(nil).DeleteEventBus), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEventbus", reflect.TypeOf((*MockEventbusControllerClient)(nil).DeleteEventbus), varargs...)
 }
 
-// GetEventBus mocks base method.
-func (m *MockEventBusControllerClient) GetEventBus(ctx context.Context, in *meta.EventBus, opts ...grpc.CallOption) (*meta.EventBus, error) {
+// GetEventbus mocks base method.
+func (m *MockEventbusControllerClient) GetEventbus(ctx context.Context, in *meta.Eventbus, opts ...grpc.CallOption) (*meta.Eventbus, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "GetEventBus", varargs...)
-	ret0, _ := ret[0].(*meta.EventBus)
+	ret := m.ctrl.Call(m, "GetEventbus", varargs...)
+	ret0, _ := ret[0].(*meta.Eventbus)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetEventBus indicates an expected call of GetEventBus.
-func (mr *MockEventBusControllerClientMockRecorder) GetEventBus(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+// GetEventbus indicates an expected call of GetEventbus.
+func (mr *MockEventbusControllerClientMockRecorder) GetEventbus(ctx, in interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, in}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventBus", reflect.TypeOf((*MockEventBusControllerClient)(nil).GetEventBus), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventbus", reflect.TypeOf((*MockEventbusControllerClient)(nil).GetEventbus), varargs...)
 }
 
-// ListEventBus mocks base method.
-func (m *MockEventBusControllerClient) ListEventBus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListEventbusResponse, error) {
+// ListEventbus mocks base method.
+func (m *MockEventbusControllerClient) ListEventbus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListEventbusResponse, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "ListEventBus", varargs...)
+	ret := m.ctrl.Call(m, "ListEventbus", varargs...)
 	ret0, _ := ret[0].(*ListEventbusResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListEventBus indicates an expected call of ListEventBus.
-func (mr *MockEventBusControllerClientMockRecorder) ListEventBus(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+// ListEventbus indicates an expected call of ListEventbus.
+func (mr *MockEventbusControllerClientMockRecorder) ListEventbus(ctx, in interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, in}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListEventBus", reflect.TypeOf((*MockEventBusControllerClient)(nil).ListEventBus), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListEventbus", reflect.TypeOf((*MockEventbusControllerClient)(nil).ListEventbus), varargs...)
 }
 
-// UpdateEventBus mocks base method.
-func (m *MockEventBusControllerClient) UpdateEventBus(ctx context.Context, in *UpdateEventBusRequest, opts ...grpc.CallOption) (*meta.EventBus, error) {
+// UpdateEventbus mocks base method.
+func (m *MockEventbusControllerClient) UpdateEventbus(ctx context.Context, in *UpdateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "UpdateEventBus", varargs...)
-	ret0, _ := ret[0].(*meta.EventBus)
+	ret := m.ctrl.Call(m, "UpdateEventbus", varargs...)
+	ret0, _ := ret[0].(*meta.Eventbus)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// UpdateEventBus indicates an expected call of UpdateEventBus.
-func (mr *MockEventBusControllerClientMockRecorder) UpdateEventBus(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+// UpdateEventbus indicates an expected call of UpdateEventbus.
+func (mr *MockEventbusControllerClientMockRecorder) UpdateEventbus(ctx, in interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, in}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateEventBus", reflect.TypeOf((*MockEventBusControllerClient)(nil).UpdateEventBus), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateEventbus", reflect.TypeOf((*MockEventbusControllerClient)(nil).UpdateEventbus), varargs...)
 }
 
-// MockEventBusControllerServer is a mock of EventBusControllerServer interface.
-type MockEventBusControllerServer struct {
+// MockEventbusControllerServer is a mock of EventbusControllerServer interface.
+type MockEventbusControllerServer struct {
 	ctrl     *gomock.Controller
-	recorder *MockEventBusControllerServerMockRecorder
+	recorder *MockEventbusControllerServerMockRecorder
 }
 
-// MockEventBusControllerServerMockRecorder is the mock recorder for MockEventBusControllerServer.
-type MockEventBusControllerServerMockRecorder struct {
-	mock *MockEventBusControllerServer
+// MockEventbusControllerServerMockRecorder is the mock recorder for MockEventbusControllerServer.
+type MockEventbusControllerServerMockRecorder struct {
+	mock *MockEventbusControllerServer
 }
 
-// NewMockEventBusControllerServer creates a new mock instance.
-func NewMockEventBusControllerServer(ctrl *gomock.Controller) *MockEventBusControllerServer {
-	mock := &MockEventBusControllerServer{ctrl: ctrl}
-	mock.recorder = &MockEventBusControllerServerMockRecorder{mock}
+// NewMockEventbusControllerServer creates a new mock instance.
+func NewMockEventbusControllerServer(ctrl *gomock.Controller) *MockEventbusControllerServer {
+	mock := &MockEventbusControllerServer{ctrl: ctrl}
+	mock.recorder = &MockEventbusControllerServerMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockEventBusControllerServer) EXPECT() *MockEventBusControllerServerMockRecorder {
+func (m *MockEventbusControllerServer) EXPECT() *MockEventbusControllerServerMockRecorder {
 	return m.recorder
 }
 
-// CreateEventBus mocks base method.
-func (m *MockEventBusControllerServer) CreateEventBus(arg0 context.Context, arg1 *CreateEventBusRequest) (*meta.EventBus, error) {
+// CreateEventbus mocks base method.
+func (m *MockEventbusControllerServer) CreateEventbus(arg0 context.Context, arg1 *CreateEventbusRequest) (*meta.Eventbus, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateEventBus", arg0, arg1)
-	ret0, _ := ret[0].(*meta.EventBus)
+	ret := m.ctrl.Call(m, "CreateEventbus", arg0, arg1)
+	ret0, _ := ret[0].(*meta.Eventbus)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CreateEventBus indicates an expected call of CreateEventBus.
-func (mr *MockEventBusControllerServerMockRecorder) CreateEventBus(arg0, arg1 interface{}) *gomock.Call {
+// CreateEventbus indicates an expected call of CreateEventbus.
+func (mr *MockEventbusControllerServerMockRecorder) CreateEventbus(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateEventBus", reflect.TypeOf((*MockEventBusControllerServer)(nil).CreateEventBus), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateEventbus", reflect.TypeOf((*MockEventbusControllerServer)(nil).CreateEventbus), arg0, arg1)
 }
 
-// CreateSystemEventBus mocks base method.
-func (m *MockEventBusControllerServer) CreateSystemEventBus(arg0 context.Context, arg1 *CreateEventBusRequest) (*meta.EventBus, error) {
+// CreateSystemEventbus mocks base method.
+func (m *MockEventbusControllerServer) CreateSystemEventbus(arg0 context.Context, arg1 *CreateEventbusRequest) (*meta.Eventbus, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateSystemEventBus", arg0, arg1)
-	ret0, _ := ret[0].(*meta.EventBus)
+	ret := m.ctrl.Call(m, "CreateSystemEventbus", arg0, arg1)
+	ret0, _ := ret[0].(*meta.Eventbus)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CreateSystemEventBus indicates an expected call of CreateSystemEventBus.
-func (mr *MockEventBusControllerServerMockRecorder) CreateSystemEventBus(arg0, arg1 interface{}) *gomock.Call {
+// CreateSystemEventbus indicates an expected call of CreateSystemEventbus.
+func (mr *MockEventbusControllerServerMockRecorder) CreateSystemEventbus(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSystemEventBus", reflect.TypeOf((*MockEventBusControllerServer)(nil).CreateSystemEventBus), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSystemEventbus", reflect.TypeOf((*MockEventbusControllerServer)(nil).CreateSystemEventbus), arg0, arg1)
 }
 
-// DeleteEventBus mocks base method.
-func (m *MockEventBusControllerServer) DeleteEventBus(arg0 context.Context, arg1 *meta.EventBus) (*emptypb.Empty, error) {
+// DeleteEventbus mocks base method.
+func (m *MockEventbusControllerServer) DeleteEventbus(arg0 context.Context, arg1 *meta.Eventbus) (*emptypb.Empty, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteEventBus", arg0, arg1)
+	ret := m.ctrl.Call(m, "DeleteEventbus", arg0, arg1)
 	ret0, _ := ret[0].(*emptypb.Empty)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DeleteEventBus indicates an expected call of DeleteEventBus.
-func (mr *MockEventBusControllerServerMockRecorder) DeleteEventBus(arg0, arg1 interface{}) *gomock.Call {
+// DeleteEventbus indicates an expected call of DeleteEventbus.
+func (mr *MockEventbusControllerServerMockRecorder) DeleteEventbus(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEventBus", reflect.TypeOf((*MockEventBusControllerServer)(nil).DeleteEventBus), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEventbus", reflect.TypeOf((*MockEventbusControllerServer)(nil).DeleteEventbus), arg0, arg1)
 }
 
-// GetEventBus mocks base method.
-func (m *MockEventBusControllerServer) GetEventBus(arg0 context.Context, arg1 *meta.EventBus) (*meta.EventBus, error) {
+// GetEventbus mocks base method.
+func (m *MockEventbusControllerServer) GetEventbus(arg0 context.Context, arg1 *meta.Eventbus) (*meta.Eventbus, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetEventBus", arg0, arg1)
-	ret0, _ := ret[0].(*meta.EventBus)
+	ret := m.ctrl.Call(m, "GetEventbus", arg0, arg1)
+	ret0, _ := ret[0].(*meta.Eventbus)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetEventBus indicates an expected call of GetEventBus.
-func (mr *MockEventBusControllerServerMockRecorder) GetEventBus(arg0, arg1 interface{}) *gomock.Call {
+// GetEventbus indicates an expected call of GetEventbus.
+func (mr *MockEventbusControllerServerMockRecorder) GetEventbus(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventBus", reflect.TypeOf((*MockEventBusControllerServer)(nil).GetEventBus), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventbus", reflect.TypeOf((*MockEventbusControllerServer)(nil).GetEventbus), arg0, arg1)
 }
 
-// ListEventBus mocks base method.
-func (m *MockEventBusControllerServer) ListEventBus(arg0 context.Context, arg1 *emptypb.Empty) (*ListEventbusResponse, error) {
+// ListEventbus mocks base method.
+func (m *MockEventbusControllerServer) ListEventbus(arg0 context.Context, arg1 *emptypb.Empty) (*ListEventbusResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListEventBus", arg0, arg1)
+	ret := m.ctrl.Call(m, "ListEventbus", arg0, arg1)
 	ret0, _ := ret[0].(*ListEventbusResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListEventBus indicates an expected call of ListEventBus.
-func (mr *MockEventBusControllerServerMockRecorder) ListEventBus(arg0, arg1 interface{}) *gomock.Call {
+// ListEventbus indicates an expected call of ListEventbus.
+func (mr *MockEventbusControllerServerMockRecorder) ListEventbus(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListEventBus", reflect.TypeOf((*MockEventBusControllerServer)(nil).ListEventBus), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListEventbus", reflect.TypeOf((*MockEventbusControllerServer)(nil).ListEventbus), arg0, arg1)
 }
 
-// UpdateEventBus mocks base method.
-func (m *MockEventBusControllerServer) UpdateEventBus(arg0 context.Context, arg1 *UpdateEventBusRequest) (*meta.EventBus, error) {
+// UpdateEventbus mocks base method.
+func (m *MockEventbusControllerServer) UpdateEventbus(arg0 context.Context, arg1 *UpdateEventbusRequest) (*meta.Eventbus, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateEventBus", arg0, arg1)
-	ret0, _ := ret[0].(*meta.EventBus)
+	ret := m.ctrl.Call(m, "UpdateEventbus", arg0, arg1)
+	ret0, _ := ret[0].(*meta.Eventbus)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// UpdateEventBus indicates an expected call of UpdateEventBus.
-func (mr *MockEventBusControllerServerMockRecorder) UpdateEventBus(arg0, arg1 interface{}) *gomock.Call {
+// UpdateEventbus indicates an expected call of UpdateEventbus.
+func (mr *MockEventbusControllerServerMockRecorder) UpdateEventbus(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateEventBus", reflect.TypeOf((*MockEventBusControllerServer)(nil).UpdateEventBus), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateEventbus", reflect.TypeOf((*MockEventbusControllerServer)(nil).UpdateEventbus), arg0, arg1)
 }
 
-// MockUnsafeEventBusControllerServer is a mock of UnsafeEventBusControllerServer interface.
-type MockUnsafeEventBusControllerServer struct {
+// MockUnsafeEventbusControllerServer is a mock of UnsafeEventbusControllerServer interface.
+type MockUnsafeEventbusControllerServer struct {
 	ctrl     *gomock.Controller
-	recorder *MockUnsafeEventBusControllerServerMockRecorder
+	recorder *MockUnsafeEventbusControllerServerMockRecorder
 }
 
-// MockUnsafeEventBusControllerServerMockRecorder is the mock recorder for MockUnsafeEventBusControllerServer.
-type MockUnsafeEventBusControllerServerMockRecorder struct {
-	mock *MockUnsafeEventBusControllerServer
+// MockUnsafeEventbusControllerServerMockRecorder is the mock recorder for MockUnsafeEventbusControllerServer.
+type MockUnsafeEventbusControllerServerMockRecorder struct {
+	mock *MockUnsafeEventbusControllerServer
 }
 
-// NewMockUnsafeEventBusControllerServer creates a new mock instance.
-func NewMockUnsafeEventBusControllerServer(ctrl *gomock.Controller) *MockUnsafeEventBusControllerServer {
-	mock := &MockUnsafeEventBusControllerServer{ctrl: ctrl}
-	mock.recorder = &MockUnsafeEventBusControllerServerMockRecorder{mock}
+// NewMockUnsafeEventbusControllerServer creates a new mock instance.
+func NewMockUnsafeEventbusControllerServer(ctrl *gomock.Controller) *MockUnsafeEventbusControllerServer {
+	mock := &MockUnsafeEventbusControllerServer{ctrl: ctrl}
+	mock.recorder = &MockUnsafeEventbusControllerServerMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockUnsafeEventBusControllerServer) EXPECT() *MockUnsafeEventBusControllerServerMockRecorder {
+func (m *MockUnsafeEventbusControllerServer) EXPECT() *MockUnsafeEventbusControllerServerMockRecorder {
 	return m.recorder
 }
 
-// mustEmbedUnimplementedEventBusControllerServer mocks base method.
-func (m *MockUnsafeEventBusControllerServer) mustEmbedUnimplementedEventBusControllerServer() {
+// mustEmbedUnimplementedEventbusControllerServer mocks base method.
+func (m *MockUnsafeEventbusControllerServer) mustEmbedUnimplementedEventbusControllerServer() {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "mustEmbedUnimplementedEventBusControllerServer")
+	m.ctrl.Call(m, "mustEmbedUnimplementedEventbusControllerServer")
 }
 
-// mustEmbedUnimplementedEventBusControllerServer indicates an expected call of mustEmbedUnimplementedEventBusControllerServer.
-func (mr *MockUnsafeEventBusControllerServerMockRecorder) mustEmbedUnimplementedEventBusControllerServer() *gomock.Call {
+// mustEmbedUnimplementedEventbusControllerServer indicates an expected call of mustEmbedUnimplementedEventbusControllerServer.
+func (mr *MockUnsafeEventbusControllerServerMockRecorder) mustEmbedUnimplementedEventbusControllerServer() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "mustEmbedUnimplementedEventBusControllerServer", reflect.TypeOf((*MockUnsafeEventBusControllerServer)(nil).mustEmbedUnimplementedEventBusControllerServer))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "mustEmbedUnimplementedEventbusControllerServer", reflect.TypeOf((*MockUnsafeEventbusControllerServer)(nil).mustEmbedUnimplementedEventbusControllerServer))
 }
 
-// MockEventLogControllerClient is a mock of EventLogControllerClient interface.
-type MockEventLogControllerClient struct {
+// MockEventlogControllerClient is a mock of EventlogControllerClient interface.
+type MockEventlogControllerClient struct {
 	ctrl     *gomock.Controller
-	recorder *MockEventLogControllerClientMockRecorder
+	recorder *MockEventlogControllerClientMockRecorder
 }
 
-// MockEventLogControllerClientMockRecorder is the mock recorder for MockEventLogControllerClient.
-type MockEventLogControllerClientMockRecorder struct {
-	mock *MockEventLogControllerClient
+// MockEventlogControllerClientMockRecorder is the mock recorder for MockEventlogControllerClient.
+type MockEventlogControllerClientMockRecorder struct {
+	mock *MockEventlogControllerClient
 }
 
-// NewMockEventLogControllerClient creates a new mock instance.
-func NewMockEventLogControllerClient(ctrl *gomock.Controller) *MockEventLogControllerClient {
-	mock := &MockEventLogControllerClient{ctrl: ctrl}
-	mock.recorder = &MockEventLogControllerClientMockRecorder{mock}
+// NewMockEventlogControllerClient creates a new mock instance.
+func NewMockEventlogControllerClient(ctrl *gomock.Controller) *MockEventlogControllerClient {
+	mock := &MockEventlogControllerClient{ctrl: ctrl}
+	mock.recorder = &MockEventlogControllerClientMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockEventLogControllerClient) EXPECT() *MockEventLogControllerClientMockRecorder {
+func (m *MockEventlogControllerClient) EXPECT() *MockEventlogControllerClientMockRecorder {
 	return m.recorder
 }
 
 // GetAppendableSegment mocks base method.
-func (m *MockEventLogControllerClient) GetAppendableSegment(ctx context.Context, in *GetAppendableSegmentRequest, opts ...grpc.CallOption) (*GetAppendableSegmentResponse, error) {
+func (m *MockEventlogControllerClient) GetAppendableSegment(ctx context.Context, in *GetAppendableSegmentRequest, opts ...grpc.CallOption) (*GetAppendableSegmentResponse, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
@@ -461,14 +461,14 @@ func (m *MockEventLogControllerClient) GetAppendableSegment(ctx context.Context,
 }
 
 // GetAppendableSegment indicates an expected call of GetAppendableSegment.
-func (mr *MockEventLogControllerClientMockRecorder) GetAppendableSegment(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+func (mr *MockEventlogControllerClientMockRecorder) GetAppendableSegment(ctx, in interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, in}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppendableSegment", reflect.TypeOf((*MockEventLogControllerClient)(nil).GetAppendableSegment), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppendableSegment", reflect.TypeOf((*MockEventlogControllerClient)(nil).GetAppendableSegment), varargs...)
 }
 
 // ListSegment mocks base method.
-func (m *MockEventLogControllerClient) ListSegment(ctx context.Context, in *ListSegmentRequest, opts ...grpc.CallOption) (*ListSegmentResponse, error) {
+func (m *MockEventlogControllerClient) ListSegment(ctx context.Context, in *ListSegmentRequest, opts ...grpc.CallOption) (*ListSegmentResponse, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
@@ -481,37 +481,37 @@ func (m *MockEventLogControllerClient) ListSegment(ctx context.Context, in *List
 }
 
 // ListSegment indicates an expected call of ListSegment.
-func (mr *MockEventLogControllerClientMockRecorder) ListSegment(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+func (mr *MockEventlogControllerClientMockRecorder) ListSegment(ctx, in interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, in}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSegment", reflect.TypeOf((*MockEventLogControllerClient)(nil).ListSegment), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSegment", reflect.TypeOf((*MockEventlogControllerClient)(nil).ListSegment), varargs...)
 }
 
-// MockEventLogControllerServer is a mock of EventLogControllerServer interface.
-type MockEventLogControllerServer struct {
+// MockEventlogControllerServer is a mock of EventlogControllerServer interface.
+type MockEventlogControllerServer struct {
 	ctrl     *gomock.Controller
-	recorder *MockEventLogControllerServerMockRecorder
+	recorder *MockEventlogControllerServerMockRecorder
 }
 
-// MockEventLogControllerServerMockRecorder is the mock recorder for MockEventLogControllerServer.
-type MockEventLogControllerServerMockRecorder struct {
-	mock *MockEventLogControllerServer
+// MockEventlogControllerServerMockRecorder is the mock recorder for MockEventlogControllerServer.
+type MockEventlogControllerServerMockRecorder struct {
+	mock *MockEventlogControllerServer
 }
 
-// NewMockEventLogControllerServer creates a new mock instance.
-func NewMockEventLogControllerServer(ctrl *gomock.Controller) *MockEventLogControllerServer {
-	mock := &MockEventLogControllerServer{ctrl: ctrl}
-	mock.recorder = &MockEventLogControllerServerMockRecorder{mock}
+// NewMockEventlogControllerServer creates a new mock instance.
+func NewMockEventlogControllerServer(ctrl *gomock.Controller) *MockEventlogControllerServer {
+	mock := &MockEventlogControllerServer{ctrl: ctrl}
+	mock.recorder = &MockEventlogControllerServerMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockEventLogControllerServer) EXPECT() *MockEventLogControllerServerMockRecorder {
+func (m *MockEventlogControllerServer) EXPECT() *MockEventlogControllerServerMockRecorder {
 	return m.recorder
 }
 
 // GetAppendableSegment mocks base method.
-func (m *MockEventLogControllerServer) GetAppendableSegment(arg0 context.Context, arg1 *GetAppendableSegmentRequest) (*GetAppendableSegmentResponse, error) {
+func (m *MockEventlogControllerServer) GetAppendableSegment(arg0 context.Context, arg1 *GetAppendableSegmentRequest) (*GetAppendableSegmentResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAppendableSegment", arg0, arg1)
 	ret0, _ := ret[0].(*GetAppendableSegmentResponse)
@@ -520,13 +520,13 @@ func (m *MockEventLogControllerServer) GetAppendableSegment(arg0 context.Context
 }
 
 // GetAppendableSegment indicates an expected call of GetAppendableSegment.
-func (mr *MockEventLogControllerServerMockRecorder) GetAppendableSegment(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockEventlogControllerServerMockRecorder) GetAppendableSegment(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppendableSegment", reflect.TypeOf((*MockEventLogControllerServer)(nil).GetAppendableSegment), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppendableSegment", reflect.TypeOf((*MockEventlogControllerServer)(nil).GetAppendableSegment), arg0, arg1)
 }
 
 // ListSegment mocks base method.
-func (m *MockEventLogControllerServer) ListSegment(arg0 context.Context, arg1 *ListSegmentRequest) (*ListSegmentResponse, error) {
+func (m *MockEventlogControllerServer) ListSegment(arg0 context.Context, arg1 *ListSegmentRequest) (*ListSegmentResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListSegment", arg0, arg1)
 	ret0, _ := ret[0].(*ListSegmentResponse)
@@ -535,44 +535,44 @@ func (m *MockEventLogControllerServer) ListSegment(arg0 context.Context, arg1 *L
 }
 
 // ListSegment indicates an expected call of ListSegment.
-func (mr *MockEventLogControllerServerMockRecorder) ListSegment(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockEventlogControllerServerMockRecorder) ListSegment(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSegment", reflect.TypeOf((*MockEventLogControllerServer)(nil).ListSegment), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSegment", reflect.TypeOf((*MockEventlogControllerServer)(nil).ListSegment), arg0, arg1)
 }
 
-// MockUnsafeEventLogControllerServer is a mock of UnsafeEventLogControllerServer interface.
-type MockUnsafeEventLogControllerServer struct {
+// MockUnsafeEventlogControllerServer is a mock of UnsafeEventlogControllerServer interface.
+type MockUnsafeEventlogControllerServer struct {
 	ctrl     *gomock.Controller
-	recorder *MockUnsafeEventLogControllerServerMockRecorder
+	recorder *MockUnsafeEventlogControllerServerMockRecorder
 }
 
-// MockUnsafeEventLogControllerServerMockRecorder is the mock recorder for MockUnsafeEventLogControllerServer.
-type MockUnsafeEventLogControllerServerMockRecorder struct {
-	mock *MockUnsafeEventLogControllerServer
+// MockUnsafeEventlogControllerServerMockRecorder is the mock recorder for MockUnsafeEventlogControllerServer.
+type MockUnsafeEventlogControllerServerMockRecorder struct {
+	mock *MockUnsafeEventlogControllerServer
 }
 
-// NewMockUnsafeEventLogControllerServer creates a new mock instance.
-func NewMockUnsafeEventLogControllerServer(ctrl *gomock.Controller) *MockUnsafeEventLogControllerServer {
-	mock := &MockUnsafeEventLogControllerServer{ctrl: ctrl}
-	mock.recorder = &MockUnsafeEventLogControllerServerMockRecorder{mock}
+// NewMockUnsafeEventlogControllerServer creates a new mock instance.
+func NewMockUnsafeEventlogControllerServer(ctrl *gomock.Controller) *MockUnsafeEventlogControllerServer {
+	mock := &MockUnsafeEventlogControllerServer{ctrl: ctrl}
+	mock.recorder = &MockUnsafeEventlogControllerServerMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockUnsafeEventLogControllerServer) EXPECT() *MockUnsafeEventLogControllerServerMockRecorder {
+func (m *MockUnsafeEventlogControllerServer) EXPECT() *MockUnsafeEventlogControllerServerMockRecorder {
 	return m.recorder
 }
 
-// mustEmbedUnimplementedEventLogControllerServer mocks base method.
-func (m *MockUnsafeEventLogControllerServer) mustEmbedUnimplementedEventLogControllerServer() {
+// mustEmbedUnimplementedEventlogControllerServer mocks base method.
+func (m *MockUnsafeEventlogControllerServer) mustEmbedUnimplementedEventlogControllerServer() {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "mustEmbedUnimplementedEventLogControllerServer")
+	m.ctrl.Call(m, "mustEmbedUnimplementedEventlogControllerServer")
 }
 
-// mustEmbedUnimplementedEventLogControllerServer indicates an expected call of mustEmbedUnimplementedEventLogControllerServer.
-func (mr *MockUnsafeEventLogControllerServerMockRecorder) mustEmbedUnimplementedEventLogControllerServer() *gomock.Call {
+// mustEmbedUnimplementedEventlogControllerServer indicates an expected call of mustEmbedUnimplementedEventlogControllerServer.
+func (mr *MockUnsafeEventlogControllerServerMockRecorder) mustEmbedUnimplementedEventlogControllerServer() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "mustEmbedUnimplementedEventLogControllerServer", reflect.TypeOf((*MockUnsafeEventLogControllerServer)(nil).mustEmbedUnimplementedEventLogControllerServer))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "mustEmbedUnimplementedEventlogControllerServer", reflect.TypeOf((*MockUnsafeEventlogControllerServer)(nil).mustEmbedUnimplementedEventlogControllerServer))
 }
 
 // MockSegmentControllerClient is a mock of SegmentControllerClient interface.

@@ -41,7 +41,7 @@ func NewNameService(endpoints []string) *NameService {
 }
 
 type NameService struct {
-	client ctrlpb.EventBusControllerClient
+	client ctrlpb.EventbusControllerClient
 	tracer *tracing.Tracer
 }
 
@@ -49,11 +49,11 @@ func (ns *NameService) LookupWritableLogs(ctx context.Context, eventbus string) 
 	ctx, span := ns.tracer.Start(ctx, "LookupWritableLogs")
 	defer span.End()
 
-	req := &metapb.EventBus{
+	req := &metapb.Eventbus{
 		Name: eventbus,
 	}
 
-	resp, err := ns.client.GetEventBus(ctx, req)
+	resp, err := ns.client.GetEventbus(ctx, req)
 	if err != nil {
 		log.Error(context.Background(), "get eventbus failed", map[string]interface{}{
 			log.KeyError: err,
@@ -68,11 +68,11 @@ func (ns *NameService) LookupReadableLogs(ctx context.Context, eventbus string) 
 	ctx, span := ns.tracer.Start(ctx, "LookupReadableLogs")
 	defer span.End()
 
-	req := &metapb.EventBus{
+	req := &metapb.Eventbus{
 		Name: eventbus,
 	}
 
-	resp, err := ns.client.GetEventBus(ctx, req)
+	resp, err := ns.client.GetEventbus(ctx, req)
 	if err != nil {
 		log.Error(context.Background(), "get eventbus failed", map[string]interface{}{
 			log.KeyError: err,
@@ -84,7 +84,7 @@ func (ns *NameService) LookupReadableLogs(ctx context.Context, eventbus string) 
 	return toLogs(resp.GetLogs()), nil
 }
 
-func toLogs(logpbs []*metapb.EventLog) []*record.Eventlog {
+func toLogs(logpbs []*metapb.Eventlog) []*record.Eventlog {
 	if len(logpbs) <= 0 {
 		return make([]*record.Eventlog, 0)
 	}
@@ -95,9 +95,9 @@ func toLogs(logpbs []*metapb.EventLog) []*record.Eventlog {
 	return logs
 }
 
-func toLog(logpb *metapb.EventLog) *record.Eventlog {
+func toLog(logpb *metapb.Eventlog) *record.Eventlog {
 	log := &record.Eventlog{
-		ID:   logpb.GetEventLogId(),
+		ID:   logpb.GetEventlogId(),
 		Mode: record.PremWrite | record.PremRead,
 	}
 	return log

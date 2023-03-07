@@ -1,1 +1,1 @@
-# EventBus SDK for Vanus
+# Eventbus SDK for Vanus

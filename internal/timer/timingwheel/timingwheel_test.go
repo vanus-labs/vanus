@@ -273,8 +273,8 @@ func TestTimingWheel_startReceivingStation(t *testing.T) {
 		})
 
 		// Convey("test timingwheel start receiving station success", func() {
-		// 	mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
-		// 	mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, nil)
+		// 	mockEventbusCtrlCli.EXPECT().GetEventbus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
+		// 	mockEventbusCtrlCli.EXPECT().CreateEventbus(Any(), Any()).Times(1).Return(nil, nil)
 		// 	mockClient.EXPECT().EventbusService(Any(), Any()).AnyTimes().Return(mockEventbus)
 		// 	mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 		// 	mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
@@ -361,7 +361,7 @@ func TestTimingWheel_startDistributionStation(t *testing.T) {
 		mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
 		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
-		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
+		mockEventbusCtrlCli := ctrlpb.NewMockEventbusControllerClient(mockCtrl)
 		tw.client = mockClient
 		tw.ctrlCli = mockEventbusCtrlCli
 		tw.receivingStation.client = mockClient
@@ -378,8 +378,8 @@ func TestTimingWheel_startDistributionStation(t *testing.T) {
 		})
 
 		// Convey("test timingwheel start distribution station success", func() {
-		// 	mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
-		// 	mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, nil)
+		// 	mockEventbusCtrlCli.EXPECT().GetEventbus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
+		// 	mockEventbusCtrlCli.EXPECT().CreateEventbus(Any(), Any()).Times(1).Return(nil, nil)
 		// 	mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]eventlog.Eventlog{mockEventlog}, nil)
 		// 	mockClient.EXPECT().EventbusService(Any(), Any()).AnyTimes().Return(mockEventbus)
 		// 	mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
@@ -578,8 +578,8 @@ func TestTimingWheelElement_pushBack(t *testing.T) {
 
 		// Convey("push timing message failure causes append failed", func() {
 		// 	tw.SetLeader(true)
-		// 	mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
-		// 	mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, nil)
+		// 	mockEventbusCtrlCli.EXPECT().GetEventbus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
+		// 	mockEventbusCtrlCli.EXPECT().CreateEventbus(Any(), Any()).Times(1).Return(nil, nil)
 		// 	mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]eventlog.Eventlog{mockEventlog}, nil)
 		// 	mockBusReader.EXPECT().Read(Any(), Any(), Any()).AnyTimes().Return([]*ce.Event{}, int64(0), uint64(0), es.ErrOnEnd)
 		// 	mockBusWriter.EXPECT().AppendOne(Any(), Any()).AnyTimes().Return("", errors.New("test"))
@@ -681,7 +681,7 @@ func TestTimingWheelElement_makeSureBucketExist(t *testing.T) {
 		mockEventbusWriter := api.NewMockBusWriter(mockCtrl)
 		mockEventbusReader := api.NewMockBusReader(mockCtrl)
 		mockStoreCli := kv.NewMockClient(mockCtrl)
-		mockEventbusCtrlCli := ctrlpb.NewMockEventBusControllerClient(mockCtrl)
+		mockEventbusCtrlCli := ctrlpb.NewMockEventbusControllerClient(mockCtrl)
 		tw.ctrlCli = mockEventbusCtrlCli
 		events := make([]*ce.Event, 1)
 		events[0] = event(0)

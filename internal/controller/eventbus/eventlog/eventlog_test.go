@@ -155,16 +155,16 @@ func TestEventlogManager_RunWithoutTask(t *testing.T) {
 			vanus.InitFakeSnowflake()
 			err := utMgr.Run(stdCtx.Background(), kvCli, false)
 			So(err, ShouldBeNil)
-			So(util.MapLen(&utMgr.eventLogMap), ShouldEqual, 3)
-			v, exist := utMgr.eventLogMap.Load(el1.ID.Key())
+			So(util.MapLen(&utMgr.eventlogMap), ShouldEqual, 3)
+			v, exist := utMgr.eventlogMap.Load(el1.ID.Key())
 			So(exist, ShouldBeTrue)
 			So(v.(*eventlog).size(), ShouldEqual, 0)
 
-			v, exist = utMgr.eventLogMap.Load(el2.ID.Key())
+			v, exist = utMgr.eventlogMap.Load(el2.ID.Key())
 			So(exist, ShouldBeTrue)
 			So(v.(*eventlog).size(), ShouldEqual, 0)
 
-			v, exist = utMgr.eventLogMap.Load(el3.ID.Key())
+			v, exist = utMgr.eventlogMap.Load(el3.ID.Key())
 			So(exist, ShouldBeTrue)
 			So(v.(*eventlog).size(), ShouldEqual, 3)
 
@@ -263,18 +263,18 @@ func TestEventlogManager_ScaleSegmentTask(t *testing.T) {
 		el, err := newEventlog(ctx, md1, kvCli, false)
 		So(err, ShouldBeNil)
 		So(el.size(), ShouldEqual, 0)
-		utMgr.eventLogMap.Store(el.md.ID.Key(), el)
+		utMgr.eventlogMap.Store(el.md.ID.Key(), el)
 		time.Sleep(50 * time.Millisecond)
 		So(el.size(), ShouldEqual, defaultAppendableSegmentNumber)
-		So(util.MapLen(&utMgr.eventLogMap), ShouldEqual, 1)
+		So(util.MapLen(&utMgr.eventlogMap), ShouldEqual, 1)
 		So(util.MapLen(&utMgr.globalSegmentMap), ShouldEqual, defaultAppendableSegmentNumber)
 		So(util.MapLen(&utMgr.globalBlockMap), ShouldEqual, defaultAppendableSegmentNumber*3)
 
 		el2, err := newEventlog(ctx, md2, kvCli, false)
 		So(err, ShouldBeNil)
 		So(el2.size(), ShouldEqual, 0)
-		utMgr.eventLogMap.Store(el2.md.ID.Key(), el2)
-		So(util.MapLen(&utMgr.eventLogMap), ShouldEqual, 2)
+		utMgr.eventlogMap.Store(el2.md.ID.Key(), el2)
+		So(util.MapLen(&utMgr.eventlogMap), ShouldEqual, 2)
 		time.Sleep(50 * time.Millisecond)
 		So(el.size(), ShouldEqual, defaultAppendableSegmentNumber)
 		So(el2.size(), ShouldEqual, defaultAppendableSegmentNumber)
@@ -282,10 +282,12 @@ func TestEventlogManager_ScaleSegmentTask(t *testing.T) {
 		So(util.MapLen(&utMgr.globalBlockMap), ShouldEqual, defaultAppendableSegmentNumber*3*2)
 
 		head := el.head()
+		el.lock()
 		head.State = StateFrozen
+		el.unlock()
 		t.Log(head.ID.Key())
 		So(el.appendableSegmentNumber(), ShouldEqual, defaultAppendableSegmentNumber-1)
-		So(util.MapLen(&utMgr.eventLogMap), ShouldEqual, 2)
+		So(util.MapLen(&utMgr.eventlogMap), ShouldEqual, 2)
 		time.Sleep(50 * time.Millisecond)
 		So(el.size(), ShouldEqual, defaultAppendableSegmentNumber+1)
 		So(el2.size(), ShouldEqual, defaultAppendableSegmentNumber)
@@ -396,8 +398,8 @@ func TestEventlogManager_CleanSegmentTask(t *testing.T) {
 		So(err, ShouldBeNil)
 		el2, err := newEventlog(ctx, md2, kvCli, false)
 		So(err, ShouldBeNil)
-		utMgr.eventLogMap.Store(el1.md.ID.Key(), el1)
-		utMgr.eventLogMap.Store(el2.md.ID.Key(), el2)
+		utMgr.eventlogMap.Store(el1.md.ID.Key(), el1)
+		utMgr.eventlogMap.Store(el2.md.ID.Key(), el2)
 		time.Sleep(50 * time.Millisecond)
 		So(el1.size(), ShouldEqual, defaultAppendableSegmentNumber)
 		So(el2.size(), ShouldEqual, defaultAppendableSegmentNumber)
@@ -425,7 +427,7 @@ func TestEventlogManager_CleanSegmentTask(t *testing.T) {
 }
 
 func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
-	Convey("test AcquireEventLog", t, func() {
+	Convey("test AcquireEventlog", t, func() {
 		utMgr := &eventlogManager{segmentReplicaNum: 3}
 		ctrl := gomock.NewController(t)
 		volMgr := volume.NewMockManager(ctrl)
@@ -493,24 +495,24 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 		grpcCli.EXPECT().ActivateSegment(ctx, gomock.Any()).Times(2).Return(nil, nil)
 
 		eventbusID := vanus.NewTestID()
-		logMD, err := utMgr.AcquireEventLog(ctx, eventbusID, "ut")
+		logMD, err := utMgr.AcquireEventlog(ctx, eventbusID, "ut")
 		Convey("validate metadata", func() {
 			So(err, ShouldBeNil)
 			So(logMD.EventbusID, ShouldEqual, eventbusID)
 		})
 
 		Convey("validate eventlog", func() {
-			elog := utMgr.getEventLog(logMD.ID)
+			elog := utMgr.getEventlog(logMD.ID)
 			So(elog, ShouldNotBeNil)
 			So(elog.size(), ShouldEqual, 2)
 			So(elog.appendableSegmentNumber(), ShouldEqual, 2)
 		})
 
 		Convey("test get eventlog", func() {
-			newLog := utMgr.GetEventLog(ctx, logMD.ID)
+			newLog := utMgr.GetEventlog(ctx, logMD.ID)
 			So(newLog, ShouldEqual, logMD)
 
-			segments := utMgr.GetEventLogSegmentList(logMD.ID)
+			segments := utMgr.GetEventlogSegmentList(logMD.ID)
 			So(segments, ShouldHaveLength, 2)
 
 			segments2, err := utMgr.GetAppendableSegment(ctx, logMD, 3)
@@ -527,7 +529,7 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 
 			seg := utMgr.getSegment(segments2[1].ID)
 			So(seg, ShouldNotBeNil)
-			So(seg.EventLogID, ShouldEqual, logMD.ID)
+			So(seg.EventlogID, ShouldEqual, logMD.ID)
 
 			blockObj = utMgr.GetBlock(vanus.NewIDFromUint64(segments[1].Replicas.Leader))
 			segAnother, err := utMgr.GetSegmentByBlockID(blockObj)
@@ -566,9 +568,9 @@ func TestEventlogManager_DeleteEventlog(t *testing.T) {
 			_ = el.add(ctx, createTestSegment(md.ID))
 			_ = el.add(ctx, createTestSegment(md.ID))
 
-			utMgr.eventLogMap.Store(md.ID.Key(), el)
+			utMgr.eventlogMap.Store(md.ID.Key(), el)
 			utMgr.DeleteEventlog(ctx, md.ID)
-			_, exist := mgr.eventLogMap.Load(md.ID.Key())
+			_, exist := mgr.eventlogMap.Load(md.ID.Key())
 			So(exist, ShouldBeFalse)
 			So(util.MapLen(&utMgr.segmentNeedBeClean), ShouldEqual, 4)
 		})
@@ -584,10 +586,10 @@ func TestEventlogManager_DeleteEventlog(t *testing.T) {
 			el, err := newEventlog(ctx, md, kvCli, false)
 			So(err, ShouldBeNil)
 
-			utMgr.eventLogMap.Store(md.ID.Key(), el)
+			utMgr.eventlogMap.Store(md.ID.Key(), el)
 			kvCli.EXPECT().Delete(ctx, metadata.GetEventlogMetadataKey(el.md.ID)).AnyTimes().Return(nil)
 			utMgr.DeleteEventlog(ctx, md.ID)
-			_, exist := mgr.eventLogMap.Load(md.ID.Key())
+			_, exist := mgr.eventlogMap.Load(md.ID.Key())
 			So(exist, ShouldBeFalse)
 			So(util.MapLen(&mgr.segmentNeedBeClean), ShouldEqual, 0)
 		})
@@ -647,7 +649,7 @@ func TestEventlogManager_GetAppendableSegment(t *testing.T) {
 
 			el, err := newEventlog(ctx, md, kvCli, false)
 			So(err, ShouldBeNil)
-			mgr.eventLogMap.Store(md.ID.Key(), el)
+			mgr.eventlogMap.Store(md.ID.Key(), el)
 			segs, err := mgr.GetAppendableSegment(ctx, md, 1)
 			So(err, ShouldBeNil)
 			So(segs, ShouldHaveLength, 1)
@@ -690,7 +692,7 @@ func TestEventlogManager_UpdateSegment(t *testing.T) {
 			kvCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).Times(1).Return(nil)
 			err = elog.add(ctx, seg)
 			So(err, ShouldBeNil)
-			utMgr.eventLogMap.Store(md.ID.Key(), elog)
+			utMgr.eventlogMap.Store(md.ID.Key(), elog)
 			// segment doesn't exist
 			utMgr.UpdateSegment(ctx, map[string][]Segment{
 				md.ID.String(): {
@@ -718,7 +720,7 @@ func TestEventlogManager_UpdateSegment(t *testing.T) {
 				Times(1).Return(nil)
 			err = elog.add(ctx, seg)
 			So(err, ShouldBeNil)
-			utMgr.eventLogMap.Store(md.ID.Key(), elog)
+			utMgr.eventlogMap.Store(md.ID.Key(), elog)
 
 			// segment need to be updated
 			updateSegment1 := Segment{
@@ -804,7 +806,7 @@ func TestEventlogManager_UpdateSegmentReplicas(t *testing.T) {
 			EventbusName: "ut",
 		}, kvCli, false)
 		So(err, ShouldBeNil)
-		utMgr.eventLogMap.Store(el.md.ID.Key(), el)
+		utMgr.eventlogMap.Store(el.md.ID.Key(), el)
 
 		blk := &metadata.Block{
 			ID:         vanus.NewTestID(),
@@ -812,7 +814,7 @@ func TestEventlogManager_UpdateSegmentReplicas(t *testing.T) {
 			EventlogID: el.md.ID,
 		}
 		seg := createTestSegment(vanus.NewTestID())
-		seg.EventLogID = el.md.ID
+		seg.EventlogID = el.md.ID
 		seg.Replicas.Term = 3
 		utMgr.globalSegmentMap.Store(seg.ID.Key(), seg)
 		utMgr.globalBlockMap.Store(blk.ID.Key(), blk)
@@ -861,9 +863,9 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 		So(err1, ShouldBeNil)
 		So(err2, ShouldBeNil)
 		So(err3, ShouldBeNil)
-		utMgr.eventLogMap.Store(el1.md.ID.Key(), el1)
-		utMgr.eventLogMap.Store(el2.md.ID.Key(), el2)
-		utMgr.eventLogMap.Store(el3.md.ID.Key(), el3)
+		utMgr.eventlogMap.Store(el1.md.ID.Key(), el1)
+		utMgr.eventlogMap.Store(el2.md.ID.Key(), el2)
+		utMgr.eventlogMap.Store(el3.md.ID.Key(), el3)
 
 		Convey("test clean expired segment", func() {
 			kvCli.EXPECT().Delete(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)

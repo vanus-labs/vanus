@@ -39,7 +39,7 @@ func FromPbSubscriptionRequest(sub *ctrl.SubscriptionRequest) *metadata.Subscrip
 		ProtocolSetting:    fromPbProtocolSettings(sub.ProtocolSettings),
 		Filters:            fromPbFilters(sub.Filters),
 		Transformer:        fromPbTransformer(sub.Transformer),
-		EventBus:           sub.EventBus,
+		Eventbus:           sub.Eventbus,
 		Name:               sub.Name,
 		Description:        sub.Description,
 	}
@@ -253,7 +253,7 @@ func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Sub
 		SinkCredential:  fromPbSinkCredential(sub.SinkCredential),
 		Protocol:        fromPbProtocol(sub.Protocol),
 		ProtocolSetting: fromPbProtocolSettings(sub.ProtocolSettings),
-		EventBus:        sub.EventBus,
+		Eventbus:        sub.Eventbus,
 		Offsets:         FromPbOffsetInfos(sub.Offsets),
 		Filters:         fromPbFilters(sub.Filters),
 		Transformer:     fromPbTransformer(sub.Transformer),
@@ -267,7 +267,7 @@ func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscription
 		Id:               uint64(sub.ID),
 		Sink:             string(sub.Sink),
 		SinkCredential:   toPbSinkCredential(sub.SinkCredential),
-		EventBus:         sub.EventBus,
+		Eventbus:         sub.Eventbus,
 		Offsets:          ToPbOffsetInfos(sub.Offsets),
 		Filters:          toPbFilters(sub.Filters),
 		Transformer:      ToPbTransformer(sub.Transformer),
@@ -288,7 +288,7 @@ func ToPbSubscription(sub *metadata.Subscription, offsets info.ListOffsetInfo) *
 		SinkCredential:   toPbSinkCredentialByType(sub.SinkCredentialType),
 		Protocol:         toPbProtocol(sub.Protocol),
 		ProtocolSettings: toPbProtocolSettings(sub.ProtocolSetting),
-		EventBus:         sub.EventBus,
+		Eventbus:         sub.Eventbus,
 		Filters:          toPbFilters(sub.Filters),
 		Transformer:      ToPbTransformer(sub.Transformer),
 		Offsets:          ToPbOffsetInfos(offsets),
@@ -392,7 +392,7 @@ func FromPbOffsetInfos(offsets []*pb.OffsetInfo) info.ListOffsetInfo {
 
 func fromPbOffsetInfo(offset *pb.OffsetInfo) info.OffsetInfo {
 	return info.OffsetInfo{
-		EventLogID: vanus.ID(offset.EventLogId),
+		EventlogID: vanus.ID(offset.EventlogId),
 		Offset:     offset.Offset,
 	}
 }
@@ -416,7 +416,7 @@ func ToPbOffsetInfos(offsets info.ListOffsetInfo) []*pb.OffsetInfo {
 
 func toPbOffsetInfo(offset info.OffsetInfo) *pb.OffsetInfo {
 	return &pb.OffsetInfo{
-		EventLogId: uint64(offset.EventLogID),
+		EventlogId: uint64(offset.EventlogID),
 		Offset:     offset.Offset,
 	}
 }

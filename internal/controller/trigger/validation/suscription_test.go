@@ -40,10 +40,10 @@ func TestSubscriptionRequestValidator(t *testing.T) {
 		}
 		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
 	})
-	Convey("eventBus empty", t, func() {
+	Convey("eventbus empty", t, func() {
 		request := &ctrlpb.SubscriptionRequest{
 			Sink:     "sink",
-			EventBus: "",
+			Eventbus: "",
 		}
 		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
 	})

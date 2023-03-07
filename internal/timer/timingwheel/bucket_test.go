@@ -96,8 +96,8 @@ func TestBucket_start(t *testing.T) {
 		}
 
 		// Convey("test bucket start with connect eventbus failed", func() {
-		// 	mockEventbusCtrlCli.EXPECT().GetEventBus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
-		// 	mockEventbusCtrlCli.EXPECT().CreateEventBus(Any(), Any()).Times(1).Return(nil, nil)
+		// 	mockEventbusCtrlCli.EXPECT().GetEventbus(Any(), Any()).Times(1).Return(nil, errors.New("test"))
+		// 	mockEventbusCtrlCli.EXPECT().CreateEventbus(Any(), Any()).Times(1).Return(nil, nil)
 		// 	err := bucket.start(ctx)
 		// 	So(err, ShouldNotBeNil)
 		// })
@@ -245,7 +245,7 @@ func TestBucket_run(t *testing.T) {
 	})
 }
 
-func TestBucket_createEventBus(t *testing.T) {
+func TestBucket_createEventbus(t *testing.T) {
 	Convey("test bucket create eventbus", t, func() {
 		ctx := context.Background()
 		tw := newtimingwheel(cfg())

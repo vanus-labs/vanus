@@ -36,7 +36,7 @@ func NewCloudEventsClient(cc grpc.ClientConnInterface) CloudEventsClient {
 
 func (c *cloudEventsClient) Send(ctx context.Context, in *BatchEvent, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.cloudevents.CloudEvents/Send", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.cloudevents.CloudEvents/Send", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func _CloudEvents_Send_Handler(srv interface{}, ctx context.Context, dec func(in
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.cloudevents.CloudEvents/Send",
+		FullMethod: "/vanus.core.cloudevents.CloudEvents/Send",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CloudEventsServer).Send(ctx, req.(*BatchEvent))
@@ -91,7 +91,7 @@ func _CloudEvents_Send_Handler(srv interface{}, ctx context.Context, dec func(in
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var CloudEvents_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "linkall.vanus.cloudevents.CloudEvents",
+	ServiceName: "vanus.core.cloudevents.CloudEvents",
 	HandlerType: (*CloudEventsServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

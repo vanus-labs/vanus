@@ -96,7 +96,7 @@ func createSubscriptionCommand() *cobra.Command {
 					Sink:           sink,
 					SinkCredential: credential,
 					Protocol:       p,
-					EventBus:       eventbus,
+					Eventbus:       eventbus,
 					Transformer:    trans,
 					Name:           subscriptionName,
 					Description:    description,
@@ -358,7 +358,7 @@ func updateSubscriptionCommand() *cobra.Command {
 					Sink:           sub.Sink,
 					SinkCredential: sub.SinkCredential,
 					Protocol:       sub.Protocol,
-					EventBus:       sub.EventBus,
+					Eventbus:       sub.Eventbus,
 					Transformer:    sub.Transformer,
 					Name:           sub.Name,
 					Description:    sub.Description,
@@ -647,7 +647,7 @@ func getSubscriptionRow(sub *meta.Subscription) []interface{} {
 	result = append(result, formatID(sub.Id))
 	result = append(result, sub.Name)
 	result = append(result, sub.Disable)
-	result = append(result, sub.EventBus)
+	result = append(result, sub.Eventbus)
 	result = append(result, sub.Sink)
 	result = append(result, sub.Description)
 

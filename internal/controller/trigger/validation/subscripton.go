@@ -47,7 +47,7 @@ func ValidateSubscriptionRequest(ctx context.Context, request *ctrlpb.Subscripti
 	if err := validateSinkCredential(ctx, request.Sink, request.SinkCredential); err != nil {
 		return err
 	}
-	if request.EventBus == "" {
+	if request.Eventbus == "" {
 		return errors.ErrInvalidRequest.WithMessage("eventbus is empty")
 	}
 	if request.Name == "" {

@@ -36,7 +36,7 @@ func NewRaftServerClient(cc grpc.ClientConnInterface) RaftServerClient {
 }
 
 func (c *raftServerClient) SendMessage(ctx context.Context, opts ...grpc.CallOption) (RaftServer_SendMessageClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RaftServer_ServiceDesc.Streams[0], "/linkall.vanus.raft.RaftServer/SendMessage", opts...)
+	stream, err := c.cc.NewStream(ctx, &RaftServer_ServiceDesc.Streams[0], "/vanus.core.raft.RaftServer/SendMessage", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func (x *raftServerSendMessageServer) Recv() (*raftpb.Message, error) {
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var RaftServer_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "linkall.vanus.raft.RaftServer",
+	ServiceName: "vanus.core.raft.RaftServer",
 	HandlerType: (*RaftServerServer)(nil),
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{

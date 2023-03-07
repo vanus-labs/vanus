@@ -60,7 +60,7 @@ func createEventbusCommand() *cobra.Command {
 			if eventbus == "" {
 				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
-			_, err := client.CreateEventBus(context.Background(), &ctrlpb.CreateEventBusRequest{
+			_, err := client.CreateEventbus(context.Background(), &ctrlpb.CreateEventbusRequest{
 				Name:        eventbus,
 				LogNumber:   eventlogNum,
 				Description: description,
@@ -99,7 +99,7 @@ func deleteEventbusCommand() *cobra.Command {
 				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
 
-			_, err := client.DeleteEventBus(context.Background(), &metapb.EventBus{Name: eventbus})
+			_, err := client.DeleteEventbus(context.Background(), &metapb.Eventbus{Name: eventbus})
 			if err != nil {
 				cmdFailedf(cmd, "delete eventbus failed: %s", err)
 			}
@@ -138,11 +138,11 @@ func getEventbusInfoCommand() *cobra.Command {
 				buses = strings.Split(eventbus, ",")
 			}
 
-			busMetas := make([]*metapb.EventBus, 0)
+			busMetas := make([]*metapb.Eventbus, 0)
 			segs := make(map[uint64][]*metapb.Segment)
 			ctx := context.Background()
 			for idx := range buses {
-				res, err := client.GetEventBus(ctx, &metapb.EventBus{Name: buses[idx]})
+				res, err := client.GetEventbus(ctx, &metapb.Eventbus{Name: buses[idx]})
 				if err != nil {
 					cmdFailedf(cmd, "get eventbus failed: %s", err)
 				}
@@ -152,13 +152,13 @@ func getEventbusInfoCommand() *cobra.Command {
 					logs := res.GetLogs()
 					for idx := range logs {
 						segRes, err := client.ListSegment(ctx, &ctrlpb.ListSegmentRequest{
-							EventBusId: res.Id,
-							EventLogId: logs[idx].EventLogId,
+							EventbusId: res.Id,
+							EventlogId: logs[idx].EventlogId,
 						})
 						if err != nil {
 							cmdFailedf(cmd, "get segments failed: %s", err)
 						}
-						segs[logs[idx].EventLogId] = segRes.Segments
+						segs[logs[idx].EventlogId] = segRes.Segments
 					}
 				}
 			}
@@ -180,7 +180,7 @@ func getEventbusInfoCommand() *cobra.Command {
 								res.Description,
 								time.UnixMilli(res.CreatedAt).Format(time.RFC3339),
 								time.UnixMilli(res.UpdatedAt).Format(time.RFC3339),
-								formatID(res.Logs[idx].EventLogId),
+								formatID(res.Logs[idx].EventlogId),
 								res.Logs[idx].CurrentSegmentNumbers,
 							})
 						}
@@ -202,13 +202,13 @@ func getEventbusInfoCommand() *cobra.Command {
 					})
 					for _, eb := range busMetas {
 						for idx := 0; idx < len(eb.Logs); idx++ {
-							segOfEL := segs[eb.Logs[idx].EventLogId]
+							segOfEL := segs[eb.Logs[idx].EventlogId]
 							for _, v := range segOfEL {
 								t.AppendRow(table.Row{
 									eb.Name, eb.Description,
 									time.UnixMilli(eb.CreatedAt).Format(time.RFC3339),
 									time.UnixMilli(eb.UpdatedAt).Format(time.RFC3339),
-									formatID(eb.Logs[idx].EventLogId), formatID(v.Id),
+									formatID(eb.Logs[idx].EventlogId), formatID(v.Id),
 									v.Capacity, v.Size, v.StartOffsetInLog, v.EndOffsetInLog,
 								})
 							}
@@ -243,7 +243,7 @@ func getEventbusInfoCommand() *cobra.Command {
 					multiReplica := false
 					for _, res := range busMetas {
 						for idx := 0; idx < len(res.Logs); idx++ {
-							segOfEL := segs[res.Logs[idx].EventLogId]
+							segOfEL := segs[res.Logs[idx].EventlogId]
 							for _, seg := range segOfEL {
 								if !multiReplica && len(seg.Replicas) > 1 {
 									multiReplica = true
@@ -261,7 +261,7 @@ func getEventbusInfoCommand() *cobra.Command {
 										res.Name, res.Description,
 										time.UnixMilli(res.CreatedAt).Format(time.RFC3339),
 										time.UnixMilli(res.UpdatedAt).Format(
-											time.RFC3339), formatID(res.Logs[idx].EventLogId),
+											time.RFC3339), formatID(res.Logs[idx].EventlogId),
 										formatID(seg.Id), seg.Capacity, seg.Size, seg.StartOffsetInLog,
 										seg.EndOffsetInLog, formatID(blk.Id), blk.Id == seg.LeaderBlockId,
 										blk.VolumeID, blk.Endpoint,
@@ -324,7 +324,7 @@ func listEventbusInfoCommand() *cobra.Command {
 		Use:   "list",
 		Short: "list the eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-			res, err := client.ListEventBus(context.Background(), &emptypb.Empty{})
+			res, err := client.ListEventbus(context.Background(), &emptypb.Empty{})
 			if err != nil {
 				cmdFailedf(cmd, "list eventbus failed: %s", err)
 			}

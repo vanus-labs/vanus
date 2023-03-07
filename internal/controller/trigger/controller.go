@@ -180,7 +180,7 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 		return nil, err
 	}
 	// subscription name can't be repeated in an eventbus
-	_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, request.Subscription.EventBus, request.Subscription.Name)
+	_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, request.Subscription.Eventbus, request.Subscription.Name)
 	if _sub != nil {
 		return nil, errors.ErrInvalidRequest.WithMessage(
 			fmt.Sprintf("subscription name %s has exist", request.Subscription.Name))
@@ -226,12 +226,12 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 	if err := validation.ValidateSubscriptionRequest(ctx, request.Subscription); err != nil {
 		return nil, err
 	}
-	if request.Subscription.EventBus != sub.EventBus {
+	if request.Subscription.Eventbus != sub.Eventbus {
 		return nil, errors.ErrInvalidRequest.WithMessage("can not change eventbus")
 	}
 	if request.Subscription.Name != sub.Name {
 		// subscription name can't be repeated in an eventbus
-		_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, sub.EventBus, request.Subscription.Name)
+		_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, sub.Eventbus, request.Subscription.Name)
 		if _sub != nil {
 			return nil, errors.ErrInvalidRequest.WithMessage(
 				fmt.Sprintf("subscription name %s has exist", request.Subscription.Name))
@@ -253,7 +253,7 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 		return nil, err
 	}
 	if transChange != 0 {
-		metrics.SubscriptionTransformerGauge.WithLabelValues(sub.EventBus).Add(float64(transChange))
+		metrics.SubscriptionTransformerGauge.WithLabelValues(sub.Eventbus).Add(float64(transChange))
 	}
 	resp := convert.ToPbSubscription(sub, nil)
 	return resp, nil
@@ -459,7 +459,7 @@ func (ctrl *controller) ListSubscription(ctx context.Context,
 	subscriptions := ctrl.subscriptionManager.ListSubscription(ctx)
 	list := make([]*metapb.Subscription, 0, len(subscriptions))
 	for _, sub := range subscriptions {
-		if request.Eventbus != "" && request.Eventbus != sub.EventBus {
+		if request.Eventbus != "" && request.Eventbus != sub.Eventbus {
 			continue
 		}
 		if request.Name != "" && !strings.Contains(sub.Name, request.Name) {

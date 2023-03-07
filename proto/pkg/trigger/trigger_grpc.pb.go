@@ -41,7 +41,7 @@ func NewTriggerWorkerClient(cc grpc.ClientConnInterface) TriggerWorkerClient {
 
 func (c *triggerWorkerClient) Start(ctx context.Context, in *StartTriggerWorkerRequest, opts ...grpc.CallOption) (*StartTriggerWorkerResponse, error) {
 	out := new(StartTriggerWorkerResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.trigger.TriggerWorker/Start", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.trigger.TriggerWorker/Start", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (c *triggerWorkerClient) Start(ctx context.Context, in *StartTriggerWorkerR
 
 func (c *triggerWorkerClient) Stop(ctx context.Context, in *StopTriggerWorkerRequest, opts ...grpc.CallOption) (*StopTriggerWorkerResponse, error) {
 	out := new(StopTriggerWorkerResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.trigger.TriggerWorker/Stop", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.trigger.TriggerWorker/Stop", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (c *triggerWorkerClient) Stop(ctx context.Context, in *StopTriggerWorkerReq
 
 func (c *triggerWorkerClient) AddSubscription(ctx context.Context, in *AddSubscriptionRequest, opts ...grpc.CallOption) (*AddSubscriptionResponse, error) {
 	out := new(AddSubscriptionResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.trigger.TriggerWorker/AddSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.trigger.TriggerWorker/AddSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (c *triggerWorkerClient) AddSubscription(ctx context.Context, in *AddSubscr
 
 func (c *triggerWorkerClient) RemoveSubscription(ctx context.Context, in *RemoveSubscriptionRequest, opts ...grpc.CallOption) (*RemoveSubscriptionResponse, error) {
 	out := new(RemoveSubscriptionResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.trigger.TriggerWorker/RemoveSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.trigger.TriggerWorker/RemoveSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (c *triggerWorkerClient) RemoveSubscription(ctx context.Context, in *Remove
 
 func (c *triggerWorkerClient) PauseSubscription(ctx context.Context, in *PauseSubscriptionRequest, opts ...grpc.CallOption) (*PauseSubscriptionResponse, error) {
 	out := new(PauseSubscriptionResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.trigger.TriggerWorker/PauseSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.trigger.TriggerWorker/PauseSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (c *triggerWorkerClient) PauseSubscription(ctx context.Context, in *PauseSu
 
 func (c *triggerWorkerClient) ResumeSubscription(ctx context.Context, in *ResumeSubscriptionRequest, opts ...grpc.CallOption) (*ResumeSubscriptionResponse, error) {
 	out := new(ResumeSubscriptionResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.trigger.TriggerWorker/ResumeSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.trigger.TriggerWorker/ResumeSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func _TriggerWorker_Start_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.trigger.TriggerWorker/Start",
+		FullMethod: "/vanus.core.trigger.TriggerWorker/Start",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerWorkerServer).Start(ctx, req.(*StartTriggerWorkerRequest))
@@ -167,7 +167,7 @@ func _TriggerWorker_Stop_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.trigger.TriggerWorker/Stop",
+		FullMethod: "/vanus.core.trigger.TriggerWorker/Stop",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerWorkerServer).Stop(ctx, req.(*StopTriggerWorkerRequest))
@@ -185,7 +185,7 @@ func _TriggerWorker_AddSubscription_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.trigger.TriggerWorker/AddSubscription",
+		FullMethod: "/vanus.core.trigger.TriggerWorker/AddSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerWorkerServer).AddSubscription(ctx, req.(*AddSubscriptionRequest))
@@ -203,7 +203,7 @@ func _TriggerWorker_RemoveSubscription_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.trigger.TriggerWorker/RemoveSubscription",
+		FullMethod: "/vanus.core.trigger.TriggerWorker/RemoveSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerWorkerServer).RemoveSubscription(ctx, req.(*RemoveSubscriptionRequest))
@@ -221,7 +221,7 @@ func _TriggerWorker_PauseSubscription_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.trigger.TriggerWorker/PauseSubscription",
+		FullMethod: "/vanus.core.trigger.TriggerWorker/PauseSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerWorkerServer).PauseSubscription(ctx, req.(*PauseSubscriptionRequest))
@@ -239,7 +239,7 @@ func _TriggerWorker_ResumeSubscription_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.trigger.TriggerWorker/ResumeSubscription",
+		FullMethod: "/vanus.core.trigger.TriggerWorker/ResumeSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerWorkerServer).ResumeSubscription(ctx, req.(*ResumeSubscriptionRequest))
@@ -251,7 +251,7 @@ func _TriggerWorker_ResumeSubscription_Handler(srv interface{}, ctx context.Cont
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var TriggerWorker_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "linkall.vanus.trigger.TriggerWorker",
+	ServiceName: "vanus.core.trigger.TriggerWorker",
 	HandlerType: (*TriggerWorkerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

@@ -40,7 +40,7 @@ func NewPingServerClient(cc grpc.ClientConnInterface) PingServerClient {
 
 func (c *pingServerClient) Ping(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*PingResponse, error) {
 	out := new(PingResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.PingServer/Ping", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.PingServer/Ping", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func _PingServer_Ping_Handler(srv interface{}, ctx context.Context, dec func(int
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.PingServer/Ping",
+		FullMethod: "/vanus.core.controller.PingServer/Ping",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PingServerServer).Ping(ctx, req.(*emptypb.Empty))
@@ -95,7 +95,7 @@ func _PingServer_Ping_Handler(srv interface{}, ctx context.Context, dec func(int
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var PingServer_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "linkall.vanus.controller.PingServer",
+	ServiceName: "vanus.core.controller.PingServer",
 	HandlerType: (*PingServerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -107,386 +107,386 @@ var PingServer_ServiceDesc = grpc.ServiceDesc{
 	Metadata: "controller.proto",
 }
 
-// EventBusControllerClient is the client API for EventBusController service.
+// EventbusControllerClient is the client API for EventbusController service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type EventBusControllerClient interface {
+type EventbusControllerClient interface {
 	// grpc -> HTTP
-	CreateEventBus(ctx context.Context, in *CreateEventBusRequest, opts ...grpc.CallOption) (*meta.EventBus, error)
-	CreateSystemEventBus(ctx context.Context, in *CreateEventBusRequest, opts ...grpc.CallOption) (*meta.EventBus, error)
-	DeleteEventBus(ctx context.Context, in *meta.EventBus, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	GetEventBus(ctx context.Context, in *meta.EventBus, opts ...grpc.CallOption) (*meta.EventBus, error)
-	ListEventBus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListEventbusResponse, error)
-	UpdateEventBus(ctx context.Context, in *UpdateEventBusRequest, opts ...grpc.CallOption) (*meta.EventBus, error)
+	CreateEventbus(ctx context.Context, in *CreateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
+	CreateSystemEventbus(ctx context.Context, in *CreateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
+	DeleteEventbus(ctx context.Context, in *meta.Eventbus, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	GetEventbus(ctx context.Context, in *meta.Eventbus, opts ...grpc.CallOption) (*meta.Eventbus, error)
+	ListEventbus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListEventbusResponse, error)
+	UpdateEventbus(ctx context.Context, in *UpdateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
 }
 
-type eventBusControllerClient struct {
+type eventbusControllerClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewEventBusControllerClient(cc grpc.ClientConnInterface) EventBusControllerClient {
-	return &eventBusControllerClient{cc}
+func NewEventbusControllerClient(cc grpc.ClientConnInterface) EventbusControllerClient {
+	return &eventbusControllerClient{cc}
 }
 
-func (c *eventBusControllerClient) CreateEventBus(ctx context.Context, in *CreateEventBusRequest, opts ...grpc.CallOption) (*meta.EventBus, error) {
-	out := new(meta.EventBus)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.EventBusController/CreateEventBus", in, out, opts...)
+func (c *eventbusControllerClient) CreateEventbus(ctx context.Context, in *CreateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
+	out := new(meta.Eventbus)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.EventbusController/CreateEventbus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *eventBusControllerClient) CreateSystemEventBus(ctx context.Context, in *CreateEventBusRequest, opts ...grpc.CallOption) (*meta.EventBus, error) {
-	out := new(meta.EventBus)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.EventBusController/CreateSystemEventBus", in, out, opts...)
+func (c *eventbusControllerClient) CreateSystemEventbus(ctx context.Context, in *CreateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
+	out := new(meta.Eventbus)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.EventbusController/CreateSystemEventbus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *eventBusControllerClient) DeleteEventBus(ctx context.Context, in *meta.EventBus, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *eventbusControllerClient) DeleteEventbus(ctx context.Context, in *meta.Eventbus, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.EventBusController/DeleteEventBus", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.EventbusController/DeleteEventbus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *eventBusControllerClient) GetEventBus(ctx context.Context, in *meta.EventBus, opts ...grpc.CallOption) (*meta.EventBus, error) {
-	out := new(meta.EventBus)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.EventBusController/GetEventBus", in, out, opts...)
+func (c *eventbusControllerClient) GetEventbus(ctx context.Context, in *meta.Eventbus, opts ...grpc.CallOption) (*meta.Eventbus, error) {
+	out := new(meta.Eventbus)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.EventbusController/GetEventbus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *eventBusControllerClient) ListEventBus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListEventbusResponse, error) {
+func (c *eventbusControllerClient) ListEventbus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListEventbusResponse, error) {
 	out := new(ListEventbusResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.EventBusController/ListEventBus", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.EventbusController/ListEventbus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *eventBusControllerClient) UpdateEventBus(ctx context.Context, in *UpdateEventBusRequest, opts ...grpc.CallOption) (*meta.EventBus, error) {
-	out := new(meta.EventBus)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.EventBusController/UpdateEventBus", in, out, opts...)
+func (c *eventbusControllerClient) UpdateEventbus(ctx context.Context, in *UpdateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
+	out := new(meta.Eventbus)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.EventbusController/UpdateEventbus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// EventBusControllerServer is the server API for EventBusController service.
-// All implementations should embed UnimplementedEventBusControllerServer
+// EventbusControllerServer is the server API for EventbusController service.
+// All implementations should embed UnimplementedEventbusControllerServer
 // for forward compatibility
-type EventBusControllerServer interface {
+type EventbusControllerServer interface {
 	// grpc -> HTTP
-	CreateEventBus(context.Context, *CreateEventBusRequest) (*meta.EventBus, error)
-	CreateSystemEventBus(context.Context, *CreateEventBusRequest) (*meta.EventBus, error)
-	DeleteEventBus(context.Context, *meta.EventBus) (*emptypb.Empty, error)
-	GetEventBus(context.Context, *meta.EventBus) (*meta.EventBus, error)
-	ListEventBus(context.Context, *emptypb.Empty) (*ListEventbusResponse, error)
-	UpdateEventBus(context.Context, *UpdateEventBusRequest) (*meta.EventBus, error)
+	CreateEventbus(context.Context, *CreateEventbusRequest) (*meta.Eventbus, error)
+	CreateSystemEventbus(context.Context, *CreateEventbusRequest) (*meta.Eventbus, error)
+	DeleteEventbus(context.Context, *meta.Eventbus) (*emptypb.Empty, error)
+	GetEventbus(context.Context, *meta.Eventbus) (*meta.Eventbus, error)
+	ListEventbus(context.Context, *emptypb.Empty) (*ListEventbusResponse, error)
+	UpdateEventbus(context.Context, *UpdateEventbusRequest) (*meta.Eventbus, error)
 }
 
-// UnimplementedEventBusControllerServer should be embedded to have forward compatible implementations.
-type UnimplementedEventBusControllerServer struct {
+// UnimplementedEventbusControllerServer should be embedded to have forward compatible implementations.
+type UnimplementedEventbusControllerServer struct {
 }
 
-func (UnimplementedEventBusControllerServer) CreateEventBus(context.Context, *CreateEventBusRequest) (*meta.EventBus, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateEventBus not implemented")
+func (UnimplementedEventbusControllerServer) CreateEventbus(context.Context, *CreateEventbusRequest) (*meta.Eventbus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateEventbus not implemented")
 }
-func (UnimplementedEventBusControllerServer) CreateSystemEventBus(context.Context, *CreateEventBusRequest) (*meta.EventBus, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateSystemEventBus not implemented")
+func (UnimplementedEventbusControllerServer) CreateSystemEventbus(context.Context, *CreateEventbusRequest) (*meta.Eventbus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateSystemEventbus not implemented")
 }
-func (UnimplementedEventBusControllerServer) DeleteEventBus(context.Context, *meta.EventBus) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteEventBus not implemented")
+func (UnimplementedEventbusControllerServer) DeleteEventbus(context.Context, *meta.Eventbus) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteEventbus not implemented")
 }
-func (UnimplementedEventBusControllerServer) GetEventBus(context.Context, *meta.EventBus) (*meta.EventBus, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetEventBus not implemented")
+func (UnimplementedEventbusControllerServer) GetEventbus(context.Context, *meta.Eventbus) (*meta.Eventbus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEventbus not implemented")
 }
-func (UnimplementedEventBusControllerServer) ListEventBus(context.Context, *emptypb.Empty) (*ListEventbusResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListEventBus not implemented")
+func (UnimplementedEventbusControllerServer) ListEventbus(context.Context, *emptypb.Empty) (*ListEventbusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListEventbus not implemented")
 }
-func (UnimplementedEventBusControllerServer) UpdateEventBus(context.Context, *UpdateEventBusRequest) (*meta.EventBus, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateEventBus not implemented")
+func (UnimplementedEventbusControllerServer) UpdateEventbus(context.Context, *UpdateEventbusRequest) (*meta.Eventbus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateEventbus not implemented")
 }
 
-// UnsafeEventBusControllerServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to EventBusControllerServer will
+// UnsafeEventbusControllerServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to EventbusControllerServer will
 // result in compilation errors.
-type UnsafeEventBusControllerServer interface {
-	mustEmbedUnimplementedEventBusControllerServer()
+type UnsafeEventbusControllerServer interface {
+	mustEmbedUnimplementedEventbusControllerServer()
 }
 
-func RegisterEventBusControllerServer(s grpc.ServiceRegistrar, srv EventBusControllerServer) {
-	s.RegisterService(&EventBusController_ServiceDesc, srv)
+func RegisterEventbusControllerServer(s grpc.ServiceRegistrar, srv EventbusControllerServer) {
+	s.RegisterService(&EventbusController_ServiceDesc, srv)
 }
 
-func _EventBusController_CreateEventBus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateEventBusRequest)
+func _EventbusController_CreateEventbus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateEventbusRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventBusControllerServer).CreateEventBus(ctx, in)
+		return srv.(EventbusControllerServer).CreateEventbus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.EventBusController/CreateEventBus",
+		FullMethod: "/vanus.core.controller.EventbusController/CreateEventbus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventBusControllerServer).CreateEventBus(ctx, req.(*CreateEventBusRequest))
+		return srv.(EventbusControllerServer).CreateEventbus(ctx, req.(*CreateEventbusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventBusController_CreateSystemEventBus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateEventBusRequest)
+func _EventbusController_CreateSystemEventbus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateEventbusRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventBusControllerServer).CreateSystemEventBus(ctx, in)
+		return srv.(EventbusControllerServer).CreateSystemEventbus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.EventBusController/CreateSystemEventBus",
+		FullMethod: "/vanus.core.controller.EventbusController/CreateSystemEventbus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventBusControllerServer).CreateSystemEventBus(ctx, req.(*CreateEventBusRequest))
+		return srv.(EventbusControllerServer).CreateSystemEventbus(ctx, req.(*CreateEventbusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventBusController_DeleteEventBus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(meta.EventBus)
+func _EventbusController_DeleteEventbus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(meta.Eventbus)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventBusControllerServer).DeleteEventBus(ctx, in)
+		return srv.(EventbusControllerServer).DeleteEventbus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.EventBusController/DeleteEventBus",
+		FullMethod: "/vanus.core.controller.EventbusController/DeleteEventbus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventBusControllerServer).DeleteEventBus(ctx, req.(*meta.EventBus))
+		return srv.(EventbusControllerServer).DeleteEventbus(ctx, req.(*meta.Eventbus))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventBusController_GetEventBus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(meta.EventBus)
+func _EventbusController_GetEventbus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(meta.Eventbus)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventBusControllerServer).GetEventBus(ctx, in)
+		return srv.(EventbusControllerServer).GetEventbus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.EventBusController/GetEventBus",
+		FullMethod: "/vanus.core.controller.EventbusController/GetEventbus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventBusControllerServer).GetEventBus(ctx, req.(*meta.EventBus))
+		return srv.(EventbusControllerServer).GetEventbus(ctx, req.(*meta.Eventbus))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventBusController_ListEventBus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _EventbusController_ListEventbus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventBusControllerServer).ListEventBus(ctx, in)
+		return srv.(EventbusControllerServer).ListEventbus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.EventBusController/ListEventBus",
+		FullMethod: "/vanus.core.controller.EventbusController/ListEventbus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventBusControllerServer).ListEventBus(ctx, req.(*emptypb.Empty))
+		return srv.(EventbusControllerServer).ListEventbus(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventBusController_UpdateEventBus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateEventBusRequest)
+func _EventbusController_UpdateEventbus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateEventbusRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventBusControllerServer).UpdateEventBus(ctx, in)
+		return srv.(EventbusControllerServer).UpdateEventbus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.EventBusController/UpdateEventBus",
+		FullMethod: "/vanus.core.controller.EventbusController/UpdateEventbus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventBusControllerServer).UpdateEventBus(ctx, req.(*UpdateEventBusRequest))
+		return srv.(EventbusControllerServer).UpdateEventbus(ctx, req.(*UpdateEventbusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// EventBusController_ServiceDesc is the grpc.ServiceDesc for EventBusController service.
+// EventbusController_ServiceDesc is the grpc.ServiceDesc for EventbusController service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var EventBusController_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "linkall.vanus.controller.EventBusController",
-	HandlerType: (*EventBusControllerServer)(nil),
+var EventbusController_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "vanus.core.controller.EventbusController",
+	HandlerType: (*EventbusControllerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "CreateEventBus",
-			Handler:    _EventBusController_CreateEventBus_Handler,
+			MethodName: "CreateEventbus",
+			Handler:    _EventbusController_CreateEventbus_Handler,
 		},
 		{
-			MethodName: "CreateSystemEventBus",
-			Handler:    _EventBusController_CreateSystemEventBus_Handler,
+			MethodName: "CreateSystemEventbus",
+			Handler:    _EventbusController_CreateSystemEventbus_Handler,
 		},
 		{
-			MethodName: "DeleteEventBus",
-			Handler:    _EventBusController_DeleteEventBus_Handler,
+			MethodName: "DeleteEventbus",
+			Handler:    _EventbusController_DeleteEventbus_Handler,
 		},
 		{
-			MethodName: "GetEventBus",
-			Handler:    _EventBusController_GetEventBus_Handler,
+			MethodName: "GetEventbus",
+			Handler:    _EventbusController_GetEventbus_Handler,
 		},
 		{
-			MethodName: "ListEventBus",
-			Handler:    _EventBusController_ListEventBus_Handler,
+			MethodName: "ListEventbus",
+			Handler:    _EventbusController_ListEventbus_Handler,
 		},
 		{
-			MethodName: "UpdateEventBus",
-			Handler:    _EventBusController_UpdateEventBus_Handler,
+			MethodName: "UpdateEventbus",
+			Handler:    _EventbusController_UpdateEventbus_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "controller.proto",
 }
 
-// EventLogControllerClient is the client API for EventLogController service.
+// EventlogControllerClient is the client API for EventlogController service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type EventLogControllerClient interface {
+type EventlogControllerClient interface {
 	ListSegment(ctx context.Context, in *ListSegmentRequest, opts ...grpc.CallOption) (*ListSegmentResponse, error)
 	GetAppendableSegment(ctx context.Context, in *GetAppendableSegmentRequest, opts ...grpc.CallOption) (*GetAppendableSegmentResponse, error)
 }
 
-type eventLogControllerClient struct {
+type eventlogControllerClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewEventLogControllerClient(cc grpc.ClientConnInterface) EventLogControllerClient {
-	return &eventLogControllerClient{cc}
+func NewEventlogControllerClient(cc grpc.ClientConnInterface) EventlogControllerClient {
+	return &eventlogControllerClient{cc}
 }
 
-func (c *eventLogControllerClient) ListSegment(ctx context.Context, in *ListSegmentRequest, opts ...grpc.CallOption) (*ListSegmentResponse, error) {
+func (c *eventlogControllerClient) ListSegment(ctx context.Context, in *ListSegmentRequest, opts ...grpc.CallOption) (*ListSegmentResponse, error) {
 	out := new(ListSegmentResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.EventLogController/ListSegment", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.EventlogController/ListSegment", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *eventLogControllerClient) GetAppendableSegment(ctx context.Context, in *GetAppendableSegmentRequest, opts ...grpc.CallOption) (*GetAppendableSegmentResponse, error) {
+func (c *eventlogControllerClient) GetAppendableSegment(ctx context.Context, in *GetAppendableSegmentRequest, opts ...grpc.CallOption) (*GetAppendableSegmentResponse, error) {
 	out := new(GetAppendableSegmentResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.EventLogController/GetAppendableSegment", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.EventlogController/GetAppendableSegment", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// EventLogControllerServer is the server API for EventLogController service.
-// All implementations should embed UnimplementedEventLogControllerServer
+// EventlogControllerServer is the server API for EventlogController service.
+// All implementations should embed UnimplementedEventlogControllerServer
 // for forward compatibility
-type EventLogControllerServer interface {
+type EventlogControllerServer interface {
 	ListSegment(context.Context, *ListSegmentRequest) (*ListSegmentResponse, error)
 	GetAppendableSegment(context.Context, *GetAppendableSegmentRequest) (*GetAppendableSegmentResponse, error)
 }
 
-// UnimplementedEventLogControllerServer should be embedded to have forward compatible implementations.
-type UnimplementedEventLogControllerServer struct {
+// UnimplementedEventlogControllerServer should be embedded to have forward compatible implementations.
+type UnimplementedEventlogControllerServer struct {
 }
 
-func (UnimplementedEventLogControllerServer) ListSegment(context.Context, *ListSegmentRequest) (*ListSegmentResponse, error) {
+func (UnimplementedEventlogControllerServer) ListSegment(context.Context, *ListSegmentRequest) (*ListSegmentResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListSegment not implemented")
 }
-func (UnimplementedEventLogControllerServer) GetAppendableSegment(context.Context, *GetAppendableSegmentRequest) (*GetAppendableSegmentResponse, error) {
+func (UnimplementedEventlogControllerServer) GetAppendableSegment(context.Context, *GetAppendableSegmentRequest) (*GetAppendableSegmentResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAppendableSegment not implemented")
 }
 
-// UnsafeEventLogControllerServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to EventLogControllerServer will
+// UnsafeEventlogControllerServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to EventlogControllerServer will
 // result in compilation errors.
-type UnsafeEventLogControllerServer interface {
-	mustEmbedUnimplementedEventLogControllerServer()
+type UnsafeEventlogControllerServer interface {
+	mustEmbedUnimplementedEventlogControllerServer()
 }
 
-func RegisterEventLogControllerServer(s grpc.ServiceRegistrar, srv EventLogControllerServer) {
-	s.RegisterService(&EventLogController_ServiceDesc, srv)
+func RegisterEventlogControllerServer(s grpc.ServiceRegistrar, srv EventlogControllerServer) {
+	s.RegisterService(&EventlogController_ServiceDesc, srv)
 }
 
-func _EventLogController_ListSegment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _EventlogController_ListSegment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListSegmentRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventLogControllerServer).ListSegment(ctx, in)
+		return srv.(EventlogControllerServer).ListSegment(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.EventLogController/ListSegment",
+		FullMethod: "/vanus.core.controller.EventlogController/ListSegment",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventLogControllerServer).ListSegment(ctx, req.(*ListSegmentRequest))
+		return srv.(EventlogControllerServer).ListSegment(ctx, req.(*ListSegmentRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventLogController_GetAppendableSegment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _EventlogController_GetAppendableSegment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetAppendableSegmentRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventLogControllerServer).GetAppendableSegment(ctx, in)
+		return srv.(EventlogControllerServer).GetAppendableSegment(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.EventLogController/GetAppendableSegment",
+		FullMethod: "/vanus.core.controller.EventlogController/GetAppendableSegment",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventLogControllerServer).GetAppendableSegment(ctx, req.(*GetAppendableSegmentRequest))
+		return srv.(EventlogControllerServer).GetAppendableSegment(ctx, req.(*GetAppendableSegmentRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// EventLogController_ServiceDesc is the grpc.ServiceDesc for EventLogController service.
+// EventlogController_ServiceDesc is the grpc.ServiceDesc for EventlogController service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var EventLogController_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "linkall.vanus.controller.EventLogController",
-	HandlerType: (*EventLogControllerServer)(nil),
+var EventlogController_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "vanus.core.controller.EventlogController",
+	HandlerType: (*EventlogControllerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "ListSegment",
-			Handler:    _EventLogController_ListSegment_Handler,
+			Handler:    _EventlogController_ListSegment_Handler,
 		},
 		{
 			MethodName: "GetAppendableSegment",
-			Handler:    _EventLogController_GetAppendableSegment_Handler,
+			Handler:    _EventlogController_GetAppendableSegment_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -515,7 +515,7 @@ func NewSegmentControllerClient(cc grpc.ClientConnInterface) SegmentControllerCl
 
 func (c *segmentControllerClient) QuerySegmentRouteInfo(ctx context.Context, in *QuerySegmentRouteInfoRequest, opts ...grpc.CallOption) (*QuerySegmentRouteInfoResponse, error) {
 	out := new(QuerySegmentRouteInfoResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.SegmentController/QuerySegmentRouteInfo", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.SegmentController/QuerySegmentRouteInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -523,7 +523,7 @@ func (c *segmentControllerClient) QuerySegmentRouteInfo(ctx context.Context, in 
 }
 
 func (c *segmentControllerClient) SegmentHeartbeat(ctx context.Context, opts ...grpc.CallOption) (SegmentController_SegmentHeartbeatClient, error) {
-	stream, err := c.cc.NewStream(ctx, &SegmentController_ServiceDesc.Streams[0], "/linkall.vanus.controller.SegmentController/SegmentHeartbeat", opts...)
+	stream, err := c.cc.NewStream(ctx, &SegmentController_ServiceDesc.Streams[0], "/vanus.core.controller.SegmentController/SegmentHeartbeat", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -558,7 +558,7 @@ func (x *segmentControllerSegmentHeartbeatClient) CloseAndRecv() (*SegmentHeartb
 
 func (c *segmentControllerClient) RegisterSegmentServer(ctx context.Context, in *RegisterSegmentServerRequest, opts ...grpc.CallOption) (*RegisterSegmentServerResponse, error) {
 	out := new(RegisterSegmentServerResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.SegmentController/RegisterSegmentServer", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.SegmentController/RegisterSegmentServer", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -567,7 +567,7 @@ func (c *segmentControllerClient) RegisterSegmentServer(ctx context.Context, in 
 
 func (c *segmentControllerClient) UnregisterSegmentServer(ctx context.Context, in *UnregisterSegmentServerRequest, opts ...grpc.CallOption) (*UnregisterSegmentServerResponse, error) {
 	out := new(UnregisterSegmentServerResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.SegmentController/UnregisterSegmentServer", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.SegmentController/UnregisterSegmentServer", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -576,7 +576,7 @@ func (c *segmentControllerClient) UnregisterSegmentServer(ctx context.Context, i
 
 func (c *segmentControllerClient) ReportSegmentBlockIsFull(ctx context.Context, in *SegmentHeartbeatRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.SegmentController/ReportSegmentBlockIsFull", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.SegmentController/ReportSegmentBlockIsFull", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -585,7 +585,7 @@ func (c *segmentControllerClient) ReportSegmentBlockIsFull(ctx context.Context, 
 
 func (c *segmentControllerClient) ReportSegmentLeader(ctx context.Context, in *ReportSegmentLeaderRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.SegmentController/ReportSegmentLeader", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.SegmentController/ReportSegmentLeader", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -648,7 +648,7 @@ func _SegmentController_QuerySegmentRouteInfo_Handler(srv interface{}, ctx conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.SegmentController/QuerySegmentRouteInfo",
+		FullMethod: "/vanus.core.controller.SegmentController/QuerySegmentRouteInfo",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SegmentControllerServer).QuerySegmentRouteInfo(ctx, req.(*QuerySegmentRouteInfoRequest))
@@ -692,7 +692,7 @@ func _SegmentController_RegisterSegmentServer_Handler(srv interface{}, ctx conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.SegmentController/RegisterSegmentServer",
+		FullMethod: "/vanus.core.controller.SegmentController/RegisterSegmentServer",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SegmentControllerServer).RegisterSegmentServer(ctx, req.(*RegisterSegmentServerRequest))
@@ -710,7 +710,7 @@ func _SegmentController_UnregisterSegmentServer_Handler(srv interface{}, ctx con
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.SegmentController/UnregisterSegmentServer",
+		FullMethod: "/vanus.core.controller.SegmentController/UnregisterSegmentServer",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SegmentControllerServer).UnregisterSegmentServer(ctx, req.(*UnregisterSegmentServerRequest))
@@ -728,7 +728,7 @@ func _SegmentController_ReportSegmentBlockIsFull_Handler(srv interface{}, ctx co
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.SegmentController/ReportSegmentBlockIsFull",
+		FullMethod: "/vanus.core.controller.SegmentController/ReportSegmentBlockIsFull",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SegmentControllerServer).ReportSegmentBlockIsFull(ctx, req.(*SegmentHeartbeatRequest))
@@ -746,7 +746,7 @@ func _SegmentController_ReportSegmentLeader_Handler(srv interface{}, ctx context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.SegmentController/ReportSegmentLeader",
+		FullMethod: "/vanus.core.controller.SegmentController/ReportSegmentLeader",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SegmentControllerServer).ReportSegmentLeader(ctx, req.(*ReportSegmentLeaderRequest))
@@ -758,7 +758,7 @@ func _SegmentController_ReportSegmentLeader_Handler(srv interface{}, ctx context
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var SegmentController_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "linkall.vanus.controller.SegmentController",
+	ServiceName: "vanus.core.controller.SegmentController",
 	HandlerType: (*SegmentControllerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -822,7 +822,7 @@ func NewTriggerControllerClient(cc grpc.ClientConnInterface) TriggerControllerCl
 
 func (c *triggerControllerClient) CreateSubscription(ctx context.Context, in *CreateSubscriptionRequest, opts ...grpc.CallOption) (*meta.Subscription, error) {
 	out := new(meta.Subscription)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.TriggerController/CreateSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.TriggerController/CreateSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -831,7 +831,7 @@ func (c *triggerControllerClient) CreateSubscription(ctx context.Context, in *Cr
 
 func (c *triggerControllerClient) UpdateSubscription(ctx context.Context, in *UpdateSubscriptionRequest, opts ...grpc.CallOption) (*meta.Subscription, error) {
 	out := new(meta.Subscription)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.TriggerController/UpdateSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.TriggerController/UpdateSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -840,7 +840,7 @@ func (c *triggerControllerClient) UpdateSubscription(ctx context.Context, in *Up
 
 func (c *triggerControllerClient) DeleteSubscription(ctx context.Context, in *DeleteSubscriptionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.TriggerController/DeleteSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.TriggerController/DeleteSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -849,7 +849,7 @@ func (c *triggerControllerClient) DeleteSubscription(ctx context.Context, in *De
 
 func (c *triggerControllerClient) DisableSubscription(ctx context.Context, in *DisableSubscriptionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.TriggerController/DisableSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.TriggerController/DisableSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -858,7 +858,7 @@ func (c *triggerControllerClient) DisableSubscription(ctx context.Context, in *D
 
 func (c *triggerControllerClient) ResumeSubscription(ctx context.Context, in *ResumeSubscriptionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.TriggerController/ResumeSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.TriggerController/ResumeSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -867,7 +867,7 @@ func (c *triggerControllerClient) ResumeSubscription(ctx context.Context, in *Re
 
 func (c *triggerControllerClient) GetSubscription(ctx context.Context, in *GetSubscriptionRequest, opts ...grpc.CallOption) (*meta.Subscription, error) {
 	out := new(meta.Subscription)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.TriggerController/GetSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.TriggerController/GetSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -876,7 +876,7 @@ func (c *triggerControllerClient) GetSubscription(ctx context.Context, in *GetSu
 
 func (c *triggerControllerClient) ListSubscription(ctx context.Context, in *ListSubscriptionRequest, opts ...grpc.CallOption) (*ListSubscriptionResponse, error) {
 	out := new(ListSubscriptionResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.TriggerController/ListSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.TriggerController/ListSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -884,7 +884,7 @@ func (c *triggerControllerClient) ListSubscription(ctx context.Context, in *List
 }
 
 func (c *triggerControllerClient) TriggerWorkerHeartbeat(ctx context.Context, opts ...grpc.CallOption) (TriggerController_TriggerWorkerHeartbeatClient, error) {
-	stream, err := c.cc.NewStream(ctx, &TriggerController_ServiceDesc.Streams[0], "/linkall.vanus.controller.TriggerController/TriggerWorkerHeartbeat", opts...)
+	stream, err := c.cc.NewStream(ctx, &TriggerController_ServiceDesc.Streams[0], "/vanus.core.controller.TriggerController/TriggerWorkerHeartbeat", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -919,7 +919,7 @@ func (x *triggerControllerTriggerWorkerHeartbeatClient) CloseAndRecv() (*Trigger
 
 func (c *triggerControllerClient) RegisterTriggerWorker(ctx context.Context, in *RegisterTriggerWorkerRequest, opts ...grpc.CallOption) (*RegisterTriggerWorkerResponse, error) {
 	out := new(RegisterTriggerWorkerResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.TriggerController/RegisterTriggerWorker", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.TriggerController/RegisterTriggerWorker", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -928,7 +928,7 @@ func (c *triggerControllerClient) RegisterTriggerWorker(ctx context.Context, in 
 
 func (c *triggerControllerClient) UnregisterTriggerWorker(ctx context.Context, in *UnregisterTriggerWorkerRequest, opts ...grpc.CallOption) (*UnregisterTriggerWorkerResponse, error) {
 	out := new(UnregisterTriggerWorkerResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.TriggerController/UnregisterTriggerWorker", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.TriggerController/UnregisterTriggerWorker", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -937,7 +937,7 @@ func (c *triggerControllerClient) UnregisterTriggerWorker(ctx context.Context, i
 
 func (c *triggerControllerClient) ResetOffsetToTimestamp(ctx context.Context, in *ResetOffsetToTimestampRequest, opts ...grpc.CallOption) (*ResetOffsetToTimestampResponse, error) {
 	out := new(ResetOffsetToTimestampResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.TriggerController/ResetOffsetToTimestamp", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.TriggerController/ResetOffsetToTimestamp", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -946,7 +946,7 @@ func (c *triggerControllerClient) ResetOffsetToTimestamp(ctx context.Context, in
 
 func (c *triggerControllerClient) CommitOffset(ctx context.Context, in *CommitOffsetRequest, opts ...grpc.CallOption) (*CommitOffsetResponse, error) {
 	out := new(CommitOffsetResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.TriggerController/CommitOffset", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.TriggerController/CommitOffset", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -955,7 +955,7 @@ func (c *triggerControllerClient) CommitOffset(ctx context.Context, in *CommitOf
 
 func (c *triggerControllerClient) SetDeadLetterEventOffset(ctx context.Context, in *SetDeadLetterEventOffsetRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.TriggerController/SetDeadLetterEventOffset", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.TriggerController/SetDeadLetterEventOffset", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -964,7 +964,7 @@ func (c *triggerControllerClient) SetDeadLetterEventOffset(ctx context.Context, 
 
 func (c *triggerControllerClient) GetDeadLetterEventOffset(ctx context.Context, in *GetDeadLetterEventOffsetRequest, opts ...grpc.CallOption) (*GetDeadLetterEventOffsetResponse, error) {
 	out := new(GetDeadLetterEventOffsetResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.TriggerController/GetDeadLetterEventOffset", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.TriggerController/GetDeadLetterEventOffset", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1059,7 +1059,7 @@ func _TriggerController_CreateSubscription_Handler(srv interface{}, ctx context.
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.TriggerController/CreateSubscription",
+		FullMethod: "/vanus.core.controller.TriggerController/CreateSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerControllerServer).CreateSubscription(ctx, req.(*CreateSubscriptionRequest))
@@ -1077,7 +1077,7 @@ func _TriggerController_UpdateSubscription_Handler(srv interface{}, ctx context.
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.TriggerController/UpdateSubscription",
+		FullMethod: "/vanus.core.controller.TriggerController/UpdateSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerControllerServer).UpdateSubscription(ctx, req.(*UpdateSubscriptionRequest))
@@ -1095,7 +1095,7 @@ func _TriggerController_DeleteSubscription_Handler(srv interface{}, ctx context.
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.TriggerController/DeleteSubscription",
+		FullMethod: "/vanus.core.controller.TriggerController/DeleteSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerControllerServer).DeleteSubscription(ctx, req.(*DeleteSubscriptionRequest))
@@ -1113,7 +1113,7 @@ func _TriggerController_DisableSubscription_Handler(srv interface{}, ctx context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.TriggerController/DisableSubscription",
+		FullMethod: "/vanus.core.controller.TriggerController/DisableSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerControllerServer).DisableSubscription(ctx, req.(*DisableSubscriptionRequest))
@@ -1131,7 +1131,7 @@ func _TriggerController_ResumeSubscription_Handler(srv interface{}, ctx context.
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.TriggerController/ResumeSubscription",
+		FullMethod: "/vanus.core.controller.TriggerController/ResumeSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerControllerServer).ResumeSubscription(ctx, req.(*ResumeSubscriptionRequest))
@@ -1149,7 +1149,7 @@ func _TriggerController_GetSubscription_Handler(srv interface{}, ctx context.Con
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.TriggerController/GetSubscription",
+		FullMethod: "/vanus.core.controller.TriggerController/GetSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerControllerServer).GetSubscription(ctx, req.(*GetSubscriptionRequest))
@@ -1167,7 +1167,7 @@ func _TriggerController_ListSubscription_Handler(srv interface{}, ctx context.Co
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.TriggerController/ListSubscription",
+		FullMethod: "/vanus.core.controller.TriggerController/ListSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerControllerServer).ListSubscription(ctx, req.(*ListSubscriptionRequest))
@@ -1211,7 +1211,7 @@ func _TriggerController_RegisterTriggerWorker_Handler(srv interface{}, ctx conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.TriggerController/RegisterTriggerWorker",
+		FullMethod: "/vanus.core.controller.TriggerController/RegisterTriggerWorker",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerControllerServer).RegisterTriggerWorker(ctx, req.(*RegisterTriggerWorkerRequest))
@@ -1229,7 +1229,7 @@ func _TriggerController_UnregisterTriggerWorker_Handler(srv interface{}, ctx con
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.TriggerController/UnregisterTriggerWorker",
+		FullMethod: "/vanus.core.controller.TriggerController/UnregisterTriggerWorker",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerControllerServer).UnregisterTriggerWorker(ctx, req.(*UnregisterTriggerWorkerRequest))
@@ -1247,7 +1247,7 @@ func _TriggerController_ResetOffsetToTimestamp_Handler(srv interface{}, ctx cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.TriggerController/ResetOffsetToTimestamp",
+		FullMethod: "/vanus.core.controller.TriggerController/ResetOffsetToTimestamp",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerControllerServer).ResetOffsetToTimestamp(ctx, req.(*ResetOffsetToTimestampRequest))
@@ -1265,7 +1265,7 @@ func _TriggerController_CommitOffset_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.TriggerController/CommitOffset",
+		FullMethod: "/vanus.core.controller.TriggerController/CommitOffset",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerControllerServer).CommitOffset(ctx, req.(*CommitOffsetRequest))
@@ -1283,7 +1283,7 @@ func _TriggerController_SetDeadLetterEventOffset_Handler(srv interface{}, ctx co
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.TriggerController/SetDeadLetterEventOffset",
+		FullMethod: "/vanus.core.controller.TriggerController/SetDeadLetterEventOffset",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerControllerServer).SetDeadLetterEventOffset(ctx, req.(*SetDeadLetterEventOffsetRequest))
@@ -1301,7 +1301,7 @@ func _TriggerController_GetDeadLetterEventOffset_Handler(srv interface{}, ctx co
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.TriggerController/GetDeadLetterEventOffset",
+		FullMethod: "/vanus.core.controller.TriggerController/GetDeadLetterEventOffset",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TriggerControllerServer).GetDeadLetterEventOffset(ctx, req.(*GetDeadLetterEventOffsetRequest))
@@ -1313,7 +1313,7 @@ func _TriggerController_GetDeadLetterEventOffset_Handler(srv interface{}, ctx co
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var TriggerController_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "linkall.vanus.controller.TriggerController",
+	ServiceName: "vanus.core.controller.TriggerController",
 	HandlerType: (*TriggerControllerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -1398,7 +1398,7 @@ func NewSnowflakeControllerClient(cc grpc.ClientConnInterface) SnowflakeControll
 
 func (c *snowflakeControllerClient) GetClusterStartTime(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*timestamppb.Timestamp, error) {
 	out := new(timestamppb.Timestamp)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.SnowflakeController/GetClusterStartTime", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.SnowflakeController/GetClusterStartTime", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1407,7 +1407,7 @@ func (c *snowflakeControllerClient) GetClusterStartTime(ctx context.Context, in 
 
 func (c *snowflakeControllerClient) RegisterNode(ctx context.Context, in *wrapperspb.UInt32Value, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.SnowflakeController/RegisterNode", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.SnowflakeController/RegisterNode", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1416,7 +1416,7 @@ func (c *snowflakeControllerClient) RegisterNode(ctx context.Context, in *wrappe
 
 func (c *snowflakeControllerClient) UnregisterNode(ctx context.Context, in *wrapperspb.UInt32Value, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.controller.SnowflakeController/UnregisterNode", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.controller.SnowflakeController/UnregisterNode", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1467,7 +1467,7 @@ func _SnowflakeController_GetClusterStartTime_Handler(srv interface{}, ctx conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.SnowflakeController/GetClusterStartTime",
+		FullMethod: "/vanus.core.controller.SnowflakeController/GetClusterStartTime",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SnowflakeControllerServer).GetClusterStartTime(ctx, req.(*emptypb.Empty))
@@ -1485,7 +1485,7 @@ func _SnowflakeController_RegisterNode_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.SnowflakeController/RegisterNode",
+		FullMethod: "/vanus.core.controller.SnowflakeController/RegisterNode",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SnowflakeControllerServer).RegisterNode(ctx, req.(*wrapperspb.UInt32Value))
@@ -1503,7 +1503,7 @@ func _SnowflakeController_UnregisterNode_Handler(srv interface{}, ctx context.Co
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.controller.SnowflakeController/UnregisterNode",
+		FullMethod: "/vanus.core.controller.SnowflakeController/UnregisterNode",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SnowflakeControllerServer).UnregisterNode(ctx, req.(*wrapperspb.UInt32Value))
@@ -1515,7 +1515,7 @@ func _SnowflakeController_UnregisterNode_Handler(srv interface{}, ctx context.Co
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var SnowflakeController_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "linkall.vanus.controller.SnowflakeController",
+	ServiceName: "vanus.core.controller.SnowflakeController",
 	HandlerType: (*SnowflakeControllerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

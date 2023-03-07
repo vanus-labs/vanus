@@ -53,11 +53,11 @@ type EventbusService interface {
 	IsExist(ctx context.Context, name string) bool
 	CreateSystemEventbusIfNotExist(ctx context.Context, name string, desc string) error
 	Delete(ctx context.Context, name string) error
-	RawClient() ctrlpb.EventBusControllerClient
+	RawClient() ctrlpb.EventbusControllerClient
 }
 
 type EventlogService interface {
-	RawClient() ctrlpb.EventLogControllerClient
+	RawClient() ctrlpb.EventlogControllerClient
 }
 
 type TriggerService interface {

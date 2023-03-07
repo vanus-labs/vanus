@@ -65,7 +65,7 @@ func (cp *ControllerProxy) GetDeadLetterEvent(
 		return nil, errors.ErrInvalidRequest.WithMessage(
 			fmt.Sprintf("offset is invalid, param is %d it but now is %d", offset, storeOffset.Offset))
 	}
-	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(subscription.EventBus)
+	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(subscription.Eventbus)
 	ls, err := cp.client.Eventbus(ctx, deadLetterEventbusName).ListLog(ctx)
 	if err != nil {
 		return nil, err
@@ -151,7 +151,7 @@ func (cp *ControllerProxy) ResendDeadLetterEvent(
 		return nil, errors.ErrInvalidRequest.WithMessage(
 			fmt.Sprintf("start_offset is invalid, param is %d it but now is %d", offset, storeOffset.Offset))
 	}
-	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(subscription.EventBus)
+	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(subscription.Eventbus)
 	ls, err := cp.client.Eventbus(ctx, deadLetterEventbusName).ListLog(ctx)
 	if err != nil {
 		return nil, err

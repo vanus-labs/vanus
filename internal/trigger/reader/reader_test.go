@@ -50,7 +50,7 @@ func TestReaderStart(t *testing.T) {
 	mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
 	mockEventlog.EXPECT().ID().AnyTimes().Return(uint64(0))
 
-	Convey("test start eventLogs", t, func() {
+	Convey("test start eventlogs", t, func() {
 		offset := int64(100)
 		index := uint64(offset)
 		mockEventlog.EXPECT().LatestOffset(Any()).AnyTimes().Return(offset, nil)
@@ -71,7 +71,7 @@ func TestReaderStart(t *testing.T) {
 				// return []*ce.Event{&e}, int64(0), uint64(0), nil
 			})
 		eventCh := make(chan info.EventRecord, 100)
-		r := NewReader(Config{EventBusName: "test", BatchSize: 1}, eventCh).(*reader)
+		r := NewReader(Config{EventbusName: "test", BatchSize: 1}, eventCh).(*reader)
 		r.config.Client = mockClient
 		r.Start()
 		var wg sync.WaitGroup

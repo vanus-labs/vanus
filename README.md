@@ -18,7 +18,7 @@ It helps users build event pipelines between SaaS, cloud services, and cloud fun
 [![codecov](https://codecov.io/gh/vanus-labs/vanus/branch/main/graph/badge.svg?token=RSXSIMEY4V)](https://codecov.io/gh/vanus-labs/vanus)
 [![Language](https://img.shields.io/github/go-mod/go-version/vanus-labs/vanus?logo=go)](https://golang.org/)
 [![playground](https://img.shields.io/badge/Playground-Try%20it%20%20free-red)](https://play.linkall.com)
-[![playground](https://img.shields.io/badge/Docs-online-green)](https://linkall.com/docs)
+[![docs](https://img.shields.io/badge/Docs-online-green)](https://docs.vanus.ai/)
 
 <p>
     <a href="https://join.slack.com/t/vanusworkspace/shared_invite/zt-1jilbbfo2-NxiFG0VOo8ABGCCNaeNfcA"><img src="https://img.shields.io/badge/slack-join-3CC798?style=social&logo=slack" height=23></a>
@@ -70,10 +70,10 @@ Vanus helps users build event pipelines between SaaS, cloud services, and cloud 
 
 ## Getting Started
 
-You can install Vanus with a single command within 1 minute. Check out our [website](https://linkall.com) for detailed information.
+You can install Vanus with a single command within 1 minute. Check out our [website](https://vanus.ai) for detailed information.
 
 ```shell
-kubectl apply -f https://download.linkall.com/all-in-one/v0.5.4.yml
+kubectl apply -f https://dl.vanus.ai/all-in-one/v0.5.4.yml
 ```
 
 We also provide an [interactive Kubernetes environment](https://play.linkall.com) to simply deploy and try Vanus in your browser.

@@ -42,7 +42,7 @@ func UnaryServerInterceptor(mem member.Member) grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler,
 	) (interface{}, error) {
-		if info.FullMethod != "/linkall.vanus.controller.PingServer/Ping" &&
+		if info.FullMethod != "/vanus.core.controller.PingServer/Ping" &&
 			!mem.IsLeader() {
 			// TODO  read-only request bypass
 			return nil, errors.ErrNotLeader.WithMessage(

@@ -75,7 +75,7 @@ type Subscription struct {
 	SinkCredential     primitive.SinkCredential        `json:"-"`
 	Protocol           primitive.Protocol              `json:"protocol,omitempty"`
 	ProtocolSetting    *primitive.ProtocolSetting      `json:"protocol_settings,omitempty"`
-	EventBus           string                          `json:"eventbus"`
+	Eventbus           string                          `json:"eventbus"`
 	Transformer        *primitive.Transformer          `json:"transformer,omitempty"`
 	Name               string                          `json:"name"`
 	Description        string                          `json:"description"`

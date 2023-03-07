@@ -26,11 +26,11 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ControllerProxyClient interface {
 	// Eventbus
-	CreateEventBus(ctx context.Context, in *controller.CreateEventBusRequest, opts ...grpc.CallOption) (*meta.EventBus, error)
-	DeleteEventBus(ctx context.Context, in *meta.EventBus, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	GetEventBus(ctx context.Context, in *meta.EventBus, opts ...grpc.CallOption) (*meta.EventBus, error)
-	ListEventBus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*controller.ListEventbusResponse, error)
-	UpdateEventBus(ctx context.Context, in *controller.UpdateEventBusRequest, opts ...grpc.CallOption) (*meta.EventBus, error)
+	CreateEventbus(ctx context.Context, in *controller.CreateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
+	DeleteEventbus(ctx context.Context, in *meta.Eventbus, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	GetEventbus(ctx context.Context, in *meta.Eventbus, opts ...grpc.CallOption) (*meta.Eventbus, error)
+	ListEventbus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*controller.ListEventbusResponse, error)
+	UpdateEventbus(ctx context.Context, in *controller.UpdateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
 	ListSegment(ctx context.Context, in *controller.ListSegmentRequest, opts ...grpc.CallOption) (*controller.ListSegmentResponse, error)
 	// Trigger
 	CreateSubscription(ctx context.Context, in *controller.CreateSubscriptionRequest, opts ...grpc.CallOption) (*meta.Subscription, error)
@@ -60,45 +60,45 @@ func NewControllerProxyClient(cc grpc.ClientConnInterface) ControllerProxyClient
 	return &controllerProxyClient{cc}
 }
 
-func (c *controllerProxyClient) CreateEventBus(ctx context.Context, in *controller.CreateEventBusRequest, opts ...grpc.CallOption) (*meta.EventBus, error) {
-	out := new(meta.EventBus)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/CreateEventBus", in, out, opts...)
+func (c *controllerProxyClient) CreateEventbus(ctx context.Context, in *controller.CreateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
+	out := new(meta.Eventbus)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/CreateEventbus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *controllerProxyClient) DeleteEventBus(ctx context.Context, in *meta.EventBus, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *controllerProxyClient) DeleteEventbus(ctx context.Context, in *meta.Eventbus, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/DeleteEventBus", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/DeleteEventbus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *controllerProxyClient) GetEventBus(ctx context.Context, in *meta.EventBus, opts ...grpc.CallOption) (*meta.EventBus, error) {
-	out := new(meta.EventBus)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/GetEventBus", in, out, opts...)
+func (c *controllerProxyClient) GetEventbus(ctx context.Context, in *meta.Eventbus, opts ...grpc.CallOption) (*meta.Eventbus, error) {
+	out := new(meta.Eventbus)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/GetEventbus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *controllerProxyClient) ListEventBus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*controller.ListEventbusResponse, error) {
+func (c *controllerProxyClient) ListEventbus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*controller.ListEventbusResponse, error) {
 	out := new(controller.ListEventbusResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/ListEventBus", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/ListEventbus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *controllerProxyClient) UpdateEventBus(ctx context.Context, in *controller.UpdateEventBusRequest, opts ...grpc.CallOption) (*meta.EventBus, error) {
-	out := new(meta.EventBus)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/UpdateEventBus", in, out, opts...)
+func (c *controllerProxyClient) UpdateEventbus(ctx context.Context, in *controller.UpdateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
+	out := new(meta.Eventbus)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/UpdateEventbus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (c *controllerProxyClient) UpdateEventBus(ctx context.Context, in *controll
 
 func (c *controllerProxyClient) ListSegment(ctx context.Context, in *controller.ListSegmentRequest, opts ...grpc.CallOption) (*controller.ListSegmentResponse, error) {
 	out := new(controller.ListSegmentResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/ListSegment", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/ListSegment", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (c *controllerProxyClient) ListSegment(ctx context.Context, in *controller.
 
 func (c *controllerProxyClient) CreateSubscription(ctx context.Context, in *controller.CreateSubscriptionRequest, opts ...grpc.CallOption) (*meta.Subscription, error) {
 	out := new(meta.Subscription)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/CreateSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/CreateSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func (c *controllerProxyClient) CreateSubscription(ctx context.Context, in *cont
 
 func (c *controllerProxyClient) UpdateSubscription(ctx context.Context, in *controller.UpdateSubscriptionRequest, opts ...grpc.CallOption) (*meta.Subscription, error) {
 	out := new(meta.Subscription)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/UpdateSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/UpdateSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (c *controllerProxyClient) UpdateSubscription(ctx context.Context, in *cont
 
 func (c *controllerProxyClient) DeleteSubscription(ctx context.Context, in *controller.DeleteSubscriptionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/DeleteSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/DeleteSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func (c *controllerProxyClient) DeleteSubscription(ctx context.Context, in *cont
 
 func (c *controllerProxyClient) GetSubscription(ctx context.Context, in *controller.GetSubscriptionRequest, opts ...grpc.CallOption) (*meta.Subscription, error) {
 	out := new(meta.Subscription)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/GetSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/GetSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (c *controllerProxyClient) GetSubscription(ctx context.Context, in *control
 
 func (c *controllerProxyClient) ListSubscription(ctx context.Context, in *controller.ListSubscriptionRequest, opts ...grpc.CallOption) (*controller.ListSubscriptionResponse, error) {
 	out := new(controller.ListSubscriptionResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/ListSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/ListSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func (c *controllerProxyClient) ListSubscription(ctx context.Context, in *contro
 
 func (c *controllerProxyClient) DisableSubscription(ctx context.Context, in *controller.DisableSubscriptionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/DisableSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/DisableSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func (c *controllerProxyClient) DisableSubscription(ctx context.Context, in *con
 
 func (c *controllerProxyClient) ResumeSubscription(ctx context.Context, in *controller.ResumeSubscriptionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/ResumeSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/ResumeSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +179,7 @@ func (c *controllerProxyClient) ResumeSubscription(ctx context.Context, in *cont
 
 func (c *controllerProxyClient) ResetOffsetToTimestamp(ctx context.Context, in *controller.ResetOffsetToTimestampRequest, opts ...grpc.CallOption) (*controller.ResetOffsetToTimestampResponse, error) {
 	out := new(controller.ResetOffsetToTimestampResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/ResetOffsetToTimestamp", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/ResetOffsetToTimestamp", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func (c *controllerProxyClient) ResetOffsetToTimestamp(ctx context.Context, in *
 
 func (c *controllerProxyClient) ClusterInfo(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ClusterInfoResponse, error) {
 	out := new(ClusterInfoResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/ClusterInfo", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/ClusterInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (c *controllerProxyClient) ClusterInfo(ctx context.Context, in *emptypb.Emp
 
 func (c *controllerProxyClient) LookupOffset(ctx context.Context, in *LookupOffsetRequest, opts ...grpc.CallOption) (*LookupOffsetResponse, error) {
 	out := new(LookupOffsetResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/LookupOffset", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/LookupOffset", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +206,7 @@ func (c *controllerProxyClient) LookupOffset(ctx context.Context, in *LookupOffs
 
 func (c *controllerProxyClient) GetEvent(ctx context.Context, in *GetEventRequest, opts ...grpc.CallOption) (*GetEventResponse, error) {
 	out := new(GetEventResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/GetEvent", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/GetEvent", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +215,7 @@ func (c *controllerProxyClient) GetEvent(ctx context.Context, in *GetEventReques
 
 func (c *controllerProxyClient) ValidateSubscription(ctx context.Context, in *ValidateSubscriptionRequest, opts ...grpc.CallOption) (*ValidateSubscriptionResponse, error) {
 	out := new(ValidateSubscriptionResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/ValidateSubscription", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/ValidateSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +224,7 @@ func (c *controllerProxyClient) ValidateSubscription(ctx context.Context, in *Va
 
 func (c *controllerProxyClient) GetDeadLetterEvent(ctx context.Context, in *GetDeadLetterEventRequest, opts ...grpc.CallOption) (*GetDeadLetterEventResponse, error) {
 	out := new(GetDeadLetterEventResponse)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/GetDeadLetterEvent", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/GetDeadLetterEvent", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +233,7 @@ func (c *controllerProxyClient) GetDeadLetterEvent(ctx context.Context, in *GetD
 
 func (c *controllerProxyClient) ResendDeadLetterEvent(ctx context.Context, in *ResendDeadLetterEventRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/ResendDeadLetterEvent", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/ResendDeadLetterEvent", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +242,7 @@ func (c *controllerProxyClient) ResendDeadLetterEvent(ctx context.Context, in *R
 
 func (c *controllerProxyClient) SetDeadLetterEventOffset(ctx context.Context, in *controller.SetDeadLetterEventOffsetRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.ControllerProxy/SetDeadLetterEventOffset", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/SetDeadLetterEventOffset", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -254,11 +254,11 @@ func (c *controllerProxyClient) SetDeadLetterEventOffset(ctx context.Context, in
 // for forward compatibility
 type ControllerProxyServer interface {
 	// Eventbus
-	CreateEventBus(context.Context, *controller.CreateEventBusRequest) (*meta.EventBus, error)
-	DeleteEventBus(context.Context, *meta.EventBus) (*emptypb.Empty, error)
-	GetEventBus(context.Context, *meta.EventBus) (*meta.EventBus, error)
-	ListEventBus(context.Context, *emptypb.Empty) (*controller.ListEventbusResponse, error)
-	UpdateEventBus(context.Context, *controller.UpdateEventBusRequest) (*meta.EventBus, error)
+	CreateEventbus(context.Context, *controller.CreateEventbusRequest) (*meta.Eventbus, error)
+	DeleteEventbus(context.Context, *meta.Eventbus) (*emptypb.Empty, error)
+	GetEventbus(context.Context, *meta.Eventbus) (*meta.Eventbus, error)
+	ListEventbus(context.Context, *emptypb.Empty) (*controller.ListEventbusResponse, error)
+	UpdateEventbus(context.Context, *controller.UpdateEventbusRequest) (*meta.Eventbus, error)
 	ListSegment(context.Context, *controller.ListSegmentRequest) (*controller.ListSegmentResponse, error)
 	// Trigger
 	CreateSubscription(context.Context, *controller.CreateSubscriptionRequest) (*meta.Subscription, error)
@@ -284,20 +284,20 @@ type ControllerProxyServer interface {
 type UnimplementedControllerProxyServer struct {
 }
 
-func (UnimplementedControllerProxyServer) CreateEventBus(context.Context, *controller.CreateEventBusRequest) (*meta.EventBus, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateEventBus not implemented")
+func (UnimplementedControllerProxyServer) CreateEventbus(context.Context, *controller.CreateEventbusRequest) (*meta.Eventbus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateEventbus not implemented")
 }
-func (UnimplementedControllerProxyServer) DeleteEventBus(context.Context, *meta.EventBus) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteEventBus not implemented")
+func (UnimplementedControllerProxyServer) DeleteEventbus(context.Context, *meta.Eventbus) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteEventbus not implemented")
 }
-func (UnimplementedControllerProxyServer) GetEventBus(context.Context, *meta.EventBus) (*meta.EventBus, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetEventBus not implemented")
+func (UnimplementedControllerProxyServer) GetEventbus(context.Context, *meta.Eventbus) (*meta.Eventbus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEventbus not implemented")
 }
-func (UnimplementedControllerProxyServer) ListEventBus(context.Context, *emptypb.Empty) (*controller.ListEventbusResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListEventBus not implemented")
+func (UnimplementedControllerProxyServer) ListEventbus(context.Context, *emptypb.Empty) (*controller.ListEventbusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListEventbus not implemented")
 }
-func (UnimplementedControllerProxyServer) UpdateEventBus(context.Context, *controller.UpdateEventBusRequest) (*meta.EventBus, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateEventBus not implemented")
+func (UnimplementedControllerProxyServer) UpdateEventbus(context.Context, *controller.UpdateEventbusRequest) (*meta.Eventbus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateEventbus not implemented")
 }
 func (UnimplementedControllerProxyServer) ListSegment(context.Context, *controller.ListSegmentRequest) (*controller.ListSegmentResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListSegment not implemented")
@@ -359,92 +359,92 @@ func RegisterControllerProxyServer(s grpc.ServiceRegistrar, srv ControllerProxyS
 	s.RegisterService(&ControllerProxy_ServiceDesc, srv)
 }
 
-func _ControllerProxy_CreateEventBus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(controller.CreateEventBusRequest)
+func _ControllerProxy_CreateEventbus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(controller.CreateEventbusRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ControllerProxyServer).CreateEventBus(ctx, in)
+		return srv.(ControllerProxyServer).CreateEventbus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/CreateEventBus",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/CreateEventbus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControllerProxyServer).CreateEventBus(ctx, req.(*controller.CreateEventBusRequest))
+		return srv.(ControllerProxyServer).CreateEventbus(ctx, req.(*controller.CreateEventbusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ControllerProxy_DeleteEventBus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(meta.EventBus)
+func _ControllerProxy_DeleteEventbus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(meta.Eventbus)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ControllerProxyServer).DeleteEventBus(ctx, in)
+		return srv.(ControllerProxyServer).DeleteEventbus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/DeleteEventBus",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/DeleteEventbus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControllerProxyServer).DeleteEventBus(ctx, req.(*meta.EventBus))
+		return srv.(ControllerProxyServer).DeleteEventbus(ctx, req.(*meta.Eventbus))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ControllerProxy_GetEventBus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(meta.EventBus)
+func _ControllerProxy_GetEventbus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(meta.Eventbus)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ControllerProxyServer).GetEventBus(ctx, in)
+		return srv.(ControllerProxyServer).GetEventbus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/GetEventBus",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/GetEventbus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControllerProxyServer).GetEventBus(ctx, req.(*meta.EventBus))
+		return srv.(ControllerProxyServer).GetEventbus(ctx, req.(*meta.Eventbus))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ControllerProxy_ListEventBus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ControllerProxy_ListEventbus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ControllerProxyServer).ListEventBus(ctx, in)
+		return srv.(ControllerProxyServer).ListEventbus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/ListEventBus",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/ListEventbus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControllerProxyServer).ListEventBus(ctx, req.(*emptypb.Empty))
+		return srv.(ControllerProxyServer).ListEventbus(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ControllerProxy_UpdateEventBus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(controller.UpdateEventBusRequest)
+func _ControllerProxy_UpdateEventbus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(controller.UpdateEventbusRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ControllerProxyServer).UpdateEventBus(ctx, in)
+		return srv.(ControllerProxyServer).UpdateEventbus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/UpdateEventBus",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/UpdateEventbus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControllerProxyServer).UpdateEventBus(ctx, req.(*controller.UpdateEventBusRequest))
+		return srv.(ControllerProxyServer).UpdateEventbus(ctx, req.(*controller.UpdateEventbusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -459,7 +459,7 @@ func _ControllerProxy_ListSegment_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/ListSegment",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/ListSegment",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).ListSegment(ctx, req.(*controller.ListSegmentRequest))
@@ -477,7 +477,7 @@ func _ControllerProxy_CreateSubscription_Handler(srv interface{}, ctx context.Co
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/CreateSubscription",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/CreateSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).CreateSubscription(ctx, req.(*controller.CreateSubscriptionRequest))
@@ -495,7 +495,7 @@ func _ControllerProxy_UpdateSubscription_Handler(srv interface{}, ctx context.Co
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/UpdateSubscription",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/UpdateSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).UpdateSubscription(ctx, req.(*controller.UpdateSubscriptionRequest))
@@ -513,7 +513,7 @@ func _ControllerProxy_DeleteSubscription_Handler(srv interface{}, ctx context.Co
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/DeleteSubscription",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/DeleteSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).DeleteSubscription(ctx, req.(*controller.DeleteSubscriptionRequest))
@@ -531,7 +531,7 @@ func _ControllerProxy_GetSubscription_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/GetSubscription",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/GetSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).GetSubscription(ctx, req.(*controller.GetSubscriptionRequest))
@@ -549,7 +549,7 @@ func _ControllerProxy_ListSubscription_Handler(srv interface{}, ctx context.Cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/ListSubscription",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/ListSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).ListSubscription(ctx, req.(*controller.ListSubscriptionRequest))
@@ -567,7 +567,7 @@ func _ControllerProxy_DisableSubscription_Handler(srv interface{}, ctx context.C
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/DisableSubscription",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/DisableSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).DisableSubscription(ctx, req.(*controller.DisableSubscriptionRequest))
@@ -585,7 +585,7 @@ func _ControllerProxy_ResumeSubscription_Handler(srv interface{}, ctx context.Co
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/ResumeSubscription",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/ResumeSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).ResumeSubscription(ctx, req.(*controller.ResumeSubscriptionRequest))
@@ -603,7 +603,7 @@ func _ControllerProxy_ResetOffsetToTimestamp_Handler(srv interface{}, ctx contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/ResetOffsetToTimestamp",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/ResetOffsetToTimestamp",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).ResetOffsetToTimestamp(ctx, req.(*controller.ResetOffsetToTimestampRequest))
@@ -621,7 +621,7 @@ func _ControllerProxy_ClusterInfo_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/ClusterInfo",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/ClusterInfo",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).ClusterInfo(ctx, req.(*emptypb.Empty))
@@ -639,7 +639,7 @@ func _ControllerProxy_LookupOffset_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/LookupOffset",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/LookupOffset",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).LookupOffset(ctx, req.(*LookupOffsetRequest))
@@ -657,7 +657,7 @@ func _ControllerProxy_GetEvent_Handler(srv interface{}, ctx context.Context, dec
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/GetEvent",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/GetEvent",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).GetEvent(ctx, req.(*GetEventRequest))
@@ -675,7 +675,7 @@ func _ControllerProxy_ValidateSubscription_Handler(srv interface{}, ctx context.
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/ValidateSubscription",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/ValidateSubscription",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).ValidateSubscription(ctx, req.(*ValidateSubscriptionRequest))
@@ -693,7 +693,7 @@ func _ControllerProxy_GetDeadLetterEvent_Handler(srv interface{}, ctx context.Co
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/GetDeadLetterEvent",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/GetDeadLetterEvent",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).GetDeadLetterEvent(ctx, req.(*GetDeadLetterEventRequest))
@@ -711,7 +711,7 @@ func _ControllerProxy_ResendDeadLetterEvent_Handler(srv interface{}, ctx context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/ResendDeadLetterEvent",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/ResendDeadLetterEvent",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).ResendDeadLetterEvent(ctx, req.(*ResendDeadLetterEventRequest))
@@ -729,7 +729,7 @@ func _ControllerProxy_SetDeadLetterEventOffset_Handler(srv interface{}, ctx cont
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.ControllerProxy/SetDeadLetterEventOffset",
+		FullMethod: "/vanus.core.proxy.ControllerProxy/SetDeadLetterEventOffset",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).SetDeadLetterEventOffset(ctx, req.(*controller.SetDeadLetterEventOffsetRequest))
@@ -741,28 +741,28 @@ func _ControllerProxy_SetDeadLetterEventOffset_Handler(srv interface{}, ctx cont
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ControllerProxy_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "linkall.vanus.proxy.ControllerProxy",
+	ServiceName: "vanus.core.proxy.ControllerProxy",
 	HandlerType: (*ControllerProxyServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "CreateEventBus",
-			Handler:    _ControllerProxy_CreateEventBus_Handler,
+			MethodName: "CreateEventbus",
+			Handler:    _ControllerProxy_CreateEventbus_Handler,
 		},
 		{
-			MethodName: "DeleteEventBus",
-			Handler:    _ControllerProxy_DeleteEventBus_Handler,
+			MethodName: "DeleteEventbus",
+			Handler:    _ControllerProxy_DeleteEventbus_Handler,
 		},
 		{
-			MethodName: "GetEventBus",
-			Handler:    _ControllerProxy_GetEventBus_Handler,
+			MethodName: "GetEventbus",
+			Handler:    _ControllerProxy_GetEventbus_Handler,
 		},
 		{
-			MethodName: "ListEventBus",
-			Handler:    _ControllerProxy_ListEventBus_Handler,
+			MethodName: "ListEventbus",
+			Handler:    _ControllerProxy_ListEventbus_Handler,
 		},
 		{
-			MethodName: "UpdateEventBus",
-			Handler:    _ControllerProxy_UpdateEventBus_Handler,
+			MethodName: "UpdateEventbus",
+			Handler:    _ControllerProxy_UpdateEventbus_Handler,
 		},
 		{
 			MethodName: "ListSegment",
@@ -852,7 +852,7 @@ func NewStoreProxyClient(cc grpc.ClientConnInterface) StoreProxyClient {
 
 func (c *storeProxyClient) Publish(ctx context.Context, in *PublishRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/linkall.vanus.proxy.StoreProxy/Publish", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/vanus.core.proxy.StoreProxy/Publish", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -860,7 +860,7 @@ func (c *storeProxyClient) Publish(ctx context.Context, in *PublishRequest, opts
 }
 
 func (c *storeProxyClient) Subscribe(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (StoreProxy_SubscribeClient, error) {
-	stream, err := c.cc.NewStream(ctx, &StoreProxy_ServiceDesc.Streams[0], "/linkall.vanus.proxy.StoreProxy/Subscribe", opts...)
+	stream, err := c.cc.NewStream(ctx, &StoreProxy_ServiceDesc.Streams[0], "/vanus.core.proxy.StoreProxy/Subscribe", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -892,7 +892,7 @@ func (x *storeProxySubscribeClient) Recv() (*SubscribeResponse, error) {
 }
 
 func (c *storeProxyClient) Ack(ctx context.Context, opts ...grpc.CallOption) (StoreProxy_AckClient, error) {
-	stream, err := c.cc.NewStream(ctx, &StoreProxy_ServiceDesc.Streams[1], "/linkall.vanus.proxy.StoreProxy/Ack", opts...)
+	stream, err := c.cc.NewStream(ctx, &StoreProxy_ServiceDesc.Streams[1], "/vanus.core.proxy.StoreProxy/Ack", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -969,7 +969,7 @@ func _StoreProxy_Publish_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/linkall.vanus.proxy.StoreProxy/Publish",
+		FullMethod: "/vanus.core.proxy.StoreProxy/Publish",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StoreProxyServer).Publish(ctx, req.(*PublishRequest))
@@ -1028,7 +1028,7 @@ func (x *storeProxyAckServer) Recv() (*AckRequest, error) {
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var StoreProxy_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "linkall.vanus.proxy.StoreProxy",
+	ServiceName: "vanus.core.proxy.StoreProxy",
 	HandlerType: (*StoreProxyServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

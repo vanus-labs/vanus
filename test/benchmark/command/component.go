@@ -169,7 +169,7 @@ func createBlockCommand() *cobra.Command {
 					}
 				}
 				req := &segpb.ActivateSegmentRequest{
-					EventLogId:     vanus.NewTestID().Uint64(),
+					EventlogId:     vanus.NewTestID().Uint64(),
 					ReplicaGroupId: vanus.NewTestID().Uint64(),
 					Replicas:       replicas,
 				}

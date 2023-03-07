@@ -42,7 +42,7 @@ const (
 	pollingPostSpan   = 100 // in milliseconds.
 )
 
-func NewEventLog(cfg *el.Config) Eventlog {
+func NewEventlog(cfg *el.Config) Eventlog {
 	l := &eventlog{
 		cfg:         cfg,
 		nameService: el.NewNameService(cfg.Endpoints),
@@ -113,7 +113,7 @@ type eventlog struct {
 	tracer           *tracing.Tracer
 }
 
-// make sure eventlog implements eventlog.EventLog.
+// make sure eventlog implements Eventlog.
 var _ Eventlog = (*eventlog)(nil)
 
 func (l *eventlog) ID() uint64 {
