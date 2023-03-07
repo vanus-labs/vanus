@@ -282,7 +282,9 @@ func TestEventlogManager_ScaleSegmentTask(t *testing.T) {
 		So(util.MapLen(&utMgr.globalBlockMap), ShouldEqual, defaultAppendableSegmentNumber*3*2)
 
 		head := el.head()
+		el.lock()
 		head.State = StateFrozen
+		el.unlock()
 		t.Log(head.ID.Key())
 		So(el.appendableSegmentNumber(), ShouldEqual, defaultAppendableSegmentNumber-1)
 		So(util.MapLen(&utMgr.eventlogMap), ShouldEqual, 2)
