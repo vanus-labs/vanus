@@ -96,6 +96,8 @@ message ListEventbusResponse {
 
 message GetEventbusRequest {
   uint64 id = 1;
+  // deprecated will delete when all api modify to id
+  string name = 2;
 }
 
 message DeleteEventbusRequest {
@@ -188,6 +190,8 @@ message ResumeSubscriptionRequest {
 message ListSubscriptionRequest {
   uint64 eventbus_id = 1;
   string name = 2;
+  // deprecated will delete when all api modify to id
+  string eventbus = 3;
 }
 
 message ListSubscriptionResponse {
