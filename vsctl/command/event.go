@@ -84,6 +84,7 @@ func putEventCommand() *cobra.Command {
 			var target string
 			endpoint := mustGetGatewayCloudEventsEndpoint(cmd)
 			if strings.HasPrefix(endpoint, httpPrefix) {
+				// TODO replace with namespace
 				target = fmt.Sprintf("%s/gateway/%s", endpoint, args[0])
 			} else {
 				target = fmt.Sprintf("%s%s/gateway/%s", httpPrefix, endpoint, args[0])
