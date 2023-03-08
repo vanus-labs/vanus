@@ -102,6 +102,7 @@ message Subscription {
   meta.SinkCredential sink_credential = 6;
   meta.Protocol protocol = 7;
   meta.ProtocolSetting protocol_settings = 8;
+  // deprecated will delete when all api modify to id
   string eventbus = 9;
   meta.Transformer transformer = 10;
   string name = 11;
@@ -109,6 +110,8 @@ message Subscription {
   bool disable = 13;
   int64 created_at = 14;
   int64 updated_at = 15;
+  uint64 eventbus_id = 16;
+  string eventbus_name = 17;
 
   uint64 id = 100;
   repeated OffsetInfo offsets = 101;

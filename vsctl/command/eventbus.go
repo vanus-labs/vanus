@@ -26,8 +26,6 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
-
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
@@ -99,7 +97,7 @@ func deleteEventbusCommand() *cobra.Command {
 				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
 
-			_, err := client.DeleteEventbus(context.Background(), &metapb.Eventbus{Name: eventbus})
+			_, err := client.DeleteEventbus(context.Background(), &ctrlpb.DeleteEventbusRequest{Name: eventbus})
 			if err != nil {
 				cmdFailedf(cmd, "delete eventbus failed: %s", err)
 			}
@@ -142,7 +140,7 @@ func getEventbusInfoCommand() *cobra.Command {
 			segs := make(map[uint64][]*metapb.Segment)
 			ctx := context.Background()
 			for idx := range buses {
-				res, err := client.GetEventbus(ctx, &metapb.Eventbus{Name: buses[idx]})
+				res, err := client.GetEventbus(ctx, &ctrlpb.GetEventbusRequest{Name: buses[idx]})
 				if err != nil {
 					cmdFailedf(cmd, "get eventbus failed: %s", err)
 				}
@@ -324,7 +322,7 @@ func listEventbusInfoCommand() *cobra.Command {
 		Use:   "list",
 		Short: "list the eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-			res, err := client.ListEventbus(context.Background(), &emptypb.Empty{})
+			res, err := client.ListEventbus(context.Background(), &ctrlpb.ListEventbusRequest{})
 			if err != nil {
 				cmdFailedf(cmd, "list eventbus failed: %s", err)
 			}

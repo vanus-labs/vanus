@@ -49,7 +49,7 @@ func (ns *NameService) LookupWritableLogs(ctx context.Context, eventbus string) 
 	ctx, span := ns.tracer.Start(ctx, "LookupWritableLogs")
 	defer span.End()
 
-	req := &metapb.Eventbus{
+	req := &ctrlpb.GetEventbusRequest{
 		Name: eventbus,
 	}
 
@@ -68,7 +68,7 @@ func (ns *NameService) LookupReadableLogs(ctx context.Context, eventbus string) 
 	ctx, span := ns.tracer.Start(ctx, "LookupReadableLogs")
 	defer span.End()
 
-	req := &metapb.Eventbus{
+	req := &ctrlpb.GetEventbusRequest{
 		Name: eventbus,
 	}
 

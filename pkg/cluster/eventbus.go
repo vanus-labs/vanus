@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
-	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
 	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
 )
@@ -25,7 +24,7 @@ func newEventbusService(cc *raw_client.Conn) EventbusService {
 }
 
 func (es *eventbusService) IsExist(ctx context.Context, name string) bool {
-	_, err := es.client.GetEventbus(ctx, &metapb.Eventbus{
+	_, err := es.client.GetEventbus(ctx, &ctrlpb.GetEventbusRequest{
 		Name: name,
 	})
 	return err == nil
@@ -49,7 +48,7 @@ func (es *eventbusService) Delete(ctx context.Context, name string) error {
 		return fmt.Errorf("the system eventbus must start with %s", systemEventbusPrefix)
 	}
 
-	_, err := es.client.DeleteEventbus(ctx, &metapb.Eventbus{
+	_, err := es.client.DeleteEventbus(ctx, &ctrlpb.DeleteEventbusRequest{
 		Name: name,
 	})
 	return err
