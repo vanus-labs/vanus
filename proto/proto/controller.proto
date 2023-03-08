@@ -31,10 +31,11 @@ service EventbusController {
   // grpc -> HTTP
   rpc CreateEventbus(CreateEventbusRequest) returns (meta.Eventbus);
   rpc CreateSystemEventbus(CreateEventbusRequest) returns (meta.Eventbus);
-  rpc DeleteEventbus(DeleteEventbusRequest) returns (google.protobuf.Empty);
-  rpc GetEventbus(GetEventbusRequest) returns (meta.Eventbus);
+  rpc DeleteEventbus(google.protobuf.UInt64Value) returns (google.protobuf.Empty);
+  rpc GetEventbus(google.protobuf.UInt64Value) returns (meta.Eventbus);
   rpc ListEventbus(ListEventbusRequest) returns (ListEventbusResponse);
   rpc UpdateEventbus(UpdateEventbusRequest) returns (meta.Eventbus);
+  rpc GetEventbusWithHumanFriendly(GetEventbusWithHumanFriendlyRequest) returns (meta.Eventbus);
   // Don't consider UpdateEventbus now
 }
 
@@ -94,14 +95,9 @@ message ListEventbusResponse {
   repeated meta.Eventbus eventbus = 1;
 }
 
-message GetEventbusRequest {
-  uint64 id = 1;
-  string name = 2;
-}
-
-message DeleteEventbusRequest {
-  uint64 id = 1;
-  string name = 2;
+message GetEventbusWithHumanFriendlyRequest {
+  string namespace = 1;
+  string eventbus_name = 2;
 }
 
 message UpdateEventbusRequest {}
