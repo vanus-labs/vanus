@@ -55,7 +55,7 @@ service ControllerProxy {
 }
 
 message LookupOffsetRequest {
-  reserved 1; // deprecated eventbus name at v0.7.0, please use eventbus_id
+  reserved 1; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   uint64 eventlog_id = 2;
   int64 timestamp = 3;
   uint64 eventbus_id = 4;
@@ -66,7 +66,7 @@ message LookupOffsetResponse {
 }
 
 message GetEventRequest {
-  reserved 1; // deprecated eventbus name at v0.7.0, please use eventbus_id
+  reserved 1; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   uint64 eventlog_id = 2;
   int64 offset = 3;
   int32 number = 4;
@@ -84,7 +84,7 @@ message ClusterInfoResponse {
 }
 
 message ValidateSubscriptionRequest {
-  reserved 1; // deprecated eventbus name at v0.7.0, please use eventbus_id
+  reserved 1; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   uint64 eventlog = 2;
   int64 offset = 3;
   uint64 subscription_id = 4;
@@ -106,13 +106,13 @@ service StoreProxy {
 }
 
 message PublishRequest {
-  reserved 1; // deprecated eventbus name at v0.7.0, please use eventbus_id
+  reserved 1; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   cloudevents.CloudEventBatch events = 2;
   uint64 eventbus_id = 3;
 }
 
 message SubscribeRequest {
-  reserved 1; // deprecated eventbus name at v0.7.0, please use eventbus_id
+  reserved 1; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   string subscription_id = 2;
   uint64 eventbus_id = 3;
 }
