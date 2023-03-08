@@ -23,16 +23,14 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/vanus-labs/vanus/pkg/errors"
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
-	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
-
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/eventlog"
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/vanus-labs/vanus/internal/controller/member"
 	"github.com/vanus-labs/vanus/internal/kv"
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 )
 
 func TestController_CreateEventbus(t *testing.T) {
@@ -123,7 +121,7 @@ func TestController_DeleteEventbus(t *testing.T) {
 		ctx := stdCtx.Background()
 
 		Convey("deleting a doesn't exist eventbus", func() {
-			res, err := ctrl.DeleteEventbus(ctx, &metapb.Eventbus{Name: "test-1"})
+			res, err := ctrl.DeleteEventbus(ctx, &ctrlpb.DeleteEventbusRequest{Name: "test-1"})
 			So(err, ShouldNotBeNil)
 			So(res, ShouldBeNil)
 			et, ok := err.(*errors.ErrorType)
@@ -152,7 +150,7 @@ func TestController_DeleteEventbus(t *testing.T) {
 				Return(fmt.Errorf("test"))
 
 			ctrl.eventbusMap["test-1"] = md
-			res, err := ctrl.DeleteEventbus(stdCtx.Background(), &metapb.Eventbus{Name: "test-1"})
+			res, err := ctrl.DeleteEventbus(stdCtx.Background(), &ctrlpb.DeleteEventbusRequest{Name: "test-1"})
 			So(err, ShouldNotBeNil)
 			So(res, ShouldBeNil)
 			et, ok := err.(*errors.ErrorType)
@@ -170,7 +168,7 @@ func TestController_DeleteEventbus(t *testing.T) {
 			elMgr.EXPECT().DeleteEventlog(ctx, md.Eventlogs[1].ID).Times(1)
 
 			ctrl.eventbusMap["test-1"] = md
-			_, err := ctrl.DeleteEventbus(stdCtx.Background(), &metapb.Eventbus{Name: "test-1"})
+			_, err := ctrl.DeleteEventbus(stdCtx.Background(), &ctrlpb.DeleteEventbusRequest{Name: "test-1"})
 			So(err, ShouldBeNil)
 
 			_, exist := ctrl.eventbusMap["test-1"]
