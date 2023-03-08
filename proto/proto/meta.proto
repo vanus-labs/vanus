@@ -35,10 +35,11 @@ message Eventbus {
 }
 
 message Eventlog {
-  string eventbus_name = 1;
+  reserved 1; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   uint64 eventlog_id = 2;
   int32 current_segment_numbers = 3;
   repeated string server_address = 4;
+  uint64 eventbus_id = 5;
 }
 
 message Block {
@@ -102,8 +103,7 @@ message Subscription {
   meta.SinkCredential sink_credential = 6;
   meta.Protocol protocol = 7;
   meta.ProtocolSetting protocol_settings = 8;
-  // deprecated will delete when all api modify to id
-  string eventbus = 9;
+  reserved 9; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   meta.Transformer transformer = 10;
   string name = 11;
   string description = 12;

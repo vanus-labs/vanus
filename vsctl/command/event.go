@@ -84,6 +84,7 @@ func putEventCommand() *cobra.Command {
 			var target string
 			endpoint := mustGetGatewayCloudEventsEndpoint(cmd)
 			if strings.HasPrefix(endpoint, httpPrefix) {
+				// TODO replace with namespace
 				target = fmt.Sprintf("%s/gateway/%s", endpoint, args[0])
 			} else {
 				target = fmt.Sprintf("%s%s/gateway/%s", httpPrefix, endpoint, args[0])
@@ -305,7 +306,7 @@ func getEventCommand() *cobra.Command {
 			}
 
 			res, err := client.GetEvent(context.Background(), &proxypb.GetEventRequest{
-				Eventbus:   args[0],
+				EventbusId: mustGetEventbusID(namespace, args[0]).Uint64(),
 				EventlogId: eventlogID,
 				Offset:     offset,
 				EventId:    eventID,
@@ -369,7 +370,7 @@ func queryEventCommand() *cobra.Command {
 			}
 			ctx := context.Background()
 			res, err := client.LookupOffset(ctx, &proxypb.LookupOffsetRequest{
-				Eventbus:   args[0],
+				EventbusId: mustGetEventbusID(namespace, args[0]).Uint64(),
 				EventlogId: eventlogID,
 				Timestamp:  t.UnixMilli(),
 			})
@@ -386,7 +387,7 @@ func queryEventCommand() *cobra.Command {
 				}
 				if v >= 0 {
 					res, err := client.GetEvent(ctx, &proxypb.GetEventRequest{
-						Eventbus:   args[0],
+						EventbusId: mustGetEventbusID(namespace, args[0]).Uint64(),
 						EventlogId: k,
 						Offset:     v,
 						Number:     1,

@@ -32,6 +32,7 @@ var (
 	eventCreateTime   string
 
 	// for both of eventbus and subscription.
+	namespace           string
 	eventbus            string
 	eventlogID          uint64
 	eventlogNum         int32

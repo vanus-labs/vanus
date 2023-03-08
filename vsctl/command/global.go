@@ -17,6 +17,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"strconv"
 	"strings"
 	"time"
@@ -106,4 +107,8 @@ func IsFormatJSON(cmd *cobra.Command) bool {
 		return false
 	}
 	return strings.ToLower(v) == FormatJSON
+}
+
+func mustGetEventbusID(namespace, name string) vanus.ID {
+	return vanus.EmptyID()
 }

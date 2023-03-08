@@ -96,7 +96,7 @@ func createSubscriptionCommand() *cobra.Command {
 					Sink:           sink,
 					SinkCredential: credential,
 					Protocol:       p,
-					Eventbus:       eventbus,
+					EventbusId:     mustGetEventbusID(namespace, eventbus).Uint64(),
 					Transformer:    trans,
 					Name:           subscriptionName,
 					Description:    description,
@@ -358,7 +358,7 @@ func updateSubscriptionCommand() *cobra.Command {
 					Sink:           sub.Sink,
 					SinkCredential: sub.SinkCredential,
 					Protocol:       sub.Protocol,
-					Eventbus:       sub.Eventbus,
+					EventbusId:     mustGetEventbusID(namespace, eventbus).Uint64(),
 					Transformer:    sub.Transformer,
 					Name:           sub.Name,
 					Description:    sub.Description,
@@ -575,8 +575,8 @@ func listSubscriptionCommand() *cobra.Command {
 		Short: "list the subscription ",
 		Run: func(cmd *cobra.Command, args []string) {
 			res, err := client.ListSubscription(context.Background(), &ctrlpb.ListSubscriptionRequest{
-				Eventbus: eventbus,
-				Name:     subscriptionName,
+				EventbusId: mustGetEventbusID(namespace, eventbus).Uint64(),
+				Name:       subscriptionName,
 			})
 			if err != nil {
 				cmdFailedf(cmd, "list subscription failed: %s", err)
@@ -629,7 +629,7 @@ func printSubscription(cmd *cobra.Command, showNo, showFilters, showTransformer 
 }
 
 var subscriptionHeaders = []interface{}{
-	"id", "name", "disable", "eventbus", "sink", "description", "protocol", "sinkCredential",
+	"id", "name", "disable", "eventbusId", "eventbusName", "sink", "description", "protocol", "sinkCredential",
 	"config", "offsets", "filter", "transformer", "created_at", "updated_at",
 }
 
@@ -647,7 +647,8 @@ func getSubscriptionRow(sub *meta.Subscription) []interface{} {
 	result = append(result, formatID(sub.Id))
 	result = append(result, sub.Name)
 	result = append(result, sub.Disable)
-	result = append(result, sub.Eventbus)
+	result = append(result, sub.EventbusId)
+	result = append(result, sub.EventbusName)
 	result = append(result, sub.Sink)
 	result = append(result, sub.Description)
 

@@ -295,7 +295,7 @@ func (ctrl *controller) getEventbus(name string) (*metapb.Eventbus, error) {
 		addrs = append(addrs, v)
 	}
 	for _, v := range ebMD.Logs {
-		v.EventbusName = ebMD.Name
+		v.EventbusId = ebMD.GetId()
 		v.ServerAddress = addrs
 	}
 	return ebMD, nil

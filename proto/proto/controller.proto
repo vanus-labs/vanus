@@ -31,10 +31,11 @@ service EventbusController {
   // grpc -> HTTP
   rpc CreateEventbus(CreateEventbusRequest) returns (meta.Eventbus);
   rpc CreateSystemEventbus(CreateEventbusRequest) returns (meta.Eventbus);
-  rpc DeleteEventbus(DeleteEventbusRequest) returns (google.protobuf.Empty);
-  rpc GetEventbus(GetEventbusRequest) returns (meta.Eventbus);
+  rpc DeleteEventbus(google.protobuf.UInt64Value) returns (google.protobuf.Empty);
+  rpc GetEventbus(google.protobuf.UInt64Value) returns (meta.Eventbus);
   rpc ListEventbus(ListEventbusRequest) returns (ListEventbusResponse);
   rpc UpdateEventbus(UpdateEventbusRequest) returns (meta.Eventbus);
+  rpc GetEventbusWithHumanFriendly(GetEventbusWithHumanFriendlyRequest) returns (meta.Eventbus);
   // Don't consider UpdateEventbus now
 }
 
@@ -94,16 +95,9 @@ message ListEventbusResponse {
   repeated meta.Eventbus eventbus = 1;
 }
 
-message GetEventbusRequest {
-  uint64 id = 1;
-  // deprecated will delete when all api modify to id
-  string name = 2;
-}
-
-message DeleteEventbusRequest {
-  uint64 id = 1;
-  // deprecated will delete when all api modify to id
-  string name = 2;
+message GetEventbusWithHumanFriendlyRequest {
+  string namespace = 1;
+  string eventbus_name = 2;
 }
 
 message UpdateEventbusRequest {}
@@ -157,8 +151,7 @@ message SubscriptionRequest {
   meta.SinkCredential sink_credential = 6;
   meta.Protocol protocol = 7;
   meta.ProtocolSetting protocol_settings = 8;
-  // deprecated will delete when all api modify to id
-  string eventbus = 9;
+  reserved 9; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   meta.Transformer transformer = 10;
   string name = 11;
   string description = 12;
@@ -192,10 +185,9 @@ message ResumeSubscriptionRequest {
 }
 
 message ListSubscriptionRequest {
-  uint64 eventbus_id = 1;
+  reserved 1; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   string name = 2;
-  // deprecated will delete when all api modify to id
-  string eventbus = 3;
+  uint64 eventbus_id = 3;
 }
 
 message ListSubscriptionResponse {

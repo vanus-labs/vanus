@@ -86,6 +86,7 @@ service CloudEvents {
 }
 
 message BatchEvent {
-  string eventbus_name = 1;
+  reserved 1; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   CloudEventBatch events = 2;
+  uint64 eventbus_id = 3;
 }
