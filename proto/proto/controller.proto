@@ -27,13 +27,24 @@ service PingServer {
   rpc Ping(google.protobuf.Empty) returns (PingResponse);
 }
 
+service NamespaceController {
+  rpc CreateNamespace(CreateNamespaceRequest)
+      returns (meta.Namespace);
+  rpc ListNamespace(google.protobuf.Empty)
+      returns (ListNamespaceResponse);
+  rpc GetNamespace(GetNamespaceRequest)
+      returns (meta.Namespace);
+  rpc DeleteNamespace(DeleteNamespaceRequest)
+      returns (google.protobuf.Empty);
+}
+
 service EventbusController {
   // grpc -> HTTP
   rpc CreateEventbus(CreateEventbusRequest) returns (meta.Eventbus);
   rpc CreateSystemEventbus(CreateEventbusRequest) returns (meta.Eventbus);
   rpc DeleteEventbus(meta.Eventbus) returns (google.protobuf.Empty);
-  rpc GetEventbus(meta.Eventbus) returns (meta.Eventbus);
-  rpc ListEventbus(google.protobuf.Empty) returns (ListEventbusResponse);
+  rpc GetEventbus(GetEventbusRequest) returns (meta.Eventbus);
+  rpc ListEventbus(ListEventbusRequest) returns (ListEventbusResponse);
   rpc UpdateEventbus(UpdateEventbusRequest) returns (meta.Eventbus);
   // Don't consider UpdateEventbus now
 }
@@ -81,14 +92,42 @@ message PingResponse {
   bool is_eventbus_ready = 3;
 }
 
+message CreateNamespaceRequest {
+  string name = 1;
+  string description = 2;
+}
+
+message ListNamespaceResponse {
+  repeated meta.Namespace namespace = 1;
+}
+
+message GetNamespaceRequest{
+  uint64 id= 1;
+}
+
+message DeleteNamespaceRequest{
+  uint64 id= 1;
+}
+
 message CreateEventbusRequest {
   string name = 1;
   int32 log_number = 2;
   string description = 3;
+  uint64 namespace_id= 4;
+}
+
+message ListEventbusRequest {
+  uint64 namespace_id = 1;
 }
 
 message ListEventbusResponse {
   repeated meta.Eventbus eventbus = 1;
+}
+
+message GetEventbusRequest {
+  // deprecated
+  string name = 1;
+  uint64 id = 2;
 }
 
 message UpdateEventbusRequest {}
@@ -142,15 +181,18 @@ message SubscriptionRequest {
   meta.SinkCredential sink_credential = 6;
   meta.Protocol protocol = 7;
   meta.ProtocolSetting protocol_settings = 8;
+  // deprecated
   string eventbus = 9;
   meta.Transformer transformer = 10;
   string name = 11;
   string description = 12;
   bool disable = 13;
+  uint64 eventbus_id= 14;
 }
 
 message CreateSubscriptionRequest {
   SubscriptionRequest subscription = 1;
+  uint64 namespace_id = 2;
 }
 
 message UpdateSubscriptionRequest {
@@ -175,8 +217,11 @@ message ResumeSubscriptionRequest {
 }
 
 message ListSubscriptionRequest {
+  // deprecated
   string eventbus = 1;
   string name = 2;
+  uint64 namespace_id = 3;
+  uint64 eventbus_id = 4;
 }
 
 message ListSubscriptionResponse {

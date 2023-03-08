@@ -133,6 +133,227 @@ func (mr *MockUnsafePingServerServerMockRecorder) mustEmbedUnimplementedPingServ
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "mustEmbedUnimplementedPingServerServer", reflect.TypeOf((*MockUnsafePingServerServer)(nil).mustEmbedUnimplementedPingServerServer))
 }
 
+// MockNamespaceControllerClient is a mock of NamespaceControllerClient interface.
+type MockNamespaceControllerClient struct {
+	ctrl     *gomock.Controller
+	recorder *MockNamespaceControllerClientMockRecorder
+}
+
+// MockNamespaceControllerClientMockRecorder is the mock recorder for MockNamespaceControllerClient.
+type MockNamespaceControllerClientMockRecorder struct {
+	mock *MockNamespaceControllerClient
+}
+
+// NewMockNamespaceControllerClient creates a new mock instance.
+func NewMockNamespaceControllerClient(ctrl *gomock.Controller) *MockNamespaceControllerClient {
+	mock := &MockNamespaceControllerClient{ctrl: ctrl}
+	mock.recorder = &MockNamespaceControllerClientMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockNamespaceControllerClient) EXPECT() *MockNamespaceControllerClientMockRecorder {
+	return m.recorder
+}
+
+// CreateNamespace mocks base method.
+func (m *MockNamespaceControllerClient) CreateNamespace(ctx context.Context, in *CreateNamespaceRequest, opts ...grpc.CallOption) (*meta.Namespace, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "CreateNamespace", varargs...)
+	ret0, _ := ret[0].(*meta.Namespace)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateNamespace indicates an expected call of CreateNamespace.
+func (mr *MockNamespaceControllerClientMockRecorder) CreateNamespace(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateNamespace", reflect.TypeOf((*MockNamespaceControllerClient)(nil).CreateNamespace), varargs...)
+}
+
+// DeleteNamespace mocks base method.
+func (m *MockNamespaceControllerClient) DeleteNamespace(ctx context.Context, in *DeleteNamespaceRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "DeleteNamespace", varargs...)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteNamespace indicates an expected call of DeleteNamespace.
+func (mr *MockNamespaceControllerClientMockRecorder) DeleteNamespace(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteNamespace", reflect.TypeOf((*MockNamespaceControllerClient)(nil).DeleteNamespace), varargs...)
+}
+
+// GetNamespace mocks base method.
+func (m *MockNamespaceControllerClient) GetNamespace(ctx context.Context, in *GetNamespaceRequest, opts ...grpc.CallOption) (*meta.Namespace, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetNamespace", varargs...)
+	ret0, _ := ret[0].(*meta.Namespace)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNamespace indicates an expected call of GetNamespace.
+func (mr *MockNamespaceControllerClientMockRecorder) GetNamespace(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespace", reflect.TypeOf((*MockNamespaceControllerClient)(nil).GetNamespace), varargs...)
+}
+
+// ListNamespace mocks base method.
+func (m *MockNamespaceControllerClient) ListNamespace(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListNamespaceResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ListNamespace", varargs...)
+	ret0, _ := ret[0].(*ListNamespaceResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListNamespace indicates an expected call of ListNamespace.
+func (mr *MockNamespaceControllerClientMockRecorder) ListNamespace(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListNamespace", reflect.TypeOf((*MockNamespaceControllerClient)(nil).ListNamespace), varargs...)
+}
+
+// MockNamespaceControllerServer is a mock of NamespaceControllerServer interface.
+type MockNamespaceControllerServer struct {
+	ctrl     *gomock.Controller
+	recorder *MockNamespaceControllerServerMockRecorder
+}
+
+// MockNamespaceControllerServerMockRecorder is the mock recorder for MockNamespaceControllerServer.
+type MockNamespaceControllerServerMockRecorder struct {
+	mock *MockNamespaceControllerServer
+}
+
+// NewMockNamespaceControllerServer creates a new mock instance.
+func NewMockNamespaceControllerServer(ctrl *gomock.Controller) *MockNamespaceControllerServer {
+	mock := &MockNamespaceControllerServer{ctrl: ctrl}
+	mock.recorder = &MockNamespaceControllerServerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockNamespaceControllerServer) EXPECT() *MockNamespaceControllerServerMockRecorder {
+	return m.recorder
+}
+
+// CreateNamespace mocks base method.
+func (m *MockNamespaceControllerServer) CreateNamespace(arg0 context.Context, arg1 *CreateNamespaceRequest) (*meta.Namespace, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateNamespace", arg0, arg1)
+	ret0, _ := ret[0].(*meta.Namespace)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateNamespace indicates an expected call of CreateNamespace.
+func (mr *MockNamespaceControllerServerMockRecorder) CreateNamespace(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateNamespace", reflect.TypeOf((*MockNamespaceControllerServer)(nil).CreateNamespace), arg0, arg1)
+}
+
+// DeleteNamespace mocks base method.
+func (m *MockNamespaceControllerServer) DeleteNamespace(arg0 context.Context, arg1 *DeleteNamespaceRequest) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteNamespace", arg0, arg1)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteNamespace indicates an expected call of DeleteNamespace.
+func (mr *MockNamespaceControllerServerMockRecorder) DeleteNamespace(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteNamespace", reflect.TypeOf((*MockNamespaceControllerServer)(nil).DeleteNamespace), arg0, arg1)
+}
+
+// GetNamespace mocks base method.
+func (m *MockNamespaceControllerServer) GetNamespace(arg0 context.Context, arg1 *GetNamespaceRequest) (*meta.Namespace, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNamespace", arg0, arg1)
+	ret0, _ := ret[0].(*meta.Namespace)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNamespace indicates an expected call of GetNamespace.
+func (mr *MockNamespaceControllerServerMockRecorder) GetNamespace(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespace", reflect.TypeOf((*MockNamespaceControllerServer)(nil).GetNamespace), arg0, arg1)
+}
+
+// ListNamespace mocks base method.
+func (m *MockNamespaceControllerServer) ListNamespace(arg0 context.Context, arg1 *emptypb.Empty) (*ListNamespaceResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListNamespace", arg0, arg1)
+	ret0, _ := ret[0].(*ListNamespaceResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListNamespace indicates an expected call of ListNamespace.
+func (mr *MockNamespaceControllerServerMockRecorder) ListNamespace(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListNamespace", reflect.TypeOf((*MockNamespaceControllerServer)(nil).ListNamespace), arg0, arg1)
+}
+
+// MockUnsafeNamespaceControllerServer is a mock of UnsafeNamespaceControllerServer interface.
+type MockUnsafeNamespaceControllerServer struct {
+	ctrl     *gomock.Controller
+	recorder *MockUnsafeNamespaceControllerServerMockRecorder
+}
+
+// MockUnsafeNamespaceControllerServerMockRecorder is the mock recorder for MockUnsafeNamespaceControllerServer.
+type MockUnsafeNamespaceControllerServerMockRecorder struct {
+	mock *MockUnsafeNamespaceControllerServer
+}
+
+// NewMockUnsafeNamespaceControllerServer creates a new mock instance.
+func NewMockUnsafeNamespaceControllerServer(ctrl *gomock.Controller) *MockUnsafeNamespaceControllerServer {
+	mock := &MockUnsafeNamespaceControllerServer{ctrl: ctrl}
+	mock.recorder = &MockUnsafeNamespaceControllerServerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockUnsafeNamespaceControllerServer) EXPECT() *MockUnsafeNamespaceControllerServerMockRecorder {
+	return m.recorder
+}
+
+// mustEmbedUnimplementedNamespaceControllerServer mocks base method.
+func (m *MockUnsafeNamespaceControllerServer) mustEmbedUnimplementedNamespaceControllerServer() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "mustEmbedUnimplementedNamespaceControllerServer")
+}
+
+// mustEmbedUnimplementedNamespaceControllerServer indicates an expected call of mustEmbedUnimplementedNamespaceControllerServer.
+func (mr *MockUnsafeNamespaceControllerServerMockRecorder) mustEmbedUnimplementedNamespaceControllerServer() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "mustEmbedUnimplementedNamespaceControllerServer", reflect.TypeOf((*MockUnsafeNamespaceControllerServer)(nil).mustEmbedUnimplementedNamespaceControllerServer))
+}
+
 // MockEventbusControllerClient is a mock of EventbusControllerClient interface.
 type MockEventbusControllerClient struct {
 	ctrl     *gomock.Controller
@@ -217,7 +438,7 @@ func (mr *MockEventbusControllerClientMockRecorder) DeleteEventbus(ctx, in inter
 }
 
 // GetEventbus mocks base method.
-func (m *MockEventbusControllerClient) GetEventbus(ctx context.Context, in *meta.Eventbus, opts ...grpc.CallOption) (*meta.Eventbus, error) {
+func (m *MockEventbusControllerClient) GetEventbus(ctx context.Context, in *GetEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
@@ -237,7 +458,7 @@ func (mr *MockEventbusControllerClientMockRecorder) GetEventbus(ctx, in interfac
 }
 
 // ListEventbus mocks base method.
-func (m *MockEventbusControllerClient) ListEventbus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListEventbusResponse, error) {
+func (m *MockEventbusControllerClient) ListEventbus(ctx context.Context, in *ListEventbusRequest, opts ...grpc.CallOption) (*ListEventbusResponse, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
@@ -345,7 +566,7 @@ func (mr *MockEventbusControllerServerMockRecorder) DeleteEventbus(arg0, arg1 in
 }
 
 // GetEventbus mocks base method.
-func (m *MockEventbusControllerServer) GetEventbus(arg0 context.Context, arg1 *meta.Eventbus) (*meta.Eventbus, error) {
+func (m *MockEventbusControllerServer) GetEventbus(arg0 context.Context, arg1 *GetEventbusRequest) (*meta.Eventbus, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEventbus", arg0, arg1)
 	ret0, _ := ret[0].(*meta.Eventbus)
@@ -360,7 +581,7 @@ func (mr *MockEventbusControllerServerMockRecorder) GetEventbus(arg0, arg1 inter
 }
 
 // ListEventbus mocks base method.
-func (m *MockEventbusControllerServer) ListEventbus(arg0 context.Context, arg1 *emptypb.Empty) (*ListEventbusResponse, error) {
+func (m *MockEventbusControllerServer) ListEventbus(arg0 context.Context, arg1 *ListEventbusRequest) (*ListEventbusResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListEventbus", arg0, arg1)
 	ret0, _ := ret[0].(*ListEventbusResponse)

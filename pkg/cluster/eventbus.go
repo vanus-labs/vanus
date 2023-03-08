@@ -25,7 +25,7 @@ func newEventbusService(cc *raw_client.Conn) EventbusService {
 }
 
 func (es *eventbusService) IsExist(ctx context.Context, name string) bool {
-	_, err := es.client.GetEventbus(ctx, &metapb.Eventbus{
+	_, err := es.client.GetEventbus(ctx, &ctrlpb.GetEventbusRequest{
 		Name: name,
 	})
 	return err == nil

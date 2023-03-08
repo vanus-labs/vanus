@@ -279,7 +279,7 @@ func (ctrl *controller) deleteEventbus(ctx context.Context, name string) error {
 	return nil
 }
 
-func (ctrl *controller) GetEventbus(ctx context.Context, eb *metapb.Eventbus) (*metapb.Eventbus, error) {
+func (ctrl *controller) GetEventbus(ctx context.Context, eb *ctrlpb.GetEventbusRequest) (*metapb.Eventbus, error) {
 	return ctrl.getEventbus(eb.Name)
 }
 
@@ -301,7 +301,7 @@ func (ctrl *controller) getEventbus(name string) (*metapb.Eventbus, error) {
 	return ebMD, nil
 }
 
-func (ctrl *controller) ListEventbus(ctx context.Context, _ *emptypb.Empty) (*ctrlpb.ListEventbusResponse, error) {
+func (ctrl *controller) ListEventbus(ctx context.Context, _ *ctrlpb.ListEventbusRequest) (*ctrlpb.ListEventbusResponse, error) {
 	eventbusList := make([]*metapb.Eventbus, 0)
 	for _, v := range ctrl.eventbusMap {
 		if strings.HasPrefix(v.Name, primitive.SystemEventbusNamePrefix) {
