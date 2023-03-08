@@ -126,12 +126,13 @@ var PingServer_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	EventbusController_CreateEventbus_FullMethodName       = "/vanus.core.controller.EventbusController/CreateEventbus"
-	EventbusController_CreateSystemEventbus_FullMethodName = "/vanus.core.controller.EventbusController/CreateSystemEventbus"
-	EventbusController_DeleteEventbus_FullMethodName       = "/vanus.core.controller.EventbusController/DeleteEventbus"
-	EventbusController_GetEventbus_FullMethodName          = "/vanus.core.controller.EventbusController/GetEventbus"
-	EventbusController_ListEventbus_FullMethodName         = "/vanus.core.controller.EventbusController/ListEventbus"
-	EventbusController_UpdateEventbus_FullMethodName       = "/vanus.core.controller.EventbusController/UpdateEventbus"
+	EventbusController_CreateEventbus_FullMethodName               = "/vanus.core.controller.EventbusController/CreateEventbus"
+	EventbusController_CreateSystemEventbus_FullMethodName         = "/vanus.core.controller.EventbusController/CreateSystemEventbus"
+	EventbusController_DeleteEventbus_FullMethodName               = "/vanus.core.controller.EventbusController/DeleteEventbus"
+	EventbusController_GetEventbus_FullMethodName                  = "/vanus.core.controller.EventbusController/GetEventbus"
+	EventbusController_ListEventbus_FullMethodName                 = "/vanus.core.controller.EventbusController/ListEventbus"
+	EventbusController_UpdateEventbus_FullMethodName               = "/vanus.core.controller.EventbusController/UpdateEventbus"
+	EventbusController_GetEventbusWithHumanFriendly_FullMethodName = "/vanus.core.controller.EventbusController/GetEventbusWithHumanFriendly"
 )
 
 // EventbusControllerClient is the client API for EventbusController service.
@@ -141,10 +142,11 @@ type EventbusControllerClient interface {
 	// grpc -> HTTP
 	CreateEventbus(ctx context.Context, in *CreateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
 	CreateSystemEventbus(ctx context.Context, in *CreateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
-	DeleteEventbus(ctx context.Context, in *DeleteEventbusRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	GetEventbus(ctx context.Context, in *GetEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
+	DeleteEventbus(ctx context.Context, in *wrapperspb.UInt64Value, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	GetEventbus(ctx context.Context, in *wrapperspb.UInt64Value, opts ...grpc.CallOption) (*meta.Eventbus, error)
 	ListEventbus(ctx context.Context, in *ListEventbusRequest, opts ...grpc.CallOption) (*ListEventbusResponse, error)
 	UpdateEventbus(ctx context.Context, in *UpdateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
+	GetEventbusWithHumanFriendly(ctx context.Context, in *GetEventbusWithHumanFriendlyRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
 }
 
 type eventbusControllerClient struct {
@@ -173,7 +175,7 @@ func (c *eventbusControllerClient) CreateSystemEventbus(ctx context.Context, in 
 	return out, nil
 }
 
-func (c *eventbusControllerClient) DeleteEventbus(ctx context.Context, in *DeleteEventbusRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *eventbusControllerClient) DeleteEventbus(ctx context.Context, in *wrapperspb.UInt64Value, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, EventbusController_DeleteEventbus_FullMethodName, in, out, opts...)
 	if err != nil {
@@ -182,7 +184,7 @@ func (c *eventbusControllerClient) DeleteEventbus(ctx context.Context, in *Delet
 	return out, nil
 }
 
-func (c *eventbusControllerClient) GetEventbus(ctx context.Context, in *GetEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
+func (c *eventbusControllerClient) GetEventbus(ctx context.Context, in *wrapperspb.UInt64Value, opts ...grpc.CallOption) (*meta.Eventbus, error) {
 	out := new(meta.Eventbus)
 	err := c.cc.Invoke(ctx, EventbusController_GetEventbus_FullMethodName, in, out, opts...)
 	if err != nil {
@@ -209,6 +211,15 @@ func (c *eventbusControllerClient) UpdateEventbus(ctx context.Context, in *Updat
 	return out, nil
 }
 
+func (c *eventbusControllerClient) GetEventbusWithHumanFriendly(ctx context.Context, in *GetEventbusWithHumanFriendlyRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
+	out := new(meta.Eventbus)
+	err := c.cc.Invoke(ctx, EventbusController_GetEventbusWithHumanFriendly_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // EventbusControllerServer is the server API for EventbusController service.
 // All implementations should embed UnimplementedEventbusControllerServer
 // for forward compatibility
@@ -216,10 +227,11 @@ type EventbusControllerServer interface {
 	// grpc -> HTTP
 	CreateEventbus(context.Context, *CreateEventbusRequest) (*meta.Eventbus, error)
 	CreateSystemEventbus(context.Context, *CreateEventbusRequest) (*meta.Eventbus, error)
-	DeleteEventbus(context.Context, *DeleteEventbusRequest) (*emptypb.Empty, error)
-	GetEventbus(context.Context, *GetEventbusRequest) (*meta.Eventbus, error)
+	DeleteEventbus(context.Context, *wrapperspb.UInt64Value) (*emptypb.Empty, error)
+	GetEventbus(context.Context, *wrapperspb.UInt64Value) (*meta.Eventbus, error)
 	ListEventbus(context.Context, *ListEventbusRequest) (*ListEventbusResponse, error)
 	UpdateEventbus(context.Context, *UpdateEventbusRequest) (*meta.Eventbus, error)
+	GetEventbusWithHumanFriendly(context.Context, *GetEventbusWithHumanFriendlyRequest) (*meta.Eventbus, error)
 }
 
 // UnimplementedEventbusControllerServer should be embedded to have forward compatible implementations.
@@ -232,10 +244,10 @@ func (UnimplementedEventbusControllerServer) CreateEventbus(context.Context, *Cr
 func (UnimplementedEventbusControllerServer) CreateSystemEventbus(context.Context, *CreateEventbusRequest) (*meta.Eventbus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateSystemEventbus not implemented")
 }
-func (UnimplementedEventbusControllerServer) DeleteEventbus(context.Context, *DeleteEventbusRequest) (*emptypb.Empty, error) {
+func (UnimplementedEventbusControllerServer) DeleteEventbus(context.Context, *wrapperspb.UInt64Value) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteEventbus not implemented")
 }
-func (UnimplementedEventbusControllerServer) GetEventbus(context.Context, *GetEventbusRequest) (*meta.Eventbus, error) {
+func (UnimplementedEventbusControllerServer) GetEventbus(context.Context, *wrapperspb.UInt64Value) (*meta.Eventbus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetEventbus not implemented")
 }
 func (UnimplementedEventbusControllerServer) ListEventbus(context.Context, *ListEventbusRequest) (*ListEventbusResponse, error) {
@@ -243,6 +255,9 @@ func (UnimplementedEventbusControllerServer) ListEventbus(context.Context, *List
 }
 func (UnimplementedEventbusControllerServer) UpdateEventbus(context.Context, *UpdateEventbusRequest) (*meta.Eventbus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateEventbus not implemented")
+}
+func (UnimplementedEventbusControllerServer) GetEventbusWithHumanFriendly(context.Context, *GetEventbusWithHumanFriendlyRequest) (*meta.Eventbus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEventbusWithHumanFriendly not implemented")
 }
 
 // UnsafeEventbusControllerServer may be embedded to opt out of forward compatibility for this service.
@@ -293,7 +308,7 @@ func _EventbusController_CreateSystemEventbus_Handler(srv interface{}, ctx conte
 }
 
 func _EventbusController_DeleteEventbus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteEventbusRequest)
+	in := new(wrapperspb.UInt64Value)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -305,13 +320,13 @@ func _EventbusController_DeleteEventbus_Handler(srv interface{}, ctx context.Con
 		FullMethod: EventbusController_DeleteEventbus_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventbusControllerServer).DeleteEventbus(ctx, req.(*DeleteEventbusRequest))
+		return srv.(EventbusControllerServer).DeleteEventbus(ctx, req.(*wrapperspb.UInt64Value))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _EventbusController_GetEventbus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetEventbusRequest)
+	in := new(wrapperspb.UInt64Value)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -323,7 +338,7 @@ func _EventbusController_GetEventbus_Handler(srv interface{}, ctx context.Contex
 		FullMethod: EventbusController_GetEventbus_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventbusControllerServer).GetEventbus(ctx, req.(*GetEventbusRequest))
+		return srv.(EventbusControllerServer).GetEventbus(ctx, req.(*wrapperspb.UInt64Value))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -364,6 +379,24 @@ func _EventbusController_UpdateEventbus_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _EventbusController_GetEventbusWithHumanFriendly_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEventbusWithHumanFriendlyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventbusControllerServer).GetEventbusWithHumanFriendly(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventbusController_GetEventbusWithHumanFriendly_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventbusControllerServer).GetEventbusWithHumanFriendly(ctx, req.(*GetEventbusWithHumanFriendlyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // EventbusController_ServiceDesc is the grpc.ServiceDesc for EventbusController service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -394,6 +427,10 @@ var EventbusController_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateEventbus",
 			Handler:    _EventbusController_UpdateEventbus_Handler,
+		},
+		{
+			MethodName: "GetEventbusWithHumanFriendly",
+			Handler:    _EventbusController_GetEventbusWithHumanFriendly_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

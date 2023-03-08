@@ -21,13 +21,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	"github.com/vanus-labs/vanus/proto/pkg/meta"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/emptypb"
-
-	"github.com/vanus-labs/vanus/observability/log"
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
-
-	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
 )
 
 var defaultClusterStartTimeout = 3 * time.Minute
@@ -50,9 +49,11 @@ type Cluster interface {
 }
 
 type EventbusService interface {
-	IsExist(ctx context.Context, name string) bool
-	CreateSystemEventbusIfNotExist(ctx context.Context, name string, desc string) error
-	Delete(ctx context.Context, name string) error
+	IsExist(ctx context.Context, id uint64) bool
+	CreateSystemEventbusIfNotExist(ctx context.Context, name string, desc string) (*meta.Eventbus, error)
+	Delete(ctx context.Context, id uint64) error
+	GetSystemEventbusByName(ctx context.Context, name string) (*meta.Eventbus, error)
+	GetEventbus(ctx context.Context, id uint64) (*meta.Eventbus, error)
 	RawClient() ctrlpb.EventbusControllerClient
 }
 

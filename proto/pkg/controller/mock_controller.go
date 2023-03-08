@@ -197,7 +197,7 @@ func (mr *MockEventbusControllerClientMockRecorder) CreateSystemEventbus(ctx, in
 }
 
 // DeleteEventbus mocks base method.
-func (m *MockEventbusControllerClient) DeleteEventbus(ctx context.Context, in *DeleteEventbusRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (m *MockEventbusControllerClient) DeleteEventbus(ctx context.Context, in *wrapperspb.UInt64Value, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
@@ -217,7 +217,7 @@ func (mr *MockEventbusControllerClientMockRecorder) DeleteEventbus(ctx, in inter
 }
 
 // GetEventbus mocks base method.
-func (m *MockEventbusControllerClient) GetEventbus(ctx context.Context, in *GetEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
+func (m *MockEventbusControllerClient) GetEventbus(ctx context.Context, in *wrapperspb.UInt64Value, opts ...grpc.CallOption) (*meta.Eventbus, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
@@ -234,6 +234,26 @@ func (mr *MockEventbusControllerClientMockRecorder) GetEventbus(ctx, in interfac
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, in}, opts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventbus", reflect.TypeOf((*MockEventbusControllerClient)(nil).GetEventbus), varargs...)
+}
+
+// GetEventbusWithHumanFriendly mocks base method.
+func (m *MockEventbusControllerClient) GetEventbusWithHumanFriendly(ctx context.Context, in *GetEventbusWithHumanFriendlyRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetEventbusWithHumanFriendly", varargs...)
+	ret0, _ := ret[0].(*meta.Eventbus)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetEventbusWithHumanFriendly indicates an expected call of GetEventbusWithHumanFriendly.
+func (mr *MockEventbusControllerClientMockRecorder) GetEventbusWithHumanFriendly(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventbusWithHumanFriendly", reflect.TypeOf((*MockEventbusControllerClient)(nil).GetEventbusWithHumanFriendly), varargs...)
 }
 
 // ListEventbus mocks base method.
@@ -330,7 +350,7 @@ func (mr *MockEventbusControllerServerMockRecorder) CreateSystemEventbus(arg0, a
 }
 
 // DeleteEventbus mocks base method.
-func (m *MockEventbusControllerServer) DeleteEventbus(arg0 context.Context, arg1 *DeleteEventbusRequest) (*emptypb.Empty, error) {
+func (m *MockEventbusControllerServer) DeleteEventbus(arg0 context.Context, arg1 *wrapperspb.UInt64Value) (*emptypb.Empty, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteEventbus", arg0, arg1)
 	ret0, _ := ret[0].(*emptypb.Empty)
@@ -345,7 +365,7 @@ func (mr *MockEventbusControllerServerMockRecorder) DeleteEventbus(arg0, arg1 in
 }
 
 // GetEventbus mocks base method.
-func (m *MockEventbusControllerServer) GetEventbus(arg0 context.Context, arg1 *GetEventbusRequest) (*meta.Eventbus, error) {
+func (m *MockEventbusControllerServer) GetEventbus(arg0 context.Context, arg1 *wrapperspb.UInt64Value) (*meta.Eventbus, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEventbus", arg0, arg1)
 	ret0, _ := ret[0].(*meta.Eventbus)
@@ -357,6 +377,21 @@ func (m *MockEventbusControllerServer) GetEventbus(arg0 context.Context, arg1 *G
 func (mr *MockEventbusControllerServerMockRecorder) GetEventbus(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventbus", reflect.TypeOf((*MockEventbusControllerServer)(nil).GetEventbus), arg0, arg1)
+}
+
+// GetEventbusWithHumanFriendly mocks base method.
+func (m *MockEventbusControllerServer) GetEventbusWithHumanFriendly(arg0 context.Context, arg1 *GetEventbusWithHumanFriendlyRequest) (*meta.Eventbus, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEventbusWithHumanFriendly", arg0, arg1)
+	ret0, _ := ret[0].(*meta.Eventbus)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetEventbusWithHumanFriendly indicates an expected call of GetEventbusWithHumanFriendly.
+func (mr *MockEventbusControllerServerMockRecorder) GetEventbusWithHumanFriendly(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventbusWithHumanFriendly", reflect.TypeOf((*MockEventbusControllerServer)(nil).GetEventbusWithHumanFriendly), arg0, arg1)
 }
 
 // ListEventbus mocks base method.

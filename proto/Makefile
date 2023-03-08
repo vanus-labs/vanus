@@ -10,7 +10,7 @@ generate-pb: check-package-env
 	protoc -I=${VSPROTO_ROOT}/include \
            -I=${VSPROTO_ROOT}/proto \
            --go_out=${VSPROTO_ROOT}/pkg/${package} \
-	   --go_opt=paths=source_relative \
-	   --go-grpc_out=${VSPROTO_ROOT}/pkg/${package} \
-	   --go-grpc_opt=paths=source_relative,require_unimplemented_servers=false \
-           ${VSPROTO_ROOT}/proto/${package}.proto
+		   --go_opt=paths=source_relative \
+		   --go-grpc_out=${VSPROTO_ROOT}/pkg/${package} \
+		   --go-grpc_opt=paths=source_relative,require_unimplemented_servers=false \
+			   ${VSPROTO_ROOT}/proto/${package}.proto

@@ -649,7 +649,8 @@ func (ctrl *controller) initTriggerSystemEventbus() {
 			os.Exit(-1)
 		}
 
-		if err := ctrl.cl.EventbusService().CreateSystemEventbusIfNotExist(ctx, primitive.GetRetryEventbusName(""),
+		// TODO(JiangKai) save id
+		if _, err := ctrl.cl.EventbusService().CreateSystemEventbusIfNotExist(ctx, primitive.GetRetryEventbusName(""),
 			"System Eventbus For Trigger Service"); err != nil {
 			log.Error(ctx, "failed to create RetryEventbus, exit", map[string]interface{}{
 				log.KeyError: err,
