@@ -30,6 +30,11 @@ type OffsetInfo struct {
 	Offset     uint64   `json:"offset"`
 }
 
+func (i *OffsetInfo) String() string {
+	v, _ := json.Marshal(i)
+	return string(v)
+}
+
 type ListOffsetInfo []OffsetInfo
 
 func (o ListOffsetInfo) String() string {

@@ -80,5 +80,27 @@ func TestExecute(t *testing.T) {
 			So(e.DataContentType(), ShouldEqual, ce.ApplicationJSON)
 			So(string(e.Data()), ShouldEqual, `{"data": "source is \"value\"","data2": "source is \"<noExist>\""}`)
 		})
+		Convey("test execute with all", func() {
+			_ = e.SetData(ce.ApplicationJSON, map[string]interface{}{
+				"issue": map[string]interface{}{
+					"html_url": "issue_html_url",
+					"title":    "issue_title",
+					"number":   123,
+				},
+			})
+			input.Define = map[string]string{
+				"login":   "abc",
+				"comment": "comments",
+			}
+			input.Pipeline = []*primitive.Action{
+				{Command: []interface{}{"join", "$.data.issue_link", "", "<", "$.data.issue.html_url", "|", "$.data.issue.title", " #", "$.data.issue.number", ">"}},
+			}
+			input.Template = `{"type": "mrkdwn","text": "Hi <login>, GitHub user just left a comment in the *<$.data.issue_link>*.\n *Comment: *<comment>"}`
+			it := NewTransformer(input)
+			err := it.Execute(&e)
+			So(err, ShouldBeNil)
+			So(e.DataContentType(), ShouldEqual, ce.ApplicationJSON)
+			So(string(e.Data()), ShouldEqual, `{"type": "mrkdwn","text": "Hi abc, GitHub user just left a comment in the *<issue_html_url|issue_title #123>*.\n *Comment: *comments"}`)
+		})
 	})
 }

@@ -17,6 +17,7 @@ package trigger
 
 import (
 	"context"
+	"encoding/json"
 	"reflect"
 	"sync"
 	"time"
@@ -264,6 +265,11 @@ func (t *trigger) runRetryEventFilterTransform(ctx context.Context) {
 				metrics.TriggerFilterMatchRetryEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
 				event, err := t.transformEvent(record)
 				if err != nil {
+					log.Info(ctx, "event transform error", map[string]interface{}{
+						log.KeyError:   err,
+						"event_id":     event.record.Event.ID(),
+						"event_offset": event.record.OffsetInfo,
+					})
 					t.writeFailEvent(ctx, record.Event, ErrTransformCode, err)
 					t.offsetManager.EventCommit(record.OffsetInfo)
 					return
@@ -295,6 +301,11 @@ func (t *trigger) runEventFilterTransform(ctx context.Context) {
 				metrics.TriggerFilterMatchEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
 				event, err := t.transformEvent(record)
 				if err != nil {
+					log.Info(ctx, "event transform error", map[string]interface{}{
+						log.KeyError:   err,
+						"event_id":     event.record.Event.ID(),
+						"event_offset": event.record.OffsetInfo,
+					})
 					t.writeFailEvent(ctx, record.Event, ErrTransformCode, err)
 					t.offsetManager.EventCommit(record.OffsetInfo)
 					return
@@ -376,9 +387,11 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelFailed).
 			Add(float64(len(es)))
 		log.Info(ctx, "send event fail", map[string]interface{}{
-			log.KeyError: r.Err,
-			"code":       r.StatusCode,
-			"count":      len(es),
+			log.KeyError:   r.Err,
+			"code":         r.StatusCode,
+			"count":        len(es),
+			"event_id":     events[0].record.Event.ID(),
+			"event_offset": events[0].record.OffsetInfo,
 		})
 		code := r.StatusCode
 		if t.config.Ordered {
@@ -391,8 +404,12 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 	} else {
 		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelSuccess).
 			Add(float64(len(es)))
+		eByte, _ := json.Marshal(es[0])
 		log.Debug(ctx, "send event success", map[string]interface{}{
-			"count": len(es),
+			"count":        len(es),
+			"event_id":     events[0].record.Event.ID(),
+			"event_offset": events[0].record.OffsetInfo,
+			"event":        string(eByte),
 		})
 	}
 }
