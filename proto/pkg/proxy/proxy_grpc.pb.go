@@ -27,7 +27,7 @@ const _ = grpc.SupportPackageIsVersion7
 type ControllerProxyClient interface {
 	// Eventbus
 	CreateEventbus(ctx context.Context, in *controller.CreateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
-	DeleteEventbus(ctx context.Context, in *meta.Eventbus, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DeleteEventbus(ctx context.Context, in *controller.DeleteEventbusRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetEventbus(ctx context.Context, in *controller.GetEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
 	ListEventbus(ctx context.Context, in *controller.ListEventbusRequest, opts ...grpc.CallOption) (*controller.ListEventbusResponse, error)
 	UpdateEventbus(ctx context.Context, in *controller.UpdateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
@@ -69,7 +69,7 @@ func (c *controllerProxyClient) CreateEventbus(ctx context.Context, in *controll
 	return out, nil
 }
 
-func (c *controllerProxyClient) DeleteEventbus(ctx context.Context, in *meta.Eventbus, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *controllerProxyClient) DeleteEventbus(ctx context.Context, in *controller.DeleteEventbusRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, "/vanus.core.proxy.ControllerProxy/DeleteEventbus", in, out, opts...)
 	if err != nil {
@@ -255,7 +255,7 @@ func (c *controllerProxyClient) SetDeadLetterEventOffset(ctx context.Context, in
 type ControllerProxyServer interface {
 	// Eventbus
 	CreateEventbus(context.Context, *controller.CreateEventbusRequest) (*meta.Eventbus, error)
-	DeleteEventbus(context.Context, *meta.Eventbus) (*emptypb.Empty, error)
+	DeleteEventbus(context.Context, *controller.DeleteEventbusRequest) (*emptypb.Empty, error)
 	GetEventbus(context.Context, *controller.GetEventbusRequest) (*meta.Eventbus, error)
 	ListEventbus(context.Context, *controller.ListEventbusRequest) (*controller.ListEventbusResponse, error)
 	UpdateEventbus(context.Context, *controller.UpdateEventbusRequest) (*meta.Eventbus, error)
@@ -287,7 +287,7 @@ type UnimplementedControllerProxyServer struct {
 func (UnimplementedControllerProxyServer) CreateEventbus(context.Context, *controller.CreateEventbusRequest) (*meta.Eventbus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateEventbus not implemented")
 }
-func (UnimplementedControllerProxyServer) DeleteEventbus(context.Context, *meta.Eventbus) (*emptypb.Empty, error) {
+func (UnimplementedControllerProxyServer) DeleteEventbus(context.Context, *controller.DeleteEventbusRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteEventbus not implemented")
 }
 func (UnimplementedControllerProxyServer) GetEventbus(context.Context, *controller.GetEventbusRequest) (*meta.Eventbus, error) {
@@ -378,7 +378,7 @@ func _ControllerProxy_CreateEventbus_Handler(srv interface{}, ctx context.Contex
 }
 
 func _ControllerProxy_DeleteEventbus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(meta.Eventbus)
+	in := new(controller.DeleteEventbusRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -390,7 +390,7 @@ func _ControllerProxy_DeleteEventbus_Handler(srv interface{}, ctx context.Contex
 		FullMethod: "/vanus.core.proxy.ControllerProxy/DeleteEventbus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControllerProxyServer).DeleteEventbus(ctx, req.(*meta.Eventbus))
+		return srv.(ControllerProxyServer).DeleteEventbus(ctx, req.(*controller.DeleteEventbusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }

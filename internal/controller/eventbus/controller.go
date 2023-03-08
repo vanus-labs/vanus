@@ -233,7 +233,7 @@ func (ctrl *controller) createEventbus(
 	return ctrl.getEventbus(eb.Name)
 }
 
-func (ctrl *controller) DeleteEventbus(ctx context.Context, eb *metapb.Eventbus) (*emptypb.Empty, error) {
+func (ctrl *controller) DeleteEventbus(ctx context.Context, eb *ctrlpb.DeleteEventbusRequest) (*emptypb.Empty, error) {
 	ctrl.mutex.Lock()
 	defer ctrl.mutex.Unlock()
 	err := ctrl.deleteEventbus(ctx, eb.Name)

@@ -42,7 +42,7 @@ service EventbusController {
   // grpc -> HTTP
   rpc CreateEventbus(CreateEventbusRequest) returns (meta.Eventbus);
   rpc CreateSystemEventbus(CreateEventbusRequest) returns (meta.Eventbus);
-  rpc DeleteEventbus(meta.Eventbus) returns (google.protobuf.Empty);
+  rpc DeleteEventbus(DeleteEventbusRequest) returns (google.protobuf.Empty);
   rpc GetEventbus(GetEventbusRequest) returns (meta.Eventbus);
   rpc ListEventbus(ListEventbusRequest) returns (ListEventbusResponse);
   rpc UpdateEventbus(UpdateEventbusRequest) returns (meta.Eventbus);
@@ -125,9 +125,15 @@ message ListEventbusResponse {
 }
 
 message GetEventbusRequest {
+  uint64 id = 1;
   // deprecated
-  string name = 1;
-  uint64 id = 2;
+  string name = 2;
+}
+
+message DeleteEventbusRequest {
+  uint64 id = 1;
+  // deprecated
+  string name = 2;
 }
 
 message UpdateEventbusRequest {}

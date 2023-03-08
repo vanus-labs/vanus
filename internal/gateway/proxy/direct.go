@@ -33,19 +33,19 @@ func (cp *ControllerProxy) CreateEventbus(
 }
 
 func (cp *ControllerProxy) DeleteEventbus(
-	ctx context.Context, req *metapb.Eventbus,
+	ctx context.Context, req *ctrlpb.DeleteEventbusRequest,
 ) (*emptypb.Empty, error) {
 	return cp.eventbusCtrl.DeleteEventbus(ctx, req)
 }
 
 func (cp *ControllerProxy) GetEventbus(
-	ctx context.Context, req *metapb.Eventbus,
+	ctx context.Context, req *ctrlpb.GetEventbusRequest,
 ) (*metapb.Eventbus, error) {
 	return cp.eventbusCtrl.GetEventbus(ctx, req)
 }
 
 func (cp *ControllerProxy) ListEventbus(
-	ctx context.Context, req *emptypb.Empty,
+	ctx context.Context, req *ctrlpb.ListEventbusRequest,
 ) (*ctrlpb.ListEventbusResponse, error) {
 	return cp.eventbusCtrl.ListEventbus(ctx, req)
 }
