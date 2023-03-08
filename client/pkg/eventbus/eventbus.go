@@ -65,7 +65,7 @@ func NewEventbus(cfg *eb.Config) *eventbus {
 			re, ok := <-ch
 			if !ok {
 				log.Debug(context.Background(), "eventbus quits writable watcher", map[string]interface{}{
-					"eventbus": bus.cfg.Name,
+					"eventbus_id": bus.cfg.ID,
 				})
 				break
 			}
@@ -87,7 +87,7 @@ func NewEventbus(cfg *eb.Config) *eventbus {
 			re, ok := <-ch
 			if !ok {
 				log.Debug(context.Background(), "eventbus quits readable watcher", map[string]interface{}{
-					"eventbus": bus.cfg.Name,
+					"eventbus_id": bus.cfg.ID,
 				})
 				break
 			}
@@ -235,8 +235,8 @@ func (b *eventbus) ListLog(ctx context.Context, opts ...api.LogOption) ([]api.Ev
 	}
 }
 
-func (b *eventbus) Name() string {
-	return b.cfg.Name
+func (b *eventbus) ID() uint64 {
+	return b.cfg.ID
 }
 
 func (b *eventbus) Close(ctx context.Context) {
@@ -459,8 +459,8 @@ func (w *busWriter) Append(ctx context.Context, events *cloudevents.CloudEventBa
 	lw, err := w.pickWritableLog(_ctx, writeOpts)
 	if err != nil {
 		log.Error(context.Background(), "pick writable log failed", map[string]interface{}{
-			log.KeyError: err,
-			"eventbus":   w.ebus.Name(),
+			log.KeyError:  err,
+			"eventbus_id": w.ebus.ID(),
 		})
 		return nil, err
 	}
@@ -470,8 +470,8 @@ func (w *busWriter) Append(ctx context.Context, events *cloudevents.CloudEventBa
 	if err != nil {
 		log.Error(context.Background(), "logwriter append failed", map[string]interface{}{
 			log.KeyError:  err,
-			"eventbus":    w.ebus.Name(),
-			"eventlog-id": lw.Log().ID(),
+			"eventbus_id": w.ebus.ID(),
+			"eventlog_id": lw.Log().ID(),
 		})
 		return nil, err
 	}
@@ -536,8 +536,8 @@ func (r *busReader) Read(ctx context.Context, opts ...api.ReadOption) (events *c
 	lr, err := r.pickReadableLog(_ctx, readOpts)
 	if err != nil {
 		log.Error(context.Background(), "pick readable log failed", map[string]interface{}{
-			log.KeyError: err,
-			"eventbus":   r.ebus.Name(),
+			log.KeyError:  err,
+			"eventbus_id": r.ebus.ID(),
 		})
 		return nil, 0, 0, err
 	}
@@ -546,8 +546,8 @@ func (r *busReader) Read(ctx context.Context, opts ...api.ReadOption) (events *c
 	off, err = lr.Seek(_ctx, readOpts.Policy.Offset(), io.SeekStart)
 	if err != nil {
 		log.Error(context.Background(), "seek offset failed", map[string]interface{}{
-			log.KeyError: err,
-			"eventbus":   r.ebus.Name(),
+			log.KeyError:  err,
+			"eventbus_id": r.ebus.ID(),
 		})
 		return nil, 0, 0, err
 	}

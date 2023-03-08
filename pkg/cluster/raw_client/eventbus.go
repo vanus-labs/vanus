@@ -23,6 +23,7 @@ import (
 
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 var _ io.Closer = (*eventbusClient)(nil)
@@ -64,7 +65,7 @@ func (ec *eventbusClient) CreateSystemEventbus(
 }
 
 func (ec *eventbusClient) DeleteEventbus(
-	ctx context.Context, in *ctrlpb.DeleteEventbusRequest, opts ...grpc.CallOption,
+	ctx context.Context, in *wrapperspb.UInt64Value, opts ...grpc.CallOption,
 ) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := ec.cc.invoke(ctx, "/vanus.core.controller.EventbusController/DeleteEventbus", in, out, opts...)
@@ -75,7 +76,7 @@ func (ec *eventbusClient) DeleteEventbus(
 }
 
 func (ec *eventbusClient) GetEventbus(
-	ctx context.Context, in *ctrlpb.GetEventbusRequest, opts ...grpc.CallOption,
+	ctx context.Context, in *wrapperspb.UInt64Value, opts ...grpc.CallOption,
 ) (*metapb.Eventbus, error) {
 	out := new(metapb.Eventbus)
 	err := ec.cc.invoke(ctx, "/vanus.core.controller.EventbusController/GetEventbus", in, out, opts...)
@@ -105,4 +106,11 @@ func (ec *eventbusClient) UpdateEventbus(
 		return nil, err
 	}
 	return out, nil
+}
+
+func (ec *eventbusClient) GetEventbusWithHumanFriendly(
+	ctx context.Context, in *ctrlpb.GetEventbusWithHumanFriendlyRequest, opts ...grpc.CallOption,
+) (*metapb.Eventbus, error) {
+	// TODO
+	return nil, nil
 }

@@ -18,6 +18,31 @@ const (
 	DefaultPollingTimeout = 3000 // in milliseconds.
 )
 
+type EventbusOptions struct {
+	Namespace string
+	Name      string
+	ID        uint64
+}
+
+func DefaultEventbusOptions() *EventbusOptions {
+	return &EventbusOptions{}
+}
+
+type EventbusOption func(opt *EventbusOptions)
+
+func WithName(namespace, name string) EventbusOption {
+	return func(opt *EventbusOptions) {
+		opt.Namespace = namespace
+		opt.Name = name
+	}
+}
+
+func WithID(id uint64) EventbusOption {
+	return func(opt *EventbusOptions) {
+		opt.ID = id
+	}
+}
+
 type WriteOption func(*WriteOptions)
 
 type WriteOptions struct {
