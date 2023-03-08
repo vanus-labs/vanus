@@ -64,7 +64,7 @@ func (ec *eventbusClient) CreateSystemEventbus(
 }
 
 func (ec *eventbusClient) DeleteEventbus(
-	ctx context.Context, in *metapb.Eventbus, opts ...grpc.CallOption,
+	ctx context.Context, in *ctrlpb.DeleteEventbusRequest, opts ...grpc.CallOption,
 ) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := ec.cc.invoke(ctx, "/vanus.core.controller.EventbusController/DeleteEventbus", in, out, opts...)
