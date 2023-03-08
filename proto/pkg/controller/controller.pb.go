@@ -255,7 +255,6 @@ type GetEventbusRequest struct {
 	unknownFields protoimpl.UnknownFields
 
 	Id uint64 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	// deprecated will delete when all api modify to id
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 }
 
@@ -311,7 +310,6 @@ type DeleteEventbusRequest struct {
 	unknownFields protoimpl.UnknownFields
 
 	Id uint64 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	// deprecated will delete when all api modify to id
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 }
 
@@ -1321,7 +1319,6 @@ type ListSubscriptionRequest struct {
 	unknownFields protoimpl.UnknownFields
 
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// deprecated will delete when all api modify to id
 	EventbusId uint64 `protobuf:"varint,3,opt,name=eventbus_id,json=eventbusId,proto3" json:"eventbus_id,omitempty"`
 }
 
