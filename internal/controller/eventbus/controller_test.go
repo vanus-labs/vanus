@@ -81,7 +81,7 @@ func TestController_CreateEventbus(t *testing.T) {
 			So(res.Id, ShouldNotEqual, 0)
 			So(res.Logs, ShouldHaveLength, 1)
 			So(res.LogNumber, ShouldEqual, 1)
-			So(res.Logs[0].EventbusName, ShouldEqual, "test-1")
+			So(res.Logs[0].EventbusId, ShouldEqual, res.Id)
 			sort.Strings(res.Logs[0].ServerAddress)
 			So(res.Logs[0].ServerAddress, ShouldResemble, []string{"a", "b"})
 			So(res.Logs[0].CurrentSegmentNumbers, ShouldEqual, 2)
