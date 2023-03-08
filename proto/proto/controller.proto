@@ -102,6 +102,8 @@ message GetEventbusRequest {
 
 message DeleteEventbusRequest {
   uint64 id = 1;
+  // deprecated will delete when all api modify to id
+  string name = 2;
 }
 
 message UpdateEventbusRequest {}
@@ -155,11 +157,13 @@ message SubscriptionRequest {
   meta.SinkCredential sink_credential = 6;
   meta.Protocol protocol = 7;
   meta.ProtocolSetting protocol_settings = 8;
-  uint64 eventbus_id = 9;
+  // deprecated will delete when all api modify to id
+  string eventbus = 9;
   meta.Transformer transformer = 10;
   string name = 11;
   string description = 12;
   bool disable = 13;
+  uint64 eventbus_id = 14;
 }
 
 message CreateSubscriptionRequest {
