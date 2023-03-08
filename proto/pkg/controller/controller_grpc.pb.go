@@ -18,6 +18,7 @@
 // - protoc             v3.19.4
 // source: controller.proto
 
+//go:generate mockgen -source=controller_grpc.pb.go -destination=mock_controller.go -package=controller
 package controller
 
 import (
