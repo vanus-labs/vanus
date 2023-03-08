@@ -28,6 +28,7 @@ import (
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
+	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -36,27 +37,28 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ControllerProxy_CreateEventbus_FullMethodName           = "/vanus.core.proxy.ControllerProxy/CreateEventbus"
-	ControllerProxy_DeleteEventbus_FullMethodName           = "/vanus.core.proxy.ControllerProxy/DeleteEventbus"
-	ControllerProxy_GetEventbus_FullMethodName              = "/vanus.core.proxy.ControllerProxy/GetEventbus"
-	ControllerProxy_ListEventbus_FullMethodName             = "/vanus.core.proxy.ControllerProxy/ListEventbus"
-	ControllerProxy_UpdateEventbus_FullMethodName           = "/vanus.core.proxy.ControllerProxy/UpdateEventbus"
-	ControllerProxy_ListSegment_FullMethodName              = "/vanus.core.proxy.ControllerProxy/ListSegment"
-	ControllerProxy_CreateSubscription_FullMethodName       = "/vanus.core.proxy.ControllerProxy/CreateSubscription"
-	ControllerProxy_UpdateSubscription_FullMethodName       = "/vanus.core.proxy.ControllerProxy/UpdateSubscription"
-	ControllerProxy_DeleteSubscription_FullMethodName       = "/vanus.core.proxy.ControllerProxy/DeleteSubscription"
-	ControllerProxy_GetSubscription_FullMethodName          = "/vanus.core.proxy.ControllerProxy/GetSubscription"
-	ControllerProxy_ListSubscription_FullMethodName         = "/vanus.core.proxy.ControllerProxy/ListSubscription"
-	ControllerProxy_DisableSubscription_FullMethodName      = "/vanus.core.proxy.ControllerProxy/DisableSubscription"
-	ControllerProxy_ResumeSubscription_FullMethodName       = "/vanus.core.proxy.ControllerProxy/ResumeSubscription"
-	ControllerProxy_ResetOffsetToTimestamp_FullMethodName   = "/vanus.core.proxy.ControllerProxy/ResetOffsetToTimestamp"
-	ControllerProxy_ClusterInfo_FullMethodName              = "/vanus.core.proxy.ControllerProxy/ClusterInfo"
-	ControllerProxy_LookupOffset_FullMethodName             = "/vanus.core.proxy.ControllerProxy/LookupOffset"
-	ControllerProxy_GetEvent_FullMethodName                 = "/vanus.core.proxy.ControllerProxy/GetEvent"
-	ControllerProxy_ValidateSubscription_FullMethodName     = "/vanus.core.proxy.ControllerProxy/ValidateSubscription"
-	ControllerProxy_GetDeadLetterEvent_FullMethodName       = "/vanus.core.proxy.ControllerProxy/GetDeadLetterEvent"
-	ControllerProxy_ResendDeadLetterEvent_FullMethodName    = "/vanus.core.proxy.ControllerProxy/ResendDeadLetterEvent"
-	ControllerProxy_SetDeadLetterEventOffset_FullMethodName = "/vanus.core.proxy.ControllerProxy/SetDeadLetterEventOffset"
+	ControllerProxy_CreateEventbus_FullMethodName               = "/vanus.core.proxy.ControllerProxy/CreateEventbus"
+	ControllerProxy_DeleteEventbus_FullMethodName               = "/vanus.core.proxy.ControllerProxy/DeleteEventbus"
+	ControllerProxy_GetEventbus_FullMethodName                  = "/vanus.core.proxy.ControllerProxy/GetEventbus"
+	ControllerProxy_ListEventbus_FullMethodName                 = "/vanus.core.proxy.ControllerProxy/ListEventbus"
+	ControllerProxy_UpdateEventbus_FullMethodName               = "/vanus.core.proxy.ControllerProxy/UpdateEventbus"
+	ControllerProxy_GetEventbusWithHumanFriendly_FullMethodName = "/vanus.core.proxy.ControllerProxy/GetEventbusWithHumanFriendly"
+	ControllerProxy_ListSegment_FullMethodName                  = "/vanus.core.proxy.ControllerProxy/ListSegment"
+	ControllerProxy_CreateSubscription_FullMethodName           = "/vanus.core.proxy.ControllerProxy/CreateSubscription"
+	ControllerProxy_UpdateSubscription_FullMethodName           = "/vanus.core.proxy.ControllerProxy/UpdateSubscription"
+	ControllerProxy_DeleteSubscription_FullMethodName           = "/vanus.core.proxy.ControllerProxy/DeleteSubscription"
+	ControllerProxy_GetSubscription_FullMethodName              = "/vanus.core.proxy.ControllerProxy/GetSubscription"
+	ControllerProxy_ListSubscription_FullMethodName             = "/vanus.core.proxy.ControllerProxy/ListSubscription"
+	ControllerProxy_DisableSubscription_FullMethodName          = "/vanus.core.proxy.ControllerProxy/DisableSubscription"
+	ControllerProxy_ResumeSubscription_FullMethodName           = "/vanus.core.proxy.ControllerProxy/ResumeSubscription"
+	ControllerProxy_ResetOffsetToTimestamp_FullMethodName       = "/vanus.core.proxy.ControllerProxy/ResetOffsetToTimestamp"
+	ControllerProxy_ClusterInfo_FullMethodName                  = "/vanus.core.proxy.ControllerProxy/ClusterInfo"
+	ControllerProxy_LookupOffset_FullMethodName                 = "/vanus.core.proxy.ControllerProxy/LookupOffset"
+	ControllerProxy_GetEvent_FullMethodName                     = "/vanus.core.proxy.ControllerProxy/GetEvent"
+	ControllerProxy_ValidateSubscription_FullMethodName         = "/vanus.core.proxy.ControllerProxy/ValidateSubscription"
+	ControllerProxy_GetDeadLetterEvent_FullMethodName           = "/vanus.core.proxy.ControllerProxy/GetDeadLetterEvent"
+	ControllerProxy_ResendDeadLetterEvent_FullMethodName        = "/vanus.core.proxy.ControllerProxy/ResendDeadLetterEvent"
+	ControllerProxy_SetDeadLetterEventOffset_FullMethodName     = "/vanus.core.proxy.ControllerProxy/SetDeadLetterEventOffset"
 )
 
 // ControllerProxyClient is the client API for ControllerProxy service.
@@ -65,10 +67,11 @@ const (
 type ControllerProxyClient interface {
 	// Eventbus
 	CreateEventbus(ctx context.Context, in *controller.CreateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
-	DeleteEventbus(ctx context.Context, in *controller.DeleteEventbusRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	GetEventbus(ctx context.Context, in *controller.GetEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
+	DeleteEventbus(ctx context.Context, in *wrapperspb.UInt64Value, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	GetEventbus(ctx context.Context, in *wrapperspb.UInt64Value, opts ...grpc.CallOption) (*meta.Eventbus, error)
 	ListEventbus(ctx context.Context, in *controller.ListEventbusRequest, opts ...grpc.CallOption) (*controller.ListEventbusResponse, error)
 	UpdateEventbus(ctx context.Context, in *controller.UpdateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
+	GetEventbusWithHumanFriendly(ctx context.Context, in *controller.GetEventbusWithHumanFriendlyRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
 	ListSegment(ctx context.Context, in *controller.ListSegmentRequest, opts ...grpc.CallOption) (*controller.ListSegmentResponse, error)
 	// Trigger
 	CreateSubscription(ctx context.Context, in *controller.CreateSubscriptionRequest, opts ...grpc.CallOption) (*meta.Subscription, error)
@@ -107,7 +110,7 @@ func (c *controllerProxyClient) CreateEventbus(ctx context.Context, in *controll
 	return out, nil
 }
 
-func (c *controllerProxyClient) DeleteEventbus(ctx context.Context, in *controller.DeleteEventbusRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *controllerProxyClient) DeleteEventbus(ctx context.Context, in *wrapperspb.UInt64Value, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, ControllerProxy_DeleteEventbus_FullMethodName, in, out, opts...)
 	if err != nil {
@@ -116,7 +119,7 @@ func (c *controllerProxyClient) DeleteEventbus(ctx context.Context, in *controll
 	return out, nil
 }
 
-func (c *controllerProxyClient) GetEventbus(ctx context.Context, in *controller.GetEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
+func (c *controllerProxyClient) GetEventbus(ctx context.Context, in *wrapperspb.UInt64Value, opts ...grpc.CallOption) (*meta.Eventbus, error) {
 	out := new(meta.Eventbus)
 	err := c.cc.Invoke(ctx, ControllerProxy_GetEventbus_FullMethodName, in, out, opts...)
 	if err != nil {
@@ -137,6 +140,15 @@ func (c *controllerProxyClient) ListEventbus(ctx context.Context, in *controller
 func (c *controllerProxyClient) UpdateEventbus(ctx context.Context, in *controller.UpdateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
 	out := new(meta.Eventbus)
 	err := c.cc.Invoke(ctx, ControllerProxy_UpdateEventbus_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controllerProxyClient) GetEventbusWithHumanFriendly(ctx context.Context, in *controller.GetEventbusWithHumanFriendlyRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
+	out := new(meta.Eventbus)
+	err := c.cc.Invoke(ctx, ControllerProxy_GetEventbusWithHumanFriendly_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -293,10 +305,11 @@ func (c *controllerProxyClient) SetDeadLetterEventOffset(ctx context.Context, in
 type ControllerProxyServer interface {
 	// Eventbus
 	CreateEventbus(context.Context, *controller.CreateEventbusRequest) (*meta.Eventbus, error)
-	DeleteEventbus(context.Context, *controller.DeleteEventbusRequest) (*emptypb.Empty, error)
-	GetEventbus(context.Context, *controller.GetEventbusRequest) (*meta.Eventbus, error)
+	DeleteEventbus(context.Context, *wrapperspb.UInt64Value) (*emptypb.Empty, error)
+	GetEventbus(context.Context, *wrapperspb.UInt64Value) (*meta.Eventbus, error)
 	ListEventbus(context.Context, *controller.ListEventbusRequest) (*controller.ListEventbusResponse, error)
 	UpdateEventbus(context.Context, *controller.UpdateEventbusRequest) (*meta.Eventbus, error)
+	GetEventbusWithHumanFriendly(context.Context, *controller.GetEventbusWithHumanFriendlyRequest) (*meta.Eventbus, error)
 	ListSegment(context.Context, *controller.ListSegmentRequest) (*controller.ListSegmentResponse, error)
 	// Trigger
 	CreateSubscription(context.Context, *controller.CreateSubscriptionRequest) (*meta.Subscription, error)
@@ -325,10 +338,10 @@ type UnimplementedControllerProxyServer struct {
 func (UnimplementedControllerProxyServer) CreateEventbus(context.Context, *controller.CreateEventbusRequest) (*meta.Eventbus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateEventbus not implemented")
 }
-func (UnimplementedControllerProxyServer) DeleteEventbus(context.Context, *controller.DeleteEventbusRequest) (*emptypb.Empty, error) {
+func (UnimplementedControllerProxyServer) DeleteEventbus(context.Context, *wrapperspb.UInt64Value) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteEventbus not implemented")
 }
-func (UnimplementedControllerProxyServer) GetEventbus(context.Context, *controller.GetEventbusRequest) (*meta.Eventbus, error) {
+func (UnimplementedControllerProxyServer) GetEventbus(context.Context, *wrapperspb.UInt64Value) (*meta.Eventbus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetEventbus not implemented")
 }
 func (UnimplementedControllerProxyServer) ListEventbus(context.Context, *controller.ListEventbusRequest) (*controller.ListEventbusResponse, error) {
@@ -336,6 +349,9 @@ func (UnimplementedControllerProxyServer) ListEventbus(context.Context, *control
 }
 func (UnimplementedControllerProxyServer) UpdateEventbus(context.Context, *controller.UpdateEventbusRequest) (*meta.Eventbus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateEventbus not implemented")
+}
+func (UnimplementedControllerProxyServer) GetEventbusWithHumanFriendly(context.Context, *controller.GetEventbusWithHumanFriendlyRequest) (*meta.Eventbus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEventbusWithHumanFriendly not implemented")
 }
 func (UnimplementedControllerProxyServer) ListSegment(context.Context, *controller.ListSegmentRequest) (*controller.ListSegmentResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListSegment not implemented")
@@ -416,7 +432,7 @@ func _ControllerProxy_CreateEventbus_Handler(srv interface{}, ctx context.Contex
 }
 
 func _ControllerProxy_DeleteEventbus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(controller.DeleteEventbusRequest)
+	in := new(wrapperspb.UInt64Value)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -428,13 +444,13 @@ func _ControllerProxy_DeleteEventbus_Handler(srv interface{}, ctx context.Contex
 		FullMethod: ControllerProxy_DeleteEventbus_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControllerProxyServer).DeleteEventbus(ctx, req.(*controller.DeleteEventbusRequest))
+		return srv.(ControllerProxyServer).DeleteEventbus(ctx, req.(*wrapperspb.UInt64Value))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _ControllerProxy_GetEventbus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(controller.GetEventbusRequest)
+	in := new(wrapperspb.UInt64Value)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -446,7 +462,7 @@ func _ControllerProxy_GetEventbus_Handler(srv interface{}, ctx context.Context, 
 		FullMethod: ControllerProxy_GetEventbus_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControllerProxyServer).GetEventbus(ctx, req.(*controller.GetEventbusRequest))
+		return srv.(ControllerProxyServer).GetEventbus(ctx, req.(*wrapperspb.UInt64Value))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -483,6 +499,24 @@ func _ControllerProxy_UpdateEventbus_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).UpdateEventbus(ctx, req.(*controller.UpdateEventbusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControllerProxy_GetEventbusWithHumanFriendly_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(controller.GetEventbusWithHumanFriendlyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControllerProxyServer).GetEventbusWithHumanFriendly(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControllerProxy_GetEventbusWithHumanFriendly_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControllerProxyServer).GetEventbusWithHumanFriendly(ctx, req.(*controller.GetEventbusWithHumanFriendlyRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -801,6 +835,10 @@ var ControllerProxy_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateEventbus",
 			Handler:    _ControllerProxy_UpdateEventbus_Handler,
+		},
+		{
+			MethodName: "GetEventbusWithHumanFriendly",
+			Handler:    _ControllerProxy_GetEventbusWithHumanFriendly_Handler,
 		},
 		{
 			MethodName: "ListSegment",
