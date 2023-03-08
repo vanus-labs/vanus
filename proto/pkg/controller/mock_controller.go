@@ -197,7 +197,7 @@ func (mr *MockEventbusControllerClientMockRecorder) CreateSystemEventbus(ctx, in
 }
 
 // DeleteEventbus mocks base method.
-func (m *MockEventbusControllerClient) DeleteEventbus(ctx context.Context, in *meta.Eventbus, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (m *MockEventbusControllerClient) DeleteEventbus(ctx context.Context, in *DeleteEventbusRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
@@ -217,7 +217,7 @@ func (mr *MockEventbusControllerClientMockRecorder) DeleteEventbus(ctx, in inter
 }
 
 // GetEventbus mocks base method.
-func (m *MockEventbusControllerClient) GetEventbus(ctx context.Context, in *meta.Eventbus, opts ...grpc.CallOption) (*meta.Eventbus, error) {
+func (m *MockEventbusControllerClient) GetEventbus(ctx context.Context, in *GetEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
@@ -237,7 +237,7 @@ func (mr *MockEventbusControllerClientMockRecorder) GetEventbus(ctx, in interfac
 }
 
 // ListEventbus mocks base method.
-func (m *MockEventbusControllerClient) ListEventbus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListEventbusResponse, error) {
+func (m *MockEventbusControllerClient) ListEventbus(ctx context.Context, in *ListEventbusRequest, opts ...grpc.CallOption) (*ListEventbusResponse, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
@@ -330,7 +330,7 @@ func (mr *MockEventbusControllerServerMockRecorder) CreateSystemEventbus(arg0, a
 }
 
 // DeleteEventbus mocks base method.
-func (m *MockEventbusControllerServer) DeleteEventbus(arg0 context.Context, arg1 *meta.Eventbus) (*emptypb.Empty, error) {
+func (m *MockEventbusControllerServer) DeleteEventbus(arg0 context.Context, arg1 *DeleteEventbusRequest) (*emptypb.Empty, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteEventbus", arg0, arg1)
 	ret0, _ := ret[0].(*emptypb.Empty)
@@ -345,7 +345,7 @@ func (mr *MockEventbusControllerServerMockRecorder) DeleteEventbus(arg0, arg1 in
 }
 
 // GetEventbus mocks base method.
-func (m *MockEventbusControllerServer) GetEventbus(arg0 context.Context, arg1 *meta.Eventbus) (*meta.Eventbus, error) {
+func (m *MockEventbusControllerServer) GetEventbus(arg0 context.Context, arg1 *GetEventbusRequest) (*meta.Eventbus, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEventbus", arg0, arg1)
 	ret0, _ := ret[0].(*meta.Eventbus)
@@ -360,7 +360,7 @@ func (mr *MockEventbusControllerServerMockRecorder) GetEventbus(arg0, arg1 inter
 }
 
 // ListEventbus mocks base method.
-func (m *MockEventbusControllerServer) ListEventbus(arg0 context.Context, arg1 *emptypb.Empty) (*ListEventbusResponse, error) {
+func (m *MockEventbusControllerServer) ListEventbus(arg0 context.Context, arg1 *ListEventbusRequest) (*ListEventbusResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListEventbus", arg0, arg1)
 	ret0, _ := ret[0].(*ListEventbusResponse)

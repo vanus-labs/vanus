@@ -75,7 +75,7 @@ func (ec *eventbusClient) DeleteEventbus(
 }
 
 func (ec *eventbusClient) GetEventbus(
-	ctx context.Context, in *metapb.Eventbus, opts ...grpc.CallOption,
+	ctx context.Context, in *ctrlpb.GetEventbusRequest, opts ...grpc.CallOption,
 ) (*metapb.Eventbus, error) {
 	out := new(metapb.Eventbus)
 	err := ec.cc.invoke(ctx, "/vanus.core.controller.EventbusController/GetEventbus", in, out, opts...)
@@ -86,7 +86,7 @@ func (ec *eventbusClient) GetEventbus(
 }
 
 func (ec *eventbusClient) ListEventbus(
-	ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption,
+	ctx context.Context, in *ctrlpb.ListEventbusRequest, opts ...grpc.CallOption,
 ) (*ctrlpb.ListEventbusResponse, error) {
 	out := new(ctrlpb.ListEventbusResponse)
 	err := ec.cc.invoke(ctx, "/vanus.core.controller.EventbusController/ListEventbus", in, out, opts...)

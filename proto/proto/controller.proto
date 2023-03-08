@@ -31,9 +31,9 @@ service EventbusController {
   // grpc -> HTTP
   rpc CreateEventbus(CreateEventbusRequest) returns (meta.Eventbus);
   rpc CreateSystemEventbus(CreateEventbusRequest) returns (meta.Eventbus);
-  rpc DeleteEventbus(meta.Eventbus) returns (google.protobuf.Empty);
-  rpc GetEventbus(meta.Eventbus) returns (meta.Eventbus);
-  rpc ListEventbus(google.protobuf.Empty) returns (ListEventbusResponse);
+  rpc DeleteEventbus(DeleteEventbusRequest) returns (google.protobuf.Empty);
+  rpc GetEventbus(GetEventbusRequest) returns (meta.Eventbus);
+  rpc ListEventbus(ListEventbusRequest) returns (ListEventbusResponse);
   rpc UpdateEventbus(UpdateEventbusRequest) returns (meta.Eventbus);
   // Don't consider UpdateEventbus now
 }
@@ -87,8 +87,19 @@ message CreateEventbusRequest {
   string description = 3;
 }
 
+message ListEventbusRequest {
+}
+
 message ListEventbusResponse {
   repeated meta.Eventbus eventbus = 1;
+}
+
+message GetEventbusRequest {
+  uint64 id = 1;
+}
+
+message DeleteEventbusRequest {
+  uint64 id = 1;
 }
 
 message UpdateEventbusRequest {}
@@ -142,7 +153,7 @@ message SubscriptionRequest {
   meta.SinkCredential sink_credential = 6;
   meta.Protocol protocol = 7;
   meta.ProtocolSetting protocol_settings = 8;
-  string eventbus = 9;
+  uint64 eventbus_id = 9;
   meta.Transformer transformer = 10;
   string name = 11;
   string description = 12;
@@ -175,7 +186,7 @@ message ResumeSubscriptionRequest {
 }
 
 message ListSubscriptionRequest {
-  string eventbus = 1;
+  uint64 eventbus_id = 1;
   string name = 2;
 }
 
