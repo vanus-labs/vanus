@@ -38,6 +38,7 @@ import (
 
 	"github.com/vanus-labs/vanus/internal/kv"
 	"github.com/vanus-labs/vanus/internal/kv/etcd"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/internal/timer/metadata"
 )
 
@@ -235,8 +236,14 @@ func (tw *timingWheel) IsLeader() bool {
 }
 
 func (tw *timingWheel) IsDeployed(ctx context.Context) bool {
-	return tw.ctrl.EventbusService().IsExist(ctx, tw.receivingStation.eventbus) &&
-		tw.ctrl.EventbusService().IsExist(ctx, tw.distributionStation.eventbus)
+	var err error
+	if _, err = tw.ctrl.EventbusService().GetSystemEventbusByName(ctx, tw.receivingStation.eventbus); err != nil {
+		return false
+	}
+	if _, err = tw.ctrl.EventbusService().GetSystemEventbusByName(ctx, tw.distributionStation.eventbus); err != nil {
+		return false
+	}
+	return true
 }
 
 func (tw *timingWheel) Recover(ctx context.Context) error {
@@ -569,20 +576,28 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 
 func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 	var (
-		err    error
-		ebName string
+		err  error
+		ebID string
 	)
 
-	err = e.ExtensionAs(xVanusEventbus, &ebName)
+	err = e.ExtensionAs(xVanusEventbus, &ebID)
 	if err != nil {
 		log.Error(ctx, "get eventbus failed when delivering", map[string]interface{}{
 			log.KeyError: err,
 		})
 		return err
 	}
-	v, exist := tw.cache.Load(ebName)
+	eventbusID, err := vanus.NewIDFromString(ebID)
+	if err != nil {
+		log.Error(ctx, "eventbus id string to uint64 failed when delivering", map[string]interface{}{
+			log.KeyError:  err,
+			"eventbus_id": ebID,
+		})
+		return err
+	}
+	v, exist := tw.cache.Load(eventbusID)
 	if !exist {
-		v, _ = tw.cache.LoadOrStore(ebName, tw.client.Eventbus(ctx, ebName).Writer())
+		v, _ = tw.cache.LoadOrStore(eventbusID, tw.client.Eventbus(ctx, api.WithID(eventbusID.Uint64())).Writer())
 	}
 	writer, _ := v.(api.BusWriter)
 	_, err = api.AppendOne(ctx, writer, e)
@@ -590,21 +605,21 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 		if errors.Is(err, errors.ErrOffsetOnEnd) {
 			log.Warning(ctx, "eventbus not found, discard this event", map[string]interface{}{
 				log.KeyError:    err,
-				"eventbus":      ebName,
 				"event_id":      e.ID(),
+				"eventbus_id":   ebID,
 				"delivery_time": newTimingMsg(ctx, e).getExpiration().Format(time.RFC3339Nano),
 			})
 			return nil
 		}
 		log.Error(ctx, "append failed", map[string]interface{}{
-			log.KeyError: err,
-			"eventbus":   ebName,
+			log.KeyError:  err,
+			"eventbus_id": ebID,
 		})
 		return err
 	}
 	log.Debug(ctx, "event delivered", map[string]interface{}{
 		"event_id":      e.ID(),
-		"eventbus":      e.Extensions()[xVanusEventbus],
+		"eventbus_id":   ebID,
 		"delivery_time": newTimingMsg(ctx, e).getExpiration().Format(time.RFC3339Nano),
 	})
 	return nil
