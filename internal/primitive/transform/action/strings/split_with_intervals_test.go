@@ -18,10 +18,10 @@ import (
 	"testing"
 
 	cetest "github.com/cloudevents/sdk-go/v2/test"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/action/strings"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/action/strings"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/runtime"
 )
 
 func TestSplitWithIntervalsAction(t *testing.T) {
@@ -57,7 +57,10 @@ func TestSplitWithIntervalsAction(t *testing.T) {
 			Data:  data,
 		}
 		err = a.Execute(ceCtx)
-		So(err.Error(), ShouldEqual, "start position must be less than the length of the string")
+		So(err, ShouldBeNil)
+		res, ok := data["appinfoB"]
+		So(ok, ShouldBeTrue)
+		So(res, ShouldResemble, []string{"hello world!"})
 	})
 
 	Convey("test when the string can't be split exactly into equal intervals", t, func() {

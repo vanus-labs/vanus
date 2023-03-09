@@ -17,10 +17,10 @@ package strings
 import (
 	"fmt"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/action"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/arg"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/common"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
 )
 
 type splitWithIntervalsAction struct {
@@ -40,7 +40,7 @@ func NewSplitWithIntervalsAction() action.Action {
 func (a *splitWithIntervalsAction) Init(args []arg.Arg) error {
 	a.TargetArg = args[3]
 	a.Args = args[:3]
-	a.ArgTypes = []common.Type{common.String, common.Number, common.Number}
+	a.ArgTypes = []common.Type{common.String, common.Int, common.Int}
 	return nil
 }
 
@@ -56,14 +56,14 @@ func (a *splitWithIntervalsAction) Execute(ceCtx *context.EventContext) error {
 	}
 
 	sourceJSONPath, _ := args[0].(string)
-	startPosition := int(args[1].(float64))
-	splitInterval := int(args[2].(float64))
+	startPosition, _ := args[1].(int)
+	splitInterval, _ := args[2].(int)
 
 	// split string
 	var substrings []string
 	if startPosition > len(sourceJSONPath) {
 		// if startPosition is beyond the end of the string, return an error
-		return fmt.Errorf("start position must be less than the length of the string")
+		return a.TargetArg.SetValue(ceCtx, []string{sourceJSONPath})
 	}
 
 	// split the string according to the specified interval
