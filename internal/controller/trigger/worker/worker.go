@@ -179,16 +179,18 @@ func (tw *triggerWorker) handler(ctx context.Context, subscriptionID vanus.ID) e
 		}
 	}
 	err = tw.addSubscription(ctx, &primitive.Subscription{
-		ID:              sub.ID,
-		Filters:         filters,
-		Sink:            sub.Sink,
-		Eventbus:        sub.Eventbus,
-		Offsets:         offsets,
-		Transformer:     sub.Transformer,
-		Config:          sub.Config,
-		Protocol:        sub.Protocol,
-		ProtocolSetting: sub.ProtocolSetting,
-		SinkCredential:  sub.SinkCredential,
+		ID:                   sub.ID,
+		Filters:              filters,
+		Sink:                 sub.Sink,
+		EventbusID:           sub.EventbusID,
+		DeadLetterEventbusID: sub.DeadLetterEventbusID,
+		RetryEventbusID:      sub.RetryEventbusID,
+		Offsets:              offsets,
+		Transformer:          sub.Transformer,
+		Config:               sub.Config,
+		Protocol:             sub.Protocol,
+		ProtocolSetting:      sub.ProtocolSetting,
+		SinkCredential:       sub.SinkCredential,
 	})
 	if err != nil {
 		return err

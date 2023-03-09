@@ -52,6 +52,9 @@ message AddSubscriptionRequest {
   meta.Transformer transformer = 9;
   repeated meta.OffsetInfo offsets = 10;
   uint64 eventbus_id = 11;
+  uint64 dead_letter_eventbus_id = 12;
+  uint64 retry_eventbus_id = 13;
+  uint64 timer_eventbus_id = 14;
 }
 
 message AddSubscriptionResponse {}

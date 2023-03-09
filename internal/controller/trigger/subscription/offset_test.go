@@ -246,9 +246,9 @@ func TestGetDeadLetterOffset(t *testing.T) {
 		noExistID := vanus.NewTestID()
 		id := vanus.NewTestID()
 		sub := &metadata.Subscription{
-			ID:        id,
-			Eventbus:  "test",
-			CreatedAt: time.Now(),
+			ID:         id,
+			EventbusID: vanus.NewTestID(),
+			CreatedAt:  time.Now(),
 		}
 		m.AddSubscription(ctx, sub)
 		logID := vanus.NewTestID()
@@ -264,7 +264,7 @@ func TestGetDeadLetterOffset(t *testing.T) {
 		Convey("get dead letter offset from storage offset", func() {
 			offsetManager.EXPECT().GetOffset(ctx, id).Return(listOffsetInfo, nil)
 			Convey("dead letter eventlogID has init", func() {
-				m.deadLetterEventlogID = logID
+				m.deadLetterEventlogMap[sub.EventbusID] = logID
 				offset, err := m.GetDeadLetterOffset(ctx, id)
 				So(err, ShouldBeNil)
 				So(offset, ShouldEqual, offsetV)
@@ -315,9 +315,9 @@ func TestSaveDeadLetterOffset(t *testing.T) {
 		storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).AnyTimes().Return(nil)
 		id := vanus.NewTestID()
 		sub := &metadata.Subscription{
-			ID:        id,
-			Eventbus:  "test",
-			CreatedAt: time.Now(),
+			ID:         id,
+			EventbusID: vanus.NewTestID(),
+			CreatedAt:  time.Now(),
 		}
 		m.AddSubscription(ctx, sub)
 		logID := vanus.NewTestID()
@@ -328,7 +328,7 @@ func TestSaveDeadLetterOffset(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 		Convey("save dead letter offset eventlogID has init", func() {
-			m.deadLetterEventlogID = logID
+			m.deadLetterEventlogMap[sub.EventbusID] = logID
 			err := m.SaveDeadLetterOffset(ctx, id, offsetV)
 			So(err, ShouldBeNil)
 		})

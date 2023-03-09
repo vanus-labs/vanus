@@ -14,10 +14,20 @@
 
 package primitive
 
+import "github.com/vanus-labs/vanus/internal/primitive/vanus"
+
 func GetDeadLetterEventbusName(eventbusName string) string {
 	return SystemEventbusNamePrefix + "dl_" + eventbusName
 }
 
 func GetRetryEventbusName(eventbusName string) string {
 	return SystemEventbusNamePrefix + "retry_eb"
+}
+
+func GetDeadLetterEventbusID(eventbusID vanus.ID) uint64 {
+	return 0
+}
+
+func GetRetryEventbusID(eventbusID vanus.ID) uint64 {
+	return 0
 }

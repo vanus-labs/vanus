@@ -459,7 +459,7 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 	ec.Extensions[primitive.XVanusDeliveryTime] =
 		ce.Timestamp{Time: time.Now().Add(delayTime).UTC()}.Format(time.RFC3339)
 	ec.Extensions[primitive.XVanusSubscriptionID] = t.subscriptionIDStr
-	ec.Extensions[primitive.XVanusEventbus] = t.config.RetryEventbus
+	ec.Extensions[primitive.XVanusEventbus] = t.subscription.RetryEventbusID.Key()
 	var writeAttempt int
 	for {
 		writeAttempt++
@@ -526,7 +526,7 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 
 func (t *trigger) getReaderConfig() reader.Config {
 	return reader.Config{
-		EventbusName:   t.subscription.Eventbus,
+		EventbusID:     t.subscription.EventbusID,
 		Client:         t.client,
 		SubscriptionID: t.subscription.ID,
 		BatchSize:      t.config.PullBatchSize,
@@ -535,9 +535,8 @@ func (t *trigger) getReaderConfig() reader.Config {
 }
 
 func (t *trigger) getRetryEventReaderConfig() reader.Config {
-	ebName := t.config.RetryEventbus
 	return reader.Config{
-		EventbusName:   ebName,
+		EventbusID:     t.subscription.RetryEventbusID,
 		Client:         t.client,
 		SubscriptionID: t.subscription.ID,
 		BatchSize:      t.config.PullBatchSize,
@@ -559,9 +558,11 @@ func (t *trigger) Init(ctx context.Context) error {
 	t.eventCli = newEventClient(t.subscription.Sink, t.subscription.Protocol, t.subscription.SinkCredential)
 	t.client = eb.Connect(t.config.Controllers)
 
-	t.timerEventWriter = t.client.Eventbus(ctx, primitive.TimerEventbusName).Writer()
-	if t.config.DeadLetterEventbus != "" {
-		t.dlEventWriter = t.client.Eventbus(ctx, t.config.DeadLetterEventbus).Writer()
+	// todo
+	var timerEventbusID uint64
+	t.timerEventWriter = t.client.Eventbus(ctx, timerEventbusID).Writer()
+	if !t.config.DisableDeadLetter {
+		t.dlEventWriter = t.client.Eventbus(ctx, t.subscription.DeadLetterEventbusID.Uint64()).Writer()
 	}
 	t.eventCh = make(chan info.EventRecord, t.config.BufferSize)
 	t.sendCh = make(chan *toSendEvent, t.config.BufferSize)

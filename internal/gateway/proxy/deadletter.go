@@ -65,8 +65,8 @@ func (cp *ControllerProxy) GetDeadLetterEvent(
 		return nil, errors.ErrInvalidRequest.WithMessage(
 			fmt.Sprintf("offset is invalid, param is %d it but now is %d", offset, storeOffset.Offset))
 	}
-	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(subscription.Eventbus)
-	ls, err := cp.client.Eventbus(ctx, deadLetterEventbusName).ListLog(ctx)
+	deadLetterEventbusID := primitive.GetDeadLetterEventbusID(vanus.NewIDFromUint64(subscription.EventbusId))
+	ls, err := cp.client.Eventbus(ctx, deadLetterEventbusID).ListLog(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (cp *ControllerProxy) GetDeadLetterEvent(
 	}
 
 	readPolicy := policy.NewManuallyReadPolicy(ls[0], int64(offset))
-	busReader := cp.client.Eventbus(ctx, deadLetterEventbusName).Reader(
+	busReader := cp.client.Eventbus(ctx, deadLetterEventbusID).Reader(
 		option.WithDisablePolling(),
 		option.WithReadPolicy(readPolicy),
 		option.WithBatchSize(int(num)),
@@ -151,8 +151,8 @@ func (cp *ControllerProxy) ResendDeadLetterEvent(
 		return nil, errors.ErrInvalidRequest.WithMessage(
 			fmt.Sprintf("start_offset is invalid, param is %d it but now is %d", offset, storeOffset.Offset))
 	}
-	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(subscription.Eventbus)
-	ls, err := cp.client.Eventbus(ctx, deadLetterEventbusName).ListLog(ctx)
+	deadLetterEventbusID := primitive.GetDeadLetterEventbusID(vanus.NewIDFromUint64(subscription.EventbusId))
+	ls, err := cp.client.Eventbus(ctx, deadLetterEventbusID).ListLog(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func (cp *ControllerProxy) ResendDeadLetterEvent(
 			fmt.Sprintf("end_offset is invalid, param is %d it but start is %d", offset, req.GetEndOffset()))
 	}
 	readPolicy := policy.NewManuallyReadPolicy(ls[0], int64(offset))
-	busReader := cp.client.Eventbus(ctx, deadLetterEventbusName).Reader(
+	busReader := cp.client.Eventbus(ctx, deadLetterEventbusID).Reader(
 		option.WithDisablePolling(),
 		option.WithReadPolicy(readPolicy),
 		option.WithBatchSize(readSize),

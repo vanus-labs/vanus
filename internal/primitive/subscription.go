@@ -25,21 +25,23 @@ import (
 type URI string
 
 type Subscription struct {
-	ID              vanus.ID               `json:"id"`
-	Filters         SubscriptionFilterList `json:"filters,omitempty"`
-	Sink            URI                    `json:"sink,omitempty"`
-	Eventbus        string                 `json:"eventbus"`
-	Offsets         info.ListOffsetInfo    `json:"offsets"`
-	Transformer     *Transformer           `json:"transformer,omitempty"`
-	Config          SubscriptionConfig     `json:"config,omitempty"`
-	Protocol        Protocol               `json:"protocol,omitempty"`
-	ProtocolSetting *ProtocolSetting       `json:"protocolSetting,omitempty"`
-	SinkCredential  SinkCredential         `json:"sink_credential,omitempty"`
+	ID                   vanus.ID               `json:"id"`
+	Filters              SubscriptionFilterList `json:"filters,omitempty"`
+	Sink                 URI                    `json:"sink,omitempty"`
+	EventbusID           vanus.ID               `json:"eventbus"`
+	DeadLetterEventbusID vanus.ID               `json:"dead_letter_eventbus_id"`
+	RetryEventbusID      vanus.ID               `json:"retry_eventbus_id"`
+	Offsets              info.ListOffsetInfo    `json:"offsets"`
+	Transformer          *Transformer           `json:"transformer,omitempty"`
+	Config               SubscriptionConfig     `json:"config,omitempty"`
+	Protocol             Protocol               `json:"protocol,omitempty"`
+	ProtocolSetting      *ProtocolSetting       `json:"protocol_setting,omitempty"`
+	SinkCredential       SinkCredential         `json:"sink_credential,omitempty"`
 }
 
 func (sub *Subscription) String() string {
 	return fmt.Sprintf("ID=%d, sink=%s, eventbus=%s, filters=%s, offsets=%s, transformer=%s, config=%s, protocol=%v",
-		sub.ID, sub.Sink, sub.Eventbus, sub.Filters.String(), sub.Offsets.String(),
+		sub.ID, sub.Sink, sub.EventbusID, sub.Filters.String(), sub.Offsets.String(),
 		sub.Transformer.String(), sub.Config.String(), sub.Protocol)
 }
 

@@ -46,7 +46,7 @@ type Manager interface {
 	ResetOffsetByTimestamp(ctx context.Context, id vanus.ID, timestamp uint64) (info.ListOffsetInfo, error)
 	ListSubscription(ctx context.Context) []*metadata.Subscription
 	GetSubscription(ctx context.Context, id vanus.ID) *metadata.Subscription
-	GetSubscriptionByName(ctx context.Context, eventbus, name string) *metadata.Subscription
+	GetSubscriptionByName(ctx context.Context, eventbusID vanus.ID, name string) *metadata.Subscription
 	AddSubscription(ctx context.Context, subscription *metadata.Subscription) error
 	UpdateSubscription(ctx context.Context, subscription *metadata.Subscription) error
 	Heartbeat(ctx context.Context, id vanus.ID, addr string, time time.Time) error
@@ -61,22 +61,24 @@ const (
 )
 
 type manager struct {
-	ebCli                eb.Client
-	secretStorage        secret.Storage
-	storage              storage.Storage
-	offsetManager        offset.Manager
-	lock                 sync.RWMutex
-	subscriptionMap      map[vanus.ID]*metadata.Subscription
-	deadLetterEventlogID vanus.ID
+	ebCli           eb.Client
+	secretStorage   secret.Storage
+	storage         storage.Storage
+	offsetManager   offset.Manager
+	lock            sync.RWMutex
+	subscriptionMap map[vanus.ID]*metadata.Subscription
+	// key: eventbusID, value: eventlogID
+	deadLetterEventlogMap map[vanus.ID]vanus.ID
 }
 
 func NewSubscriptionManager(storage storage.Storage, secretStorage secret.Storage, ebCli eb.Client) Manager {
 	m := &manager{
-		ebCli:           ebCli,
-		storage:         storage,
-		secretStorage:   secretStorage,
-		subscriptionMap: map[vanus.ID]*metadata.Subscription{},
-		offsetManager:   offset.NewOffsetManager(storage, defaultCommitInterval),
+		ebCli:                 ebCli,
+		storage:               storage,
+		secretStorage:         secretStorage,
+		deadLetterEventlogMap: map[vanus.ID]vanus.ID{},
+		subscriptionMap:       map[vanus.ID]*metadata.Subscription{},
+		offsetManager:         offset.NewOffsetManager(storage, defaultCommitInterval),
 	}
 	return m
 }
@@ -91,11 +93,11 @@ func (m *manager) ListSubscription(_ context.Context) []*metadata.Subscription {
 	return list
 }
 
-func (m *manager) GetSubscriptionByName(ctx context.Context, eventbus, name string) *metadata.Subscription {
+func (m *manager) GetSubscriptionByName(ctx context.Context, eventbusID vanus.ID, name string) *metadata.Subscription {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	for _, sub := range m.subscriptionMap {
-		if sub.Eventbus != eventbus {
+		if sub.EventbusID != eventbusID {
 			continue
 		}
 		if sub.Name == name {
@@ -127,9 +129,9 @@ func (m *manager) AddSubscription(ctx context.Context, subscription *metadata.Su
 		return err
 	}
 	m.subscriptionMap[subscription.ID] = subscription
-	metrics.SubscriptionGauge.WithLabelValues(subscription.Eventbus).Inc()
+	metrics.SubscriptionGauge.WithLabelValues(subscription.EventbusID.Key()).Inc()
 	if subscription.Transformer.Exist() {
-		metrics.SubscriptionTransformerGauge.WithLabelValues(subscription.Eventbus).Inc()
+		metrics.SubscriptionTransformerGauge.WithLabelValues(subscription.EventbusID.Key()).Inc()
 	}
 	return nil
 }
@@ -180,9 +182,9 @@ func (m *manager) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 		return err
 	}
 	delete(m.subscriptionMap, id)
-	metrics.SubscriptionGauge.WithLabelValues(subscription.Eventbus).Dec()
+	metrics.SubscriptionGauge.WithLabelValues(subscription.EventbusID.Key()).Dec()
 	if subscription.Transformer.Exist() {
-		metrics.SubscriptionTransformerGauge.WithLabelValues(subscription.Eventbus).Dec()
+		metrics.SubscriptionTransformerGauge.WithLabelValues(subscription.EventbusID.Key()).Dec()
 	}
 	return nil
 }
@@ -226,9 +228,9 @@ func (m *manager) Init(ctx context.Context) error {
 			sub.SinkCredential = credential
 		}
 		m.subscriptionMap[sub.ID] = sub
-		metrics.SubscriptionGauge.WithLabelValues(sub.Eventbus).Inc()
+		metrics.SubscriptionGauge.WithLabelValues(sub.EventbusID.Key()).Inc()
 		if sub.Transformer.Exist() {
-			metrics.SubscriptionTransformerGauge.WithLabelValues(sub.Eventbus).Inc()
+			metrics.SubscriptionTransformerGauge.WithLabelValues(sub.EventbusID.Key()).Inc()
 		}
 		if sub.TriggerWorker != "" {
 			metrics.CtrlTriggerGauge.WithLabelValues(sub.TriggerWorker).Inc()

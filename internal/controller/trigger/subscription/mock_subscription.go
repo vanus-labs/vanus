@@ -126,17 +126,17 @@ func (mr *MockManagerMockRecorder) GetSubscription(ctx, id interface{}) *gomock.
 }
 
 // GetSubscriptionByName mocks base method.
-func (m *MockManager) GetSubscriptionByName(ctx context.Context, eventbus, name string) *metadata.Subscription {
+func (m *MockManager) GetSubscriptionByName(ctx context.Context, eventbusID vanus.ID, name string) *metadata.Subscription {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSubscriptionByName", ctx, eventbus, name)
+	ret := m.ctrl.Call(m, "GetSubscriptionByName", ctx, eventbusID, name)
 	ret0, _ := ret[0].(*metadata.Subscription)
 	return ret0
 }
 
 // GetSubscriptionByName indicates an expected call of GetSubscriptionByName.
-func (mr *MockManagerMockRecorder) GetSubscriptionByName(ctx, eventbus, name interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) GetSubscriptionByName(ctx, eventbusID, name interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscriptionByName", reflect.TypeOf((*MockManager)(nil).GetSubscriptionByName), ctx, eventbus, name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscriptionByName", reflect.TypeOf((*MockManager)(nil).GetSubscriptionByName), ctx, eventbusID, name)
 }
 
 // Heartbeat mocks base method.

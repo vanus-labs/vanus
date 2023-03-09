@@ -42,8 +42,8 @@ func TestSubscriptionRequestValidator(t *testing.T) {
 	})
 	Convey("eventbus empty", t, func() {
 		request := &ctrlpb.SubscriptionRequest{
-			Sink:     "sink",
-			Eventbus: "",
+			Sink:       "sink",
+			EventbusId: 0,
 		}
 		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
 	})
