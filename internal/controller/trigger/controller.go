@@ -84,8 +84,6 @@ type controller struct {
 	state                 primitive.ServerState
 	cl                    cluster.Cluster
 	ebClient              eb.Client
-	// todo init retryEventbusID
-	retryEventbusID vanus.ID
 }
 
 func (ctrl *controller) SetDeadLetterEventOffset(ctx context.Context,
@@ -182,7 +180,8 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 		return nil, err
 	}
 	// subscription name can't be repeated in an eventbus
-	_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, vanus.NewIDFromUint64(request.Subscription.EventbusId), request.Subscription.Name)
+	eventbusID := vanus.NewIDFromUint64(request.Subscription.EventbusId)
+	_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, eventbusID, request.Subscription.Name)
 	if _sub != nil {
 		return nil, errors.ErrInvalidRequest.WithMessage(
 			fmt.Sprintf("subscription name %s has exist", request.Subscription.Name))
@@ -621,7 +620,8 @@ func (ctrl *controller) Start() error {
 		return err
 	}
 	ctrl.secretStorage = secretStorage
-	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage, ctrl.secretStorage, ctrl.ebClient)
+	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage, ctrl.secretStorage,
+		ctrl.ebClient, ctrl.cl)
 	ctrl.workerManager = worker.NewTriggerWorkerManager(worker.Config{}, ctrl.storage,
 		ctrl.subscriptionManager, ctrl.requeueSubscription)
 	ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
@@ -652,7 +652,7 @@ func (ctrl *controller) initTriggerSystemEventbus() {
 		}
 
 		// TODO(JiangKai) save id
-		if _, err := ctrl.cl.EventbusService().CreateSystemEventbusIfNotExist(ctx, primitive.GetRetryEventbusName(""),
+		if _, err := ctrl.cl.EventbusService().CreateSystemEventbusIfNotExist(ctx, primitive.RetryEventbusName,
 			"System Eventbus For Trigger Service"); err != nil {
 			log.Error(ctx, "failed to create RetryEventbus, exit", map[string]interface{}{
 				log.KeyError: err,

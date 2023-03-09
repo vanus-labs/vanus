@@ -21,6 +21,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 )
@@ -43,7 +44,7 @@ func TestSubscriptionRequestValidator(t *testing.T) {
 	Convey("eventbus empty", t, func() {
 		request := &ctrlpb.SubscriptionRequest{
 			Sink:       "sink",
-			EventbusId: 0,
+			EventbusId: vanus.EmptyID().Uint64(),
 		}
 		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
 	})

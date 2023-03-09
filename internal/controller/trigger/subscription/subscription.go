@@ -17,6 +17,7 @@ package subscription
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"sync"
 	"time"
@@ -31,6 +32,7 @@ import (
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/cluster"
 	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
@@ -61,24 +63,30 @@ const (
 )
 
 type manager struct {
+	cl              cluster.Cluster
 	ebCli           eb.Client
 	secretStorage   secret.Storage
 	storage         storage.Storage
 	offsetManager   offset.Manager
 	lock            sync.RWMutex
 	subscriptionMap map[vanus.ID]*metadata.Subscription
-	// key: eventbusID, value: eventlogID
+	// key: eventbusID, value: deadLetterEventbusID
+	deadLetterEventbusMap map[vanus.ID]vanus.ID
+	// key: deadLetterEventbusID, value: eventlogID
 	deadLetterEventlogMap map[vanus.ID]vanus.ID
 	retryEventlogID       vanus.ID
 	retryEventbusID       vanus.ID
 	timerEventbusID       vanus.ID
 }
 
-func NewSubscriptionManager(storage storage.Storage, secretStorage secret.Storage, ebCli eb.Client) Manager {
+func NewSubscriptionManager(storage storage.Storage, secretStorage secret.Storage,
+	ebCli eb.Client, cl cluster.Cluster) Manager {
 	m := &manager{
+		cl:                    cl,
 		ebCli:                 ebCli,
 		storage:               storage,
 		secretStorage:         secretStorage,
+		deadLetterEventbusMap: map[vanus.ID]vanus.ID{},
 		deadLetterEventlogMap: map[vanus.ID]vanus.ID{},
 		subscriptionMap:       map[vanus.ID]*metadata.Subscription{},
 		offsetManager:         offset.NewOffsetManager(storage, defaultCommitInterval),
@@ -120,11 +128,74 @@ func (m *manager) GetSubscription(ctx context.Context, id vanus.ID) *metadata.Su
 	return sub
 }
 
+func (m *manager) getSystemEventbusAndEventlog(ctx context.Context, name string) (vanus.ID, vanus.ID, error) {
+	eb, err := m.cl.EventbusService().GetSystemEventbusByName(ctx, name)
+	if err != nil {
+		return 0, 0, err
+	}
+	eventbusID := vanus.NewIDFromUint64(eb.Id)
+	if len(eb.Logs) != 1 {
+		return 0, 0, errors.ErrInternal.WithMessage(
+			fmt.Sprintf("system eventbus %s eventlog length is %d", name, len(eb.Logs)))
+	}
+	eventlogID := vanus.NewIDFromUint64(eb.Logs[0].EventlogId)
+	return eventbusID, eventlogID, nil
+}
+
+func (m *manager) initDeadLetterEventbus(ctx context.Context, eventbusID vanus.ID) error {
+	_, ok := m.deadLetterEventbusMap[eventbusID]
+	if ok {
+		return nil
+	}
+	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(eventbusID)
+	deadLetterEventbusID, deadLetterEventlogID, err := m.getSystemEventbusAndEventlog(ctx, deadLetterEventbusName)
+	if err != nil {
+		return err
+	}
+	m.deadLetterEventbusMap[eventbusID] = deadLetterEventbusID
+	m.deadLetterEventlogMap[deadLetterEventbusID] = deadLetterEventlogID
+	return nil
+}
+
+func (m *manager) initRetryEventbus(ctx context.Context) error {
+	retryEventbusID, retryEventlogID, err := m.getSystemEventbusAndEventlog(ctx, primitive.RetryEventbusName)
+	if err != nil {
+		return err
+	}
+	m.retryEventbusID = retryEventbusID
+	m.retryEventlogID = retryEventlogID
+	return nil
+}
+
+func (m *manager) initTimerEventbus(ctx context.Context) error {
+	eb, err := m.cl.EventbusService().GetSystemEventbusByName(ctx, primitive.TimerEventbusName)
+	if err != nil {
+		return err
+	}
+	m.timerEventbusID = vanus.NewIDFromUint64(eb.Id)
+	return nil
+}
+
 func (m *manager) AddSubscription(ctx context.Context, subscription *metadata.Subscription) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	deadLetterEventbusID := primitive.GetDeadLetterEventbusID(subscription.EventbusID)
-	subscription.DeadLetterEventbusID = vanus.NewIDFromUint64(deadLetterEventbusID)
+	if m.retryEventbusID == 0 {
+		err := m.initRetryEventbus(ctx)
+		if err != nil {
+			return err
+		}
+	}
+	if m.timerEventbusID == 0 {
+		err := m.initTimerEventbus(ctx)
+		if err != nil {
+			return err
+		}
+	}
+	err := m.initDeadLetterEventbus(ctx, subscription.EventbusID)
+	if err != nil {
+		return err
+	}
+	subscription.DeadLetterEventbusID = m.deadLetterEventbusMap[subscription.EventbusID]
 	subscription.RetryEventbusID = m.retryEventbusID
 	subscription.TimerEventbusID = m.timerEventbusID
 	if subscription.SinkCredential != nil {

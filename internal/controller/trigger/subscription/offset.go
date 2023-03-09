@@ -96,6 +96,7 @@ func (m *manager) GetOrSaveOffset(ctx context.Context, id vanus.ID) (info.ListOf
 	if err != nil {
 		return nil, err
 	}
+
 	offsets = append(offsets, retryOffset...)
 	err = m.offsetManager.Offset(ctx, id, offsets, true)
 	if err != nil {
@@ -116,10 +117,11 @@ func (m *manager) GetDeadLetterOffset(ctx context.Context, id vanus.ID) (uint64,
 	if err != nil {
 		return 0, err
 	}
-	deadLetterEventlogID, err := m.getDeadLetterEventlogID(ctx, subscription.DeadLetterEventbusID)
+	err = m.initDeadLetterEventbus(ctx, subscription.EventbusID)
 	if err != nil {
 		return 0, err
 	}
+	deadLetterEventlogID := m.deadLetterEventlogMap[subscription.DeadLetterEventbusID]
 	for _, offset := range offsets {
 		if offset.EventlogID == deadLetterEventlogID {
 			return offset.Offset, err
@@ -147,38 +149,14 @@ func (m *manager) SaveDeadLetterOffset(ctx context.Context, id vanus.ID, offset 
 	if subscription == nil {
 		return errors.ErrResourceNotFound
 	}
-	deadLetterEventlogID, err := m.getDeadLetterEventlogID(ctx, subscription.DeadLetterEventbusID)
+	err = m.initDeadLetterEventbus(ctx, subscription.EventbusID)
 	if err != nil {
 		return err
 	}
+	deadLetterEventlogID := m.deadLetterEventlogMap[subscription.DeadLetterEventbusID]
 	return m.offsetManager.Offset(ctx, id, info.ListOffsetInfo{{
 		EventlogID: deadLetterEventlogID, Offset: offset,
 	}}, true)
-}
-
-func (m *manager) getDeadLetterEventlogID(ctx context.Context, eventbusID vanus.ID) (vanus.ID, error) {
-	deadLetterEventlogID, ok := m.deadLetterEventlogMap[eventbusID]
-	if !ok {
-		logIDs, err := m.getEventlogIDFromCli(ctx, eventbusID)
-		if err != nil {
-			return vanus.EmptyID(), err
-		}
-		deadLetterEventlogID = logIDs[0]
-		m.deadLetterEventlogMap[eventbusID] = deadLetterEventlogID
-	}
-	return deadLetterEventlogID, nil
-}
-
-func (m *manager) getEventlogIDFromCli(ctx context.Context, eventbusID vanus.ID) ([]vanus.ID, error) {
-	logs, err := m.ebCli.Eventbus(ctx, eventbusID.Uint64()).ListLog(ctx)
-	if err != nil {
-		return nil, err
-	}
-	logIDs := make([]vanus.ID, len(logs))
-	for i, l := range logs {
-		logIDs[i] = vanus.NewIDFromUint64(l.ID())
-	}
-	return logIDs, nil
 }
 
 func (m *manager) getOffsetFromCli(ctx context.Context, eventbusID vanus.ID,
