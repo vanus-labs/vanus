@@ -332,13 +332,14 @@ func (b *bucket) createEventbus(ctx context.Context) error {
 	if !b.isLeader() {
 		return nil
 	}
-	return b.timingwheel.ctrl.EventbusService().CreateSystemEventbusIfNotExist(ctx, b.eventbus,
+	_, err := b.timingwheel.ctrl.EventbusService().CreateSystemEventbusIfNotExist(ctx, b.eventbus,
 		"System Eventbus For Timing Service")
+	return err
 }
 
 func (b *bucket) connectEventbus(ctx context.Context) {
-	b.eventbusWriter = b.client.Eventbus(ctx, b.eventbus).Writer()
-	b.eventbusReader = b.client.Eventbus(ctx, b.eventbus).Reader()
+	b.eventbusWriter = b.client.Eventbus(ctx, api.WithName(b.eventbus)).Writer()
+	b.eventbusReader = b.client.Eventbus(ctx, api.WithName(b.eventbus)).Reader()
 }
 
 func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
@@ -385,7 +386,7 @@ func (b *bucket) getEvent(ctx context.Context, number int16) (events []*ce.Event
 		time.Sleep(time.Second)
 		return []*ce.Event{}, errors.ErrOffsetOnEnd
 	}
-	ls, err := b.client.Eventbus(ctx, b.eventbus).ListLog(ctx)
+	ls, err := b.client.Eventbus(ctx, api.WithName(b.eventbus)).ListLog(ctx)
 	if err != nil {
 		return []*ce.Event{}, err
 	}
@@ -485,7 +486,9 @@ func (b *bucket) hasOnEnd(ctx context.Context) bool {
 }
 
 func (b *bucket) recycle(ctx context.Context) {
-	_ = b.timingwheel.ctrl.EventbusService().Delete(ctx, b.eventbus)
+	// TODO(jiangkai): check for errors
+	metaEventbus, _ := b.timingwheel.ctrl.EventbusService().GetSystemEventbusByName(ctx, b.eventbus)
+	_ = b.timingwheel.ctrl.EventbusService().Delete(ctx, metaEventbus.Id)
 	_ = b.deleteOffsetMeta(ctx)
 }
 
