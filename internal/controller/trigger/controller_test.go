@@ -130,9 +130,9 @@ func TestController_CreateSubscription(t *testing.T) {
 			subManager.EXPECT().AddSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 			create := &ctrlpb.CreateSubscriptionRequest{
 				Subscription: &ctrlpb.SubscriptionRequest{
-					Eventbus: "test-bus",
-					Name:     "test-name",
-					Sink:     "test-sink",
+					EventbusId: vanus.NewTestID().Uint64(),
+					Name:       "test-name",
+					Sink:       "test-sink",
 				},
 			}
 			request := create.Subscription
@@ -140,11 +140,11 @@ func TestController_CreateSubscription(t *testing.T) {
 			resp, err := ctrl.CreateSubscription(ctx, create)
 			So(err, ShouldBeNil)
 			So(resp.Sink, ShouldEqual, request.Sink)
-			So(resp.Eventbus, ShouldEqual, request.Eventbus)
+			So(resp.EventbusId, ShouldEqual, request.EventbusId)
 			resp2, err := ctrl.CreateSubscription(ctx, create)
 			So(err, ShouldBeNil)
 			So(resp2.Sink, ShouldEqual, request.Sink)
-			So(resp2.Eventbus, ShouldEqual, request.Eventbus)
+			So(resp2.EventbusId, ShouldEqual, request.EventbusId)
 			So(resp.Id, ShouldNotEqual, resp2.Id)
 		})
 	})
@@ -179,7 +179,7 @@ func TestController_UpdateSubscription(t *testing.T) {
 			ID:            subID,
 			Phase:         metadata.SubscriptionPhaseStopped,
 			TriggerWorker: "test-addr",
-			Eventbus:      "test-eb",
+			EventbusID:    vanus.NewTestID(),
 			Name:          "test-name",
 			Sink:          "test-sink",
 			Protocol:      primitive.HTTPProtocol,
@@ -193,8 +193,8 @@ func TestController_UpdateSubscription(t *testing.T) {
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
-					Eventbus: "test-eb",
-					Sink:     "test-sink",
+					EventbusId: vanus.NewTestID().Uint64(),
+					Sink:       "test-sink",
 				},
 			}
 			_, err := ctrl.UpdateSubscription(ctx, request)
@@ -204,8 +204,8 @@ func TestController_UpdateSubscription(t *testing.T) {
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
-					Eventbus: "test-eb-modify",
-					Sink:     "test-sink",
+					EventbusId: vanus.NewTestID().Uint64(),
+					Sink:       "test-sink",
 				},
 			}
 			_, err := ctrl.UpdateSubscription(ctx, request)
@@ -216,9 +216,9 @@ func TestController_UpdateSubscription(t *testing.T) {
 				request := &ctrlpb.UpdateSubscriptionRequest{
 					Id: subID.Uint64(),
 					Subscription: &ctrlpb.SubscriptionRequest{
-						Eventbus: "test-eb",
-						Sink:     "test-sink",
-						Protocol: metapb.Protocol_AWS_LAMBDA,
+						EventbusId: vanus.NewTestID().Uint64(),
+						Sink:       "test-sink",
+						Protocol:   metapb.Protocol_AWS_LAMBDA,
 						SinkCredential: &metapb.SinkCredential{
 							CredentialType: metapb.SinkCredential_AWS,
 						},
@@ -231,9 +231,9 @@ func TestController_UpdateSubscription(t *testing.T) {
 				request := &ctrlpb.UpdateSubscriptionRequest{
 					Id: subID.Uint64(),
 					Subscription: &ctrlpb.SubscriptionRequest{
-						Eventbus: "test-eb",
-						Sink:     "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
-						Protocol: metapb.Protocol_AWS_LAMBDA,
+						EventbusId: vanus.NewTestID().Uint64(),
+						Sink:       "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
+						Protocol:   metapb.Protocol_AWS_LAMBDA,
 						SinkCredential: &metapb.SinkCredential{
 							CredentialType: metapb.SinkCredential_PLAIN,
 						},
@@ -246,9 +246,9 @@ func TestController_UpdateSubscription(t *testing.T) {
 				request := &ctrlpb.UpdateSubscriptionRequest{
 					Id: subID.Uint64(),
 					Subscription: &ctrlpb.SubscriptionRequest{
-						Eventbus: "test-eb",
-						Sink:     "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
-						Protocol: metapb.Protocol_AWS_LAMBDA,
+						EventbusId: vanus.NewTestID().Uint64(),
+						Sink:       "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
+						Protocol:   metapb.Protocol_AWS_LAMBDA,
 						SinkCredential: &metapb.SinkCredential{
 							CredentialType: metapb.SinkCredential_AWS,
 						},
@@ -261,10 +261,10 @@ func TestController_UpdateSubscription(t *testing.T) {
 				request := &ctrlpb.UpdateSubscriptionRequest{
 					Id: subID.Uint64(),
 					Subscription: &ctrlpb.SubscriptionRequest{
-						Eventbus: "test-eb",
-						Name:     "test-name",
-						Sink:     "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
-						Protocol: metapb.Protocol_AWS_LAMBDA,
+						EventbusId: vanus.NewTestID().Uint64(),
+						Name:       "test-name",
+						Sink:       "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
+						Protocol:   metapb.Protocol_AWS_LAMBDA,
 						SinkCredential: &metapb.SinkCredential{
 							CredentialType: metapb.SinkCredential_AWS,
 							Credential: &metapb.SinkCredential_Aws{
@@ -291,25 +291,25 @@ func TestController_UpdateSubscription(t *testing.T) {
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
-					Eventbus: "test-eb",
-					Name:     "test-name",
-					Sink:     "modify-sink",
+					EventbusId: vanus.NewTestID().Uint64(),
+					Name:       "test-name",
+					Sink:       "modify-sink",
 				},
 			}
 			resp, err := ctrl.UpdateSubscription(ctx, request)
 			So(err, ShouldBeNil)
 			So(resp.Sink, ShouldEqual, request.Subscription.Sink)
 			So(resp.Sink, ShouldNotEqual, sub.Sink)
-			So(resp.Eventbus, ShouldEqual, sub.Eventbus)
+			So(resp.EventbusId, ShouldEqual, sub.EventbusID.Uint64())
 		})
 		Convey("update filters", func() {
 			subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
-					Eventbus: "test-eb",
-					Name:     "test-name",
-					Sink:     "test-sink",
+					EventbusId: vanus.NewTestID().Uint64(),
+					Name:       "test-name",
+					Sink:       "test-sink",
 					Filters: []*metapb.Filter{
 						{
 							Exact: map[string]string{"type": "test"},
@@ -327,9 +327,9 @@ func TestController_UpdateSubscription(t *testing.T) {
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
-					Eventbus: "test-eb",
-					Name:     "test-name",
-					Sink:     "test-sink",
+					EventbusId: vanus.NewTestID().Uint64(),
+					Name:       "test-name",
+					Sink:       "test-sink",
 					Transformer: &metapb.Transformer{
 						Define:   map[string]string{"k": "v"},
 						Template: "test",
@@ -428,14 +428,14 @@ func TestController_GetSubscription(t *testing.T) {
 		})
 		Convey("get subscription exist", func() {
 			sub := &metadata.Subscription{
-				ID:       subID,
-				Eventbus: "test-bus",
+				ID:         subID,
+				EventbusID: vanus.NewTestID(),
 			}
 			subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).Return(sub)
 			subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).Return(info.ListOffsetInfo{}, nil)
 			resp, err := ctrl.GetSubscription(ctx, request)
 			So(err, ShouldBeNil)
-			So(resp.Eventbus, ShouldEqual, sub.Eventbus)
+			So(resp.EventbusId, ShouldEqual, sub.EventbusID.Uint64())
 			So(resp.Id, ShouldEqual, sub.ID)
 		})
 	})
@@ -454,8 +454,8 @@ func TestController_ListSubscription(t *testing.T) {
 		ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
 		Convey("list subscription", func() {
 			list := []*metadata.Subscription{
-				{ID: vanus.NewTestID(), Eventbus: "bus1"},
-				{ID: vanus.NewTestID(), Eventbus: "bus2"},
+				{ID: vanus.NewTestID(), EventbusID: vanus.NewTestID()},
+				{ID: vanus.NewTestID(), EventbusID: vanus.NewTestID()},
 			}
 			subManager.EXPECT().ListSubscription(gomock.Any()).Return(list)
 			subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(info.ListOffsetInfo{}, nil)

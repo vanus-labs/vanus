@@ -116,15 +116,9 @@ func (m *manager) GetDeadLetterOffset(ctx context.Context, id vanus.ID) (uint64,
 	if err != nil {
 		return 0, err
 	}
-	deadLetterEventlogID, ok := m.deadLetterEventlogMap[subscription.DeadLetterEventbusID]
-	if !ok {
-		logIDs, err := m.getEventlogIDFromCli(ctx,
-			subscription.DeadLetterEventbusID)
-		if err != nil {
-			return 0, err
-		}
-		deadLetterEventlogID = logIDs[0]
-		m.deadLetterEventlogMap[subscription.DeadLetterEventbusID] = deadLetterEventlogID
+	deadLetterEventlogID, err := m.getDeadLetterEventlogID(ctx, subscription.DeadLetterEventbusID)
+	if err != nil {
+		return 0, err
 	}
 	for _, offset := range offsets {
 		if offset.EventlogID == deadLetterEventlogID {
@@ -153,19 +147,26 @@ func (m *manager) SaveDeadLetterOffset(ctx context.Context, id vanus.ID, offset 
 	if subscription == nil {
 		return errors.ErrResourceNotFound
 	}
-	deadLetterEventlogID, ok := m.deadLetterEventlogMap[subscription.DeadLetterEventbusID]
-	if !ok {
-		logIDs, err := m.getEventlogIDFromCli(ctx,
-			subscription.DeadLetterEventbusID)
-		if err != nil {
-			return err
-		}
-		deadLetterEventlogID = logIDs[0]
-		m.deadLetterEventlogMap[subscription.DeadLetterEventbusID] = deadLetterEventlogID
+	deadLetterEventlogID, err := m.getDeadLetterEventlogID(ctx, subscription.DeadLetterEventbusID)
+	if err != nil {
+		return err
 	}
 	return m.offsetManager.Offset(ctx, id, info.ListOffsetInfo{{
 		EventlogID: deadLetterEventlogID, Offset: offset,
 	}}, true)
+}
+
+func (m *manager) getDeadLetterEventlogID(ctx context.Context, eventbusID vanus.ID) (vanus.ID, error) {
+	deadLetterEventlogID, ok := m.deadLetterEventlogMap[eventbusID]
+	if !ok {
+		logIDs, err := m.getEventlogIDFromCli(ctx, eventbusID)
+		if err != nil {
+			return vanus.EmptyID(), err
+		}
+		deadLetterEventlogID = logIDs[0]
+		m.deadLetterEventlogMap[eventbusID] = deadLetterEventlogID
+	}
+	return deadLetterEventlogID, nil
 }
 
 func (m *manager) getEventlogIDFromCli(ctx context.Context, eventbusID vanus.ID) ([]vanus.ID, error) {

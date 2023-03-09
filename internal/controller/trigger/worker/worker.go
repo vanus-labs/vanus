@@ -185,6 +185,7 @@ func (tw *triggerWorker) handler(ctx context.Context, subscriptionID vanus.ID) e
 		EventbusID:           sub.EventbusID,
 		DeadLetterEventbusID: sub.DeadLetterEventbusID,
 		RetryEventbusID:      sub.RetryEventbusID,
+		TimerEventbusID:      sub.TimerEventbusID,
 		Offsets:              offsets,
 		Transformer:          sub.Transformer,
 		Config:               sub.Config,

@@ -85,6 +85,7 @@ type Subscription struct {
 	// not from api
 	DeadLetterEventbusID vanus.ID          `json:"dead_letter_eventbus_id"`
 	RetryEventbusID      vanus.ID          `json:"retry_eventbus_id"`
+	TimerEventbusID      vanus.ID          `json:"timer_eventbus_id"`
 	Phase                SubscriptionPhase `json:"phase"`
 	TriggerWorker        string            `json:"trigger_worker,omitempty"`
 	HeartbeatTime        time.Time         `json:"-"`

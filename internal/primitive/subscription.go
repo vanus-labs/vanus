@@ -31,6 +31,7 @@ type Subscription struct {
 	EventbusID           vanus.ID               `json:"eventbus"`
 	DeadLetterEventbusID vanus.ID               `json:"dead_letter_eventbus_id"`
 	RetryEventbusID      vanus.ID               `json:"retry_eventbus_id"`
+	TimerEventbusID      vanus.ID               `json:"timer_eventbus_id"`
 	Offsets              info.ListOffsetInfo    `json:"offsets"`
 	Transformer          *Transformer           `json:"transformer,omitempty"`
 	Config               SubscriptionConfig     `json:"config,omitempty"`

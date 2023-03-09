@@ -22,16 +22,16 @@ import (
 	"time"
 
 	eb "github.com/vanus-labs/vanus/client"
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/observability/metrics"
-	"github.com/vanus-labs/vanus/pkg/errors"
-
 	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/secret"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/storage"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription/offset"
+	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/info"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 type Manager interface {
@@ -69,6 +69,9 @@ type manager struct {
 	subscriptionMap map[vanus.ID]*metadata.Subscription
 	// key: eventbusID, value: eventlogID
 	deadLetterEventlogMap map[vanus.ID]vanus.ID
+	retryEventlogID       vanus.ID
+	retryEventbusID       vanus.ID
+	timerEventbusID       vanus.ID
 }
 
 func NewSubscriptionManager(storage storage.Storage, secretStorage secret.Storage, ebCli eb.Client) Manager {
@@ -120,6 +123,10 @@ func (m *manager) GetSubscription(ctx context.Context, id vanus.ID) *metadata.Su
 func (m *manager) AddSubscription(ctx context.Context, subscription *metadata.Subscription) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
+	deadLetterEventbusID := primitive.GetDeadLetterEventbusID(subscription.EventbusID)
+	subscription.DeadLetterEventbusID = vanus.NewIDFromUint64(deadLetterEventbusID)
+	subscription.RetryEventbusID = m.retryEventbusID
+	subscription.TimerEventbusID = m.timerEventbusID
 	if subscription.SinkCredential != nil {
 		if err := m.secretStorage.Write(ctx, subscription.ID, subscription.SinkCredential); err != nil {
 			return err

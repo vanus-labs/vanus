@@ -199,9 +199,6 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 	} else {
 		sub.Phase = metadata.SubscriptionPhaseCreated
 	}
-	deadLetterEventbusID := primitive.GetDeadLetterEventbusID(sub.EventbusID)
-	sub.DeadLetterEventbusID = vanus.NewIDFromUint64(deadLetterEventbusID)
-	sub.RetryEventbusID = ctrl.retryEventbusID
 	err = ctrl.subscriptionManager.AddSubscription(ctx, sub)
 	if err != nil {
 		return nil, err
@@ -258,7 +255,7 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 		return nil, err
 	}
 	if transChange != 0 {
-		metrics.SubscriptionTransformerGauge.WithLabelValues(sub.EventbusID.String()).Add(float64(transChange))
+		metrics.SubscriptionTransformerGauge.WithLabelValues(sub.EventbusID.Key()).Add(float64(transChange))
 	}
 	resp := convert.ToPbSubscription(sub, nil)
 	return resp, nil
