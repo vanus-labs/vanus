@@ -19,10 +19,11 @@ import (
 	"testing"
 
 	cetest "github.com/cloudevents/sdk-go/v2/test"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/action/array"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/internal/primitive/transform/action/array"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/runtime"
 )
 
 func TestReplaceArrayAction(t *testing.T) {
@@ -45,7 +46,9 @@ func TestReplaceArrayAction(t *testing.T) {
 			  ]
 		}`
 		Convey("replace valid", func() {
-			a, err := runtime.NewAction([]interface{}{funcName, "$.data.array", []interface{}{"add_prefix", "@.name", "prefix"}})
+			a, err := runtime.NewAction([]interface{}{funcName, "$.data.array", []interface{}{
+				"add_prefix", "@.name", "prefix",
+			}})
 			So(err, ShouldBeNil)
 
 			e := cetest.MinEvent()

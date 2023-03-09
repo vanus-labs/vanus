@@ -6,17 +6,19 @@
 package codec
 
 import (
-	// standard libraries
+	// standard libraries.
 	"fmt"
 	"net/url"
 	stdtime "time"
 
-	// third-party libraries
+	// third-party libraries.
 	"github.com/cloudevents/sdk-go/v2/event"
 	"github.com/cloudevents/sdk-go/v2/types"
-	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	// this project.
+	cepb "github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 )
 
 const (
@@ -31,9 +33,7 @@ const (
 	time            = "time"
 )
 
-var (
-	zeroTime = stdtime.Time{}
-)
+var zeroTime = stdtime.Time{}
 
 // ToProto convert an SDK event to a protobuf variant of the event that can be marshaled.
 func ToProto(e *event.Event) (*cepb.CloudEvent, error) {

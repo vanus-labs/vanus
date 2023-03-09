@@ -1,0 +1,16 @@
+version: v1
+plugins:
+  - name: go
+    out: ../pkg
+    opt:
+      # - plugins=grpc
+      - module=github.com/vanus-labs/vanus/proto/pkg
+  - name: go-grpc
+    out: ../pkg
+    opt:
+      - module=github.com/vanus-labs/vanus/proto/pkg
+      - require_unimplemented_servers=false
+  # - name: grpc-gateway
+  #   out: pkg
+  #   opt:
+  #     - module=github.com/vanus-labs/vanus/proto/pkg

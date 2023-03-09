@@ -16,7 +16,7 @@ package block
 
 import (
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/executor"
+	"github.com/vanus-labs/vanus/internal/primitive/executor"
 )
 
 type executorFactory struct {
@@ -33,12 +33,12 @@ func newExecutorFactory(cfg executorConfig, startImmediately bool) *executorFact
 }
 
 func (k *executorFactory) init(cfg executorConfig, startImmediately bool) *executorFactory {
-	k.raftExecutor.Init(cfg.raftExecutorParallel, startImmediately)
-	k.appendExecutor.Init(cfg.appendExecutorParallel, startImmediately)
-	k.commitExecutor.Init(cfg.commitExecutorParallel, startImmediately)
-	k.persistExecutor.Init(cfg.persistExecutorParallel, startImmediately)
-	k.applyExecutor.Init(cfg.applyExecutorParallel, startImmediately)
-	k.transportExecutor.Init(cfg.transportExecutorParallel, startImmediately)
+	k.raftExecutor.Init(cfg.raftExecutorParallel, false, startImmediately)
+	k.appendExecutor.Init(cfg.appendExecutorParallel, true, startImmediately)
+	k.commitExecutor.Init(cfg.commitExecutorParallel, false, startImmediately)
+	k.persistExecutor.Init(cfg.persistExecutorParallel, false, startImmediately)
+	k.applyExecutor.Init(cfg.applyExecutorParallel, false, startImmediately)
+	k.transportExecutor.Init(cfg.transportExecutorParallel, false, startImmediately)
 	return k
 }
 

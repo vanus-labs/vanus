@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	// first-party libraris.
-	"github.com/linkall-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client"
 )
 
 func main() {

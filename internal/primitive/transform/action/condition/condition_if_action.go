@@ -15,11 +15,12 @@
 package condition
 
 import (
-	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
 	"github.com/pkg/errors"
+
+	"github.com/vanus-labs/vanus/internal/primitive/transform/action"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/arg"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/common"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
 )
 
 type conditionIfAction struct {
@@ -57,7 +58,7 @@ func (a *conditionIfAction) Execute(ceCtx *context.EventContext) error {
 	} else {
 		switch op {
 		case ">=", ">", "<=", "<":
-			a.ArgTypes = []common.Type{common.Number, common.String, common.Number, common.Any, common.Any}
+			a.ArgTypes = []common.Type{common.Float, common.String, common.Float, common.Any, common.Any}
 		default:
 			return errors.Errorf("not support op [%s]", op)
 		}

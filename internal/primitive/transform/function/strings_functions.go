@@ -19,7 +19,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/common"
 )
 
 var JoinFunction = function{
@@ -73,24 +73,24 @@ var AddSuffixFunction = function{
 var SplitWithSepFunction = function{
 	name:         "SPLIT_WITH_SEP",
 	fixedArgs:    []common.Type{common.String, common.String},
-	variadicArgs: common.TypePtr(common.Number),
+	variadicArgs: common.TypePtr(common.Int),
 	fn: func(args []interface{}) (interface{}, error) {
 		s, _ := args[0].(string)
 		sep, _ := args[1].(string)
 		if len(args) == 2 {
 			return strings.Split(s, sep), nil
 		}
-		return strings.SplitN(s, sep, int(args[2].(float64))), nil
+		return strings.SplitN(s, sep, args[2].(int)), nil
 	},
 }
 
 var ReplaceBetweenPositionsFunction = function{
 	name:      "REPLACE_BETWEEN_POSITIONS",
-	fixedArgs: []common.Type{common.String, common.Number, common.Number, common.String},
+	fixedArgs: []common.Type{common.String, common.Int, common.Int, common.String},
 	fn: func(args []interface{}) (interface{}, error) {
 		path, _ := args[0].(string)
-		startPosition := int(args[1].(float64))
-		endPosition := int(args[2].(float64))
+		startPosition, _ := args[1].(int)
+		endPosition, _ := args[2].(int)
 		targetValue, _ := args[3].(string)
 		if startPosition >= len(path) {
 			return nil, fmt.Errorf("start position must be less than the length of the string")
@@ -120,26 +120,68 @@ var CapitalizeSentence = function{
 	},
 }
 
+var ReplaceBetweenDelimitersFunction = function{
+	name:      "REPLACE_BETWEEN_DELIMITERS",
+	fixedArgs: []common.Type{common.String, common.String, common.String, common.String},
+	fn: func(args []interface{}) (interface{}, error) {
+		value, _ := args[0].(string)
+		startDelimiter, _ := args[1].(string)
+		endDelimiter, _ := args[2].(string)
+		replaceValue, _ := args[3].(string)
+		if startDelimiter == "" || endDelimiter == "" {
+			return nil, fmt.Errorf("start or end delemiter is empty")
+		}
+		startIndex := strings.Index(value, startDelimiter)
+		if startIndex < 0 {
+			return nil, fmt.Errorf("start delemiter is not exist")
+		}
+		index := startIndex + len(startDelimiter)
+		endIndex := strings.Index(value[index:], endDelimiter)
+		if endIndex < 0 {
+			return nil, fmt.Errorf("end delemiter is not exist")
+		}
+		return value[:startIndex] + replaceValue + value[index+endIndex+len(endDelimiter):], nil
+
+	},
+}
+
 var CapitalizeWord = function{
 	name:      "CAPITALIZE_WORD",
 	fixedArgs: []common.Type{common.String},
 	fn: func(args []interface{}) (interface{}, error) {
 		value, _ := args[0].(string)
-		if len(value) == 0 {
-			return value, nil
-		}
-		if len(value) == 1 {
-			return strings.ToUpper(string(value[0])), nil
-		}
-		capWords := make([]rune, 0, len([]rune(value)))
-		prev := ' '
-		for _, v := range value {
-			if v != ' ' && prev == ' ' {
-				v = unicode.ToUpper(v)
+		rs := []rune(value)
+		inWord := false
+		for i, r := range rs {
+			if !unicode.IsSpace(r) {
+				if !inWord {
+					rs[i] = unicode.ToTitle(r)
+				}
+				inWord = true
+			} else {
+				inWord = false
 			}
-			capWords = append(capWords, v)
-			prev = v
 		}
-		return string(capWords), nil
+		return string(rs), nil
+	},
+}
+
+var SplitFromStart = function{
+	name:      "SPLIT_FROM_START",
+	fixedArgs: []common.Type{common.String, common.Int},
+	fn: func(args []interface{}) (interface{}, error) {
+		value, _ := args[0].(string)
+		splitPosition, _ := args[1].(int)
+
+		if splitPosition <= 0 {
+			return nil, fmt.Errorf("split position must be more than zero")
+		}
+
+		if splitPosition >= len(value) {
+			return []string{value, ""}, nil
+		}
+
+		result := []string{value[:splitPosition], value[splitPosition:]}
+		return result, nil
 	},
 }

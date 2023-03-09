@@ -42,26 +42,26 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"github.com/linkall-labs/vanus/pkg/cluster"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/pkg/util"
-	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
-	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/observability/tracing"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/util"
+	cepb "github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store"
-	"github.com/linkall-labs/vanus/internal/store/block"
-	raft "github.com/linkall-labs/vanus/internal/store/raft/block"
-	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
-	ceconv "github.com/linkall-labs/vanus/internal/store/schema/ce/convert"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/interceptor/errinterceptor"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/store"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	raft "github.com/vanus-labs/vanus/internal/store/raft/block"
+	ceschema "github.com/vanus-labs/vanus/internal/store/schema/ce"
+	ceconv "github.com/vanus-labs/vanus/internal/store/schema/ce/convert"
 )
 
 const (
@@ -217,7 +217,7 @@ func (s *server) Serve(lis net.Listener) error {
 }
 
 func (s *server) preGrpcStream(ctx context.Context, info *tap.Info) (context.Context, error) {
-	if info.FullMethodName == "/linkall.vanus.raft.RaftServer/SendMessage" {
+	if info.FullMethodName == "/vanus.core.raft.RaftServer/SendMessage" {
 		cCtx, cancel := context.WithCancel(ctx)
 		go func() {
 			select {

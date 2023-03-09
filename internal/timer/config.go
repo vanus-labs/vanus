@@ -17,10 +17,11 @@ package timer
 import (
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/timer/leaderelection"
-	"github.com/linkall-labs/vanus/internal/timer/timingwheel"
-	"github.com/linkall-labs/vanus/observability"
+	"github.com/vanus-labs/vanus/observability"
+
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/timer/leaderelection"
+	"github.com/vanus-labs/vanus/internal/timer/timingwheel"
 )
 
 type Config struct {
@@ -31,7 +32,7 @@ type Config struct {
 	EtcdEndpoints        []string             `yaml:"etcd"`
 	CtrlEndpoints        []string             `yaml:"controllers"`
 	MetadataConfig       MetadataConfig       `yaml:"metadata"`
-	LeaderElectionConfig LeaderElectionConfig `yaml:"leaderelection"`
+	LeaderElectionConfig LeaderElectionConfig `yaml:"leader_election"`
 	TimingWheelConfig    TimingWheelConfig    `yaml:"timingwheel"`
 	Observability        observability.Config `yaml:"observability"`
 }

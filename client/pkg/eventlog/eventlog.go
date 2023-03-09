@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=eventlog.go  -destination=mock_eventlog.go -package=eventlog
+//go:generate mockgen -source=eventlog.go -destination=mock_eventlog.go -package=eventlog
 package eventlog
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 
-	// third-party libraries
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
-	// first-party libraries
-	"github.com/linkall-labs/vanus/client/pkg/api"
+	// this project.
+	"github.com/vanus-labs/vanus/client/pkg/api"
 )
 
 const (

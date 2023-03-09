@@ -25,8 +25,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	idxtest "github.com/linkall-labs/vanus/internal/store/vsb/index/testing"
-	vsbtest "github.com/linkall-labs/vanus/internal/store/vsb/testing"
+	idxtest "github.com/vanus-labs/vanus/internal/store/vsb/index/testing"
+	vsbtest "github.com/vanus-labs/vanus/internal/store/vsb/testing"
 )
 
 func TestVSBlock_Open(t *testing.T) {

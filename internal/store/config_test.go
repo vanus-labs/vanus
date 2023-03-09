@@ -24,7 +24,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/config"
+	"github.com/vanus-labs/vanus/internal/store/config"
 )
 
 const fileSize = 4*1024*1024 - 1

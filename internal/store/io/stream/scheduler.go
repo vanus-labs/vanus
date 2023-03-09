@@ -16,11 +16,11 @@ package stream
 
 import (
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/executor"
-	"github.com/linkall-labs/vanus/internal/store/io"
-	"github.com/linkall-labs/vanus/internal/store/io/block"
-	"github.com/linkall-labs/vanus/internal/store/io/engine"
-	"github.com/linkall-labs/vanus/internal/store/io/zone"
+	"github.com/vanus-labs/vanus/internal/primitive/executor"
+	"github.com/vanus-labs/vanus/internal/store/io"
+	"github.com/vanus-labs/vanus/internal/store/io/block"
+	"github.com/vanus-labs/vanus/internal/store/io/engine"
+	"github.com/vanus-labs/vanus/internal/store/io/zone"
 )
 
 type Scheduler interface {
@@ -50,7 +50,7 @@ func (s *scheduler) init(e engine.Interface, cfg config) *scheduler {
 	s.e = e
 	s.bp = block.NewBufferPool(cfg.flushBatchSize)
 	s.pq.init(cfg.flushDelayTime)
-	s.callbackExecutor.Init(cfg.callbackParallel, true)
+	s.callbackExecutor.Init(cfg.callbackParallel, false, true)
 	return s
 }
 

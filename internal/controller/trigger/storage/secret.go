@@ -19,13 +19,14 @@ import (
 	"encoding/json"
 	"path"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/kv/etcd"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/pkg/util/crypto"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/util/crypto"
+
+	"github.com/vanus-labs/vanus/internal/controller/trigger/secret"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/kv/etcd"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func NewSecretStorage(config primitive.KvStorageConfig, encryption string) (secret.Storage, error) {
@@ -50,7 +51,8 @@ func (p *SecretStorage) getKey(subID vanus.ID) string {
 
 func (p *SecretStorage) Read(ctx context.Context,
 	subID vanus.ID,
-	credentialType primitive.CredentialType) (primitive.SinkCredential, error) {
+	credentialType primitive.CredentialType,
+) (primitive.SinkCredential, error) {
 	v, err := p.client.Get(ctx, p.getKey(subID))
 	if err != nil {
 		return nil, err

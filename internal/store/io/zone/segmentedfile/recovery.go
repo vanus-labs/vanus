@@ -22,8 +22,10 @@ import (
 	"strconv"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/internal/store/io"
-	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/log"
+
+	// this project.
+	"github.com/vanus-labs/vanus/internal/store/io"
 )
 
 const (
@@ -100,7 +102,7 @@ func scanSegmentFiles(dir, ext string, segmentSize int64) (segments []*Segment, 
 			size = truncated
 		}
 
-		f, err2 := io.OpenFile(path, false, true)
+		f, err2 := io.OpenFile(path, os.O_RDWR, true, true)
 		if err2 != nil {
 			return nil, nil, err2
 		}

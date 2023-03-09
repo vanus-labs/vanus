@@ -25,15 +25,15 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"github.com/linkall-labs/vanus/pkg/cluster"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/tracing"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
 	// this project.
-	"github.com/linkall-labs/vanus/client/pkg/record"
+	"github.com/vanus-labs/vanus/client/pkg/record"
 )
 
 func NewNameService(endpoints []string) *NameService {
@@ -44,7 +44,7 @@ func NewNameService(endpoints []string) *NameService {
 }
 
 type NameService struct {
-	client ctrlpb.EventLogControllerClient
+	client ctrlpb.EventlogControllerClient
 	tracer *tracing.Tracer
 }
 
@@ -53,7 +53,7 @@ func (ns *NameService) LookupWritableSegment(ctx context.Context, logID uint64) 
 	defer span.End()
 
 	req := &ctrlpb.GetAppendableSegmentRequest{
-		EventLogId: logID,
+		EventlogId: logID,
 		Limited:    1,
 	}
 
@@ -79,7 +79,7 @@ func (ns *NameService) LookupReadableSegments(ctx context.Context, logID uint64)
 	defer span.End()
 
 	req := &ctrlpb.ListSegmentRequest{
-		EventLogId:  logID,
+		EventlogId:  logID,
 		StartOffset: 0,
 		EndOffset:   math.MaxInt64,
 		Limited:     math.MaxInt32,

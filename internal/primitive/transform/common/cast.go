@@ -15,12 +15,14 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 )
 
-func Cast(val interface{}, target Type) (interface{}, error) {
+func Cast(val interface{}, target Type) (interface{}, error) { //nolint:gocyclo,cyclop // ok
 	if target.IsSameType(val) {
 		return val, nil
 	}
@@ -29,21 +31,27 @@ func Cast(val interface{}, target Type) (interface{}, error) {
 		switch value := val.(type) {
 		case int32: // ce attribute
 			return strconv.FormatInt(int64(value), 10), nil
-		case int64: // ce attribute
+		case int64:
 			return strconv.FormatInt(value, 10), nil
 		case float64: // ce data json marshal
 			return fmt.Sprintf("%v", val), nil
 		case bool:
 			return strconv.FormatBool(value), nil
+		case map[string]interface{}, []interface{}:
+			_value, err := json.Marshal(value)
+			if err != nil {
+				return nil, fmt.Errorf("json marshal error: %w", err)
+			}
+			return string(_value), nil
 		}
 		// Casting to string is always defined
 		return fmt.Sprintf("%v", val), nil
-	case Number:
+	case Float:
 		switch value := val.(type) {
 		case string:
 			v, err := strconv.ParseFloat(value, 64)
 			if err != nil {
-				err = fmt.Errorf("cannot cast from String to Float: %w", err)
+				err = fmt.Errorf("cannot cast from String value %s to Float: %w", val, err)
 			}
 			return v, err
 		case int32:
@@ -53,7 +61,23 @@ func Cast(val interface{}, target Type) (interface{}, error) {
 		case int:
 			return float64(value), nil
 		}
-		return 0, fmt.Errorf("undefined cast from %v to %v", TypeFromVal(val), target)
+		return 0, fmt.Errorf("undefined cast from %v value %v to %v", reflect.ValueOf(val).Kind(), val, target)
+	case Int:
+		switch value := val.(type) {
+		case string:
+			v, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				err = fmt.Errorf("cannot cast from String value %s to Int: %w", val, err)
+			}
+			return int(v), err
+		case float64:
+			return int(value), nil
+		case int32:
+			return int(value), nil
+		case int64:
+			return int(value), nil
+		}
+		return 0, fmt.Errorf("undefined cast from %v value %v to %v", reflect.ValueOf(val).Kind(), val, target)
 	case Bool:
 		if value, ok := val.(string); ok {
 			lowerCase := strings.ToLower(value)
@@ -62,9 +86,9 @@ func Cast(val interface{}, target Type) (interface{}, error) {
 			} else if lowerCase == "false" {
 				return false, nil
 			}
-			return false, fmt.Errorf("cannot cast String to Bool, actual value: %v", val)
+			return false, fmt.Errorf("cannot cast String value %s to Bool", val)
 		}
-		return false, fmt.Errorf("undefined cast from %v to %v", TypeFromVal(val), target)
+		return false, fmt.Errorf("undefined cast from %v value %v to %v", reflect.ValueOf(val).Kind(), val, target)
 	case StringArray:
 		switch value := val.(type) {
 		case string:
@@ -80,12 +104,20 @@ func Cast(val interface{}, target Type) (interface{}, error) {
 				stringArr[i] = str
 			}
 			return stringArr, nil
+		case int64, float64:
+			v, err := Cast(value, String)
+			if err != nil {
+				return nil, err
+			}
+			return []string{v.(string)}, nil
 		}
+		return nil, fmt.Errorf("undefined cast from %v value %v to %v", reflect.ValueOf(val).Kind(), val, target)
 	case Array:
 		switch value := val.(type) {
 		case string, int32, int64, float64, bool:
 			return []interface{}{value}, nil
 		}
+		return nil, fmt.Errorf("undefined cast from %v value %v to %v", reflect.ValueOf(val).Kind(), val, target)
 	}
 
 	// AnyType doesn't need casting

@@ -14,87 +14,64 @@
 
 syntax = "proto3";
 
-package linkall.vanus.controller;
+package vanus.core.controller;
 
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 import "meta.proto";
 
-option go_package = "github.com/linkall-labs/vanus/proto/pkg/controller";
+option go_package = "github.com/vanus-labs/vanus/proto/pkg/controller";
 
 service PingServer {
   rpc Ping(google.protobuf.Empty) returns (PingResponse);
 }
 
-service EventBusController {
+service EventbusController {
   // grpc -> HTTP
-  rpc CreateEventBus(CreateEventBusRequest)
-      returns (linkall.vanus.meta.EventBus);
-  rpc CreateSystemEventBus(CreateEventBusRequest)
-      returns (linkall.vanus.meta.EventBus);
-  rpc DeleteEventBus(meta.EventBus) returns (google.protobuf.Empty);
-  rpc GetEventBus(meta.EventBus) returns (linkall.vanus.meta.EventBus);
-  rpc ListEventBus(google.protobuf.Empty) returns (ListEventbusResponse);
-  rpc UpdateEventBus(UpdateEventBusRequest)
-      returns (linkall.vanus.meta.EventBus);
-  // Don't consider UpdateEventBus now
+  rpc CreateEventbus(CreateEventbusRequest) returns (meta.Eventbus);
+  rpc CreateSystemEventbus(CreateEventbusRequest) returns (meta.Eventbus);
+  rpc DeleteEventbus(google.protobuf.UInt64Value) returns (google.protobuf.Empty);
+  rpc GetEventbus(google.protobuf.UInt64Value) returns (meta.Eventbus);
+  rpc ListEventbus(ListEventbusRequest) returns (ListEventbusResponse);
+  rpc UpdateEventbus(UpdateEventbusRequest) returns (meta.Eventbus);
+  rpc GetEventbusWithHumanFriendly(GetEventbusWithHumanFriendlyRequest) returns (meta.Eventbus);
+  // Don't consider UpdateEventbus now
 }
 
-service EventLogController {
+service EventlogController {
   rpc ListSegment(ListSegmentRequest) returns (ListSegmentResponse);
-  rpc GetAppendableSegment(GetAppendableSegmentRequest)
-      returns (GetAppendableSegmentResponse);
+  rpc GetAppendableSegment(GetAppendableSegmentRequest) returns (GetAppendableSegmentResponse);
 }
 
 service SegmentController {
-  rpc QuerySegmentRouteInfo(QuerySegmentRouteInfoRequest)
-      returns (QuerySegmentRouteInfoResponse);
-  rpc SegmentHeartbeat(stream SegmentHeartbeatRequest)
-      returns (SegmentHeartbeatResponse);
-  rpc RegisterSegmentServer(RegisterSegmentServerRequest)
-      returns (RegisterSegmentServerResponse);
-  rpc UnregisterSegmentServer(UnregisterSegmentServerRequest)
-      returns (UnregisterSegmentServerResponse);
-  rpc ReportSegmentBlockIsFull(SegmentHeartbeatRequest)
-      returns (google.protobuf.Empty);
-  rpc ReportSegmentLeader(ReportSegmentLeaderRequest)
-      returns (google.protobuf.Empty);
+  rpc QuerySegmentRouteInfo(QuerySegmentRouteInfoRequest) returns (QuerySegmentRouteInfoResponse);
+  rpc SegmentHeartbeat(stream SegmentHeartbeatRequest) returns (SegmentHeartbeatResponse);
+  rpc RegisterSegmentServer(RegisterSegmentServerRequest) returns (RegisterSegmentServerResponse);
+  rpc UnregisterSegmentServer(UnregisterSegmentServerRequest) returns (UnregisterSegmentServerResponse);
+  rpc ReportSegmentBlockIsFull(SegmentHeartbeatRequest) returns (google.protobuf.Empty);
+  rpc ReportSegmentLeader(ReportSegmentLeaderRequest) returns (google.protobuf.Empty);
 }
 
 service TriggerController {
-  rpc CreateSubscription(CreateSubscriptionRequest)
-      returns (linkall.vanus.meta.Subscription) {}
-  rpc UpdateSubscription(UpdateSubscriptionRequest)
-      returns (linkall.vanus.meta.Subscription) {}
-  rpc DeleteSubscription(DeleteSubscriptionRequest)
-      returns (google.protobuf.Empty) {}
-  rpc DisableSubscription(DisableSubscriptionRequest)
-      returns (google.protobuf.Empty);
-  rpc ResumeSubscription(ResumeSubscriptionRequest)
-      returns (google.protobuf.Empty);
-  rpc GetSubscription(GetSubscriptionRequest)
-      returns (linkall.vanus.meta.Subscription) {}
-  rpc ListSubscription(ListSubscriptionRequest)
-      returns (ListSubscriptionResponse) {}
-  rpc TriggerWorkerHeartbeat(stream TriggerWorkerHeartbeatRequest)
-      returns (TriggerWorkerHeartbeatResponse);
-  rpc RegisterTriggerWorker(RegisterTriggerWorkerRequest)
-      returns (RegisterTriggerWorkerResponse);
-  rpc UnregisterTriggerWorker(UnregisterTriggerWorkerRequest)
-      returns (UnregisterTriggerWorkerResponse);
-  rpc ResetOffsetToTimestamp(ResetOffsetToTimestampRequest)
-      returns (ResetOffsetToTimestampResponse);
-  rpc CommitOffset(CommitOffsetRequest)
-      returns (CommitOffsetResponse);
-  rpc SetDeadLetterEventOffset(SetDeadLetterEventOffsetRequest)
-      returns (google.protobuf.Empty);
-  rpc GetDeadLetterEventOffset(GetDeadLetterEventOffsetRequest)
-      returns (GetDeadLetterEventOffsetResponse);
+  rpc CreateSubscription(CreateSubscriptionRequest) returns (meta.Subscription) {}
+  rpc UpdateSubscription(UpdateSubscriptionRequest) returns (meta.Subscription) {}
+  rpc DeleteSubscription(DeleteSubscriptionRequest) returns (google.protobuf.Empty) {}
+  rpc DisableSubscription(DisableSubscriptionRequest) returns (google.protobuf.Empty);
+  rpc ResumeSubscription(ResumeSubscriptionRequest) returns (google.protobuf.Empty);
+  rpc GetSubscription(GetSubscriptionRequest) returns (meta.Subscription) {}
+  rpc ListSubscription(ListSubscriptionRequest) returns (ListSubscriptionResponse) {}
+  rpc TriggerWorkerHeartbeat(stream TriggerWorkerHeartbeatRequest) returns (TriggerWorkerHeartbeatResponse);
+  rpc RegisterTriggerWorker(RegisterTriggerWorkerRequest) returns (RegisterTriggerWorkerResponse);
+  rpc UnregisterTriggerWorker(UnregisterTriggerWorkerRequest) returns (UnregisterTriggerWorkerResponse);
+  rpc ResetOffsetToTimestamp(ResetOffsetToTimestampRequest) returns (ResetOffsetToTimestampResponse);
+  rpc CommitOffset(CommitOffsetRequest) returns (CommitOffsetResponse);
+  rpc SetDeadLetterEventOffset(SetDeadLetterEventOffsetRequest) returns (google.protobuf.Empty);
+  rpc GetDeadLetterEventOffset(GetDeadLetterEventOffsetRequest) returns (GetDeadLetterEventOffsetResponse);
 }
 
 service SnowflakeController {
-  rpc GetClusterStartTime(google.protobuf.Empty)returns (google.protobuf.Timestamp);
+  rpc GetClusterStartTime(google.protobuf.Empty) returns (google.protobuf.Timestamp);
   rpc RegisterNode(google.protobuf.UInt32Value) returns (google.protobuf.Empty);
   rpc UnregisterNode(google.protobuf.UInt32Value) returns (google.protobuf.Empty);
 }
@@ -105,17 +82,25 @@ message PingResponse {
   bool is_eventbus_ready = 3;
 }
 
-message CreateEventBusRequest {
+message CreateEventbusRequest {
   string name = 1;
   int32 log_number = 2;
   string description = 3;
 }
 
-message ListEventbusResponse {
-  repeated linkall.vanus.meta.EventBus eventbus = 1;
+message ListEventbusRequest {
 }
 
-message UpdateEventBusRequest {}
+message ListEventbusResponse {
+  repeated meta.Eventbus eventbus = 1;
+}
+
+message GetEventbusWithHumanFriendlyRequest {
+  string namespace = 1;
+  string eventbus_name = 2;
+}
+
+message UpdateEventbusRequest {}
 
 message QuerySegmentRouteInfoRequest {}
 
@@ -166,11 +151,12 @@ message SubscriptionRequest {
   meta.SinkCredential sink_credential = 6;
   meta.Protocol protocol = 7;
   meta.ProtocolSetting protocol_settings = 8;
-  string event_bus = 9;
+  reserved 9; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   meta.Transformer transformer = 10;
   string name = 11;
   string description = 12;
   bool disable = 13;
+  uint64 eventbus_id = 14;
 }
 
 message CreateSubscriptionRequest {
@@ -199,12 +185,13 @@ message ResumeSubscriptionRequest {
 }
 
 message ListSubscriptionRequest {
-  string eventbus = 1;
+  reserved 1; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   string name = 2;
+  uint64 eventbus_id = 3;
 }
 
 message ListSubscriptionResponse {
-  repeated linkall.vanus.meta.Subscription subscription = 1;
+  repeated meta.Subscription subscription = 1;
 }
 
 message SetDeadLetterEventOffsetRequest {
@@ -260,8 +247,8 @@ message CommitOffsetResponse {
 }
 
 message ListSegmentRequest {
-  uint64 event_bus_id = 1;
-  uint64 event_log_id = 2;
+  uint64 eventbus_id = 1;
+  uint64 eventlog_id = 2;
   // if a segment has the range [a, b), if a <= start_offset < b, the segment
   // will be returned
   int64 start_offset = 3;
@@ -273,16 +260,16 @@ message ListSegmentRequest {
 }
 
 message ListSegmentResponse {
-  repeated linkall.vanus.meta.Segment segments = 1;
+  repeated meta.Segment segments = 1;
 }
 
 message GetAppendableSegmentRequest {
-  uint64 event_bus_id = 1;
-  uint64 event_log_id = 2;
+  uint64 eventbus_id = 1;
+  uint64 eventlog_id = 2;
   // max returned segment number, default is 2
   int32 limited = 3;
 }
 
 message GetAppendableSegmentResponse {
-  repeated linkall.vanus.meta.Segment segments = 3;
+  repeated meta.Segment segments = 3;
 }

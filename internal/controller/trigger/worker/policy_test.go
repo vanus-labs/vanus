@@ -19,8 +19,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
 )
 
 func TestRandomPolicy(t *testing.T) {

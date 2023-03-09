@@ -20,9 +20,9 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	cetest "github.com/linkall-labs/vanus/internal/store/schema/ce/testing"
-	"github.com/linkall-labs/vanus/internal/store/vsb/index"
-	vsbtest "github.com/linkall-labs/vanus/internal/store/vsb/testing"
+	cetest "github.com/vanus-labs/vanus/internal/store/schema/ce/testing"
+	"github.com/vanus-labs/vanus/internal/store/vsb/index"
+	vsbtest "github.com/vanus-labs/vanus/internal/store/vsb/testing"
 )
 
 func MakeIndex0(ctrl *Controller) index.Index {

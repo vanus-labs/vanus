@@ -26,7 +26,7 @@ import (
 	"github.com/huandu/skiplist"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 const (

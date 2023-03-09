@@ -34,18 +34,17 @@ import (
 )
 
 var (
-	clusterVersionList = []string{
-		"v0.5.0", "v0.5.1", "v0.5.2", "v0.5.3", "v0.5.4", "v0.5.5", "v0.5.6", "v0.5.7",
-		"v0.6.0",
-	}
+	clusterVersionList = []string{"v0.7.0"}
 )
 
 type ClusterCreate struct {
-	ControllerReplicas    int32  `json:"controller_replicas,omitempty"`
-	ControllerStorageSize string `json:"controller_storage_size,omitempty"`
-	StoreReplicas         int32  `json:"store_replicas,omitempty"`
-	StoreStorageSize      string `json:"store_storage_size,omitempty"`
-	Version               string `json:"version,omitempty"`
+	Version            string `json:"version,omitempty"`
+	ControllerReplicas int32  `json:"controller_replicas,omitempty"`
+	StoreReplicas      int32  `json:"store_replicas,omitempty"`
+	GatewayReplicas    int32  `json:"gateway_replicas,omitempty"`
+	TriggerReplicas    int32  `json:"trigger_replicas,omitempty"`
+	TimerReplicas      int32  `json:"timer_replicas,omitempty"`
+	StoreStorageSize   string `json:"store_storage_size,omitempty"`
 }
 
 type ClusterDelete struct {
@@ -64,7 +63,7 @@ type ClusterInfo struct {
 	Version string `json:"version,omitempty"`
 }
 
-type GetClusterOKBody struct {
+type ClusterOKBody struct {
 	Code    *int32       `json:"code"`
 	Data    *ClusterInfo `json:"data"`
 	Message *string      `json:"message"`
@@ -74,12 +73,13 @@ type ClusterSpec struct {
 	Version    string      `yaml:"version"`
 	Controller *Controller `yaml:"controller"`
 	Store      *Store      `yaml:"store"`
+	Gateway    *Gateway    `yaml:"gateway"`
 	Trigger    *Trigger    `yaml:"trigger"`
+	Timer      *Timer      `yaml:"timer"`
 }
 
 type Controller struct {
-	Replicas    int32  `yaml:"replicas"`
-	StorageSize string `yaml:"storage_size"`
+	Replicas int32 `yaml:"replicas"`
 }
 
 type Store struct {
@@ -87,7 +87,15 @@ type Store struct {
 	StorageSize string `yaml:"storage_size"`
 }
 
+type Gateway struct {
+	Replicas int32 `yaml:"replicas"`
+}
+
 type Trigger struct {
+	Replicas int32 `yaml:"replicas"`
+}
+
+type Timer struct {
 	Replicas int32 `yaml:"replicas"`
 }
 
@@ -156,7 +164,8 @@ func createClusterCommand() *cobra.Command {
 					return
 				}
 				fmt.Println("Start deploy operator...")
-				operator := exec.Command("kubectl", "apply", "-f", "https://download.linkall.com/vanus/operator/latest.yml")
+				operator := exec.Command("kubectl", "apply", "-f",
+					"https://dl.vanus.ai/vanus/operator/latest.yml")
 				err = operator.Run()
 				if err != nil {
 					cmdFailedf(cmd, "deploy operator failed: %s", err)
@@ -187,11 +196,15 @@ func createClusterCommand() *cobra.Command {
 
 			clusterspec := table.NewWriter()
 			clusterspec.AppendHeader(table.Row{"Cluster", "Version", "Component", "Replicas", "StorageSize"})
-			clusterspec.AppendRow(table.Row{"vanus", c.Version, "controller", c.Controller.Replicas, c.Controller.StorageSize})
+			clusterspec.AppendRow(table.Row{"vanus", c.Version, "controller", c.Controller.Replicas, "-"})
 			clusterspec.AppendSeparator()
 			clusterspec.AppendRow(table.Row{"vanus", c.Version, "store", c.Store.Replicas, c.Store.StorageSize})
 			clusterspec.AppendSeparator()
-			clusterspec.AppendRow(table.Row{"vanus", c.Version, "trigger", c.Trigger.Replicas})
+			clusterspec.AppendRow(table.Row{"vanus", c.Version, "gateway", c.Gateway.Replicas, "-"})
+			clusterspec.AppendSeparator()
+			clusterspec.AppendRow(table.Row{"vanus", c.Version, "trigger", c.Trigger.Replicas, "-"})
+			clusterspec.AppendSeparator()
+			clusterspec.AppendRow(table.Row{"vanus", c.Version, "timer", c.Timer.Replicas, "-"})
 			clusterspec.AppendSeparator()
 			clusterspec.SetColumnConfigs(clusterColConfigs())
 			fmt.Println(clusterspec.Render())
@@ -210,11 +223,13 @@ func createClusterCommand() *cobra.Command {
 			client := &http.Client{}
 			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operatorEndpoint, BaseUrl)
 			cluster := ClusterCreate{
-				ControllerReplicas:    c.Controller.Replicas,
-				ControllerStorageSize: c.Controller.StorageSize,
-				StoreReplicas:         c.Store.Replicas,
-				StoreStorageSize:      c.Store.StorageSize,
-				Version:               c.Version,
+				Version:            c.Version,
+				ControllerReplicas: c.Controller.Replicas,
+				GatewayReplicas:    c.Gateway.Replicas,
+				StoreReplicas:      c.Store.Replicas,
+				TriggerReplicas:    c.Trigger.Replicas,
+				TimerReplicas:      c.Timer.Replicas,
+				StoreStorageSize:   c.Store.StorageSize,
 			}
 			dataByte, err := json.Marshal(cluster)
 			if err != nil {
@@ -232,6 +247,21 @@ func createClusterCommand() *cobra.Command {
 				cmdFailedf(cmd, "create cluster failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Create Cluster Failed: %s", resp.Status)
+			}
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				cmdFailedf(cmd, "read response body: %s", err)
+			}
+			info := &ClusterOKBody{}
+			err = json.Unmarshal(body, info)
+			if err != nil {
+				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Create Cluster Failed: %s", *info.Message)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Create Cluster Success"})
@@ -302,6 +332,21 @@ func deleteClusterCommand() *cobra.Command {
 				cmdFailedf(cmd, "delete cluster failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Delete Cluster Failed: %s", resp.Status)
+			}
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				cmdFailedf(cmd, "read response body: %s", err)
+			}
+			info := &ClusterOKBody{}
+			err = json.Unmarshal(body, info)
+			if err != nil {
+				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Delete Cluster Failed: %s", *info.Message)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Delete Cluster Success"})
@@ -328,7 +373,8 @@ func deleteClusterCommand() *cobra.Command {
 				return
 			}
 			fmt.Println("Start delete operator...")
-			operator := exec.Command("kubectl", "delete", "-f", "https://download.linkall.com/vanus/operator/latest.yml")
+			operator := exec.Command("kubectl", "delete", "-f",
+				"https://dl.vanus.ai/vanus/operator/latest.yml")
 			err = operator.Run()
 			if err != nil {
 				cmdFailedf(cmd, "delete operator failed: %s", err)
@@ -370,6 +416,9 @@ func upgradeClusterCommand() *cobra.Command {
 				info, err := getCluster(cmd, operatorEndpoint)
 				if err != nil {
 					cmdFailedf(cmd, "get the current version of the cluster failed: %s", err)
+				}
+				if *info.Code != RespCodeOK {
+					cmdFailedf(cmd, "get cluster failed: %s", *info.Message)
 				}
 				result := getUpgradableVersionList(info.Data.Version)
 				if IsFormatJSON(cmd) {
@@ -425,6 +474,21 @@ func upgradeClusterCommand() *cobra.Command {
 				cmdFailedf(cmd, "upgrade cluster failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Upgrade Cluster Failed: %s", resp.Status)
+			}
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				cmdFailedf(cmd, "read response body: %s", err)
+			}
+			info := &ClusterOKBody{}
+			err = json.Unmarshal(body, info)
+			if err != nil {
+				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Upgrade Cluster Failed: %s", *info.Message)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Upgrade Cluster Success"})
@@ -493,6 +557,21 @@ func scaleControllerReplicas() *cobra.Command {
 				cmdFailedf(cmd, "scale controller failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Scale Controller Failed: %s", resp.Status)
+			}
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				cmdFailedf(cmd, "read response body: %s", err)
+			}
+			info := &ClusterOKBody{}
+			err = json.Unmarshal(body, info)
+			if err != nil {
+				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Scale Controller Failed: %s", *info.Message)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Scale Controller Success"})
@@ -548,6 +627,21 @@ func scaleStoreReplicas() *cobra.Command {
 				cmdFailedf(cmd, "scale Store failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Scale Store Failed: %s", resp.Status)
+			}
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				cmdFailedf(cmd, "read response body: %s", err)
+			}
+			info := &ClusterOKBody{}
+			err = json.Unmarshal(body, info)
+			if err != nil {
+				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Scale Store Failed: %s", *info.Message)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Scale Store Success"})
@@ -603,6 +697,21 @@ func scaleTriggerReplicas() *cobra.Command {
 				cmdFailedf(cmd, "scale trigger failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Scale Trigger Failed: %s", resp.Status)
+			}
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				cmdFailedf(cmd, "read response body: %s", err)
+			}
+			info := &ClusterOKBody{}
+			err = json.Unmarshal(body, info)
+			if err != nil {
+				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Scale Trigger Failed: %s", *info.Message)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Scale Trigger Success"})
@@ -650,14 +759,21 @@ func getClusterCommand() *cobra.Command {
 				cmdFailedf(cmd, "get cluster failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Get Cluster Failed: %s", resp.Status)
+			}
+
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
 				cmdFailedf(cmd, "read response body: %s", err)
 			}
-			info := &GetClusterOKBody{}
+			info := &ClusterOKBody{}
 			err = json.Unmarshal(body, info)
 			if err != nil {
 				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Get Cluster Failed: %s", *info.Message)
 			}
 
 			if IsFormatJSON(cmd) {
@@ -692,17 +808,22 @@ func genClusterCommand() *cobra.Command {
 		Short: "generate cluster config file template",
 		Run: func(cmd *cobra.Command, args []string) {
 			cluster := &ClusterSpec{
-				Version: "v0.6.0",
+				Version: "v0.7.0",
 				Controller: &Controller{
-					Replicas:    3,
-					StorageSize: "1Gi",
+					Replicas: 3,
 				},
 				Store: &Store{
 					Replicas:    3,
-					StorageSize: "1Gi",
+					StorageSize: "10Gi",
+				},
+				Gateway: &Gateway{
+					Replicas: 1,
 				},
 				Trigger: &Trigger{
 					Replicas: 1,
+				},
+				Timer: &Timer{
+					Replicas: 2,
 				},
 			}
 			data, err := yaml.Marshal(cluster)
@@ -711,7 +832,7 @@ func genClusterCommand() *cobra.Command {
 			}
 
 			fileName := "cluster.yaml.example"
-			err = ioutil.WriteFile(fileName, data, 0644)
+			err = ioutil.WriteFile(fileName, data, 0o644)
 			if err != nil {
 				cmdFailedf(cmd, "generate cluster config file template failed: %s", err)
 			}
@@ -737,7 +858,7 @@ func genClusterCommand() *cobra.Command {
 	return cmd
 }
 
-func getCluster(cmd *cobra.Command, endpoint string) (*GetClusterOKBody, error) {
+func getCluster(cmd *cobra.Command, endpoint string) (*ClusterOKBody, error) {
 	client := &http.Client{}
 	url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, endpoint, BaseUrl)
 	req, err := http.NewRequest("GET", url, &bytes.Reader{})
@@ -755,7 +876,7 @@ func getCluster(cmd *cobra.Command, endpoint string) (*GetClusterOKBody, error) 
 	if err != nil {
 		return nil, err
 	}
-	info := &GetClusterOKBody{}
+	info := &ClusterOKBody{}
 	err = json.Unmarshal(body, info)
 	if err != nil {
 		return nil, err
@@ -783,3 +904,4 @@ func getUpgradableVersionList(curVersion string) []string {
 	}
 	return clusterVersionList[curIdx+1:]
 }
+

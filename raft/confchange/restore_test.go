@@ -21,8 +21,8 @@ import (
 	"testing"
 	"testing/quick"
 
-	pb "github.com/linkall-labs/vanus/raft/raftpb"
-	"github.com/linkall-labs/vanus/raft/tracker"
+	pb "github.com/vanus-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/raft/tracker"
 )
 
 type rndConfChange pb.ConfState

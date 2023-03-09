@@ -20,7 +20,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/linkall-labs/vanus/observability/log"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -31,6 +30,8 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 const (

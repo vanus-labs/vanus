@@ -25,10 +25,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/raft/confchange"
-	"github.com/linkall-labs/vanus/raft/quorum"
-	pb "github.com/linkall-labs/vanus/raft/raftpb"
-	"github.com/linkall-labs/vanus/raft/tracker"
+	"github.com/vanus-labs/vanus/raft/confchange"
+	"github.com/vanus-labs/vanus/raft/quorum"
+	pb "github.com/vanus-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/raft/tracker"
 )
 
 // None is a placeholder node ID used when there is no leader.

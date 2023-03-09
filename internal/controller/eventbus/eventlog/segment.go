@@ -19,11 +19,11 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/linkall-labs/vanus/observability/log"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
+	"github.com/vanus-labs/vanus/observability/log"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type SegmentState string
@@ -39,7 +39,7 @@ const (
 type Segment struct {
 	ID                 vanus.ID      `json:"id,omitempty"`
 	Capacity           int64         `json:"capacity,omitempty"`
-	EventLogID         vanus.ID      `json:"event_log_id,omitempty"`
+	EventlogID         vanus.ID      `json:"event_log_id,omitempty"`
 	PreviousSegmentID  vanus.ID      `json:"previous_segment_id,omitempty"`
 	NextSegmentID      vanus.ID      `json:"next_segment_id,omitempty"`
 	StartOffsetInLog   int64         `json:"start_offset_in_log,omitempty"`
@@ -119,7 +119,7 @@ func (seg *Segment) Copy() Segment {
 	return Segment{
 		ID:                 seg.ID,
 		Capacity:           seg.Capacity,
-		EventLogID:         seg.EventLogID,
+		EventlogID:         seg.EventlogID,
 		PreviousSegmentID:  seg.PreviousSegmentID,
 		NextSegmentID:      seg.NextSegmentID,
 		StartOffsetInLog:   seg.StartOffsetInLog,
@@ -143,7 +143,7 @@ type ReplicaGroup struct {
 	DestroyAt time.Time                  `json:"destroy_at"`
 }
 
-func Convert2ProtoSegment(ctx context.Context, ins ...*Segment) []*metapb.Segment {
+func Convert2ProtoSegment(ctx context.Context, ins ...Segment) []*metapb.Segment {
 	segs := make([]*metapb.Segment, len(ins))
 	for idx := 0; idx < len(ins); idx++ {
 		seg := ins[idx]
@@ -162,7 +162,7 @@ func Convert2ProtoSegment(ctx context.Context, ins ...*Segment) []*metapb.Segmen
 			Id:                       seg.ID.Uint64(),
 			PreviousSegmentId:        seg.PreviousSegmentID.Uint64(),
 			NextSegmentId:            seg.NextSegmentID.Uint64(),
-			EventLogId:               seg.EventLogID.Uint64(),
+			EventlogId:               seg.EventlogID.Uint64(),
 			StartOffsetInLog:         seg.StartOffsetInLog,
 			EndOffsetInLog:           seg.StartOffsetInLog + int64(seg.Number),
 			Size:                     seg.Size,

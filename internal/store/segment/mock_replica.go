@@ -9,10 +9,10 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
-	block "github.com/linkall-labs/vanus/internal/store/block"
-	block0 "github.com/linkall-labs/vanus/internal/store/raft/block"
-	meta "github.com/linkall-labs/vanus/proto/pkg/meta"
+	vanus "github.com/vanus-labs/vanus/internal/primitive/vanus"
+	block "github.com/vanus-labs/vanus/internal/store/block"
+	block0 "github.com/vanus-labs/vanus/internal/store/raft/block"
+	meta "github.com/vanus-labs/vanus/proto/pkg/meta"
 )
 
 // MockReplica is a mock of Replica interface.

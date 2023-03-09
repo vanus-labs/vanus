@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=manager.go  -destination=mock_manager.go -package=server
+//go:generate mockgen -source=manager.go -destination=mock_manager.go -package=server
 package server
 
 import (
@@ -21,14 +21,16 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
+
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type Manager interface {
@@ -315,7 +317,7 @@ func (ss *segmentServer) Polish() {
 }
 
 func (ss *segmentServer) IsActive(ctx context.Context) bool {
-	res, err := ss.client.Status(ctx, &empty.Empty{})
+	res, err := ss.client.Status(ctx, &emptypb.Empty{})
 	if err != nil {
 		log.Warning(ctx, "ping segment server failed", map[string]interface{}{
 			log.KeyError: err,

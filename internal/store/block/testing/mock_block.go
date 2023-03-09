@@ -9,8 +9,8 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
-	block "github.com/linkall-labs/vanus/internal/store/block"
+	vanus "github.com/vanus-labs/vanus/internal/primitive/vanus"
+	block "github.com/vanus-labs/vanus/internal/store/block"
 )
 
 // MockSeeker is a mock of Seeker interface.

@@ -20,8 +20,8 @@ import (
 	"sync/atomic"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	"github.com/vanus-labs/vanus/internal/store/vsb/codec"
 )
 
 const (

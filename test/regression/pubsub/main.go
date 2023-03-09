@@ -22,9 +22,11 @@ import (
 	"time"
 
 	v2 "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/sdk/golang"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/test/utils"
+
+	vanus "github.com/vanus-labs/sdk/golang"
+	"github.com/vanus-labs/vanus/observability/log"
+
+	"github.com/vanus-labs/vanus/test/utils"
 )
 
 var (
@@ -32,7 +34,7 @@ var (
 	sentFailed     int64
 	receivedNumber int64
 
-	totalNumber        = int64(1 << 15) // 1024*1024
+	totalNumber        = int64(1 << 20) // 1024*1024
 	parallelism        = 4
 	batchSize          = 8
 	maximumPayloadSize = 4 * 1024
@@ -170,7 +172,6 @@ func receiveEvents(ctx context.Context, c vanus.Client) {
 		atomic.AddInt64(&receivedNumber, int64(len(msgs)))
 		return nil
 	})
-
 	if err != nil {
 		log.Error(ctx, "failed to start events listening", map[string]interface{}{
 			log.KeyError: err,

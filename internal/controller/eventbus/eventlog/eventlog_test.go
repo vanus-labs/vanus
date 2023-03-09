@@ -23,16 +23,18 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/block"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/pkg/util"
-	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/util"
+	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
+
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/block"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/server"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/volume"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestEventlogManager_RunWithoutTask(t *testing.T) {
@@ -113,7 +115,8 @@ func TestEventlogManager_RunWithoutTask(t *testing.T) {
 			}
 
 			kvCli.EXPECT().List(gomock.Any(), gomock.Any()).Times(4).DoAndReturn(func(
-				ctx stdCtx.Context, path string) ([]kv.Pair, error) {
+				ctx stdCtx.Context, path string,
+			) ([]kv.Pair, error) {
 				if path == metadata.EventlogKeyPrefixInKVStore {
 					return elPairs, nil
 				}
@@ -136,7 +139,8 @@ func TestEventlogManager_RunWithoutTask(t *testing.T) {
 			_data3, _ := stdJson.Marshal(segment3)
 
 			kvCli.EXPECT().Get(gomock.Any(), gomock.Any()).Times(3).DoAndReturn(func(
-				ctx stdCtx.Context, path string) ([]byte, error) {
+				ctx stdCtx.Context, path string,
+			) ([]byte, error) {
 				if path == filepath.Join(metadata.SegmentKeyPrefixInKVStore, segment1.ID.String()) {
 					return _data1, nil
 				}
@@ -151,16 +155,16 @@ func TestEventlogManager_RunWithoutTask(t *testing.T) {
 			vanus.InitFakeSnowflake()
 			err := utMgr.Run(stdCtx.Background(), kvCli, false)
 			So(err, ShouldBeNil)
-			So(util.MapLen(&utMgr.eventLogMap), ShouldEqual, 3)
-			v, exist := utMgr.eventLogMap.Load(el1.ID.Key())
+			So(util.MapLen(&utMgr.eventlogMap), ShouldEqual, 3)
+			v, exist := utMgr.eventlogMap.Load(el1.ID.Key())
 			So(exist, ShouldBeTrue)
 			So(v.(*eventlog).size(), ShouldEqual, 0)
 
-			v, exist = utMgr.eventLogMap.Load(el2.ID.Key())
+			v, exist = utMgr.eventlogMap.Load(el2.ID.Key())
 			So(exist, ShouldBeTrue)
 			So(v.(*eventlog).size(), ShouldEqual, 0)
 
-			v, exist = utMgr.eventLogMap.Load(el3.ID.Key())
+			v, exist = utMgr.eventlogMap.Load(el3.ID.Key())
 			So(exist, ShouldBeTrue)
 			So(v.(*eventlog).size(), ShouldEqual, 3)
 
@@ -208,7 +212,9 @@ func TestEventlogManager_ScaleSegmentTask(t *testing.T) {
 			}, nil
 		})
 
-		alloc.EXPECT().PickByVolumes(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(ctx stdCtx.Context, volumes []vanus.ID) ([]*metadata.Block, error) {
+		alloc.EXPECT().PickByVolumes(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(
+			ctx stdCtx.Context, volumes []vanus.ID,
+		) ([]*metadata.Block, error) {
 			return []*metadata.Block{
 				{
 					ID:       vanus.NewTestID(),
@@ -257,18 +263,18 @@ func TestEventlogManager_ScaleSegmentTask(t *testing.T) {
 		el, err := newEventlog(ctx, md1, kvCli, false)
 		So(err, ShouldBeNil)
 		So(el.size(), ShouldEqual, 0)
-		utMgr.eventLogMap.Store(el.md.ID.Key(), el)
+		utMgr.eventlogMap.Store(el.md.ID.Key(), el)
 		time.Sleep(50 * time.Millisecond)
 		So(el.size(), ShouldEqual, defaultAppendableSegmentNumber)
-		So(util.MapLen(&utMgr.eventLogMap), ShouldEqual, 1)
+		So(util.MapLen(&utMgr.eventlogMap), ShouldEqual, 1)
 		So(util.MapLen(&utMgr.globalSegmentMap), ShouldEqual, defaultAppendableSegmentNumber)
 		So(util.MapLen(&utMgr.globalBlockMap), ShouldEqual, defaultAppendableSegmentNumber*3)
 
 		el2, err := newEventlog(ctx, md2, kvCli, false)
 		So(err, ShouldBeNil)
 		So(el2.size(), ShouldEqual, 0)
-		utMgr.eventLogMap.Store(el2.md.ID.Key(), el2)
-		So(util.MapLen(&utMgr.eventLogMap), ShouldEqual, 2)
+		utMgr.eventlogMap.Store(el2.md.ID.Key(), el2)
+		So(util.MapLen(&utMgr.eventlogMap), ShouldEqual, 2)
 		time.Sleep(50 * time.Millisecond)
 		So(el.size(), ShouldEqual, defaultAppendableSegmentNumber)
 		So(el2.size(), ShouldEqual, defaultAppendableSegmentNumber)
@@ -276,10 +282,12 @@ func TestEventlogManager_ScaleSegmentTask(t *testing.T) {
 		So(util.MapLen(&utMgr.globalBlockMap), ShouldEqual, defaultAppendableSegmentNumber*3*2)
 
 		head := el.head()
+		el.lock()
 		head.State = StateFrozen
+		el.unlock()
 		t.Log(head.ID.Key())
 		So(el.appendableSegmentNumber(), ShouldEqual, defaultAppendableSegmentNumber-1)
-		So(util.MapLen(&utMgr.eventLogMap), ShouldEqual, 2)
+		So(util.MapLen(&utMgr.eventlogMap), ShouldEqual, 2)
 		time.Sleep(50 * time.Millisecond)
 		So(el.size(), ShouldEqual, defaultAppendableSegmentNumber+1)
 		So(el2.size(), ShouldEqual, defaultAppendableSegmentNumber)
@@ -287,8 +295,11 @@ func TestEventlogManager_ScaleSegmentTask(t *testing.T) {
 		So(util.MapLen(&utMgr.globalBlockMap), ShouldEqual, (defaultAppendableSegmentNumber*2+1)*3)
 
 		utMgr.stop()
+		// avoid data race during UT
 		head = el2.head()
+		el2.lock()
 		head.State = StateFrozen
+		el2.unlock()
 		So(err, ShouldBeNil)
 		time.Sleep(50 * time.Millisecond)
 		So(el.size(), ShouldEqual, defaultAppendableSegmentNumber+1)
@@ -336,7 +347,9 @@ func TestEventlogManager_CleanSegmentTask(t *testing.T) {
 				},
 			}, nil
 		})
-		alloc.EXPECT().PickByVolumes(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(ctx stdCtx.Context, volumes []vanus.ID) ([]*metadata.Block, error) {
+		alloc.EXPECT().PickByVolumes(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(
+			ctx stdCtx.Context, volumes []vanus.ID,
+		) ([]*metadata.Block, error) {
 			return []*metadata.Block{
 				{
 					ID:       vanus.NewTestID(),
@@ -385,8 +398,8 @@ func TestEventlogManager_CleanSegmentTask(t *testing.T) {
 		So(err, ShouldBeNil)
 		el2, err := newEventlog(ctx, md2, kvCli, false)
 		So(err, ShouldBeNil)
-		utMgr.eventLogMap.Store(el1.md.ID.Key(), el1)
-		utMgr.eventLogMap.Store(el2.md.ID.Key(), el2)
+		utMgr.eventlogMap.Store(el1.md.ID.Key(), el1)
+		utMgr.eventlogMap.Store(el2.md.ID.Key(), el2)
 		time.Sleep(50 * time.Millisecond)
 		So(el1.size(), ShouldEqual, defaultAppendableSegmentNumber)
 		So(el2.size(), ShouldEqual, defaultAppendableSegmentNumber)
@@ -395,7 +408,8 @@ func TestEventlogManager_CleanSegmentTask(t *testing.T) {
 
 		head := el1.head()
 		kvCli.EXPECT().Delete(gomock.Any(), metadata.GetSegmentMetadataKey(head.ID)).Times(1).Return(nil)
-		kvCli.EXPECT().Delete(gomock.Any(), metadata.GetEventlogSegmentsMetadataKey(el1.md.ID, head.ID)).Times(1).Return(nil)
+		kvCli.EXPECT().Delete(gomock.Any(), metadata.GetEventlogSegmentsMetadataKey(
+			el1.md.ID, head.ID)).Times(1).Return(nil)
 		for _, v := range head.Replicas.Peers {
 			kvCli.EXPECT().Delete(gomock.Any(), metadata.GetBlockMetadataKey(v.VolumeID, v.ID)).Times(1).Return(nil)
 			volIns.EXPECT().DeleteBlock(gomock.Any(), v.ID).Times(1).Return(nil)
@@ -413,7 +427,7 @@ func TestEventlogManager_CleanSegmentTask(t *testing.T) {
 }
 
 func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
-	Convey("test AcquireEventLog", t, func() {
+	Convey("test AcquireEventlog", t, func() {
 		utMgr := &eventlogManager{segmentReplicaNum: 3}
 		ctrl := gomock.NewController(t)
 		volMgr := volume.NewMockManager(ctrl)
@@ -449,7 +463,9 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 				},
 			}, nil
 		})
-		alloc.EXPECT().PickByVolumes(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(func(ctx stdCtx.Context, volumes []vanus.ID) ([]*metadata.Block, error) {
+		alloc.EXPECT().PickByVolumes(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(func(
+			ctx stdCtx.Context, volumes []vanus.ID,
+		) ([]*metadata.Block, error) {
 			return []*metadata.Block{
 				{
 					ID:       vanus.NewTestID(),
@@ -479,24 +495,24 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 		grpcCli.EXPECT().ActivateSegment(ctx, gomock.Any()).Times(2).Return(nil, nil)
 
 		eventbusID := vanus.NewTestID()
-		logMD, err := utMgr.AcquireEventLog(ctx, eventbusID, "ut")
+		logMD, err := utMgr.AcquireEventlog(ctx, eventbusID, "ut")
 		Convey("validate metadata", func() {
 			So(err, ShouldBeNil)
 			So(logMD.EventbusID, ShouldEqual, eventbusID)
 		})
 
 		Convey("validate eventlog", func() {
-			elog := utMgr.getEventLog(logMD.ID)
+			elog := utMgr.getEventlog(logMD.ID)
 			So(elog, ShouldNotBeNil)
 			So(elog.size(), ShouldEqual, 2)
 			So(elog.appendableSegmentNumber(), ShouldEqual, 2)
 		})
 
 		Convey("test get eventlog", func() {
-			newLog := utMgr.GetEventLog(ctx, logMD.ID)
+			newLog := utMgr.GetEventlog(ctx, logMD.ID)
 			So(newLog, ShouldEqual, logMD)
 
-			segments := utMgr.GetEventLogSegmentList(logMD.ID)
+			segments := utMgr.GetEventlogSegmentList(logMD.ID)
 			So(segments, ShouldHaveLength, 2)
 
 			segments2, err := utMgr.GetAppendableSegment(ctx, logMD, 3)
@@ -511,14 +527,14 @@ func TestEventlogManager_CreateAndGetEventlog(t *testing.T) {
 			So(blockObj.VolumeID, ShouldEqual, vol1.ID)
 			So(blockObj.SegmentID, ShouldEqual, segments[0].ID)
 
-			seg := utMgr.GetSegment(segments2[1].ID)
+			seg := utMgr.getSegment(segments2[1].ID)
 			So(seg, ShouldNotBeNil)
-			So(seg.EventLogID, ShouldEqual, logMD.ID)
+			So(seg.EventlogID, ShouldEqual, logMD.ID)
 
 			blockObj = utMgr.GetBlock(vanus.NewIDFromUint64(segments[1].Replicas.Leader))
 			segAnother, err := utMgr.GetSegmentByBlockID(blockObj)
 			So(err, ShouldBeNil)
-			So(segAnother, ShouldEqual, seg)
+			So(segAnother, ShouldResemble, *seg)
 		})
 	})
 }
@@ -552,9 +568,9 @@ func TestEventlogManager_DeleteEventlog(t *testing.T) {
 			_ = el.add(ctx, createTestSegment(md.ID))
 			_ = el.add(ctx, createTestSegment(md.ID))
 
-			utMgr.eventLogMap.Store(md.ID.Key(), el)
+			utMgr.eventlogMap.Store(md.ID.Key(), el)
 			utMgr.DeleteEventlog(ctx, md.ID)
-			_, exist := mgr.eventLogMap.Load(md.ID.Key())
+			_, exist := mgr.eventlogMap.Load(md.ID.Key())
 			So(exist, ShouldBeFalse)
 			So(util.MapLen(&utMgr.segmentNeedBeClean), ShouldEqual, 4)
 		})
@@ -570,10 +586,10 @@ func TestEventlogManager_DeleteEventlog(t *testing.T) {
 			el, err := newEventlog(ctx, md, kvCli, false)
 			So(err, ShouldBeNil)
 
-			utMgr.eventLogMap.Store(md.ID.Key(), el)
+			utMgr.eventlogMap.Store(md.ID.Key(), el)
 			kvCli.EXPECT().Delete(ctx, metadata.GetEventlogMetadataKey(el.md.ID)).AnyTimes().Return(nil)
 			utMgr.DeleteEventlog(ctx, md.ID)
-			_, exist := mgr.eventLogMap.Load(md.ID.Key())
+			_, exist := mgr.eventlogMap.Load(md.ID.Key())
 			So(exist, ShouldBeFalse)
 			So(util.MapLen(&mgr.segmentNeedBeClean), ShouldEqual, 0)
 		})
@@ -633,7 +649,7 @@ func TestEventlogManager_GetAppendableSegment(t *testing.T) {
 
 			el, err := newEventlog(ctx, md, kvCli, false)
 			So(err, ShouldBeNil)
-			mgr.eventLogMap.Store(md.ID.Key(), el)
+			mgr.eventlogMap.Store(md.ID.Key(), el)
 			segs, err := mgr.GetAppendableSegment(ctx, md, 1)
 			So(err, ShouldBeNil)
 			So(segs, ShouldHaveLength, 1)
@@ -676,7 +692,7 @@ func TestEventlogManager_UpdateSegment(t *testing.T) {
 			kvCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).Times(1).Return(nil)
 			err = elog.add(ctx, seg)
 			So(err, ShouldBeNil)
-			utMgr.eventLogMap.Store(md.ID.Key(), elog)
+			utMgr.eventlogMap.Store(md.ID.Key(), elog)
 			// segment doesn't exist
 			utMgr.UpdateSegment(ctx, map[string][]Segment{
 				md.ID.String(): {
@@ -704,7 +720,7 @@ func TestEventlogManager_UpdateSegment(t *testing.T) {
 				Times(1).Return(nil)
 			err = elog.add(ctx, seg)
 			So(err, ShouldBeNil)
-			utMgr.eventLogMap.Store(md.ID.Key(), elog)
+			utMgr.eventlogMap.Store(md.ID.Key(), elog)
 
 			// segment need to be updated
 			updateSegment1 := Segment{
@@ -783,21 +799,30 @@ func TestEventlogManager_UpdateSegmentReplicas(t *testing.T) {
 		kvCli := kv.NewMockClient(ctrl)
 		utMgr.kvClient = kvCli
 
+		ctx := stdCtx.Background()
+		el, err := newEventlog(ctx, &metadata.Eventlog{
+			ID:           vanus.NewTestID(),
+			EventbusID:   vanus.NewTestID(),
+			EventbusName: "ut",
+		}, kvCli, false)
+		So(err, ShouldBeNil)
+		utMgr.eventlogMap.Store(el.md.ID.Key(), el)
+
 		blk := &metadata.Block{
-			ID:        vanus.NewTestID(),
-			Capacity:  64 * 1024 * 1024,
-			SegmentID: 0,
+			ID:         vanus.NewTestID(),
+			Capacity:   64 * 1024 * 1024,
+			EventlogID: el.md.ID,
 		}
 		seg := createTestSegment(vanus.NewTestID())
+		seg.EventlogID = el.md.ID
 		seg.Replicas.Term = 3
 		utMgr.globalSegmentMap.Store(seg.ID.Key(), seg)
 		utMgr.globalBlockMap.Store(blk.ID.Key(), blk)
 
-		ctx := stdCtx.Background()
 		kvCli.EXPECT().Set(ctx, filepath.Join(metadata.SegmentKeyPrefixInKVStore, seg.ID.String()),
 			gomock.Any()).Times(1).Return(nil)
 
-		err := utMgr.UpdateSegmentReplicas(ctx, vanus.NewTestID(), 3)
+		err = utMgr.UpdateSegmentReplicas(ctx, vanus.NewTestID(), 3)
 		So(err, ShouldEqual, errors.ErrBlockNotFound)
 
 		err = utMgr.UpdateSegmentReplicas(ctx, blk.ID, 3)
@@ -838,9 +863,9 @@ func Test_ExpiredSegmentDeleting(t *testing.T) {
 		So(err1, ShouldBeNil)
 		So(err2, ShouldBeNil)
 		So(err3, ShouldBeNil)
-		utMgr.eventLogMap.Store(el1.md.ID.Key(), el1)
-		utMgr.eventLogMap.Store(el2.md.ID.Key(), el2)
-		utMgr.eventLogMap.Store(el3.md.ID.Key(), el3)
+		utMgr.eventlogMap.Store(el1.md.ID.Key(), el1)
+		utMgr.eventlogMap.Store(el2.md.ID.Key(), el2)
+		utMgr.eventlogMap.Store(el3.md.ID.Key(), el3)
 
 		Convey("test clean expired segment", func() {
 			kvCli.EXPECT().Delete(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
@@ -1064,15 +1089,12 @@ func TestEventlog_All(t *testing.T) {
 			So(el.indexAt(4), ShouldBeNil)
 			So(el.indexAt(999), ShouldBeNil)
 
-			So(el.nextOf(el.indexAt(0)), ShouldEqual, seg2)
-			So(el.nextOf(el.indexAt(1)), ShouldEqual, seg3)
-			So(el.nextOf(el.indexAt(2)), ShouldEqual, seg4)
-			So(el.nextOf(el.indexAt(3)), ShouldBeNil)
+			list := el.getAllSegments()
 
-			So(el.previousOf(el.indexAt(0)), ShouldBeNil)
-			So(el.previousOf(el.indexAt(1)), ShouldEqual, seg1)
-			So(el.previousOf(el.indexAt(2)), ShouldEqual, seg2)
-			So(el.previousOf(el.indexAt(3)), ShouldEqual, seg3)
+			So(list[0], ShouldEqual, seg1)
+			So(list[1], ShouldEqual, seg2)
+			So(list[2], ShouldEqual, seg3)
+			So(list[3], ShouldEqual, seg4)
 		})
 	})
 }

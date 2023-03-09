@@ -20,11 +20,12 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/volume"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/server"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/volume"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestConvert2ProtoSegment(t *testing.T) {
@@ -38,10 +39,10 @@ func TestConvert2ProtoSegment(t *testing.T) {
 		block1 := vanus.NewTestID()
 		block2 := vanus.NewTestID()
 		block3 := vanus.NewTestID()
-		seg := &Segment{
+		seg := Segment{
 			ID:                segID,
 			Capacity:          64 * 1024 * 1024,
-			EventLogID:        eID,
+			EventlogID:        eID,
 			PreviousSegmentID: vanus.NewTestID(),
 			NextSegmentID:     vanus.NewTestID(),
 			StartOffsetInLog:  1000,
@@ -107,7 +108,7 @@ func TestConvert2ProtoSegment(t *testing.T) {
 		So(pbSegs[0].Id, ShouldEqual, seg.ID.Uint64())
 		So(pbSegs[0].PreviousSegmentId, ShouldEqual, seg.PreviousSegmentID.Uint64())
 		So(pbSegs[0].NextSegmentId, ShouldEqual, seg.NextSegmentID.Uint64())
-		So(pbSegs[0].EventLogId, ShouldEqual, eID.Uint64())
+		So(pbSegs[0].EventlogId, ShouldEqual, eID.Uint64())
 		So(pbSegs[0].StartOffsetInLog, ShouldEqual, seg.StartOffsetInLog)
 		So(pbSegs[0].EndOffsetInLog, ShouldEqual, seg.StartOffsetInLog+int64(seg.Number))
 		So(pbSegs[0].Size, ShouldEqual, seg.Size)
@@ -120,11 +121,15 @@ func TestConvert2ProtoSegment(t *testing.T) {
 		So(pbSegs[0].Replicas[block2.Uint64()], ShouldNotBeNil)
 		So(pbSegs[0].Replicas[block3.Uint64()], ShouldNotBeNil)
 
-		So(pbSegs[0].Replicas[block1.Uint64()].Id, ShouldEqual, seg.Replicas.Peers[block1.Uint64()].ID.Uint64())
-		So(pbSegs[0].Replicas[block1.Uint64()].VolumeID, ShouldEqual, seg.Replicas.Peers[block1.Uint64()].VolumeID.Uint64())
+		So(pbSegs[0].Replicas[block1.Uint64()].Id, ShouldEqual,
+			seg.Replicas.Peers[block1.Uint64()].ID.Uint64())
+		So(pbSegs[0].Replicas[block1.Uint64()].VolumeID, ShouldEqual,
+			seg.Replicas.Peers[block1.Uint64()].VolumeID.Uint64())
 		So(pbSegs[0].Replicas[block1.Uint64()].Endpoint, ShouldEqual, "127.0.0.1:10001")
-		So(pbSegs[0].Replicas[block3.Uint64()].Id, ShouldEqual, seg.Replicas.Peers[block3.Uint64()].ID.Uint64())
-		So(pbSegs[0].Replicas[block3.Uint64()].VolumeID, ShouldEqual, seg.Replicas.Peers[block3.Uint64()].VolumeID.Uint64())
+		So(pbSegs[0].Replicas[block3.Uint64()].Id, ShouldEqual,
+			seg.Replicas.Peers[block3.Uint64()].ID.Uint64())
+		So(pbSegs[0].Replicas[block3.Uint64()].VolumeID, ShouldEqual,
+			seg.Replicas.Peers[block3.Uint64()].VolumeID.Uint64())
 		So(pbSegs[0].Replicas[block3.Uint64()].Endpoint, ShouldEqual, "")
 	})
 }
@@ -133,7 +138,7 @@ func TestSegment_Copy(t *testing.T) {
 	Convey("test segment copy", t, func() {
 		seg := createTestSegment(vanus.NewTestID())
 		seg.Capacity = 12345678
-		seg.EventLogID = vanus.NewTestID()
+		seg.EventlogID = vanus.NewTestID()
 		seg.PreviousSegmentID = vanus.NewTestID()
 		seg.NextSegmentID = vanus.NewTestID()
 		seg.StartOffsetInLog = 12345
@@ -145,7 +150,7 @@ func TestSegment_Copy(t *testing.T) {
 
 		segV1 := seg.Copy()
 		So(segV1.Capacity, ShouldEqual, seg.Capacity)
-		So(segV1.EventLogID, ShouldEqual, seg.EventLogID)
+		So(segV1.EventlogID, ShouldEqual, seg.EventlogID)
 		So(segV1.PreviousSegmentID, ShouldEqual, seg.PreviousSegmentID)
 		So(segV1.NextSegmentID, ShouldEqual, seg.NextSegmentID)
 		So(segV1.StartOffsetInLog, ShouldEqual, seg.StartOffsetInLog)

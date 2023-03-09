@@ -12,9 +12,9 @@ Before asking a question, make sure you have:
 
 - Searched existing Stack Overflow questions.
 - Googled your question.
-- Searched open and closed [GitHub issues](https://github.com/linkall-labs/vanus/issues)
+- Searched open and closed [GitHub issues](https://github.com/vanus-labs/vanus/issues)
 - Read the documentation:
-  - [Vanus Readme](https://github.com/linkall-labs/vanus)
-  - [Vanus Docs](https://github.com/linkall-labs/docs)
+  - [Vanus Readme](https://github.com/vanus-labs/vanus)
+  - [Vanus Docs](https://github.com/vanus-labs/docs)
 
 -->

@@ -15,12 +15,13 @@
 package arg
 
 import (
+	"errors"
 	"strings"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-	"github.com/linkall-labs/vanus/internal/trigger/util"
-	pkgUtil "github.com/linkall-labs/vanus/pkg/util"
-	"github.com/pkg/errors"
+	pkgUtil "github.com/vanus-labs/vanus/pkg/util"
+
+	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
+	"github.com/vanus-labs/vanus/internal/trigger/util"
 )
 
 type eventAttribute struct {
@@ -44,6 +45,7 @@ func newEventAttribute(name string) (Arg, error) {
 func (arg eventAttribute) Type() Type {
 	return EventAttribute
 }
+
 func (arg eventAttribute) Name() string {
 	return arg.attr
 }
@@ -80,7 +82,8 @@ func newEventData(name string) Arg {
 			eventData{
 				path:     "",
 				original: name,
-			}}
+			},
+		}
 	}
 	return eventData{
 		path:     name[7:],

@@ -18,9 +18,11 @@ import (
 	"context"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/vanus/internal/trigger/util"
-	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/cloudevents/sdk-go/v2/types"
 	"github.com/tidwall/gjson"
+
+	"github.com/vanus-labs/vanus/internal/trigger/util"
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 type commonFilter struct {
@@ -29,7 +31,7 @@ type commonFilter struct {
 	meetCondition meetCondition
 }
 
-type meetCondition func(exist bool, value interface{}, compareValue string) bool
+type meetCondition func(value, compareValue string) bool
 
 func newCommonFilter(value map[string]string, meetCondition meetCondition) *commonFilter {
 	attribute := map[string]string{}
@@ -63,22 +65,37 @@ func newCommonFilter(value map[string]string, meetCondition meetCondition) *comm
 func (filter *commonFilter) Filter(event ce.Event) Result {
 	for attr, v := range filter.attribute {
 		value, ok := util.LookupAttribute(event, attr)
-		if !filter.meetCondition(ok, value, v) {
+		if !ok {
+			return false
+		}
+		if !filter.meetCondition(attrValue2String(value), v) {
 			return FailFilter
 		}
 	}
 	for attr, v := range filter.data {
 		if attr == "" {
 			// event data
-			if !filter.meetCondition(true, string(event.Data()), v) {
+			if !filter.meetCondition(string(event.Data()), v) {
 				return FailFilter
 			}
 			continue
 		}
 		result := gjson.GetBytes(event.Data(), attr)
-		if !filter.meetCondition(result.Exists(), result.Value(), v) {
+		if !result.Exists() {
+			return false
+		}
+		if !filter.meetCondition(result.String(), v) {
 			return FailFilter
 		}
 	}
 	return PassFilter
+}
+
+func attrValue2String(value interface{}) string {
+	v, ok := value.(string)
+	if ok {
+		return v
+	}
+	v, _ = types.Format(value)
+	return v
 }

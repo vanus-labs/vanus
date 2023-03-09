@@ -14,44 +14,35 @@
 
 syntax = "proto3";
 
-package linkall.vanus.proxy;
+package vanus.core.proxy;
 
-import "google/protobuf/empty.proto";
-import "google/protobuf/wrappers.proto";
 import "cloudevents.proto";
 import "controller.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
 import "meta.proto";
 
-option go_package = "github.com/linkall-labs/vanus/proto/pkg/proxy";
+option go_package = "github.com/vanus-labs/vanus/proto/pkg/proxy";
 
 service ControllerProxy {
   // Eventbus
-  rpc CreateEventBus(controller.CreateEventBusRequest)
-      returns (meta.EventBus);
-  rpc DeleteEventBus(meta.EventBus) returns (google.protobuf.Empty);
-  rpc GetEventBus(meta.EventBus) returns (meta.EventBus);
-  rpc ListEventBus(google.protobuf.Empty) returns (controller.ListEventbusResponse);
-  rpc UpdateEventBus(controller.UpdateEventBusRequest)
-      returns (meta.EventBus);
+  rpc CreateEventbus(controller.CreateEventbusRequest) returns (meta.Eventbus);
+  rpc DeleteEventbus(google.protobuf.UInt64Value) returns (google.protobuf.Empty);
+  rpc GetEventbus(google.protobuf.UInt64Value) returns (meta.Eventbus);
+  rpc ListEventbus(controller.ListEventbusRequest) returns (controller.ListEventbusResponse);
+  rpc UpdateEventbus(controller.UpdateEventbusRequest) returns (meta.Eventbus);
+  rpc GetEventbusWithHumanFriendly(controller.GetEventbusWithHumanFriendlyRequest) returns (meta.Eventbus);
   rpc ListSegment(controller.ListSegmentRequest) returns (controller.ListSegmentResponse);
-  
+
   // Trigger
-  rpc CreateSubscription(controller.CreateSubscriptionRequest)
-      returns (meta.Subscription);
-  rpc UpdateSubscription(controller.UpdateSubscriptionRequest)
-      returns (meta.Subscription);
-  rpc DeleteSubscription(controller.DeleteSubscriptionRequest)
-      returns (google.protobuf.Empty);
-  rpc GetSubscription(controller.GetSubscriptionRequest)
-      returns (meta.Subscription);
-  rpc ListSubscription(controller.ListSubscriptionRequest)
-      returns (controller.ListSubscriptionResponse);
-  rpc DisableSubscription(controller.DisableSubscriptionRequest)
-      returns (google.protobuf.Empty);
-  rpc ResumeSubscription(controller.ResumeSubscriptionRequest)
-      returns (google.protobuf.Empty);
-  rpc ResetOffsetToTimestamp(controller.ResetOffsetToTimestampRequest)
-      returns (controller.ResetOffsetToTimestampResponse);
+  rpc CreateSubscription(controller.CreateSubscriptionRequest) returns (meta.Subscription);
+  rpc UpdateSubscription(controller.UpdateSubscriptionRequest) returns (meta.Subscription);
+  rpc DeleteSubscription(controller.DeleteSubscriptionRequest) returns (google.protobuf.Empty);
+  rpc GetSubscription(controller.GetSubscriptionRequest) returns (meta.Subscription);
+  rpc ListSubscription(controller.ListSubscriptionRequest) returns (controller.ListSubscriptionResponse);
+  rpc DisableSubscription(controller.DisableSubscriptionRequest) returns (google.protobuf.Empty);
+  rpc ResumeSubscription(controller.ResumeSubscriptionRequest) returns (google.protobuf.Empty);
+  rpc ResetOffsetToTimestamp(controller.ResetOffsetToTimestampRequest) returns (controller.ResetOffsetToTimestampResponse);
 
   // custom
   rpc ClusterInfo(google.protobuf.Empty) returns (ClusterInfoResponse);
@@ -59,18 +50,16 @@ service ControllerProxy {
   rpc GetEvent(GetEventRequest) returns (GetEventResponse);
   rpc ValidateSubscription(ValidateSubscriptionRequest) returns (ValidateSubscriptionResponse);
   // dead letter
-  rpc GetDeadLetterEvent(GetDeadLetterEventRequest)
-      returns (GetDeadLetterEventResponse);
-  rpc ResendDeadLetterEvent(ResendDeadLetterEventRequest)
-      returns (google.protobuf.Empty);
-  rpc SetDeadLetterEventOffset(controller.SetDeadLetterEventOffsetRequest)
-      returns (google.protobuf.Empty);
+  rpc GetDeadLetterEvent(GetDeadLetterEventRequest) returns (GetDeadLetterEventResponse);
+  rpc ResendDeadLetterEvent(ResendDeadLetterEventRequest) returns (google.protobuf.Empty);
+  rpc SetDeadLetterEventOffset(controller.SetDeadLetterEventOffsetRequest) returns (google.protobuf.Empty);
 }
 
 message LookupOffsetRequest {
-  string eventbus = 1;
+  reserved 1; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   uint64 eventlog_id = 2;
   int64 timestamp = 3;
+  uint64 eventbus_id = 4;
 }
 
 message LookupOffsetResponse {
@@ -78,11 +67,12 @@ message LookupOffsetResponse {
 }
 
 message GetEventRequest {
-  string eventbus = 1;
+  reserved 1; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   uint64 eventlog_id = 2;
   int64 offset = 3;
   int32 number = 4;
   string event_id = 5;
+  uint64 eventbus_id = 6;
 }
 
 message GetEventResponse {
@@ -95,10 +85,11 @@ message ClusterInfoResponse {
 }
 
 message ValidateSubscriptionRequest {
-  string eventbus = 1;
+  reserved 1; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   uint64 eventlog = 2;
-  int64 offset=3;
+  int64 offset = 3;
   uint64 subscription_id = 4;
+  uint64 eventbus_id = 5;
 
   bytes event = 100;
   controller.SubscriptionRequest subscription = 101;
@@ -116,13 +107,15 @@ service StoreProxy {
 }
 
 message PublishRequest {
-  string eventbus_name = 1;
+  reserved 1; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   cloudevents.CloudEventBatch events = 2;
+  uint64 eventbus_id = 3;
 }
 
 message SubscribeRequest {
-  string eventbus_name = 1;
+  reserved 1; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   string subscription_id = 2;
+  uint64 eventbus_id = 3;
 }
 
 message SubscribeResponse {

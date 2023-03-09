@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
+	vanus "github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 // MockpollingManager is a mock of pollingManager interface.

@@ -22,9 +22,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/linkall-labs/vanus/raft/quorum"
-	pb "github.com/linkall-labs/vanus/raft/raftpb"
-	"github.com/linkall-labs/vanus/raft/tracker"
+	"github.com/vanus-labs/vanus/raft/quorum"
+	pb "github.com/vanus-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/raft/tracker"
 )
 
 // rawNodeAdapter is essentially a lint that makes sure that RawNode implements

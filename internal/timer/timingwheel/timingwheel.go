@@ -25,18 +25,21 @@ import (
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/kv/etcd"
-	"github.com/linkall-labs/vanus/internal/timer/metadata"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/pkg/cluster"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/kv/etcd"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/timer/metadata"
 )
 
 const (
@@ -58,9 +61,7 @@ const (
 	recycleInterval = 60 * time.Second
 )
 
-var (
-	newEtcdClientV3 = etcd.NewEtcdClientV3
-)
+var newEtcdClientV3 = etcd.NewEtcdClientV3
 
 type Manager interface {
 	Init(ctx context.Context) error
@@ -78,7 +79,7 @@ type Manager interface {
 type timingWheel struct {
 	config  *Config
 	kvStore kv.Client
-	ctrlCli ctrlpb.EventBusControllerClient
+	ctrlCli ctrlpb.EventbusControllerClient
 	client  client.Client
 	cache   sync.Map
 	twList  *list.List // element: *timingWheelElement
@@ -235,8 +236,14 @@ func (tw *timingWheel) IsLeader() bool {
 }
 
 func (tw *timingWheel) IsDeployed(ctx context.Context) bool {
-	return tw.ctrl.EventbusService().IsExist(ctx, tw.receivingStation.eventbus) &&
-		tw.ctrl.EventbusService().IsExist(ctx, tw.distributionStation.eventbus)
+	var err error
+	if _, err = tw.ctrl.EventbusService().GetSystemEventbusByName(ctx, tw.receivingStation.eventbus); err != nil {
+		return false
+	}
+	if _, err = tw.ctrl.EventbusService().GetSystemEventbusByName(ctx, tw.distributionStation.eventbus); err != nil {
+		return false
+	}
+	return true
 }
 
 func (tw *timingWheel) Recover(ctx context.Context) error {
@@ -351,10 +358,12 @@ func (tw *timingWheel) startReceivingStation(ctx context.Context) error {
 	return nil
 }
 
+const receiveGoroutineNum = 2
+
 // runReceivingStation as the unified entrance of scheduled events and pushed to the timingwheel.
 func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 	offsetC := make(chan waitGroup, defaultMaxNumberOfWorkers)
-	tw.wg.Add(1)
+	tw.wg.Add(receiveGoroutineNum)
 	// update offset asynchronously
 	go func() {
 		defer tw.wg.Done()
@@ -374,7 +383,6 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 			}
 		}
 	}()
-	tw.wg.Add(1)
 	go func() {
 		defer tw.wg.Done()
 		// limit the number of goroutines to no more than defaultMaxNumberOfWorkers
@@ -429,7 +437,8 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 						wait.Until(func() {
 							startTime := time.Now()
 							if tw.Push(ctx, e) {
-								metrics.TimerPushEventTime.WithLabelValues(metrics.LabelTimerPushScheduledEventTime).
+								metrics.TimerPushEventTime.WithLabelValues(
+									metrics.LabelTimerPushScheduledEventTime).
 									Observe(time.Since(startTime).Seconds())
 								metrics.TimerPushEventTPSCounterVec.WithLabelValues(metrics.LabelTimer).Inc()
 								cancel()
@@ -538,7 +547,8 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 						wait.Until(func() {
 							startTime := time.Now()
 							if err = tw.deliver(ctx, e); err == nil {
-								metrics.TimerDeliverEventTime.WithLabelValues(metrics.LabelTimerDeliverScheduledEventTime).
+								metrics.TimerDeliverEventTime.WithLabelValues(
+									metrics.LabelTimerDeliverScheduledEventTime).
 									Observe(time.Since(startTime).Seconds())
 								metrics.TimerDeliverEventTPSCounterVec.WithLabelValues(metrics.LabelTimer).Inc()
 								cancel()
@@ -566,20 +576,28 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 
 func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 	var (
-		err    error
-		ebName string
+		err  error
+		ebID string
 	)
 
-	err = e.ExtensionAs(xVanusEventbus, &ebName)
+	err = e.ExtensionAs(xVanusEventbus, &ebID)
 	if err != nil {
 		log.Error(ctx, "get eventbus failed when delivering", map[string]interface{}{
 			log.KeyError: err,
 		})
 		return err
 	}
-	v, exist := tw.cache.Load(ebName)
+	eventbusID, err := vanus.NewIDFromString(ebID)
+	if err != nil {
+		log.Error(ctx, "eventbus id string to uint64 failed when delivering", map[string]interface{}{
+			log.KeyError:  err,
+			"eventbus_id": ebID,
+		})
+		return err
+	}
+	v, exist := tw.cache.Load(eventbusID)
 	if !exist {
-		v, _ = tw.cache.LoadOrStore(ebName, tw.client.Eventbus(ctx, ebName).Writer())
+		v, _ = tw.cache.LoadOrStore(eventbusID, tw.client.Eventbus(ctx, api.WithID(eventbusID.Uint64())).Writer())
 	}
 	writer, _ := v.(api.BusWriter)
 	_, err = api.AppendOne(ctx, writer, e)
@@ -587,21 +605,21 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 		if errors.Is(err, errors.ErrOffsetOnEnd) {
 			log.Warning(ctx, "eventbus not found, discard this event", map[string]interface{}{
 				log.KeyError:    err,
-				"eventbus":      ebName,
 				"event_id":      e.ID(),
+				"eventbus_id":   ebID,
 				"delivery_time": newTimingMsg(ctx, e).getExpiration().Format(time.RFC3339Nano),
 			})
 			return nil
 		}
 		log.Error(ctx, "append failed", map[string]interface{}{
-			log.KeyError: err,
-			"eventbus":   ebName,
+			log.KeyError:  err,
+			"eventbus_id": ebID,
 		})
 		return err
 	}
 	log.Debug(ctx, "event delivered", map[string]interface{}{
 		"event_id":      e.ID(),
-		"eventbus":      e.Extensions()[xVanusEventbus],
+		"eventbus_id":   ebID,
 		"delivery_time": newTimingMsg(ctx, e).getExpiration().Format(time.RFC3339Nano),
 	})
 	return nil
@@ -611,7 +629,7 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 type timingWheelElement struct {
 	config   *Config
 	kvStore  kv.Client
-	ctrlCli  ctrlpb.EventBusControllerClient
+	ctrlCli  ctrlpb.EventbusControllerClient
 	tick     time.Duration
 	layer    int64
 	interval time.Duration
@@ -689,12 +707,14 @@ func (twe *timingWheelElement) flow(ctx context.Context, tm *timingMsg) bool {
 
 func (twe *timingWheelElement) calculateIndex(tm *timingMsg) int64 {
 	// the timing message comes from the timingwheel of the upper layer
-	startTimeOfBucket := tm.getExpiration().UnixNano() - (tm.getExpiration().UnixNano() % twe.interval.Nanoseconds())
+	startTimeOfBucket := tm.getExpiration().UnixNano() -
+		(tm.getExpiration().UnixNano() % twe.interval.Nanoseconds())
 	timeOfEarlyFlow := defaultNumberOfTickFlowInAdvance * twe.tick.Nanoseconds()
 	timeOfBufferBoundaryLine := startTimeOfBucket - timeOfEarlyFlow + twe.interval.Nanoseconds()
 	if tm.getExpiration().UnixNano() >= timeOfBufferBoundaryLine {
 		// Put it into its buffer bucket
-		return (tm.getExpiration().UnixNano()-timeOfBufferBoundaryLine)/twe.tick.Nanoseconds() + twe.config.WheelSize
+		return (tm.getExpiration().UnixNano()-timeOfBufferBoundaryLine)/
+			twe.tick.Nanoseconds() + twe.config.WheelSize
 	}
 	// Put it into its own bucket
 	return tm.getExpiration().UnixNano() % twe.interval.Nanoseconds() / twe.tick.Nanoseconds()

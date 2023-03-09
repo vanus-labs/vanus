@@ -17,7 +17,7 @@ package rafttest
 import (
 	"fmt"
 
-	"github.com/linkall-labs/vanus/raft"
+	"github.com/vanus-labs/vanus/raft"
 )
 
 // isVoter checks whether node id is in the voter list within st.

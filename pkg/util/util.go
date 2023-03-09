@@ -26,11 +26,3 @@ func GetIDByAddr(addr string) string {
 func IsSpace(c byte) bool {
 	return c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n')
 }
-
-func StringValue(value interface{}) string {
-	v, ok := value.(string)
-	if ok {
-		return v
-	}
-	return fmt.Sprintf("%v", value)
-}

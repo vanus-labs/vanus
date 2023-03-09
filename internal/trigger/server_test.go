@@ -20,9 +20,11 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
 	. "github.com/smartystreets/goconvey/convey"
+
+	pbtrigger "github.com/vanus-labs/vanus/proto/pkg/trigger"
+
+	"github.com/vanus-labs/vanus/internal/primitive"
 )
 
 func TestServerApi(t *testing.T) {

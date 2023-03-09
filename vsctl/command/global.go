@@ -17,15 +17,17 @@ package command
 import (
 	"context"
 	"fmt"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/fatih/color"
-	proxypb "github.com/linkall-labs/vanus/proto/pkg/proxy"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
 )
 
 const (
@@ -33,14 +35,13 @@ const (
 )
 
 const (
-	DefaultOperatorPort = 30009
-	HttpPrefix          = "http://"
-	BaseUrl             = "/api/v1"
+	RespCodeOK          int32 = 200
+	DefaultOperatorPort       = 30009
+	HttpPrefix                = "http://"
+	BaseUrl                   = "/api/v1"
 )
 
-var (
-	retryTime = 30
-)
+var retryTime = 30
 
 type GlobalFlags struct {
 	Endpoint         string
@@ -106,4 +107,8 @@ func IsFormatJSON(cmd *cobra.Command) bool {
 		return false
 	}
 	return strings.ToLower(v) == FormatJSON
+}
+
+func mustGetEventbusID(namespace, name string) vanus.ID {
+	return vanus.EmptyID()
 }

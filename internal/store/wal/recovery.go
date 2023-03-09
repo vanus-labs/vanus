@@ -24,11 +24,11 @@ import (
 	"github.com/ncw/directio"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/log"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/io/zone/segmentedfile"
-	"github.com/linkall-labs/vanus/internal/store/wal/record"
+	"github.com/vanus-labs/vanus/internal/store/io/zone/segmentedfile"
+	"github.com/vanus-labs/vanus/internal/store/wal/record"
 )
 
 type OnEntryCallback = func(entry []byte, r Range) error
@@ -45,6 +45,10 @@ func scanLogEntries(sf *segmentedfile.SegmentedFile, blockSize int, from int64, 
 			return 0, nil
 		}
 		return -1, ErrOutOfRange
+	}
+
+	if cb == nil {
+		cb = noopOnEntry
 	}
 
 	sc := scanner{
@@ -199,5 +203,9 @@ func onRecord(ctx *scanner, r record.Record, eo int64) error {
 		ctx.eo = eo
 	}
 
+	return nil
+}
+
+func noopOnEntry(entry []byte, r Range) error {
 	return nil
 }

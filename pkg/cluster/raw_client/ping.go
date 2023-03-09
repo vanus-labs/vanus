@@ -16,14 +16,14 @@ package raw_client
 
 import (
 	"context"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 )
 
-var (
-	_ ctrlpb.PingServerClient = (*pingClient)(nil)
-)
+var _ ctrlpb.PingServerClient = (*pingClient)(nil)
 
 func NewPingClient(cc *Conn) ctrlpb.PingServerClient {
 	return &pingClient{
@@ -37,7 +37,7 @@ type pingClient struct {
 
 func (p pingClient) Ping(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ctrlpb.PingResponse, error) {
 	out := new(ctrlpb.PingResponse)
-	err := p.cc.invoke(ctx, "/linkall.vanus.controller.PingServer/Ping", in, out, opts...)
+	err := p.cc.invoke(ctx, "/vanus.core.controller.PingServer/Ping", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}

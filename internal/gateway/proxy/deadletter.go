@@ -20,23 +20,26 @@ import (
 	"fmt"
 
 	v2 "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/client/pkg/eventlog"
-	"github.com/linkall-labs/vanus/client/pkg/option"
-	"github.com/linkall-labs/vanus/client/pkg/policy"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	"github.com/linkall-labs/vanus/proto/pkg/codec"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	proxypb "github.com/linkall-labs/vanus/proto/pkg/proxy"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/client/pkg/eventlog"
+	"github.com/vanus-labs/vanus/client/pkg/option"
+	"github.com/vanus-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	"github.com/vanus-labs/vanus/proto/pkg/codec"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
+
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
-func (cp *ControllerProxy) GetDeadLetterEvent(ctx context.Context,
-	req *proxypb.GetDeadLetterEventRequest) (*proxypb.GetDeadLetterEventResponse, error) {
+func (cp *ControllerProxy) GetDeadLetterEvent(
+	ctx context.Context, req *proxypb.GetDeadLetterEventRequest,
+) (*proxypb.GetDeadLetterEventResponse, error) {
 	if req.GetSubscriptionId() == 0 {
 		return nil, errors.ErrInvalidRequest.WithMessage("subscription is empty")
 	}
@@ -62,8 +65,11 @@ func (cp *ControllerProxy) GetDeadLetterEvent(ctx context.Context,
 		return nil, errors.ErrInvalidRequest.WithMessage(
 			fmt.Sprintf("offset is invalid, param is %d it but now is %d", offset, storeOffset.Offset))
 	}
-	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(subscription.EventBus)
-	ls, err := cp.client.Eventbus(ctx, deadLetterEventbusName).ListLog(ctx)
+	deadLetterEventbusID, err := cp.getDealLetterEventbusID(ctx, vanus.NewIDFromUint64(subscription.EventbusId))
+	if err != nil {
+		return nil, err
+	}
+	ls, err := cp.client.Eventbus(ctx, api.WithID(deadLetterEventbusID.Uint64())).ListLog(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +86,7 @@ func (cp *ControllerProxy) GetDeadLetterEvent(ctx context.Context,
 	}
 
 	readPolicy := policy.NewManuallyReadPolicy(ls[0], int64(offset))
-	busReader := cp.client.Eventbus(ctx, deadLetterEventbusName).Reader(
+	busReader := cp.client.Eventbus(ctx, api.WithID(deadLetterEventbusID.Uint64())).Reader(
 		option.WithDisablePolling(),
 		option.WithReadPolicy(readPolicy),
 		option.WithBatchSize(int(num)),
@@ -123,12 +129,26 @@ loop:
 	}, nil
 }
 
-func (cp *ControllerProxy) ResendDeadLetterEvent(ctx context.Context,
-	req *proxypb.ResendDeadLetterEventRequest) (*emptypb.Empty, error) {
+func (cp *ControllerProxy) getDealLetterEventbusID(
+	ctx context.Context, eventbusID vanus.ID,
+) (vanus.ID, error) {
+	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(eventbusID)
+	eb, err := cp.ctrl.EventbusService().GetSystemEventbusByName(ctx, deadLetterEventbusName)
+	if err != nil {
+		return 0, err
+	}
+	return vanus.NewIDFromUint64(eb.Id), nil
+}
+
+func (cp *ControllerProxy) ResendDeadLetterEvent( //nolint:funlen // ok
+	ctx context.Context, req *proxypb.ResendDeadLetterEventRequest,
+) (*emptypb.Empty, error) {
 	if req.GetSubscriptionId() == 0 {
 		return nil, errors.ErrInvalidRequest.WithMessage("subscription is empty")
 	}
-	subscription, err := cp.triggerCtrl.GetSubscription(ctx, &ctrlpb.GetSubscriptionRequest{Id: req.GetSubscriptionId()})
+	subscription, err := cp.triggerCtrl.GetSubscription(ctx, &ctrlpb.GetSubscriptionRequest{
+		Id: req.GetSubscriptionId(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -145,8 +165,11 @@ func (cp *ControllerProxy) ResendDeadLetterEvent(ctx context.Context,
 		return nil, errors.ErrInvalidRequest.WithMessage(
 			fmt.Sprintf("start_offset is invalid, param is %d it but now is %d", offset, storeOffset.Offset))
 	}
-	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(subscription.EventBus)
-	ls, err := cp.client.Eventbus(ctx, deadLetterEventbusName).ListLog(ctx)
+	deadLetterEventbusID, err := cp.getDealLetterEventbusID(ctx, vanus.NewIDFromUint64(subscription.EventbusId))
+	if err != nil {
+		return nil, err
+	}
+	ls, err := cp.client.Eventbus(ctx, api.WithID(deadLetterEventbusID.Uint64())).ListLog(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +185,7 @@ func (cp *ControllerProxy) ResendDeadLetterEvent(ctx context.Context,
 			fmt.Sprintf("end_offset is invalid, param is %d it but start is %d", offset, req.GetEndOffset()))
 	}
 	readPolicy := policy.NewManuallyReadPolicy(ls[0], int64(offset))
-	busReader := cp.client.Eventbus(ctx, deadLetterEventbusName).Reader(
+	busReader := cp.client.Eventbus(ctx, api.WithID(deadLetterEventbusID.Uint64())).Reader(
 		option.WithDisablePolling(),
 		option.WithReadPolicy(readPolicy),
 		option.WithBatchSize(readSize),
@@ -171,14 +194,13 @@ func (cp *ControllerProxy) ResendDeadLetterEvent(ctx context.Context,
 	var events []*cloudevents.CloudEvent
 loop:
 	for {
-		_events, _, _, err := api.Read(ctx, busReader)
-		if err != nil {
-			if errors.Is(err, errors.ErrOffsetOnEnd) {
-				// read end
+		_events, _, _, err2 := api.Read(ctx, busReader)
+		if err2 != nil {
+			if errors.Is(err2, errors.ErrOffsetOnEnd) { // read end
 				break
 			}
 			// todo errors.ErrTryAgain maybe need retry read
-			return nil, err
+			return nil, err2
 		}
 		if len(_events) == 0 {
 			break
@@ -200,22 +222,22 @@ loop:
 			delete(ec.Extensions, primitive.LastDeliveryTime)
 			delete(ec.Extensions, primitive.LastDeliveryError)
 			delete(ec.Extensions, primitive.DeadLetterReason)
-			pbEvent, err := codec.ToProto(v)
-			if err != nil {
-				return nil, err
+			pbEvent, err3 := codec.ToProto(v)
+			if err3 != nil {
+				return nil, err3
 			}
 			events = append(events, pbEvent)
 		}
 		readPolicy.Forward(len(_events))
 		if len(events) > 10 {
-			err = cp.writeDeadLetterEvent(ctx, req.SubscriptionId, endOffset+1, events)
-			if err != nil {
-				return nil, err
+			err2 = cp.writeDeadLetterEvent(ctx, req.SubscriptionId, endOffset+1, events)
+			if err2 != nil {
+				return nil, err2
 			}
 			events = nil
 		}
 	}
-	if len(events) > 0 {
+	if len(events) != 0 {
 		err = cp.writeDeadLetterEvent(ctx, req.SubscriptionId, endOffset+1, events)
 		if err != nil {
 			return nil, err
@@ -224,18 +246,24 @@ loop:
 	return &emptypb.Empty{}, nil
 }
 
-func (cp *ControllerProxy) writeDeadLetterEvent(ctx context.Context,
-	subscriptionID uint64,
-	offset uint64,
-	events []*cloudevents.CloudEvent) error {
+func (cp *ControllerProxy) writeDeadLetterEvent(
+	ctx context.Context, subscriptionID uint64, offset uint64, events []*cloudevents.CloudEvent,
+) error {
+	meta, err := cp.ctrl.EventbusService().GetSystemEventbusByName(ctx, primitive.RetryEventbusName)
+	if err != nil {
+		return err
+	}
 	// write to retry eventbus
-	err := cp.writeEvents(ctx, primitive.GetRetryEventbusName(""), &cloudevents.CloudEventBatch{Events: events})
+	err = cp.writeEvents(ctx, vanus.NewIDFromUint64(meta.Id), &cloudevents.CloudEventBatch{
+		Events: events,
+	})
 	if err != nil {
 		return errors.ErrInternal.Wrap(err).WithMessage("write event error")
 	}
 	// save offset
 	_, err = cp.triggerCtrl.SetDeadLetterEventOffset(ctx, &ctrlpb.SetDeadLetterEventOffsetRequest{
-		SubscriptionId: subscriptionID, Offset: offset})
+		SubscriptionId: subscriptionID, Offset: offset,
+	})
 	if err != nil {
 		return errors.ErrInternal.Wrap(err).WithMessage("save offset error")
 	}

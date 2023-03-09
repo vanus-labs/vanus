@@ -17,17 +17,22 @@ package info
 import (
 	"encoding/json"
 
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type SubscriptionInfo struct {
-	SubscriptionID vanus.ID       `json:"subscriptionID"`
-	Offsets        ListOffsetInfo `json:"offsetInfos"`
+	SubscriptionID vanus.ID       `json:"subscription_id"`
+	Offsets        ListOffsetInfo `json:"offsets"`
 }
 
 type OffsetInfo struct {
-	EventLogID vanus.ID `json:"eventLogID"`
+	EventlogID vanus.ID `json:"eventlog_id"`
 	Offset     uint64   `json:"offset"`
+}
+
+func (i *OffsetInfo) String() string {
+	v, _ := json.Marshal(i)
+	return string(v)
 }
 
 type ListOffsetInfo []OffsetInfo

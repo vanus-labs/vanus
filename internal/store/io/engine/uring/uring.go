@@ -20,28 +20,26 @@ package uring
 import (
 	// standard libraries.
 	"context"
-	"sort"
 
 	// third-party libraries.
 	"github.com/iceber/iouring-go"
 
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/observability/log"
+
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/io"
-	"github.com/linkall-labs/vanus/internal/store/io/engine"
-	"github.com/linkall-labs/vanus/internal/store/io/zone"
-	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/internal/store/io"
+	"github.com/vanus-labs/vanus/internal/store/io/engine"
+	"github.com/vanus-labs/vanus/internal/store/io/zone"
 )
 
 const (
-	defaultResultBufferSize   = 64
-	defaultInflightBufferSize = defaultResultBufferSize
+	defaultResultBufferSize = 64
 )
 
 type uRing struct {
-	ring      *iouring.IOURing
-	resultC   chan iouring.Result
-	inflightC chan uint64
-	seq       uint64
+	ring    *iouring.IOURing
+	resultC chan iouring.Result
 }
 
 // Make sure uRing implements engine.Interface.
@@ -57,9 +55,8 @@ func New() engine.Interface {
 	}
 
 	e := &uRing{
-		ring:      ring,
-		resultC:   make(chan iouring.Result, defaultResultBufferSize),
-		inflightC: make(chan uint64, defaultInflightBufferSize),
+		ring:    ring,
+		resultC: make(chan iouring.Result, defaultResultBufferSize),
 	}
 
 	go e.runCallback()
@@ -76,71 +73,15 @@ func (e *uRing) Close() {
 	close(e.resultC)
 }
 
-type pendingResult struct {
-	seq uint64
-	re  iouring.Result
-}
-
 func (e *uRing) runCallback() {
-	results := make(map[uint64]iouring.Result)
-	pendingResults := make([]pendingResult, 0, defaultInflightBufferSize)
-
 	for result := range e.resultC {
-		seq, _ := result.GetRequestInfo().(uint64)
-		need := <-e.inflightC
-
-		if seq == need {
-			if len(pendingResults) == 0 {
-				_ = result.Callback()
-			} else {
-				pendingResults = append(pendingResults, pendingResult{
-					seq: need,
-					re:  result,
-				})
-			}
-			continue
-		}
-
-		// Buffer and reorder before trigger callback.
-
-		re := results[need]
-		if re != nil {
-			delete(results, need)
-		}
-		pendingResults = append(pendingResults, pendingResult{
-			seq: need,
-			re:  re,
-		})
-
-		if seq > need {
-			results[seq] = result
-		} else {
-			if seq == pendingResults[0].seq {
-				_ = result.Callback()
-				pendingResults = pendingResults[1:]
-				for len(pendingResults) != 0 {
-					if pendingResults[0].re == nil {
-						break
-					}
-					_ = pendingResults[0].re.Callback()
-					pendingResults = pendingResults[1:]
-				}
-			} else {
-				i := sort.Search(len(pendingResults)-1, func(i int) bool {
-					return pendingResults[i].seq >= seq
-				})
-				pendingResults[i].re = result
-			}
-		}
+		_ = result.Callback()
 	}
 }
 
 func (e *uRing) WriteAt(z zone.Interface, b []byte, off int64, so, eo int, cb io.WriteCallback) {
-	seq := e.generateSeq()
-
 	f, offset := z.Raw(off)
 	pr := iouring.Pwrite(int(f.Fd()), b, uint64(offset)).
-		WithInfo(seq).
 		WithCallback(func(result iouring.Result) error {
 			cb(result.ReturnInt())
 			return nil
@@ -151,12 +92,4 @@ func (e *uRing) WriteAt(z zone.Interface, b []byte, off int64, so, eo int, cb io
 		cb(0, err)
 		return
 	}
-
-	e.inflightC <- seq
-}
-
-func (e *uRing) generateSeq() uint64 {
-	seq := e.seq
-	e.seq++
-	return seq
 }

@@ -19,10 +19,10 @@ import (
 	"os"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/container/conque/blocking"
-	"github.com/linkall-labs/vanus/internal/store/io"
-	"github.com/linkall-labs/vanus/internal/store/io/engine"
-	"github.com/linkall-labs/vanus/internal/store/io/zone"
+	"github.com/vanus-labs/vanus/internal/primitive/container/conque/blocking"
+	"github.com/vanus-labs/vanus/internal/store/io"
+	"github.com/vanus-labs/vanus/internal/store/io/engine"
+	"github.com/vanus-labs/vanus/internal/store/io/zone"
 )
 
 type writeTask struct {
@@ -45,6 +45,7 @@ func New(opts ...Option) engine.Interface {
 }
 
 func (e *psync) init(cfg config) *psync {
+	e.q.Init(false)
 	for i := 0; i < cfg.parallel; i++ {
 		go e.run()
 	}

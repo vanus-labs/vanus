@@ -1,4 +1,4 @@
-module github.com/linkall-labs/vanus/observability
+module github.com/vanus-labs/vanus/observability
 
 go 1.18
 

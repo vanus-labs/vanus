@@ -18,11 +18,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
-	"github.com/linkall-labs/vanus/internal/primitive/queue"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+
+	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription"
+	"github.com/vanus-labs/vanus/internal/primitive/queue"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 const (
@@ -40,7 +41,8 @@ type SubscriptionScheduler struct {
 }
 
 func NewSubscriptionScheduler(workerManager Manager,
-	subscriptionManager subscription.Manager) *SubscriptionScheduler {
+	subscriptionManager subscription.Manager,
+) *SubscriptionScheduler {
 	s := &SubscriptionScheduler{
 		normalQueue:         queue.New(),
 		maxRetryPrintLog:    defaultRetryPrintLog,
@@ -67,6 +69,7 @@ func (s *SubscriptionScheduler) Stop() {
 	s.stop()
 	s.normalQueue.ShutDown()
 }
+
 func (s *SubscriptionScheduler) Run() {
 	go func() {
 		ctx := s.ctx

@@ -24,13 +24,15 @@ import (
 	"sync"
 	"time"
 
-	embedetcd "github.com/linkall-labs/embed-etcd"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/kv/etcd"
-	"github.com/linkall-labs/vanus/observability/log"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	"github.com/vanus-labs/vanus/observability/log"
+
+	"github.com/vanus-labs/vanus/internal/controller/member"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/kv/etcd"
 )
 
 const (
@@ -44,13 +46,13 @@ type Config struct {
 	KVPrefix    string
 }
 
-func NewSnowflakeController(cfg Config, member embedetcd.Member) *snowflake { //nolint:revive // it's ok
+func NewSnowflakeController(cfg Config, mem member.Member) *snowflake { //nolint:revive // it's ok
 	sf := &snowflake{
 		cfg:    cfg,
-		member: member,
+		member: mem,
 		r:      rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
-	member.RegisterMembershipChangedProcessor(sf.membershipChangedProcessor)
+	mem.RegisterMembershipChangedProcessor(sf.membershipChangedProcessor)
 	return sf
 }
 
@@ -59,7 +61,7 @@ type snowflake struct {
 	cfg      Config
 	kvStore  kv.Client
 	isLeader bool
-	member   embedetcd.Member
+	member   member.Member
 	nodes    map[uint16]*node
 	mutex    sync.RWMutex
 	r        *rand.Rand
@@ -160,12 +162,12 @@ func (sf *snowflake) Stop() {
 	_ = sf.kvStore.Close()
 }
 
-func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event embedetcd.MembershipChangedEvent) error {
+func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event member.MembershipChangedEvent) error {
 	sf.mutex.Lock()
 	defer sf.mutex.Unlock()
 
 	switch event.Type {
-	case embedetcd.EventBecomeLeader:
+	case member.EventBecomeLeader:
 		if sf.isLeader {
 			return nil
 		}
@@ -208,7 +210,7 @@ func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event embed
 			sf.nodes[n.ID] = n
 		}
 		sf.isLeader = true
-	case embedetcd.EventBecomeFollower:
+	case member.EventBecomeFollower:
 		if !sf.isLeader {
 			return nil
 		}

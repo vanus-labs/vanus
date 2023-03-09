@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	cloudevents "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	cloudevents "github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 )
 
 // MockEventbus is a mock of Eventbus interface.

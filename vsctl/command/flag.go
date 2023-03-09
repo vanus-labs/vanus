@@ -32,6 +32,7 @@ var (
 	eventCreateTime   string
 
 	// for both of eventbus and subscription.
+	namespace           string
 	eventbus            string
 	eventlogID          uint64
 	eventlogNum         int32
@@ -71,11 +72,12 @@ var (
 
 	// for connector
 	connectorConfigFile string
-	kind             string
-	name             string
-	ctype            string
-	connectorVersion string
-	showConnectors   bool
+	kind                string
+	name                string
+	ctype               string
+	annotations         string
+	connectorVersion    string
+	showConnectors      bool
 
 	startOffset uint64
 	endOffset   uint64

@@ -25,15 +25,17 @@ import (
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/types"
-	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/client/pkg/option"
-	"github.com/linkall-labs/vanus/client/pkg/policy"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/timer/metadata"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/client/pkg/option"
+	"github.com/vanus-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/errors"
+
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/timer/metadata"
 )
 
 const (
@@ -298,7 +300,8 @@ func (b *bucket) waitingForExpired(ctx context.Context, events []*ce.Event) {
 }
 
 func (b *bucket) isReadyToDeliver(tm *timingMsg) bool {
-	startTimeOfBucket := tm.getExpiration().UnixNano() - (tm.getExpiration().UnixNano() % b.tick.Nanoseconds())
+	startTimeOfBucket := tm.getExpiration().UnixNano() -
+		(tm.getExpiration().UnixNano() % b.tick.Nanoseconds())
 	return time.Now().UnixNano() >= startTimeOfBucket
 }
 
@@ -313,7 +316,8 @@ func (b *bucket) waitingForFlow(ctx context.Context, events []*ce.Event) {
 }
 
 func (b *bucket) isReadyToFlow(tm *timingMsg) bool {
-	startTimeOfBucket := tm.getExpiration().UnixNano() - (tm.getExpiration().UnixNano() % b.tick.Nanoseconds())
+	startTimeOfBucket := tm.getExpiration().UnixNano() -
+		(tm.getExpiration().UnixNano() % b.tick.Nanoseconds())
 	advanceTimeOfFlow := defaultNumberOfTickFlowInAdvance * b.getTimingWheelElement().prev().tick
 	return time.Now().Add(advanceTimeOfFlow).UnixNano() >= startTimeOfBucket
 }
@@ -328,13 +332,14 @@ func (b *bucket) createEventbus(ctx context.Context) error {
 	if !b.isLeader() {
 		return nil
 	}
-	return b.timingwheel.ctrl.EventbusService().CreateSystemEventbusIfNotExist(ctx, b.eventbus,
+	_, err := b.timingwheel.ctrl.EventbusService().CreateSystemEventbusIfNotExist(ctx, b.eventbus,
 		"System Eventbus For Timing Service")
+	return err
 }
 
 func (b *bucket) connectEventbus(ctx context.Context) {
-	b.eventbusWriter = b.client.Eventbus(ctx, b.eventbus).Writer()
-	b.eventbusReader = b.client.Eventbus(ctx, b.eventbus).Reader()
+	b.eventbusWriter = b.client.Eventbus(ctx, api.WithName(b.eventbus)).Writer()
+	b.eventbusReader = b.client.Eventbus(ctx, api.WithName(b.eventbus)).Reader()
 }
 
 func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
@@ -381,7 +386,7 @@ func (b *bucket) getEvent(ctx context.Context, number int16) (events []*ce.Event
 		time.Sleep(time.Second)
 		return []*ce.Event{}, errors.ErrOffsetOnEnd
 	}
-	ls, err := b.client.Eventbus(ctx, b.eventbus).ListLog(ctx)
+	ls, err := b.client.Eventbus(ctx, api.WithName(b.eventbus)).ListLog(ctx)
 	if err != nil {
 		return []*ce.Event{}, err
 	}
@@ -389,7 +394,8 @@ func (b *bucket) getEvent(ctx context.Context, number int16) (events []*ce.Event
 	readPolicy := option.WithReadPolicy(policy.NewManuallyReadPolicy(ls[0], b.offset))
 	events, _, _, err = api.Read(ctx, b.eventbusReader, readPolicy, option.WithBatchSize(int(number)))
 	if err != nil {
-		if !errors.Is(err, errors.ErrOffsetOnEnd) && !stderr.Is(ctx.Err(), context.Canceled) {
+		if !errors.Is(err, errors.ErrOffsetOnEnd) &&
+			!stderr.Is(ctx.Err(), context.Canceled) {
 			log.Error(ctx, "read failed", map[string]interface{}{
 				log.KeyError: err,
 				"offset":     b.offset,
@@ -480,7 +486,9 @@ func (b *bucket) hasOnEnd(ctx context.Context) bool {
 }
 
 func (b *bucket) recycle(ctx context.Context) {
-	_ = b.timingwheel.ctrl.EventbusService().Delete(ctx, b.eventbus)
+	// TODO(jiangkai): check for errors
+	metaEventbus, _ := b.timingwheel.ctrl.EventbusService().GetSystemEventbusByName(ctx, b.eventbus)
+	_ = b.timingwheel.ctrl.EventbusService().Delete(ctx, metaEventbus.Id)
 	_ = b.deleteOffsetMeta(ctx)
 }
 

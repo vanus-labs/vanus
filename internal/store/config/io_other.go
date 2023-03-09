@@ -19,7 +19,7 @@ package config
 
 import (
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/io/engine"
+	"github.com/vanus-labs/vanus/internal/store/io/engine"
 )
 
 func buildIOEngineEx(cfg IO) engine.Interface {

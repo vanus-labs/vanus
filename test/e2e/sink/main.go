@@ -23,7 +23,8 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/client"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
-	"github.com/linkall-labs/vanus/observability/log"
+
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 func main() {

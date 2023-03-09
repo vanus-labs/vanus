@@ -17,7 +17,7 @@ package option
 import (
 	"time"
 
-	"github.com/linkall-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/client/pkg/api"
 )
 
 func WithWritePolicy(policy api.WritePolicy) api.WriteOption {

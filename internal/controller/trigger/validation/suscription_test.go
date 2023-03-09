@@ -18,10 +18,12 @@ import (
 	"context"
 	"testing"
 
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	. "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/protobuf/types/known/structpb"
+
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 )
 
 func TestSubscriptionRequestValidator(t *testing.T) {
@@ -39,10 +41,10 @@ func TestSubscriptionRequestValidator(t *testing.T) {
 		}
 		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
 	})
-	Convey("eventBus empty", t, func() {
+	Convey("eventbus empty", t, func() {
 		request := &ctrlpb.SubscriptionRequest{
-			Sink:     "sink",
-			EventBus: "",
+			Sink:       "sink",
+			EventbusId: vanus.EmptyID().Uint64(),
 		}
 		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
 	})

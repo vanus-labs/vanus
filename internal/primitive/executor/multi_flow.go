@@ -19,8 +19,8 @@ import (
 	"sync/atomic"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/container/conque/blocking"
-	"github.com/linkall-labs/vanus/internal/primitive/container/conque/unbounded"
+	"github.com/vanus-labs/vanus/internal/primitive/container/conque/blocking"
+	"github.com/vanus-labs/vanus/internal/primitive/container/conque/unbounded"
 )
 
 const defaultInvokeBatchSize = 8
@@ -72,12 +72,13 @@ type MultiFlow struct {
 	parallel int
 }
 
-func NewMultiFlow(parallel int, startImmediately bool) *MultiFlow {
-	return new(MultiFlow).Init(parallel, startImmediately)
+func NewMultiFlow(parallel int, handoff, startImmediately bool) *MultiFlow {
+	return new(MultiFlow).Init(parallel, handoff, startImmediately)
 }
 
-func (mf *MultiFlow) Init(parallel int, startImmediately bool) *MultiFlow {
+func (mf *MultiFlow) Init(parallel int, handoff, startImmediately bool) *MultiFlow {
 	mf.parallel = parallel
+	mf.q.Init(handoff)
 	if startImmediately {
 		mf.Start()
 	}

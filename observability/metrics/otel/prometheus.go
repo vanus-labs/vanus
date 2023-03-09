@@ -16,6 +16,7 @@ package otel
 
 import (
 	"context"
+
 	"go.opentelemetry.io/otel/attribute"
 )
 

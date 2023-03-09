@@ -25,17 +25,17 @@ import (
 	"google.golang.org/grpc"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/log"
-	raftpb "github.com/linkall-labs/vanus/proto/pkg/raft"
-	"github.com/linkall-labs/vanus/raft"
+	"github.com/vanus-labs/vanus/observability/log"
+	raftpb "github.com/vanus-labs/vanus/proto/pkg/raft"
+	"github.com/vanus-labs/vanus/raft"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/internal/store/meta"
-	"github.com/linkall-labs/vanus/internal/store/raft/storage"
-	"github.com/linkall-labs/vanus/internal/store/raft/transport"
-	walog "github.com/linkall-labs/vanus/internal/store/wal"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	"github.com/vanus-labs/vanus/internal/store/meta"
+	"github.com/vanus-labs/vanus/internal/store/raft/storage"
+	"github.com/vanus-labs/vanus/internal/store/raft/transport"
+	walog "github.com/vanus-labs/vanus/internal/store/wal"
 )
 
 type Engine struct {
@@ -171,6 +171,7 @@ func (e *Engine) newAppender(raw block.Raw, s *storage.Storage) Appender {
 		leaderLis:         e.leaderLis,
 		storage:           s,
 		host:              e.host,
+		e:                 e,
 		hint:              make(map[uint64]string, 3),
 		raftExecutor:      e.executor.newRaftFlow(),
 		appendExecutor:    e.executor.newAppendFlow(),

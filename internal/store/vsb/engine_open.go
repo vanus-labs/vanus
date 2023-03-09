@@ -22,13 +22,14 @@ import (
 	"path/filepath"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/errors"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/internal/store/io/zone/file"
-	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	"github.com/vanus-labs/vanus/internal/store/io"
+	"github.com/vanus-labs/vanus/internal/store/io/zone/file"
+	"github.com/vanus-labs/vanus/internal/store/vsb/codec"
 )
 
 const (
@@ -39,13 +40,9 @@ const (
 func (e *engine) Create(ctx context.Context, id vanus.ID, capacity int64) (block.Raw, error) {
 	path := e.resolvePath(id)
 
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_RDWR|os.O_SYNC, defaultFilePerm)
+	f, err := io.CreateFile(path, capacity, os.O_RDWR, true, false)
 	if err != nil {
 		return nil, err
-	}
-
-	if err = f.Truncate(capacity); err != nil {
-		return nil, processError(err, f, path)
 	}
 
 	dec, _ := codec.NewDecoder(false, codec.IndexSize)

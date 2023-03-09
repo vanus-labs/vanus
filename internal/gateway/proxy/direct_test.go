@@ -5,38 +5,39 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	. "github.com/smartystreets/goconvey/convey"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func TestControllerProxy_ProxyMethod(t *testing.T) {
 	Convey("test get event", t, func() {
 		cp := NewControllerProxy(Config{
-			Endpoints: []string{"127.0.0.1:20001",
-				"127.0.0.1:20002", "127.0.0.1:20003"},
+			Endpoints: []string{
+				"127.0.0.1:20001",
+				"127.0.0.1:20002", "127.0.0.1:20003",
+			},
 			ProxyPort:              18082,
 			CloudEventReceiverPort: 18080,
 			Credentials:            insecure.NewCredentials(),
 		})
 		ctrl := gomock.NewController(t)
 
-		eventbusCtrl := ctrlpb.NewMockEventBusControllerClient(ctrl)
+		eventbusCtrl := ctrlpb.NewMockEventbusControllerClient(ctrl)
 		cp.eventbusCtrl = eventbusCtrl
-		eventbusCtrl.EXPECT().CreateEventBus(gomock.Any(), gomock.Any()).Times(1)
-		eventbusCtrl.EXPECT().DeleteEventBus(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
-		eventbusCtrl.EXPECT().GetEventBus(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
-		eventbusCtrl.EXPECT().ListEventBus(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
-		_, _ = cp.CreateEventBus(stdCtx.Background(), &ctrlpb.CreateEventBusRequest{})
-		_, _ = cp.DeleteEventBus(stdCtx.Background(), &metapb.EventBus{})
-		_, _ = cp.GetEventBus(stdCtx.Background(), &metapb.EventBus{})
-		_, _ = cp.ListEventBus(stdCtx.Background(), &emptypb.Empty{})
-		_, err := cp.UpdateEventBus(stdCtx.Background(), &ctrlpb.UpdateEventBusRequest{})
+		eventbusCtrl.EXPECT().CreateEventbus(gomock.Any(), gomock.Any()).Times(1)
+		eventbusCtrl.EXPECT().DeleteEventbus(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
+		eventbusCtrl.EXPECT().GetEventbus(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
+		eventbusCtrl.EXPECT().ListEventbus(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
+		_, _ = cp.CreateEventbus(stdCtx.Background(), &ctrlpb.CreateEventbusRequest{})
+		_, _ = cp.DeleteEventbus(stdCtx.Background(), &wrapperspb.UInt64Value{})
+		_, _ = cp.GetEventbus(stdCtx.Background(), &wrapperspb.UInt64Value{})
+		_, _ = cp.ListEventbus(stdCtx.Background(), &ctrlpb.ListEventbusRequest{})
+		_, err := cp.UpdateEventbus(stdCtx.Background(), &ctrlpb.UpdateEventbusRequest{})
 		So(err, ShouldEqual, errMethodNotImplemented)
 
-		eventlogCtrl := ctrlpb.NewMockEventLogControllerClient(ctrl)
+		eventlogCtrl := ctrlpb.NewMockEventlogControllerClient(ctrl)
 		cp.eventlogCtrl = eventlogCtrl
 		eventlogCtrl.EXPECT().ListSegment(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
 		_, _ = cp.ListSegment(stdCtx.Background(), &ctrlpb.ListSegmentRequest{})

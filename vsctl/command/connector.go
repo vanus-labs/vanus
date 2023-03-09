@@ -23,27 +23,27 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
-var (
-	supportedConnectors = []ConnectorSpec{
-		{
-			Kind:    "source",
-			Type:    "http",
-			Version: "latest",
-		},
-		{
-			Kind:    "sink",
-			Type:    "feishu",
-			Version: "latest",
-		},
-	}
-)
+var supportedConnectors = []ConnectorSpec{
+	{
+		Kind:    "source",
+		Type:    "http",
+		Version: "latest",
+	},
+	{
+		Kind:    "sink",
+		Type:    "feishu",
+		Version: "latest",
+	},
+}
 
 type ConnectorSpec struct {
 	Kind    string
@@ -52,11 +52,12 @@ type ConnectorSpec struct {
 }
 
 type ConnectorCreate struct {
-	Config  string `json:"config,omitempty"`
-	Kind    string `json:"kind,omitempty"`
-	Name    string `json:"name,omitempty"`
-	Type    string `json:"type,omitempty"`
-	Version string `json:"version,omitempty"`
+	Kind        string                 `json:"kind,omitempty"`
+	Name        string                 `json:"name,omitempty"`
+	Type        string                 `json:"type,omitempty"`
+	Version     string                 `json:"version,omitempty"`
+	Config      map[string]interface{} `json:"config,omitempty"`
+	Annotations map[string]string      `json:"annotations,omitempty"`
 }
 
 type ConnectorDelete struct {
@@ -79,7 +80,7 @@ type ConnectorInfo struct {
 	Reason  string `json:"reason,omitempty"`
 }
 
-type GetConnectorOKBody struct {
+type ConnectorOKBody struct {
 	Code    *int32         `json:"code"`
 	Data    *ConnectorInfo `json:"data"`
 	Message *string        `json:"message"`
@@ -155,9 +156,12 @@ func installConnectorCommand() *cobra.Command {
 			if connectorConfigFile == "" {
 				cmdFailedf(cmd, "the --config-file flag MUST be set")
 			}
+			if !IsDNS1123Subdomain(name) {
+				cmdFailedf(cmd, "invalid format of name: %s\n", dns1123SubdomainErrorMsg)
+			}
 
 			if !operatorIsDeployed(cmd, operatorEndpoint) {
-				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://download.linkall.com/vanus/operator/latest.yml")
+				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://dl.vanus.ai/vanus/operator/latest.yml")
 			}
 
 			if isUnsupported(kind, ctype, connectorVersion) {
@@ -170,12 +174,28 @@ func installConnectorCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf(cmd, "get config failed, file: %s, err: %s", connectorConfigFile, err)
 			}
+			config := make(map[string]interface{})
+			err = yaml.Unmarshal(data, config)
+			if err != nil {
+				cmdFailedf(cmd, "yaml unmarshal failed: %s", err)
+			}
 			connector := ConnectorCreate{
-				Config:  data,
 				Kind:    kind,
 				Name:    name,
 				Type:    ctype,
 				Version: connectorVersion,
+				Config:  config,
+			}
+			if annotations != "" {
+				args := strings.Split(annotations, ",")
+				connector.Annotations = make(map[string]string, len(args))
+				for idx := range args {
+					parts := strings.SplitN(args[idx], "=", 2)
+					if len(parts) != 2 {
+						cmdFailedf(cmd, "invalid format of annotations: %s\n", err)
+					}
+					connector.Annotations[parts[0]] = parts[1]
+				}
 			}
 			dataByte, err := json.Marshal(connector)
 			if err != nil {
@@ -193,6 +213,22 @@ func installConnectorCommand() *cobra.Command {
 				cmdFailedf(cmd, "install connector failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Install Connector Failed: %s", resp.Status)
+			}
+
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				cmdFailedf(cmd, "read response body: %s", err)
+			}
+			info := &ConnectorOKBody{}
+			err = json.Unmarshal(body, info)
+			if err != nil {
+				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Install Connector Failed: %s", *info.Message)
+			}
 
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Install Connector Success"})
@@ -215,6 +251,8 @@ func installConnectorCommand() *cobra.Command {
 	cmd.Flags().StringVar(&kind, "kind", "", "connector kind, support 'source' or 'sink'")
 	cmd.Flags().StringVar(&name, "name", "", "connector name")
 	cmd.Flags().StringVar(&ctype, "type", "", "connector type")
+	cmd.Flags().StringVar(&annotations, "annotations", "",
+		"connector annotations (e.g. --annotations key1=value1,key2=value2)")
 	cmd.Flags().BoolVar(&showConnectors, "list", false, "if show all connector of installable")
 	return cmd
 }
@@ -237,7 +275,7 @@ func uninstallConnectorCommand() *cobra.Command {
 			}
 
 			client := &http.Client{}
-			url := fmt.Sprintf("%s%s%s/connectors?name=%s", HttpPrefix, operatorEndpoint, BaseUrl, name)
+			url := fmt.Sprintf("%s%s%s/connectors/%s", HttpPrefix, operatorEndpoint, BaseUrl, name)
 			req, err := http.NewRequest("DELETE", url, &bytes.Reader{})
 			if err != nil {
 				cmdFailedf(cmd, "new http request failed: %s", err)
@@ -249,9 +287,27 @@ func uninstallConnectorCommand() *cobra.Command {
 				cmdFailedf(cmd, "uninstall connector failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Uninstall Connector Failed: %s", resp.Status)
+			}
+
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				cmdFailedf(cmd, "read response body: %s", err)
+			}
+			info := &ConnectorOKBody{}
+			err = json.Unmarshal(body, info)
+			if err != nil {
+				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Uninstall Connector Failed: %s", *info.Message)
+			}
 
 			if IsFormatJSON(cmd) {
-				data, _ := json.Marshal(map[string]interface{}{"Result": "Uninstall Connector Success"})
+				data, _ := json.Marshal(map[string]interface{}{
+					"Result": "Uninstall Connector Success",
+				})
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
@@ -284,7 +340,7 @@ func listConnectorCommand() *cobra.Command {
 			}
 
 			if !operatorIsDeployed(cmd, operatorEndpoint) {
-				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://download.linkall.com/vanus/operator/latest.yml")
+				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://dl.vanus.ai/vanus/operator/latest.yml")
 			}
 
 			client := &http.Client{}
@@ -300,6 +356,10 @@ func listConnectorCommand() *cobra.Command {
 				cmdFailedf(cmd, "get connector failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "List Connectors Failed: %s", resp.Status)
+			}
+
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
 				cmdFailedf(cmd, "read response body: %s", err)
@@ -308,6 +368,9 @@ func listConnectorCommand() *cobra.Command {
 			err = json.Unmarshal(body, info)
 			if err != nil {
 				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "List Connector Failed: %s", *info.Message)
 			}
 
 			if IsFormatJSON(cmd) {
@@ -358,7 +421,7 @@ func getConnectorCommand() *cobra.Command {
 			}
 
 			client := &http.Client{}
-			url := fmt.Sprintf("%s%s%s/connector/%s", HttpPrefix, operatorEndpoint, BaseUrl, name)
+			url := fmt.Sprintf("%s%s%s/connectors/%s", HttpPrefix, operatorEndpoint, BaseUrl, name)
 			req, err := http.NewRequest("GET", url, &bytes.Reader{})
 			if err != nil {
 				cmdFailedf(cmd, "new http request failed: %s", err)
@@ -370,14 +433,21 @@ func getConnectorCommand() *cobra.Command {
 				cmdFailedf(cmd, "get connector failed: %s", err)
 			}
 			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				cmdFailedf(cmd, "Get Connector Failed: %s", resp.Status)
+			}
+
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
 				cmdFailedf(cmd, "read response body: %s", err)
 			}
-			info := &GetConnectorOKBody{}
+			info := &ConnectorOKBody{}
 			err = json.Unmarshal(body, info)
 			if err != nil {
 				cmdFailedf(cmd, "json unmarshal failed: %s", err)
+			}
+			if *info.Code != RespCodeOK {
+				cmdFailedf(cmd, "Get Connector Failed: %s", *info.Message)
 			}
 
 			if IsFormatJSON(cmd) {
@@ -411,10 +481,10 @@ func getConnectorCommand() *cobra.Command {
 	return cmd
 }
 
-func getConfig(file string) (string, error) {
+func getConfig(file string) ([]byte, error) {
 	f, err := os.Open(file)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer f.Close()
 	value := bytes.Buffer{}
@@ -425,12 +495,12 @@ func getConfig(file string) (string, error) {
 			if err == io.EOF {
 				break
 			}
-			return "", err
+			return nil, err
 		}
 		value.Write(line)
 		value.WriteString("\n")
 	}
-	return value.String(), nil
+	return value.Bytes(), nil
 }
 
 func isUnsupported(kind, ctype, version string) bool {

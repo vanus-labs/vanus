@@ -23,10 +23,12 @@ import (
 	"time"
 
 	v2 "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/sdk/golang"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/test/utils"
+
+	vanus "github.com/vanus-labs/sdk/golang"
+	"github.com/vanus-labs/vanus/observability/log"
+
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/test/utils"
 )
 
 var (
@@ -111,7 +113,8 @@ func publishEvents(ctx context.Context, client vanus.Client) {
 				events := make([]*v2.Event, batchSize)
 				for n := 0; n < batchSize; n++ {
 					events[n] = <-ch
-					delayTime := time.Now().Add(time.Duration(rd.Int31n(maximumDelayInSecond)) * time.Second)
+					delayTime := time.Now().Add(time.Duration(
+						rd.Int31n(maximumDelayInSecond)) * time.Second)
 					events[n].SetExtension(primitive.XVanusDeliveryTime, delayTime.Format(time.RFC3339Nano))
 					max := maxDelayTime.Load().(time.Time)
 					for max.Before(delayTime) && !maxDelayTime.CompareAndSwap(max, delayTime) {
@@ -176,7 +179,6 @@ func receiveEvents(ctx context.Context, c vanus.Client) {
 		atomic.AddInt64(&receivedNumber, int64(len(msgs)))
 		return nil
 	})
-
 	if err != nil {
 		log.Error(ctx, "failed to start events listening", map[string]interface{}{
 			log.KeyError: err,

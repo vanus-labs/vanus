@@ -19,7 +19,8 @@ import (
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	cetest "github.com/cloudevents/sdk-go/v2/test"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
+
+	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
 )
 
 func actionBenchmark(command []interface{}) func(b *testing.B) {
@@ -79,4 +80,8 @@ func BenchmarkAction(b *testing.B) {
 	b.Run("replace_with_regex", actionBenchmark([]interface{}{"replace_with_regex", "$.data.str", "a", "Aa"}))
 	b.Run("capitalize_sentence", actionBenchmark([]interface{}{"capitalize_sentence", "$.data.str"}))
 	b.Run("check_custom_values", actionBenchmark([]interface{}{"check_custom_values", "$.data.str", "value", "$.data.target", "true", "false"}))
+	b.Run("split_with_delimiter", actionBenchmark([]interface{}{"split_with_delimiter", "$.data.str", "a", "$.data.target"}))
+	b.Run("unfold_array", actionBenchmark([]interface{}{"unfold_array", "$.data.str", "$.data.target"}))
+	b.Run("extract_missing", actionBenchmark([]interface{}{"extract_missing", "$.data.source", "$.data.target", "true", "false"}))
+	b.Run("replace_between_delimiter", actionBenchmark([]interface{}{"replace_between_delimiter", "$.test", "&&", "&&", "Vanus"}))
 }

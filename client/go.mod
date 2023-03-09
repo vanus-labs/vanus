@@ -1,19 +1,18 @@
-module github.com/linkall-labs/vanus/client
+module github.com/vanus-labs/vanus/client
 
 go 1.18
 
 require (
-	github.com/cloudevents/sdk-go/v2 v2.12.0
+	github.com/cloudevents/sdk-go/v2 v2.13.0
 	github.com/golang/mock v1.6.0
-	github.com/linkall-labs/vanus/observability v0.5.7
-	github.com/linkall-labs/vanus/pkg v0.5.7
-	github.com/linkall-labs/vanus/proto v0.5.7
 	github.com/scylladb/go-set v1.0.2
+	github.com/vanus-labs/vanus/observability v0.5.7
+	github.com/vanus-labs/vanus/pkg v0.5.7
+	github.com/vanus-labs/vanus/proto v0.5.7
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.36.4
 	go.opentelemetry.io/otel/trace v1.11.2
 	go.uber.org/atomic v1.9.0
 	google.golang.org/grpc v1.51.0
-	google.golang.org/protobuf v1.28.1
 )
 
 require (
@@ -43,12 +42,13 @@ require (
 	golang.org/x/text v0.5.0 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
 	google.golang.org/genproto v0.0.0-20221027153422-115e99e71e1c // indirect
+	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 replace (
-	github.com/linkall-labs/vanus/observability => ../observability
-	github.com/linkall-labs/vanus/pkg => ../pkg
-	github.com/linkall-labs/vanus/proto => ../proto
-	github.com/linkall-labs/vanus/raft => ../raft
+	github.com/vanus-labs/vanus/observability => ../observability
+	github.com/vanus-labs/vanus/pkg => ../pkg
+	github.com/vanus-labs/vanus/proto => ../proto
+	github.com/vanus-labs/vanus/raft => ../raft
 )

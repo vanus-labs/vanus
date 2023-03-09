@@ -17,8 +17,8 @@ package function
 import (
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/function/util"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/common"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/function/util"
 )
 
 var DateFormatFunction = function{
@@ -44,10 +44,10 @@ var DateFormatFunction = function{
 
 var UnixTimeFormatFunction = function{
 	name:         "UNIX_TIME_FORMAT",
-	fixedArgs:    []common.Type{common.Number, common.String},
+	fixedArgs:    []common.Type{common.Int, common.String},
 	variadicArgs: common.TypePtr(common.String),
 	fn: func(args []interface{}) (interface{}, error) {
-		t := time.Unix(int64(args[0].(float64)), 0)
+		t := time.Unix(int64(args[0].(int)), 0)
 		loc := time.UTC
 		if len(args) > 2 && args[2].(string) != "" {
 			var err error

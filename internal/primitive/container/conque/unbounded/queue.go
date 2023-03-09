@@ -21,7 +21,7 @@ import (
 	"unsafe"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/runtime"
+	"github.com/vanus-labs/vanus/internal/primitive/runtime"
 )
 
 const (

@@ -20,7 +20,7 @@ import (
 	"time"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/container/conque/blocking"
+	"github.com/vanus-labs/vanus/internal/primitive/container/conque/blocking"
 )
 
 type PendingTask interface {

@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/linkall-labs/vanus/raft/quorum"
-	pb "github.com/linkall-labs/vanus/raft/raftpb"
-	"github.com/linkall-labs/vanus/raft/tracker"
+	"github.com/vanus-labs/vanus/raft/quorum"
+	pb "github.com/vanus-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/raft/tracker"
 )
 
 // Changer facilitates configuration changes. It exposes methods to handle

@@ -19,8 +19,9 @@ import (
 
 	cetest "github.com/cloudevents/sdk-go/v2/test"
 
-	vContext "github.com/linkall-labs/vanus/internal/primitive/transform/context"
 	. "github.com/smartystreets/goconvey/convey"
+
+	vContext "github.com/vanus-labs/vanus/internal/primitive/transform/context"
 )
 
 func TestExecute(t *testing.T) {
