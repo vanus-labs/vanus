@@ -23,9 +23,7 @@ type prefixFilter struct {
 }
 
 func NewPrefixFilter(prefix map[string]string) Filter {
-	f := newCommonFilter(prefix, func(value, compareValue string) bool {
-		return strings.HasPrefix(value, compareValue)
-	})
+	f := newCommonFilter(prefix, strings.HasPrefix)
 	if f == nil {
 		return nil
 	}

@@ -15,7 +15,6 @@
 package primitive
 
 import (
-	"io/ioutil"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -27,7 +26,7 @@ type KvStorageConfig struct {
 }
 
 func LoadConfig(filename string, config interface{}) error {
-	b, err := ioutil.ReadFile(filename)
+	b, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}
