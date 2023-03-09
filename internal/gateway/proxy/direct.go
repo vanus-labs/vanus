@@ -17,6 +17,7 @@ package proxy
 import (
 	"context"
 	"errors"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -33,21 +34,25 @@ func (cp *ControllerProxy) CreateEventbus(
 }
 
 func (cp *ControllerProxy) DeleteEventbus(
-	ctx context.Context, req *ctrlpb.DeleteEventbusRequest,
+	ctx context.Context, id *wrapperspb.UInt64Value,
 ) (*emptypb.Empty, error) {
-	return cp.eventbusCtrl.DeleteEventbus(ctx, req)
+	return cp.eventbusCtrl.DeleteEventbus(ctx, id)
 }
 
 func (cp *ControllerProxy) GetEventbus(
-	ctx context.Context, req *ctrlpb.GetEventbusRequest,
+	ctx context.Context, id *wrapperspb.UInt64Value,
 ) (*metapb.Eventbus, error) {
-	return cp.eventbusCtrl.GetEventbus(ctx, req)
+	return cp.eventbusCtrl.GetEventbus(ctx, id)
 }
 
 func (cp *ControllerProxy) ListEventbus(
 	ctx context.Context, req *ctrlpb.ListEventbusRequest,
 ) (*ctrlpb.ListEventbusResponse, error) {
 	return cp.eventbusCtrl.ListEventbus(ctx, req)
+}
+
+func (cp *ControllerProxy) GetEventbusWithHumanFriendly(ctx context.Context, request *ctrlpb.GetEventbusWithHumanFriendlyRequest) (*metapb.Eventbus, error) {
+	return cp.eventbusCtrl.GetEventbusWithHumanFriendly(ctx, request)
 }
 
 func (cp *ControllerProxy) UpdateEventbus(

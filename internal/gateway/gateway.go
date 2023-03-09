@@ -16,30 +16,27 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"net"
-	"net/http"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
-
 	v2 "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/client"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
-	"github.com/cloudevents/sdk-go/v2/types"
-	"github.com/google/uuid"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	"github.com/vanus-labs/vanus/proto/pkg/codec"
+	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
 	"go.opentelemetry.io/otel/trace"
+	"net"
+	"net/http"
+	"strings"
+	"sync"
 
 	eb "github.com/vanus-labs/vanus/client"
-	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/observability/tracing"
 
 	"github.com/vanus-labs/vanus/internal/gateway/proxy"
-	"github.com/vanus-labs/vanus/internal/primitive"
 )
 
 const (
@@ -112,114 +109,40 @@ func (ga *ceGateway) startCloudEventsReceiver(ctx context.Context) error {
 }
 
 func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event, result protocol.Result) {
-	_ctx, span := ga.tracer.Start(ctx, "receive")
-
-	responseCode := 200
-	start := time.Now()
-	ebName := getEventbusFromPath(requestDataFromContext(_ctx))
-	defer func() {
-		used := float64(time.Since(start)) / float64(time.Millisecond)
-		metrics.GatewayEventReceivedCountVec.WithLabelValues(
-			ebName,
-			metrics.LabelValueProtocolHTTP,
-			strconv.FormatInt(1, 10),
-			strconv.Itoa(responseCode),
-		).Inc()
-
-		metrics.GatewayEventWriteLatencySummaryVec.WithLabelValues(
-			ebName,
-			metrics.LabelValueProtocolHTTP,
-			strconv.FormatInt(1, 10),
-		).Observe(used)
-		span.End()
-	}()
-
-	if ebName == "" {
-		responseCode = http.StatusBadRequest
-		return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid eventbus name")
-	}
-
-	extensions := event.Extensions()
-	err := checkExtension(extensions)
+	eventbusId, err := getEventbusFromPath(requestDataFromContext(ctx))
 	if err != nil {
-		responseCode = http.StatusBadRequest
-		return nil, v2.NewHTTPResult(http.StatusBadRequest, err.Error())
-	}
-
-	event.SetExtension(primitive.XVanusEventbus, ebName)
-	if eventTime, ok := extensions[primitive.XVanusDeliveryTime]; ok {
-		// validate event time
-		if _, err := types.ParseTime(eventTime.(string)); err != nil {
-			log.Error(_ctx, "invalid format of event time", map[string]interface{}{
-				log.KeyError: err,
-				"eventTime":  eventTime.(string),
-			})
-			responseCode = http.StatusBadRequest
-			return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid delivery time")
-		}
-		ebName = primitive.TimerEventbusName
-	}
-
-	v, exist := ga.busWriter.Load(ebName)
-	if !exist {
-		v, _ = ga.busWriter.LoadOrStore(ebName, ga.client.Eventbus(ctx, ebName).Writer())
-	}
-	writer, _ := v.(api.BusWriter)
-	eventID, err := api.AppendOne(ctx, writer, &event)
-	if err != nil {
-		log.Warning(_ctx, "append to failed", map[string]interface{}{
-			log.KeyError: err,
-			"eventbus":   ebName,
-		})
-		responseCode = http.StatusInternalServerError
 		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
-	eventData := EventData{
-		BusName: ebName,
-		EventID: eventID,
-	}
-	re, err = createResponseEvent(eventData)
+
+	e, err := codec.ToProto(&event)
 	if err != nil {
-		responseCode = http.StatusInternalServerError
 		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
+
+	_, err = ga.proxySrv.Publish(ctx, &proxypb.PublishRequest{
+		Events: &cloudevents.CloudEventBatch{
+			Events: []*cloudevents.CloudEvent{e},
+		},
+		EventbusId: eventbusId.Uint64(),
+	})
+
+	if err != nil {
+		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
+	}
+
 	return re, v2.ResultACK
 }
 
-func checkExtension(extensions map[string]interface{}) error {
-	if len(extensions) == 0 {
-		return nil
-	}
-	for name := range extensions {
-		if name == primitive.XVanusDeliveryTime {
-			continue
-		}
-		// event attribute can not prefix with vanus system use
-		if strings.HasPrefix(name, primitive.XVanus) {
-			return fmt.Errorf("invalid ce attribute [%s] perfix %s", name, primitive.XVanus)
-		}
-	}
-	return nil
-}
-
-func getEventbusFromPath(reqData *cehttp.RequestData) string {
+func getEventbusFromPath(reqData *cehttp.RequestData) (vanus.ID, error) {
 	// TODO validate
 	reqPathStr := reqData.URL.String()
 	if !strings.HasPrefix(reqPathStr, httpRequestPrefix) {
-		return ""
+		return vanus.EmptyID(), errors.New("invalid eventbus id")
 	}
-	return strings.TrimLeft(reqPathStr[len(httpRequestPrefix):], "/")
-}
-
-func createResponseEvent(eventData EventData) (*v2.Event, error) {
-	e := v2.NewEvent("1.0")
-	e.SetID(uuid.NewString())
-	e.SetType("ai.vanus.event.stored")
-	e.SetSource("https://vanus.ai/vanus")
-
-	err := e.SetData(v2.ApplicationJSON, eventData)
+	id, err := vanus.NewIDFromString(strings.TrimLeft(reqPathStr[len(httpRequestPrefix):], "/"))
 	if err != nil {
-		return nil, err
+		return vanus.EmptyID(), err
 	}
-	return &e, nil
+
+	return id, nil
 }

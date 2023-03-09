@@ -2,6 +2,7 @@ package proxy
 
 import (
 	stdCtx "context"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -30,8 +31,8 @@ func TestControllerProxy_ProxyMethod(t *testing.T) {
 		eventbusCtrl.EXPECT().GetEventbus(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
 		eventbusCtrl.EXPECT().ListEventbus(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
 		_, _ = cp.CreateEventbus(stdCtx.Background(), &ctrlpb.CreateEventbusRequest{})
-		_, _ = cp.DeleteEventbus(stdCtx.Background(), &ctrlpb.DeleteEventbusRequest{})
-		_, _ = cp.GetEventbus(stdCtx.Background(), &ctrlpb.GetEventbusRequest{})
+		_, _ = cp.DeleteEventbus(stdCtx.Background(), &wrapperspb.UInt64Value{})
+		_, _ = cp.GetEventbus(stdCtx.Background(), &wrapperspb.UInt64Value{})
 		_, _ = cp.ListEventbus(stdCtx.Background(), &ctrlpb.ListEventbusRequest{})
 		_, err := cp.UpdateEventbus(stdCtx.Background(), &ctrlpb.UpdateEventbusRequest{})
 		So(err, ShouldEqual, errMethodNotImplemented)
