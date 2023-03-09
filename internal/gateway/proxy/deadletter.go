@@ -249,8 +249,12 @@ loop:
 func (cp *ControllerProxy) writeDeadLetterEvent(
 	ctx context.Context, subscriptionID uint64, offset uint64, events []*cloudevents.CloudEvent,
 ) error {
+	meta, err := cp.ctrl.EventbusService().GetSystemEventbusByName(ctx, primitive.RetryEventbusName)
+	if err != nil {
+		return err
+	}
 	// write to retry eventbus
-	err := cp.writeEvents(ctx, primitive.RetryEventbusName, &cloudevents.CloudEventBatch{
+	err = cp.writeEvents(ctx, vanus.NewIDFromUint64(meta.Id), &cloudevents.CloudEventBatch{
 		Events: events,
 	})
 	if err != nil {
