@@ -65,8 +65,11 @@ func (cp *ControllerProxy) GetDeadLetterEvent(
 		return nil, errors.ErrInvalidRequest.WithMessage(
 			fmt.Sprintf("offset is invalid, param is %d it but now is %d", offset, storeOffset.Offset))
 	}
-	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(subscription.Eventbus)
-	ls, err := cp.client.Eventbus(ctx, deadLetterEventbusName).ListLog(ctx)
+	deadLetterEventbusID, err := cp.getDealLetterEventbusID(ctx, vanus.NewIDFromUint64(subscription.EventbusId))
+	if err != nil {
+		return nil, err
+	}
+	ls, err := cp.client.Eventbus(ctx, api.WithID(deadLetterEventbusID.Uint64())).ListLog(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +86,7 @@ func (cp *ControllerProxy) GetDeadLetterEvent(
 	}
 
 	readPolicy := policy.NewManuallyReadPolicy(ls[0], int64(offset))
-	busReader := cp.client.Eventbus(ctx, deadLetterEventbusName).Reader(
+	busReader := cp.client.Eventbus(ctx, api.WithID(deadLetterEventbusID.Uint64())).Reader(
 		option.WithDisablePolling(),
 		option.WithReadPolicy(readPolicy),
 		option.WithBatchSize(int(num)),
@@ -126,6 +129,17 @@ loop:
 	}, nil
 }
 
+func (cp *ControllerProxy) getDealLetterEventbusID(
+	ctx context.Context, eventbusID vanus.ID,
+) (vanus.ID, error) {
+	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(eventbusID)
+	eb, err := cp.ctrl.EventbusService().GetSystemEventbusByName(ctx, deadLetterEventbusName)
+	if err != nil {
+		return 0, err
+	}
+	return vanus.NewIDFromUint64(eb.Id), nil
+}
+
 func (cp *ControllerProxy) ResendDeadLetterEvent(
 	ctx context.Context, req *proxypb.ResendDeadLetterEventRequest,
 ) (*emptypb.Empty, error) {
@@ -151,8 +165,11 @@ func (cp *ControllerProxy) ResendDeadLetterEvent(
 		return nil, errors.ErrInvalidRequest.WithMessage(
 			fmt.Sprintf("start_offset is invalid, param is %d it but now is %d", offset, storeOffset.Offset))
 	}
-	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(subscription.Eventbus)
-	ls, err := cp.client.Eventbus(ctx, deadLetterEventbusName).ListLog(ctx)
+	deadLetterEventbusID, err := cp.getDealLetterEventbusID(ctx, vanus.NewIDFromUint64(subscription.EventbusId))
+	if err != nil {
+		return nil, err
+	}
+	ls, err := cp.client.Eventbus(ctx, api.WithID(deadLetterEventbusID.Uint64())).ListLog(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +185,7 @@ func (cp *ControllerProxy) ResendDeadLetterEvent(
 			fmt.Sprintf("end_offset is invalid, param is %d it but start is %d", offset, req.GetEndOffset()))
 	}
 	readPolicy := policy.NewManuallyReadPolicy(ls[0], int64(offset))
-	busReader := cp.client.Eventbus(ctx, deadLetterEventbusName).Reader(
+	busReader := cp.client.Eventbus(ctx, api.WithID(deadLetterEventbusID.Uint64())).Reader(
 		option.WithDisablePolling(),
 		option.WithReadPolicy(readPolicy),
 		option.WithBatchSize(readSize),
@@ -233,7 +250,7 @@ func (cp *ControllerProxy) writeDeadLetterEvent(
 	ctx context.Context, subscriptionID uint64, offset uint64, events []*cloudevents.CloudEvent,
 ) error {
 	// write to retry eventbus
-	err := cp.writeEvents(ctx, primitive.GetRetryEventbusName(""), &cloudevents.CloudEventBatch{
+	err := cp.writeEvents(ctx, primitive.RetryEventbusName, &cloudevents.CloudEventBatch{
 		Events: events,
 	})
 	if err != nil {

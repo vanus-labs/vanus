@@ -29,6 +29,7 @@ import (
 	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/eventlog"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
 
@@ -71,7 +72,7 @@ func TestReaderStart(t *testing.T) {
 				// return []*ce.Event{&e}, int64(0), uint64(0), nil
 			})
 		eventCh := make(chan info.EventRecord, 100)
-		r := NewReader(Config{EventbusName: "test", BatchSize: 1}, eventCh).(*reader)
+		r := NewReader(Config{EventbusID: vanus.NewTestID(), BatchSize: 1}, eventCh).(*reader)
 		r.config.Client = mockClient
 		r.Start()
 		var wg sync.WaitGroup

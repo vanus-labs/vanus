@@ -39,7 +39,7 @@ func FromPbSubscriptionRequest(sub *ctrl.SubscriptionRequest) *metadata.Subscrip
 		ProtocolSetting:    fromPbProtocolSettings(sub.ProtocolSettings),
 		Filters:            fromPbFilters(sub.Filters),
 		Transformer:        fromPbTransformer(sub.Transformer),
-		Eventbus:           sub.Eventbus,
+		EventbusID:         vanus.NewIDFromUint64(sub.EventbusId),
 		Name:               sub.Name,
 		Description:        sub.Description,
 	}
@@ -248,32 +248,38 @@ func toPbSubscriptionConfig(config primitive.SubscriptionConfig) *pb.Subscriptio
 
 func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Subscription {
 	to := &primitive.Subscription{
-		ID:              vanus.ID(sub.Id),
-		Sink:            primitive.URI(sub.Sink),
-		SinkCredential:  fromPbSinkCredential(sub.SinkCredential),
-		Protocol:        fromPbProtocol(sub.Protocol),
-		ProtocolSetting: fromPbProtocolSettings(sub.ProtocolSettings),
-		Eventbus:        sub.Eventbus,
-		Offsets:         FromPbOffsetInfos(sub.Offsets),
-		Filters:         fromPbFilters(sub.Filters),
-		Transformer:     fromPbTransformer(sub.Transformer),
-		Config:          fromPbSubscriptionConfig(sub.Config),
+		ID:                   vanus.ID(sub.Id),
+		Sink:                 primitive.URI(sub.Sink),
+		SinkCredential:       fromPbSinkCredential(sub.SinkCredential),
+		Protocol:             fromPbProtocol(sub.Protocol),
+		ProtocolSetting:      fromPbProtocolSettings(sub.ProtocolSettings),
+		EventbusID:           vanus.NewIDFromUint64(sub.EventbusId),
+		DeadLetterEventbusID: vanus.NewIDFromUint64(sub.DeadLetterEventbusId),
+		RetryEventbusID:      vanus.NewIDFromUint64(sub.RetryEventbusId),
+		TimerEventbusID:      vanus.NewIDFromUint64(sub.TimerEventbusId),
+		Offsets:              FromPbOffsetInfos(sub.Offsets),
+		Filters:              fromPbFilters(sub.Filters),
+		Transformer:          fromPbTransformer(sub.Transformer),
+		Config:               fromPbSubscriptionConfig(sub.Config),
 	}
 	return to
 }
 
 func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscriptionRequest {
 	to := &pbtrigger.AddSubscriptionRequest{
-		Id:               uint64(sub.ID),
-		Sink:             string(sub.Sink),
-		SinkCredential:   toPbSinkCredential(sub.SinkCredential),
-		Eventbus:         sub.Eventbus,
-		Offsets:          ToPbOffsetInfos(sub.Offsets),
-		Filters:          toPbFilters(sub.Filters),
-		Transformer:      ToPbTransformer(sub.Transformer),
-		Config:           toPbSubscriptionConfig(sub.Config),
-		Protocol:         toPbProtocol(sub.Protocol),
-		ProtocolSettings: toPbProtocolSettings(sub.ProtocolSetting),
+		Id:                   uint64(sub.ID),
+		Sink:                 string(sub.Sink),
+		SinkCredential:       toPbSinkCredential(sub.SinkCredential),
+		EventbusId:           sub.EventbusID.Uint64(),
+		DeadLetterEventbusId: sub.DeadLetterEventbusID.Uint64(),
+		RetryEventbusId:      sub.RetryEventbusID.Uint64(),
+		TimerEventbusId:      sub.TimerEventbusID.Uint64(),
+		Offsets:              ToPbOffsetInfos(sub.Offsets),
+		Filters:              toPbFilters(sub.Filters),
+		Transformer:          ToPbTransformer(sub.Transformer),
+		Config:               toPbSubscriptionConfig(sub.Config),
+		Protocol:             toPbProtocol(sub.Protocol),
+		ProtocolSettings:     toPbProtocolSettings(sub.ProtocolSetting),
 	}
 	return to
 }
@@ -288,7 +294,7 @@ func ToPbSubscription(sub *metadata.Subscription, offsets info.ListOffsetInfo) *
 		SinkCredential:   toPbSinkCredentialByType(sub.SinkCredentialType),
 		Protocol:         toPbProtocol(sub.Protocol),
 		ProtocolSettings: toPbProtocolSettings(sub.ProtocolSetting),
-		Eventbus:         sub.Eventbus,
+		EventbusId:       sub.EventbusID.Uint64(),
 		Filters:          toPbFilters(sub.Filters),
 		Transformer:      ToPbTransformer(sub.Transformer),
 		Offsets:          ToPbOffsetInfos(offsets),

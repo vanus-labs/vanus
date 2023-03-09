@@ -32,15 +32,14 @@ const (
 )
 
 type Config struct {
-	BufferSize         int
-	MaxRetryAttempts   int32
-	DeliveryTimeout    time.Duration
-	RateLimit          uint32
-	Controllers        []string
-	DeadLetterEventbus string
-	RetryEventbus      string
-	MaxWriteAttempt    int
-	Ordered            bool
+	BufferSize        int
+	MaxRetryAttempts  int32
+	DeliveryTimeout   time.Duration
+	RateLimit         uint32
+	Controllers       []string
+	MaxWriteAttempt   int
+	Ordered           bool
+	DisableDeadLetter bool
 
 	GoroutineSize int
 	SendBatchSize int
@@ -115,19 +114,9 @@ func WithControllers(controllers []string) Option {
 	}
 }
 
-func WithRetry(eventbus string) Option {
+func WithDisableDeadLetter(disable bool) Option {
 	return func(t *trigger) {
-		t.config.RetryEventbus = primitive.GetRetryEventbusName(eventbus)
-	}
-}
-
-func WithDeadLetter(eventbus string, disable bool) Option {
-	return func(t *trigger) {
-		if disable {
-			t.config.DeadLetterEventbus = ""
-		} else {
-			t.config.DeadLetterEventbus = primitive.GetDeadLetterEventbusName(eventbus)
-		}
+		t.config.DisableDeadLetter = disable
 	}
 }
 

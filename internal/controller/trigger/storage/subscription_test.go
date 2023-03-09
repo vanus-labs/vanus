@@ -66,17 +66,17 @@ func TestGetSubscription(t *testing.T) {
 	defer ctrl.Finish()
 	kvClient := kv.NewMockClient(ctrl)
 	s := NewSubscriptionStorage(kvClient).(*subscriptionStorage)
-	subID := vanus.ID(1)
+	subID := vanus.NewTestID()
 	Convey("get subscription", t, func() {
 		expect := &metadata.Subscription{
-			ID:       subID,
-			Eventbus: "bus",
+			ID:         subID,
+			EventbusID: vanus.NewTestID(),
 		}
 		v, _ := json.Marshal(expect)
 		kvClient.EXPECT().Get(ctx, s.getKey(subID)).Return(v, nil)
 		data, err := s.GetSubscription(ctx, subID)
 		So(err, ShouldBeNil)
-		So(data.Eventbus, ShouldEqual, expect.Eventbus)
+		So(data.EventbusID, ShouldEqual, expect.EventbusID)
 	})
 }
 
@@ -86,7 +86,7 @@ func TestDeleteSubscription(t *testing.T) {
 	defer ctrl.Finish()
 	kvClient := kv.NewMockClient(ctrl)
 	s := NewSubscriptionStorage(kvClient).(*subscriptionStorage)
-	subID := vanus.ID(1)
+	subID := vanus.NewTestID()
 	Convey("delete subscription", t, func() {
 		kvClient.EXPECT().Delete(ctx, s.getKey(subID)).Return(nil)
 		err := s.DeleteSubscription(ctx, subID)
@@ -100,11 +100,11 @@ func TestListSubscription(t *testing.T) {
 	defer ctrl.Finish()
 	kvClient := kv.NewMockClient(ctrl)
 	s := NewSubscriptionStorage(kvClient).(*subscriptionStorage)
-	subID := vanus.ID(1)
+	subID := vanus.NewTestID()
 	Convey("list subscription", t, func() {
 		expect := &metadata.Subscription{
-			ID:       subID,
-			Eventbus: "bus",
+			ID:         subID,
+			EventbusID: vanus.NewTestID(),
 		}
 		v, _ := json.Marshal(expect)
 		kvClient.EXPECT().List(ctx, KeyPrefixSubscription.String()).Return([]kv.Pair{
@@ -113,6 +113,6 @@ func TestListSubscription(t *testing.T) {
 		list, err := s.ListSubscription(ctx)
 		So(err, ShouldBeNil)
 		So(len(list), ShouldEqual, 1)
-		So(list[0].Eventbus, ShouldEqual, expect.Eventbus)
+		So(list[0].EventbusID, ShouldEqual, expect.EventbusID)
 	})
 }

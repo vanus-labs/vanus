@@ -180,7 +180,8 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 		return nil, err
 	}
 	// subscription name can't be repeated in an eventbus
-	_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, request.Subscription.Eventbus, request.Subscription.Name)
+	eventbusID := vanus.NewIDFromUint64(request.Subscription.EventbusId)
+	_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, eventbusID, request.Subscription.Name)
 	if _sub != nil {
 		return nil, errors.ErrInvalidRequest.WithMessage(
 			fmt.Sprintf("subscription name %s has exist", request.Subscription.Name))
@@ -226,12 +227,12 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 	if err := validation.ValidateSubscriptionRequest(ctx, request.Subscription); err != nil {
 		return nil, err
 	}
-	if request.Subscription.Eventbus != sub.Eventbus {
+	if request.Subscription.EventbusId != uint64(sub.EventbusID) {
 		return nil, errors.ErrInvalidRequest.WithMessage("can not change eventbus")
 	}
 	if request.Subscription.Name != sub.Name {
 		// subscription name can't be repeated in an eventbus
-		_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, sub.Eventbus, request.Subscription.Name)
+		_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, sub.EventbusID, request.Subscription.Name)
 		if _sub != nil {
 			return nil, errors.ErrInvalidRequest.WithMessage(
 				fmt.Sprintf("subscription name %s has exist", request.Subscription.Name))
@@ -253,7 +254,7 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 		return nil, err
 	}
 	if transChange != 0 {
-		metrics.SubscriptionTransformerGauge.WithLabelValues(sub.Eventbus).Add(float64(transChange))
+		metrics.SubscriptionTransformerGauge.WithLabelValues(sub.EventbusID.Key()).Add(float64(transChange))
 	}
 	resp := convert.ToPbSubscription(sub, nil)
 	return resp, nil
@@ -459,7 +460,7 @@ func (ctrl *controller) ListSubscription(ctx context.Context,
 	subscriptions := ctrl.subscriptionManager.ListSubscription(ctx)
 	list := make([]*metapb.Subscription, 0, len(subscriptions))
 	for _, sub := range subscriptions {
-		if request.Eventbus != "" && request.Eventbus != sub.Eventbus {
+		if request.EventbusId != 0 && request.EventbusId != sub.EventbusID.Uint64() {
 			continue
 		}
 		if request.Name != "" && !strings.Contains(sub.Name, request.Name) {
@@ -619,7 +620,8 @@ func (ctrl *controller) Start() error {
 		return err
 	}
 	ctrl.secretStorage = secretStorage
-	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage, ctrl.secretStorage, ctrl.ebClient)
+	ctrl.subscriptionManager = subscription.NewSubscriptionManager(ctrl.storage, ctrl.secretStorage,
+		ctrl.ebClient, ctrl.cl)
 	ctrl.workerManager = worker.NewTriggerWorkerManager(worker.Config{}, ctrl.storage,
 		ctrl.subscriptionManager, ctrl.requeueSubscription)
 	ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
@@ -650,7 +652,7 @@ func (ctrl *controller) initTriggerSystemEventbus() {
 		}
 
 		// TODO(JiangKai) save id
-		if _, err := ctrl.cl.EventbusService().CreateSystemEventbusIfNotExist(ctx, primitive.GetRetryEventbusName(""),
+		if _, err := ctrl.cl.EventbusService().CreateSystemEventbusIfNotExist(ctx, primitive.RetryEventbusName,
 			"System Eventbus For Trigger Service"); err != nil {
 			log.Error(ctx, "failed to create RetryEventbus, exit", map[string]interface{}{
 				log.KeyError: err,

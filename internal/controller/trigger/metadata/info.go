@@ -75,7 +75,7 @@ type Subscription struct {
 	SinkCredential     primitive.SinkCredential        `json:"-"`
 	Protocol           primitive.Protocol              `json:"protocol,omitempty"`
 	ProtocolSetting    *primitive.ProtocolSetting      `json:"protocol_settings,omitempty"`
-	Eventbus           string                          `json:"eventbus"`
+	EventbusID         vanus.ID                        `json:"eventbus_id"`
 	Transformer        *primitive.Transformer          `json:"transformer,omitempty"`
 	Name               string                          `json:"name"`
 	Description        string                          `json:"description"`
@@ -83,9 +83,12 @@ type Subscription struct {
 	UpdatedAt          time.Time                       `json:"updated_at"`
 
 	// not from api
-	Phase         SubscriptionPhase `json:"phase"`
-	TriggerWorker string            `json:"trigger_worker,omitempty"`
-	HeartbeatTime time.Time         `json:"-"`
+	DeadLetterEventbusID vanus.ID          `json:"dead_letter_eventbus_id"`
+	RetryEventbusID      vanus.ID          `json:"retry_eventbus_id"`
+	TimerEventbusID      vanus.ID          `json:"timer_eventbus_id"`
+	Phase                SubscriptionPhase `json:"phase"`
+	TriggerWorker        string            `json:"trigger_worker,omitempty"`
+	HeartbeatTime        time.Time         `json:"-"`
 }
 
 // Update property change from api .

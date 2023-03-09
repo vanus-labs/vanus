@@ -17,6 +17,7 @@ package subscription
 import (
 	"context"
 
+	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/errors"
 
@@ -40,7 +41,7 @@ func (m *manager) ResetOffsetByTimestamp(ctx context.Context, id vanus.ID,
 	if subscription == nil {
 		return nil, errors.ErrResourceNotFound
 	}
-	offsets, err := m.getOffsetFromCli(ctx, subscription.Eventbus, primitive.SubscriptionConfig{
+	offsets, err := m.getOffsetFromCli(ctx, subscription.EventbusID, primitive.SubscriptionConfig{
 		OffsetTimestamp: &timestamp,
 		OffsetType:      primitive.Timestamp,
 	})
@@ -83,19 +84,20 @@ func (m *manager) GetOrSaveOffset(ctx context.Context, id vanus.ID) (info.ListOf
 		return offsets, nil
 	}
 
-	offsets, err = m.getOffsetFromCli(ctx, subscription.Eventbus, subscription.Config)
+	offsets, err = m.getOffsetFromCli(ctx, subscription.EventbusID, subscription.Config)
 	if err != nil {
 		return nil, err
 	}
 	// get retry eb offset.
 	retryOffset, err := m.getOffsetFromCli(ctx,
-		primitive.GetRetryEventbusName(subscription.Eventbus),
+		subscription.RetryEventbusID,
 		primitive.SubscriptionConfig{
 			OffsetType: primitive.LatestOffset,
 		})
 	if err != nil {
 		return nil, err
 	}
+
 	offsets = append(offsets, retryOffset...)
 	err = m.offsetManager.Offset(ctx, id, offsets, true)
 	if err != nil {
@@ -116,23 +118,20 @@ func (m *manager) GetDeadLetterOffset(ctx context.Context, id vanus.ID) (uint64,
 	if err != nil {
 		return 0, err
 	}
-	if m.deadLetterEventlogID == 0 {
-		logIDs, err := m.getEventlogIDFromCli(ctx,
-			primitive.GetDeadLetterEventbusName(subscription.Eventbus))
-		if err != nil {
-			return 0, err
-		}
-		m.deadLetterEventlogID = logIDs[0]
+	err = m.initDeadLetterEventbus(ctx, subscription.EventbusID)
+	if err != nil {
+		return 0, err
 	}
+	deadLetterEventlogID := m.deadLetterEventlogMap[subscription.DeadLetterEventbusID]
 	for _, offset := range offsets {
-		if offset.EventlogID == m.deadLetterEventlogID {
+		if offset.EventlogID == deadLetterEventlogID {
 			return offset.Offset, err
 		}
 	}
 	// storage offsets no exist
 	t := uint64(subscription.CreatedAt.Unix())
 	cliOffsets, err := m.getOffsetFromCli(ctx,
-		primitive.GetDeadLetterEventbusName(subscription.Eventbus),
+		subscription.DeadLetterEventbusID,
 		primitive.SubscriptionConfig{
 			OffsetTimestamp: &t,
 			OffsetType:      primitive.Timestamp,
@@ -141,7 +140,7 @@ func (m *manager) GetDeadLetterOffset(ctx context.Context, id vanus.ID) (uint64,
 		return 0, err
 	}
 	_ = m.offsetManager.Offset(ctx, id, info.ListOffsetInfo{
-		{EventlogID: m.deadLetterEventlogID, Offset: cliOffsets[0].Offset},
+		{EventlogID: deadLetterEventlogID, Offset: cliOffsets[0].Offset},
 	}, true)
 	return cliOffsets[0].Offset, nil
 }
@@ -151,35 +150,20 @@ func (m *manager) SaveDeadLetterOffset(ctx context.Context, id vanus.ID, offset 
 	if subscription == nil {
 		return errors.ErrResourceNotFound
 	}
-	if m.deadLetterEventlogID == 0 {
-		logIDs, err := m.getEventlogIDFromCli(ctx,
-			primitive.GetDeadLetterEventbusName(subscription.Eventbus))
-		if err != nil {
-			return err
-		}
-		m.deadLetterEventlogID = logIDs[0]
+	err = m.initDeadLetterEventbus(ctx, subscription.EventbusID)
+	if err != nil {
+		return err
 	}
+	deadLetterEventlogID := m.deadLetterEventlogMap[subscription.DeadLetterEventbusID]
 	return m.offsetManager.Offset(ctx, id, info.ListOffsetInfo{{
-		EventlogID: m.deadLetterEventlogID, Offset: offset,
+		EventlogID: deadLetterEventlogID, Offset: offset,
 	}}, true)
 }
 
-func (m *manager) getEventlogIDFromCli(ctx context.Context, eventbus string) ([]vanus.ID, error) {
-	logs, err := m.ebCli.Eventbus(ctx, eventbus).ListLog(ctx)
-	if err != nil {
-		return nil, err
-	}
-	logIDs := make([]vanus.ID, len(logs))
-	for i, l := range logs {
-		logIDs[i] = vanus.NewIDFromUint64(l.ID())
-	}
-	return logIDs, nil
-}
-
-func (m *manager) getOffsetFromCli(ctx context.Context, eventbus string,
+func (m *manager) getOffsetFromCli(ctx context.Context, eventbusID vanus.ID,
 	config primitive.SubscriptionConfig,
 ) (info.ListOffsetInfo, error) {
-	logs, err := m.ebCli.Eventbus(ctx, eventbus).ListLog(ctx)
+	logs, err := m.ebCli.Eventbus(ctx, api.WithID(eventbusID.Uint64())).ListLog(ctx)
 	if err != nil {
 		return nil, err
 	}
