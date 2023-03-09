@@ -24,8 +24,10 @@ import (
 
 	// this project.
 	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/option"
 	"github.com/vanus-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
 )
@@ -35,7 +37,11 @@ func main() {
 
 	c := client.Connect([]string{"localhost:2048"})
 
-	bus := c.Eventbus(ctx, "quick-start")
+	eventbusID, err := vanus.NewIDFromString("0000002689000012")
+	if err != nil {
+		panic("invalid id")
+	}
+	bus := c.Eventbus(ctx, api.WithName("quick-start"), api.WithID(eventbusID.Uint64()))
 	w := bus.Writer()
 	// Create an Event.
 	event := ce.NewEvent()
@@ -58,3 +64,4 @@ func main() {
 		log.Printf("success! eventID:%s\n", eventID)
 	}
 }
+
