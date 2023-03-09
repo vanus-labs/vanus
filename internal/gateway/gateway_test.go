@@ -26,11 +26,10 @@ import (
 	. "github.com/golang/mock/gomock"
 	. "github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
-
 	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
-
 	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestGateway_NewGateway(t *testing.T) {
@@ -110,20 +109,6 @@ func TestGateway_receive(t *testing.T) {
 	// })
 }
 
-func TestGateway_checkExtension(t *testing.T) {
-	Convey("test check extensions", t, func() {
-		e := ce.NewEvent()
-		err := checkExtension(e.Extensions())
-		So(err, ShouldBeNil)
-		e.SetExtension(primitive.XVanusDeliveryTime, "test")
-		err = checkExtension(e.Extensions())
-		So(err, ShouldBeNil)
-		e.SetExtension(primitive.XVanus+"fortest", "test")
-		err = checkExtension(e.Extensions())
-		So(err, ShouldNotBeNil)
-	})
-}
-
 func TestGateway_getEventbusFromPath(t *testing.T) {
 	Convey("test get eventbus from path return nil ", t, func() {
 		reqData := &cehttp.RequestData{
@@ -131,17 +116,19 @@ func TestGateway_getEventbusFromPath(t *testing.T) {
 				Opaque: "/test",
 			},
 		}
-		ret := getEventbusFromPath(reqData)
-		So(ret, ShouldEqual, "")
+		_, err := getEventbusFromPath(reqData)
+		So(err.Error(), ShouldEqual, "invalid eventbus id")
 	})
 	Convey("test get eventbus from path return path ", t, func() {
+		vid := vanus.NewTestID()
 		reqData := &cehttp.RequestData{
 			URL: &url.URL{
-				Opaque: "/gateway/test",
+				Opaque: fmt.Sprintf("/gateway/%d", vid.Uint64()),
 			},
 		}
-		ret := getEventbusFromPath(reqData)
-		So(ret, ShouldEqual, "test")
+		id, err := getEventbusFromPath(reqData)
+		So(id, ShouldEqual, vid)
+		So(err, ShouldBeNil)
 	})
 }
 

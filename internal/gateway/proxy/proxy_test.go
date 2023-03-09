@@ -118,18 +118,18 @@ func TestControllerProxy_GetEvent(t *testing.T) {
 			}
 			reader.EXPECT().Read(gomock.Any()).Times(2).Return(batchret, int64(0), id, nil)
 			res, err := cp.GetEvent(stdCtx.Background(), &proxypb.GetEventRequest{
-				Eventbus: "ut1",
-				Offset:   -123,
-				Number:   1,
+				EventbusId: vanus.NewTestID().Uint64(),
+				Offset:     -123,
+				Number:     1,
 			})
 
 			So(err, ShouldBeNil)
 			So(res.Events, ShouldHaveLength, 1)
 
 			res, err = cp.GetEvent(stdCtx.Background(), &proxypb.GetEventRequest{
-				Eventbus: "ut1",
-				Offset:   0,
-				Number:   1,
+				EventbusId: vanus.NewTestID().Uint64(),
+				Offset:     0,
+				Number:     1,
 			})
 
 			So(err, ShouldBeNil)
@@ -181,9 +181,9 @@ func TestControllerProxy_GetEvent(t *testing.T) {
 			}
 			reader.EXPECT().Read(gomock.Any()).Times(1).Return(ret, int64(1234), id, nil)
 			res, err := cp.GetEvent(stdCtx.Background(), &proxypb.GetEventRequest{
-				Eventbus: "ut1",
-				Offset:   1234,
-				Number:   128,
+				EventbusId: vanus.NewTestID().Uint64(),
+				Offset:     1234,
+				Number:     128,
 			})
 
 			So(err, ShouldBeNil)
@@ -233,8 +233,8 @@ func TestControllerProxy_GetEvent(t *testing.T) {
 			}
 			reader.EXPECT().Read(gomock.Any()).Times(1).Return(ret, offset, id, nil)
 			res, err := cp.GetEvent(stdCtx.Background(), &proxypb.GetEventRequest{
-				Eventbus: "ut1",
-				EventId:  base64.StdEncoding.EncodeToString(b),
+				EventbusId: vanus.NewTestID().Uint64(),
+				EventId:    base64.StdEncoding.EncodeToString(b),
 			})
 
 			So(err, ShouldBeNil)
@@ -394,7 +394,7 @@ func TestControllerProxy_ValidateSubscription(t *testing.T) {
 
 			res, err := cp.ValidateSubscription(ctx, &proxypb.ValidateSubscriptionRequest{
 				SubscriptionId: vanus.NewTestID().Uint64(),
-				Eventbus:       "test",
+				EventbusId:     vanus.NewTestID().Uint64(),
 				Eventlog:       vanus.NewTestID().Uint64(),
 				Offset:         123,
 			})

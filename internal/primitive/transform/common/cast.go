@@ -22,7 +22,7 @@ import (
 	"strings"
 )
 
-func Cast(val interface{}, target Type) (interface{}, error) {
+func Cast(val interface{}, target Type) (interface{}, error) { //nolint:gocyclo,cyclop // ok
 	if target.IsSameType(val) {
 		return val, nil
 	}

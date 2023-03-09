@@ -147,8 +147,9 @@ type ControllerProxy struct {
 }
 
 func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequest) (*emptypb.Empty, error) {
-	if req.EventbusName == "" {
-		return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid eventbus name")
+	meta, _ := cp.ctrl.EventbusService().GetEventbus(ctx, req.EventbusId)
+	if meta == nil {
+		return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid eventbus id")
 	}
 
 	responseCode := 200
@@ -158,20 +159,20 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 		span.End()
 		used := float64(stdtime.Since(start)) / float64(stdtime.Millisecond)
 		metrics.GatewayEventReceivedCountVec.WithLabelValues(
-			req.EventbusName,
+			meta.Name,
 			metrics.LabelValueProtocolHTTP,
 			strconv.FormatInt(int64(len(req.Events.Events)), 10),
 			strconv.Itoa(responseCode),
 		).Add(float64(len(req.Events.Events)))
 
 		metrics.GatewayEventWriteLatencySummaryVec.WithLabelValues(
-			req.EventbusName,
+			meta.Name,
 			metrics.LabelValueProtocolHTTP,
 			strconv.FormatInt(int64(len(req.Events.Events)), 10),
 		).Observe(used)
 	}()
 
-	eventbusName := req.EventbusName
+	eventbusName := meta.Name
 	for idx := range req.Events.Events {
 		e := req.Events.Events[idx]
 		err := checkExtension(e.Attributes)
@@ -195,11 +196,15 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 				responseCode = http.StatusBadRequest
 				return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid delivery time")
 			}
-			req.EventbusName = primitive.TimerEventbusName
+			tID, err := cp.ctrl.EventbusService().GetSystemEventbusByName(ctx, primitive.TimerEventbusName)
+			if err != nil {
+				return nil, err
+			}
+			req.EventbusId = tID.Id
 		}
 	}
 
-	err := cp.writeEvents(ctx, req.EventbusName, req.Events)
+	err := cp.writeEvents(ctx, vanus.NewIDFromUint64(req.EventbusId), req.Events)
 	if err != nil {
 		return nil, err
 	}
@@ -207,20 +212,20 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 }
 
 func (cp *ControllerProxy) writeEvents(ctx context.Context,
-	eventbusName string,
+	eventbusID vanus.ID,
 	events *cloudevents.CloudEventBatch,
 ) error {
-	val, exist := cp.writerMap.Load(eventbusName)
+	val, exist := cp.writerMap.Load(eventbusID)
 	if !exist {
-		val, _ = cp.writerMap.LoadOrStore(eventbusName,
-			cp.client.Eventbus(ctx, eventbusName).Writer())
+		val, _ = cp.writerMap.LoadOrStore(eventbusID,
+			cp.client.Eventbus(ctx, api.WithID(eventbusID.Uint64())).Writer())
 	}
 	w, _ := val.(api.BusWriter)
 	_, err := w.Append(ctx, events)
 	if err != nil {
 		log.Warning(ctx, "append to failed", map[string]interface{}{
 			log.KeyError: err,
-			"eventbus":   eventbusName,
+			"eventbus":   eventbusID.Key(),
 		})
 		return v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
@@ -448,7 +453,7 @@ func newSubscription(
 			Filters:     info.Filters,
 			Sink:        newsink,
 			Protocol:    info.Protocol,
-			Eventbus:    info.Eventbus,
+			EventbusId:  info.EventbusId,
 			Transformer: info.Transformer,
 			Name:        info.Name,
 			Description: info.Description,
@@ -662,13 +667,13 @@ func (cp *ControllerProxy) LookupOffset(ctx context.Context,
 	elList := make([]api.Eventlog, 0)
 	if req.EventlogId > 0 {
 		id := vanus.NewIDFromUint64(req.EventlogId)
-		l, err := cp.client.Eventbus(ctx, req.GetEventbus()).GetLog(ctx, id.Uint64())
+		l, err := cp.client.Eventbus(ctx, api.WithID(req.EventbusId)).GetLog(ctx, id.Uint64())
 		if err != nil {
 			return nil, err
 		}
 		elList = append(elList, l)
 	} else {
-		ls, err := cp.client.Eventbus(ctx, req.GetEventbus()).ListLog(ctx)
+		ls, err := cp.client.Eventbus(ctx, api.WithID(req.EventbusId)).ListLog(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -694,7 +699,8 @@ func (cp *ControllerProxy) LookupOffset(ctx context.Context,
 func (cp *ControllerProxy) GetEvent(ctx context.Context,
 	req *proxypb.GetEventRequest,
 ) (*proxypb.GetEventResponse, error) {
-	if req.GetEventbus() == "" {
+	vid := vanus.NewIDFromUint64(req.EventbusId)
+	if vid == vanus.EmptyID() {
 		return nil, errInvalidEventbus
 	}
 
@@ -715,11 +721,11 @@ func (cp *ControllerProxy) GetEvent(ctx context.Context,
 		num = maximumNumberPerGetRequest
 	}
 
-	ls, err := cp.client.Eventbus(ctx, req.GetEventbus()).ListLog(ctx)
+	ls, err := cp.client.Eventbus(ctx, api.WithID(vid.Uint64())).ListLog(ctx)
 	if err != nil {
 		return nil, err
 	}
-	reader := cp.client.Eventbus(ctx, req.GetEventbus()).Reader(
+	reader := cp.client.Eventbus(ctx, api.WithID(vid.Uint64())).Reader(
 		option.WithDisablePolling(),
 		option.WithReadPolicy(policy.NewManuallyReadPolicy(ls[0], offset)),
 		option.WithBatchSize(int(num)),
@@ -744,7 +750,7 @@ func (cp *ControllerProxy) ValidateSubscription(ctx context.Context,
 ) (*proxypb.ValidateSubscriptionResponse, error) {
 	if req.GetEvent() == nil {
 		res, err := cp.GetEvent(ctx, &proxypb.GetEventRequest{
-			Eventbus:   req.Eventbus,
+			EventbusId: req.EventbusId,
 			EventlogId: req.Eventlog,
 			Offset:     req.Offset,
 			Number:     1,
@@ -801,12 +807,12 @@ func (cp *ControllerProxy) getByEventID(ctx context.Context,
 		return nil, err
 	}
 
-	l, err := cp.client.Eventbus(ctx, req.GetEventbus()).GetLog(ctx, logID)
+	l, err := cp.client.Eventbus(ctx, api.WithID(req.GetEventbusId())).GetLog(ctx, logID)
 	if err != nil {
 		return nil, err
 	}
 
-	reader := cp.client.Eventbus(ctx, req.GetEventbus()).Reader(
+	reader := cp.client.Eventbus(ctx, api.WithID(req.GetEventbusId())).Reader(
 		option.WithReadPolicy(policy.NewManuallyReadPolicy(l, off)),
 		option.WithDisablePolling(),
 	)
