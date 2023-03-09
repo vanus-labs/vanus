@@ -2,13 +2,13 @@ package proxy
 
 import (
 	stdCtx "context"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func TestControllerProxy_ProxyMethod(t *testing.T) {

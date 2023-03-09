@@ -94,7 +94,8 @@ type controller struct {
 	eventbusDeletedCount int64
 }
 
-func (ctrl *controller) GetEventbusWithHumanFriendly(ctx context.Context, request *ctrlpb.GetEventbusWithHumanFriendlyRequest) (*metapb.Eventbus, error) {
+func (ctrl *controller) GetEventbusWithHumanFriendly(ctx context.Context,
+	request *ctrlpb.GetEventbusWithHumanFriendlyRequest) (*metapb.Eventbus, error) {
 	for id, eventbus := range ctrl.eventbusMap {
 		if eventbus.Name == request.EventbusName {
 			return ctrl.getEventbus(id)

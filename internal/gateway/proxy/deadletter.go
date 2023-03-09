@@ -140,7 +140,7 @@ func (cp *ControllerProxy) getDealLetterEventbusID(
 	return vanus.NewIDFromUint64(eb.Id), nil
 }
 
-func (cp *ControllerProxy) ResendDeadLetterEvent(
+func (cp *ControllerProxy) ResendDeadLetterEvent( //nolint:funlen // ok
 	ctx context.Context, req *proxypb.ResendDeadLetterEventRequest,
 ) (*emptypb.Empty, error) {
 	if req.GetSubscriptionId() == 0 {

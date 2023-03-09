@@ -196,11 +196,11 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 				responseCode = http.StatusBadRequest
 				return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid delivery time")
 			}
-			tId, err := cp.ctrl.EventbusService().GetSystemEventbusByName(ctx, primitive.TimerEventbusName)
+			tID, err := cp.ctrl.EventbusService().GetSystemEventbusByName(ctx, primitive.TimerEventbusName)
 			if err != nil {
 				return nil, err
 			}
-			req.EventbusId = tId.Id
+			req.EventbusId = tID.Id
 		}
 	}
 
@@ -212,20 +212,20 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 }
 
 func (cp *ControllerProxy) writeEvents(ctx context.Context,
-	eventbusId vanus.ID,
+	eventbusID vanus.ID,
 	events *cloudevents.CloudEventBatch,
 ) error {
-	val, exist := cp.writerMap.Load(eventbusId)
+	val, exist := cp.writerMap.Load(eventbusID)
 	if !exist {
-		val, _ = cp.writerMap.LoadOrStore(eventbusId,
-			cp.client.Eventbus(ctx, api.WithID(eventbusId.Uint64())).Writer())
+		val, _ = cp.writerMap.LoadOrStore(eventbusID,
+			cp.client.Eventbus(ctx, api.WithID(eventbusID.Uint64())).Writer())
 	}
 	w, _ := val.(api.BusWriter)
 	_, err := w.Append(ctx, events)
 	if err != nil {
 		log.Warning(ctx, "append to failed", map[string]interface{}{
 			log.KeyError: err,
-			"eventbus":   eventbusId.Key(),
+			"eventbus":   eventbusID.Key(),
 		})
 		return v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}

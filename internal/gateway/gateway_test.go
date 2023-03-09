@@ -17,7 +17,6 @@ package gateway
 import (
 	"context"
 	"fmt"
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"net/url"
 	"testing"
 	"time"
@@ -27,11 +26,10 @@ import (
 	. "github.com/golang/mock/gomock"
 	. "github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
-
 	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
-
 	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestGateway_NewGateway(t *testing.T) {

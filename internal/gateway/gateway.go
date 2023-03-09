@@ -18,25 +18,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
+	"strings"
+
 	v2 "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/client"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
+	eb "github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/internal/gateway/proxy"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/tracing"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
 	"go.opentelemetry.io/otel/trace"
-	"net"
-	"net/http"
-	"strings"
-	"sync"
-
-	eb "github.com/vanus-labs/vanus/client"
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/observability/tracing"
-
-	"github.com/vanus-labs/vanus/internal/gateway/proxy"
 )
 
 const (
@@ -52,7 +50,6 @@ type EventData struct {
 
 type ceGateway struct {
 	// ceClient  v2.Client
-	busWriter  sync.Map
 	config     Config
 	client     eb.Client
 	proxySrv   *proxy.ControllerProxy
@@ -109,7 +106,7 @@ func (ga *ceGateway) startCloudEventsReceiver(ctx context.Context) error {
 }
 
 func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event, result protocol.Result) {
-	eventbusId, err := getEventbusFromPath(requestDataFromContext(ctx))
+	eventbusID, err := getEventbusFromPath(requestDataFromContext(ctx))
 	if err != nil {
 		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
@@ -123,7 +120,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 		Events: &cloudevents.CloudEventBatch{
 			Events: []*cloudevents.CloudEvent{e},
 		},
-		EventbusId: eventbusId.Uint64(),
+		EventbusId: eventbusID.Uint64(),
 	})
 
 	if err != nil {

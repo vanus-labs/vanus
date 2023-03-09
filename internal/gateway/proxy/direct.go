@@ -17,12 +17,11 @@ package proxy
 import (
 	"context"
 	"errors"
-	"google.golang.org/protobuf/types/known/wrapperspb"
-
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 var errMethodNotImplemented = errors.New("the method hasn't implemented")
@@ -51,7 +50,8 @@ func (cp *ControllerProxy) ListEventbus(
 	return cp.eventbusCtrl.ListEventbus(ctx, req)
 }
 
-func (cp *ControllerProxy) GetEventbusWithHumanFriendly(ctx context.Context, request *ctrlpb.GetEventbusWithHumanFriendlyRequest) (*metapb.Eventbus, error) {
+func (cp *ControllerProxy) GetEventbusWithHumanFriendly(ctx context.Context,
+	request *ctrlpb.GetEventbusWithHumanFriendlyRequest) (*metapb.Eventbus, error) {
 	return cp.eventbusCtrl.GetEventbusWithHumanFriendly(ctx, request)
 }
 
