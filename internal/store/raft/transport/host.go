@@ -19,10 +19,6 @@ import (
 	"context"
 	"sync"
 
-	// third-party libraries.
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
-
 	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/raft/raftpb"
@@ -88,8 +84,6 @@ func (h *host) resolveMultiplexer(ctx context.Context, to uint64, endpoint strin
 		if endpoint = h.resolver.Resolve(to); endpoint == "" {
 			return nil
 		}
-		span := trace.SpanFromContext(ctx)
-		span.SetAttributes(attribute.String("endpoint", endpoint))
 	}
 
 	if endpoint == h.callback {

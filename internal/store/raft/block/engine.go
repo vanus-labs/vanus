@@ -171,6 +171,7 @@ func (e *Engine) newAppender(raw block.Raw, s *storage.Storage) Appender {
 		leaderLis:         e.leaderLis,
 		storage:           s,
 		host:              e.host,
+		e:                 e,
 		hint:              make(map[uint64]string, 3),
 		raftExecutor:      e.executor.newRaftFlow(),
 		appendExecutor:    e.executor.newAppendFlow(),

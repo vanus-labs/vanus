@@ -81,6 +81,7 @@ type appender struct {
 	node    *raft.RawNode
 	storage *storage.Storage
 	host    transport.Host
+	e       *Engine
 
 	hint map[uint64]string
 
