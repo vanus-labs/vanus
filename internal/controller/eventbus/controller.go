@@ -20,7 +20,6 @@ import (
 	stdErr "errors"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -30,6 +29,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
@@ -64,7 +64,7 @@ func NewController(cfg Config, mem member.Member) *controller {
 	c := &controller{
 		cfg:         &cfg,
 		ssMgr:       server.NewServerManager(),
-		eventbusMap: map[string]*metadata.Eventbus{},
+		eventbusMap: map[vanus.ID]*metadata.Eventbus{},
 		member:      mem,
 		isLeader:    false,
 		readyNotify: make(chan error, 1),
@@ -81,7 +81,7 @@ type controller struct {
 	volumeMgr            volume.Manager
 	eventlogMgr          eventlog.Manager
 	ssMgr                server.Manager
-	eventbusMap          map[string]*metadata.Eventbus
+	eventbusMap          map[vanus.ID]*metadata.Eventbus
 	member               member.Member
 	cancelCtx            context.Context
 	cancelFunc           context.CancelFunc
@@ -92,6 +92,15 @@ type controller struct {
 	mutex                sync.Mutex
 	eventbusUpdatedCount int64
 	eventbusDeletedCount int64
+}
+
+func (ctrl *controller) GetEventbusWithHumanFriendly(ctx context.Context, request *ctrlpb.GetEventbusWithHumanFriendlyRequest) (*metapb.Eventbus, error) {
+	for id, eventbus := range ctrl.eventbusMap {
+		if eventbus.Name == request.EventbusName {
+			return ctrl.getEventbus(id)
+		}
+	}
+	return nil, errors.ErrResourceNotFound.WithMessage("eventbus not found")
 }
 
 func (ctrl *controller) Start(_ context.Context) error {
@@ -131,7 +140,7 @@ func (ctrl *controller) CreateEventbus(
 	// TODO async create
 	// create dead letter eventbus
 	_, err = ctrl.createEventbus(context.Background(), &ctrlpb.CreateEventbusRequest{
-		Name:        primitive.GetDeadLetterEventbusName(req.Name),
+		Name:        primitive.GetDeadLetterEventbusName(vanus.NewIDFromUint64(eb.Id)),
 		LogNumber:   1,
 		Description: "System DeadLetter Eventbus For " + req.Name,
 	})
@@ -222,7 +231,7 @@ func (ctrl *controller) createEventbus(
 		}
 		eb.Eventlogs[idx] = el
 	}
-	ctrl.eventbusMap[eb.Name] = eb
+	ctrl.eventbusMap[eb.ID] = eb
 
 	{
 		data, _ := json.Marshal(eb)
@@ -230,41 +239,53 @@ func (ctrl *controller) createEventbus(
 			return nil, err
 		}
 	}
-	return ctrl.getEventbus(eb.Name)
+	return ctrl.getEventbus(eb.ID)
 }
 
-func (ctrl *controller) DeleteEventbus(ctx context.Context, eb *ctrlpb.DeleteEventbusRequest) (*emptypb.Empty, error) {
+func (ctrl *controller) getDeadLetterEventbusID(ctx context.Context, id vanus.ID) vanus.ID {
+	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(id)
+	//
+	for _id, eb := range ctrl.eventbusMap {
+		if eb.Name == deadLetterEventbusName {
+			return _id
+		}
+	}
+	return vanus.EmptyID()
+}
+
+func (ctrl *controller) DeleteEventbus(ctx context.Context, eb *wrapperspb.UInt64Value) (*emptypb.Empty, error) {
 	ctrl.mutex.Lock()
 	defer ctrl.mutex.Unlock()
-	err := ctrl.deleteEventbus(ctx, eb.Name)
+	eventbusID := vanus.NewIDFromUint64(eb.GetValue())
+	err := ctrl.deleteEventbus(ctx, eventbusID)
 	if err != nil {
 		return nil, err
 	}
 	// TODO async delete
 	// delete dead letter eventbus
-	err = ctrl.deleteEventbus(context.Background(),
-		primitive.GetDeadLetterEventbusName(eb.Name))
+	deadLetterEventbusID := ctrl.getDeadLetterEventbusID(ctx, eventbusID)
+	err = ctrl.deleteEventbus(context.Background(), deadLetterEventbusID)
 	if err != nil {
 		log.Error(context.Background(), "delete dead letter eventbus error", map[string]interface{}{
-			log.KeyError:        err,
-			log.KeyEventbusName: eb.Name,
+			log.KeyError:      err,
+			log.KeyEventbusID: eventbusID,
 		})
 	}
 	return &emptypb.Empty{}, nil
 }
 
-func (ctrl *controller) deleteEventbus(ctx context.Context, name string) error {
-	bus, exist := ctrl.eventbusMap[name]
+func (ctrl *controller) deleteEventbus(ctx context.Context, id vanus.ID) error {
+	bus, exist := ctrl.eventbusMap[id]
 	if !exist {
 		return errors.ErrResourceNotFound.WithMessage("the eventbus doesn't exist")
 	}
-	err := ctrl.kvStore.Delete(ctx, metadata.GetEventbusMetadataKey(name))
+	err := ctrl.kvStore.Delete(ctx, metadata.GetEventbusMetadataKey(bus.Name))
 	if err != nil {
 		return errors.ErrInternal.WithMessage("delete eventbus metadata in kv failed").Wrap(err)
 	}
 
 	// TODO(wenfeng.wang) notify gateway to cut flow
-	delete(ctrl.eventbusMap, name)
+	delete(ctrl.eventbusMap, id)
 	wg := sync.WaitGroup{}
 
 	for _, v := range bus.Eventlogs {
@@ -279,12 +300,12 @@ func (ctrl *controller) deleteEventbus(ctx context.Context, name string) error {
 	return nil
 }
 
-func (ctrl *controller) GetEventbus(ctx context.Context, eb *ctrlpb.GetEventbusRequest) (*metapb.Eventbus, error) {
-	return ctrl.getEventbus(eb.Name)
+func (ctrl *controller) GetEventbus(ctx context.Context, eb *wrapperspb.UInt64Value) (*metapb.Eventbus, error) {
+	return ctrl.getEventbus(vanus.NewIDFromUint64(eb.GetValue()))
 }
 
-func (ctrl *controller) getEventbus(name string) (*metapb.Eventbus, error) {
-	_eb, exist := ctrl.eventbusMap[name]
+func (ctrl *controller) getEventbus(id vanus.ID) (*metapb.Eventbus, error) {
+	_eb, exist := ctrl.eventbusMap[id]
 	if !exist {
 		return nil, errors.ErrResourceNotFound.WithMessage("eventbus not found")
 	}
@@ -664,7 +685,7 @@ func (ctrl *controller) loadEventbus(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		ctrl.eventbusMap[filepath.Base(pair.Key)] = busInfo
+		ctrl.eventbusMap[busInfo.ID] = busInfo
 	}
 	return nil
 }
