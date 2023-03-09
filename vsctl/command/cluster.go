@@ -33,16 +33,18 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var clusterVersionList = []string{
-	"v0.5.0", "v0.5.1", "v0.5.2", "v0.5.3", "v0.5.4", "v0.5.5", "v0.5.6", "v0.5.7", "v0.6.0",
-}
+var (
+	clusterVersionList = []string{"v0.7.0"}
+)
 
 type ClusterCreate struct {
-	ControllerReplicas    int32  `json:"controller_replicas,omitempty"`
-	ControllerStorageSize string `json:"controller_storage_size,omitempty"`
-	StoreReplicas         int32  `json:"store_replicas,omitempty"`
-	StoreStorageSize      string `json:"store_storage_size,omitempty"`
-	Version               string `json:"version,omitempty"`
+	Version            string `json:"version,omitempty"`
+	ControllerReplicas int32  `json:"controller_replicas,omitempty"`
+	StoreReplicas      int32  `json:"store_replicas,omitempty"`
+	GatewayReplicas    int32  `json:"gateway_replicas,omitempty"`
+	TriggerReplicas    int32  `json:"trigger_replicas,omitempty"`
+	TimerReplicas      int32  `json:"timer_replicas,omitempty"`
+	StoreStorageSize   string `json:"store_storage_size,omitempty"`
 }
 
 type ClusterDelete struct {
@@ -71,12 +73,13 @@ type ClusterSpec struct {
 	Version    string      `yaml:"version"`
 	Controller *Controller `yaml:"controller"`
 	Store      *Store      `yaml:"store"`
+	Gateway    *Gateway    `yaml:"gateway"`
 	Trigger    *Trigger    `yaml:"trigger"`
+	Timer      *Timer      `yaml:"timer"`
 }
 
 type Controller struct {
-	Replicas    int32  `yaml:"replicas"`
-	StorageSize string `yaml:"storage_size"`
+	Replicas int32 `yaml:"replicas"`
 }
 
 type Store struct {
@@ -84,7 +87,15 @@ type Store struct {
 	StorageSize string `yaml:"storage_size"`
 }
 
+type Gateway struct {
+	Replicas int32 `yaml:"replicas"`
+}
+
 type Trigger struct {
+	Replicas int32 `yaml:"replicas"`
+}
+
+type Timer struct {
 	Replicas int32 `yaml:"replicas"`
 }
 
@@ -185,14 +196,15 @@ func createClusterCommand() *cobra.Command {
 
 			clusterspec := table.NewWriter()
 			clusterspec.AppendHeader(table.Row{"Cluster", "Version", "Component", "Replicas", "StorageSize"})
-			clusterspec.AppendRow(table.Row{
-				"vanus", c.Version, "controller",
-				c.Controller.Replicas, c.Controller.StorageSize,
-			})
+			clusterspec.AppendRow(table.Row{"vanus", c.Version, "controller", c.Controller.Replicas, "-"})
 			clusterspec.AppendSeparator()
 			clusterspec.AppendRow(table.Row{"vanus", c.Version, "store", c.Store.Replicas, c.Store.StorageSize})
 			clusterspec.AppendSeparator()
-			clusterspec.AppendRow(table.Row{"vanus", c.Version, "trigger", c.Trigger.Replicas})
+			clusterspec.AppendRow(table.Row{"vanus", c.Version, "gateway", c.Gateway.Replicas, "-"})
+			clusterspec.AppendSeparator()
+			clusterspec.AppendRow(table.Row{"vanus", c.Version, "trigger", c.Trigger.Replicas, "-"})
+			clusterspec.AppendSeparator()
+			clusterspec.AppendRow(table.Row{"vanus", c.Version, "timer", c.Timer.Replicas, "-"})
 			clusterspec.AppendSeparator()
 			clusterspec.SetColumnConfigs(clusterColConfigs())
 			fmt.Println(clusterspec.Render())
@@ -211,11 +223,13 @@ func createClusterCommand() *cobra.Command {
 			client := &http.Client{}
 			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operatorEndpoint, BaseUrl)
 			cluster := ClusterCreate{
-				ControllerReplicas:    c.Controller.Replicas,
-				ControllerStorageSize: c.Controller.StorageSize,
-				StoreReplicas:         c.Store.Replicas,
-				StoreStorageSize:      c.Store.StorageSize,
-				Version:               c.Version,
+				Version:            c.Version,
+				ControllerReplicas: c.Controller.Replicas,
+				GatewayReplicas:    c.Gateway.Replicas,
+				StoreReplicas:      c.Store.Replicas,
+				TriggerReplicas:    c.Trigger.Replicas,
+				TimerReplicas:      c.Timer.Replicas,
+				StoreStorageSize:   c.Store.StorageSize,
 			}
 			dataByte, err := json.Marshal(cluster)
 			if err != nil {
@@ -794,17 +808,22 @@ func genClusterCommand() *cobra.Command {
 		Short: "generate cluster config file template",
 		Run: func(cmd *cobra.Command, args []string) {
 			cluster := &ClusterSpec{
-				Version: "v0.6.0",
+				Version: "v0.7.0",
 				Controller: &Controller{
-					Replicas:    3,
-					StorageSize: "1Gi",
+					Replicas: 3,
 				},
 				Store: &Store{
 					Replicas:    3,
-					StorageSize: "1Gi",
+					StorageSize: "10Gi",
+				},
+				Gateway: &Gateway{
+					Replicas: 1,
 				},
 				Trigger: &Trigger{
 					Replicas: 1,
+				},
+				Timer: &Timer{
+					Replicas: 2,
 				},
 			}
 			data, err := yaml.Marshal(cluster)
@@ -885,3 +904,4 @@ func getUpgradableVersionList(curVersion string) []string {
 	}
 	return clusterVersionList[curIdx+1:]
 }
+
