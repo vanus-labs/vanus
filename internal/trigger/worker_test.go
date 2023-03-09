@@ -20,12 +20,14 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/trigger/trigger"
-	"github.com/linkall-labs/vanus/proto/pkg/controller"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/proto/pkg/controller"
+
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/trigger/trigger"
 )
 
 func testNewTrigger(t trigger.Trigger) newTrigger {
@@ -179,7 +181,7 @@ func TestWorker_Stop(t *testing.T) {
 		triggerClient := controller.NewMockTriggerControllerClient(ctrl)
 		m.client = triggerClient
 		tg.EXPECT().Stop(gomock.Any()).AnyTimes().Return(nil)
-		offsets := info.ListOffsetInfo{{EventLogID: vanus.NewTestID(), Offset: uint64(100)}}
+		offsets := info.ListOffsetInfo{{EventlogID: vanus.NewTestID(), Offset: uint64(100)}}
 		tg.EXPECT().GetOffsets(gomock.Any()).AnyTimes().Return(offsets)
 		triggerClient.EXPECT().CommitOffset(gomock.Any(), gomock.Any()).Return(nil, nil)
 		err = m.Stop(ctx)

@@ -27,7 +27,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/io"
+	"github.com/vanus-labs/vanus/internal/store/io"
 )
 
 const (
@@ -35,7 +35,7 @@ const (
 )
 
 func TestBuffer(t *testing.T) {
-	rand.Seed(time.Now().Unix())
+	r := rand.New(rand.NewSource(time.Now().Unix()))
 
 	Convey("buffer", t, func() {
 		b := Buffer{
@@ -55,10 +55,10 @@ func TestBuffer(t *testing.T) {
 		Convey("append", func() {
 			dataSize := bufferSize - 1
 			data := make([]byte, bufferSize)
-			rand.Read(data)
-			r := bytes.NewBuffer(data[:dataSize])
+			r.Read(data)
+			buffer := bytes.NewBuffer(data[:dataSize])
 
-			n, err := b.Append(r)
+			n, err := b.Append(buffer)
 
 			So(err, ShouldBeNil)
 			So(n, ShouldEqual, dataSize)
@@ -119,8 +119,9 @@ func TestBuffer(t *testing.T) {
 			var flushCount int64
 			ch := make(chan writeTask, 16)
 			doWrite := func() {
+				r2 := rand.New(rand.NewSource(time.Now().Unix()))
 				for t := range ch {
-					time.Sleep(time.Duration(rand.Int63n(10)*100) * time.Microsecond)
+					time.Sleep(time.Duration(r2.Int63n(10)*100) * time.Microsecond)
 					t.cb(t.eo-t.so, nil)
 					atomic.AddInt64(&flushCount, 1)
 				}
@@ -140,8 +141,8 @@ func TestBuffer(t *testing.T) {
 			wg := sync.WaitGroup{}
 			wg.Add(100)
 			for i := 1; i <= 100; i++ {
-				time.Sleep(time.Duration(rand.Int63n(100)*10) * time.Microsecond)
-				b.Append(bytes.NewReader([]byte{byte(rand.Intn(256))}))
+				time.Sleep(time.Duration(r.Int63n(100)*10) * time.Microsecond)
+				b.Append(bytes.NewReader([]byte{byte(r.Intn(256))}))
 				b.Flush(writer, func(off int, err error) {
 					if err == nil {
 						resultC <- off
@@ -162,10 +163,10 @@ func TestBuffer(t *testing.T) {
 		Convey("append with too large data", func() {
 			dataSize := bufferSize + 1
 			data := make([]byte, dataSize)
-			rand.Read(data)
-			r := bytes.NewBuffer(data)
+			r.Read(data)
+			buffer := bytes.NewBuffer(data)
 
-			n, err := b.Append(r)
+			n, err := b.Append(buffer)
 
 			So(err, ShouldBeNil)
 			So(n, ShouldEqual, bufferSize)

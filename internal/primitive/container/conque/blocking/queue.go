@@ -20,8 +20,8 @@ import (
 	"sync/atomic"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/container/conque/unbounded"
-	"github.com/linkall-labs/vanus/internal/primitive/sync"
+	"github.com/vanus-labs/vanus/internal/primitive/container/conque/unbounded"
+	"github.com/vanus-labs/vanus/internal/primitive/sync"
 )
 
 type Queue[T any] struct {

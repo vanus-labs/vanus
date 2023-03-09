@@ -19,9 +19,9 @@ import (
 	"os"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/internal/store/block/raw"
-	"github.com/linkall-labs/vanus/internal/store/io/stream"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	"github.com/vanus-labs/vanus/internal/store/block/raw"
+	"github.com/vanus-labs/vanus/internal/store/io/stream"
 )
 
 const (

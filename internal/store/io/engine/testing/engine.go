@@ -23,8 +23,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/io/engine"
-	"github.com/linkall-labs/vanus/internal/store/io/zone/file"
+	"github.com/vanus-labs/vanus/internal/store/io/engine"
+	"github.com/vanus-labs/vanus/internal/store/io/zone/file"
 )
 
 var (

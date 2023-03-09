@@ -20,7 +20,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/linkall-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/client/pkg/api"
 )
 
 var _ api.WritePolicy = (*roundRobinWritePolicy)(nil)

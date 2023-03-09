@@ -19,12 +19,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestCreateOffset(t *testing.T) {
@@ -34,12 +34,12 @@ func TestCreateOffset(t *testing.T) {
 	kvClient := kv.NewMockClient(ctrl)
 	s := NewOffsetStorage(kvClient).(*offsetStorage)
 	subID := vanus.ID(1)
-	eventLogID := vanus.ID(1)
+	eventlogID := vanus.ID(1)
 	offset := uint64(100)
 	Convey("create offset", t, func() {
-		kvClient.EXPECT().Create(ctx, s.getKey(subID, eventLogID), s.int64ToByteArr(offset)).Return(nil)
+		kvClient.EXPECT().Create(ctx, s.getKey(subID, eventlogID), s.int64ToByteArr(offset)).Return(nil)
 		err := s.CreateOffset(ctx, subID, info.OffsetInfo{
-			EventLogID: eventLogID,
+			EventlogID: eventlogID,
 			Offset:     offset,
 		})
 		So(err, ShouldBeNil)
@@ -53,12 +53,12 @@ func TestUpdateOffset(t *testing.T) {
 	kvClient := kv.NewMockClient(ctrl)
 	s := NewOffsetStorage(kvClient).(*offsetStorage)
 	subID := vanus.ID(1)
-	eventLogID := vanus.ID(1)
+	eventlogID := vanus.ID(1)
 	offset := uint64(100)
 	Convey("update offset", t, func() {
-		kvClient.EXPECT().Update(ctx, s.getKey(subID, eventLogID), s.int64ToByteArr(offset)).Return(nil)
+		kvClient.EXPECT().Update(ctx, s.getKey(subID, eventlogID), s.int64ToByteArr(offset)).Return(nil)
 		err := s.UpdateOffset(ctx, subID, info.OffsetInfo{
-			EventLogID: eventLogID,
+			EventlogID: eventlogID,
 			Offset:     offset,
 		})
 		So(err, ShouldBeNil)
@@ -72,17 +72,17 @@ func TestGetOffset(t *testing.T) {
 	kvClient := kv.NewMockClient(ctrl)
 	s := NewOffsetStorage(kvClient).(*offsetStorage)
 	subID := vanus.ID(1)
-	eventLogID := vanus.ID(1)
+	eventlogID := vanus.ID(1)
 	offset := uint64(100)
 	Convey("get offset", t, func() {
 		kvClient.EXPECT().List(ctx, s.getSubKey(subID)).Return([]kv.Pair{
-			{Key: fmt.Sprintf("/test/%d", eventLogID), Value: s.int64ToByteArr(offset)},
+			{Key: fmt.Sprintf("/test/%d", eventlogID), Value: s.int64ToByteArr(offset)},
 		}, nil)
 		offsets, err := s.GetOffsets(ctx, subID)
 		So(err, ShouldBeNil)
 		So(len(offsets), ShouldEqual, 1)
 		So(offsets[0].Offset, ShouldEqual, offset)
-		So(offsets[0].EventLogID, ShouldEqual, eventLogID)
+		So(offsets[0].EventlogID, ShouldEqual, eventlogID)
 	})
 }
 

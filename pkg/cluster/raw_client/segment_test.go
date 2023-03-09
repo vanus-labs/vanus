@@ -18,15 +18,16 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/linkall-labs/vanus/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 func TestCtrlClientIsNeedRetry(t *testing.T) {
 	Convey("test isNeedRetry", t, func() {
-		//cli := NewSegmentClient([]string{"127.0.0.1:2048", "127.0.0.1:2148", "127.0.0.1:2248"}, insecure.NewCredentials())
+		// cli := NewSegmentClient([]string{"127.0.0.1:2048", "127.0.0.1:2148", "127.0.0.1:2248"}, insecure.NewCredentials())
 		Convey("test error internal", func() {
-			var err = error(errors.ErrNoControllerLeader)
+			err := error(errors.ErrNoControllerLeader)
 			So(isNeedRetry(err), ShouldBeTrue)
 
 			err = fmt.Errorf("test error")

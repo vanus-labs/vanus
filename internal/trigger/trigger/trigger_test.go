@@ -27,15 +27,17 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
-	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/trigger/client"
-	"github.com/linkall-labs/vanus/internal/trigger/info"
-	"github.com/linkall-labs/vanus/internal/trigger/reader"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
 	. "github.com/smartystreets/goconvey/convey"
+
+	eb "github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/trigger/client"
+	"github.com/vanus-labs/vanus/internal/trigger/info"
+	"github.com/vanus-labs/vanus/internal/trigger/reader"
 )
 
 func TestTrigger_Options(t *testing.T) {
@@ -62,12 +64,6 @@ func TestTrigger_Options(t *testing.T) {
 		size = rand.Intn(1000) + size
 		WithRateLimit(uint32(size))(tg)
 		So(tg.config.RateLimit, ShouldEqual, size)
-		WithRetry("test_eb")(tg)
-		So(tg.config.RetryEventbus, ShouldEqual, primitive.GetRetryEventbusName("test_eb"))
-		WithDeadLetter("test_eb", true)(tg)
-		So(tg.config.DeadLetterEventbus, ShouldEqual, "")
-		WithDeadLetter("test_eb", false)(tg)
-		So(tg.config.DeadLetterEventbus, ShouldEqual, primitive.GetDeadLetterEventbusName("test_eb"))
 	})
 }
 
@@ -126,7 +122,8 @@ func TestTriggerWriteFailEvent(t *testing.T) {
 		tg.timerEventWriter = mockBusWriter
 		var callCount int
 		mockBusWriter.EXPECT().Append(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(context.Context,
-			*cloudevents.CloudEventBatch, ...api.WriteOption) ([]string, error) {
+			*cloudevents.CloudEventBatch, ...api.WriteOption,
+		) ([]string, error) {
 			callCount++
 			if callCount%2 != 0 {
 				return []string{""}, fmt.Errorf("append error")
@@ -298,7 +295,9 @@ func TestChangeSubscription(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("change config", func() {
-			err := tg.Change(ctx, &primitive.Subscription{Config: primitive.SubscriptionConfig{RateLimit: 100}})
+			err := tg.Change(ctx, &primitive.Subscription{
+				Config: primitive.SubscriptionConfig{RateLimit: 100},
+			})
 			So(err, ShouldBeNil)
 		})
 	})

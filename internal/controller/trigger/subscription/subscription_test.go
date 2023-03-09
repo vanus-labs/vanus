@@ -20,13 +20,17 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription/offset"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/secret"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/storage"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription/offset"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 )
 
 func TestSubscriptionInit(t *testing.T) {
@@ -35,7 +39,9 @@ func TestSubscriptionInit(t *testing.T) {
 	defer ctrl.Finish()
 	storage := storage.NewMockStorage(ctrl)
 	secret := secret.NewMockStorage(ctrl)
-	m := NewSubscriptionManager(storage, secret, nil)
+	ebCli := client.NewMockClient(ctrl)
+	cl := cluster.NewMockCluster(ctrl)
+	m := NewSubscriptionManager(storage, secret, ebCli, cl)
 
 	Convey("init ", t, func() {
 		subID := vanus.NewTestID()
@@ -62,7 +68,9 @@ func TestGetListSubscription(t *testing.T) {
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
 		secret := secret.NewMockStorage(ctrl)
-		m := NewSubscriptionManager(storage, secret, nil)
+		ebCli := client.NewMockClient(ctrl)
+		cl := cluster.NewMockCluster(ctrl)
+		m := NewSubscriptionManager(storage, secret, ebCli, cl)
 		id := vanus.NewTestID()
 		Convey("list subscription size 0", func() {
 			subscriptions := m.ListSubscription(ctx)
@@ -103,16 +111,25 @@ func TestSubscription(t *testing.T) {
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
 		secret := secret.NewMockStorage(ctrl)
-		m := NewSubscriptionManager(storage, secret, nil)
+		cl := cluster.NewMockCluster(ctrl)
+		m := NewSubscriptionManager(storage, secret, nil, cl)
 		subID := vanus.NewTestID()
+		eventbusID := vanus.NewTestID()
 		Convey("test add subscription", func() {
 			storage.MockSubscriptionStorage.EXPECT().CreateSubscription(ctx, gomock.Any()).Return(nil)
 			secret.EXPECT().Write(gomock.Any(), gomock.Eq(subID), gomock.Any()).Return(nil)
 			credentialType := primitive.AWS
+			ebService := cluster.NewMockEventbusService(ctrl)
+			cl.EXPECT().EventbusService().AnyTimes().Return(ebService)
+			ebService.EXPECT().GetSystemEventbusByName(gomock.Any(), gomock.Any()).AnyTimes().Return(&metapb.Eventbus{
+				Id:   vanus.NewTestID().Uint64(),
+				Logs: []*metapb.Eventlog{{EventlogId: vanus.NewTestID().Uint64()}},
+			}, nil)
 			err := m.AddSubscription(ctx, &metadata.Subscription{
 				ID:                 subID,
 				SinkCredentialType: &credentialType,
 				SinkCredential:     primitive.NewAkSkSinkCredential("test_ak", "test_sk"),
+				EventbusID:         eventbusID,
 			})
 			So(err, ShouldBeNil)
 			Convey("test update subscription", func() {
@@ -120,6 +137,7 @@ func TestSubscription(t *testing.T) {
 				Convey("update sink", func() {
 					updateSub := &metadata.Subscription{
 						ID:                 subID,
+						EventbusID:         eventbusID,
 						SinkCredentialType: &credentialType,
 						SinkCredential:     primitive.NewAkSkSinkCredential("test_ak", "test_sk"),
 						Sink:               "test",

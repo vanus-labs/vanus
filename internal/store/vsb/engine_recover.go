@@ -21,8 +21,8 @@ import (
 	"path/filepath"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store/block"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/store/block"
 )
 
 func (e *engine) Recover(ctx context.Context) (map[vanus.ID]block.Raw, error) {

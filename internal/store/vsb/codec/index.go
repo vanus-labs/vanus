@@ -19,8 +19,8 @@ import (
 	"encoding/binary"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/internal/store/vsb/index"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	"github.com/vanus-labs/vanus/internal/store/vsb/index"
 )
 
 type indexEntryEncoder struct {

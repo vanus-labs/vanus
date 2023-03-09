@@ -15,9 +15,9 @@
 package datetime
 
 import (
-	"github.com/linkall-labs/vanus/internal/primitive/transform/action"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/function"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/action"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/arg"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/function"
 )
 
 // NewDateFormatAction ["date_format", "path", "format"，"timeZone"].

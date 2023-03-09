@@ -19,8 +19,9 @@ import (
 	"os"
 
 	"github.com/fatih/color"
-	"github.com/linkall-labs/vanus/vsctl/command"
 	"github.com/spf13/cobra"
+
+	"github.com/vanus-labs/vanus/vsctl/command"
 )
 
 const (

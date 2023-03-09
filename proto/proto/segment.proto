@@ -14,13 +14,13 @@
 
 syntax = "proto3";
 
-package linkall.vanus.segment;
+package vanus.core.segment;
 
 import "cloudevents.proto";
 import "config.proto";
 import "google/protobuf/empty.proto";
 
-option go_package = "github.com/linkall-labs/vanus/proto/pkg/segment";
+option go_package = "github.com/vanus-labs/vanus/proto/pkg/segment";
 
 service SegmentServer {
   rpc Start(StartSegmentServerRequest) returns (StartSegmentServerResponse);
@@ -65,7 +65,7 @@ message GetBlockInfoRequest {}
 message GetBlockInfoResponse {}
 
 message ActivateSegmentRequest {
-  uint64 event_log_id = 1;
+  uint64 eventlog_id = 1;
   uint64 replica_group_id = 2;
   // block ID and its server endpoint.
   map<uint64, string> replicas = 3;

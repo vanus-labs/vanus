@@ -25,17 +25,18 @@ import (
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/fatih/color"
 	"github.com/go-resty/resty/v2"
 	"github.com/google/uuid"
-	log "k8s.io/klog/v2"
-
-	"github.com/fatih/color"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/kv/etcd"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	"github.com/linkall-labs/vanus/proto/pkg/meta"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	log "k8s.io/klog/v2"
+
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	"github.com/vanus-labs/vanus/proto/pkg/meta"
+
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/kv/etcd"
 )
 
 const (
@@ -54,7 +55,7 @@ const (
 const (
 	// cloudEventDataRowLength = 4
 	HttpPrefix = "http://"
-	EventBus   = "quick-start"
+	Eventbus   = "quick-start"
 )
 
 var (
@@ -136,8 +137,8 @@ func createEventbus(eb string) error {
 		_ = grpcConn.Close()
 	}()
 
-	cli := ctrlpb.NewEventBusControllerClient(grpcConn)
-	res, err := cli.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
+	cli := ctrlpb.NewEventbusControllerClient(grpcConn)
+	res, err := cli.CreateEventbus(ctx, &ctrlpb.CreateEventbusRequest{
 		Name: eb,
 	})
 	if err != nil {
@@ -178,7 +179,7 @@ func createSubscription(eventbus, sink, source, filters, transformer string) err
 			Source:      source,
 			Filters:     filter,
 			Sink:        sink,
-			EventBus:    eventbus,
+			Eventbus:    eventbus,
 			Transformer: trans,
 		},
 	})
@@ -206,7 +207,8 @@ func putEvent(eventbus, eventID, eventType, eventBody, eventSource string) error
 		eventID = uuid.NewString()
 	}
 
-	ceCtx := ce.ContextWithTarget(context.Background(), fmt.Sprintf("%s%s/gateway/%s", HttpPrefix, Endpoint, eventbus))
+	ceCtx := ce.ContextWithTarget(context.Background(),
+		fmt.Sprintf("%s%s/gateway/%s", HttpPrefix, Endpoint, eventbus))
 	event := ce.NewEvent()
 	event.SetID(eventID)
 	event.SetSource(eventSource)
@@ -221,7 +223,7 @@ func putEvent(eventbus, eventID, eventType, eventBody, eventSource string) error
 	return nil
 }
 
-func putEvents(offset, eventNum, threadNum int64, eventBus, eventBody, eventSource string) error {
+func putEvents(offset, eventNum, threadNum int64, eventbus, eventBody, eventSource string) error {
 	var (
 		i       int64
 		eventid int64 = offset
@@ -233,7 +235,7 @@ func putEvents(offset, eventNum, threadNum int64, eventBus, eventBody, eventSour
 		wg.Add(1)
 		go func(first, last int64) {
 			for n := first; n < last; n++ {
-				putEvent(eventBus, fmt.Sprintf("%d", n), EventType, eventBody, eventSource)
+				putEvent(eventbus, fmt.Sprintf("%d", n), EventType, eventBody, eventSource)
 			}
 			wg.Done()
 		}(first, last)
@@ -262,19 +264,19 @@ func getEvent(eventbus, offset, number string) error {
 }
 
 func Test_pre_destructive() {
-	err = createEventbus(EventBus)
+	err = createEventbus(Eventbus)
 	if err != nil {
 		return
 	}
 
-	err = createSubscription(EventBus, Sink, Source, Filters, Transformer)
+	err = createSubscription(Eventbus, Sink, Source, Filters, Transformer)
 	if err != nil {
 		return
 	}
 
-	putEvents(0, 1, 1, EventBus, EventBody, EventSource)
+	putEvents(0, 1, 1, Eventbus, EventBody, EventSource)
 
-	err = getEvent(EventBus, "0", "1")
+	err = getEvent(Eventbus, "0", "1")
 	if err != nil {
 		log.Error("Test_pre_destructive get event failed")
 		return
@@ -283,7 +285,7 @@ func Test_pre_destructive() {
 }
 
 func Test_post_destructive() {
-	err = getEvent(EventBus, "0", "1")
+	err = getEvent(Eventbus, "0", "1")
 	if err != nil {
 		log.Error("Test_post_destructive get event failed")
 		return
@@ -291,7 +293,7 @@ func Test_post_destructive() {
 	log.Info("Test_post_destructive get event success")
 
 	// Currently, only check metadata of eventbus
-	var path string = fmt.Sprintf("%s/%s", EventbusKeyPrefixInKVStore, EventBus)
+	var path string = fmt.Sprintf("%s/%s", EventbusKeyPrefixInKVStore, Eventbus)
 	ctx := context.Background()
 	meta, err := EtcdClient.Get(ctx, path)
 	if err != nil {

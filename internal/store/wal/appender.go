@@ -20,7 +20,7 @@ import (
 	"io"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/wal/record"
+	"github.com/vanus-labs/vanus/internal/store/wal/record"
 )
 
 func (w *WAL) newAppender(ctx context.Context, entries [][]byte, direct bool, callback AppendCallback) *appender {

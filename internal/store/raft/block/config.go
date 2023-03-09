@@ -16,8 +16,8 @@ package block
 
 import (
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/meta"
-	walog "github.com/linkall-labs/vanus/internal/store/wal"
+	"github.com/vanus-labs/vanus/internal/store/meta"
+	walog "github.com/vanus-labs/vanus/internal/store/wal"
 )
 
 const (

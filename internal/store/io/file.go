@@ -22,7 +22,7 @@ import (
 	"github.com/ncw/directio"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 const (

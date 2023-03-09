@@ -21,11 +21,11 @@ import (
 	"io"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/observability/tracing"
+	"github.com/vanus-labs/vanus/pkg/errors"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/block"
+	"github.com/vanus-labs/vanus/internal/store/block"
 )
 
 const (

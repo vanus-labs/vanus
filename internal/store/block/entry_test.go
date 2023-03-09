@@ -25,8 +25,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/block"
-	blktest "github.com/linkall-labs/vanus/internal/store/block/testing"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	blktest "github.com/vanus-labs/vanus/internal/store/block/testing"
 )
 
 var alphabet = []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -40,7 +40,7 @@ func randString(n int) string {
 }
 
 func TestEmptyEntry(t *testing.T) {
-	rand.Seed(time.Now().Unix())
+	rand := rand.New(rand.NewSource(time.Now().Unix()))
 
 	Convey("empty entry", t, func() {
 		ent := block.EmptyEntry{}

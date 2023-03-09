@@ -25,17 +25,18 @@ import (
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
+	"github.com/fatih/color"
 	"github.com/go-resty/resty/v2"
 	"github.com/google/uuid"
-	log "k8s.io/klog/v2"
-
-	"github.com/fatih/color"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/kv/etcd"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	"github.com/linkall-labs/vanus/proto/pkg/meta"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	log "k8s.io/klog/v2"
+
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	"github.com/vanus-labs/vanus/proto/pkg/meta"
+
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/kv/etcd"
 )
 
 const (
@@ -52,7 +53,7 @@ const (
 
 const (
 	HttpPrefix = "http://"
-	EventBus   = "quick-start"
+	Eventbus   = "quick-start"
 )
 
 var (
@@ -134,8 +135,8 @@ func createEventbus(eb string) error {
 		_ = grpcConn.Close()
 	}()
 
-	cli := ctrlpb.NewEventBusControllerClient(grpcConn)
-	res, err := cli.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
+	cli := ctrlpb.NewEventbusControllerClient(grpcConn)
+	res, err := cli.CreateEventbus(ctx, &ctrlpb.CreateEventbusRequest{
 		Name: eb,
 	})
 	if err != nil {
@@ -176,7 +177,7 @@ func createSubscription(eventbus, sink, source, filters, transformer string) err
 			Source:      source,
 			Filters:     filter,
 			Sink:        sink,
-			EventBus:    eventbus,
+			Eventbus:    eventbus,
 			Transformer: trans,
 		},
 	})
@@ -204,7 +205,8 @@ func putEvent(eventbus, eventID, eventType, eventBody, eventSource string) error
 		eventID = uuid.NewString()
 	}
 
-	ceCtx := ce.ContextWithTarget(context.Background(), fmt.Sprintf("%s%s/gateway/%s", HttpPrefix, Endpoint, eventbus))
+	ceCtx := ce.ContextWithTarget(context.Background(),
+		fmt.Sprintf("%s%s/gateway/%s", HttpPrefix, Endpoint, eventbus))
 	event := ce.NewEvent()
 	event.SetID(eventID)
 	event.SetSource(eventSource)
@@ -219,7 +221,7 @@ func putEvent(eventbus, eventID, eventType, eventBody, eventSource string) error
 	return nil
 }
 
-func putEvents(offset, eventNum, threadNum int64, eventBus, eventBody, eventSource string) error {
+func putEvents(offset, eventNum, threadNum int64, eventbus, eventBody, eventSource string) error {
 	var (
 		i       int64
 		eventid int64 = offset
@@ -231,7 +233,7 @@ func putEvents(offset, eventNum, threadNum int64, eventBus, eventBody, eventSour
 		wg.Add(1)
 		go func(first, last int64) {
 			for n := first; n < last; n++ {
-				putEvent(eventBus, fmt.Sprintf("%d", n), EventType, eventBody, eventSource)
+				putEvent(eventbus, fmt.Sprintf("%d", n), EventType, eventBody, eventSource)
 			}
 			wg.Done()
 		}(first, last)
@@ -255,25 +257,26 @@ func getEvent(eventbus, offset, number string) error {
 		log.Errorf("get event from eventbus[%s]&offset[%s]&number[%s] failed, err: %s\n", eventbus, offset, number, err)
 		return err
 	}
-	log.Infof("get event from eventbus[%s]&offset[%s]&number[%s] success, event: %s\n", eventbus, offset, number, event.String())
+	log.Infof("get event from eventbus[%s]&offset[%s]&number[%s] success, event: %s\n",
+		eventbus, offset, number, event.String())
 	return nil
 }
 
 func Test_e2e_base() {
-	eventBus := "eventbus-base"
-	err = createEventbus(eventBus)
+	eventbus := "eventbus-base"
+	err = createEventbus(eventbus)
 	if err != nil {
 		return
 	}
 
-	err = createSubscription(eventBus, Sink, Source, Filters, Transformer)
+	err = createSubscription(eventbus, Sink, Source, Filters, Transformer)
 	if err != nil {
 		return
 	}
 
-	putEvents(0, 10000, 100, eventBus, EventBody, EventSource)
+	putEvents(0, 10000, 100, eventbus, EventBody, EventSource)
 
-	err = getEvent(eventBus, "0", "10000")
+	err = getEvent(eventbus, "0", "10000")
 	if err != nil {
 		log.Error("Test_e2e_base get event failed")
 		return
@@ -282,31 +285,31 @@ func Test_e2e_base() {
 }
 
 func Test_e2e_filter() {
-	eventBus := "eventbus-filter"
-	err = createEventbus(eventBus)
+	eventbus := "eventbus-filter"
+	err = createEventbus(eventbus)
 	if err != nil {
 		return
 	}
 
 	filters := "[{\"exact\": {\"source\":\"filter\"}}]"
-	err = createSubscription(eventBus, Sink, Source, filters, Transformer)
+	err = createSubscription(eventbus, Sink, Source, filters, Transformer)
 	if err != nil {
 		return
 	}
 
 	filters = "[{\"cel\": \"$key.(string) == \\\"value\\\"\"}]"
-	err = createSubscription(eventBus, Sink, Source, filters, Transformer)
+	err = createSubscription(eventbus, Sink, Source, filters, Transformer)
 	if err != nil {
 		return
 	}
 
-	putEvents(0, 2000, 100, eventBus, EventBody, EventSource)
+	putEvents(0, 2000, 100, eventbus, EventBody, EventSource)
 	eventSource := "filter"
-	putEvents(2000, 4000, 10, eventBus, EventBody, eventSource)
+	putEvents(2000, 4000, 10, eventbus, EventBody, eventSource)
 	eventBody := "{\"key\":\"value\"}"
-	putEvents(4000, 4000, 100, eventBus, eventBody, EventSource)
+	putEvents(4000, 4000, 100, eventbus, eventBody, EventSource)
 
-	err = getEvent(eventBus, "0", "8000")
+	err = getEvent(eventbus, "0", "8000")
 	if err != nil {
 		log.Error("Test_e2e_filter get event failed")
 		return
@@ -315,21 +318,21 @@ func Test_e2e_filter() {
 }
 
 func Test_e2e_transformation() {
-	eventBus := "eventbus-transformation"
-	err = createEventbus(eventBus)
+	eventbus := "eventbus-transformation"
+	err = createEventbus(eventbus)
 	if err != nil {
 		return
 	}
 
 	transformer := "{\"template\": \"{\\\"transKey\\\": \\\"transValue\\\"}\"}"
-	err = createSubscription(eventBus, Sink, Source, Filters, transformer)
+	err = createSubscription(eventbus, Sink, Source, Filters, transformer)
 	if err != nil {
 		return
 	}
 
-	putEvents(0, 10000, 100, eventBus, EventBody, EventSource)
+	putEvents(0, 10000, 100, eventbus, EventBody, EventSource)
 
-	err = getEvent(eventBus, "0", "10000")
+	err = getEvent(eventbus, "0", "10000")
 	if err != nil {
 		log.Error("Test_e2e_transformation get event failed")
 		return
@@ -338,14 +341,14 @@ func Test_e2e_transformation() {
 }
 
 func Test_e2e_metadata() {
-	eventBus := "eventbus-meta"
-	err = createEventbus(eventBus)
+	eventbus := "eventbus-meta"
+	err = createEventbus(eventbus)
 	if err != nil {
 		return
 	}
 
 	// Currently, only check metadata of eventbus
-	var path string = fmt.Sprintf("%s/%s", EventbusKeyPrefixInKVStore, eventBus)
+	var path string = fmt.Sprintf("%s/%s", EventbusKeyPrefixInKVStore, eventbus)
 	ctx := context.Background()
 	meta, err := EtcdClient.Get(ctx, path)
 	if err != nil {

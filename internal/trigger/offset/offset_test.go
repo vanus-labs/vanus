@@ -18,21 +18,22 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestSubscriptionOffset(t *testing.T) {
 	Convey("subscription offset", t, func() {
-		eventLogID := vanus.NewTestID()
+		eventlogID := vanus.NewTestID()
 		Convey("commit with no exist eventlog", func() {
 			subOffset := NewSubscriptionOffset(vanus.NewTestID(), 100, info.ListOffsetInfo{})
 			offsetBegin := uint64(1)
 			commitEnd := offsetBegin + 10
 			for offset := offsetBegin; offset < commitEnd; offset++ {
 				subOffset.EventCommit(info.OffsetInfo{
-					EventLogID: eventLogID,
+					EventlogID: eventlogID,
 					Offset:     offset,
 				})
 			}
@@ -49,7 +50,7 @@ func TestSubscriptionOffset(t *testing.T) {
 				go func(offset uint64) {
 					defer wg.Done()
 					subOffset.EventReceive(info.OffsetInfo{
-						EventLogID: eventLogID,
+						EventlogID: eventlogID,
 						Offset:     offset,
 					})
 				}(offset)
@@ -61,7 +62,7 @@ func TestSubscriptionOffset(t *testing.T) {
 				go func(offset uint64) {
 					defer wg.Done()
 					subOffset.EventCommit(info.OffsetInfo{
-						EventLogID: eventLogID,
+						EventlogID: eventlogID,
 						Offset:     offset,
 					})
 				}(offset)
@@ -77,7 +78,7 @@ func TestSubscriptionOffset(t *testing.T) {
 				go func(offset uint64) {
 					defer wg.Done()
 					subOffset.EventCommit(info.OffsetInfo{
-						EventLogID: eventLogID,
+						EventlogID: eventlogID,
 						Offset:     offset,
 					})
 				}(offset)

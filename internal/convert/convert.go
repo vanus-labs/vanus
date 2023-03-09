@@ -15,14 +15,16 @@
 package convert
 
 import (
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	ctrl "github.com/linkall-labs/vanus/proto/pkg/controller"
-	pb "github.com/linkall-labs/vanus/proto/pkg/meta"
-	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
 	"google.golang.org/protobuf/types/known/structpb"
+
+	ctrl "github.com/vanus-labs/vanus/proto/pkg/controller"
+	pb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	pbtrigger "github.com/vanus-labs/vanus/proto/pkg/trigger"
+
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func FromPbSubscriptionRequest(sub *ctrl.SubscriptionRequest) *metadata.Subscription {
@@ -37,7 +39,7 @@ func FromPbSubscriptionRequest(sub *ctrl.SubscriptionRequest) *metadata.Subscrip
 		ProtocolSetting:    fromPbProtocolSettings(sub.ProtocolSettings),
 		Filters:            fromPbFilters(sub.Filters),
 		Transformer:        fromPbTransformer(sub.Transformer),
-		EventBus:           sub.EventBus,
+		EventbusID:         vanus.NewIDFromUint64(sub.EventbusId),
 		Name:               sub.Name,
 		Description:        sub.Description,
 	}
@@ -246,32 +248,38 @@ func toPbSubscriptionConfig(config primitive.SubscriptionConfig) *pb.Subscriptio
 
 func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Subscription {
 	to := &primitive.Subscription{
-		ID:              vanus.ID(sub.Id),
-		Sink:            primitive.URI(sub.Sink),
-		SinkCredential:  fromPbSinkCredential(sub.SinkCredential),
-		Protocol:        fromPbProtocol(sub.Protocol),
-		ProtocolSetting: fromPbProtocolSettings(sub.ProtocolSettings),
-		EventBus:        sub.EventBus,
-		Offsets:         FromPbOffsetInfos(sub.Offsets),
-		Filters:         fromPbFilters(sub.Filters),
-		Transformer:     fromPbTransformer(sub.Transformer),
-		Config:          fromPbSubscriptionConfig(sub.Config),
+		ID:                   vanus.ID(sub.Id),
+		Sink:                 primitive.URI(sub.Sink),
+		SinkCredential:       fromPbSinkCredential(sub.SinkCredential),
+		Protocol:             fromPbProtocol(sub.Protocol),
+		ProtocolSetting:      fromPbProtocolSettings(sub.ProtocolSettings),
+		EventbusID:           vanus.NewIDFromUint64(sub.EventbusId),
+		DeadLetterEventbusID: vanus.NewIDFromUint64(sub.DeadLetterEventbusId),
+		RetryEventbusID:      vanus.NewIDFromUint64(sub.RetryEventbusId),
+		TimerEventbusID:      vanus.NewIDFromUint64(sub.TimerEventbusId),
+		Offsets:              FromPbOffsetInfos(sub.Offsets),
+		Filters:              fromPbFilters(sub.Filters),
+		Transformer:          fromPbTransformer(sub.Transformer),
+		Config:               fromPbSubscriptionConfig(sub.Config),
 	}
 	return to
 }
 
 func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscriptionRequest {
 	to := &pbtrigger.AddSubscriptionRequest{
-		Id:               uint64(sub.ID),
-		Sink:             string(sub.Sink),
-		SinkCredential:   toPbSinkCredential(sub.SinkCredential),
-		EventBus:         sub.EventBus,
-		Offsets:          ToPbOffsetInfos(sub.Offsets),
-		Filters:          toPbFilters(sub.Filters),
-		Transformer:      ToPbTransformer(sub.Transformer),
-		Config:           toPbSubscriptionConfig(sub.Config),
-		Protocol:         toPbProtocol(sub.Protocol),
-		ProtocolSettings: toPbProtocolSettings(sub.ProtocolSetting),
+		Id:                   uint64(sub.ID),
+		Sink:                 string(sub.Sink),
+		SinkCredential:       toPbSinkCredential(sub.SinkCredential),
+		EventbusId:           sub.EventbusID.Uint64(),
+		DeadLetterEventbusId: sub.DeadLetterEventbusID.Uint64(),
+		RetryEventbusId:      sub.RetryEventbusID.Uint64(),
+		TimerEventbusId:      sub.TimerEventbusID.Uint64(),
+		Offsets:              ToPbOffsetInfos(sub.Offsets),
+		Filters:              toPbFilters(sub.Filters),
+		Transformer:          ToPbTransformer(sub.Transformer),
+		Config:               toPbSubscriptionConfig(sub.Config),
+		Protocol:             toPbProtocol(sub.Protocol),
+		ProtocolSettings:     toPbProtocolSettings(sub.ProtocolSetting),
 	}
 	return to
 }
@@ -286,7 +294,7 @@ func ToPbSubscription(sub *metadata.Subscription, offsets info.ListOffsetInfo) *
 		SinkCredential:   toPbSinkCredentialByType(sub.SinkCredentialType),
 		Protocol:         toPbProtocol(sub.Protocol),
 		ProtocolSettings: toPbProtocolSettings(sub.ProtocolSetting),
-		EventBus:         sub.EventBus,
+		EventbusId:       sub.EventbusID.Uint64(),
 		Filters:          toPbFilters(sub.Filters),
 		Transformer:      ToPbTransformer(sub.Transformer),
 		Offsets:          ToPbOffsetInfos(offsets),
@@ -390,7 +398,7 @@ func FromPbOffsetInfos(offsets []*pb.OffsetInfo) info.ListOffsetInfo {
 
 func fromPbOffsetInfo(offset *pb.OffsetInfo) info.OffsetInfo {
 	return info.OffsetInfo{
-		EventLogID: vanus.ID(offset.EventLogId),
+		EventlogID: vanus.ID(offset.EventlogId),
 		Offset:     offset.Offset,
 	}
 }
@@ -414,10 +422,11 @@ func ToPbOffsetInfos(offsets info.ListOffsetInfo) []*pb.OffsetInfo {
 
 func toPbOffsetInfo(offset info.OffsetInfo) *pb.OffsetInfo {
 	return &pb.OffsetInfo{
-		EventLogId: uint64(offset.EventLogID),
+		EventlogId: uint64(offset.EventlogID),
 		Offset:     offset.Offset,
 	}
 }
+
 func fromPbTransformer(transformer *pb.Transformer) *primitive.Transformer {
 	if transformer == nil {
 		return nil

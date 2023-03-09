@@ -15,7 +15,7 @@
 package trigger
 
 import (
-	"github.com/linkall-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive"
 )
 
 type Config struct {

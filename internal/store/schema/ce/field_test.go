@@ -24,7 +24,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	blktest "github.com/linkall-labs/vanus/internal/store/block/testing"
+	blktest "github.com/vanus-labs/vanus/internal/store/block/testing"
 )
 
 func TestField(t *testing.T) {

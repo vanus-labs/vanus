@@ -14,7 +14,7 @@
 
 package ce
 
-import "github.com/linkall-labs/vanus/internal/store/block"
+import "github.com/vanus-labs/vanus/internal/store/block"
 
 const (
 	CloudEvent uint16 = 0x6563 // ASCII of "ce" in little endian

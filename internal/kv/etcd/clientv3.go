@@ -20,9 +20,11 @@ import (
 	"strings"
 	"time"
 
-	kvdef "github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/observability/log"
 	v3client "go.etcd.io/etcd/client/v3"
+
+	"github.com/vanus-labs/vanus/observability/log"
+
+	kvdef "github.com/vanus-labs/vanus/internal/kv"
 )
 
 const (
@@ -74,7 +76,6 @@ func (c *etcdClient3) Create(ctx context.Context, key string, value []byte) erro
 		Then(v3client.OpPut(key, string(value))).
 		Else().
 		Commit()
-
 	if err != nil {
 		return err
 	}
@@ -104,7 +105,6 @@ func (c *etcdClient3) Update(ctx context.Context, key string, value []byte) erro
 		Then(v3client.OpPut(key, string(value))).
 		Else().
 		Commit()
-
 	if err != nil {
 		return err
 	}

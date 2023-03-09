@@ -18,7 +18,7 @@ import (
 	"reflect"
 	"testing"
 
-	pb "github.com/linkall-labs/vanus/raft/raftpb"
+	pb "github.com/vanus-labs/vanus/raft/raftpb"
 )
 
 func TestFindConflict(t *testing.T) {

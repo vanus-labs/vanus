@@ -19,7 +19,7 @@ import (
 	"context"
 
 	// third-party libraries.
-	"github.com/linkall-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/raft/raftpb"
 )
 
 type Sender interface {

@@ -19,18 +19,20 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/cel"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/arg"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
-
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	cesqlparser "github.com/cloudevents/sdk-go/sql/v2/parser"
 	"google.golang.org/api/idtoken"
 	"google.golang.org/api/option"
+
+	"github.com/vanus-labs/vanus/pkg/errors"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/cel"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/arg"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/runtime"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func ValidateSubscriptionRequest(ctx context.Context, request *ctrlpb.SubscriptionRequest) error {
@@ -46,7 +48,7 @@ func ValidateSubscriptionRequest(ctx context.Context, request *ctrlpb.Subscripti
 	if err := validateSinkCredential(ctx, request.Sink, request.SinkCredential); err != nil {
 		return err
 	}
-	if request.EventBus == "" {
+	if request.EventbusId == vanus.EmptyID().Uint64() {
 		return errors.ErrInvalidRequest.WithMessage("eventbus is empty")
 	}
 	if request.Name == "" {
@@ -77,7 +79,8 @@ func validateProtocol(ctx context.Context, protocol metapb.Protocol) error {
 func ValidateSinkAndProtocol(ctx context.Context,
 	sink string,
 	protocol metapb.Protocol,
-	credential *metapb.SinkCredential) error {
+	credential *metapb.SinkCredential,
+) error {
 	if sink == "" {
 		return errors.ErrInvalidRequest.WithMessage("sink is empty")
 	}
@@ -113,11 +116,14 @@ func validateSinkCredential(ctx context.Context, sink string, credential *metapb
 	switch credential.CredentialType {
 	case metapb.SinkCredential_None:
 	case metapb.SinkCredential_PLAIN:
-		if credential.GetPlain().GetIdentifier() == "" || credential.GetPlain().GetSecret() == "" {
-			return errors.ErrInvalidRequest.WithMessage("sink credential type is plain,Identifier and Secret can not empty")
+		if credential.GetPlain().GetIdentifier() == "" ||
+			credential.GetPlain().GetSecret() == "" {
+			return errors.ErrInvalidRequest.WithMessage(
+				"sink credential type is plain,Identifier and Secret can not empty")
 		}
 	case metapb.SinkCredential_AWS:
-		if credential.GetAws().GetAccessKeyId() == "" || credential.GetAws().GetSecretAccessKey() == "" {
+		if credential.GetAws().GetAccessKeyId() == "" ||
+			credential.GetAws().GetSecretAccessKey() == "" {
 			return errors.ErrInvalidRequest.
 				WithMessage("sink credential type is aws,accessKeyId and SecretAccessKey can not empty")
 		}
@@ -127,7 +133,8 @@ func validateSinkCredential(ctx context.Context, sink string, credential *metapb
 			return errors.ErrInvalidRequest.
 				WithMessage("sink credential type is gcloud,credential json can not empty")
 		}
-		_, err := idtoken.NewTokenSource(ctx, sink, option.WithCredentialsJSON([]byte(credentialJSON)))
+		_, err := idtoken.NewTokenSource(ctx, sink,
+			option.WithCredentialsJSON([]byte(credentialJSON)))
 		if err != nil {
 			return errors.ErrInvalidRequest.
 				WithMessage("gcloud credential json invalid").Wrap(err)
@@ -146,7 +153,8 @@ func validateSubscriptionConfig(ctx context.Context, cfg *metapb.SubscriptionCon
 	case metapb.SubscriptionConfig_LATEST, metapb.SubscriptionConfig_EARLIEST:
 	case metapb.SubscriptionConfig_TIMESTAMP:
 		if cfg.OffsetTimestamp == nil {
-			return errors.ErrInvalidRequest.WithMessage("offset type is timestamp, offset timestamp can not be nil")
+			return errors.ErrInvalidRequest.WithMessage(
+				"offset type is timestamp, offset timestamp can not be nil")
 		}
 	default:
 		return errors.ErrInvalidRequest.WithMessage("offset type is invalid")
@@ -268,10 +276,12 @@ func validateAttributeMap(attributeName string, attribute map[string]string) err
 	}
 	for k, v := range attribute {
 		if k == "" {
-			return errors.ErrFilterAttributeIsEmpty.WithMessage(attributeName + " filter dialect attribute name must not empty")
+			return errors.ErrFilterAttributeIsEmpty.WithMessage(
+				attributeName + " filter dialect attribute name must not empty")
 		}
 		if v == "" {
-			return errors.ErrFilterAttributeIsEmpty.WithMessage(attributeName + " filter dialect attribute value must not empty")
+			return errors.ErrFilterAttributeIsEmpty.WithMessage(
+				attributeName + " filter dialect attribute value must not empty")
 		}
 	}
 	return nil

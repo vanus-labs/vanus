@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/linkall-labs/vanus/raft"
+	"github.com/vanus-labs/vanus/raft"
 )
 
 type logLevels [6]string

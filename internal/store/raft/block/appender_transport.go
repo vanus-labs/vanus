@@ -19,11 +19,11 @@ import (
 	"context"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/raft/raftpb"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/raft/transport"
+	"github.com/vanus-labs/vanus/internal/store/raft/transport"
 )
 
 // Make sure appender implements transport.Receiver.
@@ -49,6 +49,7 @@ func (a *appender) Receive(ctx context.Context, msg *raftpb.Message, from uint64
 	a.transportExecutor.Execute(func() {
 		if endpoint != "" && a.hint[from] != endpoint {
 			a.hint[from] = endpoint
+			_ = a.e.RegisterNodeRecord(from, endpoint)
 		}
 
 		a.step(msg)

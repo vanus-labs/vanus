@@ -14,7 +14,7 @@
 
 package raft
 
-import pb "github.com/linkall-labs/vanus/raft/raftpb"
+import pb "github.com/vanus-labs/vanus/raft/raftpb"
 
 // ReadState provides state for read only query.
 // It's caller's responsibility to call ReadIndex first before getting

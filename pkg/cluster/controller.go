@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=controller.go  -destination=mock_controller.go -package=cluster
+//go:generate mockgen -source=controller.go -destination=mock_controller.go -package=cluster
 package cluster
 
 import (
@@ -21,16 +21,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/cluster/raw_client"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	"github.com/vanus-labs/vanus/proto/pkg/meta"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-var (
-	defaultClusterStartTimeout = 3 * time.Minute
-)
+var defaultClusterStartTimeout = 3 * time.Minute
 
 type Topology struct {
 	ControllerLeader string
@@ -50,14 +49,16 @@ type Cluster interface {
 }
 
 type EventbusService interface {
-	IsExist(ctx context.Context, name string) bool
-	CreateSystemEventbusIfNotExist(ctx context.Context, name string, desc string) error
-	Delete(ctx context.Context, name string) error
-	RawClient() ctrlpb.EventBusControllerClient
+	IsExist(ctx context.Context, id uint64) bool
+	CreateSystemEventbusIfNotExist(ctx context.Context, name string, desc string) (*meta.Eventbus, error)
+	Delete(ctx context.Context, id uint64) error
+	GetSystemEventbusByName(ctx context.Context, name string) (*meta.Eventbus, error)
+	GetEventbus(ctx context.Context, id uint64) (*meta.Eventbus, error)
+	RawClient() ctrlpb.EventbusControllerClient
 }
 
 type EventlogService interface {
-	RawClient() ctrlpb.EventLogControllerClient
+	RawClient() ctrlpb.EventlogControllerClient
 }
 
 type TriggerService interface {

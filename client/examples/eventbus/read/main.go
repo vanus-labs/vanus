@@ -19,19 +19,23 @@ import (
 	"context"
 	"log"
 
-	// third-party project.
-
 	// this project.
-	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/option"
-	"github.com/linkall-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/client/pkg/option"
+	"github.com/vanus-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func main() {
 	ctx := context.Background()
 
 	c := client.Connect([]string{"localhost:2048"})
-	eb := c.Eventbus(ctx, "quick-start")
+	eventbusID, err := vanus.NewIDFromString("0000002689000012")
+	if err != nil {
+		panic("invalid id")
+	}
+	eb := c.Eventbus(ctx, api.WithID(eventbusID.Uint64()))
 	ls, err := eb.ListLog(ctx)
 	if err != nil {
 		log.Print(err.Error())

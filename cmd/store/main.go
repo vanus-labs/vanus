@@ -23,16 +23,16 @@ import (
 	"os"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/pkg/util/signal"
+	"github.com/vanus-labs/vanus/observability"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/util/signal"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store"
-	"github.com/linkall-labs/vanus/internal/store/block/raw"
-	"github.com/linkall-labs/vanus/internal/store/segment"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/store"
+	"github.com/vanus-labs/vanus/internal/store/block/raw"
+	"github.com/vanus-labs/vanus/internal/store/segment"
 )
 
 var configPath = flag.String("config", "./config/store.yaml", "store config file path")

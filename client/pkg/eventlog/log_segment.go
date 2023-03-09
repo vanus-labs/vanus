@@ -15,25 +15,25 @@
 package eventlog
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	"encoding/binary"
 	"math"
 	"sync"
 	"time"
 
-	// third-party libraries
+	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/atomic"
 
-	// first-party libraries
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/observability/tracing"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
-	// this project
-	"github.com/linkall-labs/vanus/client/pkg/record"
+	// this project.
+	"github.com/vanus-labs/vanus/client/pkg/record"
 )
 
 func newSegment(ctx context.Context, r *record.Segment, towrite bool) (*segment, error) {

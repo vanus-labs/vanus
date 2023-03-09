@@ -24,11 +24,11 @@ import (
 	"github.com/ncw/directio"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/log"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/io/zone/segmentedfile"
-	"github.com/linkall-labs/vanus/internal/store/wal/record"
+	"github.com/vanus-labs/vanus/internal/store/io/zone/segmentedfile"
+	"github.com/vanus-labs/vanus/internal/store/wal/record"
 )
 
 type OnEntryCallback = func(entry []byte, r Range) error

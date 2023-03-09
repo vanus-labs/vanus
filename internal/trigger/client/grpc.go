@@ -20,11 +20,12 @@ import (
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	"github.com/linkall-labs/vanus/proto/pkg/codec"
 	"github.com/pkg/errors"
 	stdGrpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	"github.com/vanus-labs/vanus/proto/pkg/codec"
 )
 
 type grpc struct {

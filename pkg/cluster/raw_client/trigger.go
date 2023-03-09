@@ -18,15 +18,16 @@ import (
 	"context"
 	"io"
 
-	"github.com/linkall-labs/vanus/observability/log"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	"github.com/linkall-labs/vanus/pkg/errors"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/vanus-labs/vanus/observability/log"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 var (
@@ -45,18 +46,22 @@ type triggerClient struct {
 	heartBeatClient ctrlpb.TriggerController_TriggerWorkerHeartbeatClient
 }
 
-func (tc *triggerClient) SetDeadLetterEventOffset(ctx context.Context, in *ctrlpb.SetDeadLetterEventOffsetRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (tc *triggerClient) SetDeadLetterEventOffset(
+	ctx context.Context, in *ctrlpb.SetDeadLetterEventOffsetRequest, opts ...grpc.CallOption,
+) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/SetDeadLetterEventOffset", in, out, opts...)
+	err := tc.cc.invoke(ctx, "/vanus.core.controller.TriggerController/SetDeadLetterEventOffset", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (tc *triggerClient) GetDeadLetterEventOffset(ctx context.Context, in *ctrlpb.GetDeadLetterEventOffsetRequest, opts ...grpc.CallOption) (*ctrlpb.GetDeadLetterEventOffsetResponse, error) {
+func (tc *triggerClient) GetDeadLetterEventOffset(
+	ctx context.Context, in *ctrlpb.GetDeadLetterEventOffsetRequest, opts ...grpc.CallOption,
+) (*ctrlpb.GetDeadLetterEventOffsetResponse, error) {
 	out := new(ctrlpb.GetDeadLetterEventOffsetResponse)
-	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/GetDeadLetterEventOffset", in, out, opts...)
+	err := tc.cc.invoke(ctx, "/vanus.core.controller.TriggerController/GetDeadLetterEventOffset", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -120,115 +125,129 @@ func (tc *triggerClient) Close() error {
 	return tc.cc.close()
 }
 
-func (tc *triggerClient) CreateSubscription(ctx context.Context, in *ctrlpb.CreateSubscriptionRequest,
-	opts ...grpc.CallOption) (*metapb.Subscription, error) {
+func (tc *triggerClient) CreateSubscription(
+	ctx context.Context, in *ctrlpb.CreateSubscriptionRequest, opts ...grpc.CallOption,
+) (*metapb.Subscription, error) {
 	out := new(metapb.Subscription)
-	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/CreateSubscription", in, out, opts...)
+	err := tc.cc.invoke(ctx, "/vanus.core.controller.TriggerController/CreateSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (tc *triggerClient) UpdateSubscription(ctx context.Context, in *ctrlpb.UpdateSubscriptionRequest,
-	opts ...grpc.CallOption) (*metapb.Subscription, error) {
+func (tc *triggerClient) UpdateSubscription(
+	ctx context.Context, in *ctrlpb.UpdateSubscriptionRequest, opts ...grpc.CallOption,
+) (*metapb.Subscription, error) {
 	out := new(metapb.Subscription)
-	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/UpdateSubscription", in, out, opts...)
+	err := tc.cc.invoke(ctx, "/vanus.core.controller.TriggerController/UpdateSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (tc *triggerClient) DeleteSubscription(ctx context.Context, in *ctrlpb.DeleteSubscriptionRequest,
-	opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (tc *triggerClient) DeleteSubscription(
+	ctx context.Context, in *ctrlpb.DeleteSubscriptionRequest, opts ...grpc.CallOption,
+) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/DeleteSubscription", in, out, opts...)
+	err := tc.cc.invoke(ctx, "/vanus.core.controller.TriggerController/DeleteSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (tc *triggerClient) GetSubscription(ctx context.Context, in *ctrlpb.GetSubscriptionRequest,
-	opts ...grpc.CallOption) (*metapb.Subscription, error) {
+func (tc *triggerClient) GetSubscription(
+	ctx context.Context, in *ctrlpb.GetSubscriptionRequest, opts ...grpc.CallOption,
+) (*metapb.Subscription, error) {
 	out := new(metapb.Subscription)
-	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/GetSubscription", in, out, opts...)
+	err := tc.cc.invoke(ctx, "/vanus.core.controller.TriggerController/GetSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (tc *triggerClient) ListSubscription(ctx context.Context, in *ctrlpb.ListSubscriptionRequest,
-	opts ...grpc.CallOption) (*ctrlpb.ListSubscriptionResponse, error) {
+func (tc *triggerClient) ListSubscription(
+	ctx context.Context, in *ctrlpb.ListSubscriptionRequest, opts ...grpc.CallOption,
+) (*ctrlpb.ListSubscriptionResponse, error) {
 	out := new(ctrlpb.ListSubscriptionResponse)
-	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/ListSubscription", in, out, opts...)
+	err := tc.cc.invoke(ctx, "/vanus.core.controller.TriggerController/ListSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (tc *triggerClient) RegisterTriggerWorker(ctx context.Context, in *ctrlpb.RegisterTriggerWorkerRequest,
-	opts ...grpc.CallOption) (*ctrlpb.RegisterTriggerWorkerResponse, error) {
+func (tc *triggerClient) RegisterTriggerWorker(
+	ctx context.Context, in *ctrlpb.RegisterTriggerWorkerRequest, opts ...grpc.CallOption,
+) (*ctrlpb.RegisterTriggerWorkerResponse, error) {
 	out := new(ctrlpb.RegisterTriggerWorkerResponse)
-	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/RegisterTriggerWorker", in, out, opts...)
+	err := tc.cc.invoke(ctx, "/vanus.core.controller.TriggerController/RegisterTriggerWorker", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (tc *triggerClient) UnregisterTriggerWorker(ctx context.Context, in *ctrlpb.UnregisterTriggerWorkerRequest,
-	opts ...grpc.CallOption) (*ctrlpb.UnregisterTriggerWorkerResponse, error) {
+func (tc *triggerClient) UnregisterTriggerWorker(
+	ctx context.Context, in *ctrlpb.UnregisterTriggerWorkerRequest, opts ...grpc.CallOption,
+) (*ctrlpb.UnregisterTriggerWorkerResponse, error) {
 	out := new(ctrlpb.UnregisterTriggerWorkerResponse)
-	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/UnregisterTriggerWorker", in, out, opts...)
+	err := tc.cc.invoke(ctx, "/vanus.core.controller.TriggerController/UnregisterTriggerWorker", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (tc *triggerClient) ResetOffsetToTimestamp(ctx context.Context, in *ctrlpb.ResetOffsetToTimestampRequest,
-	opts ...grpc.CallOption) (*ctrlpb.ResetOffsetToTimestampResponse, error) {
+func (tc *triggerClient) ResetOffsetToTimestamp(
+	ctx context.Context, in *ctrlpb.ResetOffsetToTimestampRequest, opts ...grpc.CallOption,
+) (*ctrlpb.ResetOffsetToTimestampResponse, error) {
 	out := new(ctrlpb.ResetOffsetToTimestampResponse)
-	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/ResetOffsetToTimestamp", in, out, opts...)
+	err := tc.cc.invoke(ctx, "/vanus.core.controller.TriggerController/ResetOffsetToTimestamp", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (tc *triggerClient) CommitOffset(ctx context.Context, in *ctrlpb.CommitOffsetRequest,
-	opts ...grpc.CallOption) (*ctrlpb.CommitOffsetResponse, error) {
+func (tc *triggerClient) CommitOffset(
+	ctx context.Context, in *ctrlpb.CommitOffsetRequest, opts ...grpc.CallOption,
+) (*ctrlpb.CommitOffsetResponse, error) {
 	out := new(ctrlpb.CommitOffsetResponse)
-	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/CommitOffset", in, out, opts...)
+	err := tc.cc.invoke(ctx, "/vanus.core.controller.TriggerController/CommitOffset", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (tc *triggerClient) DisableSubscription(ctx context.Context, in *ctrlpb.DisableSubscriptionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (tc *triggerClient) DisableSubscription(
+	ctx context.Context, in *ctrlpb.DisableSubscriptionRequest, opts ...grpc.CallOption,
+) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/DisableSubscription", in, out, opts...)
+	err := tc.cc.invoke(ctx, "/vanus.core.controller.TriggerController/DisableSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (tc *triggerClient) ResumeSubscription(ctx context.Context, in *ctrlpb.ResumeSubscriptionRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (tc *triggerClient) ResumeSubscription(
+	ctx context.Context, in *ctrlpb.ResumeSubscriptionRequest, opts ...grpc.CallOption,
+) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := tc.cc.invoke(ctx, "/linkall.vanus.controller.TriggerController/ResumeSubscription", in, out, opts...)
+	err := tc.cc.invoke(ctx, "/vanus.core.controller.TriggerController/ResumeSubscription", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (tc *triggerClient) TriggerWorkerHeartbeat(_ context.Context,
-	_ ...grpc.CallOption) (ctrlpb.TriggerController_TriggerWorkerHeartbeatClient, error) {
+func (tc *triggerClient) TriggerWorkerHeartbeat(
+	_ context.Context, _ ...grpc.CallOption,
+) (ctrlpb.TriggerController_TriggerWorkerHeartbeatClient, error) {
 	panic("unsupported method, please use controller.RegisterHeartbeat")
 }

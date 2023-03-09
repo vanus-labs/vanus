@@ -21,7 +21,7 @@ import (
 	"hash/crc32"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/block/raw"
+	"github.com/vanus-labs/vanus/internal/store/block/raw"
 )
 
 const (

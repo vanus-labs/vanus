@@ -12,32 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=trigger.go  -destination=mock_trigger.go -package=trigger
+//go:generate mockgen -source=trigger.go -destination=mock_trigger.go -package=trigger
 package trigger
 
 import (
 	"context"
+	"encoding/json"
 	"reflect"
 	"sync"
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	pInfo "github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/trigger/client"
-	"github.com/linkall-labs/vanus/internal/trigger/filter"
-	"github.com/linkall-labs/vanus/internal/trigger/info"
-	"github.com/linkall-labs/vanus/internal/trigger/offset"
-	"github.com/linkall-labs/vanus/internal/trigger/reader"
-	"github.com/linkall-labs/vanus/internal/trigger/transform"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/pkg/util"
 	"github.com/panjf2000/ants/v2"
 	"go.uber.org/ratelimit"
+
+	eb "github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/util"
+
+	"github.com/vanus-labs/vanus/internal/primitive"
+	pInfo "github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/trigger/client"
+	"github.com/vanus-labs/vanus/internal/trigger/filter"
+	"github.com/vanus-labs/vanus/internal/trigger/info"
+	"github.com/vanus-labs/vanus/internal/trigger/offset"
+	"github.com/vanus-labs/vanus/internal/trigger/reader"
+	"github.com/vanus-labs/vanus/internal/trigger/transform"
 )
 
 type State string
@@ -137,7 +140,8 @@ func (t *trigger) getClient() client.EventClient {
 
 func (t *trigger) changeTarget(sink primitive.URI,
 	protocol primitive.Protocol,
-	credential primitive.SinkCredential) error {
+	credential primitive.SinkCredential,
+) error {
 	eventCli := newEventClient(sink, protocol, credential)
 	t.lock.Lock()
 	defer t.lock.Unlock()
@@ -261,6 +265,11 @@ func (t *trigger) runRetryEventFilterTransform(ctx context.Context) {
 				metrics.TriggerFilterMatchRetryEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
 				event, err := t.transformEvent(record)
 				if err != nil {
+					log.Info(ctx, "event transform error", map[string]interface{}{
+						log.KeyError:   err,
+						"event_id":     event.record.Event.ID(),
+						"event_offset": event.record.OffsetInfo,
+					})
 					t.writeFailEvent(ctx, record.Event, ErrTransformCode, err)
 					t.offsetManager.EventCommit(record.OffsetInfo)
 					return
@@ -292,6 +301,11 @@ func (t *trigger) runEventFilterTransform(ctx context.Context) {
 				metrics.TriggerFilterMatchEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
 				event, err := t.transformEvent(record)
 				if err != nil {
+					log.Info(ctx, "event transform error", map[string]interface{}{
+						log.KeyError:   err,
+						"event_id":     event.record.Event.ID(),
+						"event_offset": event.record.OffsetInfo,
+					})
 					t.writeFailEvent(ctx, record.Event, ErrTransformCode, err)
 					t.offsetManager.EventCommit(record.OffsetInfo)
 					return
@@ -373,9 +387,11 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelFailed).
 			Add(float64(len(es)))
 		log.Info(ctx, "send event fail", map[string]interface{}{
-			log.KeyError: r.Err,
-			"code":       r.StatusCode,
-			"count":      len(es),
+			log.KeyError:   r.Err,
+			"code":         r.StatusCode,
+			"count":        len(es),
+			"event_id":     events[0].record.Event.ID(),
+			"event_offset": events[0].record.OffsetInfo,
 		})
 		code := r.StatusCode
 		if t.config.Ordered {
@@ -388,8 +404,12 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 	} else {
 		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelSuccess).
 			Add(float64(len(es)))
+		eByte, _ := json.Marshal(es[0])
 		log.Debug(ctx, "send event success", map[string]interface{}{
-			"count": len(es),
+			"count":        len(es),
+			"event_id":     events[0].record.Event.ID(),
+			"event_offset": events[0].record.OffsetInfo,
+			"event":        string(eByte),
 		})
 	}
 }
@@ -436,9 +456,10 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 	attempts++
 	ec.Extensions[primitive.XVanusRetryAttempts] = attempts
 	delayTime := calDeliveryTime(attempts)
-	ec.Extensions[primitive.XVanusDeliveryTime] = ce.Timestamp{Time: time.Now().Add(delayTime).UTC()}.Format(time.RFC3339)
+	ec.Extensions[primitive.XVanusDeliveryTime] =
+		ce.Timestamp{Time: time.Now().Add(delayTime).UTC()}.Format(time.RFC3339)
 	ec.Extensions[primitive.XVanusSubscriptionID] = t.subscriptionIDStr
-	ec.Extensions[primitive.XVanusEventbus] = t.config.RetryEventbus
+	ec.Extensions[primitive.XVanusEventbus] = t.subscription.RetryEventbusID.Key()
 	var writeAttempt int
 	for {
 		writeAttempt++
@@ -471,7 +492,8 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 	ec, _ := e.Context.(*ce.EventContextV1)
 	delete(ec.Extensions, primitive.XVanusEventbus)
 	ec.Extensions[primitive.XVanusSubscriptionID] = t.subscriptionIDStr
-	ec.Extensions[primitive.LastDeliveryTime] = ce.Timestamp{Time: time.Now().UTC()}.Format(time.RFC3339)
+	ec.Extensions[primitive.LastDeliveryTime] =
+		ce.Timestamp{Time: time.Now().UTC()}.Format(time.RFC3339)
 	ec.Extensions[primitive.LastDeliveryError] = errorMsg
 	ec.Extensions[primitive.DeadLetterReason] = reason
 	var writeAttempt int
@@ -504,7 +526,7 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 
 func (t *trigger) getReaderConfig() reader.Config {
 	return reader.Config{
-		EventBusName:   t.subscription.EventBus,
+		EventbusID:     t.subscription.EventbusID,
 		Client:         t.client,
 		SubscriptionID: t.subscription.ID,
 		BatchSize:      t.config.PullBatchSize,
@@ -513,9 +535,8 @@ func (t *trigger) getReaderConfig() reader.Config {
 }
 
 func (t *trigger) getRetryEventReaderConfig() reader.Config {
-	ebName := t.config.RetryEventbus
 	return reader.Config{
-		EventBusName:   ebName,
+		EventbusID:     t.subscription.RetryEventbusID,
 		Client:         t.client,
 		SubscriptionID: t.subscription.ID,
 		BatchSize:      t.config.PullBatchSize,
@@ -528,7 +549,7 @@ func getOffset(sub *primitive.Subscription) map[vanus.ID]uint64 {
 	// get offset from subscription
 	offsetMap := make(map[vanus.ID]uint64)
 	for _, o := range sub.Offsets {
-		offsetMap[o.EventLogID] = o.Offset
+		offsetMap[o.EventlogID] = o.Offset
 	}
 	return offsetMap
 }
@@ -537,9 +558,9 @@ func (t *trigger) Init(ctx context.Context) error {
 	t.eventCli = newEventClient(t.subscription.Sink, t.subscription.Protocol, t.subscription.SinkCredential)
 	t.client = eb.Connect(t.config.Controllers)
 
-	t.timerEventWriter = t.client.Eventbus(ctx, primitive.TimerEventbusName).Writer()
-	if t.config.DeadLetterEventbus != "" {
-		t.dlEventWriter = t.client.Eventbus(ctx, t.config.DeadLetterEventbus).Writer()
+	t.timerEventWriter = t.client.Eventbus(ctx, api.WithID(t.subscription.TimerEventbusID.Uint64())).Writer()
+	if !t.config.DisableDeadLetter {
+		t.dlEventWriter = t.client.Eventbus(ctx, api.WithID(t.subscription.DeadLetterEventbusID.Uint64())).Writer()
 	}
 	t.eventCh = make(chan info.EventRecord, t.config.BufferSize)
 	t.sendCh = make(chan *toSendEvent, t.config.BufferSize)

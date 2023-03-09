@@ -1,6 +1,6 @@
-module github.com/linkall-labs/vanus/raft
+module github.com/vanus-labs/vanus/raft
 
-go 1.17
+go 1.18
 
 require (
 	github.com/cockroachdb/datadriven v0.0.0-20200714090401-bf6692d28da5
@@ -29,4 +29,4 @@ replace go.etcd.io/etcd => ./FORBIDDEN_DEPENDENCY
 
 replace go.etcd.io/etcd/v3 => ./FORBIDDEN_DEPENDENCY
 
-replace github.com/linkall-labs/vanus/observability => ../observability
+replace github.com/vanus-labs/vanus/observability => ../observability

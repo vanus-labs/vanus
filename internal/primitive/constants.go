@@ -17,6 +17,7 @@ package primitive
 const (
 	SystemEventbusNamePrefix = "__"
 	TimerEventbusName        = SystemEventbusNamePrefix + "Timer_RS"
+	RetryEventbusName        = SystemEventbusNamePrefix + "retry_eb"
 
 	XVanus               = "xvanus"
 	XVanusEventbus       = XVanus + "eventbus"

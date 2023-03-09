@@ -24,29 +24,30 @@ import (
 	"sync"
 
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
-	"github.com/linkall-labs/vanus/internal/controller"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus"
-	"github.com/linkall-labs/vanus/internal/controller/member"
-	"github.com/linkall-labs/vanus/internal/controller/snowflake"
-	"github.com/linkall-labs/vanus/internal/controller/trigger"
-	"github.com/linkall-labs/vanus/internal/primitive/interceptor/errinterceptor"
-	"github.com/linkall-labs/vanus/internal/primitive/interceptor/memberinterceptor"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/pkg/util/signal"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+
+	"github.com/vanus-labs/vanus/observability"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/util/signal"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+
+	"github.com/vanus-labs/vanus/internal/controller"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus"
+	"github.com/vanus-labs/vanus/internal/controller/member"
+	"github.com/vanus-labs/vanus/internal/controller/snowflake"
+	"github.com/vanus-labs/vanus/internal/controller/trigger"
+	"github.com/vanus-labs/vanus/internal/primitive/interceptor/errinterceptor"
+	"github.com/vanus-labs/vanus/internal/primitive/interceptor/memberinterceptor"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
-var (
-	configPath = flag.String("config", "./config/controller.yaml", "the configuration file of controller")
-)
+var configPath = flag.String("config", "./config/controller.yaml",
+	"the configuration file of controller")
 
 func main() {
 	flag.Parse()
@@ -93,7 +94,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	//trigger controller
+	// trigger controller
 	triggerCtrlStv := trigger.NewController(cfg.GetTriggerConfig(), mem)
 	if err = triggerCtrlStv.Start(); err != nil {
 		log.Error(ctx, "start trigger controller fail", map[string]interface{}{
@@ -141,8 +142,8 @@ func main() {
 	}
 
 	ctrlpb.RegisterSnowflakeControllerServer(grpcServer, snowflakeCtrl)
-	ctrlpb.RegisterEventBusControllerServer(grpcServer, segmentCtrl)
-	ctrlpb.RegisterEventLogControllerServer(grpcServer, segmentCtrl)
+	ctrlpb.RegisterEventbusControllerServer(grpcServer, segmentCtrl)
+	ctrlpb.RegisterEventlogControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterSegmentControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterPingServerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterTriggerControllerServer(grpcServer, triggerCtrlStv)

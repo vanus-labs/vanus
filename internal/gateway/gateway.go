@@ -30,23 +30,23 @@ import (
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"github.com/cloudevents/sdk-go/v2/types"
 	"github.com/google/uuid"
-	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/internal/gateway/proxy"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/observability/tracing"
 	"go.opentelemetry.io/otel/trace"
+
+	eb "github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/observability/tracing"
+
+	"github.com/vanus-labs/vanus/internal/gateway/proxy"
+	"github.com/vanus-labs/vanus/internal/primitive"
 )
 
 const (
 	httpRequestPrefix = "/gateway"
 )
 
-var (
-	requestDataFromContext = cehttp.RequestDataFromContext
-)
+var requestDataFromContext = cehttp.RequestDataFromContext
 
 type EventData struct {
 	EventID string `json:"event_id"`
@@ -116,7 +116,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 
 	responseCode := 200
 	start := time.Now()
-	ebName := getEventBusFromPath(requestDataFromContext(_ctx))
+	ebName := getEventbusFromPath(requestDataFromContext(_ctx))
 	defer func() {
 		used := float64(time.Since(start)) / float64(time.Millisecond)
 		metrics.GatewayEventReceivedCountVec.WithLabelValues(
@@ -202,7 +202,7 @@ func checkExtension(extensions map[string]interface{}) error {
 	return nil
 }
 
-func getEventBusFromPath(reqData *cehttp.RequestData) string {
+func getEventbusFromPath(reqData *cehttp.RequestData) string {
 	// TODO validate
 	reqPathStr := reqData.URL.String()
 	if !strings.HasPrefix(reqPathStr, httpRequestPrefix) {
@@ -214,8 +214,8 @@ func getEventBusFromPath(reqData *cehttp.RequestData) string {
 func createResponseEvent(eventData EventData) (*v2.Event, error) {
 	e := v2.NewEvent("1.0")
 	e.SetID(uuid.NewString())
-	e.SetType("com.linkall.vanus.event.stored")
-	e.SetSource("https://linkall.com/vanus")
+	e.SetType("ai.vanus.event.stored")
+	e.SetSource("https://vanus.ai/vanus")
 
 	err := e.SetData(v2.ApplicationJSON, eventData)
 	if err != nil {

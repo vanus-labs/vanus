@@ -25,13 +25,13 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/pkg/errors"
-	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	cepb "github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestSegmentServer(t *testing.T) {
@@ -132,7 +132,7 @@ func TestSegmentServer(t *testing.T) {
 			srv.EXPECT().ActivateSegment(Any(), Any(), Any(), Any()).Return(nil)
 
 			req := &segpb.ActivateSegmentRequest{
-				EventLogId:     vanus.NewTestID().Uint64(),
+				EventlogId:     vanus.NewTestID().Uint64(),
 				ReplicaGroupId: vanus.NewTestID().Uint64(),
 				Replicas: map[uint64]string{
 					1: "127.0.0.1:11811",

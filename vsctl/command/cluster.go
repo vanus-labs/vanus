@@ -164,7 +164,8 @@ func createClusterCommand() *cobra.Command {
 					return
 				}
 				fmt.Println("Start deploy operator...")
-				operator := exec.Command("kubectl", "apply", "-f", "https://download.linkall.com/vanus/operator/latest.yml")
+				operator := exec.Command("kubectl", "apply", "-f",
+					"https://dl.vanus.ai/vanus/operator/latest.yml")
 				err = operator.Run()
 				if err != nil {
 					cmdFailedf(cmd, "deploy operator failed: %s", err)
@@ -372,7 +373,8 @@ func deleteClusterCommand() *cobra.Command {
 				return
 			}
 			fmt.Println("Start delete operator...")
-			operator := exec.Command("kubectl", "delete", "-f", "https://download.linkall.com/vanus/operator/latest.yml")
+			operator := exec.Command("kubectl", "delete", "-f",
+				"https://dl.vanus.ai/vanus/operator/latest.yml")
 			err = operator.Run()
 			if err != nil {
 				cmdFailedf(cmd, "delete operator failed: %s", err)
@@ -830,7 +832,7 @@ func genClusterCommand() *cobra.Command {
 			}
 
 			fileName := "cluster.yaml.example"
-			err = ioutil.WriteFile(fileName, data, 0644)
+			err = ioutil.WriteFile(fileName, data, 0o644)
 			if err != nil {
 				cmdFailedf(cmd, "generate cluster config file template failed: %s", err)
 			}

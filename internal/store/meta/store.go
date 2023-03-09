@@ -23,7 +23,7 @@ import (
 	"github.com/huandu/skiplist"
 
 	// this project.
-	walog "github.com/linkall-labs/vanus/internal/store/wal"
+	walog "github.com/vanus-labs/vanus/internal/store/wal"
 )
 
 var ErrClosed = errors.New("MetaStore: closed")

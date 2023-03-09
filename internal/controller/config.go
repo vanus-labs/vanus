@@ -15,12 +15,13 @@
 package controller
 
 import (
-	"github.com/linkall-labs/vanus/internal/controller/eventbus"
-	"github.com/linkall-labs/vanus/internal/controller/member"
-	"github.com/linkall-labs/vanus/internal/controller/snowflake"
-	"github.com/linkall-labs/vanus/internal/controller/trigger"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/observability"
+	"github.com/vanus-labs/vanus/observability"
+
+	"github.com/vanus-labs/vanus/internal/controller/eventbus"
+	"github.com/vanus-labs/vanus/internal/controller/member"
+	"github.com/vanus-labs/vanus/internal/controller/snowflake"
+	"github.com/vanus-labs/vanus/internal/controller/trigger"
+	"github.com/vanus-labs/vanus/internal/primitive"
 )
 
 type Config struct {

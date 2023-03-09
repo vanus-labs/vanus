@@ -20,11 +20,12 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/linkall-labs/vanus/observability/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 var (

@@ -21,14 +21,14 @@ import (
 	"sync"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/log"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/container/conque/blocking"
-	"github.com/linkall-labs/vanus/internal/store/io/engine"
-	"github.com/linkall-labs/vanus/internal/store/io/stream"
-	"github.com/linkall-labs/vanus/internal/store/io/zone/segmentedfile"
-	"github.com/linkall-labs/vanus/internal/store/wal/record"
+	"github.com/vanus-labs/vanus/internal/primitive/container/conque/blocking"
+	"github.com/vanus-labs/vanus/internal/store/io/engine"
+	"github.com/vanus-labs/vanus/internal/store/io/stream"
+	"github.com/vanus-labs/vanus/internal/store/io/zone/segmentedfile"
+	"github.com/vanus-labs/vanus/internal/store/wal/record"
 )
 
 var (

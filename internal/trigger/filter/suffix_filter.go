@@ -17,7 +17,7 @@ package filter
 import (
 	"strings"
 
-	pkgUtil "github.com/linkall-labs/vanus/pkg/util"
+	pkgUtil "github.com/vanus-labs/vanus/pkg/util"
 )
 
 type suffixFilter struct {

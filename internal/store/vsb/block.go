@@ -22,12 +22,12 @@ import (
 	"sync/atomic"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store/block"
-	"github.com/linkall-labs/vanus/internal/store/io/stream"
-	"github.com/linkall-labs/vanus/internal/store/io/zone"
-	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
-	"github.com/linkall-labs/vanus/internal/store/vsb/index"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	"github.com/vanus-labs/vanus/internal/store/io/stream"
+	"github.com/vanus-labs/vanus/internal/store/io/zone"
+	"github.com/vanus-labs/vanus/internal/store/vsb/codec"
+	"github.com/vanus-labs/vanus/internal/store/vsb/index"
 )
 
 const FormatMagic = uint32(0x00627376) // ASCII of "vsb" in little endian
