@@ -95,7 +95,7 @@ func (r *reader) Start() error {
 	r.stop = cancel
 	timeoutCtx, cancel := context.WithTimeout(ctx, lookupReadableLogsTimeout)
 	defer cancel()
-	logs, err := r.config.Client.Eventbus(timeoutCtx, r.config.EventbusID.Uint64()).ListLog(timeoutCtx)
+	logs, err := r.config.Client.Eventbus(timeoutCtx, api.WithID(r.config.EventbusID.Uint64())).ListLog(timeoutCtx)
 	if err != nil {
 		log.Warning(ctx, "eventbus lookup Readable eventlog error", map[string]interface{}{
 			log.KeyEventbusID: r.config.EventbusID,
@@ -156,7 +156,7 @@ type eventlogReader struct {
 }
 
 func (elReader *eventlogReader) run(ctx context.Context) {
-	r := elReader.config.Client.Eventbus(ctx, elReader.config.EventbusID.Uint64()).Reader(
+	r := elReader.config.Client.Eventbus(ctx, api.WithID(elReader.config.EventbusID.Uint64())).Reader(
 		option.WithReadPolicy(elReader.policy), option.WithBatchSize(elReader.config.BatchSize))
 	log.Info(ctx, "eventlog reader init success", map[string]interface{}{
 		log.KeyEventbusID: elReader.config.EventbusID,

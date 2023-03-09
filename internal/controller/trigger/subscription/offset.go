@@ -17,6 +17,7 @@ package subscription
 import (
 	"context"
 
+	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/errors"
 
@@ -162,7 +163,7 @@ func (m *manager) SaveDeadLetterOffset(ctx context.Context, id vanus.ID, offset 
 func (m *manager) getOffsetFromCli(ctx context.Context, eventbusID vanus.ID,
 	config primitive.SubscriptionConfig,
 ) (info.ListOffsetInfo, error) {
-	logs, err := m.ebCli.Eventbus(ctx, eventbusID.Uint64()).ListLog(ctx)
+	logs, err := m.ebCli.Eventbus(ctx, api.WithID(eventbusID.Uint64())).ListLog(ctx)
 	if err != nil {
 		return nil, err
 	}

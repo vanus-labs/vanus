@@ -558,9 +558,9 @@ func (t *trigger) Init(ctx context.Context) error {
 	t.eventCli = newEventClient(t.subscription.Sink, t.subscription.Protocol, t.subscription.SinkCredential)
 	t.client = eb.Connect(t.config.Controllers)
 
-	t.timerEventWriter = t.client.Eventbus(ctx, t.subscription.TimerEventbusID.Uint64()).Writer()
+	t.timerEventWriter = t.client.Eventbus(ctx, api.WithID(t.subscription.TimerEventbusID.Uint64())).Writer()
 	if !t.config.DisableDeadLetter {
-		t.dlEventWriter = t.client.Eventbus(ctx, t.subscription.DeadLetterEventbusID.Uint64()).Writer()
+		t.dlEventWriter = t.client.Eventbus(ctx, api.WithID(t.subscription.DeadLetterEventbusID.Uint64())).Writer()
 	}
 	t.eventCh = make(chan info.EventRecord, t.config.BufferSize)
 	t.sendCh = make(chan *toSendEvent, t.config.BufferSize)
