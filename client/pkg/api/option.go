@@ -19,9 +19,8 @@ const (
 )
 
 type EventbusOptions struct {
-	Namespace string
-	Name      string
-	ID        uint64
+	Name string
+	ID   uint64
 }
 
 func DefaultEventbusOptions() *EventbusOptions {
@@ -30,9 +29,8 @@ func DefaultEventbusOptions() *EventbusOptions {
 
 type EventbusOption func(opt *EventbusOptions)
 
-func WithName(namespace, name string) EventbusOption {
+func WithName(name string) EventbusOption {
 	return func(opt *EventbusOptions) {
-		opt.Namespace = namespace
 		opt.Name = name
 	}
 }
@@ -90,3 +88,4 @@ type LogOption func(*LogOptions)
 type LogOptions struct {
 	Policy LogPolicy
 }
+

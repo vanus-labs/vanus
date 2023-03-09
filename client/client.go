@@ -25,7 +25,6 @@ import (
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/tracing"
 	"github.com/vanus-labs/vanus/pkg/cluster"
-	"github.com/vanus-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc/credentials/insecure"
 
 	// this project.
@@ -57,11 +56,10 @@ func (c *client) Eventbus(ctx context.Context, opts ...api.EventbusOption) api.E
 		apply(defaultOpts)
 	}
 
-	err := GetEventbusIDIfNotExist(ctx, c.Endpoints, defaultOpts)
+	err := GetEventbusIDIfNotSet(ctx, c.Endpoints, defaultOpts)
 	if err != nil {
 		log.Error(ctx, "get eventbus id failed", map[string]interface{}{
 			log.KeyError:    err,
-			"namespace":     defaultOpts.Namespace,
 			"eventbus_name": defaultOpts.Name,
 			"eventbus_id":   defaultOpts.ID,
 		})
@@ -115,19 +113,15 @@ func Connect(endpoints []string) Client {
 	}
 }
 
-func GetEventbusIDIfNotExist(ctx context.Context, endpoints []string, opts *api.EventbusOptions) error {
+func GetEventbusIDIfNotSet(ctx context.Context, endpoints []string, opts *api.EventbusOptions) error {
 	// the eventbus id does not exist, get the eventbus id first
 	if opts.ID == uint64(0) {
 		if opts.Name == "" {
 			return errors.New("either eventbus name or id must be set")
 		}
-		// get eventbus id from namespace/name
-		c := cluster.NewClusterController(endpoints, insecure.NewCredentials()).EventbusService().RawClient()
-		in := &controller.GetEventbusWithHumanFriendlyRequest{
-			Namespace:    opts.Namespace,
-			EventbusName: opts.Name,
-		}
-		metaEventbus, err := c.GetEventbusWithHumanFriendly(ctx, in)
+		// get eventbus id from name
+		s := cluster.NewClusterController(endpoints, insecure.NewCredentials()).EventbusService()
+		metaEventbus, err := s.GetSystemEventbusByName(ctx, opts.Name)
 		if err != nil {
 			return err
 		}
@@ -135,3 +129,4 @@ func GetEventbusIDIfNotExist(ctx context.Context, endpoints []string, opts *api.
 	}
 	return nil
 }
+
