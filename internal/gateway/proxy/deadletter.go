@@ -69,7 +69,7 @@ func (cp *ControllerProxy) GetDeadLetterEvent(
 	if err != nil {
 		return nil, err
 	}
-	ls, err := cp.client.Eventbus(ctx, deadLetterEventbusID.Uint64()).ListLog(ctx)
+	ls, err := cp.client.Eventbus(ctx, api.WithID(deadLetterEventbusID.Uint64())).ListLog(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (cp *ControllerProxy) GetDeadLetterEvent(
 	}
 
 	readPolicy := policy.NewManuallyReadPolicy(ls[0], int64(offset))
-	busReader := cp.client.Eventbus(ctx, deadLetterEventbusID.Uint64()).Reader(
+	busReader := cp.client.Eventbus(ctx, api.WithID(deadLetterEventbusID.Uint64())).Reader(
 		option.WithDisablePolling(),
 		option.WithReadPolicy(readPolicy),
 		option.WithBatchSize(int(num)),
@@ -169,7 +169,7 @@ func (cp *ControllerProxy) ResendDeadLetterEvent(
 	if err != nil {
 		return nil, err
 	}
-	ls, err := cp.client.Eventbus(ctx, deadLetterEventbusID.Uint64()).ListLog(ctx)
+	ls, err := cp.client.Eventbus(ctx, api.WithID(deadLetterEventbusID.Uint64())).ListLog(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +185,7 @@ func (cp *ControllerProxy) ResendDeadLetterEvent(
 			fmt.Sprintf("end_offset is invalid, param is %d it but start is %d", offset, req.GetEndOffset()))
 	}
 	readPolicy := policy.NewManuallyReadPolicy(ls[0], int64(offset))
-	busReader := cp.client.Eventbus(ctx, deadLetterEventbusID.Uint64()).Reader(
+	busReader := cp.client.Eventbus(ctx, api.WithID(deadLetterEventbusID.Uint64())).Reader(
 		option.WithDisablePolling(),
 		option.WithReadPolicy(readPolicy),
 		option.WithBatchSize(readSize),
