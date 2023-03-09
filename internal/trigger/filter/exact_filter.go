@@ -19,10 +19,7 @@ type exactFilter struct {
 }
 
 func NewExactFilter(exact map[string]string) Filter {
-	f := newCommonFilter(exact, func(exist bool, value, compareValue string) bool {
-		if !exist {
-			return false
-		}
+	f := newCommonFilter(exact, func(value, compareValue string) bool {
 		return value == compareValue
 	})
 	if f == nil {
