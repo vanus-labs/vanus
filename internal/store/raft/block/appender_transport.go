@@ -49,6 +49,7 @@ func (a *appender) Receive(ctx context.Context, msg *raftpb.Message, from uint64
 	a.transportExecutor.Execute(func() {
 		if endpoint != "" && a.hint[from] != endpoint {
 			a.hint[from] = endpoint
+			_ = a.e.RegisterNodeRecord(from, endpoint)
 		}
 
 		a.step(msg)
