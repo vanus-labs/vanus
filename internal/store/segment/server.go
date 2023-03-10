@@ -74,7 +74,7 @@ type Server interface {
 	primitive.Initializer
 
 	Serve(lis net.Listener) error
-
+	RegisterToController(ctx context.Context) error
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
 	Status() primitive.ServerState
@@ -228,6 +228,22 @@ func (s *server) preGrpcStream(ctx context.Context, info *tap.Info) (context.Con
 		return cCtx, nil
 	}
 	return ctx, nil
+}
+
+func (s *server) RegisterToController(ctx context.Context) error {
+	if !s.isDebugMode {
+		// Register to controller.
+		if err := s.registerSelf(ctx); err != nil {
+			return err
+		}
+	} else {
+		log.Info(ctx, "the segment server debug mode is enabled", nil)
+		if err := s.Start(ctx); err != nil {
+			return err
+		}
+		s.state = primitive.ServerStateRunning
+	}
+	return nil
 }
 
 func (s *server) Start(ctx context.Context) error {

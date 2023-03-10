@@ -57,18 +57,26 @@ func (sc *segmentClient) Beat(ctx context.Context, v interface{}) error {
 	if !ok {
 		return errors.ErrInvalidHeartBeatRequest
 	}
-	var err error
 	makeSureClient := func() error {
-		client := ctrlpb.NewSegmentControllerClient(sc.cc.makeSureClient(ctx, false))
+		cli, err := sc.cc.makeSureClient(ctx, false)
+		if err != nil {
+			return err
+		}
+		client := ctrlpb.NewSegmentControllerClient(cli)
+
 		sc.heartBeatClient, err = client.SegmentHeartbeat(ctx)
 		if err != nil {
 			sts := status.Convert(err)
 			if sts.Code() == codes.Unavailable {
-				client = ctrlpb.NewSegmentControllerClient(sc.cc.makeSureClient(ctx, true))
+				cli, err = sc.cc.makeSureClient(ctx, false)
+				if err != nil {
+					return err
+				}
+				client = ctrlpb.NewSegmentControllerClient(cli)
 				if client == nil {
 					return errors.ErrNoControllerLeader
 				}
-				sc.heartBeatClient, err = client.SegmentHeartbeat(ctx)
+				sc.heartBeatClient, err = client.SegmentHeartbeat(ctx) // TODO panic
 				if err != nil {
 					return err
 				}
@@ -80,7 +88,7 @@ func (sc *segmentClient) Beat(ctx context.Context, v interface{}) error {
 	}
 
 	if sc.heartBeatClient == nil {
-		if err = makeSureClient(); err != nil {
+		if err := makeSureClient(); err != nil {
 			return err
 		}
 	}

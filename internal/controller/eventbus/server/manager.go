@@ -84,7 +84,7 @@ func (mgr *segmentServerManager) AddServer(ctx context.Context, srv Server) erro
 	mgr.segmentServerMapByVolumeID.Store(srv.VolumeID(), srv)
 	atomic.AddInt64(&mgr.onlineServerNumber, 1)
 	log.Info(ctx, "the segment server added", map[string]interface{}{
-		"server_id": srv.VolumeID(),
+		"volume_id": srv.VolumeID(),
 		"addr":      srv.Address(),
 		"online":    atomic.LoadInt64(&mgr.onlineServerNumber),
 	})
@@ -141,10 +141,10 @@ func (mgr *segmentServerManager) Run(ctx context.Context) error {
 					if !srv.IsActive(ctx) {
 						mgr.segmentServerMapByIP.Delete(srv.Address())
 						mgr.segmentServerMapByVolumeID.Delete(srv.VolumeID())
-						log.Info(newCtx, "the server isn't active", map[string]interface{}{
-							"id":      srv.VolumeID(),
-							"address": srv.Address(),
-							"up_time": srv.Uptime(),
+						log.Info(newCtx, "the server isn't active, ready to remove this server", map[string]interface{}{
+							"volume_id": srv.VolumeID(),
+							"address":   srv.Address(),
+							"up_time":   srv.Uptime().Format(time.RFC3339),
 						})
 					}
 					return true

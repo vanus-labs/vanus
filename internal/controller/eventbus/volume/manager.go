@@ -142,9 +142,7 @@ func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 			continue
 		}
 		if !srv.IsActive(ctx) {
-			// TODO (wenfeng): remove from kv store
 			srv = nil
-			continue
 		}
 
 		mgr.UpdateRouting(ctx, ins.(server.Instance), srv)
@@ -188,7 +186,6 @@ func (mgr *volumeMgr) GetAllActiveVolumes() []server.Instance {
 }
 
 func (mgr *volumeMgr) UpdateRouting(ctx context.Context, ins server.Instance, srv server.Server) {
-	// TODO when persist to kv
 	key := filepath.Join(metadata.VolumeInstanceKeyPrefixInKVStore, ins.ID().String())
 	if srv == nil {
 		if err := mgr.kvCli.Delete(ctx, key); err != nil {
@@ -210,7 +207,7 @@ func (mgr *volumeMgr) UpdateRouting(ctx context.Context, ins server.Instance, sr
 	v.VolumeID = srv.VolumeID()
 	data, _ := json.Marshal(v)
 	if err := mgr.kvCli.Set(ctx, key, data); err != nil {
-		log.Warning(ctx, "save runtime info of volume instance to kv failed", map[string]interface{}{
+		log.Warning(ctx, "failed to save runtime info of volume instance to kv", map[string]interface{}{
 			"volume_id":  ins.ID(),
 			"volume":     srv.VolumeID(),
 			"address":    srv.Address(),

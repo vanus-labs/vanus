@@ -65,7 +65,6 @@ type allocator struct {
 	volumeBlockBuffer sync.Map
 	kvClient          kv.Client
 	mutex             sync.Mutex
-	cancel            func()
 	allocateTicker    *time.Ticker
 	blockCapacity     int64
 }
@@ -157,9 +156,7 @@ func (al *allocator) pick(ctx context.Context, volumes []server.Instance) ([]*me
 	return blockArr, nil
 }
 
-func (al *allocator) Stop() {
-	al.cancel()
-}
+func (al *allocator) Stop() {}
 
 func (al *allocator) dynamicAllocateBlockTask(ctx context.Context) { //nolint:unused // ok
 	for {

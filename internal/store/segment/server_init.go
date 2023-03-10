@@ -58,20 +58,6 @@ func (s *server) Initialize(ctx context.Context) error {
 	}
 
 	s.state = primitive.ServerStateStarted
-
-	if !s.isDebugMode {
-		// Register to controller.
-		if err := s.registerSelf(ctx); err != nil {
-			return err
-		}
-	} else {
-		log.Info(ctx, "the segment server debug mode enabled", nil)
-		if err := s.Start(ctx); err != nil {
-			return err
-		}
-		s.state = primitive.ServerStateRunning
-	}
-
 	return nil
 }
 
