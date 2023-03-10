@@ -377,7 +377,7 @@ func listConnectorCommand() *cobra.Command {
 				color.Yellow("WARN: this command doesn't support --output-format\n")
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Kind", "Name", "Type", "Version", "Status", "Reason"})
+				t.AppendHeader(table.Row{"Kind", "NodeName", "Type", "Version", "Status", "Reason"})
 				for i := range info.Data {
 					t.AppendRow(table.Row{
 						info.Data[i].Kind,
@@ -454,7 +454,7 @@ func getConnectorCommand() *cobra.Command {
 				color.Yellow("WARN: this command doesn't support --output-format\n")
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Kind", "Name", "Type", "Version", "Status", "Reason"})
+				t.AppendHeader(table.Row{"Kind", "NodeName", "Type", "Version", "Status", "Reason"})
 				t.AppendRows([]table.Row{
 					{
 						info.Data.Kind,
