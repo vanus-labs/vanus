@@ -23,7 +23,7 @@ const (
 	ResourceEventbus          = keyResource + "eventbus"
 	ResourceEventlog          = keyResource + "eventlog"
 	ResourceSegment           = keyResource + "segment"
-	ResourceSegmentOfEventlog = keyResource + "segment_eventlog"
+	ResourceSegmentOfEventlog = keyResource + "segs_eventlog"
 	ResourceVolume            = keyResource + "volume/"
 	ResourceVolumeMetadata    = ResourceVolume + "metadata"
 	ResourceVolumeBlock       = ResourceVolume + "block"
