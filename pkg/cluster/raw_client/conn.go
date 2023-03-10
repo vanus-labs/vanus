@@ -75,7 +75,7 @@ func (c *Conn) invoke(ctx context.Context, method string, args, reply interface{
 	}
 	err := conn.Invoke(ctx, method, args, reply, opts...)
 	if err != nil {
-		log.Warning(ctx, "invoke error, try to retry", map[string]interface{}{
+		log.Debug(ctx, "invoke error, try to retry", map[string]interface{}{
 			log.KeyError: err,
 		})
 	}
@@ -88,7 +88,7 @@ func (c *Conn) invoke(ctx context.Context, method string, args, reply interface{
 		err = conn.Invoke(ctx, method, args, reply, opts...)
 	}
 	if err != nil {
-		log.Warning(ctx, "invoke error", map[string]interface{}{
+		log.Debug(ctx, "invoke error", map[string]interface{}{
 			log.KeyError: err,
 		})
 	}
@@ -118,7 +118,7 @@ func (c *Conn) makeSureClient(ctx context.Context, renew bool) *grpc.ClientConn 
 			c.leaderClient = c.getGRPCConn(ctx, c.endpoints[0])
 			return c.leaderClient
 		}
-		log.Info(ctx, "try to create connection", map[string]interface{}{
+		log.Debug(ctx, "try to create connection", map[string]interface{}{
 			"renew":     renew,
 			"endpoints": c.endpoints,
 		})

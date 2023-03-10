@@ -29,7 +29,7 @@ func (i Index) String() string {
 	return strconv.FormatUint(uint64(i), 10)
 }
 
-// AckedIndexer allows looking up a commit index for a given ID of a voter
+// AckedIndexer allows looking up a commit index for a given VolumeID of a voter
 // from a corresponding MajorityConfig.
 type AckedIndexer interface {
 	AckedIndex(voterID uint64) (idx Index, found bool)

@@ -184,7 +184,7 @@ type Node interface {
 	Status() Status
 	// ReportUnreachable reports the given node is not reachable for the last send.
 	ReportUnreachable(id uint64)
-	// ReportSnapshot reports the status of the sent snapshot. The id is the raft ID of the follower
+	// ReportSnapshot reports the status of the sent snapshot. The id is the raft VolumeID of the follower
 	// who is meant to receive the snapshot, and the status is SnapshotFinish or SnapshotFailure.
 	// Calling ReportSnapshot with SnapshotFinish is a no-op. But, any failure in applying a
 	// snapshot (for e.g., while streaming it from leader to follower), should be reported to the

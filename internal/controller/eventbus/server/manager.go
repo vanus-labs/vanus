@@ -29,15 +29,13 @@ import (
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
-
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type Manager interface {
 	AddServer(ctx context.Context, srv Server) error
 	RemoveServer(ctx context.Context, srv Server) error
 	GetServerByAddress(addr string) Server
-	GetServerByServerID(id vanus.ID) Server
+	GetServerByVolumeID(id uint64) Server
 	Run(ctx context.Context) error
 	Stop(ctx context.Context)
 	CanCreateEventbus(ctx context.Context, replicaNum int) bool
@@ -59,12 +57,12 @@ type segmentServerManager struct {
 	mutex                    sync.Mutex
 	// map[string]Server
 	segmentServerMapByIP sync.Map
-	// map[vanus.ID]Server
-	segmentServerMapByID sync.Map
-	cancelCtx            context.Context
-	cancel               func()
-	ticker               *time.Ticker
-	onlineServerNumber   int64
+	// map[string]Server
+	segmentServerMapByVolumeID sync.Map
+	cancelCtx                  context.Context
+	cancel                     func()
+	ticker                     *time.Ticker
+	onlineServerNumber         int64
 }
 
 func (mgr *segmentServerManager) AddServer(ctx context.Context, srv Server) error {
@@ -77,16 +75,16 @@ func (mgr *segmentServerManager) AddServer(ctx context.Context, srv Server) erro
 	v, exist := mgr.segmentServerMapByIP.Load(srv.Address())
 	if exist {
 		srvOld, _ := v.(Server)
-		if srv.ID().Equals(srvOld.ID()) {
+		if srv.VolumeID() != srvOld.VolumeID() {
 			return nil
 		}
 		return errors.ErrSegmentServerHasBeenAdded
 	}
 	mgr.segmentServerMapByIP.Store(srv.Address(), srv)
-	mgr.segmentServerMapByID.Store(srv.ID().Key(), srv)
+	mgr.segmentServerMapByVolumeID.Store(srv.VolumeID(), srv)
 	atomic.AddInt64(&mgr.onlineServerNumber, 1)
 	log.Info(ctx, "the segment server added", map[string]interface{}{
-		"server_id": srv.ID(),
+		"server_id": srv.VolumeID(),
 		"addr":      srv.Address(),
 		"online":    atomic.LoadInt64(&mgr.onlineServerNumber),
 	})
@@ -100,10 +98,10 @@ func (mgr *segmentServerManager) RemoveServer(ctx context.Context, srv Server) e
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 	mgr.segmentServerMapByIP.Delete(srv.Address())
-	mgr.segmentServerMapByID.Delete(srv.ID().Key())
+	mgr.segmentServerMapByVolumeID.Delete(srv.VolumeID())
 	atomic.AddInt64(&mgr.onlineServerNumber, -1)
 	log.Info(ctx, "the segment server was removed", map[string]interface{}{
-		"server_id": srv.ID(),
+		"server_id": srv.VolumeID(),
 		"addr":      srv.Address(),
 		"online":    atomic.LoadInt64(&mgr.onlineServerNumber),
 	})
@@ -118,8 +116,8 @@ func (mgr *segmentServerManager) GetServerByAddress(addr string) Server {
 	return nil
 }
 
-func (mgr *segmentServerManager) GetServerByServerID(id vanus.ID) Server {
-	v, exist := mgr.segmentServerMapByID.Load(id.Key())
+func (mgr *segmentServerManager) GetServerByVolumeID(id uint64) Server {
+	v, exist := mgr.segmentServerMapByVolumeID.Load(id)
 	if exist {
 		return v.(Server)
 	}
@@ -142,9 +140,9 @@ func (mgr *segmentServerManager) Run(ctx context.Context) error {
 					}
 					if !srv.IsActive(ctx) {
 						mgr.segmentServerMapByIP.Delete(srv.Address())
-						mgr.segmentServerMapByID.Delete(srv.ID().Key())
+						mgr.segmentServerMapByVolumeID.Delete(srv.VolumeID())
 						log.Info(newCtx, "the server isn't active", map[string]interface{}{
-							"id":      srv.ID(),
+							"id":      srv.VolumeID(),
 							"address": srv.Address(),
 							"up_time": srv.Uptime(),
 						})
@@ -168,14 +166,14 @@ func (mgr *segmentServerManager) Stop(ctx context.Context) {
 		err := srv.(*segmentServer).grpcConn.Close()
 		if err != nil {
 			log.Warning(ctx, "close grpc connection error", map[string]interface{}{
-				"id":         srv.ID(),
+				"id":         srv.VolumeID(),
 				"address":    srv.Address(),
 				"up_time":    srv.Uptime(),
 				log.KeyError: err,
 			})
 		} else {
 			log.Info(ctx, "the connection to server was closed", map[string]interface{}{
-				"id":      srv.ID(),
+				"id":      srv.VolumeID(),
 				"address": srv.Address(),
 				"up_time": srv.Uptime(),
 			})
@@ -187,7 +185,7 @@ func (mgr *segmentServerManager) Stop(ctx context.Context) {
 
 func (mgr *segmentServerManager) CanCreateEventbus(ctx context.Context, replicaNum int) bool {
 	activeNum := 0
-	mgr.segmentServerMapByID.Range(func(_, value any) bool {
+	mgr.segmentServerMapByVolumeID.Range(func(_, value any) bool {
 		s, _ := value.(Server)
 		if s.IsActive(ctx) {
 			activeNum++
@@ -201,7 +199,7 @@ type Server interface {
 	RemoteStart(ctx context.Context) error
 	RemoteStop(ctx context.Context)
 	GetClient() segpb.SegmentServerClient
-	ID() vanus.ID
+	VolumeID() uint64
 	Address() string
 	Close() error
 	Polish()
@@ -210,7 +208,7 @@ type Server interface {
 }
 
 type segmentServer struct {
-	id                vanus.ID
+	volumeID          uint64
 	addr              string
 	grpcConn          *grpc.ClientConn
 	client            segpb.SegmentServerClient
@@ -218,15 +216,15 @@ type segmentServer struct {
 	lastHeartbeatTime time.Time
 }
 
-type Getter func(id vanus.ID, addr string) (Server, error)
+type Getter func(volumeID uint64, addr string) (Server, error)
 
 var (
-	getter Getter = newSegmentServerWithID
+	getter Getter = newSegmentServer
 	mutex  sync.Mutex
 )
 
-func NewSegmentServerWithID(id vanus.ID, addr string) (Server, error) {
-	return getter(id, addr)
+func NewSegmentServerWithVolumeID(volumeID uint64, addr string) (Server, error) {
+	return getter(volumeID, addr)
 }
 
 func MockServerGetter(gt Getter) {
@@ -238,25 +236,16 @@ func MockServerGetter(gt Getter) {
 func MockReset() {
 	mutex.Lock()
 	defer mutex.Unlock()
-	getter = newSegmentServerWithID
+	getter = newSegmentServer
 }
 
-func newSegmentServerWithID(id vanus.ID, addr string) (Server, error) {
-	srv, err := NewSegmentServer(addr)
-	if err != nil {
-		return nil, err
-	}
-	srv.(*segmentServer).id = id
-	return srv, nil
+func NewSegmentServer(volumeID uint64, addr string) (Server, error) {
+	return newSegmentServer(volumeID, addr)
 }
 
-func NewSegmentServer(addr string) (Server, error) {
-	id, err := vanus.NewID()
-	if err != nil {
-		return nil, err
-	}
-	srv := &segmentServer{
-		id:                id,
+func newSegmentServer(volumeID uint64, addr string) (Server, error) {
+	var srv = &segmentServer{
+		volumeID:          volumeID,
 		addr:              addr,
 		uptime:            time.Now(),
 		lastHeartbeatTime: time.Now(),
@@ -273,13 +262,11 @@ func NewSegmentServer(addr string) (Server, error) {
 }
 
 func (ss *segmentServer) RemoteStart(ctx context.Context) error {
-	_, err := ss.client.Start(ctx, &segpb.StartSegmentServerRequest{
-		ServerId: ss.id.Uint64(),
-	})
+	_, err := ss.client.Start(ctx, &segpb.StartSegmentServerRequest{})
 	if err != nil {
 		log.Warning(ctx, "start server failed", map[string]interface{}{
 			log.KeyError: err,
-			"server_id":  ss.id,
+			"volume_id":  ss.volumeID,
 		})
 		return err
 	}
@@ -291,7 +278,7 @@ func (ss *segmentServer) RemoteStop(ctx context.Context) {
 	if err != nil {
 		log.Warning(ctx, "stop server failed", map[string]interface{}{
 			log.KeyError: err,
-			"server_id":  ss.id,
+			"volume_id":  ss.volumeID,
 		})
 	}
 }
@@ -300,8 +287,8 @@ func (ss *segmentServer) GetClient() segpb.SegmentServerClient {
 	return ss.client
 }
 
-func (ss *segmentServer) ID() vanus.ID {
-	return ss.id
+func (ss *segmentServer) VolumeID() uint64 {
+	return ss.volumeID
 }
 
 func (ss *segmentServer) Address() string {

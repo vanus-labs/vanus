@@ -59,7 +59,7 @@ func (s *offsetStorage) getSubKey(subscriptionID vanus.ID) string {
 func (s *offsetStorage) int64ToByteArr(v uint64) []byte {
 	/*
 		b := make([]byte, 8)
-		binary.LittleEndian.PutUint64(b, vanus.ID(v))
+		binary.LittleEndian.PutUint64(b, vanus.VolumeID(v))
 		return b
 	*/
 	str := strconv.FormatUint(v, base)
@@ -68,7 +68,7 @@ func (s *offsetStorage) int64ToByteArr(v uint64) []byte {
 
 func (s *offsetStorage) byteArrToUint64(b []byte) uint64 {
 	/*
-		v := binary.LittleEndian.vanus.ID(b)
+		v := binary.LittleEndian.vanus.VolumeID(b)
 		return int64(v)
 	*/
 	v, _ := strconv.ParseUint(string(b), base, bitSize)

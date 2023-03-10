@@ -95,18 +95,18 @@ func (mr *MockManagerMockRecorder) Init(ctx, kvClient interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Init", reflect.TypeOf((*MockManager)(nil).Init), ctx, kvClient)
 }
 
-// LookupVolumeByServerID mocks base method.
-func (m *MockManager) LookupVolumeByServerID(id vanus.ID) server.Instance {
+// LookupVolumeByID mocks base method.
+func (m *MockManager) LookupVolumeByID(id uint64) server.Instance {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LookupVolumeByServerID", id)
+	ret := m.ctrl.Call(m, "LookupVolumeByID", id)
 	ret0, _ := ret[0].(server.Instance)
 	return ret0
 }
 
-// LookupVolumeByServerID indicates an expected call of LookupVolumeByServerID.
-func (mr *MockManagerMockRecorder) LookupVolumeByServerID(id interface{}) *gomock.Call {
+// LookupVolumeByID indicates an expected call of LookupVolumeByID.
+func (mr *MockManagerMockRecorder) LookupVolumeByID(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LookupVolumeByServerID", reflect.TypeOf((*MockManager)(nil).LookupVolumeByServerID), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LookupVolumeByID", reflect.TypeOf((*MockManager)(nil).LookupVolumeByID), id)
 }
 
 // RegisterVolume mocks base method.

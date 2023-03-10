@@ -34,14 +34,14 @@ To start a node from scratch:
 
   storage := raft.NewMemoryStorage()
   c := &Config{
-    ID:              0x01,
+    VolumeID:              0x01,
     ElectionTick:    10,
     HeartbeatTick:   1,
     Storage:         storage,
     MaxSizePerMsg:   4096,
     MaxInflightMsgs: 256,
   }
-  n := raft.StartNode(c, []raft.Peer{{ID: 0x02}, {ID: 0x03}})
+  n := raft.StartNode(c, []raft.Peer{{VolumeID: 0x02}, {VolumeID: 0x03}})
 
 To restart a node from previous state:
 
@@ -54,7 +54,7 @@ To restart a node from previous state:
   storage.Append(entries)
 
   c := &Config{
-    ID:              0x01,
+    VolumeID:              0x01,
     ElectionTick:    10,
     HeartbeatTick:   1,
     Storage:         storage,
@@ -164,8 +164,8 @@ raftpb.EntryConfChange will be returned. You must apply it to node through:
 	cc.Unmarshal(data)
 	n.ApplyConfChange(cc)
 
-Note: An ID represents a unique node in a cluster for all time. A
-given ID MUST be used only once even if the old node has been removed.
+Note: An VolumeID represents a unique node in a cluster for all time. A
+given VolumeID MUST be used only once even if the old node has been removed.
 This means that for example IP addresses make poor node IDs since they
 may be reused. Node IDs must be non-zero.
 
@@ -223,7 +223,7 @@ stale log entries:
 	to its log, and then calls 'bcastAppend' method to send those entries to
 	its peers. When passed to candidate, 'MsgProp' is dropped. When passed to
 	follower, 'MsgProp' is stored in follower's mailbox(msgs) by the send
-	method. It is stored with sender's ID and later forwarded to leader by
+	method. It is stored with sender's VolumeID and later forwarded to leader by
 	rafthttp package.
 
 	'MsgApp' contains log entries to replicate. A leader calls bcastAppend,
@@ -282,7 +282,7 @@ stale log entries:
 	reverts back to follower and updates its committed index from the one in
 	this heartbeat. And it sends the message to its mailbox. When
 	'MsgHeartbeat' is passed to follower's Step method and message's term is
-	higher than follower's, the follower updates its leaderID with the ID
+	higher than follower's, the follower updates its leaderID with the VolumeID
 	from the message.
 
 	'MsgHeartbeatResp' is a response to 'MsgHeartbeat'. When 'MsgHeartbeatResp'

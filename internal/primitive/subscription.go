@@ -41,7 +41,7 @@ type Subscription struct {
 }
 
 func (sub *Subscription) String() string {
-	return fmt.Sprintf("ID=%d, sink=%s, eventbus=%s, filters=%s, offsets=%s, transformer=%s, config=%s, protocol=%v",
+	return fmt.Sprintf("VolumeID=%d, sink=%s, eventbus=%s, filters=%s, offsets=%s, transformer=%s, config=%s, protocol=%v",
 		sub.ID, sub.Sink, sub.EventbusID, sub.Filters.String(), sub.Offsets.String(),
 		sub.Transformer.String(), sub.Config.String(), sub.Protocol)
 }
@@ -147,7 +147,7 @@ type Action struct {
 /* annotation no use code .
 type SinkSpec struct {
 	Type   string
-	NodeName   string // TODO use id or name? ID used in CloudEvents Specification
+	NodeName   string // TODO use id or name? VolumeID used in CloudEvents Specification
 	Weight float32
 	Config map[string]interface{}
 }

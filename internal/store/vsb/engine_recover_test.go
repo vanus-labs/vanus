@@ -58,7 +58,7 @@ package vsb
 // 				So(err, ShouldBeNil)
 // 				So(info.Size(), ShouldEqual, defaultCapacity)
 
-// 				So(b.ID(), ShouldEqual, id)
+// 				So(b.VolumeID(), ShouldEqual, id)
 // 				So(b.Path(), ShouldEqual, path)
 // 				So(b.full(), ShouldBeFalse)
 // 				So(b.Appendable(), ShouldBeTrue)

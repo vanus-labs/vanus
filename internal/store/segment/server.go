@@ -81,7 +81,7 @@ type Server interface {
 
 	CreateBlock(ctx context.Context, id vanus.ID, size int64) error
 	RemoveBlock(ctx context.Context, id vanus.ID) error
-	// GetBlockInfo(ctx context.Context, id vanus.ID) error
+	// GetBlockInfo(ctx context.Context, id vanus.VolumeID) error
 
 	ActivateSegment(ctx context.Context, logID vanus.ID, segID vanus.ID, replicas map[vanus.ID]string) error
 	InactivateSegment(ctx context.Context) error
@@ -154,7 +154,6 @@ type server struct {
 
 	raftEngine raft.Engine
 
-	id          vanus.ID
 	state       primitive.ServerState
 	isDebugMode bool
 	cfg         store.Config
@@ -294,7 +293,6 @@ func (s *server) runHeartbeat(_ context.Context) error {
 			return true
 		})
 		return &ctrlpb.SegmentHeartbeatRequest{
-			ServerId:   s.id.Uint64(),
 			VolumeId:   s.volumeID,
 			HealthInfo: infos,
 			ReportTime: util.FormatTime(time.Now()),
@@ -439,7 +437,7 @@ func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
 }
 
 // TODO(james.yin): implements GetBlockInfo.
-// func (s *server) GetBlockInfo(ctx context.Context, id vanus.ID) error {
+// func (s *server) GetBlockInfo(ctx context.Context, id vanus.VolumeID) error {
 // 	if err := s.checkState(); err != nil {
 // 		return err
 // 	}
@@ -615,7 +613,6 @@ func (s *server) onBlockArchived(stat block.Statistics) {
 	// report to controller
 	go func() {
 		_, _ = s.cc.ReportSegmentBlockIsFull(context.Background(), &ctrlpb.SegmentHeartbeatRequest{
-			ServerId:   s.id.Uint64(),
 			VolumeId:   s.volumeID,
 			HealthInfo: []*metapb.SegmentHealthInfo{info},
 			ReportTime: util.FormatTime(time.Now()),

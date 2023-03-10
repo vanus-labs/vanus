@@ -66,7 +66,6 @@ func (s *server) Initialize(ctx context.Context) error {
 		}
 	} else {
 		log.Info(ctx, "the segment server debug mode enabled", nil)
-		s.id = vanus.NewTestID()
 		if err := s.Start(ctx); err != nil {
 			return err
 		}
@@ -173,7 +172,6 @@ func (s *server) registerSelf(ctx context.Context) error {
 	log.Info(ctx, "connected to controller", map[string]interface{}{
 		"used": time.Since(start),
 	})
-	s.id = vanus.NewIDFromUint64(res.ServerId)
 
 	// FIXME(james.yin): some blocks may not be bound to segment.
 

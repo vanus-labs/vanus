@@ -49,7 +49,7 @@ func TestVolumeInstance(t *testing.T) {
 		srv := NewMockServer(ctrl)
 
 		srv.EXPECT().IsActive(stdCtx.Background()).Times(1).Return(false)
-		srv.EXPECT().ID().AnyTimes().Return(vanus.NewIDFromUint64(1234))
+		srv.EXPECT().VolumeID().AnyTimes().Return(uint64(1234))
 		srv.EXPECT().Address().AnyTimes().Return("127.0.0.1:10001")
 		srv.EXPECT().Uptime().AnyTimes().Return(time.Now())
 		ins.SetServer(srv)

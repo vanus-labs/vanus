@@ -42,7 +42,7 @@ service SegmentServer {
 
 message StartSegmentServerRequest {
   config.ServerConfig config = 1;
-  uint64 server_id = 2;
+  reserved 2; // deprecated server_id(uint_64) at v0.7.0
 }
 
 message StartSegmentServerResponse {}

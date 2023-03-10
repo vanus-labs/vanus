@@ -204,7 +204,7 @@ func (ctrl *controller) createEventbus(
 
 	id, err := vanus.NewID()
 	if err != nil {
-		log.Warning(ctx, "failed to create eventbus ID", map[string]interface{}{
+		log.Warning(ctx, "failed to create eventbus VolumeID", map[string]interface{}{
 			log.KeyError: err,
 		})
 		return nil, err
@@ -361,7 +361,7 @@ func (ctrl *controller) ListSegment(
 func (ctrl *controller) RegisterSegmentServer(
 	ctx context.Context, req *ctrlpb.RegisterSegmentServerRequest,
 ) (*ctrlpb.RegisterSegmentServerResponse, error) {
-	srv, err := server.NewSegmentServer(req.Address)
+	srv, err := server.NewSegmentServer(req.VolumeId, req.Address)
 	if err != nil {
 		return nil, err
 	}
@@ -409,7 +409,6 @@ func (ctrl *controller) RegisterSegmentServer(
 	}()
 
 	return &ctrlpb.RegisterSegmentServerResponse{
-		ServerId: srv.ID().Uint64(),
 		Segments: segments,
 	}, nil
 }
@@ -486,22 +485,19 @@ func (ctrl *controller) processHeartbeat(ctx context.Context, req *ctrlpb.Segmen
 	if err != nil {
 		log.Error(ctx, "parse heartbeat report time failed", map[string]interface{}{
 			"volume_id":  req.VolumeId,
-			"server_id":  req.ServerId,
 			log.KeyError: err,
 		})
 		return err
 	}
 	log.Debug(ctx, "received heartbeat from segment server", map[string]interface{}{
-		"server_id": req.ServerId,
 		"volume_id": req.VolumeId,
 		"time":      t,
 	})
 
-	srv := ctrl.ssMgr.GetServerByServerID(vanus.NewIDFromUint64(req.ServerId))
+	srv := ctrl.ssMgr.GetServerByVolumeID(req.VolumeId) // TODO
 	if srv == nil {
 		log.Warning(ctx, "received a heartbeat request, but server metadata not found", map[string]interface{}{
 			"volume_id": req.VolumeId,
-			"server_id": req.ServerId,
 		})
 	} else {
 		srv.Polish()
@@ -609,14 +605,8 @@ func (ctrl *controller) recordMetrics() {
 		select {
 		case <-t.C:
 			ctrl.membershipMutex.Lock()
-			if ctrl.isLeader {
-				metrics.ControllerLeaderGaugeVec.DeleteLabelValues(strconv.FormatBool(!ctrl.isLeader))
-				metrics.ControllerLeaderGaugeVec.WithLabelValues(
-					strconv.FormatBool(ctrl.isLeader)).Set(1)
-			} else {
-				metrics.ControllerLeaderGaugeVec.WithLabelValues(
-					strconv.FormatBool(!ctrl.isLeader)).Set(0)
-			}
+			metrics.ControllerLeaderGaugeVec.WithLabelValues(
+				strconv.FormatBool(ctrl.isLeader)).Set(0)
 			ctrl.membershipMutex.Unlock()
 
 			ctrl.mutex.Lock()

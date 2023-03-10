@@ -377,7 +377,7 @@ func (s *Storage) prepareAppend(ctx context.Context, entries []raftpb.Entry) err
 func (s *Storage) marshalEntries(entries []raftpb.Entry) ([][]byte, error) {
 	ents := make([][]byte, len(entries))
 	for i, entry := range entries {
-		// reset node ID.
+		// reset node VolumeID.
 		entry.NodeId = s.nodeID.Uint64()
 		ent, err := entry.Marshal()
 		if err != nil {
