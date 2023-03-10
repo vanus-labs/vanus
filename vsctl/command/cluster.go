@@ -780,7 +780,7 @@ func getClusterCommand() *cobra.Command {
 				color.Yellow("WARN: this command doesn't support --output-format\n")
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Name", "Result"})
+				t.AppendHeader(table.Row{"NodeName", "Result"})
 				t.AppendRows([]table.Row{
 					{"Gateway Endpoints", mustGetGatewayEndpoint(cmd)},
 					{"CloudEvents Endpoints", mustGetGatewayCloudEventsEndpoint(cmd)},

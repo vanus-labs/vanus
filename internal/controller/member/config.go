@@ -15,9 +15,11 @@
 package member
 
 type Config struct {
-	LeaseDuration int64    `yaml:"lease_duration"`
-	Name          string   `yaml:"name"`
-	EtcdEndpoints []string `yaml:"etcd"`
+	LeaseDurationInSecond int               `yaml:"lease_duration_in_sec"`
+	EtcdEndpoints         []string          `yaml:"etcd"`
+	Topology              map[string]string `yaml:"topology"`
+	ComponentName         string            `yaml:"component_name"`
+	NodeName              string            `yaml:"-"`
 }
 
 const (

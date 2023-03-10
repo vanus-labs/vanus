@@ -318,7 +318,7 @@ func listEventbusInfoCommand() *cobra.Command {
 			} else {
 				t := table.NewWriter()
 				t.AppendHeader(table.Row{
-					"Name", "Description", "Created_At",
+					"NodeName", "Description", "Created_At",
 					"Updated_At", "Eventlog Number",
 				})
 				for idx := range res.Eventbus {

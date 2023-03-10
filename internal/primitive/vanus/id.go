@@ -23,15 +23,14 @@ import (
 	"time"
 
 	"github.com/sony/sonyflake"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"go.uber.org/atomic"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
-
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/pkg/cluster"
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 )
 
 type node struct {
@@ -48,7 +47,7 @@ const (
 	StoreService
 	UnknownService
 
-	// NodeID space: [0, 65535], DON'T CHANGE THEM!!!
+	// NodeName space: [0, 65535], DON'T CHANGE THEM!!!
 	controllerNodeIDStart           = uint16(16)
 	reservedControlPanelNodeIDStart = uint16(32)
 	storeNodeIDStart                = uint16(1024)
@@ -139,9 +138,7 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 		return fmt.Errorf("the nodeID number: %d exceeded, range of %s is [%d, %d)",
 			n.logicID(), n.svc.Name(), n.start, n.end)
 	}
-
-	var err error
-	once.Do(func() {
+	initService := func() error {
 		ctrl := cluster.NewClusterController(ctrlAddr, insecure.NewCredentials())
 		snow := &snowflake{
 			client:   ctrl.IDService().RawClient(),
@@ -149,9 +146,9 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 			n:        n,
 		}
 		var startTime *timestamppb.Timestamp
-		startTime, err = snow.client.GetClusterStartTime(ctx, &emptypb.Empty{})
+		startTime, err := snow.client.GetClusterStartTime(ctx, &emptypb.Empty{})
 		if err != nil {
-			return
+			return err
 		}
 
 		snow.snow = sonyflake.NewSonyflake(sonyflake.Settings{
@@ -173,14 +170,33 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 			},
 		})
 		if snow.snow == nil {
-			err = fmt.Errorf("init snowflake failed")
-			return
+			return fmt.Errorf("init snowflake failed")
 		}
 		generator = snow
 		initialized.Store(true)
 		log.Info(ctx, "succeed to init ID generator", map[string]interface{}{
 			"node_id": snow.n.logicID(),
 		})
+		return nil
+	}
+	var err error
+	once.Do(func() {
+		ctx, cancel := context.WithTimeout(ctx, time.Minute)
+		defer cancel()
+		ticker := time.NewTicker(time.Second)
+
+		for {
+			select {
+			case <-ctx.Done():
+				err = errors.New("init snowflake ID service timeout")
+				return
+			case <-ticker.C:
+				err = initService()
+				if err == nil {
+					return
+				}
+			}
+		}
 	})
 	return err
 }

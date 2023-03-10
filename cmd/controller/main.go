@@ -69,8 +69,8 @@ func main() {
 
 	ctx := signal.SetupSignalContext()
 	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetControllerMetrics)
-	mem := member.New(cfg.Topology)
-	if err = mem.Init(ctx, cfg.GetMemberConfig()); err != nil {
+	mem := member.New(cfg.GetClusterConfig())
+	if err = mem.Init(ctx); err != nil {
 		log.Error(ctx, "failed to init member", map[string]interface{}{
 			log.KeyError: err,
 		})
@@ -103,8 +103,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	memStopCh, err := mem.Start(ctx)
-	if err != nil {
+	if err = mem.Start(ctx); err != nil {
 		log.Error(ctx, "failed to start member", map[string]interface{}{
 			log.KeyError: err,
 		})
@@ -178,8 +177,6 @@ func main() {
 	}
 
 	select {
-	case <-memStopCh:
-		log.Info(ctx, "received member ready to stop, preparing exit", nil)
 	case <-ctx.Done():
 		log.Info(ctx, "received system signal, preparing exit", nil)
 	case <-segmentCtrl.StopNotify():

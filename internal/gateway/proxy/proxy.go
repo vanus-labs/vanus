@@ -254,6 +254,7 @@ func (cp *ControllerProxy) Subscribe(req *proxypb.SubscribeRequest, stream proxy
 		return err
 	}
 
+	// TODO add config
 	newSink := fmt.Sprintf("http://%s:%d%s/%s",
 		os.Getenv("POD_IP"), cp.cfg.SinkPort, httpRequestPrefix, req.SubscriptionId)
 	if meta.Sink != newSink {

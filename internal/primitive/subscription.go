@@ -147,7 +147,7 @@ type Action struct {
 /* annotation no use code .
 type SinkSpec struct {
 	Type   string
-	Name   string // TODO use id or name? ID used in CloudEvents Specification
+	NodeName   string // TODO use id or name? ID used in CloudEvents Specification
 	Weight float32
 	Config map[string]interface{}
 }
@@ -165,7 +165,7 @@ const (
 )
 
 type FilterSpec struct {
-	Name    string
+	NodeName    string
 	Exp     interface{}
 	ApplyTo []string
 	Target  TargetSpec
