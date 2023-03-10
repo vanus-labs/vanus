@@ -15,31 +15,26 @@
 package kv
 
 const (
-	keyCore     = "/vanus/core/"
-	keyResource = keyCore + "resource/"
-	keyExecutor = keyCore + "executors/"
+	ResourceEventbus          = "/vanus/core/eventbus_controller/eventbus"
+	ResourceEventlog          = "/vanus/core/eventbus_controller/eventlog"
+	ResourceSegment           = "/vanus/core/eventbus_controller/segment"
+	ResourceSegmentOfEventlog = "/vanus/core/eventbus_controller/segs_of_eventlog"
+	ResourceVolumeMetadata    = "/vanus/core/eventbus_controller/volume/metadata"
+	ResourceVolumeBlock       = "/vanus/core/eventbus_controller/volume/block"
+	ResourceVolumeInstance    = "/vanus/core/eventbus_controller/volume/instance"
+	ResourceSubscription      = "/vanus/core/trigger_controller/subscriptions"
+	MetadataSecret            = "/vanus/core/trigger_controller/secrets"
+	MetadataOffset            = "/vanus/core/trigger_controller/offsets"
+	TriggerWorker             = "/vanus/core/trigger_controller/trigger_workers"
+	LeaderLock                = "/vanus/core/cluster/resource_lock"
+	LeaderInfo                = "/vanus/core/cluster/leader_info"
+	ClusterNode               = "/vanus/core/cluster/nodes"
+	ClusterStart              = "/vanus/core/cluster/start_at"
 
-	// eventbus.
-	ResourceEventbus          = keyResource + "eventbus"
-	ResourceEventlog          = keyResource + "eventlog"
-	ResourceSegment           = keyResource + "segment"
-	ResourceSegmentOfEventlog = keyResource + "segs_eventlog"
-	ResourceVolume            = keyResource + "volume/"
-	ResourceVolumeMetadata    = ResourceVolume + "metadata"
-	ResourceVolumeBlock       = ResourceVolume + "block"
-	ResourceVolumeInstance    = ResourceVolume + "instance"
-
-	// subscription.
-	ResourceSubscription = keyResource + "subscriptions"
-	MetadataSecret       = keyCore + "secrets"
-	MetadataOffset       = keyCore + "offsets"
-	TriggerWorker        = keyExecutor + "trigger_workers"
-
-	// leader.
-	LeaderLock = keyCore + "resource_lock"
-	LeaderInfo = keyCore + "leader_info"
-
-	// snowflake ID.
-	ClusterNode  = keyCore + "cluster/nodes"
-	ClusterStart = keyCore + "cluster/start_at"
+	namespace             = "/vanus/core/tenants/namespaces"
+	namespaceEventbus     = "/vanus/core/tenants/{ns_id}/eventbus/{eventbus_id}"
+	namespaceSubscription = "/vanus/core/tenants/{ns_id}/subscription/{subscription_id}"
+	userRoles             = "/vanus/core/tenants/users/{user_id}/roles/{role_id}"
+	roleUsers             = "/vanus/core/tenants/roles/{role_id}/users/{user_id}"
+	rolePermissions       = "/vanus/core/tenants/roles/{role_id}/permissions"
 )
