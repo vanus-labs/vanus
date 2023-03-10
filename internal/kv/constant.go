@@ -19,6 +19,7 @@ const (
 	keyResource = keyCore + "resource/"
 	keyExecutor = keyCore + "executors/"
 
+	// eventbus.
 	ResourceEventbus          = keyResource + "eventbus"
 	ResourceEventlog          = keyResource + "eventlog"
 	ResourceSegment           = keyResource + "segment"
@@ -28,15 +29,17 @@ const (
 	ResourceVolumeBlock       = ResourceVolume + "block"
 	ResourceVolumeInstance    = ResourceVolume + "instance"
 
+	// subscription.
 	ResourceSubscription = keyResource + "subscriptions"
 	MetadataSecret       = keyCore + "secrets"
 	MetadataOffset       = keyCore + "offsets"
 	TriggerWorker        = keyExecutor + "trigger_workers"
 
+	// leader.
 	LeaderLock = keyCore + "resource_lock"
 	LeaderInfo = keyCore + "leader_info"
 
-	// snowflake ID
+	// snowflake ID.
 	ClusterNode  = keyCore + "cluster/nodes"
 	ClusterStart = keyCore + "cluster/start_at"
 )
