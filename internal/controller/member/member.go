@@ -195,6 +195,7 @@ func (m *member) leaderElection() {
 						goto RUN
 					case <-t.C:
 						if m.refresh(ctx) {
+							t.Stop()
 							goto RUN
 						}
 					}
