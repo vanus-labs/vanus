@@ -18,20 +18,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/vanus-labs/vanus/pkg/cluster"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/sony/sonyflake"
-	"go.uber.org/atomic"
-	"google.golang.org/protobuf/types/known/wrapperspb"
-
 	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/cluster"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	"go.uber.org/atomic"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 type node struct {
@@ -201,9 +200,7 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 	})
 	return err
 }
-func initIDService(ctx context.Context) {
 
-}
 func DestroySnowflake() {
 	if generator != nil {
 		_, err := generator.client.UnregisterNode(context.Background(),

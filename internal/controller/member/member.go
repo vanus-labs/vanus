@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=member.go -destination=mock_member.go -package=member
 package member
 
 import (
@@ -49,7 +50,7 @@ type Member interface {
 
 var _ Member = &member{}
 
-func New(cfg Config) Member { //nolint:revive // it's ok
+func New(cfg Config) Member {
 	return &member{
 		cfg: cfg,
 	}
