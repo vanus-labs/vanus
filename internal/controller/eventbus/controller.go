@@ -218,7 +218,7 @@ func (ctrl *controller) createEventbus(
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	exist, err := ctrl.kvStore.Exists(ctx, metadata.GetEventbusMetadataKey(eb.Name))
+	exist, err := ctrl.kvStore.Exists(ctx, metadata.GetEventbusMetadataKey(id))
 	if err != nil {
 		return nil, err
 	}
@@ -236,16 +236,16 @@ func (ctrl *controller) createEventbus(
 
 	{
 		data, _ := json.Marshal(eb)
-		if err := ctrl.kvStore.Set(ctx, metadata.GetEventbusMetadataKey(eb.Name), data); err != nil {
+		if err := ctrl.kvStore.Set(ctx, metadata.GetEventbusMetadataKey(id), data); err != nil {
 			return nil, err
 		}
 	}
 	return ctrl.getEventbus(eb.ID)
 }
 
-func (ctrl *controller) getDeadLetterEventbusID(ctx context.Context, id vanus.ID) vanus.ID {
+func (ctrl *controller) getDeadLetterEventbusID(_ context.Context, id vanus.ID) vanus.ID {
 	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(id)
-	//
+	// todo
 	for _id, eb := range ctrl.eventbusMap {
 		if eb.Name == deadLetterEventbusName {
 			return _id
@@ -280,7 +280,7 @@ func (ctrl *controller) deleteEventbus(ctx context.Context, id vanus.ID) error {
 	if !exist {
 		return errors.ErrResourceNotFound.WithMessage("the eventbus doesn't exist")
 	}
-	err := ctrl.kvStore.Delete(ctx, metadata.GetEventbusMetadataKey(bus.Name))
+	err := ctrl.kvStore.Delete(ctx, metadata.GetEventbusMetadataKey(id))
 	if err != nil {
 		return errors.ErrInternal.WithMessage("delete eventbus metadata in kv failed").Wrap(err)
 	}
@@ -675,7 +675,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event me
 
 func (ctrl *controller) loadEventbus(ctx context.Context) error {
 	// load eventbus metadata
-	pairs, err := ctrl.kvStore.List(ctx, metadata.EventbusKeyPrefixInKVStore)
+	pairs, err := ctrl.kvStore.List(ctx, kv.ResourceEventbus)
 	if err != nil {
 		return err
 	}

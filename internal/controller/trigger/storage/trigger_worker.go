@@ -45,7 +45,7 @@ func NewTriggerWorkerStorage(client kv.Client) TriggerWorkerStorage {
 }
 
 func (s *triggerWorkerStorage) getKey(id string) string {
-	return path.Join(KeyPrefixTriggerWorker.String(), id)
+	return path.Join(kv.TriggerWorker, id)
 }
 
 func (s *triggerWorkerStorage) SaveTriggerWorker(ctx context.Context, info metadata.TriggerWorkerInfo) error {

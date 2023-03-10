@@ -107,7 +107,7 @@ func TestListSubscription(t *testing.T) {
 			EventbusID: vanus.NewTestID(),
 		}
 		v, _ := json.Marshal(expect)
-		kvClient.EXPECT().List(ctx, KeyPrefixSubscription.String()).Return([]kv.Pair{
+		kvClient.EXPECT().List(ctx, kv.ResourceSubscription).Return([]kv.Pair{
 			{Key: fmt.Sprintf("%d", subID), Value: v},
 		}, nil)
 		list, err := s.ListSubscription(ctx)

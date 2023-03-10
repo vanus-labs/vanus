@@ -36,9 +36,7 @@ import (
 )
 
 const (
-	clusterStartAtKey = "/vanus/internal/cluster/start_at"
-	nodeIDKey         = "/vanus/internal/cluster/nodes"
-	spinInterval      = 100 * time.Millisecond
+	spinInterval = 100 * time.Millisecond
 )
 
 type Config struct {
@@ -172,7 +170,7 @@ func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event membe
 			return nil
 		}
 
-		exist, err := sf.kvStore.Exists(ctx, clusterStartAtKey)
+		exist, err := sf.kvStore.Exists(ctx, kv.ClusterStart)
 		if err != nil {
 			return err
 		}
@@ -180,12 +178,12 @@ func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event membe
 		if !exist {
 			now := time.Now()
 			data, _ := now.MarshalJSON()
-			if err = sf.kvStore.Set(ctx, clusterStartAtKey, data); err != nil {
+			if err = sf.kvStore.Set(ctx, kv.ClusterStart, data); err != nil {
 				return err
 			}
 		}
 
-		val, err := sf.kvStore.Get(ctx, clusterStartAtKey)
+		val, err := sf.kvStore.Get(ctx, kv.ClusterStart)
 		if err != nil {
 			return err
 		}
@@ -196,7 +194,7 @@ func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event membe
 		}
 		sf.startAt = startAt
 
-		pairs, err := sf.kvStore.List(ctx, nodeIDKey)
+		pairs, err := sf.kvStore.List(ctx, kv.ClusterNode)
 		if err != nil {
 			return err
 		}
@@ -221,5 +219,5 @@ func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event membe
 }
 
 func GetNodeIDKey(nodeID uint16) string {
-	return path.Join(nodeIDKey, fmt.Sprintf("%d", nodeID))
+	return path.Join(kv.ClusterNode, fmt.Sprintf("%d", nodeID))
 }

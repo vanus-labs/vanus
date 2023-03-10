@@ -27,7 +27,7 @@ type Eventbus struct {
 	ID          vanus.ID    `json:"id"`
 	Name        string      `json:"name"`
 	LogNumber   int         `json:"log_number"`
-	Eventlogs   []*Eventlog `json:"event_logs"`
+	Eventlogs   []*Eventlog `json:"eventlogs"`
 	Description string      `json:"description"`
 	CreatedAt   time.Time   `json:"created_at"`
 	UpdatedAt   time.Time   `json:"updated_at"`

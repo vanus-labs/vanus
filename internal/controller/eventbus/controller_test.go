@@ -52,8 +52,8 @@ func TestController_CreateEventbus(t *testing.T) {
 		mockMember.EXPECT().GetLeaderAddr().AnyTimes().Return("test")
 
 		Convey("test create a eventbus two times", func() {
-			kvCli.EXPECT().Exists(ctx, metadata.GetEventbusMetadataKey("test-1")).Times(1).Return(false, nil)
-			kvCli.EXPECT().Set(ctx, metadata.GetEventbusMetadataKey("test-1"), gomock.Any()).
+			kvCli.EXPECT().Exists(ctx, gomock.Any()).Times(1).Return(false, nil)
+			kvCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).
 				Times(1).Return(nil)
 			kvCli.EXPECT().Exists(ctx, gomock.Any()).Times(1).Return(false, nil)
 			kvCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).
@@ -90,7 +90,7 @@ func TestController_CreateEventbus(t *testing.T) {
 		})
 
 		Convey("test create a eventbus but exist", func() {
-			kvCli.EXPECT().Exists(ctx, metadata.GetEventbusMetadataKey("test-1")).Times(1).Return(true, nil)
+			kvCli.EXPECT().Exists(ctx, gomock.Any()).Times(1).Return(true, nil)
 
 			res, err := ctrl.CreateEventbus(ctx, &ctrlpb.CreateEventbusRequest{
 				Name:      "test-1",
@@ -145,7 +145,7 @@ func TestController_DeleteEventbus(t *testing.T) {
 		}
 
 		Convey("deleting an existed eventbus, but kv error", func() {
-			kvCli.EXPECT().Delete(ctx, metadata.GetEventbusMetadataKey("test-1")).Times(1).
+			kvCli.EXPECT().Delete(ctx, gomock.Any()).Times(1).
 				Return(fmt.Errorf("test"))
 
 			ctrl.eventbusMap[md.ID] = md
@@ -160,7 +160,7 @@ func TestController_DeleteEventbus(t *testing.T) {
 		})
 
 		Convey("deleting an existed eventbus success", func() {
-			kvCli.EXPECT().Delete(ctx, metadata.GetEventbusMetadataKey("test-1")).Times(1).
+			kvCli.EXPECT().Delete(ctx, gomock.Any()).Times(1).
 				Return(nil)
 
 			elMgr.EXPECT().DeleteEventlog(ctx, md.Eventlogs[0].ID).Times(1)
