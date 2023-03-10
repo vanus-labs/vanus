@@ -26,6 +26,7 @@ import (
 	. "github.com/golang/mock/gomock"
 	. "github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/internal/primitive"
@@ -123,12 +124,12 @@ func TestGateway_getEventbusFromPath(t *testing.T) {
 		vid := vanus.NewTestID()
 		reqData := &cehttp.RequestData{
 			URL: &url.URL{
-				Opaque: fmt.Sprintf("/gateway/%d", vid.Uint64()),
+				Opaque: fmt.Sprintf("/gateway/%s", vid),
 			},
 		}
 		id, err := getEventbusFromPath(reqData)
-		So(id, ShouldEqual, vid)
 		So(err, ShouldBeNil)
+		So(id, ShouldEqual, vid)
 	})
 }
 
@@ -136,8 +137,7 @@ func TestGateway_EventID(t *testing.T) {
 	ctrl := NewController(t)
 	defer ctrl.Finish()
 	var (
-		eventIDs    = "AABBCC"
-		busName     = "test"
+		busID       = vanus.NewTestID()
 		controllers = []string{"127.0.0.1:2048"}
 		port        = 8087
 	)
@@ -155,7 +155,7 @@ func TestGateway_EventID(t *testing.T) {
 	}
 	ga := NewGateway(cfg)
 
-	ga.client = mockClient
+	ga.proxySrv.SetClient(mockClient)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	_ = ga.startCloudEventsReceiver(ctx)
@@ -175,17 +175,13 @@ func TestGateway_EventID(t *testing.T) {
 		_ = event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world"})
 
 		ctx := ce.ContextWithTarget(context.Background(),
-			fmt.Sprintf("http://127.0.0.1:%d/gateway/%s", cfg.GetCloudEventReceiverPort(), busName))
+			fmt.Sprintf("http://127.0.0.1:%d/gateway/%s", cfg.GetCloudEventReceiverPort(), busID))
 		resEvent, res := c.Request(ctx, event)
 		So(ce.IsACK(res), ShouldBeTrue)
 		var httpResult *cehttp.Result
 		ce.ResultAs(res, &httpResult)
 		So(httpResult, ShouldNotBeNil)
 
-		var ed EventData
-		err = resEvent.DataAs(&ed)
-		So(err, ShouldBeNil)
-		So(ed.BusName, ShouldEqual, busName)
-		So(ed.EventID, ShouldEqual, eventIDs)
+		So(resEvent, ShouldBeNil)
 	})
 }

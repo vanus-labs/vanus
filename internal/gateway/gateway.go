@@ -26,7 +26,8 @@ import (
 	"github.com/cloudevents/sdk-go/v2/client"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
-	eb "github.com/vanus-labs/vanus/client"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/vanus-labs/vanus/internal/gateway/proxy"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/observability/log"
@@ -34,7 +35,6 @@ import (
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
-	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -44,14 +44,13 @@ const (
 var requestDataFromContext = cehttp.RequestDataFromContext
 
 type EventData struct {
-	EventID string `json:"event_id"`
-	BusName string `json:"eventbus_name"`
+	EventID string   `json:"event_id"`
+	BusID   vanus.ID `json:"eventbus_id"`
 }
 
 type ceGateway struct {
 	// ceClient  v2.Client
 	config     Config
-	client     eb.Client
 	proxySrv   *proxy.ControllerProxy
 	tracer     *tracing.Tracer
 	ceListener net.Listener
@@ -60,7 +59,6 @@ type ceGateway struct {
 func NewGateway(config Config) *ceGateway {
 	return &ceGateway{
 		config:   config,
-		client:   eb.Connect(config.ControllerAddr),
 		proxySrv: proxy.NewControllerProxy(config.GetProxyConfig()),
 		tracer:   tracing.NewTracer("cloudevents", trace.SpanKindServer),
 	}
