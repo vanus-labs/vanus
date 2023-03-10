@@ -147,11 +147,7 @@ type ControllerProxy struct {
 }
 
 func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequest) (*emptypb.Empty, error) {
-	meta, _ := cp.ctrl.EventbusService().GetEventbus(ctx, req.EventbusId)
-	if meta == nil {
-		return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid eventbus id")
-	}
-
+	eventbusID := vanus.NewIDFromUint64(req.EventbusId)
 	responseCode := 200
 	_ctx, span := cp.tracer.Start(ctx, "Publish")
 	start := stdtime.Now()
@@ -159,20 +155,20 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 		span.End()
 		used := float64(stdtime.Since(start)) / float64(stdtime.Millisecond)
 		metrics.GatewayEventReceivedCountVec.WithLabelValues(
-			meta.Name,
+			eventbusID.Key(),
 			metrics.LabelValueProtocolHTTP,
 			strconv.FormatInt(int64(len(req.Events.Events)), 10),
 			strconv.Itoa(responseCode),
 		).Add(float64(len(req.Events.Events)))
 
 		metrics.GatewayEventWriteLatencySummaryVec.WithLabelValues(
-			meta.Name,
+			eventbusID.Key(),
 			metrics.LabelValueProtocolHTTP,
 			strconv.FormatInt(int64(len(req.Events.Events)), 10),
 		).Observe(used)
 	}()
 
-	eventbusName := meta.Name
+	// todo  common event with delay event mixture
 	for idx := range req.Events.Events {
 		e := req.Events.Events[idx]
 		err := checkExtension(e.Attributes)
@@ -184,7 +180,7 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 			e.Attributes = make(map[string]*cloudevents.CloudEvent_CloudEventAttributeValue, 0)
 		}
 		e.Attributes[primitive.XVanusEventbus] = &cloudevents.CloudEvent_CloudEventAttributeValue{
-			Attr: &cloudevents.CloudEvent_CloudEventAttributeValue_CeString{CeString: eventbusName},
+			Attr: &cloudevents.CloudEvent_CloudEventAttributeValue_CeString{CeString: eventbusID.Key()},
 		}
 		if eventTime, ok := e.Attributes[primitive.XVanusDeliveryTime]; ok {
 			// validate event time
@@ -530,6 +526,11 @@ func NewControllerProxy(cfg Config) *ControllerProxy {
 		eventlogCtrl: ctrl.EventlogService().RawClient(),
 		triggerCtrl:  ctrl.TriggerService().RawClient(),
 	}
+}
+
+// SetClient just for test.
+func (cp *ControllerProxy) SetClient(client eb.Client) {
+	cp.client = client
 }
 
 func (cp *ControllerProxy) Start() error {

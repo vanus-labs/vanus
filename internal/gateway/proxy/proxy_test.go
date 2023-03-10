@@ -55,23 +55,11 @@ func TestControllerProxy_GetEvent(t *testing.T) {
 			CloudEventReceiverPort: 18080,
 			Credentials:            insecure.NewCredentials(),
 		})
-
 		ctrl := gomock.NewController(t)
 		mockClient := client.NewMockClient(ctrl)
 		cp.client = mockClient
 		utEB1 := api.NewMockEventbus(ctrl)
-		utEB2 := api.NewMockEventbus(ctrl)
-		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
-			func(ctx stdCtx.Context, eb string) api.Eventbus {
-				switch eb {
-				case "ut1":
-					return utEB1
-				case "ut2":
-					return utEB2
-				default:
-					return nil
-				}
-			})
+		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(utEB1)
 
 		Convey("test invalid params", func() {
 			res, err := cp.GetEvent(stdCtx.Background(), &proxypb.GetEventRequest{

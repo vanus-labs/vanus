@@ -259,9 +259,13 @@ func testSendEvent(tg *trigger) int64 {
 
 func makeSubscription(id vanus.ID) *primitive.Subscription {
 	return &primitive.Subscription{
-		ID:      id,
-		Sink:    "http://localhost:8080",
-		Filters: []*primitive.SubscriptionFilter{{Exact: map[string]string{"type": "test"}}},
+		ID:                   id,
+		Sink:                 "http://localhost:8080",
+		Filters:              []*primitive.SubscriptionFilter{{Exact: map[string]string{"type": "test"}}},
+		EventbusID:           vanus.NewTestID(),
+		TimerEventbusID:      vanus.NewTestID(),
+		DeadLetterEventbusID: vanus.NewTestID(),
+		RetryEventbusID:      vanus.NewTestID(),
 	}
 }
 

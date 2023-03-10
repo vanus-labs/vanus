@@ -30,7 +30,7 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -904,4 +904,3 @@ func getUpgradableVersionList(curVersion string) []string {
 	}
 	return clusterVersionList[curIdx+1:]
 }
-
