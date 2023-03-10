@@ -245,7 +245,6 @@ func (ctrl *controller) createEventbus(
 
 func (ctrl *controller) getDeadLetterEventbusID(_ context.Context, id vanus.ID) vanus.ID {
 	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(id)
-	// todo
 	for _id, eb := range ctrl.eventbusMap {
 		if eb.Name == deadLetterEventbusName {
 			return _id
