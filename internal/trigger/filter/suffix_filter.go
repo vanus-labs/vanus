@@ -23,9 +23,7 @@ type suffixFilter struct {
 }
 
 func NewSuffixFilter(suffix map[string]string) Filter {
-	f := newCommonFilter(suffix, func(value, compareValue string) bool {
-		return strings.HasSuffix(value, compareValue)
-	})
+	f := newCommonFilter(suffix, strings.HasSuffix)
 	if f == nil {
 		return nil
 	}

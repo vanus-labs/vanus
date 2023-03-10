@@ -31,6 +31,7 @@ import (
 	"github.com/vanus-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
+	"github.com/vanus-labs/vanus/proto/pkg/meta"
 
 	"github.com/vanus-labs/vanus/internal/kv"
 )
@@ -259,7 +260,7 @@ func TestBucket_createEventbus(t *testing.T) {
 		tw.ctrl = mockCl
 		mockSvc := cluster.NewMockEventbusService(mockCtrl)
 		mockCl.EXPECT().EventbusService().Times(1).Return(mockSvc)
-		mockSvc.EXPECT().CreateSystemEventbusIfNotExist(Any(), Any(), Any()).Times(1).Return(nil)
+		mockSvc.EXPECT().CreateSystemEventbusIfNotExist(Any(), Any(), Any()).Times(1).Return(nil, nil)
 
 		err := bucket.createEventbus(ctx)
 		So(err, ShouldBeNil)
@@ -519,7 +520,10 @@ func TestBucket_recycle(t *testing.T) {
 		mockCl := cluster.NewMockCluster(mockCtrl)
 		tw.ctrl = mockCl
 		mockSvc := cluster.NewMockEventbusService(mockCtrl)
-		mockCl.EXPECT().EventbusService().Times(1).Return(mockSvc)
+		mockCl.EXPECT().EventbusService().AnyTimes().Return(mockSvc)
+		mockSvc.EXPECT().GetSystemEventbusByName(Any(), Any()).Times(1).Return(&meta.Eventbus{
+			Id: 0,
+		}, nil)
 		mockSvc.EXPECT().Delete(Any(), Any()).Times(1).Return(nil)
 
 		Convey("test bucket wait success", func() {
