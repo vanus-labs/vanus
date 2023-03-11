@@ -187,17 +187,17 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 			case *cloudevents.CloudEvent_CloudEventAttributeValue_CeTimestamp:
 			case *cloudevents.CloudEvent_CloudEventAttributeValue_CeString:
 				// validate event time
-				if t, err := types.ParseTime(attr.CeString); err != nil {
+				t, err := types.ParseTime(attr.CeString)
+				if err != nil {
 					log.Error(_ctx, "invalid format of event time", map[string]interface{}{
 						log.KeyError: err,
 						"eventTime":  eventTime.String(),
 					})
 					responseCode = http.StatusBadRequest
 					return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid delivery time")
-				} else {
-					eventTime.Attr = &cloudevents.CloudEvent_CloudEventAttributeValue_CeTimestamp{
-						CeTimestamp: timestamppb.New(t),
-					}
+				}
+				eventTime.Attr = &cloudevents.CloudEvent_CloudEventAttributeValue_CeTimestamp{
+					CeTimestamp: timestamppb.New(t),
 				}
 			default:
 				responseCode = http.StatusBadRequest

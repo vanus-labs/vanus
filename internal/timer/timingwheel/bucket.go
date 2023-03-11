@@ -56,14 +56,14 @@ func newTimingMsg(ctx context.Context, e *ce.Event) *timingMsg {
 	var expiration time.Time
 	extensions := e.Extensions()
 	if deliveryTime, ok := extensions[xVanusDeliveryTime]; ok {
-		t, ok := deliveryTime.(ce.Timestamp)
-		if !ok {
+		if t, ok := deliveryTime.(ce.Timestamp); !ok {
 			log.Error(ctx, "parse time failed", map[string]interface{}{
 				"time": deliveryTime,
 			})
 			expiration = time.Now()
+		} else {
+			expiration = t.Time
 		}
-		expiration = t.Time
 	} else {
 		log.Error(ctx, "xvanusdeliverytime not found, set to current time", nil)
 		expiration = time.Now()
