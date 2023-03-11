@@ -19,8 +19,31 @@ import (
 	"time"
 )
 
+type Value interface {
+	Size() int
+	Value() []byte
+}
+
+type ValueMarshaler interface {
+	Value
+
+	MarshalTo(buf []byte) int
+}
+
+type BytesValue []byte
+
+var _ Value = BytesValue(nil)
+
+func (bv BytesValue) Size() int {
+	return len(bv)
+}
+
+func (bv BytesValue) Value() []byte {
+	return bv
+}
+
 type ExtensionAttributeCallback interface {
-	OnAttribute(attr, val []byte)
+	OnAttribute(attr []byte, val Value)
 }
 
 // Entry is a record of data stored in a Block.
@@ -172,12 +195,12 @@ func (w *EntryExtWrapper) ExtensionAttributeCount() int {
 	return w.E.ExtensionAttributeCount()
 }
 
-type OnExtensionAttributeFunc func(attr, val []byte)
+type OnExtensionAttributeFunc func(attr []byte, val Value)
 
 // Make sure ExtensionAttributesFunc implements OptionalAttributesCallback.
 var _ ExtensionAttributeCallback = (OnExtensionAttributeFunc)(nil)
 
-func (f OnExtensionAttributeFunc) OnAttribute(attr, val []byte) {
+func (f OnExtensionAttributeFunc) OnAttribute(attr []byte, val Value) {
 	f(attr, val)
 }
 

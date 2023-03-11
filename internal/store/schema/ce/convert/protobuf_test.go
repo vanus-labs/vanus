@@ -31,7 +31,7 @@ func TestToPb(t *testing.T) {
 	defer ctrl.Finish()
 
 	entry0 := cetest.MakeStoredEntry0(ctrl)
-	entry1 := cetest.MakeStoredEntry1(ctrl)
+	entry1 := cetest.MakeStoredEntry1(ctrl, true)
 
 	Convey("entry to pb", t, func() {
 		event0 := ToPb(entry0)
