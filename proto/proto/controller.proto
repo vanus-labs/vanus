@@ -107,7 +107,7 @@ message QuerySegmentRouteInfoRequest {}
 message QuerySegmentRouteInfoResponse {}
 
 message SegmentHeartbeatRequest {
-  reserved 1; // deprecated server_id(uint_64) at v0.7.0
+  reserved 1; // server_id(uint_64) has been removed at v0.7.0
   uint64 volume_id = 2;
   repeated meta.SegmentHealthInfo health_info = 3;
   string report_time = 4;
@@ -123,13 +123,13 @@ message RegisterSegmentServerRequest {
 }
 
 message RegisterSegmentServerResponse {
-  reserved 1; // deprecated server_id(uint_64) at v0.7.0
+  reserved 1; // server_id(uint_64) has been removed at v0.7.0
   map<uint64, meta.Segment> segments = 2;
   uint64 volume_id = 3;
 }
 
 message UnregisterSegmentServerRequest {
-  reserved 1; // deprecated server_id(uint_64) at v0.7.0
+  reserved 1; // server_id(uint_64) has been removed at v0.7.0
   string address = 2;
   uint64 volume_id = 3;
 }

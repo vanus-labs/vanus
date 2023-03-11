@@ -94,8 +94,9 @@ type controller struct {
 	eventbusDeletedCount int64
 }
 
-func (ctrl *controller) GetEventbusWithHumanFriendly(ctx context.Context,
-	request *ctrlpb.GetEventbusWithHumanFriendlyRequest) (*metapb.Eventbus, error) {
+func (ctrl *controller) GetEventbusWithHumanFriendly(
+	ctx context.Context, request *ctrlpb.GetEventbusWithHumanFriendlyRequest,
+) (*metapb.Eventbus, error) {
 	for id, eventbus := range ctrl.eventbusMap {
 		if eventbus.Name == request.EventbusName {
 			return ctrl.getEventbus(id)
@@ -204,7 +205,7 @@ func (ctrl *controller) createEventbus(
 
 	id, err := vanus.NewID()
 	if err != nil {
-		log.Warning(ctx, "failed to create eventbus VolumeID", map[string]interface{}{
+		log.Warning(ctx, "failed to create eventbus ID", map[string]interface{}{
 			log.KeyError: err,
 		})
 		return nil, err

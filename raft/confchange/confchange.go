@@ -175,7 +175,7 @@ func (c Changer) apply(cfg *tracker.Config, prs tracker.ProgressMap, ccs ...pb.C
 	return nil
 }
 
-// makeVoter adds or promotes the given VolumeID to be a voter in the incoming
+// makeVoter adds or promotes the given ID to be a voter in the incoming
 // majority config.
 func (c Changer) makeVoter(cfg *tracker.Config, prs tracker.ProgressMap, id uint64) {
 	pr := prs[id]
@@ -190,7 +190,7 @@ func (c Changer) makeVoter(cfg *tracker.Config, prs tracker.ProgressMap, id uint
 	incoming(cfg.Voters)[id] = struct{}{}
 }
 
-// makeLearner makes the given VolumeID a learner or stages it to be a learner once
+// makeLearner makes the given ID a learner or stages it to be a learner once
 // an active joint configuration is exited.
 //
 // The former happens when the peer is not a part of the outgoing config, in

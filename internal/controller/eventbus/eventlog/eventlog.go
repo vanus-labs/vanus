@@ -172,7 +172,7 @@ func (mgr *eventlogManager) AcquireEventlog(
 
 	id, err := vanus.NewID()
 	if err != nil {
-		log.Warning(ctx, "failed to create eventlog VolumeID", map[string]interface{}{
+		log.Warning(ctx, "failed to create eventlog ID", map[string]interface{}{
 			log.KeyError:  err,
 			"eventbus_id": eventbusID,
 		})
@@ -831,14 +831,14 @@ func (mgr *eventlogManager) generateSegment(ctx context.Context, el *eventlog) (
 
 	id1, err := vanus.NewID()
 	if err != nil {
-		log.Warning(ctx, "failed to create segment VolumeID", map[string]interface{}{
+		log.Warning(ctx, "failed to create segment ID", map[string]interface{}{
 			log.KeyError: err,
 		})
 		return nil, err
 	}
 	id2, err := vanus.NewID()
 	if err != nil {
-		log.Warning(ctx, "failed to create raft replica VolumeID", map[string]interface{}{
+		log.Warning(ctx, "failed to create raft replica ID", map[string]interface{}{
 			log.KeyError: err,
 		})
 		return nil, err

@@ -59,7 +59,7 @@ func TestGetFilter(t *testing.T) {
 	})
 	filters = append(filters, &primitive.SubscriptionFilter{
 		Suffix: map[string]string{
-			"id": "VolumeID",
+			"id": "ID",
 		},
 	})
 	filters = append(filters, &primitive.SubscriptionFilter{

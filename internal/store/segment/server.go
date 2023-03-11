@@ -81,7 +81,7 @@ type Server interface {
 
 	CreateBlock(ctx context.Context, id vanus.ID, size int64) error
 	RemoveBlock(ctx context.Context, id vanus.ID) error
-	// GetBlockInfo(ctx context.Context, id vanus.VolumeID) error
+	// GetBlockInfo(ctx context.Context, id vanus.ID) error
 
 	ActivateSegment(ctx context.Context, logID vanus.ID, segID vanus.ID, replicas map[vanus.ID]string) error
 	InactivateSegment(ctx context.Context) error
@@ -453,7 +453,7 @@ func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
 }
 
 // TODO(james.yin): implements GetBlockInfo.
-// func (s *server) GetBlockInfo(ctx context.Context, id vanus.VolumeID) error {
+// func (s *server) GetBlockInfo(ctx context.Context, id vanus.ID) error {
 // 	if err := s.checkState(); err != nil {
 // 		return err
 // 	}
