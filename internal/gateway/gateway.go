@@ -16,8 +16,8 @@ package gateway
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"net"
 	"net/http"
 	"strings"
@@ -49,7 +49,6 @@ type EventData struct {
 }
 
 type ceGateway struct {
-	// ceClient  v2.Client
 	config     Config
 	proxySrv   *proxy.ControllerProxy
 	tracer     *tracing.Tracer
@@ -104,7 +103,7 @@ func (ga *ceGateway) startCloudEventsReceiver(ctx context.Context) error {
 }
 
 func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event, result protocol.Result) {
-	eventbusID, err := getEventbusFromPath(requestDataFromContext(ctx))
+	eventbusID, err := ga.getEventbusFromPath(ctx, requestDataFromContext(ctx))
 	if err != nil {
 		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
@@ -128,16 +127,23 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 	return re, v2.ResultACK
 }
 
-func getEventbusFromPath(reqData *cehttp.RequestData) (vanus.ID, error) {
-	// TODO validate
+func (ga *ceGateway) getEventbusFromPath(ctx context.Context, reqData *cehttp.RequestData) (vanus.ID, error) {
 	reqPathStr := reqData.URL.String()
-	if !strings.HasPrefix(reqPathStr, httpRequestPrefix) {
-		return vanus.EmptyID(), errors.New("invalid eventbus id")
+	if strings.HasPrefix(reqPathStr, httpRequestPrefix) {
+		// TODO optimize
+		meta, err := ga.proxySrv.GetEventbusWithHumanFriendly(ctx, &ctrlpb.GetEventbusWithHumanFriendlyRequest{
+			Namespace:    "default",
+			EventbusName: strings.TrimLeft(reqPathStr[len(httpRequestPrefix):], "/"),
+		})
+		if err != nil {
+			return vanus.EmptyID(), err
+		}
+		return vanus.NewIDFromUint64(meta.Id), nil
+	} else {
+		id, err := vanus.NewIDFromString(strings.TrimLeft(reqPathStr, "/"))
+		if err != nil {
+			return vanus.EmptyID(), err
+		}
+		return id, nil
 	}
-	id, err := vanus.NewIDFromString(strings.TrimLeft(reqPathStr[len(httpRequestPrefix):], "/"))
-	if err != nil {
-		return vanus.EmptyID(), err
-	}
-
-	return id, nil
 }

@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"strconv"
 	"strings"
 	"time"
@@ -110,5 +111,13 @@ func IsFormatJSON(cmd *cobra.Command) bool {
 }
 
 func mustGetEventbusID(namespace, name string) vanus.ID {
-	return vanus.EmptyID()
+	eb, err := client.GetEventbusWithHumanFriendly(context.Background(),
+		&ctrlpb.GetEventbusWithHumanFriendlyRequest{
+			Namespace:    namespace,
+			EventbusName: name,
+		})
+	if err != nil {
+		color.Red("failed to query eventbus id: %s", err.Error())
+	}
+	return vanus.NewIDFromUint64(eb.Id)
 }

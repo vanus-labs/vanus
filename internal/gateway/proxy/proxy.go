@@ -269,7 +269,7 @@ func (cp *ControllerProxy) Subscribe(req *proxypb.SubscribeRequest, stream proxy
 	newSink := fmt.Sprintf("http://%s:%d%s/%s",
 		os.Getenv("POD_IP"), cp.cfg.SinkPort, httpRequestPrefix, req.SubscriptionId)
 	if meta.Sink != newSink {
-		if err := cp.disableSubsciption(_ctx, req, subscriptionID.Uint64()); err != nil {
+		if err := cp.disableSubscription(_ctx, req, subscriptionID.Uint64()); err != nil {
 			log.Error(_ctx, "disable subscription failed", map[string]interface{}{
 				log.KeyError: err,
 				"id":         req.SubscriptionId,
@@ -415,7 +415,7 @@ func ToProto(e *v2.Event) (*cloudevents.CloudEvent, error) {
 	return container, nil
 }
 
-func (cp *ControllerProxy) disableSubsciption(
+func (cp *ControllerProxy) disableSubscription(
 	ctx context.Context, req *proxypb.SubscribeRequest, subscriptionID uint64,
 ) error {
 	disableSubscriptionReq := &ctrlpb.DisableSubscriptionRequest{

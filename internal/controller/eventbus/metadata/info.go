@@ -31,6 +31,7 @@ type Eventbus struct {
 	Description string      `json:"description"`
 	CreatedAt   time.Time   `json:"created_at"`
 	UpdatedAt   time.Time   `json:"updated_at"`
+	Namespace   string      `json:"namespace"`
 }
 
 func Convert2ProtoEventbus(ins ...*Eventbus) []*meta.Eventbus {
@@ -45,6 +46,7 @@ func Convert2ProtoEventbus(ins ...*Eventbus) []*meta.Eventbus {
 			Description: eb.Description,
 			CreatedAt:   eb.CreatedAt.UnixMilli(),
 			UpdatedAt:   eb.UpdatedAt.UnixMilli(),
+			Namespace:   eb.Namespace,
 		}
 	}
 	return pebs
