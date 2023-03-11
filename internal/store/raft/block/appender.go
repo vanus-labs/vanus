@@ -151,7 +151,7 @@ func (a *appender) persistHardState(ctx context.Context, hs raftpb.HardState) {
 
 func (a *appender) persistEntries(ctx context.Context, entries []raftpb.Entry) {
 	// log.Debug(ctx, "Append entries to raft log.", map[string]interface{}{
-	// 	"node_id":        a.ID(),
+	// 	"node_id":        a.VolumeID(),
 	// 	"appended_index": entries[0].Index,
 	// 	"entries_num":    len(entries),
 	// })
@@ -172,7 +172,7 @@ func (a *appender) persistEntries(ctx context.Context, entries []raftpb.Entry) {
 
 func (a *appender) compactLog(ctx context.Context, index uint64) {
 	// log.Debug(ctx, "Compact raft log.", map[string]interface{}{
-	// 	"node_id": a.ID(),
+	// 	"node_id": a.VolumeID(),
 	// 	"index":   index,
 	// })
 
@@ -198,7 +198,7 @@ func (a *appender) applyEntries(ctx context.Context, committedEntries []raftpb.E
 		// FIXME(james.yin): do not pass frag with nil value?
 		a.raw.CommitAppend(ctx, frag, func() {
 			// log.Debug(ctx, "Store applied offset.", map[string]interface{}{
-			// 	"node_id":        a.ID(),
+			// 	"node_id":        a.VolumeID(),
 			// 	"applied_offset": index,
 			// })
 			a.onAppend(ctx, index)

@@ -252,7 +252,7 @@ func (mr *MockEventlogMockRecorder) EarliestOffset(ctx interface{}) *gomock.Call
 // ID mocks base method.
 func (m *MockEventlog) ID() uint64 {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ID")
+	ret := m.ctrl.Call(m, "VolumeID")
 	ret0, _ := ret[0].(uint64)
 	return ret0
 }
@@ -260,7 +260,7 @@ func (m *MockEventlog) ID() uint64 {
 // ID indicates an expected call of ID.
 func (mr *MockEventlogMockRecorder) ID() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockEventlog)(nil).ID))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VolumeID", reflect.TypeOf((*MockEventlog)(nil).ID))
 }
 
 // LatestOffset mocks base method.

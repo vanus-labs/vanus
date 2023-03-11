@@ -93,6 +93,13 @@ func main() {
 		}
 	}()
 
+	if err = srv.RegisterToController(ctx); err != nil {
+		log.Error(ctx, "failed to register self to controller", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(1)
+	}
+
 	select {
 	case <-ctx.Done():
 		log.Info(ctx, "received system signal, preparing exit", nil)

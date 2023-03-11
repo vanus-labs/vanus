@@ -40,7 +40,7 @@ type Engine interface {
 	Recover(ctx context.Context) (map[vanus.ID]block.Raw, error)
 
 	Create(ctx context.Context, id vanus.ID, capacity int64) (block.Raw, error)
-	// Open(ctx context.Context, id vanus.ID) (block.Raw, error)
+	// Open(ctx context.Context, id vanus.VolumeID) (block.Raw, error)
 }
 
 var engines = map[string]Engine{}

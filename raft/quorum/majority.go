@@ -81,7 +81,7 @@ func (c MajorityConfig) Describe(l AckedIndexer) string {
 		}
 	}
 
-	// Sort by ID.
+	// Sort by VolumeID.
 	sort.Slice(info, func(i, j int) bool {
 		return info[i].id < info[j].id
 	})

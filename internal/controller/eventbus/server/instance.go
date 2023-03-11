@@ -137,7 +137,7 @@ func (ins *volumeInstance) SetServer(srv Server) {
 		return
 	}
 	log.Info(context.TODO(), "update server of volume", map[string]interface{}{
-		"srv":     srv.ID(),
+		"srv":     srv.VolumeID(),
 		"address": srv.Address(),
 		"uptime":  srv.Uptime(),
 	})

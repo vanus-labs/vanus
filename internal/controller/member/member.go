@@ -316,6 +316,10 @@ func (m *member) release(ctx context.Context) error {
 func (m *member) execHandlers(ctx context.Context, event MembershipChangedEvent) error {
 	m.handlerMu.RLock()
 	defer m.handlerMu.RUnlock()
+	start := time.Now()
+	log.Info(ctx, "start to call handlers", map[string]interface{}{
+		"event": event,
+	})
 	for _, handler := range m.handlers {
 		err := handler(ctx, event)
 		if err != nil {
@@ -325,6 +329,10 @@ func (m *member) execHandlers(ctx context.Context, event MembershipChangedEvent)
 			panic("exec handler failed")
 		}
 	}
+	log.Info(ctx, "finish call handlers", map[string]interface{}{
+		"event":    event,
+		"duration": time.Since(start),
+	})
 	return nil
 }
 

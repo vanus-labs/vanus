@@ -174,7 +174,7 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 		}
 		generator = snow
 		initialized.Store(true)
-		log.Info(ctx, "succeed to init ID generator", map[string]interface{}{
+		log.Info(ctx, "succeed to init VolumeID generator", map[string]interface{}{
 			"node_id": snow.n.logicID(),
 		})
 		return nil
@@ -188,7 +188,7 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 		for {
 			select {
 			case <-ctx.Done():
-				err = errors.New("init snowflake ID service timeout")
+				err = errors.New("init snowflake VolumeID service timeout")
 				return
 			case <-ticker.C:
 				err = initService()

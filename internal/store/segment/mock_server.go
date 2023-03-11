@@ -139,6 +139,20 @@ func (mr *MockServerMockRecorder) ReadFromBlock(ctx, id, seq, num, pollingTimeou
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFromBlock", reflect.TypeOf((*MockServer)(nil).ReadFromBlock), ctx, id, seq, num, pollingTimeout)
 }
 
+// RegisterToController mocks base method.
+func (m *MockServer) RegisterToController(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegisterToController", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RegisterToController indicates an expected call of RegisterToController.
+func (mr *MockServerMockRecorder) RegisterToController(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterToController", reflect.TypeOf((*MockServer)(nil).RegisterToController), ctx)
+}
+
 // RemoveBlock mocks base method.
 func (m *MockServer) RemoveBlock(ctx context.Context, id vanus.ID) error {
 	m.ctrl.T.Helper()

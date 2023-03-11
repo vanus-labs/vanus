@@ -744,7 +744,7 @@ func TestEventlogManager_UpdateSegment(t *testing.T) {
 				md.ID.String(): {updateSegment1},
 			})
 
-			// segment doesn't need to be updated because ID is nil
+			// segment doesn't need to be updated because VolumeID is nil
 			utMgr.UpdateSegment(ctx, map[string][]Segment{
 				md.ID.String(): {
 					{

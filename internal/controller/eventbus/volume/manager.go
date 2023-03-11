@@ -36,7 +36,7 @@ type Manager interface {
 	RegisterVolume(ctx context.Context, md *metadata.VolumeMetadata) (server.Instance, error)
 	UpdateRouting(ctx context.Context, ins server.Instance, srv server.Server)
 	GetVolumeInstanceByID(id vanus.ID) server.Instance
-	LookupVolumeByServerID(id vanus.ID) server.Instance
+	LookupVolumeByID(id uint64) server.Instance
 	GetBlocksOfVolume(ctx context.Context, instance server.Instance) (map[uint64]*metadata.Block, error)
 }
 
@@ -48,12 +48,12 @@ func NewVolumeManager(serverMgr server.Manager) Manager {
 }
 
 type volumeMgr struct {
-	// volumeID server.Instance
+	// volumeID(vanus.ID) server.Instance
 	volInstanceMap sync.Map
-	// serverId server.Instance
-	volInstanceMapByServerID sync.Map
-	kvCli                    kv.Client
-	serverMgr                server.Manager
+	// volumeID(uint64) server.Instance
+	volInstanceByPhysicalVolumeID sync.Map
+	kvCli                         kv.Client
+	serverMgr                     server.Manager
 }
 
 func (mgr *volumeMgr) RegisterVolume(ctx context.Context, md *metadata.VolumeMetadata) (server.Instance, error) {
@@ -108,8 +108,8 @@ func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 	}
 	for _, v := range pairs {
 		obj := new(struct {
-			Address  string   `json:"address"`
-			ServerID vanus.ID `json:"server_id"`
+			Address  string `json:"address"`
+			VolumeID uint64 `json:"volume_id"`
 		})
 		if err = json.Unmarshal(v.Value, obj); err != nil {
 			log.Warning(ctx, "unmarshal volume instance runtime info failed", map[string]interface{}{
@@ -126,16 +126,15 @@ func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 		ins, exist := mgr.volInstanceMap.Load(volumeID.Key())
 		if !exist {
 			log.Warning(ctx, "the invalid segment server info founded", map[string]interface{}{
-				"server_id": obj.ServerID,
 				"addr":      obj.Address,
 				"volume_id": volumeID,
 			})
 			continue
 		}
 
-		srv, err := server.NewSegmentServerWithID(obj.ServerID, obj.Address)
+		srv, err := server.NewSegmentServerWithVolumeID(obj.VolumeID, obj.Address)
 		if err != nil {
-			log.Warning(ctx, "create segment server failed failed", map[string]interface{}{
+			log.Warning(ctx, "failed to create segment server", map[string]interface{}{
 				log.KeyError: err,
 				"volume_id":  v.Key,
 				"address":    obj.Address,
@@ -143,9 +142,7 @@ func (mgr *volumeMgr) Init(ctx context.Context, kvClient kv.Client) error {
 			continue
 		}
 		if !srv.IsActive(ctx) {
-			// TODO (wenfeng): remove from kv store
 			srv = nil
-			continue
 		}
 
 		mgr.UpdateRouting(ctx, ins.(server.Instance), srv)
@@ -168,8 +165,8 @@ func (mgr *volumeMgr) GetVolumeInstanceByID(id vanus.ID) server.Instance {
 	return v.(server.Instance)
 }
 
-func (mgr *volumeMgr) LookupVolumeByServerID(id vanus.ID) server.Instance {
-	v, exist := mgr.volInstanceMapByServerID.Load(id.Key())
+func (mgr *volumeMgr) LookupVolumeByID(id uint64) server.Instance {
+	v, exist := mgr.volInstanceByPhysicalVolumeID.Load(id)
 	if !exist {
 		return nil
 	}
@@ -189,7 +186,6 @@ func (mgr *volumeMgr) GetAllActiveVolumes() []server.Instance {
 }
 
 func (mgr *volumeMgr) UpdateRouting(ctx context.Context, ins server.Instance, srv server.Server) {
-	// TODO when persist to kv
 	key := filepath.Join(metadata.VolumeInstanceKeyPrefixInKVStore, ins.ID().String())
 	if srv == nil {
 		if err := mgr.kvCli.Delete(ctx, key); err != nil {
@@ -204,21 +200,21 @@ func (mgr *volumeMgr) UpdateRouting(ctx context.Context, ins server.Instance, sr
 		return
 	}
 	v := new(struct {
-		Address  string   `json:"address"`
-		ServerID vanus.ID `json:"server_id"`
+		Address  string `json:"address"`
+		VolumeID uint64 `json:"volume_id"`
 	})
 	v.Address = srv.Address()
-	v.ServerID = srv.ID()
+	v.VolumeID = srv.VolumeID()
 	data, _ := json.Marshal(v)
 	if err := mgr.kvCli.Set(ctx, key, data); err != nil {
-		log.Warning(ctx, "save runtime info of volume instance to kv failed", map[string]interface{}{
+		log.Warning(ctx, "failed to save runtime info of volume instance to kv", map[string]interface{}{
 			"volume_id":  ins.ID(),
-			"server_id":  srv.ID(),
+			"volume":     srv.VolumeID(),
 			"address":    srv.Address(),
 			log.KeyError: err,
 		})
 	}
-	mgr.volInstanceMapByServerID.Store(srv.ID().Key(), ins)
+	mgr.volInstanceByPhysicalVolumeID.Store(srv.VolumeID(), ins)
 	ins.SetServer(srv)
 	mgr.volInstanceMap.Store(ins.ID().Key(), ins)
 }

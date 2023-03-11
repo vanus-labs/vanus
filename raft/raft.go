@@ -31,7 +31,7 @@ import (
 	"github.com/vanus-labs/vanus/raft/tracker"
 )
 
-// None is a placeholder node ID used when there is no leader.
+// None is a placeholder node VolumeID used when there is no leader.
 const (
 	None    uint64 = 0
 	noLimit        = math.MaxUint64

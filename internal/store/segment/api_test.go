@@ -47,9 +47,7 @@ func TestSegmentServer(t *testing.T) {
 		Convey("Start()", func() {
 			srv.EXPECT().Start(Any()).Return(nil)
 
-			req := &segpb.StartSegmentServerRequest{
-				ServerId: 1,
-			}
+			req := &segpb.StartSegmentServerRequest{}
 			resp, err := ss.Start(context.Background(), req)
 			So(err, ShouldBeNil)
 			So(resp, ShouldNotBeNil)
