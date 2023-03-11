@@ -49,11 +49,11 @@ func NewOffsetStorage(client kv.Client) OffsetStorage {
 }
 
 func (s *offsetStorage) getKey(subscriptionID, eventlogID vanus.ID) string {
-	return path.Join(KeyPrefixOffset.String(), subscriptionID.String(), eventlogID.String())
+	return path.Join(kv.MetadataOffset, subscriptionID.Key(), eventlogID.Key())
 }
 
 func (s *offsetStorage) getSubKey(subscriptionID vanus.ID) string {
-	return path.Join(KeyPrefixOffset.String(), subscriptionID.String())
+	return path.Join(kv.MetadataSecret, subscriptionID.Key())
 }
 
 func (s *offsetStorage) int64ToByteArr(v uint64) []byte {

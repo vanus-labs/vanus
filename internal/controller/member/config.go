@@ -21,8 +21,3 @@ type Config struct {
 	ComponentName         string            `yaml:"component_name"`
 	NodeName              string            `yaml:"-"`
 }
-
-const (
-	ResourceLockKeyPrefixInKVStore = "/vanus/internal/resource/resource_lock"
-	LeaderInfoKeyPrefixInKVStore   = "/vanus/internal/resource/leader_info"
-)

@@ -27,6 +27,7 @@ import (
 	"go.etcd.io/etcd/client/v3/concurrency"
 	"go.uber.org/atomic"
 
+	"github.com/vanus-labs/vanus/internal/kv"
 	"github.com/vanus-labs/vanus/observability/log"
 )
 
@@ -97,7 +98,7 @@ const (
 )
 
 func (m *member) Init(ctx context.Context) error {
-	m.resourceLockKey = fmt.Sprintf("%s/%s", ResourceLockKeyPrefixInKVStore, m.cfg.ComponentName)
+	m.resourceLockKey = fmt.Sprintf("%s/%s", kv.LeaderLock, m.cfg.ComponentName)
 	m.exit = make(chan struct{})
 
 	err := m.waitForEtcdReady(ctx, m.cfg.EtcdEndpoints)
@@ -258,7 +259,7 @@ func (m *member) setLeader(ctx context.Context) error {
 		LeaderID:   m.cfg.NodeName,
 		LeaderAddr: m.cfg.Topology[m.cfg.NodeName],
 	})
-	_, err := m.client.Put(ctx, LeaderInfoKeyPrefixInKVStore, string(data))
+	_, err := m.client.Put(ctx, kv.LeaderInfo, string(data))
 	return err
 }
 
@@ -343,7 +344,7 @@ func (m *member) IsLeader() bool {
 
 func (m *member) GetLeaderID() string {
 	// TODO(jiangkai): maybe lookup etcd per call has low performance.
-	resp, err := m.client.Get(context.Background(), LeaderInfoKeyPrefixInKVStore)
+	resp, err := m.client.Get(context.Background(), kv.LeaderInfo)
 	if err != nil {
 		log.Warning(context.Background(), "get leader info failed", map[string]interface{}{
 			log.KeyError: err,
@@ -360,7 +361,7 @@ func (m *member) GetLeaderID() string {
 
 func (m *member) GetLeaderAddr() string {
 	// TODO(jiangkai): maybe lookup etcd per call has low performance.
-	resp, err := m.client.Get(context.Background(), LeaderInfoKeyPrefixInKVStore)
+	resp, err := m.client.Get(context.Background(), kv.LeaderInfo)
 	if err != nil {
 		log.Warning(context.Background(), "get leader info failed", map[string]interface{}{
 			log.KeyError: err,

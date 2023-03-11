@@ -46,7 +46,7 @@ type SecretStorage struct {
 }
 
 func (p *SecretStorage) getKey(subID vanus.ID) string {
-	return path.Join(KeyPrefixSecret.String(), subID.String())
+	return path.Join(kv.MetadataSecret, subID.Key())
 }
 
 func (p *SecretStorage) Read(ctx context.Context,

@@ -20,10 +20,10 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
-	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 var _ io.Closer = (*eventbusClient)(nil)
@@ -111,6 +111,10 @@ func (ec *eventbusClient) UpdateEventbus(
 func (ec *eventbusClient) GetEventbusWithHumanFriendly(
 	ctx context.Context, in *ctrlpb.GetEventbusWithHumanFriendlyRequest, opts ...grpc.CallOption,
 ) (*metapb.Eventbus, error) {
-	// TODO
-	return nil, nil
+	out := new(metapb.Eventbus)
+	err := ec.cc.invoke(ctx, ctrlpb.EventbusController_GetEventbusWithHumanFriendly_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }

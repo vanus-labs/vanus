@@ -46,7 +46,7 @@ func NewSubscriptionStorage(client kv.Client) SubscriptionStorage {
 }
 
 func (s *subscriptionStorage) getKey(subID vanus.ID) string {
-	return path.Join(KeyPrefixSubscription.String(), subID.String())
+	return path.Join(kv.ResourceSubscription, subID.Key())
 }
 
 func (s *subscriptionStorage) CreateSubscription(ctx context.Context, sub *metadata.Subscription) error {
@@ -91,7 +91,7 @@ func (s *subscriptionStorage) GetSubscription(ctx context.Context, id vanus.ID) 
 }
 
 func (s *subscriptionStorage) ListSubscription(ctx context.Context) ([]*metadata.Subscription, error) {
-	l, err := s.client.List(ctx, KeyPrefixSubscription.String())
+	l, err := s.client.List(ctx, kv.ResourceSubscription)
 	if err != nil {
 		return nil, err
 	}
