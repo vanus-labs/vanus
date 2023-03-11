@@ -16,8 +16,10 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 	"testing"
 	"time"
 
@@ -117,17 +119,17 @@ func TestGateway_getEventbusFromPath(t *testing.T) {
 				Opaque: "/test",
 			},
 		}
-		_, err := getEventbusFromPath(reqData)
-		So(err.Error(), ShouldEqual, "invalid eventbus id")
+		_, err := getEventbusFromPath(context.Background(), reqData)
+		So(errors.Is(err, strconv.ErrSyntax), ShouldBeTrue)
 	})
 	Convey("test get eventbus from path return path ", t, func() {
 		vid := vanus.NewTestID()
 		reqData := &cehttp.RequestData{
 			URL: &url.URL{
-				Opaque: fmt.Sprintf("/gateway/%s", vid),
+				Opaque: fmt.Sprintf("/%s", vid.String()),
 			},
 		}
-		id, err := getEventbusFromPath(reqData)
+		id, err := getEventbusFromPath(context.Background(), reqData)
 		So(err, ShouldBeNil)
 		So(id, ShouldEqual, vid)
 	})

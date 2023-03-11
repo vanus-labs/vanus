@@ -17,6 +17,7 @@ package eventbus
 import (
 	stdCtx "context"
 	"fmt"
+	"github.com/vanus-labs/vanus/internal/primitive"
 	"sort"
 	"testing"
 
@@ -72,8 +73,9 @@ func TestController_CreateEventbus(t *testing.T) {
 
 			vanus.InitFakeSnowflake()
 			res, err := ctrl.CreateEventbus(ctx, &ctrlpb.CreateEventbusRequest{
-				Name:      "test-1",
-				LogNumber: 0,
+				Name:        "test-1",
+				LogNumber:   0,
+				NamespaceId: primitive.DefaultNamespaceID,
 			})
 			So(err, ShouldBeNil)
 			So(res.Name, ShouldEqual, "test-1")
@@ -93,8 +95,9 @@ func TestController_CreateEventbus(t *testing.T) {
 			kvCli.EXPECT().Exists(ctx, gomock.Any()).Times(1).Return(true, nil)
 
 			res, err := ctrl.CreateEventbus(ctx, &ctrlpb.CreateEventbusRequest{
-				Name:      "test-1",
-				LogNumber: 0,
+				Name:        "test-1",
+				LogNumber:   0,
+				NamespaceId: primitive.DefaultNamespaceID,
 			})
 			So(err, ShouldNotBeNil)
 			So(res, ShouldBeNil)

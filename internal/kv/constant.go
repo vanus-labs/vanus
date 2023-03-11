@@ -37,9 +37,9 @@ const (
 	ClusterNode               = "/vanus/core/cluster/nodes"
 	ClusterStart              = "/vanus/core/cluster/start_at"
 
-	namespace = "/vanus/core/tenant/namespaces"
-	user      = "/vanus/core/tenant/users"
-	userRole  = "/vanus/core/tenants/user_role"
+	namespace = "/vanus/core/tenant/namespaces" //nolint:unused // ok
+	user      = "/vanus/core/tenant/users"      //nolint:unused // ok
+	userRole  = "/vanus/core/tenants/user_role" //nolint:unused // ok
 )
 
 func NamespaceAllKey() string {

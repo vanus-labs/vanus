@@ -17,6 +17,7 @@ package command
 import (
 	"context"
 	"encoding/json"
+	"github.com/vanus-labs/vanus/internal/primitive"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 	"os"
 	"time"
@@ -62,6 +63,7 @@ func createEventbusCommand() *cobra.Command {
 				Name:        eventbus,
 				LogNumber:   eventlogNum,
 				Description: description,
+				NamespaceId: primitive.DefaultNamespaceID,
 			})
 			if err != nil {
 				cmdFailedf(cmd, "create eventbus failed: %s", err)
@@ -72,7 +74,7 @@ func createEventbusCommand() *cobra.Command {
 			} else {
 				t := table.NewWriter()
 				t.AppendHeader(table.Row{"Result", "EventbusService"})
-				t.AppendRow(table.Row{"Create Success", eventbus})
+				t.AppendRow(table.Row{"Success to create eventbus into [ default ] namespace", eventbus})
 				t.SetColumnConfigs([]table.ColumnConfig{
 					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 2, AlignHeader: text.AlignCenter},

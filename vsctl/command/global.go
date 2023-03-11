@@ -17,6 +17,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"strconv"
@@ -113,11 +114,12 @@ func IsFormatJSON(cmd *cobra.Command) bool {
 func mustGetEventbusID(namespace, name string) vanus.ID {
 	if namespace == "" {
 		namespace = "default"
-		color.Green("the namespace not specified, using default namespace")
+		color.Green("the namespace not specified, using [default] namespace")
 	}
+	// TODO must get namespace_id
 	eb, err := client.GetEventbusWithHumanFriendly(context.Background(),
 		&ctrlpb.GetEventbusWithHumanFriendlyRequest{
-			Namespace:    namespace,
+			NamespaceId:  primitive.DefaultNamespaceID,
 			EventbusName: name,
 		})
 	if err != nil {

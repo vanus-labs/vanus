@@ -36,10 +36,6 @@ import (
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
 )
 
-const (
-	httpRequestPrefix = "/gateway"
-)
-
 var requestDataFromContext = cehttp.RequestDataFromContext
 
 type EventData struct {
@@ -102,7 +98,7 @@ func (ga *ceGateway) startCloudEventsReceiver(ctx context.Context) error {
 }
 
 func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event, result protocol.Result) {
-	eventbusID, err := ga.getEventbusFromPath(ctx, requestDataFromContext(ctx))
+	eventbusID, err := getEventbusFromPath(ctx, requestDataFromContext(ctx))
 	if err != nil {
 		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
@@ -126,7 +122,7 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 	return re, v2.ResultACK
 }
 
-func (ga *ceGateway) getEventbusFromPath(ctx context.Context, reqData *cehttp.RequestData) (vanus.ID, error) {
+func getEventbusFromPath(ctx context.Context, reqData *cehttp.RequestData) (vanus.ID, error) {
 	id, err := vanus.NewIDFromString(strings.TrimLeft(reqData.URL.String(), "/"))
 	if err != nil {
 		return vanus.EmptyID(), err

@@ -58,7 +58,7 @@ var (
 
 const (
 	maximumEventlogNum = 64
-	mappingKey         = "__%s_%s__" // __{namespace}_{eventbus}__
+	mappingKey         = "@%d_%s@" // @{namespace_id}_{eventbus}@
 
 )
 
@@ -138,7 +138,7 @@ func (ctrl *controller) CreateEventbus(
 	_, err = ctrl.createEventbus(context.Background(), &ctrlpb.CreateEventbusRequest{
 		Name:        primitive.GetDeadLetterEventbusName(vanus.NewIDFromUint64(eb.Id)),
 		LogNumber:   1,
-		Namespace:   primitive.VanusSystemNamespace,
+		NamespaceId: primitive.SystemNamespaceID,
 		Description: "System DeadLetter Eventbus For " + req.Name,
 	})
 	if err != nil {
@@ -173,15 +173,14 @@ func isValidEventbusName(name string) error {
 
 func (ctrl *controller) GetEventbusWithHumanFriendly(_ context.Context,
 	request *ctrlpb.GetEventbusWithHumanFriendlyRequest) (*metapb.Eventbus, error) {
-
-	meta, exist := ctrl.eventbusNamespaceMapping.Load(GetMappingKey(request.GetNamespace(), request.GetEventbusName()))
+	meta, exist := ctrl.eventbusNamespaceMapping.Load(GetMappingKey(request.GetNamespaceId(), request.GetEventbusName()))
 	if !exist {
 		return nil, errors.ErrResourceNotFound.WithMessage("eventbus not found")
 	}
 	return metadata.Convert2ProtoEventbus(meta.(*metadata.Eventbus))[0], nil
 }
 
-func GetMappingKey(namespace, name string) string {
+func GetMappingKey(namespace uint64, name string) string {
 	return fmt.Sprintf(mappingKey, namespace, name)
 }
 
@@ -203,8 +202,9 @@ func (ctrl *controller) createEventbus(
 		return nil, errors.ErrResourceCanNotOp.WithMessage(
 			"the cluster isn't ready for create eventbus")
 	}
-	if req.Namespace == "" {
-		req.Namespace = "default" // TODO(wenfeng) remove here when next version release
+	if req.NamespaceId == 0 {
+		return nil, errors.ErrInvalidRequest.WithMessage(
+			"namespace_id can't be 0")
 	}
 	logNum := req.LogNumber
 	if logNum == 0 {
@@ -230,7 +230,7 @@ func (ctrl *controller) createEventbus(
 		Description: req.Description,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
-		Namespace:   req.Namespace,
+		NamespaceID: req.NamespaceId,
 	}
 	exist, err := ctrl.kvStore.Exists(ctx, metadata.GetEventbusMetadataKey(id))
 	if err != nil {
@@ -255,7 +255,7 @@ func (ctrl *controller) createEventbus(
 	}
 
 	ctrl.eventbusMap[eb.ID] = eb
-	ctrl.eventbusNamespaceMapping.Store(GetMappingKey(eb.Namespace, eb.Name), eb)
+	ctrl.eventbusNamespaceMapping.Store(GetMappingKey(eb.NamespaceID, eb.Name), eb)
 
 	return ctrl.getEventbus(eb.ID)
 }
@@ -693,7 +693,7 @@ func (ctrl *controller) loadEventbus(ctx context.Context) error {
 			return err
 		}
 		ctrl.eventbusMap[busInfo.ID] = busInfo
-		ctrl.eventbusNamespaceMapping.Store(GetMappingKey(busInfo.Namespace, busInfo.Name), busInfo)
+		ctrl.eventbusNamespaceMapping.Store(GetMappingKey(busInfo.NamespaceID, busInfo.Name), busInfo)
 	}
 	return nil
 }
