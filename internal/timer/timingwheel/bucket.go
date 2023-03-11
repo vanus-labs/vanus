@@ -24,13 +24,13 @@ import (
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/cloudevents/sdk-go/v2/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/option"
 	"github.com/vanus-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/errors"
 
@@ -42,8 +42,8 @@ const (
 	timerBuiltInEventbusReceivingStation    = "__Timer_RS"
 	timerBuiltInEventbusDistributionStation = "__Timer_DS"
 	timerBuiltInEventbus                    = "__Timer_%d_%d"
-	xVanusEventbus                          = "xvanuseventbus"
-	xVanusDeliveryTime                      = "xvanusdeliverytime"
+	xVanusEventbus                          = primitive.XVanusEventbus
+	xVanusDeliveryTime                      = primitive.XVanusDeliveryTime
 	sleepDuration                           = 100 * time.Millisecond
 )
 
@@ -53,20 +53,17 @@ type timingMsg struct {
 }
 
 func newTimingMsg(ctx context.Context, e *ce.Event) *timingMsg {
-	var (
-		err        error
-		expiration time.Time
-	)
+	var expiration time.Time
 	extensions := e.Extensions()
 	if deliveryTime, ok := extensions[xVanusDeliveryTime]; ok {
-		expiration, err = types.ParseTime(deliveryTime.(string))
-		if err != nil {
+		t, ok := deliveryTime.(ce.Timestamp)
+		if !ok {
 			log.Error(ctx, "parse time failed", map[string]interface{}{
-				log.KeyError: err,
-				"time":       deliveryTime,
+				"time": deliveryTime,
 			})
 			expiration = time.Now()
 		}
+		expiration = t.Time
 	} else {
 		log.Error(ctx, "xvanusdeliverytime not found, set to current time", nil)
 		expiration = time.Now()

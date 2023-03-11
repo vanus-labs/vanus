@@ -456,8 +456,7 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 	attempts++
 	ec.Extensions[primitive.XVanusRetryAttempts] = attempts
 	delayTime := calDeliveryTime(attempts)
-	ec.Extensions[primitive.XVanusDeliveryTime] =
-		ce.Timestamp{Time: time.Now().Add(delayTime).UTC()}.Format(time.RFC3339)
+	ec.Extensions[primitive.XVanusDeliveryTime] = ce.Timestamp{Time: time.Now().Add(delayTime)}
 	ec.Extensions[primitive.XVanusSubscriptionID] = t.subscriptionIDStr
 	ec.Extensions[primitive.XVanusEventbus] = t.subscription.RetryEventbusID.Key()
 	var writeAttempt int
@@ -492,8 +491,7 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 	ec, _ := e.Context.(*ce.EventContextV1)
 	delete(ec.Extensions, primitive.XVanusEventbus)
 	ec.Extensions[primitive.XVanusSubscriptionID] = t.subscriptionIDStr
-	ec.Extensions[primitive.LastDeliveryTime] =
-		ce.Timestamp{Time: time.Now().UTC()}.Format(time.RFC3339)
+	ec.Extensions[primitive.LastDeliveryTime] = ce.Timestamp{Time: time.Now()}
 	ec.Extensions[primitive.LastDeliveryError] = errorMsg
 	ec.Extensions[primitive.DeadLetterReason] = reason
 	var writeAttempt int
