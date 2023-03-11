@@ -17,21 +17,20 @@ package eventbus
 import (
 	stdCtx "context"
 	"fmt"
-	"github.com/vanus-labs/vanus/internal/primitive"
 	"sort"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
-	"google.golang.org/protobuf/types/known/wrapperspb"
-
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/eventlog"
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/vanus-labs/vanus/internal/controller/member"
 	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func TestController_CreateEventbus(t *testing.T) {
