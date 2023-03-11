@@ -30,4 +30,7 @@ const (
 	DeadLetterReason  = XVanus + "dlreason"
 
 	MaxRetryAttempts = 32
+
+	DefaultNamespace = "default"
+	SystemNamespace  = "vanus-system"
 )

@@ -15,6 +15,7 @@
 package controller
 
 import (
+	"github.com/vanus-labs/vanus/internal/controller/tenant"
 	"github.com/vanus-labs/vanus/observability"
 
 	"github.com/vanus-labs/vanus/internal/controller/eventbus"
@@ -82,6 +83,16 @@ func (c *Config) GetTriggerConfig() trigger.Config {
 		},
 		SecretEncryptionSalt: c.SecretEncryptionSalt,
 		ControllerAddr:       c.GetControllerAddrs(),
+	}
+}
+
+func (c *Config) GetTenantConfig() tenant.Config {
+	return tenant.Config{
+		Storage: primitive.KvStorageConfig{
+			KeyPrefix:  c.MetadataConfig.KeyPrefix,
+			ServerList: c.ClusterConfig.EtcdEndpoints,
+		},
+		ControllerAddr: c.GetControllerAddrs(),
 	}
 }
 

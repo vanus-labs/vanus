@@ -21,13 +21,17 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/vanus-labs/vanus/internal/controller/member"
 	"github.com/vanus-labs/vanus/internal/controller/tenant/convert"
 	"github.com/vanus-labs/vanus/internal/controller/tenant/manager"
+	"github.com/vanus-labs/vanus/internal/controller/tenant/metadata"
 	"github.com/vanus-labs/vanus/internal/kv"
 	"github.com/vanus-labs/vanus/internal/kv/etcd"
+	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
@@ -63,9 +67,17 @@ func (ctrl *controller) CreateNamespace(ctx context.Context,
 	if _ns != nil {
 		return nil, errors.ErrResourceAlreadyExist.WithMessage(fmt.Sprintf("namespace %s exist", ns.Name))
 	}
-	id, err := vanus.NewID()
+	err := ctrl.createNamespace(ctx, ns)
 	if err != nil {
 		return nil, err
+	}
+	return convert.ToPbNamespace(ns), nil
+}
+
+func (ctrl *controller) createNamespace(ctx context.Context, ns *metadata.Namespace) error {
+	id, err := vanus.NewID()
+	if err != nil {
+		return err
 	}
 	ns.ID = id
 	now := time.Now()
@@ -73,9 +85,9 @@ func (ctrl *controller) CreateNamespace(ctx context.Context,
 	ns.UpdatedAt = now
 	err = ctrl.namespaceManager.AddNamespace(ctx, ns)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return convert.ToPbNamespace(ns), nil
+	return nil
 }
 
 func (ctrl *controller) ListNamespace(ctx context.Context,
@@ -102,6 +114,19 @@ func (ctrl *controller) GetNamespace(ctx context.Context,
 	return convert.ToPbNamespace(ns), nil
 }
 
+func (ctrl *controller) GetNamespaceWithHumanFriendly(ctx context.Context,
+	name *wrapperspb.StringValue,
+) (*metapb.Namespace, error) {
+	if name.GetValue() == "" {
+		return nil, errors.ErrInvalidRequest.WithMessage("name is empty")
+	}
+	ns := ctrl.namespaceManager.GetNamespaceByName(ctx, name.GetValue())
+	if ns == nil {
+		return nil, errors.ErrResourceNotFound
+	}
+	return convert.ToPbNamespace(ns), nil
+}
+
 func (ctrl *controller) DeleteNamespace(ctx context.Context,
 	request *ctrlpb.DeleteNamespaceRequest,
 ) (*emptypb.Empty, error) {
@@ -113,7 +138,7 @@ func (ctrl *controller) DeleteNamespace(ctx context.Context,
 	return &emptypb.Empty{}, nil
 }
 
-func (ctrl *controller) Start(ctx context.Context) error {
+func (ctrl *controller) Start() error {
 	client, err := etcd.NewEtcdClientV3(ctrl.config.Storage.ServerList, ctrl.config.Storage.KeyPrefix)
 	if err != nil {
 		return err
@@ -121,6 +146,26 @@ func (ctrl *controller) Start(ctx context.Context) error {
 	ctrl.kvClient = client
 	ctrl.namespaceManager = manager.NewNamespaceManager(client)
 	go ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
+	return nil
+}
+
+func (ctrl *controller) createSystemNamespace(ctx context.Context) error {
+	ns := ctrl.namespaceManager.GetNamespaceByName(ctx, primitive.DefaultNamespace)
+	if ns == nil {
+		// create default namespace
+		err := ctrl.createNamespace(ctx, &metadata.Namespace{Name: primitive.DefaultNamespace})
+		if err != nil {
+			return err
+		}
+	}
+	ns = ctrl.namespaceManager.GetNamespaceByName(ctx, primitive.SystemNamespace)
+	if ns == nil {
+		// create system namespace
+		err := ctrl.createNamespace(ctx, &metadata.Namespace{Name: primitive.SystemNamespace})
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -137,6 +182,15 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context,
 		}
 		ctrl.isLeader = true
 		if err := ctrl.namespaceManager.Init(ctx); err != nil {
+			log.Error(ctx, "namespace manager init error", map[string]interface{}{
+				log.KeyError: err,
+			})
+			return err
+		}
+		if err := ctrl.createSystemNamespace(ctx); err != nil {
+			log.Error(ctx, "create system namespace error", map[string]interface{}{
+				log.KeyError: err,
+			})
 			return err
 		}
 	case member.EventBecomeFollower:

@@ -216,6 +216,26 @@ func (mr *MockNamespaceControllerClientMockRecorder) GetNamespace(ctx, in interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespace", reflect.TypeOf((*MockNamespaceControllerClient)(nil).GetNamespace), varargs...)
 }
 
+// GetNamespaceWithHumanFriendly mocks base method.
+func (m *MockNamespaceControllerClient) GetNamespaceWithHumanFriendly(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*meta.Namespace, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetNamespaceWithHumanFriendly", varargs...)
+	ret0, _ := ret[0].(*meta.Namespace)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNamespaceWithHumanFriendly indicates an expected call of GetNamespaceWithHumanFriendly.
+func (mr *MockNamespaceControllerClientMockRecorder) GetNamespaceWithHumanFriendly(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespaceWithHumanFriendly", reflect.TypeOf((*MockNamespaceControllerClient)(nil).GetNamespaceWithHumanFriendly), varargs...)
+}
+
 // ListNamespace mocks base method.
 func (m *MockNamespaceControllerClient) ListNamespace(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListNamespaceResponse, error) {
 	m.ctrl.T.Helper()
@@ -302,6 +322,21 @@ func (m *MockNamespaceControllerServer) GetNamespace(arg0 context.Context, arg1 
 func (mr *MockNamespaceControllerServerMockRecorder) GetNamespace(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespace", reflect.TypeOf((*MockNamespaceControllerServer)(nil).GetNamespace), arg0, arg1)
+}
+
+// GetNamespaceWithHumanFriendly mocks base method.
+func (m *MockNamespaceControllerServer) GetNamespaceWithHumanFriendly(arg0 context.Context, arg1 *wrapperspb.StringValue) (*meta.Namespace, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNamespaceWithHumanFriendly", arg0, arg1)
+	ret0, _ := ret[0].(*meta.Namespace)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNamespaceWithHumanFriendly indicates an expected call of GetNamespaceWithHumanFriendly.
+func (mr *MockNamespaceControllerServerMockRecorder) GetNamespaceWithHumanFriendly(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespaceWithHumanFriendly", reflect.TypeOf((*MockNamespaceControllerServer)(nil).GetNamespaceWithHumanFriendly), arg0, arg1)
 }
 
 // ListNamespace mocks base method.

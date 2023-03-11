@@ -127,10 +127,11 @@ var PingServer_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	NamespaceController_CreateNamespace_FullMethodName = "/vanus.core.controller.NamespaceController/CreateNamespace"
-	NamespaceController_ListNamespace_FullMethodName   = "/vanus.core.controller.NamespaceController/ListNamespace"
-	NamespaceController_GetNamespace_FullMethodName    = "/vanus.core.controller.NamespaceController/GetNamespace"
-	NamespaceController_DeleteNamespace_FullMethodName = "/vanus.core.controller.NamespaceController/DeleteNamespace"
+	NamespaceController_CreateNamespace_FullMethodName               = "/vanus.core.controller.NamespaceController/CreateNamespace"
+	NamespaceController_ListNamespace_FullMethodName                 = "/vanus.core.controller.NamespaceController/ListNamespace"
+	NamespaceController_GetNamespace_FullMethodName                  = "/vanus.core.controller.NamespaceController/GetNamespace"
+	NamespaceController_DeleteNamespace_FullMethodName               = "/vanus.core.controller.NamespaceController/DeleteNamespace"
+	NamespaceController_GetNamespaceWithHumanFriendly_FullMethodName = "/vanus.core.controller.NamespaceController/GetNamespaceWithHumanFriendly"
 )
 
 // NamespaceControllerClient is the client API for NamespaceController service.
@@ -141,6 +142,7 @@ type NamespaceControllerClient interface {
 	ListNamespace(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListNamespaceResponse, error)
 	GetNamespace(ctx context.Context, in *GetNamespaceRequest, opts ...grpc.CallOption) (*meta.Namespace, error)
 	DeleteNamespace(ctx context.Context, in *DeleteNamespaceRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	GetNamespaceWithHumanFriendly(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*meta.Namespace, error)
 }
 
 type namespaceControllerClient struct {
@@ -187,6 +189,15 @@ func (c *namespaceControllerClient) DeleteNamespace(ctx context.Context, in *Del
 	return out, nil
 }
 
+func (c *namespaceControllerClient) GetNamespaceWithHumanFriendly(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*meta.Namespace, error) {
+	out := new(meta.Namespace)
+	err := c.cc.Invoke(ctx, NamespaceController_GetNamespaceWithHumanFriendly_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NamespaceControllerServer is the server API for NamespaceController service.
 // All implementations should embed UnimplementedNamespaceControllerServer
 // for forward compatibility
@@ -195,6 +206,7 @@ type NamespaceControllerServer interface {
 	ListNamespace(context.Context, *emptypb.Empty) (*ListNamespaceResponse, error)
 	GetNamespace(context.Context, *GetNamespaceRequest) (*meta.Namespace, error)
 	DeleteNamespace(context.Context, *DeleteNamespaceRequest) (*emptypb.Empty, error)
+	GetNamespaceWithHumanFriendly(context.Context, *wrapperspb.StringValue) (*meta.Namespace, error)
 }
 
 // UnimplementedNamespaceControllerServer should be embedded to have forward compatible implementations.
@@ -212,6 +224,9 @@ func (UnimplementedNamespaceControllerServer) GetNamespace(context.Context, *Get
 }
 func (UnimplementedNamespaceControllerServer) DeleteNamespace(context.Context, *DeleteNamespaceRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteNamespace not implemented")
+}
+func (UnimplementedNamespaceControllerServer) GetNamespaceWithHumanFriendly(context.Context, *wrapperspb.StringValue) (*meta.Namespace, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNamespaceWithHumanFriendly not implemented")
 }
 
 // UnsafeNamespaceControllerServer may be embedded to opt out of forward compatibility for this service.
@@ -297,6 +312,24 @@ func _NamespaceController_DeleteNamespace_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NamespaceController_GetNamespaceWithHumanFriendly_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(wrapperspb.StringValue)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NamespaceControllerServer).GetNamespaceWithHumanFriendly(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NamespaceController_GetNamespaceWithHumanFriendly_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NamespaceControllerServer).GetNamespaceWithHumanFriendly(ctx, req.(*wrapperspb.StringValue))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NamespaceController_ServiceDesc is the grpc.ServiceDesc for NamespaceController service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -319,6 +352,10 @@ var NamespaceController_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteNamespace",
 			Handler:    _NamespaceController_DeleteNamespace_Handler,
+		},
+		{
+			MethodName: "GetNamespaceWithHumanFriendly",
+			Handler:    _NamespaceController_GetNamespaceWithHumanFriendly_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

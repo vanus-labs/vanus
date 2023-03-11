@@ -21,12 +21,13 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"github.com/vanus-labs/vanus/proto/pkg/meta"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var defaultClusterStartTimeout = 3 * time.Minute
@@ -41,11 +42,16 @@ type Cluster interface {
 	WaitForControllerReady(createEventbus bool) error
 	Status() Topology
 	IsReady(createEventbus bool) bool
+	NamespaceService() NamespaceService
 	EventbusService() EventbusService
 	SegmentService() SegmentService
 	EventlogService() EventlogService
 	TriggerService() TriggerService
 	IDService() IDService
+}
+
+type NamespaceService interface {
+	RawClient() ctrlpb.NamespaceControllerClient
 }
 
 type EventbusService interface {
@@ -89,6 +95,7 @@ func NewClusterController(endpoints []string, credentials credentials.TransportC
 		cc := raw_client.NewConnection(endpoints, credentials)
 		cl = &cluster{
 			cc:                cc,
+			nsSvc:             newNamespaceService(cc),
 			ebSvc:             newEventbusService(cc),
 			segmentSvc:        newSegmentService(cc),
 			elSvc:             newEventlogService(cc),
@@ -104,6 +111,7 @@ func NewClusterController(endpoints []string, credentials credentials.TransportC
 type cluster struct {
 	controllerAddress []string
 	cc                *raw_client.Conn
+	nsSvc             NamespaceService
 	ebSvc             EventbusService
 	elSvc             EventlogService
 	triggerSvc        TriggerService
@@ -149,6 +157,10 @@ func (c *cluster) IsReady(createEventbus bool) bool {
 func (c *cluster) Status() Topology {
 	// TODO(wenfeng)
 	return Topology{}
+}
+
+func (c *cluster) NamespaceService() NamespaceService {
+	return c.nsSvc
 }
 
 func (c *cluster) EventbusService() EventbusService {
