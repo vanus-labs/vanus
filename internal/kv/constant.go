@@ -14,6 +14,12 @@
 
 package kv
 
+import (
+	"path"
+
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+)
+
 const (
 	ResourceEventbus          = "/vanus/core/eventbus_controller/eventbus"
 	ResourceEventlog          = "/vanus/core/eventbus_controller/eventlog"
@@ -30,4 +36,25 @@ const (
 	LeaderInfo                = "/vanus/core/cluster/leader_info"
 	ClusterNode               = "/vanus/core/cluster/nodes"
 	ClusterStart              = "/vanus/core/cluster/start_at"
+
+	namespace = "/vanus/core/tenant/namespaces"
+	user      = "/vanus/core/tenant/users"
+	userRole  = "/vanus/core/tenants/user_role"
+	role      = "/vanus/core/tenants/roles"
 )
+
+func NamespaceAllKey() string {
+	return namespace
+}
+
+func NamespaceKey(id vanus.ID) string {
+	return path.Join(namespace, id.Key())
+}
+
+func UserAllKey() string {
+	return user
+}
+
+func UserKey(identifier string) string {
+	return path.Join(user, identifier)
+}

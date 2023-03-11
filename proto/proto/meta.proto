@@ -24,6 +24,14 @@ message VanusResourceName {
   string value = 1;
 }
 
+message Namespace {
+  uint64 id = 1;
+  string name = 2;
+  string description = 3;
+  int64 created_at = 4;
+  int64 updated_at = 5;
+}
+
 message Eventbus {
   string name = 1;
   int32 log_number = 2;
@@ -32,6 +40,7 @@ message Eventbus {
   string description = 5;
   int64 created_at = 6;
   int64 updated_at = 7;
+  uint64 namespace_id = 8;
 }
 
 message Eventlog {
@@ -111,6 +120,7 @@ message Subscription {
   int64 created_at = 14;
   int64 updated_at = 15;
   uint64 eventbus_id = 16;
+  uint64 namespace_id = 17;
 
   uint64 id = 100;
   repeated OffsetInfo offsets = 101;
