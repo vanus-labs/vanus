@@ -10,21 +10,29 @@ data:
     name: ${POD_NAME}
     ip: ${POD_IP}
     port: 2048
-    etcd:
-      - vanus-etcd-0.vanus-etcd:2379
-      - vanus-etcd-1.vanus-etcd:2379
-      - vanus-etcd-2.vanus-etcd:2379
-    data_dir: /data
-    segment_capacity: 268435456
     replicas: 3
+    segment_capacity: 4194304
+    secret_encryption_salt: "encryption_salt"
     metadata:
-      key_prefix: /vanus
-    leader_election:
-      lease_duration: 15
-    topology:
-      vanus-controller-0: vanus-controller-0.vanus-controller.vanus.svc:2048
-      vanus-controller-1: vanus-controller-1.vanus-controller.vanus.svc:2048
-      vanus-controller-2: vanus-controller-2.vanus-controller.vanus.svc:2048
+      key_prefix: "/prefix"
+    observability:
+      metrics:
+        enable: true
+      tracing:
+        enable: false
+        # OpenTelemetry Collector endpoint, https://opentelemetry.io/docs/collector/getting-started/
+        otel_collector: http://127.0.0.1:4318
+    cluster:
+      component_name: controller
+      lease_duration_in_sec: 15
+      etcd:
+        - vanus-etcd-0.vanus-etcd:2379
+        - vanus-etcd-1.vanus-etcd:2379
+        - vanus-etcd-2.vanus-etcd:2379
+      topology:
+        vanus-controller-0: vanus-controller-0.vanus-controller.vanus.svc:2048
+        vanus-controller-1: vanus-controller-1.vanus-controller.vanus.svc:2048
+        vanus-controller-2: vanus-controller-2.vanus-controller.vanus.svc:2048
 kind: ConfigMap
 metadata:
   name: config-controller
