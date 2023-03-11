@@ -164,6 +164,7 @@ func (c *Conn) getGRPCConn(ctx context.Context, addr string) *grpc.ClientConn {
 	var err error
 	conn := c.grpcConn[addr]
 	if isConnectionOK(conn) {
+		// get controller stop has delay
 		return conn
 	} else if conn != nil {
 		_ = conn.Close() // make sure it's closed
@@ -172,7 +173,7 @@ func (c *Conn) getGRPCConn(ctx context.Context, addr string) *grpc.ClientConn {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(c.credentials))
 	opts = append(opts, grpc.WithBlock())
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 	conn, err = grpc.DialContext(ctx, addr, opts...)
 	if err != nil {

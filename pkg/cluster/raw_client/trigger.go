@@ -78,15 +78,22 @@ func (tc *triggerClient) Beat(ctx context.Context, v interface{}) error {
 	}
 	var err error
 	makeSureClient := func() error {
-		client := ctrlpb.NewTriggerControllerClient(tc.cc.makeSureClient(ctx, false))
+		conn := tc.cc.makeSureClient(ctx, false)
+		if conn == nil {
+			log.Warning(ctx, "not get client for controller", map[string]interface{}{})
+			return errors.ErrNoControllerLeader
+		}
+		client := ctrlpb.NewTriggerControllerClient(conn)
 		tc.heartBeatClient, err = client.TriggerWorkerHeartbeat(ctx)
 		if err != nil {
 			sts := status.Convert(err)
 			if sts.Code() == codes.Unavailable {
-				client = ctrlpb.NewTriggerControllerClient(tc.cc.makeSureClient(ctx, true))
-				if client == nil {
+				conn = tc.cc.makeSureClient(ctx, true)
+				if conn == nil {
+					log.Warning(ctx, "not get client for controller", map[string]interface{}{})
 					return errors.ErrNoControllerLeader
 				}
+				client = ctrlpb.NewTriggerControllerClient(conn)
 				tc.heartBeatClient, err = client.TriggerWorkerHeartbeat(ctx)
 				if err != nil {
 					return err

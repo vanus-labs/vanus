@@ -59,15 +59,22 @@ func (sc *segmentClient) Beat(ctx context.Context, v interface{}) error {
 	}
 	var err error
 	makeSureClient := func() error {
-		client := ctrlpb.NewSegmentControllerClient(sc.cc.makeSureClient(ctx, false))
+		conn := sc.cc.makeSureClient(ctx, false)
+		if conn == nil {
+			log.Warning(ctx, "not get client for controller", map[string]interface{}{})
+			return errors.ErrNoControllerLeader
+		}
+		client := ctrlpb.NewSegmentControllerClient(conn)
 		sc.heartBeatClient, err = client.SegmentHeartbeat(ctx)
 		if err != nil {
 			sts := status.Convert(err)
 			if sts.Code() == codes.Unavailable {
-				client = ctrlpb.NewSegmentControllerClient(sc.cc.makeSureClient(ctx, true))
-				if client == nil {
+				conn = sc.cc.makeSureClient(ctx, true)
+				if conn == nil {
+					log.Warning(ctx, "not get client for controller", map[string]interface{}{})
 					return errors.ErrNoControllerLeader
 				}
+				client = ctrlpb.NewSegmentControllerClient(conn)
 				sc.heartBeatClient, err = client.SegmentHeartbeat(ctx)
 				if err != nil {
 					return err
