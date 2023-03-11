@@ -111,7 +111,6 @@ message Subscription {
   int64 created_at = 14;
   int64 updated_at = 15;
   uint64 eventbus_id = 16;
-  string eventbus_name = 17;
 
   uint64 id = 100;
   repeated OffsetInfo offsets = 101;

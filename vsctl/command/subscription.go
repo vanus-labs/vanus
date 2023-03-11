@@ -629,7 +629,7 @@ func printSubscription(cmd *cobra.Command, showNo, showFilters, showTransformer 
 }
 
 var subscriptionHeaders = []interface{}{
-	"id", "name", "disable", "eventbusId", "eventbusName", "sink", "description", "protocol", "sinkCredential",
+	"id", "name", "disable", "eventbusId", "sink", "description", "protocol", "sinkCredential",
 	"config", "offsets", "filter", "transformer", "created_at", "updated_at",
 }
 
@@ -648,7 +648,6 @@ func getSubscriptionRow(sub *meta.Subscription) []interface{} {
 	result = append(result, sub.Name)
 	result = append(result, sub.Disable)
 	result = append(result, sub.EventbusId)
-	result = append(result, sub.EventbusName)
 	result = append(result, sub.Sink)
 	result = append(result, sub.Description)
 
