@@ -40,7 +40,6 @@ const (
 	namespace = "/vanus/core/tenant/namespaces"
 	user      = "/vanus/core/tenant/users"
 	userRole  = "/vanus/core/tenants/user_role"
-	role      = "/vanus/core/tenants/roles"
 )
 
 func NamespaceAllKey() string {
@@ -57,4 +56,8 @@ func UserAllKey() string {
 
 func UserKey(identifier string) string {
 	return path.Join(user, identifier)
+}
+
+func UserRoleKey(identifier string, roleID vanus.ID) string {
+	return path.Join(userRole, identifier, roleID.Key())
 }

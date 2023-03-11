@@ -40,22 +40,21 @@ func NewController(config Config, mem member.Member) *controller {
 		config: config,
 		member: mem,
 	}
-	ctrl.cancelCtx, ctrl.cancelFunc = context.WithCancel(context.Background())
 	return ctrl
 }
 
 type controller struct {
 	config           Config
 	member           member.Member
-	cancelCtx        context.Context
-	cancelFunc       context.CancelFunc
 	membershipMutex  sync.Mutex
 	isLeader         bool
 	kvClient         kv.Client
 	namespaceManager manager.NamespaceManager
 }
 
-func (ctrl controller) CreateNamespace(ctx context.Context, request *ctrlpb.CreateNamespaceRequest) (*metapb.Namespace, error) {
+func (ctrl *controller) CreateNamespace(ctx context.Context,
+	request *ctrlpb.CreateNamespaceRequest,
+) (*metapb.Namespace, error) {
 	ns := convert.FromPbCreateNamespace(request)
 	if ns.Name == "" {
 		return nil, errors.ErrInvalidRequest.WithMessage("name is empty")
@@ -79,7 +78,9 @@ func (ctrl controller) CreateNamespace(ctx context.Context, request *ctrlpb.Crea
 	return convert.ToPbNamespace(ns), nil
 }
 
-func (ctrl controller) ListNamespace(ctx context.Context, empty *emptypb.Empty) (*ctrlpb.ListNamespaceResponse, error) {
+func (ctrl *controller) ListNamespace(ctx context.Context,
+	empty *emptypb.Empty,
+) (*ctrlpb.ListNamespaceResponse, error) {
 	namespaces := ctrl.namespaceManager.ListNamespace(ctx)
 	list := make([]*metapb.Namespace, 0, len(namespaces))
 	for i, ns := range namespaces {
@@ -90,7 +91,9 @@ func (ctrl controller) ListNamespace(ctx context.Context, empty *emptypb.Empty) 
 	}, nil
 }
 
-func (ctrl controller) GetNamespace(ctx context.Context, request *ctrlpb.GetNamespaceRequest) (*metapb.Namespace, error) {
+func (ctrl *controller) GetNamespace(ctx context.Context,
+	request *ctrlpb.GetNamespaceRequest,
+) (*metapb.Namespace, error) {
 	id := vanus.NewIDFromUint64(request.GetId())
 	ns := ctrl.namespaceManager.GetNamespace(ctx, id)
 	if ns == nil {
@@ -99,7 +102,9 @@ func (ctrl controller) GetNamespace(ctx context.Context, request *ctrlpb.GetName
 	return convert.ToPbNamespace(ns), nil
 }
 
-func (ctrl controller) DeleteNamespace(ctx context.Context, request *ctrlpb.DeleteNamespaceRequest) (*emptypb.Empty, error) {
+func (ctrl *controller) DeleteNamespace(ctx context.Context,
+	request *ctrlpb.DeleteNamespaceRequest,
+) (*emptypb.Empty, error) {
 	id := vanus.NewIDFromUint64(request.GetId())
 	err := ctrl.namespaceManager.DeleteNamespace(ctx, id)
 	if err != nil {
@@ -108,17 +113,20 @@ func (ctrl controller) DeleteNamespace(ctx context.Context, request *ctrlpb.Dele
 	return &emptypb.Empty{}, nil
 }
 
-func (ctrl *controller) Init(ctx context.Context) error {
+func (ctrl *controller) Start(ctx context.Context) error {
 	client, err := etcd.NewEtcdClientV3(ctrl.config.Storage.ServerList, ctrl.config.Storage.KeyPrefix)
 	if err != nil {
 		return err
 	}
 	ctrl.kvClient = client
 	ctrl.namespaceManager = manager.NewNamespaceManager(client)
+	go ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
 	return nil
 }
 
-func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event member.MembershipChangedEvent) error {
+func (ctrl *controller) membershipChangedProcessor(ctx context.Context,
+	event member.MembershipChangedEvent,
+) error {
 	ctrl.membershipMutex.Lock()
 	defer ctrl.membershipMutex.Unlock()
 
@@ -128,7 +136,7 @@ func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event me
 			return nil
 		}
 		ctrl.isLeader = true
-		if err := ctrl.Init(ctx); err != nil {
+		if err := ctrl.namespaceManager.Init(ctx); err != nil {
 			return err
 		}
 	case member.EventBecomeFollower:
