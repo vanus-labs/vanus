@@ -23,18 +23,11 @@ const (
 	ResourceVolumeBlock       = "/vanus/core/eventbus_controller/volume/block"
 	ResourceVolumeInstance    = "/vanus/core/eventbus_controller/volume/instance"
 	ResourceSubscription      = "/vanus/core/trigger_controller/subscriptions"
-	MetadataSecret            = "/vanus/core/trigger_controller/secrets"
+	MetadataSecret            = "/vanus/core/trigger_controller/secrets" //nolint:gosec // ok
 	MetadataOffset            = "/vanus/core/trigger_controller/offsets"
 	TriggerWorker             = "/vanus/core/trigger_controller/trigger_workers"
 	LeaderLock                = "/vanus/core/cluster/resource_lock"
 	LeaderInfo                = "/vanus/core/cluster/leader_info"
 	ClusterNode               = "/vanus/core/cluster/nodes"
 	ClusterStart              = "/vanus/core/cluster/start_at"
-
-	namespace             = "/vanus/core/tenants/namespaces"
-	namespaceEventbus     = "/vanus/core/tenants/{ns_id}/eventbus/{eventbus_id}"
-	namespaceSubscription = "/vanus/core/tenants/{ns_id}/subscription/{subscription_id}"
-	userRoles             = "/vanus/core/tenants/users/{user_id}/roles/{role_id}"
-	roleUsers             = "/vanus/core/tenants/roles/{role_id}/users/{user_id}"
-	rolePermissions       = "/vanus/core/tenants/roles/{role_id}/permissions"
 )

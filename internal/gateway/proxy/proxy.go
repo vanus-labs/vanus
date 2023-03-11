@@ -183,12 +183,23 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 			Attr: &cloudevents.CloudEvent_CloudEventAttributeValue_CeString{CeString: eventbusID.Key()},
 		}
 		if eventTime, ok := e.Attributes[primitive.XVanusDeliveryTime]; ok {
-			// validate event time
-			if _, err := types.ParseTime(eventTime.GetCeString()); err != nil {
-				log.Error(_ctx, "invalid format of event time", map[string]interface{}{
-					log.KeyError: err,
-					"eventTime":  eventTime.String(),
-				})
+			switch attr := eventTime.GetAttr().(type) {
+			case *cloudevents.CloudEvent_CloudEventAttributeValue_CeTimestamp:
+			case *cloudevents.CloudEvent_CloudEventAttributeValue_CeString:
+				// validate event time
+				t, err := types.ParseTime(attr.CeString)
+				if err != nil {
+					log.Error(_ctx, "invalid format of event time", map[string]interface{}{
+						log.KeyError: err,
+						"eventTime":  eventTime.String(),
+					})
+					responseCode = http.StatusBadRequest
+					return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid delivery time")
+				}
+				eventTime.Attr = &cloudevents.CloudEvent_CloudEventAttributeValue_CeTimestamp{
+					CeTimestamp: timestamppb.New(t),
+				}
+			default:
 				responseCode = http.StatusBadRequest
 				return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid delivery time")
 			}

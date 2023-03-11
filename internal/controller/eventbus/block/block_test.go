@@ -170,7 +170,7 @@ func TestAllocator_RunWithoutDynamic(t *testing.T) {
 }
 
 // disable on 3.10
-//func TestAllocator_RunWithDynamic(t *testing.T) {
+// func TestAllocator_RunWithDynamic(t *testing.T) {
 //	Convey("test run without dynamic allocate block", t, func() {
 //		ctrl := gomock.NewController(t)
 //		srv1 := server.NewMockInstance(ctrl)
@@ -262,7 +262,7 @@ func TestAllocator_RunWithoutDynamic(t *testing.T) {
 //		So(list2.Len(), ShouldEqual, 8)
 //		So(list3.Len(), ShouldEqual, 8)
 //	})
-//}
+// }
 
 func TestAllocator_UpdateBlock(t *testing.T) {
 	Convey("update update block in kv", t, func() {
