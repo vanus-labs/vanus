@@ -39,7 +39,7 @@ func TestSuffixFilter(t *testing.T) {
 	})
 	Convey("suffix filter pass", t, func() {
 		f := filter.NewSuffixFilter(map[string]string{
-			"id":     "VolumeID",
+			"id":     "ID",
 			"source": "Source",
 		})
 		result := f.Filter(event)

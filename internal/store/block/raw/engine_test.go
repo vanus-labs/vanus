@@ -49,7 +49,7 @@ package raw
 // 		So(err, ShouldBeNil)
 // 		So(info.Size(), ShouldEqual, defaultCapacity)
 
-// 		So(b.VolumeID(), ShouldEqual, id)
+// 		So(b.ID(), ShouldEqual, id)
 // 		So(b.Path(), ShouldEqual, path)
 // 		So(b.full(), ShouldBeFalse)
 // 		So(b.Appendable(), ShouldBeTrue)
@@ -95,7 +95,7 @@ package raw
 // 				b, err := Open(context.Background(), path)
 // 				So(err, ShouldBeNil)
 
-// 				So(b.VolumeID(), ShouldEqual, id)
+// 				So(b.ID(), ShouldEqual, id)
 // 				So(b.Path(), ShouldEqual, path)
 // 				So(b.full(), ShouldBeFalse)
 // 				So(b.Appendable(), ShouldBeTrue)

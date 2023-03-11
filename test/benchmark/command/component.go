@@ -235,7 +235,7 @@ func sendCommand() *cobra.Command {
 				br := BlockRecord{}
 				_ = json.Unmarshal([]byte(sCmd.Val()), &br)
 				brs[i] = br
-				fmt.Printf("found a block, VolumeID: %s, addr: %s\n",
+				fmt.Printf("found a block, ID: %s, addr: %s\n",
 					vanus.ID(br.LeaderID).String(), br.LeaderAddr)
 			}
 

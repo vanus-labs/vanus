@@ -162,7 +162,7 @@ func (mr *MockBlockMockRecorder) Append(ctx, entries, cb interface{}) *gomock.Ca
 // ID mocks base method.
 func (m *MockBlock) ID() vanus.ID {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VolumeID")
+	ret := m.ctrl.Call(m, "ID")
 	ret0, _ := ret[0].(vanus.ID)
 	return ret0
 }
@@ -170,7 +170,7 @@ func (m *MockBlock) ID() vanus.ID {
 // ID indicates an expected call of ID.
 func (mr *MockBlockMockRecorder) ID() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VolumeID", reflect.TypeOf((*MockBlock)(nil).ID))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockBlock)(nil).ID))
 }
 
 // Read mocks base method.

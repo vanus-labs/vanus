@@ -2781,7 +2781,7 @@ func (m *ConfChange) Unmarshal(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field VolumeID", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ID", wireType)
 			}
 			m.ID = 0
 			for shift := uint(0); ; shift += 7 {

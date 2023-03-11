@@ -109,7 +109,7 @@ func (env *InteractionEnv) AddNodes(n int, snap pb.Snapshot) error {
 			if cfg.ID != id {
 				// This could be supported but then we need to do more work
 				// translating back and forth -- not worth it.
-				return errors.New("OnConfig must not change the VolumeID")
+				return errors.New("OnConfig must not change the ID")
 			}
 		}
 		if cfg.Logger != nil {
