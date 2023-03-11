@@ -17,7 +17,6 @@ package gateway
 import (
 	"context"
 	"fmt"
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"net"
 	"net/http"
 	"strings"
@@ -128,22 +127,9 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 }
 
 func (ga *ceGateway) getEventbusFromPath(ctx context.Context, reqData *cehttp.RequestData) (vanus.ID, error) {
-	reqPathStr := reqData.URL.String()
-	if strings.HasPrefix(reqPathStr, httpRequestPrefix) {
-		// TODO optimize
-		meta, err := ga.proxySrv.GetEventbusWithHumanFriendly(ctx, &ctrlpb.GetEventbusWithHumanFriendlyRequest{
-			Namespace:    "default",
-			EventbusName: strings.TrimLeft(reqPathStr[len(httpRequestPrefix):], "/"),
-		})
-		if err != nil {
-			return vanus.EmptyID(), err
-		}
-		return vanus.NewIDFromUint64(meta.Id), nil
-	} else {
-		id, err := vanus.NewIDFromString(strings.TrimLeft(reqPathStr, "/"))
-		if err != nil {
-			return vanus.EmptyID(), err
-		}
-		return id, nil
+	id, err := vanus.NewIDFromString(strings.TrimLeft(reqData.URL.String(), "/"))
+	if err != nil {
+		return vanus.EmptyID(), err
 	}
+	return id, nil
 }
