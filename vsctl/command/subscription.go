@@ -574,10 +574,13 @@ func listSubscriptionCommand() *cobra.Command {
 		Use:   "list",
 		Short: "list the subscription ",
 		Run: func(cmd *cobra.Command, args []string) {
-			res, err := client.ListSubscription(context.Background(), &ctrlpb.ListSubscriptionRequest{
-				EventbusId: mustGetEventbusID(namespace, eventbus).Uint64(),
-				Name:       subscriptionName,
-			})
+			request := &ctrlpb.ListSubscriptionRequest{
+				Name: subscriptionName,
+			}
+			if eventbus != "" {
+				request.EventbusId = mustGetEventbusID(namespace, eventbus).Uint64()
+			}
+			res, err := client.ListSubscription(context.Background(), request)
 			if err != nil {
 				cmdFailedf(cmd, "list subscription failed: %s", err)
 			}

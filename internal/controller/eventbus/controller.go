@@ -132,12 +132,13 @@ func (ctrl *controller) CreateEventbus(
 	if err != nil {
 		return nil, err
 	}
+
 	// TODO async create
 	// create dead letter eventbus
 	_, err = ctrl.createEventbus(context.Background(), &ctrlpb.CreateEventbusRequest{
 		Name:        primitive.GetDeadLetterEventbusName(vanus.NewIDFromUint64(eb.Id)),
 		LogNumber:   1,
-		Namespace:   req.Namespace,
+		Namespace:   primitive.VanusSystemNamespace,
 		Description: "System DeadLetter Eventbus For " + req.Name,
 	})
 	if err != nil {

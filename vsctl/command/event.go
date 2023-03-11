@@ -305,11 +305,6 @@ func getEventCommand() *cobra.Command {
 				cmdFailedWithHelpNotice(cmd, "eventbus name and eventID can't be both empty\n")
 			}
 
-			if namespace == "" {
-				namespace = "default"
-				color.Green("the namespace not specified, using default namespace")
-			}
-
 			res, err := client.GetEvent(context.Background(), &proxypb.GetEventRequest{
 				EventbusId: mustGetEventbusID(namespace, args[0]).Uint64(),
 				EventlogId: eventlogID,

@@ -13,6 +13,7 @@ import (
 var (
 	systemEventbusPrefix          = "__"
 	defaultSystemEventbusEventlog = 1
+	systemNamespace               = "vanus-system"
 )
 
 type eventbusService struct {
@@ -56,6 +57,7 @@ func (es *eventbusService) CreateSystemEventbusIfNotExist(ctx context.Context, n
 		Name:        name,
 		LogNumber:   int32(defaultSystemEventbusEventlog),
 		Description: desc,
+		Namespace:   systemNamespace,
 	})
 }
 

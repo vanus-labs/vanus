@@ -111,6 +111,10 @@ func IsFormatJSON(cmd *cobra.Command) bool {
 }
 
 func mustGetEventbusID(namespace, name string) vanus.ID {
+	if namespace == "" {
+		namespace = "default"
+		color.Green("the namespace not specified, using default namespace")
+	}
 	eb, err := client.GetEventbusWithHumanFriendly(context.Background(),
 		&ctrlpb.GetEventbusWithHumanFriendlyRequest{
 			Namespace:    namespace,
