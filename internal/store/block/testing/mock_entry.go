@@ -12,6 +12,122 @@ import (
 	block "github.com/vanus-labs/vanus/internal/store/block"
 )
 
+// MockValue is a mock of Value interface.
+type MockValue struct {
+	ctrl     *gomock.Controller
+	recorder *MockValueMockRecorder
+}
+
+// MockValueMockRecorder is the mock recorder for MockValue.
+type MockValueMockRecorder struct {
+	mock *MockValue
+}
+
+// NewMockValue creates a new mock instance.
+func NewMockValue(ctrl *gomock.Controller) *MockValue {
+	mock := &MockValue{ctrl: ctrl}
+	mock.recorder = &MockValueMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockValue) EXPECT() *MockValueMockRecorder {
+	return m.recorder
+}
+
+// Size mocks base method.
+func (m *MockValue) Size() int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Size")
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// Size indicates an expected call of Size.
+func (mr *MockValueMockRecorder) Size() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Size", reflect.TypeOf((*MockValue)(nil).Size))
+}
+
+// Value mocks base method.
+func (m *MockValue) Value() []byte {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Value")
+	ret0, _ := ret[0].([]byte)
+	return ret0
+}
+
+// Value indicates an expected call of Value.
+func (mr *MockValueMockRecorder) Value() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Value", reflect.TypeOf((*MockValue)(nil).Value))
+}
+
+// MockValueMarshaler is a mock of ValueMarshaler interface.
+type MockValueMarshaler struct {
+	ctrl     *gomock.Controller
+	recorder *MockValueMarshalerMockRecorder
+}
+
+// MockValueMarshalerMockRecorder is the mock recorder for MockValueMarshaler.
+type MockValueMarshalerMockRecorder struct {
+	mock *MockValueMarshaler
+}
+
+// NewMockValueMarshaler creates a new mock instance.
+func NewMockValueMarshaler(ctrl *gomock.Controller) *MockValueMarshaler {
+	mock := &MockValueMarshaler{ctrl: ctrl}
+	mock.recorder = &MockValueMarshalerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockValueMarshaler) EXPECT() *MockValueMarshalerMockRecorder {
+	return m.recorder
+}
+
+// MarshalTo mocks base method.
+func (m *MockValueMarshaler) MarshalTo(buf []byte) int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MarshalTo", buf)
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// MarshalTo indicates an expected call of MarshalTo.
+func (mr *MockValueMarshalerMockRecorder) MarshalTo(buf interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarshalTo", reflect.TypeOf((*MockValueMarshaler)(nil).MarshalTo), buf)
+}
+
+// Size mocks base method.
+func (m *MockValueMarshaler) Size() int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Size")
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// Size indicates an expected call of Size.
+func (mr *MockValueMarshalerMockRecorder) Size() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Size", reflect.TypeOf((*MockValueMarshaler)(nil).Size))
+}
+
+// Value mocks base method.
+func (m *MockValueMarshaler) Value() []byte {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Value")
+	ret0, _ := ret[0].([]byte)
+	return ret0
+}
+
+// Value indicates an expected call of Value.
+func (mr *MockValueMarshalerMockRecorder) Value() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Value", reflect.TypeOf((*MockValueMarshaler)(nil).Value))
+}
+
 // MockExtensionAttributeCallback is a mock of ExtensionAttributeCallback interface.
 type MockExtensionAttributeCallback struct {
 	ctrl     *gomock.Controller
@@ -36,7 +152,7 @@ func (m *MockExtensionAttributeCallback) EXPECT() *MockExtensionAttributeCallbac
 }
 
 // OnAttribute mocks base method.
-func (m *MockExtensionAttributeCallback) OnAttribute(attr, val []byte) {
+func (m *MockExtensionAttributeCallback) OnAttribute(attr []byte, val block.Value) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "OnAttribute", attr, val)
 }

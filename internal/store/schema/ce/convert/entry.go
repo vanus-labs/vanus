@@ -17,7 +17,6 @@ package convert
 import (
 	// standard libraries.
 	"sort"
-	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -31,6 +30,7 @@ import (
 	// this project.
 	"github.com/vanus-labs/vanus/internal/store/block"
 	ceschema "github.com/vanus-labs/vanus/internal/store/schema/ce"
+	cetype "github.com/vanus-labs/vanus/internal/store/schema/ce/typesystem"
 )
 
 const (
@@ -168,7 +168,7 @@ func (e *ceEntry) GetExtensionAttribute(attr []byte) []byte {
 		return nil
 	}
 	if v, ok := e.ce.Attributes[string(attr)]; ok {
-		return attrValue(v)
+		return attrValue(v).Value()
 	}
 	return nil
 }
@@ -235,25 +235,27 @@ func (e *ceEntry) ExtensionAttributeCount() int {
 	return sz
 }
 
-func attrValue(v *cepb.CloudEvent_CloudEventAttributeValue) []byte {
-	// FIXME(james.yin): support native types.
+func attrValue(v *cepb.CloudEvent_CloudEventAttributeValue) block.ValueMarshaler {
 	switch val := v.GetAttr().(type) {
 	case *cepb.CloudEvent_CloudEventAttributeValue_CeBoolean:
-		return []byte(strconv.FormatBool(val.CeBoolean))
+		if val.CeBoolean {
+			return cetype.NewTrueValue()
+		}
+		return cetype.NewFalseValue()
 	case *cepb.CloudEvent_CloudEventAttributeValue_CeInteger:
-		return []byte(strconv.FormatInt(int64(val.CeInteger), 10))
+		return cetype.NewIntegerValue(val.CeInteger)
 	case *cepb.CloudEvent_CloudEventAttributeValue_CeString:
-		return []byte(val.CeString)
+		return cetype.NewStringValue(val.CeString)
 	case *cepb.CloudEvent_CloudEventAttributeValue_CeBytes:
-		return val.CeBytes
+		return cetype.NewBytesValue(val.CeBytes)
 	case *cepb.CloudEvent_CloudEventAttributeValue_CeUri:
-		return []byte(val.CeUri)
+		return cetype.NewURIValue(val.CeUri)
 	case *cepb.CloudEvent_CloudEventAttributeValue_CeUriRef:
-		return []byte(val.CeUriRef)
+		return cetype.NewURIRefValue(val.CeUriRef)
 	case *cepb.CloudEvent_CloudEventAttributeValue_CeTimestamp:
-		return []byte(val.CeTimestamp.AsTime().Format(time.RFC3339Nano))
+		return cetype.NewTimestampValue(val.CeTimestamp.Seconds, val.CeTimestamp.Nanos)
 	}
-	return nil
+	return cetype.NewNoneValue()
 }
 
 func ToEntry(event *cepb.CloudEvent) block.EntryExt {

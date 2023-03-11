@@ -31,6 +31,7 @@ import (
 	"github.com/vanus-labs/vanus/internal/store/block"
 	"github.com/vanus-labs/vanus/internal/store/io"
 	ceschema "github.com/vanus-labs/vanus/internal/store/schema/ce"
+	"github.com/vanus-labs/vanus/internal/store/vsb/entry"
 	"github.com/vanus-labs/vanus/internal/store/vsb/index"
 )
 
@@ -95,7 +96,7 @@ func (b *vsBlock) PrepareAppend(
 	now := time.Now().UnixMilli()
 	for i := int64(0); i < num; i++ {
 		seq := actx.seq + i
-		ents[i] = wrapEntry(entries[i], ceschema.CloudEvent, seq, now)
+		ents[i] = entry.Wrap(entries[i], ceschema.CloudEvent, seq, now)
 		seqs[i] = seq
 	}
 
@@ -114,7 +115,7 @@ func (b *vsBlock) PrepareArchive(ctx context.Context, appendCtx block.AppendCont
 
 	actx, _ := appendCtx.(*appendContext)
 
-	end := wrapEntry(&block.EmptyEntryExt{}, ceschema.End, actx.seq, time.Now().UnixMilli())
+	end := entry.Wrap(&block.EmptyEntryExt{}, ceschema.End, actx.seq, time.Now().UnixMilli())
 	frag := newFragment(actx.offset, []block.Entry{end}, b.enc)
 
 	actx.offset += int64(frag.Size())

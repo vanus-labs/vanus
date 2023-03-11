@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vsb
+package entry
 
 import (
 	// this project.
@@ -61,7 +61,7 @@ func (w *entryExtWrapper) OptionalAttributeCount() int {
 	return addedOptCount + w.EntryExtWrapper.OptionalAttributeCount()
 }
 
-func wrapEntry(e block.Entry, t uint16, seq int64, stime int64) block.Entry {
+func Wrap(e block.Entry, t uint16, seq int64, stime int64) block.Entry {
 	if ext, ok := e.(block.EntryExt); ok {
 		return &entryExtWrapper{
 			EntryExtWrapper: block.EntryExtWrapper{

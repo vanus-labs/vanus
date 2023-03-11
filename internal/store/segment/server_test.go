@@ -112,7 +112,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 		srv.replicas.Store(id, b)
 
 		ent0 := cetest.MakeStoredEntry0(ctrl)
-		ent1 := cetest.MakeStoredEntry1(ctrl)
+		ent1 := cetest.MakeStoredEntry1(ctrl, true)
 
 		Convey("enable long-polling, but not wait", func() {
 			b.EXPECT().Read(Any(), int64(0), 3).Return([]block.Entry{ent0, ent1}, nil)
