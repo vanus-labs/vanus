@@ -421,14 +421,7 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 				})
 				wg := sync.WaitGroup{}
 				for _, event := range events {
-					if event.Extensions()[xVanusEventbus] == timerBuiltInEventbusReceivingStation {
-						log.Warning(ctx, "invalid destination eventbus, discard this event", map[string]interface{}{
-							"event_id":      event.ID(),
-							"eventbus":      event.Extensions()[xVanusEventbus],
-							"delivery_time": newTimingMsg(ctx, event).getExpiration().Format(time.RFC3339Nano),
-						})
-						continue
-					}
+					// TODO(jiangkai): check event dst eventbus is vaild.
 					wg.Add(1)
 					glimitC <- struct{}{}
 					go func(ctx context.Context, e *ce.Event) {
