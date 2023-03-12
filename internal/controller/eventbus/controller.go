@@ -138,7 +138,7 @@ func (ctrl *controller) CreateEventbus(
 	_, err = ctrl.createEventbus(context.Background(), &ctrlpb.CreateEventbusRequest{
 		Name:        primitive.GetDeadLetterEventbusName(vanus.NewIDFromUint64(eb.Id)),
 		LogNumber:   1,
-		NamespaceId: primitive.SystemNamespaceID,
+		NamespaceId: req.NamespaceId,
 		Description: "System DeadLetter Eventbus For " + req.Name,
 	})
 	if err != nil {

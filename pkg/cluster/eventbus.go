@@ -13,17 +13,16 @@ import (
 var (
 	systemEventbusPrefix          = "__"
 	defaultSystemEventbusEventlog = 1
-	systemNamespace               = "vanus-system"
-	systemNamespaceID             = uint64(1)
 )
 
 type eventbusService struct {
-	client ctrlpb.EventbusControllerClient
+	client            ctrlpb.EventbusControllerClient
+	systemNamespaceID uint64
 }
 
 func (es *eventbusService) GetSystemEventbusByName(ctx context.Context, name string) (*meta.Eventbus, error) {
 	return es.client.GetEventbusWithHumanFriendly(ctx, &ctrlpb.GetEventbusWithHumanFriendlyRequest{
-		NamespaceId:  systemNamespaceID,
+		NamespaceId:  es.systemNamespaceID,
 		EventbusName: name,
 	})
 }
@@ -34,7 +33,7 @@ func (es *eventbusService) GetEventbus(ctx context.Context, id uint64) (*meta.Ev
 
 func (es *eventbusService) IsSystemEventbusExistByName(ctx context.Context, name string) bool {
 	_, err := es.client.GetEventbusWithHumanFriendly(ctx, &ctrlpb.GetEventbusWithHumanFriendlyRequest{
-		NamespaceId:  systemNamespaceID,
+		NamespaceId:  es.systemNamespaceID,
 		EventbusName: name,
 	})
 	return err == nil
@@ -58,7 +57,7 @@ func (es *eventbusService) CreateSystemEventbusIfNotExist(ctx context.Context, n
 		Name:        name,
 		LogNumber:   int32(defaultSystemEventbusEventlog),
 		Description: desc,
-		NamespaceId: systemNamespaceID,
+		NamespaceId: es.systemNamespaceID,
 	})
 }
 
