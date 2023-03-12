@@ -2,11 +2,12 @@ package cluster
 
 import (
 	"context"
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
-	"github.com/vanus-labs/vanus/proto/pkg/meta"
+
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	"github.com/vanus-labs/vanus/proto/pkg/meta"
 )
 
 var (
@@ -20,7 +21,7 @@ type eventbusService struct {
 
 func (es *eventbusService) GetSystemEventbusByName(ctx context.Context, name string) (*meta.Eventbus, error) {
 	return es.client.GetEventbusWithHumanFriendly(ctx, &ctrlpb.GetEventbusWithHumanFriendlyRequest{
-		Namespace:    "system",
+		Namespace:    systemNamespace,
 		EventbusName: name,
 	})
 }
@@ -31,7 +32,7 @@ func (es *eventbusService) GetEventbus(ctx context.Context, id uint64) (*meta.Ev
 
 func (es *eventbusService) IsSystemEventbusExistByName(ctx context.Context, name string) bool {
 	_, err := es.client.GetEventbusWithHumanFriendly(ctx, &ctrlpb.GetEventbusWithHumanFriendlyRequest{
-		Namespace:    "system",
+		Namespace:    systemNamespace,
 		EventbusName: name,
 	})
 	return err == nil

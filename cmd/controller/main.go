@@ -30,6 +30,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
+	"github.com/vanus-labs/vanus/internal/controller/tenant"
 	"github.com/vanus-labs/vanus/observability"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
@@ -81,6 +82,15 @@ func main() {
 	snowflakeCtrl := snowflake.NewSnowflakeController(cfg.GetSnowflakeConfig(), mem)
 	if err = snowflakeCtrl.Start(ctx); err != nil {
 		log.Error(ctx, "start Snowflake Controller failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+
+	// namespace controller
+	namespaceCtrlStv := tenant.NewController(cfg.GetTenantConfig(), mem)
+	if err = namespaceCtrlStv.Start(); err != nil {
+		log.Error(ctx, "start namespace controller fail", map[string]interface{}{
 			log.KeyError: err,
 		})
 		os.Exit(-1)
@@ -141,6 +151,7 @@ func main() {
 	}
 
 	ctrlpb.RegisterSnowflakeControllerServer(grpcServer, snowflakeCtrl)
+	ctrlpb.RegisterNamespaceControllerServer(grpcServer, namespaceCtrlStv)
 	ctrlpb.RegisterEventbusControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterEventlogControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterSegmentControllerServer(grpcServer, segmentCtrl)

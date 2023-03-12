@@ -93,6 +93,20 @@ func (mr *MockClusterMockRecorder) IsReady(createEventbus interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsReady", reflect.TypeOf((*MockCluster)(nil).IsReady), createEventbus)
 }
 
+// NamespaceService mocks base method.
+func (m *MockCluster) NamespaceService() NamespaceService {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NamespaceService")
+	ret0, _ := ret[0].(NamespaceService)
+	return ret0
+}
+
+// NamespaceService indicates an expected call of NamespaceService.
+func (mr *MockClusterMockRecorder) NamespaceService() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NamespaceService", reflect.TypeOf((*MockCluster)(nil).NamespaceService))
+}
+
 // SegmentService mocks base method.
 func (m *MockCluster) SegmentService() SegmentService {
 	m.ctrl.T.Helper()
@@ -147,6 +161,88 @@ func (m *MockCluster) WaitForControllerReady(createEventbus bool) error {
 func (mr *MockClusterMockRecorder) WaitForControllerReady(createEventbus interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WaitForControllerReady", reflect.TypeOf((*MockCluster)(nil).WaitForControllerReady), createEventbus)
+}
+
+// MockNamespaceService is a mock of NamespaceService interface.
+type MockNamespaceService struct {
+	ctrl     *gomock.Controller
+	recorder *MockNamespaceServiceMockRecorder
+}
+
+// MockNamespaceServiceMockRecorder is the mock recorder for MockNamespaceService.
+type MockNamespaceServiceMockRecorder struct {
+	mock *MockNamespaceService
+}
+
+// NewMockNamespaceService creates a new mock instance.
+func NewMockNamespaceService(ctrl *gomock.Controller) *MockNamespaceService {
+	mock := &MockNamespaceService{ctrl: ctrl}
+	mock.recorder = &MockNamespaceServiceMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockNamespaceService) EXPECT() *MockNamespaceServiceMockRecorder {
+	return m.recorder
+}
+
+// GetDefaultNamespace mocks base method.
+func (m *MockNamespaceService) GetDefaultNamespace(ctx context.Context) (*meta.Namespace, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDefaultNamespace", ctx)
+	ret0, _ := ret[0].(*meta.Namespace)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDefaultNamespace indicates an expected call of GetDefaultNamespace.
+func (mr *MockNamespaceServiceMockRecorder) GetDefaultNamespace(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDefaultNamespace", reflect.TypeOf((*MockNamespaceService)(nil).GetDefaultNamespace), ctx)
+}
+
+// GetNamespace mocks base method.
+func (m *MockNamespaceService) GetNamespace(ctx context.Context, id uint64) (*meta.Namespace, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNamespace", ctx, id)
+	ret0, _ := ret[0].(*meta.Namespace)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNamespace indicates an expected call of GetNamespace.
+func (mr *MockNamespaceServiceMockRecorder) GetNamespace(ctx, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespace", reflect.TypeOf((*MockNamespaceService)(nil).GetNamespace), ctx, id)
+}
+
+// GetSystemNamespace mocks base method.
+func (m *MockNamespaceService) GetSystemNamespace(ctx context.Context) (*meta.Namespace, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSystemNamespace", ctx)
+	ret0, _ := ret[0].(*meta.Namespace)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSystemNamespace indicates an expected call of GetSystemNamespace.
+func (mr *MockNamespaceServiceMockRecorder) GetSystemNamespace(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSystemNamespace", reflect.TypeOf((*MockNamespaceService)(nil).GetSystemNamespace), ctx)
+}
+
+// RawClient mocks base method.
+func (m *MockNamespaceService) RawClient() controller.NamespaceControllerClient {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RawClient")
+	ret0, _ := ret[0].(controller.NamespaceControllerClient)
+	return ret0
+}
+
+// RawClient indicates an expected call of RawClient.
+func (mr *MockNamespaceServiceMockRecorder) RawClient() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RawClient", reflect.TypeOf((*MockNamespaceService)(nil).RawClient))
 }
 
 // MockEventbusService is a mock of EventbusService interface.
