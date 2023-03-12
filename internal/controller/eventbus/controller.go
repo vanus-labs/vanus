@@ -190,6 +190,7 @@ func (ctrl *controller) CreateSystemEventbus(
 	if !strings.HasPrefix(req.Name, primitive.SystemEventbusNamePrefix) {
 		return nil, errors.ErrInvalidRequest.WithMessage("system eventbus must start with __")
 	}
+	// TODO add namespace checking
 	return ctrl.createEventbus(ctx, req)
 }
 

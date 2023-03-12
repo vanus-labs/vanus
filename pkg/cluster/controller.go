@@ -99,7 +99,6 @@ func NewClusterController(endpoints []string, credentials credentials.TransportC
 		cl = &cluster{
 			cc:                cc,
 			nsSvc:             newNamespaceService(cc),
-			ebSvc:             newEventbusService(cc),
 			segmentSvc:        newSegmentService(cc),
 			elSvc:             newEventlogService(cc),
 			triggerSvc:        newTriggerService(cc),
@@ -137,6 +136,12 @@ func (c *cluster) WaitForControllerReady(createEventbus bool) error {
 		}
 	}
 
+	pb, err := c.nsSvc.GetSystemNamespace(context.Background())
+	if err != nil {
+		return err
+	}
+
+	c.ebSvc = newEventbusService(c.cc, pb.Id)
 	log.Info(context.Background(), "controller is ready", map[string]interface{}{
 		"waiting_time": time.Now().Sub(start),
 	})

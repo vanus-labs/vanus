@@ -63,7 +63,7 @@ func createEventbusCommand() *cobra.Command {
 				Name:        eventbus,
 				LogNumber:   eventlogNum,
 				Description: description,
-				NamespaceId: primitive.DefaultNamespaceID,
+				NamespaceId: mustGetNamespaceID(primitive.DefaultNamespace).Uint64(),
 			})
 			if err != nil {
 				cmdFailedf(cmd, "create eventbus failed: %s", err)

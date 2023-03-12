@@ -17,9 +17,10 @@ package command
 import (
 	"context"
 	"fmt"
-	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -116,14 +117,23 @@ func mustGetEventbusID(namespace, name string) vanus.ID {
 		namespace = "default"
 		color.Green("the namespace not specified, using [default] namespace")
 	}
-	// TODO must get namespace_id
 	eb, err := client.GetEventbusWithHumanFriendly(context.Background(),
 		&ctrlpb.GetEventbusWithHumanFriendlyRequest{
-			NamespaceId:  primitive.DefaultNamespaceID,
+			NamespaceId:  mustGetNamespaceID(namespace).Uint64(),
 			EventbusName: name,
 		})
 	if err != nil {
 		color.Red("failed to query eventbus id: %s", err.Error())
+		os.Exit(1)
+	}
+	return vanus.NewIDFromUint64(eb.Id)
+}
+
+func mustGetNamespaceID(namespace string) vanus.ID {
+	eb, err := client.GetNamespaceWithHumanFriendly(context.Background(), wrapperspb.String(namespace))
+	if err != nil {
+		color.Red("failed to query namespace id: %s", err.Error())
+		os.Exit(1)
 	}
 	return vanus.NewIDFromUint64(eb.Id)
 }

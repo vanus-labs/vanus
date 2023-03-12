@@ -245,11 +245,11 @@ func (m *member) tryLock(ctx context.Context) error {
 		return err
 	}
 
+	m.isLeader.Store(true)
 	log.Info(ctx, "controller become leader", nil)
 	_ = m.execHandlers(ctx, MembershipChangedEvent{
 		Type: EventBecomeLeader,
 	})
-	m.isLeader.Store(true)
 	m.isReady.Store(true)
 	return nil
 }

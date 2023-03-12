@@ -37,28 +37,29 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ControllerProxy_CreateEventbus_FullMethodName               = "/vanus.core.proxy.ControllerProxy/CreateEventbus"
-	ControllerProxy_DeleteEventbus_FullMethodName               = "/vanus.core.proxy.ControllerProxy/DeleteEventbus"
-	ControllerProxy_GetEventbus_FullMethodName                  = "/vanus.core.proxy.ControllerProxy/GetEventbus"
-	ControllerProxy_ListEventbus_FullMethodName                 = "/vanus.core.proxy.ControllerProxy/ListEventbus"
-	ControllerProxy_UpdateEventbus_FullMethodName               = "/vanus.core.proxy.ControllerProxy/UpdateEventbus"
-	ControllerProxy_GetEventbusWithHumanFriendly_FullMethodName = "/vanus.core.proxy.ControllerProxy/GetEventbusWithHumanFriendly"
-	ControllerProxy_ListSegment_FullMethodName                  = "/vanus.core.proxy.ControllerProxy/ListSegment"
-	ControllerProxy_CreateSubscription_FullMethodName           = "/vanus.core.proxy.ControllerProxy/CreateSubscription"
-	ControllerProxy_UpdateSubscription_FullMethodName           = "/vanus.core.proxy.ControllerProxy/UpdateSubscription"
-	ControllerProxy_DeleteSubscription_FullMethodName           = "/vanus.core.proxy.ControllerProxy/DeleteSubscription"
-	ControllerProxy_GetSubscription_FullMethodName              = "/vanus.core.proxy.ControllerProxy/GetSubscription"
-	ControllerProxy_ListSubscription_FullMethodName             = "/vanus.core.proxy.ControllerProxy/ListSubscription"
-	ControllerProxy_DisableSubscription_FullMethodName          = "/vanus.core.proxy.ControllerProxy/DisableSubscription"
-	ControllerProxy_ResumeSubscription_FullMethodName           = "/vanus.core.proxy.ControllerProxy/ResumeSubscription"
-	ControllerProxy_ResetOffsetToTimestamp_FullMethodName       = "/vanus.core.proxy.ControllerProxy/ResetOffsetToTimestamp"
-	ControllerProxy_ClusterInfo_FullMethodName                  = "/vanus.core.proxy.ControllerProxy/ClusterInfo"
-	ControllerProxy_LookupOffset_FullMethodName                 = "/vanus.core.proxy.ControllerProxy/LookupOffset"
-	ControllerProxy_GetEvent_FullMethodName                     = "/vanus.core.proxy.ControllerProxy/GetEvent"
-	ControllerProxy_ValidateSubscription_FullMethodName         = "/vanus.core.proxy.ControllerProxy/ValidateSubscription"
-	ControllerProxy_GetDeadLetterEvent_FullMethodName           = "/vanus.core.proxy.ControllerProxy/GetDeadLetterEvent"
-	ControllerProxy_ResendDeadLetterEvent_FullMethodName        = "/vanus.core.proxy.ControllerProxy/ResendDeadLetterEvent"
-	ControllerProxy_SetDeadLetterEventOffset_FullMethodName     = "/vanus.core.proxy.ControllerProxy/SetDeadLetterEventOffset"
+	ControllerProxy_CreateEventbus_FullMethodName                = "/vanus.core.proxy.ControllerProxy/CreateEventbus"
+	ControllerProxy_DeleteEventbus_FullMethodName                = "/vanus.core.proxy.ControllerProxy/DeleteEventbus"
+	ControllerProxy_GetEventbus_FullMethodName                   = "/vanus.core.proxy.ControllerProxy/GetEventbus"
+	ControllerProxy_ListEventbus_FullMethodName                  = "/vanus.core.proxy.ControllerProxy/ListEventbus"
+	ControllerProxy_UpdateEventbus_FullMethodName                = "/vanus.core.proxy.ControllerProxy/UpdateEventbus"
+	ControllerProxy_GetEventbusWithHumanFriendly_FullMethodName  = "/vanus.core.proxy.ControllerProxy/GetEventbusWithHumanFriendly"
+	ControllerProxy_ListSegment_FullMethodName                   = "/vanus.core.proxy.ControllerProxy/ListSegment"
+	ControllerProxy_CreateSubscription_FullMethodName            = "/vanus.core.proxy.ControllerProxy/CreateSubscription"
+	ControllerProxy_UpdateSubscription_FullMethodName            = "/vanus.core.proxy.ControllerProxy/UpdateSubscription"
+	ControllerProxy_DeleteSubscription_FullMethodName            = "/vanus.core.proxy.ControllerProxy/DeleteSubscription"
+	ControllerProxy_GetSubscription_FullMethodName               = "/vanus.core.proxy.ControllerProxy/GetSubscription"
+	ControllerProxy_ListSubscription_FullMethodName              = "/vanus.core.proxy.ControllerProxy/ListSubscription"
+	ControllerProxy_DisableSubscription_FullMethodName           = "/vanus.core.proxy.ControllerProxy/DisableSubscription"
+	ControllerProxy_ResumeSubscription_FullMethodName            = "/vanus.core.proxy.ControllerProxy/ResumeSubscription"
+	ControllerProxy_ResetOffsetToTimestamp_FullMethodName        = "/vanus.core.proxy.ControllerProxy/ResetOffsetToTimestamp"
+	ControllerProxy_ClusterInfo_FullMethodName                   = "/vanus.core.proxy.ControllerProxy/ClusterInfo"
+	ControllerProxy_LookupOffset_FullMethodName                  = "/vanus.core.proxy.ControllerProxy/LookupOffset"
+	ControllerProxy_GetEvent_FullMethodName                      = "/vanus.core.proxy.ControllerProxy/GetEvent"
+	ControllerProxy_ValidateSubscription_FullMethodName          = "/vanus.core.proxy.ControllerProxy/ValidateSubscription"
+	ControllerProxy_GetDeadLetterEvent_FullMethodName            = "/vanus.core.proxy.ControllerProxy/GetDeadLetterEvent"
+	ControllerProxy_ResendDeadLetterEvent_FullMethodName         = "/vanus.core.proxy.ControllerProxy/ResendDeadLetterEvent"
+	ControllerProxy_SetDeadLetterEventOffset_FullMethodName      = "/vanus.core.proxy.ControllerProxy/SetDeadLetterEventOffset"
+	ControllerProxy_GetNamespaceWithHumanFriendly_FullMethodName = "/vanus.core.proxy.ControllerProxy/GetNamespaceWithHumanFriendly"
 )
 
 // ControllerProxyClient is the client API for ControllerProxy service.
@@ -91,6 +92,8 @@ type ControllerProxyClient interface {
 	GetDeadLetterEvent(ctx context.Context, in *GetDeadLetterEventRequest, opts ...grpc.CallOption) (*GetDeadLetterEventResponse, error)
 	ResendDeadLetterEvent(ctx context.Context, in *ResendDeadLetterEventRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	SetDeadLetterEventOffset(ctx context.Context, in *controller.SetDeadLetterEventOffsetRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// multiple tenant
+	GetNamespaceWithHumanFriendly(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*meta.Namespace, error)
 }
 
 type controllerProxyClient struct {
@@ -299,6 +302,15 @@ func (c *controllerProxyClient) SetDeadLetterEventOffset(ctx context.Context, in
 	return out, nil
 }
 
+func (c *controllerProxyClient) GetNamespaceWithHumanFriendly(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*meta.Namespace, error) {
+	out := new(meta.Namespace)
+	err := c.cc.Invoke(ctx, ControllerProxy_GetNamespaceWithHumanFriendly_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ControllerProxyServer is the server API for ControllerProxy service.
 // All implementations should embed UnimplementedControllerProxyServer
 // for forward compatibility
@@ -329,6 +341,8 @@ type ControllerProxyServer interface {
 	GetDeadLetterEvent(context.Context, *GetDeadLetterEventRequest) (*GetDeadLetterEventResponse, error)
 	ResendDeadLetterEvent(context.Context, *ResendDeadLetterEventRequest) (*emptypb.Empty, error)
 	SetDeadLetterEventOffset(context.Context, *controller.SetDeadLetterEventOffsetRequest) (*emptypb.Empty, error)
+	// multiple tenant
+	GetNamespaceWithHumanFriendly(context.Context, *wrapperspb.StringValue) (*meta.Namespace, error)
 }
 
 // UnimplementedControllerProxyServer should be embedded to have forward compatible implementations.
@@ -400,6 +414,9 @@ func (UnimplementedControllerProxyServer) ResendDeadLetterEvent(context.Context,
 }
 func (UnimplementedControllerProxyServer) SetDeadLetterEventOffset(context.Context, *controller.SetDeadLetterEventOffsetRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetDeadLetterEventOffset not implemented")
+}
+func (UnimplementedControllerProxyServer) GetNamespaceWithHumanFriendly(context.Context, *wrapperspb.StringValue) (*meta.Namespace, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNamespaceWithHumanFriendly not implemented")
 }
 
 // UnsafeControllerProxyServer may be embedded to opt out of forward compatibility for this service.
@@ -809,6 +826,24 @@ func _ControllerProxy_SetDeadLetterEventOffset_Handler(srv interface{}, ctx cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ControllerProxy_GetNamespaceWithHumanFriendly_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(wrapperspb.StringValue)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControllerProxyServer).GetNamespaceWithHumanFriendly(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControllerProxy_GetNamespaceWithHumanFriendly_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControllerProxyServer).GetNamespaceWithHumanFriendly(ctx, req.(*wrapperspb.StringValue))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ControllerProxy_ServiceDesc is the grpc.ServiceDesc for ControllerProxy service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -903,6 +938,10 @@ var ControllerProxy_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetDeadLetterEventOffset",
 			Handler:    _ControllerProxy_SetDeadLetterEventOffset_Handler,
+		},
+		{
+			MethodName: "GetNamespaceWithHumanFriendly",
+			Handler:    _ControllerProxy_GetNamespaceWithHumanFriendly_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

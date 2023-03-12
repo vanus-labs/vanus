@@ -140,6 +140,7 @@ type ControllerProxy struct {
 	eventbusCtrl ctrlpb.EventbusControllerClient
 	eventlogCtrl ctrlpb.EventlogControllerClient
 	triggerCtrl  ctrlpb.TriggerControllerClient
+	nsCtrl       ctrlpb.NamespaceControllerClient
 	grpcSrv      *grpc.Server
 	ctrl         cluster.Cluster
 	writerMap    sync.Map
@@ -529,6 +530,9 @@ func checkExtension(extensions map[string]*cloudevents.CloudEvent_CloudEventAttr
 
 func NewControllerProxy(cfg Config) *ControllerProxy {
 	ctrl := cluster.NewClusterController(cfg.Endpoints, insecure.NewCredentials())
+	if err := ctrl.WaitForControllerReady(false); err != nil {
+		panic("error when wait cluster become ready, " + err.Error())
+	}
 	return &ControllerProxy{
 		cfg:          cfg,
 		ctrl:         ctrl,
@@ -537,6 +541,7 @@ func NewControllerProxy(cfg Config) *ControllerProxy {
 		eventbusCtrl: ctrl.EventbusService().RawClient(),
 		eventlogCtrl: ctrl.EventlogService().RawClient(),
 		triggerCtrl:  ctrl.TriggerService().RawClient(),
+		nsCtrl:       ctrl.NamespaceService().RawClient(),
 	}
 }
 

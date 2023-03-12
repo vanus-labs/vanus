@@ -157,6 +157,9 @@ func (ctrl *controller) createSystemNamespace(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		log.Info(ctx, "the default namespace has been created", map[string]interface{}{
+			"namespace": primitive.DefaultNamespace,
+		})
 	}
 	ns = ctrl.namespaceManager.GetNamespaceByName(ctx, primitive.SystemNamespace)
 	if ns == nil {
@@ -165,6 +168,9 @@ func (ctrl *controller) createSystemNamespace(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		log.Info(ctx, "the system namespace has been created", map[string]interface{}{
+			"namespace": primitive.SystemNamespace,
+		})
 	}
 	return nil
 }

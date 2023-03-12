@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"context"
-
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
@@ -18,6 +17,13 @@ var (
 type eventbusService struct {
 	client            ctrlpb.EventbusControllerClient
 	systemNamespaceID uint64
+}
+
+func newEventbusService(cc *raw_client.Conn, systemNamespaceID uint64) EventbusService {
+	return &eventbusService{
+		client:            raw_client.NewEventbusClient(cc),
+		systemNamespaceID: systemNamespaceID,
+	}
 }
 
 func (es *eventbusService) GetSystemEventbusByName(ctx context.Context, name string) (*meta.Eventbus, error) {
@@ -37,10 +43,6 @@ func (es *eventbusService) IsSystemEventbusExistByName(ctx context.Context, name
 		EventbusName: name,
 	})
 	return err == nil
-}
-
-func newEventbusService(cc *raw_client.Conn) EventbusService {
-	return &eventbusService{client: raw_client.NewEventbusClient(cc)}
 }
 
 func (es *eventbusService) IsExist(ctx context.Context, id uint64) bool {
