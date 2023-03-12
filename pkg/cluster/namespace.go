@@ -15,18 +15,40 @@
 package cluster
 
 import (
+	"context"
+
+	"google.golang.org/protobuf/types/known/wrapperspb"
+
 	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+)
+
+const (
+	systemNamespace  = "vanus-system"
+	defaultNamespace = "default"
 )
 
 type namespaceService struct {
 	client ctrlpb.NamespaceControllerClient
 }
 
+func (ns *namespaceService) GetNamespace(ctx context.Context, id uint64) (*metapb.Namespace, error) {
+	return ns.client.GetNamespace(ctx, &ctrlpb.GetNamespaceRequest{Id: id})
+}
+
+func (ns *namespaceService) GetSystemNamespace(ctx context.Context) (*metapb.Namespace, error) {
+	return ns.client.GetNamespaceWithHumanFriendly(ctx, wrapperspb.String(systemNamespace))
+}
+
+func (ns *namespaceService) GetDefaultNamespace(ctx context.Context) (*metapb.Namespace, error) {
+	return ns.client.GetNamespaceWithHumanFriendly(ctx, wrapperspb.String(defaultNamespace))
+}
+
 func newNamespaceService(cc *raw_client.Conn) NamespaceService {
 	return &namespaceService{client: raw_client.NewNamespaceClient(cc)}
 }
 
-func (es *namespaceService) RawClient() ctrlpb.NamespaceControllerClient {
-	return es.client
+func (ns *namespaceService) RawClient() ctrlpb.NamespaceControllerClient {
+	return ns.client
 }

@@ -52,6 +52,9 @@ type Cluster interface {
 
 type NamespaceService interface {
 	RawClient() ctrlpb.NamespaceControllerClient
+	GetSystemNamespace(ctx context.Context) (*meta.Namespace, error)
+	GetDefaultNamespace(ctx context.Context) (*meta.Namespace, error)
+	GetNamespace(ctx context.Context, id uint64) (*meta.Namespace, error)
 }
 
 type EventbusService interface {
