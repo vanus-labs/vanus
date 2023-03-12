@@ -186,6 +186,51 @@ func (m *MockNamespaceService) EXPECT() *MockNamespaceServiceMockRecorder {
 	return m.recorder
 }
 
+// GetDefaultNamespace mocks base method.
+func (m *MockNamespaceService) GetDefaultNamespace(ctx context.Context) (*meta.Namespace, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDefaultNamespace", ctx)
+	ret0, _ := ret[0].(*meta.Namespace)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDefaultNamespace indicates an expected call of GetDefaultNamespace.
+func (mr *MockNamespaceServiceMockRecorder) GetDefaultNamespace(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDefaultNamespace", reflect.TypeOf((*MockNamespaceService)(nil).GetDefaultNamespace), ctx)
+}
+
+// GetNamespace mocks base method.
+func (m *MockNamespaceService) GetNamespace(ctx context.Context, id uint64) (*meta.Namespace, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNamespace", ctx, id)
+	ret0, _ := ret[0].(*meta.Namespace)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNamespace indicates an expected call of GetNamespace.
+func (mr *MockNamespaceServiceMockRecorder) GetNamespace(ctx, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespace", reflect.TypeOf((*MockNamespaceService)(nil).GetNamespace), ctx, id)
+}
+
+// GetSystemNamespace mocks base method.
+func (m *MockNamespaceService) GetSystemNamespace(ctx context.Context) (*meta.Namespace, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSystemNamespace", ctx)
+	ret0, _ := ret[0].(*meta.Namespace)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSystemNamespace indicates an expected call of GetSystemNamespace.
+func (mr *MockNamespaceServiceMockRecorder) GetSystemNamespace(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSystemNamespace", reflect.TypeOf((*MockNamespaceService)(nil).GetSystemNamespace), ctx)
+}
+
 // RawClient mocks base method.
 func (m *MockNamespaceService) RawClient() controller.NamespaceControllerClient {
 	m.ctrl.T.Helper()
