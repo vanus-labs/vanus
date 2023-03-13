@@ -331,7 +331,16 @@ func (b *bucket) createEventbus(ctx context.Context) error {
 	}
 	_, err := b.timingwheel.ctrl.EventbusService().CreateSystemEventbusIfNotExist(ctx, b.eventbus,
 		"System Eventbus For Timing Service")
-	return err
+	if err != nil {
+		log.Error(ctx, "failed to create timer eventbus", map[string]interface{}{
+			log.KeyEventbusName: b.eventbus,
+		})
+		return err
+	}
+	log.Info(ctx, "success to create timer eventbus", map[string]interface{}{
+		log.KeyEventbusName: b.eventbus,
+	})
+	return nil
 }
 
 func (b *bucket) connectEventbus(ctx context.Context) {

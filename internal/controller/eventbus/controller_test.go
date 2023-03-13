@@ -22,15 +22,16 @@ import (
 
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
-	"google.golang.org/protobuf/types/known/wrapperspb"
-
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/eventlog"
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/vanus-labs/vanus/internal/controller/member"
 	"github.com/vanus-labs/vanus/internal/kv"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/pkg/cluster"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func TestController_CreateEventbus(t *testing.T) {
@@ -51,7 +52,23 @@ func TestController_CreateEventbus(t *testing.T) {
 		mockMember.EXPECT().IsReady().AnyTimes().Return(true)
 		mockMember.EXPECT().GetLeaderAddr().AnyTimes().Return("test")
 
+		defaultNS := vanus.NewTestID()
+		systemNS := vanus.NewTestID()
+		mockCluster := cluster.NewMockCluster(mockCtrl)
+		ctrl.clusterCli = mockCluster
+		mockNS := cluster.NewMockNamespaceService(mockCtrl)
+		mockCluster.EXPECT().NamespaceService().AnyTimes().Return(mockNS)
+
 		Convey("test create a eventbus two times", func() {
+			mockNS.EXPECT().GetNamespace(ctx, defaultNS.Uint64()).Times(1).Return(&metapb.Namespace{
+				Id:   defaultNS.Uint64(),
+				Name: "default",
+			}, nil)
+			mockNS.EXPECT().GetSystemNamespace(ctx).Times(1).Return(&metapb.Namespace{
+				Id:   systemNS.Uint64(),
+				Name: "vanus-system",
+			}, nil)
+
 			kvCli.EXPECT().Exists(ctx, gomock.Any()).Times(1).Return(false, nil)
 			kvCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).
 				Times(1).Return(nil)
@@ -72,8 +89,9 @@ func TestController_CreateEventbus(t *testing.T) {
 
 			vanus.InitFakeSnowflake()
 			res, err := ctrl.CreateEventbus(ctx, &ctrlpb.CreateEventbusRequest{
-				Name:      "test-1",
-				LogNumber: 0,
+				Name:        "test-1",
+				LogNumber:   0,
+				NamespaceId: defaultNS.Uint64(),
 			})
 			So(err, ShouldBeNil)
 			So(res.Name, ShouldEqual, "test-1")
@@ -90,11 +108,16 @@ func TestController_CreateEventbus(t *testing.T) {
 		})
 
 		Convey("test create a eventbus but exist", func() {
+			mockNS.EXPECT().GetNamespace(ctx, defaultNS.Uint64()).Times(1).Return(&metapb.Namespace{
+				Id:   defaultNS.Uint64(),
+				Name: "default",
+			}, nil)
 			kvCli.EXPECT().Exists(ctx, gomock.Any()).Times(1).Return(true, nil)
 
 			res, err := ctrl.CreateEventbus(ctx, &ctrlpb.CreateEventbusRequest{
-				Name:      "test-1",
-				LogNumber: 0,
+				Name:        "test-1",
+				LogNumber:   0,
+				NamespaceId: defaultNS.Uint64(),
 			})
 			So(err, ShouldNotBeNil)
 			So(res, ShouldBeNil)

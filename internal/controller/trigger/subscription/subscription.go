@@ -148,6 +148,7 @@ func (m *manager) initDeadLetterEventbus(ctx context.Context, eventbusID vanus.I
 		return nil
 	}
 	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(eventbusID)
+	// TODO dlq eb belongs to system?
 	deadLetterEventbusID, deadLetterEventlogID, err := m.getSystemEventbusAndEventlog(ctx, deadLetterEventbusName)
 	if err != nil {
 		return err

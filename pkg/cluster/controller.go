@@ -96,10 +96,9 @@ func NewClusterController(endpoints []string, credentials credentials.TransportC
 	// single instance
 	if cl == nil {
 		cc := raw_client.NewConnection(endpoints, credentials)
-		cl = &cluster{
+		c := &cluster{
 			cc:                cc,
 			nsSvc:             newNamespaceService(cc),
-			ebSvc:             newEventbusService(cc),
 			segmentSvc:        newSegmentService(cc),
 			elSvc:             newEventlogService(cc),
 			triggerSvc:        newTriggerService(cc),
@@ -107,6 +106,8 @@ func NewClusterController(endpoints []string, credentials credentials.TransportC
 			ping:              raw_client.NewPingClient(cc),
 			controllerAddress: endpoints,
 		}
+		c.ebSvc = newEventbusService(cc, c.NamespaceService())
+		cl = c
 	}
 	return cl
 }

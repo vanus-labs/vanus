@@ -16,8 +16,11 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"math/rand"
 	"net/url"
+	"strconv"
 	"testing"
 	"time"
 
@@ -47,9 +50,11 @@ func TestGateway_NewGateway(t *testing.T) {
 
 func TestGateway_StartReceive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
+	rd := rand.New(rand.NewSource(time.Now().UnixNano()))
+	p := rd.Int31n(60000) + 3000
 	ga := &ceGateway{
 		config: Config{
-			Port: 18080,
+			Port: int(p),
 		},
 	}
 	Convey("test start receive ", t, func() {
@@ -117,17 +122,17 @@ func TestGateway_getEventbusFromPath(t *testing.T) {
 				Opaque: "/test",
 			},
 		}
-		_, err := getEventbusFromPath(reqData)
-		So(err.Error(), ShouldEqual, "invalid eventbus id")
+		_, err := getEventbusFromPath(context.Background(), reqData)
+		So(errors.Is(err, strconv.ErrSyntax), ShouldBeTrue)
 	})
 	Convey("test get eventbus from path return path ", t, func() {
 		vid := vanus.NewTestID()
 		reqData := &cehttp.RequestData{
 			URL: &url.URL{
-				Opaque: fmt.Sprintf("/gateway/%s", vid),
+				Opaque: fmt.Sprintf("/%s", vid.String()),
 			},
 		}
-		id, err := getEventbusFromPath(reqData)
+		id, err := getEventbusFromPath(context.Background(), reqData)
 		So(err, ShouldBeNil)
 		So(id, ShouldEqual, vid)
 	})

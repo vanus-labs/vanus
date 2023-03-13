@@ -292,11 +292,13 @@ func TestVolumeMgr_Init(t *testing.T) {
 			})
 			defer server.MockReset()
 
-			srvMgr.EXPECT().AddServer(stdCtx.Background(), srv1).Times(1).Return(nil)
+			srvMgr.EXPECT().AddServer(gomock.Any(), srv1).Times(1).Return(nil)
+			srvMgr.EXPECT().AddServer(gomock.Any(), nil).Times(1).Return(nil)
 			kvCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
 			mgr := &volumeMgr{serverMgr: srvMgr}
 
 			vanus.InitFakeSnowflake()
+			kvCli.EXPECT().Delete(gomock.Any(), gomock.Any()).Times(1).Return(nil)
 			err := mgr.Init(stdCtx.Background(), kvCli)
 			So(err, ShouldBeNil)
 

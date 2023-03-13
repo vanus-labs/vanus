@@ -49,10 +49,14 @@ service ControllerProxy {
   rpc LookupOffset(LookupOffsetRequest) returns (LookupOffsetResponse);
   rpc GetEvent(GetEventRequest) returns (GetEventResponse);
   rpc ValidateSubscription(ValidateSubscriptionRequest) returns (ValidateSubscriptionResponse);
+
   // dead letter
   rpc GetDeadLetterEvent(GetDeadLetterEventRequest) returns (GetDeadLetterEventResponse);
   rpc ResendDeadLetterEvent(ResendDeadLetterEventRequest) returns (google.protobuf.Empty);
   rpc SetDeadLetterEventOffset(controller.SetDeadLetterEventOffsetRequest) returns (google.protobuf.Empty);
+
+  // multiple tenant
+  rpc GetNamespaceWithHumanFriendly(google.protobuf.StringValue) returns (meta.Namespace);
 }
 
 message LookupOffsetRequest {

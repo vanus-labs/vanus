@@ -26,18 +26,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
-
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/observability/metrics"
-	"github.com/vanus-labs/vanus/pkg/errors"
-	"github.com/vanus-labs/vanus/pkg/util"
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
-	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
-
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/eventlog"
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/server"
@@ -47,6 +35,18 @@ import (
 	"github.com/vanus-labs/vanus/internal/kv/etcd"
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/util"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 var (
@@ -58,6 +58,7 @@ var (
 
 const (
 	maximumEventlogNum = 64
+	mappingKey         = "@%d_%s@" // @{namespace_id}_{eventbus}@
 )
 
 func NewController(cfg Config, mem member.Member) *controller {
@@ -76,33 +77,24 @@ func NewController(cfg Config, mem member.Member) *controller {
 }
 
 type controller struct {
-	cfg                  *Config
-	kvStore              kv.Client
-	volumeMgr            volume.Manager
-	eventlogMgr          eventlog.Manager
-	ssMgr                server.Manager
-	eventbusMap          map[vanus.ID]*metadata.Eventbus
-	member               member.Member
-	cancelCtx            context.Context
-	cancelFunc           context.CancelFunc
-	membershipMutex      sync.Mutex
-	isLeader             bool
-	readyNotify          chan error
-	stopNotify           chan error
-	mutex                sync.Mutex
-	eventbusUpdatedCount int64
-	eventbusDeletedCount int64
-}
-
-func (ctrl *controller) GetEventbusWithHumanFriendly(
-	ctx context.Context, request *ctrlpb.GetEventbusWithHumanFriendlyRequest,
-) (*metapb.Eventbus, error) {
-	for id, eventbus := range ctrl.eventbusMap {
-		if eventbus.Name == request.EventbusName {
-			return ctrl.getEventbus(id)
-		}
-	}
-	return nil, errors.ErrResourceNotFound.WithMessage("eventbus not found")
+	cfg                      *Config
+	kvStore                  kv.Client
+	volumeMgr                volume.Manager
+	eventlogMgr              eventlog.Manager
+	ssMgr                    server.Manager
+	eventbusMap              map[vanus.ID]*metadata.Eventbus
+	eventbusNamespaceMapping sync.Map // string, *metadata.Eventbus
+	member                   member.Member
+	cancelCtx                context.Context
+	cancelFunc               context.CancelFunc
+	membershipMutex          sync.Mutex
+	isLeader                 bool
+	readyNotify              chan error
+	stopNotify               chan error
+	mutex                    sync.Mutex
+	eventbusUpdatedCount     int64
+	eventbusDeletedCount     int64
+	clusterCli               cluster.Cluster
 }
 
 func (ctrl *controller) Start(_ context.Context) error {
@@ -112,7 +104,12 @@ func (ctrl *controller) Start(_ context.Context) error {
 	}
 	ctrl.kvStore = store
 	ctrl.cancelCtx, ctrl.cancelFunc = context.WithCancel(context.Background())
-	go ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
+	ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
+	var endpoints = make([]string, 0, len(ctrl.cfg.Topology))
+	for _, v := range ctrl.cfg.Topology {
+		endpoints = append(endpoints, v)
+	}
+	ctrl.clusterCli = cluster.NewClusterController(endpoints, insecure.NewCredentials())
 	go ctrl.recordMetrics()
 	return nil
 }
@@ -132,6 +129,15 @@ func (ctrl *controller) StopNotify() <-chan error {
 func (ctrl *controller) CreateEventbus(
 	ctx context.Context, req *ctrlpb.CreateEventbusRequest,
 ) (*metapb.Eventbus, error) {
+	pb, err := ctrl.clusterCli.NamespaceService().GetNamespace(ctx, req.NamespaceId)
+	if err != nil {
+		return nil, err
+	}
+
+	if pb == nil {
+		return nil, errors.ErrResourceNotFound.WithMessage("namespace not found")
+	}
+
 	if err := isValidEventbusName(req.Name); err != nil {
 		return nil, err
 	}
@@ -139,11 +145,17 @@ func (ctrl *controller) CreateEventbus(
 	if err != nil {
 		return nil, err
 	}
+
 	// TODO async create
 	// create dead letter eventbus
+	pb, err = ctrl.clusterCli.NamespaceService().GetSystemNamespace(ctx)
+	if err != nil {
+		return nil, err
+	}
 	_, err = ctrl.createEventbus(context.Background(), &ctrlpb.CreateEventbusRequest{
 		Name:        primitive.GetDeadLetterEventbusName(vanus.NewIDFromUint64(eb.Id)),
 		LogNumber:   1,
+		NamespaceId: pb.Id,
 		Description: "System DeadLetter Eventbus For " + req.Name,
 	})
 	if err != nil {
@@ -176,11 +188,32 @@ func isValidEventbusName(name string) error {
 	return nil
 }
 
+func (ctrl *controller) GetEventbusWithHumanFriendly(_ context.Context,
+	request *ctrlpb.GetEventbusWithHumanFriendlyRequest) (*metapb.Eventbus, error) {
+	meta, exist := ctrl.eventbusNamespaceMapping.Load(GetMappingKey(request.GetNamespaceId(), request.GetEventbusName()))
+	if !exist {
+		return nil, errors.ErrResourceNotFound.WithMessage("eventbus not found")
+	}
+	return metadata.Convert2ProtoEventbus(meta.(*metadata.Eventbus))[0], nil
+}
+
+func GetMappingKey(namespace uint64, name string) string {
+	return fmt.Sprintf(mappingKey, namespace, name)
+}
+
 func (ctrl *controller) CreateSystemEventbus(
 	ctx context.Context, req *ctrlpb.CreateEventbusRequest,
 ) (*metapb.Eventbus, error) {
 	if !strings.HasPrefix(req.Name, primitive.SystemEventbusNamePrefix) {
 		return nil, errors.ErrInvalidRequest.WithMessage("system eventbus must start with __")
+	}
+	pb, err := ctrl.clusterCli.NamespaceService().GetSystemNamespace(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.NamespaceId != pb.Id {
+		return nil, errors.ErrInvalidRequest.WithMessage("invalid system namespace id")
 	}
 	return ctrl.createEventbus(ctx, req)
 }
@@ -193,6 +226,10 @@ func (ctrl *controller) createEventbus(
 	if !ctrl.isReady(ctx) {
 		return nil, errors.ErrResourceCanNotOp.WithMessage(
 			"the cluster isn't ready for create eventbus")
+	}
+	if req.NamespaceId == 0 {
+		return nil, errors.ErrInvalidRequest.WithMessage(
+			"namespace_id can't be 0")
 	}
 	logNum := req.LogNumber
 	if logNum == 0 {
@@ -218,6 +255,7 @@ func (ctrl *controller) createEventbus(
 		Description: req.Description,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
+		NamespaceID: req.NamespaceId,
 	}
 	exist, err := ctrl.kvStore.Exists(ctx, metadata.GetEventbusMetadataKey(id))
 	if err != nil {
@@ -233,7 +271,6 @@ func (ctrl *controller) createEventbus(
 		}
 		eb.Eventlogs[idx] = el
 	}
-	ctrl.eventbusMap[eb.ID] = eb
 
 	{
 		data, _ := json.Marshal(eb)
@@ -241,6 +278,10 @@ func (ctrl *controller) createEventbus(
 			return nil, err
 		}
 	}
+
+	ctrl.eventbusMap[eb.ID] = eb
+	ctrl.eventbusNamespaceMapping.Store(GetMappingKey(eb.NamespaceID, eb.Name), eb)
+
 	return ctrl.getEventbus(eb.ID)
 }
 
@@ -677,6 +718,7 @@ func (ctrl *controller) loadEventbus(ctx context.Context) error {
 			return err
 		}
 		ctrl.eventbusMap[busInfo.ID] = busInfo
+		ctrl.eventbusNamespaceMapping.Store(GetMappingKey(busInfo.NamespaceID, busInfo.Name), busInfo)
 	}
 	return nil
 }

@@ -140,6 +140,7 @@ type ControllerProxy struct {
 	eventbusCtrl ctrlpb.EventbusControllerClient
 	eventlogCtrl ctrlpb.EventlogControllerClient
 	triggerCtrl  ctrlpb.TriggerControllerClient
+	nsCtrl       ctrlpb.NamespaceControllerClient
 	grpcSrv      *grpc.Server
 	ctrl         cluster.Cluster
 	writerMap    sync.Map
@@ -269,7 +270,7 @@ func (cp *ControllerProxy) Subscribe(req *proxypb.SubscribeRequest, stream proxy
 	newSink := fmt.Sprintf("http://%s:%d%s/%s",
 		os.Getenv("POD_IP"), cp.cfg.SinkPort, httpRequestPrefix, req.SubscriptionId)
 	if meta.Sink != newSink {
-		if err := cp.disableSubsciption(_ctx, req, subscriptionID.Uint64()); err != nil {
+		if err := cp.disableSubscription(_ctx, req, subscriptionID.Uint64()); err != nil {
 			log.Error(_ctx, "disable subscription failed", map[string]interface{}{
 				log.KeyError: err,
 				"id":         req.SubscriptionId,
@@ -415,7 +416,7 @@ func ToProto(e *v2.Event) (*cloudevents.CloudEvent, error) {
 	return container, nil
 }
 
-func (cp *ControllerProxy) disableSubsciption(
+func (cp *ControllerProxy) disableSubscription(
 	ctx context.Context, req *proxypb.SubscribeRequest, subscriptionID uint64,
 ) error {
 	disableSubscriptionReq := &ctrlpb.DisableSubscriptionRequest{
@@ -537,6 +538,7 @@ func NewControllerProxy(cfg Config) *ControllerProxy {
 		eventbusCtrl: ctrl.EventbusService().RawClient(),
 		eventlogCtrl: ctrl.EventlogService().RawClient(),
 		triggerCtrl:  ctrl.TriggerService().RawClient(),
+		nsCtrl:       ctrl.NamespaceService().RawClient(),
 	}
 }
 
@@ -546,6 +548,9 @@ func (cp *ControllerProxy) SetClient(client eb.Client) {
 }
 
 func (cp *ControllerProxy) Start() error {
+	if err := cp.ctrl.WaitForControllerReady(false); err != nil {
+		panic("error when wait cluster become ready, " + err.Error())
+	}
 	recoveryOpt := recovery.WithRecoveryHandlerContext(
 		func(ctx context.Context, p interface{}) error {
 			log.Error(ctx, "goroutine panicked", map[string]interface{}{
