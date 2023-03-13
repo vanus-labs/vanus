@@ -17,8 +17,6 @@ package eventbus
 import (
 	stdCtx "context"
 	"fmt"
-	"github.com/vanus-labs/vanus/pkg/cluster"
-	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 	"sort"
 	"testing"
 
@@ -29,8 +27,10 @@ import (
 	"github.com/vanus-labs/vanus/internal/controller/member"
 	"github.com/vanus-labs/vanus/internal/kv"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/pkg/cluster"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
