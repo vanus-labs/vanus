@@ -416,7 +416,7 @@ func (b *bucket) updateOffsetMeta(ctx context.Context, offset int64) {
 	if !b.isLeader() {
 		return
 	}
-	key := fmt.Sprintf("%s/offset/%s", metadata.MetadataKeyPrefixInKVStore, b.eventbus)
+	key := fmt.Sprintf("%s/%s", metadata.OffsetKeyPrefixInKVStore, b.eventbus)
 	offsetMeta := &metadata.OffsetMeta{
 		Layer:    b.layer,
 		Slot:     b.slot,
@@ -438,7 +438,7 @@ func (b *bucket) updateOffsetMeta(ctx context.Context, offset int64) {
 }
 
 func (b *bucket) existsOffsetMeta(ctx context.Context) (bool, error) {
-	key := fmt.Sprintf("%s/offset/%s", metadata.MetadataKeyPrefixInKVStore, b.eventbus)
+	key := fmt.Sprintf("%s/%s", metadata.OffsetKeyPrefixInKVStore, b.eventbus)
 	return b.kvStore.Exists(ctx, key)
 }
 
@@ -446,7 +446,7 @@ func (b *bucket) getOffsetMeta(ctx context.Context) (int64, error) {
 	if !b.isLeader() {
 		return -1, nil
 	}
-	key := fmt.Sprintf("%s/offset/%s", metadata.MetadataKeyPrefixInKVStore, b.eventbus)
+	key := fmt.Sprintf("%s/%s", metadata.OffsetKeyPrefixInKVStore, b.eventbus)
 	value, err := b.kvStore.Get(ctx, key)
 	if err != nil {
 		log.Warning(ctx, "get offset metadata from kvstore failed", map[string]interface{}{
@@ -467,7 +467,7 @@ func (b *bucket) deleteOffsetMeta(ctx context.Context) error {
 	if !b.isLeader() {
 		return nil
 	}
-	key := fmt.Sprintf("%s/offset/%s", metadata.MetadataKeyPrefixInKVStore, b.eventbus)
+	key := fmt.Sprintf("%s/%s", metadata.OffsetKeyPrefixInKVStore, b.eventbus)
 	err := b.kvStore.Delete(ctx, key)
 	if err != nil {
 		log.Warning(ctx, "delete offset metadata to kvstore failed", map[string]interface{}{
