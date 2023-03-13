@@ -28,11 +28,13 @@ COPY --from=builder /workspace/build/all-in-one/run.sh run.sh
 
 RUN apt update -y && apt upgrade -y
 RUN apt install wget -y
-RUN wget https://github.com/etcd-io/etcd/releases/download/v3.5.7/etcd-v3.5.7-{$TARGETOS}-${TARGETARCH}.tar.gz
-RUN tar -xzvf etcd-v3.5.7-{$TARGETOS}-${TARGETARCH}.tar.gz
-RUN mv etcd-v3.5.7-{$TARGETOS}-${TARGETARCH} etcd
+RUN wget https://github.com/etcd-io/etcd/releases/download/v3.5.7/etcd-v3.5.7-$TARGETOS-$TARGETARCH.tar.gz
+RUN tar -xzvf etcd-v3.5.7-$TARGETOS-$TARGETARCH.tar.gz
+RUN mv etcd-v3.5.7-$TARGETOS-$TARGETARCH etcd
+RUN rm -rf -xzvf etcd-v3.5.7-$TARGETOS-$TARGETARCH.tar.gz
 
 RUN chmod a+x /vanus/run.sh
+RUN chmod a+x /vanus/etcd/etcd
 RUN mkdir /vanus/logs
 ENV VERSION=$VERSION
 
