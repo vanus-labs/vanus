@@ -232,7 +232,7 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 	}
 	if request.Subscription.Name != sub.Name {
 		// subscription name can't be repeated in an eventbus
-		_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, sub.EventbusID, request.Subscription.Name)
+		_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, sub.NamespaceID, request.Subscription.Name)
 		if _sub != nil {
 			return nil, errors.ErrInvalidRequest.WithMessage(
 				fmt.Sprintf("subscription name %s has exist", request.Subscription.Name))

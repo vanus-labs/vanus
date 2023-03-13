@@ -76,6 +76,7 @@ type Subscription struct {
 	Protocol           primitive.Protocol              `json:"protocol,omitempty"`
 	ProtocolSetting    *primitive.ProtocolSetting      `json:"protocol_settings,omitempty"`
 	EventbusID         vanus.ID                        `json:"eventbus_id"`
+	NamespaceID        vanus.ID                        `json:"namespace_id"`
 	Transformer        *primitive.Transformer          `json:"transformer,omitempty"`
 	Name               string                          `json:"name"`
 	Description        string                          `json:"description"`

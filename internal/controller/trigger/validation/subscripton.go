@@ -24,6 +24,7 @@ import (
 	"google.golang.org/api/idtoken"
 	"google.golang.org/api/option"
 
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
@@ -32,10 +33,15 @@ import (
 	"github.com/vanus-labs/vanus/internal/primitive/cel"
 	"github.com/vanus-labs/vanus/internal/primitive/transform/arg"
 	"github.com/vanus-labs/vanus/internal/primitive/transform/runtime"
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func ValidateSubscriptionRequest(ctx context.Context, request *ctrlpb.SubscriptionRequest) error {
+	if request.NamespaceId == vanus.EmptyID().Uint64() {
+		return errors.ErrInvalidRequest.WithMessage("namespace is empty")
+	}
+	if request.EventbusId == vanus.EmptyID().Uint64() {
+		return errors.ErrInvalidRequest.WithMessage("eventbus is empty")
+	}
 	if err := ValidateFilterList(ctx, request.Filters); err != nil {
 		return errors.ErrInvalidRequest.WithMessage("filters is invalid").Wrap(err)
 	}
@@ -47,9 +53,6 @@ func ValidateSubscriptionRequest(ctx context.Context, request *ctrlpb.Subscripti
 	}
 	if err := validateSinkCredential(ctx, request.Sink, request.SinkCredential); err != nil {
 		return err
-	}
-	if request.EventbusId == vanus.EmptyID().Uint64() {
-		return errors.ErrInvalidRequest.WithMessage("eventbus is empty")
 	}
 	if request.Name == "" {
 		return errors.ErrInvalidRequest.WithMessage("name is empty")

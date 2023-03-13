@@ -96,6 +96,7 @@ func createSubscriptionCommand() *cobra.Command {
 					Sink:           sink,
 					SinkCredential: credential,
 					Protocol:       p,
+					NamespaceId:    mustGetNamespaceID(namespace).Uint64(),
 					EventbusId:     mustGetEventbusID(namespace, eventbus).Uint64(),
 					Transformer:    trans,
 					Name:           subscriptionName,
@@ -358,6 +359,7 @@ func updateSubscriptionCommand() *cobra.Command {
 					Sink:           sub.Sink,
 					SinkCredential: sub.SinkCredential,
 					Protocol:       sub.Protocol,
+					NamespaceId:    mustGetNamespaceID(namespace).Uint64(),
 					EventbusId:     mustGetEventbusID(namespace, eventbus).Uint64(),
 					Transformer:    sub.Transformer,
 					Name:           sub.Name,
@@ -576,6 +578,9 @@ func listSubscriptionCommand() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			request := &ctrlpb.ListSubscriptionRequest{
 				Name: subscriptionName,
+			}
+			if namespace != "" {
+				request.NamespaceId = mustGetNamespaceID(namespace).Uint64()
 			}
 			if eventbus != "" {
 				request.EventbusId = mustGetEventbusID(namespace, eventbus).Uint64()

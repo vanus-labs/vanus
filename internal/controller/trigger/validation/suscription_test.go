@@ -30,6 +30,8 @@ func TestSubscriptionRequestValidator(t *testing.T) {
 	ctx := context.Background()
 	Convey("multiple dialect", t, func() {
 		request := &ctrlpb.SubscriptionRequest{
+			NamespaceId: vanus.NewTestID().Uint64(),
+			EventbusId:  vanus.NewTestID().Uint64(),
 			Filters: []*metapb.Filter{{
 				Not: &metapb.Filter{
 					Exact: map[string]string{
@@ -43,8 +45,7 @@ func TestSubscriptionRequestValidator(t *testing.T) {
 	})
 	Convey("eventbus empty", t, func() {
 		request := &ctrlpb.SubscriptionRequest{
-			Sink:       "sink",
-			EventbusId: vanus.EmptyID().Uint64(),
+			Sink: "sink",
 		}
 		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
 	})
