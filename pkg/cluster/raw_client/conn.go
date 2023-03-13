@@ -94,7 +94,6 @@ func (c *Conn) invoke(ctx context.Context, method string, args, reply interface{
 				})
 				return err
 			}
-			err = conn.Invoke(ctx, method, args, reply, opts...)
 		} else {
 			return err
 		}
