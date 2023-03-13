@@ -179,7 +179,7 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 		})
 		return nil, err
 	}
-	// subscription name can't be repeated in an eventbus
+	// subscription name can't be repeated in a namespace
 	eventbusID := vanus.NewIDFromUint64(request.Subscription.EventbusId)
 	_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, eventbusID, request.Subscription.Name)
 	if _sub != nil {
@@ -231,7 +231,7 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 		return nil, errors.ErrInvalidRequest.WithMessage("can not change eventbus")
 	}
 	if request.Subscription.Name != sub.Name {
-		// subscription name can't be repeated in an eventbus
+		// subscription name can't be repeated in a namespace
 		_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, sub.NamespaceID, request.Subscription.Name)
 		if _sub != nil {
 			return nil, errors.ErrInvalidRequest.WithMessage(
