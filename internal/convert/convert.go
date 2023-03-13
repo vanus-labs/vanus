@@ -40,6 +40,7 @@ func FromPbSubscriptionRequest(sub *ctrl.SubscriptionRequest) *metadata.Subscrip
 		Filters:            fromPbFilters(sub.Filters),
 		Transformer:        fromPbTransformer(sub.Transformer),
 		EventbusID:         vanus.NewIDFromUint64(sub.EventbusId),
+		NamespaceID:        vanus.NewIDFromUint64(sub.NamespaceId),
 		Name:               sub.Name,
 		Description:        sub.Description,
 	}
@@ -295,6 +296,7 @@ func ToPbSubscription(sub *metadata.Subscription, offsets info.ListOffsetInfo) *
 		Protocol:         toPbProtocol(sub.Protocol),
 		ProtocolSettings: toPbProtocolSettings(sub.ProtocolSetting),
 		EventbusId:       sub.EventbusID.Uint64(),
+		NamespaceId:      sub.NamespaceID.Uint64(),
 		Filters:          toPbFilters(sub.Filters),
 		Transformer:      ToPbTransformer(sub.Transformer),
 		Offsets:          ToPbOffsetInfos(offsets),

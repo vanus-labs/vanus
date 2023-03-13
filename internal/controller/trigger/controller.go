@@ -179,13 +179,6 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 		})
 		return nil, err
 	}
-	// subscription name can't be repeated in an eventbus
-	eventbusID := vanus.NewIDFromUint64(request.Subscription.EventbusId)
-	_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, eventbusID, request.Subscription.Name)
-	if _sub != nil {
-		return nil, errors.ErrInvalidRequest.WithMessage(
-			fmt.Sprintf("subscription name %s has exist", request.Subscription.Name))
-	}
 	sub := convert.FromPbSubscriptionRequest(request.Subscription)
 	sub.ID, err = vanus.NewID()
 	sub.CreatedAt = time.Now()
@@ -229,14 +222,6 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 	}
 	if request.Subscription.EventbusId != uint64(sub.EventbusID) {
 		return nil, errors.ErrInvalidRequest.WithMessage("can not change eventbus")
-	}
-	if request.Subscription.Name != sub.Name {
-		// subscription name can't be repeated in an eventbus
-		_sub := ctrl.subscriptionManager.GetSubscriptionByName(ctx, sub.EventbusID, request.Subscription.Name)
-		if _sub != nil {
-			return nil, errors.ErrInvalidRequest.WithMessage(
-				fmt.Sprintf("subscription name %s has exist", request.Subscription.Name))
-		}
 	}
 	update := convert.FromPbSubscriptionRequest(request.Subscription)
 	transChange := 0
