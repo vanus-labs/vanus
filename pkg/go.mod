@@ -8,6 +8,7 @@ require (
 	github.com/smartystreets/goconvey v1.7.2
 	github.com/vanus-labs/vanus/observability v0.5.7
 	github.com/vanus-labs/vanus/proto v0.5.7
+	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783
 	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
 )
@@ -21,7 +22,8 @@ require (
 	golang.org/x/net v0.4.0 // indirect
 	golang.org/x/sys v0.3.0 // indirect
 	golang.org/x/text v0.5.0 // indirect
-	google.golang.org/genproto v0.0.0-20221027153422-115e99e71e1c // indirect
+	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/genproto v0.0.0-20221202195650-67e5cbc046fd // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
