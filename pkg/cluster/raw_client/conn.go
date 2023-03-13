@@ -68,7 +68,7 @@ func (c *Conn) invoke(ctx context.Context, method string, args, reply interface{
 		"method": method,
 		"args":   fmt.Sprintf("%v", args),
 	})
-	conn, err := c.makeSureClient(ctx, true)
+	conn, err := c.makeSureClient(ctx, false)
 	if conn == nil || err != nil {
 		log.Warning(ctx, "not get client for controller", map[string]interface{}{
 			log.KeyError: err,
