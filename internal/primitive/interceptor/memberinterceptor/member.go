@@ -34,6 +34,9 @@ func StreamServerInterceptor(mem member.Member) grpc.StreamServerInterceptor {
 			return errors.ErrNotLeader.WithMessage(
 				fmt.Sprintf("i'm not leader, please connect to: %s", mem.GetLeaderAddr()))
 		}
+		if !mem.IsReady() {
+			return errors.ErrNotReady
+		}
 		return handler(srv, stream)
 	}
 }
@@ -47,6 +50,9 @@ func UnaryServerInterceptor(mem member.Member) grpc.UnaryServerInterceptor {
 			// TODO  read-only request bypass
 			return nil, errors.ErrNotLeader.WithMessage(
 				fmt.Sprintf("i'm not leader, please connect to: %s", mem.GetLeaderAddr()))
+		}
+		if !mem.IsReady() {
+			return nil, errors.ErrNotReady
 		}
 		return handler(ctx, req)
 	}

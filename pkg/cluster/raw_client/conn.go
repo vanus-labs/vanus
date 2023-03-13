@@ -83,6 +83,7 @@ func (c *Conn) invoke(ctx context.Context, method string, args, reply interface{
 		})
 	}
 	if isNeedRetry(err) {
+		time.Sleep(3 * time.Second)
 		conn, err = c.makeSureClient(ctx, true)
 		if conn == nil {
 			log.Warning(ctx, "not get client when try to renew client", map[string]interface{}{
@@ -196,6 +197,9 @@ func isNeedRetry(err error) bool {
 		return false
 	}
 	if errors.Is(err, errors.ErrNotLeader) {
+		return true
+	}
+	if errors.Is(err, errors.ErrNotReady) {
 		return true
 	}
 	sts := status.Convert(err)
