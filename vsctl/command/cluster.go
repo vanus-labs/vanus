@@ -33,8 +33,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const (
+	DefaultInitialVersion = "v0.7.0"
+)
+
 var (
-	clusterVersionList = []string{"v0.7.0"}
+	clusterVersionList = []string{DefaultInitialVersion}
 )
 
 type ClusterCreate struct {
@@ -279,7 +283,7 @@ func createClusterCommand() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringVar(&clusterVersion, "version", "v0.6.0", "cluster version")
+	cmd.Flags().StringVar(&clusterVersion, "version", DefaultInitialVersion, "cluster version")
 	cmd.Flags().StringVar(&clusterConfigFile, "config-file", "", "cluster config file")
 	cmd.Flags().BoolVar(&showInstallableList, "list", false, "if show all version of installable")
 	return cmd
@@ -808,7 +812,7 @@ func genClusterCommand() *cobra.Command {
 		Short: "generate cluster config file template",
 		Run: func(cmd *cobra.Command, args []string) {
 			cluster := &ClusterSpec{
-				Version: "v0.7.0",
+				Version: DefaultInitialVersion,
 				Controller: &Controller{
 					Replicas: 3,
 				},
@@ -904,3 +908,4 @@ func getUpgradableVersionList(curVersion string) []string {
 	}
 	return clusterVersionList[curIdx+1:]
 }
+
