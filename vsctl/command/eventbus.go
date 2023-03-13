@@ -17,8 +17,6 @@ package command
 import (
 	"context"
 	"encoding/json"
-	"github.com/vanus-labs/vanus/internal/primitive"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 	"os"
 	"time"
 
@@ -27,10 +25,12 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
-
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func NewEventbusCommand() *cobra.Command {
@@ -320,7 +320,7 @@ func listEventbusInfoCommand() *cobra.Command {
 			} else {
 				t := table.NewWriter()
 				t.AppendHeader(table.Row{
-					"NodeName", "Description", "Created_At",
+					"Name", "Description", "Created_At",
 					"Updated_At", "Eventlog Number",
 				})
 				for idx := range res.Eventbus {

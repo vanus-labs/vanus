@@ -2,9 +2,11 @@ package cluster
 
 import (
 	"context"
+
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
+	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"github.com/vanus-labs/vanus/proto/pkg/meta"
 )
@@ -60,7 +62,7 @@ func (es *eventbusService) IsExist(ctx context.Context, id uint64) bool {
 
 func (es *eventbusService) CreateSystemEventbusIfNotExist(ctx context.Context, name string, desc string) (*meta.Eventbus, error) {
 	exist, err := es.IsSystemEventbusExistByName(ctx, name)
-	if err != nil {
+	if err != nil && !errors.Is(err, errors.ErrResourceNotFound) {
 		return nil, err
 	}
 
