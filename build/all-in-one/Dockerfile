@@ -37,6 +37,7 @@ RUN chmod a+x /vanus/run.sh
 RUN chmod a+x /vanus/etcd/etcd
 RUN mkdir /vanus/logs
 ENV VERSION=$VERSION
+ENV VANUS_LOG_LEVEL=debug
 
 ENTRYPOINT ["/vanus/run.sh"]
 

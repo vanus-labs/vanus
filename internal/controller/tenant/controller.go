@@ -178,6 +178,10 @@ func (ctrl *controller) createSystemNamespace(ctx context.Context) error {
 func (ctrl *controller) membershipChangedProcessor(ctx context.Context,
 	event member.MembershipChangedEvent,
 ) error {
+	log.Info(ctx, "start to process membership change event", map[string]interface{}{
+		"event":     event,
+		"component": "tenant",
+	})
 	ctrl.membershipMutex.Lock()
 	defer ctrl.membershipMutex.Unlock()
 

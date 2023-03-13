@@ -51,7 +51,7 @@ func UnaryServerInterceptor(mem member.Member) grpc.UnaryServerInterceptor {
 			return nil, errors.ErrNotLeader.WithMessage(
 				fmt.Sprintf("i'm not leader, please connect to: %s", mem.GetLeaderAddr()))
 		}
-		if !mem.IsReady() {
+		if info.FullMethod != "/vanus.core.controller.PingServer/Ping" && !mem.IsReady() {
 			return nil, errors.ErrNotReady
 		}
 		return handler(ctx, req)

@@ -76,29 +76,30 @@ func (c *Conn) invoke(ctx context.Context, method string, args, reply interface{
 		return err
 	}
 
-	err = conn.Invoke(ctx, method, args, reply, opts...)
-	if err != nil {
-		log.Debug(ctx, "invoke error, try to retry", map[string]interface{}{
-			log.KeyError: err,
-		})
-	}
-	if isNeedRetry(err) {
-		time.Sleep(3 * time.Second)
-		conn, err = c.makeSureClient(ctx, true)
-		if conn == nil {
-			log.Warning(ctx, "not get client when try to renew client", map[string]interface{}{
+	for idx := 1; idx <= 3; idx++ {
+		err = conn.Invoke(ctx, method, args, reply, opts...)
+		if err != nil {
+			log.Debug(ctx, "invoke error, try to retry", map[string]interface{}{
 				log.KeyError: err,
 			})
+		}
+		if errors.Is(err, errors.ErrNotReady) {
+			time.Sleep(time.Duration(3*idx) * time.Second)
+			continue
+		} else if isNeedRetry(err) {
+			conn, err = c.makeSureClient(ctx, true)
+			if conn == nil {
+				log.Warning(ctx, "not get client when try to renew client", map[string]interface{}{
+					log.KeyError: err,
+				})
+				return err
+			}
+			err = conn.Invoke(ctx, method, args, reply, opts...)
+		} else {
 			return err
 		}
-		err = conn.Invoke(ctx, method, args, reply, opts...)
 	}
-	if err != nil {
-		log.Debug(ctx, "invoke error", map[string]interface{}{
-			log.KeyError: err,
-		})
-	}
-	return err
+	return nil
 }
 
 func (c *Conn) close() error {
@@ -197,9 +198,6 @@ func isNeedRetry(err error) bool {
 		return false
 	}
 	if errors.Is(err, errors.ErrNotLeader) {
-		return true
-	}
-	if errors.Is(err, errors.ErrNotReady) {
 		return true
 	}
 	sts := status.Convert(err)

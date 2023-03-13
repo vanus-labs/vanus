@@ -161,6 +161,10 @@ func (sf *snowflake) Stop() {
 }
 
 func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event member.MembershipChangedEvent) error {
+	log.Info(ctx, "start to process membership change event", map[string]interface{}{
+		"event":     event,
+		"component": "snowflake",
+	})
 	sf.mutex.Lock()
 	defer sf.mutex.Unlock()
 
