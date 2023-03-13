@@ -530,9 +530,6 @@ func checkExtension(extensions map[string]*cloudevents.CloudEvent_CloudEventAttr
 
 func NewControllerProxy(cfg Config) *ControllerProxy {
 	ctrl := cluster.NewClusterController(cfg.Endpoints, insecure.NewCredentials())
-	if err := ctrl.WaitForControllerReady(false); err != nil {
-		panic("error when wait cluster become ready, " + err.Error())
-	}
 	return &ControllerProxy{
 		cfg:          cfg,
 		ctrl:         ctrl,
@@ -551,6 +548,9 @@ func (cp *ControllerProxy) SetClient(client eb.Client) {
 }
 
 func (cp *ControllerProxy) Start() error {
+	if err := cp.ctrl.WaitForControllerReady(false); err != nil {
+		panic("error when wait cluster become ready, " + err.Error())
+	}
 	recoveryOpt := recovery.WithRecoveryHandlerContext(
 		func(ctx context.Context, p interface{}) error {
 			log.Error(ctx, "goroutine panicked", map[string]interface{}{

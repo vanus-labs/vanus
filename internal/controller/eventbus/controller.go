@@ -19,26 +19,12 @@ import (
 	"encoding/json"
 	stdErr "errors"
 	"fmt"
-	"github.com/vanus-labs/vanus/pkg/cluster"
-	"google.golang.org/grpc/credentials/insecure"
 	"io"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
-
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/observability/metrics"
-	"github.com/vanus-labs/vanus/pkg/errors"
-	"github.com/vanus-labs/vanus/pkg/util"
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
-	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/eventlog"
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
@@ -49,6 +35,18 @@ import (
 	"github.com/vanus-labs/vanus/internal/kv/etcd"
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/util"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 var (
@@ -61,7 +59,6 @@ var (
 const (
 	maximumEventlogNum = 64
 	mappingKey         = "@%d_%s@" // @{namespace_id}_{eventbus}@
-
 )
 
 func NewController(cfg Config, mem member.Member) *controller {
@@ -74,7 +71,6 @@ func NewController(cfg Config, mem member.Member) *controller {
 		readyNotify: make(chan error, 1),
 		stopNotify:  make(chan error, 1),
 	}
-	mem.RegisterMembershipChangedProcessor(c.membershipChangedProcessor)
 	c.volumeMgr = volume.NewVolumeManager(c.ssMgr)
 	c.eventlogMgr = eventlog.NewManager(c.volumeMgr, cfg.Replicas, cfg.SegmentCapacity)
 	return c
@@ -99,7 +95,6 @@ type controller struct {
 	eventbusUpdatedCount     int64
 	eventbusDeletedCount     int64
 	clusterCli               cluster.Cluster
-	systemNSID               uint64
 }
 
 func (ctrl *controller) Start(_ context.Context) error {
@@ -109,7 +104,8 @@ func (ctrl *controller) Start(_ context.Context) error {
 	}
 	ctrl.kvStore = store
 	ctrl.cancelCtx, ctrl.cancelFunc = context.WithCancel(context.Background())
-	var endpoints []string
+	ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
+	var endpoints = make([]string, 0, len(ctrl.cfg.Topology))
 	for _, v := range ctrl.cfg.Topology {
 		endpoints = append(endpoints, v)
 	}

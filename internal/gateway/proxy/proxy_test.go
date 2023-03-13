@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	stdJson "encoding/json"
 	"fmt"
+	"github.com/vanus-labs/vanus/pkg/cluster"
 	"testing"
 
 	v2 "github.com/cloudevents/sdk-go/v2"
@@ -245,6 +246,12 @@ func TestControllerProxy_StartAndStop(t *testing.T) {
 			ProxyPort:              18082,
 			Credentials:            insecure.NewCredentials(),
 		})
+
+		ctrl := gomock.NewController(t)
+
+		mockCluster := cluster.NewMockCluster(ctrl)
+		cp.ctrl = mockCluster
+		mockCluster.EXPECT().WaitForControllerReady(false).Times(1).Return(nil)
 
 		err := cp.Start()
 		So(err, ShouldBeNil)

@@ -121,6 +121,7 @@ func (cp *ControllerProxy) SetDeadLetterEventOffset(
 	return cp.triggerCtrl.SetDeadLetterEventOffset(ctx, req)
 }
 
-func (cp *ControllerProxy) GetNamespaceWithHumanFriendly(ctx context.Context, value *wrapperspb.StringValue) (*metapb.Namespace, error) {
+func (cp *ControllerProxy) GetNamespaceWithHumanFriendly(ctx context.Context,
+	value *wrapperspb.StringValue) (*metapb.Namespace, error) {
 	return cp.nsCtrl.GetNamespaceWithHumanFriendly(ctx, value)
 }

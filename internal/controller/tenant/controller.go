@@ -44,7 +44,6 @@ func NewController(config Config, mem member.Member) *controller {
 		config: config,
 		member: mem,
 	}
-	ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
 	return ctrl
 }
 
@@ -55,7 +54,6 @@ type controller struct {
 	isLeader         bool
 	kvClient         kv.Client
 	namespaceManager manager.NamespaceManager
-	once             sync.Once
 }
 
 func (ctrl *controller) CreateNamespace(ctx context.Context,
@@ -147,8 +145,7 @@ func (ctrl *controller) Start() error {
 	}
 	ctrl.kvClient = client
 	ctrl.namespaceManager = manager.NewNamespaceManager(client)
-
-	// wait to finish leader election
+	ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
 	return nil
 }
 

@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/url"
 	"strconv"
 	"testing"
@@ -49,9 +50,11 @@ func TestGateway_NewGateway(t *testing.T) {
 
 func TestGateway_StartReceive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
+	rd := rand.New(rand.NewSource(time.Now().UnixNano()))
+	p := rd.Int31n(60000) + 3000
 	ga := &ceGateway{
 		config: Config{
-			Port: 18080,
+			Port: int(p),
 		},
 	}
 	Convey("test start receive ", t, func() {

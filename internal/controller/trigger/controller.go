@@ -63,7 +63,6 @@ func NewController(config Config, mem member.Member) *controller {
 		cl:                    cluster.NewClusterController(config.ControllerAddr, insecure.NewCredentials()),
 		ebClient:              eb.Connect(config.ControllerAddr),
 	}
-	ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
 	ctrl.ctx, ctrl.stopFunc = context.WithCancel(context.Background())
 	return ctrl
 }
@@ -627,6 +626,7 @@ func (ctrl *controller) Start() error {
 		ctrl.subscriptionManager, ctrl.requeueSubscription)
 	ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
 
+	ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
 	return nil
 }
 
