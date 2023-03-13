@@ -3,8 +3,6 @@ ip: "timer"
 etcd:
   - "controller:2379"
 replicas: 1
-metadata:
-  key_prefix: "/standalone"
 leader_election:
   lease_duration: 15
 timingwheel:

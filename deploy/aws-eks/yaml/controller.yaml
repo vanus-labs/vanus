@@ -12,8 +12,6 @@ data:
     replicas: 3
     segment_capacity: 4194304
     secret_encryption_salt: "encryption_salt"
-    metadata:
-      key_prefix: "/prefix"
     observability:
       metrics:
         enable: true
