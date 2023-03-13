@@ -19,7 +19,6 @@ import (
 	"context"
 	"errors"
 	errors2 "github.com/vanus-labs/vanus/pkg/errors"
-	"sync"
 	"time"
 
 	"google.golang.org/grpc/credentials"
@@ -85,32 +84,22 @@ type SegmentService interface {
 	RawClient() ctrlpb.SegmentControllerClient
 }
 
-var (
-	mutex sync.Mutex
-	cl    Cluster
-)
-
 func NewClusterController(endpoints []string, credentials credentials.TransportCredentials) Cluster {
-	mutex.Lock()
-	defer mutex.Unlock()
 
 	// single instance
-	if cl == nil {
-		cc := raw_client.NewConnection(endpoints, credentials)
-		c := &cluster{
-			cc:                cc,
-			nsSvc:             newNamespaceService(cc),
-			segmentSvc:        newSegmentService(cc),
-			elSvc:             newEventlogService(cc),
-			triggerSvc:        newTriggerService(cc),
-			idSvc:             newIDService(cc),
-			ping:              raw_client.NewPingClient(cc),
-			controllerAddress: endpoints,
-		}
-		c.ebSvc = newEventbusService(cc, c.NamespaceService())
-		cl = c
+	cc := raw_client.NewConnection(endpoints, credentials)
+	c := &cluster{
+		cc:                cc,
+		nsSvc:             newNamespaceService(cc),
+		segmentSvc:        newSegmentService(cc),
+		elSvc:             newEventlogService(cc),
+		triggerSvc:        newTriggerService(cc),
+		idSvc:             newIDService(cc),
+		ping:              raw_client.NewPingClient(cc),
+		controllerAddress: endpoints,
 	}
-	return cl
+	c.ebSvc = newEventbusService(cc, c.NamespaceService())
+	return c
 }
 
 type cluster struct {

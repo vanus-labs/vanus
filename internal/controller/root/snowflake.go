@@ -12,27 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package snowflake
+package root
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"math/rand"
 	"path"
 	"sync"
 	"time"
 
-	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
-
-	"github.com/vanus-labs/vanus/observability/log"
-
 	"github.com/vanus-labs/vanus/internal/controller/member"
 	"github.com/vanus-labs/vanus/internal/kv"
 	"github.com/vanus-labs/vanus/internal/kv/etcd"
+	"github.com/vanus-labs/vanus/observability/log"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 const (
@@ -54,6 +53,10 @@ func NewSnowflakeController(cfg Config, mem member.Member) *snowflake { //nolint
 	return sf
 }
 
+var (
+	_ ctrlpb.PingServerServer = &snowflake{}
+)
+
 type snowflake struct {
 	startAt  time.Time
 	cfg      Config
@@ -63,6 +66,12 @@ type snowflake struct {
 	nodes    map[uint16]*node
 	mutex    sync.RWMutex
 	r        *rand.Rand
+}
+
+func (sf *snowflake) Ping(_ context.Context, _ *emptypb.Empty) (*ctrlpb.PingResponse, error) {
+	return &ctrlpb.PingResponse{
+		LeaderAddr: sf.member.GetLeaderAddr(),
+	}, nil
 }
 
 type node struct {
@@ -165,6 +174,14 @@ func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event membe
 		"event":     event,
 		"component": "snowflake",
 	})
+	start := time.Now()
+	defer func() {
+		log.Info(ctx, "processing membership change event is finished", map[string]interface{}{
+			"component": "snowflake",
+			"duration":  time.Since(start),
+		})
+	}()
+
 	sf.mutex.Lock()
 	defer sf.mutex.Unlock()
 

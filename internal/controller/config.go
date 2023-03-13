@@ -15,12 +15,12 @@
 package controller
 
 import (
+	"github.com/vanus-labs/vanus/internal/controller/root"
 	"github.com/vanus-labs/vanus/internal/controller/tenant"
 	"github.com/vanus-labs/vanus/observability"
 
 	"github.com/vanus-labs/vanus/internal/controller/eventbus"
 	"github.com/vanus-labs/vanus/internal/controller/member"
-	"github.com/vanus-labs/vanus/internal/controller/snowflake"
 	"github.com/vanus-labs/vanus/internal/controller/trigger"
 	"github.com/vanus-labs/vanus/internal/primitive"
 )
@@ -37,6 +37,7 @@ type Config struct {
 	SegmentCapacity      int64                `yaml:"segment_capacity"`
 	Observability        observability.Config `yaml:"observability"`
 	ClusterConfig        member.Config        `yaml:"cluster"`
+	RootControllerAddr   []string             `yaml:"root_controllers"`
 }
 
 func (c *Config) GetClusterConfig() member.Config {
@@ -56,8 +57,8 @@ func (c *Config) GetEventbusCtrlConfig() eventbus.Config {
 	}
 }
 
-func (c *Config) GetSnowflakeConfig() snowflake.Config {
-	return snowflake.Config{
+func (c *Config) GetSnowflakeConfig() root.Config {
+	return root.Config{
 		KVEndpoints: c.ClusterConfig.EtcdEndpoints,
 		KVPrefix:    c.MetadataConfig.KeyPrefix,
 	}

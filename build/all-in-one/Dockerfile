@@ -6,11 +6,14 @@ RUN go mod download
 
 ARG TARGETOS
 ARG TARGETARCH
+
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-root
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-controller
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-store
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-trigger
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-timer
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-gateway
+
 
 FROM ubuntu:22.04
 WORKDIR /vanus
@@ -18,6 +21,7 @@ WORKDIR /vanus
 ARG VERSION
 ARG TARGETOS
 ARG TARGETARCH
+COPY --from=builder /workspace/bin/root-controller bin/root-controller
 COPY --from=builder /workspace/bin/controller bin/controller
 COPY --from=builder /workspace/bin/store bin/store
 COPY --from=builder /workspace/bin/trigger bin/trigger
