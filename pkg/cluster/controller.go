@@ -18,6 +18,7 @@ package cluster
 import (
 	"context"
 	"errors"
+	errors2 "github.com/vanus-labs/vanus/pkg/errors"
 	"sync"
 	"time"
 
@@ -147,9 +148,11 @@ func (c *cluster) WaitForControllerReady(createEventbus bool) error {
 func (c *cluster) IsReady(createEventbus bool) bool {
 	res, err := c.ping.Ping(context.Background(), &emptypb.Empty{})
 	if err != nil {
-		log.Warning(context.Background(), "failed to ping controller", map[string]interface{}{
-			log.KeyError: err,
-		})
+		if !errors.Is(err, errors2.ErrNotLeader) {
+			log.Warning(context.Background(), "failed to ping controller", map[string]interface{}{
+				log.KeyError: err,
+			})
+		}
 		return false
 	}
 	if res.LeaderAddr == "" {
