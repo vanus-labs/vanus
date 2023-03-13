@@ -1,5 +1,7 @@
 port: 11811
 ip : 127.0.0.1
+root_controllers:
+  - "127.0.0.1:2021"
 controllers:
   - 127.0.0.1:2048
 volume:

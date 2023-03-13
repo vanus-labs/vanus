@@ -4,6 +4,8 @@ port: 2048
 gateway_endpoint: "127.0.0.1:18080"
 segment_capacity: 8388604
 replicas: 1
+root_controllers:
+  - "127.0.0.1:2021"
 secret_encryption_salt: "encryption_salt"
 observability:
   metrics:
