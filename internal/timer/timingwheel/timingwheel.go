@@ -247,8 +247,7 @@ func (tw *timingWheel) IsDeployed(ctx context.Context) bool {
 }
 
 func (tw *timingWheel) Recover(ctx context.Context) error {
-	offsetPath := fmt.Sprintf("%s/offset", metadata.MetadataKeyPrefixInKVStore)
-	offsetPairs, err := tw.kvStore.List(ctx, offsetPath)
+	offsetPairs, err := tw.kvStore.List(ctx, metadata.OffsetKeyPrefixInKVStore)
 	if err != nil {
 		return err
 	}
