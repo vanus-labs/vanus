@@ -13,8 +13,6 @@ data:
     replicas: 3
     segment_capacity: 4194304
     secret_encryption_salt: "encryption_salt"
-    metadata:
-      key_prefix: "/prefix"
     observability:
       metrics:
         enable: true
@@ -91,8 +89,6 @@ data:
       - vanus-etcd-0.vanus-etcd:2379
       - vanus-etcd-1.vanus-etcd:2379
       - vanus-etcd-2.vanus-etcd:2379
-    metadata:
-      key_prefix: "/vanus"
     leader_election:
       lease_duration: 15
     timingwheel:

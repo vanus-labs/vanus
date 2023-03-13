@@ -10,7 +10,5 @@ topology:
   test-2: 127.0.0.1:3048
   test-3: 127.0.0.1:4048
 data_dir: "/tmp/vanus/data3/cluster"
-metadata:
-  key_prefix: "/vanus"
 leader_election:
   lease_duration: 15

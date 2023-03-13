@@ -9,8 +9,6 @@ segment_capacity: 8388604 # 8MB
 topology:
   standalone: controller:2048
 replicas: 1
-metadata:
-  key_prefix: "/standalone"
 embed_etcd:
   # relative path to ${data_dir} above
   data_dir: "etcd"

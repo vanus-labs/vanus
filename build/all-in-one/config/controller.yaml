@@ -9,8 +9,6 @@ segment_capacity: 8388604 # 8MB
 topology:
   standalone: 127.0.0.1:2048
 replicas: 1
-metadata:
-  key_prefix: "/standalone"
 leader_election:
   lease_duration: 15
 secret_encryption_salt: "encryption_salt"

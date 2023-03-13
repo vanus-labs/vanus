@@ -30,8 +30,6 @@ data:
     data_dir: /data
     segment_capacity: 268435456
     replicas: 3
-    metadata:
-      key_prefix: /vanus
     leader_election:
       lease_duration: 15
     topology:
@@ -117,8 +115,6 @@ data:
       - vanus-etcd-0.vanus-etcd:2379
       - vanus-etcd-1.vanus-etcd:2379
       - vanus-etcd-2.vanus-etcd:2379
-    metadata:
-      key_prefix: "/vanus"
     leader_election:
       lease_duration: 15
     timingwheel:
