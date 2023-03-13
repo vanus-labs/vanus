@@ -19,6 +19,8 @@ import (
 	"context"
 	"errors"
 	errors2 "github.com/vanus-labs/vanus/pkg/errors"
+	"strings"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc/credentials"
@@ -84,10 +86,22 @@ type SegmentService interface {
 	RawClient() ctrlpb.SegmentControllerClient
 }
 
+var (
+	connCache map[string]*raw_client.Conn
+	mutex     sync.Mutex
+)
+
 func NewClusterController(endpoints []string, credentials credentials.TransportCredentials) Cluster {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	cc, exist := connCache[strings.Join(endpoints, ",")]
+	if !exist {
+		cc = raw_client.NewConnection(endpoints, credentials)
+		connCache[strings.Join(endpoints, ",")] = cc
+	}
 
 	// single instance
-	cc := raw_client.NewConnection(endpoints, credentials)
 	c := &cluster{
 		cc:                cc,
 		nsSvc:             newNamespaceService(cc),

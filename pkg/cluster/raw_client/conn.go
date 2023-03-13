@@ -76,7 +76,7 @@ func (c *Conn) invoke(ctx context.Context, method string, args, reply interface{
 		return err
 	}
 
-	for idx := 1; idx <= 8; idx++ {
+	for idx := 1; idx <= 3; idx++ {
 		err = conn.Invoke(ctx, method, args, reply, opts...)
 		if err != nil {
 			log.Debug(ctx, "invoke error, try to retry", map[string]interface{}{
