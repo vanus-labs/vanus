@@ -96,7 +96,7 @@ func createSubscriptionCommand() *cobra.Command {
 					Sink:           sink,
 					SinkCredential: credential,
 					Protocol:       p,
-					NamespaceId:    mustGetNamespaceID(namespace).Uint64(),
+					NamespaceId:    mustGetNamespaceID(primitive.DefaultNamespace).Uint64(),
 					EventbusId:     mustGetEventbusID(namespace, eventbus).Uint64(),
 					Transformer:    trans,
 					Name:           subscriptionName,
@@ -359,8 +359,8 @@ func updateSubscriptionCommand() *cobra.Command {
 					Sink:           sub.Sink,
 					SinkCredential: sub.SinkCredential,
 					Protocol:       sub.Protocol,
-					NamespaceId:    mustGetNamespaceID(namespace).Uint64(),
-					EventbusId:     mustGetEventbusID(namespace, eventbus).Uint64(),
+					NamespaceId:    sub.NamespaceId,
+					EventbusId:     sub.EventbusId,
 					Transformer:    sub.Transformer,
 					Name:           sub.Name,
 					Description:    sub.Description,
@@ -655,7 +655,7 @@ func getSubscriptionRow(sub *meta.Subscription) []interface{} {
 	result = append(result, formatID(sub.Id))
 	result = append(result, sub.Name)
 	result = append(result, sub.Disable)
-	result = append(result, sub.EventbusId)
+	result = append(result, formatID(sub.EventbusId))
 	result = append(result, sub.Sink)
 	result = append(result, sub.Description)
 
