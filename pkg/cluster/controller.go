@@ -87,7 +87,7 @@ type SegmentService interface {
 }
 
 var (
-	connCache map[string]*raw_client.Conn
+	connCache = map[string]*raw_client.Conn{}
 	mutex     sync.Mutex
 )
 
