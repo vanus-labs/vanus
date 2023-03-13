@@ -19,6 +19,8 @@ import (
 	"encoding/json"
 	stdErr "errors"
 	"fmt"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	"google.golang.org/grpc/credentials/insecure"
 	"io"
 	"strconv"
 	"strings"
@@ -72,6 +74,7 @@ func NewController(cfg Config, mem member.Member) *controller {
 		readyNotify: make(chan error, 1),
 		stopNotify:  make(chan error, 1),
 	}
+	mem.RegisterMembershipChangedProcessor(c.membershipChangedProcessor)
 	c.volumeMgr = volume.NewVolumeManager(c.ssMgr)
 	c.eventlogMgr = eventlog.NewManager(c.volumeMgr, cfg.Replicas, cfg.SegmentCapacity)
 	return c
@@ -95,6 +98,8 @@ type controller struct {
 	mutex                    sync.Mutex
 	eventbusUpdatedCount     int64
 	eventbusDeletedCount     int64
+	clusterCli               cluster.Cluster
+	systemNSID               uint64
 }
 
 func (ctrl *controller) Start(_ context.Context) error {
@@ -104,7 +109,11 @@ func (ctrl *controller) Start(_ context.Context) error {
 	}
 	ctrl.kvStore = store
 	ctrl.cancelCtx, ctrl.cancelFunc = context.WithCancel(context.Background())
-	go ctrl.member.RegisterMembershipChangedProcessor(ctrl.membershipChangedProcessor)
+	var endpoints []string
+	for _, v := range ctrl.cfg.Topology {
+		endpoints = append(endpoints, v)
+	}
+	ctrl.clusterCli = cluster.NewClusterController(endpoints, insecure.NewCredentials())
 	go ctrl.recordMetrics()
 	return nil
 }
@@ -124,7 +133,15 @@ func (ctrl *controller) StopNotify() <-chan error {
 func (ctrl *controller) CreateEventbus(
 	ctx context.Context, req *ctrlpb.CreateEventbusRequest,
 ) (*metapb.Eventbus, error) {
-	// TODO validate namespace
+	pb, err := ctrl.clusterCli.NamespaceService().GetNamespace(ctx, req.NamespaceId)
+	if err != nil {
+		return nil, err
+	}
+
+	if pb == nil {
+		return nil, errors.ErrResourceNotFound.WithMessage("namespace not found")
+	}
+
 	if err := isValidEventbusName(req.Name); err != nil {
 		return nil, err
 	}
@@ -135,10 +152,14 @@ func (ctrl *controller) CreateEventbus(
 
 	// TODO async create
 	// create dead letter eventbus
+	pb, err = ctrl.clusterCli.NamespaceService().GetSystemNamespace(ctx)
+	if err != nil {
+		return nil, err
+	}
 	_, err = ctrl.createEventbus(context.Background(), &ctrlpb.CreateEventbusRequest{
 		Name:        primitive.GetDeadLetterEventbusName(vanus.NewIDFromUint64(eb.Id)),
 		LogNumber:   1,
-		NamespaceId: req.NamespaceId,
+		NamespaceId: pb.Id,
 		Description: "System DeadLetter Eventbus For " + req.Name,
 	})
 	if err != nil {
@@ -190,7 +211,14 @@ func (ctrl *controller) CreateSystemEventbus(
 	if !strings.HasPrefix(req.Name, primitive.SystemEventbusNamePrefix) {
 		return nil, errors.ErrInvalidRequest.WithMessage("system eventbus must start with __")
 	}
-	// TODO add namespace checking
+	pb, err := ctrl.clusterCli.NamespaceService().GetSystemNamespace(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.NamespaceId != pb.Id {
+		return nil, errors.ErrInvalidRequest.WithMessage("invalid system namespace id")
+	}
 	return ctrl.createEventbus(ctx, req)
 }
 

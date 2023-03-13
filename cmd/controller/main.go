@@ -78,47 +78,10 @@ func main() {
 		os.Exit(-1)
 	}
 
-	// TODO wait server ready
 	snowflakeCtrl := snowflake.NewSnowflakeController(cfg.GetSnowflakeConfig(), mem)
-	if err = snowflakeCtrl.Start(ctx); err != nil {
-		log.Error(ctx, "start Snowflake Controller failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(-1)
-	}
-
-	// namespace controller
 	namespaceCtrlStv := tenant.NewController(cfg.GetTenantConfig(), mem)
-	if err = namespaceCtrlStv.Start(); err != nil {
-		log.Error(ctx, "start namespace controller fail", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(-1)
-	}
-
 	segmentCtrl := eventbus.NewController(cfg.GetEventbusCtrlConfig(), mem)
-	if err = segmentCtrl.Start(ctx); err != nil {
-		log.Error(ctx, "start EventbusService Controller failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(-1)
-	}
-
-	// trigger controller
 	triggerCtrlStv := trigger.NewController(cfg.GetTriggerConfig(), mem)
-	if err = triggerCtrlStv.Start(); err != nil {
-		log.Error(ctx, "start trigger controller fail", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(-1)
-	}
-
-	if err = mem.Start(ctx); err != nil {
-		log.Error(ctx, "failed to start member", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(-2)
-	}
 
 	recoveryOpt := recovery.WithRecoveryHandlerContext(
 		func(ctx context.Context, p interface{}) error {
@@ -150,12 +113,12 @@ func main() {
 		reflection.Register(grpcServer)
 	}
 
+	ctrlpb.RegisterPingServerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterSnowflakeControllerServer(grpcServer, snowflakeCtrl)
 	ctrlpb.RegisterNamespaceControllerServer(grpcServer, namespaceCtrlStv)
 	ctrlpb.RegisterEventbusControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterEventlogControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterSegmentControllerServer(grpcServer, segmentCtrl)
-	ctrlpb.RegisterPingServerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterTriggerControllerServer(grpcServer, triggerCtrlStv)
 	log.Info(ctx, "the grpc server ready to work", nil)
 	wg := sync.WaitGroup{}
@@ -169,6 +132,41 @@ func main() {
 		}
 		wg.Done()
 	}()
+
+	if err = snowflakeCtrl.Start(ctx); err != nil {
+		log.Error(ctx, "start Snowflake Controller failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+
+	if err = namespaceCtrlStv.Start(); err != nil {
+		log.Error(ctx, "start namespace controller fail", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+
+	if err = segmentCtrl.Start(ctx); err != nil {
+		log.Error(ctx, "start EventbusService Controller failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+
+	if err = triggerCtrlStv.Start(); err != nil {
+		log.Error(ctx, "start trigger controller fail", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+
+	if err = mem.Start(ctx); err != nil {
+		log.Error(ctx, "failed to start member", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-2)
+	}
 
 	exit := func() {
 		vanus.DestroySnowflake()
