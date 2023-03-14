@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - etcd.yaml
+  - root-controller.yaml
   - controller.yaml
   - trigger.yaml
   - gateway.yaml

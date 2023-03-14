@@ -52,6 +52,35 @@ metadata:
 ---
 apiVersion: v1
 data:
+  controller.yaml: |-
+    node_id: ${NODE_ID}
+    name: ${POD_NAME}
+    ip: ${POD_IP}
+    port: 2021
+    observability:
+      metrics:
+        enable: true
+      tracing:
+        enable: false
+        # OpenTelemetry Collector endpoint, https://opentelemetry.io/docs/collector/getting-started/
+        otel_collector: http://127.0.0.1:4318
+    cluster:
+      component_name: root-controller
+      lease_duration_in_sec: 15
+      etcd:
+        - vanus-etcd-0.vanus-etcd:2379
+        - vanus-etcd-1.vanus-etcd:2379
+        - vanus-etcd-2.vanus-etcd:2379
+      topology:
+        vanus-root-controller-0: vanus-root-controller-0.vanus-root-controller.vanus.svc:2021
+        vanus-root-controller-1: vanus-root-controller-1.vanus-root-controller.vanus.svc:2021
+kind: ConfigMap
+metadata:
+  name: config-root-controller
+  namespace: vanus
+---
+apiVersion: v1
+data:
   store.yaml: |-
     port: 11811
     ip: ${POD_IP}
@@ -180,6 +209,19 @@ spec:
     app: vanus-gateway
   type: NodePort
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vanus-root-controller
+  namespace: vanus
+spec:
+  clusterIP: None
+  ports:
+  - name: vanus-root-controller
+    port: 2021
+  selector:
+    app: vanus-root-controller
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -207,7 +249,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/gateway:v0.5.7
+        image: public.ecr.aws/vanus/gateway:v0.7.0
         imagePullPolicy: IfNotPresent
         name: gateway
         ports:
@@ -252,7 +294,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/timer:v0.5.7
+        image: public.ecr.aws/vanus/timer:v0.7.0
         imagePullPolicy: IfNotPresent
         name: timer
         volumeMounts:
@@ -290,7 +332,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/trigger:v0.5.7
+        image: public.ecr.aws/vanus/trigger:v0.7.0
         imagePullPolicy: IfNotPresent
         name: trigger
         ports:
@@ -340,7 +382,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/controller:v0.5.7
+        image: public.ecr.aws/vanus/controller:v0.7.0
         imagePullPolicy: IfNotPresent
         name: controller
         ports:
@@ -355,65 +397,6 @@ spec:
       - configMap:
           name: config-controller
         name: config-controller
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  labels:
-    app: vanus-store
-  name: vanus-store
-  namespace: vanus
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: vanus-store
-  serviceName: vanus-store
-  template:
-    metadata:
-      annotations:
-        vanus.dev/metrics.port: "2112"
-      labels:
-        app: vanus-store
-    spec:
-      containers:
-      - command:
-        - /bin/sh
-        - -c
-        - VOLUME_ID=${HOSTNAME##*-} /vanus/bin/store
-        env:
-        - name: VANUS_LOG_LEVEL
-          value: INFO
-        - name: POD_IP
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
-        image: public.ecr.aws/vanus/store:v0.5.7
-        imagePullPolicy: IfNotPresent
-        name: store
-        ports:
-        - containerPort: 11811
-          name: grpc
-        volumeMounts:
-        - mountPath: /vanus/config
-          name: config-store
-        - mountPath: /data
-          name: data
-      volumes:
-      - configMap:
-          name: config-store
-        name: config-store
-  volumeClaimTemplates:
-  - metadata:
-      labels:
-        app: vanus-controller
-      name: data
-    spec:
-      accessModes:
-      - ReadWriteOnce
-      resources:
-        requests:
-          storage: 1Gi
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -458,7 +441,7 @@ spec:
         - name: ETCD_START_FROM_SNAPSHOT
           value: "no"
         - name: ETCD_INIT_SNAPSHOT_FILENAME
-          value: "snapshotdb"
+          value: snapshotdb
         - name: ETCD_DISASTER_RECOVERY
           value: "no"
         - name: ETCD_NAME
@@ -524,8 +507,8 @@ spec:
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
-        - name: data
-          mountPath: /bitnami/etcd
+        - mountPath: /bitnami/etcd
+          name: data
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler
@@ -551,3 +534,114 @@ spec:
         requests:
           storage: 10Gi
       volumeMode: Filesystem
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: vanus-root-controller
+  name: vanus-root-controller
+  namespace: vanus
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vanus-root-controller
+  serviceName: vanus-root-controller
+  template:
+    metadata:
+      annotations:
+        vanus.dev/metrics.port: "2112"
+      labels:
+        app: vanus-root-controller
+    spec:
+      containers:
+      - command:
+        - /bin/sh
+        - -c
+        - NODE_ID=${HOSTNAME##*-} /vanus/bin/controller
+        env:
+        - name: VANUS_LOG_LEVEL
+          value: INFO
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        image: public.ecr.aws/vanus/root-controller:v0.7.0
+        imagePullPolicy: IfNotPresent
+        name: controller
+        ports:
+        - containerPort: 2021
+          name: grpc
+        - containerPort: 2112
+          name: metrics
+        volumeMounts:
+        - mountPath: /vanus/config
+          name: config-root-controller
+      volumes:
+      - configMap:
+          name: config-root-controller
+        name: config-root-controller
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: vanus-store
+  name: vanus-store
+  namespace: vanus
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: vanus-store
+  serviceName: vanus-store
+  template:
+    metadata:
+      annotations:
+        vanus.dev/metrics.port: "2112"
+      labels:
+        app: vanus-store
+    spec:
+      containers:
+      - command:
+        - /bin/sh
+        - -c
+        - VOLUME_ID=${HOSTNAME##*-} /vanus/bin/store
+        env:
+        - name: VANUS_LOG_LEVEL
+          value: INFO
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        image: public.ecr.aws/vanus/store:v0.7.0
+        imagePullPolicy: IfNotPresent
+        name: store
+        ports:
+        - containerPort: 11811
+          name: grpc
+        volumeMounts:
+        - mountPath: /vanus/config
+          name: config-store
+        - mountPath: /data
+          name: data
+      volumes:
+      - configMap:
+          name: config-store
+        name: config-store
+  volumeClaimTemplates:
+  - metadata:
+      labels:
+        app: vanus-controller
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
