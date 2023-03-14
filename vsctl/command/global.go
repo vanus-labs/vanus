@@ -17,13 +17,14 @@ package command
 import (
 	"context"
 	"fmt"
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -42,6 +43,22 @@ const (
 	DefaultOperatorPort       = 30009
 	HttpPrefix                = "http://"
 	BaseUrl                   = "/api/v1"
+)
+
+const (
+	CoreComponentEtcdReplicasAnnotation       = "core.vanus.ai/etcd-replicas"
+	CoreComponentControllerReplicasAnnotation = "core.vanus.ai/controller-replicas"
+	CoreComponentStoreReplicasAnnotation      = "core.vanus.ai/store-replicas"
+	CoreComponentGatewayReplicasAnnotation    = "core.vanus.ai/gateway-replicas"
+	CoreComponentTriggerReplicasAnnotation    = "core.vanus.ai/trigger-replicas"
+	CoreComponentTimerReplicasAnnotation      = "core.vanus.ai/timer-replicas"
+	CoreComponentEtcdStorageSizeAnnotation    = "core.vanus.ai/etcd-storage-size"
+	CoreComponentEtcdStorageClassAnnotation   = "core.vanus.ai/etcd-storage-class"
+	CoreComponentStoreStorageSizeAnnotation   = "core.vanus.ai/store-storage-size"
+	CoreComponentStoreStorageClassAnnotation  = "core.vanus.ai/store-storage-class"
+	ConnectorServiceTypeAnnotation            = "connector.vanus.ai/service-type"
+	ConnectorServicePortAnnotation            = "connector.vanus.ai/service-port"
+	ConnectorNetworkHostDomainAnnotation      = "connector.vanus.ai/network-host-domain"
 )
 
 var retryTime = 30
