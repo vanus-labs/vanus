@@ -5,6 +5,8 @@ gateway_endpoint: "127.0.0.1:18080"
 segment_capacity: 4194304
 replicas: 1
 secret_encryption_salt: "encryption_salt"
+root_controllers:
+  - 127.0.0.1:2021
 observability:
   metrics:
     enable: true

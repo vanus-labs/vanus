@@ -466,7 +466,7 @@ spec:
               value: vanus-etcd-0=http://vanus-etcd-0.vanus-etcd.vanus.svc.cluster.local:2380,vanus-etcd-1=http://vanus-etcd-1.vanus-etcd.vanus.svc.cluster.local:2380,vanus-etcd-2=http://vanus-etcd-2.vanus-etcd.vanus.svc.cluster.local:2380
             - name: ETCD_CLUSTER_DOMAIN
               value: vanus-etcd.vanus.svc.cluster.local
-          image: docker.io/bitnami/etcd:3.5.7-debian-11-r9
+          image: public.ecr.aws/vanus/etcd:v3.5.7
           imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:

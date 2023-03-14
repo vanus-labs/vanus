@@ -6,7 +6,7 @@ RUN go mod download
 
 ARG TARGETOS
 ARG TARGETARCH
-RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build/root-controller
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-root
 
 FROM ubuntu:22.10
 WORKDIR /vanus

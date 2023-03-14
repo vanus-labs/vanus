@@ -13,6 +13,10 @@ data:
     replicas: 3
     segment_capacity: 4194304
     secret_encryption_salt: "encryption_salt"
+    root_controllers:
+      - vanus-root-controller-0.vanus-root-controller:2021
+      - vanus-root-controller-1.vanus-root-controller:2021
+      - vanus-root-controller-2.vanus-root-controller:2021
     observability:
       metrics:
         enable: true
@@ -84,6 +88,10 @@ data:
   store.yaml: |-
     port: 11811
     ip: ${POD_IP}
+    root_controllers:
+      - vanus-root-controller-0.vanus-root-controller:2021
+      - vanus-root-controller-1.vanus-root-controller:2021
+      - vanus-root-controller-2.vanus-root-controller:2021
     controllers:
       - vanus-controller-0.vanus-controller:2048
       - vanus-controller-1.vanus-controller:2048
@@ -466,7 +474,7 @@ spec:
           value: vanus-etcd-0=http://vanus-etcd-0.vanus-etcd.vanus.svc.cluster.local:2380,vanus-etcd-1=http://vanus-etcd-1.vanus-etcd.vanus.svc.cluster.local:2380,vanus-etcd-2=http://vanus-etcd-2.vanus-etcd.vanus.svc.cluster.local:2380
         - name: ETCD_CLUSTER_DOMAIN
           value: vanus-etcd.vanus.svc.cluster.local
-        image: docker.io/bitnami/etcd:3.5.7-debian-11-r9
+        image: public.ecr.aws/vanus/etcd:v3.5.7
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:

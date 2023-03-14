@@ -1,5 +1,7 @@
 port: 11811
 ip : localhost
+root_controllers:
+  - localhost:2021
 controllers:
   - localhost:2048
 volume:
