@@ -136,7 +136,7 @@ func getEventbusInfoCommand() *cobra.Command {
 			segs := make(map[uint64][]*metapb.Segment)
 			ctx := context.Background()
 			res, err := client.GetEventbus(ctx,
-				wrapperspb.UInt64(mustGetEventbusID(namespace, eventbus).Uint64()))
+				wrapperspb.UInt64(mustGetEventbusID(namespace, args[0]).Uint64()))
 			if err != nil {
 				cmdFailedf(cmd, "get eventbus failed: %s", err)
 			}

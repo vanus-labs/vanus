@@ -18,6 +18,8 @@ package cluster
 import (
 	"context"
 	"errors"
+	errors2 "github.com/vanus-labs/vanus/pkg/errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -85,31 +87,33 @@ type SegmentService interface {
 }
 
 var (
-	mutex sync.Mutex
-	cl    Cluster
+	connCache = map[string]*raw_client.Conn{}
+	mutex     sync.Mutex
 )
 
 func NewClusterController(endpoints []string, credentials credentials.TransportCredentials) Cluster {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	// single instance
-	if cl == nil {
-		cc := raw_client.NewConnection(endpoints, credentials)
-		c := &cluster{
-			cc:                cc,
-			nsSvc:             newNamespaceService(cc),
-			segmentSvc:        newSegmentService(cc),
-			elSvc:             newEventlogService(cc),
-			triggerSvc:        newTriggerService(cc),
-			idSvc:             newIDService(cc),
-			ping:              raw_client.NewPingClient(cc),
-			controllerAddress: endpoints,
-		}
-		c.ebSvc = newEventbusService(cc, c.NamespaceService())
-		cl = c
+	cc, exist := connCache[strings.Join(endpoints, ",")]
+	if !exist {
+		cc = raw_client.NewConnection(endpoints, credentials)
+		connCache[strings.Join(endpoints, ",")] = cc
 	}
-	return cl
+
+	// single instance
+	c := &cluster{
+		cc:                cc,
+		nsSvc:             newNamespaceService(cc),
+		segmentSvc:        newSegmentService(cc),
+		elSvc:             newEventlogService(cc),
+		triggerSvc:        newTriggerService(cc),
+		idSvc:             newIDService(cc),
+		ping:              raw_client.NewPingClient(cc),
+		controllerAddress: endpoints,
+	}
+	c.ebSvc = newEventbusService(cc, c.NamespaceService())
+	return c
 }
 
 type cluster struct {
@@ -147,9 +151,11 @@ func (c *cluster) WaitForControllerReady(createEventbus bool) error {
 func (c *cluster) IsReady(createEventbus bool) bool {
 	res, err := c.ping.Ping(context.Background(), &emptypb.Empty{})
 	if err != nil {
-		log.Warning(context.Background(), "failed to ping controller", map[string]interface{}{
-			log.KeyError: err,
-		})
+		if !errors.Is(err, errors2.ErrNotLeader) {
+			log.Warning(context.Background(), "failed to ping controller", map[string]interface{}{
+				log.KeyError: err,
+			})
+		}
 		return false
 	}
 	if res.LeaderAddr == "" {

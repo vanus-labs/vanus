@@ -19,7 +19,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -98,7 +97,7 @@ const (
 )
 
 func (m *member) Init(ctx context.Context) error {
-	m.resourceLockKey = fmt.Sprintf("%s/%s", kv.LeaderLock, m.cfg.ComponentName)
+	m.resourceLockKey = kv.DistributedLockKey(m.cfg.ComponentName)
 	m.exit = make(chan struct{})
 
 	err := m.waitForEtcdReady(ctx, m.cfg.EtcdEndpoints)
@@ -107,6 +106,8 @@ func (m *member) Init(ctx context.Context) error {
 		return err
 	}
 
+	log.Info(ctx, "try to create session", nil)
+	start := time.Now()
 	m.session, err = concurrency.NewSession(m.client, concurrency.WithTTL(m.cfg.LeaseDurationInSecond))
 	if err != nil {
 		log.Error(ctx, "new session failed", map[string]interface{}{
@@ -114,6 +115,10 @@ func (m *member) Init(ctx context.Context) error {
 		})
 		panic("new session failed")
 	}
+	log.Info(ctx, "create session is finished", map[string]interface{}{
+		"duration": time.Since(start),
+	})
+
 	m.mutex = concurrency.NewMutex(m.session, m.resourceLockKey)
 	log.Info(ctx, "new leaderelection manager", map[string]interface{}{
 		"name":           m.cfg.NodeName,
@@ -259,7 +264,7 @@ func (m *member) setLeader(ctx context.Context) error {
 		LeaderID:   m.cfg.NodeName,
 		LeaderAddr: m.cfg.Topology[m.cfg.NodeName],
 	})
-	_, err := m.client.Put(ctx, kv.LeaderInfo, string(data))
+	_, err := m.client.Put(ctx, kv.ComponentLeaderKey(m.cfg.ComponentName), string(data))
 	return err
 }
 
@@ -317,7 +322,7 @@ func (m *member) execHandlers(ctx context.Context, event MembershipChangedEvent)
 	m.handlerMu.RLock()
 	defer m.handlerMu.RUnlock()
 	start := time.Now()
-	log.Info(ctx, "start to call handlers", map[string]interface{}{
+	log.Debug(ctx, "start to call handlers", map[string]interface{}{
 		"event": event,
 	})
 	for _, handler := range m.handlers {
@@ -329,7 +334,7 @@ func (m *member) execHandlers(ctx context.Context, event MembershipChangedEvent)
 			panic("exec handler failed")
 		}
 	}
-	log.Info(ctx, "finish call handlers", map[string]interface{}{
+	log.Debug(ctx, "finish call handlers", map[string]interface{}{
 		"event":    event,
 		"duration": time.Since(start),
 	})
@@ -352,7 +357,7 @@ func (m *member) IsLeader() bool {
 
 func (m *member) GetLeaderID() string {
 	// TODO(jiangkai): maybe lookup etcd per call has low performance.
-	resp, err := m.client.Get(context.Background(), kv.LeaderInfo)
+	resp, err := m.client.Get(context.Background(), kv.ComponentLeaderKey(m.cfg.ComponentName))
 	if err != nil {
 		log.Warning(context.Background(), "get leader info failed", map[string]interface{}{
 			log.KeyError: err,
@@ -369,7 +374,7 @@ func (m *member) GetLeaderID() string {
 
 func (m *member) GetLeaderAddr() string {
 	// TODO(jiangkai): maybe lookup etcd per call has low performance.
-	resp, err := m.client.Get(context.Background(), kv.LeaderInfo)
+	resp, err := m.client.Get(context.Background(), kv.ComponentLeaderKey(m.cfg.ComponentName))
 	if err != nil {
 		log.Warning(context.Background(), "get leader info failed", map[string]interface{}{
 			log.KeyError: err,

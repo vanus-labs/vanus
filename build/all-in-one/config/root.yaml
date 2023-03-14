@@ -1,12 +1,6 @@
 name: "standalone"
 ip: "127.0.0.1"
-port: 2048
-gateway_endpoint: "127.0.0.1:8080"
-segment_capacity: 8388604
-replicas: 1
-root_controllers:
-  - "127.0.0.1:2021"
-secret_encryption_salt: "encryption_salt"
+port: 2021
 observability:
   metrics:
     enable: false
@@ -15,9 +9,9 @@ observability:
     # OpenTelemetry Collector endpoint, https://opentelemetry.io/docs/collector/getting-started/
     otel_collector: http://127.0.0.1:4318
 cluster:
-  component_name: controller
+  component_name: root-controller
   lease_duration_in_sec: 15
   etcd:
     - 127.0.0.1:2379
   topology:
-    standalone: "127.0.0.1:2048"
+    standalone: "127.0.0.1:2021"

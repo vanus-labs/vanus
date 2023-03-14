@@ -665,6 +665,10 @@ func (ctrl *controller) recordMetrics() {
 }
 
 func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event member.MembershipChangedEvent) error {
+	log.Info(ctx, "start to process membership change event", map[string]interface{}{
+		"event":     event,
+		"component": "eventbus",
+	})
 	ctrl.membershipMutex.Lock()
 	defer ctrl.membershipMutex.Unlock()
 

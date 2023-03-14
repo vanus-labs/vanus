@@ -80,6 +80,7 @@ const (
 	ErrorCode_NOT_LEADER           ErrorCode = 9700
 	ErrorCode_NO_CONTROLLER_LEADER ErrorCode = 9701
 	ErrorCode_NOT_RAFT_LEADER      ErrorCode = 9702
+	ErrorCodeNotReady              ErrorCode = 9704
 
 	// ErrorCode_RESERVE 98xx
 
@@ -145,11 +146,12 @@ var (
 	ErrTransformInputParse     = New("transform input invalid").WithGRPCCode(ErrorCode_TRANSFORM_INPUT_PARSE)
 	ErrCorruptedEvent          = New("corrupted event").WithGRPCCode(ErrorCode_CORRUPTED_EVENT)
 
-	// RESOURCE_EXIST
+	// ErrResourceAlreadyExist
 	ErrResourceAlreadyExist = New("resource already exist").WithGRPCCode(ErrorCode_RESOURCE_EXIST)
 
-	// NOT_LEADER
+	// ErrNotLeader not leader
 	ErrNotLeader          = New("not leader").WithGRPCCode(ErrorCode_NOT_LEADER)
+	ErrNotReady           = New("not ready").WithGRPCCode(ErrorCodeNotReady)
 	ErrNoControllerLeader = New("no leader controller found").WithGRPCCode(ErrorCode_NO_CONTROLLER_LEADER)
 	ErrNotRaftLeader      = New("the node is not raft leader").WithGRPCCode(ErrorCode_NOT_RAFT_LEADER)
 

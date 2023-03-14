@@ -188,7 +188,7 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 		for {
 			select {
 			case <-ctx.Done():
-				err = errors.New("init snowflake VolumeID service timeout")
+				err = errors.New("init snowflake id service timeout")
 				return
 			case <-ticker.C:
 				err = initService()

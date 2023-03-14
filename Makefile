@@ -58,6 +58,13 @@ LD_FLAGS=${t4} -X 'main.Platform=${GOOS}/${GOARCH}'
 build-cmd:
 	$(GO_BUILD)  -ldflags "${LD_FLAGS}" -o bin/vsctl ./vsctl/
 
+docker-push-root:
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/root-controller:${IMAGE_TAG} -f build/images/root-controller/Dockerfile . --push
+docker-build-root:
+	docker build -t ${DOCKER_REPO}/root-controller:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/root-controller/Dockerfile .
+build-root:
+	$(GO_BUILD) -o bin/root-controller cmd/root/main.go
+
 docker-push-controller:
 	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/controller:${IMAGE_TAG} -f build/images/controller/Dockerfile . --push
 docker-build-controller:

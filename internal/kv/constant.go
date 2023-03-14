@@ -32,15 +32,24 @@ const (
 	MetadataSecret            = "/vanus/core/trigger_controller/secrets" //nolint:gosec // ok
 	MetadataOffset            = "/vanus/core/trigger_controller/offsets"
 	TriggerWorker             = "/vanus/core/trigger_controller/trigger_workers"
-	LeaderLock                = "/vanus/core/cluster/resource_lock"
-	LeaderInfo                = "/vanus/core/cluster/leader_info"
 	ClusterNode               = "/vanus/core/cluster/nodes"
 	ClusterStart              = "/vanus/core/cluster/start_at"
+
+	leaderLock = "/vanus/core/cluster/resource_lock"
+	leaderInfo = "/vanus/core/cluster/leader_info"
 
 	namespace = "/vanus/core/tenant/namespaces"
 	user      = "/vanus/core/tenant/users"
 	userRole  = "/vanus/core/tenants/user_role"
 )
+
+func DistributedLockKey(component string) string {
+	return path.Join(leaderLock, component)
+}
+
+func ComponentLeaderKey(component string) string {
+	return path.Join(leaderInfo, component)
+}
 
 func NamespaceAllKey() string {
 	return namespace
