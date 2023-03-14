@@ -23,9 +23,9 @@ DOCKER_PLATFORM ?= linux/amd64,linux/arm64
 clean :
 	rm -rf bin
 
-docker-push: docker-push-controller docker-push-timer docker-push-trigger docker-push-gateway docker-push-store
-docker-build: docker-build-controller docker-build-timer docker-build-trigger docker-build-gateway docker-build-store
-build: build-controller build-timer build-trigger build-gateway build-store
+docker-push: docker-push-root docker-push-controller docker-push-timer docker-push-trigger docker-push-gateway docker-push-store
+docker-build: docker-build-root docker-build-controller docker-build-timer docker-build-trigger docker-build-gateway docker-build-store
+build: build-root build-controller build-timer build-trigger build-gateway build-store
 
 docker-push-store:
 	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/store:${IMAGE_TAG} -f build/images/store/Dockerfile . --push

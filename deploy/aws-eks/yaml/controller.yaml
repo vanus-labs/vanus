@@ -12,6 +12,10 @@ data:
     replicas: 3
     segment_capacity: 4194304
     secret_encryption_salt: "encryption_salt"
+    root_controllers:
+      - vanus-root-controller-0.vanus-root-controller:2021
+      - vanus-root-controller-1.vanus-root-controller:2021
+      - vanus-root-controller-2.vanus-root-controller:2021
     observability:
       metrics:
         enable: true

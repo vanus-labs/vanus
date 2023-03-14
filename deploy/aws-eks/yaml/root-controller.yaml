@@ -1,21 +1,14 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: config-controller
+  name: config-root-controller
   namespace: vanus
 data:
-  controller.yaml: |-
+  root.yaml: |-
     node_id: ${NODE_ID}
     name: ${POD_NAME}
     ip: ${POD_IP}
-    port: 2048
-    replicas: 3
-    segment_capacity: 4194304
-    secret_encryption_salt: "encryption_salt"
-    root_controllers:
-      - vanus-root-controller-0.vanus-root-controller:2021
-      - vanus-root-controller-1.vanus-root-controller:2021
-      - vanus-root-controller-2.vanus-root-controller:2021
+    port: 2021
     observability:
       metrics:
         enable: true
@@ -24,59 +17,58 @@ data:
         # OpenTelemetry Collector endpoint, https://opentelemetry.io/docs/collector/getting-started/
         otel_collector: http://127.0.0.1:4318
     cluster:
-      component_name: controller
+      component_name: root-controller
       lease_duration_in_sec: 15
       etcd:
         - vanus-etcd-0.vanus-etcd:2379
         - vanus-etcd-1.vanus-etcd:2379
         - vanus-etcd-2.vanus-etcd:2379
       topology:
-        vanus-controller-0: vanus-controller-0.vanus-controller.vanus.svc:2048
-        vanus-controller-1: vanus-controller-1.vanus-controller.vanus.svc:2048
-        vanus-controller-2: vanus-controller-2.vanus-controller.vanus.svc:2048
+        vanus-root-controller-0: vanus-root-controller-0.vanus-root-controller.vanus.svc:2021
+        vanus-root-controller-1: vanus-root-controller-1.vanus-root-controller.vanus.svc:2021
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: vanus-controller
+  name: vanus-root-controller
   namespace: vanus
 spec:
   selector:
-    app: vanus-controller
+    app: vanus-root-controller
   clusterIP: None
   ports:
-    - port: 2048
-      name: vanus-controller
+    - port: 2021
+      name: vanus-root-controller
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: vanus-controller
+  name: vanus-root-controller
   namespace: vanus
   labels:
-    app: vanus-controller
+    app: vanus-root-controller
 spec:
   selector:
     matchLabels:
-      app: vanus-controller
-  replicas: 3
-  serviceName: vanus-controller
+      app: vanus-root-controller
+  replicas: 2
+  serviceName: vanus-root-controller
   template:
     metadata:
       labels:
-        app: vanus-controller
+        app: vanus-root-controller
       annotations:
         vanus.dev/metrics.port: "2112"
     spec:
       containers:
         - name: controller
-          image: public.ecr.aws/vanus/controller:v0.7.0
+          image: public.ecr.aws/vanus/root-controller:v0.7.0
           imagePullPolicy: IfNotPresent
           command:
-            [ "/bin/sh", "-c", "NODE_ID=${HOSTNAME##*-} /vanus/bin/controller" ]
+            [ "/bin/sh", "-c", "NODE_ID=${HOSTNAME##*-} /vanus/bin/root-controller" ]
           ports:
             - name: grpc
-              containerPort: 2048
+              containerPort: 2021
             - name: metrics
               containerPort: 2112
           env:
@@ -91,9 +83,9 @@ spec:
                 fieldRef:
                   fieldPath: status.podIP
           volumeMounts:
-            - name: config-controller
+            - name: config-root-controller
               mountPath: /vanus/config
       volumes:
-        - name: config-controller
+        - name: config-root-controller
           configMap:
-            name: config-controller
+            name: config-root-controller
