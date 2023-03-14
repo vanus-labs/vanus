@@ -26,7 +26,6 @@ import (
 
 type Config struct {
 	ControllerAddresses []string             `yaml:"controllers"`
-	RootControllers     []string             `yaml:"root_controllers"`
 	IP                  string               `yaml:"ip"`
 	Port                int                  `yaml:"port"`
 	Volume              VolumeInfo           `yaml:"volume"`
