@@ -64,13 +64,6 @@ type ConnectorDelete struct {
 	Force *bool `json:"force,omitempty"`
 }
 
-type ConnectorPatch struct {
-	ControllerReplicas int32  `json:"controller_replicas,omitempty"`
-	StoreReplicas      int32  `json:"store_replicas,omitempty"`
-	TriggerReplicas    int32  `json:"trigger_replicas,omitempty"`
-	Version            string `json:"version,omitempty"`
-}
-
 type ConnectorInfo struct {
 	Kind    string `json:"kind,omitempty"`
 	Name    string `json:"name,omitempty"`

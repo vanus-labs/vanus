@@ -66,7 +66,6 @@ var (
 	clusterVersion      string
 	showInstallableList bool
 	showUpgradeableList bool
-	controllerReplicas  int32
 	storeReplicas       int32
 	triggerReplicas     int32
 
