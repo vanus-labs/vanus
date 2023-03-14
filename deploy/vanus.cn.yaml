@@ -52,7 +52,7 @@ metadata:
 ---
 apiVersion: v1
 data:
-  controller.yaml: |-
+  root.yaml: |-
     node_id: ${NODE_ID}
     name: ${POD_NAME}
     ip: ${POD_IP}
@@ -559,7 +559,7 @@ spec:
         - command:
             - /bin/sh
             - -c
-            - NODE_ID=${HOSTNAME##*-} /vanus/bin/controller
+            - NODE_ID=${HOSTNAME##*-} /vanus/bin/root-controller
           env:
             - name: VANUS_LOG_LEVEL
               value: INFO
