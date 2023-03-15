@@ -28,14 +28,10 @@ service PingServer {
 }
 
 service NamespaceController {
-  rpc CreateNamespace(CreateNamespaceRequest)
-      returns (meta.Namespace);
-  rpc ListNamespace(google.protobuf.Empty)
-      returns (ListNamespaceResponse);
-  rpc GetNamespace(GetNamespaceRequest)
-      returns (meta.Namespace);
-  rpc DeleteNamespace(DeleteNamespaceRequest)
-      returns (google.protobuf.Empty);
+  rpc CreateNamespace(CreateNamespaceRequest) returns (meta.Namespace);
+  rpc ListNamespace(google.protobuf.Empty) returns (ListNamespaceResponse);
+  rpc GetNamespace(GetNamespaceRequest) returns (meta.Namespace);
+  rpc DeleteNamespace(DeleteNamespaceRequest) returns (google.protobuf.Empty);
   rpc GetNamespaceWithHumanFriendly(google.protobuf.StringValue) returns (meta.Namespace);
 }
 
@@ -103,11 +99,11 @@ message ListNamespaceResponse {
   repeated meta.Namespace namespace = 1;
 }
 
-message GetNamespaceRequest{
+message GetNamespaceRequest {
   uint64 id = 1;
 }
 
-message DeleteNamespaceRequest{
+message DeleteNamespaceRequest {
   uint64 id = 1;
 }
 
@@ -210,6 +206,7 @@ message DeleteSubscriptionRequest {
 
 message DisableSubscriptionRequest {
   uint64 id = 1;
+  bool declaratively = 2;
 }
 
 message ResumeSubscriptionRequest {

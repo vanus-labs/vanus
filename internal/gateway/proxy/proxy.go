@@ -15,6 +15,7 @@
 package proxy
 
 import (
+	// standard libraries.
 	"context"
 	"encoding/base64"
 	"encoding/binary"
@@ -30,6 +31,7 @@ import (
 	"sync/atomic"
 	stdtime "time"
 
+	// third-party libraries.
 	v2 "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/client"
 	"github.com/cloudevents/sdk-go/v2/protocol"
@@ -49,6 +51,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
+	// first-party libraries.
 	eb "github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/option"
@@ -63,6 +66,7 @@ import (
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
 
+	// third-party libraries.
 	"github.com/vanus-labs/vanus/internal/convert"
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/interceptor/errinterceptor"
@@ -97,8 +101,6 @@ type Config struct {
 	Credentials            credentials.TransportCredentials
 	GRPCReflectionEnable   bool
 }
-
-var _ proxypb.StoreProxyServer = &ControllerProxy{}
 
 type ackCallback func(bool)
 
@@ -146,6 +148,9 @@ type ControllerProxy struct {
 	writerMap    sync.Map
 	cache        sync.Map
 }
+
+// Make sure ControllerProxy implements proxypb.StoreProxyServer.
+var _ proxypb.StoreProxyServer = (*ControllerProxy)(nil)
 
 func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequest) (*emptypb.Empty, error) {
 	eventbusID := vanus.NewIDFromUint64(req.EventbusId)
@@ -219,9 +224,8 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 	return &emptypb.Empty{}, nil
 }
 
-func (cp *ControllerProxy) writeEvents(ctx context.Context,
-	eventbusID vanus.ID,
-	events *cloudevents.CloudEventBatch,
+func (cp *ControllerProxy) writeEvents(
+	ctx context.Context, eventbusID vanus.ID, events *cloudevents.CloudEventBatch,
 ) error {
 	val, exist := cp.writerMap.Load(eventbusID)
 	if !exist {
@@ -270,7 +274,7 @@ func (cp *ControllerProxy) Subscribe(req *proxypb.SubscribeRequest, stream proxy
 	newSink := fmt.Sprintf("http://%s:%d%s/%s",
 		os.Getenv("POD_IP"), cp.cfg.SinkPort, httpRequestPrefix, req.SubscriptionId)
 	if meta.Sink != newSink {
-		if err := cp.disableSubscription(_ctx, req, subscriptionID.Uint64()); err != nil {
+		if err = cp.disableSubscription(_ctx, req, subscriptionID.Uint64()); err != nil {
 			log.Error(_ctx, "disable subscription failed", map[string]interface{}{
 				log.KeyError: err,
 				"id":         req.SubscriptionId,
@@ -420,7 +424,8 @@ func (cp *ControllerProxy) disableSubscription(
 	ctx context.Context, req *proxypb.SubscribeRequest, subscriptionID uint64,
 ) error {
 	disableSubscriptionReq := &ctrlpb.DisableSubscriptionRequest{
-		Id: subscriptionID,
+		Id:            subscriptionID,
+		Declaratively: true,
 	}
 	_, err := cp.triggerCtrl.DisableSubscription(context.Background(), disableSubscriptionReq)
 	if err != nil {
@@ -456,17 +461,20 @@ func newSubscription(
 	return &ctrlpb.UpdateSubscriptionRequest{
 		Id: subscriptionID,
 		Subscription: &ctrlpb.SubscriptionRequest{
-			Source:      info.Source,
-			Types:       info.Types,
-			Config:      info.Config,
-			Filters:     info.Filters,
-			Sink:        newsink,
-			Protocol:    info.Protocol,
-			EventbusId:  info.EventbusId,
-			Transformer: info.Transformer,
-			Name:        info.Name,
-			Description: info.Description,
-			Disable:     info.Disable,
+			Source:           info.Source,
+			Types:            info.Types,
+			Config:           info.Config,
+			Filters:          info.Filters,
+			Sink:             newsink,
+			SinkCredential:   info.SinkCredential,
+			Protocol:         info.Protocol,
+			ProtocolSettings: info.ProtocolSettings,
+			Transformer:      info.Transformer,
+			Name:             info.Name,
+			Description:      info.Description,
+			Disable:          info.Disable,
+			NamespaceId:      info.NamespaceId,
+			EventbusId:       info.EventbusId,
 		},
 	}
 }
@@ -623,29 +631,35 @@ func (cp *ControllerProxy) Start() error {
 func (cp *ControllerProxy) receive(ctx context.Context, event v2.Event) (*v2.Event, protocol.Result) {
 	_ctx, span := cp.tracer.Start(ctx, "receive")
 	defer span.End()
+
 	subscriptionID := getSubscriptionIDFromPath(requestDataFromContext(_ctx))
 	if subscriptionID == "" {
 		return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid subscription id")
 	}
+
 	cache, ok := cp.cache.Load(subscriptionID)
 	if !ok {
 		// retry
 		return nil, v2.NewHTTPResult(http.StatusInternalServerError, "subscription not exist")
 	}
+
 	log.Debug(_ctx, "sink proxy received a event", map[string]interface{}{
 		"event": event.String(),
 	})
-	sequenceID := atomic.AddUint64(&cache.(*subscribeCache).sequenceID, 1)
+
+	sub, _ := cache.(*subscribeCache)
+
+	sequenceID := atomic.AddUint64(&sub.sequenceID, 1)
 	var success bool
 	donec := make(chan struct{})
-	cache.(*subscribeCache).acks.Store(sequenceID, ackCallback(func(result bool) {
+	sub.acks.Store(sequenceID, ackCallback(func(result bool) {
 		log.Info(_ctx, "ack callback", map[string]interface{}{
 			"result": result,
 		})
 		success = result
 		close(donec)
 	}))
-	cache.(*subscribeCache).eventc <- message{
+	sub.eventc <- message{
 		sequenceID: sequenceID,
 		event:      &event,
 	}
@@ -679,8 +693,8 @@ func (cp *ControllerProxy) ClusterInfo(_ context.Context, _ *emptypb.Empty) (*pr
 	}, nil
 }
 
-func (cp *ControllerProxy) LookupOffset(ctx context.Context,
-	req *proxypb.LookupOffsetRequest,
+func (cp *ControllerProxy) LookupOffset(
+	ctx context.Context, req *proxypb.LookupOffsetRequest,
 ) (*proxypb.LookupOffsetResponse, error) {
 	elList := make([]api.Eventlog, 0)
 	if req.EventlogId > 0 {
@@ -714,8 +728,8 @@ func (cp *ControllerProxy) LookupOffset(ctx context.Context,
 	return res, nil
 }
 
-func (cp *ControllerProxy) GetEvent(ctx context.Context,
-	req *proxypb.GetEventRequest,
+func (cp *ControllerProxy) GetEvent(
+	ctx context.Context, req *proxypb.GetEventRequest,
 ) (*proxypb.GetEventResponse, error) {
 	vid := vanus.NewIDFromUint64(req.EventbusId)
 	if vid == vanus.EmptyID() {
@@ -763,8 +777,8 @@ func (cp *ControllerProxy) GetEvent(ctx context.Context,
 	}, nil
 }
 
-func (cp *ControllerProxy) ValidateSubscription(ctx context.Context,
-	req *proxypb.ValidateSubscriptionRequest,
+func (cp *ControllerProxy) ValidateSubscription(
+	ctx context.Context, req *proxypb.ValidateSubscriptionRequest,
 ) (*proxypb.ValidateSubscriptionResponse, error) {
 	if req.GetEvent() == nil {
 		res, err := cp.GetEvent(ctx, &proxypb.GetEventRequest{
@@ -817,8 +831,8 @@ func (cp *ControllerProxy) ValidateSubscription(ctx context.Context,
 }
 
 // getByEventID why added this? can it be deleted?
-func (cp *ControllerProxy) getByEventID(ctx context.Context,
-	req *proxypb.GetEventRequest,
+func (cp *ControllerProxy) getByEventID(
+	ctx context.Context, req *proxypb.GetEventRequest,
 ) (*proxypb.GetEventResponse, error) {
 	logID, off, err := decodeEventID(req.EventId)
 	if err != nil {
