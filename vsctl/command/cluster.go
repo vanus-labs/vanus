@@ -213,7 +213,7 @@ func createClusterCommand() *cobra.Command {
 			if c.Store.StorageClass == nil {
 				clusterspec.AppendRow(table.Row{"vanus", *c.Version, "store", *c.Store.Replicas, *c.Store.StorageSize, "-"})
 			} else {
-				clusterspec.AppendRow(table.Row{"vanus", *c.Version, "etcd", *c.Etcd.Replicas, *c.Etcd.StorageClass, *c.Etcd.StorageSize, *c.Store.StorageClass})
+				clusterspec.AppendRow(table.Row{"vanus", *c.Version, "store", *c.Store.Replicas, *c.Store.StorageSize, *c.Store.StorageClass})
 			}
 			clusterspec.AppendSeparator()
 			clusterspec.AppendRow(table.Row{"vanus", *c.Version, "controller", *c.Controller.Replicas, "-", "-"})
