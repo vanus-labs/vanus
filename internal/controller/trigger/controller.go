@@ -86,8 +86,8 @@ type controller struct {
 	ebClient              eb.Client
 }
 
-func (ctrl *controller) SetDeadLetterEventOffset(ctx context.Context,
-	request *ctrlpb.SetDeadLetterEventOffsetRequest,
+func (ctrl *controller) SetDeadLetterEventOffset(
+	ctx context.Context, request *ctrlpb.SetDeadLetterEventOffsetRequest,
 ) (*emptypb.Empty, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
@@ -100,8 +100,8 @@ func (ctrl *controller) SetDeadLetterEventOffset(ctx context.Context,
 	return &emptypb.Empty{}, nil
 }
 
-func (ctrl *controller) GetDeadLetterEventOffset(ctx context.Context,
-	request *ctrlpb.GetDeadLetterEventOffsetRequest,
+func (ctrl *controller) GetDeadLetterEventOffset(
+	ctx context.Context, request *ctrlpb.GetDeadLetterEventOffsetRequest,
 ) (*ctrlpb.GetDeadLetterEventOffsetResponse, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
@@ -114,8 +114,8 @@ func (ctrl *controller) GetDeadLetterEventOffset(ctx context.Context,
 	return &ctrlpb.GetDeadLetterEventOffsetResponse{Offset: offset}, err
 }
 
-func (ctrl *controller) CommitOffset(ctx context.Context,
-	request *ctrlpb.CommitOffsetRequest,
+func (ctrl *controller) CommitOffset(
+	ctx context.Context, request *ctrlpb.CommitOffsetRequest,
 ) (*ctrlpb.CommitOffsetResponse, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
@@ -139,8 +139,8 @@ func (ctrl *controller) CommitOffset(ctx context.Context,
 	return resp, nil
 }
 
-func (ctrl *controller) ResetOffsetToTimestamp(ctx context.Context,
-	request *ctrlpb.ResetOffsetToTimestampRequest,
+func (ctrl *controller) ResetOffsetToTimestamp(
+	ctx context.Context, request *ctrlpb.ResetOffsetToTimestampRequest,
 ) (*ctrlpb.ResetOffsetToTimestampResponse, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
@@ -166,8 +166,8 @@ func (ctrl *controller) ResetOffsetToTimestamp(ctx context.Context,
 	}, nil
 }
 
-func (ctrl *controller) CreateSubscription(ctx context.Context,
-	request *ctrlpb.CreateSubscriptionRequest,
+func (ctrl *controller) CreateSubscription(
+	ctx context.Context, request *ctrlpb.CreateSubscriptionRequest,
 ) (*metapb.Subscription, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
@@ -202,8 +202,8 @@ func (ctrl *controller) CreateSubscription(ctx context.Context,
 	return resp, nil
 }
 
-func (ctrl *controller) UpdateSubscription(ctx context.Context,
-	request *ctrlpb.UpdateSubscriptionRequest,
+func (ctrl *controller) UpdateSubscription(
+	ctx context.Context, request *ctrlpb.UpdateSubscriptionRequest,
 ) (*metapb.Subscription, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
@@ -245,8 +245,8 @@ func (ctrl *controller) UpdateSubscription(ctx context.Context,
 	return resp, nil
 }
 
-func (ctrl *controller) DeleteSubscription(ctx context.Context,
-	request *ctrlpb.DeleteSubscriptionRequest,
+func (ctrl *controller) DeleteSubscription(
+	ctx context.Context, request *ctrlpb.DeleteSubscriptionRequest,
 ) (*emptypb.Empty, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
@@ -271,8 +271,8 @@ func (ctrl *controller) DeleteSubscription(ctx context.Context,
 	return &emptypb.Empty{}, nil
 }
 
-func (ctrl *controller) DisableSubscription(ctx context.Context,
-	request *ctrlpb.DisableSubscriptionRequest,
+func (ctrl *controller) DisableSubscription(
+	ctx context.Context, request *ctrlpb.DisableSubscriptionRequest,
 ) (*emptypb.Empty, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
@@ -281,12 +281,18 @@ func (ctrl *controller) DisableSubscription(ctx context.Context,
 	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
 	if sub == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage(
-			fmt.Sprintf("subscrption %d not exist", subID))
+			fmt.Sprintf("subscription %d not exist", subID))
 	}
-	if sub.Phase == metadata.SubscriptionPhaseStopped {
-		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription is disable")
-	}
-	if sub.Phase == metadata.SubscriptionPhaseStopping {
+	switch sub.Phase {
+	case metadata.SubscriptionPhaseStopped:
+		if request.Declaratively {
+			return &emptypb.Empty{}, nil
+		}
+		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription is disabled")
+	case metadata.SubscriptionPhaseStopping:
+		if request.Declaratively {
+			return &emptypb.Empty{}, nil
+		}
 		return nil, errors.ErrResourceCanNotOp.WithMessage("subscription is disabling")
 	}
 	sub.Phase = metadata.SubscriptionPhaseStopping
@@ -298,8 +304,8 @@ func (ctrl *controller) DisableSubscription(ctx context.Context,
 	return &emptypb.Empty{}, nil
 }
 
-func (ctrl *controller) ResumeSubscription(ctx context.Context,
-	request *ctrlpb.ResumeSubscriptionRequest,
+func (ctrl *controller) ResumeSubscription(
+	ctx context.Context, request *ctrlpb.ResumeSubscriptionRequest,
 ) (*emptypb.Empty, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
@@ -322,8 +328,8 @@ func (ctrl *controller) ResumeSubscription(ctx context.Context,
 	return &emptypb.Empty{}, nil
 }
 
-func (ctrl *controller) GetSubscription(ctx context.Context,
-	request *ctrlpb.GetSubscriptionRequest,
+func (ctrl *controller) GetSubscription(
+	ctx context.Context, request *ctrlpb.GetSubscriptionRequest,
 ) (*metapb.Subscription, error) {
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
@@ -373,8 +379,8 @@ func (ctrl *controller) TriggerWorkerHeartbeat(
 	}
 }
 
-func (ctrl *controller) triggerWorkerHeartbeatRequest(ctx context.Context,
-	req *ctrlpb.TriggerWorkerHeartbeatRequest,
+func (ctrl *controller) triggerWorkerHeartbeatRequest(
+	ctx context.Context, req *ctrlpb.TriggerWorkerHeartbeatRequest,
 ) error {
 	now := time.Now()
 	for _, subInfo := range req.SubscriptionInfo {
@@ -411,8 +417,8 @@ func (ctrl *controller) triggerWorkerHeartbeatRequest(ctx context.Context,
 	return nil
 }
 
-func (ctrl *controller) RegisterTriggerWorker(ctx context.Context,
-	request *ctrlpb.RegisterTriggerWorkerRequest,
+func (ctrl *controller) RegisterTriggerWorker(
+	ctx context.Context, request *ctrlpb.RegisterTriggerWorkerRequest,
 ) (*ctrlpb.RegisterTriggerWorkerResponse, error) {
 	log.Info(ctx, "register trigger worker", map[string]interface{}{
 		log.KeyTriggerWorkerAddr: request.Address,
@@ -428,8 +434,8 @@ func (ctrl *controller) RegisterTriggerWorker(ctx context.Context,
 	return &ctrlpb.RegisterTriggerWorkerResponse{}, nil
 }
 
-func (ctrl *controller) UnregisterTriggerWorker(ctx context.Context,
-	request *ctrlpb.UnregisterTriggerWorkerRequest,
+func (ctrl *controller) UnregisterTriggerWorker(
+	ctx context.Context, request *ctrlpb.UnregisterTriggerWorkerRequest,
 ) (*ctrlpb.UnregisterTriggerWorkerResponse, error) {
 	log.Info(ctx, "unregister trigger worker", map[string]interface{}{
 		log.KeyTriggerWorkerAddr: request.Address,
@@ -439,8 +445,8 @@ func (ctrl *controller) UnregisterTriggerWorker(ctx context.Context,
 	return &ctrlpb.UnregisterTriggerWorkerResponse{}, nil
 }
 
-func (ctrl *controller) ListSubscription(ctx context.Context,
-	request *ctrlpb.ListSubscriptionRequest,
+func (ctrl *controller) ListSubscription(
+	ctx context.Context, request *ctrlpb.ListSubscriptionRequest,
 ) (*ctrlpb.ListSubscriptionResponse, error) {
 	subscriptions := ctrl.subscriptionManager.ListSubscription(ctx)
 	list := make([]*metapb.Subscription, 0, len(subscriptions))
@@ -537,8 +543,8 @@ func (ctrl *controller) init(ctx context.Context) error {
 	return nil
 }
 
-func (ctrl *controller) membershipChangedProcessor(ctx context.Context,
-	event member.MembershipChangedEvent,
+func (ctrl *controller) membershipChangedProcessor(
+	ctx context.Context, event member.MembershipChangedEvent,
 ) error {
 	log.Info(ctx, "start to process membership change event", map[string]interface{}{
 		"event":     event,
