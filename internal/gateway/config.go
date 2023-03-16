@@ -15,12 +15,20 @@
 package gateway
 
 import (
+	// third-party libraries.
 	"google.golang.org/grpc/credentials/insecure"
 
+	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability"
 
+	// this project.
 	"github.com/vanus-labs/vanus/internal/gateway/proxy"
 	"github.com/vanus-labs/vanus/internal/primitive"
+)
+
+const (
+	defaultProxyPort = 8080
+	defaultSinkPort  = 8082
 )
 
 type Config struct {
@@ -32,7 +40,7 @@ type Config struct {
 }
 
 func (c Config) GetProxyConfig() proxy.Config {
-	return proxy.Config{
+	cfg := proxy.Config{
 		Endpoints:              c.ControllerAddr,
 		SinkPort:               c.SinkPort,
 		ProxyPort:              c.Port,
@@ -40,9 +48,19 @@ func (c Config) GetProxyConfig() proxy.Config {
 		GRPCReflectionEnable:   c.GRPCReflectionEnable,
 		Credentials:            insecure.NewCredentials(),
 	}
+	if cfg.ProxyPort == 0 {
+		cfg.ProxyPort = defaultProxyPort
+	}
+	if cfg.SinkPort == 0 {
+		cfg.SinkPort = defaultSinkPort
+	}
+	return cfg
 }
 
 func (c Config) GetCloudEventReceiverPort() int {
+	if c.Port == 0 {
+		return defaultProxyPort + 1
+	}
 	return c.Port + 1
 }
 
