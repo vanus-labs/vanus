@@ -76,13 +76,16 @@ type ClusterSpec struct {
 }
 
 type Etcd struct {
-	Replicas     *int32  `yaml:"replicas"`
-	StorageSize  *string `yaml:"storage_size"`
-	StorageClass *string `yaml:"storage_class"`
+	Ports        *EtcdPorts `yaml:"ports"`
+	Replicas     *int32     `yaml:"replicas"`
+	StorageSize  *string    `yaml:"storage_size"`
+	StorageClass *string    `yaml:"storage_class"`
 }
 
 type Controller struct {
-	Replicas *int32 `yaml:"replicas"`
+	Ports           *ControllerPorts `yaml:"ports"`
+	Replicas        *int32           `yaml:"replicas"`
+	SegmentCapacity *string          `yaml:"segment_capacity"`
 }
 
 type Store struct {
@@ -92,7 +95,9 @@ type Store struct {
 }
 
 type Gateway struct {
-	Replicas *int32 `yaml:"replicas"`
+	Ports     *GatewayPorts     `yaml:"ports"`
+	NodePorts *GatewayNodePorts `yaml:"nodeports"`
+	Replicas  *int32            `yaml:"replicas"`
 }
 
 type Trigger struct {
@@ -100,7 +105,35 @@ type Trigger struct {
 }
 
 type Timer struct {
-	Replicas *int32 `yaml:"replicas"`
+	Replicas    *int32       `yaml:"replicas"`
+	TimingWheel *TimingWheel `yaml:"timingwheel"`
+}
+
+type EtcdPorts struct {
+	Client *int32 `yaml:"client"`
+	Peer   *int32 `yaml:"peer"`
+}
+
+type ControllerPorts struct {
+	Controller     *int32 `yaml:"controller"`
+	RootController *int32 `yaml:"root_controller"`
+}
+
+type GatewayPorts struct {
+	Proxy       *int32 `yaml:"proxy"`
+	CloudEvents *int32 `yaml:"cloudevents"`
+	SinkProxy   *int32 `yaml:"sink_proxy"`
+}
+
+type GatewayNodePorts struct {
+	Proxy       *int32 `yaml:"proxy"`
+	CloudEvents *int32 `yaml:"cloudevents"`
+}
+
+type TimingWheel struct {
+	Tick   *int32 `yaml:"tick"`
+	Size   *int32 `yaml:"wheel_size"`
+	Layers *int32 `yaml:"layers"`
 }
 
 func NewClusterCommand() *cobra.Command {
@@ -240,21 +273,9 @@ func createClusterCommand() *cobra.Command {
 
 			client := &http.Client{}
 			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operatorEndpoint, BaseUrl)
-			annotations := make(map[string]string)
-			annotations[CoreComponentEtcdReplicasAnnotation] = fmt.Sprintf("%d", *c.Etcd.Replicas)
-			annotations[CoreComponentEtcdStorageSizeAnnotation] = *c.Etcd.StorageSize
-			if c.Etcd.StorageClass != nil {
-				annotations[CoreComponentEtcdStorageClassAnnotation] = *c.Etcd.StorageClass
-			}
-			annotations[CoreComponentStoreReplicasAnnotation] = fmt.Sprintf("%d", *c.Store.Replicas)
-			annotations[CoreComponentStoreStorageSizeAnnotation] = *c.Store.StorageSize
-			if c.Store.StorageClass != nil {
-				annotations[CoreComponentStoreStorageClassAnnotation] = *c.Store.StorageClass
-			}
-			annotations[CoreComponentTriggerReplicasAnnotation] = fmt.Sprintf("%d", *c.Trigger.Replicas)
 			cluster := ClusterCreate{
 				Version:     *c.Version,
-				Annotations: annotations,
+				Annotations: genClusterAnnotations(c),
 			}
 			dataByte, err := json.Marshal(cluster)
 			if err != nil {
@@ -768,20 +789,40 @@ func genClusterCommand() *cobra.Command {
 			template := bytes.Buffer{}
 			template.WriteString(fmt.Sprintf("version: %s\n", DefaultInitialVersion))
 			template.WriteString("etcd:\n")
+			template.WriteString("  # etcd service ports\n")
+			template.WriteString("  ports:\n")
+			template.WriteString("    client: 2379\n")
+			template.WriteString("    peer: 2380\n")
 			template.WriteString("  # etcd replicas is 3 by default, modification not supported\n")
 			template.WriteString("  replicas: 3\n")
+			template.WriteString("  # etcd storage size is 10Gi by default, supports both Gi and Mi units\n")
 			template.WriteString("  storage_size: 10Gi\n")
 			template.WriteString("  # specify the pvc storageclass of the etcd, use the cluster default storageclass by default\n")
 			template.WriteString("  # storage_class: gp3\n")
 			template.WriteString("controller:\n")
+			template.WriteString("  # controller service ports\n")
+			template.WriteString("  ports:\n")
+			template.WriteString("    controller: 2048\n")
+			template.WriteString("    root_controller: 2021\n")
 			template.WriteString("  # controller replicas is 2 by default, modification not supported\n")
 			template.WriteString("  replicas: 2\n")
+			template.WriteString("  # segment capacity is 64Mi by default, supports both Gi and Mi units\n")
+			template.WriteString("  segment_capacity: 64Mi\n")
 			template.WriteString("store:\n")
 			template.WriteString("  replicas: 3\n")
+			template.WriteString("  # store storage size is 10Gi by default, supports both Gi and Mi units\n")
 			template.WriteString("  storage_size: 10Gi\n")
 			template.WriteString("  # specify the pvc storageclass of the store, use the cluster default storageclass by default\n")
 			template.WriteString("  # storage_class: io2\n")
 			template.WriteString("gateway:\n")
+			template.WriteString("  # gateway service ports\n")
+			template.WriteString("  # gateway.ports.cloudevents specify the cloudevents port, the default value is gateway.ports.proxy+1 and customization is not supported\n")
+			template.WriteString("  ports:\n")
+			template.WriteString("    proxy: 8080\n")
+			template.WriteString("    cloudevents: 8081\n")
+			template.WriteString("  nodeports:\n")
+			template.WriteString("    proxy: 30001\n")
+			template.WriteString("    cloudevents: 30002\n")
 			template.WriteString("  # gateway replicas is 1 by default, modification not supported\n")
 			template.WriteString("  replicas: 1\n")
 			template.WriteString("trigger:\n")
@@ -789,6 +830,10 @@ func genClusterCommand() *cobra.Command {
 			template.WriteString("timer:\n")
 			template.WriteString("  # timer replicas is 2 by default, modification not supported\n")
 			template.WriteString("  replicas: 2\n")
+			template.WriteString("  timingwheel:\n")
+			template.WriteString("    tick: 1\n")
+			template.WriteString("    wheel_size: 32\n")
+			template.WriteString("    layers: 4\n")
 			fileName := "cluster.yaml.example"
 			err := ioutil.WriteFile(fileName, template.Bytes(), 0o644)
 			if err != nil {
@@ -866,4 +911,38 @@ func getUpgradableVersionList(curVersion string) []string {
 
 func clusterIsVaild(c *ClusterSpec) bool {
 	return c.Version != nil
+}
+
+func genClusterAnnotations(c *ClusterSpec) map[string]string {
+	annotations := make(map[string]string)
+	// Etcd
+	annotations[CoreComponentEtcdReplicasAnnotation] = fmt.Sprintf("%d", *c.Etcd.Replicas)
+	annotations[CoreComponentEtcdStorageSizeAnnotation] = *c.Etcd.StorageSize
+	annotations[CoreComponentEtcdPortClientAnnotation] = fmt.Sprintf("%d", *c.Etcd.Ports.Client)
+	annotations[CoreComponentEtcdPortPeerAnnotation] = fmt.Sprintf("%d", *c.Etcd.Ports.Peer)
+	if c.Etcd.StorageClass != nil {
+		annotations[CoreComponentEtcdStorageClassAnnotation] = *c.Etcd.StorageClass
+	}
+	// Controller
+	annotations[CoreComponentControllerSvcPortAnnotation] = fmt.Sprintf("%d", *c.Controller.Ports.Controller)
+	annotations[CoreComponentRootControllerSvcPortAnnotation] = fmt.Sprintf("%d", *c.Controller.Ports.RootController)
+	annotations[CoreComponentControllerSegmentCapacityAnnotation] = *c.Controller.SegmentCapacity
+	// Store
+	annotations[CoreComponentStoreReplicasAnnotation] = fmt.Sprintf("%d", *c.Store.Replicas)
+	annotations[CoreComponentStoreStorageSizeAnnotation] = *c.Store.StorageSize
+	if c.Store.StorageClass != nil {
+		annotations[CoreComponentStoreStorageClassAnnotation] = *c.Store.StorageClass
+	}
+	// Gateway
+	annotations[CoreComponentGatewayPortProxyAnnotation] = fmt.Sprintf("%d", *c.Gateway.Ports.Proxy)
+	annotations[CoreComponentGatewayPortCloudEventsAnnotation] = fmt.Sprintf("%d", *c.Gateway.Ports.CloudEvents)
+	annotations[CoreComponentGatewayNodePortProxyAnnotation] = fmt.Sprintf("%d", *c.Gateway.NodePorts.Proxy)
+	annotations[CoreComponentGatewayNodePortCloudEventsAnnotation] = fmt.Sprintf("%d", *c.Gateway.NodePorts.CloudEvents)
+	// Trigger
+	annotations[CoreComponentTriggerReplicasAnnotation] = fmt.Sprintf("%d", *c.Trigger.Replicas)
+	// Timer
+	annotations[CoreComponentTimerTimingWheelTickAnnotation] = fmt.Sprintf("%d", *c.Timer.TimingWheel.Tick)
+	annotations[CoreComponentTimerTimingWheelSizeAnnotation] = fmt.Sprintf("%d", *c.Timer.TimingWheel.Size)
+	annotations[CoreComponentTimerTimingWheelLayersAnnotation] = fmt.Sprintf("%d", *c.Timer.TimingWheel.Layers)
+	return annotations
 }

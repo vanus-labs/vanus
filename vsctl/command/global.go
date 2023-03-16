@@ -45,20 +45,44 @@ const (
 	BaseUrl                   = "/api/v1"
 )
 
+// Annotations supported by Core
 const (
-	CoreComponentEtcdReplicasAnnotation       = "core.vanus.ai/etcd-replicas"
-	CoreComponentControllerReplicasAnnotation = "core.vanus.ai/controller-replicas"
-	CoreComponentStoreReplicasAnnotation      = "core.vanus.ai/store-replicas"
-	CoreComponentGatewayReplicasAnnotation    = "core.vanus.ai/gateway-replicas"
-	CoreComponentTriggerReplicasAnnotation    = "core.vanus.ai/trigger-replicas"
-	CoreComponentTimerReplicasAnnotation      = "core.vanus.ai/timer-replicas"
-	CoreComponentEtcdStorageSizeAnnotation    = "core.vanus.ai/etcd-storage-size"
-	CoreComponentEtcdStorageClassAnnotation   = "core.vanus.ai/etcd-storage-class"
-	CoreComponentStoreStorageSizeAnnotation   = "core.vanus.ai/store-storage-size"
-	CoreComponentStoreStorageClassAnnotation  = "core.vanus.ai/store-storage-class"
-	ConnectorServiceTypeAnnotation            = "connector.vanus.ai/service-type"
-	ConnectorServicePortAnnotation            = "connector.vanus.ai/service-port"
-	ConnectorNetworkHostDomainAnnotation      = "connector.vanus.ai/network-host-domain"
+	// Etcd
+	CoreComponentEtcdPortClientAnnotation   = "core.vanus.ai/etcd-port-client"
+	CoreComponentEtcdPortPeerAnnotation     = "core.vanus.ai/etcd-port-peer"
+	CoreComponentEtcdReplicasAnnotation     = "core.vanus.ai/etcd-replicas"
+	CoreComponentEtcdStorageSizeAnnotation  = "core.vanus.ai/etcd-storage-size"
+	CoreComponentEtcdStorageClassAnnotation = "core.vanus.ai/etcd-storage-class"
+	// Controller
+	CoreComponentControllerSvcPortAnnotation         = "core.vanus.ai/controller-service-port"
+	CoreComponentControllerReplicasAnnotation        = "core.vanus.ai/controller-replicas"
+	CoreComponentControllerSegmentCapacityAnnotation = "core.vanus.ai/controller-segment-capacity"
+	// Root Controller
+	CoreComponentRootControllerSvcPortAnnotation = "core.vanus.ai/root-controller-service-port"
+	// Store
+	CoreComponentStoreReplicasAnnotation     = "core.vanus.ai/store-replicas"
+	CoreComponentStoreStorageSizeAnnotation  = "core.vanus.ai/store-storage-size"
+	CoreComponentStoreStorageClassAnnotation = "core.vanus.ai/store-storage-class"
+	// Gateway
+	CoreComponentGatewayPortProxyAnnotation           = "core.vanus.ai/gateway-port-proxy"
+	CoreComponentGatewayPortCloudEventsAnnotation     = "core.vanus.ai/gateway-port-cloudevents"
+	CoreComponentGatewayNodePortProxyAnnotation       = "core.vanus.ai/gateway-nodeport-proxy"
+	CoreComponentGatewayNodePortCloudEventsAnnotation = "core.vanus.ai/gateway-nodeport-cloudevents"
+	CoreComponentGatewayReplicasAnnotation            = "core.vanus.ai/gateway-replicas"
+	// Trigger
+	CoreComponentTriggerReplicasAnnotation = "core.vanus.ai/trigger-replicas"
+	// Timer
+	CoreComponentTimerReplicasAnnotation          = "core.vanus.ai/timer-replicas"
+	CoreComponentTimerTimingWheelTickAnnotation   = "core.vanus.ai/timer-timingwheel-tick"
+	CoreComponentTimerTimingWheelSizeAnnotation   = "core.vanus.ai/timer-timingwheel-size"
+	CoreComponentTimerTimingWheelLayersAnnotation = "core.vanus.ai/timer-timingwheel-layers"
+)
+
+// Annotations supported by Connector
+const (
+	ConnectorServiceTypeAnnotation       = "connector.vanus.ai/service-type"
+	ConnectorServicePortAnnotation       = "connector.vanus.ai/service-port"
+	ConnectorNetworkHostDomainAnnotation = "connector.vanus.ai/network-host-domain"
 )
 
 var retryTime = 30
