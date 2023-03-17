@@ -13,3 +13,20 @@
 // limitations under the License.
 
 package strings
+
+import (
+	"github.com/vanus-labs/vanus/internal/primitive/transform/action"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/arg"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/function"
+)
+
+// NewExtractBetweenPositionsAction ["sourceJSONPath", "targetJsonPath", "startPosition", "endPosition"]
+func NewExtractBetweenPositionsAction() action.Action {
+	a := &action.SourceTargetSameAction{}
+	a.CommonAction = action.CommonAction{
+		ActionName: "EXTRACT_BETWEEN_POSITIONS",
+		FixedArgs:  []arg.TypeList{arg.EventList, arg.All, arg.All, arg.All},
+		Fn:         function.ExtractBetweenPositionsFunction,
+	}
+	return a
+}
