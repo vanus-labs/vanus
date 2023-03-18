@@ -8,7 +8,7 @@ ARG TARGETOS
 ARG TARGETARCH
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-root
 
-FROM ubuntu:22.10
+FROM --platform=$BUILDPLATFORM ubuntu:22.10
 WORKDIR /vanus
 COPY --from=builder /workspace/bin/root-controller bin/root-controller
 ENTRYPOINT ["bin/root-controller"]

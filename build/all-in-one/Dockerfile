@@ -15,7 +15,7 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-timer
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-gateway
 
 
-FROM ubuntu:22.04
+FROM --platform=$BUILDPLATFORM ubuntu:22.10
 WORKDIR /vanus
 
 ARG VERSION
