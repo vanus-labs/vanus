@@ -25,5 +25,5 @@ RUN chmod a+x /vanus/toolbox/bin/*
 # clean
 RUN rm -rf etcd-v3.5.7-$TARGETOS-$TARGETARCH.*
 
-RUN echo 'vsctl="vsctl --endpoint vanus-gateway:8080 --operator-endpoint vanus-operator:8089"' >> ~/root/.bashrc
+RUN echo 'vsctl="vsctl --endpoint vanus-gateway:8080 --operator-endpoint vanus-operator:8089"' >> /root/.bashrc
 ENV PATH=$PATH:/vanus/toolbox/etcd:/vanus/toolbox/bin
