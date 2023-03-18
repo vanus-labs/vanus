@@ -25,7 +25,7 @@ RUN chmod a+x /vanus/toolbox/bin/*
 # clean
 RUN rm -rf etcd-v3.5.7-$TARGETOS-$TARGETARCH.*
 
-RUN alias vsctl="vsctl --endpoint vanus-gateway:8080 --operator-endpoint vanus-operator:8080/api"
+RUN alias vsctl="vsctl --endpoint vanus-gateway:8080 --operator-endpoint vanus-operator:8080/api/v1"
 ENV PATH=$PATH:/vanus/toolbox/etcd:/vanus/toolbox/bin
 
 ENTRYPOINT ["/usr/bin/bash"]
