@@ -185,26 +185,3 @@ var SplitFromStart = function{
 		return result, nil
 	},
 }
-
-var ExtractBetweenPositionsFunction = function{
-	name:      "EXTRACT_BETWEEN_POSITIONS",
-	fixedArgs: []common.Type{common.String, common.String, common.Int, common.Int},
-	fn: func(args []interface{}) (interface{}, error) {
-		value, _ := args[0].(string)
-		startPosition, _ := args[2].(int)
-		endPosition, _ := args[3].(int)
-		if startPosition > len(value) {
-			return nil, fmt.Errorf("start position must be equal or less than the length of the string")
-		}
-		if startPosition <= 0 {
-			return nil, fmt.Errorf("start position must be more than zero")
-		}
-		if endPosition > len(value) {
-			return nil, fmt.Errorf("end position must be equal or less than the length of the string")
-		}
-		if startPosition > endPosition {
-			return nil, fmt.Errorf("start position must be be equal or less than end position")
-		}
-		return value[startPosition-1 : endPosition-1], nil
-	},
-}

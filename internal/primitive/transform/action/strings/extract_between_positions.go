@@ -15,18 +15,58 @@
 package strings
 
 import (
+	"fmt"
+
 	"github.com/vanus-labs/vanus/internal/primitive/transform/action"
 	"github.com/vanus-labs/vanus/internal/primitive/transform/arg"
-	"github.com/vanus-labs/vanus/internal/primitive/transform/function"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/common"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
 )
 
-// NewExtractBetweenPositionsAction ["sourceJSONPath", "targetJsonPath", "startPosition", "endPosition"]
+type extractBetweenPositionsAction struct {
+	action.CommonAction
+}
+
+// NewExtractBetweenPositionsAction ["extract_between_positions",
+// "sourceJSONPath", "targetJsonPath", "startPosition", "endPosition"]
 func NewExtractBetweenPositionsAction() action.Action {
-	a := &action.SourceTargetSameAction{}
-	a.CommonAction = action.CommonAction{
-		ActionName: "EXTRACT_BETWEEN_POSITIONS",
-		FixedArgs:  []arg.TypeList{arg.EventList, arg.All, arg.All, arg.All},
-		Fn:         function.ExtractBetweenPositionsFunction,
+	return &extractBetweenPositionsAction{
+		CommonAction: action.CommonAction{
+			ActionName: "EXTRACT_BETWEEN_POSITIONS",
+			FixedArgs:  []arg.TypeList{arg.EventList, arg.EventList, arg.All, arg.All},
+		},
 	}
-	return a
+}
+
+func (a *extractBetweenPositionsAction) Init(args []arg.Arg) error {
+	a.TargetArg = args[1]
+	a.Args = []arg.Arg{args[0]}
+	a.Args = append(a.Args, args[2:]...)
+	a.ArgTypes = []common.Type{common.String, common.Int, common.Int}
+	return nil
+}
+
+func (a *extractBetweenPositionsAction) Execute(ceCtx *context.EventContext) error {
+	args, err := a.RunArgs(ceCtx)
+	if err != nil {
+		return err
+	}
+
+	sourceJSONPath, _ := args[0].(string)
+	startPosition, _ := args[1].(int)
+	endPosition, _ := args[2].(int)
+
+	if startPosition > len(sourceJSONPath) {
+		return fmt.Errorf("start position must be equal or less than the length of the string")
+	}
+	if startPosition <= 0 {
+		return fmt.Errorf("start position must be more than zero")
+	}
+	if endPosition > len(sourceJSONPath) {
+		return fmt.Errorf("end position must be equal or less than the length of the string")
+	}
+	if startPosition > endPosition {
+		return fmt.Errorf("start position must be be equal or less than end position")
+	}
+	return a.TargetArg.SetValue(ceCtx, sourceJSONPath[startPosition-1:endPosition])
 }
