@@ -244,7 +244,7 @@ func (ctrl *controller) createEventbus(
 		NamespaceId:  req.NamespaceId,
 		EventbusName: req.Name,
 	})
-	if !errors.Is(err, errors.ErrResourceNotFound) {
+	if err != nil && !errors.Is(err, errors.ErrResourceNotFound) {
 		return nil, err
 	}
 	if pb != nil {

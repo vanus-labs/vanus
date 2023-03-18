@@ -16,7 +16,6 @@ package raw_client
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strconv"
 	"sync"
@@ -64,10 +63,6 @@ func NewConnection(endpoints []string, credentials credentials.TransportCredenti
 }
 
 func (c *Conn) invoke(ctx context.Context, method string, args, reply interface{}, opts ...grpc.CallOption) error {
-	log.Debug(ctx, "grpc invoke", map[string]interface{}{
-		"method": method,
-		"args":   fmt.Sprintf("%v", args),
-	})
 	conn, err := c.makeSureClient(ctx, false)
 	if conn == nil || err != nil {
 		log.Warning(ctx, "not get client for controller", map[string]interface{}{
