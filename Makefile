@@ -56,7 +56,7 @@ t4=${t3} -X 'main.GoVersion=${GO_VERSION}'
 LD_FLAGS=${t4} -X 'main.Platform=${GOOS}/${GOARCH}'
 
 docker-push-toolbox:
-	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/toolbox:${IMAGE_TAG} -f build/toolbox/Dockerfile . --push
+	docker buildx build --no-cache --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/toolbox:${IMAGE_TAG} -f build/toolbox/Dockerfile . --push
 
 build-cmd:
 	$(GO_BUILD)  -ldflags "${LD_FLAGS}" -o bin/vsctl ./vsctl/
