@@ -240,6 +240,17 @@ func (ctrl *controller) createEventbus(
 			" maximum is %d", maximumEventlogNum))
 	}
 
+	pb, err := ctrl.GetEventbusWithHumanFriendly(ctx, &ctrlpb.GetEventbusWithHumanFriendlyRequest{
+		NamespaceId:  req.NamespaceId,
+		EventbusName: req.Name,
+	})
+	if !errors.Is(err, errors.ErrResourceNotFound) {
+		return nil, err
+	}
+	if pb != nil {
+		return nil, errors.ErrResourceAlreadyExist.WithMessage("the eventbus already exists")
+	}
+
 	id, err := vanus.NewID()
 	if err != nil {
 		log.Warning(ctx, "failed to create eventbus ID", map[string]interface{}{
