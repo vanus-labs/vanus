@@ -7,7 +7,7 @@ WORKDIR /vanus/toolbox
 
 RUN apt update -y && apt upgrade -y
 # install tools
-RUN apt install -y wget curl ncat
+RUN apt install -y wget curl ncat vim
 
 # install etcdctl
 RUN wget https://github.com/etcd-io/etcd/releases/download/v3.5.7/etcd-v3.5.7-$TARGETOS-$TARGETARCH.tar.gz
@@ -25,5 +25,5 @@ RUN chmod a+x /vanus/toolbox/bin/*
 # clean
 RUN rm -rf etcd-v3.5.7-$TARGETOS-$TARGETARCH.*
 
-RUN echo 'vsctl="vsctl --endpoint vanus-gateway:8080 --operator-endpoint vanus-operator:8089"' >> /root/.bashrc
+RUN echo 'alias vsctl="vsctl --endpoint vanus-gateway:8080 --operator-endpoint vanus-operator:8089"' >> /root/.bashrc
 ENV PATH=$PATH:/vanus/toolbox/etcd:/vanus/toolbox/bin
