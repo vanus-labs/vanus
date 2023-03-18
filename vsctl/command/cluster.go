@@ -169,7 +169,7 @@ func createClusterCommand() *cobra.Command {
 				}
 				fmt.Println("Start deploy operator...")
 				operator := exec.Command("kubectl", "apply", "-f",
-					"https://dl.vanus.ai/vanus/operator/latest.yml")
+					"https://dl.vanus.ai/vanus/operator/latest/vanus-operator.yml")
 				err = operator.Run()
 				if err != nil {
 					cmdFailedf(cmd, "deploy operator failed: %s", err)
@@ -399,7 +399,7 @@ func deleteClusterCommand() *cobra.Command {
 			}
 			fmt.Println("Start delete operator...")
 			operator := exec.Command("kubectl", "delete", "-f",
-				"https://dl.vanus.ai/vanus/operator/latest.yml")
+				"https://dl.vanus.ai/vanus/operator/latest/vanus-operator.yml")
 			err = operator.Run()
 			if err != nil {
 				cmdFailedf(cmd, "delete operator failed: %s", err)

@@ -154,7 +154,7 @@ func installConnectorCommand() *cobra.Command {
 			}
 
 			if !operatorIsDeployed(cmd, operatorEndpoint) {
-				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://dl.vanus.ai/vanus/operator/latest.yml")
+				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://dl.vanus.ai/vanus/operator/latest/vanus-operator.yml")
 			}
 
 			if isUnsupported(kind, ctype, connectorVersion) {
@@ -333,7 +333,7 @@ func listConnectorCommand() *cobra.Command {
 			}
 
 			if !operatorIsDeployed(cmd, operatorEndpoint) {
-				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://dl.vanus.ai/vanus/operator/latest.yml")
+				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://dl.vanus.ai/vanus/operator/latest/vanus-operator.yml")
 			}
 
 			client := &http.Client{}
