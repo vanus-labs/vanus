@@ -18,28 +18,31 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type URI string
 
 type Subscription struct {
-	ID              vanus.ID               `json:"id"`
-	Filters         SubscriptionFilterList `json:"filters,omitempty"`
-	Sink            URI                    `json:"sink,omitempty"`
-	EventBus        string                 `json:"eventbus"`
-	Offsets         info.ListOffsetInfo    `json:"offsets"`
-	Transformer     *Transformer           `json:"transformer,omitempty"`
-	Config          SubscriptionConfig     `json:"config,omitempty"`
-	Protocol        Protocol               `json:"protocol,omitempty"`
-	ProtocolSetting *ProtocolSetting       `json:"protocolSetting,omitempty"`
-	SinkCredential  SinkCredential         `json:"sink_credential,omitempty"`
+	ID                   vanus.ID               `json:"id"`
+	Filters              SubscriptionFilterList `json:"filters,omitempty"`
+	Sink                 URI                    `json:"sink,omitempty"`
+	EventbusID           vanus.ID               `json:"eventbus"`
+	DeadLetterEventbusID vanus.ID               `json:"dead_letter_eventbus_id"`
+	RetryEventbusID      vanus.ID               `json:"retry_eventbus_id"`
+	TimerEventbusID      vanus.ID               `json:"timer_eventbus_id"`
+	Offsets              info.ListOffsetInfo    `json:"offsets"`
+	Transformer          *Transformer           `json:"transformer,omitempty"`
+	Config               SubscriptionConfig     `json:"config,omitempty"`
+	Protocol             Protocol               `json:"protocol,omitempty"`
+	ProtocolSetting      *ProtocolSetting       `json:"protocol_setting,omitempty"`
+	SinkCredential       SinkCredential         `json:"sink_credential,omitempty"`
 }
 
 func (sub *Subscription) String() string {
-	return fmt.Sprintf("ID=%d, sink=%s, eventbus=%s, filters=%s, offsets=%s, transformer=%s, config=%s, protocol=%v",
-		sub.ID, sub.Sink, sub.EventBus, sub.Filters.String(), sub.Offsets.String(),
+	return fmt.Sprintf("VolumeID=%d, sink=%s, eventbus=%s, filters=%s, offsets=%s, transformer=%s, config=%s, protocol=%v",
+		sub.ID, sub.Sink, sub.EventbusID, sub.Filters.String(), sub.Offsets.String(),
 		sub.Transformer.String(), sub.Config.String(), sub.Protocol)
 }
 
@@ -144,7 +147,7 @@ type Action struct {
 /* annotation no use code .
 type SinkSpec struct {
 	Type   string
-	Name   string // TODO use id or name? ID used in CloudEvents Specification
+	NodeName   string // TODO use id or name? VolumeID used in CloudEvents Specification
 	Weight float32
 	Config map[string]interface{}
 }
@@ -162,14 +165,14 @@ const (
 )
 
 type FilterSpec struct {
-	Name    string
+	NodeName    string
 	Exp     interface{}
 	ApplyTo []string
 	Target  TargetSpec
 }
 
 type SubscriptionSpec struct {
-	EventBuses []string
+	Eventbuses []string
 	Sinks      []SinkSpec
 	Filters    []FilterSpec
 }

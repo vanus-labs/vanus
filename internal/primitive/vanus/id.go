@@ -22,13 +22,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/cluster"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"github.com/sony/sonyflake"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"go.uber.org/atomic"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -47,7 +47,7 @@ const (
 	StoreService
 	UnknownService
 
-	// NodeID space: [0, 65535], DON'T CHANGE THEM!!!
+	// NodeName space: [0, 65535], DON'T CHANGE THEM!!!
 	controllerNodeIDStart           = uint16(16)
 	reservedControlPanelNodeIDStart = uint16(32)
 	storeNodeIDStart                = uint16(1024)
@@ -138,9 +138,7 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 		return fmt.Errorf("the nodeID number: %d exceeded, range of %s is [%d, %d)",
 			n.logicID(), n.svc.Name(), n.start, n.end)
 	}
-
-	var err error
-	once.Do(func() {
+	initService := func() error {
 		ctrl := cluster.NewClusterController(ctrlAddr, insecure.NewCredentials())
 		snow := &snowflake{
 			client:   ctrl.IDService().RawClient(),
@@ -148,9 +146,9 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 			n:        n,
 		}
 		var startTime *timestamppb.Timestamp
-		startTime, err = snow.client.GetClusterStartTime(ctx, &empty.Empty{})
+		startTime, err := snow.client.GetClusterStartTime(ctx, &emptypb.Empty{})
 		if err != nil {
-			return
+			return err
 		}
 
 		snow.snow = sonyflake.NewSonyflake(sonyflake.Settings{
@@ -159,7 +157,9 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 				return n.logicID(), nil
 			},
 			CheckMachineID: func(u uint16) bool {
-				_, err := snow.client.RegisterNode(ctx, &wrapperspb.UInt32Value{Value: uint32(u)})
+				_, err := snow.client.RegisterNode(ctx, &wrapperspb.UInt32Value{
+					Value: uint32(u),
+				})
 				if err != nil {
 					log.Error(ctx, "register snowflake failed", map[string]interface{}{
 						log.KeyError: err,
@@ -170,14 +170,33 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 			},
 		})
 		if snow.snow == nil {
-			err = fmt.Errorf("init snowflake failed")
-			return
+			return fmt.Errorf("init snowflake failed")
 		}
 		generator = snow
 		initialized.Store(true)
-		log.Info(ctx, "succeed to init ID generator", map[string]interface{}{
+		log.Info(ctx, "succeed to init VolumeID generator", map[string]interface{}{
 			"node_id": snow.n.logicID(),
 		})
+		return nil
+	}
+	var err error
+	once.Do(func() {
+		ctx, cancel := context.WithTimeout(ctx, time.Minute)
+		defer cancel()
+		ticker := time.NewTicker(time.Second)
+
+		for {
+			select {
+			case <-ctx.Done():
+				err = errors.New("init snowflake id service timeout")
+				return
+			case <-ticker.C:
+				err = initService()
+				if err == nil {
+					return
+				}
+			}
+		}
 	})
 	return err
 }
@@ -224,9 +243,7 @@ func NewIDFromUint64(id uint64) ID {
 	return ID(id)
 }
 
-var (
-	ErrEmptyID = errors.New("id: empty")
-)
+var ErrEmptyID = errors.New("id: empty")
 
 func NewIDFromString(id string) (ID, error) {
 	if id == "" {

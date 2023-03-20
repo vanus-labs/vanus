@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=subscription.go  -destination=mock_subscription.go -package=storage
+//go:generate mockgen -source=subscription.go -destination=mock_subscription.go -package=storage
 package storage
 
 import (
@@ -20,10 +20,11 @@ import (
 	"encoding/json"
 	"path"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/errors"
+
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type SubscriptionStorage interface {
@@ -45,7 +46,7 @@ func NewSubscriptionStorage(client kv.Client) SubscriptionStorage {
 }
 
 func (s *subscriptionStorage) getKey(subID vanus.ID) string {
-	return path.Join(KeyPrefixSubscription.String(), subID.String())
+	return path.Join(kv.ResourceSubscription, subID.Key())
 }
 
 func (s *subscriptionStorage) CreateSubscription(ctx context.Context, sub *metadata.Subscription) error {
@@ -90,7 +91,7 @@ func (s *subscriptionStorage) GetSubscription(ctx context.Context, id vanus.ID) 
 }
 
 func (s *subscriptionStorage) ListSubscription(ctx context.Context) ([]*metadata.Subscription, error) {
-	l, err := s.client.List(ctx, KeyPrefixSubscription.String())
+	l, err := s.client.List(ctx, kv.ResourceSubscription)
 	if err != nil {
 		return nil, err
 	}

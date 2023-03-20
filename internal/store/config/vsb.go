@@ -19,7 +19,7 @@ import (
 	"time"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/vsb"
+	"github.com/vanus-labs/vanus/internal/store/vsb"
 )
 
 type VSBExecutorParallel struct {

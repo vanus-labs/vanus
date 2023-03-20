@@ -19,7 +19,7 @@ import (
 	"os"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/io/zone"
+	"github.com/vanus-labs/vanus/internal/store/io/zone"
 )
 
 type file struct {

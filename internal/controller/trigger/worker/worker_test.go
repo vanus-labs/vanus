@@ -20,15 +20,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	pbtrigger "github.com/linkall-labs/vanus/proto/pkg/trigger"
-
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+
+	pbtrigger "github.com/vanus-labs/vanus/proto/pkg/trigger"
+
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestTriggerWorker_AssignSubscription(t *testing.T) {

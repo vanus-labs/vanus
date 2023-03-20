@@ -19,8 +19,8 @@ package config
 
 import (
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/io/engine"
-	"github.com/linkall-labs/vanus/internal/store/io/engine/uring"
+	"github.com/vanus-labs/vanus/internal/store/io/engine"
+	"github.com/vanus-labs/vanus/internal/store/io/engine/uring"
 )
 
 func buildIOEngineEx(cfg IO) engine.Interface {

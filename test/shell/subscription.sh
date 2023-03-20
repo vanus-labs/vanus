@@ -2,7 +2,7 @@
 
 ctrlAddr=127.0.0.1:2048
 # create subscription
-grpcurl -d @ -plaintext $ctrlAddr  linkall.vanus.controller.TriggerController.CreateSubscription <<EOF
+grpcurl -d @ -plaintext $ctrlAddr  vanus.core.controller.TriggerController.CreateSubscription <<EOF
 {
   "filters": [
       {
@@ -12,11 +12,11 @@ grpcurl -d @ -plaintext $ctrlAddr  linkall.vanus.controller.TriggerController.Cr
       }
   ],
   "sink": "http://vance-display.default",
-  "eventBus": ""
+  "eventbus": ""
 }
 EOF
 # delete subscription
-grpcurl -d @ -plaintext $ctrlAddr  linkall.vanus.controller.TriggerController.DeleteSubscription <<EOF
+grpcurl -d @ -plaintext $ctrlAddr  vanus.core.controller.TriggerController.DeleteSubscription <<EOF
 {
   "id": 123
 }

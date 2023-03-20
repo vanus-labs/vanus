@@ -25,7 +25,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestEngine_ResolvePath(t *testing.T) {

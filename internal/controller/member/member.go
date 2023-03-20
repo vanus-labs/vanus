@@ -12,32 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=member.go -destination=mock_member.go -package=member
 package member
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"os"
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/observability/log"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
 	"go.uber.org/atomic"
+
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 var (
 	ErrStartEtcd            = errors.New("start etcd failed")
 	ErrStartEtcdCanceled    = errors.New("etcd start canceled")
-	defaultEtcdStartTimeout = 2 * time.Minute
+	defaultEtcdStartTimeout = time.Minute
 )
 
 type Member interface {
-	Init(context.Context, Config) error
-	Start(context.Context) (<-chan struct{}, error)
+	Init(context.Context) error
+	Start(context.Context) error
 	Stop(context.Context)
 	RegisterMembershipChangedProcessor(MembershipEventProcessor)
 	ResignIfLeader()
@@ -47,9 +48,11 @@ type Member interface {
 	IsReady() bool
 }
 
-func New(topology map[string]string) *member { //nolint:revive // it's ok
+var _ Member = &member{}
+
+func New(cfg Config) Member {
 	return &member{
-		topology: topology,
+		cfg: cfg,
 	}
 }
 
@@ -72,53 +75,55 @@ type MembershipChangedEvent struct {
 type MembershipEventProcessor func(ctx context.Context, event MembershipChangedEvent) error
 
 type member struct {
-	cfg           *Config
-	client        *clientv3.Client
-	resourcelock  string
-	leaseDuration int64
-	session       *concurrency.Session
-	mutex         *concurrency.Mutex
-	isLeader      atomic.Bool
-	handlers      []MembershipEventProcessor
-	topology      map[string]string
-	wg            sync.WaitGroup
-	handlerMu     sync.RWMutex
-	sessionMu     sync.RWMutex
-	exit          chan struct{}
-	isReady       atomic.Bool
+	cfg             Config
+	client          *clientv3.Client
+	resourceLockKey string
+	session         *concurrency.Session
+	mutex           *concurrency.Mutex
+	isLeader        atomic.Bool
+	handlers        []MembershipEventProcessor
+	handlerMu       sync.RWMutex
+	sessionMu       sync.RWMutex
+	exit            chan struct{}
+	isReady         atomic.Bool
+	wg              sync.WaitGroup
 }
 
 const (
-	dialTimeout          = 5
-	dialKeepAliveTime    = 1
-	dialKeepAliveTimeout = 3
-	acquireLockDuration  = 5
+	dialTimeout          = 5 * time.Second
+	dialKeepAliveTime    = 1 * time.Second
+	dialKeepAliveTimeout = 3 * time.Second
+	acquireLockDuration  = 5 * time.Second
 )
 
-func (m *member) Init(ctx context.Context, cfg Config) error {
-	m.cfg = &cfg
-	m.resourcelock = fmt.Sprintf("%s/%s", ResourceLockKeyPrefixInKVStore, cfg.Name)
-	m.leaseDuration = cfg.LeaseDuration
+func (m *member) Init(ctx context.Context) error {
+	m.resourceLockKey = kv.DistributedLockKey(m.cfg.ComponentName)
 	m.exit = make(chan struct{})
 
-	err := m.waitForEtcdReady(ctx, cfg.EtcdEndpoints)
+	err := m.waitForEtcdReady(ctx, m.cfg.EtcdEndpoints)
 	if err != nil {
-		log.Error(context.Background(), "etcd is not ready", nil)
+		log.Error(ctx, "etcd is not ready", nil)
 		return err
 	}
 
-	m.session, err = concurrency.NewSession(m.client, concurrency.WithTTL(int(m.leaseDuration)))
+	log.Info(ctx, "try to create session", nil)
+	start := time.Now()
+	m.session, err = concurrency.NewSession(m.client, concurrency.WithTTL(m.cfg.LeaseDurationInSecond))
 	if err != nil {
-		log.Error(context.Background(), "new session failed", map[string]interface{}{
+		log.Error(ctx, "new session failed", map[string]interface{}{
 			log.KeyError: err,
 		})
 		panic("new session failed")
 	}
-	m.mutex = concurrency.NewMutex(m.session, m.resourcelock)
-	log.Info(context.Background(), "new leaderelection manager", map[string]interface{}{
-		"name":           m.cfg.Name,
-		"key":            m.resourcelock,
-		"lease_duration": m.leaseDuration,
+	log.Info(ctx, "create session is finished", map[string]interface{}{
+		"duration": time.Since(start),
+	})
+
+	m.mutex = concurrency.NewMutex(m.session, m.resourceLockKey)
+	log.Info(ctx, "new leaderelection manager", map[string]interface{}{
+		"name":           m.cfg.NodeName,
+		"key":            m.resourceLockKey,
+		"lease_duration": m.cfg.LeaseDurationInSecond,
 	})
 	return nil
 }
@@ -146,9 +151,9 @@ func (m *member) waitForEtcdReady(ctx context.Context, endpoints []string) error
 func (m *member) ready(ctx context.Context, endpoints []string) bool {
 	client, err := clientv3.New(clientv3.Config{
 		Endpoints:            endpoints,
-		DialTimeout:          dialTimeout * time.Second,
-		DialKeepAliveTime:    dialKeepAliveTime * time.Second,
-		DialKeepAliveTimeout: dialKeepAliveTimeout * time.Second,
+		DialTimeout:          dialTimeout,
+		DialKeepAliveTime:    dialKeepAliveTime,
+		DialKeepAliveTimeout: dialKeepAliveTimeout,
 	})
 	if err != nil {
 		log.Warning(ctx, "new etcd v3client failed", map[string]interface{}{
@@ -160,43 +165,53 @@ func (m *member) ready(ctx context.Context, endpoints []string) bool {
 	return true
 }
 
-func (m *member) Start(ctx context.Context) (<-chan struct{}, error) {
-	log.Info(ctx, "start leaderelection", nil)
-	return m.tryAcquireLockLoop(ctx)
+func (m *member) Start(_ context.Context) error {
+	m.leaderElection()
+	return nil
 }
 
-func (m *member) tryAcquireLockLoop(ctx context.Context) (<-chan struct{}, error) {
+func (m *member) leaderElection() {
+	ctx := context.Background()
 	m.wg.Add(1)
 	go func() {
-		defer m.wg.Done()
-		ticker := time.NewTicker(acquireLockDuration * time.Second)
-		defer ticker.Stop()
+		ticker := time.NewTicker(acquireLockDuration)
+		defer func() {
+			ticker.Stop()
+			m.wg.Done()
+		}()
+		_ = m.tryLock(ctx) // execute after server start
 		for {
+		RUN:
 			select {
-			case <-ctx.Done():
-				log.Warning(ctx, "context canceled at try acquire lock loop", nil)
+			case <-m.exit:
+				log.Info(ctx, "leaderelection has stopped", nil)
 				return
 			case <-m.session.Done():
-				log.Warning(ctx, "lose lock", nil)
+				log.Warning(ctx, "lost lock", nil)
 				m.isLeader.Store(false)
 				m.isReady.Store(false)
 				_ = m.execHandlers(ctx, MembershipChangedEvent{
 					Type: EventBecomeFollower,
 				})
 				// refresh session until success
+				t := time.NewTicker(time.Second)
 				for {
-					if m.refresh(ctx) {
-						break
+					select {
+					case <-m.exit:
+						goto RUN
+					case <-t.C:
+						if m.refresh(ctx) {
+							t.Stop()
+							goto RUN
+						}
 					}
-					time.Sleep(time.Second)
 				}
 			case <-ticker.C:
 				_ = m.tryLock(ctx)
 			}
 		}
 	}()
-	log.Info(ctx, "start try to acquire lock loop...", nil)
-	return m.exit, nil
+	log.Info(ctx, "leaderelection has started", nil)
 }
 
 func (m *member) tryLock(ctx context.Context) error {
@@ -208,8 +223,8 @@ func (m *member) tryLock(ctx context.Context) error {
 		if errors.Is(err, concurrency.ErrLocked) {
 			m.isReady.Store(true)
 			log.Debug(ctx, "try acquire lock, already locked in another session", map[string]interface{}{
-				"identity":      m.cfg.Name,
-				"resource_lock": m.resourcelock,
+				"identity":      m.cfg.NodeName,
+				"resource_lock": m.resourceLockKey,
 			})
 			return err
 		}
@@ -219,16 +234,16 @@ func (m *member) tryLock(ctx context.Context) error {
 		return err
 	}
 
-	log.Info(ctx, "acquired lock", map[string]interface{}{
-		"identity":      m.cfg.Name,
-		"resource_lock": m.resourcelock,
+	log.Info(ctx, "success to acquire distributed lock", map[string]interface{}{
+		"identity":      m.cfg.NodeName,
+		"resource_lock": m.resourceLockKey,
 	})
 
 	err = m.setLeader(ctx)
 	if err != nil {
-		log.Error(ctx, "set leader info failed", map[string]interface{}{
-			"leader_id":   os.Getenv("POD_NAME"),
-			"leader_addr": m.topology[os.Getenv("POD_NAME")],
+		log.Error(ctx, "failed to set leader info", map[string]interface{}{
+			"leader_id":   m.cfg.NodeName,
+			"leader_addr": m.cfg.Topology[m.cfg.NodeName],
 			log.KeyError:  err,
 		})
 		_ = m.mutex.Unlock(ctx)
@@ -236,20 +251,20 @@ func (m *member) tryLock(ctx context.Context) error {
 	}
 
 	m.isLeader.Store(true)
-	m.isReady.Store(true)
 	log.Info(ctx, "controller become leader", nil)
 	_ = m.execHandlers(ctx, MembershipChangedEvent{
 		Type: EventBecomeLeader,
 	})
+	m.isReady.Store(true)
 	return nil
 }
 
 func (m *member) setLeader(ctx context.Context) error {
 	data, _ := json.Marshal(&LeaderInfo{
-		LeaderID:   os.Getenv("POD_NAME"),
-		LeaderAddr: m.topology[os.Getenv("POD_NAME")],
+		LeaderID:   m.cfg.NodeName,
+		LeaderAddr: m.cfg.Topology[m.cfg.NodeName],
 	})
-	_, err := m.client.Put(ctx, LeaderInfoKeyPrefixInKVStore, string(data))
+	_, err := m.client.Put(ctx, kv.ComponentLeaderKey(m.cfg.ComponentName), string(data))
 	return err
 }
 
@@ -257,20 +272,22 @@ func (m *member) refresh(ctx context.Context) bool {
 	var err error
 	m.sessionMu.Lock()
 	defer m.sessionMu.Unlock()
-	m.session.Close()
-	m.session, err = concurrency.NewSession(m.client, concurrency.WithTTL(int(m.leaseDuration)))
+	_ = m.session.Close()
+	m.session, err = concurrency.NewSession(m.client, concurrency.WithTTL(m.cfg.LeaseDurationInSecond))
 	if err != nil {
-		log.Error(context.Background(), "refresh session failed", map[string]interface{}{
+		log.Error(ctx, "refresh session failed", map[string]interface{}{
 			log.KeyError: err,
 		})
 		return false
 	}
-	m.mutex = concurrency.NewMutex(m.session, m.resourcelock)
+	m.mutex = concurrency.NewMutex(m.session, m.resourceLockKey)
 	return true
 }
 
 func (m *member) Stop(ctx context.Context) {
 	log.Info(ctx, "stop leaderelection", nil)
+	close(m.exit)
+	m.wg.Wait()
 	err := m.release(ctx)
 	if err != nil {
 		log.Error(ctx, "release lock failed", map[string]interface{}{
@@ -278,7 +295,6 @@ func (m *member) Stop(ctx context.Context) {
 		})
 		return
 	}
-	m.wg.Wait()
 }
 
 func (m *member) release(ctx context.Context) error {
@@ -305,6 +321,10 @@ func (m *member) release(ctx context.Context) error {
 func (m *member) execHandlers(ctx context.Context, event MembershipChangedEvent) error {
 	m.handlerMu.RLock()
 	defer m.handlerMu.RUnlock()
+	start := time.Now()
+	log.Debug(ctx, "start to call handlers", map[string]interface{}{
+		"event": event,
+	})
 	for _, handler := range m.handlers {
 		err := handler(ctx, event)
 		if err != nil {
@@ -314,6 +334,10 @@ func (m *member) execHandlers(ctx context.Context, event MembershipChangedEvent)
 			panic("exec handler failed")
 		}
 	}
+	log.Debug(ctx, "finish call handlers", map[string]interface{}{
+		"event":    event,
+		"duration": time.Since(start),
+	})
 	return nil
 }
 
@@ -333,7 +357,7 @@ func (m *member) IsLeader() bool {
 
 func (m *member) GetLeaderID() string {
 	// TODO(jiangkai): maybe lookup etcd per call has low performance.
-	resp, err := m.client.Get(context.Background(), LeaderInfoKeyPrefixInKVStore)
+	resp, err := m.client.Get(context.Background(), kv.ComponentLeaderKey(m.cfg.ComponentName))
 	if err != nil {
 		log.Warning(context.Background(), "get leader info failed", map[string]interface{}{
 			log.KeyError: err,
@@ -350,7 +374,7 @@ func (m *member) GetLeaderID() string {
 
 func (m *member) GetLeaderAddr() string {
 	// TODO(jiangkai): maybe lookup etcd per call has low performance.
-	resp, err := m.client.Get(context.Background(), LeaderInfoKeyPrefixInKVStore)
+	resp, err := m.client.Get(context.Background(), kv.ComponentLeaderKey(m.cfg.ComponentName))
 	if err != nil {
 		log.Warning(context.Background(), "get leader info failed", map[string]interface{}{
 			log.KeyError: err,

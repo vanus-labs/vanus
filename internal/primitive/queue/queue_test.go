@@ -17,9 +17,9 @@ package queue
 import (
 	"testing"
 
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestQueue(t *testing.T) {

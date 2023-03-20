@@ -23,16 +23,15 @@ import (
 	"os"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/observability"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/pkg/util/signal"
+	"github.com/vanus-labs/vanus/observability"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/util/signal"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store"
-	"github.com/linkall-labs/vanus/internal/store/block/raw"
-	"github.com/linkall-labs/vanus/internal/store/segment"
+	"github.com/vanus-labs/vanus/internal/store"
+	"github.com/vanus-labs/vanus/internal/store/block/raw"
+	"github.com/vanus-labs/vanus/internal/store/segment"
 )
 
 var configPath = flag.String("config", "./config/store.yaml", "store config file path")
@@ -48,6 +47,8 @@ func main() {
 		os.Exit(-1)
 	}
 
+	ctx := signal.SetupSignalContext()
+
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
 		log.Error(context.Background(), "Listen tcp port failed.", map[string]interface{}{
@@ -57,7 +58,6 @@ func main() {
 		os.Exit(-1)
 	}
 
-	ctx := signal.SetupSignalContext()
 	cfg.Observability.T.ServerName = "Vanus Store"
 	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetSegmentServerMetrics)
 	srv := segment.NewServer(*cfg)
@@ -74,16 +74,6 @@ func main() {
 		"listen_port": cfg.Port,
 	})
 
-	if err = vanus.InitSnowflake(ctx, cfg.ControllerAddresses,
-		vanus.NewNode(vanus.StoreService, cfg.Volume.ID)); err != nil {
-		log.Error(context.Background(), "init id generator failed", map[string]interface{}{
-			log.KeyError: err,
-			"port":       cfg.Port,
-		})
-		os.Exit(-3)
-	}
-	defer vanus.DestroySnowflake()
-
 	go func() {
 		if err = srv.Serve(listener); err != nil {
 			log.Error(ctx, "The SegmentServer occurred an error.", map[string]interface{}{
@@ -92,6 +82,13 @@ func main() {
 			return
 		}
 	}()
+
+	if err = srv.RegisterToController(ctx); err != nil {
+		log.Error(ctx, "failed to register self to controller", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(1)
+	}
 
 	select {
 	case <-ctx.Done():

@@ -22,15 +22,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/vanus-labs/vanus/observability/log"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 const (
@@ -66,29 +68,35 @@ func (c *Conn) invoke(ctx context.Context, method string, args, reply interface{
 		"method": method,
 		"args":   fmt.Sprintf("%v", args),
 	})
-	conn := c.makeSureClient(ctx, false)
-	if conn == nil {
-		log.Warning(ctx, "not get client for controller", map[string]interface{}{})
-		return errors.ErrNoControllerLeader
-	}
-	err := conn.Invoke(ctx, method, args, reply, opts...)
-	if err != nil {
-		log.Warning(ctx, "invoke error, try to retry", map[string]interface{}{
+	conn, err := c.makeSureClient(ctx, false)
+	if conn == nil || err != nil {
+		log.Warning(ctx, "not get client for controller", map[string]interface{}{
 			log.KeyError: err,
 		})
+		return err
 	}
-	if isNeedRetry(err) {
-		conn = c.makeSureClient(ctx, true)
-		if conn == nil {
-			log.Warning(ctx, "not get client when try to renew client", map[string]interface{}{})
-			return errors.ErrNoControllerLeader
-		}
+
+	for idx := 1; idx <= 3; idx++ {
 		err = conn.Invoke(ctx, method, args, reply, opts...)
-	}
-	if err != nil {
-		log.Warning(ctx, "invoke error", map[string]interface{}{
-			log.KeyError: err,
-		})
+		if err != nil {
+			log.Debug(ctx, "invoke error, try to retry", map[string]interface{}{
+				log.KeyError: err,
+			})
+		}
+		if errors.Is(err, errors.ErrNotReady) {
+			time.Sleep(time.Duration(3*idx) * time.Second)
+			continue
+		} else if isNeedRetry(err) {
+			conn, err = c.makeSureClient(ctx, true)
+			if conn == nil {
+				log.Warning(ctx, "not get client when try to renew client", map[string]interface{}{
+					log.KeyError: err,
+				})
+				return err
+			}
+		} else {
+			return err
+		}
 	}
 	return err
 }
@@ -107,16 +115,16 @@ func (c *Conn) close() error {
 	return err
 }
 
-func (c *Conn) makeSureClient(ctx context.Context, renew bool) *grpc.ClientConn {
+func (c *Conn) makeSureClient(ctx context.Context, renew bool) (*grpc.ClientConn, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	if c.leaderClient == nil || renew {
 		if c.bypass {
 			c.leaderClient = c.getGRPCConn(ctx, c.endpoints[0])
-			return c.leaderClient
+			return c.leaderClient, nil
 		}
-		log.Info(ctx, "try to create connection", map[string]interface{}{
+		log.Debug(ctx, "try to create connection", map[string]interface{}{
 			"renew":     renew,
 			"endpoints": c.endpoints,
 		})
@@ -132,12 +140,12 @@ func (c *Conn) makeSureClient(ctx context.Context, renew bool) *grpc.ClientConn 
 					"address":    v,
 					log.KeyError: err,
 				})
-				return nil
+				return nil, errors.ErrNoControllerLeader
 			}
 			c.leader = res.LeaderAddr
 			if v == res.LeaderAddr {
 				c.leaderClient = conn
-				return conn
+				return conn, nil
 			}
 			break
 		}
@@ -145,14 +153,14 @@ func (c *Conn) makeSureClient(ctx context.Context, renew bool) *grpc.ClientConn 
 		conn := c.getGRPCConn(ctx, c.leader)
 		if conn == nil {
 			log.Info(ctx, "failed to get Conn", map[string]interface{}{})
-			return nil
+			return nil, errors.ErrNoControllerLeader
 		}
 		log.Info(ctx, "success to get connection", map[string]interface{}{
 			"leader": c.leader,
 		})
 		c.leaderClient = conn
 	}
-	return c.leaderClient
+	return c.leaderClient, nil
 }
 
 func (c *Conn) getGRPCConn(ctx context.Context, addr string) *grpc.ClientConn {

@@ -17,12 +17,14 @@ package metrics
 import (
 	"context"
 	"fmt"
-	"github.com/linkall-labs/vanus/observability/log"
+	"net/http"
+	"regexp"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"net/http"
-	"regexp"
+
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 const (
@@ -88,7 +90,7 @@ func GetControllerMetrics() []prometheus.Collector {
 func GetGatewayMetrics() []prometheus.Collector {
 	coll := []prometheus.Collector{
 		GatewayEventReceivedCountVec,
-		//GatewayEventWriteLatencyHistogramVec,
+		// GatewayEventWriteLatencyHistogramVec,
 		GatewayEventWriteLatencySummaryVec,
 	}
 	return append(coll, getGoRuntimeMetrics()...)

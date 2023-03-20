@@ -32,20 +32,18 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var (
-	supportedConnectors = []ConnectorSpec{
-		{
-			Kind:    "source",
-			Type:    "http",
-			Version: "latest",
-		},
-		{
-			Kind:    "sink",
-			Type:    "feishu",
-			Version: "latest",
-		},
-	}
-)
+var supportedConnectors = []ConnectorSpec{
+	{
+		Kind:    "source",
+		Type:    "http",
+		Version: "latest",
+	},
+	{
+		Kind:    "sink",
+		Type:    "feishu",
+		Version: "latest",
+	},
+}
 
 type ConnectorSpec struct {
 	Kind    string
@@ -64,13 +62,6 @@ type ConnectorCreate struct {
 
 type ConnectorDelete struct {
 	Force *bool `json:"force,omitempty"`
-}
-
-type ConnectorPatch struct {
-	ControllerReplicas int32  `json:"controller_replicas,omitempty"`
-	StoreReplicas      int32  `json:"store_replicas,omitempty"`
-	TriggerReplicas    int32  `json:"trigger_replicas,omitempty"`
-	Version            string `json:"version,omitempty"`
 }
 
 type ConnectorInfo struct {
@@ -163,7 +154,7 @@ func installConnectorCommand() *cobra.Command {
 			}
 
 			if !operatorIsDeployed(cmd, operatorEndpoint) {
-				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://download.linkall.com/vanus/operator/latest.yml")
+				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://dl.vanus.ai/vanus/operator/latest/vanus-operator.yml")
 			}
 
 			if isUnsupported(kind, ctype, connectorVersion) {
@@ -253,7 +244,8 @@ func installConnectorCommand() *cobra.Command {
 	cmd.Flags().StringVar(&kind, "kind", "", "connector kind, support 'source' or 'sink'")
 	cmd.Flags().StringVar(&name, "name", "", "connector name")
 	cmd.Flags().StringVar(&ctype, "type", "", "connector type")
-	cmd.Flags().StringVar(&annotations, "annotations", "", "connector annotations (e.g. --annotations key1=value1,key2=value2)")
+	cmd.Flags().StringVar(&annotations, "annotations", "",
+		"connector annotations (e.g. --annotations key1=value1,key2=value2)")
 	cmd.Flags().BoolVar(&showConnectors, "list", false, "if show all connector of installable")
 	return cmd
 }
@@ -306,7 +298,9 @@ func uninstallConnectorCommand() *cobra.Command {
 			}
 
 			if IsFormatJSON(cmd) {
-				data, _ := json.Marshal(map[string]interface{}{"Result": "Uninstall Connector Success"})
+				data, _ := json.Marshal(map[string]interface{}{
+					"Result": "Uninstall Connector Success",
+				})
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
@@ -339,7 +333,7 @@ func listConnectorCommand() *cobra.Command {
 			}
 
 			if !operatorIsDeployed(cmd, operatorEndpoint) {
-				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://download.linkall.com/vanus/operator/latest.yml")
+				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://dl.vanus.ai/vanus/operator/latest/vanus-operator.yml")
 			}
 
 			client := &http.Client{}
@@ -376,7 +370,7 @@ func listConnectorCommand() *cobra.Command {
 				color.Yellow("WARN: this command doesn't support --output-format\n")
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Kind", "Name", "Type", "Version", "Status", "Reason"})
+				t.AppendHeader(table.Row{"Kind", "NodeName", "Type", "Version", "Status", "Reason"})
 				for i := range info.Data {
 					t.AppendRow(table.Row{
 						info.Data[i].Kind,
@@ -453,7 +447,7 @@ func getConnectorCommand() *cobra.Command {
 				color.Yellow("WARN: this command doesn't support --output-format\n")
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Kind", "Name", "Type", "Version", "Status", "Reason"})
+				t.AppendHeader(table.Row{"Kind", "NodeName", "Type", "Version", "Status", "Reason"})
 				t.AppendRows([]table.Row{
 					{
 						info.Data.Kind,

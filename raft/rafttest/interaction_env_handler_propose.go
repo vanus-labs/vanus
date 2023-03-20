@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/cockroachdb/datadriven"
-	"github.com/linkall-labs/vanus/raft"
+	"github.com/vanus-labs/vanus/raft"
 )
 
 func (env *InteractionEnv) handlePropose(t *testing.T, d datadriven.TestData) error {

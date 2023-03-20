@@ -16,8 +16,6 @@ package filter
 
 import (
 	"strings"
-
-	pkgUtil "github.com/linkall-labs/vanus/pkg/util"
 )
 
 type suffixFilter struct {
@@ -25,12 +23,7 @@ type suffixFilter struct {
 }
 
 func NewSuffixFilter(suffix map[string]string) Filter {
-	f := newCommonFilter(suffix, func(exist bool, value interface{}, compareValue string) bool {
-		if !exist {
-			return false
-		}
-		return strings.HasSuffix(pkgUtil.StringValue(value), compareValue)
-	})
+	f := newCommonFilter(suffix, strings.HasSuffix)
 	if f == nil {
 		return nil
 	}

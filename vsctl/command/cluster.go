@@ -30,22 +30,19 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+)
+
+const (
+	DefaultInitialVersion = "v0.7.0"
 )
 
 var (
-	clusterVersionList = []string{
-		"v0.5.0", "v0.5.1", "v0.5.2", "v0.5.3", "v0.5.4", "v0.5.5", "v0.5.6", "v0.5.7",
-		"v0.6.0",
-	}
+	clusterVersionList = []string{DefaultInitialVersion}
 )
 
 type ClusterCreate struct {
-	ControllerReplicas    int32  `json:"controller_replicas,omitempty"`
-	ControllerStorageSize string `json:"controller_storage_size,omitempty"`
-	StoreReplicas         int32  `json:"store_replicas,omitempty"`
-	StoreStorageSize      string `json:"store_storage_size,omitempty"`
-	Version               string `json:"version,omitempty"`
+	Version     string            `json:"version,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 type ClusterDelete struct {
@@ -53,10 +50,8 @@ type ClusterDelete struct {
 }
 
 type ClusterPatch struct {
-	ControllerReplicas int32  `json:"controller_replicas,omitempty"`
-	StoreReplicas      int32  `json:"store_replicas,omitempty"`
-	TriggerReplicas    int32  `json:"trigger_replicas,omitempty"`
-	Version            string `json:"version,omitempty"`
+	Version     string            `json:"version,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 type ClusterInfo struct {
@@ -71,24 +66,74 @@ type ClusterOKBody struct {
 }
 
 type ClusterSpec struct {
-	Version    string      `yaml:"version"`
+	Version    *string     `yaml:"version"`
+	Etcd       *Etcd       `yaml:"etcd"`
 	Controller *Controller `yaml:"controller"`
 	Store      *Store      `yaml:"store"`
+	Gateway    *Gateway    `yaml:"gateway"`
 	Trigger    *Trigger    `yaml:"trigger"`
+	Timer      *Timer      `yaml:"timer"`
+}
+
+type Etcd struct {
+	Ports        *EtcdPorts `yaml:"ports"`
+	Replicas     *int32     `yaml:"replicas"`
+	StorageSize  *string    `yaml:"storage_size"`
+	StorageClass *string    `yaml:"storage_class"`
 }
 
 type Controller struct {
-	Replicas    int32  `yaml:"replicas"`
-	StorageSize string `yaml:"storage_size"`
+	Ports           *ControllerPorts `yaml:"ports"`
+	Replicas        *int32           `yaml:"replicas"`
+	SegmentCapacity *string          `yaml:"segment_capacity"`
 }
 
 type Store struct {
-	Replicas    int32  `yaml:"replicas"`
-	StorageSize string `yaml:"storage_size"`
+	Replicas     *int32  `yaml:"replicas"`
+	StorageSize  *string `yaml:"storage_size"`
+	StorageClass *string `yaml:"storage_class"`
+}
+
+type Gateway struct {
+	Ports     *GatewayPorts     `yaml:"ports"`
+	NodePorts *GatewayNodePorts `yaml:"nodeports"`
+	Replicas  *int32            `yaml:"replicas"`
 }
 
 type Trigger struct {
-	Replicas int32 `yaml:"replicas"`
+	Replicas *int32 `yaml:"replicas"`
+}
+
+type Timer struct {
+	Replicas    *int32       `yaml:"replicas"`
+	TimingWheel *TimingWheel `yaml:"timingwheel"`
+}
+
+type EtcdPorts struct {
+	Client *int32 `yaml:"client"`
+	Peer   *int32 `yaml:"peer"`
+}
+
+type ControllerPorts struct {
+	Controller     *int32 `yaml:"controller"`
+	RootController *int32 `yaml:"root_controller"`
+}
+
+type GatewayPorts struct {
+	Proxy       *int32 `yaml:"proxy"`
+	CloudEvents *int32 `yaml:"cloudevents"`
+	SinkProxy   *int32 `yaml:"sink_proxy"`
+}
+
+type GatewayNodePorts struct {
+	Proxy       *int32 `yaml:"proxy"`
+	CloudEvents *int32 `yaml:"cloudevents"`
+}
+
+type TimingWheel struct {
+	Tick   *int32 `yaml:"tick"`
+	Size   *int32 `yaml:"wheel_size"`
+	Layers *int32 `yaml:"layers"`
 }
 
 func NewClusterCommand() *cobra.Command {
@@ -156,7 +201,8 @@ func createClusterCommand() *cobra.Command {
 					return
 				}
 				fmt.Println("Start deploy operator...")
-				operator := exec.Command("kubectl", "apply", "-f", "https://download.linkall.com/vanus/operator/latest.yml")
+				operator := exec.Command("kubectl", "apply", "-f",
+					"https://dl.vanus.ai/vanus/operator/latest/vanus-operator.yml")
 				err = operator.Run()
 				if err != nil {
 					cmdFailedf(cmd, "deploy operator failed: %s", err)
@@ -185,13 +231,31 @@ func createClusterCommand() *cobra.Command {
 				cmdFailedf(cmd, "load cluster config file failed: %s", err)
 			}
 
+			if !clusterIsVaild(c) {
+				cmdFailedf(cmd, "cluster config invaild")
+			}
+
 			clusterspec := table.NewWriter()
-			clusterspec.AppendHeader(table.Row{"Cluster", "Version", "Component", "Replicas", "StorageSize"})
-			clusterspec.AppendRow(table.Row{"vanus", c.Version, "controller", c.Controller.Replicas, c.Controller.StorageSize})
+			clusterspec.AppendHeader(table.Row{"Cluster", "Version", "Component", "Replicas", "StorageSize", "StorageClass"})
+			if c.Etcd.StorageClass == nil {
+				clusterspec.AppendRow(table.Row{"vanus", *c.Version, "etcd", *c.Etcd.Replicas, *c.Etcd.StorageSize, "-"})
+			} else {
+				clusterspec.AppendRow(table.Row{"vanus", *c.Version, "etcd", *c.Etcd.Replicas, *c.Etcd.StorageSize, *c.Etcd.StorageClass})
+			}
 			clusterspec.AppendSeparator()
-			clusterspec.AppendRow(table.Row{"vanus", c.Version, "store", c.Store.Replicas, c.Store.StorageSize})
+			if c.Store.StorageClass == nil {
+				clusterspec.AppendRow(table.Row{"vanus", *c.Version, "store", *c.Store.Replicas, *c.Store.StorageSize, "-"})
+			} else {
+				clusterspec.AppendRow(table.Row{"vanus", *c.Version, "store", *c.Store.Replicas, *c.Store.StorageSize, *c.Store.StorageClass})
+			}
 			clusterspec.AppendSeparator()
-			clusterspec.AppendRow(table.Row{"vanus", c.Version, "trigger", c.Trigger.Replicas})
+			clusterspec.AppendRow(table.Row{"vanus", *c.Version, "controller", *c.Controller.Replicas, "-", "-"})
+			clusterspec.AppendSeparator()
+			clusterspec.AppendRow(table.Row{"vanus", *c.Version, "gateway", *c.Gateway.Replicas, "-", "-"})
+			clusterspec.AppendSeparator()
+			clusterspec.AppendRow(table.Row{"vanus", *c.Version, "trigger", *c.Trigger.Replicas, "-", "-"})
+			clusterspec.AppendSeparator()
+			clusterspec.AppendRow(table.Row{"vanus", *c.Version, "timer", *c.Timer.Replicas, "-", "-"})
 			clusterspec.AppendSeparator()
 			clusterspec.SetColumnConfigs(clusterColConfigs())
 			fmt.Println(clusterspec.Render())
@@ -210,11 +274,8 @@ func createClusterCommand() *cobra.Command {
 			client := &http.Client{}
 			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operatorEndpoint, BaseUrl)
 			cluster := ClusterCreate{
-				ControllerReplicas:    c.Controller.Replicas,
-				ControllerStorageSize: c.Controller.StorageSize,
-				StoreReplicas:         c.Store.Replicas,
-				StoreStorageSize:      c.Store.StorageSize,
-				Version:               c.Version,
+				Version:     *c.Version,
+				Annotations: genClusterAnnotations(c),
 			}
 			dataByte, err := json.Marshal(cluster)
 			if err != nil {
@@ -264,7 +325,7 @@ func createClusterCommand() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringVar(&clusterVersion, "version", "v0.6.0", "cluster version")
+	cmd.Flags().StringVar(&clusterVersion, "version", DefaultInitialVersion, "cluster version")
 	cmd.Flags().StringVar(&clusterConfigFile, "config-file", "", "cluster config file")
 	cmd.Flags().BoolVar(&showInstallableList, "list", false, "if show all version of installable")
 	return cmd
@@ -358,7 +419,8 @@ func deleteClusterCommand() *cobra.Command {
 				return
 			}
 			fmt.Println("Start delete operator...")
-			operator := exec.Command("kubectl", "delete", "-f", "https://download.linkall.com/vanus/operator/latest.yml")
+			operator := exec.Command("kubectl", "delete", "-f",
+				"https://dl.vanus.ai/vanus/operator/latest/vanus-operator.yml")
 			err = operator.Run()
 			if err != nil {
 				cmdFailedf(cmd, "delete operator failed: %s", err)
@@ -501,79 +563,8 @@ func scaleClusterCommand() *cobra.Command {
 		Use:   "scale",
 		Short: "scale cluster components",
 	}
-	cmd.AddCommand(scaleControllerReplicas())
 	cmd.AddCommand(scaleStoreReplicas())
 	cmd.AddCommand(scaleTriggerReplicas())
-	return cmd
-}
-
-func scaleControllerReplicas() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "controller",
-		Short: "scale controller replicas",
-		Run: func(cmd *cobra.Command, args []string) {
-			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
-			if err != nil {
-				operatorEndpoint, err = getOperatorEndpoint()
-				if err != nil {
-					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
-				}
-			}
-
-			client := &http.Client{}
-			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operatorEndpoint, BaseUrl)
-			cluster := ClusterPatch{
-				ControllerReplicas: controllerReplicas,
-			}
-			dataByte, err := json.Marshal(cluster)
-			if err != nil {
-				cmdFailedf(cmd, "json marshal cluster failed: %s", err)
-			}
-			bodyReader := bytes.NewReader(dataByte)
-			req, err := http.NewRequest("PATCH", url, bodyReader)
-			if err != nil {
-				cmdFailedf(cmd, "new http request failed: %s", err)
-			}
-
-			req.Header.Set("Content-Type", "application/json")
-			resp, err := client.Do(req)
-			if err != nil {
-				cmdFailedf(cmd, "scale controller failed: %s", err)
-			}
-			defer resp.Body.Close()
-			if resp.StatusCode != http.StatusOK {
-				cmdFailedf(cmd, "Scale Controller Failed: %s", resp.Status)
-			}
-			body, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				cmdFailedf(cmd, "read response body: %s", err)
-			}
-			info := &ClusterOKBody{}
-			err = json.Unmarshal(body, info)
-			if err != nil {
-				cmdFailedf(cmd, "json unmarshal failed: %s", err)
-			}
-			if *info.Code != RespCodeOK {
-				cmdFailedf(cmd, "Scale Controller Failed: %s", *info.Message)
-			}
-
-			if IsFormatJSON(cmd) {
-				data, _ := json.Marshal(map[string]interface{}{"Result": "Scale Controller Success"})
-				color.Green(string(data))
-			} else {
-				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Result"})
-				t.AppendRow(table.Row{"Scale Controller Success"})
-				t.SetColumnConfigs([]table.ColumnConfig{
-					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
-					{Number: 2, AlignHeader: text.AlignCenter},
-				})
-				t.SetOutputMirror(os.Stdout)
-				t.Render()
-			}
-		},
-	}
-	cmd.Flags().Int32Var(&controllerReplicas, "replicas", 3, "replicas")
 	return cmd
 }
 
@@ -592,8 +583,10 @@ func scaleStoreReplicas() *cobra.Command {
 
 			client := &http.Client{}
 			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operatorEndpoint, BaseUrl)
+			annotations := make(map[string]string)
+			annotations[CoreComponentStoreReplicasAnnotation] = fmt.Sprintf("%d", storeReplicas)
 			cluster := ClusterPatch{
-				StoreReplicas: storeReplicas,
+				Annotations: annotations,
 			}
 			dataByte, err := json.Marshal(cluster)
 			if err != nil {
@@ -662,8 +655,10 @@ func scaleTriggerReplicas() *cobra.Command {
 
 			client := &http.Client{}
 			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operatorEndpoint, BaseUrl)
+			annotations := make(map[string]string)
+			annotations[CoreComponentTriggerReplicasAnnotation] = fmt.Sprintf("%d", triggerReplicas)
 			cluster := ClusterPatch{
-				TriggerReplicas: triggerReplicas,
+				Annotations: annotations,
 			}
 			dataByte, err := json.Marshal(cluster)
 			if err != nil {
@@ -764,7 +759,7 @@ func getClusterCommand() *cobra.Command {
 				color.Yellow("WARN: this command doesn't support --output-format\n")
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Name", "Result"})
+				t.AppendHeader(table.Row{"NodeName", "Result"})
 				t.AppendRows([]table.Row{
 					{"Gateway Endpoints", mustGetGatewayEndpoint(cmd)},
 					{"CloudEvents Endpoints", mustGetGatewayCloudEventsEndpoint(cmd)},
@@ -791,27 +786,56 @@ func genClusterCommand() *cobra.Command {
 		Use:   "generate",
 		Short: "generate cluster config file template",
 		Run: func(cmd *cobra.Command, args []string) {
-			cluster := &ClusterSpec{
-				Version: "v0.6.0",
-				Controller: &Controller{
-					Replicas:    3,
-					StorageSize: "1Gi",
-				},
-				Store: &Store{
-					Replicas:    3,
-					StorageSize: "1Gi",
-				},
-				Trigger: &Trigger{
-					Replicas: 1,
-				},
-			}
-			data, err := yaml.Marshal(cluster)
-			if err != nil {
-				cmdFailedf(cmd, "yaml marshal failed: %s", err)
-			}
-
+			template := bytes.Buffer{}
+			template.WriteString(fmt.Sprintf("version: %s\n", DefaultInitialVersion))
+			template.WriteString("etcd:\n")
+			template.WriteString("  # etcd service ports\n")
+			template.WriteString("  ports:\n")
+			template.WriteString("    client: 2379\n")
+			template.WriteString("    peer: 2380\n")
+			template.WriteString("  # etcd replicas is 3 by default, modification not supported\n")
+			template.WriteString("  replicas: 3\n")
+			template.WriteString("  # etcd storage size is 10Gi by default, supports both Gi and Mi units\n")
+			template.WriteString("  storage_size: 10Gi\n")
+			template.WriteString("  # specify the pvc storageclass of the etcd, use the cluster default storageclass by default\n")
+			template.WriteString("  # storage_class: gp3\n")
+			template.WriteString("controller:\n")
+			template.WriteString("  # controller service ports\n")
+			template.WriteString("  ports:\n")
+			template.WriteString("    controller: 2048\n")
+			template.WriteString("    root_controller: 2021\n")
+			template.WriteString("  # controller replicas is 2 by default, modification not supported\n")
+			template.WriteString("  replicas: 2\n")
+			template.WriteString("  # segment capacity is 64Mi by default, supports both Gi and Mi units\n")
+			template.WriteString("  segment_capacity: 64Mi\n")
+			template.WriteString("store:\n")
+			template.WriteString("  replicas: 3\n")
+			template.WriteString("  # store storage size is 10Gi by default, supports both Gi and Mi units\n")
+			template.WriteString("  storage_size: 10Gi\n")
+			template.WriteString("  # specify the pvc storageclass of the store, use the cluster default storageclass by default\n")
+			template.WriteString("  # storage_class: io2\n")
+			template.WriteString("gateway:\n")
+			template.WriteString("  # gateway service ports\n")
+			template.WriteString("  # gateway.ports.cloudevents specify the cloudevents port, the default value is gateway.ports.proxy+1 and customization is not supported\n")
+			template.WriteString("  ports:\n")
+			template.WriteString("    proxy: 8080\n")
+			template.WriteString("    cloudevents: 8081\n")
+			template.WriteString("  nodeports:\n")
+			template.WriteString("    proxy: 30001\n")
+			template.WriteString("    cloudevents: 30002\n")
+			template.WriteString("  # gateway replicas is 1 by default, modification not supported\n")
+			template.WriteString("  replicas: 1\n")
+			template.WriteString("trigger:\n")
+			template.WriteString("  replicas: 1\n")
+			template.WriteString("timer:\n")
+			template.WriteString("  # timer replicas is 2 by default, modification not supported\n")
+			template.WriteString("  replicas: 2\n")
+			template.WriteString("  timingwheel:\n")
+			template.WriteString("    tick: 1\n")
+			template.WriteString("    wheel_size: 32\n")
+			template.WriteString("    layers: 4\n")
 			fileName := "cluster.yaml.example"
-			err = ioutil.WriteFile(fileName, data, 0644)
+			err := ioutil.WriteFile(fileName, template.Bytes(), 0o644)
 			if err != nil {
 				cmdFailedf(cmd, "generate cluster config file template failed: %s", err)
 			}
@@ -870,6 +894,7 @@ func clusterColConfigs() []table.ColumnConfig {
 		{Number: 3, AutoMerge: false, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 		{Number: 4, AutoMerge: false, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 		{Number: 5, AutoMerge: false, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+		{Number: 6, AutoMerge: false, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 	}
 }
 
@@ -882,4 +907,42 @@ func getUpgradableVersionList(curVersion string) []string {
 		}
 	}
 	return clusterVersionList[curIdx+1:]
+}
+
+func clusterIsVaild(c *ClusterSpec) bool {
+	return c.Version != nil
+}
+
+func genClusterAnnotations(c *ClusterSpec) map[string]string {
+	annotations := make(map[string]string)
+	// Etcd
+	annotations[CoreComponentEtcdReplicasAnnotation] = fmt.Sprintf("%d", *c.Etcd.Replicas)
+	annotations[CoreComponentEtcdStorageSizeAnnotation] = *c.Etcd.StorageSize
+	annotations[CoreComponentEtcdPortClientAnnotation] = fmt.Sprintf("%d", *c.Etcd.Ports.Client)
+	annotations[CoreComponentEtcdPortPeerAnnotation] = fmt.Sprintf("%d", *c.Etcd.Ports.Peer)
+	if c.Etcd.StorageClass != nil {
+		annotations[CoreComponentEtcdStorageClassAnnotation] = *c.Etcd.StorageClass
+	}
+	// Controller
+	annotations[CoreComponentControllerSvcPortAnnotation] = fmt.Sprintf("%d", *c.Controller.Ports.Controller)
+	annotations[CoreComponentRootControllerSvcPortAnnotation] = fmt.Sprintf("%d", *c.Controller.Ports.RootController)
+	annotations[CoreComponentControllerSegmentCapacityAnnotation] = *c.Controller.SegmentCapacity
+	// Store
+	annotations[CoreComponentStoreReplicasAnnotation] = fmt.Sprintf("%d", *c.Store.Replicas)
+	annotations[CoreComponentStoreStorageSizeAnnotation] = *c.Store.StorageSize
+	if c.Store.StorageClass != nil {
+		annotations[CoreComponentStoreStorageClassAnnotation] = *c.Store.StorageClass
+	}
+	// Gateway
+	annotations[CoreComponentGatewayPortProxyAnnotation] = fmt.Sprintf("%d", *c.Gateway.Ports.Proxy)
+	annotations[CoreComponentGatewayPortCloudEventsAnnotation] = fmt.Sprintf("%d", *c.Gateway.Ports.CloudEvents)
+	annotations[CoreComponentGatewayNodePortProxyAnnotation] = fmt.Sprintf("%d", *c.Gateway.NodePorts.Proxy)
+	annotations[CoreComponentGatewayNodePortCloudEventsAnnotation] = fmt.Sprintf("%d", *c.Gateway.NodePorts.CloudEvents)
+	// Trigger
+	annotations[CoreComponentTriggerReplicasAnnotation] = fmt.Sprintf("%d", *c.Trigger.Replicas)
+	// Timer
+	annotations[CoreComponentTimerTimingWheelTickAnnotation] = fmt.Sprintf("%d", *c.Timer.TimingWheel.Tick)
+	annotations[CoreComponentTimerTimingWheelSizeAnnotation] = fmt.Sprintf("%d", *c.Timer.TimingWheel.Size)
+	annotations[CoreComponentTimerTimingWheelLayersAnnotation] = fmt.Sprintf("%d", *c.Timer.TimingWheel.Layers)
+	return annotations
 }

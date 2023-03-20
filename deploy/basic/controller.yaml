@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-controller
+  namespace: vanus
+data:
+  controller.yaml: |-
+    node_id: ${NODE_ID}
+    name: ${POD_NAME}
+    ip: ${POD_IP}
+    port: 2048
+    replicas: 3
+    segment_capacity: 4194304
+    secret_encryption_salt: "encryption_salt"
+    root_controllers:
+      - vanus-root-controller-0.vanus-root-controller:2021
+      - vanus-root-controller-1.vanus-root-controller:2021
+      - vanus-root-controller-2.vanus-root-controller:2021
+    observability:
+      metrics:
+        enable: true
+      tracing:
+        enable: false
+        # OpenTelemetry Collector endpoint, https://opentelemetry.io/docs/collector/getting-started/
+        otel_collector: http://127.0.0.1:4318
+    cluster:
+      component_name: controller
+      lease_duration_in_sec: 15
+      etcd:
+        - vanus-etcd-0.vanus-etcd:2379
+        - vanus-etcd-1.vanus-etcd:2379
+        - vanus-etcd-2.vanus-etcd:2379
+      topology:
+        vanus-controller-0: vanus-controller-0.vanus-controller.vanus.svc:2048
+        vanus-controller-1: vanus-controller-1.vanus-controller.vanus.svc:2048
+        vanus-controller-2: vanus-controller-2.vanus-controller.vanus.svc:2048
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vanus-controller
+  namespace: vanus
+spec:
+  selector:
+    app: vanus-controller
+  clusterIP: None
+  ports:
+    - port: 2048
+      name: vanus-controller
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vanus-controller
+  namespace: vanus
+  labels:
+    app: vanus-controller
+spec:
+  selector:
+    matchLabels:
+      app: vanus-controller
+  replicas: 3
+  serviceName: vanus-controller
+  template:
+    metadata:
+      labels:
+        app: vanus-controller
+      annotations:
+        vanus.dev/metrics.port: "2112"
+    spec:
+      containers:
+        - name: controller
+          image: public.ecr.aws/vanus/controller:v0.7.0
+          imagePullPolicy: IfNotPresent
+          command:
+            [ "/bin/sh", "-c", "NODE_ID=${HOSTNAME##*-} /vanus/bin/controller" ]
+          ports:
+            - name: grpc
+              containerPort: 2048
+            - name: metrics
+              containerPort: 2112
+          env:
+            - name: VANUS_LOG_LEVEL
+              value: INFO
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: config-controller
+              mountPath: /vanus/config
+      volumes:
+        - name: config-controller
+          configMap:
+            name: config-controller

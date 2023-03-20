@@ -24,13 +24,16 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 	. "github.com/golang/mock/gomock"
 	"github.com/google/uuid"
-	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/client/pkg/eventlog"
-	"github.com/linkall-labs/vanus/internal/trigger/info"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	"github.com/linkall-labs/vanus/proto/pkg/codec"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/client/pkg/eventlog"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	"github.com/vanus-labs/vanus/proto/pkg/codec"
+
+	"github.com/vanus-labs/vanus/internal/trigger/info"
 )
 
 func TestReaderStart(t *testing.T) {
@@ -48,7 +51,7 @@ func TestReaderStart(t *testing.T) {
 	mockEventbus.EXPECT().ListLog(Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
 	mockEventlog.EXPECT().ID().AnyTimes().Return(uint64(0))
 
-	Convey("test start eventLogs", t, func() {
+	Convey("test start eventlogs", t, func() {
 		offset := int64(100)
 		index := uint64(offset)
 		mockEventlog.EXPECT().LatestOffset(Any()).AnyTimes().Return(offset, nil)
@@ -69,7 +72,7 @@ func TestReaderStart(t *testing.T) {
 				// return []*ce.Event{&e}, int64(0), uint64(0), nil
 			})
 		eventCh := make(chan info.EventRecord, 100)
-		r := NewReader(Config{EventBusName: "test", BatchSize: 1}, eventCh).(*reader)
+		r := NewReader(Config{EventbusID: vanus.NewTestID(), BatchSize: 1}, eventCh).(*reader)
 		r.config.Client = mockClient
 		r.Start()
 		var wg sync.WaitGroup

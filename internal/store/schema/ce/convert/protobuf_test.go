@@ -23,7 +23,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	cetest "github.com/linkall-labs/vanus/internal/store/schema/ce/testing"
+	cetest "github.com/vanus-labs/vanus/internal/store/schema/ce/testing"
 )
 
 func TestToPb(t *testing.T) {
@@ -31,7 +31,7 @@ func TestToPb(t *testing.T) {
 	defer ctrl.Finish()
 
 	entry0 := cetest.MakeStoredEntry0(ctrl)
-	entry1 := cetest.MakeStoredEntry1(ctrl)
+	entry1 := cetest.MakeStoredEntry1(ctrl, true)
 
 	Convey("entry to pb", t, func() {
 		event0 := ToPb(entry0)

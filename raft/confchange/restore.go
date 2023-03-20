@@ -15,8 +15,8 @@
 package confchange
 
 import (
-	pb "github.com/linkall-labs/vanus/raft/raftpb"
-	"github.com/linkall-labs/vanus/raft/tracker"
+	pb "github.com/vanus-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/raft/tracker"
 )
 
 // toConfChangeSingle translates a conf state into 1) a slice of operations creating

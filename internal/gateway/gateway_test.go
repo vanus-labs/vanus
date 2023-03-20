@@ -16,20 +16,24 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"math/rand"
 	"net/url"
+	"strconv"
 	"testing"
 	"time"
-
-	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/internal/primitive"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	. "github.com/golang/mock/gomock"
 	. "github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestGateway_NewGateway(t *testing.T) {
@@ -46,9 +50,11 @@ func TestGateway_NewGateway(t *testing.T) {
 
 func TestGateway_StartReceive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
+	rd := rand.New(rand.NewSource(time.Now().UnixNano()))
+	p := rd.Int31n(60000) + 3000
 	ga := &ceGateway{
 		config: Config{
-			Port: 18080,
+			Port: int(p),
 		},
 	}
 	Convey("test start receive ", t, func() {
@@ -109,38 +115,26 @@ func TestGateway_receive(t *testing.T) {
 	// })
 }
 
-func TestGateway_checkExtension(t *testing.T) {
-	Convey("test check extensions", t, func() {
-		e := ce.NewEvent()
-		err := checkExtension(e.Extensions())
-		So(err, ShouldBeNil)
-		e.SetExtension(primitive.XVanusDeliveryTime, "test")
-		err = checkExtension(e.Extensions())
-		So(err, ShouldBeNil)
-		e.SetExtension(primitive.XVanus+"fortest", "test")
-		err = checkExtension(e.Extensions())
-		So(err, ShouldNotBeNil)
-	})
-}
-
-func TestGateway_getEventBusFromPath(t *testing.T) {
+func TestGateway_getEventbusFromPath(t *testing.T) {
 	Convey("test get eventbus from path return nil ", t, func() {
 		reqData := &cehttp.RequestData{
 			URL: &url.URL{
 				Opaque: "/test",
 			},
 		}
-		ret := getEventBusFromPath(reqData)
-		So(ret, ShouldEqual, "")
+		_, err := getEventbusFromPath(context.Background(), reqData)
+		So(errors.Is(err, strconv.ErrSyntax), ShouldBeTrue)
 	})
 	Convey("test get eventbus from path return path ", t, func() {
+		vid := vanus.NewTestID()
 		reqData := &cehttp.RequestData{
 			URL: &url.URL{
-				Opaque: "/gateway/test",
+				Opaque: fmt.Sprintf("/%s", vid.String()),
 			},
 		}
-		ret := getEventBusFromPath(reqData)
-		So(ret, ShouldEqual, "test")
+		id, err := getEventbusFromPath(context.Background(), reqData)
+		So(err, ShouldBeNil)
+		So(id, ShouldEqual, vid)
 	})
 }
 
@@ -148,8 +142,7 @@ func TestGateway_EventID(t *testing.T) {
 	ctrl := NewController(t)
 	defer ctrl.Finish()
 	var (
-		eventIDs    = "AABBCC"
-		busName     = "test"
+		busID       = vanus.NewTestID()
 		controllers = []string{"127.0.0.1:2048"}
 		port        = 8087
 	)
@@ -167,7 +160,7 @@ func TestGateway_EventID(t *testing.T) {
 	}
 	ga := NewGateway(cfg)
 
-	ga.client = mockClient
+	ga.proxySrv.SetClient(mockClient)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	_ = ga.startCloudEventsReceiver(ctx)
@@ -186,17 +179,14 @@ func TestGateway_EventID(t *testing.T) {
 		event.SetType("example.type")
 		_ = event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world"})
 
-		ctx := ce.ContextWithTarget(context.Background(), fmt.Sprintf("http://127.0.0.1:%d/gateway/%s", cfg.GetCloudEventReceiverPort(), busName))
+		ctx := ce.ContextWithTarget(context.Background(),
+			fmt.Sprintf("http://127.0.0.1:%d/gateway/%s", cfg.GetCloudEventReceiverPort(), busID))
 		resEvent, res := c.Request(ctx, event)
 		So(ce.IsACK(res), ShouldBeTrue)
 		var httpResult *cehttp.Result
 		ce.ResultAs(res, &httpResult)
 		So(httpResult, ShouldNotBeNil)
 
-		var ed EventData
-		err = resEvent.DataAs(&ed)
-		So(err, ShouldBeNil)
-		So(ed.BusName, ShouldEqual, busName)
-		So(ed.EventID, ShouldEqual, eventIDs)
+		So(resEvent, ShouldBeNil)
 	})
 }

@@ -24,8 +24,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	// first-party libraries.
-	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
+	cepb "github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 )
 
 const (
@@ -80,18 +80,43 @@ func MakeEvent1() *cepb.CloudEvent {
 				},
 			},
 			"attr0": {
-				Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeString{
-					CeString: "value0",
+				Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeBoolean{
+					CeBoolean: false,
 				},
 			},
 			"attr1": {
-				Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeString{
-					CeString: "value1",
+				Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeBoolean{
+					CeBoolean: true,
 				},
 			},
 			"attr2": {
+				Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeInteger{
+					CeInteger: 0x12345678,
+				},
+			},
+			"attr3": {
 				Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeString{
-					CeString: "value2",
+					CeString: "value3",
+				},
+			},
+			"attr4": {
+				Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeBytes{
+					CeBytes: []byte("value4"),
+				},
+			},
+			"attr5": {
+				Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeUri{
+					CeUri: "value5",
+				},
+			},
+			"attr6": {
+				Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeUriRef{
+					CeUriRef: "value6",
+				},
+			},
+			"attr7": {
+				Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeTimestamp{
+					CeTimestamp: timestamppb.New(ceTime),
 				},
 			},
 		},
@@ -118,14 +143,19 @@ func CheckEvent1(event *cepb.CloudEvent) {
 	So(event.Source, ShouldEqual, ceSource)
 	So(event.SpecVersion, ShouldEqual, ceSpecVersion)
 	So(event.Type, ShouldEqual, ceType)
-	So(event.Attributes, ShouldHaveLength, 8)
+	So(event.Attributes, ShouldHaveLength, 13)
 	So(event.Attributes[segpb.XVanusBlockOffset].GetCeInteger(), ShouldEqual, seq1)
 	So(event.Attributes[segpb.XVanusStime].GetCeTimestamp().AsTime(), ShouldEqual, time.UnixMilli(Stime))
 	So(event.Attributes["datacontenttype"].GetCeString(), ShouldEqual, ceDataContentType)
 	So(event.Attributes["subject"].GetCeString(), ShouldEqual, ceSubject)
 	So(event.Attributes["time"].GetCeTimestamp().AsTime(), ShouldEqual, ceTime)
-	So(event.Attributes["attr0"].GetCeString(), ShouldEqual, "value0")
-	So(event.Attributes["attr1"].GetCeString(), ShouldEqual, "value1")
-	So(event.Attributes["attr2"].GetCeString(), ShouldEqual, "value2")
+	So(event.Attributes["attr0"].GetCeBoolean(), ShouldBeFalse)
+	So(event.Attributes["attr1"].GetCeBoolean(), ShouldBeTrue)
+	So(event.Attributes["attr2"].GetCeInteger(), ShouldEqual, 0x12345678)
+	So(event.Attributes["attr3"].GetCeString(), ShouldEqual, "value3")
+	So(event.Attributes["attr4"].GetCeBytes(), ShouldResemble, []byte("value4"))
+	So(event.Attributes["attr5"].GetCeUri(), ShouldEqual, "value5")
+	So(event.Attributes["attr6"].GetCeUriRef(), ShouldEqual, "value6")
+	So(event.Attributes["attr7"].GetCeTimestamp().AsTime(), ShouldEqual, ceTime)
 	So(event.GetBinaryData(), ShouldResemble, ceData)
 }

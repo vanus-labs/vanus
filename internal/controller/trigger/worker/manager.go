@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=manager.go  -destination=mock_manager.go -package=worker
+//go:generate mockgen -source=manager.go -destination=mock_manager.go -package=worker
 package worker
 
 import (
@@ -21,13 +21,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/pkg/util"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/util"
+
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/storage"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 const (
@@ -50,9 +51,7 @@ type Manager interface {
 	Stop()
 }
 
-var (
-	ErrTriggerWorkerNotFound = fmt.Errorf("trigger worker not found")
-)
+var ErrTriggerWorkerNotFound = fmt.Errorf("trigger worker not found")
 
 type OnTriggerWorkerRemoveSubscription func(ctx context.Context, subId vanus.ID, addr string) error
 
@@ -102,7 +101,8 @@ type manager struct {
 func NewTriggerWorkerManager(config Config,
 	storage storage.TriggerWorkerStorage,
 	subscriptionManager subscription.Manager,
-	handler OnTriggerWorkerRemoveSubscription) Manager {
+	handler OnTriggerWorkerRemoveSubscription,
+) Manager {
 	config.init()
 	m := &manager{
 		config:               config,
@@ -220,6 +220,7 @@ func (m *manager) startTriggerWorker(ctx context.Context, tWorker TriggerWorker)
 		tWorker.AssignSubscription(id)
 	}
 }
+
 func (m *manager) cleanTriggerWorker(ctx context.Context, tWorker TriggerWorker) {
 	hasFail := m.doTriggerWorkerLeave(ctx, tWorker)
 	if hasFail {

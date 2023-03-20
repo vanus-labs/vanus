@@ -12,25 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=controller.go  -destination=mock_controller.go -package=cluster
+//go:generate mockgen -source=controller.go -destination=mock_controller.go -package=cluster
 package cluster
 
 import (
 	"context"
 	"errors"
+	errors2 "github.com/vanus-labs/vanus/pkg/errors"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/cluster/raw_client"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	"github.com/vanus-labs/vanus/proto/pkg/meta"
 )
 
-var (
-	defaultClusterStartTimeout = 3 * time.Minute
-)
+var defaultClusterStartTimeout = 3 * time.Minute
 
 type Topology struct {
 	ControllerLeader string
@@ -42,6 +44,7 @@ type Cluster interface {
 	WaitForControllerReady(createEventbus bool) error
 	Status() Topology
 	IsReady(createEventbus bool) bool
+	NamespaceService() NamespaceService
 	EventbusService() EventbusService
 	SegmentService() SegmentService
 	EventlogService() EventlogService
@@ -49,15 +52,25 @@ type Cluster interface {
 	IDService() IDService
 }
 
+type NamespaceService interface {
+	RawClient() ctrlpb.NamespaceControllerClient
+	GetSystemNamespace(ctx context.Context) (*meta.Namespace, error)
+	GetDefaultNamespace(ctx context.Context) (*meta.Namespace, error)
+	GetNamespace(ctx context.Context, id uint64) (*meta.Namespace, error)
+	GetNamespaceByName(ctx context.Context, name string) (*meta.Namespace, error)
+}
+
 type EventbusService interface {
-	IsExist(ctx context.Context, name string) bool
-	CreateSystemEventbusIfNotExist(ctx context.Context, name string, desc string) error
-	Delete(ctx context.Context, name string) error
-	RawClient() ctrlpb.EventBusControllerClient
+	CreateSystemEventbusIfNotExist(ctx context.Context, name string, desc string) (*meta.Eventbus, error)
+	Delete(ctx context.Context, id uint64) error
+	GetSystemEventbusByName(ctx context.Context, name string) (*meta.Eventbus, error)
+	GetEventbus(ctx context.Context, id uint64) (*meta.Eventbus, error)
+	GetEventbusByName(ctx context.Context, ns, name string) (*meta.Eventbus, error)
+	RawClient() ctrlpb.EventbusControllerClient
 }
 
 type EventlogService interface {
-	RawClient() ctrlpb.EventLogControllerClient
+	RawClient() ctrlpb.EventlogControllerClient
 }
 
 type TriggerService interface {
@@ -75,34 +88,39 @@ type SegmentService interface {
 }
 
 var (
-	mutex sync.Mutex
-	cl    Cluster
+	connCache = map[string]*raw_client.Conn{}
+	mutex     sync.Mutex
 )
 
 func NewClusterController(endpoints []string, credentials credentials.TransportCredentials) Cluster {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	// single instance
-	if cl == nil {
-		cc := raw_client.NewConnection(endpoints, credentials)
-		cl = &cluster{
-			cc:                cc,
-			ebSvc:             newEventbusService(cc),
-			segmentSvc:        newSegmentService(cc),
-			elSvc:             newEventlogService(cc),
-			triggerSvc:        newTriggerService(cc),
-			idSvc:             newIDService(cc),
-			ping:              raw_client.NewPingClient(cc),
-			controllerAddress: endpoints,
-		}
+	cc, exist := connCache[strings.Join(endpoints, ",")]
+	if !exist {
+		cc = raw_client.NewConnection(endpoints, credentials)
+		connCache[strings.Join(endpoints, ",")] = cc
 	}
-	return cl
+
+	// single instance
+	c := &cluster{
+		cc:                cc,
+		nsSvc:             newNamespaceService(cc),
+		segmentSvc:        newSegmentService(cc),
+		elSvc:             newEventlogService(cc),
+		triggerSvc:        newTriggerService(cc),
+		idSvc:             newIDService(cc),
+		ping:              raw_client.NewPingClient(cc),
+		controllerAddress: endpoints,
+	}
+	c.ebSvc = newEventbusService(cc, c.NamespaceService())
+	return c
 }
 
 type cluster struct {
 	controllerAddress []string
 	cc                *raw_client.Conn
+	nsSvc             NamespaceService
 	ebSvc             EventbusService
 	elSvc             EventlogService
 	triggerSvc        TriggerService
@@ -134,9 +152,11 @@ func (c *cluster) WaitForControllerReady(createEventbus bool) error {
 func (c *cluster) IsReady(createEventbus bool) bool {
 	res, err := c.ping.Ping(context.Background(), &emptypb.Empty{})
 	if err != nil {
-		log.Warning(context.Background(), "failed to ping controller", map[string]interface{}{
-			log.KeyError: err,
-		})
+		if !errors.Is(err, errors2.ErrNotLeader) {
+			log.Warning(context.Background(), "failed to ping controller", map[string]interface{}{
+				log.KeyError: err,
+			})
+		}
 		return false
 	}
 	if res.LeaderAddr == "" {
@@ -148,6 +168,10 @@ func (c *cluster) IsReady(createEventbus bool) bool {
 func (c *cluster) Status() Topology {
 	// TODO(wenfeng)
 	return Topology{}
+}
+
+func (c *cluster) NamespaceService() NamespaceService {
+	return c.nsSvc
 }
 
 func (c *cluster) EventbusService() EventbusService {

@@ -15,16 +15,16 @@
 package store
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	"sync"
 
-	// third-party libraries
+	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
 
-	// first-party libraries
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"github.com/linkall-labs/vanus/pkg/errors"
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/observability/tracing"
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 func NewAllocator() *Allocator {

@@ -18,21 +18,21 @@ import (
 	"context"
 	"io"
 
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 )
 
-var (
-	_ io.Closer = (*eventbusClient)(nil)
-)
+var _ io.Closer = (*eventbusClient)(nil)
 
 type eventbusClient struct {
 	cc *Conn
 }
 
-func NewEventbusClient(cc *Conn) ctrlpb.EventBusControllerClient {
+func NewEventbusClient(cc *Conn) ctrlpb.EventbusControllerClient {
 	return &eventbusClient{
 		cc: cc,
 	}
@@ -42,54 +42,77 @@ func (ec *eventbusClient) Close() error {
 	return ec.cc.close()
 }
 
-func (ec *eventbusClient) CreateEventBus(ctx context.Context, in *ctrlpb.CreateEventBusRequest, opts ...grpc.CallOption) (*metapb.EventBus, error) {
-	out := new(metapb.EventBus)
-	err := ec.cc.invoke(ctx, "/linkall.vanus.controller.EventBusController/CreateEventBus", in, out, opts...)
+func (ec *eventbusClient) CreateEventbus(
+	ctx context.Context, in *ctrlpb.CreateEventbusRequest, opts ...grpc.CallOption,
+) (*metapb.Eventbus, error) {
+	out := new(metapb.Eventbus)
+	err := ec.cc.invoke(ctx, "/vanus.core.controller.EventbusController/CreateEventbus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (ec *eventbusClient) CreateSystemEventBus(ctx context.Context, in *ctrlpb.CreateEventBusRequest, opts ...grpc.CallOption) (*metapb.EventBus, error) {
-	out := new(metapb.EventBus)
-	err := ec.cc.invoke(ctx, "/linkall.vanus.controller.EventBusController/CreateSystemEventBus", in, out, opts...)
+func (ec *eventbusClient) CreateSystemEventbus(
+	ctx context.Context, in *ctrlpb.CreateEventbusRequest, opts ...grpc.CallOption,
+) (*metapb.Eventbus, error) {
+	out := new(metapb.Eventbus)
+	err := ec.cc.invoke(ctx, "/vanus.core.controller.EventbusController/CreateSystemEventbus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (ec *eventbusClient) DeleteEventBus(ctx context.Context, in *metapb.EventBus, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (ec *eventbusClient) DeleteEventbus(
+	ctx context.Context, in *wrapperspb.UInt64Value, opts ...grpc.CallOption,
+) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := ec.cc.invoke(ctx, "/linkall.vanus.controller.EventBusController/DeleteEventBus", in, out, opts...)
+	err := ec.cc.invoke(ctx, "/vanus.core.controller.EventbusController/DeleteEventbus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (ec *eventbusClient) GetEventBus(ctx context.Context, in *metapb.EventBus, opts ...grpc.CallOption) (*metapb.EventBus, error) {
-	out := new(metapb.EventBus)
-	err := ec.cc.invoke(ctx, "/linkall.vanus.controller.EventBusController/GetEventBus", in, out, opts...)
+func (ec *eventbusClient) GetEventbus(
+	ctx context.Context, in *wrapperspb.UInt64Value, opts ...grpc.CallOption,
+) (*metapb.Eventbus, error) {
+	out := new(metapb.Eventbus)
+	err := ec.cc.invoke(ctx, "/vanus.core.controller.EventbusController/GetEventbus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (ec *eventbusClient) ListEventBus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ctrlpb.ListEventbusResponse, error) {
+func (ec *eventbusClient) ListEventbus(
+	ctx context.Context, in *ctrlpb.ListEventbusRequest, opts ...grpc.CallOption,
+) (*ctrlpb.ListEventbusResponse, error) {
 	out := new(ctrlpb.ListEventbusResponse)
-	err := ec.cc.invoke(ctx, "/linkall.vanus.controller.EventBusController/ListEventBus", in, out, opts...)
+	err := ec.cc.invoke(ctx, "/vanus.core.controller.EventbusController/ListEventbus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (ec *eventbusClient) UpdateEventBus(ctx context.Context, in *ctrlpb.UpdateEventBusRequest, opts ...grpc.CallOption) (*metapb.EventBus, error) {
-	out := new(metapb.EventBus)
-	err := ec.cc.invoke(ctx, "/linkall.vanus.controller.EventBusController/UpdateEventBus", in, out, opts...)
+func (ec *eventbusClient) UpdateEventbus(
+	ctx context.Context, in *ctrlpb.UpdateEventbusRequest, opts ...grpc.CallOption,
+) (*metapb.Eventbus, error) {
+	out := new(metapb.Eventbus)
+	err := ec.cc.invoke(ctx, "/vanus.core.controller.EventbusController/UpdateEventbus", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (ec *eventbusClient) GetEventbusWithHumanFriendly(
+	ctx context.Context, in *ctrlpb.GetEventbusWithHumanFriendlyRequest, opts ...grpc.CallOption,
+) (*metapb.Eventbus, error) {
+	out := new(metapb.Eventbus)
+	err := ec.cc.invoke(ctx, ctrlpb.EventbusController_GetEventbusWithHumanFriendly_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}

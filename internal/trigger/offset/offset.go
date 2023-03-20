@@ -18,8 +18,9 @@ import (
 	"sync"
 
 	"github.com/huandu/skiplist"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+
+	"github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func NewSubscriptionOffset(id vanus.ID, maxUACKNumber int, initOffsets info.ListOffsetInfo) *SubscriptionOffset {
@@ -30,7 +31,7 @@ func NewSubscriptionOffset(id vanus.ID, maxUACKNumber int, initOffsets info.List
 		elOffsets:      make(map[vanus.ID]*offsetTracker, len(initOffsets)),
 	}
 	for _, offset := range initOffsets {
-		sub.elOffsets[offset.EventLogID] = initOffset(offset.Offset)
+		sub.elOffsets[offset.EventlogID] = initOffset(offset.Offset)
 	}
 	return sub
 }
@@ -61,10 +62,10 @@ func (offset *SubscriptionOffset) EventReceive(info info.OffsetInfo) {
 		return
 	}
 	offset.uACKNumber++
-	tracker, exist := offset.elOffsets[info.EventLogID]
+	tracker, exist := offset.elOffsets[info.EventlogID]
 	if !exist {
 		tracker = initOffset(info.Offset)
-		offset.elOffsets[info.EventLogID] = tracker
+		offset.elOffsets[info.EventlogID] = tracker
 	}
 	tracker.putOffset(info.Offset)
 }
@@ -75,7 +76,7 @@ func (offset *SubscriptionOffset) EventCommit(info info.OffsetInfo) {
 	if offset.closed {
 		return
 	}
-	tracker, exist := offset.elOffsets[info.EventLogID]
+	tracker, exist := offset.elOffsets[info.EventlogID]
 	if !exist {
 		return
 	}
@@ -90,7 +91,7 @@ func (offset *SubscriptionOffset) GetCommit() info.ListOffsetInfo {
 	var commit info.ListOffsetInfo
 	for id, tracker := range offset.elOffsets {
 		commit = append(commit, info.OffsetInfo{
-			EventLogID: id,
+			EventlogID: id,
 			Offset:     tracker.offsetToCommit(),
 		})
 	}

@@ -24,7 +24,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	// first-party libraries.
-	raftpb "github.com/linkall-labs/vanus/proto/pkg/raft"
+	raftpb "github.com/vanus-labs/vanus/proto/pkg/raft"
 )
 
 type server struct {

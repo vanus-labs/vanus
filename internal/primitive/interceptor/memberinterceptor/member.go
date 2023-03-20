@@ -18,30 +18,41 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/linkall-labs/vanus/internal/controller/member"
-	"github.com/linkall-labs/vanus/pkg/errors"
 	"google.golang.org/grpc"
+
+	"github.com/vanus-labs/vanus/pkg/errors"
+
+	"github.com/vanus-labs/vanus/internal/controller/member"
 )
 
 func StreamServerInterceptor(mem member.Member) grpc.StreamServerInterceptor {
-	return func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	return func(
+		srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler,
+	) error {
 		if !mem.IsLeader() {
 			// TODO  read-only request bypass
 			return errors.ErrNotLeader.WithMessage(
 				fmt.Sprintf("i'm not leader, please connect to: %s", mem.GetLeaderAddr()))
+		}
+		if !mem.IsReady() {
+			return errors.ErrNotReady
 		}
 		return handler(srv, stream)
 	}
 }
 
 func UnaryServerInterceptor(mem member.Member) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo,
-		handler grpc.UnaryHandler) (interface{}, error) {
-		if info.FullMethod != "/linkall.vanus.controller.PingServer/Ping" &&
+	return func(
+		ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler,
+	) (interface{}, error) {
+		if info.FullMethod != "/vanus.core.controller.PingServer/Ping" &&
 			!mem.IsLeader() {
 			// TODO  read-only request bypass
 			return nil, errors.ErrNotLeader.WithMessage(
 				fmt.Sprintf("i'm not leader, please connect to: %s", mem.GetLeaderAddr()))
+		}
+		if info.FullMethod != "/vanus.core.controller.PingServer/Ping" && !mem.IsReady() {
+			return nil, errors.ErrNotReady
 		}
 		return handler(ctx, req)
 	}

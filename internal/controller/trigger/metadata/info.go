@@ -19,9 +19,10 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/pkg/util"
+	"github.com/vanus-labs/vanus/pkg/util"
+
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type TriggerWorkerPhase string
@@ -55,12 +56,12 @@ func (tw *TriggerWorkerInfo) String() string {
 type SubscriptionPhase string
 
 const (
-	SubscriptionPhaseCreated  = "created"
-	SubscriptionPhasePending  = "pending"
-	SubscriptionPhaseRunning  = "running"
-	SubscriptionPhaseStopping = "stopping"
-	SubscriptionPhaseStopped  = "stopped"
-	SubscriptionPhaseToDelete = "toDelete"
+	SubscriptionPhaseCreated  SubscriptionPhase = "created"
+	SubscriptionPhasePending  SubscriptionPhase = "pending"
+	SubscriptionPhaseRunning  SubscriptionPhase = "running"
+	SubscriptionPhaseStopping SubscriptionPhase = "stopping"
+	SubscriptionPhaseStopped  SubscriptionPhase = "stopped"
+	SubscriptionPhaseToDelete SubscriptionPhase = "toDelete"
 )
 
 type Subscription struct {
@@ -74,7 +75,8 @@ type Subscription struct {
 	SinkCredential     primitive.SinkCredential        `json:"-"`
 	Protocol           primitive.Protocol              `json:"protocol,omitempty"`
 	ProtocolSetting    *primitive.ProtocolSetting      `json:"protocol_settings,omitempty"`
-	EventBus           string                          `json:"eventbus"`
+	EventbusID         vanus.ID                        `json:"eventbus_id"`
+	NamespaceID        vanus.ID                        `json:"namespace_id"`
 	Transformer        *primitive.Transformer          `json:"transformer,omitempty"`
 	Name               string                          `json:"name"`
 	Description        string                          `json:"description"`
@@ -82,9 +84,12 @@ type Subscription struct {
 	UpdatedAt          time.Time                       `json:"updated_at"`
 
 	// not from api
-	Phase         SubscriptionPhase `json:"phase"`
-	TriggerWorker string            `json:"trigger_worker,omitempty"`
-	HeartbeatTime time.Time         `json:"-"`
+	DeadLetterEventbusID vanus.ID          `json:"dead_letter_eventbus_id"`
+	RetryEventbusID      vanus.ID          `json:"retry_eventbus_id"`
+	TimerEventbusID      vanus.ID          `json:"timer_eventbus_id"`
+	Phase                SubscriptionPhase `json:"phase"`
+	TriggerWorker        string            `json:"trigger_worker,omitempty"`
+	HeartbeatTime        time.Time         `json:"-"`
 }
 
 // Update property change from api .

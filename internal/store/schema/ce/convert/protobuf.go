@@ -16,18 +16,20 @@ package convert
 
 import (
 	// standard libraries.
+	"encoding/binary"
 	"time"
 
 	// third-party libraries.
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	// first-party libraries.
-	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
+	cepb "github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/block"
-	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	ceschema "github.com/vanus-labs/vanus/internal/store/schema/ce"
+	cetype "github.com/vanus-labs/vanus/internal/store/schema/ce/typesystem"
 )
 
 type ceWrapper struct {
@@ -64,12 +66,6 @@ func (w *ceWrapper) Subject() string {
 
 func (w *ceWrapper) Time() time.Time {
 	return w.e.GetTime(ceschema.TimeOrdinal)
-	// str := w.e.GetString(ceschema.TimeOrdinal)
-	// if str == "" {
-	// 	return time.Time{}
-	// }
-	// t, _ := time.Parse(time.RFC3339, str)
-	// return t
 }
 
 func (w *ceWrapper) Extension(ext []byte) []byte {
@@ -118,12 +114,9 @@ func ToPb(e block.Entry) *cepb.CloudEvent {
 			},
 		}
 	}
-	w.e.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr, val []byte) {
-		// TODO(james.yin): support native type.
-		event.Attributes[string(attr)] = &cepb.CloudEvent_CloudEventAttributeValue{
-			Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeString{
-				CeString: string(val),
-			},
+	w.e.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr []byte, val block.Value) {
+		if v := toPbValue(val); v != nil {
+			event.Attributes[string(attr)] = toPbValue(val)
 		}
 	}))
 	// Overwrite XVanusBlockOffset and XVanusStime if exists.
@@ -145,4 +138,69 @@ func ToPb(e block.Entry) *cepb.CloudEvent {
 	}
 
 	return &event
+}
+
+func toPbValue(val block.Value) *cepb.CloudEvent_CloudEventAttributeValue {
+	v := val.Value()
+	n := len(v)
+
+	if n == 0 {
+		return nil // unreachable
+	}
+
+	switch v[n-1] {
+	case cetype.AttrTypeFalse:
+		return &cepb.CloudEvent_CloudEventAttributeValue{
+			Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeBoolean{
+				CeBoolean: false,
+			},
+		}
+	case cetype.AttrTypeTrue:
+		return &cepb.CloudEvent_CloudEventAttributeValue{
+			Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeBoolean{
+				CeBoolean: true,
+			},
+		}
+	case cetype.AttrTypeInteger:
+		return &cepb.CloudEvent_CloudEventAttributeValue{
+			Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeInteger{
+				CeInteger: int32(binary.LittleEndian.Uint32(v[:n-1])),
+			},
+		}
+	case cetype.AttrTypeString:
+		return &cepb.CloudEvent_CloudEventAttributeValue{
+			Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeString{
+				CeString: string(v[:n-1]),
+			},
+		}
+	case cetype.AttrTypeBytes:
+		return &cepb.CloudEvent_CloudEventAttributeValue{
+			Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeBytes{
+				CeBytes: v[:n-1],
+			},
+		}
+	case cetype.AttrTypeURI:
+		return &cepb.CloudEvent_CloudEventAttributeValue{
+			Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeUri{
+				CeUri: string(v[:n-1]),
+			},
+		}
+	case cetype.AttrTypeURIRef:
+		return &cepb.CloudEvent_CloudEventAttributeValue{
+			Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeUriRef{
+				CeUriRef: string(v[:n-1]),
+			},
+		}
+	case cetype.AttrTypeTimestamp:
+		return &cepb.CloudEvent_CloudEventAttributeValue{
+			Attr: &cepb.CloudEvent_CloudEventAttributeValue_CeTimestamp{
+				CeTimestamp: &timestamppb.Timestamp{
+					Seconds: int64(binary.LittleEndian.Uint64(v[:n-5])),
+					Nanos:   int32(binary.LittleEndian.Uint32(v[n-5 : n-1])),
+				},
+			},
+		}
+	}
+
+	return nil // attrTypeNone
 }

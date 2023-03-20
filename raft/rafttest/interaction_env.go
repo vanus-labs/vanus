@@ -20,8 +20,8 @@ import (
 	"math"
 	"strings"
 
-	"github.com/linkall-labs/vanus/raft"
-	pb "github.com/linkall-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/raft"
+	pb "github.com/vanus-labs/vanus/raft/raftpb"
 )
 
 // InteractionOpts groups the options for an InteractionEnv.

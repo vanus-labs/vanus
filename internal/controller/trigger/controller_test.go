@@ -21,17 +21,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/worker"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
-
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/worker"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestController_CommitOffset(t *testing.T) {
@@ -52,13 +53,14 @@ func TestController_CommitOffset(t *testing.T) {
 			SubscriptionInfo: []*metapb.SubscriptionInfo{{
 				SubscriptionId: subID.Uint64(),
 				Offsets: []*metapb.OffsetInfo{{
-					EventLogId: vanus.NewTestID().Uint64(),
+					EventlogId: vanus.NewTestID().Uint64(),
 					Offset:     100,
 				}},
 			}},
 		}
 		Convey("commit offset fail", func() {
-			subManager.EXPECT().SaveOffset(gomock.Any(), gomock.Eq(subID), gomock.Any(), gomock.Any()).Return(fmt.Errorf("test error"))
+			subManager.EXPECT().SaveOffset(gomock.Any(), gomock.Eq(subID), gomock.Any(),
+				gomock.Any()).Return(fmt.Errorf("test error"))
 			resp, err := ctrl.CommitOffset(ctx, request)
 			So(err, ShouldBeNil)
 			So(len(resp.FailSubscriptionId), ShouldEqual, 1)
@@ -128,9 +130,10 @@ func TestController_CreateSubscription(t *testing.T) {
 			subManager.EXPECT().AddSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 			create := &ctrlpb.CreateSubscriptionRequest{
 				Subscription: &ctrlpb.SubscriptionRequest{
-					EventBus: "test-bus",
-					Name:     "test-name",
-					Sink:     "test-sink",
+					NamespaceId: vanus.NewTestID().Uint64(),
+					EventbusId:  vanus.NewTestID().Uint64(),
+					Name:        "test-name",
+					Sink:        "test-sink",
 				},
 			}
 			request := create.Subscription
@@ -138,11 +141,13 @@ func TestController_CreateSubscription(t *testing.T) {
 			resp, err := ctrl.CreateSubscription(ctx, create)
 			So(err, ShouldBeNil)
 			So(resp.Sink, ShouldEqual, request.Sink)
-			So(resp.EventBus, ShouldEqual, request.EventBus)
+			So(resp.EventbusId, ShouldEqual, request.EventbusId)
+			So(resp.NamespaceId, ShouldEqual, request.NamespaceId)
 			resp2, err := ctrl.CreateSubscription(ctx, create)
 			So(err, ShouldBeNil)
 			So(resp2.Sink, ShouldEqual, request.Sink)
-			So(resp2.EventBus, ShouldEqual, request.EventBus)
+			So(resp2.EventbusId, ShouldEqual, request.EventbusId)
+			So(resp2.NamespaceId, ShouldEqual, request.NamespaceId)
 			So(resp.Id, ShouldNotEqual, resp2.Id)
 		})
 	})
@@ -161,6 +166,8 @@ func TestController_UpdateSubscription(t *testing.T) {
 		ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
 
 		subID := vanus.NewTestID()
+		eventbusID := vanus.NewTestID()
+		namespaceID := vanus.NewTestID()
 		ctrl.state = primitive.ServerStateRunning
 		Convey("update subscription not exist", func() {
 			subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).Return(nil)
@@ -177,7 +184,8 @@ func TestController_UpdateSubscription(t *testing.T) {
 			ID:            subID,
 			Phase:         metadata.SubscriptionPhaseStopped,
 			TriggerWorker: "test-addr",
-			EventBus:      "test-eb",
+			EventbusID:    eventbusID,
+			NamespaceID:   namespaceID,
 			Name:          "test-name",
 			Sink:          "test-sink",
 			Protocol:      primitive.HTTPProtocol,
@@ -191,8 +199,21 @@ func TestController_UpdateSubscription(t *testing.T) {
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
-					EventBus: "test-eb",
-					Sink:     "test-sink",
+					NamespaceId: namespaceID.Uint64(),
+					EventbusId:  eventbusID.Uint64(),
+					Sink:        "test-sink",
+				},
+			}
+			_, err := ctrl.UpdateSubscription(ctx, request)
+			So(err, ShouldNotBeNil)
+		})
+		Convey("tet update namespace fail", func() {
+			request := &ctrlpb.UpdateSubscriptionRequest{
+				Id: subID.Uint64(),
+				Subscription: &ctrlpb.SubscriptionRequest{
+					NamespaceId: vanus.NewTestID().Uint64(),
+					EventbusId:  eventbusID.Uint64(),
+					Sink:        "test-sink",
 				},
 			}
 			_, err := ctrl.UpdateSubscription(ctx, request)
@@ -202,8 +223,9 @@ func TestController_UpdateSubscription(t *testing.T) {
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
-					EventBus: "test-eb-modify",
-					Sink:     "test-sink",
+					NamespaceId: namespaceID.Uint64(),
+					EventbusId:  vanus.NewTestID().Uint64(),
+					Sink:        "test-sink",
 				},
 			}
 			_, err := ctrl.UpdateSubscription(ctx, request)
@@ -214,9 +236,10 @@ func TestController_UpdateSubscription(t *testing.T) {
 				request := &ctrlpb.UpdateSubscriptionRequest{
 					Id: subID.Uint64(),
 					Subscription: &ctrlpb.SubscriptionRequest{
-						EventBus: "test-eb",
-						Sink:     "test-sink",
-						Protocol: metapb.Protocol_AWS_LAMBDA,
+						NamespaceId: namespaceID.Uint64(),
+						EventbusId:  eventbusID.Uint64(),
+						Sink:        "test-sink",
+						Protocol:    metapb.Protocol_AWS_LAMBDA,
 						SinkCredential: &metapb.SinkCredential{
 							CredentialType: metapb.SinkCredential_AWS,
 						},
@@ -229,9 +252,10 @@ func TestController_UpdateSubscription(t *testing.T) {
 				request := &ctrlpb.UpdateSubscriptionRequest{
 					Id: subID.Uint64(),
 					Subscription: &ctrlpb.SubscriptionRequest{
-						EventBus: "test-eb",
-						Sink:     "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
-						Protocol: metapb.Protocol_AWS_LAMBDA,
+						NamespaceId: namespaceID.Uint64(),
+						EventbusId:  eventbusID.Uint64(),
+						Sink:        "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
+						Protocol:    metapb.Protocol_AWS_LAMBDA,
 						SinkCredential: &metapb.SinkCredential{
 							CredentialType: metapb.SinkCredential_PLAIN,
 						},
@@ -244,9 +268,10 @@ func TestController_UpdateSubscription(t *testing.T) {
 				request := &ctrlpb.UpdateSubscriptionRequest{
 					Id: subID.Uint64(),
 					Subscription: &ctrlpb.SubscriptionRequest{
-						EventBus: "test-eb",
-						Sink:     "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
-						Protocol: metapb.Protocol_AWS_LAMBDA,
+						NamespaceId: namespaceID.Uint64(),
+						EventbusId:  eventbusID.Uint64(),
+						Sink:        "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
+						Protocol:    metapb.Protocol_AWS_LAMBDA,
 						SinkCredential: &metapb.SinkCredential{
 							CredentialType: metapb.SinkCredential_AWS,
 						},
@@ -259,10 +284,11 @@ func TestController_UpdateSubscription(t *testing.T) {
 				request := &ctrlpb.UpdateSubscriptionRequest{
 					Id: subID.Uint64(),
 					Subscription: &ctrlpb.SubscriptionRequest{
-						EventBus: "test-eb",
-						Name:     "test-name",
-						Sink:     "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
-						Protocol: metapb.Protocol_AWS_LAMBDA,
+						NamespaceId: namespaceID.Uint64(),
+						EventbusId:  eventbusID.Uint64(),
+						Name:        "test-name",
+						Sink:        "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
+						Protocol:    metapb.Protocol_AWS_LAMBDA,
 						SinkCredential: &metapb.SinkCredential{
 							CredentialType: metapb.SinkCredential_AWS,
 							Credential: &metapb.SinkCredential_Aws{
@@ -278,7 +304,8 @@ func TestController_UpdateSubscription(t *testing.T) {
 				resp, err := ctrl.UpdateSubscription(ctx, request)
 				So(err, ShouldBeNil)
 				So(resp.Protocol, ShouldEqual, request.Subscription.Protocol)
-				So(resp.SinkCredential.CredentialType, ShouldEqual, request.Subscription.SinkCredential.CredentialType)
+				So(resp.SinkCredential.CredentialType, ShouldEqual,
+					request.Subscription.SinkCredential.CredentialType)
 				So(resp.SinkCredential.GetAws().AccessKeyId, ShouldEqual, primitive.SecretsMask)
 				So(resp.SinkCredential.GetAws().SecretAccessKey, ShouldEqual, primitive.SecretsMask)
 			})
@@ -288,25 +315,27 @@ func TestController_UpdateSubscription(t *testing.T) {
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
-					EventBus: "test-eb",
-					Name:     "test-name",
-					Sink:     "modify-sink",
+					NamespaceId: namespaceID.Uint64(),
+					EventbusId:  eventbusID.Uint64(),
+					Name:        "test-name",
+					Sink:        "modify-sink",
 				},
 			}
 			resp, err := ctrl.UpdateSubscription(ctx, request)
 			So(err, ShouldBeNil)
 			So(resp.Sink, ShouldEqual, request.Subscription.Sink)
 			So(resp.Sink, ShouldNotEqual, sub.Sink)
-			So(resp.EventBus, ShouldEqual, sub.EventBus)
+			So(resp.EventbusId, ShouldEqual, sub.EventbusID.Uint64())
 		})
 		Convey("update filters", func() {
 			subManager.EXPECT().UpdateSubscription(gomock.Any(), gomock.Any()).Return(nil)
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
-					EventBus: "test-eb",
-					Name:     "test-name",
-					Sink:     "test-sink",
+					NamespaceId: namespaceID.Uint64(),
+					EventbusId:  eventbusID.Uint64(),
+					Name:        "test-name",
+					Sink:        "test-sink",
 					Filters: []*metapb.Filter{
 						{
 							Exact: map[string]string{"type": "test"},
@@ -324,9 +353,10 @@ func TestController_UpdateSubscription(t *testing.T) {
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
-					EventBus: "test-eb",
-					Name:     "test-name",
-					Sink:     "test-sink",
+					NamespaceId: namespaceID.Uint64(),
+					EventbusId:  eventbusID.Uint64(),
+					Name:        "test-name",
+					Sink:        "test-sink",
 					Transformer: &metapb.Transformer{
 						Define:   map[string]string{"k": "v"},
 						Template: "test",
@@ -386,7 +416,8 @@ func TestController_DeleteSubscription(t *testing.T) {
 				So(exist, ShouldBeFalse)
 			})
 			Convey("delete subscription fail", func() {
-				subManager.EXPECT().DeleteSubscription(gomock.Any(), gomock.Eq(subID)).Return(fmt.Errorf("error"))
+				subManager.EXPECT().DeleteSubscription(gomock.Any(),
+					gomock.Eq(subID)).Return(fmt.Errorf("error"))
 				_, err := ctrl.DeleteSubscription(ctx, request)
 				So(err, ShouldBeNil)
 				So(sub.Phase, ShouldEqual, metadata.SubscriptionPhaseToDelete)
@@ -424,14 +455,14 @@ func TestController_GetSubscription(t *testing.T) {
 		})
 		Convey("get subscription exist", func() {
 			sub := &metadata.Subscription{
-				ID:       subID,
-				EventBus: "test-bus",
+				ID:         subID,
+				EventbusID: vanus.NewTestID(),
 			}
 			subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).Return(sub)
 			subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).Return(info.ListOffsetInfo{}, nil)
 			resp, err := ctrl.GetSubscription(ctx, request)
 			So(err, ShouldBeNil)
-			So(resp.EventBus, ShouldEqual, sub.EventBus)
+			So(resp.EventbusId, ShouldEqual, sub.EventbusID.Uint64())
 			So(resp.Id, ShouldEqual, sub.ID)
 		})
 	})
@@ -450,8 +481,8 @@ func TestController_ListSubscription(t *testing.T) {
 		ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
 		Convey("list subscription", func() {
 			list := []*metadata.Subscription{
-				{ID: vanus.NewTestID(), EventBus: "bus1"},
-				{ID: vanus.NewTestID(), EventBus: "bus2"},
+				{ID: vanus.NewTestID(), EventbusID: vanus.NewTestID()},
+				{ID: vanus.NewTestID(), EventbusID: vanus.NewTestID()},
 			}
 			subManager.EXPECT().ListSubscription(gomock.Any()).Return(list)
 			subManager.EXPECT().GetOffset(gomock.Any(), gomock.Any()).AnyTimes().Return(info.ListOffsetInfo{}, nil)
@@ -478,7 +509,7 @@ func TestController_TriggerWorkerHeartbeat(t *testing.T) {
 			SubscriptionId: subID1.Uint64(),
 			Offsets: []*metapb.OffsetInfo{
 				{
-					EventLogId: vanus.NewTestID().Uint64(),
+					EventlogId: vanus.NewTestID().Uint64(),
 					Offset:     100,
 				},
 			},
@@ -488,7 +519,7 @@ func TestController_TriggerWorkerHeartbeat(t *testing.T) {
 			SubscriptionId: subID2.Uint64(),
 			Offsets: []*metapb.OffsetInfo{
 				{
-					EventLogId: vanus.NewTestID().Uint64(),
+					EventlogId: vanus.NewTestID().Uint64(),
 					Offset:     100,
 				},
 			},
@@ -502,18 +533,21 @@ func TestController_TriggerWorkerHeartbeat(t *testing.T) {
 			Address:          "test",
 			SubscriptionInfo: []*metapb.SubscriptionInfo{sub1, sub2, sub3},
 		}
-		subManager.EXPECT().Heartbeat(gomock.Any(), gomock.Eq(subID1), request.Address, gomock.Any()).AnyTimes().Return(fmt.Errorf("error"))
+		subManager.EXPECT().Heartbeat(gomock.Any(), gomock.Eq(subID1), request.Address,
+			gomock.Any()).AnyTimes().Return(fmt.Errorf("error"))
 		subManager.EXPECT().Heartbeat(gomock.Any(), gomock.Eq(subID2), request.Address, gomock.Any()).AnyTimes().Return(nil)
 		subManager.EXPECT().Heartbeat(gomock.Any(), gomock.Eq(subID3), request.Address, gomock.Any()).AnyTimes().Return(nil)
 		Convey("heartbeat error", func() {
-			workerManager.EXPECT().UpdateTriggerWorkerInfo(gomock.Any(), gomock.Eq(request.Address)).Return(fmt.Errorf("error"))
+			workerManager.EXPECT().UpdateTriggerWorkerInfo(gomock.Any(),
+				gomock.Eq(request.Address)).Return(fmt.Errorf("error"))
 			err := ctrl.triggerWorkerHeartbeatRequest(ctx, request)
 			So(err, ShouldNotBeNil)
 		})
 		Convey("heartbeat success", func() {
 			workerManager.EXPECT().UpdateTriggerWorkerInfo(gomock.Any(), gomock.Eq(request.Address)).Return(nil)
 			subManager.EXPECT().SaveOffset(gomock.Any(), gomock.Eq(subID1), gomock.Any(), false).Return(nil)
-			subManager.EXPECT().SaveOffset(gomock.Any(), gomock.Eq(subID2), gomock.Any(), false).Return(fmt.Errorf("error"))
+			subManager.EXPECT().SaveOffset(gomock.Any(), gomock.Eq(subID2),
+				gomock.Any(), false).Return(fmt.Errorf("error"))
 			err := ctrl.triggerWorkerHeartbeatRequest(ctx, request)
 			So(err, ShouldBeNil)
 		})

@@ -19,10 +19,11 @@ import (
 	"testing"
 
 	cetest "github.com/cloudevents/sdk-go/v2/test"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/action/array"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/internal/primitive/transform/action/array"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/runtime"
 )
 
 func TestRenderArrayAction(t *testing.T) {
@@ -132,7 +133,7 @@ func TestRenderArrayAction(t *testing.T) {
 				So(render.([]string)[2], ShouldEqual, "name3 and 3")
 			})
 			Convey("render other", func() {
-				a, err := runtime.NewAction([]interface{}{funcName, "$.data.render", "$.data.array", "Name: <@.name> Num: <@.number> <@abc"})
+				a, err := runtime.NewAction([]interface{}{funcName, "$.data.render", "$.data.array", "NodeName: <@.name> Num: <@.number> <@abc"})
 				So(err, ShouldBeNil)
 				e := cetest.MinEvent()
 				var data map[string]interface{}
@@ -146,9 +147,9 @@ func TestRenderArrayAction(t *testing.T) {
 				render, exist := data["render"]
 				So(exist, ShouldBeTrue)
 				So(len(render.([]string)), ShouldEqual, 3)
-				So(render.([]string)[0], ShouldEqual, "Name: name1 Num: 1 <@abc")
-				So(render.([]string)[1], ShouldEqual, "Name: name2 Num: 2 <@abc")
-				So(render.([]string)[2], ShouldEqual, "Name: name3 Num: 3 <@abc")
+				So(render.([]string)[0], ShouldEqual, "NodeName: name1 Num: 1 <@abc")
+				So(render.([]string)[1], ShouldEqual, "NodeName: name2 Num: 2 <@abc")
+				So(render.([]string)[2], ShouldEqual, "NodeName: name3 Num: 3 <@abc")
 			})
 		})
 	})
@@ -162,7 +163,7 @@ func TestRenderArrayAction(t *testing.T) {
 			  ]
 		}`
 		Convey("render other", func() {
-			a, err := runtime.NewAction([]interface{}{funcName, "$.data.render", "$.data.array", "Name: <@.name> Num: <@.number> <@abc"})
+			a, err := runtime.NewAction([]interface{}{funcName, "$.data.render", "$.data.array", "NodeName: <@.name> Num: <@.number> <@abc"})
 			So(err, ShouldBeNil)
 			e := cetest.MinEvent()
 			var data map[string]interface{}
@@ -176,7 +177,7 @@ func TestRenderArrayAction(t *testing.T) {
 			render, exist := data["render"]
 			So(exist, ShouldBeTrue)
 			So(len(render.([]string)), ShouldEqual, 1)
-			So(render.([]string)[0], ShouldEqual, "Name: name1 Num: 1 <@abc")
+			So(render.([]string)[0], ShouldEqual, "NodeName: name1 Num: 1 <@abc")
 		})
 	})
 }

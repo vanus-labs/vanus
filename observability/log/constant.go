@@ -23,6 +23,7 @@ const (
 	KeyVolumeID          = "volume_id"
 	KeyEventlogID        = "eventlog_id"
 	KeyEventbusName      = "eventbus_name"
+	KeyEventbusID        = "eventbus_id"
 	KeyOffsetInLog       = "offset_in_log"
 	KeySubscriptionID    = "subscription_id"
 	KeyTriggerWorkerAddr = "trigger_worker_addr"

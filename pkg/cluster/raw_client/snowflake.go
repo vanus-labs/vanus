@@ -16,11 +16,13 @@ package raw_client
 
 import (
 	"context"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
+
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 )
 
 func NewSnowflakeController(cc *Conn) ctrlpb.SnowflakeControllerClient {
@@ -37,30 +39,33 @@ func (sfc *snowflakeClient) Close() error {
 	return sfc.cc.close()
 }
 
-func (sfc *snowflakeClient) GetClusterStartTime(ctx context.Context, in *emptypb.Empty,
-	opts ...grpc.CallOption) (*timestamppb.Timestamp, error) {
+func (sfc *snowflakeClient) GetClusterStartTime(
+	ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption,
+) (*timestamppb.Timestamp, error) {
 	out := &timestamppb.Timestamp{}
-	err := sfc.cc.invoke(ctx, "/linkall.vanus.controller.SnowflakeController/GetClusterStartTime", in, out, opts...)
+	err := sfc.cc.invoke(ctx, "/vanus.core.controller.SnowflakeController/GetClusterStartTime", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (sfc *snowflakeClient) RegisterNode(ctx context.Context, in *wrapperspb.UInt32Value,
-	opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (sfc *snowflakeClient) RegisterNode(
+	ctx context.Context, in *wrapperspb.UInt32Value, opts ...grpc.CallOption,
+) (*emptypb.Empty, error) {
 	out := &emptypb.Empty{}
-	err := sfc.cc.invoke(ctx, "/linkall.vanus.controller.SnowflakeController/RegisterNode", in, out, opts...)
+	err := sfc.cc.invoke(ctx, "/vanus.core.controller.SnowflakeController/RegisterNode", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (sfc *snowflakeClient) UnregisterNode(ctx context.Context, in *wrapperspb.UInt32Value,
-	opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (sfc *snowflakeClient) UnregisterNode(
+	ctx context.Context, in *wrapperspb.UInt32Value, opts ...grpc.CallOption,
+) (*emptypb.Empty, error) {
 	out := &emptypb.Empty{}
-	err := sfc.cc.invoke(ctx, "/linkall.vanus.controller.SnowflakeController/UnregisterNode", in, out, opts...)
+	err := sfc.cc.invoke(ctx, "/vanus.core.controller.SnowflakeController/UnregisterNode", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}

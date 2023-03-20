@@ -18,16 +18,20 @@ import (
 	"context"
 	"testing"
 
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	. "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/protobuf/types/known/structpb"
+
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 )
 
 func TestSubscriptionRequestValidator(t *testing.T) {
 	ctx := context.Background()
 	Convey("multiple dialect", t, func() {
 		request := &ctrlpb.SubscriptionRequest{
+			NamespaceId: vanus.NewTestID().Uint64(),
+			EventbusId:  vanus.NewTestID().Uint64(),
 			Filters: []*metapb.Filter{{
 				Not: &metapb.Filter{
 					Exact: map[string]string{
@@ -39,10 +43,9 @@ func TestSubscriptionRequestValidator(t *testing.T) {
 		}
 		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
 	})
-	Convey("eventBus empty", t, func() {
+	Convey("eventbus empty", t, func() {
 		request := &ctrlpb.SubscriptionRequest{
-			Sink:     "sink",
-			EventBus: "",
+			Sink: "sink",
 		}
 		So(ValidateSubscriptionRequest(ctx, request), ShouldNotBeNil)
 	})

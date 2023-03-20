@@ -23,9 +23,9 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
-	"github.com/linkall-labs/vanus/internal/store/vsb/index"
-	idxtest "github.com/linkall-labs/vanus/internal/store/vsb/index/testing"
+	ceschema "github.com/vanus-labs/vanus/internal/store/schema/ce"
+	"github.com/vanus-labs/vanus/internal/store/vsb/index"
+	idxtest "github.com/vanus-labs/vanus/internal/store/vsb/index/testing"
 )
 
 func TestEntry(t *testing.T) {

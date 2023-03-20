@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"log"
 
-	pb "github.com/linkall-labs/vanus/raft/raftpb"
+	pb "github.com/vanus-labs/vanus/raft/raftpb"
 )
 
 type raftLog struct {

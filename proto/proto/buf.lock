@@ -5,7 +5,3 @@ deps:
     owner: gogo
     repository: protobuf
     commit: 4df00b267f944190a229ce3695781e99
-  - remote: buf.build
-    owner: linkall-labs
-    repository: vanus-raft
-    commit: 6fa231ad0f274e6fa8df4dadcce67195

@@ -25,15 +25,16 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// first-party libraries.
-	cepb "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	cepb "github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/block"
-	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
-	"github.com/linkall-labs/vanus/internal/store/schema/ce/convert"
-	cetest "github.com/linkall-labs/vanus/internal/store/schema/ce/testing"
-	"github.com/linkall-labs/vanus/internal/store/vsb/codec"
-	vsbtest "github.com/linkall-labs/vanus/internal/store/vsb/testing"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	ceschema "github.com/vanus-labs/vanus/internal/store/schema/ce"
+	"github.com/vanus-labs/vanus/internal/store/schema/ce/convert"
+	cetest "github.com/vanus-labs/vanus/internal/store/schema/ce/testing"
+	"github.com/vanus-labs/vanus/internal/store/vsb/codec"
+	"github.com/vanus-labs/vanus/internal/store/vsb/entry"
+	vsbtest "github.com/vanus-labs/vanus/internal/store/vsb/testing"
 )
 
 func TestFragment(t *testing.T) {
@@ -41,7 +42,7 @@ func TestFragment(t *testing.T) {
 	defer ctrl.Finish()
 
 	ent0 := cetest.MakeStoredEntry0(ctrl)
-	ent1 := cetest.MakeStoredEntry1(ctrl)
+	ent1 := cetest.MakeStoredEntry1(ctrl, true)
 
 	enc := codec.NewEncoder()
 
@@ -119,12 +120,5 @@ func getEntry() block.Entry {
 	}
 	e := convert.ToEntry(ce)
 
-	return &entryExtWrapper{
-		EntryExtWrapper: block.EntryExtWrapper{
-			E: e,
-		},
-		t:     ceschema.CloudEvent,
-		seq:   111,
-		stime: time.Now().UnixMilli(),
-	}
+	return entry.Wrap(e, ceschema.CloudEvent, 111, time.Now().UnixMilli())
 }

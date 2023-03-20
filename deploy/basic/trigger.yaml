@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-trigger
+  namespace: vanus
+data:
+  trigger.yaml: |-
+    port: 2148
+    ip : ${POD_IP}
+    controllers:
+      - vanus-controller-0.vanus-controller.vanus.svc:2048
+      - vanus-controller-1.vanus-controller.vanus.svc:2048
+      - vanus-controller-2.vanus-controller.vanus.svc:2048
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vanus-trigger
+  namespace: vanus
+  labels:
+    app: vanus-trigger
+spec:
+  selector:
+    matchLabels:
+      app: vanus-trigger
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: vanus-trigger
+      annotations:
+        vanus.dev/metrics.port: "2112"
+    spec:
+      containers:
+        - name: trigger
+          image: public.ecr.aws/vanus/trigger:v0.7.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: grpc
+              containerPort: 2148
+          env:
+            - name: VANUS_LOG_LEVEL
+              value: INFO
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: config-trigger
+              mountPath: /vanus/config
+      volumes:
+        - name: config-trigger
+          configMap:
+            name: config-trigger

@@ -21,10 +21,11 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestCreateSubscription(t *testing.T) {
@@ -65,17 +66,17 @@ func TestGetSubscription(t *testing.T) {
 	defer ctrl.Finish()
 	kvClient := kv.NewMockClient(ctrl)
 	s := NewSubscriptionStorage(kvClient).(*subscriptionStorage)
-	subID := vanus.ID(1)
+	subID := vanus.NewTestID()
 	Convey("get subscription", t, func() {
 		expect := &metadata.Subscription{
-			ID:       subID,
-			EventBus: "bus",
+			ID:         subID,
+			EventbusID: vanus.NewTestID(),
 		}
 		v, _ := json.Marshal(expect)
 		kvClient.EXPECT().Get(ctx, s.getKey(subID)).Return(v, nil)
 		data, err := s.GetSubscription(ctx, subID)
 		So(err, ShouldBeNil)
-		So(data.EventBus, ShouldEqual, expect.EventBus)
+		So(data.EventbusID, ShouldEqual, expect.EventbusID)
 	})
 }
 
@@ -85,7 +86,7 @@ func TestDeleteSubscription(t *testing.T) {
 	defer ctrl.Finish()
 	kvClient := kv.NewMockClient(ctrl)
 	s := NewSubscriptionStorage(kvClient).(*subscriptionStorage)
-	subID := vanus.ID(1)
+	subID := vanus.NewTestID()
 	Convey("delete subscription", t, func() {
 		kvClient.EXPECT().Delete(ctx, s.getKey(subID)).Return(nil)
 		err := s.DeleteSubscription(ctx, subID)
@@ -99,19 +100,19 @@ func TestListSubscription(t *testing.T) {
 	defer ctrl.Finish()
 	kvClient := kv.NewMockClient(ctrl)
 	s := NewSubscriptionStorage(kvClient).(*subscriptionStorage)
-	subID := vanus.ID(1)
+	subID := vanus.NewTestID()
 	Convey("list subscription", t, func() {
 		expect := &metadata.Subscription{
-			ID:       subID,
-			EventBus: "bus",
+			ID:         subID,
+			EventbusID: vanus.NewTestID(),
 		}
 		v, _ := json.Marshal(expect)
-		kvClient.EXPECT().List(ctx, KeyPrefixSubscription.String()).Return([]kv.Pair{
+		kvClient.EXPECT().List(ctx, kv.ResourceSubscription).Return([]kv.Pair{
 			{Key: fmt.Sprintf("%d", subID), Value: v},
 		}, nil)
 		list, err := s.ListSubscription(ctx)
 		So(err, ShouldBeNil)
 		So(len(list), ShouldEqual, 1)
-		So(list[0].EventBus, ShouldEqual, expect.EventBus)
+		So(list[0].EventbusID, ShouldEqual, expect.EventbusID)
 	})
 }

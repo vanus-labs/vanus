@@ -17,8 +17,8 @@ package index
 
 import (
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/block"
-	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	ceschema "github.com/vanus-labs/vanus/internal/store/schema/ce"
 )
 
 type Index interface {

@@ -53,8 +53,8 @@ import (
 	"gvisor.dev/gvisor/pkg/sync"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/container/conque/unbounded"
-	"github.com/linkall-labs/vanus/internal/primitive/runtime"
+	"github.com/vanus-labs/vanus/internal/primitive/container/conque/unbounded"
+	"github.com/vanus-labs/vanus/internal/primitive/runtime"
 )
 
 const (

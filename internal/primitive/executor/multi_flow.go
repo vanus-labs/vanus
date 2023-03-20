@@ -19,8 +19,8 @@ import (
 	"sync/atomic"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive/container/conque/blocking"
-	"github.com/linkall-labs/vanus/internal/primitive/container/conque/unbounded"
+	"github.com/vanus-labs/vanus/internal/primitive/container/conque/blocking"
+	"github.com/vanus-labs/vanus/internal/primitive/container/conque/unbounded"
 )
 
 const defaultInvokeBatchSize = 8

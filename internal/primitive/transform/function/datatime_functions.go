@@ -17,8 +17,8 @@ package function
 import (
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/function/util"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/common"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/function/util"
 )
 
 var DateFormatFunction = function{

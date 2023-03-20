@@ -14,7 +14,7 @@
 
 package eventlog
 
-// Config is the configuration of EventLog.
+// Config is the configuration of Eventlog.
 type Config struct {
 	Endpoints []string
 	ID        uint64

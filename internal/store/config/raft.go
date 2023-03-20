@@ -16,7 +16,7 @@ package config
 
 import (
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/raft/block"
+	"github.com/vanus-labs/vanus/internal/store/raft/block"
 )
 
 const minRaftLogWALFileSize uint64 = 32 * baseMB

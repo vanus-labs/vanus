@@ -15,22 +15,24 @@
 package bare
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 	"sync"
 	"time"
 
-	// third-party libraries
+	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/atomic"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 
-	// this project
-	"github.com/linkall-labs/vanus/client/internal/vanus/net/connection"
-	"github.com/linkall-labs/vanus/client/internal/vanus/net/rpc"
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"github.com/linkall-labs/vanus/pkg/errors"
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/observability/tracing"
+	"github.com/vanus-labs/vanus/pkg/errors"
+
+	// this project.
+	"github.com/vanus-labs/vanus/client/internal/vanus/net/connection"
+	"github.com/vanus-labs/vanus/client/internal/vanus/net/rpc"
 )
 
 const (

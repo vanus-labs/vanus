@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=offset.go  -destination=mock_offset.go -package=offset
+//go:generate mockgen -source=offset.go -destination=mock_offset.go -package=offset
 package offset
 
 import (
@@ -20,10 +20,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/log"
+
+	"github.com/vanus-labs/vanus/internal/controller/trigger/storage"
+	"github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type Manager interface {
@@ -152,7 +153,8 @@ type subscriptionOffset struct {
 
 func initSubscriptionOffset(ctx context.Context,
 	storage storage.OffsetStorage,
-	subscriptionID vanus.ID) (*subscriptionOffset, error) {
+	subscriptionID vanus.ID,
+) (*subscriptionOffset, error) {
 	list, err := storage.GetOffsets(ctx, subscriptionID)
 	if err != nil {
 		return nil, err
@@ -161,9 +163,9 @@ func initSubscriptionOffset(ctx context.Context,
 		subscriptionID: subscriptionID,
 	}
 	for _, o := range list {
-		subOffset.offsets.Store(o.EventLogID, &eventLogOffset{
+		subOffset.offsets.Store(o.EventlogID, &eventlogOffset{
 			subscriptionID: subscriptionID,
-			eventLogID:     o.EventLogID,
+			eventlogID:     o.EventlogID,
 			offset:         o.Offset,
 			commit:         o.Offset,
 			checkExist:     true,
@@ -172,23 +174,23 @@ func initSubscriptionOffset(ctx context.Context,
 	return subOffset, nil
 }
 
-// getEventLogOffset if not exist create.
-func (o *subscriptionOffset) getEventLogOffset(info info.OffsetInfo) *eventLogOffset {
-	elOffset, exist := o.offsets.Load(info.EventLogID)
+// getEventlogOffset if not exist create.
+func (o *subscriptionOffset) getEventlogOffset(info info.OffsetInfo) *eventlogOffset {
+	elOffset, exist := o.offsets.Load(info.EventlogID)
 	if !exist {
-		elOffset = &eventLogOffset{
+		elOffset = &eventlogOffset{
 			subscriptionID: o.subscriptionID,
-			eventLogID:     info.EventLogID,
+			eventlogID:     info.EventlogID,
 			offset:         info.Offset,
 		}
-		elOffset, _ = o.offsets.LoadOrStore(info.EventLogID, elOffset)
+		elOffset, _ = o.offsets.LoadOrStore(info.EventlogID, elOffset)
 	}
-	return elOffset.(*eventLogOffset)
+	return elOffset.(*eventlogOffset)
 }
 
 func (o *subscriptionOffset) offset(infos info.ListOffsetInfo) {
 	for _, offset := range infos {
-		elOffset := o.getEventLogOffset(offset)
+		elOffset := o.getEventlogOffset(offset)
 		elOffset.setOffset(offset.Offset)
 	}
 }
@@ -196,9 +198,9 @@ func (o *subscriptionOffset) offset(infos info.ListOffsetInfo) {
 func (o *subscriptionOffset) getOffsets() info.ListOffsetInfo {
 	var offsets info.ListOffsetInfo
 	o.offsets.Range(func(key, value interface{}) bool {
-		elOffset, _ := value.(*eventLogOffset)
+		elOffset, _ := value.(*eventlogOffset)
 		offsets = append(offsets, info.OffsetInfo{
-			EventLogID: elOffset.eventLogID,
+			EventlogID: elOffset.eventlogID,
 			Offset:     elOffset.offset,
 		})
 		return true
@@ -219,12 +221,12 @@ func (o *subscriptionOffset) commitOffset(ctx context.Context, storage storage.O
 		if o.stopped {
 			return false
 		}
-		elOffset, _ := value.(*eventLogOffset)
+		elOffset, _ := value.(*eventlogOffset)
 		err := elOffset.commitOffset(ctx, storage)
 		if err != nil {
 			log.Warning(ctx, "commit offset fail", map[string]interface{}{
 				log.KeySubscriptionID: o.subscriptionID,
-				log.KeyEventlogID:     elOffset.eventLogID,
+				log.KeyEventlogID:     elOffset.eventlogID,
 				"offset":              elOffset.offset,
 				log.KeyError:          err,
 			})
@@ -233,23 +235,23 @@ func (o *subscriptionOffset) commitOffset(ctx context.Context, storage storage.O
 	})
 }
 
-type eventLogOffset struct {
+type eventlogOffset struct {
 	subscriptionID vanus.ID
-	eventLogID     vanus.ID
+	eventlogID     vanus.ID
 	offset         uint64
 	commit         uint64
 	checkExist     bool
 }
 
-func (o *eventLogOffset) setOffset(offset uint64) {
+func (o *eventlogOffset) setOffset(offset uint64) {
 	o.offset = offset
 }
 
-func (o *eventLogOffset) commitOffset(ctx context.Context, storage storage.OffsetStorage) error {
+func (o *eventlogOffset) commitOffset(ctx context.Context, storage storage.OffsetStorage) error {
 	offset := o.offset
 	if !o.checkExist {
 		err := storage.CreateOffset(ctx, o.subscriptionID, info.OffsetInfo{
-			EventLogID: o.eventLogID,
+			EventlogID: o.eventlogID,
 			Offset:     offset,
 		})
 		if err != nil {
@@ -257,7 +259,7 @@ func (o *eventLogOffset) commitOffset(ctx context.Context, storage storage.Offse
 		}
 		log.Info(ctx, "create offset", map[string]interface{}{
 			log.KeySubscriptionID: o.subscriptionID,
-			log.KeyEventlogID:     o.eventLogID,
+			log.KeyEventlogID:     o.eventlogID,
 			"offset":              offset,
 		})
 		o.checkExist = true
@@ -268,7 +270,7 @@ func (o *eventLogOffset) commitOffset(ctx context.Context, storage storage.Offse
 		return nil
 	}
 	err := storage.UpdateOffset(ctx, o.subscriptionID, info.OffsetInfo{
-		EventLogID: o.eventLogID,
+		EventlogID: o.eventlogID,
 		Offset:     offset,
 	})
 	if err != nil {

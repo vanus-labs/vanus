@@ -20,8 +20,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/observability/log"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 func TestWaitStartWithContext(t *testing.T) {

@@ -18,32 +18,35 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/proto/pkg/meta"
+	"github.com/vanus-labs/vanus/proto/pkg/meta"
+
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type Eventbus struct {
 	ID          vanus.ID    `json:"id"`
 	Name        string      `json:"name"`
 	LogNumber   int         `json:"log_number"`
-	EventLogs   []*Eventlog `json:"event_logs"`
+	Eventlogs   []*Eventlog `json:"eventlogs"`
 	Description string      `json:"description"`
 	CreatedAt   time.Time   `json:"created_at"`
 	UpdatedAt   time.Time   `json:"updated_at"`
+	NamespaceID uint64      `json:"namespace_id"`
 }
 
-func Convert2ProtoEventBus(ins ...*Eventbus) []*meta.EventBus {
-	pebs := make([]*meta.EventBus, len(ins))
+func Convert2ProtoEventbus(ins ...*Eventbus) []*meta.Eventbus {
+	pebs := make([]*meta.Eventbus, len(ins))
 	for idx := 0; idx < len(ins); idx++ {
 		eb := ins[idx]
-		pebs[idx] = &meta.EventBus{
+		pebs[idx] = &meta.Eventbus{
 			Name:        eb.Name,
 			LogNumber:   int32(eb.LogNumber),
-			Logs:        Convert2ProtoEventLog(eb.EventLogs...),
+			Logs:        Convert2ProtoEventlog(eb.Eventlogs...),
 			Id:          eb.ID.Uint64(),
 			Description: eb.Description,
 			CreatedAt:   eb.CreatedAt.UnixMilli(),
 			UpdatedAt:   eb.UpdatedAt.UnixMilli(),
+			NamespaceId: eb.NamespaceID,
 		}
 	}
 	return pebs
@@ -64,13 +67,13 @@ func (el *Eventlog) Eventbus() string {
 	return el.EventbusID.String()
 }
 
-func Convert2ProtoEventLog(ins ...*Eventlog) []*meta.EventLog {
-	pels := make([]*meta.EventLog, len(ins))
+func Convert2ProtoEventlog(ins ...*Eventlog) []*meta.Eventlog {
+	pels := make([]*meta.Eventlog, len(ins))
 	for idx := 0; idx < len(ins); idx++ {
 		eli := ins[idx]
 
-		pels[idx] = &meta.EventLog{
-			EventLogId:            eli.ID.Uint64(),
+		pels[idx] = &meta.Eventlog{
+			EventlogId:            eli.ID.Uint64(),
 			CurrentSegmentNumbers: int32(eli.SegmentNumber),
 		}
 	}

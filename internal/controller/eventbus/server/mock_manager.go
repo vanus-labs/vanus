@@ -10,8 +10,7 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
-	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
-	segment "github.com/linkall-labs/vanus/proto/pkg/segment"
+	segment "github.com/vanus-labs/vanus/proto/pkg/segment"
 )
 
 // MockManager is a mock of Manager interface.
@@ -79,18 +78,18 @@ func (mr *MockManagerMockRecorder) GetServerByAddress(addr interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServerByAddress", reflect.TypeOf((*MockManager)(nil).GetServerByAddress), addr)
 }
 
-// GetServerByServerID mocks base method.
-func (m *MockManager) GetServerByServerID(id vanus.ID) Server {
+// GetServerByVolumeID mocks base method.
+func (m *MockManager) GetServerByVolumeID(id uint64) Server {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetServerByServerID", id)
+	ret := m.ctrl.Call(m, "GetServerByVolumeID", id)
 	ret0, _ := ret[0].(Server)
 	return ret0
 }
 
-// GetServerByServerID indicates an expected call of GetServerByServerID.
-func (mr *MockManagerMockRecorder) GetServerByServerID(id interface{}) *gomock.Call {
+// GetServerByVolumeID indicates an expected call of GetServerByVolumeID.
+func (mr *MockManagerMockRecorder) GetServerByVolumeID(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServerByServerID", reflect.TypeOf((*MockManager)(nil).GetServerByServerID), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServerByVolumeID", reflect.TypeOf((*MockManager)(nil).GetServerByVolumeID), id)
 }
 
 // RemoveServer mocks base method.
@@ -198,20 +197,6 @@ func (mr *MockServerMockRecorder) GetClient() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetClient", reflect.TypeOf((*MockServer)(nil).GetClient))
 }
 
-// ID mocks base method.
-func (m *MockServer) ID() vanus.ID {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ID")
-	ret0, _ := ret[0].(vanus.ID)
-	return ret0
-}
-
-// ID indicates an expected call of ID.
-func (mr *MockServerMockRecorder) ID() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockServer)(nil).ID))
-}
-
 // IsActive mocks base method.
 func (m *MockServer) IsActive(ctx context.Context) bool {
 	m.ctrl.T.Helper()
@@ -276,4 +261,18 @@ func (m *MockServer) Uptime() time.Time {
 func (mr *MockServerMockRecorder) Uptime() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Uptime", reflect.TypeOf((*MockServer)(nil).Uptime))
+}
+
+// VolumeID mocks base method.
+func (m *MockServer) VolumeID() uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "VolumeID")
+	ret0, _ := ret[0].(uint64)
+	return ret0
+}
+
+// VolumeID indicates an expected call of VolumeID.
+func (mr *MockServerMockRecorder) VolumeID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VolumeID", reflect.TypeOf((*MockServer)(nil).VolumeID))
 }

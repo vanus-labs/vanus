@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=block.go  -destination=mock_block.go -package=block
+//go:generate mockgen -source=block.go -destination=mock_block.go -package=block
 package block
 
 import (
@@ -23,12 +23,14 @@ import (
 	"time"
 
 	"github.com/huandu/skiplist"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/server"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/pkg/errors"
+
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/errors"
+
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/server"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 const (
@@ -63,8 +65,6 @@ type allocator struct {
 	volumeBlockBuffer sync.Map
 	kvClient          kv.Client
 	mutex             sync.Mutex
-	cancel            func()
-	cancelCtx         context.Context
 	allocateTicker    *time.Ticker
 	blockCapacity     int64
 }
@@ -104,10 +104,11 @@ func (al *allocator) Run(ctx context.Context, kvCli kv.Client, startDynamicAlloc
 			l.Set(bl.ID.Key(), bl)
 		}
 	}
-	if startDynamicAllocate {
-		al.cancelCtx, al.cancel = context.WithCancel(context.Background())
-		go al.dynamicAllocateBlockTask(al.cancelCtx)
-	}
+	// if startDynamicAllocate {
+	// disable by wenfeng on 3.10
+	// al.cancelCtx, al.cancel = context.WithCancel(context.Background())
+	// go al.dynamicAllocateBlockTask(al.cancelCtx)
+	// }
 	return nil
 }
 
@@ -155,11 +156,9 @@ func (al *allocator) pick(ctx context.Context, volumes []server.Instance) ([]*me
 	return blockArr, nil
 }
 
-func (al *allocator) Stop() {
-	al.cancel()
-}
+func (al *allocator) Stop() {}
 
-func (al *allocator) dynamicAllocateBlockTask(ctx context.Context) {
+func (al *allocator) dynamicAllocateBlockTask(ctx context.Context) { //nolint:unused // ok
 	for {
 		select {
 		case <-ctx.Done():

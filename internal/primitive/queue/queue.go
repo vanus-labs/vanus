@@ -17,10 +17,10 @@ package queue
 import (
 	"time"
 
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-
 	"golang.org/x/time/rate"
 	"k8s.io/client-go/util/workqueue"
+
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type Queue interface {

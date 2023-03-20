@@ -21,19 +21,20 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/eventlog"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/member"
-	"github.com/linkall-labs/vanus/internal/kv"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/pkg/errors"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/eventlog"
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/member"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-func TestController_CreateEventBus(t *testing.T) {
+func TestController_CreateEventbus(t *testing.T) {
 	Convey("test create eventbus", t, func() {
 		cfg := Config{}
 		cfg.Topology = map[string]string{"1": "a", "2": "b"}
@@ -42,7 +43,7 @@ func TestController_CreateEventBus(t *testing.T) {
 		kvCli := kv.NewMockClient(mockCtrl)
 		ctrl.kvStore = kvCli
 		elMgr := eventlog.NewMockManager(mockCtrl)
-		ctrl.eventLogMgr = elMgr
+		ctrl.eventlogMgr = elMgr
 		ctx := stdCtx.Background()
 
 		mockMember := member.NewMockMember(mockCtrl)
@@ -51,19 +52,35 @@ func TestController_CreateEventBus(t *testing.T) {
 		mockMember.EXPECT().IsReady().AnyTimes().Return(true)
 		mockMember.EXPECT().GetLeaderAddr().AnyTimes().Return("test")
 
+		defaultNS := vanus.NewTestID()
+		systemNS := vanus.NewTestID()
+		mockCluster := cluster.NewMockCluster(mockCtrl)
+		ctrl.clusterCli = mockCluster
+		mockNS := cluster.NewMockNamespaceService(mockCtrl)
+		mockCluster.EXPECT().NamespaceService().AnyTimes().Return(mockNS)
+
 		Convey("test create a eventbus two times", func() {
-			kvCli.EXPECT().Exists(ctx, metadata.GetEventbusMetadataKey("test-1")).Times(1).Return(false, nil)
-			kvCli.EXPECT().Set(ctx, metadata.GetEventbusMetadataKey("test-1"), gomock.Any()).
+			mockNS.EXPECT().GetNamespace(ctx, defaultNS.Uint64()).Times(1).Return(&metapb.Namespace{
+				Id:   defaultNS.Uint64(),
+				Name: "default",
+			}, nil)
+			mockNS.EXPECT().GetSystemNamespace(ctx).Times(1).Return(&metapb.Namespace{
+				Id:   systemNS.Uint64(),
+				Name: "vanus-system",
+			}, nil)
+
+			kvCli.EXPECT().Exists(ctx, gomock.Any()).Times(1).Return(false, nil)
+			kvCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).
 				Times(1).Return(nil)
-			dlEventbusName := primitive.GetDeadLetterEventbusName("test-1")
-			kvCli.EXPECT().Exists(ctx, metadata.GetEventbusMetadataKey(dlEventbusName)).Times(1).Return(false, nil)
-			kvCli.EXPECT().Set(ctx, metadata.GetEventbusMetadataKey(dlEventbusName), gomock.Any()).
+			kvCli.EXPECT().Exists(ctx, gomock.Any()).Times(1).Return(false, nil)
+			kvCli.EXPECT().Set(ctx, gomock.Any(), gomock.Any()).
 				Times(1).Return(nil)
 			el := &metadata.Eventlog{
 				ID: vanus.NewTestID(),
 			}
-			elMgr.EXPECT().AcquireEventLog(ctx, gomock.Any(), gomock.Any()).Times(2).DoAndReturn(func(ctx stdCtx.Context,
-				eventbusID vanus.ID, ebName string) (*metadata.Eventlog, error) {
+			elMgr.EXPECT().AcquireEventlog(ctx, gomock.Any(), gomock.Any()).Times(2).DoAndReturn(func(ctx stdCtx.Context,
+				eventbusID vanus.ID, ebName string,
+			) (*metadata.Eventlog, error) {
 				el.ID = eventbusID
 				el.EventbusName = ebName
 				el.SegmentNumber = 2
@@ -71,30 +88,36 @@ func TestController_CreateEventBus(t *testing.T) {
 			})
 
 			vanus.InitFakeSnowflake()
-			res, err := ctrl.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
-				Name:      "test-1",
-				LogNumber: 0,
+			res, err := ctrl.CreateEventbus(ctx, &ctrlpb.CreateEventbusRequest{
+				Name:        "test-1",
+				LogNumber:   0,
+				NamespaceId: defaultNS.Uint64(),
 			})
 			So(err, ShouldBeNil)
 			So(res.Name, ShouldEqual, "test-1")
 			So(res.Id, ShouldNotEqual, 0)
 			So(res.Logs, ShouldHaveLength, 1)
 			So(res.LogNumber, ShouldEqual, 1)
-			So(res.Logs[0].EventBusName, ShouldEqual, "test-1")
+			So(res.Logs[0].EventbusId, ShouldEqual, res.Id)
 			sort.Strings(res.Logs[0].ServerAddress)
 			So(res.Logs[0].ServerAddress, ShouldResemble, []string{"a", "b"})
 			So(res.Logs[0].CurrentSegmentNumbers, ShouldEqual, 2)
 
-			_, exist := ctrl.eventBusMap["test-1"]
+			_, exist := ctrl.eventbusMap[vanus.NewIDFromUint64(res.Id)]
 			So(exist, ShouldBeTrue)
 		})
 
 		Convey("test create a eventbus but exist", func() {
-			kvCli.EXPECT().Exists(ctx, metadata.GetEventbusMetadataKey("test-1")).Times(1).Return(true, nil)
+			mockNS.EXPECT().GetNamespace(ctx, defaultNS.Uint64()).Times(1).Return(&metapb.Namespace{
+				Id:   defaultNS.Uint64(),
+				Name: "default",
+			}, nil)
+			kvCli.EXPECT().Exists(ctx, gomock.Any()).Times(1).Return(true, nil)
 
-			res, err := ctrl.CreateEventBus(ctx, &ctrlpb.CreateEventBusRequest{
-				Name:      "test-1",
-				LogNumber: 0,
+			res, err := ctrl.CreateEventbus(ctx, &ctrlpb.CreateEventbusRequest{
+				Name:        "test-1",
+				LogNumber:   0,
+				NamespaceId: defaultNS.Uint64(),
 			})
 			So(err, ShouldNotBeNil)
 			So(res, ShouldBeNil)
@@ -107,7 +130,7 @@ func TestController_CreateEventBus(t *testing.T) {
 	})
 }
 
-func TestController_DeleteEventBus(t *testing.T) {
+func TestController_DeleteEventbus(t *testing.T) {
 	Convey("test delete a eventbus ", t, func() {
 		cfg := Config{}
 		cfg.Topology = map[string]string{"1": "a", "2": "b"}
@@ -116,11 +139,11 @@ func TestController_DeleteEventBus(t *testing.T) {
 		kvCli := kv.NewMockClient(mockCtrl)
 		ctrl.kvStore = kvCli
 		elMgr := eventlog.NewMockManager(mockCtrl)
-		ctrl.eventLogMgr = elMgr
+		ctrl.eventlogMgr = elMgr
 		ctx := stdCtx.Background()
 
 		Convey("deleting a doesn't exist eventbus", func() {
-			res, err := ctrl.DeleteEventBus(ctx, &metapb.EventBus{Name: "test-1"})
+			res, err := ctrl.DeleteEventbus(ctx, &wrapperspb.UInt64Value{Value: vanus.NewTestID().Uint64()})
 			So(err, ShouldNotBeNil)
 			So(res, ShouldBeNil)
 			et, ok := err.(*errors.ErrorType)
@@ -134,7 +157,7 @@ func TestController_DeleteEventBus(t *testing.T) {
 			ID:        vanus.NewTestID(),
 			Name:      "test-1",
 			LogNumber: 2,
-			EventLogs: []*metadata.Eventlog{
+			Eventlogs: []*metadata.Eventlog{
 				{
 					ID: vanus.NewTestID(),
 				},
@@ -145,11 +168,11 @@ func TestController_DeleteEventBus(t *testing.T) {
 		}
 
 		Convey("deleting an existed eventbus, but kv error", func() {
-			kvCli.EXPECT().Delete(ctx, metadata.GetEventbusMetadataKey("test-1")).Times(1).
+			kvCli.EXPECT().Delete(ctx, gomock.Any()).Times(1).
 				Return(fmt.Errorf("test"))
 
-			ctrl.eventBusMap["test-1"] = md
-			res, err := ctrl.DeleteEventBus(stdCtx.Background(), &metapb.EventBus{Name: "test-1"})
+			ctrl.eventbusMap[md.ID] = md
+			res, err := ctrl.DeleteEventbus(stdCtx.Background(), &wrapperspb.UInt64Value{Value: md.ID.Uint64()})
 			So(err, ShouldNotBeNil)
 			So(res, ShouldBeNil)
 			et, ok := err.(*errors.ErrorType)
@@ -160,17 +183,17 @@ func TestController_DeleteEventBus(t *testing.T) {
 		})
 
 		Convey("deleting an existed eventbus success", func() {
-			kvCli.EXPECT().Delete(ctx, metadata.GetEventbusMetadataKey("test-1")).Times(1).
+			kvCli.EXPECT().Delete(ctx, gomock.Any()).Times(1).
 				Return(nil)
 
-			elMgr.EXPECT().DeleteEventlog(ctx, md.EventLogs[0].ID).Times(1)
-			elMgr.EXPECT().DeleteEventlog(ctx, md.EventLogs[1].ID).Times(1)
+			elMgr.EXPECT().DeleteEventlog(ctx, md.Eventlogs[0].ID).Times(1)
+			elMgr.EXPECT().DeleteEventlog(ctx, md.Eventlogs[1].ID).Times(1)
 
-			ctrl.eventBusMap["test-1"] = md
-			_, err := ctrl.DeleteEventBus(stdCtx.Background(), &metapb.EventBus{Name: "test-1"})
+			ctrl.eventbusMap[md.ID] = md
+			_, err := ctrl.DeleteEventbus(stdCtx.Background(), &wrapperspb.UInt64Value{Value: md.ID.Uint64()})
 			So(err, ShouldBeNil)
 
-			_, exist := ctrl.eventBusMap["test-1"]
+			_, exist := ctrl.eventbusMap[md.ID]
 			So(exist, ShouldBeFalse)
 		})
 	})

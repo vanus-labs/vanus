@@ -25,8 +25,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/block"
-	blktest "github.com/linkall-labs/vanus/internal/store/block/testing"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	blktest "github.com/vanus-labs/vanus/internal/store/block/testing"
 )
 
 var alphabet = []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -40,7 +40,7 @@ func randString(n int) string {
 }
 
 func TestEmptyEntry(t *testing.T) {
-	rand.Seed(time.Now().Unix())
+	rand := rand.New(rand.NewSource(time.Now().Unix()))
 
 	Convey("empty entry", t, func() {
 		ent := block.EmptyEntry{}
@@ -59,7 +59,7 @@ func TestEmptyEntry(t *testing.T) {
 		// So(ent.GetExtensionAttribute(nil), ShouldBeNil)
 
 		var count int
-		ent.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr, val []byte) {
+		ent.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr []byte, val block.Value) {
 			count++
 		}))
 		So(count, ShouldEqual, 0)
@@ -92,7 +92,7 @@ func TestEmptyEntry(t *testing.T) {
 		// So(ent.GetExtensionAttribute(nil), ShouldBeNil)
 
 		count = 0
-		ext.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr, val []byte) {
+		ext.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr []byte, val block.Value) {
 			count++
 		}))
 		So(count, ShouldEqual, 0)
@@ -179,8 +179,8 @@ func TestEmptyEntry(t *testing.T) {
 		})
 		So(w.GetExtensionAttribute(attr), ShouldResemble, attr)
 
-		fn1 := block.OnExtensionAttributeFunc(func([]byte, []byte) {})
-		ext.EXPECT().RangeExtensionAttributes(Any()).Times(1).DoAndReturn(func(f func([]byte, []byte)) {
+		fn1 := block.OnExtensionAttributeFunc(func([]byte, block.Value) {})
+		ext.EXPECT().RangeExtensionAttributes(Any()).Times(1).DoAndReturn(func(f func([]byte, block.Value)) {
 			So(f, ShouldEqual, fn1)
 		})
 		w.RangeExtensionAttributes(fn1)

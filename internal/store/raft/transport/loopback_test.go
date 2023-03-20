@@ -15,12 +15,16 @@
 package transport
 
 import (
+	// standard libraries.
 	"context"
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/raft/raftpb"
+	// third-party libraries.
 	. "github.com/smartystreets/goconvey/convey"
+
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/raft/raftpb"
 )
 
 type dmu struct {

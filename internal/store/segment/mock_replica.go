@@ -9,10 +9,10 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
-	block "github.com/linkall-labs/vanus/internal/store/block"
-	block0 "github.com/linkall-labs/vanus/internal/store/raft/block"
-	meta "github.com/linkall-labs/vanus/proto/pkg/meta"
+	vanus "github.com/vanus-labs/vanus/internal/primitive/vanus"
+	block "github.com/vanus-labs/vanus/internal/store/block"
+	block0 "github.com/vanus-labs/vanus/internal/store/raft/block"
+	meta "github.com/vanus-labs/vanus/proto/pkg/meta"
 )
 
 // MockReplica is a mock of Replica interface.
@@ -95,7 +95,7 @@ func (mr *MockReplicaMockRecorder) Delete(ctx interface{}) *gomock.Call {
 // ID mocks base method.
 func (m *MockReplica) ID() vanus.ID {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ID")
+	ret := m.ctrl.Call(m, "VolumeID")
 	ret0, _ := ret[0].(vanus.ID)
 	return ret0
 }
@@ -103,7 +103,7 @@ func (m *MockReplica) ID() vanus.ID {
 // ID indicates an expected call of ID.
 func (mr *MockReplicaMockRecorder) ID() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockReplica)(nil).ID))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VolumeID", reflect.TypeOf((*MockReplica)(nil).ID))
 }
 
 // IDStr mocks base method.

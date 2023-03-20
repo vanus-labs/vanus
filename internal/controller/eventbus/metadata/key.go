@@ -17,23 +17,23 @@ package metadata
 import (
 	"path"
 
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 const (
-	VolumeKeyPrefixInKVStore         = "/vanus/internal/resource/volume/metadata"
-	BlockKeyPrefixInKVStore          = "/vanus/internal/resource/volume/block"
-	VolumeInstanceKeyPrefixInKVStore = "/vanus/internal/resource/volume/instance"
+	VolumeKeyPrefixInKVStore         = kv.ResourceVolumeMetadata
+	BlockKeyPrefixInKVStore          = kv.ResourceVolumeBlock
+	VolumeInstanceKeyPrefixInKVStore = kv.ResourceVolumeInstance
 
-	EventbusKeyPrefixInKVStore = "/vanus/internal/resource/eventbus"
-	EventlogKeyPrefixInKVStore = "/vanus/internal/resource/eventlog"
-	SegmentKeyPrefixInKVStore  = "/vanus/internal/resource/segment"
+	EventlogKeyPrefixInKVStore = kv.ResourceEventlog
+	SegmentKeyPrefixInKVStore  = kv.ResourceSegment
 
-	EventlogSegmentsKeyPrefixInKVStore = "/vanus/internal/resource/segs_of_eventlog"
+	EventlogSegmentsKeyPrefixInKVStore = kv.ResourceSegmentOfEventlog
 )
 
-func GetEventbusMetadataKey(ebName string) string {
-	return path.Join(EventbusKeyPrefixInKVStore, ebName)
+func GetEventbusMetadataKey(id vanus.ID) string {
+	return path.Join(kv.ResourceEventbus, id.Key())
 }
 
 func GetEventlogMetadataKey(elID vanus.ID) string {
@@ -41,7 +41,7 @@ func GetEventlogMetadataKey(elID vanus.ID) string {
 }
 
 func GetBlockMetadataKey(volumeID, blockID vanus.ID) string {
-	return path.Join(BlockKeyPrefixInKVStore, volumeID.Key(), blockID.Key())
+	return path.Join(kv.ResourceVolumeBlock, volumeID.Key(), blockID.Key())
 }
 
 func GetSegmentMetadataKey(segmentID vanus.ID) string {

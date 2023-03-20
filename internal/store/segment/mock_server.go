@@ -10,9 +10,9 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	primitive "github.com/linkall-labs/vanus/internal/primitive"
-	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
-	cloudevents "github.com/linkall-labs/vanus/proto/pkg/cloudevents"
+	primitive "github.com/vanus-labs/vanus/internal/primitive"
+	vanus "github.com/vanus-labs/vanus/internal/primitive/vanus"
+	cloudevents "github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 )
 
 // MockServer is a mock of Server interface.
@@ -137,6 +137,20 @@ func (m *MockServer) ReadFromBlock(ctx context.Context, id vanus.ID, seq int64, 
 func (mr *MockServerMockRecorder) ReadFromBlock(ctx, id, seq, num, pollingTimeout interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFromBlock", reflect.TypeOf((*MockServer)(nil).ReadFromBlock), ctx, id, seq, num, pollingTimeout)
+}
+
+// RegisterToController mocks base method.
+func (m *MockServer) RegisterToController(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegisterToController", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RegisterToController indicates an expected call of RegisterToController.
+func (mr *MockServerMockRecorder) RegisterToController(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterToController", reflect.TypeOf((*MockServer)(nil).RegisterToController), ctx)
 }
 
 // RemoveBlock mocks base method.

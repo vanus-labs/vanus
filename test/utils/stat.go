@@ -16,9 +16,10 @@ package utils
 
 import (
 	"context"
-	"github.com/linkall-labs/vanus/observability/log"
 	"sync/atomic"
 	"time"
+
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 func PrintTPS(ctx context.Context, values map[string]*int64) {

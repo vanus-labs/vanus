@@ -14,13 +14,13 @@
 
 syntax = "proto3";
 
-package linkall.vanus.raft;
+package vanus.core.raft;
 
 import "google/protobuf/empty.proto";
 import "raftpb/raft.proto";
 
-option go_package = "github.com/linkall-labs/vanus/proto/pkg/raft";
+option go_package = "github.com/vanus-labs/vanus/proto/pkg/raft";
 
 service RaftServer {
-  rpc SendMessage(stream raftpb.Message) returns (google.protobuf.Empty);
+  rpc SendMessage(stream .vanus.raft.Message) returns (google.protobuf.Empty);
 }

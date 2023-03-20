@@ -23,9 +23,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/block"
-	ceschema "github.com/linkall-labs/vanus/internal/store/schema/ce"
-	"github.com/linkall-labs/vanus/internal/store/vsb/index"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	ceschema "github.com/vanus-labs/vanus/internal/store/schema/ce"
+	"github.com/vanus-labs/vanus/internal/store/vsb/index"
 )
 
 // Make sure block implements block.Reader.

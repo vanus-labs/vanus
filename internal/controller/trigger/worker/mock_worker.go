@@ -10,8 +10,8 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
-	metadata "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
+	metadata "github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	vanus "github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 // MockTriggerWorker is a mock of TriggerWorker interface.

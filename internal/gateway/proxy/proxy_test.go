@@ -24,19 +24,20 @@ import (
 
 	v2 "github.com/cloudevents/sdk-go/v2"
 	"github.com/golang/mock/gomock"
-	"github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/client/pkg/api"
-	"github.com/linkall-labs/vanus/client/pkg/policy"
-	"github.com/linkall-labs/vanus/internal/convert"
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/proto/pkg/cloudevents"
-	"github.com/linkall-labs/vanus/proto/pkg/codec"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
-	proxypb "github.com/linkall-labs/vanus/proto/pkg/proxy"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/tidwall/gjson"
+	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/internal/convert"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	"github.com/vanus-labs/vanus/proto/pkg/codec"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -45,29 +46,19 @@ import (
 func TestControllerProxy_GetEvent(t *testing.T) {
 	Convey("test get event", t, func() {
 		cp := NewControllerProxy(Config{
-			Endpoints: []string{"127.0.0.1:20001",
-				"127.0.0.1:20002", "127.0.0.1:20003"},
+			Endpoints: []string{
+				"127.0.0.1:20001",
+				"127.0.0.1:20002", "127.0.0.1:20003",
+			},
 			ProxyPort:              18082,
 			CloudEventReceiverPort: 18080,
 			Credentials:            insecure.NewCredentials(),
 		})
-
 		ctrl := gomock.NewController(t)
 		mockClient := client.NewMockClient(ctrl)
 		cp.client = mockClient
 		utEB1 := api.NewMockEventbus(ctrl)
-		utEB2 := api.NewMockEventbus(ctrl)
-		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
-			func(ctx stdCtx.Context, eb string) api.Eventbus {
-				switch eb {
-				case "ut1":
-					return utEB1
-				case "ut2":
-					return utEB2
-				default:
-					return nil
-				}
-			})
+		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(utEB1)
 
 		Convey("test invalid params", func() {
 			res, err := cp.GetEvent(stdCtx.Background(), &proxypb.GetEventRequest{
@@ -85,7 +76,8 @@ func TestControllerProxy_GetEvent(t *testing.T) {
 			id := vanus.NewTestID().Uint64()
 
 			utEB1.EXPECT().Reader(gomock.Any()).Times(2).DoAndReturn(func(
-				opts ...api.ReadOption) api.BusReader {
+				opts ...api.ReadOption,
+			) api.BusReader {
 				So(opts, ShouldHaveLength, 3)
 				opt := &api.ReadOptions{}
 				opt.Apply(opts...)
@@ -113,18 +105,18 @@ func TestControllerProxy_GetEvent(t *testing.T) {
 			}
 			reader.EXPECT().Read(gomock.Any()).Times(2).Return(batchret, int64(0), id, nil)
 			res, err := cp.GetEvent(stdCtx.Background(), &proxypb.GetEventRequest{
-				Eventbus: "ut1",
-				Offset:   -123,
-				Number:   1,
+				EventbusId: vanus.NewTestID().Uint64(),
+				Offset:     -123,
+				Number:     1,
 			})
 
 			So(err, ShouldBeNil)
 			So(res.Events, ShouldHaveLength, 1)
 
 			res, err = cp.GetEvent(stdCtx.Background(), &proxypb.GetEventRequest{
-				Eventbus: "ut1",
-				Offset:   0,
-				Number:   1,
+				EventbusId: vanus.NewTestID().Uint64(),
+				Offset:     0,
+				Number:     1,
 			})
 
 			So(err, ShouldBeNil)
@@ -140,7 +132,8 @@ func TestControllerProxy_GetEvent(t *testing.T) {
 			id := vanus.NewTestID().Uint64()
 
 			utEB1.EXPECT().Reader(gomock.Any()).Times(1).DoAndReturn(func(
-				opts ...api.ReadOption) api.BusReader {
+				opts ...api.ReadOption,
+			) api.BusReader {
 				So(opts, ShouldHaveLength, 3)
 				opt := &api.ReadOptions{}
 				opt.Apply(opts...)
@@ -175,9 +168,9 @@ func TestControllerProxy_GetEvent(t *testing.T) {
 			}
 			reader.EXPECT().Read(gomock.Any()).Times(1).Return(ret, int64(1234), id, nil)
 			res, err := cp.GetEvent(stdCtx.Background(), &proxypb.GetEventRequest{
-				Eventbus: "ut1",
-				Offset:   1234,
-				Number:   128,
+				EventbusId: vanus.NewTestID().Uint64(),
+				Offset:     1234,
+				Number:     128,
 			})
 
 			So(err, ShouldBeNil)
@@ -199,7 +192,8 @@ func TestControllerProxy_GetEvent(t *testing.T) {
 			el := api.NewMockEventlog(ctrl)
 			utEB1.EXPECT().GetLog(gomock.Any(), id).Times(1).Return(el, nil)
 			utEB1.EXPECT().Reader(gomock.Any()).Times(1).DoAndReturn(func(
-				opts ...api.ReadOption) api.BusReader {
+				opts ...api.ReadOption,
+			) api.BusReader {
 				So(opts, ShouldHaveLength, 2)
 				opt := &api.ReadOptions{}
 				opt.Apply(opts...)
@@ -226,8 +220,8 @@ func TestControllerProxy_GetEvent(t *testing.T) {
 			}
 			reader.EXPECT().Read(gomock.Any()).Times(1).Return(ret, offset, id, nil)
 			res, err := cp.GetEvent(stdCtx.Background(), &proxypb.GetEventRequest{
-				Eventbus: "ut1",
-				EventId:  base64.StdEncoding.EncodeToString(b),
+				EventbusId: vanus.NewTestID().Uint64(),
+				EventId:    base64.StdEncoding.EncodeToString(b),
 			})
 
 			So(err, ShouldBeNil)
@@ -242,12 +236,20 @@ func TestControllerProxy_GetEvent(t *testing.T) {
 func TestControllerProxy_StartAndStop(t *testing.T) {
 	Convey("test server start and stop", t, func() {
 		cp := NewControllerProxy(Config{
-			Endpoints: []string{"127.0.0.1:20001",
-				"127.0.0.1:20002", "127.0.0.1:20003"},
+			Endpoints: []string{
+				"127.0.0.1:20001",
+				"127.0.0.1:20002", "127.0.0.1:20003",
+			},
 			CloudEventReceiverPort: 18080,
 			ProxyPort:              18082,
 			Credentials:            insecure.NewCredentials(),
 		})
+
+		ctrl := gomock.NewController(t)
+
+		mockCluster := cluster.NewMockCluster(ctrl)
+		cp.ctrl = mockCluster
+		mockCluster.EXPECT().WaitForControllerReady(false).Times(1).Return(nil)
 
 		err := cp.Start()
 		So(err, ShouldBeNil)
@@ -268,15 +270,16 @@ func TestControllerProxy_StartAndStop(t *testing.T) {
 
 func TestControllerProxy_LookLookupOffset(t *testing.T) {
 	Convey("test lookup offset by timestamp/earliest/latest", t, func() {
-
 	})
 }
 
 func TestControllerProxy_ValidateSubscription(t *testing.T) {
 	Convey("test ValidateSubscription", t, func() {
 		cp := NewControllerProxy(Config{
-			Endpoints: []string{"127.0.0.1:20001",
-				"127.0.0.1:20002", "127.0.0.1:20003"},
+			Endpoints: []string{
+				"127.0.0.1:20001",
+				"127.0.0.1:20002", "127.0.0.1:20003",
+			},
 			CloudEventReceiverPort: 18080,
 			ProxyPort:              18082,
 			Credentials:            insecure.NewCredentials(),
@@ -384,7 +387,7 @@ func TestControllerProxy_ValidateSubscription(t *testing.T) {
 
 			res, err := cp.ValidateSubscription(ctx, &proxypb.ValidateSubscriptionRequest{
 				SubscriptionId: vanus.NewTestID().Uint64(),
-				Eventbus:       "test",
+				EventbusId:     vanus.NewTestID().Uint64(),
 				Eventlog:       vanus.NewTestID().Uint64(),
 				Offset:         123,
 			})

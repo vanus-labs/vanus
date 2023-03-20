@@ -32,6 +32,7 @@ var (
 	eventCreateTime   string
 
 	// for both of eventbus and subscription.
+	namespace           string
 	eventbus            string
 	eventlogID          uint64
 	eventlogNum         int32
@@ -65,7 +66,6 @@ var (
 	clusterVersion      string
 	showInstallableList bool
 	showUpgradeableList bool
-	controllerReplicas  int32
 	storeReplicas       int32
 	triggerReplicas     int32
 

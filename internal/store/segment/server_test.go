@@ -26,14 +26,14 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// first-party libraries.
-	"github.com/linkall-labs/vanus/pkg/errors"
-	"github.com/linkall-labs/vanus/pkg/util"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/util"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/primitive"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/internal/store/block"
-	cetest "github.com/linkall-labs/vanus/internal/store/schema/ce/testing"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/store/block"
+	cetest "github.com/vanus-labs/vanus/internal/store/schema/ce/testing"
 )
 
 const (
@@ -112,7 +112,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 		srv.replicas.Store(id, b)
 
 		ent0 := cetest.MakeStoredEntry0(ctrl)
-		ent1 := cetest.MakeStoredEntry1(ctrl)
+		ent1 := cetest.MakeStoredEntry1(ctrl, true)
 
 		Convey("enable long-polling, but not wait", func() {
 			b.EXPECT().Read(Any(), int64(0), 3).Return([]block.Entry{ent0, ent1}, nil)

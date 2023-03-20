@@ -9,8 +9,8 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	metadata "github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	vanus "github.com/linkall-labs/vanus/internal/primitive/vanus"
+	metadata "github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	vanus "github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 // MockSubscriptionStorage is a mock of SubscriptionStorage interface.

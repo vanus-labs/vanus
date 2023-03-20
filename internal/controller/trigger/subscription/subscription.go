@@ -12,25 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate mockgen -source=subscription.go  -destination=mock_subscription.go -package=subscription
+//go:generate mockgen -source=subscription.go -destination=mock_subscription.go -package=subscription
 package subscription
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"sync"
 	"time"
 
-	eb "github.com/linkall-labs/vanus/client"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/metadata"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/secret"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/storage"
-	"github.com/linkall-labs/vanus/internal/controller/trigger/subscription/offset"
-	"github.com/linkall-labs/vanus/internal/primitive/info"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/metrics"
-	"github.com/linkall-labs/vanus/pkg/errors"
+	eb "github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/secret"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/storage"
+	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription/offset"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 type Manager interface {
@@ -45,7 +48,7 @@ type Manager interface {
 	ResetOffsetByTimestamp(ctx context.Context, id vanus.ID, timestamp uint64) (info.ListOffsetInfo, error)
 	ListSubscription(ctx context.Context) []*metadata.Subscription
 	GetSubscription(ctx context.Context, id vanus.ID) *metadata.Subscription
-	GetSubscriptionByName(ctx context.Context, eventbus, name string) *metadata.Subscription
+	GetSubscriptionByName(ctx context.Context, namespaceID vanus.ID, name string) *metadata.Subscription
 	AddSubscription(ctx context.Context, subscription *metadata.Subscription) error
 	UpdateSubscription(ctx context.Context, subscription *metadata.Subscription) error
 	Heartbeat(ctx context.Context, id vanus.ID, addr string, time time.Time) error
@@ -60,22 +63,33 @@ const (
 )
 
 type manager struct {
-	ebCli                eb.Client
-	secretStorage        secret.Storage
-	storage              storage.Storage
-	offsetManager        offset.Manager
-	lock                 sync.RWMutex
-	subscriptionMap      map[vanus.ID]*metadata.Subscription
-	deadLetterEventLogID vanus.ID
+	cl              cluster.Cluster
+	ebCli           eb.Client
+	secretStorage   secret.Storage
+	storage         storage.Storage
+	offsetManager   offset.Manager
+	lock            sync.RWMutex
+	subscriptionMap map[vanus.ID]*metadata.Subscription
+	// key: eventbusID, value: deadLetterEventbusID
+	deadLetterEventbusMap map[vanus.ID]vanus.ID
+	// key: deadLetterEventbusID, value: eventlogID
+	deadLetterEventlogMap map[vanus.ID]vanus.ID
+	retryEventlogID       vanus.ID
+	retryEventbusID       vanus.ID
+	timerEventbusID       vanus.ID
 }
 
-func NewSubscriptionManager(storage storage.Storage, secretStorage secret.Storage, ebCli eb.Client) Manager {
+func NewSubscriptionManager(storage storage.Storage, secretStorage secret.Storage,
+	ebCli eb.Client, cl cluster.Cluster) Manager {
 	m := &manager{
-		ebCli:           ebCli,
-		storage:         storage,
-		secretStorage:   secretStorage,
-		subscriptionMap: map[vanus.ID]*metadata.Subscription{},
-		offsetManager:   offset.NewOffsetManager(storage, defaultCommitInterval),
+		cl:                    cl,
+		ebCli:                 ebCli,
+		storage:               storage,
+		secretStorage:         secretStorage,
+		deadLetterEventbusMap: map[vanus.ID]vanus.ID{},
+		deadLetterEventlogMap: map[vanus.ID]vanus.ID{},
+		subscriptionMap:       map[vanus.ID]*metadata.Subscription{},
+		offsetManager:         offset.NewOffsetManager(storage, defaultCommitInterval),
 	}
 	return m
 }
@@ -90,11 +104,11 @@ func (m *manager) ListSubscription(_ context.Context) []*metadata.Subscription {
 	return list
 }
 
-func (m *manager) GetSubscriptionByName(ctx context.Context, eventbus, name string) *metadata.Subscription {
+func (m *manager) GetSubscriptionByName(ctx context.Context, namespaceID vanus.ID, name string) *metadata.Subscription {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	for _, sub := range m.subscriptionMap {
-		if sub.EventBus != eventbus {
+		if sub.NamespaceID != namespaceID {
 			continue
 		}
 		if sub.Name == name {
@@ -114,9 +128,77 @@ func (m *manager) GetSubscription(ctx context.Context, id vanus.ID) *metadata.Su
 	return sub
 }
 
+func (m *manager) getSystemEventbusAndEventlog(ctx context.Context, name string) (vanus.ID, vanus.ID, error) {
+	eb, err := m.cl.EventbusService().GetSystemEventbusByName(ctx, name)
+	if err != nil {
+		return 0, 0, err
+	}
+	eventbusID := vanus.NewIDFromUint64(eb.Id)
+	if len(eb.Logs) != 1 {
+		return 0, 0, errors.ErrInternal.WithMessage(
+			fmt.Sprintf("system eventbus %s eventlog length is %d", name, len(eb.Logs)))
+	}
+	eventlogID := vanus.NewIDFromUint64(eb.Logs[0].EventlogId)
+	return eventbusID, eventlogID, nil
+}
+
+func (m *manager) initDeadLetterEventbus(ctx context.Context, eventbusID vanus.ID) error {
+	_, ok := m.deadLetterEventbusMap[eventbusID]
+	if ok {
+		return nil
+	}
+	deadLetterEventbusName := primitive.GetDeadLetterEventbusName(eventbusID)
+	// TODO dlq eb belongs to system?
+	deadLetterEventbusID, deadLetterEventlogID, err := m.getSystemEventbusAndEventlog(ctx, deadLetterEventbusName)
+	if err != nil {
+		return err
+	}
+	m.deadLetterEventbusMap[eventbusID] = deadLetterEventbusID
+	m.deadLetterEventlogMap[deadLetterEventbusID] = deadLetterEventlogID
+	return nil
+}
+
+func (m *manager) initRetryEventbus(ctx context.Context) error {
+	retryEventbusID, retryEventlogID, err := m.getSystemEventbusAndEventlog(ctx, primitive.RetryEventbusName)
+	if err != nil {
+		return err
+	}
+	m.retryEventbusID = retryEventbusID
+	m.retryEventlogID = retryEventlogID
+	return nil
+}
+
+func (m *manager) initTimerEventbus(ctx context.Context) error {
+	eb, err := m.cl.EventbusService().GetSystemEventbusByName(ctx, primitive.TimerEventbusName)
+	if err != nil {
+		return err
+	}
+	m.timerEventbusID = vanus.NewIDFromUint64(eb.Id)
+	return nil
+}
+
 func (m *manager) AddSubscription(ctx context.Context, subscription *metadata.Subscription) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
+	if m.retryEventbusID == 0 {
+		err := m.initRetryEventbus(ctx)
+		if err != nil {
+			return err
+		}
+	}
+	if m.timerEventbusID == 0 {
+		err := m.initTimerEventbus(ctx)
+		if err != nil {
+			return err
+		}
+	}
+	err := m.initDeadLetterEventbus(ctx, subscription.EventbusID)
+	if err != nil {
+		return err
+	}
+	subscription.DeadLetterEventbusID = m.deadLetterEventbusMap[subscription.EventbusID]
+	subscription.RetryEventbusID = m.retryEventbusID
+	subscription.TimerEventbusID = m.timerEventbusID
 	if subscription.SinkCredential != nil {
 		if err := m.secretStorage.Write(ctx, subscription.ID, subscription.SinkCredential); err != nil {
 			return err
@@ -126,9 +208,9 @@ func (m *manager) AddSubscription(ctx context.Context, subscription *metadata.Su
 		return err
 	}
 	m.subscriptionMap[subscription.ID] = subscription
-	metrics.SubscriptionGauge.WithLabelValues(subscription.EventBus).Inc()
+	metrics.SubscriptionGauge.WithLabelValues(subscription.EventbusID.Key()).Inc()
 	if subscription.Transformer.Exist() {
-		metrics.SubscriptionTransformerGauge.WithLabelValues(subscription.EventBus).Inc()
+		metrics.SubscriptionTransformerGauge.WithLabelValues(subscription.EventbusID.Key()).Inc()
 	}
 	return nil
 }
@@ -179,9 +261,9 @@ func (m *manager) DeleteSubscription(ctx context.Context, id vanus.ID) error {
 		return err
 	}
 	delete(m.subscriptionMap, id)
-	metrics.SubscriptionGauge.WithLabelValues(subscription.EventBus).Dec()
+	metrics.SubscriptionGauge.WithLabelValues(subscription.EventbusID.Key()).Dec()
 	if subscription.Transformer.Exist() {
-		metrics.SubscriptionTransformerGauge.WithLabelValues(subscription.EventBus).Dec()
+		metrics.SubscriptionTransformerGauge.WithLabelValues(subscription.EventbusID.Key()).Dec()
 	}
 	return nil
 }
@@ -225,9 +307,9 @@ func (m *manager) Init(ctx context.Context) error {
 			sub.SinkCredential = credential
 		}
 		m.subscriptionMap[sub.ID] = sub
-		metrics.SubscriptionGauge.WithLabelValues(sub.EventBus).Inc()
+		metrics.SubscriptionGauge.WithLabelValues(sub.EventbusID.Key()).Inc()
 		if sub.Transformer.Exist() {
-			metrics.SubscriptionTransformerGauge.WithLabelValues(sub.EventBus).Inc()
+			metrics.SubscriptionTransformerGauge.WithLabelValues(sub.EventbusID.Key()).Inc()
 		}
 		if sub.TriggerWorker != "" {
 			metrics.CtrlTriggerGauge.WithLabelValues(sub.TriggerWorker).Inc()

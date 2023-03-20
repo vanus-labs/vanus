@@ -24,7 +24,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store"
+	"github.com/vanus-labs/vanus/internal/store"
 )
 
 func TestServer_recover(t *testing.T) {

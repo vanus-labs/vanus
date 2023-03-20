@@ -19,7 +19,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/linkall-labs/vanus/internal/primitive/transform/common"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/common"
 )
 
 var JoinFunction = function{

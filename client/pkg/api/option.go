@@ -18,6 +18,29 @@ const (
 	DefaultPollingTimeout = 3000 // in milliseconds.
 )
 
+type EventbusOptions struct {
+	Name string
+	ID   uint64
+}
+
+func DefaultEventbusOptions() *EventbusOptions {
+	return &EventbusOptions{}
+}
+
+type EventbusOption func(opt *EventbusOptions)
+
+func WithName(name string) EventbusOption {
+	return func(opt *EventbusOptions) {
+		opt.Name = name
+	}
+}
+
+func WithID(id uint64) EventbusOption {
+	return func(opt *EventbusOptions) {
+		opt.ID = id
+	}
+}
+
 type WriteOption func(*WriteOptions)
 
 type WriteOptions struct {
@@ -65,3 +88,4 @@ type LogOption func(*LogOptions)
 type LogOptions struct {
 	Policy LogPolicy
 }
+

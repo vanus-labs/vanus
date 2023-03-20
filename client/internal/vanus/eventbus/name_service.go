@@ -15,22 +15,23 @@
 package eventbus
 
 import (
-	// standard libraries
+	// standard libraries.
 	"context"
 
-	// third-party libraries
+	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/credentials/insecure"
 
-	// first-party libraries
-	"github.com/linkall-labs/vanus/observability/log"
-	"github.com/linkall-labs/vanus/observability/tracing"
-	"github.com/linkall-labs/vanus/pkg/cluster"
-	ctrlpb "github.com/linkall-labs/vanus/proto/pkg/controller"
-	metapb "github.com/linkall-labs/vanus/proto/pkg/meta"
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/tracing"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 
-	// this project
-	"github.com/linkall-labs/vanus/client/pkg/record"
+	// this project.
+	"github.com/vanus-labs/vanus/client/pkg/record"
 )
 
 func NewNameService(endpoints []string) *NameService {
@@ -41,42 +42,42 @@ func NewNameService(endpoints []string) *NameService {
 }
 
 type NameService struct {
-	client ctrlpb.EventBusControllerClient
+	client ctrlpb.EventbusControllerClient
 	tracer *tracing.Tracer
 }
 
-func (ns *NameService) LookupWritableLogs(ctx context.Context, eventbus string) ([]*record.Eventlog, error) {
+func (ns *NameService) LookupWritableLogs(ctx context.Context, eventbusID uint64) ([]*record.Eventlog, error) {
 	ctx, span := ns.tracer.Start(ctx, "LookupWritableLogs")
 	defer span.End()
 
-	req := &metapb.EventBus{
-		Name: eventbus,
+	req := &wrapperspb.UInt64Value{
+		Value: eventbusID,
 	}
 
-	resp, err := ns.client.GetEventBus(ctx, req)
+	resp, err := ns.client.GetEventbus(ctx, req)
 	if err != nil {
 		log.Error(context.Background(), "get eventbus failed", map[string]interface{}{
-			log.KeyError: err,
-			"eventbus":   eventbus,
+			log.KeyError:  err,
+			"eventbus_id": eventbusID,
 		})
 		return nil, err
 	}
 	return toLogs(resp.GetLogs()), nil
 }
 
-func (ns *NameService) LookupReadableLogs(ctx context.Context, eventbus string) ([]*record.Eventlog, error) {
+func (ns *NameService) LookupReadableLogs(ctx context.Context, eventbusID uint64) ([]*record.Eventlog, error) {
 	ctx, span := ns.tracer.Start(ctx, "LookupReadableLogs")
 	defer span.End()
 
-	req := &metapb.EventBus{
-		Name: eventbus,
+	req := &wrapperspb.UInt64Value{
+		Value: eventbusID,
 	}
 
-	resp, err := ns.client.GetEventBus(ctx, req)
+	resp, err := ns.client.GetEventbus(ctx, req)
 	if err != nil {
 		log.Error(context.Background(), "get eventbus failed", map[string]interface{}{
-			log.KeyError: err,
-			"eventbus":   eventbus,
+			log.KeyError:  err,
+			"eventbus_id": eventbusID,
 		})
 		return nil, err
 	}
@@ -84,7 +85,7 @@ func (ns *NameService) LookupReadableLogs(ctx context.Context, eventbus string) 
 	return toLogs(resp.GetLogs()), nil
 }
 
-func toLogs(logpbs []*metapb.EventLog) []*record.Eventlog {
+func toLogs(logpbs []*metapb.Eventlog) []*record.Eventlog {
 	if len(logpbs) <= 0 {
 		return make([]*record.Eventlog, 0)
 	}
@@ -95,9 +96,9 @@ func toLogs(logpbs []*metapb.EventLog) []*record.Eventlog {
 	return logs
 }
 
-func toLog(logpb *metapb.EventLog) *record.Eventlog {
+func toLog(logpb *metapb.Eventlog) *record.Eventlog {
 	log := &record.Eventlog{
-		ID:   logpb.GetEventLogId(),
+		ID:   logpb.GetEventlogId(),
 		Mode: record.PremWrite | record.PremRead,
 	}
 	return log

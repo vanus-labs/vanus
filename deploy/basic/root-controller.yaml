@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-root-controller
+  namespace: vanus
+data:
+  root.yaml: |-
+    node_id: ${NODE_ID}
+    name: ${POD_NAME}
+    ip: ${POD_IP}
+    port: 2021
+    observability:
+      metrics:
+        enable: true
+      tracing:
+        enable: false
+        # OpenTelemetry Collector endpoint, https://opentelemetry.io/docs/collector/getting-started/
+        otel_collector: http://127.0.0.1:4318
+    cluster:
+      component_name: root-controller
+      lease_duration_in_sec: 15
+      etcd:
+        - vanus-etcd-0.vanus-etcd:2379
+        - vanus-etcd-1.vanus-etcd:2379
+        - vanus-etcd-2.vanus-etcd:2379
+      topology:
+        vanus-root-controller-0: vanus-root-controller-0.vanus-root-controller.vanus.svc:2021
+        vanus-root-controller-1: vanus-root-controller-1.vanus-root-controller.vanus.svc:2021
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vanus-root-controller
+  namespace: vanus
+spec:
+  selector:
+    app: vanus-root-controller
+  clusterIP: None
+  ports:
+    - port: 2021
+      name: vanus-root-controller
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vanus-root-controller
+  namespace: vanus
+  labels:
+    app: vanus-root-controller
+spec:
+  selector:
+    matchLabels:
+      app: vanus-root-controller
+  replicas: 2
+  serviceName: vanus-root-controller
+  template:
+    metadata:
+      labels:
+        app: vanus-root-controller
+      annotations:
+        vanus.dev/metrics.port: "2112"
+    spec:
+      containers:
+        - name: controller
+          image: public.ecr.aws/vanus/root-controller:v0.7.0
+          imagePullPolicy: IfNotPresent
+          command:
+            [ "/bin/sh", "-c", "NODE_ID=${HOSTNAME##*-} /vanus/bin/root-controller" ]
+          ports:
+            - name: grpc
+              containerPort: 2021
+            - name: metrics
+              containerPort: 2112
+          env:
+            - name: VANUS_LOG_LEVEL
+              value: INFO
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: config-root-controller
+              mountPath: /vanus/config
+      volumes:
+        - name: config-root-controller
+          configMap:
+            name: config-root-controller

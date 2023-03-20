@@ -28,7 +28,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	// this project.
-	"github.com/linkall-labs/vanus/internal/store/wal/record"
+	"github.com/vanus-labs/vanus/internal/store/wal/record"
 )
 
 var (

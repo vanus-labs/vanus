@@ -23,9 +23,9 @@ DOCKER_PLATFORM ?= linux/amd64,linux/arm64
 clean :
 	rm -rf bin
 
-docker-push: docker-push-controller docker-push-timer docker-push-trigger docker-push-gateway docker-push-store
-docker-build: docker-build-controller docker-build-timer docker-build-trigger docker-build-gateway docker-build-store
-build: build-controller build-timer build-trigger build-gateway build-store
+docker-push: docker-push-root docker-push-controller docker-push-timer docker-push-trigger docker-push-gateway docker-push-store
+docker-build: docker-build-root docker-build-controller docker-build-timer docker-build-trigger docker-build-gateway docker-build-store
+build: build-root build-controller build-timer build-trigger build-gateway build-store
 
 docker-push-store:
 	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/store:${IMAGE_TAG} -f build/images/store/Dockerfile . --push
@@ -57,6 +57,13 @@ LD_FLAGS=${t4} -X 'main.Platform=${GOOS}/${GOARCH}'
 
 build-cmd:
 	$(GO_BUILD)  -ldflags "${LD_FLAGS}" -o bin/vsctl ./vsctl/
+
+docker-push-root:
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/root-controller:${IMAGE_TAG} -f build/images/root-controller/Dockerfile . --push
+docker-build-root:
+	docker build -t ${DOCKER_REPO}/root-controller:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/root-controller/Dockerfile .
+build-root:
+	$(GO_BUILD) -o bin/root-controller cmd/root/main.go
 
 docker-push-controller:
 	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/controller:${IMAGE_TAG} -f build/images/controller/Dockerfile . --push

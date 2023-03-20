@@ -22,21 +22,20 @@
 
 syntax = "proto3";
 
-package linkall.vanus.cloudevents;
+package vanus.core.cloudevents;
 
 import "google/protobuf/any.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
 option csharp_namespace = "CloudNative.CloudEvents.V1";
-option go_package = "github.com/linkall-labs/vanus/proto/pkg/cloudevents";
-option java_package = "io.cloudevents.v1.proto";
+option go_package = "github.com/vanus-labs/vanus/proto/pkg/cloudevents";
 option java_multiple_files = true;
+option java_package = "io.cloudevents.v1.proto";
 option php_namespace = "Io\\CloudEvents\\V1\\Proto";
 option ruby_package = "Io::CloudEvents::V1::Proto";
 
 message CloudEvent {
-
   // -- CloudEvent Context Attributes
 
   // Required Attributes
@@ -49,7 +48,7 @@ message CloudEvent {
   map<string, CloudEventAttributeValue> attributes = 5;
 
   // -- CloudEvent Data (Bytes, Text, or Proto)
-  oneof  data {
+  oneof data {
     bytes binary_data = 6;
     string text_data = 7;
     google.protobuf.Any proto_data = 8;
@@ -83,10 +82,11 @@ message CloudEventBatch {
 }
 
 service CloudEvents {
-  rpc Send(BatchEvent) returns(google.protobuf.Empty);
+  rpc Send(BatchEvent) returns (google.protobuf.Empty);
 }
 
 message BatchEvent {
-  string eventbus_name = 1;
+  reserved 1; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   CloudEventBatch events = 2;
+  uint64 eventbus_id = 3;
 }

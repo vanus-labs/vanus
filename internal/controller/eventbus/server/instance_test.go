@@ -19,14 +19,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
-	segpb "github.com/linkall-labs/vanus/proto/pkg/segment"
-	"google.golang.org/grpc"
-
 	"github.com/golang/mock/gomock"
-	"github.com/linkall-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/linkall-labs/vanus/internal/primitive/vanus"
 	. "github.com/smartystreets/goconvey/convey"
+	"google.golang.org/grpc"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
+
+	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
+
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestVolumeInstance(t *testing.T) {
@@ -48,7 +49,7 @@ func TestVolumeInstance(t *testing.T) {
 		srv := NewMockServer(ctrl)
 
 		srv.EXPECT().IsActive(stdCtx.Background()).Times(1).Return(false)
-		srv.EXPECT().ID().AnyTimes().Return(vanus.NewIDFromUint64(1234))
+		srv.EXPECT().VolumeID().AnyTimes().Return(uint64(1234))
 		srv.EXPECT().Address().AnyTimes().Return("127.0.0.1:10001")
 		srv.EXPECT().Uptime().AnyTimes().Return(time.Now())
 		ins.SetServer(srv)
@@ -66,9 +67,9 @@ func TestVolumeInstance(t *testing.T) {
 		segCli := segpb.NewMockSegmentServerClient(ctrl)
 		srv.EXPECT().GetClient().AnyTimes().Return(segCli)
 		ctx := stdCtx.Background()
-		f := func(ctx stdCtx.Context, in *segpb.CreateBlockRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+		f := func(ctx stdCtx.Context, in *segpb.CreateBlockRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 			So(in.Size, ShouldEqual, 32*1024*1024)
-			return &empty.Empty{}, nil
+			return &emptypb.Empty{}, nil
 		}
 		segCli.EXPECT().CreateBlock(ctx, gomock.Any(), gomock.Any()).Times(1).DoAndReturn(f)
 		block, err := ins.CreateBlock(ctx, 32*1024*1024)
@@ -79,9 +80,9 @@ func TestVolumeInstance(t *testing.T) {
 		So(block.SegmentID, ShouldBeZeroValue)
 		So(block.EventlogID, ShouldBeZeroValue)
 
-		f = func(ctx stdCtx.Context, in *segpb.CreateBlockRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+		f = func(ctx stdCtx.Context, in *segpb.CreateBlockRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 			So(in.Size, ShouldEqual, 64*1024*1024)
-			return &empty.Empty{}, nil
+			return &emptypb.Empty{}, nil
 		}
 		segCli.EXPECT().CreateBlock(ctx, gomock.Any(), gomock.Any()).Times(1).DoAndReturn(f)
 		block2, err := ins.CreateBlock(ctx, 64*1024*1024)
@@ -91,9 +92,11 @@ func TestVolumeInstance(t *testing.T) {
 		So(md.Blocks[block.ID.Uint64()], ShouldEqual, block)
 		So(md.Blocks[block2.ID.Uint64()], ShouldEqual, block2)
 
-		f2 := func(ctx stdCtx.Context, in *segpb.RemoveBlockRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+		f2 := func(ctx stdCtx.Context, in *segpb.RemoveBlockRequest,
+			opts ...grpc.CallOption,
+		) (*emptypb.Empty, error) {
 			So(in.Id, ShouldEqual, block.ID.Uint64())
-			return &empty.Empty{}, nil
+			return &emptypb.Empty{}, nil
 		}
 		segCli.EXPECT().RemoveBlock(ctx, gomock.Any(), gomock.Any()).Times(1).DoAndReturn(f2)
 

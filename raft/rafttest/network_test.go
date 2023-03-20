@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/linkall-labs/vanus/raft/raftpb"
+	"github.com/vanus-labs/vanus/raft/raftpb"
 )
 
 func TestNetworkDrop(t *testing.T) {
