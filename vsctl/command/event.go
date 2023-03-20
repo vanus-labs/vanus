@@ -81,13 +81,17 @@ func putEventCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedf(cmd, "create ce client error: %s\n", err)
 			}
+			if namespace == "" {
+				namespace = "default"
+				color.Green("the namespace not specified, using [default] namespace")
+			}
 			var target string
 			endpoint := mustGetGatewayCloudEventsEndpoint(cmd)
+			path := fmt.Sprintf("namespaces/%s/eventbus/%s/events", namespace, args[0])
 			if strings.HasPrefix(endpoint, httpPrefix) {
-				// TODO replace with namespace
-				target = fmt.Sprintf("%s/%s", endpoint, mustGetEventbusID("", args[0]))
+				target = fmt.Sprintf("%s/%s", endpoint, path)
 			} else {
-				target = fmt.Sprintf("%s%s/%s", httpPrefix, endpoint, mustGetEventbusID("", args[0]))
+				target = fmt.Sprintf("%s%s/%s", httpPrefix, endpoint, path)
 			}
 
 			ctx := v2.ContextWithTarget(context.Background(), target)

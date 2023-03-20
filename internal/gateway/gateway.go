@@ -16,7 +16,10 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	"google.golang.org/grpc/credentials/insecure"
 	"net"
 	"net/http"
 	"strings"
@@ -48,11 +51,14 @@ type ceGateway struct {
 	proxySrv   *proxy.ControllerProxy
 	tracer     *tracing.Tracer
 	ceListener net.Listener
+	ctrl       cluster.Cluster
 }
 
 func NewGateway(config Config) *ceGateway {
+	ctrl := cluster.NewClusterController(config.GetProxyConfig().Endpoints, insecure.NewCredentials())
 	return &ceGateway{
 		config:   config,
+		ctrl:     ctrl,
 		proxySrv: proxy.NewControllerProxy(config.GetProxyConfig()),
 		tracer:   tracing.NewTracer("cloudevents", trace.SpanKindServer),
 	}
@@ -98,7 +104,7 @@ func (ga *ceGateway) startCloudEventsReceiver(ctx context.Context) error {
 }
 
 func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event, result protocol.Result) {
-	eventbusID, err := getEventbusFromPath(ctx, requestDataFromContext(ctx))
+	eventbusID, err := ga.getEventbusFromPath(ctx, requestDataFromContext(ctx))
 	if err != nil {
 		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
@@ -122,10 +128,27 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 	return re, v2.ResultACK
 }
 
-func getEventbusFromPath(ctx context.Context, reqData *cehttp.RequestData) (vanus.ID, error) {
-	id, err := vanus.NewIDFromString(strings.TrimLeft(reqData.URL.String(), "/"))
-	if err != nil {
-		return vanus.EmptyID(), err
+func (ga *ceGateway) getEventbusFromPath(ctx context.Context, reqData *cehttp.RequestData) (vanus.ID, error) {
+	// namespaces/:namespace_name/eventbus/:eventbus_name/events
+	path := strings.TrimLeft(reqData.URL.String(), "/")
+	strs := strings.Split(path, "/")
+	if len(strs) != 5 {
+		return 0, errors.New("invalid request path")
 	}
-	return id, nil
+	if strs[0] != "namespaces" && strs[2] != "eventbus" && strs[4] != "events" {
+		return 0, errors.New("invalid request path")
+	}
+	if strs[1] == "" {
+		return 0, errors.New("namespace is empty")
+	}
+
+	if strs[3] == "" {
+		return 0, errors.New("eventbus is empty")
+	}
+
+	eb, err := ga.ctrl.EventbusService().GetEventbusByName(ctx, strs[1], strs[3])
+	if err != nil {
+		return 0, err
+	}
+	return vanus.NewIDFromUint64(eb.Id), nil
 }
