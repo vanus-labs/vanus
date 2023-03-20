@@ -216,6 +216,21 @@ func (mr *MockNamespaceServiceMockRecorder) GetNamespace(ctx, id interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespace", reflect.TypeOf((*MockNamespaceService)(nil).GetNamespace), ctx, id)
 }
 
+// GetNamespaceByName mocks base method.
+func (m *MockNamespaceService) GetNamespaceByName(ctx context.Context, name string) (*meta.Namespace, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetNamespaceByName", ctx, name)
+	ret0, _ := ret[0].(*meta.Namespace)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetNamespaceByName indicates an expected call of GetNamespaceByName.
+func (mr *MockNamespaceServiceMockRecorder) GetNamespaceByName(ctx, name interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespaceByName", reflect.TypeOf((*MockNamespaceService)(nil).GetNamespaceByName), ctx, name)
+}
+
 // GetSystemNamespace mocks base method.
 func (m *MockNamespaceService) GetSystemNamespace(ctx context.Context) (*meta.Namespace, error) {
 	m.ctrl.T.Helper()
@@ -312,6 +327,21 @@ func (mr *MockEventbusServiceMockRecorder) GetEventbus(ctx, id interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventbus", reflect.TypeOf((*MockEventbusService)(nil).GetEventbus), ctx, id)
 }
 
+// GetEventbusByName mocks base method.
+func (m *MockEventbusService) GetEventbusByName(ctx context.Context, ns, name string) (*meta.Eventbus, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEventbusByName", ctx, ns, name)
+	ret0, _ := ret[0].(*meta.Eventbus)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetEventbusByName indicates an expected call of GetEventbusByName.
+func (mr *MockEventbusServiceMockRecorder) GetEventbusByName(ctx, ns, name interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventbusByName", reflect.TypeOf((*MockEventbusService)(nil).GetEventbusByName), ctx, ns, name)
+}
+
 // GetSystemEventbusByName mocks base method.
 func (m *MockEventbusService) GetSystemEventbusByName(ctx context.Context, name string) (*meta.Eventbus, error) {
 	m.ctrl.T.Helper()
@@ -325,20 +355,6 @@ func (m *MockEventbusService) GetSystemEventbusByName(ctx context.Context, name 
 func (mr *MockEventbusServiceMockRecorder) GetSystemEventbusByName(ctx, name interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSystemEventbusByName", reflect.TypeOf((*MockEventbusService)(nil).GetSystemEventbusByName), ctx, name)
-}
-
-// IsExist mocks base method.
-func (m *MockEventbusService) IsExist(ctx context.Context, id uint64) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsExist", ctx, id)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// IsExist indicates an expected call of IsExist.
-func (mr *MockEventbusServiceMockRecorder) IsExist(ctx, id interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsExist", reflect.TypeOf((*MockEventbusService)(nil).IsExist), ctx, id)
 }
 
 // RawClient mocks base method.

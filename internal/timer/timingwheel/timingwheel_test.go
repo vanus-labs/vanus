@@ -93,7 +93,6 @@ func TestTimingWheel_Start(t *testing.T) {
 		mockSvc.EXPECT().GetSystemEventbusByName(Any(), Any()).AnyTimes().Return(&meta.Eventbus{
 			Id: 0,
 		}, nil)
-		mockSvc.EXPECT().IsExist(Any(), Any()).AnyTimes().Return(true)
 
 		Convey("test timingwheel start bucket start success", func() {
 			tw.SetLeader(false)
@@ -160,7 +159,6 @@ func TestTimingWheel_IsDeployed(t *testing.T) {
 		tw.ctrl = mockCl
 		mockSvc := cluster.NewMockEventbusService(mockCtrl)
 		mockCl.EXPECT().EventbusService().AnyTimes().Return(mockSvc)
-		mockSvc.EXPECT().IsExist(Any(), Any()).AnyTimes().Return(true)
 		mockSvc.EXPECT().GetSystemEventbusByName(Any(), Any()).AnyTimes().Return(&meta.Eventbus{
 			Id: 0,
 		}, nil)

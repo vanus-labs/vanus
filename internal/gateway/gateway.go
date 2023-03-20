@@ -18,8 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/vanus-labs/vanus/pkg/cluster"
-	"google.golang.org/grpc/credentials/insecure"
 	"net"
 	"net/http"
 	"strings"
@@ -28,15 +26,16 @@ import (
 	"github.com/cloudevents/sdk-go/v2/client"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
-	"go.opentelemetry.io/otel/trace"
-
 	"github.com/vanus-labs/vanus/internal/gateway/proxy"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/tracing"
+	"github.com/vanus-labs/vanus/pkg/cluster"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
+	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var requestDataFromContext = cehttp.RequestDataFromContext

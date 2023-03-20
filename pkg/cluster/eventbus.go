@@ -6,12 +6,11 @@ import (
 	"strings"
 	"sync"
 
-	"google.golang.org/protobuf/types/known/wrapperspb"
-
 	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"github.com/vanus-labs/vanus/proto/pkg/meta"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 var (
