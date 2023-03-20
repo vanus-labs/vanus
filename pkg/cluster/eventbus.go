@@ -54,7 +54,7 @@ func (es *eventbusService) GetEventbusByName(ctx context.Context, ns, name strin
 		return nil, err
 	}
 
-	es.cache.Store(key, eb)
+	// es.cache.Store(key, eb) unmask when dirty cache is resolved
 	return eb, nil
 }
 
@@ -69,7 +69,7 @@ func (es *eventbusService) GetEventbus(ctx context.Context, id uint64) (*meta.Ev
 		return nil, err
 	}
 
-	es.cache.Store(id, eb)
+	// es.cache.Store(id, eb) unmask when dirty cache is resolved
 	return eb, nil
 }
 

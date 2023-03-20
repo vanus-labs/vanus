@@ -127,25 +127,43 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 	return re, v2.ResultACK
 }
 
+const (
+	httpRequestPrefix = "/gateway"
+)
+
 func (ga *ceGateway) getEventbusFromPath(ctx context.Context, reqData *cehttp.RequestData) (vanus.ID, error) {
-	// namespaces/:namespace_name/eventbus/:eventbus_name/events
-	path := strings.TrimLeft(reqData.URL.String(), "/")
-	strs := strings.Split(path, "/")
-	if len(strs) != 5 {
-		return 0, errors.New("invalid request path")
+	// TODO validate
+	reqPathStr := reqData.URL.String()
+	var (
+		ns   string
+		name string
+	)
+	if strings.HasPrefix(reqPathStr, httpRequestPrefix) { // Deprecated, just for compatibility of older than v0.7.0
+		ns = "default"
+		name = strings.TrimLeft(reqPathStr[len(httpRequestPrefix):], "/")
+	} else {
+		// namespaces/:namespace_name/eventbus/:eventbus_name/events
+		path := strings.TrimLeft(reqData.URL.String(), "/")
+		strs := strings.Split(path, "/")
+		if len(strs) != 5 {
+			return 0, errors.New("invalid request path")
+		}
+		if strs[0] != "namespaces" && strs[2] != "eventbus" && strs[4] != "events" {
+			return 0, errors.New("invalid request path")
+		}
+		ns = strs[1]
+		name = strs[3]
 	}
-	if strs[0] != "namespaces" && strs[2] != "eventbus" && strs[4] != "events" {
-		return 0, errors.New("invalid request path")
-	}
-	if strs[1] == "" {
+
+	if ns == "" {
 		return 0, errors.New("namespace is empty")
 	}
 
-	if strs[3] == "" {
+	if name == "" {
 		return 0, errors.New("eventbus is empty")
 	}
 
-	eb, err := ga.ctrl.EventbusService().GetEventbusByName(ctx, strs[1], strs[3])
+	eb, err := ga.ctrl.EventbusService().GetEventbusByName(ctx, ns, name)
 	if err != nil {
 		return 0, err
 	}
