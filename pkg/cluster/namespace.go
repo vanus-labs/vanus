@@ -43,7 +43,7 @@ func (ns *namespaceService) GetNamespace(ctx context.Context, id uint64) (*metap
 	if err != nil {
 		return nil, err
 	}
-	ns.cache.Store(id, n)
+	// ns.cache.Store(id, n) unmask when dirty cache is resolved
 	return n, nil
 }
 
@@ -64,7 +64,7 @@ func (ns *namespaceService) GetNamespaceByName(ctx context.Context, name string)
 	if err != nil {
 		return nil, err
 	}
-	ns.cache.Store(name, n)
+	// ns.cache.Store(name, n) unmask when dirty cache is resolved
 	return n, nil
 }
 

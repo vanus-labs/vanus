@@ -16,11 +16,9 @@ package gateway
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/rand"
 	"net/url"
-	"strconv"
 	"testing"
 	"time"
 
@@ -29,11 +27,12 @@ import (
 	. "github.com/golang/mock/gomock"
 	. "github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
-
 	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 )
 
 func TestGateway_NewGateway(t *testing.T) {
@@ -116,25 +115,68 @@ func TestGateway_receive(t *testing.T) {
 }
 
 func TestGateway_getEventbusFromPath(t *testing.T) {
-	Convey("test get eventbus from path return nil ", t, func() {
+	ga := &ceGateway{}
+	Convey("invalid request path", t, func() {
 		reqData := &cehttp.RequestData{
 			URL: &url.URL{
-				Opaque: "/test",
+				Opaque: "/a/b/c/d",
 			},
 		}
-		_, err := getEventbusFromPath(context.Background(), reqData)
-		So(errors.Is(err, strconv.ErrSyntax), ShouldBeTrue)
+		_, err := ga.getEventbusFromPath(context.Background(), reqData)
+		So(err.Error(), ShouldEqual, "invalid request path")
+
+		reqData = &cehttp.RequestData{
+			URL: &url.URL{
+				Opaque: "/ns/b/eb/d",
+			},
+		}
+		_, err = ga.getEventbusFromPath(context.Background(), reqData)
+		So(err.Error(), ShouldEqual, "invalid request path")
 	})
-	Convey("test get eventbus from path return path ", t, func() {
-		vid := vanus.NewTestID()
+
+	Convey("test namespace or eventbus is empty", t, func() {
 		reqData := &cehttp.RequestData{
 			URL: &url.URL{
-				Opaque: fmt.Sprintf("/%s", vid.String()),
+				Opaque: "/namespaces//eventbus/test/events",
 			},
 		}
-		id, err := getEventbusFromPath(context.Background(), reqData)
+		_, err := ga.getEventbusFromPath(context.Background(), reqData)
+		So(err.Error(), ShouldEqual, "namespace is empty")
+
+		reqData = &cehttp.RequestData{
+			URL: &url.URL{
+				Opaque: "/namespaces/default/eventbus//events",
+			},
+		}
+		_, err = ga.getEventbusFromPath(context.Background(), reqData)
+		So(err.Error(), ShouldEqual, "eventbus is empty")
+	})
+
+	ctrl := NewController(t)
+	cctrl := cluster.NewMockCluster(ctrl)
+	ebSvc := cluster.NewMockEventbusService(ctrl)
+	cctrl.EXPECT().EventbusService().AnyTimes().Return(ebSvc)
+
+	ebID := vanus.NewTestID().Uint64()
+	ebSvc.EXPECT().GetEventbusByName(Any(), "default", "test").Times(1).Return(
+		&metapb.Eventbus{
+			Name:        "test",
+			LogNumber:   1,
+			Id:          ebID,
+			Description: "desc",
+			NamespaceId: vanus.NewTestID().Uint64(),
+		}, nil)
+	ga.ctrl = cctrl
+	Convey("test get eventbus from path return path ", t, func() {
+		reqData := &cehttp.RequestData{
+			URL: &url.URL{
+				Opaque: "/namespaces/default/eventbus/test/events",
+			},
+		}
+
+		id, err := ga.getEventbusFromPath(context.Background(), reqData)
 		So(err, ShouldBeNil)
-		So(id, ShouldEqual, vid)
+		So(id, ShouldEqual, ebID)
 	})
 }
 

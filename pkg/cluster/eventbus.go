@@ -6,12 +6,11 @@ import (
 	"strings"
 	"sync"
 
-	"google.golang.org/protobuf/types/known/wrapperspb"
-
 	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"github.com/vanus-labs/vanus/proto/pkg/meta"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 var (
@@ -55,7 +54,7 @@ func (es *eventbusService) GetEventbusByName(ctx context.Context, ns, name strin
 		return nil, err
 	}
 
-	es.cache.Store(key, eb)
+	// es.cache.Store(key, eb) unmask when dirty cache is resolved
 	return eb, nil
 }
 
@@ -70,7 +69,7 @@ func (es *eventbusService) GetEventbus(ctx context.Context, id uint64) (*meta.Ev
 		return nil, err
 	}
 
-	es.cache.Store(id, eb)
+	// es.cache.Store(id, eb) unmask when dirty cache is resolved
 	return eb, nil
 }
 
