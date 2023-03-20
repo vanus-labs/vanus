@@ -2,6 +2,9 @@ package cluster
 
 import (
 	"context"
+	"fmt"
+	"strings"
+	"sync"
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
@@ -19,6 +22,7 @@ var (
 type eventbusService struct {
 	client ctrlpb.EventbusControllerClient
 	nsSvc  NamespaceService
+	cache  sync.Map
 }
 
 func newEventbusService(cc *raw_client.Conn, svc NamespaceService) EventbusService {
@@ -29,42 +33,56 @@ func newEventbusService(cc *raw_client.Conn, svc NamespaceService) EventbusServi
 }
 
 func (es *eventbusService) GetSystemEventbusByName(ctx context.Context, name string) (*meta.Eventbus, error) {
-	pb, err := es.nsSvc.GetSystemNamespace(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return es.client.GetEventbusWithHumanFriendly(ctx, &ctrlpb.GetEventbusWithHumanFriendlyRequest{
-		NamespaceId:  pb.Id,
-		EventbusName: name,
-	})
+	return es.GetEventbusByName(ctx, systemNamespace, name)
 }
 
 func (es *eventbusService) GetEventbusByName(ctx context.Context, ns, name string) (*meta.Eventbus, error) {
-	return nil, nil
+	key := fmt.Sprintf("%s_%s", ns, name)
+	v, exist := es.cache.Load(key)
+	if exist {
+		return v.(*meta.Eventbus), nil
+	}
+
+	pb, err := es.nsSvc.GetNamespaceByName(ctx, ns)
+	if err != nil {
+		return nil, err
+	}
+	eb, err := es.client.GetEventbusWithHumanFriendly(ctx, &ctrlpb.GetEventbusWithHumanFriendlyRequest{
+		NamespaceId:  pb.Id,
+		EventbusName: name,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	es.cache.Store(key, eb)
+	return eb, nil
 }
 
 func (es *eventbusService) GetEventbus(ctx context.Context, id uint64) (*meta.Eventbus, error) {
-	return es.client.GetEventbus(ctx, wrapperspb.UInt64(id))
+	v, exist := es.cache.Load(id)
+	if exist {
+		return v.(*meta.Eventbus), nil
+	}
+
+	eb, err := es.client.GetEventbus(ctx, wrapperspb.UInt64(id))
+	if err != nil {
+		return nil, err
+	}
+
+	es.cache.Store(id, eb)
+	return eb, nil
 }
 
 func (es *eventbusService) IsSystemEventbusExistByName(ctx context.Context, name string) (bool, error) {
-	nsPb, err := es.nsSvc.GetSystemNamespace(ctx)
-	if err != nil {
-		return false, err
-	}
-	ebPb, err := es.client.GetEventbusWithHumanFriendly(ctx, &ctrlpb.GetEventbusWithHumanFriendlyRequest{
-		NamespaceId:  nsPb.Id,
-		EventbusName: name,
-	})
-	return !(ebPb == nil), err
-}
-
-func (es *eventbusService) IsExist(ctx context.Context, id uint64) bool {
-	_, err := es.client.GetEventbus(ctx, wrapperspb.UInt64(id))
-	return err == nil
+	ebPb, err := es.GetSystemEventbusByName(ctx, name)
+	return ebPb != nil, err
 }
 
 func (es *eventbusService) CreateSystemEventbusIfNotExist(ctx context.Context, name string, desc string) (*meta.Eventbus, error) {
+	if !strings.HasPrefix(name, systemEventbusPrefix) {
+		return nil, errors.New("invalid system eventbus name")
+	}
 	exist, err := es.IsSystemEventbusExistByName(ctx, name)
 	if err != nil && !errors.Is(err, errors.ErrResourceNotFound) {
 		return nil, err

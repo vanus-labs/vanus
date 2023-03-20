@@ -16,11 +16,12 @@ package cluster
 
 import (
 	"context"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+	"sync"
 
 	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 const (
@@ -30,22 +31,41 @@ const (
 
 type namespaceService struct {
 	client ctrlpb.NamespaceControllerClient
+	cache  sync.Map
 }
 
 func (ns *namespaceService) GetNamespace(ctx context.Context, id uint64) (*metapb.Namespace, error) {
-	return ns.client.GetNamespace(ctx, &ctrlpb.GetNamespaceRequest{Id: id})
+	v, exist := ns.cache.Load(id)
+	if exist {
+		return v.(*metapb.Namespace), nil
+	}
+	n, err := ns.client.GetNamespace(ctx, &ctrlpb.GetNamespaceRequest{Id: id})
+	if err != nil {
+		return nil, err
+	}
+	ns.cache.Store(id, n)
+	return n, nil
 }
 
 func (ns *namespaceService) GetSystemNamespace(ctx context.Context) (*metapb.Namespace, error) {
-	return ns.client.GetNamespaceWithHumanFriendly(ctx, wrapperspb.String(systemNamespace))
+	return ns.GetNamespaceByName(ctx, systemNamespace)
 }
 
 func (ns *namespaceService) GetDefaultNamespace(ctx context.Context) (*metapb.Namespace, error) {
-	return ns.client.GetNamespaceWithHumanFriendly(ctx, wrapperspb.String(defaultNamespace))
+	return ns.GetNamespaceByName(ctx, defaultNamespace)
 }
 
 func (ns *namespaceService) GetNamespaceByName(ctx context.Context, name string) (*metapb.Namespace, error) {
-	return nil, nil
+	v, exist := ns.cache.Load(name)
+	if exist {
+		return v.(*metapb.Namespace), nil
+	}
+	n, err := ns.client.GetNamespaceWithHumanFriendly(ctx, wrapperspb.String(name))
+	if err != nil {
+		return nil, err
+	}
+	ns.cache.Store(name, n)
+	return n, nil
 }
 
 func newNamespaceService(cc *raw_client.Conn) NamespaceService {
