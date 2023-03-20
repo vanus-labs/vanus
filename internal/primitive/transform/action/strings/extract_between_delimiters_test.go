@@ -42,4 +42,17 @@ func TestExtractBetweenDelimitersAction(t *testing.T) {
 		So(ok, ShouldBeTrue)
 		So(res, ShouldEqual, "Vanus")
 	})
+	Convey("test Negative: Only one delimiter is present in the string testcase", t, func() {
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test", "$.data.target", "&", "&"}) 
+		So(err, ShouldBeNil)
+		e := cetest.MinEvent()
+		data := map[string]interface{}{}
+		e.SetExtension("test", "Hi welcome to &Vanus friend")
+		ceCtx := &context.EventContext{
+			Event: &e,
+			Data:  data,
+		}
+		err = a.Execute(ceCtx)
+		So(err.Error(), ShouldEqual, "end delemiter is not exist")
+	})
 }

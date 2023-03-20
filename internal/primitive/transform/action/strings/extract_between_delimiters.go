@@ -55,11 +55,19 @@ func (a *ExtractBetweenDelimitersAction) Execute(ceCtx *context.EventContext) er
 	startDelimiter, _ := args[1].(string)
 	endDelimiter, _ := args[2].(string)
 
-	if strings.Contains(sourceJSONPath, startDelimiter) && strings.Contains(sourceJSONPath, endDelimiter) {
-		firstSplit := strings.Split(sourceJSONPath, startDelimiter)
-		secondSplit := strings.Split(firstSplit[1], endDelimiter)
-		newValue := secondSplit[0]
-		return a.TargetArg.SetValue(ceCtx, newValue)
+	if startDelimiter == "" || endDelimiter == "" {
+		return fmt.Errorf("start or end delimiter is empty")
 	}
-	return fmt.Errorf("the start and/or end pattern is not present in the input string")
+	startIndex := strings.Index(sourceJSONPath, startDelimiter)
+	if startIndex < 0 {
+		return fmt.Errorf("start delemiter is not exist")
+	}
+	startIndex += len(startDelimiter)
+	endIndex := strings.Index(sourceJSONPath[startIndex:], endDelimiter)
+	if endIndex < 0 {
+		return fmt.Errorf("end delemiter is not exist")
+	}
+	endIndex += startIndex
+	newValue := sourceJSONPath[startIndex:endIndex]
+	return a.TargetArg.SetValue(ceCtx, newValue)
 }
