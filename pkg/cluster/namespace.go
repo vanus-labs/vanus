@@ -17,11 +17,10 @@ package cluster
 import (
 	"context"
 
-	"google.golang.org/protobuf/types/known/wrapperspb"
-
 	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 const (
@@ -43,6 +42,10 @@ func (ns *namespaceService) GetSystemNamespace(ctx context.Context) (*metapb.Nam
 
 func (ns *namespaceService) GetDefaultNamespace(ctx context.Context) (*metapb.Namespace, error) {
 	return ns.client.GetNamespaceWithHumanFriendly(ctx, wrapperspb.String(defaultNamespace))
+}
+
+func (ns *namespaceService) GetNamespaceByName(ctx context.Context, name string) (*metapb.Namespace, error) {
+	return nil, nil
 }
 
 func newNamespaceService(cc *raw_client.Conn) NamespaceService {

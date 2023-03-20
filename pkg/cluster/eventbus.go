@@ -39,6 +39,10 @@ func (es *eventbusService) GetSystemEventbusByName(ctx context.Context, name str
 	})
 }
 
+func (es *eventbusService) GetEventbusByName(ctx context.Context, ns, name string) (*meta.Eventbus, error) {
+	return nil, nil
+}
+
 func (es *eventbusService) GetEventbus(ctx context.Context, id uint64) (*meta.Eventbus, error) {
 	return es.client.GetEventbus(ctx, wrapperspb.UInt64(id))
 }

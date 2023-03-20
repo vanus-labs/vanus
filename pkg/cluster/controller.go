@@ -57,6 +57,7 @@ type NamespaceService interface {
 	GetSystemNamespace(ctx context.Context) (*meta.Namespace, error)
 	GetDefaultNamespace(ctx context.Context) (*meta.Namespace, error)
 	GetNamespace(ctx context.Context, id uint64) (*meta.Namespace, error)
+	GetNamespaceByName(ctx context.Context, name string) (*meta.Namespace, error)
 }
 
 type EventbusService interface {
@@ -65,6 +66,7 @@ type EventbusService interface {
 	Delete(ctx context.Context, id uint64) error
 	GetSystemEventbusByName(ctx context.Context, name string) (*meta.Eventbus, error)
 	GetEventbus(ctx context.Context, id uint64) (*meta.Eventbus, error)
+	GetEventbusByName(ctx context.Context, ns, name string) (*meta.Eventbus, error)
 	RawClient() ctrlpb.EventbusControllerClient
 }
 
