@@ -18,9 +18,9 @@ import (
 	"testing"
 
 	cetest "github.com/cloudevents/sdk-go/v2/test"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/action/strings"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/context"
-	"github.com/linkall-labs/vanus/internal/primitive/transform/runtime"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/action/strings"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
+	"github.com/vanus-labs/vanus/internal/primitive/transform/runtime"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
