@@ -18,10 +18,11 @@ import (
 	"testing"
 
 	cetest "github.com/cloudevents/sdk-go/v2/test"
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/vanus-labs/vanus/internal/primitive/transform/action/strings"
 	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
 	"github.com/vanus-labs/vanus/internal/primitive/transform/runtime"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestExtractBetweenDelimitersAction(t *testing.T) {
@@ -43,7 +44,7 @@ func TestExtractBetweenDelimitersAction(t *testing.T) {
 		So(res, ShouldEqual, "Vanus")
 	})
 	Convey("test Negative: Only one delimiter is present in the string testcase", t, func() {
-		a, err := runtime.NewAction([]interface{}{funcName, "$.test", "$.data.target", "&", "&"}) 
+		a, err := runtime.NewAction([]interface{}{funcName, "$.test", "$.data.target", "&", "&"})
 		So(err, ShouldBeNil)
 		e := cetest.MinEvent()
 		data := map[string]interface{}{}

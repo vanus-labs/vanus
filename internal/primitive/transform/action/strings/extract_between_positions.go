@@ -28,7 +28,7 @@ type extractBetweenPositionsAction struct {
 }
 
 // NewExtractBetweenPositionsAction ["extract_between_positions",
-// "sourceJSONPath", "targetJsonPath", "startPosition", "endPosition"]
+// "sourceJSONPath", "targetJsonPath", "startPosition", "endPosition"].
 func NewExtractBetweenPositionsAction() action.Action {
 	return &extractBetweenPositionsAction{
 		CommonAction: action.CommonAction{
