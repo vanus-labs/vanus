@@ -53,6 +53,7 @@ func init() {
 		strings.NewReplaceBetweenPositionsAction,
 		strings.NewCapitalizeSentenceAction,
 		strings.NewCheckCustomValuesAction,
+		strings.NewSplitWithIntervalsAction,
 		strings.NewExtractBetweenDelimitersAction,
 		strings.NewExtractMissingAction,
 		strings.NewReplaceBetweenDelimitersAction,
