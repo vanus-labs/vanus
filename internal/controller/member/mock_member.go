@@ -63,17 +63,17 @@ func (mr *MockMemberMockRecorder) GetLeaderID() *gomock.Call {
 }
 
 // Init mocks base method.
-func (m *MockMember) Init(arg0 context.Context, arg1 Config) error {
+func (m *MockMember) Init(arg0 context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Init", arg0, arg1)
+	ret := m.ctrl.Call(m, "Init", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Init indicates an expected call of Init.
-func (mr *MockMemberMockRecorder) Init(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockMemberMockRecorder) Init(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Init", reflect.TypeOf((*MockMember)(nil).Init), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Init", reflect.TypeOf((*MockMember)(nil).Init), arg0)
 }
 
 // IsLeader mocks base method.
@@ -129,12 +129,11 @@ func (mr *MockMemberMockRecorder) ResignIfLeader() *gomock.Call {
 }
 
 // Start mocks base method.
-func (m *MockMember) Start(arg0 context.Context) (<-chan struct{}, error) {
+func (m *MockMember) Start(arg0 context.Context) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Start", arg0)
-	ret0, _ := ret[0].(<-chan struct{})
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Start indicates an expected call of Start.

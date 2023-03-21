@@ -15,11 +15,12 @@
 package controller
 
 import (
+	"github.com/vanus-labs/vanus/internal/controller/root"
+	"github.com/vanus-labs/vanus/internal/controller/tenant"
 	"github.com/vanus-labs/vanus/observability"
 
 	"github.com/vanus-labs/vanus/internal/controller/eventbus"
 	"github.com/vanus-labs/vanus/internal/controller/member"
-	"github.com/vanus-labs/vanus/internal/controller/snowflake"
 	"github.com/vanus-labs/vanus/internal/controller/trigger"
 	"github.com/vanus-labs/vanus/internal/primitive"
 )
@@ -30,55 +31,42 @@ type Config struct {
 	IP                   string               `yaml:"ip"`
 	Port                 int                  `yaml:"port"`
 	GRPCReflectionEnable bool                 `yaml:"grpc_reflection_enable"`
-	EtcdEndpoints        []string             `yaml:"etcd"`
-	DataDir              string               `yaml:"data_dir"`
 	MetadataConfig       MetadataConfig       `yaml:"metadata"`
-	LeaderElectionConfig LeaderElectionConfig `yaml:"leader_election"`
-	Topology             map[string]string    `yaml:"topology"`
 	Replicas             uint                 `yaml:"replicas"`
 	SecretEncryptionSalt string               `yaml:"secret_encryption_salt"`
 	SegmentCapacity      int64                `yaml:"segment_capacity"`
 	Observability        observability.Config `yaml:"observability"`
+	ClusterConfig        member.Config        `yaml:"cluster"`
+	RootControllerAddr   []string             `yaml:"root_controllers"`
 }
 
-type LeaderElectionConfig struct {
-	LeaseDuration int64 `yaml:"lease_duration"`
-}
-
-const (
-	resourceLockName = "controller"
-)
-
-func (c *Config) GetMemberConfig() member.Config {
-	return member.Config{
-		LeaseDuration: c.LeaderElectionConfig.LeaseDuration,
-		Name:          resourceLockName,
-		EtcdEndpoints: c.EtcdEndpoints,
-	}
+func (c *Config) GetClusterConfig() member.Config {
+	c.ClusterConfig.NodeName = c.Name
+	return c.ClusterConfig
 }
 
 func (c *Config) GetEventbusCtrlConfig() eventbus.Config {
 	return eventbus.Config{
 		IP:               c.IP,
 		Port:             c.Port,
-		KVStoreEndpoints: c.EtcdEndpoints,
+		KVStoreEndpoints: c.ClusterConfig.EtcdEndpoints,
 		KVKeyPrefix:      c.MetadataConfig.KeyPrefix,
 		Replicas:         c.Replicas,
-		Topology:         c.Topology,
+		Topology:         c.ClusterConfig.Topology,
 		SegmentCapacity:  c.SegmentCapacity,
 	}
 }
 
-func (c *Config) GetSnowflakeConfig() snowflake.Config {
-	return snowflake.Config{
-		KVEndpoints: c.EtcdEndpoints,
+func (c *Config) GetSnowflakeConfig() root.Config {
+	return root.Config{
+		KVEndpoints: c.ClusterConfig.EtcdEndpoints,
 		KVPrefix:    c.MetadataConfig.KeyPrefix,
 	}
 }
 
 func (c *Config) GetControllerAddrs() []string {
 	addrs := make([]string, 0)
-	for _, v := range c.Topology {
+	for _, v := range c.ClusterConfig.Topology {
 		addrs = append(addrs, v)
 	}
 	return addrs
@@ -92,10 +80,20 @@ func (c *Config) GetTriggerConfig() trigger.Config {
 	return trigger.Config{
 		Storage: primitive.KvStorageConfig{
 			KeyPrefix:  c.MetadataConfig.KeyPrefix,
-			ServerList: c.EtcdEndpoints,
+			ServerList: c.ClusterConfig.EtcdEndpoints,
 		},
 		SecretEncryptionSalt: c.SecretEncryptionSalt,
 		ControllerAddr:       c.GetControllerAddrs(),
+	}
+}
+
+func (c *Config) GetTenantConfig() tenant.Config {
+	return tenant.Config{
+		Storage: primitive.KvStorageConfig{
+			KeyPrefix:  c.MetadataConfig.KeyPrefix,
+			ServerList: c.ClusterConfig.EtcdEndpoints,
+		},
+		ControllerAddr: c.GetControllerAddrs(),
 	}
 }
 

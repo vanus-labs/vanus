@@ -73,8 +73,16 @@ func (ins *volumeInstance) CreateBlock(ctx context.Context, capacity int64) (*me
 		Id:   blk.ID.Uint64(),
 	})
 	if err != nil {
+		log.Warning(ctx, "failed to create block", map[string]interface{}{
+			"id":        id.String(),
+			"volume_id": ins.md.ID.String(),
+		})
 		return nil, err
 	}
+
+	log.Info(ctx, "success to create block", map[string]interface{}{
+		"id": id.String(),
+	})
 
 	ins.metaMutex.Lock()
 	defer ins.metaMutex.Unlock()
@@ -137,7 +145,7 @@ func (ins *volumeInstance) SetServer(srv Server) {
 		return
 	}
 	log.Info(context.TODO(), "update server of volume", map[string]interface{}{
-		"srv":     srv.ID(),
+		"srv":     srv.VolumeID(),
 		"address": srv.Address(),
 		"uptime":  srv.Uptime(),
 	})

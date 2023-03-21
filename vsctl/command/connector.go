@@ -64,13 +64,6 @@ type ConnectorDelete struct {
 	Force *bool `json:"force,omitempty"`
 }
 
-type ConnectorPatch struct {
-	ControllerReplicas int32  `json:"controller_replicas,omitempty"`
-	StoreReplicas      int32  `json:"store_replicas,omitempty"`
-	TriggerReplicas    int32  `json:"trigger_replicas,omitempty"`
-	Version            string `json:"version,omitempty"`
-}
-
 type ConnectorInfo struct {
 	Kind    string `json:"kind,omitempty"`
 	Name    string `json:"name,omitempty"`
@@ -161,7 +154,7 @@ func installConnectorCommand() *cobra.Command {
 			}
 
 			if !operatorIsDeployed(cmd, operatorEndpoint) {
-				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://dl.vanus.ai/vanus/operator/latest.yml")
+				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://dl.vanus.ai/vanus/operator/latest/vanus-operator.yml")
 			}
 
 			if isUnsupported(kind, ctype, connectorVersion) {
@@ -340,7 +333,7 @@ func listConnectorCommand() *cobra.Command {
 			}
 
 			if !operatorIsDeployed(cmd, operatorEndpoint) {
-				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://dl.vanus.ai/vanus/operator/latest.yml")
+				cmdFailedWithHelpNotice(cmd, "The vanus operator has not been deployed. Please use the following command to deploy: \n\n    kubectl apply -f https://dl.vanus.ai/vanus/operator/latest/vanus-operator.yml")
 			}
 
 			client := &http.Client{}
@@ -377,7 +370,7 @@ func listConnectorCommand() *cobra.Command {
 				color.Yellow("WARN: this command doesn't support --output-format\n")
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Kind", "Name", "Type", "Version", "Status", "Reason"})
+				t.AppendHeader(table.Row{"Kind", "NodeName", "Type", "Version", "Status", "Reason"})
 				for i := range info.Data {
 					t.AppendRow(table.Row{
 						info.Data[i].Kind,
@@ -454,7 +447,7 @@ func getConnectorCommand() *cobra.Command {
 				color.Yellow("WARN: this command doesn't support --output-format\n")
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Kind", "Name", "Type", "Version", "Status", "Reason"})
+				t.AppendHeader(table.Row{"Kind", "NodeName", "Type", "Version", "Status", "Reason"})
 				t.AppendRows([]table.Row{
 					{
 						info.Data.Kind,

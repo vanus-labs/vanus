@@ -31,6 +31,7 @@ import (
 	"github.com/vanus-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
+	"github.com/vanus-labs/vanus/proto/pkg/meta"
 
 	"github.com/vanus-labs/vanus/internal/kv"
 )
@@ -42,10 +43,10 @@ func TestTimingMsg_newTimingMsg(t *testing.T) {
 		e.SetID("1")
 
 		Convey("test timing message new1", func() {
-			t := time.Now().Add(time.Second).UTC().Format("2006-01-02T15:04:05")
+			t := time.Now().Add(time.Second)
 			e.SetExtension(xVanusDeliveryTime, t)
 			tm := newTimingMsg(ctx, &e)
-			So(time.Now().Add(100*time.Millisecond).After(tm.expiration), ShouldBeTrue)
+			So(time.Now().Add(100*time.Millisecond).Before(tm.expiration), ShouldBeTrue)
 		})
 
 		Convey("test timing message new2", func() {
@@ -59,7 +60,7 @@ func TestTimingMsg_hasExpired(t *testing.T) {
 	Convey("test timing message is expired", t, func() {
 		ctx := context.Background()
 		e := ce.NewEvent()
-		e.SetExtension(xVanusDeliveryTime, time.Now().Add(2*time.Second).UTC().Format(time.RFC3339))
+		e.SetExtension(xVanusDeliveryTime, time.Now().Add(2*time.Second))
 		tm := newTimingMsg(ctx, &e)
 		So(tm.hasExpired(), ShouldEqual, false)
 	})
@@ -259,7 +260,7 @@ func TestBucket_createEventbus(t *testing.T) {
 		tw.ctrl = mockCl
 		mockSvc := cluster.NewMockEventbusService(mockCtrl)
 		mockCl.EXPECT().EventbusService().Times(1).Return(mockSvc)
-		mockSvc.EXPECT().CreateSystemEventbusIfNotExist(Any(), Any(), Any()).Times(1).Return(nil)
+		mockSvc.EXPECT().CreateSystemEventbusIfNotExist(Any(), Any(), Any()).Times(1).Return(nil, nil)
 
 		err := bucket.createEventbus(ctx)
 		So(err, ShouldBeNil)
@@ -519,7 +520,10 @@ func TestBucket_recycle(t *testing.T) {
 		mockCl := cluster.NewMockCluster(mockCtrl)
 		tw.ctrl = mockCl
 		mockSvc := cluster.NewMockEventbusService(mockCtrl)
-		mockCl.EXPECT().EventbusService().Times(1).Return(mockSvc)
+		mockCl.EXPECT().EventbusService().AnyTimes().Return(mockSvc)
+		mockSvc.EXPECT().GetSystemEventbusByName(Any(), Any()).Times(1).Return(&meta.Eventbus{
+			Id: 0,
+		}, nil)
 		mockSvc.EXPECT().Delete(Any(), Any()).Times(1).Return(nil)
 
 		Convey("test bucket wait success", func() {
@@ -554,7 +558,7 @@ func TestBucket_getOffset(t *testing.T) {
 
 func event(i int64) *ce.Event {
 	e := ce.NewEvent()
-	t := time.Now().Add(time.Duration(i) * time.Millisecond).UTC().Format(time.RFC3339)
+	t := time.Now().Add(time.Duration(i) * time.Millisecond)
 	e.SetExtension(xVanusDeliveryTime, t)
 	e.SetExtension(xVanusEventbus, "quick-start")
 	return &e
@@ -562,7 +566,7 @@ func event(i int64) *ce.Event {
 
 func batch(i int64) *cloudevents.CloudEventBatch {
 	e := ce.NewEvent()
-	t := time.Now().Add(time.Duration(i) * time.Millisecond).UTC().Format(time.RFC3339)
+	t := time.Now().Add(time.Duration(i) * time.Millisecond)
 	e.SetExtension(xVanusDeliveryTime, t)
 	e.SetExtension(xVanusEventbus, "quick-start")
 	events := make([]*cloudevents.CloudEvent, 1)

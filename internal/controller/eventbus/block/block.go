@@ -65,8 +65,6 @@ type allocator struct {
 	volumeBlockBuffer sync.Map
 	kvClient          kv.Client
 	mutex             sync.Mutex
-	cancel            func()
-	cancelCtx         context.Context
 	allocateTicker    *time.Ticker
 	blockCapacity     int64
 }
@@ -106,10 +104,11 @@ func (al *allocator) Run(ctx context.Context, kvCli kv.Client, startDynamicAlloc
 			l.Set(bl.ID.Key(), bl)
 		}
 	}
-	if startDynamicAllocate {
-		al.cancelCtx, al.cancel = context.WithCancel(context.Background())
-		go al.dynamicAllocateBlockTask(al.cancelCtx)
-	}
+	// if startDynamicAllocate {
+	// disable by wenfeng on 3.10
+	// al.cancelCtx, al.cancel = context.WithCancel(context.Background())
+	// go al.dynamicAllocateBlockTask(al.cancelCtx)
+	// }
 	return nil
 }
 
@@ -157,11 +156,9 @@ func (al *allocator) pick(ctx context.Context, volumes []server.Instance) ([]*me
 	return blockArr, nil
 }
 
-func (al *allocator) Stop() {
-	al.cancel()
-}
+func (al *allocator) Stop() {}
 
-func (al *allocator) dynamicAllocateBlockTask(ctx context.Context) {
+func (al *allocator) dynamicAllocateBlockTask(ctx context.Context) { //nolint:unused // ok
 	for {
 		select {
 		case <-ctx.Done():

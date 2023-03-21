@@ -26,22 +26,21 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/tidwall/gjson"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/emptypb"
-
 	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/internal/convert"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/pkg/cluster"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
-
-	"github.com/vanus-labs/vanus/internal/convert"
-	"github.com/vanus-labs/vanus/internal/primitive"
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func TestControllerProxy_GetEvent(t *testing.T) {
@@ -55,23 +54,11 @@ func TestControllerProxy_GetEvent(t *testing.T) {
 			CloudEventReceiverPort: 18080,
 			Credentials:            insecure.NewCredentials(),
 		})
-
 		ctrl := gomock.NewController(t)
 		mockClient := client.NewMockClient(ctrl)
 		cp.client = mockClient
 		utEB1 := api.NewMockEventbus(ctrl)
-		utEB2 := api.NewMockEventbus(ctrl)
-		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
-			func(ctx stdCtx.Context, eb string) api.Eventbus {
-				switch eb {
-				case "ut1":
-					return utEB1
-				case "ut2":
-					return utEB2
-				default:
-					return nil
-				}
-			})
+		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(utEB1)
 
 		Convey("test invalid params", func() {
 			res, err := cp.GetEvent(stdCtx.Background(), &proxypb.GetEventRequest{
@@ -257,6 +244,12 @@ func TestControllerProxy_StartAndStop(t *testing.T) {
 			ProxyPort:              18082,
 			Credentials:            insecure.NewCredentials(),
 		})
+
+		ctrl := gomock.NewController(t)
+
+		mockCluster := cluster.NewMockCluster(ctrl)
+		cp.ctrl = mockCluster
+		mockCluster.EXPECT().WaitForControllerReady(false).Times(1).Return(nil)
 
 		err := cp.Start()
 		So(err, ShouldBeNil)

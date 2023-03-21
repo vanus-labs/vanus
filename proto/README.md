@@ -20,8 +20,9 @@ brew install protobuf
 unzip protoc-3.19.4-osx-x86_64.zip
 mv bin/protoc $GOPATH/bin/ 
 
-# 2. Install protoc-gen-go
+# 2. Install protoc-gen-go and protoc-gen-go-grpc
 go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 ```
 
 ### debug

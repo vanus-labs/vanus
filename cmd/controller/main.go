@@ -30,6 +30,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
+	"github.com/vanus-labs/vanus/internal/controller/tenant"
 	"github.com/vanus-labs/vanus/observability"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
@@ -39,7 +40,6 @@ import (
 	"github.com/vanus-labs/vanus/internal/controller"
 	"github.com/vanus-labs/vanus/internal/controller/eventbus"
 	"github.com/vanus-labs/vanus/internal/controller/member"
-	"github.com/vanus-labs/vanus/internal/controller/snowflake"
 	"github.com/vanus-labs/vanus/internal/controller/trigger"
 	"github.com/vanus-labs/vanus/internal/primitive/interceptor/errinterceptor"
 	"github.com/vanus-labs/vanus/internal/primitive/interceptor/memberinterceptor"
@@ -59,6 +59,16 @@ func main() {
 		})
 		os.Exit(-1)
 	}
+
+	ctx := signal.SetupSignalContext()
+	if err = vanus.InitSnowflake(ctx, cfg.RootControllerAddr,
+		vanus.NewNode(vanus.ControllerService, cfg.NodeID)); err != nil {
+		log.Error(ctx, "failed to init id generator", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-3)
+	}
+
 	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
 		log.Error(context.Background(), "failed to listen", map[string]interface{}{
@@ -67,49 +77,18 @@ func main() {
 		os.Exit(-1)
 	}
 
-	ctx := signal.SetupSignalContext()
 	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetControllerMetrics)
-	mem := member.New(cfg.Topology)
-	if err = mem.Init(ctx, cfg.GetMemberConfig()); err != nil {
+	mem := member.New(cfg.GetClusterConfig())
+	if err = mem.Init(ctx); err != nil {
 		log.Error(ctx, "failed to init member", map[string]interface{}{
 			log.KeyError: err,
 		})
 		os.Exit(-1)
 	}
 
-	// TODO wait server ready
-	snowflakeCtrl := snowflake.NewSnowflakeController(cfg.GetSnowflakeConfig(), mem)
-	if err = snowflakeCtrl.Start(ctx); err != nil {
-		log.Error(ctx, "start Snowflake Controller failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(-1)
-	}
-
+	namespaceCtrlStv := tenant.NewController(cfg.GetTenantConfig(), mem)
 	segmentCtrl := eventbus.NewController(cfg.GetEventbusCtrlConfig(), mem)
-	if err = segmentCtrl.Start(ctx); err != nil {
-		log.Error(ctx, "start EventbusService Controller failed", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(-1)
-	}
-
-	// trigger controller
 	triggerCtrlStv := trigger.NewController(cfg.GetTriggerConfig(), mem)
-	if err = triggerCtrlStv.Start(); err != nil {
-		log.Error(ctx, "start trigger controller fail", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(-1)
-	}
-
-	memStopCh, err := mem.Start(ctx)
-	if err != nil {
-		log.Error(ctx, "failed to start member", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(-2)
-	}
 
 	recoveryOpt := recovery.WithRecoveryHandlerContext(
 		func(ctx context.Context, p interface{}) error {
@@ -141,11 +120,11 @@ func main() {
 		reflection.Register(grpcServer)
 	}
 
-	ctrlpb.RegisterSnowflakeControllerServer(grpcServer, snowflakeCtrl)
+	ctrlpb.RegisterPingServerServer(grpcServer, segmentCtrl)
+	ctrlpb.RegisterNamespaceControllerServer(grpcServer, namespaceCtrlStv)
 	ctrlpb.RegisterEventbusControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterEventlogControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterSegmentControllerServer(grpcServer, segmentCtrl)
-	ctrlpb.RegisterPingServerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterTriggerControllerServer(grpcServer, triggerCtrlStv)
 	log.Info(ctx, "the grpc server ready to work", nil)
 	wg := sync.WaitGroup{}
@@ -160,26 +139,43 @@ func main() {
 		wg.Done()
 	}()
 
+	if err = namespaceCtrlStv.Start(); err != nil {
+		log.Error(ctx, "start namespace controller fail", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+
+	if err = segmentCtrl.Start(ctx); err != nil {
+		log.Error(ctx, "start EventbusService Controller failed", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+
+	if err = triggerCtrlStv.Start(); err != nil {
+		log.Error(ctx, "start trigger controller fail", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-1)
+	}
+
+	if err = mem.Start(ctx); err != nil {
+		log.Error(ctx, "failed to start member", map[string]interface{}{
+			log.KeyError: err,
+		})
+		os.Exit(-2)
+	}
+
 	exit := func() {
 		vanus.DestroySnowflake()
-		snowflakeCtrl.Stop()
 		triggerCtrlStv.Stop(ctx)
 		segmentCtrl.Stop()
 		mem.Stop(ctx)
 		grpcServer.GracefulStop()
 	}
 
-	if err = vanus.InitSnowflake(ctx, cfg.GetControllerAddrs(),
-		vanus.NewNode(vanus.ControllerService, cfg.NodeID)); err != nil {
-		log.Error(ctx, "failed to init id generator", map[string]interface{}{
-			log.KeyError: err,
-		})
-		os.Exit(-3)
-	}
-
 	select {
-	case <-memStopCh:
-		log.Info(ctx, "received member ready to stop, preparing exit", nil)
 	case <-ctx.Done():
 		log.Info(ctx, "received system signal, preparing exit", nil)
 	case <-segmentCtrl.StopNotify():

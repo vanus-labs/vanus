@@ -27,10 +27,11 @@ type Eventbus struct {
 	ID          vanus.ID    `json:"id"`
 	Name        string      `json:"name"`
 	LogNumber   int         `json:"log_number"`
-	Eventlogs   []*Eventlog `json:"event_logs"`
+	Eventlogs   []*Eventlog `json:"eventlogs"`
 	Description string      `json:"description"`
 	CreatedAt   time.Time   `json:"created_at"`
 	UpdatedAt   time.Time   `json:"updated_at"`
+	NamespaceID uint64      `json:"namespace_id"`
 }
 
 func Convert2ProtoEventbus(ins ...*Eventbus) []*meta.Eventbus {
@@ -45,6 +46,7 @@ func Convert2ProtoEventbus(ins ...*Eventbus) []*meta.Eventbus {
 			Description: eb.Description,
 			CreatedAt:   eb.CreatedAt.UnixMilli(),
 			UpdatedAt:   eb.UpdatedAt.UnixMilli(),
+			NamespaceId: eb.NamespaceID,
 		}
 	}
 	return pebs

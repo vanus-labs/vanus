@@ -3,8 +3,6 @@ ip: "127.0.0.1"
 etcd:
   - "127.0.0.1:2379"
 replicas: 1
-metadata:
-  key_prefix: "/standalone"
 leader_election:
   lease_duration: 15
 timingwheel:

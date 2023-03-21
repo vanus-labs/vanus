@@ -24,13 +24,13 @@ import (
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/cloudevents/sdk-go/v2/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/option"
 	"github.com/vanus-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/errors"
 
@@ -42,8 +42,8 @@ const (
 	timerBuiltInEventbusReceivingStation    = "__Timer_RS"
 	timerBuiltInEventbusDistributionStation = "__Timer_DS"
 	timerBuiltInEventbus                    = "__Timer_%d_%d"
-	xVanusEventbus                          = "xvanuseventbus"
-	xVanusDeliveryTime                      = "xvanusdeliverytime"
+	xVanusEventbus                          = primitive.XVanusEventbus
+	xVanusDeliveryTime                      = primitive.XVanusDeliveryTime
 	sleepDuration                           = 100 * time.Millisecond
 )
 
@@ -53,19 +53,16 @@ type timingMsg struct {
 }
 
 func newTimingMsg(ctx context.Context, e *ce.Event) *timingMsg {
-	var (
-		err        error
-		expiration time.Time
-	)
+	var expiration time.Time
 	extensions := e.Extensions()
 	if deliveryTime, ok := extensions[xVanusDeliveryTime]; ok {
-		expiration, err = types.ParseTime(deliveryTime.(string))
-		if err != nil {
+		if t, ok := deliveryTime.(ce.Timestamp); !ok {
 			log.Error(ctx, "parse time failed", map[string]interface{}{
-				log.KeyError: err,
-				"time":       deliveryTime,
+				"time": deliveryTime,
 			})
 			expiration = time.Now()
+		} else {
+			expiration = t.Time
 		}
 	} else {
 		log.Error(ctx, "xvanusdeliverytime not found, set to current time", nil)
@@ -334,7 +331,16 @@ func (b *bucket) createEventbus(ctx context.Context) error {
 	}
 	_, err := b.timingwheel.ctrl.EventbusService().CreateSystemEventbusIfNotExist(ctx, b.eventbus,
 		"System Eventbus For Timing Service")
-	return err
+	if err != nil {
+		log.Error(ctx, "failed to create timer eventbus", map[string]interface{}{
+			log.KeyEventbusName: b.eventbus,
+		})
+		return err
+	}
+	log.Info(ctx, "success to create timer eventbus", map[string]interface{}{
+		log.KeyEventbusName: b.eventbus,
+	})
+	return nil
 }
 
 func (b *bucket) connectEventbus(ctx context.Context) {
@@ -410,7 +416,7 @@ func (b *bucket) updateOffsetMeta(ctx context.Context, offset int64) {
 	if !b.isLeader() {
 		return
 	}
-	key := fmt.Sprintf("%s/offset/%s", metadata.MetadataKeyPrefixInKVStore, b.eventbus)
+	key := fmt.Sprintf("%s/%s", metadata.OffsetKeyPrefixInKVStore, b.eventbus)
 	offsetMeta := &metadata.OffsetMeta{
 		Layer:    b.layer,
 		Slot:     b.slot,
@@ -432,7 +438,7 @@ func (b *bucket) updateOffsetMeta(ctx context.Context, offset int64) {
 }
 
 func (b *bucket) existsOffsetMeta(ctx context.Context) (bool, error) {
-	key := fmt.Sprintf("%s/offset/%s", metadata.MetadataKeyPrefixInKVStore, b.eventbus)
+	key := fmt.Sprintf("%s/%s", metadata.OffsetKeyPrefixInKVStore, b.eventbus)
 	return b.kvStore.Exists(ctx, key)
 }
 
@@ -440,7 +446,7 @@ func (b *bucket) getOffsetMeta(ctx context.Context) (int64, error) {
 	if !b.isLeader() {
 		return -1, nil
 	}
-	key := fmt.Sprintf("%s/offset/%s", metadata.MetadataKeyPrefixInKVStore, b.eventbus)
+	key := fmt.Sprintf("%s/%s", metadata.OffsetKeyPrefixInKVStore, b.eventbus)
 	value, err := b.kvStore.Get(ctx, key)
 	if err != nil {
 		log.Warning(ctx, "get offset metadata from kvstore failed", map[string]interface{}{
@@ -461,7 +467,7 @@ func (b *bucket) deleteOffsetMeta(ctx context.Context) error {
 	if !b.isLeader() {
 		return nil
 	}
-	key := fmt.Sprintf("%s/offset/%s", metadata.MetadataKeyPrefixInKVStore, b.eventbus)
+	key := fmt.Sprintf("%s/%s", metadata.OffsetKeyPrefixInKVStore, b.eventbus)
 	err := b.kvStore.Delete(ctx, key)
 	if err != nil {
 		log.Warning(ctx, "delete offset metadata to kvstore failed", map[string]interface{}{

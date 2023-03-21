@@ -26,41 +26,40 @@ import (
 	"github.com/cloudevents/sdk-go/v2/client"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
-	eb "github.com/vanus-labs/vanus/client"
+	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/vanus-labs/vanus/internal/gateway/proxy"
+	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/tracing"
+	"github.com/vanus-labs/vanus/pkg/cluster"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
-	"go.opentelemetry.io/otel/trace"
-)
-
-const (
-	httpRequestPrefix = "/gateway"
 )
 
 var requestDataFromContext = cehttp.RequestDataFromContext
 
 type EventData struct {
-	EventID string `json:"event_id"`
-	BusName string `json:"eventbus_name"`
+	EventID string   `json:"event_id"`
+	BusID   vanus.ID `json:"eventbus_id"`
 }
 
 type ceGateway struct {
-	// ceClient  v2.Client
 	config     Config
-	client     eb.Client
 	proxySrv   *proxy.ControllerProxy
 	tracer     *tracing.Tracer
 	ceListener net.Listener
+	ctrl       cluster.Cluster
 }
 
 func NewGateway(config Config) *ceGateway {
+	ctrl := cluster.NewClusterController(config.GetProxyConfig().Endpoints, insecure.NewCredentials())
 	return &ceGateway{
 		config:   config,
-		client:   eb.Connect(config.ControllerAddr),
+		ctrl:     ctrl,
 		proxySrv: proxy.NewControllerProxy(config.GetProxyConfig()),
 		tracer:   tracing.NewTracer("cloudevents", trace.SpanKindServer),
 	}
@@ -106,7 +105,7 @@ func (ga *ceGateway) startCloudEventsReceiver(ctx context.Context) error {
 }
 
 func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event, result protocol.Result) {
-	eventbusID, err := getEventbusFromPath(requestDataFromContext(ctx))
+	eventbusID, err := ga.getEventbusFromPath(ctx, requestDataFromContext(ctx))
 	if err != nil {
 		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
@@ -130,16 +129,45 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 	return re, v2.ResultACK
 }
 
-func getEventbusFromPath(reqData *cehttp.RequestData) (vanus.ID, error) {
+const (
+	httpRequestPrefix = "/gateway"
+)
+
+func (ga *ceGateway) getEventbusFromPath(ctx context.Context, reqData *cehttp.RequestData) (vanus.ID, error) {
 	// TODO validate
 	reqPathStr := reqData.URL.String()
-	if !strings.HasPrefix(reqPathStr, httpRequestPrefix) {
-		return vanus.EmptyID(), errors.New("invalid eventbus id")
-	}
-	id, err := vanus.NewIDFromString(strings.TrimLeft(reqPathStr[len(httpRequestPrefix):], "/"))
-	if err != nil {
-		return vanus.EmptyID(), err
+	var (
+		ns   string
+		name string
+	)
+	if strings.HasPrefix(reqPathStr, httpRequestPrefix) { // Deprecated, just for compatibility of older than v0.7.0
+		ns = primitive.DefaultNamespace
+		name = strings.TrimLeft(reqPathStr[len(httpRequestPrefix):], "/")
+	} else {
+		// namespaces/:namespace_name/eventbus/:eventbus_name/events
+		path := strings.TrimLeft(reqData.URL.String(), "/")
+		strs := strings.Split(path, "/")
+		if len(strs) != 5 {
+			return 0, errors.New("invalid request path")
+		}
+		if strs[0] != "namespaces" && strs[2] != "eventbus" && strs[4] != "events" {
+			return 0, errors.New("invalid request path")
+		}
+		ns = strs[1]
+		name = strs[3]
 	}
 
-	return id, nil
+	if ns == "" {
+		return 0, errors.New("namespace is empty")
+	}
+
+	if name == "" {
+		return 0, errors.New("eventbus is empty")
+	}
+
+	eb, err := ga.ctrl.EventbusService().GetEventbusByName(ctx, ns, name)
+	if err != nil {
+		return 0, err
+	}
+	return vanus.NewIDFromUint64(eb.Id), nil
 }

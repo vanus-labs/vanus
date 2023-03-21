@@ -59,7 +59,7 @@ func TestEmptyEntry(t *testing.T) {
 		// So(ent.GetExtensionAttribute(nil), ShouldBeNil)
 
 		var count int
-		ent.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr, val []byte) {
+		ent.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr []byte, val block.Value) {
 			count++
 		}))
 		So(count, ShouldEqual, 0)
@@ -92,7 +92,7 @@ func TestEmptyEntry(t *testing.T) {
 		// So(ent.GetExtensionAttribute(nil), ShouldBeNil)
 
 		count = 0
-		ext.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr, val []byte) {
+		ext.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr []byte, val block.Value) {
 			count++
 		}))
 		So(count, ShouldEqual, 0)
@@ -179,8 +179,8 @@ func TestEmptyEntry(t *testing.T) {
 		})
 		So(w.GetExtensionAttribute(attr), ShouldResemble, attr)
 
-		fn1 := block.OnExtensionAttributeFunc(func([]byte, []byte) {})
-		ext.EXPECT().RangeExtensionAttributes(Any()).Times(1).DoAndReturn(func(f func([]byte, []byte)) {
+		fn1 := block.OnExtensionAttributeFunc(func([]byte, block.Value) {})
+		ext.EXPECT().RangeExtensionAttributes(Any()).Times(1).DoAndReturn(func(f func([]byte, block.Value)) {
 			So(f, ShouldEqual, fn1)
 		})
 		w.RangeExtensionAttributes(fn1)

@@ -130,9 +130,10 @@ func TestController_CreateSubscription(t *testing.T) {
 			subManager.EXPECT().AddSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 			create := &ctrlpb.CreateSubscriptionRequest{
 				Subscription: &ctrlpb.SubscriptionRequest{
-					EventbusId: vanus.NewTestID().Uint64(),
-					Name:       "test-name",
-					Sink:       "test-sink",
+					NamespaceId: vanus.NewTestID().Uint64(),
+					EventbusId:  vanus.NewTestID().Uint64(),
+					Name:        "test-name",
+					Sink:        "test-sink",
 				},
 			}
 			request := create.Subscription
@@ -141,10 +142,12 @@ func TestController_CreateSubscription(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(resp.Sink, ShouldEqual, request.Sink)
 			So(resp.EventbusId, ShouldEqual, request.EventbusId)
+			So(resp.NamespaceId, ShouldEqual, request.NamespaceId)
 			resp2, err := ctrl.CreateSubscription(ctx, create)
 			So(err, ShouldBeNil)
 			So(resp2.Sink, ShouldEqual, request.Sink)
 			So(resp2.EventbusId, ShouldEqual, request.EventbusId)
+			So(resp2.NamespaceId, ShouldEqual, request.NamespaceId)
 			So(resp.Id, ShouldNotEqual, resp2.Id)
 		})
 	})
@@ -164,6 +167,7 @@ func TestController_UpdateSubscription(t *testing.T) {
 
 		subID := vanus.NewTestID()
 		eventbusID := vanus.NewTestID()
+		namespaceID := vanus.NewTestID()
 		ctrl.state = primitive.ServerStateRunning
 		Convey("update subscription not exist", func() {
 			subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).Return(nil)
@@ -181,6 +185,7 @@ func TestController_UpdateSubscription(t *testing.T) {
 			Phase:         metadata.SubscriptionPhaseStopped,
 			TriggerWorker: "test-addr",
 			EventbusID:    eventbusID,
+			NamespaceID:   namespaceID,
 			Name:          "test-name",
 			Sink:          "test-sink",
 			Protocol:      primitive.HTTPProtocol,
@@ -194,8 +199,21 @@ func TestController_UpdateSubscription(t *testing.T) {
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
-					EventbusId: eventbusID.Uint64(),
-					Sink:       "test-sink",
+					NamespaceId: namespaceID.Uint64(),
+					EventbusId:  eventbusID.Uint64(),
+					Sink:        "test-sink",
+				},
+			}
+			_, err := ctrl.UpdateSubscription(ctx, request)
+			So(err, ShouldNotBeNil)
+		})
+		Convey("tet update namespace fail", func() {
+			request := &ctrlpb.UpdateSubscriptionRequest{
+				Id: subID.Uint64(),
+				Subscription: &ctrlpb.SubscriptionRequest{
+					NamespaceId: vanus.NewTestID().Uint64(),
+					EventbusId:  eventbusID.Uint64(),
+					Sink:        "test-sink",
 				},
 			}
 			_, err := ctrl.UpdateSubscription(ctx, request)
@@ -205,8 +223,9 @@ func TestController_UpdateSubscription(t *testing.T) {
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
-					EventbusId: vanus.NewTestID().Uint64(),
-					Sink:       "test-sink",
+					NamespaceId: namespaceID.Uint64(),
+					EventbusId:  vanus.NewTestID().Uint64(),
+					Sink:        "test-sink",
 				},
 			}
 			_, err := ctrl.UpdateSubscription(ctx, request)
@@ -217,9 +236,10 @@ func TestController_UpdateSubscription(t *testing.T) {
 				request := &ctrlpb.UpdateSubscriptionRequest{
 					Id: subID.Uint64(),
 					Subscription: &ctrlpb.SubscriptionRequest{
-						EventbusId: eventbusID.Uint64(),
-						Sink:       "test-sink",
-						Protocol:   metapb.Protocol_AWS_LAMBDA,
+						NamespaceId: namespaceID.Uint64(),
+						EventbusId:  eventbusID.Uint64(),
+						Sink:        "test-sink",
+						Protocol:    metapb.Protocol_AWS_LAMBDA,
 						SinkCredential: &metapb.SinkCredential{
 							CredentialType: metapb.SinkCredential_AWS,
 						},
@@ -232,9 +252,10 @@ func TestController_UpdateSubscription(t *testing.T) {
 				request := &ctrlpb.UpdateSubscriptionRequest{
 					Id: subID.Uint64(),
 					Subscription: &ctrlpb.SubscriptionRequest{
-						EventbusId: eventbusID.Uint64(),
-						Sink:       "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
-						Protocol:   metapb.Protocol_AWS_LAMBDA,
+						NamespaceId: namespaceID.Uint64(),
+						EventbusId:  eventbusID.Uint64(),
+						Sink:        "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
+						Protocol:    metapb.Protocol_AWS_LAMBDA,
 						SinkCredential: &metapb.SinkCredential{
 							CredentialType: metapb.SinkCredential_PLAIN,
 						},
@@ -247,9 +268,10 @@ func TestController_UpdateSubscription(t *testing.T) {
 				request := &ctrlpb.UpdateSubscriptionRequest{
 					Id: subID.Uint64(),
 					Subscription: &ctrlpb.SubscriptionRequest{
-						EventbusId: eventbusID.Uint64(),
-						Sink:       "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
-						Protocol:   metapb.Protocol_AWS_LAMBDA,
+						NamespaceId: namespaceID.Uint64(),
+						EventbusId:  eventbusID.Uint64(),
+						Sink:        "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
+						Protocol:    metapb.Protocol_AWS_LAMBDA,
 						SinkCredential: &metapb.SinkCredential{
 							CredentialType: metapb.SinkCredential_AWS,
 						},
@@ -262,10 +284,11 @@ func TestController_UpdateSubscription(t *testing.T) {
 				request := &ctrlpb.UpdateSubscriptionRequest{
 					Id: subID.Uint64(),
 					Subscription: &ctrlpb.SubscriptionRequest{
-						EventbusId: eventbusID.Uint64(),
-						Name:       "test-name",
-						Sink:       "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
-						Protocol:   metapb.Protocol_AWS_LAMBDA,
+						NamespaceId: namespaceID.Uint64(),
+						EventbusId:  eventbusID.Uint64(),
+						Name:        "test-name",
+						Sink:        "arn:aws:lambda:us-west-2:843378899134:function:xdltest",
+						Protocol:    metapb.Protocol_AWS_LAMBDA,
 						SinkCredential: &metapb.SinkCredential{
 							CredentialType: metapb.SinkCredential_AWS,
 							Credential: &metapb.SinkCredential_Aws{
@@ -292,9 +315,10 @@ func TestController_UpdateSubscription(t *testing.T) {
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
-					EventbusId: eventbusID.Uint64(),
-					Name:       "test-name",
-					Sink:       "modify-sink",
+					NamespaceId: namespaceID.Uint64(),
+					EventbusId:  eventbusID.Uint64(),
+					Name:        "test-name",
+					Sink:        "modify-sink",
 				},
 			}
 			resp, err := ctrl.UpdateSubscription(ctx, request)
@@ -308,9 +332,10 @@ func TestController_UpdateSubscription(t *testing.T) {
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
-					EventbusId: eventbusID.Uint64(),
-					Name:       "test-name",
-					Sink:       "test-sink",
+					NamespaceId: namespaceID.Uint64(),
+					EventbusId:  eventbusID.Uint64(),
+					Name:        "test-name",
+					Sink:        "test-sink",
 					Filters: []*metapb.Filter{
 						{
 							Exact: map[string]string{"type": "test"},
@@ -328,9 +353,10 @@ func TestController_UpdateSubscription(t *testing.T) {
 			request := &ctrlpb.UpdateSubscriptionRequest{
 				Id: subID.Uint64(),
 				Subscription: &ctrlpb.SubscriptionRequest{
-					EventbusId: eventbusID.Uint64(),
-					Name:       "test-name",
-					Sink:       "test-sink",
+					NamespaceId: namespaceID.Uint64(),
+					EventbusId:  eventbusID.Uint64(),
+					Name:        "test-name",
+					Sink:        "test-sink",
 					Transformer: &metapb.Transformer{
 						Define:   map[string]string{"k": "v"},
 						Template: "test",

@@ -27,6 +27,14 @@ service PingServer {
   rpc Ping(google.protobuf.Empty) returns (PingResponse);
 }
 
+service NamespaceController {
+  rpc CreateNamespace(CreateNamespaceRequest) returns (meta.Namespace);
+  rpc ListNamespace(google.protobuf.Empty) returns (ListNamespaceResponse);
+  rpc GetNamespace(GetNamespaceRequest) returns (meta.Namespace);
+  rpc DeleteNamespace(DeleteNamespaceRequest) returns (google.protobuf.Empty);
+  rpc GetNamespaceWithHumanFriendly(google.protobuf.StringValue) returns (meta.Namespace);
+}
+
 service EventbusController {
   // grpc -> HTTP
   rpc CreateEventbus(CreateEventbusRequest) returns (meta.Eventbus);
@@ -82,13 +90,32 @@ message PingResponse {
   bool is_eventbus_ready = 3;
 }
 
+message CreateNamespaceRequest {
+  string name = 1;
+  string description = 2;
+}
+
+message ListNamespaceResponse {
+  repeated meta.Namespace namespace = 1;
+}
+
+message GetNamespaceRequest {
+  uint64 id = 1;
+}
+
+message DeleteNamespaceRequest {
+  uint64 id = 1;
+}
+
 message CreateEventbusRequest {
   string name = 1;
   int32 log_number = 2;
   string description = 3;
+  uint64 namespace_id = 4;
 }
 
 message ListEventbusRequest {
+  uint64 namespace_id = 1;
 }
 
 message ListEventbusResponse {
@@ -96,7 +123,7 @@ message ListEventbusResponse {
 }
 
 message GetEventbusWithHumanFriendlyRequest {
-  string namespace = 1;
+  uint64 namespace_id = 1;
   string eventbus_name = 2;
 }
 
@@ -107,7 +134,7 @@ message QuerySegmentRouteInfoRequest {}
 message QuerySegmentRouteInfoResponse {}
 
 message SegmentHeartbeatRequest {
-  uint64 server_id = 1;
+  reserved 1; // server_id(uint_64) has been removed at v0.7.0
   uint64 volume_id = 2;
   repeated meta.SegmentHealthInfo health_info = 3;
   string report_time = 4;
@@ -123,13 +150,13 @@ message RegisterSegmentServerRequest {
 }
 
 message RegisterSegmentServerResponse {
-  uint64 server_id = 1;
+  reserved 1; // server_id(uint_64) has been removed at v0.7.0
   map<uint64, meta.Segment> segments = 2;
   uint64 volume_id = 3;
 }
 
 message UnregisterSegmentServerRequest {
-  uint64 server_id = 1;
+  reserved 1; // server_id(uint_64) has been removed at v0.7.0
   string address = 2;
   uint64 volume_id = 3;
 }
@@ -157,6 +184,7 @@ message SubscriptionRequest {
   string description = 12;
   bool disable = 13;
   uint64 eventbus_id = 14;
+  uint64 namespace_id = 15;
 }
 
 message CreateSubscriptionRequest {
@@ -178,6 +206,7 @@ message DeleteSubscriptionRequest {
 
 message DisableSubscriptionRequest {
   uint64 id = 1;
+  bool declaratively = 2;
 }
 
 message ResumeSubscriptionRequest {
@@ -188,6 +217,7 @@ message ListSubscriptionRequest {
   reserved 1; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   string name = 2;
   uint64 eventbus_id = 3;
+  uint64 namespace_id = 4;
 }
 
 message ListSubscriptionResponse {

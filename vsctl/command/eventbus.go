@@ -17,7 +17,6 @@ package command
 import (
 	"context"
 	"encoding/json"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 	"os"
 	"time"
 
@@ -26,10 +25,12 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
-
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func NewEventbusCommand() *cobra.Command {
@@ -62,6 +63,7 @@ func createEventbusCommand() *cobra.Command {
 				Name:        eventbus,
 				LogNumber:   eventlogNum,
 				Description: description,
+				NamespaceId: mustGetNamespaceID(primitive.DefaultNamespace).Uint64(),
 			})
 			if err != nil {
 				cmdFailedf(cmd, "create eventbus failed: %s", err)
@@ -72,7 +74,7 @@ func createEventbusCommand() *cobra.Command {
 			} else {
 				t := table.NewWriter()
 				t.AppendHeader(table.Row{"Result", "EventbusService"})
-				t.AppendRow(table.Row{"Create Success", eventbus})
+				t.AppendRow(table.Row{"Success to create eventbus into [ default ] namespace", eventbus})
 				t.SetColumnConfigs([]table.ColumnConfig{
 					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 2, AlignHeader: text.AlignCenter},
@@ -134,7 +136,7 @@ func getEventbusInfoCommand() *cobra.Command {
 			segs := make(map[uint64][]*metapb.Segment)
 			ctx := context.Background()
 			res, err := client.GetEventbus(ctx,
-				wrapperspb.UInt64(mustGetEventbusID(namespace, eventbus).Uint64()))
+				wrapperspb.UInt64(mustGetEventbusID(namespace, args[0]).Uint64()))
 			if err != nil {
 				cmdFailedf(cmd, "get eventbus failed: %s", err)
 			}

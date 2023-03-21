@@ -56,12 +56,12 @@ func (tw *TriggerWorkerInfo) String() string {
 type SubscriptionPhase string
 
 const (
-	SubscriptionPhaseCreated  = "created"
-	SubscriptionPhasePending  = "pending"
-	SubscriptionPhaseRunning  = "running"
-	SubscriptionPhaseStopping = "stopping"
-	SubscriptionPhaseStopped  = "stopped"
-	SubscriptionPhaseToDelete = "toDelete"
+	SubscriptionPhaseCreated  SubscriptionPhase = "created"
+	SubscriptionPhasePending  SubscriptionPhase = "pending"
+	SubscriptionPhaseRunning  SubscriptionPhase = "running"
+	SubscriptionPhaseStopping SubscriptionPhase = "stopping"
+	SubscriptionPhaseStopped  SubscriptionPhase = "stopped"
+	SubscriptionPhaseToDelete SubscriptionPhase = "toDelete"
 )
 
 type Subscription struct {
@@ -76,6 +76,7 @@ type Subscription struct {
 	Protocol           primitive.Protocol              `json:"protocol,omitempty"`
 	ProtocolSetting    *primitive.ProtocolSetting      `json:"protocol_settings,omitempty"`
 	EventbusID         vanus.ID                        `json:"eventbus_id"`
+	NamespaceID        vanus.ID                        `json:"namespace_id"`
 	Transformer        *primitive.Transformer          `json:"transformer,omitempty"`
 	Name               string                          `json:"name"`
 	Description        string                          `json:"description"`

@@ -74,7 +74,7 @@ type Server interface {
 	primitive.Initializer
 
 	Serve(lis net.Listener) error
-
+	RegisterToController(ctx context.Context) error
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
 	Status() primitive.ServerState
@@ -154,7 +154,6 @@ type server struct {
 
 	raftEngine raft.Engine
 
-	id          vanus.ID
 	state       primitive.ServerState
 	isDebugMode bool
 	cfg         store.Config
@@ -231,6 +230,22 @@ func (s *server) preGrpcStream(ctx context.Context, info *tap.Info) (context.Con
 	return ctx, nil
 }
 
+func (s *server) RegisterToController(ctx context.Context) error {
+	if !s.isDebugMode {
+		// Register to controller.
+		if err := s.registerSelf(ctx); err != nil {
+			return err
+		}
+	} else {
+		log.Info(ctx, "the segment server debug mode is enabled", nil)
+		if err := s.Start(ctx); err != nil {
+			return err
+		}
+		s.state = primitive.ServerStateRunning
+	}
+	return nil
+}
+
 func (s *server) Start(ctx context.Context) error {
 	ctx, span := s.tracer.Start(ctx, "Start")
 	defer span.End()
@@ -294,7 +309,6 @@ func (s *server) runHeartbeat(_ context.Context) error {
 			return true
 		})
 		return &ctrlpb.SegmentHeartbeatRequest{
-			ServerId:   s.id.Uint64(),
 			VolumeId:   s.volumeID,
 			HealthInfo: infos,
 			ReportTime: util.FormatTime(time.Now()),
@@ -615,7 +629,6 @@ func (s *server) onBlockArchived(stat block.Statistics) {
 	// report to controller
 	go func() {
 		_, _ = s.cc.ReportSegmentBlockIsFull(context.Background(), &ctrlpb.SegmentHeartbeatRequest{
-			ServerId:   s.id.Uint64(),
 			VolumeId:   s.volumeID,
 			HealthInfo: []*metapb.SegmentHealthInfo{info},
 			ReportTime: util.FormatTime(time.Now()),

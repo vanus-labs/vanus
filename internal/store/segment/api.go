@@ -37,7 +37,7 @@ type segmentServer struct {
 var _ segpb.SegmentServerServer = (*segmentServer)(nil)
 
 func (s *segmentServer) Start(
-	ctx context.Context, req *segpb.StartSegmentServerRequest,
+	ctx context.Context, _ *segpb.StartSegmentServerRequest,
 ) (*segpb.StartSegmentServerResponse, error) {
 	if err := s.srv.Start(ctx); err != nil {
 		return nil, err

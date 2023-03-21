@@ -26,6 +26,20 @@ import (
 	"github.com/vanus-labs/vanus/internal/store/block"
 	blktest "github.com/vanus-labs/vanus/internal/store/block/testing"
 	ceschema "github.com/vanus-labs/vanus/internal/store/schema/ce"
+	cetype "github.com/vanus-labs/vanus/internal/store/schema/ce/typesystem"
+)
+
+var (
+	value0 = []byte{0x01}
+	value1 = []byte{0x02}
+	value2 = []byte{0x78, 0x56, 0x34, 0x12, 0x03}
+	value3 = []byte("value3\x04")
+	value4 = []byte("value4\x05")
+	value5 = []byte("value5\x06")
+	value6 = []byte("value6\x07")
+	value7 = []byte{
+		0x2E, 0xE3, 0x06, 0x63, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x08,
+	}
 )
 
 func MakeEntry0(ctrl *Controller) block.EntryExt {
@@ -56,13 +70,35 @@ func MakeEntry1(ctrl *Controller) block.EntryExt {
 		cb.OnString(ceschema.SubjectOrdinal, ceSubject)
 		cb.OnTime(ceschema.TimeOrdinal, ceTime)
 	})
-	entry.EXPECT().ExtensionAttributeCount().AnyTimes().Return(3)
-	entry.EXPECT().RangeExtensionAttributes(Any()).AnyTimes().DoAndReturn(func(cb block.ExtensionAttributeCallback) {
-		cb.OnAttribute([]byte("attr0"), []byte("value0"))
-		cb.OnAttribute([]byte("attr1"), []byte("value1"))
-		cb.OnAttribute([]byte("attr2"), []byte("value2"))
-	})
+	setEntry1Extension(entry, true)
 	return entry
+}
+
+func setEntry1Extension(entry *blktest.MockEntryExt, raw bool) {
+	entry.EXPECT().ExtensionAttributeCount().AnyTimes().Return(8)
+	if raw {
+		entry.EXPECT().RangeExtensionAttributes(Any()).AnyTimes().DoAndReturn(func(cb block.ExtensionAttributeCallback) {
+			cb.OnAttribute([]byte("attr0"), block.BytesValue(value0))
+			cb.OnAttribute([]byte("attr1"), block.BytesValue(value1))
+			cb.OnAttribute([]byte("attr2"), block.BytesValue(value2))
+			cb.OnAttribute([]byte("attr3"), block.BytesValue(value3))
+			cb.OnAttribute([]byte("attr4"), block.BytesValue(value4))
+			cb.OnAttribute([]byte("attr5"), block.BytesValue(value5))
+			cb.OnAttribute([]byte("attr6"), block.BytesValue(value6))
+			cb.OnAttribute([]byte("attr7"), block.BytesValue(value7))
+		})
+	} else {
+		entry.EXPECT().RangeExtensionAttributes(Any()).AnyTimes().DoAndReturn(func(cb block.ExtensionAttributeCallback) {
+			cb.OnAttribute([]byte("attr0"), cetype.NewFalseValue())
+			cb.OnAttribute([]byte("attr1"), cetype.NewTrueValue())
+			cb.OnAttribute([]byte("attr2"), cetype.NewIntegerValue(0x12345678))
+			cb.OnAttribute([]byte("attr3"), cetype.NewStringValue("value3"))
+			cb.OnAttribute([]byte("attr4"), cetype.NewBytesValue([]byte("value4")))
+			cb.OnAttribute([]byte("attr5"), cetype.NewURIValue("value5"))
+			cb.OnAttribute([]byte("attr6"), cetype.NewURIRefValue("value6"))
+			cb.OnAttribute([]byte("attr7"), cetype.NewTimestampValue(0x6306E32E, 0x04030201))
+		})
+	}
 }
 
 func MakeStoredEntry0(ctrl *Controller) block.EntryExt {
@@ -93,7 +129,7 @@ func MakeStoredEntry0(ctrl *Controller) block.EntryExt {
 	return entry
 }
 
-func MakeStoredEntry1(ctrl *Controller) block.EntryExt {
+func MakeStoredEntry1(ctrl *Controller, raw bool) block.EntryExt {
 	entry := blktest.NewMockEntryExt(ctrl)
 	entry.EXPECT().OptionalAttributeCount().AnyTimes().Return(10)
 	entry.EXPECT().GetUint16(ceschema.EntryTypeOrdinal).AnyTimes().Return(ceschema.CloudEvent)
@@ -121,12 +157,7 @@ func MakeStoredEntry1(ctrl *Controller) block.EntryExt {
 		cb.OnString(ceschema.SubjectOrdinal, ceSubject)
 		cb.OnTime(ceschema.TimeOrdinal, ceTime)
 	})
-	entry.EXPECT().ExtensionAttributeCount().AnyTimes().Return(3)
-	entry.EXPECT().RangeExtensionAttributes(Any()).AnyTimes().DoAndReturn(func(cb block.ExtensionAttributeCallback) {
-		cb.OnAttribute([]byte("attr0"), []byte("value0"))
-		cb.OnAttribute([]byte("attr1"), []byte("value1"))
-		cb.OnAttribute([]byte("attr2"), []byte("value2"))
-	})
+	setEntry1Extension(entry, raw)
 	return entry
 }
 
@@ -156,7 +187,7 @@ func CheckEntry0(entry block.Entry, ignoreSeq, ignoreStime bool) {
 	So(entry.GetString(ceschema.SourceOrdinal), ShouldEqual, ceSource)
 	So(entry.GetString(ceschema.SpecVersionOrdinal), ShouldEqual, ceSpecVersion)
 	So(entry.GetString(ceschema.TypeOrdinal), ShouldEqual, ceType)
-	entry.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr, val []byte) {
+	entry.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr []byte, val block.Value) {
 		So(false, ShouldBeTrue)
 	}))
 }
@@ -204,23 +235,46 @@ func CheckEntry1(entry block.Entry, ignoreSeq, ignoreStime bool) {
 	So(entry.GetString(ceschema.DataSchemaOrdinal), ShouldBeZeroValue)
 	So(entry.GetString(ceschema.SubjectOrdinal), ShouldEqual, ceSubject)
 	So(entry.GetTime(ceschema.TimeOrdinal), ShouldEqual, ceTime)
-	So(entry.GetExtensionAttribute([]byte("attr0")), ShouldResemble, []byte("value0"))
-	So(entry.GetExtensionAttribute([]byte("attr1")), ShouldResemble, []byte("value1"))
-	So(entry.GetExtensionAttribute([]byte("attr2")), ShouldResemble, []byte("value2"))
+	So(entry.GetExtensionAttribute([]byte("attr0")), ShouldResemble, value0)
+	So(entry.GetExtensionAttribute([]byte("attr1")), ShouldResemble, value1)
+	So(entry.GetExtensionAttribute([]byte("attr2")), ShouldResemble, value2)
+	So(entry.GetExtensionAttribute([]byte("attr3")), ShouldResemble, value3)
+	So(entry.GetExtensionAttribute([]byte("attr4")), ShouldResemble, value4)
+	So(entry.GetExtensionAttribute([]byte("attr5")), ShouldResemble, value5)
+	So(entry.GetExtensionAttribute([]byte("attr6")), ShouldResemble, value6)
+	So(entry.GetExtensionAttribute([]byte("attr7")), ShouldResemble, value7)
 
 	last := ""
-	entry.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr, val []byte) {
+	entry.RangeExtensionAttributes(block.OnExtensionAttributeFunc(func(attr []byte, val block.Value) {
 		str := string(attr)
 		So(str, ShouldBeGreaterThan, last)
 		last = str
 
 		switch str {
 		case "attr0":
-			So(string(val), ShouldEqual, "value0")
+			So(val.Size(), ShouldEqual, len(value0))
+			So(val.Value(), ShouldResemble, value0)
 		case "attr1":
-			So(string(val), ShouldEqual, "value1")
+			So(val.Size(), ShouldEqual, len(value1))
+			So(val.Value(), ShouldResemble, value1)
 		case "attr2":
-			So(string(val), ShouldEqual, "value2")
+			So(val.Size(), ShouldEqual, len(value2))
+			So(val.Value(), ShouldResemble, value2)
+		case "attr3":
+			So(val.Size(), ShouldEqual, len(value3))
+			So(val.Value(), ShouldResemble, value3)
+		case "attr4":
+			So(val.Size(), ShouldEqual, len(value4))
+			So(val.Value(), ShouldResemble, value4)
+		case "attr5":
+			So(val.Size(), ShouldEqual, len(value5))
+			So(val.Value(), ShouldResemble, value5)
+		case "attr6":
+			So(val.Size(), ShouldEqual, len(value6))
+			So(val.Value(), ShouldResemble, value6)
+		case "attr7":
+			So(val.Size(), ShouldEqual, len(value7))
+			So(val.Value(), ShouldResemble, value7)
 		default:
 			So(false, ShouldBeTrue)
 		}
@@ -259,7 +313,7 @@ func CheckEntryExt1(entry block.EntryExt) {
 		}
 	}))
 
-	So(entry.ExtensionAttributeCount(), ShouldEqual, 3)
+	So(entry.ExtensionAttributeCount(), ShouldEqual, 8)
 }
 
 func CheckEndEntry(entry block.Entry, ignoreStime bool) {

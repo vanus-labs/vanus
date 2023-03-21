@@ -35,34 +35,34 @@ import (
 func TestSegmentServerManager_AddAndRemoveServer(t *testing.T) {
 	Convey("test add and remove server", t, func() {
 		mgr := NewServerManager()
-		ss1, err := NewSegmentServer("127.0.0.1:10001")
+		ss1, err := NewSegmentServer(1, "127.0.0.1:10001")
 		So(err, ShouldBeNil)
 		err = mgr.AddServer(stdCtx.Background(), ss1)
 		So(err, ShouldBeNil)
 		ssm := mgr.(*segmentServerManager)
 
-		ss2, err := NewSegmentServer("127.0.0.1:10002")
+		ss2, err := NewSegmentServer(2, "127.0.0.1:10002")
 		So(err, ShouldBeNil)
 		err = mgr.AddServer(stdCtx.Background(), ss2)
 		So(err, ShouldBeNil)
 
-		ss3, err := NewSegmentServer("127.0.0.1:10003")
+		ss3, err := NewSegmentServer(3, "127.0.0.1:10003")
 		So(err, ShouldBeNil)
 		err = mgr.AddServer(stdCtx.Background(), ss3)
 		So(err, ShouldBeNil)
 		So(util.MapLen(&ssm.segmentServerMapByIP), ShouldEqual, 3)
-		So(util.MapLen(&ssm.segmentServerMapByID), ShouldEqual, 3)
+		So(util.MapLen(&ssm.segmentServerMapByVolumeID), ShouldEqual, 3)
 		_, exist := ssm.segmentServerMapByIP.Load(ss1.Address())
 		So(exist, ShouldBeTrue)
-		_, exist = ssm.segmentServerMapByID.Load(ss1.ID().Key())
+		_, exist = ssm.segmentServerMapByVolumeID.Load(ss1.VolumeID())
 		So(exist, ShouldBeTrue)
 		_, exist = ssm.segmentServerMapByIP.Load(ss2.Address())
 		So(exist, ShouldBeTrue)
-		_, exist = ssm.segmentServerMapByID.Load(ss2.ID().Key())
+		_, exist = ssm.segmentServerMapByVolumeID.Load(ss2.VolumeID())
 		So(exist, ShouldBeTrue)
 		_, exist = ssm.segmentServerMapByIP.Load(ss3.Address())
 		So(exist, ShouldBeTrue)
-		_, exist = ssm.segmentServerMapByID.Load(ss3.ID().Key())
+		_, exist = ssm.segmentServerMapByVolumeID.Load(ss3.VolumeID())
 		So(exist, ShouldBeTrue)
 
 		Convey("test remove server", func() {
@@ -70,34 +70,34 @@ func TestSegmentServerManager_AddAndRemoveServer(t *testing.T) {
 			So(err, ShouldBeNil)
 			_, exist = ssm.segmentServerMapByIP.Load(ss1.Address())
 			So(exist, ShouldBeFalse)
-			_, exist = ssm.segmentServerMapByID.Load(ss1.ID().Key())
+			_, exist = ssm.segmentServerMapByVolumeID.Load(ss1.VolumeID())
 			So(exist, ShouldBeFalse)
 			So(util.MapLen(&ssm.segmentServerMapByIP), ShouldEqual, 2)
-			So(util.MapLen(&ssm.segmentServerMapByID), ShouldEqual, 2)
+			So(util.MapLen(&ssm.segmentServerMapByVolumeID), ShouldEqual, 2)
 		})
 
 		Convey("test add a invalid server", func() {
 			err = mgr.AddServer(stdCtx.Background(), nil)
 			So(err, ShouldBeNil)
 			err = mgr.AddServer(stdCtx.Background(), ss1)
-			So(err, ShouldBeNil)
+			So(err, ShouldEqual, errors.ErrSegmentServerHasBeenAdded)
 
-			ss4, err := NewSegmentServer("127.0.0.1:10003")
+			ss4, err := NewSegmentServer(3, "127.0.0.1:10003")
 			So(err, ShouldBeNil)
 
 			err = mgr.AddServer(stdCtx.Background(), ss4)
 			So(err, ShouldEqual, errors.ErrSegmentServerHasBeenAdded)
 			So(util.MapLen(&ssm.segmentServerMapByIP), ShouldEqual, 3)
-			So(util.MapLen(&ssm.segmentServerMapByID), ShouldEqual, 3)
+			So(util.MapLen(&ssm.segmentServerMapByVolumeID), ShouldEqual, 3)
 		})
 
 		Convey("test get by ip and id", func() {
 			So(mgr.GetServerByAddress(ss1.Address()), ShouldEqual, ss1)
-			So(mgr.GetServerByServerID(ss1.ID()), ShouldEqual, ss1)
+			So(mgr.GetServerByVolumeID(ss1.VolumeID()), ShouldEqual, ss1)
 			So(mgr.GetServerByAddress(ss2.Address()), ShouldEqual, ss2)
-			So(mgr.GetServerByServerID(ss2.ID()), ShouldEqual, ss2)
+			So(mgr.GetServerByVolumeID(ss2.VolumeID()), ShouldEqual, ss2)
 			So(mgr.GetServerByAddress(ss3.Address()), ShouldEqual, ss3)
-			So(mgr.GetServerByServerID(ss3.ID()), ShouldEqual, ss3)
+			So(mgr.GetServerByVolumeID(ss3.VolumeID()), ShouldEqual, ss3)
 		})
 	})
 }
@@ -105,18 +105,18 @@ func TestSegmentServerManager_AddAndRemoveServer(t *testing.T) {
 func TestSegmentServerManager_Run(t *testing.T) {
 	Convey("test Manager run and stop", t, func() {
 		mgr := NewServerManager()
-		ss1, err := NewSegmentServer("127.0.0.1:10001")
+		ss1, err := NewSegmentServer(1, "127.0.0.1:10001")
 		So(err, ShouldBeNil)
 		err = mgr.AddServer(stdCtx.Background(), ss1)
 		So(err, ShouldBeNil)
 		ssm := mgr.(*segmentServerManager)
 
-		ss2, err := NewSegmentServer("127.0.0.1:10002")
+		ss2, err := NewSegmentServer(2, "127.0.0.1:10002")
 		So(err, ShouldBeNil)
 		err = mgr.AddServer(stdCtx.Background(), ss2)
 		So(err, ShouldBeNil)
 		So(util.MapLen(&ssm.segmentServerMapByIP), ShouldEqual, 2)
-		So(util.MapLen(&ssm.segmentServerMapByID), ShouldEqual, 2)
+		So(util.MapLen(&ssm.segmentServerMapByVolumeID), ShouldEqual, 2)
 
 		ssm.ticker = time.NewTicker(50 * time.Millisecond)
 		ctrl := gomock.NewController(t)
@@ -149,14 +149,14 @@ func TestSegmentServerManager_Run(t *testing.T) {
 		err = ssm.Run(stdCtx.Background())
 		So(err, ShouldBeNil)
 		time.Sleep(200 * time.Millisecond)
-		So(util.MapLen(&ssm.segmentServerMapByID), ShouldEqual, 2)
+		So(util.MapLen(&ssm.segmentServerMapByVolumeID), ShouldEqual, 2)
 		So(util.MapLen(&ssm.segmentServerMapByIP), ShouldEqual, 2)
 
 		mutex.Lock()
 		status1 = "stopped"
 		mutex.Unlock()
 		time.Sleep(200 * time.Millisecond)
-		So(util.MapLen(&ssm.segmentServerMapByID), ShouldEqual, 1)
+		So(util.MapLen(&ssm.segmentServerMapByVolumeID), ShouldEqual, 1)
 		So(util.MapLen(&ssm.segmentServerMapByIP), ShouldEqual, 1)
 
 		mgr.Stop(stdCtx.Background())
@@ -164,13 +164,13 @@ func TestSegmentServerManager_Run(t *testing.T) {
 		status2 = "stopped"
 		mutex.Unlock()
 		time.Sleep(200 * time.Millisecond)
-		So(util.MapLen(&ssm.segmentServerMapByID), ShouldEqual, 1)
+		So(util.MapLen(&ssm.segmentServerMapByVolumeID), ShouldEqual, 1)
 	})
 }
 
 func TestSegmentServer(t *testing.T) {
 	Convey("test Manager run and stop", t, func() {
-		ss1, err := NewSegmentServer("127.0.0.1:10001")
+		ss1, err := NewSegmentServer(1, "127.0.0.1:10001")
 		So(err, ShouldBeNil)
 
 		ctrl := gomock.NewController(t)
@@ -197,7 +197,6 @@ func TestSegmentServer(t *testing.T) {
 			func(ctx stdCtx.Context, req *segpb.StartSegmentServerRequest,
 				opts ...grpc.CallOption,
 			) (*segpb.StartSegmentServerResponse, error) {
-				So(req.ServerId, ShouldEqual, ss1.ID())
 				return &segpb.StartSegmentServerResponse{}, nil
 			})
 		So(ss1.RemoteStart(ctx), ShouldBeNil)
@@ -207,8 +206,8 @@ func TestSegmentServer(t *testing.T) {
 
 		So(ss1.Close(), ShouldBeNil)
 
-		ss2, err := NewSegmentServerWithID(vanus.NewIDFromUint64(1024), "127.0.0.1:10001")
+		ss2, err := NewSegmentServerWithVolumeID(1024, "127.0.0.1:10001")
 		So(err, ShouldBeNil)
-		So(ss2.ID(), ShouldEqual, vanus.NewIDFromUint64(1024))
+		So(ss2.VolumeID(), ShouldEqual, vanus.NewIDFromUint64(1024))
 	})
 }

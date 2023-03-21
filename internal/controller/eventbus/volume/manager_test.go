@@ -223,23 +223,23 @@ func TestVolumeMgr_Init(t *testing.T) {
 				metadata.BlockKeyPrefixInKVStore, volume2.ID.Key())).
 				Times(1).Return([]kv.Pair{}, nil)
 			o1 := new(struct {
-				Address  string   `json:"address"`
-				ServerID vanus.ID `json:"server_id"`
+				Address  string `json:"address"`
+				VolumeID uint64 `json:"volume_id"`
 			})
 			o1.Address = "127.0.0.1:10001"
-			o1.ServerID = vanus.NewTestID()
+			o1.VolumeID = vanus.NewTestID().Uint64()
 			o2 := new(struct {
-				Address  string   `json:"address"`
-				ServerID vanus.ID `json:"server_id"`
+				Address  string `json:"address"`
+				VolumeID uint64 `json:"volume_id"`
 			})
 			o2.Address = "127.0.0.1:10002"
-			o2.ServerID = vanus.NewTestID()
+			o2.VolumeID = vanus.NewTestID().Uint64()
 			o3 := new(struct {
-				Address  string   `json:"address"`
-				ServerID vanus.ID `json:"server_id"`
+				Address  string `json:"address"`
+				VolumeID uint64 `json:"volume_id"`
 			})
 			o3.Address = "127.0.0.1:10003"
-			o3.ServerID = vanus.NewTestID()
+			o3.VolumeID = vanus.NewTestID().Uint64()
 
 			data1, _ = stdJson.Marshal(o1)
 			data2, _ = stdJson.Marshal(o2)
@@ -273,18 +273,18 @@ func TestVolumeMgr_Init(t *testing.T) {
 			srv3 := server.NewMockServer(ctrl)
 
 			srv1.EXPECT().IsActive(gomock.Any()).Times(3).Return(true)
-			srv1.EXPECT().ID().Times(3).Return(o1.ServerID)
+			srv1.EXPECT().VolumeID().Times(3).Return(o1.VolumeID)
 			srv1.EXPECT().Address().Times(2).Return(o1.Address)
 			srv1.EXPECT().Uptime().Times(1).Return(time.Now())
 			srv2.EXPECT().IsActive(gomock.Any()).Times(1).Return(false)
 
-			server.MockServerGetter(func(id vanus.ID, addr string) (server.Server, error) {
-				switch id.Uint64() {
-				case o1.ServerID.Uint64():
+			server.MockServerGetter(func(id uint64, addr string) (server.Server, error) {
+				switch id {
+				case o1.VolumeID:
 					return srv1, nil
-				case o2.ServerID.Uint64():
+				case o2.VolumeID:
 					return srv2, nil
-				case o3.ServerID.Uint64():
+				case o3.VolumeID:
 					return srv3, nil
 				default:
 					return nil, errors.New("invalid server")
@@ -292,16 +292,18 @@ func TestVolumeMgr_Init(t *testing.T) {
 			})
 			defer server.MockReset()
 
-			srvMgr.EXPECT().AddServer(stdCtx.Background(), srv1).Times(1).Return(nil)
+			srvMgr.EXPECT().AddServer(gomock.Any(), srv1).Times(1).Return(nil)
+			srvMgr.EXPECT().AddServer(gomock.Any(), nil).Times(1).Return(nil)
 			kvCli.EXPECT().Set(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(nil)
 			mgr := &volumeMgr{serverMgr: srvMgr}
 
 			vanus.InitFakeSnowflake()
+			kvCli.EXPECT().Delete(gomock.Any(), gomock.Any()).Times(1).Return(nil)
 			err := mgr.Init(stdCtx.Background(), kvCli)
 			So(err, ShouldBeNil)
 
 			So(util.MapLen(&mgr.volInstanceMap), ShouldEqual, 2)
-			So(util.MapLen(&mgr.volInstanceMapByServerID), ShouldEqual, 1)
+			So(util.MapLen(&mgr.volInstanceByPhysicalVolumeID), ShouldEqual, 1)
 			v, exist := mgr.volInstanceMap.Load(volume1.ID.Key())
 			So(exist, ShouldBeTrue)
 			So(v.(server.Instance).GetMeta(), ShouldResemble, volume1)
@@ -310,7 +312,7 @@ func TestVolumeMgr_Init(t *testing.T) {
 			So(exist, ShouldBeTrue)
 			So(v.(server.Instance).GetMeta(), ShouldResemble, volume2)
 
-			v, exist = mgr.volInstanceMapByServerID.Load(o1.ServerID.Key())
+			v, exist = mgr.volInstanceByPhysicalVolumeID.Load(o1.VolumeID)
 			So(exist, ShouldBeTrue)
 			So(v.(server.Instance).GetMeta(), ShouldResemble, volume1)
 
@@ -388,8 +390,8 @@ func TestVolumeMgr_UpdateRoutingAndLookup(t *testing.T) {
 		srv2 := server.NewMockServer(ctrl)
 		ins2.EXPECT().ID().Times(2).Return(vanus.NewTestID())
 		srv2.EXPECT().IsActive(gomock.Any()).Times(1).Return(true)
-		id := vanus.NewTestID()
-		srv2.EXPECT().ID().Times(2).Return(id)
+		id := vanus.NewTestID().Uint64()
+		srv2.EXPECT().VolumeID().Times(2).Return(id)
 		srv2.EXPECT().Address().Times(1).Return("127.0.0.1:10000")
 
 		ins3 := server.NewMockInstance(ctrl)
@@ -406,12 +408,12 @@ func TestVolumeMgr_UpdateRoutingAndLookup(t *testing.T) {
 			kvCli.EXPECT().Delete(gomock.Any(), gomock.Any()).Times(1).Return(nil)
 			mgr.UpdateRouting(ctx, ins3, nil)
 
-			So(util.MapLen(&mgr.volInstanceMapByServerID), ShouldEqual, 1)
+			So(util.MapLen(&mgr.volInstanceByPhysicalVolumeID), ShouldEqual, 1)
 			So(util.MapLen(&mgr.volInstanceMap), ShouldEqual, 1)
-			ins := mgr.LookupVolumeByServerID(id)
+			ins := mgr.LookupVolumeByID(id)
 			So(ins, ShouldEqual, ins2)
 
-			ins = mgr.LookupVolumeByServerID(vanus.NewTestID())
+			ins = mgr.LookupVolumeByID(vanus.NewTestID().Uint64())
 			So(ins, ShouldBeEmpty)
 		})
 	})
