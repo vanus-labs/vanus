@@ -26,7 +26,11 @@ import (
 	"github.com/cloudevents/sdk-go/v2/client"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
+	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/vanus-labs/vanus/internal/gateway/proxy"
+	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/tracing"
@@ -34,8 +38,6 @@ import (
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
-	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 var requestDataFromContext = cehttp.RequestDataFromContext
@@ -139,7 +141,7 @@ func (ga *ceGateway) getEventbusFromPath(ctx context.Context, reqData *cehttp.Re
 		name string
 	)
 	if strings.HasPrefix(reqPathStr, httpRequestPrefix) { // Deprecated, just for compatibility of older than v0.7.0
-		ns = "default"
+		ns = primitive.DefaultNamespace
 		name = strings.TrimLeft(reqPathStr[len(httpRequestPrefix):], "/")
 	} else {
 		// namespaces/:namespace_name/eventbus/:eventbus_name/events

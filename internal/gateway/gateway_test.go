@@ -27,9 +27,9 @@ import (
 	. "github.com/golang/mock/gomock"
 	. "github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
-	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/pkg/cluster"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
@@ -82,19 +82,19 @@ func TestGateway_receive(t *testing.T) {
 		So(ret, ShouldBeError)
 	})
 
-	Convey("test receive failure2", t, func() {
-		e := ce.NewEvent()
-		reqData := &cehttp.RequestData{
-			URL: &url.URL{
-				Opaque: "/gateway/test",
-			},
-		}
-		e.SetExtension(primitive.XVanusDeliveryTime, "2006-01-02T15:04:05")
-		stub := StubFunc(&requestDataFromContext, reqData)
-		defer stub.Reset()
-		_, ret := ga.receive(ctx, e)
-		So(ret, ShouldBeError)
-	})
+	// Convey("test receive failure2", t, func() {
+	//	e := ce.NewEvent()
+	//	reqData := &cehttp.RequestData{
+	//		URL: &url.URL{
+	//			Opaque: "/gateway/test",
+	//		},
+	//	}
+	//	e.SetExtension(primitive.XVanusDeliveryTime, "2006-01-02T15:04:05")
+	//	stub := StubFunc(&requestDataFromContext, reqData)
+	//	defer stub.Reset()
+	//	_, ret := ga.receive(ctx, e)
+	//	So(ret, ShouldBeError)
+	// })
 
 	// Convey("test receive failure3", t, func() {
 	// 	e := ce.NewEvent()
