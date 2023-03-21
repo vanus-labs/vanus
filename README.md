@@ -80,7 +80,7 @@ We also provide an [interactive Kubernetes environment](https://play.linkall.com
 
 ## Community
 
-We have a few channels for contact:
+We have a few channels for contact:a
 
 - [Slack](https://join.slack.com/t/vanusworkspace/shared_invite/zt-1jilbbfo2-NxiFG0VOo8ABGCCNaeNfcA)
 - [@Vanus_dev](https://twitter.com/Vanus_dev) on Twitter
