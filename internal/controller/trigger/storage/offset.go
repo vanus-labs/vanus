@@ -53,7 +53,7 @@ func (s *offsetStorage) getKey(subscriptionID, eventlogID vanus.ID) string {
 }
 
 func (s *offsetStorage) getSubKey(subscriptionID vanus.ID) string {
-	return path.Join(kv.MetadataSecret, subscriptionID.Key())
+	return path.Join(kv.MetadataOffset, subscriptionID.Key())
 }
 
 func (s *offsetStorage) int64ToByteArr(v uint64) []byte {
