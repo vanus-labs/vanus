@@ -60,6 +60,7 @@ func init() {
 		strings.NewSplitWithDelimiterAction,
 		strings.NewSplitBetweenPositionsAction,
 		strings.NewSplitFromStartAction,
+		strings.NewExtractBetweenPositionsAction,
 		// condition
 		condition.NewConditionIfAction,
 		// array
