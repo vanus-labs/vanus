@@ -17,7 +17,7 @@ It helps users build event pipelines between SaaS, cloud services, and cloud fun
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://github.com/vanus-labs/vanus/blob/main/LICENSE)
 [![codecov](https://codecov.io/gh/vanus-labs/vanus/branch/main/graph/badge.svg?token=RSXSIMEY4V)](https://codecov.io/gh/vanus-labs/vanus)
 [![Language](https://img.shields.io/github/go-mod/go-version/vanus-labs/vanus?logo=go)](https://golang.org/)
-[![Vanus Cloud](https://img.shields.io/badge/Playground-Try%20it%20%20free-red)](cloud.vanus.ai)
+[![Vanus Cloud](https://img.shields.io/badge/VanusCloud-Try%20it%20%20free-red)](cloud.vanus.ai)
 [![docs](https://img.shields.io/badge/Docs-online-green)](https://docs.vanus.ai/)
 
 <p>
