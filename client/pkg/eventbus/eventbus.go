@@ -19,7 +19,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
-	stderrors "errors"
 	"io"
 	"sync"
 
@@ -321,9 +320,13 @@ func (b *eventbus) setWritableLogs(s *u64set.Set, lws map[uint64]eventlog.Eventl
 	b.writableLogs = lws
 }
 
-func (b *eventbus) getWritableLog(ctx context.Context, logID uint64) eventlog.Eventlog {
+func (b *eventbus) getWritableLog(ctx context.Context, logID uint64) (eventlog.Eventlog, error) {
 	b.writableMu.RLock()
 	defer b.writableMu.RUnlock()
+
+	if errors.Is(b.writableState, errors.ErrResourceNotFound) {
+		return nil, errors.ErrResourceNotFound
+	}
 
 	if len(b.writableLogs) == 0 {
 		func() {
@@ -333,7 +336,7 @@ func (b *eventbus) getWritableLog(ctx context.Context, logID uint64) eventlog.Ev
 		}()
 	}
 
-	return b.writableLogs[logID]
+	return b.writableLogs[logID], nil
 }
 
 func (b *eventbus) refreshWritableLogs(ctx context.Context) {
@@ -413,9 +416,13 @@ func (b *eventbus) setReadableLogs(s *u64set.Set, lws map[uint64]eventlog.Eventl
 	b.readableLogs = lws
 }
 
-func (b *eventbus) getReadableLog(ctx context.Context, logID uint64) eventlog.Eventlog {
+func (b *eventbus) getReadableLog(ctx context.Context, logID uint64) (eventlog.Eventlog, error) {
 	b.readableMu.RLock()
 	defer b.readableMu.RUnlock()
+
+	if errors.Is(b.readableState, errors.ErrResourceNotFound) {
+		return nil, errors.ErrResourceNotFound
+	}
 
 	if len(b.readableLogs) == 0 {
 		func() {
@@ -425,7 +432,7 @@ func (b *eventbus) getReadableLog(ctx context.Context, logID uint64) eventlog.Ev
 		}()
 	}
 
-	return b.readableLogs[logID]
+	return b.readableLogs[logID], nil
 }
 
 func (b *eventbus) refreshReadableLogs(ctx context.Context) {
@@ -496,9 +503,9 @@ func (w *busWriter) pickWritableLog(ctx context.Context, opts *api.WriteOptions)
 		return nil, err
 	}
 
-	lw := w.ebus.getWritableLog(_ctx, l.ID())
-	if lw == nil {
-		return nil, stderrors.New("can not pick writable log")
+	lw, err := w.ebus.getWritableLog(_ctx, l.ID())
+	if err != nil {
+		return nil, err
 	}
 
 	return lw.Writer(), nil
@@ -572,9 +579,9 @@ func (r *busReader) pickReadableLog(ctx context.Context, opts *api.ReadOptions) 
 	if err != nil {
 		return nil, err
 	}
-	lr := r.ebus.getReadableLog(_ctx, l.ID())
-	if lr == nil {
-		return nil, stderrors.New("can not pick readable log")
+	lr, err := r.ebus.getReadableLog(_ctx, l.ID())
+	if err != nil {
+		return nil, err
 	}
 
 	return lr.Reader(eventlog.ReaderConfig{PollingTimeout: opts.PollingTimeout}), nil
