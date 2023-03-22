@@ -60,6 +60,7 @@ func NewEventbus(cfg *eb.Config) *eventbus {
 	bus.readableWatcher = WatchReadableLogs(bus)
 
 	go func() {
+		defer bus.writableWatcher.Close()
 		ch := bus.writableWatcher.Chan()
 		for {
 			re, ok := <-ch
@@ -82,6 +83,7 @@ func NewEventbus(cfg *eb.Config) *eventbus {
 	bus.writableWatcher.Start()
 
 	go func() {
+		defer bus.readableWatcher.Close()
 		ch := bus.readableWatcher.Chan()
 		for {
 			re, ok := <-ch
