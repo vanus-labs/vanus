@@ -95,7 +95,7 @@ func (mr *MockReplicaMockRecorder) Delete(ctx interface{}) *gomock.Call {
 // ID mocks base method.
 func (m *MockReplica) ID() vanus.ID {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VolumeID")
+	ret := m.ctrl.Call(m, "ID")
 	ret0, _ := ret[0].(vanus.ID)
 	return ret0
 }
@@ -103,7 +103,7 @@ func (m *MockReplica) ID() vanus.ID {
 // ID indicates an expected call of ID.
 func (mr *MockReplicaMockRecorder) ID() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VolumeID", reflect.TypeOf((*MockReplica)(nil).ID))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockReplica)(nil).ID))
 }
 
 // IDStr mocks base method.

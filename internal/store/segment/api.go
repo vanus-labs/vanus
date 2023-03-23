@@ -78,15 +78,17 @@ func (s *segmentServer) RemoveBlock(ctx context.Context, req *segpb.RemoveBlockR
 	return &emptypb.Empty{}, nil
 }
 
-func (s *segmentServer) GetBlockInfo(
-	_ context.Context, _ *segpb.GetBlockInfoRequest,
-) (*segpb.GetBlockInfoResponse, error) {
-	// TODO(james.yin): implements GetBlockInfo()
-	// if err := s.srv.GetBlockInfo(ctx, 0); err != nil {
-	// 	return nil, err
-	// }
+func (s *segmentServer) DescribeBlock(
+	ctx context.Context, req *segpb.DescribeBlockRequest,
+) (*segpb.DescribeBlockResponse, error) {
+	blockID := vanus.NewIDFromUint64(req.Id)
 
-	return &segpb.GetBlockInfoResponse{}, nil
+	info, err := s.srv.DescribeBlock(ctx, blockID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &segpb.DescribeBlockResponse{Info: info}, nil
 }
 
 func (s *segmentServer) ActivateSegment(
