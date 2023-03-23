@@ -64,9 +64,7 @@ func NewEventbus(cfg *eb.Config) *eventbus {
 		for {
 			re, ok := <-ch
 			if !ok {
-				log.Debug(context.Background(), "eventbus quits writable watcher", map[string]interface{}{
-					"eventbus_id": bus.cfg.ID,
-				})
+				log.Debug().Uint64("eventbus_id", bus.cfg.ID).Msg("eventbus quits writable watcher")
 				break
 			}
 
@@ -86,9 +84,7 @@ func NewEventbus(cfg *eb.Config) *eventbus {
 		for {
 			re, ok := <-ch
 			if !ok {
-				log.Debug(context.Background(), "eventbus quits readable watcher", map[string]interface{}{
-					"eventbus_id": bus.cfg.ID,
-				})
+				log.Debug().Uint64("eventbus_id", bus.cfg.ID).Msg("eventbus quits readable watcher")
 				break
 			}
 
@@ -458,21 +454,16 @@ func (w *busWriter) Append(ctx context.Context, events *cloudevents.CloudEventBa
 	// 1. pick a writer of eventlog
 	lw, err := w.pickWritableLog(_ctx, writeOpts)
 	if err != nil {
-		log.Error(context.Background(), "pick writable log failed", map[string]interface{}{
-			log.KeyError:  err,
-			"eventbus_id": w.ebus.ID(),
-		})
+		log.Error().Err(err).Uint64("eventbus_id", w.ebus.ID()).Msg("pick writable log failed")
 		return nil, err
 	}
 
 	// 2. append the event to the eventlog
 	offsets, err := lw.Append(_ctx, events)
 	if err != nil {
-		log.Error(context.Background(), "logwriter append failed", map[string]interface{}{
-			log.KeyError:  err,
-			"eventbus_id": w.ebus.ID(),
-			"eventlog_id": lw.Log().ID(),
-		})
+		log.Error().Err(err).
+			Uint64("eventbus_id", w.ebus.ID()).
+			Uint64("eventlog_id", lw.Log().ID()).Msg("log-writer append failed")
 		return nil, err
 	}
 
@@ -535,20 +526,18 @@ func (r *busReader) Read(ctx context.Context, opts ...api.ReadOption) (events *c
 	// 1. pick a reader of eventlog
 	lr, err := r.pickReadableLog(_ctx, readOpts)
 	if err != nil {
-		log.Error(context.Background(), "pick readable log failed", map[string]interface{}{
-			log.KeyError:  err,
-			"eventbus_id": r.ebus.ID(),
-		})
+		log.Error().Err(err).
+			Uint64("eventbus_id", r.ebus.ID()).
+			Msg("pick readable log failed")
 		return nil, 0, 0, err
 	}
 
 	// TODO(jiangkai): refactor eventlog interface to avoid seek every time, by jiangkai, 2022.10.24
 	off, err = lr.Seek(_ctx, readOpts.Policy.Offset(), io.SeekStart)
 	if err != nil {
-		log.Error(context.Background(), "seek offset failed", map[string]interface{}{
-			log.KeyError:  err,
-			"eventbus_id": r.ebus.ID(),
-		})
+		log.Error().Err(err).
+			Uint64("eventbus_id", r.ebus.ID()).
+			Msg("seek offset failed")
 		return nil, 0, 0, err
 	}
 

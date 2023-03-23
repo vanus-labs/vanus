@@ -103,7 +103,7 @@ func (w *worker) deleteTrigger(id vanus.ID) {
 	delete(w.triggerMap, id)
 }
 
-func (w *worker) Init(ctx context.Context) error {
+func (w *worker) Init(_ context.Context) error {
 	err := w.ctrl.WaitForControllerReady(false)
 	return err
 }
@@ -122,7 +122,7 @@ func (w *worker) Unregister(ctx context.Context) error {
 	return err
 }
 
-func (w *worker) Start(ctx context.Context) error {
+func (w *worker) Start(_ context.Context) error {
 	return w.startHeartbeat(w.ctx)
 }
 

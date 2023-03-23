@@ -18,15 +18,13 @@ import (
 	// standard libraries.
 	"container/list"
 	"context"
-	"github.com/vanus-labs/vanus/observability/log"
 	"sync"
 	"time"
 
 	// third-party libraries.
-	"google.golang.org/grpc"
-
 	raftpb "github.com/vanus-labs/vanus/proto/pkg/raft"
 	"github.com/vanus-labs/vanus/raft"
+	"google.golang.org/grpc"
 
 	// this project.
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
@@ -35,6 +33,7 @@ import (
 	"github.com/vanus-labs/vanus/internal/store/raft/storage"
 	"github.com/vanus-labs/vanus/internal/store/raft/transport"
 	walog "github.com/vanus-labs/vanus/internal/store/wal"
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 type Engine struct {

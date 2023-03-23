@@ -19,12 +19,10 @@ import (
 	// standard libraries.
 	"context"
 	"errors"
-	"github.com/vanus-labs/vanus/observability/log"
 	"sort"
 	"time"
 
 	// third-party libraries.
-
 	"github.com/vanus-labs/vanus/raft"
 	"github.com/vanus-labs/vanus/raft/raftpb"
 
@@ -34,6 +32,7 @@ import (
 	"github.com/vanus-labs/vanus/internal/store/block"
 	"github.com/vanus-labs/vanus/internal/store/raft/storage"
 	"github.com/vanus-labs/vanus/internal/store/raft/transport"
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 const (
@@ -124,7 +123,7 @@ func (a *appender) Delete(ctx context.Context) {
 		Msg("raft appender is deleted.")
 }
 
-func (a *appender) Bootstrap(ctx context.Context, blocks []Peer) error {
+func (a *appender) Bootstrap(_ context.Context, blocks []Peer) error {
 	peers := make([]raft.Peer, 0, len(blocks))
 	for _, ep := range blocks {
 		peers = append(peers, raft.Peer{
@@ -237,7 +236,7 @@ func (a *appender) changeMembership(ctx context.Context, pbEntry *raftpb.Entry) 
 	})
 }
 
-func (a *appender) changeConf(ctx context.Context, pbEntry *raftpb.Entry) *raftpb.ConfState {
+func (a *appender) changeConf(_ context.Context, pbEntry *raftpb.Entry) *raftpb.ConfState {
 	if pbEntry.Type == raftpb.EntryNormal {
 		// TODO(james.yin): return error
 		return nil

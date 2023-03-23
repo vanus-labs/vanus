@@ -44,7 +44,7 @@ func (a *appender) send(ctx context.Context, msg *raftpb.Message) {
 }
 
 // Receive implements transport.Receiver.
-func (a *appender) Receive(ctx context.Context, msg *raftpb.Message, from uint64, endpoint string) {
+func (a *appender) Receive(_ context.Context, msg *raftpb.Message, from uint64, endpoint string) {
 	a.transportExecutor.Execute(func() {
 		if endpoint != "" && a.hint[from] != endpoint {
 			a.hint[from] = endpoint

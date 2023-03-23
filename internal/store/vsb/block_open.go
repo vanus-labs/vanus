@@ -77,11 +77,7 @@ func (b *vsBlock) init(ctx context.Context) error {
 		return err
 	}
 
-	if err := b.validate(ctx); err != nil {
-		return err
-	}
-
-	return nil
+	return b.validate(ctx)
 }
 
 func (b *vsBlock) repairMeta() error {
@@ -200,7 +196,7 @@ func (b *vsBlock) rebuildIndexes(num int, tail []index.Index) error {
 	return nil
 }
 
-func (b *vsBlock) validate(ctx context.Context) error {
+func (b *vsBlock) validate(_ context.Context) error {
 	if len(b.indexes) < int(b.fm.entryNum) {
 		return errCorrupted
 	}

@@ -18,10 +18,11 @@ import (
 	// standard libraries.
 	"context"
 	"fmt"
-	"github.com/vanus-labs/vanus/observability/log"
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"github.com/vanus-labs/vanus/observability/log"
 
 	// third-party libraries.
 	"github.com/huandu/skiplist"
@@ -73,7 +74,7 @@ func (s *store) resolveSnapshotPath(version int64) string {
 }
 
 func recoverLatestSnapshot(
-	ctx context.Context, dir string, unmarshaler Unmarshaler,
+	_ context.Context, dir string, unmarshaler Unmarshaler,
 ) (*skiplist.SkipList, int64, error) {
 	// Make sure the snapshot directory exists.
 	if err := os.MkdirAll(dir, defaultDirPerm); err != nil {

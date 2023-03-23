@@ -104,7 +104,7 @@ func (m *manager) ListSubscription(_ context.Context) []*metadata.Subscription {
 	return list
 }
 
-func (m *manager) GetSubscriptionByName(ctx context.Context, namespaceID vanus.ID, name string) *metadata.Subscription {
+func (m *manager) GetSubscriptionByName(_ context.Context, namespaceID vanus.ID, name string) *metadata.Subscription {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	for _, sub := range m.subscriptionMap {
@@ -118,7 +118,7 @@ func (m *manager) GetSubscriptionByName(ctx context.Context, namespaceID vanus.I
 	return nil
 }
 
-func (m *manager) GetSubscription(ctx context.Context, id vanus.ID) *metadata.Subscription {
+func (m *manager) GetSubscription(_ context.Context, id vanus.ID) *metadata.Subscription {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	sub, exist := m.subscriptionMap[id]

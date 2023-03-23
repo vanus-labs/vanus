@@ -16,14 +16,13 @@ package etcd
 
 import (
 	"context"
-	"github.com/vanus-labs/vanus/observability/log"
 	"path"
 	"strings"
 	"time"
 
-	v3client "go.etcd.io/etcd/client/v3"
-
 	kvdef "github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/observability/log"
+	v3client "go.etcd.io/etcd/client/v3"
 )
 
 const (

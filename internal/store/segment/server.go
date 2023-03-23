@@ -20,7 +20,6 @@ import (
 	"context"
 	stderr "errors"
 	"fmt"
-	"github.com/vanus-labs/vanus/observability/log"
 	"io"
 	"net"
 	"os"
@@ -42,6 +41,7 @@ import (
 	"google.golang.org/grpc/tap"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/observability/tracing"
 	"github.com/vanus-labs/vanus/pkg/cluster"
@@ -516,19 +516,12 @@ func (s *server) ActivateSegment(
 
 	// Bootstrap raft.
 	b, _ := v.(Replica)
-	if err := b.Bootstrap(ctx, peers); err != nil {
-		return err
-	}
-
-	return nil
+	return b.Bootstrap(ctx, peers)
 }
 
 // InactivateSegment mark a block ready to be removed. This method is usually used for data transfer.
 func (s *server) InactivateSegment(_ context.Context) error {
-	if err := s.checkState(); err != nil {
-		return err
-	}
-	return nil
+	return s.checkState()
 }
 
 func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.CloudEvent) ([]int64, error) {

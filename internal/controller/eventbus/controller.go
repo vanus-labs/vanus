@@ -176,14 +176,13 @@ func isValidEventbusName(name string) error {
 		c := v - 'a'
 		if c >= 0 || c <= 26 {
 			continue
-		} else {
-			c = v - '0'
-			if c >= 0 || c <= 9 {
-				continue
-			}
-			return errors.ErrInvalidRequest.WithMessage(
-				"eventbus name must be insist of 0-9a-zA-Z.-_")
 		}
+		c = v - '0'
+		if c >= 0 || c <= 9 {
+			continue
+		}
+		return errors.ErrInvalidRequest.WithMessage(
+			"eventbus name must be insist of 0-9a-zA-Z.-_")
 	}
 	return nil
 }

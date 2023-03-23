@@ -26,7 +26,7 @@ import (
 // Make sure appender implements storage.SnapshotOperator.
 var _ storage.SnapshotOperator = (*appender)(nil)
 
-func (a *appender) GetSnapshot(index uint64) ([]byte, error) {
+func (a *appender) GetSnapshot(_ uint64) ([]byte, error) {
 	ctx := context.Background()
 	snap, err := a.raw.Snapshot(ctx)
 	if err != nil {

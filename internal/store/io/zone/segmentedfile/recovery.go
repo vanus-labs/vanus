@@ -15,10 +15,11 @@
 package segmentedfile
 
 import (
-	"github.com/vanus-labs/vanus/observability/log"
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"github.com/vanus-labs/vanus/observability/log"
 
 	// this project.
 	"github.com/vanus-labs/vanus/internal/store/io"

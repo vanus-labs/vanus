@@ -56,7 +56,7 @@ func (e *psync) Close() {
 	e.q.Close()
 }
 
-func (e *psync) WriteAt(z zone.Interface, b []byte, off int64, so, eo int, cb io.WriteCallback) {
+func (e *psync) WriteAt(z zone.Interface, b []byte, off int64, so, eo int, cb io.WriteCallback) { //nolint:revive // ok
 	// if eo != 0 && eo != len(b) {
 	// 	b = b[:eo]
 	// }

@@ -56,7 +56,7 @@ type entry struct {
 // Make sure entry implements block.Entry.
 var _ block.Entry = (*entry)(nil)
 
-func (e *entry) Get(ordinal int) interface{} {
+func (e *entry) Get(_ int) interface{} {
 	return nil
 }
 

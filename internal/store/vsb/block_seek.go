@@ -56,7 +56,7 @@ func (b *vsBlock) Seek(ctx context.Context, index int64, key block.Entry, flag b
 	}
 }
 
-func (b *vsBlock) seekKeyExact(ctx context.Context, idx int64, key block.Entry, indexes []index.Index) (int64, error) {
+func (b *vsBlock) seekKeyExact(_ context.Context, idx int64, key block.Entry, indexes []index.Index) (int64, error) {
 	cmp := b.selectComparer(idx, key)
 	seq := searchGE(indexes, cmp)
 	if seq >= 0 && cmp(indexes[seq]) == 0 {
@@ -65,11 +65,11 @@ func (b *vsBlock) seekKeyExact(ctx context.Context, idx int64, key block.Entry, 
 	return -1, nil
 }
 
-func (b *vsBlock) seekKeyOrNext(ctx context.Context, idx int64, key block.Entry, indexes []index.Index) (int64, error) {
+func (b *vsBlock) seekKeyOrNext(_ context.Context, idx int64, key block.Entry, indexes []index.Index) (int64, error) {
 	return searchGE(indexes, b.selectComparer(idx, key)), nil
 }
 
-func (b *vsBlock) seekKeyOrPrev(ctx context.Context, idx int64, key block.Entry, indexes []index.Index) (int64, error) {
+func (b *vsBlock) seekKeyOrPrev(_ context.Context, idx int64, key block.Entry, indexes []index.Index) (int64, error) {
 	cmp := b.selectComparer(idx, key)
 	seq := searchGE(indexes, cmp)
 	if seq >= 0 && cmp(indexes[seq]) != 0 {
@@ -78,11 +78,11 @@ func (b *vsBlock) seekKeyOrPrev(ctx context.Context, idx int64, key block.Entry,
 	return seq, nil
 }
 
-func (b *vsBlock) seekAfterKey(ctx context.Context, idx int64, key block.Entry, indexes []index.Index) (int64, error) {
+func (b *vsBlock) seekAfterKey(_ context.Context, idx int64, key block.Entry, indexes []index.Index) (int64, error) {
 	return searchGT(indexes, b.selectComparer(idx, key)), nil
 }
 
-func (b *vsBlock) seekBeforeKey(ctx context.Context, idx int64, key block.Entry, indexes []index.Index) (int64, error) {
+func (b *vsBlock) seekBeforeKey(_ context.Context, idx int64, key block.Entry, indexes []index.Index) (int64, error) {
 	seq := searchGE(indexes, b.selectComparer(idx, key))
 	if seq >= 0 {
 		return seq - 1, nil
@@ -90,7 +90,7 @@ func (b *vsBlock) seekBeforeKey(ctx context.Context, idx int64, key block.Entry,
 	return int64(len(indexes)) - 1, nil
 }
 
-func (b *vsBlock) selectComparer(idx int64, key block.Entry) func(index.Index) int {
+func (b *vsBlock) selectComparer(_ int64, key block.Entry) func(index.Index) int {
 	// TODO(james.yin): support non-stime index.
 	val := ceschema.Stime(key)
 	return func(i index.Index) int {

@@ -208,7 +208,7 @@ func (le *leaderElection) release(ctx context.Context) error {
 	return nil
 }
 
-func (le *leaderElection) refresh(ctx context.Context) bool {
+func (le *leaderElection) refresh(_ context.Context) bool {
 	var err error
 	le.mu.Lock()
 	defer le.mu.Unlock()

@@ -37,7 +37,7 @@ type receiver struct {
 	recvch chan *raftpb.Message
 }
 
-func (r *receiver) Receive(ctx context.Context, msg *raftpb.Message, from uint64, endpoint string) {
+func (r *receiver) Receive(_ context.Context, msg *raftpb.Message, _ uint64, _ string) {
 	r.recvch <- msg
 }
 

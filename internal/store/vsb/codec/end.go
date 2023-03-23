@@ -34,7 +34,7 @@ type endEntryEncoder struct{}
 // Make sure endEntryEncoder implements RecordDataEncoder.
 var _ RecordDataEncoder = (*endEntryEncoder)(nil)
 
-func (e *endEntryEncoder) Size(entry block.Entry) int {
+func (e *endEntryEncoder) Size(_ block.Entry) int {
 	return endEntrySize
 }
 

@@ -46,10 +46,7 @@ func (c *Config) Validate() error {
 	if err := c.Raft.Validate(); err != nil {
 		return err
 	}
-	if err := c.VSB.Validate(); err != nil {
-		return err
-	}
-	return nil
+	return c.VSB.Validate()
 }
 
 type VolumeInfo struct {

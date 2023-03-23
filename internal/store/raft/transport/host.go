@@ -79,7 +79,7 @@ func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoin
 	mux.Send(ctx, msg, cb)
 }
 
-func (h *host) resolveMultiplexer(ctx context.Context, to uint64, endpoint string) Multiplexer {
+func (h *host) resolveMultiplexer(_ context.Context, to uint64, endpoint string) Multiplexer {
 	if endpoint == "" {
 		if endpoint = h.resolver.Resolve(to); endpoint == "" {
 			return nil

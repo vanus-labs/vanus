@@ -277,7 +277,7 @@ type adminTask struct {
 
 var emptyCompact = make([]byte, 16)
 
-func (t *adminTask) addNode(w *WAL, cCtx *compactContext) {
+func (t *adminTask) addNode(w *WAL, _ *compactContext) {
 	w.nodes[t.nodeID] = true
 
 	key := []byte(CompactKey(t.nodeID.Uint64()))
@@ -309,7 +309,7 @@ func (t *adminTask) removeNode(w *WAL, cCtx *compactContext) {
 	})
 }
 
-func (t *adminTask) recoverNode(w *WAL, cCtx *compactContext) {
+func (t *adminTask) recoverNode(w *WAL, _ *compactContext) {
 	w.nodes[t.nodeID] = true
 	if t.offset != 0 {
 		w.barrier.Set(t.offset, t.nodeID)

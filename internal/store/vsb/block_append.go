@@ -17,7 +17,6 @@ import (
 	"bytes"
 	"context"
 	stderr "errors"
-	"github.com/vanus-labs/vanus/observability/log"
 	stdio "io"
 	"sync/atomic"
 	"time"
@@ -31,6 +30,7 @@ import (
 	ceschema "github.com/vanus-labs/vanus/internal/store/schema/ce"
 	"github.com/vanus-labs/vanus/internal/store/vsb/entry"
 	"github.com/vanus-labs/vanus/internal/store/vsb/index"
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 var (
@@ -82,7 +82,7 @@ func (b *vsBlock) NewAppendContext(last block.Fragment) block.AppendContext {
 }
 
 func (b *vsBlock) PrepareAppend(
-	ctx context.Context, appendCtx block.AppendContext, entries ...block.Entry,
+	_ context.Context, appendCtx block.AppendContext, entries ...block.Entry,
 ) ([]int64, block.Fragment, bool, error) {
 	actx, _ := appendCtx.(*appendContext)
 
@@ -208,7 +208,7 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 }
 
 func (b *vsBlock) buildIndexes(
-	ctx context.Context, expected int64, frag block.Fragment,
+	_ context.Context, expected int64, frag block.Fragment,
 ) ([]index.Index, int64, bool, error) {
 	base := frag.StartOffset()
 	data := frag.Payload()
@@ -238,7 +238,7 @@ func (b *vsBlock) buildIndexes(
 	return indexes, expected, false, nil
 }
 
-func (b *vsBlock) appendIndexEntry(ctx context.Context, indexes []index.Index, cb io.WriteCallback) {
+func (b *vsBlock) appendIndexEntry(_ context.Context, indexes []index.Index, cb io.WriteCallback) {
 	entry := index.NewEntry(indexes)
 	sz := b.enc.Size(entry)
 	data := make([]byte, sz)

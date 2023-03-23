@@ -163,7 +163,7 @@ func (m *manager) RemoveTriggerWorker(ctx context.Context, addr string) {
 	tWorker := m.GetTriggerWorker(addr)
 	if tWorker == nil {
 		log.Info(ctx).
-			Str(log.KeyTriggerWorkerAddr, tWorker.GetAddr()).
+			Str(log.KeyTriggerWorkerAddr, addr).
 			Msg("remove trigger worker not exist or phase is paused")
 		return
 	}
@@ -187,7 +187,7 @@ func (m *manager) UpdateTriggerWorkerInfo(ctx context.Context, addr string) erro
 		err := m.storage.SaveTriggerWorker(ctx, tWorker.GetInfo())
 		if err != nil {
 			log.Warn(ctx).Err(err).
-				Str(log.KeyTriggerWorkerAddr, tWorker.GetAddr()).
+				Str(log.KeyTriggerWorkerAddr, addr).
 				Msg("storage save trigger worker phase to running error")
 		} else {
 			log.Info(ctx).

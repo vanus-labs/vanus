@@ -79,7 +79,7 @@ func (al *allocator) PickByVolumes(ctx context.Context, volumes []vanus.ID) ([]*
 	return al.pick(ctx, instances)
 }
 
-func (al *allocator) Run(ctx context.Context, kvCli kv.Client, startDynamicAllocate bool) error {
+func (al *allocator) Run(ctx context.Context, kvCli kv.Client, startDynamicAllocate bool) error { //nolint:revive // ok
 	al.kvClient = kvCli
 	pairs, err := al.kvClient.List(ctx, metadata.BlockKeyPrefixInKVStore)
 	if err != nil {

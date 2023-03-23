@@ -18,13 +18,14 @@ import (
 	// standard libraries.
 	"bytes"
 	"errors"
-	"github.com/vanus-labs/vanus/observability/log"
+
 	// third-party project.
 	"github.com/ncw/directio"
 
 	// this project.
 	"github.com/vanus-labs/vanus/internal/store/io/zone/segmentedfile"
 	"github.com/vanus-labs/vanus/internal/store/wal/record"
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 type OnEntryCallback = func(entry []byte, r Range) error
@@ -201,6 +202,6 @@ func onRecord(ctx *scanner, r record.Record, eo int64) error {
 	return nil
 }
 
-func noopOnEntry(entry []byte, r Range) error {
+func noopOnEntry(_ []byte, r Range) error { //nolint:revive // ok
 	return nil
 }

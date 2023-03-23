@@ -47,7 +47,7 @@ func (s *segmentServer) Start(
 }
 
 func (s *segmentServer) Stop(
-	ctx context.Context, req *segpb.StopSegmentServerRequest,
+	ctx context.Context, _ *segpb.StopSegmentServerRequest,
 ) (*segpb.StopSegmentServerResponse, error) {
 	if err := s.srv.Stop(ctx); err != nil {
 		return nil, err
@@ -56,7 +56,7 @@ func (s *segmentServer) Stop(
 	return &segpb.StopSegmentServerResponse{}, nil
 }
 
-func (s *segmentServer) Status(ctx context.Context, req *emptypb.Empty) (*segpb.StatusResponse, error) {
+func (s *segmentServer) Status(_ context.Context, _ *emptypb.Empty) (*segpb.StatusResponse, error) {
 	return &segpb.StatusResponse{Status: string(s.srv.Status())}, nil
 }
 
@@ -79,7 +79,7 @@ func (s *segmentServer) RemoveBlock(ctx context.Context, req *segpb.RemoveBlockR
 }
 
 func (s *segmentServer) GetBlockInfo(
-	ctx context.Context, req *segpb.GetBlockInfoRequest,
+	_ context.Context, _ *segpb.GetBlockInfoRequest,
 ) (*segpb.GetBlockInfoResponse, error) {
 	// TODO(james.yin): implements GetBlockInfo()
 	// if err := s.srv.GetBlockInfo(ctx, 0); err != nil {
@@ -108,7 +108,7 @@ func (s *segmentServer) ActivateSegment(
 }
 
 func (s *segmentServer) InactivateSegment(
-	ctx context.Context, req *segpb.InactivateSegmentRequest,
+	_ context.Context, _ *segpb.InactivateSegmentRequest,
 ) (*emptypb.Empty, error) {
 	return &emptypb.Empty{}, nil
 }

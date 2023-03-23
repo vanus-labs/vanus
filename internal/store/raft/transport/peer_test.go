@@ -18,7 +18,6 @@ import (
 	// standard libraries.
 	"context"
 	"fmt"
-	"github.com/vanus-labs/vanus/observability/log"
 	"net"
 	"os"
 	"sync/atomic"
@@ -30,6 +29,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/vanus-labs/vanus/observability/log"
 	. "github.com/vanus-labs/vanus/proto/pkg/raft"
 	"github.com/vanus-labs/vanus/raft/raftpb"
 )

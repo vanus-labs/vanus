@@ -187,7 +187,7 @@ func (w *WAL) runAppend() {
 	w.doClose()
 }
 
-func (w *WAL) Compact(ctx context.Context, off int64) error {
+func (w *WAL) Compact(_ context.Context, off int64) error {
 	return w.sf.Compact(off)
 }
 

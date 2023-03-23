@@ -1025,10 +1025,7 @@ func (el *eventlog) markSegmentFull(ctx context.Context, seg *Segment) error {
 	data, _ := json.Marshal(next)
 	// TODO(wenfeng.wang) update block info at the same time
 	log.Debug().Bytes("data", data).Msg("segment is full")
-	if err := el.kvClient.Set(ctx, metadata.GetSegmentMetadataKey(next.ID), data); err != nil {
-		return err
-	}
-	return nil
+	return el.kvClient.Set(ctx, metadata.GetSegmentMetadataKey(next.ID), data)
 }
 
 func (el *eventlog) head() *Segment {

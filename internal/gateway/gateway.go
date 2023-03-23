@@ -68,10 +68,7 @@ func (ga *ceGateway) Start(ctx context.Context) error {
 	if err := ga.startCloudEventsReceiver(ctx); err != nil {
 		return err
 	}
-	if err := ga.proxySrv.Start(); err != nil {
-		return err
-	}
-	return nil
+	return ga.proxySrv.Start()
 }
 
 func (ga *ceGateway) Stop() {

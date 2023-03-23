@@ -15,6 +15,8 @@
 package define
 
 import (
+	"fmt"
+
 	"github.com/vanus-labs/vanus/internal/primitive/transform/arg"
 	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
 	"github.com/vanus-labs/vanus/observability/log"
@@ -52,7 +54,7 @@ func (d *Define) EvaluateValue(ceCtx *context.EventContext) (map[string]interfac
 		if err != nil {
 			log.Warn().Err(err).
 				Str("name", v.Original()).
-				Str("type", v.Type()).
+				Str("type", fmt.Sprintf("%v", v.Type())).
 				Msg("define var evaluate error")
 		}
 		maps[k] = value
