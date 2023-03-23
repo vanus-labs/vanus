@@ -72,7 +72,7 @@ func (e *uRing) runCallback() {
 	}
 }
 
-func (e *uRing) WriteAt(z zone.Interface, b []byte, off int64, so, eo int, cb io.WriteCallback) {
+func (e *uRing) WriteAt(z zone.Interface, b []byte, off int64, so, eo int, cb io.WriteCallback) { //nolint:revive // ok
 	f, offset := z.Raw(off)
 	pr := iouring.Pwrite(int(f.Fd()), b, uint64(offset)).
 		WithCallback(func(result iouring.Result) error {
