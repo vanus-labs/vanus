@@ -34,11 +34,10 @@ func (a *appender) send(ctx context.Context, msg *raftpb.Message) {
 	endpoint := a.hint[to]
 	a.host.Send(ctx, msg, to, endpoint, func(err error) {
 		if err != nil {
-			log.Warning(ctx, "send message failed", map[string]interface{}{
-				log.KeyError: err,
-				"to":         to,
-				"endpoint":   endpoint,
-			})
+			log.Warn(ctx).Err(err).
+				Uint64("to", to).
+				Str("endpoint", endpoint).
+				Msg("send message failed")
 			a.reportUnreachable(msg.To)
 		}
 	})

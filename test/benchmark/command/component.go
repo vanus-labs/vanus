@@ -309,10 +309,7 @@ func sendCommand() *cobra.Command {
 func runStore(cfg store.Config) {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
-		log.Error(context.Background(), "Listen tcp port failed.", map[string]interface{}{
-			log.KeyError: err,
-			"port":       cfg.Port,
-		})
+		log.Error().Err(err).Int("port", cfg.Port).Msg("Listen tcp port failed.")
 		os.Exit(-1)
 	}
 
@@ -320,25 +317,20 @@ func runStore(cfg store.Config) {
 	srv := segment.NewServer(cfg)
 
 	if err = srv.Initialize(ctx); err != nil {
-		log.Error(ctx, "The SegmentServer has initialized failed.", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error().Err(err).Msg("The SegmentServer has initialized failed.")
 		os.Exit(-2)
 	}
 
-	log.Info(ctx, "The SegmentServer ready to work.", map[string]interface{}{
-		"listen_ip":   cfg.IP,
-		"listen_port": cfg.Port,
-	})
+	log.Info().
+		Str("listen_ip", cfg.IP).
+		Int("listen_port", cfg.Port).Msg("The SegmentServer ready to work.")
 
 	if err = srv.Serve(listener); err != nil {
-		log.Error(ctx, "The SegmentServer occurred an error.", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error().Err(err).Msg("The SegmentServer occurred an error.")
 		return
 	}
 
-	log.Info(ctx, "The SegmentServer has been shutdown.", nil)
+	log.Info().Msg("The SegmentServer has been shutdown.")
 }
 
 var (
@@ -383,8 +375,6 @@ func startMetrics() {
 	http.Handle("/metrics", promhttp.Handler())
 	err := http.ListenAndServe(":2112", nil)
 	if err != nil {
-		log.Error(context.Background(), "Metrics listen and serve failed.", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error().Err(err).Msg("Metrics listen and serve failed.")
 	}
 }

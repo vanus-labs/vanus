@@ -17,14 +17,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/vanus-labs/vanus/observability/log"
 	"net"
 	"sync/atomic"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/client"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
-
-	"github.com/vanus-labs/vanus/observability/log"
 )
 
 func main() {
@@ -37,7 +36,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	log.Info(context.Background(), "start success", nil)
+	log.Info().Msg("start success")
 	c.StartReceiver(context.Background(), func(e ce.Event) {
 		fmt.Println(fmt.Sprintf("---total: %d", atomic.AddInt64(&total, 1)))
 		fmt.Println(e)

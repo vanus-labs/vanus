@@ -18,15 +18,13 @@ import (
 	// standard libraries.
 	"context"
 	"fmt"
+	"github.com/vanus-labs/vanus/observability/log"
 	"os"
 	"path/filepath"
 	"strconv"
 
 	// third-party libraries.
 	"github.com/huandu/skiplist"
-
-	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability/log"
 )
 
 const (
@@ -57,10 +55,9 @@ func (s *store) createSnapshot() {
 	// Write data to file.
 	path := s.resolveSnapshotPath(s.version)
 	if err = os.WriteFile(path, data, defaultSnapshotPrem); err != nil {
-		log.Warning(context.TODO(), "Write snapshot failed.", map[string]interface{}{
-			"path":  path,
-			"error": err,
-		})
+		log.Warn().Err(err).
+			Str("path", path).
+			Msg("Write snapshot failed.")
 		return
 	}
 	lastSnapshot := s.snapshot

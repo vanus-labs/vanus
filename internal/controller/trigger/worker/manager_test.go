@@ -23,13 +23,11 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/vanus-labs/vanus/observability/log"
-
 	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/storage"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 func getTestSubscription() *metadata.Subscription {
@@ -41,9 +39,9 @@ func getTestSubscription() *metadata.Subscription {
 
 func getTestTriggerWorkerRemoveSubscription() OnTriggerWorkerRemoveSubscription {
 	return func(ctx context.Context, subscriptionID vanus.ID, addr string) error {
-		log.Info(ctx, "trigger worker leave remove subscription", map[string]interface{}{
-			log.KeySubscriptionID: subscriptionID,
-		})
+		log.Info(ctx).
+			Stringer(log.KeySubscriptionID, subscriptionID).
+			Msg("trigger worker leave remove subscription")
 		return nil
 	}
 }

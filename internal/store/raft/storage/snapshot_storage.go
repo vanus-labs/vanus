@@ -88,7 +88,7 @@ func (s *Storage) ApplySnapshot(ctx context.Context, snap raftpb.Snapshot) error
 
 	// Handle check for old snapshot being applied.
 	if s.lastIndex() >= snap.Metadata.Index {
-		log.Warning(context.Background(), "snapshot is out of date", map[string]interface{}{})
+		log.Warn().Msg("snapshot is out of date")
 		return nil
 	}
 

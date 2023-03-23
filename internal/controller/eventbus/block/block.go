@@ -23,14 +23,12 @@ import (
 	"time"
 
 	"github.com/huandu/skiplist"
-
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/pkg/errors"
-
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/server"
 	"github.com/vanus-labs/vanus/internal/kv"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 const (
@@ -141,10 +139,9 @@ func (al *allocator) pick(ctx context.Context, volumes []server.Instance) ([]*me
 				return nil, err
 			}
 			if err = al.updateBlockInKV(ctx, block); err != nil {
-				log.Error(ctx, "save block metadata to kv failed after creating", map[string]interface{}{
-					log.KeyError: err,
-					"block":      block,
-				})
+				log.Error(ctx).Err(err).
+					Interface("block", block).
+					Msg("save block metadata to kv failed after creating")
 				return nil, err
 			}
 		} else {
@@ -162,7 +159,7 @@ func (al *allocator) dynamicAllocateBlockTask(ctx context.Context) { //nolint:un
 	for {
 		select {
 		case <-ctx.Done():
-			log.Info(ctx, "the dynamic-allocate task exit", nil)
+			log.Info(ctx).Msg("the dynamic-allocate task exit")
 			return
 		case <-al.allocateTicker.C:
 			instances := al.selector.GetAllVolume()
@@ -177,25 +174,22 @@ func (al *allocator) dynamicAllocateBlockTask(ctx context.Context) { //nolint:un
 				for skipList.Len() < defaultBlockBufferSizePerVolume {
 					block, err := instance.CreateBlock(ctx, al.blockCapacity)
 					if err != nil {
-						log.Warning(ctx, "create block failed", map[string]interface{}{
-							"volume_id":   instance.GetMeta().ID,
-							"buffer_size": skipList.Len(),
-						})
+						log.Warn(ctx).
+							Interface("volume_id", instance.GetMeta().ID).
+							Int("buffer_size", skipList.Len()).
+							Msg("create block failed")
 						break
 					}
 					if err = al.updateBlockInKV(ctx, block); err != nil {
-						log.Warning(ctx, "insert block medata to etcd failed", map[string]interface{}{
-							"volume_id":   instance.GetMeta().ID,
-							"block_id":    block.ID,
-							log.KeyError:  err,
-							"buffer_size": skipList.Len(),
-						})
+						log.Warn(ctx).
+							Interface("volume_id", instance.GetMeta().ID).
+							Interface("block_id", block.ID).
+							Int("buffer_size", skipList.Len()).
+							Err(err).Msg("insert block medata to etcd failed")
 						break
 					}
-					log.Info(ctx, "a new block created", map[string]interface{}{
-						"volume_id": instance.GetMeta().ID,
-						"block_id":  block.ID,
-					})
+					log.Info(ctx).Interface("volume_id", instance.GetMeta().ID).
+						Interface("block_id", block.ID).Msg("a new block created")
 					skipList.Set(block.ID.Key(), block)
 				}
 			}

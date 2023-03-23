@@ -18,6 +18,7 @@ import (
 	// standard libraries.
 	"context"
 	"fmt"
+	"github.com/vanus-labs/vanus/observability/log"
 	"net"
 	"os"
 	"sync/atomic"
@@ -29,8 +30,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability/log"
 	. "github.com/vanus-labs/vanus/proto/pkg/raft"
 	"github.com/vanus-labs/vanus/raft/raftpb"
 )
@@ -59,9 +58,7 @@ func TestPeer(t *testing.T) {
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", serverPort))
 	if err != nil {
-		log.Error(context.Background(), "failed to listen", map[string]interface{}{
-			"error": err,
-		})
+		log.Error().Err(err).Msg("failed to listen")
 		os.Exit(-1)
 	}
 	ch := make(chan *raftpb.Message, 10)
@@ -144,9 +141,7 @@ func TestPeer(t *testing.T) {
 		RegisterRaftServerServer(srv, raftSrv)
 		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", serverPort))
 		if err != nil {
-			log.Error(context.Background(), "failed to listen", map[string]interface{}{
-				"error": err,
-			})
+			log.Error().Err(err).Msg("failed to listen")
 			os.Exit(-1)
 		}
 		go func() {

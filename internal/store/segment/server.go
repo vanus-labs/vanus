@@ -20,6 +20,7 @@ import (
 	"context"
 	stderr "errors"
 	"fmt"
+	"github.com/vanus-labs/vanus/observability/log"
 	"io"
 	"net"
 	"os"
@@ -41,8 +42,6 @@ import (
 	"google.golang.org/grpc/tap"
 	"google.golang.org/protobuf/proto"
 
-	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/observability/tracing"
 	"github.com/vanus-labs/vanus/pkg/cluster"
@@ -181,10 +180,10 @@ var _ Server = (*server)(nil)
 
 func (s *server) Serve(lis net.Listener) error {
 	recoveryOpt := recovery.WithRecoveryHandlerContext(func(ctx context.Context, p interface{}) error {
-		log.Error(ctx, "goroutine panicked", map[string]interface{}{
-			log.KeyError: fmt.Sprintf("%v", p),
-			"stack":      string(debug.Stack()),
-		})
+		log.Error(ctx).
+			Str(log.KeyError, fmt.Sprintf("%v", p)).
+			Bytes("stack", debug.Stack()).
+			Msg("goroutine panicked")
 		return status.Errorf(codes.Internal, "%v", p)
 	})
 
@@ -237,7 +236,7 @@ func (s *server) RegisterToController(ctx context.Context) error {
 			return err
 		}
 	} else {
-		log.Info(ctx, "the segment server debug mode is enabled", nil)
+		log.Info(ctx).Msg("the segment server debug mode is enabled")
 		if err := s.Start(ctx); err != nil {
 			return err
 		}
@@ -255,7 +254,7 @@ func (s *server) Start(ctx context.Context) error {
 			"start failed, server state is not created")
 	}
 
-	log.Info(ctx, "Start SegmentServer.", nil)
+	log.Info(ctx).Msg("Start SegmentServer.")
 
 	if err := s.startHeartbeatTask(ctx); err != nil {
 		return errors.ErrInternal.WithMessage("start heartbeat task failed")
@@ -291,11 +290,10 @@ func (s *server) runHeartbeat(_ context.Context) error {
 					Term:     info.term,
 				}
 				if _, err := s.cc.ReportSegmentLeader(context.Background(), req); err != nil {
-					log.Debug(ctx, "Report segment leader to controller failed.", map[string]interface{}{
-						"leader":     info.leader,
-						"term":       info.term,
-						log.KeyError: err,
-					})
+					log.Debug(ctx).Err(err).
+						Stringer("leader", info.leader).
+						Uint64("term", info.term).
+						Msg("Report segment leader to controller failed.")
 				}
 			}
 		}
@@ -352,7 +350,7 @@ func (s *server) Stop(ctx context.Context) error {
 	go func() {
 		// Force stop if timeout.
 		t := time.AfterFunc(defaultForceStopTimeout, func() {
-			log.Warning(context.Background(), "Graceful stop timeout, force stop.", nil)
+			log.Warn().Msg("Graceful stop timeout, force stop.")
 			s.grpcSrv.Stop()
 		})
 		defer t.Stop()
@@ -392,7 +390,7 @@ func (s *server) CreateBlock(ctx context.Context, id vanus.ID, size int64) error
 	defer span.End()
 
 	if id == 0 {
-		log.Warning(ctx, "Can not create block with id(0).", nil)
+		log.Warn(ctx).Msg("Can not create block with id(0).")
 		return errors.ErrInvalidRequest.WithMessage("can not create block with id(0)")
 	}
 
@@ -400,10 +398,10 @@ func (s *server) CreateBlock(ctx context.Context, id vanus.ID, size int64) error
 		return err
 	}
 
-	log.Info(ctx, "Create block.", map[string]interface{}{
-		"block_id": id,
-		"size":     size,
-	})
+	log.Info(ctx).
+		Stringer("block_id", id).
+		Int64("size", size).
+		Msg("Create block.")
 
 	b, err := s.createBlock(ctx, id, size)
 	if err != nil {
@@ -443,11 +441,9 @@ func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
 	}
 
 	// FIXME(james.yin): more info.
-	log.Info(ctx, "The block has been deleted.", map[string]interface{}{
-		"block_id": b.ID(),
-		// "path":     blk.Path(),
-		// "metadata": blk.HealthInfo().String(),
-	})
+	log.Info(ctx).
+		Stringer("block_id", b.ID()).
+		Msg("The block has been deleted.")
 
 	return nil
 }
@@ -472,18 +468,18 @@ func (s *server) ActivateSegment(
 	}
 
 	if len(replicas) == 0 {
-		log.Warning(ctx, "Replicas can not be empty.", map[string]interface{}{
-			"segment_id":  segID,
-			"eventlog_id": logID,
-		})
+		log.Warn(ctx).
+			Stringer("segment_id", segID).
+			Stringer("eventlog_id", logID).
+			Msg("Replicas can not be empty.")
 		return nil
 	}
 
-	log.Info(ctx, "Activate segment.", map[string]interface{}{
-		"replicas":    replicas,
-		"segment_id":  segID,
-		"eventlog_id": logID,
-	})
+	log.Info(ctx).
+		Interface("replicas", replicas).
+		Stringer("segment_id", segID).
+		Stringer("eventlog_id", logID).
+		Msg("Activate segment.")
 
 	var myID vanus.ID
 	peers := make([]raft.Peer, 0, len(replicas))
@@ -513,10 +509,10 @@ func (s *server) ActivateSegment(
 		_ = s.raftEngine.RegisterNodeRecord(peer.ID.Uint64(), peer.Endpoint)
 	}
 
-	log.Info(ctx, "Bootstrap replica.", map[string]interface{}{
-		"block_id": myID,
-		"peers":    peers,
-	})
+	log.Info(ctx).
+		Stringer("block_id", myID).
+		Interface("peers", peers).
+		Msg("Bootstrap replica.")
 
 	// Bootstrap raft.
 	b, _ := v.(Replica)
@@ -528,7 +524,7 @@ func (s *server) ActivateSegment(
 }
 
 // InactivateSegment mark a block ready to be removed. This method is usually used for data transfer.
-func (s *server) InactivateSegment(ctx context.Context) error {
+func (s *server) InactivateSegment(_ context.Context) error {
 	if err := s.checkState(); err != nil {
 		return err
 	}
@@ -580,23 +576,22 @@ func (s *server) processAppendError(ctx context.Context, b Replica, err error) e
 	}
 
 	if stderr.Is(err, block.ErrFull) {
-		log.Debug(ctx, "Append failed: block is full.", map[string]interface{}{
-			"block_id": b.ID(),
-		})
+		log.Debug(ctx).
+			Stringer("block_id", b.ID()).
+			Msg("Append failed: block is full.")
 		return errors.ErrSegmentFull
 	}
 
 	if stderr.Is(err, block.ErrNotLeader) {
-		log.Debug(ctx, "Append failed: block is not leader.", map[string]interface{}{
-			"block_id": b.ID(),
-		})
+		log.Debug(ctx).
+			Stringer("block_id", b.ID()).
+			Msg("Append failed: block is not leader.")
 		return errors.ErrNotLeader
 	}
 
-	log.Warning(ctx, "Append failed.", map[string]interface{}{
-		"block_id":   b.ID(),
-		log.KeyError: err,
-	})
+	log.Warn(ctx).Err(err).
+		Stringer("block_id", b.ID()).
+		Msg("Append failed.")
 	return errors.ErrInternal.WithMessage("write to storage failed").Wrap(err)
 }
 
@@ -607,11 +602,11 @@ func (s *server) onEntryAppended(block vanus.ID) {
 func (s *server) onBlockArchived(stat block.Statistics) {
 	id := stat.ID
 
-	log.Info(context.Background(), "Block is full.", map[string]interface{}{
-		"block_id":   id,
-		"event_num":  stat.EntryNum,
-		"event_size": stat.EntrySize,
-	})
+	log.Info().
+		Stringer("block_id", id).
+		Uint32("event_num", stat.EntryNum).
+		Uint64("event_size", stat.EntrySize).
+		Msg("Block is full.")
 
 	// FIXME(james.yin): leader info.
 	info := &metapb.SegmentHealthInfo{
@@ -711,23 +706,22 @@ func (s *server) processReadError(ctx context.Context, b Replica, err error) err
 	}
 
 	if stderr.Is(err, block.ErrOnEnd) {
-		log.Debug(ctx, "Read: arrive segment end.", map[string]interface{}{
-			"block_id": b.ID(),
-		})
+		log.Debug(ctx).
+			Stringer("block_id", b.ID()).
+			Msg("Read: arrive segment end.")
 		return errors.ErrOffsetOnEnd
 	}
 
 	if stderr.Is(err, block.ErrExceeded) {
-		log.Debug(ctx, "Read failed: offset overflow.", map[string]interface{}{
-			"block_id": b.ID(),
-		})
+		log.Debug(ctx).
+			Stringer("block_id", b.ID()).
+			Msg("Read failed: offset overflow.")
 		return errors.ErrOffsetOverflow
 	}
 
-	log.Warning(ctx, "Read failed.", map[string]interface{}{
-		"block_id":   b.ID(),
-		log.KeyError: err,
-	})
+	log.Warn(ctx).Err(err).
+		Stringer("block_id", b.ID()).
+		Msg("Read failed.")
 	return errors.ErrInternal.WithMessage("read from storage failed").Wrap(err)
 }
 

@@ -134,9 +134,9 @@ func (sf *snowflake) RegisterNode(ctx context.Context, in *wrapperspb.UInt32Valu
 	if err := sf.kvStore.Set(ctx, GetNodeIDKey(n.ID), data); err != nil {
 		return nil, errors.New("save node to kv failed")
 	}
-	log.Info(ctx, "a new node registered", map[string]interface{}{
-		"node_id": id,
-	})
+	log.Info(ctx).
+		Uint16("node_id", id).
+		Msg("a new node registered")
 	return &emptypb.Empty{}, nil
 }
 
@@ -159,9 +159,9 @@ func (sf *snowflake) UnregisterNode(ctx context.Context, in *wrapperspb.UInt32Va
 		return nil, errors.New("delete node from kv failed")
 	}
 
-	log.Info(ctx, "a node unregistered", map[string]interface{}{
-		"node_id": node.ID,
-	})
+	log.Info(ctx).
+		Uint16("node_id", node.ID).
+		Msg("a node unregistered")
 	return &emptypb.Empty{}, nil
 }
 
@@ -170,16 +170,14 @@ func (sf *snowflake) Stop() {
 }
 
 func (sf *snowflake) membershipChangedProcessor(ctx context.Context, event member.MembershipChangedEvent) error {
-	log.Info(ctx, "start to process membership change event", map[string]interface{}{
-		"event":     event,
-		"component": "snowflake",
-	})
+	log.Info(ctx).
+		Interface("event", event).
+		Msg("start to process membership change event")
 	start := time.Now()
 	defer func() {
-		log.Info(ctx, "processing membership change event is finished", map[string]interface{}{
-			"component": "snowflake",
-			"duration":  time.Since(start),
-		})
+		log.Info(ctx).
+			Dur("duration", time.Since(start)).
+			Msg("processing membership change event is finished")
 	}()
 
 	sf.mutex.Lock()

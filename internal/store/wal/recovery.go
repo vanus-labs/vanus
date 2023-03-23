@@ -17,14 +17,10 @@ package wal
 import (
 	// standard libraries.
 	"bytes"
-	"context"
 	"errors"
-
+	"github.com/vanus-labs/vanus/observability/log"
 	// third-party project.
 	"github.com/ncw/directio"
-
-	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability/log"
 
 	// this project.
 	"github.com/vanus-labs/vanus/internal/store/io/zone/segmentedfile"
@@ -79,10 +75,9 @@ func scanLogEntries(sf *segmentedfile.SegmentedFile, blockSize int, from int64, 
 
 			// TODO(james.yin): Has incomplete entry, truncate it.
 			if sc.last.IsNonTerminal() {
-				log.Info(context.Background(), "Found incomplete entry, truncate it.",
-					map[string]interface{}{
-						"last_type": sc.last,
-					})
+				log.Info().
+					Interface("last_type", sc.last).
+					Msg("Found incomplete entry, truncate it.")
 			}
 
 			return sc.eo, nil

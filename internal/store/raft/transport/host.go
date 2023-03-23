@@ -69,10 +69,10 @@ func (h *host) Stop() {
 func (h *host) Send(ctx context.Context, msg *raftpb.Message, to uint64, endpoint string, cb SendCallback) {
 	mux := h.resolveMultiplexer(ctx, to, endpoint)
 	if mux == nil {
-		log.Info(ctx, "found not mux", map[string]interface{}{
-			"to":       to,
-			"endpoint": endpoint,
-		})
+		log.Info(ctx).
+			Uint64("to", to).
+			Str("endpoint", endpoint).
+			Msg("found not mux")
 		cb(ErrNotReachable)
 		return
 	}

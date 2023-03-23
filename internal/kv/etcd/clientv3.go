@@ -16,13 +16,12 @@ package etcd
 
 import (
 	"context"
+	"github.com/vanus-labs/vanus/observability/log"
 	"path"
 	"strings"
 	"time"
 
 	v3client "go.etcd.io/etcd/client/v3"
-
-	"github.com/vanus-labs/vanus/observability/log"
 
 	kvdef "github.com/vanus-labs/vanus/internal/kv"
 )
@@ -53,9 +52,7 @@ func NewEtcdClientV3(endpoints []string, keyPrefix string) (kvdef.Client, error)
 
 func (c *etcdClient3) Get(ctx context.Context, key string) ([]byte, error) {
 	key = path.Join(c.keyPrefix, key)
-	log.Debug(ctx, "call etcd exists", map[string]interface{}{
-		"key": key,
-	})
+	log.Debug(ctx).Str("key", key).Msg("call etcd exists")
 	resp, err := c.client.Get(ctx, key)
 	if err != nil {
 		return nil, err
@@ -68,9 +65,7 @@ func (c *etcdClient3) Get(ctx context.Context, key string) ([]byte, error) {
 
 func (c *etcdClient3) Create(ctx context.Context, key string, value []byte) error {
 	key = path.Join(c.keyPrefix, key)
-	log.Debug(ctx, "call etcd exists", map[string]interface{}{
-		"key": key,
-	})
+	log.Debug(ctx).Str("key", key).Msg("call etcd exists")
 	resp, err := c.client.Txn(ctx).
 		If(v3client.Compare(v3client.CreateRevision(key), "=", 0)).
 		Then(v3client.OpPut(key, string(value))).
@@ -88,18 +83,14 @@ func (c *etcdClient3) Create(ctx context.Context, key string, value []byte) erro
 
 func (c *etcdClient3) Set(ctx context.Context, key string, value []byte) error {
 	key = path.Join(c.keyPrefix, key)
-	log.Debug(ctx, "call etcd exists", map[string]interface{}{
-		"key": key,
-	})
+	log.Debug(ctx).Str("key", key).Msg("call etcd exists")
 	_, err := c.client.Put(ctx, key, string(value))
 	return err
 }
 
 func (c *etcdClient3) Update(ctx context.Context, key string, value []byte) error {
 	key = path.Join(c.keyPrefix, key)
-	log.Debug(ctx, "call etcd exists", map[string]interface{}{
-		"key": key,
-	})
+	log.Debug(ctx).Str("key", key).Msg("call etcd exists")
 	resp, err := c.client.Txn(ctx).
 		If(v3client.Compare(v3client.CreateRevision(key), ">", 0)).
 		Then(v3client.OpPut(key, string(value))).
@@ -118,9 +109,7 @@ func (c *etcdClient3) Update(ctx context.Context, key string, value []byte) erro
 
 func (c *etcdClient3) Exists(ctx context.Context, key string) (bool, error) {
 	key = path.Join(c.keyPrefix, key)
-	log.Debug(ctx, "call etcd exists", map[string]interface{}{
-		"key": key,
-	})
+	log.Debug(ctx).Str("key", key).Msg("call etcd exists")
 	resp, err := c.client.Get(ctx, key)
 	if err != nil {
 		return false, err
@@ -217,7 +206,7 @@ func (c *etcdClient3) watch(
 			case es := <-watchC:
 				if err := es.Err(); err != nil {
 					errorC <- err
-					watcher.Close()
+					_ = watcher.Close()
 					return
 				}
 				for _, e := range es.Events {
@@ -237,7 +226,7 @@ func (c *etcdClient3) watch(
 					pairC <- pair
 				}
 			case <-stopCh:
-				watcher.Close()
+				_ = watcher.Close()
 				return
 			}
 		}

@@ -15,8 +15,6 @@
 package main
 
 import (
-	// standard libraries.
-	"context"
 	"flag"
 	"fmt"
 	"net"
@@ -41,9 +39,7 @@ func main() {
 
 	cfg, err := store.InitConfig(*configPath)
 	if err != nil {
-		log.Error(context.Background(), "Initialize store config failed.", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error().Err(err).Msg("Initialize store config failed.")
 		os.Exit(-1)
 	}
 
@@ -51,10 +47,9 @@ func main() {
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
-		log.Error(context.Background(), "Listen tcp port failed.", map[string]interface{}{
-			log.KeyError: err,
-			"port":       cfg.Port,
-		})
+		log.Error().Err(err).
+			Int("port", cfg.Port).
+			Msg("Listen tcp port failed.")
 		os.Exit(-1)
 	}
 
@@ -63,37 +58,31 @@ func main() {
 	srv := segment.NewServer(*cfg)
 
 	if err = srv.Initialize(ctx); err != nil {
-		log.Error(ctx, "The SegmentServer has initialized failed.", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("The SegmentServer has initialized failed.")
 		os.Exit(-2)
 	}
 
-	log.Info(ctx, "The SegmentServer ready to work.", map[string]interface{}{
-		"listen_ip":   cfg.IP,
-		"listen_port": cfg.Port,
-	})
+	log.Info(ctx).
+		Str("listen_ip", cfg.IP).
+		Int("listen_port", cfg.Port).
+		Msg("The SegmentServer ready to work.")
 
 	go func() {
 		if err = srv.Serve(listener); err != nil {
-			log.Error(ctx, "The SegmentServer occurred an error.", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Error(ctx).Err(err).Msg("The SegmentServer occurred an error.")
 			return
 		}
 	}()
 
 	if err = srv.RegisterToController(ctx); err != nil {
-		log.Error(ctx, "failed to register self to controller", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("failed to register self to controller")
 		os.Exit(1)
 	}
 
 	select {
 	case <-ctx.Done():
-		log.Info(ctx, "received system signal, preparing exit", nil)
+		log.Info(ctx).Msg("received system signal, preparing exit")
 	}
 	raw.CloseAllEngine()
-	log.Info(ctx, "The SegmentServer has been shutdown.", nil)
+	log.Info(ctx).Msg("The SegmentServer has been shutdown.")
 }

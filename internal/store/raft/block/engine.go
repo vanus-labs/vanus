@@ -18,14 +18,13 @@ import (
 	// standard libraries.
 	"container/list"
 	"context"
+	"github.com/vanus-labs/vanus/observability/log"
 	"sync"
 	"time"
 
 	// third-party libraries.
 	"google.golang.org/grpc"
 
-	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability/log"
 	raftpb "github.com/vanus-labs/vanus/proto/pkg/raft"
 	"github.com/vanus-labs/vanus/raft"
 
@@ -102,10 +101,9 @@ func (e *Engine) Recover(ctx context.Context, raws map[vanus.ID]block.Raw) (map[
 
 		// Raft log has been compacted.
 		if s == nil {
-			log.Debug(ctx, "Raft storage of block has been deleted or not created, so skip it.",
-				map[string]interface{}{
-					"block_id": id,
-				})
+			log.Debug(ctx).
+				Stringer("block_id", id).
+				Msg("Raft storage of block has been deleted or not created, so skip it.")
 			// TODO(james.yin): clean expired metadata
 			continue
 		}
@@ -121,9 +119,9 @@ func (e *Engine) Recover(ctx context.Context, raws map[vanus.ID]block.Raw) (map[
 			continue
 		}
 
-		log.Debug(ctx, "Not found appender, so discard the raft storage.", map[string]interface{}{
-			"block_id": id,
-		})
+		log.Debug(ctx).
+			Stringer("block_id", id).
+			Msg("Not found appender, so discard the raft storage.")
 
 		rs.Delete(ctx)
 	}

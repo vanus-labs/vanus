@@ -58,11 +58,10 @@ func (c *client) Eventbus(ctx context.Context, opts ...api.EventbusOption) api.E
 
 	err := GetEventbusIDIfNotSet(ctx, c.Endpoints, defaultOpts)
 	if err != nil {
-		log.Error(ctx, "get eventbus id failed", map[string]interface{}{
-			log.KeyError:    err,
-			"eventbus_name": defaultOpts.Name,
-			"eventbus_id":   defaultOpts.ID,
-		})
+		log.Error(ctx).Err(err).
+			Str("eventbus_name", defaultOpts.Name).
+			Uint64("eventbus_id", defaultOpts.ID).
+			Msg("get eventbus id failed")
 		return nil
 	}
 
@@ -129,4 +128,3 @@ func GetEventbusIDIfNotSet(ctx context.Context, endpoints []string, opts *api.Ev
 	}
 	return nil
 }
-

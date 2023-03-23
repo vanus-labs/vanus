@@ -59,11 +59,10 @@ func (ns *NameService) LookupWritableSegment(ctx context.Context, logID uint64) 
 
 	resp, err := ns.client.GetAppendableSegment(ctx, req)
 	if err != nil {
-		log.Error(context.Background(), "get appendable segment failed", map[string]interface{}{
-			log.KeyError: err,
-			"eventlog":   logID,
-			"resp":       resp.String(),
-		})
+		log.Error().Err(err).
+			Stringer("response", resp).
+			Uint64("eventlog", logID).
+			Msg("get appendable segment failed")
 		return nil, err
 	}
 
@@ -87,11 +86,10 @@ func (ns *NameService) LookupReadableSegments(ctx context.Context, logID uint64)
 
 	resp, err := ns.client.ListSegment(ctx, req)
 	if err != nil {
-		log.Error(context.Background(), "list segment failed", map[string]interface{}{
-			log.KeyError: err,
-			"eventlog":   logID,
-			"resp":       resp.String(),
-		})
+		log.Error().Err(err).
+			Uint64("eventlog", logID).
+			Stringer("response", resp).
+			Msg("list segment failed")
 		return nil, err
 	}
 

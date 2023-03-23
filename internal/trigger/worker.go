@@ -141,9 +141,7 @@ func (w *worker) Stop(ctx context.Context) error {
 	// commit offset
 	err := w.commitOffsets(ctx)
 	if err != nil {
-		log.Error(ctx, "commit offsets error", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("commit offsets error")
 	}
 	// stop heartbeat
 	w.stop()

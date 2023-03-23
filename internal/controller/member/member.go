@@ -22,12 +22,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/observability/log"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
 	"go.uber.org/atomic"
-
-	"github.com/vanus-labs/vanus/internal/kv"
-	"github.com/vanus-labs/vanus/observability/log"
 )
 
 var (
@@ -102,35 +101,33 @@ func (m *member) Init(ctx context.Context) error {
 
 	err := m.waitForEtcdReady(ctx, m.cfg.EtcdEndpoints)
 	if err != nil {
-		log.Error(ctx, "etcd is not ready", nil)
+		log.Error(ctx).Msg("etcd is not ready")
 		return err
 	}
 
-	log.Info(ctx, "try to create session", nil)
+	log.Info(ctx).Msg("try to create session")
 	start := time.Now()
 	m.session, err = concurrency.NewSession(m.client, concurrency.WithTTL(m.cfg.LeaseDurationInSecond))
 	if err != nil {
-		log.Error(ctx, "new session failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("new session failed")
 		panic("new session failed")
 	}
-	log.Info(ctx, "create session is finished", map[string]interface{}{
-		"duration": time.Since(start),
-	})
+	log.Info(ctx).
+		Dur("duration", time.Since(start)).
+		Msg("create session is finished")
 
 	m.mutex = concurrency.NewMutex(m.session, m.resourceLockKey)
-	log.Info(ctx, "new leaderelection manager", map[string]interface{}{
-		"name":           m.cfg.NodeName,
-		"key":            m.resourceLockKey,
-		"lease_duration": m.cfg.LeaseDurationInSecond,
-	})
+	log.Info(ctx).
+		Str("name", m.cfg.NodeName).
+		Str("key", m.resourceLockKey).
+		Int("lease_duration", m.cfg.LeaseDurationInSecond).
+		Msg("new leaderelection manager")
 	return nil
 }
 
 func (m *member) waitForEtcdReady(ctx context.Context, endpoints []string) error {
 	start := time.Now()
-	log.Info(context.Background(), "wait for etcd is ready", nil)
+	log.Info().Msg("wait for etcd is ready")
 	t := time.NewTicker(defaultEtcdStartTimeout)
 	defer t.Stop()
 	for !m.ready(ctx, endpoints) {
@@ -142,9 +139,7 @@ func (m *member) waitForEtcdReady(ctx context.Context, endpoints []string) error
 		}
 	}
 
-	log.Info(context.Background(), "etcd is ready", map[string]interface{}{
-		"waiting_time": time.Since(start),
-	})
+	log.Info().Dur("waiting_time", time.Since(start)).Msg("etcd is ready")
 	return nil
 }
 
@@ -156,9 +151,7 @@ func (m *member) ready(ctx context.Context, endpoints []string) bool {
 		DialKeepAliveTimeout: dialKeepAliveTimeout,
 	})
 	if err != nil {
-		log.Warning(ctx, "new etcd v3client failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Warn(ctx).Err(err).Msg("new etcd v3client failed")
 		return false
 	}
 	m.client = client
@@ -184,10 +177,10 @@ func (m *member) leaderElection() {
 		RUN:
 			select {
 			case <-m.exit:
-				log.Info(ctx, "leaderelection has stopped", nil)
+				log.Info(ctx).Msg("leaderelection has stopped")
 				return
 			case <-m.session.Done():
-				log.Warning(ctx, "lost lock", nil)
+				log.Warn(ctx).Msg("lost lock")
 				m.isLeader.Store(false)
 				m.isReady.Store(false)
 				_ = m.execHandlers(ctx, MembershipChangedEvent{
@@ -211,7 +204,7 @@ func (m *member) leaderElection() {
 			}
 		}
 	}()
-	log.Info(ctx, "leaderelection has started", nil)
+	log.Info(ctx).Msg("leaderelection has started")
 }
 
 func (m *member) tryLock(ctx context.Context) error {
@@ -222,36 +215,33 @@ func (m *member) tryLock(ctx context.Context) error {
 	if err != nil {
 		if errors.Is(err, concurrency.ErrLocked) {
 			m.isReady.Store(true)
-			log.Debug(ctx, "try acquire lock, already locked in another session", map[string]interface{}{
-				"identity":      m.cfg.NodeName,
-				"resource_lock": m.resourceLockKey,
-			})
+			log.Debug(ctx).
+				Str("identity", m.cfg.NodeName).
+				Str("resource_lock", m.resourceLockKey).
+				Msg("try acquire lock, already locked in another session")
 			return err
 		}
-		log.Error(ctx, "acquire lock failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("acquire lock failed")
 		return err
 	}
 
-	log.Info(ctx, "success to acquire distributed lock", map[string]interface{}{
-		"identity":      m.cfg.NodeName,
-		"resource_lock": m.resourceLockKey,
-	})
+	log.Info(ctx).
+		Str("identity", m.cfg.NodeName).
+		Str("resource_lock", m.resourceLockKey).
+		Msg("success to acquire distributed lock")
 
 	err = m.setLeader(ctx)
 	if err != nil {
-		log.Error(ctx, "failed to set leader info", map[string]interface{}{
-			"leader_id":   m.cfg.NodeName,
-			"leader_addr": m.cfg.Topology[m.cfg.NodeName],
-			log.KeyError:  err,
-		})
+		log.Error(ctx).Err(err).
+			Str("identity", m.cfg.NodeName).
+			Str("leader_addr", m.cfg.Topology[m.cfg.NodeName]).
+			Msg("failed to set leader info")
 		_ = m.mutex.Unlock(ctx)
 		return err
 	}
 
 	m.isLeader.Store(true)
-	log.Info(ctx, "controller become leader", nil)
+	log.Info(ctx).Msg("controller become leader")
 	_ = m.execHandlers(ctx, MembershipChangedEvent{
 		Type: EventBecomeLeader,
 	})
@@ -275,9 +265,7 @@ func (m *member) refresh(ctx context.Context) bool {
 	_ = m.session.Close()
 	m.session, err = concurrency.NewSession(m.client, concurrency.WithTTL(m.cfg.LeaseDurationInSecond))
 	if err != nil {
-		log.Error(ctx, "refresh session failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("refresh session failed")
 		return false
 	}
 	m.mutex = concurrency.NewMutex(m.session, m.resourceLockKey)
@@ -285,14 +273,12 @@ func (m *member) refresh(ctx context.Context) bool {
 }
 
 func (m *member) Stop(ctx context.Context) {
-	log.Info(ctx, "stop leaderelection", nil)
+	log.Info(ctx).Msg("stop leaderelection")
 	close(m.exit)
 	m.wg.Wait()
 	err := m.release(ctx)
 	if err != nil {
-		log.Error(ctx, "release lock failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("release lock failed")
 		return
 	}
 }
@@ -302,19 +288,15 @@ func (m *member) release(ctx context.Context) error {
 	defer m.sessionMu.Unlock()
 	err := m.mutex.Unlock(ctx)
 	if err != nil {
-		log.Error(ctx, "unlock error", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("unlock error")
 		return err
 	}
 	err = m.session.Close()
 	if err != nil {
-		log.Error(ctx, "session close error", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("session close error")
 		return err
 	}
-	log.Info(ctx, "released lock", nil)
+	log.Info(ctx).Msg("released lock")
 	return nil
 }
 
@@ -322,22 +304,19 @@ func (m *member) execHandlers(ctx context.Context, event MembershipChangedEvent)
 	m.handlerMu.RLock()
 	defer m.handlerMu.RUnlock()
 	start := time.Now()
-	log.Debug(ctx, "start to call handlers", map[string]interface{}{
-		"event": event,
-	})
+	log.Debug(ctx).Interface("event", event).Msg("start to call handlers")
 	for _, handler := range m.handlers {
 		err := handler(ctx, event)
 		if err != nil {
-			log.Error(ctx, "exec handler failed and exit", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Error(ctx).
+				Err(err).
+				Msg("exec handler failed and exit")
 			panic("exec handler failed")
 		}
 	}
-	log.Debug(ctx, "finish call handlers", map[string]interface{}{
-		"event":    event,
-		"duration": time.Since(start),
-	})
+	log.Debug(ctx).Interface("event", event).
+		Dur("duration", time.Since(start)).
+		Msg("finish call handlers")
 	return nil
 }
 
@@ -359,9 +338,7 @@ func (m *member) GetLeaderID() string {
 	// TODO(jiangkai): maybe lookup etcd per call has low performance.
 	resp, err := m.client.Get(context.Background(), kv.ComponentLeaderKey(m.cfg.ComponentName))
 	if err != nil {
-		log.Warning(context.Background(), "get leader info failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Warn().Err(err).Msg("get leader info failed")
 		return ""
 	}
 	if len(resp.Kvs) == 0 {
@@ -376,9 +353,7 @@ func (m *member) GetLeaderAddr() string {
 	// TODO(jiangkai): maybe lookup etcd per call has low performance.
 	resp, err := m.client.Get(context.Background(), kv.ComponentLeaderKey(m.cfg.ComponentName))
 	if err != nil {
-		log.Warning(context.Background(), "get leader info failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Warn().Err(err).Msg("get leader info failed")
 		return ""
 	}
 	if len(resp.Kvs) == 0 {

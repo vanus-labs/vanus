@@ -26,17 +26,15 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/huandu/skiplist"
-
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/observability/metrics"
-	"github.com/vanus-labs/vanus/pkg/errors"
-	"github.com/vanus-labs/vanus/proto/pkg/segment"
-
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/block"
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/volume"
 	"github.com/vanus-labs/vanus/internal/kv"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/proto/pkg/segment"
 )
 
 const (
@@ -172,10 +170,9 @@ func (mgr *eventlogManager) AcquireEventlog(
 
 	id, err := vanus.NewID()
 	if err != nil {
-		log.Warning(ctx, "failed to create eventlog ID", map[string]interface{}{
-			log.KeyError:  err,
-			"eventbus_id": eventbusID,
-		})
+		log.Warn(ctx).Err(err).
+			Interface("eventbus_id", eventbusID).
+			Msg("failed to create eventlog ID")
 		return nil, err
 	}
 	elMD := &metadata.Eventlog{
@@ -195,10 +192,10 @@ func (mgr *eventlogManager) AcquireEventlog(
 	}
 
 	mgr.eventlogMap.Store(el.md.ID.Key(), el)
-	log.Info(ctx, "an eventlog created", map[string]interface{}{
-		"eventbus_id": elMD.EventbusID.Key(),
-		"eventlog_id": elMD.ID.Key(),
-	})
+	log.Info(ctx).
+		Interface("eventbus_id", elMD.EventbusID).
+		Interface("eventlog_id", elMD.ID).
+		Msg("an eventlog created")
 	return elMD, nil
 }
 
@@ -230,11 +227,10 @@ func (mgr *eventlogManager) DeleteEventlog(ctx context.Context, id vanus.ID) {
 	for head != nil {
 		err := el.deleteHead(ctx)
 		if err != nil {
-			log.Warning(ctx, "delete eventlog error when deleting segment", map[string]interface{}{
-				log.KeyError:  err,
-				"head_id":     head.ID.Key(),
-				"eventlog_id": id.Key(),
-			})
+			log.Warn(ctx).Err(err).
+				Interface("head_id", head.ID).
+				Interface("eventlog_id", id).
+				Msg("delete eventlog error when deleting segment")
 		}
 		_, ok := mgr.segmentNeedBeClean.LoadOrStore(head.ID.Key(), head)
 		if ok {
@@ -244,10 +240,7 @@ func (mgr *eventlogManager) DeleteEventlog(ctx context.Context, id vanus.ID) {
 		head = el.head()
 	}
 	if err := mgr.kvClient.Delete(ctx, metadata.GetEventlogMetadataKey(id)); err != nil {
-		log.Warning(ctx, "deleting eventlog metadata in kv error", map[string]interface{}{
-			log.KeyError:  err,
-			"eventlog_id": id.Key(),
-		})
+		log.Warn(ctx).Err(err).Interface("eventlog_id", id).Msg("deleting eventlog metadata in kv error")
 	}
 }
 
@@ -274,10 +267,7 @@ func (mgr *eventlogManager) GetAppendableSegment(
 
 		if err = el.add(ctx, seg); err != nil {
 			// preparing to cleaning
-			log.Warning(ctx, "add new segment to eventlog failed when initialized", map[string]interface{}{
-				log.KeyError:  err,
-				"eventlog_id": el.md.ID,
-			})
+			log.Warn(ctx).Err(err).Interface("eventlog_id", el.md.ID).Msg("add new segment to eventlog failed when initialized")
 			_, ok := mgr.segmentNeedBeClean.LoadOrStore(seg.ID.Key(), seg)
 			if !ok {
 				metrics.SegmentDeletedCounterVec.WithLabelValues(
@@ -304,10 +294,10 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[string][]Se
 			for idx := range segments {
 				segmentIDs = append(segmentIDs, segments[idx].ID.String())
 			}
-			log.Warning(ctx, "eventlog not found", map[string]interface{}{
-				"id":       eventlogID,
-				"segments": segmentIDs,
-			})
+			log.Warn(ctx).
+				Interface("id", eventlogID).
+				Interface("segments", segmentIDs).
+				Msg("eventlog not found")
 			continue
 		}
 		el, _ := v.(*eventlog)
@@ -316,21 +306,21 @@ func (mgr *eventlogManager) UpdateSegment(ctx context.Context, m map[string][]Se
 			newSeg := segments[idx]
 			seg := el.get(newSeg.ID)
 			if seg == nil {
-				log.Warning(ctx, "segment not found in eventlog", map[string]interface{}{
-					"id":      eventlogID,
-					"segment": seg.String(),
-				})
+				log.Warn(ctx).
+					Interface("id", eventlogID).
+					Stringer("segment", seg).
+					Msg("segment not found in eventlog")
 				continue
 			}
 			// TODO(wenfeng.wang) Don't update state in isNeedUpdate, rename?
 			if seg.isNeedUpdate(newSeg) {
 				err := el.updateSegment(ctx, seg)
 				if err != nil {
-					log.Warning(ctx, "update segment's metadata failed", map[string]interface{}{
-						log.KeyError: err,
-						"segment":    seg.String(),
-						"eventlog":   el.md.ID.String(),
-					})
+					log.Warn(ctx).
+						Err(err).
+						Stringer("segment", seg).
+						Stringer("eventlog", el.md.ID).
+						Msg("update segment's metadata failed")
 				}
 			}
 		}
@@ -399,10 +389,10 @@ func (mgr *eventlogManager) UpdateSegmentReplicas(ctx context.Context, leaderID 
 	data, _ := json.Marshal(seg)
 	key := filepath.Join(metadata.SegmentKeyPrefixInKVStore, seg.ID.String())
 	if err := mgr.kvClient.Set(ctx, key, data); err != nil {
-		log.Warning(ctx, "update segment's metadata failed", map[string]interface{}{
-			log.KeyError: err,
-			"segment":    seg.String(),
-		})
+		log.Warn(ctx).
+			Err(err).
+			Stringer("segment", seg).
+			Msg("update segment's metadata failed")
 		return errors.ErrInvalidSegment.WithMessage("update segment to etcd error").Wrap(err)
 	}
 	return nil
@@ -428,11 +418,11 @@ func (mgr *eventlogManager) getSegmentTopology(_ context.Context, seg Segment) m
 	for _, v := range seg.Replicas.Peers {
 		ins := mgr.volMgr.GetVolumeInstanceByID(v.VolumeID)
 		if ins == nil {
-			log.Error(context.TODO(), "the volume of block not found", map[string]interface{}{
-				"segment_id": seg.ID,
-				"block_id":   v.ID,
-				"volume_id":  v.VolumeID,
-			})
+			log.Error().
+				Stringer("segment_id", seg.ID).
+				Stringer("block_id", v.ID).
+				Stringer("volume_id", v.VolumeID).
+				Msg("the volume of block not found")
 			return map[uint64]string{}
 		}
 		addrs[v.ID.Uint64()] = ins.Address()
@@ -451,10 +441,9 @@ func (mgr *eventlogManager) initializeEventlog(ctx context.Context, md *metadata
 			return nil, err
 		}
 		if err = el.add(ctx, seg); err != nil {
-			log.Warning(ctx, "add new segment to eventlog failed when initialized", map[string]interface{}{
-				log.KeyError:  err,
-				"eventlog_id": el.md.ID,
-			})
+			log.Warn(ctx).Err(err).
+				Stringer("eventlog_id", el.md.ID).
+				Msg("add new segment to eventlog failed when initialized")
 			_, ok := mgr.segmentNeedBeClean.LoadOrStore(seg.ID.Key(), seg)
 			if !ok {
 				metrics.SegmentDeletedCounterVec.WithLabelValues(
@@ -473,33 +462,31 @@ func (mgr *eventlogManager) dynamicScaleUpEventlog(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Info(ctx, "the task of dynamic-scale stopped", nil)
+			log.Info(ctx).Msg("the task of dynamic-scale stopped")
 			return
 		case <-ticker.C:
 			count := 0
 			mgr.eventlogMap.Range(func(key, value interface{}) bool {
 				el, ok := value.(*eventlog)
 				if !ok {
-					log.Error(ctx, "assert failed in dynamicScaleUpEventlog", map[string]interface{}{
-						"key": key,
-					})
+					log.Error(ctx).Interface("key", key).Msg("assert failed in dynamicScaleUpEventlog")
 					return true
 				}
 				for el.appendableSegmentNumber() < defaultAppendableSegmentNumber {
 					seg, err := mgr.createSegment(ctx, el)
 					if err != nil {
-						log.Warning(ctx, "create new segment failed", map[string]interface{}{
-							log.KeyError:  err,
-							"eventlog_id": el.md.ID,
-						})
+						log.Warn(ctx).
+							Err(err).
+							Stringer("eventlog_id", el.md.ID).
+							Msg("create new segment failed")
 						return true
 					}
 
 					if err = el.add(ctx, seg); err != nil {
-						log.Warning(ctx, "add new segment to eventlog failed when scale", map[string]interface{}{
-							log.KeyError:  err,
-							"eventlog_id": el.md.ID,
-						})
+						log.Warn(ctx).
+							Err(err).
+							Stringer("eventlog_id", el.md.ID).
+							Msg("add new segment to eventlog failed when scale")
 						_, ok := mgr.segmentNeedBeClean.LoadOrStore(seg.ID.Key(), seg)
 						if !ok {
 							metrics.SegmentDeletedCounterVec.WithLabelValues(
@@ -509,17 +496,15 @@ func (mgr *eventlogManager) dynamicScaleUpEventlog(ctx context.Context) {
 					}
 
 					metrics.SegmentCreatedByScaleTask.Inc()
-					log.Info(ctx, "the new segment created", map[string]interface{}{
-						"segment_id":  seg.ID.Key(),
-						"eventlog_id": el.md.ID.Key(),
-					})
+					log.Info(ctx).
+						Stringer("segment_id", seg.ID).
+						Stringer("eventlog_id", el.md.ID).
+						Msg("the new segment created")
 					count++
 				}
 				return true
 			})
-			log.Debug(ctx, "finished to provisioning segments", map[string]interface{}{
-				"count": count,
-			})
+			log.Debug(ctx).Int("count", count).Msg("finished to provisioning segments")
 		}
 	}
 }
@@ -530,7 +515,7 @@ func (mgr *eventlogManager) cleanAbnormalSegment(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Info(ctx, "the task of clean-abnormal-segment stopped", nil)
+			log.Info(ctx).Msg("the task of clean-abnormal-segment stopped")
 			return
 		case <-ticker.C:
 			count := 0
@@ -549,43 +534,42 @@ func (mgr *eventlogManager) cleanAbnormalSegment(ctx context.Context) {
 						"start_offset": v.StartOffsetInLog,
 						"block_id":     blk.ID,
 					}
+
 					err := ins.DeleteBlock(ctx, blk.ID)
 					if err != nil {
 						infos[log.KeyError] = err
-						log.Warning(ctx, "delete block failed", infos)
+						log.Warn(ctx).Fields(infos).Msg("delete block failed")
 						continue
 					}
 					mgr.globalBlockMap.Delete(blk.ID.Key())
 					err = mgr.kvClient.Delete(ctx, metadata.GetBlockMetadataKey(blk.VolumeID, blk.ID))
 					if err != nil {
 						infos[log.KeyError] = err
-						log.Warning(ctx, "delete block metadata in kv failed", infos)
+						log.Warn(ctx).Fields(infos).Msg("delete block metadata in kv failed")
 						continue
 					}
-					log.Info(ctx, "the block has been deleted", infos)
+					log.Info(ctx).Fields(infos).Msg("the block has been deleted")
 				}
 
 				if err := mgr.kvClient.Delete(ctx, metadata.GetSegmentMetadataKey(v.ID)); err != nil {
-					log.Warning(ctx, "clean segment data in KV failed", map[string]interface{}{
-						log.KeyError: err,
-						"segment":    v.String(),
-					})
+					log.Warn(ctx).
+						Err(err).
+						Stringer("segment", v).
+						Msg("clean segment data in KV failed")
 				}
 				mgr.globalSegmentMap.Delete(v.ID.Key())
 				mgr.segmentNeedBeClean.Delete(key)
-				log.Info(ctx, "the segment has been deleted", map[string]interface{}{
-					"segment_id":   v.ID.Key(),
-					"size":         v.Size,
-					"number":       v.Number,
-					"start_offset": v.StartOffsetInLog,
-					"eventlog_id":  v.EventlogID.Key(),
-				})
+				log.Info(ctx).
+					Stringer("segment_id", v.ID).
+					Stringer("eventlog_id", v.EventlogID).
+					Int64("size", v.Size).
+					Int32("number", v.Number).
+					Int64("start_offset", v.StartOffsetInLog).
+					Msg("the segment has been deleted")
 				count++
 				return true
 			})
-			log.Debug(ctx, "clean segment task completed", map[string]interface{}{
-				"segment_cleaned": count,
-			})
+			log.Debug(ctx).Int("segment_cleaned", count).Msg("clean segment task completed")
 		}
 	}
 }
@@ -596,7 +580,7 @@ func (mgr *eventlogManager) checkSegmentExpired(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Info(ctx, "the task of check-segment-expired stopped", nil)
+			log.Info(ctx).Msg("the task of check-segment-expired stopped")
 			return
 		case <-ticker.C:
 			count := 0
@@ -616,24 +600,24 @@ func (mgr *eventlogManager) checkSegmentExpired(ctx context.Context) {
 					case time.Since(head.LastEventBornTime) > mgr.segmentExpiredTime:
 						err := elog.deleteHead(ctx)
 						if err != nil {
-							log.Warning(ctx, "delete segment error", map[string]interface{}{
-								log.KeyError:       err,
-								"execution_id":     executionID,
-								"last_event_time":  head.LastEventBornTime,
-								"first_event_time": head.FirstEventBornTime,
-								"time":             time.Now(),
-							})
+							log.Warn(ctx).
+								Err(err).
+								Str("execution_id", executionID).
+								Time("last_event_time", head.LastEventBornTime).
+								Time("first_event_time", head.FirstEventBornTime).
+								Time("now", time.Now()).
+								Msg("delete segment error")
 							return true
 						}
 						count++
-						log.Info(ctx, "delete segment success", map[string]interface{}{
-							"execution_id":     executionID,
-							"log_id":           elog.md.ID.String(),
-							"last_event_time":  head.LastEventBornTime,
-							"first_event_time": head.FirstEventBornTime,
-							"time":             time.Now(),
-							"number":           head.Number,
-						})
+						log.Info(ctx).
+							Str("execution_id", executionID).
+							Stringer("log_id", elog.md.ID).
+							Time("last_event_time", head.LastEventBornTime).
+							Time("first_event_time", head.FirstEventBornTime).
+							Time("now", time.Now()).
+							Int32("number", head.Number).
+							Msg("delete segment success")
 						_, ok := mgr.segmentNeedBeClean.LoadOrStore(head.ID.Key(), head)
 						if !ok {
 							metrics.SegmentDeletedCounterVec.WithLabelValues(
@@ -645,10 +629,10 @@ func (mgr *eventlogManager) checkSegmentExpired(ctx context.Context) {
 				}
 				return true
 			})
-			log.Info(ctx, "check-segment-expired completed", map[string]interface{}{
-				"count":        count,
-				"execution_id": executionID,
-			})
+			log.Info(ctx).
+				Int("count", count).
+				Str("execution_id", executionID).
+				Msg("check-segment-expired completed")
 		}
 	}
 }
@@ -688,7 +672,7 @@ func (mgr *eventlogManager) recordMetrics(ctx context.Context) {
 			})
 			mgr.mutex.Unlock()
 		case <-ctx.Done():
-			log.Info(ctx, "record leadership exiting...", nil)
+			log.Info(ctx).Msg("record leadership exiting...")
 			return
 		}
 	}
@@ -733,13 +717,13 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 			}
 		}
 		if !set {
-			log.Error(ctx, "failed to set leader block", map[string]interface{}{
-				"eventlog":                   el.md.ID.Key(),
-				"eventbus":                   el.md.EventbusName,
-				"previous_segment_volume_id": cur.GetLeaderBlock().VolumeID,
-				"replicas":                   fmt.Sprintf("%v", seg.Replicas),
-				"segment":                    seg.ID.Key(),
-			})
+			log.Error(ctx).
+				Stringer("eventlog", el.md.ID).
+				Stringer("segment", seg.ID).
+				Stringer("previous_segment_volume_id", cur.GetLeaderBlock().VolumeID).
+				Str("eventbus", el.md.EventbusName).
+				Str("replicas", fmt.Sprintf("%v", seg.Replicas)).
+				Msg("failed to set leader block")
 			return nil, errors.ErrInvalidSegment
 		}
 	}
@@ -756,9 +740,7 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 	})
 
 	if err != nil {
-		log.Warning(context.TODO(), "activate segment failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Warn().Err(err).Msg("activate segment failed")
 		return nil, err
 	}
 
@@ -768,10 +750,10 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 		data, _ := json.Marshal(v)
 		key := filepath.Join(metadata.BlockKeyPrefixInKVStore, v.VolumeID.Key(), v.ID.String())
 		if err = mgr.kvClient.Set(ctx, key, data); err != nil {
-			log.Error(ctx, "save segment's data to kv store failed", map[string]interface{}{
-				log.KeyError: err,
-				"segment":    seg.String(),
-			})
+			log.Error(ctx).
+				Err(err).
+				Stringer("segment", seg).
+				Msg("save segment's data to kv store failed")
 			return nil, err
 		}
 	}
@@ -780,10 +762,10 @@ func (mgr *eventlogManager) createSegment(ctx context.Context, el *eventlog) (*S
 	data, _ := json.Marshal(seg)
 	key := filepath.Join(metadata.SegmentKeyPrefixInKVStore, seg.ID.String())
 	if err = mgr.kvClient.Set(ctx, key, data); err != nil {
-		log.Error(ctx, "update segment's metadata failed", map[string]interface{}{
-			log.KeyError: err,
-			"segment":    seg.String(),
-		})
+		log.Error(ctx).
+			Err(err).
+			Stringer("segment", seg).
+			Msg("update segment's metadata failed")
 		return nil, err
 	}
 
@@ -820,16 +802,12 @@ func (mgr *eventlogManager) generateSegment(ctx context.Context, el *eventlog) (
 
 	id1, err := vanus.NewID()
 	if err != nil {
-		log.Warning(ctx, "failed to create segment ID", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Warn(ctx).Err(err).Msg("failed to create segment ID")
 		return nil, err
 	}
 	id2, err := vanus.NewID()
 	if err != nil {
-		log.Warning(ctx, "failed to create raft replica ID", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Warn(ctx).Err(err).Msg("failed to create raft replica ID")
 		return nil, err
 	}
 	seg = &Segment{
@@ -845,14 +823,12 @@ func (mgr *eventlogManager) generateSegment(ctx context.Context, el *eventlog) (
 	}
 
 	data, _ := json.Marshal(seg)
-	log.Debug(context.TODO(), "generate segment", map[string]interface{}{
-		"data": string(data),
-	})
+	log.Debug().Bytes("data", data).Msg("generate segment")
 	if err = mgr.kvClient.Set(ctx, filepath.Join(metadata.SegmentKeyPrefixInKVStore, seg.ID.String()), data); err != nil {
-		log.Error(ctx, "save segment's data to kv store failed", map[string]interface{}{
-			log.KeyError: err,
-			"segment":    seg.String(),
-		})
+		log.Error(ctx).
+			Err(err).
+			Stringer("segment", seg).
+			Msg("save segment's data to kv store failed")
 		_, ok := mgr.segmentNeedBeClean.LoadOrStore(seg.ID.Key(), seg)
 		if !ok {
 			metrics.SegmentDeletedCounterVec.WithLabelValues(
@@ -1048,9 +1024,7 @@ func (el *eventlog) markSegmentFull(ctx context.Context, seg *Segment) error {
 	next.StartOffsetInLog = seg.StartOffsetInLog + int64(seg.Number)
 	data, _ := json.Marshal(next)
 	// TODO(wenfeng.wang) update block info at the same time
-	log.Debug(context.TODO(), "segment is full", map[string]interface{}{
-		"data": string(data),
-	})
+	log.Debug().Bytes("data", data).Msg("segment is full")
 	if err := el.kvClient.Set(ctx, metadata.GetSegmentMetadataKey(next.ID), data); err != nil {
 		return err
 	}
@@ -1203,11 +1177,11 @@ func (el *eventlog) deleteHead(ctx context.Context) error {
 	}
 
 	if err := el.kvClient.Delete(ctx, metadata.GetEventlogSegmentsMetadataKey(el.md.ID, head.ID)); err != nil {
-		log.Warning(ctx, "delete segment failed when delete head", map[string]interface{}{
-			log.KeyError:  err,
-			"segment_id":  head.ID.String(),
-			"eventlog_id": el.md.ID.String(),
-		})
+		log.Warn(ctx).
+			Err(err).
+			Stringer("segment_id", head.ID).
+			Stringer("eventlog_id", el.md.ID).
+			Msg("delete segment failed when delete head")
 		return err
 	}
 
@@ -1216,11 +1190,10 @@ func (el *eventlog) deleteHead(ctx context.Context) error {
 		next.PreviousSegmentID = vanus.EmptyID()
 		data, _ := json.Marshal(next)
 		if err := el.kvClient.Set(ctx, metadata.GetSegmentMetadataKey(next.ID), data); err != nil {
-			log.Warning(ctx, "update segment failed when delete head", map[string]interface{}{
-				log.KeyError:  err,
-				"segment_id":  next.ID.String(),
-				"eventlog_id": el.md.ID.String(),
-			})
+			log.Warn(ctx).Err(err).
+				Stringer("segment_id", next.ID).
+				Stringer("eventlog_id", el.md.ID).
+				Msg("update segment failed when delete head")
 			return err
 		}
 	}

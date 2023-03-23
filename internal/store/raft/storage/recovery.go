@@ -56,9 +56,7 @@ func (sb *storagesBuilder) onMeta(key []byte, value interface{}) error {
 
 	id, err := strconv.ParseUint(string(key[nodeIDStart:len(key)-compactSuffixLen]), 10, 64)
 	if err != nil {
-		log.Warning(sb.ctx, "raftStorage: invalid compact key", map[string]interface{}{
-			"key": string(key),
-		})
+		log.Warn(sb.ctx).Bytes("key", key).Msg("raftStorage: invalid compact key")
 		return nil //nolint:nilerr // skip
 	}
 
@@ -317,15 +315,13 @@ func (s *Storage) appendInRecovery(_ context.Context, entry raftpb.Entry, so int
 }
 
 func unreachablePanic(reason string, nodeID vanus.ID, lastTerm, lastIndex, term, index uint64) {
-	log.Error(
-		context.Background(),
-		fmt.Sprintf("%s%s.", strings.ToUpper(reason[0:1]), reason[1:]),
-		map[string]interface{}{
-			"node_id":    nodeID,
-			"last_term":  lastTerm,
-			"last_index": lastIndex,
-			"next_term":  term,
-			"next_index": index,
-		})
+	log.Error().
+		Stringer("node_id", nodeID).
+		Uint64("last_term", lastTerm).
+		Uint64("last_index", lastIndex).
+		Uint64("next_term", term).
+		Uint64("next_index", index).
+		Msg(fmt.Sprintf("%s%s.", strings.ToUpper(reason[0:1]), reason[1:]))
+
 	panic(fmt.Sprintf("unreachable: %s", reason))
 }

@@ -50,9 +50,7 @@ func TestServer(t *testing.T) {
 
 		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", serverPort))
 		if err != nil {
-			log.Error(context.Background(), "failed to listen", map[string]interface{}{
-				"error": err,
-			})
+			log.Error().Err(err).Msg("failed to listen")
 			os.Exit(-1)
 		}
 		// So(err, ShouldBeNil)

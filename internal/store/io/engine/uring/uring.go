@@ -18,9 +18,6 @@
 package uring
 
 import (
-	// standard libraries.
-	"context"
-
 	// third-party libraries.
 	"github.com/iceber/iouring-go"
 
@@ -48,9 +45,7 @@ var _ engine.Interface = (*uRing)(nil)
 func New() engine.Interface {
 	ring, err := iouring.New(defaultResultBufferSize)
 	if err != nil {
-		log.Error(context.Background(), "Create iouring failed.", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error().Err(err).Msg("Create iouring failed")
 		panic(err)
 	}
 
@@ -66,9 +61,7 @@ func New() engine.Interface {
 
 func (e *uRing) Close() {
 	if err := e.ring.Close(); err != nil {
-		log.Error(context.Background(), "Encounter error when close iouring.", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error().Err(err).Msg("Encounter error when close iouring")
 	}
 	close(e.resultC)
 }

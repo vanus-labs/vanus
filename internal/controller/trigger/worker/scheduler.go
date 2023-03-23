@@ -18,12 +18,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/observability/metrics"
-
 	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/vanus-labs/vanus/internal/primitive/queue"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
 )
 
 const (
@@ -84,10 +83,9 @@ func (s *SubscriptionScheduler) Run() {
 				s.normalQueue.ClearFailNum(subscriptionID)
 			} else {
 				s.normalQueue.ReAdd(subscriptionID)
-				log.Warning(ctx, "scheduler handler subscription has error", map[string]interface{}{
-					log.KeyError:          err,
-					log.KeySubscriptionID: subscriptionID,
-				})
+				log.Warn(ctx).Err(err).
+					Stringer(log.KeySubscriptionID, subscriptionID).
+					Msg("scheduler handler subscription has error")
 			}
 		}
 	}()

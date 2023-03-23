@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vanus-labs/vanus/observability/log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -138,8 +139,8 @@ func sendWithGRPC(cmd *cobra.Command) {
 						Events:       &cloudevents.CloudEventBatch{Events: events},
 					})
 					if err != nil {
-						log.Warning(context.Background(), "failed to send events", map[string]interface{}{
-							log.KeyError: err,
+						log.Warn(context.Background(), "failed to send events", map[string]interface{}{
+							Err(err).
 						})
 					} else {
 						atomic.AddInt64(&success, int64(len(events)))
@@ -358,7 +359,7 @@ func receiveCommand() *cobra.Command {
 			err = grpcServer.Serve(ls)
 			if err != nil {
 				log.Error(nil, "grpc server occurred an error", map[string]interface{}{
-					log.KeyError: err,
+					Err(err).
 				})
 			}
 		},
@@ -426,7 +427,7 @@ func analyseCommand() *cobra.Command {
 				_, err := resultColl.InsertOne(context.Background(), r)
 				if err != nil {
 					log.Error(nil, "failed to save latency result to mongodb", map[string]interface{}{
-						log.KeyError: err,
+						Err(err).
 					})
 				}
 
@@ -469,7 +470,7 @@ func analyseCommand() *cobra.Command {
 				_, err = resultColl.InsertOne(context.Background(), r)
 				if err != nil {
 					log.Error(nil, "failed to save latency result to mongodb", map[string]interface{}{
-						log.KeyError: err,
+						Err(err).
 					})
 				}
 
@@ -491,7 +492,7 @@ func analyseCommand() *cobra.Command {
 					if strCMD.Err() == redis.Nil {
 						break
 					}
-					log.Warning(ctx, "LPop failed", map[string]interface{}{
+					log.Warn(ctx).Msg("LPop failed")
 						log.KeyError: strCMD.Err(),
 						"key":        dataKey,
 					})
@@ -500,8 +501,8 @@ func analyseCommand() *cobra.Command {
 				data, _ := strCMD.Bytes()
 				r := &Record{}
 				if err := json.Unmarshal(data, r); err != nil {
-					log.Warning(ctx, "unmarshall cloud event failed", map[string]interface{}{
-						log.KeyError: err,
+					log.Warn(ctx).Msg("unmarshall cloud event failed")
+						Err(err).
 						"data":       strCMD.Val(),
 					})
 				}
@@ -564,7 +565,7 @@ func cache(r *Record, key string) {
 	//data, _ := json.Marshal(r)
 	//cmd := rdb.LPush(context.Background(), key, data)
 	//if cmd.Err() != nil {
-	//	log.Warning(context.Background(), "set event to redis failed", map[string]interface{}{
+	//	log.Warn(context.Background(), "set event to redis failed", map[string]interface{}{
 	//		log.KeyError: cmd.Err(),
 	//	})
 	//}
@@ -588,8 +589,8 @@ func analyseConsumption(ch <-chan *Record, f func(his *hdrhistogram.Histogram, u
 		cnt++
 		latency := r.ReceivedAt.Sub(r.BornAt)
 		if err := his.RecordValue(latency.Milliseconds()); err != nil {
-			log.Warning(context.Background(), "histogram error", map[string]interface{}{
-				log.KeyError: err,
+			log.Warn(context.Background(), "histogram error", map[string]interface{}{
+				Err(err).
 				"val":        latency.Milliseconds(),
 			})
 		}

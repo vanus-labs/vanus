@@ -24,18 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/emptypb"
-
 	eb "github.com/vanus-labs/vanus/client"
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/observability/metrics"
-	"github.com/vanus-labs/vanus/pkg/cluster"
-	"github.com/vanus-labs/vanus/pkg/errors"
-	"github.com/vanus-labs/vanus/pkg/util"
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
-	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
-
 	"github.com/vanus-labs/vanus/internal/controller/member"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/secret"
@@ -46,6 +35,15 @@ import (
 	"github.com/vanus-labs/vanus/internal/convert"
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/util"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var _ ctrlpb.TriggerControllerServer = &controller{}
@@ -130,10 +128,9 @@ func (ctrl *controller) CommitOffset(
 		err := ctrl.subscriptionManager.SaveOffset(ctx, id, offsets, request.ForceCommit)
 		if err != nil {
 			resp.FailSubscriptionId = append(resp.FailSubscriptionId, subInfo.SubscriptionId)
-			log.Warning(ctx, "commit offset error", map[string]interface{}{
-				log.KeyError:          err,
-				log.KeySubscriptionID: id,
-			})
+			log.Warn(ctx).Err(err).
+				Stringer(log.KeySubscriptionID, id).
+				Msg("commit offset error")
 		}
 	}
 	return resp, nil
@@ -174,9 +171,7 @@ func (ctrl *controller) CreateSubscription(
 	}
 	err := validation.ValidateSubscriptionRequest(ctx, request.Subscription)
 	if err != nil {
-		log.Info(ctx, "create subscription validate fail", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Info(ctx).Err(err).Msg("create subscription validate fail")
 		return nil, err
 	}
 	sub := convert.FromPbSubscriptionRequest(request.Subscription)
@@ -361,17 +356,15 @@ func (ctrl *controller) TriggerWorkerHeartbeat(
 		req, err := heartbeat.Recv()
 		if err != nil {
 			if !stdErr.Is(err, io.EOF) {
-				log.Warning(ctx, "heartbeat recv error", map[string]interface{}{
-					log.KeyError: err,
-				})
+				log.Warn(ctx).Err(err).Msg("heartbeat recv error")
 			}
-			log.Info(ctx, "heartbeat close", nil)
+			log.Info(ctx).Msg("heartbeat close")
 			return nil
 		}
-		log.Debug(ctx, "heartbeat", map[string]interface{}{
-			log.KeyTriggerWorkerAddr: req.Address,
-			"subscriptionInfo":       req.SubscriptionInfo,
-		})
+		log.Debug(ctx).
+			Str(log.KeyTriggerWorkerAddr, req.Address).
+			Interface("subscriptionInfo", req.SubscriptionInfo).
+			Msg("heartbeat")
 		err = ctrl.triggerWorkerHeartbeatRequest(ctx, req)
 		if err != nil {
 			return err
@@ -387,18 +380,16 @@ func (ctrl *controller) triggerWorkerHeartbeatRequest(
 		subscriptionID := vanus.ID(subInfo.SubscriptionId)
 		err := ctrl.subscriptionManager.Heartbeat(ctx, subscriptionID, req.Address, now)
 		if err != nil {
-			log.Warning(ctx, "heartbeat subscription heartbeat error", map[string]interface{}{
-				log.KeyError:             err,
-				log.KeyTriggerWorkerAddr: req.Address,
-				log.KeySubscriptionID:    subscriptionID,
-			})
+			log.Warn(ctx).Err(err).
+				Str(log.KeyTriggerWorkerAddr, req.Address).
+				Stringer(log.KeySubscriptionID, subscriptionID).
+				Msg("heartbeat subscription heartbeat error")
 		}
 	}
 	err := ctrl.workerManager.UpdateTriggerWorkerInfo(ctx, req.Address)
 	if err != nil {
-		log.Info(context.Background(), "unknown trigger worker", map[string]interface{}{
-			log.KeyTriggerWorkerAddr: req.Address,
-		})
+		log.Info().Str(log.KeyTriggerWorkerAddr, req.Address).
+			Msg("unknown trigger worker")
 		return errors.ErrResourceNotFound.WithMessage("unknown trigger worker")
 	}
 	for _, subInfo := range req.SubscriptionInfo {
@@ -408,10 +399,9 @@ func (ctrl *controller) triggerWorkerHeartbeatRequest(
 		offsets := convert.FromPbOffsetInfos(subInfo.Offsets)
 		err = ctrl.subscriptionManager.SaveOffset(ctx, vanus.ID(subInfo.SubscriptionId), offsets, false)
 		if err != nil {
-			log.Warning(ctx, "heartbeat commit offset error", map[string]interface{}{
-				log.KeyError:          err,
-				log.KeySubscriptionID: subInfo.SubscriptionId,
-			})
+			log.Warn(ctx).Err(err).
+				Uint64(log.KeySubscriptionID, subInfo.SubscriptionId).
+				Msg("heartbeat commit offset error")
 		}
 	}
 	return nil
@@ -420,15 +410,14 @@ func (ctrl *controller) triggerWorkerHeartbeatRequest(
 func (ctrl *controller) RegisterTriggerWorker(
 	ctx context.Context, request *ctrlpb.RegisterTriggerWorkerRequest,
 ) (*ctrlpb.RegisterTriggerWorkerResponse, error) {
-	log.Info(ctx, "register trigger worker", map[string]interface{}{
-		log.KeyTriggerWorkerAddr: request.Address,
-	})
+	log.Info(ctx).
+		Str(log.KeyTriggerWorkerAddr, request.Address).
+		Msg("register trigger worker")
 	err := ctrl.workerManager.AddTriggerWorker(ctx, request.Address)
 	if err != nil {
-		log.Warning(ctx, "register trigger worker error", map[string]interface{}{
-			"addr":       request.Address,
-			log.KeyError: err,
-		})
+		log.Warn(ctx).Err(err).
+			Str(log.KeyTriggerWorkerAddr, request.Address).
+			Msg("register trigger worker error")
 		return nil, err
 	}
 	return &ctrlpb.RegisterTriggerWorkerResponse{}, nil
@@ -437,9 +426,9 @@ func (ctrl *controller) RegisterTriggerWorker(
 func (ctrl *controller) UnregisterTriggerWorker(
 	ctx context.Context, request *ctrlpb.UnregisterTriggerWorkerRequest,
 ) (*ctrlpb.UnregisterTriggerWorkerResponse, error) {
-	log.Info(ctx, "unregister trigger worker", map[string]interface{}{
-		log.KeyTriggerWorkerAddr: request.Address,
-	})
+	log.Info(ctx).
+		Str(log.KeyTriggerWorkerAddr, request.Address).
+		Msg("unregister trigger worker")
 
 	ctrl.workerManager.RemoveTriggerWorker(context.TODO(), request.Address)
 	return &ctrlpb.UnregisterTriggerWorkerResponse{}, nil
@@ -506,10 +495,10 @@ func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, ad
 	}
 	if sub.TriggerWorker != addr {
 		// data is not consistent, record
-		log.Error(ctx, "requeue subscription invalid", map[string]interface{}{
-			log.KeyTriggerWorkerAddr: sub.TriggerWorker,
-			"runningAddr":            addr,
-		})
+		log.Error(ctx).
+			Str(log.KeyTriggerWorkerAddr, sub.TriggerWorker).
+			Str("runningAddr", addr).
+			Msg("requeue subscription invalid")
 	}
 	metrics.CtrlTriggerGauge.WithLabelValues(sub.TriggerWorker).Dec()
 	sub.TriggerWorker = ""
@@ -549,10 +538,9 @@ func (ctrl *controller) init(ctx context.Context) error {
 func (ctrl *controller) membershipChangedProcessor(
 	ctx context.Context, event member.MembershipChangedEvent,
 ) error {
-	log.Info(ctx, "start to process membership change event", map[string]interface{}{
-		"event":     event,
-		"component": "trigger",
-	})
+	log.Info(ctx).
+		Interface("event", event).
+		Msg("start to process membership change event")
 	ctrl.membershipMutex.Lock()
 	defer ctrl.membershipMutex.Unlock()
 	switch event.Type {
@@ -560,18 +548,14 @@ func (ctrl *controller) membershipChangedProcessor(
 		if ctrl.isLeader {
 			return nil
 		}
-		log.Info(context.TODO(), "trigger become leader", nil)
+		log.Info().Msg("trigger become leader")
 		err := ctrl.init(ctx)
 		if err != nil {
 			_err := ctrl.stop(ctx)
 			if _err != nil {
-				log.Error(ctx, "controller stop has error", map[string]interface{}{
-					log.KeyError: _err,
-				})
+				log.Error(ctx).Err(err).Msg("controller stop has error")
 			}
-			log.Error(ctx, "controller init has error", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Error(ctx).Err(err).Msg("controller init has error")
 			return err
 		}
 		ctrl.workerManager.Start()
@@ -584,12 +568,10 @@ func (ctrl *controller) membershipChangedProcessor(
 		if !ctrl.isLeader {
 			return nil
 		}
-		log.Info(context.TODO(), "become flower", nil)
+		log.Info().Msg("become flower")
 		_err := ctrl.stop(ctx)
 		if _err != nil {
-			log.Error(ctx, "controller stop has error", map[string]interface{}{
-				log.KeyError: _err,
-			})
+			log.Error(ctx).Err(_err).Msg("controller stop has error")
 		}
 	}
 	return nil
@@ -630,9 +612,7 @@ func (ctrl *controller) Start() error {
 
 func (ctrl *controller) Stop(ctx context.Context) {
 	if err := ctrl.stop(ctx); err != nil {
-		log.Warning(ctx, "stop trigger controller error", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Warn(ctx).Err(err).Msg("stop trigger controller error")
 	}
 }
 
@@ -640,22 +620,18 @@ func (ctrl *controller) initTriggerSystemEventbus() {
 	// avoid blocking starting
 	go func() {
 		ctx := context.Background()
-		log.Info(ctx, "trigger controller is ready to check system eventbus", nil)
+		log.Info(ctx).Msg("trigger controller is ready to check system eventbus")
 		if err := ctrl.cl.WaitForControllerReady(true); err != nil {
-			log.Error(ctx, "trigger controller try to create system eventbus, "+
-				"but Vanus cluster hasn't ready, exit", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Error(ctx).Err(err).
+				Msg("trigger controller try to create system eventbus, but Vanus cluster hasn't ready, exit")
 			os.Exit(-1)
 		}
 
 		if _, err := ctrl.cl.EventbusService().CreateSystemEventbusIfNotExist(ctx, primitive.RetryEventbusName,
 			"System Eventbus For Trigger Service"); err != nil {
-			log.Error(ctx, "failed to create RetryEventbus, exit", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Error(ctx).Err(err).Msg("failed to create RetryEventbus, exit")
 			os.Exit(-1)
 		}
-		log.Info(ctx, "trigger controller has finished for checking system eventbus", nil)
+		log.Info(ctx).Msg("trigger controller has finished for checking system eventbus")
 	}()
 }
