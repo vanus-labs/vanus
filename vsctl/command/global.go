@@ -22,15 +22,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
-	"google.golang.org/protobuf/types/known/wrapperspb"
-
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
 )
 
@@ -164,7 +163,7 @@ func mustGetEventbusID(namespace, name string) vanus.ID {
 			EventbusName: name,
 		})
 	if err != nil {
-		color.Red("failed to query eventbus id: %s", err.Error())
+		color.Red("failed to query eventbus id: %s", Error(err))
 		os.Exit(1)
 	}
 	return vanus.NewIDFromUint64(eb.Id)
@@ -173,7 +172,7 @@ func mustGetEventbusID(namespace, name string) vanus.ID {
 func mustGetNamespaceID(namespace string) vanus.ID {
 	eb, err := client.GetNamespaceWithHumanFriendly(context.Background(), wrapperspb.String(namespace))
 	if err != nil {
-		color.Red("failed to query namespace id: %s", err.Error())
+		color.Red("failed to query namespace id: %s", Error(err))
 		os.Exit(1)
 	}
 	return vanus.NewIDFromUint64(eb.Id)

@@ -30,6 +30,8 @@ import (
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 const (
@@ -121,4 +123,12 @@ func IsDNS1123Subdomain(value string) bool {
 		return false
 	}
 	return true
+}
+
+func Error(err error) string {
+	e := errors.To(err)
+	if e.Message == "" {
+		return e.Description
+	}
+	return e.Message
 }
