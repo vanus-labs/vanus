@@ -26,11 +26,11 @@ require (
 	github.com/sony/sonyflake v1.1.0
 	github.com/spf13/cobra v1.4.0
 	github.com/tidwall/gjson v1.14.1
-	github.com/vanus-labs/vanus/client v0.5.7
-	github.com/vanus-labs/vanus/observability v0.5.7
-	github.com/vanus-labs/vanus/pkg v0.5.7
-	github.com/vanus-labs/vanus/proto v0.7.1-0.20230307065123-722eac99dbf9
-	github.com/vanus-labs/vanus/raft v0.5.7
+	github.com/vanus-labs/vanus/client v0.8.0
+	github.com/vanus-labs/vanus/observability v0.8.0
+	github.com/vanus-labs/vanus/pkg v0.8.0
+	github.com/vanus-labs/vanus/proto v0.8.0
+	github.com/vanus-labs/vanus/raft v0.8.0
 	go.etcd.io/etcd/client/v3 v3.5.7
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.36.4
 	go.opentelemetry.io/otel v1.11.2
@@ -120,3 +120,5 @@ replace (
 	github.com/vanus-labs/vanus/proto => ./proto
 	github.com/vanus-labs/vanus/raft => ./raft
 )
+
+replace github.com/vanus-labs/sdk/golang => ./FORBIDDEN_DEPENDENCY

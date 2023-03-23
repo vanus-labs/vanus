@@ -35,3 +35,5 @@ require (
 	google.golang.org/genproto v0.0.0-20221202195650-67e5cbc046fd // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 )
+
+replace github.com/vanus-labs/vanus => ../FORBIDDEN_DEPENDENCY

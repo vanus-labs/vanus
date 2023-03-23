@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/cloudevents/sdk-go/v2 v2.13.0
 	github.com/golang/mock v1.6.0
-	github.com/vanus-labs/vanus/raft v0.5.7
+	github.com/vanus-labs/vanus/raft v0.8.0
 	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
 )
@@ -28,3 +28,5 @@ replace (
 	github.com/vanus-labs/vanus/observability => ../observability
 	github.com/vanus-labs/vanus/raft => ../raft
 )
+
+replace github.com/vanus-labs/vanus => ../FORBIDDEN_DEPENDENCY

@@ -217,20 +217,20 @@ metadata:
 spec:
   clusterIP: None
   clusterIPs:
-  - None
+    - None
   internalTrafficPolicy: Cluster
   ipFamilies:
-  - IPv4
+    - IPv4
   ipFamilyPolicy: SingleStack
   ports:
-  - name: client
-    port: 2379
-    protocol: TCP
-    targetPort: client
-  - name: peer
-    port: 2380
-    protocol: TCP
-    targetPort: peer
+    - name: client
+      port: 2379
+      protocol: TCP
+      targetPort: client
+    - name: peer
+      port: 2380
+      protocol: TCP
+      targetPort: peer
   publishNotReadyAddresses: true
   selector:
     app: vanus-etcd
@@ -245,8 +245,8 @@ metadata:
 spec:
   clusterIP: None
   ports:
-  - name: vanus-controller
-    port: 2048
+    - name: vanus-controller
+      port: 2048
   selector:
     app: vanus-controller
 ---
@@ -257,12 +257,12 @@ metadata:
   namespace: vanus
 spec:
   ports:
-  - name: proxy
-    port: 8080
-    targetPort: 8080
-  - name: cloudevents
-    port: 8081
-    targetPort: 8081
+    - name: proxy
+      port: 8080
+      targetPort: 8080
+    - name: cloudevents
+      port: 8081
+      targetPort: 8081
   selector:
     app: vanus-gateway
   type: NodePort
@@ -287,51 +287,51 @@ spec:
         app: vanus-gateway
     spec:
       containers:
-      - image: public.ecr.aws/vanus/gateway:3ebbdfe
-        imagePullPolicy: IfNotPresent
-        name: gateway
-        ports:
-        - containerPort: 8080
-          name: proxy
-        - containerPort: 8081
-          name: cloudevents
-        - containerPort: 2112
-          name: metrics
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 2000m
-            memory: 2000Mi
-          requests:
-            cpu: 2000m
-            memory: 2000Mi
-        volumeMounts:
-        - mountPath: /vanus/config
-          name: config-gateway
-      - args:
-        - --no-collector.wifi
-        - --no-collector.hwmon
-        - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
-        - --collector.netclass.ignored-devices=^(veth.*)$
-        image: prom/node-exporter
-        name: node-exporter
-        ports:
-        - containerPort: 9100
-          name: metrics
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 250m
-            memory: 180Mi
-          requests:
-            cpu: 102m
-            memory: 180Mi
+        - image: public.ecr.aws/vanus/gateway:v0.8.0
+          imagePullPolicy: IfNotPresent
+          name: gateway
+          ports:
+            - containerPort: 8080
+              name: proxy
+            - containerPort: 8081
+              name: cloudevents
+            - containerPort: 2112
+              name: metrics
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 2000Mi
+            requests:
+              cpu: 2000m
+              memory: 2000Mi
+          volumeMounts:
+            - mountPath: /vanus/config
+              name: config-gateway
+        - args:
+            - --no-collector.wifi
+            - --no-collector.hwmon
+            - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
+            - --collector.netclass.ignored-devices=^(veth.*)$
+          image: prom/node-exporter
+          name: node-exporter
+          ports:
+            - containerPort: 9100
+              name: metrics
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 250m
+              memory: 180Mi
+            requests:
+              cpu: 102m
+              memory: 180Mi
       nodeSelector:
         type: calculation
       volumes:
-      - configMap:
+        - configMap:
+            name: config-gateway
           name: config-gateway
-        name: config-gateway
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -353,54 +353,54 @@ spec:
         app: vanus-timer
     spec:
       containers:
-      - env:
-        - name: VANUS_LOG_LEVEL
-          value: DEBUG
-        - name: POD_IP
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
-        image: public.ecr.aws/vanus/timer:3ebbdfe
-        imagePullPolicy: IfNotPresent
-        name: timer
-        ports:
-        - containerPort: 2112
-          name: metrics
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 2000m
-            memory: 4000Mi
-          requests:
-            cpu: 2000m
-            memory: 4000Mi
-        volumeMounts:
-        - mountPath: /vanus/config
-          name: config-timer
-      - args:
-        - --no-collector.wifi
-        - --no-collector.hwmon
-        - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
-        - --collector.netclass.ignored-devices=^(veth.*)$
-        image: prom/node-exporter
-        name: node-exporter
-        ports:
-        - containerPort: 9100
-          name: metrics
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 250m
-            memory: 180Mi
-          requests:
-            cpu: 102m
-            memory: 180Mi
+        - env:
+            - name: VANUS_LOG_LEVEL
+              value: DEBUG
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          image: public.ecr.aws/vanus/timer:v0.8.0
+          imagePullPolicy: IfNotPresent
+          name: timer
+          ports:
+            - containerPort: 2112
+              name: metrics
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 4000Mi
+            requests:
+              cpu: 2000m
+              memory: 4000Mi
+          volumeMounts:
+            - mountPath: /vanus/config
+              name: config-timer
+        - args:
+            - --no-collector.wifi
+            - --no-collector.hwmon
+            - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
+            - --collector.netclass.ignored-devices=^(veth.*)$
+          image: prom/node-exporter
+          name: node-exporter
+          ports:
+            - containerPort: 9100
+              name: metrics
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 250m
+              memory: 180Mi
+            requests:
+              cpu: 102m
+              memory: 180Mi
       nodeSelector:
         type: calculation
       volumes:
-      - configMap:
+        - configMap:
+            name: config-timer
           name: config-timer
-        name: config-timer
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -422,67 +422,67 @@ spec:
         app: vanus-trigger
     spec:
       containers:
-      - env:
-        - name: VANUS_LOG_LEVEL
-          value: INFO
-        - name: POD_IP
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
-        image: public.ecr.aws/vanus/trigger:3ebbdfe
-        imagePullPolicy: IfNotPresent
-        name: trigger
-        ports:
-        - containerPort: 2148
-          name: grpc
-        - containerPort: 2112
-          name: metrics
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 2000m
-            memory: 2000Mi
-          requests:
-            cpu: 2000m
-            memory: 2000Mi
-        volumeMounts:
-        - mountPath: /vanus/config
-          name: config-trigger
-      - args:
-        - --no-collector.wifi
-        - --no-collector.hwmon
-        - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
-        - --collector.netclass.ignored-devices=^(veth.*)$
-        image: prom/node-exporter
-        name: node-exporter
-        ports:
-        - containerPort: 9100
-          name: metrics
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 250m
-            memory: 180Mi
-          requests:
-            cpu: 102m
-            memory: 180Mi
+        - env:
+            - name: VANUS_LOG_LEVEL
+              value: INFO
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          image: public.ecr.aws/vanus/trigger:v0.8.0
+          imagePullPolicy: IfNotPresent
+          name: trigger
+          ports:
+            - containerPort: 2148
+              name: grpc
+            - containerPort: 2112
+              name: metrics
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 2000Mi
+            requests:
+              cpu: 2000m
+              memory: 2000Mi
+          volumeMounts:
+            - mountPath: /vanus/config
+              name: config-trigger
+        - args:
+            - --no-collector.wifi
+            - --no-collector.hwmon
+            - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
+            - --collector.netclass.ignored-devices=^(veth.*)$
+          image: prom/node-exporter
+          name: node-exporter
+          ports:
+            - containerPort: 9100
+              name: metrics
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 250m
+              memory: 180Mi
+            requests:
+              cpu: 102m
+              memory: 180Mi
       initContainers:
-      - command:
-        - /bin/sh
-        - -c
-        - sysctl -w net.ipv4.tcp_tw_reuse=1 && sysctl -w net.ipv4.tcp_fin_timeout=10
-          && sysctl -w net.ipv4.ip_local_port_range='4096 65000' && sysctl -p
-        image: busybox
-        name: set-system-parameters
-        securityContext:
-          capabilities: {}
-          privileged: true
+        - command:
+            - /bin/sh
+            - -c
+            - sysctl -w net.ipv4.tcp_tw_reuse=1 && sysctl -w net.ipv4.tcp_fin_timeout=10
+              && sysctl -w net.ipv4.ip_local_port_range='4096 65000' && sysctl -p
+          image: busybox
+          name: set-system-parameters
+          securityContext:
+            capabilities: {}
+            privileged: true
       nodeSelector:
         type: storage
       volumes:
-      - configMap:
+        - configMap:
+            name: config-trigger
           name: config-trigger
-        name: config-trigger
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -505,96 +505,96 @@ spec:
         app: vanus-etcd
     spec:
       containers:
-      - env:
-        - name: BITNAMI_DEBUG
-          value: "false"
-        - name: MY_POD_IP
-          valueFrom:
-            fieldRef:
-              apiVersion: v1
-              fieldPath: status.podIP
-        - name: MY_POD_NAME
-          valueFrom:
-            fieldRef:
-              apiVersion: v1
-              fieldPath: metadata.name
-        - name: MY_STS_NAME
-          value: vanus-etcd
-        - name: ETCDCTL_API
-          value: "3"
-        - name: ETCD_ON_K8S
-          value: "yes"
-        - name: ETCD_START_FROM_SNAPSHOT
-          value: "no"
-        - name: ETCD_INIT_SNAPSHOT_FILENAME
-          value: "snapshotdb"
-        - name: ETCD_DISASTER_RECOVERY
-          value: "no"
-        - name: ETCD_NAME
-          value: $(MY_POD_NAME)
-        - name: ETCD_DATA_DIR
-          value: /bitnami/etcd/data
-        - name: ETCD_LOG_LEVEL
-          value: info
-        - name: ALLOW_NONE_AUTHENTICATION
-          value: "yes"
-        - name: ETCD_ADVERTISE_CLIENT_URLS
-          value: http://$(MY_POD_NAME).vanus-etcd.vanus.svc.cluster.local:2379,http://vanus-etcd.vanus.svc.cluster.local:2379
-        - name: ETCD_LISTEN_CLIENT_URLS
-          value: http://0.0.0.0:2379
-        - name: ETCD_INITIAL_ADVERTISE_PEER_URLS
-          value: http://$(MY_POD_NAME).vanus-etcd.vanus.svc.cluster.local:2380
-        - name: ETCD_LISTEN_PEER_URLS
-          value: http://0.0.0.0:2380
-        - name: ETCD_INITIAL_CLUSTER_STATE
-          value: new
-        - name: ETCD_INITIAL_CLUSTER
-          value: vanus-etcd-0=http://vanus-etcd-0.vanus-etcd.vanus.svc.cluster.local:2380,vanus-etcd-1=http://vanus-etcd-1.vanus-etcd.vanus.svc.cluster.local:2380,vanus-etcd-2=http://vanus-etcd-2.vanus-etcd.vanus.svc.cluster.local:2380
-        - name: ETCD_CLUSTER_DOMAIN
-          value: vanus-etcd.vanus.svc.cluster.local
-        image: public.ecr.aws/vanus/etcd:v3.5.7
-        imagePullPolicy: IfNotPresent
-        lifecycle:
-          preStop:
+        - env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: MY_STS_NAME
+              value: vanus-etcd
+            - name: ETCDCTL_API
+              value: "3"
+            - name: ETCD_ON_K8S
+              value: "yes"
+            - name: ETCD_START_FROM_SNAPSHOT
+              value: "no"
+            - name: ETCD_INIT_SNAPSHOT_FILENAME
+              value: "snapshotdb"
+            - name: ETCD_DISASTER_RECOVERY
+              value: "no"
+            - name: ETCD_NAME
+              value: $(MY_POD_NAME)
+            - name: ETCD_DATA_DIR
+              value: /bitnami/etcd/data
+            - name: ETCD_LOG_LEVEL
+              value: info
+            - name: ALLOW_NONE_AUTHENTICATION
+              value: "yes"
+            - name: ETCD_ADVERTISE_CLIENT_URLS
+              value: http://$(MY_POD_NAME).vanus-etcd.vanus.svc.cluster.local:2379,http://vanus-etcd.vanus.svc.cluster.local:2379
+            - name: ETCD_LISTEN_CLIENT_URLS
+              value: http://0.0.0.0:2379
+            - name: ETCD_INITIAL_ADVERTISE_PEER_URLS
+              value: http://$(MY_POD_NAME).vanus-etcd.vanus.svc.cluster.local:2380
+            - name: ETCD_LISTEN_PEER_URLS
+              value: http://0.0.0.0:2380
+            - name: ETCD_INITIAL_CLUSTER_STATE
+              value: new
+            - name: ETCD_INITIAL_CLUSTER
+              value: vanus-etcd-0=http://vanus-etcd-0.vanus-etcd.vanus.svc.cluster.local:2380,vanus-etcd-1=http://vanus-etcd-1.vanus-etcd.vanus.svc.cluster.local:2380,vanus-etcd-2=http://vanus-etcd-2.vanus-etcd.vanus.svc.cluster.local:2380
+            - name: ETCD_CLUSTER_DOMAIN
+              value: vanus-etcd.vanus.svc.cluster.local
+          image: public.ecr.aws/vanus/etcd:v3.5.7
+          imagePullPolicy: IfNotPresent
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /opt/bitnami/scripts/etcd/prestop.sh
+          livenessProbe:
             exec:
               command:
-              - /opt/bitnami/scripts/etcd/prestop.sh
-        livenessProbe:
-          exec:
-            command:
-            - /opt/bitnami/scripts/etcd/healthcheck.sh
-          failureThreshold: 5
-          initialDelaySeconds: 60
-          periodSeconds: 30
-          successThreshold: 1
-          timeoutSeconds: 5
-        name: etcd
-        ports:
-        - containerPort: 2379
-          name: client
-          protocol: TCP
-        - containerPort: 2380
-          name: peer
-          protocol: TCP
-        readinessProbe:
-          exec:
-            command:
-            - /opt/bitnami/scripts/etcd/healthcheck.sh
-          failureThreshold: 5
-          initialDelaySeconds: 60
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 5
-        resources: {}
-        securityContext:
-          allowPrivilegeEscalation: false
-          runAsNonRoot: true
-          runAsUser: 1001
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
-        volumeMounts:
-        - name: data
-          mountPath: /bitnami/etcd
+                - /opt/bitnami/scripts/etcd/healthcheck.sh
+            failureThreshold: 5
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 5
+          name: etcd
+          ports:
+            - containerPort: 2379
+              name: client
+              protocol: TCP
+            - containerPort: 2380
+              name: peer
+              protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+                - /opt/bitnami/scripts/etcd/healthcheck.sh
+            failureThreshold: 5
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1001
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/etcd
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler
@@ -606,20 +606,20 @@ spec:
   updateStrategy:
     type: RollingUpdate
   volumeClaimTemplates:
-  - apiVersion: v1
-    kind: PersistentVolumeClaim
-    metadata:
-      creationTimestamp: null
-      labels:
-        app: vanus-etcd
-      name: data
-    spec:
-      accessModes:
-      - ReadWriteOnce
-      resources:
-        requests:
-          storage: 10Gi
-      volumeMode: Filesystem
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: vanus-etcd
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+        volumeMode: Filesystem
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -642,82 +642,82 @@ spec:
         app: vanus-controller
     spec:
       containers:
-      - command:
-        - /bin/sh
-        - -c
-        - NODE_ID=${HOSTNAME##*-} /vanus/bin/controller
-        env:
-        - name: VANUS_LOG_LEVEL
-          value: DEBUG
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: POD_IP
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
-        image: public.ecr.aws/vanus/controller:3ebbdfe
-        imagePullPolicy: IfNotPresent
-        name: controller
-        ports:
-        - containerPort: 2048
-          name: grpc
-        - containerPort: 2379
-          name: etcd-client
-        - containerPort: 2380
-          name: etcd-peer
-        - containerPort: 2112
-          name: metrics
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 1000m
-            memory: 4000Mi
-          requests:
-            cpu: 1000m
-            memory: 4000Mi
-        volumeMounts:
-        - mountPath: /vanus/config
-          name: config-controller
-        - mountPath: /data
-          name: data
-      - args:
-        - --no-collector.wifi
-        - --no-collector.hwmon
-        - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
-        - --collector.netclass.ignored-devices=^(veth.*)$
-        image: prom/node-exporter
-        name: node-exporter
-        ports:
-        - containerPort: 9100
-          name: metrics
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 250m
-            memory: 180Mi
-          requests:
-            cpu: 102m
-            memory: 180Mi
+        - command:
+            - /bin/sh
+            - -c
+            - NODE_ID=${HOSTNAME##*-} /vanus/bin/controller
+          env:
+            - name: VANUS_LOG_LEVEL
+              value: DEBUG
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          image: public.ecr.aws/vanus/controller:v0.8.0
+          imagePullPolicy: IfNotPresent
+          name: controller
+          ports:
+            - containerPort: 2048
+              name: grpc
+            - containerPort: 2379
+              name: etcd-client
+            - containerPort: 2380
+              name: etcd-peer
+            - containerPort: 2112
+              name: metrics
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 4000Mi
+            requests:
+              cpu: 1000m
+              memory: 4000Mi
+          volumeMounts:
+            - mountPath: /vanus/config
+              name: config-controller
+            - mountPath: /data
+              name: data
+        - args:
+            - --no-collector.wifi
+            - --no-collector.hwmon
+            - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
+            - --collector.netclass.ignored-devices=^(veth.*)$
+          image: prom/node-exporter
+          name: node-exporter
+          ports:
+            - containerPort: 9100
+              name: metrics
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 250m
+              memory: 180Mi
+            requests:
+              cpu: 102m
+              memory: 180Mi
       nodeSelector:
         type: storage
       volumes:
-      - configMap:
+        - configMap:
+            name: config-controller
           name: config-controller
-        name: config-controller
   volumeClaimTemplates:
-  - metadata:
-      labels:
-        app: vanus-controller
-      name: data
-    spec:
-      accessModes:
-      - ReadWriteOnce
-      resources:
-        requests:
-          storage: 20Gi
-      storageClassName: gp3
+    - metadata:
+        labels:
+          app: vanus-controller
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
+        storageClassName: gp3
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -740,74 +740,74 @@ spec:
         app: vanus-store
     spec:
       containers:
-      - command:
-        - /bin/sh
-        - -c
-        - VOLUME_ID=${HOSTNAME##*-} /vanus/bin/store
-        env:
-        - name: VANUS_LOG_LEVEL
-          value: INFO
-        - name: POD_IP
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
-        image: public.ecr.aws/vanus/store:3ebbdfe
-        imagePullPolicy: IfNotPresent
-        name: store
-        ports:
-        - containerPort: 11811
-          name: grpc
-        - containerPort: 2112
-          name: metrics
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 2000m
-            memory: 8000Mi
-          requests:
-            cpu: 2000m
-            memory: 8000Mi
-        volumeMounts:
-        - mountPath: /vanus/config
-          name: config-store
-        - mountPath: /data
-          name: data
-      - args:
-        - --no-collector.wifi
-        - --no-collector.hwmon
-        - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
-        - --collector.netclass.ignored-devices=^(veth.*)$
-        image: prom/node-exporter
-        name: node-exporter
-        ports:
-        - containerPort: 9100
-          name: metrics
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 250m
-            memory: 180Mi
-          requests:
-            cpu: 102m
-            memory: 180Mi
+        - command:
+            - /bin/sh
+            - -c
+            - VOLUME_ID=${HOSTNAME##*-} /vanus/bin/store
+          env:
+            - name: VANUS_LOG_LEVEL
+              value: INFO
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          image: public.ecr.aws/vanus/store:v0.8.0
+          imagePullPolicy: IfNotPresent
+          name: store
+          ports:
+            - containerPort: 11811
+              name: grpc
+            - containerPort: 2112
+              name: metrics
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 8000Mi
+            requests:
+              cpu: 2000m
+              memory: 8000Mi
+          volumeMounts:
+            - mountPath: /vanus/config
+              name: config-store
+            - mountPath: /data
+              name: data
+        - args:
+            - --no-collector.wifi
+            - --no-collector.hwmon
+            - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
+            - --collector.netclass.ignored-devices=^(veth.*)$
+          image: prom/node-exporter
+          name: node-exporter
+          ports:
+            - containerPort: 9100
+              name: metrics
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 250m
+              memory: 180Mi
+            requests:
+              cpu: 102m
+              memory: 180Mi
       nodeSelector:
         type: storage
       volumes:
-      - configMap:
+        - configMap:
+            name: config-store
           name: config-store
-        name: config-store
   volumeClaimTemplates:
-  - metadata:
-      labels:
-        app: vanus-store
-      name: data
-    spec:
-      accessModes:
-      - ReadWriteOnce
-      resources:
-        requests:
-          storage: 200Gi
-      storageClassName: gp3
+    - metadata:
+        labels:
+          app: vanus-store
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 200Gi
+        storageClassName: gp3
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -831,10 +831,14 @@ spec:
     spec:
       containers:
         - name: controller
-          image: public.ecr.aws/vanus/root-controller:v0.7.0
+          image: public.ecr.aws/vanus/root-controller:v0.8.0
           imagePullPolicy: IfNotPresent
           command:
-            [ "/bin/sh", "-c", "NODE_ID=${HOSTNAME##*-} /vanus/bin/root-controller" ]
+            [
+              "/bin/sh",
+              "-c",
+              "NODE_ID=${HOSTNAME##*-} /vanus/bin/root-controller",
+            ]
           ports:
             - name: grpc
               containerPort: 2021

@@ -64,7 +64,7 @@ spec:
   template:
     metadata:
       annotations:
-        prometheus.io/scrape: 'true'
+        prometheus.io/scrape: "true"
       labels:
         app: vanus-controller
     spec:
@@ -86,7 +86,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: public.ecr.aws/vanus/controller:6b23e5a
+          image: public.ecr.aws/vanus/controller:v0.8.0
           imagePullPolicy: IfNotPresent
           name: controller
           resources:

@@ -52,7 +52,7 @@ spec:
     spec:
       containers:
         - name: gateway
-          image: public.ecr.aws/vanus/gateway:v0.7.0
+          image: public.ecr.aws/vanus/gateway:v0.8.0
           imagePullPolicy: IfNotPresent
           ports:
             - name: proxy
