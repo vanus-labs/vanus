@@ -126,6 +126,9 @@ func IsDNS1123Subdomain(value string) bool {
 }
 
 func Error(err error) string {
+	if err == nil {
+		return ""
+	}
 	e, _ := errors.FromError(err)
 	if e.Message == "" {
 		return e.Description

@@ -67,16 +67,17 @@ func Is(err error, target error) bool {
 }
 
 func FromError(err error) (*ErrorType, bool) {
+	if err == nil {
+		return nil, true
+	}
 	if errType, ok := err.(*ErrorType); ok {
 		return errType, true
 	}
-
 	if errStatus, ok := status.FromError(err); ok {
 		if errType, ok := Convert(errStatus.Message()); ok {
 			return errType, true
 		}
 	}
-
 	return ErrUnknown.WithMessage(err.Error()), false
 }
 
