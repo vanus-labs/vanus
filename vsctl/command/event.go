@@ -103,6 +103,7 @@ func putEventCommand() *cobra.Command {
 			}
 		},
 	}
+	cmd.Flags().StringVar(&namespace, "namespace", "", "namespace name, default name is default")
 	cmd.Flags().StringVar(&id, "id", "", "event id of CloudEvent")
 	cmd.Flags().StringVar(&dataFormat, "data-format", "json",
 		"the format of event body, JSON or plain")
@@ -302,7 +303,7 @@ func sendFile(ctx context.Context, cmd *cobra.Command, ceClient v2.Client) {
 
 func getEventCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <eventbus-name or event-id> ",
+		Use:   "get <eventbus-name> ",
 		Short: "get a event from specified eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 && eventID == "" {
@@ -346,6 +347,7 @@ func getEventCommand() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&namespace, "namespace", "", "namespace name, default name is default")
 	cmd.Flags().Int64Var(&offset, "offset", 0, "which position you want to start get")
 	cmd.Flags().Int16Var(&number, "number", 1, "the number of event you want to get")
 	cmd.Flags().Uint64Var(&eventlogID, "eventlog", 0, "get events from a specified eventlog")
@@ -373,8 +375,9 @@ func queryEventCommand() *cobra.Command {
 					"RFC3339, like 2022-11-24T11:20:56+08:00."))
 			}
 			ctx := context.Background()
+			eventbusID := mustGetEventbusID(namespace, args[0]).Uint64()
 			res, err := client.LookupOffset(ctx, &proxypb.LookupOffsetRequest{
-				EventbusId: mustGetEventbusID(namespace, args[0]).Uint64(),
+				EventbusId: eventbusID,
 				EventlogId: eventlogID,
 				Timestamp:  t.UnixMilli(),
 			})
@@ -391,7 +394,7 @@ func queryEventCommand() *cobra.Command {
 				}
 				if v >= 0 {
 					res, err := client.GetEvent(ctx, &proxypb.GetEventRequest{
-						EventbusId: mustGetEventbusID(namespace, args[0]).Uint64(),
+						EventbusId: eventbusID,
 						EventlogId: k,
 						Offset:     v,
 						Number:     1,
@@ -429,6 +432,7 @@ func queryEventCommand() *cobra.Command {
 			}
 		},
 	}
+	cmd.Flags().StringVar(&namespace, "namespace", "", "namespace name, default name is default")
 	cmd.Flags().StringVar(&eventCreateTime, "time", "-",
 		"fuzzily query event by created time with RFC3339 format, like 2022-11-24T11:20:56+08:00.\n"+
 			"the first event its created time >= the specified time will be returned.\n"+

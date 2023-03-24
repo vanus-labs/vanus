@@ -87,6 +87,9 @@ const (
 	// ErrorCode_OTHERS 99xx
 	ErrorCode_RESOURCE_EXHAUSTED  ErrorCode = 9901
 	ErrorCode_RESOURCE_CAN_NOT_OP ErrorCode = 9902
+
+	ErrorCode_Unauthenticated  ErrorCode = 9910
+	ErrorCode_PermissionDenied ErrorCode = 9910
 )
 
 var (
@@ -162,4 +165,7 @@ var (
 
 	// RESOURCE_CAN_NOT_OP
 	ErrResourceCanNotOp = New("resource can not operation").WithGRPCCode(ErrorCode_RESOURCE_CAN_NOT_OP)
+
+	ErrUnauthenticated  = New("unauthenticated").WithGRPCCode(ErrorCode_Unauthenticated)
+	ErrPermissionDenied = New("permissionDenied").WithGRPCCode(ErrorCode_PermissionDenied)
 )

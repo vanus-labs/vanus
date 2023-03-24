@@ -17,8 +17,7 @@ package cluster
 
 import (
 	"context"
-	"errors"
-	errors2 "github.com/vanus-labs/vanus/pkg/errors"
+	stdErr "errors"
 	"strings"
 	"sync"
 	"time"
@@ -28,8 +27,9 @@ import (
 
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
+	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
-	"github.com/vanus-labs/vanus/proto/pkg/meta"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 )
 
 var defaultClusterStartTimeout = 3 * time.Minute
@@ -50,22 +50,23 @@ type Cluster interface {
 	EventlogService() EventlogService
 	TriggerService() TriggerService
 	IDService() IDService
+	AuthService() AuthService
 }
 
 type NamespaceService interface {
 	RawClient() ctrlpb.NamespaceControllerClient
-	GetSystemNamespace(ctx context.Context) (*meta.Namespace, error)
-	GetDefaultNamespace(ctx context.Context) (*meta.Namespace, error)
-	GetNamespace(ctx context.Context, id uint64) (*meta.Namespace, error)
-	GetNamespaceByName(ctx context.Context, name string) (*meta.Namespace, error)
+	GetSystemNamespace(ctx context.Context) (*metapb.Namespace, error)
+	GetDefaultNamespace(ctx context.Context) (*metapb.Namespace, error)
+	GetNamespace(ctx context.Context, id uint64) (*metapb.Namespace, error)
+	GetNamespaceByName(ctx context.Context, name string) (*metapb.Namespace, error)
 }
 
 type EventbusService interface {
-	CreateSystemEventbusIfNotExist(ctx context.Context, name string, desc string) (*meta.Eventbus, error)
+	CreateSystemEventbusIfNotExist(ctx context.Context, name string, desc string) (*metapb.Eventbus, error)
 	Delete(ctx context.Context, id uint64) error
-	GetSystemEventbusByName(ctx context.Context, name string) (*meta.Eventbus, error)
-	GetEventbus(ctx context.Context, id uint64) (*meta.Eventbus, error)
-	GetEventbusByName(ctx context.Context, ns, name string) (*meta.Eventbus, error)
+	GetSystemEventbusByName(ctx context.Context, name string) (*metapb.Eventbus, error)
+	GetEventbus(ctx context.Context, id uint64) (*metapb.Eventbus, error)
+	GetEventbusByName(ctx context.Context, ns, name string) (*metapb.Eventbus, error)
 	RawClient() ctrlpb.EventbusControllerClient
 }
 
@@ -75,6 +76,7 @@ type EventlogService interface {
 
 type TriggerService interface {
 	RawClient() ctrlpb.TriggerControllerClient
+	GetSubscription(ctx context.Context, id uint64) (*metapb.Subscription, error)
 	RegisterHeartbeat(ctx context.Context, interval time.Duration, reqFunc func() interface{}) error
 }
 
@@ -85,6 +87,12 @@ type IDService interface {
 type SegmentService interface {
 	RegisterHeartbeat(ctx context.Context, interval time.Duration, reqFunc func() interface{}) error
 	RawClient() ctrlpb.SegmentControllerClient
+}
+
+type AuthService interface {
+	RawClient() ctrlpb.AuthControllerClient
+	GetUserByToken(ctx context.Context, token string) (string, error)
+	GetUserRole(ctx context.Context, user string) ([]*metapb.UserRole, error)
 }
 
 var (
@@ -110,6 +118,7 @@ func NewClusterController(endpoints []string, credentials credentials.TransportC
 		elSvc:             newEventlogService(cc),
 		triggerSvc:        newTriggerService(cc),
 		idSvc:             newIDService(cc),
+		authSvc:           newAuthService(cc),
 		ping:              raw_client.NewPingClient(cc),
 		controllerAddress: endpoints,
 	}
@@ -127,6 +136,7 @@ type cluster struct {
 	idSvc             IDService
 	segmentSvc        SegmentService
 	ping              ctrlpb.PingServerClient
+	authSvc           AuthService
 }
 
 func (c *cluster) WaitForControllerReady(createEventbus bool) error {
@@ -137,7 +147,7 @@ func (c *cluster) WaitForControllerReady(createEventbus bool) error {
 	for !c.IsReady(createEventbus) {
 		select {
 		case <-t.C:
-			return errors.New("cluster isn't ready")
+			return stdErr.New("cluster isn't ready")
 		default:
 			time.Sleep(time.Second)
 		}
@@ -152,7 +162,7 @@ func (c *cluster) WaitForControllerReady(createEventbus bool) error {
 func (c *cluster) IsReady(createEventbus bool) bool {
 	res, err := c.ping.Ping(context.Background(), &emptypb.Empty{})
 	if err != nil {
-		if !errors.Is(err, errors2.ErrNotLeader) {
+		if !stdErr.Is(err, errors.ErrNotLeader) {
 			log.Warning(context.Background(), "failed to ping controller", map[string]interface{}{
 				log.KeyError: err,
 			})
@@ -192,4 +202,8 @@ func (c *cluster) TriggerService() TriggerService {
 
 func (c *cluster) IDService() IDService {
 	return c.idSvc
+}
+
+func (c *cluster) AuthService() AuthService {
+	return c.authSvc
 }

@@ -41,6 +41,7 @@ const (
 	namespace = "/vanus/core/tenant/namespaces"
 	user      = "/vanus/core/tenant/users"
 	userRole  = "/vanus/core/tenants/user_role"
+	userToken = "/vanus/core/tenant/tokens" //nolint:gosec // ok
 )
 
 func DistributedLockKey(component string) string {
@@ -67,6 +68,18 @@ func UserKey(identifier string) string {
 	return path.Join(user, identifier)
 }
 
-func UserRoleKey(identifier string, roleID vanus.ID) string {
-	return path.Join(userRole, identifier, roleID.Key())
+func UserTokenAllKey() string {
+	return userToken
+}
+
+func UserTokenKey(id vanus.ID) string {
+	return path.Join(userToken, id.Key())
+}
+
+func UserRoleAllKey() string {
+	return userRole
+}
+
+func UserRoleKey(identifier, role string) string {
+	return path.Join(userRole, identifier, role)
 }

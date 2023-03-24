@@ -5,6 +5,7 @@ import (
 	"time"
 
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
 	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
 )
@@ -23,4 +24,8 @@ func (es *triggerService) RawClient() ctrlpb.TriggerControllerClient {
 
 func (es *triggerService) RegisterHeartbeat(ctx context.Context, interval time.Duration, reqFunc func() interface{}) error {
 	return raw_client.RegisterHeartbeat(ctx, interval, es.client, reqFunc)
+}
+
+func (es *triggerService) GetSubscription(ctx context.Context, id uint64) (*metapb.Subscription, error) {
+	return es.client.GetSubscription(ctx, &ctrlpb.GetSubscriptionRequest{Id: id})
 }

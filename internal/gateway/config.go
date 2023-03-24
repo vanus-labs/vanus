@@ -18,6 +18,7 @@ import (
 	// third-party libraries.
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/vanus-labs/vanus/internal/gateway/auth"
 	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability"
 
@@ -37,6 +38,11 @@ type Config struct {
 	Observability        observability.Config `yaml:"observability"`
 	ControllerAddr       []string             `yaml:"controllers"`
 	GRPCReflectionEnable bool                 `yaml:"grpc_reflection_enable"`
+	Auth                 Auth                 `yaml:"auth"`
+}
+
+type Auth struct {
+	Disable bool `yaml:"disable"`
 }
 
 func (c Config) GetProxyConfig() proxy.Config {
@@ -53,6 +59,11 @@ func (c Config) GetProxyConfig() proxy.Config {
 	}
 	if cfg.SinkPort == 0 {
 		cfg.SinkPort = defaultSinkPort
+	}
+	cfg.AuthCfg = auth.Config{
+		Disable:          c.Auth.Disable,
+		OpenSubscription: false,
+		OpenEventbus:     false,
 	}
 	return cfg
 }

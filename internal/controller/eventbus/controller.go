@@ -26,6 +26,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/eventlog"
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/server"
@@ -42,11 +48,6 @@ import (
 	"github.com/vanus-labs/vanus/pkg/util"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 var (
@@ -310,14 +311,14 @@ func (ctrl *controller) DeleteEventbus(ctx context.Context, eb *wrapperspb.UInt6
 	ctrl.mutex.Lock()
 	defer ctrl.mutex.Unlock()
 	eventbusID := vanus.NewIDFromUint64(eb.GetValue())
-	err := ctrl.deleteEventbus(ctx, eventbusID)
+	err := ctrl.deleteEventbus(ctx, eventbusID, false)
 	if err != nil {
 		return nil, err
 	}
 	// TODO async delete
 	// delete dead letter eventbus
 	deadLetterEventbusID := ctrl.getDeadLetterEventbusID(ctx, eventbusID)
-	err = ctrl.deleteEventbus(context.Background(), deadLetterEventbusID)
+	err = ctrl.deleteEventbus(context.Background(), deadLetterEventbusID, true)
 	if err != nil {
 		log.Error(context.Background(), "delete dead letter eventbus error", map[string]interface{}{
 			log.KeyError:      err,
@@ -327,10 +328,13 @@ func (ctrl *controller) DeleteEventbus(ctx context.Context, eb *wrapperspb.UInt6
 	return &emptypb.Empty{}, nil
 }
 
-func (ctrl *controller) deleteEventbus(ctx context.Context, id vanus.ID) error {
+func (ctrl *controller) deleteEventbus(ctx context.Context, id vanus.ID, system bool) error {
 	bus, exist := ctrl.eventbusMap[id]
 	if !exist {
 		return errors.ErrResourceNotFound.WithMessage("the eventbus doesn't exist")
+	}
+	if !system && strings.HasPrefix(bus.Name, primitive.SystemEventbusNamePrefix) {
+		return errors.ErrResourceCanNotOp.WithMessage("system eventbus can't delete")
 	}
 	err := ctrl.kvStore.Delete(ctx, metadata.GetEventbusMetadataKey(id))
 	if err != nil {
@@ -376,11 +380,14 @@ func (ctrl *controller) getEventbus(id vanus.ID) (*metapb.Eventbus, error) {
 }
 
 func (ctrl *controller) ListEventbus(ctx context.Context,
-	_ *ctrlpb.ListEventbusRequest,
+	req *ctrlpb.ListEventbusRequest,
 ) (*ctrlpb.ListEventbusResponse, error) {
 	eventbusList := make([]*metapb.Eventbus, 0)
 	for _, v := range ctrl.eventbusMap {
 		if strings.HasPrefix(v.Name, primitive.SystemEventbusNamePrefix) {
+			continue
+		}
+		if req.NamespaceId != 0 && req.NamespaceId != v.NamespaceID {
 			continue
 		}
 		ebMD := metadata.Convert2ProtoEventbus(v)[0]

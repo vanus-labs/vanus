@@ -29,6 +29,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/pkg/grpc_credentials"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
 )
@@ -106,6 +107,7 @@ type GlobalFlags struct {
 	Debug            bool
 	ConfigFile       string
 	Format           string
+	Token            string
 }
 
 var (
@@ -118,9 +120,14 @@ func InitGatewayClient(cmd *cobra.Command) {
 	if err != nil {
 		cmdFailedf(cmd, "get gateway endpoint failed: %s", err)
 	}
+	token, err := cmd.Flags().GetString("token")
+	if err != nil {
+		cmdFailedf(cmd, "get token failed: %s", err)
+	}
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(grpc_credentials.NewVanusPerRPCCredentials(token)),
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -184,6 +191,10 @@ func mustGetEventbusID(namespace, name string) vanus.ID {
 }
 
 func mustGetNamespaceID(namespace string) vanus.ID {
+	if namespace == "" {
+		namespace = "default"
+		color.Green("the namespace not specified, using [default] namespace")
+	}
 	eb, err := client.GetNamespaceWithHumanFriendly(context.Background(), wrapperspb.String(namespace))
 	if err != nil {
 		color.Red("failed to query namespace id: %s", Error(err))

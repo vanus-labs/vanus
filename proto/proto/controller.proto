@@ -84,6 +84,24 @@ service SnowflakeController {
   rpc UnregisterNode(google.protobuf.UInt32Value) returns (google.protobuf.Empty);
 }
 
+service AuthController{
+  rpc CreateUser(CreateUserRequest) returns (meta.User);
+  rpc DeleteUser(google.protobuf.StringValue) returns (google.protobuf.Empty);
+  rpc GetUser(google.protobuf.StringValue) returns (meta.User);
+  rpc ListUser(google.protobuf.Empty) returns (ListUserResponse);
+  rpc GetUserByToken(google.protobuf.StringValue) returns (google.protobuf.StringValue);
+  rpc CreateToken(CreateTokenRequest) returns (meta.Token);
+  rpc DeleteToken(DeleteTokenRequest) returns (google.protobuf.Empty);
+  rpc GetToken(google.protobuf.UInt64Value) returns (meta.Token);
+  rpc GetUserToken(google.protobuf.StringValue) returns (GetTokenResponse);
+  rpc ListToken(google.protobuf.Empty) returns (ListTokenResponse);
+
+  rpc GrantRole(RoleRequest) returns (google.protobuf.Empty);
+  rpc RevokeRole(RoleRequest) returns (google.protobuf.Empty);
+  rpc GetUserRole(GetUserRoleRequest) returns (GetUserRoleResponse);
+  rpc GetResourceRole(GetResourceRoleRequest) returns (GetResourceRoleResponse);
+}
+
 message PingResponse {
   string leader_addr = 1;
   string gateway_addr = 2;
@@ -302,4 +320,61 @@ message GetAppendableSegmentRequest {
 
 message GetAppendableSegmentResponse {
   repeated meta.Segment segments = 3;
+}
+
+message CreateUserRequest {
+  string identifier = 1;
+  string description = 2;
+}
+
+message DeleteUserResponse{
+  string identifier = 1;
+}
+
+message ListUserResponse{
+  repeated meta.User users = 1;
+}
+
+message CreateTokenRequest{
+  string user_identifier = 1;
+  string description = 2;
+}
+
+message DeleteTokenRequest{
+  uint64 id = 1;
+}
+
+message GetTokenResponse{
+  repeated meta.Token token = 1;
+}
+
+message ListTokenResponse{
+  repeated meta.Token token = 1;
+}
+
+message RoleRequest {
+  string user_identifier = 1;
+  // for custom defined role
+  string role_id = 2;
+  // for built-in role
+  string role_name = 3;
+  uint64 resource_id = 4;
+  string resource_kind = 5;
+}
+
+message GetUserRoleRequest{
+  string user_identifier = 1;
+}
+
+message GetUserRoleResponse{
+  repeated meta.UserRole user_role = 1;
+}
+
+message GetResourceRoleRequest{
+  uint64 id = 1;
+  string kind = 2;
+}
+
+message GetResourceRoleResponse{
+  repeated meta.ResourceRole resource_role = 1;
 }

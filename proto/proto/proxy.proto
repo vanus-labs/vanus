@@ -57,6 +57,24 @@ service ControllerProxy {
 
   // multiple tenant
   rpc GetNamespaceWithHumanFriendly(google.protobuf.StringValue) returns (meta.Namespace);
+  rpc CreateNamespace(controller.CreateNamespaceRequest) returns (meta.Namespace);
+  rpc ListNamespace(google.protobuf.Empty) returns (controller.ListNamespaceResponse);
+  rpc GetNamespace(controller.GetNamespaceRequest) returns (meta.Namespace);
+  rpc DeleteNamespace(controller.DeleteNamespaceRequest) returns (google.protobuf.Empty);
+
+  rpc CreateUser(controller.CreateUserRequest) returns (meta.User);
+  rpc DeleteUser(google.protobuf.StringValue) returns (google.protobuf.Empty);
+  rpc GetUser(google.protobuf.StringValue) returns (meta.User);
+  rpc ListUser(google.protobuf.Empty) returns (controller.ListUserResponse);
+  rpc CreateToken(controller.CreateTokenRequest) returns (meta.Token);
+  rpc DeleteToken(controller.DeleteTokenRequest) returns (google.protobuf.Empty);
+  rpc GetUserToken(google.protobuf.StringValue) returns (controller.GetTokenResponse);
+  rpc ListToken(google.protobuf.Empty) returns (controller.ListTokenResponse);
+
+  rpc GrantRole(controller.RoleRequest) returns (google.protobuf.Empty);
+  rpc RevokeRole(controller.RoleRequest) returns (google.protobuf.Empty);
+  rpc GetUserRole(controller.GetUserRoleRequest) returns (controller.GetUserRoleResponse);
+  rpc GetResourceRole(controller.GetResourceRoleRequest) returns (controller.GetResourceRoleResponse);
 }
 
 message LookupOffsetRequest {

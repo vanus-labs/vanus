@@ -16,6 +16,8 @@ package convert
 
 import (
 	"github.com/vanus-labs/vanus/internal/controller/tenant/metadata"
+	"github.com/vanus-labs/vanus/internal/primitive/authorization"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
@@ -36,6 +38,62 @@ func ToPbNamespace(ns *metadata.Namespace) *metapb.Namespace {
 		Description: ns.Description,
 		CreatedAt:   ns.CreatedAt.UnixMilli(),
 		UpdatedAt:   ns.UpdatedAt.UnixMilli(),
+	}
+	return to
+}
+
+func ToPbUser(from *metadata.User) *metapb.User {
+	to := &metapb.User{
+		Identifier:  from.Identifier,
+		Description: from.Description,
+		CreatedAt:   from.CreatedAt.UnixMilli(),
+		UpdatedAt:   from.UpdatedAt.UnixMilli(),
+	}
+	return to
+}
+
+func ToPbToken(token *metadata.Token) *metapb.Token {
+	to := &metapb.Token{
+		Id:             token.ID.Uint64(),
+		Token:          token.Token,
+		UserIdentifier: token.UserIdentifier,
+		CreatedAt:      token.CreatedAt.UnixMilli(),
+		UpdatedAt:      token.UpdatedAt.UnixMilli(),
+	}
+	return to
+}
+
+func FromPbRoleRequest(from *ctrlpb.RoleRequest) *metadata.UserRole {
+	to := &metadata.UserRole{
+		UserIdentifier: from.UserIdentifier,
+		RoleID:         from.RoleId,
+		Role:           authorization.Role(from.RoleName),
+		ResourceKind:   authorization.ResourceKind(from.ResourceKind),
+		ResourceID:     vanus.NewIDFromUint64(from.ResourceId),
+	}
+	return to
+}
+
+func ToPbUserRole(from *metadata.UserRole) *metapb.UserRole {
+	to := &metapb.UserRole{
+		UserIdentifier: from.UserIdentifier,
+		RoleName:       string(from.Role),
+		ResourceKind:   string(from.ResourceKind),
+		ResourceId:     from.ResourceID.Uint64(),
+		BuiltIn:        from.BuiltIn(),
+		CreatedAt:      from.CreatedAt.UnixMilli(),
+	}
+	return to
+}
+
+func ToPbResourceRole(from *metadata.UserRole) *metapb.ResourceRole {
+	to := &metapb.ResourceRole{
+		UserIdentifier: from.UserIdentifier,
+		RoleName:       string(from.Role),
+		ResourceKind:   string(from.ResourceKind),
+		ResourceId:     from.ResourceID.Uint64(),
+		BuiltIn:        from.BuiltIn(),
+		CreatedAt:      from.CreatedAt.UnixMilli(),
 	}
 	return to
 }

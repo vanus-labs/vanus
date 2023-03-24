@@ -27,7 +27,6 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
@@ -59,32 +58,34 @@ func createEventbusCommand() *cobra.Command {
 			if eventbus == "" {
 				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
-			_, err := client.CreateEventbus(context.Background(), &ctrlpb.CreateEventbusRequest{
+			eb, err := client.CreateEventbus(context.Background(), &ctrlpb.CreateEventbusRequest{
 				Name:        eventbus,
 				LogNumber:   eventlogNum,
 				Description: description,
-				NamespaceId: mustGetNamespaceID(primitive.DefaultNamespace).Uint64(),
+				NamespaceId: mustGetNamespaceID(namespace).Uint64(),
 			})
 			if err != nil {
 				cmdFailedf(cmd, "create eventbus failed: %s", Error(err))
 			}
 			if IsFormatJSON(cmd) {
-				data, _ := json.Marshal(map[string]interface{}{"Result": "Create Success", "EventbusService": eventbus})
+				data, _ := json.Marshal(map[string]interface{}{"Result": "Create Success", "ID": formatID(eb.Id), "Name": eventbus})
 				color.Green(string(data))
 			} else {
 				t := table.NewWriter()
-				t.AppendHeader(table.Row{"Result", "EventbusService"})
-				t.AppendRow(table.Row{"Success to create eventbus into [ default ] namespace", eventbus})
+				t.AppendHeader(table.Row{"Result", "ID", "Name"})
+				t.AppendRow(table.Row{"Success to create eventbus into [ default ] namespace", formatID(eb.Id), eventbus})
 				t.SetColumnConfigs([]table.ColumnConfig{
 					{Number: 1, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 					{Number: 2, AlignHeader: text.AlignCenter},
+					{Number: 3, AlignHeader: text.AlignCenter},
 				})
 				t.SetOutputMirror(os.Stdout)
 				t.Render()
 			}
 		},
 	}
-	cmd.Flags().StringVar(&eventbus, "name", "", "eventbus name to deleting")
+	cmd.Flags().StringVar(&namespace, "namespace", "", "namespace name to create eventbus, default name is default")
+	cmd.Flags().StringVar(&eventbus, "name", "", "eventbus name to create")
 	cmd.Flags().Int32Var(&eventlogNum, "eventlog", 1, "number of eventlog")
 	cmd.Flags().StringVar(&description, "description", "", "subscription description")
 	return cmd
@@ -92,7 +93,7 @@ func createEventbusCommand() *cobra.Command {
 
 func deleteEventbusCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <eventbus-name> ",
+		Use:   "delete",
 		Short: "delete a eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
 			if eventbus == "" {
@@ -120,6 +121,7 @@ func deleteEventbusCommand() *cobra.Command {
 			}
 		},
 	}
+	cmd.Flags().StringVar(&namespace, "namespace", "", "namespace name, default name is default")
 	cmd.Flags().StringVar(&eventbus, "name", "", "eventbus name to deleting")
 	return cmd
 }
@@ -161,13 +163,15 @@ func getEventbusInfoCommand() *cobra.Command {
 			}
 			if !showSegment && !showBlock {
 				t.AppendHeader(table.Row{
-					"EventbusService", "Description", "Created_At", "Updated_At",
+					"id", "Name", "Namespace", "Description", "Created_At", "Updated_At",
 					"Eventlog", "Segment Number",
 				})
 				for idx := 0; idx < len(res.Logs); idx++ {
 					if idx == 0 {
 						t.AppendRow(table.Row{
+							formatID(res.Id),
 							res.Name,
+							formatID(res.NamespaceId),
 							res.Description,
 							time.UnixMilli(res.CreatedAt).Format(time.RFC3339),
 							time.UnixMilli(res.UpdatedAt).Format(time.RFC3339),
@@ -187,14 +191,17 @@ func getEventbusInfoCommand() *cobra.Command {
 			} else {
 				if !showBlock {
 					t.AppendHeader(table.Row{
-						"EventbusService", "Description", "Created_At", "Updated_At",
+						"id", "Name", "Namespace", "Description", "Created_At", "Updated_At",
 						"Eventlog", "Segment", "Capacity", "Size", "Start", "End",
 					})
 					for idx := 0; idx < len(res.Logs); idx++ {
 						segOfEL := segs[res.Logs[idx].EventlogId]
 						for _, v := range segOfEL {
 							t.AppendRow(table.Row{
-								res.Name, res.Description,
+								formatID(res.Id),
+								res.Name,
+								formatID(res.NamespaceId),
+								res.Description,
 								time.UnixMilli(res.CreatedAt).Format(time.RFC3339),
 								time.UnixMilli(res.UpdatedAt).Format(time.RFC3339),
 								formatID(res.Logs[idx].EventlogId), formatID(v.Id),
@@ -225,7 +232,7 @@ func getEventbusInfoCommand() *cobra.Command {
 					t.SetColumnConfigs(cfgs)
 				} else {
 					t.AppendHeader(table.Row{
-						"EventbusService", "Description", "Created_At", "Updated_At", "Eventlog",
+						"id", "Name", "Namespace", "Description", "Namespace", "Created_At", "Updated_At", "Eventlog",
 						"Segment", "Capacity", "Size", "Start", "End", "Block", "Leader", "Volume", "Endpoint",
 					})
 					multiReplica := false
@@ -245,7 +252,10 @@ func getEventbusInfoCommand() *cobra.Command {
 							for _, k := range vols {
 								blk := volMap[k]
 								t.AppendRow(table.Row{
-									res.Name, res.Description,
+									formatID(res.Id),
+									res.Name,
+									formatID(res.NamespaceId),
+									res.Description,
 									time.UnixMilli(res.CreatedAt).Format(time.RFC3339),
 									time.UnixMilli(res.UpdatedAt).Format(
 										time.RFC3339), formatID(res.Logs[idx].EventlogId),
@@ -299,6 +309,7 @@ func getEventbusInfoCommand() *cobra.Command {
 			t.Render()
 		},
 	}
+	cmd.Flags().StringVar(&namespace, "namespace", "", "namespace name, default name is default")
 	cmd.Flags().StringVar(&eventbus, "eventbus", "", "eventbus to show, use , to separate")
 	cmd.Flags().BoolVar(&showSegment, "segment", false, "if show all segment of eventlog")
 	cmd.Flags().BoolVar(&showBlock, "block", false, "if show all block of segment")
@@ -310,7 +321,11 @@ func listEventbusInfoCommand() *cobra.Command {
 		Use:   "list",
 		Short: "list the eventbus",
 		Run: func(cmd *cobra.Command, args []string) {
-			res, err := client.ListEventbus(context.Background(), &ctrlpb.ListEventbusRequest{})
+			var nsID vanus.ID
+			if !all || namespace != "" {
+				nsID = mustGetNamespaceID(namespace)
+			}
+			res, err := client.ListEventbus(context.Background(), &ctrlpb.ListEventbusRequest{NamespaceId: nsID.Uint64()})
 			if err != nil {
 				cmdFailedf(cmd, "list eventbus failed: %s", Error(err))
 			}
@@ -320,14 +335,16 @@ func listEventbusInfoCommand() *cobra.Command {
 			} else {
 				t := table.NewWriter()
 				t.AppendHeader(table.Row{
-					"Name", "Description", "Created_At",
+					"id", "Name", "Namespace", "Description", "Created_At",
 					"Updated_At", "Eventlog Number",
 				})
 				for idx := range res.Eventbus {
 					eb := res.Eventbus[idx]
 					t.AppendSeparator()
 					t.AppendRow(table.Row{
+						formatID(eb.Id),
 						eb.Name,
+						formatID(eb.NamespaceId),
 						eb.Description,
 						time.UnixMilli(eb.CreatedAt).Format(time.RFC3339),
 						time.UnixMilli(eb.UpdatedAt).Format(time.RFC3339),
@@ -344,6 +361,8 @@ func listEventbusInfoCommand() *cobra.Command {
 			}
 		},
 	}
+	cmd.Flags().StringVar(&namespace, "namespace", "", "namespace name, default name is default")
+	cmd.Flags().BoolVarP(&all, "all", "A", false, "list all namespace eventbus")
 	return cmd
 }
 
@@ -354,9 +373,6 @@ func eventbusColConfigs() []table.ColumnConfig {
 		{Number: 3, AutoMerge: true, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 		{Number: 4, AutoMerge: true, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 		{Number: 5, AutoMerge: true, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
+		{Number: 5, AutoMerge: true, VAlign: text.VAlignMiddle, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 	}
-}
-
-func formatID(id uint64) string {
-	return vanus.NewIDFromUint64(id).String()
 }
