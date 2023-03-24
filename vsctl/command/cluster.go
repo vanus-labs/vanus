@@ -33,7 +33,10 @@ import (
 )
 
 const (
-	DefaultInitialVersion = "v0.7.0"
+	DefaultInitialVersion    = "v0.7.0"
+	DefaultImagePullPolicy   = "Always"
+	DefaultResourceLimitsCpu = "500m"
+	DefaultResourceLimitsMem = "1Gi"
 )
 
 var (
@@ -66,13 +69,14 @@ type ClusterOKBody struct {
 }
 
 type ClusterSpec struct {
-	Version    *string     `yaml:"version"`
-	Etcd       *Etcd       `yaml:"etcd"`
-	Controller *Controller `yaml:"controller"`
-	Store      *Store      `yaml:"store"`
-	Gateway    *Gateway    `yaml:"gateway"`
-	Trigger    *Trigger    `yaml:"trigger"`
-	Timer      *Timer      `yaml:"timer"`
+	Version         *string     `yaml:"version"`
+	ImagePullPolicy *string     `yaml:"image_pull_policy"`
+	Etcd            *Etcd       `yaml:"etcd"`
+	Controller      *Controller `yaml:"controller"`
+	Store           *Store      `yaml:"store"`
+	Gateway         *Gateway    `yaml:"gateway"`
+	Trigger         *Trigger    `yaml:"trigger"`
+	Timer           *Timer      `yaml:"timer"`
 }
 
 type Etcd struct {
@@ -80,33 +84,39 @@ type Etcd struct {
 	Replicas     *int32     `yaml:"replicas"`
 	StorageSize  *string    `yaml:"storage_size"`
 	StorageClass *string    `yaml:"storage_class"`
+	Resources    *Resources `yaml:"resources"`
 }
 
 type Controller struct {
 	Ports           *ControllerPorts `yaml:"ports"`
 	Replicas        *int32           `yaml:"replicas"`
 	SegmentCapacity *string          `yaml:"segment_capacity"`
+	Resources       *Resources       `yaml:"resources"`
 }
 
 type Store struct {
-	Replicas     *int32  `yaml:"replicas"`
-	StorageSize  *string `yaml:"storage_size"`
-	StorageClass *string `yaml:"storage_class"`
+	Replicas     *int32     `yaml:"replicas"`
+	StorageSize  *string    `yaml:"storage_size"`
+	StorageClass *string    `yaml:"storage_class"`
+	Resources    *Resources `yaml:"resources"`
 }
 
 type Gateway struct {
 	Ports     *GatewayPorts     `yaml:"ports"`
 	NodePorts *GatewayNodePorts `yaml:"nodeports"`
 	Replicas  *int32            `yaml:"replicas"`
+	Resources *Resources        `yaml:"resources"`
 }
 
 type Trigger struct {
-	Replicas *int32 `yaml:"replicas"`
+	Replicas  *int32     `yaml:"replicas"`
+	Resources *Resources `yaml:"resources"`
 }
 
 type Timer struct {
 	Replicas    *int32       `yaml:"replicas"`
 	TimingWheel *TimingWheel `yaml:"timingwheel"`
+	Resources   *Resources   `yaml:"resources"`
 }
 
 type EtcdPorts struct {
@@ -134,6 +144,11 @@ type TimingWheel struct {
 	Tick   *int32 `yaml:"tick"`
 	Size   *int32 `yaml:"wheel_size"`
 	Layers *int32 `yaml:"layers"`
+}
+
+type Resources struct {
+	LimitsCpu *string `yaml:"limits_cpu"`
+	LimitsMem *string `yaml:"limits_mem"`
 }
 
 func NewClusterCommand() *cobra.Command {
@@ -788,6 +803,8 @@ func genClusterCommand() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			template := bytes.Buffer{}
 			template.WriteString(fmt.Sprintf("version: %s\n", DefaultInitialVersion))
+			template.WriteString("# Image pull policy, one of Always, Never, IfNotPresent. Defaults to Always.\n")
+			template.WriteString(fmt.Sprintf("# image_pull_policy: %s\n", DefaultImagePullPolicy))
 			template.WriteString("etcd:\n")
 			template.WriteString("  # etcd service ports\n")
 			template.WriteString("  ports:\n")
@@ -799,6 +816,9 @@ func genClusterCommand() *cobra.Command {
 			template.WriteString("  storage_size: 10Gi\n")
 			template.WriteString("  # specify the pvc storageclass of the etcd, use the cluster default storageclass by default\n")
 			template.WriteString("  # storage_class: gp3\n")
+			template.WriteString("  # resources:\n")
+			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCpu))
+			template.WriteString(fmt.Sprintf("    # limits_mem: %s\n", DefaultResourceLimitsMem))
 			template.WriteString("controller:\n")
 			template.WriteString("  # controller service ports\n")
 			template.WriteString("  ports:\n")
@@ -808,12 +828,18 @@ func genClusterCommand() *cobra.Command {
 			template.WriteString("  replicas: 2\n")
 			template.WriteString("  # segment capacity is 64Mi by default, supports both Gi and Mi units\n")
 			template.WriteString("  segment_capacity: 64Mi\n")
+			template.WriteString("  # resources:\n")
+			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCpu))
+			template.WriteString(fmt.Sprintf("    # limits_mem: %s\n", DefaultResourceLimitsMem))
 			template.WriteString("store:\n")
 			template.WriteString("  replicas: 3\n")
 			template.WriteString("  # store storage size is 10Gi by default, supports both Gi and Mi units\n")
 			template.WriteString("  storage_size: 10Gi\n")
 			template.WriteString("  # specify the pvc storageclass of the store, use the cluster default storageclass by default\n")
 			template.WriteString("  # storage_class: io2\n")
+			template.WriteString("  # resources:\n")
+			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCpu))
+			template.WriteString(fmt.Sprintf("    # limits_mem: %s\n", DefaultResourceLimitsMem))
 			template.WriteString("gateway:\n")
 			template.WriteString("  # gateway service ports\n")
 			template.WriteString("  # gateway.ports.cloudevents specify the cloudevents port, the default value is gateway.ports.proxy+1 and customization is not supported\n")
@@ -825,8 +851,14 @@ func genClusterCommand() *cobra.Command {
 			template.WriteString("    cloudevents: 30002\n")
 			template.WriteString("  # gateway replicas is 1 by default, modification not supported\n")
 			template.WriteString("  replicas: 1\n")
+			template.WriteString("  # resources:\n")
+			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCpu))
+			template.WriteString(fmt.Sprintf("    # limits_mem: %s\n", DefaultResourceLimitsMem))
 			template.WriteString("trigger:\n")
 			template.WriteString("  replicas: 1\n")
+			template.WriteString("  # resources:\n")
+			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCpu))
+			template.WriteString(fmt.Sprintf("    # limits_mem: %s\n", DefaultResourceLimitsMem))
 			template.WriteString("timer:\n")
 			template.WriteString("  # timer replicas is 2 by default, modification not supported\n")
 			template.WriteString("  replicas: 2\n")
@@ -834,6 +866,9 @@ func genClusterCommand() *cobra.Command {
 			template.WriteString("    tick: 1\n")
 			template.WriteString("    wheel_size: 32\n")
 			template.WriteString("    layers: 4\n")
+			template.WriteString("  # resources:\n")
+			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCpu))
+			template.WriteString(fmt.Sprintf("    # limits_mem: %s\n", DefaultResourceLimitsMem))
 			fileName := "cluster.yaml.example"
 			err := ioutil.WriteFile(fileName, template.Bytes(), 0o644)
 			if err != nil {
@@ -915,6 +950,9 @@ func clusterIsVaild(c *ClusterSpec) bool {
 
 func genClusterAnnotations(c *ClusterSpec) map[string]string {
 	annotations := make(map[string]string)
+	if c.ImagePullPolicy != nil {
+		annotations[CoreComponentImagePullPolicyAnnotation] = *c.ImagePullPolicy
+	}
 	// Etcd
 	annotations[CoreComponentEtcdReplicasAnnotation] = fmt.Sprintf("%d", *c.Etcd.Replicas)
 	annotations[CoreComponentEtcdStorageSizeAnnotation] = *c.Etcd.StorageSize
@@ -923,26 +961,74 @@ func genClusterAnnotations(c *ClusterSpec) map[string]string {
 	if c.Etcd.StorageClass != nil {
 		annotations[CoreComponentEtcdStorageClassAnnotation] = *c.Etcd.StorageClass
 	}
+	if c.Etcd.Resources != nil {
+		if c.Etcd.Resources.LimitsCpu != nil {
+			annotations[CoreComponentEtcdResourceLimitsCpuAnnotation] = *c.Etcd.Resources.LimitsCpu
+		}
+		if c.Etcd.Resources.LimitsMem != nil {
+			annotations[CoreComponentEtcdResourceLimitsMemAnnotation] = *c.Etcd.Resources.LimitsMem
+		}
+	}
 	// Controller
 	annotations[CoreComponentControllerSvcPortAnnotation] = fmt.Sprintf("%d", *c.Controller.Ports.Controller)
 	annotations[CoreComponentRootControllerSvcPortAnnotation] = fmt.Sprintf("%d", *c.Controller.Ports.RootController)
 	annotations[CoreComponentControllerSegmentCapacityAnnotation] = *c.Controller.SegmentCapacity
+	if c.Controller.Resources != nil {
+		if c.Controller.Resources.LimitsCpu != nil {
+			annotations[CoreComponentControllerResourceLimitsCpuAnnotation] = *c.Controller.Resources.LimitsCpu
+		}
+		if c.Controller.Resources.LimitsMem != nil {
+			annotations[CoreComponentControllerResourceLimitsMemAnnotation] = *c.Controller.Resources.LimitsMem
+		}
+	}
 	// Store
 	annotations[CoreComponentStoreReplicasAnnotation] = fmt.Sprintf("%d", *c.Store.Replicas)
 	annotations[CoreComponentStoreStorageSizeAnnotation] = *c.Store.StorageSize
 	if c.Store.StorageClass != nil {
 		annotations[CoreComponentStoreStorageClassAnnotation] = *c.Store.StorageClass
 	}
+	if c.Store.Resources != nil {
+		if c.Store.Resources.LimitsCpu != nil {
+			annotations[CoreComponentStoreResourceLimitsCpuAnnotation] = *c.Store.Resources.LimitsCpu
+		}
+		if c.Store.Resources.LimitsMem != nil {
+			annotations[CoreComponentStoreResourceLimitsMemAnnotation] = *c.Store.Resources.LimitsMem
+		}
+	}
 	// Gateway
 	annotations[CoreComponentGatewayPortProxyAnnotation] = fmt.Sprintf("%d", *c.Gateway.Ports.Proxy)
 	annotations[CoreComponentGatewayPortCloudEventsAnnotation] = fmt.Sprintf("%d", *c.Gateway.Ports.CloudEvents)
 	annotations[CoreComponentGatewayNodePortProxyAnnotation] = fmt.Sprintf("%d", *c.Gateway.NodePorts.Proxy)
 	annotations[CoreComponentGatewayNodePortCloudEventsAnnotation] = fmt.Sprintf("%d", *c.Gateway.NodePorts.CloudEvents)
+	if c.Gateway.Resources != nil {
+		if c.Gateway.Resources.LimitsCpu != nil {
+			annotations[CoreComponentGatewayResourceLimitsCpuAnnotation] = *c.Gateway.Resources.LimitsCpu
+		}
+		if c.Gateway.Resources.LimitsMem != nil {
+			annotations[CoreComponentGatewayResourceLimitsMemAnnotation] = *c.Gateway.Resources.LimitsMem
+		}
+	}
 	// Trigger
 	annotations[CoreComponentTriggerReplicasAnnotation] = fmt.Sprintf("%d", *c.Trigger.Replicas)
+	if c.Trigger.Resources != nil {
+		if c.Trigger.Resources.LimitsCpu != nil {
+			annotations[CoreComponentTriggerResourceLimitsCpuAnnotation] = *c.Trigger.Resources.LimitsCpu
+		}
+		if c.Trigger.Resources.LimitsMem != nil {
+			annotations[CoreComponentTriggerResourceLimitsMemAnnotation] = *c.Trigger.Resources.LimitsMem
+		}
+	}
 	// Timer
 	annotations[CoreComponentTimerTimingWheelTickAnnotation] = fmt.Sprintf("%d", *c.Timer.TimingWheel.Tick)
 	annotations[CoreComponentTimerTimingWheelSizeAnnotation] = fmt.Sprintf("%d", *c.Timer.TimingWheel.Size)
 	annotations[CoreComponentTimerTimingWheelLayersAnnotation] = fmt.Sprintf("%d", *c.Timer.TimingWheel.Layers)
+	if c.Timer.Resources != nil {
+		if c.Timer.Resources.LimitsCpu != nil {
+			annotations[CoreComponentTimerResourceLimitsCpuAnnotation] = *c.Timer.Resources.LimitsCpu
+		}
+		if c.Timer.Resources.LimitsMem != nil {
+			annotations[CoreComponentTimerResourceLimitsMemAnnotation] = *c.Timer.Resources.LimitsMem
+		}
+	}
 	return annotations
 }
