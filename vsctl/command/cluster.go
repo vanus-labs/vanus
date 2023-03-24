@@ -804,7 +804,7 @@ func genClusterCommand() *cobra.Command {
 			template := bytes.Buffer{}
 			template.WriteString(fmt.Sprintf("version: %s\n", DefaultInitialVersion))
 			template.WriteString("# Image pull policy, one of Always, Never, IfNotPresent. Defaults to Always.\n")
-			template.WriteString(fmt.Sprintf("image_pull_policy: %s\n", DefaultImagePullPolicy))
+			template.WriteString(fmt.Sprintf("# image_pull_policy: %s\n", DefaultImagePullPolicy))
 			template.WriteString("etcd:\n")
 			template.WriteString("  # etcd service ports\n")
 			template.WriteString("  ports:\n")
