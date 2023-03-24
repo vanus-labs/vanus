@@ -311,14 +311,14 @@ func (ctrl *controller) DeleteEventbus(ctx context.Context, eb *wrapperspb.UInt6
 	ctrl.mutex.Lock()
 	defer ctrl.mutex.Unlock()
 	eventbusID := vanus.NewIDFromUint64(eb.GetValue())
-	err := ctrl.deleteEventbus(ctx, eventbusID, false)
+	err := ctrl.deleteEventbus(ctx, eventbusID)
 	if err != nil {
 		return nil, err
 	}
 	// TODO async delete
 	// delete dead letter eventbus
 	deadLetterEventbusID := ctrl.getDeadLetterEventbusID(ctx, eventbusID)
-	err = ctrl.deleteEventbus(context.Background(), deadLetterEventbusID, true)
+	err = ctrl.deleteEventbus(context.Background(), deadLetterEventbusID)
 	if err != nil {
 		log.Error(context.Background(), "delete dead letter eventbus error", map[string]interface{}{
 			log.KeyError:      err,
@@ -328,14 +328,12 @@ func (ctrl *controller) DeleteEventbus(ctx context.Context, eb *wrapperspb.UInt6
 	return &emptypb.Empty{}, nil
 }
 
-func (ctrl *controller) deleteEventbus(ctx context.Context, id vanus.ID, system bool) error {
+func (ctrl *controller) deleteEventbus(ctx context.Context, id vanus.ID) error {
 	bus, exist := ctrl.eventbusMap[id]
 	if !exist {
 		return errors.ErrResourceNotFound.WithMessage("the eventbus doesn't exist")
 	}
-	if !system && strings.HasPrefix(bus.Name, primitive.SystemEventbusNamePrefix) {
-		return errors.ErrResourceCanNotOp.WithMessage("system eventbus can't delete")
-	}
+	// todo user can't delete system eventbus, but timer need to delete system eventbus
 	err := ctrl.kvStore.Delete(ctx, metadata.GetEventbusMetadataKey(id))
 	if err != nil {
 		return errors.ErrInternal.WithMessage("delete eventbus metadata in kv failed").Wrap(err)
