@@ -84,7 +84,7 @@ func createEventbusCommand() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringVar(&namespace, "namespace", "", "namespace name to create eventbus, default name is default")
+	cmd.Flags().StringVar(&namespace, "namespace", "default", "namespace name to create eventbus, default name is default")
 	cmd.Flags().StringVar(&eventbus, "name", "", "eventbus name to create")
 	cmd.Flags().Int32Var(&eventlogNum, "eventlog", 1, "number of eventlog")
 	cmd.Flags().StringVar(&description, "description", "", "subscription description")
@@ -121,7 +121,7 @@ func deleteEventbusCommand() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringVar(&namespace, "namespace", "", "namespace name, default name is default")
+	cmd.Flags().StringVar(&namespace, "namespace", "default", "namespace name, default name is default")
 	cmd.Flags().StringVar(&eventbus, "name", "", "eventbus name to deleting")
 	return cmd
 }
@@ -309,7 +309,7 @@ func getEventbusInfoCommand() *cobra.Command {
 			t.Render()
 		},
 	}
-	cmd.Flags().StringVar(&namespace, "namespace", "", "namespace name, default name is default")
+	cmd.Flags().StringVar(&namespace, "namespace", "default", "namespace name, default name is default")
 	cmd.Flags().StringVar(&eventbus, "eventbus", "", "eventbus to show, use , to separate")
 	cmd.Flags().BoolVar(&showSegment, "segment", false, "if show all segment of eventlog")
 	cmd.Flags().BoolVar(&showBlock, "block", false, "if show all block of segment")

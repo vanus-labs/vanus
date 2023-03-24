@@ -174,7 +174,7 @@ func (m *userRoleManager) GetUserRoleByUser(_ context.Context, userIdentifier st
 	defer m.lock.RUnlock()
 	roles, exist := m.userRoles[userIdentifier]
 	if !exist {
-		return nil, nil
+		return nil, errors.ErrResourceNotFound
 	}
 	list := make([]*metadata.UserRole, len(roles))
 	i := 0
@@ -191,7 +191,7 @@ func (m *userRoleManager) GetUserRoleByResourceID(_ context.Context, resourceID 
 	defer m.lock.RUnlock()
 	roles, exist := m.resourceRole[resourceID]
 	if !exist {
-		return nil, nil
+		return nil, errors.ErrResourceNotFound
 	}
 	return roles, nil
 }

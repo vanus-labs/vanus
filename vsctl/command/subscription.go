@@ -109,7 +109,7 @@ func createSubscriptionCommand() *cobra.Command {
 			printSubscription(cmd, false, false, false, res)
 		},
 	}
-	cmd.Flags().StringVar(&namespace, "namespace", "", "namespace name, default name is default")
+	cmd.Flags().StringVar(&namespace, "namespace", "default", "namespace name, default name is default")
 	cmd.Flags().StringVar(&eventbus, "eventbus", "", "eventbus name to consuming")
 	cmd.Flags().StringVar(&sink, "sink", "", "the event you want to send to")
 	cmd.Flags().StringVar(&filters, "filters", "", "filter event you interested, JSON format required")

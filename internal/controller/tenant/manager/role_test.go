@@ -28,6 +28,7 @@ import (
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/authorization"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 func addUserRoleForManger(m *userRoleManager, userRole *metadata.UserRole) {
@@ -212,9 +213,9 @@ func TestMockUserRoleManager_GetUserRole(t *testing.T) {
 		m := NewUserRoleManager(kvClient).(*userRoleManager)
 		userRole := makeUserRole("user")
 		Convey("userRole no exist", func() {
-			userRoles, err := m.GetUserRoleByUser(ctx, userRole.UserIdentifier)
-			So(err, ShouldBeNil)
-			So(len(userRoles), ShouldEqual, 0)
+			_, err := m.GetUserRoleByUser(ctx, userRole.UserIdentifier)
+			So(err, ShouldNotBeNil)
+			So(errors.Is(err, errors.ErrResourceNotFound), ShouldBeTrue)
 		})
 		Convey("userRole exist", func() {
 			addUserRoleForManger(m, userRole)

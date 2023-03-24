@@ -29,10 +29,10 @@ import (
 
 type TokenManager interface {
 	Init(ctx context.Context) error
-	GetUser(ctx context.Context, token string) string
+	GetUser(ctx context.Context, token string) (string, error)
 	AddToken(ctx context.Context, user *metadata.Token) error
 	DeleteToken(ctx context.Context, id vanus.ID) error
-	GetToken(ctx context.Context, id vanus.ID) *metadata.Token
+	GetToken(ctx context.Context, id vanus.ID) (*metadata.Token, error)
 	GetUserToken(ctx context.Context, identifier string) []*metadata.Token
 	ListToken(ctx context.Context) []*metadata.Token
 }
@@ -82,14 +82,14 @@ func (m *tokenManager) Init(ctx context.Context) error {
 	return nil
 }
 
-func (m *tokenManager) GetUser(_ context.Context, token string) string {
+func (m *tokenManager) GetUser(_ context.Context, token string) (string, error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	user, exist := m.tokenUsers[token]
 	if !exist {
-		return ""
+		return "", errors.ErrResourceNotFound
 	}
-	return user
+	return user, nil
 }
 
 func (m *tokenManager) AddToken(ctx context.Context, token *metadata.Token) error {
@@ -134,14 +134,14 @@ func (m *tokenManager) DeleteToken(ctx context.Context, id vanus.ID) error {
 	return nil
 }
 
-func (m *tokenManager) GetToken(_ context.Context, id vanus.ID) *metadata.Token {
+func (m *tokenManager) GetToken(_ context.Context, id vanus.ID) (*metadata.Token, error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	token, exist := m.tokens[id]
 	if !exist {
-		return nil
+		return nil, errors.ErrResourceNotFound
 	}
-	return token
+	return token, nil
 }
 
 func (m *tokenManager) GetUserToken(_ context.Context, identifier string) []*metadata.Token {

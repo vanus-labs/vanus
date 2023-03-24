@@ -80,13 +80,10 @@ var (
 	startOffset uint64
 	endOffset   uint64
 
-	userIdentifier       string
-	idStr                string
-	role                 string
-	resourceNs           bool
-	resourceEventbus     bool
-	resourceSubscription bool
-	all                  bool
+	userIdentifier string
+	idStr          string
+	role           string
+	all            bool
 )
 
 const (

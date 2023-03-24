@@ -191,10 +191,6 @@ func mustGetEventbusID(namespace, name string) vanus.ID {
 }
 
 func mustGetNamespaceID(namespace string) vanus.ID {
-	if namespace == "" {
-		namespace = "default"
-		color.Green("the namespace not specified, using [default] namespace")
-	}
 	eb, err := client.GetNamespaceWithHumanFriendly(context.Background(), wrapperspb.String(namespace))
 	if err != nil {
 		color.Red("failed to query namespace id: %s", Error(err))

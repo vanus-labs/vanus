@@ -126,7 +126,7 @@ func getNamespaceInfoCommand() *cobra.Command {
 		Use:   "info [flag] ",
 		Short: "get the namespace info",
 		Run: func(cmd *cobra.Command, args []string) {
-			if namespace == "" && (len(args) == 0 || args[0] == "") {
+			if namespace == "" {
 				cmdFailedf(cmd, "the namespace must be set")
 			}
 

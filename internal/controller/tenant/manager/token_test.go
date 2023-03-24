@@ -150,18 +150,20 @@ func TestMockTokenManager_GetToken(t *testing.T) {
 		m := NewTokenManager(kvClient).(*tokenManager)
 		md := makeToken("user")
 		Convey("token no exist", func() {
-			get := m.GetToken(ctx, md.ID)
-			So(get, ShouldBeNil)
+			_, err := m.GetToken(ctx, md.ID)
+			So(err, ShouldNotBeNil)
 		})
 		Convey("token exist", func() {
 			addTokenForManger(m, md)
-			get := m.GetToken(ctx, md.ID)
+			get, err := m.GetToken(ctx, md.ID)
+			So(err, ShouldBeNil)
 			So(get, ShouldNotBeNil)
 		})
 		Convey("get user by token", func() {
 			addTokenForManger(m, md)
-			get := m.GetUser(ctx, md.Token)
-			So(get, ShouldNotBeNil)
+			user, err := m.GetUser(ctx, md.Token)
+			So(err, ShouldBeNil)
+			So(user, ShouldNotBeNil)
 		})
 		Convey("get user token", func() {
 			addTokenForManger(m, md)

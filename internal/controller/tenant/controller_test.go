@@ -49,7 +49,7 @@ func TestController_CreateToken(t *testing.T) {
 		defer mockCtrl.Finish()
 		ctrl := NewController(Config{}, nil)
 		userManger := manager.NewMockUserManager(mockCtrl)
-		tokenManger := manager.NewMockUserTokenManager(mockCtrl)
+		tokenManger := manager.NewMockTokenManager(mockCtrl)
 		ctrl.userManager = userManger
 		ctrl.tokenManager = tokenManger
 		ctx := context.Background()

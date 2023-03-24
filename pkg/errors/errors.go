@@ -89,7 +89,7 @@ const (
 	ErrorCode_RESOURCE_CAN_NOT_OP ErrorCode = 9902
 
 	ErrorCode_Unauthenticated  ErrorCode = 9910
-	ErrorCode_PermissionDenied ErrorCode = 9910
+	ErrorCode_PermissionDenied ErrorCode = 9911
 )
 
 var (

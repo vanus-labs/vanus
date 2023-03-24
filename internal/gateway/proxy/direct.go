@@ -46,7 +46,7 @@ func (cp *ControllerProxy) CreateEventbus(
 func authDeleteEventbus(_ context.Context, req interface{},
 ) (authorization.ResourceKind, vanus.ID, authorization.Action) {
 	id := vanus.NewIDFromUint64((req.(*wrapperspb.UInt64Value)).GetValue())
-	return authorization.ResourceEventbus, id, authorization.EventbusCreate
+	return authorization.ResourceEventbus, id, authorization.EventbusDelete
 }
 
 func (cp *ControllerProxy) DeleteEventbus(
@@ -96,7 +96,7 @@ func (cp *ControllerProxy) ListEventbus(
 		}
 		return listResp, nil
 	}
-	var list []*metapb.Eventbus //nolint:prealloc //ok
+	list := make([]*metapb.Eventbus, 0)
 	// grant namespace all eventbus
 	for _, id := range namespaceID {
 		listResp, err = cp.eventbusCtrl.ListEventbus(ctx, &ctrlpb.ListEventbusRequest{NamespaceId: id.Uint64()})

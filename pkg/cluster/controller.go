@@ -17,7 +17,7 @@ package cluster
 
 import (
 	"context"
-	stdErr "errors"
+	stderr "errors"
 	"strings"
 	"sync"
 	"time"
@@ -147,7 +147,7 @@ func (c *cluster) WaitForControllerReady(createEventbus bool) error {
 	for !c.IsReady(createEventbus) {
 		select {
 		case <-t.C:
-			return stdErr.New("cluster isn't ready")
+			return stderr.New("cluster isn't ready")
 		default:
 			time.Sleep(time.Second)
 		}
@@ -162,7 +162,7 @@ func (c *cluster) WaitForControllerReady(createEventbus bool) error {
 func (c *cluster) IsReady(createEventbus bool) bool {
 	res, err := c.ping.Ping(context.Background(), &emptypb.Empty{})
 	if err != nil {
-		if !stdErr.Is(err, errors.ErrNotLeader) {
+		if !stderr.Is(err, errors.ErrNotLeader) {
 			log.Warning(context.Background(), "failed to ping controller", map[string]interface{}{
 				log.KeyError: err,
 			})

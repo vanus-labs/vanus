@@ -127,7 +127,10 @@ func (ctrl *controller) GetUserByToken(ctx context.Context,
 	if token.GetValue() == "" {
 		return nil, errors.ErrInvalidRequest.WithMessage("token is empty")
 	}
-	user := ctrl.tokenManager.GetUser(ctx, token.GetValue())
+	user, err := ctrl.tokenManager.GetUser(ctx, token.GetValue())
+	if err != nil {
+		return nil, err
+	}
 	return wrapperspb.String(user), nil
 }
 
@@ -184,9 +187,9 @@ func (ctrl *controller) GetToken(ctx context.Context, request *wrapperspb.UInt64
 	if tokenID == vanus.EmptyID() {
 		return nil, errors.ErrInvalidRequest.WithMessage("token id is empty")
 	}
-	token := ctrl.tokenManager.GetToken(ctx, tokenID)
-	if token == nil {
-		return nil, errors.ErrResourceNotFound.WithMessage("token no exist")
+	token, err := ctrl.tokenManager.GetToken(ctx, tokenID)
+	if err != nil {
+		return nil, err
 	}
 	return convert.ToPbToken(token), nil
 }
