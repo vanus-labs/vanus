@@ -105,7 +105,7 @@ func createSubscriptionCommand() *cobra.Command {
 				},
 			})
 			if err != nil {
-				cmdFailedf(cmd, "create subscription failed: %s", err)
+				cmdFailedf(cmd, "create subscription failed: %s", Error(err))
 			}
 			printSubscription(cmd, false, false, false, res)
 		},
@@ -294,7 +294,7 @@ func updateSubscriptionCommand() *cobra.Command {
 				Id: id.Uint64(),
 			})
 			if err != nil {
-				cmdFailedf(cmd, "get subscription %s error: %s", subscriptionIDStr, err)
+				cmdFailedf(cmd, "get subscription %s error: %s", subscriptionIDStr, Error(err))
 			}
 			var change bool
 			if sink != "" && sink != sub.Sink {
@@ -367,7 +367,7 @@ func updateSubscriptionCommand() *cobra.Command {
 				},
 			})
 			if err != nil {
-				cmdFailedf(cmd, "update subscription failed: %s", err)
+				cmdFailedf(cmd, "update subscription failed: %s", Error(err))
 			}
 			printSubscription(cmd, false, true, true, res)
 		},
@@ -409,7 +409,7 @@ func deleteSubscriptionCommand() *cobra.Command {
 				Id: id.Uint64(),
 			})
 			if err != nil {
-				cmdFailedf(cmd, "delete subscription failed: %s", err)
+				cmdFailedf(cmd, "delete subscription failed: %s", Error(err))
 			}
 
 			if IsFormatJSON(cmd) {
@@ -446,7 +446,7 @@ func resumeSubscriptionCommand() *cobra.Command {
 				Id: id.Uint64(),
 			})
 			if err != nil {
-				cmdFailedf(cmd, "resume subscription failed: %s", err)
+				cmdFailedf(cmd, "resume subscription failed: %s", Error(err))
 			}
 
 			if IsFormatJSON(cmd) {
@@ -483,7 +483,7 @@ func disableSubscriptionCommand() *cobra.Command {
 				Id: id.Uint64(),
 			})
 			if err != nil {
-				cmdFailedf(cmd, "disable subscription failed: %s", err)
+				cmdFailedf(cmd, "disable subscription failed: %s", Error(err))
 			}
 
 			if IsFormatJSON(cmd) {
@@ -523,7 +523,7 @@ func resetOffsetCommand() *cobra.Command {
 				Timestamp:      offsetTimestamp,
 			})
 			if err != nil {
-				cmdFailedf(cmd, "reset offset subscription failed: %s", err)
+				cmdFailedf(cmd, "reset offset subscription failed: %s", Error(err))
 			}
 			data, _ := json.MarshalIndent(res.Offsets, "", "  ")
 			if IsFormatJSON(cmd) {
@@ -562,7 +562,7 @@ func getSubscriptionCommand() *cobra.Command {
 				Id: id.Uint64(),
 			})
 			if err != nil {
-				cmdFailedf(cmd, "get subscription info failed: %s", err)
+				cmdFailedf(cmd, "get subscription info failed: %s", Error(err))
 			}
 			printSubscription(cmd, false, true, true, res)
 		},
@@ -587,7 +587,7 @@ func listSubscriptionCommand() *cobra.Command {
 			}
 			res, err := client.ListSubscription(context.Background(), request)
 			if err != nil {
-				cmdFailedf(cmd, "list subscription failed: %s", err)
+				cmdFailedf(cmd, "list subscription failed: %s", Error(err))
 			}
 			printSubscription(cmd, true, false, false, res.Subscription...)
 		},

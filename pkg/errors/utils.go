@@ -15,8 +15,6 @@
 package errors
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/status"
 )
@@ -68,6 +66,20 @@ func Is(err error, target error) bool {
 	return errType != nil && errType.Code == targetType.Code
 }
 
+func FromError(err error) (*ErrorType, bool) {
+	if errType, ok := err.(*ErrorType); ok {
+		return errType, true
+	}
+
+	if errStatus, ok := status.FromError(err); ok {
+		if errType, ok := Convert(errStatus.Message()); ok {
+			return errType, true
+		}
+	}
+
+	return ErrUnknown.WithMessage(err.Error()), false
+}
+
 // ConvertToGRPCError convert an internal error to an exported error defined in gRPC.
 func ConvertToGRPCError(err error) error {
 	if err == nil {
@@ -75,9 +87,7 @@ func ConvertToGRPCError(err error) error {
 	}
 	e, ok := err.(*ErrorType)
 	if ok {
-		return fmt.Errorf("{\"code\":%d,\"message\":\"%s\"}",
-			e.Code, e.Message)
+		return errors.New(e.JSON())
 	}
-	return fmt.Errorf("{\"code\":%d,\"message\":\"%s\"}",
-		ErrorCode_UNKNOWN, err.Error())
+	return err
 }

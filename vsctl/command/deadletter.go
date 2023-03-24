@@ -62,7 +62,7 @@ func getDeadLetterCommand() *cobra.Command {
 				Number:         int32(number),
 			})
 			if err != nil {
-				cmdFailedf(cmd, "failed to get event: %s", err)
+				cmdFailedf(cmd, "failed to get event: %s", Error(err))
 			}
 
 			if IsFormatJSON(cmd) {
@@ -114,7 +114,7 @@ func resendDeadLetterCommand() *cobra.Command {
 			})
 
 			if err != nil {
-				cmdFailedf(cmd, "failed to resend: %s\n", err)
+				cmdFailedf(cmd, "failed to resend: %s\n", Error(err))
 			}
 			color.Green("resend event success")
 		},

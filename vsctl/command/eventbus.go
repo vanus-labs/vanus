@@ -66,7 +66,7 @@ func createEventbusCommand() *cobra.Command {
 				NamespaceId: mustGetNamespaceID(primitive.DefaultNamespace).Uint64(),
 			})
 			if err != nil {
-				cmdFailedf(cmd, "create eventbus failed: %s", err)
+				cmdFailedf(cmd, "create eventbus failed: %s", Error(err))
 			}
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Create Success", "EventbusService": eventbus})
@@ -102,7 +102,7 @@ func deleteEventbusCommand() *cobra.Command {
 			_, err := client.DeleteEventbus(context.Background(),
 				wrapperspb.UInt64(mustGetEventbusID(namespace, eventbus).Uint64()))
 			if err != nil {
-				cmdFailedf(cmd, "delete eventbus failed: %s", err)
+				cmdFailedf(cmd, "delete eventbus failed: %s", Error(err))
 			}
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(map[string]interface{}{"Result": "Delete Success", "EventbusService": eventbus})
@@ -138,7 +138,7 @@ func getEventbusInfoCommand() *cobra.Command {
 			res, err := client.GetEventbus(ctx,
 				wrapperspb.UInt64(mustGetEventbusID(namespace, args[0]).Uint64()))
 			if err != nil {
-				cmdFailedf(cmd, "get eventbus failed: %s", err)
+				cmdFailedf(cmd, "get eventbus failed: %s", Error(err))
 			}
 
 			if showSegment || showBlock {
@@ -149,7 +149,7 @@ func getEventbusInfoCommand() *cobra.Command {
 						EventlogId: logs[idx].EventlogId,
 					})
 					if err != nil {
-						cmdFailedf(cmd, "get segments failed: %s", err)
+						cmdFailedf(cmd, "get segments failed: %s", Error(err))
 					}
 					segs[logs[idx].EventlogId] = segRes.Segments
 				}
@@ -312,7 +312,7 @@ func listEventbusInfoCommand() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			res, err := client.ListEventbus(context.Background(), &ctrlpb.ListEventbusRequest{})
 			if err != nil {
-				cmdFailedf(cmd, "list eventbus failed: %s", err)
+				cmdFailedf(cmd, "list eventbus failed: %s", Error(err))
 			}
 			if IsFormatJSON(cmd) {
 				data, _ := json.Marshal(res)

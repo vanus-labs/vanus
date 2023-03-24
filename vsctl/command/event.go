@@ -317,7 +317,7 @@ func getEventCommand() *cobra.Command {
 				Number:     int32(number),
 			})
 			if err != nil {
-				cmdFailedf(cmd, "failed to get event: %s", err)
+				cmdFailedf(cmd, "failed to get event: %s", Error(err))
 			}
 
 			if IsFormatJSON(cmd) {
@@ -379,7 +379,7 @@ func queryEventCommand() *cobra.Command {
 				Timestamp:  t.UnixMilli(),
 			})
 			if err != nil {
-				cmdFailedf(cmd, fmt.Sprintf("failed to query: %s.", err.Error()))
+				cmdFailedf(cmd, fmt.Sprintf("failed to query: %s.", Error(err)))
 			}
 
 			result := make([]*QueryOutput, 0)
@@ -397,7 +397,7 @@ func queryEventCommand() *cobra.Command {
 						Number:     1,
 					})
 					if err != nil {
-						cmdFailedf(cmd, "failed to get event: %s", err)
+						cmdFailedf(cmd, "failed to get event: %s", Error(err))
 					}
 					if len(res.Events) >= 1 {
 						qo.Event = format(res.Events[0])
