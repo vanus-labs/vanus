@@ -33,4 +33,6 @@ const (
 
 	DefaultNamespace = "default"
 	SystemNamespace  = "vanus-system"
+
+	DefaultUser = "admin"
 )

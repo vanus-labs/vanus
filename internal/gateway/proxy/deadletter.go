@@ -27,6 +27,7 @@ import (
 	"github.com/vanus-labs/vanus/client/pkg/eventlog"
 	"github.com/vanus-labs/vanus/client/pkg/option"
 	"github.com/vanus-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/internal/primitive/authorization"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
@@ -36,6 +37,12 @@ import (
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
+
+func authGetDeadLetterEvent(_ context.Context, req interface{},
+) (authorization.ResourceKind, vanus.ID, authorization.Action) {
+	id := vanus.NewIDFromUint64((req.(*proxypb.GetDeadLetterEventRequest)).GetSubscriptionId())
+	return authorization.ResourceSubscription, id, authorization.SubscriptionGet
+}
 
 func (cp *ControllerProxy) GetDeadLetterEvent(
 	ctx context.Context, req *proxypb.GetDeadLetterEventRequest,
@@ -138,6 +145,12 @@ func (cp *ControllerProxy) getDealLetterEventbusID(
 		return 0, err
 	}
 	return vanus.NewIDFromUint64(eb.Id), nil
+}
+
+func authResendDeadLetterEvent(_ context.Context, req interface{},
+) (authorization.ResourceKind, vanus.ID, authorization.Action) {
+	id := vanus.NewIDFromUint64((req.(*proxypb.ResendDeadLetterEventRequest)).GetSubscriptionId())
+	return authorization.ResourceSubscription, id, authorization.SubscriptionUpdate
 }
 
 func (cp *ControllerProxy) ResendDeadLetterEvent( //nolint:funlen // ok
@@ -268,4 +281,16 @@ func (cp *ControllerProxy) writeDeadLetterEvent(
 		return errors.ErrInternal.Wrap(err).WithMessage("save offset error")
 	}
 	return nil
+}
+
+func authSetDeadLetterEventOffset(_ context.Context, req interface{},
+) (authorization.ResourceKind, vanus.ID, authorization.Action) {
+	id := vanus.NewIDFromUint64((req.(*ctrlpb.SetDeadLetterEventOffsetRequest)).GetSubscriptionId())
+	return authorization.ResourceSubscription, id, authorization.SubscriptionUpdate
+}
+
+func (cp *ControllerProxy) SetDeadLetterEventOffset(
+	ctx context.Context, req *ctrlpb.SetDeadLetterEventOffsetRequest,
+) (*emptypb.Empty, error) {
+	return cp.triggerCtrl.SetDeadLetterEventOffset(ctx, req)
 }

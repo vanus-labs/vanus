@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=namespace.go -destination=mock_namespace.go -package=manager
 package manager
 
 import (
@@ -21,7 +22,9 @@ import (
 
 	"github.com/vanus-labs/vanus/internal/controller/tenant/metadata"
 	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 type NamespaceManager interface {
@@ -85,9 +88,12 @@ func (m *namespaceManager) AddNamespace(ctx context.Context, ns *metadata.Namesp
 func (m *namespaceManager) DeleteNamespace(ctx context.Context, id vanus.ID) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	_, exist := m.namespaces[id]
+	ns, exist := m.namespaces[id]
 	if !exist {
 		return nil
+	}
+	if ns.Name == primitive.DefaultNamespace || ns.Name == primitive.SystemNamespace {
+		return errors.ErrResourceCanNotOp.WithMessage("default/system namespace can't delete")
 	}
 	err := m.kvClient.Delete(ctx, kv.NamespaceKey(id))
 	if err != nil {
@@ -97,7 +103,7 @@ func (m *namespaceManager) DeleteNamespace(ctx context.Context, id vanus.ID) err
 	return nil
 }
 
-func (m *namespaceManager) GetNamespace(ctx context.Context, id vanus.ID) *metadata.Namespace {
+func (m *namespaceManager) GetNamespace(_ context.Context, id vanus.ID) *metadata.Namespace {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	ns, exist := m.namespaces[id]
@@ -107,7 +113,7 @@ func (m *namespaceManager) GetNamespace(ctx context.Context, id vanus.ID) *metad
 	return ns
 }
 
-func (m *namespaceManager) GetNamespaceByName(ctx context.Context, name string) *metadata.Namespace {
+func (m *namespaceManager) GetNamespaceByName(_ context.Context, name string) *metadata.Namespace {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	for i := range m.namespaces {
@@ -118,12 +124,14 @@ func (m *namespaceManager) GetNamespaceByName(ctx context.Context, name string) 
 	return nil
 }
 
-func (m *namespaceManager) ListNamespace(ctx context.Context) []*metadata.Namespace {
+func (m *namespaceManager) ListNamespace(_ context.Context) []*metadata.Namespace {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	list := make([]*metadata.Namespace, len(m.namespaces))
-	for i := range m.namespaces {
-		list[i] = m.namespaces[i]
+	i := 0
+	for id := range m.namespaces {
+		list[i] = m.namespaces[id]
+		i++
 	}
 	return list
 }

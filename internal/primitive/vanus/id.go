@@ -23,14 +23,15 @@ import (
 	"time"
 
 	"github.com/sony/sonyflake"
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/pkg/cluster"
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"go.uber.org/atomic"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 )
 
 type node struct {
@@ -270,4 +271,15 @@ func (id ID) Key() string {
 
 func (id ID) Equals(cID ID) bool {
 	return id.Uint64() == cID.Uint64()
+}
+
+type IDList []ID
+
+func (l IDList) Contains(id ID) bool {
+	for _, _id := range l {
+		if _id == id {
+			return true
+		}
+	}
+	return false
 }

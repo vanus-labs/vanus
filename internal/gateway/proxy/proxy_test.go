@@ -26,21 +26,24 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/tidwall/gjson"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/policy"
 	"github.com/vanus-labs/vanus/internal/convert"
 	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/authentication"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/pkg/cluster"
+	"github.com/vanus-labs/vanus/pkg/grpc_credentials"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func TestControllerProxy_GetEvent(t *testing.T) {
@@ -250,13 +253,17 @@ func TestControllerProxy_StartAndStop(t *testing.T) {
 		mockCluster := cluster.NewMockCluster(ctrl)
 		cp.ctrl = mockCluster
 		mockCluster.EXPECT().WaitForControllerReady(false).Times(1).Return(nil)
-
+		mockAuthentication := authentication.NewMockAuthentication(ctrl)
+		cp.authService.Authentication = mockAuthentication
+		token := "admin"
+		mockAuthentication.EXPECT().Authenticate(gomock.Any(), gomock.Eq(token)).AnyTimes().Return("admin", nil)
 		err := cp.Start()
 		So(err, ShouldBeNil)
 		defer cp.Stop()
 
 		var opts []grpc.DialOption
-		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithPerRPCCredentials(grpc_credentials.NewVanusPerRPCCredentials(token)))
 		conn, err := grpc.Dial("127.0.0.1:18082", opts...)
 		So(err, ShouldBeNil)
 

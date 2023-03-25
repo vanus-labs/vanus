@@ -51,7 +51,7 @@ func getDeadLetterCommand() *cobra.Command {
 		Use:   "get",
 		Short: "get a subscription dead letter event",
 		Run: func(cmd *cobra.Command, args []string) {
-			id, err := vanus.NewIDFromString(subscriptionIDStr)
+			id, err := vanus.NewIDFromString(idStr)
 			if err != nil {
 				cmdFailedWithHelpNotice(cmd, fmt.Sprintf("invalid subscription id: %s\n", err.Error()))
 			}
@@ -91,7 +91,7 @@ func getDeadLetterCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&subscriptionIDStr, "id", "", "subscription id")
+	cmd.Flags().StringVar(&idStr, "id", "", "subscription id")
 	cmd.Flags().Int64Var(&offset, "offset", 0, "which position you want to start get")
 	cmd.Flags().Int16Var(&number, "number", 1, "the number of event you want to get")
 	return cmd
@@ -102,7 +102,7 @@ func resendDeadLetterCommand() *cobra.Command {
 		Use:   "resend",
 		Short: "resend a subscription dead letter event",
 		Run: func(cmd *cobra.Command, args []string) {
-			id, err := vanus.NewIDFromString(subscriptionIDStr)
+			id, err := vanus.NewIDFromString(idStr)
 			if err != nil {
 				cmdFailedWithHelpNotice(cmd, fmt.Sprintf("invalid subscription id: %s\n", err.Error()))
 			}
@@ -120,7 +120,7 @@ func resendDeadLetterCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&subscriptionIDStr, "id", "", "subscription id")
+	cmd.Flags().StringVar(&idStr, "id", "", "subscription id")
 	cmd.Flags().Uint64Var(&startOffset, "start", 0, "which position you want to start get, default first")
 	cmd.Flags().Uint64Var(&endOffset, "end", 0, "which position you want to end get, default to end")
 	return cmd

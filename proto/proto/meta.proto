@@ -213,3 +213,40 @@ message Transformer {
 message Action {
   repeated google.protobuf.Value command = 1;
 }
+
+message User{
+  string identifier = 1;
+  string description = 2;
+  int64 created_at = 3;
+  int64 updated_at = 4;
+}
+
+message Token {
+  uint64 id = 1;
+  string token = 2;
+  string user_identifier = 3;
+  int64 created_at = 4;
+  int64 updated_at = 5;
+}
+
+message UserRole {
+  string user_identifier = 1;
+  string role_name = 2;
+  uint64 resource_id = 3;
+  string resource_kind = 4;
+  bool  built_in = 5 ;
+  // for custom define role
+  //  string role_id = 6;
+  int64 created_at = 7;
+}
+
+message ResourceRole {
+  uint64 resource_id = 1;
+  string resource_kind = 2;
+  string role_name = 3;
+  string user_identifier = 4;
+  bool  built_in = 5 ;
+  // for custom define role
+  //  string role_id = 6;
+  int64 created_at = 7;
+}
