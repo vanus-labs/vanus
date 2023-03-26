@@ -2453,3 +2453,574 @@ func (mr *MockUnsafeSnowflakeControllerServerMockRecorder) mustEmbedUnimplemente
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "mustEmbedUnimplementedSnowflakeControllerServer", reflect.TypeOf((*MockUnsafeSnowflakeControllerServer)(nil).mustEmbedUnimplementedSnowflakeControllerServer))
 }
+
+// MockAuthControllerClient is a mock of AuthControllerClient interface.
+type MockAuthControllerClient struct {
+	ctrl     *gomock.Controller
+	recorder *MockAuthControllerClientMockRecorder
+}
+
+// MockAuthControllerClientMockRecorder is the mock recorder for MockAuthControllerClient.
+type MockAuthControllerClientMockRecorder struct {
+	mock *MockAuthControllerClient
+}
+
+// NewMockAuthControllerClient creates a new mock instance.
+func NewMockAuthControllerClient(ctrl *gomock.Controller) *MockAuthControllerClient {
+	mock := &MockAuthControllerClient{ctrl: ctrl}
+	mock.recorder = &MockAuthControllerClientMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockAuthControllerClient) EXPECT() *MockAuthControllerClientMockRecorder {
+	return m.recorder
+}
+
+// CreateToken mocks base method.
+func (m *MockAuthControllerClient) CreateToken(ctx context.Context, in *CreateTokenRequest, opts ...grpc.CallOption) (*meta.Token, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "CreateToken", varargs...)
+	ret0, _ := ret[0].(*meta.Token)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateToken indicates an expected call of CreateToken.
+func (mr *MockAuthControllerClientMockRecorder) CreateToken(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateToken", reflect.TypeOf((*MockAuthControllerClient)(nil).CreateToken), varargs...)
+}
+
+// CreateUser mocks base method.
+func (m *MockAuthControllerClient) CreateUser(ctx context.Context, in *CreateUserRequest, opts ...grpc.CallOption) (*meta.User, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "CreateUser", varargs...)
+	ret0, _ := ret[0].(*meta.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateUser indicates an expected call of CreateUser.
+func (mr *MockAuthControllerClientMockRecorder) CreateUser(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockAuthControllerClient)(nil).CreateUser), varargs...)
+}
+
+// DeleteToken mocks base method.
+func (m *MockAuthControllerClient) DeleteToken(ctx context.Context, in *DeleteTokenRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "DeleteToken", varargs...)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteToken indicates an expected call of DeleteToken.
+func (mr *MockAuthControllerClientMockRecorder) DeleteToken(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteToken", reflect.TypeOf((*MockAuthControllerClient)(nil).DeleteToken), varargs...)
+}
+
+// DeleteUser mocks base method.
+func (m *MockAuthControllerClient) DeleteUser(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "DeleteUser", varargs...)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteUser indicates an expected call of DeleteUser.
+func (mr *MockAuthControllerClientMockRecorder) DeleteUser(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteUser", reflect.TypeOf((*MockAuthControllerClient)(nil).DeleteUser), varargs...)
+}
+
+// GetResourceRole mocks base method.
+func (m *MockAuthControllerClient) GetResourceRole(ctx context.Context, in *GetResourceRoleRequest, opts ...grpc.CallOption) (*GetResourceRoleResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetResourceRole", varargs...)
+	ret0, _ := ret[0].(*GetResourceRoleResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetResourceRole indicates an expected call of GetResourceRole.
+func (mr *MockAuthControllerClientMockRecorder) GetResourceRole(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetResourceRole", reflect.TypeOf((*MockAuthControllerClient)(nil).GetResourceRole), varargs...)
+}
+
+// GetToken mocks base method.
+func (m *MockAuthControllerClient) GetToken(ctx context.Context, in *wrapperspb.UInt64Value, opts ...grpc.CallOption) (*meta.Token, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetToken", varargs...)
+	ret0, _ := ret[0].(*meta.Token)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetToken indicates an expected call of GetToken.
+func (mr *MockAuthControllerClientMockRecorder) GetToken(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetToken", reflect.TypeOf((*MockAuthControllerClient)(nil).GetToken), varargs...)
+}
+
+// GetUser mocks base method.
+func (m *MockAuthControllerClient) GetUser(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*meta.User, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetUser", varargs...)
+	ret0, _ := ret[0].(*meta.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUser indicates an expected call of GetUser.
+func (mr *MockAuthControllerClientMockRecorder) GetUser(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUser", reflect.TypeOf((*MockAuthControllerClient)(nil).GetUser), varargs...)
+}
+
+// GetUserByToken mocks base method.
+func (m *MockAuthControllerClient) GetUserByToken(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*wrapperspb.StringValue, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetUserByToken", varargs...)
+	ret0, _ := ret[0].(*wrapperspb.StringValue)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserByToken indicates an expected call of GetUserByToken.
+func (mr *MockAuthControllerClientMockRecorder) GetUserByToken(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserByToken", reflect.TypeOf((*MockAuthControllerClient)(nil).GetUserByToken), varargs...)
+}
+
+// GetUserRole mocks base method.
+func (m *MockAuthControllerClient) GetUserRole(ctx context.Context, in *GetUserRoleRequest, opts ...grpc.CallOption) (*GetUserRoleResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetUserRole", varargs...)
+	ret0, _ := ret[0].(*GetUserRoleResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserRole indicates an expected call of GetUserRole.
+func (mr *MockAuthControllerClientMockRecorder) GetUserRole(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserRole", reflect.TypeOf((*MockAuthControllerClient)(nil).GetUserRole), varargs...)
+}
+
+// GetUserToken mocks base method.
+func (m *MockAuthControllerClient) GetUserToken(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*GetTokenResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetUserToken", varargs...)
+	ret0, _ := ret[0].(*GetTokenResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserToken indicates an expected call of GetUserToken.
+func (mr *MockAuthControllerClientMockRecorder) GetUserToken(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserToken", reflect.TypeOf((*MockAuthControllerClient)(nil).GetUserToken), varargs...)
+}
+
+// GrantRole mocks base method.
+func (m *MockAuthControllerClient) GrantRole(ctx context.Context, in *RoleRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GrantRole", varargs...)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GrantRole indicates an expected call of GrantRole.
+func (mr *MockAuthControllerClientMockRecorder) GrantRole(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GrantRole", reflect.TypeOf((*MockAuthControllerClient)(nil).GrantRole), varargs...)
+}
+
+// ListToken mocks base method.
+func (m *MockAuthControllerClient) ListToken(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListTokenResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ListToken", varargs...)
+	ret0, _ := ret[0].(*ListTokenResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListToken indicates an expected call of ListToken.
+func (mr *MockAuthControllerClientMockRecorder) ListToken(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListToken", reflect.TypeOf((*MockAuthControllerClient)(nil).ListToken), varargs...)
+}
+
+// ListUser mocks base method.
+func (m *MockAuthControllerClient) ListUser(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListUserResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ListUser", varargs...)
+	ret0, _ := ret[0].(*ListUserResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListUser indicates an expected call of ListUser.
+func (mr *MockAuthControllerClientMockRecorder) ListUser(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListUser", reflect.TypeOf((*MockAuthControllerClient)(nil).ListUser), varargs...)
+}
+
+// RevokeRole mocks base method.
+func (m *MockAuthControllerClient) RevokeRole(ctx context.Context, in *RoleRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "RevokeRole", varargs...)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RevokeRole indicates an expected call of RevokeRole.
+func (mr *MockAuthControllerClientMockRecorder) RevokeRole(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeRole", reflect.TypeOf((*MockAuthControllerClient)(nil).RevokeRole), varargs...)
+}
+
+// MockAuthControllerServer is a mock of AuthControllerServer interface.
+type MockAuthControllerServer struct {
+	ctrl     *gomock.Controller
+	recorder *MockAuthControllerServerMockRecorder
+}
+
+// MockAuthControllerServerMockRecorder is the mock recorder for MockAuthControllerServer.
+type MockAuthControllerServerMockRecorder struct {
+	mock *MockAuthControllerServer
+}
+
+// NewMockAuthControllerServer creates a new mock instance.
+func NewMockAuthControllerServer(ctrl *gomock.Controller) *MockAuthControllerServer {
+	mock := &MockAuthControllerServer{ctrl: ctrl}
+	mock.recorder = &MockAuthControllerServerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockAuthControllerServer) EXPECT() *MockAuthControllerServerMockRecorder {
+	return m.recorder
+}
+
+// CreateToken mocks base method.
+func (m *MockAuthControllerServer) CreateToken(arg0 context.Context, arg1 *CreateTokenRequest) (*meta.Token, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateToken", arg0, arg1)
+	ret0, _ := ret[0].(*meta.Token)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateToken indicates an expected call of CreateToken.
+func (mr *MockAuthControllerServerMockRecorder) CreateToken(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateToken", reflect.TypeOf((*MockAuthControllerServer)(nil).CreateToken), arg0, arg1)
+}
+
+// CreateUser mocks base method.
+func (m *MockAuthControllerServer) CreateUser(arg0 context.Context, arg1 *CreateUserRequest) (*meta.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateUser", arg0, arg1)
+	ret0, _ := ret[0].(*meta.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateUser indicates an expected call of CreateUser.
+func (mr *MockAuthControllerServerMockRecorder) CreateUser(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockAuthControllerServer)(nil).CreateUser), arg0, arg1)
+}
+
+// DeleteToken mocks base method.
+func (m *MockAuthControllerServer) DeleteToken(arg0 context.Context, arg1 *DeleteTokenRequest) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteToken", arg0, arg1)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteToken indicates an expected call of DeleteToken.
+func (mr *MockAuthControllerServerMockRecorder) DeleteToken(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteToken", reflect.TypeOf((*MockAuthControllerServer)(nil).DeleteToken), arg0, arg1)
+}
+
+// DeleteUser mocks base method.
+func (m *MockAuthControllerServer) DeleteUser(arg0 context.Context, arg1 *wrapperspb.StringValue) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteUser", arg0, arg1)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteUser indicates an expected call of DeleteUser.
+func (mr *MockAuthControllerServerMockRecorder) DeleteUser(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteUser", reflect.TypeOf((*MockAuthControllerServer)(nil).DeleteUser), arg0, arg1)
+}
+
+// GetResourceRole mocks base method.
+func (m *MockAuthControllerServer) GetResourceRole(arg0 context.Context, arg1 *GetResourceRoleRequest) (*GetResourceRoleResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetResourceRole", arg0, arg1)
+	ret0, _ := ret[0].(*GetResourceRoleResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetResourceRole indicates an expected call of GetResourceRole.
+func (mr *MockAuthControllerServerMockRecorder) GetResourceRole(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetResourceRole", reflect.TypeOf((*MockAuthControllerServer)(nil).GetResourceRole), arg0, arg1)
+}
+
+// GetToken mocks base method.
+func (m *MockAuthControllerServer) GetToken(arg0 context.Context, arg1 *wrapperspb.UInt64Value) (*meta.Token, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetToken", arg0, arg1)
+	ret0, _ := ret[0].(*meta.Token)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetToken indicates an expected call of GetToken.
+func (mr *MockAuthControllerServerMockRecorder) GetToken(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetToken", reflect.TypeOf((*MockAuthControllerServer)(nil).GetToken), arg0, arg1)
+}
+
+// GetUser mocks base method.
+func (m *MockAuthControllerServer) GetUser(arg0 context.Context, arg1 *wrapperspb.StringValue) (*meta.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUser", arg0, arg1)
+	ret0, _ := ret[0].(*meta.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUser indicates an expected call of GetUser.
+func (mr *MockAuthControllerServerMockRecorder) GetUser(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUser", reflect.TypeOf((*MockAuthControllerServer)(nil).GetUser), arg0, arg1)
+}
+
+// GetUserByToken mocks base method.
+func (m *MockAuthControllerServer) GetUserByToken(arg0 context.Context, arg1 *wrapperspb.StringValue) (*wrapperspb.StringValue, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserByToken", arg0, arg1)
+	ret0, _ := ret[0].(*wrapperspb.StringValue)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserByToken indicates an expected call of GetUserByToken.
+func (mr *MockAuthControllerServerMockRecorder) GetUserByToken(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserByToken", reflect.TypeOf((*MockAuthControllerServer)(nil).GetUserByToken), arg0, arg1)
+}
+
+// GetUserRole mocks base method.
+func (m *MockAuthControllerServer) GetUserRole(arg0 context.Context, arg1 *GetUserRoleRequest) (*GetUserRoleResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserRole", arg0, arg1)
+	ret0, _ := ret[0].(*GetUserRoleResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserRole indicates an expected call of GetUserRole.
+func (mr *MockAuthControllerServerMockRecorder) GetUserRole(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserRole", reflect.TypeOf((*MockAuthControllerServer)(nil).GetUserRole), arg0, arg1)
+}
+
+// GetUserToken mocks base method.
+func (m *MockAuthControllerServer) GetUserToken(arg0 context.Context, arg1 *wrapperspb.StringValue) (*GetTokenResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserToken", arg0, arg1)
+	ret0, _ := ret[0].(*GetTokenResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserToken indicates an expected call of GetUserToken.
+func (mr *MockAuthControllerServerMockRecorder) GetUserToken(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserToken", reflect.TypeOf((*MockAuthControllerServer)(nil).GetUserToken), arg0, arg1)
+}
+
+// GrantRole mocks base method.
+func (m *MockAuthControllerServer) GrantRole(arg0 context.Context, arg1 *RoleRequest) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GrantRole", arg0, arg1)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GrantRole indicates an expected call of GrantRole.
+func (mr *MockAuthControllerServerMockRecorder) GrantRole(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GrantRole", reflect.TypeOf((*MockAuthControllerServer)(nil).GrantRole), arg0, arg1)
+}
+
+// ListToken mocks base method.
+func (m *MockAuthControllerServer) ListToken(arg0 context.Context, arg1 *emptypb.Empty) (*ListTokenResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListToken", arg0, arg1)
+	ret0, _ := ret[0].(*ListTokenResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListToken indicates an expected call of ListToken.
+func (mr *MockAuthControllerServerMockRecorder) ListToken(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListToken", reflect.TypeOf((*MockAuthControllerServer)(nil).ListToken), arg0, arg1)
+}
+
+// ListUser mocks base method.
+func (m *MockAuthControllerServer) ListUser(arg0 context.Context, arg1 *emptypb.Empty) (*ListUserResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListUser", arg0, arg1)
+	ret0, _ := ret[0].(*ListUserResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListUser indicates an expected call of ListUser.
+func (mr *MockAuthControllerServerMockRecorder) ListUser(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListUser", reflect.TypeOf((*MockAuthControllerServer)(nil).ListUser), arg0, arg1)
+}
+
+// RevokeRole mocks base method.
+func (m *MockAuthControllerServer) RevokeRole(arg0 context.Context, arg1 *RoleRequest) (*emptypb.Empty, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RevokeRole", arg0, arg1)
+	ret0, _ := ret[0].(*emptypb.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RevokeRole indicates an expected call of RevokeRole.
+func (mr *MockAuthControllerServerMockRecorder) RevokeRole(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeRole", reflect.TypeOf((*MockAuthControllerServer)(nil).RevokeRole), arg0, arg1)
+}
+
+// MockUnsafeAuthControllerServer is a mock of UnsafeAuthControllerServer interface.
+type MockUnsafeAuthControllerServer struct {
+	ctrl     *gomock.Controller
+	recorder *MockUnsafeAuthControllerServerMockRecorder
+}
+
+// MockUnsafeAuthControllerServerMockRecorder is the mock recorder for MockUnsafeAuthControllerServer.
+type MockUnsafeAuthControllerServerMockRecorder struct {
+	mock *MockUnsafeAuthControllerServer
+}
+
+// NewMockUnsafeAuthControllerServer creates a new mock instance.
+func NewMockUnsafeAuthControllerServer(ctrl *gomock.Controller) *MockUnsafeAuthControllerServer {
+	mock := &MockUnsafeAuthControllerServer{ctrl: ctrl}
+	mock.recorder = &MockUnsafeAuthControllerServerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockUnsafeAuthControllerServer) EXPECT() *MockUnsafeAuthControllerServerMockRecorder {
+	return m.recorder
+}
+
+// mustEmbedUnimplementedAuthControllerServer mocks base method.
+func (m *MockUnsafeAuthControllerServer) mustEmbedUnimplementedAuthControllerServer() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "mustEmbedUnimplementedAuthControllerServer")
+}
+
+// mustEmbedUnimplementedAuthControllerServer indicates an expected call of mustEmbedUnimplementedAuthControllerServer.
+func (mr *MockUnsafeAuthControllerServerMockRecorder) mustEmbedUnimplementedAuthControllerServer() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "mustEmbedUnimplementedAuthControllerServer", reflect.TypeOf((*MockUnsafeAuthControllerServer)(nil).mustEmbedUnimplementedAuthControllerServer))
+}

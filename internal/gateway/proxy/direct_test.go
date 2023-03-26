@@ -6,9 +6,11 @@ import (
 
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	"github.com/vanus-labs/vanus/internal/primitive/authorization"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 )
 
 func TestControllerProxy_ProxyMethod(t *testing.T) {
@@ -26,6 +28,9 @@ func TestControllerProxy_ProxyMethod(t *testing.T) {
 
 		eventbusCtrl := ctrlpb.NewMockEventbusControllerClient(ctrl)
 		cp.eventbusCtrl = eventbusCtrl
+		roleClient := authorization.NewMockRoleClient(ctrl)
+		cp.authService.RoleClient = roleClient
+		roleClient.EXPECT().IsClusterAdmin(gomock.Any(), gomock.Any()).AnyTimes().Return(true, nil)
 		eventbusCtrl.EXPECT().CreateEventbus(gomock.Any(), gomock.Any()).Times(1)
 		eventbusCtrl.EXPECT().DeleteEventbus(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
 		eventbusCtrl.EXPECT().GetEventbus(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)

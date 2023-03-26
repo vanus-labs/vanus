@@ -171,7 +171,7 @@ func Convert2ProtoSegment(ctx context.Context, ins ...Segment) []*metapb.Segment
 			Replicas:                 blocks,
 			State:                    string(seg.State),
 			FirstEventBornAtByUnixMs: seg.FirstEventBornTime.UnixMilli(),
-			LastEvnetBornAtByUnixMs:  seg.LastEventBornTime.UnixMilli(),
+			LastEventBornAtByUnixMs:  seg.LastEventBornTime.UnixMilli(),
 		}
 		if seg.GetLeaderBlock() != nil {
 			segs[idx].LeaderBlockId = seg.GetLeaderBlock().ID.Uint64()

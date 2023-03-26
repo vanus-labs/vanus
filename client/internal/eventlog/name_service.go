@@ -128,7 +128,7 @@ func toSegment(segment *metapb.Segment) *record.Segment {
 		StartOffset:      segment.GetStartOffsetInLog(),
 		EndOffset:        segment.GetEndOffsetInLog(),
 		FirstEventBornAt: time.UnixMilli(segment.FirstEventBornAtByUnixMs),
-		LastEventBornAt:  time.UnixMilli(segment.LastEvnetBornAtByUnixMs),
+		LastEventBornAt:  time.UnixMilli(segment.LastEventBornAtByUnixMs),
 		Writable:         segment.State == "working", // TODO: writable
 		Blocks:           blocks,
 		LeaderBlockID:    segment.GetLeaderBlockId(),

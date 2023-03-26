@@ -452,6 +452,9 @@ func (ctrl *controller) ListSubscription(
 	subscriptions := ctrl.subscriptionManager.ListSubscription(ctx)
 	list := make([]*metapb.Subscription, 0, len(subscriptions))
 	for _, sub := range subscriptions {
+		if request.NamespaceId != 0 && request.NamespaceId != sub.NamespaceID.Uint64() {
+			continue
+		}
 		if request.EventbusId != 0 && request.EventbusId != sub.EventbusID.Uint64() {
 			continue
 		}

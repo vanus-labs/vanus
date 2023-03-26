@@ -26,6 +26,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/eventlog"
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/server"
@@ -42,11 +48,6 @@ import (
 	"github.com/vanus-labs/vanus/pkg/util"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 var (
@@ -332,6 +333,7 @@ func (ctrl *controller) deleteEventbus(ctx context.Context, id vanus.ID) error {
 	if !exist {
 		return errors.ErrResourceNotFound.WithMessage("the eventbus doesn't exist")
 	}
+	// todo user can't delete system eventbus, but timer need to delete system eventbus
 	err := ctrl.kvStore.Delete(ctx, metadata.GetEventbusMetadataKey(id))
 	if err != nil {
 		return errors.ErrInternal.WithMessage("delete eventbus metadata in kv failed").Wrap(err)
@@ -376,11 +378,14 @@ func (ctrl *controller) getEventbus(id vanus.ID) (*metapb.Eventbus, error) {
 }
 
 func (ctrl *controller) ListEventbus(ctx context.Context,
-	_ *ctrlpb.ListEventbusRequest,
+	req *ctrlpb.ListEventbusRequest,
 ) (*ctrlpb.ListEventbusResponse, error) {
 	eventbusList := make([]*metapb.Eventbus, 0)
 	for _, v := range ctrl.eventbusMap {
 		if strings.HasPrefix(v.Name, primitive.SystemEventbusNamePrefix) {
+			continue
+		}
+		if req.NamespaceId != 0 && req.NamespaceId != v.NamespaceID {
 			continue
 		}
 		ebMD := metadata.Convert2ProtoEventbus(v)[0]

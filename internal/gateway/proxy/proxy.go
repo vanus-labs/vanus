@@ -37,6 +37,7 @@ import (
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"github.com/cloudevents/sdk-go/v2/types"
+	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel/trace"
@@ -56,6 +57,8 @@ import (
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/option"
 	"github.com/vanus-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/internal/gateway/auth"
+	"github.com/vanus-labs/vanus/internal/primitive/authorization"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/observability/tracing"
@@ -100,6 +103,7 @@ type Config struct {
 	CloudEventReceiverPort int
 	Credentials            credentials.TransportCredentials
 	GRPCReflectionEnable   bool
+	AuthCfg                auth.Config
 }
 
 type ackCallback func(bool)
@@ -143,14 +147,21 @@ type ControllerProxy struct {
 	eventlogCtrl ctrlpb.EventlogControllerClient
 	triggerCtrl  ctrlpb.TriggerControllerClient
 	nsCtrl       ctrlpb.NamespaceControllerClient
+	authCtrl     ctrlpb.AuthControllerClient
 	grpcSrv      *grpc.Server
 	ctrl         cluster.Cluster
 	writerMap    sync.Map
 	cache        sync.Map
+	authService  *auth.Auth
 }
 
 // Make sure ControllerProxy implements proxypb.StoreProxyServer.
 var _ proxypb.StoreProxyServer = (*ControllerProxy)(nil)
+
+func authPublish(_ context.Context, req interface{}) (authorization.ResourceKind, vanus.ID, authorization.Action) {
+	id := vanus.NewIDFromUint64((req.(*proxypb.PublishRequest)).GetEventbusId())
+	return authorization.ResourceEventbus, id, authorization.EventbusWrite
+}
 
 func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequest) (*emptypb.Empty, error) {
 	eventbusID := vanus.NewIDFromUint64(req.EventbusId)
@@ -247,6 +258,7 @@ func (cp *ControllerProxy) writeEvents(
 	return nil
 }
 
+// Subscribe todo authentication
 func (cp *ControllerProxy) Subscribe(req *proxypb.SubscribeRequest, stream proxypb.StoreProxy_SubscribeServer) error {
 	_ctx, span := cp.tracer.Start(context.Background(), "Subscribe")
 	defer span.End()
@@ -550,6 +562,8 @@ func NewControllerProxy(cfg Config) *ControllerProxy {
 		eventlogCtrl: ctrl.EventlogService().RawClient(),
 		triggerCtrl:  ctrl.TriggerService().RawClient(),
 		nsCtrl:       ctrl.NamespaceService().RawClient(),
+		authCtrl:     ctrl.AuthService().RawClient(),
+		authService:  auth.NewAuth(cfg.AuthCfg, ctrl),
 	}
 }
 
@@ -559,6 +573,7 @@ func (cp *ControllerProxy) SetClient(client api.Client) {
 }
 
 func (cp *ControllerProxy) Start() error {
+	cp.registerAuthentication()
 	if err := cp.ctrl.WaitForControllerReady(false); err != nil {
 		panic("error when wait cluster become ready, " + err.Error())
 	}
@@ -577,11 +592,14 @@ func (cp *ControllerProxy) Start() error {
 			errinterceptor.StreamServerInterceptor(),
 			recovery.StreamServerInterceptor(recoveryOpt),
 			otelgrpc.StreamServerInterceptor(),
+			grpc_auth.StreamServerInterceptor(cp.authService.Authenticate),
 		),
 		grpc.ChainUnaryInterceptor(
 			errinterceptor.UnaryServerInterceptor(),
 			recovery.UnaryServerInterceptor(recoveryOpt),
 			otelgrpc.UnaryServerInterceptor(),
+			grpc_auth.UnaryServerInterceptor(cp.authService.Authenticate),
+			auth.UnaryServerInterceptor(cp.authService.Authorize),
 		),
 	)
 
@@ -696,6 +714,11 @@ func (cp *ControllerProxy) ClusterInfo(_ context.Context, _ *emptypb.Empty) (*pr
 	}, nil
 }
 
+func authLookupOffset(_ context.Context, req interface{}) (authorization.ResourceKind, vanus.ID, authorization.Action) {
+	id := vanus.NewIDFromUint64((req.(*proxypb.LookupOffsetRequest)).GetEventbusId())
+	return authorization.ResourceEventbus, id, authorization.EventbusRead
+}
+
 func (cp *ControllerProxy) LookupOffset(
 	ctx context.Context, req *proxypb.LookupOffsetRequest,
 ) (*proxypb.LookupOffsetResponse, error) {
@@ -733,6 +756,11 @@ func (cp *ControllerProxy) LookupOffset(
 		res.Offsets[l.ID()] = off
 	}
 	return res, nil
+}
+
+func authGetEvent(_ context.Context, req interface{}) (authorization.ResourceKind, vanus.ID, authorization.Action) {
+	id := vanus.NewIDFromUint64((req.(*proxypb.GetEventRequest)).GetEventbusId())
+	return authorization.ResourceEventbus, id, authorization.EventbusRead
 }
 
 func (cp *ControllerProxy) GetEvent(

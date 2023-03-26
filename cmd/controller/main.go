@@ -86,7 +86,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	namespaceCtrlStv := tenant.NewController(cfg.GetTenantConfig(), mem)
+	tenantCtrlStv := tenant.NewController(cfg.GetTenantConfig(), mem)
 	segmentCtrl := eventbus.NewController(cfg.GetEventbusCtrlConfig(), mem)
 	triggerCtrlStv := trigger.NewController(cfg.GetTriggerConfig(), mem)
 
@@ -121,7 +121,8 @@ func main() {
 	}
 
 	ctrlpb.RegisterPingServerServer(grpcServer, segmentCtrl)
-	ctrlpb.RegisterNamespaceControllerServer(grpcServer, namespaceCtrlStv)
+	ctrlpb.RegisterNamespaceControllerServer(grpcServer, tenantCtrlStv)
+	ctrlpb.RegisterAuthControllerServer(grpcServer, tenantCtrlStv)
 	ctrlpb.RegisterEventbusControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterEventlogControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterSegmentControllerServer(grpcServer, segmentCtrl)
@@ -139,7 +140,7 @@ func main() {
 		wg.Done()
 	}()
 
-	if err = namespaceCtrlStv.Start(); err != nil {
+	if err = tenantCtrlStv.Start(); err != nil {
 		log.Error(ctx, "start namespace controller fail", map[string]interface{}{
 			log.KeyError: err,
 		})

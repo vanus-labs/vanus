@@ -37,6 +37,20 @@ func (m *MockCluster) EXPECT() *MockClusterMockRecorder {
 	return m.recorder
 }
 
+// AuthService mocks base method.
+func (m *MockCluster) AuthService() AuthService {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AuthService")
+	ret0, _ := ret[0].(AuthService)
+	return ret0
+}
+
+// AuthService indicates an expected call of AuthService.
+func (mr *MockClusterMockRecorder) AuthService() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthService", reflect.TypeOf((*MockCluster)(nil).AuthService))
+}
+
 // EventbusService mocks base method.
 func (m *MockCluster) EventbusService() EventbusService {
 	m.ctrl.T.Helper()
@@ -431,6 +445,21 @@ func (m *MockTriggerService) EXPECT() *MockTriggerServiceMockRecorder {
 	return m.recorder
 }
 
+// GetSubscription mocks base method.
+func (m *MockTriggerService) GetSubscription(ctx context.Context, id uint64) (*meta.Subscription, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSubscription", ctx, id)
+	ret0, _ := ret[0].(*meta.Subscription)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSubscription indicates an expected call of GetSubscription.
+func (mr *MockTriggerServiceMockRecorder) GetSubscription(ctx, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubscription", reflect.TypeOf((*MockTriggerService)(nil).GetSubscription), ctx, id)
+}
+
 // RawClient mocks base method.
 func (m *MockTriggerService) RawClient() controller.TriggerControllerClient {
 	m.ctrl.T.Helper()
@@ -545,4 +574,71 @@ func (m *MockSegmentService) RegisterHeartbeat(ctx context.Context, interval tim
 func (mr *MockSegmentServiceMockRecorder) RegisterHeartbeat(ctx, interval, reqFunc interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterHeartbeat", reflect.TypeOf((*MockSegmentService)(nil).RegisterHeartbeat), ctx, interval, reqFunc)
+}
+
+// MockAuthService is a mock of AuthService interface.
+type MockAuthService struct {
+	ctrl     *gomock.Controller
+	recorder *MockAuthServiceMockRecorder
+}
+
+// MockAuthServiceMockRecorder is the mock recorder for MockAuthService.
+type MockAuthServiceMockRecorder struct {
+	mock *MockAuthService
+}
+
+// NewMockAuthService creates a new mock instance.
+func NewMockAuthService(ctrl *gomock.Controller) *MockAuthService {
+	mock := &MockAuthService{ctrl: ctrl}
+	mock.recorder = &MockAuthServiceMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockAuthService) EXPECT() *MockAuthServiceMockRecorder {
+	return m.recorder
+}
+
+// GetUserByToken mocks base method.
+func (m *MockAuthService) GetUserByToken(ctx context.Context, token string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserByToken", ctx, token)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserByToken indicates an expected call of GetUserByToken.
+func (mr *MockAuthServiceMockRecorder) GetUserByToken(ctx, token interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserByToken", reflect.TypeOf((*MockAuthService)(nil).GetUserByToken), ctx, token)
+}
+
+// GetUserRole mocks base method.
+func (m *MockAuthService) GetUserRole(ctx context.Context, user string) ([]*meta.UserRole, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserRole", ctx, user)
+	ret0, _ := ret[0].([]*meta.UserRole)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserRole indicates an expected call of GetUserRole.
+func (mr *MockAuthServiceMockRecorder) GetUserRole(ctx, user interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserRole", reflect.TypeOf((*MockAuthService)(nil).GetUserRole), ctx, user)
+}
+
+// RawClient mocks base method.
+func (m *MockAuthService) RawClient() controller.AuthControllerClient {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RawClient")
+	ret0, _ := ret[0].(controller.AuthControllerClient)
+	return ret0
+}
+
+// RawClient indicates an expected call of RawClient.
+func (mr *MockAuthServiceMockRecorder) RawClient() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RawClient", reflect.TypeOf((*MockAuthService)(nil).RawClient))
 }
