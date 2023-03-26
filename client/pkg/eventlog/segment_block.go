@@ -24,7 +24,7 @@ import (
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 
 	// this project.
-	"github.com/vanus-labs/vanus/client/internal/vanus/store"
+	"github.com/vanus-labs/vanus/client/internal/store"
 	"github.com/vanus-labs/vanus/client/pkg/record"
 )
 

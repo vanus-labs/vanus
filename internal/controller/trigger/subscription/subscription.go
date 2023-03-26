@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	eb "github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/secret"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/storage"
@@ -64,7 +64,7 @@ const (
 
 type manager struct {
 	cl              cluster.Cluster
-	ebCli           eb.Client
+	ebCli           api.Client
 	secretStorage   secret.Storage
 	storage         storage.Storage
 	offsetManager   offset.Manager
@@ -80,7 +80,7 @@ type manager struct {
 }
 
 func NewSubscriptionManager(storage storage.Storage, secretStorage secret.Storage,
-	ebCli eb.Client, cl cluster.Cluster) Manager {
+	ebCli api.Client, cl cluster.Cluster) Manager {
 	m := &manager{
 		cl:                    cl,
 		ebCli:                 ebCli,

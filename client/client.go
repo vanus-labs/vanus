@@ -28,26 +28,20 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	// this project.
-	eb "github.com/vanus-labs/vanus/client/internal/vanus/eventbus"
+	eb "github.com/vanus-labs/vanus/client/internal/eventbus"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/eventbus"
 )
 
-type Client interface {
-	Eventbus(ctx context.Context, opts ...api.EventbusOption) api.Eventbus
-	Disconnect(ctx context.Context)
-}
-
 type client struct {
-	// Endpoints is a list of URLs.
-	Endpoints     []string
-	eventbusCache sync.Map
+	endpoints []string
+	cache     sync.Map
 
 	mu     sync.RWMutex
 	tracer *tracing.Tracer
 }
 
-func (c *client) Eventbus(ctx context.Context, opts ...api.EventbusOption) api.Eventbus {
+func (c *client) Eventbus(ctx context.Context, opts ...api.EventbusOption) (api.Eventbus, error) {
 	_, span := c.tracer.Start(ctx, "EventbusService")
 	defer span.End()
 
@@ -56,20 +50,20 @@ func (c *client) Eventbus(ctx context.Context, opts ...api.EventbusOption) api.E
 		apply(defaultOpts)
 	}
 
-	err := GetEventbusIDIfNotSet(ctx, c.Endpoints, defaultOpts)
+	err := GetEventbusIDIfNotSet(ctx, c.endpoints, defaultOpts)
 	if err != nil {
 		log.Error(ctx, "get eventbus id failed", map[string]interface{}{
 			log.KeyError:    err,
 			"eventbus_name": defaultOpts.Name,
 			"eventbus_id":   defaultOpts.ID,
 		})
-		return nil
+		return nil, err
 	}
 
 	bus := func() api.Eventbus {
 		c.mu.RLock()
 		defer c.mu.RUnlock()
-		if value, ok := c.eventbusCache.Load(defaultOpts.ID); ok {
+		if value, ok := c.cache.Load(defaultOpts.ID); ok {
 			return value.(api.Eventbus)
 		} else {
 			return nil
@@ -79,37 +73,43 @@ func (c *client) Eventbus(ctx context.Context, opts ...api.EventbusOption) api.E
 	if bus == nil {
 		c.mu.Lock()
 		defer c.mu.Unlock()
-		if value, ok := c.eventbusCache.Load(defaultOpts.ID); ok { // double check
-			return value.(api.Eventbus)
+		if value, ok := c.cache.Load(defaultOpts.ID); ok { // double check
+			return value.(api.Eventbus), nil
 		} else {
 			cfg := &eb.Config{
-				Endpoints: c.Endpoints,
+				Endpoints: c.endpoints,
 				ID:        defaultOpts.ID,
 			}
-			newEventbus := eventbus.NewEventbus(cfg)
-			c.eventbusCache.Store(defaultOpts.ID, newEventbus)
-			return newEventbus
+			newEventbus := eventbus.NewEventbus(cfg, c.close)
+			c.cache.Store(defaultOpts.ID, newEventbus)
+			return newEventbus, nil
 		}
 	}
-	return bus
+	return bus, nil
 }
 
 func (c *client) Disconnect(ctx context.Context) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.eventbusCache.Range(func(key, value interface{}) bool {
+	c.cache.Range(func(key, value interface{}) bool {
 		value.(api.Eventbus).Close(ctx)
-		c.eventbusCache.Delete(key)
+		c.cache.Delete(key)
 		return true
 	})
 }
 
-func Connect(endpoints []string) Client {
+func (c *client) close(id uint64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.cache.Delete(id)
+}
+
+func Connect(endpoints []string) api.Client {
 	if len(endpoints) == 0 {
 		return nil
 	}
 	return &client{
-		Endpoints: endpoints,
+		endpoints: endpoints,
 	}
 }
 
@@ -129,4 +129,3 @@ func GetEventbusIDIfNotSet(ctx context.Context, endpoints []string, opts *api.Ev
 	}
 	return nil
 }
-

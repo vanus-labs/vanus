@@ -23,6 +23,13 @@ import (
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
 )
 
+type CloseFunc func(id uint64)
+
+type Client interface {
+	Eventbus(ctx context.Context, opts ...EventbusOption) (Eventbus, error)
+	Disconnect(ctx context.Context)
+}
+
 type Eventbus interface {
 	Writer(opts ...WriteOption) BusWriter
 	Reader(opts ...ReadOption) BusReader

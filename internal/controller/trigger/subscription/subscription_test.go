@@ -22,7 +22,7 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/secret"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/storage"
@@ -39,7 +39,7 @@ func TestSubscriptionInit(t *testing.T) {
 	defer ctrl.Finish()
 	storage := storage.NewMockStorage(ctrl)
 	secret := secret.NewMockStorage(ctrl)
-	ebCli := client.NewMockClient(ctrl)
+	ebCli := api.NewMockClient(ctrl)
 	cl := cluster.NewMockCluster(ctrl)
 	m := NewSubscriptionManager(storage, secret, ebCli, cl)
 
@@ -68,7 +68,7 @@ func TestGetListSubscription(t *testing.T) {
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
 		secret := secret.NewMockStorage(ctrl)
-		ebCli := client.NewMockClient(ctrl)
+		ebCli := api.NewMockClient(ctrl)
 		cl := cluster.NewMockCluster(ctrl)
 		m := NewSubscriptionManager(storage, secret, ebCli, cl)
 		id := vanus.NewTestID()

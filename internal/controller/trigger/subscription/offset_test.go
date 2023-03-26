@@ -22,7 +22,6 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/secret"
@@ -42,7 +41,7 @@ func TestSaveOffset(t *testing.T) {
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
 		secret := secret.NewMockStorage(ctrl)
-		ebCli := client.NewMockClient(ctrl)
+		ebCli := api.NewMockClient(ctrl)
 		cl := cluster.NewMockCluster(ctrl)
 		m := NewSubscriptionManager(storage, secret, ebCli, cl).(*manager)
 		offsetManager := offset.NewMockManager(ctrl)
@@ -83,7 +82,7 @@ func TestGetOrSaveOffsetOffset(t *testing.T) {
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
 		secret := secret.NewMockStorage(ctrl)
-		ebCli := client.NewMockClient(ctrl)
+		ebCli := api.NewMockClient(ctrl)
 		cl := cluster.NewMockCluster(ctrl)
 		m := NewSubscriptionManager(storage, secret, ebCli, cl).(*manager)
 		offsetManager := offset.NewMockManager(ctrl)
@@ -129,7 +128,7 @@ func TestGetOrSaveOffsetOffset(t *testing.T) {
 			offsetManager.EXPECT().Offset(gomock.Any(), gomock.Any(), gomock.Any(), true).AnyTimes().Return(nil)
 			mockEventbus := api.NewMockEventbus(ctrl)
 			mockEventlog := api.NewMockEventlog(ctrl)
-			ebCli.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus)
+			ebCli.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus, nil)
 			mockEventbus.EXPECT().ListLog(gomock.Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
 			mockEventlog.EXPECT().ID().AnyTimes().Return(logID.Uint64())
 			mockEventlog.EXPECT().LatestOffset(gomock.Any()).AnyTimes().Return(int64(offsetV), nil)
@@ -173,7 +172,7 @@ func TestGetOffset(t *testing.T) {
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
 		secret := secret.NewMockStorage(ctrl)
-		ebCli := client.NewMockClient(ctrl)
+		ebCli := api.NewMockClient(ctrl)
 		cl := cluster.NewMockCluster(ctrl)
 		m := NewSubscriptionManager(storage, secret, ebCli, cl).(*manager)
 		offsetManager := offset.NewMockManager(ctrl)
@@ -224,7 +223,7 @@ func TestResetOffsetByTimestamp(t *testing.T) {
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
 		secret := secret.NewMockStorage(ctrl)
-		ebCli := client.NewMockClient(ctrl)
+		ebCli := api.NewMockClient(ctrl)
 		cl := cluster.NewMockCluster(ctrl)
 		m := NewSubscriptionManager(storage, secret, ebCli, cl).(*manager)
 		offsetManager := offset.NewMockManager(ctrl)
@@ -245,7 +244,7 @@ func TestResetOffsetByTimestamp(t *testing.T) {
 		offsetManager.EXPECT().Offset(ctx, id, gomock.Any(), true).Return(nil)
 		mockEventbus := api.NewMockEventbus(ctrl)
 		mockEventlog := api.NewMockEventlog(ctrl)
-		ebCli.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus)
+		ebCli.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus, nil)
 		mockEventbus.EXPECT().ListLog(gomock.Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
 		mockEventlog.EXPECT().ID().AnyTimes().Return(logID.Uint64())
 		time := uint64(time.Now().Unix())
@@ -262,7 +261,7 @@ func TestGetDeadLetterOffset(t *testing.T) {
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
 		secret := secret.NewMockStorage(ctrl)
-		ebCli := client.NewMockClient(ctrl)
+		ebCli := api.NewMockClient(ctrl)
 		cl := cluster.NewMockCluster(ctrl)
 		m := NewSubscriptionManager(storage, secret, ebCli, cl).(*manager)
 		offsetManager := offset.NewMockManager(ctrl)
@@ -316,7 +315,7 @@ func TestGetDeadLetterOffset(t *testing.T) {
 			offsetManager.EXPECT().Offset(gomock.Any(), gomock.Any(), gomock.Any(), true).AnyTimes().Return(nil)
 			mockEventbus := api.NewMockEventbus(ctrl)
 			mockEventlog := api.NewMockEventlog(ctrl)
-			ebCli.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus)
+			ebCli.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus, nil)
 			mockEventbus.EXPECT().ListLog(gomock.Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
 			mockEventlog.EXPECT().ID().AnyTimes().Return(logID.Uint64())
 
@@ -338,7 +337,7 @@ func TestSaveDeadLetterOffset(t *testing.T) {
 		defer ctrl.Finish()
 		storage := storage.NewMockStorage(ctrl)
 		secret := secret.NewMockStorage(ctrl)
-		ebCli := client.NewMockClient(ctrl)
+		ebCli := api.NewMockClient(ctrl)
 		cl := cluster.NewMockCluster(ctrl)
 		m := NewSubscriptionManager(storage, secret, ebCli, cl).(*manager)
 		offsetManager := offset.NewMockManager(ctrl)
@@ -370,7 +369,7 @@ func TestSaveDeadLetterOffset(t *testing.T) {
 		Convey("dead letter eventlogID hasn't init", func() {
 			mockEventbus := api.NewMockEventbus(ctrl)
 			mockEventlog := api.NewMockEventlog(ctrl)
-			ebCli.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus)
+			ebCli.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus, nil)
 			mockEventbus.EXPECT().ListLog(gomock.Any()).AnyTimes().Return([]api.Eventlog{mockEventlog}, nil)
 			mockEventlog.EXPECT().ID().AnyTimes().Return(logID.Uint64())
 			err := m.SaveDeadLetterOffset(ctx, id, offsetV)

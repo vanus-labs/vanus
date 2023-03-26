@@ -31,8 +31,8 @@ import (
 	"github.com/vanus-labs/vanus/pkg/errors"
 
 	// this project.
-	"github.com/vanus-labs/vanus/client/internal/vanus/net/connection"
-	"github.com/vanus-labs/vanus/client/internal/vanus/net/rpc"
+	"github.com/vanus-labs/vanus/client/internal/net/connection"
+	"github.com/vanus-labs/vanus/client/internal/net/rpc"
 )
 
 const (

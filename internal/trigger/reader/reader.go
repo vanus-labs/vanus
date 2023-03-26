@@ -26,7 +26,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	eb "github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/eventlog"
 	"github.com/vanus-labs/vanus/client/pkg/option"
@@ -49,7 +48,7 @@ const (
 
 type Config struct {
 	EventbusID        vanus.ID
-	Client            eb.Client
+	Client            api.Client
 	SubscriptionID    vanus.ID
 	SubscriptionIDStr string
 	Offset            EventlogOffset
@@ -95,7 +94,11 @@ func (r *reader) Start() error {
 	r.stop = cancel
 	timeoutCtx, cancel := context.WithTimeout(ctx, lookupReadableLogsTimeout)
 	defer cancel()
-	logs, err := r.config.Client.Eventbus(timeoutCtx, api.WithID(r.config.EventbusID.Uint64())).ListLog(timeoutCtx)
+	eb, err := r.config.Client.Eventbus(timeoutCtx, api.WithID(r.config.EventbusID.Uint64()))
+	if err != nil {
+		return err
+	}
+	logs, err := eb.ListLog(timeoutCtx)
 	if err != nil {
 		log.Warning(ctx, "eventbus lookup Readable eventlog error", map[string]interface{}{
 			log.KeyEventbusID: r.config.EventbusID,
@@ -156,7 +159,11 @@ type eventlogReader struct {
 }
 
 func (elReader *eventlogReader) run(ctx context.Context) {
-	r := elReader.config.Client.Eventbus(ctx, api.WithID(elReader.config.EventbusID.Uint64())).Reader(
+	eb, err := elReader.config.Client.Eventbus(ctx, api.WithID(elReader.config.EventbusID.Uint64()))
+	if err != nil {
+		return
+	}
+	r := eb.Reader(
 		option.WithReadPolicy(elReader.policy), option.WithBatchSize(elReader.config.BatchSize))
 	log.Info(ctx, "eventlog reader init success", map[string]interface{}{
 		log.KeyEventbusID: elReader.config.EventbusID,

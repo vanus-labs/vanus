@@ -28,6 +28,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	eb "github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/pkg/cluster"
@@ -83,7 +84,7 @@ type controller struct {
 	stopFunc              context.CancelFunc
 	state                 primitive.ServerState
 	cl                    cluster.Cluster
-	ebClient              eb.Client
+	ebClient              api.Client
 }
 
 func (ctrl *controller) SetDeadLetterEventOffset(

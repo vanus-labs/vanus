@@ -19,7 +19,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
-	stderrors "errors"
 	"io"
 	"sync"
 
@@ -34,16 +33,17 @@ import (
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 
 	// this project.
-	eb "github.com/vanus-labs/vanus/client/internal/vanus/eventbus"
-	el "github.com/vanus-labs/vanus/client/internal/vanus/eventlog"
+	eb "github.com/vanus-labs/vanus/client/internal/eventbus"
+	el "github.com/vanus-labs/vanus/client/internal/eventlog"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/eventlog"
 	"github.com/vanus-labs/vanus/client/pkg/policy"
 )
 
-func NewEventbus(cfg *eb.Config) *eventbus {
+func NewEventbus(cfg *eb.Config, close api.CloseFunc) *eventbus {
 	bus := &eventbus{
 		cfg:            cfg,
+		close:          close,
 		nameService:    eb.NewNameService(cfg.Endpoints),
 		writableLogSet: u64set.New(),
 		readableLogSet: u64set.New(),
@@ -108,7 +108,9 @@ func NewEventbus(cfg *eb.Config) *eventbus {
 
 type eventbus struct {
 	cfg         *eb.Config
+	close       api.CloseFunc
 	nameService *eb.NameService
+	closeOnce   sync.Once
 
 	writableWatcher *WritableLogsWatcher
 	writableLogSet  *u64set.Set
@@ -240,15 +242,17 @@ func (b *eventbus) ID() uint64 {
 }
 
 func (b *eventbus) Close(ctx context.Context) {
-	b.writableWatcher.Close()
-	b.readableWatcher.Close()
-
-	for _, w := range b.writableLogs {
-		w.Close(ctx)
-	}
-	for _, r := range b.readableLogs {
-		r.Close(ctx)
-	}
+	b.closeOnce.Do(func() {
+		b.writableWatcher.Close()
+		b.readableWatcher.Close()
+		for _, w := range b.writableLogs {
+			w.Close(ctx)
+		}
+		for _, r := range b.readableLogs {
+			r.Close(ctx)
+		}
+		b.close(b.cfg.ID)
+	})
 }
 
 func (b *eventbus) getWritableState() error {
@@ -321,9 +325,13 @@ func (b *eventbus) setWritableLogs(s *u64set.Set, lws map[uint64]eventlog.Eventl
 	b.writableLogs = lws
 }
 
-func (b *eventbus) getWritableLog(ctx context.Context, logID uint64) eventlog.Eventlog {
+func (b *eventbus) getWritableLog(ctx context.Context, logID uint64) (eventlog.Eventlog, error) {
 	b.writableMu.RLock()
 	defer b.writableMu.RUnlock()
+
+	if errors.Is(b.writableState, errors.ErrResourceNotFound) {
+		return nil, errors.ErrResourceNotFound.WithMessage("eventbus not found")
+	}
 
 	if len(b.writableLogs) == 0 {
 		func() {
@@ -333,7 +341,7 @@ func (b *eventbus) getWritableLog(ctx context.Context, logID uint64) eventlog.Ev
 		}()
 	}
 
-	return b.writableLogs[logID]
+	return b.writableLogs[logID], nil
 }
 
 func (b *eventbus) refreshWritableLogs(ctx context.Context) {
@@ -413,9 +421,13 @@ func (b *eventbus) setReadableLogs(s *u64set.Set, lws map[uint64]eventlog.Eventl
 	b.readableLogs = lws
 }
 
-func (b *eventbus) getReadableLog(ctx context.Context, logID uint64) eventlog.Eventlog {
+func (b *eventbus) getReadableLog(ctx context.Context, logID uint64) (eventlog.Eventlog, error) {
 	b.readableMu.RLock()
 	defer b.readableMu.RUnlock()
+
+	if errors.Is(b.readableState, errors.ErrResourceNotFound) {
+		return nil, errors.ErrResourceNotFound.WithMessage("eventbus not found")
+	}
 
 	if len(b.readableLogs) == 0 {
 		func() {
@@ -425,7 +437,7 @@ func (b *eventbus) getReadableLog(ctx context.Context, logID uint64) eventlog.Ev
 		}()
 	}
 
-	return b.readableLogs[logID]
+	return b.readableLogs[logID], nil
 }
 
 func (b *eventbus) refreshReadableLogs(ctx context.Context) {
@@ -496,9 +508,9 @@ func (w *busWriter) pickWritableLog(ctx context.Context, opts *api.WriteOptions)
 		return nil, err
 	}
 
-	lw := w.ebus.getWritableLog(_ctx, l.ID())
-	if lw == nil {
-		return nil, stderrors.New("can not pick writable log")
+	lw, err := w.ebus.getWritableLog(_ctx, l.ID())
+	if err != nil {
+		return nil, err
 	}
 
 	return lw.Writer(), nil
@@ -572,9 +584,9 @@ func (r *busReader) pickReadableLog(ctx context.Context, opts *api.ReadOptions) 
 	if err != nil {
 		return nil, err
 	}
-	lr := r.ebus.getReadableLog(_ctx, l.ID())
-	if lr == nil {
-		return nil, stderrors.New("can not pick readable log")
+	lr, err := r.ebus.getReadableLog(_ctx, l.ID())
+	if err != nil {
+		return nil, err
 	}
 
 	return lr.Reader(eventlog.ReaderConfig{PollingTimeout: opts.PollingTimeout}), nil

@@ -35,7 +35,10 @@ func main() {
 	if err != nil {
 		panic("invalid id")
 	}
-	eb := c.Eventbus(ctx, api.WithID(eventbusID.Uint64()))
+	eb, err := c.Eventbus(ctx, api.WithID(eventbusID.Uint64()))
+	if err != nil {
+		panic(err.Error())
+	}
 	ls, err := eb.ListLog(ctx)
 	if err != nil {
 		log.Print(err.Error())

@@ -29,7 +29,6 @@ import (
 	"github.com/google/uuid"
 	. "github.com/smartystreets/goconvey/convey"
 
-	eb "github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 
@@ -76,11 +75,11 @@ func TestTriggerStartStop(t *testing.T) {
 		r := reader.NewMockReader(ctrl)
 		r2 := reader.NewMockReader(ctrl)
 		ctx := context.Background()
-		mockClient := eb.NewMockClient(ctrl)
+		mockClient := api.NewMockClient(ctrl)
 		mockEventbus := api.NewMockEventbus(ctrl)
 		mockBusWriter := api.NewMockBusWriter(ctrl)
 		mockBusReader := api.NewMockBusReader(ctrl)
-		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus)
+		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus, nil)
 		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
 		tg.client = mockClient
@@ -108,11 +107,11 @@ func TestTriggerWriteFailEvent(t *testing.T) {
 		ctx := context.Background()
 		id := vanus.NewTestID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
-		mockClient := eb.NewMockClient(ctrl)
+		mockClient := api.NewMockClient(ctrl)
 		mockEventbus := api.NewMockEventbus(ctrl)
 		mockBusWriter := api.NewMockBusWriter(ctrl)
 		mockBusReader := api.NewMockBusReader(ctrl)
-		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus)
+		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus, nil)
 		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
 		tg.client = mockClient
@@ -163,11 +162,11 @@ func TestTriggerRunEventSend(t *testing.T) {
 		ctx := context.Background()
 		id := vanus.NewTestID()
 		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
-		mockClient := eb.NewMockClient(ctrl)
+		mockClient := api.NewMockClient(ctrl)
 		mockEventbus := api.NewMockEventbus(ctrl)
 		mockBusWriter := api.NewMockBusWriter(ctrl)
 		mockBusReader := api.NewMockBusReader(ctrl)
-		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus)
+		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(mockEventbus, nil)
 		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
 		tg.client = mockClient

@@ -29,8 +29,8 @@ import (
 	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
 	// this project.
-	"github.com/vanus-labs/vanus/client/internal/vanus/net/rpc"
-	"github.com/vanus-labs/vanus/client/internal/vanus/net/rpc/bare"
+	"github.com/vanus-labs/vanus/client/internal/net/rpc"
+	"github.com/vanus-labs/vanus/client/internal/net/rpc/bare"
 	"github.com/vanus-labs/vanus/client/pkg/primitive"
 )
 
