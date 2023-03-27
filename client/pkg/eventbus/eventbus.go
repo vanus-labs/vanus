@@ -38,10 +38,11 @@ import (
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/eventlog"
 	"github.com/vanus-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/client/pkg/primitive"
 )
 
-func NewEventbus(cfg *eb.Config, close api.CloseFunc) *eventbus {
-	bus := &eventbus{
+func NewEventbus(cfg *eb.Config, close api.CloseFunc) *Eventbus {
+	bus := &Eventbus{
 		cfg:            cfg,
 		close:          close,
 		nameService:    eb.NewNameService(cfg.Endpoints),
@@ -53,6 +54,7 @@ func NewEventbus(cfg *eb.Config, close api.CloseFunc) *eventbus {
 		readableMu:     sync.RWMutex{},
 		writableState:  nil,
 		readableState:  nil,
+		RefCount:       primitive.RefCount{},
 		tracer:         tracing.NewTracer("pkg.eventbus.impl", trace.SpanKindClient),
 	}
 
@@ -106,7 +108,7 @@ func NewEventbus(cfg *eb.Config, close api.CloseFunc) *eventbus {
 	return bus
 }
 
-type eventbus struct {
+type Eventbus struct {
 	cfg         *eb.Config
 	close       api.CloseFunc
 	nameService *eb.NameService
@@ -124,20 +126,21 @@ type eventbus struct {
 	readableMu      sync.RWMutex
 	readableState   error
 
+	primitive.RefCount
 	tracer *tracing.Tracer
 }
 
 // make sure eventbus implements api.Eventbus.
-var _ api.Eventbus = (*eventbus)(nil)
+var _ api.Eventbus = (*Eventbus)(nil)
 
-func (b *eventbus) defaultWriteOptions() *api.WriteOptions {
+func (b *Eventbus) defaultWriteOptions() *api.WriteOptions {
 	return &api.WriteOptions{
 		Oneway: false,
 		Policy: policy.NewRoundRobinWritePolicy(b),
 	}
 }
 
-func (b *eventbus) defaultReadOptions() *api.ReadOptions {
+func (b *Eventbus) defaultReadOptions() *api.ReadOptions {
 	return &api.ReadOptions{
 		BatchSize:      1,
 		PollingTimeout: api.DefaultPollingTimeout,
@@ -145,7 +148,7 @@ func (b *eventbus) defaultReadOptions() *api.ReadOptions {
 	}
 }
 
-func (b *eventbus) Writer(opts ...api.WriteOption) api.BusWriter {
+func (b *Eventbus) Writer(opts ...api.WriteOption) api.BusWriter {
 	writeOpts := b.defaultWriteOptions()
 	for _, opt := range opts {
 		opt(writeOpts)
@@ -159,7 +162,7 @@ func (b *eventbus) Writer(opts ...api.WriteOption) api.BusWriter {
 	return w
 }
 
-func (b *eventbus) Reader(opts ...api.ReadOption) api.BusReader {
+func (b *Eventbus) Reader(opts ...api.ReadOption) api.BusReader {
 	readOpts := b.defaultReadOptions()
 	for _, opt := range opts {
 		opt(readOpts)
@@ -173,7 +176,7 @@ func (b *eventbus) Reader(opts ...api.ReadOption) api.BusReader {
 	return r
 }
 
-func (b *eventbus) GetLog(ctx context.Context, logID uint64, opts ...api.LogOption) (api.Eventlog, error) {
+func (b *Eventbus) GetLog(ctx context.Context, logID uint64, opts ...api.LogOption) (api.Eventlog, error) {
 	_, span := b.tracer.Start(ctx, "pkg.eventbus.getlog")
 	defer span.End()
 	op := &api.LogOptions{
@@ -204,7 +207,7 @@ func (b *eventbus) GetLog(ctx context.Context, logID uint64, opts ...api.LogOpti
 	}
 }
 
-func (b *eventbus) ListLog(ctx context.Context, opts ...api.LogOption) ([]api.Eventlog, error) {
+func (b *Eventbus) ListLog(ctx context.Context, opts ...api.LogOption) ([]api.Eventlog, error) {
 	_, span := b.tracer.Start(ctx, "pkg.eventbus.listlog")
 	defer span.End()
 	op := &api.LogOptions{
@@ -237,37 +240,43 @@ func (b *eventbus) ListLog(ctx context.Context, opts ...api.LogOption) ([]api.Ev
 	}
 }
 
-func (b *eventbus) ID() uint64 {
+func (b *Eventbus) ID() uint64 {
 	return b.cfg.ID
 }
 
-func (b *eventbus) Close(ctx context.Context) {
-	b.closeOnce.Do(func() {
-		b.writableWatcher.Close()
-		b.readableWatcher.Close()
-		for _, w := range b.writableLogs {
-			w.Close(ctx)
-		}
-		for _, r := range b.readableLogs {
-			r.Close(ctx)
-		}
-		b.close(b.cfg.ID)
-	})
+func (b *Eventbus) Close(ctx context.Context) {
+	if b.Release() {
+		func() {
+			if b.UseCount() == 0 { // double check
+				b.closeOnce.Do(func() {
+					b.writableWatcher.Close()
+					b.readableWatcher.Close()
+					for _, w := range b.writableLogs {
+						w.Close(ctx)
+					}
+					for _, r := range b.readableLogs {
+						r.Close(ctx)
+					}
+					b.close(b.cfg.ID)
+				})
+			}
+		}()
+	}
 }
 
-func (b *eventbus) getWritableState() error {
+func (b *Eventbus) getWritableState() error {
 	b.writableMu.RLock()
 	defer b.writableMu.RUnlock()
 	return b.writableState
 }
 
-func (b *eventbus) setWritableState(err error) {
+func (b *Eventbus) setWritableState(err error) {
 	b.writableMu.Lock()
 	defer b.writableMu.Unlock()
 	b.writableState = err
 }
 
-func (b *eventbus) isNeedUpdateWritableLogs(err error) bool {
+func (b *Eventbus) isNeedUpdateWritableLogs(err error) bool {
 	if err == nil {
 		b.setWritableState(nil)
 		return true
@@ -279,7 +288,7 @@ func (b *eventbus) isNeedUpdateWritableLogs(err error) bool {
 	return false
 }
 
-func (b *eventbus) updateWritableLogs(ctx context.Context, re *WritableLogsResult) {
+func (b *Eventbus) updateWritableLogs(ctx context.Context, re *WritableLogsResult) {
 	_, span := b.tracer.Start(ctx, "updateWritableLogs")
 	defer span.End()
 
@@ -318,14 +327,14 @@ func (b *eventbus) updateWritableLogs(ctx context.Context, re *WritableLogsResul
 	b.setWritableLogs(s, lws)
 }
 
-func (b *eventbus) setWritableLogs(s *u64set.Set, lws map[uint64]eventlog.Eventlog) {
+func (b *Eventbus) setWritableLogs(s *u64set.Set, lws map[uint64]eventlog.Eventlog) {
 	b.writableMu.Lock()
 	defer b.writableMu.Unlock()
 	b.writableLogSet = s
 	b.writableLogs = lws
 }
 
-func (b *eventbus) getWritableLog(ctx context.Context, logID uint64) (eventlog.Eventlog, error) {
+func (b *Eventbus) getWritableLog(ctx context.Context, logID uint64) (eventlog.Eventlog, error) {
 	b.writableMu.RLock()
 	defer b.writableMu.RUnlock()
 
@@ -344,26 +353,26 @@ func (b *eventbus) getWritableLog(ctx context.Context, logID uint64) (eventlog.E
 	return b.writableLogs[logID], nil
 }
 
-func (b *eventbus) refreshWritableLogs(ctx context.Context) {
+func (b *Eventbus) refreshWritableLogs(ctx context.Context) {
 	_ctx, span := b.tracer.Start(ctx, "refreshWritableLogs")
 	defer span.End()
 
 	_ = b.writableWatcher.Refresh(_ctx)
 }
 
-func (b *eventbus) getReadableState() error {
+func (b *Eventbus) getReadableState() error {
 	b.readableMu.RLock()
 	defer b.readableMu.RUnlock()
 	return b.readableState
 }
 
-func (b *eventbus) setReadableState(err error) {
+func (b *Eventbus) setReadableState(err error) {
 	b.readableMu.Lock()
 	defer b.readableMu.Unlock()
 	b.readableState = err
 }
 
-func (b *eventbus) isNeedUpdateReadableLogs(err error) bool {
+func (b *Eventbus) isNeedUpdateReadableLogs(err error) bool {
 	if err == nil {
 		b.setReadableState(nil)
 		return true
@@ -375,7 +384,7 @@ func (b *eventbus) isNeedUpdateReadableLogs(err error) bool {
 	return false
 }
 
-func (b *eventbus) updateReadableLogs(ctx context.Context, re *ReadableLogsResult) {
+func (b *Eventbus) updateReadableLogs(ctx context.Context, re *ReadableLogsResult) {
 	_, span := b.tracer.Start(ctx, "updateReadableLogs")
 	defer span.End()
 
@@ -414,14 +423,14 @@ func (b *eventbus) updateReadableLogs(ctx context.Context, re *ReadableLogsResul
 	b.setReadableLogs(s, lws)
 }
 
-func (b *eventbus) setReadableLogs(s *u64set.Set, lws map[uint64]eventlog.Eventlog) {
+func (b *Eventbus) setReadableLogs(s *u64set.Set, lws map[uint64]eventlog.Eventlog) {
 	b.readableMu.Lock()
 	defer b.readableMu.Unlock()
 	b.readableLogSet = s
 	b.readableLogs = lws
 }
 
-func (b *eventbus) getReadableLog(ctx context.Context, logID uint64) (eventlog.Eventlog, error) {
+func (b *Eventbus) getReadableLog(ctx context.Context, logID uint64) (eventlog.Eventlog, error) {
 	b.readableMu.RLock()
 	defer b.readableMu.RUnlock()
 
@@ -440,7 +449,7 @@ func (b *eventbus) getReadableLog(ctx context.Context, logID uint64) (eventlog.E
 	return b.readableLogs[logID], nil
 }
 
-func (b *eventbus) refreshReadableLogs(ctx context.Context) {
+func (b *Eventbus) refreshReadableLogs(ctx context.Context) {
 	_ctx, span := b.tracer.Start(ctx, "refreshReadableLogs")
 	defer span.End()
 
@@ -448,7 +457,7 @@ func (b *eventbus) refreshReadableLogs(ctx context.Context) {
 }
 
 type busWriter struct {
-	ebus   *eventbus
+	ebus   *Eventbus
 	opts   *api.WriteOptions
 	tracer *tracing.Tracer
 }
@@ -528,7 +537,7 @@ func genEventID(logID uint64, off int64) string {
 }
 
 type busReader struct {
-	ebus   *eventbus
+	ebus   *Eventbus
 	opts   *api.ReadOptions
 	tracer *tracing.Tracer
 }

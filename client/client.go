@@ -62,6 +62,7 @@ func (c *client) Eventbus(ctx context.Context, opts ...api.EventbusOption) (api.
 
 	bus := func() api.Eventbus {
 		if value, ok := c.cache.Load(defaultOpts.ID); ok {
+			value.(*eventbus.Eventbus).Acquire()
 			return value.(api.Eventbus)
 		} else {
 			return nil
@@ -79,6 +80,7 @@ func (c *client) Eventbus(ctx context.Context, opts ...api.EventbusOption) (api.
 				ID:        defaultOpts.ID,
 			}
 			newEventbus := eventbus.NewEventbus(cfg, c.close)
+			newEventbus.Acquire()
 			c.cache.Store(defaultOpts.ID, newEventbus)
 			return newEventbus, nil
 		}
