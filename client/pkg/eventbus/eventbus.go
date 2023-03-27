@@ -512,6 +512,9 @@ func (w *busWriter) pickWritableLog(ctx context.Context, opts *api.WriteOptions)
 	if err != nil {
 		return nil, err
 	}
+	if lw == nil {
+		return nil, errors.ErrResourceCanNotOp.WithMessage("can not pick writable log")
+	}
 
 	return lw.Writer(), nil
 }
@@ -587,6 +590,9 @@ func (r *busReader) pickReadableLog(ctx context.Context, opts *api.ReadOptions) 
 	lr, err := r.ebus.getReadableLog(_ctx, l.ID())
 	if err != nil {
 		return nil, err
+	}
+	if lr == nil {
+		return nil, errors.ErrResourceCanNotOp.WithMessage("can not pick readable log")
 	}
 
 	return lr.Reader(eventlog.ReaderConfig{PollingTimeout: opts.PollingTimeout}), nil

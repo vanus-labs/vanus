@@ -61,8 +61,6 @@ func (c *client) Eventbus(ctx context.Context, opts ...api.EventbusOption) (api.
 	}
 
 	bus := func() api.Eventbus {
-		c.mu.RLock()
-		defer c.mu.RUnlock()
 		if value, ok := c.cache.Load(defaultOpts.ID); ok {
 			return value.(api.Eventbus)
 		} else {
@@ -89,18 +87,13 @@ func (c *client) Eventbus(ctx context.Context, opts ...api.EventbusOption) (api.
 }
 
 func (c *client) Disconnect(ctx context.Context) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	c.cache.Range(func(key, value interface{}) bool {
 		value.(api.Eventbus).Close(ctx)
-		c.cache.Delete(key)
 		return true
 	})
 }
 
 func (c *client) close(id uint64) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	c.cache.Delete(id)
 }
 
