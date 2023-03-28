@@ -62,6 +62,8 @@ const (
 	ErrorCode_UNMARSHAL              ErrorCode = 9509
 	ErrorCode_LAMBDA_INVOKE          ErrorCode = 9510
 	ErrorCode_LAMBDA_INVOKE_RESPONSE ErrorCode = 9511
+	ErrorCode_JSON_PATH_PARSE        ErrorCode = 9512
+	ErrorCode_JSON_PATH_NO_EXIST     ErrorCode = 9513
 
 	// ErrorCode_SEGMENT_FULL 96xx
 	ErrorCode_SEGMENT_FULL            ErrorCode = 9600
@@ -136,6 +138,8 @@ var (
 	ErrUnmarshall             = New("unmarshall data failed").WithGRPCCode(ErrorCode_UNMARSHAL)
 	ErrLambdaInvoke           = New("lambda invoke error").WithGRPCCode(ErrorCode_LAMBDA_INVOKE)
 	ErrLambdaInvokeResponse   = New("lambda invoke response fail").WithGRPCCode(ErrorCode_LAMBDA_INVOKE_RESPONSE)
+	ErrParseJSONPath          = New("JSON path invalid").WithGRPCCode(ErrorCode_JSON_PATH_PARSE)
+	ErrJSONPathNoExist        = New("JSON path no exist").WithGRPCCode(ErrorCode_JSON_PATH_NO_EXIST)
 
 	// INVALID_REQUEST
 	ErrInvalidRequest          = New("invalid request").WithGRPCCode(ErrorCode_INVALID_REQUEST)

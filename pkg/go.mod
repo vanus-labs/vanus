@@ -4,11 +4,12 @@ go 1.18
 
 require (
 	github.com/golang/mock v1.6.0
+	github.com/ohler55/ojg v1.18.1
 	github.com/pkg/errors v0.9.1
 	github.com/smartystreets/goconvey v1.7.2
 	github.com/vanus-labs/vanus/observability v0.5.7
 	github.com/vanus-labs/vanus/proto v0.5.7
-	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783
+	golang.org/x/oauth2 v0.6.0
 	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
 )
@@ -21,9 +22,9 @@ require (
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/rs/zerolog v1.29.0 // indirect
 	github.com/smartystreets/assertions v1.2.0 // indirect
-	golang.org/x/net v0.4.0 // indirect
-	golang.org/x/sys v0.3.0 // indirect
-	golang.org/x/text v0.5.0 // indirect
+	golang.org/x/net v0.8.0 // indirect
+	golang.org/x/sys v0.6.0 // indirect
+	golang.org/x/text v0.8.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20221202195650-67e5cbc046fd // indirect
 )

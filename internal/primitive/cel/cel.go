@@ -16,13 +16,16 @@ package cel
 
 import (
 	"fmt"
+	"reflect"
+	"strconv"
 	"strings"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/checker/decls"
-	"github.com/tidwall/gjson"
 	exprpb "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
+
+	"github.com/vanus-labs/vanus/pkg/util"
 )
 
 var ErrInvalidExpression = fmt.Errorf("expression is invalid,format is: $json_path.(type)")
@@ -95,7 +98,7 @@ func parseExpression(expression string) (string, map[string]Variable, error) {
 
 		varMap[safeCELName] = Variable{
 			Name: safeCELName,
-			Path: expression[pos+1 : typeStartPos],
+			Path: "$." + expression[pos+1:typeStartPos],
 			Type: expression[typeStartPos+2 : typeEndPos],
 		}
 		expr += safeCELName
@@ -145,24 +148,128 @@ func newCelProgram(expr string, vars map[string]Variable) (cel.Program, error) {
 
 func (e *Expression) Eval(event ce.Event) (bool, error) {
 	vars := make(map[string]interface{})
-
+	obj, err := util.ParseJSON(event.Data())
+	if err != nil {
+		return false, err
+	}
 	for _, v := range e.variables {
+		value, err := util.GetJSONValue(obj, v.Path)
+		if err != nil {
+			return false, err
+		}
+		var val interface{}
+
 		switch v.Type {
 		case "string":
-			vars[v.Name] = gjson.GetBytes(event.Data(), v.Path).String()
+			val, err = stringValue(value)
+			if err != nil {
+				return false, err
+			}
 		case "int64":
-			vars[v.Name] = gjson.GetBytes(event.Data(), v.Path).Int()
+			val, err = intValue(value)
+			if err != nil {
+				return false, err
+			}
 		case "uint64":
-			vars[v.Name] = gjson.GetBytes(event.Data(), v.Path).Uint()
+			val, err = uintValue(value)
+			if err != nil {
+				return false, err
+			}
 		case "bool":
-			vars[v.Name] = gjson.GetBytes(event.Data(), v.Path).Bool()
+			val, err = boolValue(value)
+			if err != nil {
+				return false, err
+			}
 		case "double":
-			vars[v.Name] = gjson.GetBytes(event.Data(), v.Path).Float()
+			val, err = floatValue(value)
+			if err != nil {
+				return false, err
+			}
 		}
+		vars[v.Name] = val
 	}
 	out, _, err := e.program.Eval(vars)
 	if err != nil {
 		return false, err
 	}
 	return out.Value().(bool), nil
+}
+
+func stringValue(value interface{}) (string, error) {
+	v, ok := value.(string)
+	if ok {
+		return v, nil
+	}
+	reflectValue := reflect.ValueOf(value)
+	switch reflectValue.Kind() {
+	case reflect.Float32, reflect.Float64, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr, reflect.Bool:
+		return fmt.Sprintf("%v", value), nil
+	default:
+		return "", fmt.Errorf("%s can't convert to string", reflectValue.Kind().String())
+	}
+}
+
+func intValue(value interface{}) (int64, error) {
+	reflectValue := reflect.ValueOf(value)
+	switch {
+	case reflectValue.CanFloat():
+		return int64(reflectValue.Float()), nil
+	case reflectValue.CanInt():
+		return reflectValue.Int(), nil
+	case reflectValue.CanUint():
+		return int64(reflectValue.Uint()), nil
+	case reflectValue.Kind() == reflect.String:
+		v, err := strconv.ParseInt(value.(string), 10, 64)
+		return v, err
+	default:
+		return 0, fmt.Errorf("%s can't convert to int64", reflectValue.Kind().String())
+	}
+}
+
+func uintValue(value interface{}) (uint64, error) {
+	reflectValue := reflect.ValueOf(value)
+	switch {
+	case reflectValue.CanFloat():
+		return uint64(reflectValue.Float()), nil
+	case reflectValue.CanInt():
+		return uint64(reflectValue.Int()), nil
+	case reflectValue.CanUint():
+		return reflectValue.Uint(), nil
+	case reflectValue.Kind() == reflect.String:
+		v, err := strconv.ParseUint(value.(string), 10, 64)
+		return v, err
+	default:
+		return 0, fmt.Errorf("%s can't convert to uint64", reflectValue.Kind().String())
+	}
+}
+
+func boolValue(value interface{}) (bool, error) {
+	reflectValue := reflect.ValueOf(value)
+	switch reflectValue.Kind() {
+	case reflect.Bool:
+		return reflectValue.Bool(), nil
+	case reflect.String:
+		b, err := strconv.ParseBool(reflectValue.String())
+		return b, err
+	default:
+		return false, fmt.Errorf("%s can't convert to bool", reflectValue.Kind().String())
+	}
+}
+
+func floatValue(value interface{}) (float64, error) {
+	reflectValue := reflect.ValueOf(value)
+	switch {
+	case reflectValue.CanFloat():
+		return reflectValue.Float(), nil
+	case reflectValue.CanInt():
+		return float64(reflectValue.Int()), nil
+	case reflectValue.CanUint():
+		return float64(reflectValue.Uint()), nil
+	case reflectValue.Kind() == reflect.String:
+		v, err := strconv.ParseFloat(value.(string), 64)
+		return v, err
+	default:
+		return 0, fmt.Errorf("%s can't convert to float64", reflectValue.Kind().String())
+	}
 }
