@@ -49,13 +49,13 @@ type ExtensionAttributeCallback interface {
 // Entry is a record of data stored in a Block.
 // An Entry has some optional attributes and arbitrary extension attributes.
 type Entry interface {
-	Get(_ int) interface{}
-	GetBytes(_ int) []byte
-	GetString(_ int) string
-	GetUint16(_ int) uint16
-	GetUint64(_ int) uint64
-	GetInt64(_ int) int64
-	GetTime(_ int) time.Time
+	Get(ordinal int) interface{}
+	GetBytes(ordinal int) []byte
+	GetString(ordinal int) string
+	GetUint16(ordinal int) uint16
+	GetUint64(ordinal int) uint64
+	GetInt64(ordinal int) int64
+	GetTime(ordinal int) time.Time
 	// TODO(james.yin): more types
 
 	GetExtensionAttribute([]byte) []byte
@@ -63,14 +63,14 @@ type Entry interface {
 }
 
 type OptionalAttributeCallback interface {
-	OnBytes(_ int, val []byte)
-	OnString(_ int, val string)
-	OnUint16(_ int, val uint16)
-	OnUint64(_ int, val uint64)
-	OnInt64(_ int, val int64)
-	OnTime(_ int, val time.Time)
+	OnBytes(ordinal int, val []byte)
+	OnString(ordinal int, val string)
+	OnUint16(ordinal int, val uint16)
+	OnUint64(ordinal int, val uint64)
+	OnInt64(ordinal int, val int64)
+	OnTime(ordinal int, val time.Time)
 	// TODO(james.yin): more types
-	OnAttribute(_ int, val interface{})
+	OnAttribute(ordinal int, val interface{})
 }
 
 type EntryExt interface {
@@ -87,39 +87,39 @@ type EmptyEntry struct{}
 // Mark sure EmptyEntry implements Entry.
 var _ Entry = (*EmptyEntry)(nil)
 
-func (e *EmptyEntry) Get(_ int) interface{} {
+func (e *EmptyEntry) Get(ordinal int) interface{} { //nolint:unused // ok
 	return nil
 }
 
-func (e *EmptyEntry) GetBytes(_ int) []byte {
+func (e *EmptyEntry) GetBytes(ordinal int) []byte { //nolint:unused // ok
 	return nil
 }
 
-func (e *EmptyEntry) GetString(_ int) string {
+func (e *EmptyEntry) GetString(ordinal int) string { //nolint:unused // ok
 	return ""
 }
 
-func (e *EmptyEntry) GetUint16(_ int) uint16 {
+func (e *EmptyEntry) GetUint16(ordinal int) uint16 { //nolint:unused // ok
 	return 0
 }
 
-func (e *EmptyEntry) GetUint64(_ int) uint64 {
+func (e *EmptyEntry) GetUint64(ordinal int) uint64 { //nolint:unused // ok
 	return 0
 }
 
-func (e *EmptyEntry) GetInt64(_ int) int64 {
+func (e *EmptyEntry) GetInt64(ordinal int) int64 { //nolint:unused // ok
 	return 0
 }
 
-func (e *EmptyEntry) GetTime(_ int) time.Time {
+func (e *EmptyEntry) GetTime(ordinal int) time.Time { //nolint:unused // ok
 	return time.Time{}
 }
 
-func (e *EmptyEntry) GetExtensionAttribute([]byte) []byte {
+func (e *EmptyEntry) GetExtensionAttribute([]byte) []byte { //nolint:unused // ok
 	return nil
 }
 
-func (e *EmptyEntry) RangeExtensionAttributes(_ ExtensionAttributeCallback) {
+func (e *EmptyEntry) RangeExtensionAttributes(ordinal ExtensionAttributeCallback) { //nolint:unused // ok
 }
 
 type EmptyEntryExt struct {
@@ -133,7 +133,7 @@ func (e *EmptyEntryExt) OptionalAttributeCount() int {
 	return 0
 }
 
-func (e *EmptyEntryExt) RangeOptionalAttributes(_ OptionalAttributeCallback) {
+func (e *EmptyEntryExt) RangeOptionalAttributes(ordinal OptionalAttributeCallback) { //nolint:unused // ok
 }
 
 func (e *EmptyEntryExt) ExtensionAttributeCount() int {
@@ -204,7 +204,7 @@ func (f OnExtensionAttributeFunc) OnAttribute(attr []byte, val Value) {
 	f(attr, val)
 }
 
-type OnOptionalAttributeFunc func(_ int, val interface{})
+type OnOptionalAttributeFunc func(ordinal int, val interface{})
 
 // Make sure OptionalAttributesFunc implements OptionalAttributesCallback.
 var _ OptionalAttributeCallback = (OnOptionalAttributeFunc)(nil)
