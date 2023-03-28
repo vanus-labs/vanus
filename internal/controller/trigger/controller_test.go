@@ -24,6 +24,7 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/vanus-labs/vanus/pkg/cluster"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
@@ -47,7 +48,6 @@ func TestController_CommitOffset(t *testing.T) {
 		ctrl.subscriptionManager = subManager
 
 		subID := vanus.NewTestID()
-		ctrl.state = primitive.ServerStateRunning
 		request := &ctrlpb.CommitOffsetRequest{
 			ForceCommit: true,
 			SubscriptionInfo: []*metapb.SubscriptionInfo{{
@@ -87,7 +87,6 @@ func TestController_ResetOffsetToTimestamp(t *testing.T) {
 		ctrl.subscriptionManager = subManager
 
 		subID := vanus.NewTestID()
-		ctrl.state = primitive.ServerStateRunning
 		Convey("reset offset subscription not exist", func() {
 			subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).AnyTimes().Return(nil)
 			_, err := ctrl.ResetOffsetToTimestamp(ctx, &ctrlpb.ResetOffsetToTimestampRequest{
@@ -123,11 +122,17 @@ func TestController_CreateSubscription(t *testing.T) {
 		subManager := subscription.NewMockManager(mockCtrl)
 		ctrl.subscriptionManager = subManager
 		ctrl.scheduler = worker.NewSubscriptionScheduler(ctrl.workerManager, ctrl.subscriptionManager)
-
-		ctrl.state = primitive.ServerStateRunning
+		mockCluster := cluster.NewMockCluster(mockCtrl)
+		ctrl.cl = mockCluster
 		Convey("create subscription", func() {
 			subManager.EXPECT().GetSubscriptionByName(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 			subManager.EXPECT().AddSubscription(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+			mockNsSvc := cluster.NewMockNamespaceService(mockCtrl)
+			mockEbSvc := cluster.NewMockEventbusService(mockCtrl)
+			mockCluster.EXPECT().NamespaceService().AnyTimes().Return(mockNsSvc)
+			mockCluster.EXPECT().EventbusService().AnyTimes().Return(mockEbSvc)
+			mockNsSvc.EXPECT().GetNamespace(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, nil)
+			mockEbSvc.EXPECT().GetEventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, nil)
 			create := &ctrlpb.CreateSubscriptionRequest{
 				Subscription: &ctrlpb.SubscriptionRequest{
 					NamespaceId: vanus.NewTestID().Uint64(),
@@ -168,7 +173,6 @@ func TestController_UpdateSubscription(t *testing.T) {
 		subID := vanus.NewTestID()
 		eventbusID := vanus.NewTestID()
 		namespaceID := vanus.NewTestID()
-		ctrl.state = primitive.ServerStateRunning
 		Convey("update subscription not exist", func() {
 			subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).Return(nil)
 			request := &ctrlpb.UpdateSubscriptionRequest{
@@ -387,7 +391,6 @@ func TestController_DeleteSubscription(t *testing.T) {
 		request := &ctrlpb.DeleteSubscriptionRequest{
 			Id: subID.Uint64(),
 		}
-		ctrl.state = primitive.ServerStateRunning
 		Convey("delete subscription no exist", func() {
 			subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).Return(nil)
 			_, err := ctrl.DeleteSubscription(ctx, request)
@@ -447,7 +450,6 @@ func TestController_GetSubscription(t *testing.T) {
 		request := &ctrlpb.GetSubscriptionRequest{
 			Id: subID.Uint64(),
 		}
-		ctrl.state = primitive.ServerStateRunning
 		Convey("get subscription no exist", func() {
 			subManager.EXPECT().GetSubscription(gomock.Any(), gomock.Eq(subID)).Return(nil)
 			_, err := ctrl.GetSubscription(ctx, request)

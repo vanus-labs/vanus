@@ -6,11 +6,12 @@ import (
 	"strings"
 	"sync"
 
+	"google.golang.org/protobuf/types/known/wrapperspb"
+
 	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"github.com/vanus-labs/vanus/proto/pkg/meta"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 var (
@@ -75,7 +76,13 @@ func (es *eventbusService) GetEventbus(ctx context.Context, id uint64) (*meta.Ev
 
 func (es *eventbusService) IsSystemEventbusExistByName(ctx context.Context, name string) (bool, error) {
 	ebPb, err := es.GetSystemEventbusByName(ctx, name)
-	return ebPb != nil, err
+	if err != nil {
+		if errors.Is(err, errors.ErrResourceNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return ebPb != nil, nil
 }
 
 func (es *eventbusService) CreateSystemEventbusIfNotExist(ctx context.Context, name string, desc string) (*meta.Eventbus, error) {
@@ -83,7 +90,7 @@ func (es *eventbusService) CreateSystemEventbusIfNotExist(ctx context.Context, n
 		return nil, errors.New("invalid system eventbus name")
 	}
 	exist, err := es.IsSystemEventbusExistByName(ctx, name)
-	if err != nil && !errors.Is(err, errors.ErrResourceNotFound) {
+	if err != nil {
 		return nil, err
 	}
 

@@ -63,6 +63,7 @@ type NamespaceService interface {
 }
 
 type EventbusService interface {
+	IsSystemEventbusExistByName(ctx context.Context, name string) (bool, error)
 	CreateSystemEventbusIfNotExist(ctx context.Context, name string, desc string) (*metapb.Eventbus, error)
 	Delete(ctx context.Context, id uint64) error
 	GetSystemEventbusByName(ctx context.Context, name string) (*metapb.Eventbus, error)
