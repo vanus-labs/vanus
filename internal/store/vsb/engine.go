@@ -42,22 +42,22 @@ func (e *engine) Close() {
 	e.s.Close()
 }
 
-func Initialize(dir string, opts ...Option) error {
+func NewEngine(dir string, opts ...Option) (raw.Engine, error) {
 	cfg := makeConfig(opts...)
-	return initialize(dir, cfg)
+	return newEngine(dir, cfg)
 }
 
-func initialize(dir string, cfg config) error {
+func newEngine(dir string, cfg config) (raw.Engine, error) {
 	// Make sure the block directory exists.
 	if err := os.MkdirAll(dir, defaultDirPerm); err != nil {
-		return err
+		return nil, err
 	}
 
 	s := stream.NewScheduler(cfg.engine, cfg.streamSchedulerOptions()...)
 
-	return raw.RegisterEngine(raw.VSB, &engine{
+	return &engine{
 		dir: dir,
 		s:   s,
 		lis: cfg.lis,
-	})
+	}, nil
 }

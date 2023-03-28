@@ -23,8 +23,8 @@ import (
 	"io"
 	"net"
 	"os"
+	"runtime"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"time"
 
@@ -59,13 +59,13 @@ import (
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/internal/store"
 	"github.com/vanus-labs/vanus/internal/store/block"
+	"github.com/vanus-labs/vanus/internal/store/block/raw"
 	raft "github.com/vanus-labs/vanus/internal/store/raft/block"
 	ceschema "github.com/vanus-labs/vanus/internal/store/schema/ce"
 	ceconv "github.com/vanus-labs/vanus/internal/store/schema/ce/convert"
 )
 
 const (
-	debugModeENV                = "SEGMENT_SERVER_DEBUG_MODE"
 	defaultLeaderInfoBufferSize = 256
 	defaultForceStopTimeout     = 30 * time.Second
 )
@@ -91,10 +91,9 @@ type Server interface {
 	LookupOffsetInBlock(ctx context.Context, id vanus.ID, stime int64) (int64, error)
 }
 
-func NewServer(cfg store.Config) Server {
-	var debugModel bool
-	if strings.ToLower(os.Getenv(debugModeENV)) == "true" {
-		debugModel = true
+func NewServer(cfg store.Config, debug bool) (Server, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
 	}
 
 	// TODO(james.yin): support IPv6
@@ -106,8 +105,9 @@ func NewServer(cfg store.Config) Server {
 
 	srv := &server{
 		state:       primitive.ServerStateCreated,
+		rawEngines:  raw.NewEngineRegistry(),
 		cfg:         cfg,
-		isDebugMode: debugModel,
+		isDebugMode: debug,
 		localAddr:   localAddr,
 		volumeID:    uint64(cfg.Volume.ID),
 		volumeDir:   cfg.Volume.Dir,
@@ -119,10 +119,14 @@ func NewServer(cfg store.Config) Server {
 		pm:          &pollingMgr{},
 		tracer:      tracing.NewTracer("store.segment.server", trace.SpanKindServer),
 	}
+	// TODO(james.yin): move to close function
+	runtime.SetFinalizer(srv, func(srv *server) {
+		go srv.rawEngines.Close()
+	})
 
 	srv.ctrl = cluster.NewClusterController(cfg.ControllerAddresses, srv.credentials)
 	srv.cc = srv.ctrl.SegmentService().RawClient()
-	return srv
+	return srv, nil
 }
 
 type leaderInfo struct {
@@ -157,6 +161,7 @@ type server struct {
 	replicas sync.Map // <vanus.ID, Replica>
 
 	raftEngine raft.Engine
+	rawEngines *raw.EngineRegistry
 
 	state       primitive.ServerState
 	isDebugMode bool

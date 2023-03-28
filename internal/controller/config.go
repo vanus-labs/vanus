@@ -15,30 +15,28 @@
 package controller
 
 import (
-	"github.com/vanus-labs/vanus/internal/controller/root"
-	"github.com/vanus-labs/vanus/internal/controller/tenant"
-	"github.com/vanus-labs/vanus/observability"
-
+	// this project.
 	"github.com/vanus-labs/vanus/internal/controller/eventbus"
 	"github.com/vanus-labs/vanus/internal/controller/member"
+	"github.com/vanus-labs/vanus/internal/controller/root"
+	"github.com/vanus-labs/vanus/internal/controller/tenant"
 	"github.com/vanus-labs/vanus/internal/controller/trigger"
 	"github.com/vanus-labs/vanus/internal/primitive"
 )
 
 type Config struct {
-	NodeID               uint16               `yaml:"node_id"`
-	Name                 string               `yaml:"name"`
-	IP                   string               `yaml:"ip"`
-	Port                 int                  `yaml:"port"`
-	GRPCReflectionEnable bool                 `yaml:"grpc_reflection_enable"`
-	MetadataConfig       MetadataConfig       `yaml:"metadata"`
-	Replicas             uint                 `yaml:"replicas"`
-	SecretEncryptionSalt string               `yaml:"secret_encryption_salt"`
-	SegmentCapacity      int64                `yaml:"segment_capacity"`
-	Observability        observability.Config `yaml:"observability"`
-	ClusterConfig        member.Config        `yaml:"cluster"`
-	RootControllerAddr   []string             `yaml:"root_controllers"`
-	NoCreateDefaultNs    bool                 `yaml:"no_create_default_namespace"`
+	NodeID               uint16         `yaml:"node_id"`
+	Name                 string         `yaml:"name"`
+	IP                   string         `yaml:"ip"`
+	Port                 int            `yaml:"port"`
+	GRPCReflectionEnable bool           `yaml:"grpc_reflection_enable"`
+	MetadataConfig       MetadataConfig `yaml:"metadata"`
+	Replicas             uint           `yaml:"replicas"`
+	SecretEncryptionSalt string         `yaml:"secret_encryption_salt"`
+	SegmentCapacity      int64          `yaml:"segment_capacity"`
+	ClusterConfig        member.Config  `yaml:"cluster"`
+	RootControllerAddr   []string       `yaml:"root_controllers"`
+	NoCreateDefaultNs    bool           `yaml:"no_create_default_namespace"`
 }
 
 func (c *Config) GetClusterConfig() member.Config {
@@ -97,13 +95,4 @@ func (c *Config) GetTenantConfig() tenant.Config {
 		ControllerAddr:    c.GetControllerAddrs(),
 		NoCreateDefaultNs: c.NoCreateDefaultNs,
 	}
-}
-
-func InitConfig(filename string) (*Config, error) {
-	c := new(Config)
-	err := primitive.LoadConfig(filename, c)
-	if err != nil {
-		return nil, err
-	}
-	return c, nil
 }

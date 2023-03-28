@@ -15,6 +15,7 @@
 package gateway
 
 import (
+	// standard libraries.
 	"context"
 	"errors"
 	"fmt"
@@ -22,21 +23,26 @@ import (
 	"net/http"
 	"strings"
 
+	// third-party libraries.
 	v2 "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/client"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
-	"github.com/vanus-labs/vanus/internal/gateway/proxy"
-	"github.com/vanus-labs/vanus/internal/primitive"
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/credentials/insecure"
+
+	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/tracing"
 	"github.com/vanus-labs/vanus/pkg/cluster"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
-	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc/credentials/insecure"
+
+	// this project.
+	"github.com/vanus-labs/vanus/internal/gateway/proxy"
+	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 var requestDataFromContext = cehttp.RequestDataFromContext

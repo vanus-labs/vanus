@@ -66,7 +66,16 @@ func (s *server) loadVSBEngine(_ context.Context, cfg config.VSB) error {
 	opts := append([]vsb.Option{
 		vsb.WithArchivedListener(block.ArchivedCallback(s.onBlockArchived)),
 	}, cfg.Options()...)
-	return vsb.Initialize(dir, opts...)
+	engine, err := vsb.NewEngine(dir, opts...)
+	if err != nil {
+		return err
+	}
+	err = s.rawEngines.Register(raw.VSB, engine)
+	if err != nil {
+		engine.Close()
+		return err
+	}
+	return nil
 }
 
 func (s *server) initRaftEngine(ctx context.Context, cfg config.Raft) error {
@@ -95,7 +104,7 @@ func (s *server) initRaftEngine(ctx context.Context, cfg config.Raft) error {
 
 // recover recovers replicas.
 func (s *server) recover(ctx context.Context) error {
-	vsbEngine, _ := raw.ResolveEngine(raw.VSB)
+	vsbEngine, _ := s.rawEngines.Resolve(raw.VSB)
 	raws, err := vsbEngine.Recover(ctx)
 	if err != nil {
 		return err

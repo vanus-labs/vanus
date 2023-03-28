@@ -43,25 +43,33 @@ type Engine interface {
 	// Open(ctx context.Context, id vanus.ID) (block.Raw, error)
 }
 
-var engines = map[string]Engine{}
+type EngineRegistry struct {
+	engines map[string]Engine
+}
 
-func RegisterEngine(name string, engine Engine) error {
-	if _, ok := engines[name]; ok {
+func NewEngineRegistry() *EngineRegistry {
+	return &EngineRegistry{
+		engines: make(map[string]Engine),
+	}
+}
+
+func (er *EngineRegistry) Register(name string, engine Engine) error {
+	if _, ok := er.engines[name]; ok {
 		return ErrFormatRegistered
 	}
-	engines[name] = engine
+	er.engines[name] = engine
 	return nil
 }
 
-func ResolveEngine(engine string) (Engine, error) {
-	if e, ok := engines[engine]; ok {
+func (er *EngineRegistry) Resolve(engine string) (Engine, error) {
+	if e, ok := er.engines[engine]; ok {
 		return e, nil
 	}
 	return nil, ErrNotSupported
 }
 
-func CloseAllEngine() {
-	for _, e := range engines {
+func (er *EngineRegistry) Close() {
+	for _, e := range er.engines {
 		e.Close()
 	}
 }

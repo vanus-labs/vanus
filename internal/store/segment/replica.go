@@ -105,7 +105,7 @@ func (r *replica) Status() *metapb.SegmentHealthInfo {
 
 func (s *server) createBlock(ctx context.Context, id vanus.ID, size int64) (Replica, error) {
 	// Create block.
-	e, _ := raw.ResolveEngine(raw.VSB)
+	e, _ := s.rawEngines.Resolve(raw.VSB)
 	r, err := e.Create(ctx, id, size)
 	if err != nil {
 		return nil, err

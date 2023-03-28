@@ -15,26 +15,20 @@
 package store
 
 import (
-	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability"
-	"github.com/vanus-labs/vanus/pkg/util"
-
 	// this project.
-	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/store/config"
 )
 
 type Config struct {
-	ControllerAddresses []string             `yaml:"controllers"`
-	IP                  string               `yaml:"ip"`
-	Host                string               `yaml:"host"`
-	Port                int                  `yaml:"port"`
-	Volume              VolumeInfo           `yaml:"volume"`
-	MetaStore           config.SyncStore     `yaml:"meta_store"`
-	OffsetStore         config.AsyncStore    `yaml:"offset_store"`
-	Raft                config.Raft          `yaml:"raft"`
-	VSB                 config.VSB           `yaml:"vsb"`
-	Observability       observability.Config `yaml:"observability"`
+	ControllerAddresses []string          `yaml:"controllers"`
+	IP                  string            `yaml:"ip"`
+	Host                string            `yaml:"host"`
+	Port                int               `yaml:"port"`
+	Volume              VolumeInfo        `yaml:"volume"`
+	MetaStore           config.SyncStore  `yaml:"meta_store"`
+	OffsetStore         config.AsyncStore `yaml:"offset_store"`
+	Raft                config.Raft       `yaml:"raft"`
+	VSB                 config.VSB        `yaml:"vsb"`
 }
 
 func (c *Config) Validate() error {
@@ -54,18 +48,4 @@ type VolumeInfo struct {
 	ID       uint16 `json:"id"`
 	Dir      string `json:"dir"`
 	Capacity uint64 `json:"capacity"`
-}
-
-func InitConfig(filename string) (*Config, error) {
-	c := new(Config)
-	if err := primitive.LoadConfig(filename, c); err != nil {
-		return nil, err
-	}
-	if c.IP == "" {
-		c.IP = util.GetLocalIP()
-	}
-	if err := c.Validate(); err != nil {
-		return nil, err
-	}
-	return c, nil
 }

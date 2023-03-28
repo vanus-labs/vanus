@@ -18,13 +18,9 @@ import (
 	// third-party libraries.
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/vanus-labs/vanus/internal/gateway/auth"
-	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability"
-
 	// this project.
+	"github.com/vanus-labs/vanus/internal/gateway/auth"
 	"github.com/vanus-labs/vanus/internal/gateway/proxy"
-	"github.com/vanus-labs/vanus/internal/primitive"
 )
 
 const (
@@ -33,12 +29,11 @@ const (
 )
 
 type Config struct {
-	Port                 int                  `yaml:"port"`
-	SinkPort             int                  `yaml:"sink_port"`
-	Observability        observability.Config `yaml:"observability"`
-	ControllerAddr       []string             `yaml:"controllers"`
-	GRPCReflectionEnable bool                 `yaml:"grpc_reflection_enable"`
-	Auth                 Auth                 `yaml:"auth"`
+	Port                 int      `yaml:"port"`
+	SinkPort             int      `yaml:"sink_port"`
+	ControllerAddr       []string `yaml:"controllers"`
+	GRPCReflectionEnable bool     `yaml:"grpc_reflection_enable"`
+	Auth                 Auth     `yaml:"auth"`
 }
 
 type Auth struct {
@@ -73,13 +68,4 @@ func (c Config) GetCloudEventReceiverPort() int {
 		return defaultProxyPort + 1
 	}
 	return c.Port + 1
-}
-
-func InitConfig(filename string) (*Config, error) {
-	c := new(Config)
-	err := primitive.LoadConfig(filename, c)
-	if err != nil {
-		return nil, err
-	}
-	return c, nil
 }

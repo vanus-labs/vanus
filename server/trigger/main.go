@@ -1,59 +1,61 @@
-// Copyright 2022 Linkall Inc.
+// SPDX-FileCopyrightText: 2023 Linkall Inc.
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
-package main
+package trigger
 
 import (
-	"flag"
+	// standard libraries.
+	"context"
 	"fmt"
 	"net"
 	"os"
 	"sync"
 
+	// third-party libraries.
 	"google.golang.org/grpc"
 
+	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/pkg/util/signal"
-	pbtrigger "github.com/vanus-labs/vanus/proto/pkg/trigger"
+	triggerpb "github.com/vanus-labs/vanus/proto/pkg/trigger"
 
+	// this project.
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/trigger"
 )
 
-var configPath = flag.String("config", "./config/trigger.yaml", "trigger worker config file path")
-
-func main() {
-	flag.Parse()
-
-	cfg, err := trigger.InitConfig(*configPath)
+func Main(configPath string) {
+	cfg, err := InitConfig(configPath)
 	if err != nil {
 		log.Error().Err(err).Msg("init config error")
 		os.Exit(-1)
 	}
+
+	ctx := signal.SetupSignalContext()
+
+	MainExt(ctx, *cfg)
+}
+
+func MainExt(ctx context.Context, cfg Config) {
 	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
 		log.Error().Msg("failed to listen")
 		os.Exit(-1)
 	}
-	ctx := signal.SetupSignalContext()
-	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetTriggerMetrics)
+
+	if cfg.Observability.M.Enable || cfg.Observability.T.Enable {
+		_ = observability.Initialize(ctx, cfg.Observability, metrics.GetTriggerMetrics)
+	}
+
+	srv := trigger.NewTriggerServer(cfg.Config)
+
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
-	srv := trigger.NewTriggerServer(*cfg)
-	pbtrigger.RegisterTriggerWorkerServer(grpcServer, srv)
+	triggerpb.RegisterTriggerWorkerServer(grpcServer, srv)
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -64,15 +66,18 @@ func main() {
 			log.Error(ctx).Err(err).Msg("grpc server occurred an error")
 		}
 	}()
-	init := srv.(primitive.Initializer)
+
+	init, _ := srv.(primitive.Initializer)
 	if err = init.Initialize(ctx); err != nil {
 		log.Error(ctx).Err(err).Msg("the trigger worker has initialized failed")
 		os.Exit(1)
 	}
 	<-ctx.Done()
-	closer := srv.(primitive.Closer)
+
+	closer, _ := srv.(primitive.Closer)
 	_ = closer.Close(ctx)
 	grpcServer.GracefulStop()
+
 	wg.Wait()
 	log.Info(ctx).Msg("trigger worker stopped")
 }

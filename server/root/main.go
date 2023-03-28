@@ -1,28 +1,19 @@
-// Copyright 2023 Linkall Inc.
+// SPDX-FileCopyrightText: 2023 Linkall Inc.
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
-package main
+package root
 
 import (
+	// standard libraries.
 	"context"
-	"flag"
 	"fmt"
 	"net"
 	"os"
 	"runtime/debug"
 	"sync"
 
+	// third-party libraries.
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -30,6 +21,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
+	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
@@ -37,32 +29,36 @@ import (
 	"github.com/vanus-labs/vanus/pkg/util/signal"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 
-	"github.com/vanus-labs/vanus/internal/controller"
+	// this project.
 	"github.com/vanus-labs/vanus/internal/controller/member"
 	"github.com/vanus-labs/vanus/internal/controller/root"
 	"github.com/vanus-labs/vanus/internal/primitive/interceptor/memberinterceptor"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
-var configPath = flag.String("config", "./config/root.yaml",
-	"the configuration file of root controller")
-
-func main() {
-	flag.Parse()
-	cfg, err := controller.InitConfig(*configPath)
+func Main(configPath string) {
+	cfg, err := InitConfig(configPath)
 	if err != nil {
 		log.Error().Err(err).Msg("init config error")
 		os.Exit(-1)
 	}
 
+	ctx := signal.SetupSignalContext()
+
+	MainExt(ctx, *cfg)
+}
+
+func MainExt(ctx context.Context, cfg Config) {
 	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
 		log.Error().Err(err).Msg("failed to listen")
 		os.Exit(-1)
 	}
 
-	ctx := signal.SetupSignalContext()
-	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetControllerMetrics)
+	if cfg.Observability.M.Enable || cfg.Observability.T.Enable {
+		_ = observability.Initialize(ctx, cfg.Observability, metrics.GetControllerMetrics)
+	}
+
 	mem := member.New(cfg.GetClusterConfig())
 	if err = mem.Init(ctx); err != nil {
 		log.Error(ctx).Err(err).Msg("failed to init member")
@@ -125,10 +121,9 @@ func main() {
 		grpcServer.GracefulStop()
 	}
 
-	select {
-	case <-ctx.Done():
-		log.Info(ctx).Msg("received system signal, preparing exit")
-	}
+	<-ctx.Done()
+	log.Info(ctx).Msg("received system signal, preparing exit")
+
 	exit()
 	wg.Wait()
 	log.Info(ctx).Msg("the root controller has been shutdown gracefully")

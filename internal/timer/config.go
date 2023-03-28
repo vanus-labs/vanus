@@ -15,11 +15,10 @@
 package timer
 
 import (
+	// standard libraries.
 	"time"
 
-	"github.com/vanus-labs/vanus/observability"
-
-	"github.com/vanus-labs/vanus/internal/primitive"
+	// this project.
 	"github.com/vanus-labs/vanus/internal/timer/leaderelection"
 	"github.com/vanus-labs/vanus/internal/timer/timingwheel"
 )
@@ -34,7 +33,6 @@ type Config struct {
 	MetadataConfig       MetadataConfig       `yaml:"metadata"`
 	LeaderElectionConfig LeaderElectionConfig `yaml:"leader_election"`
 	TimingWheelConfig    TimingWheelConfig    `yaml:"timingwheel"`
-	Observability        observability.Config `yaml:"observability"`
 }
 
 const (
@@ -88,14 +86,4 @@ func Default(c *Config) {
 	if c.TimingWheelConfig.Layers == 0 {
 		c.TimingWheelConfig.Layers = 4
 	}
-}
-
-func InitConfig(filename string) (*Config, error) {
-	c := new(Config)
-	err := primitive.LoadConfig(filename, c)
-	if err != nil {
-		return nil, err
-	}
-	Default(c)
-	return c, nil
 }

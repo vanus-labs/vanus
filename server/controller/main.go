@@ -1,23 +1,12 @@
-// Copyright 2022 Linkall Inc.
+// SPDX-FileCopyrightText: 2023 Linkall Inc.
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
-package main
+package controller
 
 import (
 	// standard libraries.
 	"context"
-	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -33,6 +22,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	// first-party libraries.
+	"github.com/vanus-labs/vanus/internal/controller/tenant"
 	"github.com/vanus-labs/vanus/observability"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
@@ -41,29 +31,27 @@ import (
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 
 	// this project.
-	"github.com/vanus-labs/vanus/internal/controller"
 	"github.com/vanus-labs/vanus/internal/controller/eventbus"
 	"github.com/vanus-labs/vanus/internal/controller/member"
-	"github.com/vanus-labs/vanus/internal/controller/tenant"
 	"github.com/vanus-labs/vanus/internal/controller/trigger"
 	"github.com/vanus-labs/vanus/internal/primitive/interceptor/memberinterceptor"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
-var configPath = flag.String("config", "./config/controller.yaml",
-	"the configuration file of controller")
-
-func main() {
-	flag.Parse()
-
-	cfg, err := controller.InitConfig(*configPath)
+func Main(configPath string) {
+	cfg, err := InitConfig(configPath)
 	if err != nil {
 		log.Error().Err(err).Msg("init config error")
 		os.Exit(-1)
 	}
 
 	ctx := signal.SetupSignalContext()
-	if err = vanus.InitSnowflake(ctx, cfg.RootControllerAddr,
+
+	MainExt(ctx, *cfg)
+}
+
+func MainExt(ctx context.Context, cfg Config) {
+	if err := vanus.InitSnowflake(ctx, cfg.RootControllerAddr,
 		vanus.NewNode(vanus.ControllerService, cfg.NodeID)); err != nil {
 		log.Error(ctx).Err(err).Msg("failed to init id generator")
 		os.Exit(-3)
@@ -75,7 +63,10 @@ func main() {
 		os.Exit(-1)
 	}
 
-	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetControllerMetrics)
+	if cfg.Observability.M.Enable || cfg.Observability.T.Enable {
+		_ = observability.Initialize(ctx, cfg.Observability, metrics.GetControllerMetrics)
+	}
+
 	mem := member.New(cfg.GetClusterConfig())
 	if err = mem.Init(ctx); err != nil {
 		log.Error(ctx).Err(err).Msg("failed to init member")
@@ -88,8 +79,10 @@ func main() {
 
 	recoveryOpt := recovery.WithRecoveryHandlerContext(
 		func(ctx context.Context, p interface{}) error {
-			log.Error(ctx).Err(err).
-				Bytes("stack", debug.Stack()).Msg("goroutine panic")
+			log.Error(ctx).
+				Str(log.KeyError, fmt.Sprintf("%v", p)).
+				Bytes("stack", debug.Stack()).
+				Msg("goroutine panicked")
 			return status.Errorf(codes.Internal, "%v", p)
 		},
 	)
@@ -121,7 +114,9 @@ func main() {
 	ctrlpb.RegisterEventlogControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterSegmentControllerServer(grpcServer, segmentCtrl)
 	ctrlpb.RegisterTriggerControllerServer(grpcServer, triggerCtrlStv)
+
 	log.Info(ctx).Msg("the grpc server ready to work")
+
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
