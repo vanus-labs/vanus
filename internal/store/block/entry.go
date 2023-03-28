@@ -87,39 +87,39 @@ type EmptyEntry struct{}
 // Mark sure EmptyEntry implements Entry.
 var _ Entry = (*EmptyEntry)(nil)
 
-func (e *EmptyEntry) Get(ordinal int) interface{} { //nolint:unused // ok
+func (e *EmptyEntry) Get(ordinal int) interface{} { //nolint:revive // ok
 	return nil
 }
 
-func (e *EmptyEntry) GetBytes(ordinal int) []byte { //nolint:unused // ok
+func (e *EmptyEntry) GetBytes(ordinal int) []byte { //nolint:revive // ok
 	return nil
 }
 
-func (e *EmptyEntry) GetString(ordinal int) string { //nolint:unused // ok
+func (e *EmptyEntry) GetString(ordinal int) string { //nolint:revive // ok
 	return ""
 }
 
-func (e *EmptyEntry) GetUint16(ordinal int) uint16 { //nolint:unused // ok
+func (e *EmptyEntry) GetUint16(ordinal int) uint16 { //nolint:revive // ok
 	return 0
 }
 
-func (e *EmptyEntry) GetUint64(ordinal int) uint64 { //nolint:unused // ok
+func (e *EmptyEntry) GetUint64(ordinal int) uint64 { //nolint:revive // ok
 	return 0
 }
 
-func (e *EmptyEntry) GetInt64(ordinal int) int64 { //nolint:unused // ok
+func (e *EmptyEntry) GetInt64(ordinal int) int64 { //nolint:revive // ok
 	return 0
 }
 
-func (e *EmptyEntry) GetTime(ordinal int) time.Time { //nolint:unused // ok
+func (e *EmptyEntry) GetTime(ordinal int) time.Time { //nolint:revive // ok
 	return time.Time{}
 }
 
-func (e *EmptyEntry) GetExtensionAttribute([]byte) []byte { //nolint:unused // ok
+func (e *EmptyEntry) GetExtensionAttribute([]byte) []byte {
 	return nil
 }
 
-func (e *EmptyEntry) RangeExtensionAttributes(ordinal ExtensionAttributeCallback) { //nolint:unused // ok
+func (e *EmptyEntry) RangeExtensionAttributes(ordinal ExtensionAttributeCallback) { //nolint:revive // ok
 }
 
 type EmptyEntryExt struct {
@@ -133,7 +133,7 @@ func (e *EmptyEntryExt) OptionalAttributeCount() int {
 	return 0
 }
 
-func (e *EmptyEntryExt) RangeOptionalAttributes(ordinal OptionalAttributeCallback) { //nolint:unused // ok
+func (e *EmptyEntryExt) RangeOptionalAttributes(ordinal OptionalAttributeCallback) { //nolint:revive // ok
 }
 
 func (e *EmptyEntryExt) ExtensionAttributeCount() int {

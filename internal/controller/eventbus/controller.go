@@ -373,7 +373,7 @@ func (ctrl *controller) getEventbus(id vanus.ID) (*metapb.Eventbus, error) {
 }
 
 func (ctrl *controller) ListEventbus(_ context.Context,
-	_ *ctrlpb.ListEventbusRequest,
+	req *ctrlpb.ListEventbusRequest,
 ) (*ctrlpb.ListEventbusResponse, error) {
 	eventbusList := make([]*metapb.Eventbus, 0)
 	for _, v := range ctrl.eventbusMap {

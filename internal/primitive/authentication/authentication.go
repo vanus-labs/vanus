@@ -52,7 +52,7 @@ func (a *authentication) Start(ctx context.Context) error {
 	return nil
 }
 
-func (a *authentication) Stop(ctx context.Context) error {
+func (a *authentication) Stop(ctx context.Context) error { //nolint:revive // ignore
 	a.cancelFunc()
 	return nil
 }
@@ -69,7 +69,7 @@ func (a *authentication) checkTokenExpired() {
 				token, _ := key.(string)
 				v, err := a.client.GetUser(a.ctx, token)
 				if err != nil {
-					log.Warning(a.ctx, "get token has error", nil)
+					log.Warn(a.ctx).Msg("get token has error")
 					return true
 				}
 				if v == "" {
