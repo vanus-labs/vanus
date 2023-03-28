@@ -20,19 +20,17 @@ import (
 	"sync"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/pkg/errors"
-	"github.com/vanus-labs/vanus/proto/pkg/trigger"
-
 	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/vanus-labs/vanus/internal/convert"
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/queue"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/proto/pkg/trigger"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type TriggerWorker interface {
@@ -99,25 +97,24 @@ func (tw *triggerWorker) Start(ctx context.Context) error {
 			if stop {
 				break
 			}
-			log.Info(ctx, "trigger worker begin hand subscription", map[string]interface{}{
-				log.KeyTriggerWorkerAddr: tw.info.Addr,
-				log.KeySubscriptionID:    subscriptionID,
-			})
+			log.Info(ctx).
+				Str(log.KeyTriggerWorkerAddr, tw.info.Addr).
+				Stringer(log.KeySubscriptionID, subscriptionID).
+				Msg("trigger worker begin hand subscription")
 			err := tw.handler(ctx, subscriptionID)
 			if err == nil {
 				tw.subscriptionQueue.Done(subscriptionID)
 				tw.subscriptionQueue.ClearFailNum(subscriptionID)
-				log.Info(ctx, "trigger worker handle subscription sucess", map[string]interface{}{
-					log.KeyTriggerWorkerAddr: tw.info.Addr,
-					log.KeySubscriptionID:    subscriptionID,
-				})
+				log.Info(ctx).
+					Str(log.KeyTriggerWorkerAddr, tw.info.Addr).
+					Stringer(log.KeySubscriptionID, subscriptionID).
+					Msg("trigger worker handle subscription sucess")
 			} else {
 				tw.subscriptionQueue.ReAdd(subscriptionID)
-				log.Warning(ctx, "trigger worker handle subscription has error", map[string]interface{}{
-					log.KeyError:             err,
-					log.KeyTriggerWorkerAddr: tw.info.Addr,
-					log.KeySubscriptionID:    subscriptionID,
-				})
+				log.Warn(ctx).Err(err).
+					Str(log.KeyTriggerWorkerAddr, tw.info.Addr).
+					Stringer(log.KeySubscriptionID, subscriptionID).
+					Msg("trigger worker handle subscription has error")
 			}
 		}
 	}()
@@ -259,28 +256,27 @@ func (tw *triggerWorker) AssignSubscription(id vanus.ID) {
 	} else {
 		msg = "trigger worker reassign a subscription"
 	}
-	log.Info(context.Background(), msg, map[string]interface{}{
-		log.KeyTriggerWorkerAddr: tw.info.Addr,
-		log.KeySubscriptionID:    id,
-	})
+	log.Info().
+		Str(log.KeyTriggerWorkerAddr, tw.info.Addr).
+		Stringer(log.KeySubscriptionID, id).
+		Msg(msg)
 	tw.assignSubscriptionIDs.Store(id, time.Now())
 	tw.subscriptionQueue.Add(id)
 }
 
 func (tw *triggerWorker) UnAssignSubscription(id vanus.ID) error {
-	log.Info(context.Background(), "trigger worker remove a subscription", map[string]interface{}{
-		log.KeyTriggerWorkerAddr: tw.info.Addr,
-		log.KeySubscriptionID:    id,
-	})
+	log.Info().
+		Str(log.KeyTriggerWorkerAddr, tw.info.Addr).
+		Stringer(log.KeySubscriptionID, id).
+		Msg("trigger worker remove a subscription")
 	tw.assignSubscriptionIDs.Delete(id)
 	if tw.info.Phase == metadata.TriggerWorkerPhaseRunning {
 		err := tw.removeSubscription(tw.ctx, id)
 		if err != nil {
-			log.Warning(context.Background(), "trigger worker remove subscription error", map[string]interface{}{
-				log.KeyError:             err,
-				log.KeyTriggerWorkerAddr: tw.info.Addr,
-				log.KeySubscriptionID:    id,
-			})
+			log.Warn().Err(err).
+				Str(log.KeyTriggerWorkerAddr, tw.info.Addr).
+				Stringer(log.KeySubscriptionID, id).
+				Msg("trigger worker remove subscription error")
 			return err
 		}
 	}

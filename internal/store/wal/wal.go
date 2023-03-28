@@ -68,10 +68,10 @@ func Open(ctx context.Context, dir string, opts ...Option) (*WAL, error) {
 }
 
 func open(ctx context.Context, dir string, cfg config) (*WAL, error) {
-	log.Info(ctx, "Open wal.", map[string]interface{}{
-		"dir": dir,
-		"pos": cfg.pos,
-	})
+	log.Info(ctx).
+		Str("dir", dir).
+		Int64("pos", cfg.pos).
+		Msg("Open wal.")
 
 	sf, err := segmentedfile.Open(dir, cfg.segmentedFileOptions()...)
 	if err != nil {
@@ -89,10 +89,10 @@ func open(ctx context.Context, dir string, cfg config) (*WAL, error) {
 		off += padding
 	}
 
-	log.Info(ctx, "Checking wal is done.", map[string]interface{}{
-		"dir": dir,
-		"off": off,
-	})
+	log.Info(ctx).
+		Str("dir", dir).
+		Int64("off", off).
+		Msg("Checking wal is done.")
 
 	scheduler := stream.NewScheduler(cfg.engine, cfg.streamSchedulerOptions()...)
 	s := scheduler.Register(sf, off, true)
@@ -187,7 +187,7 @@ func (w *WAL) runAppend() {
 	w.doClose()
 }
 
-func (w *WAL) Compact(ctx context.Context, off int64) error {
+func (w *WAL) Compact(_ context.Context, off int64) error {
 	return w.sf.Compact(off)
 }
 

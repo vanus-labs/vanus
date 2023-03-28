@@ -32,9 +32,7 @@ func PrintTPS(ctx context.Context, values map[string]*int64) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Info(ctx, "TPS printer is exit", map[string]interface{}{
-					"notice": values,
-				})
+				log.Info(ctx).Interface("notice", values).Msg("TPS printer is exit")
 				return
 			case <-timer.C:
 				cur := map[string]int64{}
@@ -43,7 +41,7 @@ func PrintTPS(ctx context.Context, values map[string]*int64) {
 					cur[k] = atomic.LoadInt64(v)
 					val[k] = cur[k] - prev[k]
 				}
-				log.Info(ctx, "TPS", val)
+				log.Info(ctx).Interface("TPS", val).Msg("")
 				prev = cur
 			}
 		}
@@ -56,14 +54,14 @@ func PrintTotal(ctx context.Context, values map[string]*int64) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Info(ctx, "Total printer is exit", nil)
+				log.Info(ctx).Msg("Total printer is exit")
 				return
 			case <-timer.C:
 				cur := map[string]interface{}{}
 				for k, v := range values {
 					cur[k] = atomic.LoadInt64(v)
 				}
-				log.Info(ctx, "Total", cur)
+				log.Info(ctx).Interface("Total", cur).Msg("")
 			}
 		}
 	}()

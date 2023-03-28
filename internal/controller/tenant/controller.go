@@ -459,7 +459,7 @@ func (ctrl *controller) createDefaultUserAndRole(ctx context.Context) error {
 			return err
 		}
 	}
-	log.Info(ctx, "the default user has been created", nil)
+	log.Info(ctx).Msg("the default user has been created")
 	tokens := ctrl.tokenManager.GetUserToken(ctx, primitive.DefaultUser)
 	if len(tokens) == 0 {
 		// create default user token
@@ -478,7 +478,7 @@ func (ctrl *controller) createDefaultUserAndRole(ctx context.Context) error {
 			return err
 		}
 	}
-	log.Info(ctx, "the default user token has been created", nil)
+	log.Info(ctx).Msg("the default user token has been created")
 	userRole := &metadata.UserRole{
 		UserIdentifier: primitive.DefaultUser,
 		Role:           authorization.RoleClusterAdmin,
@@ -493,7 +493,7 @@ func (ctrl *controller) createDefaultUserAndRole(ctx context.Context) error {
 			return err
 		}
 	}
-	log.Info(ctx, "the default user role has been created", nil)
+	log.Info(ctx).Msg("the default user role has been created")
 	return nil
 }
 
@@ -505,10 +505,11 @@ func (ctrl *controller) createSystemNamespace(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+
+		log.Info(ctx).
+			Str("namespace", primitive.DefaultNamespace).
+			Msg("the default namespace has been created")
 	}
-	log.Info(ctx, "the default namespace has been created", map[string]interface{}{
-		"namespace": primitive.DefaultNamespace,
-	})
 	ns = ctrl.namespaceManager.GetNamespaceByName(ctx, primitive.SystemNamespace)
 	if ns == nil {
 		// create system namespace
@@ -516,67 +517,65 @@ func (ctrl *controller) createSystemNamespace(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		log.Info(ctx).
+			Str("namespace", primitive.DefaultNamespace).
+			Msg("the system namespace has been created")
 	}
-	log.Info(ctx, "the system namespace has been created", map[string]interface{}{
-		"namespace": primitive.SystemNamespace,
-	})
 	return nil
 }
 
 func (ctrl *controller) membershipChangedProcessor(ctx context.Context,
 	event member.MembershipChangedEvent,
 ) error {
-	log.Info(ctx, "start to process membership change event", map[string]interface{}{
-		"event":     event,
-		"component": "tenant",
-	})
+	log.Info(ctx).
+		Interface("event", event).
+		Msg("start to process membership change event")
 	ctrl.membershipMutex.Lock()
 	defer ctrl.membershipMutex.Unlock()
 
 	switch event.Type {
 	case member.EventBecomeLeader:
 		if ctrl.isLeader {
-			log.Info(ctx, "I am leader", nil)
+			log.Info(ctx).Msg("I am leader")
 			return nil
 		}
 		ctrl.isLeader = true
 		if err := ctrl.namespaceManager.Init(ctx); err != nil {
-			log.Error(ctx, "namespace manager init error", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Error(ctx).
+				Err(err).
+				Msg("namespace manager init error")
 			return err
 		}
+
 		if err := ctrl.userManager.Init(ctx); err != nil {
-			log.Error(ctx, "user manager init error", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Error(ctx).Err(err).Msg("user manager init error")
 			return err
 		}
 		if err := ctrl.tokenManager.Init(ctx); err != nil {
-			log.Error(ctx, "token manager init error", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Error(ctx).Err(err).Msg("token manager init error")
 			return err
 		}
 		if err := ctrl.userRoleManager.Init(ctx); err != nil {
-			log.Error(ctx, "user role manager init error", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Error(ctx).Err(err).Msg("user role manager init error")
 			return err
 		}
 		if err := ctrl.init(ctx); err != nil {
-			log.Error(ctx, "controller init error", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Error(ctx).Err(err).Msg("controller init error")
+		}
+
+		if err := ctrl.createSystemNamespace(ctx); err != nil {
+			log.Error(ctx).
+				Err(err).
+				Msg("create system namespace error")
 			return err
 		}
-		log.Info(ctx, "the controller init success", nil)
+		log.Info(ctx).Msg("the controller init success")
 	case member.EventBecomeFollower:
 		if !ctrl.isLeader {
 			return nil
 		}
 		ctrl.isLeader = false
-		log.Info(ctx, "the controller lost leader", nil)
+		log.Info(ctx).Msg("the controller lost leader")
 	}
 	return nil
 }

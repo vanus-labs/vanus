@@ -160,10 +160,9 @@ func (ctrl *controller) CreateEventbus(
 		Description: "System DeadLetter Eventbus For " + req.Name,
 	})
 	if err != nil {
-		log.Error(context.Background(), "create dead letter eventbus error", map[string]interface{}{
-			log.KeyError:        err,
-			log.KeyEventbusName: req.Name,
-		})
+		log.Error().Err(err).
+			Str(log.KeyEventbusName, req.Name).
+			Msg("create dead letter eventbus error")
 	}
 	return eb, nil
 }
@@ -177,14 +176,13 @@ func isValidEventbusName(name string) error {
 		c := v - 'a'
 		if c >= 0 || c <= 26 {
 			continue
-		} else {
-			c = v - '0'
-			if c >= 0 || c <= 9 {
-				continue
-			}
-			return errors.ErrInvalidRequest.WithMessage(
-				"eventbus name must be insist of 0-9a-zA-Z.-_")
 		}
+		c = v - '0'
+		if c >= 0 || c <= 9 {
+			continue
+		}
+		return errors.ErrInvalidRequest.WithMessage(
+			"eventbus name must be insist of 0-9a-zA-Z.-_")
 	}
 	return nil
 }
@@ -254,9 +252,7 @@ func (ctrl *controller) createEventbus(
 
 	id, err := vanus.NewID()
 	if err != nil {
-		log.Warning(ctx, "failed to create eventbus ID", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Warn(ctx).Err(err).Msg("failed to create eventbus ID")
 		return nil, err
 	}
 	eb := &metadata.Eventbus{
@@ -320,10 +316,9 @@ func (ctrl *controller) DeleteEventbus(ctx context.Context, eb *wrapperspb.UInt6
 	deadLetterEventbusID := ctrl.getDeadLetterEventbusID(ctx, eventbusID)
 	err = ctrl.deleteEventbus(context.Background(), deadLetterEventbusID)
 	if err != nil {
-		log.Error(context.Background(), "delete dead letter eventbus error", map[string]interface{}{
-			log.KeyError:      err,
-			log.KeyEventbusID: eventbusID,
-		})
+		log.Error().Err(err).
+			Stringer(log.KeyEventbusID, eventbusID).
+			Msg("delete dead letter eventbus error")
 	}
 	return &emptypb.Empty{}, nil
 }
@@ -355,7 +350,7 @@ func (ctrl *controller) deleteEventbus(ctx context.Context, id vanus.ID) error {
 	return nil
 }
 
-func (ctrl *controller) GetEventbus(ctx context.Context, eb *wrapperspb.UInt64Value) (*metapb.Eventbus, error) {
+func (ctrl *controller) GetEventbus(_ context.Context, eb *wrapperspb.UInt64Value) (*metapb.Eventbus, error) {
 	return ctrl.getEventbus(vanus.NewIDFromUint64(eb.GetValue()))
 }
 
@@ -377,7 +372,7 @@ func (ctrl *controller) getEventbus(id vanus.ID) (*metapb.Eventbus, error) {
 	return ebMD, nil
 }
 
-func (ctrl *controller) ListEventbus(ctx context.Context,
+func (ctrl *controller) ListEventbus(_ context.Context,
 	req *ctrlpb.ListEventbusRequest,
 ) (*ctrlpb.ListEventbusResponse, error) {
 	eventbusList := make([]*metapb.Eventbus, 0)
@@ -395,7 +390,7 @@ func (ctrl *controller) ListEventbus(ctx context.Context,
 }
 
 func (ctrl *controller) UpdateEventbus(
-	ctx context.Context, req *ctrlpb.UpdateEventbusRequest,
+	_ context.Context, _ *ctrlpb.UpdateEventbusRequest,
 ) (*metapb.Eventbus, error) {
 	atomic.AddInt64(&ctrl.eventbusUpdatedCount, 1)
 	return &metapb.Eventbus{}, nil
@@ -480,9 +475,7 @@ func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
 	}
 
 	if err := ctrl.ssMgr.RemoveServer(ctx, srv); err != nil {
-		log.Warning(ctx, "remove server from segmentServerManager error", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Warn(ctx).Err(err).Msg("remove server from segmentServerManager error")
 	}
 	volIns := ctrl.volumeMgr.GetVolumeInstanceByID(vanus.NewIDFromUint64(req.VolumeId))
 	if volIns == nil {
@@ -492,8 +485,8 @@ func (ctrl *controller) UnregisterSegmentServer(ctx context.Context,
 	return &ctrlpb.UnregisterSegmentServerResponse{}, nil
 }
 
-func (ctrl *controller) QuerySegmentRouteInfo(ctx context.Context,
-	req *ctrlpb.QuerySegmentRouteInfoRequest,
+func (ctrl *controller) QuerySegmentRouteInfo(_ context.Context,
+	_ *ctrlpb.QuerySegmentRouteInfoRequest,
 ) (*ctrlpb.QuerySegmentRouteInfoResponse, error) {
 	return &ctrlpb.QuerySegmentRouteInfoResponse{}, nil
 }
@@ -505,7 +498,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 	for {
 		select {
 		case <-ctrl.cancelCtx.Done():
-			log.Info(ctx, "exit to heartbeat processing due to server stopped", nil)
+			log.Info(ctx).Msg("exit to heartbeat processing due to server stopped")
 			_ = srv.SendAndClose(&ctrlpb.SegmentHeartbeatResponse{})
 			return nil
 		default:
@@ -525,9 +518,7 @@ func (ctrl *controller) SegmentHeartbeat(srv ctrlpb.SegmentController_SegmentHea
 	if err != nil && stdErr.Is(err, io.EOF) {
 		sts := status.Convert(err)
 		if sts != nil && sts.Code() != codes.Canceled {
-			log.Warning(ctx, "block server heartbeat error", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Warn(ctx).Err(err).Msg("block server heartbeat error")
 		}
 	}
 	return nil
@@ -540,22 +531,21 @@ func (ctrl *controller) processHeartbeat(ctx context.Context, req *ctrlpb.Segmen
 
 	t, err := util.ParseTime(req.ReportTime)
 	if err != nil {
-		log.Error(ctx, "parse heartbeat report time failed", map[string]interface{}{
-			"volume_id":  req.VolumeId,
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).
+			Uint64("volume_id", req.VolumeId).
+			Msg("parse heartbeat report time failed")
 		return err
 	}
-	log.Debug(ctx, "received heartbeat from segment server", map[string]interface{}{
-		"volume_id": req.VolumeId,
-		"time":      t,
-	})
+	log.Debug(ctx).
+		Uint64("volume_id", req.VolumeId).
+		Time("time", t).
+		Msg("received heartbeat from segment server")
 
 	srv := ctrl.ssMgr.GetServerByVolumeID(req.VolumeId) // TODO
 	if srv == nil {
-		log.Warning(ctx, "received a heartbeat request, but server metadata not found", map[string]interface{}{
-			"volume_id": req.VolumeId,
-		})
+		log.Warn(ctx).
+			Uint64("volume_id", req.VolumeId).
+			Msg("received a heartbeat request, but server metadata not found")
 	} else {
 		srv.Polish()
 	}
@@ -616,11 +606,11 @@ func (ctrl *controller) ReportSegmentBlockIsFull(
 	ctx context.Context, req *ctrlpb.SegmentHeartbeatRequest,
 ) (*emptypb.Empty, error) {
 	for _, info := range req.GetHealthInfo() {
-		log.Info(ctx, "Received segment block is full report.", map[string]interface{}{
-			"block_id":   vanus.NewIDFromUint64(info.GetId()),
-			"event_num":  info.GetEventNumber(),
-			"event_size": info.GetSize(),
-		})
+		log.Info(ctx).
+			Stringer("block_id", vanus.NewIDFromUint64(info.GetId())).
+			Int32("event_num", info.GetEventNumber()).
+			Int64("event_size", info.GetSize()).
+			Msg("Received segment block is full report.")
 	}
 	if err := ctrl.processHeartbeat(ctx, req); err != nil {
 		return nil, err
@@ -674,17 +664,16 @@ func (ctrl *controller) recordMetrics() {
 				atomic.LoadInt64(&ctrl.eventbusDeletedCount)))
 			ctrl.mutex.Unlock()
 		case <-ctrl.cancelCtx.Done():
-			log.Info(ctrl.cancelCtx, "record leadership exiting...", nil)
+			log.Info(ctrl.cancelCtx).Msg("record leadership exiting...")
 			return
 		}
 	}
 }
 
 func (ctrl *controller) membershipChangedProcessor(ctx context.Context, event member.MembershipChangedEvent) error {
-	log.Info(ctx, "start to process membership change event", map[string]interface{}{
-		"event":     event,
-		"component": "eventbus",
-	})
+	log.Info(ctx).
+		Interface("event", event).
+		Msg("start to process membership change event")
 	ctrl.membershipMutex.Lock()
 	defer ctrl.membershipMutex.Unlock()
 
@@ -748,9 +737,7 @@ func (ctrl *controller) stop(ctx context.Context, err error) {
 	ctrl.cancelFunc()
 	ctrl.stopNotify <- err
 	if err := ctrl.kvStore.Close(); err != nil {
-		log.Warning(ctx, "close kv client error", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Warn(ctx).Err(err).Msg("close kv client error")
 		ctrl.stopNotify <- err
 	}
 	close(ctrl.readyNotify)

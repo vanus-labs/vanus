@@ -47,7 +47,7 @@ func makeSnapshot(actx appendContext, indexes []index.Index) (meta, []index.Inde
 	return m, indexes
 }
 
-func (b *vsBlock) Snapshot(ctx context.Context) (block.Fragment, error) {
+func (b *vsBlock) Snapshot(_ context.Context) (block.Fragment, error) {
 	m, _ := b.makeSnapshot()
 
 	if m.writeOffset == b.dataOffset {
@@ -66,7 +66,7 @@ func (b *vsBlock) Snapshot(ctx context.Context) (block.Fragment, error) {
 	return block.NewFragment(data), nil
 }
 
-func (b *vsBlock) ApplySnapshot(ctx context.Context, snap block.Fragment) error {
+func (b *vsBlock) ApplySnapshot(_ context.Context, snap block.Fragment) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 

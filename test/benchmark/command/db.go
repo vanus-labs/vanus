@@ -116,7 +116,7 @@ func CloseDatabases(end bool) {
 		})
 		if err != nil {
 			log.Error(nil, "failed to update task status", map[string]interface{}{
-				log.KeyError: err,
+				Err(err).
 			})
 		}
 		log.Info(nil, "task is completed", map[string]interface{}{

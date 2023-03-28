@@ -15,7 +15,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"os"
 
@@ -34,9 +33,7 @@ func main() {
 
 	cfg, err := gateway.InitConfig(*configPath)
 	if err != nil {
-		log.Error(context.Background(), "init config error", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error().Err(err).Msg("init config error")
 		os.Exit(-1)
 	}
 
@@ -44,19 +41,17 @@ func main() {
 	ga := gateway.NewGateway(*cfg)
 
 	if err = ga.Start(ctx); err != nil {
-		log.Error(context.Background(), "start gateway failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error().Err(err).Msg("start gateway failed")
 		os.Exit(-1)
 	}
 
 	cfg.Observability.T.ServerName = "Vanus Gateway"
 	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetGatewayMetrics)
-	log.Info(ctx, "Gateway has started", nil)
+	log.Info(ctx).Msg("Gateway has started")
 	select {
 	case <-ctx.Done():
-		log.Info(ctx, "received system signal, preparing exit", nil)
+		log.Info(ctx).Msg("received system signal, preparing exit")
 	}
 	ga.Stop()
-	log.Info(ctx, "the gateway has been shutdown gracefully", nil)
+	log.Info(ctx).Msg("the gateway has been shutdown gracefully")
 }

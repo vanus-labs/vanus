@@ -87,31 +87,31 @@ type EmptyEntry struct{}
 // Mark sure EmptyEntry implements Entry.
 var _ Entry = (*EmptyEntry)(nil)
 
-func (e *EmptyEntry) Get(ordinal int) interface{} {
+func (e *EmptyEntry) Get(ordinal int) interface{} { //nolint:revive // ok
 	return nil
 }
 
-func (e *EmptyEntry) GetBytes(ordinal int) []byte {
+func (e *EmptyEntry) GetBytes(ordinal int) []byte { //nolint:revive // ok
 	return nil
 }
 
-func (e *EmptyEntry) GetString(ordinal int) string {
+func (e *EmptyEntry) GetString(ordinal int) string { //nolint:revive // ok
 	return ""
 }
 
-func (e *EmptyEntry) GetUint16(ordinal int) uint16 {
+func (e *EmptyEntry) GetUint16(ordinal int) uint16 { //nolint:revive // ok
 	return 0
 }
 
-func (e *EmptyEntry) GetUint64(ordinal int) uint64 {
+func (e *EmptyEntry) GetUint64(ordinal int) uint64 { //nolint:revive // ok
 	return 0
 }
 
-func (e *EmptyEntry) GetInt64(ordinal int) int64 {
+func (e *EmptyEntry) GetInt64(ordinal int) int64 { //nolint:revive // ok
 	return 0
 }
 
-func (e *EmptyEntry) GetTime(ordinal int) time.Time {
+func (e *EmptyEntry) GetTime(ordinal int) time.Time { //nolint:revive // ok
 	return time.Time{}
 }
 
@@ -119,7 +119,7 @@ func (e *EmptyEntry) GetExtensionAttribute([]byte) []byte {
 	return nil
 }
 
-func (e *EmptyEntry) RangeExtensionAttributes(cb ExtensionAttributeCallback) {
+func (e *EmptyEntry) RangeExtensionAttributes(ordinal ExtensionAttributeCallback) { //nolint:revive // ok
 }
 
 type EmptyEntryExt struct {
@@ -133,7 +133,7 @@ func (e *EmptyEntryExt) OptionalAttributeCount() int {
 	return 0
 }
 
-func (e *EmptyEntryExt) RangeOptionalAttributes(cb OptionalAttributeCallback) {
+func (e *EmptyEntryExt) RangeOptionalAttributes(ordinal OptionalAttributeCallback) { //nolint:revive // ok
 }
 
 func (e *EmptyEntryExt) ExtensionAttributeCount() int {

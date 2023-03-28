@@ -37,7 +37,7 @@ type receiver struct {
 	recvch chan *raftpb.Message
 }
 
-func (r *receiver) Receive(ctx context.Context, msg *raftpb.Message, from uint64, endpoint string) {
+func (r *receiver) Receive(_ context.Context, msg *raftpb.Message, _ uint64, _ string) {
 	r.recvch <- msg
 }
 
@@ -50,9 +50,7 @@ func TestServer(t *testing.T) {
 
 		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", serverPort))
 		if err != nil {
-			log.Error(context.Background(), "failed to listen", map[string]interface{}{
-				"error": err,
-			})
+			log.Error().Err(err).Msg("failed to listen")
 			os.Exit(-1)
 		}
 		// So(err, ShouldBeNil)

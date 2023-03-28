@@ -24,15 +24,13 @@ import (
 	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
 
-	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability/log"
-
 	// this project.
 	"github.com/vanus-labs/vanus/internal/store/block"
 	"github.com/vanus-labs/vanus/internal/store/io"
 	ceschema "github.com/vanus-labs/vanus/internal/store/schema/ce"
 	"github.com/vanus-labs/vanus/internal/store/vsb/entry"
 	"github.com/vanus-labs/vanus/internal/store/vsb/index"
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 var (
@@ -84,7 +82,7 @@ func (b *vsBlock) NewAppendContext(last block.Fragment) block.AppendContext {
 }
 
 func (b *vsBlock) PrepareAppend(
-	ctx context.Context, appendCtx block.AppendContext, entries ...block.Entry,
+	_ context.Context, appendCtx block.AppendContext, entries ...block.Entry,
 ) ([]int64, block.Fragment, bool, error) {
 	actx, _ := appendCtx.(*appendContext)
 
@@ -136,12 +134,13 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 	// TODO(james.yin): get offset from Stream or AppendContext?
 	off := b.s.WriteOffset() // b.actx.offset
 	if frag.EndOffset() <= off {
-		log.Info(ctx, "vsb: data of fragment has been written, skip this entry.", map[string]interface{}{
-			"block_id":              b.id,
-			"expected":              off,
-			"fragment_start_offset": frag.StartOffset(),
-			"fragment_end_offset":   frag.EndOffset(),
-		})
+		log.Info(ctx).
+			Stringer("block_id", b.id).
+			Int64("expected", off).
+			Int64("fragment_start_offset", frag.StartOffset()).
+			Int64("fragment_end_offset", frag.EndOffset()).
+			Msg("vsb: data of fragment has been written, skip this entry.")
+
 		// TODO(james.yin): use new method.
 		b.s.Append(dummyReader, func(n int, err error) {
 			cb()
@@ -149,12 +148,12 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 		return
 	}
 	if frag.StartOffset() != off {
-		log.Error(ctx, "vsb: missing some fragments.", map[string]interface{}{
-			"block_id":              b.id,
-			"expected":              off,
-			"fragment_start_offset": frag.StartOffset(),
-			"fragment_end_offset":   frag.EndOffset(),
-		})
+		log.Error(ctx).
+			Stringer("block_id", b.id).
+			Int64("expected", off).
+			Int64("fragment_start_offset", frag.StartOffset()).
+			Int64("fragment_end_offset", frag.EndOffset()).
+			Msg("vsb: missing some fragments.")
 		// TODO(james.yin): use new method.
 		b.s.Append(dummyReader, func(n int, err error) {
 			cb()
@@ -209,7 +208,7 @@ func (b *vsBlock) CommitAppend(ctx context.Context, frag block.Fragment, cb bloc
 }
 
 func (b *vsBlock) buildIndexes(
-	ctx context.Context, expected int64, frag block.Fragment,
+	_ context.Context, expected int64, frag block.Fragment,
 ) ([]index.Index, int64, bool, error) {
 	base := frag.StartOffset()
 	data := frag.Payload()
@@ -239,7 +238,7 @@ func (b *vsBlock) buildIndexes(
 	return indexes, expected, false, nil
 }
 
-func (b *vsBlock) appendIndexEntry(ctx context.Context, indexes []index.Index, cb io.WriteCallback) {
+func (b *vsBlock) appendIndexEntry(_ context.Context, indexes []index.Index, cb io.WriteCallback) {
 	entry := index.NewEntry(indexes)
 	sz := b.enc.Size(entry)
 	data := make([]byte, sz)

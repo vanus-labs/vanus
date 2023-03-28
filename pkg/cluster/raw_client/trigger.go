@@ -18,16 +18,14 @@ import (
 	"context"
 	"io"
 
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
-
-	"github.com/vanus-labs/vanus/observability/log"
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
-	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
-
-	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 var (
@@ -69,9 +67,7 @@ func (tc *triggerClient) GetDeadLetterEventOffset(
 }
 
 func (tc *triggerClient) Beat(ctx context.Context, v interface{}) error {
-	log.Debug(ctx, "heartbeat", map[string]interface{}{
-		"leader": tc.cc.leader,
-	})
+	log.Debug().Str("leader", tc.cc.leader).Msg("heartbeat")
 	req, ok := v.(*ctrlpb.TriggerWorkerHeartbeatRequest)
 	if !ok {
 		return errors.ErrInvalidHeartBeatRequest
@@ -124,9 +120,7 @@ func (tc *triggerClient) Beat(ctx context.Context, v interface{}) error {
 func (tc *triggerClient) Close() error {
 	if tc.heartBeatClient != nil {
 		if err := tc.heartBeatClient.CloseSend(); err != nil {
-			log.Warning(context.Background(), "close heartbeat stream error", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Warn().Err(err).Msg("close heartbeat stream error")
 		}
 	}
 	return tc.cc.close()

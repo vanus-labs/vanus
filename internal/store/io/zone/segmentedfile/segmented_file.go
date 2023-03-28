@@ -15,8 +15,6 @@
 package segmentedfile
 
 import (
-	// standard libraries.
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -63,10 +61,9 @@ func Open(dir string, opts ...Option) (*SegmentedFile, error) {
 func (sf *SegmentedFile) Close() {
 	for _, s := range sf.segments {
 		if err := s.Close(); err != nil {
-			log.Error(context.Background(), "Close segment failed.", map[string]interface{}{
-				"path":       s.path,
-				log.KeyError: err,
-			})
+			log.Error().Err(err).
+				Str("path", s.path).
+				Msg("Close segment failed.")
 		}
 	}
 }

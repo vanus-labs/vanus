@@ -17,18 +17,15 @@ package wal
 import (
 	// standard libraries.
 	"bytes"
-	"context"
 	"errors"
 
 	// third-party project.
 	"github.com/ncw/directio"
 
-	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability/log"
-
 	// this project.
 	"github.com/vanus-labs/vanus/internal/store/io/zone/segmentedfile"
 	"github.com/vanus-labs/vanus/internal/store/wal/record"
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 type OnEntryCallback = func(entry []byte, r Range) error
@@ -79,10 +76,9 @@ func scanLogEntries(sf *segmentedfile.SegmentedFile, blockSize int, from int64, 
 
 			// TODO(james.yin): Has incomplete entry, truncate it.
 			if sc.last.IsNonTerminal() {
-				log.Info(context.Background(), "Found incomplete entry, truncate it.",
-					map[string]interface{}{
-						"last_type": sc.last,
-					})
+				log.Info().
+					Interface("last_type", sc.last).
+					Msg("Found incomplete entry, truncate it.")
 			}
 
 			return sc.eo, nil
@@ -206,6 +202,6 @@ func onRecord(ctx *scanner, r record.Record, eo int64) error {
 	return nil
 }
 
-func noopOnEntry(entry []byte, r Range) error {
+func noopOnEntry(_ []byte, r Range) error { //nolint:revive // ok
 	return nil
 }

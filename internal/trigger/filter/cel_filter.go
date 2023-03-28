@@ -15,13 +15,9 @@
 package filter
 
 import (
-	"context"
-
 	ce "github.com/cloudevents/sdk-go/v2"
-
-	"github.com/vanus-labs/vanus/observability/log"
-
 	"github.com/vanus-labs/vanus/internal/primitive/cel"
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 type CELFilter struct {
@@ -35,10 +31,7 @@ func NewCELFilter(expression string) Filter {
 	}
 	cel, err := cel.Parse(expression)
 	if err != nil {
-		log.Info(context.Background(), "parse cel expression error", map[string]interface{}{
-			"expression": expression,
-			log.KeyError: err,
-		})
+		log.Info().Err(err).Str("expression", expression).Msg("parse cel expression error")
 		return nil
 	}
 	return &CELFilter{rawExpression: expression, parsedExpression: cel}
@@ -47,9 +40,7 @@ func NewCELFilter(expression string) Filter {
 func (filter *CELFilter) Filter(event ce.Event) Result {
 	result, err := filter.parsedExpression.Eval(event)
 	if err != nil {
-		log.Info(context.Background(), "cel eval error", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Info().Err(err).Msg("cel eval error")
 		return FailFilter
 	}
 	if result {

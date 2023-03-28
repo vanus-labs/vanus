@@ -22,12 +22,9 @@ import (
 	"time"
 
 	// third-party libraries.
-	"google.golang.org/grpc"
-
-	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability/log"
 	raftpb "github.com/vanus-labs/vanus/proto/pkg/raft"
 	"github.com/vanus-labs/vanus/raft"
+	"google.golang.org/grpc"
 
 	// this project.
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
@@ -36,6 +33,7 @@ import (
 	"github.com/vanus-labs/vanus/internal/store/raft/storage"
 	"github.com/vanus-labs/vanus/internal/store/raft/transport"
 	walog "github.com/vanus-labs/vanus/internal/store/wal"
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 type Engine struct {
@@ -102,10 +100,9 @@ func (e *Engine) Recover(ctx context.Context, raws map[vanus.ID]block.Raw) (map[
 
 		// Raft log has been compacted.
 		if s == nil {
-			log.Debug(ctx, "Raft storage of block has been deleted or not created, so skip it.",
-				map[string]interface{}{
-					"block_id": id,
-				})
+			log.Debug(ctx).
+				Stringer("block_id", id).
+				Msg("Raft storage of block has been deleted or not created, so skip it.")
 			// TODO(james.yin): clean expired metadata
 			continue
 		}
@@ -121,9 +118,9 @@ func (e *Engine) Recover(ctx context.Context, raws map[vanus.ID]block.Raw) (map[
 			continue
 		}
 
-		log.Debug(ctx, "Not found appender, so discard the raft storage.", map[string]interface{}{
-			"block_id": id,
-		})
+		log.Debug(ctx).
+			Stringer("block_id", id).
+			Msg("Not found appender, so discard the raft storage.")
 
 		rs.Delete(ctx)
 	}

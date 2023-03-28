@@ -32,7 +32,7 @@ type Queue[T any] struct {
 }
 
 func New[T any](handoff bool) *Queue[T] {
-	return new(Queue[T])
+	return new(Queue[T]).Init(handoff)
 }
 
 func (q *Queue[T]) Init(handoff bool) *Queue[T] {

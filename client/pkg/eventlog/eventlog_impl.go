@@ -58,9 +58,8 @@ func NewEventlog(cfg *el.Config) Eventlog {
 		for {
 			r, ok := <-ch
 			if !ok {
-				log.Debug(context.Background(), "eventlog quits writable watcher", map[string]interface{}{
-					"eventlog": l.cfg.ID,
-				})
+				log.Debug().Uint64("eventlog", l.cfg.ID).
+					Msg("eventlog quits writable watcher")
 				break
 			}
 
@@ -80,9 +79,9 @@ func NewEventlog(cfg *el.Config) Eventlog {
 		for {
 			rs, ok := <-ch
 			if !ok {
-				log.Debug(context.Background(), "eventlog quits readable watcher", map[string]interface{}{
-					"eventlog": l.cfg.ID,
-				})
+				log.Debug().
+					Uint64("eventlog", l.cfg.ID).
+					Msg("eventlog quits readable watcher")
 				break
 			}
 			ctx, span := l.tracer.Start(context.Background(), "updateReadableSegmentsTask")
@@ -220,9 +219,7 @@ func (l *eventlog) updateWritableSegment(ctx context.Context, r *record.Segment)
 
 	segment, err := newSegment(ctx, r, true)
 	if err != nil {
-		log.Error(context.Background(), "new segment failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error().Err(err).Msg("new segment failed")
 		return
 	}
 
@@ -280,9 +277,9 @@ func (l *eventlog) updateReadableSegments(ctx context.Context, rs []*record.Segm
 		}
 		if err != nil {
 			// FIXME: create or update segment failed
-			log.Debug(context.Background(), "update readable segment failed", map[string]interface{}{
-				"segment": segment.id,
-			})
+			log.Debug().
+				Uint64("segment", segment.id).
+				Msg("update readable segment failed")
 			continue
 		}
 		segments = append(segments, segment)
@@ -352,16 +349,13 @@ func (w *logWriter) Append(ctx context.Context, events *cloudevents.CloudEventBa
 			return offsets, nil
 		}
 		if !errors.Is(err, errors.ErrSegmentFull) {
-			log.Error(ctx, "logwriter append failed", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Error(ctx).Err(err).Msg("log-writer append failed")
 			return nil, err
 		}
-		log.Debug(ctx, "logwriter append failed cause segment full", map[string]interface{}{
-			log.KeyError: err,
-			"offsets":    offsets,
-			"retry_time": i,
-		})
+		log.Debug(ctx).
+			Int("retry_time", i).
+			Ints64("retry_time", offsets).
+			Err(err).Msg("log-writer append failed cause segment full")
 	}
 	return nil, errors.ErrUnknown
 }

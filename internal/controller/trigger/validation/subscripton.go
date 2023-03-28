@@ -60,13 +60,11 @@ func ValidateSubscriptionRequest(ctx context.Context, request *ctrlpb.Subscripti
 	if err := validateSubscriptionConfig(ctx, request.Config); err != nil {
 		return err
 	}
-	if err := validateTransformer(ctx, request.Transformer); err != nil {
-		return err
-	}
-	return nil
+
+	return validateTransformer(ctx, request.Transformer)
 }
 
-func validateProtocol(ctx context.Context, protocol metapb.Protocol) error {
+func validateProtocol(_ context.Context, protocol metapb.Protocol) error {
 	switch protocol {
 	case metapb.Protocol_HTTP:
 	case metapb.Protocol_AWS_LAMBDA:
@@ -79,7 +77,7 @@ func validateProtocol(ctx context.Context, protocol metapb.Protocol) error {
 	return nil
 }
 
-func ValidateSinkAndProtocol(ctx context.Context,
+func ValidateSinkAndProtocol(_ context.Context,
 	sink string,
 	protocol metapb.Protocol,
 	credential *metapb.SinkCredential,
@@ -148,7 +146,7 @@ func validateSinkCredential(ctx context.Context, sink string, credential *metapb
 	return nil
 }
 
-func validateSubscriptionConfig(ctx context.Context, cfg *metapb.SubscriptionConfig) error {
+func validateSubscriptionConfig(_ context.Context, cfg *metapb.SubscriptionConfig) error {
 	if cfg == nil {
 		return nil
 	}
@@ -169,7 +167,7 @@ func validateSubscriptionConfig(ctx context.Context, cfg *metapb.SubscriptionCon
 	return nil
 }
 
-func validateTransformer(ctx context.Context, transformer *metapb.Transformer) error {
+func validateTransformer(_ context.Context, transformer *metapb.Transformer) error {
 	if transformer == nil {
 		return nil
 	}
@@ -249,7 +247,7 @@ func ValidateFilter(ctx context.Context, f *metapb.Filter) error {
 	return nil
 }
 
-func validateCel(ctx context.Context, expression string) (err error) {
+func validateCel(_ context.Context, expression string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = errors.ErrCelExpression.WithMessage(expression)
@@ -261,7 +259,7 @@ func validateCel(ctx context.Context, expression string) (err error) {
 	return err
 }
 
-func validateCeSQL(ctx context.Context, expression string) (err error) {
+func validateCeSQL(_ context.Context, expression string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = errors.ErrCeSQLExpression.WithMessage(expression)

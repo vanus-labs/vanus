@@ -41,9 +41,7 @@ func main() {
 	ctx = signal.SetupSignalContext()
 	cfg, err := timer.InitConfig(*configPath)
 	if err != nil {
-		log.Error(ctx, "init config error", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("init config error")
 		os.Exit(-1)
 	}
 
@@ -56,59 +54,51 @@ func main() {
 
 	// init timingwheel
 	if err = timingwheelMgr.Init(ctx); err != nil {
-		log.Error(ctx, "init timer wheel failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("init timer wheel failed")
 		os.Exit(-1)
 	}
 
 	// define leaderelection callback
 	callbacks := leaderelection.LeaderCallbacks{
 		OnStartedLeading: func(ctx context.Context) {
-			log.Info(ctx, "leaderelection finish, become leader", nil)
+			log.Info(ctx).Msg("leaderelection finish, become leader")
 			if timingwheelMgr.IsDeployed(ctx) {
 				err := timingwheelMgr.Recover(ctx)
 				if err != nil {
-					log.Error(ctx, "recover for failover failed, keeping follower", map[string]interface{}{
-						log.KeyError: err,
-					})
+					log.Error(ctx).Err(err).Msg("recover for fail-over failed, keeping follower")
 					return
 				}
 			}
 			timingwheelMgr.SetLeader(true)
 		},
 		OnStoppedLeading: func(ctx context.Context) {
-			log.Info(ctx, "leaderelection lost, become follower", nil)
+			log.Info(ctx).Msg("leaderelection lost, become follower")
 			timingwheelMgr.SetLeader(false)
 		},
 	}
 
 	// start leaderelection
 	if err = leaderelectionMgr.Start(ctx, callbacks); err != nil {
-		log.Error(ctx, "start leader election failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("start leader election failed")
 		os.Exit(-1)
 	}
 
 	// start timingwheel
 	if err = timingwheelMgr.Start(ctx); err != nil {
-		log.Error(ctx, "start timer wheel failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("start timer wheel failed")
 		os.Exit(-1)
 	}
 
 	select {
 	case <-ctx.Done():
-		log.Info(ctx, "received system signal, preparing exit", nil)
+		log.Info(ctx).Msg("received system signal, preparing exit")
 	case <-timingwheelMgr.StopNotify():
-		log.Info(ctx, "received timingwheel manager ready to stop, preparing exit", nil)
+		log.Info(ctx).Msg("received timingwheel manager ready to stop, preparing exit")
 		signal.RequestShutdown()
 	}
 
-	leaderelectionMgr.Stop(context.Background())
+	_ = leaderelectionMgr.Stop(context.Background())
 	timingwheelMgr.Stop(context.Background())
 
-	log.Info(ctx, "the tiemr has been shutdown gracefully", nil)
+	log.Info(ctx).Msg("the tiemr has been shutdown gracefully")
 }

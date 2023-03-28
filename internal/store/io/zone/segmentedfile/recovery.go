@@ -15,13 +15,10 @@
 package segmentedfile
 
 import (
-	// standard libraries.
-	"context"
 	"os"
 	"path/filepath"
 	"strconv"
 
-	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability/log"
 
 	// this project.
@@ -72,11 +69,10 @@ func scanSegmentFiles(dir, ext string, segmentSize int64) (segments []*Segment, 
 		if last != nil {
 			// discontinuous log file
 			if so != last.eo {
-				log.Warning(context.Background(), "Discontinuous segment, discard before.",
-					map[string]interface{}{
-						"last_end":   last.eo,
-						"next_start": so,
-					})
+				log.Warn().
+					Int64("last_end", last.eo).
+					Int64("next_start", so).
+					Msg("Discontinuous segment, discard before.")
 				discards = append(discards, segments...)
 				segments = nil
 			}
@@ -93,12 +89,10 @@ func scanSegmentFiles(dir, ext string, segmentSize int64) (segments []*Segment, 
 		if size%segmentSize != 0 {
 			// TODO(james.yin): return error
 			truncated := size - size%segmentSize
-			log.Warning(context.Background(), "The size of log file is not a multiple of blockSize, truncate it.",
-				map[string]interface{}{
-					"file":        path,
-					"origin_size": size,
-					"new_size":    truncated,
-				})
+			log.Warn().Str("file", path).
+				Int64("origin_size", size).
+				Int64("new_size", truncated).
+				Msg("The size of log file is not a multiple of blockSize, truncate it. ")
 			size = truncated
 		}
 

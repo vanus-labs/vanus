@@ -16,153 +16,45 @@ package log
 
 import (
 	"context"
-	"io"
 	"os"
 	"strings"
-	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 )
 
-type Logger interface {
-	Debug(ctx context.Context, msg string, fields map[string]interface{})
-	Info(ctx context.Context, msg string, fields map[string]interface{})
-	Warning(ctx context.Context, msg string, fields map[string]interface{})
-	Error(ctx context.Context, msg string, fields map[string]interface{})
-	Fatal(ctx context.Context, msg string, fields map[string]interface{})
-	SetLevel(level string)
-	SetLogWriter(writer io.Writer)
-}
+var lg zerolog.Logger
 
 func init() {
-	logger := logrus.New()
-	logger.Formatter = &logrus.TextFormatter{TimestampFormat: time.RFC3339, FullTimestamp: true}
-	r := &defaultLogger{
-		logger: logger,
-	}
 	level := os.Getenv("VANUS_LOG_LEVEL")
+	var lvl zerolog.Level
 	switch strings.ToLower(level) {
 	case "debug":
-		r.logger.SetLevel(logrus.DebugLevel)
-	case "warn":
-		r.logger.SetLevel(logrus.WarnLevel)
+		lvl = zerolog.DebugLevel
+	case "info":
+		lvl = zerolog.InfoLevel
 	case "error":
-		r.logger.SetLevel(logrus.ErrorLevel)
+		lvl = zerolog.ErrorLevel
 	case "fatal":
-		r.logger.SetLevel(logrus.FatalLevel)
+		lvl = zerolog.FatalLevel
 	default:
-		r.logger.SetLevel(logrus.InfoLevel)
+		lvl = zerolog.WarnLevel
 	}
-
-	vLog = r
-	vLog.Debug(context.Background(), "logger level has been set", map[string]interface{}{
-		"log_level": level,
-	})
+	lg = zerolog.New(os.Stdout).Output(zerolog.NewConsoleWriter()).
+		Level(lvl).With().Timestamp().Caller().Logger()
 }
 
-var vLog Logger
-
-type defaultLogger struct {
-	logger *logrus.Logger
+func Debug(_ ...context.Context) *zerolog.Event {
+	return lg.Debug()
 }
 
-func (l *defaultLogger) Debug(ctx context.Context, msg string, fields map[string]interface{}) {
-	if msg == "" && len(fields) == 0 {
-		return
-	}
-	l.logger.WithFields(fields).Debug(msg)
+func Info(_ ...context.Context) *zerolog.Event {
+	return lg.Info()
 }
 
-func (l *defaultLogger) Info(ctx context.Context, msg string, fields map[string]interface{}) {
-	if msg == "" && len(fields) == 0 {
-		return
-	}
-	l.logger.WithFields(fields).Info(msg)
+func Warn(_ ...context.Context) *zerolog.Event {
+	return lg.Warn()
 }
 
-func (l *defaultLogger) Warning(ctx context.Context, msg string, fields map[string]interface{}) {
-	if msg == "" && len(fields) == 0 {
-		return
-	}
-	l.logger.WithFields(fields).Warning(msg)
+func Error(_ ...context.Context) *zerolog.Event {
+	return lg.Error()
 }
-
-func (l *defaultLogger) Error(ctx context.Context, msg string, fields map[string]interface{}) {
-	if msg == "" && len(fields) == 0 {
-		return
-	}
-	l.logger.WithFields(fields).WithFields(fields).Error(msg)
-}
-
-func (l *defaultLogger) Fatal(ctx context.Context, msg string, fields map[string]interface{}) {
-	if msg == "" && len(fields) == 0 {
-		return
-	}
-	l.logger.WithFields(fields).Fatal(msg)
-}
-
-func (l *defaultLogger) SetLevel(level string) {
-	switch strings.ToLower(level) {
-	case "debug":
-		l.logger.SetLevel(logrus.DebugLevel)
-	case "warn":
-		l.logger.SetLevel(logrus.WarnLevel)
-	case "error":
-		l.logger.SetLevel(logrus.ErrorLevel)
-	case "fatal":
-		l.logger.SetLevel(logrus.FatalLevel)
-	default:
-		l.logger.SetLevel(logrus.InfoLevel)
-	}
-}
-
-func (l *defaultLogger) SetLogWriter(writer io.Writer) {
-	l.logger.Out = writer
-	return
-}
-
-// SetLogger use specified logger user customized, in general, we suggest user to replace the default logger with specified
-func SetLogger(logger Logger) {
-	vLog = logger
-}
-
-func SetLogLevel(level string) {
-	if level == "" {
-		return
-	}
-	vLog.SetLevel(level)
-}
-
-func SetLogWriter(writer io.Writer) {
-	if writer == nil {
-		return
-	}
-	vLog.SetLogWriter(writer)
-}
-
-func Debug(ctx context.Context, msg string, fields map[string]interface{}) {
-	vLog.Debug(ctx, msg, fields)
-}
-
-func Info(ctx context.Context, msg string, fields map[string]interface{}) {
-	if msg == "" && len(fields) == 0 {
-		return
-	}
-	vLog.Info(ctx, msg, fields)
-}
-
-func Warning(ctx context.Context, msg string, fields map[string]interface{}) {
-	if msg == "" && len(fields) == 0 {
-		return
-	}
-	vLog.Warning(ctx, msg, fields)
-}
-
-func Error(ctx context.Context, msg string, fields map[string]interface{}) {
-	vLog.Error(ctx, msg, fields)
-}
-
-//
-//func Fatal(ctx context.Context, msg string, fields map[string]interface{}) {
-//	vLog.Fatal(ctx, msg, fields)
-//}

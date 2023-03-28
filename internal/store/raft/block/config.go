@@ -70,10 +70,10 @@ func makeConfig(opts ...Option) config {
 	for _, opt := range opts {
 		opt(&cfg)
 	}
-	if cfg.stateStore == nil { //nolint:staticcheck // todo
+	if cfg.stateStore == nil { //nolint:staticcheck,revive // todo
 		// TODO(james.yin)
 	}
-	if cfg.hintStore == nil { //nolint:staticcheck // todo
+	if cfg.hintStore == nil { //nolint:staticcheck,revive // todo
 		// TODO(james.yin)
 	}
 	return cfg

@@ -51,17 +51,13 @@ func main() {
 	flag.Parse()
 	cfg, err := controller.InitConfig(*configPath)
 	if err != nil {
-		log.Error(context.Background(), "init config error", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error().Err(err).Msg("init config error")
 		os.Exit(-1)
 	}
 
 	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
-		log.Error(context.Background(), "failed to listen", map[string]interface{}{
-			"error": err,
-		})
+		log.Error().Err(err).Msg("failed to listen")
 		os.Exit(-1)
 	}
 
@@ -69,19 +65,17 @@ func main() {
 	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetControllerMetrics)
 	mem := member.New(cfg.GetClusterConfig())
 	if err = mem.Init(ctx); err != nil {
-		log.Error(ctx, "failed to init member", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("failed to init member")
 		os.Exit(-1)
 	}
 
 	snowflakeCtrl := root.NewSnowflakeController(cfg.GetSnowflakeConfig(), mem)
 	recoveryOpt := recovery.WithRecoveryHandlerContext(
 		func(ctx context.Context, p interface{}) error {
-			log.Error(ctx, "goroutine panicked", map[string]interface{}{
-				log.KeyError: fmt.Sprintf("%v", p),
-				"stack":      string(debug.Stack()),
-			})
+			log.Error(ctx).
+				Str(log.KeyError, fmt.Sprintf("%v", p)).
+				Bytes("stack", debug.Stack()).
+				Msg("goroutine panicked")
 			return status.Errorf(codes.Internal, "%v", p)
 		},
 	)
@@ -96,9 +90,7 @@ func main() {
 	)
 
 	if err = snowflakeCtrl.Start(ctx); err != nil {
-		log.Error(ctx, "start Snowflake Controller failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("start Snowflake Controller failed")
 		os.Exit(-1)
 	}
 
@@ -114,21 +106,17 @@ func main() {
 	go func() {
 		err = grpcServer.Serve(listen)
 		if err != nil {
-			log.Error(ctx, "grpc server occurred an error", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Error(ctx).Err(err).Msg("grpc server occurred an error")
 		}
 		wg.Done()
 	}()
 
 	if err = mem.Start(ctx); err != nil {
-		log.Error(ctx, "failed to start member", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("failed to start member")
 		os.Exit(-2)
 	}
 
-	log.Info(ctx, "the grpc server ready to work", nil)
+	log.Info(ctx).Msg("the grpc server ready to work")
 
 	exit := func() {
 		vanus.DestroySnowflake()
@@ -139,9 +127,9 @@ func main() {
 
 	select {
 	case <-ctx.Done():
-		log.Info(ctx, "received system signal, preparing exit", nil)
+		log.Info(ctx).Msg("received system signal, preparing exit")
 	}
 	exit()
 	wg.Wait()
-	log.Info(ctx, "the root controller has been shutdown gracefully", nil)
+	log.Info(ctx).Msg("the root controller has been shutdown gracefully")
 }

@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"time"
 
-	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/raft"
 	"github.com/vanus-labs/vanus/raft/raftpb"
@@ -46,19 +45,19 @@ func (s *Storage) Compact(ctx context.Context, i uint64) error {
 	ci := s.compactedIndex()
 	li := s.lastStableIndex()
 	if i <= ci {
-		log.Warning(ctx, "raft log has been compacted", map[string]interface{}{
-			"node_id":         s.nodeID,
-			"to_compact":      i,
-			"compacted_index": ci,
-		})
+		log.Warn(ctx).
+			Stringer("node_id", s.nodeID).
+			Uint64("to_compact", i).
+			Uint64("compacted_index", ci).
+			Msg("raft log has been compacted")
 		return raft.ErrCompacted
 	}
 	if i > li {
-		log.Error(ctx, "compactedIndex is out of bound lastIndex", map[string]interface{}{
-			"node_id":    s.nodeID,
-			"to_compact": i,
-			"last_index": li,
-		})
+		log.Error(ctx).
+			Stringer("node_id", s.nodeID).
+			Uint64("to_compact", i).
+			Uint64("last_index", li).
+			Msg("compactedIndex is out of bound lastIndex")
 		// FIXME(james.yin): error
 		return raft.ErrCompacted
 	}
@@ -278,7 +277,7 @@ type adminTask struct {
 
 var emptyCompact = make([]byte, 16)
 
-func (t *adminTask) addNode(w *WAL, cCtx *compactContext) {
+func (t *adminTask) addNode(w *WAL, _ *compactContext) {
 	w.nodes[t.nodeID] = true
 
 	key := []byte(CompactKey(t.nodeID.Uint64()))
@@ -310,7 +309,7 @@ func (t *adminTask) removeNode(w *WAL, cCtx *compactContext) {
 	})
 }
 
-func (t *adminTask) recoverNode(w *WAL, cCtx *compactContext) {
+func (t *adminTask) recoverNode(w *WAL, _ *compactContext) {
 	w.nodes[t.nodeID] = true
 	if t.offset != 0 {
 		w.barrier.Set(t.offset, t.nodeID)
@@ -389,7 +388,7 @@ func (c *compactContext) sync(ctx context.Context, stateStore *meta.SyncStore) b
 		offset: c.toCompact,
 	})
 	if err != nil {
-		log.Warning(ctx, "sync compaction information failed", nil)
+		log.Warn(ctx).Msg("sync compaction information failed")
 		return false
 	}
 	c.compacted = c.toCompact
@@ -443,9 +442,9 @@ func (w *WAL) doCompact(ctx context.Context, cCtx *compactContext) {
 	}
 
 	if cCtx.stale() {
-		log.Debug(ctx, "compact WAL of raft storage.", map[string]interface{}{
-			"offset": cCtx.toCompact,
-		})
+		log.Debug(ctx).
+			Int64("offset", cCtx.toCompact).
+			Msg("compact WAL of raft storage.")
 
 		// Store compacted info and offset.
 		if cCtx.sync(ctx, w.stateStore) {

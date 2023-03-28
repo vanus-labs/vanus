@@ -18,12 +18,11 @@ import (
 	"context"
 
 	"github.com/vanus-labs/vanus/client/pkg/api"
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/pkg/errors"
-
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/info"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 func (m *manager) SaveOffset(ctx context.Context, id vanus.ID, offsets info.ListOffsetInfo, commit bool) error {
@@ -52,9 +51,8 @@ func (m *manager) ResetOffsetByTimestamp(ctx context.Context, id vanus.ID,
 	if err != nil {
 		return nil, err
 	}
-	log.Info(ctx, "reset offset by timestamp", map[string]interface{}{
-		"offsets": offsets,
-	})
+	log.Info(ctx).Interface("offsets", offsets).Msg("reset offset by timestamp")
+
 	return offsets, err
 }
 
@@ -103,9 +101,8 @@ func (m *manager) GetOrSaveOffset(ctx context.Context, id vanus.ID) (info.ListOf
 	if err != nil {
 		return nil, err
 	}
-	log.Info(ctx, "save offset from cli", map[string]interface{}{
-		"offsets": offsets,
-	})
+	log.Info(ctx).Interface("offsets", offsets).Msg("save offset from cli")
+
 	return offsets, nil
 }
 

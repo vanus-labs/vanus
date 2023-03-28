@@ -22,13 +22,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vanus-labs/vanus/internal/timer/metadata"
+	"github.com/vanus-labs/vanus/observability/log"
 	v3client "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
 	"go.uber.org/atomic"
-
-	"github.com/vanus-labs/vanus/observability/log"
-
-	"github.com/vanus-labs/vanus/internal/timer/metadata"
 )
 
 const (
@@ -85,9 +83,7 @@ func NewLeaderElection(c *Config) Manager {
 		DialKeepAliveTimeout: dialKeepAliveTimeout * time.Second,
 	})
 	if err != nil {
-		log.Error(context.Background(), "new etcd v3client failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error().Err(err).Msg("new etcd v3client failed")
 		panic("new etcd v3client failed")
 	}
 
@@ -100,34 +96,30 @@ func NewLeaderElection(c *Config) Manager {
 
 	le.session, err = newSession(client, concurrency.WithTTL(int(le.leaseDuration)))
 	if err != nil {
-		log.Error(context.Background(), "new session failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error().Err(err).Msg("new session failed")
 		panic("new session failed")
 	}
 	le.mutex = newMutex(le.session, le.resourceLock)
 
-	log.Info(context.Background(), "new leaderelection manager", map[string]interface{}{
-		"name":           le.name,
-		"resource_lock":  le.resourceLock,
-		"lease_duration": le.leaseDuration,
-	})
+	log.Info().
+		Str("name", le.name).
+		Str("resource_lock", le.resourceLock).
+		Int64("name", le.leaseDuration).
+		Msg("new leaderelection manager")
 	return le
 }
 
 func (le *leaderElection) Start(ctx context.Context, callbacks LeaderCallbacks) error {
-	log.Info(ctx, "start leaderelection", nil)
+	log.Info(ctx).Msg("start leaderelection")
 	le.callbacks = callbacks
 	return le.tryAcquireLockLoop(ctx)
 }
 
 func (le *leaderElection) Stop(ctx context.Context) error {
-	log.Info(ctx, "stop leaderelection", nil)
+	log.Info(ctx).Msg("stop leaderelection")
 	err := le.release(ctx)
 	if err != nil {
-		log.Error(ctx, "release lock failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("release lock failed")
 		return err
 	}
 
@@ -150,10 +142,10 @@ func (le *leaderElection) tryAcquireLockLoop(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Warning(ctx, "context canceled at try acquire lock loop", nil)
+				log.Warn(ctx).Msg("context canceled at try acquire lock loop")
 				return
 			case <-le.session.Done():
-				log.Warning(ctx, "lose lock", nil)
+				log.Warn(ctx).Msg("lose lock")
 				le.isLeader.Store(false)
 				le.callbacks.OnStoppedLeading(ctx)
 				// refresh session until success
@@ -168,7 +160,7 @@ func (le *leaderElection) tryAcquireLockLoop(ctx context.Context) error {
 			}
 		}
 	}()
-	log.Info(ctx, "start try to acquire lock loop...", nil)
+	log.Info(ctx).Msg("start try to acquire lock loop...")
 	return nil
 }
 
@@ -179,19 +171,19 @@ func (le *leaderElection) tryLock(ctx context.Context) error {
 	err := le.mutex.TryLock(ctx)
 	if err != nil {
 		if errors.Is(err, concurrency.ErrLocked) {
-			log.Info(ctx, "try acquire lock, already locked in another session", nil)
+			log.Info(ctx).Msg("try acquire lock, already locked in another session")
 			return err
 		}
-		log.Error(ctx, "acquire lock failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).
+			Err(err).
+			Msg("acquire lock failed")
 		return err
 	}
 
-	log.Info(ctx, "acquired lock", map[string]interface{}{
-		"identity":      le.name,
-		"resource_lock": le.resourceLock,
-	})
+	log.Info(ctx).
+		Str("identity", le.name).
+		Str("resource_lock", le.resourceLock).
+		Msg("acquired lock")
 	le.isLeader.Store(true)
 	le.callbacks.OnStartedLeading(ctx)
 	return nil
@@ -202,33 +194,29 @@ func (le *leaderElection) release(ctx context.Context) error {
 	defer le.mu.Unlock()
 	err := le.mutex.Unlock(ctx)
 	if err != nil {
-		log.Error(ctx, "unlock error", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("unlock error")
 		return err
 	}
 	err = le.session.Close()
 	if err != nil {
-		log.Error(ctx, "session close error", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).
+			Err(err).
+			Msg("session close error")
 		return err
 	}
-	log.Info(ctx, "released lock", nil)
+	log.Info(ctx).Msg("released lock")
 	return nil
 }
 
-func (le *leaderElection) refresh(ctx context.Context) bool {
+func (le *leaderElection) refresh(_ context.Context) bool {
 	var err error
 	le.mu.Lock()
 	defer le.mu.Unlock()
-	le.session.Close()
+	_ = le.session.Close()
 	le.session, err = concurrency.NewSession(le.etcdClient,
 		concurrency.WithTTL(int(le.leaseDuration)))
 	if err != nil {
-		log.Error(context.Background(), "refresh session failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error().Err(err).Msg("refresh session failed")
 		return false
 	}
 	le.mutex = concurrency.NewMutex(le.session, le.resourceLock)

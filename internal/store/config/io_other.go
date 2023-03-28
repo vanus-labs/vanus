@@ -22,6 +22,6 @@ import (
 	"github.com/vanus-labs/vanus/internal/store/io/engine"
 )
 
-func buildIOEngineEx(cfg IO) engine.Interface {
+func buildIOEngineEx(_ IO) engine.Interface {
 	panic("io engine is not supported")
 }

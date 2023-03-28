@@ -19,12 +19,11 @@ import (
 	"context"
 	"sync"
 
+	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
-
-	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 type Instance interface {
@@ -73,16 +72,14 @@ func (ins *volumeInstance) CreateBlock(ctx context.Context, capacity int64) (*me
 		Id:   blk.ID.Uint64(),
 	})
 	if err != nil {
-		log.Warning(ctx, "failed to create block", map[string]interface{}{
-			"id":        id.String(),
-			"volume_id": ins.md.ID.String(),
-		})
+		log.Warn(ctx).
+			Interface("id", id).
+			Interface("volume_id", ins.md.ID).
+			Msg("failed to create block")
 		return nil, err
 	}
 
-	log.Info(ctx, "success to create block", map[string]interface{}{
-		"id": id.String(),
-	})
+	log.Info(ctx).Interface("id", id).Msg("success to create block")
 
 	ins.metaMutex.Lock()
 	defer ins.metaMutex.Unlock()
@@ -144,11 +141,10 @@ func (ins *volumeInstance) SetServer(srv Server) {
 	if srv == nil || !srv.IsActive(context.Background()) {
 		return
 	}
-	log.Info(context.TODO(), "update server of volume", map[string]interface{}{
-		"srv":     srv.VolumeID(),
-		"address": srv.Address(),
-		"uptime":  srv.Uptime(),
-	})
+	log.Info().Interface("srv", srv.VolumeID()).
+		Str("address", srv.Address()).
+		Time("uptime", srv.Uptime()).
+		Msg("update server of volume")
 	ins.srv = srv
 }
 

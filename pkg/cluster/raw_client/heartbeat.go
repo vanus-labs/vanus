@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/vanus-labs/vanus/observability/log"
-
 	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
@@ -44,9 +43,7 @@ func RegisterHeartbeat(ctx context.Context, interval time.Duration,
 				return
 			case <-ticker.C:
 				if err := hb.Beat(ctx, reqFunc()); err != nil {
-					log.Warning(ctx, "heartbeat error", map[string]interface{}{
-						log.KeyError: err,
-					})
+					log.Warn().Err(err).Msg("heartbeat error")
 				}
 			}
 		}

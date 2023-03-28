@@ -170,9 +170,7 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 					Value: uint32(u),
 				})
 				if err != nil {
-					log.Error(ctx, "register snowflake failed", map[string]interface{}{
-						log.KeyError: err,
-					})
+					log.Error(ctx).Err(err).Msg("register snowflake failed")
 					return false
 				}
 				return true
@@ -183,9 +181,7 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 		}
 		generator = snow
 		initialized.Store(true)
-		log.Info(ctx, "succeed to init ID generator", map[string]interface{}{
-			"node_id": snow.n.logicID(),
-		})
+		log.Info(ctx).Uint16("node_id", snow.n.logicID()).Msg("succeed to init VolumeID generator")
 		return nil
 	}
 	var err error
@@ -215,9 +211,7 @@ func DestroySnowflake() {
 		_, err := generator.client.UnregisterNode(context.Background(),
 			&wrapperspb.UInt32Value{Value: uint32(generator.n.logicID())})
 		if err != nil {
-			log.Warning(context.TODO(), "failed to unregister snowflake", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Warn().Err(err).Msg("failed to unregister snowflake")
 		}
 	}
 }

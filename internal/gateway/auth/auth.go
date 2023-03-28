@@ -78,23 +78,16 @@ func (a *Auth) Authenticate(ctx context.Context) (context.Context, error) {
 	}
 	token, err := grpc_auth.AuthFromMD(ctx, TokenType)
 	if err != nil {
-		log.Info(ctx, "get authorization token error", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Info(ctx).Err(err).Msg("get authorization token error")
 		return ctx, errors.ErrInvalidRequest.WithMessage(err.Error())
 	}
 	user, err := a.Authentication.Authenticate(ctx, token)
 	if err != nil {
 		if errors.Is(err, errors.ErrResourceNotFound) {
-			log.Debug(ctx, "authorization token failed", map[string]interface{}{
-				"token": token,
-			})
+			log.Debug(ctx).Str("token", token).Msg("authorization token failed")
 			return ctx, errors.ErrUnauthenticated.WithMessage("token is invalid")
 		}
-		log.Info(ctx, "authorization token error", map[string]interface{}{
-			log.KeyError: err,
-			"token":      token,
-		})
+		log.Info(ctx).Err(err).Str("token", token).Msg("authorization token error")
 		return ctx, err
 	}
 	newCtx := SetUser(ctx, user)
@@ -120,11 +113,11 @@ func (a *Auth) Authorize(ctx context.Context, method string, req interface{}) er
 		return err
 	}
 	if !result {
-		log.Info(ctx, "method permission denied", map[string]interface{}{
-			"method": method,
-			"user":   user,
-			"req":    req,
-		})
+		log.Info(ctx).
+			Str("method", method).
+			Str("user", user).
+			Interface("req", req).
+			Msg("method permission denied")
 		return errors.ErrPermissionDenied.WithMessage("no permission")
 	}
 	return nil

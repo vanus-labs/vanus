@@ -49,11 +49,10 @@ func WatchWritableLogs(bus *eventbus) *WritableLogsWatcher {
 	ch := make(chan *WritableLogsResult, 1)
 	w := primitive.NewWatcher(30*time.Second, func() {
 		rs, err := bus.nameService.LookupWritableLogs(context.Background(), bus.cfg.ID)
-		log.Debug(context.Background(), "lookup writable logs", map[string]interface{}{
-			log.KeyError:  err,
-			"eventbus_id": bus.cfg.ID,
-			"logs":        rs,
-		})
+		log.Debug().Err(err).
+			Uint64("eventbus_id", bus.cfg.ID).
+			Interface("logs", rs).
+			Msg("lookup writable logs")
 		ch <- &WritableLogsResult{
 			Eventlogs: rs,
 			Err:       err,
@@ -91,11 +90,10 @@ func WatchReadableLogs(bus *eventbus) *ReadableLogsWatcher {
 	ch := make(chan *ReadableLogsResult, 1)
 	w := primitive.NewWatcher(30*time.Second, func() {
 		rs, err := bus.nameService.LookupReadableLogs(context.Background(), bus.cfg.ID)
-		log.Debug(context.Background(), "lookup readable logs", map[string]interface{}{
-			log.KeyError:  err,
-			"eventbus_id": bus.cfg.ID,
-			"logs":        rs,
-		})
+		log.Debug().Err(err).
+			Uint64("eventbus_id", bus.cfg.ID).
+			Interface("logs", rs).
+			Msg("lookup readable logs")
 		ch <- &ReadableLogsResult{
 			Eventlogs: rs,
 			Err:       err,

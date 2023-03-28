@@ -17,7 +17,6 @@ package eventbus
 import (
 	// standard libraries.
 	"context"
-
 	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/credentials/insecure"
@@ -56,10 +55,7 @@ func (ns *NameService) LookupWritableLogs(ctx context.Context, eventbusID uint64
 
 	resp, err := ns.client.GetEventbus(ctx, req)
 	if err != nil {
-		log.Error(context.Background(), "get eventbus failed", map[string]interface{}{
-			log.KeyError:  err,
-			"eventbus_id": eventbusID,
-		})
+		log.Error().Err(err).Uint64("eventbus_id", eventbusID).Msg("get eventbus failed")
 		return nil, err
 	}
 	return toLogs(resp.GetLogs()), nil
@@ -75,10 +71,9 @@ func (ns *NameService) LookupReadableLogs(ctx context.Context, eventbusID uint64
 
 	resp, err := ns.client.GetEventbus(ctx, req)
 	if err != nil {
-		log.Error(context.Background(), "get eventbus failed", map[string]interface{}{
-			log.KeyError:  err,
-			"eventbus_id": eventbusID,
-		})
+		log.Error().Err(err).
+			Uint64("eventbus_id", eventbusID).
+			Msg("get eventbus failed")
 		return nil, err
 	}
 

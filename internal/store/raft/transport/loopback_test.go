@@ -31,7 +31,7 @@ type dmu struct {
 	recvch chan *raftpb.Message
 }
 
-func (d *dmu) Receive(ctx context.Context, msg *raftpb.Message, endpoint string) error {
+func (d *dmu) Receive(_ context.Context, msg *raftpb.Message, _ string) error {
 	d.recvch <- msg
 	return nil
 }
