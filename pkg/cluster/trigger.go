@@ -29,5 +29,5 @@ func (es *triggerService) RegisterHeartbeat(ctx context.Context, interval time.D
 
 func (es *triggerService) GetSubscription(ctx context.Context, id uint64) (*metapb.Subscription, error) {
 	subscription, err := es.client.GetSubscription(ctx, &ctrlpb.GetSubscriptionRequest{Id: id})
-	return subscription, errors.To(err)
+	return subscription, errors.UnwrapOrUnknown(err)
 }

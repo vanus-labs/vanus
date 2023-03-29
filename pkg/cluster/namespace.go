@@ -43,7 +43,7 @@ func (ns *namespaceService) GetNamespace(ctx context.Context, id uint64) (*metap
 	}
 	n, err := ns.client.GetNamespace(ctx, &ctrlpb.GetNamespaceRequest{Id: id})
 	if err != nil {
-		return nil, errors.To(err)
+		return nil, errors.UnwrapOrUnknown(err)
 	}
 	// ns.cache.Store(id, n) unmask when dirty cache is resolved
 	return n, nil
@@ -64,7 +64,7 @@ func (ns *namespaceService) GetNamespaceByName(ctx context.Context, name string)
 	}
 	n, err := ns.client.GetNamespaceWithHumanFriendly(ctx, wrapperspb.String(name))
 	if err != nil {
-		return nil, errors.To(err)
+		return nil, errors.UnwrapOrUnknown(err)
 	}
 	// ns.cache.Store(name, n) unmask when dirty cache is resolved
 	return n, nil
