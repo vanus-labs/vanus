@@ -33,16 +33,16 @@ const (
 
 func Init(ctx context.Context, cfg Config, getCollectors func() []prometheus.Collector) {
 	if !cfg.Enable {
-		log.Info(ctx, "metrics module has been disabled", nil)
+		log.Info(ctx).Msg("metrics module has been disabled")
 		return
 	}
 	if getCollectors == nil {
-		log.Info(ctx, "metrics module has been disabled due to empty collectors", nil)
+		log.Info(ctx).Msg("metrics module has been disabled due to empty collectors")
 		return
 	}
 	colls := getCollectors()
 	if len(colls) == 0 {
-		log.Info(ctx, "metrics module has been disabled due to empty collectors", nil)
+		log.Info(ctx).Msg("metrics module has been disabled due to empty collectors")
 		return
 	}
 
@@ -56,14 +56,10 @@ func Init(ctx context.Context, cfg Config, getCollectors func() []prometheus.Col
 	))
 	go func() {
 		if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.GetPort()), nil); err != nil {
-			log.Error(context.Background(), "Metrics listen and serve failed.", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Error().Err(err).Msg("Metrics listen and serve failed.")
 		}
 	}()
-	log.Info(context.Background(), "metrics module started", map[string]interface{}{
-		"port": cfg.GetPort(),
-	})
+	log.Info().Int("port", cfg.GetPort()).Msg("metrics module started")
 }
 
 func GetControllerMetrics() []prometheus.Collector {

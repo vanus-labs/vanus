@@ -66,6 +66,14 @@ func Is(err error, target error) bool {
 	return errType != nil && errType.Code == targetType.Code
 }
 
+func UnwrapOrUnknown(err error) error {
+	if err == nil {
+		return nil
+	}
+	et, _ := FromError(err)
+	return et
+}
+
 func FromError(err error) (*ErrorType, bool) {
 	if err == nil {
 		return nil, true

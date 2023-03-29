@@ -25,7 +25,7 @@ func NewNoFilter() Filter {
 	return &noFilter{}
 }
 
-func (filter *noFilter) Filter(event ce.Event) Result {
+func (filter *noFilter) Filter(_ ce.Event) Result {
 	return PassFilter
 }
 

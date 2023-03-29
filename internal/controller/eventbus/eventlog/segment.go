@@ -19,11 +19,10 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/vanus-labs/vanus/observability/log"
-	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
-
 	"github.com/vanus-labs/vanus/internal/controller/eventbus/metadata"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/observability/log"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 )
 
 type SegmentState string
@@ -86,12 +85,12 @@ func (seg *Segment) isNeedUpdate(newSeg Segment) bool {
 	}
 	// TODO(wenfeng): follow state shift
 	if newSeg.State != "" && seg.State != newSeg.State {
-		log.Info(context.Background(), "Update segment by state.", map[string]interface{}{
-			log.KeySegmentID: newSeg.ID,
-			"event_num":      newSeg.Number,
-			"event_size":     newSeg.Size,
-			"state":          newSeg.State,
-		})
+		log.Info().
+			Interface(log.KeySegmentID, newSeg.ID).
+			Int32("event_num", newSeg.Number).
+			Int64("event_size", newSeg.Size).
+			Interface("state", newSeg.State).
+			Msg("Update segment by state")
 		seg.State = newSeg.State
 		needed = true
 	}

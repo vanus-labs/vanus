@@ -22,14 +22,16 @@ import (
 	// third-party project.
 	ce "github.com/cloudevents/sdk-go/v2"
 
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/pkg/primitive"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	"github.com/vanus-labs/vanus/proto/pkg/codec"
+
 	// this project.
 	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/option"
 	"github.com/vanus-labs/vanus/client/pkg/policy"
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
-	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
-	"github.com/vanus-labs/vanus/proto/pkg/codec"
 )
 
 func main() {
@@ -37,7 +39,7 @@ func main() {
 
 	c := client.Connect([]string{"localhost:2048"})
 
-	eventbusID, err := vanus.NewIDFromString("0000002689000012")
+	eventbusID, err := primitive.NewIDFromString("0000002689000012")
 	if err != nil {
 		panic("invalid id")
 	}

@@ -46,7 +46,7 @@ var (
 	emptyHeader = make([]byte, headerBlockSize)
 )
 
-func (b *vsBlock) persistHeader(ctx context.Context, m meta) error {
+func (b *vsBlock) persistHeader(_ context.Context, m meta) error {
 	var buf [headerSize]byte
 	binary.LittleEndian.PutUint32(buf[magicOffset:], FormatMagic)               // magic
 	binary.LittleEndian.PutUint32(buf[flagsOffset:], 0)                         // flags
@@ -78,7 +78,7 @@ func (b *vsBlock) persistHeader(ctx context.Context, m meta) error {
 	return nil
 }
 
-func (b *vsBlock) loadHeader(ctx context.Context) error {
+func (b *vsBlock) loadHeader(_ context.Context) error {
 	var buf [headerSize]byte
 	if _, err := b.f.ReadAt(buf[:], 0); err != nil {
 		return err

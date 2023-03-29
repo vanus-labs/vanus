@@ -44,31 +44,31 @@ type sizeOptAttrCallback struct {
 // Make sure sizeOptAttrCallback implements block.OptionalAttributeCallback.
 var _ block.OptionalAttributeCallback = (*sizeOptAttrCallback)(nil)
 
-func (cb *sizeOptAttrCallback) OnBytes(ordinal int, val []byte) {
+func (cb *sizeOptAttrCallback) OnBytes(_ int, val []byte) {
 	cb.size += refSize + alignment(len(val))
 }
 
-func (cb *sizeOptAttrCallback) OnString(ordinal int, val string) {
+func (cb *sizeOptAttrCallback) OnString(_ int, val string) {
 	cb.size += refSize + alignment(len(val))
 }
 
-func (cb *sizeOptAttrCallback) OnUint16(ordinal int, val uint16) {
+func (cb *sizeOptAttrCallback) OnUint16(_ int, _ uint16) {
 	cb.size += baseAttrSize
 }
 
-func (cb *sizeOptAttrCallback) OnUint64(ordinal int, val uint64) {
+func (cb *sizeOptAttrCallback) OnUint64(_ int, _ uint64) {
 	cb.size += baseAttrSize
 }
 
-func (cb *sizeOptAttrCallback) OnInt64(ordinal int, val int64) {
+func (cb *sizeOptAttrCallback) OnInt64(_ int, _ int64) {
 	cb.size += baseAttrSize
 }
 
-func (cb *sizeOptAttrCallback) OnTime(ordinal int, val time.Time) {
+func (cb *sizeOptAttrCallback) OnTime(_ int, _ time.Time) {
 	cb.size += timeAttrSize
 }
 
-func (cb *sizeOptAttrCallback) OnAttribute(ordinal int, val interface{}) {
+func (cb *sizeOptAttrCallback) OnAttribute(_ int, val interface{}) {
 	switch val.(type) {
 	case bool, int, int8, int16, int32, uint, uint8, uint32, float32, float64:
 		cb.size += baseAttrSize
@@ -125,7 +125,7 @@ func (oam *optAttrMarshaler) marshal(e block.EntryExt) (uint64, int) {
 	return oam.bitmap, oam.nextAlloc
 }
 
-func (oam *optAttrMarshaler) OnBytes(ordinal int, val []byte) {
+func (oam *optAttrMarshaler) OnBytes(ordinal int, _ []byte) {
 	oam.bitmap |= 1 << ordinal
 
 	if ordinal == ceschema.DataOrdinal {
@@ -157,14 +157,14 @@ func (oam *optAttrMarshaler) OnString(ordinal int, val string) {
 	oam.nextAlloc += alignment(len(val))
 }
 
-func (oam *optAttrMarshaler) OnUint16(ordinal int, val uint16) {
+func (oam *optAttrMarshaler) OnUint16(ordinal int, _ uint16) {
 	oam.bitmap |= 1 << ordinal
 
 	// TODO(james.yin):
 	panic("not supported type")
 }
 
-func (oam *optAttrMarshaler) OnUint64(ordinal int, val uint64) {
+func (oam *optAttrMarshaler) OnUint64(ordinal int, _ uint64) {
 	oam.bitmap |= 1 << ordinal
 
 	// TODO(james.yin):
@@ -199,7 +199,7 @@ func (oam *optAttrMarshaler) OnTime(ordinal int, val time.Time) {
 	oam.nextAlloc += 8
 }
 
-func (oam *optAttrMarshaler) OnAttribute(ordinal int, val interface{}) {
+func (oam *optAttrMarshaler) OnAttribute(ordinal int, _ interface{}) {
 	oam.bitmap |= 1 << ordinal
 
 	// TODO(james.yin):

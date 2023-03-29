@@ -44,9 +44,9 @@ require (
 	go.opentelemetry.io/otel/trace v1.11.2
 	go.uber.org/atomic v1.9.0
 	go.uber.org/ratelimit v0.2.0
-	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8
-	google.golang.org/api v0.102.0
-	google.golang.org/genproto v0.0.0-20221027153422-115e99e71e1c
+	golang.org/x/time v0.1.0
+	google.golang.org/api v0.103.0
+	google.golang.org/genproto v0.0.0-20221202195650-67e5cbc046fd
 	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -57,8 +57,8 @@ require (
 )
 
 require (
-	cloud.google.com/go/compute v1.12.1 // indirect
-	cloud.google.com/go/compute/metadata v0.2.1 // indirect
+	cloud.google.com/go/compute v1.14.0 // indirect
+	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129 // indirect
 	github.com/antlr/antlr4/runtime/Go/antlr v1.4.10 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.18 // indirect
@@ -68,7 +68,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.2.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
-	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
+	github.com/coreos/go-systemd/v22 v22.3.3-0.20220203105225-a9a7ef127534 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
@@ -84,7 +84,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
-	github.com/mattn/go-colorable v0.1.11 // indirect
+	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
@@ -96,8 +96,8 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/rs/zerolog v1.29.0 // indirect
 	github.com/scylladb/go-set v1.0.2 // indirect
-	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/smartystreets/assertions v1.2.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stoewer/go-strcase v1.2.0 // indirect

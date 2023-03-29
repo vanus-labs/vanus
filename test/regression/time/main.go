@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"github.com/vanus-labs/vanus/observability/log"
 	"math/rand"
 	"os"
 	"sync"
@@ -25,8 +26,6 @@ import (
 	v2 "github.com/cloudevents/sdk-go/v2"
 
 	vanus "github.com/vanus-labs/sdk/golang"
-	"github.com/vanus-labs/vanus/observability/log"
-
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/test/utils"
 )
@@ -80,22 +79,22 @@ func main() {
 	cancel()
 
 	if len(cache) != 0 {
-		log.Error(ctx, "failed to run schedule case because of timeout after finished sending", map[string]interface{}{
-			"success":  sentSuccess,
-			"received": receivedNumber,
-			"lost":     len(cache),
-		})
-		log.Info(ctx, "lost events are below", nil)
+		log.Error(ctx).Int64("success", sentSuccess).
+			Int64("received", receivedNumber).
+			Int64("lost", int64(len(cache))).
+			Msg("failed to run schedule case because of timeout after finished sending")
+
+		log.Info().Msg("lost events are below")
 		for _, v := range cache {
 			println(v.String())
 		}
 		os.Exit(1)
 	}
-	log.Info(ctx, "success to run schedule events case", map[string]interface{}{
-		"success":     sentSuccess,
-		"sent_failed": sentFailed,
-		"received":    receivedNumber,
-	})
+
+	log.Info(ctx).Int64("success", sentSuccess).
+		Int64("sent_failed", sentFailed).
+		Int64("received", receivedNumber).
+		Msg("success to run schedule events case")
 }
 
 func publishEvents(ctx context.Context, client vanus.Client) {
@@ -107,7 +106,7 @@ func publishEvents(ctx context.Context, client vanus.Client) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			publisher := client.Publisher(vanus.WithEventbus(eventbus))
+			publisher := client.Publisher(vanus.WithEventbus("default", eventbus))
 			ch := utils.CreateEventFactory(ctx, caseName, maximumPayloadSize)
 			for atomic.LoadInt64(&sentSuccess) < totalNumber {
 				events := make([]*v2.Event, batchSize)
@@ -123,9 +122,7 @@ func publishEvents(ctx context.Context, client vanus.Client) {
 				}
 				err := publisher.Publish(context.Background(), events...)
 				if err != nil {
-					log.Warning(context.Background(), "failed to send events", map[string]interface{}{
-						log.KeyError: err,
-					})
+					log.Warn().Err(err).Msg("failed to send events")
 					atomic.AddInt64(&sentFailed, int64(len(events)))
 				} else {
 					mutex.Lock()
@@ -140,11 +137,10 @@ func publishEvents(ctx context.Context, client vanus.Client) {
 	}
 	wg.Wait()
 
-	log.Info(ctx, "finished to sent all events", map[string]interface{}{
-		"success": sentSuccess,
-		"failed":  sentFailed,
-		"used":    time.Now().Sub(start),
-	})
+	log.Info(ctx).Int64("success", sentSuccess).
+		Int64("failed", sentFailed).
+		Dur("used", time.Now().Sub(start)).
+		Msg("finished to sent all events")
 }
 
 func receiveEvents(ctx context.Context, c vanus.Client) {
@@ -163,13 +159,13 @@ func receiveEvents(ctx context.Context, c vanus.Client) {
 			ce, exist := cache[e.ID()]
 			if !exist {
 				unmatch[e.ID()] = e
-				log.Warning(ctx, "received a event, but which isn't found in cache", map[string]interface{}{
-					"e": e.String(),
-				})
+				log.Warn(ctx).
+					Stringer("event", e).
+					Msg("received a event, but which isn't found in cache")
 				continue
 			}
 			if string(ce.Data()) != string(e.Data()) {
-				log.Error(ctx, "received a event, but data was corrupted", nil)
+				log.Error().Msg("received a event, but data was corrupted")
 				os.Exit(1)
 			}
 			delete(cache, e.ID())
@@ -180,8 +176,6 @@ func receiveEvents(ctx context.Context, c vanus.Client) {
 		return nil
 	})
 	if err != nil {
-		log.Error(ctx, "failed to start events listening", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error().Err(err).Msg("failed to start events listening")
 	}
 }

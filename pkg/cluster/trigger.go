@@ -8,6 +8,7 @@ import (
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
 	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 type triggerService struct {
@@ -27,5 +28,6 @@ func (es *triggerService) RegisterHeartbeat(ctx context.Context, interval time.D
 }
 
 func (es *triggerService) GetSubscription(ctx context.Context, id uint64) (*metapb.Subscription, error) {
-	return es.client.GetSubscription(ctx, &ctrlpb.GetSubscriptionRequest{Id: id})
+	subscription, err := es.client.GetSubscription(ctx, &ctrlpb.GetSubscriptionRequest{Id: id})
+	return subscription, errors.UnwrapOrUnknown(err)
 }

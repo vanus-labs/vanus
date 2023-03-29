@@ -15,7 +15,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"net"
@@ -41,16 +40,12 @@ func main() {
 
 	cfg, err := trigger.InitConfig(*configPath)
 	if err != nil {
-		log.Error(context.Background(), "init config error", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error().Err(err).Msg("init config error")
 		os.Exit(-1)
 	}
 	listen, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
-		log.Error(context.Background(), "failed to listen", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error().Msg("failed to listen")
 		os.Exit(-1)
 	}
 	ctx := signal.SetupSignalContext()
@@ -63,25 +58,21 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		log.Info(ctx, "the grpc server ready to work", nil)
+		log.Info(ctx).Msg("the grpc server ready to work")
 		err = grpcServer.Serve(listen)
 		if err != nil {
-			log.Error(ctx, "grpc server occurred an error", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Error(ctx).Err(err).Msg("grpc server occurred an error")
 		}
 	}()
 	init := srv.(primitive.Initializer)
 	if err = init.Initialize(ctx); err != nil {
-		log.Error(ctx, "the trigger worker has initialized failed", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("the trigger worker has initialized failed")
 		os.Exit(1)
 	}
 	<-ctx.Done()
 	closer := srv.(primitive.Closer)
-	closer.Close(ctx)
+	_ = closer.Close(ctx)
 	grpcServer.GracefulStop()
 	wg.Wait()
-	log.Info(ctx, "trigger worker stopped", nil)
+	log.Info(ctx).Msg("trigger worker stopped")
 }

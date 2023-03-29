@@ -29,12 +29,11 @@ import (
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/option"
 	"github.com/vanus-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/internal/kv"
 	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/timer/metadata"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/errors"
-
-	"github.com/vanus-labs/vanus/internal/kv"
-	"github.com/vanus-labs/vanus/internal/timer/metadata"
 )
 
 const (
@@ -56,15 +55,15 @@ func newTimingMsg(ctx context.Context, e *ce.Event) *timingMsg {
 	extensions := e.Extensions()
 	if deliveryTime, ok := extensions[xVanusDeliveryTime]; ok {
 		if t, ok := deliveryTime.(ce.Timestamp); !ok {
-			log.Error(ctx, "parse time failed", map[string]interface{}{
-				"time": deliveryTime,
-			})
+			log.Error(ctx).
+				Interface("time", deliveryTime).
+				Msg("parse time failed")
 			expiration = time.Now()
 		} else {
 			expiration = t.Time
 		}
 	} else {
-		log.Error(ctx, "xvanusdeliverytime not found, set to current time", nil)
+		log.Error(ctx).Msg("xvanusdeliverytime not found, set to current time")
 		expiration = time.Now()
 	}
 	return &timingMsg{
@@ -161,18 +160,18 @@ func (b *bucket) run(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Debug(ctx, "context canceled at bucket update offset metadata", nil)
+				log.Debug(ctx).Msg("context canceled at bucket update offset metadata")
 				return
 			case <-b.exitC:
-				log.Debug(ctx, "bucket exit at bucket update offset metadata", nil)
+				log.Debug(ctx).Msg("bucket exit at bucket update offset metadata")
 				return
 			case offset := <-offsetC:
 				// wait for all goroutines to finish before updating offset metadata
 				offset.wg.Wait()
-				log.Debug(ctx, "update offset metadata", map[string]interface{}{
-					"eventbus":  b.eventbus,
-					"update_to": offset.data,
-				})
+				log.Debug(ctx).
+					Str("eventbus", b.eventbus).
+					Int64("update_to", offset.data).
+					Msg("update offset metadata")
 				b.updateOffsetMeta(ctx, offset.data)
 			}
 		}
@@ -185,43 +184,42 @@ func (b *bucket) run(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Debug(ctx, "context canceled at bucket running", map[string]interface{}{
-					"eventbus": b.getEventbus(),
-				})
+				log.Debug(ctx).
+					Str("eventbus", b.getEventbus()).
+					Msg("context canceled at bucket running")
 				return
 			case <-b.exitC:
-				log.Debug(ctx, "bucket exit at bucket running", map[string]interface{}{
-					"eventbus": b.getEventbus(),
-				})
+				log.Debug(ctx).
+					Str("eventbus", b.getEventbus()).
+					Msg("bucket exit at bucket running")
 				return
 			default:
 				// batch read
 				events, err := b.getEvent(ctx, defaultNumberOfEventsRead)
 				if err != nil {
 					if !errors.Is(err, errors.ErrOffsetOnEnd) && !errors.Is(err, errors.ErrTryAgain) {
-						log.Error(ctx, "get event failed when bucket running", map[string]interface{}{
-							"eventbus":   b.getEventbus(),
-							log.KeyError: err,
-						})
+						log.Error(ctx).Err(err).
+							Str("eventbus", b.getEventbus()).
+							Msg("get event failed when bucket running")
 					}
 					time.Sleep(sleepDuration)
 					break
 				}
 				if len(events) == 0 {
 					time.Sleep(sleepDuration)
-					log.Debug(ctx, "no more message", map[string]interface{}{
-						"function": "run",
-					})
+					log.Debug(ctx).
+						Str("function", "run").
+						Msg("no more message")
 					break
 				}
 				// concurrent write
 				numberOfEvents := int64(len(events))
-				log.Debug(ctx, "got events when bucket running", map[string]interface{}{
-					"eventbus":         b.eventbus,
-					"offset":           b.offset,
-					"layer":            b.layer,
-					"number_of_events": numberOfEvents,
-				})
+				log.Debug(ctx).
+					Str("eventbus", b.eventbus).
+					Int64("offset", b.offset).
+					Int64("layer", b.layer).
+					Int64("number_of_events", numberOfEvents).
+					Msg("got events when bucket running")
 
 				// block and wait here until events of the bucket ready to flow
 				b.waitingForReady(ctx, events)
@@ -255,11 +253,11 @@ func (b *bucket) pushToDistributionStation(ctx context.Context, e *ce.Event) {
 		if b.timingwheel.getDistributionStation().push(ctx, tm) {
 			cancel()
 		} else {
-			log.Warning(ctx, "push event to distribution station failed, retry until it succeed", map[string]interface{}{
-				"eventbus":   b.eventbus,
-				"event_id":   e.ID(),
-				"expiration": tm.getExpiration().Format(time.RFC3339Nano),
-			})
+			log.Warn(ctx).
+				Str("eventbus", b.eventbus).
+				Str("event_id", e.ID()).
+				Time("expiration", tm.getExpiration()).
+				Msg("push event to distribution station failed, retry until it succeed")
 		}
 	}, b.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
 }
@@ -277,11 +275,11 @@ func (b *bucket) pushToPrevTimingWheel(ctx context.Context, e *ce.Event) {
 		if handler(ctx, tm) {
 			cancel()
 		} else {
-			log.Warning(ctx, "push event failed, retry until it succeed", map[string]interface{}{
-				"eventbus":   b.eventbus,
-				"event_id":   e.ID(),
-				"expiration": tm.getExpiration().Format(time.RFC3339Nano),
-			})
+			log.Warn(ctx).
+				Str("eventbus", b.eventbus).
+				Str("event_id", e.ID()).
+				Time("expiration", tm.getExpiration()).
+				Msg("push event failed, retry until it succeed")
 		}
 	}, b.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
 }
@@ -332,14 +330,14 @@ func (b *bucket) createEventbus(ctx context.Context) error {
 	_, err := b.timingwheel.ctrl.EventbusService().CreateSystemEventbusIfNotExist(ctx, b.eventbus,
 		"System Eventbus For Timing Service")
 	if err != nil {
-		log.Error(ctx, "failed to create timer eventbus", map[string]interface{}{
-			log.KeyEventbusName: b.eventbus,
-		})
+		log.Error(ctx).
+			Str(log.KeyEventbusName, b.eventbus).
+			Msg("failed to create timer eventbus")
 		return err
 	}
-	log.Info(ctx, "success to create timer eventbus", map[string]interface{}{
-		log.KeyEventbusName: b.eventbus,
-	})
+	log.Info(ctx).
+		Str(log.KeyEventbusName, b.eventbus).
+		Msg("success to create timer eventbus")
 	return nil
 }
 
@@ -356,9 +354,8 @@ func (b *bucket) connectEventbus(ctx context.Context) error {
 func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
 	defer func() {
 		if errOfPanic := recover(); errOfPanic != nil {
-			log.Warning(ctx, "panic when put event", map[string]interface{}{
-				log.KeyError: errOfPanic,
-			})
+			log.Warn(ctx).Err(err).
+				Msg("panic when put event")
 			err = stderr.New("panic when put event")
 		}
 	}()
@@ -367,27 +364,25 @@ func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
 	}
 	_, err = api.AppendOne(ctx, b.eventbusWriter, tm.getEvent())
 	if err != nil {
-		log.Error(ctx, "append event to failed", map[string]interface{}{
-			log.KeyError: err,
-			"eventbus":   b.eventbus,
-			"expiration": tm.getExpiration().Format(time.RFC3339Nano),
-		})
+		log.Error(ctx).Err(err).
+			Str("eventbus", b.eventbus).
+			Time("expiration", tm.getExpiration()).
+			Msg("append event to failed")
 		return err
 	}
-	log.Debug(ctx, "put event success", map[string]interface{}{
-		"event_id":   tm.event.ID(),
-		"eventbus":   b.eventbus,
-		"expiration": tm.getExpiration().Format(time.RFC3339Nano),
-	})
+	log.Debug(ctx).
+		Str("eventbus", b.eventbus).
+		Str("event_id", tm.event.ID()).
+		Time("expiration", tm.getExpiration()).
+		Msg("put event success")
 	return err
 }
 
 func (b *bucket) getEvent(ctx context.Context, number int16) (events []*ce.Event, err error) {
 	defer func() {
 		if errOfPanic := recover(); errOfPanic != nil {
-			log.Warning(ctx, "panic when get event", map[string]interface{}{
-				log.KeyError: errOfPanic,
-			})
+			log.Warn(ctx).Err(err).
+				Msg("panic when get event")
 			events = []*ce.Event{}
 			err = errors.ErrOffsetOnEnd
 		}
@@ -413,10 +408,7 @@ func (b *bucket) getEvent(ctx context.Context, number int16) (events []*ce.Event
 	if err != nil {
 		if !errors.Is(err, errors.ErrOffsetOnEnd) &&
 			!stderr.Is(ctx.Err(), context.Canceled) {
-			log.Error(ctx, "read failed", map[string]interface{}{
-				log.KeyError: err,
-				"offset":     b.offset,
-			})
+			log.Error(ctx).Err(err).Msg("read failed")
 		}
 		return nil, err
 	}
@@ -437,14 +429,13 @@ func (b *bucket) updateOffsetMeta(ctx context.Context, offset int64) {
 	data, _ := json.Marshal(offsetMeta)
 	err := b.kvStore.Set(ctx, key, data)
 	if err != nil {
-		log.Warning(ctx, "set offset metadata to kvstore failed", map[string]interface{}{
-			log.KeyError: err,
-			"key":        key,
-			"slot":       b.slot,
-			"layer":      b.layer,
-			"offset":     offset,
-			"eventbus":   b.eventbus,
-		})
+		log.Warn(ctx).Err(err).
+			Str("key", key).
+			Str("eventbus", b.eventbus).
+			Int64("slot", b.slot).
+			Int64("layer", b.layer).
+			Int64("offset", b.offset).
+			Msg("set offset metadata to kvstore failed")
 	}
 }
 
@@ -460,13 +451,13 @@ func (b *bucket) getOffsetMeta(ctx context.Context) (int64, error) {
 	key := fmt.Sprintf("%s/%s", metadata.OffsetKeyPrefixInKVStore, b.eventbus)
 	value, err := b.kvStore.Get(ctx, key)
 	if err != nil {
-		log.Warning(ctx, "get offset metadata from kvstore failed", map[string]interface{}{
-			log.KeyError: err,
-			"key":        key,
-			"slot":       b.slot,
-			"layer":      b.layer,
-			"eventbus":   b.eventbus,
-		})
+		log.Warn(ctx).Err(err).
+			Str("key", key).
+			Str("eventbus", b.eventbus).
+			Int64("slot", b.slot).
+			Int64("layer", b.layer).
+			Int64("offset", b.offset).
+			Msg("get offset metadata from kvstore failed")
 		return -1, err
 	}
 	md := &metadata.OffsetMeta{}
@@ -481,10 +472,8 @@ func (b *bucket) deleteOffsetMeta(ctx context.Context) error {
 	key := fmt.Sprintf("%s/%s", metadata.OffsetKeyPrefixInKVStore, b.eventbus)
 	err := b.kvStore.Delete(ctx, key)
 	if err != nil {
-		log.Warning(ctx, "delete offset metadata to kvstore failed", map[string]interface{}{
-			log.KeyError: err,
-			"key":        key,
-		})
+		log.Warn(ctx).Err(err).Str("key", key).
+			Msg("delete offset metadata to kvstore failed")
 		return err
 	}
 	return nil
@@ -509,7 +498,7 @@ func (b *bucket) recycle(ctx context.Context) {
 	_ = b.deleteOffsetMeta(ctx)
 }
 
-func (b *bucket) wait(ctx context.Context) {
+func (b *bucket) wait(_ context.Context) {
 	b.wg.Wait()
 }
 

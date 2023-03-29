@@ -51,6 +51,6 @@ func (arg constant) SetValue(*context.EventContext, interface{}) error {
 	return ErrOperationNotSupport
 }
 
-func (arg constant) DeleteValue(ceCtx *context.EventContext) error {
+func (arg constant) DeleteValue(_ *context.EventContext) error {
 	return ErrOperationNotSupport
 }

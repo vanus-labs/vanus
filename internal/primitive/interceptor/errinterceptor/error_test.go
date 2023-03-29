@@ -13,13 +13,3 @@
 // limitations under the License.
 
 package errinterceptor
-
-import "testing"
-
-func TestGRPCErrorClientInboundInterceptor(t *testing.T) {
-
-}
-
-func TestGRPCErrorServerOutboundInterceptor(t *testing.T) {
-
-}

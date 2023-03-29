@@ -21,14 +21,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
-
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/pkg/errors"
-	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 )
 
 type Manager interface {
@@ -83,11 +82,11 @@ func (mgr *segmentServerManager) AddServer(ctx context.Context, srv Server) erro
 	mgr.segmentServerMapByIP.Store(srv.Address(), srv)
 	mgr.segmentServerMapByVolumeID.Store(srv.VolumeID(), srv)
 	atomic.AddInt64(&mgr.onlineServerNumber, 1)
-	log.Info(ctx, "the segment server added", map[string]interface{}{
-		"volume_id": srv.VolumeID(),
-		"addr":      srv.Address(),
-		"online":    atomic.LoadInt64(&mgr.onlineServerNumber),
-	})
+	log.Info(ctx).
+		Uint64("volume_id", srv.VolumeID()).
+		Str("address", srv.Address()).
+		Int64("online", atomic.LoadInt64(&mgr.onlineServerNumber)).
+		Msg("the segment server added")
 	return nil
 }
 
@@ -100,11 +99,11 @@ func (mgr *segmentServerManager) RemoveServer(ctx context.Context, srv Server) e
 	mgr.segmentServerMapByIP.Delete(srv.Address())
 	mgr.segmentServerMapByVolumeID.Delete(srv.VolumeID())
 	atomic.AddInt64(&mgr.onlineServerNumber, -1)
-	log.Info(ctx, "the segment server was removed", map[string]interface{}{
-		"server_id": srv.VolumeID(),
-		"addr":      srv.Address(),
-		"online":    atomic.LoadInt64(&mgr.onlineServerNumber),
-	})
+	log.Info(ctx).
+		Uint64("volume_id", srv.VolumeID()).
+		Str("address", srv.Address()).
+		Int64("online", atomic.LoadInt64(&mgr.onlineServerNumber)).
+		Msg("the segment server was removed")
 	return nil
 }
 
@@ -141,11 +140,11 @@ func (mgr *segmentServerManager) Run(ctx context.Context) error {
 					if !srv.IsActive(ctx) {
 						mgr.segmentServerMapByIP.Delete(srv.Address())
 						mgr.segmentServerMapByVolumeID.Delete(srv.VolumeID())
-						log.Info(newCtx, "the server isn't active, ready to remove this server", map[string]interface{}{
-							"volume_id": srv.VolumeID(),
-							"address":   srv.Address(),
-							"up_time":   srv.Uptime().Format(time.RFC3339),
-						})
+						log.Info(newCtx).
+							Uint64("volume_id", srv.VolumeID()).
+							Str("address", srv.Address()).
+							Time("up_time", srv.Uptime()).
+							Msg("the server isn't active, ready to remove this server")
 					}
 					return true
 				})
@@ -165,18 +164,17 @@ func (mgr *segmentServerManager) Stop(ctx context.Context) {
 
 		err := srv.(*segmentServer).grpcConn.Close()
 		if err != nil {
-			log.Warning(ctx, "close grpc connection error", map[string]interface{}{
-				"id":         srv.VolumeID(),
-				"address":    srv.Address(),
-				"up_time":    srv.Uptime(),
-				log.KeyError: err,
-			})
+			log.Warn(ctx).Err(err).
+				Uint64("volume_id", srv.VolumeID()).
+				Str("address", srv.Address()).
+				Time("up_time", srv.Uptime()).
+				Msg("close grpc connection error")
 		} else {
-			log.Info(ctx, "the connection to server was closed", map[string]interface{}{
-				"id":      srv.VolumeID(),
-				"address": srv.Address(),
-				"up_time": srv.Uptime(),
-			})
+			log.Info(ctx).
+				Uint64("volume_id", srv.VolumeID()).
+				Str("address", srv.Address()).
+				Time("up_time", srv.Uptime()).
+				Msg("the connection to server was closed")
 		}
 
 		return true
@@ -264,10 +262,9 @@ func newSegmentServer(volumeID uint64, addr string) (Server, error) {
 func (ss *segmentServer) RemoteStart(ctx context.Context) error {
 	_, err := ss.client.Start(ctx, &segpb.StartSegmentServerRequest{})
 	if err != nil {
-		log.Warning(ctx, "start server failed", map[string]interface{}{
-			log.KeyError: err,
-			"volume_id":  ss.volumeID,
-		})
+		log.Warn(ctx).Err(err).
+			Uint64("volume_id", ss.volumeID).
+			Msg("start server failed")
 		return err
 	}
 	return nil
@@ -276,10 +273,9 @@ func (ss *segmentServer) RemoteStart(ctx context.Context) error {
 func (ss *segmentServer) RemoteStop(ctx context.Context) {
 	_, err := ss.client.Stop(ctx, &segpb.StopSegmentServerRequest{})
 	if err != nil {
-		log.Warning(ctx, "stop server failed", map[string]interface{}{
-			log.KeyError: err,
-			"volume_id":  ss.volumeID,
-		})
+		log.Warn(ctx).Err(err).
+			Uint64("volume_id", ss.volumeID).
+			Msg("stop server failed")
 	}
 }
 
@@ -306,10 +302,9 @@ func (ss *segmentServer) Polish() {
 func (ss *segmentServer) IsActive(ctx context.Context) bool {
 	res, err := ss.client.Status(ctx, &emptypb.Empty{})
 	if err != nil {
-		log.Warning(ctx, "ping segment server failed", map[string]interface{}{
-			log.KeyError: err,
-			"address":    ss.addr,
-		})
+		log.Warn(ctx).Err(err).
+			Str("address", ss.addr).
+			Msg("ping segment server failed")
 		return false
 	}
 

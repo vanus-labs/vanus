@@ -104,7 +104,7 @@ func (m *manager) ListSubscription(_ context.Context) []*metadata.Subscription {
 	return list
 }
 
-func (m *manager) GetSubscriptionByName(ctx context.Context, namespaceID vanus.ID, name string) *metadata.Subscription {
+func (m *manager) GetSubscriptionByName(_ context.Context, namespaceID vanus.ID, name string) *metadata.Subscription {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	for _, sub := range m.subscriptionMap {
@@ -118,7 +118,7 @@ func (m *manager) GetSubscriptionByName(ctx context.Context, namespaceID vanus.I
 	return nil
 }
 
-func (m *manager) GetSubscription(ctx context.Context, id vanus.ID) *metadata.Subscription {
+func (m *manager) GetSubscription(_ context.Context, id vanus.ID) *metadata.Subscription {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	sub, exist := m.subscriptionMap[id]
@@ -275,11 +275,11 @@ func (m *manager) Heartbeat(ctx context.Context, id vanus.ID, addr string, time 
 	}
 	if subscription.TriggerWorker != addr {
 		// data is not consistent, record
-		log.Error(ctx, "subscription trigger worker invalid", map[string]interface{}{
-			log.KeySubscriptionID:    id,
-			log.KeyTriggerWorkerAddr: subscription.TriggerWorker,
-			"running_addr":           addr,
-		})
+		log.Error(ctx).
+			Stringer(log.KeySubscriptionID, id).
+			Str(log.KeyTriggerWorkerAddr, subscription.TriggerWorker).
+			Str("running_addr", addr).
+			Msg("subscription trigger worker invalid")
 	}
 	subscription.HeartbeatTime = time
 	return nil
@@ -294,9 +294,7 @@ func (m *manager) Init(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	log.Info(ctx, "subscription size", map[string]interface{}{
-		"size": len(subList),
-	})
+	log.Info(ctx).Int("size", len(subList)).Msg("subscription size")
 	for i := range subList {
 		sub := subList[i]
 		if sub.SinkCredentialType != nil {

@@ -20,11 +20,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vanus-labs/vanus/observability/log"
-
 	"github.com/vanus-labs/vanus/internal/controller/trigger/storage"
 	"github.com/vanus-labs/vanus/internal/primitive/info"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 type Manager interface {
@@ -224,12 +223,11 @@ func (o *subscriptionOffset) commitOffset(ctx context.Context, storage storage.O
 		elOffset, _ := value.(*eventlogOffset)
 		err := elOffset.commitOffset(ctx, storage)
 		if err != nil {
-			log.Warning(ctx, "commit offset fail", map[string]interface{}{
-				log.KeySubscriptionID: o.subscriptionID,
-				log.KeyEventlogID:     elOffset.eventlogID,
-				"offset":              elOffset.offset,
-				log.KeyError:          err,
-			})
+			log.Warn(ctx).Err(err).
+				Stringer(log.KeySubscriptionID, o.subscriptionID).
+				Stringer(log.KeyEventlogID, elOffset.eventlogID).
+				Uint64("offset", elOffset.offset).
+				Msg("commit offset fail")
 		}
 		return true
 	})
@@ -257,11 +255,11 @@ func (o *eventlogOffset) commitOffset(ctx context.Context, storage storage.Offse
 		if err != nil {
 			return err
 		}
-		log.Info(ctx, "create offset", map[string]interface{}{
-			log.KeySubscriptionID: o.subscriptionID,
-			log.KeyEventlogID:     o.eventlogID,
-			"offset":              offset,
-		})
+		log.Info(ctx).
+			Stringer(log.KeySubscriptionID, o.subscriptionID).
+			Stringer(log.KeyEventlogID, o.eventlogID).
+			Uint64("offset", o.offset).
+			Msg("create offset")
 		o.checkExist = true
 		o.commit = offset
 		return nil

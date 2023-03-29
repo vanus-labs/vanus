@@ -19,7 +19,6 @@ import (
 	"context"
 	"errors"
 
-	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/raft"
 	"github.com/vanus-labs/vanus/raft/raftpb"
@@ -63,10 +62,10 @@ func (s *Storage) Entries(lo, hi, maxSize uint64) ([]raftpb.Entry, error) {
 		return nil, raft.ErrCompacted
 	}
 	if hi > s.lastIndex()+1 {
-		log.Error(context.Background(), "entries' hi is out of bound lastIndex", map[string]interface{}{
-			"hi":         hi,
-			"last_index": s.lastIndex(),
-		})
+		log.Error().
+			Uint64("hi", hi).
+			Uint64("last_index", s.lastIndex()).
+			Msg("entries' hi is out of bound lastIndex")
 		return nil, raft.ErrUnavailable
 	}
 	// no log entry
@@ -106,10 +105,10 @@ func (s *Storage) Term(i uint64) (uint64, error) {
 func (s *Storage) term(i uint64) (uint64, error) {
 	ci := s.compactedIndex()
 	if i < ci {
-		log.Warning(context.Background(), "raft log has been compacted", map[string]interface{}{
-			"index":          i,
-			"compactedIndex": ci,
-		})
+		log.Warn().
+			Uint64("index", i).
+			Uint64("compactedIndex", ci).
+			Msg("raft log has been compacted")
 		return 0, raft.ErrCompacted
 	}
 	if i > s.lastIndex() {
@@ -204,14 +203,14 @@ func (s *Storage) Append(ctx context.Context, entries []raftpb.Entry, cb AppendC
 	expectedIndex := lastIndex + 1
 
 	if expectedIndex < index {
-		log.Error(ctx, "Missing log entries.", map[string]interface{}{
-			"node_id":     s.nodeID,
-			"first_index": firstIndex,
-			"last_term":   lastTerm,
-			"last_index":  lastIndex,
-			"next_term":   term,
-			"next_index":  index,
-		})
+		log.Error(ctx).
+			Stringer("node_id", s.nodeID).
+			Uint64("first_index", firstIndex).
+			Uint64("last_term", lastTerm).
+			Uint64("last_index", lastIndex).
+			Uint64("next_term", term).
+			Uint64("next_index", index).
+			Msg("Missing log entries.")
 		cb(AppendResult{}, ErrBadEntry)
 		return
 	}
@@ -230,14 +229,14 @@ func (s *Storage) Append(ctx context.Context, entries []raftpb.Entry, cb AppendC
 	}
 
 	if term < lastTerm {
-		log.Error(ctx, "Term roll back.", map[string]interface{}{
-			"node_id":     s.nodeID,
-			"first_index": firstIndex,
-			"last_term":   lastTerm,
-			"last_index":  lastIndex,
-			"next_term":   term,
-			"next_index":  index,
-		})
+		log.Error(ctx).
+			Stringer("node_id", s.nodeID).
+			Uint64("first_index", firstIndex).
+			Uint64("last_term", lastTerm).
+			Uint64("last_index", lastIndex).
+			Uint64("next_term", term).
+			Uint64("next_index", index).
+			Msg("Term roll back.")
 		cb(AppendResult{}, ErrBadEntry)
 		return
 	}
@@ -358,13 +357,13 @@ func (s *Storage) prepareAppend(ctx context.Context, entries []raftpb.Entry) err
 			reason = "Term roll back."
 		}
 		if reason != "" {
-			log.Warning(ctx, reason, map[string]interface{}{
-				"node_id":        s.nodeID,
-				"term":           entry.Term,
-				"index":          entry.Index,
-				"previous_term":  prev.Term,
-				"previous_index": prev.Index,
-			})
+			log.Warn(ctx).
+				Stringer("node_id", s.nodeID).
+				Uint64("term", entry.Term).
+				Uint64("index", entry.Index).
+				Uint64("previous_term", prev.Term).
+				Uint64("previous_index", prev.Index).
+				Msg(reason)
 			return ErrBadEntry
 		}
 		if entry.Term != prev.Term {

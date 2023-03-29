@@ -15,13 +15,14 @@
 package vanus
 
 import (
+	// standard libraries.
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"sync"
 	"time"
 
+	// third-party libraries.
 	"github.com/sony/sonyflake"
 	"go.uber.org/atomic"
 	"google.golang.org/grpc/credentials/insecure"
@@ -29,10 +30,28 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
+	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/cluster"
+	"github.com/vanus-labs/vanus/pkg/primitive"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 )
+
+var ErrEmptyID = primitive.ErrEmptyID
+
+type ID = primitive.ID
+
+func EmptyID() ID {
+	return primitive.EmptyID()
+}
+
+func NewIDFromUint64(id uint64) ID {
+	return primitive.NewIDFromUint64(id)
+}
+
+func NewIDFromString(id string) (ID, error) {
+	return primitive.NewIDFromString(id)
+}
 
 type node struct {
 	start uint16
@@ -101,24 +120,13 @@ func (n *node) valid() bool {
 	return n.logicID() < n.end && n.logicID() >= n.start
 }
 
-type ID uint64
-
-var (
-	emptyID = ID(0)
-	lock    = sync.Mutex{}
-	base    = 16
-	bitSize = 64
-)
-
-func EmptyID() ID {
-	return emptyID
-}
-
 var (
 	generator   *snowflake
 	once        sync.Once
 	fake        bool
 	initialized atomic.Bool
+
+	lock = sync.Mutex{}
 )
 
 type snowflake struct {
@@ -162,9 +170,7 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 					Value: uint32(u),
 				})
 				if err != nil {
-					log.Error(ctx, "register snowflake failed", map[string]interface{}{
-						log.KeyError: err,
-					})
+					log.Error(ctx).Err(err).Msg("register snowflake failed")
 					return false
 				}
 				return true
@@ -175,9 +181,7 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 		}
 		generator = snow
 		initialized.Store(true)
-		log.Info(ctx, "succeed to init VolumeID generator", map[string]interface{}{
-			"node_id": snow.n.logicID(),
-		})
+		log.Info(ctx).Uint16("node_id", snow.n.logicID()).Msg("succeed to init VolumeID generator")
 		return nil
 	}
 	var err error
@@ -189,7 +193,7 @@ func InitSnowflake(ctx context.Context, ctrlAddr []string, n *node) error {
 		for {
 			select {
 			case <-ctx.Done():
-				err = errors.New("init snowflake id service timeout")
+				err = errors.New("init snowflake ID service timeout")
 				return
 			case <-ticker.C:
 				err = initService()
@@ -207,9 +211,7 @@ func DestroySnowflake() {
 		_, err := generator.client.UnregisterNode(context.Background(),
 			&wrapperspb.UInt32Value{Value: uint32(generator.n.logicID())})
 		if err != nil {
-			log.Warning(context.TODO(), "failed to unregister snowflake", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Warn().Err(err).Msg("failed to unregister snowflake")
 		}
 	}
 }
@@ -238,39 +240,6 @@ func NewTestID() ID {
 	// avoiding same id
 	time.Sleep(time.Microsecond)
 	return ID(time.Now().UnixNano())
-}
-
-func NewIDFromUint64(id uint64) ID {
-	return ID(id)
-}
-
-var ErrEmptyID = errors.New("id: empty")
-
-func NewIDFromString(id string) (ID, error) {
-	if id == "" {
-		return emptyID, ErrEmptyID
-	}
-	i, err := strconv.ParseUint(id, base, bitSize)
-	if err != nil {
-		return emptyID, err
-	}
-	return ID(i), nil
-}
-
-func (id ID) String() string {
-	return fmt.Sprintf("%016X", uint64(id))
-}
-
-func (id ID) Uint64() uint64 {
-	return uint64(id)
-}
-
-func (id ID) Key() string {
-	return id.String()
-}
-
-func (id ID) Equals(cID ID) bool {
-	return id.Uint64() == cID.Uint64()
 }
 
 type IDList []ID

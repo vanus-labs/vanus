@@ -56,7 +56,7 @@ func newSyncStore(wal *walog.WAL, committed *skiplist.SkipList, version, snapsho
 	return s
 }
 
-func (s *SyncStore) Close(ctx context.Context) {
+func (s *SyncStore) Close(_ context.Context) {
 	// Close WAL.
 	s.wal.Close()
 	s.wal.Wait()

@@ -35,19 +35,19 @@ func (a *appender) propose(pds ...raft.ProposeData) {
 	})
 }
 
-func (a *appender) reportStateStatus(ctx context.Context, term, vote uint64) {
+func (a *appender) reportStateStatus(_ context.Context, term, vote uint64) {
 	a.raftExecutor.Execute(func() {
 		_ = a.node.ReportStateStatus(term, vote)
 	})
 }
 
-func (a *appender) reportLogStatus(ctx context.Context, index, term uint64) {
+func (a *appender) reportLogStatus(_ context.Context, index, term uint64) {
 	a.raftExecutor.Execute(func() {
 		_ = a.node.ReportLogStatus(index, term)
 	})
 }
 
-func (a *appender) reportApplyStatus(ctx context.Context, index uint64) {
+func (a *appender) reportApplyStatus(_ context.Context, index uint64) {
 	a.raftExecutor.Execute(func() {
 		_ = a.node.ReportApplyStatus(index)
 	})

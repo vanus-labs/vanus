@@ -25,21 +25,19 @@ import (
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	"google.golang.org/grpc/credentials/insecure"
-	"k8s.io/apimachinery/pkg/util/wait"
-
 	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/internal/kv"
+	"github.com/vanus-labs/vanus/internal/kv/etcd"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/timer/metadata"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/pkg/cluster"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
-
-	"github.com/vanus-labs/vanus/internal/kv"
-	"github.com/vanus-labs/vanus/internal/kv/etcd"
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
-	"github.com/vanus-labs/vanus/internal/timer/metadata"
+	"google.golang.org/grpc/credentials/insecure"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 const (
@@ -95,14 +93,15 @@ type timingWheel struct {
 }
 
 func NewTimingWheel(c *Config) Manager {
-	log.Info(context.Background(), "new timingwheel manager", map[string]interface{}{
-		"tick":           c.Tick,
-		"layers":         c.Layers,
-		"wheel_size":     c.WheelSize,
-		"key_prefix":     c.KeyPrefix,
-		"etcd_endpoints": c.EtcdEndpoints,
-		"ctrl_endpoints": c.CtrlEndpoints,
-	})
+	log.Info().
+		Dur("tick", c.Tick).
+		Int64("layers", c.Layers).
+		Int64("wheel_size", c.WheelSize).
+		Str("key_prefix", c.KeyPrefix).
+		Strs("etcd_endpoints", c.EtcdEndpoints).
+		Strs("ctrl_endpoints", c.CtrlEndpoints).
+		Msg("new timingwheel manager")
+
 	metrics.TimingWheelTickGauge.Set(float64(c.Tick))
 	metrics.TimingWheelSizeGauge.Set(float64(c.WheelSize))
 	metrics.TimingWheelLayersGauge.Set(float64(c.Layers))
@@ -117,7 +116,7 @@ func NewTimingWheel(c *Config) Manager {
 
 // Init the current timing wheel.
 func (tw *timingWheel) Init(ctx context.Context) error {
-	log.Info(ctx, "init timingwheel", nil)
+	log.Info(ctx).Msg("init timingwheel")
 	// Init Hierarchical Timing Wheels.
 	ctrl := cluster.NewClusterController(tw.config.CtrlEndpoints, insecure.NewCredentials())
 	if err := ctrl.WaitForControllerReady(true); err != nil {
@@ -128,11 +127,10 @@ func (tw *timingWheel) Init(ctx context.Context) error {
 
 	store, err := newEtcdClientV3(tw.config.EtcdEndpoints, tw.config.KeyPrefix)
 	if err != nil {
-		log.Error(context.Background(), "new etcd client v3 failed", map[string]interface{}{
-			log.KeyError: err,
-			"endpoints":  tw.config.EtcdEndpoints,
-			"key_prefix": tw.config.KeyPrefix,
-		})
+		log.Error().Err(err).
+			Str("key_prefix", tw.config.KeyPrefix).
+			Strs("endpoints", tw.config.EtcdEndpoints).
+			Msg("new etcd client v3 failed")
 		panic("new etcd client failed")
 	}
 	tw.kvStore = store
@@ -161,9 +159,9 @@ func (tw *timingWheel) Init(ctx context.Context) error {
 // Start starts the current timing wheel.
 func (tw *timingWheel) Start(ctx context.Context) error {
 	var err error
-	log.Info(ctx, "start timingwheel", map[string]interface{}{
-		"leader": tw.leader,
-	})
+	log.Info(ctx).
+		Bool("leader", tw.leader).
+		Msg("start timingwheel")
 
 	// here is to wait for the leader to complete the creation of all eventbus
 	waitCtx, cancel := context.WithCancel(ctx)
@@ -171,7 +169,7 @@ func (tw *timingWheel) Start(ctx context.Context) error {
 		if tw.IsLeader() || tw.IsDeployed(ctx) {
 			cancel()
 		} else {
-			log.Info(ctx, "wait for the leader to be ready", nil)
+			log.Info(ctx).Msg("wait for the leader to be ready")
 		}
 	}, time.Second, waitCtx.Done())
 
@@ -184,10 +182,9 @@ func (tw *timingWheel) Start(ctx context.Context) error {
 	for e := tw.twList.Front(); e != nil; e = e.Next() {
 		for _, bucket := range e.Value.(*timingWheelElement).getBuckets() {
 			if err = bucket.start(ctx); err != nil {
-				log.Error(ctx, "start bucket failed", map[string]interface{}{
-					log.KeyError: err,
-					"eventbus":   bucket.getEventbus(),
-				})
+				log.Error(ctx).Err(err).
+					Str("eventbus", bucket.getEventbus()).
+					Msg("start bucket failed")
 				return err
 			}
 		}
@@ -210,7 +207,7 @@ func (tw *timingWheel) StopNotify() <-chan struct{} {
 
 // Stop stops the current timing wheel.
 func (tw *timingWheel) Stop(ctx context.Context) {
-	log.Info(ctx, "stop timingwheel", nil)
+	log.Info(ctx).Msg("stop timingwheel")
 	// wait for all goroutine to end
 	for e := tw.twList.Front(); e != nil; e = e.Next() {
 		for _, bucket := range e.Value.(*timingWheelElement).getBuckets() {
@@ -269,29 +266,29 @@ func (tw *timingWheel) Recover(ctx context.Context) error {
 	for e := tw.twList.Front(); e != nil; e = e.Next() {
 		for _, bucket := range e.Value.(*timingWheelElement).getBuckets() {
 			if v, ok := offsetMetaMap[bucket.getEventbus()]; ok {
-				log.Info(ctx, "recover offset metadata", map[string]interface{}{
-					"layer":    v.Layer,
-					"slot":     v.Slot,
-					"offset":   v.Offset,
-					"eventbus": v.Eventbus,
-				})
+				log.Info(ctx).
+					Int64("layer", v.Layer).
+					Int64("slot", v.Slot).
+					Int64("offset", v.Offset).
+					Str("eventbus", v.Eventbus).
+					Msg("recover offset metadata")
 				bucket.offset = v.Offset
 			}
 		}
 	}
 
 	if _, ok := offsetMetaMap[timerBuiltInEventbusReceivingStation]; ok {
-		log.Info(ctx, "recover receiving station metadata", map[string]interface{}{
-			"offset":   offsetMetaMap[timerBuiltInEventbusReceivingStation].Offset,
-			"eventbus": tw.receivingStation.getEventbus(),
-		})
+		log.Info(ctx).
+			Int64("offset", offsetMetaMap[timerBuiltInEventbusReceivingStation].Offset).
+			Str("eventbus", tw.receivingStation.getEventbus()).
+			Msg("recover receiving station metadata")
 		tw.receivingStation.offset = offsetMetaMap[timerBuiltInEventbusReceivingStation].Offset
 	}
 	if _, ok := offsetMetaMap[timerBuiltInEventbusDistributionStation]; ok {
-		log.Info(ctx, "recover distribution station metadata", map[string]interface{}{
-			"offset":   offsetMetaMap[timerBuiltInEventbusDistributionStation].Offset,
-			"eventbus": tw.distributionStation.getEventbus(),
-		})
+		log.Info(ctx).
+			Int64("offset", offsetMetaMap[timerBuiltInEventbusReceivingStation].Offset).
+			Str("eventbus", tw.receivingStation.getEventbus()).
+			Msg("recover distribution station metadata")
 		tw.distributionStation.offset = offsetMetaMap[timerBuiltInEventbusDistributionStation].Offset
 	}
 
@@ -301,10 +298,10 @@ func (tw *timingWheel) Recover(ctx context.Context) error {
 // Push the scheduled event to the timingwheel.
 func (tw *timingWheel) Push(ctx context.Context, e *ce.Event) bool {
 	tm := newTimingMsg(ctx, e)
-	log.Info(ctx, "push event to timingwheel", map[string]interface{}{
-		"event_id":   e.ID(),
-		"expiration": tm.getExpiration().Format(time.RFC3339Nano),
-	})
+	log.Info(ctx).
+		Str("event_id", e.ID()).
+		Str("expiration", tm.getExpiration().Format(time.RFC3339Nano)).
+		Msg("push event to timingwheel")
 
 	metrics.TimerScheduledEventDelayTime.WithLabelValues(metrics.LabelScheduledEventDelayTime).
 		Observe(time.Until(tm.getExpiration()).Seconds())
@@ -334,7 +331,7 @@ func (tw *timingWheel) startRecycling(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Debug(ctx, "context canceled at timingwheel recycling", nil)
+				log.Debug(ctx).Msg("context canceled at timingwheel recycling")
 				return
 			case <-ticker.C:
 				if !tw.IsLeader() {
@@ -371,15 +368,15 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Debug(ctx, "context canceled at receiving station update offset metadata", nil)
+				log.Debug(ctx).Msg("context canceled at receiving station update offset metadata")
 				return
 			case offset := <-offsetC:
 				// wait for all goroutines to finish before updating offset metadata
 				offset.wg.Wait()
-				log.Debug(ctx, "update offset metadata", map[string]interface{}{
-					"eventbus":  tw.receivingStation.getEventbus(),
-					"update_to": offset.data,
-				})
+				log.Debug(ctx).
+					Str("eventbus", tw.receivingStation.getEventbus()).
+					Int64("update_to", offset.data).
+					Msg("update offset metadata")
 				tw.receivingStation.updateOffsetMeta(ctx, offset.data)
 			}
 		}
@@ -391,35 +388,35 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Debug(ctx, "context canceled at receiving station running", nil)
+				log.Debug(ctx).Msg("context canceled at receiving station running")
 				return
 			default:
 				// batch read
 				events, err := tw.receivingStation.getEvent(ctx, defaultNumberOfEventsRead)
 				if err != nil {
 					if !errors.Is(err, errors.ErrOffsetOnEnd) {
-						log.Error(ctx, "get event failed when receiving station running", map[string]interface{}{
-							log.KeyError: err,
-							"eventbus":   tw.receivingStation.getEventbus(),
-						})
+						log.Error(ctx).Err(err).
+							Str("eventbus", tw.receivingStation.getEventbus()).
+							Msg("get event failed when receiving station running")
 					}
 					time.Sleep(sleepDuration)
 					break
 				}
 				if len(events) == 0 {
 					time.Sleep(sleepDuration)
-					log.Info(ctx, "no more message", map[string]interface{}{
-						"function": "runReceivingStation",
-					})
+					log.Info(ctx).
+						Str("function", "runReceivingStation").
+						Msg("no more message")
 					break
 				}
 				// concurrent write
 				numberOfEvents := int64(len(events))
-				log.Debug(ctx, "got events when receiving station running", map[string]interface{}{
-					"eventbus":         tw.receivingStation.getEventbus(),
-					"offset":           tw.receivingStation.getOffset(),
-					"number_of_events": numberOfEvents,
-				})
+				log.Debug(ctx).
+					Str("eventbus", tw.receivingStation.getEventbus()).
+					Int64("offset", tw.receivingStation.getOffset()).
+					Int64("number_of_events", numberOfEvents).
+					Msg("got events when receiving station running")
+
 				wg := sync.WaitGroup{}
 				for _, event := range events {
 					// TODO(jiangkai): check event dst eventbus is vaild.
@@ -437,11 +434,11 @@ func (tw *timingWheel) runReceivingStation(ctx context.Context) {
 								metrics.TimerPushEventTPSCounterVec.WithLabelValues(metrics.LabelTimer).Inc()
 								cancel()
 							} else {
-								log.Warning(ctx, "push event to timingwheel failed, retry until it succeed", map[string]interface{}{
-									"event_id":      e.ID(),
-									"eventbus":      e.Extensions()[xVanusEventbus],
-									"delivery_time": newTimingMsg(ctx, e).getExpiration().Format(time.RFC3339Nano),
-								})
+								log.Warn(ctx).
+									Str("event_id", e.ID()).
+									Interface("eventbus", e.Extensions()[xVanusEventbus]).
+									Str("delivery_time", newTimingMsg(ctx, e).getExpiration().Format(time.RFC3339Nano)).
+									Msg("push event to timingwheel failed, retry until it succeed")
 							}
 						}, tw.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
 						<-glimitC
@@ -481,15 +478,15 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Debug(ctx, "context canceled at distribution station update offset metadata", nil)
+				log.Debug(ctx).Msg("context canceled at distribution station update offset metadata")
 				return
 			case offset := <-offsetC:
 				// wait for all goroutines to finish before updating offset metadata
 				offset.wg.Wait()
-				log.Debug(ctx, "update offset metadata", map[string]interface{}{
-					"eventbus":  tw.distributionStation.getEventbus(),
-					"update_to": offset.data,
-				})
+				log.Debug(ctx).
+					Str("eventbus", tw.distributionStation.getEventbus()).
+					Int64("update_to", offset.data).
+					Msg("update offset metadata")
 				tw.distributionStation.updateOffsetMeta(ctx, offset.data)
 			}
 		}
@@ -503,35 +500,32 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Debug(ctx, "context canceled at distribution station running", nil)
+				log.Debug(ctx).Msg("context canceled at distribution station running")
 				return
 			default:
 				// batch read
 				events, err := tw.distributionStation.getEvent(ctx, defaultNumberOfEventsRead)
 				if err != nil {
 					if !errors.Is(err, errors.ErrOffsetOnEnd) {
-						log.Error(ctx, "get event failed when distribution station running", map[string]interface{}{
-							log.KeyError: err,
-							"eventbus":   tw.distributionStation.getEventbus(),
-						})
+						log.Error(ctx).Err(err).
+							Str("eventbus", tw.distributionStation.getEventbus()).
+							Msg("get event failed when distribution station running")
 					}
 					time.Sleep(sleepDuration)
 					break
 				}
 				if len(events) == 0 {
 					time.Sleep(sleepDuration)
-					log.Debug(ctx, "no more message", map[string]interface{}{
-						"function": "runDistributionStation",
-					})
+					log.Debug(ctx).Str("function", "runDistributionStation").Msg("no more message")
 					break
 				}
 				// concurrent write
 				numberOfEvents := int64(len(events))
-				log.Debug(ctx, "got events when distribution station running", map[string]interface{}{
-					"eventbus":         tw.distributionStation.getEventbus(),
-					"offset":           tw.distributionStation.getOffset(),
-					"number_of_events": numberOfEvents,
-				})
+				log.Debug(ctx).
+					Str("eventbus", tw.distributionStation.getEventbus()).
+					Int64("offset", tw.distributionStation.getOffset()).
+					Int64("number_of_events", numberOfEvents).
+					Msg("got events when distribution station running")
 
 				wg := sync.WaitGroup{}
 				for _, event := range events {
@@ -549,11 +543,11 @@ func (tw *timingWheel) runDistributionStation(ctx context.Context) {
 								metrics.TimerDeliverEventTPSCounterVec.WithLabelValues(metrics.LabelTimer).Inc()
 								cancel()
 							} else {
-								log.Warning(ctx, "deliver event failed, retry until it succeed", map[string]interface{}{
-									"event_id":      e.ID(),
-									"eventbus":      e.Extensions()[xVanusEventbus],
-									"delivery_time": newTimingMsg(ctx, e).getExpiration().Format(time.RFC3339Nano),
-								})
+								log.Warn(ctx).
+									Str("event_id", e.ID()).
+									Interface("eventbus", e.Extensions()[xVanusEventbus]).
+									Time("delivery_time", newTimingMsg(ctx, e).getExpiration()).
+									Msg("deliver event failed, retry until it succeed")
 							}
 						}, tw.config.Tick/defaultCheckWaitingPeriodRatio, waitCtx.Done())
 						<-glimitC
@@ -578,17 +572,14 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 
 	err = e.ExtensionAs(xVanusEventbus, &ebID)
 	if err != nil {
-		log.Error(ctx, "get eventbus failed when delivering", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Error(ctx).Err(err).Msg("get eventbus failed when delivering")
 		return err
 	}
 	eventbusID, err := vanus.NewIDFromString(ebID)
 	if err != nil {
-		log.Error(ctx, "eventbus id string to uint64 failed when delivering", map[string]interface{}{
-			log.KeyError:  err,
-			"eventbus_id": ebID,
-		})
+		log.Error(ctx).Err(err).
+			Str("eventbus_id", ebID).
+			Msg("eventbus id string to uint64 failed when delivering")
 		return err
 	}
 	v, exist := tw.cache.Load(eventbusID)
@@ -603,25 +594,22 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 	_, err = api.AppendOne(ctx, writer, e)
 	if err != nil {
 		if errors.Is(err, errors.ErrOffsetOnEnd) {
-			log.Warning(ctx, "eventbus not found, discard this event", map[string]interface{}{
-				log.KeyError:    err,
-				"event_id":      e.ID(),
-				"eventbus_id":   ebID,
-				"delivery_time": newTimingMsg(ctx, e).getExpiration().Format(time.RFC3339Nano),
-			})
+			log.Warn(ctx).Err(err).
+				Str("eventbus_id", ebID).
+				Str("event_id", e.ID()).
+				Interface("eventbus", e.Extensions()[xVanusEventbus]).
+				Time("delivery_time", newTimingMsg(ctx, e).getExpiration()).
+				Msg("eventbus not found, discard this event")
 			return nil
 		}
-		log.Error(ctx, "append failed", map[string]interface{}{
-			log.KeyError:  err,
-			"eventbus_id": ebID,
-		})
+		log.Error(ctx).Err(err).Str("eventbus_id", ebID).Msg("append failed")
 		return err
 	}
-	log.Debug(ctx, "event delivered", map[string]interface{}{
-		"event_id":      e.ID(),
-		"eventbus_id":   ebID,
-		"delivery_time": newTimingMsg(ctx, e).getExpiration().Format(time.RFC3339Nano),
-	})
+	log.Debug(ctx).
+		Str("event_id", e.ID()).
+		Str("eventbus_id", ebID).
+		Time("delivery_time", newTimingMsg(ctx, e).getExpiration()).
+		Msg("event delivered")
 	return nil
 }
 
@@ -684,10 +672,10 @@ func (twe *timingWheelElement) pushBack(ctx context.Context, tm *timingMsg) bool
 	index := tm.getExpiration().UnixNano() / twe.tick.Nanoseconds()
 	// Put it into its own bucket
 	if twe.makeSureBucketExist(ctx, index) != nil {
-		log.Error(ctx, "push timing message failed because bucket not exist", map[string]interface{}{
-			"eventbus":   twe.buckets[index].getEventbus(),
-			"expiration": tm.getExpiration().Format(time.RFC3339Nano),
-		})
+		log.Error(ctx).
+			Str("eventbus", twe.buckets[index].getEventbus()).
+			Time("expiration", tm.getExpiration()).
+			Msg("push timing message failed because bucket not exist")
 		return false
 	}
 	return twe.buckets[index].push(ctx, tm)
@@ -737,10 +725,9 @@ func (twe *timingWheelElement) makeSureBucketExist(ctx context.Context, index in
 	ebName := fmt.Sprintf(timerBuiltInEventbus, twe.layer, index)
 	twe.buckets[index] = newBucket(twe.timingwheel, twe.element, twe.tick, ebName, twe.layer, index)
 	if err := twe.buckets[index].start(ctx); err != nil {
-		log.Error(ctx, "start bucket failed when makesure bucket exist", map[string]interface{}{
-			log.KeyError: err,
-			"eventbus":   twe.buckets[index].getEventbus(),
-		})
+		log.Error(ctx).Err(err).
+			Str("eventbus", twe.buckets[index].getEventbus()).
+			Msg("start bucket failed when makesure bucket exist")
 		return err
 	}
 	exist, err := twe.buckets[index].existsOffsetMeta(ctx)
@@ -755,9 +742,9 @@ func (twe *timingWheelElement) recycling(ctx context.Context) {
 	defer twe.mu.Unlock()
 	for idx, bucket := range twe.buckets {
 		if time.Now().UnixNano()/bucket.tick.Nanoseconds() > idx && bucket.hasOnEnd(ctx) {
-			log.Info(ctx, "recycle expired bucket", map[string]interface{}{
-				"bucket": bucket.eventbus,
-			})
+			log.Info(ctx).
+				Str("bucket", bucket.eventbus).
+				Msg("recycle expired bucket")
 			bucket.stop(ctx)
 			bucket.recycle(ctx)
 			delete(twe.buckets, idx)
@@ -765,7 +752,7 @@ func (twe *timingWheelElement) recycling(ctx context.Context) {
 	}
 }
 
-func (twe *timingWheelElement) wait(ctx context.Context) {
+func (twe *timingWheelElement) wait(_ context.Context) {
 	twe.wg.Wait()
 }
 

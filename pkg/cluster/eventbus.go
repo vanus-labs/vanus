@@ -44,14 +44,14 @@ func (es *eventbusService) GetEventbusByName(ctx context.Context, ns, name strin
 
 	pb, err := es.nsSvc.GetNamespaceByName(ctx, ns)
 	if err != nil {
-		return nil, err
+		return nil, errors.UnwrapOrUnknown(err)
 	}
 	eb, err := es.client.GetEventbusWithHumanFriendly(ctx, &ctrlpb.GetEventbusWithHumanFriendlyRequest{
 		NamespaceId:  pb.Id,
 		EventbusName: name,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.UnwrapOrUnknown(err)
 	}
 
 	// es.cache.Store(key, eb) unmask when dirty cache is resolved
@@ -66,7 +66,7 @@ func (es *eventbusService) GetEventbus(ctx context.Context, id uint64) (*meta.Ev
 
 	eb, err := es.client.GetEventbus(ctx, wrapperspb.UInt64(id))
 	if err != nil {
-		return nil, err
+		return nil, errors.UnwrapOrUnknown(err)
 	}
 
 	// es.cache.Store(id, eb) unmask when dirty cache is resolved
@@ -93,20 +93,21 @@ func (es *eventbusService) CreateSystemEventbusIfNotExist(ctx context.Context, n
 
 	nsPb, err := es.nsSvc.GetSystemNamespace(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errors.UnwrapOrUnknown(err)
 	}
 
-	return es.client.CreateSystemEventbus(ctx, &ctrlpb.CreateEventbusRequest{
+	eventbus, err := es.client.CreateSystemEventbus(ctx, &ctrlpb.CreateEventbusRequest{
 		Name:        name,
 		LogNumber:   int32(defaultSystemEventbusEventlog),
 		Description: desc,
 		NamespaceId: nsPb.Id,
 	})
+	return eventbus, errors.UnwrapOrUnknown(err)
 }
 
 func (es *eventbusService) Delete(ctx context.Context, id uint64) error {
 	_, err := es.client.DeleteEventbus(ctx, wrapperspb.UInt64(id))
-	return err
+	return errors.UnwrapOrUnknown(err)
 }
 
 func (es *eventbusService) RawClient() ctrlpb.EventbusControllerClient {

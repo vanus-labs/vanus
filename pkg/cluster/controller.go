@@ -18,6 +18,8 @@ package cluster
 import (
 	"context"
 	stderr "errors"
+	"github.com/vanus-labs/vanus/observability/log"
+	errors2 "github.com/vanus-labs/vanus/pkg/errors"
 	"strings"
 	"sync"
 	"time"
@@ -25,7 +27,6 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
@@ -141,7 +142,8 @@ type cluster struct {
 
 func (c *cluster) WaitForControllerReady(createEventbus bool) error {
 	start := time.Now()
-	log.Info(context.Background(), "wait for controller is ready", nil)
+
+	log.Info().Msg("wait for controller is ready")
 	t := time.NewTicker(defaultClusterStartTimeout)
 	defer t.Stop()
 	for !c.IsReady(createEventbus) {
@@ -153,19 +155,17 @@ func (c *cluster) WaitForControllerReady(createEventbus bool) error {
 		}
 	}
 
-	log.Info(context.Background(), "controller is ready", map[string]interface{}{
-		"waiting_time": time.Now().Sub(start),
-	})
+	log.Info().
+		Dur("waiting_time", time.Now().Sub(start)).
+		Msg("controller is ready")
 	return nil
 }
 
 func (c *cluster) IsReady(createEventbus bool) bool {
 	res, err := c.ping.Ping(context.Background(), &emptypb.Empty{})
 	if err != nil {
-		if !stderr.Is(err, errors.ErrNotLeader) {
-			log.Warning(context.Background(), "failed to ping controller", map[string]interface{}{
-				log.KeyError: err,
-			})
+		if !errors.Is(err, errors2.ErrNotLeader) {
+			log.Warn().Err(err).Msg("failed to ping controller")
 		}
 		return false
 	}

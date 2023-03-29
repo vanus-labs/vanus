@@ -23,21 +23,19 @@ import (
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/eventlog"
 	"github.com/vanus-labs/vanus/client/pkg/option"
 	"github.com/vanus-labs/vanus/client/pkg/policy"
+	pInfo "github.com/vanus-labs/vanus/internal/primitive/info"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/trigger/info"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/pkg/util"
-
-	pInfo "github.com/vanus-labs/vanus/internal/primitive/info"
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
-	"github.com/vanus-labs/vanus/internal/trigger/info"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -84,9 +82,7 @@ func (r *reader) Close() {
 		r.stop()
 	}
 	r.wg.Wait()
-	log.Info(context.TODO(), "reader closed", map[string]interface{}{
-		log.KeyEventbusID: r.config.EventbusID,
-	})
+	log.Info().Stringer(log.KeyEventbusID, r.config.EventbusID).Msg("reader closed")
 }
 
 func (r *reader) Start() error {
@@ -100,10 +96,9 @@ func (r *reader) Start() error {
 	}
 	logs, err := eb.ListLog(timeoutCtx)
 	if err != nil {
-		log.Warning(ctx, "eventbus lookup Readable eventlog error", map[string]interface{}{
-			log.KeyEventbusID: r.config.EventbusID,
-			log.KeyError:      err,
-		})
+		log.Warn(ctx).Err(err).
+			Stringer(log.KeyEventbusID, r.config.EventbusID).
+			Msg("eventbus lookup Readable eventlog error")
 		return err
 	}
 	for _, l := range logs {
@@ -120,17 +115,17 @@ func (r *reader) Start() error {
 		r.wg.Add(1)
 		go func() {
 			defer r.wg.Done()
-			log.Info(ctx, "event eventlog reader start", map[string]interface{}{
-				log.KeyEventbusID: r.config.EventbusID,
-				log.KeyEventlogID: elc.eventlogID,
-				"offset":          elc.offset,
-			})
+			log.Info(ctx).
+				Stringer(log.KeyEventbusID, r.config.EventbusID).
+				Stringer(log.KeyEventlogID, elc.eventlogID).
+				Uint64("offset", elc.offset).
+				Msg("event eventlog reader start")
 			elc.run(ctx)
-			log.Info(ctx, "event eventlog reader stop", map[string]interface{}{
-				log.KeyEventbusID: r.config.EventbusID,
-				log.KeyEventlogID: elc.eventlogID,
-				"offset":          elc.offset,
-			})
+			log.Info(ctx).
+				Stringer(log.KeyEventbusID, r.config.EventbusID).
+				Stringer(log.KeyEventlogID, elc.eventlogID).
+				Uint64("offset", elc.offset).
+				Msg("event eventlog reader stop")
 		}()
 	}
 	return nil
@@ -141,11 +136,11 @@ func (r *reader) getOffset(eventlogID vanus.ID) uint64 {
 	if exist {
 		return v
 	}
-	log.Warning(context.TODO(), "offset no exist, will use 0", map[string]interface{}{
-		log.KeyEventbusID:     r.config.EventbusID,
-		log.KeySubscriptionID: r.config.SubscriptionID,
-		log.KeyEventlogID:     eventlogID,
-	})
+	log.Warn().
+		Stringer(log.KeyEventbusID, r.config.EventbusID).
+		Stringer(log.KeyEventlogID, eventlogID).
+		Stringer(log.KeySubscriptionID, r.config.SubscriptionID).
+		Msg("offset no exist, will use 0")
 	return 0
 }
 
@@ -165,11 +160,12 @@ func (elReader *eventlogReader) run(ctx context.Context) {
 	}
 	r := eb.Reader(
 		option.WithReadPolicy(elReader.policy), option.WithBatchSize(elReader.config.BatchSize))
-	log.Info(ctx, "eventlog reader init success", map[string]interface{}{
-		log.KeyEventbusID: elReader.config.EventbusID,
-		log.KeyEventlogID: elReader.eventlogID,
-		"offset":          elReader.offset,
-	})
+	log.Info(ctx).
+		Stringer(log.KeyEventbusID, elReader.config.EventbusID).
+		Stringer(log.KeyEventlogID, elReader.eventlogID).
+		Interface("offset", elReader.offset).
+		Msg("eventlog reader init success")
+
 	min := time.Now().Minute()
 	for {
 		select {
@@ -180,12 +176,11 @@ func (elReader *eventlogReader) run(ctx context.Context) {
 		err := elReader.loop(ctx, r)
 		if time.Now().Minute() != min {
 			min = time.Now().Minute()
-			log.Info(ctx, "read event", map[string]interface{}{
-				log.KeyEventbusID: elReader.config.EventbusID,
-				log.KeyEventlogID: elReader.eventlogIDStr,
-				log.KeyError:      err,
-				"offset":          elReader.offset,
-			})
+			log.Info(ctx).Err(err).
+				Stringer(log.KeyEventbusID, elReader.config.EventbusID).
+				Stringer(log.KeyEventlogID, elReader.eventlogID).
+				Interface("offset", elReader.offset).
+				Msg("read event")
 		}
 		switch {
 		case err == nil, errors.Is(err, errors.ErrOffsetOnEnd), errors.Is(err, errors.ErrTryAgain):
@@ -193,14 +188,12 @@ func (elReader *eventlogReader) run(ctx context.Context) {
 		case stderr.Is(err, context.Canceled), status.Convert(err).Code() == codes.Canceled:
 			return
 		case errors.Is(err, errors.ErrOffsetUnderflow):
-			// todo reset offset timestamp
+		// todo reset offset timestamp
 		default:
-			log.Warning(ctx, "read event error", map[string]interface{}{
-				log.KeyEventbusID: elReader.config.EventbusID,
-				log.KeyEventlogID: elReader.eventlogID,
-				"offset":          elReader.offset,
-				log.KeyError:      err,
-			})
+			log.Warn(ctx).Err(err).
+				Stringer(log.KeyEventbusID, elReader.config.EventbusID).
+				Stringer(log.KeyEventlogID, elReader.eventlogID).
+				Interface("offset", elReader.offset).Msg("read event error")
 			if !util.SleepWithContext(ctx, readErrSleepTime) {
 				return
 			}

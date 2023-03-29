@@ -15,14 +15,11 @@
 package pipeline
 
 import (
-	stdCtx "context"
-
-	"github.com/vanus-labs/vanus/observability/log"
-
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/transform/action"
 	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
 	"github.com/vanus-labs/vanus/internal/primitive/transform/runtime"
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 type Pipeline struct {
@@ -40,11 +37,10 @@ func (p *Pipeline) Parse(actions []*primitive.Action) {
 	for i := range actions {
 		_action, err := runtime.NewAction(actions[i].Command)
 		if err != nil {
-			// it has check in controller so err must be nil otherwise controller check has bug
-			log.Warning(stdCtx.TODO(), "new action error", map[string]interface{}{
-				log.KeyError: err,
-				"command":    actions[i].Command,
-			})
+			// it has check in controller so err must be nil otherwise controller check has a bug
+			log.Warn().Err(err).
+				Interface("command", actions[i].Command).
+				Msg("new action error")
 			continue
 		}
 		p.actions = append(p.actions, _action)
@@ -55,10 +51,9 @@ func (p *Pipeline) Run(ceCtx *context.EventContext) error {
 	for _, a := range p.actions {
 		err := a.Execute(ceCtx)
 		if err != nil {
-			log.Warning(stdCtx.TODO(), "action execute error", map[string]interface{}{
-				log.KeyError: err,
-				"command":    a.Name(),
-			})
+			log.Warn().Err(err).
+				Str("command", a.Name()).
+				Msg("action execute error")
 		}
 	}
 	return nil

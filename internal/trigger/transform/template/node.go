@@ -15,13 +15,11 @@
 package template
 
 import (
-	stdCtx "context"
 	"errors"
-
-	"github.com/vanus-labs/vanus/observability/log"
 
 	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
 	"github.com/vanus-labs/vanus/internal/trigger/util"
+	"github.com/vanus-labs/vanus/observability/log"
 )
 
 type NodeType int
@@ -147,10 +145,9 @@ func (t *eventDataNode) Value(ceCtx *context.EventContext) (interface{}, bool) {
 		if errors.Is(err, util.ErrKeyNotFound) {
 			return nil, false
 		}
-		log.Info(stdCtx.TODO(), "transformer template get data value error", map[string]interface{}{
-			log.KeyError: err,
-			"name":       t.Name(),
-		})
+		log.Info().Err(err).
+			Str("name", t.Name()).
+			Msg("transformer template get data value error")
 		return nil, false
 	}
 	return v, true

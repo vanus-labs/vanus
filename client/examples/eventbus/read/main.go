@@ -19,19 +19,21 @@ import (
 	"context"
 	"log"
 
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/pkg/primitive"
+
 	// this project.
 	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/option"
 	"github.com/vanus-labs/vanus/client/pkg/policy"
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func main() {
 	ctx := context.Background()
 
 	c := client.Connect([]string{"localhost:2048"})
-	eventbusID, err := vanus.NewIDFromString("0000002689000012")
+	eventbusID, err := primitive.NewIDFromString("0000002689000012")
 	if err != nil {
 		panic("invalid id")
 	}

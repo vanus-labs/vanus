@@ -15,14 +15,12 @@
 package filter
 
 import (
-	"context"
-
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/types"
 	"github.com/tidwall/gjson"
+	"github.com/vanus-labs/vanus/observability/log"
 
 	"github.com/vanus-labs/vanus/internal/trigger/util"
-	"github.com/vanus-labs/vanus/observability/log"
 )
 
 type commonFilter struct {
@@ -38,10 +36,9 @@ func newCommonFilter(value map[string]string, meetCondition meetCondition) *comm
 	data := map[string]string{}
 	for attr, v := range value {
 		if attr == "" || v == "" {
-			log.Info(context.Background(), "new filter but has empty ", map[string]interface{}{
-				"attr":  attr,
-				"value": v,
-			})
+			log.Info().Str("attr", attr).
+				Str("value", v).
+				Msg("new filter but has empty ")
 			return nil
 		}
 		switch {

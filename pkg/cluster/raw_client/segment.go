@@ -50,9 +50,7 @@ func NewSegmentClient(cc *Conn) ctrlpb.SegmentControllerClient {
 }
 
 func (sc *segmentClient) Beat(ctx context.Context, v interface{}) error {
-	log.Debug(ctx, "heartbeat", map[string]interface{}{
-		"leader": sc.cc.leader,
-	})
+	log.Debug().Str("leader", sc.cc.leader).Msg("heartbeat")
 	req, ok := v.(*ctrlpb.SegmentHeartbeatRequest)
 	if !ok {
 		return errors.ErrInvalidHeartBeatRequest
@@ -106,9 +104,7 @@ func (sc *segmentClient) Beat(ctx context.Context, v interface{}) error {
 func (sc *segmentClient) Close() error {
 	if sc.heartBeatClient != nil {
 		if err := sc.heartBeatClient.CloseSend(); err != nil {
-			log.Warning(context.Background(), "close heartbeat stream error", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Warn().Err(err).Msg("close heartbeat stream error")
 		}
 	}
 	return sc.cc.close()

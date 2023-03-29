@@ -5,6 +5,7 @@ scrape_configs:
   - job_name: 'vanus'
     static_configs:
       - targets:
+          - root-controller:2111
           - controller:2112
           - gateway:2113
           - store:2114

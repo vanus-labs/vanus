@@ -57,8 +57,14 @@ import (
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/option"
 	"github.com/vanus-labs/vanus/client/pkg/policy"
+	"github.com/vanus-labs/vanus/internal/convert"
 	"github.com/vanus-labs/vanus/internal/gateway/auth"
+	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/authorization"
+	"github.com/vanus-labs/vanus/internal/primitive/interceptor/errinterceptor"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/trigger/filter"
+	"github.com/vanus-labs/vanus/internal/trigger/transform"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/observability/tracing"
@@ -68,14 +74,6 @@ import (
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
-
-	// third-party libraries.
-	"github.com/vanus-labs/vanus/internal/convert"
-	"github.com/vanus-labs/vanus/internal/primitive"
-	"github.com/vanus-labs/vanus/internal/primitive/interceptor/errinterceptor"
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
-	"github.com/vanus-labs/vanus/internal/trigger/filter"
-	"github.com/vanus-labs/vanus/internal/trigger/transform"
 )
 
 const (
@@ -206,10 +204,9 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 				// validate event time
 				t, err := types.ParseTime(attr.CeString)
 				if err != nil {
-					log.Error(_ctx, "invalid format of event time", map[string]interface{}{
-						log.KeyError: err,
-						"eventTime":  eventTime.String(),
-					})
+					log.Error(_ctx).Err(err).
+						Stringer("eventTime", eventTime).
+						Msg("invalid format of event time")
 					responseCode = http.StatusBadRequest
 					return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid delivery time")
 				}
@@ -249,10 +246,9 @@ func (cp *ControllerProxy) writeEvents(
 	w, _ := val.(api.BusWriter)
 	_, err := w.Append(ctx, events)
 	if err != nil {
-		log.Warning(ctx, "append to failed", map[string]interface{}{
-			log.KeyError: err,
-			"eventbus":   eventbusID.Key(),
-		})
+		log.Warn(ctx).Err(err).
+			Stringer("eventbus", eventbusID).
+			Msg("append to failed")
 		return v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
 	return nil
@@ -266,10 +262,9 @@ func (cp *ControllerProxy) Subscribe(req *proxypb.SubscribeRequest, stream proxy
 	// 1. modify subscription sink
 	subscriptionID, err := vanus.NewIDFromString(req.SubscriptionId)
 	if err != nil {
-		log.Error(_ctx, "parse subscription id failed", map[string]interface{}{
-			log.KeyError: err,
-			"id":         req.SubscriptionId,
-		})
+		log.Error(_ctx).Err(err).
+			Str("id", req.SubscriptionId).
+			Msg("parse subscription id failed")
 		return err
 	}
 
@@ -278,10 +273,9 @@ func (cp *ControllerProxy) Subscribe(req *proxypb.SubscribeRequest, stream proxy
 	}
 	meta, err := cp.triggerCtrl.GetSubscription(context.Background(), getSubscriptionReq)
 	if err != nil {
-		log.Error(_ctx, "get subscription failed", map[string]interface{}{
-			log.KeyError: err,
-			"id":         req.SubscriptionId,
-		})
+		log.Error(_ctx).Err(err).
+			Str("id", req.SubscriptionId).
+			Msg("get subscription failed")
 		return err
 	}
 
@@ -290,20 +284,18 @@ func (cp *ControllerProxy) Subscribe(req *proxypb.SubscribeRequest, stream proxy
 		os.Getenv("POD_IP"), cp.cfg.SinkPort, httpRequestPrefix, req.SubscriptionId)
 	if meta.Sink != newSink {
 		if err = cp.disableSubscription(_ctx, req, subscriptionID.Uint64()); err != nil {
-			log.Error(_ctx, "disable subscription failed", map[string]interface{}{
-				log.KeyError: err,
-				"id":         req.SubscriptionId,
-			})
+			log.Error(_ctx).Err(err).
+				Str("id", req.SubscriptionId).
+				Msg("disable subscription failed")
 			return err
 		}
 
 		_, err = cp.triggerCtrl.UpdateSubscription(_ctx,
 			newSubscription(meta, subscriptionID.Uint64(), newSink))
 		if err != nil {
-			log.Error(_ctx, "update subscription sink failed", map[string]interface{}{
-				log.KeyError: err,
-				"id":         req.SubscriptionId,
-			})
+			log.Error(_ctx).Err(err).
+				Str("id", req.SubscriptionId).
+				Msg("update subscription sink failed")
 			return err
 		}
 
@@ -312,10 +304,10 @@ func (cp *ControllerProxy) Subscribe(req *proxypb.SubscribeRequest, stream proxy
 		}
 		_, err = cp.triggerCtrl.ResumeSubscription(context.Background(), resumeSubscriptionReq)
 		if err != nil {
-			log.Error(_ctx, "resume subscription failed", map[string]interface{}{
-				log.KeyError: err,
-				"id":         req.SubscriptionId,
-			})
+			log.Error(_ctx).
+				Err(err).
+				Str("id", req.SubscriptionId).
+				Msg("resume subscription failed")
 			return err
 		}
 	}
@@ -333,15 +325,15 @@ func (cp *ControllerProxy) Subscribe(req *proxypb.SubscribeRequest, stream proxy
 			eventpb, err := ToProto(msg.event)
 			if err != nil {
 				// TODO(jiangkai): err check
-				log.Error(_ctx, "to eventpb failed", map[string]interface{}{
-					log.KeyError: err,
-					"event":      msg.event,
-				})
+				log.Error(_ctx).
+					Err(err).
+					Interface("event", msg.event).
+					Msg("failed to convert ot eventbus protobuf")
 				break
 			}
-			log.Debug(_ctx, "subscribe stream send event", map[string]interface{}{
-				"eventpb": eventpb.String(),
-			})
+			log.Debug(_ctx).
+				Str("event_pb", eventpb.String()).
+				Msg("subscribe stream send event")
 			err = subscribe.stream().Send(&proxypb.SubscribeResponse{
 				SequenceId: msg.sequenceID,
 				Events: &cloudevents.CloudEventBatch{
@@ -368,22 +360,20 @@ func (cp *ControllerProxy) Ack(stream proxypb.StoreProxy_AckServer) error {
 	for {
 		rsp, err := stream.Recv()
 		if err != nil {
-			log.Error(_ctx, "ack stream recv failed", map[string]interface{}{
-				log.KeyError: err,
-			})
+			log.Error(_ctx).Err(err).
+				Msg("ack stream recv failed")
 			return err
 		}
-		log.Debug(_ctx, "ack stream recv a response", map[string]interface{}{
-			log.KeyError: err,
-			"rsp":        rsp,
-		})
+		log.Debug(_ctx).
+			Err(err).
+			Interface("rsp", rsp).
+			Msg("ack stream recv a response")
 		cache, ok := cp.cache.Load(rsp.SubscriptionId)
 		if !ok {
 			// TODO(jiangkai): err check
-			log.Error(_ctx, "subscription not found", map[string]interface{}{
-				log.KeyError:      err,
-				"subscription-id": rsp.SubscriptionId,
-			})
+			log.Error(_ctx).Err(err).
+				Str("subscription-id", rsp.SubscriptionId).
+				Msg("subscription not found")
 			continue
 		}
 		cb, _ := cache.(*subscribeCache).acks.LoadAndDelete(rsp.SequenceId)
@@ -444,10 +434,9 @@ func (cp *ControllerProxy) disableSubscription(
 	}
 	_, err := cp.triggerCtrl.DisableSubscription(context.Background(), disableSubscriptionReq)
 	if err != nil {
-		log.Error(ctx, "disable subscription failed", map[string]interface{}{
-			log.KeyError: err,
-			"id":         req.SubscriptionId,
-		})
+		log.Error(ctx).Err(err).
+			Str("id", req.SubscriptionId).
+			Msg("disable subscription failed")
 		return err
 	}
 
@@ -579,10 +568,10 @@ func (cp *ControllerProxy) Start() error {
 	}
 	recoveryOpt := recovery.WithRecoveryHandlerContext(
 		func(ctx context.Context, p interface{}) error {
-			log.Error(ctx, "goroutine panicked", map[string]interface{}{
-				log.KeyError: fmt.Sprintf("%v", p),
-				"stack":      string(debug.Stack()),
-			})
+			log.Error(ctx).
+				Str(log.KeyError, fmt.Sprintf("%v", p)).
+				Bytes("stack", debug.Stack()).
+				Msg("goroutine panicked")
 			return status.Errorf(codes.Internal, "%v", p)
 		},
 	)
@@ -625,7 +614,7 @@ func (cp *ControllerProxy) Start() error {
 		}
 		wg.Done()
 	}()
-	log.Info(context.Background(), "the grpc proxy ready to work", nil)
+	log.Info().Msg("the grpc proxy ready to work")
 
 	sinkListen, err := net.Listen("tcp", fmt.Sprintf(":%d", cp.cfg.SinkPort))
 	if err != nil {
@@ -645,7 +634,7 @@ func (cp *ControllerProxy) Start() error {
 		}
 		wg.Done()
 	}()
-	log.Info(context.Background(), "the sink proxy ready to work", nil)
+	log.Info().Msg("the sink proxy ready to work")
 	return nil
 }
 
@@ -664,9 +653,9 @@ func (cp *ControllerProxy) receive(ctx context.Context, event v2.Event) (*v2.Eve
 		return nil, v2.NewHTTPResult(http.StatusInternalServerError, "subscription not exist")
 	}
 
-	log.Debug(_ctx, "sink proxy received a event", map[string]interface{}{
-		"event": event.String(),
-	})
+	log.Debug(_ctx).
+		Stringer("event", event).
+		Msg("sink proxy received a event")
 
 	sub, _ := cache.(*subscribeCache)
 
@@ -674,9 +663,9 @@ func (cp *ControllerProxy) receive(ctx context.Context, event v2.Event) (*v2.Eve
 	var success bool
 	donec := make(chan struct{})
 	sub.acks.Store(sequenceID, ackCallback(func(result bool) {
-		log.Info(_ctx, "ack callback", map[string]interface{}{
-			"result": result,
-		})
+		log.Info(_ctx).
+			Bool("result", result).
+			Msg("ack callback")
 		success = result
 		close(donec)
 	}))

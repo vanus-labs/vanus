@@ -26,9 +26,6 @@ import (
 	"github.com/cloudevents/sdk-go/v2/client"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
-	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc/credentials/insecure"
-
 	"github.com/vanus-labs/vanus/internal/gateway/proxy"
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
@@ -38,6 +35,8 @@ import (
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
+	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var requestDataFromContext = cehttp.RequestDataFromContext
@@ -69,18 +68,13 @@ func (ga *ceGateway) Start(ctx context.Context) error {
 	if err := ga.startCloudEventsReceiver(ctx); err != nil {
 		return err
 	}
-	if err := ga.proxySrv.Start(); err != nil {
-		return err
-	}
-	return nil
+	return ga.proxySrv.Start()
 }
 
 func (ga *ceGateway) Stop() {
 	ga.proxySrv.Stop()
 	if err := ga.ceListener.Close(); err != nil {
-		log.Warning(context.Background(), "close CloudEvents listener error", map[string]interface{}{
-			log.KeyError: err,
-		})
+		log.Warn().Err(err).Msg("close CloudEvents listener error")
 	}
 }
 
