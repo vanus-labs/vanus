@@ -32,7 +32,7 @@ type authService struct {
 func (a *authService) GetUserRole(ctx context.Context, user string) ([]*metapb.UserRole, error) {
 	resp, err := a.client.GetUserRole(ctx, &ctrlpb.GetUserRoleRequest{UserIdentifier: user})
 	if err != nil {
-		return nil, errors.To(err)
+		return nil, errors.UnwrapOrUnknown(err)
 	}
 	return resp.GetUserRole(), nil
 }
@@ -40,7 +40,7 @@ func (a *authService) GetUserRole(ctx context.Context, user string) ([]*metapb.U
 func (a *authService) GetUserByToken(ctx context.Context, token string) (string, error) {
 	user, err := a.client.GetUserByToken(ctx, wrapperspb.String(token))
 	if err != nil {
-		return "", errors.To(err)
+		return "", errors.UnwrapOrUnknown(err)
 	}
 	return user.GetValue(), nil
 }
