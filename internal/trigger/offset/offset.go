@@ -99,15 +99,13 @@ func (offset *SubscriptionOffset) GetCommit() info.ListOffsetInfo {
 }
 
 type offsetTracker struct {
-	maxOffset  uint64
-	initOffset uint64
-	list       *skiplist.SkipList
+	maxOffset int64
+	list      *skiplist.SkipList
 }
 
 func initOffset(initOffset uint64) *offsetTracker {
 	return &offsetTracker{
-		initOffset: initOffset,
-		maxOffset:  initOffset,
+		maxOffset: int64(initOffset) - 1,
 		list: skiplist.New(skiplist.GreaterThanFunc(func(lhs, rhs interface{}) int {
 			v1, _ := lhs.(uint64)
 			v2, _ := rhs.(uint64)
@@ -123,7 +121,9 @@ func initOffset(initOffset uint64) *offsetTracker {
 
 func (o *offsetTracker) putOffset(offset uint64) {
 	o.list.Set(offset, offset)
-	o.maxOffset, _ = o.list.Back().Key().(uint64)
+	if int64(offset) > o.maxOffset {
+		o.maxOffset = int64(offset)
+	}
 }
 
 func (o *offsetTracker) commitOffset(offset uint64) {
@@ -132,10 +132,7 @@ func (o *offsetTracker) commitOffset(offset uint64) {
 
 func (o *offsetTracker) offsetToCommit() uint64 {
 	if o.list.Len() == 0 {
-		if o.maxOffset == o.initOffset {
-			return o.initOffset
-		}
-		return o.maxOffset + 1
+		return uint64(o.maxOffset + 1)
 	}
 	return o.list.Front().Key().(uint64)
 }
