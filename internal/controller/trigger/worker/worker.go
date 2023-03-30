@@ -20,6 +20,9 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/subscription"
 	"github.com/vanus-labs/vanus/internal/convert"
@@ -29,8 +32,6 @@ import (
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/proto/pkg/trigger"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type TriggerWorker interface {
@@ -146,6 +147,11 @@ func (tw *triggerWorker) handler(ctx context.Context, subscriptionID vanus.ID) e
 				return err
 			}
 		}
+		log.Info().
+			Str(log.KeyTriggerWorkerAddr, tw.info.Addr).
+			Stringer(log.KeySubscriptionID, subscriptionID).
+			Msg("trigger worker remove a subscription for disable")
+		tw.assignSubscriptionIDs.Delete(subscriptionID)
 		return nil
 	}
 	offsets, err := tw.subscriptionManager.GetOrSaveOffset(ctx, subscriptionID)

@@ -24,6 +24,9 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	eb "github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/internal/controller/member"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
@@ -42,8 +45,6 @@ import (
 	"github.com/vanus-labs/vanus/pkg/util"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var _ ctrlpb.TriggerControllerServer = &controller{}
@@ -500,13 +501,16 @@ func (ctrl *controller) requeueSubscription(ctx context.Context, id vanus.ID, ad
 			Str("runningAddr", addr).
 			Msg("requeue subscription invalid")
 	}
-	metrics.CtrlTriggerGauge.WithLabelValues(sub.TriggerWorker).Dec()
-	sub.TriggerWorker = ""
-	sub.Phase = metadata.SubscriptionPhasePending
-	err := ctrl.subscriptionManager.UpdateSubscription(ctx, sub)
-	if err != nil {
-		return err
+	switch sub.Phase {
+	case metadata.SubscriptionPhaseCreated, metadata.SubscriptionPhaseRunning, metadata.SubscriptionPhasePending:
+		sub.TriggerWorker = ""
+		sub.Phase = metadata.SubscriptionPhasePending
+		err := ctrl.subscriptionManager.UpdateSubscription(ctx, sub)
+		if err != nil {
+			return err
+		}
 	}
+	metrics.CtrlTriggerGauge.WithLabelValues(sub.TriggerWorker).Dec()
 	ctrl.scheduler.EnqueueSubscription(id)
 	return nil
 }
