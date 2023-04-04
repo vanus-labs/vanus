@@ -1999,7 +1999,7 @@ type ResetOffsetToTimestampRequest struct {
 	unknownFields protoimpl.UnknownFields
 
 	SubscriptionId uint64 `protobuf:"varint,1,opt,name=subscription_id,json=subscriptionId,proto3" json:"subscription_id,omitempty"`
-	// utc time seconds
+	// utc time milliseconds
 	Timestamp uint64 `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 }
 
