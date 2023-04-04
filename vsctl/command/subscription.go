@@ -548,7 +548,7 @@ func resetOffsetCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&idStr, "id", "", "subscription id to disable")
-	cmd.Flags().StringVar(&idStr, "time", "", "reset offset to time, format is RFC3339")
+	cmd.Flags().StringVar(&from, "time", "", "reset offset to time, format is RFC3339")
 	return cmd
 }
 
