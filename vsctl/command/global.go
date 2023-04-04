@@ -40,6 +40,7 @@ const (
 
 const (
 	RespCodeOK          int32 = 200
+	DefaultGatewayPort        = 8080
 	DefaultOperatorPort       = 8089
 	HttpPrefix                = "http://"
 	BaseUrl                   = "/api/v1"
@@ -102,12 +103,10 @@ const (
 var retryTime = 30
 
 type GlobalFlags struct {
-	Endpoint         string
-	OperatorEndpoint string
-	Debug            bool
-	ConfigFile       string
-	Format           string
-	Token            string
+	Debug      bool
+	ConfigFile string
+	Format     string
+	Token      string
 }
 
 var (
@@ -116,7 +115,7 @@ var (
 )
 
 func InitGatewayClient(cmd *cobra.Command) {
-	endpoint, err := cmd.Flags().GetString("endpoint")
+	endpoint, err := getGatewayEndpoint()
 	if err != nil {
 		cmdFailedf(cmd, "get gateway endpoint failed: %s", err)
 	}
@@ -148,17 +147,13 @@ func DestroyGatewayClient() {
 }
 
 func mustGetGatewayCloudEventsEndpoint(cmd *cobra.Command) string {
-	//res, err := client.ClusterInfo(context.Background(), &emptypb.Empty{})
-	//if err != nil {
-	//	cmdFailedf(cmd, "get cloudevents endpoint failed: %s", err)
-	//}
 	sp := strings.Split(mustGetGatewayEndpoint(cmd), ":")
 	v, _ := strconv.ParseInt(sp[1], 10, 64)
 	return fmt.Sprintf("%s:%d", sp[0], v+1)
 }
 
 func mustGetGatewayEndpoint(cmd *cobra.Command) string {
-	endpoint, err := cmd.Flags().GetString("endpoint")
+	endpoint, err := getGatewayEndpoint()
 	if err != nil {
 		cmdFailedf(cmd, "get gateway endpoint failed: %s", err)
 	}

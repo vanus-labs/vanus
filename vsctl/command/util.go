@@ -93,6 +93,17 @@ func operatorIsDeployed(cmd *cobra.Command, endpoint string) bool {
 	return true
 }
 
+func getGatewayEndpoint() (string, error) {
+	if os.Getenv("VANUS_GATEWAY") != "" {
+		return os.Getenv("VANUS_GATEWAY"), nil
+	}
+	hostname, err := exec.Command("bash", "-c", "kubectl -n vanus get svc vanus-gateway -o jsonpath='{.status.loadBalancer.ingress[*].hostname}'").Output()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s:%d", strings.Trim(string(hostname), "\n"), DefaultGatewayPort), nil
+}
+
 func getOperatorEndpoint() (string, error) {
 	if os.Getenv("VANUS_OPERATOR") != "" {
 		return os.Getenv("VANUS_OPERATOR"), nil

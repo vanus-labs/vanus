@@ -585,10 +585,6 @@ func scaleStoreReplicas() *cobra.Command {
 				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 			}
 
-			if storeReplicas == 0 {
-				cmdFailedf(cmd, "the --replicas flag MUST be set")
-			}
-
 			client := &http.Client{}
 			url := fmt.Sprintf("%s%s%s/cluster", HttpPrefix, operatorEndpoint, BaseUrl)
 			annotations := make(map[string]string)
@@ -645,6 +641,7 @@ func scaleStoreReplicas() *cobra.Command {
 		},
 	}
 	cmd.Flags().Int32Var(&storeReplicas, "replicas", 0, "the replicas of store")
+	cobra.MarkFlagRequired(cmd.Flags(), "replicas")
 	return cmd
 }
 
@@ -656,10 +653,6 @@ func scaleTriggerReplicas() *cobra.Command {
 			operatorEndpoint, err := getOperatorEndpoint()
 			if err != nil {
 				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
-			}
-
-			if triggerReplicas == 0 {
-				cmdFailedf(cmd, "the --replicas flag MUST be set")
 			}
 
 			client := &http.Client{}
@@ -718,6 +711,7 @@ func scaleTriggerReplicas() *cobra.Command {
 		},
 	}
 	cmd.Flags().Int32Var(&triggerReplicas, "replicas", 0, "the replicas of trigger")
+	cobra.MarkFlagRequired(cmd.Flags(), "replicas")
 	return cmd
 }
 

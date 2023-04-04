@@ -257,10 +257,6 @@ func uninstallConnectorCommand() *cobra.Command {
 				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 			}
 
-			if name == "" {
-				cmdFailedf(cmd, "the --name flag MUST be set")
-			}
-
 			client := &http.Client{}
 			url := fmt.Sprintf("%s%s%s/connectors/%s", HttpPrefix, operatorEndpoint, BaseUrl, name)
 			req, err := http.NewRequest("DELETE", url, &bytes.Reader{})
@@ -310,6 +306,7 @@ func uninstallConnectorCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "connector name")
+	cobra.MarkFlagRequired(cmd.Flags(), "name")
 	return cmd
 }
 
@@ -397,10 +394,6 @@ func getConnectorCommand() *cobra.Command {
 				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 			}
 
-			if name == "" {
-				cmdFailedf(cmd, "the --name flag MUST be set")
-			}
-
 			client := &http.Client{}
 			url := fmt.Sprintf("%s%s%s/connectors/%s", HttpPrefix, operatorEndpoint, BaseUrl, name)
 			req, err := http.NewRequest("GET", url, &bytes.Reader{})
@@ -459,6 +452,7 @@ func getConnectorCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "connector name")
+	cobra.MarkFlagRequired(cmd.Flags(), "name")
 	return cmd
 }
 
