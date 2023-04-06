@@ -260,7 +260,7 @@ func getSubscriptionConfig(cmd *cobra.Command, config *meta.SubscriptionConfig) 
 			if err != nil {
 				cmdFailedf(cmd, "consumer from time format is invalid: %s", err)
 			}
-			ts := uint64(t.Unix())
+			ts := uint64(t.UnixMilli())
 			config.OffsetTimestamp = &ts
 			config.OffsetType = meta.SubscriptionConfig_TIMESTAMP
 		}
@@ -515,12 +515,16 @@ func resetOffsetCommand() *cobra.Command {
 			if err != nil {
 				cmdFailedWithHelpNotice(cmd, fmt.Sprintf("invalid subscription id: %s\n", err.Error()))
 			}
-			if offsetTimestamp == 0 {
-				cmdFailedf(cmd, "reset offset timestamp must gt 0")
+			if from == "" {
+				cmdFailedf(cmd, "reset offset timestamp")
+			}
+			t, err := time.Parse(time.RFC3339, from)
+			if err != nil {
+				cmdFailedf(cmd, fmt.Sprintf("failed to parse time, time format must be RFC3339"))
 			}
 			res, err := client.ResetOffsetToTimestamp(context.Background(), &ctrlpb.ResetOffsetToTimestampRequest{
 				SubscriptionId: id.Uint64(),
-				Timestamp:      offsetTimestamp,
+				Timestamp:      uint64(t.UnixMilli()),
 			})
 			if err != nil {
 				cmdFailedf(cmd, "reset offset subscription failed: %s", Error(err))
@@ -544,7 +548,7 @@ func resetOffsetCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&idStr, "id", "", "subscription id to disable")
-	cmd.Flags().Uint64Var(&offsetTimestamp, "timestamp", 0, "reset offset to UTC second")
+	cmd.Flags().StringVar(&from, "time", "", "reset offset to time, format is RFC3339")
 	return cmd
 }
 

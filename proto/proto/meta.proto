@@ -175,6 +175,7 @@ message SubscriptionConfig {
     TIMESTAMP = 2;
   }
   OffsetType offset_type = 2;
+  // utc time milliseconds
   optional uint64 offset_timestamp = 3;
   // delivery timeout, unit milliseconds
   uint32 delivery_timeout = 4;
