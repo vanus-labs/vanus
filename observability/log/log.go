@@ -16,6 +16,7 @@ package log
 
 import (
 	"context"
+	"io"
 	"os"
 	"strings"
 
@@ -39,8 +40,15 @@ func init() {
 	default:
 		lvl = zerolog.WarnLevel
 	}
-	lg = zerolog.New(os.Stdout).Output(zerolog.NewConsoleWriter()).
-		Level(lvl).With().Timestamp().Caller().Logger()
+	lg = zerolog.New(zerolog.NewConsoleWriter()).With().Timestamp().Caller().Logger().Level(lvl)
+}
+
+func SetOutput(w io.Writer) {
+	lg = lg.Output(w)
+}
+
+func With() zerolog.Context {
+	return lg.With()
 }
 
 func Debug(_ ...context.Context) *zerolog.Event {
