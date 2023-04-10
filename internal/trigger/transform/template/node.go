@@ -15,11 +15,10 @@
 package template
 
 import (
-	"errors"
-
 	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
 	"github.com/vanus-labs/vanus/internal/trigger/util"
 	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
 type NodeType int
@@ -142,7 +141,7 @@ func (t *eventDataNode) Value(ceCtx *context.EventContext) (interface{}, bool) {
 	}
 	v, err := util.LookupData(ceCtx.Data, EventArgPrefix+t.path)
 	if err != nil {
-		if errors.Is(err, util.ErrKeyNotFound) {
+		if errors.Is(err, errors.ErrJSONPathNotExist) {
 			return nil, false
 		}
 		log.Info().Err(err).

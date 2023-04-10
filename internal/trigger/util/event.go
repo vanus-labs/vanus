@@ -22,9 +22,9 @@ import (
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/ohler55/ojg/jp"
-	"github.com/ohler55/ojg/oj"
 	"github.com/pkg/errors"
+
+	"github.com/vanus-labs/vanus/pkg/util"
 )
 
 // LookupAttribute lookup event attribute value by attribute name.
@@ -62,25 +62,14 @@ func LookupData(data interface{}, path string) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	p, err := jp.ParseString(path)
+	obj, err := util.ParseJSON(d)
 	if err != nil {
 		return nil, err
 	}
-	obj, err := oj.Parse(d)
-	if err != nil {
-		return nil, err
-	}
-	res := p.Get(obj)
-	if len(res) == 0 {
-		return nil, ErrKeyNotFound
-	} else if len(res) == 1 {
-		return res[0], nil
-	}
-	return res, nil
+	return util.GetJSONValue(obj, path)
 }
 
 var (
-	ErrKeyNotFound          = fmt.Errorf("data key not found")
 	errValueIsNil           = fmt.Errorf("value is nil")
 	errAttributeValue       = fmt.Errorf("attribute value is invalid")
 	errDeleteAttrNotSupport = fmt.Errorf("delete attribute not support")
