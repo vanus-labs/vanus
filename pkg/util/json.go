@@ -30,12 +30,12 @@ func ParseJSON(b []byte) (interface{}, error) {
 func GetJSONValue(data interface{}, path string) (interface{}, error) {
 	p, err := jp.ParseString(path)
 	if err != nil {
-		return nil, errors.ErrParseJSONPath.WithMessage(fmt.Sprintf("json path %s invalid", path)).Wrap(err)
+		return nil, errors.ErrInvalidJSONPath.WithMessage(fmt.Sprintf("json path %s invalid", path)).Wrap(err)
 	}
 	res := p.Get(data)
 	switch len(res) {
 	case 0:
-		return nil, errors.ErrJSONPathNoExist
+		return nil, errors.ErrJSONPathNotExist
 	case 1:
 		return res[0], nil
 	default:

@@ -213,10 +213,10 @@ func stringValue(value interface{}) (string, error) {
 func intValue(value interface{}) (int64, error) {
 	reflectValue := reflect.ValueOf(value)
 	switch {
-	case reflectValue.CanFloat():
-		return int64(reflectValue.Float()), nil
 	case reflectValue.CanInt():
 		return reflectValue.Int(), nil
+	case reflectValue.CanFloat():
+		return int64(reflectValue.Float()), nil
 	case reflectValue.CanUint():
 		return int64(reflectValue.Uint()), nil
 	case reflectValue.Kind() == reflect.String:
@@ -230,12 +230,12 @@ func intValue(value interface{}) (int64, error) {
 func uintValue(value interface{}) (uint64, error) {
 	reflectValue := reflect.ValueOf(value)
 	switch {
+	case reflectValue.CanUint():
+		return reflectValue.Uint(), nil
 	case reflectValue.CanFloat():
 		return uint64(reflectValue.Float()), nil
 	case reflectValue.CanInt():
 		return uint64(reflectValue.Int()), nil
-	case reflectValue.CanUint():
-		return reflectValue.Uint(), nil
 	case reflectValue.Kind() == reflect.String:
 		v, err := strconv.ParseUint(value.(string), 10, 64)
 		return v, err

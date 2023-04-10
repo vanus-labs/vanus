@@ -106,7 +106,7 @@ func (arg eventData) Original() string {
 func (arg eventData) Evaluate(ceCtx *context.EventContext) (interface{}, error) {
 	v, err := util.LookupData(ceCtx.Data, EventArgPrefix+arg.path)
 	if err != nil {
-		if errors.Is(err, errors.ErrJSONPathNoExist) {
+		if errors.Is(err, errors.ErrJSONPathNotExist) {
 			return nil, ErrArgValueNil
 		}
 		return nil, err

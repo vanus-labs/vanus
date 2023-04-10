@@ -141,7 +141,7 @@ func (t *eventDataNode) Value(ceCtx *context.EventContext) (interface{}, bool) {
 	}
 	v, err := util.LookupData(ceCtx.Data, EventArgPrefix+t.path)
 	if err != nil {
-		if errors.Is(err, errors.ErrJSONPathNoExist) {
+		if errors.Is(err, errors.ErrJSONPathNotExist) {
 			return nil, false
 		}
 		log.Info().Err(err).
