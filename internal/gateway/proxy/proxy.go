@@ -815,7 +815,7 @@ func (cp *ControllerProxy) ValidateSubscription(
 	e := v2.NewEvent()
 	if err := e.UnmarshalJSON(req.GetEvent()); err != nil {
 		return nil, errors.ErrInvalidRequest.WithMessage(
-			"failed to unmarshall event to CloudEvent").Wrap(err)
+			"failed to unmarshal event to CloudEvent").Wrap(err)
 	}
 
 	if req.GetSubscription() == nil {
@@ -829,7 +829,11 @@ func (cp *ControllerProxy) ValidateSubscription(
 		}
 	}
 
-	sub := convert.FromPbSubscriptionRequest(req.Subscription)
+	sub, err := convert.FromPbSubscriptionRequest(req.Subscription)
+	if err != nil {
+		return nil, errors.ErrInvalidRequest.WithMessage("invalid subscription").Wrap(err)
+	}
+
 	res := &proxypb.ValidateSubscriptionResponse{}
 	f := filter.GetFilter(sub.Filters)
 	r := f.Filter(e)
@@ -838,7 +842,10 @@ func (cp *ControllerProxy) ValidateSubscription(
 	}
 
 	res.FilterResult = true
-	t := transform.NewTransformer(sub.Transformer)
+	t, err := transform.NewTransformer(sub.Transformer)
+	if err != nil {
+		return nil, errors.ErrInvalidRequest.WithMessage("bad transformer").Wrap(err)
+	}
 	if t != nil {
 		if err := t.Execute(&e); err != nil {
 			return nil, errors.ErrTransformInputParse.Wrap(err)

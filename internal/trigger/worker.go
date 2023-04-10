@@ -52,8 +52,7 @@ const (
 	defaultHeartbeatInterval = 2 * time.Second
 )
 
-type newTrigger func(subscription *primitive.Subscription,
-	options ...trigger.Option) trigger.Trigger
+type newTrigger func(subscription *primitive.Subscription, options ...trigger.Option) (trigger.Trigger, error)
 
 type worker struct {
 	triggerMap map[vanus.ID]trigger.Trigger
@@ -164,8 +163,11 @@ func (w *worker) AddSubscription(ctx context.Context, subscription *primitive.Su
 		err := t.Change(ctx, subscription)
 		return err
 	}
-	t = w.newTrigger(subscription, w.getTriggerOptions(subscription)...)
-	err := t.Init(ctx)
+	t, err := w.newTrigger(subscription, w.getTriggerOptions(subscription)...)
+	if err != nil {
+		return err
+	}
+	err = t.Init(ctx)
 	if err != nil {
 		return err
 	}

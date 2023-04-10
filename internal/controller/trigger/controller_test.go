@@ -358,8 +358,9 @@ func TestController_UpdateSubscription(t *testing.T) {
 					Name:        "test-name",
 					Sink:        "test-sink",
 					Transformer: &metapb.Transformer{
-						Define:   map[string]string{"k": "v"},
-						Template: "test",
+						Define:       map[string]string{"k": "v"},
+						Template:     "test",
+						TemplateType: metapb.TemplateType_TEMPLATE_TYPE_TEXT,
 					},
 				},
 			}

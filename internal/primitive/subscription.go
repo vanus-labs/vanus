@@ -15,9 +15,11 @@
 package primitive
 
 import (
+	// standard libraries.
 	"encoding/json"
 	"fmt"
 
+	// this project.
 	"github.com/vanus-labs/vanus/internal/primitive/info"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
@@ -116,10 +118,44 @@ func (l SubscriptionFilterList) String() string {
 	return string(b)
 }
 
+type TemplateType string
+
+const (
+	TemplateTypeUnspecified TemplateType = ""
+	TemplateTypeNone        TemplateType = "none"
+	TemplateTypeText        TemplateType = "text"
+	TemplateTypeJSON        TemplateType = "json"
+)
+
+type TemplateConfig struct {
+	Type     TemplateType `json:"template_type,omitempty"`
+	Template string       `json:"template,omitempty"`
+}
+
+func (tc *TemplateConfig) RecognizeTemplateType() (TemplateType, bool) {
+	switch tc.Type {
+	case TemplateTypeUnspecified:
+		// Compatible with v0.8.0 and below.
+		if tc.Template == "" {
+			return TemplateTypeNone, true
+		}
+		switch tc.Template[0] {
+		case '{', '[', '"':
+			return TemplateTypeJSON, true
+		default:
+			return TemplateTypeText, true
+		}
+	case TemplateTypeNone, TemplateTypeText, TemplateTypeJSON:
+		return tc.Type, true
+	default:
+		return TemplateTypeText, false // unreachable
+	}
+}
+
 type Transformer struct {
 	Define   map[string]string `json:"define,omitempty"`
 	Pipeline []*Action         `json:"pipeline,omitempty"`
-	Template string            `json:"template,omitempty"`
+	Template TemplateConfig    `json:",inline"`
 }
 
 func (t *Transformer) String() string {
@@ -134,7 +170,8 @@ func (t *Transformer) Exist() bool {
 	if t == nil {
 		return false
 	}
-	if t.Template == "" && len(t.Pipeline) == 0 {
+	tt, _ := t.Template.RecognizeTemplateType()
+	if tt == TemplateTypeNone && len(t.Pipeline) == 0 {
 		return false
 	}
 	return true

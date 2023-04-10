@@ -15,6 +15,7 @@
 package trigger
 
 import (
+	// standard libraries.
 	"context"
 	stdErr "errors"
 	"fmt"
@@ -24,10 +25,21 @@ import (
 	"sync"
 	"time"
 
+	// third-party libraries.
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	// first-party libraries.
 	eb "github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	"github.com/vanus-labs/vanus/pkg/errors"
+	"github.com/vanus-labs/vanus/pkg/util"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+
+	// this project.
 	"github.com/vanus-labs/vanus/internal/controller/member"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/vanus-labs/vanus/internal/controller/trigger/secret"
@@ -38,13 +50,6 @@ import (
 	"github.com/vanus-labs/vanus/internal/convert"
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/observability/metrics"
-	"github.com/vanus-labs/vanus/pkg/cluster"
-	"github.com/vanus-labs/vanus/pkg/errors"
-	"github.com/vanus-labs/vanus/pkg/util"
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
-	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 )
 
 var _ ctrlpb.TriggerControllerServer = &controller{}
@@ -170,30 +175,39 @@ func (ctrl *controller) CreateSubscription(
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
+
 	err := validation.ValidateSubscriptionRequest(ctx, request.Subscription)
 	if err != nil {
-		log.Info(ctx).Err(err).Msg("create subscription validate fail")
+		log.Info(ctx).Err(err).Msg("Invalid subscription.")
 		return nil, err
 	}
-	sub := convert.FromPbSubscriptionRequest(request.Subscription)
+	sub, err := convert.FromPbSubscriptionRequest(request.Subscription)
+	if err != nil {
+		log.Info(ctx).Err(err).Msg("Invalid subscription.")
+		return nil, errors.ErrInvalidRequest.WithMessage(err.Error())
+	}
+
 	sub.ID, err = vanus.NewID()
-	sub.CreatedAt = time.Now()
-	sub.UpdatedAt = time.Now()
 	if err != nil {
 		return nil, err
 	}
+	sub.CreatedAt = time.Now()
+	sub.UpdatedAt = time.Now()
 	if request.Subscription.Disable {
 		sub.Phase = metadata.SubscriptionPhaseStopped
 	} else {
 		sub.Phase = metadata.SubscriptionPhaseCreated
 	}
+
 	err = ctrl.subscriptionManager.AddSubscription(ctx, sub)
 	if err != nil {
 		return nil, err
 	}
+
 	if !request.Subscription.Disable {
 		ctrl.scheduler.EnqueueNormalSubscription(sub.ID)
 	}
+
 	resp := convert.ToPbSubscription(sub, nil)
 	return resp, nil
 }
@@ -204,6 +218,7 @@ func (ctrl *controller) UpdateSubscription(
 	if ctrl.state != primitive.ServerStateRunning {
 		return nil, errors.ErrServerNotStart
 	}
+
 	subID := vanus.ID(request.Id)
 	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
 	if sub == nil {
@@ -213,30 +228,41 @@ func (ctrl *controller) UpdateSubscription(
 		return nil, errors.ErrResourceCanNotOp.WithMessage(
 			"subscription must be disabled can update")
 	}
+
 	if err := validation.ValidateSubscriptionRequest(ctx, request.Subscription); err != nil {
+		log.Info(ctx).Err(err).Msg("Invalid subscription.")
 		return nil, err
 	}
 	if request.Subscription.EventbusId != uint64(sub.EventbusID) {
 		return nil, errors.ErrInvalidRequest.WithMessage("can not change eventbus")
 	}
-	update := convert.FromPbSubscriptionRequest(request.Subscription)
+	update, err := convert.FromPbSubscriptionRequest(request.Subscription)
+	if err != nil {
+		log.Info(ctx).Err(err).Msg("Invalid subscription.")
+		return nil, errors.ErrInvalidRequest.WithMessage(err.Error())
+	}
+
 	transChange := 0
 	if !sub.Transformer.Exist() && update.Transformer.Exist() {
 		transChange = 1
 	} else if sub.Transformer.Exist() && !update.Transformer.Exist() {
 		transChange = -1
 	}
+
 	change := sub.Update(update)
 	if !change {
 		return nil, errors.ErrInvalidRequest.WithMessage("no change")
 	}
+
 	sub.UpdatedAt = time.Now()
 	if err := ctrl.subscriptionManager.UpdateSubscription(ctx, sub); err != nil {
 		return nil, err
 	}
+
 	if transChange != 0 {
 		metrics.SubscriptionTransformerGauge.WithLabelValues(sub.EventbusID.Key()).Add(float64(transChange))
 	}
+
 	resp := convert.ToPbSubscription(sub, nil)
 	return resp, nil
 }

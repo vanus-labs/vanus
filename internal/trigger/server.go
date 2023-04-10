@@ -15,20 +15,23 @@
 package trigger
 
 import (
+	// standard libraries.
 	"context"
 	"os"
 	"time"
 
+	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/errors"
-	pbtrigger "github.com/vanus-labs/vanus/proto/pkg/trigger"
+	triggerpb "github.com/vanus-labs/vanus/proto/pkg/trigger"
 
+	// this project.
 	"github.com/vanus-labs/vanus/internal/convert"
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
-var _ pbtrigger.TriggerWorkerServer = &server{}
+var _ triggerpb.TriggerWorkerServer = &server{}
 
 type server struct {
 	worker    Worker
@@ -37,7 +40,7 @@ type server struct {
 	startTime time.Time
 }
 
-func NewTriggerServer(config Config) pbtrigger.TriggerWorkerServer {
+func NewTriggerServer(config Config) triggerpb.TriggerWorkerServer {
 	s := &server{
 		config: config,
 		worker: NewWorker(config),
@@ -47,51 +50,55 @@ func NewTriggerServer(config Config) pbtrigger.TriggerWorkerServer {
 }
 
 func (s *server) Start(ctx context.Context,
-	_ *pbtrigger.StartTriggerWorkerRequest,
-) (*pbtrigger.StartTriggerWorkerResponse, error) {
+	_ *triggerpb.StartTriggerWorkerRequest,
+) (*triggerpb.StartTriggerWorkerResponse, error) {
 	log.Info(ctx).Msg("worker server start ")
 	if s.state == primitive.ServerStateRunning {
-		return &pbtrigger.StartTriggerWorkerResponse{}, nil
+		return &triggerpb.StartTriggerWorkerResponse{}, nil
 	}
 	err := s.worker.Start(ctx)
 	if err != nil {
 		return nil, err
 	}
 	s.state = primitive.ServerStateRunning
-	return &pbtrigger.StartTriggerWorkerResponse{}, nil
+	return &triggerpb.StartTriggerWorkerResponse{}, nil
 }
 
 func (s *server) Stop(ctx context.Context,
-	_ *pbtrigger.StopTriggerWorkerRequest,
-) (*pbtrigger.StopTriggerWorkerResponse, error) {
+	_ *triggerpb.StopTriggerWorkerRequest,
+) (*triggerpb.StopTriggerWorkerResponse, error) {
 	log.Info(ctx).Msg("worker server stop ")
 	s.stop(context.Background(), false)
 	os.Exit(1)
-	return &pbtrigger.StopTriggerWorkerResponse{}, nil
+	return &triggerpb.StopTriggerWorkerResponse{}, nil
 }
 
 func (s *server) AddSubscription(ctx context.Context,
-	request *pbtrigger.AddSubscriptionRequest,
-) (*pbtrigger.AddSubscriptionResponse, error) {
+	request *triggerpb.AddSubscriptionRequest,
+) (*triggerpb.AddSubscriptionResponse, error) {
 	log.Info(ctx).Msg("subscription add ")
 	if s.state != primitive.ServerStateRunning {
 		return nil, errors.ErrWorkerNotStart
 	}
-	subscription := convert.FromPbAddSubscription(request)
+	subscription, err := convert.FromPbAddSubscription(request)
+	if err != nil {
+		log.Warn(ctx).Err(err).Interface("request", request).Msg("Bad request.")
+		return nil, err
+	}
 	log.Info(ctx).Msg("subscription add info ")
-	err := s.worker.AddSubscription(ctx, subscription)
+	err = s.worker.AddSubscription(ctx, subscription)
 	if err != nil {
 		log.Error(ctx).Err(err).
 			Interface("subscription", subscription).
 			Msg("add subscription error ")
 		return nil, err
 	}
-	return &pbtrigger.AddSubscriptionResponse{}, nil
+	return &triggerpb.AddSubscriptionResponse{}, nil
 }
 
 func (s *server) RemoveSubscription(ctx context.Context,
-	request *pbtrigger.RemoveSubscriptionRequest,
-) (*pbtrigger.RemoveSubscriptionResponse, error) {
+	request *triggerpb.RemoveSubscriptionRequest,
+) (*triggerpb.RemoveSubscriptionResponse, error) {
 	log.Info(ctx).Msg("subscription remove ")
 	if s.state != primitive.ServerStateRunning {
 		return nil, errors.ErrWorkerNotStart
@@ -103,12 +110,12 @@ func (s *server) RemoveSubscription(ctx context.Context,
 			Msg("remove subscription error")
 		return nil, err
 	}
-	return &pbtrigger.RemoveSubscriptionResponse{}, nil
+	return &triggerpb.RemoveSubscriptionResponse{}, nil
 }
 
 func (s *server) PauseSubscription(ctx context.Context,
-	request *pbtrigger.PauseSubscriptionRequest,
-) (*pbtrigger.PauseSubscriptionResponse, error) {
+	request *triggerpb.PauseSubscriptionRequest,
+) (*triggerpb.PauseSubscriptionResponse, error) {
 	log.Info(ctx).Msg("subscription pause ")
 	if s.state != primitive.ServerStateRunning {
 		return nil, errors.ErrWorkerNotStart
@@ -120,12 +127,12 @@ func (s *server) PauseSubscription(ctx context.Context,
 			Msg("pause subscription error")
 		return nil, err
 	}
-	return &pbtrigger.PauseSubscriptionResponse{}, nil
+	return &triggerpb.PauseSubscriptionResponse{}, nil
 }
 
 func (s *server) ResumeSubscription(ctx context.Context,
-	request *pbtrigger.ResumeSubscriptionRequest,
-) (*pbtrigger.ResumeSubscriptionResponse, error) {
+	request *triggerpb.ResumeSubscriptionRequest,
+) (*triggerpb.ResumeSubscriptionResponse, error) {
 	log.Info(ctx).Msg("subscription resume ")
 	if s.state != primitive.ServerStateRunning {
 		return nil, errors.ErrWorkerNotStart
@@ -137,7 +144,7 @@ func (s *server) ResumeSubscription(ctx context.Context,
 			Msg("resume subscription error")
 		return nil, err
 	}
-	return &pbtrigger.ResumeSubscriptionResponse{}, nil
+	return &triggerpb.ResumeSubscriptionResponse{}, nil
 }
 
 func (s *server) Initialize(ctx context.Context) error {

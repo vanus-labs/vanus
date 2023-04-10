@@ -15,24 +15,30 @@
 package validation
 
 import (
+	// standard libraries.
 	"context"
 	"fmt"
 	"net/url"
 
+	// third-party libraries.
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	cesqlparser "github.com/cloudevents/sdk-go/sql/v2/parser"
 	"google.golang.org/api/idtoken"
 	"google.golang.org/api/option"
 
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	// this project.
 	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
+	// this project.
+	"github.com/vanus-labs/vanus/internal/convert"
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/cel"
 	"github.com/vanus-labs/vanus/internal/primitive/transform/arg"
 	"github.com/vanus-labs/vanus/internal/primitive/transform/runtime"
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	"github.com/vanus-labs/vanus/internal/trigger/transform"
 )
 
 func ValidateSubscriptionRequest(ctx context.Context, request *ctrlpb.SubscriptionRequest) error {
@@ -60,7 +66,6 @@ func ValidateSubscriptionRequest(ctx context.Context, request *ctrlpb.Subscripti
 	if err := validateSubscriptionConfig(ctx, request.Config); err != nil {
 		return err
 	}
-
 	return validateTransformer(ctx, request.Transformer)
 }
 
@@ -171,16 +176,17 @@ func validateTransformer(_ context.Context, transformer *metapb.Transformer) err
 	if transformer == nil {
 		return nil
 	}
-	if len(transformer.Define) > 0 {
+
+	if len(transformer.Define) != 0 {
 		for key, value := range transformer.Define {
-			_, err := arg.NewArg(value)
-			if err != nil {
+			if _, err := arg.NewArg(value); err != nil {
 				return errors.ErrInvalidRequest.WithMessage(
 					fmt.Sprintf("transformer define %s:%s is invalid:[%s]", key, value, err.Error()))
 			}
 		}
 	}
-	if len(transformer.Pipeline) > 0 {
+
+	if len(transformer.Pipeline) != 0 {
 		for n, a := range transformer.Pipeline {
 			commands := make([]interface{}, len(a.Command))
 			for i, command := range a.Command {
@@ -192,6 +198,27 @@ func validateTransformer(_ context.Context, transformer *metapb.Transformer) err
 			}
 		}
 	}
+
+	templateType, err := convert.FromPbTemplateType(transformer.TemplateType)
+	if err != nil {
+		return errors.ErrInvalidRequest.WithMessage(err.Error())
+	}
+	switch templateType {
+	case primitive.TemplateTypeUnspecified:
+		return errors.ErrInvalidRequest.WithMessage(
+			"bad transformer: not specified template type")
+	case primitive.TemplateTypeNone:
+	default:
+		// TODO(james.yin): avoid to compile template
+		_, err = transform.CompileTemplate(primitive.TemplateConfig{
+			Type:     templateType,
+			Template: transformer.Template,
+		})
+		if err != nil {
+			return errors.ErrInvalidRequest.WithMessage(err.Error())
+		}
+	}
+
 	return nil
 }
 

@@ -16,22 +16,26 @@
 package trigger
 
 import (
+	// standard libraries.
 	"context"
 	"encoding/json"
 	"reflect"
 	"sync"
 	"time"
 
+	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/panjf2000/ants/v2"
 	"go.uber.org/ratelimit"
 
+	// first-party libraries.
 	eb "github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/pkg/util"
 
+	// this project.
 	"github.com/vanus-labs/vanus/internal/primitive"
 	pInfo "github.com/vanus-labs/vanus/internal/primitive/info"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
@@ -98,7 +102,16 @@ type toSendEvent struct {
 	transform *ce.Event
 }
 
-func NewTrigger(subscription *primitive.Subscription, opts ...Option) Trigger {
+func NewTrigger(subscription *primitive.Subscription, opts ...Option) (Trigger, error) {
+	return newTrigger(subscription, opts...)
+}
+
+func newTrigger(subscription *primitive.Subscription, opts ...Option) (*trigger, error) {
+	trans, err := transform.NewTransformer(subscription.Transformer)
+	if err != nil {
+		return nil, err
+	}
+
 	t := &trigger{
 		stop:              func() {},
 		config:            defaultConfig(),
@@ -106,7 +119,7 @@ func NewTrigger(subscription *primitive.Subscription, opts ...Option) Trigger {
 		filter:            filter.GetFilter(subscription.Filters),
 		subscription:      subscription,
 		subscriptionIDStr: subscription.ID.String(),
-		transformer:       transform.NewTransformer(subscription.Transformer),
+		transformer:       trans,
 	}
 	if subscription.Protocol == primitive.GRPC {
 		t.batch = true
@@ -117,7 +130,7 @@ func NewTrigger(subscription *primitive.Subscription, opts ...Option) Trigger {
 	}
 	t.offsetManager = offset.NewSubscriptionOffset(subscription.ID, t.config.MaxUACKNumber, subscription.Offsets)
 	t.pool, _ = ants.NewPool(t.config.GoroutineSize)
-	return t
+	return t, nil
 }
 
 func (t *trigger) applyOptions(opts ...Option) {
@@ -138,9 +151,8 @@ func (t *trigger) getClient() client.EventClient {
 	return t.eventCli
 }
 
-func (t *trigger) changeTarget(sink primitive.URI,
-	protocol primitive.Protocol,
-	credential primitive.SinkCredential,
+func (t *trigger) changeTarget(
+	sink primitive.URI, protocol primitive.Protocol, credential primitive.SinkCredential,
 ) error {
 	eventCli := newEventClient(sink, protocol, credential)
 	t.lock.Lock()
@@ -173,7 +185,8 @@ func (t *trigger) getTransformer() *transform.Transformer {
 }
 
 func (t *trigger) changeTransformer(transformer *primitive.Transformer) {
-	trans := transform.NewTransformer(transformer)
+	// FIXME(james.yin): encounter error?
+	trans, _ := transform.NewTransformer(transformer)
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	t.transformer = trans
@@ -550,9 +563,11 @@ func (t *trigger) Init(ctx context.Context) error {
 	t.eventCli = newEventClient(t.subscription.Sink, t.subscription.Protocol, t.subscription.SinkCredential)
 	t.client = eb.Connect(t.config.Controllers)
 
-	t.timerEventWriter = t.client.Eventbus(ctx, api.WithID(t.subscription.TimerEventbusID.Uint64())).Writer()
+	t.timerEventWriter = t.client.Eventbus(ctx, api.WithID(
+		t.subscription.TimerEventbusID.Uint64())).Writer()
 	if !t.config.DisableDeadLetter {
-		t.dlEventWriter = t.client.Eventbus(ctx, api.WithID(t.subscription.DeadLetterEventbusID.Uint64())).Writer()
+		t.dlEventWriter = t.client.Eventbus(ctx,
+			api.WithID(t.subscription.DeadLetterEventbusID.Uint64())).Writer()
 	}
 	t.eventCh = make(chan info.EventRecord, t.config.BufferSize)
 	t.sendCh = make(chan *toSendEvent, t.config.BufferSize)

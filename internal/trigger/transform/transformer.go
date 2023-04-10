@@ -15,38 +15,51 @@
 package transform
 
 import (
+	// standard libraries.
 	"encoding/json"
 	"errors"
 	"runtime"
 
+	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
+	"golang.org/x/exp/maps"
 
+	// this project.
 	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/internal/primitive/template"
+	jt "github.com/vanus-labs/vanus/internal/primitive/template/json"
+	tt "github.com/vanus-labs/vanus/internal/primitive/template/text"
 	"github.com/vanus-labs/vanus/internal/primitive/transform/context"
 	"github.com/vanus-labs/vanus/internal/trigger/transform/define"
 	"github.com/vanus-labs/vanus/internal/trigger/transform/pipeline"
-	"github.com/vanus-labs/vanus/internal/trigger/transform/template"
 )
 
 type Transformer struct {
 	define   *define.Define
 	pipeline *pipeline.Pipeline
-	template *template.Template
+	template template.Template
 }
 
-func NewTransformer(transformer *primitive.Transformer) *Transformer {
+func NewTransformer(transformer *primitive.Transformer) (*Transformer, error) {
 	if !transformer.Exist() {
-		return nil
+		return nil, nil //nolint:nilnil // nil is valid
 	}
+
 	tf := &Transformer{
 		define:   define.NewDefine(),
 		pipeline: pipeline.NewPipeline(),
-		template: template.NewTemplate(),
 	}
+
 	tf.define.Parse(transformer.Define)
 	tf.pipeline.Parse(transformer.Pipeline)
-	tf.template.Parse(transformer.Template)
-	return tf
+
+	t, err := CompileTemplate(transformer.Template)
+	if err != nil {
+		return nil, err
+	}
+	tf.template = t
+
+	return tf, nil
 }
 
 func (tf *Transformer) Execute(event *ce.Event) (err error) {
@@ -64,24 +77,77 @@ func (tf *Transformer) Execute(event *ce.Event) (err error) {
 	if err != nil {
 		return err
 	}
+
 	ceCtx := &context.EventContext{
 		Event: event,
 		Data:  data,
 	}
+
 	defineValue, err := tf.define.EvaluateValue(ceCtx)
 	if err != nil {
 		return err
 	}
 	ceCtx.Define = defineValue
+
 	err = tf.pipeline.Run(ceCtx)
 	if err != nil {
 		return err
 	}
-	if tf.template.Exist() {
-		d := tf.template.Execute(ceCtx)
+
+	if tf.template != nil {
+		model := buildTemplateModel(event, data)
+		d, _ := tf.template.Execute(model, defineValue)
+
 		event.DataEncoded = d
 		event.SetDataContentType(tf.template.ContentType())
 		return nil
 	}
+
 	return event.SetData(ce.ApplicationJSON, ceCtx.Data)
+}
+
+func buildTemplateModel(event *ce.Event, data any) map[string]any {
+	model := map[string]any{
+		"id":          event.ID(),
+		"source":      event.Source(),
+		"specversion": event.SpecVersion(),
+		"type":        event.Type(),
+	}
+	if dataContentType := event.DataContentType(); dataContentType != "" {
+		model["datacontenttype"] = dataContentType
+	}
+	if dataSchema := event.DataSchema(); dataSchema != "" {
+		model["dataschema"] = dataSchema
+	}
+	if subject := event.Subject(); subject != "" {
+		model["subject"] = subject
+	}
+	if time := event.Time(); !time.IsZero() {
+		model["time"] = time
+	}
+	if data != nil {
+		model["data"] = data
+	}
+	if exts := event.Extensions(); len(exts) > 0 {
+		maps.Copy(model, exts)
+	}
+	return model
+}
+
+func CompileTemplate(tc primitive.TemplateConfig) (t template.Template, err error) {
+	templateType, ok := tc.RecognizeTemplateType()
+	if !ok {
+		return nil, errors.New("unknown template type")
+	}
+
+	switch templateType {
+	case primitive.TemplateTypeNone:
+		return nil, nil
+	case primitive.TemplateTypeText:
+		return tt.Compile(tc.Template)
+	case primitive.TemplateTypeJSON:
+		return jt.Compile(tc.Template)
+	default:
+		return nil, errors.New("unsupported template type")
+	}
 }

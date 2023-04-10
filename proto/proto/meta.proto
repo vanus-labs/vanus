@@ -205,17 +205,25 @@ message OffsetInfo {
   uint64 eventlog_id = 2;
 }
 
+enum TemplateType {
+  TEMPLATE_TYPE_UNSPECIFIED = 0;
+  TEMPLATE_TYPE_NONE = 1;
+  TEMPLATE_TYPE_TEXT = 2;
+  TEMPLATE_TYPE_JSON = 3;
+}
+
 message Transformer {
   map<string, string> define = 1;
   string template = 2;
   repeated Action pipeline = 3;
+  TemplateType template_type = 4;
 }
 
 message Action {
   repeated google.protobuf.Value command = 1;
 }
 
-message User{
+message User {
   string identifier = 1;
   string description = 2;
   int64 created_at = 3;
@@ -235,7 +243,7 @@ message UserRole {
   string role_name = 2;
   uint64 resource_id = 3;
   string resource_kind = 4;
-  bool  built_in = 5 ;
+  bool built_in = 5;
   // for custom define role
   //  string role_id = 6;
   int64 created_at = 7;
@@ -246,7 +254,7 @@ message ResourceRole {
   string resource_kind = 2;
   string role_name = 3;
   string user_identifier = 4;
-  bool  built_in = 5 ;
+  bool built_in = 5;
   // for custom define role
   //  string role_id = 6;
   int64 created_at = 7;
