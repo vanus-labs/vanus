@@ -30,7 +30,7 @@ require (
 	github.com/sony/sonyflake v1.1.0
 	github.com/spf13/cobra v1.4.0
 	github.com/tidwall/gjson v1.14.1
-	github.com/vanus-labs/sdk/golang v0.4.3
+	github.com/vanus-labs/sdk/golang v0.4.4
 	github.com/vanus-labs/vanus/client v0.5.7
 	github.com/vanus-labs/vanus/observability v0.5.7
 	github.com/vanus-labs/vanus/pkg v0.5.7
@@ -53,10 +53,6 @@ require (
 	k8s.io/client-go v0.25.0
 	k8s.io/klog/v2 v2.80.0
 	k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed
-)
-
-replace (
-	github.com/vanus-labs/sdk/golang  => ../sdk/golang
 )
 
 require (
