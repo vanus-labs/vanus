@@ -8,7 +8,6 @@ RUN GOOS=linux GOARCH=amd64 go build -o bin/vanus-bench ./test/benchmark
 
 FROM ubuntu:latest
 
-COPY ./test/infra /vanus-bench
 COPY --from=builder /workspace/bin/vanus-bench /usr/bin/vanus-bench
 
 WORKDIR /vanus-bench

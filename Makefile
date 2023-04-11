@@ -41,9 +41,9 @@ docker-build-gateway:
 build-gateway:
 	$(GO_BUILD)  -o bin/gateway cmd/gateway/main.go
 
-docker-push-test-infra:
-	docker build -t ${DOCKER_REPO}/test-infra:${IMAGE_TAG} -f test/infra/Dockerfile .
-	docker push ${DOCKER_REPO}/test-infra:${IMAGE_TAG}
+docker-push-test-benchmark:
+	docker build -t ${DOCKER_REPO}/test-benchmark:${IMAGE_TAG} -f test/benchmark/deploy/Dockerfile .
+	docker push ${DOCKER_REPO}/test-benchmark:${IMAGE_TAG}
 
 docker-push-test-regression:
 	docker build -t ${DOCKER_REPO}/test-regression:${IMAGE_TAG} -f test/regression/Dockerfile .

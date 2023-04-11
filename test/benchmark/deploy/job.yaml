@@ -17,7 +17,7 @@ spec:
     spec:
       restartPolicy: Never
       containers:
-        - image: public.ecr.aws/vanus/test-infra:dev
+        - image: public.ecr.aws/vanus/test-benchmark:dev
           imagePullPolicy: Always
           name: vanus-bench-case1-c
           command: ["bash", "-c", "sleep 10000"]

@@ -1,13 +1,15 @@
 #!/bin/bash
 
-kubectl apply -f benchmark.yml
-kubectl apply -f secret.yml
+# prerequisite: install Vanus cluster first
+
+kubectl apply -f redis.yaml
+kubectl apply -f secret.yaml
 
 # wait to vanus is ready
-kubectl apply -f case1/job.yml
-kubectl apply -f case2/job.yml
+kubectl apply -f case1/job.yaml
+kubectl apply -f case2/job.yaml
 
-kubectl delete -f case1/job.yml
-kubectl delete -f case2/job.yml
-kubectl delete -f secret.yml
-kubectl delete -f benchmark.yml
+kubectl delete -f case1/job.yaml
+kubectl delete -f case2/job.yaml
+kubectl delete -f secret.yaml
+kubectl delete -f benchmark.yaml
