@@ -16,31 +16,19 @@ package command
 
 import (
 	"context"
-	"fmt"
-	"time"
-
 	"github.com/go-redis/redis/v8"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-
 	"github.com/vanus-labs/vanus/observability/log"
 )
 
 var (
-	rdb        *redis.Client
-	mgo        *mongo.Client
-	taskColl   *mongo.Collection
-	resultColl *mongo.Collection
-	taskID     primitive.ObjectID
+	rdb *redis.Client
 )
 
 const (
 	database = "vanus-benchmark"
 )
 
-func InitDatabase(redisAddr string, mongodb string, begin bool, withoutMongoDB bool) {
+func InitDatabase(redisAddr string) {
 	rdb = redis.NewClient(&redis.Options{
 		Addr: redisAddr,
 	})
@@ -49,73 +37,4 @@ func InitDatabase(redisAddr string, mongodb string, begin bool, withoutMongoDB b
 		panic("failed to connect redis: " + cmd.Err().Error())
 	}
 	log.Info().Str("addr", redisAddr).Msg("connect to redis success")
-
-	if withoutMongoDB {
-		return
-	}
-	cli, err := mongo.Connect(context.Background(), options.Client().ApplyURI(mongodb))
-	if err != nil {
-		panic("failed to connect mongodb: " + err.Error())
-	}
-
-	log.Info().Msg("connect to mongodb success")
-	mgo = cli
-	taskColl = cli.Database(database).Collection("tasks")
-	resultColl = cli.Database(database).Collection("results")
-	c, err := taskColl.Find(context.Background(), bson.M{
-		"running": true,
-	})
-	if err != nil {
-		panic("failed to count tasks: " + err.Error())
-	}
-	tasks := make([]*Task, 0)
-	for c.Next(context.Background()) {
-		t := &Task{}
-		_ = c.Decode(t)
-		tasks = append(tasks, t)
-	}
-
-	if begin {
-		if len(tasks) != 0 {
-			panic(fmt.Sprintf("invalid taks numbers: %d", len(tasks)))
-		}
-		t := &Task{
-			ID:       primitive.NewObjectID(),
-			CreateAt: time.Now(),
-			Running:  true,
-		}
-		_, err := taskColl.InsertOne(context.Background(), t)
-		if err != nil {
-			panic("failed to create task into mongodb: " + err.Error())
-		}
-		taskID = t.ID
-		log.Info().Str("task_id", taskID.Hex()).Msg("create a new task")
-	} else {
-		if len(tasks) != 1 {
-			panic(fmt.Sprintf("invalid taks numbers: %d", len(tasks)))
-		}
-		taskID = tasks[0].ID
-		log.Info().Str("task_id", taskID.Hex()).Msg("find a existed task")
-	}
-}
-
-func CloseDatabases(end bool) {
-	if end {
-		res, err := taskColl.UpdateMany(context.Background(), bson.M{
-			"running": true,
-		}, bson.M{
-			"$set": bson.M{
-				"running":      false,
-				"completed_at": time.Now(),
-			},
-		})
-		if err != nil {
-			log.Error().Err(err).Msg("failed to update task status")
-		}
-		log.Info().Str("task_id", taskID.Hex()).Int64("updated", res.ModifiedCount).Msg("update task status")
-	}
-	_ = rdb.Close()
-	if mgo != nil {
-		_ = mgo.Disconnect(context.Background())
-	}
 }

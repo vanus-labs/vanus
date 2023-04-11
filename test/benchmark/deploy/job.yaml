@@ -2,8 +2,8 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   labels:
-    app: vanus-bench-case1-c
-  name: vanus-bench-case1-c
+    app: vanus-benchmark
+  name: vanus-benchmark
   namespace: vanus
 spec:
   parallelism: 1
@@ -13,14 +13,14 @@ spec:
   template:
     metadata:
       labels:
-        app: vanus-bench-case1-c
+        app: vanus-benchmark
     spec:
       restartPolicy: Never
       containers:
-        - image: public.ecr.aws/vanus/test-benchmark:dev
+        - image: public.ecr.aws/vanus/test-benchmark:b99196c
           imagePullPolicy: Always
-          name: vanus-bench-case1-c
-          command: ["bash", "-c", "sleep 10000"]
+          name: vanus-benchmark
+          command: ["bash", "-c", "sleep 100000"]
           env:
             - name: CASE_NAME
               value: "case1"

@@ -15,7 +15,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/fatih/color"
@@ -31,50 +30,28 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	defaultMongoDBURI = "mongodb+srv://vanus:%s@cluster0.ywakulp.mongodb.net/?retryWrites=true&w=majority"
-	caseNames         = map[string]bool{
-		"e2e-1eventbus-1eventlog-1client-1parallelism":   true,
-		"e2e-1eventbus-1eventlog-1client-16parallelism":  true,
-		"e2e-1eventbus-16eventlog-1client-16parallelism": true,
-		"e2e-component-store-1replicas":                  true,
-		"e2e-component-store-3replicas":                  true,
-	}
-
-	name        string
-	endpoint    string
-	redisAddr   string
-	mongodbPass string
-	begin       bool
-	end         bool
-	withMongoDB bool
+	name      string
+	endpoint  string
+	redisAddr string
+	begin     bool
+	end       bool
 )
 
 func main() {
 	rootCmd.AddCommand(command.E2ECommand())
 	rootCmd.AddCommand(command.ComponentCommand())
 	rootCmd.PersistentPreRun = func(_ *cobra.Command, _ []string) {
-		command.InitDatabase(redisAddr, fmt.Sprintf(defaultMongoDBURI, mongodbPass), begin, withMongoDB)
+		command.InitDatabase(redisAddr)
 	}
-	rootCmd.PersistentPostRun = func(_ *cobra.Command, _ []string) {
-		command.CloseDatabases(end)
-	}
-
 	rootCmd.PersistentFlags().StringVar(&endpoint, "endpoint",
 		"127.0.0.1:8080", "the endpoints of vanus controller")
 	rootCmd.PersistentFlags().StringVar(&redisAddr, "redis-addr",
 		"127.0.0.1:6379", "address of redis")
-	rootCmd.PersistentFlags().StringVar(&defaultMongoDBURI, "mongodb-uri",
-		defaultMongoDBURI, "uri of mongo")
-	rootCmd.PersistentFlags().StringVar(&mongodbPass, "mongodb-password",
-		mongodbPass, "password for mongo")
 	rootCmd.PersistentFlags().StringVar(&name, "name", "", "task name")
-
 	rootCmd.PersistentFlags().BoolVar(&begin, "begin", false, "if the begin of a playbook")
 	rootCmd.PersistentFlags().BoolVar(&end, "end", false, "if the end of a playbook")
-	rootCmd.PersistentFlags().BoolVar(&withMongoDB, "without-mongodb", false, "if using mongodb")
-
 	if err := rootCmd.Execute(); err != nil {
-		color.Red("vsctl-bench run error: %s", err)
+		color.Red("vanus-bench run error: %s", err)
 		os.Exit(-1)
 	}
 }

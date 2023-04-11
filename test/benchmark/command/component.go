@@ -18,6 +18,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	v2 "github.com/cloudevents/sdk-go/v2"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"math/rand"
 	"net"
 	"net/http"
@@ -31,18 +33,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/timestamppb"
-
-	"github.com/vanus-labs/vanus/observability/log"
-	v1 "github.com/vanus-labs/vanus/proto/pkg/cloudevents"
-	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
-
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/internal/store"
 	"github.com/vanus-labs/vanus/internal/store/config"
 	"github.com/vanus-labs/vanus/internal/store/segment"
+	"github.com/vanus-labs/vanus/observability/log"
+	v1 "github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -269,7 +268,7 @@ func sendCommand() *cobra.Command {
 				for idx := 0; idx < parallelism; idx++ {
 					go func(br BlockRecord, c segpb.SegmentServerClient) {
 						for atomic.LoadInt64(&count)+atomic.LoadInt64(&failed) < totalSent {
-							events := generateEvents()
+							events := generateEventsRaw()
 							_, err := c.AppendToBlock(context.Background(), &segpb.AppendToBlockRequest{
 								BlockId: br.LeaderID,
 								Events:  &v1.CloudEventBatch{Events: events},
@@ -339,7 +338,7 @@ var (
 	mutex   sync.RWMutex
 )
 
-func generateEvents() []*v1.CloudEvent {
+func generateEventsRaw() []*v1.CloudEvent {
 	mutex.RLock()
 	defer mutex.RUnlock()
 	if payload == "" {
@@ -369,6 +368,31 @@ func generateEvents() []*v1.CloudEvent {
 		})
 	}
 	return e
+}
+
+func generateEvents() []*v2.Event {
+	mutex.RLock()
+	defer mutex.RUnlock()
+	if payload == "" {
+		mutex.RUnlock()
+		mutex.Lock()
+		if payload == "" {
+			payload = genStr(rd, payloadSize)
+		}
+		mutex.Unlock()
+		mutex.RLock()
+	}
+	var ee []*v2.Event
+	for idx := 0; idx < batchSize; idx++ {
+		e := v2.NewEvent()
+		e.SetID(uuid.NewString())
+		e.SetSource("performance.benchmark.vanus")
+		e.SetType("performance.benchmark.vanus")
+		e.SetExtension("time", time.Now().Format(time.RFC3339))
+		e.SetData(v2.TextPlain, payload)
+		ee = append(ee, &e)
+	}
+	return ee
 }
 
 func startMetrics() {

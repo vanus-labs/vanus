@@ -5,11 +5,10 @@
 kubectl apply -f redis.yaml
 kubectl apply -f secret.yaml
 
-# wait to vanus is ready
-kubectl apply -f case1/job.yaml
-kubectl apply -f case2/job.yaml
+kubectl apply -f job.yaml
 
-kubectl delete -f case1/job.yaml
-kubectl delete -f case2/job.yaml
+# run play.sh by hand
+
+kubectl delete -f job.yaml
 kubectl delete -f secret.yaml
-kubectl delete -f benchmark.yaml
+kubectl delete -f redis.yaml

@@ -41,9 +41,7 @@ import (
 	client "github.com/vanus-labs/sdk/golang"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -55,6 +53,7 @@ const (
 )
 
 var (
+	name         string
 	eventbusList []string
 	number       int64
 	parallelism  int
@@ -85,7 +84,7 @@ func runCommand() *cobra.Command {
 				panic("eventbus list is empty")
 			}
 
-			log.Info(context.Background()).Str("id", getBenchmarkID()).Msg("benchmark")
+			log.Info(context.Background()).Str("name", name).Msg("benchmark")
 
 			if clientProtocol == "grpc" {
 				sendWithGRPC(cmd)
@@ -94,6 +93,7 @@ func runCommand() *cobra.Command {
 			}
 		},
 	}
+	cmd.Flags().StringVar(&name, "name", "default", "the task name")
 	cmd.Flags().StringArrayVar(&eventbusList, "eventbus", []string{}, "the eventbus name used to")
 	cmd.Flags().Int64Var(&number, "number", 100000, "the event number")
 	cmd.Flags().IntVar(&parallelism, "parallelism", 1, "")
@@ -111,42 +111,29 @@ func sendWithGRPC(cmd *cobra.Command) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	opts := []grpc.DialOption{
-		grpc.WithBlock(),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	}
-
 	var success int64
 	wg := sync.WaitGroup{}
 	latency := hdrhistogram.New(1, 1000000, 10000)
 	c, err := client.Connect(&client.ClientOptions{
 		Endpoint: endpoint,
+		Token:    "admin",
 	})
 	if err != nil {
 		panic("failed to connect to Vanus")
 	}
 
 	for _, eb := range eventbusList {
-		md, err := c.Controller().Eventbus().Get(ctx, client.WithEventbus("default", eb))
 		if err != nil {
 			panic("failed to get eventbus")
 		}
 		for idx := 0; idx < parallelism; idx++ {
 			wg.Add(1)
 			go func() {
-				conn, err := grpc.DialContext(ctx, endpoint, opts...)
-				if err != nil {
-					cmdFailedf(cmd, "failed to connect to gateway")
-				}
-				batchClient := cloudevents.NewCloudEventsClient(conn)
+				sender := c.Publisher(client.WithEventbus("default", eb))
 				for atomic.LoadInt64(&success) < number {
 					s := time.Now()
 					events := generateEvents()
-					_, err := batchClient.Send(context.Background(), &cloudevents.BatchEvent{
-						Events:     &cloudevents.CloudEventBatch{Events: events},
-						EventbusId: md.Id,
-					})
-					if err != nil {
+					if err := sender.Publish(ctx, events...); err != nil {
 						log.Warn(ctx).Err(err).Msg("failed to send events")
 					} else {
 						atomic.AddInt64(&success, int64(len(events)))
@@ -309,7 +296,7 @@ func saveTPS(m map[int]int, t string) {
 }
 
 func getTPSKey(t string) string {
-	return path.Join(redisKey, fmt.Sprintf("tps-%s", t), getBenchmarkID())
+	return path.Join(redisKey, fmt.Sprintf("tps-%s", t), name)
 }
 
 func send(c ce.Client, target string) (bool, error) {
@@ -359,7 +346,7 @@ func receiveCommand() *cobra.Command {
 
 			cloudevents.RegisterCloudEventsServer(grpcServer, &testReceiver{})
 
-			log.Info().Str("benchmark_id", getBenchmarkID()).Msg("the receiver ready to work")
+			log.Info().Str("name", name).Msg("the receiver ready to work")
 			err = grpcServer.Serve(ls)
 			if err != nil {
 				log.Error().Err(err).Msg("grpc server occurred an error")
@@ -417,20 +404,6 @@ func analyseCommand() *cobra.Command {
 				fmt.Printf("Latency Max: %d %s, Latency Min: %d %s\n", his.Max(), unit, his.Min(), unit)
 				fmt.Println()
 
-				r := &BenchmarkResult{
-					ID:       primitive.NewObjectID(),
-					TaskID:   taskID,
-					RType:    ResultLatency,
-					Values:   result,
-					Mean:     his.Mean(),
-					Stdev:    his.StdDev(),
-					CreateAt: time.Now(),
-				}
-				_, err := resultColl.InsertOne(context.Background(), r)
-				if err != nil {
-					log.Error().Err(err).Msg("failed to save latency result to mongodb")
-				}
-
 				tps := hdrhistogram.New(1, 100000, 50)
 
 				cmd := rdb.Get(context.Background(), getTPSKey(benchType))
@@ -458,28 +431,14 @@ func analyseCommand() *cobra.Command {
 				fmt.Printf("TPS StdDev: %.2f\n", tps.StdDev())
 				fmt.Printf("TPS Max: %d, TPS Min: %d\n", tps.Max(), tps.Min())
 
-				r = &BenchmarkResult{
-					ID:       primitive.NewObjectID(),
-					TaskID:   taskID,
-					RType:    ResultThroughput,
-					Values:   result,
-					Mean:     tps.Mean(),
-					Stdev:    tps.StdDev(),
-					CreateAt: time.Now(),
-				}
-				_, err = resultColl.InsertOne(context.Background(), r)
-				if err != nil {
-					log.Error().Err(err).Msg("failed to save latency result to mongodb")
-				}
-
 				wg.Done()
 			}
 			dataKey := ""
 			if benchType == "produce" {
-				dataKey = path.Join(redisKey, "send", getBenchmarkID())
+				dataKey = path.Join(redisKey, "send", name)
 				go analyseProduction(ch, f)
 			} else {
-				dataKey = path.Join(redisKey, "receive", getBenchmarkID())
+				dataKey = path.Join(redisKey, "receive", name)
 				go analyseConsumption(ch, f)
 			}
 			ctx := context.Background()
@@ -648,10 +607,3 @@ func cmdFailedf(cmd *cobra.Command, format string, a ...interface{}) {
 }
 
 var tmpID = uuid.NewString()
-
-func getBenchmarkID() string {
-	if taskID.IsZero() {
-		return tmpID
-	}
-	return taskID.Hex()
-}

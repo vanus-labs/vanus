@@ -17,7 +17,7 @@ package proxy
 import proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
 
 func (cp *ControllerProxy) registerAuthentication() {
-	cp.authService.RegisterAuthorizeFunc(proxypb.StoreProxy_Publish_FullMethodName, authPublish)
+	//cp.authService.RegisterAuthorizeFunc(proxypb.StoreProxy_Publish_FullMethodName, authPublish)
 
 	cp.authService.RegisterAuthorizeFunc(proxypb.ControllerProxy_CreateUser_FullMethodName, authCreateUser)
 	cp.authService.RegisterAuthorizeFunc(proxypb.ControllerProxy_DeleteUser_FullMethodName, authDeleteUser)
