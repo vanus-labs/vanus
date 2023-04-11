@@ -48,9 +48,7 @@ func InitDatabase(redisAddr string, mongodb string, begin bool, withoutMongoDB b
 	if cmd.Err() != nil {
 		panic("failed to connect redis: " + cmd.Err().Error())
 	}
-	log.Info(nil, "connect to redis success", map[string]interface{}{
-		"addr": redisAddr,
-	})
+	log.Info().Str("addr", redisAddr).Msg("connect to redis success")
 
 	if withoutMongoDB {
 		return
@@ -59,7 +57,8 @@ func InitDatabase(redisAddr string, mongodb string, begin bool, withoutMongoDB b
 	if err != nil {
 		panic("failed to connect mongodb: " + err.Error())
 	}
-	log.Info(nil, "connect to mongodb success", nil)
+
+	log.Info().Msg("connect to mongodb success")
 	mgo = cli
 	taskColl = cli.Database(database).Collection("tasks")
 	resultColl = cli.Database(database).Collection("results")
@@ -90,17 +89,13 @@ func InitDatabase(redisAddr string, mongodb string, begin bool, withoutMongoDB b
 			panic("failed to create task into mongodb: " + err.Error())
 		}
 		taskID = t.ID
-		log.Info(nil, "create a new task", map[string]interface{}{
-			"task_id": taskID.Hex(),
-		})
+		log.Info().Str("task_id", taskID.Hex()).Msg("create a new task")
 	} else {
 		if len(tasks) != 1 {
 			panic(fmt.Sprintf("invalid taks numbers: %d", len(tasks)))
 		}
 		taskID = tasks[0].ID
-		log.Info(nil, "find a existed task", map[string]interface{}{
-			"task_id": taskID.Hex(),
-		})
+		log.Info().Str("task_id", taskID.Hex()).Msg("find a existed task")
 	}
 }
 
@@ -115,13 +110,9 @@ func CloseDatabases(end bool) {
 			},
 		})
 		if err != nil {
-			log.Error(nil, "failed to update task status", map[string]interface{}{
-				Err(err).
-			})
+			log.Error().Err(err).Msg("failed to update task status")
 		}
-		log.Info(nil, "task is completed", map[string]interface{}{
-			"task_id": res.UpsertedID,
-		})
+		log.Info().Str("task_id", taskID.Hex()).Int64("updated", res.ModifiedCount).Msg("update task status")
 	}
 	_ = rdb.Close()
 	if mgo != nil {

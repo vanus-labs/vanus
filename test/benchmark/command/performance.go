@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vanus-labs/vanus/observability/log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -39,13 +38,13 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
+	client "github.com/vanus-labs/sdk/golang"
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
-
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 )
 
 const (
@@ -86,9 +85,7 @@ func runCommand() *cobra.Command {
 				panic("eventbus list is empty")
 			}
 
-			log.Info(context.Background(), "benchmark", map[string]interface{}{
-				"id": getBenchmarkID(),
-			})
+			log.Info(context.Background()).Str("id", getBenchmarkID()).Msg("benchmark")
 
 			if clientProtocol == "grpc" {
 				sendWithGRPC(cmd)
@@ -122,7 +119,18 @@ func sendWithGRPC(cmd *cobra.Command) {
 	var success int64
 	wg := sync.WaitGroup{}
 	latency := hdrhistogram.New(1, 1000000, 10000)
+	c, err := client.Connect(&client.ClientOptions{
+		Endpoint: endpoint,
+	})
+	if err != nil {
+		panic("failed to connect to Vanus")
+	}
+
 	for _, eb := range eventbusList {
+		md, err := c.Controller().Eventbus().Get(ctx, client.WithEventbus("default", eb))
+		if err != nil {
+			panic("failed to get eventbus")
+		}
 		for idx := 0; idx < parallelism; idx++ {
 			wg.Add(1)
 			go func() {
@@ -135,13 +143,11 @@ func sendWithGRPC(cmd *cobra.Command) {
 					s := time.Now()
 					events := generateEvents()
 					_, err := batchClient.Send(context.Background(), &cloudevents.BatchEvent{
-						EventbusName: eb,
-						Events:       &cloudevents.CloudEventBatch{Events: events},
+						Events:     &cloudevents.CloudEventBatch{Events: events},
+						EventbusId: md.Id,
 					})
 					if err != nil {
-						log.Warn(context.Background(), "failed to send events", map[string]interface{}{
-							Err(err).
-						})
+						log.Warn(ctx).Err(err).Msg("failed to send events")
 					} else {
 						atomic.AddInt64(&success, int64(len(events)))
 						if err := latency.RecordValue(time.Now().Sub(s).Microseconds()); err != nil {
@@ -165,7 +171,7 @@ func sendWithGRPC(cmd *cobra.Command) {
 		defer func() {
 			tick.Stop()
 			tps := success - prev
-			log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", success, tps), nil)
+			log.Info().Msg(fmt.Sprintf("Sent: %d, TPS: %d\n", success, tps))
 			m[c] = int(tps)
 			wg2.Done()
 		}()
@@ -175,7 +181,7 @@ func sendWithGRPC(cmd *cobra.Command) {
 				cur := atomic.LoadInt64(&success)
 				tps := cur - prev
 				m[c] = int(tps)
-				log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", cur, tps), nil)
+				log.Info().Msg(fmt.Sprintf("Sent: %d, TPS: %d\n", success, tps))
 				prev = cur
 				c++
 			case <-ctx.Done():
@@ -208,11 +214,11 @@ func sendWithGRPC(cmd *cobra.Command) {
 	fmt.Printf("Latency StdDev: %.2f\n", latency.StdDev())
 	fmt.Printf("Latency Max: %d %s, Latency Min: %d %s\n", latency.Max(), unit, latency.Min(), "ms")
 	fmt.Println()
-	log.Info(nil, "all message were sent", map[string]interface{}{
-		"success": success,
-		"failed":  number - success,
-		"used":    time.Now().Sub(start),
-	})
+	log.Info().
+		Int64("success", success).
+		Int64("failed", number-success).
+		Dur("used", time.Now().Sub(start)).
+		Msg("all message were sent")
 	_ = rdb.Close()
 }
 
@@ -267,7 +273,7 @@ func sendWithHTTP(cmd *cobra.Command) {
 		defer func() {
 			tick.Stop()
 			tps := success - prev
-			log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", success, tps), nil)
+			log.Info().Msg(fmt.Sprintf("Sent: %d, TPS: %d\n", success, tps))
 			m[c] = int(tps)
 			wg2.Done()
 		}()
@@ -277,7 +283,7 @@ func sendWithHTTP(cmd *cobra.Command) {
 				cur := atomic.LoadInt64(&success)
 				tps := cur - prev
 				m[c] = int(tps)
-				log.Info(nil, fmt.Sprintf("Sent: %d, TPS: %d\n", cur, tps), nil)
+				log.Info().Msg(fmt.Sprintf("Sent: %d, TPS: %d\n", success, tps))
 				prev = cur
 				c++
 			case <-ctx.Done():
@@ -289,11 +295,11 @@ func sendWithHTTP(cmd *cobra.Command) {
 	can()
 	wg2.Wait()
 	saveTPS(m, "produce")
-	log.Info(nil, "all message were sent", map[string]interface{}{
-		"success": success,
-		"failed":  number - success,
-		"used":    time.Now().Sub(start),
-	})
+	log.Info().
+		Int64("success", success).
+		Int64("failed", number-success).
+		Dur("used", time.Now().Sub(start)).
+		Msg("all message were sent")
 	_ = rdb.Close()
 }
 
@@ -353,14 +359,10 @@ func receiveCommand() *cobra.Command {
 
 			cloudevents.RegisterCloudEventsServer(grpcServer, &testReceiver{})
 
-			log.Info(context.TODO(), fmt.Sprintf("the receiver ready to work at %d", port), map[string]interface{}{
-				"benchmark_id": getBenchmarkID(),
-			})
+			log.Info().Str("benchmark_id", getBenchmarkID()).Msg("the receiver ready to work")
 			err = grpcServer.Serve(ls)
 			if err != nil {
-				log.Error(nil, "grpc server occurred an error", map[string]interface{}{
-					Err(err).
-				})
+				log.Error().Err(err).Msg("grpc server occurred an error")
 			}
 		},
 	}
@@ -426,9 +428,7 @@ func analyseCommand() *cobra.Command {
 				}
 				_, err := resultColl.InsertOne(context.Background(), r)
 				if err != nil {
-					log.Error(nil, "failed to save latency result to mongodb", map[string]interface{}{
-						Err(err).
-					})
+					log.Error().Err(err).Msg("failed to save latency result to mongodb")
 				}
 
 				tps := hdrhistogram.New(1, 100000, 50)
@@ -469,9 +469,7 @@ func analyseCommand() *cobra.Command {
 				}
 				_, err = resultColl.InsertOne(context.Background(), r)
 				if err != nil {
-					log.Error(nil, "failed to save latency result to mongodb", map[string]interface{}{
-						Err(err).
-					})
+					log.Error().Err(err).Msg("failed to save latency result to mongodb")
 				}
 
 				wg.Done()
@@ -492,19 +490,13 @@ func analyseCommand() *cobra.Command {
 					if strCMD.Err() == redis.Nil {
 						break
 					}
-					log.Warn(ctx).Msg("LPop failed")
-						log.KeyError: strCMD.Err(),
-						"key":        dataKey,
-					})
+					log.Warn(ctx).Err(strCMD.Err()).Str("key", dataKey).Msg("LPop failed")
 					break
 				}
 				data, _ := strCMD.Bytes()
 				r := &Record{}
 				if err := json.Unmarshal(data, r); err != nil {
-					log.Warn(ctx).Msg("unmarshall cloud event failed")
-						Err(err).
-						"data":       strCMD.Val(),
-					})
+					log.Warn(ctx).Err(err).Str("data", strCMD.Val()).Msg("unmarshall cloud event failed")
 				}
 				ch <- r
 			}
@@ -535,8 +527,7 @@ func receive(_ context.Context, id string, t time.Time) error {
 				cur := atomic.LoadInt64(&consumingCnt)
 				tps := cur - prev
 				prev = cur
-				log.Info(nil, fmt.Sprintf("Received: %d, TPS: %d, Average Latency: %d us\n", cur, tps,
-					atomic.LoadInt64(&totalTime)/atomic.LoadInt64(&consumingCnt)), nil)
+				log.Info().Msg(fmt.Sprintf("Received: %d, TPS: %d, Average Latency: %d us\n", cur, tps))
 				time.Sleep(time.Second)
 			}
 		}()
@@ -589,10 +580,7 @@ func analyseConsumption(ch <-chan *Record, f func(his *hdrhistogram.Histogram, u
 		cnt++
 		latency := r.ReceivedAt.Sub(r.BornAt)
 		if err := his.RecordValue(latency.Milliseconds()); err != nil {
-			log.Warn(context.Background(), "histogram error", map[string]interface{}{
-				Err(err).
-				"val":        latency.Milliseconds(),
-			})
+			log.Warn().Err(err).Int64("val", latency.Milliseconds()).Msg("histogram error")
 		}
 	}
 	f(his, "ms")

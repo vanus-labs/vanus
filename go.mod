@@ -30,7 +30,7 @@ require (
 	github.com/sony/sonyflake v1.1.0
 	github.com/spf13/cobra v1.4.0
 	github.com/tidwall/gjson v1.14.1
-	github.com/vanus-labs/sdk/golang v0.2.1-0.20230308125440-1f823fdeae5b
+	github.com/vanus-labs/sdk/golang v0.4.2
 	github.com/vanus-labs/vanus/client v0.5.7
 	github.com/vanus-labs/vanus/observability v0.5.7
 	github.com/vanus-labs/vanus/pkg v0.5.7
