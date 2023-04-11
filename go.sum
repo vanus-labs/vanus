@@ -388,8 +388,8 @@ github.com/tidwall/pretty v1.0.0/go.mod h1:XNkn88O1ChpSDQmQeStsy+sBenx6DDtFZJxhV
 github.com/tidwall/pretty v1.2.0 h1:RWIZEg2iJ8/g6fDDYzMpobmaoGh5OLl4AXtGUGPcqCs=
 github.com/tidwall/pretty v1.2.0/go.mod h1:ITEVvHYasfjBbM0u2Pg8T2nJnzm8xPwvNhhsoaGGjNU=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
-github.com/vanus-labs/sdk/golang v0.4.3 h1:g3RSZmGXff6bP2Ss4T6IwMmU6Tro6d+JsVdz5VozXPs=
-github.com/vanus-labs/sdk/golang v0.4.3/go.mod h1:QpmncLBj1i1rtZmqSsoZyWN4l6odMHpSZmbad4GBuQQ=
+github.com/vanus-labs/sdk/golang v0.4.5 h1:HnwEXHDSOUbIAXe51JvdmlCj3NOQ1MxLJmko9JmVBvQ=
+github.com/vanus-labs/sdk/golang v0.4.5/go.mod h1:QpmncLBj1i1rtZmqSsoZyWN4l6odMHpSZmbad4GBuQQ=
 github.com/xdg-go/pbkdf2 v1.0.0/go.mod h1:jrpuAogTd400dnrH08LKmI/xc1MbPOebTwRqcT5RDeI=
 github.com/xdg-go/scram v1.1.1/go.mod h1:RaEWvsqvNKKvBPvcKeFjrG2cJqOkHTiyTpzz23ni57g=
 github.com/xdg-go/stringprep v1.0.3/go.mod h1:W3f5j4i+9rC0kuIEJL0ky1VpHXQU3ocBgklLGvcBnW8=
