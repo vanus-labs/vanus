@@ -2,8 +2,8 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   labels:
-    app: vanus-benchmark
-  name: vanus-benchmark
+    app: benchmark-consume
+  name: benchmark-consume
   namespace: vanus
 spec:
   parallelism: 1
@@ -13,13 +13,13 @@ spec:
   template:
     metadata:
       labels:
-        app: vanus-benchmark
+        app: benchmark-consume
     spec:
       restartPolicy: Never
       containers:
         - image: public.ecr.aws/vanus/test-benchmark:b99196c
           imagePullPolicy: Always
-          name: vanus-benchmark
+          name: benchmark-consume
           command: ["bash", "-c", "sleep 100000"]
           env:
             - name: VANUS_LOG_LEVEL

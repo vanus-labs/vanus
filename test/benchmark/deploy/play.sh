@@ -1,28 +1,23 @@
 #!/bin/bash
 set -ex
 
-# send
-vsctl eventbus create --name "send-only-eventbus" --eventlog "16"
+vsctl eventbus create --name "benchmark" --eventlog "64" --namespace default
 
-vanus-bench e2e run \
-  --name "send-only" \
-  --eventbus "send-only-eventbus" \
-  --number "10000000" \
-  --parallelism "16"  \
+/tmp/vanus-bench send \
+  --eventbus "benchmark" \
+  --number "5000000" \
+  --parallelism "64"  \
+  --batch-size "32" \
   --endpoint "vanus-gateway.vanus:8080" \
-  --payload-size "1024" \
-  --batch-size "128" \
-  --redis-addr "redis-service.vanus:6379" \
-  --begin
+  --payload-size "1024"
 
-vanus-bench e2e analyse \
-  --name "send-only" \
-  --benchmark-type produce \
-  --redis-addr "redis-service.vanus:6379" \
-  --end
+/tmp/vanus-bench receive --number 5000000
 
-vanus-bench e2e receive \
-    --name "send-only" \
-    --redis-addr "redis-service.vanus:6379"
+vsctl subscription create --name "benchmark" \
+  --sink "172.31.41.195:8080" \
+  --eventbus "benchmark" \
+  --protocol "grpc" \
+  --from latest
 
-vsctl eventbus delete --name "send-only-eventbus"
+vsctl eventbus delete --name "benchmark"
+vsctl subscription delete --id 00006E7481000010

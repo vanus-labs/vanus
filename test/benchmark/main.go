@@ -26,30 +26,18 @@ import (
 var rootCmd = &cobra.Command{
 	Use:        "vanus-bench",
 	Short:      "the benchmark tool of vanus",
-	SuggestFor: []string{"vsctl-bench"},
+	SuggestFor: []string{"vanus-bench"},
 }
 
 var (
-	name      string
-	endpoint  string
-	redisAddr string
-	begin     bool
-	end       bool
+	endpoint string
 )
 
 func main() {
-	rootCmd.AddCommand(command.E2ECommand())
-	rootCmd.AddCommand(command.ComponentCommand())
-	rootCmd.PersistentPreRun = func(_ *cobra.Command, _ []string) {
-		command.InitDatabase(redisAddr)
-	}
+	rootCmd.AddCommand(command.SendCommand())
+	rootCmd.AddCommand(command.ReceiveCommand())
 	rootCmd.PersistentFlags().StringVar(&endpoint, "endpoint",
 		"127.0.0.1:8080", "the endpoints of vanus controller")
-	rootCmd.PersistentFlags().StringVar(&redisAddr, "redis-addr",
-		"127.0.0.1:6379", "address of redis")
-	rootCmd.PersistentFlags().StringVar(&name, "name", "", "task name")
-	rootCmd.PersistentFlags().BoolVar(&begin, "begin", false, "if the begin of a playbook")
-	rootCmd.PersistentFlags().BoolVar(&end, "end", false, "if the end of a playbook")
 	if err := rootCmd.Execute(); err != nil {
 		color.Red("vanus-bench run error: %s", err)
 		os.Exit(-1)

@@ -17,24 +17,19 @@ package command
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	v2 "github.com/cloudevents/sdk-go/v2"
+	"github.com/google/uuid"
 	"math/rand"
 	"net"
-	"net/http"
 	"os"
-	"path"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/HdrHistogram/hdrhistogram-go"
-	ce "github.com/cloudevents/sdk-go/v2"
-	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"github.com/fatih/color"
-	"github.com/go-redis/redis/v8"
-	"github.com/google/uuid"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
@@ -45,40 +40,24 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-const (
-	httpPrefix      = "http://"
-	eventReceivedAt = "xreceivedat"
-	eventSentAt     = "xsentat"
-	redisKey        = "/vanus/benchmark/performance"
-)
-
 var (
 	name         string
 	eventbusList []string
 	number       int64
 	parallelism  int
 	payloadSize  int
+	batchSize    int
+	mutex        sync.RWMutex
+	payload      string
 
 	port           int
-	benchType      string
 	clientProtocol string
 )
 
-func E2ECommand() *cobra.Command {
+func SendCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "e2e SUB-COMMAND",
-		Short: "run e2e performance test",
-	}
-	cmd.AddCommand(runCommand())
-	cmd.AddCommand(analyseCommand())
-	cmd.AddCommand(receiveCommand())
-	return cmd
-}
-
-func runCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "run SUB-COMMAND",
-		Short: "vanus performance benchmark program",
+		Use:   "send SUB-COMMAND",
+		Short: "start sending benchmark program",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(eventbusList) == 0 {
 				panic("eventbus list is empty")
@@ -86,11 +65,7 @@ func runCommand() *cobra.Command {
 
 			log.Info(context.Background()).Str("name", name).Msg("benchmark")
 
-			if clientProtocol == "grpc" {
-				sendWithGRPC(cmd)
-			} else {
-				sendWithHTTP(cmd)
-			}
+			sendWithGRPC(cmd)
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "default", "the task name")
@@ -113,10 +88,9 @@ func sendWithGRPC(cmd *cobra.Command) {
 
 	var success int64
 	wg := sync.WaitGroup{}
-	latency := hdrhistogram.New(1, 1000000, 10000)
+	latency := hdrhistogram.New(1, 10000000, 10000)
 	c, err := client.Connect(&client.ClientOptions{
 		Endpoint: endpoint,
-		Token:    "admin",
 	})
 	if err != nil {
 		panic("failed to connect to Vanus")
@@ -179,9 +153,118 @@ func sendWithGRPC(cmd *cobra.Command) {
 	wg.Wait()
 	can()
 	wg2.Wait()
-	saveTPS(m, "produce")
-	res := latency.CumulativeDistribution()
-	unit := "us"
+	averageTPS(m)
+
+	printLatency(latency, "us")
+	log.Info().
+		Int64("success", success).
+		Int64("failed", number-success).
+		Dur("used", time.Now().Sub(start)).
+		Msg("all message were sent")
+}
+
+func averageTPS(m map[int]int) {
+	sum := 0
+	for _, tps := range m {
+		sum += tps
+	}
+	println("Average TPS: ", sum/len(m))
+}
+
+func generateEvents() []*v2.Event {
+	mutex.RLock()
+	defer mutex.RUnlock()
+	if payload == "" {
+		mutex.RUnlock()
+		mutex.Lock()
+		rd := rand.New(rand.NewSource(time.Now().UnixNano()))
+		if payload == "" {
+			payload = genStr(rd, payloadSize)
+		}
+		mutex.Unlock()
+		mutex.RLock()
+	}
+	var ee []*v2.Event
+	for idx := 0; idx < batchSize; idx++ {
+		e := v2.NewEvent()
+		e.SetID(uuid.NewString())
+		e.SetSource("performance.benchmark.vanus")
+		e.SetType("performance.benchmark.vanus")
+		e.SetExtension("bornat", time.Now())
+		_ = e.SetData(v2.TextPlain, payload)
+		ee = append(ee, &e)
+	}
+	return ee
+}
+
+var (
+	consumingHis  = hdrhistogram.New(1, 1000, 50)
+	totalReceived = int64(0)
+)
+
+func ReceiveCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "receive",
+		Short: "vanus performance benchmark program",
+		Run: func(cmd *cobra.Command, args []string) {
+			ls, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
+			if err != nil {
+				cmdFailedf(cmd, "init network error: %s", err)
+			}
+
+			grpcServer := grpc.NewServer()
+			prev := int64(0)
+			exit := false
+			go func() {
+				for !exit {
+					cur := atomic.LoadInt64(&totalReceived)
+					tps := cur - prev
+					prev = cur
+					log.Info().Msg(fmt.Sprintf("Received: %d, TPS: %d\n", cur, tps))
+					time.Sleep(time.Second)
+				}
+			}()
+			cloudevents.RegisterCloudEventsServer(grpcServer, &testReceiver{})
+			log.Info().Str("name", name).Msg("the receiver ready to work")
+			go func() {
+				err = grpcServer.Serve(ls)
+				if err != nil {
+					log.Error().Err(err).Msg("grpc server occurred an error")
+				}
+			}()
+			for totalReceived < number {
+				time.Sleep(time.Second)
+			}
+			exit = true
+			printLatency(consumingHis, "ms")
+		},
+	}
+	cmd.Flags().IntVar(&port, "port", 8080, "the port the receive server running")
+	cmd.Flags().Int64Var(&number, "number", 1000000, "how many events expected to receive")
+	return cmd
+}
+
+type testReceiver struct{}
+
+func (t testReceiver) Send(_ context.Context, event *cloudevents.BatchEvent) (*emptypb.Empty, error) {
+	for idx := range event.Events.GetEvents() {
+		e := event.Events.GetEvents()[idx]
+		attr := e.GetAttributes()["bornat"]
+		bornAt := attr.GetCeTimestamp().AsTime()
+		latency := time.Now().Sub(bornAt)
+		if err := consumingHis.RecordValue(latency.Milliseconds()); err != nil {
+			log.Warn().Err(err).
+				Interface("origin ", attr).
+				Time("bornAt", bornAt).
+				Dur("val", latency).Msg("histogram error")
+		}
+	}
+	atomic.AddInt64(&totalReceived, int64(len(event.Events.GetEvents())))
+	return &emptypb.Empty{}, nil
+}
+
+func printLatency(his *hdrhistogram.Histogram, unit string) {
+	res := his.CumulativeDistribution()
 	result := map[string]map[string]interface{}{}
 	for _, v := range res {
 		if v.Count == 0 {
@@ -196,310 +279,11 @@ func sendWithGRPC(cmd *cobra.Command) {
 		fmt.Printf("%.2f pct - %d %s\n", v.Quantile, v.ValueAt, unit)
 	}
 
-	fmt.Printf("Total: %d\n", latency.TotalCount())
-	fmt.Printf("Latency Mean: %.2f %s\n", latency.Mean(), unit)
-	fmt.Printf("Latency StdDev: %.2f\n", latency.StdDev())
-	fmt.Printf("Latency Max: %d %s, Latency Min: %d %s\n", latency.Max(), unit, latency.Min(), "ms")
+	fmt.Printf("Total: %d\n", his.TotalCount())
+	fmt.Printf("Latency Mean: %.2f %s\n", his.Mean(), unit)
+	fmt.Printf("Latency StdDev: %.2f\n", his.StdDev())
+	fmt.Printf("Latency Max: %d %s, Latency Min: %d %s\n", his.Max(), unit, his.Min(), unit)
 	fmt.Println()
-	log.Info().
-		Int64("success", success).
-		Int64("failed", number-success).
-		Dur("used", time.Now().Sub(start)).
-		Msg("all message were sent")
-	_ = rdb.Close()
-}
-
-func sendWithHTTP(cmd *cobra.Command) {
-	endpoint := mustGetGatewayEndpoint(cmd)
-
-	// start
-	start := time.Now()
-	p, err := ce.NewHTTP()
-	if err != nil {
-		cmdFailedf(cmd, "init ce protocol error: %s\n", err)
-	}
-	c, err := ce.NewClient(p, ce.WithTimeNow(), ce.WithUUIDs())
-	if err != nil {
-		cmdFailedf(cmd, "create ce client error: %s\n", err)
-	}
-
-	var success int64
-	wg := sync.WaitGroup{}
-	for _, eb := range eventbusList {
-		for idx := 0; idx < parallelism; idx++ {
-			wg.Add(1)
-			go func() {
-				for atomic.LoadInt64(&success) < number {
-					var target string
-					if strings.HasPrefix(endpoint, httpPrefix) {
-						target = fmt.Sprintf("%s/gateway/%s", endpoint, eb)
-					} else {
-						target = fmt.Sprintf("%s%s/gateway/%s", httpPrefix, endpoint, eb)
-					}
-					r, e := send(c, target)
-					if e != nil {
-						panic(e)
-					}
-					if r {
-						atomic.AddInt64(&success, 1)
-					}
-				}
-				wg.Done()
-			}()
-		}
-	}
-
-	ctx, can := context.WithCancel(context.Background())
-	m := make(map[int]int, 0)
-	wg2 := sync.WaitGroup{}
-	wg2.Add(1)
-	go func() {
-		var prev int64
-		tick := time.NewTicker(time.Second)
-		c := 1
-		defer func() {
-			tick.Stop()
-			tps := success - prev
-			log.Info().Msg(fmt.Sprintf("Sent: %d, TPS: %d\n", success, tps))
-			m[c] = int(tps)
-			wg2.Done()
-		}()
-		for prev < number {
-			select {
-			case <-tick.C:
-				cur := atomic.LoadInt64(&success)
-				tps := cur - prev
-				m[c] = int(tps)
-				log.Info().Msg(fmt.Sprintf("Sent: %d, TPS: %d\n", success, tps))
-				prev = cur
-				c++
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-	wg.Wait()
-	can()
-	wg2.Wait()
-	saveTPS(m, "produce")
-	log.Info().
-		Int64("success", success).
-		Int64("failed", number-success).
-		Dur("used", time.Now().Sub(start)).
-		Msg("all message were sent")
-	_ = rdb.Close()
-}
-
-func saveTPS(m map[int]int, t string) {
-	d, _ := json.Marshal(m)
-	_ = rdb.Set(context.Background(), getTPSKey(t), d, 0)
-}
-
-func getTPSKey(t string) string {
-	return path.Join(redisKey, fmt.Sprintf("tps-%s", t), name)
-}
-
-func send(c ce.Client, target string) (bool, error) {
-	ctx := ce.ContextWithTarget(context.Background(), target)
-	r := &Record{
-		BornAt: time.Now(),
-	}
-	event := ce.NewEvent()
-
-	event.SetID(uuid.NewString())
-	event.SetSource("performance.benchmark.vanus")
-	event.SetType("performance.benchmark.vanus")
-	event.SetTime(r.BornAt)
-
-	err := event.SetData(ce.ApplicationJSON, genData())
-	if err != nil {
-		return false, errors.New("failed to set data: " + err.Error())
-	}
-	res := c.Send(ctx, event)
-	if ce.IsUndelivered(res) {
-		return false, errors.New("failed to send: " + res.Error())
-	} else {
-		var httpResult *cehttp.Result
-		ce.ResultAs(res, &httpResult)
-		if httpResult != nil && httpResult.StatusCode == http.StatusOK {
-			r.SentAt = time.Now()
-			event.SetExtension(eventSentAt, time.Now())
-			cache(r, "send")
-		} else {
-			return false, nil
-		}
-	}
-	return true, nil
-}
-
-func receiveCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "receive",
-		Short: "vanus performance benchmark program",
-		Run: func(cmd *cobra.Command, args []string) {
-			ls, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
-			if err != nil {
-				cmdFailedf(cmd, "init network error: %s", err)
-			}
-
-			grpcServer := grpc.NewServer()
-
-			cloudevents.RegisterCloudEventsServer(grpcServer, &testReceiver{})
-
-			log.Info().Str("name", name).Msg("the receiver ready to work")
-			err = grpcServer.Serve(ls)
-			if err != nil {
-				log.Error().Err(err).Msg("grpc server occurred an error")
-			}
-		},
-	}
-	cmd.Flags().IntVar(&port, "port", 8080, "the port the receive server running")
-	return cmd
-}
-
-type testReceiver struct{}
-
-func (t testReceiver) Send(ctx context.Context, event *cloudevents.BatchEvent) (*emptypb.Empty, error) {
-	for idx := range event.Events.GetEvents() {
-		e := event.Events.GetEvents()[idx]
-		attr := e.GetAttributes()["time"]
-
-		if err := receive(ctx, e.Id, attr.GetCeTimestamp().AsTime()); err != nil {
-			return nil, err
-		}
-	}
-	return &emptypb.Empty{}, nil
-}
-
-func analyseCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "analyse",
-		Short: "vanus performance benchmark program",
-		Run: func(cmd *cobra.Command, args []string) {
-			if benchType == "" {
-				cmdFailedf(cmd, "benchmark-type can't be empty")
-			}
-			ch := make(chan *Record, 64)
-			wg := sync.WaitGroup{}
-			wg.Add(1)
-			f := func(his *hdrhistogram.Histogram, unit string) {
-				res := his.CumulativeDistribution()
-				result := map[string]map[string]interface{}{}
-				for _, v := range res {
-					if v.Count == 0 {
-						continue
-					}
-
-					result[fmt.Sprintf("%.2f", v.Quantile)] = map[string]interface{}{
-						"value": v.ValueAt,
-						"unit":  unit,
-						"count": v.Count,
-					}
-					fmt.Printf("%.2f pct - %d %s\n", v.Quantile, v.ValueAt, unit)
-				}
-
-				fmt.Printf("Total: %d\n", his.TotalCount())
-				fmt.Printf("Latency Mean: %.2f %s\n", his.Mean(), unit)
-				fmt.Printf("Latency StdDev: %.2f\n", his.StdDev())
-				fmt.Printf("Latency Max: %d %s, Latency Min: %d %s\n", his.Max(), unit, his.Min(), unit)
-				fmt.Println()
-
-				tps := hdrhistogram.New(1, 100000, 50)
-
-				cmd := rdb.Get(context.Background(), getTPSKey(benchType))
-				m := make(map[int]int, 0)
-				_ = json.Unmarshal([]byte(cmd.Val()), &m)
-				result = map[string]map[string]interface{}{}
-				for idx, v := range m {
-					result[fmt.Sprintf("%d", idx)] = map[string]interface{}{
-						"value": v,
-					}
-					if err := tps.RecordValue(int64(v)); err != nil {
-						fmt.Println("error: TPS " + err.Error())
-					}
-				}
-				res = tps.CumulativeDistribution()
-				for _, v := range res {
-					if v.Count == 0 {
-						continue
-					}
-
-					fmt.Printf("%3.2f pct - %d\n", v.Quantile, v.ValueAt)
-				}
-				fmt.Printf("Used: %d s\n", tps.TotalCount())
-				fmt.Printf("TPS Mean: %.2f/s\n", tps.Mean())
-				fmt.Printf("TPS StdDev: %.2f\n", tps.StdDev())
-				fmt.Printf("TPS Max: %d, TPS Min: %d\n", tps.Max(), tps.Min())
-
-				wg.Done()
-			}
-			dataKey := ""
-			if benchType == "produce" {
-				dataKey = path.Join(redisKey, "send", name)
-				go analyseProduction(ch, f)
-			} else {
-				dataKey = path.Join(redisKey, "receive", name)
-				go analyseConsumption(ch, f)
-			}
-			ctx := context.Background()
-			num := rdb.LLen(ctx, dataKey).Val()
-			for idx := 0; idx < int(num); idx++ {
-				strCMD := rdb.LPop(ctx, dataKey)
-				if strCMD.Err() != nil {
-					if strCMD.Err() == redis.Nil {
-						break
-					}
-					log.Warn(ctx).Err(strCMD.Err()).Str("key", dataKey).Msg("LPop failed")
-					break
-				}
-				data, _ := strCMD.Bytes()
-				r := &Record{}
-				if err := json.Unmarshal(data, r); err != nil {
-					log.Warn(ctx).Err(err).Str("data", strCMD.Val()).Msg("unmarshall cloud event failed")
-				}
-				ch <- r
-			}
-			for len(ch) > 0 {
-				time.Sleep(time.Second)
-			}
-			close(ch)
-			wg.Wait()
-			_ = rdb.Close()
-		},
-	}
-	cmd.Flags().StringVar(&benchType, "benchmark-type", "",
-		"the type of benchmark, produce or consume")
-	return cmd
-}
-
-var (
-	receiveOnce  = sync.Once{}
-	consumingCnt = int64(0)
-	totalTime    = int64(0)
-)
-
-func receive(_ context.Context, id string, t time.Time) error {
-	receiveOnce.Do(func() {
-		prev := int64(0)
-		go func() {
-			for {
-				cur := atomic.LoadInt64(&consumingCnt)
-				tps := cur - prev
-				prev = cur
-				log.Info().Msg(fmt.Sprintf("Received: %d, TPS: %d, Average Latency: %d us\n", cur, tps))
-				time.Sleep(time.Second)
-			}
-		}()
-	})
-	atomic.AddInt64(&totalTime, time.Now().Sub(t).Microseconds())
-	r := &Record{
-		ID:         id,
-		BornAt:     t,
-		ReceivedAt: time.Now(),
-	}
-	cache(r, "receive")
-	atomic.AddInt64(&consumingCnt, 1)
-	return nil
 }
 
 func isOutputFormatJSON(cmd *cobra.Command) bool {
@@ -510,67 +294,12 @@ func isOutputFormatJSON(cmd *cobra.Command) bool {
 	return strings.ToLower(v) == "json"
 }
 
-func cache(r *Record, key string) {
-	//key = path.Join(redisKey, key, getBenchmarkID())
-	//data, _ := json.Marshal(r)
-	//cmd := rdb.LPush(context.Background(), key, data)
-	//if cmd.Err() != nil {
-	//	log.Warn(context.Background(), "set event to redis failed", map[string]interface{}{
-	//		log.KeyError: cmd.Err(),
-	//	})
-	//}
-}
-
-func analyseProduction(ch <-chan *Record, f func(his *hdrhistogram.Histogram, unit string)) {
-	his := hdrhistogram.New(1, 10000, 50)
-	for r := range ch {
-		latency := r.SentAt.Sub(r.BornAt)
-		if err := his.RecordValue(latency.Milliseconds()); err != nil {
-			fmt.Println(err)
-		}
-	}
-	f(his, "ms")
-}
-
-func analyseConsumption(ch <-chan *Record, f func(his *hdrhistogram.Histogram, unit string)) {
-	his := hdrhistogram.New(1, 1000, 50)
-	cnt := 0
-	for r := range ch {
-		cnt++
-		latency := r.ReceivedAt.Sub(r.BornAt)
-		if err := his.RecordValue(latency.Milliseconds()); err != nil {
-			log.Warn().Err(err).Int64("val", latency.Milliseconds()).Msg("histogram error")
-		}
-	}
-	f(his, "ms")
-}
-
 func mustGetGatewayEndpoint(cmd *cobra.Command) string {
 	endpoint, err := cmd.Flags().GetString("endpoint")
 	if err != nil {
 		cmdFailedf(cmd, "get gateway endpoint failed: %s", err)
 	}
 	return endpoint
-}
-
-var (
-	once = sync.Once{}
-	ch   = make(chan map[string]interface{}, 512)
-)
-
-func genData() map[string]interface{} {
-	once.Do(func() {
-		go func() {
-			rd := rand.New(rand.NewSource(time.Now().UnixNano()))
-			for {
-				m := map[string]interface{}{
-					"data": genStr(rd, payloadSize),
-				}
-				ch <- m
-			}
-		}()
-	})
-	return <-ch
 }
 
 func genStr(rd *rand.Rand, size int) string {
@@ -605,5 +334,3 @@ func cmdFailedf(cmd *cobra.Command, format string, a ...interface{}) {
 
 	os.Exit(-1)
 }
-
-var tmpID = uuid.NewString()
