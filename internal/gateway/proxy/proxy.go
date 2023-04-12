@@ -140,7 +140,7 @@ func (s *subscribeCache) stream() proxypb.StoreProxy_SubscribeServer {
 type ControllerProxy struct {
 	cfg          Config
 	tracer       *tracing.Tracer
-	client       eb.Client
+	client       api.Client
 	eventbusCtrl ctrlpb.EventbusControllerClient
 	eventlogCtrl ctrlpb.EventlogControllerClient
 	triggerCtrl  ctrlpb.TriggerControllerClient
@@ -237,8 +237,11 @@ func (cp *ControllerProxy) writeEvents(
 ) error {
 	val, exist := cp.writerMap.Load(eventbusID)
 	if !exist {
-		val, _ = cp.writerMap.LoadOrStore(eventbusID,
-			cp.client.Eventbus(ctx, api.WithID(eventbusID.Uint64())).Writer())
+		eb, err := cp.client.Eventbus(ctx, api.WithID(eventbusID.Uint64()))
+		if err != nil {
+			return v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
+		}
+		val, _ = cp.writerMap.LoadOrStore(eventbusID, eb.Writer())
 	}
 	w, _ := val.(api.BusWriter)
 	_, err := w.Append(ctx, events)
@@ -554,7 +557,7 @@ func NewControllerProxy(cfg Config) *ControllerProxy {
 }
 
 // SetClient just for test.
-func (cp *ControllerProxy) SetClient(client eb.Client) {
+func (cp *ControllerProxy) SetClient(client api.Client) {
 	cp.client = client
 }
 
@@ -708,16 +711,20 @@ func authLookupOffset(_ context.Context, req interface{}) (authorization.Resourc
 func (cp *ControllerProxy) LookupOffset(
 	ctx context.Context, req *proxypb.LookupOffsetRequest,
 ) (*proxypb.LookupOffsetResponse, error) {
+	eb, err := cp.client.Eventbus(ctx, api.WithID(req.EventbusId))
+	if err != nil {
+		return nil, err
+	}
 	elList := make([]api.Eventlog, 0)
 	if req.EventlogId > 0 {
 		id := vanus.NewIDFromUint64(req.EventlogId)
-		l, err := cp.client.Eventbus(ctx, api.WithID(req.EventbusId)).GetLog(ctx, id.Uint64())
+		l, err := eb.GetLog(ctx, id.Uint64())
 		if err != nil {
 			return nil, err
 		}
 		elList = append(elList, l)
 	} else {
-		ls, err := cp.client.Eventbus(ctx, api.WithID(req.EventbusId)).ListLog(ctx)
+		ls, err := eb.ListLog(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -770,11 +777,15 @@ func (cp *ControllerProxy) GetEvent(
 		num = maximumNumberPerGetRequest
 	}
 
-	ls, err := cp.client.Eventbus(ctx, api.WithID(vid.Uint64())).ListLog(ctx)
+	eb, err := cp.client.Eventbus(ctx, api.WithID(vid.Uint64()))
 	if err != nil {
 		return nil, err
 	}
-	reader := cp.client.Eventbus(ctx, api.WithID(vid.Uint64())).Reader(
+	ls, err := eb.ListLog(ctx)
+	if err != nil {
+		return nil, err
+	}
+	reader := eb.Reader(
 		option.WithDisablePolling(),
 		option.WithReadPolicy(policy.NewManuallyReadPolicy(ls[0], offset)),
 		option.WithBatchSize(int(num)),
@@ -856,12 +867,17 @@ func (cp *ControllerProxy) getByEventID(
 		return nil, err
 	}
 
-	l, err := cp.client.Eventbus(ctx, api.WithID(req.GetEventbusId())).GetLog(ctx, logID)
+	eb, err := cp.client.Eventbus(ctx, api.WithID(req.GetEventbusId()))
 	if err != nil {
 		return nil, err
 	}
 
-	reader := cp.client.Eventbus(ctx, api.WithID(req.GetEventbusId())).Reader(
+	l, err := eb.GetLog(ctx, logID)
+	if err != nil {
+		return nil, err
+	}
+
+	reader := eb.Reader(
 		option.WithReadPolicy(policy.NewManuallyReadPolicy(l, off)),
 		option.WithDisablePolling(),
 	)

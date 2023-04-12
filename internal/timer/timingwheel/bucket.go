@@ -24,7 +24,8 @@ import (
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/vanus-labs/vanus/client"
+	"k8s.io/apimachinery/pkg/util/wait"
+
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/option"
 	"github.com/vanus-labs/vanus/client/pkg/policy"
@@ -33,7 +34,6 @@ import (
 	"github.com/vanus-labs/vanus/internal/timer/metadata"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/errors"
-	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 const (
@@ -97,7 +97,7 @@ type bucket struct {
 	wg             sync.WaitGroup
 	exitC          chan struct{}
 	kvStore        kv.Client
-	client         client.Client
+	client         api.Client
 	eventbusWriter api.BusWriter
 	eventbusReader api.BusReader
 
@@ -139,8 +139,9 @@ func (b *bucket) start(ctx context.Context) error {
 	if err = b.createEventbus(ctx); err != nil {
 		return err
 	}
-
-	b.connectEventbus(ctx)
+	if err = b.connectEventbus(ctx); err != nil {
+		return err
+	}
 	b.run(ctx)
 	return nil
 }
@@ -340,9 +341,14 @@ func (b *bucket) createEventbus(ctx context.Context) error {
 	return nil
 }
 
-func (b *bucket) connectEventbus(ctx context.Context) {
-	b.eventbusWriter = b.client.Eventbus(ctx, api.WithName(b.eventbus)).Writer()
-	b.eventbusReader = b.client.Eventbus(ctx, api.WithName(b.eventbus)).Reader()
+func (b *bucket) connectEventbus(ctx context.Context) error {
+	eb, err := b.client.Eventbus(ctx, api.WithName(b.eventbus))
+	if err != nil {
+		return err
+	}
+	b.eventbusWriter = eb.Writer()
+	b.eventbusReader = eb.Reader()
+	return nil
 }
 
 func (b *bucket) putEvent(ctx context.Context, tm *timingMsg) (err error) {
@@ -386,7 +392,13 @@ func (b *bucket) getEvent(ctx context.Context, number int16) (events []*ce.Event
 		time.Sleep(time.Second)
 		return []*ce.Event{}, errors.ErrOffsetOnEnd
 	}
-	ls, err := b.client.Eventbus(ctx, api.WithName(b.eventbus)).ListLog(ctx)
+
+	eb, err := b.client.Eventbus(ctx, api.WithName(b.eventbus))
+	if err != nil {
+		return []*ce.Event{}, err
+	}
+
+	ls, err := eb.ListLog(ctx)
 	if err != nil {
 		return []*ce.Event{}, err
 	}

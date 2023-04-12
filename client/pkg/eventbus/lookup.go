@@ -45,7 +45,7 @@ func (w *WritableLogsWatcher) Start() {
 	go w.Watcher.Run()
 }
 
-func WatchWritableLogs(bus *eventbus) *WritableLogsWatcher {
+func WatchWritableLogs(bus *Eventbus) *WritableLogsWatcher {
 	ch := make(chan *WritableLogsResult, 1)
 	w := primitive.NewWatcher(30*time.Second, func() {
 		rs, err := bus.nameService.LookupWritableLogs(context.Background(), bus.cfg.ID)
@@ -86,7 +86,7 @@ func (w *ReadableLogsWatcher) Start() {
 	go w.Watcher.Run()
 }
 
-func WatchReadableLogs(bus *eventbus) *ReadableLogsWatcher {
+func WatchReadableLogs(bus *Eventbus) *ReadableLogsWatcher {
 	ch := make(chan *ReadableLogsResult, 1)
 	w := primitive.NewWatcher(30*time.Second, func() {
 		rs, err := bus.nameService.LookupReadableLogs(context.Background(), bus.cfg.ID)

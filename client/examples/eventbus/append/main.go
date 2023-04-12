@@ -43,7 +43,10 @@ func main() {
 	if err != nil {
 		panic("invalid id")
 	}
-	bus := c.Eventbus(ctx, api.WithName("quick-start"), api.WithID(eventbusID.Uint64()))
+	bus, err := c.Eventbus(ctx, api.WithID(eventbusID.Uint64()))
+	if err != nil {
+		panic(err.Error())
+	}
 	w := bus.Writer()
 	// Create an Event.
 	event := ce.NewEvent()

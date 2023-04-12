@@ -26,7 +26,6 @@ import (
 	"github.com/google/uuid"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/eventlog"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
@@ -39,12 +38,12 @@ import (
 func TestReaderStart(t *testing.T) {
 	mockCtrl := NewController(t)
 	defer mockCtrl.Finish()
-	mockClient := client.NewMockClient(mockCtrl)
+	mockClient := api.NewMockClient(mockCtrl)
 	mockEventbus := api.NewMockEventbus(mockCtrl)
 	mockEventlog := api.NewMockEventlog(mockCtrl)
 	mockBusWriter := api.NewMockBusWriter(mockCtrl)
 	mockBusReader := api.NewMockBusReader(mockCtrl)
-	mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
+	mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus, nil)
 	mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 	mockEventbus.EXPECT().Reader(Any(), Any()).AnyTimes().Return(mockBusReader)
 	mockEventbus.EXPECT().GetLog(Any(), Any()).AnyTimes().Return(mockEventlog, nil)

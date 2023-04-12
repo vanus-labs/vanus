@@ -12,6 +12,61 @@ import (
 	cloudevents "github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 )
 
+// MockClient is a mock of Client interface.
+type MockClient struct {
+	ctrl     *gomock.Controller
+	recorder *MockClientMockRecorder
+}
+
+// MockClientMockRecorder is the mock recorder for MockClient.
+type MockClientMockRecorder struct {
+	mock *MockClient
+}
+
+// NewMockClient creates a new mock instance.
+func NewMockClient(ctrl *gomock.Controller) *MockClient {
+	mock := &MockClient{ctrl: ctrl}
+	mock.recorder = &MockClientMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockClient) EXPECT() *MockClientMockRecorder {
+	return m.recorder
+}
+
+// Disconnect mocks base method.
+func (m *MockClient) Disconnect(ctx context.Context) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Disconnect", ctx)
+}
+
+// Disconnect indicates an expected call of Disconnect.
+func (mr *MockClientMockRecorder) Disconnect(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Disconnect", reflect.TypeOf((*MockClient)(nil).Disconnect), ctx)
+}
+
+// Eventbus mocks base method.
+func (m *MockClient) Eventbus(ctx context.Context, opts ...EventbusOption) (Eventbus, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Eventbus", varargs...)
+	ret0, _ := ret[0].(Eventbus)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Eventbus indicates an expected call of Eventbus.
+func (mr *MockClientMockRecorder) Eventbus(ctx interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Eventbus", reflect.TypeOf((*MockClient)(nil).Eventbus), varargs...)
+}
+
 // MockEventbus is a mock of Eventbus interface.
 type MockEventbus struct {
 	ctrl     *gomock.Controller
@@ -252,7 +307,7 @@ func (mr *MockEventlogMockRecorder) EarliestOffset(ctx interface{}) *gomock.Call
 // ID mocks base method.
 func (m *MockEventlog) ID() uint64 {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VolumeID")
+	ret := m.ctrl.Call(m, "ID")
 	ret0, _ := ret[0].(uint64)
 	return ret0
 }
@@ -260,7 +315,7 @@ func (m *MockEventlog) ID() uint64 {
 // ID indicates an expected call of ID.
 func (mr *MockEventlogMockRecorder) ID() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VolumeID", reflect.TypeOf((*MockEventlog)(nil).ID))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockEventlog)(nil).ID))
 }
 
 // LatestOffset mocks base method.

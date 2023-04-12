@@ -30,7 +30,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/policy"
 	"github.com/vanus-labs/vanus/internal/convert"
@@ -58,10 +57,10 @@ func TestControllerProxy_GetEvent(t *testing.T) {
 			Credentials:            insecure.NewCredentials(),
 		})
 		ctrl := gomock.NewController(t)
-		mockClient := client.NewMockClient(ctrl)
+		mockClient := api.NewMockClient(ctrl)
 		cp.client = mockClient
 		utEB1 := api.NewMockEventbus(ctrl)
-		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(utEB1)
+		mockClient.EXPECT().Eventbus(gomock.Any(), gomock.Any()).AnyTimes().Return(utEB1, nil)
 
 		Convey("test invalid params", func() {
 			res, err := cp.GetEvent(stdCtx.Background(), &proxypb.GetEventRequest{
@@ -360,7 +359,7 @@ func TestControllerProxy_ValidateSubscription(t *testing.T) {
 		})
 
 		ctrl := gomock.NewController(t)
-		cli := client.NewMockClient(ctrl)
+		cli := api.NewMockClient(ctrl)
 		cp.client = cli
 		eb := api.NewMockEventbus(ctrl)
 		mockTriggerCtrl := ctrlpb.NewMockTriggerControllerClient(ctrl)
@@ -369,7 +368,7 @@ func TestControllerProxy_ValidateSubscription(t *testing.T) {
 			ctx := stdCtx.Background()
 
 			// mock eventbus
-			cli.EXPECT().Eventbus(gomock.Any(), gomock.Any()).Times(2).Return(eb)
+			cli.EXPECT().Eventbus(gomock.Any(), gomock.Any()).Times(1).Return(eb, nil)
 			eb.EXPECT().ListLog(gomock.Any()).Times(1).Return([]api.Eventlog{nil}, nil)
 			rd := api.NewMockBusReader(ctrl)
 			eb.EXPECT().Reader(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).Return(rd)

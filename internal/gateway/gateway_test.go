@@ -28,7 +28,6 @@ import (
 	. "github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/pkg/cluster"
@@ -189,10 +188,10 @@ func TestGateway_EventID(t *testing.T) {
 		port        = 8087
 	)
 
-	mockClient := client.NewMockClient(ctrl)
+	mockClient := api.NewMockClient(ctrl)
 	mockEventbus := api.NewMockEventbus(ctrl)
 	mockBusWriter := api.NewMockBusWriter(ctrl)
-	mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
+	mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus, nil)
 	mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 	mockBusWriter.EXPECT().Append(Any(), Any()).AnyTimes().Return([]string{"AABBCC"}, nil)
 

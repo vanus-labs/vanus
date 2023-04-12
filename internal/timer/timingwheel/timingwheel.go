@@ -78,7 +78,7 @@ type timingWheel struct {
 	config  *Config
 	kvStore kv.Client
 	ctrlCli ctrlpb.EventbusControllerClient
-	client  client.Client
+	client  api.Client
 	cache   sync.Map
 	twList  *list.List // element: *timingWheelElement
 
@@ -349,7 +349,9 @@ func (tw *timingWheel) startReceivingStation(ctx context.Context) error {
 		return err
 	}
 
-	tw.getReceivingStation().connectEventbus(ctx)
+	if err = tw.getReceivingStation().connectEventbus(ctx); err != nil {
+		return err
+	}
 	tw.runReceivingStation(ctx)
 	return nil
 }
@@ -459,7 +461,9 @@ func (tw *timingWheel) startDistributionStation(ctx context.Context) error {
 		return err
 	}
 
-	tw.getDistributionStation().connectEventbus(ctx)
+	if err = tw.getDistributionStation().connectEventbus(ctx); err != nil {
+		return err
+	}
 	tw.runDistributionStation(ctx)
 	return nil
 }
@@ -580,7 +584,11 @@ func (tw *timingWheel) deliver(ctx context.Context, e *ce.Event) error {
 	}
 	v, exist := tw.cache.Load(eventbusID)
 	if !exist {
-		v, _ = tw.cache.LoadOrStore(eventbusID, tw.client.Eventbus(ctx, api.WithID(eventbusID.Uint64())).Writer())
+		eb, err := tw.client.Eventbus(ctx, api.WithID(eventbusID.Uint64()))
+		if err != nil {
+			return err
+		}
+		v, _ = tw.cache.LoadOrStore(eventbusID, eb.Writer())
 	}
 	writer, _ := v.(api.BusWriter)
 	_, err = api.AppendOne(ctx, writer, e)

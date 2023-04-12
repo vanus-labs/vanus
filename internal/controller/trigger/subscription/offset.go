@@ -160,7 +160,11 @@ func (m *manager) SaveDeadLetterOffset(ctx context.Context, id vanus.ID, offset 
 func (m *manager) getOffsetFromCli(ctx context.Context, eventbusID vanus.ID,
 	config primitive.SubscriptionConfig,
 ) (info.ListOffsetInfo, error) {
-	logs, err := m.ebCli.Eventbus(ctx, api.WithID(eventbusID.Uint64())).ListLog(ctx)
+	eb, err := m.ebCli.Eventbus(ctx, api.WithID(eventbusID.Uint64()))
+	if err != nil {
+		return nil, err
+	}
+	logs, err := eb.ListLog(ctx)
 	if err != nil {
 		return nil, err
 	}
