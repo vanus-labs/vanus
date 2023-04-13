@@ -52,7 +52,7 @@ It helps users build event pipelines between SaaS, cloud services, and cloud fun
 
 Vanus helps users build event pipelines between SaaS, cloud services, and cloud functions in minutes.
 
-### 1. Build an event-driven system
+### 1. Build event-driven systems
 
 - Receives and processes events from cloud services and SaaS applications.
 - Delivers events to cloud functions or microservices.
