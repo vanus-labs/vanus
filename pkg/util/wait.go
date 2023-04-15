@@ -65,3 +65,23 @@ func UntilWithContext(ctx context.Context, f func(context.Context), period time.
 		}
 	}
 }
+
+func WaitReady(f func() bool, timeout, period time.Duration) bool {
+	tk := time.NewTicker(period)
+	t := time.NewTicker(timeout)
+	defer func() {
+		tk.Stop()
+		t.Stop()
+	}()
+	for {
+		select {
+		case <-t.C:
+			return false
+		case <-tk.C:
+			b := f()
+			if b {
+				return true
+			}
+		}
+	}
+}

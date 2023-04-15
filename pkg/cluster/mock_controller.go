@@ -371,6 +371,21 @@ func (mr *MockEventbusServiceMockRecorder) GetSystemEventbusByName(ctx, name int
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSystemEventbusByName", reflect.TypeOf((*MockEventbusService)(nil).GetSystemEventbusByName), ctx, name)
 }
 
+// IsSystemEventbusExistByName mocks base method.
+func (m *MockEventbusService) IsSystemEventbusExistByName(ctx context.Context, name string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsSystemEventbusExistByName", ctx, name)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsSystemEventbusExistByName indicates an expected call of IsSystemEventbusExistByName.
+func (mr *MockEventbusServiceMockRecorder) IsSystemEventbusExistByName(ctx, name interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSystemEventbusExistByName", reflect.TypeOf((*MockEventbusService)(nil).IsSystemEventbusExistByName), ctx, name)
+}
+
 // RawClient mocks base method.
 func (m *MockEventbusService) RawClient() controller.EventbusControllerClient {
 	m.ctrl.T.Helper()

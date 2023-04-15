@@ -16,7 +16,7 @@ package trigger
 
 import (
 	"context"
-	stdErr "errors"
+	stderr "errors"
 	"fmt"
 	"io"
 	"os"
@@ -51,6 +51,8 @@ var _ ctrlpb.TriggerControllerServer = &controller{}
 
 const (
 	defaultGcSubscriptionInterval = time.Second * 10
+	waitEventbusReadyTime         = time.Minute * 3
+	waitEventbusCheckPeriod       = time.Second * 2
 )
 
 func NewController(config Config, mem member.Member) *controller {
@@ -58,7 +60,6 @@ func NewController(config Config, mem member.Member) *controller {
 		config:                config,
 		member:                mem,
 		needCleanSubscription: map[vanus.ID]string{},
-		state:                 primitive.ServerStateCreated,
 		cl:                    cluster.NewClusterController(config.ControllerAddr, insecure.NewCredentials()),
 		ebClient:              eb.Connect(config.ControllerAddr),
 	}
@@ -80,7 +81,6 @@ type controller struct {
 	isLeader              bool
 	ctx                   context.Context
 	stopFunc              context.CancelFunc
-	state                 primitive.ServerState
 	cl                    cluster.Cluster
 	ebClient              eb.Client
 }
@@ -88,9 +88,6 @@ type controller struct {
 func (ctrl *controller) SetDeadLetterEventOffset(
 	ctx context.Context, request *ctrlpb.SetDeadLetterEventOffsetRequest,
 ) (*emptypb.Empty, error) {
-	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
-	}
 	subID := vanus.ID(request.SubscriptionId)
 	err := ctrl.subscriptionManager.SaveDeadLetterOffset(ctx, subID, request.GetOffset())
 	if err != nil {
@@ -102,9 +99,6 @@ func (ctrl *controller) SetDeadLetterEventOffset(
 func (ctrl *controller) GetDeadLetterEventOffset(
 	ctx context.Context, request *ctrlpb.GetDeadLetterEventOffsetRequest,
 ) (*ctrlpb.GetDeadLetterEventOffsetResponse, error) {
-	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
-	}
 	subID := vanus.ID(request.SubscriptionId)
 	offset, err := ctrl.subscriptionManager.GetDeadLetterOffset(ctx, subID)
 	if err != nil {
@@ -116,9 +110,6 @@ func (ctrl *controller) GetDeadLetterEventOffset(
 func (ctrl *controller) CommitOffset(
 	ctx context.Context, request *ctrlpb.CommitOffsetRequest,
 ) (*ctrlpb.CommitOffsetResponse, error) {
-	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
-	}
 	resp := new(ctrlpb.CommitOffsetResponse)
 	for _, subInfo := range request.SubscriptionInfo {
 		if len(subInfo.Offsets) == 0 {
@@ -140,9 +131,6 @@ func (ctrl *controller) CommitOffset(
 func (ctrl *controller) ResetOffsetToTimestamp(
 	ctx context.Context, request *ctrlpb.ResetOffsetToTimestampRequest,
 ) (*ctrlpb.ResetOffsetToTimestampResponse, error) {
-	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
-	}
 	if request.Timestamp == 0 {
 		return nil, errors.ErrInvalidRequest.WithMessage("timestamp is invalid")
 	}
@@ -167,15 +155,20 @@ func (ctrl *controller) ResetOffsetToTimestamp(
 func (ctrl *controller) CreateSubscription(
 	ctx context.Context, request *ctrlpb.CreateSubscriptionRequest,
 ) (*metapb.Subscription, error) {
-	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
-	}
 	err := validation.ValidateSubscriptionRequest(ctx, request.Subscription)
 	if err != nil {
 		log.Info(ctx).Err(err).Msg("create subscription validate fail")
 		return nil, err
 	}
 	sub := convert.FromPbSubscriptionRequest(request.Subscription)
+	_, err = ctrl.cl.NamespaceService().GetNamespace(ctx, sub.NamespaceID.Uint64())
+	if err != nil {
+		return nil, err
+	}
+	_, err = ctrl.cl.EventbusService().GetEventbus(ctx, sub.EventbusID.Uint64())
+	if err != nil {
+		return nil, err
+	}
 	sub.ID, err = vanus.NewID()
 	sub.CreatedAt = time.Now()
 	sub.UpdatedAt = time.Now()
@@ -201,9 +194,6 @@ func (ctrl *controller) CreateSubscription(
 func (ctrl *controller) UpdateSubscription(
 	ctx context.Context, request *ctrlpb.UpdateSubscriptionRequest,
 ) (*metapb.Subscription, error) {
-	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
-	}
 	subID := vanus.ID(request.Id)
 	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
 	if sub == nil {
@@ -244,9 +234,6 @@ func (ctrl *controller) UpdateSubscription(
 func (ctrl *controller) DeleteSubscription(
 	ctx context.Context, request *ctrlpb.DeleteSubscriptionRequest,
 ) (*emptypb.Empty, error) {
-	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
-	}
 	subID := vanus.ID(request.Id)
 	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
 	if sub != nil {
@@ -270,9 +257,6 @@ func (ctrl *controller) DeleteSubscription(
 func (ctrl *controller) DisableSubscription(
 	ctx context.Context, request *ctrlpb.DisableSubscriptionRequest,
 ) (*emptypb.Empty, error) {
-	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
-	}
 	subID := vanus.ID(request.Id)
 	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
 	if sub == nil {
@@ -303,9 +287,6 @@ func (ctrl *controller) DisableSubscription(
 func (ctrl *controller) ResumeSubscription(
 	ctx context.Context, request *ctrlpb.ResumeSubscriptionRequest,
 ) (*emptypb.Empty, error) {
-	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
-	}
 	subID := vanus.ID(request.Id)
 	sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
 	if sub == nil {
@@ -327,9 +308,6 @@ func (ctrl *controller) ResumeSubscription(
 func (ctrl *controller) GetSubscription(
 	ctx context.Context, request *ctrlpb.GetSubscriptionRequest,
 ) (*metapb.Subscription, error) {
-	if ctrl.state != primitive.ServerStateRunning {
-		return nil, errors.ErrServerNotStart
-	}
 	sub := ctrl.subscriptionManager.GetSubscription(ctx, vanus.ID(request.Id))
 	if sub == nil {
 		return nil, errors.ErrResourceNotFound.WithMessage("subscription not exist")
@@ -356,7 +334,7 @@ func (ctrl *controller) TriggerWorkerHeartbeat(
 		}
 		req, err := heartbeat.Recv()
 		if err != nil {
-			if !stdErr.Is(err, io.EOF) {
+			if !stderr.Is(err, io.EOF) {
 				log.Warn(ctx).Err(err).Msg("heartbeat recv error")
 			}
 			log.Info(ctx).Msg("heartbeat close")
@@ -566,7 +544,6 @@ func (ctrl *controller) membershipChangedProcessor(
 		ctrl.subscriptionManager.Start()
 		ctrl.scheduler.Run()
 		go ctrl.gcSubscriptions(ctx)
-		ctrl.state = primitive.ServerStateRunning
 		ctrl.isLeader = true
 	case member.EventBecomeFollower:
 		if !ctrl.isLeader {
@@ -583,13 +560,11 @@ func (ctrl *controller) membershipChangedProcessor(
 
 func (ctrl *controller) stop(_ context.Context) error {
 	ctrl.member.ResignIfLeader()
-	ctrl.state = primitive.ServerStateStopping
 	ctrl.stopFunc()
 	ctrl.scheduler.Stop()
 	ctrl.workerManager.Stop()
 	ctrl.subscriptionManager.Stop()
 	ctrl.storage.Close()
-	ctrl.state = primitive.ServerStateStopped
 	return nil
 }
 
@@ -625,12 +600,40 @@ func (ctrl *controller) initTriggerSystemEventbus() {
 	go func() {
 		ctx := context.Background()
 		log.Info(ctx).Msg("trigger controller is ready to check system eventbus")
+		if err := ctrl.cl.WaitForControllerReady(false); err != nil {
+			log.Error().Err(err).Msg("trigger controller check system eventbus, " +
+				"but Vanus cluster hasn't ready, exit")
+			os.Exit(-1)
+		}
+		ready := util.WaitReady(func() bool {
+			exist, err := ctrl.cl.EventbusService().IsSystemEventbusExistByName(ctx, primitive.TimerEventbusName)
+			if err != nil {
+				log.Error().Err(err).Msg("check TimerEventbus exist has error")
+				return false
+			}
+			return exist
+		}, waitEventbusReadyTime, waitEventbusCheckPeriod)
+		if !ready {
+			log.Error().Msg("check TimerEventbus timeout no exist, will exist")
+			os.Exit(-1)
+		}
+
+		// wait TimerEventbus
+		exist, err := ctrl.cl.EventbusService().IsSystemEventbusExistByName(ctx, primitive.RetryEventbusName)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to check RetryEventbus exist, exit")
+			os.Exit(-1)
+		}
+		if exist {
+			log.Info().Msg("trigger controller check RetryEventbus exist")
+			return
+		}
+		log.Info().Msg("trigger controller check RetryEventbus no exist, will create")
 		if err := ctrl.cl.WaitForControllerReady(true); err != nil {
 			log.Error(ctx).Err(err).
 				Msg("trigger controller try to create system eventbus, but Vanus cluster hasn't ready, exit")
 			os.Exit(-1)
 		}
-
 		if _, err := ctrl.cl.EventbusService().CreateSystemEventbusIfNotExist(ctx, primitive.RetryEventbusName,
 			"System Eventbus For Trigger Service"); err != nil {
 			log.Error(ctx).Err(err).Msg("failed to create RetryEventbus, exit")
