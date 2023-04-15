@@ -62,6 +62,7 @@ func init() {
 		strings.NewSplitBetweenPositionsAction,
 		strings.NewSplitFromStartAction,
 		strings.NewExtractBetweenPositionsAction,
+		strings.NewExtractPatternAction,
 		// condition
 		condition.NewConditionIfAction,
 		// array
