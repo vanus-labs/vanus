@@ -76,8 +76,6 @@ You can install Vanus with a single command within 1 minute. Check out our [webs
 kubectl apply -f https://dl.vanus.ai/all-in-one/v0.8.0.yml
 ```
 
-We also provide an [interactive Kubernetes environment](https://play.linkall.com) to simply deploy and try Vanus in your browser.
-
 ## Community
 
 We have a few channels for contact:
