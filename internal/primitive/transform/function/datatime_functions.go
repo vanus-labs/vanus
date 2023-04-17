@@ -60,3 +60,35 @@ var UnixTimeFormatFunction = function{
 		return t.In(loc).Format(format), nil
 	},
 }
+
+var ConvertTimeZoneFunction = function{
+	name:         "CONVERT_TIMEZONE",
+	fixedArgs:    []common.Type{common.String, common.String, common.String, common.String},
+	variadicArgs: common.TypePtr(common.String),
+	fn: func(args []interface{}) (interface{}, error) {
+		var dateTimeFormat string
+		if len(args) > 4 && args[4].(string) == "" {
+			dateTimeFormat = "2006-01-02 15:04:05"
+		} else {
+			dateTimeFormat = args[4].(string)
+		}
+		// Check if the source time value is a string.
+		sourceTimeString, ok := args[0].(string)
+		if !ok {
+			return nil, nil
+		}
+
+		sourceTimeParsed, err := time.ParseInLocation(dateTimeFormat, sourceTimeString, util.TimezoneFromString(args[1].(string)))
+		if err != nil {
+			return nil, err
+		}
+
+		// Convert the target time to the destination timezone.
+		targetTimeParsed := sourceTimeParsed.In(util.TimezoneFromString(args[2].(string)))
+
+		// Format the target time value.
+		targetTimeString := targetTimeParsed.Format(dateTimeFormat)
+
+		return targetTimeString, nil
+	},
+}
