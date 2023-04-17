@@ -32,14 +32,14 @@ docker-push-store:
 docker-build-store:
 	docker build -t ${DOCKER_REPO}/store:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/store/Dockerfile .
 build-store:
-	$(GO_BUILD)  -o bin/store cmd/store/main.go
+	$(GO_BUILD) -o bin/store cmd/store/main.go
 
 docker-push-gateway:
 	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/gateway:${IMAGE_TAG} -f build/images/gateway/Dockerfile . --push
 docker-build-gateway:
 	docker build -t ${DOCKER_REPO}/gateway:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/gateway/Dockerfile .
 build-gateway:
-	$(GO_BUILD)  -o bin/gateway cmd/gateway/main.go
+	$(GO_BUILD) -o bin/gateway cmd/gateway/main.go
 
 docker-push-test-infra:
 	docker build -t ${DOCKER_REPO}/test-infra:${IMAGE_TAG} -f test/infra/Dockerfile .
@@ -59,7 +59,7 @@ docker-push-toolbox:
 	docker buildx build --no-cache --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/toolbox:${IMAGE_TAG} -f build/toolbox/Dockerfile . --push
 
 build-cmd:
-	$(GO_BUILD)  -ldflags "${LD_FLAGS}" -o bin/vsctl ./vsctl/
+	$(GO_BUILD) -ldflags "${LD_FLAGS}" -o bin/vsctl ./vsctl/
 
 docker-push-root:
 	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/root-controller:${IMAGE_TAG} -f build/images/root-controller/Dockerfile . --push
@@ -80,7 +80,7 @@ docker-push-trigger:
 docker-build-trigger:
 	docker build -t ${DOCKER_REPO}/trigger:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/trigger/Dockerfile .
 build-trigger:
-	$(GO_BUILD)  -o bin/trigger cmd/trigger/main.go
+	$(GO_BUILD) -o bin/trigger cmd/trigger/main.go
 
 docker-push-timer:
 	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/timer:${IMAGE_TAG} -f build/images/timer/Dockerfile . --push

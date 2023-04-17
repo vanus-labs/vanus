@@ -23,10 +23,12 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 )
 
+replace github.com/vanus-labs/vanus/observability => ../observability
+
 // Bad imports are sometimes causing attempts to pull that code.
 // This makes the error more explicit.
-replace go.etcd.io/etcd => ./FORBIDDEN_DEPENDENCY
-
-replace go.etcd.io/etcd/v3 => ./FORBIDDEN_DEPENDENCY
-
-replace github.com/vanus-labs/vanus/observability => ../observability
+replace (
+	github.com/vanus-labs/vanus => ../FORBIDDEN_DEPENDENCY
+	go.etcd.io/etcd => ./FORBIDDEN_DEPENDENCY
+	go.etcd.io/etcd/v3 => ./FORBIDDEN_DEPENDENCY
+)

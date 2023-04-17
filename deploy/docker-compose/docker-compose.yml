@@ -27,7 +27,7 @@ services:
     networks:
       - vanus
   root-controller:
-    image: public.ecr.aws/vanus/root-controller:v0.7.0
+    image: public.ecr.aws/vanus/root-controller:v0.8.0
     pull_policy: missing
     container_name: root-controller
     volumes:
@@ -40,7 +40,7 @@ services:
     networks:
       - vanus
   controller:
-    image: public.ecr.aws/vanus/controller:v0.7.0
+    image: public.ecr.aws/vanus/controller:v0.8.0
     pull_policy: missing
     container_name: controller
     volumes:
@@ -56,7 +56,7 @@ services:
       - root-controller
   store:
     container_name: store
-    image: public.ecr.aws/vanus/store:v0.7.0
+    image: public.ecr.aws/vanus/store:v0.8.0
     pull_policy: missing
     volumes:
       - ./config/store.yaml:/vanus/config/store.yaml
@@ -72,7 +72,7 @@ services:
       - controller
   timer:
     container_name: timer
-    image: public.ecr.aws/vanus/timer:v0.7.0
+    image: public.ecr.aws/vanus/timer:v0.8.0
     pull_policy: missing
     volumes:
       - ./config/timer.yaml:/vanus/config/timer.yaml
@@ -85,7 +85,7 @@ services:
       - store
   trigger:
     container_name: trigger
-    image: public.ecr.aws/vanus/trigger:v0.7.0
+    image: public.ecr.aws/vanus/trigger:v0.8.0
     pull_policy: missing
     volumes:
       - ./config/trigger.yaml:/vanus/config/trigger.yaml
@@ -97,7 +97,7 @@ services:
       - controller
   gateway:
     container_name: gateway
-    image: public.ecr.aws/vanus/gateway:v0.7.0
+    image: public.ecr.aws/vanus/gateway:v0.8.0
     pull_policy: missing
     ports:
       - "8080:8080"

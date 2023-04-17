@@ -56,7 +56,7 @@ spec:
       nodeSelector:
         type: calculation
       containers:
-        - image: public.ecr.aws/vanus/gateway:6b23e5a
+        - image: public.ecr.aws/vanus/gateway:v0.8.0
           imagePullPolicy: IfNotPresent
           name: gateway
           resources:
@@ -73,9 +73,9 @@ spec:
               name: cloudevents
             - containerPort: 8082
               name: sinkproxy
-#            - containerPort: 2112
-#              protocol: TCP
-#              name: metrics
+          #            - containerPort: 2112
+          #              protocol: TCP
+          #              name: metrics
           volumeMounts:
             - mountPath: /vanus/config
               name: config-gateway
