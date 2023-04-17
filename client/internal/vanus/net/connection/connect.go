@@ -15,10 +15,16 @@
 package connection
 
 import (
+	// standard libraries.
 	"context"
+
+	// third-party libraries.
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/internal/primitive/interceptor/errinterceptor"
 )
 
 func Connect(ctx context.Context, endpoint string) (*grpc.ClientConn, error) {
@@ -27,6 +33,7 @@ func Connect(ctx context.Context, endpoint string) (*grpc.ClientConn, error) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
 		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
+		grpc.WithUnaryInterceptor(errinterceptor.UnaryClientInterceptor()),
 	}
 	conn, err := grpc.DialContext(ctx, endpoint, opts...)
 	if err != nil {

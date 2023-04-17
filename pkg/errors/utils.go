@@ -15,6 +15,8 @@
 package errors
 
 import (
+	stderr "errors"
+
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/status"
 )
@@ -96,7 +98,7 @@ func ConvertToGRPCError(err error) error {
 	}
 	e, ok := err.(*ErrorType)
 	if ok {
-		return errors.New(e.JSON())
+		return stderr.New(e.JSON())
 	}
 	return err
 }

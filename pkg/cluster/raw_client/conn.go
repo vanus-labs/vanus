@@ -17,7 +17,6 @@ package raw_client
 import (
 	"context"
 	"fmt"
-	"github.com/vanus-labs/vanus/observability/log"
 	"os"
 	"strconv"
 	"sync"
@@ -30,9 +29,10 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
-
+	"github.com/vanus-labs/vanus/internal/primitive/interceptor/errinterceptor"
+	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/pkg/errors"
+	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 )
 
 const (
@@ -159,9 +159,11 @@ func (c *Conn) getGRPCConn(ctx context.Context, addr string) *grpc.ClientConn {
 		_ = conn.Close() // make sure it's closed
 	}
 
-	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithTransportCredentials(c.credentials))
-	opts = append(opts, grpc.WithBlock())
+	opts := []grpc.DialOption{
+		grpc.WithBlock(),
+		grpc.WithTransportCredentials(c.credentials),
+		grpc.WithUnaryInterceptor(errinterceptor.UnaryClientInterceptor()),
+	}
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	conn, err = grpc.DialContext(ctx, addr, opts...)
