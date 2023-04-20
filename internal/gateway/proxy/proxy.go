@@ -189,7 +189,7 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 		err := checkExtension(e.Attributes)
 		if err != nil {
 			responseCode = http.StatusBadRequest
-			return nil, err
+			return nil, errors.ErrInvalidArgument.WithMessage(err.Error())
 		}
 		if e.Attributes == nil {
 			e.Attributes = make(map[string]*cloudevents.CloudEvent_CloudEventAttributeValue, 0)

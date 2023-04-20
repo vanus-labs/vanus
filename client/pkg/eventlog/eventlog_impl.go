@@ -342,11 +342,10 @@ type logWriter struct {
 }
 
 func (w *logWriter) Append(ctx context.Context, events *cloudevents.CloudEventBatch) (offs []int64, err error) {
-	retryTimes := defaultRetryTimes
-	for i := 1; i <= retryTimes; i++ {
-		offsets, err := w.doAppend(ctx, events)
+	for i := 1; i <= defaultRetryTimes; i++ {
+		offs, err = w.doAppend(ctx, events)
 		if err == nil {
-			return offsets, nil
+			return offs, nil
 		}
 		if !errors.Is(err, errors.ErrSegmentFull) {
 			log.Error(ctx).Err(err).Msg("log-writer append failed")
@@ -354,17 +353,9 @@ func (w *logWriter) Append(ctx context.Context, events *cloudevents.CloudEventBa
 		}
 		log.Debug(ctx).
 			Int("retry_time", i).
-			Ints64("offsets", offsets).
 			Err(err).Msg("log-writer append failed cause segment full")
-		if i == retryTimes {
-			log.Error(ctx).Err(err).
-				Int("retry_time", i).
-				Ints64("offsets", offsets).
-				Err(err).Msg("log-writer append failed")
-			return nil, err
-		}
 	}
-	return nil, errors.ErrUnknown
+	return nil, err
 }
 
 func (w *logWriter) Log() Eventlog {
