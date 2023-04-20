@@ -13,7 +13,7 @@ require (
 require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	go.opentelemetry.io/otel v1.14.0 // indirect
-	google.golang.org/protobuf v1.26.0 // indirect
+	google.golang.org/protobuf v1.30.0 // indirect
 )
 
 replace github.com/vanus-labs/vanus/observability => ../observability
