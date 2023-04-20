@@ -278,7 +278,7 @@ func (l *eventlog) updateReadableSegments(ctx context.Context, rs []*record.Segm
 		if err != nil {
 			// FIXME: create or update segment failed
 			log.Debug().
-				Uint64("segment", segment.id).
+				Interface("segment", segment).
 				Msg("update readable segment failed")
 			continue
 		}
@@ -342,11 +342,10 @@ type logWriter struct {
 }
 
 func (w *logWriter) Append(ctx context.Context, events *cloudevents.CloudEventBatch) (offs []int64, err error) {
-	retryTimes := defaultRetryTimes
-	for i := 1; i <= retryTimes; i++ {
-		offsets, err := w.doAppend(ctx, events)
+	for i := 1; i <= defaultRetryTimes; i++ {
+		offs, err = w.doAppend(ctx, events)
 		if err == nil {
-			return offsets, nil
+			return offs, nil
 		}
 		if !errors.Is(err, errors.ErrSegmentFull) {
 			log.Error(ctx).Err(err).Msg("log-writer append failed")
@@ -354,10 +353,9 @@ func (w *logWriter) Append(ctx context.Context, events *cloudevents.CloudEventBa
 		}
 		log.Debug(ctx).
 			Int("retry_time", i).
-			Ints64("retry_time", offsets).
 			Err(err).Msg("log-writer append failed cause segment full")
 	}
-	return nil, errors.ErrUnknown
+	return nil, err
 }
 
 func (w *logWriter) Log() Eventlog {
