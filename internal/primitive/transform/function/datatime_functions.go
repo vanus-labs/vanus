@@ -63,7 +63,7 @@ var UnixTimeFormatFunction = function{
 
 var ConvertTimeZoneFunction = function{
 	name:         "CONVERT_TIMEZONE",
-	fixedArgs:    []common.Type{common.String, common.String, common.String, common.String},
+	fixedArgs:    []common.Type{common.String, common.String, common.String},
 	variadicArgs: common.TypePtr(common.String),
 	fn: func(args []interface{}) (interface{}, error) {
 		var dateTimeFormat string
@@ -78,7 +78,11 @@ var ConvertTimeZoneFunction = function{
 			return nil, nil
 		}
 
-		sourceTimeParsed, err := time.ParseInLocation(dateTimeFormat, sourceTimeString, util.TimezoneFromString(args[1].(string)))
+		sourceTimeParsed, err := time.ParseInLocation(
+			dateTimeFormat, 
+			sourceTimeString, 
+			util.TimezoneFromString(args[1].(string)),
+		)
 		if err != nil {
 			return nil, err
 		}
