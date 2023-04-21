@@ -60,3 +60,24 @@ var UnixTimeFormatFunction = function{
 		return t.In(loc).Format(format), nil
 	},
 }
+
+var TodayFunction = function{
+	name:         "TODAY",
+	fixedArgs:    []common.Type{common.String},
+	variadicArgs: common.TypePtr(common.String),
+	fn: func(args []interface{}) (interface{}, error) {
+		t, err := time.ParseInLocation(time.RFC3339, args[0].(string), time.UTC)
+		if err != nil {
+			return nil, err
+		}
+		loc := time.UTC
+		if len(args) > 1 && args[1].(string) != "" {
+			loc, err = time.LoadLocation(args[1].(string))
+			if err != nil {
+				return nil, err
+			}
+		}
+		format := util.GetYMDFormat()
+		return t.In(loc).Format(format), nil
+	},
+}
