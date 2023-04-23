@@ -29,7 +29,7 @@ func TestConvertTimezoneAction(t *testing.T) {
 	funcName := datetime.NewConvertTimezoneAction().Name()
 	Convey("test convert timezone", t, func() {
 		Convey("test with default time zone", func() {
-			a, err := runtime.NewAction([]interface{}{funcName, "$.data.time", "CET", "UTC", "$.data.time", ""})
+			a, err := runtime.NewAction([]interface{}{funcName, "$.data.time", "CET", "UTC", ""})
 			So(err, ShouldBeNil)
 			e := cetest.MinEvent()
 			ceCtx := &context.EventContext{
@@ -41,7 +41,19 @@ func TestConvertTimezoneAction(t *testing.T) {
 			So(ceCtx.Data.(map[string]interface{})["time"], ShouldEqual, "2021-08-29 10:01:10")
 		})
 		Convey("test with ist time zone", func() {
-			a, err := runtime.NewAction([]interface{}{funcName, "$.data.time", "CET", "Asia/Kolkata", "$.data.time", ""})
+			a, err := runtime.NewAction([]interface{}{funcName, "$.data.time", "CET", "Asia/Kolkata", ""})
+			So(err, ShouldBeNil)
+			e := cetest.MinEvent()
+			ceCtx := &context.EventContext{
+				Event: &e,
+				Data:  map[string]interface{}{"time": "2021-08-29 12:01:10"},
+			}
+			err = a.Execute(ceCtx)
+			So(err, ShouldBeNil)
+			So(ceCtx.Data.(map[string]interface{})["time"], ShouldEqual, "2021-08-29 15:31:10")
+		})
+		Convey("test with date param", func() {
+			a, err := runtime.NewAction([]interface{}{funcName, "$.data.time", "CET", "Asia/Kolkata", "2006-01-02 15:04:05"})
 			So(err, ShouldBeNil)
 			e := cetest.MinEvent()
 			ceCtx := &context.EventContext{

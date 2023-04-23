@@ -67,10 +67,10 @@ var ConvertTimeZoneFunction = function{
 	variadicArgs: common.TypePtr(common.String),
 	fn: func(args []interface{}) (interface{}, error) {
 		var dateTimeFormat string
-		if len(args) > 4 && args[4].(string) == "" {
-			dateTimeFormat = "2006-01-02 15:04:05"
+		if len(args) > 3 && args[3].(string) != "" {
+			dateTimeFormat = args[3].(string)
 		} else {
-			dateTimeFormat = args[4].(string)
+			dateTimeFormat = "2006-01-02 15:04:05"
 		}
 		// Check if the source time value is a string.
 		sourceTimeString, ok := args[0].(string)

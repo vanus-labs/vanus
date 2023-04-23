@@ -20,13 +20,13 @@ import (
 	"github.com/vanus-labs/vanus/internal/primitive/transform/function"
 )
 
-// NewConvertTimezoneAction ["sourceJSONPath", "fromTimeZone", "toTimeZone", "targetJsonPath", "dateTimeFormat"].
+// NewConvertTimezoneAction ["sourceJSONPath", "fromTimeZone", "toTimeZone", "dateTimeFormat"].
 func NewConvertTimezoneAction() action.Action {
 	a := &action.SourceTargetSameAction{}
 	a.CommonAction = action.CommonAction{
 		ActionName:  "CONVERT_TIMEZONE",
-		FixedArgs:   []arg.TypeList{arg.EventList, arg.All},
-		VariadicArg: arg.All,
+		FixedArgs:   []arg.TypeList{arg.EventList, {arg.Constant}, {arg.Constant}},
+		VariadicArg: arg.TypeList{arg.Constant},
 		Fn:          function.ConvertTimeZoneFunction,
 	}
 	return a
