@@ -24,22 +24,6 @@ require (
 	github.com/prashantv/gostub v1.1.0
 	github.com/smartystreets/goconvey v1.8.0
 	github.com/sony/sonyflake v1.1.0
-<<<<<<< HEAD
-	github.com/spf13/cobra v1.4.0
-	github.com/tidwall/gjson v1.14.1
-	github.com/vanus-labs/sdk/golang v0.2.1-0.20230308125440-1f823fdeae5b
-	github.com/vanus-labs/vanus/client v0.5.7
-	github.com/vanus-labs/vanus/observability v0.5.7
-	github.com/vanus-labs/vanus/pkg v0.5.7
-	github.com/vanus-labs/vanus/proto v0.7.1-0.20230307065123-722eac99dbf9
-	github.com/vanus-labs/vanus/raft v0.5.7
-	go.etcd.io/etcd/client/v3 v3.5.2
-	go.mongodb.org/mongo-driver v1.11.0
-	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.36.4
-	go.opentelemetry.io/otel v1.11.2
-	go.opentelemetry.io/otel/trace v1.11.2
-	go.uber.org/atomic v1.9.0
-=======
 	github.com/spf13/cobra v1.7.0
 	github.com/tidwall/gjson v1.14.4
 	github.com/vanus-labs/vanus/client v0.8.0
@@ -52,7 +36,6 @@ require (
 	go.opentelemetry.io/otel v1.14.0
 	go.opentelemetry.io/otel/trace v1.14.0
 	go.uber.org/atomic v1.10.0
->>>>>>> 7f8f3521896dea209ce7e00c3211cf6e5cc8e16a
 	go.uber.org/ratelimit v0.2.0
 	golang.org/x/time v0.3.0
 	google.golang.org/api v0.118.0
@@ -116,10 +99,6 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/vigneshuvi/GoDateFormat v0.0.0-20210204121036-67364dc23c79
-	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
-	github.com/xdg-go/scram v1.1.1 // indirect
-	github.com/xdg-go/stringprep v1.0.3 // indirect
-	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
 	go.etcd.io/etcd/api/v3 v3.5.8 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.8 // indirect
 	go.opencensus.io v0.24.0 // indirect
