@@ -130,11 +130,13 @@ func Error(err error) string {
 	if err == nil {
 		return ""
 	}
-	e, _ := errors.FromError(err)
-	if e.Message == "" {
-		return e.Description
+	if et, ok := errors.FromError(err); ok {
+		if et.Message == "" {
+			return et.Description
+		}
+		return et.Message
 	}
-	return e.Message
+	return err.Error()
 }
 
 func formatID(id uint64) string {

@@ -189,7 +189,7 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 		err := checkExtension(e.Attributes)
 		if err != nil {
 			responseCode = http.StatusBadRequest
-			return nil, v2.NewHTTPResult(http.StatusBadRequest, err.Error())
+			return nil, errors.ErrInvalidArgument.WithMessage(err.Error())
 		}
 		if e.Attributes == nil {
 			e.Attributes = make(map[string]*cloudevents.CloudEvent_CloudEventAttributeValue, 0)
@@ -208,14 +208,14 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 						Stringer("eventTime", eventTime).
 						Msg("invalid format of event time")
 					responseCode = http.StatusBadRequest
-					return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid delivery time")
+					return nil, errors.ErrInvalidArgument.WithMessage("invalid delivery time")
 				}
 				eventTime.Attr = &cloudevents.CloudEvent_CloudEventAttributeValue_CeTimestamp{
 					CeTimestamp: timestamppb.New(t),
 				}
 			default:
 				responseCode = http.StatusBadRequest
-				return nil, v2.NewHTTPResult(http.StatusBadRequest, "invalid delivery time")
+				return nil, errors.ErrInvalidArgument.WithMessage("invalid delivery time")
 			}
 			tID, err := cp.ctrl.EventbusService().GetSystemEventbusByName(ctx, primitive.TimerEventbusName)
 			if err != nil {
@@ -246,7 +246,7 @@ func (cp *ControllerProxy) writeEvents(
 		log.Warn(ctx).Err(err).
 			Stringer("eventbus", eventbusID).
 			Msg("append to failed")
-		return v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
+		return err
 	}
 	return nil
 }

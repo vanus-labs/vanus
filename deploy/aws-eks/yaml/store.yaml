@@ -56,7 +56,7 @@ spec:
   template:
     metadata:
       annotations:
-        prometheus.io/scrape: 'true'
+        prometheus.io/scrape: "true"
       labels:
         app: vanus-store
     spec:
@@ -74,7 +74,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: public.ecr.aws/vanus/store:6b23e5a
+          image: public.ecr.aws/vanus/store:v0.8.0
           imagePullPolicy: IfNotPresent
           name: store
           resources:

@@ -62,10 +62,14 @@ spec:
     spec:
       containers:
         - name: controller
-          image: public.ecr.aws/vanus/root-controller:v0.7.0
+          image: public.ecr.aws/vanus/root-controller:v0.8.0
           imagePullPolicy: IfNotPresent
           command:
-            [ "/bin/sh", "-c", "NODE_ID=${HOSTNAME##*-} /vanus/bin/root-controller" ]
+            [
+              "/bin/sh",
+              "-c",
+              "NODE_ID=${HOSTNAME##*-} /vanus/bin/root-controller",
+            ]
           ports:
             - name: grpc
               containerPort: 2021

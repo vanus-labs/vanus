@@ -249,7 +249,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: linkall.tencentcloudcr.com/vanus/gateway:v0.7.0
+          image: linkall.tencentcloudcr.com/vanus/gateway:v0.8.0
           imagePullPolicy: IfNotPresent
           name: gateway
           ports:
@@ -294,7 +294,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: linkall.tencentcloudcr.com/vanus/timer:v0.7.0
+          image: linkall.tencentcloudcr.com/vanus/timer:v0.8.0
           imagePullPolicy: IfNotPresent
           name: timer
           volumeMounts:
@@ -332,7 +332,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: linkall.tencentcloudcr.com/vanus/trigger:v0.7.0
+          image: linkall.tencentcloudcr.com/vanus/trigger:v0.8.0
           imagePullPolicy: IfNotPresent
           name: trigger
           ports:
@@ -382,7 +382,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: linkall.tencentcloudcr.com/vanus/controller:v0.7.0
+          image: linkall.tencentcloudcr.com/vanus/controller:v0.8.0
           imagePullPolicy: IfNotPresent
           name: controller
           ports:
@@ -571,7 +571,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: linkall.tencentcloudcr.com/vanus/root-controller:v0.7.0
+          image: linkall.tencentcloudcr.com/vanus/root-controller:v0.8.0
           imagePullPolicy: IfNotPresent
           name: controller
           ports:
@@ -619,7 +619,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: linkall.tencentcloudcr.com/vanus/store:v0.7.0
+          image: linkall.tencentcloudcr.com/vanus/store:v0.8.0
           imagePullPolicy: IfNotPresent
           name: store
           ports:

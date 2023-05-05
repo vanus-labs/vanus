@@ -20,7 +20,6 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/vanus-labs/vanus/pkg/cluster/raw_client"
-	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 )
@@ -32,7 +31,7 @@ type authService struct {
 func (a *authService) GetUserRole(ctx context.Context, user string) ([]*metapb.UserRole, error) {
 	resp, err := a.client.GetUserRole(ctx, &ctrlpb.GetUserRoleRequest{UserIdentifier: user})
 	if err != nil {
-		return nil, errors.UnwrapOrUnknown(err)
+		return nil, err
 	}
 	return resp.GetUserRole(), nil
 }
@@ -40,7 +39,7 @@ func (a *authService) GetUserRole(ctx context.Context, user string) ([]*metapb.U
 func (a *authService) GetUserByToken(ctx context.Context, token string) (string, error) {
 	user, err := a.client.GetUserByToken(ctx, wrapperspb.String(token))
 	if err != nil {
-		return "", errors.UnwrapOrUnknown(err)
+		return "", err
 	}
 	return user.GetValue(), nil
 }

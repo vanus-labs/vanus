@@ -1,4 +1,4 @@
-// Copyright 2022 Linkall Inc.
+// Copyright 2023 Linkall Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,30 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package util
 
 import (
-	// standard libraries.
-	"context"
 	"fmt"
 
-	// first-party libraris.
-	"github.com/vanus-labs/vanus/client"
+	"github.com/ohler55/ojg/jp"
+	"github.com/ohler55/ojg/oj"
+
+	"github.com/vanus-labs/vanus/pkg/errors"
 )
 
-func main() {
-	ctx := context.Background()
-	vrn := fmt.Sprintf("vanus://%s/eventlog/%s?namespace=vanus", "127.0.0.1:2048", "df5aff09-9242-4b47-b9df-cf07c5868e3a")
-	r, err := client.OpenLogReader(ctx, vrn)
+func ParseJSON(b []byte) (interface{}, error) {
+	return oj.Parse(b)
+}
+
+func GetJSONValue(data interface{}, path string) (interface{}, error) {
+	p, err := jp.ParseString(path)
 	if err != nil {
-		panic(err)
+		return nil, errors.ErrInvalidJSONPath.WithMessage(fmt.Sprintf("json path %s invalid", path)).Wrap(err)
 	}
-	_, _ = r.Seek(ctx, 20, 0)
-	es, er := r.Read(ctx, 100)
-	if err != nil {
-		panic(er)
-	}
-	for i, v := range es {
-		println(i, string(v.Data()))
+	res := p.Get(data)
+	switch len(res) {
+	case 0:
+		return nil, errors.ErrJSONPathNotExist
+	case 1:
+		return res[0], nil
+	default:
+		return res, nil
 	}
 }
