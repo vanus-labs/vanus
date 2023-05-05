@@ -37,7 +37,7 @@ require (
 	github.com/vanus-labs/vanus/pkg v0.5.7
 	github.com/vanus-labs/vanus/proto v0.7.1-0.20230307065123-722eac99dbf9
 	github.com/vanus-labs/vanus/raft v0.5.7
-	go.etcd.io/etcd/client/v3 v3.5.7
+	go.etcd.io/etcd/client/v3 v3.5.2
 	go.mongodb.org/mongo-driver v1.11.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.36.4
 	go.opentelemetry.io/otel v1.11.2
@@ -104,6 +104,7 @@ require (
 	github.com/stretchr/testify v1.8.1 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
+	github.com/vigneshuvi/GoDateFormat v0.0.0-20210204121036-67364dc23c79
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.1 // indirect
 	github.com/xdg-go/stringprep v1.0.3 // indirect

@@ -19,6 +19,7 @@ import (
 
 	"github.com/vanus-labs/vanus/internal/primitive/transform/common"
 	"github.com/vanus-labs/vanus/internal/primitive/transform/function/util"
+	"github.com/vigneshuvi/GoDateFormat"
 )
 
 var DateFormatFunction = function{
@@ -68,11 +69,11 @@ var ConvertTimeZoneFunction = function{
 	fn: func(args []interface{}) (interface{}, error) {
 		var dateTimeFormat string
 		if len(args) > 3 && args[3].(string) != "" {
-			dateTimeFormat = args[3].(string)
+			dateTimeFormat = GoDateFormat.ConvertFormat(args[3].(string))
 		} else {
 			dateTimeFormat = "2006-01-02 15:04:05"
 		}
-		// Check if the source time value is a string.
+		
 		sourceTimeString, ok := args[0].(string)
 		if !ok {
 			return nil, nil
