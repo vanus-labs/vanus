@@ -46,6 +46,7 @@ import (
 	"github.com/vanus-labs/vanus/observability/tracing"
 	"github.com/vanus-labs/vanus/pkg/cluster"
 	"github.com/vanus-labs/vanus/pkg/errors"
+	errinterceptor "github.com/vanus-labs/vanus/pkg/grpc/interceptor/errors"
 	"github.com/vanus-labs/vanus/pkg/util"
 	cepb "github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
@@ -54,7 +55,6 @@ import (
 
 	// this project.
 	"github.com/vanus-labs/vanus/internal/primitive"
-	"github.com/vanus-labs/vanus/internal/primitive/interceptor/errinterceptor"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/internal/store"
 	"github.com/vanus-labs/vanus/internal/store/block"
@@ -554,12 +554,14 @@ func (s *server) AppendToBlock(ctx context.Context, id vanus.ID, events []*cepb.
 	b.Append(ctx, entries, future.onAppended)
 	seqs, err := future.wait()
 	if err != nil {
-		metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr(), metrics.LabelFailed).Add(float64(len(events)))
+		metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr(),
+			metrics.LabelFailed).Add(float64(len(events)))
 		metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr(), metrics.LabelFailed).Add(float64(size))
 		return nil, s.processAppendError(ctx, b, err)
 	}
 	metrics.WriteTPSCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr(), metrics.LabelSuccess).Add(float64(len(events)))
-	metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr(), metrics.LabelSuccess).Add(float64(size))
+	metrics.WriteThroughputCounterVec.WithLabelValues(s.volumeIDStr, b.IDStr(),
+		metrics.LabelSuccess).Add(float64(size))
 	return seqs, nil
 }
 

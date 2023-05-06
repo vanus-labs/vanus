@@ -15,6 +15,7 @@
 package main
 
 import (
+	// standard libraries.
 	"context"
 	"flag"
 	"fmt"
@@ -23,6 +24,7 @@ import (
 	"runtime/debug"
 	"sync"
 
+	// third-party libraries.
 	recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -30,18 +32,20 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
-	"github.com/vanus-labs/vanus/internal/controller/tenant"
+	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
+	errinterceptor "github.com/vanus-labs/vanus/pkg/grpc/interceptor/errors"
 	"github.com/vanus-labs/vanus/pkg/util/signal"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 
+	// this project.
 	"github.com/vanus-labs/vanus/internal/controller"
 	"github.com/vanus-labs/vanus/internal/controller/eventbus"
 	"github.com/vanus-labs/vanus/internal/controller/member"
+	"github.com/vanus-labs/vanus/internal/controller/tenant"
 	"github.com/vanus-labs/vanus/internal/controller/trigger"
-	"github.com/vanus-labs/vanus/internal/primitive/interceptor/errinterceptor"
 	"github.com/vanus-labs/vanus/internal/primitive/interceptor/memberinterceptor"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )

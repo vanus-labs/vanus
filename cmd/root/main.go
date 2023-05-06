@@ -18,7 +18,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/vanus-labs/vanus/internal/controller/root"
 	"net"
 	"os"
 	"runtime/debug"
@@ -34,12 +33,13 @@ import (
 	"github.com/vanus-labs/vanus/observability"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
+	errinterceptor "github.com/vanus-labs/vanus/pkg/grpc/interceptor/errors"
 	"github.com/vanus-labs/vanus/pkg/util/signal"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 
 	"github.com/vanus-labs/vanus/internal/controller"
 	"github.com/vanus-labs/vanus/internal/controller/member"
-	"github.com/vanus-labs/vanus/internal/primitive/interceptor/errinterceptor"
+	"github.com/vanus-labs/vanus/internal/controller/root"
 	"github.com/vanus-labs/vanus/internal/primitive/interceptor/memberinterceptor"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
