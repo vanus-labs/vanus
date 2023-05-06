@@ -15,11 +15,15 @@
 package function
 
 import (
+	// standard libraries.
 	"time"
 
+	// third-party libraries.
+	"github.com/vigneshuvi/GoDateFormat"
+
+	// this project.
 	"github.com/vanus-labs/vanus/internal/primitive/transform/common"
 	"github.com/vanus-labs/vanus/internal/primitive/transform/function/util"
-	"github.com/vigneshuvi/GoDateFormat"
 )
 
 var DateFormatFunction = function{
@@ -73,15 +77,11 @@ var ConvertTimeZoneFunction = function{
 		} else {
 			dateTimeFormat = "2006-01-02 15:04:05"
 		}
-		
-		sourceTimeString, ok := args[0].(string)
-		if !ok {
-			return nil, nil
-		}
 
+		sourceTimeString, _ := args[0].(string)
 		sourceTimeParsed, err := time.ParseInLocation(
-			dateTimeFormat, 
-			sourceTimeString, 
+			dateTimeFormat,
+			sourceTimeString,
 			util.TimezoneFromString(args[1].(string)),
 		)
 		if err != nil {
