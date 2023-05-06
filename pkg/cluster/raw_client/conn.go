@@ -15,6 +15,7 @@
 package raw_client
 
 import (
+	// standard libraries.
 	"context"
 	"fmt"
 	"os"
@@ -22,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	// third-party libraries.
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
@@ -29,10 +31,13 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/vanus-labs/vanus/internal/primitive/interceptor/errinterceptor"
+	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+
+	// this project.
+	"github.com/vanus-labs/vanus/pkg/errors"
+	errinterceptor "github.com/vanus-labs/vanus/pkg/grpc/interceptor/errors"
 )
 
 const (
