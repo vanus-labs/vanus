@@ -14,7 +14,10 @@
 
 package util
 
-import "bytes"
+import (
+	"bytes"
+	"time"
+)
 
 var formats = map[byte]string{
 	'd': "02",   // Day:    Day of the month, 2 digits with leading zeros. Eg: 01 to 31.
@@ -45,4 +48,15 @@ func ConvertFormat2Go(format string) string {
 		}
 	}
 	return buffer.String()
+}
+
+func TimezoneFromString(timezone string) *time.Location {
+	if timezone == "" {
+		return time.UTC
+	}
+	location, err := time.LoadLocation(timezone)
+	if err != nil {
+		location = time.UTC
+	}
+	return location
 }

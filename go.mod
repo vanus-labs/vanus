@@ -98,6 +98,7 @@ require (
 	github.com/stretchr/testify v1.8.2 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
+	github.com/vigneshuvi/GoDateFormat v0.0.0-20210204121036-67364dc23c79
 	go.etcd.io/etcd/api/v3 v3.5.8 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.8 // indirect
 	go.opencensus.io v0.24.0 // indirect
