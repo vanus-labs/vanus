@@ -27,6 +27,7 @@ import (
 type Config struct {
 	ControllerAddresses []string             `yaml:"controllers"`
 	IP                  string               `yaml:"ip"`
+	Host                string               `yaml:"host"`
 	Port                int                  `yaml:"port"`
 	Volume              VolumeInfo           `yaml:"volume"`
 	MetaStore           config.SyncStore     `yaml:"meta_store"`
