@@ -130,7 +130,7 @@ func Error(err error) string {
 	if err == nil {
 		return ""
 	}
-	if et, ok := errors.FromError(err); ok {
+	if et, ok := errors.FromError(err); ok && et != nil {
 		if et.Message == "" {
 			return et.Description
 		}

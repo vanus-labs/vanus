@@ -53,7 +53,7 @@ func UnaryClientInterceptor() grpc.UnaryClientInterceptor {
 		opts ...grpc.CallOption,
 	) error {
 		err := invoker(ctx, method, req, reply, cc, opts...)
-		if et, ok := errors.FromError(err); ok {
+		if et, ok := errors.FromError(err); ok && et != nil {
 			return et
 		}
 		return err
