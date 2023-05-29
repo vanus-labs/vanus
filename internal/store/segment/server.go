@@ -41,6 +41,7 @@ import (
 	"google.golang.org/grpc/tap"
 	"google.golang.org/protobuf/proto"
 
+	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/observability/tracing"
@@ -97,7 +98,11 @@ func NewServer(cfg store.Config) Server {
 	}
 
 	// TODO(james.yin): support IPv6
-	localAddr := fmt.Sprintf("%s:%d", cfg.IP, cfg.Port)
+	host := cfg.Host
+	if host == "" {
+		host = cfg.IP
+	}
+	localAddr := fmt.Sprintf("%s:%d", host, cfg.Port)
 
 	srv := &server{
 		state:       primitive.ServerStateCreated,
