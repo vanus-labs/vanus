@@ -81,7 +81,7 @@ type Server interface {
 
 	CreateBlock(ctx context.Context, id vanus.ID, size int64) error
 	RemoveBlock(ctx context.Context, id vanus.ID) error
-	// GetBlockInfo(ctx context.Context, id vanus.ID) error
+	DescribeBlock(ctx context.Context, id vanus.ID) (*metapb.SegmentHealthInfo, error)
 
 	ActivateSegment(ctx context.Context, logID vanus.ID, segID vanus.ID, replicas map[vanus.ID]string) error
 	InactivateSegment(ctx context.Context) error
@@ -446,20 +446,25 @@ func (s *server) RemoveBlock(ctx context.Context, blockID vanus.ID) error {
 	}
 
 	// FIXME(james.yin): more info.
-	log.Info(ctx).
-		Stringer("block_id", b.ID()).
-		Msg("The block has been deleted.")
+	log.Info(ctx).Stringer("block_id", b.ID()).Msg("The block has been deleted.")
 
 	return nil
 }
 
-// TODO(james.yin): implements GetBlockInfo.
-// func (s *server) GetBlockInfo(ctx context.Context, id vanus.ID) error {
-// 	if err := s.checkState(); err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+func (s *server) DescribeBlock(_ context.Context, id vanus.ID) (*metapb.SegmentHealthInfo, error) {
+	if err := s.checkState(); err != nil {
+		return nil, err
+	}
+
+	var b Replica
+	if v, ok := s.replicas.Load(id); ok {
+		b, _ = v.(Replica)
+	} else {
+		return nil, errors.ErrResourceNotFound.WithMessage("the block doesn't exist")
+	}
+
+	return b.Status(), nil
+}
 
 // ActivateSegment mark a block ready to using and preparing to initializing a replica group.
 func (s *server) ActivateSegment(

@@ -27,6 +27,7 @@ import (
 	// first-party libraries.
 	"github.com/vanus-labs/vanus/pkg/errors"
 	cepb "github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
 	// this project.
@@ -117,12 +118,24 @@ func TestSegmentServer(t *testing.T) {
 			So(err, ShouldEqual, errors.ErrInvalidRequest)
 		})
 
-		Convey("GetBlockInfo()", func() {
-			// FIXME: not implement.
-			req := &segpb.GetBlockInfoRequest{}
-			resp, err := ss.GetBlockInfo(context.Background(), req)
+		Convey("DescribeBlock()", func() {
+			srv.EXPECT().DescribeBlock(Any(), Not(vanus.EmptyID())).DoAndReturn(func(
+				_ context.Context, id vanus.ID,
+			) (*metapb.SegmentHealthInfo, error) {
+				return &metapb.SegmentHealthInfo{Id: id.Uint64()}, nil
+			})
+			srv.EXPECT().DescribeBlock(Any(), Eq(vanus.EmptyID())).Return(nil, errors.ErrInvalidRequest)
+
+			req := &segpb.DescribeBlockRequest{
+				Id: vanus.NewTestID().Uint64(),
+			}
+			resp, err := ss.DescribeBlock(context.Background(), req)
 			So(err, ShouldBeNil)
-			So(resp, ShouldNotBeNil)
+			So(resp.Info.Id, ShouldEqual, req.Id)
+
+			req = &segpb.DescribeBlockRequest{}
+			_, err = ss.DescribeBlock(context.Background(), req)
+			So(err, ShouldEqual, errors.ErrInvalidRequest)
 		})
 
 		Convey("ActivateSegment()", func() {

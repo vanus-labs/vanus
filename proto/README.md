@@ -6,7 +6,7 @@ Protobuf files for Vanus
 
 ### Setup IDE
 
-1. install plugin 'Proto Buffer' in marketplace
+1. install plugin 'Protocol Buffer' in marketplace
 2. config path: Performance -> Language&Framework -> Proto Buffers -> Import paths;
    and add `include` and `proto` directory to
 
@@ -17,12 +17,13 @@ Protobuf files for Vanus
 brew install protobuf
 
 # or download https://github.com/protocolbuffers/protobuf/releases/download/v3.19.4/protoc-3.19.4-osx-x86_64.zip
-unzip protoc-3.19.4-osx-x86_64.zip
-mv bin/protoc $GOPATH/bin/ 
+#unzip protoc-3.19.4-osx-x86_64.zip
+#mv bin/protoc $GOPATH/bin/ 
 
-# 2. Install protoc-gen-go and protoc-gen-go-grpc
+# 2. Install protoc-gen-go, protoc-gen-go-grpc and protoc-gen-go-grpc-mock
 go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+go install github.com/sorcererxw/protoc-gen-go-grpc-mock@latest
 ```
 
 ### debug
@@ -45,6 +46,12 @@ package=controller make generate-pb
 
 ```bash
 brew install bufbuild/buf/buf
+```
+
+### Install `protoc-gen-go-grpc-mock`
+
+```bash
+go install github.com/sorcererxw/protoc-gen-go-grpc-mock@latest
 ```
 
 ### Generate code

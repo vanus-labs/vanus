@@ -13,6 +13,7 @@ import (
 	primitive "github.com/vanus-labs/vanus/internal/primitive"
 	vanus "github.com/vanus-labs/vanus/internal/primitive/vanus"
 	cloudevents "github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	meta "github.com/vanus-labs/vanus/proto/pkg/meta"
 )
 
 // MockServer is a mock of Server interface.
@@ -79,6 +80,21 @@ func (m *MockServer) CreateBlock(ctx context.Context, id vanus.ID, size int64) e
 func (mr *MockServerMockRecorder) CreateBlock(ctx, id, size interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBlock", reflect.TypeOf((*MockServer)(nil).CreateBlock), ctx, id, size)
+}
+
+// DescribeBlock mocks base method.
+func (m *MockServer) DescribeBlock(ctx context.Context, id vanus.ID) (*meta.SegmentHealthInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DescribeBlock", ctx, id)
+	ret0, _ := ret[0].(*meta.SegmentHealthInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DescribeBlock indicates an expected call of DescribeBlock.
+func (mr *MockServerMockRecorder) DescribeBlock(ctx, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeBlock", reflect.TypeOf((*MockServer)(nil).DescribeBlock), ctx, id)
 }
 
 // InactivateSegment mocks base method.

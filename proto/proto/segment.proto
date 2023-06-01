@@ -19,6 +19,7 @@ package vanus.core.segment;
 import "cloudevents.proto";
 import "config.proto";
 import "google/protobuf/empty.proto";
+import "meta.proto";
 
 option go_package = "github.com/vanus-labs/vanus/proto/pkg/segment";
 
@@ -28,7 +29,7 @@ service SegmentServer {
 
   rpc CreateBlock(CreateBlockRequest) returns (google.protobuf.Empty);
   rpc RemoveBlock(RemoveBlockRequest) returns (google.protobuf.Empty);
-  rpc GetBlockInfo(GetBlockInfoRequest) returns (GetBlockInfoResponse);
+  rpc DescribeBlock(DescribeBlockRequest) returns (DescribeBlockResponse);
 
   rpc ActivateSegment(ActivateSegmentRequest) returns (ActivateSegmentResponse);
   rpc InactivateSegment(InactivateSegmentRequest) returns (google.protobuf.Empty);
@@ -60,9 +61,13 @@ message RemoveBlockRequest {
   uint64 id = 1;
 }
 
-message GetBlockInfoRequest {}
+message DescribeBlockRequest {
+  uint64 id = 1;
+}
 
-message GetBlockInfoResponse {}
+message DescribeBlockResponse {
+  meta.SegmentHealthInfo info = 1;
+}
 
 message ActivateSegmentRequest {
   uint64 eventlog_id = 1;

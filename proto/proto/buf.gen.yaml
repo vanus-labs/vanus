@@ -10,6 +10,10 @@ plugins:
     opt:
       - module=github.com/vanus-labs/vanus/proto/pkg
       - require_unimplemented_servers=false
+  - name: go-grpc-mock
+    out: ../pkg
+    opt:
+      - module=github.com/vanus-labs/vanus/proto/pkg
   # - name: grpc-gateway
   #   out: pkg
   #   opt:
