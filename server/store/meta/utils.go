@@ -15,39 +15,36 @@
 package meta
 
 import (
-	// standard libraries.
-	"errors"
-	"sync"
-
 	// third-party libraries.
 	"github.com/huandu/skiplist"
-
-	// this project.
-	walog "github.com/vanus-labs/vanus/server/store/wal"
 )
 
-var ErrClosed = errors.New("MetaStore: closed")
+func set(m *skiplist.SkipList, key []byte, value interface{}) {
+	if value == DeletedMark {
+		m.Remove(key)
+		return
+	}
 
-type store struct {
-	mu sync.RWMutex
-
-	committed *skiplist.SkipList
-	version   int64
-
-	wal      *walog.WAL
-	snapshot int64
-
-	marshaler Marshaler
+	switch val := value.(type) {
+	case []byte:
+		// Make a copy to avoid modifying value outside.
+		bs := append([]byte{}, val...)
+		m.Set(key, bs)
+	default:
+		m.Set(key, value)
+	}
 }
 
-func (s *store) load(key []byte) (interface{}, bool) {
-	return s.committed.GetValue(key)
+func rawSet(m *skiplist.SkipList, key []byte, value interface{}) {
+	if value == DeletedMark {
+		m.Remove(key)
+	} else {
+		m.Set(key, value)
+	}
 }
 
-// func (s *store) store(key []byte, value interface{}) {
-// 	set(s.committed, key, value)
-// }
-
-// func (s *store) delete(key []byte) {
-// 	set(s.committed, key, deletedMark)
-// }
+func merge(dst, src *skiplist.SkipList) {
+	for el := src.Front(); el != nil; el = el.Next() {
+		rawSet(dst, el.Key().([]byte), el.Value)
+	}
+}

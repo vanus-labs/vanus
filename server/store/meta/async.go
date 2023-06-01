@@ -111,7 +111,7 @@ func (s *AsyncStore) set(kvs Ranger) error {
 	}
 
 	err := kvs.Range(func(key []byte, value interface{}) error {
-		s.pending.Set(key, value)
+		set(s.pending, key, value)
 		return nil
 	})
 	if err != nil {
@@ -188,12 +188,6 @@ func (s *AsyncStore) commit() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.version = r.EO
-}
-
-func merge(dst, src *skiplist.SkipList) {
-	for el := src.Front(); el != nil; el = el.Next() {
-		set(dst, el.Key().([]byte), el.Value)
-	}
 }
 
 func RecoverAsyncStore(ctx context.Context, dir string, opts ...walog.Option) (*AsyncStore, error) {
