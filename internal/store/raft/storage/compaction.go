@@ -255,23 +255,14 @@ func (w *WAL) removeNode(ctx context.Context, nodeID vanus.ID) error {
 }
 
 func (w *WAL) recoverNode(nodeID vanus.ID, offset int64) {
-	task := adminTask{
-		nodeID: nodeID,
-		offset: offset,
+	w.nodes[nodeID] = true
+	if offset != 0 {
+		w.barrier.Set(offset, nodeID)
 	}
-
-	w.closeMu.RLock()
-	select {
-	case <-w.closeC:
-	default:
-		w.compactC <- task.recoverNode
-	}
-	w.closeMu.RUnlock()
 }
 
 type adminTask struct {
 	nodeID vanus.ID
-	offset int64
 	ch     chan<- error
 }
 
@@ -307,13 +298,6 @@ func (t *adminTask) removeNode(w *WAL, cCtx *compactContext) {
 			delete(w.nodes, t.nodeID)
 		})
 	})
-}
-
-func (t *adminTask) recoverNode(w *WAL, _ *compactContext) {
-	w.nodes[t.nodeID] = true
-	if t.offset != 0 {
-		w.barrier.Set(t.offset, t.nodeID)
-	}
 }
 
 type compactInfo struct {

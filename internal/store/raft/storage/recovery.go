@@ -123,7 +123,7 @@ func Recover(
 	if err != nil {
 		return nil, nil, err
 	}
-	wal2 := newWAL(wal, stateStore)
+	wal2 := newWAL(wal, stateStore, false)
 
 	// convert, and set wal
 	storages := make(map[vanus.ID]*Storage, len(sb.storages))
@@ -139,6 +139,9 @@ func Recover(
 		wal2.recoverNode(nodeID, off)
 		storages[nodeID] = storage
 	}
+
+	// Start compaction after recover nodes.
+	wal2.startCompaction()
 
 	return storages, wal2, nil
 }

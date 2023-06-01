@@ -45,7 +45,7 @@ type WAL struct {
 	doneC   chan struct{}
 }
 
-func newWAL(wal *walog.WAL, stateStore *meta.SyncStore) *WAL {
+func newWAL(wal *walog.WAL, stateStore *meta.SyncStore, startCompaction bool) *WAL {
 	w := &WAL{
 		WAL:        wal,
 		stateStore: stateStore,
@@ -56,9 +56,15 @@ func newWAL(wal *walog.WAL, stateStore *meta.SyncStore) *WAL {
 		doneC:      make(chan struct{}),
 	}
 
-	go w.runCompact()
+	if startCompaction {
+		w.startCompaction()
+	}
 
 	return w
+}
+
+func (w *WAL) startCompaction() {
+	go w.runCompact()
 }
 
 func (w *WAL) Close() {

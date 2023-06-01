@@ -61,7 +61,7 @@ func TestStorage_SnapshotStorage(t *testing.T) {
 
 		rawWAL, err := walog.Open(ctx, walDir, walog.WithFileSize(int64(fileSize)))
 		So(err, ShouldBeNil)
-		wal := newWAL(rawWAL, stateStore)
+		wal := newWAL(rawWAL, stateStore, true)
 		defer wal.Close()
 
 		snapOp := NewMockSnapshotOperator(ctrl)
