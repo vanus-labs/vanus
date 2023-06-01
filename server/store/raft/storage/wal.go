@@ -30,21 +30,25 @@ import (
 )
 
 const (
-	defaultCompactTaskBufferSize = 256
+	defaultCompactJobBufferSize = 256
 )
 
+// WAL wraps underlay walog.WAL and provisions compacting capability.
+// All compact tasks be processed in WAL.runCompact by a single goroutine.
 type WAL struct {
 	*walog.WAL
 
 	stateStore *meta.SyncStore
 
-	nodes    map[vanus.ID]bool
-	barrier  *skiplist.SkipList
-	compactC chan func(*WAL, *compactContext)
+	nodes   map[vanus.ID]bool
+	barrier *skiplist.SkipList
 
+	compactC chan compactJob
+	// closeMu prevents concurrent writing compactC and closing closeC.
 	closeMu sync.RWMutex
-	closeC  chan struct{}
-	doneC   chan struct{}
+	// closeC prevents writing to compactC after close.
+	closeC chan struct{}
+	doneC  chan struct{}
 }
 
 func newWAL(wal *walog.WAL, stateStore *meta.SyncStore, startCompaction bool) *WAL {
@@ -53,7 +57,7 @@ func newWAL(wal *walog.WAL, stateStore *meta.SyncStore, startCompaction bool) *W
 		stateStore: stateStore,
 		nodes:      make(map[vanus.ID]bool),
 		barrier:    skiplist.New(skiplist.Int64),
-		compactC:   make(chan func(*WAL, *compactContext), defaultCompactTaskBufferSize),
+		compactC:   make(chan compactJob, defaultCompactJobBufferSize),
 		closeC:     make(chan struct{}),
 		doneC:      make(chan struct{}),
 	}
@@ -71,12 +75,13 @@ func (w *WAL) startCompaction() {
 
 func (w *WAL) Close() {
 	w.WAL.Close()
+
 	go func() {
 		w.WAL.Wait()
 
 		w.closeMu.Lock()
-		defer w.closeMu.Unlock()
 		close(w.closeC)
+		w.closeMu.Unlock()
 	}()
 }
 

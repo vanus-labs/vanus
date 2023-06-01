@@ -49,6 +49,7 @@ const (
 )
 
 func (sb *storagesBuilder) onMeta(key []byte, value interface{}) error {
+	// Filter compact key.
 	if len(key) < minCompactKeyLen || !bytes.Equal(key[len(key)-compactSuffixLen:], compactSuffix) {
 		return nil
 	}
@@ -143,12 +144,6 @@ func Recover(
 	wal2.startCompaction()
 
 	return storages, wal2, nil
-}
-
-func RecoverStorage(
-	nodeID vanus.ID, wal *WAL, stateStore *meta.SyncStore, hintStore *meta.AsyncStore, snapOp SnapshotOperator,
-) (*Storage, error) {
-	return recoverStorage(nodeID, wal, stateStore, hintStore, nil, snapOp)
 }
 
 func recoverStorage(

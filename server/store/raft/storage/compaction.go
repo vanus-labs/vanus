@@ -65,7 +65,7 @@ func (s *Storage) Compact(ctx context.Context, i uint64) error {
 
 	sz := i - ci
 	remaining := s.length() - sz
-	sr := s.stableLength() - sz
+	sr := s.stableLength() - sz // stable remaining
 
 	ents := make([]raftpb.Entry, 1, 1+remaining)
 	offs := make([]int64, 1, 1+sr)
@@ -77,7 +77,7 @@ func (s *Storage) Compact(ctx context.Context, i uint64) error {
 	// Copy remained entries.
 	if remaining != 0 {
 		ents = append(ents, s.ents[sz+1:]...)
-		// NOTE: sr <= remaining
+		// NOTE: `sr` MUST NOT greater than `remaining` (sr <= remaining).
 		if sr != 0 {
 			offs = append(offs, s.offs[sz+1:]...)
 			offs[0] = offs[1]
@@ -107,21 +107,7 @@ func (w *WAL) tryCompact(ctx context.Context, nodeID vanus.ID, offset, last, tai
 			term:  term,
 		},
 	}
-
-	w.closeMu.RLock()
-	defer w.closeMu.RUnlock()
-	select {
-	case <-w.closeC:
-		return ErrClosed
-	default:
-	}
-
-	select {
-	case w.compactC <- task.compact:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return w.dispatchCompactTask(ctx, task.compact)
 }
 
 func (w *WAL) markBarrier(ctx context.Context, nodeID vanus.ID, offset int64) error {
@@ -129,21 +115,7 @@ func (w *WAL) markBarrier(ctx context.Context, nodeID vanus.ID, offset int64) er
 		nodeID: nodeID,
 		offset: offset,
 	}
-
-	w.closeMu.RLock()
-	defer w.closeMu.RUnlock()
-	select {
-	case <-w.closeC:
-		return ErrClosed
-	default:
-	}
-
-	select {
-	case w.compactC <- task.compact:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return w.dispatchCompactTask(ctx, task.compact)
 }
 
 func (w *WAL) removeBarrier(ctx context.Context, nodeID vanus.ID, offset int64) error {
@@ -151,21 +123,7 @@ func (w *WAL) removeBarrier(ctx context.Context, nodeID vanus.ID, offset int64) 
 		nodeID: nodeID,
 		last:   offset,
 	}
-
-	w.closeMu.RLock()
-	defer w.closeMu.RUnlock()
-	select {
-	case <-w.closeC:
-		return ErrClosed
-	default:
-	}
-
-	select {
-	case w.compactC <- task.compact:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return w.dispatchCompactTask(ctx, task.compact)
 }
 
 type compactTask struct {
@@ -174,7 +132,7 @@ type compactTask struct {
 	info               compactInfo
 }
 
-func (t *compactTask) compact(w *WAL, cCtx *compactContext) {
+func (t *compactTask) compact(w *WAL, cc *compactContext) {
 	// node is deleted.
 	if !w.nodes[t.nodeID] {
 		return
@@ -188,71 +146,51 @@ func (t *compactTask) compact(w *WAL, cCtx *compactContext) {
 	if t.offset != 0 {
 		w.barrier.Set(t.offset, t.nodeID)
 	}
-	if t.tail > cCtx.tail {
-		cCtx.tail = t.tail
+	if t.tail > cc.tail {
+		cc.tail = t.tail
 	}
 	// Set compaction info.
 	if !t.info.empty() {
-		cCtx.infos[t.nodeID] = t.info
+		cc.infos[t.nodeID] = t.info
 	}
 }
 
+var emptyCompact = make([]byte, 16)
+
 func (w *WAL) addNode(ctx context.Context, nodeID vanus.ID) error {
-	ch := make(chan error)
-	task := adminTask{
-		nodeID: nodeID,
-		ch:     ch,
-	}
+	return w.invokeCompactTask(ctx, func(w *WAL, _ *compactContext, ch chan<- error) {
+		w.nodes[nodeID] = true
 
-	w.closeMu.RLock()
-	select {
-	case <-w.closeC:
-	default:
-	}
-
-	select {
-	case w.compactC <- task.addNode:
-	case <-ctx.Done():
-		w.closeMu.RUnlock()
-		return ctx.Err()
-	}
-	w.closeMu.RUnlock()
-
-	select {
-	case err := <-ch:
-		return err
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+		key := []byte(CompactKey(nodeID.Uint64()))
+		w.stateStore.Store(context.Background(), key, emptyCompact, func(err error) {
+			if err != nil {
+				ch <- err
+			}
+			close(ch)
+		})
+	})
 }
 
 func (w *WAL) removeNode(ctx context.Context, nodeID vanus.ID) error {
-	ch := make(chan error)
-	task := adminTask{
-		nodeID: nodeID,
-		ch:     ch,
-	}
+	return w.invokeCompactTask(ctx, func(w *WAL, cc *compactContext, ch chan<- error) {
+		// Prevent compact on node.
+		w.nodes[nodeID] = false
+		delete(cc.infos, nodeID)
 
-	w.closeMu.RLock()
-	select {
-	case <-w.closeC:
-	default:
-	}
+		w.stateStore.Delete(context.Background(), []byte(CompactKey(nodeID.Uint64())), func(err error) {
+			if err != nil {
+				// TODO(james.yin): handle error.
+				panic(err)
+			}
 
-	select {
-	case w.compactC <- task.removeNode:
-	case <-ctx.Done():
-		w.closeMu.RUnlock()
-		return ctx.Err()
-	}
-	w.closeMu.RUnlock()
+			close(ch)
 
-	select {
-	case err := <-ch:
-		return err
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+			// Clean node to delete WAL.
+			_ = w.dispatchCompactTask(context.TODO(), func(w *WAL, cc *compactContext) {
+				delete(w.nodes, nodeID)
+			})
+		})
+	})
 }
 
 func (w *WAL) recoverNode(nodeID vanus.ID, offset int64) {
@@ -260,45 +198,6 @@ func (w *WAL) recoverNode(nodeID vanus.ID, offset int64) {
 	if offset != 0 {
 		w.barrier.Set(offset, nodeID)
 	}
-}
-
-type adminTask struct {
-	nodeID vanus.ID
-	ch     chan<- error
-}
-
-var emptyCompact = make([]byte, 16)
-
-func (t *adminTask) addNode(w *WAL, _ *compactContext) {
-	w.nodes[t.nodeID] = true
-
-	key := []byte(CompactKey(t.nodeID.Uint64()))
-	w.stateStore.Store(context.Background(), key, emptyCompact, func(err error) {
-		if err != nil {
-			t.ch <- err
-		}
-		close(t.ch)
-	})
-}
-
-func (t *adminTask) removeNode(w *WAL, cCtx *compactContext) {
-	// Prevent compact on node.
-	w.nodes[t.nodeID] = false
-	delete(cCtx.infos, t.nodeID)
-
-	w.stateStore.Delete(context.Background(), []byte(CompactKey(t.nodeID.Uint64())), func(err error) {
-		if err != nil {
-			// TODO(james.yin): handle error.
-			panic(err)
-		}
-
-		close(t.ch)
-
-		// Clean node to delete WAL.
-		w.compactC <- (func(w *WAL, cc *compactContext) {
-			delete(w.nodes, t.nodeID)
-		})
-	})
 }
 
 type compactInfo struct {
@@ -311,6 +210,7 @@ func (ci *compactInfo) empty() bool {
 
 type logCompactInfos map[vanus.ID]compactInfo
 
+// Make sure logCompactInfos implements meta.Ranger.
 var _ meta.Ranger = (logCompactInfos)(nil)
 
 func (i logCompactInfos) Range(cb meta.RangeCallback) error {
@@ -331,6 +231,7 @@ type compactMeta struct {
 	offset int64
 }
 
+// Make sure compactMeta implements meta.Ranger.
 var _ meta.Ranger = (*compactMeta)(nil)
 
 func (m *compactMeta) Range(cb meta.RangeCallback) error {
@@ -381,61 +282,131 @@ func (c *compactContext) sync(ctx context.Context, stateStore *meta.SyncStore) b
 	return true
 }
 
+type compactFunc func(*WAL, *compactContext)
+
+type compactJob struct {
+	fn compactFunc
+}
+
+func (j *compactJob) invoke(w *WAL, cc *compactContext) {
+	j.fn(w, cc)
+}
+
+// runCompact processes all compact jobs in a single goroutine.
 func (w *WAL) runCompact() {
 	ctx := context.Background()
 
 	ticker := time.NewTicker(defaultCompactInterval)
 	defer ticker.Stop()
 
-	cCtx := loadCompactContext(w.stateStore)
+	cc := loadCompactContext(w.stateStore)
 	for {
 		select {
-		case task := <-w.compactC:
-			task(w, cCtx)
+		case job := <-w.compactC:
+			job.invoke(w, cc)
 		case <-ticker.C:
-			w.doCompact(ctx, cCtx)
+			w.doCompact(ctx, cc)
 		case <-w.closeC:
 			close(w.compactC)
-			for task := range w.compactC {
-				task(w, cCtx)
+			for job := range w.compactC {
+				job.invoke(w, cc)
 			}
-			w.doCompact(ctx, cCtx)
+			w.doCompact(ctx, cc)
 			close(w.doneC)
 			return
 		}
 	}
 }
 
-func (w *WAL) doCompact(ctx context.Context, cCtx *compactContext) {
+func (w *WAL) doCompact(ctx context.Context, cc *compactContext) {
+	w.reconcileBarrier(cc)
+
+	if cc.stale() {
+		log.Debug(ctx).
+			Int64("offset", cc.toCompact).
+			Msg("compact WAL of raft storage.")
+
+		// Store compacted info and offset.
+		if cc.sync(ctx, w.stateStore) {
+			// Compact underlying WAL.
+			_ = w.WAL.Compact(ctx, cc.compacted)
+		}
+	}
+}
+
+// reconcileBarrier scans barriers and calculates compactContext.toCompact.
+func (w *WAL) reconcileBarrier(cc *compactContext) {
 	for {
 		front := w.barrier.Front()
 
 		//  No log entry in WAL.
 		if front == nil {
-			cCtx.toCompact = cCtx.tail
-			break
+			cc.toCompact = cc.tail
+			return
 		}
 
+		// Remove barrier if node is deleted.
 		if _, ok := w.nodes[front.Value.(vanus.ID)]; !ok {
 			w.barrier.RemoveElement(front)
 			continue
 		}
 
 		offset, _ := front.Key().(int64)
-		cCtx.toCompact = offset
-		break
+		cc.toCompact = offset
+		return
+	}
+}
+
+// dispatchCompactJob dispatches a compact job to the compact goroutine.
+func (w *WAL) dispatchCompactJob(ctx context.Context, job compactJob) error {
+	// NOTE: no panic, avoid unlocking with defer.
+	w.closeMu.RLock()
+
+	select {
+	case <-w.closeC:
+		w.closeMu.RUnlock()
+		return ErrClosed
+	default:
 	}
 
-	if cCtx.stale() {
-		log.Debug(ctx).
-			Int64("offset", cCtx.toCompact).
-			Msg("compact WAL of raft storage.")
+	select {
+	case w.compactC <- job:
+		w.closeMu.RUnlock()
+		return nil
+	case <-ctx.Done():
+		w.closeMu.RUnlock()
+		return ctx.Err()
+	}
+}
 
-		// Store compacted info and offset.
-		if cCtx.sync(ctx, w.stateStore) {
-			// Compact underlying WAL.
-			_ = w.WAL.Compact(ctx, cCtx.compacted)
-		}
+// dispatchCompactTask dispatches a compact task to the compact goroutine.
+func (w *WAL) dispatchCompactTask(ctx context.Context, task compactFunc) error {
+	job := compactJob{
+		fn: task,
+	}
+	return w.dispatchCompactJob(ctx, job)
+}
+
+type awaitableCompactFunc func(*WAL, *compactContext, chan<- error)
+
+// invokeCompactTask invokes a compact task and waits for its completion.
+func (w *WAL) invokeCompactTask(ctx context.Context, task awaitableCompactFunc) error {
+	ch := make(chan error)
+	job := compactJob{
+		fn: func(w *WAL, cc *compactContext) {
+			task(w, cc, ch)
+		},
+	}
+
+	if err := w.dispatchCompactJob(ctx, job); err != nil {
+		return err
+	}
+
+	select {
+	case err := <-ch:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 

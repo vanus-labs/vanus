@@ -24,6 +24,7 @@ import (
 	// third-party libraries.
 	"google.golang.org/grpc"
 
+	// first-party libraries.
 	raftpb "github.com/vanus-labs/vanus/api/raft"
 	vanus "github.com/vanus-labs/vanus/api/vsr"
 	"github.com/vanus-labs/vanus/pkg/raft"

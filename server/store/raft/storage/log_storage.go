@@ -38,6 +38,7 @@ type logStorage struct {
 	// ents[0] is a dummy entry, which record compact information.
 	// ents[i] has raft log position i+snapshot.Metadata.Index.
 	ents []raftpb.Entry
+
 	// offs[0] is a dummy entry, which records last offset where the barrier was set.
 	// offs[i] is the start offset of ents[i] in WAL.
 	offs []int64
@@ -193,16 +194,13 @@ func (s *Storage) Append(ctx context.Context, entries []raftpb.Entry, cb AppendC
 		return
 	}
 
-	term := entries[0].Term
-	index := entries[0].Index
-	rindex := index + uint64(len(entries)) - 1 // entries[len(entries)-1].Index
+	index, term := entries[0].Index, entries[0].Term
+	rightIndex := index + uint64(len(entries)) - 1 // entries[len(entries)-1].Index
 
-	firstIndex := s.firstIndex()
-	lastTerm := s.lastTerm()
-	lastIndex := s.lastIndex()
+	firstIndex, lastIndex, lastTerm := s.firstIndex(), s.lastIndex(), s.lastTerm()
 	expectedIndex := lastIndex + 1
 
-	if expectedIndex < index {
+	logError := func(msg string) {
 		log.Error(ctx).
 			Stringer("node_id", s.nodeID).
 			Uint64("first_index", firstIndex).
@@ -210,13 +208,17 @@ func (s *Storage) Append(ctx context.Context, entries []raftpb.Entry, cb AppendC
 			Uint64("last_index", lastIndex).
 			Uint64("next_term", term).
 			Uint64("next_index", index).
-			Msg("Missing log entries.")
+			Msg(msg)
+	}
+
+	if expectedIndex < index {
+		logError("Missing log entries.")
 		cb(AppendResult{}, ErrBadEntry)
 		return
 	}
 
 	// Shortcut if there is no new entry.
-	if rindex < firstIndex {
+	if rightIndex < firstIndex {
 		cb(AppendResult{}, ErrCompacted)
 		return
 	}
@@ -224,19 +226,11 @@ func (s *Storage) Append(ctx context.Context, entries []raftpb.Entry, cb AppendC
 	// Truncate compacted entries.
 	if index < firstIndex {
 		entries = entries[firstIndex-index:]
-		term = entries[0].Term
-		index = entries[0].Index
+		index, term = entries[0].Index, entries[0].Term
 	}
 
 	if term < lastTerm {
-		log.Error(ctx).
-			Stringer("node_id", s.nodeID).
-			Uint64("first_index", firstIndex).
-			Uint64("last_term", lastTerm).
-			Uint64("last_index", lastIndex).
-			Uint64("next_term", term).
-			Uint64("next_index", index).
-			Msg("Term roll back.")
+		logError("Term roll back.")
 		cb(AppendResult{}, ErrBadEntry)
 		return
 	}
@@ -296,16 +290,10 @@ func (s *Storage) Append(ctx context.Context, entries []raftpb.Entry, cb AppendC
 }
 
 func (s *Storage) postAppend(entries []raftpb.Entry, offsets []int64, tail int64, remark bool, cb AppendCallback) {
-	end := len(entries) - 1
-	for ; end >= 0; end-- {
-		e := &entries[end]
-		gt, err := s.term(e.Index)
-		if err == nil && gt == e.Term {
-			break
-		}
-	}
+	entries = s.truncateObsoleteEntries(entries)
 
-	if end < 0 {
+	n := len(entries)
+	if n == 0 {
 		if remark {
 			// Remove obsolete barrier from truncated entry.
 			_ = s.wal.removeBarrier(context.TODO(), s.nodeID, offsets[0])
@@ -321,13 +309,14 @@ func (s *Storage) postAppend(entries []raftpb.Entry, offsets []int64, tail int64
 
 	if index == li+1 {
 		// append
-		s.offs = append(s.offs, offsets[:end+1]...)
+		s.offs = append(s.offs, offsets[:n]...)
 	} else {
 		// truncate then append: term > lastTerm
 		after := index - fi + 1
 		s.offs = append([]int64{}, s.offs[:after]...)
-		s.offs = append(s.offs, offsets[:end+1]...)
+		s.offs = append(s.offs, offsets[:n]...)
 	}
+	// FIXME(james.yin): real?
 	s.tail = tail
 
 	if remark {
@@ -336,15 +325,26 @@ func (s *Storage) postAppend(entries []raftpb.Entry, offsets []int64, tail int64
 			_ = s.wal.removeBarrier(context.TODO(), s.nodeID, s.offs[0])
 		}
 
-		// Record barrier.
+		// Record new barrier.
 		s.offs[0] = s.offs[1]
 	}
 
-	e := &entries[end]
+	e := &entries[n-1]
 	cb(AppendResult{
 		Term:  e.Term,
 		Index: e.Index,
 	}, nil)
+}
+
+func (s *Storage) truncateObsoleteEntries(entries []raftpb.Entry) []raftpb.Entry {
+	for end := len(entries) - 1; end >= 0; end-- {
+		e := &entries[end]
+		term, err := s.term(e.Index)
+		if err == nil && term == e.Term {
+			return entries[:end+1]
+		}
+	}
+	return entries[:0]
 }
 
 func (s *Storage) prepareAppend(ctx context.Context, entries []raftpb.Entry) error {
