@@ -86,7 +86,7 @@ func TestStorage(t *testing.T) {
 		Convey("create raft log", func() {
 			rawWAL, err := walog.Open(ctx, raftDir, walog.WithFileSize(int64(fileSize)))
 			So(err, ShouldBeNil)
-			wal := newWAL(rawWAL, stateStore)
+			wal := newWAL(rawWAL, stateStore, true)
 			defer func() {
 				wal.Close()
 				wal.Wait()

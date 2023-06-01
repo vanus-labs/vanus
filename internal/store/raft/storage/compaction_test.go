@@ -53,7 +53,7 @@ func TestStorage_Compact(t *testing.T) {
 
 		rawWAL, err := walog.Open(ctx, walDir, walog.WithFileSize(int64(fileSize)))
 		So(err, ShouldBeNil)
-		wal := newWAL(rawWAL, stateStore)
+		wal := newWAL(rawWAL, stateStore, true)
 
 		s1, _ := NewStorage(ctx, nodeID1, wal, stateStore, hintStore, nil)
 		s2, _ := NewStorage(ctx, nodeID2, wal, stateStore, hintStore, nil)
