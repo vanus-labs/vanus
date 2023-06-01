@@ -45,7 +45,7 @@ func (q *Queue[T]) Close() {
 	q.sem.Release()
 }
 
-// Wait esures that all incoming Pushes observe that the queue is closed.
+// Wait ensures that all incoming Pushes observe that the queue is closed.
 func (q *Queue[T]) Wait() {
 	// Make sure no inflight Push.
 	q.mu.Lock()
