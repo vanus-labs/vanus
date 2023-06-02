@@ -15,15 +15,19 @@
 package trigger
 
 import (
+	// standard libraries.
 	"context"
 	"fmt"
 	"testing"
 
+	// third-party libraries.
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
+	// first-party libraries.
 	"github.com/vanus-labs/vanus/proto/pkg/controller"
 
+	// this project.
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/info"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
@@ -31,8 +35,8 @@ import (
 )
 
 func testNewTrigger(t trigger.Trigger) newTrigger {
-	return func(sub *primitive.Subscription, opts ...trigger.Option) trigger.Trigger {
-		return t
+	return func(sub *primitive.Subscription, opts ...trigger.Option) (trigger.Trigger, error) {
+		return t, nil
 	}
 }
 

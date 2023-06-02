@@ -15,19 +15,29 @@
 package convert
 
 import (
+	// standard libraries.
+	"errors"
+
+	// third-party libraries.
 	"google.golang.org/protobuf/types/known/structpb"
 
+	// first-party libraries.
 	ctrl "github.com/vanus-labs/vanus/proto/pkg/controller"
 	pb "github.com/vanus-labs/vanus/proto/pkg/meta"
-	pbtrigger "github.com/vanus-labs/vanus/proto/pkg/trigger"
+	triggerpb "github.com/vanus-labs/vanus/proto/pkg/trigger"
 
+	// this project.
 	"github.com/vanus-labs/vanus/internal/controller/trigger/metadata"
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/info"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
-func FromPbSubscriptionRequest(sub *ctrl.SubscriptionRequest) *metadata.Subscription {
+func FromPbSubscriptionRequest(sub *ctrl.SubscriptionRequest) (*metadata.Subscription, error) {
+	t, err := fromPbTransformer(sub.Transformer)
+	if err != nil {
+		return nil, err
+	}
 	to := &metadata.Subscription{
 		Source:             sub.Source,
 		Types:              sub.Types,
@@ -38,13 +48,13 @@ func FromPbSubscriptionRequest(sub *ctrl.SubscriptionRequest) *metadata.Subscrip
 		Protocol:           fromPbProtocol(sub.Protocol),
 		ProtocolSetting:    fromPbProtocolSettings(sub.ProtocolSettings),
 		Filters:            fromPbFilters(sub.Filters),
-		Transformer:        fromPbTransformer(sub.Transformer),
+		Transformer:        t,
 		EventbusID:         vanus.NewIDFromUint64(sub.EventbusId),
 		NamespaceID:        vanus.NewIDFromUint64(sub.NamespaceId),
 		Name:               sub.Name,
 		Description:        sub.Description,
 	}
-	return to
+	return to, nil
 }
 
 func fromPbProtocol(from pb.Protocol) primitive.Protocol {
@@ -247,27 +257,31 @@ func toPbSubscriptionConfig(config primitive.SubscriptionConfig) *pb.Subscriptio
 	return to
 }
 
-func FromPbAddSubscription(sub *pbtrigger.AddSubscriptionRequest) *primitive.Subscription {
-	to := &primitive.Subscription{
-		ID:                   vanus.ID(sub.Id),
-		Sink:                 primitive.URI(sub.Sink),
-		SinkCredential:       fromPbSinkCredential(sub.SinkCredential),
-		Protocol:             fromPbProtocol(sub.Protocol),
-		ProtocolSetting:      fromPbProtocolSettings(sub.ProtocolSettings),
-		EventbusID:           vanus.NewIDFromUint64(sub.EventbusId),
-		DeadLetterEventbusID: vanus.NewIDFromUint64(sub.DeadLetterEventbusId),
-		RetryEventbusID:      vanus.NewIDFromUint64(sub.RetryEventbusId),
-		TimerEventbusID:      vanus.NewIDFromUint64(sub.TimerEventbusId),
-		Offsets:              FromPbOffsetInfos(sub.Offsets),
-		Filters:              fromPbFilters(sub.Filters),
-		Transformer:          fromPbTransformer(sub.Transformer),
-		Config:               fromPbSubscriptionConfig(sub.Config),
+func FromPbAddSubscription(req *triggerpb.AddSubscriptionRequest) (*primitive.Subscription, error) {
+	t, err := fromPbTransformer(req.Transformer)
+	if err != nil {
+		return nil, err
 	}
-	return to
+	sub := &primitive.Subscription{
+		ID:                   vanus.ID(req.Id),
+		Sink:                 primitive.URI(req.Sink),
+		SinkCredential:       fromPbSinkCredential(req.SinkCredential),
+		Protocol:             fromPbProtocol(req.Protocol),
+		ProtocolSetting:      fromPbProtocolSettings(req.ProtocolSettings),
+		EventbusID:           vanus.NewIDFromUint64(req.EventbusId),
+		DeadLetterEventbusID: vanus.NewIDFromUint64(req.DeadLetterEventbusId),
+		RetryEventbusID:      vanus.NewIDFromUint64(req.RetryEventbusId),
+		TimerEventbusID:      vanus.NewIDFromUint64(req.TimerEventbusId),
+		Offsets:              FromPbOffsetInfos(req.Offsets),
+		Filters:              fromPbFilters(req.Filters),
+		Transformer:          t,
+		Config:               fromPbSubscriptionConfig(req.Config),
+	}
+	return sub, nil
 }
 
-func ToPbAddSubscription(sub *primitive.Subscription) *pbtrigger.AddSubscriptionRequest {
-	to := &pbtrigger.AddSubscriptionRequest{
+func ToPbAddSubscription(sub *primitive.Subscription) *triggerpb.AddSubscriptionRequest {
+	to := &triggerpb.AddSubscriptionRequest{
 		Id:                   uint64(sub.ID),
 		Sink:                 string(sub.Sink),
 		SinkCredential:       toPbSinkCredential(sub.SinkCredential),
@@ -429,15 +443,23 @@ func toPbOffsetInfo(offset info.OffsetInfo) *pb.OffsetInfo {
 	}
 }
 
-func fromPbTransformer(transformer *pb.Transformer) *primitive.Transformer {
+func fromPbTransformer(transformer *pb.Transformer) (*primitive.Transformer, error) {
 	if transformer == nil {
-		return nil
+		return nil, nil //nolint:nilnil // nil is valid
 	}
-	return &primitive.Transformer{
+	templateType, err := FromPbTemplateType(transformer.TemplateType)
+	if err != nil {
+		return nil, err
+	}
+	t := &primitive.Transformer{
 		Define:   transformer.Define,
-		Template: transformer.Template,
 		Pipeline: fromPbActions(transformer.Pipeline),
+		Template: primitive.TemplateConfig{
+			Type:     templateType,
+			Template: transformer.Template,
+		},
 	}
+	return t, nil
 }
 
 func fromPbActions(actions []*pb.Action) []*primitive.Action {
@@ -456,6 +478,21 @@ func fromPbCommand(action *pb.Action) *primitive.Action {
 	}
 	to.Command = commands
 	return to
+}
+
+func FromPbTemplateType(t pb.TemplateType) (primitive.TemplateType, error) {
+	switch t {
+	case pb.TemplateType_TEMPLATE_TYPE_UNSPECIFIED:
+		return primitive.TemplateTypeUnspecified, nil
+	case pb.TemplateType_TEMPLATE_TYPE_NONE:
+		return primitive.TemplateTypeNone, nil
+	case pb.TemplateType_TEMPLATE_TYPE_TEXT:
+		return primitive.TemplateTypeText, nil
+	case pb.TemplateType_TEMPLATE_TYPE_JSON:
+		return primitive.TemplateTypeJSON, nil
+	default:
+		return primitive.TemplateTypeUnspecified, errors.New("unknown template type") // unreachable
+	}
 }
 
 func toPbActions(actions []*primitive.Action) []*pb.Action {
@@ -477,13 +514,28 @@ func toPbCommand(action *primitive.Action) *pb.Action {
 	return to
 }
 
+func toPbTemplateType(t primitive.TemplateType) pb.TemplateType {
+	switch t {
+	case primitive.TemplateTypeNone:
+		return pb.TemplateType_TEMPLATE_TYPE_NONE
+	case primitive.TemplateTypeText:
+		return pb.TemplateType_TEMPLATE_TYPE_TEXT
+	case primitive.TemplateTypeJSON:
+		return pb.TemplateType_TEMPLATE_TYPE_JSON
+	default:
+		return pb.TemplateType_TEMPLATE_TYPE_UNSPECIFIED // unreachable
+	}
+}
+
 func ToPbTransformer(transformer *primitive.Transformer) *pb.Transformer {
 	if transformer == nil {
 		return nil
 	}
+	tt, _ := transformer.Template.RecognizeTemplateType()
 	return &pb.Transformer{
-		Define:   transformer.Define,
-		Template: transformer.Template,
-		Pipeline: toPbActions(transformer.Pipeline),
+		Define:       transformer.Define,
+		Pipeline:     toPbActions(transformer.Pipeline),
+		TemplateType: toPbTemplateType(tt),
+		Template:     transformer.Template.Template,
 	}
 }

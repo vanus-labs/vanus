@@ -15,15 +15,20 @@
 package validation
 
 import (
+	// standard libraries.
 	"context"
 	"testing"
 
+	// third-party libraries.
 	. "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	// first-party libraries.
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+
+	// this project.
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 )
 
 func TestSubscriptionRequestValidator(t *testing.T) {
@@ -80,6 +85,7 @@ func TestValidateTransformer(t *testing.T) {
 					"var2": "$.id",
 					"var3": "$.data.id",
 				},
+				TemplateType: metapb.TemplateType_TEMPLATE_TYPE_NONE,
 			}
 			So(validateTransformer(ctx, trans), ShouldBeNil)
 		})
@@ -88,6 +94,7 @@ func TestValidateTransformer(t *testing.T) {
 				Define: map[string]string{
 					"var2": "$.a-bc",
 				},
+				TemplateType: metapb.TemplateType_TEMPLATE_TYPE_NONE,
 			}
 			So(validateTransformer(ctx, trans), ShouldNotBeNil)
 		})
@@ -96,6 +103,7 @@ func TestValidateTransformer(t *testing.T) {
 				Pipeline: []*metapb.Action{
 					{Command: []*structpb.Value{structpb.NewStringValue("delete"), structpb.NewStringValue("$.id")}},
 				},
+				TemplateType: metapb.TemplateType_TEMPLATE_TYPE_NONE,
 			}
 			So(validateTransformer(ctx, trans), ShouldBeNil)
 		})
@@ -104,6 +112,7 @@ func TestValidateTransformer(t *testing.T) {
 				Pipeline: []*metapb.Action{
 					{Command: []*structpb.Value{structpb.NewStringValue("noExistActionName")}},
 				},
+				TemplateType: metapb.TemplateType_TEMPLATE_TYPE_NONE,
 			}
 			So(validateTransformer(ctx, trans), ShouldNotBeNil)
 		})

@@ -70,7 +70,8 @@ func TestTrigger_Options(t *testing.T) {
 func TestTriggerStartStop(t *testing.T) {
 	Convey("test start and stop", t, func() {
 		id := vanus.NewTestID()
-		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
+		tg, err := newTrigger(makeSubscription(id), WithControllers([]string{"test"}))
+		So(err, ShouldBeNil)
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		r := reader.NewMockReader(ctrl)
@@ -84,7 +85,7 @@ func TestTriggerStartStop(t *testing.T) {
 		mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 		mockEventbus.EXPECT().Reader().AnyTimes().Return(mockBusReader)
 		tg.client = mockClient
-		err := tg.Init(ctx)
+		err = tg.Init(ctx)
 		So(err, ShouldBeNil)
 		tg.reader = r
 		tg.retryEventReader = r2
@@ -107,7 +108,8 @@ func TestTriggerWriteFailEvent(t *testing.T) {
 		defer ctrl.Finish()
 		ctx := context.Background()
 		id := vanus.NewTestID()
-		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
+		tg, err := newTrigger(makeSubscription(id), WithControllers([]string{"test"}))
+		So(err, ShouldBeNil)
 		mockClient := eb.NewMockClient(ctrl)
 		mockEventbus := api.NewMockEventbus(ctrl)
 		mockBusWriter := api.NewMockBusWriter(ctrl)
@@ -162,7 +164,8 @@ func TestTriggerRunEventSend(t *testing.T) {
 		cli := client.NewMockEventClient(ctrl)
 		ctx := context.Background()
 		id := vanus.NewTestID()
-		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
+		tg, err := newTrigger(makeSubscription(id), WithControllers([]string{"test"}))
+		So(err, ShouldBeNil)
 		mockClient := eb.NewMockClient(ctrl)
 		mockEventbus := api.NewMockEventbus(ctrl)
 		mockBusWriter := api.NewMockBusWriter(ctrl)
@@ -209,7 +212,8 @@ func TestTriggerRateLimit(t *testing.T) {
 		defer ctrl.Finish()
 		cli := client.NewMockEventClient(ctrl)
 		id := vanus.NewTestID()
-		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
+		tg, err := newTrigger(makeSubscription(id), WithControllers([]string{"test"}))
+		So(err, ShouldBeNil)
 		tg.eventCli = cli
 		cli.EXPECT().Send(gomock.Any(), gomock.Any()).AnyTimes().Return(client.Success)
 		rateLimit := uint32(10000)
@@ -259,9 +263,11 @@ func testSendEvent(tg *trigger) int64 {
 
 func makeSubscription(id vanus.ID) *primitive.Subscription {
 	return &primitive.Subscription{
-		ID:                   id,
-		Sink:                 "http://localhost:8080",
-		Filters:              []*primitive.SubscriptionFilter{{Exact: map[string]string{"type": "test"}}},
+		ID:   id,
+		Sink: "http://localhost:8080",
+		Filters: []*primitive.SubscriptionFilter{{
+			Exact: map[string]string{"type": "test"},
+		}},
 		EventbusID:           vanus.NewTestID(),
 		TimerEventbusID:      vanus.NewTestID(),
 		DeadLetterEventbusID: vanus.NewTestID(),
@@ -283,7 +289,8 @@ func TestChangeSubscription(t *testing.T) {
 	Convey("test change subscription", t, func() {
 		ctx := context.Background()
 		id := vanus.NewTestID()
-		tg := NewTrigger(makeSubscription(id), WithControllers([]string{"test"})).(*trigger)
+		tg, err := newTrigger(makeSubscription(id), WithControllers([]string{"test"}))
+		So(err, ShouldBeNil)
 		Convey("change target", func() {
 			err := tg.Change(ctx, &primitive.Subscription{Sink: "test_sink"})
 			So(err, ShouldBeNil)
