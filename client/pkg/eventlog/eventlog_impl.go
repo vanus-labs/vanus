@@ -208,7 +208,7 @@ func (l *eventlog) QueryOffsetByTime(ctx context.Context, timestamp int64) (int6
 
 	offset, err := target.LookupOffset(ctx, t)
 	if err != nil {
-		return 0, err
+		return -1, err
 	}
 	return target.StartOffset() + offset, nil
 }
