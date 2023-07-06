@@ -206,7 +206,11 @@ func (l *eventlog) QueryOffsetByTime(ctx context.Context, timestamp int64) (int6
 		target = segs[len(segs)-1]
 	}
 
-	return target.LookupOffset(ctx, t)
+	offset, err := target.LookupOffset(ctx, t)
+	if err != nil {
+		return -1, err
+	}
+	return target.StartOffset() + offset, nil
 }
 
 func (l *eventlog) updateWritableSegment(ctx context.Context, r *record.Segment) {
