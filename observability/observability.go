@@ -30,6 +30,7 @@ func Initialize(ctx context.Context, cfg Config, getCollectors func() []promethe
 }
 
 type Config struct {
-	M metrics.Config `yaml:"metrics"`
-	T tracing.Config `yaml:"tracing"`
+	M  metrics.Config `yaml:"metrics"`
+	T  tracing.Config `yaml:"tracing"`
+	ET tracing.Config `yaml:"event_tracing"`
 }

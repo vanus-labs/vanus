@@ -16,6 +16,8 @@ package convert
 
 import (
 	// standard libraries.
+	"encoding/base64"
+	"encoding/binary"
 	"errors"
 
 	// third-party libraries.
@@ -538,4 +540,12 @@ func ToPbTransformer(transformer *primitive.Transformer) *pb.Transformer {
 		TemplateType: toPbTemplateType(tt),
 		Template:     transformer.Template.Template,
 	}
+}
+
+func DecodeEventID(eid string) (uint64, uint64, error) {
+	bytes, err := base64.StdEncoding.DecodeString(eid)
+	if err != nil {
+		return 0, 0, err
+	}
+	return binary.BigEndian.Uint64(bytes[0:8]), binary.BigEndian.Uint64(bytes[8:16]), nil
 }

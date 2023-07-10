@@ -21,11 +21,13 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	v2 "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/client"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
+	"github.com/vanus-labs/vanus/internal/convert"
 	"github.com/vanus-labs/vanus/internal/gateway/proxy"
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
@@ -35,6 +37,8 @@ import (
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -60,7 +64,7 @@ func NewGateway(config Config) *ceGateway {
 		config:   config,
 		ctrl:     ctrl,
 		proxySrv: proxy.NewControllerProxy(config.GetProxyConfig()),
-		tracer:   tracing.NewTracer("cloudevents", trace.SpanKindServer),
+		tracer:   tracing.NewTracer("internal.gateway.gateway", trace.SpanKindProducer),
 	}
 }
 
@@ -99,27 +103,52 @@ func (ga *ceGateway) startCloudEventsReceiver(ctx context.Context) error {
 }
 
 func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event, result protocol.Result) {
-	eventbusID, err := ga.getEventbusFromPath(ctx, requestDataFromContext(ctx))
+	ctx, span := ga.tracer.Start(ctx, "receive")
+	defer span.End()
+
+	event.SetExtension("spancontext", ctx)
+	span.SetName("EventTracing")
+	span.SetAttributes(attribute.String("event_id", event.ID()))
+	span.AddEvent("received from source", trace.WithTimestamp(time.Now()))
+
+	eventbusID, eventbusName, err := ga.getEventbusFromPath(ctx, requestDataFromContext(ctx))
 	if err != nil {
+		span.RecordError(err, trace.WithTimestamp(time.Now()))
+		span.SetStatus(codes.Error, "failed to get eventbus")
 		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
+
+	span.SetAttributes(attribute.String("eventbus_id", eventbusID.String()))
+	span.SetAttributes(attribute.String("eventbus_name", eventbusName))
 
 	e, err := codec.ToProto(&event)
 	if err != nil {
+		span.RecordError(err, trace.WithTimestamp(time.Now()))
+		span.SetStatus(codes.Error, "failed to proto event")
 		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
 
-	_, err = ga.proxySrv.Publish(ctx, &proxypb.PublishRequest{
+	resp, err := ga.proxySrv.Publish(ctx, &proxypb.PublishRequest{
 		Events: &cloudevents.CloudEventBatch{
 			Events: []*cloudevents.CloudEvent{e},
 		},
 		EventbusId: eventbusID.Uint64(),
 	})
-
 	if err != nil {
+		span.RecordError(err, trace.WithTimestamp(time.Now()))
+		span.SetStatus(codes.Error, "failed to publish event")
 		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
 
+	eventlogID, offset, err := convert.DecodeEventID(resp.EventIds[0])
+	if err != nil {
+		span.RecordError(err, trace.WithTimestamp(time.Now()))
+		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
+	}
+	span.SetAttributes(attribute.String("eventlog_id", fmt.Sprintf("%d", eventlogID)))
+	span.SetAttributes(attribute.Int64("offset", int64(offset)))
+	span.AddEvent("write to eventbus", trace.WithTimestamp(time.Now()))
+	span.SetStatus(codes.Ok, "write to eventbus success")
 	return re, v2.ResultACK
 }
 
@@ -127,7 +156,7 @@ const (
 	httpRequestPrefix = "/gateway"
 )
 
-func (ga *ceGateway) getEventbusFromPath(ctx context.Context, reqData *cehttp.RequestData) (vanus.ID, error) {
+func (ga *ceGateway) getEventbusFromPath(ctx context.Context, reqData *cehttp.RequestData) (vanus.ID, string, error) {
 	// TODO validate
 	reqPathStr := reqData.URL.String()
 	var (
@@ -142,26 +171,26 @@ func (ga *ceGateway) getEventbusFromPath(ctx context.Context, reqData *cehttp.Re
 		path := strings.TrimLeft(reqData.URL.String(), "/")
 		strs := strings.Split(path, "/")
 		if len(strs) != 5 {
-			return 0, errors.New("invalid request path")
+			return 0, "", errors.New("invalid request path")
 		}
 		if strs[0] != "namespaces" && strs[2] != "eventbus" && strs[4] != "events" {
-			return 0, errors.New("invalid request path")
+			return 0, "", errors.New("invalid request path")
 		}
 		ns = strs[1]
 		name = strs[3]
 	}
 
 	if ns == "" {
-		return 0, errors.New("namespace is empty")
+		return 0, "", errors.New("namespace is empty")
 	}
 
 	if name == "" {
-		return 0, errors.New("eventbus is empty")
+		return 0, "", errors.New("eventbus is empty")
 	}
 
 	eb, err := ga.ctrl.EventbusService().GetEventbusByName(ctx, ns, name)
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
-	return vanus.NewIDFromUint64(eb.Id), nil
+	return vanus.NewIDFromUint64(eb.Id), name, nil
 }

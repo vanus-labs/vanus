@@ -163,7 +163,7 @@ func authPublish(_ context.Context, req interface{}) (authorization.ResourceKind
 	return authorization.ResourceEventbus, id, authorization.EventbusWrite
 }
 
-func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequest) (*emptypb.Empty, error) {
+func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequest) (*proxypb.PublishResponse, error) {
 	eventbusID := vanus.NewIDFromUint64(req.EventbusId)
 	responseCode := 200
 	_ctx, span := cp.tracer.Start(ctx, "Publish")
@@ -227,30 +227,32 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 		}
 	}
 
-	err := cp.writeEvents(ctx, vanus.NewIDFromUint64(req.EventbusId), req.Events)
+	eids, err := cp.writeEvents(ctx, vanus.NewIDFromUint64(req.EventbusId), req.Events)
 	if err != nil {
 		return nil, err
 	}
-	return &emptypb.Empty{}, nil
+	return &proxypb.PublishResponse{
+		EventIds: eids,
+	}, nil
 }
 
 func (cp *ControllerProxy) writeEvents(
 	ctx context.Context, eventbusID vanus.ID, events *cloudevents.CloudEventBatch,
-) error {
+) ([]string, error) {
 	val, exist := cp.writerMap.Load(eventbusID)
 	if !exist {
 		val, _ = cp.writerMap.LoadOrStore(eventbusID,
 			cp.client.Eventbus(ctx, api.WithID(eventbusID.Uint64())).Writer())
 	}
 	w, _ := val.(api.BusWriter)
-	_, err := w.Append(ctx, events)
+	eids, err := w.Append(ctx, events)
 	if err != nil {
 		log.Warn(ctx).Err(err).
 			Stringer("eventbus", eventbusID).
 			Msg("append to failed")
-		return err
+		return nil, err
 	}
-	return nil
+	return eids, nil
 }
 
 // Subscribe todo authentication

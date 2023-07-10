@@ -68,13 +68,10 @@ func NewEventbus(cfg *eb.Config) *eventbus {
 				break
 			}
 
-			ctx, span := bus.tracer.Start(context.Background(), "updateWritableLogsTask")
 			if bus.writableWatcher != nil {
-				bus.updateWritableLogs(ctx, re)
+				bus.updateWritableLogs(context.Background(), re)
 			}
-
 			bus.writableWatcher.Wakeup()
-			span.End()
 		}
 	}()
 	bus.writableWatcher.Start()
@@ -88,13 +85,10 @@ func NewEventbus(cfg *eb.Config) *eventbus {
 				break
 			}
 
-			ctx, span := bus.tracer.Start(context.Background(), "updateReadableLogsTask")
 			if bus.readableWatcher != nil {
-				bus.updateReadableLogs(ctx, re)
+				bus.updateReadableLogs(context.Background(), re)
 			}
-
 			bus.readableWatcher.Wakeup()
-			span.End()
 		}
 	}()
 	bus.readableWatcher.Start()
@@ -272,9 +266,6 @@ func (b *eventbus) isNeedUpdateWritableLogs(err error) bool {
 }
 
 func (b *eventbus) updateWritableLogs(ctx context.Context, re *WritableLogsResult) {
-	_, span := b.tracer.Start(ctx, "updateWritableLogs")
-	defer span.End()
-
 	if !b.isNeedUpdateWritableLogs(re.Err) {
 		return
 	}
@@ -333,10 +324,7 @@ func (b *eventbus) getWritableLog(ctx context.Context, logID uint64) eventlog.Ev
 }
 
 func (b *eventbus) refreshWritableLogs(ctx context.Context) {
-	_ctx, span := b.tracer.Start(ctx, "refreshWritableLogs")
-	defer span.End()
-
-	_ = b.writableWatcher.Refresh(_ctx)
+	_ = b.writableWatcher.Refresh(ctx)
 }
 
 func (b *eventbus) getReadableState() error {
@@ -364,9 +352,6 @@ func (b *eventbus) isNeedUpdateReadableLogs(err error) bool {
 }
 
 func (b *eventbus) updateReadableLogs(ctx context.Context, re *ReadableLogsResult) {
-	_, span := b.tracer.Start(ctx, "updateReadableLogs")
-	defer span.End()
-
 	if !b.isNeedUpdateReadableLogs(re.Err) {
 		return
 	}
@@ -425,10 +410,7 @@ func (b *eventbus) getReadableLog(ctx context.Context, logID uint64) eventlog.Ev
 }
 
 func (b *eventbus) refreshReadableLogs(ctx context.Context) {
-	_ctx, span := b.tracer.Start(ctx, "refreshReadableLogs")
-	defer span.End()
-
-	_ = b.readableWatcher.Refresh(_ctx)
+	_ = b.readableWatcher.Refresh(ctx)
 }
 
 type busWriter struct {
@@ -479,15 +461,12 @@ func (w *busWriter) Bus() api.Eventbus {
 }
 
 func (w *busWriter) pickWritableLog(ctx context.Context, opts *api.WriteOptions) (eventlog.LogWriter, error) {
-	_ctx, span := w.tracer.Start(ctx, "pickWritableLog")
-	defer span.End()
-
 	l, err := opts.Policy.NextLog(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	lw := w.ebus.getWritableLog(_ctx, l.ID())
+	lw := w.ebus.getWritableLog(ctx, l.ID())
 	if lw == nil {
 		return nil, stderrors.New("can not pick writable log")
 	}
@@ -554,14 +533,11 @@ func (r *busReader) Bus() api.Eventbus {
 }
 
 func (r *busReader) pickReadableLog(ctx context.Context, opts *api.ReadOptions) (eventlog.LogReader, error) {
-	_ctx, span := r.tracer.Start(ctx, "pickReadableLog")
-	defer span.End()
-
 	l, err := opts.Policy.NextLog(ctx)
 	if err != nil {
 		return nil, err
 	}
-	lr := r.ebus.getReadableLog(_ctx, l.ID())
+	lr := r.ebus.getReadableLog(ctx, l.ID())
 	if lr == nil {
 		return nil, stderrors.New("can not pick readable log")
 	}

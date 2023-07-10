@@ -49,9 +49,6 @@ type NameService struct {
 }
 
 func (ns *NameService) LookupWritableSegment(ctx context.Context, logID uint64) (*record.Segment, error) {
-	ctx, span := ns.tracer.Start(ctx, "LookupWritableSegment")
-	defer span.End()
-
 	req := &ctrlpb.GetAppendableSegmentRequest{
 		EventlogId: logID,
 		Limited:    1,
@@ -74,9 +71,6 @@ func (ns *NameService) LookupWritableSegment(ctx context.Context, logID uint64) 
 }
 
 func (ns *NameService) LookupReadableSegments(ctx context.Context, logID uint64) ([]*record.Segment, error) {
-	ctx, span := ns.tracer.Start(ctx, "LookupReadableSegments")
-	defer span.End()
-
 	req := &ctrlpb.ListSegmentRequest{
 		EventlogId:  logID,
 		StartOffset: 0,

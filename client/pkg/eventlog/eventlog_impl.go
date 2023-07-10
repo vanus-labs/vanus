@@ -63,13 +63,10 @@ func NewEventlog(cfg *el.Config) Eventlog {
 				break
 			}
 
-			ctx, span := l.tracer.Start(context.Background(), "updateReadableSegmentsTask")
 			if r != nil {
-				l.updateWritableSegment(ctx, r)
+				l.updateWritableSegment(context.Background(), r)
 			}
-
 			l.writableWatcher.Wakeup()
-			span.End()
 		}
 	}()
 	l.writableWatcher.Start()
@@ -84,13 +81,11 @@ func NewEventlog(cfg *el.Config) Eventlog {
 					Msg("eventlog quits readable watcher")
 				break
 			}
-			ctx, span := l.tracer.Start(context.Background(), "updateReadableSegmentsTask")
-			if rs != nil {
-				l.updateReadableSegments(ctx, rs)
-			}
 
+			if rs != nil {
+				l.updateReadableSegments(context.Background(), rs)
+			}
 			l.readableWatcher.Wakeup()
-			span.End()
 		}
 	}()
 	l.readableWatcher.Start()

@@ -49,6 +49,7 @@ func main() {
 		os.Exit(-1)
 	}
 	ctx := signal.SetupSignalContext()
+	cfg.Observability.T.ServerName = "Vanus Trigger"
 	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetTriggerMetrics)
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)

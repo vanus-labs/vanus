@@ -123,7 +123,7 @@ message ValidateSubscriptionResponse {
 }
 
 service StoreProxy {
-  rpc Publish(PublishRequest) returns (google.protobuf.Empty);
+  rpc Publish(PublishRequest) returns (PublishResponse);
   rpc Subscribe(SubscribeRequest) returns (stream SubscribeResponse);
   rpc Ack(stream AckRequest) returns (google.protobuf.Empty);
 }
@@ -132,6 +132,10 @@ message PublishRequest {
   reserved 1; // this field [string eventbus] was removed at v0.7.0, please use eventbus_id
   cloudevents.CloudEventBatch events = 2;
   uint64 eventbus_id = 3;
+}
+
+message PublishResponse {
+  repeated string event_ids = 1;
 }
 
 message SubscribeRequest {

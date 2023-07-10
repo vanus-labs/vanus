@@ -38,16 +38,16 @@ func main() {
 	}
 
 	ctx := signal.SetupSignalContext()
-	ga := gateway.NewGateway(*cfg)
+	cfg.Observability.T.ServerName = "Vanus Gateway"
+	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetGatewayMetrics)
 
+	ga := gateway.NewGateway(*cfg)
 	if err = ga.Start(ctx); err != nil {
 		log.Error().Err(err).Msg("start gateway failed")
 		os.Exit(-1)
 	}
-
-	cfg.Observability.T.ServerName = "Vanus Gateway"
-	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetGatewayMetrics)
 	log.Info(ctx).Msg("Gateway has started")
+
 	select {
 	case <-ctx.Done():
 		log.Info(ctx).Msg("received system signal, preparing exit")

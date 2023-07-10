@@ -33,8 +33,12 @@ import (
 	"github.com/vanus-labs/vanus/internal/trigger/info"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/observability/tracing"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/pkg/util"
+	"go.opentelemetry.io/otel/attribute"
+	otelcode "go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -46,6 +50,7 @@ const (
 )
 
 type Config struct {
+	Tracer            *tracing.Tracer
 	EventbusID        vanus.ID
 	Client            eb.Client
 	SubscriptionID    vanus.ID
@@ -200,24 +205,49 @@ func (elReader *eventlogReader) loop(ctx context.Context, lr api.BusReader) erro
 		return err
 	}
 	for i := range events {
+		_, span := elReader.newSpan(ctx, *events[i])
+		// _, span := elReader.config.Tracer.Start(ctx, events[i].ID())
+		span.SetName("EventTracing")
+		span.SetAttributes(attribute.String("event_id", events[i].ID()))
+		span.AddEvent("read from eventbus", trace.WithTimestamp(time.Now()))
+		span.SetAttributes(attribute.String("eventbus_id", elReader.config.EventbusID.String()))
+		// span.SetAttributes(attribute.String("eventbus_name", elReader.config.EventbusID.String()))
 		ec, _ := events[i].Context.(*ce.EventContextV1)
 		offsetByte, _ := ec.Extensions[eventlog.XVanusLogOffset].([]byte)
 		offset := binary.BigEndian.Uint64(offsetByte)
-		eo := info.EventRecord{Event: events[i], OffsetInfo: pInfo.OffsetInfo{
+		eo := info.EventRecord{Span: span, Event: events[i], OffsetInfo: pInfo.OffsetInfo{
 			EventlogID: elReader.eventlogID,
 			Offset:     offset,
 		}}
 		delete(ec.Extensions, eventlog.XVanusLogOffset)
 		if err = elReader.putEvent(ctx, eo); err != nil {
+			span.RecordError(err, trace.WithTimestamp(time.Now()))
+			span.SetStatus(otelcode.Error, "put event to el reader failed")
 			return err
 		}
 		elReader.offset = offset
+		span.SetAttributes(attribute.String("eventlog_id", elReader.eventlogID.String()))
+		span.SetAttributes(attribute.Int64("offset", int64(offset)))
 	}
 	elReader.policy.Forward(len(events))
 	metrics.TriggerPullEventCounter.WithLabelValues(
 		elReader.config.SubscriptionIDStr, elReader.config.EventbusID.Key(), elReader.eventlogIDStr).
 		Add(float64(len(events)))
 	return nil
+}
+
+func (elReader *eventlogReader) newSpan(ctx context.Context, event ce.Event) (context.Context, trace.Span) {
+	if event.Extensions() == nil {
+		return elReader.config.Tracer.Start(ctx, event.ID())
+	}
+	if _, ok := event.Extensions()["spancontext"]; !ok {
+		return elReader.config.Tracer.Start(ctx, event.ID())
+	}
+	var spanCtx context.Context
+	if err := event.ExtensionAs("spancontext", &spanCtx); err != nil {
+		return elReader.config.Tracer.Start(ctx, event.ID())
+	}
+	return elReader.config.Tracer.Start(spanCtx, event.ID())
 }
 
 func (elReader *eventlogReader) putEvent(ctx context.Context, event info.EventRecord) error {
