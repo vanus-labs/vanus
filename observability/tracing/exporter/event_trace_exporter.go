@@ -124,9 +124,9 @@ func newEvent(span tracesdk.ReadOnlySpan) v2.Event {
 	data["end_time"] = span.EndTime()
 	data["status"] = span.Status()
 	for _, attr := range span.Attributes() {
-		if attr.Key == attribute.Key("offset") {
+		if attr.Value.Type() == attribute.INT64 {
 			data[string(attr.Key)] = attr.Value.AsInt64()
-		} else {
+		} else if attr.Value.Type() == attribute.STRING {
 			data[string(attr.Key)] = attr.Value.AsString()
 		}
 	}

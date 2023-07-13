@@ -206,12 +206,11 @@ func (elReader *eventlogReader) loop(ctx context.Context, lr api.BusReader) erro
 	}
 	for i := range events {
 		_, span := elReader.newSpan(ctx, *events[i])
-		// _, span := elReader.config.Tracer.Start(ctx, events[i].ID())
 		span.SetName("EventTracing")
 		span.SetAttributes(attribute.String("event_id", events[i].ID()))
 		span.AddEvent("read from eventbus", trace.WithTimestamp(time.Now()))
 		span.SetAttributes(attribute.String("eventbus_id", elReader.config.EventbusID.String()))
-		// span.SetAttributes(attribute.String("eventbus_name", elReader.config.EventbusID.String()))
+		span.SetAttributes(attribute.String("subscription_id", elReader.config.SubscriptionIDStr))
 		ec, _ := events[i].Context.(*ce.EventContextV1)
 		offsetByte, _ := ec.Extensions[eventlog.XVanusLogOffset].([]byte)
 		offset := binary.BigEndian.Uint64(offsetByte)
@@ -240,14 +239,14 @@ func (elReader *eventlogReader) newSpan(ctx context.Context, event ce.Event) (co
 	if event.Extensions() == nil {
 		return elReader.config.Tracer.Start(ctx, event.ID())
 	}
-	if _, ok := event.Extensions()["spancontext"]; !ok {
+	if _, ok := event.Extensions()["traceid"]; !ok {
 		return elReader.config.Tracer.Start(ctx, event.ID())
 	}
-	var spanCtx context.Context
-	if err := event.ExtensionAs("spancontext", &spanCtx); err != nil {
-		return elReader.config.Tracer.Start(ctx, event.ID())
-	}
-	return elReader.config.Tracer.Start(spanCtx, event.ID())
+	traceid, _ := trace.TraceIDFromHex(event.Extensions()["traceid"].(string))
+	_ctx := trace.ContextWithSpanContext(ctx, trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID: traceid,
+	}))
+	return elReader.config.Tracer.Start(_ctx, event.ID())
 }
 
 func (elReader *eventlogReader) putEvent(ctx context.Context, event info.EventRecord) error {
