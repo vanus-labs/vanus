@@ -47,6 +47,7 @@ type Config struct {
 	OtelCollector      string `yaml:"otel_collector"`
 	EventTracingEnable bool   `yaml:"event_tracing_enable"`
 	EventCollector     string `yaml:"event_collector"`
+	Eventbus           string `yaml:"eventbus"`
 }
 
 var tp *tracerProvider
@@ -188,7 +189,9 @@ func newTracerProvider(serviceName string, cfg Config) (*trace.TracerProvider, e
 
 	if cfg.EventTracingEnable && cfg.EventCollector != "" {
 		// Set up a event exporter
-		eventExporter, err := exporter.New(ctx, exporter.WithEndpoint(cfg.EventCollector))
+		endpoint := exporter.WithEndpoint(cfg.EventCollector)
+		eventbus := exporter.WithEventbus(cfg.Eventbus)
+		eventExporter, err := exporter.New(ctx, endpoint, eventbus)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create event exporter: %w", err)
 		}

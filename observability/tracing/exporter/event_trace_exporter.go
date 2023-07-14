@@ -30,17 +30,25 @@ type Option func(*Options)
 
 type Options struct {
 	Endpoints string
+	Eventbus  string
 }
 
 func defaultOptions() *Options {
 	return &Options{
 		Endpoints: "127.0.0.1:8080",
+		Eventbus:  "event-tracing",
 	}
 }
 
 func WithEndpoint(endpoint string) Option {
 	return func(options *Options) {
 		options.Endpoints = endpoint
+	}
+}
+
+func WithEventbus(eventbus string) Option {
+	return func(options *Options) {
+		options.Eventbus = eventbus
 	}
 }
 
@@ -69,7 +77,7 @@ func New(ctx context.Context, opts ...Option) (*Exporter, error) {
 		panic("failed to connect to Vanus cluster, error: " + err.Error())
 	}
 
-	ebOpt := vanussdk.WithEventbus("default", "tracing")
+	ebOpt := vanussdk.WithEventbus("default", defaultOpts.Eventbus)
 	exporter := &Exporter{
 		endpoints: defaultOpts.Endpoints,
 		client:    c,

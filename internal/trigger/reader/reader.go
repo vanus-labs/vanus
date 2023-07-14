@@ -222,6 +222,7 @@ func (elReader *eventlogReader) loop(ctx context.Context, lr api.BusReader) erro
 		if err = elReader.putEvent(ctx, eo); err != nil {
 			span.RecordError(err, trace.WithTimestamp(time.Now()))
 			span.SetStatus(otelcode.Error, "put event to el reader failed")
+			span.End()
 			return err
 		}
 		elReader.offset = offset
