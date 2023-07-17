@@ -106,8 +106,12 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 	ctx, span := ga.tracer.Start(ctx, "receive")
 	defer span.End()
 
-	event.SetExtension("traceid", span.SpanContext().TraceID().String())
-	span.SetName("EventTracing")
+	traceID := span.SpanContext().TraceID().String()
+	spanID := span.SpanContext().SpanID().String()
+	traceFlags := span.SpanContext().TraceFlags().String()
+	event.SetExtension("traceparent", fmt.Sprintf("00-%s-%s-%s", traceID, spanID, traceFlags))
+	span.SetName(event.ID())
+	span.SetAttributes(attribute.String("type", "event-tracing"))
 	span.SetAttributes(attribute.String("event_id", event.ID()))
 	span.AddEvent("received from source", trace.WithTimestamp(time.Now()))
 

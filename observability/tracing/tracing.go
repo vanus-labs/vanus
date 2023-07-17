@@ -32,7 +32,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/observability/tracing/exporter"
 )
 
 const (
@@ -42,17 +41,17 @@ const (
 )
 
 type Config struct {
-	ServerName         string `yaml:"-"`
-	Enable             bool   `yaml:"enable"`
-	OtelCollector      string `yaml:"otel_collector"`
-	EventTracingEnable bool   `yaml:"event_tracing_enable"`
-	EventCollector     string `yaml:"event_collector"`
-	Eventbus           string `yaml:"eventbus"`
+	ServerName         string   `yaml:"-"`
+	Enable             bool     `yaml:"enable"`
+	OtelCollector      string   `yaml:"otel_collector"`
+	EventTracingEnable bool     `yaml:"event_tracing_enable"`
+	EventCollector     []string `yaml:"event_collector"`
+	Eventbus           string   `yaml:"eventbus"`
 }
 
 var tp *tracerProvider
 
-func Init(cfg Config) {
+func Init(cfg Config, getExporterFuncs ...func(endpoints []string, eventbus string) trace.SpanExporter) {
 	if cfg.ServerName == "" {
 		log.Info().Msg("tracing name is empty, ignored")
 		return
@@ -66,7 +65,7 @@ func Init(cfg Config) {
 		return
 	}
 
-	provider, err := newTracerProvider(p.serverName, cfg)
+	provider, err := newTracerProvider(p.serverName, cfg, getExporterFuncs...)
 	if err != nil {
 		panic("init tracer error: " + err.Error())
 	}
@@ -81,14 +80,14 @@ func IsValid(cfg Config) bool {
 	if cfg.Enable && cfg.OtelCollector != "" {
 		return true
 	}
-	if cfg.EventTracingEnable && cfg.EventCollector != "" {
+	if cfg.EventTracingEnable && len(cfg.EventCollector) != 0 {
 		return true
 	}
 	if cfg.Enable && cfg.OtelCollector == "" {
 		log.Warn().Str("otel_collector", cfg.OtelCollector).Msg("tracing module is enabled, but otel_collector is empty, switch to noop tracer")
 	}
-	if cfg.EventTracingEnable && cfg.EventCollector == "" {
-		log.Warn().Str("event_collector", cfg.EventCollector).Msg("event tracing module is enabled, but event_collector is empty, switch to noop tracer")
+	if cfg.EventTracingEnable && len(cfg.EventCollector) == 0 {
+		log.Warn().Strs("event_collector", cfg.EventCollector).Msg("event tracing module is enabled, but event_collector is empty, switch to noop tracer")
 	}
 	return false
 }
@@ -140,7 +139,7 @@ func NewTracer(moduleName string, kind oteltrace.SpanKind) *Tracer {
 	}
 }
 
-func newTracerProvider(serviceName string, cfg Config) (*trace.TracerProvider, error) {
+func newTracerProvider(serviceName string, cfg Config, getExporterFuncs ...func(endpoints []string, eventbus string) trace.SpanExporter) (*trace.TracerProvider, error) {
 	ctx := context.Background()
 	opts := make([]trace.TracerProviderOption, 0)
 	opts = append(opts, trace.WithSampler(trace.AlwaysSample()))
@@ -187,15 +186,11 @@ func newTracerProvider(serviceName string, cfg Config) (*trace.TracerProvider, e
 		opts = append(opts, trace.WithSpanProcessor(trace.NewBatchSpanProcessor(traceExporter)))
 	}
 
-	if cfg.EventTracingEnable && cfg.EventCollector != "" {
-		// Set up a event exporter
-		endpoint := exporter.WithEndpoint(cfg.EventCollector)
-		eventbus := exporter.WithEventbus(cfg.Eventbus)
-		eventExporter, err := exporter.New(ctx, endpoint, eventbus)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create event exporter: %w", err)
+	if cfg.EventTracingEnable && len(cfg.EventCollector) != 0 {
+		for _, getExporter := range getExporterFuncs {
+			exporter := getExporter(cfg.EventCollector, cfg.Eventbus)
+			opts = append(opts, trace.WithSpanProcessor(trace.NewBatchSpanProcessor(exporter)))
 		}
-		opts = append(opts, trace.WithSpanProcessor(trace.NewBatchSpanProcessor(eventExporter)))
 	}
 
 	// Register the trace exporter with a TracerProvider, using a batch

@@ -23,6 +23,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/vanus-labs/vanus/client/pkg/exporter"
 	"github.com/vanus-labs/vanus/observability"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
@@ -50,7 +51,7 @@ func main() {
 	}
 	ctx := signal.SetupSignalContext()
 	cfg.Observability.T.ServerName = "Vanus Trigger"
-	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetTriggerMetrics)
+	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetTriggerMetrics, exporter.GetExporter)
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
 	srv := trigger.NewTriggerServer(*cfg)

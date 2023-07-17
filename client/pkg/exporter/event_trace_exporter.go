@@ -15,34 +15,54 @@
 package exporter
 
 import (
+	// standard libraries.
 	"context"
+	"os"
 
+	// third-party libraries.
 	v2 "github.com/cloudevents/sdk-go/v2"
 	"github.com/google/uuid"
-	vanussdk "github.com/vanus-labs/sdk/golang"
-	"github.com/vanus-labs/vanus/observability/log"
-
 	"go.opentelemetry.io/otel/attribute"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
+	"google.golang.org/grpc/credentials/insecure"
+
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/observability/log"
+	"github.com/vanus-labs/vanus/pkg/cluster"
+	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	"github.com/vanus-labs/vanus/proto/pkg/codec"
+
+	// this project.
+	"github.com/vanus-labs/vanus/client"
+	"github.com/vanus-labs/vanus/client/pkg/api"
 )
+
+func GetExporter(endpoints []string, eventbus string) tracesdk.SpanExporter {
+	spanExporter, err := New(context.Background(), WithEndpoints(endpoints), WithEventbus(eventbus))
+	if err != nil {
+		log.Error().Err(err).Msg("new span exporter failed")
+		os.Exit(-1)
+	}
+	return spanExporter
+}
 
 type Option func(*Options)
 
 type Options struct {
-	Endpoints string
+	Endpoints []string
 	Eventbus  string
 }
 
 func defaultOptions() *Options {
 	return &Options{
-		Endpoints: "127.0.0.1:8080",
+		Endpoints: []string{},
 		Eventbus:  "event-tracing",
 	}
 }
 
-func WithEndpoint(endpoint string) Option {
+func WithEndpoints(endpoints []string) Option {
 	return func(options *Options) {
-		options.Endpoints = endpoint
+		options.Endpoints = endpoints
 	}
 }
 
@@ -54,9 +74,8 @@ func WithEventbus(eventbus string) Option {
 
 // Exporter exports trace data in the OTLP wire format.
 type Exporter struct {
-	endpoints string
-	client    vanussdk.Client
-	publisher vanussdk.Publisher
+	endpoints []string
+	writer    api.BusWriter
 }
 
 var _ tracesdk.SpanExporter = (*Exporter)(nil)
@@ -67,53 +86,58 @@ func New(ctx context.Context, opts ...Option) (*Exporter, error) {
 		apply(defaultOpts)
 	}
 
-	clientOpts := &vanussdk.ClientOptions{
-		Endpoint: defaultOpts.Endpoints,
-		Token:    "admin",
+	ctrl := cluster.NewClusterController(defaultOpts.Endpoints, insecure.NewCredentials())
+	if err := ctrl.WaitForControllerReady(true); err != nil {
+		log.Error(ctx).Err(err).Msg("wait for controller ready timeout")
+		return nil, err
 	}
-
-	c, err := vanussdk.Connect(clientOpts)
+	eventbus, err := ctrl.EventbusService().GetEventbusByName(ctx, "default", defaultOpts.Eventbus)
 	if err != nil {
-		panic("failed to connect to Vanus cluster, error: " + err.Error())
+		log.Error(ctx).Err(err).Str("eventbus", defaultOpts.Eventbus).Msg("failed to get eventbus")
+		return nil, err
 	}
 
-	ebOpt := vanussdk.WithEventbus("default", defaultOpts.Eventbus)
+	c := client.Connect(defaultOpts.Endpoints)
+	bus := c.Eventbus(ctx, api.WithName(defaultOpts.Eventbus), api.WithID(eventbus.Id))
 	exporter := &Exporter{
 		endpoints: defaultOpts.Endpoints,
-		client:    c,
-		publisher: c.Publisher(ebOpt),
-	}
-	_, err = c.Controller().Eventbus().Get(ctx, ebOpt)
-	if err != nil {
-		panic("failed to get tracing eventbus, error: " + err.Error())
+		writer:    bus.Writer(),
 	}
 	return exporter, nil
 }
 
 // ExportSpans exports a batch of spans.
 func (e *Exporter) ExportSpans(ctx context.Context, ss []tracesdk.ReadOnlySpan) error {
-	es := make([]*v2.Event, 0)
+	ces := make([]*cloudevents.CloudEvent, 0)
 	for _, span := range ss {
-		if span.Name() != "EventTracing" {
+		event := newEvent(span)
+		if event.Type() != "event-tracing" {
 			continue
 		}
-		event := newEvent(span)
-		es = append(es, &event)
+		eventpb, err := codec.ToProto(&event)
+		if err != nil {
+			log.Error(ctx).Err(err).Any("event", event).Msg("failed to proto event")
+			return nil
+		}
+		ces = append(ces, eventpb)
 	}
 
-	if len(es) == 0 {
+	if len(ces) == 0 {
 		return nil
 	}
 
-	err := e.publisher.Publish(ctx, es...)
+	ceBatch := &cloudevents.CloudEventBatch{
+		Events: ces,
+	}
+	_, err := e.writer.Append(ctx, ceBatch)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("failed to publish events to tracing eventbus")
+		log.Error(ctx).Err(err).Msg("failed to append events to tracing eventbus")
 		return nil
 	}
 	return nil
 }
 
-// Shutdown flushes all exports and closes all connections to the receiving endpoint.
+// Shutdown
 func (e *Exporter) Shutdown(ctx context.Context) error {
 	return nil
 }
@@ -122,7 +146,6 @@ func newEvent(span tracesdk.ReadOnlySpan) v2.Event {
 	event := v2.NewEvent()
 	event.SetID(uuid.New().String())
 	event.SetSource(span.Name())
-	event.SetType(span.SpanKind().String())
 	data := make(map[string]interface{})
 	data["name"] = span.Name()
 	data["trace_id"] = span.SpanContext().TraceID().String()
@@ -136,6 +159,9 @@ func newEvent(span tracesdk.ReadOnlySpan) v2.Event {
 			data[string(attr.Key)] = attr.Value.AsInt64()
 		} else if attr.Value.Type() == attribute.STRING {
 			data[string(attr.Key)] = attr.Value.AsString()
+			if string(attr.Key) == "type" && attr.Value.AsString() == "event-tracing" {
+				event.SetType("event-tracing")
+			}
 		}
 	}
 	data["events"] = span.Events()

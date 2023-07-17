@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/binary"
 	stderr "errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -206,7 +207,8 @@ func (elReader *eventlogReader) loop(ctx context.Context, lr api.BusReader) erro
 	}
 	for i := range events {
 		_, span := elReader.newSpan(ctx, *events[i])
-		span.SetName("EventTracing")
+		span.SetName(events[i].ID())
+		span.SetAttributes(attribute.String("type", "event-tracing"))
 		span.SetAttributes(attribute.String("event_id", events[i].ID()))
 		span.AddEvent("read from eventbus", trace.WithTimestamp(time.Now()))
 		span.SetAttributes(attribute.String("eventbus_id", elReader.config.EventbusID.String()))
@@ -240,12 +242,13 @@ func (elReader *eventlogReader) newSpan(ctx context.Context, event ce.Event) (co
 	if event.Extensions() == nil {
 		return elReader.config.Tracer.Start(ctx, event.ID())
 	}
-	if _, ok := event.Extensions()["traceid"]; !ok {
+	if _, ok := event.Extensions()["traceparent"]; !ok {
 		return elReader.config.Tracer.Start(ctx, event.ID())
 	}
-	traceid, _ := trace.TraceIDFromHex(event.Extensions()["traceid"].(string))
+	tps := strings.Split(event.Extensions()["traceparent"].(string), "-")
+	traceID, _ := trace.TraceIDFromHex(tps[1])
 	_ctx := trace.ContextWithSpanContext(ctx, trace.NewSpanContext(trace.SpanContextConfig{
-		TraceID: traceid,
+		TraceID: traceID,
 	}))
 	return elReader.config.Tracer.Start(_ctx, event.ID())
 }

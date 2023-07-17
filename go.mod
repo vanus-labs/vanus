@@ -48,8 +48,6 @@ require (
 	k8s.io/utils v0.0.0-20230406110748-d93618cff8a2
 )
 
-require github.com/vanus-labs/sdk/golang v0.4.7 // indirect
-
 require (
 	cloud.google.com/go/compute v1.19.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
@@ -129,4 +127,4 @@ replace (
 	github.com/vanus-labs/vanus/raft => ./raft
 )
 
-// replace github.com/vanus-labs/sdk/golang => ./FORBIDDEN_DEPENDENCY
+replace github.com/vanus-labs/sdk/golang => ./FORBIDDEN_DEPENDENCY
