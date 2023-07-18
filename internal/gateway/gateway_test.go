@@ -122,7 +122,7 @@ func TestGateway_getEventbusFromPath(t *testing.T) {
 				Opaque: "/a/b/c/d",
 			},
 		}
-		_, err := ga.getEventbusFromPath(context.Background(), reqData)
+		_, _, err := ga.getEventbusFromPath(context.Background(), reqData)
 		So(err.Error(), ShouldEqual, "invalid request path")
 
 		reqData = &cehttp.RequestData{
@@ -130,7 +130,7 @@ func TestGateway_getEventbusFromPath(t *testing.T) {
 				Opaque: "/ns/b/eb/d",
 			},
 		}
-		_, err = ga.getEventbusFromPath(context.Background(), reqData)
+		_, _, err = ga.getEventbusFromPath(context.Background(), reqData)
 		So(err.Error(), ShouldEqual, "invalid request path")
 	})
 
@@ -140,7 +140,7 @@ func TestGateway_getEventbusFromPath(t *testing.T) {
 				Opaque: "/namespaces//eventbus/test/events",
 			},
 		}
-		_, err := ga.getEventbusFromPath(context.Background(), reqData)
+		_, _, err := ga.getEventbusFromPath(context.Background(), reqData)
 		So(err.Error(), ShouldEqual, "namespace is empty")
 
 		reqData = &cehttp.RequestData{
@@ -148,7 +148,7 @@ func TestGateway_getEventbusFromPath(t *testing.T) {
 				Opaque: "/namespaces/default/eventbus//events",
 			},
 		}
-		_, err = ga.getEventbusFromPath(context.Background(), reqData)
+		_, _, err = ga.getEventbusFromPath(context.Background(), reqData)
 		So(err.Error(), ShouldEqual, "eventbus is empty")
 	})
 
@@ -174,7 +174,7 @@ func TestGateway_getEventbusFromPath(t *testing.T) {
 			},
 		}
 
-		id, err := ga.getEventbusFromPath(context.Background(), reqData)
+		id, _, err := ga.getEventbusFromPath(context.Background(), reqData)
 		So(err, ShouldBeNil)
 		So(id, ShouldEqual, ebID)
 	})

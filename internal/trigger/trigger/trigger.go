@@ -18,18 +18,23 @@ package trigger
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"reflect"
 	"sync"
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	"github.com/panjf2000/ants/v2"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/ratelimit"
 
 	eb "github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
+	"github.com/vanus-labs/vanus/observability/tracing"
 	"github.com/vanus-labs/vanus/pkg/util"
 
 	"github.com/vanus-labs/vanus/internal/primitive"
@@ -68,6 +73,7 @@ type trigger struct {
 
 	subscription  *primitive.Subscription
 	offsetManager *offset.SubscriptionOffset
+	tracer        *tracing.Tracer
 	reader        reader.Reader
 	eventCh       chan info.EventRecord
 	sendCh        chan *toSendEvent
@@ -99,7 +105,9 @@ type toSendEvent struct {
 }
 
 func NewTrigger(subscription *primitive.Subscription, opts ...Option) Trigger {
+	moduleName := fmt.Sprintf("internal.trigger.trigger.%s", subscription.ID.String())
 	t := &trigger{
+		tracer:            tracing.NewTracer(moduleName, trace.SpanKindConsumer),
 		stop:              func() {},
 		config:            defaultConfig(),
 		state:             TriggerCreated,
@@ -296,9 +304,13 @@ func (t *trigger) runEventFilterTransform(ctx context.Context) {
 				metrics.TriggerFilterCostSecond.WithLabelValues(t.subscriptionIDStr).Observe(time.Since(startTime).Seconds())
 				if res == filter.FailFilter {
 					t.offsetManager.EventCommit(record.OffsetInfo)
+					record.Span.RecordError(errors.New("filter error"), trace.WithTimestamp(time.Now()))
+					record.Span.SetStatus(codes.Error, "filter failed")
+					record.Span.End()
 					return
 				}
 				metrics.TriggerFilterMatchEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
+				record.Span.AddEvent("filter", trace.WithTimestamp(time.Now()))
 				event, err := t.transformEvent(record)
 				if err != nil {
 					log.Info(ctx, "event transform error", map[string]interface{}{
@@ -308,8 +320,12 @@ func (t *trigger) runEventFilterTransform(ctx context.Context) {
 					})
 					t.writeFailEvent(ctx, record.Event, ErrTransformCode, err)
 					t.offsetManager.EventCommit(record.OffsetInfo)
+					record.Span.RecordError(errors.New("transform error"), trace.WithTimestamp(time.Now()))
+					record.Span.SetStatus(codes.Error, "transform failed")
+					record.Span.End()
 					return
 				}
+				record.Span.AddEvent("transform", trace.WithTimestamp(time.Now()))
 				t.sendCh <- event
 			})
 		}
@@ -376,6 +392,7 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 		// commit offset
 		for _, event := range events {
 			t.offsetManager.EventCommit(event.record.OffsetInfo)
+			event.record.Span.End()
 		}
 	}()
 	es := make([]*ce.Event, len(events))
@@ -400,6 +417,8 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 		}
 		for _, event := range events {
 			t.writeFailEvent(ctx, event.record.Event, code, r.Err)
+			event.record.Span.RecordError(r.Err, trace.WithTimestamp(time.Now()))
+			event.record.Span.SetStatus(codes.Error, "triggered to sink failed")
 		}
 	} else {
 		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelSuccess).
@@ -411,6 +430,10 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 			"event_offset": events[0].record.OffsetInfo,
 			"event":        string(eByte),
 		})
+		for _, event := range events {
+			event.record.Span.AddEvent("triggered to sink", trace.WithTimestamp(time.Now()))
+			event.record.Span.SetStatus(codes.Ok, "triggered to sink success")
+		}
 	}
 }
 
@@ -524,6 +547,7 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 
 func (t *trigger) getReaderConfig() reader.Config {
 	return reader.Config{
+		Tracer:         t.tracer,
 		EventbusID:     t.subscription.EventbusID,
 		Client:         t.client,
 		SubscriptionID: t.subscription.ID,
@@ -534,6 +558,7 @@ func (t *trigger) getReaderConfig() reader.Config {
 
 func (t *trigger) getRetryEventReaderConfig() reader.Config {
 	return reader.Config{
+		Tracer:         t.tracer,
 		EventbusID:     t.subscription.RetryEventbusID,
 		Client:         t.client,
 		SubscriptionID: t.subscription.ID,

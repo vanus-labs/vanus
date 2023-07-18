@@ -28,9 +28,11 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	. "github.com/smartystreets/goconvey/convey"
+	"go.opentelemetry.io/otel/trace"
 
 	eb "github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
+	"github.com/vanus-labs/vanus/observability/tracing"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 
 	"github.com/vanus-labs/vanus/internal/primitive"
@@ -274,7 +276,10 @@ func makeEventRecord(t string) info.EventRecord {
 	event.SetID(uuid.New().String())
 	event.SetSource("source")
 	event.SetType(t)
+	trace := tracing.NewTracer(t, trace.SpanKindConsumer)
+	_, span := trace.Start(context.Background(), event.ID())
 	return info.EventRecord{
+		Span:  span,
 		Event: &event,
 	}
 }

@@ -15,6 +15,9 @@
 package convert
 
 import (
+	"encoding/base64"
+	"encoding/binary"
+
 	"google.golang.org/protobuf/types/known/structpb"
 
 	ctrl "github.com/vanus-labs/vanus/proto/pkg/controller"
@@ -486,4 +489,12 @@ func ToPbTransformer(transformer *primitive.Transformer) *pb.Transformer {
 		Template: transformer.Template,
 		Pipeline: toPbActions(transformer.Pipeline),
 	}
+}
+
+func DecodeEventID(eid string) (uint64, uint64, error) {
+	bytes, err := base64.StdEncoding.DecodeString(eid)
+	if err != nil {
+		return 0, 0, err
+	}
+	return binary.BigEndian.Uint64(bytes[0:8]), binary.BigEndian.Uint64(bytes[8:16]), nil
 }

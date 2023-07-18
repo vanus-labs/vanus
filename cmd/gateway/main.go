@@ -19,6 +19,7 @@ import (
 	"flag"
 	"os"
 
+	"github.com/vanus-labs/vanus/client/pkg/exporter"
 	"github.com/vanus-labs/vanus/observability"
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/metrics"
@@ -41,18 +42,18 @@ func main() {
 	}
 
 	ctx := signal.SetupSignalContext()
-	ga := gateway.NewGateway(*cfg)
 
+	cfg.Observability.T.ServerName = "Vanus Gateway"
+	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetGatewayMetrics, exporter.GetExporter)
+	ga := gateway.NewGateway(*cfg)
 	if err = ga.Start(ctx); err != nil {
 		log.Error(context.Background(), "start gateway failed", map[string]interface{}{
 			log.KeyError: err,
 		})
 		os.Exit(-1)
 	}
-
-	cfg.Observability.T.ServerName = "Vanus Gateway"
-	_ = observability.Initialize(ctx, cfg.Observability, metrics.GetGatewayMetrics)
 	log.Info(ctx, "Gateway has started", nil)
+
 	select {
 	case <-ctx.Done():
 		log.Info(ctx, "received system signal, preparing exit", nil)

@@ -152,7 +152,7 @@ type ControllerProxy struct {
 // Make sure ControllerProxy implements proxypb.StoreProxyServer.
 var _ proxypb.StoreProxyServer = (*ControllerProxy)(nil)
 
-func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequest) (*emptypb.Empty, error) {
+func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequest) (*proxypb.PublishResponse, error) {
 	eventbusID := vanus.NewIDFromUint64(req.EventbusId)
 	responseCode := 200
 	_ctx, span := cp.tracer.Start(ctx, "Publish")
@@ -217,31 +217,33 @@ func (cp *ControllerProxy) Publish(ctx context.Context, req *proxypb.PublishRequ
 		}
 	}
 
-	err := cp.writeEvents(ctx, vanus.NewIDFromUint64(req.EventbusId), req.Events)
+	eids, err := cp.writeEvents(ctx, vanus.NewIDFromUint64(req.EventbusId), req.Events)
 	if err != nil {
 		return nil, err
 	}
-	return &emptypb.Empty{}, nil
+	return &proxypb.PublishResponse{
+		EventIds: eids,
+	}, nil
 }
 
 func (cp *ControllerProxy) writeEvents(
 	ctx context.Context, eventbusID vanus.ID, events *cloudevents.CloudEventBatch,
-) error {
+) ([]string, error) {
 	val, exist := cp.writerMap.Load(eventbusID)
 	if !exist {
 		val, _ = cp.writerMap.LoadOrStore(eventbusID,
 			cp.client.Eventbus(ctx, api.WithID(eventbusID.Uint64())).Writer())
 	}
 	w, _ := val.(api.BusWriter)
-	_, err := w.Append(ctx, events)
+	eids, err := w.Append(ctx, events)
 	if err != nil {
 		log.Warning(ctx, "append to failed", map[string]interface{}{
 			log.KeyError: err,
 			"eventbus":   eventbusID.Key(),
 		})
-		return v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
+		return nil, v2.NewHTTPResult(http.StatusInternalServerError, err.Error())
 	}
-	return nil
+	return eids, nil
 }
 
 func (cp *ControllerProxy) Subscribe(req *proxypb.SubscribeRequest, stream proxypb.StoreProxy_SubscribeServer) error {
