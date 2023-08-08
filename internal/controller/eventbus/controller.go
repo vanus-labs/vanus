@@ -217,6 +217,32 @@ func (ctrl *controller) CreateSystemEventbus(
 	return ctrl.createEventbus(ctx, req)
 }
 
+func (ctrl *controller) isEventbusExist(ctx context.Context, req *ctrlpb.CreateEventbusRequest) (bool, error) {
+	id := vanus.NewIDFromUint64(req.Id)
+	if !id.Equals(vanus.EmptyID()) {
+		// check id exist
+		pb, err := ctrl.getEventbus(id)
+		if err != nil && !errors.Is(err, errors.ErrResourceNotFound) {
+			return false, err
+		}
+		if pb != nil {
+			return true, nil
+		}
+	}
+	// check name exist
+	pb, err := ctrl.GetEventbusWithHumanFriendly(ctx, &ctrlpb.GetEventbusWithHumanFriendlyRequest{
+		NamespaceId:  req.NamespaceId,
+		EventbusName: req.Name,
+	})
+	if err != nil && !errors.Is(err, errors.ErrResourceNotFound) {
+		return false, err
+	}
+	if pb != nil {
+		return true, nil
+	}
+	return false, nil
+}
+
 func (ctrl *controller) createEventbus(
 	ctx context.Context, req *ctrlpb.CreateEventbusRequest,
 ) (*metapb.Eventbus, error) {
@@ -238,22 +264,20 @@ func (ctrl *controller) createEventbus(
 		return nil, errors.ErrInvalidRequest.WithMessage(fmt.Sprintf("the number of eventlog exceeded,"+
 			" maximum is %d", maximumEventlogNum))
 	}
-
-	pb, err := ctrl.GetEventbusWithHumanFriendly(ctx, &ctrlpb.GetEventbusWithHumanFriendlyRequest{
-		NamespaceId:  req.NamespaceId,
-		EventbusName: req.Name,
-	})
-	if err != nil && !errors.Is(err, errors.ErrResourceNotFound) {
+	ebExist, err := ctrl.isEventbusExist(ctx, req)
+	if err != nil {
 		return nil, err
 	}
-	if pb != nil {
+	if ebExist {
 		return nil, errors.ErrResourceAlreadyExist.WithMessage("the eventbus already exists")
 	}
-
-	id, err := vanus.NewID()
-	if err != nil {
-		log.Warn(ctx).Err(err).Msg("failed to create eventbus ID")
-		return nil, err
+	id := vanus.NewIDFromUint64(req.Id)
+	if id.Equals(vanus.EmptyID()) {
+		id, err = vanus.NewID()
+		if err != nil {
+			log.Warn(ctx).Err(err).Msg("failed to create eventbus ID")
+			return nil, err
+		}
 	}
 	eb := &metadata.Eventbus{
 		ID:          id,

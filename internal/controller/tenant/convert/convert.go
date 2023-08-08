@@ -25,6 +25,7 @@ import (
 
 func FromPbCreateNamespace(ns *ctrlpb.CreateNamespaceRequest) *metadata.Namespace {
 	to := &metadata.Namespace{
+		ID:          vanus.NewIDFromUint64(ns.Id),
 		Name:        ns.Name,
 		Description: ns.Description,
 	}
