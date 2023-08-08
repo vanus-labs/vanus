@@ -137,7 +137,8 @@ func (ga *ceGateway) getEventbusFromPath(ctx context.Context, reqData *cehttp.Re
 		name string
 	)
 	paths := strings.Split(reqPathStr, "/")
-	if len(paths) == 2 {
+	switch len(paths) {
+	case 2:
 		if paths[0] == httpRequestPrefix { // Deprecated, just for compatibility of older than v0.7.0
 			// gateway/eb_name
 			ns = primitive.DefaultNamespace
@@ -157,14 +158,14 @@ func (ga *ceGateway) getEventbusFromPath(ctx context.Context, reqData *cehttp.Re
 		} else {
 			return 0, errors.New("invalid request path")
 		}
-	} else if len(paths) == 5 {
+	case 5:
 		// namespaces/:namespace_name/eventbus/:eventbus_name/events
 		if paths[0] != "namespaces" && paths[2] != "eventbus" && paths[4] != "events" {
 			return 0, errors.New("invalid request path")
 		}
 		ns = paths[1]
 		name = paths[3]
-	} else {
+	default:
 		return 0, errors.New("invalid request path")
 	}
 
