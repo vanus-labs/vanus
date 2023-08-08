@@ -157,20 +157,38 @@ func TestGateway_getEventbusFromPath(t *testing.T) {
 	ebSvc := cluster.NewMockEventbusService(ctrl)
 	cctrl.EXPECT().EventbusService().AnyTimes().Return(ebSvc)
 
-	ebID := vanus.NewTestID().Uint64()
+	ebID := vanus.NewTestID()
 	ebSvc.EXPECT().GetEventbusByName(Any(), "default", "test").Times(1).Return(
 		&metapb.Eventbus{
 			Name:        "test",
 			LogNumber:   1,
-			Id:          ebID,
+			Id:          ebID.Uint64(),
 			Description: "desc",
 			NamespaceId: vanus.NewTestID().Uint64(),
 		}, nil)
+	ebSvc.EXPECT().GetEventbus(Any(), ebID.Uint64()).Times(1).Return(&metapb.Eventbus{
+		Name:        "test",
+		LogNumber:   1,
+		Id:          ebID.Uint64(),
+		Description: "desc",
+		NamespaceId: vanus.NewTestID().Uint64(),
+	}, nil)
 	ga.ctrl = cctrl
-	Convey("test get eventbus from path return path ", t, func() {
+	Convey("test get eventbus from path name return path ", t, func() {
 		reqData := &cehttp.RequestData{
 			URL: &url.URL{
 				Opaque: "/namespaces/default/eventbus/test/events",
+			},
+		}
+
+		id, err := ga.getEventbusFromPath(context.Background(), reqData)
+		So(err, ShouldBeNil)
+		So(id, ShouldEqual, ebID)
+	})
+	Convey("test get eventbus from path id return path ", t, func() {
+		reqData := &cehttp.RequestData{
+			URL: &url.URL{
+				Opaque: fmt.Sprintf("/%s/events", ebID.String()),
 			},
 		}
 
