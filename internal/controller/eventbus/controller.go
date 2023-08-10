@@ -230,15 +230,15 @@ func (ctrl *controller) isEventbusExist(ctx context.Context, req *ctrlpb.CreateE
 		}
 	}
 	// check name exist
-	pb, err := ctrl.GetEventbusWithHumanFriendly(ctx, &ctrlpb.GetEventbusWithHumanFriendlyRequest{
+	_, err := ctrl.GetEventbusWithHumanFriendly(ctx, &ctrlpb.GetEventbusWithHumanFriendlyRequest{
 		NamespaceId:  req.NamespaceId,
 		EventbusName: req.Name,
 	})
-	if err != nil && !errors.Is(err, errors.ErrResourceNotFound) {
-		return false, err
-	}
-	if pb != nil {
+	if err == nil {
 		return true, nil
+	}
+	if !errors.Is(err, errors.ErrResourceNotFound) {
+		return false, err
 	}
 	return false, nil
 }
