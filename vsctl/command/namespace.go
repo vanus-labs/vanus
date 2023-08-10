@@ -17,6 +17,7 @@ package command
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	"github.com/vanus-labs/vanus/proto/pkg/meta"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
@@ -59,7 +61,16 @@ func createNamespaceCommand() *cobra.Command {
 			if namespace == "" {
 				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
+			var id uint64
+			if idStr != "" {
+				vID, err := vanus.NewIDFromString(idStr)
+				if err != nil {
+					cmdFailedWithHelpNotice(cmd, fmt.Sprintf("invalid namespace id: %s\n", err.Error()))
+				}
+				id = vID.Uint64()
+			}
 			_, err := client.CreateNamespace(context.Background(), &ctrlpb.CreateNamespaceRequest{
+				Id:          id,
 				Name:        namespace,
 				Description: description,
 			})
@@ -82,6 +93,7 @@ func createNamespaceCommand() *cobra.Command {
 			}
 		},
 	}
+	cmd.Flags().StringVar(&idStr, "id", "", "namespace id to create")
 	cmd.Flags().StringVar(&namespace, "name", "", "namespace name to creating")
 	cmd.Flags().StringVar(&description, "description", "", "namespace description")
 	return cmd

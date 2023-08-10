@@ -88,7 +88,16 @@ func createSubscriptionCommand() *cobra.Command {
 				DisableDeadLetter: disableDeadLetter,
 			}
 			getSubscriptionConfig(cmd, config)
+			var id uint64
+			if idStr != "" {
+				vID, err := vanus.NewIDFromString(idStr)
+				if err != nil {
+					cmdFailedWithHelpNotice(cmd, fmt.Sprintf("invalid subscription id: %s\n", err.Error()))
+				}
+				id = vID.Uint64()
+			}
 			res, err := client.CreateSubscription(context.Background(), &ctrlpb.CreateSubscriptionRequest{
+				Id: id,
 				Subscription: &ctrlpb.SubscriptionRequest{
 					Config:         config,
 					Filters:        filter,
@@ -109,6 +118,7 @@ func createSubscriptionCommand() *cobra.Command {
 			printSubscription(cmd, false, false, false, res)
 		},
 	}
+	cmd.Flags().StringVar(&idStr, "id", "", "subscription id to create")
 	cmd.Flags().StringVar(&namespace, "namespace", "default", "namespace name, default name is default")
 	cmd.Flags().StringVar(&eventbus, "eventbus", "", "eventbus name to consuming")
 	cmd.Flags().StringVar(&sink, "sink", "", "the event you want to send to")

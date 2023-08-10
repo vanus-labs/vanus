@@ -17,6 +17,7 @@ package command
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 
@@ -58,7 +59,16 @@ func createEventbusCommand() *cobra.Command {
 			if eventbus == "" {
 				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
+			var id uint64
+			if idStr != "" {
+				vID, err := vanus.NewIDFromString(idStr)
+				if err != nil {
+					cmdFailedWithHelpNotice(cmd, fmt.Sprintf("invalid eventbus id: %s\n", err.Error()))
+				}
+				id = vID.Uint64()
+			}
 			eb, err := client.CreateEventbus(context.Background(), &ctrlpb.CreateEventbusRequest{
+				Id:          id,
 				Name:        eventbus,
 				LogNumber:   eventlogNum,
 				Description: description,
@@ -84,6 +94,7 @@ func createEventbusCommand() *cobra.Command {
 			}
 		},
 	}
+	cmd.Flags().StringVar(&idStr, "id", "", "eventbus id to create")
 	cmd.Flags().StringVar(&namespace, "namespace", "default", "namespace name to create eventbus, default name is default")
 	cmd.Flags().StringVar(&eventbus, "name", "", "eventbus name to create")
 	cmd.Flags().Int32Var(&eventlogNum, "eventlog", 1, "number of eventlog")
