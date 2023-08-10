@@ -1,8 +1,4 @@
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: config-root-controller
-  namespace: vanus
 data:
   root.yaml: |-
     node_id: ${NODE_ID}
@@ -26,6 +22,10 @@ data:
       topology:
         vanus-root-controller-0: vanus-root-controller-0.vanus-root-controller.vanus.svc:2021
         vanus-root-controller-1: vanus-root-controller-1.vanus-root-controller.vanus.svc:2021
+kind: ConfigMap
+metadata:
+  name: config-root-controller
+  namespace: vanus
 ---
 apiVersion: v1
 kind: Service
@@ -33,59 +33,61 @@ metadata:
   name: vanus-root-controller
   namespace: vanus
 spec:
-  selector:
-    app: vanus-root-controller
   clusterIP: None
   ports:
-    - port: 2021
-      name: vanus-root-controller
+  - name: vanus-root-controller
+    port: 2021
+  selector:
+    app: vanus-root-controller
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: vanus-root-controller
-  namespace: vanus
   labels:
     app: vanus-root-controller
+  name: vanus-root-controller
+  namespace: vanus
 spec:
+  replicas: 2
   selector:
     matchLabels:
       app: vanus-root-controller
-  replicas: 2
   serviceName: vanus-root-controller
   template:
     metadata:
-      labels:
-        app: vanus-root-controller
       annotations:
         vanus.dev/metrics.port: "2112"
+      labels:
+        app: vanus-root-controller
     spec:
       containers:
-        - name: controller
-          image: public.ecr.aws/vanus/root-controller:v0.8.0
-          imagePullPolicy: IfNotPresent
-          command:
-            [ "/bin/sh", "-c", "NODE_ID=${HOSTNAME##*-} /vanus/bin/root-controller" ]
-          ports:
-            - name: grpc
-              containerPort: 2021
-            - name: metrics
-              containerPort: 2112
-          env:
-            - name: VANUS_LOG_LEVEL
-              value: INFO
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-          volumeMounts:
-            - name: config-root-controller
-              mountPath: /vanus/config
+      - command:
+        - /bin/sh
+        - -c
+        - NODE_ID=${HOSTNAME##*-} /vanus/bin/root-controller
+        env:
+        - name: VANUS_LOG_LEVEL
+          value: INFO
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        image: public.ecr.aws/vanus/root-controller:v0.8.0
+        imagePullPolicy: IfNotPresent
+        name: controller
+        ports:
+        - containerPort: 2021
+          name: grpc
+        - containerPort: 2112
+          name: metrics
+        volumeMounts:
+        - mountPath: /vanus/config
+          name: config-root-controller
       volumes:
-        - name: config-root-controller
-          configMap:
-            name: config-root-controller
+      - configMap:
+          name: config-root-controller
+        name: config-root-controller
