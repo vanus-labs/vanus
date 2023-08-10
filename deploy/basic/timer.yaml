@@ -1,8 +1,4 @@
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: config-timer
-  namespace: vanus
 data:
   timer.yaml: |-
     name: "timer"
@@ -20,42 +16,45 @@ data:
     controllers:
       - vanus-controller-0.vanus-controller.vanus.svc:2048
       - vanus-controller-1.vanus-controller.vanus.svc:2048
-      - vanus-controller-2.vanus-controller.vanus.svc:2048
+kind: ConfigMap
+metadata:
+  name: config-timer
+  namespace: vanus
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: vanus-timer
-  namespace: vanus
   labels:
     app: vanus-timer
+  name: vanus-timer
+  namespace: vanus
 spec:
+  replicas: 2
   selector:
     matchLabels:
       app: vanus-timer
-  replicas: 2
   template:
     metadata:
-      labels:
-        app: vanus-timer
       annotations:
         vanus.dev/metrics.port: "2112"
+      labels:
+        app: vanus-timer
     spec:
       containers:
-        - name: timer
-          image: public.ecr.aws/vanus/timer:v0.8.0
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: VANUS_LOG_LEVEL
-              value: INFO
-            - name: POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-          volumeMounts:
-            - name: config-timer
-              mountPath: /vanus/config
+      - env:
+        - name: VANUS_LOG_LEVEL
+          value: INFO
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        image: public.ecr.aws/vanus/timer:v0.8.0
+        imagePullPolicy: IfNotPresent
+        name: timer
+        volumeMounts:
+        - mountPath: /vanus/config
+          name: config-timer
       volumes:
-        - name: config-timer
-          configMap:
-            name: config-timer
+      - configMap:
+          name: config-timer
+        name: config-timer

@@ -21,6 +21,9 @@ services:
       - "ETCD_INITIAL_CLUSTER=node1=http://0.0.0.0:2380"
       - "ETCD_NAME=node1"
       - "ETCD_DATA_DIR=/opt/bitnami/etcd/data"
+      - "ETCD_QUOTA_BACKEND_BYTES=8589934592"
+      - "ETCD_AUTO_COMPACTION_MODE=periodic"
+      - "ETCD_AUTO_COMPACTION_RETENTION=60m"
     ports:
       - 2379:2379
       - 2380:2380
@@ -33,7 +36,7 @@ services:
     volumes:
       - ./config/root-controller.yaml:/vanus/config/root.yaml
     environment:
-      - "VANUS_LOG_LEVEL=DEBUG"
+      - "VANUS_LOG_LEVEL=INFO"
     expose:
       - 2021
       - 2110
@@ -46,7 +49,7 @@ services:
     volumes:
       - ./config/controller.yaml:/vanus/config/controller.yaml
     environment:
-      - "VANUS_LOG_LEVEL=DEBUG"
+      - "VANUS_LOG_LEVEL=INFO"
     expose:
       - 2048
       - 2112
@@ -61,7 +64,7 @@ services:
     volumes:
       - ./config/store.yaml:/vanus/config/store.yaml
     environment:
-      - "VANUS_LOG_LEVEL=DEBUG"
+      - "VANUS_LOG_LEVEL=INFO"
       - "VOLUME_ID=1"
     expose:
       - 11811
@@ -76,6 +79,8 @@ services:
     pull_policy: missing
     volumes:
       - ./config/timer.yaml:/vanus/config/timer.yaml
+    environment:
+      - "VANUS_LOG_LEVEL=INFO"
     expose:
       - 2115
     networks:
@@ -89,6 +94,8 @@ services:
     pull_policy: missing
     volumes:
       - ./config/trigger.yaml:/vanus/config/trigger.yaml
+    environment:
+      - "VANUS_LOG_LEVEL=INFO"
     expose:
       - 2116
     networks:
@@ -104,6 +111,8 @@ services:
       - "8081:8081"
     volumes:
       - ./config/gateway.yaml:/vanus/config/gateway.yaml
+    environment:
+      - "VANUS_LOG_LEVEL=INFO"
     expose:
       - 2113
     networks:

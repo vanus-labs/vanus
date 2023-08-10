@@ -71,7 +71,7 @@ spec:
         - name: ETCD_START_FROM_SNAPSHOT
           value: "no"
         - name: ETCD_INIT_SNAPSHOT_FILENAME
-          value: "snapshotdb"
+          value: snapshotdb
         - name: ETCD_DISASTER_RECOVERY
           value: "no"
         - name: ETCD_NAME
@@ -96,6 +96,12 @@ spec:
           value: vanus-etcd-0=http://vanus-etcd-0.vanus-etcd.vanus.svc.cluster.local:2380,vanus-etcd-1=http://vanus-etcd-1.vanus-etcd.vanus.svc.cluster.local:2380,vanus-etcd-2=http://vanus-etcd-2.vanus-etcd.vanus.svc.cluster.local:2380
         - name: ETCD_CLUSTER_DOMAIN
           value: vanus-etcd.vanus.svc.cluster.local
+        - name: ETCD_QUOTA_BACKEND_BYTES
+          value: "8589934592"
+        - name: ETCD_AUTO_COMPACTION_MODE
+          value: periodic
+        - name: ETCD_AUTO_COMPACTION_RETENTION
+          value: 60m
         image: public.ecr.aws/vanus/etcd:v3.5.7
         imagePullPolicy: IfNotPresent
         lifecycle:
@@ -137,8 +143,8 @@ spec:
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
-        - name: data
-          mountPath: /bitnami/etcd
+        - mountPath: /bitnami/etcd
+          name: data
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler
