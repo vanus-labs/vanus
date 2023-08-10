@@ -221,12 +221,12 @@ func (ctrl *controller) isEventbusExist(ctx context.Context, req *ctrlpb.CreateE
 	id := vanus.NewIDFromUint64(req.Id)
 	if !id.Equals(vanus.EmptyID()) {
 		// check id exist
-		pb, err := ctrl.getEventbus(id)
-		if err != nil && !errors.Is(err, errors.ErrResourceNotFound) {
-			return false, err
-		}
-		if pb != nil {
+		_, err := ctrl.getEventbus(id)
+		if err == nil {
 			return true, nil
+		}
+		if !errors.Is(err, errors.ErrResourceNotFound) {
+			return false, err
 		}
 	}
 	// check name exist
