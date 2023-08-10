@@ -181,16 +181,25 @@ func (ctrl *controller) CreateSubscription(
 		log.Info(ctx).Err(err).Msg("Invalid subscription.")
 		return nil, err
 	}
+	subID := vanus.NewIDFromUint64(request.Id)
+	if !subID.Equals(vanus.EmptyID()) {
+		sub := ctrl.subscriptionManager.GetSubscription(ctx, subID)
+		if sub != nil {
+			return nil, errors.ErrResourceAlreadyExist.WithMessage("subscription exist")
+		}
+	} else {
+		subID, err = vanus.NewID()
+		if err != nil {
+			return nil, err
+		}
+	}
 	sub, err := convert.FromPbSubscriptionRequest(request.Subscription)
 	if err != nil {
 		log.Info(ctx).Err(err).Msg("Invalid subscription.")
 		return nil, errors.ErrInvalidRequest.WithMessage(err.Error())
 	}
 
-	sub.ID, err = vanus.NewID()
-	if err != nil {
-		return nil, err
-	}
+	sub.ID = subID
 	sub.CreatedAt = time.Now()
 	sub.UpdatedAt = time.Now()
 	if request.Subscription.Disable {

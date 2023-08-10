@@ -355,15 +355,17 @@ func (ctrl *controller) CreateNamespace(ctx context.Context,
 }
 
 func (ctrl *controller) createNamespace(ctx context.Context, ns *metadata.Namespace) error {
-	id, err := vanus.NewID()
-	if err != nil {
-		return err
+	if ns.ID.Equals(vanus.EmptyID()) {
+		id, err := vanus.NewID()
+		if err != nil {
+			return err
+		}
+		ns.ID = id
 	}
-	ns.ID = id
 	now := time.Now()
 	ns.CreatedAt = now
 	ns.UpdatedAt = now
-	err = ctrl.namespaceManager.AddNamespace(ctx, ns)
+	err := ctrl.namespaceManager.AddNamespace(ctx, ns)
 	if err != nil {
 		return err
 	}

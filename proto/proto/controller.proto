@@ -111,6 +111,7 @@ message PingResponse {
 message CreateNamespaceRequest {
   string name = 1;
   string description = 2;
+  uint64 id = 3;
 }
 
 message ListNamespaceResponse {
@@ -130,6 +131,7 @@ message CreateEventbusRequest {
   int32 log_number = 2;
   string description = 3;
   uint64 namespace_id = 4;
+  uint64 id = 5;
 }
 
 message ListEventbusRequest {
@@ -207,6 +209,7 @@ message SubscriptionRequest {
 
 message CreateSubscriptionRequest {
   SubscriptionRequest subscription = 1;
+  uint64 id = 2;
 }
 
 message UpdateSubscriptionRequest {

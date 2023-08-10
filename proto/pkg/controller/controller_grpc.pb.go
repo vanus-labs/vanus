@@ -18,12 +18,10 @@
 // - protoc             v3.21.12
 // source: controller.proto
 
-//go:generate mockgen -source=controller_grpc.pb.go -destination=mock_controller.go -package=controller
 package controller
 
 import (
 	context "context"
-
 	meta "github.com/vanus-labs/vanus/proto/pkg/meta"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
