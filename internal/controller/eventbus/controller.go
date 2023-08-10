@@ -360,6 +360,7 @@ func (ctrl *controller) deleteEventbus(ctx context.Context, id vanus.ID) error {
 
 	// TODO(wenfeng.wang) notify gateway to cut flow
 	delete(ctrl.eventbusMap, id)
+	ctrl.eventbusNamespaceMapping.Delete(GetMappingKey(bus.NamespaceID, bus.Name))
 	wg := sync.WaitGroup{}
 
 	for _, v := range bus.Eventlogs {
