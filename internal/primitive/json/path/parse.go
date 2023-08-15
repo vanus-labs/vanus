@@ -206,7 +206,7 @@ func consumeDotSegment(s *bytes.MarkScanner) (Segment, error) {
 	r, _ := bytes.ReadRune(s)
 	switch r {
 	case '*': // wildcard selector
-		return &wildcardSelector{}, bytes.ExpectChar(s, ']')
+		return &wildcardSelector{}, nil
 	case '.': // descendant segment
 		// TODO(james.yin)
 		return nil, errors.New("not implemented descendant segment")
