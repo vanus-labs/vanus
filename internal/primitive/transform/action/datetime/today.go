@@ -68,7 +68,7 @@ func (a *todayAction) Execute(ceCtx *context.EventContext) error {
 		}
 	}
 	t := time.Now()
-	today := t.In(loc).Format(time.DateOnly)
+	today := t.In(loc).Format("2006-01-02")
 
 	return a.TargetArg.SetValue(ceCtx, today)
 }

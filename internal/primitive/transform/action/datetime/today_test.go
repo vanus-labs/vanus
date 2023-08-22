@@ -38,7 +38,7 @@ func TestToday(t *testing.T) {
 				Event: &e,
 			})
 			So(err, ShouldBeNil)
-			So(e.Extensions()["test"], ShouldEqual, time.Now().In(time.UTC).Format(time.DateOnly))
+			So(e.Extensions()["test"], ShouldEqual, time.Now().In(time.UTC).Format("2006-01-02"))
 		})
 		Convey("test  time zone", func() {
 			e := cetest.MinEvent()
@@ -50,7 +50,7 @@ func TestToday(t *testing.T) {
 			})
 			loc, _ := time.LoadLocation("Europe/Berlin")
 			So(err, ShouldBeNil)
-			So(e.Extensions()["test"], ShouldEqual, time.Now().In(loc).Format(time.DateOnly))
+			So(e.Extensions()["test"], ShouldEqual, time.Now().In(loc).Format("2006-01-02"))
 		})
 	})
 }
