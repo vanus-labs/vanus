@@ -73,7 +73,7 @@ var _ Ranger = (*deleteRange)(nil)
 
 func (r *deleteRange) Range(cb RangeCallback) error {
 	for _, key := range r.keys {
-		if err := cb(key, deletedMark); err != nil {
+		if err := cb(key, DeletedMark); err != nil {
 			return err
 		}
 	}

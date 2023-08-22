@@ -38,6 +38,7 @@ type config struct {
 	fileSize       int64
 	flushDelayTime time.Duration // default: 3 * time.Millisecond
 	engine         ioengine.Interface
+	readOnly       bool
 }
 
 func (cfg *config) segmentedFileOptions() []segmentedfile.Option {
@@ -113,5 +114,11 @@ func WithFlushDelayTime(d time.Duration) Option {
 func WithIOEngine(engine ioengine.Interface) Option {
 	return func(cfg *config) {
 		cfg.engine = engine
+	}
+}
+
+func WithReadOnly() Option {
+	return func(cfg *config) {
+		cfg.readOnly = true
 	}
 }

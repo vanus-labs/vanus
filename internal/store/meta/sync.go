@@ -98,7 +98,7 @@ func (s *SyncStore) BatchStore(ctx context.Context, kvs Ranger, cb StoreCallback
 }
 
 func (s *SyncStore) Delete(ctx context.Context, key []byte, cb StoreCallback) {
-	s.set(ctx, KVRange(key, deletedMark), cb)
+	s.set(ctx, KVRange(key, DeletedMark), cb)
 }
 
 func (s *SyncStore) BatchDelete(ctx context.Context, keys [][]byte, cb StoreCallback) {
@@ -126,7 +126,7 @@ func (s *SyncStore) set(ctx context.Context, kvs Ranger, cb StoreCallback) {
 		// Update state.
 		s.mu.Lock()
 		_ = kvs.Range(func(key []byte, value interface{}) error {
-			if value == deletedMark {
+			if value == DeletedMark {
 				s.committed.Remove(key)
 			} else {
 				s.committed.Set(key, value)
