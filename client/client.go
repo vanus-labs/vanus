@@ -25,6 +25,7 @@ import (
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/tracing"
 	"github.com/vanus-labs/vanus/pkg/cluster"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/credentials/insecure"
 
 	// this project.
@@ -109,6 +110,7 @@ func Connect(endpoints []string) Client {
 	}
 	return &client{
 		Endpoints: endpoints,
+		tracer:    tracing.NewTracer("client.client", trace.SpanKindClient),
 	}
 }
 

@@ -128,9 +128,6 @@ func (s *segment) Update(ctx context.Context, r *record.Segment, towrite bool) e
 		return nil
 	}
 
-	_, span := s.tracer.Start(ctx, "Update")
-	defer span.End()
-
 	switchBlock := func() bool {
 		if towrite {
 			if s.prefer.id != r.LeaderBlockID {
@@ -155,14 +152,11 @@ func (s *segment) Update(ctx context.Context, r *record.Segment, towrite bool) e
 }
 
 func (s *segment) Append(ctx context.Context, event *cloudevents.CloudEventBatch) ([]int64, error) {
-	_ctx, span := s.tracer.Start(ctx, "Append")
-	defer span.End()
-
 	b := s.preferSegmentBlock()
 	if b == nil {
 		return nil, errors.ErrNotLeader
 	}
-	offs, err := b.Append(_ctx, event)
+	offs, err := b.Append(ctx, event)
 	if err != nil {
 		return nil, err
 	}
@@ -176,9 +170,6 @@ func (s *segment) Read(ctx context.Context, from int64, size int16, pollingTimeo
 	if from < s.startOffset {
 		return nil, errors.ErrOffsetUnderflow
 	}
-	ctx, span := s.tracer.Start(ctx, "Read")
-	defer span.End()
-
 	if eo := s.endOffset.Load(); eo >= 0 {
 		if from > eo {
 			return nil, errors.ErrOffsetOverflow

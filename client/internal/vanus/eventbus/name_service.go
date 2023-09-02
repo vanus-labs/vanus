@@ -17,6 +17,7 @@ package eventbus
 import (
 	// standard libraries.
 	"context"
+
 	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/credentials/insecure"
@@ -46,9 +47,6 @@ type NameService struct {
 }
 
 func (ns *NameService) LookupWritableLogs(ctx context.Context, eventbusID uint64) ([]*record.Eventlog, error) {
-	ctx, span := ns.tracer.Start(ctx, "LookupWritableLogs")
-	defer span.End()
-
 	req := &wrapperspb.UInt64Value{
 		Value: eventbusID,
 	}
@@ -62,9 +60,6 @@ func (ns *NameService) LookupWritableLogs(ctx context.Context, eventbusID uint64
 }
 
 func (ns *NameService) LookupReadableLogs(ctx context.Context, eventbusID uint64) ([]*record.Eventlog, error) {
-	ctx, span := ns.tracer.Start(ctx, "LookupReadableLogs")
-	defer span.End()
-
 	req := &wrapperspb.UInt64Value{
 		Value: eventbusID,
 	}

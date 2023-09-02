@@ -18,14 +18,15 @@ import (
 	"context"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/observability/tracing"
 )
 
-func Initialize(ctx context.Context, cfg Config, getCollectors func() []prometheus.Collector) error {
+func Initialize(ctx context.Context, cfg Config, getCollectors func() []prometheus.Collector, getExporterFuncs ...func(endpoints []string, eventbus string) trace.SpanExporter) error {
 	metrics.Init(ctx, cfg.M, getCollectors)
-	tracing.Init(cfg.T)
+	tracing.Init(cfg.T, getExporterFuncs...)
 	return nil
 }
 

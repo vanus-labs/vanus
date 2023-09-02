@@ -267,7 +267,7 @@ func (cp *ControllerProxy) writeDeadLetterEvent(
 		return err
 	}
 	// write to retry eventbus
-	err = cp.writeEvents(ctx, vanus.NewIDFromUint64(meta.Id), &cloudevents.CloudEventBatch{
+	_, err = cp.writeEvents(ctx, vanus.NewIDFromUint64(meta.Id), &cloudevents.CloudEventBatch{
 		Events: events,
 	})
 	if err != nil {

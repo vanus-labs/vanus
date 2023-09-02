@@ -18,9 +18,11 @@ import (
 	ce "github.com/cloudevents/sdk-go/v2"
 
 	"github.com/vanus-labs/vanus/internal/primitive/info"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 type EventRecord struct {
+	Span  oteltrace.Span
 	Event *ce.Event
 	info.OffsetInfo
 }

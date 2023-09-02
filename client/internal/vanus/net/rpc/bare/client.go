@@ -72,13 +72,11 @@ func (c *client) Get(ctx context.Context) (interface{}, error) {
 	if c.closed.Load() {
 		return nil, errors.ErrClosed
 	}
-	_ctx, span := c.tracer.Start(ctx, "Get")
-	defer span.End()
 
 	if client := c.cachedClient(); client != nil {
 		return client, nil
 	}
-	return c.refreshClient(_ctx, false)
+	return c.refreshClient(ctx, false)
 }
 
 func (c *client) cachedClient() interface{} {

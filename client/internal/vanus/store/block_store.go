@@ -67,9 +67,6 @@ func (s *BlockStore) Close() {
 func (s *BlockStore) Read(
 	ctx context.Context, block uint64, offset int64, size int16, pollingTimeout uint32,
 ) (*cloudevents.CloudEventBatch, error) {
-	ctx, span := s.tracer.Start(ctx, "Read")
-	defer span.End()
-
 	req := &segpb.ReadFromBlockRequest{
 		BlockId:        block,
 		Offset:         offset,
@@ -90,9 +87,6 @@ func (s *BlockStore) Read(
 }
 
 func (s *BlockStore) LookupOffset(ctx context.Context, blockID uint64, t time.Time) (int64, error) {
-	ctx, span := s.tracer.Start(ctx, "LookupOffset")
-	defer span.End()
-
 	req := &segpb.LookupOffsetInBlockRequest{
 		BlockId: blockID,
 		Stime:   t.UnixMilli(),
@@ -111,20 +105,17 @@ func (s *BlockStore) LookupOffset(ctx context.Context, blockID uint64, t time.Ti
 }
 
 func (s *BlockStore) Append(ctx context.Context, block uint64, events *cloudevents.CloudEventBatch) ([]int64, error) {
-	_ctx, span := s.tracer.Start(ctx, "Append")
-	defer span.End()
-
 	req := &segpb.AppendToBlockRequest{
 		BlockId: block,
 		Events:  events,
 	}
 
-	client, err := s.client.Get(_ctx)
+	client, err := s.client.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := client.(segpb.SegmentServerClient).AppendToBlock(_ctx, req)
+	res, err := client.(segpb.SegmentServerClient).AppendToBlock(ctx, req)
 	if err != nil {
 		return nil, err
 	}
