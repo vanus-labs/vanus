@@ -29,6 +29,7 @@ type Eventbus interface {
 
 	GetLog(ctx context.Context, logID uint64, opts ...LogOption) (Eventlog, error)
 	ListLog(ctx context.Context, opts ...LogOption) ([]Eventlog, error)
+	CheckHealth(ctx context.Context) error
 	Close(ctx context.Context)
 }
 
@@ -46,6 +47,7 @@ type Eventlog interface {
 	LatestOffset(ctx context.Context) (int64, error)
 	Length(ctx context.Context) (int64, error)
 	QueryOffsetByTime(ctx context.Context, timestamp int64) (int64, error)
+	CheckHealth(ctx context.Context) error
 }
 
 func Append(ctx context.Context, w BusWriter, events []*ce.Event, opts ...WriteOption) (eids []string, err error) {

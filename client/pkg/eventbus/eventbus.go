@@ -231,6 +231,23 @@ func (b *eventbus) ListLog(ctx context.Context, opts ...api.LogOption) ([]api.Ev
 	}
 }
 
+func (b *eventbus) CheckHealth(ctx context.Context) error {
+	_, span := b.tracer.Start(ctx, "pkg.eventbus.checkhealth")
+	defer span.End()
+	if len(b.writableLogs) == 0 {
+		b.refreshWritableLogs(ctx)
+		if len(b.writableLogs) == 0 {
+			return errors.ErrNotWritable.WithMessage("no writable log")
+		}
+	}
+	for _, el := range b.writableLogs {
+		if err := el.CheckHealth(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (b *eventbus) ID() uint64 {
 	return b.cfg.ID
 }
