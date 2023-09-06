@@ -20,11 +20,11 @@ import (
 	"encoding/binary"
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/atomic"
 
 	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability/tracing"

@@ -18,11 +18,11 @@ import (
 	// standard libraries.
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/atomic"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 
@@ -128,7 +128,7 @@ func (c *client) Ready() bool {
 }
 
 func (c *client) Close() {
-	if c.closed.CAS(false, true) {
+	if c.closed.CompareAndSwap(false, true) {
 		c.mu.Lock()
 		defer c.mu.Unlock()
 		c.doClose()
