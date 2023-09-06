@@ -17,9 +17,11 @@ package eventbus
 import (
 	// standard libraries.
 	"context"
+
 	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability/log"
@@ -27,7 +29,6 @@ import (
 	"github.com/vanus-labs/vanus/pkg/cluster"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
-	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 
 	// this project.
 	"github.com/vanus-labs/vanus/client/pkg/record"

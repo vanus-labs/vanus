@@ -32,7 +32,7 @@ import (
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 
 	// this project.
-	el "github.com/vanus-labs/vanus/client/internal/vanus/eventlog"
+	el "github.com/vanus-labs/vanus/client/internal/eventlog"
 	"github.com/vanus-labs/vanus/client/pkg/record"
 )
 

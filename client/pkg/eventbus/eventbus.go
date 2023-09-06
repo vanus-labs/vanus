@@ -19,7 +19,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
-	stderrors "errors"
+	stderr "errors"
 	"io"
 	"sync"
 
@@ -34,8 +34,8 @@ import (
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 
 	// this project.
-	eb "github.com/vanus-labs/vanus/client/internal/vanus/eventbus"
-	el "github.com/vanus-labs/vanus/client/internal/vanus/eventlog"
+	eb "github.com/vanus-labs/vanus/client/internal/eventbus"
+	el "github.com/vanus-labs/vanus/client/internal/eventlog"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/eventlog"
 	"github.com/vanus-labs/vanus/client/pkg/policy"
@@ -489,7 +489,7 @@ func (w *busWriter) pickWritableLog(ctx context.Context, opts *api.WriteOptions)
 
 	lw := w.ebus.getWritableLog(_ctx, l.ID())
 	if lw == nil {
-		return nil, stderrors.New("can not pick writable log")
+		return nil, stderr.New("can not pick writable log")
 	}
 
 	return lw.Writer(), nil
@@ -563,7 +563,7 @@ func (r *busReader) pickReadableLog(ctx context.Context, opts *api.ReadOptions) 
 	}
 	lr := r.ebus.getReadableLog(_ctx, l.ID())
 	if lr == nil {
-		return nil, stderrors.New("can not pick readable log")
+		return nil, stderr.New("can not pick readable log")
 	}
 
 	return lr.Reader(eventlog.ReaderConfig{PollingTimeout: opts.PollingTimeout}), nil
