@@ -58,12 +58,16 @@ func createEventbusCommand() *cobra.Command {
 			if eventbus == "" {
 				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
-			eb, err := client.CreateEventbus(context.Background(), &ctrlpb.CreateEventbusRequest{
+			req := &ctrlpb.CreateEventbusRequest{
 				Name:        eventbus,
 				LogNumber:   eventlogNum,
 				Description: description,
 				NamespaceId: mustGetNamespaceID(namespace).Uint64(),
-			})
+			}
+			if eventbusID != 0 {
+				req.Id = eventbusID
+			}
+			eb, err := client.CreateEventbus(context.Background(), req)
 			if err != nil {
 				cmdFailedf(cmd, "create eventbus failed: %s", Error(err))
 			}
@@ -85,6 +89,7 @@ func createEventbusCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&namespace, "namespace", "default", "namespace name to create eventbus, default name is default")
+	cmd.Flags().Uint64Var(&eventbusID, "id", 0, "eventbus id to create")
 	cmd.Flags().StringVar(&eventbus, "name", "", "eventbus name to create")
 	cmd.Flags().Int32Var(&eventlogNum, "eventlog", 1, "number of eventlog")
 	cmd.Flags().StringVar(&description, "description", "", "subscription description")

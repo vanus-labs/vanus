@@ -59,10 +59,14 @@ func createNamespaceCommand() *cobra.Command {
 			if namespace == "" {
 				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
-			_, err := client.CreateNamespace(context.Background(), &ctrlpb.CreateNamespaceRequest{
+			req := &ctrlpb.CreateNamespaceRequest{
 				Name:        namespace,
 				Description: description,
-			})
+			}
+			if namespaceID != 0 {
+				req.Id = namespaceID
+			}
+			_, err := client.CreateNamespace(context.Background(), req)
 			if err != nil {
 				cmdFailedf(cmd, "create namespace failed: %s", err)
 			}
@@ -83,6 +87,7 @@ func createNamespaceCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&namespace, "name", "", "namespace name to creating")
+	cmd.Flags().Uint64Var(&namespaceID, "id", 0, "namespace id to creating")
 	cmd.Flags().StringVar(&description, "description", "", "namespace description")
 	return cmd
 }

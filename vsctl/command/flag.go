@@ -33,7 +33,9 @@ var (
 
 	// for both of eventbus and subscription.
 	namespace           string
+	namespaceID         uint64
 	eventbus            string
+	eventbusID          uint64
 	eventlogID          uint64
 	eventlogNum         int32
 	sink                string
