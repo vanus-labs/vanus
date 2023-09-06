@@ -38,6 +38,7 @@ type Config struct {
 	Observability        observability.Config `yaml:"observability"`
 	ClusterConfig        member.Config        `yaml:"cluster"`
 	RootControllerAddr   []string             `yaml:"root_controllers"`
+	NoCreateDefaultNs    bool                 `yaml:"no_create_default_namespace"`
 }
 
 func (c *Config) GetClusterConfig() member.Config {
@@ -93,7 +94,8 @@ func (c *Config) GetTenantConfig() tenant.Config {
 			KeyPrefix:  c.MetadataConfig.KeyPrefix,
 			ServerList: c.ClusterConfig.EtcdEndpoints,
 		},
-		ControllerAddr: c.GetControllerAddrs(),
+		ControllerAddr:    c.GetControllerAddrs(),
+		NoCreateDefaultNs: c.NoCreateDefaultNs,
 	}
 }
 

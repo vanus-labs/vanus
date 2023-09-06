@@ -500,19 +500,20 @@ func (ctrl *controller) createDefaultUserAndRole(ctx context.Context) error {
 }
 
 func (ctrl *controller) createSystemNamespace(ctx context.Context) error {
-	ns := ctrl.namespaceManager.GetNamespaceByName(ctx, primitive.DefaultNamespace)
-	if ns == nil {
-		// create default namespace
-		err := ctrl.createNamespace(ctx, &metadata.Namespace{Name: primitive.DefaultNamespace})
-		if err != nil {
-			return err
+	if !ctrl.config.NoCreateDefaultNs {
+		ns := ctrl.namespaceManager.GetNamespaceByName(ctx, primitive.DefaultNamespace)
+		if ns == nil {
+			// create default namespace
+			err := ctrl.createNamespace(ctx, &metadata.Namespace{Name: primitive.DefaultNamespace})
+			if err != nil {
+				return err
+			}
+			log.Info(ctx).
+				Str("namespace", primitive.DefaultNamespace).
+				Msg("the default namespace has been created")
 		}
-
-		log.Info(ctx).
-			Str("namespace", primitive.DefaultNamespace).
-			Msg("the default namespace has been created")
 	}
-	ns = ctrl.namespaceManager.GetNamespaceByName(ctx, primitive.SystemNamespace)
+	ns := ctrl.namespaceManager.GetNamespaceByName(ctx, primitive.SystemNamespace)
 	if ns == nil {
 		// create system namespace
 		err := ctrl.createNamespace(ctx, &metadata.Namespace{Name: primitive.SystemNamespace})

@@ -21,4 +21,6 @@ type Config struct {
 	Storage primitive.KvStorageConfig
 
 	ControllerAddr []string
+
+	NoCreateDefaultNs bool
 }
