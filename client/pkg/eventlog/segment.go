@@ -234,3 +234,23 @@ func (s *segment) setPreferSegmentBlock(prefer *block) {
 func (s *segment) LookupOffset(ctx context.Context, t time.Time) (int64, error) {
 	return s.preferSegmentBlock().LookupOffset(ctx, t)
 }
+
+func (s *segment) CheckHealth(ctx context.Context) error {
+	b := s.preferSegmentBlock()
+	if b == nil {
+		// FIXME: no leader
+		return errors.ErrNotLeader
+	}
+
+	status, err := b.Describe(ctx)
+	if err != nil {
+		return err
+	}
+
+	if status.Leader != b.id {
+		// TODO: maybe corrupted metadata
+		return errors.ErrUnknown
+	}
+
+	return nil
+}

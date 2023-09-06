@@ -213,6 +213,15 @@ func (l *eventlog) QueryOffsetByTime(ctx context.Context, timestamp int64) (int6
 	return target.StartOffset() + offset, nil
 }
 
+func (l *eventlog) CheckHealth(ctx context.Context) error {
+	seg, err := l.selectWritableSegment(ctx)
+	if err != nil {
+		return err
+	}
+
+	return seg.CheckHealth(ctx)
+}
+
 func (l *eventlog) updateWritableSegment(ctx context.Context, r *record.Segment) {
 	if l.writableSegment != nil {
 		if l.writableSegment.ID() == r.ID {

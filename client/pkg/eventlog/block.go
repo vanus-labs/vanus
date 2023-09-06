@@ -22,6 +22,7 @@ import (
 	// first-party libraries.
 	"github.com/vanus-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 
 	// this project.
 	"github.com/vanus-labs/vanus/client/internal/store"
@@ -45,19 +46,19 @@ type block struct {
 	store *store.BlockStore
 }
 
-func (s *block) Close(ctx context.Context) {
-	store.Put(ctx, s.store)
+func (b *block) Close(ctx context.Context) {
+	store.Put(ctx, b.store)
 }
 
-func (s *block) LookupOffset(ctx context.Context, t time.Time) (int64, error) {
-	return s.store.LookupOffset(ctx, s.id, t)
+func (b *block) LookupOffset(ctx context.Context, t time.Time) (int64, error) {
+	return b.store.LookupOffset(ctx, b.id, t)
 }
 
-func (s *block) Append(ctx context.Context, event *cloudevents.CloudEventBatch) ([]int64, error) {
-	return s.store.Append(ctx, s.id, event)
+func (b *block) Append(ctx context.Context, event *cloudevents.CloudEventBatch) ([]int64, error) {
+	return b.store.Append(ctx, b.id, event)
 }
 
-func (s *block) Read(ctx context.Context, offset int64, size int16, pollingTimeout uint32) (*cloudevents.CloudEventBatch, error) {
+func (b *block) Read(ctx context.Context, offset int64, size int16, pollingTimeout uint32) (*cloudevents.CloudEventBatch, error) {
 	if offset < 0 {
 		return nil, errors.ErrOffsetUnderflow
 	}
@@ -70,5 +71,9 @@ func (s *block) Read(ctx context.Context, offset int64, size int16, pollingTimeo
 	} else if size < 0 {
 		return nil, errors.ErrInvalidArgument
 	}
-	return s.store.Read(ctx, s.id, offset, size, pollingTimeout)
+	return b.store.Read(ctx, b.id, offset, size, pollingTimeout)
+}
+
+func (b *block) Describe(ctx context.Context) (*metapb.SegmentHealthInfo, error) {
+	return b.store.Describe(ctx, b.id)
 }

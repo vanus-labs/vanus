@@ -26,6 +26,7 @@ import (
 	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability/tracing"
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
+	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
 	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
 
 	// this project.
@@ -129,4 +130,21 @@ func (s *BlockStore) Append(ctx context.Context, block uint64, events *cloudeven
 		return nil, err
 	}
 	return res.GetOffsets(), nil
+}
+
+func (s *BlockStore) Describe(ctx context.Context, block uint64) (*metapb.SegmentHealthInfo, error) {
+	req := &segpb.DescribeBlockRequest{
+		Id: block,
+	}
+
+	client, err := s.client.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := client.(segpb.SegmentServerClient).DescribeBlock(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return res.Info, nil
 }
