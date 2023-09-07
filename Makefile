@@ -8,19 +8,21 @@ export VANUS_LOG_LEVEL=info
 
 DOCKER_REGISTRY ?= public.ecr.aws
 DOCKER_REPO ?= ${DOCKER_REGISTRY}/vanus
+IMAGE_PREFIX ?=
 IMAGE_TAG ?= ${GIT_COMMIT}
 #os linux or darwin
 GOOS ?= linux
 #arch amd64 or arm64
 GOARCH ?= amd64
+CMD_OUTPUT_DIR ?= ${VANUS_ROOT}/bin
 
 VERSION ?= ${IMAGE_TAG}
 
-GO_BUILD= GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -trimpath
-DOCKER_BUILD_ARG= --build-arg TARGETARCH=$(GOARCH) --build-arg TARGETOS=$(GOOS)
+GO_BUILD = GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -trimpath
+DOCKER_BUILD_ARG = --build-arg TARGETARCH=$(GOARCH) --build-arg TARGETOS=$(GOOS)
 DOCKER_PLATFORM ?= linux/amd64,linux/arm64
 
-clean :
+clean:
 	rm -rf bin
 
 docker-push: docker-push-root docker-push-controller docker-push-timer docker-push-trigger docker-push-gateway docker-push-store
@@ -28,16 +30,16 @@ docker-build: docker-build-root docker-build-controller docker-build-timer docke
 build: build-root build-controller build-timer build-trigger build-gateway build-store
 
 docker-push-store:
-	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/store:${IMAGE_TAG} -f build/images/store/Dockerfile . --push
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}store:${IMAGE_TAG} -f build/images/store/Dockerfile . --push
 docker-build-store:
-	docker build -t ${DOCKER_REPO}/store:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/store/Dockerfile .
+	docker build -t ${DOCKER_REPO}/${IMAGE_PREFIX}store:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/store/Dockerfile .
 build-store:
 	$(GO_BUILD) -o bin/store cmd/store/main.go
 
 docker-push-gateway:
-	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/gateway:${IMAGE_TAG} -f build/images/gateway/Dockerfile . --push
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}gateway:${IMAGE_TAG} -f build/images/gateway/Dockerfile . --push
 docker-build-gateway:
-	docker build -t ${DOCKER_REPO}/gateway:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/gateway/Dockerfile .
+	docker build -t ${DOCKER_REPO}/${IMAGE_PREFIX}gateway:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/gateway/Dockerfile .
 build-gateway:
 	$(GO_BUILD) -o bin/gateway cmd/gateway/main.go
 
@@ -58,37 +60,40 @@ LD_FLAGS=${t4} -X 'main.Platform=${GOOS}/${GOARCH}'
 docker-push-toolbox:
 	docker buildx build --no-cache --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/toolbox:${IMAGE_TAG} -f build/toolbox/Dockerfile . --push
 
-build-cmd:
-	$(GO_BUILD) -ldflags "${LD_FLAGS}" -o bin/vsctl ./vsctl/
+build-vsctl:
+	$(GO_BUILD) -ldflags "${LD_FLAGS}" -o ${CMD_OUTPUT_DIR}/vsctl ./vsctl/
 
-build-repair-tool:
-	$(GO_BUILD) -ldflags "${LD_FLAGS}" -o bin/vsrepair ./vsrepair/
+build-vsrepair:
+	$(GO_BUILD) -ldflags "${LD_FLAGS}" -o ${CMD_OUTPUT_DIR}/vsrepair ./vsrepair/
+
+.PHONY: build-cmd
+build-cmd: build-vsctl
 
 docker-push-root:
-	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/root-controller:${IMAGE_TAG} -f build/images/root-controller/Dockerfile . --push
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}root-controller:${IMAGE_TAG} -f build/images/root-controller/Dockerfile . --push
 docker-build-root:
-	docker build -t ${DOCKER_REPO}/root-controller:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/root-controller/Dockerfile .
+	docker build -t ${DOCKER_REPO}/${IMAGE_PREFIX}root-controller:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/root-controller/Dockerfile .
 build-root:
 	$(GO_BUILD) -o bin/root-controller cmd/root/main.go
 
 docker-push-controller:
-	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/controller:${IMAGE_TAG} -f build/images/controller/Dockerfile . --push
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}controller:${IMAGE_TAG} -f build/images/controller/Dockerfile . --push
 docker-build-controller:
-	docker build -t ${DOCKER_REPO}/controller:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/controller/Dockerfile .
+	docker build -t ${DOCKER_REPO}/${IMAGE_PREFIX}controller:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/controller/Dockerfile .
 build-controller:
 	$(GO_BUILD) -o bin/controller cmd/controller/main.go
 
 docker-push-trigger:
-	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/trigger:${IMAGE_TAG} -f build/images/trigger/Dockerfile . --push
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}trigger:${IMAGE_TAG} -f build/images/trigger/Dockerfile . --push
 docker-build-trigger:
-	docker build -t ${DOCKER_REPO}/trigger:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/trigger/Dockerfile .
+	docker build -t ${DOCKER_REPO}/${IMAGE_PREFIX}trigger:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/trigger/Dockerfile .
 build-trigger:
 	$(GO_BUILD) -o bin/trigger cmd/trigger/main.go
 
 docker-push-timer:
-	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/timer:${IMAGE_TAG} -f build/images/timer/Dockerfile . --push
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}timer:${IMAGE_TAG} -f build/images/timer/Dockerfile . --push
 docker-build-timer:
-	docker build -t ${DOCKER_REPO}/timer:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/timer/Dockerfile .
+	docker build -t ${DOCKER_REPO}/${IMAGE_PREFIX}timer:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/timer/Dockerfile .
 build-timer:
 	$(GO_BUILD)  -o bin/timer cmd/timer/main.go
 
