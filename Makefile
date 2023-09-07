@@ -32,14 +32,14 @@ build: build-root build-controller build-timer build-trigger build-gateway build
 docker-push-store:
 	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}store:${IMAGE_TAG} -f build/images/store/Dockerfile . --push
 docker-build-store:
-	docker build -t ${DOCKER_REPO}/${IMAGE_PREFIX}store:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/store/Dockerfile .
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}store:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/store/Dockerfile .
 build-store:
 	$(GO_BUILD) -o bin/store cmd/store/main.go
 
 docker-push-gateway:
 	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}gateway:${IMAGE_TAG} -f build/images/gateway/Dockerfile . --push
 docker-build-gateway:
-	docker build -t ${DOCKER_REPO}/${IMAGE_PREFIX}gateway:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/gateway/Dockerfile .
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}gateway:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/gateway/Dockerfile .
 build-gateway:
 	$(GO_BUILD) -o bin/gateway cmd/gateway/main.go
 
@@ -72,28 +72,28 @@ build-cmd: build-vsctl
 docker-push-root:
 	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}root-controller:${IMAGE_TAG} -f build/images/root-controller/Dockerfile . --push
 docker-build-root:
-	docker build -t ${DOCKER_REPO}/${IMAGE_PREFIX}root-controller:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/root-controller/Dockerfile .
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}root-controller:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/root-controller/Dockerfile .
 build-root:
 	$(GO_BUILD) -o bin/root-controller cmd/root/main.go
 
 docker-push-controller:
 	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}controller:${IMAGE_TAG} -f build/images/controller/Dockerfile . --push
 docker-build-controller:
-	docker build -t ${DOCKER_REPO}/${IMAGE_PREFIX}controller:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/controller/Dockerfile .
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}controller:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/controller/Dockerfile .
 build-controller:
 	$(GO_BUILD) -o bin/controller cmd/controller/main.go
 
 docker-push-trigger:
 	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}trigger:${IMAGE_TAG} -f build/images/trigger/Dockerfile . --push
 docker-build-trigger:
-	docker build -t ${DOCKER_REPO}/${IMAGE_PREFIX}trigger:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/trigger/Dockerfile .
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}trigger:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/trigger/Dockerfile .
 build-trigger:
 	$(GO_BUILD) -o bin/trigger cmd/trigger/main.go
 
 docker-push-timer:
 	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}timer:${IMAGE_TAG} -f build/images/timer/Dockerfile . --push
 docker-build-timer:
-	docker build -t ${DOCKER_REPO}/${IMAGE_PREFIX}timer:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/timer/Dockerfile .
+	docker buildx build --platform ${DOCKER_PLATFORM} -t ${DOCKER_REPO}/${IMAGE_PREFIX}timer:${IMAGE_TAG} $(DOCKER_BUILD_ARG) -f build/images/timer/Dockerfile .
 build-timer:
 	$(GO_BUILD)  -o bin/timer cmd/timer/main.go
 
