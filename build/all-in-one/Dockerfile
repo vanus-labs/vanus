@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.18 as builder
+FROM --platform=$BUILDPLATFORM golang:1.19 as builder
 WORKDIR /workspace
 
 COPY . .
@@ -15,7 +15,7 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-timer
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build-gateway
 
 
-FROM --platform=$BUILDPLATFORM ubuntu:22.10
+FROM --platform=$TARGETPLATFORM ubuntu:22.10
 WORKDIR /vanus
 
 ARG VERSION
@@ -44,4 +44,3 @@ ENV VERSION=$VERSION
 ENV VANUS_LOG_LEVEL=debug
 
 ENTRYPOINT ["/vanus/run.sh"]
-
