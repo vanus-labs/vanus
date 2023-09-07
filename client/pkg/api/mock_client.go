@@ -35,6 +35,20 @@ func (m *MockEventbus) EXPECT() *MockEventbusMockRecorder {
 	return m.recorder
 }
 
+// CheckHealth mocks base method.
+func (m *MockEventbus) CheckHealth(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CheckHealth", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CheckHealth indicates an expected call of CheckHealth.
+func (mr *MockEventbusMockRecorder) CheckHealth(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckHealth", reflect.TypeOf((*MockEventbus)(nil).CheckHealth), ctx)
+}
+
 // Close mocks base method.
 func (m *MockEventbus) Close(ctx context.Context) {
 	m.ctrl.T.Helper()
@@ -234,6 +248,20 @@ func (m *MockEventlog) EXPECT() *MockEventlogMockRecorder {
 	return m.recorder
 }
 
+// CheckHealth mocks base method.
+func (m *MockEventlog) CheckHealth(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CheckHealth", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CheckHealth indicates an expected call of CheckHealth.
+func (mr *MockEventlogMockRecorder) CheckHealth(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckHealth", reflect.TypeOf((*MockEventlog)(nil).CheckHealth), ctx)
+}
+
 // EarliestOffset mocks base method.
 func (m *MockEventlog) EarliestOffset(ctx context.Context) (int64, error) {
 	m.ctrl.T.Helper()
@@ -252,7 +280,7 @@ func (mr *MockEventlogMockRecorder) EarliestOffset(ctx interface{}) *gomock.Call
 // ID mocks base method.
 func (m *MockEventlog) ID() uint64 {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VolumeID")
+	ret := m.ctrl.Call(m, "ID")
 	ret0, _ := ret[0].(uint64)
 	return ret0
 }
@@ -260,7 +288,7 @@ func (m *MockEventlog) ID() uint64 {
 // ID indicates an expected call of ID.
 func (mr *MockEventlogMockRecorder) ID() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VolumeID", reflect.TypeOf((*MockEventlog)(nil).ID))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockEventlog)(nil).ID))
 }
 
 // LatestOffset mocks base method.

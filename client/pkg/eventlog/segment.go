@@ -20,11 +20,11 @@ import (
 	"encoding/binary"
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	// third-party libraries.
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/atomic"
 
 	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability/tracing"
@@ -123,7 +123,7 @@ func (s *segment) Update(ctx context.Context, r *record.Segment, towrite bool) e
 	// When a segment become read-only, the end offset needs to be set to the real value.
 	// TODO(wenfeng) data race?
 	s.lastEventBornAt = r.LastEventBornAt
-	if s.Writable() && !r.Writable && s.writable.CAS(true, false) {
+	if s.Writable() && !r.Writable && s.writable.CompareAndSwap(true, false) {
 		s.endOffset.Store(r.EndOffset)
 		return nil
 	}
@@ -233,4 +233,24 @@ func (s *segment) setPreferSegmentBlock(prefer *block) {
 
 func (s *segment) LookupOffset(ctx context.Context, t time.Time) (int64, error) {
 	return s.preferSegmentBlock().LookupOffset(ctx, t)
+}
+
+func (s *segment) CheckHealth(ctx context.Context) error {
+	b := s.preferSegmentBlock()
+	if b == nil {
+		// FIXME: no leader
+		return errors.ErrNotLeader
+	}
+
+	status, err := b.Describe(ctx)
+	if err != nil {
+		return err
+	}
+
+	if status.Leader != b.id {
+		// TODO: maybe corrupted metadata
+		return errors.ErrUnknown
+	}
+
+	return nil
 }

@@ -53,7 +53,7 @@ const (
 	ErrorCode_INTERNAL               ErrorCode = 9500
 	ErrorCode_TRIGGER_WORKER         ErrorCode = 9501
 	ErrorCode_INVALID_SEGMENT        ErrorCode = 9502
-	ErrorCode_INVAILD_HEAETBEAT      ErrorCode = 9503
+	ErrorCode_INVALID_HEARTBEAT      ErrorCode = 9503
 	ErrorCode_VOLUME_NO_SERVER       ErrorCode = 9504
 	ErrorCode_JSON_MARSHAL           ErrorCode = 9505
 	ErrorCode_JSON_UNMARSHAL         ErrorCode = 9506
@@ -82,7 +82,7 @@ const (
 	ErrorCode_NOT_LEADER           ErrorCode = 9700
 	ErrorCode_NO_CONTROLLER_LEADER ErrorCode = 9701
 	ErrorCode_NOT_RAFT_LEADER      ErrorCode = 9702
-	ErrorCodeNotReady              ErrorCode = 9704
+	ErrorCode_NOT_READY            ErrorCode = 9704
 
 	// ErrorCode_RESERVE 98xx
 
@@ -129,7 +129,7 @@ var (
 	ErrInternal               = New("internal error").WithGRPCCode(ErrorCode_INTERNAL)
 	ErrTriggerWorker          = New("trigger worker error").WithGRPCCode(ErrorCode_TRIGGER_WORKER)
 	ErrInvalidSegment         = New("invalid segment").WithGRPCCode(ErrorCode_INVALID_SEGMENT)
-	ErrInvalidHeartBeat       = New("invalid heartbeat").WithGRPCCode(ErrorCode_INVAILD_HEAETBEAT)
+	ErrInvalidHeartBeat       = New("invalid heartbeat").WithGRPCCode(ErrorCode_INVALID_HEARTBEAT)
 	ErrVolumeInstanceNoServer = New("no segment server was bound to volume instance").WithGRPCCode(ErrorCode_VOLUME_NO_SERVER)
 	ErrJSONMarshal            = New("json marshal").WithGRPCCode(ErrorCode_JSON_MARSHAL)
 	ErrJSONUnMarshal          = New("json unmarshal").WithGRPCCode(ErrorCode_JSON_UNMARSHAL)
@@ -158,7 +158,7 @@ var (
 
 	// ErrNotLeader not leader
 	ErrNotLeader          = New("not leader").WithGRPCCode(ErrorCode_NOT_LEADER)
-	ErrNotReady           = New("not ready").WithGRPCCode(ErrorCodeNotReady)
+	ErrNotReady           = New("not ready").WithGRPCCode(ErrorCode_NOT_READY)
 	ErrNoControllerLeader = New("no leader controller found").WithGRPCCode(ErrorCode_NO_CONTROLLER_LEADER)
 	ErrNotRaftLeader      = New("the node is not raft leader").WithGRPCCode(ErrorCode_NOT_RAFT_LEADER)
 

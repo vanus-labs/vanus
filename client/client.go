@@ -21,14 +21,16 @@ import (
 	"errors"
 	"sync"
 
+	// third-party libraries.
+	"google.golang.org/grpc/credentials/insecure"
+
 	// first-party libraries.
 	"github.com/vanus-labs/vanus/observability/log"
 	"github.com/vanus-labs/vanus/observability/tracing"
 	"github.com/vanus-labs/vanus/pkg/cluster"
-	"google.golang.org/grpc/credentials/insecure"
 
 	// this project.
-	eb "github.com/vanus-labs/vanus/client/internal/vanus/eventbus"
+	eb "github.com/vanus-labs/vanus/client/internal/eventbus"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/eventbus"
 )

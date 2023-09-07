@@ -14,7 +14,7 @@
 
 package primitive
 
-import "go.uber.org/atomic"
+import "sync/atomic"
 
 type RefCounter interface {
 	Acquire()
@@ -27,11 +27,11 @@ type RefCount struct {
 }
 
 func (c *RefCount) Acquire() {
-	c.count.Inc()
+	c.count.Add(1)
 }
 
 func (c *RefCount) Release() bool {
-	return c.count.Dec() == 0
+	return c.count.Add(-1) == 0
 }
 
 func (c *RefCount) UseCount() int32 {
