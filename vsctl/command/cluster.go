@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	DefaultInitialVersion    = "v0.8.0"
+	DefaultInitialVersion    = "v0.9.0"
 	DefaultImagePullPolicy   = "Always"
 	DefaultResourceLimitsCpu = "500m"
 	DefaultResourceLimitsMem = "1Gi"

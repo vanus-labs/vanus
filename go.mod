@@ -25,11 +25,11 @@ require (
 	github.com/sony/sonyflake v1.1.0
 	github.com/spf13/cobra v1.7.0
 	github.com/tidwall/gjson v1.14.4
-	github.com/vanus-labs/vanus/client v0.8.0
-	github.com/vanus-labs/vanus/observability v0.8.0
-	github.com/vanus-labs/vanus/pkg v0.8.0
-	github.com/vanus-labs/vanus/proto v0.8.0
-	github.com/vanus-labs/vanus/raft v0.8.0
+	github.com/vanus-labs/vanus/client v0.9.0
+	github.com/vanus-labs/vanus/observability v0.9.0
+	github.com/vanus-labs/vanus/pkg v0.9.0
+	github.com/vanus-labs/vanus/proto v0.9.0
+	github.com/vanus-labs/vanus/raft v0.9.0
 	go.etcd.io/etcd/client/v3 v3.5.8
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.40.0
 	go.opentelemetry.io/otel v1.14.0

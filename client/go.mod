@@ -6,9 +6,9 @@ require (
 	github.com/cloudevents/sdk-go/v2 v2.14.0
 	github.com/golang/mock v1.6.0
 	github.com/scylladb/go-set v1.0.2
-	github.com/vanus-labs/vanus/observability v0.8.0
-	github.com/vanus-labs/vanus/pkg v0.8.0
-	github.com/vanus-labs/vanus/proto v0.8.0
+	github.com/vanus-labs/vanus/observability v0.9.0
+	github.com/vanus-labs/vanus/pkg v0.9.0
+	github.com/vanus-labs/vanus/proto v0.9.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.40.0
 	go.opentelemetry.io/otel/trace v1.14.0
 	google.golang.org/grpc v1.54.0

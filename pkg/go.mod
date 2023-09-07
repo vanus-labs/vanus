@@ -7,8 +7,8 @@ require (
 	github.com/ohler55/ojg v1.18.4
 	github.com/pkg/errors v0.9.1
 	github.com/smartystreets/goconvey v1.8.0
-	github.com/vanus-labs/vanus/observability v0.8.0
-	github.com/vanus-labs/vanus/proto v0.8.0
+	github.com/vanus-labs/vanus/observability v0.9.0
+	github.com/vanus-labs/vanus/proto v0.9.0
 	golang.org/x/oauth2 v0.7.0
 	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0
