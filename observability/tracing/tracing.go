@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	vanusVersion     = "v0.8.0"
+	vanusVersion     = "v0.9.0"
 	environmentKey   = "environment"
 	environmentValue = "local"
 )

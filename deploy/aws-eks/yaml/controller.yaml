@@ -86,7 +86,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: public.ecr.aws/vanus/controller:v0.8.0
+          image: public.ecr.aws/vanus/controller:v0.9.0
           imagePullPolicy: IfNotPresent
           name: controller
           resources:

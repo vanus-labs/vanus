@@ -73,7 +73,7 @@ Vanus helps users build event pipelines between SaaS, cloud services, and cloud 
 You can install Vanus with a single command within 1 minute. Check out our [website](https://vanus.ai) for detailed information.
 
 ```shell
-kubectl apply -f https://dl.vanus.ai/all-in-one/v0.8.0.yml
+kubectl apply -f https://dl.vanus.ai/all-in-one/v0.9.0.yml
 ```
 
 ## Community
