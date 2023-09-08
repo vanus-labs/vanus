@@ -83,6 +83,7 @@ func createNamespaceCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&namespace, "name", "", "namespace name to creating")
+	cmd.Flags().Uint64Var(&namespaceID, "id", 0, "namespace id to creating")
 	cmd.Flags().StringVar(&description, "description", "", "namespace description")
 	return cmd
 }

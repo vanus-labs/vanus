@@ -17,6 +17,7 @@ package store
 import (
 	// standard libraries.
 	"context"
+	"fmt"
 	"time"
 
 	// third-party libraries.
@@ -144,6 +145,7 @@ func (s *BlockStore) Describe(ctx context.Context, block uint64) (*metapb.Segmen
 
 	res, err := client.(segpb.SegmentServerClient).DescribeBlock(ctx, req)
 	if err != nil {
+		fmt.Printf("SegmentServerClient DescribeBlock error: %+v\n", err)
 		return nil, err
 	}
 	return res.Info, nil

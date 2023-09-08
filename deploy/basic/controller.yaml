@@ -10,8 +10,9 @@ data:
     ip: ${POD_IP}
     port: 2048
     replicas: 3
-    segment_capacity: 4194304
+    segment_capacity: 33554432
     secret_encryption_salt: "encryption_salt"
+    no_create_default_namespace: true
     root_controllers:
       - vanus-root-controller-0.vanus-root-controller:2021
       - vanus-root-controller-1.vanus-root-controller:2021
@@ -62,10 +63,25 @@ spec:
   template:
     metadata:
       annotations:
+        prometheus.io/scrape: "true"
         vanus.dev/metrics.port: "2112"
       labels:
         app: vanus-controller
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: core.default.vanus.ai/dedicated
+                operator: In
+                values:
+                - cluster
+      tolerations:
+      - key: "core.default.vanus.ai/dedicated"
+        operator: "Equal"
+        value: "cluster"
+        effect: "NoSchedule"
       containers:
       - command:
         - /bin/sh
