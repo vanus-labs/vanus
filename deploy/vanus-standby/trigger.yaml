@@ -5,8 +5,8 @@ data:
     ip : ${POD_IP}
     send_event_goroutine_size: 1000
     controllers:
-      - vanus-controller-0.vanus-controller.vanus.svc:2048
-      - vanus-controller-1.vanus-controller.vanus.svc:2048
+      - vanus-controller-0.vanus-controller.vanus-standby.svc:2048
+      - vanus-controller-1.vanus-controller.vanus-standby.svc:2048
     observability:
       metrics:
         enable: true
@@ -17,7 +17,7 @@ data:
 kind: ConfigMap
 metadata:
   name: config-trigger
-  namespace: vanus
+  namespace: vanus-standby
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -25,7 +25,7 @@ metadata:
   labels:
     app: vanus-trigger
   name: vanus-trigger
-  namespace: vanus
+  namespace: vanus-standby
 spec:
   replicas: 1
   selector:
@@ -44,12 +44,12 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
-              - key: core.default.vanus.ai/dedicated
+              - key: core.standby.vanus.ai/dedicated
                 operator: In
                 values:
                 - cluster
       tolerations:
-      - key: "core.default.vanus.ai/dedicated"
+      - key: "core.standby.vanus.ai/dedicated"
         operator: "Equal"
         value: "cluster"
         effect: "NoSchedule"

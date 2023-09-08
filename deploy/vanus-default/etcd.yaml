@@ -4,7 +4,7 @@ metadata:
   labels:
     app: vanus-etcd
   name: vanus-etcd
-  namespace: vanus
+  namespace: vanus-default
 spec:
   clusterIP: None
   clusterIPs:
@@ -34,7 +34,7 @@ metadata:
   labels:
     app: vanus-etcd
   name: vanus-etcd
-  namespace: vanus
+  namespace: vanus-default
 spec:
   podManagementPolicy: Parallel
   replicas: 3
@@ -97,19 +97,19 @@ spec:
         - name: ALLOW_NONE_AUTHENTICATION
           value: "yes"
         - name: ETCD_ADVERTISE_CLIENT_URLS
-          value: http://$(MY_POD_NAME).vanus-etcd.vanus.svc.cluster.local:2379,http://vanus-etcd.vanus.svc.cluster.local:2379
+          value: http://$(MY_POD_NAME).vanus-etcd.vanus-default.svc.cluster.local:2379,http://vanus-etcd.vanus-default.svc.cluster.local:2379
         - name: ETCD_LISTEN_CLIENT_URLS
           value: http://0.0.0.0:2379
         - name: ETCD_INITIAL_ADVERTISE_PEER_URLS
-          value: http://$(MY_POD_NAME).vanus-etcd.vanus.svc.cluster.local:2380
+          value: http://$(MY_POD_NAME).vanus-etcd.vanus-default.svc.cluster.local:2380
         - name: ETCD_LISTEN_PEER_URLS
           value: http://0.0.0.0:2380
         - name: ETCD_INITIAL_CLUSTER_STATE
           value: new
         - name: ETCD_INITIAL_CLUSTER
-          value: vanus-etcd-0=http://vanus-etcd-0.vanus-etcd.vanus.svc.cluster.local:2380,vanus-etcd-1=http://vanus-etcd-1.vanus-etcd.vanus.svc.cluster.local:2380,vanus-etcd-2=http://vanus-etcd-2.vanus-etcd.vanus.svc.cluster.local:2380
+          value: vanus-etcd-0=http://vanus-etcd-0.vanus-etcd.vanus-default.svc.cluster.local:2380,vanus-etcd-1=http://vanus-etcd-1.vanus-etcd.vanus-default.svc.cluster.local:2380,vanus-etcd-2=http://vanus-etcd-2.vanus-etcd.vanus-default.svc.cluster.local:2380
         - name: ETCD_CLUSTER_DOMAIN
-          value: vanus-etcd.vanus.svc.cluster.local
+          value: vanus-etcd.vanus-default.svc.cluster.local
         - name: ETCD_QUOTA_BACKEND_BYTES
           value: "8589934592"
         - name: ETCD_AUTO_COMPACTION_MODE

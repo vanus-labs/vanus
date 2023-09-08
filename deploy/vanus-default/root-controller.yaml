@@ -14,24 +14,24 @@ data:
         otel_collector: http://127.0.0.1:4318
     cluster:
       component_name: root-controller
-      lease_duration_in_sec: 15
+      lease_duration_in_sec: 20
       etcd:
         - vanus-etcd-0.vanus-etcd:2379
         - vanus-etcd-1.vanus-etcd:2379
         - vanus-etcd-2.vanus-etcd:2379
       topology:
-        vanus-root-controller-0: vanus-root-controller-0.vanus-root-controller.vanus.svc:2021
-        vanus-root-controller-1: vanus-root-controller-1.vanus-root-controller.vanus.svc:2021
+        vanus-root-controller-0: vanus-root-controller-0.vanus-root-controller.vanus-default.svc:2021
+        vanus-root-controller-1: vanus-root-controller-1.vanus-root-controller.vanus-default.svc:2021
 kind: ConfigMap
 metadata:
   name: config-root-controller
-  namespace: vanus
+  namespace: vanus-default
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: vanus-root-controller
-  namespace: vanus
+  namespace: vanus-default
 spec:
   clusterIP: None
   ports:
@@ -46,7 +46,7 @@ metadata:
   labels:
     app: vanus-root-controller
   name: vanus-root-controller
-  namespace: vanus
+  namespace: vanus-default
 spec:
   replicas: 2
   selector:
