@@ -33,6 +33,7 @@ service ControllerProxy {
   rpc UpdateEventbus(controller.UpdateEventbusRequest) returns (meta.Eventbus);
   rpc GetEventbusWithHumanFriendly(controller.GetEventbusWithHumanFriendlyRequest) returns (meta.Eventbus);
   rpc ListSegment(controller.ListSegmentRequest) returns (controller.ListSegmentResponse);
+  rpc ValidateEventbus(ValidateEventbusRequest) returns (google.protobuf.Empty);
 
   // Trigger
   rpc CreateSubscription(controller.CreateSubscriptionRequest) returns (meta.Subscription);
@@ -104,6 +105,11 @@ message GetEventResponse {
 message ClusterInfoResponse {
   int64 cloudevents_port = 1;
   int64 proxy_port = 2;
+}
+
+message ValidateEventbusRequest {
+  uint64 eventbus_id = 1;
+  string eventbus_name = 2;
 }
 
 message ValidateSubscriptionRequest {
