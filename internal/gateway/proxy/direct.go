@@ -153,7 +153,7 @@ func (cp *ControllerProxy) ListSegment(
 func (cp *ControllerProxy) ValidateEventbus(
 	ctx context.Context, req *proxypb.ValidateEventbusRequest,
 ) (*emptypb.Empty, error) {
-	err := cp.client.Eventbus(ctx, api.WithID(req.EventbusId), api.WithName(req.EventbusName)).CheckHealth(ctx)
+	err := cp.client.Eventbus(ctx, api.WithID(req.EventbusId)).CheckHealth(ctx)
 	return nil, err
 }
 

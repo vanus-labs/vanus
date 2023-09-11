@@ -109,7 +109,6 @@ message ClusterInfoResponse {
 
 message ValidateEventbusRequest {
   uint64 eventbus_id = 1;
-  string eventbus_name = 2;
 }
 
 message ValidateSubscriptionRequest {
