@@ -21,12 +21,14 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
+	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/internal/gateway/auth"
 	"github.com/vanus-labs/vanus/internal/primitive/authorization"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
 )
 
 var errMethodNotImplemented = stdErr.New("the method hasn't implemented")
@@ -146,6 +148,13 @@ func (cp *ControllerProxy) ListSegment(
 	ctx context.Context, req *ctrlpb.ListSegmentRequest,
 ) (*ctrlpb.ListSegmentResponse, error) {
 	return cp.eventlogCtrl.ListSegment(ctx, req)
+}
+
+func (cp *ControllerProxy) ValidateEventbus(
+	ctx context.Context, req *proxypb.ValidateEventbusRequest,
+) (*emptypb.Empty, error) {
+	err := cp.client.Eventbus(ctx, api.WithID(req.EventbusId)).CheckHealth(ctx)
+	return nil, err
 }
 
 func authCreateSubscription(_ context.Context, req interface{},
