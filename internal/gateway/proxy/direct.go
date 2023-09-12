@@ -154,7 +154,7 @@ func (cp *ControllerProxy) ValidateEventbus(
 	ctx context.Context, req *proxypb.ValidateEventbusRequest,
 ) (*emptypb.Empty, error) {
 	err := cp.client.Eventbus(ctx, api.WithID(req.EventbusId)).CheckHealth(ctx)
-	return nil, err
+	return &emptypb.Empty{}, err
 }
 
 func authCreateSubscription(_ context.Context, req interface{},
