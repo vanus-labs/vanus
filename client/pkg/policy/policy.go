@@ -16,6 +16,7 @@ package policy
 
 import (
 	"context"
+	"sort"
 	"sync/atomic"
 
 	"github.com/vanus-labs/vanus/client/pkg/api"
@@ -44,10 +45,16 @@ func (w *roundRobinWritePolicy) NextLog(ctx context.Context) (api.Eventlog, erro
 		if err != nil {
 			return nil, err
 		}
-		if len(logs) == 0 {
-			continue
-		}
 		l := len(logs)
+		switch l {
+		case 0:
+			continue
+		case 1:
+		default:
+			sort.Slice(logs, func(i, j int) bool {
+				return logs[i].ID() > logs[j].ID()
+			})
+		}
 		i := atomic.AddUint64(&w.idx, 1) % uint64(l)
 		return logs[i], nil
 	}
@@ -94,11 +101,16 @@ func (r *roundRobinReadPolicy) NextLog(ctx context.Context) (api.Eventlog, error
 		if err != nil {
 			return nil, err
 		}
-
-		if len(logs) == 0 {
-			continue
-		}
 		l := len(logs)
+		switch l {
+		case 0:
+			continue
+		case 1:
+		default:
+			sort.Slice(logs, func(i, j int) bool {
+				return logs[i].ID() > logs[j].ID()
+			})
+		}
 		i := atomic.AddUint64(&r.idx, 1) % uint64(l)
 		return logs[i], nil
 	}
