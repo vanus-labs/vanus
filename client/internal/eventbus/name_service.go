@@ -56,7 +56,7 @@ func (ns *NameService) LookupWritableLogs(ctx context.Context, eventbusID uint64
 
 	resp, err := ns.client.GetEventbus(ctx, req)
 	if err != nil {
-		log.Error().Err(err).Uint64("eventbus_id", eventbusID).Msg("get eventbus failed")
+		log.Debug().Err(err).Uint64("eventbus_id", eventbusID).Msg("get eventbus failed")
 		return nil, err
 	}
 	return toLogs(resp.GetLogs()), nil
@@ -72,9 +72,7 @@ func (ns *NameService) LookupReadableLogs(ctx context.Context, eventbusID uint64
 
 	resp, err := ns.client.GetEventbus(ctx, req)
 	if err != nil {
-		log.Error().Err(err).
-			Uint64("eventbus_id", eventbusID).
-			Msg("get eventbus failed")
+		log.Debug().Err(err).Uint64("eventbus_id", eventbusID).Msg("get eventbus failed")
 		return nil, err
 	}
 
