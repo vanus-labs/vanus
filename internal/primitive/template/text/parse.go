@@ -79,7 +79,7 @@ func parse(text string) ([]templateSegment, error) {
 			if err != nil {
 				return nil, err
 			}
-			next(n - i + 1 - s.Len())
+			next(n - i - s.Len())
 		case '<':
 			packText()
 			s := bytes.NewMarkScanner(bytes.UnsafeSlice(bs, i+1, n))
