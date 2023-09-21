@@ -1,0 +1,120 @@
+// Copyright 2022 Linkall Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package vanus.core.segment;
+
+import "google/protobuf/empty.proto";
+import "vanus/core/cloudevents/cloudevents.proto";
+import "vanus/core/config/config.proto";
+import "vanus/core/meta/meta.proto";
+
+option go_package = "github.com/vanus-labs/vanus/api/segment";
+
+service SegmentServer {
+  rpc Start(StartSegmentServerRequest) returns (StartSegmentServerResponse);
+  rpc Stop(StopSegmentServerRequest) returns (StopSegmentServerResponse);
+
+  rpc CreateBlock(CreateBlockRequest) returns (google.protobuf.Empty);
+  rpc RemoveBlock(RemoveBlockRequest) returns (google.protobuf.Empty);
+  rpc DescribeBlock(DescribeBlockRequest) returns (DescribeBlockResponse);
+
+  rpc ActivateSegment(ActivateSegmentRequest) returns (ActivateSegmentResponse);
+  rpc InactivateSegment(InactivateSegmentRequest) returns (google.protobuf.Empty);
+
+  rpc AppendToBlock(AppendToBlockRequest) returns (AppendToBlockResponse);
+  rpc ReadFromBlock(ReadFromBlockRequest) returns (ReadFromBlockResponse);
+  rpc LookupOffsetInBlock(LookupOffsetInBlockRequest) returns (LookupOffsetInBlockResponse);
+
+  rpc Status(google.protobuf.Empty) returns (StatusResponse);
+}
+
+message StartSegmentServerRequest {
+  config.ServerConfig config = 1;
+  reserved 2; // server_id(uint_64) has been removed at v0.7.0
+}
+
+message StartSegmentServerResponse {}
+
+message StopSegmentServerRequest {}
+
+message StopSegmentServerResponse {}
+
+message CreateBlockRequest {
+  uint64 id = 1;
+  int64 size = 2;
+}
+
+message RemoveBlockRequest {
+  uint64 id = 1;
+}
+
+message DescribeBlockRequest {
+  uint64 id = 1;
+}
+
+message DescribeBlockResponse {
+  meta.SegmentHealthInfo info = 1;
+}
+
+message ActivateSegmentRequest {
+  uint64 eventlog_id = 1;
+  uint64 replica_group_id = 2;
+  // block ID and its server endpoint.
+  map<uint64, string> replicas = 3;
+}
+
+message ActivateSegmentResponse {}
+
+message InactivateSegmentRequest {}
+
+message InactivateSegmentResponse {}
+
+message AppendToBlockRequest {
+  uint64 block_id = 1;
+  cloudevents.CloudEventBatch events = 2;
+}
+
+message AppendToBlockResponse {
+  repeated int64 offsets = 1;
+}
+
+message ReadFromBlockRequest {
+  uint64 block_id = 1;
+  int64 offset = 2;
+  int64 number = 3;
+  // polling timeout in milliseconds, 0 is disable.
+  uint32 polling_timeout = 4;
+}
+
+message ReadFromBlockResponse {
+  cloudevents.CloudEventBatch events = 1;
+  // Don't use this now, just used to optimize cpu overhead of SegmentServer in
+  // the future for backward compatibility
+  bytes payload = 2;
+}
+
+message LookupOffsetInBlockRequest {
+  uint64 block_id = 1;
+  int64 stime = 2;
+}
+
+message LookupOffsetInBlockResponse {
+  int64 offset = 1;
+}
+
+message StatusResponse {
+  string status = 1;
+}

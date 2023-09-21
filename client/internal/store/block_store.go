@@ -24,10 +24,10 @@ import (
 	"google.golang.org/grpc"
 
 	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability/tracing"
-	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
-	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
-	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
+	"github.com/vanus-labs/vanus/api/cloudevents"
+	metapb "github.com/vanus-labs/vanus/api/meta"
+	segpb "github.com/vanus-labs/vanus/api/segment"
+	"github.com/vanus-labs/vanus/pkg/observability/tracing"
 
 	// this project.
 	"github.com/vanus-labs/vanus/client/internal/net/rpc"

@@ -10,17 +10,26 @@ import (
 	"os"
 
 	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability"
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/observability/metrics"
-	"github.com/vanus-labs/vanus/pkg/util/signal"
+	"github.com/vanus-labs/vanus/pkg/observability"
+	"github.com/vanus-labs/vanus/pkg/observability/log"
+	"github.com/vanus-labs/vanus/pkg/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/signal"
 
 	// this project.
-	"github.com/vanus-labs/vanus/internal/gateway"
+	primitive "github.com/vanus-labs/vanus/pkg"
 )
 
+func loadConfig(filename string) (*Config, error) {
+	c := new(Config)
+	err := primitive.LoadConfig(filename, c)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
 func Main(configPath string) {
-	cfg, err := InitConfig(configPath)
+	cfg, err := loadConfig(configPath)
 	if err != nil {
 		log.Error().Err(err).Msg("init config error")
 		os.Exit(-1)
@@ -37,7 +46,7 @@ func MainExt(ctx context.Context, cfg Config) {
 		_ = observability.Initialize(ctx, cfg.Observability, metrics.GetGatewayMetrics)
 	}
 
-	ga := gateway.NewGateway(cfg.Config)
+	ga := NewGateway(cfg)
 
 	if err := ga.Start(ctx); err != nil {
 		log.Error().Err(err).Msg("start gateway failed")

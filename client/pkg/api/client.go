@@ -16,11 +16,14 @@
 package api
 
 import (
+	// standard libraries.
 	"context"
 
+	// third-party libraries.
 	ce "github.com/cloudevents/sdk-go/v2"
-	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
-	"github.com/vanus-labs/vanus/proto/pkg/codec"
+
+	// first-party libraries.
+	cepb "github.com/vanus-labs/vanus/api/cloudevents"
 )
 
 type Eventbus interface {
@@ -34,11 +37,11 @@ type Eventbus interface {
 }
 
 type BusWriter interface {
-	Append(ctx context.Context, events *cloudevents.CloudEventBatch, opts ...WriteOption) (eids []string, err error)
+	Append(ctx context.Context, events *cepb.CloudEventBatch, opts ...WriteOption) (eids []string, err error)
 }
 
 type BusReader interface {
-	Read(ctx context.Context, opts ...ReadOption) (events *cloudevents.CloudEventBatch, off int64, logid uint64, err error)
+	Read(ctx context.Context, opts ...ReadOption) (events *cepb.CloudEventBatch, off int64, logid uint64, err error)
 }
 
 type Eventlog interface {
@@ -51,26 +54,26 @@ type Eventlog interface {
 }
 
 func Append(ctx context.Context, w BusWriter, events []*ce.Event, opts ...WriteOption) (eids []string, err error) {
-	eventpbs := make([]*cloudevents.CloudEvent, len(events))
+	eventpbs := make([]*cepb.CloudEvent, len(events))
 	for idx := range events {
-		eventpb, err := codec.ToProto(events[idx])
+		eventpb, err := cepb.ToProto(events[idx])
 		if err != nil {
 			return nil, err
 		}
 		eventpbs[idx] = eventpb
 	}
-	return w.Append(ctx, &cloudevents.CloudEventBatch{
+	return w.Append(ctx, &cepb.CloudEventBatch{
 		Events: eventpbs,
 	}, opts...)
 }
 
 func AppendOne(ctx context.Context, w BusWriter, event *ce.Event, opts ...WriteOption) (eid string, err error) {
-	eventpb, err := codec.ToProto(event)
+	eventpb, err := cepb.ToProto(event)
 	if err != nil {
 		return "", err
 	}
-	eids, err := w.Append(ctx, &cloudevents.CloudEventBatch{
-		Events: []*cloudevents.CloudEvent{eventpb},
+	eids, err := w.Append(ctx, &cepb.CloudEventBatch{
+		Events: []*cepb.CloudEvent{eventpb},
 	}, opts...)
 	if err != nil {
 		return "", err
@@ -85,7 +88,7 @@ func Read(ctx context.Context, r BusReader, opts ...ReadOption) (events []*ce.Ev
 	}
 	es := make([]*ce.Event, len(batch.Events))
 	for idx := range batch.Events {
-		e, err := codec.FromProto(batch.Events[idx])
+		e, err := cepb.FromProto(batch.Events[idx])
 		if err != nil {
 			return nil, 0, 0, err
 		}

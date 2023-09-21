@@ -15,25 +15,61 @@
 package gateway
 
 import (
+	// third-party libraries.
+	"google.golang.org/grpc/credentials/insecure"
+
 	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability"
+	"github.com/vanus-labs/vanus/pkg/observability"
 
 	// this project.
-	"github.com/vanus-labs/vanus/internal/gateway"
-	"github.com/vanus-labs/vanus/internal/primitive"
+	"github.com/vanus-labs/vanus/server/gateway/auth"
+	"github.com/vanus-labs/vanus/server/gateway/proxy"
+)
+
+const (
+	defaultProxyPort = 8080
+	defaultSinkPort  = 8082
 )
 
 type Config struct {
-	gateway.Config `yaml:",inline"`
-
-	Observability observability.Config `yaml:"observability"`
+	Observability        observability.Config `yaml:"observability"`
+	Port                 int                  `yaml:"port"`
+	SinkPort             int                  `yaml:"sink_port"`
+	ControllerAddr       []string             `yaml:"controllers"`
+	GRPCReflectionEnable bool                 `yaml:"grpc_reflection_enable"`
+	Auth                 Auth                 `yaml:"auth"`
 }
 
-func InitConfig(filename string) (*Config, error) {
-	c := new(Config)
-	err := primitive.LoadConfig(filename, c)
-	if err != nil {
-		return nil, err
+type Auth struct {
+	Disable bool `yaml:"disable"`
+}
+
+func (c Config) GetProxyConfig() proxy.Config {
+	cfg := proxy.Config{
+		Endpoints:              c.ControllerAddr,
+		SinkPort:               c.SinkPort,
+		ProxyPort:              c.Port,
+		CloudEventReceiverPort: c.GetCloudEventReceiverPort(),
+		GRPCReflectionEnable:   c.GRPCReflectionEnable,
+		Credentials:            insecure.NewCredentials(),
 	}
-	return c, nil
+	if cfg.ProxyPort == 0 {
+		cfg.ProxyPort = defaultProxyPort
+	}
+	if cfg.SinkPort == 0 {
+		cfg.SinkPort = defaultSinkPort
+	}
+	cfg.AuthCfg = auth.Config{
+		Disable:          c.Auth.Disable,
+		OpenSubscription: false,
+		OpenEventbus:     false,
+	}
+	return cfg
+}
+
+func (c Config) GetCloudEventReceiverPort() int {
+	if c.Port == 0 {
+		return defaultProxyPort + 1
+	}
+	return c.Port + 1
 }

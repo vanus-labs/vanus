@@ -25,12 +25,12 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/observability/tracing"
-	"github.com/vanus-labs/vanus/pkg/cluster"
-	"github.com/vanus-labs/vanus/pkg/errors"
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
-	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	"github.com/vanus-labs/vanus/api/cluster"
+	ctrlpb "github.com/vanus-labs/vanus/api/controller"
+	"github.com/vanus-labs/vanus/api/errors"
+	metapb "github.com/vanus-labs/vanus/api/meta"
+	"github.com/vanus-labs/vanus/pkg/observability/log"
+	"github.com/vanus-labs/vanus/pkg/observability/tracing"
 
 	// this project.
 	"github.com/vanus-labs/vanus/client/pkg/record"

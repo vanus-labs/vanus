@@ -1,24 +1,26 @@
-* @wenfengwang
+* @ifplusor
+
+/lib/ @ifplusor
+/pkg/raft/ @ifplusor
+
+/pkg/kv/ @xdlbdy
+
+/server/root/ @xdlbdy
+/server/controller/ @xdlbdy
+/server/controller/eventbus/ @ifplusor
+/server/gateway/ @hwjiangkai
+/server/store/ @ifplusor
+/server/trigger/ @xdlbdy
+/server/timer/ @hwjiangkai
+
+/client/ @hwjiangkai
+
+/cmd/vs-root/ @xdlbdy
+/cmd/vs-controller/ @xdlbdy
+/cmd/vs-gateway/ @ifplusor
+/cmd/vs-store/ @ifplusor
+/cmd/vs-trigger/ @xdlbdy
+/cmd/vs-timer/ @hwjiangkai
 
 /build/ @xdlbdy
-
-/client/ @ifplusor
-
-/cmd/controller/ @xdlbdy
-/cmd/gateway/ @ifplusor
-/cmd/store/ @ifplusor
-/cmd/trigger/ @xdlbdy
-
 /deploy/ @xdlbdy
-
-/internal/controller/ @xdlbdy
-/internal/controller/eventbus/ @ifplusor
-/internal/gateway/ @hwjiangkai
-/internal/kv/ @xdlbdy
-/internal/raft/ @ifplusor
-/internal/store/ @ifplusor
-/internal/trigger/ @xdlbdy
-/internal/timer/ @hwjiangkai
-
-/raft/ @ifplusor
-

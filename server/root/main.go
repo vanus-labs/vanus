@@ -22,22 +22,35 @@ import (
 	"google.golang.org/grpc/status"
 
 	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability"
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/observability/metrics"
-	errinterceptor "github.com/vanus-labs/vanus/pkg/grpc/interceptor/errors"
-	"github.com/vanus-labs/vanus/pkg/util/signal"
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
+	ctrlpb "github.com/vanus-labs/vanus/api/controller"
+	errinterceptor "github.com/vanus-labs/vanus/api/grpc/interceptor/errors"
+	"github.com/vanus-labs/vanus/pkg/observability"
+	"github.com/vanus-labs/vanus/pkg/observability/log"
+	"github.com/vanus-labs/vanus/pkg/observability/metrics"
 
 	// this project.
-	"github.com/vanus-labs/vanus/internal/controller/member"
-	"github.com/vanus-labs/vanus/internal/controller/root"
-	"github.com/vanus-labs/vanus/internal/primitive/interceptor/memberinterceptor"
-	"github.com/vanus-labs/vanus/internal/primitive/vanus"
+	primitive "github.com/vanus-labs/vanus/pkg"
+	"github.com/vanus-labs/vanus/pkg/interceptor/memberinterceptor"
+	"github.com/vanus-labs/vanus/pkg/signal"
+	"github.com/vanus-labs/vanus/pkg/snowflake"
+	"github.com/vanus-labs/vanus/server/controller"
+	"github.com/vanus-labs/vanus/server/controller/member"
+	"github.com/vanus-labs/vanus/server/controller/root"
 )
 
+type Config = controller.Config
+
+func loadConfig(filename string) (*Config, error) {
+	c := new(Config)
+	err := primitive.LoadConfig(filename, c)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
 func Main(configPath string) {
-	cfg, err := InitConfig(configPath)
+	cfg, err := loadConfig(configPath)
 	if err != nil {
 		log.Error().Err(err).Msg("init config error")
 		os.Exit(-1)
@@ -115,7 +128,7 @@ func MainExt(ctx context.Context, cfg Config) {
 	log.Info(ctx).Msg("the grpc server ready to work")
 
 	exit := func() {
-		vanus.DestroySnowflake()
+		snowflake.Destroy()
 		snowflakeCtrl.Stop()
 		mem.Stop(ctx)
 		grpcServer.GracefulStop()

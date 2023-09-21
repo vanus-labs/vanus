@@ -24,11 +24,11 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/observability/tracing"
-	"github.com/vanus-labs/vanus/pkg/cluster"
-	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
-	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	"github.com/vanus-labs/vanus/api/cluster"
+	ctrlpb "github.com/vanus-labs/vanus/api/controller"
+	metapb "github.com/vanus-labs/vanus/api/meta"
+	"github.com/vanus-labs/vanus/pkg/observability/log"
+	"github.com/vanus-labs/vanus/pkg/observability/tracing"
 
 	// this project.
 	"github.com/vanus-labs/vanus/client/pkg/record"

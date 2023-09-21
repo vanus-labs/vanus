@@ -10,18 +10,29 @@ import (
 	"os"
 
 	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability"
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/observability/metrics"
-	"github.com/vanus-labs/vanus/pkg/util/signal"
+	"github.com/vanus-labs/vanus/pkg/observability"
+	"github.com/vanus-labs/vanus/pkg/observability/log"
+	"github.com/vanus-labs/vanus/pkg/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/signal"
 
 	// this project.
-	"github.com/vanus-labs/vanus/internal/timer/leaderelection"
-	"github.com/vanus-labs/vanus/internal/timer/timingwheel"
+	primitive "github.com/vanus-labs/vanus/pkg"
+	"github.com/vanus-labs/vanus/server/timer/leaderelection"
+	"github.com/vanus-labs/vanus/server/timer/timingwheel"
 )
 
+func loadConfig(filename string) (*Config, error) {
+	c := new(Config)
+	err := primitive.LoadConfig(filename, c)
+	if err != nil {
+		return nil, err
+	}
+	Default(c)
+	return c, nil
+}
+
 func Main(configPath string) {
-	cfg, err := InitConfig(configPath)
+	cfg, err := loadConfig(configPath)
 	if err != nil {
 		log.Error().Err(err).Msg("init config error")
 		os.Exit(-1)

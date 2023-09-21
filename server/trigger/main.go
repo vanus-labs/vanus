@@ -16,19 +16,31 @@ import (
 	"google.golang.org/grpc"
 
 	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability"
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/observability/metrics"
-	"github.com/vanus-labs/vanus/pkg/util/signal"
-	triggerpb "github.com/vanus-labs/vanus/proto/pkg/trigger"
+	triggerpb "github.com/vanus-labs/vanus/api/trigger"
+	"github.com/vanus-labs/vanus/pkg/observability"
+	"github.com/vanus-labs/vanus/pkg/observability/log"
+	"github.com/vanus-labs/vanus/pkg/observability/metrics"
+	"github.com/vanus-labs/vanus/pkg/signal"
 
 	// this project.
-	"github.com/vanus-labs/vanus/internal/primitive"
-	"github.com/vanus-labs/vanus/internal/trigger"
+	primitive "github.com/vanus-labs/vanus/pkg"
 )
 
+func loadConfig(filename string) (*Config, error) {
+	c := new(Config)
+	err := primitive.LoadConfig(filename, c)
+	if err != nil {
+		return nil, err
+	}
+	if c.IP == "" {
+		c.IP = primitive.GetLocalIP()
+	}
+	c.TriggerAddr = fmt.Sprintf("%s:%d", c.IP, c.Port)
+	return c, nil
+}
+
 func Main(configPath string) {
-	cfg, err := InitConfig(configPath)
+	cfg, err := loadConfig(configPath)
 	if err != nil {
 		log.Error().Err(err).Msg("init config error")
 		os.Exit(-1)
@@ -50,7 +62,7 @@ func MainExt(ctx context.Context, cfg Config) {
 		_ = observability.Initialize(ctx, cfg.Observability, metrics.GetTriggerMetrics)
 	}
 
-	srv := trigger.NewTriggerServer(cfg.Config)
+	srv := NewTriggerServer(cfg)
 
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)

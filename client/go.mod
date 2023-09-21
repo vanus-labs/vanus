@@ -6,9 +6,8 @@ require (
 	github.com/cloudevents/sdk-go/v2 v2.14.0
 	github.com/golang/mock v1.6.0
 	github.com/scylladb/go-set v1.0.2
-	github.com/vanus-labs/vanus/observability v0.9.0
-	github.com/vanus-labs/vanus/pkg v0.9.0
-	github.com/vanus-labs/vanus/proto v0.9.0
+	github.com/vanus-labs/vanus/api v0.9.0
+	github.com/vanus-labs/vanus/pkg/observability v0.9.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.40.0
 	go.opentelemetry.io/otel/trace v1.14.0
 	google.golang.org/grpc v1.54.0
@@ -38,20 +37,19 @@ require (
 	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
-	go.uber.org/zap v1.17.0 // indirect
-	golang.org/x/net v0.9.0 // indirect
-	golang.org/x/sys v0.7.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
-	golang.org/x/time v0.1.0 // indirect
+	go.uber.org/zap v1.18.1 // indirect
+	golang.org/x/net v0.15.0 // indirect
+	golang.org/x/sys v0.12.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
+	golang.org/x/time v0.3.0 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 replace (
-	github.com/vanus-labs/vanus/observability => ../observability
-	github.com/vanus-labs/vanus/pkg => ../pkg
-	github.com/vanus-labs/vanus/proto => ../proto
-	github.com/vanus-labs/vanus/raft => ../raft
+	github.com/vanus-labs/vanus/api => ../api
+	github.com/vanus-labs/vanus/pkg/observability => ../pkg/observability
+	github.com/vanus-labs/vanus/pkg/raft => ../pkg/raft
 )
 
 replace github.com/vanus-labs/vanus => ../FORBIDDEN_DEPENDENCY

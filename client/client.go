@@ -25,9 +25,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability/log"
-	"github.com/vanus-labs/vanus/observability/tracing"
-	"github.com/vanus-labs/vanus/pkg/cluster"
+	"github.com/vanus-labs/vanus/api/cluster"
+	"github.com/vanus-labs/vanus/pkg/observability/log"
+	"github.com/vanus-labs/vanus/pkg/observability/tracing"
 
 	// this project.
 	eb "github.com/vanus-labs/vanus/client/internal/eventbus"

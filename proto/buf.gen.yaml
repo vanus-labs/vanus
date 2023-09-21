@@ -1,0 +1,15 @@
+version: v1
+plugins:
+- name: go
+  out: ../api
+  opt:
+  - module=github.com/vanus-labs/vanus/api
+- name: go-grpc
+  out: ../api
+  opt:
+  - module=github.com/vanus-labs/vanus/api
+  - require_unimplemented_servers=false
+- name: go-grpc-mock
+  out: ../api
+  opt:
+  - module=github.com/vanus-labs/vanus/api
