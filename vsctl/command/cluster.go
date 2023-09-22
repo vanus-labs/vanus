@@ -170,12 +170,9 @@ func createClusterCommand() *cobra.Command {
 		Use:   "create",
 		Short: "create a cluster",
 		Run: func(cmd *cobra.Command, args []string) {
-			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operatorEndpoint, err := getOperatorEndpoint()
 			if err != nil {
-				operatorEndpoint, err = getOperatorEndpoint()
-				if err != nil {
-					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
-				}
+				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 			}
 
 			if showInstallableList {
@@ -251,6 +248,7 @@ func createClusterCommand() *cobra.Command {
 			}
 
 			clusterspec := table.NewWriter()
+			clusterspec.SetCaption("The Endpoints Of Vanus Operator: %s\n", operatorEndpoint)
 			clusterspec.AppendHeader(table.Row{"Cluster", "Version", "Component", "Replicas", "StorageSize", "StorageClass"})
 			if c.Etcd.StorageClass == nil {
 				clusterspec.AppendRow(table.Row{"vanus", *c.Version, "etcd", *c.Etcd.Replicas, *c.Etcd.StorageSize, "-"})
@@ -351,12 +349,9 @@ func deleteClusterCommand() *cobra.Command {
 		Use:   "delete",
 		Short: "delete a cluster",
 		Run: func(cmd *cobra.Command, args []string) {
-			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operatorEndpoint, err := getOperatorEndpoint()
 			if err != nil {
-				operatorEndpoint, err = getOperatorEndpoint()
-				if err != nil {
-					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
-				}
+				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 			}
 
 			fmt.Print("Deleting a cluster will lose all cluster data and can't be recovered, do you still want to delete the vanus cluster(y/n):")
@@ -465,12 +460,9 @@ func upgradeClusterCommand() *cobra.Command {
 		Use:   "upgrade",
 		Short: "upgrade cluster",
 		Run: func(cmd *cobra.Command, args []string) {
-			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operatorEndpoint, err := getOperatorEndpoint()
 			if err != nil {
-				operatorEndpoint, err = getOperatorEndpoint()
-				if err != nil {
-					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
-				}
+				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 			}
 
 			if showUpgradeableList {
@@ -588,12 +580,9 @@ func scaleStoreReplicas() *cobra.Command {
 		Use:   "store",
 		Short: "scale store replicas",
 		Run: func(cmd *cobra.Command, args []string) {
-			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operatorEndpoint, err := getOperatorEndpoint()
 			if err != nil {
-				operatorEndpoint, err = getOperatorEndpoint()
-				if err != nil {
-					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
-				}
+				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 			}
 
 			client := &http.Client{}
@@ -651,7 +640,8 @@ func scaleStoreReplicas() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().Int32Var(&storeReplicas, "replicas", 3, "replicas")
+	cmd.Flags().Int32Var(&storeReplicas, "replicas", 0, "the replicas of store")
+	cobra.MarkFlagRequired(cmd.Flags(), "replicas")
 	return cmd
 }
 
@@ -660,12 +650,9 @@ func scaleTriggerReplicas() *cobra.Command {
 		Use:   "trigger",
 		Short: "scale trigger replicas",
 		Run: func(cmd *cobra.Command, args []string) {
-			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operatorEndpoint, err := getOperatorEndpoint()
 			if err != nil {
-				operatorEndpoint, err = getOperatorEndpoint()
-				if err != nil {
-					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
-				}
+				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 			}
 
 			client := &http.Client{}
@@ -723,7 +710,8 @@ func scaleTriggerReplicas() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().Int32Var(&triggerReplicas, "replicas", 3, "replicas")
+	cmd.Flags().Int32Var(&triggerReplicas, "replicas", 0, "the replicas of trigger")
+	cobra.MarkFlagRequired(cmd.Flags(), "replicas")
 	return cmd
 }
 
@@ -732,12 +720,9 @@ func getClusterCommand() *cobra.Command {
 		Use:   "status",
 		Short: "get cluster status",
 		Run: func(cmd *cobra.Command, args []string) {
-			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operatorEndpoint, err := getOperatorEndpoint()
 			if err != nil {
-				operatorEndpoint, err = getOperatorEndpoint()
-				if err != nil {
-					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
-				}
+				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 			}
 
 			client := &http.Client{}

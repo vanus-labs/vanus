@@ -41,10 +41,6 @@ var (
 func init() {
 	cobra.EnablePrefixMatching = true
 	cobra.EnableCommandSorting = false
-	rootCmd.PersistentFlags().StringVar(&globalFlags.Endpoint, "endpoint",
-		"127.0.0.1:8080", "the endpoints of vanus controller")
-	rootCmd.PersistentFlags().StringVar(&globalFlags.OperatorEndpoint, "operator-endpoint",
-		"127.0.0.1:8080", "the endpoints of vanus operator")
 	rootCmd.PersistentFlags().StringVarP(&globalFlags.ConfigFile, "config", "C",
 		"~/.vanus/vanus.yml", "the config file of vsctl")
 	rootCmd.PersistentFlags().BoolVarP(&globalFlags.Debug, "debug", "D", false,
@@ -56,14 +52,6 @@ func init() {
 
 	if os.Getenv("VANUS_TOKEN") != "" {
 		globalFlags.Token = os.Getenv("VANUS_TOKEN")
-	}
-
-	if os.Getenv("VANUS_GATEWAY") != "" {
-		globalFlags.Endpoint = os.Getenv("VANUS_GATEWAY")
-	}
-
-	if os.Getenv("VANUS_OPERATOR") != "" {
-		globalFlags.OperatorEndpoint = os.Getenv("VANUS_OPERATOR")
 	}
 
 	rootCmd.AddCommand(

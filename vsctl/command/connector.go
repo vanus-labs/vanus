@@ -102,12 +102,9 @@ func installConnectorCommand() *cobra.Command {
 		Use:   "install",
 		Short: "install a connector",
 		Run: func(cmd *cobra.Command, args []string) {
-			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operatorEndpoint, err := getOperatorEndpoint()
 			if err != nil {
-				operatorEndpoint, err = getOperatorEndpoint()
-				if err != nil {
-					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
-				}
+				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 			}
 
 			if showConnectors {
@@ -255,16 +252,9 @@ func uninstallConnectorCommand() *cobra.Command {
 		Use:   "uninstall",
 		Short: "uninstall a connector",
 		Run: func(cmd *cobra.Command, args []string) {
-			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operatorEndpoint, err := getOperatorEndpoint()
 			if err != nil {
-				operatorEndpoint, err = getOperatorEndpoint()
-				if err != nil {
-					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
-				}
-			}
-
-			if name == "" {
-				cmdFailedf(cmd, "the --name flag MUST be set")
+				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 			}
 
 			client := &http.Client{}
@@ -316,6 +306,7 @@ func uninstallConnectorCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "connector name")
+	cobra.MarkFlagRequired(cmd.Flags(), "name")
 	return cmd
 }
 
@@ -324,12 +315,9 @@ func listConnectorCommand() *cobra.Command {
 		Use:   "list",
 		Short: "list connectors",
 		Run: func(cmd *cobra.Command, args []string) {
-			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operatorEndpoint, err := getOperatorEndpoint()
 			if err != nil {
-				operatorEndpoint, err = getOperatorEndpoint()
-				if err != nil {
-					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
-				}
+				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 			}
 
 			if !operatorIsDeployed(cmd, operatorEndpoint) {
@@ -401,16 +389,9 @@ func getConnectorCommand() *cobra.Command {
 		Use:   "info",
 		Short: "get connector info",
 		Run: func(cmd *cobra.Command, args []string) {
-			operatorEndpoint, err := cmd.Flags().GetString("operator-endpoint")
+			operatorEndpoint, err := getOperatorEndpoint()
 			if err != nil {
-				operatorEndpoint, err = getOperatorEndpoint()
-				if err != nil {
-					cmdFailedf(cmd, "get operator endpoint failed: %s", err)
-				}
-			}
-
-			if name == "" {
-				cmdFailedf(cmd, "the --name flag MUST be set")
+				cmdFailedf(cmd, "get operator endpoint failed: %s", err)
 			}
 
 			client := &http.Client{}
@@ -471,6 +452,7 @@ func getConnectorCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "connector name")
+	cobra.MarkFlagRequired(cmd.Flags(), "name")
 	return cmd
 }
 

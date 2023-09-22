@@ -93,12 +93,26 @@ func operatorIsDeployed(cmd *cobra.Command, endpoint string) bool {
 	return true
 }
 
-func getOperatorEndpoint() (string, error) {
-	nodeip, err := exec.Command("bash", "-c", "kubectl get no --no-headers -o wide | awk '{print $6}' | head -n 1").Output()
+func getGatewayEndpoint() (string, error) {
+	if os.Getenv("VANUS_GATEWAY") != "" {
+		return os.Getenv("VANUS_GATEWAY"), nil
+	}
+	hostname, err := exec.Command("bash", "-c", "kubectl -n vanus get svc vanus-gateway -o jsonpath='{.status.loadBalancer.ingress[*].hostname}'").Output()
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s:%d", strings.Trim(string(nodeip), "\n"), DefaultOperatorPort), nil
+	return fmt.Sprintf("%s:%d", strings.Trim(string(hostname), "\n"), DefaultGatewayPort), nil
+}
+
+func getOperatorEndpoint() (string, error) {
+	if os.Getenv("VANUS_OPERATOR") != "" {
+		return os.Getenv("VANUS_OPERATOR"), nil
+	}
+	hostname, err := exec.Command("bash", "-c", "kubectl -n vanus get svc vanus-operator -o jsonpath='{.status.loadBalancer.ingress[*].hostname}'").Output()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s:%d", strings.Trim(string(hostname), "\n"), DefaultOperatorPort), nil
 }
 
 func LoadConfig(filename string, config interface{}) error {
