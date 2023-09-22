@@ -43,6 +43,7 @@ func init() {
 		datetime.NewDateFormatAction,
 		datetime.NewUnixTimeFormatAction,
 		datetime.NewConvertTimezoneAction,
+		datetime.NewTodayAction,
 		// string
 		strings.NewJoinAction,
 		strings.NewUpperAction,
