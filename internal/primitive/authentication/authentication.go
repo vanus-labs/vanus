@@ -82,10 +82,12 @@ func (a *authentication) checkTokenExpired() {
 }
 
 func (a *authentication) Authenticate(ctx context.Context, token string) (string, error) {
+	/* remove cache
 	v, exist := a.tokens.Load(token)
 	if exist {
 		return v.(string), nil
 	}
+	*/
 	// todo breakdown cache
 	user, err := a.client.GetUser(ctx, token)
 	if err != nil {
@@ -94,6 +96,6 @@ func (a *authentication) Authenticate(ctx context.Context, token string) (string
 	if user == "" {
 		return "", errors.ErrResourceNotFound.WithMessage("token is invalid")
 	}
-	a.tokens.Store(token, user)
+	// a.tokens.Store(token, user)
 	return user, nil
 }
