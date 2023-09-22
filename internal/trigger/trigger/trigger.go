@@ -469,6 +469,11 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 	ec.Extensions[primitive.XVanusEventbus] = t.subscription.RetryEventbusID.Key()
 	var writeAttempt int
 	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 		writeAttempt++
 		startTime := time.Now()
 		_, err := api.AppendOne(ctx, t.timerEventWriter, e)
@@ -484,7 +489,9 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 			if writeAttempt >= t.config.MaxWriteAttempt {
 				return
 			}
-			time.Sleep(time.Second)
+			if !util.SleepWithContext(ctx, time.Second) {
+				return
+			}
 		} else {
 			break
 		}
@@ -504,6 +511,11 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 	ec.Extensions[primitive.DeadLetterReason] = reason
 	var writeAttempt int
 	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 		writeAttempt++
 		startTime := time.Now()
 		_, err := api.AppendOne(ctx, t.dlEventWriter, e)
@@ -518,7 +530,9 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 			if writeAttempt >= t.config.MaxWriteAttempt {
 				return
 			}
-			time.Sleep(time.Second)
+			if !util.SleepWithContext(ctx, time.Second) {
+				return
+			}
 		} else {
 			break
 		}
@@ -617,12 +631,12 @@ func (t *trigger) Stop(ctx context.Context) error {
 	t.reader.Close()
 	t.retryEventReader.Close()
 	t.stop()
+	t.pool.Release()
 	close(t.eventCh)
 	close(t.retryEventCh)
 	close(t.sendCh)
 	close(t.batchSendCh)
 	t.wg.Wait()
-	t.pool.Release()
 	t.offsetManager.Close()
 	t.state = TriggerStopped
 	log.Info(ctx).
