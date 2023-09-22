@@ -26,6 +26,9 @@ import (
 	"github.com/cloudevents/sdk-go/v2/client"
 	"github.com/cloudevents/sdk-go/v2/protocol"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
+	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/vanus-labs/vanus/internal/gateway/proxy"
 	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
@@ -35,8 +38,6 @@ import (
 	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
 	"github.com/vanus-labs/vanus/proto/pkg/codec"
 	proxypb "github.com/vanus-labs/vanus/proto/pkg/proxy"
-	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 var requestDataFromContext = cehttp.RequestDataFromContext
@@ -124,31 +125,48 @@ func (ga *ceGateway) receive(ctx context.Context, event v2.Event) (re *v2.Event,
 }
 
 const (
-	httpRequestPrefix = "/gateway"
+	httpRequestPrefix = "gateway"
 )
 
 func (ga *ceGateway) getEventbusFromPath(ctx context.Context, reqData *cehttp.RequestData) (vanus.ID, error) {
 	// TODO validate
 	reqPathStr := reqData.URL.String()
+	reqPathStr = reqPathStr[1:]
 	var (
 		ns   string
 		name string
 	)
-	if strings.HasPrefix(reqPathStr, httpRequestPrefix) { // Deprecated, just for compatibility of older than v0.7.0
-		ns = primitive.DefaultNamespace
-		name = strings.TrimLeft(reqPathStr[len(httpRequestPrefix):], "/")
-	} else {
+	paths := strings.Split(reqPathStr, "/")
+	switch len(paths) {
+	case 2:
+		if paths[0] == httpRequestPrefix { // Deprecated, just for compatibility of older than v0.7.0
+			// gateway/eb_name
+			ns = primitive.DefaultNamespace
+			name = paths[1]
+		} else if paths[1] == "events" {
+			// eb_id/events
+			eventbusID, err := vanus.NewIDFromString(paths[0])
+			if err != nil {
+				return 0, err
+			}
+			// check eb exist
+			_, err = ga.ctrl.EventbusService().GetEventbus(ctx, eventbusID.Uint64())
+			if err != nil {
+				return 0, err
+			}
+			return eventbusID, nil
+		} else {
+			return 0, errors.New("invalid request path")
+		}
+	case 5:
 		// namespaces/:namespace_name/eventbus/:eventbus_name/events
-		path := strings.TrimLeft(reqData.URL.String(), "/")
-		strs := strings.Split(path, "/")
-		if len(strs) != 5 {
+		if paths[0] != "namespaces" && paths[2] != "eventbus" && paths[4] != "events" {
 			return 0, errors.New("invalid request path")
 		}
-		if strs[0] != "namespaces" && strs[2] != "eventbus" && strs[4] != "events" {
-			return 0, errors.New("invalid request path")
-		}
-		ns = strs[1]
-		name = strs[3]
+		ns = paths[1]
+		name = paths[3]
+	default:
+		return 0, errors.New("invalid request path")
 	}
 
 	if ns == "" {
