@@ -1,0 +1,10 @@
+go 1.19
+
+use (
+	.
+	./api
+	./client
+	./lib
+	./pkg/observability
+	./pkg/raft
+)
