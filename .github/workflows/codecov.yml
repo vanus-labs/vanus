@@ -36,7 +36,15 @@ jobs:
       - name: Generate coverage report
         timeout-minutes: 5
         run: |
-          go test -failfast -race -coverprofile=coverage.txt -covermode=atomic -timeout 300s ./internal/...
+          for pkg in lib api pkg client server; do
+            for d in $(go list ./$pkg/... | grep -v /pkg/raft); do
+              go test -failfast -race -coverprofile=profile.out -covermode=atomic -timeout 300s $d
+              if [ -f profile.out ]; then
+                cat profile.out >> coverage.txt
+                rm profile.out
+              fi
+            done
+          done
       - uses: codecov/codecov-action@v2
         with:
           files: ./coverage.txt # optional
