@@ -27,7 +27,7 @@ func TestCtrlClientIsNeedRetry(t *testing.T) {
 	Convey("test isNeedRetry", t, func() {
 		// cli := NewSegmentClient([]string{"127.0.0.1:2048", "127.0.0.1:2148", "127.0.0.1:2248"}, insecure.NewCredentials())
 		Convey("test error internal", func() {
-			err := error(errors.ErrNoControllerLeader)
+			err := error(errors.ErrNotLeader)
 			So(isNeedRetry(err), ShouldBeTrue)
 
 			err = fmt.Errorf("test error")
@@ -41,7 +41,7 @@ func TestCtrlClientIsNeedRetry(t *testing.T) {
 			err = errors.New("xxxxx: 1111111111 ")
 			So(isNeedRetry(err), ShouldBeFalse)
 
-			err = errors.New("balabala, please connect to: 127.0.0.1:2048 ").WithGRPCCode(errors.ErrorCode_NOT_LEADER)
+			err = errors.New("balabala, please connect to: 127.0.0.1:2048 ").WithGRPCCode(errors.ErrorCodeNotLeader)
 			So(isNeedRetry(err), ShouldBeTrue)
 		})
 	})

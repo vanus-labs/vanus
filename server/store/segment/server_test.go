@@ -51,7 +51,7 @@ func TestServer_RemoveBlock(t *testing.T) {
 			err := srv.RemoveBlock(context.Background(), snowflake.NewTestID())
 			et := err.(*errors.ErrorType)
 			So(et.Description, ShouldEqual, "service state error")
-			So(et.Code, ShouldEqual, errors.ErrorCode_SERVICE_STATE_ERROR)
+			So(et.Code, ShouldEqual, errors.ErrorCodeServiceStateError)
 			So(et.Message, ShouldEqual, fmt.Sprintf(
 				"the server isn't ready to work, current state: %s",
 				primitive.ServerStateCreated))
@@ -63,7 +63,7 @@ func TestServer_RemoveBlock(t *testing.T) {
 			err := srv.RemoveBlock(context.Background(), snowflake.NewTestID())
 			et := err.(*errors.ErrorType)
 			So(et.Description, ShouldEqual, "resource not found")
-			So(et.Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
+			So(et.Code, ShouldEqual, errors.ErrorCodeResourceNotFound)
 			So(et.Message, ShouldEqual, "the block not found")
 		})
 
@@ -94,7 +94,7 @@ func TestServer_ReadFromBlock(t *testing.T) {
 
 		_, err := srv.ReadFromBlock(context.Background(), snowflake.NewTestID(), 0, 3, uint32(0))
 		So(err, ShouldNotBeNil)
-		So(err.(*errors.ErrorType).Code, ShouldEqual, errors.ErrorCode_RESOURCE_NOT_FOUND)
+		So(err.(*errors.ErrorType).Code, ShouldEqual, errors.ErrorCodeResourceNotFound)
 	})
 
 	Convey("read from block", t, func() {

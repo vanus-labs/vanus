@@ -17,159 +17,159 @@ package errors
 type ErrorCode int32
 
 const (
-	// ErrorCode_UNKNOWN 90xx
-	ErrorCode_UNKNOWN ErrorCode = 9000
+	// ErrorCodeUnknown 90xx.
+	ErrorCodeUnknown ErrorCode = 9000
 
-	// ErrorCode_INVALID_REQUEST 91xx
-	ErrorCode_INVALID_REQUEST           ErrorCode = 9100
-	ErrorCode_INVALID_ARGUMENT          ErrorCode = 9101
-	ErrorCode_CESQL_EXPRESSION          ErrorCode = 9102
-	ErrorCode_CEL_EXPRESSION            ErrorCode = 9103
-	ErrorCode_FILTER_ATTRIBUTE_IS_EMPTY ErrorCode = 9104
-	ErrorCode_FILTER_MULTIPLE           ErrorCode = 9105
-	ErrorCode_INVALID_HEARTBEAT_REQUEST ErrorCode = 9106
-	ErrorCode_JSON_PARSE                ErrorCode = 9107
-	ErrorCode_TRANSFORM_INPUT_PARSE     ErrorCode = 9108
-	ErrorCode_CORRUPTED_EVENT           ErrorCode = 9109
+	// ErrorCodeInvalidRequest 91xx.
+	ErrorCodeInvalidRequest          ErrorCode = 9100
+	ErrorCodeInvalidArgument         ErrorCode = 9101
+	ErrorCodeCESQLExpression         ErrorCode = 9102
+	ErrorCodeCELExpression           ErrorCode = 9103
+	ErrorCodeFilterAttributeIsEmpty  ErrorCode = 9104
+	ErrorCodeFilterMultiple          ErrorCode = 9105
+	ErrorCodeInvalidHeartbeatRequest ErrorCode = 9106
+	ErrorCodeJSONParse               ErrorCode = 9107
+	ErrorCodeTransformInputParse     ErrorCode = 9108
+	ErrorCodeCorruptedEvent          ErrorCode = 9109
 
-	// ErrorCode_SERVICE_NOT_RUNNING 92xx
-	ErrorCode_SERVICE_NOT_RUNNING           ErrorCode = 9200
-	ErrorCode_SEGMENT_SERVER_HAS_BEEN_ADDED ErrorCode = 9201
-	ErrorCode_SERVICE_STATE_ERROR           ErrorCode = 9202
-	ErrorCode_WORKER_NOT_RUNNING            ErrorCode = 9203
+	// ErrorCodeServiceNotRunning 92xx.
+	ErrorCodeServiceNotRunning         ErrorCode = 9200
+	ErrorCodeSegmentServerHasBeenAdded ErrorCode = 9201
+	ErrorCodeServiceStateError         ErrorCode = 9202
+	ErrorCodeWorkerNotRunning          ErrorCode = 9203
 
-	// ErrorCode_RESOURCE_EXIST 93xx
-	ErrorCode_RESOURCE_EXIST ErrorCode = 9300
+	// ErrorCodeResourceExist 93xx
+	ErrorCodeResourceExist ErrorCode = 9300
 
-	// ErrorCode_RESOURCE_NOT_FOUND 94xx
-	ErrorCode_RESOURCE_NOT_FOUND ErrorCode = 9400
-	ErrorCode_EVENTBUS_NOT_FOUND ErrorCode = 9401
-	ErrorCode_EVENTLOG_NOT_FOUND ErrorCode = 9402
-	ErrorCode_SEGMENT_NOT_FOUND  ErrorCode = 9403
-	ErrorCode_BLOCK_NOT_FOUND    ErrorCode = 9404
-	ErrorCode_VOLUME_NOT_FOUND   ErrorCode = 9405
+	// ErrorCodeResourceNotFound 94xx.
+	ErrorCodeResourceNotFound ErrorCode = 9400
+	ErrorCodeEventbusNotFound ErrorCode = 9401
+	ErrorCodeEventlogNotFound ErrorCode = 9402
+	ErrorCodeSegmentNotFound  ErrorCode = 9403
+	ErrorCodeBlockNotFound    ErrorCode = 9404
+	ErrorCodeVolumeNotFound   ErrorCode = 9405
 
-	// ErrorCode_INTERNAL 95xx
-	ErrorCode_INTERNAL               ErrorCode = 9500
-	ErrorCode_TRIGGER_WORKER         ErrorCode = 9501
-	ErrorCode_INVALID_SEGMENT        ErrorCode = 9502
-	ErrorCode_INVALID_HEARTBEAT      ErrorCode = 9503
-	ErrorCode_VOLUME_NO_SERVER       ErrorCode = 9504
-	ErrorCode_JSON_MARSHAL           ErrorCode = 9505
-	ErrorCode_JSON_UNMARSHAL         ErrorCode = 9506
-	ErrorCode_AES_ENCRYPT            ErrorCode = 9507
-	ErrorCode_AES_DECRYPT            ErrorCode = 9508
-	ErrorCode_UNMARSHAL              ErrorCode = 9509
-	ErrorCode_LAMBDA_INVOKE          ErrorCode = 9510
-	ErrorCode_LAMBDA_INVOKE_RESPONSE ErrorCode = 9511
-	ErrorCode_INVALID_JSON_PATH      ErrorCode = 9512
-	ErrorCode_JSON_PATH_NOT_EXIST    ErrorCode = 9513
+	// ErrorCodeInternal 95xx.
+	ErrorCodeInternal             ErrorCode = 9500
+	ErrorCodeTriggerWorker        ErrorCode = 9501
+	ErrorCodeInvalidSegment       ErrorCode = 9502
+	ErrorCodeInvalidHeartbeat     ErrorCode = 9503
+	ErrorCodeVolumeNoServer       ErrorCode = 9504
+	ErrorCodeJSONMarshal          ErrorCode = 9505
+	ErrorCodeJSONUnmarshal        ErrorCode = 9506
+	ErrorCodeAESEncrypt           ErrorCode = 9507
+	ErrorCodeAESDecrypt           ErrorCode = 9508
+	ErrorCodeUnmarshal            ErrorCode = 9509
+	ErrorCodeLambdaInvoke         ErrorCode = 9510
+	ErrorCodeLambdaInvokeResponse ErrorCode = 9511
+	ErrorCodeInvalidJSONPath      ErrorCode = 9512
+	ErrorCodeJSONPathNotExist     ErrorCode = 9513
 
-	// ErrorCode_SEGMENT_FULL 96xx
-	ErrorCode_SEGMENT_FULL            ErrorCode = 9600
-	ErrorCode_SEGMENT_NO_ENOUGH_SPACE ErrorCode = 9601
-	ErrorCode_OFFSET_UNDERFLOW        ErrorCode = 9602
-	ErrorCode_OFFSET_OVERFLOW         ErrorCode = 9603
-	ErrorCode_OFFSET_ON_END           ErrorCode = 9604
-	ErrorCode_BLOCK_NOT_SUPPORTED     ErrorCode = 9605
-	ErrorCode_NOT_WRITABLE            ErrorCode = 9606
-	ErrorCode_NOT_READABLE            ErrorCode = 9607
-	ErrorCode_TRY_AGAIN               ErrorCode = 9608
-	ErrorCode_NO_ENDPOINT             ErrorCode = 9609
-	ErrorCode_CLOSED                  ErrorCode = 9610
+	// ErrorCodeSegmentFull 96xx.
+	ErrorCodeSegmentFull          ErrorCode = 9600
+	ErrorCodeSegmentNoEnoughSpace ErrorCode = 9601
+	ErrorCodeOffsetUnderflow      ErrorCode = 9602
+	ErrorCodeOffsetOverflow       ErrorCode = 9603
+	ErrorCodeOffsetOnEnd          ErrorCode = 9604
+	ErrorCodeBlockNotSupported    ErrorCode = 9605
+	ErrorCodeNotWritable          ErrorCode = 9606
+	ErrorCodeNotReadable          ErrorCode = 9607
+	ErrorCodeTryAgain             ErrorCode = 9608
+	ErrorCodeNoEndpoint           ErrorCode = 9609
+	ErrorCodeClosed               ErrorCode = 9610
 
-	// ErrorCode_NOT_LEADER 97xx
-	ErrorCode_NOT_LEADER           ErrorCode = 9700
-	ErrorCode_NO_CONTROLLER_LEADER ErrorCode = 9701
-	ErrorCode_NOT_RAFT_LEADER      ErrorCode = 9702
-	ErrorCode_NOT_READY            ErrorCode = 9704
+	// ErrorCodeNotLeader 97xx.
+	ErrorCodeNotLeader          ErrorCode = 9700
+	ErrorCodeNoControllerLeader ErrorCode = 9701
+	ErrorCodeNotRaftLeader      ErrorCode = 9702
+	ErrorCodeNotReady           ErrorCode = 9704
 
-	// ErrorCode_RESERVE 98xx
+	// ErrorCode_RESERVE 98xx.
 
-	// ErrorCode_OTHERS 99xx
-	ErrorCode_RESOURCE_EXHAUSTED  ErrorCode = 9901
-	ErrorCode_RESOURCE_CAN_NOT_OP ErrorCode = 9902
+	// ErrorCode_OTHERS 99xx.
+	ErrorCodeResourceExhausted ErrorCode = 9901
+	ErrorCodeResourceCanNotOp  ErrorCode = 9902
 
-	ErrorCode_Unauthenticated  ErrorCode = 9910
-	ErrorCode_PermissionDenied ErrorCode = 9911
+	ErrorCodeUnauthenticated  ErrorCode = 9910
+	ErrorCodePermissionDenied ErrorCode = 9911
 )
 
 var (
-	// UNKNOWN
-	ErrUnknown = New("unknown").WithGRPCCode(ErrorCode_UNKNOWN)
+	// UNKNOWN.
+	ErrUnknown = New("unknown").WithGRPCCode(ErrorCodeUnknown)
 
-	// RESOURCE_NOT_FOUND
-	ErrResourceNotFound       = New("resource not found").WithGRPCCode(ErrorCode_RESOURCE_NOT_FOUND)
-	ErrEventlogNotFound       = New("eventlog not found").WithGRPCCode(ErrorCode_EVENTLOG_NOT_FOUND)
-	ErrSegmentNotFound        = New("segment not found").WithGRPCCode(ErrorCode_SEGMENT_NOT_FOUND)
-	ErrBlockNotFound          = New("block not found").WithGRPCCode(ErrorCode_BLOCK_NOT_FOUND)
-	ErrVolumeInstanceNotFound = New("volume instance not found").WithGRPCCode(ErrorCode_VOLUME_NOT_FOUND)
+	// RESOURCE_NOT_FOUND.
+	ErrResourceNotFound       = New("resource not found").WithGRPCCode(ErrorCodeResourceNotFound)
+	ErrEventlogNotFound       = New("eventlog not found").WithGRPCCode(ErrorCodeEventlogNotFound)
+	ErrSegmentNotFound        = New("segment not found").WithGRPCCode(ErrorCodeSegmentNotFound)
+	ErrBlockNotFound          = New("block not found").WithGRPCCode(ErrorCodeBlockNotFound)
+	ErrVolumeInstanceNotFound = New("volume instance not found").WithGRPCCode(ErrorCodeVolumeNotFound)
 
-	// SERVICE_NOT_RUNNING
-	ErrServerNotStart            = New("server not start").WithGRPCCode(ErrorCode_SERVICE_NOT_RUNNING)
+	// SERVICE_NOT_RUNNING.
+	ErrServerNotStart            = New("server not start").WithGRPCCode(ErrorCodeServiceNotRunning)
 	ErrSegmentServerHasBeenAdded = New("the segment server has been added").WithGRPCCode(
-		ErrorCode_SEGMENT_SERVER_HAS_BEEN_ADDED)
-	ErrServiceState   = New("service state error").WithGRPCCode(ErrorCode_SERVICE_STATE_ERROR)
-	ErrWorkerNotStart = New("worker not start").WithGRPCCode(ErrorCode_WORKER_NOT_RUNNING)
+		ErrorCodeSegmentServerHasBeenAdded)
+	ErrServiceState   = New("service state error").WithGRPCCode(ErrorCodeServiceStateError)
+	ErrWorkerNotStart = New("worker not start").WithGRPCCode(ErrorCodeWorkerNotRunning)
 
-	// SEGMENT_FULL
-	ErrSegmentFull           = New("segment full").WithGRPCCode(ErrorCode_SEGMENT_FULL)
-	ErrSegmentNotEnoughSpace = New("not enough space").WithGRPCCode(ErrorCode_SEGMENT_NO_ENOUGH_SPACE)
-	ErrOffsetUnderflow       = New("the offset underflow").WithGRPCCode(ErrorCode_OFFSET_UNDERFLOW)
-	ErrOffsetOverflow        = New("the offset overflow").WithGRPCCode(ErrorCode_OFFSET_OVERFLOW)
-	ErrOffsetOnEnd           = New("the offset on end").WithGRPCCode(ErrorCode_OFFSET_ON_END)
-	ErrBlockNotSupported     = New("block not supported").WithGRPCCode(ErrorCode_BLOCK_NOT_SUPPORTED)
-	ErrNotWritable           = New("not writable").WithGRPCCode(ErrorCode_NOT_WRITABLE)
-	ErrNotReadable           = New("not readable").WithGRPCCode(ErrorCode_NOT_READABLE)
-	ErrTryAgain              = New("try again").WithGRPCCode(ErrorCode_TRY_AGAIN)
-	ErrNoEndpoint            = New("no endpoint").WithGRPCCode(ErrorCode_NO_ENDPOINT)
-	ErrClosed                = New("closed").WithGRPCCode(ErrorCode_CLOSED)
+	// SEGMENT_FULL.
+	ErrSegmentFull           = New("segment full").WithGRPCCode(ErrorCodeSegmentFull)
+	ErrSegmentNotEnoughSpace = New("not enough space").WithGRPCCode(ErrorCodeSegmentNoEnoughSpace)
+	ErrOffsetUnderflow       = New("the offset underflow").WithGRPCCode(ErrorCodeOffsetUnderflow)
+	ErrOffsetOverflow        = New("the offset overflow").WithGRPCCode(ErrorCodeOffsetOverflow)
+	ErrOffsetOnEnd           = New("the offset on end").WithGRPCCode(ErrorCodeOffsetOnEnd)
+	ErrBlockNotSupported     = New("block not supported").WithGRPCCode(ErrorCodeBlockNotSupported)
+	ErrNotWritable           = New("not writable").WithGRPCCode(ErrorCodeNotWritable)
+	ErrNotReadable           = New("not readable").WithGRPCCode(ErrorCodeNotReadable)
+	ErrTryAgain              = New("try again").WithGRPCCode(ErrorCodeTryAgain)
+	ErrNoEndpoint            = New("no endpoint").WithGRPCCode(ErrorCodeNoEndpoint)
+	ErrClosed                = New("closed").WithGRPCCode(ErrorCodeClosed)
 
-	// INTERNAL
-	ErrInternal               = New("internal error").WithGRPCCode(ErrorCode_INTERNAL)
-	ErrTriggerWorker          = New("trigger worker error").WithGRPCCode(ErrorCode_TRIGGER_WORKER)
-	ErrInvalidSegment         = New("invalid segment").WithGRPCCode(ErrorCode_INVALID_SEGMENT)
-	ErrInvalidHeartBeat       = New("invalid heartbeat").WithGRPCCode(ErrorCode_INVALID_HEARTBEAT)
-	ErrVolumeInstanceNoServer = New("no segment server was bound to volume instance").WithGRPCCode(ErrorCode_VOLUME_NO_SERVER)
-	ErrJSONMarshal            = New("json marshal").WithGRPCCode(ErrorCode_JSON_MARSHAL)
-	ErrJSONUnMarshal          = New("json unmarshal").WithGRPCCode(ErrorCode_JSON_UNMARSHAL)
-	ErrAESEncrypt             = New("aes encrypt").WithGRPCCode(ErrorCode_AES_ENCRYPT)
-	ErrAESDecrypt             = New("aes decrypt").WithGRPCCode(ErrorCode_AES_DECRYPT)
-	ErrUnmarshall             = New("unmarshall data failed").WithGRPCCode(ErrorCode_UNMARSHAL)
-	ErrLambdaInvoke           = New("lambda invoke error").WithGRPCCode(ErrorCode_LAMBDA_INVOKE)
-	ErrLambdaInvokeResponse   = New("lambda invoke response fail").WithGRPCCode(ErrorCode_LAMBDA_INVOKE_RESPONSE)
-	ErrInvalidJSONPath        = New("invalid JSON path").WithGRPCCode(ErrorCode_INVALID_JSON_PATH)
-	ErrJSONPathNotExist       = New("JSON path not exist").WithGRPCCode(ErrorCode_JSON_PATH_NOT_EXIST)
+	// INTERNAL.
+	ErrInternal               = New("internal error").WithGRPCCode(ErrorCodeInternal)
+	ErrTriggerWorker          = New("trigger worker error").WithGRPCCode(ErrorCodeTriggerWorker)
+	ErrInvalidSegment         = New("invalid segment").WithGRPCCode(ErrorCodeInvalidSegment)
+	ErrInvalidHeartBeat       = New("invalid heartbeat").WithGRPCCode(ErrorCodeInvalidHeartbeat)
+	ErrVolumeInstanceNoServer = New("no segment server was bound to volume instance").WithGRPCCode(ErrorCodeVolumeNoServer)
+	ErrJSONMarshal            = New("json marshal").WithGRPCCode(ErrorCodeJSONMarshal)
+	ErrJSONUnMarshal          = New("json unmarshal").WithGRPCCode(ErrorCodeJSONUnmarshal)
+	ErrAESEncrypt             = New("aes encrypt").WithGRPCCode(ErrorCodeAESEncrypt)
+	ErrAESDecrypt             = New("aes decrypt").WithGRPCCode(ErrorCodeAESDecrypt)
+	ErrUnmarshal              = New("unmarshal data failed").WithGRPCCode(ErrorCodeUnmarshal)
+	ErrLambdaInvoke           = New("lambda invoke error").WithGRPCCode(ErrorCodeLambdaInvoke)
+	ErrLambdaInvokeResponse   = New("lambda invoke response fail").WithGRPCCode(ErrorCodeLambdaInvokeResponse)
+	ErrInvalidJSONPath        = New("invalid JSON path").WithGRPCCode(ErrorCodeInvalidJSONPath)
+	ErrJSONPathNotExist       = New("JSON path not exist").WithGRPCCode(ErrorCodeJSONPathNotExist)
 
-	// INVALID_REQUEST
-	ErrInvalidRequest          = New("invalid request").WithGRPCCode(ErrorCode_INVALID_REQUEST)
-	ErrInvalidArgument         = New("invalid argument").WithGRPCCode(ErrorCode_INVALID_ARGUMENT)
-	ErrCeSQLExpression         = New("ce sql expression invalid").WithGRPCCode(ErrorCode_CESQL_EXPRESSION)
-	ErrCelExpression           = New("cel expression invalid").WithGRPCCode(ErrorCode_CEL_EXPRESSION)
-	ErrFilterAttributeIsEmpty  = New("filter dialect attribute is empty").WithGRPCCode(ErrorCode_FILTER_ATTRIBUTE_IS_EMPTY)
-	ErrFilterMultiple          = New("filter multiple dialects found").WithGRPCCode(ErrorCode_FILTER_MULTIPLE)
-	ErrInvalidHeartBeatRequest = New("invalid heartbeat request").WithGRPCCode(ErrorCode_INVALID_HEARTBEAT_REQUEST)
-	ErrVanusJSONParse          = New("invalid json").WithGRPCCode(ErrorCode_JSON_PARSE)
-	ErrTransformInputParse     = New("transform input invalid").WithGRPCCode(ErrorCode_TRANSFORM_INPUT_PARSE)
-	ErrCorruptedEvent          = New("corrupted event").WithGRPCCode(ErrorCode_CORRUPTED_EVENT)
+	// INVALID_REQUEST.
+	ErrInvalidRequest          = New("invalid request").WithGRPCCode(ErrorCodeInvalidRequest)
+	ErrInvalidArgument         = New("invalid argument").WithGRPCCode(ErrorCodeInvalidArgument)
+	ErrCeSQLExpression         = New("ce sql expression invalid").WithGRPCCode(ErrorCodeCESQLExpression)
+	ErrCelExpression           = New("cel expression invalid").WithGRPCCode(ErrorCodeCELExpression)
+	ErrFilterAttributeIsEmpty  = New("filter dialect attribute is empty").WithGRPCCode(ErrorCodeFilterAttributeIsEmpty)
+	ErrFilterMultiple          = New("filter multiple dialects found").WithGRPCCode(ErrorCodeFilterMultiple)
+	ErrInvalidHeartBeatRequest = New("invalid heartbeat request").WithGRPCCode(ErrorCodeInvalidHeartbeatRequest)
+	ErrVanusJSONParse          = New("invalid json").WithGRPCCode(ErrorCodeJSONParse)
+	ErrTransformInputParse     = New("transform input invalid").WithGRPCCode(ErrorCodeTransformInputParse)
+	ErrCorruptedEvent          = New("corrupted event").WithGRPCCode(ErrorCodeCorruptedEvent)
 
-	// ErrResourceAlreadyExist
-	ErrResourceAlreadyExist = New("resource already exist").WithGRPCCode(ErrorCode_RESOURCE_EXIST)
+	// ErrResourceAlreadyExist.
+	ErrResourceAlreadyExist = New("resource already exist").WithGRPCCode(ErrorCodeResourceExist)
 
-	// ErrNotLeader not leader
-	ErrNotLeader          = New("not leader").WithGRPCCode(ErrorCode_NOT_LEADER)
-	ErrNotReady           = New("not ready").WithGRPCCode(ErrorCode_NOT_READY)
-	ErrNoControllerLeader = New("no leader controller found").WithGRPCCode(ErrorCode_NO_CONTROLLER_LEADER)
-	ErrNotRaftLeader      = New("the node is not raft leader").WithGRPCCode(ErrorCode_NOT_RAFT_LEADER)
+	// ErrNotLeader not leader.
+	ErrNotLeader          = New("not leader").WithGRPCCode(ErrorCodeNotLeader)
+	ErrNotReady           = New("not ready").WithGRPCCode(ErrorCodeNotReady)
+	ErrNoControllerLeader = New("no leader controller found").WithGRPCCode(ErrorCodeNoControllerLeader)
+	ErrNotRaftLeader      = New("the node is not raft leader").WithGRPCCode(ErrorCodeNotRaftLeader)
 
-	// RESOURCE_EXHAUSTED
-	ErrNoAvailableEventlog = New("no eventlog available").WithGRPCCode(ErrorCode_RESOURCE_EXHAUSTED)
+	// RESOURCE_EXHAUSTED.
+	ErrNoAvailableEventlog = New("no eventlog available").WithGRPCCode(ErrorCodeResourceExhausted)
 
-	// NO_MORE_MESSAGE
+	// NO_MORE_MESSAGE.
 
-	// RESOURCE_CAN_NOT_OP
-	ErrResourceCanNotOp = New("resource can not operation").WithGRPCCode(ErrorCode_RESOURCE_CAN_NOT_OP)
+	// RESOURCE_CAN_NOT_OP.
+	ErrResourceCanNotOp = New("resource can not operation").WithGRPCCode(ErrorCodeResourceCanNotOp)
 
-	ErrUnauthenticated  = New("unauthenticated").WithGRPCCode(ErrorCode_Unauthenticated)
-	ErrPermissionDenied = New("permissionDenied").WithGRPCCode(ErrorCode_PermissionDenied)
+	ErrUnauthenticated  = New("unauthenticated").WithGRPCCode(ErrorCodeUnauthenticated)
+	ErrPermissionDenied = New("permissionDenied").WithGRPCCode(ErrorCodePermissionDenied)
 )

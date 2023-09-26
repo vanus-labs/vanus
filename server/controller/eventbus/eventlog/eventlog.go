@@ -909,7 +909,7 @@ func newEventlog(ctx context.Context, md *metadata.Eventlog, kvClient kv.Client,
 			SegmentID vanus.ID `json:"segment_id"`
 		})
 		if err1 := json.Unmarshal(v.Value, id); err1 != nil {
-			return nil, errors.ErrUnmarshall.Wrap(err1)
+			return nil, errors.ErrUnmarshal.Wrap(err1)
 		}
 		segmentIDs = append(segmentIDs, id.SegmentID)
 	}
