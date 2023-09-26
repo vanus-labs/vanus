@@ -42,7 +42,7 @@ type getResult struct {
 	Apply   uint64 `json:"Apply"`
 }
 
-func get(cmd *cobra.Command, args []string) {
+func get(_ *cobra.Command, args []string) {
 	db, err := meta.Open(volumePath, meta.ReadOnly(), meta.SkipMetaStore())
 	if err != nil {
 		panic(err)

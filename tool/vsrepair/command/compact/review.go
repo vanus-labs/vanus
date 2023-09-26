@@ -42,7 +42,7 @@ type reviewResult struct {
 	Compact *meta.CompactInfo `json:"Compact"`
 }
 
-func review(cmd *cobra.Command, args []string) {
+func review(_ *cobra.Command, args []string) {
 	for _, arg := range args {
 		id, err := strconv.ParseUint(arg, 0, 64)
 		if err != nil {

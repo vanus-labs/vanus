@@ -42,7 +42,7 @@ type getResult struct {
 	Compact meta.CompactInfo `json:"Compact"`
 }
 
-func get(cmd *cobra.Command, args []string) {
+func get(_ *cobra.Command, args []string) {
 	db, err := meta.Open(volumePath, meta.ReadOnly())
 	if err != nil {
 		panic(err)

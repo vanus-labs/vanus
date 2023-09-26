@@ -45,7 +45,7 @@ type getResult struct {
 	HardState raftpb.HardState `json:"HardState"`
 }
 
-func get(cmd *cobra.Command, args []string) {
+func get(_ *cobra.Command, args []string) {
 	db, err := meta.Open(volumePath, meta.ReadOnly())
 	if err != nil {
 		panic(err)

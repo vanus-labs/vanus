@@ -35,7 +35,7 @@ func ModifyCommand() *cobra.Command {
 	return cmd
 }
 
-func modify(cmd *cobra.Command, args []string) {
+func modify(_ *cobra.Command, args []string) {
 	if len(args) != 1 {
 		panic("invalid args")
 	}

@@ -118,27 +118,27 @@ type RaftDetail struct {
 func (db *DB) GetRaftDetail(node uint64) (d RaftDetail, err error) {
 	d.Compact, err = db.GetCompact(node)
 	if err != nil {
-		return
+		return d, err
 	}
 
 	d.ConfState, err = db.GetConfState(node)
 	if err != nil && err != ErrNotFound { //nolint:errorlint // compare to ErrNotFound is ok.
-		return
+		return d, err
 	}
 
 	d.HardState, err = db.GetHardState(node)
 	if err != nil && err != ErrNotFound { //nolint:errorlint // compare to ErrNotFound is ok.
-		return
+		return d, err
 	}
 
 	d.Commit, err = db.GetCommit(node)
 	if err != nil && err != ErrNotFound { //nolint:errorlint // compare to ErrNotFound is ok.
-		return
+		return d, err
 	}
 
 	d.Apply, err = db.GetApply(node)
 	if err != nil && err != ErrNotFound { //nolint:errorlint // compare to ErrNotFound is ok.
-		return
+		return d, err
 	}
 
 	return d, nil
@@ -255,8 +255,5 @@ func (db *DB) PutCompact(node uint64, info CompactInfo) error {
 	var value [16]byte
 	binary.BigEndian.PutUint64(value[0:8], info.Index)
 	binary.BigEndian.PutUint64(value[8:16], info.Term)
-	if err := meta.Store(context.Background(), db.metaStore, comKey, value[:]); err != nil {
-		return err
-	}
-	return nil
+	return meta.Store(context.Background(), db.metaStore, comKey, value[:])
 }

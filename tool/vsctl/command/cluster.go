@@ -35,13 +35,11 @@ import (
 const (
 	DefaultInitialVersion    = "v0.9.0"
 	DefaultImagePullPolicy   = "Always"
-	DefaultResourceLimitsCpu = "500m"
+	DefaultResourceLimitsCPU = "500m"
 	DefaultResourceLimitsMem = "1Gi"
 )
 
-var (
-	clusterVersionList = []string{DefaultInitialVersion}
-)
+var clusterVersionList = []string{DefaultInitialVersion}
 
 type ClusterCreate struct {
 	Version     string            `json:"version,omitempty"`
@@ -147,7 +145,7 @@ type TimingWheel struct {
 }
 
 type Resources struct {
-	LimitsCpu *string `yaml:"limits_cpu"`
+	LimitsCPU *string `yaml:"limits_cpu"`
 	LimitsMem *string `yaml:"limits_mem"`
 }
 
@@ -204,7 +202,8 @@ func createClusterCommand() *cobra.Command {
 			}
 
 			if !operatorIsDeployed(cmd, operatorEndpoint) {
-				fmt.Print("You haven't deployed the operator yet, but the vanus cluster is managed by operator. Please confirm whether you want to deploy the operator(y/n):")
+				fmt.Print("You haven't deployed the operator yet, but the vanus cluster is managed " +
+					"by operator. Please confirm whether you want to deploy the operator(y/n):")
 				reader := bufio.NewReader(os.Stdin)
 				ack, err := reader.ReadString('\n')
 				if err != nil {
@@ -253,15 +252,27 @@ func createClusterCommand() *cobra.Command {
 			clusterspec := table.NewWriter()
 			clusterspec.AppendHeader(table.Row{"Cluster", "Version", "Component", "Replicas", "StorageSize", "StorageClass"})
 			if c.Etcd.StorageClass == nil {
-				clusterspec.AppendRow(table.Row{"vanus", *c.Version, "etcd", *c.Etcd.Replicas, *c.Etcd.StorageSize, "-"})
+				clusterspec.AppendRow(table.Row{
+					"vanus", *c.Version, "etcd",
+					*c.Etcd.Replicas, *c.Etcd.StorageSize, "-",
+				})
 			} else {
-				clusterspec.AppendRow(table.Row{"vanus", *c.Version, "etcd", *c.Etcd.Replicas, *c.Etcd.StorageSize, *c.Etcd.StorageClass})
+				clusterspec.AppendRow(table.Row{
+					"vanus", *c.Version, "etcd",
+					*c.Etcd.Replicas, *c.Etcd.StorageSize, *c.Etcd.StorageClass,
+				})
 			}
 			clusterspec.AppendSeparator()
 			if c.Store.StorageClass == nil {
-				clusterspec.AppendRow(table.Row{"vanus", *c.Version, "store", *c.Store.Replicas, *c.Store.StorageSize, "-"})
+				clusterspec.AppendRow(table.Row{
+					"vanus", *c.Version, "store",
+					*c.Store.Replicas, *c.Store.StorageSize, "-",
+				})
 			} else {
-				clusterspec.AppendRow(table.Row{"vanus", *c.Version, "store", *c.Store.Replicas, *c.Store.StorageSize, *c.Store.StorageClass})
+				clusterspec.AppendRow(table.Row{
+					"vanus", *c.Version, "store",
+					*c.Store.Replicas, *c.Store.StorageSize, *c.Store.StorageClass,
+				})
 			}
 			clusterspec.AppendSeparator()
 			clusterspec.AppendRow(table.Row{"vanus", *c.Version, "controller", *c.Controller.Replicas, "-", "-"})
@@ -817,7 +828,7 @@ func genClusterCommand() *cobra.Command {
 			template.WriteString("  # specify the pvc storageclass of the etcd, use the cluster default storageclass by default\n")
 			template.WriteString("  # storage_class: gp3\n")
 			template.WriteString("  # resources:\n")
-			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCpu))
+			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCPU))
 			template.WriteString(fmt.Sprintf("    # limits_mem: %s\n", DefaultResourceLimitsMem))
 			template.WriteString("controller:\n")
 			template.WriteString("  # controller service ports\n")
@@ -829,7 +840,7 @@ func genClusterCommand() *cobra.Command {
 			template.WriteString("  # segment capacity is 64Mi by default, supports both Gi and Mi units\n")
 			template.WriteString("  segment_capacity: 64Mi\n")
 			template.WriteString("  # resources:\n")
-			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCpu))
+			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCPU))
 			template.WriteString(fmt.Sprintf("    # limits_mem: %s\n", DefaultResourceLimitsMem))
 			template.WriteString("store:\n")
 			template.WriteString("  replicas: 3\n")
@@ -838,7 +849,7 @@ func genClusterCommand() *cobra.Command {
 			template.WriteString("  # specify the pvc storageclass of the store, use the cluster default storageclass by default\n")
 			template.WriteString("  # storage_class: io2\n")
 			template.WriteString("  # resources:\n")
-			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCpu))
+			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCPU))
 			template.WriteString(fmt.Sprintf("    # limits_mem: %s\n", DefaultResourceLimitsMem))
 			template.WriteString("gateway:\n")
 			template.WriteString("  # gateway service ports\n")
@@ -852,12 +863,12 @@ func genClusterCommand() *cobra.Command {
 			template.WriteString("  # gateway replicas is 1 by default, modification not supported\n")
 			template.WriteString("  replicas: 1\n")
 			template.WriteString("  # resources:\n")
-			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCpu))
+			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCPU))
 			template.WriteString(fmt.Sprintf("    # limits_mem: %s\n", DefaultResourceLimitsMem))
 			template.WriteString("trigger:\n")
 			template.WriteString("  replicas: 1\n")
 			template.WriteString("  # resources:\n")
-			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCpu))
+			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCPU))
 			template.WriteString(fmt.Sprintf("    # limits_mem: %s\n", DefaultResourceLimitsMem))
 			template.WriteString("timer:\n")
 			template.WriteString("  # timer replicas is 2 by default, modification not supported\n")
@@ -867,7 +878,7 @@ func genClusterCommand() *cobra.Command {
 			template.WriteString("    wheel_size: 32\n")
 			template.WriteString("    layers: 4\n")
 			template.WriteString("  # resources:\n")
-			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCpu))
+			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCPU))
 			template.WriteString(fmt.Sprintf("    # limits_mem: %s\n", DefaultResourceLimitsMem))
 			fileName := "cluster.yaml.example"
 			err := ioutil.WriteFile(fileName, template.Bytes(), 0o644)
@@ -962,20 +973,22 @@ func genClusterAnnotations(c *ClusterSpec) map[string]string {
 		annotations[CoreComponentEtcdStorageClassAnnotation] = *c.Etcd.StorageClass
 	}
 	if c.Etcd.Resources != nil {
-		if c.Etcd.Resources.LimitsCpu != nil {
-			annotations[CoreComponentEtcdResourceLimitsCpuAnnotation] = *c.Etcd.Resources.LimitsCpu
+		if c.Etcd.Resources.LimitsCPU != nil {
+			annotations[CoreComponentEtcdResourceLimitsCpuAnnotation] = *c.Etcd.Resources.LimitsCPU
 		}
 		if c.Etcd.Resources.LimitsMem != nil {
 			annotations[CoreComponentEtcdResourceLimitsMemAnnotation] = *c.Etcd.Resources.LimitsMem
 		}
 	}
 	// Controller
-	annotations[CoreComponentControllerSvcPortAnnotation] = fmt.Sprintf("%d", *c.Controller.Ports.Controller)
-	annotations[CoreComponentRootControllerSvcPortAnnotation] = fmt.Sprintf("%d", *c.Controller.Ports.RootController)
+	annotations[CoreComponentControllerSvcPortAnnotation] =
+		fmt.Sprintf("%d", *c.Controller.Ports.Controller)
+	annotations[CoreComponentRootControllerSvcPortAnnotation] =
+		fmt.Sprintf("%d", *c.Controller.Ports.RootController)
 	annotations[CoreComponentControllerSegmentCapacityAnnotation] = *c.Controller.SegmentCapacity
 	if c.Controller.Resources != nil {
-		if c.Controller.Resources.LimitsCpu != nil {
-			annotations[CoreComponentControllerResourceLimitsCpuAnnotation] = *c.Controller.Resources.LimitsCpu
+		if c.Controller.Resources.LimitsCPU != nil {
+			annotations[CoreComponentControllerResourceLimitsCpuAnnotation] = *c.Controller.Resources.LimitsCPU
 		}
 		if c.Controller.Resources.LimitsMem != nil {
 			annotations[CoreComponentControllerResourceLimitsMemAnnotation] = *c.Controller.Resources.LimitsMem
@@ -988,21 +1001,25 @@ func genClusterAnnotations(c *ClusterSpec) map[string]string {
 		annotations[CoreComponentStoreStorageClassAnnotation] = *c.Store.StorageClass
 	}
 	if c.Store.Resources != nil {
-		if c.Store.Resources.LimitsCpu != nil {
-			annotations[CoreComponentStoreResourceLimitsCpuAnnotation] = *c.Store.Resources.LimitsCpu
+		if c.Store.Resources.LimitsCPU != nil {
+			annotations[CoreComponentStoreResourceLimitsCpuAnnotation] = *c.Store.Resources.LimitsCPU
 		}
 		if c.Store.Resources.LimitsMem != nil {
 			annotations[CoreComponentStoreResourceLimitsMemAnnotation] = *c.Store.Resources.LimitsMem
 		}
 	}
 	// Gateway
-	annotations[CoreComponentGatewayPortProxyAnnotation] = fmt.Sprintf("%d", *c.Gateway.Ports.Proxy)
-	annotations[CoreComponentGatewayPortCloudEventsAnnotation] = fmt.Sprintf("%d", *c.Gateway.Ports.CloudEvents)
-	annotations[CoreComponentGatewayNodePortProxyAnnotation] = fmt.Sprintf("%d", *c.Gateway.NodePorts.Proxy)
-	annotations[CoreComponentGatewayNodePortCloudEventsAnnotation] = fmt.Sprintf("%d", *c.Gateway.NodePorts.CloudEvents)
+	annotations[CoreComponentGatewayPortProxyAnnotation] =
+		fmt.Sprintf("%d", *c.Gateway.Ports.Proxy)
+	annotations[CoreComponentGatewayPortCloudEventsAnnotation] =
+		fmt.Sprintf("%d", *c.Gateway.Ports.CloudEvents)
+	annotations[CoreComponentGatewayNodePortProxyAnnotation] =
+		fmt.Sprintf("%d", *c.Gateway.NodePorts.Proxy)
+	annotations[CoreComponentGatewayNodePortCloudEventsAnnotation] =
+		fmt.Sprintf("%d", *c.Gateway.NodePorts.CloudEvents)
 	if c.Gateway.Resources != nil {
-		if c.Gateway.Resources.LimitsCpu != nil {
-			annotations[CoreComponentGatewayResourceLimitsCpuAnnotation] = *c.Gateway.Resources.LimitsCpu
+		if c.Gateway.Resources.LimitsCPU != nil {
+			annotations[CoreComponentGatewayResourceLimitsCpuAnnotation] = *c.Gateway.Resources.LimitsCPU
 		}
 		if c.Gateway.Resources.LimitsMem != nil {
 			annotations[CoreComponentGatewayResourceLimitsMemAnnotation] = *c.Gateway.Resources.LimitsMem
@@ -1011,20 +1028,23 @@ func genClusterAnnotations(c *ClusterSpec) map[string]string {
 	// Trigger
 	annotations[CoreComponentTriggerReplicasAnnotation] = fmt.Sprintf("%d", *c.Trigger.Replicas)
 	if c.Trigger.Resources != nil {
-		if c.Trigger.Resources.LimitsCpu != nil {
-			annotations[CoreComponentTriggerResourceLimitsCpuAnnotation] = *c.Trigger.Resources.LimitsCpu
+		if c.Trigger.Resources.LimitsCPU != nil {
+			annotations[CoreComponentTriggerResourceLimitsCpuAnnotation] = *c.Trigger.Resources.LimitsCPU
 		}
 		if c.Trigger.Resources.LimitsMem != nil {
 			annotations[CoreComponentTriggerResourceLimitsMemAnnotation] = *c.Trigger.Resources.LimitsMem
 		}
 	}
 	// Timer
-	annotations[CoreComponentTimerTimingWheelTickAnnotation] = fmt.Sprintf("%d", *c.Timer.TimingWheel.Tick)
-	annotations[CoreComponentTimerTimingWheelSizeAnnotation] = fmt.Sprintf("%d", *c.Timer.TimingWheel.Size)
-	annotations[CoreComponentTimerTimingWheelLayersAnnotation] = fmt.Sprintf("%d", *c.Timer.TimingWheel.Layers)
+	annotations[CoreComponentTimerTimingWheelTickAnnotation] =
+		fmt.Sprintf("%d", *c.Timer.TimingWheel.Tick)
+	annotations[CoreComponentTimerTimingWheelSizeAnnotation] =
+		fmt.Sprintf("%d", *c.Timer.TimingWheel.Size)
+	annotations[CoreComponentTimerTimingWheelLayersAnnotation] =
+		fmt.Sprintf("%d", *c.Timer.TimingWheel.Layers)
 	if c.Timer.Resources != nil {
-		if c.Timer.Resources.LimitsCpu != nil {
-			annotations[CoreComponentTimerResourceLimitsCpuAnnotation] = *c.Timer.Resources.LimitsCpu
+		if c.Timer.Resources.LimitsCPU != nil {
+			annotations[CoreComponentTimerResourceLimitsCpuAnnotation] = *c.Timer.Resources.LimitsCPU
 		}
 		if c.Timer.Resources.LimitsMem != nil {
 			annotations[CoreComponentTimerResourceLimitsMemAnnotation] = *c.Timer.Resources.LimitsMem

@@ -48,7 +48,7 @@ func CreateCommand() *cobra.Command {
 	return cmd
 }
 
-func create(cmd *cobra.Command, args []string) {
+func create(_ *cobra.Command, _ []string) {
 	id, err := strconv.ParseUint(blockID, 0, 0)
 	if err != nil {
 		panic(err)

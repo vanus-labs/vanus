@@ -66,7 +66,7 @@ type blockDetail struct {
 	Status *metapb.SegmentHealthInfo `json:"Status,omitempty"`
 }
 
-func describe(cmd *cobra.Command, args []string) error {
+func describe(_ *cobra.Command, args []string) error {
 	id, err := strconv.ParseUint(args[0], 0, 64)
 	if err != nil {
 		return err

@@ -16,9 +16,9 @@ package command
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -38,8 +38,9 @@ import (
 const (
 	dns1123LabelFmt          string = "[a-z0-9]([-a-z0-9]*[a-z0-9])?"
 	dns1123SubdomainFmt      string = dns1123LabelFmt + "(\\." + dns1123LabelFmt + ")*"
-	dns1123SubdomainErrorMsg string = "a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character"
-	// DNS1123SubdomainMaxLength is a subdomain's max length in DNS (RFC 1123)
+	dns1123SubdomainErrorMsg string = "a lowercase RFC 1123 subdomain must consist of lower case alphanumeric " +
+		"characters, '-' or '.', and must start and end with an alphanumeric character"
+	// DNS1123SubdomainMaxLength is a subdomain's max length in DNS (RFC 1123).
 	DNS1123SubdomainMaxLength int = 253
 )
 
@@ -76,10 +77,10 @@ func cmdFailedWithHelpNotice(cmd *cobra.Command, format string) {
 	os.Exit(-1)
 }
 
-func operatorIsDeployed(cmd *cobra.Command, endpoint string) bool {
+func operatorIsDeployed(_ *cobra.Command, endpoint string) bool {
 	client := &http.Client{}
 	url := fmt.Sprintf("%s%s%s/healthz", HttpPrefix, endpoint, BaseUrl)
-	req, err := http.NewRequest("GET", url, &bytes.Reader{})
+	req, err := http.NewRequestWithContext(context.Background(), "GET", url, &bytes.Reader{})
 	if err != nil {
 		return false
 	}
@@ -94,7 +95,8 @@ func operatorIsDeployed(cmd *cobra.Command, endpoint string) bool {
 }
 
 func getOperatorEndpoint() (string, error) {
-	nodeip, err := exec.Command("bash", "-c", "kubectl get no --no-headers -o wide | awk '{print $6}' | head -n 1").Output()
+	nodeip, err := exec.Command(
+		"bash", "-c", "kubectl get no --no-headers -o wide | awk '{print $6}' | head -n 1").Output()
 	if err != nil {
 		return "", err
 	}
@@ -102,7 +104,7 @@ func getOperatorEndpoint() (string, error) {
 }
 
 func LoadConfig(filename string, config interface{}) error {
-	b, err := ioutil.ReadFile(filename)
+	b, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}

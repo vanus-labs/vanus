@@ -15,7 +15,7 @@
 package eventlog
 
 import (
-	stdCtx "context"
+	"context"
 	"testing"
 	"time"
 
@@ -103,7 +103,7 @@ func TestConvert2ProtoSegment(t *testing.T) {
 		ins2.EXPECT().Address().Times(3).Return("127.0.0.1:10002")
 		ins3.EXPECT().Address().Times(3).Return("")
 
-		pbSegs := Convert2ProtoSegment(stdCtx.Background(), seg, seg, seg)
+		pbSegs := Convert2ProtoSegment(context.Background(), seg, seg, seg)
 		So(pbSegs, ShouldHaveLength, 3)
 		So(pbSegs[0], ShouldResemble, pbSegs[1])
 		So(pbSegs[1], ShouldResemble, pbSegs[2])
@@ -116,7 +116,7 @@ func TestConvert2ProtoSegment(t *testing.T) {
 		So(pbSegs[0].Size, ShouldEqual, seg.Size)
 		So(pbSegs[0].Capacity, ShouldEqual, seg.Capacity)
 		So(pbSegs[0].NumberEventStored, ShouldEqual, seg.Number)
-		So(pbSegs[0].State, ShouldEqual, seg.State)
+		So(SegmentState(pbSegs[0].State), ShouldEqual, seg.State)
 		So(pbSegs[0].LeaderBlockId, ShouldEqual, seg.Replicas.Leader)
 		So(pbSegs[0].Replicas, ShouldHaveLength, 3)
 		So(pbSegs[0].Replicas[block1.Uint64()], ShouldNotBeNil)
