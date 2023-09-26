@@ -13,10 +13,6 @@ __debug_bin
 # JetBrains
 .idea/
 
-# Go workspace file
-go.work
-go.work.sum
-
 # configuration file
 /config/*.json
 /config/*.toml
@@ -26,8 +22,8 @@ go.work.sum
 /config/**/*.local.*
 
 # data dir of etcd
-etcd
-bin
+/etcd
+/bin
 
 *.xml
 
