@@ -22,6 +22,9 @@ import (
 	// third-party libraries.
 	. "github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+
+	// this project.
+	"github.com/vanus-labs/vanus/server/store/block/raw"
 )
 
 func TestServer_recover(t *testing.T) {
@@ -32,6 +35,7 @@ func TestServer_recover(t *testing.T) {
 		dir := t.TempDir()
 
 		srv := &server{
+			rawEngines: raw.NewEngineRegistry(),
 			cfg: Config{
 				Volume: VolumeInfo{
 					Dir: dir,

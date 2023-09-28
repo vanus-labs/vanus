@@ -49,11 +49,6 @@ require (
 )
 
 require (
-	github.com/smarty/assertions v1.15.0 // indirect
-	golang.org/x/sync v0.3.0 // indirect
-)
-
-require (
 	cloud.google.com/go/compute v1.19.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129 // indirect
@@ -97,6 +92,7 @@ require (
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/rs/zerolog v1.29.1 // indirect
 	github.com/scylladb/go-set v1.0.2 // indirect
+	github.com/smarty/assertions v1.15.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stoewer/go-strcase v1.2.0 // indirect
 	github.com/stretchr/testify v1.8.2 // indirect

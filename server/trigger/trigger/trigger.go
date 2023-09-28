@@ -49,13 +49,13 @@ import (
 type State string
 
 const (
-	TriggerCreated   = "created"
-	TriggerPending   = "pending"
-	TriggerRunning   = "running"
-	TriggerSleep     = "sleep"
-	TriggerPaused    = "paused"
-	TriggerStopped   = "stopped"
-	TriggerDestroyed = "destroyed"
+	TriggerCreated   State = "created"
+	TriggerPending   State = "pending"
+	TriggerRunning   State = "running"
+	TriggerSleep     State = "sleep"
+	TriggerPaused    State = "paused"
+	TriggerStopped   State = "stopped"
+	TriggerDestroyed State = "destroyed"
 )
 
 type Trigger interface {

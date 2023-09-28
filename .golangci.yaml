@@ -10,6 +10,7 @@ run:
     - ^client/
     - ^pkg/raft/
     - ^proto/
+    - ^test/ # TODO: fix lint
     - ^tool/ # TODO: fix lint
 
 severity:

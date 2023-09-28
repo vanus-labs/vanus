@@ -33,6 +33,7 @@ import (
 	"github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 
+	primitive "github.com/vanus-labs/vanus/pkg"
 	"github.com/vanus-labs/vanus/pkg/snowflake"
 )
 
@@ -185,17 +186,27 @@ func TestGateway_EventID(t *testing.T) {
 	ctrl := NewController(t)
 	defer ctrl.Finish()
 	var (
+		busName     = "test"
 		busID       = snowflake.NewTestID()
 		controllers = []string{"127.0.0.1:2048"}
 		port        = 8087
 	)
 
-	mockClient := client.NewMockClient(ctrl)
-	mockEventbus := api.NewMockEventbus(ctrl)
 	mockBusWriter := api.NewMockBusWriter(ctrl)
-	mockClient.EXPECT().Eventbus(Any(), Any()).AnyTimes().Return(mockEventbus)
-	mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
 	mockBusWriter.EXPECT().Append(Any(), Any()).AnyTimes().Return([]string{"AABBCC"}, nil)
+
+	mockEventbus := api.NewMockEventbus(ctrl)
+	mockEventbus.EXPECT().Writer().AnyTimes().Return(mockBusWriter)
+
+	mockClient := client.NewMockClient(ctrl)
+	mockClient.EXPECT().Eventbus(Any(), Any()).Return(mockEventbus)
+
+	mockEventbusService := cluster.NewMockEventbusService(ctrl)
+	mockEventbusService.EXPECT().GetEventbusByName(Any(), primitive.DefaultNamespace, busName).
+		Return(&metapb.Eventbus{Id: busID.Uint64()}, nil)
+
+	mockCluster := cluster.NewMockCluster(ctrl)
+	mockCluster.EXPECT().EventbusService().AnyTimes().Return(mockEventbusService)
 
 	cfg := Config{
 		Port:           port,
@@ -204,8 +215,11 @@ func TestGateway_EventID(t *testing.T) {
 	ga := NewGateway(cfg)
 
 	ga.proxySrv.SetClient(mockClient)
+	ga.ctrl = mockCluster
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	_ = ga.startCloudEventsReceiver(ctx)
 
 	time.Sleep(50 * time.Millisecond)
@@ -213,6 +227,7 @@ func TestGateway_EventID(t *testing.T) {
 	Convey("test put event and receive response event", t, func() {
 		p, err := ce.NewHTTP()
 		So(err, ShouldBeNil)
+
 		c, err := ce.NewClient(p, ce.WithTimeNow(), ce.WithUUIDs())
 		So(err, ShouldBeNil)
 
@@ -223,7 +238,7 @@ func TestGateway_EventID(t *testing.T) {
 		_ = event.SetData(ce.ApplicationJSON, map[string]string{"hello": "world"})
 
 		ctx := ce.ContextWithTarget(context.Background(),
-			fmt.Sprintf("http://127.0.0.1:%d/gateway/%s", cfg.GetCloudEventReceiverPort(), busID))
+			fmt.Sprintf("http://127.0.0.1:%d/gateway/%s", cfg.GetCloudEventReceiverPort(), busName))
 		resEvent, res := c.Request(ctx, event)
 		So(ce.IsACK(res), ShouldBeTrue)
 		var httpResult *cehttp.Result

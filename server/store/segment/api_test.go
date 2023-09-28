@@ -70,7 +70,7 @@ func TestSegmentServer(t *testing.T) {
 			req := &emptypb.Empty{}
 			resp, err := ss.Status(context.Background(), req)
 			So(err, ShouldBeNil)
-			So(resp.GetStatus(), ShouldEqual, primitive.ServerStateRunning)
+			So(primitive.ServerState(resp.GetStatus()), ShouldEqual, primitive.ServerStateRunning)
 		})
 
 		Convey("CreateBlock()", func() {

@@ -163,9 +163,10 @@ func TestEmptyEntry(t *testing.T) {
 		}
 
 		fn0 := block.OnOptionalAttributeFunc(func(int, interface{}) {})
-		ext.EXPECT().RangeOptionalAttributes(Any()).Times(1).DoAndReturn(func(f func(int, interface{})) {
-			So(f, ShouldEqual, fn0)
-		})
+		ext.EXPECT().RangeOptionalAttributes(Any()).Times(1).
+			DoAndReturn(func(cb block.OptionalAttributeCallback) {
+				So(cb, ShouldEqual, fn0)
+			})
 		w.RangeOptionalAttributes(fn0)
 
 		n = rand.Int()
@@ -180,9 +181,10 @@ func TestEmptyEntry(t *testing.T) {
 		So(w.GetExtensionAttribute(attr), ShouldResemble, attr)
 
 		fn1 := block.OnExtensionAttributeFunc(func([]byte, block.Value) {})
-		ext.EXPECT().RangeExtensionAttributes(Any()).Times(1).DoAndReturn(func(f func([]byte, block.Value)) {
-			So(f, ShouldEqual, fn1)
-		})
+		ext.EXPECT().RangeExtensionAttributes(Any()).Times(1).
+			DoAndReturn(func(cb block.ExtensionAttributeCallback) {
+				So(cb, ShouldEqual, fn1)
+			})
 		w.RangeExtensionAttributes(fn1)
 	})
 }

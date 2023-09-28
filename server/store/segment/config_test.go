@@ -77,7 +77,7 @@ raft:
 		So(cfg.MetaStore.WAL.IO.Engine, ShouldEqual, config.Psync)
 		So(len(cfg.MetaStore.WAL.Options()), ShouldEqual, 2)
 
-		So(cfg.OffsetStore.WAL.IO.Engine, ShouldEqual, "")
+		So(cfg.OffsetStore.WAL.IO.Engine, ShouldEqual, config.IOEngineType(""))
 		So(len(cfg.OffsetStore.WAL.Options()), ShouldEqual, 0)
 
 		So(cfg.Raft.WAL.IO.Engine, ShouldEqual, config.Uring)
