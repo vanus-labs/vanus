@@ -24,7 +24,8 @@ func ValidateEventAttrName(attr string) error {
 	}
 	for _, c := range attr {
 		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
-			return fmt.Errorf("CloudEvents attribute names MUST consist of lower-case letters ('a' to 'z') or digits ('0' to '9') from the ASCII character set")
+			return fmt.Errorf("CloudEvents attribute names MUST consist of lower-case letters " +
+				"('a' to 'z') or digits ('0' to '9') from the ASCII character set")
 		}
 	}
 	return nil

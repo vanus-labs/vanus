@@ -24,8 +24,6 @@ jobs:
       startsWith(github.event.pull_request.title, 'perf') ||
       startsWith(github.event.pull_request.title, 'test')
     runs-on: ${{ matrix.os }}
-    env:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
       - uses: actions/setup-go@v3
         with:
@@ -45,9 +43,11 @@ jobs:
               fi
             done
           done
-      - uses: codecov/codecov-action@v2
+      - uses: codecov/codecov-action@v3
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.txt # optional
+          flags: unittests # optional
           name: codecov-umbrella # optional
           fail_ci_if_error: true # optional (default = false)
           verbose: true # optional (default = false)

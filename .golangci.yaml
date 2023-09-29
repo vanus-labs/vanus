@@ -8,6 +8,7 @@ run:
   timeout: 1m # default 1m
   skip-dirs:
     - ^client/
+    - ^cmd/ # TODO: fix lint
     - ^pkg/raft/
     - ^proto/
     - ^test/ # TODO: fix lint

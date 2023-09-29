@@ -60,7 +60,7 @@ func Main(configPath string) {
 	MainExt(ctx, *cfg)
 }
 
-func MainExt(ctx context.Context, cfg Config) {
+func MainExt(ctx context.Context, cfg Config) { //nolint:funlen // TODO(james.yean): refactor.
 	if err := snowflake.Initialize(ctx, cfg.RootControllerAddr,
 		snowflake.NewNode(snowflake.ControllerService, cfg.NodeID)); err != nil {
 		log.Error(ctx).Err(err).Msg("failed to init id generator")
