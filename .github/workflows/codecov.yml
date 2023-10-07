@@ -24,8 +24,6 @@ jobs:
       startsWith(github.event.pull_request.title, 'perf') ||
       startsWith(github.event.pull_request.title, 'test')
     runs-on: ${{ matrix.os }}
-    env:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
       - uses: actions/setup-go@v3
         with:
@@ -36,10 +34,20 @@ jobs:
       - name: Generate coverage report
         timeout-minutes: 5
         run: |
-          go test -failfast -race -coverprofile=coverage.txt -covermode=atomic -timeout 300s ./internal/...
-      - uses: codecov/codecov-action@v2
+          for pkg in lib api pkg client server; do
+            for d in $(go list ./$pkg/... | grep -v /pkg/raft); do
+              go test -failfast -race -coverprofile=profile.out -covermode=atomic -timeout 300s $d
+              if [ -f profile.out ]; then
+                cat profile.out >> coverage.txt
+                rm profile.out
+              fi
+            done
+          done
+      - uses: codecov/codecov-action@v3
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.txt # optional
+          flags: unittests # optional
           name: codecov-umbrella # optional
           fail_ci_if_error: true # optional (default = false)
           verbose: true # optional (default = false)

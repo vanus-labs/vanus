@@ -27,10 +27,10 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	// first-party libraries.
-	"github.com/vanus-labs/vanus/observability/tracing"
-	"github.com/vanus-labs/vanus/pkg/errors"
-	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
-	segpb "github.com/vanus-labs/vanus/proto/pkg/segment"
+	"github.com/vanus-labs/vanus/api/cloudevents"
+	"github.com/vanus-labs/vanus/api/errors"
+	segpb "github.com/vanus-labs/vanus/api/segment"
+	"github.com/vanus-labs/vanus/pkg/observability/tracing"
 
 	// this project.
 	"github.com/vanus-labs/vanus/client/pkg/record"

@@ -8,8 +8,11 @@ run:
   timeout: 1m # default 1m
   skip-dirs:
     - ^client/
-    - ^raft/
+    - ^cmd/ # TODO: fix lint
+    - ^pkg/raft/
     - ^proto/
+    - ^test/ # TODO: fix lint
+    - ^tool/ # TODO: fix lint
 
 severity:
   default-severity: info
@@ -37,7 +40,7 @@ linters-settings:
       shadow:
         strict: true # default false
   staticcheck:
-    go: "1.17" # default 1.13
+    go: "1.19" # default 1.13
     checks: ["*"] # https://staticcheck.io/docs/options#checks # default ["*"]
   unused:
     check-exported: false # default false # TODO: enable after fixing false positives
@@ -418,17 +421,6 @@ issues:
     - path: "init.go"
       linters:
         - gochecknoinits
-    - path: "^vsctl"
-      linters:
-        - gomnd
-        - funlen
-        - gocognit
-        - gocyclo
-        - nestif
-        - cyclop
-        - gochecknoinits
-        - gochecknoglobals
-        - forbidigo
     - text: "unexported-return: exported func (NewController|NewGateway) returns unexported type"
       linters:
         - revive

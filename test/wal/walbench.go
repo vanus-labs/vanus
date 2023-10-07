@@ -24,8 +24,8 @@ import (
 	"time"
 
 	// this project.
-	"github.com/vanus-labs/vanus/internal/primitive/sync"
-	walog "github.com/vanus-labs/vanus/internal/store/wal"
+	"github.com/vanus-labs/vanus/lib/sync"
+	walog "github.com/vanus-labs/vanus/server/store/wal"
 )
 
 const (

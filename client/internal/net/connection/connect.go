@@ -24,7 +24,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	// first-party libraries.
-	errinterceptor "github.com/vanus-labs/vanus/pkg/grpc/interceptor/errors"
+	errinterceptor "github.com/vanus-labs/vanus/api/grpc/interceptor/errors"
 )
 
 func Connect(ctx context.Context, endpoint string) (*grpc.ClientConn, error) {

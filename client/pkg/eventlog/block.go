@@ -20,9 +20,9 @@ import (
 	"time"
 
 	// first-party libraries.
-	"github.com/vanus-labs/vanus/pkg/errors"
-	"github.com/vanus-labs/vanus/proto/pkg/cloudevents"
-	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
+	"github.com/vanus-labs/vanus/api/cloudevents"
+	"github.com/vanus-labs/vanus/api/errors"
+	metapb "github.com/vanus-labs/vanus/api/meta"
 
 	// this project.
 	"github.com/vanus-labs/vanus/client/internal/store"
