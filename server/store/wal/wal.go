@@ -46,6 +46,7 @@ type AppendOneCallback = func(Range, error)
 type AppendCallback = func([]Range, error)
 
 // WAL is write-ahead log.
+// All append tasks be processed in WAL.runAppend by a single goroutine.
 type WAL struct {
 	sf *segmentedfile.SegmentedFile
 	s  stream.Stream
@@ -176,7 +177,7 @@ func (w *WAL) runAppend() {
 
 	w.appendQ.Wait()
 
-	// Invoke remaind tasks in w.appendQ.
+	// Invoke remained tasks in w.appendQ.
 	for {
 		task, ok := w.appendQ.RawPop()
 		if !ok {

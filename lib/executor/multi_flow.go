@@ -40,7 +40,7 @@ func (f *flow) Execute(t Task) bool {
 	}
 
 	if f.q.Push(t) {
-		f.mf.q.Push(f)
+		return f.mf.q.Push(f)
 	}
 	return true
 }

@@ -30,9 +30,7 @@ import (
 )
 
 type Storage struct {
-	// Protects access to all fields. Most methods of Log are
-	// run on the raft goroutine, but Append() and Compact() is run on an
-	// application goroutine.
+	// Protects access to raft states.
 	mu sync.RWMutex
 
 	nodeID vanus.ID
@@ -41,11 +39,11 @@ type Storage struct {
 	logStorage
 	snapshotStorage
 
-	// AppendExecutor is the Executor that executes Append, postAppend and Compact.
+	// AppendExecutor is the Executor that executes Append, postAppend, and Compact.
 	AppendExecutor executor.Executor
 }
 
-// Make sure Log implements raft.Storage.
+// Make sure Storage implements raft.Storage.
 var _ raft.Storage = (*Storage)(nil)
 
 // NewStorage creates an empty Storage.
@@ -85,7 +83,7 @@ func newStorage(
 	return s
 }
 
-// Delete discard all data of Storage.
+// Delete discards all data of Storage.
 // NOTE: waiting for inflight append calls is the responsibility of the caller.
 func (s *Storage) Delete(ctx context.Context) {
 	if err := s.wal.removeNode(ctx, s.nodeID); err != nil {
