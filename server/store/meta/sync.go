@@ -126,7 +126,7 @@ func (s *SyncStore) set(ctx context.Context, kvs Ranger, cb StoreCallback) {
 		// Update state.
 		s.mu.Lock()
 		_ = kvs.Range(func(key []byte, value interface{}) error {
-			set(s.committed, key, value)
+			update(s.committed, key, value)
 			return nil
 		})
 		s.version = r.EO
@@ -170,7 +170,7 @@ func RecoverSyncStore(ctx context.Context, dir string, opts ...walog.Option) (*S
 		walog.FromPosition(snapshot),
 		walog.WithRecoveryCallback(func(data []byte, r walog.Range) error {
 			err2 := defaultCodec.Unmarshal(data, func(key []byte, value interface{}) error {
-				rawSet(committed, key, value)
+				rawUpdate(committed, key, value)
 				return nil
 			})
 			if err2 != nil {

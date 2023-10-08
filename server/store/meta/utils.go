@@ -19,12 +19,16 @@ import (
 	"github.com/huandu/skiplist"
 )
 
-func set(m *skiplist.SkipList, key []byte, value interface{}) {
+func update(m *skiplist.SkipList, key []byte, value interface{}) {
 	if value == DeletedMark {
 		m.Remove(key)
 		return
 	}
 
+	set(m, key, value)
+}
+
+func set(m *skiplist.SkipList, key []byte, value interface{}) {
 	switch val := value.(type) {
 	case []byte:
 		// Make a copy to avoid modifying value outside.
@@ -35,7 +39,7 @@ func set(m *skiplist.SkipList, key []byte, value interface{}) {
 	}
 }
 
-func rawSet(m *skiplist.SkipList, key []byte, value interface{}) {
+func rawUpdate(m *skiplist.SkipList, key []byte, value interface{}) {
 	if value == DeletedMark {
 		m.Remove(key)
 	} else {
@@ -45,6 +49,6 @@ func rawSet(m *skiplist.SkipList, key []byte, value interface{}) {
 
 func merge(dst, src *skiplist.SkipList) {
 	for el := src.Front(); el != nil; el = el.Next() {
-		rawSet(dst, el.Key().([]byte), el.Value)
+		rawUpdate(dst, el.Key().([]byte), el.Value)
 	}
 }
