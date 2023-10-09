@@ -44,14 +44,14 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
-              - key: core.default.vanus.ai/dedicated
+              - key: core.vanus.ai/dedicated
                 operator: In
                 values:
-                - cluster
+                - core
       tolerations:
-      - key: "core.default.vanus.ai/dedicated"
+      - key: "core.vanus.ai/dedicated"
         operator: "Equal"
-        value: "cluster"
+        value: "core"
         effect: "NoSchedule"
       containers:
       - env:
@@ -61,7 +61,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/trigger:v0.9.0
+        image: public.ecr.aws/vanus/trigger:d03f5ed
         imagePullPolicy: IfNotPresent
         name: trigger
         ports:

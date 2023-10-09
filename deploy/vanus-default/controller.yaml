@@ -10,7 +10,7 @@ data:
     ip: ${POD_IP}
     port: 2048
     replicas: 3
-    segment_capacity: 33554432
+    segment_capacity: 4194304
     secret_encryption_salt: "encryption_salt"
     no_create_default_namespace: true
     root_controllers:
@@ -73,14 +73,14 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
-              - key: core.default.vanus.ai/dedicated
+              - key: core.vanus.ai/dedicated
                 operator: In
                 values:
-                - cluster
+                - core
       tolerations:
-      - key: "core.default.vanus.ai/dedicated"
+      - key: "core.vanus.ai/dedicated"
         operator: "Equal"
-        value: "cluster"
+        value: "core"
         effect: "NoSchedule"
       containers:
       - command:
@@ -98,7 +98,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/controller:v0.9.0
+        image: public.ecr.aws/vanus/controller:d03f5ed
         imagePullPolicy: IfNotPresent
         name: controller
         ports:

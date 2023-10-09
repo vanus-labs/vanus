@@ -53,14 +53,14 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
-              - key: core.default.vanus.ai/dedicated
+              - key: core.vanus.ai/dedicated
                 operator: In
                 values:
-                - etcd
+                - core
       tolerations:
-      - key: "core.default.vanus.ai/dedicated"
+      - key: "core.vanus.ai/dedicated"
         operator: "Equal"
-        value: "etcd"
+        value: "core"
         effect: "NoSchedule"
       containers:
       - env:
