@@ -28,6 +28,7 @@ const (
 	LabelTriggerWorker = "trigger_worker"
 	LabelTrigger       = "trigger"
 	LabelResult        = "result"
+	LabelRetry         = "retry"
 	LabelBlock         = "block"
 
 	LabelTimer = "timer"
@@ -37,6 +38,8 @@ const (
 	LabelOperationResult                   = "op_result"
 	LabelSuccess                           = "success"
 	LabelFailed                            = "failed"
+	LabelTrue                              = "true"
+	LabelFalse                             = "false"
 	LabelSegmentDeletedBecauseExpired      = "segment_expired"
 	LabelSegmentDeletedBecauseCreateFailed = "segment_create_failed"
 	LabelSegmentDeletedBecauseDeleted      = "segment_deleted"
