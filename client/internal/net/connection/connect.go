@@ -27,6 +27,10 @@ import (
 	errinterceptor "github.com/vanus-labs/vanus/pkg/grpc/interceptor/errors"
 )
 
+const (
+	maxRecvMsgSize = 30 * 1024 * 1024
+)
+
 func Connect(ctx context.Context, endpoint string) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
@@ -34,6 +38,7 @@ func Connect(ctx context.Context, endpoint string) (*grpc.ClientConn, error) {
 		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
 		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
 		grpc.WithUnaryInterceptor(errinterceptor.UnaryClientInterceptor()),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxRecvMsgSize)),
 	}
 	conn, err := grpc.DialContext(ctx, endpoint, opts...)
 	if err != nil {
