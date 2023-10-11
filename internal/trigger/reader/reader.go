@@ -129,6 +129,7 @@ func (r *reader) findEventlog(ctx context.Context) error {
 			Str(log.KeyEventlogID, vanus.NewIDFromUint64(id).Key()).
 			Msg("find no exist eventlog will stop log reader")
 		el.stop()
+		delete(r.eventlogMap, id)
 	}
 	return nil
 }
