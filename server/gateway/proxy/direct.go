@@ -46,6 +46,12 @@ func (cp *ControllerProxy) CreateEventbus(
 	return cp.eventbusCtrl.CreateEventbus(ctx, req)
 }
 
+func (cp *ControllerProxy) CreateSystemEventbus(
+	ctx context.Context, req *ctrlpb.CreateEventbusRequest,
+) (*metapb.Eventbus, error) {
+	return cp.eventbusCtrl.CreateSystemEventbus(ctx, req)
+}
+
 func authDeleteEventbus(_ context.Context, req interface{},
 ) (authorization.ResourceKind, vanus.ID, authorization.Action) {
 	id := vanus.NewIDFromUint64((req.(*wrapperspb.UInt64Value)).GetValue())

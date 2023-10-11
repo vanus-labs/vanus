@@ -38,6 +38,7 @@ const _ = grpc.SupportPackageIsVersion7
 
 const (
 	ControllerProxy_CreateEventbus_FullMethodName                = "/vanus.core.proxy.ControllerProxy/CreateEventbus"
+	ControllerProxy_CreateSystemEventbus_FullMethodName          = "/vanus.core.proxy.ControllerProxy/CreateSystemEventbus"
 	ControllerProxy_DeleteEventbus_FullMethodName                = "/vanus.core.proxy.ControllerProxy/DeleteEventbus"
 	ControllerProxy_GetEventbus_FullMethodName                   = "/vanus.core.proxy.ControllerProxy/GetEventbus"
 	ControllerProxy_ListEventbus_FullMethodName                  = "/vanus.core.proxy.ControllerProxy/ListEventbus"
@@ -85,6 +86,7 @@ const (
 type ControllerProxyClient interface {
 	// Eventbus
 	CreateEventbus(ctx context.Context, in *controller.CreateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
+	CreateSystemEventbus(ctx context.Context, in *controller.CreateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error)
 	DeleteEventbus(ctx context.Context, in *wrapperspb.UInt64Value, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetEventbus(ctx context.Context, in *wrapperspb.UInt64Value, opts ...grpc.CallOption) (*meta.Eventbus, error)
 	ListEventbus(ctx context.Context, in *controller.ListEventbusRequest, opts ...grpc.CallOption) (*controller.ListEventbusResponse, error)
@@ -141,6 +143,15 @@ func NewControllerProxyClient(cc grpc.ClientConnInterface) ControllerProxyClient
 func (c *controllerProxyClient) CreateEventbus(ctx context.Context, in *controller.CreateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
 	out := new(meta.Eventbus)
 	err := c.cc.Invoke(ctx, ControllerProxy_CreateEventbus_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controllerProxyClient) CreateSystemEventbus(ctx context.Context, in *controller.CreateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
+	out := new(meta.Eventbus)
+	err := c.cc.Invoke(ctx, ControllerProxy_CreateSystemEventbus_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -504,6 +515,7 @@ func (c *controllerProxyClient) GetResourceRole(ctx context.Context, in *control
 type ControllerProxyServer interface {
 	// Eventbus
 	CreateEventbus(context.Context, *controller.CreateEventbusRequest) (*meta.Eventbus, error)
+	CreateSystemEventbus(context.Context, *controller.CreateEventbusRequest) (*meta.Eventbus, error)
 	DeleteEventbus(context.Context, *wrapperspb.UInt64Value) (*emptypb.Empty, error)
 	GetEventbus(context.Context, *wrapperspb.UInt64Value) (*meta.Eventbus, error)
 	ListEventbus(context.Context, *controller.ListEventbusRequest) (*controller.ListEventbusResponse, error)
@@ -555,6 +567,9 @@ type UnimplementedControllerProxyServer struct {
 
 func (UnimplementedControllerProxyServer) CreateEventbus(context.Context, *controller.CreateEventbusRequest) (*meta.Eventbus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateEventbus not implemented")
+}
+func (UnimplementedControllerProxyServer) CreateSystemEventbus(context.Context, *controller.CreateEventbusRequest) (*meta.Eventbus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateSystemEventbus not implemented")
 }
 func (UnimplementedControllerProxyServer) DeleteEventbus(context.Context, *wrapperspb.UInt64Value) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteEventbus not implemented")
@@ -699,6 +714,24 @@ func _ControllerProxy_CreateEventbus_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControllerProxyServer).CreateEventbus(ctx, req.(*controller.CreateEventbusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ControllerProxy_CreateSystemEventbus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(controller.CreateEventbusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControllerProxyServer).CreateSystemEventbus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ControllerProxy_CreateSystemEventbus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControllerProxyServer).CreateSystemEventbus(ctx, req.(*controller.CreateEventbusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1415,6 +1448,10 @@ var ControllerProxy_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateEventbus",
 			Handler:    _ControllerProxy_CreateEventbus_Handler,
+		},
+		{
+			MethodName: "CreateSystemEventbus",
+			Handler:    _ControllerProxy_CreateSystemEventbus_Handler,
 		},
 		{
 			MethodName: "DeleteEventbus",
