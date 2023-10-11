@@ -129,7 +129,6 @@ func (r *reader) findEventlog(ctx context.Context) error {
 			Str(log.KeyEventlogID, vanus.NewIDFromUint64(id).Key()).
 			Msg("find no exist eventlog will stop log reader")
 		el.stop()
-		delete(r.eventlogMap, id)
 	}
 	return nil
 }
@@ -173,6 +172,7 @@ func (r *reader) startEventlog(ctx context.Context, l api.Eventlog) {
 	r.wg.Add(1)
 	go func() {
 		defer r.wg.Done()
+		defer delete(r.eventlogMap, l.ID())
 		log.Info().
 			Str(log.KeySubscriptionID, r.config.SubscriptionIDStr).
 			Str(log.KeyEventbusID, r.config.EventbusIDStr).
@@ -219,6 +219,25 @@ func (elReader *eventlogReader) stop() {
 	elReader.cancel()
 }
 
+// get earliest offset
+func (elReader *eventlogReader) getOffset(ctx context.Context) (int64, error) {
+	logs, err := elReader.config.Client.Eventbus(ctx, api.WithID(elReader.config.EventbusID.Uint64())).ListLog(ctx)
+	if err != nil {
+		return -1, err
+	}
+	for _, l := range logs {
+		if l.ID() != elReader.eventlogID.Uint64() {
+			continue
+		}
+		offset, err := l.EarliestOffset(ctx)
+		if err != nil {
+			return -1, err
+		}
+		return offset, nil
+	}
+	return -1, nil
+}
+
 func (elReader *eventlogReader) run(parentCtx context.Context) {
 	ctx, cancel := context.WithCancel(parentCtx)
 	elReader.cancel = cancel
@@ -254,7 +273,24 @@ func (elReader *eventlogReader) run(parentCtx context.Context) {
 		case stderr.Is(err, context.Canceled), status.Convert(err).Code() == codes.Canceled:
 			return
 		case errors.Is(err, errors.ErrOffsetUnderflow):
-		// todo reset offset timestamp
+			offset, err := elReader.getOffset(ctx)
+			if err != nil {
+				log.Warn().Err(err).
+					Str(log.KeySubscriptionID, elReader.config.SubscriptionIDStr).
+					Str(log.KeyEventbusID, elReader.config.EventbusIDStr).
+					Str(log.KeyEventlogID, elReader.eventlogIDStr).
+					Msg("offset under flow and get early offset error")
+				continue
+			}
+			if offset == -1 {
+				return
+			}
+			log.Info().
+				Str(log.KeySubscriptionID, elReader.config.SubscriptionIDStr).
+				Str(log.KeyEventbusID, elReader.config.EventbusIDStr).
+				Str(log.KeyEventlogID, elReader.eventlogIDStr).
+				Msg("offset under flow and get early offset")
+			elReader.policy.Forward(int(offset) - int(elReader.policy.Offset()))
 		default:
 			log.Warn().Err(err).
 				Str(log.KeySubscriptionID, elReader.config.SubscriptionIDStr).
