@@ -143,7 +143,7 @@ func (r *reader) Start() error {
 	r.wg.Add(1)
 	go func() {
 		defer r.wg.Done()
-		ticker := time.NewTicker(time.Minute * 5)
+		ticker := time.NewTicker(time.Minute * 2)
 		defer ticker.Stop()
 		for {
 			select {
