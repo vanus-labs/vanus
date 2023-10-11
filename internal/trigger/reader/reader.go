@@ -23,6 +23,9 @@ import (
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	eb "github.com/vanus-labs/vanus/client"
 	"github.com/vanus-labs/vanus/client/pkg/api"
 	"github.com/vanus-labs/vanus/client/pkg/eventlog"
@@ -35,8 +38,6 @@ import (
 	"github.com/vanus-labs/vanus/observability/metrics"
 	"github.com/vanus-labs/vanus/pkg/errors"
 	"github.com/vanus-labs/vanus/pkg/util"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 const (
@@ -50,6 +51,7 @@ type Config struct {
 	Client            eb.Client
 	SubscriptionID    vanus.ID
 	SubscriptionIDStr string
+	EventbusIDStr     string
 	Offset            EventlogOffset
 	BatchSize         int
 }
@@ -61,19 +63,20 @@ type Reader interface {
 }
 
 type reader struct {
-	config   Config
-	elReader map[vanus.ID]struct{}
-	events   chan<- info.EventRecord
-	stop     context.CancelFunc
-	wg       sync.WaitGroup
+	config      Config
+	events      chan<- info.EventRecord
+	stop        context.CancelFunc
+	wg          sync.WaitGroup
+	eventlogMap map[uint64]*eventlogReader
 }
 
 func NewReader(config Config, events chan<- info.EventRecord) Reader {
-	config.SubscriptionIDStr = config.SubscriptionID.String()
+	config.SubscriptionIDStr = config.SubscriptionID.Key()
+	config.EventbusIDStr = config.EventbusID.Key()
 	r := &reader{
-		config:   config,
-		events:   events,
-		elReader: make(map[vanus.ID]struct{}),
+		config:      config,
+		events:      events,
+		eventlogMap: map[uint64]*eventlogReader{},
 	}
 	return r
 }
@@ -83,49 +86,107 @@ func (r *reader) Close() {
 		r.stop()
 	}
 	r.wg.Wait()
-	log.Info().Stringer(log.KeyEventbusID, r.config.EventbusID).Msg("reader closed")
+	log.Info().
+		Str(log.KeySubscriptionID, r.config.SubscriptionIDStr).
+		Str(log.KeyEventbusID, r.config.EventbusIDStr).
+		Msg("reader closed")
+}
+
+func (r *reader) findEventlog(ctx context.Context) error {
+	timeoutCtx, cancel := context.WithTimeout(ctx, lookupReadableLogsTimeout)
+	defer cancel()
+	logs, err := r.config.Client.Eventbus(timeoutCtx, api.WithID(r.config.EventbusID.Uint64())).ListLog(timeoutCtx)
+	if err != nil {
+		log.Warn().Err(err).
+			Str(log.KeySubscriptionID, r.config.SubscriptionIDStr).
+			Str(log.KeyEventbusID, r.config.EventbusIDStr).
+			Msg("eventbus lookup Readable eventlog error")
+		return err
+	}
+	logsMap := make(map[uint64]api.Eventlog, len(logs))
+	for i := range logs {
+		logsMap[logs[i].ID()] = logs[i]
+	}
+	for id, l := range logsMap {
+		if _, exist := r.eventlogMap[id]; exist {
+			continue
+		}
+		eventlogID := vanus.NewIDFromUint64(id)
+		log.Info().
+			Str(log.KeySubscriptionID, r.config.SubscriptionIDStr).
+			Str(log.KeyEventbusID, r.config.EventbusIDStr).
+			Str(log.KeyEventlogID, eventlogID.Key()).
+			Msg("find new eventlog will start log reader")
+		r.startEventlog(ctx, l)
+	}
+	for id, el := range r.eventlogMap {
+		if _, exist := logsMap[id]; exist {
+			continue
+		}
+		log.Info().
+			Str(log.KeySubscriptionID, r.config.SubscriptionIDStr).
+			Str(log.KeyEventbusID, r.config.EventbusIDStr).
+			Str(log.KeyEventlogID, vanus.NewIDFromUint64(id).Key()).
+			Msg("find no exist eventlog will stop log reader")
+		el.stop()
+	}
+	return nil
 }
 
 func (r *reader) Start() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	r.stop = cancel
-	timeoutCtx, cancel := context.WithTimeout(ctx, lookupReadableLogsTimeout)
-	defer cancel()
-	logs, err := r.config.Client.Eventbus(timeoutCtx, api.WithID(r.config.EventbusID.Uint64())).ListLog(timeoutCtx)
+	err := r.findEventlog(ctx)
 	if err != nil {
-		log.Warn(ctx).Err(err).
-			Stringer(log.KeyEventbusID, r.config.EventbusID).
-			Msg("eventbus lookup Readable eventlog error")
 		return err
 	}
-	for _, l := range logs {
-		eventlogID := vanus.NewIDFromUint64(l.ID())
-		offset := r.getOffset(eventlogID)
-		elc := &eventlogReader{
-			config:        r.config,
-			eventlogID:    eventlogID,
-			eventlogIDStr: eventlogID.String(),
-			policy:        policy.NewManuallyReadPolicy(l, int64(offset)),
-			events:        r.events,
-			offset:        offset,
+	r.wg.Add(1)
+	go func() {
+		defer r.wg.Done()
+		ticker := time.NewTicker(time.Minute * 2)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				r.findEventlog(ctx)
+			case <-ctx.Done():
+				return
+			}
 		}
-		r.wg.Add(1)
-		go func() {
-			defer r.wg.Done()
-			log.Info(ctx).
-				Stringer(log.KeyEventbusID, r.config.EventbusID).
-				Stringer(log.KeyEventlogID, elc.eventlogID).
-				Uint64("offset", elc.offset).
-				Msg("event eventlog reader start")
-			elc.run(ctx)
-			log.Info(ctx).
-				Stringer(log.KeyEventbusID, r.config.EventbusID).
-				Stringer(log.KeyEventlogID, elc.eventlogID).
-				Uint64("offset", elc.offset).
-				Msg("event eventlog reader stop")
-		}()
-	}
+	}()
 	return nil
+}
+
+func (r *reader) startEventlog(ctx context.Context, l api.Eventlog) {
+	eventlogID := vanus.NewIDFromUint64(l.ID())
+	offset := r.getOffset(eventlogID)
+	elc := &eventlogReader{
+		config:        r.config,
+		eventlogID:    eventlogID,
+		eventlogIDStr: eventlogID.Key(),
+		policy:        policy.NewManuallyReadPolicy(l, int64(offset)),
+		events:        r.events,
+		offset:        offset,
+	}
+	r.eventlogMap[l.ID()] = elc
+	r.wg.Add(1)
+	go func() {
+		defer r.wg.Done()
+		defer delete(r.eventlogMap, l.ID())
+		log.Info().
+			Str(log.KeySubscriptionID, r.config.SubscriptionIDStr).
+			Str(log.KeyEventbusID, r.config.EventbusIDStr).
+			Str(log.KeyEventlogID, elc.eventlogIDStr).
+			Uint64("offset", elc.offset).
+			Msg("event eventlog reader start")
+		elc.run(ctx)
+		log.Info().
+			Str(log.KeySubscriptionID, r.config.SubscriptionIDStr).
+			Str(log.KeyEventbusID, r.config.EventbusIDStr).
+			Str(log.KeyEventlogID, elc.eventlogIDStr).
+			Uint64("offset", elc.offset).
+			Msg("event eventlog reader stop")
+	}()
 }
 
 func (r *reader) getOffset(eventlogID vanus.ID) uint64 {
@@ -134,9 +195,9 @@ func (r *reader) getOffset(eventlogID vanus.ID) uint64 {
 		return v
 	}
 	log.Warn().
-		Stringer(log.KeyEventbusID, r.config.EventbusID).
-		Stringer(log.KeyEventlogID, eventlogID).
-		Stringer(log.KeySubscriptionID, r.config.SubscriptionID).
+		Str(log.KeySubscriptionID, r.config.SubscriptionIDStr).
+		Str(log.KeyEventbusID, r.config.EventbusIDStr).
+		Str(log.KeyEventlogID, eventlogID.Key()).
 		Msg("offset no exist, will use 0")
 	return 0
 }
@@ -148,18 +209,48 @@ type eventlogReader struct {
 	policy        api.ReadPolicy
 	events        chan<- info.EventRecord
 	offset        uint64
+	cancel        context.CancelFunc
 }
 
-func (elReader *eventlogReader) run(ctx context.Context) {
+func (elReader *eventlogReader) stop() {
+	if elReader.cancel == nil {
+		return
+	}
+	elReader.cancel()
+}
+
+// get earliest offset
+func (elReader *eventlogReader) getOffset(ctx context.Context) (int64, error) {
+	logs, err := elReader.config.Client.Eventbus(ctx, api.WithID(elReader.config.EventbusID.Uint64())).ListLog(ctx)
+	if err != nil {
+		return -1, err
+	}
+	for _, l := range logs {
+		if l.ID() != elReader.eventlogID.Uint64() {
+			continue
+		}
+		offset, err := l.EarliestOffset(ctx)
+		if err != nil {
+			return -1, err
+		}
+		return offset, nil
+	}
+	return -1, nil
+}
+
+func (elReader *eventlogReader) run(parentCtx context.Context) {
+	ctx, cancel := context.WithCancel(parentCtx)
+	elReader.cancel = cancel
 	r := elReader.config.Client.Eventbus(ctx, api.WithID(elReader.config.EventbusID.Uint64())).Reader(
 		option.WithReadPolicy(elReader.policy), option.WithBatchSize(elReader.config.BatchSize))
-	log.Info(ctx).
-		Stringer(log.KeyEventbusID, elReader.config.EventbusID).
-		Stringer(log.KeyEventlogID, elReader.eventlogID).
-		Interface("offset", elReader.offset).
+	log.Info().
+		Str(log.KeySubscriptionID, elReader.config.SubscriptionIDStr).
+		Str(log.KeyEventbusID, elReader.config.EventbusIDStr).
+		Str(log.KeyEventlogID, elReader.eventlogIDStr).
+		Uint64("offset", elReader.offset).
 		Msg("eventlog reader init success")
 
-	min := time.Now().Minute()
+	min := time.Now().Minute() / 10
 	for {
 		select {
 		case <-ctx.Done():
@@ -167,12 +258,14 @@ func (elReader *eventlogReader) run(ctx context.Context) {
 		default:
 		}
 		err := elReader.loop(ctx, r)
-		if time.Now().Minute() != min {
-			min = time.Now().Minute()
-			log.Info(ctx).Err(err).
-				Stringer(log.KeyEventbusID, elReader.config.EventbusID).
-				Stringer(log.KeyEventlogID, elReader.eventlogID).
-				Interface("offset", elReader.offset).
+		currMin := time.Now().Minute() / 10
+		if currMin != min {
+			min = currMin
+			log.Info().Err(err).
+				Str(log.KeySubscriptionID, elReader.config.SubscriptionIDStr).
+				Str(log.KeyEventbusID, elReader.config.EventbusIDStr).
+				Str(log.KeyEventlogID, elReader.eventlogIDStr).
+				Uint64("offset", elReader.offset).
 				Msg("read event")
 		}
 		switch {
@@ -181,12 +274,33 @@ func (elReader *eventlogReader) run(ctx context.Context) {
 		case stderr.Is(err, context.Canceled), status.Convert(err).Code() == codes.Canceled:
 			return
 		case errors.Is(err, errors.ErrOffsetUnderflow):
-		// todo reset offset timestamp
+			offset, err := elReader.getOffset(ctx)
+			if err != nil {
+				log.Warn().Err(err).
+					Str(log.KeySubscriptionID, elReader.config.SubscriptionIDStr).
+					Str(log.KeyEventbusID, elReader.config.EventbusIDStr).
+					Str(log.KeyEventlogID, elReader.eventlogIDStr).
+					Msg("offset under flow and get early offset error")
+				continue
+			}
+			if offset == -1 {
+				return
+			}
+			log.Info().
+				Str(log.KeySubscriptionID, elReader.config.SubscriptionIDStr).
+				Str(log.KeyEventbusID, elReader.config.EventbusIDStr).
+				Str(log.KeyEventlogID, elReader.eventlogIDStr).
+				Int64("offset_new", offset).
+				Int64("offset_old", elReader.policy.Offset()).
+				Msg("offset under flow and get early offset")
+			elReader.policy.Forward(int(offset) - int(elReader.policy.Offset()))
+			elReader.offset = uint64(elReader.policy.Offset())
 		default:
-			log.Warn(ctx).Err(err).
-				Stringer(log.KeyEventbusID, elReader.config.EventbusID).
-				Stringer(log.KeyEventlogID, elReader.eventlogID).
-				Interface("offset", elReader.offset).Msg("read event error")
+			log.Warn().Err(err).
+				Str(log.KeySubscriptionID, elReader.config.SubscriptionIDStr).
+				Str(log.KeyEventbusID, elReader.config.EventbusIDStr).
+				Str(log.KeyEventlogID, elReader.eventlogIDStr).
+				Uint64("offset", elReader.offset).Msg("read event error")
 			if !util.SleepWithContext(ctx, readErrSleepTime) {
 				return
 			}
