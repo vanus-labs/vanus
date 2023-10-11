@@ -97,6 +97,7 @@ type trigger struct {
 }
 
 type toSendEvent struct {
+	retry     bool
 	record    info.EventRecord
 	transform *ce.Event
 }
@@ -217,7 +218,7 @@ func (t *trigger) eventArrived(ctx context.Context, event info.EventRecord) erro
 	}
 }
 
-func (t *trigger) transformEvent(record info.EventRecord) (*toSendEvent, error) {
+func (t *trigger) transformEvent(record info.EventRecord, retry bool) (*toSendEvent, error) {
 	transformer := t.getTransformer()
 	event := record.Event
 	if transformer != nil {
@@ -231,7 +232,7 @@ func (t *trigger) transformEvent(record info.EventRecord) (*toSendEvent, error) 
 			return nil, err
 		}
 	}
-	return &toSendEvent{record: record, transform: event}, nil
+	return &toSendEvent{retry: retry, record: record, transform: event}, nil
 }
 
 func (t *trigger) sendEvent(ctx context.Context, events ...*ce.Event) client.Result {
@@ -275,7 +276,7 @@ func (t *trigger) runRetryEventFilterTransform(ctx context.Context) {
 					return
 				}
 				metrics.TriggerFilterMatchRetryEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
-				event, err := t.transformEvent(record)
+				event, err := t.transformEvent(record, true)
 				if err != nil {
 					log.Info(ctx).Err(err).
 						Str("event_id", event.record.Event.ID()).
@@ -310,7 +311,7 @@ func (t *trigger) runEventFilterTransform(ctx context.Context) {
 					return
 				}
 				metrics.TriggerFilterMatchEventCounter.WithLabelValues(t.subscriptionIDStr).Inc()
-				event, err := t.transformEvent(record)
+				event, err := t.transformEvent(record, false)
 				if err != nil {
 					log.Info(ctx).Err(err).
 						Str("event_id", event.record.Event.ID()).
@@ -388,17 +389,22 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 			t.offsetManager.EventCommit(event.record.OffsetInfo)
 		}
 	}()
-	es := make([]*ce.Event, len(events))
+	result := ""
+	retryEventCnt := 0
+	l := len(events)
+	es := make([]*ce.Event, l)
 	for i := range events {
+		if events[i].retry {
+			retryEventCnt += 1
+		}
 		es[i] = events[i].transform
 	}
 	r := t.sendEvent(ctx, es...)
 	if r != client.Success {
-		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelFailed).
-			Add(float64(len(es)))
+		result = metrics.LabelFailed
 		log.Info(ctx).Err(r.Err).
 			Int("code", r.StatusCode).
-			Int("count", len(es)).
+			Int("count", l).
 			Str("event_id", events[0].record.Event.ID()).
 			Interface("event_offset", events[0].record.OffsetInfo).
 			Msg("send event fail")
@@ -411,15 +417,22 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 			t.writeFailEvent(ctx, event.record.Event, code, r.Err)
 		}
 	} else {
-		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, metrics.LabelSuccess).
-			Add(float64(len(es)))
+		result = metrics.LabelSuccess
 		eByte, _ := json.Marshal(es[0])
 		log.Debug(ctx).
 			Int("code", r.StatusCode).
-			Int("count", len(es)).
+			Int("count", l).
 			Str("event_id", events[0].record.Event.ID()).
 			Bytes("event", eByte).
 			Msg("send event success")
+	}
+	if retryEventCnt > 0 {
+		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, t.subscription.EventbusID.String(), metrics.LabelTrue, result).
+			Add(float64(retryEventCnt))
+	}
+	if l > retryEventCnt {
+		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, t.subscription.EventbusID.String(), metrics.LabelFalse, result).
+			Add(float64(l - retryEventCnt))
 	}
 }
 
