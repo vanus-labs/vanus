@@ -247,7 +247,7 @@ func (elReader *eventlogReader) run(parentCtx context.Context) {
 		Str(log.KeySubscriptionID, elReader.config.SubscriptionIDStr).
 		Str(log.KeyEventbusID, elReader.config.EventbusIDStr).
 		Str(log.KeyEventlogID, elReader.eventlogIDStr).
-		Interface("offset", elReader.offset).
+		Uint64("offset", elReader.offset).
 		Msg("eventlog reader init success")
 
 	min := time.Now().Minute()
@@ -264,7 +264,7 @@ func (elReader *eventlogReader) run(parentCtx context.Context) {
 				Str(log.KeySubscriptionID, elReader.config.SubscriptionIDStr).
 				Str(log.KeyEventbusID, elReader.config.EventbusIDStr).
 				Str(log.KeyEventlogID, elReader.eventlogIDStr).
-				Interface("offset", elReader.offset).
+				Uint64("offset", elReader.offset).
 				Msg("read event")
 		}
 		switch {
@@ -293,12 +293,13 @@ func (elReader *eventlogReader) run(parentCtx context.Context) {
 				Int64("offset_old", elReader.policy.Offset()).
 				Msg("offset under flow and get early offset")
 			elReader.policy.Forward(int(offset) - int(elReader.policy.Offset()))
+			elReader.offset = uint64(elReader.policy.Offset())
 		default:
 			log.Warn().Err(err).
 				Str(log.KeySubscriptionID, elReader.config.SubscriptionIDStr).
 				Str(log.KeyEventbusID, elReader.config.EventbusIDStr).
 				Str(log.KeyEventlogID, elReader.eventlogIDStr).
-				Interface("offset", elReader.offset).Msg("read event error")
+				Uint64("offset", elReader.offset).Msg("read event error")
 			if !util.SleepWithContext(ctx, readErrSleepTime) {
 				return
 			}
