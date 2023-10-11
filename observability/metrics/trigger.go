@@ -94,7 +94,7 @@ var (
 		Subsystem: moduleOfTriggerWorker,
 		Name:      "push_event_number",
 		Help:      "The event number of trigger push",
-	}, []string{LabelTrigger, LabelResult})
+	}, []string{LabelTrigger, LabelEventbus, LabelRetry, LabelResult})
 
 	TriggerPushEventTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: namespace,
