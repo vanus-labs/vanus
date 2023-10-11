@@ -250,7 +250,7 @@ func (elReader *eventlogReader) run(parentCtx context.Context) {
 		Uint64("offset", elReader.offset).
 		Msg("eventlog reader init success")
 
-	min := time.Now().Minute()
+	min := time.Now().Minute() / 10
 	for {
 		select {
 		case <-ctx.Done():
@@ -258,8 +258,9 @@ func (elReader *eventlogReader) run(parentCtx context.Context) {
 		default:
 		}
 		err := elReader.loop(ctx, r)
-		if time.Now().Minute() != min {
-			min = time.Now().Minute()
+		currMin := time.Now().Minute() / 10
+		if currMin != min {
+			min = currMin
 			log.Info().Err(err).
 				Str(log.KeySubscriptionID, elReader.config.SubscriptionIDStr).
 				Str(log.KeyEventbusID, elReader.config.EventbusIDStr).
