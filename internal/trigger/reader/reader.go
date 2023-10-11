@@ -289,6 +289,8 @@ func (elReader *eventlogReader) run(parentCtx context.Context) {
 				Str(log.KeySubscriptionID, elReader.config.SubscriptionIDStr).
 				Str(log.KeyEventbusID, elReader.config.EventbusIDStr).
 				Str(log.KeyEventlogID, elReader.eventlogIDStr).
+				Int64("offset_new", offset).
+				Int64("offset_old", elReader.policy.Offset()).
 				Msg("offset under flow and get early offset")
 			elReader.policy.Forward(int(offset) - int(elReader.policy.Offset()))
 		default:
