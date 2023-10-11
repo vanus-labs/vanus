@@ -119,6 +119,26 @@ func (mr *MockControllerProxyClientMockRecorder) CreateSubscription(ctx, in inte
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSubscription", reflect.TypeOf((*MockControllerProxyClient)(nil).CreateSubscription), varargs...)
 }
 
+// CreateSystemEventbus mocks base method.
+func (m *MockControllerProxyClient) CreateSystemEventbus(ctx context.Context, in *controller.CreateEventbusRequest, opts ...grpc.CallOption) (*meta.Eventbus, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "CreateSystemEventbus", varargs...)
+	ret0, _ := ret[0].(*meta.Eventbus)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateSystemEventbus indicates an expected call of CreateSystemEventbus.
+func (mr *MockControllerProxyClientMockRecorder) CreateSystemEventbus(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSystemEventbus", reflect.TypeOf((*MockControllerProxyClient)(nil).CreateSystemEventbus), varargs...)
+}
+
 // CreateToken mocks base method.
 func (m *MockControllerProxyClient) CreateToken(ctx context.Context, in *controller.CreateTokenRequest, opts ...grpc.CallOption) (*meta.Token, error) {
 	m.ctrl.T.Helper()
@@ -920,6 +940,21 @@ func (m *MockControllerProxyServer) CreateSubscription(ctx context.Context, in *
 func (mr *MockControllerProxyServerMockRecorder) CreateSubscription(ctx, in interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSubscription", reflect.TypeOf((*MockControllerProxyServer)(nil).CreateSubscription), ctx, in)
+}
+
+// CreateSystemEventbus mocks base method.
+func (m *MockControllerProxyServer) CreateSystemEventbus(ctx context.Context, in *controller.CreateEventbusRequest) (*meta.Eventbus, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateSystemEventbus", ctx, in)
+	ret0, _ := ret[0].(*meta.Eventbus)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateSystemEventbus indicates an expected call of CreateSystemEventbus.
+func (mr *MockControllerProxyServerMockRecorder) CreateSystemEventbus(ctx, in interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSystemEventbus", reflect.TypeOf((*MockControllerProxyServer)(nil).CreateSystemEventbus), ctx, in)
 }
 
 // CreateToken mocks base method.

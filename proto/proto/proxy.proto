@@ -27,6 +27,7 @@ option go_package = "github.com/vanus-labs/vanus/proto/pkg/proxy";
 service ControllerProxy {
   // Eventbus
   rpc CreateEventbus(controller.CreateEventbusRequest) returns (meta.Eventbus);
+  rpc CreateSystemEventbus(controller.CreateEventbusRequest) returns (meta.Eventbus);
   rpc DeleteEventbus(google.protobuf.UInt64Value) returns (google.protobuf.Empty);
   rpc GetEventbus(google.protobuf.UInt64Value) returns (meta.Eventbus);
   rpc ListEventbus(controller.ListEventbusRequest) returns (controller.ListEventbusResponse);
