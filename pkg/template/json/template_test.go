@@ -143,7 +143,7 @@ func newTestExecFunc(tp template.Template, model any, variables map[string]any, 
 			m["var2"] = tt
 			v, err := tp.Execute(model, variables)
 			So(err, ShouldBeNil)
-			So(string(v), ShouldEqual, `{"key":"2018-04-05T17:31:00Z","key2":"\"2018-04-05T17:31:00Z\""}`)
+			So(string(v), ShouldEqual, `{"key":"2018-04-05T17:31:00Z","key2":"2018-04-05T17:31:00Z"}`)
 		})
 	}
 }

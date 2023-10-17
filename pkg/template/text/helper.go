@@ -29,9 +29,7 @@ import (
 
 var writerPool = sync.Pool{
 	New: func() any {
-		opts := oj.DefaultOptions
-		opts.TimeFormat = time.RFC3339
-		return &oj.Writer{Options: opts}
+		return &oj.Writer{Options: oj.DefaultOptions}
 	},
 }
 
@@ -47,6 +45,8 @@ func write(w io.Writer, v any) error {
 		return writeJSON(w, v)
 	case string:
 		return ignoreCount(w.Write(bytes.UnsafeFromString(val)))
+	case time.Time:
+		return ignoreCount(w.Write(bytes.UnsafeFromString(val.Format(time.RFC3339))))
 	default:
 		return writeJSON(w, v)
 	}

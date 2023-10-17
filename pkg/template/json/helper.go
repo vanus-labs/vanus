@@ -60,7 +60,9 @@ func writeJSONInJSONString(w io.Writer, v any) error {
 
 func writeInJSONString(w io.Writer, v any) error {
 	switch v.(type) {
-	case nil, bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, string:
+	case nil, bool, int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64,
+		float32, float64, string, time.Time:
 		var ba [32]byte // underlying array of byte buffer in stack.
 		buf := unsafe.Slice((*byte)(noescape(unsafe.Pointer(&ba[0]))), len(ba))
 		data := appendInJSONString(buf[:0], v)
@@ -104,6 +106,8 @@ func appendInJSONString(dst []byte, v any) []byte {
 		return generate.AppendFloat64(dst, val)
 	case string:
 		return generate.AppendRawString(dst, val)
+	case time.Time:
+		return val.AppendFormat(dst, time.RFC3339)
 	}
 	// TODO
 	return nil
