@@ -18,10 +18,12 @@ import (
 	// standard libraries.
 	"io"
 	"sync"
+	"time"
 
 	// third-party libraries.
 	"github.com/ohler55/ojg/oj"
 
+	// first-party libraries.
 	"github.com/vanus-labs/vanus/lib/bytes"
 )
 
@@ -43,6 +45,8 @@ func write(w io.Writer, v any) error {
 		return writeJSON(w, v)
 	case string:
 		return ignoreCount(w.Write(bytes.UnsafeFromString(val)))
+	case time.Time:
+		return ignoreCount(w.Write(bytes.UnsafeFromString(val.Format(time.RFC3339))))
 	default:
 		return writeJSON(w, v)
 	}

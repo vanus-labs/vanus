@@ -20,11 +20,12 @@ import (
 	"math"
 	"runtime"
 	"testing"
+	"time"
 
 	// third-party libraries.
 	. "github.com/smartystreets/goconvey/convey"
 
-	// this project.
+	// first-party libraries.
 	"github.com/vanus-labs/vanus/lib/bytes"
 )
 
@@ -107,6 +108,12 @@ func TestHelper(t *testing.T) {
 		Convey("append string", func() {
 			str := appendInJSONString(nil, "\"foo\"\n")
 			So(string(str), ShouldEqual, `\"foo\"\n`)
+		})
+
+		Convey("append time", func() {
+			tt := time.Now()
+			str := appendInJSONString(nil, tt)
+			So(string(str), ShouldEqual, tt.Format(time.RFC3339))
 		})
 	})
 
@@ -268,6 +275,13 @@ func TestHelper(t *testing.T) {
 			runtime.ReadMemStats(&stats1)
 			So(stats1.Mallocs-stats0.Mallocs, ShouldEqual, 0)
 			So(stats1.HeapAlloc-stats0.HeapAlloc, ShouldEqual, 0)
+		})
+
+		Convey("write time", func() {
+			tt := time.Now()
+			err := writeInJSONString(&buf, tt)
+			So(err, ShouldBeNil)
+			So(buf.String(), ShouldEqual, tt.Format(time.RFC3339))
 		})
 	})
 }
