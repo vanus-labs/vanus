@@ -17,6 +17,7 @@ package json
 import (
 	// standard libraries.
 	"testing"
+	"time"
 
 	// third-party libraries.
 	. "github.com/smartystreets/goconvey/convey"
@@ -134,6 +135,15 @@ func newTestExecFunc(tp template.Template, model any, variables map[string]any, 
 			v, err := tp.Execute(model, variables)
 			So(err, ShouldBeNil)
 			So(string(v), ShouldEqual, `{"key":"<a\r\nb>","key2":"<b\r\na>"}`)
+		})
+
+		Convey("time value", func() {
+			tt, _ := time.Parse(time.RFC3339, "2018-04-05T17:31:00Z")
+			m["var"] = tt
+			m["var2"] = tt
+			v, err := tp.Execute(model, variables)
+			So(err, ShouldBeNil)
+			So(string(v), ShouldEqual, `{"key":"2018-04-05T17:31:00Z","key2":"\"2018-04-05T17:31:00Z\""}`)
 		})
 	}
 }

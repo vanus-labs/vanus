@@ -19,18 +19,21 @@ import (
 	"io"
 	"runtime"
 	"sync"
+	"time"
 	"unsafe"
 
 	// third-party libraries.
 	"github.com/ohler55/ojg/oj"
 
-	// this project.
+	// first-party libraries.
 	"github.com/vanus-labs/vanus/lib/json/generate"
 )
 
 var writerPool = sync.Pool{
 	New: func() any {
-		return &oj.Writer{Options: oj.DefaultOptions}
+		opts := oj.DefaultOptions
+		opts.TimeFormat = time.RFC3339
+		return &oj.Writer{Options: opts}
 	},
 }
 
