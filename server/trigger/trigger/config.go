@@ -45,12 +45,12 @@ type Config struct {
 	SendBatchSize int
 	PullBatchSize int
 	MaxUACKNumber int
-	Proxy         *Proxy
+	TargetGateway *TargetGateway
 }
 
-type Proxy struct {
+type TargetGateway struct {
 	Address          string `yaml:"address"`
-	TargetHeaderName string `yaml:"target_header_name"`
+	TargetHeaderName string `yaml:"header_name"`
 }
 
 func defaultConfig() Config {
@@ -162,8 +162,8 @@ func WithMaxUACKNumber(maxUACKNumber int) Option {
 	}
 }
 
-func WithProxy(proxy *Proxy) Option {
+func WithProxy(proxy *TargetGateway) Option {
 	return func(t *trigger) {
-		t.config.Proxy = proxy
+		t.config.TargetGateway = proxy
 	}
 }

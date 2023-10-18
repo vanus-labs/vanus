@@ -25,10 +25,10 @@ import (
 type Config struct {
 	Observability  observability.Config `yaml:"observability"`
 	TriggerAddr    string
-	Port           int            `yaml:"port"`
-	IP             string         `yaml:"ip"`
-	ControllerAddr []string       `yaml:"controllers"`
-	Proxy          *trigger.Proxy `yaml:"proxy"`
+	Port           int                    `yaml:"port"`
+	IP             string                 `yaml:"ip"`
+	ControllerAddr []string               `yaml:"controllers"`
+	Proxy          *trigger.TargetGateway `yaml:"proxy"`
 
 	HeartbeatInterval time.Duration `yaml:"heartbeat_interval"`
 	// send event goroutine size

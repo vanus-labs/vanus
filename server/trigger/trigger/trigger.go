@@ -156,7 +156,11 @@ func (t *trigger) getClient() client.EventClient {
 func (t *trigger) changeTarget(
 	sink primitive.URI, protocol primitive.Protocol, credential primitive.SinkCredential,
 ) error {
-	eventCli := newEventClient(clientConfig{sink: sink, protocol: protocol, credential: credential, proxy: t.config.Proxy})
+	eventCli := newEventClient(clientConfig{
+		sink:       sink,
+		protocol:   protocol,
+		credential: credential,
+		gateway:    t.config.TargetGateway})
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	t.eventCli = eventCli
@@ -578,7 +582,7 @@ func (t *trigger) Init(ctx context.Context) error {
 		sink:       t.subscription.Sink,
 		protocol:   t.subscription.Protocol,
 		credential: t.subscription.SinkCredential,
-		proxy:      t.config.Proxy})
+		gateway:    t.config.TargetGateway})
 	t.client = eb.Connect(t.config.Controllers)
 
 	t.timerEventWriter = t.client.Eventbus(ctx, api.WithID(

@@ -26,7 +26,7 @@ import (
 )
 
 type clientConfig struct {
-	proxy      *Proxy
+	gateway    *TargetGateway
 	sink       primitive.URI
 	protocol   primitive.Protocol
 	credential primitive.SinkCredential
@@ -44,8 +44,8 @@ func newEventClient(cfg clientConfig) client.EventClient {
 	case primitive.GRPC:
 		return client.NewGRPCClient(sink)
 	default:
-		if cfg.proxy != nil {
-			return client.NewHTTPClientWithProxy(sink, cfg.proxy.Address, cfg.proxy.TargetHeaderName)
+		if cfg.gateway != nil {
+			return client.NewHTTPClientWithGateway(sink, cfg.gateway.Address, cfg.gateway.TargetHeaderName)
 		}
 		return client.NewHTTPClient(sink)
 	}
