@@ -17,6 +17,9 @@ package meta
 import (
 	// third-party libraries.
 	"github.com/huandu/skiplist"
+
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/lib/bytes"
 )
 
 func update(m *skiplist.SkipList, key []byte, value interface{}) {
@@ -32,7 +35,7 @@ func set(m *skiplist.SkipList, key []byte, value interface{}) {
 	switch val := value.(type) {
 	case []byte:
 		// Make a copy to avoid modifying value outside.
-		bs := append([]byte{}, val...)
+		bs := bytes.Clone(val)
 		m.Set(key, bs)
 	default:
 		m.Set(key, value)
