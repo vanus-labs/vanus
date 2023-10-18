@@ -16,15 +16,18 @@ package json
 
 import (
 	// standard libraries.
-	"bytes"
+	stdbytes "bytes"
 
 	// third-party libraries.
 	"github.com/ohler55/ojg/jp"
+
+	// first-party libraries.
+	"github.com/vanus-labs/vanus/lib/bytes"
 )
 
 type templateGenerator struct {
 	stack    generatorStack
-	buf      bytes.Buffer
+	buf      stdbytes.Buffer
 	segments []templateSegment
 }
 
@@ -164,7 +167,7 @@ func (g *templateGenerator) packLiteral() {
 	bs := g.buf.Bytes()
 	if len(bs) != 0 {
 		g.segments = append(g.segments, &literalSegment{
-			val: append([]byte{}, bs...),
+			val: bytes.Clone(bs),
 		})
 		g.buf.Reset()
 	}

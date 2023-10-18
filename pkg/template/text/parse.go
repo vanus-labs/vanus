@@ -56,7 +56,7 @@ func parse(text string) ([]templateSegment, error) {
 			return
 		}
 		segments = append(segments, &textSegment{
-			text: append([]byte{}, buf.Bytes()...),
+			text: bytes.Clone(buf.Bytes()),
 		})
 		buf.Reset()
 	}
