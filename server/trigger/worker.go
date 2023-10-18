@@ -261,6 +261,7 @@ func (w *worker) getTriggerOptions(subscription *primitive.Subscription) []trigg
 		trigger.WithGoroutineSize(w.config.SendEventGoroutineSize),
 		trigger.WithSendBatchSize(w.config.SendEventBatchSize),
 		trigger.WithPullBatchSize(w.config.PullEventBatchSize),
-		trigger.WithMaxUACKNumber(w.config.MaxUACKEventNumber))
+		trigger.WithMaxUACKNumber(w.config.MaxUACKEventNumber),
+		trigger.WithProxy(w.config.Proxy))
 	return opts
 }

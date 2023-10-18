@@ -33,6 +33,13 @@ func NewHTTPClient(url string) EventClient {
 	}
 }
 
+func NewHTTPClientWithProxy(url, proxy, headerKey string) EventClient {
+	c, _ := ce.NewClientHTTP(ce.WithTarget(proxy), ce.WithHeader(headerKey, url))
+	return &http{
+		client: c,
+	}
+}
+
 func (c *http) Send(ctx context.Context, events ...*ce.Event) Result {
 	event := events[0]
 	res := c.client.Send(ctx, *event)

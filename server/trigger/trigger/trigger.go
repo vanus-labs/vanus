@@ -68,6 +68,7 @@ type Trigger interface {
 
 type trigger struct {
 	subscriptionIDStr string
+	eventbusIDStr     string
 
 	subscription  *primitive.Subscription
 	offsetManager *offset.SubscriptionOffset
@@ -119,6 +120,7 @@ func newTrigger(subscription *primitive.Subscription, opts ...Option) (*trigger,
 		filter:            filter.GetFilter(subscription.Filters),
 		subscription:      subscription,
 		subscriptionIDStr: subscription.ID.String(),
+		eventbusIDStr:     subscription.EventbusID.String(),
 		transformer:       trans,
 	}
 	if subscription.Protocol == primitive.GRPC {
@@ -154,7 +156,7 @@ func (t *trigger) getClient() client.EventClient {
 func (t *trigger) changeTarget(
 	sink primitive.URI, protocol primitive.Protocol, credential primitive.SinkCredential,
 ) error {
-	eventCli := newEventClient(sink, protocol, credential)
+	eventCli := newEventClient(clientConfig{sink: sink, protocol: protocol, credential: credential, proxy: t.config.Proxy})
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	t.eventCli = eventCli
@@ -395,7 +397,7 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 	es := make([]*ce.Event, l)
 	for i := range events {
 		if events[i].retry {
-			retryEventCnt += 1
+			retryEventCnt++
 		}
 		es[i] = events[i].transform
 	}
@@ -427,11 +429,11 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 			Msg("send event success")
 	}
 	if retryEventCnt > 0 {
-		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, t.subscription.EventbusID.String(), metrics.LabelTrue, result).
+		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, t.eventbusIDStr, metrics.LabelTrue, result).
 			Add(float64(retryEventCnt))
 	}
 	if l > retryEventCnt {
-		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, t.subscription.EventbusID.String(), metrics.LabelFalse, result).
+		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, t.eventbusIDStr, metrics.LabelFalse, result).
 			Add(float64(l - retryEventCnt))
 	}
 }
@@ -572,7 +574,11 @@ func getOffset(sub *primitive.Subscription) map[vanus.ID]uint64 {
 }
 
 func (t *trigger) Init(ctx context.Context) error {
-	t.eventCli = newEventClient(t.subscription.Sink, t.subscription.Protocol, t.subscription.SinkCredential)
+	t.eventCli = newEventClient(clientConfig{
+		sink:       t.subscription.Sink,
+		protocol:   t.subscription.Protocol,
+		credential: t.subscription.SinkCredential,
+		proxy:      t.config.Proxy})
 	t.client = eb.Connect(t.config.Controllers)
 
 	t.timerEventWriter = t.client.Eventbus(ctx, api.WithID(
