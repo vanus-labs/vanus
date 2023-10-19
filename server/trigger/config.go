@@ -28,7 +28,7 @@ type Config struct {
 	Port           int                    `yaml:"port"`
 	IP             string                 `yaml:"ip"`
 	ControllerAddr []string               `yaml:"controllers"`
-	Proxy          *trigger.TargetGateway `yaml:"proxy"`
+	Gateway        *trigger.TargetGateway `yaml:"gateway"`
 
 	HeartbeatInterval time.Duration `yaml:"heartbeat_interval"`
 	// send event goroutine size
