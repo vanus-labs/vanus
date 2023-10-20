@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"strconv"
@@ -171,7 +170,7 @@ func getSinkCredential(cmd *cobra.Command) *meta.SinkCredential {
 		cmdFailedf(cmd, "credential-type is set but sinkCredential empty\n")
 	}
 	if sinkCredential[0] == '@' {
-		credentialBytes, err := ioutil.ReadFile(sinkCredential[1:])
+		credentialBytes, err := os.ReadFile(sinkCredential[1:])
 		if err != nil {
 			cmdFailedf(cmd, "read sinkCredential file:%s error:%s\n", sinkCredential, err.Error())
 		}
