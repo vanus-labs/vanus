@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -210,7 +209,7 @@ func installConnectorCommand() *cobra.Command {
 				cmdFailedf(cmd, "Install Connector Failed: %s", resp.Status)
 			}
 
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				cmdFailedf(cmd, "read response body: %s", err)
 			}
@@ -284,7 +283,7 @@ func uninstallConnectorCommand() *cobra.Command {
 				cmdFailedf(cmd, "Uninstall Connector Failed: %s", resp.Status)
 			}
 
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				cmdFailedf(cmd, "read response body: %s", err)
 			}
@@ -353,7 +352,7 @@ func listConnectorCommand() *cobra.Command {
 				cmdFailedf(cmd, "List Connectors Failed: %s", resp.Status)
 			}
 
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				cmdFailedf(cmd, "read response body: %s", err)
 			}
@@ -430,7 +429,7 @@ func getConnectorCommand() *cobra.Command {
 				cmdFailedf(cmd, "Get Connector Failed: %s", resp.Status)
 			}
 
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				cmdFailedf(cmd, "read response body: %s", err)
 			}

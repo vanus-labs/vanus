@@ -19,7 +19,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -322,7 +322,7 @@ func createClusterCommand() *cobra.Command {
 			if resp.StatusCode != http.StatusOK {
 				cmdFailedf(cmd, "Create Cluster Failed: %s", resp.Status)
 			}
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				cmdFailedf(cmd, "read response body: %s", err)
 			}
@@ -407,7 +407,7 @@ func deleteClusterCommand() *cobra.Command {
 			if resp.StatusCode != http.StatusOK {
 				cmdFailedf(cmd, "Delete Cluster Failed: %s", resp.Status)
 			}
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				cmdFailedf(cmd, "read response body: %s", err)
 			}
@@ -549,7 +549,7 @@ func upgradeClusterCommand() *cobra.Command {
 			if resp.StatusCode != http.StatusOK {
 				cmdFailedf(cmd, "Upgrade Cluster Failed: %s", resp.Status)
 			}
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				cmdFailedf(cmd, "read response body: %s", err)
 			}
@@ -633,7 +633,7 @@ func scaleStoreReplicas() *cobra.Command {
 			if resp.StatusCode != http.StatusOK {
 				cmdFailedf(cmd, "Scale Store Failed: %s", resp.Status)
 			}
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				cmdFailedf(cmd, "read response body: %s", err)
 			}
@@ -705,7 +705,7 @@ func scaleTriggerReplicas() *cobra.Command {
 			if resp.StatusCode != http.StatusOK {
 				cmdFailedf(cmd, "Scale Trigger Failed: %s", resp.Status)
 			}
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				cmdFailedf(cmd, "read response body: %s", err)
 			}
@@ -768,7 +768,7 @@ func getClusterCommand() *cobra.Command {
 				cmdFailedf(cmd, "Get Cluster Failed: %s", resp.Status)
 			}
 
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				cmdFailedf(cmd, "read response body: %s", err)
 			}
@@ -881,7 +881,7 @@ func genClusterCommand() *cobra.Command {
 			template.WriteString(fmt.Sprintf("    # limits_cpu: %s\n", DefaultResourceLimitsCPU))
 			template.WriteString(fmt.Sprintf("    # limits_mem: %s\n", DefaultResourceLimitsMem))
 			fileName := "cluster.yaml.example"
-			err := ioutil.WriteFile(fileName, template.Bytes(), 0o644)
+			err := os.WriteFile(fileName, template.Bytes(), 0o644)
 			if err != nil {
 				cmdFailedf(cmd, "generate cluster config file template failed: %s", err)
 			}
@@ -921,7 +921,7 @@ func getCluster(cmd *cobra.Command, endpoint string) (*ClusterOKBody, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
