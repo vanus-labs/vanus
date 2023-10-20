@@ -44,6 +44,8 @@ const (
 	lookupReadableLogsTimeout = 5 * time.Second
 	readEventTimeout          = 5 * time.Second
 	readErrSleepTime          = 2 * time.Second
+	checkEventlogInterval     = 2 * time.Minute
+	logFrequencyMini          = 10
 )
 
 type Config struct {
@@ -143,12 +145,12 @@ func (r *reader) Start() error {
 	r.wg.Add(1)
 	go func() {
 		defer r.wg.Done()
-		ticker := time.NewTicker(time.Minute * 2)
+		ticker := time.NewTicker(checkEventlogInterval)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
-				r.findEventlog(ctx)
+				_ = r.findEventlog(ctx)
 			case <-ctx.Done():
 				return
 			}
@@ -219,7 +221,7 @@ func (elReader *eventlogReader) stop() {
 	elReader.cancel()
 }
 
-// get earliest offset
+// getOffset get earliest offset.
 func (elReader *eventlogReader) getOffset(ctx context.Context) (int64, error) {
 	logs, err := elReader.config.Client.Eventbus(ctx,
 		api.WithID(elReader.config.EventbusID.Uint64())).ListLog(ctx)
@@ -251,7 +253,7 @@ func (elReader *eventlogReader) run(parentCtx context.Context) {
 		Uint64("offset", elReader.offset).
 		Msg("eventlog reader init success")
 
-	min := time.Now().Minute() / 10
+	min := time.Now().Minute() / logFrequencyMini
 	for {
 		select {
 		case <-ctx.Done():
@@ -259,7 +261,7 @@ func (elReader *eventlogReader) run(parentCtx context.Context) {
 		default:
 		}
 		err := elReader.loop(ctx, r)
-		currMin := time.Now().Minute() / 10
+		currMin := time.Now().Minute() / logFrequencyMini
 		if currMin != min {
 			min = currMin
 			log.Info().Err(err).

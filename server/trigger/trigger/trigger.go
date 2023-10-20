@@ -68,6 +68,7 @@ type Trigger interface {
 
 type trigger struct {
 	subscriptionIDStr string
+	eventbusIDStr     string
 
 	subscription  *primitive.Subscription
 	offsetManager *offset.SubscriptionOffset
@@ -119,6 +120,7 @@ func newTrigger(subscription *primitive.Subscription, opts ...Option) (*trigger,
 		filter:            filter.GetFilter(subscription.Filters),
 		subscription:      subscription,
 		subscriptionIDStr: subscription.ID.String(),
+		eventbusIDStr:     subscription.EventbusID.String(),
 		transformer:       trans,
 	}
 	if subscription.Protocol == primitive.GRPC {
@@ -154,7 +156,11 @@ func (t *trigger) getClient() client.EventClient {
 func (t *trigger) changeTarget(
 	sink primitive.URI, protocol primitive.Protocol, credential primitive.SinkCredential,
 ) error {
-	eventCli := newEventClient(sink, protocol, credential)
+	eventCli := newEventClient(clientConfig{
+		sink:       sink,
+		protocol:   protocol,
+		credential: credential,
+		gateway:    t.config.TargetGateway})
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	t.eventCli = eventCli
@@ -280,7 +286,10 @@ func (t *trigger) runRetryEventFilterTransform(ctx context.Context) {
 				if err != nil {
 					log.Info(ctx).Err(err).
 						Str("event_id", event.record.Event.ID()).
-						Interface("event_offset", event.record.OffsetInfo).
+						Str(log.KeySubscriptionID, t.subscriptionIDStr).
+						Str(log.KeyEventbusID, t.eventbusIDStr).
+						Stringer(log.KeyEventlogID, event.record.EventlogID).
+						Uint64("event_offset", event.record.OffsetInfo.Offset).
 						Msg("event transform error")
 					t.writeFailEvent(ctx, record.Event, ErrTransformCode, err)
 					t.offsetManager.EventCommit(record.OffsetInfo)
@@ -315,7 +324,10 @@ func (t *trigger) runEventFilterTransform(ctx context.Context) {
 				if err != nil {
 					log.Info(ctx).Err(err).
 						Str("event_id", event.record.Event.ID()).
-						Interface("event_offset", event.record.OffsetInfo).
+						Str(log.KeySubscriptionID, t.subscriptionIDStr).
+						Str(log.KeyEventbusID, t.eventbusIDStr).
+						Stringer(log.KeyEventlogID, event.record.EventlogID).
+						Uint64("event_offset", event.record.OffsetInfo.Offset).
 						Msg("event transform error")
 					t.writeFailEvent(ctx, record.Event, ErrTransformCode, err)
 					t.offsetManager.EventCommit(record.OffsetInfo)
@@ -395,7 +407,7 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 	es := make([]*ce.Event, l)
 	for i := range events {
 		if events[i].retry {
-			retryEventCnt += 1
+			retryEventCnt++
 		}
 		es[i] = events[i].transform
 	}
@@ -406,7 +418,11 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 			Int("code", r.StatusCode).
 			Int("count", l).
 			Str("event_id", events[0].record.Event.ID()).
-			Interface("event_offset", events[0].record.OffsetInfo).
+			Interface("target", t.subscription.Sink).
+			Str(log.KeySubscriptionID, t.subscriptionIDStr).
+			Str(log.KeyEventbusID, t.eventbusIDStr).
+			Stringer(log.KeyEventlogID, events[0].record.EventlogID).
+			Uint64("event_offset", events[0].record.OffsetInfo.Offset).
 			Msg("send event fail")
 		code := r.StatusCode
 		if t.config.Ordered {
@@ -427,11 +443,11 @@ func (t *trigger) processEvent(ctx context.Context, events ...*toSendEvent) {
 			Msg("send event success")
 	}
 	if retryEventCnt > 0 {
-		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, t.subscription.EventbusID.String(), metrics.LabelTrue, result).
+		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, t.eventbusIDStr, metrics.LabelTrue, result).
 			Add(float64(retryEventCnt))
 	}
 	if l > retryEventCnt {
-		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, t.subscription.EventbusID.String(), metrics.LabelFalse, result).
+		metrics.TriggerPushEventCounter.WithLabelValues(t.subscriptionIDStr, t.eventbusIDStr, metrics.LabelFalse, result).
 			Add(float64(l - retryEventCnt))
 	}
 }
@@ -488,7 +504,7 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 			Observe(time.Since(startTime).Seconds())
 		if err != nil {
 			log.Info(ctx).Err(err).
-				Stringer(log.KeySubscriptionID, t.subscription.ID).
+				Str(log.KeySubscriptionID, t.subscriptionIDStr).
 				Int("attempt", writeAttempt).
 				Interface("event", e).
 				Msg("write retry event error")
@@ -502,7 +518,7 @@ func (t *trigger) writeEventToRetry(ctx context.Context, e *ce.Event, attempts i
 		}
 	}
 	log.Debug(ctx).
-		Stringer(log.KeySubscriptionID, t.subscription.ID).
+		Str(log.KeySubscriptionID, t.subscriptionIDStr).
 		Interface("event", e).
 		Msg("write retry event success")
 }
@@ -523,7 +539,7 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 			Observe(time.Since(startTime).Seconds())
 		if err != nil {
 			log.Info(ctx).Err(err).
-				Stringer(log.KeySubscriptionID, t.subscription.ID).
+				Str(log.KeySubscriptionID, t.subscriptionIDStr).
 				Int("attempt", writeAttempt).
 				Interface("event", e).
 				Msg("write dl event error")
@@ -536,7 +552,7 @@ func (t *trigger) writeEventToDeadLetter(ctx context.Context, e *ce.Event, reaso
 		}
 	}
 	log.Debug(ctx).
-		Stringer(log.KeySubscriptionID, t.subscription.ID).
+		Str(log.KeySubscriptionID, t.subscriptionIDStr).
 		Interface("event", e).
 		Msg("write dl event success")
 }
@@ -572,7 +588,11 @@ func getOffset(sub *primitive.Subscription) map[vanus.ID]uint64 {
 }
 
 func (t *trigger) Init(ctx context.Context) error {
-	t.eventCli = newEventClient(t.subscription.Sink, t.subscription.Protocol, t.subscription.SinkCredential)
+	t.eventCli = newEventClient(clientConfig{
+		sink:       t.subscription.Sink,
+		protocol:   t.subscription.Protocol,
+		credential: t.subscription.SinkCredential,
+		gateway:    t.config.TargetGateway})
 	t.client = eb.Connect(t.config.Controllers)
 
 	t.timerEventWriter = t.client.Eventbus(ctx, api.WithID(
@@ -592,7 +612,7 @@ func (t *trigger) Init(ctx context.Context) error {
 
 func (t *trigger) Start(ctx context.Context) error {
 	log.Info(ctx).
-		Stringer(log.KeySubscriptionID, t.subscription.ID).
+		Str(log.KeySubscriptionID, t.subscriptionIDStr).
 		Msg("trigger start...")
 	ctx, cancel := context.WithCancel(context.Background())
 	t.stop = cancel
@@ -613,14 +633,14 @@ func (t *trigger) Start(ctx context.Context) error {
 	t.wg.StartWithContext(ctx, t.runRetryEventFilterTransform)
 	t.state = TriggerRunning
 	log.Info(ctx).
-		Stringer(log.KeySubscriptionID, t.subscription.ID).
+		Str(log.KeySubscriptionID, t.subscriptionIDStr).
 		Msg("trigger started")
 	return nil
 }
 
 func (t *trigger) Stop(ctx context.Context) error {
 	log.Info(ctx).
-		Stringer(log.KeySubscriptionID, t.subscription.ID).
+		Str(log.KeySubscriptionID, t.subscriptionIDStr).
 		Msg("trigger stop...")
 
 	if t.state == TriggerStopped {
@@ -638,7 +658,7 @@ func (t *trigger) Stop(ctx context.Context) error {
 	t.offsetManager.Close()
 	t.state = TriggerStopped
 	log.Info(ctx).
-		Stringer(log.KeySubscriptionID, t.subscription.ID).
+		Str(log.KeySubscriptionID, t.subscriptionIDStr).
 		Msg("trigger stopped")
 	return nil
 }

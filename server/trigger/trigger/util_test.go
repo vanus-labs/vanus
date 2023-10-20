@@ -26,13 +26,13 @@ import (
 func TestNewEventClient(t *testing.T) {
 	Convey("test new event client", t, func() {
 		Convey("new lambda client", func() {
-			cli := newEventClient("test", primitive.AwsLambdaProtocol,
-				primitive.NewAkSkSinkCredential("ak", "sk"))
+			cli := newEventClient(clientConfig{sink: "test", protocol: primitive.AwsLambdaProtocol,
+				credential: primitive.NewAkSkSinkCredential("ak", "sk")})
 			So(cli, ShouldNotBeNil)
 		})
 		Convey("new http client", func() {
-			cli := newEventClient("test", primitive.HTTPProtocol,
-				primitive.NewPlainSinkCredential("identifier", "secret"))
+			cli := newEventClient(clientConfig{sink: "test", protocol: primitive.HTTPProtocol,
+				credential: primitive.NewPlainSinkCredential("identifier", "secret")})
 			So(cli, ShouldNotBeNil)
 		})
 	})

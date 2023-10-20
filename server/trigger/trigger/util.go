@@ -25,20 +25,29 @@ import (
 	"github.com/vanus-labs/vanus/server/trigger/client"
 )
 
-func newEventClient(sink primitive.URI,
-	protocol primitive.Protocol,
-	credential primitive.SinkCredential) client.EventClient {
-	switch protocol {
+type clientConfig struct {
+	gateway    *TargetGateway
+	sink       primitive.URI
+	protocol   primitive.Protocol
+	credential primitive.SinkCredential
+}
+
+func newEventClient(cfg clientConfig) client.EventClient {
+	sink := string(cfg.sink)
+	switch cfg.protocol {
 	case primitive.AwsLambdaProtocol:
-		_credential, _ := credential.(*primitive.AkSkSinkCredential)
-		return client.NewAwsLambdaClient(_credential.AccessKeyID, _credential.SecretAccessKey, string(sink))
+		_credential, _ := cfg.credential.(*primitive.AkSkSinkCredential)
+		return client.NewAwsLambdaClient(_credential.AccessKeyID, _credential.SecretAccessKey, sink)
 	case primitive.GCloudFunctions:
-		_credential, _ := credential.(*primitive.GCloudSinkCredential)
-		return client.NewGCloudFunctionClient(string(sink), _credential.CredentialJSON)
+		_credential, _ := cfg.credential.(*primitive.GCloudSinkCredential)
+		return client.NewGCloudFunctionClient(sink, _credential.CredentialJSON)
 	case primitive.GRPC:
-		return client.NewGRPCClient(string(sink))
+		return client.NewGRPCClient(sink)
 	default:
-		return client.NewHTTPClient(string(sink))
+		if cfg.gateway != nil {
+			return client.NewHTTPClientWithGateway(sink, cfg.gateway.Address, cfg.gateway.TargetHeaderName)
+		}
+		return client.NewHTTPClient(sink)
 	}
 }
 

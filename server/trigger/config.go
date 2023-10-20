@@ -19,14 +19,16 @@ import (
 	"time"
 
 	"github.com/vanus-labs/vanus/pkg/observability"
+	"github.com/vanus-labs/vanus/server/trigger/trigger"
 )
 
 type Config struct {
 	Observability  observability.Config `yaml:"observability"`
 	TriggerAddr    string
-	Port           int      `yaml:"port"`
-	IP             string   `yaml:"ip"`
-	ControllerAddr []string `yaml:"controllers"`
+	Port           int                    `yaml:"port"`
+	IP             string                 `yaml:"ip"`
+	ControllerAddr []string               `yaml:"controllers"`
+	Gateway        *trigger.TargetGateway `yaml:"gateway"`
 
 	HeartbeatInterval time.Duration `yaml:"heartbeat_interval"`
 	// send event goroutine size
