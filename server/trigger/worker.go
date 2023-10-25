@@ -253,7 +253,7 @@ func (w *worker) getAllSubscriptionInfo(ctx context.Context) []*metapb.Subscript
 func (w *worker) getTriggerOptions(subscription *primitive.Subscription) []trigger.Option {
 	opts := []trigger.Option{trigger.WithControllers(w.config.ControllerAddr)}
 	config := subscription.Config
-	//todo use subscription config replace global config
+	// todo use subscription config replace global config
 	disableDeadLetter := config.DisableDeadLetter
 	if w.config.DisableDeadLetter != nil {
 		disableDeadLetter = *w.config.DisableDeadLetter
