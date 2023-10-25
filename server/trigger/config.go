@@ -38,5 +38,7 @@ type Config struct {
 	// var client read event from segment batch size.
 	PullEventBatchSize int `yaml:"pull_event_batch_size"`
 	// max uack event number
-	MaxUACKEventNumber int `yaml:"max_uack_event_number"`
+	MaxUACKEventNumber int   `yaml:"max_uack_event_number"`
+	DisableDeadLetter  *bool `yaml:"disable_dead_letter"`
+	OrderEvent         *bool `yaml:"order_event"`
 }
