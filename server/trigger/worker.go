@@ -253,11 +253,20 @@ func (w *worker) getAllSubscriptionInfo(ctx context.Context) []*metapb.Subscript
 func (w *worker) getTriggerOptions(subscription *primitive.Subscription) []trigger.Option {
 	opts := []trigger.Option{trigger.WithControllers(w.config.ControllerAddr)}
 	config := subscription.Config
+	//todo use subscription config replace global config
+	disableDeadLetter := config.DisableDeadLetter
+	if w.config.DisableDeadLetter != nil {
+		disableDeadLetter = *w.config.DisableDeadLetter
+	}
+	orderEvent := config.OrderedEvent
+	if w.config.OrderEvent != nil {
+		orderEvent = *w.config.OrderEvent
+	}
 	opts = append(opts, trigger.WithRateLimit(config.RateLimit),
 		trigger.WithDeliveryTimeout(config.DeliveryTimeout),
 		trigger.WithMaxRetryAttempts(config.GetMaxRetryAttempts()),
-		trigger.WithDisableDeadLetter(config.DisableDeadLetter),
-		trigger.WithOrdered(config.OrderedEvent),
+		trigger.WithDisableDeadLetter(disableDeadLetter),
+		trigger.WithOrdered(orderEvent),
 		trigger.WithGoroutineSize(w.config.SendEventGoroutineSize),
 		trigger.WithSendBatchSize(w.config.SendEventBatchSize),
 		trigger.WithPullBatchSize(w.config.PullEventBatchSize),
