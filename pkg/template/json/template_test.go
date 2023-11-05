@@ -27,6 +27,18 @@ import (
 )
 
 func TestTemplate_Execute(t *testing.T) {
+	Convey("empty array and empty object", t, func() {
+		model := map[string]interface{}{}
+		variables := map[string]interface{}{}
+
+		tp, err := Compile(`[{"empty array":[],"empty object":{}}]`)
+		So(err, ShouldBeNil)
+
+		v, err := tp.Execute(model, variables)
+		So(err, ShouldBeNil)
+		So(string(v), ShouldEqual, `[{"empty array":[],"empty object":{}}]`)
+	})
+
 	Convey("refer variables", t, func() {
 		model := map[string]interface{}{}
 		variables := map[string]interface{}{}
