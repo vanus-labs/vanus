@@ -79,13 +79,13 @@ func (g *templateGenerator) generate(root templateNode) []templateSegment {
 }
 
 func (g *templateGenerator) generateObjectNode(node *objectNode, i int) bool {
+	if i == 0 {
+		g.buf.WriteByte('{')
+	}
+
 	if i >= len(node.members) {
 		g.buf.WriteByte('}')
 		return false
-	}
-
-	if i == 0 {
-		g.buf.WriteByte('{')
 	}
 
 	mn := node.members[i]
@@ -114,13 +114,13 @@ func (g *templateGenerator) generateObjectNode(node *objectNode, i int) bool {
 }
 
 func (g *templateGenerator) generateArrayNode(node *arrayNode, i int) bool {
+	if i == 0 {
+		g.buf.WriteByte('[')
+	}
+
 	if i >= len(node.elements) {
 		g.buf.WriteByte(']')
 		return false
-	}
-
-	if i == 0 {
-		g.buf.WriteByte('[')
 	}
 
 	en := node.elements[i]
