@@ -73,7 +73,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/gateway:d03f5ed
+        image: public.ecr.aws/vanus/gateway:2adbb0f
         imagePullPolicy: IfNotPresent
         name: gateway
         ports:

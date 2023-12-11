@@ -4,6 +4,10 @@ data:
     port: 2148
     ip : ${POD_IP}
     send_event_goroutine_size: 1000
+    disable_dead_letter: true
+    gateway:
+      address: http://sink-gateway.vanus
+      header_name: X-Vanus-Target-Gateway
     controllers:
       - vanus-controller-0.vanus-controller.vanus-standby.svc:2048
       - vanus-controller-1.vanus-controller.vanus-standby.svc:2048
@@ -61,7 +65,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: public.ecr.aws/vanus/trigger:d03f5ed
+        image: public.ecr.aws/vanus/trigger:00d9a94
         imagePullPolicy: IfNotPresent
         name: trigger
         ports:
