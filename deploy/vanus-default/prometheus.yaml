@@ -48,6 +48,29 @@ subjects:
   namespace: vanus-default
 ---
 apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    prometheus.io/port: "9090"
+    prometheus.io/scrape: "true"
+  name: prometheus
+  namespace: vanus-standby
+spec:
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+    - name: prometheus
+      port: 9090
+      protocol: TCP
+      targetPort: 9090
+  selector:
+    app: prometheus
+  sessionAffinity: None
+  type: NodePort
+---
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: config-prometheus
