@@ -19,8 +19,8 @@ import (
 	"testing"
 
 	// third-party libraries.
-	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+	"go.uber.org/mock/gomock"
 
 	// first-party libraries.
 	vanus "github.com/vanus-labs/vanus/api/vsr"

@@ -16,8 +16,8 @@ package testing
 
 import (
 	// third-party libraries.
-	. "github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+	. "go.uber.org/mock/gomock"
 
 	// this project.
 	"github.com/vanus-labs/vanus/server/store/block"

@@ -14,7 +14,7 @@
 
 package storage
 
-import "github.com/golang/mock/gomock"
+import "go.uber.org/mock/gomock"
 
 type MockStorage struct {
 	*MockOffsetStorage

@@ -10,7 +10,6 @@ require (
 	github.com/cloudevents/sdk-go/v2 v2.14.0
 	github.com/fatih/color v1.15.0
 	github.com/gogo/protobuf v1.3.2
-	github.com/golang/mock v1.6.0
 	github.com/google/cel-go v0.14.0
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
@@ -35,6 +34,7 @@ require (
 	go.opentelemetry.io/otel v1.14.0
 	go.opentelemetry.io/otel/trace v1.14.0
 	go.uber.org/atomic v1.10.0
+	go.uber.org/mock v0.4.0
 	go.uber.org/ratelimit v0.2.0
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	golang.org/x/time v0.3.0

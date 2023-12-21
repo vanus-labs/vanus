@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=authorization.go -destination=mock_authorization.go -package=authorization
 package authorization
 
 import (
@@ -21,7 +22,6 @@ import (
 	vanus "github.com/vanus-labs/vanus/api/vsr"
 )
 
-//go:generate mockgen -source=authorization.go -destination=mock_authorization.go -package=authorization
 type Authorization interface {
 	Authorize(ctx context.Context, user string, attributes Attributes) (bool, error)
 }

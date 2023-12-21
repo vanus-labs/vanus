@@ -7,9 +7,9 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
 	controller "github.com/vanus-labs/vanus/api/controller"
 	meta "github.com/vanus-labs/vanus/api/meta"
+	gomock "go.uber.org/mock/gomock"
 	grpc "google.golang.org/grpc"
 	metadata "google.golang.org/grpc/metadata"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"

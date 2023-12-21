@@ -25,9 +25,9 @@ import (
 
 	// third-party libraries.
 	v2 "github.com/cloudevents/sdk-go/v2"
-	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/tidwall/gjson"
+	"go.uber.org/mock/gomock"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"

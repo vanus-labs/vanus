@@ -4,11 +4,11 @@ go 1.19
 
 require (
 	github.com/cloudevents/sdk-go/v2 v2.14.0
-	github.com/golang/mock v1.6.0
 	github.com/pkg/errors v0.9.1
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/vanus-labs/vanus/pkg/observability v0.0.0-00010101000000-000000000000
 	github.com/vanus-labs/vanus/pkg/raft v0.9.0
+	go.uber.org/mock v0.4.0
 	golang.org/x/oauth2 v0.7.0
 	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0

@@ -24,9 +24,9 @@ import (
 	"time"
 
 	ce "github.com/cloudevents/sdk-go/v2"
-	. "github.com/golang/mock/gomock"
 	. "github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
+	. "go.uber.org/mock/gomock"
 
 	"github.com/vanus-labs/vanus/api/cluster"
 	ctrlpb "github.com/vanus-labs/vanus/api/controller"

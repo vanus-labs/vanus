@@ -4,12 +4,12 @@ go 1.19
 
 require (
 	github.com/cloudevents/sdk-go/v2 v2.14.0
-	github.com/golang/mock v1.6.0
 	github.com/scylladb/go-set v1.0.2
 	github.com/vanus-labs/vanus/api v0.9.0
 	github.com/vanus-labs/vanus/pkg/observability v0.9.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.40.0
 	go.opentelemetry.io/otel/trace v1.14.0
+	go.uber.org/mock v0.4.0
 	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0
 )

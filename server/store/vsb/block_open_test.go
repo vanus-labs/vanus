@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	// third-party libraries.
-	. "github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+	. "go.uber.org/mock/gomock"
 
 	// this project.
 	idxtest "github.com/vanus-labs/vanus/server/store/vsb/index/testing"
