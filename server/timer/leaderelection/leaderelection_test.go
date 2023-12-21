@@ -19,10 +19,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	. "github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
 	"go.etcd.io/etcd/client/v3/concurrency"
+	"go.uber.org/mock/gomock"
 )
 
 func TestLeaderElection_NewLeaderElection(t *testing.T) {

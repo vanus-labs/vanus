@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=client.go -destination=mock_client.go -package=authorization
 package authorization
 
 import (
@@ -23,7 +24,6 @@ import (
 	vanus "github.com/vanus-labs/vanus/api/vsr"
 )
 
-//go:generate mockgen -source=client.go -destination=mock_client.go -package=authorization
 type RoleClient interface {
 	// IsClusterAdmin check the use is cluster admin.
 	IsClusterAdmin(ctx context.Context, user string) (bool, error)

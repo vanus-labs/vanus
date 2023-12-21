@@ -20,8 +20,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/vanus-labs/vanus/api/cluster"

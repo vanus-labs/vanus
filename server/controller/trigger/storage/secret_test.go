@@ -19,8 +19,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+	"go.uber.org/mock/gomock"
 
 	primitive "github.com/vanus-labs/vanus/pkg"
 	"github.com/vanus-labs/vanus/pkg/crypto/aes"

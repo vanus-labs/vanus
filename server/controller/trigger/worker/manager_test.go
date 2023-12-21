@@ -20,9 +20,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
+	"go.uber.org/mock/gomock"
 
 	vanus "github.com/vanus-labs/vanus/api/vsr"
 	"github.com/vanus-labs/vanus/pkg/observability/log"

@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+	"go.uber.org/mock/gomock"
 
 	ctrlpb "github.com/vanus-labs/vanus/api/controller"
 	metapb "github.com/vanus-labs/vanus/api/meta"

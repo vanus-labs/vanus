@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 	time "time"
 
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 	controller "github.com/vanus-labs/vanus/api/controller"
 	meta "github.com/vanus-labs/vanus/api/meta"
 )

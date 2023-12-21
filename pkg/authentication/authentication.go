@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -source=authentication.go -destination=mock_authentication.go -package=authentication
 package authentication
 
 import (
@@ -23,7 +24,6 @@ import (
 	"github.com/vanus-labs/vanus/pkg/observability/log"
 )
 
-//go:generate mockgen -source=authentication.go -destination=mock_authentication.go -package=authentication
 type Authentication interface {
 	// Authenticate check token valid and return user identifier
 	Authenticate(ctx context.Context, token string) (string, error)

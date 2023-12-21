@@ -24,9 +24,9 @@ import (
 
 	ce "github.com/cloudevents/sdk-go/v2"
 	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
-	. "github.com/golang/mock/gomock"
 	. "github.com/prashantv/gostub"
 	. "github.com/smartystreets/goconvey/convey"
+	. "go.uber.org/mock/gomock"
 
 	"github.com/vanus-labs/vanus/api/cluster"
 	metapb "github.com/vanus-labs/vanus/api/meta"
