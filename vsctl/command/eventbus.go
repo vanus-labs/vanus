@@ -17,6 +17,7 @@ package command
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
+	"github.com/vanus-labs/vanus/internal/primitive"
 	"github.com/vanus-labs/vanus/internal/primitive/vanus"
 	ctrlpb "github.com/vanus-labs/vanus/proto/pkg/controller"
 	metapb "github.com/vanus-labs/vanus/proto/pkg/meta"
@@ -58,12 +60,39 @@ func createEventbusCommand() *cobra.Command {
 			if eventbus == "" {
 				cmdFailedf(cmd, "the --name flag MUST be set")
 			}
-			eb, err := client.CreateEventbus(context.Background(), &ctrlpb.CreateEventbusRequest{
+			var ebID uint64
+			if idStr != "" {
+				vID, err := vanus.NewIDFromString(idStr)
+				if err != nil {
+					cmdFailedWithHelpNotice(cmd, fmt.Sprintf("invalid eventbus id: %s\n", err.Error()))
+				}
+				ebID = vID.Uint64()
+			}
+			var nsID uint64
+			if namespaceIDStr != "" {
+				vID, err := vanus.NewIDFromString(idStr)
+				if err != nil {
+					cmdFailedWithHelpNotice(cmd, fmt.Sprintf("invalid eventbus id: %s\n", err.Error()))
+				}
+				nsID = vID.Uint64()
+			}
+			req := &ctrlpb.CreateEventbusRequest{
 				Name:        eventbus,
+				Id:          ebID,
 				LogNumber:   eventlogNum,
 				Description: description,
-				NamespaceId: mustGetNamespaceID(namespace).Uint64(),
-			})
+				NamespaceId: nsID,
+			}
+			if req.NamespaceId == 0 {
+				req.NamespaceId = mustGetNamespaceID(namespace).Uint64()
+			}
+			var eb *metapb.Eventbus
+			var err error
+			if namespace == primitive.SystemNamespace {
+				eb, err = client.CreateEventbus(context.Background(), req)
+			} else {
+				eb, err = client.CreateEventbus(context.Background(), req)
+			}
 			if err != nil {
 				cmdFailedf(cmd, "create eventbus failed: %s", Error(err))
 			}
@@ -84,7 +113,9 @@ func createEventbusCommand() *cobra.Command {
 			}
 		},
 	}
+	cmd.Flags().StringVar(&idStr, "id", "", "eventbus id to create")
 	cmd.Flags().StringVar(&namespace, "namespace", "default", "namespace name to create eventbus, default name is default")
+	cmd.Flags().StringVar(&namespaceIDStr, "namespaceID", "", "namespace id to create eventbus")
 	cmd.Flags().StringVar(&eventbus, "name", "", "eventbus name to create")
 	cmd.Flags().Int32Var(&eventlogNum, "eventlog", 1, "number of eventlog")
 	cmd.Flags().StringVar(&description, "description", "", "subscription description")
@@ -131,14 +162,14 @@ func getEventbusInfoCommand() *cobra.Command {
 		Use:   "info [flag] ",
 		Short: "get the eventbus info",
 		Run: func(cmd *cobra.Command, args []string) {
-			if eventbus == "" && (len(args) == 0 || args[0] == "") {
+			if eventbus == "" {
 				cmdFailedf(cmd, "the eventbus must be set")
 			}
 
 			segs := make(map[uint64][]*metapb.Segment)
 			ctx := context.Background()
 			res, err := client.GetEventbus(ctx,
-				wrapperspb.UInt64(mustGetEventbusID(namespace, args[0]).Uint64()))
+				wrapperspb.UInt64(mustGetEventbusID(namespace, eventbus).Uint64()))
 			if err != nil {
 				cmdFailedf(cmd, "get eventbus failed: %s", Error(err))
 			}
